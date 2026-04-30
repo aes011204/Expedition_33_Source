@@ -463,6 +463,11 @@ Engine/Bin/x86/
 
 # Project-local dependencies and generated docs
 vcpkg_installed/
+!/EngineSDK/lib/
+!/EngineSDK/lib/Debug/
+!/EngineSDK/lib/Debug/**
+!/EngineSDK/lib/Release/
+!/EngineSDK/lib/Release/**
 /EngineSDK/inc/Engine/
 .agent/
 .claude/
