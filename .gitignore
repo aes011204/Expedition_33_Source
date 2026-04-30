@@ -50,6 +50,8 @@ bld/
 
 !Client/Bin/
 !Client/Bin/**
+!Engine/Bin/
+!Engine/Bin/**
 
 vcpkg_installed/
 
@@ -439,4 +441,6 @@ FodyWeavers.xsd
 .claude/
 
 Client/Bin/Client.lib
+Client/Bin/Client.dll
 Client/Bin/Engine.dll
+Engine/Bin/Engine.dll
