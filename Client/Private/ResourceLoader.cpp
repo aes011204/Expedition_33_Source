@@ -245,7 +245,7 @@ HRESULT ResourceLoader::Build_ModelJobs(const wstring& strTablePath, vector<FLoa
 		LoadJob.iLevelIndex = Get_LevelIndex_FromString(strLevel);
 		LoadJob.strPrototypeTag = ToWString(strId);
 		LoadJob.strPath = ToWString(strPath);
-		LoadJob.strModelType = Read_String(JsonItem, "ModelType", "modelType", "NONANIM");
+		LoadJob.strModelType = Read_String(JsonItem, "ModelType", "modelType", "NonAnim");
 		LoadJob.fScaleX = Read_Float(JsonItem, "ScaleX", "scaleX", 1.f);
 		LoadJob.fScaleY = Read_Float(JsonItem, "ScaleY", "scaleY", 1.f);
 		LoadJob.fScaleZ = Read_Float(JsonItem, "ScaleZ", "scaleZ", 1.f);
@@ -419,7 +419,7 @@ HRESULT ResourceLoader::Register_LoadJob(const FLoadJob& LoadJob)
 
 	case ELoadJobType::Model:
 	{
-		const ModelType eModelType = ("ANIM" == LoadJob.strModelType || "Anim" == LoadJob.strModelType) ? ModelType::ANIM : ModelType::NONANIM;
+		const ModelType eModelType = ("ANIM" == LoadJob.strModelType || "Anim" == LoadJob.strModelType) ? ModelType::Anim : ModelType::NonAnim;
 		const XMMATRIX PreLocalTransformMatrix = XMMatrixScaling(LoadJob.fScaleX, LoadJob.fScaleY, LoadJob.fScaleZ) * XMMatrixRotationY(XMConvertToRadians(LoadJob.fRotY));
 		const string strPath = ToString(LoadJob.strPath);
 

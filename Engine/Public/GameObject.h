@@ -75,7 +75,7 @@ public:
         Shared<Component> component =
             dynamic_pointer_cast<Component>(
                 GAME->Clone_Prototype(
-                    Prototype::COMPONENT,
+                    Prototype::Comopnent,
                     prototpyeLevelIndex,
                     strPrototypeTag,
                     arg));

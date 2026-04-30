@@ -22,13 +22,11 @@ MainApp::MainApp()
 
 HRESULT MainApp::Initialize()
 {
-	/* 내 게임을 구동하기위한 기초 초기화작업을 수행한다. */
-
 	/* 엔진을 이용하기위해 엔진프로젝트를 준비시킨다. */
 	ENGINE_DESC		EngineDesc{};
 	EngineDesc.hInstance = g_hInst;
 	EngineDesc.hWnd = g_hWnd;
-	EngineDesc.eWinMode = WinMode::WIN;
+	EngineDesc.eWinMode = WinMode::Win;
 	EngineDesc.iNumLevels = ETOI(LevelType::END);
 	EngineDesc.iViewportWidth = g_iWinSizeX;
 	EngineDesc.iViewportHeight = g_iWinSizeY;
@@ -96,7 +94,6 @@ HRESULT MainApp::Ready_StartLevel(LevelType eStartLevelID)
 {
 	if (LevelType::Loading == eStartLevelID)
 		return E_FAIL;
-
 
 	if (FAILED(_gameInstance->Change_Level(ETOI(LevelType::Loading), Level_Loading::Create(_device.Get(), _context.Get(), eStartLevelID))))
 		return E_FAIL;

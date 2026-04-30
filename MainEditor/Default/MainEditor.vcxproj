@@ -181,7 +181,7 @@ if exist "$(ProjectDir)..\..\Client\Bin\assimp-vc143-mt.dll" xcopy /y /d "$(Proj
     </ClCompile>
     <ClCompile Include="MainEditor.cpp" />
     <ClCompile Include="..\Private\EditorInstance.cpp" />
-    <ClCompile Include="..\Private\EditorWindow.cpp" />
+    <ClCompile Include="..\Private\Editor_Window.cpp" />
     <ClCompile Include="..\Private\Editor_Manager.cpp" />
     <ClCompile Include="..\Private\Scene_View.cpp" />
     <ClCompile Include="..\Private\Game_View.cpp" />
@@ -192,7 +192,7 @@ if exist "$(ProjectDir)..\..\Client\Bin\assimp-vc143-mt.dll" xcopy /y /d "$(Proj
   <ItemGroup>
     <ClInclude Include="pch.h" />
     <ClInclude Include="..\Public\EditorInstance.h" />
-    <ClInclude Include="..\Public\EditorWindow.h" />
+    <ClInclude Include="..\Public\Editor_Window.h" />
     <ClInclude Include="..\Public\Editor_Defines.h" />
     <ClInclude Include="..\Public\Editor_ImGuiInclude.h" />
     <ClInclude Include="..\Public\Editor_Manager.h" />

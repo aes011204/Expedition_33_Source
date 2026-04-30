@@ -37,8 +37,8 @@ HRESULT UIObject::Initialize(void* pArg)
 
 	Update_Transform();
 
-	XMStoreFloat4x4(&_transformMatrices[ETOI(D3DTS::VIEW)], XMMatrixIdentity());
-	XMStoreFloat4x4(&_transformMatrices[ETOI(D3DTS::PROJ)], XMMatrixOrthographicLH(_viewPortWidth, _viewPortHeight, 0.f, 1.f));
+	XMStoreFloat4x4(&_transformMatrices[ETOI(D3DTS::View)], XMMatrixIdentity());
+	XMStoreFloat4x4(&_transformMatrices[ETOI(D3DTS::Proj)], XMMatrixOrthographicLH(_viewPortWidth, _viewPortHeight, 0.f, 1.f));
 
 	return S_OK;
 }
@@ -63,7 +63,7 @@ HRESULT UIObject::Render()
 void UIObject::Update_Transform()
 {
 	_transformCom->SetUp_Scale(_sizeX, _sizeY, 1.f);
-	_transformCom->Set_State(State::POSITION,
+	_transformCom->Set_State(State::Position,
 		XMVectorSet(_positionX - _viewPortWidth * 0.5f, -_positionY + _viewPortHeight * 0.5f, 0.f, 1.f));
 }
 

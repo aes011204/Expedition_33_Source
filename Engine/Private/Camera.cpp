@@ -30,7 +30,7 @@ HRESULT Camera::Initialize(void* pArg)
 
 	CAMERA_DESC* pDesc = static_cast<CAMERA_DESC*>(pArg);
 
-	_transformCom->Set_State(State::POSITION, XMLoadFloat4(&pDesc->vEye));
+	_transformCom->Set_State(State::Position, XMLoadFloat4(&pDesc->vEye));
 	_transformCom->LookAt(XMLoadFloat4(&pDesc->vAt));
 
 	uint32 iNumViewports = 1;
@@ -66,10 +66,10 @@ HRESULT Camera::Render()
 
 void Camera::Update_TransformMatrices()
 {
-	GAME->Set_Transform(D3DTS::VIEW,
+	GAME->Set_Transform(D3DTS::View,
 		XMMatrixInverse(nullptr, XMLoadFloat4x4(_transformCom->Get_WorldMatrixPtr())));
 
-	GAME->Set_Transform(D3DTS::PROJ,
+	GAME->Set_Transform(D3DTS::Proj,
 		XMMatrixPerspectiveFovLH(_fovy, _aspect, _near, _far));
 }
 

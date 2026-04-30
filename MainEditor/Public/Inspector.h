@@ -1,10 +1,10 @@
 ﻿#pragma once
 
-#include "EditorWindow.h"
+#include "Editor_Window.h"
 
 NS_BEGIN(MainEditor)
 
-class Inspector final : public EditorWindow
+class Inspector final : public Editor_Window
 {
 public:
     /* 선택된 오브젝트와 컴포넌트 속성을 보여줄 인스펙터 창을 생성한다. */

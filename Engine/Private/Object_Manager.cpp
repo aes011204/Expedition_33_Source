@@ -23,7 +23,7 @@ HRESULT Object_Manager::Add_GameObject(uint32 iPrototypeLevelIndex, const wstrin
 		return E_FAIL;
 	}
 
-	Shared<GameObject> pGameObject = static_pointer_cast<GameObject>(GAME->Clone_Prototype(Prototype::GAMEOBJECT, iPrototypeLevelIndex, strPrototypeTag, pArg));
+	Shared<GameObject> pGameObject = static_pointer_cast<GameObject>(GAME->Clone_Prototype(Prototype::GameObject, iPrototypeLevelIndex, strPrototypeTag, pArg));
 	if (nullptr == pGameObject)
 	{
 		MSG_BOX("Failed To Added : CloneGameObject");

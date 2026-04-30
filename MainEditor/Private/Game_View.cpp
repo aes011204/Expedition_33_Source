@@ -6,7 +6,7 @@
 #include "RenderTarget.h"
 
 Game_View::Game_View()
-    : EditorWindow{ L"Game" }
+    : Editor_Window{ L"Game" }
 {
 }
 

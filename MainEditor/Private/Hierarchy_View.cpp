@@ -4,7 +4,7 @@
 #include "Utils.h"
 
 Hierarchy_View::Hierarchy_View()
-    : EditorWindow{ L"Hierarchy" }
+    : Editor_Window{ L"Hierarchy" }
 {
 }
 

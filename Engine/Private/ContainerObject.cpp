@@ -55,7 +55,7 @@ HRESULT ContainerObject::Add_PartObject(uint32 iPrototypeLevelIndex, const wstri
 	if (nullptr != Find_PartObject(strPartTag))
 		return E_FAIL;
 
-	Shared<PartObject> pPartObject = static_pointer_cast<PartObject>(GAME->Clone_Prototype(Prototype::GAMEOBJECT, iPrototypeLevelIndex, strPrototypeTag, pArg));
+	Shared<PartObject> pPartObject = static_pointer_cast<PartObject>(GAME->Clone_Prototype(Prototype::GameObject, iPrototypeLevelIndex, strPrototypeTag, pArg));
 	if (nullptr == pPartObject)
 		return E_FAIL;
 

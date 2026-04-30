@@ -1,19 +1,19 @@
-﻿#include "EditorWindow.h"
+﻿#include "Editor_Window.h"
 
 #include "Editor_ImGuiInclude.h"
 #include "Utils.h"
 
-EditorWindow::EditorWindow(const wstring& strWindowName)
+Editor_Window::Editor_Window(const wstring& strWindowName)
 	: _window{ strWindowName }
 {
 }
 
-void EditorWindow::Update(float fTimeDelta)
+void Editor_Window::Update(float fTimeDelta)
 {
 	UNREFERENCED_PARAMETER(fTimeDelta);
 }
 
-void EditorWindow::Render()
+void Editor_Window::Render()
 {
 	if (!_isOpen)
 		return;
@@ -26,17 +26,17 @@ void EditorWindow::Render()
 	ImGui::End();
 }
 
-void EditorWindow::Set_Open(bool bOpen)
+void Editor_Window::Set_Open(bool bOpen)
 {
 	_isOpen = bOpen;
 }
 
-const wstring& EditorWindow::Get_WindowName() const
+const wstring& Editor_Window::Get_WindowName() const
 {
 	return _window;
 }
 
-bool EditorWindow::Is_Open() const
+bool Editor_Window::Is_Open() const
 {
 	return _isOpen;
 }

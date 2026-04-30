@@ -48,7 +48,7 @@ void FreeCamera::Priority_Update(float fTimeDelta)
 		_transformCom->Turn(XMVectorSet(0.f, 1.f, 0.f, 0.f), fTimeDelta * vMouseDelta.x * m_fMouseSensor);
 
 	if (0.f != vMouseDelta.y)
-		_transformCom->Turn(_transformCom->Get_State(State::RIGHT), fTimeDelta * vMouseDelta.y * m_fMouseSensor);
+		_transformCom->Turn(_transformCom->Get_State(State::Right), fTimeDelta * vMouseDelta.y * m_fMouseSensor);
 
 	__super::Update_TransformMatrices();
 }

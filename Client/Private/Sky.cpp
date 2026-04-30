@@ -1,4 +1,4 @@
-#include "Sky.h"
+﻿#include "Sky.h"
 #include "GameInstance.h"
 
 Sky::Sky(ComPtr<Device> device, ComPtr<Context> context)
@@ -34,13 +34,13 @@ void Sky::Priority_Update(float fTimeDelta)
 
 void Sky::Update(float fTimeDelta)
 {
-	_transformCom->Set_State(State::POSITION,
+	_transformCom->Set_State(State::Position,
 		XMLoadFloat4(GAME->Get_CamPosition()));
 }
 
 void Sky::Late_Update(float fTimeDelta)
 {
- 	GAME->Add_RenderGroup(RenderGroup::PRIORITY, this);
+ 	GAME->Add_RenderGroup(RenderGroup::Priority, GetSharedPtr<GameObject>());
 }
 
 HRESULT Sky::Render()
@@ -80,10 +80,10 @@ HRESULT Sky::Bind_ShaderResources()
 	if (FAILED(_transformCom->Bind_ShaderResource(_shader.get(), "g_WorldMatrix")))
 		return E_FAIL;
 
-	if (FAILED(GAME->Bind_TransformMatrix(D3DTS::VIEW, _shader.get(), "g_ViewMatrix")))
+	if (FAILED(GAME->Bind_TransformMatrix(D3DTS::View, _shader.get(), "g_ViewMatrix")))
 		return E_FAIL;
 
-	if (FAILED(GAME->Bind_TransformMatrix(D3DTS::PROJ, _shader.get(), "g_ProjMatrix")))
+	if (FAILED(GAME->Bind_TransformMatrix(D3DTS::Proj, _shader.get(), "g_ProjMatrix")))
 		return E_FAIL;
 
 	if (FAILED(_texture->Bind_ShaderResourceView(_shader.get(), "g_Texture", 2)))

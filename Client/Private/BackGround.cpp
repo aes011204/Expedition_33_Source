@@ -1,4 +1,4 @@
-#include "BackGround.h"
+﻿#include "BackGround.h"
 #include "GameInstance.h"
 
 BackGround::BackGround(ComPtr<Device> device, ComPtr<Context> context)
@@ -52,7 +52,7 @@ void BackGround::Update(float timeDelta)
 
 void BackGround::Late_Update(float timeDelta)
 {
- 	GAME->Add_RenderGroup(RenderGroup::UI, this);
+ 	GAME->Add_RenderGroup(RenderGroup::UI, GetSharedPtr<GameObject>());
 }
 
 HRESULT BackGround::Render()
@@ -60,10 +60,10 @@ HRESULT BackGround::Render()
 	if (FAILED(_transformCom->Bind_ShaderResource(_shader.get(), "g_WorldMatrix")))
 		return E_FAIL;
 
-	if (FAILED(__super::Bind_ShaderResource(_shader.get(), "g_ViewMatrix", D3DTS::VIEW)))
+	if (FAILED(__super::Bind_ShaderResource(_shader.get(), "g_ViewMatrix", D3DTS::View)))
 		return E_FAIL;
 
-	if (FAILED(__super::Bind_ShaderResource(_shader.get(), "g_ProjMatrix", D3DTS::PROJ)))
+	if (FAILED(__super::Bind_ShaderResource(_shader.get(), "g_ProjMatrix", D3DTS::Proj)))
 		return E_FAIL;
 
 	if (FAILED(_texture->Bind_ShaderResourceView(_shader.get(), "g_Texture", 0)))

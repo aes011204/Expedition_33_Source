@@ -6,7 +6,7 @@
 #include "RenderTarget.h"
 
 Scene_View::Scene_View()
-    : EditorWindow{ L"Scene" }
+    : Editor_Window{ L"Scene" }
 {
 }
 

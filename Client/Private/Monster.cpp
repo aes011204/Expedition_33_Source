@@ -1,4 +1,4 @@
-#include "Monster.h"
+﻿#include "Monster.h"
 #include "GameInstance.h"
 
 Monster::Monster(ComPtr<Device> device, ComPtr<Context> context)
@@ -25,7 +25,7 @@ HRESULT Monster::Initialize(void* pArg)
 	if (FAILED(Ready_Components()))
 		return E_FAIL;
 
-	_transformCom->Set_State(State::POSITION, XMVectorSet(
+	_transformCom->Set_State(State::Position, XMVectorSet(
 		GAME->Random(0.f, 10.f), 
 		2.f, 
 		GAME->Random(0.f, 10.f),
@@ -50,7 +50,7 @@ void Monster::Update(float fTimeDelta)
 
 void Monster::Late_Update(float fTimeDelta)
 {
- 	GAME->Add_RenderGroup(RenderGroup::NONBLEND, this);
+ 	GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
 }
 
 HRESULT Monster::Render()
@@ -98,10 +98,10 @@ HRESULT Monster::Bind_ShaderResources()
 	if (FAILED(_transformCom->Bind_ShaderResource(_shader.get(), "g_WorldMatrix")))
 		return E_FAIL;
 
-	if (FAILED(GAME->Bind_TransformMatrix(D3DTS::VIEW, _shader.get(), "g_ViewMatrix")))
+	if (FAILED(GAME->Bind_TransformMatrix(D3DTS::View, _shader.get(), "g_ViewMatrix")))
 		return E_FAIL;
 
-	if (FAILED(GAME->Bind_TransformMatrix(D3DTS::PROJ, _shader.get(), "g_ProjMatrix")))
+	if (FAILED(GAME->Bind_TransformMatrix(D3DTS::Proj, _shader.get(), "g_ProjMatrix")))
 		return E_FAIL;
 
 

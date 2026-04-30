@@ -24,13 +24,13 @@ XMVECTOR Transform::Get_State(State eState) const
 
 	switch (eState)
 	{
-	case State::RIGHT:
+	case State::Right:
 		return ToVector(Vec3(WorldMatrix._11, WorldMatrix._12, WorldMatrix._13));
-	case State::UP:
+	case State::Up:
 		return ToVector(Vec3(WorldMatrix._21, WorldMatrix._22, WorldMatrix._23));
-	case State::LOOK:
+	case State::Look:
 		return ToVector(Vec3(WorldMatrix._31, WorldMatrix._32, WorldMatrix._33));
-	case State::POSITION:
+	case State::Position:
 		return ToVector(Vec3(WorldMatrix._41, WorldMatrix._42, WorldMatrix._43), 1.f);
 	default:
 		return XMVectorZero();
@@ -44,22 +44,22 @@ void Transform::Set_State(State eState, FXMVECTOR vState)
 
 	switch (eState)
 	{
-	case State::RIGHT:
+	case State::Right:
 		WorldMatrix._11 = vNewState.x;
 		WorldMatrix._12 = vNewState.y;
 		WorldMatrix._13 = vNewState.z;
 		break;
-	case State::UP:
+	case State::Up:
 		WorldMatrix._21 = vNewState.x;
 		WorldMatrix._22 = vNewState.y;
 		WorldMatrix._23 = vNewState.z;
 		break;
-	case State::LOOK:
+	case State::Look:
 		WorldMatrix._31 = vNewState.x;
 		WorldMatrix._32 = vNewState.y;
 		WorldMatrix._33 = vNewState.z;
 		break;
-	case State::POSITION:
+	case State::Position:
 		WorldMatrix._41 = vNewState.x;
 		WorldMatrix._42 = vNewState.y;
 		WorldMatrix._43 = vNewState.z;
@@ -194,7 +194,7 @@ void Transform::Set_LocalScale(const Vec3& vScale)
 
 Vec3 Transform::Get_WorldForward() const
 {
-	Vec3 vForward = ToVec3(Get_State(State::LOOK));
+	Vec3 vForward = ToVec3(Get_State(State::Look));
 	if (vForward.LengthSquared() > 0.f)
 		vForward.Normalize();
 
@@ -203,7 +203,7 @@ Vec3 Transform::Get_WorldForward() const
 
 Vec3 Transform::Get_WorldRight() const
 {
-	Vec3 vRight = ToVec3(Get_State(State::RIGHT));
+	Vec3 vRight = ToVec3(Get_State(State::Right));
 	if (vRight.LengthSquared() > 0.f)
 		vRight.Normalize();
 
@@ -212,7 +212,7 @@ Vec3 Transform::Get_WorldRight() const
 
 Vec3 Transform::Get_WorldUp() const
 {
-	Vec3 vUp = ToVec3(Get_State(State::UP));
+	Vec3 vUp = ToVec3(Get_State(State::Up));
 	if (vUp.LengthSquared() > 0.f)
 		vUp.Normalize();
 

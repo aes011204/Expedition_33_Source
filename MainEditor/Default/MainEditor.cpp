@@ -259,7 +259,7 @@ static bool Initialize_EditorRuntime()
 
     EDITOR_DESC editorDesc{};
     editorDesc.hWnd = g_hWnd;
-    editorDesc.eWinMode = WinMode::WIN;
+    editorDesc.eWinMode = WinMode::Win;
     editorDesc.iViewportWidth = 1600;
     editorDesc.iViewportHeight = 900;
 

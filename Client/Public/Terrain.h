@@ -14,7 +14,7 @@ NS_BEGIN(Client)
 class Terrain final : public GameObject
 {
 public:
-	enum TEXTURE { DIFFUSE, MASK, BRUSH, END };
+	enum TEXTURE { Diffuse, Mask, Brush, END };
 	typedef struct tagTerrainDesc final : public GameObject::GAMEOBJECT_DESC
 	{
 		

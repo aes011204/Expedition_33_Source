@@ -4,7 +4,7 @@
 #include "Utils.h"
 
 Content_Browser::Content_Browser()
-    : EditorWindow{ L"Content Browser" }
+    : Editor_Window{ L"Content Browser" }
     , _resourceRoot{ filesystem::path{ ".." } / "Bin" / "Resources" }
 {
 }

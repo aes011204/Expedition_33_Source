@@ -48,7 +48,7 @@ HRESULT Level_GamePlay::Ready_Lights()
 {
 	LIGHT_DESC			LightDesc{};
 
-	LightDesc.eType         = LightType::DIRECTIONAL;
+	LightDesc.eType         = LightType::Directional;
 	LightDesc.vDirection    = XMFLOAT4(1.f, -1.f, 1.f, 0.f);
 	LightDesc.vDiffuse      = XMFLOAT4(1.f, 1.f, 1.f, 1.f);
 	LightDesc.vAmbient      = XMFLOAT4(1.f, 1.f, 1.f, 1.f);

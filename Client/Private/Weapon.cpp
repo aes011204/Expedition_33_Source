@@ -1,4 +1,4 @@
-#include "Weapon.h"
+﻿#include "Weapon.h"
 #include "GameInstance.h"
 
 #include "Player.h"
@@ -34,9 +34,9 @@ HRESULT Weapon::Initialize(void* pArg)
 
 	_transformCom->SetUp_Scale(0.1f, 0.1f, 0.1f);
 	_transformCom->Rotation(XMVectorSet(0.f, 1.f, 0.f, 0.f), 90.f);
-	_transformCom->Set_State(State::POSITION, XMVectorSet(0.8f, 0.f, 0.f, 1.f));
+	_transformCom->Set_State(State::Position, XMVectorSet(0.8f, 0.f, 0.f, 1.f));
 
-	/*_transformCom->Set_State(State::POSITION, XMVectorSet(
+	/*_transformCom->Set_State(State::Position, XMVectorSet(
 		GAME->Random(0.f, 10.f),
 		2.f,
 		GAME->Random(0.f, 10.f),
@@ -65,7 +65,7 @@ void Weapon::Update(float fTimeDelta)
 
 void Weapon::Late_Update(float fTimeDelta)
 {
-	GAME->Add_RenderGroup(RenderGroup::NONBLEND, this);
+	GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
 }
 
 HRESULT Weapon::Render()
@@ -110,10 +110,10 @@ HRESULT Weapon::Bind_ShaderResources()
 	if (FAILED(_shader->Bind_Matrix("g_WorldMatrix", &_combinedWorldMatrix)))
 		return E_FAIL;
 
-	if (FAILED(GAME->Bind_TransformMatrix(D3DTS::VIEW, _shader.get(), "g_ViewMatrix")))
+	if (FAILED(GAME->Bind_TransformMatrix(D3DTS::View, _shader.get(), "g_ViewMatrix")))
 		return E_FAIL;
 
-	if (FAILED(GAME->Bind_TransformMatrix(D3DTS::PROJ, _shader.get(), "g_ProjMatrix")))
+	if (FAILED(GAME->Bind_TransformMatrix(D3DTS::Proj, _shader.get(), "g_ProjMatrix")))
 		return E_FAIL;
 
 

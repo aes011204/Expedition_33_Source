@@ -34,7 +34,7 @@ Shared<Base> Prototype_Manager::Clone_Prototype(Prototype ePrototype, uint32 iLe
 		return nullptr;
 
 	Shared<Base> pInstance = nullptr;
-	if (Prototype::COMPONENT == ePrototype)
+	if (Prototype::Comopnent == ePrototype)
 		pInstance = static_pointer_cast<Component>(pPrototype)->Clone(pArg);
 	else
 		pInstance = static_pointer_cast<GameObject>(pPrototype)->Clone(pArg);

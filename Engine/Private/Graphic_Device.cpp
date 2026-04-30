@@ -4,7 +4,7 @@ Graphic_Device::Graphic_Device()
 {
 }
 
-HRESULT Graphic_Device::Initialize(HWND hWnd, WinMode isWindowed, uint32 iWinSizeX, uint32 iWinSizeY, ComPtr<Device>& device, ComPtr<Context>& context)
+HRESULT Graphic_Device::Initialize(HWND hWnd, WinMode isWindowed, uint32 winSizeX, uint32 winSizeY, ComPtr<Device>& device, ComPtr<Context>& context)
 {
 	uint32 iFlag = 0;
 
@@ -17,27 +17,20 @@ HRESULT Graphic_Device::Initialize(HWND hWnd, WinMode isWindowed, uint32 iWinSiz
 	if (FAILED(D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, 0, iFlag, nullptr, 0, D3D11_SDK_VERSION, _device.GetAddressOf(), &FeatureLevel, _deviceContext.GetAddressOf())))
 		return E_FAIL;
 
-	if (FAILED(Ready_SwapChain(hWnd, isWindowed, iWinSizeX, iWinSizeY)))
+	if (FAILED(Ready_SwapChain(hWnd, isWindowed, winSizeX, winSizeY)))
 		return E_FAIL;
 
 	if (FAILED(Ready_BackBufferRenderTargetView()))
 		return E_FAIL;
 
-	if (FAILED(Ready_DepthStencilView(iWinSizeX, iWinSizeY)))
+	if (FAILED(Ready_DepthStencilView(winSizeX, winSizeY)))
 		return E_FAIL;
 
-	ID3D11RenderTargetView* pRTVs[] = { _backBufferRTV.Get() };
-	_deviceContext->OMSetRenderTargets(1, pRTVs, _depthStencilView.Get());
+    _viewportWidth = winSizeX;
+    _viewportHeight = winSizeY;
 
-	D3D11_VIEWPORT ViewPortDesc = {};
-	ViewPortDesc.TopLeftX = 0;
-	ViewPortDesc.TopLeftY = 0;
-	ViewPortDesc.Width = static_cast<float>(iWinSizeX);
-	ViewPortDesc.Height = static_cast<float>(iWinSizeY);
-	ViewPortDesc.MinDepth = 0.f;
-	ViewPortDesc.MaxDepth = 1.f;
-
-	_deviceContext->RSSetViewports(1, &ViewPortDesc);
+	// 초기화가 끝난 직후 백버퍼로 세팅
+    Bind_BackBuffer();
 
 	device = _device;
 	context = _deviceContext;
@@ -69,6 +62,52 @@ HRESULT Graphic_Device::Present()
 		return E_FAIL;
 
 	return _swapChain->Present(0, 0);
+}
+
+void Graphic_Device::Bind_BackBuffer()
+{
+    if (nullptr == _deviceContext || nullptr == _backBufferRTV)
+        return;
+
+    ID3D11RenderTargetView* pRTVs[] = { _backBufferRTV.Get() };
+	_deviceContext->OMSetRenderTargets(1, pRTVs, _depthStencilView.Get());
+
+	D3D11_VIEWPORT ViewPortDesc = {};
+	ViewPortDesc.TopLeftX = 0;
+	ViewPortDesc.TopLeftY = 0;
+	ViewPortDesc.Width = static_cast<float>(_viewportWidth);
+	ViewPortDesc.Height = static_cast<float>(_viewportHeight);
+	ViewPortDesc.MinDepth = 0.f;
+	ViewPortDesc.MaxDepth = 1.f;
+
+	_deviceContext->RSSetViewports(1, &ViewPortDesc);
+}
+
+HRESULT Graphic_Device::Resize(uint32 width, uint32 height)
+{
+    if (nullptr == _swapChain || 0 == width || 0 == height)
+        return E_FAIL;
+
+    _viewportWidth = width;
+    _viewportHeight = height;
+
+    _deviceContext->OMSetRenderTargets(0, nullptr, nullptr);
+
+    _backBufferRTV.Reset();
+    _depthStencilView.Reset();
+
+    if (FAILED(_swapChain->ResizeBuffers(0, width, height, DXGI_FORMAT_UNKNOWN, 0)))
+        return E_FAIL;
+
+    if (FAILED(Ready_BackBufferRenderTargetView()))
+        return E_FAIL;
+
+    if (FAILED(Ready_DepthStencilView(width, height)))
+        return E_FAIL;
+
+    Bind_BackBuffer();
+
+    return S_OK;
 }
 
 HRESULT Graphic_Device::Ready_SwapChain(HWND hWnd, WinMode isWindowed, uint32 iWinCX, uint32 iWinCY)

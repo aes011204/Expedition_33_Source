@@ -36,7 +36,7 @@ HRESULT Body_Player::Initialize(void* pArg)
 	if (FAILED(Ready_Components()))
 		return E_FAIL;
 
-	/*_transformCom->Set_State(State::POSITION, XMVectorSet(
+	/*_transformCom->Set_State(State::Position, XMVectorSet(
 		GAME->Random(0.f, 10.f),
 		2.f,
 		GAME->Random(0.f, 10.f),
@@ -54,7 +54,6 @@ void Body_Player::Priority_Update(float fTimeDelta)
 
 void Body_Player::Update(float fTimeDelta)
 {
-
 	if(*_parentState & Player::PLAYERSTATE::IDLE)
 		_model->Set_Animation(3, true);
 
@@ -70,7 +69,7 @@ void Body_Player::Update(float fTimeDelta)
 
 void Body_Player::Late_Update(float fTimeDelta)
 {
-	GAME->Add_RenderGroup(RenderGroup::NONBLEND, this);
+	GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
 }
 
 HRESULT Body_Player::Render()
@@ -112,10 +111,10 @@ HRESULT Body_Player::Bind_ShaderResources()
 	if (FAILED(_shader->Bind_Matrix("g_WorldMatrix", &_combinedWorldMatrix)))
 		return E_FAIL;
 
-	if (FAILED(GAME->Bind_TransformMatrix(D3DTS::VIEW, _shader.get(), "g_ViewMatrix")))
+	if (FAILED(GAME->Bind_TransformMatrix(D3DTS::View, _shader.get(), "g_ViewMatrix")))
 		return E_FAIL;
 
-	if (FAILED(GAME->Bind_TransformMatrix(D3DTS::PROJ, _shader.get(), "g_ProjMatrix")))
+	if (FAILED(GAME->Bind_TransformMatrix(D3DTS::Proj, _shader.get(), "g_ProjMatrix")))
 		return E_FAIL;
 
 

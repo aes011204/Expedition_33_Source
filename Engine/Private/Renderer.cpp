@@ -1,4 +1,4 @@
-#include "Renderer.h"
+﻿#include "Renderer.h"
 
 #include "GameInstance.h"
 #include "GameObject.h"
@@ -14,17 +14,14 @@ HRESULT Renderer::Initialize()
 	return S_OK;
 }
 
-void Renderer::Add_RenderGroup(RenderGroup eRenderGroup, GameObject* pGameObject)
+void Renderer::Add_RenderGroup(RenderGroup renderGroup, Shared<GameObject> gameObject)
 {
-	if (nullptr == pGameObject ||
-		eRenderGroup >= RenderGroup::END)
-	{
-		MSG_BOX("Failed to Add : Renderer");
-		return;
-	}
+    CHECK_NULL(gameObject);
 
-	_renderGroups[ETOI(eRenderGroup)].push_back(pGameObject->GetSharedPtr<GameObject>());
+    if (renderGroup < RenderGroup::Priority || renderGroup >= RenderGroup::END)
+        return;
 
+    _renderGroups[ETOI(renderGroup)].push_back(gameObject);
 }
 
 void Renderer::Draw()
@@ -40,38 +37,38 @@ void Renderer::Draw()
 
 void Renderer::Render_Priority()
 {
-	for (auto& pRenderObject : _renderGroups[ETOI(RenderGroup::PRIORITY)])
+	for (auto& pRenderObject : _renderGroups[ETOI(RenderGroup::Priority)])
 	{
 		Shared<GameObject> pGameObject = pRenderObject.lock();
 		if (nullptr != pGameObject)
 			pGameObject->Render();
 	}
 
-	_renderGroups[ETOI(RenderGroup::PRIORITY)].clear();
+	_renderGroups[ETOI(RenderGroup::Priority)].clear();
 }
 
 void Renderer::Render_NonBlend()
 {
-	for (auto& pRenderObject : _renderGroups[ETOI(RenderGroup::NONBLEND)])
+	for (auto& pRenderObject : _renderGroups[ETOI(RenderGroup::NonBlend)])
 	{
 		Shared<GameObject> pGameObject = pRenderObject.lock();
 		if (nullptr != pGameObject)
 			pGameObject->Render();
 	}
 
-	_renderGroups[ETOI(RenderGroup::NONBLEND)].clear();
+	_renderGroups[ETOI(RenderGroup::NonBlend)].clear();
 }
 
 void Renderer::Render_Blend()
 {
-	for (auto& pRenderObject : _renderGroups[ETOI(RenderGroup::BLEND)])
+	for (auto& pRenderObject : _renderGroups[ETOI(RenderGroup::Blend)])
 	{
 		Shared<GameObject> pGameObject = pRenderObject.lock();
 		if (nullptr != pGameObject)
 			pGameObject->Render();
 	}
 
-	_renderGroups[ETOI(RenderGroup::BLEND)].clear();
+	_renderGroups[ETOI(RenderGroup::Blend)].clear();
 }
 
 void Renderer::Render_UI()

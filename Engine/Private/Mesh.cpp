@@ -29,7 +29,7 @@ HRESULT Mesh::Initialize_Prototype(ModelType eType, const aiMesh* pAIMesh, class
 
 
 	/* Vertex Buffer */
-	HRESULT		hr = ModelType::NONANIM == eType ?
+	HRESULT		hr = ModelType::NonAnim == eType ?
 		Ready_VertexBuffer_For_NonAnim(pAIMesh, PreTransformMatrix) :
 		Ready_VertexBuffer_For_Anim(pAIMesh, pModel);
 

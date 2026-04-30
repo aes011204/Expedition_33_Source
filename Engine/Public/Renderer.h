@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Base.h"
 
@@ -16,15 +16,8 @@ public:
 
 public:
 	HRESULT Initialize();
-	void Add_RenderGroup(RenderGroup eRenderGroup, GameObject* pGameObject);
+	void Add_RenderGroup(RenderGroup renderGroup, Shared<GameObject> gameObject);
 	void Draw();
-
-private:
-	ComPtr<Device>        _device;
-	ComPtr<Context> _context;
-
-    /* Layer가 소유하는 GameObject를 렌더 프레임 동안만 참조하기 위한 약한 참조 목록. */
-	list<Weak<GameObject>>		_renderGroups[ETOI(RenderGroup::END)];
 
 private:
 	void Render_Priority();
@@ -32,6 +25,12 @@ private:
 	void Render_Blend();
 	void Render_UI();
 
+private:
+	ComPtr<Device>  _device;
+	ComPtr<Context> _context;
+
+    /* Layer가 소유하는 GameObject를 렌더 프레임 동안만 참조하기 위한 약한 참조 목록. */
+	list<Weak<GameObject>>		_renderGroups[ETOI(RenderGroup::END)];
 
 public:
 	static Unique<Renderer> Create(ComPtr<Device> device, ComPtr<Context> context);

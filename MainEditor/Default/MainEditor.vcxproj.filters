@@ -13,7 +13,7 @@
     <ClCompile Include="..\Private\EditorInstance.cpp">
       <Filter>00. Main</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\EditorWindow.cpp">
+    <ClCompile Include="..\Private\Editor_Window.cpp">
       <Filter>01. View</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\Hierarchy_View.cpp">
@@ -48,7 +48,7 @@
     <ClInclude Include="..\Public\EditorInstance.h">
       <Filter>00. Main</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\EditorWindow.h">
+    <ClInclude Include="..\Public\Editor_Window.h">
       <Filter>01. View</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Hierarchy_View.h">

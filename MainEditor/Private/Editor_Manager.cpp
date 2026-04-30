@@ -40,7 +40,7 @@ void Editor_Manager::Render()
 	}
 }
 
-void Editor_Manager::Add_Window(const Shared<EditorWindow>& window)
+void Editor_Manager::Add_Window(const Shared<Editor_Window>& window)
 {
 	if (nullptr == window)
 		return;
@@ -48,7 +48,7 @@ void Editor_Manager::Add_Window(const Shared<EditorWindow>& window)
 	_windows[window->Get_WindowName()] = window;
 }
 
-Shared<EditorWindow> Editor_Manager::Find_Window(const wstring& windowName) const
+Shared<Editor_Window> Editor_Manager::Find_Window(const wstring& windowName) const
 {
 	const auto iter = _windows.find(windowName);
 	if (iter == _windows.end())

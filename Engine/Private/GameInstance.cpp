@@ -119,6 +119,16 @@ HRESULT GameInstance::Present()
 	return _graphicDevice->Present();	
 }
 
+void GameInstance::Bind_BackBuffer()
+{
+    return _graphicDevice->Bind_BackBuffer();
+}
+
+HRESULT GameInstance::Resize_BackBuffer(uint32 width, uint32 height)
+{
+    return _graphicDevice->Resize(width, height);
+}
+
 void GameInstance::Set_ViewportSize(uint32 width, uint32 height)
 {
     _viewportWidth = max(1u, width);
@@ -132,7 +142,17 @@ uint32 GameInstance::Get_ViewportWidth() const
 
 uint32 GameInstance::Get_ViewportHeight() const
 {
-     return _viewportWidth;
+     return _viewportHeight;
+}
+
+uint32 GameInstance::Get_BackBufferWidth() const
+{
+    return _graphicDevice->Get_ViewportWidth();
+}
+
+uint32 GameInstance::Get_BackBufferHeight() const
+{
+    return _graphicDevice->Get_ViewportHeight();
 }
 
 HRESULT GameInstance::Add_Timer(const wstring& strTimerTag)
@@ -165,9 +185,9 @@ HRESULT GameInstance::Add_GameObject(uint32 iPrototypeLevelIndex, const wstring&
 	return _objectManager->Add_GameObject(iPrototypeLevelIndex, strPrototypeTag, iLayerLevelIndex, strLayerTag, pArg);
 }
 
-void GameInstance::Add_RenderGroup(RenderGroup eRenderGroup, GameObject* pGameObject)
+void GameInstance::Add_RenderGroup(RenderGroup eRenderGroup, Shared<GameObject> gameObject)
 {
-	return _renderer->Add_RenderGroup(eRenderGroup, pGameObject);
+	return _renderer->Add_RenderGroup(eRenderGroup, gameObject);
 }
 
 HRESULT GameInstance::Bind_CamPosition(Shader* pShader, const char* pConstantName)

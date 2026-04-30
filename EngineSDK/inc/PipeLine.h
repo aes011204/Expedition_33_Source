@@ -17,7 +17,7 @@ public:
 		return &_transformStateMatrices[ETOI(eTransformState)];
 	}
 	const XMFLOAT4* Get_CamPosition() const {
-		return reinterpret_cast<const XMFLOAT4*>(&_transformStateInverseMatrices[ETOI(D3DTS::VIEW)].m[3]);
+		return reinterpret_cast<const XMFLOAT4*>(&_transformStateInverseMatrices[ETOI(D3DTS::View)].m[3]);
 	}
 
 public:

@@ -16,6 +16,9 @@ class Light_Manager;
 class Font_Manager;
 class Asset_Manager;
 
+class GameObject;
+class Level;
+
 class ENGINE_DLL GameInstance final : public Base
 {
 	DECLARE_SINGLETON(GameInstance)
@@ -38,17 +41,24 @@ public: /* For.Graphic_Device */
 	HRESULT Clear_Buffers(const Vec4& clearColor);
 	HRESULT Present();
 
+    void    Bind_BackBuffer();
+    HRESULT Resize_BackBuffer(uint32 width, uint32 height);
+
 public: /* For.Viewport */
     void   Set_ViewportSize(uint32 width, uint32 height);
     uint32 Get_ViewportWidth() const;
     uint32 Get_ViewportHeight() const;
+
+    // 엔진 백버퍼 기준 viewport 사이즈
+    uint32 Get_BackBufferWidth() const;
+    uint32 Get_BackBufferHeight() const;
 
 public: /* For.Timer_Manager */
 	HRESULT	Add_Timer(const wstring& strTimerTag);
 	float Compute_TimeDelta(const wstring& strTimerTag);
 
 public: /* For.Level_Manager */
-	HRESULT Change_Level(uint32 iNewLevelIndex, Shared<class Level> pNewLevel);
+	HRESULT Change_Level(uint32 iNewLevelIndex, Shared<Level> pNewLevel);
 
 public: /* For.Prototype_Manager */
 	HRESULT Add_Prototype(uint32 iLevelIndex, const wstring& strPrototypeTag, Shared<Base> pPrototype);	
@@ -58,16 +68,17 @@ public: /* For.Object_Manager */
 	HRESULT Add_GameObject(uint32 iPrototypeLevelIndex, const wstring& strPrototypeTag, uint32 iLayerLevelIndex, const wstring& strLayerTag, void* pArg = nullptr);
 
 public: /* For.Renderer */
-	void Add_RenderGroup(RenderGroup eRenderGroup, class GameObject* pGameObject);
+	void Add_RenderGroup(RenderGroup eRenderGroup, Shared<GameObject> gameObject);
 
 public: /* For.PipeLine */
-	HRESULT Bind_CamPosition(class Shader* pShader, const char* pConstantName);
-	HRESULT Bind_TransformMatrix(D3DTS eTransformState, class Shader* pShader, const char* pConstantName);
-	HRESULT Bind_TransformMatrix_Inverse(D3DTS eTransformState, class Shader* pShader, const char* pConstantName);
+	HRESULT Bind_CamPosition(Shader* pShader, const char* pConstantName);
+	HRESULT Bind_TransformMatrix(D3DTS eTransformState, Shader* pShader, const char* pConstantName);
+	HRESULT Bind_TransformMatrix_Inverse(D3DTS eTransformState, Shader* pShader, const char* pConstantName);
+
 	const XMFLOAT4X4* Get_Transform(D3DTS eTransformState) const;
 	const XMFLOAT4* Get_CamPosition() const;
-	void Set_Transform(D3DTS eTransformState, FXMMATRIX TransformStateMatrix);
 
+	void Set_Transform(D3DTS eTransformState, FXMMATRIX TransformStateMatrix);
 
 public: /* For.Input_Manager */
 	/* 키가 눌린 상태로 유지되는지 확인할 때 호출한다. */
@@ -108,7 +119,6 @@ public: /* For.Asset_Manager */
 
 	/* lazy-load가 GUID만 들고 있을 때 실제 파일 경로를 복원하기 위해 호출한다. */
 	wstring Resolve_AssetPath(const string& strGuid) const;
-
 
 private:
 	Unique<Graphic_Device>		_graphicDevice;

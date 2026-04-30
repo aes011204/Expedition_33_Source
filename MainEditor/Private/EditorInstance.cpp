@@ -117,7 +117,7 @@ float EditorInstance::Get_RuntimeTimeScale() const
 	return _runtimeTimeScale;
 }
 
-Shared<EditorWindow> EditorInstance::Get_Window(const wstring& strWindowName) const
+Shared<Editor_Window> EditorInstance::Get_Window(const wstring& strWindowName) const
 {
 	if (nullptr == _editorManager)
 		return nullptr;

@@ -4,11 +4,11 @@
 
 NS_BEGIN(MainEditor)
 
-class EditorWindow
+class Editor_Window
 {
 public:
-	explicit EditorWindow(const wstring& strWindowName);
-	virtual ~EditorWindow() = default;
+	explicit Editor_Window(const wstring& strWindowName);
+	virtual ~Editor_Window() = default;
 
 public:
 	/* Editor_Manager가 매 프레임 창 상태를 갱신할 때 호출한다. */

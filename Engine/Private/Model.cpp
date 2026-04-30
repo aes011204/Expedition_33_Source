@@ -68,7 +68,7 @@ HRESULT Model::Initialize_Prototype(ModelType eType, const char* pModelFilePath,
 {
     uint32       iFlag = { aiProcess_ConvertToLeftHanded | aiProcessPreset_TargetRealtime_Fast };
 
-    if (ModelType::NONANIM == eType)
+    if (ModelType::NonAnim == eType)
         iFlag |= aiProcess_PreTransformVertices;
 
     _aiScene = _importer.ReadFile(pModelFilePath, iFlag);
