@@ -1,4 +1,4 @@
-#include "Graphic_Device.h"
+﻿#include "Graphic_Device.h"
 
 Graphic_Device::Graphic_Device()
 {
@@ -166,7 +166,7 @@ HRESULT Graphic_Device::Ready_SwapChain(HWND hWnd, WinMode isWindowed, uint32 wi
 	SwapChainDesc.SampleDesc.Count = 1;
 	SwapChainDesc.OutputWindow = hWnd;
 	SwapChainDesc.Windowed = static_cast<BOOL>(isWindowed);
-	SwapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
+	SwapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD; // 필요한 경우 Flip Model로 바꾸는 현대화 작업 가능
 
 	if (FAILED(factory->CreateSwapChain(_device.Get(), &SwapChainDesc, _swapChain.GetAddressOf())))
 		return E_FAIL;

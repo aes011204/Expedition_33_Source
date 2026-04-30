@@ -6,8 +6,6 @@
 #include "Level_Loading.h"
 #include "ResourceLoader.h"
 
-#include <filesystem>
-
 using namespace Engine;
 
 NS_BEGIN(GameLauncherApp)
@@ -19,8 +17,8 @@ MainApp::MainApp()
 
 HRESULT MainApp::Initialize()
 {
-    const std::filesystem::path assetRootPath(Get_ClientResourceRoot());
-    if (!std::filesystem::exists(assetRootPath) || !std::filesystem::is_directory(assetRootPath))
+    const fs::path assetRootPath(Get_ClientResourceRoot());
+    if (!fs::exists(assetRootPath) || !fs::is_directory(assetRootPath))
         return E_FAIL;
 
     ENGINE_DESC engineDesc{};
@@ -78,7 +76,7 @@ HRESULT MainApp::Render()
 HRESULT MainApp::Ready_Fonts()
 {
     const wstring fontPath = Get_ClientResourcePath(L"Fonts/158ex.spritefont");
-    if (!std::filesystem::exists(fontPath))
+    if (!fs::exists(fontPath))
         return E_FAIL;
 
     if (FAILED(_gameInstance->Add_Font(TEXT("Font_Default"), fontPath.c_str())))
@@ -113,8 +111,8 @@ wstring MainApp::Get_ClientResourceRoot() const
     if (0 == GetModuleFileNameW(nullptr, modulePath, MAX_PATH))
         return {};
 
-    const std::filesystem::path runtimeRoot = std::filesystem::path(modulePath).parent_path();
-    return std::filesystem::absolute(runtimeRoot / L"../../../Client/Bin/Resources").lexically_normal().wstring();
+    const fs::path runtimeRoot = fs::path(modulePath).parent_path();
+    return fs::absolute(runtimeRoot / L"../../../Client/Bin/Resources").lexically_normal().wstring();
 }
 
 wstring MainApp::Get_ClientResourcePath(const wchar_t* relativePath) const
@@ -122,7 +120,7 @@ wstring MainApp::Get_ClientResourcePath(const wchar_t* relativePath) const
     if (nullptr == relativePath || L'\0' == *relativePath)
         return Get_ClientResourceRoot();
 
-    return (std::filesystem::path(Get_ClientResourceRoot()) / relativePath).lexically_normal().wstring();
+    return (fs::path(Get_ClientResourceRoot()) / relativePath).lexically_normal().wstring();
 }
 
 Unique<MainApp> MainApp::Create()

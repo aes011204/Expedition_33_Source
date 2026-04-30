@@ -1,24 +1,20 @@
 ﻿#include "ResourceLoader.h"
 
-#include "GameInstance.h"
-#include "Texture.h"
-#include "Shader.h"
-#include "Model.h"
-#include "VIBuffer_Rect.h"
-#include "VIBuffer_Cube.h"
-#include "VIBuffer_Terrain.h"
-
 #include "BackGround.h"
-#include "Terrain.h"
+#include "Body_Player.h"
 #include "FreeCamera.h"
+#include "GameInstance.h"
+#include "Model.h"
 #include "Monster.h"
 #include "Player.h"
-#include "Body_Player.h"
-#include "Weapon.h"
+#include "Shader.h"
 #include "Sky.h"
-
-#include <cwctype>
-#include <filesystem>
+#include "Terrain.h"
+#include "Texture.h"
+#include "VIBuffer_Cube.h"
+#include "VIBuffer_Rect.h"
+#include "VIBuffer_Terrain.h"
+#include "Weapon.h"
 
 namespace fs = std::filesystem;
 
@@ -599,13 +595,13 @@ wstring ResourceLoader::Make_PrototypeTag(const string& strId, const wstring& st
 
 uint32 ResourceLoader::Get_LevelIndex_FromString(const string& strLevel)
 {
-	if ("Logo" == strLevel || "Logo" == strLevel)
+	if ("Logo" == strLevel) // || "Logo" == strLevel)
 		return ETOI(LevelType::Logo);
 
 	if ("GamePlay" == strLevel || "Gameplay" == strLevel || "GamePlay" == strLevel)
 		return ETOI(LevelType::GamePlay);
 
-	if ("Loading" == strLevel || "Loading" == strLevel)
+	if ("Loading" == strLevel) // || "Loading" == strLevel)
 		return ETOI(LevelType::Loading);
 
 	return ETOI(LevelType::Static);

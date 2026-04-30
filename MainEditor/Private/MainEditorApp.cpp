@@ -7,8 +7,6 @@
 #include "Level_Loading.h"
 #include "ResourceLoader.h"
 
-#include <filesystem>
-
 MainEditorApp::MainEditorApp()
     : _gameInstance{ GameInstance::GetInstance() }
 {

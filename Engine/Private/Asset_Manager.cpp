@@ -1,7 +1,6 @@
 ﻿#include "Asset_Manager.h"
 
 #include <objbase.h>
-#include <filesystem>
 
 Asset_Manager::Asset_Manager()
 {

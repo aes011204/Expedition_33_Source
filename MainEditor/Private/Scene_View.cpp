@@ -10,7 +10,6 @@ Scene_View::Scene_View()
 
 void Scene_View::Update(float fTimeDelta)
 {
-    UNREFERENCED_PARAMETER(fTimeDelta);
 }
 
 void Scene_View::Render()

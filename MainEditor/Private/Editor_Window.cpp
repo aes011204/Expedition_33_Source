@@ -7,7 +7,6 @@ Editor_Window::Editor_Window(const wstring& strWindowName)
 
 void Editor_Window::Update(float fTimeDelta)
 {
-	UNREFERENCED_PARAMETER(fTimeDelta);
 }
 
 void Editor_Window::Render()
