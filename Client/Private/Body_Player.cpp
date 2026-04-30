@@ -96,10 +96,10 @@ HRESULT Body_Player::Render()
 
 HRESULT Body_Player::Ready_Components()
 {
-	if (FAILED(__super::Add_Component(ETOI(LevelType::GamePlay), TEXT("Shader_VtxAnimMesh"), _shader)))
+	if (FAILED(Add_Component(ETOI(LevelType::GamePlay), TEXT("Shader_VtxAnimMesh"), _shader)))
 		return E_FAIL;
 
-	if (FAILED(__super::Add_Component(ETOI(LevelType::GamePlay), TEXT("Model_Fiona"), _model)))
+	if (FAILED(Add_Component(ETOI(LevelType::GamePlay), TEXT("Model_Fiona"), _model)))
 		return E_FAIL;
 
 	return S_OK;

@@ -434,7 +434,11 @@ HRESULT ResourceLoader::Register_LoadJob(const FLoadJob& LoadJob)
 	{
 		Shared<Engine::GameObject> pGameObject = Create_GameObjectPrototype(LoadJob.strPrototypeTag);
 		if (nullptr == pGameObject)
-			return E_FAIL;
+		{
+			const wstring strMessage = L"[ResourceLoader] Skipped unknown GameObject prototype: " + LoadJob.strPrototypeTag + L"\n";
+			OutputDebugStringW(strMessage.c_str());
+			return S_OK;
+		}
 
 		return GAME->Add_Prototype(LoadJob.iLevelIndex, LoadJob.strPrototypeTag, pGameObject);
 	}

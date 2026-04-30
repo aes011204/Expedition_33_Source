@@ -36,7 +36,6 @@
     <ClInclude Include="pch.h">
       <Filter>98. Default</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\Editor_ImGuiInclude.h" />
     <ClInclude Include="..\Public\Content_Browser.h">
       <Filter>01. View</Filter>
     </ClInclude>
@@ -63,6 +62,9 @@
     </ClInclude>
     <ClInclude Include="..\Public\Scene_View.h">
       <Filter>01. View</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Editor_ImGuiInclude.h">
+      <Filter>99. Defines</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
