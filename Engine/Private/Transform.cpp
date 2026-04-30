@@ -341,12 +341,12 @@ XMVECTOR Transform::ToVector(const Vec3& vValue, float fW)
 
 Shared<Transform> Transform::Create(ComPtr<Device> device, ComPtr<Context> context)
 {
-	Shared<Transform> pInstance = MakeSharedFromRaw(new Transform(device, context));
+	auto pInstance = make_shared<Transform>(device, context);
 
 	if (FAILED(pInstance->Initialize_Prototype()))
 	{
 		MSG_BOX("Failed to Created : Transform");
-		Safe_Release(pInstance);
+		return nullptr;
 	}
 
 	return pInstance;
@@ -354,12 +354,12 @@ Shared<Transform> Transform::Create(ComPtr<Device> device, ComPtr<Context> conte
 
 Shared<Component> Transform::Clone(void* pArg)
 {
-	Shared<Transform> pInstance = MakeSharedFromRaw(new Transform(*this));
+	auto pInstance = make_shared<Transform>(*this);
 
 	if (FAILED(pInstance->Initialize(pArg)))
 	{
 		MSG_BOX("Failed to Cloned : Transform");
-		Safe_Release(pInstance);
+		return nullptr;
 	}
 
 	return pInstance;

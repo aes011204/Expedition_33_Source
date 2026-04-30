@@ -10,9 +10,9 @@ NS_BEGIN(Client)
 
 class Level_Loading final : public Level
 {
-private:
+public:
 	Level_Loading(ComPtr<Device> device, ComPtr<Context> context);
-	virtual ~Level_Loading() = default;
+	virtual ~Level_Loading() { Free(); }
 
 public:
 	virtual HRESULT Initialize(LevelType eNextLevelID);

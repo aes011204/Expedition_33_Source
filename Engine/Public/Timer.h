@@ -6,9 +6,9 @@ NS_BEGIN(Engine)
 
 class ENGINE_DLL Timer : public Base
 {
-private:
+public:
 	Timer();
-	virtual ~Timer() = default;
+	virtual ~Timer() { Free(); }
 
 
 public:

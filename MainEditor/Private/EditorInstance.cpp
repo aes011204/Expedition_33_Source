@@ -1,5 +1,8 @@
 ﻿#include "EditorInstance.h"
 
+#include "RenderTarget.h"
+#include "Editor_Manager.h"
+
 IMPLEMENT_SINGLETON(EditorInstance)
 
 EditorInstance::EditorInstance()
@@ -24,7 +27,7 @@ HRESULT EditorInstance::Initialize_Editor(const EDITOR_DESC& EditorDesc, ComPtr<
 	if (nullptr == _editorManager)
 		return E_FAIL;
 
-	_runtimeState = EDITOR_RUNTIME_STATE::EDIT;
+	_runtimeState = EDITOR_RUNTIME_STATE::Edit;
 	_runtimeTimeScale = 1.f;
 
 	return S_OK;
@@ -44,44 +47,59 @@ void EditorInstance::Render_Editor()
 
 void EditorInstance::Release()
 {
+	_sceneRenderTarget.reset();
+	_gameRenderTarget.reset();
 	_editorManager.reset();
 	_context.Reset();
 	_device.Reset();
 	_editorDesc = {};
-	_runtimeState = EDITOR_RUNTIME_STATE::EDIT;
+	_runtimeState = EDITOR_RUNTIME_STATE::Edit;
 	_runtimeTimeScale = 1.f;
 }
 
 void EditorInstance::Play()
 {
-	_runtimeState = EDITOR_RUNTIME_STATE::PLAY;
+	_runtimeState = EDITOR_RUNTIME_STATE::Play;
 }
 
 void EditorInstance::Pause()
 {
-	if (EDITOR_RUNTIME_STATE::PLAY == _runtimeState)
-		_runtimeState = EDITOR_RUNTIME_STATE::PAUSE;
+	if (EDITOR_RUNTIME_STATE::Play == _runtimeState)
+		_runtimeState = EDITOR_RUNTIME_STATE::Pause;
 }
 
 void EditorInstance::Stop()
 {
-	_runtimeState = EDITOR_RUNTIME_STATE::EDIT;
+	_runtimeState = EDITOR_RUNTIME_STATE::Edit;
 }
 
 void EditorInstance::Resume()
 {
-	if (EDITOR_RUNTIME_STATE::PAUSE == _runtimeState)
-		_runtimeState = EDITOR_RUNTIME_STATE::PLAY;
+	if (EDITOR_RUNTIME_STATE::Pause == _runtimeState)
+		_runtimeState = EDITOR_RUNTIME_STATE::Play;
 }
 
 bool EditorInstance::IsPlaying() const
 {
-	return EDITOR_RUNTIME_STATE::PLAY == _runtimeState;
+	return EDITOR_RUNTIME_STATE::Play == _runtimeState;
 }
 
 bool EditorInstance::IsPaused() const
 {
-	return EDITOR_RUNTIME_STATE::PAUSE == _runtimeState;
+	return EDITOR_RUNTIME_STATE::Pause == _runtimeState;
+}
+
+Shared<RenderTarget> EditorInstance::Prepare_ViewportRenderTarget(EDITOR_VIEWPORT_TARGET targetType, uint32 width, uint32 height)
+{
+	switch (targetType)
+	{
+	case EDITOR_VIEWPORT_TARGET::Scene:
+		return Prepare_RenderTarget(_sceneRenderTarget, width, height, Vec4(0.03f, 0.035f, 0.04f, 1.f));
+	case EDITOR_VIEWPORT_TARGET::Game:
+		return Prepare_RenderTarget(_gameRenderTarget, width, height, Vec4(0.f, 0.f, 1.f, 1.f));
+	default:
+		return nullptr;
+	}
 }
 
 void EditorInstance::Set_RuntimeTimeScale(float fTimeScale)
@@ -121,6 +139,29 @@ float EditorInstance::Clamp_RuntimeTimeScale(float fTimeScale)
 		return 8.f;
 
 	return fTimeScale;
+}
+
+Shared<RenderTarget> EditorInstance::Prepare_RenderTarget(Shared<RenderTarget>& renderTarget, uint32 width, uint32 height, const Vec4& clearColor)
+{
+	if (0 == width)
+		width = 1;
+
+	if (0 == height)
+		height = 1;
+
+	if (nullptr == renderTarget)
+	{
+		renderTarget = RenderTarget::Create(_device, _context, width, height, DXGI_FORMAT_R8G8B8A8_UNORM, clearColor);
+	}
+	else if (FAILED(renderTarget->Resize(width, height, DXGI_FORMAT_R8G8B8A8_UNORM, clearColor)))
+	{
+		return nullptr;
+	}
+
+	if (nullptr != renderTarget)
+		renderTarget->Begin();
+
+	return renderTarget;
 }
 
 

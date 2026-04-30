@@ -10,9 +10,9 @@ NS_BEGIN(Engine)
 
 class Bone final : public Base
 {
-private:
+public:
 	Bone();
-	virtual ~Bone() = default;
+	virtual ~Bone() { Free(); }
 public:
 	const XMFLOAT4X4* Get_CombinedTransformationMatrixPtr() const {
 		return &_combinedTransformationMatrix;

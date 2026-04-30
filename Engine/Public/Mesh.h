@@ -6,10 +6,10 @@ NS_BEGIN(Engine)
 
 class Mesh final : public VIBuffer
 {
-private:
+public:
 	Mesh(ComPtr<Device> device, ComPtr<Context> context);
 	Mesh(const Mesh& Prototype);
-	virtual ~Mesh() = default;
+	virtual ~Mesh() { Free(); }
 
 public:
 	uint32 Get_MaterialIndex() const {

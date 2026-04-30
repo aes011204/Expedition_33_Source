@@ -13,12 +13,12 @@ HRESULT Light::Initialize(const LIGHT_DESC& LightDesc)
 
 Shared<Light> Light::Create(const LIGHT_DESC& LightDesc)
 {
-	Shared<Light> pInstance = MakeSharedFromRaw(new Light());
+	auto pInstance = make_shared<Light>();
 
 	if (FAILED(pInstance->Initialize(LightDesc)))
 	{
 		MSG_BOX("Failed to Created : Light");
-		Safe_Release(pInstance);
+		return nullptr;
 	}
 	return pInstance;
 }

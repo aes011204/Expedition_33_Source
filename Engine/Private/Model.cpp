@@ -206,13 +206,13 @@ HRESULT Model::Ready_Animations()
 
 Shared<Model> Model::Create(ComPtr<Device> device, ComPtr<Context> context, ModelType eType, const char* pModelFilePath, FXMMATRIX PreLocalTransformMatrix)
 {
-    Shared<Model> pInstance = MakeSharedFromRaw(new Model(device, context));
+    auto pInstance = make_shared<Model>(device, context);
 
     if (FAILED(pInstance->Initialize_Prototype(eType, pModelFilePath, PreLocalTransformMatrix)))
     {
         MSG_BOX("Failed to Created : Model");
-        Safe_Release(pInstance);
-    }
+        return nullptr;
+	}
     return pInstance;
 }
 
@@ -220,13 +220,13 @@ Shared<Model> Model::Create(ComPtr<Device> device, ComPtr<Context> context, Mode
 
 Shared<Component> Model::Clone(void* pArg)
 {
-    Shared<Model> pInstance = MakeSharedFromRaw(new Model(*this));
+    auto pInstance = make_shared<Model>(*this);
 
     if (FAILED(pInstance->Initialize(pArg)))
     {
         MSG_BOX("Failed to Cloned : Model");
-        Safe_Release(pInstance);
-    }
+        return nullptr;
+	}
     return pInstance;
 }
 

@@ -16,9 +16,15 @@ typedef struct tagEditorDesc
 
 enum class EDITOR_RUNTIME_STATE
 {
-	EDIT,                                   /* 기본 편집 상태. */
-	PLAY,                                   /* 런타임 시뮬레이션 실행 상태. */
-	PAUSE,                                  /* 런타임 시뮬레이션 일시정지 상태. */
+	Edit,                                   /* 기본 편집 상태. */
+	Play,                                   /* 런타임 시뮬레이션 실행 상태. */
+	Pause,                                  /* 런타임 시뮬레이션 일시정지 상태. */
+};
+
+enum class EDITOR_VIEWPORT_TARGET
+{
+	Scene,
+	Game,
 };
 
 NS_END

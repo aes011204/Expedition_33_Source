@@ -6,10 +6,10 @@ NS_BEGIN(Engine)
 
 class ENGINE_DLL Shader final : public Component
 {
-private:
+public:
 	Shader(ComPtr<Device> device, ComPtr<Context> context);
 	Shader(const Shader& Prototype);
-	virtual ~Shader() = default;
+	virtual ~Shader() { Free(); }
 
 public:
 	virtual HRESULT Initialize_Prototype(const wchar_t* pShaderFilePath, const D3D11_INPUT_ELEMENT_DESC* pElements, uint32 iNumElements);

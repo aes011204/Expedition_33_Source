@@ -7,9 +7,9 @@ NS_BEGIN(Client)
 
 class Level_Logo final : public Level
 {
-private:
+public:
 	Level_Logo(ComPtr<Device> device, ComPtr<Context> context);
-	virtual ~Level_Logo() = default;
+	virtual ~Level_Logo() { Free(); }
 
 public:
 	virtual HRESULT Initialize() override;

@@ -80,12 +80,12 @@ HRESULT Level_Loading::Ready_Layer_UI(const wchar_t* pLayerTag)
 
 Shared<Level_Loading> Level_Loading::Create(ComPtr<Device> device, ComPtr<Context> context, LevelType eNextLevelID)
 {
-	Shared<Level_Loading> pInstance = MakeSharedFromRaw(new Level_Loading(device, context));
+	auto pInstance = make_shared<Level_Loading>(device, context);
 
 	if (FAILED(pInstance->Initialize(eNextLevelID)))
 	{
 		MSG_BOX("Failed to Created : Level_Loading");
-		Safe_Release(pInstance);
+		return nullptr;
 	}
 	return pInstance;
 }

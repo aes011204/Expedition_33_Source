@@ -1,4 +1,4 @@
-﻿#include "Monster.h"
+#include "Monster.h"
 #include "GameInstance.h"
 
 Monster::Monster(ComPtr<Device> device, ComPtr<Context> context)
@@ -64,8 +64,8 @@ HRESULT Monster::Render()
 
 	for (size_t i = 0; i < iNumMeshes; i++)
 	{
-		_model->Bind_Material(_shader, "g_DiffuseTexture", i, aiTextureType_DIFFUSE, 0);
-		_model->Bind_BoneMatrices(_shader, "g_BoneMatrices", i);
+		_model->Bind_Material(_shader.get(), "g_DiffuseTexture", i, aiTextureType_DIFFUSE, 0);
+		_model->Bind_BoneMatrices(_shader.get(), "g_BoneMatrices", i);
 		
 		if (FAILED(_shader->Begin(0)))
 			return E_FAIL;
@@ -84,12 +84,10 @@ HRESULT Monster::Ready_Components()
 {
 
 
-	if (FAILED(__super::Add_Component(ETOI(LevelType::GamePlay), TEXT("Prototype_Component_Shader_VtxAnimMesh"),
-		TEXT("Com_Shader"), reinterpret_cast<Component**>(&_shader))))
+	if (FAILED(__super::Add_Component(ETOI(LevelType::GamePlay), TEXT("Shader_VtxAnimMesh"), _shader)))
 		return E_FAIL;
 
-	if (FAILED(__super::Add_Component(ETOI(LevelType::GamePlay), TEXT("Prototype_Component_Model_Fiona"),
-		TEXT("Com_Model"), reinterpret_cast<Component**>(&_model))))
+	if (FAILED(__super::Add_Component(ETOI(LevelType::GamePlay), TEXT("Model_Fiona"), _model)))
 		return E_FAIL;
 
 	return S_OK;
@@ -97,18 +95,18 @@ HRESULT Monster::Ready_Components()
 
 HRESULT Monster::Bind_ShaderResources()
 {
-	if (FAILED(_transformCom->Bind_ShaderResource(_shader, "g_WorldMatrix")))
+	if (FAILED(_transformCom->Bind_ShaderResource(_shader.get(), "g_WorldMatrix")))
 		return E_FAIL;
 
-	if (FAILED(GAME->Bind_TransformMatrix(D3DTS::VIEW, _shader, "g_ViewMatrix")))
+	if (FAILED(GAME->Bind_TransformMatrix(D3DTS::VIEW, _shader.get(), "g_ViewMatrix")))
 		return E_FAIL;
 
-	if (FAILED(GAME->Bind_TransformMatrix(D3DTS::PROJ, _shader, "g_ProjMatrix")))
+	if (FAILED(GAME->Bind_TransformMatrix(D3DTS::PROJ, _shader.get(), "g_ProjMatrix")))
 		return E_FAIL;
 
 
 
-	if (FAILED(GAME->Bind_CamPosition(_shader, "g_vCamPosition")))
+	if (FAILED(GAME->Bind_CamPosition(_shader.get(), "g_vCamPosition")))
 		return E_FAIL;
 
 	const LIGHT_DESC*		pLightDesc = GAME->Get_LightDesc(0);
@@ -129,12 +127,12 @@ HRESULT Monster::Bind_ShaderResources()
 
 Shared<Monster> Monster::Create(ComPtr<Device> device, ComPtr<Context> context)
 {
-	Shared<Monster> pInstance = MakeSharedFromRaw(new Monster(device, context));
+	auto pInstance = make_shared<Monster>(device, context);
 
 	if (FAILED(pInstance->Initialize_Prototype()))
 	{
 		MSG_BOX("Failed to Created : Monster");
-		Safe_Release(pInstance);
+		return nullptr;
 	}
 	return pInstance;
 }
@@ -142,12 +140,12 @@ Shared<Monster> Monster::Create(ComPtr<Device> device, ComPtr<Context> context)
 
 Shared<GameObject> Monster::Clone(void* pArg)
 {
-	Shared<Monster> pInstance = MakeSharedFromRaw(new Monster(*this));
+	auto pInstance = make_shared<Monster>(*this);
 
 	if (FAILED(pInstance->Initialize(pArg)))
 	{
 		MSG_BOX("Failed to Cloned : Monster");
-		Safe_Release(pInstance);
+		return nullptr;
 	}
 	return pInstance;
 }

@@ -46,7 +46,7 @@ HRESULT Level_Logo::Ready_Layer_BackGround(const wstring& strLayerTag)
 	//BackGroundDesc.fRotationPerSec = 1.f;
 	
 
-	if (FAILED(GAME->Add_GameObject(ETOI(LevelType::Logo), TEXT("Prototype_GameObject_BackGround"),
+	if (FAILED(GAME->Add_GameObject(ETOI(LevelType::Logo), TEXT("GameObject_BackGround"),
 		ETOI(LevelType::Logo), strLayerTag/*, &BackGroundDesc*/)))
 		return E_FAIL;
 
@@ -56,12 +56,12 @@ HRESULT Level_Logo::Ready_Layer_BackGround(const wstring& strLayerTag)
 
 Shared<Level_Logo> Level_Logo::Create(ComPtr<Device> device, ComPtr<Context> context)
 {
-	Shared<Level_Logo> pInstance = MakeSharedFromRaw(new Level_Logo(device, context));
+	auto pInstance = make_shared<Level_Logo>(device, context);
 
 	if (FAILED(pInstance->Initialize()))
 	{
 		MSG_BOX("Failed to Created : Level_Logo");
-		Safe_Release(pInstance);
+		return nullptr;
 	}
 	return pInstance;
 }

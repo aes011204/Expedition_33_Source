@@ -105,12 +105,12 @@ void Channel::Update_TransformationMatrix(uint32* pCurrentKeyFrameIndex, float f
 
 Shared<Channel> Channel::Create(const aiNodeAnim* pAIChannel, class Model* pModel)
 {
-	Shared<Channel> pInstance = MakeSharedFromRaw(new Channel());
+	auto pInstance = make_shared<Channel>();
 
 	if (FAILED(pInstance->Initialize(pAIChannel, pModel)))
 	{
 		MSG_BOX("Failed to Created : Channel");
-		Safe_Release(pInstance);
+		return nullptr;
 	}
 	return pInstance;
 }

@@ -68,24 +68,24 @@ HRESULT FreeCamera::Render()
 
 Shared<FreeCamera> FreeCamera::Create(ComPtr<Device> device, ComPtr<Context> context)
 {
-	Shared<FreeCamera> pInstance = MakeSharedFromRaw(new FreeCamera(device, context));
+	auto pInstance = make_shared<FreeCamera>(device, context);
 
 	if (FAILED(pInstance->Initialize_Prototype()))
 	{
 		MSG_BOX("Failed to Created : FreeCamera");
-		Safe_Release(pInstance);
+		return nullptr;
 	}
 	return pInstance;
 }
 
 Shared<GameObject> FreeCamera::Clone(void* pArg)
 {
-	Shared<FreeCamera> pInstance = MakeSharedFromRaw(new FreeCamera(*this));
+	auto pInstance = make_shared<FreeCamera>(*this);
 
 	if (FAILED(pInstance->Initialize(pArg)))
 	{
 		MSG_BOX("Failed to Cloned : FreeCamera");
-		Safe_Release(pInstance);
+		return nullptr;
 	}
 	return pInstance;
 }

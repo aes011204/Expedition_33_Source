@@ -6,10 +6,10 @@ NS_BEGIN(Engine)
 
 class ENGINE_DLL VIBuffer_Cube final : public VIBuffer
 {
-protected:
+public:
 	VIBuffer_Cube(ComPtr<Device> device, ComPtr<Context> context);
 	VIBuffer_Cube(const VIBuffer_Cube& Prototype);
-	virtual ~VIBuffer_Cube() = default;
+	virtual ~VIBuffer_Cube() { Free(); }
 
 public:
 	virtual HRESULT Initialize_Prototype();

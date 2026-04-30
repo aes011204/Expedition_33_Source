@@ -45,19 +45,19 @@ void Bone::Update_TransformationMatrix(FXMMATRIX TransformMatrix)
 
 Shared<Bone> Bone::Create(const aiNode* pAINode, int32 iParentBoneIndex)
 {
-	Shared<Bone> pInstance = MakeSharedFromRaw(new Bone());
+	auto pInstance = make_shared<Bone>();
 
 	if (FAILED(pInstance->Initialize(pAINode, iParentBoneIndex)))
 	{
 		MSG_BOX("Failed to Created : Bone");
-		Safe_Release(pInstance);
+		return nullptr;
 	}
 	return pInstance;
 }
 
 Shared<Bone> Bone::Clone()
 {
-	return MakeSharedFromRaw(new Bone(*this));
+	return make_shared<Bone>(*this);
 }
 
 void Bone::Free()

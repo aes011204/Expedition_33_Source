@@ -28,5 +28,10 @@ void Hierarchy_View::Render()
     ImGui::End();
 }
 
+Shared<Hierarchy_View> Hierarchy_View::Create()
+{
+    return make_shared<Hierarchy_View>();
+}
+
 
 

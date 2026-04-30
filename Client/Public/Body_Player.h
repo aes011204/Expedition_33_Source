@@ -1,7 +1,7 @@
 ﻿#pragma once
 
-#include "Client_Defines.h"
 #include "PartObject.h"
+
 NS_BEGIN(Engine)
 class Shader;
 class Model;
@@ -16,30 +16,29 @@ public:
 	{
 		const uint32* pParentState = { nullptr };
 	}BODY_PLAYER_DESC;
-private:
+
+public:
 	Body_Player(ComPtr<Device> device, ComPtr<Context> context);
 	Body_Player(const Body_Player& Prototype);
-	virtual ~Body_Player() = default;
+	virtual ~Body_Player() { Free(); }
 
 public:
 	const XMFLOAT4X4* Get_SocketBoneMatrixPtr(const char* pBoneName);
 public:
 	virtual HRESULT Initialize_Prototype() override;
 	virtual HRESULT Initialize(void* pArg) override;
-	virtual void Priority_Update(float fTimeDelta) override;
-	virtual void Update(float fTimeDelta) override;
-	virtual void Late_Update(float fTimeDelta) override;
+	virtual void    Priority_Update(float fTimeDelta) override;
+	virtual void    Update(float fTimeDelta) override;
+	virtual void    Late_Update(float fTimeDelta) override;
 	virtual HRESULT Render() override;
 
 
 private:
-	Shader* _shader = { nullptr };
-	Model* _model = { nullptr };
+	Shared<Shader> _shader = { nullptr };
+	Shared<Model>  _model = { nullptr };
 
 private:
 	const uint32* _parentState = { nullptr };
-
-
 
 private:
 	HRESULT Ready_Components();
@@ -47,9 +46,8 @@ private:
 
 public:
 	static Shared<Body_Player> Create(ComPtr<Device> device, ComPtr<Context> context);
-	virtual Shared<GameObject> Clone(void* pArg) override;
+	virtual Shared<GameObject> Clone(void* arg) override;
 	virtual void Free() override;
-
 };
 
 NS_END

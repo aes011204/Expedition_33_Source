@@ -167,7 +167,7 @@ HRESULT ResourceLoader::Build_TextureJobs(const wstring& strTablePath, vector<FL
 		FLoadJob LoadJob = {};
 		LoadJob.eType = ELoadJobType::TextureCreate;
 		LoadJob.iLevelIndex = Get_LevelIndex_FromString(strLevel);
-		LoadJob.strPrototypeTag = Make_PrototypeTag(strId, L"Prototype_Component_Texture_");
+		LoadJob.strPrototypeTag = ToWString(strId);
 		LoadJob.strPath = ToWString(strPath);
 		LoadJob.iCount = iCount;
 
@@ -205,7 +205,7 @@ HRESULT ResourceLoader::Build_ShaderJobs(const wstring& strTablePath, vector<FLo
 		FLoadJob LoadJob = {};
 		LoadJob.eType = ELoadJobType::Shader;
 		LoadJob.iLevelIndex = Get_LevelIndex_FromString(strLevel);
-		LoadJob.strPrototypeTag = Make_PrototypeTag(strId, L"Prototype_Component_Shader_");
+		LoadJob.strPrototypeTag = ToWString(strId);
 		LoadJob.strPath = ToWString(strPath);
 		LoadJob.strInputLayout = strInputLayout;
 		LoadJob.iCount = 1;
@@ -243,7 +243,7 @@ HRESULT ResourceLoader::Build_ModelJobs(const wstring& strTablePath, vector<FLoa
 		FLoadJob LoadJob = {};
 		LoadJob.eType = ELoadJobType::Model;
 		LoadJob.iLevelIndex = Get_LevelIndex_FromString(strLevel);
-		LoadJob.strPrototypeTag = Make_PrototypeTag(strId, L"Prototype_Component_Model_");
+		LoadJob.strPrototypeTag = ToWString(strId);
 		LoadJob.strPath = ToWString(strPath);
 		LoadJob.strModelType = Read_String(JsonItem, "ModelType", "modelType", "NONANIM");
 		LoadJob.fScaleX = Read_Float(JsonItem, "ScaleX", "scaleX", 1.f);
@@ -284,7 +284,7 @@ HRESULT ResourceLoader::Build_GameObjectJobs(const wstring& strTablePath, vector
 		FLoadJob LoadJob = {};
 		LoadJob.eType = ELoadJobType::GameObject;
 		LoadJob.iLevelIndex = Get_LevelIndex_FromString(strLevel);
-		LoadJob.strPrototypeTag = Make_PrototypeTag(strId, L"Prototype_GameObject_");
+		LoadJob.strPrototypeTag = ToWString(strId);
 		LoadJob.iCount = 1;
 
 		LoadJobs.push_back(LoadJob);
@@ -314,7 +314,7 @@ HRESULT ResourceLoader::Build_StaticLevelJobs(const wstring& strTablePath, vecto
 		FLoadJob LoadJob = {};
 		LoadJob.eType = ELoadJobType::StaticLevel;
 		LoadJob.iLevelIndex = Get_LevelIndex_FromString(strLevel);
-		LoadJob.strPrototypeTag = "VIBuffer" == strResourceType ? Make_PrototypeTag(strId, L"Prototype_Component_") : ToWString(strId);
+		LoadJob.strPrototypeTag = ToWString(strId);
 		LoadJob.strResourceType = strResourceType;
 		LoadJob.iCount = Read_UInt(JsonItem, "Count", "count", 1);
 
@@ -360,7 +360,7 @@ HRESULT ResourceLoader::Load_Textures(const json& JsonData)
 		if (nullptr == pTexture)
 			return E_FAIL;
 
-		if (FAILED(GAME->Add_Prototype(Get_LevelIndex_FromString(strLevel), Make_PrototypeTag(strId, L"Prototype_Component_Texture_"), pTexture)))
+		if (FAILED(GAME->Add_Prototype(Get_LevelIndex_FromString(strLevel), ToWString(strId), pTexture)))
 			return E_FAIL;
 	}
 
@@ -387,7 +387,7 @@ HRESULT ResourceLoader::Load_Shaders(const json& JsonData)
 		if (nullptr == pShader)
 			return E_FAIL;
 
-		if (FAILED(GAME->Add_Prototype(Get_LevelIndex_FromString(strLevel), Make_PrototypeTag(strId, L"Prototype_Component_Shader_"), pShader)))
+		if (FAILED(GAME->Add_Prototype(Get_LevelIndex_FromString(strLevel), ToWString(strId), pShader)))
 			return E_FAIL;
 	}
 
@@ -455,28 +455,28 @@ HRESULT ResourceLoader::Register_LoadJob(const FLoadJob& LoadJob)
 
 Shared<Engine::GameObject> ResourceLoader::Create_GameObjectPrototype(const wstring& strPrototypeTag)
 {
-	if (TEXT("Prototype_GameObject_BackGround") == strPrototypeTag)
+	if (TEXT("GameObject_BackGround") == strPrototypeTag)
 		return BackGround::Create(_device.Get(), _context.Get());
 
-	if (TEXT("Prototype_GameObject_Terrain") == strPrototypeTag)
+	if (TEXT("GameObject_Terrain") == strPrototypeTag)
 		return Terrain::Create(_device.Get(), _context.Get());
 
-	if (TEXT("Prototype_GameObject_FreeCamera") == strPrototypeTag)
+	if (TEXT("GameObject_FreeCamera") == strPrototypeTag)
 		return FreeCamera::Create(_device.Get(), _context.Get());
 
-	if (TEXT("Prototype_GameObject_Monster") == strPrototypeTag)
+	if (TEXT("GameObject_Monster") == strPrototypeTag)
 		return Monster::Create(_device.Get(), _context.Get());
 
-	if (TEXT("Prototype_GameObject_Player") == strPrototypeTag)
+	if (TEXT("GameObject_Player") == strPrototypeTag)
 		return Player::Create(_device.Get(), _context.Get());
 
-	if (TEXT("Prototype_GameObject_Body_Player") == strPrototypeTag)
+	if (TEXT("GameObject_Body_Player") == strPrototypeTag)
 		return Body_Player::Create(_device.Get(), _context.Get());
 
-	if (TEXT("Prototype_GameObject_Weapon") == strPrototypeTag)
+	if (TEXT("GameObject_Weapon") == strPrototypeTag)
 		return Weapon::Create(_device.Get(), _context.Get());
 
-	if (TEXT("Prototype_GameObject_Sky") == strPrototypeTag)
+	if (TEXT("GameObject_Sky") == strPrototypeTag)
 		return Sky::Create(_device.Get(), _context.Get());
 
 	return nullptr;
@@ -487,13 +487,13 @@ Shared<Base> ResourceLoader::Create_StaticPrototype(const FLoadJob& LoadJob)
 	if ("VIBuffer" != LoadJob.strResourceType)
 		return nullptr;
 
-	if (TEXT("Prototype_Component_VIBuffer_Terrain") == LoadJob.strPrototypeTag)
+	if (TEXT("VIBuffer_Terrain") == LoadJob.strPrototypeTag)
 		return VIBuffer_Terrain::Create(_device.Get(), _context.Get(), TEXT("../Bin/Resources/Textures/Terrain/Height.bmp"));
 
-	if (TEXT("Prototype_Component_VIBuffer_Cube") == LoadJob.strPrototypeTag)
+	if (TEXT("VIBuffer_Cube") == LoadJob.strPrototypeTag)
 		return VIBuffer_Cube::Create(_device.Get(), _context.Get());
 
-	if (TEXT("Prototype_Component_VIBuffer_Rect") == LoadJob.strPrototypeTag)
+	if (TEXT("VIBuffer_Rect") == LoadJob.strPrototypeTag)
 		return VIBuffer_Rect::Create(_device.Get(), _context.Get());
 
 	return nullptr;
@@ -602,11 +602,11 @@ uint32 ResourceLoader::Get_LevelIndex_FromString(const string& strLevel)
 
 Shared<ResourceLoader> ResourceLoader::Create(ComPtr<Device> device, ComPtr<Context> context)
 {
-	Shared<ResourceLoader> pInstance = MakeSharedFromRaw(new ResourceLoader(device, context));
+	auto pInstance = make_shared<ResourceLoader>(device, context);
 	if (FAILED(pInstance->Initialize()))
 	{
 		MSG_BOX("Failed to Created : ResourceLoader");
-		Safe_Release(pInstance);
+		return nullptr;
 	}
 
 	return pInstance;

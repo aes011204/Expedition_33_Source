@@ -1,7 +1,9 @@
 ﻿#include "Game_View.h"
-
+#include "GameInstance.h"
 #include "Editor_ImGuiInclude.h"
 #include "Utils.h"
+#include "EditorInstance.h"
+#include "RenderTarget.h"
 
 Game_View::Game_View()
     : EditorWindow{ L"Game" }
@@ -16,12 +18,47 @@ void Game_View::Render()
     bool isOpen = Is_Open();
     const string windowName = Utils::ToString(Get_WindowName());
     
-    if (ImGui::Begin(windowName.c_str(), &isOpen))
+    if (ImGui::Begin(windowName.c_str(), &isOpen, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse))
     {
-        ImGui::TextUnformatted("Game viewport will display the play-mode render target here.");
+        ImVec2 viewportSize = ImGui::GetContentRegionAvail();
+
+        if (viewportSize.x < 1.f)
+            viewportSize.x = 1.f;
+
+        if (viewportSize.y < 1.f)
+            viewportSize.y = 1.f;
+
+        const uint32 width = static_cast<uint32>(viewportSize.x);
+        const uint32 height = static_cast<uint32>(viewportSize.y);
+
+        Shared<RenderTarget> renderTarget = EditorInstance::GetInstance()->Prepare_ViewportRenderTarget(
+            EDITOR_VIEWPORT_TARGET::Game, width, height);
+
+           if (nullptr != renderTarget)
+        {
+            GAME->Set_ViewportSize(
+                renderTarget->Get_Width(),
+                renderTarget->Get_Height()
+            );
+        }
+
+        if (nullptr != renderTarget && nullptr != renderTarget->Get_SRV())
+        {
+            const ImTextureID textureId = static_cast<ImTextureID>(reinterpret_cast<intptr_t>(renderTarget->Get_SRV()));
+            ImGui::Image(textureId, viewportSize);
+        }
+        else
+        {
+            ImGui::TextUnformatted("Game RenderTarget Missing");
+        }
     }
     Set_Open(isOpen);
     ImGui::End();
+}
+
+Shared<Game_View> Game_View::Create()
+{
+    return make_shared<Game_View>();
 }
 
 

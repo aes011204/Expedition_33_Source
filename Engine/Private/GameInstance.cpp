@@ -1,4 +1,4 @@
-#include "GameInstance.h"
+﻿#include "GameInstance.h"
 #include "Graphic_Device.h"
 #include "Timer_Manager.h"
 #include "Level_Manager.h"
@@ -23,6 +23,10 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& EngineDesc, ComPtr<De
 {
 	_graphicDevice = Graphic_Device::Create(
         EngineDesc.hWnd, EngineDesc.eWinMode, EngineDesc.iViewportWidth, EngineDesc.iViewportHeight, device, context);
+
+    _viewportWidth = EngineDesc.iViewportWidth;
+    _viewportHeight = EngineDesc.iViewportHeight;
+
 	if (nullptr == _graphicDevice)
 		return E_FAIL;
 
@@ -115,6 +119,22 @@ HRESULT GameInstance::Present()
 	return _graphicDevice->Present();	
 }
 
+void GameInstance::Set_ViewportSize(uint32 width, uint32 height)
+{
+    _viewportWidth = max(1u, width);
+    _viewportHeight = max(1u, height);
+}
+
+uint32 GameInstance::Get_ViewportWidth() const
+{
+     return _viewportWidth;
+}
+
+uint32 GameInstance::Get_ViewportHeight() const
+{
+     return _viewportWidth;
+}
+
 HRESULT GameInstance::Add_Timer(const wstring& strTimerTag)
 {
 	return _timerManager->Add_Timer(strTimerTag);
@@ -179,6 +199,7 @@ void GameInstance::Set_Transform(D3DTS eTransformState, FXMMATRIX TransformState
 {
 	_pipeLine->Set_Transform(eTransformState, TransformStateMatrix);
 }
+
 
 bool GameInstance::KeyPress(KEY_TYPE eKey) const
 {

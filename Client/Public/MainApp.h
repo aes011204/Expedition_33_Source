@@ -12,9 +12,9 @@ NS_BEGIN(Client)
 
 class MainApp final : public Base
 {
-private:
+public:
 	MainApp();
-	virtual ~MainApp() = default;
+	virtual ~MainApp() { Free(); }
 
 public:
 	HRESULT Initialize();
@@ -22,10 +22,9 @@ public:
 	HRESULT Render();
 	
 private:
-	/* 엔진 싱글톤 생명주기를 따르는 비소유 접근 포인터. */
-	GameInstance* _gameInstance = { nullptr };
-	ComPtr<Device> _device = { nullptr };
-	ComPtr<Context> _context = { nullptr };
+	GameInstance*       _gameInstance = { nullptr };
+	ComPtr<Device>      _device = { nullptr };
+	ComPtr<Context>     _context = { nullptr };
 
 private:
 	HRESULT Ready_Fonts();

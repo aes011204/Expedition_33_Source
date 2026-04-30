@@ -21,6 +21,10 @@ private:
 
 private:
     filesystem::path _resourceRoot = {};             /* 브라우저가 표시할 리소스 루트 경로. */
+
+public:
+    static Shared<Content_Browser> Create();
+
 };
 
 NS_END

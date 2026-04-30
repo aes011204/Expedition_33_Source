@@ -108,7 +108,7 @@ HRESULT Player::Ready_PartObjects()
 	BodyDesc.pParentState = &_states;
 	BodyDesc.pParentMatrix = _transformCom->Get_WorldMatrixPtr();
 
-	if (FAILED(__super::Add_PartObject(ETOI(LevelType::GamePlay), TEXT("Prototype_GameObject_Body_Player"),
+	if (FAILED(__super::Add_PartObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Body_Player"),
 		TEXT("Part_Body"), &BodyDesc)))
 		return E_FAIL;
 
@@ -121,7 +121,7 @@ HRESULT Player::Ready_PartObjects()
 	WeaponDesc.pParentMatrix = _transformCom->Get_WorldMatrixPtr();
 	WeaponDesc.pSocketMatrix = pBody->Get_SocketBoneMatrixPtr("SWORD");
 
-	if (FAILED(__super::Add_PartObject(ETOI(LevelType::GamePlay), TEXT("Prototype_GameObject_Weapon"),
+	if (FAILED(__super::Add_PartObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Weapon"),
 		TEXT("Part_Weapon"), &WeaponDesc)))
 		return E_FAIL;
 
@@ -131,12 +131,12 @@ HRESULT Player::Ready_PartObjects()
 
 Shared<Player> Player::Create(ComPtr<Device> device, ComPtr<Context> context)
 {
-	Shared<Player> pInstance = MakeSharedFromRaw(new Player(device, context));
+	auto pInstance = make_shared<Player>(device, context);
 
 	if (FAILED(pInstance->Initialize_Prototype()))
 	{
 		MSG_BOX("Failed to Created : Player");
-		Safe_Release(pInstance);
+		return nullptr;
 	}
 	return pInstance;
 }
@@ -144,12 +144,12 @@ Shared<Player> Player::Create(ComPtr<Device> device, ComPtr<Context> context)
 
 Shared<GameObject> Player::Clone(void* pArg)
 {
-	Shared<Player> pInstance = MakeSharedFromRaw(new Player(*this));
+	auto pInstance = make_shared<Player>(*this);
 
 	if (FAILED(pInstance->Initialize(pArg)))
 	{
 		MSG_BOX("Failed to Cloned : Player");
-		Safe_Release(pInstance);
+		return nullptr;
 	}
 	return pInstance;
 }

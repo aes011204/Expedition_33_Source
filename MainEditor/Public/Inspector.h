@@ -14,6 +14,10 @@ public:
 public:
     /* 초기 속성 검사 영역의 골격을 그린다. */
     virtual void Render() override;
+
+public:
+    static Shared<Inspector> Create();
+
 };
 
 NS_END

@@ -8,7 +8,7 @@ NS_BEGIN(Engine)
 
 class ENGINE_DLL VIBuffer abstract : public Component
 {
-protected:
+public:
 	VIBuffer(ComPtr<Device> device, ComPtr<Context> context);
 	VIBuffer(const VIBuffer& Prototype);
 	virtual ~VIBuffer() = default;

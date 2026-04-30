@@ -117,8 +117,6 @@
     <ClInclude Include="..\Public\Sky.h">
       <Filter>02.GameObject\Sky</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\ResourceLoader.h" />
-    <ClInclude Include="..\Public\ClientInstance.h" />
     <ClInclude Include="..\Public\Client_Enum.h">
       <Filter>99.Defines</Filter>
     </ClInclude>
@@ -127,6 +125,12 @@
     </ClInclude>
     <ClInclude Include="..\Public\Client_Macro.h">
       <Filter>99.Defines</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\ClientInstance.h">
+      <Filter>00.MainApp</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\ResourceLoader.h">
+      <Filter>01.Levels\Loading\Loader</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -172,8 +176,12 @@
     <ClCompile Include="..\Private\Sky.cpp">
       <Filter>02.GameObject\Sky</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\ResourceLoader.cpp" />
-    <ClCompile Include="..\Private\ClientInstance.cpp" />
+    <ClCompile Include="..\Private\ClientInstance.cpp">
+      <Filter>00.MainApp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\ResourceLoader.cpp">
+      <Filter>01.Levels\Loading\Loader</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxTex.hlsl">

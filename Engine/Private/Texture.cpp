@@ -72,26 +72,26 @@ HRESULT Texture::Bind_ShaderResourceViews(Shader* pShader, const char* pConstant
 
 Shared<Texture> Texture::Create(ComPtr<Device> device, ComPtr<Context> context, const wchar_t* pTextureFilePath, uint32 iNumSRVs)
 {
-    Shared<Texture> pInstance = MakeSharedFromRaw(new Texture(device, context));
+    auto pInstance = make_shared<Texture>(device, context);
 
     if (FAILED(pInstance->Initialize_Prototype(pTextureFilePath, iNumSRVs)))
     {
         MSG_BOX("Failed to Created : Texture");
-        Safe_Release(pInstance);
-    }
+        return nullptr;
+	}
     return pInstance;
 }
 
 
 Shared<Component> Texture::Clone(void* pArg)
 {
-    Shared<Texture> pInstance = MakeSharedFromRaw(new Texture(*this));
+    auto pInstance = make_shared<Texture>(*this);
 
     if (FAILED(pInstance->Initialize(pArg)))
     {
         MSG_BOX("Failed to Cloned : Texture");
-        Safe_Release(pInstance);
-    }
+        return nullptr;
+	}
     return pInstance;
 }
 

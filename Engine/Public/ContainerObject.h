@@ -11,7 +11,7 @@ public:
 	{
 		
 	}CONTAINEROBJECT_DESC;
-protected:
+public:
 	ContainerObject(ComPtr<Device> device, ComPtr<Context> context);
 	ContainerObject(const ContainerObject& Prototype);
 public:

@@ -6,10 +6,10 @@ NS_BEGIN(Engine)
 
 class ENGINE_DLL Texture final : public Component
 {
-private:
+public:
 	Texture(ComPtr<Device> device, ComPtr<Context> context);
 	Texture(const Texture& Prototype);
-	virtual ~Texture() = default;
+	virtual ~Texture() { Free(); }
 
 public:
 	virtual HRESULT Initialize_Prototype(const wchar_t* pTextureFilePath, uint32 iNumSRVs);

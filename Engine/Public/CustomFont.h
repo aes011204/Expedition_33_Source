@@ -6,9 +6,9 @@ NS_BEGIN(Engine)
 
 class CustomFont final : public Base
 {
-private:
+public:
 	CustomFont(ComPtr<Device> device, ComPtr<Context> context);
-	virtual ~CustomFont() = default;
+	virtual ~CustomFont() { Free(); }
 
 public:
 	HRESULT Initialize(const wchar_t* pFontFilePath);

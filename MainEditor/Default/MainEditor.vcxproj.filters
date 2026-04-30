@@ -2,48 +2,87 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClCompile Include="pch.cpp">
-      <Filter>99. Default</Filter>
+      <Filter>98. Default</Filter>
     </ClCompile>
-    <ClCompile Include="MainEditor.cpp" />
-    <ClCompile Include="..\Private\EditorInstance.cpp" />
-    <ClCompile Include="..\Private\EditorWindow.cpp" />
-    <ClCompile Include="..\Private\Editor_Manager.cpp" />
-    <ClCompile Include="..\Private\Scene_View.cpp" />
-    <ClCompile Include="..\Private\Game_View.cpp" />
-    <ClCompile Include="..\Private\Hierarchy_View.cpp" />
-    <ClCompile Include="..\Private\Content_Browser.cpp" />
-    <ClCompile Include="..\Private\Inspector.cpp" />
+    <ClCompile Include="..\Private\Content_Browser.cpp">
+      <Filter>01. View</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Editor_Manager.cpp">
+      <Filter>01. Manager</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\EditorInstance.cpp">
+      <Filter>00. Main</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\EditorWindow.cpp">
+      <Filter>01. View</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Hierarchy_View.cpp">
+      <Filter>01. View</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Game_View.cpp">
+      <Filter>01. View</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Inspector.cpp">
+      <Filter>02. Inspector</Filter>
+    </ClCompile>
+    <ClCompile Include="MainEditor.cpp">
+      <Filter>00. Main</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Scene_View.cpp">
+      <Filter>01. View</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
-      <Filter>99. Default</Filter>
+      <Filter>98. Default</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\EditorInstance.h" />
-    <ClInclude Include="..\Public\EditorWindow.h" />
-    <ClInclude Include="..\Public\Editor_Defines.h" />
     <ClInclude Include="..\Public\Editor_ImGuiInclude.h" />
-    <ClInclude Include="..\Public\Editor_Manager.h" />
-    <ClInclude Include="..\Public\Scene_View.h" />
-    <ClInclude Include="..\Public\Game_View.h" />
-    <ClInclude Include="..\Public\Hierarchy_View.h" />
-    <ClInclude Include="..\Public\Content_Browser.h" />
-    <ClInclude Include="..\Public\Inspector.h" />
-    <ClInclude Include="Editor_Defines.h">
-      <Filter>98. Defines</Filter>
+    <ClInclude Include="..\Public\Content_Browser.h">
+      <Filter>01. View</Filter>
     </ClInclude>
-    <ClInclude Include="Editor_Macro.h">
-      <Filter>98. Defines</Filter>
+    <ClInclude Include="..\Public\Editor_Defines.h">
+      <Filter>99. Defines</Filter>
     </ClInclude>
-    <ClInclude Include="Editor_Struct.h">
-      <Filter>98. Defines</Filter>
+    <ClInclude Include="..\Public\Editor_Manager.h">
+      <Filter>01. Manager</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\EditorInstance.h">
+      <Filter>00. Main</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\EditorWindow.h">
+      <Filter>01. View</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Hierarchy_View.h">
+      <Filter>01. View</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Game_View.h">
+      <Filter>01. View</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Inspector.h">
+      <Filter>02. Inspector</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Scene_View.h">
+      <Filter>01. View</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <Filter Include="99. Default">
+    <Filter Include="00. Main">
+      <UniqueIdentifier>{84cdd704-ecd6-4bff-a119-ee58777ca467}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="01. View">
+      <UniqueIdentifier>{a99ca1f2-640c-4bf6-aa29-88748c97013a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02. Inspector">
+      <UniqueIdentifier>{a6f51295-5edb-4694-9d55-01c07add81a5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="99. Defines">
+      <UniqueIdentifier>{afbffb53-f9a7-4636-bd21-a1fa41d808c3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="98. Default">
       <UniqueIdentifier>{dad98871-cb48-49e8-a12c-3874c97e4fec}</UniqueIdentifier>
     </Filter>
-    <Filter Include="98. Defines">
-      <UniqueIdentifier>{afbffb53-f9a7-4636-bd21-a1fa41d808c3}</UniqueIdentifier>
+    <Filter Include="01. Manager">
+      <UniqueIdentifier>{2da15314-2e57-43af-9f9c-145f0727fc64}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

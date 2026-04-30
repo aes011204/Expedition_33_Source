@@ -235,12 +235,12 @@ HRESULT Mesh::Ready_VertexBuffer_For_Anim(const aiMesh* pAIMesh, class Model* pM
 
 Shared<Mesh> Mesh::Create(ComPtr<Device> device, ComPtr<Context> context, ModelType eType, const aiMesh* pAIMesh, class Model* pModel, FXMMATRIX PreTransformMatrix)
 {
-	Shared<Mesh> pInstance = MakeSharedFromRaw(new Mesh(device, context));
+	auto pInstance = make_shared<Mesh>(device, context);
 
 	if (FAILED(pInstance->Initialize_Prototype(eType, pAIMesh, pModel, PreTransformMatrix)))
 	{
 		MSG_BOX("Failed to Created : Mesh");
-		Safe_Release(pInstance);
+		return nullptr;
 	}
 	return pInstance;
 }

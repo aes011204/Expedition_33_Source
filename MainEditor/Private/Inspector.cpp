@@ -23,5 +23,10 @@ void Inspector::Render()
     ImGui::End();
 }
 
+Shared<Inspector> Inspector::Create()
+{
+    return make_shared<Inspector>();
+}
+
 
 

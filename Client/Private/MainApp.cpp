@@ -42,9 +42,6 @@ HRESULT MainApp::Initialize()
     if (FAILED(CLIENT->Initialize_Client(_device, _context)))
         return E_FAIL;
 
-    if (FAILED(CLIENT->Ready_StaticResources()))
-        return E_FAIL;
-
 	if (FAILED(Ready_Fonts()))
 		return E_FAIL;
 
@@ -84,7 +81,7 @@ HRESULT MainApp::Ready_Fonts()
 {
 	/*MakeSpriteFont "넥슨lv1고딕 Bold" /FontSize:16 /FastPack /CharacterRegion:0x0020-0x00FF /CharacterRegion:0x3131-0x3163 /CharacterRegion:0xAC00-0xD800 /DefaultCharacter:0xAC00 158ex.spritefont */
 
-	if (FAILED(_gameInstance->Add_Font(TEXT("Font_Default"), TEXT("../Bin/Resources/Fonts/158ex.SpriteFont"))))
+	if (FAILED(_gameInstance->Add_Font(TEXT("Font_Default"), TEXT("../Bin/Resources/Fonts/158ex.spritefont"))))
 		return E_FAIL;
 
 	return S_OK;
@@ -109,13 +106,14 @@ HRESULT MainApp::Ready_StartLevel(LevelType eStartLevelID)
 
 Shared<MainApp> MainApp::Create()
 {
-	Shared<MainApp> pInstance = MakeSharedFromRaw(new MainApp());
+	auto pInstance = make_shared<MainApp>();
 
 	if (FAILED(pInstance->Initialize()))
 	{
 		MSG_BOX("Failed to Created : MainApp");
-		Safe_Release(pInstance);
+		return nullptr;
 	}
+
 	return pInstance;
 }
 
@@ -123,10 +121,8 @@ void MainApp::Free()
 {
 	__super::Free();
 
+	CLIENT->Release_Client();
+	ClientInstance::DestroyInstance();
+
 	_gameInstance->Release_Engine();
 }
-
-
-
-
-

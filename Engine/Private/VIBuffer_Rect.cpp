@@ -74,24 +74,24 @@ HRESULT VIBuffer_Rect::Initialize(void* pArg)
 
 Shared<VIBuffer_Rect> VIBuffer_Rect::Create(ComPtr<Device> device, ComPtr<Context> context)
 {
-	Shared<VIBuffer_Rect> pInstance = MakeSharedFromRaw(new VIBuffer_Rect(device, context));
+	auto pInstance = make_shared<VIBuffer_Rect>(device, context);
 
 	if (FAILED(pInstance->Initialize_Prototype()))
 	{
 		MSG_BOX("Failed to Created : VIBuffer_Rect");
-		Safe_Release(pInstance);
+		return nullptr;
 	}
 	return pInstance;
 }
 
 Shared<Component> VIBuffer_Rect::Clone(void* pArg)
 {
-	Shared<VIBuffer_Rect> pInstance = MakeSharedFromRaw(new VIBuffer_Rect(*this));
+	auto pInstance = make_shared<VIBuffer_Rect>(*this);
 
 	if (FAILED(pInstance->Initialize(pArg)))
 	{
 		MSG_BOX("Failed to Cloned : VIBuffer_Rect");
-		Safe_Release(pInstance);
+		return nullptr;
 	}
 	return pInstance;
 }

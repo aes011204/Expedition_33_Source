@@ -6,10 +6,10 @@ NS_BEGIN(Engine)
 
 class ENGINE_DLL Model final : public Component
 {
-protected:
+public:
 	Model(ComPtr<Device> device, ComPtr<Context> context);
 	Model(const Model& Prototype);
-	virtual ~Model() = default;
+	virtual ~Model() { Free(); }
 
 public:
 	size_t Get_NumMeshes() {

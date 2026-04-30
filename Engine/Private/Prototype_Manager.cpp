@@ -18,7 +18,8 @@ HRESULT Prototype_Manager::Add_Prototype(uint32 iLevelIndex, const wstring& strP
 {
 	if (nullptr != Find_Prototype(iLevelIndex, strPrototypeTag))
 	{
-		MSG_BOX("An object with the same key already exists.");
+		wstring message = L"Prototype already exists.\nLevel: " + to_wstring(iLevelIndex) + L"\nTag: " + strPrototypeTag;
+		MSG_BOX_S(message.c_str());
 		return E_FAIL;
 	}
 

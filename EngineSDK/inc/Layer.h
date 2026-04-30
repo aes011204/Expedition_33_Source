@@ -6,9 +6,9 @@ NS_BEGIN(Engine)
 
 class Layer final : public Base
 {
-private:
+public:
 	Layer();
-	virtual ~Layer() = default;
+	virtual ~Layer() { Free(); }
 
 public:
 	HRESULT Add_GameObject(Shared<class GameObject> pGameObject);

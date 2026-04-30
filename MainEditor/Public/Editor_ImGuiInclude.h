@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #ifdef new
 #pragma push_macro("new")
@@ -13,4 +13,3 @@
 #pragma pop_macro("new")
 #undef MAINEDITOR_RESTORE_NEW_MACRO
 #endif
-

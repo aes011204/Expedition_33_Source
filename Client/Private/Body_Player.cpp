@@ -78,14 +78,12 @@ HRESULT Body_Player::Render()
 	if (FAILED(Bind_ShaderResources()))
 		return E_FAIL;
 
-
-
 	size_t iNumMeshes = _model->Get_NumMeshes();
 
 	for (size_t i = 0; i < iNumMeshes; i++)
 	{
-		_model->Bind_Material(_shader, "g_DiffuseTexture", i, aiTextureType_DIFFUSE, 0);
-		_model->Bind_BoneMatrices(_shader, "g_BoneMatrices", i);
+		_model->Bind_Material(_shader.get(), "g_DiffuseTexture", i, aiTextureType_DIFFUSE, 0);
+		_model->Bind_BoneMatrices(_shader.get(), "g_BoneMatrices", i);
 
 		if (FAILED(_shader->Begin(0)))
 			return E_FAIL;
@@ -93,19 +91,15 @@ HRESULT Body_Player::Render()
 		_model->Render(i);
 	}
 
-
 	return S_OK;
 }
 
 HRESULT Body_Player::Ready_Components()
 {
-
-	if (FAILED(__super::Add_Component(ETOI(LevelType::GamePlay), TEXT("Prototype_Component_Shader_VtxAnimMesh"),
-		TEXT("Com_Shader"), reinterpret_cast<Component**>(&_shader))))
+	if (FAILED(__super::Add_Component(ETOI(LevelType::GamePlay), TEXT("Shader_VtxAnimMesh"), _shader)))
 		return E_FAIL;
 
-	if (FAILED(__super::Add_Component(ETOI(LevelType::GamePlay), TEXT("Prototype_Component_Model_Fiona"),
-		TEXT("Com_Model"), reinterpret_cast<Component**>(&_model))))
+	if (FAILED(__super::Add_Component(ETOI(LevelType::GamePlay), TEXT("Model_Fiona"), _model)))
 		return E_FAIL;
 
 	return S_OK;
@@ -118,15 +112,15 @@ HRESULT Body_Player::Bind_ShaderResources()
 	if (FAILED(_shader->Bind_Matrix("g_WorldMatrix", &_combinedWorldMatrix)))
 		return E_FAIL;
 
-	if (FAILED(GAME->Bind_TransformMatrix(D3DTS::VIEW, _shader, "g_ViewMatrix")))
+	if (FAILED(GAME->Bind_TransformMatrix(D3DTS::VIEW, _shader.get(), "g_ViewMatrix")))
 		return E_FAIL;
 
-	if (FAILED(GAME->Bind_TransformMatrix(D3DTS::PROJ, _shader, "g_ProjMatrix")))
+	if (FAILED(GAME->Bind_TransformMatrix(D3DTS::PROJ, _shader.get(), "g_ProjMatrix")))
 		return E_FAIL;
 
 
 
-	if (FAILED(GAME->Bind_CamPosition(_shader, "g_vCamPosition")))
+	if (FAILED(GAME->Bind_CamPosition(_shader.get(), "g_vCamPosition")))
 		return E_FAIL;
 
 	const LIGHT_DESC* pLightDesc = GAME->Get_LightDesc(0);
@@ -147,35 +141,34 @@ HRESULT Body_Player::Bind_ShaderResources()
 
 Shared<Body_Player> Body_Player::Create(ComPtr<Device> device, ComPtr<Context> context)
 {
-	Shared<Body_Player> pInstance = MakeSharedFromRaw(new Body_Player(device, context));
+    auto instance = make_shared<Body_Player>(device, context);
 
-	if (FAILED(pInstance->Initialize_Prototype()))
-	{
-		MSG_BOX("Failed to Created : Body_Player");
-		Safe_Release(pInstance);
-	}
-	return pInstance;
+    if (FAILED(instance->Initialize_Prototype()))
+    {
+        MSG_BOX("Failed to Created : Body_Player");
+        return nullptr;
+    }
+
+    return instance;
 }
 
-
-Shared<GameObject> Body_Player::Clone(void* pArg)
+Shared<GameObject> Body_Player::Clone(void* arg)
 {
-	Shared<Body_Player> pInstance = MakeSharedFromRaw(new Body_Player(*this));
+    auto clone = make_shared<Body_Player>(*this);
 
-	if (FAILED(pInstance->Initialize(pArg)))
-	{
-		MSG_BOX("Failed to Cloned : Body_Player");
-		Safe_Release(pInstance);
-	}
-	return pInstance;
+    if (FAILED(clone->Initialize(arg)))
+    {
+        MSG_BOX("Failed to Cloned : Body_Player");
+        return nullptr;
+    }
+
+    return clone;
 }
-
 
 void Body_Player::Free()
 {
 	__super::Free();
-	Safe_Release(_shader);
-	Safe_Release(_model);
+
 
 }
 

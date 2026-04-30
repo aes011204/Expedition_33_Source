@@ -6,9 +6,9 @@ NS_BEGIN(Engine)
 
 class Light final : public Base
 {
-private:
+public:
 	Light();
-	virtual ~Light() = default;
+	virtual ~Light() { Free(); }
 
 public:
 	const LIGHT_DESC* Get_LightDesc() const {

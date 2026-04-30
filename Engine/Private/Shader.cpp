@@ -177,12 +177,12 @@ HRESULT Shader::Bind_RawValue(const char* pConstantName, const void* pData, uint
 
 Shared<Shader> Shader::Create(ComPtr<Device> device, ComPtr<Context> context, const wchar_t* pShaderFilePath, const D3D11_INPUT_ELEMENT_DESC* pElements, uint32 iNumElements)
 {
-	Shared<Shader> pInstance = MakeSharedFromRaw(new Shader(device, context));
+	auto pInstance = make_shared<Shader>(device, context);
 
 	if (FAILED(pInstance->Initialize_Prototype(pShaderFilePath, pElements, iNumElements)))
 	{
 		MSG_BOX("Failed to Created : Shader");
-		Safe_Release(pInstance);
+		return nullptr;
 	}
 	return pInstance;
 }
@@ -190,12 +190,12 @@ Shared<Shader> Shader::Create(ComPtr<Device> device, ComPtr<Context> context, co
 
 Shared<Component> Shader::Clone(void* pArg)
 {
-	Shared<Shader> pInstance = MakeSharedFromRaw(new Shader(*this));
+	auto pInstance = make_shared<Shader>(*this);
 
 	if (FAILED(pInstance->Initialize(pArg)))
 	{
 		MSG_BOX("Failed to Cloned : Shader");
-		Safe_Release(pInstance);
+		return nullptr;
 	}
 	return pInstance;
 }

@@ -19,10 +19,10 @@ public:
 	{
 		
 	}TERRAIN_DESC;
-private:
+public:
 	Terrain(ComPtr<Device> device, ComPtr<Context> context);
 	Terrain(const Terrain& Prototype);
-	virtual ~Terrain() = default;
+	virtual ~Terrain() { Free(); }
 
 public:
 	virtual HRESULT Initialize_Prototype() override;
@@ -33,9 +33,9 @@ public:
 	virtual HRESULT Render() override;
 
 protected:
-	Shader* _shader = { nullptr };
-	VIBuffer_Terrain* _vibuffer = { nullptr };
-	Texture* _textures[TEXTURE::END] = {nullptr};
+	Shared<Shader> _shader = { nullptr };
+	Shared<VIBuffer_Terrain> _vibuffer = { nullptr };
+	Shared<Texture> _textures[TEXTURE::END] = { nullptr };
 
 protected:
 	HRESULT Ready_Components();

@@ -13,16 +13,6 @@ GameObject::GameObject(const GameObject& Prototype)
 {
 }
 
-Component* GameObject::Get_Component(const wstring& strComponentTag)
-{
-    auto iter = _components.find(strComponentTag);
-
-    if(iter == _components.end())
-        return nullptr;
-
-    return iter->second.get();
-}
-
 HRESULT GameObject::Initialize_Prototype()
 {
     return S_OK;
@@ -30,16 +20,18 @@ HRESULT GameObject::Initialize_Prototype()
 
 HRESULT GameObject::Initialize(void* pArg)
 {
-    Shared<Transform> pTransform = Transform::Create(_device, _context);
-    _transformCom = pTransform.get();
+    _transformCom = Transform::Create(_device, _context);
+
     if (nullptr == _transformCom)
         return E_FAIL;
 
     if (FAILED(_transformCom->Initialize(pArg)))
         return E_FAIL;
 
-    if (nullptr == Get_Component(g_strTransformTag))
-        _components.emplace(g_strTransformTag, static_pointer_cast<Component>(pTransform));
+    wstring strTransfrom = TEXT("Com_Transform");
+
+    if (_components.end() == _components.find(strTransfrom))
+        _components.emplace(strTransfrom, static_pointer_cast<Component>(_transformCom));
 
     return S_OK;
 }
@@ -61,24 +53,10 @@ HRESULT GameObject::Render()
     return S_OK;
 }
 
-HRESULT GameObject::Add_Component(uint32 iPrototypeLevelIndex, const wstring& strPrototypeTag, const wstring& strComponentTag, Component** ppOut, void* pArg)
-{
-    if (nullptr != Get_Component(strComponentTag))
-        return E_FAIL;
-
-    Shared<Component> pComponent = static_pointer_cast<Component>(GAME->Clone_Prototype(Prototype::COMPONENT, iPrototypeLevelIndex, strPrototypeTag, pArg));
-    if (nullptr == pComponent)
-        return E_FAIL;
-
-    _components.emplace(strComponentTag, pComponent);
-    *ppOut = pComponent.get();
-
-    return S_OK;
-}
-
 void GameObject::Free()
 {
     __super::Free();
+
     _components.clear();
-    _transformCom = nullptr;
+    _transformCom.reset();
 }

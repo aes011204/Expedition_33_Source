@@ -6,9 +6,9 @@ NS_BEGIN(Engine)
 
 class Material final : public Base
 {
-private:
+public:
 	Material(ComPtr<Device> device, ComPtr<Context> context);
-	virtual ~Material() = default;
+	virtual ~Material() { Free(); }
 
 public:
 	HRESULT Initialize(const aiMaterial* pAIMaterial, const char* pModelFilePath);

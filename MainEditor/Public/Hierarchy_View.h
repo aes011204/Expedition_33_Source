@@ -14,6 +14,10 @@ public:
 public:
     /* 초기 하이어라키 트리 골격을 그린다. */
     virtual void Render() override;
+
+public:
+    static Shared<Hierarchy_View> Create();
+
 };
 
 NS_END

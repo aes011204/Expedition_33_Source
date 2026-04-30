@@ -12,10 +12,10 @@ NS_BEGIN(Client)
 
 class Monster final : public GameObject
 {
-private:
+public:
 	Monster(ComPtr<Device> device, ComPtr<Context> context);
 	Monster(const Monster& Prototype);
-	virtual ~Monster() = default;
+	virtual ~Monster() { Free(); }
 
 public:
 	virtual HRESULT Initialize_Prototype() override;
@@ -26,8 +26,8 @@ public:
 	virtual HRESULT Render() override;
 
 protected:
-	Shader*		_shader = { nullptr };
-	Model*			_model = { nullptr };
+	Shared<Shader>	_shader = { nullptr };
+	Shared<Model>	_model = { nullptr };
 	
 
 protected:

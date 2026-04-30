@@ -2,6 +2,7 @@
 
 #include "Editor_ImGuiInclude.h"
 #include "Utils.h"
+#include "EditorInstance.h"
 #include "Scene_View.h"
 #include "Game_View.h"
 #include "Hierarchy_View.h"
@@ -10,7 +11,11 @@
 
 HRESULT Editor_Manager::Initialize()
 {
-	Register_DefaultWindows();
+	Add_Window(Scene_View::Create());
+	Add_Window(Game_View::Create());
+	Add_Window(Hierarchy_View::Create());
+	Add_Window(Content_Browser::Create());
+	Add_Window(Inspector::Create());
 
 	return S_OK;
 }
@@ -35,7 +40,7 @@ void Editor_Manager::Render()
 	}
 }
 
-void Editor_Manager::Register_Window(const Shared<EditorWindow>& window)
+void Editor_Manager::Add_Window(const Shared<EditorWindow>& window)
 {
 	if (nullptr == window)
 		return;
@@ -50,15 +55,6 @@ Shared<EditorWindow> Editor_Manager::Find_Window(const wstring& windowName) cons
 		return nullptr;
 
 	return iter->second;
-}
-
-void Editor_Manager::Register_DefaultWindows()
-{
-	Register_Window(make_shared<Scene_View>());
-	Register_Window(make_shared<Game_View>());
-	Register_Window(make_shared<Hierarchy_View>());
-	Register_Window(make_shared<Content_Browser>());
-	Register_Window(make_shared<Inspector>());
 }
 
 void Editor_Manager::Render_DockSpace()
@@ -101,6 +97,72 @@ void Editor_Manager::Render_DockSpace()
 			}
 
 			ImGui::EndMenu();
+		}
+
+		EditorInstance* pEditor = EditorInstance::GetInstance();
+		if (nullptr != pEditor)
+		{
+			const bool bPlaying = pEditor->IsPlaying();
+			const bool bPaused = pEditor->IsPaused();
+
+			ImGui::SameLine();
+			ImGui::Spacing();
+			ImGui::SameLine();
+			ImGui::TextDisabled("|");
+			ImGui::SameLine();
+			ImGui::TextDisabled("Run");
+			ImGui::SameLine();
+
+			if (bPlaying)
+				ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.13f, 0.42f, 0.72f, 1.f));
+
+			if (ImGui::SmallButton("Play"))
+			{
+				if (bPaused)
+					pEditor->Resume();
+				else
+					pEditor->Play();
+			}
+
+			if (bPlaying)
+				ImGui::PopStyleColor();
+
+			ImGui::SameLine();
+
+			if (bPaused)
+				ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.70f, 0.46f, 0.10f, 1.f));
+
+			if (ImGui::SmallButton("Pause"))
+				pEditor->Pause();
+
+			if (bPaused)
+				ImGui::PopStyleColor();
+
+			ImGui::SameLine();
+
+			if (!bPlaying && !bPaused)
+				ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.32f, 0.36f, 0.40f, 1.f));
+
+			if (ImGui::SmallButton("Stop"))
+				pEditor->Stop();
+
+			if (!bPlaying && !bPaused)
+				ImGui::PopStyleColor();
+
+			ImGui::SameLine();
+			ImGui::Spacing();
+			ImGui::SameLine();
+			ImGui::TextDisabled("Scale");
+			ImGui::SameLine();
+
+			float fTimeScale = pEditor->Get_RuntimeTimeScale();
+			ImGui::SetNextItemWidth(74.f);
+			if (ImGui::DragFloat("##RuntimeTimeScale", &fTimeScale, 0.01f, 0.01f, 8.f, "%.2fx"))
+				pEditor->Set_RuntimeTimeScale(fTimeScale);
+
+			ImGui::SameLine();
+			if (ImGui::SmallButton("1x"))
+				pEditor->Reset_RuntimeTimeScale();
 		}
 
 		ImGui::EndMenuBar();

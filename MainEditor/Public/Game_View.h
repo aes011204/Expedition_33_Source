@@ -14,6 +14,10 @@ public:
 public:
     /* 런타임 렌더 타겟이 연결되기 전까지 사용할 게임 뷰 임시 화면을 그린다. */
     virtual void Render() override;
+
+public:
+    static Shared<Game_View> Create();
+
 };
 
 NS_END

@@ -6,10 +6,10 @@ NS_BEGIN(Engine)
 
 class ENGINE_DLL VIBuffer_Rect final : public VIBuffer
 {
-protected:
+public:
 	VIBuffer_Rect(ComPtr<Device> device, ComPtr<Context> context);
 	VIBuffer_Rect(const VIBuffer_Rect& Prototype);
-	virtual ~VIBuffer_Rect() = default;
+	virtual ~VIBuffer_Rect() { Free(); }
 
 public:
 	virtual HRESULT Initialize_Prototype();

@@ -47,9 +47,9 @@ public:
 		uint32 iNumElements = {};
 	}FInputLayoutInfo;
 
-private:
+public:
 	ResourceLoader(ComPtr<Device> device, ComPtr<Context> context);
-	virtual ~ResourceLoader() = default;
+	virtual ~ResourceLoader() { Free(); }
 
 public:
 	HRESULT Initialize();

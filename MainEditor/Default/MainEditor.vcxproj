@@ -201,9 +201,6 @@ if exist "$(ProjectDir)..\..\Client\Bin\assimp-vc143-mt.dll" xcopy /y /d "$(Proj
     <ClInclude Include="..\Public\Hierarchy_View.h" />
     <ClInclude Include="..\Public\Content_Browser.h" />
     <ClInclude Include="..\Public\Inspector.h" />
-    <ClInclude Include="Editor_Defines.h" />
-    <ClInclude Include="Editor_Macro.h" />
-    <ClInclude Include="Editor_Struct.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />

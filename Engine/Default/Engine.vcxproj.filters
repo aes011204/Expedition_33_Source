@@ -2,7 +2,7 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClInclude Include="pch.h">
-      <Filter>99.Defines</Filter>
+      <Filter>99. Defines</Filter>
     </ClInclude>
     <Filter Include="00.System">
       <UniqueIdentifier>{ee32449f-48a6-4ac7-9767-e928562a7bb2}</UniqueIdentifier>
@@ -21,9 +21,6 @@
     </Filter>
     <Filter Include="01.Utility\99.SuperClass">
       <UniqueIdentifier>{28a700cf-cf45-4d42-83d5-664e9f3a471f}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="99.Defines">
-      <UniqueIdentifier>{dc76f3a4-70ea-430a-8253-3ec25138c2b6}</UniqueIdentifier>
     </Filter>
     <Filter Include="01.Utility\00.GameInstance">
       <UniqueIdentifier>{f1cd2316-8843-49f3-a045-24b6c4deedd4}</UniqueIdentifier>
@@ -139,28 +136,29 @@
     <Filter Include="01.Utility\09.Utils">
       <UniqueIdentifier>{a830136d-e962-4c39-9a9c-a795701b0c2d}</UniqueIdentifier>
     </Filter>
+    <ClInclude Include="..\Public\RenderTarget.h" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\public\Base.h">
       <Filter>01.Utility\99.SuperClass</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Engine_Function.h">
-      <Filter>99.Defines</Filter>
+      <Filter>99. Defines</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Engine_Macro.h">
-      <Filter>99.Defines</Filter>
+      <Filter>99. Defines</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Engine_Struct.h">
-      <Filter>99.Defines</Filter>
+      <Filter>99. Defines</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Engine_Typedef.h">
-      <Filter>99.Defines</Filter>
+      <Filter>99. Defines</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Engine_Define.h">
-      <Filter>99.Defines</Filter>
+      <Filter>99. Defines</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Engine_Enum.h">
-      <Filter>99.Defines</Filter>
+      <Filter>99. Defines</Filter>
     </ClInclude>
     <ClInclude Include="..\public\GameInstance.h">
       <Filter>01.Utility\00.GameInstance</Filter>
@@ -274,12 +272,12 @@
       <Filter>01.Utility\09.Utils</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Vertex_Types.h">
-      <Filter>99.Defines</Filter>
+      <Filter>99. Defines</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
-      <Filter>99.Defines</Filter>
+      <Filter>99. Defines</Filter>
     </ClCompile>
     <ClCompile Include="..\private\Base.cpp">
       <Filter>01.Utility\99.SuperClass</Filter>
@@ -395,10 +393,19 @@
     <ClCompile Include="..\Private\Utils\Utils.cpp">
       <Filter>01.Utility\09.Utils</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\RenderTarget.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Bin\ShaderFiles\Engine_Shader_Defines.hlsli">
       <Filter>02.ShaderFiles</Filter>
     </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="98. Default">
+      <UniqueIdentifier>{8f7ae94d-6e63-44d0-987a-992fa22d4624}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="99. Defines">
+      <UniqueIdentifier>{dc76f3a4-70ea-430a-8253-3ec25138c2b6}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
 </Project>

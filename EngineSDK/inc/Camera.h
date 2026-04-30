@@ -13,7 +13,7 @@ public:
 		float		    fFovy, fNear, fFar;
 	}CAMERA_DESC;
 
-protected:
+public:
 	Camera(ComPtr<Device> device, ComPtr<Context> context);
 	Camera(const Camera& Prototype);
 	virtual ~Camera() = default;

@@ -1,4 +1,4 @@
-﻿#include "Terrain.h"
+#include "Terrain.h"
 #include "GameInstance.h"
 
 Terrain::Terrain(ComPtr<Device> device, ComPtr<Context> context)
@@ -63,22 +63,17 @@ HRESULT Terrain::Render()
 
 HRESULT Terrain::Ready_Components()
 {
-	if (FAILED(__super::Add_Component(ETOI(LevelType::GamePlay), TEXT("Prototype_Component_Texture_Terrain"),
-		TEXT("Com_Texture_Diffuse"), reinterpret_cast<Component**>(&_textures[TEXTURE::DIFFUSE]))))
+	if (FAILED(__super::Add_Component(ETOI(LevelType::GamePlay), TEXT("Texture_Terrain"), _textures[TEXTURE::DIFFUSE])))
 		return E_FAIL;
-	if (FAILED(__super::Add_Component(ETOI(LevelType::GamePlay), TEXT("Prototype_Component_Texture_Terrain_Mask"),
-		TEXT("Com_Texture_Mask"), reinterpret_cast<Component**>(&_textures[TEXTURE::MASK]))))
+	if (FAILED(__super::Add_Component(ETOI(LevelType::GamePlay), TEXT("Texture_Terrain_Mask"), _textures[TEXTURE::MASK])))
 		return E_FAIL;
-	if (FAILED(__super::Add_Component(ETOI(LevelType::GamePlay), TEXT("Prototype_Component_Texture_Terrain_Brush"),
-		TEXT("Com_Texture_Brush"), reinterpret_cast<Component**>(&_textures[TEXTURE::BRUSH]))))
+	if (FAILED(__super::Add_Component(ETOI(LevelType::GamePlay), TEXT("Texture_Terrain_Brush"), _textures[TEXTURE::BRUSH])))
 		return E_FAIL;
 
-	if (FAILED(__super::Add_Component(ETOI(LevelType::GamePlay), TEXT("Prototype_Component_Shader_VtxNorTex"),
-		TEXT("Com_Shader"), reinterpret_cast<Component**>(&_shader))))
+	if (FAILED(__super::Add_Component(ETOI(LevelType::GamePlay), TEXT("Shader_VtxNorTex"), _shader)))
 		return E_FAIL;
 
-	if (FAILED(__super::Add_Component(ETOI(LevelType::GamePlay), TEXT("Prototype_Component_VIBuffer_Terrain"),
-		TEXT("Com_VIBuffer"), reinterpret_cast<Component**>(&_vibuffer))))
+	if (FAILED(__super::Add_Component(ETOI(LevelType::GamePlay), TEXT("VIBuffer_Terrain"), _vibuffer)))
 		return E_FAIL;
 
 	return S_OK;
@@ -86,23 +81,23 @@ HRESULT Terrain::Ready_Components()
 
 HRESULT Terrain::Bind_ShaderResources()
 {
-	if (FAILED(_transformCom->Bind_ShaderResource(_shader, "g_WorldMatrix")))
+	if (FAILED(_transformCom->Bind_ShaderResource(_shader.get(), "g_WorldMatrix")))
 		return E_FAIL;
 
-	if (FAILED(GAME->Bind_TransformMatrix(D3DTS::VIEW, _shader, "g_ViewMatrix")))
+	if (FAILED(GAME->Bind_TransformMatrix(D3DTS::VIEW, _shader.get(), "g_ViewMatrix")))
 		return E_FAIL;
 
-	if (FAILED(GAME->Bind_TransformMatrix(D3DTS::PROJ, _shader, "g_ProjMatrix")))
+	if (FAILED(GAME->Bind_TransformMatrix(D3DTS::PROJ, _shader.get(), "g_ProjMatrix")))
 		return E_FAIL;
 
-	if (FAILED(_textures[TEXTURE::DIFFUSE]->Bind_ShaderResourceViews(_shader, "g_DiffuseTexture")))
+	if (FAILED(_textures[TEXTURE::DIFFUSE]->Bind_ShaderResourceViews(_shader.get(), "g_DiffuseTexture")))
 		return E_FAIL;
-	if (FAILED(_textures[TEXTURE::MASK]->Bind_ShaderResourceView(_shader, "g_MaskTexture", 0)))
+	if (FAILED(_textures[TEXTURE::MASK]->Bind_ShaderResourceView(_shader.get(), "g_MaskTexture", 0)))
 		return E_FAIL;
-	if (FAILED(_textures[TEXTURE::BRUSH]->Bind_ShaderResourceView(_shader, "g_BrushTexture", 0)))
+	if (FAILED(_textures[TEXTURE::BRUSH]->Bind_ShaderResourceView(_shader.get(), "g_BrushTexture", 0)))
 		return E_FAIL;
 
-	if (FAILED(GAME->Bind_CamPosition(_shader, "g_vCamPosition")))
+	if (FAILED(GAME->Bind_CamPosition(_shader.get(), "g_vCamPosition")))
 		return E_FAIL;
 
 	const LIGHT_DESC*		pLightDesc = GAME->Get_LightDesc(0);
@@ -123,12 +118,12 @@ HRESULT Terrain::Bind_ShaderResources()
 
 Shared<Terrain> Terrain::Create(ComPtr<Device> device, ComPtr<Context> context)
 {
-	Shared<Terrain> pInstance = MakeSharedFromRaw(new Terrain(device, context));
+	auto pInstance = make_shared<Terrain>(device, context);
 
 	if (FAILED(pInstance->Initialize_Prototype()))
 	{
 		MSG_BOX("Failed to Created : Terrain");
-		Safe_Release(pInstance);
+		return nullptr;
 	}
 	return pInstance;
 }
@@ -136,12 +131,12 @@ Shared<Terrain> Terrain::Create(ComPtr<Device> device, ComPtr<Context> context)
 
 Shared<GameObject> Terrain::Clone(void* pArg)
 {
-	Shared<Terrain> pInstance = MakeSharedFromRaw(new Terrain(*this));
+	auto pInstance = make_shared<Terrain>(*this);
 
 	if (FAILED(pInstance->Initialize(pArg)))
 	{
 		MSG_BOX("Failed to Cloned : Terrain");
-		Safe_Release(pInstance);
+		return nullptr;
 	}
 	return pInstance;
 }

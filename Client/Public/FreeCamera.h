@@ -18,10 +18,10 @@ public:
         
     } FreeCameraDesc;
 
-private:
+public:
 	FreeCamera(ComPtr<Device> device, ComPtr<Context> context);
 	FreeCamera(const FreeCamera& Prototype);
-	virtual ~FreeCamera() = default;
+	virtual ~FreeCamera() { Free(); }
 
 public:
 	virtual HRESULT Initialize_Prototype() override;

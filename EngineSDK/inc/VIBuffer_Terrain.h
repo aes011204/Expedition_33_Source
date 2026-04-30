@@ -6,10 +6,10 @@ NS_BEGIN(Engine)
 
 class ENGINE_DLL VIBuffer_Terrain final : public VIBuffer
 {
-protected:
+public:
 	VIBuffer_Terrain(ComPtr<Device> device, ComPtr<Context> context);
 	VIBuffer_Terrain(const VIBuffer_Terrain& Prototype);
-	virtual ~VIBuffer_Terrain() = default;
+	virtual ~VIBuffer_Terrain() { Free(); }
 
 public:
 	virtual HRESULT Initialize_Prototype(const wchar_t* pHeightMapFilePath);

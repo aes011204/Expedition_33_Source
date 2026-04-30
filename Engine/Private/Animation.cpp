@@ -64,19 +64,19 @@ bool Animation::Update_TransformationMatrices(float fTimeDelta, const vector<Sha
 
 Shared<Animation> Animation::Create(const aiAnimation* pAIAnimation, class Model* pModel)
 {
-	Shared<Animation> pInstance = MakeSharedFromRaw(new Animation());
+	auto pInstance = make_shared<Animation>();
 
 	if (FAILED(pInstance->Initialize(pAIAnimation, pModel)))
 	{
 		MSG_BOX("Failed to Created : Animation");
-		Safe_Release(pInstance);
+		return nullptr;
 	}
 	return pInstance;
 }
 
 Shared<Animation> Animation::Clone()
 {
-	return MakeSharedFromRaw(new Animation(*this));
+	return make_shared<Animation>(*this);
 }
 
 

@@ -18,10 +18,10 @@ public:
 		const uint32* pParentState = { nullptr };
 		const XMFLOAT4X4* pSocketMatrix = { nullptr };
 	}WEAPON_DESC;
-private:
+public:
 	Weapon(ComPtr<Device> device, ComPtr<Context> context);
 	Weapon(const Weapon& Prototype);
-	virtual ~Weapon() = default;
+	virtual ~Weapon() { Free(); }
 
 public:
 	virtual HRESULT Initialize_Prototype() override;
@@ -33,8 +33,8 @@ public:
 
 
 private:
-	Shader* _shader = { nullptr };
-	Model* _model = { nullptr };
+	Shared<Shader> _shader = { nullptr };
+	Shared<Model> _model = { nullptr };
 
 private:
 	const uint32* _parentState = { nullptr };

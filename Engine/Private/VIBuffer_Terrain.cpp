@@ -137,24 +137,24 @@ HRESULT VIBuffer_Terrain::Initialize(void* pArg)
 
 Shared<VIBuffer_Terrain> VIBuffer_Terrain::Create(ComPtr<Device> device, ComPtr<Context> context, const wchar_t* pHeightMapFilePath)
 {
-	Shared<VIBuffer_Terrain> pInstance = MakeSharedFromRaw(new VIBuffer_Terrain(device, context));
+	auto pInstance = make_shared<VIBuffer_Terrain>(device, context);
 
 	if (FAILED(pInstance->Initialize_Prototype(pHeightMapFilePath)))
 	{
 		MSG_BOX("Failed to Created : VIBuffer_Terrain");
-		Safe_Release(pInstance);
+		return nullptr;
 	}
 	return pInstance;
 }
 
 Shared<Component> VIBuffer_Terrain::Clone(void* pArg)
 {
-	Shared<VIBuffer_Terrain> pInstance = MakeSharedFromRaw(new VIBuffer_Terrain(*this));
+	auto pInstance = make_shared<VIBuffer_Terrain>(*this);
 
 	if (FAILED(pInstance->Initialize(pArg)))
 	{
 		MSG_BOX("Failed to Cloned : VIBuffer_Terrain");
-		Safe_Release(pInstance);
+		return nullptr;
 	}
 	return pInstance;
 }

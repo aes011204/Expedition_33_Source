@@ -16,11 +16,10 @@ public:
 	void Render();
 
     // View 추가
-	void Register_Window(const Shared<EditorWindow>& window);
+	void Add_Window(const Shared<EditorWindow>& window);
 	Shared<EditorWindow> Find_Window(const wstring& windowName) const;
 
 private:
-	void Register_DefaultWindows();
 	void Render_DockSpace();
 
 private:

@@ -88,24 +88,24 @@ HRESULT VIBuffer_Cube::Initialize(void* pArg)
 
 Shared<VIBuffer_Cube> VIBuffer_Cube::Create(ComPtr<Device> device, ComPtr<Context> context)
 {
-	Shared<VIBuffer_Cube> pInstance = MakeSharedFromRaw(new VIBuffer_Cube(device, context));
+	auto pInstance = make_shared<VIBuffer_Cube>(device, context);
 
 	if (FAILED(pInstance->Initialize_Prototype()))
 	{
 		MSG_BOX("Failed to Created : VIBuffer_Cube");
-		Safe_Release(pInstance);
+		return nullptr;
 	}
 	return pInstance;
 }
 
 Shared<Component> VIBuffer_Cube::Clone(void* pArg)
 {
-	Shared<VIBuffer_Cube> pInstance = MakeSharedFromRaw(new VIBuffer_Cube(*this));
+	auto pInstance = make_shared<VIBuffer_Cube>(*this);
 
 	if (FAILED(pInstance->Initialize(pArg)))
 	{
 		MSG_BOX("Failed to Cloned : VIBuffer_Cube");
-		Safe_Release(pInstance);
+		return nullptr;
 	}
 	return pInstance;
 }

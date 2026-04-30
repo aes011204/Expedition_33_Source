@@ -86,13 +86,13 @@ HRESULT Material::Bind_Material(Shader* pShader, const char* pConstantName, aiTe
 
 Shared<Material> Material::Create(ComPtr<Device> device, ComPtr<Context> context, const aiMaterial* pAIMaterial, const char* pModelFilePath)
 {
-    Shared<Material> pInstance = MakeSharedFromRaw(new Material(device, context));
+    auto pInstance = make_shared<Material>(device, context);
 
     if (FAILED(pInstance->Initialize(pAIMaterial, pModelFilePath)))
     {
         MSG_BOX("Failed to Created : Material");
-        Safe_Release(pInstance);
-    }
+        return nullptr;
+	}
     return pInstance;
 }
 

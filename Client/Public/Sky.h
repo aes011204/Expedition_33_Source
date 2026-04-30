@@ -18,10 +18,10 @@ public:
 	{
 		
 	}TERRAIN_DESC;
-private:
+public:
 	Sky(ComPtr<Device> device, ComPtr<Context> context);
 	Sky(const Sky& Prototype);
-	virtual ~Sky() = default;
+	virtual ~Sky() { Free(); }
 
 public:
 	virtual HRESULT Initialize_Prototype() override;
@@ -32,9 +32,9 @@ public:
 	virtual HRESULT Render() override;
 
 protected:
-	Shader* _shader = { nullptr };
-	VIBuffer_Cube* _vibuffer = { nullptr };
-	Texture* _texture = { nullptr };
+	Shared<Shader> _shader = { nullptr };
+	Shared<VIBuffer_Cube> _vibuffer = { nullptr };
+	Shared<Texture> _texture = { nullptr };
 
 protected:
 	HRESULT Ready_Components();

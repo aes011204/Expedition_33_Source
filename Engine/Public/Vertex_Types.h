@@ -69,7 +69,7 @@ namespace Engine
         Vec3            vTangent;
         Vec2            vTexcoord;
 
-        Vec4            vBlendIndex;
+        XMUINT4         vBlendIndex;
         Vec4            vBlendWeight;
 
         static const unsigned int        iNumElements = { 6 };

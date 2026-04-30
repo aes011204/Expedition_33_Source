@@ -1,9 +1,15 @@
 ﻿#pragma once
 
 #include "Editor_Defines.h"
-#include "Editor_Manager.h"
+
+NS_BEGIN(Engine)
+class RenderTarget;
+NS_END
 
 NS_BEGIN(MainEditor)
+
+class EditorWindow;
+class Editor_Manager;
 
 class EditorInstance final
 {
@@ -45,6 +51,9 @@ public:
 	/* 현재 런타임 시뮬레이션이 일시정지 상태인지 확인한다. */
 	bool IsPaused() const;
 
+	/* Scene/Game 뷰가 표시할 렌더 타겟을 요청한 크기에 맞춰 준비한다. */
+	Shared<Engine::RenderTarget> Prepare_ViewportRenderTarget(EDITOR_VIEWPORT_TARGET targetType, uint32 width, uint32 height);
+
 	/* 런타임 재생 중 적용할 시간 배율을 설정한다. */
 	void Set_RuntimeTimeScale(float fTimeScale);
 
@@ -64,13 +73,16 @@ public:
 private:
 	/* 유효하지 않은 시간 배율 입력을 안정적인 범위로 제한한다. */
 	static float Clamp_RuntimeTimeScale(float fTimeScale);
+	Shared<Engine::RenderTarget> Prepare_RenderTarget(Shared<Engine::RenderTarget>& renderTarget, uint32 width, uint32 height, const Vec4& clearColor);
 
 private:
 	EDITOR_DESC _editorDesc = {};                         /* 호스트 윈도우와 기본 뷰포트 설정. */
 	ComPtr<Device> _device = { nullptr };           /* 에디터 UI와 뷰 리소스에서 사용할 D3D 장치. */
 	ComPtr<Context> _context = { nullptr };   /* 에디터 UI와 뷰 렌더링에 사용할 D3D 컨텍스트. */
 	Unique<Editor_Manager> _editorManager = { nullptr };  /* 에디터 창과 도킹 공간 상태를 소유하는 매니저. */
-	EDITOR_RUNTIME_STATE _runtimeState = EDITOR_RUNTIME_STATE::EDIT; /* 현재 편집/재생/일시정지 상태. */
+	Shared<Engine::RenderTarget> _sceneRenderTarget = nullptr;    /* Scene View가 표시할 오프스크린 렌더 타겟. */
+	Shared<Engine::RenderTarget> _gameRenderTarget = nullptr;     /* Game View가 표시할 오프스크린 렌더 타겟. */
+	EDITOR_RUNTIME_STATE _runtimeState = EDITOR_RUNTIME_STATE::Edit; /* 현재 편집/재생/일시정지 상태. */
 	float _runtimeTimeScale = 1.f;                        /* 런타임 재생 중 적용할 시간 배율. */
 };
 

@@ -6,10 +6,10 @@ NS_BEGIN(Engine)
 
 class Animation final : public Base
 {
-private:
+public:
 	Animation();
 	Animation(const Animation& Prototype);
-	virtual ~Animation() = default;
+	virtual ~Animation() { Free(); }
 
 public:
 	HRESULT Initialize(const aiAnimation* pAIAnimation, class Model* pModel);

@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Prototype_Manager.h"
 #include "Input_Manager.h"
@@ -38,6 +38,11 @@ public: /* For.Graphic_Device */
 	HRESULT Clear_Buffers(const Vec4& clearColor);
 	HRESULT Present();
 
+public: /* For.Viewport */
+    void   Set_ViewportSize(uint32 width, uint32 height);
+    uint32 Get_ViewportWidth() const;
+    uint32 Get_ViewportHeight() const;
+
 public: /* For.Timer_Manager */
 	HRESULT	Add_Timer(const wstring& strTimerTag);
 	float Compute_TimeDelta(const wstring& strTimerTag);
@@ -62,6 +67,7 @@ public: /* For.PipeLine */
 	const XMFLOAT4X4* Get_Transform(D3DTS eTransformState) const;
 	const XMFLOAT4* Get_CamPosition() const;
 	void Set_Transform(D3DTS eTransformState, FXMMATRIX TransformStateMatrix);
+
 
 public: /* For.Input_Manager */
 	/* 키가 눌린 상태로 유지되는지 확인할 때 호출한다. */
@@ -105,17 +111,21 @@ public: /* For.Asset_Manager */
 
 
 private:
-	Unique<Graphic_Device>		_graphicDevice       = { nullptr };
-	Unique<Timer_Manager>		_timerManager        = { nullptr };
-	Unique<Level_Manager>		_levelManager        = { nullptr };
-	Unique<Prototype_Manager>	_prototypeManager    = { nullptr };
-	Unique<Object_Manager>		_objectManager       = { nullptr };
-	Unique<Renderer>			_renderer            = { nullptr };
-	Unique<PipeLine>			_pipeLine            = { nullptr };
-	Unique<Input_Manager>		_inputManager        = { nullptr }; /* Win32 기반 키/마우스 상태를 관리하는 입력 매니저 */
-	Unique<Light_Manager>		_lightManager        = { nullptr };
-	Unique<Font_Manager>		_fontManager         = { nullptr };
-	Unique<Asset_Manager>		_assetManager        = { nullptr }; /* GUID 기반 에셋 registry와 meta/cache를 관리하는 매니저 */
+	Unique<Graphic_Device>		_graphicDevice;
+	Unique<Timer_Manager>		_timerManager;
+	Unique<Level_Manager>		_levelManager;
+	Unique<Prototype_Manager>	_prototypeManager;
+	Unique<Object_Manager>		_objectManager;
+	Unique<Renderer>			_renderer;
+	Unique<PipeLine>			_pipeLine;           
+	Unique<Input_Manager>		_inputManager;      
+	Unique<Light_Manager>		_lightManager;       
+	Unique<Font_Manager>		_fontManager;        
+	Unique<Asset_Manager>		_assetManager; /* GUID 기반 에셋 registry와 meta/cache를 관리하는 매니저 */
+
+private:
+    uint32 _viewportWidth = 0;
+    uint32 _viewportHeight = 0;
 
 public:	
 	void Release_Engine();

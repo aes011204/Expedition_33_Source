@@ -12,7 +12,7 @@ public:
 		float fX, fY, fSizeX, fSizeY;
 	}UI_DESC;
 
-protected:
+public:
 	UIObject(ComPtr<Device> device, ComPtr<Context> context);
 	UIObject(const UIObject& Prototype);
 	virtual ~UIObject() = default;

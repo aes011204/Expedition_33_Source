@@ -13,9 +13,9 @@ NS_BEGIN(Client)
 
 class Loader final : public Base
 {
-private:
+public:
 	Loader(ComPtr<Device> device, ComPtr<Context> context);
-	virtual ~Loader() = default;
+	virtual ~Loader() { Free(); }
 
 public:
 	HRESULT Initialize(LevelType eNextLevelID);

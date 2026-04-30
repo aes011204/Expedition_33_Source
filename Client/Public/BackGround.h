@@ -18,23 +18,23 @@ public:
 	{
 		
 	}BACKGROUND_DESC;
-private:
+public:
 	BackGround(ComPtr<Device> device, ComPtr<Context> context);
 	BackGround(const BackGround& Prototype);
-	virtual ~BackGround() = default;
+	virtual ~BackGround() { Free(); }
 
 public:
 	virtual HRESULT Initialize_Prototype() override;
-	virtual HRESULT Initialize(void* pArg) override;
-	virtual void Priority_Update(float fTimeDelta) override;
-	virtual void Update(float fTimeDelta) override;
-	virtual void Late_Update(float fTimeDelta) override;
+	virtual HRESULT Initialize(void* arg) override;
+	virtual void Priority_Update(float timeDelta) override;
+	virtual void Update(float timeDelta) override;
+	virtual void Late_Update(float timeDelta) override;
 	virtual HRESULT Render() override;
 
 protected:
-	Shader* _shader = { nullptr };
-	VIBuffer_Rect* _vibuffer = { nullptr };
-	Texture* _texture = { nullptr };
+	Shared<Shader> _shader = { nullptr };
+	Shared<VIBuffer_Rect> _vibuffer = { nullptr };
+	Shared<Texture> _texture = { nullptr };
 
 protected:
 	HRESULT Ready_Components();
@@ -42,7 +42,7 @@ protected:
 
 public:
 	static Shared<BackGround> Create(ComPtr<Device> device, ComPtr<Context> context);
-	virtual Shared<GameObject> Clone(void* pArg) override;
+	virtual Shared<GameObject> Clone(void* arg) override;
 	virtual void Free() override;
 };
 

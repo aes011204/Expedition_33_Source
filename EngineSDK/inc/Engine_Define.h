@@ -49,11 +49,6 @@ using json = nlohmann::json;
 #include "Engine_Function.h"
 #include "Vertex_Types.h"
 
-namespace Engine
-{
-	static const wstring g_strTransformTag = TEXT("Com_Transform");
-}
-
 #pragma warning(disable : 4251)
 
 #ifdef _DEBUG

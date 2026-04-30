@@ -33,6 +33,7 @@ HRESULT Level_GamePlay::Initialize()
 
 void Level_GamePlay::Update(float fTimeDelta)
 {
+    int a = 10;
 }
 
 HRESULT Level_GamePlay::Render()
@@ -47,11 +48,11 @@ HRESULT Level_GamePlay::Ready_Lights()
 {
 	LIGHT_DESC			LightDesc{};
 
-	LightDesc.eType = LightType::DIRECTIONAL;
-	LightDesc.vDirection = XMFLOAT4(1.f, -1.f, 1.f, 0.f);
-	LightDesc.vDiffuse = XMFLOAT4(1.f, 1.f, 1.f, 1.f);
-	LightDesc.vAmbient = XMFLOAT4(1.f, 1.f, 1.f, 1.f);
-	LightDesc.vSpecular = XMFLOAT4(1.f, 1.f, 1.f, 1.f);
+	LightDesc.eType         = LightType::DIRECTIONAL;
+	LightDesc.vDirection    = XMFLOAT4(1.f, -1.f, 1.f, 0.f);
+	LightDesc.vDiffuse      = XMFLOAT4(1.f, 1.f, 1.f, 1.f);
+	LightDesc.vAmbient      = XMFLOAT4(1.f, 1.f, 1.f, 1.f);
+	LightDesc.vSpecular     = XMFLOAT4(1.f, 1.f, 1.f, 1.f);
 
 	if (FAILED(GAME->Add_Light(LightDesc)))
 		return E_FAIL;
@@ -73,7 +74,7 @@ HRESULT Level_GamePlay::Ready_Layer_Camera(const wstring& strLayerTag)
 	CameraDesc.fFar = 500.f;
 	CameraDesc.fMouseSensor = 0.05f;
 
-	if (FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("Prototype_GameObject_FreeCamera"),
+	if (FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_FreeCamera"),
 		ETOI(LevelType::GamePlay), strLayerTag, &CameraDesc)))
 		return E_FAIL;
 
@@ -83,11 +84,11 @@ HRESULT Level_GamePlay::Ready_Layer_Camera(const wstring& strLayerTag)
 
 HRESULT Level_GamePlay::Ready_Layer_BackGround(const wstring& strLayerTag)
 {
-	if (FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("Prototype_GameObject_Terrain"),
+	if (FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Terrain"),
 		ETOI(LevelType::GamePlay), strLayerTag)))
 		return E_FAIL;
 
-	if (FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("Prototype_GameObject_Sky"),
+	if (FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Sky"),
 		ETOI(LevelType::GamePlay), strLayerTag)))
 		return E_FAIL;
 
@@ -100,7 +101,7 @@ HRESULT Level_GamePlay::Ready_Layer_Monster(const wstring& strLayerTag)
 {
 	for (size_t i = 0; i < 10; i++)
 	{
-		if (FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("Prototype_GameObject_Monster"),
+		if (FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Monster"),
 			ETOI(LevelType::GamePlay), strLayerTag)))
 			return E_FAIL;
 	}
@@ -110,7 +111,7 @@ HRESULT Level_GamePlay::Ready_Layer_Monster(const wstring& strLayerTag)
 
 HRESULT Level_GamePlay::Ready_Layer_Player(const wstring& strLayerTag)
 {
-	if (FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("Prototype_GameObject_Player"),
+	if (FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Player"),
 		ETOI(LevelType::GamePlay), strLayerTag)))
 		return E_FAIL;
 
@@ -119,12 +120,12 @@ HRESULT Level_GamePlay::Ready_Layer_Player(const wstring& strLayerTag)
 
 Shared<Level_GamePlay> Level_GamePlay::Create(ComPtr<Device> device, ComPtr<Context> context)
 {
-	Shared<Level_GamePlay> pInstance = MakeSharedFromRaw(new Level_GamePlay(device, context));
+	auto pInstance = make_shared<Level_GamePlay>(device, context);
 
 	if (FAILED(pInstance->Initialize()))
 	{
 		MSG_BOX("Failed to Created : Level_GamePlay");
-		Safe_Release(pInstance);
+		return nullptr;
 	}
 	return pInstance;
 }

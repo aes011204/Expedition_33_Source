@@ -132,12 +132,12 @@ HRESULT Loader::Loading_For_GamePlayLevel()
 
 Shared<Loader> Loader::Create(ComPtr<Device> device, ComPtr<Context> context, LevelType eNextLevelID)
 {
-	Shared<Loader> pInstance = MakeSharedFromRaw(new Loader(device, context));
+	auto pInstance = make_shared<Loader>(device, context);
 
 	if (FAILED(pInstance->Initialize(eNextLevelID)))
 	{
 		MSG_BOX("Failed to Created : Loader");
-		Safe_Release(pInstance);
+		return nullptr;
 	}
 	return pInstance;
 }

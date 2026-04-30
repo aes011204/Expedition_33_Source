@@ -18,10 +18,10 @@ public:
 		WALK	= 0x00000002, 
 		ATTACK	= 0x00000004, 		
 	};
-private:
+public:
 	Player(ComPtr<Device> device, ComPtr<Context> context);
 	Player(const Player& Prototype);
-	virtual ~Player() = default;
+	virtual ~Player() { Free(); }
 
 public:
 	virtual HRESULT Initialize_Prototype() override;

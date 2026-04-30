@@ -8,9 +8,9 @@ NS_BEGIN(Engine)
 
 class Channel final : public Base
 {
-private:
+public:
 	Channel();
-	virtual ~Channel() = default;
+	virtual ~Channel() { Free(); }
 
 public:
 	HRESULT Initialize(const aiNodeAnim* pAIChannel, class Model* pModel);

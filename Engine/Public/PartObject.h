@@ -11,7 +11,7 @@ public:
 	{
 		const XMFLOAT4X4* pParentMatrix = { nullptr };
 	}PARTOBJECT_DESC;
-protected:
+public:
 	PartObject(ComPtr<Device> device, ComPtr<Context> context);
 	PartObject(const PartObject& Prototype);
 	virtual ~PartObject() = default;

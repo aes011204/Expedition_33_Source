@@ -6,7 +6,7 @@ NS_BEGIN(Engine)
 
 class ENGINE_DLL Level abstract : public Base
 {
-protected:
+public:
 	Level(ComPtr<Device> device, ComPtr<Context> context);
 	virtual ~Level() = default;
 

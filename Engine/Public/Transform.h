@@ -18,10 +18,10 @@ public:
 		float fRoll = 0.f;
 	}TRANSFORM_DESC;
 
-private:
+public:
 	Transform(ComPtr<Device> device, ComPtr<Context> context);
 	Transform(const Transform& Prototype);
-	virtual ~Transform() = default;
+	virtual ~Transform() { Free(); }
 
 public:
 	XMVECTOR Get_State(State eState) const;

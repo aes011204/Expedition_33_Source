@@ -7,9 +7,9 @@ NS_BEGIN(Client)
 
 class Level_GamePlay final : public Level
 {
-private:
+public:
 	Level_GamePlay(ComPtr<Device> device, ComPtr<Context> context);
-	virtual ~Level_GamePlay() = default;
+	virtual ~Level_GamePlay() { Free(); }
 
 public:
 	virtual HRESULT Initialize() override;

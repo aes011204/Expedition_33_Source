@@ -21,6 +21,7 @@ static WCHAR g_windowTitle[MAX_LOADSTRING] = L"Expedition_158";
 static ATOM Register_GameLauncherClass(HINSTANCE hInstance);
 static BOOL Init_GameLauncherInstance(HINSTANCE hInstance, int nCmdShow);
 static LRESULT CALLBACK GameLauncher_WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
+
 /* 실행 위치와 상관없이 공용 리소스를 찾도록 시작 시 작업 디렉터리를 Client\Bin으로 맞춘다. */
 static bool Set_RuntimeWorkingDirectory();
 

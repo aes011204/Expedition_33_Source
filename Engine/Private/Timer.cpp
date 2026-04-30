@@ -41,11 +41,10 @@ float Timer::Update_Timer()
 
 Shared<Timer> Timer::Create()
 {
-	Shared<Timer> pInstance = MakeSharedFromRaw(new Timer());
+	auto pInstance = make_shared<Timer>();
 
 	if (FAILED(pInstance->Ready_Timer()))
 	{
-		Safe_Release(pInstance);
 		return nullptr;
 	}
 

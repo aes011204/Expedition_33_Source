@@ -26,13 +26,13 @@ void CustomFont::Draw(const wchar_t* pText, const Vec2& position, FXMVECTOR vCol
 
 Shared<CustomFont> CustomFont::Create(ComPtr<Device> device, ComPtr<Context> context, const wchar_t* pFontFilePath)
 {
-    Shared<CustomFont> pInstance = MakeSharedFromRaw(new CustomFont(device, context));
+    auto pInstance = make_shared<CustomFont>(device, context);
 
     if (FAILED(pInstance->Initialize(pFontFilePath)))
     {
         MSG_BOX("Failed to Created : CustomFont");
-        Safe_Release(pInstance);
-    }
+        return nullptr;
+	}
     return pInstance;
 }
 

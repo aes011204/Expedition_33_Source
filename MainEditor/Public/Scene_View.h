@@ -30,6 +30,9 @@ private:
     ImVec2 _viewportSize = {};                      /* 마지막으로 표시된 씬 뷰포트 크기. */
     ImGuizmo::OPERATION _gizmoOperation = ImGuizmo::TRANSLATE; /* 씬 기즈모의 현재 트랜스폼 동작. */
     ImGuizmo::MODE _gizmoMode = ImGuizmo::LOCAL;    /* 선택 오브젝트 편집에 사용할 현재 트랜스폼 좌표계. */
+
+public:
+    static Shared<Scene_View> Create();
 };
 
 NS_END

@@ -53,5 +53,7 @@ void Content_Browser::Render_Directory(const filesystem::path& rootPath)
     }
 }
 
-
-
+Shared<Content_Browser> Content_Browser::Create()
+{
+    return make_shared<Content_Browser>();
+}

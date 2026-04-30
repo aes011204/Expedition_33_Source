@@ -1,0 +1,27 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="pch.cpp">
+      <Filter>98. Default</Filter>
+    </ClCompile>
+    <ClCompile Include="GameLauncher.cpp">
+      <Filter>00. Main</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="99. Defines">
+      <UniqueIdentifier>{c95f2aff-7c08-492c-b6b3-152c8e36f86c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="98. Default">
+      <UniqueIdentifier>{dd50621c-f94d-4929-b1b3-03de3a44b9dd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="00. Main">
+      <UniqueIdentifier>{4c3293c7-620f-4053-a172-e2177e72b829}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="pch.h">
+      <Filter>98. Default</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>

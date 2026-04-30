@@ -6,7 +6,7 @@ NS_BEGIN(Engine)
 
 class ENGINE_DLL Component abstract : public Base
 {
-protected:
+public:
 	Component(ComPtr<Device> device, ComPtr<Context> context);
 	Component(const Component& Prototype);
 public:

@@ -40,7 +40,7 @@ void Layer::Late_Update(float fTimeDelta)
 
 Shared<Layer> Layer::Create()
 {
-	return MakeSharedFromRaw(new Layer());
+	return make_shared<Layer>();
 }
 
 void Layer::Free()

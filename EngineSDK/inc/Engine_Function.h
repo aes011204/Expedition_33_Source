@@ -26,20 +26,6 @@ namespace Engine
 	struct HasRelease<T, std::void_t<decltype(std::declval<T*>()->Release())>> : std::true_type {};
 
 	template<typename T>
-	Shared<T> MakeSharedFromRaw(T* Pointer)
-	{
-		return Shared<T>(Pointer, [](T* Instance)
-		{
-			if (nullptr != Instance)
-			{
-				Base* BaseInstance = static_cast<Base*>(Instance);
-				BaseInstance->Free();
-				delete BaseInstance;
-			}
-		});
-	}
-
-	template<typename T>
 	void Safe_Delete(T& Pointer)
 	{
 		if (nullptr != Pointer)
