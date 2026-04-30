@@ -1,7 +1,6 @@
 ﻿#pragma once
 
 #include "Editor_Window.h"
-#include "Editor_ImGuiInclude.h"
 
 NS_BEGIN(MainEditor)
 

@@ -17,15 +17,10 @@ HRESULT Level_Logo::Initialize()
 	return S_OK;
 }
 
-void Level_Logo::Update(float fTimeDelta)
+void Level_Logo::Update(float timeDelta)
 {
-	if (GAME->KeyDown(KEY_TYPE::SPACE))
-	{
-		if (FAILED(GAME->Change_Level(ETOI(LevelType::Loading), Level_Loading::Create(_device.Get(), _context.Get(), LevelType::GamePlay))))
-			return;
-
-	}
-
+    if (FAILED(GAME->Change_Level(ETOI(LevelType::Loading), Level_Loading::Create(_device.Get(), _context.Get(), LevelType::GamePlay))))
+		return;
 }
 
 HRESULT Level_Logo::Render()

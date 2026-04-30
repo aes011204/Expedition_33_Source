@@ -1,6 +1,5 @@
 ﻿#include "Inspector.h"
 
-#include "Editor_ImGuiInclude.h"
 
 Inspector::Inspector()
     : Editor_Window{ L"Inspector" }
@@ -15,9 +14,9 @@ void Inspector::Render()
     bool bOpen = Is_Open();
     if (ImGui::Begin("Inspector", &bOpen))
     {
-        ImGui::TextUnformatted("선택된거 없음");
+        ImGui::TextUnformatted("No Selected");
         ImGui::Separator();
-        ImGui::TextDisabled("컴포넌트 추가");
+        ImGui::TextDisabled("Add Component");
     }
     Set_Open(bOpen);
     ImGui::End();

@@ -1,6 +1,4 @@
 ﻿#include "Editor_Window.h"
-
-#include "Editor_ImGuiInclude.h"
 #include "Utils.h"
 
 Editor_Window::Editor_Window(const wstring& strWindowName)

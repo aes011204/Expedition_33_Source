@@ -44,10 +44,16 @@ public: /* For.Graphic_Device */
     void    Bind_BackBuffer();
     HRESULT Resize_BackBuffer(uint32 width, uint32 height);
 
+    void    Reset_DefaultRenderState();
+
 public: /* For.Viewport */
     void   Set_ViewportSize(uint32 width, uint32 height);
     uint32 Get_ViewportWidth() const;
     uint32 Get_ViewportHeight() const;
+
+    // 엔진 백버퍼 기준 viewport 사이즈
+    uint32 Get_BackBufferWidth() const;
+    uint32 Get_BackBufferHeight() const;
 
 public: /* For.Timer_Manager */
 	HRESULT	Add_Timer(const wstring& strTimerTag);

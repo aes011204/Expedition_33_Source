@@ -1,6 +1,4 @@
 ﻿#include "Content_Browser.h"
-
-#include "Editor_ImGuiInclude.h"
 #include "Utils.h"
 
 Content_Browser::Content_Browser()

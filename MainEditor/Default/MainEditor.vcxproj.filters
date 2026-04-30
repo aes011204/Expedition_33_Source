@@ -28,9 +28,13 @@
     <ClCompile Include="MainEditor.cpp">
       <Filter>00. Main</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\MainEditorApp.cpp">
+      <Filter>00. Main</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\Scene_View.cpp">
       <Filter>01. View</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\ImGui_Manager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -42,10 +46,16 @@
     <ClInclude Include="..\Public\Editor_Defines.h">
       <Filter>99. Defines</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\IconsFontAwesome6.h">
+      <Filter>99. Defines</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\Editor_Manager.h">
       <Filter>01. Manager</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\EditorInstance.h">
+      <Filter>00. Main</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\MainEditorApp.h">
       <Filter>00. Main</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Editor_Window.h">
@@ -66,6 +76,14 @@
     <ClInclude Include="..\Public\Editor_ImGuiInclude.h">
       <Filter>99. Defines</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\ImGui_Manager.h" />
+    <ClInclude Include="..\Public\Editor_Enum.h">
+      <Filter>99. Defines</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Editor_Struct.h">
+      <Filter>99. Defines</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Editor_Macro.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="00. Main">

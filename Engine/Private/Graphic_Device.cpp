@@ -110,6 +110,34 @@ HRESULT Graphic_Device::Resize(uint32 width, uint32 height)
     return S_OK;
 }
 
+void Graphic_Device::Reset_DefaultRenderState()
+{
+    if (nullptr == _deviceContext)
+        return;
+
+    _deviceContext->OMSetBlendState(nullptr, nullptr, 0xffffffff);
+    _deviceContext->OMSetDepthStencilState(nullptr, 0);
+    _deviceContext->RSSetState(nullptr);
+
+    // ImGui가 scissor를 건드리므로 해제
+    RECT fullRect = {
+        0,
+        0,
+        static_cast<LONG>(_viewportWidth),
+        static_cast<LONG>(_viewportHeight)
+    };
+    _deviceContext->RSSetScissorRects(1, &fullRect);
+
+    // 셰이더 단계에서 남아 있을 수 있는 상태도 기본으로 정리
+    ID3D11ShaderResourceView* nullSRVs[D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT] = {};
+    _deviceContext->VSSetShaderResources(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, nullSRVs);
+    _deviceContext->PSSetShaderResources(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, nullSRVs);
+
+    ID3D11SamplerState* nullSamplers[D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT] = {};
+    _deviceContext->VSSetSamplers(0, D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT, nullSamplers);
+    _deviceContext->PSSetSamplers(0, D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT, nullSamplers);
+}
+
 HRESULT Graphic_Device::Ready_SwapChain(HWND hWnd, WinMode isWindowed, uint32 iWinCX, uint32 iWinCY)
 {
 	ComPtr<IDXGIDevice> pDXGIDevice = nullptr;

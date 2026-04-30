@@ -1,6 +1,5 @@
 ﻿#include "Hierarchy_View.h"
 
-#include "Editor_ImGuiInclude.h"
 #include "Utils.h"
 
 Hierarchy_View::Hierarchy_View()

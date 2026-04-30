@@ -16,7 +16,7 @@ MainApp::MainApp()
 	//D3D11_RASTERIZER_DESC
 	//_context->RSSetState();
 	//_context->OMSetBlendState();
-	// _context->OMSetDepthStencilState();
+	//_context->OMSetDepthStencilState();
 
 }
 

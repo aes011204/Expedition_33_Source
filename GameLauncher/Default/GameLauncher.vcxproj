@@ -134,7 +134,7 @@ if exist "$(ProjectDir)..\..\Client\Bin\assimp-vc143-mt.dll" xcopy /y /d "$(Proj
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(ProjectDir);..\..\Client\Public;..\..\Engine\Public;..\..\EngineSDK\inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);..\Public;..\..\Client\Public;..\..\Engine\Public;..\..\EngineSDK\inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <PrecompiledHeader>Use</PrecompiledHeader>
@@ -165,7 +165,7 @@ if exist "$(ProjectDir)..\..\Client\Bin\assimp-vc143-mt.dll" xcopy /y /d "$(Proj
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(ProjectDir);..\..\Client\Public;..\..\Engine\Public;..\..\EngineSDK\inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);..\Public;..\..\Client\Public;..\..\Engine\Public;..\..\EngineSDK\inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <ForcedIncludeFiles>pch.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
@@ -193,9 +193,11 @@ if exist "$(ProjectDir)..\..\Client\Bin\assimp-vc143-mt.dll" xcopy /y /d "$(Proj
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="GameLauncher.cpp" />
+    <ClCompile Include="..\Private\MainApp.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
+    <ClInclude Include="..\Public\MainApp.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />

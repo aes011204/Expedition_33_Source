@@ -13,7 +13,7 @@ public:
 
 public:
 	virtual HRESULT Initialize() override;
-	virtual void Update(float fTimeDelta) override;
+	virtual void Update(float timeDelta) override;
 	virtual HRESULT Render() override;
 
 private:

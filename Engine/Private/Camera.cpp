@@ -33,14 +33,11 @@ HRESULT Camera::Initialize(void* pArg)
 	_transformCom->Set_State(State::Position, XMLoadFloat4(&pDesc->vEye));
 	_transformCom->LookAt(XMLoadFloat4(&pDesc->vAt));
 
-	uint32 iNumViewports = 1;
-	D3D11_VIEWPORT ViewportDesc = {};
-	_context->RSGetViewports(&iNumViewports, &ViewportDesc);
-
 	_fovy = pDesc->fFovy;
 	_near = pDesc->fNear;
 	_far = pDesc->fFar;
-	_aspect = ViewportDesc.Width / ViewportDesc.Height;
+	_aspect = static_cast<float>(GAME->Get_ViewportWidth()) /
+		static_cast<float>(max(1u, GAME->Get_ViewportHeight()));
 
 	Update_TransformMatrices();
 
@@ -66,6 +63,9 @@ HRESULT Camera::Render()
 
 void Camera::Update_TransformMatrices()
 {
+	_aspect = static_cast<float>(GAME->Get_ViewportWidth()) /
+		static_cast<float>(max(1u, GAME->Get_ViewportHeight()));
+
 	GAME->Set_Transform(D3DTS::View,
 		XMMatrixInverse(nullptr, XMLoadFloat4x4(_transformCom->Get_WorldMatrixPtr())));
 

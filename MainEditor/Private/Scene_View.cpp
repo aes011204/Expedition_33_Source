@@ -1,6 +1,5 @@
 ﻿#include "Scene_View.h"
 #include "GameInstance.h"
-#include "Editor_ImGuiInclude.h"
 #include "Utils.h"
 #include "EditorInstance.h"
 #include "RenderTarget.h"
@@ -84,23 +83,16 @@ void Scene_View::Render_ViewportCanvas()
     const uint32 width = static_cast<uint32>(_viewportSize.x);
     const uint32 height = static_cast<uint32>(_viewportSize.y);
 
-    Shared<Engine::RenderTarget> renderTarget =
-        EditorInstance::GetInstance()->Prepare_ViewportRenderTarget(
-            EDITOR_VIEWPORT_TARGET::Scene,
-            width,
-            height
-        );
+    EditorInstance::GetInstance()->Request_ViewportSize(
+        EDITOR_VIEWPORT_TARGET::Scene,
+        width,
+        height);
 
-    if (nullptr != renderTarget)
-    {
-        GAME->Set_ViewportSize(
-            renderTarget->Get_Width(),renderTarget->Get_Height());
-    }
-
-    if (nullptr != renderTarget && nullptr != renderTarget->Get_SRV())
+    ID3D11ShaderResourceView* pSRV = EditorInstance::GetInstance()->Get_SharedViewportSRV();
+    if (nullptr != pSRV)
     {
         const ImTextureID textureId =
-            static_cast<ImTextureID>(reinterpret_cast<intptr_t>(renderTarget->Get_SRV()));
+            static_cast<ImTextureID>(reinterpret_cast<intptr_t>(pSRV));
 
         ImGui::Image(textureId, _viewportSize);
     }

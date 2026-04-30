@@ -7,6 +7,9 @@
     <ClCompile Include="GameLauncher.cpp">
       <Filter>00. Main</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\MainApp.cpp">
+      <Filter>00. Main</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="99. Defines">
@@ -22,6 +25,9 @@
   <ItemGroup>
     <ClInclude Include="pch.h">
       <Filter>98. Default</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\MainApp.h">
+      <Filter>00. Main</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

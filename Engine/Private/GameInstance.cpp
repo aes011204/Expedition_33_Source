@@ -129,6 +129,11 @@ HRESULT GameInstance::Resize_BackBuffer(uint32 width, uint32 height)
     return _graphicDevice->Resize(width, height);
 }
 
+void GameInstance::Reset_DefaultRenderState()
+{
+    return _graphicDevice->Reset_DefaultRenderState();
+}
+
 void GameInstance::Set_ViewportSize(uint32 width, uint32 height)
 {
     _viewportWidth = max(1u, width);

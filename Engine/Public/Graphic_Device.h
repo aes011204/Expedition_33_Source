@@ -20,6 +20,8 @@ public:
     void    Bind_BackBuffer();
     HRESULT Resize(uint32 width, uint32 height);
 
+    void    Reset_DefaultRenderState();
+
 	ComPtr<Device>  Get_Device() const  { return _device; }
 	ComPtr<Context> Get_Context() const { return _deviceContext; }
 

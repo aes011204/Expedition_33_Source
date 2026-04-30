@@ -44,6 +44,8 @@ public: /* For.Graphic_Device */
     void    Bind_BackBuffer();
     HRESULT Resize_BackBuffer(uint32 width, uint32 height);
 
+    void    Reset_DefaultRenderState();
+
 public: /* For.Viewport */
     void   Set_ViewportSize(uint32 width, uint32 height);
     uint32 Get_ViewportWidth() const;

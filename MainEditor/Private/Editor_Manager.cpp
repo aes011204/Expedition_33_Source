@@ -1,6 +1,4 @@
 ﻿#include "Editor_Manager.h"
-
-#include "Editor_ImGuiInclude.h"
 #include "Utils.h"
 #include "EditorInstance.h"
 #include "Scene_View.h"
