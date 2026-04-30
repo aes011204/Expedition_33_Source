@@ -1,0 +1,45 @@
+﻿#pragma once
+
+#include "Client_Defines.h"
+#include "Camera.h"
+
+NS_BEGIN(Client)
+
+class FreeCamera final : public Camera
+{
+public:
+	typedef struct tagFreeCamera final : public Camera::CAMERA_DESC
+	{
+		float	fMouseSensor;
+	}FREECAMERA_DESC;
+
+    typedef struct FFreeCameraDesc
+    {
+        
+    } FreeCameraDesc;
+
+private:
+	FreeCamera(ComPtr<Device> device, ComPtr<Context> context);
+	FreeCamera(const FreeCamera& Prototype);
+	virtual ~FreeCamera() = default;
+
+public:
+	virtual HRESULT Initialize_Prototype() override;
+	virtual HRESULT Initialize(void* pArg) override;
+	virtual void Priority_Update(float fTimeDelta) override;
+	virtual void Update(float fTimeDelta) override;
+	virtual void Late_Update(float fTimeDelta) override;
+	virtual HRESULT Render() override;
+
+private:
+	float				m_fMouseSensor = {};
+
+
+public:
+	static Shared<FreeCamera> Create(ComPtr<Device> device, ComPtr<Context> context);
+	virtual Shared<GameObject> Clone(void* pArg) override;
+	virtual void Free() override;
+
+};
+
+NS_END

@@ -1,0 +1,30 @@
+﻿#pragma once
+
+#include "Client_Defines.h"
+#include "Level.h"
+
+NS_BEGIN(Client)
+
+class Level_GamePlay final : public Level
+{
+private:
+	Level_GamePlay(ComPtr<Device> device, ComPtr<Context> context);
+	virtual ~Level_GamePlay() = default;
+
+public:
+	virtual HRESULT Initialize() override;
+	virtual void Update(float fTimeDelta) override;
+	virtual HRESULT Render() override;
+private:
+	HRESULT Ready_Lights();
+	HRESULT Ready_Layer_Camera(const wstring& strLayerTag);
+	HRESULT Ready_Layer_BackGround(const wstring& strLayerTag);
+	HRESULT Ready_Layer_Monster(const wstring& strLayerTag);
+	HRESULT Ready_Layer_Player(const wstring& strLayerTag);
+
+public:
+	static Shared<Level_GamePlay> Create(ComPtr<Device> device, ComPtr<Context> context);
+	virtual void Free() override;
+};
+
+NS_END

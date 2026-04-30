@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="pch.cpp">
+      <Filter>99. Default</Filter>
+    </ClCompile>
+    <ClCompile Include="MainEditor.cpp" />
+    <ClCompile Include="..\Private\EditorInstance.cpp" />
+    <ClCompile Include="..\Private\EditorWindow.cpp" />
+    <ClCompile Include="..\Private\Editor_Manager.cpp" />
+    <ClCompile Include="..\Private\Scene_View.cpp" />
+    <ClCompile Include="..\Private\Game_View.cpp" />
+    <ClCompile Include="..\Private\Hierarchy_View.cpp" />
+    <ClCompile Include="..\Private\Content_Browser.cpp" />
+    <ClCompile Include="..\Private\Inspector.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="pch.h">
+      <Filter>99. Default</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\EditorInstance.h" />
+    <ClInclude Include="..\Public\EditorWindow.h" />
+    <ClInclude Include="..\Public\Editor_Defines.h" />
+    <ClInclude Include="..\Public\Editor_ImGuiInclude.h" />
+    <ClInclude Include="..\Public\Editor_Manager.h" />
+    <ClInclude Include="..\Public\Scene_View.h" />
+    <ClInclude Include="..\Public\Game_View.h" />
+    <ClInclude Include="..\Public\Hierarchy_View.h" />
+    <ClInclude Include="..\Public\Content_Browser.h" />
+    <ClInclude Include="..\Public\Inspector.h" />
+    <ClInclude Include="Editor_Defines.h">
+      <Filter>98. Defines</Filter>
+    </ClInclude>
+    <ClInclude Include="Editor_Macro.h">
+      <Filter>98. Defines</Filter>
+    </ClInclude>
+    <ClInclude Include="Editor_Struct.h">
+      <Filter>98. Defines</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="99. Default">
+      <UniqueIdentifier>{dad98871-cb48-49e8-a12c-3874c97e4fec}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="98. Defines">
+      <UniqueIdentifier>{afbffb53-f9a7-4636-bd21-a1fa41d808c3}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

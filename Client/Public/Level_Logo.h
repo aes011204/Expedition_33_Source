@@ -1,0 +1,27 @@
+﻿#pragma once
+
+#include "Client_Defines.h"
+#include "Level.h"
+
+NS_BEGIN(Client)
+
+class Level_Logo final : public Level
+{
+private:
+	Level_Logo(ComPtr<Device> device, ComPtr<Context> context);
+	virtual ~Level_Logo() = default;
+
+public:
+	virtual HRESULT Initialize() override;
+	virtual void Update(float fTimeDelta) override;
+	virtual HRESULT Render() override;
+
+private:
+	HRESULT Ready_Layer_BackGround(const wstring& strLayerTag);
+
+public:
+	static Shared<Level_Logo> Create(ComPtr<Device> device, ComPtr<Context> context);
+	virtual void Free() override;
+};
+
+NS_END

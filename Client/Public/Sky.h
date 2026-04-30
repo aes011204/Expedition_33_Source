@@ -1,0 +1,51 @@
+﻿#pragma once
+
+#include "Client_Defines.h"
+#include "GameObject.h"
+
+NS_BEGIN(Engine)
+class Shader;
+class Texture;
+class VIBuffer_Cube;
+NS_END
+
+NS_BEGIN(Client)
+
+class Sky final : public GameObject
+{
+public:
+	typedef struct tagTerrainDesc final : public GameObject::GAMEOBJECT_DESC
+	{
+		
+	}TERRAIN_DESC;
+private:
+	Sky(ComPtr<Device> device, ComPtr<Context> context);
+	Sky(const Sky& Prototype);
+	virtual ~Sky() = default;
+
+public:
+	virtual HRESULT Initialize_Prototype() override;
+	virtual HRESULT Initialize(void* pArg) override;
+	virtual void Priority_Update(float fTimeDelta) override;
+	virtual void Update(float fTimeDelta) override;
+	virtual void Late_Update(float fTimeDelta) override;
+	virtual HRESULT Render() override;
+
+protected:
+	Shader* _shader = { nullptr };
+	VIBuffer_Cube* _vibuffer = { nullptr };
+	Texture* _texture = { nullptr };
+
+protected:
+	HRESULT Ready_Components();
+	HRESULT Bind_ShaderResources();
+
+
+public:
+	static Shared<Sky> Create(ComPtr<Device> device, ComPtr<Context> context);
+	virtual Shared<GameObject> Clone(void* pArg) override;
+	virtual void Free() override;
+};
+
+NS_END
+

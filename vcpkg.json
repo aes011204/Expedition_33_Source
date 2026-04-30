@@ -1,0 +1,25 @@
+﻿{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg/master/scripts/vcpkg.schema.json",
+  "name": "dx11-project-temp",
+  "version": "1.0.0",
+  "dependencies": [
+    "directxtk",
+    "spdlog",
+    "nlohmann-json",
+    "magic-enum",
+    {
+      "name": "imgui",
+      "features": [
+        "docking-experimental",
+        "dx11-binding",
+        "win32-binding"
+      ]
+    },
+    "implot",
+    "imguizmo",
+    "imgui-node-editor",
+    "effects11",
+    "stduuid",
+    "physx"
+  ]
+}

@@ -1,0 +1,188 @@
+﻿#include "Graphic_Device.h"
+
+Graphic_Device::Graphic_Device()
+{
+}
+
+HRESULT Graphic_Device::Initialize(HWND hWnd, WinMode isWindowed, uint32 iWinSizeX, uint32 iWinSizeY, ComPtr<Device>& device, ComPtr<Context>& context)
+{
+	uint32 iFlag = 0;
+
+#ifdef _DEBUG
+	iFlag = D3D11_CREATE_DEVICE_DEBUG;
+#endif
+
+	D3D_FEATURE_LEVEL FeatureLevel = {};
+
+	if (FAILED(D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, 0, iFlag, nullptr, 0, D3D11_SDK_VERSION, _device.GetAddressOf(), &FeatureLevel, _deviceContext.GetAddressOf())))
+		return E_FAIL;
+
+	if (FAILED(Ready_SwapChain(hWnd, isWindowed, iWinSizeX, iWinSizeY)))
+		return E_FAIL;
+
+	if (FAILED(Ready_BackBufferRenderTargetView()))
+		return E_FAIL;
+
+	if (FAILED(Ready_DepthStencilView(iWinSizeX, iWinSizeY)))
+		return E_FAIL;
+
+	ID3D11RenderTargetView* pRTVs[] = { _backBufferRTV.Get() };
+	_deviceContext->OMSetRenderTargets(1, pRTVs, _depthStencilView.Get());
+
+	D3D11_VIEWPORT ViewPortDesc = {};
+	ViewPortDesc.TopLeftX = 0;
+	ViewPortDesc.TopLeftY = 0;
+	ViewPortDesc.Width = static_cast<float>(iWinSizeX);
+	ViewPortDesc.Height = static_cast<float>(iWinSizeY);
+	ViewPortDesc.MinDepth = 0.f;
+	ViewPortDesc.MaxDepth = 1.f;
+
+	_deviceContext->RSSetViewports(1, &ViewPortDesc);
+
+	device = _device;
+	context = _deviceContext;
+
+	return S_OK;
+}
+
+HRESULT Graphic_Device::Clear_BackBuffer_View(const Vec4& clearColor)
+{
+	if (nullptr == _deviceContext || nullptr == _backBufferRTV)
+		return E_FAIL;
+
+	_deviceContext->ClearRenderTargetView(_backBufferRTV.Get(), reinterpret_cast<const float*>(&clearColor));
+	return S_OK;
+}
+
+HRESULT Graphic_Device::Clear_DepthStencil_View()
+{
+	if (nullptr == _deviceContext || nullptr == _depthStencilView)
+		return E_FAIL;
+
+	_deviceContext->ClearDepthStencilView(_depthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.f, 0);
+	return S_OK;
+}
+
+HRESULT Graphic_Device::Present()
+{
+	if (nullptr == _swapChain)
+		return E_FAIL;
+
+	return _swapChain->Present(0, 0);
+}
+
+HRESULT Graphic_Device::Ready_SwapChain(HWND hWnd, WinMode isWindowed, uint32 iWinCX, uint32 iWinCY)
+{
+	ComPtr<IDXGIDevice> pDXGIDevice = nullptr;
+	if (FAILED(_device.As(&pDXGIDevice)))
+		return E_FAIL;
+
+	ComPtr<IDXGIAdapter> pAdapter = nullptr;
+	if (FAILED(pDXGIDevice->GetParent(__uuidof(IDXGIAdapter), reinterpret_cast<void**>(pAdapter.GetAddressOf()))))
+		return E_FAIL;
+
+	ComPtr<IDXGIFactory> pFactory = nullptr;
+	if (FAILED(pAdapter->GetParent(__uuidof(IDXGIFactory), reinterpret_cast<void**>(pFactory.GetAddressOf()))))
+		return E_FAIL;
+
+	DXGI_SWAP_CHAIN_DESC SwapChainDesc = {};
+	SwapChainDesc.BufferDesc.Width = iWinCX;
+	SwapChainDesc.BufferDesc.Height = iWinCY;
+	SwapChainDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	SwapChainDesc.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
+	SwapChainDesc.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
+	SwapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+	SwapChainDesc.BufferCount = 1;
+	SwapChainDesc.BufferDesc.RefreshRate.Numerator = 60;
+	SwapChainDesc.BufferDesc.RefreshRate.Denominator = 1;
+	SwapChainDesc.SampleDesc.Quality = 0;
+	SwapChainDesc.SampleDesc.Count = 1;
+	SwapChainDesc.OutputWindow = hWnd;
+	SwapChainDesc.Windowed = static_cast<BOOL>(isWindowed);
+	SwapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
+
+	if (FAILED(pFactory->CreateSwapChain(_device.Get(), &SwapChainDesc, _swapChain.GetAddressOf())))
+		return E_FAIL;
+
+	return S_OK;
+}
+
+HRESULT Graphic_Device::Ready_BackBufferRenderTargetView()
+{
+	if (nullptr == _device || nullptr == _swapChain)
+		return E_FAIL;
+
+	ComPtr<ID3D11Texture2D> pBackBufferTexture = nullptr;
+	if (FAILED(_swapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void**>(pBackBufferTexture.GetAddressOf()))))
+		return E_FAIL;
+
+	if (FAILED(_device->CreateRenderTargetView(pBackBufferTexture.Get(), nullptr, _backBufferRTV.GetAddressOf())))
+		return E_FAIL;
+
+	return S_OK;
+}
+
+HRESULT Graphic_Device::Ready_DepthStencilView(uint32 iWinCX, uint32 iWinCY)
+{
+	if (nullptr == _device)
+		return E_FAIL;
+
+	ComPtr<ID3D11Texture2D> pDepthStencilTexture = nullptr;
+	D3D11_TEXTURE2D_DESC TextureDesc = {};
+	TextureDesc.Width = iWinCX;
+	TextureDesc.Height = iWinCY;
+	TextureDesc.MipLevels = 1;
+	TextureDesc.ArraySize = 1;
+	TextureDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+	TextureDesc.SampleDesc.Quality = 0;
+	TextureDesc.SampleDesc.Count = 1;
+	TextureDesc.Usage = D3D11_USAGE_DEFAULT;
+	TextureDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+	TextureDesc.CPUAccessFlags = 0;
+	TextureDesc.MiscFlags = 0;
+
+	if (FAILED(_device->CreateTexture2D(&TextureDesc, nullptr, pDepthStencilTexture.GetAddressOf())))
+		return E_FAIL;
+
+	if (FAILED(_device->CreateDepthStencilView(pDepthStencilTexture.Get(), nullptr, _depthStencilView.GetAddressOf())))
+		return E_FAIL;
+
+	return S_OK;
+}
+
+Unique<Graphic_Device> Graphic_Device::Create(HWND hWnd, WinMode isWindowed, uint32 iWinSizeX, uint32 iWinSizeY, ComPtr<Device>& device, ComPtr<Context>& context)
+{
+	Unique<Graphic_Device> pInstance{ new Graphic_Device() };
+
+	if (FAILED(pInstance->Initialize(hWnd, isWindowed, iWinSizeX, iWinSizeY, device, context)))
+	{
+		MSG_BOX("Failed to Created : Graphic_Device");
+		pInstance->Free();
+		return nullptr;
+	}
+
+	return pInstance;
+}
+
+void Graphic_Device::Free()
+{
+#if defined(DEBUG) || defined(_DEBUG)
+	ComPtr<ID3D11Debug> pD3DDebug = nullptr;
+	if (nullptr != _device && SUCCEEDED(_device.As(&pD3DDebug)))
+	{
+		OutputDebugStringW(L"----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- \r ");
+		OutputDebugStringW(L"                                                                    D3D11 Live Object ref Count Checker \r ");
+		OutputDebugStringW(L"----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- \r ");
+		pD3DDebug->ReportLiveDeviceObjects(D3D11_RLDO_DETAIL);
+		OutputDebugStringW(L"----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- \r ");
+		OutputDebugStringW(L"                                                                    D3D11 Live Object ref Count Checker END \r ");
+		OutputDebugStringW(L"----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- \r ");
+	}
+#endif
+
+	_depthStencilView.Reset();
+	_backBufferRTV.Reset();
+	_swapChain.Reset();
+	_deviceContext.Reset();
+	_device.Reset();
+}
