@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "Component.h"
 
@@ -9,13 +9,13 @@ NS_BEGIN(Engine)
 class ENGINE_DLL VIBuffer abstract : public Component
 {
 public:
-	VIBuffer(ComPtr<Device> device, ComPtr<Context> context);
-	VIBuffer(const VIBuffer& Prototype);
+	VIBuffer(const ComPtr<Device>& device, const ComPtr<Context>& context);
+	VIBuffer(const VIBuffer& prototype);
 	virtual ~VIBuffer() = default;
 
 public:
 	virtual HRESULT Initialize_Prototype();
-	virtual HRESULT Initialize(void* pArg);
+	virtual HRESULT Initialize(void* arg);
 	virtual HRESULT Bind_Resources();
 	virtual HRESULT Render();
 
@@ -34,7 +34,7 @@ protected:
 
 
 public:
-	virtual Shared<Component> Clone(void* pArg) = 0;
+	virtual Shared<Component> Clone(void* arg) = 0;
 	virtual void Free() override;
 };
 

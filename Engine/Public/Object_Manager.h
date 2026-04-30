@@ -13,21 +13,21 @@ public:
 	virtual ~Object_Manager() = default;
 
 public:
-	HRESULT Initialize(uint32 iNumLevels);
-	HRESULT Add_GameObject(uint32 iPrototypeLevelIndex, const wstring& strPrototypeTag, uint32 iLayerLevelIndex, const wstring& strLayerTag, void* pArg);
-	void Priority_Update(float fTimeDelta);
-	void Update(float fTimeDelta);
-	void Late_Update(float fTimeDelta);
-	HRESULT Clear_Layers(uint32 iLevelIndex);
+	HRESULT Initialize(uint32 numLevels);
+	HRESULT Add_GameObject(uint32 prototypeLevelIndex, const wstring& prototypeTag, uint32 layerLevelIndex, const wstring& layerTag, void* arg);
+	void Priority_Update(float timeDelta);
+	void Update(float timeDelta);
+	void Late_Update(float timeDelta);
+	HRESULT Clear_Layers(uint32 levelIndex);
 
 private:
 	uint32 _numLevels = {};
 	vector<map<const wstring, Shared<class Layer>>> _layers;
 private:
-	Shared<class Layer> Find_Layer(uint32 iLayerLevelIndex, const wstring& strLayerTag);
+	Shared<class Layer> Find_Layer(uint32 layerLevelIndex, const wstring& layerTag);
 
 public:
-	static Unique<Object_Manager> Create(uint32 iNumLevels);
+	static Unique<Object_Manager> Create(uint32 numLevels);
 	virtual void Free() override;
 };
 

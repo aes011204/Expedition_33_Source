@@ -1,12 +1,12 @@
 ﻿#include "VIBuffer_Cube.h"
 
-VIBuffer_Cube::VIBuffer_Cube(ComPtr<Device> device, ComPtr<Context> context)
+VIBuffer_Cube::VIBuffer_Cube(const ComPtr<Device>& device, const ComPtr<Context>& context)
 	: VIBuffer { device, context }
 {
 }
 
-VIBuffer_Cube::VIBuffer_Cube(const VIBuffer_Cube& Prototype)
-	: VIBuffer{ Prototype }
+VIBuffer_Cube::VIBuffer_Cube(const VIBuffer_Cube& prototype)
+	: VIBuffer{ prototype }
 {
 }
 
@@ -25,26 +25,26 @@ HRESULT VIBuffer_Cube::Initialize_Prototype()
 	VertexBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 	VertexBufferDesc.StructureByteStride = _vertexStride;
 
-	VTXCUBE* pVertices = new VTXCUBE[_numVertices];
-	pVertices[0].vPosition = XMFLOAT3(-0.5f, 0.5f, -0.5f);
-	pVertices[0].vTexcoord = pVertices[0].vPosition;
-	pVertices[1].vPosition = XMFLOAT3(0.5f, 0.5f, -0.5f);
-	pVertices[1].vTexcoord = pVertices[1].vPosition;
-	pVertices[2].vPosition = XMFLOAT3(0.5f, -0.5f, -0.5f);
-	pVertices[2].vTexcoord = pVertices[2].vPosition;
-	pVertices[3].vPosition = XMFLOAT3(-0.5f,-0.5f, -0.5f);
-	pVertices[3].vTexcoord = pVertices[3].vPosition;
-	pVertices[4].vPosition = XMFLOAT3(-0.5f, 0.5f, 0.5f);
-	pVertices[4].vTexcoord = pVertices[4].vPosition;
-	pVertices[5].vPosition = XMFLOAT3(0.5f, 0.5f, 0.5f);
-	pVertices[5].vTexcoord = pVertices[5].vPosition;
-	pVertices[6].vPosition = XMFLOAT3(0.5f, -0.5f, 0.5f);
-	pVertices[6].vTexcoord = pVertices[6].vPosition;
-	pVertices[7].vPosition = XMFLOAT3(-0.5f, -0.5f, 0.5f);
-	pVertices[7].vTexcoord = pVertices[7].vPosition;
+	VTXCUBE* vertices = new VTXCUBE[_numVertices];
+	vertices[0].position = XMFLOAT3(-0.5f, 0.5f, -0.5f);
+	vertices[0].texcoord = vertices[0].position;
+	vertices[1].position = XMFLOAT3(0.5f, 0.5f, -0.5f);
+	vertices[1].texcoord = vertices[1].position;
+	vertices[2].position = XMFLOAT3(0.5f, -0.5f, -0.5f);
+	vertices[2].texcoord = vertices[2].position;
+	vertices[3].position = XMFLOAT3(-0.5f,-0.5f, -0.5f);
+	vertices[3].texcoord = vertices[3].position;
+	vertices[4].position = XMFLOAT3(-0.5f, 0.5f, 0.5f);
+	vertices[4].texcoord = vertices[4].position;
+	vertices[5].position = XMFLOAT3(0.5f, 0.5f, 0.5f);
+	vertices[5].texcoord = vertices[5].position;
+	vertices[6].position = XMFLOAT3(0.5f, -0.5f, 0.5f);
+	vertices[6].texcoord = vertices[6].position;
+	vertices[7].position = XMFLOAT3(-0.5f, -0.5f, 0.5f);
+	vertices[7].texcoord = vertices[7].position;
 
 	D3D11_SUBRESOURCE_DATA VertexInitialData{};
-	VertexInitialData.pSysMem = pVertices;
+	VertexInitialData.pSysMem = vertices;
 
 	if (FAILED(_device->CreateBuffer(&VertexBufferDesc, &VertexInitialData, &_vb)))
 		return E_FAIL;
@@ -55,59 +55,59 @@ HRESULT VIBuffer_Cube::Initialize_Prototype()
 	IndexBufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
 	IndexBufferDesc.StructureByteStride = _indexStride;
 
-	uint16* pIndices = new uint16[_numIndices];
-	pIndices[0] = 1; pIndices[1] = 5; pIndices[2] = 6;
-	pIndices[3] = 1; pIndices[4] = 6; pIndices[5] = 2;
-	pIndices[6] = 4; pIndices[7] = 0; pIndices[8] = 3;
-	pIndices[9] = 4; pIndices[10] = 3; pIndices[11] = 7;
-	pIndices[12] = 4; pIndices[13] = 5; pIndices[14] = 1;
-	pIndices[15] = 4; pIndices[16] = 1; pIndices[17] = 0;
-	pIndices[18] = 3; pIndices[19] = 2; pIndices[20] = 6;
-	pIndices[21] = 3; pIndices[22] = 6; pIndices[23] = 7;
-	pIndices[24] = 7; pIndices[25] = 6; pIndices[26] = 5;
-	pIndices[27] = 7; pIndices[28] = 5; pIndices[29] = 4;
-	pIndices[30] = 0; pIndices[31] = 1; pIndices[32] = 2;
-	pIndices[33] = 0; pIndices[34] = 2; pIndices[35] = 3;
+	uint16* indices = new uint16[_numIndices];
+	indices[0] = 1; indices[1] = 5; indices[2] = 6;
+	indices[3] = 1; indices[4] = 6; indices[5] = 2;
+	indices[6] = 4; indices[7] = 0; indices[8] = 3;
+	indices[9] = 4; indices[10] = 3; indices[11] = 7;
+	indices[12] = 4; indices[13] = 5; indices[14] = 1;
+	indices[15] = 4; indices[16] = 1; indices[17] = 0;
+	indices[18] = 3; indices[19] = 2; indices[20] = 6;
+	indices[21] = 3; indices[22] = 6; indices[23] = 7;
+	indices[24] = 7; indices[25] = 6; indices[26] = 5;
+	indices[27] = 7; indices[28] = 5; indices[29] = 4;
+	indices[30] = 0; indices[31] = 1; indices[32] = 2;
+	indices[33] = 0; indices[34] = 2; indices[35] = 3;
 
 	D3D11_SUBRESOURCE_DATA IndexInitialData{};
-	IndexInitialData.pSysMem = pIndices;
+	IndexInitialData.pSysMem = indices;
 
 	if (FAILED(_device->CreateBuffer(&IndexBufferDesc, &IndexInitialData, &_ib)))
 		return E_FAIL;
 
-	Safe_Delete_Array(pVertices);
-	Safe_Delete_Array(pIndices);
+	Safe_Delete_Array(vertices);
+	Safe_Delete_Array(indices);
 
 	return S_OK;
 }
 
-HRESULT VIBuffer_Cube::Initialize(void* pArg)
+HRESULT VIBuffer_Cube::Initialize(void* arg)
 {
 	return S_OK;
 }
 
-Shared<VIBuffer_Cube> VIBuffer_Cube::Create(ComPtr<Device> device, ComPtr<Context> context)
+Shared<VIBuffer_Cube> VIBuffer_Cube::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
-	auto pInstance = make_shared<VIBuffer_Cube>(device, context);
+	auto instance = make_shared<VIBuffer_Cube>(device, context);
 
-	if (FAILED(pInstance->Initialize_Prototype()))
+	if (FAILED(instance->Initialize_Prototype()))
 	{
 		MSG_BOX("Failed to Created : VIBuffer_Cube");
 		return nullptr;
 	}
-	return pInstance;
+	return instance;
 }
 
-Shared<Component> VIBuffer_Cube::Clone(void* pArg)
+Shared<Component> VIBuffer_Cube::Clone(void* arg)
 {
-	auto pInstance = make_shared<VIBuffer_Cube>(*this);
+	auto instance = make_shared<VIBuffer_Cube>(*this);
 
-	if (FAILED(pInstance->Initialize(pArg)))
+	if (FAILED(instance->Initialize(arg)))
 	{
 		MSG_BOX("Failed to Cloned : VIBuffer_Cube");
 		return nullptr;
 	}
-	return pInstance;
+	return instance;
 }
 
 void VIBuffer_Cube::Free()

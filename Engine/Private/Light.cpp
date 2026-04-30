@@ -1,26 +1,26 @@
-﻿#include "Light.h"
+#include "Light.h"
 
 Light::Light()
 {
 }
 
-HRESULT Light::Initialize(const LIGHT_DESC& LightDesc)
+HRESULT Light::Initialize(const LIGHT_DESC& lightDesc)
 {
-	memcpy(&_desc, &LightDesc, sizeof(LIGHT_DESC));
+	memcpy(&_desc, &lightDesc, sizeof(LIGHT_DESC));
 
     return S_OK;
 }
 
-Shared<Light> Light::Create(const LIGHT_DESC& LightDesc)
+Shared<Light> Light::Create(const LIGHT_DESC& lightDesc)
 {
-	auto pInstance = make_shared<Light>();
+	auto instance = make_shared<Light>();
 
-	if (FAILED(pInstance->Initialize(LightDesc)))
+	if (FAILED(instance->Initialize(lightDesc)))
 	{
 		MSG_BOX("Failed to Created : Light");
 		return nullptr;
 	}
-	return pInstance;
+	return instance;
 }
 
 void Light::Free()

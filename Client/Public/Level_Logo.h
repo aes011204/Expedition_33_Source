@@ -8,7 +8,7 @@ NS_BEGIN(Client)
 class Level_Logo final : public Level
 {
 public:
-	Level_Logo(ComPtr<Device> device, ComPtr<Context> context);
+	Level_Logo(const ComPtr<Device>& device, const ComPtr<Context>& context);
 	virtual ~Level_Logo() { Free(); }
 
 public:
@@ -20,7 +20,7 @@ private:
 	HRESULT Ready_Layer_BackGround(const wstring& strLayerTag);
 
 public:
-	static Shared<Level_Logo> Create(ComPtr<Device> device, ComPtr<Context> context);
+	static Shared<Level_Logo> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
 	virtual void Free() override;
 };
 

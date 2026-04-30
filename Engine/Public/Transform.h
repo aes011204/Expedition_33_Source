@@ -4,127 +4,165 @@
 
 NS_BEGIN(Engine)
 
+class Shader;
+
 class ENGINE_DLL Transform final : public Component
 {
 public:
-	typedef struct tagTransformDesc
-	{
-		float fSpeedPerSec = 0.f;
-		float fDegreePerSec = 0.f;
-		Vec3  vPosition = Vec3::Zero;
-		Vec3  vScale = Vec3::One;
-		float fPitch = 0.f;
-		float fYaw = 0.f;
-		float fRoll = 0.f;
-	}TRANSFORM_DESC;
+    using TRANSFORM_DESC = struct tagTransformDesc
+    {
+        float speedPerSec{ 0.f };
+        float degreePerSec{ 0.f };
+        Vec3 position{ Vec3::Zero };
+        Vec3 scale{ Vec3::One };
+        float pitch{ 0.f };
+        float yaw{ 0.f };
+        float roll{ 0.f };
+    };
+
+private: //## Types::DirtyTracking
+    enum class TRANSFORM_DIRTY_FLAG : uint8
+    {
+        NONE = 0,
+        ROTATION = 1 << 0,
+        WORLD = 1 << 1
+    };
+
+    enum class LOCAL_CHANGE_KIND : uint8
+    {
+        ROTATION_UNCHANGED,
+        ROTATION_CHANGED
+    };
 
 public:
-	Transform(ComPtr<Device> device, ComPtr<Context> context);
-	Transform(const Transform& Prototype);
-	virtual ~Transform() { Free(); }
+    Transform(const ComPtr<Device>& device, const ComPtr<Context>& context);
+    Transform(const Transform& prototype);
+    ~Transform() override;
 
 public:
-	XMVECTOR Get_State(State eState) const;
+    HRESULT Initialize_Prototype() override;
+    HRESULT Initialize(void* arg) override;
+    void Update_WorldMatrix();
+    HRESULT Bind_ShaderResource(Shader* shader, const char* resourceName);
 
-	void Set_State(State eState, FXMVECTOR vState);
+public: //## Accessors
+    const Matrix& Get_WorldMatrix();
+    Matrix Get_LocalMatrix() const;
 
-	XMFLOAT3 Get_Scaled() const;
+    // enum 기반으로 World 축 또는 World 위치를 조회한다.
+    Vec3 Get_State(State state);
+    [[deprecated("회전&스케일 오염을 방지하고자 사용 금지! | Use Set_Position/Set_Scale/Set_RotationEuler/Set_RotationQuaternion instead.")]]
+    void Set_State(State state, const Vec3& value);
 
-	const XMFLOAT4X4* Get_WorldMatrixPtr() const;
+    //## Translation
+    // Local 정본 위치를 조회한다.
+    Vec3 Get_Position() const;
+    // Local 정본 위치를 설정한다.
+    void Set_Position(const Vec3& position);
+    // 현재 local/parent 관계를 반영한 계산된 World 위치를 조회한다.
+    Vec3 Get_WorldPosition();
+    // 부모 유무와 관계없이 최종 World 위치가 position이 되도록 설정한다. 부모가 있을 경우에 사용시 local 위치로 역변환하여 저장한다.
+    void Set_WorldPosition(const Vec3& position);
 
-	const Matrix& Get_WorldMatrix() const;
+    //## Scale
+    Vec3 Get_Scale() const;
+    void Set_Scale(const Vec3& scale);
+    void Set_ScaleX(float scaleX);
+    void Set_ScaleY(float scaleY);
+    void Set_ScaleZ(float scaleZ);
 
-	Matrix Get_LocalMatrix() const;
+    //## Rotation
+    Vec3 Get_RotationEuler();
+    void Set_RotationEuler(const Vec3& eulerDegree);
+    const Quat& Get_RotationQuaternion();
+    void Set_RotationQuaternion(const Quat& rotation);
+
+    //## Speed
+    float Get_SpeedPerSec() const;
+    void Set_SpeedPerSec(float speedPerSec);
+    float Get_DegreePerSec() const;
+    void Set_DegreePerSec(float degreePerSec);
+
+public: //## Hierarchy
+    void Set_Parent(const Shared<Transform>& parent);
+
+public: //## Compatibility
+    void Add_LocalRotation(const Quat& deltaRotation);
+
+    Vec3 Get_WorldForward();
+    Vec3 Get_WorldRight();
+    Vec3 Get_WorldUp();
+    Vec3 Get_LocalForward();
+    Vec3 Get_LocalRight();
+    Vec3 Get_LocalUp();
+
+public: //## Commands::Scale Multiply
+    void Scaling(float scaleX, float scaleY, float scaleZ);
+    void ScaleX(float scaleX);
+    void ScaleY(float scaleY);
+    void ScaleZ(float scaleZ);
+
+public: //## Commands::Movement
+    void Go_Straight(float timeDelta);
+    void Go_Backward(float timeDelta);
+    void Go_Right(float timeDelta);
+    void Go_Left(float timeDelta);
+    void Go_Up(float timeDelta);
+    void Go_Down(float timeDelta);
+
+public: //## Commands::Rotate
+    void Rotate(const Vec3& axis, float degree);
+    void Turn(const Vec3& axis, float timeDelta);
+    void LookAt(const Vec3& at);
+
+private: //## Data
+    Matrix _localMatrix{ Matrix::Identity };
+    Vec3 _localSignedScale{ Vec3::One };
+
+    Weak<Transform> _parent;
+    bool _hasParent{ false };
+
+    Quat _localRotationCache{ Quat::Identity };
+    Vec3 _localEulerDegreeCache{ Vec3::Zero };
+    Matrix _worldMatrix{ Matrix::Identity };
+    uint64 _worldRevision{ 0 };
+    uint64 _observedParentWorldRevision{ 0 };
+
+    float _speedPerSec{ 0.f };
+    float _radianPerSec{ 0.f };
+
+    uint8 _dirtyMask = static_cast<uint8>(TRANSFORM_DIRTY_FLAG::ROTATION) |
+                       static_cast<uint8>(TRANSFORM_DIRTY_FLAG::WORLD);
+
+private: //## Internal::WorldSync
+    void Ensure_WorldMatrixUpToDate();
+
+private: //## Internal::DirtyTracking
+    void Mark_LocalChanged(LOCAL_CHANGE_KIND changeKind);
+    bool Has_Dirty(TRANSFORM_DIRTY_FLAG dirty) const;
+    void Set_Dirty(TRANSFORM_DIRTY_FLAG dirty);
+    void Clear_Dirty(TRANSFORM_DIRTY_FLAG dirty);
+
+private: //## Internal::Scale
+    static float Clamp_EditableScale(float scale);
+    static Vec3 Clamp_EditableScale(const Vec3& scale);
+    float Get_SignedScale(State state) const;
+    void Set_SignedScale(State state, float signedScale);
+    void Sync_SignedScaleFromLocalMatrix(Vec3 fallbackScale);
+
+private: //## Internal::LocalState
+    Vec3 Get_LocalState(State state) const;
+    void Set_LocalState(State state, const Vec3& value);
+    Vec3 Resolve_NormalizedAxis(State state) const;
+    void Sanitize_LocalBasis();
+    void Rebuild_LocalBasis_FromRotationCache();
+    void Sync_RotationCache_FromLocalMatrix();
+    static Vec3 Extract_EulerDegreeFromRotationMatrix(const Matrix& rotationMatrix);
 
 public:
-	virtual HRESULT Initialize_Prototype() override;
-	virtual HRESULT Initialize(void* pArg) override;
-
-public:
-	Vec3 Get_LocalPosition() const { return _localPosition; }
-
-	void Set_LocalPosition(const Vec3& vPosition);
-
-	void Set_LocalPosition(FXMVECTOR vPosition);
-
-	Vec3 Get_WorldPosition() const;
-
-	void Set_WorldPosition(const Vec3& vPosition);
-
-	void Set_LocalRotation(const Quat& qRotation);
-
-	void Set_LocalRotation(float fPitch, float fYaw, float fRoll);
-
-	void Add_LocalRotation(const Quat& qDeltaRotation);
-
-	Vec3 Get_LocalEulerAngles() const { return _localEulerAngles; }
-
-	Vec3 Get_LocalScale() const { return _localScale; }
-
-	void Set_LocalScale(const Vec3& vScale);
-
-	Vec3 Get_WorldForward() const;
-
-	Vec3 Get_WorldRight() const;
-
-	Vec3 Get_WorldUp() const;
-
-	Vec3 Get_LocalForward() const;
-
-	Vec3 Get_LocalRight() const;
-
-	Vec3 Get_LocalUp() const;
-
-public:
-	void SetUp_Scale(float fScaleX, float fScaleY, float fScaleZ);
-
-	void Scaling(float fScaleX, float fScaleY, float fScaleZ);
-
-	void Go_Straight(float fTimeDelta);
-
-	void Go_Backward(float fTimeDelta);
-
-	void Go_Right(float fTimeDelta);
-
-	void Go_Left(float fTimeDelta);
-
-	void Rotation(FXMVECTOR vAxis, float fDegree);
-
-	void Turn(FXMVECTOR vAxis, float fTimeDelta);
-
-	void LookAt(FXMVECTOR vAt);
-
-public:
-	HRESULT Bind_ShaderResource(class Shader* pShader, const char* pConstantName);
-
-private:
-	void Mark_Dirty();
-
-	void Update_WorldMatrix() const;
-
-	void Decompose_WorldMatrix(const Matrix& WorldMatrix);
-
-	static Vec3 ToVec3(FXMVECTOR vValue);
-
-	static XMVECTOR ToVector(const Vec3& vValue, float fW = 0.f);
-
-private:
-	Vec3 _localPosition = Vec3::Zero;
-	Quat _localRotation = Quat::Identity;
-	Vec3 _localScale = Vec3::One;
-	Vec3 _localEulerAngles = Vec3::Zero;
-	float _speedPerSec = 0.f;
-	float _radianPerSec = 0.f;
-	mutable Matrix _worldMatrix = Matrix::Identity;
-	mutable bool _isDirty = true;
-
-public:
-	static Shared<Transform> Create(ComPtr<Device> device, ComPtr<Context> context);
-
-	virtual Shared<Component> Clone(void* pArg) override;
-
-	virtual void Free() override;
+    static Shared<Transform> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
+    Shared<Component> Clone(void* arg) override;
+    void Free() override;
 };
 
 NS_END
-

@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "GameObject.h"
 
@@ -9,32 +9,35 @@ class ENGINE_DLL PartObject abstract : public GameObject
 public:
 	typedef struct tagPartObjectDesc : public GameObject::GAMEOBJECT_DESC
 	{
-		const XMFLOAT4X4* pParentMatrix = { nullptr };
+		const Matrix* parentMatrix = { nullptr };
 	}PARTOBJECT_DESC;
 public:
-	PartObject(ComPtr<Device> device, ComPtr<Context> context);
-	PartObject(const PartObject& Prototype);
+	PartObject(const ComPtr<Device>& device, const ComPtr<Context>& context);
+	PartObject(const PartObject& prototype);
 	virtual ~PartObject() = default;
 public:
 	virtual HRESULT Initialize_Prototype();
-	virtual HRESULT Initialize(void* pArg);
-	virtual void Priority_Update(float fTimeDelta);
-	virtual void Update(float fTimeDelta);
-	virtual void Late_Update(float fTimeDelta);
+	virtual HRESULT Initialize(void* arg);
+	virtual void Priority_Update(float timeDelta);
+	virtual void Update(float timeDelta);
+	virtual void Late_Update(float timeDelta);
 	virtual HRESULT Render();
 
 
 protected:
-	const XMFLOAT4X4*		_parentMatrix = { nullptr };
+	const Matrix*			_parentMatrix = { nullptr };
 	XMFLOAT4X4				_combinedWorldMatrix = {};
 
 protected:
-	void Update_CombinedWorldMatrix(FXMMATRIX ChildMatrix) {
-		XMStoreFloat4x4(&_combinedWorldMatrix, ChildMatrix * XMLoadFloat4x4(_parentMatrix));
+	void Update_CombinedWorldMatrix(FXMMATRIX childMatrix) {
+		const Matrix parentMatrix = (nullptr != _parentMatrix) ? *_parentMatrix : Matrix::Identity;
+		const Matrix childWorld = childMatrix;
+		const Matrix combinedWorld = childWorld * parentMatrix;
+		XMStoreFloat4x4(&_combinedWorldMatrix, combinedWorld);
 	}
 
 public:
-	virtual Shared<GameObject> Clone(void* pArg) = 0;
+	virtual Shared<GameObject> Clone(void* arg) = 0;
 	virtual void Free() override;
 };
 

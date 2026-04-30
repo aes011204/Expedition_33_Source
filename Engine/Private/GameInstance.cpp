@@ -1,15 +1,16 @@
 ﻿#include "GameInstance.h"
-#include "Graphic_Device.h"
-#include "Timer_Manager.h"
-#include "Level_Manager.h"
-#include "Prototype_Manager.h"
-#include "Object_Manager.h"
-#include "Renderer.h"
-#include "PipeLine.h"
-#include "Input_Manager.h"
-#include "Light_Manager.h"
-#include "Font_Manager.h"
 #include "Asset_Manager.h"
+#include "Font_Manager.h"
+#include "Graphic_Device.h"
+#include "Input_Manager.h"
+#include "Level_Manager.h"
+#include "Light_Manager.h"
+#include "Log_Manager.h"
+#include "Object_Manager.h"
+#include "PipeLine.h"
+#include "Prototype_Manager.h"
+#include "Renderer.h"
+#include "Timer_Manager.h"
 
 IMPLEMENT_SINGLETON(GameInstance)
 
@@ -19,104 +20,149 @@ GameInstance::GameInstance()
 
 GameInstance::~GameInstance() = default;
 
-HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& EngineDesc, ComPtr<Device>& device, ComPtr<Context>& context)
+HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<Device>& device, ComPtr<Context>& context)
 {
-	_graphicDevice = Graphic_Device::Create(
-        EngineDesc.hWnd, EngineDesc.eWinMode, EngineDesc.iViewportWidth, EngineDesc.iViewportHeight, device, context);
+    _graphicDevice = Graphic_Device::Create(
+        engineDesc.hWnd,
+        engineDesc.winMode,
+        engineDesc.viewportWidth,
+        engineDesc.viewportHeight,
+        device,
+        context
+    );
 
-    _viewportWidth = EngineDesc.iViewportWidth;
-    _viewportHeight = EngineDesc.iViewportHeight;
+    _viewportWidth = engineDesc.viewportWidth;
+    _viewportHeight = engineDesc.viewportHeight;
 
-	if (nullptr == _graphicDevice)
-		return E_FAIL;
+    if (nullptr == _graphicDevice)
+        return E_FAIL;
 
-	_timerManager = Timer_Manager::Create();
-	if (nullptr == _timerManager)
-		return E_FAIL;
+    _logManager = Log_Manager::Create(engineDesc.projectName);
+    CHECK_NULL(_logManager, E_FAIL);
 
-	_levelManager = Level_Manager::Create();
-	if (nullptr == _levelManager)
-		return E_FAIL;
+    _timerManager = Timer_Manager::Create();
+    if (nullptr == _timerManager)
+        return E_FAIL;
 
-	_prototypeManager = Prototype_Manager::Create(EngineDesc.iNumLevels);
-	if (nullptr == _prototypeManager)
-		return E_FAIL;
+    _levelManager = Level_Manager::Create();
+    if (nullptr == _levelManager)
+        return E_FAIL;
 
-	_objectManager = Object_Manager::Create(EngineDesc.iNumLevels);
-	if (nullptr == _objectManager)
-		return E_FAIL;
+    _prototypeManager = Prototype_Manager::Create(engineDesc.numLevels);
+    if (nullptr == _prototypeManager)
+        return E_FAIL;
 
-	_renderer = Renderer::Create(device, context);
-	if (nullptr == _renderer)
-		return E_FAIL;
+    _objectManager = Object_Manager::Create(engineDesc.numLevels);
+    if (nullptr == _objectManager)
+        return E_FAIL;
 
-	_pipeLine = PipeLine::Create();
-	if (nullptr == _pipeLine)
-		return E_FAIL;
+    _renderer = Renderer::Create(device, context);
+    if (nullptr == _renderer)
+        return E_FAIL;
 
-	_inputManager = Input_Manager::Create(EngineDesc.hWnd);
-	if (nullptr == _inputManager)
-		return E_FAIL;
+    _pipeLine = PipeLine::Create();
+    if (nullptr == _pipeLine)
+        return E_FAIL;
 
-	_lightManager = Light_Manager::Create();
-	if (nullptr == _lightManager)
-		return E_FAIL;
+    _inputManager = Input_Manager::Create(engineDesc.hWnd);
+    if (nullptr == _inputManager)
+        return E_FAIL;
 
-	_fontManager = Font_Manager::Create(device, context);
-	if (nullptr == _fontManager)
-		return E_FAIL;
+    _lightManager = Light_Manager::Create();
+    if (nullptr == _lightManager)
+        return E_FAIL;
 
-	return S_OK;
+    _fontManager = Font_Manager::Create(device, context);
+    if (nullptr == _fontManager)
+        return E_FAIL;
+
+    return S_OK;
 }
 
-void GameInstance::Update_Engine(float fTimeDelta)
+void GameInstance::Update_Engine(float timeDelta)
 {
-	_inputManager->Update(fTimeDelta);
+    _inputManager->Update(timeDelta);
 
-	_objectManager->Priority_Update(fTimeDelta);
+    _objectManager->Priority_Update(timeDelta);
 
-	_pipeLine->Update();
+    _pipeLine->Update();
 
-	_objectManager->Update(fTimeDelta);
+    _objectManager->Update(timeDelta);
 
-	_objectManager->Late_Update(fTimeDelta);
+    _objectManager->Late_Update(timeDelta);
 
-	_levelManager->Update(fTimeDelta);
+    _levelManager->Update(timeDelta);
 }
 
 HRESULT GameInstance::Draw()
 {
-	_renderer->Draw();
+    _renderer->Draw();
 
-	_levelManager->Render();
+    _levelManager->Render();
 
-	return S_OK;
+    return S_OK;
 }
 
-void GameInstance::Clear_Resources(uint32 iLevelIndex)
+void GameInstance::Clear_Resources(uint32 levelIndex)
 {
-	_objectManager->Clear_Layers(iLevelIndex);
-	_prototypeManager->Clear_Prototypes(iLevelIndex);
+    _objectManager->Clear_Layers(levelIndex);
+    _prototypeManager->Clear_Prototypes(levelIndex);
 }
 
-float GameInstance::Random(float fMin, float fMax)
+float GameInstance::Random(float min, float max)
 {
-	return fMin + (static_cast<float>(rand()) / RAND_MAX) * (fMax - fMin);
+    return min + static_cast<float>(rand()) / RAND_MAX * (max - min);
+}
+
+void GameInstance::Visit_ConsoleLogs(const function<void(const ConsoleLogEntry& logEntry)>& visitor) const
+{
+    CHECK_NULL(_logManager);
+    _logManager->Visit_ConsoleLogs(visitor);
+}
+
+void GameInstance::Clear_ConsoleLogs()
+{
+    CHECK_NULL(_logManager);
+    _logManager->Clear_ConsoleLogs();
+}
+
+uint32 GameInstance::Get_ConsoleLogCount() const
+{
+    CHECK_NULL(_logManager, 0);
+    return _logManager->Get_ConsoleLogCount();
+}
+
+uint32 GameInstance::Get_ConsoleLogCapacity() const
+{
+    CHECK_NULL(_logManager, 0);
+    return _logManager->Get_ConsoleLogCapacity();
+}
+
+void GameInstance::Set_ConsoleLogCapacity(uint32 capacity)
+{
+    CHECK_NULL(_logManager);
+    _logManager->Set_ConsoleLogCapacity(capacity);
+}
+
+uint32 GameInstance::Get_ConsoleLogRevision() const
+{
+    CHECK_NULL(_logManager, 0);
+    return _logManager->Get_ConsoleLogRevision();
 }
 
 HRESULT GameInstance::Clear_Buffers(const Vec4& clearColor)
 {
-	if (FAILED(_graphicDevice->Clear_BackBuffer_View(clearColor)))
-		return E_FAIL;
-	if (FAILED(_graphicDevice->Clear_DepthStencil_View()))
-		return E_FAIL;
+    if (FAILED(_graphicDevice->Clear_BackBuffer_View(clearColor)))
+        return E_FAIL;
+    if (FAILED(_graphicDevice->Clear_DepthStencil_View()))
+        return E_FAIL;
 
-	return S_OK;
+    return S_OK;
 }
 
 HRESULT GameInstance::Present()
 {
-	return _graphicDevice->Present();	
+    return _graphicDevice->Present();
 }
 
 void GameInstance::Bind_BackBuffer()
@@ -142,12 +188,12 @@ void GameInstance::Set_ViewportSize(uint32 width, uint32 height)
 
 uint32 GameInstance::Get_ViewportWidth() const
 {
-     return _viewportWidth;
+    return _viewportWidth;
 }
 
 uint32 GameInstance::Get_ViewportHeight() const
 {
-     return _viewportHeight;
+    return _viewportHeight;
 }
 
 uint32 GameInstance::Get_BackBufferWidth() const
@@ -160,234 +206,250 @@ uint32 GameInstance::Get_BackBufferHeight() const
     return _graphicDevice->Get_ViewportHeight();
 }
 
-HRESULT GameInstance::Add_Timer(const wstring& strTimerTag)
+HRESULT GameInstance::Add_Timer(const wstring& timerTag)
 {
-	return _timerManager->Add_Timer(strTimerTag);
+    return _timerManager->Add_Timer(timerTag);
 }
 
-float GameInstance::Compute_TimeDelta(const wstring& strTimerTag)
+float GameInstance::Compute_TimeDelta(const wstring& timerTag)
 {
-	return _timerManager->Compute_TimeDelta(strTimerTag);
+    return _timerManager->Compute_TimeDelta(timerTag);
 }
 
-HRESULT GameInstance::Change_Level(uint32 iNewLevelIndex, Shared<Level> pNewLevel)
+HRESULT GameInstance::Change_Level(uint32 newLevelIndex, Shared<Level> newLevel)
 {
-	return _levelManager->Change_Level(iNewLevelIndex, pNewLevel);
+    return _levelManager->Change_Level(newLevelIndex, newLevel);
 }
 
-HRESULT GameInstance::Add_Prototype(uint32 iLevelIndex, const wstring& strPrototypeTag, Shared<Base> pPrototype)
+HRESULT GameInstance::Add_Prototype(uint32 levelIndex, const wstring& prototypeTag, Shared<Base> prototype)
 {
-	return _prototypeManager->Add_Prototype(iLevelIndex, strPrototypeTag, pPrototype);
+    return _prototypeManager->Add_Prototype(levelIndex, prototypeTag, prototype);
 }
 
-Shared<Base> GameInstance::Clone_Prototype(Prototype ePrototype, uint32 iLevelIndex, const wstring& strPrototypeTag, void* pArg)
+Shared<Base> GameInstance::Clone_Prototype(Prototype prototype, uint32 levelIndex, const wstring& prototypeTag, void* arg)
 {
-	return _prototypeManager->Clone_Prototype(ePrototype, iLevelIndex, strPrototypeTag, pArg);
+    return _prototypeManager->Clone_Prototype(prototype, levelIndex, prototypeTag, arg);
 }
 
-HRESULT GameInstance::Add_GameObject(uint32 iPrototypeLevelIndex, const wstring& strPrototypeTag, uint32 iLayerLevelIndex, const wstring& strLayerTag, void* pArg)
+HRESULT GameInstance::Add_GameObject(
+    uint32 prototypeLevelIndex,
+    const wstring& prototypeTag,
+    uint32 layerLevelIndex,
+    const wstring& layerTag,
+    void* arg)
 {
-	return _objectManager->Add_GameObject(iPrototypeLevelIndex, strPrototypeTag, iLayerLevelIndex, strLayerTag, pArg);
+    return _objectManager->Add_GameObject(prototypeLevelIndex, prototypeTag, layerLevelIndex, layerTag, arg);
 }
 
-void GameInstance::Add_RenderGroup(RenderGroup eRenderGroup, Shared<GameObject> gameObject)
+void GameInstance::Add_RenderGroup(RenderGroup renderGroup, Shared<GameObject> gameObject)
 {
-	return _renderer->Add_RenderGroup(eRenderGroup, gameObject);
+    return _renderer->Add_RenderGroup(renderGroup, gameObject);
 }
 
-HRESULT GameInstance::Bind_CamPosition(Shader* pShader, const char* pConstantName)
+HRESULT GameInstance::Bind_CamPosition(Shader* shader, const char* constantName)
 {
-	return _pipeLine->Bind_CamPosition(pShader, pConstantName);
+    return _pipeLine->Bind_CamPosition(shader, constantName);
 }
 
-HRESULT GameInstance::Bind_TransformMatrix(D3DTS eTransformState, Shader* pShader, const char* pConstantName)
+HRESULT GameInstance::Bind_TransformMatrix(D3DTS transformState, Shader* shader, const char* constantName)
 {
-	return _pipeLine->Bind_TransformMatrix(eTransformState, pShader, pConstantName);
+    return _pipeLine->Bind_TransformMatrix(transformState, shader, constantName);
 }
 
-HRESULT GameInstance::Bind_TransformMatrix_Inverse(D3DTS eTransformState, Shader* pShader, const char* pConstantName)
+HRESULT GameInstance::Bind_TransformMatrix_Inverse(D3DTS transformState, Shader* shader, const char* constantName)
 {
-	return _pipeLine->Bind_TransformMatrix_Inverse(eTransformState, pShader, pConstantName);
+    return _pipeLine->Bind_TransformMatrix_Inverse(transformState, shader, constantName);
 }
 
-const XMFLOAT4X4* GameInstance::Get_Transform(D3DTS eTransformState) const
+const XMFLOAT4X4* GameInstance::Get_Transform(D3DTS transformState) const
 {
-	return _pipeLine->Get_Transform(eTransformState);
+    return _pipeLine->Get_Transform(transformState);
 }
 
 const XMFLOAT4* GameInstance::Get_CamPosition() const
 {
-	return _pipeLine->Get_CamPosition();
+    return _pipeLine->Get_CamPosition();
 }
 
-void GameInstance::Set_Transform(D3DTS eTransformState, FXMMATRIX TransformStateMatrix)
+void GameInstance::Set_Transform(D3DTS transformState, FXMMATRIX& transformStateMatrix)
 {
-	_pipeLine->Set_Transform(eTransformState, TransformStateMatrix);
+    _pipeLine->Set_Transform(transformState, transformStateMatrix);
 }
 
-
-bool GameInstance::KeyPress(KEY_TYPE eKey) const
+bool GameInstance::KeyPress(KEY_TYPE key) const
 {
-	return nullptr != _inputManager && _inputManager->KeyPress(eKey);
+    return nullptr != _inputManager && _inputManager->KeyPress(key);
 }
 
-bool GameInstance::KeyDown(KEY_TYPE eKey) const
+bool GameInstance::KeyDown(KEY_TYPE key) const
 {
-	return nullptr != _inputManager && _inputManager->KeyDown(eKey);
+    return nullptr != _inputManager && _inputManager->KeyDown(key);
 }
 
-bool GameInstance::KeyUp(KEY_TYPE eKey) const
+bool GameInstance::KeyUp(KEY_TYPE key) const
 {
-	return nullptr != _inputManager && _inputManager->KeyUp(eKey);
+    return nullptr != _inputManager && _inputManager->KeyUp(key);
 }
 
 Vec2 GameInstance::Get_MouseDelta() const
 {
-	if (nullptr == _inputManager)
-		return Vec2::Zero;
+    if (nullptr == _inputManager)
+        return Vec2::Zero;
 
-	return _inputManager->Get_MouseDelta();
+    return _inputManager->Get_MouseDelta();
 }
 
 void GameInstance::Lock_Mouse()
 {
-	if (nullptr != _inputManager)
-		_inputManager->Lock_Mouse();
+    if (nullptr != _inputManager)
+        _inputManager->Lock_Mouse();
 }
 
 void GameInstance::Unlock_Mouse()
 {
-	if (nullptr != _inputManager)
-		_inputManager->Unlock_Mouse();
+    if (nullptr != _inputManager)
+        _inputManager->Unlock_Mouse();
 }
 
-const LIGHT_DESC* GameInstance::Get_LightDesc(uint32 iIndex)
+const LIGHT_DESC* GameInstance::Get_LightDesc(uint32 index)
 {
-	return _lightManager->Get_LightDesc(iIndex);
+    return _lightManager->Get_LightDesc(index);
 }
 
-HRESULT GameInstance::Add_Light(const LIGHT_DESC& LightDesc)
+HRESULT GameInstance::Add_Light(const LIGHT_DESC& lightDesc)
 {
-	return _lightManager->Add_Light(LightDesc);
+    return _lightManager->Add_Light(lightDesc);
 }
 
-HRESULT GameInstance::Add_Font(const wstring& strFontTag, const wchar_t* pFontFilePath)
+HRESULT GameInstance::Add_Font(const wstring& fontTag, const wchar_t* fontFilePath)
 {
-	return _fontManager->Add_Font(strFontTag, pFontFilePath);
+    return _fontManager->Add_Font(fontTag, fontFilePath);
 }
 
-void GameInstance::Draw_Font(const wstring& strFontTag, const wchar_t* pText, const Vec2& position, FXMVECTOR vColor)
+void GameInstance::Draw_Font(const wstring& fontTag, const wchar_t* text, const Vec2& position, FXMVECTOR color)
 {
-	_fontManager->Draw(strFontTag, pText, position, vColor);
+    _fontManager->Draw(fontTag, text, position, color);
 }
 
-HRESULT GameInstance::Initialize_AssetManager(const wstring& strResourceRoot)
+HRESULT GameInstance::Initialize_AssetManager(const wstring& resourceRoot)
 {
-	_assetManager = Asset_Manager::Create(strResourceRoot);
-	if (nullptr == _assetManager)
-		return E_FAIL;
+    _assetManager = Asset_Manager::Create(resourceRoot);
+    if (nullptr == _assetManager)
+        return E_FAIL;
 
-	return S_OK;
+    return S_OK;
 }
 
-string GameInstance::Find_AssetGUID(const wstring& strFilePath) const
+string GameInstance::Find_AssetGUID(const wstring& filePath) const
 {
-	if (nullptr == _assetManager)
-		return {};
+    if (nullptr == _assetManager)
+        return {};
 
-	return _assetManager->Find_GUID(strFilePath);
+    return _assetManager->Find_GUID(filePath);
 }
 
-const FAssetMeta* GameInstance::Find_AssetByGUID(const string& strGuid) const
+const FAssetMeta* GameInstance::Find_AssetByGUID(const string& guid) const
 {
-	if (nullptr == _assetManager)
-		return nullptr;
+    if (nullptr == _assetManager)
+        return nullptr;
 
-	return _assetManager->Find_ByGUID(strGuid);
+    return _assetManager->Find_ByGUID(guid);
 }
 
-wstring GameInstance::Resolve_AssetPath(const string& strGuid) const
+wstring GameInstance::Resolve_AssetPath(const string& guid) const
 {
-	if (nullptr == _assetManager)
-		return {};
+    if (nullptr == _assetManager)
+        return {};
 
-	return _assetManager->Resolve_Path(strGuid);
+    return _assetManager->Resolve_Path(guid);
+}
+
+wstring GameInstance::Get_AssetRoot() const
+{
+    if (nullptr == _assetManager)
+        return {};
+
+    return _assetManager->Get_ResourceRoot();
 }
 
 void GameInstance::Release_Engine()
 {
-	if (nullptr != _assetManager)
-	{
-		_assetManager->Free();
-		_assetManager.reset();
-	}
+    if (nullptr != _assetManager)
+    {
+        _assetManager->Free();
+        _assetManager.reset();
+    }
 
-	if (nullptr != _fontManager)
-	{
-		_fontManager->Free();
-		_fontManager.reset();
-	}
+    if (nullptr != _fontManager)
+    {
+        _fontManager->Free();
+        _fontManager.reset();
+    }
 
-	if (nullptr != _lightManager)
-	{
-		_lightManager->Free();
-		_lightManager.reset();
-	}
+    if (nullptr != _lightManager)
+    {
+        _lightManager->Free();
+        _lightManager.reset();
+    }
 
-	if (nullptr != _inputManager)
-	{
-		_inputManager->Free();
-		_inputManager.reset();
-	}
+    if (nullptr != _inputManager)
+    {
+        _inputManager->Free();
+        _inputManager.reset();
+    }
 
-	if (nullptr != _pipeLine)
-	{
-		_pipeLine->Free();
-		_pipeLine.reset();
-	}
+    if (nullptr != _pipeLine)
+    {
+        _pipeLine->Free();
+        _pipeLine.reset();
+    }
 
-	if (nullptr != _renderer)
-	{
-		_renderer->Free();
-		_renderer.reset();
-	}
+    if (nullptr != _renderer)
+    {
+        _renderer->Free();
+        _renderer.reset();
+    }
 
-	if (nullptr != _objectManager)
-	{
-		_objectManager->Free();
-		_objectManager.reset();
-	}
+    if (nullptr != _objectManager)
+    {
+        _objectManager->Free();
+        _objectManager.reset();
+    }
 
-	if (nullptr != _prototypeManager)
-	{
-		_prototypeManager->Free();
-		_prototypeManager.reset();
-	}
+    if (nullptr != _prototypeManager)
+    {
+        _prototypeManager->Free();
+        _prototypeManager.reset();
+    }
 
-	if (nullptr != _levelManager)
-	{
-		_levelManager->Free();
-		_levelManager.reset();
-	}
+    if (nullptr != _levelManager)
+    {
+        _levelManager->Free();
+        _levelManager.reset();
+    }
 
-	if (nullptr != _timerManager)
-	{
-		_timerManager->Free();
-		_timerManager.reset();
-	}
+    if (nullptr != _timerManager)
+    {
+        _timerManager->Free();
+        _timerManager.reset();
+    }
 
-	if (nullptr != _graphicDevice)
-	{
-		_graphicDevice->Free();
-		_graphicDevice.reset();
-	}
+    if (nullptr != _graphicDevice)
+    {
+        _graphicDevice->Free();
+        _graphicDevice.reset();
+    }
 
-	DestroyInstance();
+    if (nullptr != _logManager)
+    {
+        _logManager->Free();
+        _logManager.reset();
+    }
+
+    DestroyInstance();
 }
 
 void GameInstance::Free()
 {
-	__super::Free();
-
-	
+    __super::Free();
 }

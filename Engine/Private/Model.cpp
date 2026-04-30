@@ -6,56 +6,56 @@
 #include "Material.h"
 #include "Animation.h"
 
-Model::Model(ComPtr<Device> device, ComPtr<Context> context)
+Model::Model(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Component { device, context }
 {
 }
 
-Model::Model(const Model& Prototype)
-    : Component{ Prototype }
-    , _aiScene { Prototype._aiScene }
-    , _type{ Prototype._type }
-    , _preLocalTransformMatrix{ Prototype._preLocalTransformMatrix }
-     , _numMeshes { Prototype._numMeshes }
-    , _meshes { Prototype._meshes }    
-    , _numMaterials { Prototype._numMaterials }
-    , _materials { Prototype._materials }
-    , _numAnimations { Prototype._numAnimations}
+Model::Model(const Model& prototype)
+    : Component{ prototype }
+    , _aiScene { prototype._aiScene }
+    , _type{ prototype._type }
+    , _preLocalTransformMatrix{ prototype._preLocalTransformMatrix }
+     , _numMeshes { prototype._numMeshes }
+    , _meshes { prototype._meshes }    
+    , _numMaterials { prototype._numMaterials }
+    , _materials { prototype._materials }
+    , _numAnimations { prototype._numAnimations}
     
 {
 
-    for (auto& pPrototypeAnim : Prototype._animations)
-        _animations.push_back(pPrototypeAnim->Clone());
+    for (auto& prototypeAnim : prototype._animations)
+        _animations.push_back(prototypeAnim->Clone());
 
-    for (auto& pPrototypeBone : Prototype._bones)
-        _bones.push_back(pPrototypeBone->Clone());
+    for (auto& prototypeBone : prototype._bones)
+        _bones.push_back(prototypeBone->Clone());
 
-    for (auto& pMaterial : _materials)
-        Safe_AddRef(pMaterial);
+    for (auto& material : _materials)
+        Safe_AddRef(material);
 
-    for (auto& pMesh : _meshes)
-        Safe_AddRef(pMesh);
+    for (auto& mesh : _meshes)
+        Safe_AddRef(mesh);
 }
 
-int32 Model::Get_BoneIndex(const char* pBoneName)
+int32 Model::Get_BoneIndex(const char* boneName)
 {
-    int32    iBoneIndex = { -1 };
+    int32    boneIndex = { -1 };
 
-    auto    iter = find_if(_bones.begin(), _bones.end(), [&](Shared<Bone> pBone)->bool {
-            ++iBoneIndex;
-            return pBone->isCompare(pBoneName);
+    auto    iter = find_if(_bones.begin(), _bones.end(), [&](Shared<Bone> bone)->bool {
+            ++boneIndex;
+            return bone->isCompare(boneName);
         });
 
     if (iter == _bones.end())
         return -1;
 
-    return iBoneIndex;
+    return boneIndex;
 }
 
-const XMFLOAT4X4* Model::Get_BoneMatrixPtr(const char* pBoneName)
+const XMFLOAT4X4* Model::Get_BoneMatrixPtr(const char* boneName)
 {
-    auto    iter = find_if(_bones.begin(), _bones.end(), [&](Shared<Bone> pBone)->bool {    
-        return pBone->isCompare(pBoneName);
+    auto    iter = find_if(_bones.begin(), _bones.end(), [&](Shared<Bone> bone)->bool {    
+        return bone->isCompare(boneName);
         });
 
     if (iter == _bones.end())
@@ -64,19 +64,19 @@ const XMFLOAT4X4* Model::Get_BoneMatrixPtr(const char* pBoneName)
     return (*iter)->Get_CombinedTransformationMatrixPtr();
 }
 
-HRESULT Model::Initialize_Prototype(ModelType eType, const char* pModelFilePath, FXMMATRIX PreLocalTransformMatrix)
+HRESULT Model::Initialize_Prototype(ModelType type, const char* modelFilePath, FXMMATRIX preLocalTransformMatrix)
 {
-    uint32       iFlag = { aiProcess_ConvertToLeftHanded | aiProcessPreset_TargetRealtime_Fast };
+    uint32       flag = { aiProcess_ConvertToLeftHanded | aiProcessPreset_TargetRealtime_Fast };
 
-    if (ModelType::NonAnim == eType)
-        iFlag |= aiProcess_PreTransformVertices;
+    if (ModelType::NonAnim == type)
+        flag |= aiProcess_PreTransformVertices;
 
-    _aiScene = _importer.ReadFile(pModelFilePath, iFlag);
+    _aiScene = _importer.ReadFile(modelFilePath, flag);
     if (nullptr == _aiScene)
         return E_FAIL;
 
-    _type = eType;
-    XMStoreFloat4x4(&_preLocalTransformMatrix, PreLocalTransformMatrix);
+    _type = type;
+    XMStoreFloat4x4(&_preLocalTransformMatrix, preLocalTransformMatrix);
 
     
     if (FAILED(Ready_Bones(_aiScene->mRootNode, -1)))
@@ -85,7 +85,7 @@ HRESULT Model::Initialize_Prototype(ModelType eType, const char* pModelFilePath,
     if (FAILED(Ready_Meshes()))
         return E_FAIL;
 
-    if (FAILED(Ready_Materials(pModelFilePath)))
+    if (FAILED(Ready_Materials(modelFilePath)))
         return E_FAIL;
 
     if (FAILED(Ready_Animations()))
@@ -96,44 +96,44 @@ HRESULT Model::Initialize_Prototype(ModelType eType, const char* pModelFilePath,
     return S_OK;
 }
 
-HRESULT Model::Initialize(void* pArg)
+HRESULT Model::Initialize(void* arg)
 {
     return S_OK;
 }
 
-HRESULT Model::Render(uint32 iMeshIndex)
+HRESULT Model::Render(uint32 meshIndex)
 {
-    _meshes[iMeshIndex]->Bind_Resources();
-    _meshes[iMeshIndex]->Render();
+    _meshes[meshIndex]->Bind_Resources();
+    _meshes[meshIndex]->Render();
 
     return S_OK;
 }
 
-bool Model::Play_Animation(float fTimeDelta)
+bool Model::Play_Animation(float timeDelta)
 {
     bool       isFinish = { false };
-    isFinish = _animations[_currentAnimIndex]->Update_TransformationMatrices(fTimeDelta, _bones, _isAnimLoop);
+    isFinish = _animations[_currentAnimIndex]->Update_TransformationMatrices(timeDelta, _bones, _isAnimLoop);
 
-    for (auto& pBone : _bones)
+    for (auto& bone : _bones)
     {
-        pBone->Update_CombinedTransformationMatrix(_bones, XMLoadFloat4x4(&_preLocalTransformMatrix));
+        bone->Update_CombinedTransformationMatrix(_bones, XMLoadFloat4x4(&_preLocalTransformMatrix));
     }
 
     return isFinish;
 }
 
-HRESULT Model::Bind_Material(Shader* pShader, const char* pConstantName, uint32 iMeshIndex, aiTextureType eMaterialType, uint32 iTextureIndex)
+HRESULT Model::Bind_Material(Shader* shader, const char* constantName, uint32 meshIndex, aiTextureType materialType, uint32 textureIndex)
 {
  
-    return _materials[_meshes[iMeshIndex]->Get_MaterialIndex()]->Bind_Material(pShader, pConstantName, eMaterialType, iTextureIndex);
+    return _materials[_meshes[meshIndex]->Get_MaterialIndex()]->Bind_Material(shader, constantName, materialType, textureIndex);
 
     
 }
 
-HRESULT Model::Bind_BoneMatrices(Shader* pShader, const char* pConstantName, uint32 iMeshIndex)
+HRESULT Model::Bind_BoneMatrices(Shader* shader, const char* constantName, uint32 meshIndex)
 {
 
-    return _meshes[iMeshIndex]->Bind_BoneMatrices(pShader, pConstantName, _bones);    
+    return _meshes[meshIndex]->Bind_BoneMatrices(shader, constantName, _bones);    
 }
 
 
@@ -144,44 +144,44 @@ HRESULT Model::Ready_Meshes()
 
     for (size_t i = 0; i < _numMeshes; i++)
     {
-        Shared<Mesh> pMesh = Mesh::Create(_device.Get(), _context.Get(), _type, _aiScene->mMeshes[i], this, XMLoadFloat4x4(&_preLocalTransformMatrix));
-        if (nullptr == pMesh)
+        Shared<Mesh> mesh = Mesh::Create(_device.Get(), _context.Get(), _type, _aiScene->mMeshes[i], this, XMLoadFloat4x4(&_preLocalTransformMatrix));
+        if (nullptr == mesh)
             return E_FAIL;
 
-        _meshes.push_back(pMesh);
+        _meshes.push_back(mesh);
     }
 
     return S_OK;
 }
 
-HRESULT Model::Ready_Materials(const char* pModelFilePath)
+HRESULT Model::Ready_Materials(const char* modelFilePath)
 {
     _numMaterials = _aiScene->mNumMaterials;
 
     for (size_t i = 0; i < _numMaterials; i++)
     {
-        Shared<Material> pMaterial = Material::Create(_device.Get(), _context.Get(), _aiScene->mMaterials[i], pModelFilePath);
-        if (nullptr == pMaterial)
+        Shared<Material> material = Material::Create(_device.Get(), _context.Get(), _aiScene->mMaterials[i], modelFilePath);
+        if (nullptr == material)
             return E_FAIL;
 
-        _materials.push_back(pMaterial);
+        _materials.push_back(material);
     }
 
     return S_OK;
 }
-HRESULT Model::Ready_Bones(const aiNode* pAINode, int32 iParentIndex)
+HRESULT Model::Ready_Bones(const aiNode* aiNode, int32 parentIndex)
 {
-    Shared<Bone> pBone = Bone::Create(pAINode, iParentIndex);
-    if (nullptr == pBone)
+    Shared<Bone> bone = Bone::Create(aiNode, parentIndex);
+    if (nullptr == bone)
         return E_FAIL;
 
-    _bones.push_back(pBone);
+    _bones.push_back(bone);
 
-    int32        iPIndex = _bones.size() - 1;
+    int32        index = static_cast<int32>(_bones.size() - 1);
 
-    for (size_t i = 0; i < pAINode->mNumChildren; i++)
+    for (size_t i = 0; i < aiNode->mNumChildren; i++)
     {
-        Ready_Bones(pAINode->mChildren[i], iPIndex);
+        Ready_Bones(aiNode->mChildren[i], index);
     }
 
     return S_OK;
@@ -193,64 +193,64 @@ HRESULT Model::Ready_Animations()
 
     for (size_t i = 0; i < _numAnimations; i++)
     {
-        Shared<Animation> pAnimation = Animation::Create(_aiScene->mAnimations[i], this);
-        if (nullptr == pAnimation)
+        Shared<Animation> animation = Animation::Create(_aiScene->mAnimations[i], this);
+        if (nullptr == animation)
             return E_FAIL;
 
-        _animations.push_back(pAnimation);        
+        _animations.push_back(animation);        
     }  
 
     return S_OK;
 }
 
 
-Shared<Model> Model::Create(ComPtr<Device> device, ComPtr<Context> context, ModelType eType, const char* pModelFilePath, FXMMATRIX PreLocalTransformMatrix)
+Shared<Model> Model::Create(const ComPtr<Device>& device, const ComPtr<Context>& context, ModelType type, const char* modelFilePath, FXMMATRIX preLocalTransformMatrix)
 {
-    auto pInstance = make_shared<Model>(device, context);
+    auto instance = make_shared<Model>(device, context);
 
-    if (FAILED(pInstance->Initialize_Prototype(eType, pModelFilePath, PreLocalTransformMatrix)))
+    if (FAILED(instance->Initialize_Prototype(type, modelFilePath, preLocalTransformMatrix)))
     {
         MSG_BOX("Failed to Created : Model");
         return nullptr;
 	}
-    return pInstance;
+    return instance;
 }
 
 
 
-Shared<Component> Model::Clone(void* pArg)
+Shared<Component> Model::Clone(void* arg)
 {
-    auto pInstance = make_shared<Model>(*this);
+    auto instance = make_shared<Model>(*this);
 
-    if (FAILED(pInstance->Initialize(pArg)))
+    if (FAILED(instance->Initialize(arg)))
     {
         MSG_BOX("Failed to Cloned : Model");
         return nullptr;
 	}
-    return pInstance;
+    return instance;
 }
 
 void Model::Free()
 {
     __super::Free();
 
-    for (auto& pAnimation : _animations)
-        Safe_Release(pAnimation);
+    for (auto& animation : _animations)
+        Safe_Release(animation);
     _animations.clear();
 
-    for (auto& pMaterial : _materials)
-        Safe_Release(pMaterial);
+    for (auto& material : _materials)
+        Safe_Release(material);
 
     _materials.clear();
 
 
-    for (auto& pMesh : _meshes)
-        Safe_Release(pMesh);
+    for (auto& mesh : _meshes)
+        Safe_Release(mesh);
 
     _meshes.clear();
 
-    for (auto& pBone : _bones)
-        Safe_Release(pBone);
+    for (auto& bone : _bones)
+        Safe_Release(bone);
     _bones.clear();
 
     _importer.FreeScene();

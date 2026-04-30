@@ -4,7 +4,7 @@
 #include "Level_Loading.h"
 #include "BackGround.h"
 
-Level_Logo::Level_Logo(ComPtr<Device> device, ComPtr<Context> context)
+Level_Logo::Level_Logo(const ComPtr<Device>& device, const ComPtr<Context>& context)
 	: Level { device, context }
 {
 }
@@ -49,7 +49,7 @@ HRESULT Level_Logo::Ready_Layer_BackGround(const wstring& strLayerTag)
 	return S_OK;
 }
 
-Shared<Level_Logo> Level_Logo::Create(ComPtr<Device> device, ComPtr<Context> context)
+Shared<Level_Logo> Level_Logo::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
 	auto pInstance = make_shared<Level_Logo>(device, context);
 

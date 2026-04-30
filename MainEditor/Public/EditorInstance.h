@@ -21,7 +21,7 @@ private:
 	~EditorInstance();
 
 public:
-	HRESULT Initialize_Editor(const EDITOR_DESC& EditorDesc, ComPtr<Device> device, ComPtr<Context> context);
+	HRESULT Initialize_Editor(const EDITOR_DESC& EditorDesc, const ComPtr<Device>& device, const ComPtr<Context>& context);
 
 	void Update_Editor(float timeDelta);
 	void Render_Editor();

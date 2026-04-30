@@ -7,7 +7,7 @@
 #include "Level_GamePlay.h"
 
 
-Level_Loading::Level_Loading(ComPtr<Device> device, ComPtr<Context> context)
+Level_Loading::Level_Loading(const ComPtr<Device>& device, const ComPtr<Context>& context)
 	: Level { device, context }
 {
 }
@@ -81,7 +81,7 @@ HRESULT Level_Loading::Ready_Layer_UI(const wchar_t* pLayerTag)
 	return S_OK;
 }
 
-Shared<Level_Loading> Level_Loading::Create(ComPtr<Device> device, ComPtr<Context> context, LevelType eNextLevelID)
+Shared<Level_Loading> Level_Loading::Create(const ComPtr<Device>& device, const ComPtr<Context>& context, LevelType eNextLevelID)
 {
 	auto pInstance = make_shared<Level_Loading>(device, context);
 

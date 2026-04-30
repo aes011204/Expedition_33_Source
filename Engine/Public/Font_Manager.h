@@ -7,14 +7,14 @@ NS_BEGIN(Engine)
 class Font_Manager final : public Base
 {
 private:
-	Font_Manager(ComPtr<Device> device, ComPtr<Context> context);
+	Font_Manager(const ComPtr<Device>& device, const ComPtr<Context>& context);
 
 public:
 	virtual ~Font_Manager() = default;
 
 public:
-	HRESULT Add_Font(const wstring& strFontTag, const wchar_t* pFontFilePath);
-	void Draw(const wstring& strFontTag, const wchar_t* pText, const Vec2& position, FXMVECTOR vColor);
+	HRESULT Add_Font(const wstring& fontTag, const wchar_t* fontFilePath);
+	void Draw(const wstring& fontTag, const wchar_t* text, const Vec2& position, FXMVECTOR color);
 
 private:
 	ComPtr<Device> _device = { nullptr };
@@ -22,10 +22,10 @@ private:
 	map<const wstring, Shared<class CustomFont>>		_fonts;
 
 private:
-	Shared<class CustomFont> Find_Font(const wstring& strFontTag);
+	Shared<class CustomFont> Find_Font(const wstring& fontTag);
 
 public:
-	static Unique<Font_Manager> Create(ComPtr<Device> device, ComPtr<Context> context);
+	static Unique<Font_Manager> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
 	virtual void Free() override;
 };
 

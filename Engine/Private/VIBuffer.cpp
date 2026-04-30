@@ -1,20 +1,20 @@
 ﻿#include "VIBuffer.h"
 
-VIBuffer::VIBuffer(ComPtr<Device> device, ComPtr<Context> context)
+VIBuffer::VIBuffer(const ComPtr<Device>& device, const ComPtr<Context>& context)
 	: Component { device, context }
 {
 }
 
-VIBuffer::VIBuffer(const VIBuffer& Prototype)
-	: Component{ Prototype }
-	, _vb { Prototype._vb }
-	, _ib { Prototype._ib }
-	, _numVertexBuffers { Prototype._numVertexBuffers }
-	, _vertexStride{ Prototype._vertexStride }
-	, _numVertices{ Prototype._numVertices }	
-	, _indexStride { Prototype._indexStride }
-	, _numIndices { Prototype._numIndices }
-	, _primitiveType { Prototype._primitiveType }
+VIBuffer::VIBuffer(const VIBuffer& prototype)
+	: Component{ prototype }
+	, _vb { prototype._vb }
+	, _ib { prototype._ib }
+	, _numVertexBuffers { prototype._numVertexBuffers }
+	, _vertexStride{ prototype._vertexStride }
+	, _numVertices{ prototype._numVertices }	
+	, _indexStride { prototype._indexStride }
+	, _numIndices { prototype._numIndices }
+	, _primitiveType { prototype._primitiveType }
 	
 {
 	Safe_AddRef(_vb);
@@ -26,28 +26,28 @@ HRESULT VIBuffer::Initialize_Prototype()
 	return S_OK;
 }
 
-HRESULT VIBuffer::Initialize(void* pArg)
+HRESULT VIBuffer::Initialize(void* arg)
 {
 	return S_OK;
 }
 
 HRESULT VIBuffer::Bind_Resources()
 {
-	ID3D11Buffer* pVertexBuffers[] = {
+	ID3D11Buffer* vertexBuffers[] = {
 		_vb, 
 		// _vb, 
 	};
 
-	uint32 iVertexStrides[] = {
+	uint32 vertexStrides[] = {
 		_vertexStride, 
 	};
 
-	uint32			iOffsets[] = {
+	uint32			offsets[] = {
 		0
 	};
 
 
-	_context->IASetVertexBuffers(0, _numVertexBuffers, pVertexBuffers, iVertexStrides, iOffsets);
+	_context->IASetVertexBuffers(0, _numVertexBuffers, vertexBuffers, vertexStrides, offsets);
 	_context->IASetIndexBuffer(_ib, 2 == _indexStride ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT, 0);
 	_context->IASetPrimitiveTopology(_primitiveType);
 

@@ -1,8 +1,31 @@
-rem  명령어			옵션			원본 파일이 있는 위치		사본 파일을 저장할 위치
+@echo off
+cd /d "%~dp0"
 
-xcopy			/y			.\Engine\Bin\Engine.dll			.\Client\Bin\
-xcopy			/y			.\Engine\Bin\ShaderFiles\*.*	.\Client\Bin\ShaderFiles\
-xcopy			/y			.\Engine\Bin\Engine.lib			.\EngineSDK\lib\
-xcopy			/y			.\Engine\ThirdPartyLib\*.lib	.\EngineSDK\lib\
+echo Updating Engine outputs...
 
-xcopy			/y/s		.\Engine\Public\*.*				.\EngineSDK\inc\
+::: Headers
+if exist ".\Engine\Public\" (
+    echo Mirroring Engine headers...
+    robocopy ".\Engine\Public" ".\EngineSDK\inc\Engine" /MIR
+    if errorlevel 8 exit /b %errorlevel%
+)
+
+::: Shared shader include files only
+if exist ".\Engine\Bin\ShaderFiles\" (
+    echo Copying Engine shader include files...
+    xcopy /y /i /d ".\Engine\Bin\ShaderFiles\*.hlsli" ".\Client\Bin\ShaderFiles\"
+)
+
+::: Engine.lib
+if exist ".\Engine\Bin\Debug\Engine.lib" (
+    echo Copying Engine.lib [Debug]...
+    xcopy /y /i /d ".\Engine\Bin\Debug\Engine.lib" ".\EngineSDK\lib\Debug\"
+)
+
+if exist ".\Engine\Bin\Release\Engine.lib" (
+    echo Copying Engine.lib [Release]...
+    xcopy /y /i /d ".\Engine\Bin\Release\Engine.lib" ".\EngineSDK\lib\Release\"
+)
+
+echo Update complete!
+exit /b 0

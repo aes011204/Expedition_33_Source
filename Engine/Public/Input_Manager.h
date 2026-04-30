@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "Base.h"
 
@@ -67,13 +67,13 @@ private:
 public:
 	virtual ~Input_Manager() = default;
 	HRESULT Initialize(HWND hWnd);
-	void Update(float fTimeDelta);
+	void Update(float timeDelta);
 
 	void Reset();
-	bool KeyPress(KEY_TYPE eKey) const;
+	bool KeyPress(KEY_TYPE key) const;
 
-	bool KeyDown(KEY_TYPE eKey) const;
-	bool KeyUp(KEY_TYPE eKey) const;
+	bool KeyDown(KEY_TYPE key) const;
+	bool KeyUp(KEY_TYPE key) const;
 
 	/* ?꾩옱 client 醫뚰몴怨?留덉슦???꾩튂瑜??살쓣 ???몄텧?쒕떎. */
 	const POINT& Get_MousePosition() const { return _mousePosition; }
@@ -85,7 +85,7 @@ public:
 	float Get_MouseWheel() const { return _mouseWheelDelta; }
 
 	/* WndProc?먯꽌 WM_MOUSEWHEEL??諛쏆븯??????媛믪쓣 ?꾨떖?????몄텧?쒕떎. */
-	void Set_MouseWheel(float fDelta) { _mouseWheelDelta = fDelta; }
+	void Set_MouseWheel(float delta) { _mouseWheelDelta = delta; }
 
 	/* 寃뚯엫 移대찓??議곗옉泥섎읆 而ㅼ꽌瑜?李?以묒븰??怨좎젙?댁빞 ?????몄텧?쒕떎. */
 	void Lock_Mouse();
@@ -104,7 +104,7 @@ public:
 
 private:
 	/* KEY_TYPE enum???몃뜳?ㅻ줈 諛붽퓭 ?꾩옱 ???곹깭瑜??쎌쓣 ???몄텧?쒕떎. */
-	KEY_STATE Get_State(KEY_TYPE eKey) const;
+	KEY_STATE Get_State(KEY_TYPE key) const;
 
 private:
 	HWND _windowHandle = {};								/* ?낅젰??諛쏆쓣 Win32 window handle */

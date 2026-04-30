@@ -16,7 +16,7 @@ EditorInstance::~EditorInstance()
     Release();
 }
 
-HRESULT EditorInstance::Initialize_Editor(const EDITOR_DESC& EditorDesc, ComPtr<Device> device, ComPtr<Context> context)
+HRESULT EditorInstance::Initialize_Editor(const EDITOR_DESC& EditorDesc, const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
     _editorDesc = EditorDesc;
     _device = device;

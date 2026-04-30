@@ -11,7 +11,7 @@ NS_BEGIN(Client)
 class Level_Loading final : public Level
 {
 public:
-	Level_Loading(ComPtr<Device> device, ComPtr<Context> context);
+	Level_Loading(const ComPtr<Device>& device, const ComPtr<Context>& context);
 	virtual ~Level_Loading() { Free(); }
 
 public:
@@ -28,7 +28,7 @@ private:
 	HRESULT Ready_Layer_UI(const wchar_t* pLayerTag);
 
 public:
-	static Shared<Level_Loading> Create(ComPtr<Device> device, ComPtr<Context> context, LevelType eNextLevelID);
+	static Shared<Level_Loading> Create(const ComPtr<Device>& device, const ComPtr<Context>& context, LevelType eNextLevelID);
 	virtual void Free() override;
 };
 

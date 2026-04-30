@@ -19,7 +19,7 @@ private:
 	virtual ~ClientInstance() = default;
 
 public:
-	HRESULT Initialize_Client(ComPtr<Device> device, ComPtr<Context> context);
+	HRESULT Initialize_Client(const ComPtr<Device>& device, const ComPtr<Context>& context);
 
 	/* 레벨 진입 전에 공용/정적 클라 리소스를 준비할 때 호출한다. */
 	HRESULT Ready_StaticResources();

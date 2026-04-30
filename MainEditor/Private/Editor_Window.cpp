@@ -1,5 +1,4 @@
 ﻿#include "Editor_Window.h"
-#include "Utils.h"
 
 Editor_Window::Editor_Window(const wstring& strWindowName)
 	: _window{ strWindowName }
@@ -16,7 +15,7 @@ void Editor_Window::Render()
 	if (!_isOpen)
 		return;
 
-	const string strTitle = Utils::ToString(_window);
+	const string strTitle = String::ToString(_window);
 	if (ImGui::Begin(strTitle.c_str(), &_isOpen))
 	{
 		ImGui::TextUnformatted("Editor window placeholder");

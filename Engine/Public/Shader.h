@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "Component.h"
 
@@ -7,22 +7,22 @@ NS_BEGIN(Engine)
 class ENGINE_DLL Shader final : public Component
 {
 public:
-	Shader(ComPtr<Device> device, ComPtr<Context> context);
-	Shader(const Shader& Prototype);
+	Shader(const ComPtr<Device>& device, const ComPtr<Context>& context);
+	Shader(const Shader& prototype);
 	virtual ~Shader() { Free(); }
 
 public:
-	virtual HRESULT Initialize_Prototype(const wchar_t* pShaderFilePath, const D3D11_INPUT_ELEMENT_DESC* pElements, uint32 iNumElements);
-	virtual HRESULT Initialize(void* pArg);
+	virtual HRESULT Initialize_Prototype(const wchar_t* shaderFilePath, const D3D11_INPUT_ELEMENT_DESC* elements, uint32 numElements);
+	virtual HRESULT Initialize(void* arg);
 
 public:
 	
-	HRESULT Begin(uint32 iPassIndex);
-	HRESULT Bind_SRV(const char* pConstantName, ID3D11ShaderResourceView* pSRV);
-	HRESULT Bind_SRVs(const char* pConstantName, ID3D11ShaderResourceView** ppSRVs, uint32 iNumSRVs);
-	HRESULT Bind_Matrix(const char* pConstantName, const XMFLOAT4X4* pMatrix);
-	HRESULT Bind_Matrices(const char* pConstantName, const XMFLOAT4X4* pMatrices, uint32 iNumMatrices);
-	HRESULT Bind_RawValue(const char* pConstantName, const void* pData, uint32 iLength);
+	HRESULT Begin(uint32 passIndex);
+	HRESULT Bind_SRV(const char* constantName, ID3D11ShaderResourceView* srv);
+	HRESULT Bind_SRVs(const char* constantName, ID3D11ShaderResourceView** ppSRVs, uint32 numSRVs);
+	HRESULT Bind_Matrix(const char* constantName, const XMFLOAT4X4* matrix);
+	HRESULT Bind_Matrices(const char* constantName, const XMFLOAT4X4* matrices, uint32 numMatrices);
+	HRESULT Bind_RawValue(const char* constantName, const void* data, uint32 length);
 
 private:
 	ID3DX11Effect*					_effect = { nullptr };
@@ -31,8 +31,8 @@ private:
 	vector<ID3D11InputLayout*>		_inputLayouts;
 
 public:
-	static Shared<Shader> Create(ComPtr<Device> device, ComPtr<Context> context, const wchar_t* pShaderFilePath, const D3D11_INPUT_ELEMENT_DESC* pElements, uint32 iNumElements);
-	virtual Shared<Component> Clone(void* pArg) override;
+	static Shared<Shader> Create(const ComPtr<Device>& device, const ComPtr<Context>& context, const wchar_t* shaderFilePath, const D3D11_INPUT_ELEMENT_DESC* elements, uint32 numElements);
+	virtual Shared<Component> Clone(void* arg) override;
 	virtual void Free() override;
 };
 

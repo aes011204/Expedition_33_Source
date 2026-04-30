@@ -1,5 +1,4 @@
 ﻿#include "Editor_Manager.h"
-#include "Utils.h"
 #include "EditorInstance.h"
 #include "Scene_View.h"
 #include "Game_View.h"
@@ -89,7 +88,7 @@ void Editor_Manager::Render_DockSpace()
 					continue;
 
 				bool bWindowOpen = Pair.second->Is_Open();
-				const string strName = Utils::ToString(Pair.first);
+				const string strName = String::ToString(Pair.first);
 				if (ImGui::MenuItem(strName.c_str(), nullptr, &bWindowOpen))
 					Pair.second->Set_Open(bWindowOpen);
 			}

@@ -4,34 +4,34 @@
 #include "Model.h"
 #include "Bone.h"
 
-Mesh::Mesh(ComPtr<Device> device, ComPtr<Context> context)
+Mesh::Mesh(const ComPtr<Device>& device, const ComPtr<Context>& context)
 	: VIBuffer { device, context }
 {
 
 }
 
-Mesh::Mesh(const Mesh& Prototype)
-	: VIBuffer{ Prototype }
+Mesh::Mesh(const Mesh& prototype)
+	: VIBuffer{ prototype }
 {
 }
 
-HRESULT Mesh::Initialize_Prototype(ModelType eType, const aiMesh* pAIMesh, class Model* pModel, FXMMATRIX PreTransformMatrix)
+HRESULT Mesh::Initialize_Prototype(ModelType type, const aiMesh* aiMesh, class Model* model, FXMMATRIX preTransformMatrix)
 {
-	strcpy_s(_name, pAIMesh->mName.data);
+	strcpy_s(_name, aiMesh->mName.data);
 
-	_materialIndex = pAIMesh->mMaterialIndex;
+	_materialIndex = aiMesh->mMaterialIndex;
 
 	_numVertexBuffers = 1;
-	_numVertices = pAIMesh->mNumVertices;	
-	_numIndices = pAIMesh->mNumFaces * 3;
+	_numVertices = aiMesh->mNumVertices;	
+	_numIndices = aiMesh->mNumFaces * 3;
 	_indexStride = 4;
 	_primitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 
 
 	/* Vertex Buffer */
-	HRESULT		hr = ModelType::NonAnim == eType ?
-		Ready_VertexBuffer_For_NonAnim(pAIMesh, PreTransformMatrix) :
-		Ready_VertexBuffer_For_Anim(pAIMesh, pModel);
+	HRESULT		hr = ModelType::NonAnim == type ?
+		Ready_VertexBuffer_For_NonAnim(aiMesh, preTransformMatrix) :
+		Ready_VertexBuffer_For_Anim(aiMesh, model);
 
 	if (FAILED(hr))
 		return E_FAIL;
@@ -45,51 +45,51 @@ HRESULT Mesh::Initialize_Prototype(ModelType eType, const aiMesh* pAIMesh, class
 	IndexBufferDesc.CPUAccessFlags = 0;
 	IndexBufferDesc.MiscFlags = 0;
 
-	uint32	iNumIndices = {};
+	uint32	numIndices = {};
 
-	uint32* pIndices = new uint32[_numIndices];
+	uint32* indices = new uint32[_numIndices];
 
-	for (size_t i = 0; i < pAIMesh->mNumFaces; i++)
+	for (size_t i = 0; i < aiMesh->mNumFaces; i++)
 	{
-		aiFace	AIFace = pAIMesh->mFaces[i];
+		aiFace	AIFace = aiMesh->mFaces[i];
 
-		pIndices[iNumIndices++] = AIFace.mIndices[0];
-		pIndices[iNumIndices++] = AIFace.mIndices[1];
-		pIndices[iNumIndices++] = AIFace.mIndices[2];
+		indices[numIndices++] = AIFace.mIndices[0];
+		indices[numIndices++] = AIFace.mIndices[1];
+		indices[numIndices++] = AIFace.mIndices[2];
 	}
 
 	D3D11_SUBRESOURCE_DATA			IndexInitialData{};
-	IndexInitialData.pSysMem = pIndices;
+	IndexInitialData.pSysMem = indices;
 
 	if (FAILED(_device->CreateBuffer(&IndexBufferDesc, &IndexInitialData, &_ib)))
 		return E_FAIL;
 
 
-	Safe_Delete_Array(pIndices);
+	Safe_Delete_Array(indices);
 
 	return S_OK;
 }
 
-HRESULT Mesh::Initialize(void* pArg)
+HRESULT Mesh::Initialize(void* arg)
 {
 
 	return S_OK;
 }
 
-HRESULT Mesh::Bind_BoneMatrices(Shader* pShader, const char* pConstantName, const vector<Shared<Bone>>& Bones)
+HRESULT Mesh::Bind_BoneMatrices(Shader* shader, const char* constantName, const vector<Shared<Bone>>& bones)
 {
 	ZeroMemory(_boneMatrices, sizeof(XMFLOAT4X4) * 512);
 
-	for (size_t i = 0; i < _numBones; i++)
+	for (uint32 i = 0; i < _numBones; i++)
 	{
 		XMStoreFloat4x4(&_boneMatrices[i], XMLoadFloat4x4(&_offsetMatrices[i]) * 
-			XMLoadFloat4x4(Bones[_boneIndices[i]]->Get_CombinedTransformationMatrixPtr()));
+			XMLoadFloat4x4(bones[_boneIndices[i]]->Get_CombinedTransformationMatrixPtr()));
 	}
 
-	return pShader->Bind_Matrices(pConstantName, _boneMatrices, _numBones);	
+	return shader->Bind_Matrices(constantName, _boneMatrices, _numBones);	
 }
 
-HRESULT Mesh::Ready_VertexBuffer_For_NonAnim(const aiMesh* pAIMesh, FXMMATRIX PreTransformMatrix)
+HRESULT Mesh::Ready_VertexBuffer_For_NonAnim(const aiMesh* aiMesh, FXMMATRIX preTransformMatrix)
 {
 
 	_vertexStride = sizeof(VTXMESH);
@@ -101,38 +101,38 @@ HRESULT Mesh::Ready_VertexBuffer_For_NonAnim(const aiMesh* pAIMesh, FXMMATRIX Pr
 	VertexBufferDesc.CPUAccessFlags = 0;
 	VertexBufferDesc.MiscFlags = 0;
 
-	VTXMESH* pVertices = new VTXMESH[_numVertices];
+	VTXMESH* vertices = new VTXMESH[_numVertices];
 
 	for (size_t i = 0; i < _numVertices; i++)
 	{
-		memcpy(&pVertices[i].vPosition, &pAIMesh->mVertices[i], sizeof(XMFLOAT3));
-		XMStoreFloat3(&pVertices[i].vPosition,
-			XMVector3TransformCoord(XMLoadFloat3(&pVertices[i].vPosition), PreTransformMatrix));
+		memcpy(&vertices[i].position, &aiMesh->mVertices[i], sizeof(XMFLOAT3));
+		XMStoreFloat3(&vertices[i].position,
+			XMVector3TransformCoord(XMLoadFloat3(&vertices[i].position), preTransformMatrix));
 
-		memcpy(&pVertices[i].vNormal, &pAIMesh->mNormals[i], sizeof(XMFLOAT3));
-		XMStoreFloat3(&pVertices[i].vNormal,
-			XMVector3TransformNormal(XMLoadFloat3(&pVertices[i].vNormal), PreTransformMatrix));
+		memcpy(&vertices[i].normal, &aiMesh->mNormals[i], sizeof(XMFLOAT3));
+		XMStoreFloat3(&vertices[i].normal,
+			XMVector3TransformNormal(XMLoadFloat3(&vertices[i].normal), preTransformMatrix));
 
-		memcpy(&pVertices[i].vTangent, &pAIMesh->mTangents[i], sizeof(XMFLOAT3));
-		XMStoreFloat3(&pVertices[i].vTangent,
-			XMVector3TransformNormal(XMLoadFloat3(&pVertices[i].vTangent), PreTransformMatrix));
+		memcpy(&vertices[i].tangent, &aiMesh->mTangents[i], sizeof(XMFLOAT3));
+		XMStoreFloat3(&vertices[i].tangent,
+			XMVector3TransformNormal(XMLoadFloat3(&vertices[i].tangent), preTransformMatrix));
 
-		memcpy(&pVertices[i].vTexcoord, &pAIMesh->mTextureCoords[0][i], sizeof(XMFLOAT2));
+		memcpy(&vertices[i].texcoord, &aiMesh->mTextureCoords[0][i], sizeof(XMFLOAT2));
 	}
 
 
 	D3D11_SUBRESOURCE_DATA			VertexInitialData{};
-	VertexInitialData.pSysMem = pVertices;
+	VertexInitialData.pSysMem = vertices;
 
 	if (FAILED(_device->CreateBuffer(&VertexBufferDesc, &VertexInitialData, &_vb)))
 		return E_FAIL;
 
-	Safe_Delete_Array(pVertices);
+	Safe_Delete_Array(vertices);
 
 	return S_OK;
 }
 
-HRESULT Mesh::Ready_VertexBuffer_For_Anim(const aiMesh* pAIMesh, class Model* pModel)
+HRESULT Mesh::Ready_VertexBuffer_For_Anim(const aiMesh* aiMesh, class Model* model)
 {
 	_vertexStride = sizeof(VTXANIMMESH);
 	D3D11_BUFFER_DESC	VertexBufferDesc{};
@@ -143,32 +143,32 @@ HRESULT Mesh::Ready_VertexBuffer_For_Anim(const aiMesh* pAIMesh, class Model* pM
 	VertexBufferDesc.CPUAccessFlags = 0;
 	VertexBufferDesc.MiscFlags = 0;
 
-	VTXANIMMESH* pVertices = new VTXANIMMESH[_numVertices];
-	ZeroMemory(pVertices, sizeof(VTXANIMMESH) * _numVertices);
+	VTXANIMMESH* vertices = new VTXANIMMESH[_numVertices];
+	ZeroMemory(vertices, sizeof(VTXANIMMESH) * _numVertices);
 
 	for (size_t i = 0; i < _numVertices; i++)
 	{
-		memcpy(&pVertices[i].vPosition, &pAIMesh->mVertices[i], sizeof(XMFLOAT3));	
-		memcpy(&pVertices[i].vNormal, &pAIMesh->mNormals[i], sizeof(XMFLOAT3));		
-		memcpy(&pVertices[i].vTangent, &pAIMesh->mTangents[i], sizeof(XMFLOAT3));		
-		memcpy(&pVertices[i].vTexcoord, &pAIMesh->mTextureCoords[0][i], sizeof(XMFLOAT2));
+		memcpy(&vertices[i].position, &aiMesh->mVertices[i], sizeof(XMFLOAT3));	
+		memcpy(&vertices[i].normal, &aiMesh->mNormals[i], sizeof(XMFLOAT3));		
+		memcpy(&vertices[i].tangent, &aiMesh->mTangents[i], sizeof(XMFLOAT3));		
+		memcpy(&vertices[i].texcoord, &aiMesh->mTextureCoords[0][i], sizeof(XMFLOAT2));
 	}
 
-	_numBones = pAIMesh->mNumBones;
+	_numBones = aiMesh->mNumBones;
 
 	for (size_t i = 0; i < _numBones; i++)
 	{
-		aiBone* pAIBone = pAIMesh->mBones[i];
+		aiBone* aiBone = aiMesh->mBones[i];
 
-		int32		iBoneIndex = pModel->Get_BoneIndex(pAIBone->mName.data);
-		if (-1 == iBoneIndex)
+		int32		boneIndex = model->Get_BoneIndex(aiBone->mName.data);
+		if (-1 == boneIndex)
 			return E_FAIL;
 
-		_boneIndices.push_back(iBoneIndex);
+		_boneIndices.push_back(boneIndex);
 
 		XMFLOAT4X4		OffsetMatrix = {};
 
-		memcpy(&OffsetMatrix, &pAIBone->mOffsetMatrix, sizeof(XMFLOAT4X4));
+		memcpy(&OffsetMatrix, &aiBone->mOffsetMatrix, sizeof(XMFLOAT4X4));
 		XMStoreFloat4x4(&OffsetMatrix, XMMatrixTranspose(XMLoadFloat4x4(&OffsetMatrix)));
 
 
@@ -176,39 +176,39 @@ HRESULT Mesh::Ready_VertexBuffer_For_Anim(const aiMesh* pAIMesh, class Model* pM
 
 
 
-		for (size_t j = 0; j < pAIBone->mNumWeights; j++)
+		for (size_t j = 0; j < aiBone->mNumWeights; j++)
 		{			
-			aiVertexWeight	AIVertexWeight = pAIBone->mWeights[j];
+			aiVertexWeight	AIVertexWeight = aiBone->mWeights[j];
 
-			if (0 == pVertices[AIVertexWeight.mVertexId].vBlendWeight.x)
+			if (0 == vertices[AIVertexWeight.mVertexId].blendWeight.x)
 			{
-				pVertices[AIVertexWeight.mVertexId].vBlendIndex.x = i;
-				pVertices[AIVertexWeight.mVertexId].vBlendWeight.x = AIVertexWeight.mWeight;
+				vertices[AIVertexWeight.mVertexId].blendIndex.x = static_cast<uint32>(i);
+				vertices[AIVertexWeight.mVertexId].blendWeight.x = AIVertexWeight.mWeight;
 			}
 
-			else if (0 == pVertices[AIVertexWeight.mVertexId].vBlendWeight.y)
+			else if (0 == vertices[AIVertexWeight.mVertexId].blendWeight.y)
 			{
-				pVertices[AIVertexWeight.mVertexId].vBlendIndex.y = i;
-				pVertices[AIVertexWeight.mVertexId].vBlendWeight.y = AIVertexWeight.mWeight;
+				vertices[AIVertexWeight.mVertexId].blendIndex.y = static_cast<uint32>(i);
+				vertices[AIVertexWeight.mVertexId].blendWeight.y = AIVertexWeight.mWeight;
 			}
 
-			else if (0 == pVertices[AIVertexWeight.mVertexId].vBlendWeight.z)
+			else if (0 == vertices[AIVertexWeight.mVertexId].blendWeight.z)
 			{
-				pVertices[AIVertexWeight.mVertexId].vBlendIndex.z = i;
-				pVertices[AIVertexWeight.mVertexId].vBlendWeight.z = AIVertexWeight.mWeight;
+				vertices[AIVertexWeight.mVertexId].blendIndex.z = static_cast<uint32>(i);
+				vertices[AIVertexWeight.mVertexId].blendWeight.z = AIVertexWeight.mWeight;
 			}
 
-			else if (0 == pVertices[AIVertexWeight.mVertexId].vBlendWeight.w)
+			else if (0 == vertices[AIVertexWeight.mVertexId].blendWeight.w)
 			{
-				pVertices[AIVertexWeight.mVertexId].vBlendIndex.w = i;
-				pVertices[AIVertexWeight.mVertexId].vBlendWeight.w = AIVertexWeight.mWeight;
+				vertices[AIVertexWeight.mVertexId].blendIndex.w = static_cast<uint32>(i);
+				vertices[AIVertexWeight.mVertexId].blendWeight.w = AIVertexWeight.mWeight;
 			}
 		}		
 	}
 
 	if (0 == _numBones)
 	{		
-		_boneIndices.push_back(pModel->Get_BoneIndex(_name));
+		_boneIndices.push_back(model->Get_BoneIndex(_name));
 
 		_numVertexBuffers = 1;
 
@@ -220,12 +220,12 @@ HRESULT Mesh::Ready_VertexBuffer_For_Anim(const aiMesh* pAIMesh, class Model* pM
 	}
 
 	D3D11_SUBRESOURCE_DATA			VertexInitialData{};
-	VertexInitialData.pSysMem = pVertices;
+	VertexInitialData.pSysMem = vertices;
 
 	if (FAILED(_device->CreateBuffer(&VertexBufferDesc, &VertexInitialData, &_vb)))
 		return E_FAIL;
 
-	Safe_Delete_Array(pVertices);
+	Safe_Delete_Array(vertices);
 
 
 	return S_OK;
@@ -233,19 +233,19 @@ HRESULT Mesh::Ready_VertexBuffer_For_Anim(const aiMesh* pAIMesh, class Model* pM
 
 
 
-Shared<Mesh> Mesh::Create(ComPtr<Device> device, ComPtr<Context> context, ModelType eType, const aiMesh* pAIMesh, class Model* pModel, FXMMATRIX PreTransformMatrix)
+Shared<Mesh> Mesh::Create(const ComPtr<Device>& device, const ComPtr<Context>& context, ModelType type, const aiMesh* aiMesh, class Model* model, FXMMATRIX preTransformMatrix)
 {
-	auto pInstance = make_shared<Mesh>(device, context);
+	auto instance = make_shared<Mesh>(device, context);
 
-	if (FAILED(pInstance->Initialize_Prototype(eType, pAIMesh, pModel, PreTransformMatrix)))
+	if (FAILED(instance->Initialize_Prototype(type, aiMesh, model, preTransformMatrix)))
 	{
 		MSG_BOX("Failed to Created : Mesh");
 		return nullptr;
 	}
-	return pInstance;
+	return instance;
 }
 
-Shared<Component> Mesh::Clone(void* pArg)
+Shared<Component> Mesh::Clone(void* arg)
 {
 	return nullptr;
 }

@@ -7,24 +7,23 @@ NS_BEGIN(Engine)
 class CustomFont final : public Base
 {
 public:
-	CustomFont(ComPtr<Device> device, ComPtr<Context> context);
-	virtual ~CustomFont() { Free(); }
+    CustomFont(const ComPtr<Device>& device, const ComPtr<Context>& context);
+    ~CustomFont() override;
 
 public:
-	HRESULT Initialize(const wchar_t* pFontFilePath);
-	void Draw(const wchar_t* pText, const Vec2& position, FXMVECTOR vColor);
+    HRESULT Initialize(const wchar_t* fontFilePath);
+    void Draw(const wchar_t* text, const Vec2& position, FXMVECTOR color);
 
 private:
-	ComPtr<Device> _device = { nullptr };
-	ComPtr<Context> _context = { nullptr };
+    ComPtr<Device> _device = { nullptr };
+    ComPtr<Context> _context = { nullptr };
 
-	SpriteBatch*				_spriteBatch = { nullptr };
-	SpriteFont*					_spriteFont = { nullptr };
+    SpriteBatch* _spriteBatch = { nullptr };
+    SpriteFont* _spriteFont = { nullptr };
 
 public:
-	static Shared<CustomFont> Create(ComPtr<Device> device, ComPtr<Context> context, const wchar_t* pFontFilePath);
-	virtual void Free() override;
+    static Shared<CustomFont> Create(const ComPtr<Device>& device, const ComPtr<Context>& context, const wchar_t* fontFilePath);
+    void Free() override;
 };
 
 NS_END
-

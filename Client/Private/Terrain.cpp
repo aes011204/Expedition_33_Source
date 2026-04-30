@@ -1,13 +1,13 @@
 ﻿#include "Terrain.h"
 #include "GameInstance.h"
 
-Terrain::Terrain(ComPtr<Device> device, ComPtr<Context> context)
+Terrain::Terrain(const ComPtr<Device>& device, const ComPtr<Context>& context)
 	: GameObject { device, context }
 {
 }
 
-Terrain::Terrain(const Terrain& Prototype)
-	: GameObject { Prototype }
+Terrain::Terrain(const Terrain& prototype)
+	: GameObject { prototype }
 
 {
 }
@@ -104,19 +104,19 @@ HRESULT Terrain::Bind_ShaderResources()
 	if (nullptr == pLightDesc)
 		return E_FAIL;
 
-	if (FAILED(_shader->Bind_RawValue("g_vLightDir", &pLightDesc->vDirection, sizeof(XMFLOAT4))))
+	if (FAILED(_shader->Bind_RawValue("g_vLightDir", &pLightDesc->direction, sizeof(XMFLOAT4))))
 		return E_FAIL;
-	if (FAILED(_shader->Bind_RawValue("g_vLightDiffuse", &pLightDesc->vDiffuse, sizeof(XMFLOAT4))))
+	if (FAILED(_shader->Bind_RawValue("g_vLightDiffuse", &pLightDesc->diffuse, sizeof(XMFLOAT4))))
 		return E_FAIL;
-	if (FAILED(_shader->Bind_RawValue("g_vLightAmbient", &pLightDesc->vAmbient, sizeof(XMFLOAT4))))
+	if (FAILED(_shader->Bind_RawValue("g_vLightAmbient", &pLightDesc->ambient, sizeof(XMFLOAT4))))
 		return E_FAIL;
-	if (FAILED(_shader->Bind_RawValue("g_vLightSpecular", &pLightDesc->vSpecular, sizeof(XMFLOAT4))))
+	if (FAILED(_shader->Bind_RawValue("g_vLightSpecular", &pLightDesc->specular, sizeof(XMFLOAT4))))
 		return E_FAIL;
 
 	return S_OK;
 }
 
-Shared<Terrain> Terrain::Create(ComPtr<Device> device, ComPtr<Context> context)
+Shared<Terrain> Terrain::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
 	auto pInstance = make_shared<Terrain>(device, context);
 

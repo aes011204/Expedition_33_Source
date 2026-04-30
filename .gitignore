@@ -444,3 +444,5 @@ Client/Bin/Client.lib
 Client/Bin/Client.dll
 Client/Bin/Engine.dll
 Engine/Bin/Engine.dll
+
+/AGENTS.md

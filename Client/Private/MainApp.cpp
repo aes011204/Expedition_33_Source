@@ -26,10 +26,11 @@ HRESULT MainApp::Initialize()
 	ENGINE_DESC		EngineDesc{};
 	EngineDesc.hInstance = g_hInst;
 	EngineDesc.hWnd = g_hWnd;
-	EngineDesc.eWinMode = WinMode::Win;
-	EngineDesc.iNumLevels = ETOI(LevelType::END);
-	EngineDesc.iViewportWidth = g_iWinSizeX;
-	EngineDesc.iViewportHeight = g_iWinSizeY;
+	EngineDesc.winMode = WinMode::Win;
+	EngineDesc.numLevels = ETOI(LevelType::END);
+	EngineDesc.viewportWidth = g_iWinSizeX;
+	EngineDesc.viewportHeight = g_iWinSizeY;
+	EngineDesc.projectName = "Client";
 
 	if (FAILED(GAME->Initialize_Engine(EngineDesc, _device, _context)))
 		return E_FAIL;

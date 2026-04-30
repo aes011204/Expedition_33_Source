@@ -14,7 +14,7 @@ NS_BEGIN(Client)
 class Loader final : public Base
 {
 public:
-	Loader(ComPtr<Device> device, ComPtr<Context> context);
+	Loader(const ComPtr<Device>& device, const ComPtr<Context>& context);
 	virtual ~Loader() { Free(); }
 
 public:
@@ -45,7 +45,7 @@ private:
 	HRESULT Loading_For_GamePlayLevel();
 
 public:
-	static Shared<Loader> Create(ComPtr<Device> device, ComPtr<Context> context, LevelType eNextLevelID);
+	static Shared<Loader> Create(const ComPtr<Device>& device, const ComPtr<Context>& context, LevelType eNextLevelID);
 	virtual void Free() override;
 
 };

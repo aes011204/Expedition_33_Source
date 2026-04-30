@@ -5,19 +5,19 @@ PipeLine::PipeLine()
 {
 }
 
-HRESULT PipeLine::Bind_CamPosition(Shader* pShader, const char* pConstantName)
+HRESULT PipeLine::Bind_CamPosition(Shader* shader, const char* constantName)
 {
-	return pShader->Bind_RawValue(pConstantName, Get_CamPosition(), sizeof(XMFLOAT4));
+	return shader->Bind_RawValue(constantName, Get_CamPosition(), sizeof(XMFLOAT4));
 }
 
-HRESULT PipeLine::Bind_TransformMatrix(D3DTS eTransformState, Shader* pShader, const char* pConstantName)
+HRESULT PipeLine::Bind_TransformMatrix(D3DTS transformState, Shader* shader, const char* constantName)
 {
-	return pShader->Bind_Matrix(pConstantName, &_transformStateMatrices[ETOI(eTransformState)]);
+	return shader->Bind_Matrix(constantName, &_transformStateMatrices[ETOI(transformState)]);
 }
 
-HRESULT PipeLine::Bind_TransformMatrix_Inverse(D3DTS eTransformState, Shader* pShader, const char* pConstantName)
+HRESULT PipeLine::Bind_TransformMatrix_Inverse(D3DTS transformState, Shader* shader, const char* constantName)
 {
-	return pShader->Bind_Matrix(pConstantName, &_transformStateInverseMatrices[ETOI(eTransformState)]);
+	return shader->Bind_Matrix(constantName, &_transformStateInverseMatrices[ETOI(transformState)]);
 }
 
 void PipeLine::Update()

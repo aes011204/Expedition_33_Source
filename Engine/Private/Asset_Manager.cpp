@@ -7,14 +7,14 @@ Asset_Manager::Asset_Manager()
 {
 }
 
-HRESULT Asset_Manager::Initialize(const wstring& strResourceRoot)
+HRESULT Asset_Manager::Initialize(const wstring& resourceRoot)
 {
-	if (strResourceRoot.empty())
+	if (resourceRoot.empty())
 		return E_FAIL;
 
 	try
 	{
-		_resourceRoot = fs::absolute(fs::path(strResourceRoot)).lexically_normal().wstring();
+		_resourceRoot = fs::absolute(fs::path(resourceRoot)).lexically_normal().wstring();
 		_assetDataFolder = (fs::path(_resourceRoot) / L"Data" / L"Assets").wstring();
 		_registryPath = (fs::path(_assetDataFolder) / L"AssetRegistry.json").wstring();
 		_cachePath = (fs::path(_assetDataFolder) / L"AssetRegistry.cache.json").wstring();
@@ -34,70 +34,75 @@ HRESULT Asset_Manager::Initialize(const wstring& strResourceRoot)
 	return S_OK;
 }
 
-const FAssetMeta* Asset_Manager::Find_ByGUID(const string& strGuid) const
+const FAssetMeta* Asset_Manager::Find_ByGUID(const string& guid) const
 {
-	const auto iter = _guidToMeta.find(strGuid);
+	const auto iter = _guidToMeta.find(guid);
 	if (iter == _guidToMeta.end())
 		return nullptr;
 
 	return &iter->second;
 }
 
-string Asset_Manager::Find_GUID(const wstring& strFilePath) const
+string Asset_Manager::Find_GUID(const wstring& filePath) const
 {
-	const wstring strKey = Normalize_PathKey(strFilePath);
-	const auto iter = _pathToGuid.find(strKey);
+	const wstring key = Normalize_PathKey(filePath);
+	const auto iter = _pathToGuid.find(key);
 	if (iter == _pathToGuid.end())
 		return {};
 
 	return iter->second;
 }
 
-wstring Asset_Manager::Resolve_Path(const string& strGuid) const
+wstring Asset_Manager::Resolve_Path(const string& guid) const
 {
-	const FAssetMeta* pAssetMeta = Find_ByGUID(strGuid);
-	if (nullptr == pAssetMeta)
+	const FAssetMeta* assetMeta = Find_ByGUID(guid);
+	if (nullptr == assetMeta)
 		return {};
 
-	return pAssetMeta->strFullPath;
+	return assetMeta->fullPath;
 }
 
-string Asset_Manager::Register_Asset(const wstring& strFilePath, const string& strType)
+const wstring& Asset_Manager::Get_ResourceRoot() const
+{
+	return _resourceRoot;
+}
+
+string Asset_Manager::Register_Asset(const wstring& filePath, const string& type)
 {
 	try
 	{
-		const fs::path AssetPath = fs::absolute(fs::path(strFilePath)).lexically_normal();
+		const fs::path AssetPath = fs::absolute(fs::path(filePath)).lexically_normal();
 		if (!fs::exists(AssetPath) || !fs::is_regular_file(AssetPath))
 			return {};
 
-		const wstring strKey = Normalize_PathKey(AssetPath.wstring());
-		const auto iterPath = _pathToGuid.find(strKey);
+		const wstring key = Normalize_PathKey(AssetPath.wstring());
+		const auto iterPath = _pathToGuid.find(key);
 		if (iterPath != _pathToGuid.end())
 			return iterPath->second;
 
-		const wstring strLegacyMetaPath = AssetPath.wstring() + L".meta";
-		if (fs::exists(strLegacyMetaPath) && Load_LegacyMeta(strLegacyMetaPath))
+		const wstring legacyMetaPath = AssetPath.wstring() + L".meta";
+		if (fs::exists(legacyMetaPath) && Load_LegacyMeta(legacyMetaPath))
 		{
-			const string strLoadedGuid = Find_GUID(AssetPath.wstring());
-			if (!strLoadedGuid.empty())
-				return strLoadedGuid;
+			const string loadedGuid = Find_GUID(AssetPath.wstring());
+			if (!loadedGuid.empty())
+				return loadedGuid;
 		}
 
 		FAssetMeta AssetMeta = {};
-		AssetMeta.strGuid = Generate_GUID();
-		AssetMeta.strType = strType.empty() ? Detect_AssetType(AssetPath.wstring()) : strType;
-		AssetMeta.strFullPath = AssetPath.wstring();
+		AssetMeta.guid = Generate_GUID();
+		AssetMeta.type = type.empty() ? Detect_AssetType(AssetPath.wstring()) : type;
+		AssetMeta.fullPath = AssetPath.wstring();
 
 		if (!_resourceRoot.empty())
 		{
 			const fs::path RelativePath = fs::relative(AssetPath, fs::path(_resourceRoot));
-			AssetMeta.strRelativePath = RelativePath.wstring();
+			AssetMeta.relativePath = RelativePath.wstring();
 		}
 
-		_guidToMeta.emplace(AssetMeta.strGuid, AssetMeta);
-		_pathToGuid.emplace(strKey, AssetMeta.strGuid);
+		_guidToMeta.emplace(AssetMeta.guid, AssetMeta);
+		_pathToGuid.emplace(key, AssetMeta.guid);
 
-		return AssetMeta.strGuid;
+		return AssetMeta.guid;
 	}
 	catch (...)
 	{
@@ -105,11 +110,11 @@ string Asset_Manager::Register_Asset(const wstring& strFilePath, const string& s
 	}
 }
 
-void Asset_Manager::Scan_And_Register(const wstring& strDirectory)
+void Asset_Manager::Scan_And_Register(const wstring& directory)
 {
 	try
 	{
-		const fs::path DirectoryPath = fs::path(strDirectory);
+		const fs::path DirectoryPath = fs::path(directory);
 		if (!fs::exists(DirectoryPath) || !fs::is_directory(DirectoryPath))
 			return;
 
@@ -133,7 +138,7 @@ void Asset_Manager::Refresh_Cache()
 {
 	for (auto iter = _guidToMeta.begin(); iter != _guidToMeta.end();)
 	{
-		if (iter->second.strFullPath.empty() || !fs::exists(iter->second.strFullPath))
+		if (iter->second.fullPath.empty() || !fs::exists(iter->second.fullPath))
 			iter = _guidToMeta.erase(iter);
 		else
 			++iter;
@@ -152,39 +157,39 @@ void Asset_Manager::Save_Registry() const
 	Save_AssetList(_registryPath);
 }
 
-bool Asset_Manager::Load_LegacyMeta(const wstring& strMetaPath)
+bool Asset_Manager::Load_LegacyMeta(const wstring& metaPath)
 {
 	try
 	{
-		ifstream File(strMetaPath);
+		ifstream File(metaPath);
 		if (!File.is_open())
 			return false;
 
 		json JsonData = {};
 		File >> JsonData;
 
-		const fs::path MetaPath = fs::path(strMetaPath);
-		const wstring strMetaFileName = MetaPath.filename().wstring();
-		const wstring strAssetFileName = strMetaFileName.substr(0, strMetaFileName.length() - wcslen(L".meta"));
-		const fs::path AssetPath = (MetaPath.parent_path() / strAssetFileName).lexically_normal();
+		const fs::path MetaPath = fs::path(metaPath);
+		const wstring metaFileName = MetaPath.filename().wstring();
+		const wstring assetFileName = metaFileName.substr(0, metaFileName.length() - wcslen(L".meta"));
+		const fs::path AssetPath = (MetaPath.parent_path() / assetFileName).lexically_normal();
 
 		if (!fs::exists(AssetPath))
 			return false;
 
 		FAssetMeta AssetMeta = {};
-		AssetMeta.strGuid = JsonData.value("guid", "");
-		AssetMeta.strType = JsonData.value("type", Detect_AssetType(AssetPath.wstring()));
-		AssetMeta.strModelType = JsonData.value("modelType", "");
-		AssetMeta.strFullPath = fs::absolute(AssetPath).lexically_normal().wstring();
+		AssetMeta.guid = JsonData.value("guid", "");
+		AssetMeta.type = JsonData.value("type", Detect_AssetType(AssetPath.wstring()));
+		AssetMeta.modelType = JsonData.value("modelType", "");
+		AssetMeta.fullPath = fs::absolute(AssetPath).lexically_normal().wstring();
 
 		if (!_resourceRoot.empty())
-			AssetMeta.strRelativePath = fs::relative(fs::path(AssetMeta.strFullPath), fs::path(_resourceRoot)).wstring();
+			AssetMeta.relativePath = fs::relative(fs::path(AssetMeta.fullPath), fs::path(_resourceRoot)).wstring();
 
-		if (AssetMeta.strGuid.empty())
+		if (AssetMeta.guid.empty())
 			return false;
 
-		_guidToMeta[AssetMeta.strGuid] = AssetMeta;
-		_pathToGuid[Normalize_PathKey(AssetMeta.strFullPath)] = AssetMeta.strGuid;
+		_guidToMeta[AssetMeta.guid] = AssetMeta;
+		_pathToGuid[Normalize_PathKey(AssetMeta.fullPath)] = AssetMeta.guid;
 
 		return true;
 	}
@@ -216,11 +221,11 @@ void Asset_Manager::Save_Cache() const
 	}
 }
 
-void Asset_Manager::Save_AssetList(const wstring& strPath) const
+void Asset_Manager::Save_AssetList(const wstring& path) const
 {
 	try
 	{
-		if (strPath.empty())
+		if (path.empty())
 			return;
 
 		json JsonData = {};
@@ -231,18 +236,18 @@ void Asset_Manager::Save_AssetList(const wstring& strPath) const
 			const FAssetMeta& AssetMeta = Pair.second;
 
 			json Item = {};
-			Item["guid"] = AssetMeta.strGuid;
-			Item["type"] = AssetMeta.strType;
-			Item["modelType"] = AssetMeta.strModelType;
-			Item["fullPath"] = ToString(AssetMeta.strFullPath);
-			Item["relativePath"] = ToString(AssetMeta.strRelativePath);
+			Item["guid"] = AssetMeta.guid;
+			Item["type"] = AssetMeta.type;
+			Item["modelType"] = AssetMeta.modelType;
+			Item["fullPath"] = String::ToString(AssetMeta.fullPath);
+			Item["relativePath"] = String::ToString(AssetMeta.relativePath);
 
 			JsonData["assets"].push_back(Item);
 		}
 
-		fs::create_directories(fs::path(strPath).parent_path());
+		fs::create_directories(fs::path(path).parent_path());
 
-		ofstream File(strPath);
+		ofstream File(path);
 		if (!File.is_open())
 			return;
 
@@ -253,14 +258,14 @@ void Asset_Manager::Save_AssetList(const wstring& strPath) const
 	}
 }
 
-void Asset_Manager::Load_AssetList(const wstring& strPath)
+void Asset_Manager::Load_AssetList(const wstring& path)
 {
 	try
 	{
-		if (strPath.empty() || !fs::exists(strPath))
+		if (path.empty() || !fs::exists(path))
 			return;
 
-		ifstream File(strPath);
+		ifstream File(path);
 		if (!File.is_open())
 			return;
 
@@ -270,24 +275,24 @@ void Asset_Manager::Load_AssetList(const wstring& strPath)
 		for (const json& Item : JsonData.value("assets", json::array()))
 		{
 			FAssetMeta AssetMeta = {};
-			AssetMeta.strGuid = Item.value("guid", "");
-			AssetMeta.strType = Item.value("type", "");
-			AssetMeta.strModelType = Item.value("modelType", "");
-			AssetMeta.strRelativePath = ToWString(Item.value("relativePath", ""));
+			AssetMeta.guid = Item.value("guid", "");
+			AssetMeta.type = Item.value("type", "");
+			AssetMeta.modelType = Item.value("modelType", "");
+			AssetMeta.relativePath = String::ToWString(Item.value("relativePath", ""));
 
-			const string strFullPath = Item.value("fullPath", "");
-			if (!strFullPath.empty())
-				AssetMeta.strFullPath = ToWString(strFullPath);
-			else if (!AssetMeta.strRelativePath.empty())
-				AssetMeta.strFullPath = (fs::path(_resourceRoot) / AssetMeta.strRelativePath).lexically_normal().wstring();
+			const string fullPath = Item.value("fullPath", "");
+			if (!fullPath.empty())
+				AssetMeta.fullPath = String::ToWString(fullPath);
+			else if (!AssetMeta.relativePath.empty())
+				AssetMeta.fullPath = (fs::path(_resourceRoot) / AssetMeta.relativePath).lexically_normal().wstring();
 
-			if (AssetMeta.strGuid.empty() || AssetMeta.strFullPath.empty())
+			if (AssetMeta.guid.empty() || AssetMeta.fullPath.empty())
 				continue;
 
-			if (AssetMeta.strType.empty())
-				AssetMeta.strType = Detect_AssetType(AssetMeta.strFullPath);
+			if (AssetMeta.type.empty())
+				AssetMeta.type = Detect_AssetType(AssetMeta.fullPath);
 
-			_guidToMeta[AssetMeta.strGuid] = AssetMeta;
+			_guidToMeta[AssetMeta.guid] = AssetMeta;
 		}
 
 		Rebuild_PathIndex();
@@ -297,87 +302,87 @@ void Asset_Manager::Load_AssetList(const wstring& strPath)
 	}
 }
 
-string Asset_Manager::Detect_AssetType(const wstring& strFilePath) const
+string Asset_Manager::Detect_AssetType(const wstring& filePath) const
 {
-	const string strName = ToLowerCopy(ToString(fs::path(strFilePath).filename().wstring()));
-	const string strExtension = ToLowerCopy(ToString(fs::path(strFilePath).extension().wstring()));
+	const string name = String::ToLowerCopy(String::ToString(fs::path(filePath).filename().wstring()));
+	const string extension = String::ToLowerCopy(String::ToString(fs::path(filePath).extension().wstring()));
 
-	if (EndsWith(strName, ".prefab.json"))
+	if (EndsWith(name, ".prefab.json"))
 		return "Prefab";
-	if (EndsWith(strName, ".level.json"))
+	if (EndsWith(name, ".level.json"))
 		return "Level";
-	if (EndsWith(strName, ".matinst.json"))
+	if (EndsWith(name, ".matinst.json"))
 		return "MaterialInstance";
-	if (strExtension == ".meshbin")
+	if (extension == ".meshbin")
 		return "Model";
-	if (strExtension == ".dds" || strExtension == ".png" || strExtension == ".jpg" || strExtension == ".jpeg" || strExtension == ".tga")
+	if (extension == ".dds" || extension == ".png" || extension == ".jpg" || extension == ".jpeg" || extension == ".tga")
 		return "Texture";
-	if (strExtension == ".hlsl" || strExtension == ".fx")
+	if (extension == ".hlsl" || extension == ".fx")
 		return "Shader";
-	if (strExtension == ".clip" || strExtension == ".psa")
+	if (extension == ".clip" || extension == ".psa")
 		return "Animation";
-	if (strExtension == ".wav" || strExtension == ".mp3" || strExtension == ".ogg")
+	if (extension == ".wav" || extension == ".mp3" || extension == ".ogg")
 		return "Sound";
-	if (strExtension == ".ttf" || strExtension == ".otf")
+	if (extension == ".ttf" || extension == ".otf")
 		return "Font";
-	if (strExtension == ".xlsx" || strExtension == ".csv")
+	if (extension == ".xlsx" || extension == ".csv")
 		return "DataTable";
 
 	return "Unknown";
 }
 
-bool Asset_Manager::Should_RegisterAsset(const fs::path& Path) const
+bool Asset_Manager::Should_RegisterAsset(const fs::path& path) const
 {
-	const string strName = ToLowerCopy(ToString(Path.filename().wstring()));
-	const string strExtension = ToLowerCopy(ToString(Path.extension().wstring()));
+	const string name = String::ToLowerCopy(String::ToString(path.filename().wstring()));
+	const string extension = String::ToLowerCopy(String::ToString(path.extension().wstring()));
 
 	if (!_resourceRoot.empty())
 	{
 		const fs::path RegistryDirectory = fs::path(_assetDataFolder).lexically_normal();
-		const fs::path AssetPath = Path.lexically_normal();
-		const string strRegistryDirectory = ToLowerCopy(ToString(RegistryDirectory.wstring()));
-		const string strAssetPath = ToLowerCopy(ToString(AssetPath.wstring()));
+		const fs::path AssetPath = path.lexically_normal();
+		const string registryDirectory = String::ToLowerCopy(String::ToString(RegistryDirectory.wstring()));
+		const string assetPath = String::ToLowerCopy(String::ToString(AssetPath.wstring()));
 
-		if (0 == strAssetPath.find(strRegistryDirectory))
+		if (0 == assetPath.find(registryDirectory))
 			return false;
 	}
 
-	for (const fs::path& Part : Path)
+	for (const fs::path& Part : path)
 	{
-		const string strPart = ToLowerCopy(ToString(Part.wstring()));
-		for (const string& strIgnoreFolder : _ignoreFolders)
+		const string part = String::ToLowerCopy(String::ToString(Part.wstring()));
+		for (const string& ignoreFolder : _ignoreFolders)
 		{
-			if (strPart == ToLowerCopy(strIgnoreFolder))
+			if (part == String::ToLowerCopy(ignoreFolder))
 				return false;
 		}
 	}
 
-	if (EndsWith(strName, ".meta") || strName == "assetregistry.json" || strName == "assetregistry.cache.json")
+	if (EndsWith(name, ".meta") || name == "assetregistry.json" || name == "assetregistry.cache.json")
 		return false;
 
-	if (EndsWith(strName, ".prefab.json") || EndsWith(strName, ".level.json") || EndsWith(strName, ".matinst.json"))
+	if (EndsWith(name, ".prefab.json") || EndsWith(name, ".level.json") || EndsWith(name, ".matinst.json"))
 		return true;
 
-	if (EndsWith(strName, ".material.json"))
+	if (EndsWith(name, ".material.json"))
 		return false;
 
-	return strExtension == ".meshbin"
-		|| strExtension == ".dds"
-		|| strExtension == ".png"
-		|| strExtension == ".jpg"
-		|| strExtension == ".jpeg"
-		|| strExtension == ".tga"
-		|| strExtension == ".hlsl"
-		|| strExtension == ".fx"
-		|| strExtension == ".clip"
-		|| strExtension == ".psa"
-		|| strExtension == ".wav"
-		|| strExtension == ".mp3"
-		|| strExtension == ".ogg"
-		|| strExtension == ".ttf"
-		|| strExtension == ".otf"
-		|| strExtension == ".xlsx"
-		|| strExtension == ".csv";
+	return extension == ".meshbin"
+           || extension == ".dds"
+           || extension == ".png"
+           || extension == ".jpg"
+           || extension == ".jpeg"
+           || extension == ".tga"
+           || extension == ".hlsl"
+           || extension == ".fx"
+           || extension == ".clip"
+           || extension == ".psa"
+           || extension == ".wav"
+           || extension == ".mp3"
+           || extension == ".ogg"
+           || extension == ".ttf"
+           || extension == ".otf"
+           || extension == ".xlsx"
+           || extension == ".csv";
 }
 
 void Asset_Manager::Rebuild_PathIndex()
@@ -386,72 +391,34 @@ void Asset_Manager::Rebuild_PathIndex()
 
 	for (const auto& Pair : _guidToMeta)
 	{
-		if (!Pair.second.strFullPath.empty())
-			_pathToGuid[Normalize_PathKey(Pair.second.strFullPath)] = Pair.first;
+		if (!Pair.second.fullPath.empty())
+			_pathToGuid[Normalize_PathKey(Pair.second.fullPath)] = Pair.first;
 	}
 }
 
-string Asset_Manager::ToLowerCopy(string strValue)
+bool Asset_Manager::EndsWith(const string& value, const string& suffix)
 {
-	transform(strValue.begin(), strValue.end(), strValue.begin(), [](unsigned char ch)
-	{
-		return static_cast<char>(tolower(ch));
-	});
-
-	return strValue;
-}
-
-string Asset_Manager::ToString(const wstring& strValue)
-{
-	if (strValue.empty())
-		return {};
-
-	const int iSize = WideCharToMultiByte(CP_UTF8, 0, strValue.c_str(), -1, nullptr, 0, nullptr, nullptr);
-	if (iSize <= 0)
-		return {};
-
-	string strResult(static_cast<size_t>(iSize - 1), '\0');
-	WideCharToMultiByte(CP_UTF8, 0, strValue.c_str(), -1, strResult.data(), iSize, nullptr, nullptr);
-	return strResult;
-}
-
-wstring Asset_Manager::ToWString(const string& strValue)
-{
-	if (strValue.empty())
-		return {};
-
-	const int iSize = MultiByteToWideChar(CP_UTF8, 0, strValue.c_str(), -1, nullptr, 0);
-	if (iSize <= 0)
-		return {};
-
-	wstring strResult(static_cast<size_t>(iSize - 1), L'\0');
-	MultiByteToWideChar(CP_UTF8, 0, strValue.c_str(), -1, strResult.data(), iSize);
-	return strResult;
-}
-
-bool Asset_Manager::EndsWith(const string& strValue, const string& strSuffix)
-{
-	if (strValue.length() < strSuffix.length())
+	if (value.length() < suffix.length())
 		return false;
 
-	return equal(strSuffix.rbegin(), strSuffix.rend(), strValue.rbegin());
+	return equal(suffix.rbegin(), suffix.rend(), value.rbegin());
 }
 
-wstring Asset_Manager::Normalize_PathKey(const wstring& strPath)
+wstring Asset_Manager::Normalize_PathKey(const wstring& path)
 {
 	try
 	{
-		wstring strKey = fs::absolute(fs::path(strPath)).lexically_normal().wstring();
-		transform(strKey.begin(), strKey.end(), strKey.begin(), [](wchar_t ch)
+		wstring key = fs::absolute(fs::path(path)).lexically_normal().wstring();
+		transform(key.begin(), key.end(), key.begin(), [](wchar_t ch)
 		{
 			return static_cast<wchar_t>(towlower(ch));
 		});
 
-		return strKey;
+		return key;
 	}
 	catch (...)
 	{
-		return strPath;
+		return path;
 	}
 }
 
@@ -461,23 +428,23 @@ string Asset_Manager::Generate_GUID()
 	if (FAILED(CoCreateGuid(&Guid)))
 		return {};
 
-	wchar_t szGuid[64] = {};
-	StringFromGUID2(Guid, szGuid, static_cast<int>(size(szGuid)));
+	wchar_t guidBuffer[64] = {};
+	StringFromGUID2(Guid, guidBuffer, static_cast<int>(size(guidBuffer)));
 
-	string strGuid = ToLowerCopy(ToString(szGuid));
-	strGuid.erase(remove(strGuid.begin(), strGuid.end(), '{'), strGuid.end());
-	strGuid.erase(remove(strGuid.begin(), strGuid.end(), '}'), strGuid.end());
+	string guid = String::ToLowerCopy(String::ToString(guidBuffer));
+	guid.erase(remove(guid.begin(), guid.end(), '{'), guid.end());
+	guid.erase(remove(guid.begin(), guid.end(), '}'), guid.end());
 
-	return strGuid;
+	return guid;
 }
 
-Unique<Asset_Manager> Asset_Manager::Create(const wstring& strResourceRoot)
+Unique<Asset_Manager> Asset_Manager::Create(const wstring& resourceRoot)
 {
-	Unique<Asset_Manager> pInstance{ new Asset_Manager() };
-	if (FAILED(pInstance->Initialize(strResourceRoot)))
+	Unique<Asset_Manager> instance{ new Asset_Manager() };
+	if (FAILED(instance->Initialize(resourceRoot)))
 		return nullptr;
 
-	return pInstance;
+	return instance;
 }
 
 void Asset_Manager::Free()

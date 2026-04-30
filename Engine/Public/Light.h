@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "Base.h"
 
@@ -16,13 +16,13 @@ public:
 	}
 
 public:
-	HRESULT Initialize(const LIGHT_DESC& LightDesc);
+	HRESULT Initialize(const LIGHT_DESC& lightDesc);
 
 private:
 	LIGHT_DESC					_desc{};
 
 public:
-	static Shared<Light> Create(const LIGHT_DESC& LightDesc);
+	static Shared<Light> Create(const LIGHT_DESC& lightDesc);
 	virtual void Free() override;
 };
 

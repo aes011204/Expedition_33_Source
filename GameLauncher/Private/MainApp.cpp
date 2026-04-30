@@ -6,6 +6,8 @@
 #include "Level_Loading.h"
 #include "ResourceLoader.h"
 
+#include <filesystem>
+
 using namespace Engine;
 
 NS_BEGIN(GameLauncherApp)
@@ -17,18 +19,23 @@ MainApp::MainApp()
 
 HRESULT MainApp::Initialize()
 {
+    const std::filesystem::path assetRootPath(Get_ClientResourceRoot());
+    if (!std::filesystem::exists(assetRootPath) || !std::filesystem::is_directory(assetRootPath))
+        return E_FAIL;
+
     ENGINE_DESC engineDesc{};
     engineDesc.hInstance = g_hInst;
     engineDesc.hWnd = g_hWnd;
-    engineDesc.eWinMode = WinMode::Win;
-    engineDesc.iNumLevels = ETOI(LevelType::END);
-    engineDesc.iViewportWidth = g_iWinSizeX;
-    engineDesc.iViewportHeight = g_iWinSizeY;
+    engineDesc.winMode = WinMode::Win;
+    engineDesc.numLevels = ETOI(LevelType::END);
+    engineDesc.viewportWidth = g_iWinSizeX;
+    engineDesc.viewportHeight = g_iWinSizeY;
+    engineDesc.projectName = "GameLauncher";
 
     if (FAILED(GAME->Initialize_Engine(engineDesc, _device, _context)))
         return E_FAIL;
 
-    if (FAILED(GAME->Initialize_AssetManager(TEXT("../Bin/Resources"))))
+    if (FAILED(GAME->Initialize_AssetManager(assetRootPath.wstring())))
         return E_FAIL;
 
     if (FAILED(CLIENT->Initialize_Client(_device, _context)))
@@ -70,7 +77,11 @@ HRESULT MainApp::Render()
 
 HRESULT MainApp::Ready_Fonts()
 {
-    if (FAILED(_gameInstance->Add_Font(TEXT("Font_Default"), TEXT("../Bin/Resources/Fonts/158ex.spritefont"))))
+    const wstring fontPath = Get_ClientResourcePath(L"Fonts/158ex.spritefont");
+    if (!std::filesystem::exists(fontPath))
+        return E_FAIL;
+
+    if (FAILED(_gameInstance->Add_Font(TEXT("Font_Default"), fontPath.c_str())))
         return E_FAIL;
 
     return S_OK;
@@ -94,6 +105,24 @@ HRESULT MainApp::Ready_StartLevel(LevelType eStartLevelID)
     }
 
     return S_OK;
+}
+
+wstring MainApp::Get_ClientResourceRoot() const
+{
+    wchar_t modulePath[MAX_PATH] = {};
+    if (0 == GetModuleFileNameW(nullptr, modulePath, MAX_PATH))
+        return {};
+
+    const std::filesystem::path runtimeRoot = std::filesystem::path(modulePath).parent_path();
+    return std::filesystem::absolute(runtimeRoot / L"../../../Client/Bin/Resources").lexically_normal().wstring();
+}
+
+wstring MainApp::Get_ClientResourcePath(const wchar_t* relativePath) const
+{
+    if (nullptr == relativePath || L'\0' == *relativePath)
+        return Get_ClientResourceRoot();
+
+    return (std::filesystem::path(Get_ClientResourceRoot()) / relativePath).lexically_normal().wstring();
 }
 
 Unique<MainApp> MainApp::Create()

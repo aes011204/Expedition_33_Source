@@ -5,51 +5,47 @@
 
 namespace Engine
 {
-	typedef struct tagEngineDesc
-	{
-		HINSTANCE	 hInstance;
-		HWND		 hWnd;
-		WinMode		 eWinMode;
-		unsigned int iNumLevels;
-		unsigned int iViewportWidth;
-		unsigned int iViewportHeight;			
-	}ENGINE_DESC;
+using ENGINE_DESC = struct tagEngineDesc
+{
+    HINSTANCE hInstance;
+    HWND hWnd;
+    WinMode winMode;
+    unsigned int numLevels;
+    unsigned int viewportWidth;
+    unsigned int viewportHeight;
+    std::string projectName;
+};
 
-	typedef struct tagKeyFrame
-	{
-		Vec3			vScale;
-		Quat			vRotation;
-		Vec3			vTranslation;
-		
-		float		    fTrackPosition; /* 현재 키프레임상태는 어떤 위치에서 표현되어야하는가? */
+using KEYFRAME = struct tagKeyFrame
+{
+    Vec3 scale;
+    Quat rotation;
+    Vec3 translation;
 
-	}KEYFRAME;
+    float trackPosition; /* 현재 키프레임상태는 어떤 위치에서 표현되어야하는가? */
+};
 
-	typedef struct tagLightDesc
-	{
-		LightType		eType;
+using LIGHT_DESC = struct tagLightDesc
+{
+    LightType type;
 
-		Vec4		vDirection;
-		Vec4		vPosition;
-		float		fRange;
+    Vec4 direction;
+    Vec4 position;
+    float range;
 
-		Vec4		vDiffuse;
-		Vec4		vAmbient;
-		Vec4		vSpecular;
+    Vec4 diffuse;
+    Vec4 ambient;
+    Vec4 specular;
+};
 
-	}LIGHT_DESC;
-
-	typedef struct tagAssetMeta
-	{
-		string		strGuid = {};			/* 에셋을 lazy-load/key lookup으로 찾기 위한 고유 식별자 */
-		string		strType = {};			/* ResourceLoader가 어떤 로더를 태울지 판단하는 에셋 타입 */
-		string		strModelType = {};		/* meshbin처럼 같은 확장자 안에서 static/anim 등을 구분하기 위한 보조 타입 */
-		wstring		strFullPath = {};		/* 실제 파일 시스템에서 접근할 절대 경로 */
-		wstring		strRelativePath = {};	/* 리소스 루트 기준 상대 경로로, json/테이블에서 사람이 확인하기 쉬운 경로 */
-	}FAssetMeta;
-
-
+using FAssetMeta = struct tagAssetMeta
+{
+    std::string guid = {};          /* 에셋을 lazy-load/key lookup으로 찾기 위한 고유 식별자 */
+    std::string type = {};          /* ResourceLoader가 어떤 로더를 태울지 판단하는 에셋 타입 */
+    std::string modelType = {};     /* meshbin처럼 같은 확장자 안에서 static/anim 등을 구분하기 위한 보조 타입 */
+    std::wstring fullPath = {};     /* 실제 파일 시스템에서 접근할 절대 경로 */
+    std::wstring relativePath = {}; /* 리소스 루트 기준 상대 경로로, json/테이블에서 사람이 확인하기 쉬운 경로 */
+};
 }
-
 
 #endif // Engine_Struct_h__

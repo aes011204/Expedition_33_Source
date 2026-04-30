@@ -19,8 +19,8 @@ public:
 		ATTACK	= 0x00000004, 		
 	};
 public:
-	Player(ComPtr<Device> device, ComPtr<Context> context);
-	Player(const Player& Prototype);
+	Player(const ComPtr<Device>& device, const ComPtr<Context>& context);
+	Player(const Player& prototype);
 	virtual ~Player() { Free(); }
 
 public:
@@ -39,7 +39,7 @@ private:
 	uint32			_states = {};
 
 public:
-	static Shared<Player> Create(ComPtr<Device> device, ComPtr<Context> context);
+	static Shared<Player> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
 	virtual Shared<GameObject> Clone(void* pArg) override;
 	virtual void Free() override;
 };

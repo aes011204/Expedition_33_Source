@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "GameObject.h"
 
@@ -9,21 +9,21 @@ class ENGINE_DLL Camera abstract : public GameObject
 public:
 	typedef struct tagCameraDesc : public GameObject::GAMEOBJECT_DESC
 	{
-		XMFLOAT4		vEye, vAt;
-		float		    fFovy, fNear, fFar;
+		XMFLOAT4		eye, at;
+		float		    fovy, nearPlane, farPlane;
 	}CAMERA_DESC;
 
 public:
-	Camera(ComPtr<Device> device, ComPtr<Context> context);
-	Camera(const Camera& Prototype);
+	Camera(const ComPtr<Device>& device, const ComPtr<Context>& context);
+	Camera(const Camera& prototype);
 	virtual ~Camera() = default;
 
 public:
 	virtual HRESULT Initialize_Prototype();
-	virtual HRESULT Initialize(void* pArg);
-	virtual void Priority_Update(float fTimeDelta);
-	virtual void Update(float fTimeDelta);
-	virtual void Late_Update(float fTimeDelta);
+	virtual HRESULT Initialize(void* arg);
+	virtual void Priority_Update(float timeDelta);
+	virtual void Update(float timeDelta);
+	virtual void Late_Update(float timeDelta);
 	virtual HRESULT Render();
 
 protected:
@@ -33,7 +33,7 @@ protected:
 	void Update_TransformMatrices();
 
 public:
-	virtual Shared<GameObject> Clone(void* pArg) = 0;
+	virtual Shared<GameObject> Clone(void* arg) = 0;
 	virtual void Free() override;
 };
 

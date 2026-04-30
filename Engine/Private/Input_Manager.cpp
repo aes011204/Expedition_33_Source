@@ -22,7 +22,7 @@ HRESULT Input_Manager::Initialize(HWND hWnd)
 	return S_OK;
 }
 
-void Input_Manager::Update(float fTi_eDelta)
+void Input_Manager::Update(float timeDelta)
 {
 	_mouseWheelDelta = 0.f;
 
@@ -44,13 +44,13 @@ void Input_Manager::Update(float fTi_eDelta)
 	if (FALSE == GetKeyboardState(KeyBuffer))
 		return;
 
-	for (uint32 iKey = 0; iKey < _keyStates.size(); ++iKey)
+	for (uint32 key = 0; key < _keyStates.size(); ++key)
 	{
-		KEY_STATE& eState = _keyStates[iKey];
-		if (KeyBuffer[iKey] & 0x80)
-			eState = (KEY_STATE::PRESS == eState || KEY_STATE::DOWN == eState) ? KEY_STATE::PRESS : KEY_STATE::DOWN;
+		KEY_STATE& state = _keyStates[key];
+		if (KeyBuffer[key] & 0x80)
+			state = (KEY_STATE::PRESS == state || KEY_STATE::DOWN == state) ? KEY_STATE::PRESS : KEY_STATE::DOWN;
 		else
-			eState = (KEY_STATE::PRESS == eState || KEY_STATE::DOWN == eState) ? KEY_STATE::UP : KEY_STATE::NONE;
+			state = (KEY_STATE::PRESS == state || KEY_STATE::DOWN == state) ? KEY_STATE::UP : KEY_STATE::NONE;
 	}
 
 	POINT CurrentPosition = {};
@@ -75,8 +75,8 @@ void Input_Manager::Update(float fTi_eDelta)
 
 void Input_Manager::Reset()
 {
-	for (KEY_STATE& eState : _keyStates)
-		eState = KEY_STATE::NONE;
+	for (KEY_STATE& state : _keyStates)
+		state = KEY_STATE::NONE;
 
 	_mouseDelta = Vec2::Zero;
 	_mouseWheelDelta = 0.f;
@@ -94,19 +94,19 @@ void Input_Manager::Reset()
 	}
 }
 
-bool Input_Manager::KeyPress(KEY_TYPE eKey) const
+bool Input_Manager::KeyPress(KEY_TYPE key) const
 {
-	return KEY_STATE::PRESS == Get_State(eKey);
+	return KEY_STATE::PRESS == Get_State(key);
 }
 
-bool Input_Manager::KeyDown(KEY_TYPE eKey) const
+bool Input_Manager::KeyDown(KEY_TYPE key) const
 {
-	return KEY_STATE::DOWN == Get_State(eKey);
+	return KEY_STATE::DOWN == Get_State(key);
 }
 
-bool Input_Manager::KeyUp(KEY_TYPE eKey) const
+bool Input_Manager::KeyUp(KEY_TYPE key) const
 {
-	return KEY_STATE::UP == Get_State(eKey);
+	return KEY_STATE::UP == Get_State(key);
 }
 
 void Input_Manager::Lock_Mouse()
@@ -140,9 +140,9 @@ void Input_Manager::Unlock_Mouse()
 	ClipCursor(nullptr);
 }
 
-KEY_STATE Input_Manager::Get_State(KEY_TYPE eKey) const
+KEY_STATE Input_Manager::Get_State(KEY_TYPE key) const
 {
-	const uint32 index = static_cast<uint32>(eKey);
+	const uint32 index = static_cast<uint32>(key);
 	if (index >= _keyStates.size())
 		return KEY_STATE::NONE;
 
