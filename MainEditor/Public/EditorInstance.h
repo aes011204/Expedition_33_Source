@@ -29,10 +29,11 @@ public:
 
 public:
 	Shared<RenderTarget> Prepare_SharedViewportRenderTarget(uint32 width, uint32 height);
-	void Render_RuntimeViewport();
 
 	void Request_ViewportSize(EDITOR_VIEWPORT_TARGET targetType, uint32 width, uint32 height);
 	ID3D11ShaderResourceView* Get_SharedViewportSRV() const;
+
+    void Capture_BackBuffer_ToViewport();
 
 public:
 	void Play();

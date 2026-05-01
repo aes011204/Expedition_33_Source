@@ -1,5 +1,6 @@
 ﻿#include "pch.h"
 #include "ImGui_Manager.h"
+#include "GameInstance.h"
 
 ImGui_Manager::~ImGui_Manager()
 {
@@ -19,7 +20,7 @@ HRESULT ImGui_Manager::Initialize(HWND hWnd, ComPtr<Device> device, ComPtr<Conte
 
     io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
     io.ConfigFlags |= ImGuiConfigFlags_DpiEnableScaleViewports;
-
+    
     io.Fonts->AddFontFromFileTTF(
         "C:/Windows/Fonts/malgun.ttf",
         18.0f,
@@ -56,7 +57,6 @@ void ImGui_Manager::Update(float timeDelta)
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
 
-    //ImGuizmo::BeginFrame(); // 호출 권장 ? 근데 이거 호출하면 게임 종료할때마다 에러 소리난다
 }
 
 void ImGui_Manager::Render()

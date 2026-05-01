@@ -8,7 +8,6 @@
 #include "ResourceLoader.h"
 
 MainEditorApp::MainEditorApp()
-    : _gameInstance{ GameInstance::GetInstance() }
 {
 }
 
@@ -49,42 +48,43 @@ HRESULT MainEditorApp::Initialize()
     if (FAILED(EDITOR->Initialize_Editor(editorDesc, _device, _context)))
         return E_FAIL;
 
-    if (FAILED(_gameInstance->Add_Timer(TEXT("Timer_Default"))))
-        return E_FAIL;
-
-    if (FAILED(_gameInstance->Add_Timer(TEXT("Timer_60"))))
-        return E_FAIL;
 
     return S_OK;
 }
 
-void MainEditorApp::Priority_Update(float fTimeDelta)
+void MainEditorApp::Priority_Update(float timeDelta)
 {
-    UNREFERENCED_PARAMETER(fTimeDelta);
+    // 안쓴다는 매크로임
+    UNREFERENCED_PARAMETER(timeDelta);
 }
 
-void MainEditorApp::Update(float fTimeDelta)
+void MainEditorApp::Update(float timeDelta)
 {
-    _gameInstance->Update_Engine(fTimeDelta);
-    EDITOR->Update_Editor(fTimeDelta);
+    GAME->Update_Engine(timeDelta);
+    EDITOR->Update_Editor(timeDelta);
 }
 
-void MainEditorApp::Late_Update(float fTimeDelta)
+void MainEditorApp::Late_Update(float timeDelta)
 {
-    UNREFERENCED_PARAMETER(fTimeDelta);
+    UNREFERENCED_PARAMETER(timeDelta);
 }
 
 HRESULT MainEditorApp::Render()
 {
-    EDITOR->Render_RuntimeViewport();
-
     const Vec4 clearColor = Vec4(0.f, 0.f, 1.f, 1.f);
-    if (FAILED(_gameInstance->Clear_Buffers(clearColor)))
+    if (FAILED(GAME->Clear_Buffers(clearColor)))
         return E_FAIL;
+
+    if (FAILED(GAME->Draw()))
+        return E_FAIL;
+
+    EDITOR->Capture_BackBuffer_ToViewport();
+
+    GAME->Bind_BackBuffer();          
 
     EDITOR->Render_Editor();
 
-    if (FAILED(_gameInstance->Present()))
+    if (FAILED(GAME->Present()))
         return E_FAIL;
 
     return S_OK;
@@ -92,7 +92,7 @@ HRESULT MainEditorApp::Render()
 
 HRESULT MainEditorApp::Ready_Fonts()
 {
-    if (FAILED(_gameInstance->Add_Font(TEXT("Font_Default"), TEXT("../Bin/Resources/Fonts/158ex.spritefont"))))
+    if (FAILED(GAME->Add_Font(TEXT("Font_Default"), TEXT("../Bin/Resources/Fonts/158ex.spritefont"))))
         return E_FAIL;
 
     return S_OK;
@@ -108,7 +108,7 @@ HRESULT MainEditorApp::Ready_StartLevel(LevelType eStartLevelID)
     if (LevelType::Loading == eStartLevelID)
         return E_FAIL;
 
-    if (FAILED(_gameInstance->Change_Level(
+    if (FAILED(GAME->Change_Level(
         ETOI(LevelType::Loading),
         Level_Loading::Create(_device.Get(), _context.Get(), eStartLevelID))))
     {
@@ -141,6 +141,6 @@ void MainEditorApp::Free()
     CLIENT->Release_Client();
     ClientInstance::DestroyInstance();
 
-    if (nullptr != _gameInstance)
-        _gameInstance->Release_Engine();
+    if (nullptr != GAME)
+        GAME->Release_Engine();
 }

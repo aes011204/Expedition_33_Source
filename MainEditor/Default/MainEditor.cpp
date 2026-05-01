@@ -30,8 +30,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
     _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 #endif
 
-    UNREFERENCED_PARAMETER(hPrevInstance);
-    UNREFERENCED_PARAMETER(lpCmdLine);
+    (void)hPrevInstance;
+    (void)lpCmdLine;
 
     if (!Set_RuntimeWorkingDirectory())
         return FALSE;
@@ -45,6 +45,12 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 
     Unique<MainEditor::MainEditorApp> mainApp = MainEditor::MainEditorApp::Create();
     if (nullptr == mainApp)
+        return FALSE;
+
+    if (FAILED(GAME->Add_Timer(TEXT("Timer_Default"))))
+        return FALSE;
+
+    if (FAILED(GAME->Add_Timer(TEXT("Timer_60FPS"))))
         return FALSE;
 
     g_runtimeInitialized = true;
@@ -64,13 +70,10 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
             continue;
         }
 
-        Engine::GameInstance* gameInstance = Engine::GameInstance::GetInstance();
-        Safe_AddRef(gameInstance);
-
-        timeAcc += gameInstance->Compute_TimeDelta(TEXT("Timer_Default"));
+        timeAcc += GAME->Compute_TimeDelta(TEXT("Timer_Default"));
         if (timeAcc >= 1.f / 60.f)
         {
-            const float dt = gameInstance->Compute_TimeDelta(TEXT("Timer_60"));
+            const float dt = GAME->Compute_TimeDelta(TEXT("Timer_60FPS"));
 
             mainApp->Priority_Update(dt);
             mainApp->Update(dt);
@@ -79,8 +82,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 
             timeAcc = 0.f;
         }
-
-        Safe_Release(gameInstance);
     }
 
     g_runtimeInitialized = false;
@@ -154,15 +155,11 @@ static LRESULT CALLBACK MainEditor_WndProc(HWND hWnd, UINT message, WPARAM wPara
     case WM_SIZE:
         if (g_runtimeInitialized && SIZE_MINIMIZED != wParam)
         {
-            Engine::GameInstance* gameInstance = Engine::GameInstance::GetInstance();
-            Safe_AddRef(gameInstance);
-
             const uint32 width = LOWORD(lParam);
             const uint32 height = HIWORD(lParam);
-            if (width > 0 && height > 0)
-                gameInstance->Resize_BackBuffer(width, height);
 
-            Safe_Release(gameInstance);
+            if (width > 0 && height > 0)
+                GAME->Resize_BackBuffer(width, height);
         }
         return 0;
 

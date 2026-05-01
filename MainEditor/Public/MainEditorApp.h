@@ -17,9 +17,9 @@ public:
 
 public:
     HRESULT Initialize();
-    void    Priority_Update(float fTimeDelta);
-    void    Update(float fTimeDelta);
-    void    Late_Update(float fTimeDelta);
+    void    Priority_Update(float timeDelta);
+    void    Update(float timeDelta);
+    void    Late_Update(float timeDelta);
     HRESULT Render();
 
 private:
@@ -28,7 +28,6 @@ private:
     HRESULT Ready_StartLevel(LevelType eStartLevelID);
 
 private:
-    GameInstance*   _gameInstance = nullptr;
     ComPtr<Device>  _device = nullptr;
     ComPtr<Context> _context = nullptr;
 

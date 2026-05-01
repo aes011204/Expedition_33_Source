@@ -29,6 +29,8 @@ public:
 	uint32 Get_Width() const { return _width; }
 	uint32 Get_Height() const { return _height; }
 
+    ComPtr<ID3D11Texture2D> Get_Texture() const { return _texture; }
+
 private:
 	void Release_TargetResources();
 

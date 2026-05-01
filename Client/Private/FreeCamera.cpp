@@ -30,6 +30,8 @@ HRESULT FreeCamera::Initialize(void* pArg)
 
 void FreeCamera::Priority_Update(float fTimeDelta)
 {
+	const Vec2 vMouseDelta = GAME->Get_MouseDelta();
+
 	if (GAME->KeyPress(KEY_TYPE::W))
 		_transformCom->Go_Straight(fTimeDelta);
 
@@ -41,8 +43,6 @@ void FreeCamera::Priority_Update(float fTimeDelta)
 
 	if (GAME->KeyPress(KEY_TYPE::D))
 		_transformCom->Go_Right(fTimeDelta);
-
-	const Vec2 vMouseDelta = GAME->Get_MouseDelta();
 
 	if (0.f != vMouseDelta.x)
 		_transformCom->Turn(XMVectorSet(0.f, 1.f, 0.f, 0.f), fTimeDelta * vMouseDelta.x * m_fMouseSensor);
