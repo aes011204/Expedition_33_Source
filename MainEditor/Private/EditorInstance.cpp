@@ -162,34 +162,42 @@ Shared<RenderTarget> EditorInstance::Prepare_SharedViewportRenderTarget(uint32 w
     return _sharedViewportRenderTarget;
 }
 
-void EditorInstance::Render_RuntimeViewport()
-{
-    Shared<RenderTarget> renderTarget =
-        Prepare_SharedViewportRenderTarget(_requestedViewportWidth, _requestedViewportHeight);
-
-    if (nullptr == renderTarget)
-        return;
-
-    if (FAILED(renderTarget->Begin(true, true)))
-        return;
-
-    GameInstance* gameInstance = GameInstance::GetInstance();
-    CHECK_NULL(gameInstance);
-
-    gameInstance->Set_ViewportSize(renderTarget->Get_Width(), renderTarget->Get_Height());
-
-    if (FAILED(gameInstance->Draw()))
-        return;
-
-    gameInstance->Bind_BackBuffer();
-}
-
 ID3D11ShaderResourceView* EditorInstance::Get_SharedViewportSRV() const
 {
     if (nullptr == _sharedViewportRenderTarget)
         return nullptr;
 
     return _sharedViewportRenderTarget->Get_SRV();
+}
+
+void EditorInstance::Capture_BackBuffer_ToViewport()
+{
+    Shared<RenderTarget> renderTarget =
+            Prepare_SharedViewportRenderTarget(
+                GAME->Get_BackBufferWidth(),
+                GAME->Get_BackBufferHeight());
+
+    if (nullptr == renderTarget || nullptr == _context)
+        return;
+
+    ComPtr<IDXGISwapChain> swapChain = GAME->Get_SwapChain();
+    if (nullptr == swapChain)
+        return;
+
+    ComPtr<ID3D11Texture2D> backBufferTexture = nullptr;
+    if (FAILED(swapChain->GetBuffer(
+        0,
+        __uuidof(ID3D11Texture2D),
+        reinterpret_cast<void**>(backBufferTexture.GetAddressOf()))))
+    {
+        return;
+    }
+
+    ComPtr<ID3D11Texture2D> viewportTexture = renderTarget->Get_Texture();
+    if (nullptr == viewportTexture)
+        return;
+
+    _context->CopyResource(viewportTexture.Get(), backBufferTexture.Get());
 }
 
 float EditorInstance::Clamp_RuntimeTimeScale(float fTimeScale)

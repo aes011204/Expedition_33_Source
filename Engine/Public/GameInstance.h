@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Base.h"
 #include "Input_Manager.h"
@@ -34,11 +34,11 @@ public:
 
 public:
     HRESULT Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<Device>& device, ComPtr<Context>& context);
-    void Update_Engine(float timeDelta);
+    void    Update_Engine(float timeDelta);
     HRESULT Draw();
-    void Clear_Resources(uint32 levelIndex);
+    void    Clear_Resources(uint32 levelIndex);
 
-    float Random(float min, float max);
+    float   Random(float min, float max);
 
 public: /* For.Log_Manager */
     void Visit_ConsoleLogs(const function<void(const ConsoleLogEntry& logEntry)>& visitor) const;
@@ -56,7 +56,7 @@ public: /* For.Graphic_Device */
     void Bind_BackBuffer();
     HRESULT Resize_BackBuffer(uint32 width, uint32 height);
 
-    void Reset_DefaultRenderState();
+    ComPtr<SwapChain> Get_SwapChain() const;
 
 public: /* For.Viewport */
     void Set_ViewportSize(uint32 width, uint32 height);
@@ -94,29 +94,22 @@ public: /* For.PipeLine */
     HRESULT Bind_TransformMatrix(D3DTS transformState, Shader* shader, const char* constantName);
     HRESULT Bind_TransformMatrix_Inverse(D3DTS transformState, Shader* shader, const char* constantName);
 
-    const XMFLOAT4X4* Get_Transform(D3DTS transformState) const;
-    const XMFLOAT4* Get_CamPosition() const;
+    const Matrix* Get_Transform(D3DTS transformState) const;
+    const Vec4*   Get_CamPosition() const;
 
     void Set_Transform(D3DTS transformState, FXMMATRIX& transformStateMatrix);
 
 public: /* For.Input_Manager */
-    /* 키가 눌린 상태로 유지되는지 확인할 때 호출한다. */
-    bool KeyPress(KEY_TYPE key) const;
+	bool KeyPress(KEY_TYPE eKey) const;
+	bool KeyDown(KEY_TYPE eKey) const;
+	bool KeyUp(KEY_TYPE eKey) const;
 
-    /* 키가 이번 프레임에 처음 눌렸는지 확인할 때 호출한다. */
-    bool KeyDown(KEY_TYPE key) const;
+	Vec2 Get_MouseDelta() const;
+	void Lock_Mouse();
+	void Unlock_Mouse();
 
-    /* 키가 이번 프레임에 처음 떼졌는지 확인할 때 호출한다. */
-    bool KeyUp(KEY_TYPE key) const;
-
-    /* 이전 프레임 대비 마우스 이동량을 얻을 때 호출한다. */
-    Vec2 Get_MouseDelta() const;
-
-    /* 마우스 고정을 켜야 하는 카메라/에디터 모드에서 호출한다. */
-    void Lock_Mouse();
-
-    /* 마우스 고정을 해제해야 하는 카메라/에디터 모드에서 호출한다. */
-    void Unlock_Mouse();
+    // 입력 차단
+    void Set_InputBlocked(bool isBlocked);
 
 public: /* For.Light_Manager */
     const LIGHT_DESC* Get_LightDesc(uint32 index);

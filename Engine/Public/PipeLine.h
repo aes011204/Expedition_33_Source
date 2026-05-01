@@ -13,11 +13,11 @@ public:
 	virtual ~PipeLine() = default;
 
 public:
-	const XMFLOAT4X4* Get_Transform(D3DTS transformState) const {
-		return &_transformStateMatrices[ETOI(transformState)];
+	const Matrix* Get_Transform(D3DTS transformState) const {
+		return reinterpret_cast<const Matrix*>(&_transformStateMatrices[ETOI(transformState)]);
 	}
-	const XMFLOAT4* Get_CamPosition() const {
-		return reinterpret_cast<const XMFLOAT4*>(&_transformStateInverseMatrices[ETOI(D3DTS::View)].m[3]);
+	const Vec4* Get_CamPosition() const {
+		return reinterpret_cast<const Vec4*>(&_transformStateInverseMatrices[ETOI(D3DTS::View)].m[3]);
 	}
 
 public:

@@ -46,6 +46,7 @@
 #include <Effects11/d3dx11effect.h>
 #include <magic_enum/magic_enum.hpp>
 #include <nlohmann/json.hpp>
+
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/msvc_sink.h>
 #include <spdlog/sinks/rotating_file_sink.h>

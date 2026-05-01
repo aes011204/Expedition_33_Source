@@ -175,9 +175,9 @@ HRESULT GameInstance::Resize_BackBuffer(uint32 width, uint32 height)
     return _graphicDevice->Resize(width, height);
 }
 
-void GameInstance::Reset_DefaultRenderState()
+ComPtr<SwapChain> GameInstance::Get_SwapChain() const
 {
-    return _graphicDevice->Reset_DefaultRenderState();
+    return _graphicDevice->Get_SwapChain();
 }
 
 void GameInstance::Set_ViewportSize(uint32 width, uint32 height)
@@ -261,12 +261,12 @@ HRESULT GameInstance::Bind_TransformMatrix_Inverse(D3DTS transformState, Shader*
     return _pipeLine->Bind_TransformMatrix_Inverse(transformState, shader, constantName);
 }
 
-const XMFLOAT4X4* GameInstance::Get_Transform(D3DTS transformState) const
+const Matrix* GameInstance::Get_Transform(D3DTS transformState) const
 {
     return _pipeLine->Get_Transform(transformState);
 }
 
-const XMFLOAT4* GameInstance::Get_CamPosition() const
+const Vec4* GameInstance::Get_CamPosition() const
 {
     return _pipeLine->Get_CamPosition();
 }
@@ -278,37 +278,37 @@ void GameInstance::Set_Transform(D3DTS transformState, FXMMATRIX& transformState
 
 bool GameInstance::KeyPress(KEY_TYPE key) const
 {
-    return nullptr != _inputManager && _inputManager->KeyPress(key);
+    return _inputManager->KeyPress(key);
 }
 
 bool GameInstance::KeyDown(KEY_TYPE key) const
 {
-    return nullptr != _inputManager && _inputManager->KeyDown(key);
+    return _inputManager->KeyDown(key);
 }
 
 bool GameInstance::KeyUp(KEY_TYPE key) const
 {
-    return nullptr != _inputManager && _inputManager->KeyUp(key);
+    return _inputManager->KeyUp(key);
 }
 
 Vec2 GameInstance::Get_MouseDelta() const
 {
-    if (nullptr == _inputManager)
-        return Vec2::Zero;
-
     return _inputManager->Get_MouseDelta();
 }
 
 void GameInstance::Lock_Mouse()
 {
-    if (nullptr != _inputManager)
-        _inputManager->Lock_Mouse();
+    return _inputManager->Lock_Mouse();
 }
 
 void GameInstance::Unlock_Mouse()
 {
-    if (nullptr != _inputManager)
-        _inputManager->Unlock_Mouse();
+    return _inputManager->Unlock_Mouse();
+}
+
+void GameInstance::Set_InputBlocked(bool isBlocked)
+{
+    return _inputManager->Set_InputBlocked(isBlocked);
 }
 
 const LIGHT_DESC* GameInstance::Get_LightDesc(uint32 index)

@@ -38,17 +38,14 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
     if (mainApp == nullptr)
         return FALSE;
 
-    Engine::GameInstance* gameInstance = Engine::GameInstance::GetInstance();
-    Safe_AddRef(gameInstance);
-
-    if (FAILED(gameInstance->Add_Timer(TEXT("Timer_Default"))))
+    if (FAILED(GAME->Add_Timer(TEXT("Timer_Default"))))
         return FALSE;
 
-    if (FAILED(gameInstance->Add_Timer(TEXT("Timer_60"))))
+    if (FAILED(GAME->Add_Timer(TEXT("Timer_60FPS"))))
         return FALSE;
 
     MSG msg{};
-    float timeAcc = {};
+    float timeAcc = 0.f;
 
     while (true)
     {
@@ -61,16 +58,18 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
             DispatchMessage(&msg);
         }
 
-        timeAcc += gameInstance->Compute_TimeDelta(TEXT("Timer_Default"));
+        timeAcc += GAME->Compute_TimeDelta(TEXT("Timer_Default"));
         if (timeAcc >= 1.f / 60.f)
         {
-            mainApp->Update(gameInstance->Compute_TimeDelta(TEXT("Timer_60")));
+            const float dt = GAME->Compute_TimeDelta(TEXT("Timer_60FPS"));
+
+            mainApp->Update(dt);
             mainApp->Render();
+
             timeAcc = 0.f;
         }
     }
 
-    Safe_Release(gameInstance);
     mainApp->Free();
     mainApp.reset();
 
@@ -138,13 +137,16 @@ static LRESULT CALLBACK GameLauncher_WndProc(HWND hWnd, UINT message, WPARAM wPa
         _tsetlocale(LC_ALL, _T(""));
         break;
     }
+
     case WM_CLOSE:
         FreeConsole();
         DestroyWindow(hWnd);
         break;
+
     case WM_DESTROY:
         PostQuitMessage(0);
         break;
+
     default:
         return DefWindowProc(hWnd, message, wParam, lParam);
     }

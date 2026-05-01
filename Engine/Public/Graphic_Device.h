@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Base.h"
 
@@ -20,13 +20,14 @@ public:
     void    Bind_BackBuffer();
     HRESULT Resize(uint32 width, uint32 height);
 
-    void    Reset_DefaultRenderState();
-
 	ComPtr<Device>  Get_Device() const  { return _device; }
 	ComPtr<Context> Get_Context() const { return _deviceContext; }
 
     uint32 Get_ViewportWidth() const { return _viewportWidth; }
     uint32 Get_ViewportHeight() const { return _viewportHeight; }
+
+    ComPtr<IDXGISwapChain> Get_SwapChain() const { return _swapChain; }
+
 
 private:
 	ComPtr<Device>              _device = nullptr;

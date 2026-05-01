@@ -18,4 +18,19 @@
       <AdditionalDependencies Condition="'$(Configuration)'=='Release'">$(VcpkgReleaseStaticLibraries);%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
+
+  <Target Name="CopyVcpkgRuntimeBinaries" AfterTargets="Build">
+    <ItemGroup Condition="'$(Configuration)'=='Debug' or '$(Configuration)'=='Debug_Unity'">
+      <VcpkgRuntimeBinaries Include="$(VcpkgInstalledDir)$(VcpkgTriplet)\debug\bin\*.dll" />
+    </ItemGroup>
+    <ItemGroup Condition="'$(Configuration)'=='Release'">
+      <VcpkgRuntimeBinaries Include="$(VcpkgInstalledDir)$(VcpkgTriplet)\bin\*.dll" />
+    </ItemGroup>
+
+    <Copy
+      SourceFiles="@(VcpkgRuntimeBinaries)"
+      DestinationFolder="$(OutDir)"
+      SkipUnchangedFiles="true"
+      Condition="'@(VcpkgRuntimeBinaries)' != '' and '$(OutDir)' != ''" />
+  </Target>
 </Project>
