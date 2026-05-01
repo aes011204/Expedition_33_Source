@@ -101,7 +101,7 @@ HRESULT MainEditorApp::Ready_Fonts()
     if (!std::filesystem::exists(fontPath))
         return E_FAIL;
 
-    if (FAILED(_gameInstance->Add_Font(TEXT("Font_Default"), fontPath.c_str())))
+    if (FAILED(GAME->Add_Font(TEXT("Font_Default"), fontPath.c_str())))
         return E_FAIL;
 
     return S_OK;

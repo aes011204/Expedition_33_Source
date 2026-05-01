@@ -147,7 +147,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
       <AdditionalDependencies>d3d11.lib;dxguid.lib;assimp-vc143-mtd.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>../ThirdPartyLib/$(Configuration)/;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>..\..\EngineSDK\lib\$(Configuration)\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
     <PostBuildEvent>
       <Command>pushd "$(ProjectDir)..\.." &amp;&amp; call "UpdateLib.bat" &amp;&amp; popd</Command>
@@ -176,7 +176,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
       <AdditionalDependencies>d3d11.lib;dxguid.lib;assimp-vc143-mt.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>../ThirdPartyLib/$(Configuration)/;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>..\..\EngineSDK\lib\$(Configuration)\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
     <PostBuildEvent>
       <Command>pushd "$(ProjectDir)..\.." &amp;&amp; call "UpdateLib.bat" &amp;&amp; popd</Command>

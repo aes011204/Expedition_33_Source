@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Base.h"
 #include "Input_Manager.h"
@@ -34,11 +34,11 @@ public:
 
 public:
     HRESULT Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<Device>& device, ComPtr<Context>& context);
-    void Update_Engine(float timeDelta);
+    void    Update_Engine(float timeDelta);
     HRESULT Draw();
-    void Clear_Resources(uint32 levelIndex);
+    void    Clear_Resources(uint32 levelIndex);
 
-    float Random(float min, float max);
+    float   Random(float min, float max);
 
 public: /* For.Log_Manager */
     void Visit_ConsoleLogs(const function<void(const ConsoleLogEntry& logEntry)>& visitor) const;
@@ -57,7 +57,6 @@ public: /* For.Graphic_Device */
     HRESULT Resize_BackBuffer(uint32 width, uint32 height);
 
     ComPtr<SwapChain> Get_SwapChain() const;
-    void Reset_DefaultRenderState();
 
 public: /* For.Viewport */
     void Set_ViewportSize(uint32 width, uint32 height);
@@ -95,8 +94,8 @@ public: /* For.PipeLine */
     HRESULT Bind_TransformMatrix(D3DTS transformState, Shader* shader, const char* constantName);
     HRESULT Bind_TransformMatrix_Inverse(D3DTS transformState, Shader* shader, const char* constantName);
 
-    const XMFLOAT4X4* Get_Transform(D3DTS transformState) const;
-    const XMFLOAT4* Get_CamPosition() const;
+    const Matrix* Get_Transform(D3DTS transformState) const;
+    const Vec4*   Get_CamPosition() const;
 
     void Set_Transform(D3DTS transformState, FXMMATRIX& transformStateMatrix);
 
