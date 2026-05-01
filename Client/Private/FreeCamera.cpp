@@ -8,7 +8,7 @@ FreeCamera::FreeCamera(const ComPtr<Device>& device, const ComPtr<Context>& cont
 
 FreeCamera::FreeCamera(const FreeCamera& prototype)
     : Camera{ prototype }
-    , m_fMouseSensor{ prototype.m_fMouseSensor }
+    , _mouseSensor{ prototype._mouseSensor }
 {
 }
 
@@ -17,47 +17,52 @@ HRESULT FreeCamera::Initialize_Prototype()
     return S_OK;
 }
 
-HRESULT FreeCamera::Initialize(void* pArg)
+HRESULT FreeCamera::Initialize(void* arg)
 {
-    const auto pDesc = static_cast<FREECAMERA_DESC*>(pArg);
-    m_fMouseSensor = pDesc->fMouseSensor;
+    const auto pDesc = static_cast<FREECAMERA_DESC*>(arg);
+    _mouseSensor = pDesc->mouseSensor;
 
-    if (FAILED(__super::Initialize(pArg)))
+    if (FAILED(__super::Initialize(arg)))
         return E_FAIL;
 
     return S_OK;
 }
 
-void FreeCamera::Priority_Update(float fTimeDelta)
+void FreeCamera::Priority_Update(float timeDelta)
 {
+
+    Matrix before = _transformCom->Get_WorldMatrix();
+
     if (GAME->KeyPress(KEY_TYPE::W))
-        _transformCom->Go_Straight(fTimeDelta);
+        _transformCom->Go_Straight(timeDelta);
 
     if (GAME->KeyPress(KEY_TYPE::S))
-        _transformCom->Go_Backward(fTimeDelta);
+        _transformCom->Go_Backward(timeDelta);
 
     if (GAME->KeyPress(KEY_TYPE::A))
-        _transformCom->Go_Left(fTimeDelta);
+        _transformCom->Go_Left(timeDelta);
 
     if (GAME->KeyPress(KEY_TYPE::D))
-        _transformCom->Go_Right(fTimeDelta);
+        _transformCom->Go_Right(timeDelta);
 
-    const Vec2 vMouseDelta = GAME->Get_MouseDelta();
+    Matrix after = _transformCom->Get_WorldMatrix();
 
-    if (0.f != vMouseDelta.x)
-        _transformCom->Turn(Vec3::Up, fTimeDelta * vMouseDelta.x * m_fMouseSensor);
+    const Vec2 mouseDelta = GAME->Get_MouseDelta();
 
-    if (0.f != vMouseDelta.y)
-        _transformCom->Turn(_transformCom->Get_State(State::Right), fTimeDelta * vMouseDelta.y * m_fMouseSensor);
+    if (0.f != mouseDelta.x)
+        _transformCom->Turn(Vec3::Up, timeDelta * mouseDelta.x * _mouseSensor);
+
+    if (0.f != mouseDelta.y)
+        _transformCom->Turn(_transformCom->Get_State(State::Right), timeDelta * mouseDelta.y * _mouseSensor);
 
     __super::Update_TransformMatrices();
 }
 
-void FreeCamera::Update(float fTimeDelta)
+void FreeCamera::Update(float timeDelta)
 {
 }
 
-void FreeCamera::Late_Update(float fTimeDelta)
+void FreeCamera::Late_Update(float timeDelta)
 {
 }
 
@@ -68,26 +73,26 @@ HRESULT FreeCamera::Render()
 
 Shared<FreeCamera> FreeCamera::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
-    auto pInstance = make_shared<FreeCamera>(device, context);
+    auto instance = make_shared<FreeCamera>(device, context);
 
-    if (FAILED(pInstance->Initialize_Prototype()))
+    if (FAILED(instance->Initialize_Prototype()))
     {
-        MSG_BOX("Failed to Created : FreeCamera");
+        MSG_BOX("Failed to Create : FreeCamera");
         return nullptr;
     }
-    return pInstance;
+    return instance;
 }
 
-Shared<GameObject> FreeCamera::Clone(void* pArg)
+Shared<GameObject> FreeCamera::Clone(void* arg)
 {
-    auto pInstance = make_shared<FreeCamera>(*this);
+    auto instance = make_shared<FreeCamera>(*this);
 
-    if (FAILED(pInstance->Initialize(pArg)))
+    if (FAILED(instance->Initialize(arg)))
     {
-        MSG_BOX("Failed to Cloned : FreeCamera");
+        MSG_BOX("Failed to Clone : FreeCamera");
         return nullptr;
     }
-    return pInstance;
+    return instance;
 }
 
 void FreeCamera::Free()

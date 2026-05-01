@@ -40,6 +40,7 @@
     <ClCompile Include="..\Private\SimpleMath.cpp">
       <Filter>99. Defines</Filter>
     </ClCompile>
+    <ClCompile Include="..\private\EditorCamera.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -93,6 +94,7 @@
     <ClInclude Include="..\Public\Editor_Macro.h">
       <Filter>99. Defines</Filter>
     </ClInclude>
+    <ClInclude Include="..\public\EditorCamera.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="00. Main">
@@ -112,6 +114,12 @@
     </Filter>
     <Filter Include="01. Manager">
       <UniqueIdentifier>{2da15314-2e57-43af-9f9c-145f0727fc64}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="03. Utility">
+      <UniqueIdentifier>{77358e1c-c84e-4721-abf3-4bd4547a6117}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="03. Utility\Camera">
+      <UniqueIdentifier>{6627a485-d4b8-414a-a60e-66813f85321a}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>
