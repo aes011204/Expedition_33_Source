@@ -13,10 +13,10 @@ public:
 	virtual ~Light_Manager() = default;
 
 public:
-	const LIGHT_DESC* Get_LightDesc(uint32 iIndex);
+	const LIGHT_DESC* Get_LightDesc(uint32 index);
 
 public:
-	HRESULT Add_Light(const LIGHT_DESC& LightDesc);
+	HRESULT Add_Light(const LIGHT_DESC& lightDesc);
 
 private:
 	list<Shared<class Light>>			_lights;

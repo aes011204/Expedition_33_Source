@@ -24,6 +24,8 @@ private:
     HRESULT Ready_Fonts();
     HRESULT Ready_Prototype_For_Static_Level();
     HRESULT Ready_StartLevel(LevelType eStartLevelID);
+    wstring Get_ClientResourceRoot() const;
+    wstring Get_ClientResourcePath(const wchar_t* relativePath) const;
 
 private:
     Engine::GameInstance* _gameInstance = nullptr;

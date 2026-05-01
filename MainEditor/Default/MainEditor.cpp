@@ -1,5 +1,4 @@
 ﻿#include <Windows.h>
-#include <filesystem>
 #include <crtdbg.h>
 #include <cstdio>
 #include <locale.h>
@@ -22,19 +21,12 @@ static bool g_runtimeInitialized = false;
 static ATOM Register_MainEditorClass(HINSTANCE hInstance);
 static bool Create_MainEditorWindow(HINSTANCE hInstance, int nCmdShow);
 static LRESULT CALLBACK MainEditor_WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
-static bool Set_RuntimeWorkingDirectory();
 
-int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPWSTR lpCmdLine, _In_ int nCmdShow)
+int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE, _In_ LPWSTR, _In_ int nCmdShow)
 {
 #ifdef _DEBUG
     _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 #endif
-
-    (void)hPrevInstance;
-    (void)lpCmdLine;
-
-    if (!Set_RuntimeWorkingDirectory())
-        return FALSE;
 
     Register_MainEditorClass(hInstance);
 
@@ -179,19 +171,4 @@ static LRESULT CALLBACK MainEditor_WndProc(HWND hWnd, UINT message, WPARAM wPara
     }
 
     return DefWindowProcW(hWnd, message, wParam, lParam);
-}
-
-static bool Set_RuntimeWorkingDirectory()
-{
-    wchar_t modulePath[MAX_PATH] = {};
-    if (0 == GetModuleFileNameW(nullptr, modulePath, MAX_PATH))
-        return false;
-
-    const std::filesystem::path runtimeRoot = std::filesystem::path(modulePath).parent_path();
-    const std::filesystem::path clientBinPath = (runtimeRoot / L"..\\..\\Client\\Bin").lexically_normal();
-
-    if (!std::filesystem::exists(clientBinPath))
-        return false;
-
-    return SetCurrentDirectoryW(clientBinPath.c_str()) != FALSE;
 }

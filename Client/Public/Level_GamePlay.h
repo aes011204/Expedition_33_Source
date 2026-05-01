@@ -8,7 +8,7 @@ NS_BEGIN(Client)
 class Level_GamePlay final : public Level
 {
 public:
-	Level_GamePlay(ComPtr<Device> device, ComPtr<Context> context);
+	Level_GamePlay(const ComPtr<Device>& device, const ComPtr<Context>& context);
 	virtual ~Level_GamePlay() { Free(); }
 
 public:
@@ -23,7 +23,7 @@ private:
 	HRESULT Ready_Layer_Player(const wstring& strLayerTag);
 
 public:
-	static Shared<Level_GamePlay> Create(ComPtr<Device> device, ComPtr<Context> context);
+	static Shared<Level_GamePlay> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
 	virtual void Free() override;
 };
 

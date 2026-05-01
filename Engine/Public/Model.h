@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "Component.h"
 
@@ -7,8 +7,8 @@ NS_BEGIN(Engine)
 class ENGINE_DLL Model final : public Component
 {
 public:
-	Model(ComPtr<Device> device, ComPtr<Context> context);
-	Model(const Model& Prototype);
+	Model(const ComPtr<Device>& device, const ComPtr<Context>& context);
+	Model(const Model& prototype);
 	virtual ~Model() { Free(); }
 
 public:
@@ -16,25 +16,25 @@ public:
 		return _meshes.size();
 	}
 
-	int32 Get_BoneIndex(const char* pBoneName);
-	const XMFLOAT4X4* Get_BoneMatrixPtr(const char* pBoneName);
+	int32 Get_BoneIndex(const char* boneName);
+	const XMFLOAT4X4* Get_BoneMatrixPtr(const char* boneName);
 
-	void Set_Animation(uint32 iIndex, bool isLoop) {
-		_currentAnimIndex = iIndex;
+	void Set_Animation(uint32 index, bool isLoop) {
+		_currentAnimIndex = index;
 		_isAnimLoop = isLoop;
 	}
 
 public:
-	virtual HRESULT Initialize_Prototype(ModelType eType, const char* pModelFilePath, FXMMATRIX PreLocalTransformMatrix);
-	virtual HRESULT Initialize(void* pArg);
-	virtual HRESULT Render(uint32 iMeshIndex);
+	virtual HRESULT Initialize_Prototype(ModelType type, const char* modelFilePath, FXMMATRIX preLocalTransformMatrix);
+	virtual HRESULT Initialize(void* arg);
+	virtual HRESULT Render(uint32 meshIndex);
 
 public:
-	bool Play_Animation(float fTimeDelta);
+	bool Play_Animation(float timeDelta);
 
 public:
-	HRESULT Bind_Material(class Shader* pShader, const char* pConstantName, uint32 iMeshIndex, aiTextureType eMaterialType, uint32 iTextureIndex = 0);
-	HRESULT Bind_BoneMatrices(class Shader* pShader, const char* pConstantName, uint32 iMeshIndex);
+	HRESULT Bind_Material(class Shader* shader, const char* constantName, uint32 meshIndex, aiTextureType materialType, uint32 textureIndex = 0);
+	HRESULT Bind_BoneMatrices(class Shader* shader, const char* constantName, uint32 meshIndex);
 
 private:
 	const aiScene*				_aiScene = { nullptr };
@@ -60,13 +60,13 @@ private:
 
 private:
 	HRESULT Ready_Meshes();
-	HRESULT Ready_Materials(const char* pModelFilePath);
-	HRESULT Ready_Bones(const aiNode* pAINode, int32 iParentIndex);
+	HRESULT Ready_Materials(const char* modelFilePath);
+	HRESULT Ready_Bones(const aiNode* aiNode, int32 parentIndex);
 	HRESULT Ready_Animations();
 
 public:
-	static Shared<Model> Create(ComPtr<Device> device, ComPtr<Context> context, ModelType eType, const char* pModelFilePath, FXMMATRIX PreLocalTransformMatrix = XMMatrixIdentity());
-	virtual Shared<Component> Clone(void* pArg) override;
+	static Shared<Model> Create(const ComPtr<Device>& device, const ComPtr<Context>& context, ModelType type, const char* modelFilePath, FXMMATRIX preLocalTransformMatrix = XMMatrixIdentity());
+	virtual Shared<Component> Clone(void* arg) override;
 	virtual void Free() override;
 };
 

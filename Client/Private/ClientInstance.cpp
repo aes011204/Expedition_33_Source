@@ -9,7 +9,7 @@ ClientInstance::ClientInstance()
 {
 }
 
-HRESULT ClientInstance::Initialize_Client(ComPtr<Device> device, ComPtr<Context> context)
+HRESULT ClientInstance::Initialize_Client(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
     if (_isInitialized)
         return S_OK;

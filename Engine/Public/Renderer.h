@@ -9,7 +9,7 @@ class GameObject;
 class Renderer final : public Base
 {
 private:
-	Renderer(ComPtr<Device> device, ComPtr<Context> context);
+	Renderer(const ComPtr<Device>& device, const ComPtr<Context>& context);
 
 public:
 	virtual ~Renderer() = default;
@@ -33,7 +33,7 @@ private:
 	list<Weak<GameObject>>		_renderGroups[ETOI(RenderGroup::END)];
 
 public:
-	static Unique<Renderer> Create(ComPtr<Device> device, ComPtr<Context> context);
+	static Unique<Renderer> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
 	virtual void Free() override;
 };
 

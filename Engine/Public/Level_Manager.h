@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "Base.h"
 
@@ -11,8 +11,8 @@ private:
 
 public:
 	virtual ~Level_Manager() = default;
-	HRESULT Change_Level(uint32 iNewLevelIndex, Shared<class Level> pNewLevel);
-	void Update(float fTimeDelta);
+	HRESULT Change_Level(uint32 newLevelIndex, Shared<class Level> newLevel);
+	void Update(float timeDelta);
 	HRESULT Render();
 
 private:

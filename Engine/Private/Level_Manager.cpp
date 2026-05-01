@@ -6,22 +6,22 @@ Level_Manager::Level_Manager()
 {
 }
 
-HRESULT Level_Manager::Change_Level(uint32 iNewLevelIndex, Shared<Level> pNewLevel)
+HRESULT Level_Manager::Change_Level(uint32 newLevelIndex, Shared<Level> newLevel)
 {
 	if (nullptr != _currentLevel)
 		GAME->Clear_Resources(_currentLevelIndex);
 
 	_currentLevel.reset();
-	_currentLevel = pNewLevel;
-	_currentLevelIndex = iNewLevelIndex;
+	_currentLevel = newLevel;
+	_currentLevelIndex = newLevelIndex;
 
 	return S_OK;
 }
 
-void Level_Manager::Update(float fTimeDelta)
+void Level_Manager::Update(float timeDelta)
 {
 	if (nullptr != _currentLevel)
-		_currentLevel->Update(fTimeDelta);
+		_currentLevel->Update(timeDelta);
 }
 
 HRESULT Level_Manager::Render()

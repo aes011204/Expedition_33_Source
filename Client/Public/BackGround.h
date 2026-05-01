@@ -19,8 +19,8 @@ public:
 		
 	}BACKGROUND_DESC;
 public:
-	BackGround(ComPtr<Device> device, ComPtr<Context> context);
-	BackGround(const BackGround& Prototype);
+	BackGround(const ComPtr<Device>& device, const ComPtr<Context>& context);
+	BackGround(const BackGround& prototype);
 	virtual ~BackGround() { Free(); }
 
 public:
@@ -41,7 +41,7 @@ protected:
 
 
 public:
-	static Shared<BackGround> Create(ComPtr<Device> device, ComPtr<Context> context);
+	static Shared<BackGround> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
 	virtual Shared<GameObject> Clone(void* arg) override;
 	virtual void Free() override;
 };

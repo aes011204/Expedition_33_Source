@@ -1,9 +1,9 @@
-﻿#include "Renderer.h"
+#include "Renderer.h"
 
 #include "GameInstance.h"
 #include "GameObject.h"
 
-Renderer::Renderer(ComPtr<Device> device, ComPtr<Context> context)
+Renderer::Renderer(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : _device { device }
 	, _context { context }
 {
@@ -37,11 +37,11 @@ void Renderer::Draw()
 
 void Renderer::Render_Priority()
 {
-	for (auto& pRenderObject : _renderGroups[ETOI(RenderGroup::Priority)])
+	for (auto& renderObject : _renderGroups[ETOI(RenderGroup::Priority)])
 	{
-		Shared<GameObject> pGameObject = pRenderObject.lock();
-		if (nullptr != pGameObject)
-			pGameObject->Render();
+		Shared<GameObject> gameObject = renderObject.lock();
+		if (nullptr != gameObject)
+			gameObject->Render();
 	}
 
 	_renderGroups[ETOI(RenderGroup::Priority)].clear();
@@ -49,11 +49,11 @@ void Renderer::Render_Priority()
 
 void Renderer::Render_NonBlend()
 {
-	for (auto& pRenderObject : _renderGroups[ETOI(RenderGroup::NonBlend)])
+	for (auto& renderObject : _renderGroups[ETOI(RenderGroup::NonBlend)])
 	{
-		Shared<GameObject> pGameObject = pRenderObject.lock();
-		if (nullptr != pGameObject)
-			pGameObject->Render();
+		Shared<GameObject> gameObject = renderObject.lock();
+		if (nullptr != gameObject)
+			gameObject->Render();
 	}
 
 	_renderGroups[ETOI(RenderGroup::NonBlend)].clear();
@@ -61,11 +61,11 @@ void Renderer::Render_NonBlend()
 
 void Renderer::Render_Blend()
 {
-	for (auto& pRenderObject : _renderGroups[ETOI(RenderGroup::Blend)])
+	for (auto& renderObject : _renderGroups[ETOI(RenderGroup::Blend)])
 	{
-		Shared<GameObject> pGameObject = pRenderObject.lock();
-		if (nullptr != pGameObject)
-			pGameObject->Render();
+		Shared<GameObject> gameObject = renderObject.lock();
+		if (nullptr != gameObject)
+			gameObject->Render();
 	}
 
 	_renderGroups[ETOI(RenderGroup::Blend)].clear();
@@ -73,27 +73,27 @@ void Renderer::Render_Blend()
 
 void Renderer::Render_UI()
 {
-	for (auto& pRenderObject : _renderGroups[ETOI(RenderGroup::UI)])
+	for (auto& renderObject : _renderGroups[ETOI(RenderGroup::UI)])
 	{
-		Shared<GameObject> pGameObject = pRenderObject.lock();
-		if (nullptr != pGameObject)
-			pGameObject->Render();
+		Shared<GameObject> gameObject = renderObject.lock();
+		if (nullptr != gameObject)
+			gameObject->Render();
 	}
 
 	_renderGroups[ETOI(RenderGroup::UI)].clear();
 }
 
-Unique<Renderer> Renderer::Create(ComPtr<Device> device, ComPtr<Context> context)
+Unique<Renderer> Renderer::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
-	Unique<Renderer> pInstance{ new Renderer(device, context) };
+	Unique<Renderer> instance{ new Renderer(device, context) };
 
-	if (FAILED(pInstance->Initialize()))
+	if (FAILED(instance->Initialize()))
 	{
 		MSG_BOX("Failed to Created : Renderer");
-		pInstance->Free();
+		instance->Free();
 		return nullptr;
 	}
-	return pInstance;
+	return instance;
 }
 
 void Renderer::Free()

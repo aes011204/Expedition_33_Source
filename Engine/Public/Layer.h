@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "Base.h"
 
@@ -11,10 +11,10 @@ public:
 	virtual ~Layer() { Free(); }
 
 public:
-	HRESULT Add_GameObject(Shared<class GameObject> pGameObject);
-	void Priority_Update(float fTimeDelta);
-	void Update(float fTimeDelta);
-	void Late_Update(float fTimeDelta);
+	HRESULT Add_GameObject(Shared<class GameObject> gameObject);
+	void Priority_Update(float timeDelta);
+	void Update(float timeDelta);
+	void Late_Update(float timeDelta);
 
 private:
 	list<Shared<class GameObject>> _gameObjects;

@@ -1,8 +1,8 @@
-﻿#include "Level.h"
+#include "Level.h"
 
 #include "GameInstance.h"
 
-Level::Level(ComPtr<Device> device, ComPtr<Context> context)
+Level::Level(const ComPtr<Device>& device, const ComPtr<Context>& context)
 	: _device { device }
 	, _context { context }
 {
@@ -13,7 +13,7 @@ HRESULT Level::Initialize()
 	return S_OK;
 }
 
-void Level::Update(float fTimeDelta)
+void Level::Update(float timeDelta)
 {
 }
 

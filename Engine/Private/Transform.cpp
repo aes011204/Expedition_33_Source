@@ -1,371 +1,871 @@
 ﻿#include "Transform.h"
 #include "Shader.h"
 
-Transform::Transform(ComPtr<Device> device, ComPtr<Context> context)
-	: Component{ device, context }
+namespace Engine::Internal
+{
+constexpr float transformEpsilon = 1e-6f;
+constexpr float minEditableScale = 1e-3f;
+constexpr float minEditableSpeedPerSec = 0.f;
+constexpr float minEditableDegreePerSec = 0.f;
+
+float Resolve_ScaleSign(float value, float fallback = 1.f)
+{
+    if (value < 0.f)
+        return -1.f;
+
+    if (value > 0.f)
+        return 1.f;
+
+    return fallback < 0.f ? -1.f : 1.f;
+}
+}
+
+Transform::Transform(const ComPtr<Device>& device, const ComPtr<Context>& context)
+    : Component{ device, context }
 {
 }
 
-Transform::Transform(const Transform& Prototype)
-	: Component{ Prototype }
-	, _localPosition{ Prototype._localPosition }
-	, _localRotation{ Prototype._localRotation }
-	, _localScale{ Prototype._localScale }
-	, _localEulerAngles{ Prototype._localEulerAngles }
-	, _speedPerSec{ Prototype._speedPerSec }
-	, _radianPerSec{ Prototype._radianPerSec }
+Transform::Transform(const Transform& prototype)
+    : Component{ prototype }
+    , _localMatrix{ prototype._localMatrix }
+    , _localSignedScale{ prototype._localSignedScale }
+    , _hasParent{ false }
+    , _localRotationCache{ prototype._localRotationCache }
+    , _localEulerDegreeCache{ prototype._localEulerDegreeCache }
+    , _worldMatrix{ prototype._worldMatrix }
+    , _worldRevision{ 0 }
+    , _observedParentWorldRevision{ 0 }
 {
-	_isDirty = true;
+    Set_Dirty(TRANSFORM_DIRTY_FLAG::ROTATION);
+    Set_Dirty(TRANSFORM_DIRTY_FLAG::WORLD);
 }
 
-XMVECTOR Transform::Get_State(State eState) const
+Transform::~Transform()
 {
-	const Matrix& WorldMatrix = Get_WorldMatrix();
-
-	switch (eState)
-	{
-	case State::Right:
-		return ToVector(Vec3(WorldMatrix._11, WorldMatrix._12, WorldMatrix._13));
-	case State::Up:
-		return ToVector(Vec3(WorldMatrix._21, WorldMatrix._22, WorldMatrix._23));
-	case State::Look:
-		return ToVector(Vec3(WorldMatrix._31, WorldMatrix._32, WorldMatrix._33));
-	case State::Position:
-		return ToVector(Vec3(WorldMatrix._41, WorldMatrix._42, WorldMatrix._43), 1.f);
-	default:
-		return XMVectorZero();
-	}
-}
-
-void Transform::Set_State(State eState, FXMVECTOR vState)
-{
-	Matrix WorldMatrix = Get_WorldMatrix();
-	const Vec3 vNewState = ToVec3(vState);
-
-	switch (eState)
-	{
-	case State::Right:
-		WorldMatrix._11 = vNewState.x;
-		WorldMatrix._12 = vNewState.y;
-		WorldMatrix._13 = vNewState.z;
-		break;
-	case State::Up:
-		WorldMatrix._21 = vNewState.x;
-		WorldMatrix._22 = vNewState.y;
-		WorldMatrix._23 = vNewState.z;
-		break;
-	case State::Look:
-		WorldMatrix._31 = vNewState.x;
-		WorldMatrix._32 = vNewState.y;
-		WorldMatrix._33 = vNewState.z;
-		break;
-	case State::Position:
-		WorldMatrix._41 = vNewState.x;
-		WorldMatrix._42 = vNewState.y;
-		WorldMatrix._43 = vNewState.z;
-		break;
-	default:
-		return;
-	}
-
-	Decompose_WorldMatrix(WorldMatrix);
-}
-
-XMFLOAT3 Transform::Get_Scaled() const
-{
-	const Vec3 vScale = Get_LocalScale();
-	return XMFLOAT3(vScale.x, vScale.y, vScale.z);
-}
-
-const XMFLOAT4X4* Transform::Get_WorldMatrixPtr() const
-{
-	return reinterpret_cast<const XMFLOAT4X4*>(&Get_WorldMatrix());
-}
-
-const Matrix& Transform::Get_WorldMatrix() const
-{
-	if (_isDirty)
-		Update_WorldMatrix();
-
-	return _worldMatrix;
-}
-
-Matrix Transform::Get_LocalMatrix() const
-{
-	return Matrix::CreateScale(_localScale)
-		* Matrix::CreateFromQuaternion(_localRotation)
-		* Matrix::CreateTranslation(_localPosition);
+    Free();
 }
 
 HRESULT Transform::Initialize_Prototype()
 {
-	_localPosition = Vec3::Zero;
-	_localRotation = Quat::Identity;
-	_localScale = Vec3::One;
-	_localEulerAngles = Vec3::Zero;
-	Mark_Dirty();
+    _localMatrix = Matrix::Identity;
+    _localSignedScale = Vec3::One;
+    _parent.reset();
+    _hasParent = false;
+    _localRotationCache = Quat::Identity;
+    _localEulerDegreeCache = Vec3::Zero;
+    _speedPerSec = 0.f;
+    _radianPerSec = 0.f;
+    _worldMatrix = Matrix::Identity;
+    _worldRevision = 0;
+    _observedParentWorldRevision = 0;
+    _dirtyMask = static_cast<uint8>(TRANSFORM_DIRTY_FLAG::ROTATION) |
+                 static_cast<uint8>(TRANSFORM_DIRTY_FLAG::WORLD);
 
-	return S_OK;
+    return S_OK;
 }
 
-HRESULT Transform::Initialize(void* pArg)
+HRESULT Transform::Initialize(void* arg)
 {
-	if (nullptr == pArg)
-		return S_OK;
+    if (nullptr == arg)
+        return S_OK;
 
-	TRANSFORM_DESC* pDesc = static_cast<TRANSFORM_DESC*>(pArg);
+    const TRANSFORM_DESC* desc = static_cast<TRANSFORM_DESC*>(arg);
 
-	_speedPerSec = pDesc->fSpeedPerSec;
-	_radianPerSec = XMConvertToRadians(pDesc->fDegreePerSec);
-	_localPosition = pDesc->vPosition;
-	_localScale = pDesc->vScale;
-	Set_LocalRotation(pDesc->fPitch, pDesc->fYaw, pDesc->fRoll);
+    Set_SpeedPerSec(desc->speedPerSec);
+    Set_DegreePerSec(desc->degreePerSec);
+    Set_Position(desc->position);
+    Set_Scale(desc->scale);
+    Set_RotationEuler(Vec3(desc->pitch, desc->yaw, desc->roll));
+    Set_Dirty(TRANSFORM_DIRTY_FLAG::WORLD);
 
-	Mark_Dirty();
-
-	return S_OK;
+    return S_OK;
 }
 
-void Transform::Set_LocalPosition(const Vec3& vPosition)
+void Transform::Update_WorldMatrix()
 {
-	_localPosition = vPosition;
-	Mark_Dirty();
+    Ensure_WorldMatrixUpToDate();
 }
 
-void Transform::Set_LocalPosition(FXMVECTOR vPosition)
+HRESULT Transform::Bind_ShaderResource(Shader* shader, const char* resourceName)
 {
-	Set_LocalPosition(ToVec3(vPosition));
+    Ensure_WorldMatrixUpToDate();
+    return shader->Bind_Matrix(resourceName, reinterpret_cast<const XMFLOAT4X4*>(&Get_WorldMatrix()));
 }
 
-Vec3 Transform::Get_WorldPosition() const
+const Matrix& Transform::Get_WorldMatrix()
 {
-	const Matrix& WorldMatrix = Get_WorldMatrix();
-	return Vec3(WorldMatrix._41, WorldMatrix._42, WorldMatrix._43);
+    Ensure_WorldMatrixUpToDate();
+    return _worldMatrix;
 }
 
-void Transform::Set_WorldPosition(const Vec3& vPosition)
+Matrix Transform::Get_LocalMatrix() const
 {
-	Set_LocalPosition(vPosition);
+    return _localMatrix;
 }
 
-void Transform::Set_LocalRotation(const Quat& qRotation)
+Vec3 Transform::Get_State(State state)
 {
-	_localRotation = qRotation;
-	_localRotation.Normalize();
+    const Matrix& worldMatrix = Get_WorldMatrix();
 
-	const Vec3 vEuler = _localRotation.ToEuler();
-	_localEulerAngles = Vec3(
-		XMConvertToDegrees(vEuler.x),
-		XMConvertToDegrees(vEuler.y),
-		XMConvertToDegrees(vEuler.z));
-
-	Mark_Dirty();
+    switch (state)
+    {
+    case State::Right:
+        return Vec3(worldMatrix._11, worldMatrix._12, worldMatrix._13);
+    case State::Up:
+        return Vec3(worldMatrix._21, worldMatrix._22, worldMatrix._23);
+    case State::Look:
+        return Vec3(worldMatrix._31, worldMatrix._32, worldMatrix._33);
+    case State::Position:
+        return Vec3(worldMatrix._41, worldMatrix._42, worldMatrix._43);
+    default:
+        return Vec3::Zero;
+    }
 }
 
-void Transform::Set_LocalRotation(float fPitch, float fYaw, float fRoll)
+void Transform::Set_State(State state, const Vec3& value)
 {
-	const float fPitchRad = XMConvertToRadians(fPitch);
-	const float fYawRad = XMConvertToRadians(fYaw);
-	const float fRollRad = XMConvertToRadians(fRoll);
+    if (State::Position == state)
+    {
+        Set_Position(value);
+        return;
+    }
 
-	Set_LocalRotation(Quat::CreateFromYawPitchRoll(fYawRad, fPitchRad, fRollRad));
-	_localEulerAngles = Vec3(fPitch, fYaw, fRoll);
+    const Vec3 rotationAxis = Resolve_NormalizedAxis(state);
+    Set_LocalState(state, value);
+
+    if (value.LengthSquared() > Internal::transformEpsilon)
+    {
+        Vec3 axis = value;
+        axis.Normalize();
+        const float axisSign = axis.Dot(rotationAxis) < 0.f ? -1.f : 1.f;
+        Set_SignedScale(state, value.Length() * axisSign);
+    }
+
+    Sanitize_LocalBasis();
 }
 
-void Transform::Add_LocalRotation(const Quat& qDeltaRotation)
+Vec3 Transform::Get_Position() const
 {
-	_localRotation = _localRotation * qDeltaRotation;
-	_localRotation.Normalize();
-
-	const Vec3 vEuler = _localRotation.ToEuler();
-	_localEulerAngles = Vec3(
-		XMConvertToDegrees(vEuler.x),
-		XMConvertToDegrees(vEuler.y),
-		XMConvertToDegrees(vEuler.z));
-
-	Mark_Dirty();
+    return Get_LocalState(State::Position);
 }
 
-void Transform::Set_LocalScale(const Vec3& vScale)
+void Transform::Set_Position(const Vec3& position)
 {
-	_localScale = vScale;
-	Mark_Dirty();
+    Set_LocalState(State::Position, position);
+    Mark_LocalChanged(LOCAL_CHANGE_KIND::ROTATION_UNCHANGED);
 }
 
-Vec3 Transform::Get_WorldForward() const
+Vec3 Transform::Get_WorldPosition()
 {
-	Vec3 vForward = ToVec3(Get_State(State::Look));
-	if (vForward.LengthSquared() > 0.f)
-		vForward.Normalize();
-
-	return vForward;
+    return Get_State(State::Position);
 }
 
-Vec3 Transform::Get_WorldRight() const
+void Transform::Set_WorldPosition(const Vec3& position)
 {
-	Vec3 vRight = ToVec3(Get_State(State::Right));
-	if (vRight.LengthSquared() > 0.f)
-		vRight.Normalize();
+    const Shared<Transform> parent = _parent.lock();
+    if (!parent)
+    {
+        Set_Position(position);
+        return;
+    }
 
-	return vRight;
+    parent->Ensure_WorldMatrixUpToDate();
+
+    const Matrix parentWorld = parent->_worldMatrix;
+    const float determinant = XMVectorGetX(XMMatrixDeterminant(parentWorld));
+    if (determinant > -Internal::transformEpsilon && determinant < Internal::transformEpsilon)
+        return;
+
+    const Matrix inverseParentWorld = parentWorld.Invert();
+    Set_Position(Vec3::Transform(position, inverseParentWorld));
 }
 
-Vec3 Transform::Get_WorldUp() const
+Vec3 Transform::Get_Scale() const
 {
-	Vec3 vUp = ToVec3(Get_State(State::Up));
-	if (vUp.LengthSquared() > 0.f)
-		vUp.Normalize();
-
-	return vUp;
+    return _localSignedScale;
 }
 
-Vec3 Transform::Get_LocalForward() const
+void Transform::Set_Scale(const Vec3& scale)
 {
-	return Vec3::Transform(Vec3(0.f, 0.f, 1.f), _localRotation);
+    Sync_RotationCache_FromLocalMatrix();
+
+    const Vec3 rightAxis = Resolve_NormalizedAxis(State::Right);
+    const Vec3 upAxis = Resolve_NormalizedAxis(State::Up);
+    const Vec3 lookAxis = Resolve_NormalizedAxis(State::Look);
+
+    const Vec3 clampedScale = Clamp_EditableScale(scale);
+    _localSignedScale = clampedScale;
+
+    Set_LocalState(State::Right, rightAxis * clampedScale.x);
+    Set_LocalState(State::Up, upAxis * clampedScale.y);
+    Set_LocalState(State::Look, lookAxis * clampedScale.z);
+
+    Mark_LocalChanged(LOCAL_CHANGE_KIND::ROTATION_UNCHANGED);
 }
 
-Vec3 Transform::Get_LocalRight() const
+void Transform::Set_ScaleX(float scaleX)
 {
-	return Vec3::Transform(Vec3::Right, _localRotation);
+    Set_Scale(Vec3(scaleX, Get_Scale().y, Get_Scale().z));
 }
 
-Vec3 Transform::Get_LocalUp() const
+void Transform::Set_ScaleY(float scaleY)
 {
-	return Vec3::Transform(Vec3::Up, _localRotation);
+    Set_Scale(Vec3(Get_Scale().x, scaleY, Get_Scale().z));
 }
 
-void Transform::SetUp_Scale(float fScaleX, float fScaleY, float fScaleZ)
+void Transform::Set_ScaleZ(float scaleZ)
 {
-	Set_LocalScale(Vec3(fScaleX, fScaleY, fScaleZ));
+    Set_Scale(Vec3(Get_Scale().x, Get_Scale().y, scaleZ));
 }
 
-void Transform::Scaling(float fScaleX, float fScaleY, float fScaleZ)
+Vec3 Transform::Get_RotationEuler()
 {
-	Set_LocalScale(Vec3(_localScale.x * fScaleX, _localScale.y * fScaleY, _localScale.z * fScaleZ));
+    Sync_RotationCache_FromLocalMatrix();
+    return _localEulerDegreeCache;
 }
 
-void Transform::Go_Straight(float fTimeDelta)
+void Transform::Set_RotationEuler(const Vec3& eulerDegree)
 {
-	Set_WorldPosition(Get_WorldPosition() + Get_WorldForward() * _speedPerSec * fTimeDelta);
+    _localEulerDegreeCache = eulerDegree;
+
+    const Vec3 eulerRadian(
+        XMConvertToRadians(eulerDegree.x),
+        XMConvertToRadians(eulerDegree.y),
+        XMConvertToRadians(eulerDegree.z)
+    );
+
+    _localRotationCache = Quat::CreateFromYawPitchRoll(eulerRadian.y, eulerRadian.x, eulerRadian.z);
+    _localRotationCache.Normalize();
+
+    Rebuild_LocalBasis_FromRotationCache();
+    Clear_Dirty(TRANSFORM_DIRTY_FLAG::ROTATION);
 }
 
-void Transform::Go_Backward(float fTimeDelta)
+const Quat& Transform::Get_RotationQuaternion()
 {
-	Set_WorldPosition(Get_WorldPosition() - Get_WorldForward() * _speedPerSec * fTimeDelta);
+    Sync_RotationCache_FromLocalMatrix();
+    return _localRotationCache;
 }
 
-void Transform::Go_Right(float fTimeDelta)
+void Transform::Set_RotationQuaternion(const Quat& rotation)
 {
-	Set_WorldPosition(Get_WorldPosition() + Get_WorldRight() * _speedPerSec * fTimeDelta);
+    if (rotation.LengthSquared() <= Internal::transformEpsilon)
+        _localRotationCache = Quat::Identity;
+    else
+    {
+        _localRotationCache = rotation;
+        _localRotationCache.Normalize();
+    }
+
+    Rebuild_LocalBasis_FromRotationCache();
+    Clear_Dirty(TRANSFORM_DIRTY_FLAG::ROTATION);
 }
 
-void Transform::Go_Left(float fTimeDelta)
+float Transform::Get_SpeedPerSec() const
 {
-	Set_WorldPosition(Get_WorldPosition() - Get_WorldRight() * _speedPerSec * fTimeDelta);
+    return _speedPerSec;
 }
 
-void Transform::Rotation(FXMVECTOR vAxis, float fDegree)
+void Transform::Set_SpeedPerSec(float speedPerSec)
 {
-	Vec3 vAxisValue = ToVec3(vAxis);
-	if (vAxisValue.LengthSquared() <= 0.f)
-		return;
-
-	vAxisValue.Normalize();
-	Set_LocalRotation(Quat::CreateFromAxisAngle(vAxisValue, XMConvertToRadians(fDegree)));
+    _speedPerSec = speedPerSec < Internal::minEditableSpeedPerSec ? Internal::minEditableSpeedPerSec : speedPerSec;
 }
 
-void Transform::Turn(FXMVECTOR vAxis, float fTimeDelta)
+float Transform::Get_DegreePerSec() const
 {
-	Vec3 vAxisValue = ToVec3(vAxis);
-	if (vAxisValue.LengthSquared() <= 0.f)
-		return;
-
-	vAxisValue.Normalize();
-	Add_LocalRotation(Quat::CreateFromAxisAngle(vAxisValue, _radianPerSec * fTimeDelta));
+    return XMConvertToDegrees(_radianPerSec);
 }
 
-void Transform::LookAt(FXMVECTOR vAt)
+void Transform::Set_DegreePerSec(float degreePerSec)
 {
-	const Vec3 vTarget = ToVec3(vAt);
-	Vec3 vDirection = vTarget - Get_WorldPosition();
-	if (vDirection.LengthSquared() < 0.00001f)
-		return;
-
-	vDirection.Normalize();
-
-	Matrix LookAtMatrix = Matrix::CreateLookAt(Vec3::Zero, vDirection, Vec3::Up);
-	LookAtMatrix = LookAtMatrix.Invert();
-	Set_LocalRotation(Quat::CreateFromRotationMatrix(LookAtMatrix));
+    const float clampedDegreePerSec = degreePerSec < Internal::minEditableDegreePerSec ? Internal::minEditableDegreePerSec : degreePerSec;
+    _radianPerSec = XMConvertToRadians(clampedDegreePerSec);
 }
 
-HRESULT Transform::Bind_ShaderResource(Shader* pShader, const char* pConstantName)
+void Transform::Set_Parent(const Shared<Transform>& parent)
 {
-	return pShader->Bind_Matrix(pConstantName, Get_WorldMatrixPtr());
+    Ensure_WorldMatrixUpToDate();
+    const Vec3 previousSignedScale = Get_Scale();
+    const Matrix currentWorld = _worldMatrix;
+
+    if (parent)
+    {
+        parent->Ensure_WorldMatrixUpToDate();
+
+        const Matrix parentWorld = parent->_worldMatrix;
+        const float determinant = XMVectorGetX(XMMatrixDeterminant(parentWorld));
+        if (determinant > -Internal::transformEpsilon && determinant < Internal::transformEpsilon)
+            return;
+
+        _parent = parent;
+        _hasParent = true;
+        _localMatrix = currentWorld * parentWorld.Invert();
+    }
+    else
+    {
+        _parent.reset();
+        _hasParent = false;
+        _localMatrix = currentWorld;
+    }
+
+    _observedParentWorldRevision = 0;
+    Sync_SignedScaleFromLocalMatrix(previousSignedScale);
+    Sanitize_LocalBasis();
 }
 
-void Transform::Mark_Dirty()
+void Transform::Add_LocalRotation(const Quat& deltaRotation)
 {
-	_isDirty = true;
+    Quat rotation = Get_RotationQuaternion();
+    rotation = rotation * deltaRotation;
+
+    if (rotation.LengthSquared() <= Internal::transformEpsilon)
+        return;
+
+    rotation.Normalize();
+    Set_RotationQuaternion(rotation);
 }
 
-void Transform::Update_WorldMatrix() const
+Vec3 Transform::Get_WorldForward()
 {
-	_worldMatrix = Get_LocalMatrix();
-	_isDirty = false;
+    Vec3 forward = Get_State(State::Look);
+    if (forward.LengthSquared() > Internal::transformEpsilon)
+        forward.Normalize();
+
+    return forward;
 }
 
-void Transform::Decompose_WorldMatrix(const Matrix& WorldMatrix)
+Vec3 Transform::Get_WorldRight()
 {
-	Vec3 vScale = Vec3::One;
-	Vec3 vTranslation = Vec3::Zero;
-	Quat qRotation = Quat::Identity;
+    Vec3 right = Get_State(State::Right);
+    if (right.LengthSquared() > Internal::transformEpsilon)
+        right.Normalize();
 
-	Matrix DecomposeMatrix = WorldMatrix;
-	if (DecomposeMatrix.Decompose(vScale, qRotation, vTranslation))
-	{
-		_localScale = vScale;
-		_localPosition = vTranslation;
-		Set_LocalRotation(qRotation);
-	}
+    return right;
 }
 
-Vec3 Transform::ToVec3(FXMVECTOR vValue)
+Vec3 Transform::Get_WorldUp()
 {
-	return Vec3(XMVectorGetX(vValue), XMVectorGetY(vValue), XMVectorGetZ(vValue));
+    Vec3 up = Get_State(State::Up);
+    if (up.LengthSquared() > Internal::transformEpsilon)
+        up.Normalize();
+
+    return up;
 }
 
-XMVECTOR Transform::ToVector(const Vec3& vValue, float fW)
+Vec3 Transform::Get_LocalForward()
 {
-	return XMVectorSet(vValue.x, vValue.y, vValue.z, fW);
+    Sync_RotationCache_FromLocalMatrix();
+    return Vec3::Transform(Vec3::Look, _localRotationCache);
 }
 
-Shared<Transform> Transform::Create(ComPtr<Device> device, ComPtr<Context> context)
+Vec3 Transform::Get_LocalRight()
 {
-	auto pInstance = make_shared<Transform>(device, context);
-
-	if (FAILED(pInstance->Initialize_Prototype()))
-	{
-		MSG_BOX("Failed to Created : Transform");
-		return nullptr;
-	}
-
-	return pInstance;
+    Sync_RotationCache_FromLocalMatrix();
+    return Vec3::Transform(Vec3::Right, _localRotationCache);
 }
 
-Shared<Component> Transform::Clone(void* pArg)
+Vec3 Transform::Get_LocalUp()
 {
-	auto pInstance = make_shared<Transform>(*this);
+    Sync_RotationCache_FromLocalMatrix();
+    return Vec3::Transform(Vec3::Up, _localRotationCache);
+}
 
-	if (FAILED(pInstance->Initialize(pArg)))
-	{
-		MSG_BOX("Failed to Cloned : Transform");
-		return nullptr;
-	}
+void Transform::Scaling(float scaleX, float scaleY, float scaleZ)
+{
+    const Vec3 currentScale = Get_Scale();
+    Set_Scale(Vec3(currentScale.x * scaleX, currentScale.y * scaleY, currentScale.z * scaleZ));
+}
 
-	return pInstance;
+void Transform::ScaleX(float scaleX)
+{
+    Set_ScaleX(Get_Scale().x * scaleX);
+}
+
+void Transform::ScaleY(float scaleY)
+{
+    Set_ScaleY(Get_Scale().y * scaleY);
+}
+
+void Transform::ScaleZ(float scaleZ)
+{
+    Set_ScaleZ(Get_Scale().z * scaleZ);
+}
+
+void Transform::Go_Straight(float timeDelta)
+{
+    Set_WorldPosition(Get_WorldPosition() + Get_WorldForward() * _speedPerSec * timeDelta);
+}
+
+void Transform::Go_Backward(float timeDelta)
+{
+    Set_WorldPosition(Get_WorldPosition() - Get_WorldForward() * _speedPerSec * timeDelta);
+}
+
+void Transform::Go_Right(float timeDelta)
+{
+    Set_WorldPosition(Get_WorldPosition() + Get_WorldRight() * _speedPerSec * timeDelta);
+}
+
+void Transform::Go_Left(float timeDelta)
+{
+    Set_WorldPosition(Get_WorldPosition() - Get_WorldRight() * _speedPerSec * timeDelta);
+}
+
+void Transform::Go_Up(float timeDelta)
+{
+    Set_WorldPosition(Get_WorldPosition() + Vec3::Up * _speedPerSec * timeDelta);
+}
+
+void Transform::Go_Down(float timeDelta)
+{
+    Set_WorldPosition(Get_WorldPosition() - Vec3::Up * _speedPerSec * timeDelta);
+}
+
+void Transform::Rotate(const Vec3& axis, float degree)
+{
+    Vec3 axisValue = axis;
+    if (axisValue.LengthSquared() <= Internal::transformEpsilon)
+        return;
+
+    axisValue.Normalize();
+    Set_RotationQuaternion(Quat::CreateFromAxisAngle(axisValue, XMConvertToRadians(degree)));
+}
+
+void Transform::Turn(const Vec3& axis, float timeDelta)
+{
+    Vec3 axisValue = axis;
+    if (axisValue.LengthSquared() <= Internal::transformEpsilon)
+        return;
+
+    axisValue.Normalize();
+    Add_LocalRotation(Quat::CreateFromAxisAngle(axisValue, _radianPerSec * timeDelta));
+}
+
+void Transform::LookAt(const Vec3& at)
+{
+    const Vec3 position = Get_Position();
+    const Vec3 preservedScale = Get_Scale();
+
+    Vec3 direction = at - position;
+    if (direction.LengthSquared() <= Internal::transformEpsilon)
+        return;
+
+    direction.Normalize();
+
+    _localMatrix = Matrix::CreateWorld(position, direction, Vec3::Up);
+    Set_Scale(preservedScale);
+    Sanitize_LocalBasis();
+}
+
+void Transform::Ensure_WorldMatrixUpToDate()
+{
+    const Shared<Transform> parent = _parent.lock();
+    if (parent && !_hasParent)
+        _hasParent = true;
+    else if (!parent && _hasParent)
+        _hasParent = false;
+
+    uint64 parentRevision = 0;
+    if (parent)
+    {
+        parent->Ensure_WorldMatrixUpToDate();
+        parentRevision = parent->_worldRevision;
+    }
+
+    const bool parentWorldChanged = parentRevision != _observedParentWorldRevision;
+    if (!Has_Dirty(TRANSFORM_DIRTY_FLAG::WORLD) && !parentWorldChanged)
+        return;
+
+    if (parent)
+        _worldMatrix = _localMatrix * parent->_worldMatrix;
+    else
+        _worldMatrix = _localMatrix;
+
+    _observedParentWorldRevision = parentRevision;
+    ++_worldRevision;
+    Clear_Dirty(TRANSFORM_DIRTY_FLAG::WORLD);
+}
+
+void Transform::Mark_LocalChanged(LOCAL_CHANGE_KIND changeKind)
+{
+    Set_Dirty(TRANSFORM_DIRTY_FLAG::WORLD);
+
+    if (LOCAL_CHANGE_KIND::ROTATION_CHANGED == changeKind)
+        Set_Dirty(TRANSFORM_DIRTY_FLAG::ROTATION);
+}
+
+bool Transform::Has_Dirty(TRANSFORM_DIRTY_FLAG dirty) const
+{
+    return (_dirtyMask & static_cast<uint8>(dirty)) != 0;
+}
+
+void Transform::Set_Dirty(TRANSFORM_DIRTY_FLAG dirty)
+{
+    _dirtyMask |= static_cast<uint8>(dirty);
+}
+
+void Transform::Clear_Dirty(TRANSFORM_DIRTY_FLAG dirty)
+{
+    _dirtyMask &= static_cast<uint8>(~static_cast<uint8>(dirty));
+}
+
+float Transform::Clamp_EditableScale(float scale)
+{
+    if (abs(scale) <= Internal::transformEpsilon)
+        return Internal::minEditableScale;
+
+    if (abs(scale) < Internal::minEditableScale)
+        return Internal::Resolve_ScaleSign(scale) * Internal::minEditableScale;
+
+    return scale;
+}
+
+Vec3 Transform::Clamp_EditableScale(const Vec3& scale)
+{
+    return Vec3(
+        Clamp_EditableScale(scale.x),
+        Clamp_EditableScale(scale.y),
+        Clamp_EditableScale(scale.z)
+    );
+}
+
+float Transform::Get_SignedScale(State state) const
+{
+    switch (state)
+    {
+    case State::Right:
+        return _localSignedScale.x;
+    case State::Up:
+        return _localSignedScale.y;
+    case State::Look:
+        return _localSignedScale.z;
+    default:
+        return 1.f;
+    }
+}
+
+void Transform::Set_SignedScale(State state, float signedScale)
+{
+    const float clampedScale = Clamp_EditableScale(signedScale);
+
+    switch (state)
+    {
+    case State::Right:
+        _localSignedScale.x = clampedScale;
+        break;
+    case State::Up:
+        _localSignedScale.y = clampedScale;
+        break;
+    case State::Look:
+        _localSignedScale.z = clampedScale;
+        break;
+    default:
+        break;
+    }
+}
+
+void Transform::Sync_SignedScaleFromLocalMatrix(Vec3 fallbackScale)
+{
+    fallbackScale = Clamp_EditableScale(fallbackScale);
+
+    const Vec3 right = Get_LocalState(State::Right);
+    const Vec3 up = Get_LocalState(State::Up);
+    const Vec3 look = Get_LocalState(State::Look);
+
+    Set_SignedScale(State::Right, right.Length() * Internal::Resolve_ScaleSign(fallbackScale.x));
+    Set_SignedScale(State::Up, up.Length() * Internal::Resolve_ScaleSign(fallbackScale.y));
+    Set_SignedScale(State::Look, look.Length() * Internal::Resolve_ScaleSign(fallbackScale.z));
+}
+
+Vec3 Transform::Get_LocalState(State state) const
+{
+    switch (state)
+    {
+    case State::Right:
+        return Vec3(_localMatrix._11, _localMatrix._12, _localMatrix._13);
+    case State::Up:
+        return Vec3(_localMatrix._21, _localMatrix._22, _localMatrix._23);
+    case State::Look:
+        return Vec3(_localMatrix._31, _localMatrix._32, _localMatrix._33);
+    case State::Position:
+        return Vec3(_localMatrix._41, _localMatrix._42, _localMatrix._43);
+    default:
+        return Vec3::Zero;
+    }
+}
+
+void Transform::Set_LocalState(State state, const Vec3& value)
+{
+    switch (state)
+    {
+    case State::Right:
+        _localMatrix._11 = value.x;
+        _localMatrix._12 = value.y;
+        _localMatrix._13 = value.z;
+        break;
+    case State::Up:
+        _localMatrix._21 = value.x;
+        _localMatrix._22 = value.y;
+        _localMatrix._23 = value.z;
+        break;
+    case State::Look:
+        _localMatrix._31 = value.x;
+        _localMatrix._32 = value.y;
+        _localMatrix._33 = value.z;
+        break;
+    case State::Position:
+        _localMatrix._41 = value.x;
+        _localMatrix._42 = value.y;
+        _localMatrix._43 = value.z;
+        break;
+    default:
+        break;
+    }
+}
+
+Vec3 Transform::Resolve_NormalizedAxis(State state) const
+{
+    Vec3 axis = Get_LocalState(state);
+    const float signedScale = Get_SignedScale(state);
+
+    if (abs(signedScale) > Internal::transformEpsilon && axis.LengthSquared() > Internal::transformEpsilon)
+    {
+        axis /= signedScale;
+
+        if (axis.LengthSquared() > Internal::transformEpsilon)
+        {
+            axis.Normalize();
+            return axis;
+        }
+    }
+
+    Quat rotation = _localRotationCache;
+    if (rotation.LengthSquared() <= Internal::transformEpsilon)
+        rotation = Quat::Identity;
+    else
+        rotation.Normalize();
+
+    const Matrix rotationMatrix = Matrix::CreateFromQuaternion(rotation);
+
+    switch (state)
+    {
+    case State::Right:
+        axis = Vec3(rotationMatrix._11, rotationMatrix._12, rotationMatrix._13);
+        break;
+    case State::Up:
+        axis = Vec3(rotationMatrix._21, rotationMatrix._22, rotationMatrix._23);
+        break;
+    case State::Look:
+        axis = Vec3(rotationMatrix._31, rotationMatrix._32, rotationMatrix._33);
+        break;
+    default:
+        return Vec3::Zero;
+    }
+
+    if (axis.LengthSquared() <= Internal::transformEpsilon)
+    {
+        switch (state)
+        {
+        case State::Right:
+            return Vec3::Right;
+        case State::Up:
+            return Vec3::Up;
+        case State::Look:
+            return Vec3::Look;
+        default:
+            return Vec3::Zero;
+        }
+    }
+
+    axis.Normalize();
+    return axis;
+}
+
+void Transform::Sanitize_LocalBasis()
+{
+    const Vec3 scale = Clamp_EditableScale(Get_Scale());
+    _localSignedScale = scale;
+
+    const Vec3 right = Resolve_NormalizedAxis(State::Right);
+    Vec3 up = Resolve_NormalizedAxis(State::Up);
+    Vec3 look = Resolve_NormalizedAxis(State::Look);
+
+    up -= right * up.Dot(right);
+    if (up.LengthSquared() <= Internal::transformEpsilon)
+    {
+        Vec3 fallbackUp = Vec3::Up;
+        const float rightDotUp = right.Dot(fallbackUp);
+        if (rightDotUp > 0.999f || rightDotUp < -0.999f)
+            fallbackUp = Vec3::Look;
+
+        up = fallbackUp - right * fallbackUp.Dot(right);
+    }
+
+    if (up.LengthSquared() <= Internal::transformEpsilon)
+        up = Vec3::Up;
+    else
+        up.Normalize();
+
+    look = right.Cross(up);
+    if (look.LengthSquared() <= Internal::transformEpsilon)
+    {
+        Vec3 fallbackLook = Vec3::Look;
+        const float rightDotLook = right.Dot(fallbackLook);
+        if (rightDotLook > 0.999f || rightDotLook < -0.999f)
+            fallbackLook = Vec3::Up;
+
+        look = right.Cross(fallbackLook);
+    }
+
+    if (look.LengthSquared() <= Internal::transformEpsilon)
+        look = Vec3::Look;
+    else
+        look.Normalize();
+
+    up = look.Cross(right);
+    if (up.LengthSquared() <= Internal::transformEpsilon)
+        up = Vec3::Up;
+    else
+        up.Normalize();
+
+    Set_LocalState(State::Right, right * scale.x);
+    Set_LocalState(State::Up, up * scale.y);
+    Set_LocalState(State::Look, look * scale.z);
+
+    Mark_LocalChanged(LOCAL_CHANGE_KIND::ROTATION_CHANGED);
+}
+
+void Transform::Rebuild_LocalBasis_FromRotationCache()
+{
+    const Vec3 preservedPosition = Get_Position();
+    const Vec3 preservedScale = Clamp_EditableScale(Get_Scale());
+    _localSignedScale = preservedScale;
+
+    if (_localRotationCache.LengthSquared() <= Internal::transformEpsilon)
+        _localRotationCache = Quat::Identity;
+    else
+        _localRotationCache.Normalize();
+
+    const Matrix rotationMatrix = Matrix::CreateFromQuaternion(_localRotationCache);
+
+    Vec3 right(rotationMatrix._11, rotationMatrix._12, rotationMatrix._13);
+    Vec3 up(rotationMatrix._21, rotationMatrix._22, rotationMatrix._23);
+    Vec3 look(rotationMatrix._31, rotationMatrix._32, rotationMatrix._33);
+
+    right.Normalize();
+    up.Normalize();
+    look.Normalize();
+
+    Set_LocalState(State::Right, right * preservedScale.x);
+    Set_LocalState(State::Up, up * preservedScale.y);
+    Set_LocalState(State::Look, look * preservedScale.z);
+    Set_LocalState(State::Position, preservedPosition);
+
+    Mark_LocalChanged(LOCAL_CHANGE_KIND::ROTATION_CHANGED);
+}
+
+void Transform::Sync_RotationCache_FromLocalMatrix()
+{
+    if (!Has_Dirty(TRANSFORM_DIRTY_FLAG::ROTATION))
+        return;
+
+    const Vec3 right = Resolve_NormalizedAxis(State::Right);
+    Vec3 up = Resolve_NormalizedAxis(State::Up);
+    Vec3 look = Resolve_NormalizedAxis(State::Look);
+
+    up -= right * up.Dot(right);
+    if (up.LengthSquared() <= Internal::transformEpsilon)
+    {
+        Vec3 fallbackUp = Vec3::Up;
+        const float rightDotUp = right.Dot(fallbackUp);
+        if (rightDotUp > 0.999f || rightDotUp < -0.999f)
+            fallbackUp = Vec3::Look;
+
+        up = fallbackUp - right * fallbackUp.Dot(right);
+    }
+
+    if (up.LengthSquared() <= Internal::transformEpsilon)
+        up = Vec3::Up;
+    else
+        up.Normalize();
+
+    look = right.Cross(up);
+    if (look.LengthSquared() <= Internal::transformEpsilon)
+        look = Vec3::Look;
+    else
+        look.Normalize();
+
+    up = look.Cross(right);
+    if (up.LengthSquared() <= Internal::transformEpsilon)
+        up = Vec3::Up;
+    else
+        up.Normalize();
+
+    Matrix rotationMatrix = Matrix::Identity;
+    rotationMatrix._11 = right.x;
+    rotationMatrix._12 = right.y;
+    rotationMatrix._13 = right.z;
+    rotationMatrix._21 = up.x;
+    rotationMatrix._22 = up.y;
+    rotationMatrix._23 = up.z;
+    rotationMatrix._31 = look.x;
+    rotationMatrix._32 = look.y;
+    rotationMatrix._33 = look.z;
+
+    Quat rotation = Quat::CreateFromRotationMatrix(rotationMatrix);
+    if (rotation.LengthSquared() <= Internal::transformEpsilon)
+        rotation = Quat::Identity;
+    else
+        rotation.Normalize();
+
+    _localRotationCache = rotation;
+    _localEulerDegreeCache = Extract_EulerDegreeFromRotationMatrix(rotationMatrix);
+    Clear_Dirty(TRANSFORM_DIRTY_FLAG::ROTATION);
+}
+
+Vec3 Transform::Extract_EulerDegreeFromRotationMatrix(const Matrix& rotationMatrix)
+{
+    Quat rotation = Quat::CreateFromRotationMatrix(rotationMatrix);
+    if (rotation.LengthSquared() <= Internal::transformEpsilon)
+        rotation = Quat::Identity;
+    else
+        rotation.Normalize();
+
+    const Vec3 eulerRadian = rotation.ToEuler();
+    return Vec3(
+        XMConvertToDegrees(eulerRadian.x),
+        XMConvertToDegrees(eulerRadian.y),
+        XMConvertToDegrees(eulerRadian.z)
+    );
+}
+
+Shared<Transform> Transform::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
+{
+    auto instance = make_shared<Transform>(device, context);
+
+    if (FAILED(instance->Initialize_Prototype()))
+    {
+        MSG_BOX("Failed to Created : Transform");
+        return nullptr;
+    }
+
+    return instance;
+}
+
+Shared<Component> Transform::Clone(void* arg)
+{
+    auto instance = make_shared<Transform>(*this);
+
+    if (FAILED(instance->Initialize(arg)))
+    {
+        MSG_BOX("Failed to Cloned : Transform");
+        return nullptr;
+    }
+
+    return instance;
 }
 
 void Transform::Free()
 {
-	__super::Free();
+    __super::Free();
 }

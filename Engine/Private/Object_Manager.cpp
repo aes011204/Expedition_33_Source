@@ -1,4 +1,4 @@
-﻿#include "Object_Manager.h"
+#include "Object_Manager.h"
 
 #include "GameInstance.h"
 #include "GameObject.h"
@@ -8,95 +8,95 @@ Object_Manager::Object_Manager()
 {
 }
 
-HRESULT Object_Manager::Initialize(uint32 iNumLevels)
+HRESULT Object_Manager::Initialize(uint32 numLevels)
 {
-	_numLevels = iNumLevels;
-	_layers.resize(iNumLevels);
+	_numLevels = numLevels;
+	_layers.resize(numLevels);
 	return S_OK;
 }
 
-HRESULT Object_Manager::Add_GameObject(uint32 iPrototypeLevelIndex, const wstring& strPrototypeTag, uint32 iLayerLevelIndex, const wstring& strLayerTag, void* pArg)
+HRESULT Object_Manager::Add_GameObject(uint32 prototypeLevelIndex, const wstring& prototypeTag, uint32 layerLevelIndex, const wstring& layerTag, void* arg)
 {
-	if (iLayerLevelIndex >= _numLevels)
+	if (layerLevelIndex >= _numLevels)
 	{
 		MSG_BOX("Failed To Added : CloneGameObject");
 		return E_FAIL;
 	}
 
-	Shared<GameObject> pGameObject = static_pointer_cast<GameObject>(GAME->Clone_Prototype(Prototype::GameObject, iPrototypeLevelIndex, strPrototypeTag, pArg));
-	if (nullptr == pGameObject)
+	Shared<GameObject> gameObject = static_pointer_cast<GameObject>(GAME->Clone_Prototype(Prototype::GameObject, prototypeLevelIndex, prototypeTag, arg));
+	if (nullptr == gameObject)
 	{
 		MSG_BOX("Failed To Added : CloneGameObject");
 		return E_FAIL;
 	}
 
-	Shared<Layer> pLayer = Find_Layer(iLayerLevelIndex, strLayerTag);
-	if (nullptr == pLayer)
+	Shared<Layer> layer = Find_Layer(layerLevelIndex, layerTag);
+	if (nullptr == layer)
 	{
-		pLayer = Layer::Create();
-		pLayer->Add_GameObject(pGameObject);
-		_layers[iLayerLevelIndex].emplace(strLayerTag, pLayer);
+		layer = Layer::Create();
+		layer->Add_GameObject(gameObject);
+		_layers[layerLevelIndex].emplace(layerTag, layer);
 	}
 	else
 	{
-		pLayer->Add_GameObject(pGameObject);
+		layer->Add_GameObject(gameObject);
 	}
 
 	return S_OK;
 }
 
-void Object_Manager::Priority_Update(float fTimeDelta)
+void Object_Manager::Priority_Update(float timeDelta)
 {
 	for (auto& layers : _layers)
 		for (auto& Pair : layers)
 			if (nullptr != Pair.second)
-				Pair.second->Priority_Update(fTimeDelta);
+				Pair.second->Priority_Update(timeDelta);
 }
 
-void Object_Manager::Update(float fTimeDelta)
+void Object_Manager::Update(float timeDelta)
 {
 	for (auto& layers : _layers)
 		for (auto& Pair : layers)
 			if (nullptr != Pair.second)
-				Pair.second->Update(fTimeDelta);
+				Pair.second->Update(timeDelta);
 }
 
-void Object_Manager::Late_Update(float fTimeDelta)
+void Object_Manager::Late_Update(float timeDelta)
 {
 	for (auto& layers : _layers)
 		for (auto& Pair : layers)
 			if (nullptr != Pair.second)
-				Pair.second->Late_Update(fTimeDelta);
+				Pair.second->Late_Update(timeDelta);
 }
 
-HRESULT Object_Manager::Clear_Layers(uint32 iLevelIndex)
+HRESULT Object_Manager::Clear_Layers(uint32 levelIndex)
 {
-	if (iLevelIndex >= _numLevels)
+	if (levelIndex >= _numLevels)
 		return E_FAIL;
 
-	_layers[iLevelIndex].clear();
+	_layers[levelIndex].clear();
 	return S_OK;
 }
 
-Shared<Layer> Object_Manager::Find_Layer(uint32 iLayerLevelIndex, const wstring& strLayerTag)
+Shared<Layer> Object_Manager::Find_Layer(uint32 layerLevelIndex, const wstring& layerTag)
 {
-	auto iter = _layers[iLayerLevelIndex].find(strLayerTag);
-	if (iter == _layers[iLayerLevelIndex].end())
+	auto iter = _layers[layerLevelIndex].find(layerTag);
+	if (iter == _layers[layerLevelIndex].end())
 		return nullptr;
 
 	return iter->second;
 }
 
-Unique<Object_Manager> Object_Manager::Create(uint32 iNumLevels)
+Unique<Object_Manager> Object_Manager::Create(uint32 numLevels)
 {
-	Unique<Object_Manager> pInstance{ new Object_Manager() };
-	if (FAILED(pInstance->Initialize(iNumLevels)))
+	Unique<Object_Manager> instance{ new Object_Manager() };
+	if (FAILED(instance->Initialize(numLevels)))
 	{
 		MSG_BOX("Failed to Created : Object_Manager");
-		pInstance->Free();
+		instance->Free();
 		return nullptr;
 	}
-	return pInstance;
+	return instance;
 }
 
 void Object_Manager::Free()

@@ -1,6 +1,5 @@
 ﻿#include "Game_View.h"
 #include "GameInstance.h"
-#include "Utils.h"
 #include "EditorInstance.h"
 #include "RenderTarget.h"
 
@@ -15,7 +14,7 @@ void Game_View::Render()
         return;
 
     bool isOpen = Is_Open();
-    const string windowName = Utils::ToString(Get_WindowName());
+    const string windowName = String::ToString(Get_WindowName());
     
     if (ImGui::Begin(windowName.c_str(), &isOpen, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse))
     {

@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "Component.h"
 
@@ -7,25 +7,25 @@ NS_BEGIN(Engine)
 class ENGINE_DLL Texture final : public Component
 {
 public:
-	Texture(ComPtr<Device> device, ComPtr<Context> context);
-	Texture(const Texture& Prototype);
+	Texture(const ComPtr<Device>& device, const ComPtr<Context>& context);
+	Texture(const Texture& prototype);
 	virtual ~Texture() { Free(); }
 
 public:
-	virtual HRESULT Initialize_Prototype(const wchar_t* pTextureFilePath, uint32 iNumSRVs);
-	virtual HRESULT Initialize(void* pArg) override;
+	virtual HRESULT Initialize_Prototype(const wchar_t* texturePathPattern, uint32 numSRVs);
+	virtual HRESULT Initialize(void* arg) override;
 
 public:
-	HRESULT Bind_ShaderResourceView(class Shader* pShader, const char* pConstantName, uint32 iIndex);
-	HRESULT Bind_ShaderResourceViews(class Shader* pShader, const char* pConstantName);
+	HRESULT Bind_ShaderResourceView(class Shader* shader, const char* constantName, uint32 index);
+	HRESULT Bind_ShaderResourceViews(class Shader* shader, const char* constantName);
 
 private:
 	uint32										_numSRVs = {};
 	vector<ID3D11ShaderResourceView*>			_srvs;
 
 public:
-	static Shared<Texture> Create(ComPtr<Device> device, ComPtr<Context> context, const wchar_t* pTextureFilePath, uint32 iNumSRVs);
-	virtual Shared<Component> Clone(void* pArg) override;
+	static Shared<Texture> Create(const ComPtr<Device>& device, const ComPtr<Context>& context, const wchar_t* texturePathPattern, uint32 numSRVs);
+	virtual Shared<Component> Clone(void* arg) override;
 	virtual void Free() override;
 
 };

@@ -7,7 +7,7 @@ ImGui_Manager::~ImGui_Manager()
     Free();
 }
 
-HRESULT ImGui_Manager::Initialize(HWND hWnd, ComPtr<Device> device, ComPtr<Context> context)
+HRESULT ImGui_Manager::Initialize(HWND hWnd, const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -35,8 +35,10 @@ HRESULT ImGui_Manager::Initialize(HWND hWnd, ComPtr<Device> device, ComPtr<Conte
         icons_config.PixelSnapH = true;
         icons_config.GlyphMinAdvanceX = 18.0f;
 
+        const string iconFontPath = Get_ClientResourcePath(
+            L"Fonts/fontawesome-free-7.1.0-desktop/otfs/Font Awesome 7 Free-Solid-900.otf");
         io.Fonts->AddFontFromFileTTF(
-            "../../Client/Bin/Resources/Fonts/fontawesome-free-7.1.0-desktop/otfs/Font Awesome 7 Free-Solid-900.otf",
+            iconFontPath.c_str(),
             18.0f,
             &icons_config,
             icons_ranges);
@@ -162,7 +164,23 @@ void ImGui_Manager::ImGuiStyleSetting()
     colors[ImGuiCol_DockingPreview] = ImVec4(0.15f, 0.45f, 0.85f, 0.40f);
 }
 
-Unique<ImGui_Manager> ImGui_Manager::Create(HWND hWnd, ComPtr<Device> device, ComPtr<Context> context)
+string ImGui_Manager::Get_ClientResourcePath(const wchar_t* relativePath)
+{
+    wchar_t modulePath[MAX_PATH] = {};
+    if (0 == GetModuleFileNameW(nullptr, modulePath, MAX_PATH))
+        return {};
+
+    const std::filesystem::path runtimeRoot = std::filesystem::path(modulePath).parent_path();
+    const std::filesystem::path resourceRoot =
+        std::filesystem::absolute(runtimeRoot / L"../../../Client/Bin/Resources").lexically_normal();
+
+    if (nullptr == relativePath || L'\0' == *relativePath)
+        return resourceRoot.string();
+
+    return (resourceRoot / relativePath).lexically_normal().string();
+}
+
+Unique<ImGui_Manager> ImGui_Manager::Create(HWND hWnd, const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
     auto instance = make_unique<ImGui_Manager>();
 

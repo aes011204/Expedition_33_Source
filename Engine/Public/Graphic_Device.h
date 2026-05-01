@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "Base.h"
 
@@ -34,12 +34,12 @@ private:
 	ComPtr<Context>             _deviceContext = nullptr;
 	ComPtr<SwapChain>           _swapChain = nullptr;
 	ComPtr<RenderTargetView>    _backBufferRTV = nullptr;
-	ComPtr<DepthStencil>        _depthStencilView = nullptr;
+	ComPtr<DepthStencilView>    _depthStencilView = nullptr;
 
 private:
-	HRESULT Ready_SwapChain(HWND hWnd, WinMode isWindowed, uint32 iWinCX, uint32 iWinCY);
+	HRESULT Ready_SwapChain(HWND hWnd, WinMode isWindowed, uint32 windowWidth, uint32 windowHeight);
 	HRESULT Ready_BackBufferRenderTargetView();
-	HRESULT Ready_DepthStencilView(uint32 iWinCX, uint32 iWinCY);
+	HRESULT Ready_DepthStencilView(uint32 windowWidth, uint32 windowHeight);
 
 private:
     uint32 _viewportWidth = 0;
@@ -47,7 +47,7 @@ private:
 
 
 public:
-	static Unique<Graphic_Device> Create(HWND hWnd, WinMode isWindowed, uint32 iWinSizeX, uint32 iWinSizeY, ComPtr<Device>& device, ComPtr<Context>& context);
+	static Unique<Graphic_Device> Create(HWND hWnd, WinMode isWindowed, uint32 windowSizeX, uint32 windowSizeY, ComPtr<Device>& device, ComPtr<Context>& context);
 	virtual void Free() override;
 };
 

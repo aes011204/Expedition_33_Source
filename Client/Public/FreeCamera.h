@@ -19,8 +19,8 @@ public:
     } FreeCameraDesc;
 
 public:
-	FreeCamera(ComPtr<Device> device, ComPtr<Context> context);
-	FreeCamera(const FreeCamera& Prototype);
+	FreeCamera(const ComPtr<Device>& device, const ComPtr<Context>& context);
+	FreeCamera(const FreeCamera& prototype);
 	virtual ~FreeCamera() { Free(); }
 
 public:
@@ -36,7 +36,7 @@ private:
 
 
 public:
-	static Shared<FreeCamera> Create(ComPtr<Device> device, ComPtr<Context> context);
+	static Shared<FreeCamera> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
 	virtual Shared<GameObject> Clone(void* pArg) override;
 	virtual void Free() override;
 

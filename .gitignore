@@ -42,19 +42,6 @@ bld/
 # (https://github.com/github/gitignore/pull/3736)
 #!**/[Bb]in/*.refresh
 
-# --- Exception: Keep Client/Bin/Resource in version control ---
-# Contains runtime assets (textures, meshes, etc.) required by the Client.
-!Client/Bin/Resources/
-!Client/Bin/Resources/**
-!Client/Bin/fmodL.dll
-
-!Client/Bin/
-!Client/Bin/**
-!Engine/Bin/
-!Engine/Bin/**
-
-vcpkg_installed/
-
 # Visual Studio 2015/2017 cache/options directory
 .vs/
 # Uncomment if you have tasks that create the project's static files in wwwroot
@@ -437,10 +424,60 @@ FodyWeavers.xsd
 *.cso
 *.hlsl.obj
 
+# --- Project-specific and local workflow rules ---
+# Runtime assets under Bin are intentionally versioned in this project.
+!Client/Bin/
+!Client/Bin/**
+!Engine/Bin/
+!Engine/Bin/**
+!Client/Bin/Resources/
+!Client/Bin/Resources/**
+!Client/Bin/fmodL.dll
+
+# Launcher/editor bins stay ignored by default, except required FMOD runtime DLLs.
+!GameLauncher/Bin/
+GameLauncher/Bin/*
+!GameLauncher/Bin/Debug/
+GameLauncher/Bin/Debug/*
+!GameLauncher/Bin/Debug/fmodL.dll
+!GameLauncher/Bin/Release/
+GameLauncher/Bin/Release/*
+!GameLauncher/Bin/Release/fmod.dll
+!MainEditor/Bin/
+MainEditor/Bin/*
+!MainEditor/Bin/Debug/
+MainEditor/Bin/Debug/*
+!MainEditor/Bin/Debug/fmodL.dll
+!MainEditor/Bin/Release/
+MainEditor/Bin/Release/*
+!MainEditor/Bin/Release/fmod.dll
+
+Client/Bin/[Dd]ebug/
+Client/Bin/[Rr]elease/
+Client/Bin/x64/
+Client/Bin/x86/
+Engine/Bin/[Dd]ebug/
+Engine/Bin/[Rr]elease/
+Engine/Bin/x64/
+Engine/Bin/x86/
+
+# Project-local dependencies and generated docs
+vcpkg_installed/
+!/EngineSDK/lib/
+!/EngineSDK/lib/Debug/
+!/EngineSDK/lib/Debug/**
+!/EngineSDK/lib/Release/
+!/EngineSDK/lib/Release/**
+/EngineSDK/inc/Engine/
 .agent/
 .claude/
+/docs/
 
+# Ignore project build artifacts that still live under versioned Bin trees
 Client/Bin/Client.lib
 Client/Bin/Client.dll
 Client/Bin/Engine.dll
 Engine/Bin/Engine.dll
+
+# Repo-local agent instructions
+/AGENTS.md

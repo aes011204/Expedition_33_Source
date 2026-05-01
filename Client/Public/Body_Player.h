@@ -18,8 +18,8 @@ public:
 	}BODY_PLAYER_DESC;
 
 public:
-	Body_Player(ComPtr<Device> device, ComPtr<Context> context);
-	Body_Player(const Body_Player& Prototype);
+	Body_Player(const ComPtr<Device>& device, const ComPtr<Context>& context);
+	Body_Player(const Body_Player& prototype);
 	virtual ~Body_Player() { Free(); }
 
 public:
@@ -45,7 +45,7 @@ private:
 	HRESULT Bind_ShaderResources();
 
 public:
-	static Shared<Body_Player> Create(ComPtr<Device> device, ComPtr<Context> context);
+	static Shared<Body_Player> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
 	virtual Shared<GameObject> Clone(void* arg) override;
 	virtual void Free() override;
 };

@@ -1,13 +1,13 @@
 ﻿#include "Sky.h"
 #include "GameInstance.h"
 
-Sky::Sky(ComPtr<Device> device, ComPtr<Context> context)
+Sky::Sky(const ComPtr<Device>& device, const ComPtr<Context>& context)
 	: GameObject { device, context }
 {
 }
 
-Sky::Sky(const Sky& Prototype)
-	: GameObject { Prototype }
+Sky::Sky(const Sky& prototype)
+	: GameObject { prototype }
 
 {
 }
@@ -34,8 +34,8 @@ void Sky::Priority_Update(float fTimeDelta)
 
 void Sky::Update(float fTimeDelta)
 {
-	_transformCom->Set_State(State::Position,
-		XMLoadFloat4(GAME->Get_CamPosition()));
+	const XMFLOAT4* camPosition = GAME->Get_CamPosition();
+	_transformCom->Set_Position(Vec3(camPosition->x, camPosition->y, camPosition->z));
 }
 
 void Sky::Late_Update(float fTimeDelta)
@@ -92,7 +92,7 @@ HRESULT Sky::Bind_ShaderResources()
 	return S_OK;
 }
 
-Shared<Sky> Sky::Create(ComPtr<Device> device, ComPtr<Context> context)
+Shared<Sky> Sky::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
 	auto pInstance = make_shared<Sky>(device, context);
 

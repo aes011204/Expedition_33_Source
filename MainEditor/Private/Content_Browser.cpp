@@ -1,5 +1,4 @@
 ﻿#include "Content_Browser.h"
-#include "Utils.h"
 
 Content_Browser::Content_Browser()
     : Editor_Window{ L"Content Browser" }
@@ -14,7 +13,7 @@ void Content_Browser::Render()
 
     bool isOpen = Is_Open();
 
-    const string windowName = Utils::ToString(Get_WindowName());
+    const string windowName = String::ToString(Get_WindowName());
     if (ImGui::Begin(windowName.c_str(), &isOpen))
     {
         ImGui::TextUnformatted(_resourceRoot.string().c_str());

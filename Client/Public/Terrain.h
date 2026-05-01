@@ -20,8 +20,8 @@ public:
 		
 	}TERRAIN_DESC;
 public:
-	Terrain(ComPtr<Device> device, ComPtr<Context> context);
-	Terrain(const Terrain& Prototype);
+	Terrain(const ComPtr<Device>& device, const ComPtr<Context>& context);
+	Terrain(const Terrain& prototype);
 	virtual ~Terrain() { Free(); }
 
 public:
@@ -43,7 +43,7 @@ protected:
 
 
 public:
-	static Shared<Terrain> Create(ComPtr<Device> device, ComPtr<Context> context);
+	static Shared<Terrain> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
 	virtual Shared<GameObject> Clone(void* pArg) override;
 	virtual void Free() override;
 };

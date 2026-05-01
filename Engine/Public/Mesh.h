@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "VIBuffer.h"
 
@@ -7,8 +7,8 @@ NS_BEGIN(Engine)
 class Mesh final : public VIBuffer
 {
 public:
-	Mesh(ComPtr<Device> device, ComPtr<Context> context);
-	Mesh(const Mesh& Prototype);
+	Mesh(const ComPtr<Device>& device, const ComPtr<Context>& context);
+	Mesh(const Mesh& prototype);
 	virtual ~Mesh() { Free(); }
 
 public:
@@ -17,11 +17,11 @@ public:
 	}
 
 public:
-	virtual HRESULT Initialize_Prototype(ModelType eType, const aiMesh* pAIMesh, class Model* pModel, FXMMATRIX PreTransformMatrix);
-	virtual HRESULT Initialize(void* pArg) override;
+	virtual HRESULT Initialize_Prototype(ModelType type, const aiMesh* aiMesh, class Model* model, FXMMATRIX preTransformMatrix);
+	virtual HRESULT Initialize(void* arg) override;
 
 public:
-	HRESULT Bind_BoneMatrices(class Shader* pShader, const char* pConstantName, const vector<Shared<class Bone>>& Bones);
+	HRESULT Bind_BoneMatrices(class Shader* shader, const char* constantName, const vector<Shared<class Bone>>& bones);
 
 private:
 	char					_name[MAX_PATH] = {};
@@ -31,15 +31,13 @@ private:
 	XMFLOAT4X4				_boneMatrices[512] = {};
 	vector<XMFLOAT4X4>		_offsetMatrices;
 
-
-
 private:
-	HRESULT Ready_VertexBuffer_For_NonAnim(const aiMesh* pAIMesh, FXMMATRIX PreTransformMatrix);
-	HRESULT Ready_VertexBuffer_For_Anim(const aiMesh* pAIMesh, class Model* pModel);
+	HRESULT Ready_VertexBuffer_For_NonAnim(const aiMesh* aiMesh, FXMMATRIX preTransformMatrix);
+	HRESULT Ready_VertexBuffer_For_Anim(const aiMesh* aiMesh, class Model* model);
 
 public:
-	static Shared<Mesh> Create(ComPtr<Device> device, ComPtr<Context> context, ModelType eType, const aiMesh* pAIMesh, class Model* pModel, FXMMATRIX PreTransformMatrix);
-	virtual Shared<Component> Clone(void* pArg) override;
+	static Shared<Mesh> Create(const ComPtr<Device>& device, const ComPtr<Context>& context, ModelType type, const aiMesh* aiMesh, class Model* model, FXMMATRIX preTransformMatrix);
+	virtual Shared<Component> Clone(void* arg) override;
 	virtual void Free() override;
 
 

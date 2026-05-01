@@ -1,4 +1,4 @@
-﻿#include "Animation.h"
+#include "Animation.h"
 
 #include "Channel.h"
 
@@ -6,87 +6,86 @@ Animation::Animation()
 {
 }
 
-Animation::Animation(const Animation& Prototype)
-	: _duration { Prototype._duration }
-	, _tickPerSecond { Prototype._tickPerSecond }
-	, _currentTrackPosition { Prototype._currentTrackPosition }
-	, _numChannels { Prototype._numChannels }
-	, _channels { Prototype._channels }
-	, _currentKeyFrameIndices { Prototype._currentKeyFrameIndices}
+Animation::Animation(const Animation& prototype)
+    : _duration{ prototype._duration }
+    , _tickPerSecond{ prototype._tickPerSecond }
+    , _currentTrackPosition{ prototype._currentTrackPosition }
+    , _numChannels{ prototype._numChannels }
+    , _channels{ prototype._channels }
+    , _currentKeyFrameIndices{ prototype._currentKeyFrameIndices }
 {
-	for (auto& pChannel : _channels)
-		Safe_AddRef(pChannel);
+    for (auto& channel : _channels)
+        Safe_AddRef(channel);
 }
 
-HRESULT Animation::Initialize(const aiAnimation* pAIAnimation, class Model* pModel)
+Animation::~Animation()
 {
-	_duration = pAIAnimation->mDuration;
-	_tickPerSecond = pAIAnimation->mTicksPerSecond;
-
-	_numChannels = pAIAnimation->mNumChannels;
-
-	_currentKeyFrameIndices.resize(_numChannels);
-
-	for (size_t i = 0; i < _numChannels; i++)
-	{
-		Shared<Channel> pChannel = Channel::Create(pAIAnimation->mChannels[i], pModel);
-		if (nullptr == pChannel)
-			return E_FAIL;
-
-		_channels.push_back(pChannel);	
-	}
-
-	return S_OK;
+    Free();
 }
 
-bool Animation::Update_TransformationMatrices(float fTimeDelta, const vector<Shared<class Bone>>& Bones, bool isLoop)
+HRESULT Animation::Initialize(const aiAnimation* aiAnimation, class Model* model)
 {
-	_currentTrackPosition += _tickPerSecond * fTimeDelta;
+    _duration = static_cast<float>(aiAnimation->mDuration);
+    _tickPerSecond = static_cast<float>(aiAnimation->mTicksPerSecond);
 
-	if (_currentTrackPosition >= _duration)
-	{
-		if (false == isLoop)
-			return true;
+    _numChannels = aiAnimation->mNumChannels;
 
-		_currentTrackPosition = 0.f;		
-	}	
+    _currentKeyFrameIndices.resize(_numChannels);
 
-	
+    for (size_t i = 0; i < _numChannels; i++)
+    {
+        Shared<Channel> channel = Channel::Create(aiAnimation->mChannels[i], model);
+        if (nullptr == channel)
+            return E_FAIL;
 
-	// for (auto& pChannel : _channels)
-	for (size_t i = 0; i < _numChannels; i++)	
-	{
-		_channels[i]->Update_TransformationMatrix(&_currentKeyFrameIndices[i], _currentTrackPosition, Bones);
-	}
+        _channels.push_back(channel);
+    }
 
-	return false;
+    return S_OK;
 }
 
-Shared<Animation> Animation::Create(const aiAnimation* pAIAnimation, class Model* pModel)
+bool Animation::Update_TransformationMatrices(float timeDelta, const vector<Shared<class Bone>>& bones, bool isLoop)
 {
-	auto pInstance = make_shared<Animation>();
+    _currentTrackPosition += _tickPerSecond * timeDelta;
 
-	if (FAILED(pInstance->Initialize(pAIAnimation, pModel)))
-	{
-		MSG_BOX("Failed to Created : Animation");
-		return nullptr;
-	}
-	return pInstance;
+    if (_currentTrackPosition >= _duration)
+    {
+        if (false == isLoop)
+            return true;
+
+        _currentTrackPosition = 0.f;
+    }
+
+    // for (auto& channel : _channels)
+    for (size_t i = 0; i < _numChannels; i++)
+        _channels[i]->Update_TransformationMatrix(&_currentKeyFrameIndices[i], _currentTrackPosition, bones);
+
+    return false;
+}
+
+Shared<Animation> Animation::Create(const aiAnimation* aiAnimation, class Model* model)
+{
+    auto instance = make_shared<Animation>();
+
+    if (FAILED(instance->Initialize(aiAnimation, model)))
+    {
+        MSG_BOX("Failed to Created : Animation");
+        return nullptr;
+    }
+    return instance;
 }
 
 Shared<Animation> Animation::Clone()
 {
-	return make_shared<Animation>(*this);
+    return make_shared<Animation>(*this);
 }
-
 
 void Animation::Free()
 {
-	__super::Free();
+    __super::Free();
 
+    for (auto& channel : _channels)
+        Safe_Release(channel);
 
-	for (auto& pChannel : _channels)
-		Safe_Release(pChannel);
-
-	_channels.clear();
+    _channels.clear();
 }

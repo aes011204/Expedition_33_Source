@@ -1,4 +1,4 @@
-﻿#include "Timer.h"
+#include "Timer.h"
 
 Timer::Timer() 
 	: _timeDelta(0.f)
@@ -41,14 +41,14 @@ float Timer::Update_Timer()
 
 Shared<Timer> Timer::Create()
 {
-	auto pInstance = make_shared<Timer>();
+	auto instance = make_shared<Timer>();
 
-	if (FAILED(pInstance->Ready_Timer()))
+	if (FAILED(instance->Ready_Timer()))
 	{
 		return nullptr;
 	}
 
-	return pInstance;
+	return instance;
 }
 
 void Timer::Free()

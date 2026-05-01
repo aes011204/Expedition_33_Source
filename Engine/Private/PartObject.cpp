@@ -1,12 +1,12 @@
 ﻿#include "PartObject.h"
 
-PartObject::PartObject(ComPtr<Device> device, ComPtr<Context> context)
+PartObject::PartObject(const ComPtr<Device>& device, const ComPtr<Context>& context)
 	: GameObject { device, context }
 {
 }
 
-PartObject::PartObject(const PartObject& Prototype)
-	: GameObject { Prototype }
+PartObject::PartObject(const PartObject& prototype)
+	: GameObject { prototype }
 {
 }
 
@@ -15,13 +15,13 @@ HRESULT PartObject::Initialize_Prototype()
 	return S_OK;
 }
 
-HRESULT PartObject::Initialize(void* pArg)
+HRESULT PartObject::Initialize(void* arg)
 {
-	auto	pDesc = static_cast<PARTOBJECT_DESC*>(pArg);
+	auto	desc = static_cast<PARTOBJECT_DESC*>(arg);
 
-	_parentMatrix = pDesc->pParentMatrix;
+	_parentMatrix = (nullptr != desc) ? desc->parentMatrix : nullptr;
 
-	if (FAILED(__super::Initialize(pArg)))
+	if (FAILED(__super::Initialize(arg)))
 		return E_FAIL;
 
 	XMStoreFloat4x4(&_combinedWorldMatrix, XMMatrixIdentity());
@@ -29,16 +29,16 @@ HRESULT PartObject::Initialize(void* pArg)
 	return S_OK;
 }
 
-void PartObject::Priority_Update(float fTimeDelta)
+void PartObject::Priority_Update(float timeDelta)
 {
 }
 
-void PartObject::Update(float fTimeDelta)
+void PartObject::Update(float timeDelta)
 {
 	
 }
 
-void PartObject::Late_Update(float fTimeDelta)
+void PartObject::Late_Update(float timeDelta)
 {
 }
 

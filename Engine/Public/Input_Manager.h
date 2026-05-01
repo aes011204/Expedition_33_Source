@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "Base.h"
 
@@ -67,13 +67,13 @@ private:
 public:
 	virtual ~Input_Manager() = default;
 	HRESULT Initialize(HWND hWnd);
-	void Update(float fTimeDelta);
+	void Update(float timeDelta);
 
 	void Reset();
-	bool KeyPress(KEY_TYPE eKey) const;
+	bool KeyPress(KEY_TYPE key) const;
 
-	bool KeyDown(KEY_TYPE eKey) const;
-	bool KeyUp(KEY_TYPE eKey) const;
+	bool KeyDown(KEY_TYPE key) const;
+	bool KeyUp(KEY_TYPE key) const;
 
 	const POINT& Get_MousePosition() const { return _mousePosition; }
 

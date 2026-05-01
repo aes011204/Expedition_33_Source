@@ -1,5 +1,4 @@
 ﻿#include <Windows.h>
-#include <filesystem>
 #include <crtdbg.h>
 #include <cstdio>
 #include <locale.h>
@@ -22,19 +21,11 @@ static ATOM Register_GameLauncherClass(HINSTANCE hInstance);
 static BOOL Init_GameLauncherInstance(HINSTANCE hInstance, int nCmdShow);
 static LRESULT CALLBACK GameLauncher_WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
-static bool Set_RuntimeWorkingDirectory();
-
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPWSTR lpCmdLine, _In_ int nCmdShow)
 {
 #ifdef _DEBUG
     _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 #endif
-
-    (void)hPrevInstance;
-    (void)lpCmdLine;
-
-    if (!Set_RuntimeWorkingDirectory())
-        return FALSE;
 
     Unique<GameLauncherApp::MainApp> mainApp = nullptr;
 
@@ -161,19 +152,4 @@ static LRESULT CALLBACK GameLauncher_WndProc(HWND hWnd, UINT message, WPARAM wPa
     }
 
     return 0;
-}
-
-static bool Set_RuntimeWorkingDirectory()
-{
-    wchar_t modulePath[MAX_PATH] = {};
-    if (0 == GetModuleFileNameW(nullptr, modulePath, MAX_PATH))
-        return false;
-
-    const std::filesystem::path runtimeRoot = std::filesystem::path(modulePath).parent_path();
-    const std::filesystem::path clientBinPath = (runtimeRoot / L"..\\..\\Client\\Bin").lexically_normal();
-
-    if (!std::filesystem::exists(clientBinPath))
-        return false;
-
-    return SetCurrentDirectoryW(clientBinPath.c_str()) != FALSE;
 }

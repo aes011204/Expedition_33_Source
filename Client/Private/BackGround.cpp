@@ -1,13 +1,13 @@
 ﻿#include "BackGround.h"
 #include "GameInstance.h"
 
-BackGround::BackGround(ComPtr<Device> device, ComPtr<Context> context)
+BackGround::BackGround(const ComPtr<Device>& device, const ComPtr<Context>& context)
 	: UIObject { device, context }
 {
 }
 
-BackGround::BackGround(const BackGround& Prototype)
-	: UIObject { Prototype }
+BackGround::BackGround(const BackGround& prototype)
+	: UIObject { prototype }
 
 {
 }
@@ -21,12 +21,12 @@ HRESULT BackGround::Initialize(void* arg)
 {
 	BACKGROUND_DESC			Desc{};
 
-	Desc.fDegreePerSec = 90.f;
-	Desc.fSpeedPerSec = 1.f;
-	Desc.fX = 100.f;
-	Desc.fY = 100.f;
-	Desc.fSizeX = 200.f;
-	Desc.fSizeY = 200.f;
+	Desc.degreePerSec = 90.f;
+	Desc.speedPerSec = 1.f;
+	Desc.x = 100.f;
+	Desc.y = 100.f;
+	Desc.sizeX = 200.f;
+	Desc.sizeY = 200.f;
 	
 	if (FAILED(__super::Initialize(&Desc)))
 		return E_FAIL;
@@ -102,7 +102,7 @@ HRESULT BackGround::Ready_Components()
 	return S_OK;
 }
 
-Shared<BackGround> BackGround::Create(ComPtr<Device> device, ComPtr<Context> context)
+Shared<BackGround> BackGround::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
 	auto pInstance = make_shared<BackGround>(device, context);
 
