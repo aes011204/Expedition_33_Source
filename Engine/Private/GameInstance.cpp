@@ -11,6 +11,7 @@
 #include "Prototype_Manager.h"
 #include "Renderer.h"
 #include "Timer_Manager.h"
+#include "Target_Manager.h"
 
 IMPLEMENT_SINGLETON(GameInstance)
 
@@ -54,6 +55,10 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
 
     _objectManager = Object_Manager::Create(engineDesc.numLevels);
     if (nullptr == _objectManager)
+        return E_FAIL;
+
+    _targetManager = Target_Manager::Create(device, context);
+    if (nullptr == _targetManager)
         return E_FAIL;
 
     _renderer = Renderer::Create(device, context);
@@ -370,6 +375,47 @@ wstring GameInstance::Get_AssetRoot() const
         return {};
 
     return _assetManager->Get_ResourceRoot();
+}
+
+HRESULT GameInstance::Add_RenderTarget(const wstring& targetTag, uint32 sizeX, uint32 sizeY, DXGI_FORMAT pixelFormat,
+    const Color& clearColor, bool resizeWithViewport)
+{
+    return _targetManager->Add_RenderTarget(targetTag, sizeX, sizeY, pixelFormat, clearColor, resizeWithViewport);
+}
+
+HRESULT GameInstance::Add_MRT(const wstring& mrtTag, const wstring& targetTag)
+{
+    return _targetManager->Add_MRT(mrtTag, targetTag);
+}
+
+HRESULT GameInstance::Begin_MRT(const wstring& mrtTag, ComPtr<DepthStencilView> shaderDSV)
+{
+    return _targetManager->Begin_MRT(mrtTag, shaderDSV);
+}
+
+HRESULT GameInstance::End_MRT()
+{
+    return _targetManager->End_MRT();
+}
+
+HRESULT GameInstance::Resize_MRTs(uint32 width, uint32 height)
+{
+    return _targetManager->Resize_MRTs(width, height);
+}
+
+HRESULT GameInstance::Bind_ShaderResource(Shared<Shader> shader, const char* constantName, const wstring& targetTag)
+{
+    return _targetManager->Bind_ShaderResource(shader, constantName, targetTag);
+}
+
+HRESULT GameInstance::Copy_CurrentRTV_To(const wstring& targetTag)
+{
+    return _targetManager->Copy_CurrentRTV_To(targetTag);
+}
+
+HRESULT GameInstance::Copy_RTV(const wstring& srcTargetTag, const wstring& dstTargetTag)
+{
+    return _targetManager->Copy_RTV(srcTargetTag, dstTargetTag);
 }
 
 void GameInstance::Release_Engine()

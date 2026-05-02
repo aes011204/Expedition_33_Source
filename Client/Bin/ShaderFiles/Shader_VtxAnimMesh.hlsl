@@ -1,24 +1,28 @@
 #include "Engine_Shader_Defines.hlsli"
-
+//==================================================
+// MATRIX
+//==================================================
 float4x4 g_WorldMatrix, g_ViewMatrix, g_ProjMatrix;
+row_major matrix g_BoneMatrices[512];
 
+//==================================================
+// LIGHT
+//==================================================
 vector g_vLightDir;
 vector g_vLightDiffuse;
 vector g_vLightAmbient;
 vector g_vLightSpecular;
 
+//==================================================
+// MATERIAL
+//==================================================
 texture2D g_DiffuseTexture;
 vector g_vMtrlAmbient = vector(0.3f, 0.3f, 0.3f, 1.f);
 vector g_vMtrlSpecular = vector(1.f, 1.f, 1.f, 1.f);
-vector g_vCamPosition;
 
-matrix g_BoneMatrices[512];
-
-
-
-
-
-
+//==================================================
+// SAMPLER
+//==================================================
 sampler DefaultSampler = sampler_state
 {
     Filter = MIN_MAG_MIP_LINEAR;   
@@ -26,9 +30,15 @@ sampler DefaultSampler = sampler_state
     AddressV = wrap;
 };
 
+//==================================================
+// CAMERA
+//==================================================
+vector g_vCamPosition;
+float g_fFar = 500.f;
 
-
-/* ¿Ã Ω¶¿Ã¥ı∑Œ ±◊∏∞¥Ÿ∂Û∞Ì ¿Ãæﬂ±‚«— ¡§¡°πˆ∆€¿« ¡§¡°¿ª ≤®≥ªº≠ πﬁæ∆ø¬¥Ÿ */
+//==================================================
+// VS
+//==================================================
 struct VS_IN
 {
     float3 vPosition : POSITION;
@@ -45,76 +55,76 @@ struct VS_OUT
     float4 vNormal : NORMAL;
     float2 vTexcoord : TEXCOORD0;
     float4 vWorldPos : TEXCOORD1;
+    float4 vProjPos : TEXCOORD2;
 };
 
 VS_OUT VS_MAIN(VS_IN In)
 {
     VS_OUT Out;
     
-    /* ¡§¡°¿« ¿ßƒ° * ø˘µÂ * ∫‰ * ≈ıøµ */
+    /* Ï†ïÏ†êÏùò ÏúÑÏπò * ÏõîÎìú * Î∑∞ * Ìà¨ÏòÅ */
     float4x4 matWV, matWVP;
+
+    float fWeightW = 1.f - (In.vBlendWeight.x + In.vBlendWeight.y + In.vBlendWeight.z);
     
     matrix BoneMatrix = g_BoneMatrices[In.vBlendIndex.x] * In.vBlendWeight.x + 
         g_BoneMatrices[In.vBlendIndex.y] * In.vBlendWeight.y + 
         g_BoneMatrices[In.vBlendIndex.z] * In.vBlendWeight.z + 
-        g_BoneMatrices[In.vBlendIndex.w] * In.vBlendWeight.w;
+        g_BoneMatrices[In.vBlendIndex.w] * fWeightW;
     
     vector vPosition = mul(float4(In.vPosition, 1.f), BoneMatrix);
-    
+    vector vNormal = mul(float4(In.vNormal, 0.f), BoneMatrix);
     
     matWV = mul(g_WorldMatrix, g_ViewMatrix);
     matWVP = mul(matWV, g_ProjMatrix);
     
     Out.vPosition = mul(vPosition, matWVP);
-    Out.vNormal = normalize(mul(float4(In.vNormal, 0.f), g_WorldMatrix));
+    Out.vNormal = normalize(mul(vNormal, g_WorldMatrix));
     
     Out.vTexcoord = In.vTexcoord;
-    Out.vWorldPos = mul(float4(In.vPosition, 1.f), g_WorldMatrix);
-    
+    Out.vWorldPos = mul(vPosition, g_WorldMatrix);
+    Out.vProjPos = Out.vPosition;
+
     return Out;
 }
 
-/* w≥™¥©±‚ø¨ªÍ¿ª ºˆ«‡«—¥Ÿ.-> ¿Ã ø¨ªÍ¿∏∑Œ ¿ÃæÓ¡˙ºˆ ¿÷¥¬ ¿Ã¿Ø -> VS_OUT±∏¡∂√º¿« ¿ßƒ° -> SV_ */
-/* ∫‰∆˜∆Æ(¿©µµøÏ¡¬«•)∑Œ ∫Ø»Ø«—¥Ÿ. */
-/* ∑°Ω∫≈Õ∂Û¿Ã¡Ó -> ¡§¡° ºº∞≥∑Œ ∞®ΩŒ¡¯ øµø™¿« «»ºø ¡§∫∏∏¶ ª˝º∫«—¥Ÿ */
-
+//==================================================
+// PS
+//==================================================
 struct PS_IN
 {
     float4 vPosition : SV_POSITION;
     float4 vNormal : NORMAL;
     float2 vTexcoord : TEXCOORD0;    
     float4 vWorldPos : TEXCOORD1;
+    float4 vProjPos : TEXCOORD2;    
 };
 
 struct PS_OUT
 {
-    vector vColor : SV_TARGET0;
+    vector vDiffuse : SV_TARGET0;
+    vector vNormal : SV_TARGET1;
+    vector vDepth : SV_TARGET2;
 };
 
-/* Pixel Shader -> «»ºø¿« ªˆ¿ª ∞·¡§«—¥Ÿ. */
+/* Pixel Shader -> ÌîΩÏÖÄÏùò ÏÉâÏùÑ Í≤∞Ï†ïÌïúÎã§. */
 
 PS_OUT PS_MAIN(PS_IN In)
 {
     PS_OUT Out;
     
-    // Out.vColor = float4(In.vTexcoord.y, In.vTexcoord.y, In.vTexcoord.y, 1.f);
     vector      vMtrlDiffuse = g_DiffuseTexture.Sample(DefaultSampler, In.vTexcoord);
     
     if (vMtrlDiffuse.a < 0.3f)
         discard;
-    
-    vector vShade = saturate(max(dot(normalize(g_vLightDir) * -1.f, In.vNormal), 0.f) + (g_vLightAmbient * g_vMtrlAmbient));
-    
-    vector vLook = In.vWorldPos - g_vCamPosition;
-    vector vRelfect = reflect(normalize(g_vLightDir), In.vNormal);    
-    float fSpecular = pow(max(dot(normalize(vLook) * -1.f, normalize(vRelfect)), 0.f), 50.f);
-    
-    vector vSpecularColor = g_vLightSpecular * g_vMtrlSpecular * fSpecular;
-    
-    Out.vColor = g_vLightDiffuse * vMtrlDiffuse * vShade + vSpecularColor;
-    
-    Out.vColor.a = 0.3f;
-    
+
+    Out.vDiffuse = vMtrlDiffuse;
+
+    // -1 ~ 1 => 0 ~ 1
+    Out.vNormal = vector(normalize(In.vNormal.xyz) * 0.5f + 0.5f, 0.f);
+
+    Out.vDepth = vector(In.vProjPos.z / In.vProjPos.w, In.vProjPos.w / g_fFar, 0.f, 1.f);
+
     return Out;
 
 }
@@ -125,9 +135,10 @@ technique11 DefaultTechnique
     {
         SetRasterizerState(RS_Default);
         SetDepthStencilState(DSS_Default, 0);
-        SetBlendState(BS_AlphaBlend, float4(0.f, 0.f, 0.f, 0.f), 0xffffffff);
+        SetBlendState(BS_Default, float4(0.f, 0.f, 0.f, 0.f), 0xffffffff);
 
         VertexShader = compile vs_5_0 VS_MAIN();
+        GeometryShader = NULL;
         PixelShader = compile ps_5_0 PS_MAIN();
     }
 }

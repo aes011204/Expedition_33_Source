@@ -136,6 +136,18 @@ public: /* For.Asset_Manager */
     /* ResourceLoader가 현재 정본 리소스 루트를 절대경로로 해석할 때 호출한다. */
     wstring Get_AssetRoot() const;
 
+public : /* For.Target_Manager */
+    HRESULT Add_RenderTarget(const wstring& targetTag, uint32 sizeX, uint32 sizeY, DXGI_FORMAT pixelFormat, const Color& clearColor, bool resizeWithViewport = true);
+    HRESULT Add_MRT(const wstring& mrtTag, const wstring& targetTag);
+
+    HRESULT Begin_MRT(const wstring& mrtTag, ComPtr<DepthStencilView> shaderDSV = nullptr);
+    HRESULT End_MRT();
+    HRESULT Resize_MRTs(uint32 width, uint32 height);
+    HRESULT Bind_ShaderResource(Shared<Shader> shader, const char* constantName, const wstring& targetTag);
+
+    HRESULT Copy_CurrentRTV_To(const wstring& targetTag);
+    HRESULT Copy_RTV(const wstring& srcTargetTag, const wstring& dstTargetTag);
+
 private:
     Unique<Log_Manager> _logManager{};
     Unique<Graphic_Device> _graphicDevice{};
@@ -149,6 +161,7 @@ private:
     Unique<Light_Manager> _lightManager{};
     Unique<Font_Manager> _fontManager{};
     Unique<Asset_Manager> _assetManager{}; /* GUID 기반 에셋 registry와 meta/cache를 관리하는 매니저 */
+    Unique<Target_Manager> _targetManager{};
 
 private:
     uint32 _viewportWidth{ 0 };

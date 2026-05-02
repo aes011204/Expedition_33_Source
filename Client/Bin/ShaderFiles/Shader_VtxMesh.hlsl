@@ -1,29 +1,23 @@
 
 #include "Engine_Shader_Defines.hlsli"
-/* Vertex Shader */
-/* 1. Á¤Á¡ÀÇ º¯È¯°úÁ¤À» ¼öÇàÇÑ´Ù.(¿ùµå, ºä, Åõ¿µ µî) */
-/* 2. Á¤Á¡ÀÇ ±¸¼ºÀ» º¯ÇüÇÑ´Ù. */
-
-/* float2, float3, float4 == vector */
-/* float1x4, float4x4 == matrix */
-
-
-/* ÄÁ½ºÅÏÆ® Å×ÀÌºí */
+//==================================================
+// MATRIX
+//==================================================
 float4x4 g_WorldMatrix, g_ViewMatrix, g_ProjMatrix;
 
-vector g_vLightDir;
-vector g_vLightDiffuse;
-vector g_vLightAmbient;
-vector g_vLightSpecular;
-
+//==================================================
+// MATERIAL
+//==================================================
 texture2D g_DiffuseTexture;
-vector g_vMtrlAmbient = vector(0.3f, 0.3f, 0.3f, 1.f);
-vector g_vMtrlSpecular = vector(1.f, 1.f, 1.f, 1.f);
-vector g_vCamPosition;
 
+//==================================================
+// CAMERA
+//==================================================
+float g_fFar = 500.f;
 
-
-
+//==================================================
+// SAMPLER
+//==================================================
 sampler DefaultSampler = sampler_state
 {
     Filter = MIN_MAG_MIP_LINEAR;   
@@ -31,9 +25,9 @@ sampler DefaultSampler = sampler_state
     AddressV = wrap;
 };
 
-
-
-/* ÀÌ ½¦ÀÌ´õ·Î ±×¸°´Ù¶ó°í ÀÌ¾ß±âÇÑ Á¤Á¡¹öÆÛÀÇ Á¤Á¡À» ²¨³»¼­ ¹Þ¾Æ¿Â´Ù */
+//==================================================
+// VS
+//==================================================
 struct VS_IN
 {
     float3 vPosition : POSITION;
@@ -48,17 +42,17 @@ struct VS_OUT
     float4 vNormal : NORMAL;
     float2 vTexcoord : TEXCOORD0;
     float4 vWorldPos : TEXCOORD1;
+    float4 vProjPos : TEXCOORD2;
 };
 
 VS_OUT VS_MAIN(VS_IN In)
 {
     VS_OUT Out;
     
-    /* Á¤Á¡ÀÇ À§Ä¡ * ¿ùµå * ºä * Åõ¿µ */
+    /* ì •ì ì˜ ìœ„ì¹˜ * ì›”ë“œ * ë·° * íˆ¬ì˜ */
     float4x4 matWV, matWVP;
     
-    /* mul : Çà·Ä³¢¸®ÀÇ °öÇÏ±â¿¬»êÀ» ¼öÇàÇÑ´Ù. */ 
-    /* XMVector3TransformCoord : º¤ÅÍ¿Í Çà·ÄÀÇ °öÇÏ±â¿¬»êÀ» ¼öÇàÇÏ°í w³ª´«´Ù.*/
+    /* mul : í–‰ë ¬ë¼ë¦¬ì˜ ê³±í•˜ê¸°ì—°ì‚°ì„ ìˆ˜í–‰í•œë‹¤. */ 
     matWV = mul(g_WorldMatrix, g_ViewMatrix);
     matWVP = mul(matWV, g_ProjMatrix);
     
@@ -67,49 +61,45 @@ VS_OUT VS_MAIN(VS_IN In)
     
     Out.vTexcoord = In.vTexcoord;
     Out.vWorldPos = mul(float4(In.vPosition, 1.f), g_WorldMatrix);
-    
+    Out.vProjPos = Out.vPosition;
+
     return Out;
 }
 
-/* w³ª´©±â¿¬»êÀ» ¼öÇàÇÑ´Ù.-> ÀÌ ¿¬»êÀ¸·Î ÀÌ¾îÁú¼ö ÀÖ´Â ÀÌÀ¯ -> VS_OUT±¸Á¶Ã¼ÀÇ À§Ä¡ -> SV_ */
-/* ºäÆ÷Æ®(À©µµ¿ìÁÂÇ¥)·Î º¯È¯ÇÑ´Ù. */
-/* ·¡½ºÅÍ¶óÀÌÁî -> Á¤Á¡ ¼¼°³·Î °¨½ÎÁø ¿µ¿ªÀÇ ÇÈ¼¿ Á¤º¸¸¦ »ý¼ºÇÑ´Ù */
-
+//==================================================
+// PS
+//==================================================
 struct PS_IN
 {
     float4 vPosition : SV_POSITION;
     float4 vNormal : NORMAL;
     float2 vTexcoord : TEXCOORD0;    
     float4 vWorldPos : TEXCOORD1;
+    float4 vProjPos : TEXCOORD2;    
 };
 
 struct PS_OUT
 {
-    vector vColor : SV_TARGET0;
+    vector vDiffuse : SV_TARGET0;
+    vector vNormal : SV_TARGET1;
+    vector vDepth : SV_TARGET2;
 };
-
-/* Pixel Shader -> ÇÈ¼¿ÀÇ »öÀ» °áÁ¤ÇÑ´Ù. */
 
 PS_OUT PS_MAIN(PS_IN In)
 {
     PS_OUT Out;
     
-    // Out.vColor = float4(In.vTexcoord.y, In.vTexcoord.y, In.vTexcoord.y, 1.f);
     vector      vMtrlDiffuse = g_DiffuseTexture.Sample(DefaultSampler, In.vTexcoord);
     
     if (vMtrlDiffuse.a < 0.3f)
         discard;
+
+    Out.vDiffuse = vMtrlDiffuse;
+
+    Out.vNormal = vector(In.vNormal.xyz * 0.5f + 0.5f, 0.f);    
     
-    vector vShade = saturate(max(dot(normalize(g_vLightDir) * -1.f, In.vNormal), 0.f) + (g_vLightAmbient * g_vMtrlAmbient));
-    
-    vector vLook = In.vWorldPos - g_vCamPosition;
-    vector vRelfect = reflect(normalize(g_vLightDir), In.vNormal);    
-    float fSpecular = pow(max(dot(normalize(vLook) * -1.f, normalize(vRelfect)), 0.f), 50.f);
-    
-    vector vSpecularColor = g_vLightSpecular * g_vMtrlSpecular * fSpecular;
-    
-    Out.vColor = g_vLightDiffuse * vMtrlDiffuse * vShade + vSpecularColor;
-    
+    Out.vDepth = vector(In.vProjPos.z / In.vProjPos.w, In.vProjPos.w / g_fFar, 0.f, 1.f);
+
     return Out;
 
 }
@@ -123,14 +113,7 @@ technique11 DefaultTechnique
         SetBlendState(BS_Default, float4(0.f, 0.f, 0.f, 0.f), 0xffffffff);
 
         VertexShader = compile vs_5_0 VS_MAIN();
+        GeometryShader = NULL;
         PixelShader = compile ps_5_0 PS_MAIN();
     }
 }
-
-//    pass DefaultPass1
-//    {
-//        VertexShader = compile vs_5_0 VS_MAIN1();
-//        PixelShader = compile ps_5_0 PS_MAIN1();
-
-//    }
-//}
