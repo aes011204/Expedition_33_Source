@@ -1,4 +1,4 @@
-#include "GameObject.h"
+﻿#include "GameObject.h"
 #include "GameInstance.h"
 
 GameObject::GameObject(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -20,7 +20,7 @@ HRESULT GameObject::Initialize_Prototype()
 
 HRESULT GameObject::Initialize(void* arg)
 {
-    _transformCom = Transform::Create(_device, _context);
+    _transformCom = TransformCom::Create(_device, _context);
 
     if (nullptr == _transformCom)
         return E_FAIL;

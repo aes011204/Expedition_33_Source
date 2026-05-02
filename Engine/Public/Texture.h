@@ -9,7 +9,7 @@ class ENGINE_DLL Texture final : public Component
 public:
 	Texture(const ComPtr<Device>& device, const ComPtr<Context>& context);
 	Texture(const Texture& prototype);
-	virtual ~Texture() { Free(); }
+	virtual ~Texture() = default;
 
 public:
 	virtual HRESULT Initialize_Prototype(const wchar_t* texturePathPattern, uint32 numSRVs);

@@ -14,19 +14,12 @@ vector g_vCamPosition;
 
 matrix g_BoneMatrices[512];
 
-
-
-
-
-
 sampler DefaultSampler = sampler_state
 {
-    Filter = MIN_MAG_MIP_LINEAR;   
+    Filter = MIN_MAG_MIP_LINEAR;
     AddressU = wrap;
     AddressV = wrap;
 };
-
-
 
 /* 이 쉐이더로 그린다라고 이야기한 정점버퍼의 정점을 꺼내서 받아온다 */
 struct VS_IN

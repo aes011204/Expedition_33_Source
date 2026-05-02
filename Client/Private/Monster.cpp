@@ -2,12 +2,12 @@
 #include "GameInstance.h"
 
 Monster::Monster(const ComPtr<Device>& device, const ComPtr<Context>& context)
-	: GameObject { device, context }
+	: Character { device, context }
 {
 }
 
 Monster::Monster(const Monster& prototype)
-	: GameObject { prototype }
+	: Character { prototype }
 
 {
 }
@@ -17,9 +17,9 @@ HRESULT Monster::Initialize_Prototype()
 	return S_OK;
 }
 
-HRESULT Monster::Initialize(void* pArg)
+HRESULT Monster::Initialize(void* arg)
 {	
-	if (FAILED(__super::Initialize(pArg)))
+	if (FAILED(__super::Initialize(arg)))
 		return E_FAIL;
 	
 	if (FAILED(Ready_Components()))
@@ -36,20 +36,20 @@ HRESULT Monster::Initialize(void* pArg)
 	return S_OK;
 }
 
-void Monster::Priority_Update(float fTimeDelta)
+void Monster::Priority_Update(float timeDelta)
 {
 
 }
 
-void Monster::Update(float fTimeDelta)
+void Monster::Update(float timeDelta)
 {
-	if (true == _model->Play_Animation(fTimeDelta))
+	if (true == _model->Play_Animation(timeDelta))
 		int a = 10;
 }
 
 void Monster::Late_Update(float fTimeDelta)
 {
- 	GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
+ 	GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<Character>());
 }
 
 HRESULT Monster::Render()
@@ -126,36 +126,35 @@ HRESULT Monster::Bind_ShaderResources()
 
 Shared<Monster> Monster::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
-	auto pInstance = make_shared<Monster>(device, context);
+    auto instance = make_shared<Monster>(device, context);
 
-	if (FAILED(pInstance->Initialize_Prototype()))
-	{
-		MSG_BOX("Failed to Created : Monster");
-		return nullptr;
-	}
-	return pInstance;
+    if (FAILED(instance->Initialize_Prototype()))
+    {
+        MSG_BOX("Failed to Created : Monster");
+        return nullptr;
+    }
+
+    return instance;
 }
 
 
-Shared<GameObject> Monster::Clone(void* pArg)
+Shared<GameObject> Monster::Clone(void* arg)
 {
-	auto pInstance = make_shared<Monster>(*this);
+    auto clone = make_shared<Monster>(*this);
 
-	if (FAILED(pInstance->Initialize(pArg)))
-	{
-		MSG_BOX("Failed to Cloned : Monster");
-		return nullptr;
-	}
-	return pInstance;
+    if (FAILED(clone->Initialize(arg)))
+    {
+        MSG_BOX("Failed to Cloned : Monster");
+        return nullptr;
+    }
+
+    return clone;
 }
 
 void Monster::Free()
 {
 	__super::Free();
 
-	
-	Safe_Release(_shader);	
-	Safe_Release(_model);
 }
 
 

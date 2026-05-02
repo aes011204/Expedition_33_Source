@@ -1,9 +1,13 @@
-﻿#include "Content_Browser.h"
+#include "Content_Browser.h"
+
+#include "GameInstance.h"
 
 Content_Browser::Content_Browser()
     : Editor_Window{ L"Content Browser" }
-    , _resourceRoot{ filesystem::path{ ".." } / "Bin" / "Resources" }
 {
+    const wstring assetRoot = GAME->Get_AssetRoot();
+    if (!assetRoot.empty())
+        _resourceRoot = filesystem::path(assetRoot);
 }
 
 void Content_Browser::Render()
@@ -16,17 +20,25 @@ void Content_Browser::Render()
     const string windowName = String::ToString(Get_WindowName());
     if (ImGui::Begin(windowName.c_str(), &isOpen))
     {
+        if (_resourceRoot.empty())
+        {
+            const wstring assetRoot = GAME->Get_AssetRoot();
+            if (!assetRoot.empty())
+                _resourceRoot = filesystem::path(assetRoot);
+        }
+
         ImGui::TextUnformatted(_resourceRoot.string().c_str());
         ImGui::Separator();
         Render_Directory(_resourceRoot);
     }
+
     Set_Open(isOpen);
     ImGui::End();
 }
 
 void Content_Browser::Render_Directory(const filesystem::path& rootPath)
 {
-    if (!filesystem::exists(rootPath))
+    if (rootPath.empty() || !filesystem::exists(rootPath))
     {
         ImGui::TextDisabled("Resource folder is not available yet.");
         return;

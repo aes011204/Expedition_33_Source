@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "VIBuffer.h"
 
@@ -9,7 +9,7 @@ class Mesh final : public VIBuffer
 public:
 	Mesh(const ComPtr<Device>& device, const ComPtr<Context>& context);
 	Mesh(const Mesh& prototype);
-	virtual ~Mesh() { Free(); }
+	virtual ~Mesh() = default;
 
 public:
 	uint32 Get_MaterialIndex() const {
