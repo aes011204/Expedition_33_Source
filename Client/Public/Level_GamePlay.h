@@ -13,7 +13,8 @@ public:
 
 public:
 	virtual HRESULT Initialize() override;
-	virtual void Update(float fTimeDelta) override;
+    virtual void    BeginPlay() override;
+	virtual void    Update(float fTimeDelta) override;
 	virtual HRESULT Render() override;
 private:
 	HRESULT Ready_Lights();

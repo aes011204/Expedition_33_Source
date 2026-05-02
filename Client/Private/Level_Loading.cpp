@@ -98,7 +98,6 @@ void Level_Loading::Free()
 {
 	__super::Free();
 
-	Safe_Release(_loader);
 }
 
 

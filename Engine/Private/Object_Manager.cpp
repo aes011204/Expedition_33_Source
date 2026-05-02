@@ -1,4 +1,4 @@
-#include "Object_Manager.h"
+﻿#include "Object_Manager.h"
 
 #include "GameInstance.h"
 #include "GameObject.h"
@@ -76,6 +76,18 @@ HRESULT Object_Manager::Clear_Layers(uint32 levelIndex)
 
 	_layers[levelIndex].clear();
 	return S_OK;
+}
+
+Shared<GameObject> Object_Manager::Find_FirstObject(uint32 levelIndex, const wstring& layerTag)
+{
+    if (levelIndex >= _numLevels)
+        return nullptr;
+
+    Shared<Layer> layer = Find_Layer(levelIndex, layerTag);
+    if (layer == nullptr)
+        return nullptr;
+
+    return layer->Find_FirstObject();
 }
 
 Shared<Layer> Object_Manager::Find_Layer(uint32 layerLevelIndex, const wstring& layerTag)

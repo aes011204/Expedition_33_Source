@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Client_Defines.h"
 #include "Base.h"
@@ -28,7 +28,6 @@ private:
     wstring Get_ClientResourcePath(const wchar_t* relativePath) const;
 
 private:
-    Engine::GameInstance* _gameInstance = nullptr;
     ComPtr<Device> _device = nullptr;
     ComPtr<Context> _context = nullptr;
 

@@ -21,7 +21,7 @@ public:
 
 private:
 	uint32										_numSRVs = {};
-	vector<ID3D11ShaderResourceView*>			_srvs;
+	vector<ComPtr<ID3D11ShaderResourceView>>	_srvs;
 
 public:
 	static Shared<Texture> Create(const ComPtr<Device>& device, const ComPtr<Context>& context, const wchar_t* texturePathPattern, uint32 numSRVs);

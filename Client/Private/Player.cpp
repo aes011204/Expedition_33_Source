@@ -38,6 +38,11 @@ HRESULT Player::Initialize(void* arg)
 	return S_OK;
 }
 
+void Player::BeginPlay()
+{
+    Character::BeginPlay();
+}
+
 void Player::Priority_Update(float timeDelta)
 {
 	__super::Priority_Update(timeDelta);

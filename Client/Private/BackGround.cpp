@@ -131,10 +131,6 @@ void BackGround::Free()
 {
 	__super::Free();
 
-	
-	Safe_Release(_shader);
-	Safe_Release(_texture);
-	Safe_Release(_vibuffer);
 }
 
 
