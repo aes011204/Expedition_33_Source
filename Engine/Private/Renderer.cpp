@@ -1,7 +1,15 @@
-#include "Renderer.h"
+﻿#include "Renderer.h"
 
 #include "GameInstance.h"
 #include "GameObject.h"
+
+/*
+ * TODO . 렌더 타겟 생성 및 MRT 구성
+ * TODO . Deferred Shader 생성
+ * TODO . 그림자 및 빛 연산
+ * TODO . Combined
+ * TODO . 이외 후처리
+ */
 
 Renderer::Renderer(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : _device { device }
@@ -106,8 +114,4 @@ void Renderer::Free()
 		_renderGroups[i].clear();
 	}
 }
-
-
-
-
 

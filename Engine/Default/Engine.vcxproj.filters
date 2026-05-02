@@ -144,6 +144,9 @@
     <ClInclude Include="..\Public\Helper_Math.h">
       <Filter>99. Defines\Helper</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\Target_Manager.h">
+      <Filter>97. Manager</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\public\Base.h">
@@ -399,6 +402,9 @@
     </ClCompile>
     <ClCompile Include="..\Private\RenderTarget.cpp" />
     <ClCompile Include="..\Private\Log_Manager.cpp" />
+    <ClCompile Include="..\Private\Target_Manager.cpp">
+      <Filter>97. Manager</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Bin\ShaderFiles\Engine_Shader_Defines.hlsli">

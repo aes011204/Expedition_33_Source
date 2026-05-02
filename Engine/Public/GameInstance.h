@@ -17,6 +17,7 @@ class Light_Manager;
 class Font_Manager;
 class Asset_Manager;
 class Log_Manager;
+class Target_Manager;
 struct ConsoleLogEntry;
 
 class GameObject;
