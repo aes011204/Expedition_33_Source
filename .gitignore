@@ -484,3 +484,10 @@ Engine/Bin/Engine.dll
 
 # Repo-local agent instructions
 /AGENTS.md
+
+# Project build artifacts
+Client/Bin/Client.exp
+Client/Bin/Client.pdb
+Engine/Bin/Engine.lib
+Engine/Bin/Engine.exp
+Engine/Bin/Engine.pdb
