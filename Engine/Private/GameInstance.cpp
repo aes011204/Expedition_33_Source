@@ -172,15 +172,13 @@ void GameInstance::Update_Engine(float timeDelta)
 {
     _inputManager->Update(timeDelta);
 
+    _levelManager->Update(timeDelta);
+
     _objectManager->Priority_Update(timeDelta);
-
     _pipeLine->Update();
-
     _objectManager->Update(timeDelta);
-
     _objectManager->Late_Update(timeDelta);
 
-    _levelManager->Update(timeDelta);
 }
 
 HRESULT GameInstance::Draw()

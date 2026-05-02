@@ -1,4 +1,4 @@
-#include "Level_Manager.h"
+﻿#include "Level_Manager.h"
 #include "GameInstance.h"
 #include "Level.h"
 
@@ -21,7 +21,10 @@ HRESULT Level_Manager::Change_Level(uint32 newLevelIndex, Shared<Level> newLevel
 void Level_Manager::Update(float timeDelta)
 {
 	if (nullptr != _currentLevel)
+	{
+	    _currentLevel->Try_BeginPlay();
 		_currentLevel->Update(timeDelta);
+	}
 }
 
 HRESULT Level_Manager::Render()

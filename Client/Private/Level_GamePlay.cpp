@@ -30,6 +30,13 @@ HRESULT Level_GamePlay::Initialize()
 	return S_OK;
 }
 
+void Level_GamePlay::BeginPlay()
+{
+    Level::BeginPlay();
+
+    
+}
+
 void Level_GamePlay::Update(float fTimeDelta)
 {
     int a = 10;
@@ -114,7 +121,7 @@ HRESULT Level_GamePlay::Ready_Layer_Player(const wstring& strLayerTag)
 		ETOI(LevelType::GamePlay), strLayerTag)))
 		return E_FAIL;
 
-    
+
 
 	return S_OK;
 }

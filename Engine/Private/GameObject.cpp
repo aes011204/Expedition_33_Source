@@ -10,6 +10,7 @@ GameObject::GameObject(const ComPtr<Device>& device, const ComPtr<Context>& cont
 GameObject::GameObject(const GameObject& prototype)
     : _device{ prototype._device }
     , _context{ prototype._context }
+    , _hasBegunPlay(false)
 {
 }
 
@@ -36,6 +37,11 @@ HRESULT GameObject::Initialize(void* arg)
     return S_OK;
 }
 
+void GameObject::BeginPlay()
+{
+
+}
+
 void GameObject::Priority_Update(float timeDelta)
 {
 }
@@ -50,6 +56,17 @@ void GameObject::Late_Update(float timeDelta)
 
 HRESULT GameObject::Render()
 {
+    return S_OK;
+}
+
+HRESULT GameObject::Try_BeginPlay()
+{
+    if (_hasBegunPlay)
+        return S_OK;
+
+    BeginPlay();
+    _hasBegunPlay = true;
+
     return S_OK;
 }
 
