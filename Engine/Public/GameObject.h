@@ -1,6 +1,6 @@
-#pragma once
+﻿#pragma once
 
-#include "Transform.h"
+#include "TransformCom.h"
 #include "GameInstance.h"
 #include <type_traits>
 
@@ -9,7 +9,7 @@ NS_BEGIN(Engine)
 class ENGINE_DLL GameObject abstract : public Base
 {
 public:
-    typedef struct tagGameObjectDesc : public Transform::TRANSFORM_DESC
+    typedef struct tagGameObjectDesc : public TransformCom::TRANSFORM_DESC
     {
         uint32		flag = {};
     }GAMEOBJECT_DESC;
@@ -22,10 +22,18 @@ public:
 public:
     virtual HRESULT Initialize_Prototype();
     virtual HRESULT Initialize(void* arg);
+    virtual void    BeginPlay();
+
     virtual void    Priority_Update(float timeDelta);
     virtual void    Update(float timeDelta);
     virtual void    Late_Update(float timeDelta);
     virtual HRESULT Render();
+
+    HRESULT         Try_BeginPlay();
+
+public:
+    Shared<GameObject> Get_Owner() const { return _owner.lock(); }
+    void Set_Owner(Shared<GameObject> owner) { _owner = owner; }
 
 public:
     // 일반적으로 컴포넌트 가져올 때 = Get_Component<Shader>(); 이런느낌
@@ -59,7 +67,7 @@ public:
     }
 
     // 트랜스폼은 자주 사용하니까
-    Shared<Transform> Get_Transform() const { return _transformCom; }
+    Shared<TransformCom> Get_Transform() const { return _transformCom; }
 
 public:
     template<typename T>
@@ -83,9 +91,12 @@ public:
         if (nullptr == component)
             return E_FAIL;
 
+        component->Set_Owner(this->GetSharedPtr<GameObject>());
+
         outCom = dynamic_pointer_cast<T>(component);
         if (nullptr == outCom)
             return E_FAIL;
+
 
         _components.emplace(prototypeTag, component);
 
@@ -93,12 +104,18 @@ public:
     }
 
 protected:
-    ComPtr<Device>      _device = { nullptr };
-    ComPtr<Context>     _context = { nullptr };
-    Shared<Transform>  _transformCom = { nullptr };
+    ComPtr<Device>          _device = { nullptr };
+    ComPtr<Context>         _context = { nullptr };
+    Shared<TransformCom>    _transformCom = { nullptr };
+
+    ObjectType              _objectType = ObjectType::None;
 
 protected:
-    map<const wstring, Shared<Component>>		_components;
+    map<const wstring, Shared<Component>> _components;
+
+protected:
+    Weak<GameObject> _owner;
+    bool _hasBegunPlay = false;
 
 public:
     virtual Shared<GameObject> Clone(void* arg) = 0;

@@ -1,0 +1,217 @@
+﻿#include "EffectEditorInstance.h"
+
+#include "RenderTarget.h"
+#include "Editor_Manager.h"
+#include "GameInstance.h"
+#include "ImGui_Manager.h"
+
+IMPLEMENT_SINGLETON(EffectEditorInstance)
+
+EffectEditorInstance::EffectEditorInstance()
+{
+}
+
+EffectEditorInstance::~EffectEditorInstance()
+{
+    Free();
+}
+
+HRESULT EffectEditorInstance::Initialize_Editor(const EffectEditorDesc& editorDesc, const ComPtr<Device>& device, const ComPtr<Context>& context)
+{
+    _editorDesc = editorDesc;
+    _device = device;
+    _context = context;
+
+    if (nullptr == _editorDesc.hWnd || nullptr == _device || nullptr == _context)
+    {
+        LOG_ERROR("Initialize_Editor failed!");
+        return E_FAIL;
+    }
+
+    _imguiManager = ImGui_Manager::Create(editorDesc.hWnd, _device, _context);
+    CHECK_NULL(_imguiManager, E_FAIL);
+
+    _editorManager = Editor_Manager::Create();
+    CHECK_NULL(_editorManager, E_FAIL);
+
+    // 처음에는 Edit 모드로, 1배속으로 시작
+    _runtimeState = EffectEditorRuntimeState::Edit;
+    _runtimeTimeScale = 1.f;
+
+    return S_OK;
+}
+
+void EffectEditorInstance::Update_Editor(float timeDelta)
+{
+    _imguiManager->Update(timeDelta);
+    _editorManager->Update(timeDelta);
+}
+
+void EffectEditorInstance::Render_Editor()
+{
+    _editorManager->Render();
+    _imguiManager->Render();
+}
+
+Shared<Editor_Window> EffectEditorInstance::Get_Window(const wstring& windowName) const
+{
+    if (nullptr == _editorManager)
+        return nullptr;
+
+    return _editorManager->Find_Window(windowName);
+}
+
+HWND EffectEditorInstance::Get_WindowHandle() const
+{
+    return _editorDesc.hWnd;
+}
+
+Shared<RenderTarget> EffectEditorInstance::Prepare_SharedViewportRenderTarget(uint32 width, uint32 height)
+{
+    if (0 == width)
+        width = 1;
+
+    if (0 == height)
+        height = 1;
+
+    if (nullptr == _sharedViewportRenderTarget)
+    {
+        _sharedViewportRenderTarget = RenderTarget::Create(
+            _device,
+            _context,
+            width,
+            height,
+            DXGI_FORMAT_R8G8B8A8_UNORM,
+            Vec4(0.f, 0.f, 0.f, 1.f)
+        );
+    }
+    else if (FAILED(
+        _sharedViewportRenderTarget->Resize(
+            width,
+            height,
+            DXGI_FORMAT_R8G8B8A8_UNORM,
+            Vec4(0.f, 0.f, 0.f, 1.f))
+    ))
+        return nullptr;
+
+    return _sharedViewportRenderTarget;
+}
+
+void EffectEditorInstance::Request_ViewportSize(EditorViewportTarget targetType, uint32 width, uint32 height)
+{
+    _lastViewportRequester = targetType;
+    _requestedViewportWidth = max(1u, width);
+    _requestedViewportHeight = max(1u, height);
+}
+
+ID3D11ShaderResourceView* EffectEditorInstance::Get_SharedViewportSRV() const
+{
+    if (nullptr == _sharedViewportRenderTarget)
+        return nullptr;
+
+    return _sharedViewportRenderTarget->Get_SRV();
+}
+
+void EffectEditorInstance::Capture_BackBuffer_ToViewport()
+{
+    const Shared<RenderTarget> renderTarget =
+        Prepare_SharedViewportRenderTarget(
+            GAME->Get_BackBufferWidth(),
+            GAME->Get_BackBufferHeight()
+        );
+
+    if (nullptr == renderTarget || nullptr == _context)
+        return;
+
+    const ComPtr<IDXGISwapChain> swapChain = GAME->Get_SwapChain();
+    if (nullptr == swapChain)
+        return;
+
+    ComPtr<ID3D11Texture2D> backBufferTexture = nullptr;
+
+    const HRESULT hr = swapChain->GetBuffer(
+        0,
+        __uuidof(ID3D11Texture2D),
+        reinterpret_cast<void**>(backBufferTexture.GetAddressOf())
+    );
+    CHECK_FAILED(hr);
+
+    const ComPtr<ID3D11Texture2D> viewportTexture = renderTarget->Get_Texture();
+    if (nullptr == viewportTexture)
+        return;
+
+    _context->CopyResource(viewportTexture.Get(), backBufferTexture.Get());
+}
+
+void EffectEditorInstance::Play()
+{
+    _runtimeState = EffectEditorRuntimeState::Play;
+}
+
+void EffectEditorInstance::Pause()
+{
+    if (EffectEditorRuntimeState::Play == _runtimeState)
+        _runtimeState = EffectEditorRuntimeState::Pause;
+}
+
+void EffectEditorInstance::Stop()
+{
+    _runtimeState = EffectEditorRuntimeState::Edit;
+}
+
+void EffectEditorInstance::Resume()
+{
+    if (EffectEditorRuntimeState::Pause == _runtimeState)
+        _runtimeState = EffectEditorRuntimeState::Play;
+}
+
+bool EffectEditorInstance::IsPlaying() const
+{
+    return EffectEditorRuntimeState::Play == _runtimeState;
+}
+
+bool EffectEditorInstance::IsPaused() const
+{
+    return EffectEditorRuntimeState::Pause == _runtimeState;
+}
+
+void EffectEditorInstance::Set_RuntimeTimeScale(float timeScale)
+{
+    _runtimeTimeScale = Clamp_RuntimeTimeScale(timeScale);
+}
+
+void EffectEditorInstance::Reset_RuntimeTimeScale()
+{
+    _runtimeTimeScale = 1.f;
+}
+
+float EffectEditorInstance::Get_RuntimeTimeScale() const
+{
+    return _runtimeTimeScale;
+}
+
+float EffectEditorInstance::Clamp_RuntimeTimeScale(float fTimeScale)
+{
+    if (fTimeScale < 0.01f)
+        return 0.01f;
+
+    if (fTimeScale > 8.f)
+        return 8.f;
+
+    return fTimeScale;
+}
+
+void EffectEditorInstance::Free()
+{
+    _sharedViewportRenderTarget.reset();
+    _imguiManager.reset();
+    _editorManager.reset();
+    _context.Reset();
+    _device.Reset();
+    _editorDesc = {};
+    _requestedViewportWidth = 1;
+    _requestedViewportHeight = 1;
+    _lastViewportRequester = EditorViewportTarget::Game;
+    _runtimeState = EffectEditorRuntimeState::Edit;
+    _runtimeTimeScale = 1.f;
+}

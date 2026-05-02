@@ -8,7 +8,7 @@ class CustomFont final : public Base
 {
 public:
     CustomFont(const ComPtr<Device>& device, const ComPtr<Context>& context);
-    ~CustomFont() override;
+    ~CustomFont() override = default;
 
 public:
     HRESULT Initialize(const wchar_t* fontFilePath);
@@ -18,8 +18,8 @@ private:
     ComPtr<Device> _device = { nullptr };
     ComPtr<Context> _context = { nullptr };
 
-    SpriteBatch* _spriteBatch = { nullptr };
-    SpriteFont* _spriteFont = { nullptr };
+    Unique<SpriteBatch> _spriteBatch = { nullptr };
+    Unique<SpriteFont>  _spriteFont = { nullptr };
 
 public:
     static Shared<CustomFont> Create(const ComPtr<Device>& device, const ComPtr<Context>& context, const wchar_t* fontFilePath);

@@ -11,7 +11,6 @@ using namespace Engine;
 NS_BEGIN(GameLauncherApp)
 
 MainApp::MainApp()
-    : _gameInstance{ GameInstance::GetInstance() }
 {
 }
 
@@ -53,21 +52,21 @@ HRESULT MainApp::Initialize()
 
 void MainApp::Update(float fTimeDelta)
 {
-    _gameInstance->Update_Engine(fTimeDelta);
+    GAME->Update_Engine(fTimeDelta);
 }
 
 HRESULT MainApp::Render()
 {
     const Vec4 clearColor = Vec4(0.f, 0.f, 1.f, 1.f);
-    if (FAILED(_gameInstance->Clear_Buffers(clearColor)))
+    if (FAILED(GAME->Clear_Buffers(clearColor)))
         return E_FAIL;
 
-    if (FAILED(_gameInstance->Draw()))
+    if (FAILED(GAME->Draw()))
         return E_FAIL;
 
-    _gameInstance->Draw_Font(TEXT("Font_Default"), TEXT("니네들은 싸우지말라고하시네요"), Vec2(100.f, 0.f));
+    GAME->Draw_Font(TEXT("Font_Default"), TEXT("니네들은 싸우지말라고하시네요"), Vec2(100.f, 0.f));
 
-    if (FAILED(_gameInstance->Present()))
+    if (FAILED(GAME->Present()))
         return E_FAIL;
 
     return S_OK;
@@ -79,7 +78,7 @@ HRESULT MainApp::Ready_Fonts()
     if (!fs::exists(fontPath))
         return E_FAIL;
 
-    if (FAILED(_gameInstance->Add_Font(TEXT("Font_Default"), fontPath.c_str())))
+    if (FAILED(GAME->Add_Font(TEXT("Font_Default"), fontPath.c_str())))
         return E_FAIL;
 
     return S_OK;
@@ -95,7 +94,7 @@ HRESULT MainApp::Ready_StartLevel(LevelType eStartLevelID)
     if (LevelType::Loading == eStartLevelID)
         return E_FAIL;
 
-    if (FAILED(_gameInstance->Change_Level(
+    if (FAILED(GAME->Change_Level(
         ETOI(LevelType::Loading),
         Level_Loading::Create(_device.Get(), _context.Get(), eStartLevelID))))
     {
@@ -144,8 +143,11 @@ void MainApp::Free()
     CLIENT->Release_Client();
     ClientInstance::DestroyInstance();
 
-    if (nullptr != _gameInstance)
-        _gameInstance->Release_Engine();
+    _context.Reset();
+    _device.Reset();
+
+    GAME->Release_Engine();
+    GameInstance::DestroyInstance();
 }
 
 NS_END

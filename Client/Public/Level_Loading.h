@@ -12,7 +12,7 @@ class Level_Loading final : public Level
 {
 public:
 	Level_Loading(const ComPtr<Device>& device, const ComPtr<Context>& context);
-	virtual ~Level_Loading() { Free(); }
+	virtual ~Level_Loading() = default;
 
 public:
 	virtual HRESULT Initialize(LevelType eNextLevelID);

@@ -61,7 +61,7 @@ HRESULT Mesh::Initialize_Prototype(ModelType type, const aiMesh* aiMesh, class M
 	D3D11_SUBRESOURCE_DATA			IndexInitialData{};
 	IndexInitialData.pSysMem = indices;
 
-	if (FAILED(_device->CreateBuffer(&IndexBufferDesc, &IndexInitialData, &_ib)))
+	if (FAILED(_device->CreateBuffer(&IndexBufferDesc, &IndexInitialData, _ib.GetAddressOf())))
 		return E_FAIL;
 
 
@@ -124,7 +124,7 @@ HRESULT Mesh::Ready_VertexBuffer_For_NonAnim(const aiMesh* aiMesh, FXMMATRIX pre
 	D3D11_SUBRESOURCE_DATA			VertexInitialData{};
 	VertexInitialData.pSysMem = vertices;
 
-	if (FAILED(_device->CreateBuffer(&VertexBufferDesc, &VertexInitialData, &_vb)))
+	if (FAILED(_device->CreateBuffer(&VertexBufferDesc, &VertexInitialData, _vb.GetAddressOf())))
 		return E_FAIL;
 
 	Safe_Delete_Array(vertices);
@@ -222,7 +222,7 @@ HRESULT Mesh::Ready_VertexBuffer_For_Anim(const aiMesh* aiMesh, class Model* mod
 	D3D11_SUBRESOURCE_DATA			VertexInitialData{};
 	VertexInitialData.pSysMem = vertices;
 
-	if (FAILED(_device->CreateBuffer(&VertexBufferDesc, &VertexInitialData, &_vb)))
+	if (FAILED(_device->CreateBuffer(&VertexBufferDesc, &VertexInitialData, _vb.GetAddressOf())))
 		return E_FAIL;
 
 	Safe_Delete_Array(vertices);

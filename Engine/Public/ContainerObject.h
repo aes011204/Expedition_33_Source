@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "GameObject.h"
 
@@ -19,6 +19,8 @@ public:
 public:
 	virtual HRESULT Initialize_Prototype();
 	virtual HRESULT Initialize(void* arg);
+    virtual void BeginPlay() override;
+
 	virtual void Priority_Update(float timeDelta);
 	virtual void Update(float timeDelta);
 	virtual void Late_Update(float timeDelta);

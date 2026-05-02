@@ -1,51 +1,58 @@
-﻿#ifndef Engine_Struct_h__
-#define Engine_Struct_h__
+﻿#pragma once
 
 #include "Engine_Typedef.h"
 
 namespace Engine
 {
-using ENGINE_DESC = struct tagEngineDesc
-{
-    HINSTANCE hInstance;
-    HWND hWnd;
-    WinMode winMode;
-    unsigned int numLevels;
-    unsigned int viewportWidth;
-    unsigned int viewportHeight;
-    std::string projectName;
-};
+    class GameObject;
 
-using KEYFRAME = struct tagKeyFrame
-{
-    Vec3 scale;
-    Quat rotation;
-    Vec3 translation;
+    using ENGINE_DESC = struct tagEngineDesc
+    {
+        HINSTANCE hInstance;
+        HWND hWnd;
+        WinMode winMode;
+        unsigned int numLevels;
+        unsigned int viewportWidth;
+        unsigned int viewportHeight;
+        std::string projectName;
+    };
 
-    float trackPosition; /* 현재 키프레임상태는 어떤 위치에서 표현되어야하는가? */
-};
+    using KEYFRAME = struct tagKeyFrame
+    {
+        Vec3 scale;
+        Quat rotation;
+        Vec3 translation;
 
-using LIGHT_DESC = struct tagLightDesc
-{
-    LightType type;
+        float trackPosition; /* 현재 키프레임상태는 어떤 위치에서 표현되어야하는가? */
+    };
 
-    Vec4 direction;
-    Vec4 position;
-    float range;
+    using LIGHT_DESC = struct tagLightDesc
+    {
+        LightType type;
 
-    Vec4 diffuse;
-    Vec4 ambient;
-    Vec4 specular;
-};
+        Vec4 direction;
+        Vec4 position;
+        float range;
 
-using FAssetMeta = struct tagAssetMeta
-{
-    std::string guid = {};          /* 에셋을 lazy-load/key lookup으로 찾기 위한 고유 식별자 */
-    std::string type = {};          /* ResourceLoader가 어떤 로더를 태울지 판단하는 에셋 타입 */
-    std::string modelType = {};     /* meshbin처럼 같은 확장자 안에서 static/anim 등을 구분하기 위한 보조 타입 */
-    std::wstring fullPath = {};     /* 실제 파일 시스템에서 접근할 절대 경로 */
-    std::wstring relativePath = {}; /* 리소스 루트 기준 상대 경로로, json/테이블에서 사람이 확인하기 쉬운 경로 */
-};
+        Vec4 diffuse;
+        Vec4 ambient;
+        Vec4 specular;
+    };
+
+    using FAssetMeta = struct tagAssetMeta
+    {
+        std::string guid = {};          /* 에셋을 lazy-load/key lookup으로 찾기 위한 고유 식별자 */
+        std::string type = {};          /* ResourceLoader가 어떤 로더를 태울지 판단하는 에셋 타입 */
+        std::string modelType = {};     /* meshbin처럼 같은 확장자 안에서 static/anim 등을 구분하기 위한 보조 타입 */
+        std::wstring fullPath = {};     /* 실제 파일 시스템에서 접근할 절대 경로 */
+        std::wstring relativePath = {}; /* 리소스 루트 기준 상대 경로로, json/테이블에서 사람이 확인하기 쉬운 경로 */
+    };
+
+    struct DamageEvent
+    {
+        float   damage = 1.f;
+        Shared<GameObject> causer; // 때린 놈
+    };
+
 }
 
-#endif // Engine_Struct_h__

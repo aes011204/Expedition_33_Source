@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="pch.cpp">
+      <Filter>98. Default</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Editor_Window.cpp">
+      <Filter>01. View</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Inspector.cpp">
+      <Filter>02. Inspector</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\EffectEditorApp.cpp">
+      <Filter>00. Main</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\SimpleMath.cpp">
+      <Filter>99. Defines</Filter>
+    </ClCompile>
+    <ClCompile Include="EffectEditor.cpp">
+      <Filter>98. Default</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Editor_Manager.cpp">
+      <Filter>01. Manager\01. Editor Mgr</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\ImGui_Manager.cpp">
+      <Filter>01. Manager\02. ImGui Mgr</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Content_Browser.cpp">
+      <Filter>01. View\Content Browser</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Game_View.cpp">
+      <Filter>01. View\Game View</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Hierarchy_View.cpp">
+      <Filter>01. View\Hierarchy View</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Scene_View.cpp">
+      <Filter>01. View\Scene View</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\EffectEditorInstance.cpp">
+      <Filter>01. Manager\00. Effect Editor Instance</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="pch.h">
+      <Filter>98. Default</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\EffectEditor_Define.h">
+      <Filter>99. Defines</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\IconsFontAwesome6.h">
+      <Filter>99. Defines</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\EffectEditorApp.h">
+      <Filter>00. Main</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Editor_Window.h">
+      <Filter>01. View</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Inspector.h">
+      <Filter>02. Inspector</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Editor_ImGuiInclude.h">
+      <Filter>99. Defines</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Editor_Enum.h">
+      <Filter>99. Defines</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Editor_Struct.h">
+      <Filter>99. Defines</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Editor_Macro.h">
+      <Filter>99. Defines</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Editor_Manager.h">
+      <Filter>01. Manager\01. Editor Mgr</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\ImGui_Manager.h">
+      <Filter>01. Manager\02. ImGui Mgr</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Content_Browser.h">
+      <Filter>01. View\Content Browser</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Game_View.h">
+      <Filter>01. View\Game View</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Hierarchy_View.h">
+      <Filter>01. View\Hierarchy View</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Scene_View.h">
+      <Filter>01. View\Scene View</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\EffectEditorInstance.h">
+      <Filter>01. Manager\00. Effect Editor Instance</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="00. Main">
+      <UniqueIdentifier>{84cdd704-ecd6-4bff-a119-ee58777ca467}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="01. View">
+      <UniqueIdentifier>{a99ca1f2-640c-4bf6-aa29-88748c97013a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02. Inspector">
+      <UniqueIdentifier>{a6f51295-5edb-4694-9d55-01c07add81a5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="99. Defines">
+      <UniqueIdentifier>{afbffb53-f9a7-4636-bd21-a1fa41d808c3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="98. Default">
+      <UniqueIdentifier>{dad98871-cb48-49e8-a12c-3874c97e4fec}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="01. Manager">
+      <UniqueIdentifier>{2da15314-2e57-43af-9f9c-145f0727fc64}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="01. Manager\01. Editor Mgr">
+      <UniqueIdentifier>{d6374ed1-4257-4bcc-9f70-f3ed07c8c8e1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="01. Manager\00. Effect Editor Instance">
+      <UniqueIdentifier>{e45bcad6-19b6-456a-b344-114b54ae0b81}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="01. Manager\02. ImGui Mgr">
+      <UniqueIdentifier>{5a5c6389-838f-44cf-baff-baaf3eb4465b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="01. View\Content Browser">
+      <UniqueIdentifier>{a03a9159-6e62-49f9-b599-02cbabce3194}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="01. View\Hierarchy View">
+      <UniqueIdentifier>{e780c9b0-4f5a-4025-b5b8-92e1c12b355c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="01. View\Scene View">
+      <UniqueIdentifier>{3dc2703c-570b-4ad0-918e-ed98611ec65e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="01. View\Game View">
+      <UniqueIdentifier>{e6f8ccb0-4a82-4dcf-a035-a9db55d38f92}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

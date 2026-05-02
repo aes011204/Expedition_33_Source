@@ -1,4 +1,7 @@
-#pragma once
+﻿#pragma once
+
+#include "Reflection_Types.h"
+#include "RegistorFactory.h"
 
 namespace Engine
 {
@@ -135,47 +138,105 @@ namespace Engine
 	        CLASSNAME(const CLASSNAME&) = delete;						        \
 	        CLASSNAME& operator=(const CLASSNAME&) = delete;
 
-#define DECLARE_SINGLETON(CLASSNAME)								            \
-	        NO_COPY(CLASSNAME)											        \
-	        private:													        \
-	        static CLASSNAME* m_pInstance;								        \
-	        public:														        \
-	        static CLASSNAME* GetInstance();							        \
+#define DECLARE_SINGLETON(CLASSNAME)								     \
+	        NO_COPY(CLASSNAME)											 \
+	        private:													 \
+	        static std::shared_ptr<CLASSNAME> m_pInstance;				 \
+	        public:														 \
+	        static std::shared_ptr<CLASSNAME>& GetInstance();			 \
 	        static void DestroyInstance();
 
-#define IMPLEMENT_SINGLETON(CLASSNAME)								            \
-	        CLASSNAME* CLASSNAME::m_pInstance = nullptr;				        \
-	        CLASSNAME* CLASSNAME::GetInstance() {						        \
-	            if(m_pInstance == nullptr) {							        \
-	                m_pInstance = new CLASSNAME();						        \
-	            }														        \
-	            return m_pInstance;										        \
-	        }															        \
-	        void CLASSNAME::DestroyInstance() {							        \
-	            delete m_pInstance;										        \
-	            m_pInstance = nullptr;									        \
-	        }
+#define IMPLEMENT_SINGLETON(CLASSNAME)                                         \
+            std::shared_ptr<CLASSNAME> CLASSNAME::m_pInstance = nullptr;               \
+            std::shared_ptr<CLASSNAME>& CLASSNAME::GetInstance()                       \
+            {                                                                          \
+                if (m_pInstance == nullptr)                                            \
+                    m_pInstance = std::make_shared<CLASSNAME>();                       \
+                return m_pInstance;                                                    \
+            }                                                                          \
+            void CLASSNAME::DestroyInstance()                                          \
+            {                                                                          \
+                if (m_pInstance != nullptr)                                            \
+                    m_pInstance->Free();                                               \
+                m_pInstance.reset();                                                   \
+            }
+
 
 // ==================================================
-//              클래스 이름 세팅
+//              리플렉션 매크로
 // ==================================================
-#define GENERATED_BODY(ClassName)                                               \
+#define STRINGIZE2(x) #x
+#define STRINGIZE(x) STRINGIZE2(x)
+#define WIDEN2(x) L##x
+#define WIDEN(x) WIDEN2(x)
+#define WSTRINGIZE(x) WIDEN(STRINGIZE(x))
+
+#define GENERATED_TYPE_BODY(ClassName, TypeKindValue)                           \
 public:                                                                         \
-    static const wchar_t* StaticClassName() { return L#ClassName; }             \
+    static const wchar_t* StaticClassName() { return WSTRINGIZE(ClassName); }   \
+    static const char* StaticClassNameA() { return STRINGIZE(ClassName); }      \
     using SelfType = ClassName;                                                 \
-    static Engine::FClassReflectionInfo& GetStaticReflectionInfo() {            \
-        static Engine::FClassReflectionInfo info;                               \
+    static Engine::ClassReflectionInfo& GetStaticReflectionInfo() {             \
+        static Engine::ClassReflectionInfo info{                                \
+            STRINGIZE(ClassName),                                               \
+            STRINGIZE(ClassName),                                               \
+            "",                                                                 \
+            TypeKindValue,                                                      \
+            {}                                                                  \
+        };                                                                      \
         return info;                                                            \
     }                                                                           \
-    virtual Engine::FClassReflectionInfo& Get_ReflectionInfo() {                \
+    virtual Engine::ClassReflectionInfo& Get_ReflectionInfo() {                 \
         return GetStaticReflectionInfo();                                       \
     }                                                                           \
-    static bool _s_reflectionRegistered;                                        \
 private:                                                                        \
-    static bool Register_Properties();                                          \
-                                                                                \
-    bool _name_setter_ = [this](){                                              \
-            this->Set_Name(StaticClassName());                                  \
+    bool _name_setter_ = [this]() {                                             \
+        this->Set_Name(StaticClassName());                                      \
         return true;                                                            \
     }();
-}
+
+#define GENERATED_COMPONENT(ClassName)                                          \
+    GENERATED_TYPE_BODY(ClassName, Engine::RegisteredTypeKind::Component)       \
+public:                                                                         \
+    inline static const bool _auto_register_component_ =                        \
+        Engine::Register_ComponentType_Pending(                                 \
+            STRINGIZE(ClassName),                                               \
+            [](const ComPtr<Device>& device, const ComPtr<Context>& context) -> Shared<Engine::Component> \
+            {                                                                   \
+                return Engine::Create_ComponentPrototypeInstance<ClassName>(device, context); \
+            },                                                                  \
+            &ClassName::GetStaticReflectionInfo());
+
+#define GENERATED_GAMEOBJECT(ClassName, ObjectTypeValue)                        \
+    GENERATED_TYPE_BODY(ClassName, Engine::RegisteredTypeKind::GameObject)     \
+public:                                                                         \
+    static constexpr Engine::ObjectType StaticObjectType() { return ObjectTypeValue; } \
+    inline static const bool _auto_register_gameobject_ =                       \
+        Engine::Register_GameObjectType_Pending(                                \
+            STRINGIZE(ClassName),                                               \
+            ObjectTypeValue,                                                    \
+            [](const ComPtr<Device>& device, const ComPtr<Context>& context) -> Shared<Engine::GameObject> \
+            {                                                                   \
+                return Engine::Create_GameObjectPrototypeInstance<ClassName>(device, context); \
+            },                                                                  \
+            &ClassName::GetStaticReflectionInfo());                             \
+private:                                                                        \
+    bool _object_type_setter_ = [this]() {                                      \
+        _objectType = ObjectTypeValue;                                          \
+        return true;                                                            \
+    }();
+
+#define GENERATED_BTNODE(ClassName, NodeCategory)                               \
+    GENERATED_TYPE_BODY(ClassName, Engine::RegisteredTypeKind::BTNode)         \
+public:                                                                         \
+    inline static const bool _auto_register_btnode_ =                           \
+        Engine::Register_BTNodeType_Pending(                                    \
+            STRINGIZE(ClassName),                                               \
+            NodeCategory,                                                       \
+            []() -> Shared<Engine::Base>                                        \
+            {                                                                   \
+                return Engine::Create_BTNodePrototypeInstance<ClassName>();     \
+            },                                                                  \
+            &ClassName::GetStaticReflectionInfo());
+
+};
