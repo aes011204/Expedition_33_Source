@@ -1,0 +1,55 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="99. Default">
+      <UniqueIdentifier>{fc77ba42-1ce3-4c17-8ec6-249b5c7c5afc}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="00. Main">
+      <UniqueIdentifier>{4b88e88c-ed1e-4d0c-a8bb-d6188e0c92b1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="98. Defines">
+      <UniqueIdentifier>{b89c0c68-2a54-4b2c-a256-6ac2c12d5f28}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="targetver.h">
+      <Filter>99. Default</Filter>
+    </ClInclude>
+    <ClInclude Include="MapEditor.h">
+      <Filter>99. Default</Filter>
+    </ClInclude>
+    <ClInclude Include="Resource.h">
+      <Filter>99. Default</Filter>
+    </ClInclude>
+    <ClInclude Include="framework.h">
+      <Filter>99. Default</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\MapEditorDefines.h">
+      <Filter>98. Defines</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\MapEditorApp.h">
+      <Filter>00. Main</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="MapEditor.ico">
+      <Filter>99. Default</Filter>
+    </Image>
+    <Image Include="small.ico">
+      <Filter>99. Default</Filter>
+    </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="MapEditor.rc">
+      <Filter>99. Default</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="MapEditor.cpp">
+      <Filter>99. Default</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\MapEditorApp.cpp">
+      <Filter>00. Main</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>
