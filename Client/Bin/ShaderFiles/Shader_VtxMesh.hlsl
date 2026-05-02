@@ -1,14 +1,14 @@
 
 #include "Engine_Shader_Defines.hlsli"
 /* Vertex Shader */
-/* 1. Á¤Á¡ÀÇ º¯È¯°úÁ¤À» ¼öÇàÇÑ´Ù.(¿ùµå, ºä, Åõ¿µ µî) */
-/* 2. Á¤Á¡ÀÇ ±¸¼ºÀ» º¯ÇüÇÑ´Ù. */
+/* 1. ì •ì ì˜ ë³€í™˜ê³¼ì •ì„ ìˆ˜í–‰í•œë‹¤.(ì›”ë“œ, ë·°, íˆ¬ì˜ ë“±) */
+/* 2. ì •ì ì˜ êµ¬ì„±ì„ ë³€í˜•í•œë‹¤. */
 
 /* float2, float3, float4 == vector */
 /* float1x4, float4x4 == matrix */
 
 
-/* ÄÁ½ºÅÏÆ® Å×ÀÌºí */
+/* ì»¨ìŠ¤í„´íŠ¸ í…Œì´ë¸” */
 float4x4 g_WorldMatrix, g_ViewMatrix, g_ProjMatrix;
 
 vector g_vLightDir;
@@ -33,7 +33,7 @@ sampler DefaultSampler = sampler_state
 
 
 
-/* ÀÌ ½¦ÀÌ´õ·Î ±×¸°´Ù¶ó°í ÀÌ¾ß±âÇÑ Á¤Á¡¹öÆÛÀÇ Á¤Á¡À» ²¨³»¼­ ¹Ş¾Æ¿Â´Ù */
+/* ì´ ì‰ì´ë”ë¡œ ê·¸ë¦°ë‹¤ë¼ê³  ì´ì•¼ê¸°í•œ ì •ì ë²„í¼ì˜ ì •ì ì„ êº¼ë‚´ì„œ ë°›ì•„ì˜¨ë‹¤ */
 struct VS_IN
 {
     float3 vPosition : POSITION;
@@ -54,11 +54,11 @@ VS_OUT VS_MAIN(VS_IN In)
 {
     VS_OUT Out;
     
-    /* Á¤Á¡ÀÇ À§Ä¡ * ¿ùµå * ºä * Åõ¿µ */
+    /* ì •ì ì˜ ìœ„ì¹˜ * ì›”ë“œ * ë·° * íˆ¬ì˜ */
     float4x4 matWV, matWVP;
     
-    /* mul : Çà·Ä³¢¸®ÀÇ °öÇÏ±â¿¬»êÀ» ¼öÇàÇÑ´Ù. */ 
-    /* XMVector3TransformCoord : º¤ÅÍ¿Í Çà·ÄÀÇ °öÇÏ±â¿¬»êÀ» ¼öÇàÇÏ°í w³ª´«´Ù.*/
+    /* mul : í–‰ë ¬ë¼ë¦¬ì˜ ê³±í•˜ê¸°ì—°ì‚°ì„ ìˆ˜í–‰í•œë‹¤. */ 
+    /* XMVector3TransformCoord : ë²¡í„°ì™€ í–‰ë ¬ì˜ ê³±í•˜ê¸°ì—°ì‚°ì„ ìˆ˜í–‰í•˜ê³  wë‚˜ëˆˆë‹¤.*/
     matWV = mul(g_WorldMatrix, g_ViewMatrix);
     matWVP = mul(matWV, g_ProjMatrix);
     
@@ -71,9 +71,9 @@ VS_OUT VS_MAIN(VS_IN In)
     return Out;
 }
 
-/* w³ª´©±â¿¬»êÀ» ¼öÇàÇÑ´Ù.-> ÀÌ ¿¬»êÀ¸·Î ÀÌ¾îÁú¼ö ÀÖ´Â ÀÌÀ¯ -> VS_OUT±¸Á¶Ã¼ÀÇ À§Ä¡ -> SV_ */
-/* ºäÆ÷Æ®(À©µµ¿ìÁÂÇ¥)·Î º¯È¯ÇÑ´Ù. */
-/* ·¡½ºÅÍ¶óÀÌÁî -> Á¤Á¡ ¼¼°³·Î °¨½ÎÁø ¿µ¿ªÀÇ ÇÈ¼¿ Á¤º¸¸¦ »ı¼ºÇÑ´Ù */
+/* wë‚˜ëˆ„ê¸°ì—°ì‚°ì„ ìˆ˜í–‰í•œë‹¤.-> ì´ ì—°ì‚°ìœ¼ë¡œ ì´ì–´ì§ˆìˆ˜ ìˆëŠ” ì´ìœ  -> VS_OUTêµ¬ì¡°ì²´ì˜ ìœ„ì¹˜ -> SV_ */
+/* ë·°í¬íŠ¸(ìœˆë„ìš°ì¢Œí‘œ)ë¡œ ë³€í™˜í•œë‹¤. */
+/* ë˜ìŠ¤í„°ë¼ì´ì¦ˆ -> ì •ì  ì„¸ê°œë¡œ ê°ì‹¸ì§„ ì˜ì—­ì˜ í”½ì…€ ì •ë³´ë¥¼ ìƒì„±í•œë‹¤ */
 
 struct PS_IN
 {
@@ -88,7 +88,7 @@ struct PS_OUT
     vector vColor : SV_TARGET0;
 };
 
-/* Pixel Shader -> ÇÈ¼¿ÀÇ »öÀ» °áÁ¤ÇÑ´Ù. */
+/* Pixel Shader -> í”½ì…€ì˜ ìƒ‰ì„ ê²°ì •í•œë‹¤. */
 
 PS_OUT PS_MAIN(PS_IN In)
 {
@@ -109,7 +109,8 @@ PS_OUT PS_MAIN(PS_IN In)
     vector vSpecularColor = g_vLightSpecular * g_vMtrlSpecular * fSpecular;
     
     Out.vColor = g_vLightDiffuse * vMtrlDiffuse * vShade + vSpecularColor;
-    
+    Out.vColor.a = 1.f;
+
     return Out;
 
 }
