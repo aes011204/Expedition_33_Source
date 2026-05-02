@@ -14,21 +14,14 @@ vector g_vCamPosition;
 
 matrix g_BoneMatrices[512];
 
-
-
-
-
-
 sampler DefaultSampler = sampler_state
 {
-    Filter = MIN_MAG_MIP_LINEAR;   
+    Filter = MIN_MAG_MIP_LINEAR;
     AddressU = wrap;
     AddressV = wrap;
 };
 
-
-
-/* ÀÌ ½¦ÀÌ´õ·Î ±×¸°´Ù¶ó°í ÀÌ¾ß±âÇÑ Á¤Á¡¹öÆÛÀÇ Á¤Á¡À» ²¨³»¼­ ¹Ş¾Æ¿Â´Ù */
+/* ì´ ì‰ì´ë”ë¡œ ê·¸ë¦°ë‹¤ë¼ê³  ì´ì•¼ê¸°í•œ ì •ì ë²„í¼ì˜ ì •ì ì„ êº¼ë‚´ì„œ ë°›ì•„ì˜¨ë‹¤ */
 struct VS_IN
 {
     float3 vPosition : POSITION;
@@ -51,7 +44,7 @@ VS_OUT VS_MAIN(VS_IN In)
 {
     VS_OUT Out;
     
-    /* Á¤Á¡ÀÇ À§Ä¡ * ¿ùµå * ºä * Åõ¿µ */
+    /* ì •ì ì˜ ìœ„ì¹˜ * ì›”ë“œ * ë·° * íˆ¬ì˜ */
     float4x4 matWV, matWVP;
     
     matrix BoneMatrix = g_BoneMatrices[In.vBlendIndex.x] * In.vBlendWeight.x + 
@@ -74,9 +67,9 @@ VS_OUT VS_MAIN(VS_IN In)
     return Out;
 }
 
-/* w³ª´©±â¿¬»êÀ» ¼öÇàÇÑ´Ù.-> ÀÌ ¿¬»êÀ¸·Î ÀÌ¾îÁú¼ö ÀÖ´Â ÀÌÀ¯ -> VS_OUT±¸Á¶Ã¼ÀÇ À§Ä¡ -> SV_ */
-/* ºäÆ÷Æ®(À©µµ¿ìÁÂÇ¥)·Î º¯È¯ÇÑ´Ù. */
-/* ·¡½ºÅÍ¶óÀÌÁî -> Á¤Á¡ ¼¼°³·Î °¨½ÎÁø ¿µ¿ªÀÇ ÇÈ¼¿ Á¤º¸¸¦ »ı¼ºÇÑ´Ù */
+/* wë‚˜ëˆ„ê¸°ì—°ì‚°ì„ ìˆ˜í–‰í•œë‹¤.-> ì´ ì—°ì‚°ìœ¼ë¡œ ì´ì–´ì§ˆìˆ˜ ìˆëŠ” ì´ìœ  -> VS_OUTêµ¬ì¡°ì²´ì˜ ìœ„ì¹˜ -> SV_ */
+/* ë·°í¬íŠ¸(ìœˆë„ìš°ì¢Œí‘œ)ë¡œ ë³€í™˜í•œë‹¤. */
+/* ë˜ìŠ¤í„°ë¼ì´ì¦ˆ -> ì •ì  ì„¸ê°œë¡œ ê°ì‹¸ì§„ ì˜ì—­ì˜ í”½ì…€ ì •ë³´ë¥¼ ìƒì„±í•œë‹¤ */
 
 struct PS_IN
 {
@@ -91,7 +84,7 @@ struct PS_OUT
     vector vColor : SV_TARGET0;
 };
 
-/* Pixel Shader -> ÇÈ¼¿ÀÇ »öÀ» °áÁ¤ÇÑ´Ù. */
+/* Pixel Shader -> í”½ì…€ì˜ ìƒ‰ì„ ê²°ì •í•œë‹¤. */
 
 PS_OUT PS_MAIN(PS_IN In)
 {
@@ -112,7 +105,6 @@ PS_OUT PS_MAIN(PS_IN In)
     vector vSpecularColor = g_vLightSpecular * g_vMtrlSpecular * fSpecular;
     
     Out.vColor = g_vLightDiffuse * vMtrlDiffuse * vShade + vSpecularColor;
-    
     Out.vColor.a = 0.3f;
     
     return Out;

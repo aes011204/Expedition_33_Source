@@ -15,7 +15,7 @@ class Loader final : public Base
 {
 public:
 	Loader(const ComPtr<Device>& device, const ComPtr<Context>& context);
-	virtual ~Loader() { Free(); }
+	virtual ~Loader() = default;
 
 public:
 	HRESULT Initialize(LevelType eNextLevelID);

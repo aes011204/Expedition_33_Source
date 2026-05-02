@@ -1,4 +1,4 @@
-#include "Component.h"
+﻿#include "Component.h"
 #include "GameInstance.h"
 
 Component::Component(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -21,6 +21,11 @@ HRESULT Component::Initialize_Prototype()
 HRESULT Component::Initialize(void* arg)
 {
     return S_OK;
+}
+
+void Component::BeginPlay()
+{
+
 }
 
 

@@ -1,23 +1,28 @@
-#pragma once
+﻿#pragma once
 
 #include "Base.h"
 
 NS_BEGIN(Engine)
 
+class GameObject;
+
 class Layer final : public Base
 {
 public:
 	Layer();
-	virtual ~Layer() { Free(); }
+	virtual ~Layer() = default;
 
 public:
-	HRESULT Add_GameObject(Shared<class GameObject> gameObject);
-	void Priority_Update(float timeDelta);
-	void Update(float timeDelta);
-	void Late_Update(float timeDelta);
+	HRESULT Add_GameObject(Shared<GameObject> gameObject);
+	void    Priority_Update(float timeDelta);
+	void    Update(float timeDelta);
+	void    Late_Update(float timeDelta);
+
+public:
+    Shared<GameObject> Find_FirstObject();
 
 private:
-	list<Shared<class GameObject>> _gameObjects;
+	list<Shared<GameObject>> _gameObjects;
 
 public:
 	static Shared<Layer> Create();

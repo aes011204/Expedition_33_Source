@@ -1,4 +1,4 @@
-#include "GameObject.h"
+﻿#include "GameObject.h"
 #include "GameInstance.h"
 
 GameObject::GameObject(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -10,6 +10,7 @@ GameObject::GameObject(const ComPtr<Device>& device, const ComPtr<Context>& cont
 GameObject::GameObject(const GameObject& prototype)
     : _device{ prototype._device }
     , _context{ prototype._context }
+    , _hasBegunPlay(false)
 {
 }
 
@@ -20,7 +21,7 @@ HRESULT GameObject::Initialize_Prototype()
 
 HRESULT GameObject::Initialize(void* arg)
 {
-    _transformCom = Transform::Create(_device, _context);
+    _transformCom = TransformCom::Create(_device, _context);
 
     if (nullptr == _transformCom)
         return E_FAIL;
@@ -28,12 +29,25 @@ HRESULT GameObject::Initialize(void* arg)
     if (FAILED(_transformCom->Initialize(arg)))
         return E_FAIL;
 
+    _transformCom->Set_Owner(GetSharedPtr<GameObject>());
+
     wstring transformTag = TEXT("Com_Transform");
 
     if (_components.end() == _components.find(transformTag))
         _components.emplace(transformTag, static_pointer_cast<Component>(_transformCom));
 
     return S_OK;
+}
+
+void GameObject::BeginPlay()
+{
+    for (const auto& [_, component] : _components)
+    {
+        if (component == nullptr)
+            continue;
+
+        component->BeginPlay();
+    }
 }
 
 void GameObject::Priority_Update(float timeDelta)
@@ -50,6 +64,17 @@ void GameObject::Late_Update(float timeDelta)
 
 HRESULT GameObject::Render()
 {
+    return S_OK;
+}
+
+HRESULT GameObject::Try_BeginPlay()
+{
+    if (_hasBegunPlay)
+        return S_OK;
+
+    BeginPlay();
+    _hasBegunPlay = true;
+
     return S_OK;
 }
 

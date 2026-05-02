@@ -1,0 +1,78 @@
+﻿#pragma once
+
+#include "Base.h"
+#include "Reflection_Types.h"
+
+NS_BEGIN(Engine)
+
+class Component;
+class GameObject;
+
+class TypeRegistry final : public Base
+{
+public:
+    using ComponentCreateFn =
+        function<Shared<Component>(const ComPtr<Device>&, const ComPtr<Context>&)>;
+
+    using GameObjectCreateFn =
+        function<Shared<GameObject>(const ComPtr<Device>&, const ComPtr<Context>&)>;
+
+    // TODO : Behavior Tree는 추가로 바꿀 예정
+    using BTNodeCreateFn =
+        function<Shared<Base>()>;
+
+    struct ComponentTypeInfo
+    {
+        string className = {};
+        ComponentCreateFn createFn = {};
+        ClassReflectionInfo* reflectionInfo = nullptr;
+    };
+
+    struct GameObjectTypeInfo
+    {
+        string className = {};
+        ObjectType objectType = ObjectType::None;
+        GameObjectCreateFn createFn = {};
+        ClassReflectionInfo* reflectionInfo = nullptr;
+    };
+
+    struct BTNodeTypeInfo
+    {
+        string className = {};
+        string nodeCategory = {};
+        BTNodeCreateFn createFn = {};
+        ClassReflectionInfo* reflectionInfo = nullptr;
+    };
+
+public:
+    HRESULT Register_ComponentType(const ComponentTypeInfo& info);
+    HRESULT Register_GameObjectType(const GameObjectTypeInfo& info);
+    HRESULT Register_BTNodeType(const BTNodeTypeInfo& info);
+
+    const ComponentTypeInfo*    Find_ComponentType(const string& className) const;
+    const GameObjectTypeInfo*   Find_GameObjectType(const string& className) const;
+    const BTNodeTypeInfo*       Find_BTNodeType(const string& className) const;
+
+    Shared<Component> Create_Component(
+        const string& className,
+        const ComPtr<Device>& device,
+        const ComPtr<Context>& context) const;
+
+    Shared<GameObject> Create_GameObject(
+        const string& className,
+        const ComPtr<Device>& device,
+        const ComPtr<Context>& context) const;
+
+    Shared<Base> Create_BTNode(const string& className) const;
+
+public:
+    static Unique<TypeRegistry> Create();
+    void Free() override;
+
+private:
+    map<string, ComponentTypeInfo>  _componentTypes{};
+    map<string, GameObjectTypeInfo> _gameObjectTypes{};
+    map<string, BTNodeTypeInfo>     _btNodeTypes{};
+};
+
+NS_END

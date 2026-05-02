@@ -8,7 +8,7 @@ class Material final : public Base
 {
 public:
 	Material(const ComPtr<Device>& device, const ComPtr<Context>& context);
-	virtual ~Material() { Free(); }
+	virtual ~Material() = default;
 
 public:
 	HRESULT Initialize(const aiMaterial* aiMaterial, const char* modelFilePath);
@@ -19,7 +19,7 @@ private:
 	ComPtr<Context> _context = { nullptr };
 
 
-	vector<ID3D11ShaderResourceView*>			_materials[AI_TEXTURE_TYPE_MAX];
+	vector<ComPtr<ID3D11ShaderResourceView>>	_materials[AI_TEXTURE_TYPE_MAX];
 
 
 public:

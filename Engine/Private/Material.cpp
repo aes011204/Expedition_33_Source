@@ -1,4 +1,4 @@
-#include "Material.h"
+﻿#include "Material.h"
 #include "Shader.h"
 
 Material::Material(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -50,21 +50,21 @@ HRESULT Material::Initialize(const aiMaterial* aiMaterial, const char* modelFile
             MultiByteToWideChar(CP_ACP, 0, fullPath, -1, textureFilePath, MAX_PATH);
 
             HRESULT         hr = {};
-            ID3D11ShaderResourceView* srv = { nullptr };
+            ComPtr<ID3D11ShaderResourceView> srv = nullptr;
 
             if (false == strcmp(ext, (".dds")))
-                hr = CreateDDSTextureFromFile(_device.Get(), textureFilePath, nullptr, &srv);
+                hr = CreateDDSTextureFromFile(_device.Get(), textureFilePath, nullptr, srv.GetAddressOf());
 
             else if (false == strcmp(ext, (".tga")))
                 hr = E_FAIL;
 
             else
-                hr = CreateWICTextureFromFile(_device.Get(), textureFilePath, nullptr, &srv);
+                hr = CreateWICTextureFromFile(_device.Get(), textureFilePath, nullptr, srv.GetAddressOf());
 
             if (FAILED(hr))
                 return E_FAIL;
 
-            _materials[i].push_back(srv);
+            _materials[i].emplace_back(std::move(srv));
         }
 
      
@@ -75,11 +75,11 @@ HRESULT Material::Initialize(const aiMaterial* aiMaterial, const char* modelFile
 
 HRESULT Material::Bind_Material(Shader* shader, const char* constantName, aiTextureType materialType, uint32 textureIndex)
 {
-    if (nullptr == _materials[materialType][textureIndex] ||
-        textureIndex >= _materials[materialType].size())
+    if (textureIndex >= _materials[materialType].size() ||
+        nullptr == _materials[materialType][textureIndex])
         return E_FAIL;
 
-    shader->Bind_SRV(constantName, _materials[materialType][textureIndex]);
+    shader->Bind_SRV(constantName, _materials[materialType][textureIndex].Get());
 
     return S_OK;
 }
@@ -103,8 +103,6 @@ void Material::Free()
 
     for (size_t i = 0; i < AI_TEXTURE_TYPE_MAX; i++)
     {
-        for (auto& srv : _materials[i])
-            Safe_Release(srv);
         _materials[i].clear();
     }
 

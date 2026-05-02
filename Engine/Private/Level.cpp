@@ -1,4 +1,4 @@
-#include "Level.h"
+﻿#include "Level.h"
 
 #include "GameInstance.h"
 
@@ -13,6 +13,10 @@ HRESULT Level::Initialize()
 	return S_OK;
 }
 
+void Level::BeginPlay()
+{
+}
+
 void Level::Update(float timeDelta)
 {
 }
@@ -20,6 +24,17 @@ void Level::Update(float timeDelta)
 HRESULT Level::Render()
 {
 	return S_OK;
+}
+
+HRESULT Level::Try_BeginPlay()
+{
+    if (_hasBegunPlay)
+        return S_OK;
+
+    BeginPlay();
+    _hasBegunPlay = true;
+
+    return S_OK;
 }
 
 void Level::Free()

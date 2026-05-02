@@ -26,6 +26,19 @@ HRESULT ContainerObject::Initialize(void* arg)
 	return S_OK;
 }
 
+void ContainerObject::BeginPlay()
+{
+    GameObject::BeginPlay();
+
+    for (auto& [_, partObject] : _partObjects)
+    {
+        if (partObject == nullptr)
+            continue;
+
+        partObject->BeginPlay();
+    }
+}
+
 void ContainerObject::Priority_Update(float timeDelta)
 {
 	for (auto& Pair : _partObjects)
@@ -59,6 +72,8 @@ HRESULT ContainerObject::Add_PartObject(uint32 prototypeLevelIndex, const wstrin
 	if (nullptr == partObject)
 		return E_FAIL;
 
+    partObject->Set_Owner(this->GetSharedPtr<GameObject>());
+
 	_partObjects.emplace(partTag, partObject);	
 
 	return S_OK; 
@@ -77,9 +92,6 @@ PartObject* ContainerObject::Find_PartObject(const wstring& partTag)
 void ContainerObject::Free()
 {
 	__super::Free();
-
-	for (auto& Pair : _partObjects)
-		Safe_Release(Pair.second);
 
 	_partObjects.clear();
 }

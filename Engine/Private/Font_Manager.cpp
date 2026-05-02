@@ -1,10 +1,15 @@
-#include "Font_Manager.h"
+﻿#include "Font_Manager.h"
 #include "CustomFont.h"
 
 Font_Manager::Font_Manager(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : _device { device }
     , _context{ context }
 {
+}
+
+Font_Manager::~Font_Manager()
+{
+    int a = 10;
 }
 
 HRESULT Font_Manager::Add_Font(const wstring& fontTag, const wchar_t* fontFilePath)
@@ -42,15 +47,12 @@ Shared<CustomFont> Font_Manager::Find_Font(const wstring& fontTag)
 
 Unique<Font_Manager> Font_Manager::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
-    return Unique<Font_Manager>{ new Font_Manager(device, context) };
+    return make_unique<Font_Manager>(device, context);
 }
 
 void Font_Manager::Free()
 {
     __super::Free();
-
-    for (auto& Pair : _fonts)
-        Safe_Release(Pair.second);
 
     _fonts.clear();
 }

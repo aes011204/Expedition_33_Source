@@ -30,6 +30,7 @@ public:
 
 public:
 	HRESULT Initialize_Engine(const ENGINE_DESC& EngineDesc, ComPtr<Device>& device, ComPtr<Context>& context);
+	void    Release_Engine();
 	void    Update_Engine(float fTimeDelta);
 	HRESULT Draw();
 	void    Clear_Resources(uint32 iLevelIndex);
@@ -133,7 +134,6 @@ private:
     uint32 _viewportHeight = 0;
 
 public:	
-	void Release_Engine();
 	virtual void Free() override;
 };
 

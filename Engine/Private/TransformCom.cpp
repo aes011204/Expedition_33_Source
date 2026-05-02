@@ -1,4 +1,4 @@
-﻿#include "Transform.h"
+﻿#include "TransformCom.h"
 #include "Shader.h"
 
 namespace Engine::Internal
@@ -20,12 +20,12 @@ float Resolve_ScaleSign(float value, float fallback = 1.f)
 }
 }
 
-Transform::Transform(const ComPtr<Device>& device, const ComPtr<Context>& context)
+TransformCom::TransformCom(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Component{ device, context }
 {
 }
 
-Transform::Transform(const Transform& prototype)
+TransformCom::TransformCom(const TransformCom& prototype)
     : Component{ prototype }
     , _localMatrix{ prototype._localMatrix }
     , _localSignedScale{ prototype._localSignedScale }
@@ -40,12 +40,7 @@ Transform::Transform(const Transform& prototype)
     Set_Dirty(TRANSFORM_DIRTY_FLAG::WORLD);
 }
 
-Transform::~Transform()
-{
-    Free();
-}
-
-HRESULT Transform::Initialize_Prototype()
+HRESULT TransformCom::Initialize_Prototype()
 {
     _localMatrix = Matrix::Identity;
     _localSignedScale = Vec3::One;
@@ -64,7 +59,7 @@ HRESULT Transform::Initialize_Prototype()
     return S_OK;
 }
 
-HRESULT Transform::Initialize(void* arg)
+HRESULT TransformCom::Initialize(void* arg)
 {
     if (nullptr == arg)
         return S_OK;
@@ -81,29 +76,29 @@ HRESULT Transform::Initialize(void* arg)
     return S_OK;
 }
 
-void Transform::Update_WorldMatrix()
+void TransformCom::Update_WorldMatrix()
 {
     Ensure_WorldMatrixUpToDate();
 }
 
-HRESULT Transform::Bind_ShaderResource(Shader* shader, const char* resourceName)
+HRESULT TransformCom::Bind_ShaderResource(Shader* shader, const char* resourceName)
 {
     Ensure_WorldMatrixUpToDate();
     return shader->Bind_Matrix(resourceName, reinterpret_cast<const XMFLOAT4X4*>(&Get_WorldMatrix()));
 }
 
-const Matrix& Transform::Get_WorldMatrix()
+const Matrix& TransformCom::Get_WorldMatrix()
 {
     Ensure_WorldMatrixUpToDate();
     return _worldMatrix;
 }
 
-Matrix Transform::Get_LocalMatrix() const
+Matrix TransformCom::Get_LocalMatrix() const
 {
     return _localMatrix;
 }
 
-Vec3 Transform::Get_State(State state)
+Vec3 TransformCom::Get_State(State state)
 {
     const Matrix& worldMatrix = Get_WorldMatrix();
 
@@ -122,7 +117,7 @@ Vec3 Transform::Get_State(State state)
     }
 }
 
-void Transform::Set_State(State state, const Vec3& value)
+void TransformCom::Set_State(State state, const Vec3& value)
 {
     if (State::Position == state)
     {
@@ -144,25 +139,25 @@ void Transform::Set_State(State state, const Vec3& value)
     Sanitize_LocalBasis();
 }
 
-Vec3 Transform::Get_Position() const
+Vec3 TransformCom::Get_Position() const
 {
     return Get_LocalState(State::Position);
 }
 
-void Transform::Set_Position(const Vec3& position)
+void TransformCom::Set_Position(const Vec3& position)
 {
     Set_LocalState(State::Position, position);
     Mark_LocalChanged(LOCAL_CHANGE_KIND::ROTATION_UNCHANGED);
 }
 
-Vec3 Transform::Get_WorldPosition()
+Vec3 TransformCom::Get_WorldPosition()
 {
     return Get_State(State::Position);
 }
 
-void Transform::Set_WorldPosition(const Vec3& position)
+void TransformCom::Set_WorldPosition(const Vec3& position)
 {
-    const Shared<Transform> parent = _parent.lock();
+    const Shared<TransformCom> parent = _parent.lock();
     if (!parent)
     {
         Set_Position(position);
@@ -180,12 +175,12 @@ void Transform::Set_WorldPosition(const Vec3& position)
     Set_Position(Vec3::Transform(position, inverseParentWorld));
 }
 
-Vec3 Transform::Get_Scale() const
+Vec3 TransformCom::Get_Scale() const
 {
     return _localSignedScale;
 }
 
-void Transform::Set_Scale(const Vec3& scale)
+void TransformCom::Set_Scale(const Vec3& scale)
 {
     Sync_RotationCache_FromLocalMatrix();
 
@@ -203,28 +198,28 @@ void Transform::Set_Scale(const Vec3& scale)
     Mark_LocalChanged(LOCAL_CHANGE_KIND::ROTATION_UNCHANGED);
 }
 
-void Transform::Set_ScaleX(float scaleX)
+void TransformCom::Set_ScaleX(float scaleX)
 {
     Set_Scale(Vec3(scaleX, Get_Scale().y, Get_Scale().z));
 }
 
-void Transform::Set_ScaleY(float scaleY)
+void TransformCom::Set_ScaleY(float scaleY)
 {
     Set_Scale(Vec3(Get_Scale().x, scaleY, Get_Scale().z));
 }
 
-void Transform::Set_ScaleZ(float scaleZ)
+void TransformCom::Set_ScaleZ(float scaleZ)
 {
     Set_Scale(Vec3(Get_Scale().x, Get_Scale().y, scaleZ));
 }
 
-Vec3 Transform::Get_RotationEuler()
+Vec3 TransformCom::Get_RotationEuler()
 {
     Sync_RotationCache_FromLocalMatrix();
     return _localEulerDegreeCache;
 }
 
-void Transform::Set_RotationEuler(const Vec3& eulerDegree)
+void TransformCom::Set_RotationEuler(const Vec3& eulerDegree)
 {
     _localEulerDegreeCache = eulerDegree;
 
@@ -241,13 +236,13 @@ void Transform::Set_RotationEuler(const Vec3& eulerDegree)
     Clear_Dirty(TRANSFORM_DIRTY_FLAG::ROTATION);
 }
 
-const Quat& Transform::Get_RotationQuaternion()
+const Quat& TransformCom::Get_RotationQuaternion()
 {
     Sync_RotationCache_FromLocalMatrix();
     return _localRotationCache;
 }
 
-void Transform::Set_RotationQuaternion(const Quat& rotation)
+void TransformCom::Set_RotationQuaternion(const Quat& rotation)
 {
     if (rotation.LengthSquared() <= Internal::transformEpsilon)
         _localRotationCache = Quat::Identity;
@@ -261,28 +256,28 @@ void Transform::Set_RotationQuaternion(const Quat& rotation)
     Clear_Dirty(TRANSFORM_DIRTY_FLAG::ROTATION);
 }
 
-float Transform::Get_SpeedPerSec() const
+float TransformCom::Get_SpeedPerSec() const
 {
     return _speedPerSec;
 }
 
-void Transform::Set_SpeedPerSec(float speedPerSec)
+void TransformCom::Set_SpeedPerSec(float speedPerSec)
 {
     _speedPerSec = speedPerSec < Internal::minEditableSpeedPerSec ? Internal::minEditableSpeedPerSec : speedPerSec;
 }
 
-float Transform::Get_DegreePerSec() const
+float TransformCom::Get_DegreePerSec() const
 {
     return XMConvertToDegrees(_radianPerSec);
 }
 
-void Transform::Set_DegreePerSec(float degreePerSec)
+void TransformCom::Set_DegreePerSec(float degreePerSec)
 {
     const float clampedDegreePerSec = degreePerSec < Internal::minEditableDegreePerSec ? Internal::minEditableDegreePerSec : degreePerSec;
     _radianPerSec = XMConvertToRadians(clampedDegreePerSec);
 }
 
-void Transform::Set_Parent(const Shared<Transform>& parent)
+void TransformCom::Set_Parent(const Shared<TransformCom>& parent)
 {
     Ensure_WorldMatrixUpToDate();
     const Vec3 previousSignedScale = Get_Scale();
@@ -313,7 +308,7 @@ void Transform::Set_Parent(const Shared<Transform>& parent)
     Sanitize_LocalBasis();
 }
 
-void Transform::Add_LocalRotation(const Quat& deltaRotation)
+void TransformCom::Add_LocalRotation(const Quat& deltaRotation)
 {
     Quat rotation = Get_RotationQuaternion();
     rotation = rotation * deltaRotation;
@@ -325,7 +320,7 @@ void Transform::Add_LocalRotation(const Quat& deltaRotation)
     Set_RotationQuaternion(rotation);
 }
 
-Vec3 Transform::Get_WorldForward()
+Vec3 TransformCom::Get_WorldForward()
 {
     Vec3 forward = Get_State(State::Look);
     if (forward.LengthSquared() > Internal::transformEpsilon)
@@ -334,7 +329,7 @@ Vec3 Transform::Get_WorldForward()
     return forward;
 }
 
-Vec3 Transform::Get_WorldRight()
+Vec3 TransformCom::Get_WorldRight()
 {
     Vec3 right = Get_State(State::Right);
     if (right.LengthSquared() > Internal::transformEpsilon)
@@ -343,7 +338,7 @@ Vec3 Transform::Get_WorldRight()
     return right;
 }
 
-Vec3 Transform::Get_WorldUp()
+Vec3 TransformCom::Get_WorldUp()
 {
     Vec3 up = Get_State(State::Up);
     if (up.LengthSquared() > Internal::transformEpsilon)
@@ -352,76 +347,76 @@ Vec3 Transform::Get_WorldUp()
     return up;
 }
 
-Vec3 Transform::Get_LocalForward()
+Vec3 TransformCom::Get_LocalForward()
 {
     Sync_RotationCache_FromLocalMatrix();
     return Vec3::Transform(Vec3::Look, _localRotationCache);
 }
 
-Vec3 Transform::Get_LocalRight()
+Vec3 TransformCom::Get_LocalRight()
 {
     Sync_RotationCache_FromLocalMatrix();
     return Vec3::Transform(Vec3::Right, _localRotationCache);
 }
 
-Vec3 Transform::Get_LocalUp()
+Vec3 TransformCom::Get_LocalUp()
 {
     Sync_RotationCache_FromLocalMatrix();
     return Vec3::Transform(Vec3::Up, _localRotationCache);
 }
 
-void Transform::Scaling(float scaleX, float scaleY, float scaleZ)
+void TransformCom::Scaling(float scaleX, float scaleY, float scaleZ)
 {
     const Vec3 currentScale = Get_Scale();
     Set_Scale(Vec3(currentScale.x * scaleX, currentScale.y * scaleY, currentScale.z * scaleZ));
 }
 
-void Transform::ScaleX(float scaleX)
+void TransformCom::ScaleX(float scaleX)
 {
     Set_ScaleX(Get_Scale().x * scaleX);
 }
 
-void Transform::ScaleY(float scaleY)
+void TransformCom::ScaleY(float scaleY)
 {
     Set_ScaleY(Get_Scale().y * scaleY);
 }
 
-void Transform::ScaleZ(float scaleZ)
+void TransformCom::ScaleZ(float scaleZ)
 {
     Set_ScaleZ(Get_Scale().z * scaleZ);
 }
 
-void Transform::Go_Straight(float timeDelta)
+void TransformCom::Go_Straight(float timeDelta)
 {
     Set_WorldPosition(Get_WorldPosition() + Get_WorldForward() * _speedPerSec * timeDelta);
 }
 
-void Transform::Go_Backward(float timeDelta)
+void TransformCom::Go_Backward(float timeDelta)
 {
     Set_WorldPosition(Get_WorldPosition() - Get_WorldForward() * _speedPerSec * timeDelta);
 }
 
-void Transform::Go_Right(float timeDelta)
+void TransformCom::Go_Right(float timeDelta)
 {
     Set_WorldPosition(Get_WorldPosition() + Get_WorldRight() * _speedPerSec * timeDelta);
 }
 
-void Transform::Go_Left(float timeDelta)
+void TransformCom::Go_Left(float timeDelta)
 {
     Set_WorldPosition(Get_WorldPosition() - Get_WorldRight() * _speedPerSec * timeDelta);
 }
 
-void Transform::Go_Up(float timeDelta)
+void TransformCom::Go_Up(float timeDelta)
 {
     Set_WorldPosition(Get_WorldPosition() + Vec3::Up * _speedPerSec * timeDelta);
 }
 
-void Transform::Go_Down(float timeDelta)
+void TransformCom::Go_Down(float timeDelta)
 {
     Set_WorldPosition(Get_WorldPosition() - Vec3::Up * _speedPerSec * timeDelta);
 }
 
-void Transform::Rotate(const Vec3& axis, float degree)
+void TransformCom::Rotate(const Vec3& axis, float degree)
 {
     Vec3 axisValue = axis;
     if (axisValue.LengthSquared() <= Internal::transformEpsilon)
@@ -431,7 +426,7 @@ void Transform::Rotate(const Vec3& axis, float degree)
     Set_RotationQuaternion(Quat::CreateFromAxisAngle(axisValue, XMConvertToRadians(degree)));
 }
 
-void Transform::Turn(const Vec3& axis, float timeDelta)
+void TransformCom::Turn(const Vec3& axis, float timeDelta)
 {
     Vec3 axisValue = axis;
     if (axisValue.LengthSquared() <= Internal::transformEpsilon)
@@ -441,7 +436,7 @@ void Transform::Turn(const Vec3& axis, float timeDelta)
     Add_LocalRotation(Quat::CreateFromAxisAngle(axisValue, _radianPerSec * timeDelta));
 }
 
-void Transform::LookAt(const Vec3& at)
+void TransformCom::LookAt(const Vec3& at)
 {
     const Vec3 position = Get_Position();
     const Vec3 preservedScale = Get_Scale();
@@ -457,9 +452,9 @@ void Transform::LookAt(const Vec3& at)
     Sanitize_LocalBasis();
 }
 
-void Transform::Ensure_WorldMatrixUpToDate()
+void TransformCom::Ensure_WorldMatrixUpToDate()
 {
-    const Shared<Transform> parent = _parent.lock();
+    const Shared<TransformCom> parent = _parent.lock();
     if (parent && !_hasParent)
         _hasParent = true;
     else if (!parent && _hasParent)
@@ -486,7 +481,7 @@ void Transform::Ensure_WorldMatrixUpToDate()
     Clear_Dirty(TRANSFORM_DIRTY_FLAG::WORLD);
 }
 
-void Transform::Mark_LocalChanged(LOCAL_CHANGE_KIND changeKind)
+void TransformCom::Mark_LocalChanged(LOCAL_CHANGE_KIND changeKind)
 {
     Set_Dirty(TRANSFORM_DIRTY_FLAG::WORLD);
 
@@ -494,22 +489,22 @@ void Transform::Mark_LocalChanged(LOCAL_CHANGE_KIND changeKind)
         Set_Dirty(TRANSFORM_DIRTY_FLAG::ROTATION);
 }
 
-bool Transform::Has_Dirty(TRANSFORM_DIRTY_FLAG dirty) const
+bool TransformCom::Has_Dirty(TRANSFORM_DIRTY_FLAG dirty) const
 {
     return (_dirtyMask & static_cast<uint8>(dirty)) != 0;
 }
 
-void Transform::Set_Dirty(TRANSFORM_DIRTY_FLAG dirty)
+void TransformCom::Set_Dirty(TRANSFORM_DIRTY_FLAG dirty)
 {
     _dirtyMask |= static_cast<uint8>(dirty);
 }
 
-void Transform::Clear_Dirty(TRANSFORM_DIRTY_FLAG dirty)
+void TransformCom::Clear_Dirty(TRANSFORM_DIRTY_FLAG dirty)
 {
     _dirtyMask &= static_cast<uint8>(~static_cast<uint8>(dirty));
 }
 
-float Transform::Clamp_EditableScale(float scale)
+float TransformCom::Clamp_EditableScale(float scale)
 {
     if (abs(scale) <= Internal::transformEpsilon)
         return Internal::minEditableScale;
@@ -520,7 +515,7 @@ float Transform::Clamp_EditableScale(float scale)
     return scale;
 }
 
-Vec3 Transform::Clamp_EditableScale(const Vec3& scale)
+Vec3 TransformCom::Clamp_EditableScale(const Vec3& scale)
 {
     return Vec3(
         Clamp_EditableScale(scale.x),
@@ -529,7 +524,7 @@ Vec3 Transform::Clamp_EditableScale(const Vec3& scale)
     );
 }
 
-float Transform::Get_SignedScale(State state) const
+float TransformCom::Get_SignedScale(State state) const
 {
     switch (state)
     {
@@ -544,7 +539,7 @@ float Transform::Get_SignedScale(State state) const
     }
 }
 
-void Transform::Set_SignedScale(State state, float signedScale)
+void TransformCom::Set_SignedScale(State state, float signedScale)
 {
     const float clampedScale = Clamp_EditableScale(signedScale);
 
@@ -564,7 +559,7 @@ void Transform::Set_SignedScale(State state, float signedScale)
     }
 }
 
-void Transform::Sync_SignedScaleFromLocalMatrix(Vec3 fallbackScale)
+void TransformCom::Sync_SignedScaleFromLocalMatrix(Vec3 fallbackScale)
 {
     fallbackScale = Clamp_EditableScale(fallbackScale);
 
@@ -577,7 +572,7 @@ void Transform::Sync_SignedScaleFromLocalMatrix(Vec3 fallbackScale)
     Set_SignedScale(State::Look, look.Length() * Internal::Resolve_ScaleSign(fallbackScale.z));
 }
 
-Vec3 Transform::Get_LocalState(State state) const
+Vec3 TransformCom::Get_LocalState(State state) const
 {
     switch (state)
     {
@@ -594,7 +589,7 @@ Vec3 Transform::Get_LocalState(State state) const
     }
 }
 
-void Transform::Set_LocalState(State state, const Vec3& value)
+void TransformCom::Set_LocalState(State state, const Vec3& value)
 {
     switch (state)
     {
@@ -623,7 +618,7 @@ void Transform::Set_LocalState(State state, const Vec3& value)
     }
 }
 
-Vec3 Transform::Resolve_NormalizedAxis(State state) const
+Vec3 TransformCom::Resolve_NormalizedAxis(State state) const
 {
     Vec3 axis = Get_LocalState(state);
     const float signedScale = Get_SignedScale(state);
@@ -681,7 +676,7 @@ Vec3 Transform::Resolve_NormalizedAxis(State state) const
     return axis;
 }
 
-void Transform::Sanitize_LocalBasis()
+void TransformCom::Sanitize_LocalBasis()
 {
     const Vec3 scale = Clamp_EditableScale(Get_Scale());
     _localSignedScale = scale;
@@ -735,7 +730,7 @@ void Transform::Sanitize_LocalBasis()
     Mark_LocalChanged(LOCAL_CHANGE_KIND::ROTATION_CHANGED);
 }
 
-void Transform::Rebuild_LocalBasis_FromRotationCache()
+void TransformCom::Rebuild_LocalBasis_FromRotationCache()
 {
     const Vec3 preservedPosition = Get_Position();
     const Vec3 preservedScale = Clamp_EditableScale(Get_Scale());
@@ -764,7 +759,7 @@ void Transform::Rebuild_LocalBasis_FromRotationCache()
     Mark_LocalChanged(LOCAL_CHANGE_KIND::ROTATION_CHANGED);
 }
 
-void Transform::Sync_RotationCache_FromLocalMatrix()
+void TransformCom::Sync_RotationCache_FromLocalMatrix()
 {
     if (!Has_Dirty(TRANSFORM_DIRTY_FLAG::ROTATION))
         return;
@@ -823,7 +818,7 @@ void Transform::Sync_RotationCache_FromLocalMatrix()
     Clear_Dirty(TRANSFORM_DIRTY_FLAG::ROTATION);
 }
 
-Vec3 Transform::Extract_EulerDegreeFromRotationMatrix(const Matrix& rotationMatrix)
+Vec3 TransformCom::Extract_EulerDegreeFromRotationMatrix(const Matrix& rotationMatrix)
 {
     Quat rotation = Quat::CreateFromRotationMatrix(rotationMatrix);
     if (rotation.LengthSquared() <= Internal::transformEpsilon)
@@ -839,33 +834,33 @@ Vec3 Transform::Extract_EulerDegreeFromRotationMatrix(const Matrix& rotationMatr
     );
 }
 
-Shared<Transform> Transform::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
+Shared<TransformCom> TransformCom::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
-    auto instance = make_shared<Transform>(device, context);
+    auto instance = make_shared<TransformCom>(device, context);
 
     if (FAILED(instance->Initialize_Prototype()))
     {
-        MSG_BOX("Failed to Created : Transform");
+        MSG_BOX("Failed to Created : TransformCom");
         return nullptr;
     }
 
     return instance;
 }
 
-Shared<Component> Transform::Clone(void* arg)
+Shared<Component> TransformCom::Clone(void* arg)
 {
-    auto instance = make_shared<Transform>(*this);
+    auto instance = make_shared<TransformCom>(*this);
 
     if (FAILED(instance->Initialize(arg)))
     {
-        MSG_BOX("Failed to Cloned : Transform");
+        MSG_BOX("Failed to Cloned : TransformCom");
         return nullptr;
     }
 
     return instance;
 }
 
-void Transform::Free()
+void TransformCom::Free()
 {
     __super::Free();
 }

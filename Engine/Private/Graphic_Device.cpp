@@ -205,9 +205,28 @@ Unique<Graphic_Device> Graphic_Device::Create(HWND hWnd, WinMode isWindowed, uin
 
 void Graphic_Device::Free()
 {
-#if defined(DEBUG) || defined(_DEBUG)
 	ComPtr<ID3D11Debug> d3dDebug = nullptr;
+#if defined(DEBUG) || defined(_DEBUG)
 	if (nullptr != _device && SUCCEEDED(_device.As(&d3dDebug)))
+	{
+	}
+#endif
+
+	if (_deviceContext)
+	{
+		_deviceContext->OMSetRenderTargets(0, nullptr, nullptr);
+		_deviceContext->ClearState();
+		_deviceContext->Flush();
+	}
+
+	_depthStencilView.Reset();
+	_backBufferRTV.Reset();
+	_swapChain.Reset();
+	_deviceContext.Reset();
+	_device.Reset();
+
+#if defined(DEBUG) || defined(_DEBUG)
+	if (d3dDebug)
 	{
 		OutputDebugStringW(L"----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- \r ");
 		OutputDebugStringW(L"                                                                    D3D11 Live Object ref Count Checker \r ");
@@ -218,10 +237,4 @@ void Graphic_Device::Free()
 		OutputDebugStringW(L"----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- \r ");
 	}
 #endif
-
-	_depthStencilView.Reset();
-	_backBufferRTV.Reset();
-	_swapChain.Reset();
-	_deviceContext.Reset();
-	_device.Reset();
 }

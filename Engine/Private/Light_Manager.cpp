@@ -1,4 +1,4 @@
-#include "Light_Manager.h"
+﻿#include "Light_Manager.h"
 #include "Light.h"
 
 Light_Manager::Light_Manager()
@@ -34,9 +34,6 @@ Unique<Light_Manager> Light_Manager::Create()
 void Light_Manager::Free()
 {
 	__super::Free();
-
-	for (auto& light : _lights)
-		Safe_Release(light);
 
 	_lights.clear();
 

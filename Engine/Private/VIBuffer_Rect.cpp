@@ -38,7 +38,7 @@ HRESULT VIBuffer_Rect::Initialize_Prototype()
 	D3D11_SUBRESOURCE_DATA VertexInitialData{};
 	VertexInitialData.pSysMem = vertices;
 
-	if (FAILED(_device->CreateBuffer(&VertexBufferDesc, &VertexInitialData, &_vb)))
+	if (FAILED(_device->CreateBuffer(&VertexBufferDesc, &VertexInitialData, _vb.GetAddressOf())))
 		return E_FAIL;
 
 	D3D11_BUFFER_DESC IndexBufferDesc{};
@@ -58,7 +58,7 @@ HRESULT VIBuffer_Rect::Initialize_Prototype()
 	D3D11_SUBRESOURCE_DATA IndexInitialData{};
 	IndexInitialData.pSysMem = indices;
 
-	if (FAILED(_device->CreateBuffer(&IndexBufferDesc, &IndexInitialData, &_ib)))
+	if (FAILED(_device->CreateBuffer(&IndexBufferDesc, &IndexInitialData, _ib.GetAddressOf())))
 		return E_FAIL;
 
 	Safe_Delete_Array(vertices);

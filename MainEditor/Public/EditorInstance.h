@@ -1,5 +1,6 @@
 ﻿#pragma once
 
+#include "Base.h"
 #include "Editor_Defines.h"
 
 NS_BEGIN(Engine)
@@ -12,20 +13,20 @@ class Editor_Window;
 class Editor_Manager;
 class ImGui_Manager;
 
-class EditorInstance final
+class EditorInstance final : public Base
 {
 	DECLARE_SINGLETON(EditorInstance)
 
-private:
+public:
 	EditorInstance();
-	~EditorInstance();
+	~EditorInstance() = default;
 
 public:
 	HRESULT Initialize_Editor(const EDITOR_DESC& EditorDesc, const ComPtr<Device>& device, const ComPtr<Context>& context);
+	void    Release_Editor();
 
 	void Update_Editor(float timeDelta);
 	void Render_Editor();
-	void Release();
 
 public:
 	Shared<RenderTarget> Prepare_SharedViewportRenderTarget(uint32 width, uint32 height);
@@ -78,6 +79,9 @@ private:
 
     // 런타임 배율
 	float _runtimeTimeScale = 1.f;
+
+public:
+    void Free() override;
 };
 
 NS_END

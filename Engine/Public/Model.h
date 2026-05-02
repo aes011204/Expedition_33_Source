@@ -9,7 +9,7 @@ class ENGINE_DLL Model final : public Component
 public:
 	Model(const ComPtr<Device>& device, const ComPtr<Context>& context);
 	Model(const Model& prototype);
-	virtual ~Model() { Free(); }
+	virtual ~Model() = default;
 
 public:
 	size_t Get_NumMeshes() {
