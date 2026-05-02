@@ -144,6 +144,9 @@
     <ClInclude Include="..\Public\Helper_Math.h">
       <Filter>99. Defines\Helper</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\Engine_Model_Struct.h">
+      <Filter>99. Defines</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\public\Base.h">

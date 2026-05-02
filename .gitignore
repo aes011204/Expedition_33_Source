@@ -471,6 +471,7 @@ vcpkg_installed/
 /EngineSDK/inc/Engine/
 .agent/
 .claude/
+.gemini/
 /docs/
 
 # Ignore project build artifacts that still live under versioned Bin trees
