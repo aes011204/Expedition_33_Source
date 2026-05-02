@@ -2,11 +2,6 @@
 #include "ImGui_Manager.h"
 #include "GameInstance.h"
 
-ImGui_Manager::~ImGui_Manager()
-{
-    Free();
-}
-
 HRESULT ImGui_Manager::Initialize(HWND hWnd, const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
     IMGUI_CHECKVERSION();

@@ -9,7 +9,7 @@ class Level_GamePlay final : public Level
 {
 public:
 	Level_GamePlay(const ComPtr<Device>& device, const ComPtr<Context>& context);
-	virtual ~Level_GamePlay() { Free(); }
+	virtual ~Level_GamePlay() = default;
 
 public:
 	virtual HRESULT Initialize() override;

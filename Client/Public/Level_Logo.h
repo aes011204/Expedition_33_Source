@@ -9,7 +9,7 @@ class Level_Logo final : public Level
 {
 public:
 	Level_Logo(const ComPtr<Device>& device, const ComPtr<Context>& context);
-	virtual ~Level_Logo() { Free(); }
+	virtual ~Level_Logo() = default;
 
 public:
 	virtual HRESULT Initialize() override;

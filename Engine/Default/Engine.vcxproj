@@ -183,11 +183,16 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\Public\Character.h" />
     <ClInclude Include="..\Public\Engine_Model_Struct.h" />
     <ClInclude Include="..\Public\Helper_Math.h" />
     <ClInclude Include="..\Public\Log_Manager.h" />
     <ClInclude Include="..\Public\Helper_String.h" />
+    <ClInclude Include="..\Public\MovementCom.h" />
+    <ClInclude Include="..\Public\Reflection_Types.h" />
     <ClInclude Include="..\Public\RenderTarget.h" />
+    <ClInclude Include="..\Public\RegistorFactory.h" />
+    <ClInclude Include="..\Public\TypeRegistry.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="..\public\Animation.h" />
     <ClInclude Include="..\public\Asset_Manager.h" />
@@ -226,7 +231,7 @@
     <ClInclude Include="..\public\Texture.h" />
     <ClInclude Include="..\Public\Timer.h" />
     <ClInclude Include="..\Public\Timer_Manager.h" />
-    <ClInclude Include="..\public\Transform.h" />
+    <ClInclude Include="..\public\TransformCom.h" />
     <ClInclude Include="..\public\UIObject.h" />
     <ClInclude Include="..\public\VIBuffer.h" />
     <ClInclude Include="..\Public\VIBuffer_Cube.h" />
@@ -235,9 +240,13 @@
     <ClInclude Include="..\Public\Vertex_Types.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\Private\Character.cpp" />
     <ClCompile Include="..\Private\Log_Manager.cpp" />
+    <ClCompile Include="..\Private\MovementCom.cpp" />
     <ClCompile Include="..\Private\RenderTarget.cpp" />
     <ClCompile Include="..\Private\SimpleMath.cpp" />
+    <ClCompile Include="..\Private\RegistorFactory.cpp" />
+    <ClCompile Include="..\Private\TypeRegistry.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
@@ -272,7 +281,7 @@
     <ClCompile Include="..\private\Texture.cpp" />
     <ClCompile Include="..\Private\Timer.cpp" />
     <ClCompile Include="..\Private\Timer_Manager.cpp" />
-    <ClCompile Include="..\private\Transform.cpp" />
+    <ClCompile Include="..\private\TransformCom.cpp" />
     <ClCompile Include="..\private\UIObject.cpp" />
     <ClCompile Include="..\private\VIBuffer.cpp" />
     <ClCompile Include="..\Private\VIBuffer_Cube.cpp" />
