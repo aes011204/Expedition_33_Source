@@ -1,7 +1,6 @@
 ﻿#include "Level_GamePlay.h"
 #include "GameInstance.h"
-
-
+#include "ClientInstance.h"
 #include "FreeCamera.h"
 #include "TargetCamera.h"
 
@@ -28,6 +27,13 @@ HRESULT Level_GamePlay::Initialize()
 		return E_FAIL;*/
 
 	return S_OK;
+}
+
+void Level_GamePlay::BeginPlay()
+{
+    Level::BeginPlay();
+
+    
 }
 
 void Level_GamePlay::Update(float fTimeDelta)
@@ -134,6 +140,8 @@ HRESULT Level_GamePlay::Ready_Layer_Player(const wstring& strLayerTag)
 	if (FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Player"),
 		ETOI(LevelType::GamePlay), strLayerTag)))
 		return E_FAIL;
+
+
 
 	return S_OK;
 }

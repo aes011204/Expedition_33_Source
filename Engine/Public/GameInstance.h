@@ -29,14 +29,13 @@ class ENGINE_DLL GameInstance final : public Base
 {
     DECLARE_SINGLETON(GameInstance)
 
-private:
-    GameInstance();
-
 public:
+    GameInstance();
     ~GameInstance() override;
 
 public:
     HRESULT Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<Device>& device, ComPtr<Context>& context);
+    void    Release_Engine();
     void    Update_Engine(float timeDelta);
     HRESULT Draw();
     void    Clear_Resources(uint32 levelIndex);
@@ -77,6 +76,9 @@ public: /* For.Timer_Manager */
 public: /* For.Level_Manager */
     HRESULT Change_Level(uint32 newLevelIndex, Shared<Level> newLevel);
 
+    uint32          Current_LevelIndex();
+    Shared<Level>   Current_LevelType();
+
 public: /* For.Prototype_Manager */
     HRESULT Add_Prototype(uint32 levelIndex, const wstring& prototypeTag, Shared<Base> prototype);
     Shared<Base> Clone_Prototype(Prototype prototype, uint32 levelIndex, const wstring& prototypeTag, void* arg = nullptr);
@@ -88,6 +90,8 @@ public: /* For.Object_Manager */
         uint32 layerLevelIndex,
         const wstring& layerTag,
         void* arg = nullptr);
+
+    Shared<GameObject> Find_FirstObject(uint32 levelIndex, const wstring& layerTag);
 
 public: /* For.Renderer */
     void Add_RenderGroup(RenderGroup renderGroup, Shared<GameObject> gameObject);
@@ -121,7 +125,7 @@ public: /* For.Light_Manager */
 public: /* For.Font_Manager */
     HRESULT Add_Font(const wstring& fontTag, const wchar_t* fontFilePath);
     void Draw_Font(const wstring& fontTag, const wchar_t* text, const Vec2& position, FXMVECTOR color = XMVectorSet(1.f, 1.f, 1.f, 1.f));
-
+        
 public: /* For.Asset_Manager */
     /* 리소스 루트를 기준으로 GUID/meta/cache registry를 준비할 때 호출한다. */
     HRESULT Initialize_AssetManager(const wstring& resourceRoot);
@@ -144,13 +148,13 @@ public: /* For.Camera_Manager */
     void    Change_ActiveCamera(Shared<Camera> camera) const;
 
 public: /* For.TypeRegistry */
-    const TypeRegistry::ComponentTypeInfo* Find_ComponentType(const string& className) const;
+    const TypeRegistry::ComponentTypeInfo*  Find_ComponentType(const string& className) const;
     const TypeRegistry::GameObjectTypeInfo* Find_GameObjectType(const string& className) const;
-    const TypeRegistry::BTNodeTypeInfo* Find_BTNodeType(const string& className) const;
+    const TypeRegistry::BTNodeTypeInfo*     Find_BTNodeType(const string& className) const;
 
-    Shared<Component> Create_ComponentPrototype(const string& className) const;
-    Shared<GameObject> Create_GameObjectPrototype(const string& className) const;
-    Shared<Base> Create_BTNodePrototype(const string& className) const;
+    Shared<Component>   Create_ComponentPrototype(const string& className) const;
+    Shared<GameObject>  Create_GameObjectPrototype(const string& className) const;
+    Shared<Base>        Create_BTNodePrototype(const string& className) const;
 
 private:
     Unique<Log_Manager> _logManager{};
@@ -173,7 +177,6 @@ private:
     uint32 _viewportHeight{ 0 };
 
 public:
-    void Release_Engine();
     void Free() override;
 };
 

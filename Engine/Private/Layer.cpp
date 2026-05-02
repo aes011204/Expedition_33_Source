@@ -20,8 +20,15 @@ HRESULT Layer::Add_GameObject(Shared<GameObject> gameObject)
 void Layer::Priority_Update(float timeDelta)
 {
 	for (auto& gameObject : _gameObjects)
-		if (nullptr != gameObject)
-			gameObject->Priority_Update(timeDelta);
+	{
+	     if (nullptr == gameObject)
+            continue;
+
+        // 초기 1회 BeginPlay 실행
+        gameObject->Try_BeginPlay();
+        gameObject->Priority_Update(timeDelta);
+	}
+		
 }
 
 void Layer::Update(float timeDelta)
@@ -36,6 +43,14 @@ void Layer::Late_Update(float timeDelta)
 	for (auto& gameObject : _gameObjects)
 		if (nullptr != gameObject)
 			gameObject->Late_Update(timeDelta);
+}
+
+Shared<GameObject> Layer::Find_FirstObject()
+{
+    if (_gameObjects.empty())
+        return nullptr;
+
+    return _gameObjects.front();
 }
 
 Shared<Layer> Layer::Create()

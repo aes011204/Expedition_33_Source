@@ -120,11 +120,6 @@ Shared<GameObject> Sky::Clone(void* pArg)
 void Sky::Free()
 {
 	__super::Free();
-
-	
-	Safe_Release(_shader);
-	Safe_Release(_texture);
-	Safe_Release(_vibuffer);
 }
 
 
