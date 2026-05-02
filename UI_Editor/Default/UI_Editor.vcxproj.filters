@@ -1,0 +1,30 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="00.Main">
+      <UniqueIdentifier>{daced427-1623-4468-ba81-2e7e23a3cf1f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="99.Defines">
+      <UniqueIdentifier>{4da12f18-3b5e-4062-8774-6896db1b6b4a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="98.Default">
+      <UniqueIdentifier>{b62ad65c-c897-4352-8563-d2ad6215433b}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="pch.cpp">
+      <Filter>98.Default</Filter>
+    </ClCompile>
+    <ClCompile Include="UI_Editor.cpp">
+      <Filter>00.Main</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="pch.h">
+      <Filter>98.Default</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_Editor_Defines.h">
+      <Filter>99.Defines</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>
