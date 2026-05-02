@@ -31,7 +31,9 @@ void LogWindow::Render()
     ImGui::Checkbox("Auto-Scroll", &autoScroll);
     ImGui::Separator();
 
-    ImGui::BeginChild("LogScrollingRegion", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar);
+    ImGui::BeginChild("LogScrollingRegion", ImVec2(0, 0), false, ImGuiWindowFlags_None);
+
+    ImGui::PushTextWrapPos(0.0f);
 
     GAME->Visit_ConsoleLogs([&](const Engine::ConsoleLogEntry& entry)
         {

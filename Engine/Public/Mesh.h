@@ -9,12 +9,10 @@ class Mesh final : public VIBuffer
 public:
 	Mesh(const ComPtr<Device>& device, const ComPtr<Context>& context);
 	Mesh(const Mesh& prototype);
-	virtual ~Mesh() = default;
+	~Mesh() override = default;
 
 public:
-	uint32 Get_MaterialIndex() const {
-		return _materialIndex;
-	}
+	uint32 Get_MaterialIndex() const { return _materialIndex; }
 
 public:
 	virtual HRESULT Initialize_Prototype(ModelType type, const aiMesh* aiMesh, class Model* model, FXMMATRIX preTransformMatrix);
@@ -28,7 +26,7 @@ private:
 	uint32					_materialIndex = {};
 	uint32					_numBones = {};
 	vector<uint32>			_boneIndices;
-	XMFLOAT4X4				_boneMatrices[512] = {};
+	XMFLOAT4X4				_boneMatrices[maxBoneCount] = {};
 	vector<XMFLOAT4X4>		_offsetMatrices;
 
 private:

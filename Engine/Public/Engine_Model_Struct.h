@@ -1,6 +1,11 @@
 ﻿#pragma once
 
 using namespace::std;
+using namespace::Engine;
+
+constexpr int32 maxModelSize = 256;
+constexpr int32 maxBoneCount = 512;
+
 using ModelDataHeader = struct tagModelDataHeader
 {
     string modelName;
@@ -11,26 +16,69 @@ using ModelDataHeader = struct tagModelDataHeader
     uint32 numAnimations;
 };
 
-
+using ModelNodeData = struct tagModelNodeData
+{
+    char        name[maxModelSize];
+    int32       prentIndex{ -1 };
+    Matrix      localTransform{};
+};
 
 using ModelMeshData = struct tagModelMeshHeader
 {
-    
+    char        name[maxModelSize];
+    uint32      materialIndex{};
+    uint32      numVertices{};
+    uint32      numIndices{};
+    void*       vertices;
+    void*       indices;
 };
 
-using ModelAnimationData = struct tagModelAnimationData
+using ModelBoneData = struct tagModelBone
 {
-    
+    char        name[maxModelSize];
+    int32       nodeIndex{ -1 };
+    Matrix      offsetMatrix{};
+};
+
+using ModelTextureSlot = struct tagModelTextureSlot
+{
+    uint32  typeIndex{ 0 };   
+    uint32  textureIndex{ 0 };
 };
 
 using ModelMaterialData = struct tagModelMaterialData
 {
-    
+    char        name[maxModelSize];
+
+    Vec4        diffuseColor{};
+    Vec4        ambientColor{};
+    Vec4        specularColor{};
+    Vec4        emissiveColor{};
+
+    float       shininess{};
+    float       opacity{ 1.f };
+    float       roughness{ 0.5f };
+    float       metalness{ 0.f };
+
+    uint32      numSlots{};
+    void*       modelTextureSlots;
+};
+
+using ModelAnimationData = struct tagModelAnimationData
+{
+    char        name[maxModelSize];
+    double      duration{};
+    double      ticksPerSecond{};
+    uint32      numChannels{};
+    Vec3        rootTotalTranslation{};
+    Vec4        rootTotalRotation{};
 };
 
 using ModelChannelData = struct tagChannelData
 {
-    
+    char        boneName[256];
+    uint32      numKeyframes{};
+    void*       keyframes;
 };
 
 

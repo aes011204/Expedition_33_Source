@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "Base.h"
 #include "ImGui_Manager.h"
@@ -17,7 +17,7 @@ private:
 	ModelEditorApp() = default;
 
 public:
-	virtual ~ModelEditorApp() = default;
+	virtual ~ModelEditorApp();
 
 public:
 	HRESULT Initialize();

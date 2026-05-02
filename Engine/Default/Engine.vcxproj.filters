@@ -152,6 +152,9 @@
     <ClInclude Include="..\Public\Reflection_Types.h" />
     <ClInclude Include="..\Public\TypeRegistry.h" />
     <ClInclude Include="..\Public\RegistorFactory.h" />
+    <ClInclude Include="..\Public\StaticMesh.h">
+      <Filter>01.Utility\04.Component\Model\Mesh</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\public\Base.h">
@@ -411,6 +414,9 @@
     <ClCompile Include="..\Private\Character.cpp" />
     <ClCompile Include="..\Private\TypeRegistry.cpp" />
     <ClCompile Include="..\Private\RegistorFactory.cpp" />
+    <ClCompile Include="..\Private\StaticMesh.cpp">
+      <Filter>01.Utility\04.Component\Model\Mesh</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Bin\ShaderFiles\Engine_Shader_Defines.hlsli">
@@ -429,4 +435,3 @@
     </Filter>
   </ItemGroup>
 </Project>
-

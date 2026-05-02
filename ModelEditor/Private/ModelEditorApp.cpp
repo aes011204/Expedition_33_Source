@@ -1,4 +1,4 @@
-﻿#include "pch.h"
+#include "pch.h"
 #include "ModelEditorApp.h"
 #include "ImGui_Manager.h"
 #include "GameInstance.h"
@@ -19,8 +19,10 @@ HRESULT ModelEditorApp::Initialize()
 	engineDesc.hWnd = g_hWnd;
 	engineDesc.winMode = WinMode::Win;
 	engineDesc.numLevels = 1; 
-	engineDesc.viewportWidth = 1600; // Default
-	engineDesc.viewportHeight = 900;
+	RECT rc;
+	GetClientRect(g_hWnd, &rc);
+	engineDesc.viewportWidth = rc.right - rc.left;
+	engineDesc.viewportHeight = rc.bottom - rc.top;
 	engineDesc.projectName = "ModelEditor";
 
 	if (FAILED(GAME->Initialize_Engine(engineDesc, _device, _context)))
@@ -88,6 +90,11 @@ wstring ModelEditorApp::Get_ClientResourcePath(const wchar_t* relativePath) cons
 		return Get_ClientResourceRoot();
 
 	return (std::filesystem::path(Get_ClientResourceRoot()) / relativePath).lexically_normal().wstring();
+}
+
+ModelEditorApp::~ModelEditorApp()
+{
+	Free();
 }
 
 Unique<ModelEditorApp> ModelEditorApp::Create()

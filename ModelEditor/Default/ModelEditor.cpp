@@ -41,6 +41,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 #ifdef _DEBUG
     _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 #endif
+    SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
 
     LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
     LoadStringW(hInstance, IDC_MODELEDITOR, szWindowClass, MAX_LOADSTRING);
@@ -124,7 +125,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
    g_hInst = hInstance;
 
    g_hWnd = CreateWindowW(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
-      CW_USEDEFAULT, 0, 1280, 720, nullptr, nullptr, hInstance, nullptr);
+      CW_USEDEFAULT, 0, 1600, 900, nullptr, nullptr, hInstance, nullptr);
 
    if (!g_hWnd)
    {
@@ -147,6 +148,16 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     case WM_DESTROY:
         PostQuitMessage(0);
         break;
+    case WM_DPICHANGED:
+    {
+        const RECT* pRect = reinterpret_cast<const RECT*>(lParam);
+        SetWindowPos(hWnd, nullptr,
+            pRect->left, pRect->top,
+            pRect->right - pRect->left,
+            pRect->bottom - pRect->top,
+            SWP_NOZORDER | SWP_NOACTIVATE);
+        return 0;
+    }
     default:
         return DefWindowProc(hWnd, message, wParam, lParam);
     }

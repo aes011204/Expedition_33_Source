@@ -1,4 +1,4 @@
-﻿#include "pch.h"
+#include "pch.h"
 #include "ImGui_Manager.h"
 #include "GameInstance.h"
 
@@ -42,35 +42,38 @@ HRESULT ImGui_Manager::Initialize(HWND hWnd, const ComPtr<Device>& device, const
 
 void ImGui_Manager::Update(float timeDelta)
 {
+	ImGui_ImplDX11_NewFrame();
+	ImGui_ImplWin32_NewFrame();
+	ImGui::NewFrame();
+
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(viewport->WorkPos);
     ImGui::SetNextWindowSize(viewport->WorkSize);
     ImGui::SetNextWindowViewport(viewport->ID);
-    // 2. 배경 패널 설정 (제공 코드와 동일하게 NoBackground 권장)
-    ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse |
-        ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
-        ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus |
-        ImGuiWindowFlags_NoBackground;
+    
+    ImGuiWindowFlags window_flags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse |
+                                    ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
+                                    ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus |
+                                    ImGuiWindowFlags_NoBackground;
+
     ImGui::Begin("Main Panel", nullptr, window_flags);
     {
-        // 3. 도킹 공간 생성
         ImGuiID dockspaceID = ImGui::GetID("MyDockSpace");
         ImGui::DockSpace(dockspaceID, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_None);
-    }
-    ImGui::End();
-    
-    if (ImGui::BeginMenuBar())
-    {
-        if (ImGui::BeginMenu("Window"))
-        {
-            if (ImGui::MenuItem("Log Console")) { _logWindow->ToggleLog(); }
 
-            ImGui::EndMenu();
-        }
-        ImGui::EndMenuBar();
+		if (ImGui::BeginMenuBar())
+		{
+			if (ImGui::BeginMenu("Window"))
+			{
+				if (ImGui::MenuItem("Log Console")) { _logWindow->ToggleLog(); }
+				ImGui::EndMenu();
+			}
+			ImGui::EndMenuBar();
+		}
     }
-    _logWindow->Update(timeDelta);
     ImGui::End();
+
+    _logWindow->Update(timeDelta);
 }
 
 void ImGui_Manager::Render()
