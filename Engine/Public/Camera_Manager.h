@@ -14,19 +14,20 @@ public:
     void    Update(float timeDelta);
 
 public:
-    void              Change_ActiveCamera(const wstring& cameraTag);
-    HRESULT           Add_Camera(const wstring& cameraTag, Shared<Camera> camera);
-    Shared<Camera>    Find_Camera(const wstring& cameraTag);
+    void              Change_ActiveCamera(Shared<Camera> camera);
+    void              SwitchTo_NextCamera();
+    HRESULT           Add_Camera(Shared<Camera> camera);
+    Shared<Camera>    Find_Camera(Shared<Camera> camera);
+    bool              Is_ActiveCamera(Shared<Camera> camera);
 
 private:
-    map<const wstring&, Shared<Camera>> m_cameras;
-    Shared<Camera> m_activeCamera;
+    vector<Shared<Camera>> m_cameras;
+    Shared<Camera>         m_activeCamera;
+
 
 public:
     static Unique<Camera_Manager> Create();
     virtual void Free() override;
 };
-
-
 
 NS_END

@@ -29,6 +29,19 @@ HRESULT FreeCamera::Initialize(void* arg)
 
 void FreeCamera::Priority_Update(float timeDelta)
 {
+    __super::Priority_Update(timeDelta);
+
+    if(_firstUpdate)
+    {
+        GAME->Add_Camera(GetSharedPtr<Camera>());
+        GAME->Change_ActiveCamera(GetSharedPtr<Camera>());
+
+        _firstUpdate = false;
+    }
+
+    if(!GAME->Is_ActiveCamera(GetSharedPtr<Camera>()))
+        return;
+
     if (GAME->KeyPress(KEY_TYPE::W))
         _transformCom->Go_Straight(timeDelta);
 

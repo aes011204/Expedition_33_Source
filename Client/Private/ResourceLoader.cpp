@@ -1,8 +1,8 @@
 ﻿#include "ResourceLoader.h"
-
 #include "BackGround.h"
 #include "Body_Player.h"
 #include "FreeCamera.h"
+#include "TargetCamera.h"
 #include "GameInstance.h"
 #include "Model.h"
 #include "Monster.h"
@@ -495,6 +495,9 @@ Shared<Engine::GameObject> ResourceLoader::Create_GameObjectPrototype(const wstr
 
 	if (TEXT("GameObject_FreeCamera") == strPrototypeTag)
 		return FreeCamera::Create(_device.Get(), _context.Get());
+
+    if (TEXT("GameObject_TargetCamera") == strPrototypeTag)
+        return TargetCamera::Create(_device.Get(), _context.Get());
 
 	if (TEXT("GameObject_Monster") == strPrototypeTag)
 		return Monster::Create(_device.Get(), _context.Get());

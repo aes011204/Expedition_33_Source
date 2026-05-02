@@ -138,7 +138,9 @@
     <ClInclude Include="..\Public\ResourceLoader.h">
       <Filter>01.Levels\Loading\Loader</Filter>
     </ClInclude>
-    <ClInclude Include="..\public\TargetCamera.h" />
+    <ClInclude Include="..\public\TargetCamera.h">
+      <Filter>02.GameObject\Camera\Target</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -192,7 +194,9 @@
     <ClCompile Include="..\Private\SimpleMath.cpp">
       <Filter>99.Defines</Filter>
     </ClCompile>
-    <ClCompile Include="..\private\TargetCamera.cpp" />
+    <ClCompile Include="..\private\TargetCamera.cpp">
+      <Filter>02.GameObject\Camera\Target</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxTex.hlsl">

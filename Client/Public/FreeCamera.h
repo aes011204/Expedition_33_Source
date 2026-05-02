@@ -25,6 +25,9 @@ public:
 	virtual void    Late_Update(float timeDelta) override;
 	virtual HRESULT Render() override;
 
+private:
+    bool    _firstUpdate = true;
+
 public:
 	static Shared<FreeCamera> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
 	virtual Shared<GameObject> Clone(void* arg) override;

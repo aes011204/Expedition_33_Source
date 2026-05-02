@@ -21,6 +21,11 @@ HRESULT TargetCamera::Initialize(void* arg)
     if (nullptr == arg)
         return E_FAIL;
 
+    const auto desc = static_cast<TARGETCAMERA_DESC*>(arg);
+
+    _followSpeed = desc->followSpeed;
+    _offset = desc->offset;
+
     if(FAILED(__super::Initialize(arg)))
         return E_FAIL;
 
@@ -33,6 +38,24 @@ void TargetCamera::Priority_Update(float timeDelta)
 {
     __super::Priority_Update(timeDelta);
 
+    if(_firstUpdate)
+    {
+        GAME->Add_Camera(GetSharedPtr<Camera>());
+
+        //player 설정
+        //_targetTransformCom =  GetPlayer()
+        _firstUpdate = false;
+    }
+
+    if(!GAME->Is_ActiveCamera(GetSharedPtr<Camera>()))
+        return;
+
+    if(_targetTransformCom.expired())
+    {
+        MSG_BOX("Target Transform == nullptr");
+        return;
+    }
+
    auto targetTransformCom  = _targetTransformCom.lock();
 
     if(nullptr == targetTransformCom)
@@ -40,7 +63,11 @@ void TargetCamera::Priority_Update(float timeDelta)
 
     Vec3 targetPos = targetTransformCom->Get_WorldPosition();
 
-    _transformCom->Set_Position(targetPos);
+
+
+    Vec3 newPos = { targetPos.x + _offset.x , targetPos.y + _offset.y, targetPos.z + _offset.z };
+
+    _transformCom->Set_Position(newPos);
 
     Update_TransformMatrices();
 }
@@ -61,6 +88,13 @@ HRESULT TargetCamera::Render()
        return E_FAIL;
 
     return S_OK;
+}
+
+void TargetCamera::SetTargetTransform(Shared<Transform> targetTransform)
+{
+    //타겟을 설정해줘야함
+
+    _targetTransformCom = targetTransform;
 }
 
 Shared<TargetCamera> TargetCamera::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

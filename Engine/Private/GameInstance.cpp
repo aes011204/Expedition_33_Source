@@ -1,5 +1,6 @@
 ﻿#include "GameInstance.h"
 #include "Asset_Manager.h"
+#include "Camera_Manager.h"
 #include "Font_Manager.h"
 #include "Graphic_Device.h"
 #include "Input_Manager.h"
@@ -76,6 +77,10 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
     if (nullptr == _fontManager)
         return E_FAIL;
 
+    _cameraManager = Camera_Manager::Create();
+    if (nullptr == _cameraManager)
+        return E_FAIL;
+
     return S_OK;
 }
 
@@ -92,6 +97,8 @@ void GameInstance::Update_Engine(float timeDelta)
     _objectManager->Late_Update(timeDelta);
 
     _levelManager->Update(timeDelta);
+
+    _cameraManager->Update(timeDelta);
 }
 
 HRESULT GameInstance::Draw()
@@ -370,6 +377,21 @@ wstring GameInstance::Get_AssetRoot() const
         return {};
 
     return _assetManager->Get_ResourceRoot();
+}
+
+HRESULT GameInstance::Add_Camera(Shared<Camera> camera) const
+{
+    return _cameraManager->Add_Camera(camera);
+}
+
+bool GameInstance::Is_ActiveCamera(Shared<Camera> camera)
+{
+    return _cameraManager->Is_ActiveCamera(camera);
+}
+
+void GameInstance::Change_ActiveCamera(Shared<Camera> camera) const
+{
+    return _cameraManager->Change_ActiveCamera(camera);
 }
 
 void GameInstance::Release_Engine()

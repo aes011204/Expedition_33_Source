@@ -3,6 +3,7 @@
 
 
 #include "FreeCamera.h"
+#include "TargetCamera.h"
 
 Level_GamePlay::Level_GamePlay(const ComPtr<Device>& device, const ComPtr<Context>& context)
 	: Level { device, context }
@@ -25,8 +26,6 @@ HRESULT Level_GamePlay::Initialize()
 
 	/*if (FAILED(Ready_Layer_Monster(TEXT("Layer_Monster"))))
 		return E_FAIL;*/
-
-	
 
 	return S_OK;
 }
@@ -63,22 +62,39 @@ HRESULT Level_GamePlay::Ready_Lights()
 
 HRESULT Level_GamePlay::Ready_Layer_Camera(const wstring& strLayerTag)
 {
-	FreeCamera::FREECAMERA_DESC		CameraDesc{};
+	FreeCamera::FREECAMERA_DESC		FreeCameraDesc{};
 
-	CameraDesc.speedPerSec = 10.f;
-	CameraDesc.degreePerSec = 180.f;
-	CameraDesc.eye = XMFLOAT4(0.f, 10.f, -7.f, 1.f);
-	CameraDesc.at = XMFLOAT4(0.f, 0.f, 0.f, 1.f);
-	CameraDesc.fovy = XMConvertToRadians(60.f) ;
-    CameraDesc.pitch = 0.f;
-    CameraDesc.yaw = 0.f;
-	CameraDesc.nearPlane = 0.1f;
-	CameraDesc.farPlane = 500.f;
-	CameraDesc.mouseSensor = 0.05f;
+	FreeCameraDesc.speedPerSec = 10.f;
+	FreeCameraDesc.degreePerSec = 180.f;
+	FreeCameraDesc.eye = XMFLOAT4(0.f, 10.f, -7.f, 1.f);
+	FreeCameraDesc.at = XMFLOAT4(0.f, 0.f, 0.f, 1.f);
+	FreeCameraDesc.fovy = XMConvertToRadians(60.f) ;
+    FreeCameraDesc.pitch = 0.f;
+    FreeCameraDesc.yaw = 0.f;
+	FreeCameraDesc.nearPlane = 0.1f;
+	FreeCameraDesc.farPlane = 500.f;
+	FreeCameraDesc.mouseSensor = 0.05f;
 
 	if (FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_FreeCamera"),
-		ETOI(LevelType::GamePlay), strLayerTag, &CameraDesc)))
+		ETOI(LevelType::GamePlay), strLayerTag, &FreeCameraDesc)))
 		return E_FAIL;
+
+    TargetCamera::TARGETCAMERA_DESC		TargetCameraDesc{};
+
+    TargetCameraDesc.speedPerSec = 10.f;
+    TargetCameraDesc.degreePerSec = 180.f;
+    TargetCameraDesc.eye = XMFLOAT4(0.f, 10.f, -7.f, 1.f);
+    TargetCameraDesc.at = XMFLOAT4(0.f, 0.f, 0.f, 1.f);
+    TargetCameraDesc.fovy = XMConvertToRadians(60.f) ;
+    TargetCameraDesc.pitch = 0.f;
+    TargetCameraDesc.yaw = 0.f;
+    TargetCameraDesc.nearPlane = 0.1f;
+    TargetCameraDesc.farPlane = 500.f;
+    TargetCameraDesc.mouseSensor = 0.05f;
+
+    if (FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_TargetCamera"),
+        ETOI(LevelType::GamePlay), strLayerTag, &TargetCameraDesc)))
+            return E_FAIL;
 
 
 	return S_OK;
