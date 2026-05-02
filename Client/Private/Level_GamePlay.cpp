@@ -70,6 +70,8 @@ HRESULT Level_GamePlay::Ready_Layer_Camera(const wstring& strLayerTag)
 	CameraDesc.eye = XMFLOAT4(0.f, 10.f, -7.f, 1.f);
 	CameraDesc.at = XMFLOAT4(0.f, 0.f, 0.f, 1.f);
 	CameraDesc.fovy = XMConvertToRadians(60.f) ;
+    CameraDesc.pitch = 0.f;
+    CameraDesc.yaw = 0.f;
 	CameraDesc.nearPlane = 0.1f;
 	CameraDesc.farPlane = 500.f;
 	CameraDesc.mouseSensor = 0.05f;

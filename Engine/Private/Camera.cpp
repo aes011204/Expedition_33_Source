@@ -36,6 +36,8 @@ HRESULT Camera::Initialize(void* arg)
     _fovy = desc->fovy;
     _near = desc->nearPlane;
     _far = desc->farPlane;
+    _yaw = desc->yaw;
+    _pitch = desc->pitch;
     _aspect = static_cast<float>(GAME->Get_ViewportWidth()) /
               static_cast<float>(max(1u, GAME->Get_ViewportHeight()));
 

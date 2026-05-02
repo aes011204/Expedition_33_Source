@@ -8,7 +8,6 @@ FreeCamera::FreeCamera(const ComPtr<Device>& device, const ComPtr<Context>& cont
 
 FreeCamera::FreeCamera(const FreeCamera& prototype)
     : Camera{ prototype }
-    , _mouseSensor{ prototype._mouseSensor }
 {
 }
 
@@ -19,8 +18,8 @@ HRESULT FreeCamera::Initialize_Prototype()
 
 HRESULT FreeCamera::Initialize(void* arg)
 {
-    const auto pDesc = static_cast<FREECAMERA_DESC*>(arg);
-    _mouseSensor = pDesc->mouseSensor;
+    const auto desc = static_cast<FREECAMERA_DESC*>(arg);
+    _mouseSensor = desc->mouseSensor;
 
     if (FAILED(__super::Initialize(arg)))
         return E_FAIL;
@@ -30,9 +29,6 @@ HRESULT FreeCamera::Initialize(void* arg)
 
 void FreeCamera::Priority_Update(float timeDelta)
 {
-
-    Matrix before = _transformCom->Get_WorldMatrix();
-
     if (GAME->KeyPress(KEY_TYPE::W))
         _transformCom->Go_Straight(timeDelta);
 
@@ -45,15 +41,22 @@ void FreeCamera::Priority_Update(float timeDelta)
     if (GAME->KeyPress(KEY_TYPE::D))
         _transformCom->Go_Right(timeDelta);
 
-    Matrix after = _transformCom->Get_WorldMatrix();
+    if (GAME->KeyPress(KEY_TYPE::E))
+        _transformCom->Go_Up(timeDelta);
+
+    if (GAME->KeyPress(KEY_TYPE::Q))
+        _transformCom->Go_Down(timeDelta);
 
     const Vec2 mouseDelta = GAME->Get_MouseDelta();
 
+    _yaw += mouseDelta.x * _mouseSensor;
+    _pitch += mouseDelta.y * _mouseSensor;
+
     if (0.f != mouseDelta.x)
-        _transformCom->Turn(Vec3::Up, timeDelta * mouseDelta.x * _mouseSensor);
+             _transformCom->Set_RotationEuler(Vec3(_pitch, _yaw, 0.f));
 
     if (0.f != mouseDelta.y)
-        _transformCom->Turn(_transformCom->Get_State(State::Right), timeDelta * mouseDelta.y * _mouseSensor);
+             _transformCom->Set_RotationEuler(Vec3(_pitch, _yaw, 0.f));
 
     __super::Update_TransformMatrices();
 }

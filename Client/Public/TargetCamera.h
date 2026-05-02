@@ -5,6 +5,7 @@ class TargetCamera final : public Camera
 public:
     typedef struct tagTargetCamera final : public Camera::CAMERA_DESC
     {
+     
     }TARGETCAMERA_DESC;
 
 public:
@@ -20,9 +21,8 @@ public:
     virtual void    Late_Update(float timeDelta) override;
     virtual HRESULT Render() override;
 
-
 private:
-   Weak<Transform> _targetTransform;
+   Weak<Transform> _targetTransformCom;
 
 public:
     static Shared<TargetCamera> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

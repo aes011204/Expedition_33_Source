@@ -18,16 +18,31 @@ HRESULT TargetCamera::Initialize_Prototype()
 
 HRESULT TargetCamera::Initialize(void* arg)
 {
+    if (nullptr == arg)
+        return E_FAIL;
+
     if(FAILED(__super::Initialize(arg)))
         return E_FAIL;
+
+    Update_TransformMatrices();
 
     return S_OK;
 }
 
-
 void TargetCamera::Priority_Update(float timeDelta)
 {
     __super::Priority_Update(timeDelta);
+
+   auto targetTransformCom  = _targetTransformCom.lock();
+
+    if(nullptr == targetTransformCom)
+        return;
+
+    Vec3 targetPos = targetTransformCom->Get_WorldPosition();
+
+    _transformCom->Set_Position(targetPos);
+
+    Update_TransformMatrices();
 }
 
 void TargetCamera::Update(float timeDelta)
@@ -42,18 +57,37 @@ void TargetCamera::Late_Update(float timeDelta)
 
 HRESULT TargetCamera::Render()
 {
-    return __super::Render();
+   if(FAILED(__super::Render()))
+       return E_FAIL;
+
+    return S_OK;
 }
 
 Shared<TargetCamera> TargetCamera::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
+    auto instance = make_shared<TargetCamera>(device, context);
+
+    if (FAILED(instance->Initialize_Prototype()))
+    {
+        MSG_BOX("Failed to Create : TargetCamera");
+        return nullptr;
+    }
+    return instance;
 }
 
 Shared<GameObject> TargetCamera::Clone(void* arg)
 {
+    auto instance = make_shared<TargetCamera>(*this);
+
+    if (FAILED(instance->Initialize_Prototype()))
+    {
+        MSG_BOX("Failed to Clone : TargetCamera");
+        return nullptr;
+    }
+    return instance;
 }
 
 void TargetCamera::Free()
 {
-    Camera::Free();
+    __super::Free();
 }

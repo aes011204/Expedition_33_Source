@@ -11,6 +11,8 @@ public:
 	{
 		XMFLOAT4		eye, at;
 		float		    fovy, nearPlane, farPlane;
+        float           yaw, pitch;
+        float           mouseSensor;
 	}CAMERA_DESC;
 
 public:
@@ -28,6 +30,8 @@ public:
 
 protected:
     float	_fovy{}, _near{}, _far{}, _aspect{};
+    float	_mouseSensor = {};
+    float   _yaw {}, _pitch{};
 
 protected:
 	void Update_TransformMatrices();

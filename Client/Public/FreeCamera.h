@@ -10,7 +10,6 @@ class FreeCamera final : public Camera
 public:
 	typedef struct tagFreeCamera final : public Camera::CAMERA_DESC
 	{
-		float	mouseSensor;
 	}FREECAMERA_DESC;
 
 public:
@@ -20,14 +19,11 @@ public:
 
 public:
 	virtual HRESULT Initialize_Prototype() override;
-	virtual HRESULT Initialize(void* pArg) override;
-	virtual void    Priority_Update(float fTimeDelta) override;
-	virtual void    Update(float fTimeDelta) override;
-	virtual void    Late_Update(float fTimeDelta) override;
+	virtual HRESULT Initialize(void* arg) override;
+	virtual void    Priority_Update(float timeDelta) override;
+	virtual void    Update(float timeDelta) override;
+	virtual void    Late_Update(float timeDelta) override;
 	virtual HRESULT Render() override;
-
-private:
-	float				_mouseSensor = {};
 
 public:
 	static Shared<FreeCamera> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
