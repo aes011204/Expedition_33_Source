@@ -139,11 +139,37 @@
     <ClInclude Include="..\Public\Helper_String.h">
       <Filter>99. Defines\Helper</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\RenderTarget.h" />
     <ClInclude Include="..\Public\Log_Manager.h" />
     <ClInclude Include="..\Public\Helper_Math.h">
       <Filter>99. Defines\Helper</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\AIController.h">
+      <Filter>BehavoirTree</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\BehaviorTree.h">
+      <Filter>BehavoirTree</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\BlackBoard.h">
+      <Filter>BehavoirTree</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\BNode.h">
+      <Filter>BehavoirTree</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Composite.h">
+      <Filter>BehavoirTree</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Decorator.h">
+      <Filter>BehavoirTree</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Service.h">
+      <Filter>BehavoirTree</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Task.h">
+      <Filter>BehavoirTree</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\BT_MoveTo.h" />
+    <ClInclude Include="..\Public\RenderTarget.h" />
+    <ClInclude Include="..\public\PathFollower.h" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\public\Base.h">
@@ -397,8 +423,34 @@
     <ClCompile Include="..\Private\SimpleMath.cpp">
       <Filter>99. Defines</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\RenderTarget.cpp" />
     <ClCompile Include="..\Private\Log_Manager.cpp" />
+    <ClCompile Include="..\Private\Task.cpp">
+      <Filter>BehavoirTree</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\AIController.cpp">
+      <Filter>BehavoirTree</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\BehaviorTree.cpp">
+      <Filter>BehavoirTree</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\BlackBoard.cpp">
+      <Filter>BehavoirTree</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\BNode.cpp">
+      <Filter>BehavoirTree</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Composite.cpp">
+      <Filter>BehavoirTree</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Decorator.cpp">
+      <Filter>BehavoirTree</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Service.cpp">
+      <Filter>BehavoirTree</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\BT_MoveTo.cpp" />
+    <ClCompile Include="..\Private\RenderTarget.cpp" />
+    <ClCompile Include="..\private\PathFollower.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Bin\ShaderFiles\Engine_Shader_Defines.hlsli">
@@ -414,6 +466,9 @@
     </Filter>
     <Filter Include="99. Defines\Helper">
       <UniqueIdentifier>{4f948615-4199-4e04-95ad-a005392f4ff3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="BehavoirTree">
+      <UniqueIdentifier>{b162063b-9775-4453-bde4-96de09cb2a9e}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

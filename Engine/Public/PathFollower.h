@@ -1,0 +1,25 @@
+﻿#pragma once
+#include "Base.h"
+
+NS_BEGIN(Engine)
+class PathFollower :
+    public Base
+{
+public:
+    PathFollower();
+    virtual ~PathFollower();
+public:
+    void Update(float deltaTime, Vec3& position, float speed);
+   
+    bool Is_Finished();
+    void Request_Move(Vec3& start, Vec3& target);
+
+private:
+    Vec3 _position;
+    Vec3 _target;
+
+    bool _fin = {false};
+    
+};
+
+NS_END
