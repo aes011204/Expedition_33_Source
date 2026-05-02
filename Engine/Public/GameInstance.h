@@ -46,7 +46,7 @@ public: /* For.Log_Manager */
 
     uint32 Get_ConsoleLogCount() const;
     uint32 Get_ConsoleLogCapacity() const;
-    void Set_ConsoleLogCapacity(uint32 capacity);
+    void   Set_ConsoleLogCapacity(uint32 capacity);
     uint32 Get_ConsoleLogRevision() const;
 
 public: /* For.Graphic_Device */
