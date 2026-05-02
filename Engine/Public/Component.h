@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Base.h"
 
@@ -17,7 +17,7 @@ public:
 	virtual HRESULT Initialize(void* arg);
 
 protected:
-	ComPtr<Device> _device = { nullptr };
+	ComPtr<Device>  _device = { nullptr };
 	ComPtr<Context> _context = { nullptr };
 public:
 	virtual Shared<Component> Clone(void* arg) = 0;

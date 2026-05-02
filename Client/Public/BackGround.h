@@ -13,6 +13,8 @@ NS_BEGIN(Client)
 
 class BackGround final : public UIObject
 {
+    GENERATED_GAMEOBJECT(BackGround, ObjectType::UI)
+
 public:
 	typedef struct tagBackGroundDesc final : public UIObject::UI_DESC
 	{
@@ -21,7 +23,7 @@ public:
 public:
 	BackGround(const ComPtr<Device>& device, const ComPtr<Context>& context);
 	BackGround(const BackGround& prototype);
-	virtual ~BackGround() { Free(); }
+	virtual ~BackGround() = default;
 
 public:
 	virtual HRESULT Initialize_Prototype() override;

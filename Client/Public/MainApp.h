@@ -14,13 +14,17 @@ class MainApp final : public Base
 {
 public:
 	MainApp();
-	virtual ~MainApp() { Free(); }
+	virtual ~MainApp() = default;
 
 public:
 	HRESULT Initialize();
 	void Update(float fTimeDelta);
 	HRESULT Render();
 	
+private:
+	wstring Get_ClientResourceRoot() const;
+	wstring Get_ClientResourcePath(const wchar_t* relativePath) const;
+
 private:
 	GameInstance*       _gameInstance = { nullptr };
 	ComPtr<Device>      _device = { nullptr };

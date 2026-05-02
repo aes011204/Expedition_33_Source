@@ -53,12 +53,10 @@ PS_OUT PS_MAIN(PS_IN In)
     PS_OUT Out;
   
     Out.vColor = g_Texture.Sample(DefaultSampler, In.vTexcoord);
-    
+    Out.vColor.a = 1.f;
+
     return Out;
-
 }
-
-
 
 technique11 DefaultTechnique
 {

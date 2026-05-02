@@ -9,7 +9,7 @@ class ENGINE_DLL VIBuffer_Cube final : public VIBuffer
 public:
 	VIBuffer_Cube(const ComPtr<Device>& device, const ComPtr<Context>& context);
 	VIBuffer_Cube(const VIBuffer_Cube& prototype);
-	virtual ~VIBuffer_Cube() { Free(); }
+	virtual ~VIBuffer_Cube() = default;
 
 public:
 	virtual HRESULT Initialize_Prototype();

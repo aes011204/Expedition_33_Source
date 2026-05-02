@@ -12,6 +12,8 @@ NS_BEGIN(Client)
 
 class Weapon final : public PartObject
 {
+    GENERATED_GAMEOBJECT(Weapon, ObjectType::Weapon)
+
 public:
 	typedef struct tagWeaponDesc final : public PartObject::PARTOBJECT_DESC
 	{
@@ -21,7 +23,7 @@ public:
 public:
 	Weapon(const ComPtr<Device>& device, const ComPtr<Context>& context);
 	Weapon(const Weapon& prototype);
-	virtual ~Weapon() { Free(); }
+	virtual ~Weapon() = default;
 
 public:
 	virtual HRESULT Initialize_Prototype() override;

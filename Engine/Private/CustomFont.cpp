@@ -6,11 +6,6 @@ CustomFont::CustomFont(const ComPtr<Device>& device, const ComPtr<Context>& cont
 {
 }
 
-CustomFont::~CustomFont()
-{
-    Free();
-}
-
 HRESULT CustomFont::Initialize(const wchar_t* fontFilePath)
 {
     _spriteBatch = new SpriteBatch(_context.Get());

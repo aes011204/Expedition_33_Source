@@ -9,6 +9,7 @@
 #include "Object_Manager.h"
 #include "PipeLine.h"
 #include "Prototype_Manager.h"
+#include "RegistorFactory.h"
 #include "Renderer.h"
 #include "Timer_Manager.h"
 
@@ -50,6 +51,13 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
 
     _prototypeManager = Prototype_Manager::Create(engineDesc.numLevels);
     if (nullptr == _prototypeManager)
+        return E_FAIL;
+
+    _typeRegistry = TypeRegistry::Create();
+    if (nullptr == _typeRegistry)
+        return E_FAIL;
+
+    if (FAILED(Flush_PendingTypeRegistrations(*_typeRegistry)))
         return E_FAIL;
 
     _objectManager = Object_Manager::Create(engineDesc.numLevels);
@@ -372,6 +380,42 @@ wstring GameInstance::Get_AssetRoot() const
     return _assetManager->Get_ResourceRoot();
 }
 
+const TypeRegistry::ComponentTypeInfo* GameInstance::Find_ComponentType(const string& className) const
+{
+    return (nullptr == _typeRegistry) ? nullptr : _typeRegistry->Find_ComponentType(className);
+}
+
+const TypeRegistry::GameObjectTypeInfo* GameInstance::Find_GameObjectType(const string& className) const
+{
+    return (nullptr == _typeRegistry) ? nullptr : _typeRegistry->Find_GameObjectType(className);
+}
+
+const TypeRegistry::BTNodeTypeInfo* GameInstance::Find_BTNodeType(const string& className) const
+{
+    return (nullptr == _typeRegistry) ? nullptr : _typeRegistry->Find_BTNodeType(className);
+}
+
+Shared<Component> GameInstance::Create_ComponentPrototype(const string& className) const
+{
+    if (nullptr == _typeRegistry || nullptr == _graphicDevice)
+        return nullptr;
+
+    return _typeRegistry->Create_Component(className, _graphicDevice->Get_Device(), _graphicDevice->Get_Context());
+}
+
+Shared<GameObject> GameInstance::Create_GameObjectPrototype(const string& className) const
+{
+    if (nullptr == _typeRegistry || nullptr == _graphicDevice)
+        return nullptr;
+
+    return _typeRegistry->Create_GameObject(className, _graphicDevice->Get_Device(), _graphicDevice->Get_Context());
+}
+
+Shared<Base> GameInstance::Create_BTNodePrototype(const string& className) const
+{
+    return (nullptr == _typeRegistry) ? nullptr : _typeRegistry->Create_BTNode(className);
+}
+
 void GameInstance::Release_Engine()
 {
     if (nullptr != _assetManager)
@@ -420,6 +464,12 @@ void GameInstance::Release_Engine()
     {
         _prototypeManager->Free();
         _prototypeManager.reset();
+    }
+
+    if (nullptr != _typeRegistry)
+    {
+        _typeRegistry->Free();
+        _typeRegistry.reset();
     }
 
     if (nullptr != _levelManager)
