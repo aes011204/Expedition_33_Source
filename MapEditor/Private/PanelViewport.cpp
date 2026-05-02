@@ -53,8 +53,29 @@ void PanelViewport::Render()
 
                 if (ImGui::IsWindowHovered())
                 {
-
+                    if (ImGui::IsKeyPressed(ImGuiKey_W))
+                    {
+                        _gizmoOp = ImGuizmo::TRANSLATE;
+                    }
+                    if (ImGui::IsKeyPressed(ImGuiKey_E))
+                    {
+                        _gizmoOp = ImGuizmo::ROTATE;
+                    }
+                    if (ImGui::IsKeyPressed(ImGuiKey_R))
+                    {
+                        _gizmoOp = ImGuizmo::SCALE;
+                    }
                 }
+
+                float view[16] = {}, proj[16] = {};
+                memcpy(view, &_camera->GetView(), sizeof(float) * 16);
+                memcpy(proj, &_camera->GetProj(), sizeof(float) * 16);
+                float mat[16] = {};
+                memcpy(mat, _selectedMatrix, sizeof(float) * 16);
+
+                ImGuizmo::Manipulate(view, proj, _gizmoOp, _gizmoMode, mat);
+
+                memcpy(_selectedMatrix, mat, sizeof(float) * 16);
             }
         }
 
