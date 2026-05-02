@@ -19,7 +19,7 @@ public:
 	void    Late_Update(float timeDelta);
 
 public:
-    Shared<GameObject> Find_FirstObject(const function<bool>);
+    Shared<GameObject> Find_FirstObject();
 
 private:
 	list<Shared<GameObject>> _gameObjects;

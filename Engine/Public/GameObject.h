@@ -22,10 +22,18 @@ public:
 public:
     virtual HRESULT Initialize_Prototype();
     virtual HRESULT Initialize(void* arg);
+    virtual void    BeginPlay();
+
     virtual void    Priority_Update(float timeDelta);
     virtual void    Update(float timeDelta);
     virtual void    Late_Update(float timeDelta);
     virtual HRESULT Render();
+
+    HRESULT         Try_BeginPlay();
+
+public:
+    Shared<GameObject> Get_Owner() const { return _owner.lock(); }
+    void Set_Owner(Shared<GameObject> owner) { _owner = owner; }
 
 public:
     // 일반적으로 컴포넌트 가져올 때 = Get_Component<Shader>(); 이런느낌
@@ -83,9 +91,12 @@ public:
         if (nullptr == component)
             return E_FAIL;
 
+        component->Set_Owner(this->GetSharedPtr<GameObject>());
+
         outCom = dynamic_pointer_cast<T>(component);
         if (nullptr == outCom)
             return E_FAIL;
+
 
         _components.emplace(prototypeTag, component);
 
@@ -101,6 +112,10 @@ protected:
 
 protected:
     map<const wstring, Shared<Component>> _components;
+
+protected:
+    Weak<GameObject> _owner;
+    bool _hasBegunPlay = false;
 
 public:
     virtual Shared<GameObject> Clone(void* arg) = 0;

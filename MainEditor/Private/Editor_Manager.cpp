@@ -101,11 +101,10 @@ void Editor_Manager::Render_DockSpace()
 			ImGui::EndMenu();
 		}
 
-		EditorInstance* pEditor = EditorInstance::GetInstance();
-		if (nullptr != pEditor)
+		if (nullptr != EDITOR)
 		{
-			const bool bPlaying = pEditor->IsPlaying();
-			const bool bPaused = pEditor->IsPaused();
+			const bool playing = EDITOR->IsPlaying();
+			const bool paused = EDITOR->IsPaused();
 
 			ImGui::SameLine();
 			ImGui::Spacing();
@@ -115,40 +114,40 @@ void Editor_Manager::Render_DockSpace()
 			ImGui::TextDisabled("Run");
 			ImGui::SameLine();
 
-			if (bPlaying)
+			if (playing)
 				ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.13f, 0.42f, 0.72f, 1.f));
 
 			if (ImGui::SmallButton("Play"))
 			{
-				if (bPaused)
-					pEditor->Resume();
+				if (paused)
+					EDITOR->Resume();
 				else
-					pEditor->Play();
+					EDITOR->Play();
 			}
 
-			if (bPlaying)
+			if (playing)
 				ImGui::PopStyleColor();
 
 			ImGui::SameLine();
 
-			if (bPaused)
+			if (paused)
 				ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.70f, 0.46f, 0.10f, 1.f));
 
 			if (ImGui::SmallButton("Pause"))
-				pEditor->Pause();
+				EDITOR->Pause();
 
-			if (bPaused)
+			if (paused)
 				ImGui::PopStyleColor();
 
 			ImGui::SameLine();
 
-			if (!bPlaying && !bPaused)
+			if (!playing && !paused)
 				ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.32f, 0.36f, 0.40f, 1.f));
 
 			if (ImGui::SmallButton("Stop"))
-				pEditor->Stop();
+				EDITOR->Stop();
 
-			if (!bPlaying && !bPaused)
+			if (!playing && !paused)
 				ImGui::PopStyleColor();
 
 			ImGui::SameLine();
@@ -157,14 +156,14 @@ void Editor_Manager::Render_DockSpace()
 			ImGui::TextDisabled("Scale");
 			ImGui::SameLine();
 
-			float fTimeScale = pEditor->Get_RuntimeTimeScale();
+			float fTimeScale = EDITOR->Get_RuntimeTimeScale();
 			ImGui::SetNextItemWidth(74.f);
 			if (ImGui::DragFloat("##RuntimeTimeScale", &fTimeScale, 0.01f, 0.01f, 8.f, "%.2fx"))
-				pEditor->Set_RuntimeTimeScale(fTimeScale);
+				EDITOR->Set_RuntimeTimeScale(fTimeScale);
 
 			ImGui::SameLine();
 			if (ImGui::SmallButton("1x"))
-				pEditor->Reset_RuntimeTimeScale();
+				EDITOR->Reset_RuntimeTimeScale();
 		}
 
 		ImGui::EndMenuBar();
