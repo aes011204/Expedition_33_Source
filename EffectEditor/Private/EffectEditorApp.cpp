@@ -71,11 +71,10 @@ void EffectEditorApp::Late_Update(float)
 HRESULT EffectEditorApp::Render()
 {
     const Vec4 clearColor = Vec4(0.f, 0.f, 1.f, 1.f);
-    if (FAILED(GAME->Clear_Buffers(clearColor)))
-        return E_FAIL;
 
-    if (FAILED(GAME->Draw()))
-        return E_FAIL;
+    CHECK_FAILED(GAME->Clear_Buffers(clearColor), E_FAIL);
+
+    CHECK_FAILED(GAME->Draw(), E_FAIL);
 
     EDITOR->Capture_BackBuffer_ToViewport();
 
@@ -95,8 +94,7 @@ HRESULT EffectEditorApp::Ready_Fonts()
     if (!fs::exists(fontPath))
         return E_FAIL;
 
-    if (FAILED(GAME->Add_Font(TEXT("Font_Default"), fontPath.c_str())))
-        return E_FAIL;
+    CHECK_FAILED(GAME->Add_Font(TEXT("Font_Default"), fontPath.c_str()), E_FAIL);
 
     return S_OK;
 }
