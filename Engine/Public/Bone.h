@@ -12,7 +12,7 @@ class Bone final : public Base
 {
 public:
 	Bone();
-	virtual ~Bone() { Free(); }
+	virtual ~Bone() = default;
 public:
 	const XMFLOAT4X4* Get_CombinedTransformationMatrixPtr() const {
 		return &_combinedTransformationMatrix;

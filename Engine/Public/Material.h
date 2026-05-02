@@ -8,7 +8,7 @@ class Material final : public Base
 {
 public:
 	Material(const ComPtr<Device>& device, const ComPtr<Context>& context);
-	virtual ~Material() { Free(); }
+	virtual ~Material() = default;
 
 public:
 	HRESULT Initialize(const aiMaterial* aiMaterial, const char* modelFilePath);

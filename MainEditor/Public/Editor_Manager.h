@@ -1,14 +1,14 @@
 ﻿#pragma once
 
-#include "Editor_Defines.h"
 #include "Editor_Window.h"
 
 NS_BEGIN(MainEditor)
 
 class Editor_Manager final
 {
-private:
-	Editor_Manager() = default;
+public:
+    Editor_Manager();
+	~Editor_Manager() = default;
 
 public:
 	HRESULT Initialize();

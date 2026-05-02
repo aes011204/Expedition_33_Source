@@ -13,6 +13,8 @@ NS_BEGIN(Client)
 
 class Terrain final : public GameObject
 {
+    GENERATED_GAMEOBJECT(Terrain, ObjectType::Terrain)
+
 public:
 	enum TEXTURE { Diffuse, Mask, Brush, END };
 	typedef struct tagTerrainDesc final : public GameObject::GAMEOBJECT_DESC
@@ -22,7 +24,7 @@ public:
 public:
 	Terrain(const ComPtr<Device>& device, const ComPtr<Context>& context);
 	Terrain(const Terrain& prototype);
-	virtual ~Terrain() { Free(); }
+	virtual ~Terrain() = default;
 
 public:
 	virtual HRESULT Initialize_Prototype() override;

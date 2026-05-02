@@ -7,6 +7,8 @@ NS_BEGIN(Client)
 
 class FreeCamera final : public Camera
 {
+    GENERATED_GAMEOBJECT(FreeCamera, ObjectType::Camera)
+
 public:
 	typedef struct tagFreeCamera final : public Camera::CAMERA_DESC
 	{
@@ -21,7 +23,7 @@ public:
 public:
 	FreeCamera(const ComPtr<Device>& device, const ComPtr<Context>& context);
 	FreeCamera(const FreeCamera& prototype);
-	virtual ~FreeCamera() { Free(); }
+	virtual ~FreeCamera() = default;
 
 public:
 	virtual HRESULT Initialize_Prototype() override;

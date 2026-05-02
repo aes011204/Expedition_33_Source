@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Base.h"
 
@@ -10,7 +10,7 @@ class Channel final : public Base
 {
 public:
 	Channel();
-	virtual ~Channel() { Free(); }
+	virtual ~Channel() = default;
 
 public:
 	HRESULT Initialize(const aiNodeAnim* aiChannel, class Model* model);
