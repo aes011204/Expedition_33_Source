@@ -444,3 +444,20 @@ Client/Bin/Client.lib
 Client/Bin/Client.dll
 Client/Bin/Engine.dll
 Engine/Bin/Engine.dll
+
+# Project build artifacts
+Client/Bin/[Dd]ebug/
+Client/Bin/[Rr]elease/
+Client/Bin/x64/
+Client/Bin/x86/
+Engine/Bin/[Dd]ebug/
+Engine/Bin/[Rr]elease/
+Engine/Bin/x64/
+Engine/Bin/x86/
+Client/Bin/Client.exp
+Client/Bin/Client.pdb
+Engine/Bin/Engine.lib
+Engine/Bin/Engine.exp
+Engine/Bin/Engine.pdb
+CONERR$
+imgui.ini
