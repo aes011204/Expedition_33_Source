@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Base.h"
 
@@ -15,10 +15,12 @@ public:
 public:
 	HRESULT Initialize(uint32 numLevels);
 	HRESULT Add_GameObject(uint32 prototypeLevelIndex, const wstring& prototypeTag, uint32 layerLevelIndex, const wstring& layerTag, void* arg);
-	void Priority_Update(float timeDelta);
-	void Update(float timeDelta);
-	void Late_Update(float timeDelta);
+	void    Priority_Update(float timeDelta);
+	void    Update(float timeDelta);
+	void    Late_Update(float timeDelta);
 	HRESULT Clear_Layers(uint32 levelIndex);
+
+    Shared<GameObject> Find_FirstObject(uint32 levelIndex, const wstring& layerTag);
 
 private:
 	uint32 _numLevels = {};

@@ -33,9 +33,10 @@ namespace Engine
         Player,
         Monster,
         Character,
-        Camera,
+
         FreeCamera,
         TargetCamera,
+
         Terrain,
         Sky,
         Weapon,

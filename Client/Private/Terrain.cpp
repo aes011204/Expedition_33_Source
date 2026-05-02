@@ -144,14 +144,6 @@ Shared<GameObject> Terrain::Clone(void* pArg)
 void Terrain::Free()
 {
 	__super::Free();
-
-	
-	Safe_Release(_shader);
-
-	for (auto& pTextureCom : _textures)
-		Safe_Release(pTextureCom);
-	
-	Safe_Release(_vibuffer);
 }
 
 

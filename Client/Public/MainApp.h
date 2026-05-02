@@ -26,7 +26,6 @@ private:
 	wstring Get_ClientResourcePath(const wchar_t* relativePath) const;
 
 private:
-	GameInstance*       _gameInstance = { nullptr };
 	ComPtr<Device>      _device = { nullptr };
 	ComPtr<Context>     _context = { nullptr };
 

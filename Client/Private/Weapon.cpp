@@ -158,8 +158,6 @@ Shared<GameObject> Weapon::Clone(void* pArg)
 void Weapon::Free()
 {
 	__super::Free();
-	Safe_Release(_shader);
-	Safe_Release(_model);
 
 }
 

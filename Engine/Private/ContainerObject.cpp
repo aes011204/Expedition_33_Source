@@ -78,9 +78,6 @@ void ContainerObject::Free()
 {
 	__super::Free();
 
-	for (auto& Pair : _partObjects)
-		Safe_Release(Pair.second);
-
 	_partObjects.clear();
 }
 
