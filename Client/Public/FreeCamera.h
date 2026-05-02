@@ -13,7 +13,7 @@ public:
 	typedef struct tagFreeCamera final : public Camera::CAMERA_DESC
 	{
 		float	fMouseSensor;
-	}FREECAMERA_DESC;
+	} FREECAMERA_DESC;
 
     typedef struct FFreeCameraDesc
     {
