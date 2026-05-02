@@ -128,7 +128,9 @@ HRESULT Renderer::Ready_RenderTargets()
 
 
     _deferredShader = Shader::Create(_device, _context,
-        L"../../Client/Bin/ShaderFiles/Shader_Deferred.hlsl", VTXTEX::Elements, VTXTEX::numElements);
+        L"../../../Client/Bin/ShaderFiles/Shader_Deferred.hlsl", VTXTEX::Elements, VTXTEX::numElements);
+
+    
 
     _deferredWorldMatrix = Matrix::CreateScale(static_cast<float>(width), static_cast<float>(height), 1.f);
     _deferredViewMatrix = Matrix::Identity;
