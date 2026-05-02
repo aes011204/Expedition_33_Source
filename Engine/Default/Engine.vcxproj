@@ -183,6 +183,7 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\Public\Camera_Manager.h" />
     <ClInclude Include="..\Public\Character.h" />
     <ClInclude Include="..\Public\Helper_Math.h" />
     <ClInclude Include="..\Public\Log_Manager.h" />
@@ -239,6 +240,7 @@
     <ClInclude Include="..\Public\Vertex_Types.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\Private\Camera_Manager.cpp" />
     <ClCompile Include="..\Private\Character.cpp" />
     <ClCompile Include="..\Private\Log_Manager.cpp" />
     <ClCompile Include="..\Private\MovementCom.cpp" />

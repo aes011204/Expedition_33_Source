@@ -149,6 +149,9 @@
     <ClInclude Include="..\Public\Reflection_Types.h" />
     <ClInclude Include="..\Public\TypeRegistry.h" />
     <ClInclude Include="..\Public\RegistorFactory.h" />
+    <ClInclude Include="..\Public\Camera_Manager.h">
+      <Filter>01.Utility\03.GameObjects\Camera\Manager</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\public\Base.h">
@@ -408,6 +411,9 @@
     <ClCompile Include="..\Private\Character.cpp" />
     <ClCompile Include="..\Private\TypeRegistry.cpp" />
     <ClCompile Include="..\Private\RegistorFactory.cpp" />
+    <ClCompile Include="..\Private\Camera_Manager.cpp">
+      <Filter>01.Utility\03.GameObjects\Camera\Manager</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Bin\ShaderFiles\Engine_Shader_Defines.hlsli">
@@ -423,6 +429,9 @@
     </Filter>
     <Filter Include="99. Defines\Helper">
       <UniqueIdentifier>{4f948615-4199-4e04-95ad-a005392f4ff3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="01.Utility\03.GameObjects\Camera\Manager">
+      <UniqueIdentifier>{9247bddc-2da2-479f-b041-c8b51dd3ce1f}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

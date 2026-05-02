@@ -19,7 +19,7 @@ void Camera_Manager::Update(float timeDelta)
     if(nullptr == m_activeCamera)
         return;
 
-    if(GAME->KeyPress(KEY_TYPE::LCTRL))
+    if(GAME->KeyPress(KEY_TYPE::CTRL))
     {
         SwitchTo_NextCamera();
     }

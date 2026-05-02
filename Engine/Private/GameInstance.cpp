@@ -400,6 +400,8 @@ bool GameInstance::Is_ActiveCamera(Shared<Camera> camera)
 void GameInstance::Change_ActiveCamera(Shared<Camera> camera) const
 {
     return _cameraManager->Change_ActiveCamera(camera);
+}
+
 const TypeRegistry::ComponentTypeInfo* GameInstance::Find_ComponentType(const string& className) const
 {
     return (nullptr == _typeRegistry) ? nullptr : _typeRegistry->Find_ComponentType(className);

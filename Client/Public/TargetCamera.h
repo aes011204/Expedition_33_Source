@@ -2,6 +2,8 @@
 #include "Camera.h"
 class TargetCamera final : public Camera
 {
+    GENERATED_GAMEOBJECT(TargetCamera, ObjectType::TargetCamera)
+
 public:
     typedef struct tagTargetCamera final : public Camera::CAMERA_DESC
     {
@@ -23,10 +25,10 @@ public:
     virtual HRESULT Render() override;
 
 public:
-    void            SetTargetTransform(Shared<Transform> targetTransform);
+    void            SetTargetTransform(Shared<TransformCom> targetTransform);
 
 private:
-   Weak<Transform> _targetTransformCom;
+   Weak<TransformCom> _targetTransformCom;
     bool           _firstUpdate = true;
     Vec3           _offset;
     float          _followSpeed;

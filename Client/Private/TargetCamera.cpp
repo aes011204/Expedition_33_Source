@@ -42,8 +42,8 @@ void TargetCamera::Priority_Update(float timeDelta)
     {
         GAME->Add_Camera(GetSharedPtr<Camera>());
 
-        //player 설정
-        //_targetTransformCom =  GetPlayer()
+        //_targetTransformCom =  CLIENT->Find_Player()->Get_Transform();
+
         _firstUpdate = false;
     }
 
@@ -63,11 +63,13 @@ void TargetCamera::Priority_Update(float timeDelta)
 
     Vec3 targetPos = targetTransformCom->Get_WorldPosition();
 
+    Vec3 desiredPos = { targetPos.x + _offset.x , targetPos.y + _offset.y, targetPos.z + _offset.z };
 
+    Vec3 currentPos = _transformCom->Get_WorldPosition();
 
-    Vec3 newPos = { targetPos.x + _offset.x , targetPos.y + _offset.y, targetPos.z + _offset.z };
+    Vec3 newPos =  Math::Lerp_Damp(currentPos, desiredPos, _followSpeed, timeDelta);
 
-    _transformCom->Set_Position(newPos);
+    _transformCom->Set_WorldPosition(newPos);
 
     Update_TransformMatrices();
 }
@@ -90,7 +92,7 @@ HRESULT TargetCamera::Render()
     return S_OK;
 }
 
-void TargetCamera::SetTargetTransform(Shared<Transform> targetTransform)
+void TargetCamera::SetTargetTransform(Shared<TransformCom> targetTransform)
 {
     //타겟을 설정해줘야함
 
@@ -113,7 +115,7 @@ Shared<GameObject> TargetCamera::Clone(void* arg)
 {
     auto instance = make_shared<TargetCamera>(*this);
 
-    if (FAILED(instance->Initialize_Prototype()))
+    if (FAILED(instance->Initialize(arg)))
     {
         MSG_BOX("Failed to Clone : TargetCamera");
         return nullptr;

@@ -64,6 +64,9 @@
     <Filter Include="99.Defines\Helper">
       <UniqueIdentifier>{ab9c6fe7-56bb-4db1-a2ed-dddf86074e28}</UniqueIdentifier>
     </Filter>
+    <Filter Include="02.GameObject\Camera\Target">
+      <UniqueIdentifier>{23c166d1-4984-4019-b446-fdbddf98e312}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -138,6 +141,9 @@
     <ClInclude Include="..\Public\InputCom.h" />
     <ClInclude Include="..\Public\CombatStatCom.h" />
     <ClInclude Include="..\Public\PlayerControllerCom.h" />
+    <ClInclude Include="..\Public\TargetCamera.h">
+      <Filter>02.GameObject\Camera\Target</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -194,6 +200,9 @@
     <ClCompile Include="..\Private\InputCom.cpp" />
     <ClCompile Include="..\Private\CombatStatCom.cpp" />
     <ClCompile Include="..\Private\PlayerControllerCom.cpp" />
+    <ClCompile Include="..\Private\TargetCamera.cpp">
+      <Filter>02.GameObject\Camera\Target</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxTex.hlsl">
