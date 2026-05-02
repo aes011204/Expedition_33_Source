@@ -10,6 +10,39 @@
     <Filter Include="98. Defines">
       <UniqueIdentifier>{b89c0c68-2a54-4b2c-a256-6ac2c12d5f28}</UniqueIdentifier>
     </Filter>
+    <Filter Include="97. pch">
+      <UniqueIdentifier>{475ed207-2828-49b3-a331-bdbbffe3e0ea}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="01. ImGuiManager">
+      <UniqueIdentifier>{48d9db5d-1ea7-474f-85d5-bbedbc3ffa08}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02. MEWindow">
+      <UniqueIdentifier>{275b9051-5dcd-41c3-8656-f07cfa926805}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="03. MEManager">
+      <UniqueIdentifier>{89ec0581-c906-43e5-aeb8-3ba9fcbc5c06}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="04. Panel">
+      <UniqueIdentifier>{8c044b74-e5ca-45f3-b7e5-d46a6cc095d5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="04. Panel\PanelViewport">
+      <UniqueIdentifier>{df2753a8-e05a-4b03-b4fd-b4d180587f6d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="04. Panel\PanelHierarchy">
+      <UniqueIdentifier>{3496bd20-88c9-404a-888c-75249771c223}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="04. Panel\PanelInspector">
+      <UniqueIdentifier>{44d08eb4-dc79-47ff-a863-04791ed5313f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="04. Panel\PanelAssetBrowser">
+      <UniqueIdentifier>{da3f8c5d-1bfa-4c0f-be1d-83c3513c9383}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="05. Camera">
+      <UniqueIdentifier>{d5e12337-3a97-44e3-b686-6e99d25a4d1a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="96. SimpleMath">
+      <UniqueIdentifier>{6b1adc6e-e031-406c-85a7-f2ba018b9662}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="targetver.h">
@@ -29,6 +62,33 @@
     </ClInclude>
     <ClInclude Include="..\Public\MapEditorApp.h">
       <Filter>00. Main</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\pch.h">
+      <Filter>97. pch</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\MEImGuiManager.h">
+      <Filter>01. ImGuiManager</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\MEWindow.h">
+      <Filter>02. MEWindow</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\MEManager.h">
+      <Filter>03. MEManager</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\PanelViewport.h">
+      <Filter>04. Panel\PanelViewport</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\PanelHierarchy.h">
+      <Filter>04. Panel\PanelHierarchy</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\PanelInspector.h">
+      <Filter>04. Panel\PanelInspector</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\PanelAssetBrowser.h">
+      <Filter>04. Panel\PanelAssetBrowser</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\MECamera.h">
+      <Filter>05. Camera</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -50,6 +110,36 @@
     </ClCompile>
     <ClCompile Include="..\Private\MapEditorApp.cpp">
       <Filter>00. Main</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\pch.cpp">
+      <Filter>97. pch</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\MEImGuiManager.cpp">
+      <Filter>01. ImGuiManager</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\MEWindow.cpp">
+      <Filter>02. MEWindow</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\MEManager.cpp">
+      <Filter>03. MEManager</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\PanelViewport.cpp">
+      <Filter>04. Panel\PanelViewport</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\PanelHierarchy.cpp">
+      <Filter>04. Panel\PanelHierarchy</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\PanelInspector.cpp">
+      <Filter>04. Panel\PanelInspector</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\PanelAssetBrowser.cpp">
+      <Filter>04. Panel\PanelAssetBrowser</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\MECamera.cpp">
+      <Filter>05. Camera</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\SimpleMath.cpp">
+      <Filter>96. SimpleMath</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

@@ -70,6 +70,9 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <OutDir>..\Bin\$(Configuration)\</OutDir>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
@@ -100,16 +103,24 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;_WINDOWS;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>..\Public;..\..\Engine\Public;..\..\EngineSDK\inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <AdditionalOptions>/utf-8 /bigobj %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>..\..\Engine\Bin;..\..\EngineSDK\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>Engine.lib;DirectXTKd.lib;d3d11.lib;dxgi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>..\..\Engine\Bin;..\..\EngineSDK\lib\$(Configuration);..\..\vcpkg_installed\x64-windows\debug\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>Engine.lib;DirectXTK.lib;d3d11.lib;dxgi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </Link>
+    <PostBuildEvent>
+      <Command>if exist "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.dll" xcopy /y /d "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.dll" "$(OutDir)"
+if exist "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.pdb" xcopy /y /d "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.pdb" "$(OutDir)"
+if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mtd.dll" xcopy /y /d "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mtd.dll" "$(OutDir)"</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -117,20 +128,37 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;_WINDOWS;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>..\Public;..\..\Engine\Public;..\..\EngineSDK\inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <AdditionalOptions>/utf-8 /bigobj %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>..\..\Engine\Bin;..\..\EngineSDK\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>..\..\Engine\Bin;..\..\EngineSDK\lib\$(Configuration);..\..\vcpkg_installed\x64-windows\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>Engine.lib;DirectXTK.lib;d3d11.lib;dxgi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </Link>
+    <PostBuildEvent>
+      <Command>if exist "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.dll" xcopy /y /d "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.dll" "$(OutDir)"
+if exist "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.pdb" xcopy /y /d "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.pdb" "$(OutDir)"
+if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xcopy /y /d "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" "$(OutDir)"</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="..\Public\MapEditorApp.h" />
     <ClInclude Include="..\Public\MapEditorDefines.h" />
+    <ClInclude Include="..\Public\MECamera.h" />
+    <ClInclude Include="..\Public\MEImGuiManager.h" />
+    <ClInclude Include="..\Public\MEManager.h" />
+    <ClInclude Include="..\Public\MEWindow.h" />
+    <ClInclude Include="..\Public\PanelAssetBrowser.h" />
+    <ClInclude Include="..\Public\PanelHierarchy.h" />
+    <ClInclude Include="..\Public\PanelInspector.h" />
+    <ClInclude Include="..\Public\PanelViewport.h" />
+    <ClInclude Include="..\Public\pch.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="MapEditor.h" />
     <ClInclude Include="Resource.h" />
@@ -138,6 +166,16 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\Private\MapEditorApp.cpp" />
+    <ClCompile Include="..\Private\MECamera.cpp" />
+    <ClCompile Include="..\Private\MEImGuiManager.cpp" />
+    <ClCompile Include="..\Private\MEManager.cpp" />
+    <ClCompile Include="..\Private\MEWindow.cpp" />
+    <ClCompile Include="..\Private\PanelAssetBrowser.cpp" />
+    <ClCompile Include="..\Private\PanelHierarchy.cpp" />
+    <ClCompile Include="..\Private\PanelInspector.cpp" />
+    <ClCompile Include="..\Private\PanelViewport.cpp" />
+    <ClCompile Include="..\Private\pch.cpp" />
+    <ClCompile Include="..\Private\SimpleMath.cpp" />
     <ClCompile Include="MapEditor.cpp" />
   </ItemGroup>
   <ItemGroup>
