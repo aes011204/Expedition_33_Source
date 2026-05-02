@@ -204,9 +204,9 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     <ClCompile Include="..\Private\Inspector.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\Public\Editor_Enum.h" />
-    <ClInclude Include="..\Public\Editor_Macro.h" />
-    <ClInclude Include="..\Public\Editor_Struct.h" />
+    <ClInclude Include="..\Public\EffectEditor_Enum.h" />
+    <ClInclude Include="..\Public\EffectEditor_Macro.h" />
+    <ClInclude Include="..\Public\EffectEditor_Struct.h" />
     <ClInclude Include="..\Public\EffectEditorInstance.h" />
     <ClInclude Include="..\Public\ImGui_Manager.h" />
     <ClInclude Include="pch.h" />
@@ -214,7 +214,7 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     <ClInclude Include="..\Public\Editor_Window.h" />
     <ClInclude Include="..\Public\EffectEditor_Define.h" />
     <ClInclude Include="..\Public\IconsFontAwesome6.h" />
-    <ClInclude Include="..\Public\Editor_ImGuiInclude.h" />
+    <ClInclude Include="..\Public\EffectEditor_ImGuiInclude.h" />
     <ClInclude Include="..\Public\Editor_Manager.h" />
     <ClInclude Include="..\Public\Scene_View.h" />
     <ClInclude Include="..\Public\Game_View.h" />

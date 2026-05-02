@@ -5,17 +5,13 @@ Editor_Window::Editor_Window(const wstring& windowName)
 {
 }
 
-void Editor_Window::Update(float timeDelta)
-{
-}
-
 void Editor_Window::Render()
 {
 	if (!_isOpen)
 		return;
 
-	const string strTitle = String::ToString(_window);
-	if (ImGui::Begin(strTitle.c_str(), &_isOpen))
+	const string title = String::ToString(_window);
+	if (ImGui::Begin(title.c_str(), &_isOpen))
 	{
 		ImGui::TextUnformatted("Editor window placeholder");
 	}

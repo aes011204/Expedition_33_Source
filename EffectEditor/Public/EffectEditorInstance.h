@@ -69,7 +69,7 @@ private: //## Data::Runtime
     float _runtimeTimeScale{ 1.f }; // 런타임 배율
 
 private:
-    static float Clamp_RuntimeTimeScale(float fTimeScale);
+    static float Clamp_RuntimeTimeScale(float timeScale);
 
 public:
     void Free() override;

@@ -34,14 +34,11 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE, _In_ LPWSTR,
     g_hInst = hInstance;
 
     Unique<EffectEditor::EffectEditorApp> mainApp = EffectEditor::EffectEditorApp::Create();
-    if (nullptr == mainApp)
-        return FALSE;
+    CHECK_NULL(mainApp, FALSE);
 
-    if (FAILED(GAME->Add_Timer(TEXT("Timer_Default"))))
-        return FALSE;
+    CHECK_FAILED(GAME->Add_Timer(TEXT("Timer_Default")), FALSE);
 
-    if (FAILED(GAME->Add_Timer(TEXT("Timer_60FPS"))))
-        return FALSE;
+    CHECK_FAILED(GAME->Add_Timer(TEXT("Timer_60FPS")), FALSE);
 
     g_runtimeInitialized = true;
 
@@ -113,7 +110,8 @@ static bool Create_EffectEditorWindow(HINSTANCE hInstance, int nCmdShow)
         nullptr,
         nullptr,
         hInstance,
-        nullptr);
+        nullptr
+    );
 
     if (nullptr == g_hWnd)
         return false;
@@ -166,6 +164,8 @@ static LRESULT CALLBACK EffectEditor_WndProc(HWND hWnd, UINT message, WPARAM wPa
     case WM_DESTROY:
         PostQuitMessage(0);
         return 0;
+
+    default: break;
     }
 
     return DefWindowProcW(hWnd, message, wParam, lParam);

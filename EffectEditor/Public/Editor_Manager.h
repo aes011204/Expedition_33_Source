@@ -16,8 +16,7 @@ public:
     void Update(float timeDelta);
     void Render();
 
-    // View 추가
-    void Add_Window(const Shared<Editor_Window>& window);
+    void Add_Window(const Shared<Editor_Window>& window); // View 추가
     Shared<Editor_Window> Find_Window(const wstring& windowName) const;
 
 private:

@@ -46,8 +46,7 @@ void Editor_Manager::Render()
 
 void Editor_Manager::Add_Window(const Shared<Editor_Window>& window)
 {
-    if (nullptr == window)
-        return;
+    CHECK_NULL(window);
 
     _windows[window->Get_WindowName()] = window;
 }
@@ -103,7 +102,7 @@ void Editor_Manager::Render_DockSpace()
             ImGui::EndMenu();
         }
 
-        EffectEditorInstance* editor = EffectEditorInstance::GetInstance();
+        auto editor = EffectEditorInstance::GetInstance();
         if (nullptr != editor)
         {
             const bool isPlaying = editor->IsPlaying();
@@ -177,10 +176,14 @@ void Editor_Manager::Render_DockSpace()
 
 Unique<Editor_Manager> Editor_Manager::Create()
 {
-    Unique<Editor_Manager> instance{ new Editor_Manager() };
+    auto instance = make_unique<Editor_Manager>();
 
     if (FAILED(instance->Initialize()))
+    {
+        LOG_CRITICAL("Failed to Create : Editor_Manager");
+        MSG_BOX("Failed to Create : Editor_Manager");
         return nullptr;
+    }
 
     return instance;
 }

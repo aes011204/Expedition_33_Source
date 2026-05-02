@@ -55,8 +55,7 @@ void EffectEditorInstance::Render_Editor()
 
 Shared<Editor_Window> EffectEditorInstance::Get_Window(const wstring& windowName) const
 {
-    if (nullptr == _editorManager)
-        return nullptr;
+    CHECK_NULL(_editorManager, nullptr);
 
     return _editorManager->Find_Window(windowName);
 }
@@ -85,14 +84,16 @@ Shared<RenderTarget> EffectEditorInstance::Prepare_SharedViewportRenderTarget(ui
             Vec4(0.f, 0.f, 0.f, 1.f)
         );
     }
-    else if (FAILED(
-        _sharedViewportRenderTarget->Resize(
-            width,
-            height,
-            DXGI_FORMAT_R8G8B8A8_UNORM,
-            Vec4(0.f, 0.f, 0.f, 1.f))
-    ))
-        return nullptr;
+    else
+    {
+        CHECK_FAILED(
+            _sharedViewportRenderTarget->Resize(
+                width,
+                height,
+                DXGI_FORMAT_R8G8B8A8_UNORM,
+                Vec4(0.f, 0.f, 0.f, 1.f)),
+            nullptr);
+    }
 
     return _sharedViewportRenderTarget;
 }
@@ -106,8 +107,7 @@ void EffectEditorInstance::Request_ViewportSize(EditorViewportTarget targetType,
 
 ID3D11ShaderResourceView* EffectEditorInstance::Get_SharedViewportSRV() const
 {
-    if (nullptr == _sharedViewportRenderTarget)
-        return nullptr;
+    CHECK_NULL(_sharedViewportRenderTarget, nullptr);
 
     return _sharedViewportRenderTarget->Get_SRV();
 }
@@ -190,15 +190,15 @@ float EffectEditorInstance::Get_RuntimeTimeScale() const
     return _runtimeTimeScale;
 }
 
-float EffectEditorInstance::Clamp_RuntimeTimeScale(float fTimeScale)
+float EffectEditorInstance::Clamp_RuntimeTimeScale(float timeScale)
 {
-    if (fTimeScale < 0.01f)
+    if (timeScale < 0.01f)
         return 0.01f;
 
-    if (fTimeScale > 8.f)
+    if (timeScale > 8.f)
         return 8.f;
 
-    return fTimeScale;
+    return timeScale;
 }
 
 void EffectEditorInstance::Free()

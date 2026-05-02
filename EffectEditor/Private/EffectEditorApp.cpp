@@ -45,9 +45,9 @@ HRESULT EffectEditorApp::Initialize()
 
     EffectEditorDesc editorDesc{};
     editorDesc.hWnd = g_hWnd;
-    editorDesc.eWinMode = WinMode::Win;
-    editorDesc.iViewportWidth = g_iWinSizeX;
-    editorDesc.iViewportHeight = g_iWinSizeY;
+    editorDesc.winMode = WinMode::Win;
+    editorDesc.viewportWidth = g_iWinSizeX;
+    editorDesc.viewportHeight = g_iWinSizeY;
 
     CHECK_FAILED(EDITOR->Initialize_Editor(editorDesc, _device, _context), E_FAIL);
 
@@ -82,8 +82,7 @@ HRESULT EffectEditorApp::Render()
 
     EDITOR->Render_Editor();
 
-    if (FAILED(GAME->Present()))
-        return E_FAIL;
+    CHECK_FAILED(GAME->Present(), E_FAIL);
 
     return S_OK;
 }
@@ -109,12 +108,12 @@ HRESULT EffectEditorApp::Ready_StartLevel(LevelType startLevelID)
     if (LevelType::Loading == startLevelID)
         return E_FAIL;
 
-    if (FAILED(
+    CHECK_FAILED(
         GAME->Change_Level(
             ETOI(LevelType::Loading),
-            Level_Loading::Create(_device.Get(), _context.Get(), startLevelID))
-    ))
-        return E_FAIL;
+            Level_Loading::Create(_device.Get(), _context.Get(), startLevelID)),
+        E_FAIL
+    );
 
     return S_OK;
 }
@@ -139,16 +138,16 @@ wstring EffectEditorApp::Get_ClientResourcePath(const wchar_t* relativePath) con
 
 Unique<EffectEditorApp> EffectEditorApp::Create()
 {
-    Unique<EffectEditorApp> pInstance{ new EffectEditorApp() };
+    auto instance = make_unique<EffectEditorApp>();
 
-    if (FAILED(pInstance->Initialize()))
+    if (FAILED(instance->Initialize()))
     {
-        MSG_BOX("Failed to Created : EffectEditorApp");
-        pInstance->Free();
+        LOG_CRITICAL("Failed to Create : EffectEditorApp");
+        MSG_BOX("Failed to Create : EffectEditorApp");
         return nullptr;
     }
 
-    return pInstance;
+    return instance;
 }
 
 void EffectEditorApp::Free()

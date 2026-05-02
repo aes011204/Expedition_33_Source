@@ -60,16 +60,16 @@
     <ClInclude Include="..\Public\Inspector.h">
       <Filter>02. Inspector</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\Editor_ImGuiInclude.h">
+    <ClInclude Include="..\Public\EffectEditor_ImGuiInclude.h">
       <Filter>99. Defines</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\Editor_Enum.h">
+    <ClInclude Include="..\Public\EffectEditor_Enum.h">
       <Filter>99. Defines</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\Editor_Struct.h">
+    <ClInclude Include="..\Public\EffectEditor_Struct.h">
       <Filter>99. Defines</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\Editor_Macro.h">
+    <ClInclude Include="..\Public\EffectEditor_Macro.h">
       <Filter>99. Defines</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Editor_Manager.h">

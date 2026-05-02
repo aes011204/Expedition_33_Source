@@ -9,6 +9,11 @@ Scene_View::Scene_View()
 {
 }
 
+Scene_View::~Scene_View()
+{
+    Free();
+}
+
 void Scene_View::Update(float fTimeDelta)
 {
 }
@@ -113,6 +118,11 @@ void Scene_View::Render_ViewportCanvas()
 Shared<Scene_View> Scene_View::Create()
 {
     return make_shared<Scene_View>();
+}
+
+void Scene_View::Free()
+{
+    __super::Free();
 }
 
 
