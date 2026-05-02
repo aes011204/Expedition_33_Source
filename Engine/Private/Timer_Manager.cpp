@@ -7,33 +7,33 @@ Timer_Manager::Timer_Manager()
 }
 
 
-HRESULT Timer_Manager::Add_Timer(const wstring& strTimerTag)
+HRESULT Timer_Manager::Add_Timer(const wstring& timerTag)
 {
-	Shared<Timer> pTimer = Find_Timer(strTimerTag);
-	if (nullptr != pTimer)
+	Shared<Timer> timer = Find_Timer(timerTag);
+	if (nullptr != timer)
 		return E_FAIL;
 
-	pTimer = Timer::Create();
-	if (nullptr == pTimer)
+	timer = Timer::Create();
+	if (nullptr == timer)
 		return E_FAIL;
 
-	_timers.emplace(strTimerTag, pTimer);
+	_timers.emplace(timerTag, timer);
 
 	return S_OK;
 }
 
-float Timer_Manager::Compute_TimeDelta(const wstring& strTimerTag)
+float Timer_Manager::Compute_TimeDelta(const wstring& timerTag)
 {
-	Shared<Timer> pTimer = Find_Timer(strTimerTag);
-	if (nullptr == pTimer)
+	Shared<Timer> timer = Find_Timer(timerTag);
+	if (nullptr == timer)
 		return 0.f;
 
-	return pTimer->Update_Timer();
+	return timer->Update_Timer();
 }
 
-Shared<Timer> Timer_Manager::Find_Timer(const wstring& strTimerTag)
+Shared<Timer> Timer_Manager::Find_Timer(const wstring& timerTag)
 {
-	auto		iter = _timers.find(strTimerTag);
+	auto		iter = _timers.find(timerTag);
 	if (iter == _timers.end())
 		return nullptr;
 

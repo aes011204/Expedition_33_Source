@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "GameObject.h"
 
@@ -12,29 +12,29 @@ public:
 		
 	}CONTAINEROBJECT_DESC;
 public:
-	ContainerObject(ComPtr<Device> device, ComPtr<Context> context);
-	ContainerObject(const ContainerObject& Prototype);
+	ContainerObject(const ComPtr<Device>& device, const ComPtr<Context>& context);
+	ContainerObject(const ContainerObject& prototype);
 public:
 	virtual ~ContainerObject() = default;
 public:
 	virtual HRESULT Initialize_Prototype();
-	virtual HRESULT Initialize(void* pArg);
-	virtual void Priority_Update(float fTimeDelta);
-	virtual void Update(float fTimeDelta);
-	virtual void Late_Update(float fTimeDelta);
+	virtual HRESULT Initialize(void* arg);
+	virtual void Priority_Update(float timeDelta);
+	virtual void Update(float timeDelta);
+	virtual void Late_Update(float timeDelta);
 	virtual HRESULT Render();
 
 protected:
 	map<const wstring, Shared<class PartObject>>				_partObjects;
 
 protected:
-	HRESULT Add_PartObject(uint32 iPrototypeLevelIndex, const wstring& strPrototypeTag, 
-		const wstring& strPartTag, void* pArg);
+	HRESULT Add_PartObject(uint32 prototypeLevelIndex, const wstring& prototypeTag, 
+		const wstring& partTag, void* arg);
 
-	PartObject* Find_PartObject(const wstring& strPartTag);
+	PartObject* Find_PartObject(const wstring& partTag);
 
 public:
-	virtual Shared<GameObject> Clone(void* pArg) = 0;
+	virtual Shared<GameObject> Clone(void* arg) = 0;
 	virtual void Free() override;
 };
 

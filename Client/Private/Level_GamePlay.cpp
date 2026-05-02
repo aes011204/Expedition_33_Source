@@ -4,7 +4,7 @@
 
 #include "FreeCamera.h"
 
-Level_GamePlay::Level_GamePlay(ComPtr<Device> device, ComPtr<Context> context)
+Level_GamePlay::Level_GamePlay(const ComPtr<Device>& device, const ComPtr<Context>& context)
 	: Level { device, context }
 {
 }
@@ -48,11 +48,11 @@ HRESULT Level_GamePlay::Ready_Lights()
 {
 	LIGHT_DESC			LightDesc{};
 
-	LightDesc.eType         = LightType::DIRECTIONAL;
-	LightDesc.vDirection    = XMFLOAT4(1.f, -1.f, 1.f, 0.f);
-	LightDesc.vDiffuse      = XMFLOAT4(1.f, 1.f, 1.f, 1.f);
-	LightDesc.vAmbient      = XMFLOAT4(1.f, 1.f, 1.f, 1.f);
-	LightDesc.vSpecular     = XMFLOAT4(1.f, 1.f, 1.f, 1.f);
+	LightDesc.type          = LightType::Directional;
+	LightDesc.direction     = XMFLOAT4(1.f, -1.f, 1.f, 0.f);
+	LightDesc.diffuse       = XMFLOAT4(1.f, 1.f, 1.f, 1.f);
+	LightDesc.ambient       = XMFLOAT4(1.f, 1.f, 1.f, 1.f);
+	LightDesc.specular      = XMFLOAT4(1.f, 1.f, 1.f, 1.f);
 
 	if (FAILED(GAME->Add_Light(LightDesc)))
 		return E_FAIL;
@@ -65,13 +65,13 @@ HRESULT Level_GamePlay::Ready_Layer_Camera(const wstring& strLayerTag)
 {
 	FreeCamera::FREECAMERA_DESC		CameraDesc{};
 
-	CameraDesc.fSpeedPerSec = 10.f;
-	CameraDesc.fDegreePerSec = 180.f;
-	CameraDesc.vEye = XMFLOAT4(0.f, 10.f, -7.f, 1.f);
-	CameraDesc.vAt = XMFLOAT4(0.f, 0.f, 0.f, 1.f);
-	CameraDesc.fFovy = XMConvertToRadians(60.f) ;
-	CameraDesc.fNear = 0.1f;
-	CameraDesc.fFar = 500.f;
+	CameraDesc.speedPerSec = 10.f;
+	CameraDesc.degreePerSec = 180.f;
+	CameraDesc.eye = XMFLOAT4(0.f, 10.f, -7.f, 1.f);
+	CameraDesc.at = XMFLOAT4(0.f, 0.f, 0.f, 1.f);
+	CameraDesc.fovy = XMConvertToRadians(60.f) ;
+	CameraDesc.nearPlane = 0.1f;
+	CameraDesc.farPlane = 500.f;
 	CameraDesc.fMouseSensor = 0.05f;
 
 	if (FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_FreeCamera"),
@@ -118,7 +118,7 @@ HRESULT Level_GamePlay::Ready_Layer_Player(const wstring& strLayerTag)
 	return S_OK;
 }
 
-Shared<Level_GamePlay> Level_GamePlay::Create(ComPtr<Device> device, ComPtr<Context> context)
+Shared<Level_GamePlay> Level_GamePlay::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
 	auto pInstance = make_shared<Level_GamePlay>(device, context);
 

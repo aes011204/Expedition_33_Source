@@ -1,7 +1,4 @@
 ﻿#include "Editor_Manager.h"
-
-#include "Editor_ImGuiInclude.h"
-#include "Utils.h"
 #include "EditorInstance.h"
 #include "Scene_View.h"
 #include "Game_View.h"
@@ -40,7 +37,7 @@ void Editor_Manager::Render()
 	}
 }
 
-void Editor_Manager::Add_Window(const Shared<EditorWindow>& window)
+void Editor_Manager::Add_Window(const Shared<Editor_Window>& window)
 {
 	if (nullptr == window)
 		return;
@@ -48,7 +45,7 @@ void Editor_Manager::Add_Window(const Shared<EditorWindow>& window)
 	_windows[window->Get_WindowName()] = window;
 }
 
-Shared<EditorWindow> Editor_Manager::Find_Window(const wstring& windowName) const
+Shared<Editor_Window> Editor_Manager::Find_Window(const wstring& windowName) const
 {
 	const auto iter = _windows.find(windowName);
 	if (iter == _windows.end())
@@ -91,7 +88,7 @@ void Editor_Manager::Render_DockSpace()
 					continue;
 
 				bool bWindowOpen = Pair.second->Is_Open();
-				const string strName = Utils::ToString(Pair.first);
+				const string strName = String::ToString(Pair.first);
 				if (ImGui::MenuItem(strName.c_str(), nullptr, &bWindowOpen))
 					Pair.second->Set_Open(bWindowOpen);
 			}

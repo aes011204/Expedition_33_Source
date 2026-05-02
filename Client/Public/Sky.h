@@ -19,8 +19,8 @@ public:
 		
 	}TERRAIN_DESC;
 public:
-	Sky(ComPtr<Device> device, ComPtr<Context> context);
-	Sky(const Sky& Prototype);
+	Sky(const ComPtr<Device>& device, const ComPtr<Context>& context);
+	Sky(const Sky& prototype);
 	virtual ~Sky() { Free(); }
 
 public:
@@ -42,7 +42,7 @@ protected:
 
 
 public:
-	static Shared<Sky> Create(ComPtr<Device> device, ComPtr<Context> context);
+	static Shared<Sky> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
 	virtual Shared<GameObject> Clone(void* pArg) override;
 	virtual void Free() override;
 };

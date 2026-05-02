@@ -1,7 +1,7 @@
 ﻿#pragma once
 
 #include "Editor_Defines.h"
-#include "EditorWindow.h"
+#include "Editor_Window.h"
 
 NS_BEGIN(MainEditor)
 
@@ -16,15 +16,15 @@ public:
 	void Render();
 
     // View 추가
-	void Add_Window(const Shared<EditorWindow>& window);
-	Shared<EditorWindow> Find_Window(const wstring& windowName) const;
+	void Add_Window(const Shared<Editor_Window>& window);
+	Shared<Editor_Window> Find_Window(const wstring& windowName) const;
 
 private:
 	void Render_DockSpace();
 
 private:
     /* 창 이름을 키로 보관하는 에디터 뷰 목록. */
-	map<wstring, Shared<EditorWindow>> _windows = {}; 
+	map<wstring, Shared<Editor_Window>> _windows = {}; 
 
 public:
 	static Unique<Editor_Manager> Create();

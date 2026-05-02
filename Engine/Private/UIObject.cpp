@@ -1,13 +1,13 @@
 ﻿#include "UIObject.h"
 #include "Shader.h"
 
-UIObject::UIObject(ComPtr<Device> device, ComPtr<Context> context)
+UIObject::UIObject(const ComPtr<Device>& device, const ComPtr<Context>& context)
 	: GameObject { device, context }
 {
 }
 
-UIObject::UIObject(const UIObject& Prototype)
-	: GameObject { Prototype }
+UIObject::UIObject(const UIObject& prototype)
+	: GameObject { prototype }
 {
 }
 
@@ -16,42 +16,42 @@ HRESULT UIObject::Initialize_Prototype()
 	return S_OK;
 }
 
-HRESULT UIObject::Initialize(void* pArg)
+HRESULT UIObject::Initialize(void* arg)
 {
-	UI_DESC* pDesc = static_cast<UI_DESC*>(pArg);
+	UI_DESC* desc = static_cast<UI_DESC*>(arg);
 
-	_positionX = pDesc->fX;
-	_positionY = pDesc->fY;
-	_sizeX = pDesc->fSizeX;
-	_sizeY = pDesc->fSizeY;
+	_positionX = desc->x;
+	_positionY = desc->y;
+	_sizeX = desc->sizeX;
+	_sizeY = desc->sizeY;
 
-	if (FAILED(__super::Initialize(pArg)))
+	if (FAILED(__super::Initialize(arg)))
 		return E_FAIL;
 
 	D3D11_VIEWPORT ViewPortDesc{};
-	uint32 iNumViewports = 1;
-	_context->RSGetViewports(&iNumViewports, &ViewPortDesc);
+	uint32 numViewports = 1;
+	_context->RSGetViewports(&numViewports, &ViewPortDesc);
 
 	_viewPortWidth = ViewPortDesc.Width;
 	_viewPortHeight = ViewPortDesc.Height;
 
 	Update_Transform();
 
-	XMStoreFloat4x4(&_transformMatrices[ETOI(D3DTS::VIEW)], XMMatrixIdentity());
-	XMStoreFloat4x4(&_transformMatrices[ETOI(D3DTS::PROJ)], XMMatrixOrthographicLH(_viewPortWidth, _viewPortHeight, 0.f, 1.f));
+	XMStoreFloat4x4(&_transformMatrices[ETOI(D3DTS::View)], XMMatrixIdentity());
+	XMStoreFloat4x4(&_transformMatrices[ETOI(D3DTS::Proj)], XMMatrixOrthographicLH(_viewPortWidth, _viewPortHeight, 0.f, 1.f));
 
 	return S_OK;
 }
 
-void UIObject::Priority_Update(float fTimeDelta)
+void UIObject::Priority_Update(float timeDelta)
 {
 }
 
-void UIObject::Update(float fTimeDelta)
+void UIObject::Update(float timeDelta)
 {
 }
 
-void UIObject::Late_Update(float fTimeDelta)
+void UIObject::Late_Update(float timeDelta)
 {
 }
 
@@ -62,14 +62,16 @@ HRESULT UIObject::Render()
 
 void UIObject::Update_Transform()
 {
-	_transformCom->SetUp_Scale(_sizeX, _sizeY, 1.f);
-	_transformCom->Set_State(State::POSITION,
-		XMVectorSet(_positionX - _viewPortWidth * 0.5f, -_positionY + _viewPortHeight * 0.5f, 0.f, 1.f));
+	_transformCom->Set_Scale(Vec3(_sizeX, _sizeY, 1.f));
+	_transformCom->Set_Position(Vec3(
+		_positionX - _viewPortWidth * 0.5f,
+		-_positionY + _viewPortHeight * 0.5f,
+		0.f));
 }
 
-HRESULT UIObject::Bind_ShaderResource(Shader* pShader, const char* pConstantName, D3DTS eTransformState)
+HRESULT UIObject::Bind_ShaderResource(Shader* shader, const char* constantName, D3DTS transformState)
 {
-	return pShader->Bind_Matrix(pConstantName, &_transformMatrices[ETOI(eTransformState)]);
+	return shader->Bind_Matrix(constantName, &_transformMatrices[ETOI(transformState)]);
 }
 
 void UIObject::Free()

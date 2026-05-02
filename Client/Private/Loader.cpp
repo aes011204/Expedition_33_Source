@@ -11,7 +11,7 @@
 #include "Weapon.h"
 #include "Sky.h"
 
-Loader::Loader(ComPtr<Device> device, ComPtr<Context> context)
+Loader::Loader(const ComPtr<Device>& device, const ComPtr<Context>& context)
 	: _device { device }
 	, _context { context }
 {
@@ -130,7 +130,7 @@ HRESULT Loader::Loading_For_GamePlayLevel()
 	return S_OK;
 }
 
-Shared<Loader> Loader::Create(ComPtr<Device> device, ComPtr<Context> context, LevelType eNextLevelID)
+Shared<Loader> Loader::Create(const ComPtr<Device>& device, const ComPtr<Context>& context, LevelType eNextLevelID)
 {
 	auto pInstance = make_shared<Loader>(device, context);
 

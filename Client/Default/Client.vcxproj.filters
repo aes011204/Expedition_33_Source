@@ -61,6 +61,9 @@
     <Filter Include="02.GameObject\Sky">
       <UniqueIdentifier>{af5602af-e31e-49b7-bc95-02623c7bce0a}</UniqueIdentifier>
     </Filter>
+    <Filter Include="99.Defines\Helper">
+      <UniqueIdentifier>{ab9c6fe7-56bb-4db1-a2ed-dddf86074e28}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -181,6 +184,9 @@
     </ClCompile>
     <ClCompile Include="..\Private\ResourceLoader.cpp">
       <Filter>01.Levels\Loading\Loader</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\SimpleMath.cpp">
+      <Filter>99.Defines</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

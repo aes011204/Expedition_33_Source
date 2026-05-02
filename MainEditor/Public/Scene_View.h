@@ -1,11 +1,10 @@
 ﻿#pragma once
 
-#include "EditorWindow.h"
-#include "Editor_ImGuiInclude.h"
+#include "Editor_Window.h"
 
 NS_BEGIN(MainEditor)
 
-class Scene_View final : public EditorWindow
+class Scene_View final : public Editor_Window
 {
 public:
     /* 에디터 카메라 렌더링과 기즈모 편집을 붙일 씬 뷰포트 창을 생성한다. */
@@ -13,10 +12,7 @@ public:
     virtual ~Scene_View() = default;
 
 public:
-    /* ImGui 렌더 전에 씬 뷰포트의 임시 상태를 갱신한다. */
     virtual void Update(float fTimeDelta) override;
-
-    /* 씬 뷰포트 영역과 기본 ImGuizmo 툴바를 그린다. */
     virtual void Render() override;
 
 private:
@@ -27,9 +23,12 @@ private:
     void Render_ViewportCanvas();
 
 private:
-    ImVec2 _viewportSize = {};                      /* 마지막으로 표시된 씬 뷰포트 크기. */
-    ImGuizmo::OPERATION _gizmoOperation = ImGuizmo::TRANSLATE; /* 씬 기즈모의 현재 트랜스폼 동작. */
-    ImGuizmo::MODE _gizmoMode = ImGuizmo::LOCAL;    /* 선택 오브젝트 편집에 사용할 현재 트랜스폼 좌표계. */
+    /* 마지막으로 표시된 씬 뷰포트 크기. */
+    ImVec2 _viewportSize = {};
+    /* 씬 기즈모의 현재 트랜스폼 동작. */
+    ImGuizmo::OPERATION _gizmoOperation = ImGuizmo::TRANSLATE;
+    /* 선택 오브젝트 편집에 사용할 현재 트랜스폼 좌표계. */
+    ImGuizmo::MODE _gizmoMode = ImGuizmo::LOCAL;
 
 public:
     static Shared<Scene_View> Create();

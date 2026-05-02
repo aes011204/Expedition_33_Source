@@ -1,6 +1,4 @@
-#pragma once
-
-#include <filesystem>
+﻿#pragma once
 #include "Base.h"
 
 NS_BEGIN(Engine)
@@ -14,30 +12,28 @@ public:
 	virtual ~Asset_Manager() = default;
 
 public:
-	HRESULT Initialize(const wstring& strResourceRoot);
-	const FAssetMeta* Find_ByGUID(const string& strGuid) const;
-	string Find_GUID(const wstring& strFilePath) const;
-	wstring Resolve_Path(const string& strGuid) const;
-	string Register_Asset(const wstring& strFilePath, const string& strType = "");
-	void Scan_And_Register(const wstring& strDirectory);
+	HRESULT Initialize(const wstring& resourceRoot);
+	const FAssetMeta* Find_ByGUID(const string& guid) const;
+	string Find_GUID(const wstring& filePath) const;
+	wstring Resolve_Path(const string& guid) const;
+	const wstring& Get_ResourceRoot() const;
+	string Register_Asset(const wstring& filePath, const string& type = "");
+	void Scan_And_Register(const wstring& directory);
 	void Refresh_Cache();
 
 private:
 	void Load_Registry();
 	void Save_Registry() const;
-	bool Load_LegacyMeta(const wstring& strMetaPath);
+	bool Load_LegacyMeta(const wstring& metaPath);
 	void Load_Cache();
 	void Save_Cache() const;
-	void Save_AssetList(const wstring& strPath) const;
-	void Load_AssetList(const wstring& strPath);
-	string Detect_AssetType(const wstring& strFilePath) const;
-	bool Should_RegisterAsset(const std::filesystem::path& Path) const;
+	void Save_AssetList(const wstring& path) const;
+	void Load_AssetList(const wstring& path);
+	string Detect_AssetType(const wstring& filePath) const;
+	bool Should_RegisterAsset(const std::filesystem::path& path) const;
 	void Rebuild_PathIndex();
-	static string ToLowerCopy(string strValue);
-	static string ToString(const wstring& strValue);
-	static wstring ToWString(const string& strValue);
-	static bool EndsWith(const string& strValue, const string& strSuffix);
-	static wstring Normalize_PathKey(const wstring& strPath);
+	static bool EndsWith(const string& value, const string& suffix);
+	static wstring Normalize_PathKey(const wstring& path);
 	static string Generate_GUID();
 
 private:
@@ -50,7 +46,7 @@ private:
 	vector<string> _ignoreFolders = { ".git", ".vs", "Fonts", "Data/Assets" };
 
 public:
-	static Unique<Asset_Manager> Create(const wstring& strResourceRoot);
+	static Unique<Asset_Manager> Create(const wstring& resourceRoot);
 	virtual void Free() override;
 };
 

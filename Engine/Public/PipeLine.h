@@ -13,22 +13,22 @@ public:
 	virtual ~PipeLine() = default;
 
 public:
-	const XMFLOAT4X4* Get_Transform(D3DTS eTransformState) const {
-		return &_transformStateMatrices[ETOI(eTransformState)];
+	const Matrix* Get_Transform(D3DTS transformState) const {
+		return reinterpret_cast<const Matrix*>(&_transformStateMatrices[ETOI(transformState)]);
 	}
-	const XMFLOAT4* Get_CamPosition() const {
-		return reinterpret_cast<const XMFLOAT4*>(&_transformStateInverseMatrices[ETOI(D3DTS::VIEW)].m[3]);
-	}
-
-public:
-	void Set_Transform(D3DTS eTransformState, FXMMATRIX TransformStateMatrix) {
-		XMStoreFloat4x4(&_transformStateMatrices[ETOI(eTransformState)], TransformStateMatrix);
+	const Vec4* Get_CamPosition() const {
+		return reinterpret_cast<const Vec4*>(&_transformStateInverseMatrices[ETOI(D3DTS::View)].m[3]);
 	}
 
 public:
-	HRESULT Bind_CamPosition(class Shader* pShader, const char* pConstantName);
-	HRESULT Bind_TransformMatrix(D3DTS eTransformState, class Shader* pShader, const char* pConstantName);
-	HRESULT Bind_TransformMatrix_Inverse(D3DTS eTransformState, class Shader* pShader, const char* pConstantName);
+	void Set_Transform(D3DTS transformState, FXMMATRIX transformStateMatrix) {
+		XMStoreFloat4x4(&_transformStateMatrices[ETOI(transformState)], transformStateMatrix);
+	}
+
+public:
+	HRESULT Bind_CamPosition(class Shader* shader, const char* constantName);
+	HRESULT Bind_TransformMatrix(D3DTS transformState, class Shader* shader, const char* constantName);
+	HRESULT Bind_TransformMatrix_Inverse(D3DTS transformState, class Shader* shader, const char* constantName);
 	void Update();
 	
 

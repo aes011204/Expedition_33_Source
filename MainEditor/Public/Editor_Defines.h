@@ -4,12 +4,18 @@
 
 #include "Engine_Define.h"
 
+#include "Editor_Enum.h"
+#include "Editor_Macro.h"
+#include "Editor_Struct.h"
+
+#include "Editor_ImGuiInclude.h"
+
 NS_BEGIN(MainEditor)
 
 typedef struct tagEditorDesc
 {
 	HWND hWnd = nullptr;                    /* 메인 에디터 호스트 윈도우 핸들. */
-	WinMode eWinMode = WinMode::WIN;        /* 에디터 렌더 타겟에 사용할 창 모드. */
+	WinMode eWinMode = WinMode::Win;        /* 에디터 렌더 타겟에 사용할 창 모드. */
 	uint32 iViewportWidth = {};             /* 기본 에디터 뷰포트 너비. */
 	uint32 iViewportHeight = {};            /* 기본 에디터 뷰포트 높이. */
 } EDITOR_DESC;

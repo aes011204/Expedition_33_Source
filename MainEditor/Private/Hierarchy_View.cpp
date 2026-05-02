@@ -1,10 +1,7 @@
 ﻿#include "Hierarchy_View.h"
 
-#include "Editor_ImGuiInclude.h"
-#include "Utils.h"
-
 Hierarchy_View::Hierarchy_View()
-    : EditorWindow{ L"Hierarchy" }
+    : Editor_Window{ L"Hierarchy" }
 {
 }
 
@@ -14,7 +11,7 @@ void Hierarchy_View::Render()
         return;
 
     bool isOpen = Is_Open();
-    const string windowName = Utils::ToString(Get_WindowName());
+    const string windowName = String::ToString(Get_WindowName());
 
     if (ImGui::Begin(windowName.c_str(), &isOpen))
     {

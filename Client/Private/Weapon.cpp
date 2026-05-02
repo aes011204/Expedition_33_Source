@@ -1,15 +1,15 @@
-#include "Weapon.h"
+﻿#include "Weapon.h"
 #include "GameInstance.h"
 
 #include "Player.h"
 
-Weapon::Weapon(ComPtr<Device> device, ComPtr<Context> context)
+Weapon::Weapon(const ComPtr<Device>& device, const ComPtr<Context>& context)
 	: PartObject { device, context }
 {
 }
 
-Weapon::Weapon(const Weapon& Prototype)
-	: PartObject{ Prototype }
+Weapon::Weapon(const Weapon& prototype)
+	: PartObject{ prototype }
 {
 }
 
@@ -32,17 +32,9 @@ HRESULT Weapon::Initialize(void* pArg)
 	if (FAILED(Ready_Components()))
 		return E_FAIL;
 
-	_transformCom->SetUp_Scale(0.1f, 0.1f, 0.1f);
-	_transformCom->Rotation(XMVectorSet(0.f, 1.f, 0.f, 0.f), 90.f);
-	_transformCom->Set_State(State::POSITION, XMVectorSet(0.8f, 0.f, 0.f, 1.f));
-
-	/*_transformCom->Set_State(State::POSITION, XMVectorSet(
-		GAME->Random(0.f, 10.f),
-		2.f,
-		GAME->Random(0.f, 10.f),
-		1.f
-	));*/
-
+	_transformCom->Set_Scale(Vec3(0.1f, 0.1f, 0.1f));
+	_transformCom->Rotate(Vec3::Up, 90.f);
+	_transformCom->Set_Position(Vec3(0.8f, 0.f, 0.f));
 
 	return S_OK;
 }
@@ -60,12 +52,12 @@ void Weapon::Update(float fTimeDelta)
 	
 
 
-	Update_CombinedWorldMatrix(XMLoadFloat4x4(_transformCom->Get_WorldMatrixPtr()) * SocketMatrix);
+	Update_CombinedWorldMatrix(_transformCom->Get_WorldMatrix() * SocketMatrix);
 }
 
 void Weapon::Late_Update(float fTimeDelta)
 {
-	GAME->Add_RenderGroup(RenderGroup::NONBLEND, this);
+	GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
 }
 
 HRESULT Weapon::Render()
@@ -75,9 +67,9 @@ HRESULT Weapon::Render()
 
 
 
-	size_t iNumMeshes = _model->Get_NumMeshes();
+	const uint32 iNumMeshes = static_cast<uint32>(_model->Get_NumMeshes());
 
-	for (size_t i = 0; i < iNumMeshes; i++)
+	for (uint32 i = 0; i < iNumMeshes; i++)
 	{
 		_model->Bind_Material(_shader.get(), "g_DiffuseTexture", i, aiTextureType_DIFFUSE, 0);
 
@@ -110,10 +102,10 @@ HRESULT Weapon::Bind_ShaderResources()
 	if (FAILED(_shader->Bind_Matrix("g_WorldMatrix", &_combinedWorldMatrix)))
 		return E_FAIL;
 
-	if (FAILED(GAME->Bind_TransformMatrix(D3DTS::VIEW, _shader.get(), "g_ViewMatrix")))
+	if (FAILED(GAME->Bind_TransformMatrix(D3DTS::View, _shader.get(), "g_ViewMatrix")))
 		return E_FAIL;
 
-	if (FAILED(GAME->Bind_TransformMatrix(D3DTS::PROJ, _shader.get(), "g_ProjMatrix")))
+	if (FAILED(GAME->Bind_TransformMatrix(D3DTS::Proj, _shader.get(), "g_ProjMatrix")))
 		return E_FAIL;
 
 
@@ -125,19 +117,19 @@ HRESULT Weapon::Bind_ShaderResources()
 	if (nullptr == pLightDesc)
 		return E_FAIL;
 
-	if (FAILED(_shader->Bind_RawValue("g_vLightDir", &pLightDesc->vDirection, sizeof(XMFLOAT4))))
+	if (FAILED(_shader->Bind_RawValue("g_vLightDir", &pLightDesc->direction, sizeof(XMFLOAT4))))
 		return E_FAIL;
-	if (FAILED(_shader->Bind_RawValue("g_vLightDiffuse", &pLightDesc->vDiffuse, sizeof(XMFLOAT4))))
+	if (FAILED(_shader->Bind_RawValue("g_vLightDiffuse", &pLightDesc->diffuse, sizeof(XMFLOAT4))))
 		return E_FAIL;
-	if (FAILED(_shader->Bind_RawValue("g_vLightAmbient", &pLightDesc->vAmbient, sizeof(XMFLOAT4))))
+	if (FAILED(_shader->Bind_RawValue("g_vLightAmbient", &pLightDesc->ambient, sizeof(XMFLOAT4))))
 		return E_FAIL;
-	if (FAILED(_shader->Bind_RawValue("g_vLightSpecular", &pLightDesc->vSpecular, sizeof(XMFLOAT4))))
+	if (FAILED(_shader->Bind_RawValue("g_vLightSpecular", &pLightDesc->specular, sizeof(XMFLOAT4))))
 		return E_FAIL;
 
 	return S_OK;
 }
 
-Shared<Weapon> Weapon::Create(ComPtr<Device> device, ComPtr<Context> context)
+Shared<Weapon> Weapon::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
 	auto pInstance = make_shared<Weapon>(device, context);
 

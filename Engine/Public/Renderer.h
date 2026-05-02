@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Base.h"
 
@@ -9,22 +9,15 @@ class GameObject;
 class Renderer final : public Base
 {
 private:
-	Renderer(ComPtr<Device> device, ComPtr<Context> context);
+	Renderer(const ComPtr<Device>& device, const ComPtr<Context>& context);
 
 public:
 	virtual ~Renderer() = default;
 
 public:
 	HRESULT Initialize();
-	void Add_RenderGroup(RenderGroup eRenderGroup, GameObject* pGameObject);
+	void Add_RenderGroup(RenderGroup renderGroup, Shared<GameObject> gameObject);
 	void Draw();
-
-private:
-	ComPtr<Device>        _device;
-	ComPtr<Context> _context;
-
-    /* Layer가 소유하는 GameObject를 렌더 프레임 동안만 참조하기 위한 약한 참조 목록. */
-	list<Weak<GameObject>>		_renderGroups[ETOI(RenderGroup::END)];
 
 private:
 	void Render_Priority();
@@ -32,9 +25,15 @@ private:
 	void Render_Blend();
 	void Render_UI();
 
+private:
+	ComPtr<Device>  _device;
+	ComPtr<Context> _context;
+
+    /* Layer가 소유하는 GameObject를 렌더 프레임 동안만 참조하기 위한 약한 참조 목록. */
+	list<Weak<GameObject>>		_renderGroups[ETOI(RenderGroup::END)];
 
 public:
-	static Unique<Renderer> Create(ComPtr<Device> device, ComPtr<Context> context);
+	static Unique<Renderer> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
 	virtual void Free() override;
 };
 

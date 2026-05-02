@@ -1,15 +1,15 @@
-﻿#include "Component.h"
+#include "Component.h"
 #include "GameInstance.h"
 
-Component::Component(ComPtr<Device> device, ComPtr<Context> context)
+Component::Component(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : _device{ device }
     , _context{ context }
 {
 }
 
-Component::Component(const Component& Prototype)
-    : _device{ Prototype._device }
-    , _context{ Prototype._context }
+Component::Component(const Component& prototype)
+    : _device{ prototype._device }
+    , _context{ prototype._context }
 {
 }
 
@@ -18,7 +18,7 @@ HRESULT Component::Initialize_Prototype()
     return S_OK;
 }
 
-HRESULT Component::Initialize(void* pArg)
+HRESULT Component::Initialize(void* arg)
 {
     return S_OK;
 }

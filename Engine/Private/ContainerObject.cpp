@@ -3,13 +3,13 @@
 
 #include "PartObject.h"
 
-ContainerObject::ContainerObject(ComPtr<Device> device, ComPtr<Context> context)
+ContainerObject::ContainerObject(const ComPtr<Device>& device, const ComPtr<Context>& context)
 	: GameObject { device, context }
 {
 }
 
-ContainerObject::ContainerObject(const ContainerObject& Prototype)
-	: GameObject { Prototype }
+ContainerObject::ContainerObject(const ContainerObject& prototype)
+	: GameObject { prototype }
 {
 }
 
@@ -18,30 +18,30 @@ HRESULT ContainerObject::Initialize_Prototype()
 	return S_OK;
 }
 
-HRESULT ContainerObject::Initialize(void* pArg)
+HRESULT ContainerObject::Initialize(void* arg)
 {
-	if (FAILED(__super::Initialize(pArg)))
+	if (FAILED(__super::Initialize(arg)))
 		return E_FAIL;
 
 	return S_OK;
 }
 
-void ContainerObject::Priority_Update(float fTimeDelta)
+void ContainerObject::Priority_Update(float timeDelta)
 {
 	for (auto& Pair : _partObjects)
-		Pair.second->Priority_Update(fTimeDelta);
+		Pair.second->Priority_Update(timeDelta);
 }
 
-void ContainerObject::Update(float fTimeDelta)
+void ContainerObject::Update(float timeDelta)
 {
 	for (auto& Pair : _partObjects)
-		Pair.second->Update(fTimeDelta);
+		Pair.second->Update(timeDelta);
 }
 
-void ContainerObject::Late_Update(float fTimeDelta)
+void ContainerObject::Late_Update(float timeDelta)
 {
 	for (auto& Pair : _partObjects)
-		Pair.second->Late_Update(fTimeDelta);
+		Pair.second->Late_Update(timeDelta);
 }
 
 HRESULT ContainerObject::Render()
@@ -50,23 +50,23 @@ HRESULT ContainerObject::Render()
 }
 
 
-HRESULT ContainerObject::Add_PartObject(uint32 iPrototypeLevelIndex, const wstring& strPrototypeTag, const wstring& strPartTag, void* pArg)
+HRESULT ContainerObject::Add_PartObject(uint32 prototypeLevelIndex, const wstring& prototypeTag, const wstring& partTag, void* arg)
 {
-	if (nullptr != Find_PartObject(strPartTag))
+	if (nullptr != Find_PartObject(partTag))
 		return E_FAIL;
 
-	Shared<PartObject> pPartObject = static_pointer_cast<PartObject>(GAME->Clone_Prototype(Prototype::GAMEOBJECT, iPrototypeLevelIndex, strPrototypeTag, pArg));
-	if (nullptr == pPartObject)
+	Shared<PartObject> partObject = static_pointer_cast<PartObject>(GAME->Clone_Prototype(Prototype::GameObject, prototypeLevelIndex, prototypeTag, arg));
+	if (nullptr == partObject)
 		return E_FAIL;
 
-	_partObjects.emplace(strPartTag, pPartObject);	
+	_partObjects.emplace(partTag, partObject);	
 
 	return S_OK; 
 }
 
-PartObject* ContainerObject::Find_PartObject(const wstring& strPartTag)
+PartObject* ContainerObject::Find_PartObject(const wstring& partTag)
 {
-	auto	iter = _partObjects.find(strPartTag);
+	auto	iter = _partObjects.find(partTag);
 
 	if(iter == _partObjects.end())
 		return nullptr;

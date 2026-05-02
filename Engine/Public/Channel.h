@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "Base.h"
 
@@ -13,8 +13,8 @@ public:
 	virtual ~Channel() { Free(); }
 
 public:
-	HRESULT Initialize(const aiNodeAnim* pAIChannel, class Model* pModel);
-	void Update_TransformationMatrix(uint32* pCurrentKeyFrameIndex, float fCurrentTrackPosition, const vector<Shared<class Bone>>& Bones);
+	HRESULT Initialize(const aiNodeAnim* aiChannel, class Model* model);
+	void Update_TransformationMatrix(uint32* currentKeyFrameIndex, float currentTrackPosition, const vector<Shared<class Bone>>& bones);
 
 private:
 	vector<KEYFRAME>			_keyFrames;
@@ -23,7 +23,7 @@ private:
 	int32						_boneIndex = { -1 };
 
 public:
-	static Shared<Channel> Create(const aiNodeAnim* pAIChannel, class Model* pModel);
+	static Shared<Channel> Create(const aiNodeAnim* aiChannel, class Model* model);
 	virtual void Free() override;
 };
 

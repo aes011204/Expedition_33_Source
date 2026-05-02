@@ -19,8 +19,8 @@ public:
 		const XMFLOAT4X4* pSocketMatrix = { nullptr };
 	}WEAPON_DESC;
 public:
-	Weapon(ComPtr<Device> device, ComPtr<Context> context);
-	Weapon(const Weapon& Prototype);
+	Weapon(const ComPtr<Device>& device, const ComPtr<Context>& context);
+	Weapon(const Weapon& prototype);
 	virtual ~Weapon() { Free(); }
 
 public:
@@ -47,7 +47,7 @@ private:
 	HRESULT Bind_ShaderResources();
 
 public:
-	static Shared<Weapon> Create(ComPtr<Device> device, ComPtr<Context> context);
+	static Shared<Weapon> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
 	virtual Shared<GameObject> Clone(void* pArg) override;
 	virtual void Free() override;
 

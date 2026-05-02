@@ -1,12 +1,10 @@
 ﻿#include "Game_View.h"
 #include "GameInstance.h"
-#include "Editor_ImGuiInclude.h"
-#include "Utils.h"
 #include "EditorInstance.h"
 #include "RenderTarget.h"
 
 Game_View::Game_View()
-    : EditorWindow{ L"Game" }
+    : Editor_Window{ L"Game" }
 {
 }
 
@@ -16,7 +14,7 @@ void Game_View::Render()
         return;
 
     bool isOpen = Is_Open();
-    const string windowName = Utils::ToString(Get_WindowName());
+    const string windowName = String::ToString(Get_WindowName());
     
     if (ImGui::Begin(windowName.c_str(), &isOpen, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse))
     {
@@ -31,20 +29,15 @@ void Game_View::Render()
         const uint32 width = static_cast<uint32>(viewportSize.x);
         const uint32 height = static_cast<uint32>(viewportSize.y);
 
-        Shared<RenderTarget> renderTarget = EditorInstance::GetInstance()->Prepare_ViewportRenderTarget(
-            EDITOR_VIEWPORT_TARGET::Game, width, height);
+        EditorInstance::GetInstance()->Request_ViewportSize(
+            EDITOR_VIEWPORT_TARGET::Game,
+            width,
+            height);
 
-           if (nullptr != renderTarget)
+        ID3D11ShaderResourceView* pSRV = EditorInstance::GetInstance()->Get_SharedViewportSRV();
+        if (nullptr != pSRV)
         {
-            GAME->Set_ViewportSize(
-                renderTarget->Get_Width(),
-                renderTarget->Get_Height()
-            );
-        }
-
-        if (nullptr != renderTarget && nullptr != renderTarget->Get_SRV())
-        {
-            const ImTextureID textureId = static_cast<ImTextureID>(reinterpret_cast<intptr_t>(renderTarget->Get_SRV()));
+            const ImTextureID textureId = static_cast<ImTextureID>(reinterpret_cast<intptr_t>(pSRV));
             ImGui::Image(textureId, viewportSize);
         }
         else

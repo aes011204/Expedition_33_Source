@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "GameObject.h"
 
@@ -9,20 +9,20 @@ class ENGINE_DLL UIObject abstract : public GameObject
 public:
 	typedef struct tagUIObjectDesc  : public GameObject::GAMEOBJECT_DESC
 	{
-		float fX, fY, fSizeX, fSizeY;
+		float x, y, sizeX, sizeY;
 	}UI_DESC;
 
 public:
-	UIObject(ComPtr<Device> device, ComPtr<Context> context);
-	UIObject(const UIObject& Prototype);
+	UIObject(const ComPtr<Device>& device, const ComPtr<Context>& context);
+	UIObject(const UIObject& prototype);
 	virtual ~UIObject() = default;
 
 public:
 	virtual HRESULT Initialize_Prototype() override;
-	virtual HRESULT Initialize(void* pArg) override;
-	virtual void Priority_Update(float fTimeDelta) override;
-	virtual void Update(float fTimeDelta) override;
-	virtual void Late_Update(float fTimeDelta) override;
+	virtual HRESULT Initialize(void* arg) override;
+	virtual void Priority_Update(float timeDelta) override;
+	virtual void Update(float timeDelta) override;
+	virtual void Late_Update(float timeDelta) override;
 	virtual HRESULT Render() override;
 
 protected:
@@ -32,10 +32,10 @@ protected:
 
 protected:
 	void Update_Transform();
-	HRESULT Bind_ShaderResource(class Shader* pShader, const char* pConstantName, D3DTS eTransformState);
+	HRESULT Bind_ShaderResource(class Shader* shader, const char* constantName, D3DTS transformState);
 
 public:
-	virtual Shared<GameObject> Clone(void* pArg) = 0;
+	virtual Shared<GameObject> Clone(void* arg) = 0;
 	virtual void Free() override;
 };
 

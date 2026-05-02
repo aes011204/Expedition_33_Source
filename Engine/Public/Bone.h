@@ -2,9 +2,9 @@
 
 #include "Base.h"
 
-/* »ÀÇÏ³ªÀÇ Á¤º¸. */
-/* ºÎ¸ğ »ÀÀÇ Á¤º¸¿Í ÇöÀç »ÀÀÇ »óÅÂÇà·ÄµéÀ» °¡Áø´Ù. */
-/* assimp ³»¿¡¼­ ÀÌ¿ëµÇ´Â »À : aiNode, aiBone, aiNodeAnim */
+/* ë¼ˆí•˜ë‚˜ì˜ ì •ë³´. */
+/* ë¶€ëª¨ ë¼ˆì˜ ì •ë³´ì™€ í˜„ì¬ ë¼ˆì˜ ìƒíƒœí–‰ë ¬ë“¤ì„ ê°€ì§„ë‹¤. */
+/* assimp ë‚´ì—ì„œ ì´ìš©ë˜ëŠ” ë¼ˆ : aiNode, aiBone, aiNodeAnim */
 
 NS_BEGIN(Engine)
 
@@ -18,13 +18,13 @@ public:
 		return &_combinedTransformationMatrix;
 	}
 public:
-	HRESULT Initialize(const aiNode* pAINode, int32 iParentBoneIndex);
-	bool isCompare(const char* pBoneName) {
-		return !strcmp(pBoneName, _name);
+	HRESULT Initialize(const aiNode* aiNode, int32 parentBoneIndex);
+	bool isCompare(const char* boneName) {
+		return !strcmp(boneName, _name);
 	}
 
-	void Update_CombinedTransformationMatrix(const vector<Shared<Bone>>& Bones, FXMMATRIX PreTransformMatrix);
-	void Update_TransformationMatrix(FXMMATRIX TransformMatrix);
+	void Update_CombinedTransformationMatrix(const vector<Shared<Bone>>& bones, FXMMATRIX preTransformMatrix);
+	void Update_TransformationMatrix(FXMMATRIX transformMatrix);
 
 
 
@@ -35,7 +35,7 @@ private:
 	int32					_parentBoneIndex = { -1 };
 
 public:
-	static Shared<Bone> Create(const aiNode* pAINode, int32 iParentBoneIndex);
+	static Shared<Bone> Create(const aiNode* aiNode, int32 parentBoneIndex);
 	Shared<Bone> Clone();
 	virtual void Free() override;
 };

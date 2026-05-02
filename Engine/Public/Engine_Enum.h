@@ -2,18 +2,28 @@
 
 namespace Engine
 {
-	enum class WinMode { FULL, WIN };
+enum class WinMode { Full, Win };
 
-	enum class Prototype { GAMEOBJECT, COMPONENT };
+enum class Prototype { GameObject, Comopnent };
 
-	enum class RenderGroup { PRIORITY, NONBLEND, BLEND, UI, END };
-	
-	enum class State { RIGHT, UP, LOOK, POSITION, END };
-	
-	enum class D3DTS { VIEW, PROJ, END };
+enum class RenderGroup { Priority, NonBlend, Blend, UI, END };
 
-	enum class LightType { DIRECTIONAL, POINT, END };
+enum class State { Right, Up, Look, Position, END };
 
-	enum class ModelType { NONANIM, ANIM, END };
+enum class D3DTS { View, Proj, END };
 
+enum class LightType { Directional, Point, END };
+
+enum class ModelType { NonAnim, Anim, END };
+
+enum class LogLevel
+{
+    Trace,
+    Debug,
+    Info,
+    Warn,
+    Error,
+    Critical,
+    Off
+};
 }

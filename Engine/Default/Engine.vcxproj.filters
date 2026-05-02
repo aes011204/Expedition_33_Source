@@ -136,7 +136,14 @@
     <Filter Include="01.Utility\09.Utils">
       <UniqueIdentifier>{a830136d-e962-4c39-9a9c-a795701b0c2d}</UniqueIdentifier>
     </Filter>
+    <ClInclude Include="..\Public\Helper_String.h">
+      <Filter>99. Defines\Helper</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\RenderTarget.h" />
+    <ClInclude Include="..\Public\Log_Manager.h" />
+    <ClInclude Include="..\Public\Helper_Math.h">
+      <Filter>99. Defines\Helper</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\public\Base.h">
@@ -268,9 +275,6 @@
     <ClInclude Include="..\Public\Input_Manager.h">
       <Filter>97. Manager</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\Utils.h">
-      <Filter>01.Utility\09.Utils</Filter>
-    </ClInclude>
     <ClInclude Include="..\Public\Vertex_Types.h">
       <Filter>99. Defines</Filter>
     </ClInclude>
@@ -390,10 +394,11 @@
     <ClCompile Include="..\Private\Input_Manager.cpp">
       <Filter>97. Manager</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\Utils\Utils.cpp">
-      <Filter>01.Utility\09.Utils</Filter>
+    <ClCompile Include="..\Private\SimpleMath.cpp">
+      <Filter>99. Defines</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\RenderTarget.cpp" />
+    <ClCompile Include="..\Private\Log_Manager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Bin\ShaderFiles\Engine_Shader_Defines.hlsli">
@@ -406,6 +411,9 @@
     </Filter>
     <Filter Include="99. Defines">
       <UniqueIdentifier>{dc76f3a4-70ea-430a-8253-3ec25138c2b6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="99. Defines\Helper">
+      <UniqueIdentifier>{4f948615-4199-4e04-95ad-a005392f4ff3}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

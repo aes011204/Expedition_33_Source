@@ -5,23 +5,23 @@ Light_Manager::Light_Manager()
 {
 }
 
-const LIGHT_DESC* Light_Manager::Get_LightDesc(uint32 iIndex)
+const LIGHT_DESC* Light_Manager::Get_LightDesc(uint32 index)
 {
 	auto	iter = _lights.begin();
 
-	for (uint32 i = 0; i < iIndex; i++)
+	for (uint32 i = 0; i < index; i++)
 		++iter;
 
 	return (*iter)->Get_LightDesc();	
 }
 
-HRESULT Light_Manager::Add_Light(const LIGHT_DESC& LightDesc)
+HRESULT Light_Manager::Add_Light(const LIGHT_DESC& lightDesc)
 {
-	Shared<Light> pLight = Light::Create(LightDesc);
-	if (nullptr == pLight)
+	Shared<Light> light = Light::Create(lightDesc);
+	if (nullptr == light)
 		return E_FAIL;
 
-	_lights.push_back(pLight);
+	_lights.push_back(light);
 
 	return S_OK;
 }
@@ -35,8 +35,8 @@ void Light_Manager::Free()
 {
 	__super::Free();
 
-	for (auto& pLight : _lights)
-		Safe_Release(pLight);
+	for (auto& light : _lights)
+		Safe_Release(light);
 
 	_lights.clear();
 

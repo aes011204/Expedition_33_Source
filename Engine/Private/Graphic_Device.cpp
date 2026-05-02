@@ -4,40 +4,33 @@ Graphic_Device::Graphic_Device()
 {
 }
 
-HRESULT Graphic_Device::Initialize(HWND hWnd, WinMode isWindowed, uint32 iWinSizeX, uint32 iWinSizeY, ComPtr<Device>& device, ComPtr<Context>& context)
+HRESULT Graphic_Device::Initialize(HWND hWnd, WinMode isWindowed, uint32 winSizeX, uint32 winSizeY, ComPtr<Device>& device, ComPtr<Context>& context)
 {
-	uint32 iFlag = 0;
+	uint32 flag = 0;
 
 #ifdef _DEBUG
-	iFlag = D3D11_CREATE_DEVICE_DEBUG;
+	flag = D3D11_CREATE_DEVICE_DEBUG;
 #endif
 
 	D3D_FEATURE_LEVEL FeatureLevel = {};
 
-	if (FAILED(D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, 0, iFlag, nullptr, 0, D3D11_SDK_VERSION, _device.GetAddressOf(), &FeatureLevel, _deviceContext.GetAddressOf())))
+	if (FAILED(D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, 0, flag, nullptr, 0, D3D11_SDK_VERSION, _device.GetAddressOf(), &FeatureLevel, _deviceContext.GetAddressOf())))
 		return E_FAIL;
 
-	if (FAILED(Ready_SwapChain(hWnd, isWindowed, iWinSizeX, iWinSizeY)))
+	if (FAILED(Ready_SwapChain(hWnd, isWindowed, winSizeX, winSizeY)))
 		return E_FAIL;
 
 	if (FAILED(Ready_BackBufferRenderTargetView()))
 		return E_FAIL;
 
-	if (FAILED(Ready_DepthStencilView(iWinSizeX, iWinSizeY)))
+	if (FAILED(Ready_DepthStencilView(winSizeX, winSizeY)))
 		return E_FAIL;
 
-	ID3D11RenderTargetView* pRTVs[] = { _backBufferRTV.Get() };
-	_deviceContext->OMSetRenderTargets(1, pRTVs, _depthStencilView.Get());
+    _viewportWidth = winSizeX;
+    _viewportHeight = winSizeY;
 
-	D3D11_VIEWPORT ViewPortDesc = {};
-	ViewPortDesc.TopLeftX = 0;
-	ViewPortDesc.TopLeftY = 0;
-	ViewPortDesc.Width = static_cast<float>(iWinSizeX);
-	ViewPortDesc.Height = static_cast<float>(iWinSizeY);
-	ViewPortDesc.MinDepth = 0.f;
-	ViewPortDesc.MaxDepth = 1.f;
-
-	_deviceContext->RSSetViewports(1, &ViewPortDesc);
+	// 초기화가 끝난 직후 백버퍼로 세팅
+    Bind_BackBuffer();
 
 	device = _device;
 	context = _deviceContext;
@@ -71,23 +64,69 @@ HRESULT Graphic_Device::Present()
 	return _swapChain->Present(0, 0);
 }
 
-HRESULT Graphic_Device::Ready_SwapChain(HWND hWnd, WinMode isWindowed, uint32 iWinCX, uint32 iWinCY)
+void Graphic_Device::Bind_BackBuffer()
 {
-	ComPtr<IDXGIDevice> pDXGIDevice = nullptr;
-	if (FAILED(_device.As(&pDXGIDevice)))
+    if (nullptr == _deviceContext || nullptr == _backBufferRTV)
+        return;
+
+    ID3D11RenderTargetView* rtvs[] = { _backBufferRTV.Get() };
+	_deviceContext->OMSetRenderTargets(1, rtvs, _depthStencilView.Get());
+
+	D3D11_VIEWPORT ViewPortDesc = {};
+	ViewPortDesc.TopLeftX = 0;
+	ViewPortDesc.TopLeftY = 0;
+	ViewPortDesc.Width = static_cast<float>(_viewportWidth);
+	ViewPortDesc.Height = static_cast<float>(_viewportHeight);
+	ViewPortDesc.MinDepth = 0.f;
+	ViewPortDesc.MaxDepth = 1.f;
+
+	_deviceContext->RSSetViewports(1, &ViewPortDesc);
+}
+
+HRESULT Graphic_Device::Resize(uint32 width, uint32 height)
+{
+    if (nullptr == _swapChain || 0 == width || 0 == height)
+        return E_FAIL;
+
+    _viewportWidth = width;
+    _viewportHeight = height;
+
+    _deviceContext->OMSetRenderTargets(0, nullptr, nullptr);
+
+    _backBufferRTV.Reset();
+    _depthStencilView.Reset();
+
+    if (FAILED(_swapChain->ResizeBuffers(0, width, height, DXGI_FORMAT_UNKNOWN, 0)))
+        return E_FAIL;
+
+    if (FAILED(Ready_BackBufferRenderTargetView()))
+        return E_FAIL;
+
+    if (FAILED(Ready_DepthStencilView(width, height)))
+        return E_FAIL;
+
+    Bind_BackBuffer();
+
+    return S_OK;
+}
+
+HRESULT Graphic_Device::Ready_SwapChain(HWND hWnd, WinMode isWindowed, uint32 windowWidth, uint32 windowHeight)
+{
+	ComPtr<IDXGIDevice> dxgiDevice = nullptr;
+	if (FAILED(_device.As(&dxgiDevice)))
 		return E_FAIL;
 
-	ComPtr<IDXGIAdapter> pAdapter = nullptr;
-	if (FAILED(pDXGIDevice->GetParent(__uuidof(IDXGIAdapter), reinterpret_cast<void**>(pAdapter.GetAddressOf()))))
+	ComPtr<IDXGIAdapter> adapter = nullptr;
+	if (FAILED(dxgiDevice->GetParent(__uuidof(IDXGIAdapter), reinterpret_cast<void**>(adapter.GetAddressOf()))))
 		return E_FAIL;
 
-	ComPtr<IDXGIFactory> pFactory = nullptr;
-	if (FAILED(pAdapter->GetParent(__uuidof(IDXGIFactory), reinterpret_cast<void**>(pFactory.GetAddressOf()))))
+	ComPtr<IDXGIFactory> factory = nullptr;
+	if (FAILED(adapter->GetParent(__uuidof(IDXGIFactory), reinterpret_cast<void**>(factory.GetAddressOf()))))
 		return E_FAIL;
 
 	DXGI_SWAP_CHAIN_DESC SwapChainDesc = {};
-	SwapChainDesc.BufferDesc.Width = iWinCX;
-	SwapChainDesc.BufferDesc.Height = iWinCY;
+	SwapChainDesc.BufferDesc.Width = windowWidth;
+	SwapChainDesc.BufferDesc.Height = windowHeight;
 	SwapChainDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 	SwapChainDesc.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
 	SwapChainDesc.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
@@ -99,9 +138,9 @@ HRESULT Graphic_Device::Ready_SwapChain(HWND hWnd, WinMode isWindowed, uint32 iW
 	SwapChainDesc.SampleDesc.Count = 1;
 	SwapChainDesc.OutputWindow = hWnd;
 	SwapChainDesc.Windowed = static_cast<BOOL>(isWindowed);
-	SwapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
+	SwapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD; // 필요한 경우 Flip Model로 바꾸는 현대화 작업 가능
 
-	if (FAILED(pFactory->CreateSwapChain(_device.Get(), &SwapChainDesc, _swapChain.GetAddressOf())))
+	if (FAILED(factory->CreateSwapChain(_device.Get(), &SwapChainDesc, _swapChain.GetAddressOf())))
 		return E_FAIL;
 
 	return S_OK;
@@ -112,25 +151,25 @@ HRESULT Graphic_Device::Ready_BackBufferRenderTargetView()
 	if (nullptr == _device || nullptr == _swapChain)
 		return E_FAIL;
 
-	ComPtr<ID3D11Texture2D> pBackBufferTexture = nullptr;
-	if (FAILED(_swapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void**>(pBackBufferTexture.GetAddressOf()))))
+	ComPtr<ID3D11Texture2D> backBufferTexture = nullptr;
+	if (FAILED(_swapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void**>(backBufferTexture.GetAddressOf()))))
 		return E_FAIL;
 
-	if (FAILED(_device->CreateRenderTargetView(pBackBufferTexture.Get(), nullptr, _backBufferRTV.GetAddressOf())))
+	if (FAILED(_device->CreateRenderTargetView(backBufferTexture.Get(), nullptr, _backBufferRTV.GetAddressOf())))
 		return E_FAIL;
 
 	return S_OK;
 }
 
-HRESULT Graphic_Device::Ready_DepthStencilView(uint32 iWinCX, uint32 iWinCY)
+HRESULT Graphic_Device::Ready_DepthStencilView(uint32 windowWidth, uint32 windowHeight)
 {
 	if (nullptr == _device)
 		return E_FAIL;
 
-	ComPtr<ID3D11Texture2D> pDepthStencilTexture = nullptr;
+	ComPtr<ID3D11Texture2D> depthStencilTexture = nullptr;
 	D3D11_TEXTURE2D_DESC TextureDesc = {};
-	TextureDesc.Width = iWinCX;
-	TextureDesc.Height = iWinCY;
+	TextureDesc.Width = windowWidth;
+	TextureDesc.Height = windowHeight;
 	TextureDesc.MipLevels = 1;
 	TextureDesc.ArraySize = 1;
 	TextureDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
@@ -141,39 +180,39 @@ HRESULT Graphic_Device::Ready_DepthStencilView(uint32 iWinCX, uint32 iWinCY)
 	TextureDesc.CPUAccessFlags = 0;
 	TextureDesc.MiscFlags = 0;
 
-	if (FAILED(_device->CreateTexture2D(&TextureDesc, nullptr, pDepthStencilTexture.GetAddressOf())))
+	if (FAILED(_device->CreateTexture2D(&TextureDesc, nullptr, depthStencilTexture.GetAddressOf())))
 		return E_FAIL;
 
-	if (FAILED(_device->CreateDepthStencilView(pDepthStencilTexture.Get(), nullptr, _depthStencilView.GetAddressOf())))
+	if (FAILED(_device->CreateDepthStencilView(depthStencilTexture.Get(), nullptr, _depthStencilView.GetAddressOf())))
 		return E_FAIL;
 
 	return S_OK;
 }
 
-Unique<Graphic_Device> Graphic_Device::Create(HWND hWnd, WinMode isWindowed, uint32 iWinSizeX, uint32 iWinSizeY, ComPtr<Device>& device, ComPtr<Context>& context)
+Unique<Graphic_Device> Graphic_Device::Create(HWND hWnd, WinMode isWindowed, uint32 windowSizeX, uint32 windowSizeY, ComPtr<Device>& device, ComPtr<Context>& context)
 {
-	Unique<Graphic_Device> pInstance{ new Graphic_Device() };
+	Unique<Graphic_Device> instance{ new Graphic_Device() };
 
-	if (FAILED(pInstance->Initialize(hWnd, isWindowed, iWinSizeX, iWinSizeY, device, context)))
+	if (FAILED(instance->Initialize(hWnd, isWindowed, windowSizeX, windowSizeY, device, context)))
 	{
 		MSG_BOX("Failed to Created : Graphic_Device");
-		pInstance->Free();
+		instance->Free();
 		return nullptr;
 	}
 
-	return pInstance;
+	return instance;
 }
 
 void Graphic_Device::Free()
 {
 #if defined(DEBUG) || defined(_DEBUG)
-	ComPtr<ID3D11Debug> pD3DDebug = nullptr;
-	if (nullptr != _device && SUCCEEDED(_device.As(&pD3DDebug)))
+	ComPtr<ID3D11Debug> d3dDebug = nullptr;
+	if (nullptr != _device && SUCCEEDED(_device.As(&d3dDebug)))
 	{
 		OutputDebugStringW(L"----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- \r ");
 		OutputDebugStringW(L"                                                                    D3D11 Live Object ref Count Checker \r ");
 		OutputDebugStringW(L"----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- \r ");
-		pD3DDebug->ReportLiveDeviceObjects(D3D11_RLDO_DETAIL);
+		d3dDebug->ReportLiveDeviceObjects(D3D11_RLDO_DETAIL);
 		OutputDebugStringW(L"----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- \r ");
 		OutputDebugStringW(L"                                                                    D3D11 Live Object ref Count Checker END \r ");
 		OutputDebugStringW(L"----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- \r ");

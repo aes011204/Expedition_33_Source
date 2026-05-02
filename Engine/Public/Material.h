@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "Base.h"
 
@@ -7,12 +7,12 @@ NS_BEGIN(Engine)
 class Material final : public Base
 {
 public:
-	Material(ComPtr<Device> device, ComPtr<Context> context);
+	Material(const ComPtr<Device>& device, const ComPtr<Context>& context);
 	virtual ~Material() { Free(); }
 
 public:
-	HRESULT Initialize(const aiMaterial* pAIMaterial, const char* pModelFilePath);
-	HRESULT Bind_Material(class Shader* pShader, const char* pConstantName, aiTextureType eMaterialType, uint32 iNumTextures);
+	HRESULT Initialize(const aiMaterial* aiMaterial, const char* modelFilePath);
+	HRESULT Bind_Material(class Shader* shader, const char* constantName, aiTextureType materialType, uint32 numTextures);
 
 private:
 	ComPtr<Device> _device = { nullptr };
@@ -23,7 +23,7 @@ private:
 
 
 public:
-	static Shared<Material> Create(ComPtr<Device> device, ComPtr<Context> context, const aiMaterial* pAIMaterial, const char* pModelFilePath);
+	static Shared<Material> Create(const ComPtr<Device>& device, const ComPtr<Context>& context, const aiMaterial* aiMaterial, const char* modelFilePath);
 	virtual void Free() override;
 };
 

@@ -1,23 +1,47 @@
 ﻿#include "ResourceLoader.h"
 
-#include "GameInstance.h"
-#include "Texture.h"
-#include "Shader.h"
-#include "Model.h"
-#include "VIBuffer_Rect.h"
-#include "VIBuffer_Cube.h"
-#include "VIBuffer_Terrain.h"
-
 #include "BackGround.h"
-#include "Terrain.h"
+#include "Body_Player.h"
 #include "FreeCamera.h"
+#include "GameInstance.h"
+#include "Model.h"
 #include "Monster.h"
 #include "Player.h"
-#include "Body_Player.h"
-#include "Weapon.h"
+#include "Shader.h"
 #include "Sky.h"
+#include "Terrain.h"
+#include "Texture.h"
+#include "VIBuffer_Cube.h"
+#include "VIBuffer_Rect.h"
+#include "VIBuffer_Terrain.h"
+#include "Weapon.h"
 
-ResourceLoader::ResourceLoader(ComPtr<Device> device, ComPtr<Context> context)
+namespace fs = std::filesystem;
+
+class ResourceLoaderPathHelpers final
+{
+public:
+	static wstring Normalize_PathText(const wstring& path)
+	{
+		wstring normalized = path;
+		for (wchar_t& ch : normalized)
+		{
+			if (L'/' == ch)
+				ch = L'\\';
+			else
+				ch = static_cast<wchar_t>(towlower(ch));
+		}
+
+		return normalized;
+	}
+
+	static bool StartsWith(const wstring& value, const wstring& prefix)
+	{
+		return value.size() >= prefix.size() && 0 == value.compare(0, prefix.size(), prefix);
+	}
+};
+
+ResourceLoader::ResourceLoader(const ComPtr<Device>& device, const ComPtr<Context>& context)
 	: _device{ device }
 	, _context{ context }
 {
@@ -109,21 +133,23 @@ HRESULT ResourceLoader::Load_StaticLevelTable(const wstring& strTablePath)
 HRESULT ResourceLoader::Load_LevelTables(LevelType eLevel, const wstring& strJsonRootPath)
 {
 	vector<FLoadJob> LoadJobs;
-	const wstring strRootPath = strJsonRootPath.empty() ? TEXT("../Bin/Resources/Data/json/") : strJsonRootPath;
+	const fs::path jsonRootPath = strJsonRootPath.empty()
+		? fs::path(Get_DefaultJsonRootPath())
+		: fs::path(Resolve_RuntimePath(strJsonRootPath));
 
-	if (FAILED(Build_TextureJobs(strRootPath + TEXT("DT_Texture.json"), LoadJobs)))
+	if (FAILED(Build_TextureJobs((jsonRootPath / L"DT_Texture.json").wstring(), LoadJobs)))
 		return E_FAIL;
 
-	if (FAILED(Build_ShaderJobs(strRootPath + TEXT("DT_Shader.json"), LoadJobs)))
+	if (FAILED(Build_ShaderJobs((jsonRootPath / L"DT_Shader.json").wstring(), LoadJobs)))
 		return E_FAIL;
 
-	if (FAILED(Build_StaticLevelJobs(strRootPath + TEXT("DT_StaticLevel.json"), LoadJobs)))
+	if (FAILED(Build_StaticLevelJobs((jsonRootPath / L"DT_StaticLevel.json").wstring(), LoadJobs)))
 		return E_FAIL;
 
-	if (FAILED(Build_ModelJobs(strRootPath + TEXT("DT_Model.json"), LoadJobs)))
+	if (FAILED(Build_ModelJobs((jsonRootPath / L"DT_Model.json").wstring(), LoadJobs)))
 		return E_FAIL;
 
-	if (FAILED(Build_GameObjectJobs(strRootPath + TEXT("DT_GameObject.json"), LoadJobs)))
+	if (FAILED(Build_GameObjectJobs((jsonRootPath / L"DT_GameObject.json").wstring(), LoadJobs)))
 		return E_FAIL;
 
 	const uint32 iTargetLevel = ETOI(eLevel);
@@ -167,8 +193,8 @@ HRESULT ResourceLoader::Build_TextureJobs(const wstring& strTablePath, vector<FL
 		FLoadJob LoadJob = {};
 		LoadJob.eType = ELoadJobType::TextureCreate;
 		LoadJob.iLevelIndex = Get_LevelIndex_FromString(strLevel);
-		LoadJob.strPrototypeTag = ToWString(strId);
-		LoadJob.strPath = ToWString(strPath);
+		LoadJob.strPrototypeTag = String::ToWString(strId);
+		LoadJob.strPath = Resolve_RuntimePath(String::ToWString(strPath));
 		LoadJob.iCount = iCount;
 
 		LoadJobs.push_back(LoadJob);
@@ -205,8 +231,8 @@ HRESULT ResourceLoader::Build_ShaderJobs(const wstring& strTablePath, vector<FLo
 		FLoadJob LoadJob = {};
 		LoadJob.eType = ELoadJobType::Shader;
 		LoadJob.iLevelIndex = Get_LevelIndex_FromString(strLevel);
-		LoadJob.strPrototypeTag = ToWString(strId);
-		LoadJob.strPath = ToWString(strPath);
+		LoadJob.strPrototypeTag = String::ToWString(strId);
+		LoadJob.strPath = Resolve_RuntimePath(String::ToWString(strPath));
 		LoadJob.strInputLayout = strInputLayout;
 		LoadJob.iCount = 1;
 
@@ -243,8 +269,8 @@ HRESULT ResourceLoader::Build_ModelJobs(const wstring& strTablePath, vector<FLoa
 		FLoadJob LoadJob = {};
 		LoadJob.eType = ELoadJobType::Model;
 		LoadJob.iLevelIndex = Get_LevelIndex_FromString(strLevel);
-		LoadJob.strPrototypeTag = ToWString(strId);
-		LoadJob.strPath = ToWString(strPath);
+		LoadJob.strPrototypeTag = String::ToWString(strId);
+		LoadJob.strPath = Resolve_RuntimePath(String::ToWString(strPath));
 		LoadJob.strModelType = Read_String(JsonItem, "ModelType", "modelType", "NONANIM");
 		LoadJob.fScaleX = Read_Float(JsonItem, "ScaleX", "scaleX", 1.f);
 		LoadJob.fScaleY = Read_Float(JsonItem, "ScaleY", "scaleY", 1.f);
@@ -284,7 +310,7 @@ HRESULT ResourceLoader::Build_GameObjectJobs(const wstring& strTablePath, vector
 		FLoadJob LoadJob = {};
 		LoadJob.eType = ELoadJobType::GameObject;
 		LoadJob.iLevelIndex = Get_LevelIndex_FromString(strLevel);
-		LoadJob.strPrototypeTag = ToWString(strId);
+		LoadJob.strPrototypeTag = String::ToWString(strId);
 		LoadJob.iCount = 1;
 
 		LoadJobs.push_back(LoadJob);
@@ -314,7 +340,7 @@ HRESULT ResourceLoader::Build_StaticLevelJobs(const wstring& strTablePath, vecto
 		FLoadJob LoadJob = {};
 		LoadJob.eType = ELoadJobType::StaticLevel;
 		LoadJob.iLevelIndex = Get_LevelIndex_FromString(strLevel);
-		LoadJob.strPrototypeTag = ToWString(strId);
+		LoadJob.strPrototypeTag = String::ToWString(strId);
 		LoadJob.strResourceType = strResourceType;
 		LoadJob.iCount = Read_UInt(JsonItem, "Count", "count", 1);
 
@@ -327,18 +353,18 @@ HRESULT ResourceLoader::Build_StaticLevelJobs(const wstring& strTablePath, vecto
 ResourceLoader::FInputLayoutInfo ResourceLoader::Get_InputLayout(const string& strName)
 {
 	if ("VTXNORTEX" == strName || "NorTex" == strName || "VtxNorTex" == strName)
-		return { VTXNORTEX::Elements, VTXNORTEX::iNumElements };
+		return { VTXNORTEX::Elements, VTXNORTEX::numElements };
 
 	if ("VTXMESH" == strName || "Mesh" == strName || "VtxMesh" == strName)
-		return { VTXMESH::Elements, VTXMESH::iNumElements };
+		return { VTXMESH::Elements, VTXMESH::numElements };
 
 	if ("VTXANIMMESH" == strName || "AnimMesh" == strName || "VtxAnimMesh" == strName)
-		return { VTXANIMMESH::Elements, VTXANIMMESH::iNumElements };
+		return { VTXANIMMESH::Elements, VTXANIMMESH::numElements };
 
 	if ("VTXCUBE" == strName || "Cube" == strName || "VtxCube" == strName)
-		return { VTXCUBE::Elements, VTXCUBE::iNumElements };
+		return { VTXCUBE::Elements, VTXCUBE::numElements };
 
-	return { VTXTEX::Elements, VTXTEX::iNumElements };
+	return { VTXTEX::Elements, VTXTEX::numElements };
 }
 
 HRESULT ResourceLoader::Load_Textures(const json& JsonData)
@@ -356,11 +382,12 @@ HRESULT ResourceLoader::Load_Textures(const json& JsonData)
 		if (strId.empty() || strPath.empty())
 			continue;
 
-		Shared<Texture> pTexture = Texture::Create(_device.Get(), _context.Get(), ToWString(strPath).c_str(), iCount);
+		const wstring resolvedPath = Resolve_RuntimePath(String::ToWString(strPath));
+		Shared<Texture> pTexture = Texture::Create(_device.Get(), _context.Get(), resolvedPath.c_str(), iCount);
 		if (nullptr == pTexture)
 			return E_FAIL;
 
-		if (FAILED(GAME->Add_Prototype(Get_LevelIndex_FromString(strLevel), ToWString(strId), pTexture)))
+		if (FAILED(GAME->Add_Prototype(Get_LevelIndex_FromString(strLevel), String::ToWString(strId), pTexture)))
 			return E_FAIL;
 	}
 
@@ -383,11 +410,12 @@ HRESULT ResourceLoader::Load_Shaders(const json& JsonData)
 			continue;
 
 		const FInputLayoutInfo InputLayout = Get_InputLayout(strInputLayout);
-		Shared<Shader> pShader = Shader::Create(_device.Get(), _context.Get(), ToWString(strPath).c_str(), InputLayout.pElements, InputLayout.iNumElements);
+		const wstring resolvedPath = Resolve_RuntimePath(String::ToWString(strPath));
+		Shared<Shader> pShader = Shader::Create(_device.Get(), _context.Get(), resolvedPath.c_str(), InputLayout.pElements, InputLayout.iNumElements);
 		if (nullptr == pShader)
 			return E_FAIL;
 
-		if (FAILED(GAME->Add_Prototype(Get_LevelIndex_FromString(strLevel), ToWString(strId), pShader)))
+		if (FAILED(GAME->Add_Prototype(Get_LevelIndex_FromString(strLevel), String::ToWString(strId), pShader)))
 			return E_FAIL;
 	}
 
@@ -419,9 +447,9 @@ HRESULT ResourceLoader::Register_LoadJob(const FLoadJob& LoadJob)
 
 	case ELoadJobType::Model:
 	{
-		const ModelType eModelType = ("ANIM" == LoadJob.strModelType || "Anim" == LoadJob.strModelType) ? ModelType::ANIM : ModelType::NONANIM;
+		const ModelType eModelType = ("ANIM" == LoadJob.strModelType || "Anim" == LoadJob.strModelType) ? ModelType::Anim : ModelType::NonAnim;
 		const XMMATRIX PreLocalTransformMatrix = XMMatrixScaling(LoadJob.fScaleX, LoadJob.fScaleY, LoadJob.fScaleZ) * XMMatrixRotationY(XMConvertToRadians(LoadJob.fRotY));
-		const string strPath = ToString(LoadJob.strPath);
+		const string strPath = String::ToString(LoadJob.strPath);
 
 		Shared<Model> pModel = Model::Create(_device.Get(), _context.Get(), eModelType, strPath.c_str(), PreLocalTransformMatrix);
 		if (nullptr == pModel)
@@ -434,7 +462,11 @@ HRESULT ResourceLoader::Register_LoadJob(const FLoadJob& LoadJob)
 	{
 		Shared<Engine::GameObject> pGameObject = Create_GameObjectPrototype(LoadJob.strPrototypeTag);
 		if (nullptr == pGameObject)
-			return E_FAIL;
+		{
+			const wstring strMessage = L"[ResourceLoader] Skipped unknown GameObject prototype: " + LoadJob.strPrototypeTag + L"\n";
+			OutputDebugStringW(strMessage.c_str());
+			return S_OK;
+		}
 
 		return GAME->Add_Prototype(LoadJob.iLevelIndex, LoadJob.strPrototypeTag, pGameObject);
 	}
@@ -488,7 +520,10 @@ Shared<Base> ResourceLoader::Create_StaticPrototype(const FLoadJob& LoadJob)
 		return nullptr;
 
 	if (TEXT("VIBuffer_Terrain") == LoadJob.strPrototypeTag)
-		return VIBuffer_Terrain::Create(_device.Get(), _context.Get(), TEXT("../Bin/Resources/Textures/Terrain/Height.bmp"));
+	{
+		const wstring heightMapPath = Resolve_RuntimePath(L"../Bin/Resources/Textures/Terrain/Height.bmp");
+		return VIBuffer_Terrain::Create(_device.Get(), _context.Get(), heightMapPath.c_str());
+	}
 
 	if (TEXT("VIBuffer_Cube") == LoadJob.strPrototypeTag)
 		return VIBuffer_Cube::Create(_device.Get(), _context.Get());
@@ -549,37 +584,9 @@ float ResourceLoader::Read_Float(const json& JsonItem, const string& strUpperKey
 	return fDefault;
 }
 
-wstring ResourceLoader::ToWString(const string& strValue)
-{
-	if (strValue.empty())
-		return {};
-
-	const int iSize = MultiByteToWideChar(CP_UTF8, 0, strValue.c_str(), -1, nullptr, 0);
-	if (iSize <= 0)
-		return {};
-
-	wstring strResult(static_cast<size_t>(iSize - 1), L'\0');
-	MultiByteToWideChar(CP_UTF8, 0, strValue.c_str(), -1, strResult.data(), iSize);
-	return strResult;
-}
-
-string ResourceLoader::ToString(const wstring& strValue)
-{
-	if (strValue.empty())
-		return {};
-
-	const int iSize = WideCharToMultiByte(CP_UTF8, 0, strValue.c_str(), -1, nullptr, 0, nullptr, nullptr);
-	if (iSize <= 0)
-		return {};
-
-	string strResult(static_cast<size_t>(iSize - 1), '\0');
-	WideCharToMultiByte(CP_UTF8, 0, strValue.c_str(), -1, strResult.data(), iSize, nullptr, nullptr);
-	return strResult;
-}
-
 wstring ResourceLoader::Make_PrototypeTag(const string& strId, const wstring& strPrefix)
 {
-	const wstring strTag = ToWString(strId);
+	const wstring strTag = String::ToWString(strId);
 	if (0 == strTag.find(L"Prototype_"))
 		return strTag;
 
@@ -588,19 +595,71 @@ wstring ResourceLoader::Make_PrototypeTag(const string& strId, const wstring& st
 
 uint32 ResourceLoader::Get_LevelIndex_FromString(const string& strLevel)
 {
-	if ("Logo" == strLevel || "Logo" == strLevel)
+	if ("Logo" == strLevel) // || "Logo" == strLevel)
 		return ETOI(LevelType::Logo);
 
 	if ("GamePlay" == strLevel || "Gameplay" == strLevel || "GamePlay" == strLevel)
 		return ETOI(LevelType::GamePlay);
 
-	if ("Loading" == strLevel || "Loading" == strLevel)
+	if ("Loading" == strLevel) // || "Loading" == strLevel)
 		return ETOI(LevelType::Loading);
 
 	return ETOI(LevelType::Static);
 }
 
-Shared<ResourceLoader> ResourceLoader::Create(ComPtr<Device> device, ComPtr<Context> context)
+wstring ResourceLoader::Get_DefaultJsonRootPath()
+{
+	const wstring assetRoot = GAME->Get_AssetRoot();
+	if (assetRoot.empty())
+		return {};
+
+	return (fs::path(assetRoot) / L"Data" / L"json").wstring();
+}
+
+wstring ResourceLoader::Resolve_RuntimePath(const wstring& path)
+{
+	if (path.empty())
+		return {};
+
+	const fs::path inputPath(path);
+	if (inputPath.is_absolute())
+		return inputPath.lexically_normal().wstring();
+
+	const wstring assetRoot = GAME->Get_AssetRoot();
+	if (assetRoot.empty())
+		return fs::absolute(inputPath).lexically_normal().wstring();
+
+	const fs::path assetRootPath(assetRoot);
+	const fs::path clientBinPath = assetRootPath.parent_path();
+	const wstring normalized = ResourceLoaderPathHelpers::Normalize_PathText(path);
+
+	const wstring resourcesPrefix = L"..\\bin\\resources\\";
+	const wstring shaderPrefix = L"..\\bin\\shaderfiles\\";
+	const wstring resourcesExact = L"..\\bin\\resources";
+	const wstring shaderExact = L"..\\bin\\shaderfiles";
+
+	if (normalized == resourcesExact)
+		return assetRootPath.lexically_normal().wstring();
+
+	if (ResourceLoaderPathHelpers::StartsWith(normalized, resourcesPrefix))
+	{
+		const wstring suffix = path.substr(resourcesPrefix.size());
+		return (assetRootPath / fs::path(suffix)).lexically_normal().wstring();
+	}
+
+	if (normalized == shaderExact)
+		return (clientBinPath / L"ShaderFiles").lexically_normal().wstring();
+
+	if (ResourceLoaderPathHelpers::StartsWith(normalized, shaderPrefix))
+	{
+		const wstring suffix = path.substr(shaderPrefix.size());
+		return (clientBinPath / L"ShaderFiles" / fs::path(suffix)).lexically_normal().wstring();
+	}
+
+	return fs::absolute(inputPath).lexically_normal().wstring();
+}
+
+Shared<ResourceLoader> ResourceLoader::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
 	auto pInstance = make_shared<ResourceLoader>(device, context);
 	if (FAILED(pInstance->Initialize()))

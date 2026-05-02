@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "Transform.h"
 #include "GameInstance.h"
@@ -11,20 +11,20 @@ class ENGINE_DLL GameObject abstract : public Base
 public:
     typedef struct tagGameObjectDesc : public Transform::TRANSFORM_DESC
     {
-        uint32		iFlag = {};
+        uint32		flag = {};
     }GAMEOBJECT_DESC;
 
 public:
-    GameObject(ComPtr<Device> device, ComPtr<Context> context);
-    GameObject(const GameObject& Prototype);
+    GameObject(const ComPtr<Device>& device, const ComPtr<Context>& context);
+    GameObject(const GameObject& prototype);
     virtual ~GameObject() = default;
 
 public:
     virtual HRESULT Initialize_Prototype();
-    virtual HRESULT Initialize(void* pArg);
-    virtual void    Priority_Update(float fTimeDelta);
-    virtual void    Update(float fTimeDelta);
-    virtual void    Late_Update(float fTimeDelta);
+    virtual HRESULT Initialize(void* arg);
+    virtual void    Priority_Update(float timeDelta);
+    virtual void    Update(float timeDelta);
+    virtual void    Late_Update(float timeDelta);
     virtual HRESULT Render();
 
 public:
@@ -64,20 +64,20 @@ public:
 public:
     template<typename T>
     HRESULT Add_Component(
-        uint32 prototpyeLevelIndex, const wstring& strPrototypeTag, Shared<T>& outCom, void* arg = nullptr)
+        uint32 prototpyeLevelIndex, const wstring& prototypeTag, Shared<T>& outCom, void* arg = nullptr)
     {
         static_assert(std::is_base_of_v<Component, T>,
             "Add_Component<T>() requires T to derive from Component.");
 
-        if (_components.end() != _components.find(strPrototypeTag))
+        if (_components.end() != _components.find(prototypeTag))
             return E_FAIL;
 
         Shared<Component> component =
             dynamic_pointer_cast<Component>(
                 GAME->Clone_Prototype(
-                    Prototype::COMPONENT,
+                    Prototype::Comopnent,
                     prototpyeLevelIndex,
-                    strPrototypeTag,
+                    prototypeTag,
                     arg));
 
         if (nullptr == component)
@@ -87,7 +87,7 @@ public:
         if (nullptr == outCom)
             return E_FAIL;
 
-        _components.emplace(strPrototypeTag, component);
+        _components.emplace(prototypeTag, component);
 
         return S_OK;
     }
@@ -101,7 +101,7 @@ protected:
     map<const wstring, Shared<Component>>		_components;
 
 public:
-    virtual Shared<GameObject> Clone(void* pArg) = 0;
+    virtual Shared<GameObject> Clone(void* arg) = 0;
     virtual void Free() override;
 };
 

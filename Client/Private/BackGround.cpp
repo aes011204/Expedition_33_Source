@@ -1,13 +1,13 @@
-#include "BackGround.h"
+﻿#include "BackGround.h"
 #include "GameInstance.h"
 
-BackGround::BackGround(ComPtr<Device> device, ComPtr<Context> context)
+BackGround::BackGround(const ComPtr<Device>& device, const ComPtr<Context>& context)
 	: UIObject { device, context }
 {
 }
 
-BackGround::BackGround(const BackGround& Prototype)
-	: UIObject { Prototype }
+BackGround::BackGround(const BackGround& prototype)
+	: UIObject { prototype }
 
 {
 }
@@ -21,12 +21,12 @@ HRESULT BackGround::Initialize(void* arg)
 {
 	BACKGROUND_DESC			Desc{};
 
-	Desc.fDegreePerSec = 90.f;
-	Desc.fSpeedPerSec = 1.f;
-	Desc.fX = 100.f;
-	Desc.fY = 100.f;
-	Desc.fSizeX = 200.f;
-	Desc.fSizeY = 200.f;
+	Desc.degreePerSec = 90.f;
+	Desc.speedPerSec = 1.f;
+	Desc.x = 100.f;
+	Desc.y = 100.f;
+	Desc.sizeX = 200.f;
+	Desc.sizeY = 200.f;
 	
 	if (FAILED(__super::Initialize(&Desc)))
 		return E_FAIL;
@@ -52,7 +52,7 @@ void BackGround::Update(float timeDelta)
 
 void BackGround::Late_Update(float timeDelta)
 {
- 	GAME->Add_RenderGroup(RenderGroup::UI, this);
+ 	GAME->Add_RenderGroup(RenderGroup::UI, GetSharedPtr<GameObject>());
 }
 
 HRESULT BackGround::Render()
@@ -60,10 +60,10 @@ HRESULT BackGround::Render()
 	if (FAILED(_transformCom->Bind_ShaderResource(_shader.get(), "g_WorldMatrix")))
 		return E_FAIL;
 
-	if (FAILED(__super::Bind_ShaderResource(_shader.get(), "g_ViewMatrix", D3DTS::VIEW)))
+	if (FAILED(__super::Bind_ShaderResource(_shader.get(), "g_ViewMatrix", D3DTS::View)))
 		return E_FAIL;
 
-	if (FAILED(__super::Bind_ShaderResource(_shader.get(), "g_ProjMatrix", D3DTS::PROJ)))
+	if (FAILED(__super::Bind_ShaderResource(_shader.get(), "g_ProjMatrix", D3DTS::Proj)))
 		return E_FAIL;
 
 	if (FAILED(_texture->Bind_ShaderResourceView(_shader.get(), "g_Texture", 0)))
@@ -102,7 +102,7 @@ HRESULT BackGround::Ready_Components()
 	return S_OK;
 }
 
-Shared<BackGround> BackGround::Create(ComPtr<Device> device, ComPtr<Context> context)
+Shared<BackGround> BackGround::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
 	auto pInstance = make_shared<BackGround>(device, context);
 

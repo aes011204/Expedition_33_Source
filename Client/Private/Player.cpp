@@ -4,13 +4,13 @@
 #include "Body_Player.h"
 #include "GameInstance.h"
 
-Player::Player(ComPtr<Device> device, ComPtr<Context> context)
+Player::Player(const ComPtr<Device>& device, const ComPtr<Context>& context)
 	: ContainerObject { device, context }
 {
 }
 
-Player::Player(const Player& Prototype)
-	: ContainerObject{ Prototype }
+Player::Player(const Player& prototype)
+	: ContainerObject{ prototype }
 {
 }
 
@@ -22,8 +22,8 @@ HRESULT Player::Initialize_Prototype()
 HRESULT Player::Initialize(void* pArg)
 {	
 	ContainerObject::CONTAINEROBJECT_DESC		Desc{};
-	Desc.fSpeedPerSec = 10.f;
-	Desc.fDegreePerSec = 180.f;
+	Desc.speedPerSec = 10.f;
+	Desc.degreePerSec = 180.f;
 
 	if (FAILED(__super::Initialize(&Desc)))
 		return E_FAIL;
@@ -52,13 +52,13 @@ void Player::Update(float fTimeDelta)
 
 	if (GAME->KeyPress(KEY_TYPE::LEFT))
 	{
-		_transformCom->Turn(XMVectorSet(0.f, 1.f, 0.f, 0.f), fTimeDelta * -1.f);
+		_transformCom->Turn(Vec3::Up, fTimeDelta * -1.f);
 	}
 
 	if (GAME->KeyPress(KEY_TYPE::RIGHT))
 	{
 
-		_transformCom->Turn(XMVectorSet(0.f, 1.f, 0.f, 0.f), fTimeDelta);
+		_transformCom->Turn(Vec3::Up, fTimeDelta);
 	}
 
 	if (GAME->KeyPress(KEY_TYPE::UP))
@@ -106,7 +106,7 @@ HRESULT Player::Ready_PartObjects()
 {
 	Body_Player::BODY_PLAYER_DESC		BodyDesc{};
 	BodyDesc.pParentState = &_states;
-	BodyDesc.pParentMatrix = _transformCom->Get_WorldMatrixPtr();
+	BodyDesc.parentMatrix = &_transformCom->Get_WorldMatrix();
 
 	if (FAILED(__super::Add_PartObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Body_Player"),
 		TEXT("Part_Body"), &BodyDesc)))
@@ -118,7 +118,7 @@ HRESULT Player::Ready_PartObjects()
 
 	Weapon::WEAPON_DESC				WeaponDesc{};
 	WeaponDesc.pParentState = &_states;
-	WeaponDesc.pParentMatrix = _transformCom->Get_WorldMatrixPtr();
+	WeaponDesc.parentMatrix = &_transformCom->Get_WorldMatrix();
 	WeaponDesc.pSocketMatrix = pBody->Get_SocketBoneMatrixPtr("SWORD");
 
 	if (FAILED(__super::Add_PartObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Weapon"),
@@ -129,7 +129,7 @@ HRESULT Player::Ready_PartObjects()
 }
 
 
-Shared<Player> Player::Create(ComPtr<Device> device, ComPtr<Context> context)
+Shared<Player> Player::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
 	auto pInstance = make_shared<Player>(device, context);
 

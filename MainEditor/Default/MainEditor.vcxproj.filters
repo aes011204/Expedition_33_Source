@@ -13,7 +13,7 @@
     <ClCompile Include="..\Private\EditorInstance.cpp">
       <Filter>00. Main</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\EditorWindow.cpp">
+    <ClCompile Include="..\Private\Editor_Window.cpp">
       <Filter>01. View</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\Hierarchy_View.cpp">
@@ -28,19 +28,30 @@
     <ClCompile Include="MainEditor.cpp">
       <Filter>00. Main</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\MainEditorApp.cpp">
+      <Filter>00. Main</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\Scene_View.cpp">
       <Filter>01. View</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\ImGui_Manager.cpp">
+      <Filter>01. Manager</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\SimpleMath.cpp">
+      <Filter>99. Defines</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
       <Filter>98. Default</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\Editor_ImGuiInclude.h" />
     <ClInclude Include="..\Public\Content_Browser.h">
       <Filter>01. View</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Editor_Defines.h">
+      <Filter>99. Defines</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\IconsFontAwesome6.h">
       <Filter>99. Defines</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Editor_Manager.h">
@@ -49,7 +60,10 @@
     <ClInclude Include="..\Public\EditorInstance.h">
       <Filter>00. Main</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\EditorWindow.h">
+    <ClInclude Include="..\Public\MainEditorApp.h">
+      <Filter>00. Main</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Editor_Window.h">
       <Filter>01. View</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Hierarchy_View.h">
@@ -63,6 +77,21 @@
     </ClInclude>
     <ClInclude Include="..\Public\Scene_View.h">
       <Filter>01. View</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Editor_ImGuiInclude.h">
+      <Filter>99. Defines</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\ImGui_Manager.h">
+      <Filter>01. Manager</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Editor_Enum.h">
+      <Filter>99. Defines</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Editor_Struct.h">
+      <Filter>99. Defines</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Editor_Macro.h">
+      <Filter>99. Defines</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

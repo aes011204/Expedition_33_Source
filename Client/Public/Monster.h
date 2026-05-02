@@ -13,8 +13,8 @@ NS_BEGIN(Client)
 class Monster final : public GameObject
 {
 public:
-	Monster(ComPtr<Device> device, ComPtr<Context> context);
-	Monster(const Monster& Prototype);
+	Monster(const ComPtr<Device>& device, const ComPtr<Context>& context);
+	Monster(const Monster& prototype);
 	virtual ~Monster() { Free(); }
 
 public:
@@ -36,7 +36,7 @@ protected:
 
 
 public:
-	static Shared<Monster> Create(ComPtr<Device> device, ComPtr<Context> context);
+	static Shared<Monster> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
 	virtual Shared<GameObject> Clone(void* pArg) override;
 	virtual void Free() override;
 };

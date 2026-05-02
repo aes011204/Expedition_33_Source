@@ -1,10 +1,10 @@
 ﻿#pragma once
 
-#include "EditorWindow.h"
+#include "Editor_Window.h"
 
 NS_BEGIN(MainEditor)
 
-class Content_Browser final : public EditorWindow
+class Content_Browser final : public Editor_Window
 {
 public:
     /* 클라이언트 리소스 폴더를 루트로 사용하는 컨텐츠 브라우저를 생성한다. */
