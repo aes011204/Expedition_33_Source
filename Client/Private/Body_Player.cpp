@@ -47,12 +47,6 @@ void Body_Player::Priority_Update(float fTimeDelta)
 
 void Body_Player::Update(float fTimeDelta)
 {
-	if(*_parentState & Player::PLAYERSTATE::IDLE)
-		_model->Set_Animation(3, true);
-
-	if (*_parentState & Player::PLAYERSTATE::WALK)
-		_model->Set_Animation(4, true);
-
 	if (true == _model->Play_Animation(fTimeDelta))
 		int a = 10;
 

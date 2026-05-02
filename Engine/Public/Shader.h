@@ -9,7 +9,7 @@ class ENGINE_DLL Shader final : public Component
 public:
 	Shader(const ComPtr<Device>& device, const ComPtr<Context>& context);
 	Shader(const Shader& prototype);
-	virtual ~Shader() { Free(); }
+	virtual ~Shader() = default;
 
 public:
 	virtual HRESULT Initialize_Prototype(const wchar_t* shaderFilePath, const D3D11_INPUT_ELEMENT_DESC* elements, uint32 numElements);

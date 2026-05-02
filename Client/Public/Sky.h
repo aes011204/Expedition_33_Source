@@ -13,6 +13,8 @@ NS_BEGIN(Client)
 
 class Sky final : public GameObject
 {
+    GENERATED_GAMEOBJECT(Sky, ObjectType::Sky)
+
 public:
 	typedef struct tagTerrainDesc final : public GameObject::GAMEOBJECT_DESC
 	{
@@ -21,7 +23,7 @@ public:
 public:
 	Sky(const ComPtr<Device>& device, const ComPtr<Context>& context);
 	Sky(const Sky& prototype);
-	virtual ~Sky() { Free(); }
+	virtual ~Sky() = default;
 
 public:
 	virtual HRESULT Initialize_Prototype() override;

@@ -187,10 +187,7 @@ Log_Manager::Log_Manager()
 {
 }
 
-Log_Manager::~Log_Manager()
-{
-    Free();
-}
+Log_Manager::~Log_Manager() = default;
 
 HRESULT Log_Manager::Initialize(const string& projectName)
 {

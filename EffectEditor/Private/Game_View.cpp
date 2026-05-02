@@ -1,0 +1,59 @@
+﻿#include "Game_View.h"
+
+#include "EffectEditorInstance.h"
+#include "GameInstance.h"
+#include "RenderTarget.h"
+
+Game_View::Game_View()
+    : Editor_Window{ L"Game" }
+{
+}
+
+void Game_View::Render()
+{
+    if (!Is_Open())
+        return;
+
+    bool isOpen = Is_Open();
+    const string windowName = String::ToString(Get_WindowName());
+    
+    if (ImGui::Begin(windowName.c_str(), &isOpen, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse))
+    {
+        ImVec2 viewportSize = ImGui::GetContentRegionAvail();
+
+        if (viewportSize.x < 1.f)
+            viewportSize.x = 1.f;
+
+        if (viewportSize.y < 1.f)
+            viewportSize.y = 1.f;
+
+        const uint32 width = static_cast<uint32>(viewportSize.x);
+        const uint32 height = static_cast<uint32>(viewportSize.y);
+
+        EffectEditorInstance::GetInstance()->Request_ViewportSize(
+            EditorViewportTarget::Game,
+            width,
+            height);
+
+        ID3D11ShaderResourceView* pSRV = EffectEditorInstance::GetInstance()->Get_SharedViewportSRV();
+        if (nullptr != pSRV)
+        {
+            const ImTextureID textureId = static_cast<ImTextureID>(reinterpret_cast<intptr_t>(pSRV));
+            ImGui::Image(textureId, viewportSize);
+        }
+        else
+        {
+            ImGui::TextUnformatted("Game RenderTarget Missing");
+        }
+    }
+    Set_Open(isOpen);
+    ImGui::End();
+}
+
+Shared<Game_View> Game_View::Create()
+{
+    return make_shared<Game_View>();
+}
+
+
+

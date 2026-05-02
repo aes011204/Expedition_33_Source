@@ -1,34 +1,33 @@
 ﻿#pragma once
 
 #include "Client_Defines.h"
-#include "ContainerObject.h"
+#include "Character.h"
 
 NS_BEGIN(Engine)
 class Shader;
 class Model;
+class MovementCom;
 NS_END
 
 NS_BEGIN(Client)
 
-class Player final : public ContainerObject
+class InputCom;
+
+class Player final : public Character
 {
-public:
-	enum PLAYERSTATE { 
-		IDLE	= 0x00000001, 
-		WALK	= 0x00000002, 
-		ATTACK	= 0x00000004, 		
-	};
+    GENERATED_GAMEOBJECT(Player, ObjectType::Player)
+
 public:
 	Player(const ComPtr<Device>& device, const ComPtr<Context>& context);
 	Player(const Player& prototype);
-	virtual ~Player() { Free(); }
+	virtual ~Player() = default;
 
 public:
 	virtual HRESULT Initialize_Prototype() override;
-	virtual HRESULT Initialize(void* pArg) override;
-	virtual void Priority_Update(float fTimeDelta) override;
-	virtual void Update(float fTimeDelta) override;
-	virtual void Late_Update(float fTimeDelta) override;
+	virtual HRESULT Initialize(void* arg) override;
+	virtual void Priority_Update(float timeDelta) override;
+	virtual void Update(float timeDelta) override;
+	virtual void Late_Update(float timeDelta) override;
 	virtual HRESULT Render() override;	
 
 protected:
@@ -36,7 +35,8 @@ protected:
 	HRESULT Ready_PartObjects();
 
 private:
-	uint32			_states = {};
+    Shared<MovementCom> _movementCom;
+    Shared<InputCom>    _inputCom;
 
 public:
 	static Shared<Player> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

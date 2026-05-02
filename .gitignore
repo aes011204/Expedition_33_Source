@@ -115,6 +115,8 @@ StyleCopReport.xml
 *.svclog
 *.scc
 CONERR
+CONERR$
+imgui.ini
 
 # Chutzpah Test files
 _Chutzpah*
