@@ -182,7 +182,9 @@
     <ClInclude Include="..\Public\Client_Enum.h" />
     <ClInclude Include="..\Public\Client_Macro.h" />
     <ClInclude Include="..\Public\Client_Struct.h" />
-    <ClInclude Include="..\public\TargetCamera.h" />
+    <ClInclude Include="..\Public\CombatStatCom.h" />
+    <ClInclude Include="..\Public\InputCom.h" />
+    <ClInclude Include="..\Public\PlayerControllerCom.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="..\public\BackGround.h" />
     <ClInclude Include="..\public\Body_Player.h" />
@@ -205,8 +207,10 @@
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\Private\CombatStatCom.cpp" />
+    <ClCompile Include="..\Private\InputCom.cpp" />
+    <ClCompile Include="..\Private\PlayerControllerCom.cpp" />
     <ClCompile Include="..\Private\SimpleMath.cpp" />
-    <ClCompile Include="..\private\TargetCamera.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>

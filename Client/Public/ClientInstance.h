@@ -30,6 +30,10 @@ public:
 	/* Client가 소유한 로더를 외부에서 사용할 때 호출한다. */
 	Shared<ResourceLoader> Get_ResourceLoader() const;
 
+public: /* 플레이어 찾기 */
+
+
+
 private:
 	HRESULT Ready_ResourceLoader();
 

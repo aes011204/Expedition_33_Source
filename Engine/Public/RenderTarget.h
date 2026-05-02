@@ -10,7 +10,7 @@ class ENGINE_DLL RenderTarget final : public Base
 {
 public:
     RenderTarget(const ComPtr<Device>& device, const ComPtr<Context>& context);
-    ~RenderTarget() override { Free(); }
+	~RenderTarget() override = default;
 
 public:
     HRESULT Initialize(uint32 width, uint32 height, DXGI_FORMAT pixelFormat, const Vec4& clearColor, bool useDepthStencil = true);

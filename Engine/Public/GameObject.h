@@ -1,6 +1,6 @@
-#pragma once
+﻿#pragma once
 
-#include "Transform.h"
+#include "TransformCom.h"
 #include "GameInstance.h"
 #include <type_traits>
 
@@ -9,7 +9,7 @@ NS_BEGIN(Engine)
 class ENGINE_DLL GameObject abstract : public Base
 {
 public:
-    typedef struct tagGameObjectDesc : public Transform::TRANSFORM_DESC
+    typedef struct tagGameObjectDesc : public TransformCom::TRANSFORM_DESC
     {
         uint32		flag = {};
     }GAMEOBJECT_DESC;
@@ -59,7 +59,7 @@ public:
     }
 
     // 트랜스폼은 자주 사용하니까
-    Shared<Transform> Get_Transform() const { return _transformCom; }
+    Shared<TransformCom> Get_Transform() const { return _transformCom; }
 
 public:
     template<typename T>
@@ -93,12 +93,14 @@ public:
     }
 
 protected:
-    ComPtr<Device>      _device = { nullptr };
-    ComPtr<Context>     _context = { nullptr };
-    Shared<Transform>  _transformCom = { nullptr };
+    ComPtr<Device>          _device = { nullptr };
+    ComPtr<Context>         _context = { nullptr };
+    Shared<TransformCom>    _transformCom = { nullptr };
+
+    ObjectType              _objectType = ObjectType::None;
 
 protected:
-    map<const wstring, Shared<Component>>		_components;
+    map<const wstring, Shared<Component>> _components;
 
 public:
     virtual Shared<GameObject> Clone(void* arg) = 0;

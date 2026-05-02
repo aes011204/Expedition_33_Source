@@ -4,17 +4,14 @@
 #include "FreeCamera.h"
 #include "TargetCamera.h"
 #include "GameInstance.h"
+#include "GameObject.h"
+#include "Component.h"
 #include "Model.h"
-#include "Monster.h"
-#include "Player.h"
 #include "Shader.h"
-#include "Sky.h"
-#include "Terrain.h"
 #include "Texture.h"
 #include "VIBuffer_Cube.h"
 #include "VIBuffer_Rect.h"
 #include "VIBuffer_Terrain.h"
-#include "Weapon.h"
 
 namespace fs = std::filesystem;
 
@@ -142,6 +139,9 @@ HRESULT ResourceLoader::Load_LevelTables(LevelType eLevel, const wstring& strJso
 
 	if (FAILED(Build_ShaderJobs((jsonRootPath / L"DT_Shader.json").wstring(), LoadJobs)))
 		return E_FAIL;
+
+    if (FAILED(Build_ComponentJobs((jsonRootPath / L"DT_Component.json").wstring(), LoadJobs)))
+        return E_FAIL;
 
 	if (FAILED(Build_StaticLevelJobs((jsonRootPath / L"DT_StaticLevel.json").wstring(), LoadJobs)))
 		return E_FAIL;
@@ -301,23 +301,64 @@ HRESULT ResourceLoader::Build_GameObjectJobs(const wstring& strTablePath, vector
 
 	for (const json& JsonItem : *pGameObjectArray)
 	{
-		const string strId = Read_String(JsonItem, "Id", "id");
-		const string strLevel = Read_String(JsonItem, "Level", "level", "Static");
+        const string strId = Read_String(JsonItem, "Id", "id");
+        const string strLevel = Read_String(JsonItem, "Level", "level", "Static");
+        const string strClass = Read_String(JsonItem, "Class", "class");
 
-		if (strId.empty())
-			continue;
+        if (strId.empty() || strClass.empty())
+            continue;
 
 		FLoadJob LoadJob = {};
-		LoadJob.eType = ELoadJobType::GameObject;
-		LoadJob.iLevelIndex = Get_LevelIndex_FromString(strLevel);
-		LoadJob.strPrototypeTag = String::ToWString(strId);
-		LoadJob.iCount = 1;
+        LoadJob.eType = ELoadJobType::GameObject;
+        LoadJob.iLevelIndex = Get_LevelIndex_FromString(strLevel);
+        LoadJob.strPrototypeTag = String::ToWString(strId);
+        LoadJob.strClassName = strClass;
+        LoadJob.iCount = 1;
 
 		LoadJobs.push_back(LoadJob);
 	}
 
 	return S_OK;
 }
+
+HRESULT ResourceLoader::Build_ComponentJobs(const wstring& strTablePath, vector<FLoadJob>& loadJobs)
+{
+    json root = {};
+    if (!Load_JsonFile(strTablePath, root))
+        return E_FAIL;
+
+    const json* componentArray = nullptr;
+    if (root.contains("DT_Component"))
+        componentArray = &root["DT_Component"];
+    else if (root.contains("Component"))
+        componentArray = &root["Component"];
+
+    if (nullptr == componentArray || !componentArray->is_array())
+        return S_OK;
+
+    for (const json& item : *componentArray)
+    {
+        const string id = Read_String(item, "Id", "id");
+        const string level = Read_String(item, "Level", "level", "Static");
+        string componentClass = Read_String(item, "Class", "class");
+        if (componentClass.empty())
+            componentClass = Read_String(item, "ComponentClass", "componentClass");
+
+        if (id.empty() || componentClass.empty())
+            continue;
+
+        FLoadJob loadJob{};
+        loadJob.eType = ELoadJobType::Component;
+        loadJob.iLevelIndex = Get_LevelIndex_FromString(level);
+        loadJob.strPrototypeTag = String::ToWString(id);
+        loadJob.strClassName = componentClass;
+
+        loadJobs.push_back(loadJob);
+    }
+
+    return S_OK;
+}
+
 
 HRESULT ResourceLoader::Build_StaticLevelJobs(const wstring& strTablePath, vector<FLoadJob>& LoadJobs)
 {
@@ -383,7 +424,7 @@ HRESULT ResourceLoader::Load_Textures(const json& JsonData)
 			continue;
 
 		const wstring resolvedPath = Resolve_RuntimePath(String::ToWString(strPath));
-		Shared<Texture> pTexture = Texture::Create(_device.Get(), _context.Get(), resolvedPath.c_str(), iCount);
+		Shared<Texture> pTexture = Texture::Create(_device, _context, resolvedPath.c_str(), iCount);
 		if (nullptr == pTexture)
 			return E_FAIL;
 
@@ -411,7 +452,7 @@ HRESULT ResourceLoader::Load_Shaders(const json& JsonData)
 
 		const FInputLayoutInfo InputLayout = Get_InputLayout(strInputLayout);
 		const wstring resolvedPath = Resolve_RuntimePath(String::ToWString(strPath));
-		Shared<Shader> pShader = Shader::Create(_device.Get(), _context.Get(), resolvedPath.c_str(), InputLayout.pElements, InputLayout.iNumElements);
+		Shared<Shader> pShader = Shader::Create(_device, _context, resolvedPath.c_str(), InputLayout.pElements, InputLayout.iNumElements);
 		if (nullptr == pShader)
 			return E_FAIL;
 
@@ -428,7 +469,7 @@ HRESULT ResourceLoader::Register_LoadJob(const FLoadJob& LoadJob)
 	{
 	case ELoadJobType::TextureCreate:
 	{
-		Shared<Texture> pTexture = Texture::Create(_device.Get(), _context.Get(), LoadJob.strPath.c_str(), LoadJob.iCount);
+		Shared<Texture> pTexture = Texture::Create(_device, _context, LoadJob.strPath.c_str(), LoadJob.iCount);
 		if (nullptr == pTexture)
 			return E_FAIL;
 
@@ -438,7 +479,7 @@ HRESULT ResourceLoader::Register_LoadJob(const FLoadJob& LoadJob)
 	case ELoadJobType::Shader:
 	{
 		const FInputLayoutInfo InputLayout = Get_InputLayout(LoadJob.strInputLayout);
-		Shared<Shader> pShader = Shader::Create(_device.Get(), _context.Get(), LoadJob.strPath.c_str(), InputLayout.pElements, InputLayout.iNumElements);
+		Shared<Shader> pShader = Shader::Create(_device, _context, LoadJob.strPath.c_str(), InputLayout.pElements, InputLayout.iNumElements);
 		if (nullptr == pShader)
 			return E_FAIL;
 
@@ -451,70 +492,49 @@ HRESULT ResourceLoader::Register_LoadJob(const FLoadJob& LoadJob)
 		const XMMATRIX PreLocalTransformMatrix = XMMatrixScaling(LoadJob.fScaleX, LoadJob.fScaleY, LoadJob.fScaleZ) * XMMatrixRotationY(XMConvertToRadians(LoadJob.fRotY));
 		const string strPath = String::ToString(LoadJob.strPath);
 
-		Shared<Model> pModel = Model::Create(_device.Get(), _context.Get(), eModelType, strPath.c_str(), PreLocalTransformMatrix);
-		if (nullptr == pModel)
+		Shared<Model> model = Model::Create(_device, _context, eModelType, strPath.c_str(), PreLocalTransformMatrix);
+		if (nullptr == model)
 			return E_FAIL;
 
-		return GAME->Add_Prototype(LoadJob.iLevelIndex, LoadJob.strPrototypeTag, pModel);
+		return GAME->Add_Prototype(LoadJob.iLevelIndex, LoadJob.strPrototypeTag, model);
 	}
 
 	case ELoadJobType::GameObject:
 	{
-		Shared<Engine::GameObject> pGameObject = Create_GameObjectPrototype(LoadJob.strPrototypeTag);
-		if (nullptr == pGameObject)
-		{
-			const wstring strMessage = L"[ResourceLoader] Skipped unknown GameObject prototype: " + LoadJob.strPrototypeTag + L"\n";
-			OutputDebugStringW(strMessage.c_str());
-			return S_OK;
-		}
+		Shared<GameObject> gameObject = GAME->Create_GameObjectPrototype(LoadJob.strClassName);
+		if (nullptr == gameObject)
+			return E_FAIL;
 
-		return GAME->Add_Prototype(LoadJob.iLevelIndex, LoadJob.strPrototypeTag, pGameObject);
+		return GAME->Add_Prototype(
+            LoadJob.iLevelIndex,
+            LoadJob.strPrototypeTag,
+            static_pointer_cast<Base>(gameObject));
 	}
+
+    case ELoadJobType::Component:
+    {
+        Shared<Component> component = GAME->Create_ComponentPrototype(LoadJob.strClassName);
+        if (nullptr == component)
+            return E_FAIL;
+
+        return GAME->Add_Prototype(
+            LoadJob.iLevelIndex,
+            LoadJob.strPrototypeTag,
+            static_pointer_cast<Base>(component));
+    }
 
 	case ELoadJobType::StaticLevel:
 	{
-		Shared<Base> pStaticPrototype = Create_StaticPrototype(LoadJob);
-		if (nullptr == pStaticPrototype)
+		Shared<Base> staticPrototype = Create_StaticPrototype(LoadJob);
+		if (nullptr == staticPrototype)
 			return S_OK;
 
-		return GAME->Add_Prototype(LoadJob.iLevelIndex, LoadJob.strPrototypeTag, pStaticPrototype);
+		return GAME->Add_Prototype(LoadJob.iLevelIndex, LoadJob.strPrototypeTag, staticPrototype);
 	}
 
 	default:
 		return S_OK;
 	}
-}
-
-Shared<Engine::GameObject> ResourceLoader::Create_GameObjectPrototype(const wstring& strPrototypeTag)
-{
-	if (TEXT("GameObject_BackGround") == strPrototypeTag)
-		return BackGround::Create(_device.Get(), _context.Get());
-
-	if (TEXT("GameObject_Terrain") == strPrototypeTag)
-		return Terrain::Create(_device.Get(), _context.Get());
-
-	if (TEXT("GameObject_FreeCamera") == strPrototypeTag)
-		return FreeCamera::Create(_device.Get(), _context.Get());
-
-    if (TEXT("GameObject_TargetCamera") == strPrototypeTag)
-        return TargetCamera::Create(_device.Get(), _context.Get());
-
-	if (TEXT("GameObject_Monster") == strPrototypeTag)
-		return Monster::Create(_device.Get(), _context.Get());
-
-	if (TEXT("GameObject_Player") == strPrototypeTag)
-		return Player::Create(_device.Get(), _context.Get());
-
-	if (TEXT("GameObject_Body_Player") == strPrototypeTag)
-		return Body_Player::Create(_device.Get(), _context.Get());
-
-	if (TEXT("GameObject_Weapon") == strPrototypeTag)
-		return Weapon::Create(_device.Get(), _context.Get());
-
-	if (TEXT("GameObject_Sky") == strPrototypeTag)
-		return Sky::Create(_device.Get(), _context.Get());
-
-	return nullptr;
 }
 
 Shared<Base> ResourceLoader::Create_StaticPrototype(const FLoadJob& LoadJob)
@@ -525,14 +545,14 @@ Shared<Base> ResourceLoader::Create_StaticPrototype(const FLoadJob& LoadJob)
 	if (TEXT("VIBuffer_Terrain") == LoadJob.strPrototypeTag)
 	{
 		const wstring heightMapPath = Resolve_RuntimePath(L"../Bin/Resources/Textures/Terrain/Height.bmp");
-		return VIBuffer_Terrain::Create(_device.Get(), _context.Get(), heightMapPath.c_str());
+		return VIBuffer_Terrain::Create(_device, _context, heightMapPath.c_str());
 	}
 
 	if (TEXT("VIBuffer_Cube") == LoadJob.strPrototypeTag)
-		return VIBuffer_Cube::Create(_device.Get(), _context.Get());
+		return VIBuffer_Cube::Create(_device, _context);
 
 	if (TEXT("VIBuffer_Rect") == LoadJob.strPrototypeTag)
-		return VIBuffer_Rect::Create(_device.Get(), _context.Get());
+		return VIBuffer_Rect::Create(_device, _context);
 
 	return nullptr;
 }
@@ -636,10 +656,21 @@ wstring ResourceLoader::Resolve_RuntimePath(const wstring& path)
 	const fs::path clientBinPath = assetRootPath.parent_path();
 	const wstring normalized = ResourceLoaderPathHelpers::Normalize_PathText(path);
 
+	const wstring resourcesRootPrefix = L"..\\resources\\";
+	const wstring resourcesRootExact = L"..\\resources";
 	const wstring resourcesPrefix = L"..\\bin\\resources\\";
 	const wstring shaderPrefix = L"..\\bin\\shaderfiles\\";
 	const wstring resourcesExact = L"..\\bin\\resources";
 	const wstring shaderExact = L"..\\bin\\shaderfiles";
+
+	if (normalized == resourcesRootExact)
+		return assetRootPath.lexically_normal().wstring();
+
+	if (ResourceLoaderPathHelpers::StartsWith(normalized, resourcesRootPrefix))
+	{
+		const wstring suffix = path.substr(resourcesRootPrefix.size());
+		return (assetRootPath / fs::path(suffix)).lexically_normal().wstring();
+	}
 
 	if (normalized == resourcesExact)
 		return assetRootPath.lexically_normal().wstring();

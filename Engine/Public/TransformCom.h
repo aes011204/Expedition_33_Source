@@ -6,7 +6,7 @@ NS_BEGIN(Engine)
 
 class Shader;
 
-class ENGINE_DLL Transform final : public Component
+class ENGINE_DLL TransformCom final : public Component
 {
 public:
     using TRANSFORM_DESC = struct tagTransformDesc
@@ -35,9 +35,9 @@ private: //## Types::DirtyTracking
     };
 
 public:
-    Transform(const ComPtr<Device>& device, const ComPtr<Context>& context);
-    Transform(const Transform& prototype);
-    ~Transform() override;
+    TransformCom(const ComPtr<Device>& device, const ComPtr<Context>& context);
+    TransformCom(const TransformCom& prototype);
+    ~TransformCom() override = default;
 
 public:
     HRESULT Initialize_Prototype() override;
@@ -84,7 +84,7 @@ public: //## Accessors
     void Set_DegreePerSec(float degreePerSec);
 
 public: //## Hierarchy
-    void Set_Parent(const Shared<Transform>& parent);
+    void Set_Parent(const Shared<TransformCom>& parent);
 
 public: //## Compatibility
     void Add_LocalRotation(const Quat& deltaRotation);
@@ -119,7 +119,7 @@ private: //## Data
     Matrix _localMatrix{ Matrix::Identity };
     Vec3 _localSignedScale{ Vec3::One };
 
-    Weak<Transform> _parent;
+    Weak<TransformCom> _parent;
     bool _hasParent{ false };
 
     Quat _localRotationCache{ Quat::Identity };
@@ -160,7 +160,7 @@ private: //## Internal::LocalState
     static Vec3 Extract_EulerDegreeFromRotationMatrix(const Matrix& rotationMatrix);
 
 public:
-    static Shared<Transform> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
+    static Shared<TransformCom> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
     Shared<Component> Clone(void* arg) override;
     void Free() override;
 };

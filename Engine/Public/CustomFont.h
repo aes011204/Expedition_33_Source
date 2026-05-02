@@ -8,7 +8,7 @@ class CustomFont final : public Base
 {
 public:
     CustomFont(const ComPtr<Device>& device, const ComPtr<Context>& context);
-    ~CustomFont() override;
+    ~CustomFont() override = default;
 
 public:
     HRESULT Initialize(const wchar_t* fontFilePath);

@@ -6,6 +6,11 @@
 #include "Content_Browser.h"
 #include "Inspector.h"
 
+Editor_Manager::Editor_Manager()
+{
+
+}
+
 HRESULT Editor_Manager::Initialize()
 {
 	Add_Window(Scene_View::Create());

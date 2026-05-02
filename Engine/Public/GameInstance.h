@@ -3,6 +3,7 @@
 #include "Base.h"
 #include "Input_Manager.h"
 #include "Prototype_Manager.h"
+#include "TypeRegistry.h"
 
 NS_BEGIN(Engine)
 
@@ -19,6 +20,7 @@ class Asset_Manager;
 class Log_Manager;
 class Camera_Manager;
 struct ConsoleLogEntry;
+class Component;
 class GameObject;
 class Level;
 class Camera;
@@ -42,35 +44,35 @@ public:
     float   Random(float min, float max);
 
 public: /* For.Log_Manager */
-    void Visit_ConsoleLogs(const function<void(const ConsoleLogEntry& logEntry)>& visitor) const;
-    void Clear_ConsoleLogs();
+    void    Visit_ConsoleLogs(const function<void(const ConsoleLogEntry& logEntry)>& visitor) const;
+    void    Clear_ConsoleLogs();
 
-    uint32 Get_ConsoleLogCount() const;
-    uint32 Get_ConsoleLogCapacity() const;
-    void   Set_ConsoleLogCapacity(uint32 capacity);
-    uint32 Get_ConsoleLogRevision() const;
+    uint32  Get_ConsoleLogCount() const;
+    uint32  Get_ConsoleLogCapacity() const;
+    void    Set_ConsoleLogCapacity(uint32 capacity);
+    uint32  Get_ConsoleLogRevision() const;
 
 public: /* For.Graphic_Device */
     HRESULT Clear_Buffers(const Vec4& clearColor);
     HRESULT Present();
 
-    void Bind_BackBuffer();
+    void    Bind_BackBuffer();
     HRESULT Resize_BackBuffer(uint32 width, uint32 height);
 
     ComPtr<SwapChain> Get_SwapChain() const;
 
 public: /* For.Viewport */
-    void Set_ViewportSize(uint32 width, uint32 height);
-    uint32 Get_ViewportWidth() const;
-    uint32 Get_ViewportHeight() const;
+    void    Set_ViewportSize(uint32 width, uint32 height);
+    uint32  Get_ViewportWidth() const;
+    uint32  Get_ViewportHeight() const;
 
     // 엔진 백버퍼 기준 viewport 사이즈
-    uint32 Get_BackBufferWidth() const;
-    uint32 Get_BackBufferHeight() const;
+    uint32  Get_BackBufferWidth() const;
+    uint32  Get_BackBufferHeight() const;
 
 public: /* For.Timer_Manager */
     HRESULT Add_Timer(const wstring& timerTag);
-    float Compute_TimeDelta(const wstring& timerTag);
+    float   Compute_TimeDelta(const wstring& timerTag);
 
 public: /* For.Level_Manager */
     HRESULT Change_Level(uint32 newLevelIndex, Shared<Level> newLevel);
@@ -141,6 +143,15 @@ public: /* For.Camera_Manager */
     bool    Is_ActiveCamera(Shared<Camera> camera);
     void    Change_ActiveCamera(Shared<Camera> camera) const;
 
+public: /* For.TypeRegistry */
+    const TypeRegistry::ComponentTypeInfo* Find_ComponentType(const string& className) const;
+    const TypeRegistry::GameObjectTypeInfo* Find_GameObjectType(const string& className) const;
+    const TypeRegistry::BTNodeTypeInfo* Find_BTNodeType(const string& className) const;
+
+    Shared<Component> Create_ComponentPrototype(const string& className) const;
+    Shared<GameObject> Create_GameObjectPrototype(const string& className) const;
+    Shared<Base> Create_BTNodePrototype(const string& className) const;
+
 private:
     Unique<Log_Manager> _logManager{};
     Unique<Graphic_Device> _graphicDevice{};
@@ -155,6 +166,7 @@ private:
     Unique<Font_Manager> _fontManager{};
     Unique<Asset_Manager> _assetManager{}; /* GUID 기반 에셋 registry와 meta/cache를 관리하는 매니저 */
     Unique<Camera_Manager> _cameraManager{};
+    Unique<TypeRegistry>        _typeRegistry{};
 
 private:
     uint32 _viewportWidth{ 0 };

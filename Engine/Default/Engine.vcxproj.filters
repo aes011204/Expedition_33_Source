@@ -144,9 +144,11 @@
     <ClInclude Include="..\Public\Helper_Math.h">
       <Filter>99. Defines\Helper</Filter>
     </ClInclude>
-    <ClInclude Include="..\public\Camera_Manager.h">
-      <Filter>01.Utility\03.GameObjects\Camera\Manager</Filter>
-    </ClInclude>
+    <ClInclude Include="..\Public\MovementCom.h" />
+    <ClInclude Include="..\Public\Character.h" />
+    <ClInclude Include="..\Public\Reflection_Types.h" />
+    <ClInclude Include="..\Public\TypeRegistry.h" />
+    <ClInclude Include="..\Public\RegistorFactory.h" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\public\Base.h">
@@ -206,7 +208,7 @@
     <ClInclude Include="..\Public\Renderer.h">
       <Filter>01.Utility\05.Renderer</Filter>
     </ClInclude>
-    <ClInclude Include="..\public\Transform.h">
+    <ClInclude Include="..\public\TransformCom.h">
       <Filter>01.Utility\04.Component\Transform</Filter>
     </ClInclude>
     <ClInclude Include="..\public\Texture.h">
@@ -325,7 +327,7 @@
     <ClCompile Include="..\Private\Renderer.cpp">
       <Filter>01.Utility\05.Renderer</Filter>
     </ClCompile>
-    <ClCompile Include="..\private\Transform.cpp">
+    <ClCompile Include="..\private\TransformCom.cpp">
       <Filter>01.Utility\04.Component\Transform</Filter>
     </ClCompile>
     <ClCompile Include="..\private\Texture.cpp">
@@ -402,9 +404,10 @@
     </ClCompile>
     <ClCompile Include="..\Private\RenderTarget.cpp" />
     <ClCompile Include="..\Private\Log_Manager.cpp" />
-    <ClCompile Include="..\private\Camera_Manager.cpp">
-      <Filter>01.Utility\03.GameObjects\Camera\Manager</Filter>
-    </ClCompile>
+    <ClCompile Include="..\Private\MovementCom.cpp" />
+    <ClCompile Include="..\Private\Character.cpp" />
+    <ClCompile Include="..\Private\TypeRegistry.cpp" />
+    <ClCompile Include="..\Private\RegistorFactory.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Bin\ShaderFiles\Engine_Shader_Defines.hlsli">
@@ -420,9 +423,6 @@
     </Filter>
     <Filter Include="99. Defines\Helper">
       <UniqueIdentifier>{4f948615-4199-4e04-95ad-a005392f4ff3}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="01.Utility\03.GameObjects\Camera\Manager">
-      <UniqueIdentifier>{dd9359d2-08e8-4f72-874d-b09b9be609c9}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

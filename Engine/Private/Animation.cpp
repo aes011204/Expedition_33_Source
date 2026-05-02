@@ -1,4 +1,4 @@
-#include "Animation.h"
+﻿#include "Animation.h"
 
 #include "Channel.h"
 
@@ -16,11 +16,6 @@ Animation::Animation(const Animation& prototype)
 {
     for (auto& channel : _channels)
         Safe_AddRef(channel);
-}
-
-Animation::~Animation()
-{
-    Free();
 }
 
 HRESULT Animation::Initialize(const aiAnimation* aiAnimation, class Model* model)
