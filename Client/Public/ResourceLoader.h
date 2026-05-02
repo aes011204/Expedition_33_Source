@@ -3,11 +3,12 @@
 #include "Client_Defines.h"
 #include "Base.h"
 
-namespace Engine
-{
+NS_BEGIN(Engine)
 class GameInstance;
 class GameObject;
-}
+class Shader;
+class Component;
+NS_END
 
 NS_BEGIN(Client)
 
@@ -18,6 +19,7 @@ enum class ELoadJobType
     Shader,
     Model,
     GameObject,
+    Component,
     StaticLevel,
     Unknown
 };
@@ -26,11 +28,15 @@ using FLoadJob = struct tagLoadJob
 {
     ELoadJobType eType = ELoadJobType::Unknown;
     uint32 iLevelIndex = {};
+
     wstring strPrototypeTag = {};
     wstring strPath = {};
+
     string strInputLayout = {};
     string strResourceType = {};
     string strModelType = {};
+    string strClassName = {};
+
     float fScaleX = 1.f;
     float fScaleY = 1.f;
     float fScaleZ = 1.f;
@@ -49,7 +55,7 @@ public:
 
 public:
     ResourceLoader(const ComPtr<Device>& device, const ComPtr<Context>& context);
-    ~ResourceLoader() override { Free(); }
+	~ResourceLoader() override = default;
 
 public:
     HRESULT Initialize();
@@ -73,6 +79,7 @@ public:
     HRESULT Build_ModelJobs(const wstring& strTablePath, vector<FLoadJob>& LoadJobs);
 
     HRESULT Build_GameObjectJobs(const wstring& strTablePath, vector<FLoadJob>& LoadJobs);
+    HRESULT Build_ComponentJobs(const wstring& strTablePath, vector<FLoadJob>& loadJobs);
 
     HRESULT Build_StaticLevelJobs(const wstring& strTablePath, vector<FLoadJob>& LoadJobs);
 
@@ -84,8 +91,6 @@ private:
     HRESULT Load_Shaders(const json& JsonData);
 
     HRESULT Register_LoadJob(const FLoadJob& LoadJob);
-
-    Shared<GameObject> Create_GameObjectPrototype(const wstring& strPrototypeTag);
 
     Shared<Base> Create_StaticPrototype(const FLoadJob& LoadJob);
 

@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Base.h"
 
@@ -9,7 +9,7 @@ class Animation final : public Base
 public:
     Animation();
     Animation(const Animation& prototype);
-    ~Animation() override;
+    ~Animation() override = default;
 
 public:
     HRESULT Initialize(const aiAnimation* aiAnimation, class Model* model);

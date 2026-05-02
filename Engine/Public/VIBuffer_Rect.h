@@ -9,7 +9,7 @@ class ENGINE_DLL VIBuffer_Rect final : public VIBuffer
 public:
 	VIBuffer_Rect(const ComPtr<Device>& device, const ComPtr<Context>& context);
 	VIBuffer_Rect(const VIBuffer_Rect& prototype);
-	virtual ~VIBuffer_Rect() { Free(); }
+	virtual ~VIBuffer_Rect() = default;
 
 public:
 	virtual HRESULT Initialize_Prototype();

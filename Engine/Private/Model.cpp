@@ -29,12 +29,6 @@ Model::Model(const Model& prototype)
 
     for (auto& prototypeBone : prototype._bones)
         _bones.push_back(prototypeBone->Clone());
-
-    for (auto& material : _materials)
-        Safe_AddRef(material);
-
-    for (auto& mesh : _meshes)
-        Safe_AddRef(mesh);
 }
 
 int32 Model::Get_BoneIndex(const char* boneName)
@@ -234,23 +228,11 @@ void Model::Free()
 {
     __super::Free();
 
-    for (auto& animation : _animations)
-        Safe_Release(animation);
     _animations.clear();
-
-    for (auto& material : _materials)
-        Safe_Release(material);
-
     _materials.clear();
-
-
-    for (auto& mesh : _meshes)
-        Safe_Release(mesh);
-
     _meshes.clear();
 
-    for (auto& bone : _bones)
-        Safe_Release(bone);
+
     _bones.clear();
 
     _importer.FreeScene();

@@ -20,8 +20,8 @@ public:
 	virtual HRESULT Render();
 
 protected:
-	ID3D11Buffer*				_vb = { nullptr };
-	ID3D11Buffer*				_ib = { nullptr };
+	ComPtr<ID3D11Buffer>		_vb = nullptr;
+	ComPtr<ID3D11Buffer>		_ib = nullptr;
 
 protected:
 	uint32						_numVertexBuffers = {};

@@ -1,4 +1,4 @@
-#include "CustomFont.h"
+﻿#include "CustomFont.h"
 
 CustomFont::CustomFont(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : _device{ device }
@@ -6,15 +6,10 @@ CustomFont::CustomFont(const ComPtr<Device>& device, const ComPtr<Context>& cont
 {
 }
 
-CustomFont::~CustomFont()
-{
-    Free();
-}
-
 HRESULT CustomFont::Initialize(const wchar_t* fontFilePath)
 {
-    _spriteBatch = new SpriteBatch(_context.Get());
-    _spriteFont = new SpriteFont(_device.Get(), fontFilePath);
+    _spriteBatch = make_unique<SpriteBatch>(_context.Get());
+    _spriteFont = make_unique<SpriteFont>(_device.Get(), fontFilePath);
 
     return S_OK;
 }
@@ -31,7 +26,7 @@ void CustomFont::Draw(const wchar_t* text, const Vec2& position, FXMVECTOR color
         XMMatrixIdentity());
 
     _spriteFont->DrawString(
-        _spriteBatch,
+        _spriteBatch.get(),
         text,
         position,
         color,
@@ -60,6 +55,4 @@ void CustomFont::Free()
 {
     __super::Free();
 
-    Safe_Delete(_spriteFont);
-    Safe_Delete(_spriteBatch);
 }

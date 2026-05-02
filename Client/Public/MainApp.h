@@ -14,7 +14,7 @@ class MainApp final : public Base
 {
 public:
 	MainApp();
-	virtual ~MainApp() { Free(); }
+	virtual ~MainApp() = default;
 
 public:
 	HRESULT Initialize();
@@ -22,7 +22,10 @@ public:
 	HRESULT Render();
 	
 private:
-	GameInstance*       _gameInstance = { nullptr };
+	wstring Get_ClientResourceRoot() const;
+	wstring Get_ClientResourcePath(const wchar_t* relativePath) const;
+
+private:
 	ComPtr<Device>      _device = { nullptr };
 	ComPtr<Context>     _context = { nullptr };
 

@@ -11,6 +11,8 @@ NS_BEGIN(Client)
 
 class Body_Player final : public PartObject
 {
+    GENERATED_GAMEOBJECT(Body_Player, ObjectType::PartObject)
+
 public:
 	typedef struct tagBodyPlayerDesc final : public PartObject::PARTOBJECT_DESC
 	{
@@ -20,7 +22,7 @@ public:
 public:
 	Body_Player(const ComPtr<Device>& device, const ComPtr<Context>& context);
 	Body_Player(const Body_Player& prototype);
-	virtual ~Body_Player() { Free(); }
+	virtual ~Body_Player() = default;
 
 public:
 	const XMFLOAT4X4* Get_SocketBoneMatrixPtr(const char* pBoneName);

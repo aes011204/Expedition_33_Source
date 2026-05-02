@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Base.h"
 
@@ -6,11 +6,9 @@ NS_BEGIN(Engine)
 
 class Font_Manager final : public Base
 {
-private:
-	Font_Manager(const ComPtr<Device>& device, const ComPtr<Context>& context);
-
 public:
-	virtual ~Font_Manager() = default;
+	Font_Manager(const ComPtr<Device>& device, const ComPtr<Context>& context);
+	virtual ~Font_Manager();
 
 public:
 	HRESULT Add_Font(const wstring& fontTag, const wchar_t* fontFilePath);

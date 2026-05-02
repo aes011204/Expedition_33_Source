@@ -115,6 +115,8 @@ StyleCopReport.xml
 *.svclog
 *.scc
 CONERR
+CONERR$
+imgui.ini
 
 # Chutzpah Test files
 _Chutzpah*
@@ -488,5 +490,3 @@ Client/Bin/Client.pdb
 Engine/Bin/Engine.lib
 Engine/Bin/Engine.exp
 Engine/Bin/Engine.pdb
-CONERR$
-imgui.ini

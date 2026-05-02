@@ -4,7 +4,7 @@
 
 ImGui_Manager::~ImGui_Manager()
 {
-    Free();
+    ShutDown();
 }
 
 HRESULT ImGui_Manager::Initialize(HWND hWnd, const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -50,6 +50,8 @@ HRESULT ImGui_Manager::Initialize(HWND hWnd, const ComPtr<Device>& device, const
     ImGui_ImplWin32_Init(hWnd);
     ImGui_ImplDX11_Init(device.Get(), context.Get());
 
+    _initialized = true;
+
     return S_OK;
 }
 
@@ -76,12 +78,18 @@ void ImGui_Manager::Render()
     }
 }
 
-void ImGui_Manager::Free()
+void ImGui_Manager::ShutDown()
 {
+    if (!_initialized)
+        return;
+
     ImGui_ImplDX11_Shutdown();
     ImGui_ImplWin32_Shutdown();
+
     ImPlot::DestroyContext();
     ImGui::DestroyContext();
+
+    _initialized = false;
 }
 
 void ImGui_Manager::ImGuiStyleSetting()
@@ -192,4 +200,10 @@ Unique<ImGui_Manager> ImGui_Manager::Create(HWND hWnd, const ComPtr<Device>& dev
     }
 
     return instance;
+}
+
+void ImGui_Manager::Free()
+{
+    ShutDown();
+    __super::Free();
 }

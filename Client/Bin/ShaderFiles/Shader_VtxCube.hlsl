@@ -55,7 +55,6 @@ PS_OUT PS_MAIN(PS_IN In)
     Out.vColor.a = 1.f;
 
     return Out;
-
 }
 
 technique11 DefaultTechnique

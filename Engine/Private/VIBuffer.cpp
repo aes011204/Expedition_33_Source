@@ -17,8 +17,7 @@ VIBuffer::VIBuffer(const VIBuffer& prototype)
 	, _primitiveType { prototype._primitiveType }
 	
 {
-	Safe_AddRef(_vb);
-	Safe_AddRef(_ib);
+	
 }
 
 HRESULT VIBuffer::Initialize_Prototype()
@@ -34,7 +33,7 @@ HRESULT VIBuffer::Initialize(void* arg)
 HRESULT VIBuffer::Bind_Resources()
 {
 	ID3D11Buffer* vertexBuffers[] = {
-		_vb, 
+		_vb.Get(),
 		// _vb, 
 	};
 
@@ -48,7 +47,7 @@ HRESULT VIBuffer::Bind_Resources()
 
 
 	_context->IASetVertexBuffers(0, _numVertexBuffers, vertexBuffers, vertexStrides, offsets);
-	_context->IASetIndexBuffer(_ib, 2 == _indexStride ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT, 0);
+	_context->IASetIndexBuffer(_ib.Get(), 2 == _indexStride ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT, 0);
 	_context->IASetPrimitiveTopology(_primitiveType);
 
 	
@@ -66,7 +65,4 @@ HRESULT VIBuffer::Render()
 void VIBuffer::Free()
 {
 	__super::Free();
-
-	Safe_Release(_vb);
-	Safe_Release(_ib);
 }

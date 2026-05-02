@@ -11,11 +11,6 @@ EditorInstance::EditorInstance()
 {
 }
 
-EditorInstance::~EditorInstance()
-{
-    Release();
-}
-
 HRESULT EditorInstance::Initialize_Editor(const EDITOR_DESC& EditorDesc, const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
     _editorDesc = EditorDesc;
@@ -38,6 +33,30 @@ HRESULT EditorInstance::Initialize_Editor(const EDITOR_DESC& EditorDesc, const C
     return S_OK;
 }
 
+void EditorInstance::Release_Editor()
+{
+    _sharedViewportRenderTarget.reset();
+
+    if (_imguiManager)
+    {
+        _imguiManager->Free();
+        _imguiManager.reset();
+    }
+
+    _editorManager.reset();
+
+    _context.Reset();
+    _device.Reset();
+
+    _editorDesc = {};
+    _requestedViewportWidth = 1;
+    _requestedViewportHeight = 1;
+    _lastViewportRequester = EDITOR_VIEWPORT_TARGET::Game;
+
+    _runtimeState = EDITOR_RUNTIME_STATE::Edit;
+    _runtimeTimeScale = 1.f;
+}
+
 void EditorInstance::Update_Editor(float timeDelta)
 {
     _imguiManager->Update(timeDelta);
@@ -48,21 +67,6 @@ void EditorInstance::Render_Editor()
 {
     _editorManager->Render();
     _imguiManager->Render();
-}
-
-void EditorInstance::Release()
-{
-    _sharedViewportRenderTarget.reset();
-    _imguiManager.reset();
-    _editorManager.reset();
-    _context.Reset();
-    _device.Reset();
-    _editorDesc = {};
-    _requestedViewportWidth = 1;
-    _requestedViewportHeight = 1;
-    _lastViewportRequester = EDITOR_VIEWPORT_TARGET::Game;
-    _runtimeState = EDITOR_RUNTIME_STATE::Edit;
-    _runtimeTimeScale = 1.f;
 }
 
 void EditorInstance::Play()
@@ -209,4 +213,11 @@ float EditorInstance::Clamp_RuntimeTimeScale(float fTimeScale)
         return 8.f;
 
     return fTimeScale;
+}
+
+void EditorInstance::Free()
+{
+    Release_Editor();
+
+    Base::Free();
 }

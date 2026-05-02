@@ -1,4 +1,4 @@
-#include "Timer_Manager.h"
+﻿#include "Timer_Manager.h"
 #include "Timer.h"
 
 Timer_Manager::Timer_Manager()
@@ -49,8 +49,6 @@ void Timer_Manager::Free()
 {
 	__super::Free();
 
-	for (auto& Pair : _timers)	
-		Safe_Release(Pair.second);
 	_timers.clear();
 }
 
