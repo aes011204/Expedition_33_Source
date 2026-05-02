@@ -87,6 +87,87 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
     return S_OK;
 }
 
+void GameInstance::Release_Engine()
+{
+    if (_assetManager)
+    {
+        _assetManager->Free();
+        _assetManager.reset();
+    }
+
+    if (_fontManager)
+    {
+        _fontManager->Free();
+        _fontManager.reset();
+    }
+
+    if (_lightManager)
+    {
+        _lightManager->Free();
+        _lightManager.reset();
+    }
+
+    if (_inputManager)
+    {
+        _inputManager->Free();
+        _inputManager.reset();
+    }
+
+    if (_pipeLine)
+    {
+        _pipeLine->Free();
+        _pipeLine.reset();
+    }
+
+    if (_renderer)
+    {
+        _renderer->Free();
+        _renderer.reset();
+    }
+
+    if (_objectManager)
+    {
+        _objectManager->Free();
+        _objectManager.reset();
+    }
+
+    if (_prototypeManager)
+    {
+        _prototypeManager->Free();
+        _prototypeManager.reset();
+    }
+
+    if (_typeRegistry)
+    {
+        _typeRegistry->Free();
+        _typeRegistry.reset();
+    }
+
+    if (_levelManager)
+    {
+        _levelManager->Free();
+        _levelManager.reset();
+    }
+
+    if (_timerManager)
+    {
+        _timerManager->Free();
+        _timerManager.reset();
+    }
+
+    if (_graphicDevice)
+    {
+        _graphicDevice->Free();
+        _graphicDevice.reset();
+    }
+
+    if (_logManager)
+    {
+        _logManager->Free();
+        _logManager.reset();
+    }
+}
+
 void GameInstance::Update_Engine(float timeDelta)
 {
     _inputManager->Update(timeDelta);
@@ -229,6 +310,16 @@ HRESULT GameInstance::Change_Level(uint32 newLevelIndex, Shared<Level> newLevel)
     return _levelManager->Change_Level(newLevelIndex, newLevel);
 }
 
+uint32 GameInstance::Current_LevelIndex()
+{
+    return _levelManager->Get_CurrentLevelIndex();
+}
+
+Shared<Level> GameInstance::Current_LevelType()
+{
+    return _levelManager->Get_CurrentLevelType();
+}
+
 HRESULT GameInstance::Add_Prototype(uint32 levelIndex, const wstring& prototypeTag, Shared<Base> prototype)
 {
     return _prototypeManager->Add_Prototype(levelIndex, prototypeTag, prototype);
@@ -247,6 +338,11 @@ HRESULT GameInstance::Add_GameObject(
     void* arg)
 {
     return _objectManager->Add_GameObject(prototypeLevelIndex, prototypeTag, layerLevelIndex, layerTag, arg);
+}
+
+Shared<GameObject> GameInstance::Find_FirstObject(uint32 levelIndex, const wstring& layerTag)
+{
+    return _objectManager->Find_FirstObject(levelIndex, layerTag);
 }
 
 void GameInstance::Add_RenderGroup(RenderGroup renderGroup, Shared<GameObject> gameObject)
@@ -416,90 +512,9 @@ Shared<Base> GameInstance::Create_BTNodePrototype(const string& className) const
     return (nullptr == _typeRegistry) ? nullptr : _typeRegistry->Create_BTNode(className);
 }
 
-void GameInstance::Release_Engine()
-{
-    if (nullptr != _assetManager)
-    {
-        _assetManager->Free();
-        _assetManager.reset();
-    }
-
-    if (nullptr != _fontManager)
-    {
-        _fontManager->Free();
-        _fontManager.reset();
-    }
-
-    if (nullptr != _lightManager)
-    {
-        _lightManager->Free();
-        _lightManager.reset();
-    }
-
-    if (nullptr != _inputManager)
-    {
-        _inputManager->Free();
-        _inputManager.reset();
-    }
-
-    if (nullptr != _pipeLine)
-    {
-        _pipeLine->Free();
-        _pipeLine.reset();
-    }
-
-    if (nullptr != _renderer)
-    {
-        _renderer->Free();
-        _renderer.reset();
-    }
-
-    if (nullptr != _objectManager)
-    {
-        _objectManager->Free();
-        _objectManager.reset();
-    }
-
-    if (nullptr != _prototypeManager)
-    {
-        _prototypeManager->Free();
-        _prototypeManager.reset();
-    }
-
-    if (nullptr != _typeRegistry)
-    {
-        _typeRegistry->Free();
-        _typeRegistry.reset();
-    }
-
-    if (nullptr != _levelManager)
-    {
-        _levelManager->Free();
-        _levelManager.reset();
-    }
-
-    if (nullptr != _timerManager)
-    {
-        _timerManager->Free();
-        _timerManager.reset();
-    }
-
-    if (nullptr != _graphicDevice)
-    {
-        _graphicDevice->Free();
-        _graphicDevice.reset();
-    }
-
-    if (nullptr != _logManager)
-    {
-        _logManager->Free();
-        _logManager.reset();
-    }
-
-    DestroyInstance();
-}
-
 void GameInstance::Free()
 {
+    Release_Engine();
+
     __super::Free();
 }

@@ -38,6 +38,14 @@ void Layer::Late_Update(float timeDelta)
 			gameObject->Late_Update(timeDelta);
 }
 
+Shared<GameObject> Layer::Find_FirstObject()
+{
+    if (_gameObjects.empty())
+        return nullptr;
+
+    return _gameObjects.front();
+}
+
 Shared<Layer> Layer::Create()
 {
 	return make_shared<Layer>();

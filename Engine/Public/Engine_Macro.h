@@ -138,26 +138,29 @@ namespace Engine
 	        CLASSNAME(const CLASSNAME&) = delete;						        \
 	        CLASSNAME& operator=(const CLASSNAME&) = delete;
 
-#define DECLARE_SINGLETON(CLASSNAME)								            \
-	        NO_COPY(CLASSNAME)											        \
-	        private:													        \
-	        static CLASSNAME* m_pInstance;								        \
-	        public:														        \
-	        static CLASSNAME* GetInstance();							        \
+#define DECLARE_SINGLETON(CLASSNAME)								     \
+	        NO_COPY(CLASSNAME)											 \
+	        private:													 \
+	        static std::shared_ptr<CLASSNAME> m_pInstance;				 \
+	        public:														 \
+	        static std::shared_ptr<CLASSNAME>& GetInstance();			 \
 	        static void DestroyInstance();
 
-#define IMPLEMENT_SINGLETON(CLASSNAME)								            \
-	        CLASSNAME* CLASSNAME::m_pInstance = nullptr;				        \
-	        CLASSNAME* CLASSNAME::GetInstance() {						        \
-	            if(m_pInstance == nullptr) {							        \
-	                m_pInstance = new CLASSNAME();						        \
-	            }														        \
-	            return m_pInstance;										        \
-	        }															        \
-	        void CLASSNAME::DestroyInstance() {							        \
-	            delete m_pInstance;										        \
-	            m_pInstance = nullptr;									        \
-	        }
+#define IMPLEMENT_SINGLETON(CLASSNAME)                                         \
+            std::shared_ptr<CLASSNAME> CLASSNAME::m_pInstance = nullptr;               \
+            std::shared_ptr<CLASSNAME>& CLASSNAME::GetInstance()                       \
+            {                                                                          \
+                if (m_pInstance == nullptr)                                            \
+                    m_pInstance = std::make_shared<CLASSNAME>();                       \
+                return m_pInstance;                                                    \
+            }                                                                          \
+            void CLASSNAME::DestroyInstance()                                          \
+            {                                                                          \
+                if (m_pInstance != nullptr)                                            \
+                    m_pInstance->Free();                                               \
+                m_pInstance.reset();                                                   \
+            }
+
 
 // ==================================================
 //              리플렉션 매크로

@@ -17,12 +17,13 @@ class EditorInstance final : public Base
 {
 	DECLARE_SINGLETON(EditorInstance)
 
-private:
+public:
 	EditorInstance();
 	~EditorInstance() = default;
 
 public:
 	HRESULT Initialize_Editor(const EDITOR_DESC& EditorDesc, const ComPtr<Device>& device, const ComPtr<Context>& context);
+	void    Release_Editor();
 
 	void Update_Editor(float timeDelta);
 	void Render_Editor();

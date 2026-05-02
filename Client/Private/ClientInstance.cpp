@@ -1,6 +1,7 @@
 ﻿#include "pch.h"
 #include "ClientInstance.h"
-
+#include "GameInstance.h"
+#include "Player.h"
 #include "ResourceLoader.h"
 
 IMPLEMENT_SINGLETON(ClientInstance)
@@ -49,6 +50,15 @@ Shared<ResourceLoader> ClientInstance::Get_ResourceLoader() const
     return _resourceLoader;
 }
 
+Shared<GameObject> ClientInstance::Find_Player(uint32 levelIndex)
+{
+    auto gameObject = GAME->Find_FirstObject(levelIndex, TEXT("Layer_Player"));
+    if (gameObject == nullptr)
+        return nullptr;
+
+    return dynamic_pointer_cast<Player>(gameObject);
+}
+
 HRESULT ClientInstance::Ready_ResourceLoader()
 {
     _resourceLoader = ResourceLoader::Create(_device, _context);
@@ -59,13 +69,20 @@ HRESULT ClientInstance::Ready_ResourceLoader()
 
 void ClientInstance::Release_Client()
 {
-    _resourceLoader.reset();
-	_context.Reset();
-	_device.Reset();
-	_isInitialized = false;
+    if (_resourceLoader)
+    {
+        _resourceLoader->Free();
+        _resourceLoader.reset();
+    }
+
+    _context.Reset();
+    _device.Reset();
+    _isInitialized = false;
 }
 
 void ClientInstance::Free()
 {
     Release_Client();
+
+    __super::Free();
 }

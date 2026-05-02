@@ -1,69 +1,75 @@
 ﻿#include "Shader.h"
 
 Shader::Shader(const ComPtr<Device>& device, const ComPtr<Context>& context)
-	: Component { device, context }
+    : Component{ device, context }
 {
-
 }
 
 Shader::Shader(const Shader& prototype)
-	: Component{ prototype }
-	, _numPasses { prototype._numPasses }
-	, _effect { prototype._effect }
-	, _inputLayouts { prototype._inputLayouts }
+    : Component{ prototype }
+    , _effect{ prototype._effect }
+    , _numPasses{ prototype._numPasses }
+    , _inputLayouts{ prototype._inputLayouts }
 {
-	Safe_AddRef(_effect);
-
-	for (auto& inputLayout : _inputLayouts)
-		Safe_AddRef(inputLayout);
-	{
-
-	}
-
 }
 
 HRESULT Shader::Initialize_Prototype(const wchar_t* shaderFilePath, const D3D11_INPUT_ELEMENT_DESC* elements, uint32 numElements)
 {
-	uint32			hlslFlag = {};
+    uint32 hlslFlag = 0;
 
 #ifdef _DEBUG
-	hlslFlag |= D3DCOMPILE_SKIP_OPTIMIZATION | D3DCOMPILE_DEBUG;
+    hlslFlag |= D3DCOMPILE_SKIP_OPTIMIZATION | D3DCOMPILE_DEBUG;
 #else
-	hlslFlag |= D3DCOMPILE_OPTIMIZATION_LEVEL1;
-#endif	
+    hlslFlag |= D3DCOMPILE_OPTIMIZATION_LEVEL1;
+#endif
 
-	if (FAILED(D3DX11CompileEffectFromFile(shaderFilePath, nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, hlslFlag, 0,
-		_device.Get(), &_effect, nullptr)))
-		return E_FAIL;
+    if (FAILED(D3DX11CompileEffectFromFile(
+        shaderFilePath,
+        nullptr,
+        D3D_COMPILE_STANDARD_FILE_INCLUDE,
+        hlslFlag,
+        0,
+        _device.Get(),
+        _effect.GetAddressOf(),
+        nullptr)))
+    {
+        return E_FAIL;
+    }
 
-	ID3DX11EffectTechnique*		technique = _effect->GetTechniqueByIndex(0);
-	if (nullptr == technique)
-		return E_FAIL;
+    ID3DX11EffectTechnique* technique = _effect->GetTechniqueByIndex(0);
+    if (nullptr == technique)
+        return E_FAIL;
 
-	D3DX11_TECHNIQUE_DESC		TechniqueDesc{};
+    D3DX11_TECHNIQUE_DESC techniqueDesc{};
+    technique->GetDesc(&techniqueDesc);
 
-	technique->GetDesc(&TechniqueDesc);
+    _numPasses = techniqueDesc.Passes;
+    _inputLayouts.clear();
+    _inputLayouts.reserve(_numPasses);
 
-	_numPasses = TechniqueDesc.Passes;
+    for (uint32 i = 0; i < _numPasses; ++i)
+    {
+        ID3DX11EffectPass* pass = technique->GetPassByIndex(i);
+        if (nullptr == pass)
+            return E_FAIL;
 
-	_inputLayouts.reserve(_numPasses);
+        D3DX11_PASS_DESC passDesc{};
+        pass->GetDesc(&passDesc);
 
-	for (uint32 i = 0; i < _numPasses; i++)
-	{
-		ID3D11InputLayout* inputLayout = { nullptr };
+        ComPtr<ID3D11InputLayout> inputLayout;
 
-		ID3DX11EffectPass*		pass = technique->GetPassByIndex(i);
-		if (nullptr == pass)
-			return E_FAIL;
+        if (FAILED(_device->CreateInputLayout(
+            elements,
+            numElements,
+            passDesc.pIAInputSignature,
+            passDesc.IAInputSignatureSize,
+            inputLayout.GetAddressOf())))
+        {
+            return E_FAIL;
+        }
 
-		D3DX11_PASS_DESC		PassDesc{};
-		pass->GetDesc(&PassDesc);
-
-		if (FAILED(_device->CreateInputLayout(elements, numElements, PassDesc.pIAInputSignature, PassDesc.IAInputSignatureSize, &inputLayout)))
-			return E_FAIL;
-
-		_inputLayouts.push_back(inputLayout);
-	}
+        _inputLayouts.emplace_back(std::move(inputLayout));
+    }
 
     return S_OK;
 }
@@ -75,143 +81,139 @@ HRESULT Shader::Initialize(void* arg)
 
 HRESULT Shader::Begin(uint32 passIndex)
 {
-	if (passIndex >= _numPasses || 
-		nullptr == _inputLayouts[passIndex])
-		return E_FAIL;
+    if (passIndex >= _numPasses || !_inputLayouts[passIndex])
+        return E_FAIL;
 
-	_effect->GetTechniqueByIndex(0)->GetPassByIndex(passIndex)->Apply(0, _context.Get());
+    _effect->GetTechniqueByIndex(0)->GetPassByIndex(passIndex)->Apply(0, _context.Get());
+    _context->IASetInputLayout(_inputLayouts[passIndex].Get());
 
-	_context->IASetInputLayout(_inputLayouts[passIndex]);	
-
-	return S_OK;
+    return S_OK;
 }
 
 HRESULT Shader::Bind_SRV(const char* constantName, ID3D11ShaderResourceView* srv)
 {
-	ID3DX11EffectVariable* variable = _effect->GetVariableByName(constantName);
-	if (nullptr == variable)
-	{
-		MSG_BOX("Failed to throw value to shader");
-		return E_FAIL;
-	}
+    ID3DX11EffectVariable* variable = _effect->GetVariableByName(constantName);
+    if (nullptr == variable)
+    {
+        MSG_BOX("Failed to throw value to shader");
+        return E_FAIL;
+    }
 
-	ID3DX11EffectShaderResourceVariable* srVariable = variable->AsShaderResource();
-	if (nullptr == srVariable)
-	{
-		MSG_BOX("Shader types do not match");
-		return E_FAIL;
-	}
+    ID3DX11EffectShaderResourceVariable* srVariable = variable->AsShaderResource();
+    if (nullptr == srVariable)
+    {
+        MSG_BOX("Shader types do not match");
+        return E_FAIL;
+    }
 
-	return srVariable->SetResource(srv);
+    return srVariable->SetResource(srv);
 }
 
 HRESULT Shader::Bind_SRVs(const char* constantName, ID3D11ShaderResourceView** ppSRVs, uint32 numSRVs)
 {
-	ID3DX11EffectVariable* variable = _effect->GetVariableByName(constantName);
-	if (nullptr == variable)
-	{
-		MSG_BOX("Failed to throw value to shader");
-		return E_FAIL;
-	}
+    ID3DX11EffectVariable* variable = _effect->GetVariableByName(constantName);
+    if (nullptr == variable)
+    {
+        MSG_BOX("Failed to throw value to shader");
+        return E_FAIL;
+    }
 
-	ID3DX11EffectShaderResourceVariable* srVariable = variable->AsShaderResource();
-	if (nullptr == srVariable)
-	{
-		MSG_BOX("Shader types do not match");
-		return E_FAIL;
-	}
+    ID3DX11EffectShaderResourceVariable* srVariable = variable->AsShaderResource();
+    if (nullptr == srVariable)
+    {
+        MSG_BOX("Shader types do not match");
+        return E_FAIL;
+    }
 
-	return srVariable->SetResourceArray(ppSRVs, 0, numSRVs);
+    return srVariable->SetResourceArray(ppSRVs, 0, numSRVs);
 }
 
 HRESULT Shader::Bind_Matrix(const char* constantName, const XMFLOAT4X4* matrix)
 {
-	ID3DX11EffectVariable*		variable = _effect->GetVariableByName(constantName);
-	if (nullptr == variable)
-	{
-		MSG_BOX("Failed to throw value to shader");
-		return E_FAIL;
-	}
+    ID3DX11EffectVariable* variable = _effect->GetVariableByName(constantName);
+    if (nullptr == variable)
+    {
+        MSG_BOX("Failed to throw value to shader");
+        return E_FAIL;
+    }
 
-	ID3DX11EffectMatrixVariable*	matrixVariable = variable->AsMatrix();
-	if (nullptr == matrixVariable)
-	{
-		MSG_BOX("Shader types do not match");
-		return E_FAIL;
-	}
+    ID3DX11EffectMatrixVariable* matrixVariable = variable->AsMatrix();
+    if (nullptr == matrixVariable)
+    {
+        MSG_BOX("Shader types do not match");
+        return E_FAIL;
+    }
 
-	return matrixVariable->SetMatrix(reinterpret_cast<const float*>(matrix));
+    return matrixVariable->SetMatrix(reinterpret_cast<const float*>(matrix));
 }
 
 HRESULT Shader::Bind_Matrices(const char* constantName, const XMFLOAT4X4* matrices, uint32 numMatrices)
 {
-	ID3DX11EffectVariable* variable = _effect->GetVariableByName(constantName);
-	if (nullptr == variable)
-	{
-		MSG_BOX("Failed to throw value to shader");
-		return E_FAIL;
-	}
+    ID3DX11EffectVariable* variable = _effect->GetVariableByName(constantName);
+    if (nullptr == variable)
+    {
+        MSG_BOX("Failed to throw value to shader");
+        return E_FAIL;
+    }
 
-	ID3DX11EffectMatrixVariable* matrixVariable = variable->AsMatrix();
-	if (nullptr == matrixVariable)
-	{
-		MSG_BOX("Shader types do not match");
-		return E_FAIL;
-	}
+    ID3DX11EffectMatrixVariable* matrixVariable = variable->AsMatrix();
+    if (nullptr == matrixVariable)
+    {
+        MSG_BOX("Shader types do not match");
+        return E_FAIL;
+    }
 
-	return matrixVariable->SetMatrixArray(reinterpret_cast<const float*>(matrices), 0, numMatrices);
+    return matrixVariable->SetMatrixArray(reinterpret_cast<const float*>(matrices), 0, numMatrices);
 }
-
 
 HRESULT Shader::Bind_RawValue(const char* constantName, const void* data, uint32 length)
 {
-	ID3DX11EffectVariable* variable = _effect->GetVariableByName(constantName);
-	if (nullptr == variable)
-	{
-		MSG_BOX("Failed to throw value to shader");
-		return E_FAIL;
-	}
+    ID3DX11EffectVariable* variable = _effect->GetVariableByName(constantName);
+    if (nullptr == variable)
+    {
+        MSG_BOX("Failed to throw value to shader");
+        return E_FAIL;
+    }
 
-	return variable->SetRawValue(data, 0, length);	
+    return variable->SetRawValue(data, 0, length);
 }
 
-Shared<Shader> Shader::Create(const ComPtr<Device>& device, const ComPtr<Context>& context, const wchar_t* shaderFilePath, const D3D11_INPUT_ELEMENT_DESC* elements, uint32 numElements)
+Shared<Shader> Shader::Create(
+    const ComPtr<Device>& device,
+    const ComPtr<Context>& context,
+    const wchar_t* shaderFilePath,
+    const D3D11_INPUT_ELEMENT_DESC* elements,
+    uint32 numElements)
 {
-	auto instance = make_shared<Shader>(device, context);
+    auto instance = make_shared<Shader>(device, context);
 
-	if (FAILED(instance->Initialize_Prototype(shaderFilePath, elements, numElements)))
-	{
-		MSG_BOX("Failed to Created : Shader");
-		return nullptr;
-	}
-	return instance;
+    if (FAILED(instance->Initialize_Prototype(shaderFilePath, elements, numElements)))
+    {
+        MSG_BOX("Failed to Created : Shader");
+        return nullptr;
+    }
+
+    return instance;
 }
-
 
 Shared<Component> Shader::Clone(void* arg)
 {
-	auto instance = make_shared<Shader>(*this);
+    auto instance = make_shared<Shader>(*this);
 
-	if (FAILED(instance->Initialize(arg)))
-	{
-		MSG_BOX("Failed to Cloned : Shader");
-		return nullptr;
-	}
-	return instance;
+    if (FAILED(instance->Initialize(arg)))
+    {
+        MSG_BOX("Failed to Cloned : Shader");
+        return nullptr;
+    }
+
+    return instance;
 }
-
 
 void Shader::Free()
 {
     __super::Free();
 
-	for (auto& inputLayout : _inputLayouts)
-		Safe_Release(inputLayout);
-
-	_inputLayouts.clear();
-
-	Safe_Release(_effect);
+    _inputLayouts.clear();
+    _effect.Reset();
+    _numPasses = 0;
 }
-
-
-

@@ -7,7 +7,7 @@ NS_BEGIN(Client)
 
 class FreeCamera final : public Camera
 {
-    GENERATED_GAMEOBJECT(FreeCamera, ObjectType::Camera)
+    GENERATED_GAMEOBJECT(FreeCamera, ObjectType::FreeCamera)
 
 public:
 	typedef struct tagFreeCamera final : public Camera::CAMERA_DESC
