@@ -52,6 +52,9 @@
     <Filter Include="06. EditorUtil\SceneContext">
       <UniqueIdentifier>{e869d2c4-f495-4bb0-b5ab-2c1da7614c8a}</UniqueIdentifier>
     </Filter>
+    <Filter Include="08. Ue5Importer">
+      <UniqueIdentifier>{03416126-3368-46fb-a4f8-f09a238c4427}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="targetver.h">
@@ -107,6 +110,9 @@
     </ClInclude>
     <ClInclude Include="..\Public\SceneContext.h">
       <Filter>06. EditorUtil\SceneContext</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\MEUe5Importer.h">
+      <Filter>08. Ue5Importer</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -164,6 +170,9 @@
     </ClCompile>
     <ClCompile Include="..\Private\SceneContext.cpp">
       <Filter>06. EditorUtil\SceneContext</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\MEUe5Importer.cpp">
+      <Filter>08. Ue5Importer</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>
