@@ -12,8 +12,18 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 XLSX_DIR = os.path.join(BASE_DIR, "xlsx")
 JSON_DIR = os.path.join(BASE_DIR, "json")
 GOOGLE_SHEET_EXPORTS = {
+    "DT_Component.xlsx": "https://docs.google.com/spreadsheets/d/1RjljR3NNALOuZXTwCUI-9B4L5PvhrKE96d--o6eSeYc/export?format=xlsx",
     "DT_GameObject.xlsx": "https://docs.google.com/spreadsheets/d/16kVJyaLRmilyXw1EvpNuFG16Pn6i-j4SUFi9nLPthX4/export?format=xlsx",
+    "DT_Model.xlsx": "https://docs.google.com/spreadsheets/d/13uyF_Cv9TqTg2PwH_t5MY1QYE48AxiQV39lwzPZObAw/export?format=xlsx",
+    "DT_Shader.xlsx": "https://docs.google.com/spreadsheets/d/1qSDR_FEbkFcCl2SNlVH_d54kjiuoj1_OQiRRk7YzQ9I/export?format=xlsx",
+    "DT_StaticLevel.xlsx": "https://docs.google.com/spreadsheets/d/13y0vauJio_y14v3CFpEh4FjHzYivTFbl11AEIsBZrV8/export?format=xlsx",
+    "DT_Texture.xlsx": "https://docs.google.com/spreadsheets/d/1UuiYVCXSMiU_Rv3d7OpNFRE2Gp2Lo8gfV4_ZCIy5xms/export?format=xlsx",
 }
+
+
+def get_google_sheet_edit_url(export_url: str) -> str:
+    """Convert a workbook export URL into a browser-edit URL."""
+    return export_url.replace("/export?format=xlsx", "/edit?gid=0#gid=0")
 
 
 def get_group_name(filename: str) -> str:
@@ -63,6 +73,24 @@ def sync_google_sheet_xlsx(filename: str, export_url: str) -> str:
         raise
 
 
+def sync_google_sheet_shortcuts() -> None:
+    """Refresh local .url shortcuts for every synced Google Sheet."""
+    os.makedirs(XLSX_DIR, exist_ok=True)
+
+    for filename, export_url in GOOGLE_SHEET_EXPORTS.items():
+        shortcut_name = os.path.splitext(filename)[0] + "_GoogleSheet.url"
+        shortcut_path = os.path.join(XLSX_DIR, shortcut_name)
+        shortcut_contents = (
+            "[InternetShortcut]\n"
+            f"URL={get_google_sheet_edit_url(export_url)}\n"
+        )
+
+        with open(shortcut_path, "w", encoding="ascii", newline="\n") as shortcut_file:
+            shortcut_file.write(shortcut_contents)
+
+        print(f"Synced {shortcut_name}")
+
+
 def convert_xlsx_file(xlsx_file: str) -> None:
     """Convert one workbook into one json file, merging all sheets into one root array."""
     filename = os.path.basename(xlsx_file)
@@ -104,6 +132,8 @@ def convert_all_xlsx_to_json() -> None:
     """Convert every DT_*.xlsx file below Data/xlsx into Data/json."""
     os.makedirs(XLSX_DIR, exist_ok=True)
     os.makedirs(JSON_DIR, exist_ok=True)
+
+    sync_google_sheet_shortcuts()
 
     for filename, export_url in GOOGLE_SHEET_EXPORTS.items():
         sync_google_sheet_xlsx(filename, export_url)
