@@ -189,7 +189,7 @@ Shared<ShaderCom> ShaderCom::Create(
 
     if (FAILED(instance->Initialize_Prototype(shaderFilePath, elements, numElements)))
     {
-        MSG_BOX("Failed to Created : ShaderCom");
+        LOG_WARN("Failed to create ShaderCom: path='{}'", String::ToString(shaderFilePath));
         return nullptr;
     }
 

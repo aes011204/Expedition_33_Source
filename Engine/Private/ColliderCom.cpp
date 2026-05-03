@@ -242,7 +242,7 @@ Shared<ColliderCom> ColliderCom::Create(
 
     if (FAILED(instance->Initialize_Prototype(shape)))
     {
-        MSG_BOX("Failed to Create : ColliderCom");
+        LOG_WARN("Failed to create ColliderCom: shape={}", static_cast<int>(shape));
         return nullptr;
     }
 

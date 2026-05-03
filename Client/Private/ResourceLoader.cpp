@@ -17,6 +17,18 @@
 #include "VIBuffer_Terrain.h"
 
 namespace fs = std::filesystem;
+namespace
+{
+string Get_TableLabel(const wstring& tablePath)
+{
+    return fs::path(tablePath).filename().string();
+}
+
+void Log_TableWarning(const char* action, const wstring& tablePath)
+{
+    LOG_WARN("Skipping DT table {}: {}", action, Get_TableLabel(tablePath));
+}
+}
 
 class ResourceLoaderPathHelpers final
 {
@@ -59,7 +71,10 @@ HRESULT ResourceLoader::Load_TextureTable(const wstring& strTablePath)
 {
 	json JsonRoot = {};
 	if (!Load_JsonFile(strTablePath, JsonRoot))
-		return E_FAIL;
+	{
+		Log_TableWarning("read failed", strTablePath);
+		return S_OK;
+	}
 
 	if (JsonRoot.contains("DT_Texture"))
 		return Load_Textures(JsonRoot["DT_Texture"]);
@@ -74,7 +89,10 @@ HRESULT ResourceLoader::Load_ShaderTable(const wstring& strTablePath)
 {
 	json JsonRoot = {};
 	if (!Load_JsonFile(strTablePath, JsonRoot))
-		return E_FAIL;
+	{
+		Log_TableWarning("read failed", strTablePath);
+		return S_OK;
+	}
 
 	if (JsonRoot.contains("DT_Shader"))
 		return Load_Shaders(JsonRoot["DT_Shader"]);
@@ -89,12 +107,18 @@ HRESULT ResourceLoader::Load_ModelTable(const wstring& strTablePath)
 {
 	vector<FLoadJob> LoadJobs;
 	if (FAILED(Build_ModelJobs(strTablePath, LoadJobs)))
-		return E_FAIL;
+	{
+		Log_TableWarning("build failed", strTablePath);
+		return S_OK;
+	}
 
 	for (const FLoadJob& LoadJob : LoadJobs)
 	{
 		if (FAILED(Register_LoadJob(LoadJob)))
-			return E_FAIL;
+		{
+			LOG_WARN("Skipping DT register failure in {}", Get_TableLabel(strTablePath));
+			continue;
+		}
 	}
 
 	return S_OK;
@@ -104,12 +128,18 @@ HRESULT ResourceLoader::Load_GameObjectTable(const wstring& strTablePath)
 {
 	vector<FLoadJob> LoadJobs;
 	if (FAILED(Build_GameObjectJobs(strTablePath, LoadJobs)))
-		return E_FAIL;
+	{
+		Log_TableWarning("build failed", strTablePath);
+		return S_OK;
+	}
 
 	for (const FLoadJob& LoadJob : LoadJobs)
 	{
 		if (FAILED(Register_LoadJob(LoadJob)))
-			return E_FAIL;
+		{
+			LOG_WARN("Skipping DT register failure in {}", Get_TableLabel(strTablePath));
+			continue;
+		}
 	}
 
 	return S_OK;
@@ -119,12 +149,18 @@ HRESULT ResourceLoader::Load_StaticLevelTable(const wstring& strTablePath)
 {
 	vector<FLoadJob> LoadJobs;
 	if (FAILED(Build_StaticLevelJobs(strTablePath, LoadJobs)))
-		return E_FAIL;
+	{
+		Log_TableWarning("build failed", strTablePath);
+		return S_OK;
+	}
 
 	for (const FLoadJob& LoadJob : LoadJobs)
 	{
 		if (FAILED(Register_LoadJob(LoadJob)))
-			return E_FAIL;
+		{
+			LOG_WARN("Skipping DT register failure in {}", Get_TableLabel(strTablePath));
+			continue;
+		}
 	}
 
 	return S_OK;
@@ -138,22 +174,22 @@ HRESULT ResourceLoader::Load_LevelTables(LevelType eLevel, const wstring& strJso
 		: fs::path(Resolve_RuntimePath(strJsonRootPath));
 
 	if (FAILED(Build_TextureJobs((jsonRootPath / L"DT_Texture.json").wstring(), LoadJobs)))
-		return E_FAIL;
+		Log_TableWarning("build failed", (jsonRootPath / L"DT_Texture.json").wstring());
 
 	if (FAILED(Build_ShaderJobs((jsonRootPath / L"DT_Shader.json").wstring(), LoadJobs)))
-		return E_FAIL;
+		Log_TableWarning("build failed", (jsonRootPath / L"DT_Shader.json").wstring());
 
     if (FAILED(Build_ComponentJobs((jsonRootPath / L"DT_Component.json").wstring(), LoadJobs)))
-        return E_FAIL;
+        Log_TableWarning("build failed", (jsonRootPath / L"DT_Component.json").wstring());
 
 	if (FAILED(Build_StaticLevelJobs((jsonRootPath / L"DT_StaticLevel.json").wstring(), LoadJobs)))
-		return E_FAIL;
+		Log_TableWarning("build failed", (jsonRootPath / L"DT_StaticLevel.json").wstring());
 
 	if (FAILED(Build_ModelJobs((jsonRootPath / L"DT_Model.json").wstring(), LoadJobs)))
-		return E_FAIL;
+		Log_TableWarning("build failed", (jsonRootPath / L"DT_Model.json").wstring());
 
 	if (FAILED(Build_GameObjectJobs((jsonRootPath / L"DT_GameObject.json").wstring(), LoadJobs)))
-		return E_FAIL;
+		Log_TableWarning("build failed", (jsonRootPath / L"DT_GameObject.json").wstring());
 
 	const uint32 iTargetLevel = ETOI(eLevel);
 	for (const FLoadJob& LoadJob : LoadJobs)
@@ -162,7 +198,10 @@ HRESULT ResourceLoader::Load_LevelTables(LevelType eLevel, const wstring& strJso
 			continue;
 
 		if (FAILED(Register_LoadJob(LoadJob)))
-			return E_FAIL;
+		{
+			LOG_WARN("Skipping DT register failure for level {}", iTargetLevel);
+			continue;
+		}
 	}
 
 	return S_OK;
@@ -419,7 +458,7 @@ ResourceLoader::FInputLayoutInfo ResourceLoader::Get_InputLayout(const string& s
 HRESULT ResourceLoader::Load_Textures(const json& JsonData)
 {
 	if (!JsonData.is_array())
-		return E_FAIL;
+		return S_OK;
 
 	for (const json& JsonItem : JsonData)
 	{
@@ -434,10 +473,16 @@ HRESULT ResourceLoader::Load_Textures(const json& JsonData)
 		const wstring resolvedPath = Resolve_RuntimePath(String::ToWString(strPath));
 		Shared<Texture> pTexture = Texture::Create(_device, _context, resolvedPath.c_str(), iCount);
 		if (nullptr == pTexture)
-			return E_FAIL;
+		{
+			LOG_WARN("Skipping Texture prototype registration. id='{}', path='{}'", strId, strPath);
+			continue;
+		}
 
 		if (FAILED(GAME->Add_Prototype(Get_LevelIndex_FromString(strLevel), String::ToWString(strId), pTexture)))
-			return E_FAIL;
+		{
+			LOG_WARN("Skipping Texture Add_Prototype failure. id='{}', level='{}'", strId, strLevel);
+			continue;
+		}
 	}
 
 	return S_OK;
@@ -446,7 +491,7 @@ HRESULT ResourceLoader::Load_Textures(const json& JsonData)
 HRESULT ResourceLoader::Load_Shaders(const json& JsonData)
 {
 	if (!JsonData.is_array())
-		return E_FAIL;
+		return S_OK;
 
 	for (const json& JsonItem : JsonData)
 	{
@@ -462,10 +507,16 @@ HRESULT ResourceLoader::Load_Shaders(const json& JsonData)
 		const wstring resolvedPath = Resolve_RuntimePath(String::ToWString(strPath));
 		Shared<ShaderCom> pShader = ShaderCom::Create(_device, _context, resolvedPath.c_str(), InputLayout.pElements, InputLayout.iNumElements);
 		if (nullptr == pShader)
-			return E_FAIL;
+		{
+			LOG_WARN("Skipping Shader prototype registration. id='{}', path='{}', type='{}'", strId, strPath, strInputLayout);
+			continue;
+		}
 
 		if (FAILED(GAME->Add_Prototype(Get_LevelIndex_FromString(strLevel), String::ToWString(strId), pShader)))
-			return E_FAIL;
+		{
+			LOG_WARN("Skipping Shader Add_Prototype failure. id='{}', level='{}'", strId, strLevel);
+			continue;
+		}
 	}
 
 	return S_OK;
@@ -479,9 +530,23 @@ HRESULT ResourceLoader::Register_LoadJob(const FLoadJob& LoadJob)
 	{
 		Shared<Texture> pTexture = Texture::Create(_device, _context, LoadJob.strPath.c_str(), LoadJob.iCount);
 		if (nullptr == pTexture)
-			return E_FAIL;
+		{
+			LOG_WARN(
+				"Skipping Texture prototype registration. id='{}', path='{}', level={}",
+				String::ToString(LoadJob.strPrototypeTag),
+				String::ToString(LoadJob.strPath),
+				LoadJob.iLevelIndex);
+			return S_OK;
+		}
 
-		return GAME->Add_Prototype(LoadJob.iLevelIndex, LoadJob.strPrototypeTag, pTexture);
+		if (FAILED(GAME->Add_Prototype(LoadJob.iLevelIndex, LoadJob.strPrototypeTag, pTexture)))
+		{
+			LOG_WARN(
+				"Skipping Texture Add_Prototype failure. id='{}', level={}",
+				String::ToString(LoadJob.strPrototypeTag),
+				LoadJob.iLevelIndex);
+		}
+		return S_OK;
 	}
 
 	case ELoadJobType::Shader:
@@ -489,9 +554,24 @@ HRESULT ResourceLoader::Register_LoadJob(const FLoadJob& LoadJob)
 		const FInputLayoutInfo InputLayout = Get_InputLayout(LoadJob.strInputLayout);
 		Shared<ShaderCom> pShader = ShaderCom::Create(_device, _context, LoadJob.strPath.c_str(), InputLayout.pElements, InputLayout.iNumElements);
 		if (nullptr == pShader)
-			return E_FAIL;
+		{
+			LOG_WARN(
+				"Skipping Shader prototype registration. id='{}', path='{}', type='{}', level={}",
+				String::ToString(LoadJob.strPrototypeTag),
+				String::ToString(LoadJob.strPath),
+				LoadJob.strInputLayout,
+				LoadJob.iLevelIndex);
+			return S_OK;
+		}
 
-		return GAME->Add_Prototype(LoadJob.iLevelIndex, LoadJob.strPrototypeTag, pShader);
+		if (FAILED(GAME->Add_Prototype(LoadJob.iLevelIndex, LoadJob.strPrototypeTag, pShader)))
+		{
+			LOG_WARN(
+				"Skipping Shader Add_Prototype failure. id='{}', level={}",
+				String::ToString(LoadJob.strPrototypeTag),
+				LoadJob.iLevelIndex);
+		}
+		return S_OK;
 	}
 
 	case ELoadJobType::Model:
@@ -502,21 +582,50 @@ HRESULT ResourceLoader::Register_LoadJob(const FLoadJob& LoadJob)
 
 		Shared<ModelCom> model = ModelCom::Create(_device, _context, eModelType, strPath.c_str(), PreLocalTransformMatrix);
 		if (nullptr == model)
-			return E_FAIL;
+		{
+			LOG_WARN(
+				"Skipping Model prototype registration. id='{}', path='{}', level={}",
+				String::ToString(LoadJob.strPrototypeTag),
+				strPath,
+				LoadJob.iLevelIndex);
+			return S_OK;
+		}
 
-		return GAME->Add_Prototype(LoadJob.iLevelIndex, LoadJob.strPrototypeTag, model);
+		if (FAILED(GAME->Add_Prototype(LoadJob.iLevelIndex, LoadJob.strPrototypeTag, model)))
+		{
+			LOG_WARN(
+				"Skipping Model Add_Prototype failure. id='{}', level={}",
+				String::ToString(LoadJob.strPrototypeTag),
+				LoadJob.iLevelIndex);
+		}
+		return S_OK;
 	}
 
 	case ELoadJobType::GameObject:
 	{
 		Shared<GameObject> gameObject = GAME->Create_GameObjectPrototype(LoadJob.strClassName);
 		if (nullptr == gameObject)
-			return E_FAIL;
+		{
+			LOG_WARN(
+				"Skipping GameObject prototype registration. class='{}', id='{}', level={}",
+				LoadJob.strClassName,
+				String::ToString(LoadJob.strPrototypeTag),
+				LoadJob.iLevelIndex);
+			return S_OK;
+		}
 
-		return GAME->Add_Prototype(
+		if (FAILED(GAME->Add_Prototype(
             LoadJob.iLevelIndex,
             LoadJob.strPrototypeTag,
-            static_pointer_cast<Base>(gameObject));
+            static_pointer_cast<Base>(gameObject))))
+		{
+			LOG_WARN(
+				"Skipping GameObject Add_Prototype failure. class='{}', id='{}', level={}",
+				LoadJob.strClassName,
+				String::ToString(LoadJob.strPrototypeTag),
+				LoadJob.iLevelIndex);
+		}
+		return S_OK;
 	}
 
     case ELoadJobType::Component:
@@ -528,31 +637,73 @@ HRESULT ResourceLoader::Register_LoadJob(const FLoadJob& LoadJob)
                 ColliderCom::Create(_device, _context, Get_Shape_FromPrototypeTag(LoadJob.strPrototypeTag));
 
             if (nullptr == collider)
-                return E_FAIL;
+            {
+                LOG_WARN(
+                    "Skipping ColliderCom prototype registration. id='{}', level={}",
+                    String::ToString(LoadJob.strPrototypeTag),
+                    LoadJob.iLevelIndex);
+                return S_OK;
+            }
 
-            return GAME->Add_Prototype(
+            if (FAILED(GAME->Add_Prototype(
                 LoadJob.iLevelIndex,
                 LoadJob.strPrototypeTag,
-                static_pointer_cast<Base>(collider));
+                static_pointer_cast<Base>(collider))))
+            {
+                LOG_WARN(
+                    "Skipping ColliderCom Add_Prototype failure. id='{}', level={}",
+                    String::ToString(LoadJob.strPrototypeTag),
+                    LoadJob.iLevelIndex);
+            }
+            return S_OK;
         }
 
         Shared<Component> component = GAME->Create_ComponentPrototype(LoadJob.strClassName);
         if (nullptr == component)
-            return E_FAIL;
+        {
+            LOG_WARN(
+                "Skipping Component prototype registration. class='{}', id='{}', level={}",
+                LoadJob.strClassName,
+                String::ToString(LoadJob.strPrototypeTag),
+                LoadJob.iLevelIndex);
+            return S_OK;
+        }
 
-        return GAME->Add_Prototype(
+        if (FAILED(GAME->Add_Prototype(
             LoadJob.iLevelIndex,
             LoadJob.strPrototypeTag,
-            static_pointer_cast<Base>(component));
+            static_pointer_cast<Base>(component))))
+        {
+            LOG_WARN(
+                "Skipping Component Add_Prototype failure. class='{}', id='{}', level={}",
+                LoadJob.strClassName,
+                String::ToString(LoadJob.strPrototypeTag),
+                LoadJob.iLevelIndex);
+        }
+        return S_OK;
     }
 
 	case ELoadJobType::StaticLevel:
 	{
 		Shared<Base> staticPrototype = Create_StaticPrototype(LoadJob);
 		if (nullptr == staticPrototype)
+        {
+            LOG_WARN(
+                "Skipping StaticLevel prototype registration. id='{}', resourceType='{}', level={}",
+                String::ToString(LoadJob.strPrototypeTag),
+                LoadJob.strResourceType,
+                LoadJob.iLevelIndex);
 			return S_OK;
+        }
 
-		return GAME->Add_Prototype(LoadJob.iLevelIndex, LoadJob.strPrototypeTag, staticPrototype);
+		if (FAILED(GAME->Add_Prototype(LoadJob.iLevelIndex, LoadJob.strPrototypeTag, staticPrototype)))
+        {
+            LOG_WARN(
+                "Skipping StaticLevel Add_Prototype failure. id='{}', level={}",
+                String::ToString(LoadJob.strPrototypeTag),
+                LoadJob.iLevelIndex);
+        }
+        return S_OK;
 	}
 
 	default:

@@ -88,7 +88,10 @@ Shared<Texture> Texture::Create(const ComPtr<Device>& device, const ComPtr<Conte
 
     if (FAILED(instance->Initialize_Prototype(texturePathPattern, numSRVs)))
     {
-        MSG_BOX("Failed to Created : Texture");
+        LOG_WARN(
+            "Failed to create Texture: path='{}', count={}",
+            String::ToString(texturePathPattern),
+            numSRVs);
         return nullptr;
 	}
     return instance;
