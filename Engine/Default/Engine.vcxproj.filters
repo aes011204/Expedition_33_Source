@@ -149,6 +149,11 @@
     <ClInclude Include="..\Public\Reflection_Types.h" />
     <ClInclude Include="..\Public\TypeRegistry.h" />
     <ClInclude Include="..\Public\RegistorFactory.h" />
+    <ClInclude Include="..\Public\Particle_Types.h">
+      <Filter>99. Defines\Types</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\VIBufferCom_Instance.h" />
+    <ClInclude Include="..\Public\VIBufferCom_PointParticle.h" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\public\Base.h">
@@ -408,6 +413,8 @@
     <ClCompile Include="..\Private\Character.cpp" />
     <ClCompile Include="..\Private\TypeRegistry.cpp" />
     <ClCompile Include="..\Private\RegistorFactory.cpp" />
+    <ClCompile Include="..\Private\VIBufferCom_Instance.cpp" />
+    <ClCompile Include="..\Private\VIBufferCom_PointParticle.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Bin\ShaderFiles\Engine_Shader_Defines.hlsli">
@@ -423,6 +430,9 @@
     </Filter>
     <Filter Include="99. Defines\Helper">
       <UniqueIdentifier>{4f948615-4199-4e04-95ad-a005392f4ff3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="99. Defines\Types">
+      <UniqueIdentifier>{fe0bc3e4-7a36-4d72-94e6-f22f3a0d6e7d}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

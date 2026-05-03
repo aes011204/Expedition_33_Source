@@ -22,7 +22,7 @@ HRESULT Player::Initialize_Prototype()
 
 HRESULT Player::Initialize(void* arg)
 {	
-	Character::CONTAINEROBJECT_DESC		Desc{};
+	Character::ContainerObjectDesc		Desc{};
 	Desc.speedPerSec = 10.f;
 	Desc.degreePerSec = 180.f;
 
