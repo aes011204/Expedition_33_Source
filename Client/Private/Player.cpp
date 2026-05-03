@@ -51,7 +51,13 @@ void Player::Priority_Update(float timeDelta)
 
 void Player::Update(float timeDelta)
 {
-    __super::Update(timeDelta);
+	__super::Update(timeDelta);
+
+    if(GAME->KeyDown(KEY_TYPE::F11))
+    {
+        const Vec3 pos = _transformCom->Get_Position();
+        LOG_DEBUG("player Pos : x={}, y ={}, z={}", pos.x, pos.y, pos.z);
+    }
 
     _playerControllerCom->Update_Controller(timeDelta);
 }

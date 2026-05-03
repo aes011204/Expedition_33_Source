@@ -18,11 +18,12 @@ class Light_Manager;
 class Font_Manager;
 class Asset_Manager;
 class Log_Manager;
+class Camera_Manager;
 struct ConsoleLogEntry;
-
 class Component;
 class GameObject;
 class Level;
+class Camera;
 
 class ENGINE_DLL GameInstance final : public Base
 {
@@ -150,6 +151,12 @@ public: /* For.Asset_Manager */
     /* ResourceLoader가 현재 정본 리소스 루트를 절대경로로 해석할 때 호출한다. */
     wstring Get_AssetRoot() const;
 
+public: /* For.Camera_Manager */
+    HRESULT Add_Camera(Shared<Camera> camera) const;
+    bool    Is_ActiveCamera(Shared<Camera> camera);
+    void    Change_ActiveCamera(Shared<Camera> camera) const;
+    float   Get_FovY();
+
 public: /* For.TypeRegistry */
     const TypeRegistry::ComponentTypeInfo*  Find_ComponentType(const string& className) const;
     const TypeRegistry::GameObjectTypeInfo* Find_GameObjectType(const string& className) const;
@@ -160,18 +167,19 @@ public: /* For.TypeRegistry */
     Shared<Base>        Create_BTNodePrototype(const string& className) const;
 
 private:
-    Unique<Log_Manager>         _logManager{};
-    Unique<Graphic_Device>      _graphicDevice{};
-    Unique<Timer_Manager>       _timerManager{};
-    Unique<Level_Manager>       _levelManager{};
-    Unique<Prototype_Manager>   _prototypeManager{};
-    Unique<Object_Manager>      _objectManager{};
-    Unique<Renderer>            _renderer{};
-    Unique<PipeLine>            _pipeLine{};
-    Unique<Input_Manager>       _inputManager{};
-    Unique<Light_Manager>       _lightManager{};
-    Unique<Font_Manager>        _fontManager{};
-    Unique<Asset_Manager>       _assetManager{}; /* GUID 기반 에셋 registry와 meta/cache를 관리하는 매니저 */
+    Unique<Log_Manager> _logManager{};
+    Unique<Graphic_Device> _graphicDevice{};
+    Unique<Timer_Manager> _timerManager{};
+    Unique<Level_Manager> _levelManager{};
+    Unique<Prototype_Manager> _prototypeManager{};
+    Unique<Object_Manager> _objectManager{};
+    Unique<Renderer> _renderer{};
+    Unique<PipeLine> _pipeLine{};
+    Unique<Input_Manager> _inputManager{};
+    Unique<Light_Manager> _lightManager{};
+    Unique<Font_Manager> _fontManager{};
+    Unique<Asset_Manager> _assetManager{}; /* GUID 기반 에셋 registry와 meta/cache를 관리하는 매니저 */
+    Unique<Camera_Manager> _cameraManager{};
     Unique<TypeRegistry>        _typeRegistry{};
 
 private:

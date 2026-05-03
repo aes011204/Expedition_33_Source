@@ -1,5 +1,8 @@
 ﻿#include "ResourceLoader.h"
-
+#include "BackGround.h"
+#include "Body_Player.h"
+#include "FreeCamera.h"
+#include "TargetCamera.h"
 #include "GameInstance.h"
 #include "GameObject.h"
 #include "Component.h"

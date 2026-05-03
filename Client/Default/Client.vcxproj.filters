@@ -75,6 +75,8 @@
     </Filter>
     <Filter Include="03. Component\PlayerController">
       <UniqueIdentifier>{821abb8e-0080-4bcd-b2ae-8377f230673c}</UniqueIdentifier>
+    <Filter Include="02.GameObject\Camera\Target">
+      <UniqueIdentifier>{23c166d1-4984-4019-b446-fdbddf98e312}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -143,6 +145,11 @@
     </ClInclude>
     <ClInclude Include="..\Public\PlayerControllerCom.h">
       <Filter>03. Component\PlayerController</Filter>
+    <ClInclude Include="..\Public\InputCom.h" />
+    <ClInclude Include="..\Public\CombatStatCom.h" />
+    <ClInclude Include="..\Public\PlayerControllerCom.h" />
+    <ClInclude Include="..\Public\TargetCamera.h">
+      <Filter>02.GameObject\Camera\Target</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -202,6 +209,11 @@
     </ClCompile>
     <ClCompile Include="..\Private\PlayerControllerCom.cpp">
       <Filter>03. Component\PlayerController</Filter>
+    <ClCompile Include="..\Private\InputCom.cpp" />
+    <ClCompile Include="..\Private\CombatStatCom.cpp" />
+    <ClCompile Include="..\Private\PlayerControllerCom.cpp" />
+    <ClCompile Include="..\Private\TargetCamera.cpp">
+      <Filter>02.GameObject\Camera\Target</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
