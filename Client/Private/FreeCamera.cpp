@@ -25,6 +25,8 @@ HRESULT FreeCamera::Initialize(void* arg)
     if (FAILED(__super::Initialize(arg)))
         return E_FAIL;
 
+    Set_Name(L"Free Camera");
+
     return S_OK;
 }
 

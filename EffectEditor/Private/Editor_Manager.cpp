@@ -1,5 +1,4 @@
 ﻿#include "Editor_Manager.h"
-
 #include "Content_Browser.h"
 #include "Editor_Window.h"
 #include "EffectEditorInstance.h"
@@ -20,7 +19,6 @@ HRESULT Editor_Manager::Initialize()
     Add_Window(Hierarchy_View::Create());
     Add_Window(Content_Browser::Create());
     Add_Window(Inspector::Create());
-
     return S_OK;
 }
 

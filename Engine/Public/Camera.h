@@ -30,22 +30,22 @@ public:
 
 public:
     float Get_FovY() { return _fovY; }
-    void  Set_FovY(float fovY);
+    void  Set_FovY(float fovY) { _fovY = fovY;}
 
     float Get_Near() { return _near; }
-    void  Set_Near(float fNear);
+    void  Set_Near(float fNear) { _near = fNear;};
 
     float Get_Far() { return _far; }
-    void  Set_Far(float fFar);
+    void  Set_Far(float fFar) {_far = fFar;}
 
     float Get_Yaw() { return _yaw; }
-    void  Set_Yaw(float yaw);
+    void  Set_Yaw(float yaw) { _yaw = yaw;}
 
     float Get_Pitch() {return _pitch; }
-    void  Set_Pitch(float pitch);
+    void  Set_Pitch(float pitch) { _pitch = pitch;}
 
     float Get_MouseSensor() {return _mouseSensor;}
-    void  Set_MouseSensor(float mouseSensor);
+    void  Set_MouseSensor(float mouseSensor) { _mouseSensor = mouseSensor;}
 
 protected:
     float	_fovY{}, _near{}, _far{}, _aspect{};

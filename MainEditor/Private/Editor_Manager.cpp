@@ -5,6 +5,7 @@
 #include "Hierarchy_View.h"
 #include "Content_Browser.h"
 #include "Inspector.h"
+#include "Camera_Tool.h"
 
 Editor_Manager::Editor_Manager()
 {
@@ -18,7 +19,7 @@ HRESULT Editor_Manager::Initialize()
 	Add_Window(Hierarchy_View::Create());
 	Add_Window(Content_Browser::Create());
 	Add_Window(Inspector::Create());
-
+    Add_Window(Camera_Tool::Create());
 	return S_OK;
 }
 

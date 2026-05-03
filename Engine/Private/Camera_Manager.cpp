@@ -98,20 +98,25 @@ Shared<TransformCom> Camera_Manager::Get_CameraTransform(int index)
     return m_cameras[index]->Get_Transform();
 }
 
-float Camera_Manager::Get_FovY(int index)
+Shared<Camera> Camera_Manager::Get_Camera(int index)
 {
-    return m_cameras[index]->Get_FovY();
+    return m_cameras[index];
 }
 
-float Camera_Manager::Get_Near(int index)
-{
-    return m_cameras[index]->Get_Near();
-}
-
-float Camera_Manager::Get_Far(int index)
-{
-    return m_cameras[index]->Get_Far();
-}
+//float Camera_Manager::Get_FovY(int index)
+//{
+//    return m_cameras[index]->Get_FovY();
+//}
+//
+//float Camera_Manager::Get_Near(int index)
+//{
+//    return m_cameras[index]->Get_Near();
+//}
+//
+//float Camera_Manager::Get_Far(int index)
+//{
+//    return m_cameras[index]->Get_Far();
+//}
 
 Unique<Camera_Manager> Camera_Manager::Create()
 {

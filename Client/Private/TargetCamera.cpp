@@ -34,6 +34,8 @@ HRESULT TargetCamera::Initialize(void* arg)
 
     Update_TransformMatrices();
 
+    Set_Name(L"Target Camera");
+
     return S_OK;
 }
 
@@ -81,7 +83,6 @@ void TargetCamera::Priority_Update(float timeDelta)
         _transformCom->Set_RotationEuler(Vec3(_pitch, _yaw, 0.f));
 
     _transformCom->Set_WorldPosition(newPos);
-    //_transformCom->LookAt(targetPos);
 
     Update_TransformMatrices();
 

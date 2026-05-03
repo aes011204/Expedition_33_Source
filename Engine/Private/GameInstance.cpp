@@ -497,6 +497,16 @@ void GameInstance::Change_ActiveCamera(Shared<Camera> camera) const
     return _cameraManager->Change_ActiveCamera(camera);
 }
 
+Shared<Camera> GameInstance::Get_Camera(int index) const
+{
+    return _cameraManager->Get_Camera(index);
+}
+
+float GameInstance::Get_CameraCount()
+{
+    return _cameraManager->Get_CameraCount();
+}
+
 const TypeRegistry::ComponentTypeInfo* GameInstance::Find_ComponentType(const string& className) const
 {
     return (nullptr == _typeRegistry) ? nullptr : _typeRegistry->Find_ComponentType(className);
