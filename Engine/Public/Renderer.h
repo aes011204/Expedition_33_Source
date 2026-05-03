@@ -4,7 +4,7 @@
 
 NS_BEGIN(Engine)
 
-class Shader;
+class ShaderCom;
 class VIBuffer_Rect;
 class GameObject;
 
@@ -46,7 +46,7 @@ private:
     ComPtr<DepthStencilView>        _shadowDepthDSV;
     D3D11_VIEWPORT                  _shadowViewport = {};
 
-    Shared<Shader>                  _deferredShader;
+    Shared<ShaderCom>                  _deferredShader;
     Shared<VIBuffer_Rect>           _viBuffer;
 
     float                           _shadowScale = 2.f;

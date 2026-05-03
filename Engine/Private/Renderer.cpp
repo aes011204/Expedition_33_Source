@@ -2,7 +2,7 @@
 
 #include "GameInstance.h"
 #include "GameObject.h"
-#include "Shader.h"
+#include "ShaderCom.h"
 #include "VIBuffer_Rect.h"
 
 /*
@@ -251,7 +251,7 @@ HRESULT Renderer::Ready_RenderTargets()
     _viBuffer = VIBuffer_Rect::Create(_device, _context);
     CHECK_NULL(_viBuffer, E_FAIL);
 
-    _deferredShader = Shader::Create(_device, _context,
+    _deferredShader = ShaderCom::Create(_device, _context,
         L"../../../Client/Bin/ShaderFiles/Shader_Deferred.hlsl", VTXTEX::Elements, VTXTEX::numElements);
     CHECK_NULL(_deferredShader, E_FAIL);
 

@@ -4,7 +4,7 @@
 NS_BEGIN(Engine)
 
 class RenderTarget;
-class Shader;
+class ShaderCom;
 class VIBuffer_Rect;
 
 class ENGINE_DLL Target_Manager final : public Base
@@ -29,7 +29,7 @@ public :
         DXGI_FORMAT pixelFormat, const Color& clearColor, bool resizeWithViewport = true);
     HRESULT Add_MRT(const wstring& mrtTag, const wstring& targetTag);
 
-    HRESULT Bind_ShaderResource(Shared<Shader> shader, const char* constantName, const wstring& targetTag);
+    HRESULT Bind_ShaderResource(Shared<ShaderCom> shader, const char* constantName, const wstring& targetTag);
     HRESULT Begin_MRT(const wstring& mrtTag, ComPtr<DepthStencilView> shaderDSV = nullptr);
     HRESULT End_MRT();
 
@@ -63,8 +63,8 @@ public :
 public :
     HRESULT Initialize_Debug(float sizeX, float sizeY);
     HRESULT SetUp_Debug(const wstring& targetTag, float x, float y, float sizeX, float sizeY, bool render = true);
-    HRESULT Render_Debug(Shared<Shader> shader, Shared<VIBuffer_Rect> viBuffer);
-    HRESULT Render_Debug(const wstring& mrtTag, Shared<Shader> shader, Shared<VIBuffer_Rect> viBuffer);
+    HRESULT Render_Debug(Shared<ShaderCom> shader, Shared<VIBuffer_Rect> viBuffer);
+    HRESULT Render_Debug(const wstring& mrtTag, Shared<ShaderCom> shader, Shared<VIBuffer_Rect> viBuffer);
 
 private :
     map<wstring, bool>    _drawMapMRTs;

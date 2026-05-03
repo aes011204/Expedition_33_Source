@@ -33,7 +33,7 @@ HRESULT Light_Manager::Add_Light(const LIGHT_DESC& lightDesc)
 	return S_OK;
 }
 
-HRESULT Light_Manager::Render_Lights(Shared<Shader> shader, Shared<VIBuffer_Rect> viBuffer)
+HRESULT Light_Manager::Render_Lights(Shared<ShaderCom> shader, Shared<VIBuffer_Rect> viBuffer)
 {
     for (auto& pLight : _lights)
     {

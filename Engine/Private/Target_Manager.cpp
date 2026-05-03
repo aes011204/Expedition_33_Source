@@ -1,6 +1,6 @@
 ﻿#include "Target_Manager.h"
 #include "RenderTarget.h"
-#include "Shader.h"
+#include "ShaderCom.h"
 
 Target_Manager::Target_Manager(ComPtr<Device> device, ComPtr<ID3D11DeviceContext> context)
     : _device(device), _context(context)
@@ -64,7 +64,7 @@ HRESULT Target_Manager::Add_MRT(const wstring& mrtTag, const wstring& targetTag)
     return S_OK;
 }
 
-HRESULT Target_Manager::Bind_ShaderResource(Shared<Shader> shader, const char* constantName, const wstring& targetTag)
+HRESULT Target_Manager::Bind_ShaderResource(Shared<ShaderCom> shader, const char* constantName, const wstring& targetTag)
 {
     auto renderTarget = Find_RenderTarget(targetTag);
     CHECK_NULL(renderTarget, E_FAIL);
@@ -350,7 +350,7 @@ HRESULT Target_Manager::SetUp_Debug(const wstring& targetTag, float x, float y, 
     return S_OK;
 }
 
-HRESULT Target_Manager::Render_Debug(Shared<Shader> shader, Shared<VIBuffer_Rect> viBuffer)
+HRESULT Target_Manager::Render_Debug(Shared<ShaderCom> shader, Shared<VIBuffer_Rect> viBuffer)
 {
     for (auto it = _drawMapMRTs.begin(); it != _drawMapMRTs.end(); ++it)
     {
@@ -368,7 +368,7 @@ HRESULT Target_Manager::Render_Debug(Shared<Shader> shader, Shared<VIBuffer_Rect
     return S_OK;
 }
 
-HRESULT Target_Manager::Render_Debug(const wstring& mrtTag, Shared<Shader> shader, Shared<VIBuffer_Rect> viBuffer)
+HRESULT Target_Manager::Render_Debug(const wstring& mrtTag, Shared<ShaderCom> shader, Shared<VIBuffer_Rect> viBuffer)
 {
     auto mrtList = Find_MRT(mrtTag);
     CHECK_NULL(mrtList, E_FAIL);

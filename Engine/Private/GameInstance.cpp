@@ -436,7 +436,7 @@ HRESULT GameInstance::Add_Light(const LIGHT_DESC& lightDesc)
     return _lightManager->Add_Light(lightDesc);
 }
 
-HRESULT GameInstance::Render_Lights(Shared<Shader> shader, Shared<VIBuffer_Rect> viBuffer)
+HRESULT GameInstance::Render_Lights(Shared<ShaderCom> shader, Shared<VIBuffer_Rect> viBuffer)
 {
     return _lightManager->Render_Lights(shader, viBuffer);
 }
@@ -555,7 +555,7 @@ HRESULT GameInstance::Resize_MRTs(uint32 width, uint32 height)
     return _targetManager->Resize_MRTs(width, height);
 }
 
-HRESULT GameInstance::Bind_RT_ShaderResource(Shared<Shader> shader, const char* constantName, const wstring& targetTag)
+HRESULT GameInstance::Bind_RT_ShaderResource(Shared<ShaderCom> shader, const char* constantName, const wstring& targetTag)
 {
     return _targetManager->Bind_ShaderResource(shader, constantName, targetTag);
 }
@@ -582,7 +582,7 @@ HRESULT GameInstance::SetUp_Debug(const wstring& targetTag, float x, float y, fl
     return _targetManager->SetUp_Debug(targetTag, x, y, sizeX, sizeY, render);
 }
 
-HRESULT GameInstance::Render_RT_Debug(Shared<VIBuffer_Rect> viBuffer, Shared<Shader> shader)
+HRESULT GameInstance::Render_RT_Debug(Shared<VIBuffer_Rect> viBuffer, Shared<ShaderCom> shader)
 {
     return _targetManager->Render_Debug(shader, viBuffer);
 }

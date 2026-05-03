@@ -1,5 +1,5 @@
 ﻿#include "Light.h"
-#include "Shader.h"
+#include "ShaderCom.h"
 #include "VIBuffer_Rect.h"
 
 Light::Light()
@@ -13,7 +13,7 @@ HRESULT Light::Initialize(const LIGHT_DESC& lightDesc)
     return S_OK;
 }
 
-HRESULT Light::Render(Shared<Shader> shader, Shared<VIBuffer_Rect> viBuffer)
+HRESULT Light::Render(Shared<ShaderCom> shader, Shared<VIBuffer_Rect> viBuffer)
 {
     int32 pass = 0;
 
