@@ -14,8 +14,8 @@ struct ParticleInstanceVertex
     Vec2 lifeTime{};    // x: 최대 생존 시간, y: 누적 생존 시간.
 };
 
-// Point particle shader가 사용하는 vertex + instance input layout.
-struct PointParticleInstanceLayout
+// Particle shader가 사용하는 vertex + instance input layout.
+struct ParticleInstanceLayout
 {
     static constexpr uint32 numElements = 6;
 

@@ -1,9 +1,10 @@
 ﻿#include "ResourceLoader.h"
 
+#include "Component.h"
 #include "GameInstance.h"
 #include "GameObject.h"
-#include "Component.h"
 #include "ModelCom.h"
+#include "Particle_Types.h"
 #include "ShaderCom.h"
 #include "Texture.h"
 #include "VIBuffer_Cube.h"
@@ -401,6 +402,10 @@ ResourceLoader::FInputLayoutInfo ResourceLoader::Get_InputLayout(const string& s
 
 	if ("VTXCUBE" == strName || "Cube" == strName || "VtxCube" == strName)
 		return { VTXCUBE::Elements, VTXCUBE::numElements };
+
+    // Particle instance용 InputLayout
+    if ("ParticleInstance" == strName || "PARTICLEINSTANCE" == strName)
+		return { ParticleInstanceLayout::Elements, ParticleInstanceLayout::numElements };
 
 	return { VTXTEX::Elements, VTXTEX::numElements };
 }
