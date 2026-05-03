@@ -7,6 +7,11 @@ NS_END
 
 NS_BEGIN(ModelEditor)
 
+using HRESULT = ::HRESULT;
+using LRESULT = ::LRESULT;
+using HWND = ::HWND;
+using UINT = ::UINT;
+
 class ModelConverter final : public EditorBlock
 {
 public:
@@ -14,7 +19,7 @@ public:
 	~ModelConverter() override;
 
 public:
-    static ::LRESULT CALLBACK DragDropWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData);
+	static ::LRESULT CALLBACK DragDropWndProc(::HWND hWnd, UINT message, ::WPARAM wParam, ::LPARAM lParam, ::UINT_PTR uIdSubclass, ::DWORD_PTR dwRefData);
 
 private:
 	HRESULT Initialize(HWND hWnd);
@@ -24,9 +29,8 @@ public:
 	void Render() override;
 
 public:
-    void ExtractAll(const wstring& path);
-    void Handle_Drop();
-    HRESULT Convert_Model(const wstring& fbxFilePath, const wstring& outputDir);
+	void ExtractAll(const wstring& path);
+	HRESULT Convert_Model(const wstring& fbxFilePath, const wstring& outputDir);
 
 private:
 	void ReadNodes(const aiNode* node, int32 parentIndex = -1);
@@ -42,15 +46,15 @@ private:
 	string  Get_FileNameWithoutExtension(const wstring& filePath) const;
 	void    Ensure_DirectoryExists(const wstring& dirPath) const;
 	int32   FindNodeIndex(const char* name);
-    string  SanitizeFileName(string name);
+	string  Sanitize_FileName(string name);
 
 private:
-    void Clear_Converter();
+	void Clear_Converter();
 
 private:
-    HWND                                _hWnd{ nullptr };
-    char                                _pathBuffer[512]{};
-    wstring                             _resourcePath{};
+	::HWND                              _hWnd{ nullptr };
+	char                                _pathBuffer[512]{};
+	wstring                             _resourcePath{};
 
 private:
 	uint32                              importFlags{ 0 };
