@@ -5,6 +5,8 @@
 #include "InputCom.h"
 #include "MovementCom.h"
 #include "PlayerControllerCom.h"
+#include "Bounding_OBB.h"
+#include "ColliderCom.h"
 
 Player::Player(const ComPtr<Device>& device, const ComPtr<Context>& context)
 	: Character { device, context }
@@ -65,11 +67,16 @@ void Player::Update(float timeDelta)
 void Player::Late_Update(float timeDelta)
 {
 	__super::Late_Update(timeDelta);
+
+    if (_collider)
+    {
+        _collider->Update_Collider(_transformCom->Get_WorldMatrix());
+        GAME->Add_Collider(_collider);
+    }
 }
 
 HRESULT Player::Render()
 {
-
 
 	return S_OK;
 }
@@ -88,6 +95,8 @@ HRESULT Player::Ready_Components()
 
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_Movement"), _movementCom, &moveDesc), E_FAIL);
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_PlayerController"), _playerControllerCom), E_FAIL);
+
+    CHECK_FAILED(Ready_Collider(), E_FAIL);
 
 
     return S_OK;
@@ -119,30 +128,42 @@ HRESULT Player::Ready_PartObjects()
 	return S_OK;
 }
 
+HRESULT Player::Ready_Collider()
+{
+    Bounding_OBB::BoundingOBBDesc obbDesc{};
+    obbDesc.center = Vec3(0.f, 0.5f, 0.f);
+    obbDesc.extents = Vec3(0.5f, 0.6f, 0.5f);
+
+    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), L"Com_Collider_OBB", _collider, &obbDesc), E_FAIL);
+    _collider->Set_CollisionPreset(Collision_Preset::Player_Body);
+    _collider->Set_IsActive(true);
+
+    return S_OK;
+}
 
 Shared<Player> Player::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
-	auto pInstance = make_shared<Player>(device, context);
+	auto instance = make_shared<Player>(device, context);
 
-	if (FAILED(pInstance->Initialize_Prototype()))
+	if (FAILED(instance->Initialize_Prototype()))
 	{
 		MSG_BOX("Failed to Created : Player");
 		return nullptr;
 	}
-	return pInstance;
+	return instance;
 }
 
 
 Shared<GameObject> Player::Clone(void* pArg)
 {
-	auto pInstance = make_shared<Player>(*this);
+	auto instance = make_shared<Player>(*this);
 
-	if (FAILED(pInstance->Initialize(pArg)))
+	if (FAILED(instance->Initialize(pArg)))
 	{
 		MSG_BOX("Failed to Cloned : Player");
 		return nullptr;
 	}
-	return pInstance;
+	return instance;
 }
 
 void Player::Free()

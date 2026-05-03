@@ -47,4 +47,14 @@ namespace Engine
         UI,
     };
 
+    enum class CollisionShape : uint8
+    {
+        AABB,
+        OBB,
+        Sphere,
+        Capsule,
+
+        END
+    };
+
 }

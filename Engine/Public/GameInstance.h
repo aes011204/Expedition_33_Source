@@ -4,6 +4,7 @@
 #include "Input_Manager.h"
 #include "Prototype_Manager.h"
 #include "TypeRegistry.h"
+#include "Debug_Types.h"
 
 NS_BEGIN(Engine)
 
@@ -24,6 +25,9 @@ class Component;
 class GameObject;
 class Level;
 class Camera;
+class Debug_Manager;
+class Collision_Manager;
+class ColliderCom;
 
 class ENGINE_DLL GameInstance final : public Base
 {
@@ -35,7 +39,6 @@ public:
 
 public:
     HRESULT Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<Device>& device, ComPtr<Context>& context);
-    void    Release_Engine();
     void    Update_Engine(float timeDelta);
     HRESULT Draw();
     void    Clear_Resources(uint32 levelIndex);
@@ -168,28 +171,51 @@ public: /* For.TypeRegistry */
     Shared<GameObject>  Create_GameObjectPrototype(const string& className) const;
     Shared<Base>        Create_BTNodePrototype(const string& className) const;
 
+public: /* For.Collision_Manager */
+    void                    Add_Collider(Shared<ColliderCom> collider);
+    void                    Clear_Colliders();
+
+public: /* For.Debug_Manager */
+    void                    Draw_DebugBox(const DebugBoxDesc& desc);
+    void                    Draw_DebugSphere(const DebugSphereDesc& desc);
+    void                    Draw_DebugLine(const DebugLineDesc& desc);
+    void                    Draw_DebugTraceLine(const DebugTraceLineDesc& desc);
+
+    void                    Clear_DebugDraws();
+    void                    Set_DebugRenderEnabled(bool enabled);
+
+    bool                    Is_DebugRenderEnabled() const;
+
+#ifdef _DEBUG
+    HRESULT                 Render_DebugDepth();
+    HRESULT                 Render_DebugOverlay();
+#endif
+
 private:
-    Unique<Log_Manager> _logManager{};
-    Unique<Graphic_Device> _graphicDevice{};
-    Unique<Timer_Manager> _timerManager{};
-    Unique<Level_Manager> _levelManager{};
-    Unique<Prototype_Manager> _prototypeManager{};
-    Unique<Object_Manager> _objectManager{};
-    Unique<Renderer> _renderer{};
-    Unique<PipeLine> _pipeLine{};
-    Unique<Input_Manager> _inputManager{};
-    Unique<Light_Manager> _lightManager{};
-    Unique<Font_Manager> _fontManager{};
-    Unique<Asset_Manager> _assetManager{}; /* GUID 기반 에셋 registry와 meta/cache를 관리하는 매니저 */
-    Unique<Camera_Manager> _cameraManager{};
+    Unique<Log_Manager>         _logManager{};
+    Unique<Graphic_Device>      _graphicDevice{};
+    Unique<Timer_Manager>       _timerManager{};
+    Unique<Level_Manager>       _levelManager{};
+    Unique<Prototype_Manager>   _prototypeManager{};
+    Unique<Object_Manager>      _objectManager{};
+    Unique<Renderer>            _renderer{};
+    Unique<PipeLine>            _pipeLine{};
+    Unique<Input_Manager>       _inputManager{};
+    Unique<Light_Manager>       _lightManager{};
+    Unique<Font_Manager>        _fontManager{};
+    Unique<Asset_Manager>       _assetManager{}; /* GUID 기반 에셋 registry와 meta/cache를 관리하는 매니저 */
+    Unique<Camera_Manager>      _cameraManager{};
     Unique<TypeRegistry>        _typeRegistry{};
+    Unique<Debug_Manager>       _debugManager{};
+    Unique<Collision_Manager>   _collisionManager{};
 
 private:
     uint32 _viewportWidth{ 0 };
     uint32 _viewportHeight{ 0 };
 
 public:
-    void Free() override;
+    void    Release_Engine();
+    void    Free() override;
 };
 
 NS_END
