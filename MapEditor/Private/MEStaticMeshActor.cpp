@@ -32,12 +32,12 @@ HRESULT MEStaticMeshActor::Render(const Matrix& worldMatrix)
     return S_OK;
 }
 
-Shared<MEStaticMeshActor> MEStaticMeshActor::Create(ComPtr<Device> device, ComPtr<Context> context, const wstring& modelPath, Shared<Shader> shader)
+Shared<MEStaticMeshActor> MEStaticMeshActor::Create(ComPtr<Device> device, ComPtr<Context> context, const wstring& modelPath, Shared<ShaderCom> shader)
 {
     auto instance = make_shared<MEStaticMeshActor>();
 
     string pathA = String::ToString(modelPath);
-    instance->_model = Model::Create(device, context, ModelType::NonAnim, pathA.c_str(), Matrix::Identity);
+    instance->_model = ModelCom::Create(device, context, ModelType::NonAnim, pathA.c_str(), Matrix::Identity);
 
     CHECK_NULL(instance->_model, nullptr);
 

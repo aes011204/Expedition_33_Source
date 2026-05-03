@@ -2,8 +2,8 @@
 #include "MapEditorDefines.h"
 
 NS_BEGIN(Engine)
-class Model;
-class Shader;
+class ModelCom;
+class ShaderCom;
 NS_END
 
 NS_BEGIN(MapEditor)
@@ -18,15 +18,15 @@ public:
     HRESULT Render(const Matrix& worldMatrix);
 
 private:
-    Shared<Model> _model;
-    Shared<Shader> _shader;
+    Shared<ModelCom> _model;
+    Shared<ShaderCom> _shader;
 
 public:
     static Shared<MEStaticMeshActor> Create(
         ComPtr<Device> device,
         ComPtr<Context> context,
         const wstring& modelPath,
-        Shared<Shader> shader);
+        Shared<ShaderCom> shader);
 };
 
 NS_END
