@@ -2,6 +2,7 @@
 
 #include "MapEditorDefines.h"
 #include "Base.h"
+#include "SceneContext.h"
 
 NS_BEGIN(Engine)
 class RenderTarget;
@@ -36,6 +37,8 @@ private:
     Shared<MECamera> _camera;
     Shared<RenderTarget> _rt;
     Shared<PanelViewport> _viewport;
+
+    SceneContext _scene;
 
 public:
     static Unique<MapEditorApp> Create();

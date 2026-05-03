@@ -43,6 +43,9 @@
     <Filter Include="96. SimpleMath">
       <UniqueIdentifier>{6b1adc6e-e031-406c-85a7-f2ba018b9662}</UniqueIdentifier>
     </Filter>
+    <Filter Include="06. EditorObj">
+      <UniqueIdentifier>{f6749250-5d5d-465d-a104-6a0ca79eee0a}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="targetver.h">
@@ -89,6 +92,12 @@
     </ClInclude>
     <ClInclude Include="..\Public\MECamera.h">
       <Filter>05. Camera</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\EditorObject.h">
+      <Filter>06. EditorObj</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\SceneContext.h">
+      <Filter>06. EditorObj</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

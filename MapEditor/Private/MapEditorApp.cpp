@@ -38,12 +38,10 @@ HRESULT MapEditor::MapEditorApp::Initialize()
     _rt = RenderTarget::Create(_device, _context, g_iWinSizeX, g_iWinSizeY, DXGI_FORMAT_R8G8B8A8_UNORM, Vec4(0.1f, 0.1f, 0.1f, 1.f));
     CHECK_NULL(_rt, E_FAIL);
 
-    _viewport = PanelViewport::Create();
+    _viewport = PanelViewport::Create(_camera, _rt, &_scene);
     CHECK_NULL(_viewport, E_FAIL);
-    _viewport->SetCamera(_camera);
-    _viewport->SetRenderTarget(_rt);
 
-    _manager = MEManager::Create(_viewport);
+    _manager = MEManager::Create(_viewport, &_scene);
     CHECK_NULL(_manager, E_FAIL);
 
     return S_OK;

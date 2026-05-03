@@ -35,25 +35,59 @@ Clair Obscur: Expedition 33 모작 기준으로 필요한 맵 데이터를 편�
 - **진입점**: `MapEditor/Default/MapEditor.cpp`
 - **앱 중심**: `MapEditor/Private/MapEditorApp.cpp`
 
-## 구현된 클래스 구조 (Phase 1)
+---
+
+## 클래스 구조 (Phase 2 진행 중)
 
 ```
-MapEditorApp          — 엔진 초기화, 메인 루프 (Update/Render)
+MapEditorApp          — 엔진 초기화, 메인 루프 (Update/Render), SceneContext 소유
 ├── MEImGuiManager    — ImGui 생명주기 (NewFrame / Render / Shutdown)
 ├── MECamera          — 에디터 자유시점 카메라 (우클릭+WASD, 뷰/프로젝션 행렬 → GAME)
 ├── RenderTarget      — 씬을 RT에 렌더, PanelViewport에 SRV 전달
+├── SceneContext      — 씬 오브젝트 목록 + 선택 상태 (패널에 포인터로 전달)
 └── MEManager         — DockSpace + 패널 컨테이너
-    ├── PanelViewport     — RT를 ImGui::Image로 표시, 호버 시 카메라 입력 처리
-    ├── PanelHierarchy    — 씬 오브젝트 트리
-    ├── PanelInspector    — 선택 오브젝트 속성 편집
+    ├── PanelViewport     — RT ImGui::Image 표시, 카메라 입력, ImGuizmo 오버레이 ✅
+    ├── PanelHierarchy    — 오브젝트 목록, 선택/추가/삭제/복제/이름변경 ✅
+    ├── PanelInspector    — Transform 실시간 편집, Gizmo 양방향 연동 ✅
     └── PanelAssetBrowser — 맵 에셋 브라우저
 ```
 
 **베이스 클래스**: `MEWindow` (이름, 열림 상태, Update/Render 인터페이스)
 
+### EditorObject
+
+```
+EditorObject                                          ✅ 구현 완료
+├── name          (wstring)   — Hierarchy 표시 이름
+├── modelPath     (wstring)   — 모델 경로 (JSON 저장 시 사용)
+├── position      (Vec3)      — 편집용 Transform
+├── rotation      (Quat)      — 쿼터니언 저장, Inspector는 오일러(도) 변환 표시
+├── scale         (Vec3)
+├── worldMatrix   (Matrix)    — Gizmo / 렌더링에 사용, Decompose로 역분해 지원
+└── renderHandle              — 렌더링 전용 엔진 오브젝트 (미구현)
+```
+
+### SceneContext
+
+```
+SceneContext                                          ✅ 구현 완료
+├── objects   (vector<Shared<EditorObject>>)  — 씬 내 전체 오브젝트 목록
+└── selected  (Shared<EditorObject>)          — 현재 선택 오브젝트 (Hierarchy/Inspector/Gizmo 공유)
+```
+
 ---
 
 ## 목표 기능 목록
+
+### 편집 도구
+
+| 기능 | 설명 | 상태 |
+|------|------|------|
+| 뷰포트 | 씬 3D 뷰, 에디터 전용 카메라 이동/회전 | ✅ |
+| 기즈모 | Translate / Rotate / Scale 핸들, W/E/R 단축키 | ✅ |
+| Hierarchy | 오브젝트 목록, 선택/추가/삭제/복제/이름변경 | ✅ |
+| Inspector | Transform 실시간 편집, Gizmo 양방향 연동 | ✅ |
+| Snapping | 그리드 스냅, 각도 스냅 | 구현 예정 |
 
 ### 렌더링 / 배치
 
@@ -65,25 +99,15 @@ MapEditorApp          — 엔진 초기화, 메인 루프 (Update/Render)
 | 파티클 이펙트 배치 | 주변 환경 파티클(먼지, 빛 입자 등) 배치 및 파라미터 설정 | 구현 예정 |
 | 지형 (Terrain) | 하이트맵 기반(`VIBuffer_Terrain`) 또는 정적 메시, 모작 데이터 포맷 확인 후 결정 | 방식 미확정 |
 
-### 편집 도구
-
-| 기능 | 설명 | 상태 |
-|------|------|------|
-| 기즈모 | Translate / Rotate / Scale 핸들, 실시간 수치 반영 | 구현 예정 |
-| Inspector | 선택 오브젝트의 Transform 및 컴포넌트 속성 실시간 편집 | 구현 예정 |
-| Hierarchy | 씬 내 오브젝트 목록 트리, 선택/삭제/이름 변경 | 구현 예정 |
-| 뷰포트 | 씬 3D 뷰, 에디터 전용 카메라 이동/회전 | 구현 예정 |
-| Snapping | 그리드 스냅, 각도 스냅 | 구현 예정 |
-
 ### 볼륨 / 존 시스템
 
 | 기능 | 설명 | 상태 |
 |------|------|------|
 | 트리거 볼륨 | 이벤트 트리거 영역 설치 및 속성 설정 | 구현 예정 |
 | 인카운터 존 | 전투 진입 트리거 구역 설치 및 적 그룹 지정 | 구현 예정 |
-| Post-processing Volume | 구역별 bloom, fog density, color grading 수치 조정 (셰이더 기본 구현은 팀원) | 구현 예정 |
+| Post-processing Volume | 구역별 bloom, fog density, color grading 수치 조정 | 구현 예정 |
 | Volumetric Fog 존 | 특정 구역에만 안개 효과 범위 및 농도 설정 | 구현 예정 |
-| Camera Zone | 구역 진입 시 카메라 FOV, 고정 앵글, 전환 방식 파라미터 편집 (카메라 기본 구현은 팀원) | 구현 예정 |
+| Camera Zone | 구역 진입 시 카메라 FOV, 고정 앵글, 전환 방식 파라미터 편집 | 구현 예정 |
 | Ambient Sound Zone | 구역별 배경음/효과음 범위 및 음량 설정 | 구현 예정 |
 | 포털 / 존 전환 | 맵과 맵을 연결하는 진입점 설치 | 구현 예정 |
 
@@ -124,36 +148,37 @@ MapEditorApp          — 엔진 초기화, 메인 루프 (Update/Render)
 
 ## 개발 단계 (Phase)
 
-### Phase 1 — 에디터 기반
+### Phase 1 — 에디터 기반 ✅
 1. ✅ `MapEditor.cpp` 진입점 교체 (엔진 초기화, 60FPS 게임루프, ImGui WndProc, DPI 처리)
 2. ✅ `MapEditorApp` 클래스 (`Engine::Base` 상속, Initialize / Update / Render / Free)
 3. ✅ ImGui 초기화 및 도킹 레이아웃 (`MEImGuiManager`, `MEManager`, DockBuilder 초기 배치)
 4. ✅ 기본 패널 4종 표시 — Viewport / Hierarchy / Inspector / Asset Browser
 5. ✅ 에디터 전용 카메라 및 뷰포트 렌더링 (`MECamera`, `RenderTarget` RT → ImGui::Image)
-6. 🔲 기즈모 (Translate / Rotate / Scale)
+6. ✅ 기즈모 (Translate / Rotate / Scale) — ImGuizmo, W/E/R 단축키, SceneContext 연동
 
 ### Phase 2 — 핵심 오브젝트 편집
-6. Hierarchy 패널
-7. Inspector 패널 (Transform 실시간 편집)
-8. 정적 메시 배치 / 삭제 / 복제
-9. 라이트 배치 및 속성 편집
-10. JSON 저장 / 로드
+7. ✅ `EditorObject` / `SceneContext` 구현
+8. ✅ Hierarchy 패널 (오브젝트 목록, 선택/추가/삭제/복제/이름변경, Gizmo 연동)
+9. ✅ Inspector 패널 (Transform 실시간 편집, Gizmo 양방향 연동)
+10. 정적 메시 배치 / 삭제 / 복제
+11. 라이트 배치 및 속성 편집
+12. JSON 저장 / 로드
 
 ### Phase 3 — 볼륨 / 환경
-11. 인카운터 존, 트리거 볼륨, 스폰 포인트
-12. Post-processing Volume, Volumetric Fog 존
-13. Camera Zone 파라미터 편집
-14. Ambient Sound Zone
-15. Water 배치, 파티클 배치
-16. 지형 시스템 (방식 확정 후)
+13. 인카운터 존, 트리거 볼륨, 스폰 포인트
+14. Post-processing Volume, Volumetric Fog 존
+15. Camera Zone 파라미터 편집
+16. Ambient Sound Zone
+17. Water 배치, 파티클 배치
+18. 지형 시스템 (방식 확정 후)
 
 ### Phase 4 — 내비 / AI
-17. 웨이포인트, 포털 / 존 전환
-18. Recast 엔진 통합 → NavMesh 베이크 및 시각화
+19. 웨이포인트, 포털 / 존 전환
+20. Recast 엔진 통합 → NavMesh 베이크 및 시각화
 
 ### Phase 5 — 물리 / 최적화
-19. PhysX 엔진 통합 → 콜라이더 편집, 지형 충돌
-20. 인스턴싱 그룹, Occlusion Volume
+21. PhysX 엔진 통합 → 콜라이더 편집, 지형 충돌
+22. 인스턴싱 그룹, Occlusion Volume
 
 ---
 
@@ -165,16 +190,20 @@ MapEditorApp          — 엔진 초기화, 메인 루프 (Update/Render)
 | DirectXTK | 유틸리티 | 통합 완료 |
 | Assimp | 메시 임포트 | 통합 완료 |
 | nlohmann/json | 데이터 직렬화 | 통합 완료 |
-| ImGui | UI | **통합 완료** |
+| ImGui | UI | 통합 완료 |
 | PhysX 5.5.0 | 물리 충돌 / BVH | vcpkg 설치 완료, **엔진 통합 필요** |
 | Recast/Detour | 내비게이션 메시 | **미설치 — 엔진 통합 필요** |
 
 ---
 
-## JSON 출력 포맷 방향
+## JSON 출력 포맷
 
 기존 엔진의 `DT_StaticLevel.json` / `DT_GameObject.json` 포맷을 따라  
 MainEditor에서 추가 파싱 없이 바로 로드 가능하도록 설계.
+
+- MainEditor 구조: `MainEditor/Default/MainEditor.cpp`, `MainEditor/Public/MainEditorApp.h`
+- 엔진 정의: `Engine/Public/Engine_Define.h`
+- 기존 데이터 포맷: `Client` 프로젝트의 `DT_StaticLevel.json`, `DT_GameObject.json`
 
 **Rotation은 쿼터니언 [X, Y, Z, W] 으로 저장.**  
 Inspector UI에서는 오일러 각도로 변환해서 표시하고, 편집 후 다시 쿼터니언으로 저장. (Unity와 동일 방식)
@@ -256,8 +285,6 @@ Inspector UI에서는 오일러 각도로 변환해서 표시하고, 편집 후 
 
 ### 좌표계 변환 (UE5 → DirectX)
 
-UE5와 엔진의 좌표계가 달라 변환이 필요하다.
-
 | 항목 | UE5 | DirectX (엔진) |
 |------|-----|----------------|
 | 핸드니스 | 왼손 | 왼손 |
@@ -296,20 +323,9 @@ TransformData 파싱 + 좌표계 변환
 
 ### 에셋 경로 매핑
 
-UE 경로를 그대로 쓸 수 없으므로 매핑 테이블이 필요하다.
-
 ```json
 {
     "/Game/Meshes/Environment/Rock_01": "Data/Models/Rock_01.bin",
     "/Game/Meshes/Environment/Tree_01": "Data/Models/Tree_01.bin"
 }
 ```
-
----
-
-## JSON 출력 포맷 방향
-
-- MainEditor 구조: `MainEditor/Default/MainEditor.cpp`, `MainEditor/Public/MainEditorApp.h`
-- 엔진 정의: `Engine/Public/Engine_Define.h`
-- 기존 데이터 포맷: `Client` 프로젝트의 `DT_StaticLevel.json`, `DT_GameObject.json`
-- 모작 대상: Clair Obscur: Expedition 33 (Sandfall Interactive)

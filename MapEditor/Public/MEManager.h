@@ -5,6 +5,7 @@
 NS_BEGIN(MapEditor)
 
 class PanelViewport;
+struct SceneContext;
 
 class MEManager
 {
@@ -13,7 +14,7 @@ public:
     ~MEManager();
 
 public:
-    HRESULT Initialize(Shared<PanelViewport> viewport);
+    HRESULT Initialize(Shared<PanelViewport> viewport, SceneContext* ctx);
     void Update(float timeDelta);
     void Render();
 
@@ -25,7 +26,7 @@ private:
     bool layoutInitialized = false;
 
 public:
-    static Unique<MEManager> Create(Shared<PanelViewport> viewport);
+    static Unique<MEManager> Create(Shared<PanelViewport> viewport, SceneContext* ctx);
 };
 
 NS_END

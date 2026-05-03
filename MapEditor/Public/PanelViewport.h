@@ -8,17 +8,13 @@ NS_END
 NS_BEGIN(MapEditor)
 
 class MECamera;
+struct SceneContext;
 
 class PanelViewport final : public MEWindow
 {
 public:
-    PanelViewport();
+    PanelViewport(Shared<MECamera> camera, Shared<RenderTarget> rt, SceneContext* ctx);
     virtual ~PanelViewport() = default;
-
-public:
-    void SetCamera(Shared<MECamera> camera) { _camera = camera; }
-    void SetRenderTarget(Shared<RenderTarget> rt) { _rt = rt; }
-    void SetSelectedMatrix(Matrix* mat) { _selectedMatrix = mat; }
 
 public:
     virtual void Update(float timeDelta) override;
@@ -27,15 +23,15 @@ public:
 private:
     Shared<MECamera> _camera;
     Shared<RenderTarget> _rt;
+    SceneContext* _ctx = {};
 
     bool _isHovered = false;
 
     ImGuizmo::OPERATION _gizmoOp = ImGuizmo::TRANSLATE;
     ImGuizmo::MODE _gizmoMode = ImGuizmo::WORLD;
-    Matrix* _selectedMatrix = {};
 
 public:
-    static Shared<PanelViewport> Create();
+    static Shared<PanelViewport> Create(Shared<MECamera> camera, Shared<RenderTarget> rt, SceneContext* ctx);
 };
 
 NS_END

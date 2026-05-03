@@ -1,8 +1,9 @@
 ﻿#include "pch.h"
 #include "PanelInspector.h"
+#include "SceneContext.h"
 
-PanelInspector::PanelInspector()
-    : MEWindow{ L"Inspector" }
+PanelInspector::PanelInspector(SceneContext* ctx)
+    : MEWindow{ L"Inspector" }, _ctx{ ctx }
 {
 
 }
@@ -12,13 +13,75 @@ void MapEditor::PanelInspector::Render()
     bool open = IsOpen();
     if (ImGui::Begin("Inspector", &open))
     {
-        ImGui::Text("선택된 오브젝트 없음");
+        if (!_ctx || !_ctx->selected)
+        {
+            ImGui::TextDisabled("(선택된 오브젝트 없음)");
+            ImGui::End();
+            SetOpen(open);
+            return;
+        }
+
+        auto& obj = _ctx->selected;
+        bool changed = false;
+
+        if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            float pos[3] = { obj->position.x, obj->position.y, obj->position.z };
+            if (ImGui::DragFloat3("Position", pos, 0.1f))
+            {
+                obj->position = Vec3(pos[0], pos[1], pos[2]);
+                changed = true;
+            }
+
+            Matrix rotMat = Matrix::CreateFromQuaternion(obj->rotation);
+
+            float pitch = {}, yaw = {}, roll = {};
+            pitch = asinf(-rotMat._32);
+            if (cosf(pitch) > 1e-6f)
+            {
+                yaw = atan2f(rotMat._31, rotMat._33);
+                roll = atan2f(rotMat._12, rotMat._22);
+            }
+            else
+            {
+                yaw = atan2f(-rotMat._13, rotMat._11);
+                roll = 0.f;
+            }
+
+            float euler[3] = {
+                XMConvertToDegrees(pitch),
+                XMConvertToDegrees(yaw),
+                XMConvertToDegrees(roll)
+            };
+
+            if (ImGui::DragFloat3("Rotation", euler, 0.5f))
+            {
+                obj->rotation = Quat::CreateFromYawPitchRoll(
+                    XMConvertToRadians(euler[1]),
+                    XMConvertToRadians(euler[0]),
+                    XMConvertToRadians(euler[2]));
+
+                changed = true;
+            }
+
+            float scl[3] = { obj->scale.x,obj->scale.y, obj->scale.z };
+            if (ImGui::DragFloat3("Scale", scl, 0.01f))
+            {
+                obj->scale = Vec3(scl[0], scl[1], scl[2]);
+                changed = true;
+            }
+        }
+
+        if (changed)
+        {
+            obj->UpdateWorldMatrix();
+        }
     }
     ImGui::End();
     SetOpen(open);
 }
 
-Shared<PanelInspector> PanelInspector::Create()
+Shared<PanelInspector> PanelInspector::Create(SceneContext* ctx)
 {
-    return make_shared<PanelInspector>();
+    return make_shared<PanelInspector>(ctx);
 }

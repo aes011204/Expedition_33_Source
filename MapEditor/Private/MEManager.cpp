@@ -10,7 +10,7 @@ MEManager::~MEManager()
 
 }
 
-HRESULT MEManager::Initialize(Shared<PanelViewport> viewport)
+HRESULT MEManager::Initialize(Shared<PanelViewport> viewport, SceneContext* ctx)
 {
     auto Add = [this](Shared<MEWindow> w) {
         if (w)
@@ -19,8 +19,8 @@ HRESULT MEManager::Initialize(Shared<PanelViewport> viewport)
         }};
 
     Add(viewport);
-    Add(PanelHierarchy::Create());
-    Add(PanelInspector::Create());
+    Add(PanelHierarchy::Create(ctx));
+    Add(PanelInspector::Create(ctx));
     Add(PanelAssetBrowser::Create());
 
     return S_OK;
@@ -148,11 +148,11 @@ void MEManager::RenderDockSpace()
     ImGui::End();
 }
 
-Unique<MEManager> MEManager::Create(Shared<PanelViewport> viewport)
+Unique<MEManager> MEManager::Create(Shared<PanelViewport> viewport, SceneContext* ctx)
 {
     auto instance = make_unique<MEManager>();
 
-    CHECK_FAILED(instance->Initialize(viewport), nullptr);
+    CHECK_FAILED(instance->Initialize(viewport, ctx), nullptr);
 
     return instance;
 }

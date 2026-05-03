@@ -3,9 +3,10 @@
 #include "RenderTarget.h"
 
 #include "MECamera.h"
+#include "SceneContext.h"
 
-PanelViewport::PanelViewport()
-    : MEWindow{ L"Viewport" }
+PanelViewport::PanelViewport(Shared<MECamera> camera, Shared<RenderTarget> rt, SceneContext* ctx)
+    : MEWindow{ L"Viewport" }, _camera{ camera }, _rt{ rt }, _ctx{ ctx }
 {
 
 }
@@ -43,7 +44,7 @@ void PanelViewport::Render()
 
             ImGui::Image(reinterpret_cast<ImTextureID>(_rt->Get_SRV()), size);
 
-            if (_camera && _selectedMatrix)
+            if (_camera && _ctx && _ctx->selected)
             {
                 const ImVec2 winPos = ImGui::GetWindowPos();
                 const ImVec2 winSize = ImGui::GetWindowSize();
@@ -71,11 +72,17 @@ void PanelViewport::Render()
                 memcpy(view, &_camera->GetView(), sizeof(float) * 16);
                 memcpy(proj, &_camera->GetProj(), sizeof(float) * 16);
                 float mat[16] = {};
-                memcpy(mat, _selectedMatrix, sizeof(float) * 16);
+                memcpy(mat, &_ctx->selected->worldMatrix, sizeof(float) * 16);
 
-                ImGuizmo::Manipulate(view, proj, _gizmoOp, _gizmoMode, mat);
-
-                memcpy(_selectedMatrix, mat, sizeof(float) * 16);
+                const bool manipulated = ImGuizmo::Manipulate(view, proj, _gizmoOp, _gizmoMode, mat);
+                if (manipulated)
+                {
+                    memcpy(&_ctx->selected->worldMatrix, mat, sizeof(float) * 16);
+                    _ctx->selected->worldMatrix.Decompose(
+                        _ctx->selected->scale,
+                        _ctx->selected->rotation,
+                        _ctx->selected->position);
+                }
             }
         }
 
@@ -89,7 +96,7 @@ void PanelViewport::Render()
     SetOpen(open);
 }
 
-Shared<PanelViewport> PanelViewport::Create()
+Shared<PanelViewport> PanelViewport::Create(Shared<MECamera> camera, Shared<RenderTarget> rt, SceneContext* ctx)
 {
-    return make_shared<PanelViewport>();
+    return make_shared<PanelViewport>(camera, rt, ctx);
 }

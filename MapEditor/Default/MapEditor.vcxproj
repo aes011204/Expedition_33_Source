@@ -148,6 +148,7 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\Public\EditorObject.h" />
     <ClInclude Include="..\Public\MapEditorApp.h" />
     <ClInclude Include="..\Public\MapEditorDefines.h" />
     <ClInclude Include="..\Public\MECamera.h" />
@@ -159,6 +160,7 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     <ClInclude Include="..\Public\PanelInspector.h" />
     <ClInclude Include="..\Public\PanelViewport.h" />
     <ClInclude Include="..\Public\pch.h" />
+    <ClInclude Include="..\Public\SceneContext.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="MapEditor.h" />
     <ClInclude Include="Resource.h" />
