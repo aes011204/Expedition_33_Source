@@ -8,7 +8,7 @@ Camera::Camera(const ComPtr<Device>& device, const ComPtr<Context>& context)
 
 Camera::Camera(const Camera& prototype)
     : GameObject{ prototype }
-    , _fovy{ prototype._fovy }
+    , _fovY{ prototype._fovY }
     , _near{ prototype._near }
     , _far{ prototype._far }
     , _aspect{ prototype._aspect }
@@ -31,13 +31,16 @@ HRESULT Camera::Initialize(void* arg)
     const CAMERA_DESC* desc = static_cast<CAMERA_DESC*>(arg);
 
     _transformCom->Set_Position(Vec3(desc->eye.x, desc->eye.y, desc->eye.z));
-    _transformCom->LookAt(Vec3(desc->at.x, desc->at.y, desc->at.z));
 
-    _fovy = desc->fovy;
+    _fovY = desc->fovy;
     _near = desc->nearPlane;
     _far = desc->farPlane;
+    _yaw = desc->yaw;
+    _pitch = desc->pitch;
     _aspect = static_cast<float>(GAME->Get_ViewportWidth()) /
               static_cast<float>(max(1u, GAME->Get_ViewportHeight()));
+
+    _transformCom->Set_RotationEuler(Vec3 {_pitch, _yaw, 0.f}); 
 
     Update_TransformMatrices();
 
@@ -73,7 +76,7 @@ void Camera::Update_TransformMatrices()
 
     GAME->Set_Transform(
         D3DTS::Proj,
-        XMMatrixPerspectiveFovLH(_fovy, _aspect, _near, _far)
+        XMMatrixPerspectiveFovLH(_fovY, _aspect, _near, _far)
     );
 }
 

@@ -102,7 +102,9 @@
       <EnableUAC>false</EnableUAC>
     </Link>
     <PostBuildEvent>
-      <Command>pushd "$(ProjectDir)..\.." &amp;&amp; call "UpdateLib.bat" &amp;&amp; popd</Command>
+      <Command>pushd "$(ProjectDir)..\.." &amp;&amp; call "UpdateLib.bat" &amp;&amp; popd
+if exist "$(OutDir)Engine.dll" xcopy /y /d "$(OutDir)Engine.dll" "$(ProjectDir)..\..\MainEditor\Bin\$(Configuration)\"
+if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir)..\..\MainEditor\Bin\$(Configuration)\"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -125,7 +127,9 @@
       <EnableUAC>false</EnableUAC>
     </Link>
     <PostBuildEvent>
-      <Command>pushd "$(ProjectDir)..\.." &amp;&amp; call "UpdateLib.bat" &amp;&amp; popd</Command>
+      <Command>pushd "$(ProjectDir)..\.." &amp;&amp; call "UpdateLib.bat" &amp;&amp; popd
+if exist "$(OutDir)Engine.dll" xcopy /y /d "$(OutDir)Engine.dll" "$(ProjectDir)..\..\MainEditor\Bin\$(Configuration)\"
+if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir)..\..\MainEditor\Bin\$(Configuration)\"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -183,24 +187,27 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="..\Public\AIController.h" />
-    <ClInclude Include="..\Public\BehaviorTree.h" />
-    <ClInclude Include="..\Public\BlackBoard.h" />
-    <ClInclude Include="..\Public\BNode.h" />
-    <ClInclude Include="..\Public\BT_MoveTo.h" />
+    <ClInclude Include="..\Public\Bounding.h" />
+    <ClInclude Include="..\Public\Bounding_AABB.h" />
+    <ClInclude Include="..\Public\Bounding_OBB.h" />
+    <ClInclude Include="..\Public\Bounding_Sphere.h" />
+    <ClInclude Include="..\Public\Camera_Manager.h" />
     <ClInclude Include="..\Public\Character.h" />
-    <ClInclude Include="..\Public\Composite.h" />
-    <ClInclude Include="..\Public\Decorator.h" />
+    <ClInclude Include="..\Public\ColliderCom.h" />
+    <ClInclude Include="..\Public\Collision_Manager.h" />
+    <ClInclude Include="..\Public\Collision_Define.h" />
+    <ClInclude Include="..\Public\Debug_Manager.h" />
+    <ClInclude Include="..\Public\Debug_Types.h" />
+    <ClInclude Include="..\Public\DebugDraw.h" />
+    <ClInclude Include="..\Public\Delegate.h" />
+    <ClInclude Include="..\Public\Event_Manager.h" />
     <ClInclude Include="..\Public\Helper_Math.h" />
     <ClInclude Include="..\Public\Log_Manager.h" />
     <ClInclude Include="..\Public\Helper_String.h" />
     <ClInclude Include="..\Public\MovementCom.h" />
-    <ClInclude Include="..\Public\PathFollower.h" />
     <ClInclude Include="..\Public\Reflection_Types.h" />
     <ClInclude Include="..\Public\RenderTarget.h" />
     <ClInclude Include="..\Public\RegistorFactory.h" />
-    <ClInclude Include="..\Public\Service.h" />
-    <ClInclude Include="..\Public\Task.h" />
     <ClInclude Include="..\Public\TypeRegistry.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="..\public\Animation.h" />
@@ -247,24 +254,25 @@
     <ClInclude Include="..\public\VIBuffer_Rect.h" />
     <ClInclude Include="..\Public\VIBuffer_Terrain.h" />
     <ClInclude Include="..\Public\Vertex_Types.h" />
+    <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\Private\AIController.cpp" />
-    <ClCompile Include="..\Private\BehaviorTree.cpp" />
-    <ClCompile Include="..\Private\BlackBoard.cpp" />
-    <ClCompile Include="..\Private\BNode.cpp" />
-    <ClCompile Include="..\Private\BT_MoveTo.cpp" />
+    <ClCompile Include="..\Private\Bounding.cpp" />
+    <ClCompile Include="..\Private\Bounding_AABB.cpp" />
+    <ClCompile Include="..\Private\Bounding_OBB.cpp" />
+    <ClCompile Include="..\Private\Bounding_Sphere.cpp" />
+    <ClCompile Include="..\Private\Camera_Manager.cpp" />
     <ClCompile Include="..\Private\Character.cpp" />
-    <ClCompile Include="..\Private\Composite.cpp" />
-    <ClCompile Include="..\Private\Decorator.cpp" />
+    <ClCompile Include="..\Private\ColliderCom.cpp" />
+    <ClCompile Include="..\Private\Collision_Manager.cpp" />
+    <ClCompile Include="..\PRivate\Debug_Manager.cpp" />
+    <ClCompile Include="..\Private\DebugDraw.cpp" />
+    <ClCompile Include="..\Private\Event_Manager.cpp" />
     <ClCompile Include="..\Private\Log_Manager.cpp" />
     <ClCompile Include="..\Private\MovementCom.cpp" />
-    <ClCompile Include="..\Private\PathFollower.cpp" />
     <ClCompile Include="..\Private\RenderTarget.cpp" />
-    <ClCompile Include="..\Private\Service.cpp" />
     <ClCompile Include="..\Private\SimpleMath.cpp" />
     <ClCompile Include="..\Private\RegistorFactory.cpp" />
-    <ClCompile Include="..\Private\Task.cpp" />
     <ClCompile Include="..\Private\TypeRegistry.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
@@ -309,6 +317,9 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Bin\ShaderFiles\Engine_Shader_Defines.hlsli" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="Engine.rc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
