@@ -1,5 +1,5 @@
 ﻿#include "Material.h"
-#include "Shader.h"
+#include "ShaderCom.h"
 
 Material::Material(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : _device { device }
@@ -73,7 +73,7 @@ HRESULT Material::Initialize(const aiMaterial* aiMaterial, const char* modelFile
     return S_OK;
 }
 
-HRESULT Material::Bind_Material(Shader* shader, const char* constantName, aiTextureType materialType, uint32 textureIndex)
+HRESULT Material::Bind_Material(ShaderCom* shader, const char* constantName, aiTextureType materialType, uint32 textureIndex)
 {
     if (textureIndex >= _materials[materialType].size() ||
         nullptr == _materials[materialType][textureIndex])

@@ -1,7 +1,7 @@
 ﻿#include "Mesh.h"
 
 #include "GameInstance.h"
-#include "Model.h"
+#include "ModelCom.h"
 #include "Bone.h"
 
 Mesh::Mesh(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -15,7 +15,7 @@ Mesh::Mesh(const Mesh& prototype)
 {
 }
 
-HRESULT Mesh::Initialize_Prototype(ModelType type, const aiMesh* aiMesh, class Model* model, FXMMATRIX preTransformMatrix)
+HRESULT Mesh::Initialize_Prototype(ModelType type, const aiMesh* aiMesh, class ModelCom* model, FXMMATRIX preTransformMatrix)
 {
 	strcpy_s(_name, aiMesh->mName.data);
 
@@ -76,7 +76,7 @@ HRESULT Mesh::Initialize(void* arg)
 	return S_OK;
 }
 
-HRESULT Mesh::Bind_BoneMatrices(Shader* shader, const char* constantName, const vector<Shared<Bone>>& bones)
+HRESULT Mesh::Bind_BoneMatrices(ShaderCom* shader, const char* constantName, const vector<Shared<Bone>>& bones)
 {
 	ZeroMemory(_boneMatrices, sizeof(XMFLOAT4X4) * 512);
 
@@ -132,7 +132,7 @@ HRESULT Mesh::Ready_VertexBuffer_For_NonAnim(const aiMesh* aiMesh, FXMMATRIX pre
 	return S_OK;
 }
 
-HRESULT Mesh::Ready_VertexBuffer_For_Anim(const aiMesh* aiMesh, class Model* model)
+HRESULT Mesh::Ready_VertexBuffer_For_Anim(const aiMesh* aiMesh, class ModelCom* model)
 {
 	_vertexStride = sizeof(VTXANIMMESH);
 	D3D11_BUFFER_DESC	VertexBufferDesc{};
@@ -233,7 +233,7 @@ HRESULT Mesh::Ready_VertexBuffer_For_Anim(const aiMesh* aiMesh, class Model* mod
 
 
 
-Shared<Mesh> Mesh::Create(const ComPtr<Device>& device, const ComPtr<Context>& context, ModelType type, const aiMesh* aiMesh, class Model* model, FXMMATRIX preTransformMatrix)
+Shared<Mesh> Mesh::Create(const ComPtr<Device>& device, const ComPtr<Context>& context, ModelType type, const aiMesh* aiMesh, class ModelCom* model, FXMMATRIX preTransformMatrix)
 {
 	auto instance = make_shared<Mesh>(device, context);
 

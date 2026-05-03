@@ -1,17 +1,17 @@
-﻿#include "Model.h"
+﻿#include "ModelCom.h"
 
 #include "Mesh.h"
 #include "Bone.h"
-#include "Shader.h"
+#include "ShaderCom.h"
 #include "Material.h"
 #include "Animation.h"
 
-Model::Model(const ComPtr<Device>& device, const ComPtr<Context>& context)
+ModelCom::ModelCom(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Component { device, context }
 {
 }
 
-Model::Model(const Model& prototype)
+ModelCom::ModelCom(const ModelCom& prototype)
     : Component{ prototype }
     , _aiScene { prototype._aiScene }
     , _type{ prototype._type }
@@ -31,7 +31,7 @@ Model::Model(const Model& prototype)
         _bones.push_back(prototypeBone->Clone());
 }
 
-int32 Model::Get_BoneIndex(const char* boneName)
+int32 ModelCom::Get_BoneIndex(const char* boneName)
 {
     int32    boneIndex = { -1 };
 
@@ -46,7 +46,7 @@ int32 Model::Get_BoneIndex(const char* boneName)
     return boneIndex;
 }
 
-const XMFLOAT4X4* Model::Get_BoneMatrixPtr(const char* boneName)
+const XMFLOAT4X4* ModelCom::Get_BoneMatrixPtr(const char* boneName)
 {
     auto    iter = find_if(_bones.begin(), _bones.end(), [&](Shared<Bone> bone)->bool {    
         return bone->isCompare(boneName);
@@ -58,7 +58,7 @@ const XMFLOAT4X4* Model::Get_BoneMatrixPtr(const char* boneName)
     return (*iter)->Get_CombinedTransformationMatrixPtr();
 }
 
-HRESULT Model::Initialize_Prototype(ModelType type, const char* modelFilePath, FXMMATRIX preLocalTransformMatrix)
+HRESULT ModelCom::Initialize_Prototype(ModelType type, const char* modelFilePath, FXMMATRIX preLocalTransformMatrix)
 {
     uint32       flag = { aiProcess_ConvertToLeftHanded | aiProcessPreset_TargetRealtime_Fast };
 
@@ -90,12 +90,12 @@ HRESULT Model::Initialize_Prototype(ModelType type, const char* modelFilePath, F
     return S_OK;
 }
 
-HRESULT Model::Initialize(void* arg)
+HRESULT ModelCom::Initialize(void* arg)
 {
     return S_OK;
 }
 
-HRESULT Model::Render(uint32 meshIndex)
+HRESULT ModelCom::Render(uint32 meshIndex)
 {
     _meshes[meshIndex]->Bind_Resources();
     _meshes[meshIndex]->Render();
@@ -103,7 +103,7 @@ HRESULT Model::Render(uint32 meshIndex)
     return S_OK;
 }
 
-bool Model::Play_Animation(float timeDelta)
+bool ModelCom::Play_Animation(float timeDelta)
 {
     bool       isFinish = { false };
     isFinish = _animations[_currentAnimIndex]->Update_TransformationMatrices(timeDelta, _bones, _isAnimLoop);
@@ -116,7 +116,7 @@ bool Model::Play_Animation(float timeDelta)
     return isFinish;
 }
 
-HRESULT Model::Bind_Material(Shader* shader, const char* constantName, uint32 meshIndex, aiTextureType materialType, uint32 textureIndex)
+HRESULT ModelCom::Bind_Material(ShaderCom* shader, const char* constantName, uint32 meshIndex, aiTextureType materialType, uint32 textureIndex)
 {
  
     return _materials[_meshes[meshIndex]->Get_MaterialIndex()]->Bind_Material(shader, constantName, materialType, textureIndex);
@@ -124,7 +124,7 @@ HRESULT Model::Bind_Material(Shader* shader, const char* constantName, uint32 me
     
 }
 
-HRESULT Model::Bind_BoneMatrices(Shader* shader, const char* constantName, uint32 meshIndex)
+HRESULT ModelCom::Bind_BoneMatrices(ShaderCom* shader, const char* constantName, uint32 meshIndex)
 {
 
     return _meshes[meshIndex]->Bind_BoneMatrices(shader, constantName, _bones);    
@@ -132,7 +132,7 @@ HRESULT Model::Bind_BoneMatrices(Shader* shader, const char* constantName, uint3
 
 
 
-HRESULT Model::Ready_Meshes()
+HRESULT ModelCom::Ready_Meshes()
 {
     _numMeshes = _aiScene->mNumMeshes;
 
@@ -148,7 +148,7 @@ HRESULT Model::Ready_Meshes()
     return S_OK;
 }
 
-HRESULT Model::Ready_Materials(const char* modelFilePath)
+HRESULT ModelCom::Ready_Materials(const char* modelFilePath)
 {
     _numMaterials = _aiScene->mNumMaterials;
 
@@ -163,7 +163,7 @@ HRESULT Model::Ready_Materials(const char* modelFilePath)
 
     return S_OK;
 }
-HRESULT Model::Ready_Bones(const aiNode* aiNode, int32 parentIndex)
+HRESULT ModelCom::Ready_Bones(const aiNode* aiNode, int32 parentIndex)
 {
     Shared<Bone> bone = Bone::Create(aiNode, parentIndex);
     if (nullptr == bone)
@@ -181,7 +181,7 @@ HRESULT Model::Ready_Bones(const aiNode* aiNode, int32 parentIndex)
     return S_OK;
 }
 
-HRESULT Model::Ready_Animations()
+HRESULT ModelCom::Ready_Animations()
 {
     _numAnimations = _aiScene->mNumAnimations;
 
@@ -198,13 +198,13 @@ HRESULT Model::Ready_Animations()
 }
 
 
-Shared<Model> Model::Create(const ComPtr<Device>& device, const ComPtr<Context>& context, ModelType type, const char* modelFilePath, FXMMATRIX preLocalTransformMatrix)
+Shared<ModelCom> ModelCom::Create(const ComPtr<Device>& device, const ComPtr<Context>& context, ModelType type, const char* modelFilePath, FXMMATRIX preLocalTransformMatrix)
 {
-    auto instance = make_shared<Model>(device, context);
+    auto instance = make_shared<ModelCom>(device, context);
 
     if (FAILED(instance->Initialize_Prototype(type, modelFilePath, preLocalTransformMatrix)))
     {
-        MSG_BOX("Failed to Created : Model");
+        MSG_BOX("Failed to Created : ModelCom");
         return nullptr;
 	}
     return instance;
@@ -212,19 +212,19 @@ Shared<Model> Model::Create(const ComPtr<Device>& device, const ComPtr<Context>&
 
 
 
-Shared<Component> Model::Clone(void* arg)
+Shared<Component> ModelCom::Clone(void* arg)
 {
-    auto instance = make_shared<Model>(*this);
+    auto instance = make_shared<ModelCom>(*this);
 
     if (FAILED(instance->Initialize(arg)))
     {
-        MSG_BOX("Failed to Cloned : Model");
+        MSG_BOX("Failed to Cloned : ModelCom");
         return nullptr;
 	}
     return instance;
 }
 
-void Model::Free()
+void ModelCom::Free()
 {
     __super::Free();
 

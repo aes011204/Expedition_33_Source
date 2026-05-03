@@ -32,7 +32,7 @@ protected:
 
 protected:
 	void Update_Transform();
-	HRESULT Bind_ShaderResource(class Shader* shader, const char* constantName, D3DTS transformState);
+	HRESULT Bind_ShaderResource(class ShaderCom* shader, const char* constantName, D3DTS transformState);
 
 public:
 	virtual Shared<GameObject> Clone(void* arg) = 0;

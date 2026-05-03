@@ -4,6 +4,9 @@
 
 NS_BEGIN(Engine)
 
+class ModelCom;
+class Bone;
+
 class Animation final : public Base
 {
 public:
@@ -12,8 +15,8 @@ public:
     ~Animation() override = default;
 
 public:
-    HRESULT Initialize(const aiAnimation* aiAnimation, class Model* model);
-    bool Update_TransformationMatrices(float timeDelta, const vector<Shared<class Bone>>& bones, bool isLoop);
+    HRESULT Initialize(const aiAnimation* aiAnimation, ModelCom* model);
+    bool Update_TransformationMatrices(float timeDelta, const vector<Shared<Bone>>& bones, bool isLoop);
 
 private:
     uint32 _numChannels{};
@@ -26,7 +29,7 @@ private:
     float _currentTrackPosition{};
 
 public:
-    static Shared<Animation> Create(const aiAnimation* aiAnimation, class Model* model);
+    static Shared<Animation> Create(const aiAnimation* aiAnimation, ModelCom* model);
     Shared<Animation> Clone();
     void Free() override;
 };

@@ -7,7 +7,7 @@
     <Filter Include="98.Default">
       <UniqueIdentifier>{32481d4c-d7f2-46be-95cd-79647521181e}</UniqueIdentifier>
     </Filter>
-    <Filter Include="00.MainApp">
+    <Filter Include="00.Core">
       <UniqueIdentifier>{d69e3444-9e7c-4604-ac6d-d4c569f4a755}</UniqueIdentifier>
     </Filter>
     <Filter Include="01.Levels">
@@ -69,20 +69,8 @@
     <ClInclude Include="pch.h">
       <Filter>98.Default</Filter>
     </ClInclude>
-    <ClInclude Include="Client.h">
-      <Filter>98.Default</Filter>
-    </ClInclude>
-    <ClInclude Include="framework.h">
-      <Filter>98.Default</Filter>
-    </ClInclude>
-    <ClInclude Include="targetver.h">
-      <Filter>98.Default</Filter>
-    </ClInclude>
     <ClInclude Include="..\Public\Client_Defines.h">
       <Filter>99.Defines</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\MainApp.h">
-      <Filter>00.MainApp</Filter>
     </ClInclude>
     <ClInclude Include="..\public\Level_Loading.h">
       <Filter>01.Levels\Loading</Filter>
@@ -130,7 +118,7 @@
       <Filter>99.Defines</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\ClientInstance.h">
-      <Filter>00.MainApp</Filter>
+      <Filter>00.Core</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\ResourceLoader.h">
       <Filter>01.Levels\Loading\Loader</Filter>
@@ -142,9 +130,6 @@
   <ItemGroup>
     <ClCompile Include="pch.cpp">
       <Filter>98.Default</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\MainApp.cpp">
-      <Filter>00.MainApp</Filter>
     </ClCompile>
     <ClCompile Include="..\private\Level_Loading.cpp">
       <Filter>01.Levels\Loading</Filter>
@@ -183,7 +168,7 @@
       <Filter>02.GameObject\Sky</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\ClientInstance.cpp">
-      <Filter>00.MainApp</Filter>
+      <Filter>00.Core</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\ResourceLoader.cpp">
       <Filter>01.Levels\Loading\Loader</Filter>

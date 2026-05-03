@@ -90,15 +90,24 @@ public: /* For.Object_Manager */
         const wstring& layerTag,
         void* arg = nullptr);
 
+    // 게임오브젝트 추가하면서, 객체 바로 반환용
+    HRESULT Add_GameObject(
+        uint32 prototypeLevelIndex,
+        const wstring& prototypeTag,
+        uint32 layerLevelIndex,
+        const wstring& layerTag,
+        Shared<GameObject>& outGameObject,
+        void* arg = nullptr);
+
     Shared<GameObject> Find_FirstObject(uint32 levelIndex, const wstring& layerTag);
 
 public: /* For.Renderer */
     void Add_RenderGroup(RenderGroup renderGroup, Shared<GameObject> gameObject);
 
 public: /* For.PipeLine */
-    HRESULT Bind_CamPosition(Shader* shader, const char* constantName);
-    HRESULT Bind_TransformMatrix(D3DTS transformState, Shader* shader, const char* constantName);
-    HRESULT Bind_TransformMatrix_Inverse(D3DTS transformState, Shader* shader, const char* constantName);
+    HRESULT Bind_CamPosition(ShaderCom* shader, const char* constantName);
+    HRESULT Bind_TransformMatrix(D3DTS transformState, ShaderCom* shader, const char* constantName);
+    HRESULT Bind_TransformMatrix_Inverse(D3DTS transformState, ShaderCom* shader, const char* constantName);
 
     const Matrix* Get_Transform(D3DTS transformState) const;
     const Vec4*   Get_CamPosition() const;
