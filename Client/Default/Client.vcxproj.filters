@@ -64,6 +64,18 @@
     <Filter Include="99.Defines\Helper">
       <UniqueIdentifier>{ab9c6fe7-56bb-4db1-a2ed-dddf86074e28}</UniqueIdentifier>
     </Filter>
+    <Filter Include="03. Component">
+      <UniqueIdentifier>{532576f7-3c4d-4428-9669-c46337caa1c0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="03. Component\CombatStat">
+      <UniqueIdentifier>{90bf3180-688e-464b-9002-91428c859e9c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="03. Component\Input">
+      <UniqueIdentifier>{741adbc2-8f0c-4072-a853-8fd375502b5c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="03. Component\PlayerController">
+      <UniqueIdentifier>{821abb8e-0080-4bcd-b2ae-8377f230673c}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -123,9 +135,15 @@
     <ClInclude Include="..\Public\ResourceLoader.h">
       <Filter>01.Levels\Loading\Loader</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\InputCom.h" />
-    <ClInclude Include="..\Public\CombatStatCom.h" />
-    <ClInclude Include="..\Public\PlayerControllerCom.h" />
+    <ClInclude Include="..\Public\CombatStatCom.h">
+      <Filter>03. Component\CombatStat</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\InputCom.h">
+      <Filter>03. Component\Input</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\PlayerControllerCom.h">
+      <Filter>03. Component\PlayerController</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -176,9 +194,15 @@
     <ClCompile Include="..\Private\SimpleMath.cpp">
       <Filter>99.Defines</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\InputCom.cpp" />
-    <ClCompile Include="..\Private\CombatStatCom.cpp" />
-    <ClCompile Include="..\Private\PlayerControllerCom.cpp" />
+    <ClCompile Include="..\Private\CombatStatCom.cpp">
+      <Filter>03. Component\CombatStat</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\InputCom.cpp">
+      <Filter>03. Component\Input</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\PlayerControllerCom.cpp">
+      <Filter>03. Component\PlayerController</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxTex.hlsl">

@@ -139,16 +139,60 @@
     <ClInclude Include="..\Public\Helper_String.h">
       <Filter>99. Defines\Helper</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\RenderTarget.h" />
-    <ClInclude Include="..\Public\Log_Manager.h" />
     <ClInclude Include="..\Public\Helper_Math.h">
       <Filter>99. Defines\Helper</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\MovementCom.h" />
-    <ClInclude Include="..\Public\Character.h" />
-    <ClInclude Include="..\Public\Reflection_Types.h" />
-    <ClInclude Include="..\Public\TypeRegistry.h" />
-    <ClInclude Include="..\Public\RegistorFactory.h" />
+    <ClInclude Include="..\public\Asset_Manager.h">
+      <Filter>97. Manager\Asset</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Input_Manager.h">
+      <Filter>97. Manager\Input</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Delegate.h">
+      <Filter>97. Manager\Event</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Event_Manager.h">
+      <Filter>97. Manager\Event</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Log_Manager.h">
+      <Filter>97. Manager\Log</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\RegistorFactory.h">
+      <Filter>96. Reflection</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Reflection_Types.h">
+      <Filter>96. Reflection</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Character.h">
+      <Filter>01.Utility\03.GameObjects\Character</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\TypeRegistry.h">
+      <Filter>96. Reflection</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\MovementCom.h">
+      <Filter>01.Utility\04.Component\Movement</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\RenderTarget.h">
+      <Filter>01.Utility\10. RenderTarget</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Collision_Manager.h">
+      <Filter>97. Manager\Collision</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Debug_Manager.h">
+      <Filter>97. Manager\Debug</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\DebugDraw.h">
+      <Filter>97. Manager\Debug</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Debug_Types.h">
+      <Filter>99. Defines</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Collision_Define.h">
+      <Filter>99. Defines</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Collider.h" />
+    <ClInclude Include="..\Public\Bounding.h" />
+    <ClInclude Include="..\Public\Bounding_AABB.h" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\public\Base.h">
@@ -274,12 +318,6 @@
     <ClInclude Include="..\Public\VIBuffer_Cube.h">
       <Filter>01.Utility\04.Component\VIBuffer\Cube</Filter>
     </ClInclude>
-    <ClInclude Include="..\public\Asset_Manager.h">
-      <Filter>97. Manager</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\Input_Manager.h">
-      <Filter>97. Manager</Filter>
-    </ClInclude>
     <ClInclude Include="..\Public\Vertex_Types.h">
       <Filter>99. Defines</Filter>
     </ClInclude>
@@ -393,21 +431,48 @@
     <ClCompile Include="..\Private\VIBuffer_Cube.cpp">
       <Filter>01.Utility\04.Component\VIBuffer\Cube</Filter>
     </ClCompile>
-    <ClCompile Include="..\private\Asset_Manager.cpp">
-      <Filter>97. Manager</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\Input_Manager.cpp">
-      <Filter>97. Manager</Filter>
-    </ClCompile>
     <ClCompile Include="..\Private\SimpleMath.cpp">
       <Filter>99. Defines</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\RenderTarget.cpp" />
-    <ClCompile Include="..\Private\Log_Manager.cpp" />
-    <ClCompile Include="..\Private\MovementCom.cpp" />
-    <ClCompile Include="..\Private\Character.cpp" />
-    <ClCompile Include="..\Private\TypeRegistry.cpp" />
-    <ClCompile Include="..\Private\RegistorFactory.cpp" />
+    <ClCompile Include="..\private\Asset_Manager.cpp">
+      <Filter>97. Manager\Asset</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Input_Manager.cpp">
+      <Filter>97. Manager\Input</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Event_Manager.cpp">
+      <Filter>97. Manager\Event</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Log_Manager.cpp">
+      <Filter>97. Manager\Log</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\RegistorFactory.cpp">
+      <Filter>96. Reflection</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Character.cpp">
+      <Filter>01.Utility\03.GameObjects\Character</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\TypeRegistry.cpp">
+      <Filter>96. Reflection</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\MovementCom.cpp">
+      <Filter>01.Utility\04.Component\Movement</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\RenderTarget.cpp">
+      <Filter>01.Utility\10. RenderTarget</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Collision_Manager.cpp">
+      <Filter>97. Manager\Collision</Filter>
+    </ClCompile>
+    <ClCompile Include="..\PRivate\Debug_Manager.cpp">
+      <Filter>97. Manager\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\DebugDraw.cpp">
+      <Filter>97. Manager\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Collider.cpp" />
+    <ClCompile Include="..\Private\Bounding.cpp" />
+    <ClCompile Include="..\Private\Bounding_AABB.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Bin\ShaderFiles\Engine_Shader_Defines.hlsli">
@@ -423,6 +488,36 @@
     </Filter>
     <Filter Include="99. Defines\Helper">
       <UniqueIdentifier>{4f948615-4199-4e04-95ad-a005392f4ff3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="97. Manager\Asset">
+      <UniqueIdentifier>{c4e9f3d7-5dcc-4440-89bb-6b02e2a4ac2e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="97. Manager\Input">
+      <UniqueIdentifier>{abc6c59b-52f7-4c18-9650-41aba50f1f85}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="97. Manager\Log">
+      <UniqueIdentifier>{9c2d7ac6-266e-4a01-8b99-0eddea00b05c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="97. Manager\Event">
+      <UniqueIdentifier>{f868b70a-308a-443f-b3af-bd81b5430d8a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="96. Reflection">
+      <UniqueIdentifier>{fc098330-8498-4853-84eb-e6cde2ed802e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="01.Utility\03.GameObjects\Character">
+      <UniqueIdentifier>{40f7c026-17ec-4834-b785-cb5dcb6db1d8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="01.Utility\04.Component\Movement">
+      <UniqueIdentifier>{3d7e827e-82df-4baf-a506-230b16a46d01}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="01.Utility\10. RenderTarget">
+      <UniqueIdentifier>{8ed846ad-914e-45f5-b74f-2294a7811fd7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="97. Manager\Collision">
+      <UniqueIdentifier>{54ba23d6-a1ca-40ad-921c-20eac8959404}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="97. Manager\Debug">
+      <UniqueIdentifier>{e08dbb84-9d24-4845-bf32-f909c60d4284}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>
