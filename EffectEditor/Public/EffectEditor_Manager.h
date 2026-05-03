@@ -5,11 +5,11 @@ NS_BEGIN(EffectEditor)
 
 class Editor_Window;
 
-class Editor_Manager final : public Base
+class EffectEditor_Manager final : public Base
 {
 public:
-    Editor_Manager() = default;
-    ~Editor_Manager() override;
+    EffectEditor_Manager() = default;
+    ~EffectEditor_Manager() override;
 
 public:
     HRESULT Initialize();
@@ -27,7 +27,7 @@ private:
     map<wstring, Shared<Editor_Window>> _windows{};
 
 public:
-    static Unique<Editor_Manager> Create();
+    static Unique<EffectEditor_Manager> Create();
 
     void Free() override;
 };

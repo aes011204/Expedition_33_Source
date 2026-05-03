@@ -1,7 +1,7 @@
 ﻿#include "EffectEditorInstance.h"
 
 #include "RenderTarget.h"
-#include "Editor_Manager.h"
+#include "EffectEditor_Manager.h"
 #include "GameInstance.h"
 #include "ImGui_Manager.h"
 
@@ -31,7 +31,7 @@ HRESULT EffectEditorInstance::Initialize_Editor(const EffectEditorDesc& editorDe
     _imguiManager = ImGui_Manager::Create(editorDesc.hWnd, _device, _context);
     CHECK_NULL(_imguiManager, E_FAIL);
 
-    _editorManager = Editor_Manager::Create();
+    _editorManager = EffectEditor_Manager::Create();
     CHECK_NULL(_editorManager, E_FAIL);
 
     // 처음에는 Edit 모드로, 1배속으로 시작

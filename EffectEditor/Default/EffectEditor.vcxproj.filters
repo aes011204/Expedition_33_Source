@@ -19,7 +19,7 @@
     <ClCompile Include="EffectEditor.cpp">
       <Filter>98. Default</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\Editor_Manager.cpp">
+    <ClCompile Include="..\Private\EffectEditor_Manager.cpp">
       <Filter>01. Manager\01. Editor Mgr</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\ImGui_Manager.cpp">
@@ -72,7 +72,7 @@
     <ClInclude Include="..\Public\EffectEditor_Macro.h">
       <Filter>99. Defines</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\Editor_Manager.h">
+    <ClInclude Include="..\Public\EffectEditor_Manager.h">
       <Filter>01. Manager\01. Editor Mgr</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\ImGui_Manager.h">
