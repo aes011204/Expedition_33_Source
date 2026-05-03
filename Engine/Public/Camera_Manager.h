@@ -3,6 +3,7 @@
 
 NS_BEGIN(Engine)
 class Camera;
+class TransformCom;
 class Camera_Manager : public Base
 {
 public:
@@ -14,11 +15,17 @@ public:
     void    Update(float timeDelta);
 
 public:
-    void              Change_ActiveCamera(Shared<Camera> camera);
-    void              SwitchTo_NextCamera();
-    HRESULT           Add_Camera(Shared<Camera> camera);
-    Shared<Camera>    Find_Camera(Shared<Camera> camera);
-    bool              Is_ActiveCamera(Shared<Camera> camera);
+    void               Change_ActiveCamera(Shared<Camera> camera);
+    void               SwitchTo_NextCamera();
+    HRESULT            Add_Camera(Shared<Camera> camera);
+    Shared<Camera>     Find_Camera(Shared<Camera> camera);
+    bool               Is_ActiveCamera(Shared<Camera> camera);
+    
+    int                Get_CameraCount();
+    Shared<TransformCom>  Get_CameraTransform(int index);
+    float              Get_FovY(int index);
+    float              Get_Near(int index);
+    float              Get_Far(int index);
 
 private:
     vector<Shared<Camera>> m_cameras;

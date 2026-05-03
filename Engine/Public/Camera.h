@@ -28,8 +28,27 @@ public:
 	virtual void    Late_Update(float timeDelta);
 	virtual HRESULT Render();
 
+public:
+    float Get_FovY() { return _fovY; }
+    void  Set_FovY(float fovY);
+
+    float Get_Near() { return _near; }
+    void  Set_Near(float fNear);
+
+    float Get_Far() { return _far; }
+    void  Set_Far(float fFar);
+
+    float Get_Yaw() { return _yaw; }
+    void  Set_Yaw(float yaw);
+
+    float Get_Pitch() {return _pitch; }
+    void  Set_Pitch(float pitch);
+
+    float Get_MouseSensor() {return _mouseSensor;}
+    void  Set_MouseSensor(float mouseSensor);
+
 protected:
-    float	_fovy{}, _near{}, _far{}, _aspect{};
+    float	_fovY{}, _near{}, _far{}, _aspect{};
     float	_mouseSensor = {};
     float   _yaw {}, _pitch{};
 

@@ -147,6 +147,7 @@ public: /* For.Camera_Manager */
     bool    Is_ActiveCamera(Shared<Camera> camera);
     void    Change_ActiveCamera(Shared<Camera> camera) const;
 
+
 public: /* For.TypeRegistry */
     const TypeRegistry::ComponentTypeInfo*  Find_ComponentType(const string& className) const;
     const TypeRegistry::GameObjectTypeInfo* Find_GameObjectType(const string& className) const;

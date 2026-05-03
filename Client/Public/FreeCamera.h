@@ -38,3 +38,39 @@ public:
 };
 
 NS_END
+
+//public:
+//struct Preset
+//{
+//    Vec3 offset{};
+//    Vec3 lookAtOffset{};
+//    float followSpeed = 5.f;
+//    float fovy = XMConvertToRadians(60.f);
+//    float nearPlane = 0.1f;
+//    float farPlane = 500.f;
+//};
+//
+//public:
+//Preset MakePreset() const;
+//void ApplyPreset(const Preset& preset);
+
+//#include <fstream>
+//#include <filesystem>
+//
+//namespace fs = std::filesystem;
+//
+//bool SaveTargetCameraPreset(
+//    const fs::path& path,
+//    const TargetCamera::Preset& preset)
+//{
+//    json data = TargetCameraPresetToJson(preset);
+//
+//    fs::create_directories(path.parent_path());
+//
+//    std::ofstream file(path);
+//    if (!file.is_open())
+//        return false;
+//
+//    file << data.dump(4);
+//    return true;
+//}

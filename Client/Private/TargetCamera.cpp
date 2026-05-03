@@ -1,4 +1,6 @@
 ﻿#include "TargetCamera.h"
+#include "ClientInstance.h"
+#include "GameInstance.h"
 
 TargetCamera::TargetCamera(const ComPtr<Device>& device, const ComPtr<Context>& context) :  Camera {device, context}
 {
@@ -42,7 +44,7 @@ void TargetCamera::Priority_Update(float timeDelta)
     {
         GAME->Add_Camera(GetSharedPtr<Camera>());
 
-        //_targetTransformCom =  CLIENT->Find_Player()->Get_Transform();
+        _targetTransformCom =  CLIENT->Find_Player(GAME->Current_LevelIndex())->Get_Transform();
 
         _firstUpdate = false;
     }
@@ -70,6 +72,7 @@ void TargetCamera::Priority_Update(float timeDelta)
     Vec3 newPos =  Math::Lerp_Damp(currentPos, desiredPos, _followSpeed, timeDelta);
 
     _transformCom->Set_WorldPosition(newPos);
+    _transformCom->LookAt(targetPos);
 
     Update_TransformMatrices();
 }

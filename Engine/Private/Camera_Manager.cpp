@@ -1,4 +1,6 @@
 ﻿#include "Camera_Manager.h"
+
+#include "Camera.h"
 #include "GameInstance.h"
 
 Camera_Manager::Camera_Manager()
@@ -19,7 +21,7 @@ void Camera_Manager::Update(float timeDelta)
     if(nullptr == m_activeCamera)
         return;
 
-    if(GAME->KeyPress(KEY_TYPE::CTRL))
+    if(GAME->KeyDown(KEY_TYPE::CTRL))
     {
         SwitchTo_NextCamera();
     }
@@ -78,26 +80,6 @@ Shared<Camera> Camera_Manager::Find_Camera(Shared<Camera> camera)
     return (*iter);
 }
 
-//void Camera_Manager::Change_ActiveCamera(const wstring& cameraTag)
-//{
-//    if(m_activeCamera == Find_Camera(cameraTag))
-//        return;
-//
-//    auto camera = Find_Camera(cameraTag);
-//
-//    m_activeCamera = camera;
-//}
-//
-//Shared<Camera> Camera_Manager::Find_Camera(const wstring& cameraTag)
-//{
-//    auto iter =	m_cameras.find(cameraTag);
-//
-//    if (iter == m_cameras.end())
-//        return nullptr;
-//
-//    return iter->second;
-//}
-//
 bool Camera_Manager::Is_ActiveCamera(Shared<Camera> camera)
 {
   if(m_activeCamera != camera)
@@ -106,16 +88,30 @@ bool Camera_Manager::Is_ActiveCamera(Shared<Camera> camera)
   return true;
 }
 
-//HRESULT Camera_Manager::Add_Camera(const wstring& cameraTag, Shared<Camera> camera)
-//{
-//    if(nullptr == Find_Camera(cameraTag))
-//    {
-//        MSG_BOX("Failed to Add Camera");
-//        return E_FAIL;
-//    }
-//
-//    m_cameras.insert({cameraTag, camera});
-//}
+int Camera_Manager::Get_CameraCount()
+{
+    return m_cameras.size();
+}
+
+Shared<TransformCom> Camera_Manager::Get_CameraTransform(int index)
+{
+    return m_cameras[index]->Get_Transform();
+}
+
+float Camera_Manager::Get_FovY(int index)
+{
+    return m_cameras[index]->Get_FovY();
+}
+
+float Camera_Manager::Get_Near(int index)
+{
+    return m_cameras[index]->Get_Near();
+}
+
+float Camera_Manager::Get_Far(int index)
+{
+    return m_cameras[index]->Get_Far();
+}
 
 Unique<Camera_Manager> Camera_Manager::Create()
 {

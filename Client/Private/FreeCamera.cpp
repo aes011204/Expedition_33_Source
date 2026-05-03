@@ -42,6 +42,8 @@ void FreeCamera::Priority_Update(float timeDelta)
     if(!GAME->Is_ActiveCamera(GetSharedPtr<Camera>()))
         return;
 
+    //TODO movespeed 만들고 그거 기준으로 이동할 수 있도록
+
     if (GAME->KeyPress(KEY_TYPE::W))
         _transformCom->Go_Straight(timeDelta);
 
@@ -81,6 +83,20 @@ void FreeCamera::Update(float timeDelta)
 void FreeCamera::Late_Update(float timeDelta)
 {
 }
+
+//void FreeCamera::ApplyPreset(const FreeCameraPreset& preset)
+//{
+//    _transformCom->Set_WorldPosition(preset.position);
+//    _transformCom->Set_RotationEuler(preset.rotation);
+//    _transformCom->Set_SpeedPerSec(preset.moveSpeed);
+//
+//    _mouseSensor = preset.mouseSensor;
+//    _fovy = preset.fovy;
+//    _near = preset.nearPlane;
+//    _far = preset.farPlane;
+//
+//    Update_TransformMatrices();
+//}
 
 HRESULT FreeCamera::Render()
 {
