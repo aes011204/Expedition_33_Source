@@ -92,7 +92,7 @@ Shared<VIBuffer_Cube> VIBuffer_Cube::Create(const ComPtr<Device>& device, const 
 
 	if (FAILED(instance->Initialize_Prototype()))
 	{
-		MSG_BOX("Failed to Created : VIBuffer_Cube");
+		LOG_WARN("Failed to create VIBuffer_Cube");
 		return nullptr;
 	}
 	return instance;
