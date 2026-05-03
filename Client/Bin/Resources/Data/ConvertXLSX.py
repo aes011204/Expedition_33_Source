@@ -1,6 +1,9 @@
 import glob
 import json
 import os
+import shutil
+import tempfile
+import urllib.request
 
 import pandas as pd
 
@@ -8,6 +11,9 @@ import pandas as pd
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 XLSX_DIR = os.path.join(BASE_DIR, "xlsx")
 JSON_DIR = os.path.join(BASE_DIR, "json")
+GOOGLE_SHEET_EXPORTS = {
+    "DT_GameObject.xlsx": "https://docs.google.com/spreadsheets/d/16kVJyaLRmilyXw1EvpNuFG16Pn6i-j4SUFi9nLPthX4/export?format=xlsx",
+}
 
 
 def get_group_name(filename: str) -> str:
@@ -27,6 +33,34 @@ def normalize_value(value):
     if isinstance(value, float) and value.is_integer():
         return int(value)
     return value
+
+
+def sync_google_sheet_xlsx(filename: str, export_url: str) -> str:
+    """Download the latest workbook export before conversion."""
+    os.makedirs(XLSX_DIR, exist_ok=True)
+
+    target_path = os.path.join(XLSX_DIR, filename)
+    fd, temp_path = tempfile.mkstemp(suffix=".xlsx", dir=XLSX_DIR)
+    os.close(fd)
+
+    try:
+        with urllib.request.urlopen(export_url) as response, open(temp_path, "wb") as temp_file:
+            shutil.copyfileobj(response, temp_file)
+
+        if os.path.exists(target_path):
+            with open(temp_path, "rb") as new_file, open(target_path, "rb") as current_file:
+                if new_file.read() == current_file.read():
+                    os.remove(temp_path)
+                    print(f"Synced {filename} (unchanged)")
+                    return target_path
+
+        os.replace(temp_path, target_path)
+        print(f"Synced {filename}")
+        return target_path
+    except Exception:
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+        raise
 
 
 def convert_xlsx_file(xlsx_file: str) -> None:
@@ -70,6 +104,9 @@ def convert_all_xlsx_to_json() -> None:
     """Convert every DT_*.xlsx file below Data/xlsx into Data/json."""
     os.makedirs(XLSX_DIR, exist_ok=True)
     os.makedirs(JSON_DIR, exist_ok=True)
+
+    for filename, export_url in GOOGLE_SHEET_EXPORTS.items():
+        sync_google_sheet_xlsx(filename, export_url)
 
     xlsx_files = sorted(glob.glob(os.path.join(XLSX_DIR, "DT_*.xlsx")))
     for xlsx_file in xlsx_files:
