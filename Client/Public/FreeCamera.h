@@ -29,6 +29,7 @@ public:
 
 private:
     bool    _firstUpdate = true;
+    bool    _lock = false;
 
 public:
 	static Shared<FreeCamera> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

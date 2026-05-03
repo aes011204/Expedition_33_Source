@@ -31,7 +31,6 @@ HRESULT Camera::Initialize(void* arg)
     const CAMERA_DESC* desc = static_cast<CAMERA_DESC*>(arg);
 
     _transformCom->Set_Position(Vec3(desc->eye.x, desc->eye.y, desc->eye.z));
-    _transformCom->LookAt(Vec3(desc->at.x, desc->at.y, desc->at.z));
 
     _fovY = desc->fovy;
     _near = desc->nearPlane;
@@ -40,6 +39,8 @@ HRESULT Camera::Initialize(void* arg)
     _pitch = desc->pitch;
     _aspect = static_cast<float>(GAME->Get_ViewportWidth()) /
               static_cast<float>(max(1u, GAME->Get_ViewportHeight()));
+
+    _transformCom->Set_RotationEuler(Vec3 {_pitch, _yaw, 0.f}); 
 
     Update_TransformMatrices();
 

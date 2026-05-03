@@ -27,6 +27,7 @@ HRESULT TargetCamera::Initialize(void* arg)
 
     _followSpeed = desc->followSpeed;
     _offset = desc->offset;
+    _mouseSensor = desc->mouseSensor;
 
     if(FAILED(__super::Initialize(arg)))
         return E_FAIL;
@@ -71,10 +72,26 @@ void TargetCamera::Priority_Update(float timeDelta)
 
     Vec3 newPos =  Math::Lerp_Damp(currentPos, desiredPos, _followSpeed, timeDelta);
 
+    const Vec2 mouseDelta = GAME->Get_MouseDelta();
+
+    _yaw += mouseDelta.x * _mouseSensor;
+    _pitch += mouseDelta.y * _mouseSensor;
+
+    if(0.f != mouseDelta.x || 0.f != mouseDelta.y)
+        _transformCom->Set_RotationEuler(Vec3(_pitch, _yaw, 0.f));
+
     _transformCom->Set_WorldPosition(newPos);
-    _transformCom->LookAt(targetPos);
+    //_transformCom->LookAt(targetPos);
 
     Update_TransformMatrices();
+
+    Vec3 pos =  _transformCom->Get_WorldPosition();
+    Vec3 look = _transformCom->Get_WorldForward();
+
+    if(GAME->KeyDown(KEY_TYPE::F11))
+    {
+        LOG_DEBUG("Target Camera Settings : yaw = {}, pitch = {}, x = {}, y = {}, z = {}, look.x = {}, look.y = {}, look.z = {}", _yaw, _pitch, pos.x, pos.y, pos.z, look.x, look.y, look.z);
+    }
 }
 
 void TargetCamera::Update(float timeDelta)

@@ -19,6 +19,7 @@ HRESULT FreeCamera::Initialize_Prototype()
 HRESULT FreeCamera::Initialize(void* arg)
 {
     const auto desc = static_cast<FREECAMERA_DESC*>(arg);
+
     _mouseSensor = desc->mouseSensor;
 
     if (FAILED(__super::Initialize(arg)))
@@ -44,6 +45,14 @@ void FreeCamera::Priority_Update(float timeDelta)
 
     //TODO movespeed 만들고 그거 기준으로 이동할 수 있도록
 
+    if(GAME->KeyDown(KEY_TYPE::F1))
+    {
+        _lock = !_lock;
+    }
+
+    if(_lock)
+        return;
+
     if (GAME->KeyPress(KEY_TYPE::W))
         _transformCom->Go_Straight(timeDelta);
 
@@ -67,13 +76,18 @@ void FreeCamera::Priority_Update(float timeDelta)
     _yaw += mouseDelta.x * _mouseSensor;
     _pitch += mouseDelta.y * _mouseSensor;
 
-    if (0.f != mouseDelta.x)
-             _transformCom->Set_RotationEuler(Vec3(_pitch, _yaw, 0.f));
-
-    if (0.f != mouseDelta.y)
+    if (0.f != mouseDelta.x || 0.f != mouseDelta.y )
              _transformCom->Set_RotationEuler(Vec3(_pitch, _yaw, 0.f));
 
     __super::Update_TransformMatrices();
+
+    Vec3 pos = _transformCom->Get_WorldPosition();
+    Vec3 look = _transformCom->Get_WorldForward();
+
+    if(GAME->KeyDown(KEY_TYPE::F11))
+    {
+        LOG_DEBUG("Target Camera Settings : yaw = {}, pitch = {}, x = {}, y = {}, z = {}, look.x = {}, look.y = {}, look.z = {}", _yaw, _pitch, pos.x, pos.y, pos.z, look.x, look.y, look.z);
+    }
 }
 
 void FreeCamera::Update(float timeDelta)

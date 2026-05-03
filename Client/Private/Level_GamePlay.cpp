@@ -89,7 +89,7 @@ HRESULT Level_GamePlay::Ready_Layer_Camera(const wstring& strLayerTag)
 
     TargetCameraDesc.speedPerSec = 10.f;
     TargetCameraDesc.degreePerSec = 180.f;
-    TargetCameraDesc.eye = XMFLOAT4(0.f, 10.f, -7.f, 1.f);
+    TargetCameraDesc.eye = XMFLOAT4(0.f, 20.f, -7.f, 1.f);
     TargetCameraDesc.at = XMFLOAT4(0.f, 0.f, 0.f, 1.f);
     TargetCameraDesc.fovy = XMConvertToRadians(60.f) ;
     TargetCameraDesc.pitch = 0.f;
@@ -98,7 +98,7 @@ HRESULT Level_GamePlay::Ready_Layer_Camera(const wstring& strLayerTag)
     TargetCameraDesc.farPlane = 500.f;
     TargetCameraDesc.mouseSensor = 0.05f;
     TargetCameraDesc.followSpeed = 5.f;
-    TargetCameraDesc.offset = Vec3 {10.f, 0.f, -10.f};
+    TargetCameraDesc.offset = Vec3 {0.5f, 1.f, -2.f};
 
     if (FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_TargetCamera"),
         ETOI(LevelType::GamePlay), strLayerTag, &TargetCameraDesc)))
