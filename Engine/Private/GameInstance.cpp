@@ -1,5 +1,8 @@
 ﻿#include "GameInstance.h"
 #include "Asset_Manager.h"
+#include "Camera_Manager.h"
+#include "Collision_Manager.h"
+#include "Debug_Manager.h"
 #include "Font_Manager.h"
 #include "Graphic_Device.h"
 #include "Input_Manager.h"
@@ -32,152 +35,78 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
         context
     );
 
+    CHECK_NULL(_graphicDevice, E_FAIL);
+
     _viewportWidth = engineDesc.viewportWidth;
     _viewportHeight = engineDesc.viewportHeight;
-
-    if (nullptr == _graphicDevice)
-        return E_FAIL;
 
     _logManager = Log_Manager::Create(engineDesc.projectName);
     CHECK_NULL(_logManager, E_FAIL);
 
     _timerManager = Timer_Manager::Create();
-    if (nullptr == _timerManager)
-        return E_FAIL;
+    CHECK_NULL(_timerManager, E_FAIL);
 
     _levelManager = Level_Manager::Create();
-    if (nullptr == _levelManager)
-        return E_FAIL;
+    CHECK_NULL(_levelManager, E_FAIL);
 
     _prototypeManager = Prototype_Manager::Create(engineDesc.numLevels);
-    if (nullptr == _prototypeManager)
-        return E_FAIL;
+    CHECK_NULL(_prototypeManager, E_FAIL);
 
     _typeRegistry = TypeRegistry::Create();
-    if (nullptr == _typeRegistry)
-        return E_FAIL;
+    CHECK_NULL(_typeRegistry, E_FAIL);
 
     if (FAILED(Flush_PendingTypeRegistrations(*_typeRegistry)))
         return E_FAIL;
 
     _objectManager = Object_Manager::Create(engineDesc.numLevels);
-    if (nullptr == _objectManager)
-        return E_FAIL;
+    CHECK_NULL(_objectManager, E_FAIL);
 
     _renderer = Renderer::Create(device, context);
-    if (nullptr == _renderer)
-        return E_FAIL;
+    CHECK_NULL(_renderer, E_FAIL);
 
     _pipeLine = PipeLine::Create();
-    if (nullptr == _pipeLine)
-        return E_FAIL;
+    CHECK_NULL(_pipeLine, E_FAIL);
 
     _inputManager = Input_Manager::Create(engineDesc.hWnd);
-    if (nullptr == _inputManager)
-        return E_FAIL;
+    CHECK_NULL(_inputManager, E_FAIL);
 
     _lightManager = Light_Manager::Create();
-    if (nullptr == _lightManager)
-        return E_FAIL;
+    CHECK_NULL(_lightManager, E_FAIL);
 
     _fontManager = Font_Manager::Create(device, context);
-    if (nullptr == _fontManager)
-        return E_FAIL;
+    CHECK_NULL(_fontManager, E_FAIL);
+
+    _cameraManager = Camera_Manager::Create();
+    CHECK_NULL(_cameraManager, E_FAIL);
+
+    _debugManager = Debug_Manager::Create(device, context);
+    CHECK_NULL(_debugManager, E_FAIL);
+
+    _collisionManager = Collision_Manager::Create();
+    CHECK_NULL(_collisionManager, E_FAIL);
 
     return S_OK;
 }
 
-void GameInstance::Release_Engine()
-{
-    if (_assetManager)
-    {
-        _assetManager->Free();
-        _assetManager.reset();
-    }
-
-    if (_fontManager)
-    {
-        _fontManager->Free();
-        _fontManager.reset();
-    }
-
-    if (_lightManager)
-    {
-        _lightManager->Free();
-        _lightManager.reset();
-    }
-
-    if (_inputManager)
-    {
-        _inputManager->Free();
-        _inputManager.reset();
-    }
-
-    if (_pipeLine)
-    {
-        _pipeLine->Free();
-        _pipeLine.reset();
-    }
-
-    if (_renderer)
-    {
-        _renderer->Free();
-        _renderer.reset();
-    }
-
-    if (_objectManager)
-    {
-        _objectManager->Free();
-        _objectManager.reset();
-    }
-
-    if (_prototypeManager)
-    {
-        _prototypeManager->Free();
-        _prototypeManager.reset();
-    }
-
-    if (_typeRegistry)
-    {
-        _typeRegistry->Free();
-        _typeRegistry.reset();
-    }
-
-    if (_levelManager)
-    {
-        _levelManager->Free();
-        _levelManager.reset();
-    }
-
-    if (_timerManager)
-    {
-        _timerManager->Free();
-        _timerManager.reset();
-    }
-
-    if (_graphicDevice)
-    {
-        _graphicDevice->Free();
-        _graphicDevice.reset();
-    }
-
-    if (_logManager)
-    {
-        _logManager->Free();
-        _logManager.reset();
-    }
-}
-
 void GameInstance::Update_Engine(float timeDelta)
 {
+    _debugManager->Update(timeDelta);
     _inputManager->Update(timeDelta);
 
     _levelManager->Update(timeDelta);
 
     _objectManager->Priority_Update(timeDelta);
+
     _pipeLine->Update();
+
     _objectManager->Update(timeDelta);
+
+    _collisionManager->Clear_Colliders();
     _objectManager->Late_Update(timeDelta);
+    _collisionManager->Update();
+
+    _levelManager->Update(timeDelta);
+    _cameraManager->Update(timeDelta);
 
 }
 
@@ -186,6 +115,19 @@ HRESULT GameInstance::Draw()
     _renderer->Draw();
 
     _levelManager->Render();
+
+#ifdef _DEBUG
+    // Collision Manager
+    {
+        _collisionManager->Render_Debug();
+    }
+
+    // Debug Manager
+    {
+        _debugManager->Render_Depth();
+        _debugManager->Render_Overlay();
+    }
+#endif    
 
     return S_OK;
 }
@@ -329,13 +271,15 @@ Shared<Base> GameInstance::Clone_Prototype(Prototype prototype, uint32 levelInde
 }
 
 HRESULT GameInstance::Add_GameObject(
-    uint32 prototypeLevelIndex,
-    const wstring& prototypeTag,
-    uint32 layerLevelIndex,
-    const wstring& layerTag,
-    void* arg)
+    uint32 prototypeLevelIndex, const wstring& prototypeTag, uint32 layerLevelIndex, const wstring& layerTag, void* arg)
 {
     return _objectManager->Add_GameObject(prototypeLevelIndex, prototypeTag, layerLevelIndex, layerTag, arg);
+}
+
+HRESULT GameInstance::Add_GameObject(uint32 prototypeLevelIndex, const wstring& prototypeTag, uint32 layerLevelIndex,
+    const wstring& layerTag, Shared<GameObject>& outGameObject, void* arg)
+{
+    return _objectManager->Add_GameObject(prototypeLevelIndex, prototypeTag, layerLevelIndex, layerTag, outGameObject, arg);
 }
 
 Shared<GameObject> GameInstance::Find_FirstObject(uint32 levelIndex, const wstring& layerTag)
@@ -348,17 +292,17 @@ void GameInstance::Add_RenderGroup(RenderGroup renderGroup, Shared<GameObject> g
     return _renderer->Add_RenderGroup(renderGroup, gameObject);
 }
 
-HRESULT GameInstance::Bind_CamPosition(Shader* shader, const char* constantName)
+HRESULT GameInstance::Bind_CamPosition(ShaderCom* shader, const char* constantName)
 {
     return _pipeLine->Bind_CamPosition(shader, constantName);
 }
 
-HRESULT GameInstance::Bind_TransformMatrix(D3DTS transformState, Shader* shader, const char* constantName)
+HRESULT GameInstance::Bind_TransformMatrix(D3DTS transformState, ShaderCom* shader, const char* constantName)
 {
     return _pipeLine->Bind_TransformMatrix(transformState, shader, constantName);
 }
 
-HRESULT GameInstance::Bind_TransformMatrix_Inverse(D3DTS transformState, Shader* shader, const char* constantName)
+HRESULT GameInstance::Bind_TransformMatrix_Inverse(D3DTS transformState, ShaderCom* shader, const char* constantName)
 {
     return _pipeLine->Bind_TransformMatrix_Inverse(transformState, shader, constantName);
 }
@@ -444,70 +388,153 @@ HRESULT GameInstance::Initialize_AssetManager(const wstring& resourceRoot)
 
 string GameInstance::Find_AssetGUID(const wstring& filePath) const
 {
-    if (nullptr == _assetManager)
-        return {};
-
     return _assetManager->Find_GUID(filePath);
 }
 
 const FAssetMeta* GameInstance::Find_AssetByGUID(const string& guid) const
 {
-    if (nullptr == _assetManager)
-        return nullptr;
-
     return _assetManager->Find_ByGUID(guid);
 }
 
 wstring GameInstance::Resolve_AssetPath(const string& guid) const
 {
-    if (nullptr == _assetManager)
-        return {};
-
     return _assetManager->Resolve_Path(guid);
 }
 
 wstring GameInstance::Get_AssetRoot() const
 {
-    if (nullptr == _assetManager)
-        return {};
-
     return _assetManager->Get_ResourceRoot();
+}
+
+HRESULT GameInstance::Add_Camera(Shared<Camera> camera) const
+{
+    return _cameraManager->Add_Camera(camera);
+}
+
+bool GameInstance::Is_ActiveCamera(Shared<Camera> camera)
+{
+    return _cameraManager->Is_ActiveCamera(camera);
+}
+
+void GameInstance::Change_ActiveCamera(Shared<Camera> camera) const
+{
+    return _cameraManager->Change_ActiveCamera(camera);
 }
 
 const TypeRegistry::ComponentTypeInfo* GameInstance::Find_ComponentType(const string& className) const
 {
-    return (nullptr == _typeRegistry) ? nullptr : _typeRegistry->Find_ComponentType(className);
+    return _typeRegistry->Find_ComponentType(className);
 }
 
 const TypeRegistry::GameObjectTypeInfo* GameInstance::Find_GameObjectType(const string& className) const
 {
-    return (nullptr == _typeRegistry) ? nullptr : _typeRegistry->Find_GameObjectType(className);
+    return _typeRegistry->Find_GameObjectType(className);
 }
 
 const TypeRegistry::BTNodeTypeInfo* GameInstance::Find_BTNodeType(const string& className) const
 {
-    return (nullptr == _typeRegistry) ? nullptr : _typeRegistry->Find_BTNodeType(className);
+    return _typeRegistry->Find_BTNodeType(className);
 }
 
 Shared<Component> GameInstance::Create_ComponentPrototype(const string& className) const
 {
-    if (nullptr == _typeRegistry || nullptr == _graphicDevice)
-        return nullptr;
-
     return _typeRegistry->Create_Component(className, _graphicDevice->Get_Device(), _graphicDevice->Get_Context());
 }
 
 Shared<GameObject> GameInstance::Create_GameObjectPrototype(const string& className) const
 {
-    if (nullptr == _typeRegistry || nullptr == _graphicDevice)
-        return nullptr;
 
     return _typeRegistry->Create_GameObject(className, _graphicDevice->Get_Device(), _graphicDevice->Get_Context());
 }
 
 Shared<Base> GameInstance::Create_BTNodePrototype(const string& className) const
 {
-    return (nullptr == _typeRegistry) ? nullptr : _typeRegistry->Create_BTNode(className);
+    return _typeRegistry->Create_BTNode(className);
+}
+
+void GameInstance::Add_Collider(Shared<ColliderCom> collider)
+{
+    return _collisionManager->Add_Collider(collider);
+}
+
+void GameInstance::Clear_Colliders()
+{
+    return _collisionManager->Clear_Colliders();
+}
+
+void GameInstance::Draw_DebugBox(const DebugBoxDesc& desc)
+{
+    return _debugManager->Draw_Box(desc);
+}
+
+void GameInstance::Draw_DebugSphere(const DebugSphereDesc& desc)
+{
+    return _debugManager->Draw_Sphere(desc);
+}
+
+void GameInstance::Draw_DebugLine(const DebugLineDesc& desc)
+{
+    return _debugManager->Draw_Line(desc);
+}
+
+void GameInstance::Draw_DebugTraceLine(const DebugTraceLineDesc& desc)
+{
+    return _debugManager->Draw_TraceLine(desc);
+}
+
+void GameInstance::Clear_DebugDraws()
+{
+    return _debugManager->Clear();
+}
+
+void GameInstance::Set_DebugRenderEnabled(bool enabled)
+{
+    return _debugManager->Set_Enabled(enabled);
+}
+
+bool GameInstance::Is_DebugRenderEnabled() const
+{
+    return _debugManager->Is_Enabled();
+}
+
+HRESULT GameInstance::Render_DebugDepth()
+{
+    return _debugManager->Render_Depth();
+}
+
+HRESULT GameInstance::Render_DebugOverlay()
+{
+    return _debugManager->Render_Overlay();
+}
+
+void GameInstance::Release_Engine()
+{
+    auto ReleaseManager = [](auto& manager)
+    {
+        if (manager)
+        {
+            manager->Free();
+            manager.reset();
+        }
+    };
+
+    ReleaseManager(_debugManager);
+    ReleaseManager(_cameraManager);
+    ReleaseManager(_assetManager);
+    ReleaseManager(_fontManager);
+    ReleaseManager(_lightManager);
+    ReleaseManager(_inputManager);
+    ReleaseManager(_collisionManager);
+
+    ReleaseManager(_pipeLine);
+    ReleaseManager(_renderer);
+    ReleaseManager(_objectManager);
+    ReleaseManager(_prototypeManager);
+    ReleaseManager(_typeRegistry);
+    ReleaseManager(_levelManager);
+    ReleaseManager(_timerManager);
+    ReleaseManager(_graphicDevice);
+    ReleaseManager(_logManager);
 }
 
 void GameInstance::Free()

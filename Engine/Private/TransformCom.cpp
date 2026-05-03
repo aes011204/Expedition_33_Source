@@ -1,5 +1,5 @@
 ﻿#include "TransformCom.h"
-#include "Shader.h"
+#include "ShaderCom.h"
 
 namespace Engine::Internal
 {
@@ -81,7 +81,7 @@ void TransformCom::Update_WorldMatrix()
     Ensure_WorldMatrixUpToDate();
 }
 
-HRESULT TransformCom::Bind_ShaderResource(Shader* shader, const char* resourceName)
+HRESULT TransformCom::Bind_ShaderResource(ShaderCom* shader, const char* resourceName)
 {
     Ensure_WorldMatrixUpToDate();
     return shader->Bind_Matrix(resourceName, reinterpret_cast<const XMFLOAT4X4*>(&Get_WorldMatrix()));

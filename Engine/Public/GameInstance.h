@@ -4,6 +4,7 @@
 #include "Input_Manager.h"
 #include "Prototype_Manager.h"
 #include "TypeRegistry.h"
+#include "Debug_Types.h"
 
 NS_BEGIN(Engine)
 
@@ -18,11 +19,15 @@ class Light_Manager;
 class Font_Manager;
 class Asset_Manager;
 class Log_Manager;
+class Camera_Manager;
 struct ConsoleLogEntry;
-
 class Component;
 class GameObject;
 class Level;
+class Camera;
+class Debug_Manager;
+class Collision_Manager;
+class ColliderCom;
 
 class ENGINE_DLL GameInstance final : public Base
 {
@@ -34,7 +39,6 @@ public:
 
 public:
     HRESULT Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<Device>& device, ComPtr<Context>& context);
-    void    Release_Engine();
     void    Update_Engine(float timeDelta);
     HRESULT Draw();
     void    Clear_Resources(uint32 levelIndex);
@@ -90,15 +94,24 @@ public: /* For.Object_Manager */
         const wstring& layerTag,
         void* arg = nullptr);
 
+    // 게임오브젝트 추가하면서, 객체 바로 반환용
+    HRESULT Add_GameObject(
+        uint32 prototypeLevelIndex,
+        const wstring& prototypeTag,
+        uint32 layerLevelIndex,
+        const wstring& layerTag,
+        Shared<GameObject>& outGameObject,
+        void* arg = nullptr);
+
     Shared<GameObject> Find_FirstObject(uint32 levelIndex, const wstring& layerTag);
 
 public: /* For.Renderer */
     void Add_RenderGroup(RenderGroup renderGroup, Shared<GameObject> gameObject);
 
 public: /* For.PipeLine */
-    HRESULT Bind_CamPosition(Shader* shader, const char* constantName);
-    HRESULT Bind_TransformMatrix(D3DTS transformState, Shader* shader, const char* constantName);
-    HRESULT Bind_TransformMatrix_Inverse(D3DTS transformState, Shader* shader, const char* constantName);
+    HRESULT Bind_CamPosition(ShaderCom* shader, const char* constantName);
+    HRESULT Bind_TransformMatrix(D3DTS transformState, ShaderCom* shader, const char* constantName);
+    HRESULT Bind_TransformMatrix_Inverse(D3DTS transformState, ShaderCom* shader, const char* constantName);
 
     const Matrix* Get_Transform(D3DTS transformState) const;
     const Vec4*   Get_CamPosition() const;
@@ -141,6 +154,12 @@ public: /* For.Asset_Manager */
     /* ResourceLoader가 현재 정본 리소스 루트를 절대경로로 해석할 때 호출한다. */
     wstring Get_AssetRoot() const;
 
+public: /* For.Camera_Manager */
+    HRESULT Add_Camera(Shared<Camera> camera) const;
+    bool    Is_ActiveCamera(Shared<Camera> camera);
+    void    Change_ActiveCamera(Shared<Camera> camera) const;
+    float   Get_FovY();
+
 public: /* For.TypeRegistry */
     const TypeRegistry::ComponentTypeInfo*  Find_ComponentType(const string& className) const;
     const TypeRegistry::GameObjectTypeInfo* Find_GameObjectType(const string& className) const;
@@ -149,6 +168,26 @@ public: /* For.TypeRegistry */
     Shared<Component>   Create_ComponentPrototype(const string& className) const;
     Shared<GameObject>  Create_GameObjectPrototype(const string& className) const;
     Shared<Base>        Create_BTNodePrototype(const string& className) const;
+
+public: /* For.Collision_Manager */
+    void                    Add_Collider(Shared<ColliderCom> collider);
+    void                    Clear_Colliders();
+
+public: /* For.Debug_Manager */
+    void                    Draw_DebugBox(const DebugBoxDesc& desc);
+    void                    Draw_DebugSphere(const DebugSphereDesc& desc);
+    void                    Draw_DebugLine(const DebugLineDesc& desc);
+    void                    Draw_DebugTraceLine(const DebugTraceLineDesc& desc);
+
+    void                    Clear_DebugDraws();
+    void                    Set_DebugRenderEnabled(bool enabled);
+
+    bool                    Is_DebugRenderEnabled() const;
+
+#ifdef _DEBUG
+    HRESULT                 Render_DebugDepth();
+    HRESULT                 Render_DebugOverlay();
+#endif
 
 private:
     Unique<Log_Manager>         _logManager{};
@@ -163,14 +202,18 @@ private:
     Unique<Light_Manager>       _lightManager{};
     Unique<Font_Manager>        _fontManager{};
     Unique<Asset_Manager>       _assetManager{}; /* GUID 기반 에셋 registry와 meta/cache를 관리하는 매니저 */
+    Unique<Camera_Manager>      _cameraManager{};
     Unique<TypeRegistry>        _typeRegistry{};
+    Unique<Debug_Manager>       _debugManager{};
+    Unique<Collision_Manager>   _collisionManager{};
 
 private:
     uint32 _viewportWidth{ 0 };
     uint32 _viewportHeight{ 0 };
 
 public:
-    void Free() override;
+    void    Release_Engine();
+    void    Free() override;
 };
 
 NS_END

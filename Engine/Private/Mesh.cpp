@@ -1,7 +1,7 @@
 ﻿#include "Mesh.h"
 
 #include "GameInstance.h"
-#include "Model.h"
+#include "ModelCom.h"
 #include "Bone.h"
 
 Mesh::Mesh(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -15,7 +15,7 @@ Mesh::Mesh(const Mesh& prototype)
 {
 }
 
-HRESULT Mesh::Initialize_Prototype(ModelType type, const aiMesh* aiMesh, class Model* model, FXMMATRIX preTransformMatrix)
+HRESULT Mesh::Initialize_Prototype(ModelType type, const aiMesh* aiMesh, class ModelCom* model, FXMMATRIX preTransformMatrix)
 {
 	strcpy_s(_name, aiMesh->mName.data);
 
@@ -26,7 +26,6 @@ HRESULT Mesh::Initialize_Prototype(ModelType type, const aiMesh* aiMesh, class M
 	_numIndices = aiMesh->mNumFaces * 3;
 	_indexStride = 4;
 	_primitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-
 
 	/* Vertex Buffer */
 	HRESULT		hr = ModelType::NonAnim == type ?
@@ -76,7 +75,7 @@ HRESULT Mesh::Initialize(void* arg)
 	return S_OK;
 }
 
-HRESULT Mesh::Bind_BoneMatrices(Shader* shader, const char* constantName, const vector<Shared<Bone>>& bones)
+HRESULT Mesh::Bind_BoneMatrices(ShaderCom* shader, const char* constantName, const vector<Shared<Bone>>& bones)
 {
 	ZeroMemory(_boneMatrices, sizeof(XMFLOAT4X4) * 512);
 
@@ -132,7 +131,7 @@ HRESULT Mesh::Ready_VertexBuffer_For_NonAnim(const aiMesh* aiMesh, FXMMATRIX pre
 	return S_OK;
 }
 
-HRESULT Mesh::Ready_VertexBuffer_For_Anim(const aiMesh* aiMesh, class Model* model)
+HRESULT Mesh::Ready_VertexBuffer_For_Anim(const aiMesh* aiMesh, class ModelCom* model)
 {
 	_vertexStride = sizeof(VTXANIMMESH);
 	D3D11_BUFFER_DESC	VertexBufferDesc{};
@@ -210,7 +209,7 @@ HRESULT Mesh::Ready_VertexBuffer_For_Anim(const aiMesh* aiMesh, class Model* mod
 	{		
 		_boneIndices.push_back(model->Get_BoneIndex(_name));
 
-		_numVertexBuffers = 1;
+		_numBones = 1;
 
 		XMFLOAT4X4		OffsetMatrix = {};
 		XMStoreFloat4x4(&OffsetMatrix, XMMatrixIdentity());
@@ -233,7 +232,7 @@ HRESULT Mesh::Ready_VertexBuffer_For_Anim(const aiMesh* aiMesh, class Model* mod
 
 
 
-Shared<Mesh> Mesh::Create(const ComPtr<Device>& device, const ComPtr<Context>& context, ModelType type, const aiMesh* aiMesh, class Model* model, FXMMATRIX preTransformMatrix)
+Shared<Mesh> Mesh::Create(const ComPtr<Device>& device, const ComPtr<Context>& context, ModelType type, const aiMesh* aiMesh, class ModelCom* model, FXMMATRIX preTransformMatrix)
 {
 	auto instance = make_shared<Mesh>(device, context);
 
