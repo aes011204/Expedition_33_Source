@@ -177,6 +177,7 @@ public : /* For.Target_Manager */
     HRESULT Initialize_Debug(float sizeX, float sizeY);
     HRESULT SetUp_Debug(const wstring& targetTag, float x, float y, float sizeX, float sizeY, bool render = true);
     HRESULT Render_RT_Debug(Shared<VIBuffer_Rect> viBuffer, Shared<ShaderCom> shader);
+    const map<wstring, bool>& Get_MRTs() const;
 #endif
 
 

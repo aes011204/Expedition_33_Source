@@ -587,6 +587,11 @@ HRESULT GameInstance::Render_RT_Debug(Shared<VIBuffer_Rect> viBuffer, Shared<Sha
     return _targetManager->Render_Debug(shader, viBuffer);
 }
 
+const map<wstring, bool>& GameInstance::Get_MRTs() const
+{
+    return _targetManager->Get_MRTs();
+}
+
 #endif
 
 void GameInstance::Free()

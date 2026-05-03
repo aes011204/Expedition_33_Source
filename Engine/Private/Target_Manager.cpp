@@ -379,4 +379,9 @@ HRESULT Target_Manager::Render_Debug(const wstring& mrtTag, Shared<ShaderCom> sh
     return S_OK;
 }
 
+const map<wstring, bool>& Target_Manager::Get_MRTs() const
+{
+    return _drawMapMRTs;
+}
+
 #endif

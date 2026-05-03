@@ -100,35 +100,37 @@ void Renderer::Render_Lights()
     if (!_deferredShader || !_viBuffer)
         return;
 
-    CHECK_FAILED(GAME->Begin_MRT(L"MRT_LightAcc"));
+    if (FAILED(GAME->Begin_MRT(L"MRT_LightAcc")))
+        return;
 
     // Transform
-    if (FAILED(_deferredShader->Bind_Matrix("g_WorldMatrix", reinterpret_cast<const XMFLOAT4X4*>(&_deferredWorldMatrix))))
-        return ;
-    if(FAILED(_deferredShader->Bind_Matrix("g_ViewMatrix", reinterpret_cast<const XMFLOAT4X4*>(&_deferredViewMatrix))))
-        return ;
-    if (FAILED(_deferredShader->Bind_Matrix("g_ProjMatrix", reinterpret_cast<const XMFLOAT4X4*>(&_deferredProjMatrix))))
-        return ;
+    ENDMRT_RETURN_IF_FAILED(
+        _deferredShader->Bind_Matrix("g_WorldMatrix", reinterpret_cast<const XMFLOAT4X4*>(&_deferredWorldMatrix)));
+    ENDMRT_RETURN_IF_FAILED(
+        _deferredShader->Bind_Matrix("g_ViewMatrix", reinterpret_cast<const XMFLOAT4X4*>(&_deferredViewMatrix)));
+    ENDMRT_RETURN_IF_FAILED(
+        _deferredShader->Bind_Matrix("g_ProjMatrix", reinterpret_cast<const XMFLOAT4X4*>(&_deferredProjMatrix)));
 
     // depth -> World 위치 복원
-    if (FAILED(GAME->Bind_TransformMatrix_Inverse(D3DTS::View, _deferredShader.get(), "g_ViewMatrixInverse")))
-        return ;
-    if (FAILED (GAME->Bind_TransformMatrix_Inverse(D3DTS::Proj, _deferredShader.get(), "g_ProjMatrixInverse")))
-        return;
-    if (FAILED (GAME->Bind_CamPosition(_deferredShader.get(), "g_vCamPosition")))
-        return;
+    ENDMRT_RETURN_IF_FAILED(
+        GAME->Bind_TransformMatrix_Inverse(D3DTS::View, _deferredShader.get(), "g_ViewMatrixInverse"));
+    ENDMRT_RETURN_IF_FAILED(
+        GAME->Bind_TransformMatrix_Inverse(D3DTS::Proj, _deferredShader.get(), "g_ProjMatrixInverse"));
+    ENDMRT_RETURN_IF_FAILED(
+        GAME->Bind_CamPosition(_deferredShader.get(), "g_vCamPosition"));
 
     // 명암 연산을 위한 SRV
-    if (FAILED(GAME->Bind_RT_ShaderResource(_deferredShader, "g_NormalTexture", L"Target_Normal")))
-        return;
-    if (FAILED(GAME->Bind_RT_ShaderResource(_deferredShader, "g_DepthTexture", L"Target_Depth")))
-        return;
+    ENDMRT_RETURN_IF_FAILED(
+        GAME->Bind_RT_ShaderResource(_deferredShader, "g_NormalTexture", L"Target_Normal"));
+    ENDMRT_RETURN_IF_FAILED(
+        GAME->Bind_RT_ShaderResource(_deferredShader, "g_DepthTexture", L"Target_Depth"));
 
     // Light 기록
-    if (FAILED(_viBuffer->Bind_Resources()))
-        return;
-    if (FAILED(GAME->Render_Lights(_deferredShader, _viBuffer)))
-        return;
+    ENDMRT_RETURN_IF_FAILED(
+        _viBuffer->Bind_Resources());
+    ENDMRT_RETURN_IF_FAILED(
+        GAME->Render_Lights(_deferredShader, _viBuffer));
+
     if (FAILED(GAME->End_MRT()))
         return;
 }
@@ -309,4 +311,8 @@ void Renderer::Render_Debug()
     CHECK_FAILED(GAME->Render_RT_Debug(_viBuffer, _deferredShader));
 }
 
+#endif
+
+#ifdef ENDMRT_RETURN_IF_FAILED
+#undef ENDMRT_RETURN_IF_FAILED
 #endif

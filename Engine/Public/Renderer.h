@@ -75,6 +75,18 @@ private :
 #endif
 };
 
+#pragma region RENDERER MACRO
+#define ENDMRT_RETURN_IF_FAILED(expr)       \
+    do                                      \
+    {                                       \
+        if (FAILED(expr))                   \
+        {                                   \
+            GAME->End_MRT();                \
+            return;                         \
+        }                                   \
+    } while (false)
+#pragma endregion
+
 NS_END
 
 

@@ -65,6 +65,7 @@ public :
     HRESULT SetUp_Debug(const wstring& targetTag, float x, float y, float sizeX, float sizeY, bool render = true);
     HRESULT Render_Debug(Shared<ShaderCom> shader, Shared<VIBuffer_Rect> viBuffer);
     HRESULT Render_Debug(const wstring& mrtTag, Shared<ShaderCom> shader, Shared<VIBuffer_Rect> viBuffer);
+    const map<wstring, bool>&  Get_MRTs() const;
 
 private :
     map<wstring, bool>    _drawMapMRTs;
