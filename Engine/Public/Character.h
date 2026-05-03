@@ -12,6 +12,11 @@ public:
     virtual ~Character();
     
 public:
+    HRESULT Initialize_Prototype() override;
+    HRESULT Initialize(void* arg) override;
+    void    BeginPlay() override;
+
+public:
     
 
 };

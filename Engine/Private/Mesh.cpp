@@ -27,7 +27,6 @@ HRESULT Mesh::Initialize_Prototype(ModelType type, const aiMesh* aiMesh, class M
 	_indexStride = 4;
 	_primitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 
-
 	/* Vertex Buffer */
 	HRESULT		hr = ModelType::NonAnim == type ?
 		Ready_VertexBuffer_For_NonAnim(aiMesh, preTransformMatrix) :
@@ -210,7 +209,7 @@ HRESULT Mesh::Ready_VertexBuffer_For_Anim(const aiMesh* aiMesh, class ModelCom* 
 	{		
 		_boneIndices.push_back(model->Get_BoneIndex(_name));
 
-        _numBones = 1;
+		_numBones = 1;
 
 		XMFLOAT4X4		OffsetMatrix = {};
 		XMStoreFloat4x4(&OffsetMatrix, XMMatrixIdentity());

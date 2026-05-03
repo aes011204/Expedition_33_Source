@@ -78,7 +78,7 @@ Shared<VIBuffer_Rect> VIBuffer_Rect::Create(const ComPtr<Device>& device, const 
 
 	if (FAILED(instance->Initialize_Prototype()))
 	{
-		MSG_BOX("Failed to Created : VIBuffer_Rect");
+		LOG_WARN("Failed to create VIBuffer_Rect");
 		return nullptr;
 	}
 	return instance;

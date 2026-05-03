@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "dependencies": [
     "directxtk",
+    "assimp",
     "spdlog",
     "nlohmann-json",
     "magic-enum",

@@ -47,12 +47,22 @@ namespace Engine
         UI,
     };
 
-    enum class DeferredPass : uint32
+    enum class DeferredPass : uint8
     {
         Debug,
         Directional,
         Point,
         Combined,
+    };
+
+    enum class CollisionShape : uint8
+    {
+        AABB,
+        OBB,
+        Sphere,
+        Capsule,
+
+        END
     };
 
 }

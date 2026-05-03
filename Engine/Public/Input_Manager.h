@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Base.h"
 
@@ -59,7 +59,7 @@ enum class KEY_STATE
 	END
 };
 
-class ENGINE_DLL Input_Manager final : public Base
+class ENGINE_DLL Input_Manager final :   public Base
 {
 private:
 	Input_Manager();

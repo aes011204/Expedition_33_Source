@@ -94,19 +94,20 @@ private:
 
     Shared<Base> Create_StaticPrototype(const FLoadJob& LoadJob);
 
-    static bool Load_JsonFile(const wstring& strTablePath, json& JsonRoot);
+    static bool   Load_JsonFile(const wstring& strTablePath, json& JsonRoot);
 
     static string Read_String(const json& JsonItem, const string& strUpperKey, const string& strLowerKey, const string& strDefault = "");
-
     static uint32 Read_UInt(const json& JsonItem, const string& strUpperKey, const string& strLowerKey, uint32 iDefault = 0);
+    static float  Read_Float(const json& JsonItem, const string& strUpperKey, const string& strLowerKey, float fDefault = 0.f);
 
-    static float Read_Float(const json& JsonItem, const string& strUpperKey, const string& strLowerKey, float fDefault = 0.f);
+    static CollisionShape Get_Shape_FromPrototypeTag(const wstring& prototypeTag);
 
     static wstring Make_PrototypeTag(const string& strId, const wstring& strPrefix);
 
-    static uint32 Get_LevelIndex_FromString(const string& strLevel);
+    static uint32  Get_LevelIndex_FromString(const string& strLevel);
     static wstring Get_DefaultJsonRootPath();
     static wstring Resolve_RuntimePath(const wstring& path);
+
 
 private:
     ComPtr<Device> _device = { nullptr };
