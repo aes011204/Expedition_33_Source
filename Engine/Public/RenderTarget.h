@@ -4,7 +4,7 @@
 
 NS_BEGIN(Engine)
 
-class Shader;
+class ShaderCom;
 class VIBuffer_Rect;
 
 class ENGINE_DLL RenderTarget final : public Base
@@ -17,7 +17,7 @@ public:
     HRESULT Initialize(uint32 width, uint32 height, DXGI_FORMAT pixelFormat, const Vec4& clearColor, bool useDepthStencil = true);
     HRESULT Resize(uint32 width, uint32 height, DXGI_FORMAT pixelFormat, const Vec4& clearColor, bool useDepthStencil = true);
     HRESULT Begin(bool clearRenderTarget = true, bool clearDepthStencil = true);
-    HRESULT Bind_ShaderResource(Shader* shader, const char* constantName);
+    HRESULT Bind_ShaderResource(ShaderCom* shader, const char* constantName);
 
     void Clear_RenderTarget();
     void Clear_DepthStencil();

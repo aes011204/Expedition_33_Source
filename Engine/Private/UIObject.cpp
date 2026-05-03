@@ -1,5 +1,5 @@
 ﻿#include "UIObject.h"
-#include "Shader.h"
+#include "ShaderCom.h"
 
 UIObject::UIObject(const ComPtr<Device>& device, const ComPtr<Context>& context)
 	: GameObject { device, context }
@@ -69,7 +69,7 @@ void UIObject::Update_Transform()
 		0.f));
 }
 
-HRESULT UIObject::Bind_ShaderResource(Shader* shader, const char* constantName, D3DTS transformState)
+HRESULT UIObject::Bind_ShaderResource(ShaderCom* shader, const char* constantName, D3DTS transformState)
 {
 	return shader->Bind_Matrix(constantName, &_transformMatrices[ETOI(transformState)]);
 }

@@ -4,7 +4,7 @@
 
 NS_BEGIN(Engine)
 
-class Shader;
+class ShaderCom;
 
 class ENGINE_DLL TransformCom final : public Component
 {
@@ -43,7 +43,7 @@ public:
     HRESULT Initialize_Prototype() override;
     HRESULT Initialize(void* arg) override;
     void Update_WorldMatrix();
-    HRESULT Bind_ShaderResource(Shader* shader, const char* resourceName);
+    HRESULT Bind_ShaderResource(ShaderCom* shader, const char* resourceName);
 
 public: //## Accessors
     const Matrix& Get_WorldMatrix();

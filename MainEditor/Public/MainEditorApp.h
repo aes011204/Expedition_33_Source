@@ -30,8 +30,8 @@ private:
     wstring Get_ClientResourcePath(const wchar_t* relativePath) const;
 
 private:
-    ComPtr<Device>  _device = nullptr;
-    ComPtr<Context> _context = nullptr;
+    ComPtr<Device>  _device;
+    ComPtr<Context> _context;
 
 public:
     static Unique<MainEditorApp> Create();

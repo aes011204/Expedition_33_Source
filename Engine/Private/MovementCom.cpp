@@ -1,5 +1,5 @@
 ﻿#include "MovementCom.h"
-
+#include "GameObject.h"
 #include "TransformCom.h"
 
 MovementCom::MovementCom(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -38,6 +38,18 @@ HRESULT MovementCom::Initialize(void* arg)
     _isJumping = false;
 
     return S_OK;
+}
+
+void MovementCom::BeginPlay()
+{
+    Component::BeginPlay();
+
+    auto owner = Get_Owner();
+    CHECK_NULL(owner);
+
+    _transformCom = owner->Get_Transform();
+    CHECK_NULL(_transformCom);
+
 }
 
 void MovementCom::Update_Movement(float timeDelta)

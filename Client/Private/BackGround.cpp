@@ -28,11 +28,18 @@ HRESULT BackGround::Initialize(void* arg)
 	Desc.sizeX = 200.f;
 	Desc.sizeY = 200.f;
 	
-	if (FAILED(__super::Initialize(&Desc)))
-		return E_FAIL;
-	
-	if (FAILED(Ready_Components()))
-		return E_FAIL;
+	 if (FAILED(__super::Initialize(&Desc)))
+    {
+        MSG_BOX("BackGround : __super::Initialize Failed");
+        return E_FAIL;
+    }
+
+    if (FAILED(Ready_Components()))
+    {
+        MSG_BOX("BackGround : Ready_Components Failed");
+        return E_FAIL;
+    }
+
 
 	return S_OK;
 }
@@ -84,19 +91,25 @@ HRESULT BackGround::Render()
 
 HRESULT BackGround::Ready_Components()
 {
-	if (FAILED(__super::Add_Component(ETOI(LevelType::Logo), TEXT("Texture_BackGround"), _texture)))
-		return E_FAIL;
+    if (FAILED(Add_Component(ETOI(LevelType::Logo), TEXT("Texture_BackGround"), _texture)))
+    {
+        MSG_BOX("BackGround : Texture_BackGround Failed");
+        return E_FAIL;
+    }
 
-	if (FAILED(__super::Add_Component(ETOI(LevelType::Static), TEXT("Shader_VtxTex"), _shader)))
-		return E_FAIL;
+    if (FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Shader_VtxTex"), _shader)))
+    {
+        MSG_BOX("BackGround : Shader_VtxTex Failed");
+        return E_FAIL;
+    }
 
-	if (FAILED(__super::Add_Component(ETOI(LevelType::Static), TEXT("VIBuffer_Rect"), _vibuffer)))
-		return E_FAIL;
+    if (FAILED(Add_Component(ETOI(LevelType::Static), TEXT("VIBuffer_Rect"), _vibuffer)))
+    {
+        MSG_BOX("BackGround : VIBuffer_Rect Failed");
+        return E_FAIL;
+    }
 
-
-
-
-
+    return S_OK;
 
 
 	return S_OK;
