@@ -103,7 +103,7 @@ void Editor_Manager::Render_DockSpace()
             ImGui::EndMenu();
         }
 
-        EffectEditorInstance* editor = EffectEditorInstance::GetInstance();
+        auto editor = EffectEditorInstance::GetInstance();
         if (nullptr != editor)
         {
             const bool isPlaying = editor->IsPlaying();

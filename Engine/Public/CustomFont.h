@@ -18,8 +18,8 @@ private:
     ComPtr<Device> _device = { nullptr };
     ComPtr<Context> _context = { nullptr };
 
-    SpriteBatch* _spriteBatch = { nullptr };
-    SpriteFont* _spriteFont = { nullptr };
+    Unique<SpriteBatch> _spriteBatch = { nullptr };
+    Unique<SpriteFont>  _spriteFont = { nullptr };
 
 public:
     static Shared<CustomFont> Create(const ComPtr<Device>& device, const ComPtr<Context>& context, const wchar_t* fontFilePath);

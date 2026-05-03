@@ -15,11 +15,11 @@ public:
 	uint32 Get_MaterialIndex() const { return _materialIndex; }
 
 public:
-	virtual HRESULT Initialize_Prototype(ModelType type, const aiMesh* aiMesh, class Model* model, FXMMATRIX preTransformMatrix);
+	virtual HRESULT Initialize_Prototype(ModelType type, const aiMesh* aiMesh, class ModelCom* model, FXMMATRIX preTransformMatrix);
 	virtual HRESULT Initialize(void* arg) override;
 
 public:
-	HRESULT Bind_BoneMatrices(class Shader* shader, const char* constantName, const vector<Shared<class Bone>>& bones);
+	HRESULT Bind_BoneMatrices(class ShaderCom* shader, const char* constantName, const vector<Shared<class Bone>>& bones);
 
 private:
 	char					_name[MAX_PATH] = {};
@@ -31,10 +31,10 @@ private:
 
 private:
 	HRESULT Ready_VertexBuffer_For_NonAnim(const aiMesh* aiMesh, FXMMATRIX preTransformMatrix);
-	HRESULT Ready_VertexBuffer_For_Anim(const aiMesh* aiMesh, class Model* model);
+	HRESULT Ready_VertexBuffer_For_Anim(const aiMesh* aiMesh, class ModelCom* model);
 
 public:
-	static Shared<Mesh> Create(const ComPtr<Device>& device, const ComPtr<Context>& context, ModelType type, const aiMesh* aiMesh, class Model* model, FXMMATRIX preTransformMatrix);
+	static Shared<Mesh> Create(const ComPtr<Device>& device, const ComPtr<Context>& context, ModelType type, const aiMesh* aiMesh, class ModelCom* model, FXMMATRIX preTransformMatrix);
 	virtual Shared<Component> Clone(void* arg) override;
 	virtual void Free() override;
 

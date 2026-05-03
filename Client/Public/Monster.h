@@ -4,8 +4,9 @@
 #include "Character.h"
 
 NS_BEGIN(Engine)
-class Shader;
-class Model;
+class ShaderCom;
+class ModelCom;
+class ColliderCom;
 NS_END
 
 NS_BEGIN(Client)
@@ -28,13 +29,18 @@ public:
 	virtual HRESULT Render() override;
 
 protected:
-	Shared<Shader>	_shader = { nullptr };
-	Shared<Model>	_model = { nullptr };
+	Shared<ShaderCom>	_shader = { nullptr };
+	Shared<ModelCom>	_model = { nullptr };
+
+    Shared<ColliderCom> _collider;
 	
 
 protected:
 	HRESULT Ready_Components();
+    HRESULT Ready_Collider();
+
 	HRESULT Bind_ShaderResources();
+    
 
 
 public:

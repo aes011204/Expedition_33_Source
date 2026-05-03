@@ -1,6 +1,6 @@
 ﻿#include "Texture.h"
 
-#include "Shader.h"
+#include "ShaderCom.h"
 
 Texture::Texture(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Component { device, context }
@@ -12,8 +12,7 @@ Texture::Texture(const Texture& prototype)
     , _numSRVs { prototype._numSRVs }
     , _srvs { prototype._srvs }
 {
-    for (auto& srv : _srvs)
-        Safe_AddRef(srv);
+    
 }
 
 HRESULT Texture::Initialize_Prototype(const wchar_t* texturePathPattern, uint32 numSRVs)
@@ -22,10 +21,12 @@ HRESULT Texture::Initialize_Prototype(const wchar_t* texturePathPattern, uint32 
         return E_FAIL;
 
     _numSRVs = numSRVs;
+    _srvs.clear();
+    _srvs.reserve(numSRVs);
 
     for (size_t i = 0; i < numSRVs; i++)
     {
-        ID3D11ShaderResourceView* srv = { nullptr };
+        ComPtr<ID3D11ShaderResourceView> srv = nullptr;
 
         wchar_t resolvedTexturePath[MAX_PATH] = {};
         if (nullptr != wcschr(texturePathPattern, L'%'))
@@ -40,18 +41,18 @@ HRESULT Texture::Initialize_Prototype(const wchar_t* texturePathPattern, uint32 
         HRESULT         hr = {};
 
         if (false == lstrcmp(extensionBuffer, TEXT(".dds")))
-            hr = CreateDDSTextureFromFile(_device.Get(), resolvedTexturePath, nullptr, &srv);
+            hr = CreateDDSTextureFromFile(_device.Get(), resolvedTexturePath, nullptr, srv.GetAddressOf());
 
         else if (false == lstrcmp(extensionBuffer, TEXT(".tga")))
             hr = E_FAIL;
 
         else
-            hr = CreateWICTextureFromFile(_device.Get(), resolvedTexturePath, nullptr, &srv);
+            hr = CreateWICTextureFromFile(_device.Get(), resolvedTexturePath, nullptr, srv.GetAddressOf());
 
         if (FAILED(hr))
             return E_FAIL;
 
-        _srvs.push_back(srv);
+        _srvs.emplace_back(std::move(srv));
     }
 
     return S_OK;
@@ -62,17 +63,23 @@ HRESULT Texture::Initialize(void* arg)
     return S_OK;
 }
 
-HRESULT Texture::Bind_ShaderResourceView(Shader* shader, const char* constantName, uint32 index)
+HRESULT Texture::Bind_ShaderResourceView(ShaderCom* shader, const char* constantName, uint32 index)
 {
     if (index >= _numSRVs)
         return E_FAIL;
 
-    return shader->Bind_SRV(constantName, _srvs[index]);    
+    return shader->Bind_SRV(constantName, _srvs[index].Get());
 }
 
-HRESULT Texture::Bind_ShaderResourceViews(Shader* shader, const char* constantName)
+HRESULT Texture::Bind_ShaderResourceViews(ShaderCom* shader, const char* constantName)
 {
-    return shader->Bind_SRVs(constantName, &_srvs.front(), _numSRVs);    
+    vector<ID3D11ShaderResourceView*> rawSRVs;
+    rawSRVs.reserve(_srvs.size());
+
+    for (const auto& srv : _srvs)
+        rawSRVs.push_back(srv.Get());
+
+    return shader->Bind_SRVs(constantName, rawSRVs.empty() ? nullptr : rawSRVs.data(), _numSRVs);
 }
 
 Shared<Texture> Texture::Create(const ComPtr<Device>& device, const ComPtr<Context>& context, const wchar_t* texturePathPattern, uint32 numSRVs)
@@ -103,9 +110,6 @@ Shared<Component> Texture::Clone(void* arg)
 void Texture::Free()
 {
     __super::Free();
-
-    for (auto& srv : _srvs)
-        Safe_Release(srv);
 
     _srvs.clear();
 }

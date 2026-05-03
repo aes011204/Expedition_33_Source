@@ -4,14 +4,16 @@
 #include "Character.h"
 
 NS_BEGIN(Engine)
-class Shader;
-class Model;
+class ShaderCom;
+class ModelCom;
 class MovementCom;
+class ColliderCom;
 NS_END
 
 NS_BEGIN(Client)
 
 class InputCom;
+class PlayerControllerCom;
 
 class Player final : public Character
 {
@@ -25,6 +27,8 @@ public:
 public:
 	virtual HRESULT Initialize_Prototype() override;
 	virtual HRESULT Initialize(void* arg) override;
+    virtual void    BeginPlay() override;
+
 	virtual void Priority_Update(float timeDelta) override;
 	virtual void Update(float timeDelta) override;
 	virtual void Late_Update(float timeDelta) override;
@@ -34,9 +38,13 @@ protected:
 	HRESULT Ready_Components();
 	HRESULT Ready_PartObjects();
 
+    HRESULT Ready_Collider();
+
 private:
-    Shared<MovementCom> _movementCom;
-    Shared<InputCom>    _inputCom;
+    Shared<MovementCom>         _movementCom;
+    Shared<InputCom>            _inputCom;
+    Shared<PlayerControllerCom> _playerControllerCom;
+    Shared<ColliderCom>         _collider;
 
 public:
 	static Shared<Player> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

@@ -33,9 +33,10 @@ namespace Engine
         Player,
         Monster,
         Character,
-        Camera,
+
         FreeCamera,
         TargetCamera,
+
         Terrain,
         Sky,
         Weapon,
@@ -44,6 +45,16 @@ namespace Engine
         Effect,
         Trigger,
         UI,
+    };
+
+    enum class CollisionShape : uint8
+    {
+        AABB,
+        OBB,
+        Sphere,
+        Capsule,
+
+        END
     };
 
 }

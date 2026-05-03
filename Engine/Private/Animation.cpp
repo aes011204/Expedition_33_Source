@@ -14,11 +14,10 @@ Animation::Animation(const Animation& prototype)
     , _channels{ prototype._channels }
     , _currentKeyFrameIndices{ prototype._currentKeyFrameIndices }
 {
-    for (auto& channel : _channels)
-        Safe_AddRef(channel);
+    
 }
 
-HRESULT Animation::Initialize(const aiAnimation* aiAnimation, class Model* model)
+HRESULT Animation::Initialize(const aiAnimation* aiAnimation, ModelCom* model)
 {
     _duration = static_cast<float>(aiAnimation->mDuration);
     _tickPerSecond = static_cast<float>(aiAnimation->mTicksPerSecond);
@@ -58,7 +57,7 @@ bool Animation::Update_TransformationMatrices(float timeDelta, const vector<Shar
     return false;
 }
 
-Shared<Animation> Animation::Create(const aiAnimation* aiAnimation, class Model* model)
+Shared<Animation> Animation::Create(const aiAnimation* aiAnimation, ModelCom* model)
 {
     auto instance = make_shared<Animation>();
 
@@ -78,9 +77,6 @@ Shared<Animation> Animation::Clone()
 void Animation::Free()
 {
     __super::Free();
-
-    for (auto& channel : _channels)
-        Safe_Release(channel);
 
     _channels.clear();
 }

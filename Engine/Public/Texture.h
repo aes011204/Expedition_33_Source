@@ -16,12 +16,12 @@ public:
 	virtual HRESULT Initialize(void* arg) override;
 
 public:
-	HRESULT Bind_ShaderResourceView(class Shader* shader, const char* constantName, uint32 index);
-	HRESULT Bind_ShaderResourceViews(class Shader* shader, const char* constantName);
+	HRESULT Bind_ShaderResourceView(class ShaderCom* shader, const char* constantName, uint32 index);
+	HRESULT Bind_ShaderResourceViews(class ShaderCom* shader, const char* constantName);
 
 private:
 	uint32										_numSRVs = {};
-	vector<ID3D11ShaderResourceView*>			_srvs;
+	vector<ComPtr<ID3D11ShaderResourceView>>	_srvs;
 
 public:
 	static Shared<Texture> Create(const ComPtr<Device>& device, const ComPtr<Context>& context, const wchar_t* texturePathPattern, uint32 numSRVs);

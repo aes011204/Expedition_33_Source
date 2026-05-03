@@ -16,7 +16,7 @@ def get_group_name(filename: str) -> str:
     if stem == "DT_Texture":
         return "Texture"
     if stem == "DT_Shader":
-        return "Shader"
+        return "DT_Shader"
     return stem
 
 

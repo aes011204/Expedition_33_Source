@@ -1,4 +1,4 @@
-#include "Object_Manager.h"
+﻿#include "Object_Manager.h"
 
 #include "GameInstance.h"
 #include "GameObject.h"
@@ -17,14 +17,24 @@ HRESULT Object_Manager::Initialize(uint32 numLevels)
 
 HRESULT Object_Manager::Add_GameObject(uint32 prototypeLevelIndex, const wstring& prototypeTag, uint32 layerLevelIndex, const wstring& layerTag, void* arg)
 {
-	if (layerLevelIndex >= _numLevels)
+	Shared<GameObject> gameObject = nullptr;
+
+    return Add_GameObject(prototypeLevelIndex, prototypeTag, layerLevelIndex, layerTag, gameObject, arg);
+}
+
+HRESULT Object_Manager::Add_GameObject(uint32 prototypeLevelIndex, const wstring& prototypeTag, uint32 layerLevelIndex,
+    const wstring& layerTag, Shared<GameObject>& outGameObject, void* arg)
+{
+    outGameObject = nullptr;
+
+    if (layerLevelIndex >= _numLevels)
 	{
 		MSG_BOX("Failed To Added : CloneGameObject");
 		return E_FAIL;
 	}
 
-	Shared<GameObject> gameObject = static_pointer_cast<GameObject>(GAME->Clone_Prototype(Prototype::GameObject, prototypeLevelIndex, prototypeTag, arg));
-	if (nullptr == gameObject)
+	outGameObject = static_pointer_cast<GameObject>(GAME->Clone_Prototype(Prototype::GameObject, prototypeLevelIndex, prototypeTag, arg));
+	if (nullptr == outGameObject)
 	{
 		MSG_BOX("Failed To Added : CloneGameObject");
 		return E_FAIL;
@@ -34,12 +44,18 @@ HRESULT Object_Manager::Add_GameObject(uint32 prototypeLevelIndex, const wstring
 	if (nullptr == layer)
 	{
 		layer = Layer::Create();
-		layer->Add_GameObject(gameObject);
+        if (layer == nullptr)
+        {
+            outGameObject = nullptr;
+            return E_FAIL;
+        }
+
+		layer->Add_GameObject(outGameObject);
 		_layers[layerLevelIndex].emplace(layerTag, layer);
 	}
 	else
 	{
-		layer->Add_GameObject(gameObject);
+		layer->Add_GameObject(outGameObject);
 	}
 
 	return S_OK;
@@ -76,6 +92,18 @@ HRESULT Object_Manager::Clear_Layers(uint32 levelIndex)
 
 	_layers[levelIndex].clear();
 	return S_OK;
+}
+
+Shared<GameObject> Object_Manager::Find_FirstObject(uint32 levelIndex, const wstring& layerTag)
+{
+    if (levelIndex >= _numLevels)
+        return nullptr;
+
+    Shared<Layer> layer = Find_Layer(levelIndex, layerTag);
+    if (layer == nullptr)
+        return nullptr;
+
+    return layer->Find_FirstObject();
 }
 
 Shared<Layer> Object_Manager::Find_Layer(uint32 layerLevelIndex, const wstring& layerTag)
