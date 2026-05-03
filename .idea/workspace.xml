@@ -5,27 +5,12 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="3a724bf1-b6b6-4ccd-bee8-03e93885d56f" name="변경" comment="">
-      <change beforePath="$PROJECT_DIR$/Client/Bin/Resources/Models/Fiona/Fiona.anim" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Client/Bin/Resources/Models/Fiona/Fiona.model" beforeDir="false" afterPath="$PROJECT_DIR$/Client/Bin/Resources/Models/Fiona/Fiona.model" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Client/Bin/Resources/Models/LuneTemp/LuneTemp_SK_Lune_UE5_Lune_Sprint_V2_Start02.anim" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Client/Bin/Resources/Models/LuneTemp/LuneTemp_SK_Lune_UE5_Lune_Sprint_V3.anim" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Client/Bin/Resources/Models/LuneTemp/LuneTemp_SK_Lune_UE5_Lune_Sprint_V4_CleaSkirt.anim" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Client/Bin/Resources/Models/Rock/Rock_1.model" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Client/Bin/Resources/Models/Rock/Rock_2.model" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Client/Bin/Resources/Models/Rock/Rock_3.model" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Client/Bin/Resources/Models/Rock/Rock_4.model" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Client/Bin/Resources/Models/Rock/Rock_5.model" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Client/Bin/Resources/Models/Rock/Rock_6.model" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Client/Bin/Resources/Models/Rock/Rock_7.model" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Client/Bin/Resources/Models/Rock/Rock_8.model" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Client/Bin/Resources/Models/Test/Anim.anim" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Client/Bin/Resources/Models/Test/Anim.model" beforeDir="false" afterPath="$PROJECT_DIR$/Client/Bin/Resources/Models/Test/Anim.model" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Client/Bin/Resources/Models/Tong/TimelineA02.model" beforeDir="false" afterPath="$PROJECT_DIR$/Client/Bin/Resources/Models/Tong/TimelineA02.model" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Client/Bin/Resources/Models/map/Corridors (merge).model" beforeDir="false" afterPath="$PROJECT_DIR$/Client/Bin/Resources/Models/map/Corridors (merge).model" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/GEMINI.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Engine/Bin/Debug/Engine.exp" beforeDir="false" afterPath="$PROJECT_DIR$/Engine/Bin/Debug/Engine.exp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Engine/Bin/Debug/Engine.lib" beforeDir="false" afterPath="$PROJECT_DIR$/Engine/Bin/Debug/Engine.lib" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Engine/Default/.idea/.idea.Default.dir/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/Engine/Default/.idea/.idea.Default.dir/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Engine/Public/ModelCom.h" beforeDir="false" afterPath="$PROJECT_DIR$/Engine/Public/ModelCom.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/EngineSDK/lib/Debug/Engine.lib" beforeDir="false" afterPath="$PROJECT_DIR$/EngineSDK/lib/Debug/Engine.lib" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ModelEditor/Default/imgui.ini" beforeDir="false" afterPath="$PROJECT_DIR$/ModelEditor/Default/imgui.ini" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ModelEditor/Private/ModelConverter.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/ModelEditor/Private/ModelConverter.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ModelEditor/Public/ModelConverter.h" beforeDir="false" afterPath="$PROJECT_DIR$/ModelEditor/Public/ModelConverter.h" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -66,6 +51,7 @@
       <updated>1777795837038</updated>
       <workItem from="1777795838616" duration="6000" />
       <workItem from="1777799511927" duration="23000" />
+      <workItem from="1777804624444" duration="8000" />
     </task>
     <servers />
   </component>

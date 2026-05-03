@@ -63,6 +63,7 @@ namespace ModelEditor
 		_hWnd = nullptr;
 		ZeroMemory(&_pathBuffer, sizeof(char) * 512);
 		Clear_Converter();
+        _importer.FreeScene();
 	}
 
 	HRESULT ModelConverter::Initialize()

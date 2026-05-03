@@ -7,21 +7,18 @@
 #include "Animation.h"
 
 ModelCom::ModelCom(const ComPtr<Device>& device, const ComPtr<Context>& context)
-    : Component { device, context }
-{
-}
+    : Component { device, context } {}
 
 ModelCom::ModelCom(const ModelCom& prototype)
     : Component{ prototype }
-    , _aiScene { prototype._aiScene }
     , _type{ prototype._type }
     , _preLocalTransformMatrix{ prototype._preLocalTransformMatrix }
-     , _numMeshes { prototype._numMeshes }
-    , _meshes { prototype._meshes }    
-    , _numMaterials { prototype._numMaterials }
-    , _materials { prototype._materials }
+    , _numMeshes{ prototype._numMeshes }    
+    , _numMaterials{ prototype._numMaterials }
+    , _numBones{ prototype._numBones }
     , _numAnimations { prototype._numAnimations}
-    
+    , _meshes { prototype._meshes }
+    , _materials { prototype._materials }
 {
 
     for (auto& prototypeAnim : prototype._animations)
@@ -58,7 +55,7 @@ const XMFLOAT4X4* ModelCom::Get_BoneMatrixPtr(const char* boneName)
     return (*iter)->Get_CombinedTransformationMatrixPtr();
 }
 
-HRESULT ModelCom::Initialize_Prototype(ModelType type, const char* modelFilePath, FXMMATRIX preLocalTransformMatrix)
+HRESULT ModelCom::Initialize_Prototype(ModelType type, const char* modelFilePath, const Matrix& preLocalTransformMatrix)
 {
     uint32       flag = { aiProcess_ConvertToLeftHanded | aiProcessPreset_TargetRealtime_Fast };
 
@@ -198,7 +195,7 @@ HRESULT ModelCom::Ready_Animations()
 }
 
 
-Shared<ModelCom> ModelCom::Create(const ComPtr<Device>& device, const ComPtr<Context>& context, ModelType type, const char* modelFilePath, FXMMATRIX preLocalTransformMatrix)
+Shared<ModelCom> ModelCom::Create(const ComPtr<Device>& device, const ComPtr<Context>& context, ModelType type, const char* modelFilePath, const Matrix& preLocalTransformMatrix)
 {
     auto instance = make_shared<ModelCom>(device, context);
 
@@ -231,13 +228,7 @@ void ModelCom::Free()
     _animations.clear();
     _materials.clear();
     _meshes.clear();
-
-
     _bones.clear();
-
-    _importer.FreeScene();
-
-
 }
 
 

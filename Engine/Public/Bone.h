@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Base.h"
 
@@ -13,15 +13,14 @@ class Bone final : public Base
 public:
 	Bone();
 	virtual ~Bone() = default;
+
 public:
 	const XMFLOAT4X4* Get_CombinedTransformationMatrixPtr() const {
 		return &_combinedTransformationMatrix;
 	}
 public:
 	HRESULT Initialize(const aiNode* aiNode, int32 parentBoneIndex);
-	bool isCompare(const char* boneName) {
-		return !strcmp(boneName, _name);
-	}
+	bool Check_BoneByName(const char* boneName) const { return !strcmp(boneName, _name); }
 
 	void Update_CombinedTransformationMatrix(const vector<Shared<Bone>>& bones, FXMMATRIX preTransformMatrix);
 	void Update_TransformationMatrix(FXMMATRIX transformMatrix);
@@ -30,8 +29,8 @@ public:
 
 private:
 	char					_name[MAX_PATH] = {};
-	XMFLOAT4X4				_transformationMatrix = {};
-	XMFLOAT4X4				_combinedTransformationMatrix = {};	
+	Matrix                  _transformationMatrix{};
+	Matrix                  _combinedTransformationMatrix{};	
 	int32					_parentBoneIndex = { -1 };
 
 public:

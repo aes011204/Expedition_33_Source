@@ -4,30 +4,37 @@
 
 NS_BEGIN(Engine)
 
+class Mesh;
+class Material;
+class Bone;
+class Animation;
+
 class ENGINE_DLL ModelCom final : public Component
 {
 public:
 	ModelCom(const ComPtr<Device>& device, const ComPtr<Context>& context);
 	ModelCom(const ModelCom& prototype);
-	virtual ~ModelCom() = default;
+	~ModelCom() override = default;
 
 public:
-	size_t Get_NumMeshes() {
-		return _meshes.size();
-	}
+    uint32 Get_NumMeshes() const { return _meshes.size(); }
+    uint32 Get_NumMaterials() const { return _materials.size(); }
+    uint32 Get_NumBones() const { return _bones.size(); }
+    uint32 Get_NumAnimations() const { return _animations.size(); }
+    
 
 	int32 Get_BoneIndex(const char* boneName);
 	const XMFLOAT4X4* Get_BoneMatrixPtr(const char* boneName);
 
-	void Set_Animation(uint32 index, bool isLoop) {
+	void Set_Animation(uint32 index, float blendDuration = 0.01f, bool isLoop = false) {
 		_currentAnimIndex = index;
 		_isAnimLoop = isLoop;
 	}
 
 public:
-	virtual HRESULT Initialize_Prototype(ModelType type, const char* modelFilePath, FXMMATRIX preLocalTransformMatrix);
-	virtual HRESULT Initialize(void* arg);
-	virtual HRESULT Render(uint32 meshIndex);
+	HRESULT Initialize_Prototype(ModelType type, const char* modelFilePath, const Matrix& preLocalTransformMatrix);
+	HRESULT Initialize(void* arg) override;
+	HRESULT Render(uint32 meshIndex);
 
 public:
 	bool Play_Animation(float timeDelta);
@@ -37,26 +44,32 @@ public:
 	HRESULT Bind_BoneMatrices(class ShaderCom* shader, const char* constantName, uint32 meshIndex);
 
 private:
-	const aiScene*				_aiScene = { nullptr };
-	Assimp::Importer			_importer = {};
-
-	ModelType						_type = { ModelType::END };
-	XMFLOAT4X4					_preLocalTransformMatrix = {};
+	ModelType					        _type = { ModelType::END };
+	Matrix					            _preLocalTransformMatrix = {};
 
 private:
-	uint32						_numMeshes = {};
-	vector<Shared<class Mesh>>	_meshes;
+	uint32						        _numMeshes{};
+    uint32						        _numMaterials = {};
+    uint32                              _numBones{};
+    uint32                              _numAnimations{};
 
-	uint32						_numMaterials = {};
-	vector<Shared<class Material>>	_materials;
+    vector<Shared<Mesh>>	            _meshes;
+	vector<Shared<Material>>	        _materials;
+	vector<Shared<Bone>>		        _bones;
+    vector<Shared<Animation>>	        _animations;
 
-	vector<Shared<class Bone>>		_bones;
+private: /* For Animation Control */
+	bool						        _isAnimLoop{ false };
+    bool                                _isBlending{ false };
+	uint32						        _currentAnimIndex{ 0 };
+    uint32                              _nextAnimIndex{ 0 };
+    float                               _blendDuration{ 0.f };
+    float                               _blendElapsedTime{ 0.f };
 
-	bool						_isAnimLoop = { false };
-	uint32						_currentAnimIndex = {};
-	uint32						_numAnimations = {};
-	vector<Shared<class Animation>>	_animations;
-
+private: /* For Root Motion */
+    bool                                _isRootMotion{ false };
+    int32                               _rootNodeIndex{ -1 }; // -1 일때는 최상위 노드 기준으로 
+    Matrix                              _rootFrameMatrixShift{};
 
 private:
 	HRESULT Ready_Meshes();
@@ -65,7 +78,7 @@ private:
 	HRESULT Ready_Animations();
 
 public:
-	static Shared<ModelCom> Create(const ComPtr<Device>& device, const ComPtr<Context>& context, ModelType type, const char* modelFilePath, FXMMATRIX preLocalTransformMatrix = XMMatrixIdentity());
+	static Shared<ModelCom> Create(const ComPtr<Device>& device, const ComPtr<Context>& context, ModelType type, const char* modelFilePath, const Matrix& preLocalTransformMatrix = XMMatrixIdentity());
 	virtual Shared<Component> Clone(void* arg) override;
 	virtual void Free() override;
 };
