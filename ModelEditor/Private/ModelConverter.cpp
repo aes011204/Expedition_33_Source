@@ -5,7 +5,7 @@
 
 namespace ModelEditor
 {
-	::LRESULT CALLBACK ModelConverter::DragDropWndProc(::HWND hWnd, UINT message, ::WPARAM wParam, ::LPARAM lParam, ::UINT_PTR uIdSubclass, ::DWORD_PTR dwRefData)
+	LRESULT CALLBACK ModelConverter::DragDropWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData)
 	{
 		ModelConverter* thisPointer = reinterpret_cast<ModelConverter*>(dwRefData);
 
@@ -14,9 +14,9 @@ namespace ModelEditor
 		case WM_DROPFILES:
 		{
 			::HDROP hDrop = reinterpret_cast<::HDROP>(wParam);
-			::uint32 fileCount = ::DragQueryFileW(hDrop, 0xffffffff, nullptr, 0);
+			uint32 fileCount = ::DragQueryFileW(hDrop, 0xffffffff, nullptr, 0);
 
-			for (::uint32 i = 0; i < fileCount; ++i)
+			for (uint32 i = 0; i < fileCount; ++i)
 			{
 				wchar_t filePath[MAX_PATH];
 				::DragQueryFileW(hDrop, i, filePath, MAX_PATH);
@@ -60,12 +60,12 @@ namespace ModelEditor
 		{
 			::RemoveWindowSubclass(_hWnd, DragDropWndProc, 0);
 		}
-        _hWnd = nullptr;
-        ZeroMemory(&_pathBuffer, sizeof(char) * 512);
-        Clear_Converter();
+		_hWnd = nullptr;
+		ZeroMemory(&_pathBuffer, sizeof(char) * 512);
+		Clear_Converter();
 	}
 
-	HRESULT ModelConverter::Initialize(::HWND hWnd)
+	HRESULT ModelConverter::Initialize()
 	{
 		Clear_Converter();
 		importFlags = aiProcess_ConvertToLeftHanded |
@@ -76,8 +76,6 @@ namespace ModelEditor
 
 		strcpy_s(_pathBuffer, Engine::String::ToString(ResourcePath).c_str());
 		_resourcePath = ResourcePath;
-
-		_hWnd = hWnd;
 
 		if (_hWnd)
 		{
@@ -101,6 +99,9 @@ namespace ModelEditor
 		{
 			_resourcePath = String::ToWString(_pathBuffer);
 		}
+		ImGui::Separator();
+
+		ImGui::Checkbox("Generate Debug JSON Logs", &_exportJsonLog);
 		ImGui::Separator();
 
 		if (ImGui::Button("Extract All (.fbx)", ImVec2(-1, 30)))
@@ -129,8 +130,8 @@ namespace ModelEditor
 		}
 
 		LOG_INFO(">>> Start Bulk Extraction: {}", String::ToString(path));
-		::uint32 successCount = 0;
-		::uint32 failCount = 0;
+		uint32 successCount = 0;
+		uint32 failCount = 0;
 
 		for (const auto& entry : fs::recursive_directory_iterator(path))
 		{
@@ -181,6 +182,11 @@ namespace ModelEditor
 		if (FAILED(Export_AnimationData(_aiScene, outputDir, modelName)))
 		{
 			return E_FAIL;
+		}
+
+		if (_exportJsonLog)
+		{
+			Export_JsonLog(outputDir);
 		}
 
 		LOG_INFO("Convert Success: {}", modelName);
@@ -491,37 +497,37 @@ namespace ModelEditor
 		}
 	}
 
-	::HRESULT ModelConverter::Export_ModelData(const aiScene* aiScene, const wstring& outputDir, const string& modelName)
+	HRESULT ModelConverter::Export_ModelData(const aiScene* aiScene, const wstring& outputDir, const string& modelName)
 	{
-		wstring meshPath = outputDir + Engine::String::ToWString(modelName) + L".model";
-		ofstream out(meshPath, ios::binary);
+		wstring filePath = outputDir + Engine::String::ToWString(modelName) + L".model";
+		ofstream out(filePath, ios::binary);
 		if (!out.is_open()) return E_FAIL;
 
-		::uint32 numNodes = static_cast<::uint32>(_nodes.size());
-		::uint32 numMaterials = static_cast<::uint32>(_matHeaders.size());
-		::uint32 numMeshes = static_cast<::uint32>(_meshHeaders.size());
-		::uint32 numBones = static_cast<::uint32>(_bones.size());
+		uint32 numNodes = static_cast<uint32>(_nodes.size());
+		uint32 numMaterials = static_cast<uint32>(_matHeaders.size());
+		uint32 numMeshes = static_cast<uint32>(_meshHeaders.size());
+		uint32 numBones = static_cast<uint32>(_bones.size());
 
 		out.write(BYTE(&_isSkeletal), sizeof(bool));
-		out.write(BYTE(&numNodes), sizeof(::uint32));
-		out.write(BYTE(&numMaterials), sizeof(::uint32));
-		out.write(BYTE(&numMeshes), sizeof(::uint32));
-		out.write(BYTE(&numBones), sizeof(::uint32));
+		out.write(BYTE(&numNodes), sizeof(uint32));
+		out.write(BYTE(&numMaterials), sizeof(uint32));
+		out.write(BYTE(&numMeshes), sizeof(uint32));
+		out.write(BYTE(&numBones), sizeof(uint32));
 
 		out.write(BYTE(_nodes.data()), numNodes * sizeof(ModelNodeData));
 
-		for (::uint32 i = 0; i < numMaterials; ++i)
+		for (uint32 i = 0; i < numMaterials; ++i)
 		{
 			out.write(BYTE(&_matHeaders[i]), sizeof(ModelMaterialData));
 			out.write(BYTE(_matSlots[i].data()), _matHeaders[i].numSlots * sizeof(ModelTextureSlot));
 		}
 
-		for (::uint32 i = 0; i < numMeshes; ++i)
+		for (uint32 i = 0; i < numMeshes; ++i)
 		{
 			out.write(BYTE(&_meshHeaders[i]), sizeof(ModelMeshData));
 			if (_isSkeletal)
 			{
-				out.write(BYTE(_meshBoneRefs[i].data()), _meshHeaders[i].numBoneRefs * sizeof(::uint32));
+				out.write(BYTE(_meshBoneRefs[i].data()), _meshHeaders[i].numBoneRefs * sizeof(uint32));
 				out.write(BYTE(_meshOffsets[i].data()), _meshHeaders[i].numBoneRefs * sizeof(Matrix));
 				out.write(BYTE(_animVertices[i].data()), _meshHeaders[i].numVertices * sizeof(VTXANIMMESH));
 			}
@@ -529,7 +535,7 @@ namespace ModelEditor
 			{
 				out.write(BYTE(_staticVertices[i].data()), _meshHeaders[i].numVertices * sizeof(VTXMESH));
 			}
-			out.write(BYTE(_indices[i].data()), _meshHeaders[i].numIndices * sizeof(::uint32));
+			out.write(BYTE(_indices[i].data()), _meshHeaders[i].numIndices * sizeof(uint32));
 		}
 
 		if (numBones > 0)
@@ -541,16 +547,19 @@ namespace ModelEditor
 		return S_OK;
 	}
 
-	::HRESULT ModelConverter::Export_AnimationData(const aiScene* aiScene, const wstring& outputDir, const string& modelName)
+	HRESULT ModelConverter::Export_AnimationData(const aiScene* aiScene, const wstring& outputDir, const string& modelName)
 	{
 		if (!_isSkeletal || _animHeaders.empty()) return S_OK;
 
-		for (::uint32 i = 0; i < _animHeaders.size(); ++i)
+		wstring animDir = outputDir + L"Animations/";
+		Ensure_DirectoryExists(animDir);
+
+		for (uint32 i = 0; i < _animHeaders.size(); ++i)
 		{
 			string animClipName = Sanitize_FileName(string(_animHeaders[i].name));
 			string fullFileName = modelName + "_" + animClipName;
 
-			wstring animPath = outputDir + Engine::String::ToWString(fullFileName) + L".anim";
+			wstring animPath = animDir + Engine::String::ToWString(fullFileName) + L".anim";
 			ofstream out(animPath, ios::binary);
 			if (!out.is_open())
 			{
@@ -560,8 +569,8 @@ namespace ModelEditor
 
 			out.write(BYTE(&_animHeaders[i]), sizeof(ModelAnimationData));
 
-			::uint32 numChannels = _animHeaders[i].numChannels;
-			for (::uint32 j = 0; j < numChannels; ++j)
+			uint32 numChannels = _animHeaders[i].numChannels;
+			for (uint32 j = 0; j < numChannels; ++j)
 			{
 				out.write(BYTE(&_channelHeaders[i][j]), sizeof(ModelChannelData));
 				out.write(BYTE(_keyframes[i][j].data()), _channelHeaders[i][j].numKeyframes * sizeof(KEYFRAME));
@@ -571,6 +580,77 @@ namespace ModelEditor
 			LOG_INFO("Export Anim Clip: {}", fullFileName);
 		}
 
+		return S_OK;
+	}
+
+	HRESULT ModelConverter::Export_JsonLog(const wstring& outputDir)
+	{
+		wstring logDir = outputDir + L"Log_json/";
+		Ensure_DirectoryExists(logDir);
+
+		auto Vec3J = [](const Vec3& v) { return json{ {"x", v.x}, {"y", v.y}, {"z", v.z} }; };
+		auto Vec4J = [](const Vec4& v) { return json{ {"x", v.x}, {"y", v.y}, {"z", v.z}, {"w", v.w} }; };
+		auto MatJ  = [](const Matrix& m) {
+			json a = json::array();
+			const float* f = reinterpret_cast<const float*>(&m);
+			for (int i = 0; i < 16; ++i) a.push_back(f[i]);
+			return a;
+		};
+
+		{
+			json jArr = json::array();
+			for (const auto& n : _nodes)
+				jArr.push_back({ {"name", n.name}, {"parentIndex", n.prentIndex}, {"localTransform", MatJ(n.localTransform)} });
+			ofstream(logDir + L"Node.json") << jArr.dump(4);
+		}
+
+		{
+			json jArr = json::array();
+			for (const auto& b : _bones)
+				jArr.push_back({ {"name", b.name}, {"nodeIndex", b.nodeIndex}, {"offsetMatrix", MatJ(b.offsetMatrix)} });
+			ofstream(logDir + L"Bone.json") << jArr.dump(4);
+		}
+
+		{
+			json jArr = json::array();
+			for (size_t i = 0; i < _matHeaders.size(); ++i)
+			{
+				json jSlots = json::array();
+				for (const auto& s : _matSlots[i])
+					jSlots.push_back({ {"typeIndex", s.typeIndex}, {"textureIndex", s.textureIndex}, {"path", s.path}, {"uvScale", {s.uvScale.x, s.uvScale.y}}, {"uvOffset", {s.uvOffset.x, s.uvOffset.y}}, {"uvRotation", s.uvRotation}, {"blendFactor", s.blendFactor}, {"blendOp", s.blendOp}, {"uvChannel", s.uvChannel}, {"wrapMode", s.wrapMode} });
+				
+				const auto& h = _matHeaders[i];
+				jArr.push_back({ {"name", h.name}, {"diffuse", Vec4J(h.diffuseColor)}, {"ambient", Vec4J(h.ambientColor)}, {"specular", Vec4J(h.specularColor)}, {"emissive", Vec4J(h.emissiveColor)}, {"shininess", h.shininess}, {"opacity", h.opacity}, {"roughness", h.roughness}, {"metalness", h.metalness}, {"numSlots", h.numSlots}, {"slots", jSlots} });
+			}
+			ofstream(logDir + L"Material.json") << jArr.dump(4);
+		}
+
+		if (_isSkeletal)
+		{
+			json jAnims = json::array();
+			json jChans = json::array();
+			for (size_t i = 0; i < _animHeaders.size(); ++i)
+			{
+				const auto& ah = _animHeaders[i];
+				jAnims.push_back({ {"name", ah.name}, {"duration", ah.duration}, {"ticksPerSecond", ah.ticksPerSecond}, {"numChannels", ah.numChannels}, {"rootTotalTranslation", Vec3J(ah.rootTotalTranslation)}, {"rootTotalRotation", Vec4J(ah.rootTotalRotation)} });
+
+				json jAnimChans = json::array();
+				for (size_t j = 0; j < _channelHeaders[i].size(); ++j)
+				{
+					const auto& ch = _channelHeaders[i][j];
+					json jKeys = json::array();
+					for (const auto& k : _keyframes[i][j])
+						jKeys.push_back({ {"trackPosition", k.trackPosition}, {"translation", Vec3J(k.translation)}, {"rotation", Vec4J(k.rotation)}, {"scale", Vec3J(k.scale)} });
+					
+					jAnimChans.push_back({ {"boneName", ch.boneName}, {"boneIndex", ch.boneIndex}, {"numKeyframes", ch.numKeyframes}, {"keyframes", jKeys} });
+				}
+				jChans.push_back({ {"animationName", ah.name}, {"channels", jAnimChans} });
+			}
+			ofstream(logDir + L"Animation.json") << jAnims.dump(4);
+			ofstream(logDir + L"channel.json") << jChans.dump(4);
+		}
+
+		LOG_INFO("Log: JSON data exported to Log_json/");
 		return S_OK;
 	}
 
@@ -585,7 +665,7 @@ namespace ModelEditor
 		return mat;
 	}
 
-	int32 ModelConverter::FindNodeIndex(const char* name)
+	int32 ModelConverter::FindNodeIndex(const char* name) const
 	{
 		for (int32 i = 0; i < static_cast<int32>(_nodes.size()); ++i)
 		{
@@ -631,11 +711,12 @@ namespace ModelEditor
 		}
 	}
 
-	Shared<ModelConverter> ModelConverter::Create(::HWND hWnd)
+	Shared<ModelConverter> ModelConverter::Create(HWND hWnd)
 	{
 		auto prototype = make_shared<ModelConverter>();
+		prototype->_hWnd = hWnd;
 
-		if (FAILED(prototype->Initialize(hWnd)))
+		if (FAILED(prototype->Initialize()))
 		{
 			MSG_BOX("Failed to Created : ModelConverter");
 			return nullptr;

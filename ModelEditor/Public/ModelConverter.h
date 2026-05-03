@@ -7,10 +7,11 @@ NS_END
 
 NS_BEGIN(ModelEditor)
 
+// 모호성 해결을 위한 타입 별칭
 using HRESULT = ::HRESULT;
 using LRESULT = ::LRESULT;
-using HWND = ::HWND;
-using UINT = ::UINT;
+using HWND    = ::HWND;
+using UINT    = ::UINT;
 
 class ModelConverter final : public EditorBlock
 {
@@ -19,10 +20,10 @@ public:
 	~ModelConverter() override;
 
 public:
-	static ::LRESULT CALLBACK DragDropWndProc(::HWND hWnd, UINT message, ::WPARAM wParam, ::LPARAM lParam, ::UINT_PTR uIdSubclass, ::DWORD_PTR dwRefData);
+	static LRESULT CALLBACK DragDropWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData);
 
 private:
-	HRESULT Initialize(HWND hWnd);
+	HRESULT Initialize() override;
 
 public:
 	void Update(float timeDelta) override;
@@ -40,21 +41,25 @@ private:
 
 	HRESULT Export_ModelData(const aiScene* aiScene, const wstring& outputDir, const string& modelName);
 	HRESULT Export_AnimationData(const aiScene* aiScene, const wstring& outputDir, const string& modelName);
+	
+	HRESULT Export_JsonLog(const wstring& outputDir);
 
 private:
 	Matrix  Convert_Matrix(const aiMatrix4x4& aiMat) const;
 	string  Get_FileNameWithoutExtension(const wstring& filePath) const;
 	void    Ensure_DirectoryExists(const wstring& dirPath) const;
-	int32   FindNodeIndex(const char* name);
+	int32   FindNodeIndex(const char* name) const;
 	string  Sanitize_FileName(string name);
 
 private:
 	void Clear_Converter();
 
 private:
-	::HWND                              _hWnd{ nullptr };
+	HWND                                _hWnd{ nullptr };
 	char                                _pathBuffer[512]{};
 	wstring                             _resourcePath{};
+	
+	bool                                _exportJsonLog{ false };
 
 private:
 	uint32                              importFlags{ 0 };
