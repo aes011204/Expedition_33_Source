@@ -335,13 +335,15 @@ Shared<Base> GameInstance::Clone_Prototype(Prototype prototype, uint32 levelInde
 }
 
 HRESULT GameInstance::Add_GameObject(
-    uint32 prototypeLevelIndex,
-    const wstring& prototypeTag,
-    uint32 layerLevelIndex,
-    const wstring& layerTag,
-    void* arg)
+    uint32 prototypeLevelIndex, const wstring& prototypeTag, uint32 layerLevelIndex, const wstring& layerTag, void* arg)
 {
     return _objectManager->Add_GameObject(prototypeLevelIndex, prototypeTag, layerLevelIndex, layerTag, arg);
+}
+
+HRESULT GameInstance::Add_GameObject(uint32 prototypeLevelIndex, const wstring& prototypeTag, uint32 layerLevelIndex,
+    const wstring& layerTag, Shared<GameObject>& outGameObject, void* arg)
+{
+    return _objectManager->Add_GameObject(prototypeLevelIndex, prototypeTag, layerLevelIndex, layerTag, outGameObject, arg);
 }
 
 Shared<GameObject> GameInstance::Find_FirstObject(uint32 levelIndex, const wstring& layerTag)
@@ -354,17 +356,17 @@ void GameInstance::Add_RenderGroup(RenderGroup renderGroup, Shared<GameObject> g
     return _renderer->Add_RenderGroup(renderGroup, gameObject);
 }
 
-HRESULT GameInstance::Bind_CamPosition(Shader* shader, const char* constantName)
+HRESULT GameInstance::Bind_CamPosition(ShaderCom* shader, const char* constantName)
 {
     return _pipeLine->Bind_CamPosition(shader, constantName);
 }
 
-HRESULT GameInstance::Bind_TransformMatrix(D3DTS transformState, Shader* shader, const char* constantName)
+HRESULT GameInstance::Bind_TransformMatrix(D3DTS transformState, ShaderCom* shader, const char* constantName)
 {
     return _pipeLine->Bind_TransformMatrix(transformState, shader, constantName);
 }
 
-HRESULT GameInstance::Bind_TransformMatrix_Inverse(D3DTS transformState, Shader* shader, const char* constantName)
+HRESULT GameInstance::Bind_TransformMatrix_Inverse(D3DTS transformState, ShaderCom* shader, const char* constantName)
 {
     return _pipeLine->Bind_TransformMatrix_Inverse(transformState, shader, constantName);
 }

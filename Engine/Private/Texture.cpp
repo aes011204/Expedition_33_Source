@@ -1,6 +1,6 @@
 ﻿#include "Texture.h"
 
-#include "Shader.h"
+#include "ShaderCom.h"
 
 Texture::Texture(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Component { device, context }
@@ -63,7 +63,7 @@ HRESULT Texture::Initialize(void* arg)
     return S_OK;
 }
 
-HRESULT Texture::Bind_ShaderResourceView(Shader* shader, const char* constantName, uint32 index)
+HRESULT Texture::Bind_ShaderResourceView(ShaderCom* shader, const char* constantName, uint32 index)
 {
     if (index >= _numSRVs)
         return E_FAIL;
@@ -71,7 +71,7 @@ HRESULT Texture::Bind_ShaderResourceView(Shader* shader, const char* constantNam
     return shader->Bind_SRV(constantName, _srvs[index].Get());
 }
 
-HRESULT Texture::Bind_ShaderResourceViews(Shader* shader, const char* constantName)
+HRESULT Texture::Bind_ShaderResourceViews(ShaderCom* shader, const char* constantName)
 {
     vector<ID3D11ShaderResourceView*> rawSRVs;
     rawSRVs.reserve(_srvs.size());

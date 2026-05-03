@@ -13,7 +13,7 @@ public:
 	virtual ~Channel() = default;
 
 public:
-	HRESULT Initialize(const aiNodeAnim* aiChannel, class Model* model);
+	HRESULT Initialize(const aiNodeAnim* aiChannel, class ModelCom* model);
 	void Update_TransformationMatrix(uint32* currentKeyFrameIndex, float currentTrackPosition, const vector<Shared<class Bone>>& bones);
 
 private:
@@ -23,7 +23,7 @@ private:
 	int32						_boneIndex = { -1 };
 
 public:
-	static Shared<Channel> Create(const aiNodeAnim* aiChannel, class Model* model);
+	static Shared<Channel> Create(const aiNodeAnim* aiChannel, class ModelCom* model);
 	virtual void Free() override;
 };
 

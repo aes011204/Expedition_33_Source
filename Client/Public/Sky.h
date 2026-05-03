@@ -4,7 +4,7 @@
 #include "GameObject.h"
 
 NS_BEGIN(Engine)
-class Shader;
+class ShaderCom;
 class Texture;
 class VIBuffer_Cube;
 NS_END
@@ -34,7 +34,7 @@ public:
 	virtual HRESULT Render() override;
 
 protected:
-	Shared<Shader> _shader = { nullptr };
+	Shared<ShaderCom> _shader = { nullptr };
 	Shared<VIBuffer_Cube> _vibuffer = { nullptr };
 	Shared<Texture> _texture = { nullptr };
 

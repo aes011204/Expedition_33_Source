@@ -3,8 +3,8 @@
 #include "PartObject.h"
 
 NS_BEGIN(Engine)
-class Shader;
-class Model;
+class ShaderCom;
+class ModelCom;
 NS_END
 
 NS_BEGIN(Client)
@@ -36,8 +36,8 @@ public:
 
 
 private:
-	Shared<Shader> _shader = { nullptr };
-	Shared<Model>  _model = { nullptr };
+	Shared<ShaderCom> _shader = { nullptr };
+	Shared<ModelCom>  _model = { nullptr };
 
 private:
 	const uint32* _parentState = { nullptr };

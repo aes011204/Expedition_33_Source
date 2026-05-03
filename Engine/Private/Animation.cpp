@@ -17,7 +17,7 @@ Animation::Animation(const Animation& prototype)
     
 }
 
-HRESULT Animation::Initialize(const aiAnimation* aiAnimation, class Model* model)
+HRESULT Animation::Initialize(const aiAnimation* aiAnimation, ModelCom* model)
 {
     _duration = static_cast<float>(aiAnimation->mDuration);
     _tickPerSecond = static_cast<float>(aiAnimation->mTicksPerSecond);
@@ -57,7 +57,7 @@ bool Animation::Update_TransformationMatrices(float timeDelta, const vector<Shar
     return false;
 }
 
-Shared<Animation> Animation::Create(const aiAnimation* aiAnimation, class Model* model)
+Shared<Animation> Animation::Create(const aiAnimation* aiAnimation, ModelCom* model)
 {
     auto instance = make_shared<Animation>();
 
