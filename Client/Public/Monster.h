@@ -6,6 +6,7 @@
 NS_BEGIN(Engine)
 class ShaderCom;
 class ModelCom;
+class ColliderCom;
 NS_END
 
 NS_BEGIN(Client)
@@ -30,11 +31,16 @@ public:
 protected:
 	Shared<ShaderCom>	_shader = { nullptr };
 	Shared<ModelCom>	_model = { nullptr };
+
+    Shared<ColliderCom> _collider;
 	
 
 protected:
 	HRESULT Ready_Components();
+    HRESULT Ready_Collider();
+
 	HRESULT Bind_ShaderResources();
+    
 
 
 public:

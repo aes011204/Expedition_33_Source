@@ -6,6 +6,8 @@
 
 NS_BEGIN(Engine)
 
+class ColliderCom;
+
 class ENGINE_DLL GameObject abstract : public Base
 {
 public:
@@ -30,6 +32,14 @@ public:
     virtual HRESULT Render();
 
     HRESULT         Try_BeginPlay();
+
+public:
+    virtual void    OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other) {}
+    virtual void    OnStayOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other)  {}
+    virtual void    OnEndOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other)   {}
+
+    virtual void    OnBlockBegin(Shared<ColliderCom> self, Shared<ColliderCom> other) {}
+    virtual void    OnBlockStay(Shared<ColliderCom> self, Shared<ColliderCom> other) {}
 
 public:
     Shared<GameObject> Get_Owner() const { return _owner.lock(); }

@@ -22,8 +22,6 @@ HRESULT PlayerControllerCom::Initialize(void* arg)
 {
     CHECK_FAILED(Component::Initialize(arg), E_FAIL);
 
-
-
     return S_OK;
 }
 

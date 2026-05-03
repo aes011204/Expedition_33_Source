@@ -13,3 +13,18 @@ Character::Character(const Character& Prototype)
 Character::~Character()
 {
 }
+
+HRESULT Character::Initialize_Prototype()
+{
+    return ContainerObject::Initialize_Prototype();
+}
+
+HRESULT Character::Initialize(void* arg)
+{
+    return ContainerObject::Initialize(arg);
+}
+
+void Character::BeginPlay()
+{
+    ContainerObject::BeginPlay();
+}

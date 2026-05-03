@@ -40,6 +40,7 @@
     <ClCompile Include="..\Private\SimpleMath.cpp">
       <Filter>99. Defines</Filter>
     </ClCompile>
+    <ClCompile Include="..\private\Camera_Tool.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -93,6 +94,7 @@
     <ClInclude Include="..\Public\Editor_Macro.h">
       <Filter>99. Defines</Filter>
     </ClInclude>
+    <ClInclude Include="..\public\Camera_Tool.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="00. Main">
