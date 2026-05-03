@@ -434,6 +434,11 @@ HRESULT GameInstance::Add_Light(const LIGHT_DESC& lightDesc)
     return _lightManager->Add_Light(lightDesc);
 }
 
+HRESULT GameInstance::Render_Lights(Shared<Shader> shader, Shared<VIBuffer_Rect> viBuffer)
+{
+    return _lightManager->Render_Lights(shader, viBuffer);
+}
+
 HRESULT GameInstance::Add_Font(const wstring& fontTag, const wchar_t* fontFilePath)
 {
     return _fontManager->Add_Font(fontTag, fontFilePath);
@@ -548,7 +553,7 @@ HRESULT GameInstance::Resize_MRTs(uint32 width, uint32 height)
     return _targetManager->Resize_MRTs(width, height);
 }
 
-HRESULT GameInstance::Bind_ShaderResource(Shared<Shader> shader, const char* constantName, const wstring& targetTag)
+HRESULT GameInstance::Bind_RT_ShaderResource(Shared<Shader> shader, const char* constantName, const wstring& targetTag)
 {
     return _targetManager->Bind_ShaderResource(shader, constantName, targetTag);
 }
@@ -562,6 +567,25 @@ HRESULT GameInstance::Copy_RTV(const wstring& srcTargetTag, const wstring& dstTa
 {
     return _targetManager->Copy_RTV(srcTargetTag, dstTargetTag);
 }
+
+#ifdef _DEBUG
+
+HRESULT GameInstance::Initialize_Debug(float sizeX, float sizeY)
+{
+    return _targetManager->Initialize_Debug(sizeX, sizeY);
+}
+
+HRESULT GameInstance::SetUp_Debug(const wstring& targetTag, float x, float y, float sizeX, float sizeY, bool render)
+{
+    return _targetManager->SetUp_Debug(targetTag, x, y, sizeX, sizeY, render);
+}
+
+HRESULT GameInstance::Render_RT_Debug(Shared<VIBuffer_Rect> viBuffer, Shared<Shader> shader)
+{
+    return _targetManager->Render_Debug(shader, viBuffer);
+}
+
+#endif
 
 void GameInstance::Free()
 {

@@ -52,6 +52,11 @@ HRESULT Target_Manager::Add_MRT(const wstring& mrtTag, const wstring& targetTag)
 
         _MRTs.emplace(mrtTag, move(newMRT));
 
+#ifdef _DEBUG
+        // 디버그 렌더 MRT 단위로 on/off
+        _drawMapMRTs.emplace(mrtTag, true);
+#endif
+
         return S_OK;
     }
 
@@ -246,32 +251,6 @@ HRESULT Target_Manager::Copy_RTV(const wstring& srcTargetTag, const wstring& dst
     return S_OK;
 }
 
-#ifdef _DEBUG
-HRESULT Target_Manager::Ready_Debug(const wstring& targetTag, float x, float y, float sizeX, float sizeY)
-{
-    auto renderTarget = Find_RenderTarget(targetTag);
-    CHECK_NULL(renderTarget, E_FAIL);
-    // TODO 필요 시
-    //return renderTarget->Ready_Debug(x, y, sizeX, sizeY);
-}
-
-HRESULT Target_Manager::Render_Debug(const wstring& mrtTag, Shared<Shader> shader, Shared<VIBuffer_Rect> viBuffer)
-{
-    auto mrtList = Find_MRT(mrtTag);
-    CHECK_NULL(mrtList, E_FAIL);
-
-    for (auto renderTarget : *mrtList)
-    {
-        // TODO 필요 시
-
-        //renderTarget->Render(viBuffer, shader);
-    }
-
-    return S_OK;
-}
-
-#endif
-
 Shared<RenderTarget> Target_Manager::Find_RenderTarget(const wstring& targetTag)
 {
     auto iter = _renderTargets.find(targetTag);
@@ -300,3 +279,104 @@ void Target_Manager::Free()
 {
     Base::Free();
 }
+
+#ifdef _DEBUG
+
+HRESULT Target_Manager::Initialize_Debug(float totalSizeX, float totalSizeY)
+{
+    // 디버그 RT를 타일로 배치
+    const uint32 rtCount = static_cast<uint32>(_renderTargets.size());
+    if (rtCount == 0)
+        return S_OK;
+
+    uint32 cols = static_cast<uint32>(ceilf(sqrtf(static_cast<float>(rtCount))));
+    cols = max(cols, 1u);
+
+    const uint32 rows = static_cast<uint32>(ceilf(static_cast<float>(rtCount) / static_cast<float>(cols)));
+
+    const float cellSizeX = totalSizeX / static_cast<float>(cols);
+    const float cellSizeY = totalSizeY / static_cast<float>(rows);
+
+    uint32 i = 0;
+    for (auto& pair : _renderTargets)
+    {
+        const wstring& targetTag = pair.first;
+
+        const uint32 r = i / cols;
+        const uint32 c = i % cols;
+
+        // 좌상단부터 순서대로 각 칸의 중심 좌표 
+        const float centerX = (static_cast<float>(c) + 0.5f) * cellSizeX;
+        const float centerY = (static_cast<float>(r) + 0.5f) * cellSizeY;
+
+        // 각 RT 디버그 타일 크기
+        const float tileSizeX = cellSizeX;
+        const float tileSizeY = cellSizeY;
+
+        CHECK_FAILED(SetUp_Debug(targetTag, centerX, centerY, tileSizeX, tileSizeY, true), E_FAIL);
+
+        ++i;
+        if (i >= rtCount)
+            break;
+    }
+
+    return S_OK;
+}
+
+HRESULT Target_Manager::SetUp_Debug(const wstring& targetTag, float x, float y, float sizeX, float sizeY, bool render)
+{
+    auto renderTarget = Find_RenderTarget(targetTag);
+    CHECK_NULL(renderTarget, E_FAIL);
+
+    CHECK_FAILED(renderTarget->Setup_Debug(x, y, sizeX, sizeY), E_FAIL);
+
+    // 디버그 렌더 여부는 MRT 단위로 관리한다.
+    // 해당 RT를 포함하는 모든 MRT의 draw 플래그를 갱신한다.
+    for (auto& mrtPair : _MRTs)
+    {
+        const wstring& mrtTag = mrtPair.first;
+        auto& mrtList = mrtPair.second;
+
+        for (auto& rt : mrtList)
+        {
+            if (rt == renderTarget)
+            {
+                _drawMapMRTs[mrtTag] = render;
+                break;
+            }
+        }
+    }
+
+    return S_OK;
+}
+
+HRESULT Target_Manager::Render_Debug(Shared<Shader> shader, Shared<VIBuffer_Rect> viBuffer)
+{
+    for (auto it = _drawMapMRTs.begin(); it != _drawMapMRTs.end(); ++it)
+    {
+        if (!it->second)  // draw 여부
+            continue;
+
+        auto* mrt = Find_MRT(it->first);
+        if (!mrt)
+            return E_FAIL;
+
+        for (auto& rt : *mrt)
+            rt->Render_Debug(viBuffer, shader);
+    }
+
+    return S_OK;
+}
+
+HRESULT Target_Manager::Render_Debug(const wstring& mrtTag, Shared<Shader> shader, Shared<VIBuffer_Rect> viBuffer)
+{
+    auto mrtList = Find_MRT(mrtTag);
+    CHECK_NULL(mrtList, E_FAIL);
+
+    for (auto renderTarget : *mrtList)
+        renderTarget->Render_Debug(viBuffer, shader);
+
+    return S_OK;
+}
+
+#endif

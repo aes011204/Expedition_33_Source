@@ -93,7 +93,7 @@ HRESULT Body_Player::Ready_Components()
 
 HRESULT Body_Player::Bind_ShaderResources()
 {
-	/*if (FAILED(_transformCom->Bind_ShaderResource(_states, "g_WorldMatrix")))
+	/*if (FAILED(_transformCom->Bind_RT_ShaderResource(_states, "g_WorldMatrix")))
 		return E_FAIL;*/
 	if (FAILED(_shader->Bind_Matrix("g_WorldMatrix", &_combinedWorldMatrix)))
 		return E_FAIL;

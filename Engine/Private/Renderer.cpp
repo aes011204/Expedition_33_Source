@@ -2,6 +2,8 @@
 
 #include "GameInstance.h"
 #include "GameObject.h"
+#include "Shader.h"
+#include "VIBuffer_Rect.h"
 
 /*
  * TODO . 렌더 타겟 생성 및 MRT 구성
@@ -36,13 +38,25 @@ void Renderer::Add_RenderGroup(RenderGroup renderGroup, Shared<GameObject> gameO
 
 void Renderer::Draw()
 {
-	Render_Priority();
+    Render_Priority();
 
-	Render_NonBlend();
+    Render_Shadow();
 
-	Render_Blend();
+    Render_NonBlend();
 
-	Render_UI();
+    Render_Lights();
+
+    Render_Combined();
+
+    Render_NonLight();
+
+    Render_Blend();
+
+    Render_UI();
+
+#ifdef _DEBUG
+    // Render_Debug();
+#endif
 }
 
 void Renderer::Render_Priority()
@@ -57,8 +71,17 @@ void Renderer::Render_Priority()
 	_renderGroups[ETOI(RenderGroup::Priority)].clear();
 }
 
+void Renderer::Render_Shadow()
+{
+
+}
+
 void Renderer::Render_NonBlend()
 {
+    // Diffuse + Normal
+    CHECK_FAILED(GAME->Begin_MRT(L"MRT_GameObjects"));
+
+    // TODO 필요 시 정렬
 	for (auto& renderObject : _renderGroups[ETOI(RenderGroup::NonBlend)])
 	{
 		Shared<GameObject> gameObject = renderObject.lock();
@@ -67,7 +90,103 @@ void Renderer::Render_NonBlend()
 	}
 
 	_renderGroups[ETOI(RenderGroup::NonBlend)].clear();
+
+    CHECK_FAILED(GAME->End_MRT());
 }
+
+
+void Renderer::Render_Lights()
+{
+    if (!_deferredShader || !_viBuffer)
+        return;
+
+    CHECK_FAILED(GAME->Begin_MRT(L"MRT_LightAcc"));
+
+    // Transform
+    if (FAILED(_deferredShader->Bind_Matrix("g_WorldMatrix", reinterpret_cast<const XMFLOAT4X4*>(&_deferredWorldMatrix))))
+        return ;
+    if(FAILED(_deferredShader->Bind_Matrix("g_ViewMatrix", reinterpret_cast<const XMFLOAT4X4*>(&_deferredViewMatrix))))
+        return ;
+    if (FAILED(_deferredShader->Bind_Matrix("g_ProjMatrix", reinterpret_cast<const XMFLOAT4X4*>(&_deferredProjMatrix))))
+        return ;
+
+    // depth -> World 위치 복원
+    if (FAILED(GAME->Bind_TransformMatrix_Inverse(D3DTS::View, _deferredShader.get(), "g_ViewMatrixInverse")))
+        return ;
+    if (FAILED (GAME->Bind_TransformMatrix_Inverse(D3DTS::Proj, _deferredShader.get(), "g_ProjMatrixInverse")))
+        return;
+    if (FAILED (GAME->Bind_CamPosition(_deferredShader.get(), "g_vCamPosition")))
+        return;
+
+    // 명암 연산을 위한 SRV
+    if (FAILED(GAME->Bind_RT_ShaderResource(_deferredShader, "g_NormalTexture", L"Target_Normal")))
+        return;
+    if (FAILED(GAME->Bind_RT_ShaderResource(_deferredShader, "g_DepthTexture", L"Target_Depth")))
+        return;
+
+    // Light 기록
+    if (FAILED(_viBuffer->Bind_Resources()))
+        return;
+    if (FAILED(GAME->Render_Lights(_deferredShader, _viBuffer)))
+        return;
+    if (FAILED(GAME->End_MRT()))
+        return;
+}
+
+void Renderer::Render_NonLight()
+{
+    for (auto& renderObject : _renderGroups[ETOI(RenderGroup::NonLight)])
+    {
+        Shared<GameObject> gameObject = renderObject.lock();
+        if (nullptr != gameObject)
+            gameObject->Render();
+    }
+
+    _renderGroups[ETOI(RenderGroup::NonLight)].clear();
+}
+
+void Renderer::Render_Combined()
+{
+    if (!_deferredShader || !_viBuffer)
+        return;
+
+    // Transform
+    if (FAILED(_deferredShader->Bind_Matrix("g_WorldMatrix", reinterpret_cast<const XMFLOAT4X4*>(&_deferredWorldMatrix))))
+        return;
+    if (FAILED(_deferredShader->Bind_Matrix("g_ViewMatrix", reinterpret_cast<const XMFLOAT4X4*>(&_deferredViewMatrix))))
+        return;
+    if (FAILED(_deferredShader->Bind_Matrix("g_ProjMatrix", reinterpret_cast<const XMFLOAT4X4*>(&_deferredProjMatrix))))
+        return;
+
+    // depth -> World 위치 복원 용도
+    if (FAILED(GAME->Bind_TransformMatrix_Inverse(D3DTS::View, _deferredShader.get(), "g_ViewMatrixInverse")))
+        return;
+    if (FAILED(GAME->Bind_TransformMatrix_Inverse(D3DTS::Proj, _deferredShader.get(), "g_ProjMatrixInverse")))
+        return;
+    if (FAILED(GAME->Bind_CamPosition(_deferredShader.get(), "g_vCamPosition")))
+        return;
+
+    // SRV 바인딩
+    if (FAILED(GAME->Bind_RT_ShaderResource(_deferredShader, "g_DiffuseTexture", L"Target_Diffuse")))
+        return;
+    if (FAILED(GAME->Bind_RT_ShaderResource(_deferredShader, "g_ShadeTexture", L"Target_Shade")))
+        return;
+    if (FAILED(GAME->Bind_RT_ShaderResource(_deferredShader, "g_SpecularTexture", L"Target_Specular")))
+        return;
+    if (FAILED(GAME->Bind_RT_ShaderResource(_deferredShader, "g_DepthTexture", L"Target_Depth")))
+        return;
+    if (FAILED(GAME->Bind_RT_ShaderResource(_deferredShader, "g_LightDepthTexture", L"Target_LightDepth")))
+        return;
+
+    // Light 기록
+    if (FAILED(_viBuffer->Bind_Resources()))
+        return;
+    if (FAILED(_deferredShader->Begin(ETOI(DeferredPass::Combined))))
+        return;
+    if (FAILED(_viBuffer->Render()))
+        return;
+}
+
 
 void Renderer::Render_Blend()
 {
@@ -95,25 +214,27 @@ void Renderer::Render_UI()
 
 HRESULT Renderer::Ready_RenderTargets()
 {
-    const uint32 width = static_cast<uint32>(GAME->Get_ViewportWidth());
-    const uint32 height = static_cast<uint32>(GAME->Get_ViewportHeight());
+    const uint32 width = GAME->Get_ViewportWidth();
+    const uint32 height = GAME->Get_ViewportHeight();
 
+    // MRT_GameObjects
     CHECK_FAILED(GAME->Add_RenderTarget(L"Target_Diffuse",
         width, height, DXGI_FORMAT_R8G8B8A8_UNORM, Color(0, 0, 0, 0)), E_FAIL);
 
     CHECK_FAILED(GAME->Add_RenderTarget(L"Target_Normal",
         width, height, DXGI_FORMAT_R16G16B16A16_UNORM, Color(0, 0, 0, 0)), E_FAIL);
 
-    CHECK_FAILED(GAME->Add_RenderTarget(L"Target_Shade",
-        width, height, DXGI_FORMAT_R16G16B16A16_UNORM, Color(0, 0, 0, 0)), E_FAIL);
-
     CHECK_FAILED(GAME->Add_RenderTarget(L"Target_Depth",
         width, height, DXGI_FORMAT_R32G32B32A32_FLOAT, Color(0, 0, 0, 0)), E_FAIL);
+
+    // MRT_LightAcc
+    CHECK_FAILED(GAME->Add_RenderTarget(L"Target_Shade",
+        width, height, DXGI_FORMAT_R16G16B16A16_UNORM, Color(0, 0, 0, 0)), E_FAIL);
 
     CHECK_FAILED(GAME->Add_RenderTarget(L"Target_Specular",
         width, height, DXGI_FORMAT_R16G16B16A16_UNORM, Color(0, 0, 0, 0)), E_FAIL);
 
-    // shadow
+    // MRT_ShadowObjects
     CHECK_FAILED(GAME->Add_RenderTarget(L"Target_LightDepth",
         width * static_cast<uint32>(_shadowScale), height * static_cast<uint32>(_shadowScale), DXGI_FORMAT_R32G32B32A32_FLOAT, Color(1.f, 1.f, 1.f, 1.f), false), E_FAIL);
 
@@ -126,17 +247,22 @@ HRESULT Renderer::Ready_RenderTargets()
 
     CHECK_FAILED(GAME->Add_MRT(L"MRT_ShadowObjects", L"Target_LightDepth"), E_FAIL);
 
+    // deferred shader, rect buffer 생성
+    _viBuffer = VIBuffer_Rect::Create(_device, _context);
+    CHECK_NULL(_viBuffer, E_FAIL);
 
     _deferredShader = Shader::Create(_device, _context,
         L"../../../Client/Bin/ShaderFiles/Shader_Deferred.hlsl", VTXTEX::Elements, VTXTEX::numElements);
-
-    
+    CHECK_NULL(_deferredShader, E_FAIL);
 
     _deferredWorldMatrix = Matrix::CreateScale(static_cast<float>(width), static_cast<float>(height), 1.f);
     _deferredViewMatrix = Matrix::Identity;
     _deferredProjMatrix = XMMatrixOrthographicLH(static_cast<float>(width), static_cast<float>(height), 0.f, 1.f);
 
-    // TODO : Debug
+#ifdef _DEBUG
+    // 전체 뷰포트의 1/4만 사용하여 디버그 렌더
+    GAME->Initialize_Debug(width * 0.5f, height * 0.5f);
+#endif
 
     return S_OK;
 }
@@ -165,3 +291,22 @@ void Renderer::Free()
 	}
 }
 
+#ifdef _DEBUG
+
+void Renderer::Add_DebugRenderGroup(Shared<Component> debugComponent)
+{
+    _debugComponents.push_back(debugComponent);
+}
+
+void Renderer::Render_Debug()
+{
+    // TODO : Component 에 해당 함수 추가 후 작성
+    //for (auto& debugCom : _debugComponents)
+    //    debugCom->Render_Debug();
+
+    _debugComponents.clear();
+
+    CHECK_FAILED(GAME->Render_RT_Debug(_viBuffer, _deferredShader));
+}
+
+#endif

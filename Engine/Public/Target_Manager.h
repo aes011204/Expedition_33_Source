@@ -38,11 +38,6 @@ public :
     HRESULT Copy_CurrentRTV_To(const wstring& targetTag);
     HRESULT Copy_RTV(const wstring& srcTargetTag, const wstring& dstTargetTag);
 
-#ifdef _DEBUG
-    HRESULT Ready_Debug(const wstring& targetTag, float x, float y, float sizeX, float sizeY);
-    HRESULT Render_Debug(const wstring& mrtTag, Shared<Shader> shader, Shared<VIBuffer_Rect> viBuffer);
-#endif
-
 private :
     Shared<RenderTarget>        Find_RenderTarget(const wstring& targetTag);
     list<Shared<RenderTarget>>* Find_MRT(const wstring& mrtTag);
@@ -63,6 +58,17 @@ private :
 public :
     static Unique<Target_Manager>   Create(ComPtr<Device> device, ComPtr<Context> context);
     virtual void Free() override;
+
+#ifdef _DEBUG
+public :
+    HRESULT Initialize_Debug(float sizeX, float sizeY);
+    HRESULT SetUp_Debug(const wstring& targetTag, float x, float y, float sizeX, float sizeY, bool render = true);
+    HRESULT Render_Debug(Shared<Shader> shader, Shared<VIBuffer_Rect> viBuffer);
+    HRESULT Render_Debug(const wstring& mrtTag, Shared<Shader> shader, Shared<VIBuffer_Rect> viBuffer);
+
+private :
+    map<wstring, bool>    _drawMapMRTs;
+#endif
 
 };
 

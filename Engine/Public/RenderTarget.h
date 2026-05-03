@@ -5,6 +5,7 @@
 NS_BEGIN(Engine)
 
 class Shader;
+class VIBuffer_Rect;
 
 class ENGINE_DLL RenderTarget final : public Base
 {
@@ -43,10 +44,10 @@ private:
     ComPtr<Texture2D> _depthStencilTexture = nullptr;
     ComPtr<DepthStencilView> _dsv = nullptr;
 
-    uint32 _width = 0;
-    uint32 _height = 0;
+    uint32      _width = 0;
+    uint32      _height = 0;
     DXGI_FORMAT _pixelFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
-    Vec4 _clearColor = Vec4(0.f, 0.f, 0.f, 1.f);
+    Vec4        _clearColor = Vec4(0.f, 0.f, 0.f, 1.f);
 
 public:
     static Shared<RenderTarget> Create(
@@ -59,6 +60,15 @@ public:
         bool useDepthStencil = true);
 
     void Free() override;
+
+#ifdef _DEBUG
+public:
+    HRESULT Setup_Debug(float x, float y, float sizeX, float sizeY);
+    HRESULT Render_Debug(Shared<VIBuffer_Rect> viBuffer, Shared<Shader> shader);
+private:
+    Matrix _debugWorldMatrix = Matrix::Identity;
+
+#endif
 };
 
 NS_END

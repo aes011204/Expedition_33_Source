@@ -1,24 +1,25 @@
 #include "Engine_Shader_Defines.hlsli"
 
-/* Vertex Shader */
-/* 1. 정점의 변환과정을 수행한다.(월드, 뷰, 투영 등) */
-/* 2. 정점의 구성을 변형한다. */
-
-/* float2, float3, float4 == vector */
-/* float1x4, float4x4 == matrix */
-
-
-/* 컨스턴트 테이블 */
+//==================================================
+// MATRIX
+//==================================================
 float4x4 g_WorldMatrix, g_ViewMatrix, g_ProjMatrix;
 
+//==================================================
+// LIGHT
+//==================================================
 vector g_vLightDir;
 vector g_vLightDiffuse;
 vector g_vLightAmbient;
 vector g_vLightSpecular;
 
+//==================================================
+// TEXTURE
+//==================================================
 texture2D g_DiffuseTexture[2];
 texture2D g_MaskTexture;
 texture2D g_BrushTexture;
+
 vector g_vMtrlAmbient = vector(0.3f, 0.3f, 0.3f, 1.f);
 vector g_vMtrlSpecular = vector(1.f, 1.f, 1.f, 1.f);
 vector g_vCamPosition;
@@ -26,6 +27,9 @@ vector g_vCamPosition;
 float g_fBrushRange = 15.f;
 vector g_vBrushPosition = vector(70.f, 0.f, 20.f, 1.f);
 
+//==================================================
+// SAMPLER
+//==================================================
 sampler DefaultSampler = sampler_state
 {
     Filter = MIN_MAG_MIP_LINEAR;   
@@ -33,9 +37,9 @@ sampler DefaultSampler = sampler_state
     AddressV = wrap;
 };
 
-
-
-/* 이 쉐이더로 그린다라고 이야기한 정점버퍼의 정점을 꺼내서 받아온다 */
+//==================================================
+// VS
+//==================================================
 struct VS_IN
 {
     float3 vPosition : POSITION;
@@ -71,10 +75,9 @@ VS_OUT VS_MAIN(VS_IN In)
     return Out;
 }
 
-/* w나누기연산을 수행한다.-> 이 연산으로 이어질수 있는 이유 -> VS_OUT구조체의 위치 -> SV_ */
-/* 뷰포트(윈도우좌표)로 변환한다. */
-/* 래스터라이즈 -> 정점 세개로 감싸진 영역의 픽셀 정보를 생성한다 */
-
+//==================================================
+// PS
+//==================================================
 struct PS_IN
 {
     float4 vPosition : SV_POSITION;
@@ -88,13 +91,10 @@ struct PS_OUT
     vector vColor : SV_TARGET0;
 };
 
-/* Pixel Shader -> 픽셀의 색을 결정한다. */
-
 PS_OUT PS_MAIN(PS_IN In)
 {
     PS_OUT Out;
     
-    // Out.vColor = float4(In.vTexcoord.y, In.vTexcoord.y, In.vTexcoord.y, 1.f);
     vector vSourMtrlDiffuse = g_DiffuseTexture[0].Sample(DefaultSampler, In.vTexcoord * 30.f);
     vector vDestMtrlDiffuse = g_DiffuseTexture[1].Sample(DefaultSampler, In.vTexcoord * 30.f);
     vector vMask = g_MaskTexture.Sample(DefaultSampler, In.vTexcoord);
@@ -141,11 +141,3 @@ technique11 DefaultTechnique
         PixelShader = compile ps_5_0 PS_MAIN();
     }
 }
-
-//    pass DefaultPass1
-//    {
-//        VertexShader = compile vs_5_0 VS_MAIN1();
-//        PixelShader = compile ps_5_0 PS_MAIN1();
-
-//    }
-//}

@@ -6,7 +6,7 @@ namespace Engine
 
     enum class Prototype { GameObject, Comopnent };
 
-    enum class RenderGroup { Priority, NonBlend, Blend, UI, END };
+    enum class RenderGroup { Priority, NonBlend, NonLight, Blend, UI, END };
 
     enum class State { Right, Up, Look, Position, END };
 
@@ -45,6 +45,14 @@ namespace Engine
         Effect,
         Trigger,
         UI,
+    };
+
+    enum class DeferredPass : uint32
+    {
+        Debug,
+        Directional,
+        Point,
+        Combined,
     };
 
 }

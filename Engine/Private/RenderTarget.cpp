@@ -1,6 +1,7 @@
 ﻿#include "pch.h"
 #include "RenderTarget.h"
 #include "Shader.h"
+#include "VIBuffer_Rect.h"
 
 RenderTarget::RenderTarget(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : _device{ device }
@@ -163,3 +164,33 @@ void RenderTarget::Free()
     _context.Reset();
     _device.Reset();
 }
+
+#ifdef _DEBUG
+
+HRESULT RenderTarget::Setup_Debug(float x, float y, float sizeX, float sizeY)
+{
+    _debugWorldMatrix = Matrix::Identity;
+    _debugWorldMatrix._11 = sizeX;
+    _debugWorldMatrix._22 = sizeY;
+    _debugWorldMatrix._41 = x;
+    _debugWorldMatrix._42 = y;
+
+    return S_OK;
+}
+
+HRESULT RenderTarget::Render_Debug(Shared<VIBuffer_Rect> viBuffer, Shared<Shader> shader)
+{
+    CHECK_NULL(viBuffer, E_FAIL);
+    CHECK_NULL(shader, E_FAIL);
+
+    shader->Bind_Matrix("g_WorldMatrix", &_debugWorldMatrix);
+    shader->Bind_SRV("g_Texture", _srv.Get());
+    shader->Begin(0);
+
+    viBuffer->Bind_Resources();
+    viBuffer->Render();
+
+    return S_OK;
+}
+
+#endif

@@ -210,7 +210,7 @@ HRESULT Mesh::Ready_VertexBuffer_For_Anim(const aiMesh* aiMesh, class Model* mod
 	{		
 		_boneIndices.push_back(model->Get_BoneIndex(_name));
 
-		_numVertexBuffers = 1;
+        _numBones = 1;
 
 		XMFLOAT4X4		OffsetMatrix = {};
 		XMStoreFloat4x4(&OffsetMatrix, XMMatrixIdentity());

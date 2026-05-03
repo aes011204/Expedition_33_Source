@@ -121,6 +121,7 @@ public: /* For.Input_Manager */
 public: /* For.Light_Manager */
     const LIGHT_DESC* Get_LightDesc(uint32 index);
     HRESULT Add_Light(const LIGHT_DESC& lightDesc);
+    HRESULT Render_Lights(Shared<Shader> shader, Shared<VIBuffer_Rect> viBuffer);
 
 public: /* For.Font_Manager */
     HRESULT Add_Font(const wstring& fontTag, const wchar_t* fontFilePath);
@@ -158,10 +159,16 @@ public : /* For.Target_Manager */
     HRESULT Begin_MRT(const wstring& mrtTag, ComPtr<DepthStencilView> shaderDSV = nullptr);
     HRESULT End_MRT();
     HRESULT Resize_MRTs(uint32 width, uint32 height);
-    HRESULT Bind_ShaderResource(Shared<Shader> shader, const char* constantName, const wstring& targetTag);
+    HRESULT Bind_RT_ShaderResource(Shared<Shader> shader, const char* constantName, const wstring& targetTag);
 
     HRESULT Copy_CurrentRTV_To(const wstring& targetTag);
     HRESULT Copy_RTV(const wstring& srcTargetTag, const wstring& dstTargetTag);
+
+#ifdef _DEBUG
+    HRESULT Initialize_Debug(float sizeX, float sizeY);
+    HRESULT SetUp_Debug(const wstring& targetTag, float x, float y, float sizeX, float sizeY, bool render = true);
+    HRESULT Render_RT_Debug(Shared<VIBuffer_Rect> viBuffer, Shared<Shader> shader);
+#endif
 
 
 private:

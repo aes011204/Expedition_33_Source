@@ -23,9 +23,14 @@ public:
 
 private:
 	void Render_Priority();
+    void Render_Shadow();
 	void Render_NonBlend();
+    void Render_Lights();
+    void Render_NonLight();
 	void Render_Blend();
 	void Render_UI();
+
+    void Render_Combined();
 
     HRESULT Ready_RenderTargets();
 
@@ -55,6 +60,19 @@ private:
 public:
 	static Unique<Renderer> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
 	virtual void Free() override;
+
+#ifdef _DEBUG
+
+public :
+    void Add_DebugRenderGroup(Shared<Component> debugComponent);
+
+private:
+    void Render_Debug();
+
+private :
+    list<shared_ptr<Component>>     _debugComponents;
+
+#endif
 };
 
 NS_END
