@@ -7,10 +7,10 @@ NS_BEGIN(Engine)
 class ENGINE_DLL ContainerObject abstract : public GameObject
 {
 public:
-	typedef struct tagContainerObjectDesc : public GameObject::GAMEOBJECT_DESC
+	struct ContainerObjectDesc : public GameObject::GAMEOBJECT_DESC
 	{
 		
-	}CONTAINEROBJECT_DESC;
+	};
 public:
 	ContainerObject(const ComPtr<Device>& device, const ComPtr<Context>& context);
 	ContainerObject(const ContainerObject& prototype);

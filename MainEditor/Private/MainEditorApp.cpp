@@ -133,6 +133,7 @@ wstring MainEditorApp::Get_ClientResourceRoot() const
     if (0 == GetModuleFileNameW(nullptr, modulePath, MAX_PATH))
         return {};
 
+    // 클라이언트 리소스 루트
     const std::filesystem::path runtimeRoot = std::filesystem::path(modulePath).parent_path();
     return std::filesystem::absolute(runtimeRoot / L"../../../Client/Bin/Resources").lexically_normal().wstring();
 }

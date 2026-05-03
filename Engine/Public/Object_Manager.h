@@ -14,11 +14,14 @@ public:
 
 public:
 	HRESULT Initialize(uint32 numLevels);
-	HRESULT Add_GameObject(uint32 prototypeLevelIndex, const wstring& prototypeTag, uint32 layerLevelIndex, const wstring& layerTag, void* arg);
 	void    Priority_Update(float timeDelta);
 	void    Update(float timeDelta);
 	void    Late_Update(float timeDelta);
+
 	HRESULT Clear_Layers(uint32 levelIndex);
+
+	HRESULT Add_GameObject(uint32 prototypeLevelIndex, const wstring& prototypeTag, uint32 layerLevelIndex, const wstring& layerTag, void* arg);
+    HRESULT Add_GameObject(uint32 prototypeLevelIndex, const wstring& prototypeTag, uint32 layerLevelIndex, const wstring& layerTag, Shared<GameObject>& outGameObject, void* arg = nullptr);
 
     Shared<GameObject> Find_FirstObject(uint32 levelIndex, const wstring& layerTag);
 

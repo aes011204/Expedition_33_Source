@@ -1,11 +1,11 @@
-﻿#include "Shader.h"
+﻿#include "ShaderCom.h"
 
-Shader::Shader(const ComPtr<Device>& device, const ComPtr<Context>& context)
+ShaderCom::ShaderCom(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Component{ device, context }
 {
 }
 
-Shader::Shader(const Shader& prototype)
+ShaderCom::ShaderCom(const ShaderCom& prototype)
     : Component{ prototype }
     , _effect{ prototype._effect }
     , _numPasses{ prototype._numPasses }
@@ -13,7 +13,7 @@ Shader::Shader(const Shader& prototype)
 {
 }
 
-HRESULT Shader::Initialize_Prototype(const wchar_t* shaderFilePath, const D3D11_INPUT_ELEMENT_DESC* elements, uint32 numElements)
+HRESULT ShaderCom::Initialize_Prototype(const wchar_t* shaderFilePath, const D3D11_INPUT_ELEMENT_DESC* elements, uint32 numElements)
 {
     uint32 hlslFlag = 0;
 
@@ -74,12 +74,12 @@ HRESULT Shader::Initialize_Prototype(const wchar_t* shaderFilePath, const D3D11_
     return S_OK;
 }
 
-HRESULT Shader::Initialize(void* arg)
+HRESULT ShaderCom::Initialize(void* arg)
 {
     return S_OK;
 }
 
-HRESULT Shader::Begin(uint32 passIndex)
+HRESULT ShaderCom::Begin(uint32 passIndex)
 {
     if (passIndex >= _numPasses || !_inputLayouts[passIndex])
         return E_FAIL;
@@ -90,7 +90,7 @@ HRESULT Shader::Begin(uint32 passIndex)
     return S_OK;
 }
 
-HRESULT Shader::Bind_SRV(const char* constantName, ID3D11ShaderResourceView* srv)
+HRESULT ShaderCom::Bind_SRV(const char* constantName, ID3D11ShaderResourceView* srv)
 {
     ID3DX11EffectVariable* variable = _effect->GetVariableByName(constantName);
     if (nullptr == variable)
@@ -102,14 +102,14 @@ HRESULT Shader::Bind_SRV(const char* constantName, ID3D11ShaderResourceView* srv
     ID3DX11EffectShaderResourceVariable* srVariable = variable->AsShaderResource();
     if (nullptr == srVariable)
     {
-        MSG_BOX("Shader types do not match");
+        MSG_BOX("ShaderCom types do not match");
         return E_FAIL;
     }
 
     return srVariable->SetResource(srv);
 }
 
-HRESULT Shader::Bind_SRVs(const char* constantName, ID3D11ShaderResourceView** ppSRVs, uint32 numSRVs)
+HRESULT ShaderCom::Bind_SRVs(const char* constantName, ID3D11ShaderResourceView** ppSRVs, uint32 numSRVs)
 {
     ID3DX11EffectVariable* variable = _effect->GetVariableByName(constantName);
     if (nullptr == variable)
@@ -121,14 +121,14 @@ HRESULT Shader::Bind_SRVs(const char* constantName, ID3D11ShaderResourceView** p
     ID3DX11EffectShaderResourceVariable* srVariable = variable->AsShaderResource();
     if (nullptr == srVariable)
     {
-        MSG_BOX("Shader types do not match");
+        MSG_BOX("ShaderCom types do not match");
         return E_FAIL;
     }
 
     return srVariable->SetResourceArray(ppSRVs, 0, numSRVs);
 }
 
-HRESULT Shader::Bind_Matrix(const char* constantName, const XMFLOAT4X4* matrix)
+HRESULT ShaderCom::Bind_Matrix(const char* constantName, const XMFLOAT4X4* matrix)
 {
     ID3DX11EffectVariable* variable = _effect->GetVariableByName(constantName);
     if (nullptr == variable)
@@ -140,14 +140,14 @@ HRESULT Shader::Bind_Matrix(const char* constantName, const XMFLOAT4X4* matrix)
     ID3DX11EffectMatrixVariable* matrixVariable = variable->AsMatrix();
     if (nullptr == matrixVariable)
     {
-        MSG_BOX("Shader types do not match");
+        MSG_BOX("ShaderCom types do not match");
         return E_FAIL;
     }
 
     return matrixVariable->SetMatrix(reinterpret_cast<const float*>(matrix));
 }
 
-HRESULT Shader::Bind_Matrices(const char* constantName, const XMFLOAT4X4* matrices, uint32 numMatrices)
+HRESULT ShaderCom::Bind_Matrices(const char* constantName, const XMFLOAT4X4* matrices, uint32 numMatrices)
 {
     ID3DX11EffectVariable* variable = _effect->GetVariableByName(constantName);
     if (nullptr == variable)
@@ -159,14 +159,14 @@ HRESULT Shader::Bind_Matrices(const char* constantName, const XMFLOAT4X4* matric
     ID3DX11EffectMatrixVariable* matrixVariable = variable->AsMatrix();
     if (nullptr == matrixVariable)
     {
-        MSG_BOX("Shader types do not match");
+        MSG_BOX("ShaderCom types do not match");
         return E_FAIL;
     }
 
     return matrixVariable->SetMatrixArray(reinterpret_cast<const float*>(matrices), 0, numMatrices);
 }
 
-HRESULT Shader::Bind_RawValue(const char* constantName, const void* data, uint32 length)
+HRESULT ShaderCom::Bind_RawValue(const char* constantName, const void* data, uint32 length)
 {
     ID3DX11EffectVariable* variable = _effect->GetVariableByName(constantName);
     if (nullptr == variable)
@@ -178,38 +178,38 @@ HRESULT Shader::Bind_RawValue(const char* constantName, const void* data, uint32
     return variable->SetRawValue(data, 0, length);
 }
 
-Shared<Shader> Shader::Create(
+Shared<ShaderCom> ShaderCom::Create(
     const ComPtr<Device>& device,
     const ComPtr<Context>& context,
     const wchar_t* shaderFilePath,
     const D3D11_INPUT_ELEMENT_DESC* elements,
     uint32 numElements)
 {
-    auto instance = make_shared<Shader>(device, context);
+    auto instance = make_shared<ShaderCom>(device, context);
 
     if (FAILED(instance->Initialize_Prototype(shaderFilePath, elements, numElements)))
     {
-        MSG_BOX("Failed to Created : Shader");
+        MSG_BOX("Failed to Created : ShaderCom");
         return nullptr;
     }
 
     return instance;
 }
 
-Shared<Component> Shader::Clone(void* arg)
+Shared<Component> ShaderCom::Clone(void* arg)
 {
-    auto instance = make_shared<Shader>(*this);
+    auto instance = make_shared<ShaderCom>(*this);
 
     if (FAILED(instance->Initialize(arg)))
     {
-        MSG_BOX("Failed to Cloned : Shader");
+        MSG_BOX("Failed to Cloned : ShaderCom");
         return nullptr;
     }
 
     return instance;
 }
 
-void Shader::Free()
+void ShaderCom::Free()
 {
     __super::Free();
 

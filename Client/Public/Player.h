@@ -4,14 +4,15 @@
 #include "Character.h"
 
 NS_BEGIN(Engine)
-class Shader;
-class Model;
+class ShaderCom;
+class ModelCom;
 class MovementCom;
 NS_END
 
 NS_BEGIN(Client)
 
 class InputCom;
+class PlayerControllerCom;
 
 class Player final : public Character
 {
@@ -37,8 +38,9 @@ protected:
 	HRESULT Ready_PartObjects();
 
 private:
-    Shared<MovementCom> _movementCom;
-    Shared<InputCom>    _inputCom;
+    Shared<MovementCom>         _movementCom;
+    Shared<InputCom>            _inputCom;
+    Shared<PlayerControllerCom> _playerControllerCom;
 
 public:
 	static Shared<Player> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

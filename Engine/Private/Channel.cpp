@@ -1,13 +1,13 @@
 #include "Channel.h"
 
-#include "Model.h"
+#include "ModelCom.h"
 #include "Bone.h"
 
 Channel::Channel()
 {
 }
 
-HRESULT Channel::Initialize(const aiNodeAnim* aiChannel, class Model* model)
+HRESULT Channel::Initialize(const aiNodeAnim* aiChannel, class ModelCom* model)
 {
 	_boneIndex = 	model->Get_BoneIndex(aiChannel->mNodeName.data);
 
@@ -103,7 +103,7 @@ void Channel::Update_TransformationMatrix(uint32* currentKeyFrameIndex, float cu
 	bones[_boneIndex]->Update_TransformationMatrix(BoneTransformationMatrix);
 }
 
-Shared<Channel> Channel::Create(const aiNodeAnim* aiChannel, class Model* model)
+Shared<Channel> Channel::Create(const aiNodeAnim* aiChannel, class ModelCom* model)
 {
 	auto instance = make_shared<Channel>();
 

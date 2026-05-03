@@ -4,12 +4,12 @@
 
 NS_BEGIN(Engine)
 
-class ENGINE_DLL Shader final : public Component
+class ENGINE_DLL ShaderCom final : public Component
 {
 public:
-    Shader(const ComPtr<Device>& device, const ComPtr<Context>& context);
-    Shader(const Shader& prototype);
-    virtual ~Shader() = default;
+    ShaderCom(const ComPtr<Device>& device, const ComPtr<Context>& context);
+    ShaderCom(const ShaderCom& prototype);
+    virtual ~ShaderCom() = default;
 
 public:
     virtual HRESULT Initialize_Prototype(const wchar_t* shaderFilePath, const D3D11_INPUT_ELEMENT_DESC* elements, uint32 numElements);
@@ -30,7 +30,7 @@ private:
     vector<ComPtr<ID3D11InputLayout>> _inputLayouts;
 
 public:
-    static Shared<Shader> Create(
+    static Shared<ShaderCom> Create(
         const ComPtr<Device>& device,
         const ComPtr<Context>& context,
         const wchar_t* shaderFilePath,

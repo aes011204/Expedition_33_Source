@@ -1,6 +1,6 @@
 ﻿#include "pch.h"
 #include "RenderTarget.h"
-#include "Shader.h"
+#include "ShaderCom.h"
 
 RenderTarget::RenderTarget(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : _device{ device }
@@ -104,7 +104,7 @@ HRESULT RenderTarget::Begin(bool clearRenderTarget, bool clearDepthStencil)
     return S_OK;
 }
 
-HRESULT RenderTarget::Bind_ShaderResource(Shader* shader, const char* constantName)
+HRESULT RenderTarget::Bind_ShaderResource(ShaderCom* shader, const char* constantName)
 {
     if (nullptr == shader || nullptr == _srv)
         return E_FAIL;

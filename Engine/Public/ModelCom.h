@@ -1,15 +1,15 @@
-#pragma once
+﻿#pragma once
 
 #include "Component.h"
 
 NS_BEGIN(Engine)
 
-class ENGINE_DLL Model final : public Component
+class ENGINE_DLL ModelCom final : public Component
 {
 public:
-	Model(const ComPtr<Device>& device, const ComPtr<Context>& context);
-	Model(const Model& prototype);
-	virtual ~Model() = default;
+	ModelCom(const ComPtr<Device>& device, const ComPtr<Context>& context);
+	ModelCom(const ModelCom& prototype);
+	virtual ~ModelCom() = default;
 
 public:
 	size_t Get_NumMeshes() {
@@ -33,8 +33,8 @@ public:
 	bool Play_Animation(float timeDelta);
 
 public:
-	HRESULT Bind_Material(class Shader* shader, const char* constantName, uint32 meshIndex, aiTextureType materialType, uint32 textureIndex = 0);
-	HRESULT Bind_BoneMatrices(class Shader* shader, const char* constantName, uint32 meshIndex);
+	HRESULT Bind_Material(class ShaderCom* shader, const char* constantName, uint32 meshIndex, aiTextureType materialType, uint32 textureIndex = 0);
+	HRESULT Bind_BoneMatrices(class ShaderCom* shader, const char* constantName, uint32 meshIndex);
 
 private:
 	const aiScene*				_aiScene = { nullptr };
@@ -65,7 +65,7 @@ private:
 	HRESULT Ready_Animations();
 
 public:
-	static Shared<Model> Create(const ComPtr<Device>& device, const ComPtr<Context>& context, ModelType type, const char* modelFilePath, FXMMATRIX preLocalTransformMatrix = XMMatrixIdentity());
+	static Shared<ModelCom> Create(const ComPtr<Device>& device, const ComPtr<Context>& context, ModelType type, const char* modelFilePath, FXMMATRIX preLocalTransformMatrix = XMMatrixIdentity());
 	virtual Shared<Component> Clone(void* arg) override;
 	virtual void Free() override;
 };
