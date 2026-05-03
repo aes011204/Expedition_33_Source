@@ -204,7 +204,7 @@ Shared<ModelCom> ModelCom::Create(const ComPtr<Device>& device, const ComPtr<Con
 
     if (FAILED(instance->Initialize_Prototype(type, modelFilePath, preLocalTransformMatrix)))
     {
-        MSG_BOX("Failed to Created : ModelCom");
+        LOG_WARN("Failed to create ModelCom: path='{}'", nullptr != modelFilePath ? modelFilePath : "");
         return nullptr;
 	}
     return instance;
