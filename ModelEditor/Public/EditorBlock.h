@@ -13,7 +13,7 @@ protected:
     virtual HRESULT Initialize() { return S_OK; };
 
 public:
-    bool ToggleLog()
+    bool ToggleBlock()
     {
         _showLog = !_showLog;
         return _showLog;

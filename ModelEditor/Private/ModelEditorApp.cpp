@@ -1,6 +1,6 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "ModelEditorApp.h"
-#include "ImGui_Manager.h"
+#include "ModelImGui_Manager.h"
 #include "GameInstance.h"
 
 #include <filesystem>
@@ -31,7 +31,7 @@ HRESULT ModelEditorApp::Initialize()
 	if (FAILED(GAME->Initialize_AssetManager(assetRootPath.wstring())))
 		return E_FAIL;
 
-	_imguiManager = ImGui_Manager::Create(g_hWnd, _device, _context);
+	_imguiManager = ModelImGui_Manager::Create(g_hWnd, _device, _context);
 	if (nullptr == _imguiManager)
 		return E_FAIL;
 

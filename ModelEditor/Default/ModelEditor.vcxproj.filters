@@ -42,7 +42,7 @@
     <ClInclude Include="..\Public\LogWindow.h">
       <Filter>00. EditorBlock\LogWindow</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\ImGui_Manager.h">
+    <ClInclude Include="..\Public\ModelImGui_Manager.h">
       <Filter>System</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\ModelEditorApp.h">
@@ -50,6 +50,9 @@
     </ClInclude>
     <ClInclude Include="..\Public\ModelConverter.h">
       <Filter>00. EditorBlock\ModelConverter</Filter>
+    </ClInclude>
+    <ClInclude Include="ModelEditor_Const.h">
+      <Filter>98. Header</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -65,7 +68,7 @@
     <ClCompile Include="..\Private\LogWindow.cpp">
       <Filter>00. EditorBlock\LogWindow</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\ImGui_Manager.cpp">
+    <ClCompile Include="..\Private\ModelImGui_Manager.cpp">
       <Filter>System</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\ModelEditorApp.cpp">
@@ -82,9 +85,6 @@
     <Image Include="small.ico">
       <Filter>99. Default</Filter>
     </Image>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="..\ThirdParty\vcpkg.json" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="ModelEditor.rc">

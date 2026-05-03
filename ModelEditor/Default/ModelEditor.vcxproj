@@ -26,17 +26,26 @@
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <PropertyGroup Label="Vcpkg">
-    <VcpkgEnabled>true</VcpkgEnabled>
+    <VcpkgEnabled>false</VcpkgEnabled>
     <VcpkgManifestEnabled>true</VcpkgManifestEnabled>
     <VcpkgManifestInstallDirectory>$(ProjectDir)..\ThirdParty\vcpkg_installed</VcpkgManifestInstallDirectory>
     <VcpkgTriplet>x64-windows</VcpkgTriplet>
     <VcpkgHostTriplet>x64-windows</VcpkgHostTriplet>
+    <VcpkgEnableManifest>false</VcpkgEnableManifest>
+    <VcpkgManifestInstall>false</VcpkgManifestInstall>
+    <VcpkgAutoLink>false</VcpkgAutoLink>
   </PropertyGroup>
   <PropertyGroup Label="Vcpkg" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <VcpkgConfiguration>Debug</VcpkgConfiguration>
+    <VcpkgInstalledDir>
+    </VcpkgInstalledDir>
+    <VcpkgUseStatic>false</VcpkgUseStatic>
   </PropertyGroup>
   <PropertyGroup Label="Vcpkg" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <VcpkgConfiguration>Release</VcpkgConfiguration>
+    <VcpkgInstalledDir>
+    </VcpkgInstalledDir>
+    <VcpkgUseStatic>false</VcpkgUseStatic>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -137,7 +146,7 @@
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>..\..\EngineSDK\lib\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>Engine.lib;d3d11.lib;dxgi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>Engine.lib;d3d11.lib;dxgi.lib;Comctl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>if exist "$(SolutionDir)Engine\Bin\$(Configuration)\Engine.dll" xcopy /y /d "$(SolutionDir)Engine\Bin\$(Configuration)\Engine.dll" "$(OutDir)"
@@ -165,7 +174,7 @@ if exist "$(SolutionDir)Engine\Bin\$(Configuration)\Engine.pdb" xcopy /y /d "$(S
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>..\..\EngineSDK\lib\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>Engine.lib;d3d11.lib;dxgi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>Engine.lib;d3d11.lib;dxgi.lib;Comctl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>if exist "$(SolutionDir)Engine\Bin\$(Configuration)\Engine.dll" xcopy /y /d "$(SolutionDir)Engine\Bin\$(Configuration)\Engine.dll" "$(OutDir)"
@@ -174,19 +183,20 @@ if exist "$(SolutionDir)Engine\Bin\$(Configuration)\Engine.pdb" xcopy /y /d "$(S
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="..\Public\EditorBlock.h" />
-    <ClInclude Include="..\Public\ImGui_Manager.h" />
+    <ClInclude Include="..\Public\ModelImGui_Manager.h" />
     <ClInclude Include="..\Public\LogWindow.h" />
     <ClInclude Include="..\Public\ModelConverter.h" />
     <ClInclude Include="..\Public\ModelEditorApp.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="ModelEditor.h" />
+    <ClInclude Include="ModelEditor_Const.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\Private\EditorBlock.cpp" />
-    <ClCompile Include="..\Private\ImGui_Manager.cpp" />
+    <ClCompile Include="..\Private\ModelImGui_Manager.cpp" />
     <ClCompile Include="..\Private\LogWindow.cpp" />
     <ClCompile Include="..\Private\ModelConverter.cpp" />
     <ClCompile Include="..\Private\ModelEditorApp.cpp" />
@@ -204,9 +214,6 @@ if exist "$(SolutionDir)Engine\Bin\$(Configuration)\Engine.pdb" xcopy /y /d "$(S
   <ItemGroup>
     <Image Include="ModelEditor.ico" />
     <Image Include="small.ico" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="..\ThirdParty\vcpkg.json" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

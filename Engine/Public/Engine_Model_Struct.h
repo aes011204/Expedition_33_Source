@@ -3,13 +3,14 @@
 using namespace::std;
 using namespace::Engine;
 
-constexpr int32 maxModelSize = 256;
+constexpr int32 maxModelNameSize = 256;
 constexpr int32 maxBoneCount = 512;
 
 using ModelDataHeader = struct tagModelDataHeader
 {
     string modelName;
     bool   isSkeletal;
+    uint32 numNodes;
     uint32 numBones;
     uint32 numMeshes;
     uint32 numMaterials;
@@ -18,37 +19,48 @@ using ModelDataHeader = struct tagModelDataHeader
 
 using ModelNodeData = struct tagModelNodeData
 {
-    char        name[maxModelSize];
+    char        name[maxModelNameSize];
     int32       prentIndex{ -1 };
     Matrix      localTransform{};
 };
 
 using ModelMeshData = struct tagModelMeshHeader
 {
-    char        name[maxModelSize];
+    char        name[maxModelNameSize];
     uint32      materialIndex{};
     uint32      numVertices{};
     uint32      numIndices{};
+    uint32      numBoneRefs{};
     void*       vertices;
     void*       indices;
 };
 
 using ModelBoneData = struct tagModelBone
 {
-    char        name[maxModelSize];
+    char        name[maxModelNameSize];
     int32       nodeIndex{ -1 };
     Matrix      offsetMatrix{};
 };
 
 using ModelTextureSlot = struct tagModelTextureSlot
 {
-    uint32  typeIndex{ 0 };   
-    uint32  textureIndex{ 0 };
+    char        path[maxModelNameSize];
+
+    uint32      typeIndex{ 0 };   
+    uint32      textureIndex{ 0 };
+
+    Vec2        uvScale{ 1.f, 1.f };
+    Vec2        uvOffset{ 0.f, 0.f };
+    float       uvRotation{ 0.f };
+    float       blendFactor{ 1.f };
+    uint32      blendOp{};
+    uint32      uvChannel{};
+    uint32      wrapMode{};
 };
 
 using ModelMaterialData = struct tagModelMaterialData
 {
-    char        name[maxModelSize];
+    char        name[maxModelNameSize];
 
     Vec4        diffuseColor{};
     Vec4        ambientColor{};
@@ -66,7 +78,7 @@ using ModelMaterialData = struct tagModelMaterialData
 
 using ModelAnimationData = struct tagModelAnimationData
 {
-    char        name[maxModelSize];
+    char        name[maxModelNameSize];
     double      duration{};
     double      ticksPerSecond{};
     uint32      numChannels{};
@@ -76,7 +88,8 @@ using ModelAnimationData = struct tagModelAnimationData
 
 using ModelChannelData = struct tagChannelData
 {
-    char        boneName[256];
+    char        boneName[maxModelNameSize];
+    int32       boneIndex{ -1 };
     uint32      numKeyframes{};
     void*       keyframes;
 };

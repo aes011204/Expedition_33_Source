@@ -5,14 +5,15 @@
 NS_BEGIN(ModelEditor)
 
 class LogWindow;
+class ModelConverter;
 
-class ImGui_Manager final
+class ModelImGui_Manager final
 {
 private:
-	ImGui_Manager() = default;
+	ModelImGui_Manager() = default;
 
 public:
-	~ImGui_Manager();
+	~ModelImGui_Manager();
 
 public:
 	HRESULT Initialize(HWND hWnd, const ComPtr<Device>& device, const ComPtr<Context>& context);
@@ -25,10 +26,11 @@ private:
 	string Get_ClientResourcePath(const wchar_t* relativePath);
 
 private:
-    Shared<LogWindow> _logWindow;
+    Shared<LogWindow>           _logWindow;
+    Shared<ModelConverter>      _modelConverter;
 
 public:
-	static Unique<ImGui_Manager> Create(HWND hWnd, const ComPtr<Device>& device, const ComPtr<Context>& context);
+	static Unique<ModelImGui_Manager> Create(HWND hWnd, const ComPtr<Device>& device, const ComPtr<Context>& context);
 };
 
 NS_END

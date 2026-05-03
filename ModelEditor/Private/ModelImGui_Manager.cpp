@@ -1,5 +1,5 @@
-#include "pch.h"
-#include "ImGui_Manager.h"
+﻿#include "pch.h"
+#include "ModelImGui_Manager.h"
 #include "GameInstance.h"
 
 #include <imgui.h>
@@ -8,16 +8,17 @@
 #include <implot.h>
 
 #include "LogWindow.h"
+#include "ModelConverter.h"
 
 
 NS_BEGIN(ModelEditor)
 
-ImGui_Manager::~ImGui_Manager()
+    ModelImGui_Manager::~ModelImGui_Manager()
 {
 	Free();
 }
 
-HRESULT ImGui_Manager::Initialize(HWND hWnd, const ComPtr<Device>& device, const ComPtr<Context>& context)
+HRESULT ModelImGui_Manager::Initialize(HWND hWnd, const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
@@ -27,7 +28,6 @@ HRESULT ImGui_Manager::Initialize(HWND hWnd, const ComPtr<Device>& device, const
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
 	io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-	io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 
 	ImGuiStyleSetting();
 
@@ -37,10 +37,13 @@ HRESULT ImGui_Manager::Initialize(HWND hWnd, const ComPtr<Device>& device, const
     if (nullptr == (_logWindow = LogWindow::Create()))
         MSG_BOX("[Model Editor] : Failed to Create LogWindow!");
 
+    if (nullptr == (_modelConverter = ModelConverter::Create(hWnd)))
+        LOG_ERROR("[Model Editor] : Failed to Create ModelConverter!");
+
 	return S_OK;
 }
 
-void ImGui_Manager::Update(float timeDelta)
+void ModelImGui_Manager::Update(float timeDelta)
 {
 	ImGui_ImplDX11_NewFrame();
 	ImGui_ImplWin32_NewFrame();
@@ -51,10 +54,12 @@ void ImGui_Manager::Update(float timeDelta)
     ImGui::SetNextWindowSize(viewport->WorkSize);
     ImGui::SetNextWindowViewport(viewport->ID);
     
-    ImGuiWindowFlags window_flags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse |
-                                    ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
-                                    ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus |
-                                    ImGuiWindowFlags_NoBackground;
+    ImGuiWindowFlags window_flags =
+        ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_MenuBar |
+        ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse |
+        ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
+        ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus |
+        ImGuiWindowFlags_NoBackground;
 
     ImGui::Begin("Main Panel", nullptr, window_flags);
     {
@@ -65,8 +70,9 @@ void ImGui_Manager::Update(float timeDelta)
 		{
 			if (ImGui::BeginMenu("Window"))
 			{
-				if (ImGui::MenuItem("Log Console")) { _logWindow->ToggleLog(); }
-				ImGui::EndMenu();
+				if (ImGui::MenuItem("Log Console")) { _logWindow->ToggleBlock(); }
+                if (ImGui::MenuItem("Model Converter")) { _modelConverter->ToggleBlock(); }
+			    ImGui::EndMenu();
 			}
 			ImGui::EndMenuBar();
 		}
@@ -74,11 +80,13 @@ void ImGui_Manager::Update(float timeDelta)
     ImGui::End();
 
     _logWindow->Update(timeDelta);
+    _modelConverter->Update(timeDelta);
 }
 
-void ImGui_Manager::Render()
+void ModelImGui_Manager::Render()
 {
     _logWindow->Render();
+    _modelConverter->Render();
 
     ImGui::Render();
 	ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
@@ -91,7 +99,7 @@ void ImGui_Manager::Render()
 	}
 }
 
-void ImGui_Manager::Free()
+void ModelImGui_Manager::Free()
 {
 	ImGui_ImplDX11_Shutdown();
 	ImGui_ImplWin32_Shutdown();
@@ -99,9 +107,10 @@ void ImGui_Manager::Free()
 	ImGui::DestroyContext();
 
     _logWindow.reset();
+    _modelConverter.reset();
 }
 
-void ImGui_Manager::ImGuiStyleSetting()
+void ModelImGui_Manager::ImGuiStyleSetting()
 {
 	ImGui::StyleColorsDark();
 	ImGuiStyle& style = ImGui::GetStyle();
@@ -111,7 +120,7 @@ void ImGui_Manager::ImGuiStyleSetting()
 	style.TabRounding = 3.0f;
 }
 
-string ImGui_Manager::Get_ClientResourcePath(const wchar_t* relativePath)
+string ModelImGui_Manager::Get_ClientResourcePath(const wchar_t* relativePath)
 {
 	wchar_t modulePath[MAX_PATH] = {};
 	if (0 == GetModuleFileNameW(nullptr, modulePath, MAX_PATH))
@@ -127,9 +136,9 @@ string ImGui_Manager::Get_ClientResourcePath(const wchar_t* relativePath)
 	return (resourceRoot / relativePath).lexically_normal().string();
 }
 
-Unique<ImGui_Manager> ImGui_Manager::Create(HWND hWnd, const ComPtr<Device>& device, const ComPtr<Context>& context)
+Unique<ModelImGui_Manager> ModelImGui_Manager::Create(HWND hWnd, const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
-	auto instance = Unique<ImGui_Manager>(new ImGui_Manager());
+	auto instance = Unique<ModelImGui_Manager>(new ModelImGui_Manager());
 
 	if (FAILED(instance->Initialize(hWnd, device, context)))
 	{
