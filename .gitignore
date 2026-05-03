@@ -483,6 +483,9 @@ Engine/Bin/Engine.dll
 
 # Synced spreadsheet workbooks are local/generated artifacts.
 Client/Bin/Resources/Data/xlsx/*.xlsx
+Client/Bin/Resources/Data/xlsx/*.url
+Client/Bin/Resources/Data/Assets/AssetRegistry.json
+Client/Bin/Resources/Data/Assets/AssetRegistry.cache.json
 
 # Repo-local agent instructions
 /AGENTS.md
