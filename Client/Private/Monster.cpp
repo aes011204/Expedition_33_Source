@@ -1,6 +1,8 @@
 ﻿#include "Monster.h"
 #include "GameInstance.h"
 #include "Mon_AIController.h"
+#include "ModelCom.h"
+#include "ShaderCom.h"
 
 Monster::Monster(const ComPtr<Device>& device, const ComPtr<Context>& context)
 	: Character { device, context }
@@ -50,6 +52,8 @@ void Monster::Update(float timeDelta)
 {
 	if (true == _model->Play_Animation(timeDelta))
 		int a = 10;
+
+    _aiCtrl->Update(timeDelta);
 }
 
 void Monster::Late_Update(float fTimeDelta)

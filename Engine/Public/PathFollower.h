@@ -2,7 +2,7 @@
 #include "Base.h"
 
 NS_BEGIN(Engine)
-class PathFollower :
+class ENGINE_DLL PathFollower :
     public Base
 {
 public:
@@ -15,10 +15,16 @@ public:
     void Request_Move(Vec3& start, Vec3& target);
 
 private:
-    Vec3 _position;
-    Vec3 _target;
+    Vec3 _position = {};
+    Vec3 _target = {};
 
     bool _fin = {false};
+
+public:
+
+    static Shared<PathFollower> Create();
+   // virtual Shared<Component> Clone(void* arg) override;
+    virtual void Free() override;
     
 };
 

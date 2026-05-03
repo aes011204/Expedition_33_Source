@@ -37,3 +37,21 @@ void PathFollower::Request_Move(Vec3& start, Vec3& target)
     _fin = false;
     _target = target;
 }
+
+Shared<PathFollower> PathFollower::Create()
+{
+    auto instance = make_shared<PathFollower>();
+
+    //if (FAILED(instance->Initialize_Prototype()))
+    //{
+    //    MSG_BOX("Failed to Created : Monster");
+    //    return nullptr;
+    //}
+
+    return instance;
+}
+
+void PathFollower::Free()
+{
+    __super::Free();
+}

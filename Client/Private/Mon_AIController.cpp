@@ -2,6 +2,8 @@
 #include "BlackBoard.h"
 #include "BehaviorTree.h"
 #include "BT_MoveTo.h"
+#include "PathFollower.h"
+#include "Monster.h"
 
 
 Mon_AIController::Mon_AIController(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -34,16 +36,22 @@ HRESULT Mon_AIController::Initialize(void* arg)
     Set_BehaviorTree(tree);
 
 
-    // blackboard 에 값넣기 
+    // blackboard 에 값넣기
+
     _BB = BlackBoard::Create();
-    _BB->Set_Value("PlayerPos", Vec3(0.f, 0.f, 0.f));
+
+    // PathFollower 만들기 
+    _PF = PathFollower::Create();
+
     return S_OK;
 }
 
 void Mon_AIController::Update(float timeDelta)
 {
+    auto pos = _owner.lock()->Get_Transform()->Get_Position();
+    _BB->Set_Value("playerPos", pos);
 
-
+    __super::Update(timeDelta);
 
 }
 
