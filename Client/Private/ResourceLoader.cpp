@@ -3,8 +3,8 @@
 #include "GameInstance.h"
 #include "GameObject.h"
 #include "Component.h"
-#include "Model.h"
-#include "Shader.h"
+#include "ModelCom.h"
+#include "ShaderCom.h"
 #include "Texture.h"
 #include "VIBuffer_Cube.h"
 #include "VIBuffer_Rect.h"
@@ -73,8 +73,8 @@ HRESULT ResourceLoader::Load_ShaderTable(const wstring& strTablePath)
 	if (JsonRoot.contains("DT_Shader"))
 		return Load_Shaders(JsonRoot["DT_Shader"]);
 
-	if (JsonRoot.contains("Shader"))
-		return Load_Shaders(JsonRoot["Shader"]);
+	if (JsonRoot.contains("ShaderCom"))
+		return Load_Shaders(JsonRoot["ShaderCom"]);
 
 	return S_OK;
 }
@@ -209,8 +209,8 @@ HRESULT ResourceLoader::Build_ShaderJobs(const wstring& strTablePath, vector<FLo
 	const json* pShaderArray = nullptr;
 	if (JsonRoot.contains("DT_Shader"))
 		pShaderArray = &JsonRoot["DT_Shader"];
-	else if (JsonRoot.contains("Shader"))
-		pShaderArray = &JsonRoot["Shader"];
+	else if (JsonRoot.contains("ShaderCom"))
+		pShaderArray = &JsonRoot["ShaderCom"];
 
 	if (nullptr == pShaderArray || !pShaderArray->is_array())
 		return S_OK;
@@ -248,8 +248,8 @@ HRESULT ResourceLoader::Build_ModelJobs(const wstring& strTablePath, vector<FLoa
 	const json* pModelArray = nullptr;
 	if (JsonRoot.contains("DT_Model"))
 		pModelArray = &JsonRoot["DT_Model"];
-	else if (JsonRoot.contains("Model"))
-		pModelArray = &JsonRoot["Model"];
+	else if (JsonRoot.contains("ModelCom"))
+		pModelArray = &JsonRoot["ModelCom"];
 
 	if (nullptr == pModelArray || !pModelArray->is_array())
 		return S_OK;
@@ -449,7 +449,7 @@ HRESULT ResourceLoader::Load_Shaders(const json& JsonData)
 
 		const FInputLayoutInfo InputLayout = Get_InputLayout(strInputLayout);
 		const wstring resolvedPath = Resolve_RuntimePath(String::ToWString(strPath));
-		Shared<Shader> pShader = Shader::Create(_device, _context, resolvedPath.c_str(), InputLayout.pElements, InputLayout.iNumElements);
+		Shared<ShaderCom> pShader = ShaderCom::Create(_device, _context, resolvedPath.c_str(), InputLayout.pElements, InputLayout.iNumElements);
 		if (nullptr == pShader)
 			return E_FAIL;
 
@@ -476,7 +476,7 @@ HRESULT ResourceLoader::Register_LoadJob(const FLoadJob& LoadJob)
 	case ELoadJobType::Shader:
 	{
 		const FInputLayoutInfo InputLayout = Get_InputLayout(LoadJob.strInputLayout);
-		Shared<Shader> pShader = Shader::Create(_device, _context, LoadJob.strPath.c_str(), InputLayout.pElements, InputLayout.iNumElements);
+		Shared<ShaderCom> pShader = ShaderCom::Create(_device, _context, LoadJob.strPath.c_str(), InputLayout.pElements, InputLayout.iNumElements);
 		if (nullptr == pShader)
 			return E_FAIL;
 
@@ -489,7 +489,7 @@ HRESULT ResourceLoader::Register_LoadJob(const FLoadJob& LoadJob)
 		const XMMATRIX PreLocalTransformMatrix = XMMatrixScaling(LoadJob.fScaleX, LoadJob.fScaleY, LoadJob.fScaleZ) * XMMatrixRotationY(XMConvertToRadians(LoadJob.fRotY));
 		const string strPath = String::ToString(LoadJob.strPath);
 
-		Shared<Model> model = Model::Create(_device, _context, eModelType, strPath.c_str(), PreLocalTransformMatrix);
+		Shared<ModelCom> model = ModelCom::Create(_device, _context, eModelType, strPath.c_str(), PreLocalTransformMatrix);
 		if (nullptr == model)
 			return E_FAIL;
 

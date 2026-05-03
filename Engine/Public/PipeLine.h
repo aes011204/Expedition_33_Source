@@ -26,9 +26,9 @@ public:
 	}
 
 public:
-	HRESULT Bind_CamPosition(class Shader* shader, const char* constantName);
-	HRESULT Bind_TransformMatrix(D3DTS transformState, class Shader* shader, const char* constantName);
-	HRESULT Bind_TransformMatrix_Inverse(D3DTS transformState, class Shader* shader, const char* constantName);
+	HRESULT Bind_CamPosition(class ShaderCom* shader, const char* constantName);
+	HRESULT Bind_TransformMatrix(D3DTS transformState, class ShaderCom* shader, const char* constantName);
+	HRESULT Bind_TransformMatrix_Inverse(D3DTS transformState, class ShaderCom* shader, const char* constantName);
 	void Update();
 	
 

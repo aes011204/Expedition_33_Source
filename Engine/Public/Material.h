@@ -12,7 +12,7 @@ public:
 
 public:
 	HRESULT Initialize(const aiMaterial* aiMaterial, const char* modelFilePath);
-	HRESULT Bind_Material(class Shader* shader, const char* constantName, aiTextureType materialType, uint32 numTextures);
+	HRESULT Bind_Material(class ShaderCom* shader, const char* constantName, aiTextureType materialType, uint32 numTextures);
 
 private:
 	ComPtr<Device> _device = { nullptr };

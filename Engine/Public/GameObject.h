@@ -36,7 +36,7 @@ public:
     void Set_Owner(Shared<GameObject> owner) { _owner = owner; }
 
 public:
-    // 일반적으로 컴포넌트 가져올 때 = Get_Component<Shader>(); 이런느낌
+    // 일반적으로 컴포넌트 가져올 때 = Get_Component<ShaderCom>(); 이런느낌
     template<typename T>
     Shared<T> Get_Component()
     {
@@ -52,7 +52,7 @@ public:
     
         return nullptr;
     }
-    // 한 객체 안에, 동일 컴포넌트가 여러 개 있을 때 -> Get_Component<Shader>(TEXT("Shader_VtxAnimMesh"));
+    // 한 객체 안에, 동일 컴포넌트가 여러 개 있을 때 -> Get_Component<ShaderCom>(TEXT("Shader_VtxAnimMesh"));
     template<typename T>
     Shared<T> Get_Component(const wstring& componentTag)
     {

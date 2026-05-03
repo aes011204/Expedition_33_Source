@@ -41,7 +41,7 @@ HRESULT GameObject::Initialize(void* arg)
 
 void GameObject::BeginPlay()
 {
-    for (const auto& [_, component] : _components)
+    for (const auto& [tag, component] : _components)
     {
         if (component == nullptr)
             continue;
