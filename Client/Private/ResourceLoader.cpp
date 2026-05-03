@@ -8,6 +8,7 @@
 #include "Component.h"
 #include "ModelCom.h"
 #include "ShaderCom.h"
+#include "ColliderCom.h"
 #include "Texture.h"
 #include "VIBuffer_Cube.h"
 #include "VIBuffer_Rect.h"
@@ -340,6 +341,7 @@ HRESULT ResourceLoader::Build_ComponentJobs(const wstring& strTablePath, vector<
     {
         const string id = Read_String(item, "Id", "id");
         const string level = Read_String(item, "Level", "level", "Static");
+
         string componentClass = Read_String(item, "Class", "class");
         if (componentClass.empty())
             componentClass = Read_String(item, "ComponentClass", "componentClass");
@@ -513,6 +515,21 @@ HRESULT ResourceLoader::Register_LoadJob(const FLoadJob& LoadJob)
 
     case ELoadJobType::Component:
     {
+        // 충돌체 프로토타입 등록
+        if (LoadJob.strClassName == "ColliderCom")
+        {
+            Shared<ColliderCom> collider =
+                ColliderCom::Create(_device, _context, Get_Shape_FromPrototypeTag(LoadJob.strPrototypeTag));
+
+            if (nullptr == collider)
+                return E_FAIL;
+
+            return GAME->Add_Prototype(
+                LoadJob.iLevelIndex,
+                LoadJob.strPrototypeTag,
+                static_pointer_cast<Base>(collider));
+        }
+
         Shared<Component> component = GAME->Create_ComponentPrototype(LoadJob.strClassName);
         if (nullptr == component)
             return E_FAIL;
@@ -605,6 +622,21 @@ float ResourceLoader::Read_Float(const json& JsonItem, const string& strUpperKey
 		return JsonItem.value(strLowerKey, fDefault);
 
 	return fDefault;
+}
+
+CollisionShape ResourceLoader::Get_Shape_FromPrototypeTag(const wstring& prototypeTag)
+{
+    // 끝 문자열로 판별
+    if (prototypeTag.ends_with(L"_AABB"))
+        return CollisionShape::AABB;
+
+    if (prototypeTag.ends_with(L"_OBB"))
+        return CollisionShape::OBB;
+
+    if (prototypeTag.ends_with(L"_Sphere"))
+        return CollisionShape::Sphere;
+
+    return CollisionShape::AABB;
 }
 
 wstring ResourceLoader::Make_PrototypeTag(const string& strId, const wstring& strPrefix)

@@ -5,7 +5,7 @@ Bounding::Bounding(ComPtr<Device> device, ComPtr<Context> context)
 {
 }
 
-HRESULT Bounding::Initialize(const FBoundingDesc& desc)
+HRESULT Bounding::Initialize(const BoundingDesc& desc)
 {
 
 

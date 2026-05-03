@@ -23,7 +23,6 @@ public:
     void    Draw_Sphere(const DebugSphereDesc& desc);
     void    Draw_Line(const DebugLineDesc& desc);
     void    Draw_TraceLine(const DebugTraceLineDesc& desc);
-    void    Draw_Mesh(const DebugMeshDesc& desc);
 
 public:
     void    Clear();
@@ -40,10 +39,8 @@ private:
     void Render_BoxEntries(const vector<DebugBoxEntry>& entries);
     void Render_SphereEntries(const vector<DebugSphereEntry>& entries);
     void Render_LineEntries(const vector<DebugLineEntry>& entries);
-    void Render_MeshEntries(const vector<DebugMeshEntry>& entries);
 
 private:
-    private:
     ComPtr<Device>  _device;                   
     ComPtr<Context> _context;           
 

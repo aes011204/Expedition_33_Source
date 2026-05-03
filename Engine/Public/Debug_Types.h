@@ -2,6 +2,8 @@
 
 namespace Engine
 {
+    class ModelCom;
+
     // 디버깅 렌더 스타일
     struct ENGINE_DLL DebugRenderStyle
     {
@@ -58,7 +60,7 @@ namespace Engine
 
     struct ENGINE_DLL DebugMeshDesc
     {
-        Shared<class Model> model;
+        Shared<ModelCom> model;
         Matrix worldMatrix = Matrix::Identity;
         DebugRenderStyle style;
     };
@@ -94,7 +96,7 @@ namespace Engine
     // Mesh는 근데 쓴 적이 없음
     struct DebugMeshEntry
     {
-        Shared<class ModelCom> model;
+        Shared<ModelCom> model;
         Matrix worldMatrix;
         Color color = Color(1.f, 1.f, 1.f, 1.f);
         DebugLifetime lifetime;

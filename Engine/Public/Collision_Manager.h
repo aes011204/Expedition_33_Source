@@ -4,6 +4,8 @@
 
 NS_BEGIN(Engine)
 
+class ColliderCom;
+
 class ENGINE_DLL Collision_Manager : public Base
 {
 public:
@@ -19,12 +21,11 @@ public:
 #endif
 
 public:
-    void    Add_Collider(Shared<Collider> collider);
+    void    Add_Collider(Shared<ColliderCom> collider);
     void    Clear_Colliders();
 
 private:
-    vector<Weak<Collider>> _colliders;
-
+    vector<Weak<ColliderCom>> _colliders;
     bool    _isDebug = true;
 
 public:

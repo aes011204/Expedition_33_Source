@@ -7,6 +7,7 @@ NS_BEGIN(Engine)
 class ShaderCom;
 class ModelCom;
 class MovementCom;
+class ColliderCom;
 NS_END
 
 NS_BEGIN(Client)
@@ -37,10 +38,13 @@ protected:
 	HRESULT Ready_Components();
 	HRESULT Ready_PartObjects();
 
+    HRESULT Ready_Collider();
+
 private:
     Shared<MovementCom>         _movementCom;
     Shared<InputCom>            _inputCom;
     Shared<PlayerControllerCom> _playerControllerCom;
+    Shared<ColliderCom>         _collider;
 
 public:
 	static Shared<Player> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

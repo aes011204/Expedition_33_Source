@@ -2,7 +2,7 @@
 
 #include "Bounding.h"
 
-NS_BEGIN()
+NS_BEGIN(Engine)
 
 class Bounding_AABB : public Bounding
 {
@@ -21,8 +21,14 @@ public:
     void    Update(const Matrix& worldMatrix) override;
     bool    Intersect(Bounding* otherBounding) override;
 
-    CollisionShape  Get_Shape() const override { return CollisionShape::AABB; }
-    BoundingBox&    Get_OriginAABB() { return _originAABB;}
+    CollisionShape      Get_Shape() const override { return CollisionShape::AABB; }
+    BoundingBox&        Get_OriginAABB() { return _originAABB;}
+    const BoundingBox&  Get_AABB() const { return _aabb; }
+
+#ifdef _DEBUG
+    HRESULT Render_Debug(DirectX::PrimitiveBatch<DirectX::VertexPositionColor>* batch, Color color) override;
+#endif
+
 
 private:
     BoundingBox _originAABB;
