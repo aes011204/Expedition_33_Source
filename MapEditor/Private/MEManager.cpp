@@ -4,6 +4,7 @@
 #include "PanelHierarchy.h"
 #include "PanelInspector.h"
 #include "PanelAssetBrowser.h"
+#include "SceneContext.h"
 
 MEManager::~MEManager()
 {
@@ -18,10 +19,12 @@ HRESULT MEManager::Initialize(Shared<PanelViewport> viewport, SceneContext* ctx)
             _windows[w->GetName()] = w;
         }};
 
+    _ctx = ctx;
+
     Add(viewport);
     Add(PanelHierarchy::Create(ctx));
     Add(PanelInspector::Create(ctx));
-    Add(PanelAssetBrowser::Create());
+    Add(PanelAssetBrowser::Create(ctx));
 
     return S_OK;
 }
@@ -105,17 +108,43 @@ void MEManager::RenderDockSpace()
         {
             if (ImGui::MenuItem("New Map"))
             {
-
+                _ctx->objects.clear();
+                _ctx->selected = nullptr;
+                _ctx->mapName = L"Untitled";
+                _currentMapPath = "Stage_01.json";
             }
 
             if (ImGui::MenuItem("Open Map..."))
             {
-
+                char buf[MAX_PATH] = {};
+                OPENFILENAMEA ofn{};
+                ofn.lStructSize = sizeof(ofn);
+                ofn.lpstrFilter = "JSON Files\0*.json\0All Files\0*.*\0";
+                ofn.lpstrFile = buf;
+                ofn.nMaxFile = MAX_PATH;
+                ofn.lpstrInitialDir = g_MapSavePath;
+                ofn.Flags = OFN_FILEMUSTEXIST;
+                if (GetOpenFileNameA(&ofn))
+                {
+                    _ctx->LoadFromFile(buf);
+                }
             }
 
             if (ImGui::MenuItem("Save Map"))
             {
-
+                char buf[MAX_PATH] = {};
+                OPENFILENAMEA ofn{};
+                ofn.lStructSize = sizeof(ofn);
+                ofn.lpstrFilter = "JSON Files\0*.json\0All Files\0*.*\0";
+                ofn.lpstrFile = buf;
+                ofn.nMaxFile = MAX_PATH;
+                ofn.lpstrInitialDir = g_MapSavePath;
+                ofn.lpstrDefExt = "json";
+                ofn.Flags = OFN_OVERWRITEPROMPT;
+                if (GetSaveFileNameA(&ofn))
+                {
+                    _ctx->SaveToFile(buf);
+                }
             }
 
             ImGui::Separator();

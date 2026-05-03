@@ -154,6 +154,7 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     <ClInclude Include="..\Public\MECamera.h" />
     <ClInclude Include="..\Public\MEImGuiManager.h" />
     <ClInclude Include="..\Public\MEManager.h" />
+    <ClInclude Include="..\Public\MEStaticMeshActor.h" />
     <ClInclude Include="..\Public\MEWindow.h" />
     <ClInclude Include="..\Public\PanelAssetBrowser.h" />
     <ClInclude Include="..\Public\PanelHierarchy.h" />
@@ -171,12 +172,14 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     <ClCompile Include="..\Private\MECamera.cpp" />
     <ClCompile Include="..\Private\MEImGuiManager.cpp" />
     <ClCompile Include="..\Private\MEManager.cpp" />
+    <ClCompile Include="..\Private\MEStaticMeshActor.cpp" />
     <ClCompile Include="..\Private\MEWindow.cpp" />
     <ClCompile Include="..\Private\PanelAssetBrowser.cpp" />
     <ClCompile Include="..\Private\PanelHierarchy.cpp" />
     <ClCompile Include="..\Private\PanelInspector.cpp" />
     <ClCompile Include="..\Private\PanelViewport.cpp" />
     <ClCompile Include="..\Private\pch.cpp" />
+    <ClCompile Include="..\Private\SceneContext.cpp" />
     <ClCompile Include="..\Private\SimpleMath.cpp" />
     <ClCompile Include="MapEditor.cpp" />
   </ItemGroup>

@@ -25,6 +25,10 @@ private:
     map<wstring, Shared<MEWindow>> _windows;
     bool layoutInitialized = false;
 
+    SceneContext* _ctx = {};
+    string _currentMapPath = "Stage_01.json";
+    char mapPathBuf[256] = {};
+
 public:
     static Unique<MEManager> Create(Shared<PanelViewport> viewport, SceneContext* ctx);
 };

@@ -24,6 +24,9 @@ namespace MapEditor
 {
     inline constexpr uint32 g_iWinSizeX = 1600u;
     inline constexpr uint32 g_iWinSizeY = 900u;
+
+    inline const char* g_MapSavePath = "../../../Client/Bin/Resources/Map/SaveJson/";
+    inline const char* g_MapOriginPath = "../../../Client/Bin/Resources/Map/OriginJson/";
 };
 
 using namespace MapEditor;

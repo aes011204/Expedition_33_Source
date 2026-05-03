@@ -44,12 +44,12 @@ MapEditorApp          — 엔진 초기화, 메인 루프 (Update/Render), Scene
 ├── MEImGuiManager    — ImGui 생명주기 (NewFrame / Render / Shutdown)
 ├── MECamera          — 에디터 자유시점 카메라 (우클릭+WASD, 뷰/프로젝션 행렬 → GAME)
 ├── RenderTarget      — 씬을 RT에 렌더, PanelViewport에 SRV 전달
-├── SceneContext      — 씬 오브젝트 목록 + 선택 상태 (패널에 포인터로 전달)
+├── SceneContext      — 씬 오브젝트 목록 + 선택 상태 + 공유 셰이더 (패널에 포인터로 전달)
 └── MEManager         — DockSpace + 패널 컨테이너
     ├── PanelViewport     — RT ImGui::Image 표시, 카메라 입력, ImGuizmo 오버레이 ✅
     ├── PanelHierarchy    — 오브젝트 목록, 선택/추가/삭제/복제/이름변경 ✅
     ├── PanelInspector    — Transform 실시간 편집, Gizmo 양방향 연동 ✅
-    └── PanelAssetBrowser — 맵 에셋 브라우저
+    └── PanelAssetBrowser — 맵 에셋 브라우저 (폴더 탭 + 더블클릭 로드 + 파일 다이얼로그) ✅
 ```
 
 **베이스 클래스**: `MEWindow` (이름, 열림 상태, Update/Render 인터페이스)
@@ -64,16 +64,37 @@ EditorObject                                          ✅ 구현 완료
 ├── rotation      (Quat)      — 쿼터니언 저장, Inspector는 오일러(도) 변환 표시
 ├── scale         (Vec3)
 ├── worldMatrix   (Matrix)    — Gizmo / 렌더링에 사용, Decompose로 역분해 지원
-└── renderHandle              — 렌더링 전용 엔진 오브젝트 (미구현)
+└── renderHandle  (Shared<MEStaticMeshActor>) — 뷰포트 시각화 전용, JSON 직렬화 대상 아님
 ```
 
 ### SceneContext
 
 ```
 SceneContext                                          ✅ 구현 완료
-├── objects   (vector<Shared<EditorObject>>)  — 씬 내 전체 오브젝트 목록
-└── selected  (Shared<EditorObject>)          — 현재 선택 오브젝트 (Hierarchy/Inspector/Gizmo 공유)
+├── objects     (vector<Shared<EditorObject>>)  — 씬 내 전체 오브젝트 목록
+├── selected    (Shared<EditorObject>)          — 현재 선택 오브젝트 (Hierarchy/Inspector/Gizmo 공유)
+├── mapName     (wstring)                       — 저장/로드 시 사용할 맵 이름
+├── SaveToFile(const string& path)              — JSON 직렬화 ✅
+└── LoadFromFile(const string& path)            — JSON 역직렬화 ✅
 ```
+
+### MEStaticMeshActor (신규 — 대기 중)
+
+```
+MEStaticMeshActor                                     — 에디터 뷰포트 시각화 전용 렌더 객체
+├── _model   (Shared<Model>)   — Assimp 기반 메시 데이터
+├── _shader  (Shared<Shader>)  — Shader_VtxMesh (MapEditorApp 공유)
+└── Render(const Matrix& worldMatrix)
+    — g_WorldMatrix / g_ViewMatrix / g_ProjMatrix 바인딩
+    — 에디터용 라이트 파라미터 하드코딩
+    — 메시별 Bind_Material + Begin(0) + Model::Render(i)
+```
+
+> **렌더링 설계 원칙**: GameObject/RenderGroup 시스템 우회. RT 안에서 SceneContext를 순회하며 직접 렌더.  
+> renderHandle은 뷰포트 표시 전용이며 JSON 직렬화와 무관 — 출력 데이터는 EditorObject의 transform + modelPath만 사용.
+
+> **⚠️ 대기**: 엔진 Assimp 의존성 리팩토링(다른 파트 담당) 완료 후 구현.  
+> 그 전까지 EditorObject의 renderHandle은 nullptr로 유지, JSON 저장/로드 및 UE5 임포터 먼저 진행.
 
 ---
 
@@ -93,7 +114,7 @@ SceneContext                                          ✅ 구현 완료
 
 | 기능 | 설명 | 상태 |
 |------|------|------|
-| 정적 메시 배치 | 씬에 Static Mesh 오브젝트 추가/삭제/복제 | 구현 예정 |
+| 정적 메시 배치 | 씬에 Static Mesh 오브젝트 추가/삭제/복제 | Assimp 리팩토링 대기 중 |
 | 라이트 배치 | Directional / Point / Spot Light 설치 및 실시간 속성 편집 | 구현 예정 |
 | 물(Water) 배치 | 수면 볼륨 설치 및 셰이더 파라미터 조정 | 구현 예정 |
 | 파티클 이펙트 배치 | 주변 환경 파티클(먼지, 빛 입자 등) 배치 및 파라미터 설정 | 구현 예정 |
@@ -139,10 +160,10 @@ SceneContext                                          ✅ 구현 완료
 
 | 기능 | 설명 | 상태 |
 |------|------|------|
-| JSON 저장 | 씬 전체 맵 데이터를 JSON으로 직렬화 | 구현 예정 |
-| JSON 로드 | 저장된 맵 JSON 파일 불러오기 | 구현 예정 |
+| JSON 저장 | 씬 전체 맵 데이터를 JSON으로 직렬화 | ✅ |
+| JSON 로드 | 저장된 맵 JSON 파일 불러오기 | ✅ |
 | MainEditor 연동 | 출력 JSON을 MainEditor 로드 파이프라인 포맷에 맞춰 출력 | 구현 예정 |
-| UE JSON 임포터 | 원본 게임 레벨 데이터(UE5 추출 JSON)를 읽어 맵 에디터 오브젝트로 자동 변환 | 구현 예정 |
+| UE JSON 임포터 | 원본 게임 레벨 데이터(UE5 추출 JSON)를 읽어 맵 에디터 오브젝트로 자동 변환 | **현재 작업** |
 
 ---
 
@@ -160,9 +181,23 @@ SceneContext                                          ✅ 구현 완료
 7. ✅ `EditorObject` / `SceneContext` 구현
 8. ✅ Hierarchy 패널 (오브젝트 목록, 선택/추가/삭제/복제/이름변경, Gizmo 연동)
 9. ✅ Inspector 패널 (Transform 실시간 편집, Gizmo 양방향 연동)
-10. 정적 메시 배치 / 삭제 / 복제
-11. 라이트 배치 및 속성 편집
-12. JSON 저장 / 로드
+10. ✅ JSON 저장 / 로드
+    - ✅ 10-1. 내부 맵 JSON 저장 (`SceneContext` → `MapData` JSON 직렬화)
+    - ✅ 10-2. 내부 맵 JSON 로드 (JSON → `EditorObject` 복원, SceneContext 재구성)
+    - ✅ 10-3. PanelAssetBrowser — 폴더 탭(SaveJson/OriginJson) + 더블클릭 로드 + Windows 파일 다이얼로그
+    - ✅ 10-4. MEManager File 메뉴 — Save Map / Open Map 다이얼로그 연결
+11. UE5 레벨 JSON 임포터 ← **현재 작업**
+    - 11-1. UE5 FModel JSON 파싱 (InstancedStaticMeshComponent 우선)
+    - 11-2. 좌표계 변환 (Translation cm→엔진단위, 축 스왑, Quat 변환)
+    - 11-3. 에셋 경로 매핑 테이블 (`asset_map.json`) 로드
+    - 11-4. `EditorObject` 일괄 생성 → SceneContext 배치
+12. 정적 메시 뷰포트 렌더링 ← **Assimp 리팩토링 완료 후**
+    - 12-1. `MEStaticMeshActor` 신규 클래스 (Model + Shader 직접 렌더)
+    - 12-2. `EditorObject`에 `renderHandle` 연결
+    - 12-3. `SceneContext`에 `meshShader` 추가
+    - 12-4. `MapEditorApp` — 셰이더 초기화 + RT 내 씬 렌더 루프
+    - 12-5. `PanelAssetBrowser` — 모델 파일 스캔 + 더블클릭 배치
+13. 라이트 배치 및 속성 편집
 
 ### Phase 3 — 볼륨 / 환경
 13. 인카운터 존, 트리거 볼륨, 스폰 포인트
@@ -269,16 +304,41 @@ Inspector UI에서는 오일러 각도로 변환해서 표시하고, 편집 후 
 원본 게임(Expedition 33)의 레벨 데이터를 UE5 에셋 추출 툴로 JSON으로 뽑는 데 성공.  
 이 데이터를 기반으로 맵 배치를 자동 임포트하는 파이프라인을 구축한다.
 
-### 추출된 데이터 구조
+### 추출된 데이터 구조 (FModel 실제 포맷)
 
+FModel로 추출한 실제 JSON은 컴포넌트 단위로 구성됨.  
+현재 임포트 대상: `InstancedStaticMeshComponent` (대량 반복 오브젝트), `StaticMeshComponent` (단일 오브젝트)
+
+**InstancedStaticMeshComponent** (바위, 식물 등 인스턴스 다수):
 ```json
 {
-  "Type": "StaticMeshActor",
-  "ActorLabel": "SM_Rock_01",
-  "TransformData": {
-    "Rotation": { "X": 0.0, "Y": 0.0, "Z": 0.98215955, "W": -0.17882906 },
-    "Translation": { "X": 12593.907, "Y": -10311.829, "Z": -12391.668 },
-    "Scale3D": { "X": 0.91263163, "Y": 0.91263163, "Z": 0.91263163 }
+  "Type": "InstancedStaticMeshComponent",
+  "Properties": {
+    "StaticMesh": {
+      "ObjectPath": "/Game/EnviroPacks/.../SM_Small_Rock_4.2"
+    }
+  },
+  "PerInstanceSMData": [
+    {
+      "TransformData": {
+        "Rotation": { "X": -0.312, "Y": 0.012, "Z": 0.651, "W": 0.688 },
+        "Translation": { "X": 360.9, "Y": -1134.9, "Z": -385.1 },
+        "Scale3D": { "X": 3.558, "Y": 3.558, "Z": 3.558 }
+      }
+    }
+  ]
+}
+```
+
+**StaticMeshComponent** (단일 배치):
+```json
+{
+  "Type": "StaticMeshComponent",
+  "Properties": {
+    "StaticMesh": { "ObjectPath": "/Game/..." },
+    "RelativeLocation": { "X": -26.1, "Y": -118.8, "Z": 0.0 },
+    "RelativeRotation": { "Pitch": 86.9, "Yaw": -12.6, "Roll": 0.0 },
+    "RelativeScale3D":  { "X": 1.0, "Y": 1.0, "Z": 1.0 }
   }
 }
 ```
