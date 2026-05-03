@@ -2,9 +2,15 @@
 #include "Service.h"
 #include "PathFollower.h"
 #include "BehaviorTree.h"
+#include "GameObject.h"
 
 AIController::AIController(const ComPtr<Device>& device, const ComPtr<Context>& context)
     :Component(device, context)
+{
+}
+
+AIController::AIController(const AIController& prototype)
+    : Component(prototype)
 {
 }
 
@@ -14,8 +20,11 @@ AIController::~AIController()
 
 void AIController::Update(float timeDelta)
 {
-    _testPos = Vec3{ 10.f, 0, 6.f };
-    _PF->Update(timeDelta, _testPos, 3.f);
+   Vec3 pos =  Get_Owner()->Get_Transform()->Get_Position();
+
+    _PF->Update(timeDelta, pos, 3.f);
+
+    Get_Owner()->Get_Transform()->Set_Position(pos);
 
     for (auto& service : _services)
     {
@@ -24,7 +33,7 @@ void AIController::Update(float timeDelta)
 
     _BT->Update(timeDelta);
 }
-void AIController::SetBehaviorTree(shared_ptr<BehaviorTree> tree)
+void AIController::Set_BehaviorTree(shared_ptr<BehaviorTree> tree)
 {
     _BT = tree;
 
@@ -39,7 +48,14 @@ bool AIController::Is_Finished()
 
 void AIController::Request_Move(Vec3& target)
 {
-    _PF->Request_Move(_testPos,target);
+    Vec3 pos = Get_Owner()->Get_Transform()->Get_Position();
+    _PF->Request_Move(pos,target);
 
 }
+
+void AIController::Free()
+{
+    __super::Free();
+}
+
 

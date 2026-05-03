@@ -22,8 +22,8 @@ HRESULT Level_GamePlay::Initialize()
 	if (FAILED(Ready_Layer_Player(TEXT("Layer_Player"))))
 		return E_FAIL;
 
-	/*if (FAILED(Ready_Layer_Monster(TEXT("Layer_Monster"))))
-		return E_FAIL;*/
+    if (FAILED(Ready_Layer_Monster(TEXT("Layer_Monster"))))
+        return E_FAIL;
 
 	
 
@@ -105,12 +105,11 @@ HRESULT Level_GamePlay::Ready_Layer_BackGround(const wstring& strLayerTag)
 
 HRESULT Level_GamePlay::Ready_Layer_Monster(const wstring& strLayerTag)
 {
-	for (size_t i = 0; i < 10; i++)
-	{
+
 		if (FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Monster"),
 			ETOI(LevelType::GamePlay), strLayerTag)))
 			return E_FAIL;
-	}
+	
 
 	return S_OK;
 }

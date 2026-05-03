@@ -1,5 +1,6 @@
 ﻿#include "Monster.h"
 #include "GameInstance.h"
+#include "Mon_AIController.h"
 
 Monster::Monster(const ComPtr<Device>& device, const ComPtr<Context>& context)
 	: Character { device, context }
@@ -25,11 +26,15 @@ HRESULT Monster::Initialize(void* arg)
 	if (FAILED(Ready_Components()))
 		return E_FAIL;
 
-	_transformCom->Set_Position(Vec3(
-		GAME->Random(0.f, 10.f), 
-		2.f, 
-		GAME->Random(0.f, 10.f)		
-	));
+	//_transformCom->Set_Position(Vec3(
+	//	GAME->Random(0.f, 10.f), 
+	//	2.f, 
+	//	GAME->Random(0.f, 10.f)		
+	//));
+
+    _transformCom->Set_Position(Vec3(
+        10.f,2.f,10.f
+    ));
 
 	_model->Set_Animation(/*rand() % 20*/0, true);
 
@@ -89,6 +94,11 @@ HRESULT Monster::Ready_Components()
 	if (FAILED(__super::Add_Component(ETOI(LevelType::GamePlay), TEXT("Model_Fiona"), _model)))
 		return E_FAIL;
 
+
+    if (FAILED(__super::Add_Component(ETOI(LevelType::Static), TEXT("Com_MonAIController"), _aiCtrl)))
+        return E_FAIL;
+
+    _aiCtrl->Set_Owner(static_pointer_cast<Monster>(shared_from_this()));
 	return S_OK;
 }
 

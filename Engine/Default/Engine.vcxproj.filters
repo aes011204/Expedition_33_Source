@@ -149,6 +149,36 @@
     <ClInclude Include="..\Public\Reflection_Types.h" />
     <ClInclude Include="..\Public\TypeRegistry.h" />
     <ClInclude Include="..\Public\RegistorFactory.h" />
+    <ClInclude Include="..\Public\PathFollower.h">
+      <Filter>BehaviorTree</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\AIController.h">
+      <Filter>BehaviorTree</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\BehaviorTree.h">
+      <Filter>BehaviorTree</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\BlackBoard.h">
+      <Filter>BehaviorTree</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\BNode.h">
+      <Filter>BehaviorTree</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\BT_MoveTo.h">
+      <Filter>BehaviorTree</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Composite.h">
+      <Filter>BehaviorTree</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Decorator.h">
+      <Filter>BehaviorTree</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Service.h">
+      <Filter>BehaviorTree</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Task.h">
+      <Filter>BehaviorTree</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\public\Base.h">
@@ -408,6 +438,36 @@
     <ClCompile Include="..\Private\Character.cpp" />
     <ClCompile Include="..\Private\TypeRegistry.cpp" />
     <ClCompile Include="..\Private\RegistorFactory.cpp" />
+    <ClCompile Include="..\Private\BT_MoveTo.cpp">
+      <Filter>BehaviorTree</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Composite.cpp">
+      <Filter>BehaviorTree</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Decorator.cpp">
+      <Filter>BehaviorTree</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Service.cpp">
+      <Filter>BehaviorTree</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Task.cpp">
+      <Filter>BehaviorTree</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\AIController.cpp">
+      <Filter>BehaviorTree</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\BehaviorTree.cpp">
+      <Filter>BehaviorTree</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\BlackBoard.cpp">
+      <Filter>BehaviorTree</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\BNode.cpp">
+      <Filter>BehaviorTree</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\PathFollower.cpp">
+      <Filter>BehaviorTree</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Bin\ShaderFiles\Engine_Shader_Defines.hlsli">
@@ -423,6 +483,9 @@
     </Filter>
     <Filter Include="99. Defines\Helper">
       <UniqueIdentifier>{4f948615-4199-4e04-95ad-a005392f4ff3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="BehaviorTree">
+      <UniqueIdentifier>{95900c2d-534f-455b-b45b-23b11bfc5430}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

@@ -1,6 +1,6 @@
 ﻿#pragma once
 #include "Task.h"
-class BT_MoveTo :
+class ENGINE_DLL BT_MoveTo :
     public Task
 {
 public:

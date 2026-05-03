@@ -6,7 +6,7 @@ NS_BEGIN(Engine)
 class BNode;
 class AIController;
 
-class BehaviorTree :
+class ENGINE_DLL BehaviorTree :
     public Base
 {
 public:
@@ -17,12 +17,15 @@ public:
     void Update(float deltaTime);
 
 
+    void Set_Root(shared_ptr<BNode> root) { _root = root; }
 
     void Bind_Owner(shared_ptr<AIController> owner);
     void SetOwnerRecursive(shared_ptr<BNode> root, shared_ptr<class AIController> owner);
 protected:
     shared_ptr<BNode> _root;
     //weak_ptr<class AIController> _AICtrl;
+
+
 
 };
 

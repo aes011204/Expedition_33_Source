@@ -183,14 +183,24 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\Public\AIController.h" />
+    <ClInclude Include="..\Public\BehaviorTree.h" />
+    <ClInclude Include="..\Public\BlackBoard.h" />
+    <ClInclude Include="..\Public\BNode.h" />
+    <ClInclude Include="..\Public\BT_MoveTo.h" />
     <ClInclude Include="..\Public\Character.h" />
+    <ClInclude Include="..\Public\Composite.h" />
+    <ClInclude Include="..\Public\Decorator.h" />
     <ClInclude Include="..\Public\Helper_Math.h" />
     <ClInclude Include="..\Public\Log_Manager.h" />
     <ClInclude Include="..\Public\Helper_String.h" />
     <ClInclude Include="..\Public\MovementCom.h" />
+    <ClInclude Include="..\Public\PathFollower.h" />
     <ClInclude Include="..\Public\Reflection_Types.h" />
     <ClInclude Include="..\Public\RenderTarget.h" />
     <ClInclude Include="..\Public\RegistorFactory.h" />
+    <ClInclude Include="..\Public\Service.h" />
+    <ClInclude Include="..\Public\Task.h" />
     <ClInclude Include="..\Public\TypeRegistry.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="..\public\Animation.h" />
@@ -239,12 +249,22 @@
     <ClInclude Include="..\Public\Vertex_Types.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\Private\AIController.cpp" />
+    <ClCompile Include="..\Private\BehaviorTree.cpp" />
+    <ClCompile Include="..\Private\BlackBoard.cpp" />
+    <ClCompile Include="..\Private\BNode.cpp" />
+    <ClCompile Include="..\Private\BT_MoveTo.cpp" />
     <ClCompile Include="..\Private\Character.cpp" />
+    <ClCompile Include="..\Private\Composite.cpp" />
+    <ClCompile Include="..\Private\Decorator.cpp" />
     <ClCompile Include="..\Private\Log_Manager.cpp" />
     <ClCompile Include="..\Private\MovementCom.cpp" />
+    <ClCompile Include="..\Private\PathFollower.cpp" />
     <ClCompile Include="..\Private\RenderTarget.cpp" />
+    <ClCompile Include="..\Private\Service.cpp" />
     <ClCompile Include="..\Private\SimpleMath.cpp" />
     <ClCompile Include="..\Private\RegistorFactory.cpp" />
+    <ClCompile Include="..\Private\Task.cpp" />
     <ClCompile Include="..\Private\TypeRegistry.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>

@@ -10,6 +10,8 @@ NS_END
 
 NS_BEGIN(Client)
 
+class Mon_AIController;
+
 class Monster final : public Character
 {
     GENERATED_GAMEOBJECT(Monster, ObjectType::Monster)
@@ -30,7 +32,7 @@ public:
 protected:
 	Shared<Shader>	_shader = { nullptr };
 	Shared<Model>	_model = { nullptr };
-	
+    Shared<Mon_AIController>_aiCtrl = { nullptr };
 
 protected:
 	HRESULT Ready_Components();

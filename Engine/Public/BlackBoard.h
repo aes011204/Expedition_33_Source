@@ -2,7 +2,7 @@
 #include "Base.h"
 #include <any>
 NS_BEGIN(Engine)
-class BlackBoard :
+class ENGINE_DLL  BlackBoard :
     public Base
 {
 public:
@@ -34,7 +34,11 @@ public:
 
 private:
     unordered_map< string, any> _data;
+    public:
 
+    static Shared<BlackBoard> Create();
+    //virtual Shared<Component> Clone(void* arg) override;
+    virtual void Free() override;
 
 };
 

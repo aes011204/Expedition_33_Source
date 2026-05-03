@@ -184,6 +184,7 @@
     <ClInclude Include="..\Public\Client_Struct.h" />
     <ClInclude Include="..\Public\CombatStatCom.h" />
     <ClInclude Include="..\Public\InputCom.h" />
+    <ClInclude Include="..\public\Mon_AIController.h" />
     <ClInclude Include="..\Public\PlayerControllerCom.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="..\public\BackGround.h" />
@@ -209,6 +210,7 @@
   <ItemGroup>
     <ClCompile Include="..\Private\CombatStatCom.cpp" />
     <ClCompile Include="..\Private\InputCom.cpp" />
+    <ClCompile Include="..\private\Mon_AIController.cpp" />
     <ClCompile Include="..\Private\PlayerControllerCom.cpp" />
     <ClCompile Include="..\Private\SimpleMath.cpp" />
     <ClCompile Include="pch.cpp">
