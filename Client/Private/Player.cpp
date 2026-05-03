@@ -4,6 +4,7 @@
 #include "GameInstance.h"
 #include "InputCom.h"
 #include "MovementCom.h"
+#include "PlayerControllerCom.h"
 
 Player::Player(const ComPtr<Device>& device, const ComPtr<Context>& context)
 	: Character { device, context }
@@ -22,11 +23,11 @@ HRESULT Player::Initialize_Prototype()
 
 HRESULT Player::Initialize(void* arg)
 {	
-	Character::ContainerObjectDesc		Desc{};
-	Desc.speedPerSec = 10.f;
-	Desc.degreePerSec = 180.f;
+	Character::ContainerObjectDesc desc{};
+	desc.speedPerSec = 10.f;
+	desc.degreePerSec = 180.f;
 
-	if (FAILED(__super::Initialize(&Desc)))
+	if (FAILED(__super::Initialize(&desc)))
 		return E_FAIL;
 	
 	if (FAILED(Ready_Components()))
@@ -50,8 +51,9 @@ void Player::Priority_Update(float timeDelta)
 
 void Player::Update(float timeDelta)
 {
+    __super::Update(timeDelta);
 
-	__super::Update(timeDelta);
+    _playerControllerCom->Update_Controller(timeDelta);
 }
 
 void Player::Late_Update(float timeDelta)
@@ -78,10 +80,9 @@ HRESULT Player::Ready_Components()
     moveDesc.gravity = -20.f;
     moveDesc.groundY = 0.f;
 
-    if (FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_Movement"), _movementCom, &moveDesc)))
-        return E_FAIL;
+    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_Movement"), _movementCom, &moveDesc), E_FAIL);
+    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_PlayerController"), _playerControllerCom), E_FAIL);
 
-    _movementCom->Set_Transform(_transformCom);
 
     return S_OK;
 }

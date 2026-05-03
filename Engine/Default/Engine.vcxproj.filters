@@ -225,7 +225,7 @@
     <ClInclude Include="..\public\VIBuffer_Rect.h">
       <Filter>01.Utility\04.Component\VIBuffer\Rect</Filter>
     </ClInclude>
-    <ClInclude Include="..\public\Shader.h">
+    <ClInclude Include="..\public\ShaderCom.h">
       <Filter>01.Utility\04.Component\Shader</Filter>
     </ClInclude>
     <ClInclude Include="..\public\UIObject.h">
@@ -246,7 +246,7 @@
     <ClInclude Include="..\public\Light_Manager.h">
       <Filter>01.Utility\07.Lights\Manager</Filter>
     </ClInclude>
-    <ClInclude Include="..\public\Model.h">
+    <ClInclude Include="..\public\ModelCom.h">
       <Filter>01.Utility\04.Component\Model</Filter>
     </ClInclude>
     <ClInclude Include="..\public\Mesh.h">
@@ -344,7 +344,7 @@
     <ClCompile Include="..\private\VIBuffer_Rect.cpp">
       <Filter>01.Utility\04.Component\VIBuffer\Rect</Filter>
     </ClCompile>
-    <ClCompile Include="..\private\Shader.cpp">
+    <ClCompile Include="..\private\ShaderCom.cpp">
       <Filter>01.Utility\04.Component\Shader</Filter>
     </ClCompile>
     <ClCompile Include="..\private\UIObject.cpp">
@@ -365,7 +365,7 @@
     <ClCompile Include="..\private\Light_Manager.cpp">
       <Filter>01.Utility\07.Lights\Manager</Filter>
     </ClCompile>
-    <ClCompile Include="..\private\Model.cpp">
+    <ClCompile Include="..\private\ModelCom.cpp">
       <Filter>01.Utility\04.Component\Model</Filter>
     </ClCompile>
     <ClCompile Include="..\private\Mesh.cpp">

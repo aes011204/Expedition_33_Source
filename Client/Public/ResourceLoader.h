@@ -6,7 +6,7 @@
 NS_BEGIN(Engine)
 class GameInstance;
 class GameObject;
-class Shader;
+class ShaderCom;
 class Component;
 NS_END
 
