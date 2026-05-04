@@ -98,6 +98,38 @@ void MapEditorApp::DrawSceneDebug()
         case EObjectType::CameraZone:
         case EObjectType::PostProcessVolume:
         {
+            if (obj->_zoneShape == EZoneShape::Box)
+            {
+                DebugBoxDesc desc;
+                desc.center = obj->_position;
+                desc.extents = obj->_zoneExtent;
+                desc.rotation = obj->_rotation;
+                desc.style.color = color;
+                desc.style.depthEnabled = false;
+                GAME->Draw_DebugBox(desc);
+            }
+            else
+            {
+                DebugSphereDesc desc;
+                desc.center = obj->_position;
+                desc.radius = obj->_zoneRadius;
+                desc.style.color = color;
+                desc.style.depthEnabled = false;
+                GAME->Draw_DebugSphere(desc);
+            }
+            break;
+        }
+
+        case EObjectType::SpawnPoint:
+        {
+            DebugSphereDesc sphere;
+            sphere.center = obj->_position;
+            sphere.radius = 0.3f;
+            sphere.style.color = isSelected ? Color(1.f, 1.f, 0.f, 1.f) : Color(0.f, 0.5f, 1.f, 1.f);
+            sphere.style.depthEnabled = false;
+            GAME->Draw_DebugSphere(sphere);
+
+
         }
 
         default:
