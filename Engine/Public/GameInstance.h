@@ -27,6 +27,7 @@ class Level;
 class Camera;
 class Debug_Manager;
 class Collision_Manager;
+class PhysX_Manager;
 class ColliderCom;
 
 class ENGINE_DLL GameInstance final : public Base
@@ -189,6 +190,11 @@ public: /* For.Collision_Manager */
     void                    Add_Collider(Shared<ColliderCom> collider);
     void                    Clear_Colliders();
 
+public: // For. PhysX_Manager
+    PxPhysics*  Get_PhysXPhysics() const;
+    PxScene*    Get_PhysXScene() const;
+
+
 public: /* For.Debug_Manager */
     void                    Draw_DebugBox(const DebugBoxDesc& desc);
     void                    Draw_DebugSphere(const DebugSphereDesc& desc);
@@ -229,6 +235,7 @@ private:
     Unique<TypeRegistry>        _typeRegistry{};
     Unique<Debug_Manager>       _debugManager{};
     Unique<Collision_Manager>   _collisionManager{};
+    Unique<PhysX_Manager>       _physxManager{};
 
 private:
     uint32 _viewportWidth{ 0 };
@@ -239,6 +246,20 @@ private:
 
     // Free 카메라용 time
     float _freeCameraTimeDelta = 0.f;
+    
+#ifdef _DEBUG
+private: //## 디버그 성능 평가용
+    static constexpr float runtimePerfSampleWindowSec{ 5.f };          // RuntimePerf summary를 몇 초마다 출력할건지
+    static constexpr float detailRenderAvgMsThreshold{ 6.f };          // Render 평균 시간이 이 값을 넘으면 detail log 출력
+    static constexpr float detailCollisionAvgMsThreshold{ 2.5f };      // Collision 평균 시간이 이 값을 넘으면 detail log 출력
+    static constexpr float detailIntersectsPerSecThreshold{ 30000.f }; // 초당 Intersect 호출 수가 이 값을 넘으면 detail log 출력
+
+    chrono::steady_clock::time_point _runtimePerfWindowStartTime{};
+    bool _hasRuntimePerfWindowStartTime{ false };
+
+    void Try_FlushRuntimePerfLog();
+    static bool Should_LogRuntimePerfDetail(const RuntimePerfSummary& runtimeSummary);
+#endif
 
 public:
     void    Release_Engine();

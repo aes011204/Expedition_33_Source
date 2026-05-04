@@ -108,6 +108,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>..\..\Client\Bin\$(Configuration);..\..\EngineSDK\lib\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>Client.lib;Engine.lib;d3d11.lib;dxgi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <PreBuildEvent>
       <Command>pushd "$(ProjectDir)..\.." &amp;&amp; call "UpdateLib.bat" &amp;&amp; popd</Command>
@@ -141,6 +142,7 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mtd.dll" x
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>..\..\Client\Bin\$(Configuration);..\..\EngineSDK\lib\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>Client.lib;Engine.lib;d3d11.lib;dxgi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <PreBuildEvent>
       <Command>pushd "$(ProjectDir)..\.." &amp;&amp; call "UpdateLib.bat" &amp;&amp; popd</Command>

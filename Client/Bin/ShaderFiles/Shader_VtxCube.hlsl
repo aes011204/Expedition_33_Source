@@ -2,7 +2,7 @@
 #include "Engine_Shader_Defines.hlsli"
 
 float4x4 g_WorldMatrix, g_ViewMatrix, g_ProjMatrix;
-textureCUBE g_Texture;
+TextureCube g_Texture;
 
 sampler DefaultSampler = sampler_state
 {
@@ -66,6 +66,7 @@ technique11 DefaultTechnique
         SetBlendState(BS_Default, float4(0.f, 0.f, 0.f, 0.f), 0xffffffff);
 
         VertexShader = compile vs_5_0 VS_MAIN();
+        GeometryShader = NULL;
         PixelShader = compile ps_5_0 PS_MAIN();
     }
 }

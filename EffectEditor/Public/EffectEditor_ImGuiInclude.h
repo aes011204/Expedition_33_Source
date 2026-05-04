@@ -3,7 +3,7 @@
 #ifdef new
 #pragma push_macro("new")
 #undef new
-#define MAINEDITOR_RESTORE_NEW_MACRO
+#define EFFECTEDITOR_RESTORE_NEW_MACRO
 #endif
 
 // ImGui New 매크로 충돌 방지
@@ -15,7 +15,7 @@
 #include <imgui-node-editor/imgui_node_editor.h>
 #include <ImGuizmo.h>
 
-#ifdef MAINEDITOR_RESTORE_NEW_MACRO
+#ifdef EFFECTEDITOR_RESTORE_NEW_MACRO
 #pragma pop_macro("new")
-#undef MAINEDITOR_RESTORE_NEW_MACRO
+#undef EFFECTEDITOR_RESTORE_NEW_MACRO
 #endif

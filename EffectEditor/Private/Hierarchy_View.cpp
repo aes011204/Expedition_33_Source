@@ -5,6 +5,15 @@ Hierarchy_View::Hierarchy_View()
 {
 }
 
+Hierarchy_View::~Hierarchy_View()
+{
+    Free();
+}
+
+void Hierarchy_View::Update(float timeDelta)
+{
+}
+
 void Hierarchy_View::Render()
 {
     if (!Is_Open())
@@ -30,5 +39,7 @@ Shared<Hierarchy_View> Hierarchy_View::Create()
     return make_shared<Hierarchy_View>();
 }
 
-
-
+void Hierarchy_View::Free()
+{
+    __super::Free();
+}
