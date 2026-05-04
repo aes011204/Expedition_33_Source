@@ -15,16 +15,16 @@ Shared<EditorObject> MEUe5Importer::ParseInstanced(const json& comp, int instanc
     const auto& sc = td["Scale3D"];
 
     auto obj = make_shared<EditorObject>();
-    obj->position = ConvertTranslation(tr["X"], tr["Y"], tr["Z"]);
-    obj->rotation = ConvertRotation(rot["X"], rot["Y"], rot["Z"], rot["W"]);
-    obj->scale = ConvertScale(sc["X"], sc["Y"], sc["Z"]);
+    obj->_position = ConvertTranslation(tr["X"], tr["Y"], tr["Z"]);
+    obj->_rotation = ConvertRotation(rot["X"], rot["Y"], rot["Z"], rot["W"]);
+    obj->_scale = ConvertScale(sc["X"], sc["Y"], sc["Z"]);
 
     if (comp.contains("Properties") && comp["Properties"].contains("StaticMesh"))
     {
-        obj->modelPath = String::ToWString(ExtractMeshName(comp["Properties"]["StaticMesh"]["ObjectPath"].get<string>()));
+        obj->_modelPath = String::ToWString(ExtractMeshName(comp["Properties"]["StaticMesh"]["ObjectPath"].get<string>()));
     }
 
-    obj->name = obj->modelPath + L"_" + to_wstring(instanceIndex);
+    obj->_name = obj->_modelPath + L"_" + to_wstring(instanceIndex);
     obj->UpdateWorldMatrix();
     return obj;
 }
@@ -43,7 +43,7 @@ Shared<EditorObject> MEUe5Importer::ParseSingle(const json& comp)
     if (props.contains("RelativeLocation"))
     {
         const auto& loc = props["RelativeLocation"];
-        obj->position = ConvertTranslation(loc["X"], loc["Y"], loc["Z"]);
+        obj->_position = ConvertTranslation(loc["X"], loc["Y"], loc["Z"]);
     }
 
     if (props.contains("RelativeRotation"))
@@ -56,21 +56,21 @@ Shared<EditorObject> MEUe5Importer::ParseSingle(const json& comp)
         Quat qp = Quat::CreateFromAxisAngle(Vec3::Right, XMConvertToRadians(-pitch));
         Quat qy = Quat::CreateFromAxisAngle(Vec3::Up, XMConvertToRadians(-yaw));
         Quat qr = Quat::CreateFromAxisAngle(Vec3::Forward, XMConvertToRadians(roll));
-        obj->rotation = qr * qp * qy;
+        obj->_rotation = qr * qp * qy;
     }
 
     if (props.contains("RelativeScale3D"))
     {
         const auto& sc = props["RelativeScale3D"];
-        obj->scale = ConvertScale(sc["X"], sc["Y"], sc["Z"]);
+        obj->_scale = ConvertScale(sc["X"], sc["Y"], sc["Z"]);
     }
 
     if (props.contains("StaticMesh"))
     {
-        obj->modelPath = String::ToWString(ExtractMeshName(props["StaticMesh"]["ObjectPath"].get<string>()));
+        obj->_modelPath = String::ToWString(ExtractMeshName(props["StaticMesh"]["ObjectPath"].get<string>()));
     }
 
-    obj->name = obj->modelPath + L"_0";
+    obj->_name = obj->_modelPath + L"_0";
     obj->UpdateWorldMatrix();
     return obj;
 }
@@ -124,8 +124,8 @@ void MEUe5Importer::Import(const string& filePath, SceneContext& ctx, bool appen
 
     if (!append)
     {
-        ctx.objects.clear();
-        ctx.selected = nullptr;
+        ctx._objects.clear();
+        ctx._selected = nullptr;
     }
 
     if (!root.is_array())

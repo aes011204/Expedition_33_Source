@@ -6,8 +6,8 @@
 PanelAssetBrowser::PanelAssetBrowser(SceneContext* ctx)
     : MEWindow{ L"Asset Browser" }, _ctx{ ctx }
 {
-    AddFolder("Saved Maps", g_MapSavePath);
-    AddFolder("Origin Maps", g_MapOriginPath, true);
+    AddFolder("Saved Maps", _mapSavePath);
+    AddFolder("Origin Maps", _mapOriginPath, true);
 }
 
 void PanelAssetBrowser::Render()

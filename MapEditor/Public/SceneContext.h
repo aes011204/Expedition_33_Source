@@ -5,9 +5,9 @@ NS_BEGIN(MapEditor)
 
 struct SceneContext
 {
-    vector<Shared<EditorObject>> objects;
-    Shared<EditorObject> selected;
-    wstring mapName = L"Untitled";
+    vector<Shared<EditorObject>> _objects;
+    Shared<EditorObject> _selected;
+    wstring _mapName = L"Untitled";
 
     void SaveToFile(const string& filePath);
     void LoadFromFile(const string& filePath);

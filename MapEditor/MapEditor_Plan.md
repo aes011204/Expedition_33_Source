@@ -34,67 +34,116 @@ Clair Obscur: Expedition 33 모작 기준으로 필요한 맵 데이터를 편�
 - **ImGui 기반 UI**: Unity처럼 실시간 수치 조정 및 씬 확인
 - **진입점**: `MapEditor/Default/MapEditor.cpp`
 - **앱 중심**: `MapEditor/Private/MapEditorApp.cpp`
+- **경로 기준**: VS 실행 시 작업 디렉토리 = `MapEditor/Default/`, 리소스 경로는 `../../` 기준
 
 ---
 
-## 클래스 구조 (Phase 2 진행 중)
+## 클래스 구조
 
 ```
 MapEditorApp          — 엔진 초기화, 메인 루프 (Update/Render), SceneContext 소유
 ├── MEImGuiManager    — ImGui 생명주기 (NewFrame / Render / Shutdown)
 ├── MECamera          — 에디터 자유시점 카메라 (우클릭+WASD, 뷰/프로젝션 행렬 → GAME)
 ├── RenderTarget      — 씬을 RT에 렌더, PanelViewport에 SRV 전달
-├── SceneContext      — 씬 오브젝트 목록 + 선택 상태 + 공유 셰이더 (패널에 포인터로 전달)
-└── MEManager         — DockSpace + 패널 컨테이너
-    ├── PanelViewport     — RT ImGui::Image 표시, 카메라 입력, ImGuizmo 오버레이 ✅
-    ├── PanelHierarchy    — 오브젝트 목록, 선택/추가/삭제/복제/이름변경 ✅
-    ├── PanelInspector    — Transform 실시간 편집, Gizmo 양방향 연동 ✅
-    └── PanelAssetBrowser — 맵 에셋 브라우저 (폴더 탭 + 더블클릭 로드 + 파일 다이얼로그) ✅
+├── SceneContext      — 씬 오브젝트 목록 + 선택 상태 + JSON 저장/로드
+└── MEManager         — DockSpace + 패널 컨테이너 + File 메뉴
+    ├── PanelViewport     ✅ RT ImGui::Image, 카메라 입력, ImGuizmo 오버레이
+    ├── PanelHierarchy    ✅ 오브젝트 목록, 선택/추가/삭제/복제/이름변경
+    ├── PanelInspector    ✅ Transform 실시간 편집, Gizmo 양방향 연동
+    └── PanelAssetBrowser ✅ 폴더 탭(SaveJson/OriginJson) + 더블클릭 로드/임포트
 ```
 
 **베이스 클래스**: `MEWindow` (이름, 열림 상태, Update/Render 인터페이스)
 
-### EditorObject
+### EditorObject ✅
 
 ```
-EditorObject                                          ✅ 구현 완료
+EditorObject
 ├── name          (wstring)   — Hierarchy 표시 이름
 ├── modelPath     (wstring)   — 모델 경로 (JSON 저장 시 사용)
-├── position      (Vec3)      — 편집용 Transform
+├── position      (Vec3)
 ├── rotation      (Quat)      — 쿼터니언 저장, Inspector는 오일러(도) 변환 표시
 ├── scale         (Vec3)
-├── worldMatrix   (Matrix)    — Gizmo / 렌더링에 사용, Decompose로 역분해 지원
+├── worldMatrix   (Matrix)    — Gizmo / 렌더링에 사용
 └── renderHandle  (Shared<MEStaticMeshActor>) — 뷰포트 시각화 전용, JSON 직렬화 대상 아님
 ```
 
-### SceneContext
+### SceneContext ✅
 
 ```
-SceneContext                                          ✅ 구현 완료
-├── objects     (vector<Shared<EditorObject>>)  — 씬 내 전체 오브젝트 목록
-├── selected    (Shared<EditorObject>)          — 현재 선택 오브젝트 (Hierarchy/Inspector/Gizmo 공유)
-├── mapName     (wstring)                       — 저장/로드 시 사용할 맵 이름
-├── SaveToFile(const string& path)              — JSON 직렬화 ✅
-└── LoadFromFile(const string& path)            — JSON 역직렬화 ✅
+SceneContext
+├── objects       (vector<Shared<EditorObject>>)
+├── selected      (Shared<EditorObject>)
+├── mapName       (wstring)
+├── SaveToFile(const string& path)
+└── LoadFromFile(const string& path)
 ```
 
-### MEStaticMeshActor (신규 — 대기 중)
+### MEUe5Importer ✅
 
 ```
-MEStaticMeshActor                                     — 에디터 뷰포트 시각화 전용 렌더 객체
-├── _model   (Shared<Model>)   — Assimp 기반 메시 데이터
-├── _shader  (Shared<Shader>)  — Shader_VtxMesh (MapEditorApp 공유)
+MEUe5Importer
+└── Import(filePath, SceneContext&, append)
+    — InstancedStaticMeshComponent → PerInstanceSMData 순회
+    — StaticMeshComponent → RelativeLocation/Rotation/Scale3D 파싱
+    — 좌표계 변환 (UE5 → DX) 적용
+    — EditorObject 생성 → SceneContext 배치
+```
+
+### MEStaticMeshActor (대기 중)
+
+```
+MEStaticMeshActor                         — 에디터 뷰포트 시각화 전용
+├── _model   (Shared<Model>)
+├── _shader  (Shared<Shader>)
 └── Render(const Matrix& worldMatrix)
-    — g_WorldMatrix / g_ViewMatrix / g_ProjMatrix 바인딩
-    — 에디터용 라이트 파라미터 하드코딩
-    — 메시별 Bind_Material + Begin(0) + Model::Render(i)
 ```
 
-> **렌더링 설계 원칙**: GameObject/RenderGroup 시스템 우회. RT 안에서 SceneContext를 순회하며 직접 렌더.  
-> renderHandle은 뷰포트 표시 전용이며 JSON 직렬화와 무관 — 출력 데이터는 EditorObject의 transform + modelPath만 사용.
+> **⚠️ 대기**: 엔진 Assimp 리팩토링(다른 파트 담당) 완료 후 구현.  
+> renderHandle은 뷰포트 표시 전용, JSON 직렬화와 무관.
 
-> **⚠️ 대기**: 엔진 Assimp 의존성 리팩토링(다른 파트 담당) 완료 후 구현.  
-> 그 전까지 EditorObject의 renderHandle은 nullptr로 유지, JSON 저장/로드 및 UE5 임포터 먼저 진행.
+---
+
+## 개발 단계 (Phase)
+
+### Phase 1 — 에디터 기반 ✅
+1. ✅ `MapEditor.cpp` 진입점 (엔진 초기화, 60FPS 루프, ImGui WndProc)
+2. ✅ `MapEditorApp` (`Engine::Base` 상속, Initialize/Update/Render/Free)
+3. ✅ ImGui 도킹 레이아웃 (`MEImGuiManager`, `MEManager`, DockBuilder)
+4. ✅ 기본 패널 4종 — Viewport / Hierarchy / Inspector / Asset Browser
+5. ✅ 에디터 카메라 + RT 렌더링 (`MECamera`, `RenderTarget` → ImGui::Image)
+6. ✅ 기즈모 Translate/Rotate/Scale — ImGuizmo, W/E/R 단축키
+
+### Phase 2 — 핵심 오브젝트 편집 ✅
+7. ✅ `EditorObject` / `SceneContext`
+8. ✅ Hierarchy 패널 (목록, 선택/추가/삭제/복제/이름변경, Gizmo 연동)
+9. ✅ Inspector 패널 (Transform 편집, Gizmo 양방향 연동)
+10. ✅ JSON 저장/로드 + PanelAssetBrowser + File 메뉴 다이얼로그
+11. ✅ UE5 FModel JSON 임포터 (`MEUe5Importer`)
+    - InstancedStaticMeshComponent / StaticMeshComponent 파싱
+    - UE5 → DX 좌표계 변환
+    - Origin Maps 탭 더블클릭으로 씬 배치
+12. 정적 메시 뷰포트 렌더링 ← **Assimp 리팩토링 완료 후**
+    - `MEStaticMeshActor` (Model + Shader_VtxMesh 직접 렌더)
+    - `EditorObject.renderHandle` 연결
+    - `MapEditorApp` RT 내 씬 렌더 루프
+13. 라이트 배치 및 속성 편집
+
+### Phase 3 — 볼륨 / 존 시스템 ← **다음 작업**
+14. 인카운터 존, 트리거 볼륨, 스폰 포인트
+15. Camera Zone 파라미터 편집
+16. Post-processing Volume, Volumetric Fog 존
+17. Ambient Sound Zone
+18. Water 배치, 파티클 배치 (파티클 시스템 완료 후)
+19. 지형 시스템 (방식 미확정)
+
+### Phase 4 — 내비 / AI
+20. 웨이포인트, 포털 / 존 전환
+21. Recast 통합 → NavMesh 베이크 및 시각화
+
+### Phase 5 — 물리 / 최적화
+22. PhysX 통합 → 콜라이더 편집, 지형 충돌
+23. 인스턴싱 그룹, Occlusion Volume
 
 ---
 
@@ -102,118 +151,54 @@ MEStaticMeshActor                                     — 에디터 뷰포트 �
 
 ### 편집 도구
 
-| 기능 | 설명 | 상태 |
-|------|------|------|
-| 뷰포트 | 씬 3D 뷰, 에디터 전용 카메라 이동/회전 | ✅ |
-| 기즈모 | Translate / Rotate / Scale 핸들, W/E/R 단축키 | ✅ |
-| Hierarchy | 오브젝트 목록, 선택/추가/삭제/복제/이름변경 | ✅ |
-| Inspector | Transform 실시간 편집, Gizmo 양방향 연동 | ✅ |
-| Snapping | 그리드 스냅, 각도 스냅 | 구현 예정 |
+| 기능 | 상태 |
+|------|------|
+| 뷰포트 | ✅ |
+| 기즈모 (W/E/R) | ✅ |
+| Hierarchy | ✅ |
+| Inspector | ✅ |
+| Snapping | 구현 예정 |
 
 ### 렌더링 / 배치
 
-| 기능 | 설명 | 상태 |
-|------|------|------|
-| 정적 메시 배치 | 씬에 Static Mesh 오브젝트 추가/삭제/복제 | Assimp 리팩토링 대기 중 |
-| 라이트 배치 | Directional / Point / Spot Light 설치 및 실시간 속성 편집 | 구현 예정 |
-| 물(Water) 배치 | 수면 볼륨 설치 및 셰이더 파라미터 조정 | 구현 예정 |
-| 파티클 이펙트 배치 | 주변 환경 파티클(먼지, 빛 입자 등) 배치 및 파라미터 설정 | 구현 예정 |
-| 지형 (Terrain) | 하이트맵 기반(`VIBuffer_Terrain`) 또는 정적 메시, 모작 데이터 포맷 확인 후 결정 | 방식 미확정 |
-
-### 볼륨 / 존 시스템
-
-| 기능 | 설명 | 상태 |
-|------|------|------|
-| 트리거 볼륨 | 이벤트 트리거 영역 설치 및 속성 설정 | 구현 예정 |
-| 인카운터 존 | 전투 진입 트리거 구역 설치 및 적 그룹 지정 | 구현 예정 |
-| Post-processing Volume | 구역별 bloom, fog density, color grading 수치 조정 | 구현 예정 |
-| Volumetric Fog 존 | 특정 구역에만 안개 효과 범위 및 농도 설정 | 구현 예정 |
-| Camera Zone | 구역 진입 시 카메라 FOV, 고정 앵글, 전환 방식 파라미터 편집 | 구현 예정 |
-| Ambient Sound Zone | 구역별 배경음/효과음 범위 및 음량 설정 | 구현 예정 |
-| 포털 / 존 전환 | 맵과 맵을 연결하는 진입점 설치 | 구현 예정 |
-
-### 물리 / 충돌
-
-| 기능 | 설명 | 상태 |
-|------|------|------|
-| 콜라이더 편집 | Box / Sphere / Capsule / Mesh Collider 시각적 편집 | 구현 예정 |
-| PhysX 지형 충돌 | PhysX HeightField 기반 지형 충돌체 생성 | **엔진 PhysX 통합 후 작업** |
-
-### 내비게이션
-
-| 기능 | 설명 | 상태 |
-|------|------|------|
-| NavMesh 베이크 | Recast 기반, 원하는 영역에만 NavMesh 생성 | **엔진 Recast 통합 후 작업** |
-| NavMesh 시각화 | 생성된 NavMesh 오버레이 렌더링 | **엔진 Recast 통합 후 작업** |
-| NavMesh 수치 조정 | Agent Radius / Height / Step Height 등 실시간 조정 | **엔진 Recast 통합 후 작업** |
-| 웨이포인트 | AI 순찰 경로 및 이동 경로 지정 | 구현 예정 |
-| 스폰 포인트 | 적 및 플레이어 시작 위치 지정 | 구현 예정 |
-
-### 최적화 보조 도구
-
-| 기능 | 설명 | 상태 |
-|------|------|------|
-| 인스턴싱 그룹 | 나무, 풀 등 대량 반복 오브젝트 그룹 배치 | 구현 예정 |
-| Occlusion Volume | 시야 차단 구역 설정 (컬링용) | 구현 예정 |
+| 기능 | 상태 |
+|------|------|
+| 정적 메시 배치 | Assimp 리팩토링 대기 |
+| 라이트 배치 | 구현 예정 |
+| 물(Water) 배치 | 구현 예정 |
+| 파티클 이펙트 배치 | 파티클 시스템 대기 |
+| 지형 (Terrain) | 방식 미확정 |
 
 ### 데이터 입출력
 
-| 기능 | 설명 | 상태 |
-|------|------|------|
-| JSON 저장 | 씬 전체 맵 데이터를 JSON으로 직렬화 | ✅ |
-| JSON 로드 | 저장된 맵 JSON 파일 불러오기 | ✅ |
-| MainEditor 연동 | 출력 JSON을 MainEditor 로드 파이프라인 포맷에 맞춰 출력 | 구현 예정 |
-| UE JSON 임포터 | 원본 게임 레벨 데이터(UE5 추출 JSON)를 읽어 맵 에디터 오브젝트로 자동 변환 | **현재 작업** |
+| 기능 | 상태 |
+|------|------|
+| JSON 저장 | ✅ |
+| JSON 로드 | ✅ |
+| UE5 FModel JSON 임포터 | ✅ |
+| MainEditor 연동 | 구현 예정 |
 
----
+### 볼륨 / 존
 
-## 개발 단계 (Phase)
+| 기능 | 상태 |
+|------|------|
+| 트리거 볼륨 | 구현 예정 |
+| 인카운터 존 | 구현 예정 |
+| Post-processing Volume | 구현 예정 |
+| Volumetric Fog 존 | 구현 예정 |
+| Camera Zone | 구현 예정 |
+| Ambient Sound Zone | 구현 예정 |
+| 포털 / 존 전환 | 구현 예정 |
 
-### Phase 1 — 에디터 기반 ✅
-1. ✅ `MapEditor.cpp` 진입점 교체 (엔진 초기화, 60FPS 게임루프, ImGui WndProc, DPI 처리)
-2. ✅ `MapEditorApp` 클래스 (`Engine::Base` 상속, Initialize / Update / Render / Free)
-3. ✅ ImGui 초기화 및 도킹 레이아웃 (`MEImGuiManager`, `MEManager`, DockBuilder 초기 배치)
-4. ✅ 기본 패널 4종 표시 — Viewport / Hierarchy / Inspector / Asset Browser
-5. ✅ 에디터 전용 카메라 및 뷰포트 렌더링 (`MECamera`, `RenderTarget` RT → ImGui::Image)
-6. ✅ 기즈모 (Translate / Rotate / Scale) — ImGuizmo, W/E/R 단축키, SceneContext 연동
+### 물리 / 내비게이션
 
-### Phase 2 — 핵심 오브젝트 편집
-7. ✅ `EditorObject` / `SceneContext` 구현
-8. ✅ Hierarchy 패널 (오브젝트 목록, 선택/추가/삭제/복제/이름변경, Gizmo 연동)
-9. ✅ Inspector 패널 (Transform 실시간 편집, Gizmo 양방향 연동)
-10. ✅ JSON 저장 / 로드
-    - ✅ 10-1. 내부 맵 JSON 저장 (`SceneContext` → `MapData` JSON 직렬화)
-    - ✅ 10-2. 내부 맵 JSON 로드 (JSON → `EditorObject` 복원, SceneContext 재구성)
-    - ✅ 10-3. PanelAssetBrowser — 폴더 탭(SaveJson/OriginJson) + 더블클릭 로드 + Windows 파일 다이얼로그
-    - ✅ 10-4. MEManager File 메뉴 — Save Map / Open Map 다이얼로그 연결
-11. UE5 레벨 JSON 임포터 ← **현재 작업**
-    - 11-1. UE5 FModel JSON 파싱 (InstancedStaticMeshComponent 우선)
-    - 11-2. 좌표계 변환 (Translation cm→엔진단위, 축 스왑, Quat 변환)
-    - 11-3. 에셋 경로 매핑 테이블 (`asset_map.json`) 로드
-    - 11-4. `EditorObject` 일괄 생성 → SceneContext 배치
-12. 정적 메시 뷰포트 렌더링 ← **Assimp 리팩토링 완료 후**
-    - 12-1. `MEStaticMeshActor` 신규 클래스 (Model + Shader 직접 렌더)
-    - 12-2. `EditorObject`에 `renderHandle` 연결
-    - 12-3. `SceneContext`에 `meshShader` 추가
-    - 12-4. `MapEditorApp` — 셰이더 초기화 + RT 내 씬 렌더 루프
-    - 12-5. `PanelAssetBrowser` — 모델 파일 스캔 + 더블클릭 배치
-13. 라이트 배치 및 속성 편집
-
-### Phase 3 — 볼륨 / 환경
-13. 인카운터 존, 트리거 볼륨, 스폰 포인트
-14. Post-processing Volume, Volumetric Fog 존
-15. Camera Zone 파라미터 편집
-16. Ambient Sound Zone
-17. Water 배치, 파티클 배치
-18. 지형 시스템 (방식 확정 후)
-
-### Phase 4 — 내비 / AI
-19. 웨이포인트, 포털 / 존 전환
-20. Recast 엔진 통합 → NavMesh 베이크 및 시각화
-
-### Phase 5 — 물리 / 최적화
-21. PhysX 엔진 통합 → 콜라이더 편집, 지형 충돌
-22. 인스턴싱 그룹, Occlusion Volume
+| 기능 | 상태 |
+|------|------|
+| 콜라이더 편집 | 구현 예정 |
+| PhysX 지형 충돌 | 엔진 PhysX 통합 후 |
+| NavMesh 베이크/시각화 | 엔진 Recast 통합 후 |
+| 웨이포인트 | 구현 예정 |
+| 스폰 포인트 | 구현 예정 |
 
 ---
 
@@ -223,25 +208,18 @@ MEStaticMeshActor                                     — 에디터 뷰포트 �
 |------------|------|------|
 | DirectX 11 | 렌더링 | 통합 완료 |
 | DirectXTK | 유틸리티 | 통합 완료 |
-| Assimp | 메시 임포트 | 통합 완료 |
+| Assimp | 메시 임포트 | 통합 완료, 엔진 리팩토링 대기 |
 | nlohmann/json | 데이터 직렬화 | 통합 완료 |
 | ImGui | UI | 통합 완료 |
-| PhysX 5.5.0 | 물리 충돌 / BVH | vcpkg 설치 완료, **엔진 통합 필요** |
-| Recast/Detour | 내비게이션 메시 | **미설치 — 엔진 통합 필요** |
+| PhysX 5.5.0 | 물리 충돌 | vcpkg 설치 완료, 엔진 통합 필요 |
+| Recast/Detour | 내비게이션 메시 | 미설치, 엔진 통합 필요 |
 
 ---
 
 ## JSON 출력 포맷
 
-기존 엔진의 `DT_StaticLevel.json` / `DT_GameObject.json` 포맷을 따라  
-MainEditor에서 추가 파싱 없이 바로 로드 가능하도록 설계.
-
-- MainEditor 구조: `MainEditor/Default/MainEditor.cpp`, `MainEditor/Public/MainEditorApp.h`
-- 엔진 정의: `Engine/Public/Engine_Define.h`
-- 기존 데이터 포맷: `Client` 프로젝트의 `DT_StaticLevel.json`, `DT_GameObject.json`
-
-**Rotation은 쿼터니언 [X, Y, Z, W] 으로 저장.**  
-Inspector UI에서는 오일러 각도로 변환해서 표시하고, 편집 후 다시 쿼터니언으로 저장. (Unity와 동일 방식)
+MainEditor에서 추가 파싱 없이 바로 로드 가능하도록 설계.  
+Rotation은 쿼터니언 [X, Y, Z, W]으로 저장. Inspector는 오일러(도) 변환 표시.
 
 ```json
 {
@@ -257,38 +235,10 @@ Inspector UI에서는 오일러 각도로 변환해서 표시하고, 편집 후 
                 "ColliderType": "Mesh"
             }
         ],
-        "Lights": [
-            {
-                "Type": "Directional",
-                "Direction": [0.0, -1.0, 0.0],
-                "Diffuse": [1.0, 1.0, 1.0, 1.0],
-                "Intensity": 1.0
-            }
-        ],
-        "PostProcessVolumes": [
-            {
-                "Bounds": { "Min": [-10, -10, -10], "Max": [10, 10, 10] },
-                "BloomIntensity": 1.5,
-                "FogDensity": 0.02,
-                "ColorGrading": { "Saturation": 1.2, "Contrast": 1.1 }
-            }
-        ],
-        "EncounterZones": [
-            {
-                "Id": "Encounter_01",
-                "Bounds": { "Min": [0, 0, 0], "Max": [20, 5, 20] },
-                "EnemyGroupId": "EnemyGroup_Forest_01"
-            }
-        ],
-        "CameraZones": [
-            {
-                "Id": "CamZone_01",
-                "Bounds": { "Min": [0, 0, 0], "Max": [10, 5, 10] },
-                "FOV": 60.0,
-                "FixedAngle": false,
-                "TransitionTime": 0.5
-            }
-        ],
+        "Lights": [],
+        "PostProcessVolumes": [],
+        "EncounterZones": [],
+        "CameraZones": [],
         "SpawnPoints": [],
         "Waypoints": [],
         "Triggers": [],
@@ -299,93 +249,32 @@ Inspector UI에서는 오일러 각도로 변환해서 표시하고, 편집 후 
 
 ---
 
-## UE5 레벨 데이터 임포트
+## UE5 레벨 데이터 임포트 ✅
 
-원본 게임(Expedition 33)의 레벨 데이터를 UE5 에셋 추출 툴로 JSON으로 뽑는 데 성공.  
-이 데이터를 기반으로 맵 배치를 자동 임포트하는 파이프라인을 구축한다.
+FModel로 추출한 레벨 JSON을 MapEditor 오브젝트로 자동 변환.  
+파일: `Client/Bin/Resources/Map/OriginJson/`  
+Asset Browser → Origin Maps 탭 → 더블클릭으로 임포트.
 
-### 추출된 데이터 구조 (FModel 실제 포맷)
+### 파싱 대상
 
-FModel로 추출한 실제 JSON은 컴포넌트 단위로 구성됨.  
-현재 임포트 대상: `InstancedStaticMeshComponent` (대량 반복 오브젝트), `StaticMeshComponent` (단일 오브젝트)
-
-**InstancedStaticMeshComponent** (바위, 식물 등 인스턴스 다수):
-```json
-{
-  "Type": "InstancedStaticMeshComponent",
-  "Properties": {
-    "StaticMesh": {
-      "ObjectPath": "/Game/EnviroPacks/.../SM_Small_Rock_4.2"
-    }
-  },
-  "PerInstanceSMData": [
-    {
-      "TransformData": {
-        "Rotation": { "X": -0.312, "Y": 0.012, "Z": 0.651, "W": 0.688 },
-        "Translation": { "X": 360.9, "Y": -1134.9, "Z": -385.1 },
-        "Scale3D": { "X": 3.558, "Y": 3.558, "Z": 3.558 }
-      }
-    }
-  ]
-}
-```
-
-**StaticMeshComponent** (단일 배치):
-```json
-{
-  "Type": "StaticMeshComponent",
-  "Properties": {
-    "StaticMesh": { "ObjectPath": "/Game/..." },
-    "RelativeLocation": { "X": -26.1, "Y": -118.8, "Z": 0.0 },
-    "RelativeRotation": { "Pitch": 86.9, "Yaw": -12.6, "Roll": 0.0 },
-    "RelativeScale3D":  { "X": 1.0, "Y": 1.0, "Z": 1.0 }
-  }
-}
-```
+| Type | 트랜스폼 위치 | 비고 |
+|------|-------------|------|
+| `InstancedStaticMeshComponent` | `PerInstanceSMData[].TransformData` | Quat + Translation + Scale |
+| `StaticMeshComponent` | `Properties.RelativeLocation/Rotation/Scale3D` | Euler(Pitch/Yaw/Roll) |
 
 ### 좌표계 변환 (UE5 → DirectX)
 
-| 항목 | UE5 | DirectX (엔진) |
-|------|-----|----------------|
-| 핸드니스 | 왼손 | 왼손 |
-| Up 축 | Z | Y |
-| Forward 축 | X | Z |
-| 단위 | 센티미터 (cm) | 미터 (m) 또는 엔진 단위 |
-
 ```cpp
-// Translation 변환 (cm → 엔진 단위, 축 스왑)
+// Translation (cm → 엔진 단위, Z↑ → Y↑)
 DX.x =  UE.x / 100.f;
-DX.y =  UE.z / 100.f;   // Z → Y (Up)
-DX.z =  UE.y / 100.f;   // Y → Z (Forward)
+DX.y =  UE.z / 100.f;
+DX.z =  UE.y / 100.f;
 
-// Quaternion 변환 (축 스왑 + 핸드니스 반전)
-DX_Quat.x =  UE_Quat.x;
-DX_Quat.y =  UE_Quat.z;
-DX_Quat.z =  UE_Quat.y;
-DX_Quat.w = -UE_Quat.w;
+// Quaternion (축 스왑 + W 반전)
+DX_Quat = Quat(UE.x, UE.z, UE.y, -UE.w);
 ```
 
-### 임포터 파이프라인
+### 지형 데이터
 
-```
-UE JSON 파일 로드
-    ↓
-Actor Type 분류 (StaticMesh / Light / AmbientSound / Trigger 등)
-    ↓
-TransformData 파싱 + 좌표계 변환
-    ↓
-에셋 경로 매핑 테이블 적용 (UE "/Game/..." 경로 → 로컬 경로)
-    ↓
-맵 에디터 내부 오브젝트로 생성 및 씬 배치
-    ↓
-확인 후 내부 JSON 포맷으로 저장
-```
-
-### 에셋 경로 매핑
-
-```json
-{
-    "/Game/Meshes/Environment/Rock_01": "Data/Models/Rock_01.bin",
-    "/Game/Meshes/Environment/Tree_01": "Data/Models/Tree_01.bin"
-}
-```
+UE5 Landscape는 FModel 레벨 JSON에 포함되지 않음 (별도 스트리밍 에셋).  
+지형 처리 방식은 Phase 3에서 결정.

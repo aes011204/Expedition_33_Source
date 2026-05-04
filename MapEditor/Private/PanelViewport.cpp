@@ -44,7 +44,7 @@ void PanelViewport::Render()
 
             ImGui::Image(reinterpret_cast<ImTextureID>(_rt->Get_SRV()), size);
 
-            if (_camera && _ctx && _ctx->selected)
+            if (_camera && _ctx && _ctx->_selected)
             {
                 const ImVec2 winPos = ImGui::GetWindowPos();
                 const ImVec2 winSize = ImGui::GetWindowSize();
@@ -72,16 +72,16 @@ void PanelViewport::Render()
                 memcpy(view, &_camera->GetView(), sizeof(float) * 16);
                 memcpy(proj, &_camera->GetProj(), sizeof(float) * 16);
                 float mat[16] = {};
-                memcpy(mat, &_ctx->selected->worldMatrix, sizeof(float) * 16);
+                memcpy(mat, &_ctx->_selected->_worldMatrix, sizeof(float) * 16);
 
                 const bool manipulated = ImGuizmo::Manipulate(view, proj, _gizmoOp, _gizmoMode, mat);
                 if (manipulated)
                 {
-                    memcpy(&_ctx->selected->worldMatrix, mat, sizeof(float) * 16);
-                    _ctx->selected->worldMatrix.Decompose(
-                        _ctx->selected->scale,
-                        _ctx->selected->rotation,
-                        _ctx->selected->position);
+                    memcpy(&_ctx->_selected->_worldMatrix, mat, sizeof(float) * 16);
+                    _ctx->_selected->_worldMatrix.Decompose(
+                        _ctx->_selected->_scale,
+                        _ctx->_selected->_rotation,
+                        _ctx->_selected->_position);
                 }
             }
         }

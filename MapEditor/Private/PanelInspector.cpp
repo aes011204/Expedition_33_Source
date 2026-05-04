@@ -13,7 +13,7 @@ void MapEditor::PanelInspector::Render()
     bool open = IsOpen();
     if (ImGui::Begin("Inspector", &open))
     {
-        if (!_ctx || !_ctx->selected)
+        if (!_ctx || !_ctx->_selected)
         {
             ImGui::TextDisabled("(선택된 오브젝트 없음)");
             ImGui::End();
@@ -21,19 +21,19 @@ void MapEditor::PanelInspector::Render()
             return;
         }
 
-        auto& obj = _ctx->selected;
+        auto& obj = _ctx->_selected;
         bool changed = false;
 
         if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen))
         {
-            float pos[3] = { obj->position.x, obj->position.y, obj->position.z };
+            float pos[3] = { obj->_position.x, obj->_position.y, obj->_position.z };
             if (ImGui::DragFloat3("Position", pos, 0.1f))
             {
-                obj->position = Vec3(pos[0], pos[1], pos[2]);
+                obj->_position = Vec3(pos[0], pos[1], pos[2]);
                 changed = true;
             }
 
-            Matrix rotMat = Matrix::CreateFromQuaternion(obj->rotation);
+            Matrix rotMat = Matrix::CreateFromQuaternion(obj->_rotation);
 
             float pitch = {}, yaw = {}, roll = {};
             pitch = asinf(-rotMat._32);
@@ -56,7 +56,7 @@ void MapEditor::PanelInspector::Render()
 
             if (ImGui::DragFloat3("Rotation", euler, 0.5f))
             {
-                obj->rotation = Quat::CreateFromYawPitchRoll(
+                obj->_rotation = Quat::CreateFromYawPitchRoll(
                     XMConvertToRadians(euler[1]),
                     XMConvertToRadians(euler[0]),
                     XMConvertToRadians(euler[2]));
@@ -64,10 +64,10 @@ void MapEditor::PanelInspector::Render()
                 changed = true;
             }
 
-            float scl[3] = { obj->scale.x,obj->scale.y, obj->scale.z };
+            float scl[3] = { obj->_scale.x,obj->_scale.y, obj->_scale.z };
             if (ImGui::DragFloat3("Scale", scl, 0.01f))
             {
-                obj->scale = Vec3(scl[0], scl[1], scl[2]);
+                obj->_scale = Vec3(scl[0], scl[1], scl[2]);
                 changed = true;
             }
         }

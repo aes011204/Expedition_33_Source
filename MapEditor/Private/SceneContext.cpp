@@ -6,21 +6,82 @@ void SceneContext::SaveToFile(const string& filePath)
     json root;
     json& map = root["MapData"];
 
-    map["MapName"] = String::ToString(mapName);
+    map["MapName"] = String::ToString(_mapName);
 
-    json meshArray = json::array();
-    for (auto& obj : objects)
+    json staticMeshes = json::array();
+    json spawnPoints = json::array();
+    json encounterZones = json::array();
+    json triggerVolumes = json::array();
+    json cameraZones = json::array();
+    json postProcessVols = json::array();
+
+    for (auto& obj : _objects)
     {
-        json entry;
-        entry["Id"] = String::ToString(obj->name);
-        entry["ModelPath"] = String::ToString(obj->modelPath);
-        entry["Position"] = { obj->position.x, obj->position.y, obj->position.z };
-        entry["Rotation"] = { obj->rotation.x, obj->rotation.y, obj->rotation.z, obj->rotation.w };
-        entry["Scale"] = { obj->scale.x, obj->scale.y, obj->scale.z };
-        meshArray.push_back(entry);
+        json e;
+        e["Id"] = String::ToString(obj->_name);
+        e["Position"] = { obj->_position.x, obj->_position.y, obj->_position.z };
+        e["Rotation"] = { obj->_rotation.x, obj->_rotation.y, obj->_rotation.z, obj->_rotation.w };
+
+        switch (obj->_type)
+        {
+        case EObjectType::StaticMesh:
+            e["ModelPath"] = String::ToString(obj->_modelPath);
+            e["Scale"] = { obj->_scale.x, obj->_scale.y, obj->_scale.z };
+            staticMeshes.push_back(e);
+            break;
+
+        case EObjectType::SpawnPoint:
+            spawnPoints.push_back(e);
+            break;
+
+        case EObjectType::EncounterZone:
+            e["Shape"] = (obj->_zoneShape == EZoneShape::Box) ? "Box" : "Sphere";
+            e["Extent"] = { obj->_zoneExtent.x, obj->_zoneExtent.y, obj->_zoneExtent.z };
+            e["Radius"] = obj->_zoneRadius;
+            e["EnemyGroupId"] = obj->_zoneId;
+            encounterZones.push_back(e);
+            break;
+
+        case EObjectType::TriggerVolume:
+            e["Shape"] = (obj->_zoneShape == EZoneShape::Box) ? "Box" : "Sphere";
+            e["Extent"] = { obj->_zoneExtent.x, obj->_zoneExtent.y, obj->_zoneExtent.z };
+            e["Radius"] = obj->_zoneRadius;
+            e["EventId"] = obj->_zoneId;
+            triggerVolumes.push_back(e);
+            break;
+
+        case EObjectType::CameraZone:
+            e["Shape"] = (obj->_zoneShape == EZoneShape::Box) ? "Box" : "Sphere";
+            e["Extent"] = { obj->_zoneExtent.x, obj->_zoneExtent.y, obj->_zoneExtent.z };
+            e["Radius"] = obj->_zoneRadius;
+            e["FOV"] = obj->_cameraFov;
+            e["FixedAngle"] = obj->_cameraFixedAngle;
+            e["TransitionTime"] = obj->_cameraTransitionTime;
+            cameraZones.push_back(e);
+            break;
+
+        case EObjectType::PostProcessVolume:
+            e["Shape"] = (obj->_zoneShape == EZoneShape::Box) ? "Box" : "Sphere";
+            e["Extent"] = { obj->_zoneExtent.x, obj->_zoneExtent.y, obj->_zoneExtent.z };
+            e["Radius"] = obj->_zoneRadius;
+            e["BloomIntensity"] = obj->_ppBloomIntensity;
+            e["ExposureMin"] = obj->_ppExposureMin;
+            e["ExposureMax"] = obj->_ppExposureMax;
+            e["FogDensity"] = obj->_ppFogDensity;
+            e["FogColor"] = { obj->_ppFogColor.x, obj->_ppFogColor.y, obj->_ppFogColor.z };
+            postProcessVols.push_back(e);
+            break;
+        default:
+            break;
+        }
     }
 
-    map["StaticMeshes"] = meshArray;
+    map["StaticMeshes"] = staticMeshes;
+    map["SpawnPoints"] = spawnPoints;
+    map["EncounterZones"] = encounterZones;
+    map["TriggerVolumes"] = triggerVolumes;
+    map["CameraZones"] = cameraZones;
+    map["PostProcessVolumes"] = postProcessVols;
 
     ofstream ofs(filePath);
     ofs << root.dump(4);
@@ -37,28 +98,121 @@ void SceneContext::LoadFromFile(const string& filePath)
     json root = json::parse(ifs);
     const json& map = root["MapData"];
 
-    mapName = String::ToWString(map["MapName"].get<string>());
+    _mapName = String::ToWString(map["MapName"].get<string>());
 
-    objects.clear();
-    selected = nullptr;
+    _objects.clear();
+    _selected = nullptr;
 
-    for (auto& entry : map["StaticMeshes"])
+    auto LoadTransform = [](const json& e, EditorObject& obj) {
+        auto& pos = e["Position"];
+        obj._position = { pos[0], pos[1], pos[2] };
+        auto& rot = e["Rotation"];
+        obj._rotation = { rot[0], rot[1], rot[2], rot[3] };
+        obj.UpdateWorldMatrix();
+        };
+
+    auto LoadZoneShape = [](const json& e, EditorObject& obj) {
+        string shape = e.value("Shape", "Box");
+        obj._zoneShape = magic_enum::enum_cast<EZoneShape>(shape).value_or(EZoneShape::Box);
+        if (e.contains("Extent"))
+        {
+            auto& ext = e["Extent"];
+            obj._zoneExtent = { ext[0], ext[1], ext[2] };
+        }
+        obj._zoneRadius = e.value("Radius", 5.f);
+        };
+
+    if (map.contains("StaticMeshes"))
     {
-        auto obj = make_shared<EditorObject>();
-        obj->name = String::ToWString(entry["Id"].get<string>());
-        obj->modelPath = String::ToWString(entry["ModelPath"].get<string>());
+        for (auto& e : map["StaticMeshes"])
+        {
+            auto obj = make_shared<EditorObject>();
+            obj->_type = EObjectType::StaticMesh;
+            obj->_name = String::ToWString(e["Id"].get<string>());
+            obj->_modelPath = String::ToWString(e.value("ModelPath", string{}));
+            auto& scl = e["Scale"];
+            obj->_scale = { scl[0], scl[1], scl[2] };
+            LoadTransform(e, *obj);
+            _objects.push_back(obj);
+        }
+    }
 
-        auto& pos = entry["Position"];
-        obj->position = { pos[0], pos[1], pos[2] };
+    if (map.contains("SpawnPoints"))
+    {
+        for (auto& e : map["SpawnPoints"])
+        {
+            auto obj = make_shared<EditorObject>();
+            obj->_type = EObjectType::SpawnPoint;
+            obj->_name = String::ToWString(e["Id"].get<string>());
+            LoadTransform(e, *obj);
+            _objects.push_back(obj);
+        }
+    }
 
-        auto& rot = entry["Rotation"];
-        obj->rotation = { rot[0], rot[1], rot[2] };
+    if (map.contains("EncounterZones"))
+    {
+        for (auto& e : map["EncounterZones"])
+        {
+            auto obj = make_shared<EditorObject>();
+            obj->_type = EObjectType::EncounterZone;
+            obj->_name = String::ToWString(e["Id"].get<string>());
+            obj->_zoneId = e.value("EnemyGroupId", string{});
+            LoadTransform(e, *obj);
+            LoadZoneShape(e, *obj);
+            _objects.push_back(obj);
+        }
+    }
 
-        auto& scl = entry["Scale"];
-        obj->scale = { scl[0], scl[1], scl[2] };
+    if (map.contains("TriggerVolumes"))
+    {
+        for (auto& e : map["TriggerVolumes"])
+        {
+            auto obj = make_shared<EditorObject>();
+            obj->_type = EObjectType::TriggerVolume;
+            obj->_name = String::ToWString(e["Id"].get<string>());
+            obj->_zoneId = e.value("EventId", string{});
+            LoadTransform(e, *obj);
+            LoadZoneShape(e, *obj);
+            _objects.push_back(obj);
+        }
+    }
 
-        obj->UpdateWorldMatrix();
-        objects.push_back(obj);
+    if (map.contains("CameraZones"))
+    {
+        for (auto& e : map["CameraZones"])
+        {
+            auto obj = make_shared<EditorObject>();
+            obj->_type = EObjectType::CameraZone;
+            obj->_name = String::ToWString(e["Id"].get<string>());
+            obj->_cameraFov = e.value("FOV", 60.f);
+            obj->_cameraFixedAngle = e.value("FixedAngle", false);
+            obj->_cameraTransitionTime = e.value("TransitionTime", 0.5f);
+            LoadTransform(e, *obj);
+            LoadZoneShape(e, *obj);
+            _objects.push_back(obj);
+        }
+    }
+
+    if (map.contains("PostProcessVolumes"))
+    {
+        for (auto& e : map["PostProcessVolumes"])
+        {
+            auto obj = make_shared<EditorObject>();
+            obj->_type = EObjectType::PostProcessVolume;
+            obj->_name = String::ToWString(e["Id"].get<string>());
+            obj->_ppBloomIntensity = e.value("BloomIntensity", 1.f);
+            obj->_ppExposureMin = e.value("ExposureMin", 0.f);
+            obj->_ppExposureMax = e.value("ExposureMax", 2.f);
+            obj->_ppFogDensity = e.value("FogDensity", 0.f);
+            if (e.contains("FogColor"))
+            {
+                auto& c = e["FogColor"];
+                obj->_ppFogColor = { c[0], c[1], c[2] };
+            }
+            LoadTransform(e, *obj);
+            LoadZoneShape(e, *obj);
+            _objects.push_back(obj);
+        }
     }
 }
 
@@ -66,7 +220,7 @@ void SceneContext::Add(Shared<EditorObject> obj)
 {
     if (obj)
     {
-        objects.push_back(move(obj));
+        _objects.push_back(move(obj));
     }
 }
 
@@ -76,17 +230,17 @@ void SceneContext::Remove(const Shared<EditorObject>& obj)
     {
         return;
     }
-    auto it = find(objects.begin(), objects.end(), obj);
-    if (it == objects.end())
+    auto it = find(_objects.begin(), _objects.end(), obj);
+    if (it == _objects.end())
     {
         return;
     }
 
-    if (obj == selected)
+    if (obj == _selected)
     {
-        selected = nullptr;
+        _selected = nullptr;
     }
-    objects.erase(it);
+    _objects.erase(it);
 }
 
 Shared<EditorObject> SceneContext::Duplicate(const Shared<EditorObject>& src)
@@ -96,7 +250,7 @@ Shared<EditorObject> SceneContext::Duplicate(const Shared<EditorObject>& src)
         return nullptr;
     }
     auto copy = make_shared<EditorObject>(*src);
-    copy->name = src->name + L"_Copy";
-    objects.push_back(copy);
+    copy->_name = src->_name + L"_Copy";
+    _objects.push_back(copy);
     return copy;
 }

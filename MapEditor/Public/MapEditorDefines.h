@@ -25,8 +25,62 @@ namespace MapEditor
     inline constexpr uint32 g_iWinSizeX = 1600u;
     inline constexpr uint32 g_iWinSizeY = 900u;
 
-    inline const char* g_MapSavePath = "../../Client/Bin/Resources/Map/SaveJson/";
-    inline const char* g_MapOriginPath = "../../Client/Bin/Resources/Map/OriginJson/";
+    inline const char* _mapSavePath = "../../Client/Bin/Resources/Map/SaveJson/";
+    inline const char* _mapOriginPath = "../../Client/Bin/Resources/Map/OriginJson/";
+
+    enum class EObjectType
+    {
+        StaticMesh,
+        SpawnPoint,
+        EncounterZone,
+        TriggerVolume,
+        CameraZone,
+        PostProcessVolume,
+        Fail
+    };
+
+    enum class EZoneShape
+    {
+        Box,
+        Sphere
+    };
+
+    inline const char* ObjectTypeLabel(EObjectType t)
+    {
+        switch (t)
+        {
+        case MapEditor::EObjectType::StaticMesh:
+            return "[SM]";
+        case MapEditor::EObjectType::SpawnPoint:
+            return "[SP]";
+        case MapEditor::EObjectType::EncounterZone:
+            return "[EZ]";
+        case MapEditor::EObjectType::TriggerVolume:
+            return "[TV]";
+        case MapEditor::EObjectType::CameraZone:
+            return "[CZ]";
+        case MapEditor::EObjectType::PostProcessVolume:
+            return "[PP]";
+        case MapEditor::EObjectType::Fail:
+        default:
+            return "[??]";
+        }
+    }
+
+    inline const char* ObjectTypeName(EObjectType t)
+    {
+        return magic_enum::enum_name(t).data();
+    }
+
+    inline EObjectType ObjectTypeFromName(const string& name)
+    {
+        optional<EObjectType> obj = magic_enum::enum_cast<EObjectType>(name);
+        if (obj.has_value())
+        {
+            return obj.value();
+        }
+        return EObjectType::Fail;
+    }
 };
 
 using namespace MapEditor;

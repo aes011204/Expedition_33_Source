@@ -108,9 +108,9 @@ void MEManager::RenderDockSpace()
         {
             if (ImGui::MenuItem("New Map"))
             {
-                _ctx->objects.clear();
-                _ctx->selected = nullptr;
-                _ctx->mapName = L"Untitled";
+                _ctx->_objects.clear();
+                _ctx->_selected = nullptr;
+                _ctx->_mapName = L"Untitled";
                 _currentMapPath = "Stage_01.json";
             }
 
@@ -122,7 +122,7 @@ void MEManager::RenderDockSpace()
                 ofn.lpstrFilter = "JSON Files\0*.json\0All Files\0*.*\0";
                 ofn.lpstrFile = buf;
                 ofn.nMaxFile = MAX_PATH;
-                ofn.lpstrInitialDir = g_MapSavePath;
+                ofn.lpstrInitialDir = _mapSavePath;
                 ofn.Flags = OFN_FILEMUSTEXIST;
                 if (GetOpenFileNameA(&ofn))
                 {
@@ -138,7 +138,7 @@ void MEManager::RenderDockSpace()
                 ofn.lpstrFilter = "JSON Files\0*.json\0All Files\0*.*\0";
                 ofn.lpstrFile = buf;
                 ofn.nMaxFile = MAX_PATH;
-                ofn.lpstrInitialDir = g_MapSavePath;
+                ofn.lpstrInitialDir = _mapSavePath;
                 ofn.lpstrDefExt = "json";
                 ofn.Flags = OFN_OVERWRITEPROMPT;
                 if (GetSaveFileNameA(&ofn))
