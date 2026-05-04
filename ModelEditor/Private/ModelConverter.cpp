@@ -214,134 +214,128 @@ namespace ModelEditor
 
 	void ModelConverter::ReadMeshes(const aiScene* aiScene)
 	{
-		for (uint32 i = 0; i < aiScene->mNumMeshes; ++i)
-		{
-			ModelMeshData meshData{};
-			const aiMesh* aiMesh = aiScene->mMeshes[i];
+        for (uint32 i = 0; i < aiScene->mNumMeshes; ++i)
+        {
+            ModelMeshData meshData{};
+            const aiMesh* aiMesh = aiScene->mMeshes[i];
+            strncpy_s(meshData.name, aiMesh->mName.C_Str(), maxModelNameSize - 1);
+            meshData.materialIndex = aiMesh->mMaterialIndex;
+            meshData.numVertices = aiMesh->mNumVertices;
+            meshData.numIndices = aiMesh->mNumFaces * 3;
 
-			strncpy_s(meshData.name, aiMesh->mName.C_Str(), maxModelNameSize - 1);
-			meshData.materialIndex = aiMesh->mMaterialIndex;
-			meshData.numVertices = aiMesh->mNumVertices;
-			meshData.numIndices = aiMesh->mNumFaces * 3;
+            // [추가됨] 포인터 필드들을 미리 0(nullptr)으로 밀어서 바이너리에 쓰레기값이 기록되는 것을 방지
+            meshData.vertices = nullptr;
+            meshData.indices = nullptr;
+            meshData.boneIndices = nullptr;
+            meshData.offsetMatrices = nullptr;
 
-			vector<uint32> index;
-			for (uint32 j = 0; j < aiMesh->mNumFaces; ++j)
-			{
-				for (uint32 k = 0; k < 3; ++k)
-				{
-					index.push_back(aiMesh->mFaces[j].mIndices[k]);
-				}
-			}
-
-			if (_isSkeletal)
-			{
-				vector<uint32> boneRefs;
-				vector<Matrix> offsets;
-				vector<VTXANIMMESH> vertices(aiMesh->mNumVertices, VTXANIMMESH{});
-
-				for (uint32 j = 0; j < aiMesh->mNumVertices; ++j)
-				{
-					vertices[j].position = Vec3{ aiMesh->mVertices[j].x, aiMesh->mVertices[j].y, aiMesh->mVertices[j].z };
-					if (aiMesh->HasNormals())
-					{
-						vertices[j].normal = Vec3{ aiMesh->mNormals[j].x, aiMesh->mNormals[j].y, aiMesh->mNormals[j].z };
-					}
-					if (aiMesh->HasTangentsAndBitangents())
-					{
-						vertices[j].tangent = Vec3{ aiMesh->mTangents[j].x, aiMesh->mTangents[j].y, aiMesh->mTangents[j].z };
-						vertices[j].binormal = Vec3{ aiMesh->mBitangents[j].x, aiMesh->mBitangents[j].y, aiMesh->mBitangents[j].z };
-					}
-					if (aiMesh->HasTextureCoords(0))
-					{
-						vertices[j].texcoord = Vec2{ aiMesh->mTextureCoords[0][j].x, aiMesh->mTextureCoords[0][j].y };
-					}
-				}
-
-				for (uint32 j = 0; j < aiMesh->mNumBones; ++j)
-				{
-					const aiBone* aiBone = aiMesh->mBones[j];
-					string boneName = aiBone->mName.C_Str();
-
-					if (false == _boneNameMap.contains(boneName))
-					{
-						ModelBoneData boneData{};
-						strncpy_s(boneData.name, boneName.c_str(), maxModelNameSize - 1);
-						boneData.offsetMatrix = Convert_Matrix(aiBone->mOffsetMatrix);
-						boneData.nodeIndex = FindNodeIndex(boneName.c_str());
-						_boneNameMap[boneName] = static_cast<uint32>(_bones.size());
-						_bones.push_back(boneData);
-					}
-
-					boneRefs.push_back(_boneNameMap[boneName]);
-					offsets.push_back(Convert_Matrix(aiBone->mOffsetMatrix).Transpose());
-
-					for (uint32 k = 0; k < aiBone->mNumWeights; ++k)
-					{
-						uint32 vertexIndex = aiBone->mWeights[k].mVertexId;
-						float weight = aiBone->mWeights[k].mWeight;
-
-						auto& vertex = vertices[vertexIndex];
-						if (vertex.blendWeight.x == 0.f)
-						{
-							vertex.blendIndex.x = j;
-							vertex.blendWeight.x = weight;
-						}
-						else if (vertex.blendWeight.y == 0.f)
-						{
-							vertex.blendIndex.y = j;
-							vertex.blendWeight.y = weight;
-						}
-						else if (vertex.blendWeight.z == 0.f)
-						{
-							vertex.blendIndex.z = j;
-							vertex.blendWeight.z = weight;
-						}
-						else if (vertex.blendWeight.w == 0.f)
-						{
-							vertex.blendIndex.w = j;
-							vertex.blendWeight.w = weight;
-						}
-					}
-				}
-
-				meshData.numBoneRefs = static_cast<uint32>(boneRefs.size());
-				_animVertices.push_back(move(vertices));
-				_meshBoneRefs.push_back(move(boneRefs));
-				_meshOffsets.push_back(move(offsets));
-				_staticVertices.push_back({});
-			}
-			else
-			{
-				vector<VTXMESH> vertices(aiMesh->mNumVertices, VTXMESH{});
-
-				for (uint32 j = 0; j < aiMesh->mNumVertices; ++j)
-				{
-					vertices[j].position = Vec3{ aiMesh->mVertices[j].x, aiMesh->mVertices[j].y, aiMesh->mVertices[j].z };
-					if (aiMesh->HasNormals())
-					{
-						vertices[j].normal = Vec3{ aiMesh->mNormals[j].x, aiMesh->mNormals[j].y, aiMesh->mNormals[j].z };
-					}
-					if (aiMesh->HasTangentsAndBitangents())
-					{
-						vertices[j].tangent = Vec3{ aiMesh->mTangents[j].x, aiMesh->mTangents[j].y, aiMesh->mTangents[j].z };
-						vertices[j].binormal = Vec3{ aiMesh->mBitangents[j].x, aiMesh->mBitangents[j].y, aiMesh->mBitangents[j].z };
-					}
-					if (aiMesh->HasTextureCoords(0))
-					{
-						vertices[j].texcoord = Vec2{ aiMesh->mTextureCoords[0][j].x, aiMesh->mTextureCoords[0][j].y };
-					}
-				}
-
-				meshData.numBoneRefs = 0;
-				_staticVertices.push_back(move(vertices));
-				_animVertices.push_back({});
-				_meshBoneRefs.push_back({});
-				_meshOffsets.push_back({});
-			}
-
-			_meshHeaders.push_back(meshData);
-			_indices.push_back(move(index));
-		}
+            vector<uint32> index;
+            for (uint32 j = 0; j < aiMesh->mNumFaces; ++j)
+            {
+                for (uint32 k = 0; k < 3; ++k)
+                {
+                    index.push_back(aiMesh->mFaces[j].mIndices[k]);
+                }
+            }
+            if (_isSkeletal)
+            {
+                vector<uint32> boneRefs;
+                vector<Matrix> offsets;
+                vector<VTXANIMMESH> vertices(aiMesh->mNumVertices, VTXANIMMESH{});
+                for (uint32 j = 0; j < aiMesh->mNumVertices; ++j)
+                {
+                    vertices[j].position = Vec3{ aiMesh->mVertices[j].x, aiMesh->mVertices[j].y, aiMesh->mVertices[j].z };
+                    if (aiMesh->HasNormals())
+                    {
+                        vertices[j].normal = Vec3{ aiMesh->mNormals[j].x, aiMesh->mNormals[j].y, aiMesh->mNormals[j].z };
+                    }
+                    if (aiMesh->HasTangentsAndBitangents())
+                    {
+                        vertices[j].tangent = Vec3{ aiMesh->mTangents[j].x, aiMesh->mTangents[j].y, aiMesh->mTangents[j].z };
+                        vertices[j].binormal = Vec3{ aiMesh->mBitangents[j].x, aiMesh->mBitangents[j].y, aiMesh->mBitangents[j].z };
+                    }
+                    if (aiMesh->HasTextureCoords(0))
+                    {
+                        vertices[j].texcoord = Vec2{ aiMesh->mTextureCoords[0][j].x, aiMesh->mTextureCoords[0][j].y };
+                    }
+                }
+                for (uint32 j = 0; j < aiMesh->mNumBones; ++j)
+                {
+                    const aiBone* aiBone = aiMesh->mBones[j];
+                    string boneName = aiBone->mName.C_Str();
+                    if (false == _boneNameMap.contains(boneName))
+                    {
+                        ModelBoneData boneData{};
+                        strncpy_s(boneData.name, boneName.c_str(), maxModelNameSize - 1);
+                        boneData.offsetMatrix = Convert_Matrix(aiBone->mOffsetMatrix);
+                        boneData.nodeIndex = FindNodeIndex(boneName.c_str());
+                        _boneNameMap[boneName] = static_cast<uint32>(_bones.size());
+                        _bones.push_back(boneData);
+                    }
+                    boneRefs.push_back(_boneNameMap[boneName]);
+                    offsets.push_back(Convert_Matrix(aiBone->mOffsetMatrix).Transpose());
+                    for (uint32 k = 0; k < aiBone->mNumWeights; ++k)
+                    {
+                        uint32 vertexIndex = aiBone->mWeights[k].mVertexId;
+                        float weight = aiBone->mWeights[k].mWeight;
+                        auto& vertex = vertices[vertexIndex];
+                        if (vertex.blendWeight.x == 0.f)
+                        {
+                            vertex.blendIndex.x = j;
+                            vertex.blendWeight.x = weight;
+                        }
+                        else if (vertex.blendWeight.y == 0.f)
+                        {
+                            vertex.blendIndex.y = j;
+                            vertex.blendWeight.y = weight;
+                        }
+                        else if (vertex.blendWeight.z == 0.f)
+                        {
+                            vertex.blendIndex.z = j;
+                            vertex.blendWeight.z = weight;
+                        }
+                        else if (vertex.blendWeight.w == 0.f)
+                        {
+                            vertex.blendIndex.w = j;
+                            vertex.blendWeight.w = weight;
+                        }
+                    }
+                }
+                meshData.numBoneRefs = static_cast<uint32>(boneRefs.size());
+                _animVertices.push_back(move(vertices));
+                _meshBoneRefs.push_back(move(boneRefs));
+                _meshOffsets.push_back(move(offsets));
+                _staticVertices.push_back({});
+            }
+            else
+            {
+                vector<VTXMESH> vertices(aiMesh->mNumVertices, VTXMESH{});
+                for (uint32 j = 0; j < aiMesh->mNumVertices; ++j)
+                {
+                    vertices[j].position = Vec3{ aiMesh->mVertices[j].x, aiMesh->mVertices[j].y, aiMesh->mVertices[j].z };
+                    if (aiMesh->HasNormals())
+                    {
+                        vertices[j].normal = Vec3{ aiMesh->mNormals[j].x, aiMesh->mNormals[j].y, aiMesh->mNormals[j].z };
+                    }
+                    if (aiMesh->HasTangentsAndBitangents())
+                    {
+                        vertices[j].tangent = Vec3{ aiMesh->mTangents[j].x, aiMesh->mTangents[j].y, aiMesh->mTangents[j].z };
+                        vertices[j].binormal = Vec3{ aiMesh->mBitangents[j].x, aiMesh->mBitangents[j].y, aiMesh->mBitangents[j].z };
+                    }
+                    if (aiMesh->HasTextureCoords(0))
+                    {
+                        vertices[j].texcoord = Vec2{ aiMesh->mTextureCoords[0][j].x, aiMesh->mTextureCoords[0][j].y };
+                    }
+                }
+                meshData.numBoneRefs = 0;
+                _staticVertices.push_back(move(vertices));
+                _animVertices.push_back({});
+                _meshBoneRefs.push_back({});
+                _meshOffsets.push_back({});
+            }
+            _meshHeaders.push_back(meshData);
+            _indices.push_back(move(index));
+        }
 	}
 
 	void ModelConverter::ReadMaterial(const aiScene* aiScene)
@@ -500,52 +494,56 @@ namespace ModelEditor
 
 	HRESULT ModelConverter::Export_ModelData(const aiScene* aiScene, const wstring& outputDir, const string& modelName)
 	{
-		wstring filePath = outputDir + Engine::String::ToWString(modelName) + L".model";
-		ofstream out(filePath, ios::binary);
-		if (!out.is_open()) return E_FAIL;
+        wstring filePath = outputDir + Engine::String::ToWString(modelName) + L".model";
+        ofstream out(filePath, ios::binary);
+        if (!out.is_open()) return E_FAIL;
 
-		uint32 numNodes = static_cast<uint32>(_nodes.size());
-		uint32 numMaterials = static_cast<uint32>(_matHeaders.size());
-		uint32 numMeshes = static_cast<uint32>(_meshHeaders.size());
-		uint32 numBones = static_cast<uint32>(_bones.size());
+        uint32 texSize = AI_TEXTURE_TYPE_MAX;
+        uint32 numNodes = static_cast<uint32>(_nodes.size());
+        uint32 numMaterials = static_cast<uint32>(_matHeaders.size());
+        uint32 numMeshes = static_cast<uint32>(_meshHeaders.size());
+        uint32 numBones = static_cast<uint32>(_bones.size());
 
-		out.write(BYTE(&_isSkeletal), sizeof(bool));
-		out.write(BYTE(&numNodes), sizeof(uint32));
-		out.write(BYTE(&numMaterials), sizeof(uint32));
-		out.write(BYTE(&numMeshes), sizeof(uint32));
-		out.write(BYTE(&numBones), sizeof(uint32));
+        out.write(BYTE(&_isSkeletal), sizeof(bool));
+        out.write(BYTE(&texSize), sizeof(uint32));
+        out.write(BYTE(&numNodes), sizeof(uint32));
+        out.write(BYTE(&numMaterials), sizeof(uint32));
+        out.write(BYTE(&numMeshes), sizeof(uint32));
+        out.write(BYTE(&numBones), sizeof(uint32));
+        out.write(BYTE(_nodes.data()), numNodes * sizeof(ModelNodeData));
 
-		out.write(BYTE(_nodes.data()), numNodes * sizeof(ModelNodeData));
+        for (uint32 i = 0; i < numMaterials; ++i)
+        {
+            out.write(BYTE(&_matHeaders[i]), sizeof(ModelMaterialData));
+            out.write(BYTE(_matSlots[i].data()), _matHeaders[i].numSlots * sizeof(ModelTextureSlot));
+        }
+        for (uint32 i = 0; i < numMeshes; ++i)
+        {
+            out.write(BYTE(&_meshHeaders[i]), sizeof(ModelMeshData));
 
-		for (uint32 i = 0; i < numMaterials; ++i)
-		{
-			out.write(BYTE(&_matHeaders[i]), sizeof(ModelMaterialData));
-			out.write(BYTE(_matSlots[i].data()), _matHeaders[i].numSlots * sizeof(ModelTextureSlot));
-		}
+            if (_isSkeletal)
+            {
+                out.write(BYTE(_animVertices[i].data()), _meshHeaders[i].numVertices * sizeof(VTXANIMMESH));
+                out.write(BYTE(_indices[i].data()), _meshHeaders[i].numIndices * sizeof(uint32));
 
-		for (uint32 i = 0; i < numMeshes; ++i)
-		{
-			out.write(BYTE(&_meshHeaders[i]), sizeof(ModelMeshData));
-			if (_isSkeletal)
-			{
-				out.write(BYTE(_meshBoneRefs[i].data()), _meshHeaders[i].numBoneRefs * sizeof(uint32));
-				out.write(BYTE(_meshOffsets[i].data()), _meshHeaders[i].numBoneRefs * sizeof(Matrix));
-				out.write(BYTE(_animVertices[i].data()), _meshHeaders[i].numVertices * sizeof(VTXANIMMESH));
-			}
-			else
-			{
-				out.write(BYTE(_staticVertices[i].data()), _meshHeaders[i].numVertices * sizeof(VTXMESH));
-			}
-			out.write(BYTE(_indices[i].data()), _meshHeaders[i].numIndices * sizeof(uint32));
-		}
-
-		if (numBones > 0)
-		{
-			out.write(BYTE(_bones.data()), numBones * sizeof(ModelBoneData));
-		}
-
-		out.close();
-		return S_OK;
+                if (_meshHeaders[i].numBoneRefs > 0)
+                {
+                    out.write(BYTE(_meshBoneRefs[i].data()), _meshHeaders[i].numBoneRefs * sizeof(uint32));
+                    out.write(BYTE(_meshOffsets[i].data()), _meshHeaders[i].numBoneRefs * sizeof(Matrix));
+                }
+            }
+            else
+            {
+                out.write(BYTE(_staticVertices[i].data()), _meshHeaders[i].numVertices * sizeof(VTXMESH));
+                out.write(BYTE(_indices[i].data()), _meshHeaders[i].numIndices * sizeof(uint32));
+            }
+        }
+        if (numBones > 0)
+        {
+            out.write(BYTE(_bones.data()), numBones * sizeof(ModelBoneData));
+        }
+        out.close();
+        return S_OK;
 	}
 
 	HRESULT ModelConverter::Export_AnimationData(const aiScene* aiScene, const wstring& outputDir, const string& modelName)

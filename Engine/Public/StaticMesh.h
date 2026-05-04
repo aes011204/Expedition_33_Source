@@ -1,9 +1,9 @@
 ﻿#pragma once
-#include "VIBuffer.h"
+#include "Mesh.h"
 
 NS_BEGIN(Engine)
 
-class StaticMesh final : public VIBuffer
+class StaticMesh final : public Mesh
 {
 public:
     StaticMesh(const ComPtr<Device>& device, const ComPtr<Context>& context);
@@ -11,32 +11,18 @@ public:
     ~StaticMesh() override = default;
 
 public:
-    uint32 Get_MaterialIndex() const { return _materialIndex; }
+    HRESULT Bind_BoneMatrices(ShaderCom* shader, const char* constantName, const vector<Shared<Bone>>& bones) override;
 
 public:
-    virtual HRESULT Initialize_Prototype(ModelType type, const aiMesh* aiMesh, class Model* model, FXMMATRIX preTransformMatrix);
+    HRESULT Initialize_Prototype(const ModelMeshData& meshData, const Matrix& preTransformMatrix);
     virtual HRESULT Initialize(void* arg) override;
 
-public:
-    HRESULT Bind_BoneMatrices(class Shader* shader, const char* constantName, const vector<Shared<class Bone>>& bones);
-
 private:
-    char					_name[MAX_PATH] = {};
-    uint32					_materialIndex = {};
-    uint32					_numBones = {};
-    vector<uint32>			_boneIndices;
-    XMFLOAT4X4				_boneMatrices[maxBoneCount] = {};
-    vector<XMFLOAT4X4>		_offsetMatrices;
-
-private:
-    HRESULT Ready_VertexBuffer_For_NonAnim(const aiMesh* aiMesh, FXMMATRIX preTransformMatrix);
-    HRESULT Ready_VertexBuffer_For_Anim(const aiMesh* aiMesh, class Model* model);
 
 public:
-    static Shared<StaticMesh> Create(const ComPtr<Device>& device, const ComPtr<Context>& context, ModelType type, const aiMesh* aiMesh, class Model* model, FXMMATRIX preTransformMatrix);
-    virtual Shared<Component> Clone(void* arg) override;
-    virtual void Free() override;
-
+    static Shared<StaticMesh> Create(const ComPtr<Device>& device, const ComPtr<Context>& context, const ModelMeshData& meshData, const Matrix& preTransformMatrix);
+    Shared<Component> Clone(void* arg) override;
+    void Free() override;
 
 };
 

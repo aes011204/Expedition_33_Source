@@ -13,7 +13,7 @@
 
 NS_BEGIN(ModelEditor)
 
-    ModelImGui_Manager::~ModelImGui_Manager()
+ModelImGui_Manager::~ModelImGui_Manager()
 {
 	Free();
 }

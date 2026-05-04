@@ -181,8 +181,8 @@
       <Filter>99. Defines\Helper</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Engine_Model_Struct.h">
-          <Filter>99. Defines</Filter>
-        </ClInclude>
+      <Filter>99. Defines</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\Engine_Function.h">
       <Filter>99. Defines</Filter>
     </ClInclude>
@@ -378,6 +378,12 @@
     <ClInclude Include="..\public\Prototype_Manager.h">
       <Filter>01.Utility\02. Prototype</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\StaticMesh.h">
+      <Filter>01.Utility\04.Component\Model\Mesh</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\SkeletalMesh.h">
+      <Filter>01.Utility\04.Component\Model\Mesh</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -544,6 +550,12 @@
     </ClCompile>
     <ClCompile Include="..\private\Prototype_Manager.cpp">
       <Filter>01.Utility\02. Prototype</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\StaticMesh.cpp">
+      <Filter>01.Utility\04.Component\Model\Mesh</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\SkeletalMesh.cpp">
+      <Filter>01.Utility\04.Component\Model\Mesh</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

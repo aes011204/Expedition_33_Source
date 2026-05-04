@@ -2,6 +2,7 @@
 
 using namespace::std;
 using namespace::Engine;
+using namespace::DirectX::SimpleMath;
 
 constexpr int32 maxModelNameSize = 256;
 constexpr int32 maxBoneCount = 512;
@@ -10,6 +11,7 @@ using ModelDataHeader = struct tagModelDataHeader
 {
     string modelName;
     bool   isSkeletal;
+    uint32 maxTextureSize;
     uint32 numNodes;
     uint32 numBones;
     uint32 numMeshes;
@@ -31,8 +33,11 @@ using ModelMeshData = struct tagModelMeshHeader
     uint32      numVertices{};
     uint32      numIndices{};
     uint32      numBoneRefs{};
+
     void*       vertices;
     void*       indices;
+    void*       boneIndices;   
+    void*       offsetMatrices;
 };
 
 using ModelBoneData = struct tagModelBone
@@ -92,6 +97,13 @@ using ModelChannelData = struct tagChannelData
     int32       boneIndex{ -1 };
     uint32      numKeyframes{};
     void*       keyframes;
+};
+
+using RootMotionFrame = struct tagRootMotionFrame
+{
+    Vec3 scale{ 1.f, 1.f, 1.f };
+    Quat rotation{ 0.f, 0.f, 0.f, 1.f };
+    Vec3 position{ 0.f, 0.f, 0.f };
 };
 
 

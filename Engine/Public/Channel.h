@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "Base.h"
 
@@ -13,17 +13,32 @@ public:
 	virtual ~Channel() = default;
 
 public:
-	HRESULT Initialize(const aiNodeAnim* aiChannel, class ModelCom* model);
-	void Update_TransformationMatrix(uint32* currentKeyFrameIndex, float currentTrackPosition, const vector<Shared<class Bone>>& bones);
-
-private:
-	vector<KEYFRAME>			_keyFrames;
-	uint32						_numKeyFrames = {};
-
-	int32						_boneIndex = { -1 };
+	int32 Get_BoneIndex() const { return _boneIndex; }
+	const RootMotionFrame& Get_TransformVelocity() const { return _frameDelta; }
 
 public:
-	static Shared<Channel> Create(const aiNodeAnim* aiChannel, class ModelCom* model);
+	HRESULT Initialize(const ModelChannelData& channelData);
+
+	void Update_TransformationMatrix(uint32& currentKeyFrameIndex, float currentTrackPosition, float duration,
+		const vector<Shared<class Bone>>& bones, int32 rootNodeIndex, bool isLoop);
+
+	void Get_ChannelTransform(float trackPosition, uint32& keyFrameIndex, float duration, bool isLoop, RootMotionFrame& outTransform);
+	void Update_Velocity(const RootMotionFrame& curTransform, float trackPosition);
+	void ResetVelocityState();
+
+private:
+	vector<KEYFRAME>		_keyFrames;
+	uint32					_numKeyFrames = {};
+	int32					_boneIndex = { -1 };
+
+	RootMotionFrame			_frameDelta{};
+	Vec3					_prevPos{};
+	Quat					_prevRot{ 0.f, 0.f, 0.f, 1.f };
+	float					_prevTrackPosition{ -1.f };
+	bool					_isFirstUpdate{ true };
+
+public:
+	static Shared<Channel> Create(const ModelChannelData& channelData);
 	virtual void Free() override;
 };
 

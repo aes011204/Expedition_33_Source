@@ -2,111 +2,94 @@
 #include "ShaderCom.h"
 
 Material::Material(const ComPtr<Device>& device, const ComPtr<Context>& context)
-    : _device { device }
-    , _context { context }
+	: _device{ device }, _context{ context } {}
+
+HRESULT Material::Initialize(const char* modelPath, const ModelMaterialData& materialData, const vector<ModelTextureSlot>& slots, uint32 maxTextureTypeSize)
 {
-}
+	_maxTextureTypeSize = maxTextureTypeSize;
+	_materials.resize(_maxTextureTypeSize);
 
-HRESULT Material::Initialize(const aiMaterial* aiMaterial, const char* modelFilePath)
-{
-    char               drive[MAX_PATH] = {};
-    char               dir[MAX_PATH] = {};
+	fs::path rootPath = fs::path(modelPath).parent_path();
 
-    _splitpath_s(modelFilePath, drive, MAX_PATH, dir, MAX_PATH, nullptr, 0, nullptr, 0);
+	for (const auto& slot : slots)
+	{
+		if (slot.typeIndex >= _maxTextureTypeSize)
+			continue;
 
+		TextureSlot texSlot{};
+		texSlot.typeIndex = slot.typeIndex;
+		texSlot.textureIndex = slot.textureIndex;
 
-    for (size_t i = 0; i < AI_TEXTURE_TYPE_MAX; i++)
-    {
-        uint32       numTextures = { aiMaterial->GetTextureCount(static_cast<aiTextureType>(i)) };
+		string texFileName = slot.path;
 
-        if (0 == numTextures)
-            continue;
+		if (!texFileName.empty())
+		{
+			wstring wFoundPath = Find_TextureFile(rootPath, texFileName);
 
-        _materials[i].reserve(numTextures);
-        
-        for (uint32 j = 0; j < numTextures; j++)
-        {
-            aiString          texturePath = {};           
+			if (!wFoundPath.empty())
+			{
+				ID3D11ShaderResourceView* srv = nullptr;
+				fs::path ext = fs::path(wFoundPath).extension();
 
+				HRESULT hr = (ext == ".dds" || ext == ".DDS")
+					? DirectX::CreateDDSTextureFromFile(_device.Get(), wFoundPath.c_str(), nullptr, &srv)
+					: DirectX::CreateWICTextureFromFile(_device.Get(), wFoundPath.c_str(), nullptr, &srv);
 
-            if (FAILED(aiMaterial->GetTexture(static_cast<aiTextureType>(i), j, &texturePath)))
-                continue;
+				if (SUCCEEDED(hr))
+					texSlot.shaderResourceView.Attach(srv);
+			}
+		}
 
-            char               fileName[MAX_PATH] = {};
-            char               ext[MAX_PATH] = {};
-
-            _splitpath_s(texturePath.C_Str(), nullptr, 0, nullptr, 0, fileName, MAX_PATH, ext, MAX_PATH);
-
-
-            char               fullPath[MAX_PATH] = {};
-
-            strcpy_s(fullPath, drive);
-            strcat_s(fullPath, dir);
-            strcat_s(fullPath, fileName);
-            strcat_s(fullPath, ext);
-
-
-            wchar_t              textureFilePath[MAX_PATH] = {};
-            MultiByteToWideChar(CP_ACP, 0, fullPath, -1, textureFilePath, MAX_PATH);
-
-            HRESULT         hr = {};
-            ComPtr<ID3D11ShaderResourceView> srv = nullptr;
-
-            if (false == strcmp(ext, (".dds")))
-                hr = CreateDDSTextureFromFile(_device.Get(), textureFilePath, nullptr, srv.GetAddressOf());
-
-            else if (false == strcmp(ext, (".tga")))
-                hr = E_FAIL;
-
-            else
-                hr = CreateWICTextureFromFile(_device.Get(), textureFilePath, nullptr, srv.GetAddressOf());
-
-            if (FAILED(hr))
-                return E_FAIL;
-
-            _materials[i].emplace_back(std::move(srv));
-        }
-
-     
-    }
-
-    return S_OK;
-}
-
-HRESULT Material::Bind_Material(ShaderCom* shader, const char* constantName, aiTextureType materialType, uint32 textureIndex)
-{
-    if (textureIndex >= _materials[materialType].size() ||
-        nullptr == _materials[materialType][textureIndex])
-        return E_FAIL;
-
-    shader->Bind_SRV(constantName, _materials[materialType][textureIndex].Get());
-
-    return S_OK;
-}
-
-Shared<Material> Material::Create(const ComPtr<Device>& device, const ComPtr<Context>& context, const aiMaterial* aiMaterial, const char* modelFilePath)
-{
-    auto instance = make_shared<Material>(device, context);
-
-    if (FAILED(instance->Initialize(aiMaterial, modelFilePath)))
-    {
-        MSG_BOX("Failed to Created : Material");
-        return nullptr;
+		_materials[slot.typeIndex].push_back(texSlot);
 	}
-    return instance;
+
+	return S_OK;
 }
 
+wstring Material::Find_TextureFile(const fs::path& searchRoot, const string& fileName)
+{
+	/* 1차: 같은 디렉토리에서 직접 확인 */
+	fs::path directPath = searchRoot / fileName;
+	if (fs::exists(directPath))
+		return directPath.lexically_normal().wstring();
+
+	/* 2차: 형제 + 하위 폴더를 재귀 탐색하여 파일명 일치 검색 */
+	for (const auto& entry : fs::recursive_directory_iterator(searchRoot))
+	{
+		if (entry.is_regular_file() && entry.path().filename().string() == fileName)
+			return entry.path().lexically_normal().wstring();
+	}
+
+	return L"";
+}
+
+HRESULT Material::Bind_Material(ShaderCom* shader, const char* constantName, uint32 materialType, uint32 textureIndex)
+{
+	if (materialType >= _maxTextureTypeSize || textureIndex >= _materials[materialType].size())
+		return E_FAIL;
+
+	if (!_materials[materialType][textureIndex].shaderResourceView)
+		return E_FAIL;
+
+	return shader->Bind_SRV(constantName, _materials[materialType][textureIndex].shaderResourceView.Get());
+}
+
+Shared<Material> Material::Create(const ComPtr<Device>& device, const ComPtr<Context>& context, const char* modelPath, const ModelMaterialData& materialData, const vector<ModelTextureSlot>& slots, uint32 maxTextureTypeSize)
+{
+	auto instance = make_shared<Material>(device, context);
+
+	if (FAILED(instance->Initialize(modelPath, materialData, slots, maxTextureTypeSize)))
+	{
+		LOG_ERROR("[MODEL] Failed to Created : Material");
+		return nullptr;
+	}
+
+	return instance;
+}
 
 void Material::Free()
 {
-    __super::Free();
+	__super::Free();
 
-    for (size_t i = 0; i < AI_TEXTURE_TYPE_MAX; i++)
-    {
-        _materials[i].clear();
-    }
-
+	_materials.clear();
 }
-
-
-

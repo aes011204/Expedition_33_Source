@@ -1,10 +1,12 @@
-﻿#include "ModelCom.h"
+#include "ModelCom.h"
 
 #include "Mesh.h"
 #include "Bone.h"
 #include "ShaderCom.h"
 #include "Material.h"
 #include "Animation.h"
+#include "SkeletalMesh.h"
+#include "StaticMesh.h"
 
 ModelCom::ModelCom(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Component { device, context } {}
@@ -13,6 +15,9 @@ ModelCom::ModelCom(const ModelCom& prototype)
     : Component{ prototype }
     , _type{ prototype._type }
     , _preLocalTransformMatrix{ prototype._preLocalTransformMatrix }
+    , _isSkeletal{ prototype._isSkeletal }
+    , _maxTextureType{ prototype._maxTextureType }
+    , _numNodes{ prototype._numNodes }
     , _numMeshes{ prototype._numMeshes }    
     , _numMaterials{ prototype._numMaterials }
     , _numBones{ prototype._numBones }
@@ -20,7 +25,6 @@ ModelCom::ModelCom(const ModelCom& prototype)
     , _meshes { prototype._meshes }
     , _materials { prototype._materials }
 {
-
     for (auto& prototypeAnim : prototype._animations)
         _animations.push_back(prototypeAnim->Clone());
 
@@ -32,9 +36,9 @@ int32 ModelCom::Get_BoneIndex(const char* boneName)
 {
     int32    boneIndex = { -1 };
 
-    auto    iter = find_if(_bones.begin(), _bones.end(), [&](Shared<Bone> bone)->bool {
+    auto iter = find_if(_bones.begin(), _bones.end(), [&](const Shared<Bone>& bone)->bool {
             ++boneIndex;
-            return bone->isCompare(boneName);
+            return bone->Check_BoneByName(boneName);
         });
 
     if (iter == _bones.end())
@@ -43,10 +47,30 @@ int32 ModelCom::Get_BoneIndex(const char* boneName)
     return boneIndex;
 }
 
-const XMFLOAT4X4* ModelCom::Get_BoneMatrixPtr(const char* boneName)
+// TODO : 기존 애니메이션이면 progress 초기화 하고 정리, 그게 아니라면 바로 다음 애니메이션 초기로 세팅
+void ModelCom::Set_Animation(uint32 animIndex, bool isLoop)
 {
-    auto    iter = find_if(_bones.begin(), _bones.end(), [&](Shared<Bone> bone)->bool {    
-        return bone->isCompare(boneName);
+    _currentAnimIndex = animIndex;
+    _isAnimLoop = isLoop;
+    _isBlending = false;
+    _animations[_currentAnimIndex]->Reset();
+}
+
+// TODO : BlendSetting으로 보간 애니메이션 세팅 이미
+void ModelCom::Set_Animation(uint32 animIndex, float blendDuration, bool isLoop)
+{
+    _nextAnimIndex = animIndex;
+    _isAnimLoop = isLoop;
+    _isBlending = true;
+    _blendDuration = blendDuration;
+    _blendElapsedTime = 0.f;
+    _animations[_nextAnimIndex]->Reset();
+}
+
+const Matrix* ModelCom::Get_BoneMatrixPtr(const char* boneName)
+{
+    auto iter = find_if(_bones.begin(), _bones.end(), [&](const Shared<Bone>& bone) {    
+        return bone->Check_BoneByName(boneName);
         });
 
     if (iter == _bones.end())
@@ -57,32 +81,20 @@ const XMFLOAT4X4* ModelCom::Get_BoneMatrixPtr(const char* boneName)
 
 HRESULT ModelCom::Initialize_Prototype(ModelType type, const char* modelFilePath, const Matrix& preLocalTransformMatrix)
 {
-    uint32       flag = { aiProcess_ConvertToLeftHanded | aiProcessPreset_TargetRealtime_Fast };
-
-    if (ModelType::NonAnim == type)
-        flag |= aiProcess_PreTransformVertices;
-
-    _aiScene = _importer.ReadFile(modelFilePath, flag);
-    if (nullptr == _aiScene)
-        return E_FAIL;
-
     _type = type;
-    XMStoreFloat4x4(&_preLocalTransformMatrix, preLocalTransformMatrix);
+    _preLocalTransformMatrix = preLocalTransformMatrix;
 
-    
-    if (FAILED(Ready_Bones(_aiScene->mRootNode, -1)))
+    if (FAILED(Ready_Model(modelFilePath)))
+    {
+        LOG_ERROR("Failed to Load Model Path {}", modelFilePath);
         return E_FAIL;
+    }
 
-    if (FAILED(Ready_Meshes()))
+    if (FAILED(Ready_Animation(modelFilePath)))
+    {
+        LOG_ERROR("Failed to Load Model Animation Path {}", modelFilePath);
         return E_FAIL;
-
-    if (FAILED(Ready_Materials(modelFilePath)))
-        return E_FAIL;
-
-    if (FAILED(Ready_Animations()))
-        return E_FAIL;
-
-
+    }
 
     return S_OK;
 }
@@ -94,6 +106,12 @@ HRESULT ModelCom::Initialize(void* arg)
 
 HRESULT ModelCom::Render(uint32 meshIndex)
 {
+    if (meshIndex >= _numMeshes)
+    {
+        LOG_ERROR("[MODEL] Mesh Render Index Out of Range!");
+        return E_FAIL;
+    }
+
     _meshes[meshIndex]->Bind_Resources();
     _meshes[meshIndex]->Render();
 
@@ -102,98 +120,180 @@ HRESULT ModelCom::Render(uint32 meshIndex)
 
 bool ModelCom::Play_Animation(float timeDelta)
 {
-    bool       isFinish = { false };
-    isFinish = _animations[_currentAnimIndex]->Update_TransformationMatrices(timeDelta, _bones, _isAnimLoop);
+    if (!_isSkeletal || _animations.empty()) return false;
 
-    for (auto& bone : _bones)
+    bool isFinish = false;
+    int32 rootIndex = _isRootMotion ? _rootNodeIndex : -1;
+
+    if (_isBlending)
     {
-        bone->Update_CombinedTransformationMatrix(_bones, XMLoadFloat4x4(&_preLocalTransformMatrix));
+        _blendElapsedTime += timeDelta;
+        float ratio = _blendElapsedTime / _blendDuration;
+
+        if (ratio >= 1.f)
+        {
+            _isBlending = false;
+            _currentAnimIndex = _nextAnimIndex;
+            isFinish = _animations[_currentAnimIndex]->Update_TransformationMatrices(timeDelta, _bones, _isAnimLoop, rootIndex);
+            _rootFrameVelocity = rootIndex >= 0 ? _animations[_currentAnimIndex]->Get_TransformVelocity(rootIndex) : RootMotionFrame{};
+        }
+        else
+        {
+            _animations[_currentAnimIndex]->Blend_TransformMatrix(timeDelta, _animations[_nextAnimIndex], ratio, _bones, _isAnimLoop, rootIndex);
+            
+            if (rootIndex >= 0)
+            {
+                const auto& curDelta = _animations[_currentAnimIndex]->Get_TransformVelocity(rootIndex);
+                const auto& nextDelta = _animations[_nextAnimIndex]->Get_TransformVelocity(rootIndex);
+                _rootFrameVelocity.position = Vector3::Lerp(curDelta.position, nextDelta.position, ratio);
+                _rootFrameVelocity.rotation = Quaternion::Slerp(curDelta.rotation, nextDelta.rotation, ratio);
+            }
+        }
+    }
+    else
+    {
+        isFinish = _animations[_currentAnimIndex]->Update_TransformationMatrices(timeDelta, _bones, _isAnimLoop, rootIndex);
+        _rootFrameVelocity = (rootIndex >= 0) ? _animations[_currentAnimIndex]->Get_TransformVelocity(rootIndex) : RootMotionFrame{};
+    }
+
+    for (auto& bone : _bones) {
+        bone->Update_CombinedTransformationMatrix(_bones, _preLocalTransformMatrix);
     }
 
     return isFinish;
 }
 
-HRESULT ModelCom::Bind_Material(ShaderCom* shader, const char* constantName, uint32 meshIndex, aiTextureType materialType, uint32 textureIndex)
+HRESULT ModelCom::Bind_Material(ShaderCom* shader, const char* constantName, uint32 meshIndex, uint32 materialType, uint32 textureIndex)
 {
- 
     return _materials[_meshes[meshIndex]->Get_MaterialIndex()]->Bind_Material(shader, constantName, materialType, textureIndex);
-
-    
 }
 
 HRESULT ModelCom::Bind_BoneMatrices(ShaderCom* shader, const char* constantName, uint32 meshIndex)
 {
-
     return _meshes[meshIndex]->Bind_BoneMatrices(shader, constantName, _bones);    
 }
 
-
-
-HRESULT ModelCom::Ready_Meshes()
+HRESULT ModelCom::Ready_Model(const char* modelPath)
 {
-    _numMeshes = _aiScene->mNumMeshes;
+    std::ifstream stream(modelPath, std::ios::binary);
+    if (!stream.is_open()) return E_FAIL;
 
-    for (size_t i = 0; i < _numMeshes; i++)
+    stream.read(reinterpret_cast<char*>(&_isSkeletal), sizeof(bool));
+    stream.read(reinterpret_cast<char*>(&_maxTextureType), sizeof(uint32));
+    stream.read(reinterpret_cast<char*>(&_numNodes), sizeof(uint32));
+    stream.read(reinterpret_cast<char*>(&_numMaterials), sizeof(uint32));
+    stream.read(reinterpret_cast<char*>(&_numMeshes), sizeof(uint32));
+    stream.read(reinterpret_cast<char*>(&_numBones), sizeof(uint32));
+
+    // Node는 비교용으로 일단 놔둘게요
+    _nodeData.resize(_numNodes);
+    stream.read(reinterpret_cast<char*>(_nodeData.data()), _numNodes * sizeof(ModelNodeData));
+
+    // Load Material
+    for (uint32 i = 0; i < _numMaterials; ++i)
     {
-        Shared<Mesh> mesh = Mesh::Create(_device.Get(), _context.Get(), _type, _aiScene->mMeshes[i], this, XMLoadFloat4x4(&_preLocalTransformMatrix));
-        if (nullptr == mesh)
-            return E_FAIL;
+        ModelMaterialData materialData{};
+        stream.read(reinterpret_cast<char*>(&materialData), sizeof(ModelMaterialData));
 
-        _meshes.push_back(mesh);
+        vector<ModelTextureSlot> slots(materialData.numSlots);
+        stream.read(reinterpret_cast<char*>(slots.data()), sizeof(ModelTextureSlot) * materialData.numSlots);
+
+        _materials.push_back(Material::Create(_device, _context, modelPath, materialData, slots, _maxTextureType));
+    }
+
+    // Load Mesh
+    for (uint32 i = 0; i < _numMeshes; ++i)
+    {
+        ModelMeshData meshData;
+        stream.read(reinterpret_cast<char*>(&meshData), sizeof(ModelMeshData));
+
+        size_t vtxSize = _isSkeletal ? sizeof(VTXANIMMESH) : sizeof(VTXMESH);
+        vector<uint8> vtxBuffer(vtxSize * meshData.numVertices);
+        stream.read(reinterpret_cast<char*>(vtxBuffer.data()), vtxBuffer.size());
+        meshData.vertices = vtxBuffer.data();
+
+        vector<uint32> idxBuffer(meshData.numIndices);
+        stream.read(reinterpret_cast<char*>(idxBuffer.data()), sizeof(uint32) * meshData.numIndices);
+        meshData.indices = idxBuffer.data();
+
+        vector<uint32> boneRefs;
+        vector<Matrix> offsets;
+
+        if (_isSkeletal && meshData.numBoneRefs > 0)
+        {
+            boneRefs.resize(meshData.numBoneRefs);
+            offsets.resize(meshData.numBoneRefs);
+            stream.read(reinterpret_cast<char*>(boneRefs.data()), sizeof(uint32) * meshData.numBoneRefs);
+            stream.read(reinterpret_cast<char*>(offsets.data()), sizeof(Matrix) * meshData.numBoneRefs);
+
+            meshData.boneIndices = boneRefs.data();
+            meshData.offsetMatrices = offsets.data();
+
+            _meshes.push_back(SkeletalMesh::Create(_device, _context, meshData, _preLocalTransformMatrix)); // 깔끔한 단일 파라미터!
+        }
+        else
+        {
+            meshData.boneIndices = nullptr;
+            meshData.offsetMatrices = nullptr;
+            _meshes.push_back(StaticMesh::Create(_device, _context, meshData, _preLocalTransformMatrix));
+        }
+    }
+
+    // Load Bone
+    if (_numBones > 0)
+    {
+        vector<ModelBoneData> boneData(_numBones);
+        stream.read(reinterpret_cast<char*>(boneData.data()),
+            sizeof(ModelBoneData) * _numBones);
+
+        for (const auto& data : boneData)
+            _bones.push_back(Bone::Create(data));
+    }
+
+    stream.close();
+    return S_OK;
+}
+
+HRESULT ModelCom::Ready_Animation(const char* modelPath)
+{
+    // TODO : 추후 데이터 세팅을 통해서 필요한 애니메이션 데이터만 긁어와야함.
+
+    fs::path path(modelPath);
+    string modelDirectory = path.parent_path().string();
+    string modelName = path.stem().string();
+
+    for (const auto& entry : fs::recursive_directory_iterator(modelDirectory))
+    {
+        if (entry.is_regular_file() && entry.path().extension() == ".anim")
+        {
+            string animFileName = entry.path().filename().string();
+            if (animFileName.find(modelName) == 0)
+            {
+                std::ifstream stream(entry.path(), std::ios::binary);
+                if (!stream.is_open()) continue;
+
+                ModelAnimationData animData{};
+                stream.read(reinterpret_cast<char*>(&animData), sizeof(ModelAnimationData));
+
+                vector<ModelChannelData> channels(animData.numChannels);
+                vector<vector<KEYFRAME>> keyframeSets(animData.numChannels);
+
+                for (uint32 i = 0; i < animData.numChannels; ++i)
+                {
+                    stream.read(reinterpret_cast<char*>(&channels[i]), sizeof(ModelChannelData));
+                    keyframeSets[i].resize(channels[i].numKeyframes);
+                    stream.read(reinterpret_cast<char*>(keyframeSets[i].data()), sizeof(KEYFRAME) * channels[i].numKeyframes);
+                    channels[i].keyframes = keyframeSets[i].data();
+                }
+
+                _animations.push_back(Animation::Create(animData, channels));
+                stream.close();
+            }
+        }
     }
 
     return S_OK;
 }
-
-HRESULT ModelCom::Ready_Materials(const char* modelFilePath)
-{
-    _numMaterials = _aiScene->mNumMaterials;
-
-    for (size_t i = 0; i < _numMaterials; i++)
-    {
-        Shared<Material> material = Material::Create(_device.Get(), _context.Get(), _aiScene->mMaterials[i], modelFilePath);
-        if (nullptr == material)
-            return E_FAIL;
-
-        _materials.push_back(material);
-    }
-
-    return S_OK;
-}
-HRESULT ModelCom::Ready_Bones(const aiNode* aiNode, int32 parentIndex)
-{
-    Shared<Bone> bone = Bone::Create(aiNode, parentIndex);
-    if (nullptr == bone)
-        return E_FAIL;
-
-    _bones.push_back(bone);
-
-    int32        index = static_cast<int32>(_bones.size() - 1);
-
-    for (size_t i = 0; i < aiNode->mNumChildren; i++)
-    {
-        Ready_Bones(aiNode->mChildren[i], index);
-    }
-
-    return S_OK;
-}
-
-HRESULT ModelCom::Ready_Animations()
-{
-    _numAnimations = _aiScene->mNumAnimations;
-
-    for (size_t i = 0; i < _numAnimations; i++)
-    {
-        Shared<Animation> animation = Animation::Create(_aiScene->mAnimations[i], this);
-        if (nullptr == animation)
-            return E_FAIL;
-
-        _animations.push_back(animation);        
-    }  
-
-    return S_OK;
-}
-
 
 Shared<ModelCom> ModelCom::Create(const ComPtr<Device>& device, const ComPtr<Context>& context, ModelType type, const char* modelFilePath, const Matrix& preLocalTransformMatrix)
 {
@@ -201,13 +301,11 @@ Shared<ModelCom> ModelCom::Create(const ComPtr<Device>& device, const ComPtr<Con
 
     if (FAILED(instance->Initialize_Prototype(type, modelFilePath, preLocalTransformMatrix)))
     {
-        MSG_BOX("Failed to Created : ModelCom");
+        LOG_ERROR("Failed to Created : ModelCom");
         return nullptr;
 	}
     return instance;
 }
-
-
 
 Shared<Component> ModelCom::Clone(void* arg)
 {

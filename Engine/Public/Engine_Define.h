@@ -53,10 +53,6 @@
 #include <spdlog/sinks/rotating_file_sink.h>
 //#include <fmod.hpp>
 
-#include "Assimp/Importer.hpp"
-#include "Assimp/postprocess.h"
-#include "Assimp/scene.h"
-
 #include "Engine_Typedef.h"
 #include "Engine_Enum.h"
 #include "Engine_Macro.h"

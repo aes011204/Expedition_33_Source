@@ -1,123 +1,129 @@
-#include "Channel.h"
+﻿#include "Channel.h"
 
-#include "ModelCom.h"
 #include "Bone.h"
 
 Channel::Channel()
 {
 }
 
-HRESULT Channel::Initialize(const aiNodeAnim* aiChannel, class ModelCom* model)
+HRESULT Channel::Initialize(const ModelChannelData& channelData)
 {
-	_boneIndex = 	model->Get_BoneIndex(aiChannel->mNodeName.data);
+	_boneIndex = channelData.boneIndex;
+	_numKeyFrames = channelData.numKeyframes;
 
-	_numKeyFrames = max(aiChannel->mNumScalingKeys, aiChannel->mNumRotationKeys);
-	_numKeyFrames = max(_numKeyFrames, aiChannel->mNumPositionKeys);
+	KEYFRAME* pKeyframes = static_cast<KEYFRAME*>(channelData.keyframes);
+	_keyFrames.assign(pKeyframes, pKeyframes + _numKeyFrames);
 
-	Vec3			scale = Vec3::Zero;
-	Quat			rotation = Quat::Identity;
-	Vec3			translation = Vec3::Zero;
-
-	
-	for (size_t i = 0; i < _numKeyFrames; i++)
-	{
-		KEYFRAME			KeyFrame{};	
-
-		if (aiChannel->mNumScalingKeys > i)
-		{
-			memcpy(&scale, &aiChannel->mScalingKeys[i].mValue, sizeof(Vec3));
-			KeyFrame.trackPosition = static_cast<float>(aiChannel->mScalingKeys[i].mTime);
-		}
-		if (aiChannel->mNumRotationKeys > i)
-		{
-			rotation.x = aiChannel->mRotationKeys[i].mValue.x;
-			rotation.y = aiChannel->mRotationKeys[i].mValue.y;
-			rotation.z = aiChannel->mRotationKeys[i].mValue.z;
-			rotation.w = aiChannel->mRotationKeys[i].mValue.w;
-
-			KeyFrame.trackPosition = static_cast<float>(aiChannel->mRotationKeys[i].mTime);
-		}
-		if (aiChannel->mNumPositionKeys > i)
-		{
-			memcpy(&translation, &aiChannel->mPositionKeys[i].mValue, sizeof(Vec3));
-			KeyFrame.trackPosition = static_cast<float>(aiChannel->mPositionKeys[i].mTime);
-		}
-
-		KeyFrame.scale = scale;
-		KeyFrame.rotation = rotation;
-		KeyFrame.translation = translation;
-
-		_keyFrames.push_back(KeyFrame);
-	}
-
-	
-
-    return S_OK;
+	return S_OK;
 }
 
-void Channel::Update_TransformationMatrix(uint32* currentKeyFrameIndex, float currentTrackPosition, const vector<Shared<class Bone>>& bones)
+void Channel::Get_ChannelTransform(float trackPosition, uint32& keyFrameIndex, float duration, bool isLoop, RootMotionFrame& outTransform)
 {
-	if (0.f == currentTrackPosition)
-		(*currentKeyFrameIndex) = 0;
+	if (0.f == trackPosition)
+		keyFrameIndex = 0;
 
-	KEYFRAME		LastKeyFrame = _keyFrames.back();
+	KEYFRAME lastKeyFrame = _keyFrames.back();
 
-	XMVECTOR		scale, rotation, translation;
+	Vec3 scale, translation;
+    Quat rotation;
 
-
-	if (currentTrackPosition >= LastKeyFrame.trackPosition) /*  마지막 키프레임의 상태를 띈다. */
+	if (trackPosition >= lastKeyFrame.trackPosition)
 	{
-		scale = XMLoadFloat3(&LastKeyFrame.scale);
-		rotation = XMLoadFloat4(&LastKeyFrame.rotation);
-		translation = XMVectorSetW(XMLoadFloat3(&LastKeyFrame.translation), 1.f);
-
+		scale = lastKeyFrame.scale;
+		rotation = lastKeyFrame.rotation;
+		translation = lastKeyFrame.translation;
 	}
-	else /* 사이 키프레임으로 보간한다. */
+	else
 	{
-		while (currentTrackPosition >= _keyFrames[(*currentKeyFrameIndex) + 1].trackPosition)
-			++(*currentKeyFrameIndex);
+		while (keyFrameIndex + 1 < _numKeyFrames && trackPosition >= _keyFrames[keyFrameIndex + 1].trackPosition)
+			++keyFrameIndex;
 
-		float		ratio = (currentTrackPosition - _keyFrames[(*currentKeyFrameIndex)].trackPosition) / 
-			(_keyFrames[(*currentKeyFrameIndex) + 1].trackPosition - _keyFrames[(*currentKeyFrameIndex)].trackPosition);
+		float ratio = (trackPosition - _keyFrames[keyFrameIndex].trackPosition) /
+			(_keyFrames[keyFrameIndex + 1].trackPosition - _keyFrames[keyFrameIndex].trackPosition);
 
-		XMVECTOR		leftScale, rightScale;
-		XMVECTOR		leftRotation, rightRotation;
-		XMVECTOR		leftTranslation, rightTranslation;
-
-		leftScale = XMLoadFloat3(&_keyFrames[(*currentKeyFrameIndex)].scale);
-		rightScale = XMLoadFloat3(&_keyFrames[(*currentKeyFrameIndex) + 1].scale);
-		scale = XMVectorLerp(leftScale, rightScale, ratio);
-
-		leftRotation = XMLoadFloat4(&_keyFrames[(*currentKeyFrameIndex)].rotation);
-		rightRotation = XMLoadFloat4(&_keyFrames[(*currentKeyFrameIndex) + 1].rotation);
-		rotation = XMQuaternionSlerp(leftRotation, rightRotation, ratio);
-
-		leftTranslation = XMVectorSetW(XMLoadFloat3(&_keyFrames[(*currentKeyFrameIndex)].translation), 1.f);
-		rightTranslation = XMVectorSetW(XMLoadFloat3(&_keyFrames[(*currentKeyFrameIndex) + 1].translation), 1.f);
-		translation = XMVectorLerp(leftTranslation, rightTranslation, ratio);
+        scale = Vec3::Lerp(_keyFrames[keyFrameIndex].scale, _keyFrames[keyFrameIndex + 1].scale, ratio);
+		rotation = Quat::Slerp(_keyFrames[keyFrameIndex].rotation, _keyFrames[keyFrameIndex + 1].rotation, ratio);
+        translation = Vec3::Lerp(_keyFrames[keyFrameIndex].translation, _keyFrames[keyFrameIndex + 1].translation, ratio);
 	}
 
-	// XMMATRIX		BoneTransformationMatrix = XMMatrixScaling(scale) * XMMatrixRotationQuaternion(rotation) * XMMatrixTranslation(translation);
-	XMMATRIX		BoneTransformationMatrix = XMMatrixAffineTransformation(scale, XMVectorSet(0.f, 0.f, 0.f, 1.f), rotation, translation);
-
-	bones[_boneIndex]->Update_TransformationMatrix(BoneTransformationMatrix);
+	XMStoreFloat3(&outTransform.scale, scale);
+	XMStoreFloat4(&outTransform.rotation, rotation);
+	XMStoreFloat3(&outTransform.position, translation);
 }
 
-Shared<Channel> Channel::Create(const aiNodeAnim* aiChannel, class ModelCom* model)
+void Channel::Update_Velocity(const RootMotionFrame& curTransform, float trackPosition)
+{
+	if (_isFirstUpdate || trackPosition < _prevTrackPosition)
+	{
+		_prevPos = curTransform.position;
+		_prevRot = curTransform.rotation;
+		_isFirstUpdate = false;
+	}
+
+	_frameDelta.position = curTransform.position - _prevPos;
+
+	Quat invPrevRot = _prevRot;
+	invPrevRot.Conjugate();
+	_frameDelta.rotation = curTransform.rotation * invPrevRot;
+
+	_prevPos = curTransform.position;
+	_prevRot = curTransform.rotation;
+	_prevTrackPosition = trackPosition;
+}
+
+void Channel::ResetVelocityState()
+{
+	_isFirstUpdate = true;
+	_prevTrackPosition = -1.f;
+}
+
+void Channel::Update_TransformationMatrix(uint32& currentKeyFrameIndex, float currentTrackPosition, float duration,
+	const vector<Shared<Bone>>& bones, int32 rootNodeIndex, bool isLoop)
+{
+	RootMotionFrame transform{};
+	Get_ChannelTransform(currentTrackPosition, currentKeyFrameIndex, duration, isLoop, transform);
+	Update_Velocity(transform, currentTrackPosition);
+
+	XMMATRIX targetMatrix;
+
+	if (_boneIndex == rootNodeIndex)
+	{
+		/* 루트 본의 Translation을 0으로 강제하여 제자리 유지 */
+		targetMatrix = XMMatrixAffineTransformation(
+            transform.scale,
+            Quat::Identity,
+            transform.rotation,
+            Vec3::Zero
+        );
+	}
+	else
+	{
+		targetMatrix = XMMatrixAffineTransformation(
+            transform.scale,
+            Quat::Identity,
+            transform.rotation,
+            transform.position
+        );
+	}
+
+	bones[_boneIndex]->Update_TransformationMatrix(targetMatrix);
+}
+
+Shared<Channel> Channel::Create(const ModelChannelData& channelData)
 {
 	auto instance = make_shared<Channel>();
 
-	if (FAILED(instance->Initialize(aiChannel, model)))
+	if (FAILED(instance->Initialize(channelData)))
 	{
 		MSG_BOX("Failed to Created : Channel");
 		return nullptr;
 	}
 	return instance;
 }
+
 void Channel::Free()
 {
-    __super::Free();
+	__super::Free();
 
 	_keyFrames.clear();
-
 }
