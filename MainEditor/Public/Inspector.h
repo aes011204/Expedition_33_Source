@@ -2,20 +2,27 @@
 
 #include "Editor_Window.h"
 
+NS_BEGIN(Engine)
+class GameObject;
+NS_END
+
 NS_BEGIN(MainEditor)
 
 class Inspector final : public Editor_Window
 {
 public:
     Inspector();
-    virtual ~Inspector() = default;
+    ~Inspector() override = default;
 
 public:
-    virtual void Render() override;
+    void Render() override;
+
+private:
+    static void Draw_Component(const string& key, const Shared<Component>& component);
+    static void Draw_Components(const Shared<GameObject>& target);
 
 public:
     static Shared<Inspector> Create();
-
 };
 
 NS_END
