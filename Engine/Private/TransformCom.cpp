@@ -3,10 +3,10 @@
 
 namespace Engine::Internal
 {
-constexpr float transformEpsilon = 1e-6f;
-constexpr float minEditableScale = 1e-3f;
-constexpr float minEditableSpeedPerSec = 0.f;
-constexpr float minEditableDegreePerSec = 0.f;
+constexpr float transformEpsilon = 1e-6f;      // transform 연산에서 0 비교에 쓰는 허용 오차
+constexpr float minEditableScale = 1e-3f;      // basis 붕괴를 막기 위해 scale 0 근처를 피하는 최소값
+constexpr float minEditableSpeedPerSec = 0.f;  // 이동 속도 하한
+constexpr float minEditableDegreePerSec = 0.f; // 회전 속도 입력값(deg/s) 하한
 
 float Resolve_ScaleSign(float value, float fallback = 1.f)
 {
@@ -29,12 +29,9 @@ TransformCom::TransformCom(const TransformCom& prototype)
     : Component{ prototype }
     , _localMatrix{ prototype._localMatrix }
     , _localSignedScale{ prototype._localSignedScale }
-    , _hasParent{ false }
     , _localRotationCache{ prototype._localRotationCache }
     , _localEulerDegreeCache{ prototype._localEulerDegreeCache }
     , _worldMatrix{ prototype._worldMatrix }
-    , _worldRevision{ 0 }
-    , _observedParentWorldRevision{ 0 }
 {
     Set_Dirty(TRANSFORM_DIRTY_FLAG::ROTATION);
     Set_Dirty(TRANSFORM_DIRTY_FLAG::WORLD);
@@ -119,24 +116,26 @@ Vec3 TransformCom::Get_State(State state)
 
 void TransformCom::Set_State(State state, const Vec3& value)
 {
-    if (State::Position == state)
-    {
-        Set_Position(value);
-        return;
-    }
+    LOG_WARN("TransformCom::Set_State() is deprecated.");
 
-    const Vec3 rotationAxis = Resolve_NormalizedAxis(state);
-    Set_LocalState(state, value);
-
-    if (value.LengthSquared() > Internal::transformEpsilon)
-    {
-        Vec3 axis = value;
-        axis.Normalize();
-        const float axisSign = axis.Dot(rotationAxis) < 0.f ? -1.f : 1.f;
-        Set_SignedScale(state, value.Length() * axisSign);
-    }
-
-    Sanitize_LocalBasis();
+    //if (State::Position == state)
+    //{
+    //    Set_Position(value);
+    //    return;
+    //}
+    //
+    //const Vec3 rotationAxis = Resolve_NormalizedAxis(state);
+    //Set_LocalState(state, value);
+    //
+    //if (value.LengthSquared() > Internal::transformEpsilon)
+    //{
+    //    Vec3 axis = value;
+    //    axis.Normalize();
+    //    const float axisSign = axis.Dot(rotationAxis) < 0.f ? -1.f : 1.f;
+    //    Set_SignedScale(state, value.Length() * axisSign);
+    //}
+    //
+    //Sanitize_LocalBasis();
 }
 
 Vec3 TransformCom::Get_Position() const
@@ -283,14 +282,35 @@ void TransformCom::Set_Parent(const Shared<TransformCom>& parent)
     const Vec3 previousSignedScale = Get_Scale();
     const Matrix currentWorld = _worldMatrix;
 
+    // 자기 자신을 잘못 건넬 경우 방지
+    if (parent.get() == this)
+    {
+        LOG_WARN("TransformCom::Set_Parent rejected self-parent.");
+        return;
+    }
+
+    // 부모 체인을 따라 위로 올라가는 순회용 for문
+    for (Shared<TransformCom> cursor = parent; cursor; cursor = cursor->_parent.lock())
+    {
+        // 내 자신이 부모 체인 안에 들어오는 상황 방지
+        if (cursor.get() == this)
+        {
+            LOG_WARN("TransformCom::Set_Parent rejected cyclic parent chain.");
+            return;
+        }
+    }
+
     if (parent)
     {
         parent->Ensure_WorldMatrixUpToDate();
 
         const Matrix parentWorld = parent->_worldMatrix;
         const float determinant = XMVectorGetX(XMMatrixDeterminant(parentWorld));
-        if (determinant > -Internal::transformEpsilon && determinant < Internal::transformEpsilon)
+        if (abs(determinant) <= Internal::transformEpsilon)
+        {
+            LOG_WARN("TransformCom::Set_Parent rejected non-invertible parent world matrix.");
             return;
+        }
 
         _parent = parent;
         _hasParent = true;
@@ -438,16 +458,40 @@ void TransformCom::Turn(const Vec3& axis, float timeDelta)
 
 void TransformCom::LookAt(const Vec3& at)
 {
-    const Vec3 position = Get_Position();
+    const Vec3 worldPosition = Get_WorldPosition();
     const Vec3 preservedScale = Get_Scale();
+    const Shared<TransformCom> parent = _parent.lock();
 
-    Vec3 direction = at - position;
+    //!! SimpleMath::CreateWorld 는 내부적으로 forward 가 반전되어 있어서, 방향 반대로 보정
+    Vec3 direction = worldPosition - at;
     if (direction.LengthSquared() <= Internal::transformEpsilon)
         return;
 
     direction.Normalize();
 
-    _localMatrix = Matrix::CreateWorld(position, direction, Vec3::Up);
+    // 바라보려는 방향이 Up과 거의 평행한지 판별하고 보정하는 안전장치
+    Vec3 upAxis = Vec3::Up;
+    const float upDot = direction.Dot(upAxis);
+    constexpr float parallelDotThreshold = 1.f - 1e-3f;
+    if (abs(upDot) > parallelDotThreshold)
+        upAxis = Vec3::Look;
+
+    const Matrix desiredWorld = Matrix::CreateWorld(worldPosition, direction, upAxis);
+
+    if (parent)
+    {
+        parent->Ensure_WorldMatrixUpToDate();
+
+        const Matrix parentWorld = parent->_worldMatrix;
+        const float determinant = XMVectorGetX(XMMatrixDeterminant(parentWorld));
+        if (abs(determinant) <= Internal::transformEpsilon)
+            return;
+
+        _localMatrix = desiredWorld * parentWorld.Invert();
+    }
+    else
+        _localMatrix = desiredWorld;
+
     Set_Scale(preservedScale);
     Sanitize_LocalBasis();
 }

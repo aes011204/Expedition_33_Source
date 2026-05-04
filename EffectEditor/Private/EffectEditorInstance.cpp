@@ -92,7 +92,8 @@ Shared<RenderTarget> EffectEditorInstance::Prepare_SharedViewportRenderTarget(ui
                 height,
                 DXGI_FORMAT_R8G8B8A8_UNORM,
                 Vec4(0.f, 0.f, 0.f, 1.f)),
-            nullptr);
+            nullptr
+        );
     }
 
     return _sharedViewportRenderTarget;

@@ -13,7 +13,7 @@ public:
 
 public:
     void Update(float timeDelta) override;
-    void Render() override;  // 초기 속성 검사 영역의 골격을 그린다.
+    void Render() override; // 초기 속성 검사 영역의 골격을 그린다.
 
 public:
     static Shared<Inspector> Create();

@@ -64,6 +64,9 @@
     <Filter Include="02.GameObject\Sky">
       <UniqueIdentifier>{af5602af-e31e-49b7-bc95-02623c7bce0a}</UniqueIdentifier>
     </Filter>
+    <Filter Include="02.GameObject\Effect">
+      <UniqueIdentifier>{b234e503-c6fb-45eb-b498-d43920431180}</UniqueIdentifier>
+    </Filter>
     <Filter Include="03. Component">
       <UniqueIdentifier>{532576f7-3c4d-4428-9669-c46337caa1c0}</UniqueIdentifier>
     </Filter>
@@ -141,6 +144,9 @@
     <ClInclude Include="..\Public\Sky.h">
       <Filter>02.GameObject\Sky</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\PointParticlePreview.h">
+      <Filter>02.GameObject\Effect</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\CombatStatCom.h">
       <Filter>03. Component\CombatStat</Filter>
     </ClInclude>
@@ -196,6 +202,9 @@
     </ClCompile>
     <ClCompile Include="..\Private\Sky.cpp">
       <Filter>02.GameObject\Sky</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\PointParticlePreview.cpp">
+      <Filter>02.GameObject\Effect</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\ClientInstance.cpp">
       <Filter>00.Core</Filter>

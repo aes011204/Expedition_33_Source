@@ -23,7 +23,7 @@ protected:
     bool _isOpen{ true }; // 현재 ImGui 창 열림 상태.
 
 public:
-    void Free() override = 0;
+    void Free() override;
 };
 
 NS_END

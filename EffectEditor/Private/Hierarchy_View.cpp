@@ -43,6 +43,3 @@ void Hierarchy_View::Free()
 {
     __super::Free();
 }
-
-
-

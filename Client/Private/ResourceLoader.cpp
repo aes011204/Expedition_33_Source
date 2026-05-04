@@ -5,6 +5,7 @@
 #include "Body_Player.h"
 #include "FreeCamera.h"
 #include "TargetCamera.h"
+#include "PointParticlePreview.h"
 #include "GameInstance.h"
 #include "GameObject.h"
 #include "ModelCom.h"
