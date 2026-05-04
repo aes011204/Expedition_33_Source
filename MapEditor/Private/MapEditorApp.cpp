@@ -84,6 +84,28 @@ HRESULT MapEditor::MapEditorApp::Render()
     return S_OK;
 }
 
+void MapEditorApp::DrawSceneDebug()
+{
+    for (auto& obj : _scene._objects)
+    {
+        const bool isSelected = (obj == _scene._selected);
+        const Color color = isSelected ? Color(1.f, 1.f, 0.f, 1.f) : Color(0.f, 1.f, 0.f, 1.f);
+
+        switch (obj->_type)
+        {
+        case EObjectType::EncounterZone:
+        case EObjectType::TriggerVolume:
+        case EObjectType::CameraZone:
+        case EObjectType::PostProcessVolume:
+        {
+        }
+
+        default:
+            break;
+        }
+    }
+}
+
 Unique<MapEditor::MapEditorApp> MapEditor::MapEditorApp::Create()
 {
     Unique<MapEditorApp> instance{ new MapEditorApp() };

@@ -143,13 +143,13 @@ MEStaticMeshActor                         — 에디터 뷰포트 시각화 전�
 21. Water 배치, 파티클 배치 (파티클 시스템 완료 후)
 22. 지형 시스템 (방식 미확정)
 
-### Phase 3.5 — PhysX 엔진 통합 ← **다음 작업 (맵 작업 병행)**
-- `Engine` 측에 `PhysXManager` 생성
+### Phase 3.5 — PhysX 엔진 통합 ✅
+- ✅ `Engine` 측에 `PhysX_Manager` 생성
   - PhysX 5.5.0 초기화 / 씬 생성 / Simulate / FetchResults 루프
   - `PxFoundation`, `PxPhysics`, `PxScene`, `PxDefaultCpuDispatcher` 관리
-  - `GameInstance`에서 매니저 접근 가능하도록 등록
-- 콜라이더 컴포넌트 연동 (기존 `ColliderCom`과 PhysX Actor 연결)
-- 맵 에디터에서 콜라이더 편집 UI는 PhysX 통합 완료 후 Phase 5에서 구현
+  - `GameInstance`에서 `Get_PhysXPhysics()` / `Get_PhysXScene()` 접근 가능
+- 콜라이더 컴포넌트 연동 → 다른 파트 담당
+- 맵 에디터에서 콜라이더 편집 UI는 Phase 5에서 구현
 
 ### Phase 4 — 내비 / AI
 20. 웨이포인트, 포털 / 존 전환
@@ -211,7 +211,7 @@ MEStaticMeshActor                         — 에디터 뷰포트 시각화 전�
 | 기능 | 상태 |
 |------|------|
 | 콜라이더 편집 | 구현 예정 |
-| PhysX 지형 충돌 | 엔진 PhysX 통합 후 |
+| PhysX 지형 충돌 | 구현 예정 |
 | NavMesh 베이크/시각화 | 엔진 Recast 통합 후 |
 | 웨이포인트 | 구현 예정 |
 | 스폰 포인트 | 구현 예정 |
@@ -227,7 +227,7 @@ MEStaticMeshActor                         — 에디터 뷰포트 시각화 전�
 | Assimp | 메시 임포트 | 통합 완료, 엔진 리팩토링 대기 |
 | nlohmann/json | 데이터 직렬화 | 통합 완료 |
 | ImGui | UI | 통합 완료 |
-| PhysX 5.5.0 | 물리 충돌 | vcpkg 설치 완료, PhysXManager 구현 예정 |
+| PhysX 5.5.0 | 물리 충돌 | 통합 완료 (PhysX_Manager, GameInstance 등록) |
 | Recast/Detour | 내비게이션 메시 | 미설치, 엔진 통합 필요 |
 
 ---
