@@ -78,7 +78,7 @@ HRESULT Level_GamePlay::Ready_Layer_Camera(const wstring& strLayerTag)
 	CameraDesc.fovy = XMConvertToRadians(60.f) ;
 	CameraDesc.nearPlane = 0.1f;
 	CameraDesc.farPlane = 500.f;
-	CameraDesc.fMouseSensor = 0.05f;
+	CameraDesc.mouseSensor = 0.05f;
 
 	if (FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_FreeCamera"),
 		ETOI(LevelType::GamePlay), strLayerTag, &CameraDesc)))
@@ -97,6 +97,8 @@ HRESULT Level_GamePlay::Ready_Layer_BackGround(const wstring& strLayerTag)
 	if (FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Sky"),
 		ETOI(LevelType::GamePlay), strLayerTag)))
 		return E_FAIL;
+
+
 
 
 

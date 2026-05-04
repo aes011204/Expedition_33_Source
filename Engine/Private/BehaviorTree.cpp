@@ -16,6 +16,7 @@ void BehaviorTree::Update(float deltaTime)
 {
     _root->Update(deltaTime);
 }
+
 void BehaviorTree::Bind_Owner(shared_ptr<AIController> owner)
 {
     SetOwnerRecursive(_root, owner);

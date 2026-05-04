@@ -21,3 +21,20 @@ BNode::NODE_STATE Decorator::Update(float deltaTime)
 
     return _child->Update(deltaTime);
 }
+
+//Shared<Decorator> Decorator::Create()
+//{
+//    auto instance = make_shared<Decorator>();
+//
+//    /*if (FAILED(instance->Initialize_Prototype()))
+//    {
+//        MSG_BOX("Failed to Created : Monster");
+//        return nullptr;
+//    }*/
+//
+//    return instance;
+//}
+
+void Decorator::Free()
+{
+}

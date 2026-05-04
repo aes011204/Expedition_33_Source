@@ -1,6 +1,7 @@
 ﻿#include "BT_MoveTo.h"
 #include "AIController.h"
 #include "BlackBoard.h"
+#include "GameObject.h"
 
 BT_MoveTo::BT_MoveTo()
 {
@@ -10,31 +11,83 @@ BT_MoveTo::~BT_MoveTo()
 {
 }
 
-BNode::NODE_STATE BT_MoveTo::Update(float deltaTime)
+void BT_MoveTo::OnStart()
+{
+    auto bb = Get_Owner()->Get_BlackBoard();
+    Vec3 target = bb->Get_Value<Vec3>("playerPos");
+
+    Get_Owner()->Request_Move(target);
+    _prevPos = target;
+   // _started = true;
+}
+
+
+void BT_MoveTo::OnFinish()
+{
+    Get_Owner()->Stop_Move();
+    //_started = false;
+}
+
+BNode::NODE_STATE BT_MoveTo::Logic_Update(float deltaTime)
 {
 
     auto bb = Get_Owner()->Get_BlackBoard();
-        Vec3 target = bb->Get_Value<Vec3>("playerPos");
+    Vec3 target = bb->Get_Value<Vec3>("playerPos");
 
+    auto ownerPos = Get_Owner()->Get_Owner()->Get_Transform()->Get_Position();
 
-        //_started
-        if (!_started)
-        {
-            Get_Owner()->Request_Move(target);
-            _started = true;
-        }
+    float distToTarget = (target - ownerPos).Length();
 
-  
-
-
-    if (!Get_Owner()->Is_Finished())
+    if (distToTarget <= 1.5f)
     {
+        //_started = false;
+       
+        return BNode::NODE_STATE::SUCCESS;
+    }
 
-    return BNode::NODE_STATE::RUN;
+    //_started
+    /*if (!_started)
+    {
+        Get_Owner()->Request_Move(target);
+        _prevPos = target;
+        _started = true;
+    }*/
+    if ((_prevPos - target).Length() >= 1.f)
+    {
+        Get_Owner()->Request_Move(target);
+        _prevPos = target;
+
     }
 
 
-        _started = false;
-        return BNode::NODE_STATE::SUCCESS;
 
+
+    if (Get_Owner()->Is_Finished())
+    {
+
+       
+        return BNode::NODE_STATE::SUCCESS;
+    }
+
+
+    return BNode::NODE_STATE::RUN;
+
+}
+
+Shared<BT_MoveTo> BT_MoveTo::Create()
+{
+    auto instance = make_shared<BT_MoveTo>();
+
+    /*if (FAILED(instance->Initialize_Prototype()))
+    {
+        MSG_BOX("Failed to Created : Monster");
+        return nullptr;
+    }*/
+
+    return instance;
+}
+
+void BT_MoveTo::Free()
+{
+    __super::Free();
 }

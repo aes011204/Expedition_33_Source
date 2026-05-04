@@ -20,6 +20,7 @@ public:
 
     bool Is_Finished();
     void Request_Move(Vec3& target);
+    void Stop_Move();
 
 protected:
     shared_ptr<class BlackBoard> _BB = {};

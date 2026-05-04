@@ -153,6 +153,13 @@
     <ClInclude Include="..\Public\PlayerControllerCom.h">
       <Filter>03. Component\PlayerController</Filter>
     </ClInclude>
+    <ClInclude Include="..\public\Mon_AIController.h">
+      <Filter>BehavoirTree</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\Mon_BehaviorTree.h" />
+    <ClInclude Include="..\public\BT_Idle.h" />
+    <ClInclude Include="..\public\BT_Attack.h" />
+    <ClInclude Include="..\public\BT_CheckDistance.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -215,6 +222,13 @@
     <ClCompile Include="..\Private\PlayerControllerCom.cpp">
       <Filter>03. Component\PlayerController</Filter>
     </ClCompile>
+    <ClCompile Include="..\private\Mon_AIController.cpp">
+      <Filter>BehavoirTree</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\Mon_BehaviorTree.cpp" />
+    <ClCompile Include="..\private\BT_Idle.cpp" />
+    <ClCompile Include="..\private\BT_Attack.cpp" />
+    <ClCompile Include="..\private\BT_CheckDistance.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">

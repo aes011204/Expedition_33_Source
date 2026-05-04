@@ -20,11 +20,6 @@ AIController::~AIController()
 
 void AIController::Update(float timeDelta)
 {
-   Vec3 pos =  Get_Owner()->Get_Transform()->Get_Position();
-
-    _PF->Update(timeDelta, pos, 3.f);
-
-    Get_Owner()->Get_Transform()->Set_Position(pos);
 
     for (auto& service : _services)
     {
@@ -32,7 +27,14 @@ void AIController::Update(float timeDelta)
     }
 
     _BT->Update(timeDelta);
+
+
+   Vec3 pos =  Get_Owner()->Get_Transform()->Get_Position();
+    _PF->Update(timeDelta, pos, 1.5f);
+    Get_Owner()->Get_Transform()->Set_Position(pos);
+
 }
+
 void AIController::Set_BehaviorTree(shared_ptr<BehaviorTree> tree)
 {
     _BT = tree;
@@ -51,6 +53,12 @@ void AIController::Request_Move(Vec3& target)
     Vec3 pos = Get_Owner()->Get_Transform()->Get_Position();
     _PF->Request_Move(pos,target);
 
+}
+
+void AIController::Stop_Move()
+{
+    Vec3 pos = Get_Owner()->Get_Transform()->Get_Position();
+    _PF->Stop_Move(pos);
 }
 
 void AIController::Free()

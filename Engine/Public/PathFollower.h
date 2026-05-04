@@ -13,6 +13,7 @@ public:
    
     bool Is_Finished();
     void Request_Move(Vec3& start, Vec3& target);
+    void Stop_Move(const Vec3& currentPos);
 
 private:
     Vec3 _position = {};
