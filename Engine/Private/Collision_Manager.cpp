@@ -107,7 +107,7 @@ void Collision_Manager::Update()
     }
 
 #ifdef _DEBUG
-    if (GAME->KeyDown(KEY_TYPE::F2))
+    if (GAME->KeyDown(KEY_TYPE::F1))
         _isDebug = !_isDebug;
 #endif
 }

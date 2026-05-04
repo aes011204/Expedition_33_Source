@@ -79,8 +79,8 @@ public: /* For.Timer_Manager */
 public: /* For.Level_Manager */
     HRESULT Change_Level(uint32 newLevelIndex, Shared<Level> newLevel);
 
-    uint32          Current_LevelIndex();
-    Shared<Level>   Current_LevelType();
+    uint32          Current_LevelIndex() const;
+    Shared<Level>   Current_LevelType() const;
 
 public: /* For.Prototype_Manager */
     HRESULT Add_Prototype(uint32 levelIndex, const wstring& prototypeTag, Shared<Base> prototype);
@@ -103,7 +103,14 @@ public: /* For.Object_Manager */
         Shared<GameObject>& outGameObject,
         void* arg = nullptr);
 
+    // ex) Layer_Player의 첫번째 오브젝트 찾기
     Shared<GameObject> Find_FirstObject(uint32 levelIndex, const wstring& layerTag);
+
+    // 특정 레벨의 레이어에 있는 모든 오브젝트 순회 -> 에디터에서 사용
+    void    Visit_CurrentLevelObjects(
+        const function<void(const wstring& layerTag, const Shared<GameObject>& gameObject)>& visitor) const;
+
+    uint64 Get_CurrentLevelObjectRevision() const;
 
 public: /* For.Renderer */
     void Add_RenderGroup(RenderGroup renderGroup, Shared<GameObject> gameObject);
@@ -159,6 +166,15 @@ public: /* For.Camera_Manager */
     bool    Is_ActiveCamera(Shared<Camera> camera);
     void    Change_ActiveCamera(Shared<Camera> camera) const;
     float   Get_FovY();
+    void    SwitchTo_NextCamera();
+
+    bool    Activate_CameraByType(ObjectType objectType);
+    bool    Is_ActiveCameraType(ObjectType objectType) const;
+    bool    Focus_FreeCameraOnPosition(const Vec3& position);
+
+    // 게임 정지 시에도, 자유 카메라는 움직이게 timer 따로 설정
+    void    Set_FreeCameraTimeDelta(float timeDelta) { _freeCameraTimeDelta = timeDelta; }
+    float   Get_FreeCameraTimeDelta() const { return _freeCameraTimeDelta; }
 
 public: /* For.TypeRegistry */
     const TypeRegistry::ComponentTypeInfo*  Find_ComponentType(const string& className) const;
@@ -189,6 +205,13 @@ public: /* For.Debug_Manager */
     HRESULT                 Render_DebugOverlay();
 #endif
 
+public: /* 입력 제어 */
+    void                    Set_PlayerInputBlocked(bool isBlocked) { _isPlayerInputBlocked = isBlocked; }
+    bool                    Is_PlayerInputBlocked() const { return _isPlayerInputBlocked; }
+
+    void                    Set_FreeCameraInputEnabled(bool enabled) { _isFreeCameraInputEnabled = enabled; }
+    bool                    Is_FreeCameraInputEnabled() const { return _isFreeCameraInputEnabled; }
+
 private:
     Unique<Log_Manager>         _logManager{};
     Unique<Graphic_Device>      _graphicDevice{};
@@ -210,6 +233,12 @@ private:
 private:
     uint32 _viewportWidth{ 0 };
     uint32 _viewportHeight{ 0 };
+
+    bool _isPlayerInputBlocked = false;
+    bool _isFreeCameraInputEnabled = false;
+
+    // Free 카메라용 time
+    float _freeCameraTimeDelta = 0.f;
 
 public:
     void    Release_Engine();

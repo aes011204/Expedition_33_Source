@@ -35,7 +35,8 @@ void FreeCamera::Priority_Update(float timeDelta)
     if(_firstUpdate)
     {
         GAME->Add_Camera(GetSharedPtr<Camera>());
-        GAME->Change_ActiveCamera(GetSharedPtr<Camera>());
+        // 이거 여기에서 호출하면, GameLauncher에서도, Free Camera로 시작돼서, Target Camera 쪽으로 변경합니다
+        //GAME->Change_ActiveCamera(GetSharedPtr<Camera>());
 
         _firstUpdate = false;
     }
@@ -43,33 +44,46 @@ void FreeCamera::Priority_Update(float timeDelta)
     if(!GAME->Is_ActiveCamera(GetSharedPtr<Camera>()))
         return;
 
-    //TODO movespeed 만들고 그거 기준으로 이동할 수 있도록
+    // 활성 자유카메라는 입력이 없어도 현재 transform 기준으로 view matrix를 바로 반영해야,
+    // F8 전환이나 Scene 더블클릭 포커스 이동이 그 프레임에 즉시 보인다.
+    __super::Update_TransformMatrices();
 
-    if(GAME->KeyDown(KEY_TYPE::F1))
-    {
-        _lock = !_lock;
-    }
-
-    if(_lock)
+    // 우클릭 눌렀을 때 움직일 수 있게
+    if (!GAME->Is_FreeCameraInputEnabled())
         return;
 
+    if (!GAME->KeyPress(KEY_TYPE::RBUTTON))
+        return;
+
+    //TODO movespeed 만들고 그거 기준으로 이동할 수 있도록
+
+    //if(GAME->KeyDown(KEY_TYPE::F1))
+    //{
+    //    _lock = !_lock;
+    //}
+    //
+    //if(_lock)
+    //    return;
+
+    const float cameraDelta = max(timeDelta, GAME->Get_FreeCameraTimeDelta());
+
     if (GAME->KeyPress(KEY_TYPE::W))
-        _transformCom->Go_Straight(timeDelta);
+        _transformCom->Go_Straight(cameraDelta);
 
     if (GAME->KeyPress(KEY_TYPE::S))
-        _transformCom->Go_Backward(timeDelta);
+        _transformCom->Go_Backward(cameraDelta);
 
     if (GAME->KeyPress(KEY_TYPE::A))
-        _transformCom->Go_Left(timeDelta);
+        _transformCom->Go_Left(cameraDelta);
 
     if (GAME->KeyPress(KEY_TYPE::D))
-        _transformCom->Go_Right(timeDelta);
+        _transformCom->Go_Right(cameraDelta);
 
     if (GAME->KeyPress(KEY_TYPE::E))
-        _transformCom->Go_Up(timeDelta);
+        _transformCom->Go_Up(cameraDelta);
 
     if (GAME->KeyPress(KEY_TYPE::Q))
-        _transformCom->Go_Down(timeDelta);
+        _transformCom->Go_Down(cameraDelta);
 
     const Vec2 mouseDelta = GAME->Get_MouseDelta();
 

@@ -400,7 +400,6 @@ HRESULT ResourceLoader::Build_ComponentJobs(const wstring& strTablePath, vector<
     return S_OK;
 }
 
-
 HRESULT ResourceLoader::Build_StaticLevelJobs(const wstring& strTablePath, vector<FLoadJob>& LoadJobs)
 {
 	json JsonRoot = {};

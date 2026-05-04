@@ -27,9 +27,17 @@ public:
     float              Get_Near(int index);
     float              Get_Far(int index);
 
+    // 카메라 식별용
+    bool               Activate_CameraByType(ObjectType objectType);
+    bool               Is_ActiveCameraType(ObjectType objectType) const;
+    bool               Focus_FreeCameraOnPosition(const Vec3& position);
+
 private:
     vector<Shared<Camera>> m_cameras;
     Shared<Camera>         m_activeCamera;
+    bool                   _hasPendingFreeCameraFocus = false;
+    Vec3                   _freeCameraFocusTarget = Vec3::Zero;
+    float                  _freeCameraFocusSpeed = 8.f;
 
 
 public:

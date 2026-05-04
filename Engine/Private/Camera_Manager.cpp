@@ -2,6 +2,7 @@
 
 #include "Camera.h"
 #include "GameInstance.h"
+#include "Helper_Math.h"
 
 Camera_Manager::Camera_Manager()
 {
@@ -18,48 +19,91 @@ HRESULT Camera_Manager::Initialize(void* arg)
 
 void Camera_Manager::Update(float timeDelta)
 {
-    if(nullptr == m_activeCamera)
+    if (nullptr == m_activeCamera)
         return;
 
-    if(GAME->KeyDown(KEY_TYPE::CTRL))
+    if (_hasPendingFreeCameraFocus && m_activeCamera->Get_ObjectType() == ObjectType::FreeCamera)
     {
-        SwitchTo_NextCamera();
+        Shared<TransformCom> transform = m_activeCamera->Get_Transform();
+        if (transform != nullptr)
+        {
+            const float focusDelta = max(timeDelta, GAME->Get_FreeCameraTimeDelta());
+            const Vec3 currentPosition = transform->Get_WorldPosition();
+            const Vec3 nextPosition = Math::Lerp_Damp(currentPosition, _freeCameraFocusTarget, _freeCameraFocusSpeed, focusDelta);
+
+            transform->Set_WorldPosition(nextPosition);
+
+            if ((_freeCameraFocusTarget - nextPosition).LengthSquared() <= 0.001f)
+            {
+                transform->Set_WorldPosition(_freeCameraFocusTarget);
+                _hasPendingFreeCameraFocus = false;
+            }
+        }
+        else
+        {
+            _hasPendingFreeCameraFocus = false;
+        }
     }
+
+    // 여기서 전환하면, 실제 게임플레이 때에도 자유카메라로 전환돼서 에디터쪽으로 옮깁니다.
+    //if (GAME->KeyDown(KEY_TYPE::F8))
+    //{
+    //    SwitchTo_NextCamera();
+    //}
 }
 
 void Camera_Manager::Change_ActiveCamera(Shared<Camera> camera)
 {
-    if(nullptr == camera)
+    if (nullptr == camera)
         return;
 
     m_activeCamera = camera;
+    _hasPendingFreeCameraFocus = false;
 }
 
 void Camera_Manager::SwitchTo_NextCamera()
 {
-    if(m_cameras.empty())
+    if (m_cameras.empty())
         return;
+
+    _hasPendingFreeCameraFocus = false;
 
     auto iter = find(m_cameras.begin(), m_cameras.end(), m_activeCamera);
 
     int nextIndex = 0;
 
-    if(iter != m_cameras.end())
+    if (iter != m_cameras.end())
     {
         int currentIndex = distance(m_cameras.begin(), iter);
         nextIndex = (currentIndex + 1) % m_cameras.size();
     }
-    else
+
+    Shared<Camera> nextCamera = m_cameras[nextIndex];
+    if (nextCamera == nullptr)
+        return;
+
+    // FreeCamera로 전환 시, Target 카메라의 현재 위치 넘겨주기
+    if (m_activeCamera && nextCamera->Get_ObjectType() == ObjectType::FreeCamera)
     {
-        nextIndex = 0;
+        Shared<TransformCom> currentTransform = m_activeCamera->Get_Transform();
+        Shared<TransformCom> nextTransform = nextCamera->Get_Transform();
+
+        if (currentTransform && nextTransform)
+        {
+            nextTransform->Set_WorldPosition(currentTransform->Get_WorldPosition());
+            nextTransform->Set_RotationEuler(currentTransform->Get_RotationEuler());
+        }
+
+        nextCamera->Set_Yaw(m_activeCamera->Get_Yaw());
+        nextCamera->Set_Pitch(m_activeCamera->Get_Pitch());
     }
 
-    m_activeCamera = m_cameras[nextIndex];
+    m_activeCamera = nextCamera;
 }
 
 HRESULT Camera_Manager::Add_Camera(Shared<Camera> camera)
 {
-    if(nullptr != Find_Camera(camera))
+    if (nullptr != Find_Camera(camera))
     {
         MSG_BOX("Failed to Add Camera");
         return E_FAIL;
@@ -72,9 +116,9 @@ HRESULT Camera_Manager::Add_Camera(Shared<Camera> camera)
 
 Shared<Camera> Camera_Manager::Find_Camera(Shared<Camera> camera)
 {
-   auto iter = find(m_cameras.begin(), m_cameras.end(), camera);
+    auto iter = find(m_cameras.begin(), m_cameras.end(), camera);
 
-    if(iter == m_cameras.end())
+    if (iter == m_cameras.end())
         return nullptr;
 
     return (*iter);
@@ -82,10 +126,10 @@ Shared<Camera> Camera_Manager::Find_Camera(Shared<Camera> camera)
 
 bool Camera_Manager::Is_ActiveCamera(Shared<Camera> camera)
 {
-  if(m_activeCamera != camera)
-      return false;
+    if (m_activeCamera != camera)
+        return false;
 
-  return true;
+    return true;
 }
 
 int Camera_Manager::Get_CameraCount()
@@ -111,6 +155,52 @@ float Camera_Manager::Get_Near(int index)
 float Camera_Manager::Get_Far(int index)
 {
     return m_cameras[index]->Get_Far();
+}
+
+bool Camera_Manager::Activate_CameraByType(ObjectType objectType)
+{
+    for (const auto& camera : m_cameras)
+    {
+        if (nullptr == camera)
+            continue;
+
+        if (camera->Get_ObjectType() == objectType)
+        {
+            m_activeCamera = camera;
+            _hasPendingFreeCameraFocus = false;
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool Camera_Manager::Is_ActiveCameraType(ObjectType objectType) const
+{
+    if (nullptr == m_activeCamera)
+        return false;
+
+    return m_activeCamera->Get_ObjectType() == objectType;
+}
+
+bool Camera_Manager::Focus_FreeCameraOnPosition(const Vec3& position)
+{
+    for (const auto& camera : m_cameras)
+    {
+        if (camera == nullptr || camera->Get_ObjectType() != ObjectType::FreeCamera)
+            continue;
+
+        Shared<TransformCom> transform = camera->Get_Transform();
+        if (transform == nullptr)
+            return false;
+
+        m_activeCamera = camera;
+        _freeCameraFocusTarget = position;
+        _hasPendingFreeCameraFocus = true;
+        return true;
+    }
+
+    return false;
 }
 
 Unique<Camera_Manager> Camera_Manager::Create()

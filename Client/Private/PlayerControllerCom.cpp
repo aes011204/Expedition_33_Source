@@ -1,89 +1,97 @@
 ﻿#include "PlayerControllerCom.h"
+#include "GameInstance.h"
 #include "GameObject.h"
 #include "InputCom.h"
 #include "MovementCom.h"
 
 PlayerControllerCom::PlayerControllerCom(const ComPtr<Device>& device, const ComPtr<Context>& context)
-    : Component(device, context)
+	: Component(device, context)
 {
 }
 
 PlayerControllerCom::PlayerControllerCom(const PlayerControllerCom& Prototype)
-    : Component(Prototype)
+	: Component(Prototype)
 {
 }
 
 HRESULT PlayerControllerCom::Initialize_Prototype()
 {
-    return Component::Initialize_Prototype();
+	return Component::Initialize_Prototype();
 }
 
 HRESULT PlayerControllerCom::Initialize(void* arg)
 {
-    CHECK_FAILED(Component::Initialize(arg), E_FAIL);
+	CHECK_FAILED(Component::Initialize(arg), E_FAIL);
 
-    return S_OK;
+	return S_OK;
 }
 
 void PlayerControllerCom::BeginPlay()
 {
-    Component::BeginPlay();
+	Component::BeginPlay();
 
-    auto owner = Get_Owner();
-    CHECK_NULL(owner);
+	auto owner = Get_Owner();
+	CHECK_NULL(owner);
 
-    _movementCom = owner->Get_Component<MovementCom>();
-    CHECK_NULL(_movementCom);
+	_movementCom = owner->Get_Component<MovementCom>();
+	CHECK_NULL(_movementCom);
 
-    _inputCom = owner->Get_Component<InputCom>();
-    CHECK_NULL(_inputCom);
+	_inputCom = owner->Get_Component<InputCom>();
+	CHECK_NULL(_inputCom);
 
 }
 
 void PlayerControllerCom::Update_Controller(float timeDelta)
 {
-    _inputCom->Update_Input();
+	if (GAME->Is_PlayerInputBlocked())
+	{
+		MovementCom::MoveInput moveInput{};
+		_movementCom->Apply_Input(moveInput);
+		return;
+	}
 
-    MovementCom::MoveInput moveInput{};
-    const InputCom::InputFrame& inputFrame = _inputCom->Get_Frame();
+	_inputCom->Update_Input();
 
-    moveInput.moveAxis = inputFrame.moveAxis;
-    moveInput.turnAxis = inputFrame.turnAxis;
-    moveInput.isRunPressed = inputFrame.isRunPressed;
-    moveInput.isJumpDown = inputFrame.isJumpDown;
+	MovementCom::MoveInput moveInput{};
+	const InputCom::InputFrame& inputFrame = _inputCom->Get_Frame();
 
-    _movementCom->Apply_Input(moveInput);
-    _movementCom->Update_Movement(timeDelta);
+	moveInput.moveX = inputFrame.moveX;
+	moveInput.moveZ = inputFrame.moveZ;
+	moveInput.isRunPressed = inputFrame.isRunPressed;
+	moveInput.isJumpDown = inputFrame.isJumpDown;
+
+	_movementCom->Apply_Input(moveInput);
+	_movementCom->Update_Movement(timeDelta);
 
 }
 
 Shared<PlayerControllerCom> PlayerControllerCom::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
-    auto instance = make_shared<PlayerControllerCom>(device, context);
+	auto instance = make_shared<PlayerControllerCom>(device, context);
 
-    if (FAILED(instance->Initialize_Prototype()))
-    {
-        MSG_BOX("Failed to Created : PlayerControllerCom");
-        return nullptr;
-    }
+	if (FAILED(instance->Initialize_Prototype()))
+	{
+		LOG_ERROR("Failed to Created : PlayerControllerCom");
+		return nullptr;
+	}
 
-    return instance;
+	return instance;
 }
 
 Shared<Component> PlayerControllerCom::Clone(void* arg)
 {
-    auto clone = make_shared<PlayerControllerCom>(*this);
+	auto clone = make_shared<PlayerControllerCom>(*this);
 
-    if (FAILED(clone->Initialize(arg)))
-    {
-        MSG_BOX("Failed to Cloned : PlayerControllerCom");
-        return nullptr;
-    }
+	if (FAILED(clone->Initialize(arg)))
+	{
+		MSG_BOX("Failed to Cloned : PlayerControllerCom");
+		return nullptr;
+	}
 
-    return clone;
+	return clone;
 }
 
 void PlayerControllerCom::Free()
 {
-    Component::Free();
+	Component::Free();
 }

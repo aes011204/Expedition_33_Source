@@ -44,6 +44,7 @@ void TargetCamera::Priority_Update(float timeDelta)
     if(_firstUpdate)
     {
         GAME->Add_Camera(GetSharedPtr<Camera>());
+        GAME->Change_ActiveCamera(GetSharedPtr<Camera>());
 
         _targetTransformCom =  CLIENT->Find_Player(GAME->Current_LevelIndex())->Get_Transform();
 

@@ -39,13 +39,13 @@ public:
     void  Set_Far(float fFar);
 
     float Get_Yaw() { return _yaw; }
-    void  Set_Yaw(float yaw);
+    void  Set_Yaw(float yaw) { _yaw = yaw; }
 
     float Get_Pitch() {return _pitch; }
-    void  Set_Pitch(float pitch);
+    void  Set_Pitch(float pitch) { _pitch = pitch; }
 
     float Get_MouseSensor() {return _mouseSensor;}
-    void  Set_MouseSensor(float mouseSensor);
+    void  Set_MouseSensor(float mouseSensor) { _mouseSensor = mouseSensor; }
 
 protected:
     float	_fovY{}, _near{}, _far{}, _aspect{};
