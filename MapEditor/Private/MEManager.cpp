@@ -4,6 +4,7 @@
 #include "PanelHierarchy.h"
 #include "PanelInspector.h"
 #include "PanelAssetBrowser.h"
+#include "PanelSnap.h"
 #include "SceneContext.h"
 
 MEManager::~MEManager()
@@ -25,6 +26,10 @@ HRESULT MEManager::Initialize(Shared<PanelViewport> viewport, SceneContext* ctx)
     Add(PanelHierarchy::Create(ctx));
     Add(PanelInspector::Create(ctx));
     Add(PanelAssetBrowser::Create(ctx));
+
+    _snapSettings = make_shared<SnapSettings>();
+    viewport->SetSnapSettings(_snapSettings);
+    Add(PanelSnap::Create(_snapSettings));
 
     return S_OK;
 }
@@ -175,6 +180,14 @@ void MEManager::RenderDockSpace()
         ImGui::EndMenuBar();
     }
     ImGui::End();
+}
+
+void MEManager::AddWindow(Shared<MEWindow> w)
+{
+    if (w)
+    {
+        _windows[w->GetName()] = w;
+    }
 }
 
 Unique<MEManager> MEManager::Create(Shared<PanelViewport> viewport, SceneContext* ctx)

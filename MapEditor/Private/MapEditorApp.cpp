@@ -38,6 +38,7 @@ HRESULT MapEditor::MapEditorApp::Initialize()
     _rt = RenderTarget::Create(_device, _context, g_iWinSizeX, g_iWinSizeY, DXGI_FORMAT_R8G8B8A8_UNORM, Vec4(0.1f, 0.1f, 0.1f, 1.f));
     CHECK_NULL(_rt, E_FAIL);
 
+
     _viewport = PanelViewport::Create(_camera, _rt, &_scene);
     CHECK_NULL(_viewport, E_FAIL);
 
@@ -139,6 +140,37 @@ void MapEditorApp::DrawSceneDebug()
             GAME->Draw_DebugLine(line);
             break;
         }
+
+        case EObjectType::Light:
+        {
+            DebugSphereDesc sphere;
+            sphere.center = obj->_position;
+            sphere.radius = 0.2f;
+            sphere.style.color = isSelected ? Color(1.f, 1.f, 0.f, 1.f) : Color(1.f, 0.9f, 0.3f, 1.f);
+            sphere.style.depthEnabled = false;
+            GAME->Draw_DebugSphere(sphere);
+
+            if (obj->_lightType == LightType::Directional)
+            {
+                DebugLineDesc line;
+                line.start = obj->_position;
+                line.end = obj->_position + Vec3(obj->_lightDirection.x, obj->_lightDirection.y, obj->_lightDirection.z) * 2.f;
+                line.style.color = sphere.style.color;
+                line.style.depthEnabled = false;
+                GAME->Draw_DebugLine(line);
+            }
+            else
+            {
+                DebugSphereDesc range;
+                range.center = obj->_position;
+                range.radius = obj->_lightRange;
+                range.style.color = Color(1.f, 0.9f, 0.3f, 0.3f);
+                range.style.depthEnabled = false;
+                GAME->Draw_DebugSphere(range);
+            }
+            break;
+        }
+
         default:
             break;
         }

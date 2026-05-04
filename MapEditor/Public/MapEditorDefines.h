@@ -84,6 +84,13 @@ namespace MapEditor
         }
         return EObjectType::Fail;
     }
+
+    struct SnapSettings
+    {
+        float translate = 0.5f;
+        float rotate = 15.f;
+        float scale = 0.1f;
+    };
 };
 
 using namespace MapEditor;

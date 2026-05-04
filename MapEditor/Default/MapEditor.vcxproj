@@ -158,6 +158,7 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     <ClInclude Include="..\Public\PanelAssetBrowser.h" />
     <ClInclude Include="..\Public\PanelHierarchy.h" />
     <ClInclude Include="..\Public\PanelInspector.h" />
+    <ClInclude Include="..\Public\PanelSnap.h" />
     <ClInclude Include="..\Public\PanelViewport.h" />
     <ClInclude Include="..\Public\pch.h" />
     <ClInclude Include="..\Public\SceneContext.h" />
@@ -177,6 +178,7 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     <ClCompile Include="..\Private\PanelAssetBrowser.cpp" />
     <ClCompile Include="..\Private\PanelHierarchy.cpp" />
     <ClCompile Include="..\Private\PanelInspector.cpp" />
+    <ClCompile Include="..\Private\PanelSnap.cpp" />
     <ClCompile Include="..\Private\PanelViewport.cpp" />
     <ClCompile Include="..\Private\pch.cpp" />
     <ClCompile Include="..\Private\SceneContext.cpp" />

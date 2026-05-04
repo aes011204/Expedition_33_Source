@@ -113,6 +113,7 @@ MEStaticMeshActor                         — 에디터 뷰포트 시각화 전�
 4. ✅ 기본 패널 4종 — Viewport / Hierarchy / Inspector / Asset Browser
 5. ✅ 에디터 카메라 + RT 렌더링 (`MECamera`, `RenderTarget` → ImGui::Image)
 6. ✅ 기즈모 Translate/Rotate/Scale — ImGuizmo, W/E/R 단축키
+    - ✅ Snapping — Ctrl 홀드 활성, `PanelSnap`으로 단위 편집 (Translate/Rotate/Scale)
 
 ### Phase 2 — 핵심 오브젝트 편집 ✅
 7. ✅ `EditorObject` / `SceneContext`
@@ -127,7 +128,7 @@ MEStaticMeshActor                         — 에디터 뷰포트 시각화 전�
     - `MEStaticMeshActor` (Model + Shader_VtxMesh 직접 렌더)
     - `EditorObject.renderHandle` 연결
     - `MapEditorApp` RT 내 씬 렌더 루프
-13. 라이트 배치 및 속성 편집
+13. ✅ 라이트 배치 및 속성 편집
 
 ### Phase 3 — 볼륨 / 존 시스템 ← **진행 중**
 14. ✅ 타입 시스템 도입 (`EObjectType`, `EZoneShape`) — `MapEditorDefines.h`
@@ -171,14 +172,14 @@ MEStaticMeshActor                         — 에디터 뷰포트 시각화 전�
 | 기즈모 (W/E/R) | ✅ |
 | Hierarchy | ✅ |
 | Inspector | ✅ |
-| Snapping | 구현 예정 |
+| Snapping | ✅ (Ctrl 홀드, PanelSnap으로 수치 편집) |
 
 ### 렌더링 / 배치
 
 | 기능 | 상태 |
 |------|------|
 | 정적 메시 배치 | Assimp 리팩토링 대기 |
-| 라이트 배치 | 구현 예정 |
+| 라이트 배치 | ✅ |
 | 물(Water) 배치 | 구현 예정 |
 | 파티클 이펙트 배치 | 파티클 시스템 대기 |
 | 지형 (Terrain) | 방식 미확정 |

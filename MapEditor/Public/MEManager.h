@@ -5,6 +5,7 @@
 NS_BEGIN(MapEditor)
 
 class PanelViewport;
+class PanelSnap;
 struct SceneContext;
 
 class MEManager
@@ -28,6 +29,11 @@ private:
     SceneContext* _ctx = {};
     string _currentMapPath = "Stage_01.json";
     char mapPathBuf[256] = {};
+
+    Shared<SnapSettings> _snapSettings;
+
+public:
+    void AddWindow(Shared<MEWindow> w);
 
 public:
     static Unique<MEManager> Create(Shared<PanelViewport> viewport, SceneContext* ctx);

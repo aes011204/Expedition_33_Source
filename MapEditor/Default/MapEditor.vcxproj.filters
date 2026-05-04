@@ -55,6 +55,9 @@
     <Filter Include="08. Ue5Importer">
       <UniqueIdentifier>{03416126-3368-46fb-a4f8-f09a238c4427}</UniqueIdentifier>
     </Filter>
+    <Filter Include="04. Panel\PanelSnap">
+      <UniqueIdentifier>{4bf626b2-c014-4114-a198-3a770aeee972}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="targetver.h">
@@ -113,6 +116,9 @@
     </ClInclude>
     <ClInclude Include="..\Public\MEUe5Importer.h">
       <Filter>08. Ue5Importer</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\PanelSnap.h">
+      <Filter>04. Panel\PanelSnap</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -173,6 +179,9 @@
     </ClCompile>
     <ClCompile Include="..\Private\MEUe5Importer.cpp">
       <Filter>08. Ue5Importer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\PanelSnap.cpp">
+      <Filter>04. Panel\PanelSnap</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>
