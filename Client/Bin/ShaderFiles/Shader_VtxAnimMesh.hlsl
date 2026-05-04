@@ -6,19 +6,19 @@ float4x4 g_WorldMatrix, g_ViewMatrix, g_ProjMatrix;
 row_major matrix g_BoneMatrices[512];
 
 //==================================================
-// LIGHT
-//==================================================
-vector g_vLightDir;
-vector g_vLightDiffuse;
-vector g_vLightAmbient;
-vector g_vLightSpecular;
-
-//==================================================
 // MATERIAL
 //==================================================
 texture2D g_DiffuseTexture;
-vector g_vMtrlAmbient = vector(0.3f, 0.3f, 0.3f, 1.f);
-vector g_vMtrlSpecular = vector(1.f, 1.f, 1.f, 1.f);
+
+//==================================================
+// CAMERA
+//==================================================
+float g_fFar = 0.f;
+
+//==================================================
+// SHADOW
+//==================================================
+float g_fLightFar = 0.f;
 
 //==================================================
 // SAMPLER
@@ -29,17 +29,6 @@ sampler DefaultSampler = sampler_state
     AddressU = wrap;
     AddressV = wrap;
 };
-
-//==================================================
-// CAMERA
-//==================================================
-vector g_vCamPosition;
-float g_fFar = 500.f;
-
-//==================================================
-// SHADOW
-//==================================================
-float g_fLightFar = 1000.f;
 
 //==================================================
 // VS
@@ -144,7 +133,6 @@ PS_OUT_SHADOW PS_MAIN_SHADOW(PS_IN In)
     PS_OUT_SHADOW Out;
     
     Out.vLightDepth = vector(In.vProjPos.z / In.vProjPos.w, In.vProjPos.w / g_fLightFar, 0.f, 1.f);
-    
     return Out;
 }
 

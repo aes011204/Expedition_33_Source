@@ -56,7 +56,7 @@ HRESULT Level_GamePlay::Ready_Lights()
 	LightDesc.type          = LightType::Directional;
 	LightDesc.direction     = XMFLOAT4(1.f, -1.f, 1.f, 0.f);
 	LightDesc.diffuse       = XMFLOAT4(1.f, 1.f, 1.f, 1.f);
-	LightDesc.ambient       = XMFLOAT4(1.f, 1.f, 1.f, 1.f);
+	LightDesc.ambient       = XMFLOAT4(0.3f, 0.3f, 0.3f, 1.f);
 	LightDesc.specular      = XMFLOAT4(1.f, 1.f, 1.f, 1.f);
 
 	if (FAILED(GAME->Add_Light(LightDesc)))
@@ -64,12 +64,14 @@ HRESULT Level_GamePlay::Ready_Lights()
 
     ShadowLightDesc     ShadowDesc{};
 
-    ShadowDesc.eye          = Vec3(-150.f, 150.f, -150.f);
+    ShadowDesc.eye          = Vec3(-0.f, 10.f, -7.f);
     ShadowDesc.at           = Vec3(0.f, 0.f, 0.f);
     ShadowDesc.fovy         = AI_DEG_TO_RAD(120.f);
     ShadowDesc.aspect       = 16.f / 9.f;
     ShadowDesc.zn           = 0.1f;
     ShadowDesc.zf           = 1000.f;
+    ShadowDesc.bias         = 0.03f;
+    ShadowDesc.intensity    = 0.4f;
 
     if (FAILED(GAME->Update_ShadowLight(ShadowDesc)))
         return E_FAIL;

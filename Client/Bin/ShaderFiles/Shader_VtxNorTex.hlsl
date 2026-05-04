@@ -6,17 +6,9 @@
 float4x4 g_WorldMatrix, g_ViewMatrix, g_ProjMatrix;
 
 //==================================================
-// LIGHT
-//==================================================
-vector g_vLightDir;
-vector g_vLightDiffuse;
-vector g_vLightAmbient;
-vector g_vLightSpecular;
-
-//==================================================
 // CAMERA
 //==================================================
-float g_fFar = 500.f;
+float g_fFar = 0.f;
 
 //==================================================
 // TEXTURE
@@ -25,11 +17,7 @@ texture2D g_DiffuseTexture[2];
 texture2D g_MaskTexture;
 texture2D g_BrushTexture;
 
-vector g_vMtrlAmbient = vector(0.3f, 0.3f, 0.3f, 1.f);
-vector g_vMtrlSpecular = vector(1.f, 1.f, 1.f, 1.f);
-vector g_vCamPosition;
-
-float g_fBrushRange = 15.f;
+//float g_fBrushRange = 15.f;
 vector g_vBrushPosition = vector(70.f, 0.f, 20.f, 1.f);
 
 //==================================================
@@ -110,6 +98,9 @@ PS_OUT PS_MAIN(PS_IN In)
     vector vDestMtrlDiffuse = g_DiffuseTexture[1].Sample(DefaultSampler, In.vTexcoord * 30.f);
     vector vMask = g_MaskTexture.Sample(DefaultSampler, In.vTexcoord);
     vector vBrush = 0.f;
+
+    float g_fBrushRange = 15.f;
+    //vector g_vBrushPosition = vector(70.f, 0.f, 20.f, 1.f);
     
     if (g_vBrushPosition.x - g_fBrushRange < In.vWorldPos.x && In.vWorldPos.x <= g_vBrushPosition.x + g_fBrushRange && 
         g_vBrushPosition.z - g_fBrushRange < In.vWorldPos.z && In.vWorldPos.z <= g_vBrushPosition.z + g_fBrushRange)

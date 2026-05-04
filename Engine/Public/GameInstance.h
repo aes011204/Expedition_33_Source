@@ -184,6 +184,9 @@ public: /* For.Camera_Manager */
     Shared<Camera>  Get_ActiveCamera();
     float   Get_CameraCount();
 
+    HRESULT Bind_CameraFar(Shared<ShaderCom> shader, const char* constantName);
+
+
 public: /* For.TypeRegistry */
     const TypeRegistry::ComponentTypeInfo*  Find_ComponentType(const string& className) const;
     const TypeRegistry::GameObjectTypeInfo* Find_GameObjectType(const string& className) const;
@@ -194,10 +197,10 @@ public: /* For.TypeRegistry */
     Shared<Base>        Create_BTNodePrototype(const string& className) const;
 
 public : /* For.Target_Manager */
-    HRESULT Add_RenderTarget(const wstring& targetTag, uint32 sizeX, uint32 sizeY, DXGI_FORMAT pixelFormat, const Color& clearColor, bool resizeWithViewport = true);
+    HRESULT Add_RenderTarget(const wstring& targetTag, uint32 sizeX, uint32 sizeY, DXGI_FORMAT pixelFormat, const Color& clearColor, bool resizeWithViewport = true, bool useDSV = false);
     HRESULT Add_MRT(const wstring& mrtTag, const wstring& targetTag);
 
-    HRESULT Begin_MRT(const wstring& mrtTag, ComPtr<DepthStencilView> shaderDSV = nullptr);
+    HRESULT Begin_MRT(const wstring& mrtTag, bool useDSV = false);
     HRESULT End_MRT();
     HRESULT Resize_MRTs(uint32 width, uint32 height);
     HRESULT Bind_RT_ShaderResource(Shared<ShaderCom> shader, const char* constantName, const wstring& targetTag);
@@ -216,6 +219,8 @@ public : /* For.Target_Manager */
 
 public: /* For.Shadow */
     HRESULT                 Bind_ShadowMatrices(Shared<ShaderCom> shader, const char* viewName, const char* projName);
+    HRESULT                 Bind_ShadowLightDesc(Shared<ShaderCom> shader, const char* lightFarName, const char* biasName = nullptr, const char* intensityName = nullptr);
+
     HRESULT                 Update_ShadowLight(const ShadowLightDesc& desc);
     const ShadowLightDesc*  Get_ShadowLightDesc() const;
     const Matrix*           Get_ShadowTransformMatrix(D3DTS eType) const;

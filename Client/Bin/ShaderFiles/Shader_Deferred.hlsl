@@ -33,7 +33,7 @@ vector g_vMtrlSpecular = float4(1.f, 1.f, 1.f, 1.f);
 //==================================================
 // SHADOW
 //==================================================
-float   g_fLightFar = 1000.f;
+float   g_fLightFar = 0.f;
 float   g_fBias = 0.01f;
 float   g_fShadowIntensity = 0.4f;
 
@@ -41,7 +41,7 @@ float   g_fShadowIntensity = 0.4f;
 // CAMERA
 //==================================================
 vector  g_vCamPosition;
-float   g_fFar = 500.f;
+float   g_fFar = 0.f;
 
 //==================================================
 // SAMPLER
@@ -237,6 +237,7 @@ technique11 DefaultTechnique
         SetBlendState(BS_Default, float4(0.f, 0.f, 0.f, 0.f), 0xffffffff);
 
         VertexShader = compile vs_5_0 VS_MAIN();
+        GeometryShader = NULL;
         PixelShader = compile ps_5_0 PS_MAIN_DEBUG();
     }
 
@@ -247,6 +248,7 @@ technique11 DefaultTechnique
         SetBlendState(BS_Blend, float4(0.f, 0.f, 0.f, 0.f), 0xffffffff);
 
         VertexShader = compile vs_5_0 VS_MAIN();
+        GeometryShader = NULL;
         PixelShader = compile ps_5_0 PS_MAIN_DIRECTIONAL();
     }
 
@@ -257,6 +259,7 @@ technique11 DefaultTechnique
         SetBlendState(BS_Blend, float4(0.f, 0.f, 0.f, 0.f), 0xffffffff);
 
         VertexShader = compile vs_5_0 VS_MAIN();
+        GeometryShader = NULL;
         PixelShader = compile ps_5_0 PS_MAIN_POINT();
     }
 
@@ -267,6 +270,7 @@ technique11 DefaultTechnique
         SetBlendState(BS_Default, float4(0.f, 0.f, 0.f, 0.f), 0xffffffff);
 
         VertexShader = compile vs_5_0 VS_MAIN();
+        GeometryShader = NULL;
         PixelShader = compile ps_5_0 PS_MAIN_COMBINED();
     }
 }

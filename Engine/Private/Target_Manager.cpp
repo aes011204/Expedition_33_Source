@@ -7,14 +7,14 @@ Target_Manager::Target_Manager(ComPtr<Device> device, ComPtr<ID3D11DeviceContext
 {
 }
 
-HRESULT Target_Manager::Add_RenderTarget(const wstring& targetTag, uint32 sizeX, uint32 sizeY, DXGI_FORMAT pixelFormat, const Color& clearColor, bool resizeWithViewport)
+HRESULT Target_Manager::Add_RenderTarget(const wstring& targetTag, uint32 sizeX, uint32 sizeY, DXGI_FORMAT pixelFormat, const Color& clearColor, bool resizeWithViewport, bool useDSV)
 {
     if (Find_RenderTarget(targetTag))
         return E_FAIL;
 
-    auto target = make_shared<RenderTarget>(_device, _context);
+    auto target = RenderTarget::Create(_device, _context, sizeX, sizeY, pixelFormat, clearColor, useDSV);
 
-    if (FAILED(target->Initialize(sizeX, sizeY, pixelFormat, clearColor, false)))
+    if (target == nullptr)
         return E_FAIL;
 
     target->Clear_RenderTarget();
@@ -24,7 +24,7 @@ HRESULT Target_Manager::Add_RenderTarget(const wstring& targetTag, uint32 sizeX,
     desc.target = target;
     desc.format = pixelFormat;
     desc.clearColor = clearColor;
-    desc.hasDepth = false;              // TODO false일 거면 왜 있는 건지? 어디에 사용됨? 
+    desc.hasDepth = useDSV;
     desc.resizeWithViewport = resizeWithViewport; 
 
     _renderTargets.emplace(targetTag, desc);
@@ -73,7 +73,7 @@ HRESULT Target_Manager::Bind_ShaderResource(Shared<ShaderCom> shader, const char
     return shader->Bind_SRV(constantName, renderTarget->Get_SRV());
 }
 
-HRESULT Target_Manager::Begin_MRT(const wstring& mrtTag, ComPtr<DepthStencilView> shaderDSV)
+HRESULT Target_Manager::Begin_MRT(const wstring& mrtTag, bool useDSV)
 {
     auto mrt = Find_MRT(mrtTag);
     CHECK_NULL(mrt, E_FAIL);
@@ -93,6 +93,9 @@ HRESULT Target_Manager::Begin_MRT(const wstring& mrtTag, ComPtr<DepthStencilView
     D3D11_VIEWPORT      mrtViewport = {};
     bool                hasMRTViewport = false;
 
+    DepthStencilView* dsv = nullptr;
+
+
     for (auto& rt : *mrt)
     {
         for (auto& desc : _renderTargets)
@@ -100,8 +103,11 @@ HRESULT Target_Manager::Begin_MRT(const wstring& mrtTag, ComPtr<DepthStencilView
             if (desc.second.target == rt)
             {
                 rt->Clear_RenderTarget();
-                // TODO 이 위치에서 DSV 초기화가 필요한가? 
-                // rt->Clear_DepthStencil();
+                if (useDSV)
+                {
+                    rt->Clear_DepthStencil();
+                    dsv = rt->Get_DSV();
+                }
                 break;
             }
         }
@@ -123,7 +129,7 @@ HRESULT Target_Manager::Begin_MRT(const wstring& mrtTag, ComPtr<DepthStencilView
         renderTargets[renderTargetCount++] = rt->Get_RTV();
     }
 
-    DepthStencilView* dsv = shaderDSV.Get() ? shaderDSV.Get() : _originalDSV.Get();
+    dsv = dsv ? dsv: _originalDSV.Get();
     _context->OMSetRenderTargets(renderTargetCount, renderTargets, dsv);
 
     if (hasMRTViewport)

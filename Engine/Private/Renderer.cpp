@@ -38,55 +38,77 @@ void Renderer::Add_RenderGroup(RenderGroup renderGroup, const Shared<GameObject>
 
 void Renderer::Draw()
 {
-#ifdef _DEBUG
-    const auto renderBegin = chrono::steady_clock::now();
-    double priorityMs = 0.0;
-    double nonBlendMs = 0.0;
-    double blendMs = 0.0;
-    double uiMs = 0.0;
-
-    const auto priorityBegin = chrono::steady_clock::now();
-#endif
-
     Render_Priority();
 
-#ifdef _DEBUG
-    priorityMs = chrono::duration<double, milli>(chrono::steady_clock::now() - priorityBegin).count();
-    const auto nonBlendBegin = chrono::steady_clock::now();
-#endif
     Render_Shadow();
 
     Render_NonBlend();
 
-#ifdef _DEBUG
-    nonBlendMs = chrono::duration<double, milli>(chrono::steady_clock::now() - nonBlendBegin).count();
-    const auto blendBegin = chrono::steady_clock::now();
-#endif
     Render_Lights();
-    
+
     Render_Combined();
 
     Render_NonLight();
 
     Render_Blend();
 
-#ifdef _DEBUG
-    blendMs = chrono::duration<double, milli>(chrono::steady_clock::now() - blendBegin).count();
-    const auto uiBegin = chrono::steady_clock::now();
-#endif
-
     Render_UI();
 
-#ifdef _DEBUG
-    uiMs = chrono::duration<double, milli>(chrono::steady_clock::now() - uiBegin).count();
-    const double renderMs = chrono::duration<double, milli>(chrono::steady_clock::now() - renderBegin).count();
-
-    Accumulate_RenderPerf(renderMs, priorityMs, nonBlendMs, blendMs, uiMs);
-#endif
 
 #ifdef _DEBUG
     Render_Debug();
 #endif
+
+
+//#ifdef _DEBUG
+//    const auto renderBegin = chrono::steady_clock::now();
+//    double priorityMs = 0.0;
+//    double nonBlendMs = 0.0;
+//    double blendMs = 0.0;
+//    double uiMs = 0.0;
+//
+//    const auto priorityBegin = chrono::steady_clock::now();
+//#endif
+//
+//    Render_Priority();
+//
+//#ifdef _DEBUG
+//    priorityMs = chrono::duration<double, milli>(chrono::steady_clock::now() - priorityBegin).count();
+//    const auto nonBlendBegin = chrono::steady_clock::now();
+//#endif
+//    Render_Shadow();
+//
+//    Render_NonBlend();
+//
+//#ifdef _DEBUG
+//    nonBlendMs = chrono::duration<double, milli>(chrono::steady_clock::now() - nonBlendBegin).count();
+//    const auto blendBegin = chrono::steady_clock::now();
+//#endif
+//    Render_Lights();
+//    
+//    Render_Combined();
+//
+//    Render_NonLight();
+//
+//    Render_Blend();
+//
+//#ifdef _DEBUG
+//    blendMs = chrono::duration<double, milli>(chrono::steady_clock::now() - blendBegin).count();
+//    const auto uiBegin = chrono::steady_clock::now();
+//#endif
+//
+//    Render_UI();
+//
+//#ifdef _DEBUG
+//    uiMs = chrono::duration<double, milli>(chrono::steady_clock::now() - uiBegin).count();
+//    const double renderMs = chrono::duration<double, milli>(chrono::steady_clock::now() - renderBegin).count();
+//
+//    Accumulate_RenderPerf(renderMs, priorityMs, nonBlendMs, blendMs, uiMs);
+//#endif
+//
+//#ifdef _DEBUG
+//    Render_Debug();
+//#endif
 }
 
 void Renderer::Render_Priority()
@@ -103,7 +125,7 @@ void Renderer::Render_Priority()
 
 void Renderer::Render_Shadow()
 {
-    if (FAILED(GAME->Begin_MRT(L"MRT_ShadowObjects", _shadowDepthDSV)))
+    if (FAILED(GAME->Begin_MRT(L"MRT_ShadowObjects", true)))
         return;
 
     const uint32 originWidth = GAME->Get_ViewportWidth();
@@ -118,7 +140,7 @@ void Renderer::Render_Shadow()
     {
         Shared<GameObject> gameObject = renderObject.lock();
         if (nullptr != gameObject)
-            gameObject->Render();
+            gameObject->Render_Shadow();
     }
 
     _renderGroups[ETOI(RenderGroup::Shadow)].clear();
@@ -170,6 +192,8 @@ void Renderer::Render_Lights()
         GAME->Bind_TransformMatrix_Inverse(D3DTS::Proj, _deferredShader.get(), "g_ProjMatrixInverse"));
     ENDMRT_RETURN_IF_FAILED(
         GAME->Bind_CamPosition(_deferredShader.get(), "g_vCamPosition"));
+    ENDMRT_RETURN_IF_FAILED(
+        GAME->Bind_CameraFar(_deferredShader, "g_fFar"));
 
     // 명암 연산을 위한 SRV
     ENDMRT_RETURN_IF_FAILED(
@@ -219,10 +243,14 @@ void Renderer::Render_Combined()
         return;
     if (FAILED(GAME->Bind_CamPosition(_deferredShader.get(), "g_vCamPosition")))
         return;
+    if (FAILED(GAME->Bind_CameraFar(_deferredShader, "g_fFar")))
+        return;
 
     // 그림자
     if (FAILED(GAME->Bind_ShadowMatrices(_deferredShader,  "g_LightViewMatrix", "g_LightProjMatrix")))
         return;
+    ENDMRT_RETURN_IF_FAILED(
+        GAME->Bind_ShadowLightDesc(_deferredShader, "g_fLightFar", "g_fBias", "g_fShadowIntensity"));
 
     // SRV 바인딩
     if (FAILED(GAME->Bind_RT_ShaderResource(_deferredShader, "g_DiffuseTexture", L"Target_Diffuse")))
@@ -275,28 +303,32 @@ HRESULT Renderer::Ready_RenderTargets()
     const uint32 width = GAME->Get_ViewportWidth();
     const uint32 height = GAME->Get_ViewportHeight();
 
+    const bool resizeWithViewport = true;
+    const bool useDSV = true;
+
     // MRT_GameObjects
     CHECK_FAILED(GAME->Add_RenderTarget(L"Target_Diffuse",
-        width, height, DXGI_FORMAT_R8G8B8A8_UNORM, Color(0, 0, 0, 0)), E_FAIL);
+        width, height, DXGI_FORMAT_R8G8B8A8_UNORM, Color(0, 0, 0, 0), resizeWithViewport, !useDSV), E_FAIL);
 
     CHECK_FAILED(GAME->Add_RenderTarget(L"Target_Normal",
-        width, height, DXGI_FORMAT_R16G16B16A16_UNORM, Color(0, 0, 0, 0)), E_FAIL);
+        width, height, DXGI_FORMAT_R16G16B16A16_UNORM, Color(0, 0, 0, 0), resizeWithViewport, !useDSV), E_FAIL);
 
     CHECK_FAILED(GAME->Add_RenderTarget(L"Target_Depth",
-        width, height, DXGI_FORMAT_R32G32B32A32_FLOAT, Color(0, 0, 0, 0)), E_FAIL);
+        width, height, DXGI_FORMAT_R32G32B32A32_FLOAT, Color(0, 0, 0, 0), resizeWithViewport, !useDSV), E_FAIL);
 
     // MRT_LightAcc
     CHECK_FAILED(GAME->Add_RenderTarget(L"Target_Shade",
-        width, height, DXGI_FORMAT_R16G16B16A16_UNORM, Color(0, 0, 0, 0)), E_FAIL);
+        width, height, DXGI_FORMAT_R16G16B16A16_UNORM, Color(0, 0, 0, 0), resizeWithViewport, !useDSV), E_FAIL);
 
     CHECK_FAILED(GAME->Add_RenderTarget(L"Target_Specular",
-        width, height, DXGI_FORMAT_R16G16B16A16_UNORM, Color(0, 0, 0, 0)), E_FAIL);
+        width, height, DXGI_FORMAT_R16G16B16A16_UNORM, Color(0, 0, 0, 0), resizeWithViewport, !useDSV), E_FAIL);
 
     // MRT_ShadowObjects
     CHECK_FAILED(GAME->Add_RenderTarget(L"Target_LightDepth",
-        width * static_cast<uint32>(_shadowScale), height * static_cast<uint32>(_shadowScale), DXGI_FORMAT_R32G32B32A32_FLOAT, Color(1.f, 1.f, 1.f, 1.f), false), E_FAIL);
+        width * static_cast<uint32>(_shadowScale), height * static_cast<uint32>(_shadowScale),
+        DXGI_FORMAT_R32G32B32A32_FLOAT, Color(1.f, 1.f, 1.f, 1.f), !resizeWithViewport, useDSV), E_FAIL);
 
-    CHECK_FAILED(Ready_ShadowDSV(), E_FAIL);
+    //CHECK_FAILED(Ready_ShadowDSV(), E_FAIL);
 
     // Create MRT
     CHECK_FAILED(GAME->Add_MRT(L"MRT_GameObjects", L"Target_Diffuse"), E_FAIL); // SV_TARGET0
@@ -480,6 +512,20 @@ void Renderer::Render_Debug()
     //    debugCom->Render_Debug();
 
     _debugComponents.clear();
+
+    // 디버그 RT 프리뷰는 Deferred 셰이더의 VS_MAIN(= g_ViewMatrix/g_ProjMatrix 사용)로 그린다.
+    // 다른 패스/리사이즈로 값이 바뀌면 화면 밖으로 날아갈 수 있으니 여기서 매번 명시적으로 바인딩한다.
+    if (_deferredShader)
+    {
+        const uint32 width = GAME->Get_ViewportWidth();
+        const uint32 height = GAME->Get_ViewportHeight();
+
+        _deferredViewMatrix = Matrix::Identity;
+        _deferredProjMatrix = XMMatrixOrthographicLH(static_cast<float>(width), static_cast<float>(height), 0.f, 1.f);
+
+        _deferredShader->Bind_Matrix("g_ViewMatrix", &_deferredViewMatrix);
+        _deferredShader->Bind_Matrix("g_ProjMatrix", &_deferredProjMatrix);
+    }
 
     CHECK_FAILED(GAME->Render_RT_Debug(_viBuffer, _deferredShader));
 }

@@ -27,11 +27,11 @@ public :
 
 public :
     HRESULT Add_RenderTarget(const wstring& targetTag, uint32 sizeX, uint32 sizeY,
-        DXGI_FORMAT pixelFormat, const Color& clearColor, bool resizeWithViewport = true);
+        DXGI_FORMAT pixelFormat, const Color& clearColor, bool resizeWithViewport = true, bool useDSV = false);
     HRESULT Add_MRT(const wstring& mrtTag, const wstring& targetTag);
 
     HRESULT Bind_ShaderResource(Shared<ShaderCom> shader, const char* constantName, const wstring& targetTag);
-    HRESULT Begin_MRT(const wstring& mrtTag, ComPtr<DepthStencilView> shaderDSV = nullptr);
+    HRESULT Begin_MRT(const wstring& mrtTag, bool useDSV);
     HRESULT End_MRT();
 
     HRESULT Resize_MRTs(uint32 width, uint32 height);
@@ -61,6 +61,7 @@ public :
     virtual void Free() override;
 
 #ifdef _DEBUG
+    // 에디터 RT 디버그 렌더 
 public :
     HRESULT Initialize_Debug(float sizeX, float sizeY);
     HRESULT Resize_DrawArea(float sizeX, float sizeY);

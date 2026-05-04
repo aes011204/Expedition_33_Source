@@ -637,6 +637,12 @@ float GameInstance::Get_CameraCount()
     return _cameraManager->Get_CameraCount();
 }
 
+HRESULT GameInstance::Bind_CameraFar(Shared<ShaderCom> shader, const char* constantName)
+{
+    return _cameraManager->Bind_CameraFar(shader, constantName);
+}
+
+
 const TypeRegistry::ComponentTypeInfo* GameInstance::Find_ComponentType(const string& className) const
 {
     return _typeRegistry->Find_ComponentType(className);
@@ -771,9 +777,9 @@ void GameInstance::Release_Engine()
 
 
 HRESULT GameInstance::Add_RenderTarget(const wstring& targetTag, uint32 sizeX, uint32 sizeY, DXGI_FORMAT pixelFormat,
-    const Color& clearColor, bool resizeWithViewport)
+    const Color& clearColor, bool resizeWithViewport, bool useDSV)
 {
-    return _targetManager->Add_RenderTarget(targetTag, sizeX, sizeY, pixelFormat, clearColor, resizeWithViewport);
+    return _targetManager->Add_RenderTarget(targetTag, sizeX, sizeY, pixelFormat, clearColor, resizeWithViewport, useDSV);
 }
 
 HRESULT GameInstance::Add_MRT(const wstring& mrtTag, const wstring& targetTag)
@@ -781,9 +787,9 @@ HRESULT GameInstance::Add_MRT(const wstring& mrtTag, const wstring& targetTag)
     return _targetManager->Add_MRT(mrtTag, targetTag);
 }
 
-HRESULT GameInstance::Begin_MRT(const wstring& mrtTag, ComPtr<DepthStencilView> shaderDSV)
+HRESULT GameInstance::Begin_MRT(const wstring& mrtTag, bool useDSV)
 {
-    return _targetManager->Begin_MRT(mrtTag, shaderDSV);
+    return _targetManager->Begin_MRT(mrtTag, useDSV);
 }
 
 HRESULT GameInstance::End_MRT()
@@ -847,6 +853,12 @@ HRESULT GameInstance::Bind_ShadowMatrices(Shared<ShaderCom> shader, const char* 
 {
     CHECK_NULL(_shadow, E_FAIL);
     return _shadow->Bind_TransformStateMatrix(shader, viewName, projName);
+}
+
+HRESULT GameInstance::Bind_ShadowLightDesc(Shared<ShaderCom> shader, const char* lightFarName, const char* biasName, const char* intensityName)
+{
+    CHECK_NULL(_shadow, E_FAIL);
+    return _shadow->Bind_ShadowLightDesc(shader, lightFarName, biasName, intensityName);
 }
 
 HRESULT GameInstance::Update_ShadowLight(const ShadowLightDesc& desc)

@@ -21,6 +21,18 @@ HRESULT Shadow::Bind_TransformStateMatrix(Shared<ShaderCom> shader, const char* 
     return S_OK;
 }
 
+HRESULT Shadow::Bind_ShadowLightDesc(Shared<ShaderCom> shader, const char* lightFarName, const char* biasName, const char* intensityName)
+{
+    if (lightFarName)   
+        CHECK_FAILED(shader->Bind_RawValue(lightFarName, &_desc.zf, sizeof _desc.zf), E_FAIL);
+    if (biasName)
+        CHECK_FAILED(shader->Bind_RawValue(biasName, &_desc.bias, sizeof _desc.bias), E_FAIL);
+    if (intensityName)
+        CHECK_FAILED(shader->Bind_RawValue(intensityName, &_desc.intensity, sizeof _desc.intensity), E_FAIL);
+
+    return S_OK;
+}
+
 void Shadow::Clear()
 {
     _viewMatrix = Matrix::Identity;

@@ -4,6 +4,8 @@
 NS_BEGIN(Engine)
 class Camera;
 class TransformCom;
+class ShaderCom;
+
 class Camera_Manager : public Base
 {
 public:
@@ -30,6 +32,8 @@ public:
     bool               Activate_CameraByType(ObjectType objectType);
     bool               Is_ActiveCameraType(ObjectType objectType) const;
     bool               Focus_FreeCameraOnPosition(const Vec3& position);
+
+    HRESULT             Bind_CameraFar(Shared<ShaderCom> shader, const char* constantName);
 
 private:
     vector<Shared<Camera>> m_cameras;

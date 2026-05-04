@@ -49,6 +49,9 @@ using ShadowLightDesc = struct tagShadowLightDesc
     float   aspect = 16.f / 9.f;
     float   zn = 0.1f;
     float   zf = 1000.f;
+
+    float   bias = 0.03f;
+    float   intensity = 0.5f;
 };
 
 using FAssetMeta = struct tagAssetMeta

@@ -27,6 +27,7 @@ public:
 	virtual void Update(float timeDelta) override;
 	virtual void Late_Update(float timeDelta) override;
 	virtual HRESULT Render() override;
+    virtual HRESULT Render_Shadow() override;
 
 protected:
 	Shared<ShaderCom>	_shader = { nullptr };

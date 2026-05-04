@@ -1,5 +1,6 @@
 ﻿#include "Light_Manager.h"
 #include "Light.h"
+#include "ShaderCom.h"
 
 Light_Manager::Light_Manager()
 {

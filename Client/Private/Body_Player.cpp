@@ -57,6 +57,8 @@ void Body_Player::Update(float fTimeDelta)
 void Body_Player::Late_Update(float fTimeDelta)
 {
 	GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
+	GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
+
 }
 
 HRESULT Body_Player::Render()
@@ -86,6 +88,9 @@ HRESULT Body_Player::Render_Shadow()
         return E_FAIL;
 
     if (FAILED(GAME->Bind_ShadowMatrices(_shader, "g_ViewMatrix", "g_ProjMatrix")))
+        return E_FAIL;
+
+    if (FAILED(GAME->Bind_ShadowLightDesc(_shader, "g_fLightFar")))
         return E_FAIL;
 
     const uint32 iNumMeshes = static_cast<uint32>(_model->Get_NumMeshes());
@@ -127,23 +132,8 @@ HRESULT Body_Player::Bind_ShaderResources()
 	if (FAILED(GAME->Bind_TransformMatrix(D3DTS::Proj, _shader.get(), "g_ProjMatrix")))
 		return E_FAIL;
 
-
-
-	if (FAILED(GAME->Bind_CamPosition(_shader.get(), "g_vCamPosition")))
-		return E_FAIL;
-
-	const LIGHT_DESC* pLightDesc = GAME->Get_LightDesc(0);
-	if (nullptr == pLightDesc)
-		return E_FAIL;
-
-	if (FAILED(_shader->Bind_RawValue("g_vLightDir", &pLightDesc->direction, sizeof(XMFLOAT4))))
-		return E_FAIL;
-	if (FAILED(_shader->Bind_RawValue("g_vLightDiffuse", &pLightDesc->diffuse, sizeof(XMFLOAT4))))
-		return E_FAIL;
-	if (FAILED(_shader->Bind_RawValue("g_vLightAmbient", &pLightDesc->ambient, sizeof(XMFLOAT4))))
-		return E_FAIL;
-	if (FAILED(_shader->Bind_RawValue("g_vLightSpecular", &pLightDesc->specular, sizeof(XMFLOAT4))))
-		return E_FAIL;
+    if (FAILED(GAME->Bind_CameraFar(_shader, "g_fFar")))
+        return E_FAIL;
 
 	return S_OK;
 }

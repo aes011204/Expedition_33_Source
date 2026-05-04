@@ -14,7 +14,9 @@ public:
 
 public:
     HRESULT Update_ShadowLight(const ShadowLightDesc& desc);
+    HRESULT Bind_ShadowLightDesc(Shared<ShaderCom> shader, const char* lightFarName, const char* biasName, const char* intensityName);
     HRESULT Bind_TransformStateMatrix(Shared<ShaderCom> shader, const char* viewName, const char* projName);
+
     void    Clear();
 
 public:

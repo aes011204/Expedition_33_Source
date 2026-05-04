@@ -90,27 +90,14 @@ HRESULT Terrain::Bind_ShaderResources()
 	if (FAILED(GAME->Bind_TransformMatrix(D3DTS::Proj, _shader.get(), "g_ProjMatrix")))
 		return E_FAIL;
 
+    if (FAILED(GAME->Bind_CameraFar(_shader, "g_fFar")))
+        return E_FAIL;
+
 	if (FAILED(_textures[TEXTURE::Diffuse]->Bind_ShaderResourceViews(_shader.get(), "g_DiffuseTexture")))
 		return E_FAIL;
 	if (FAILED(_textures[TEXTURE::Mask]->Bind_ShaderResourceView(_shader.get(), "g_MaskTexture", 0)))
 		return E_FAIL;
 	if (FAILED(_textures[TEXTURE::Brush]->Bind_ShaderResourceView(_shader.get(), "g_BrushTexture", 0)))
-		return E_FAIL;
-
-	if (FAILED(GAME->Bind_CamPosition(_shader.get(), "g_vCamPosition")))
-		return E_FAIL;
-
-	const LIGHT_DESC*		pLightDesc = GAME->Get_LightDesc(0);
-	if (nullptr == pLightDesc)
-		return E_FAIL;
-
-	if (FAILED(_shader->Bind_RawValue("g_vLightDir", &pLightDesc->direction, sizeof(XMFLOAT4))))
-		return E_FAIL;
-	if (FAILED(_shader->Bind_RawValue("g_vLightDiffuse", &pLightDesc->diffuse, sizeof(XMFLOAT4))))
-		return E_FAIL;
-	if (FAILED(_shader->Bind_RawValue("g_vLightAmbient", &pLightDesc->ambient, sizeof(XMFLOAT4))))
-		return E_FAIL;
-	if (FAILED(_shader->Bind_RawValue("g_vLightSpecular", &pLightDesc->specular, sizeof(XMFLOAT4))))
 		return E_FAIL;
 
 	return S_OK;

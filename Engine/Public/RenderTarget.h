@@ -57,7 +57,7 @@ public:
         uint32 height,
         DXGI_FORMAT pixelFormat,
         const Vec4& clearColor,
-        bool useDepthStencil = true);
+        bool useDepthStencil = false);
 
     void Free() override;
 
