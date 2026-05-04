@@ -68,9 +68,14 @@ public:
 
 public:
     Shared<RenderTarget> Prepare_SharedViewportRenderTarget(uint32 width, uint32 height);
-    void Request_ViewportSize(EditorViewportTarget targetType, uint32 width, uint32 height);
     ID3D11ShaderResourceView* Get_SharedViewportSRV() const;
     void Capture_BackBuffer_ToViewport();
+
+    void Set_ManualPreviewViewportSize(uint32 width, uint32 height);
+    void Enable_FitPreviewViewport();
+    bool Is_ManualPreviewViewportEnabled() const { return _useManualPreviewViewport; }
+    void Sync_PreviewViewportMode();
+    float Get_EffectiveViewportAspect() const;
 
     void Apply_RuntimeInputPolicy();
 
@@ -91,9 +96,7 @@ private:
 private:
     Shared<RenderTarget> _sharedViewportRenderTarget = nullptr;
 
-    uint32 _requestedViewportWidth = 1;
-    uint32 _requestedViewportHeight = 1;
-    EditorViewportTarget _lastViewportRequester = EditorViewportTarget::Game;
+    bool _useManualPreviewViewport = false;
 
     EffectEditorRuntimeState _runtimeState = EffectEditorRuntimeState::Edit;
     float _runtimeTimeScale = 1.f;

@@ -17,6 +17,8 @@ public:
 private:
     void Handle_GizmoShortcut();
     void Render_GizmoOverlay();
+    void Render_PreviewViewportOverlay();
+    void Sync_PreviewViewportInput();
 
     void Render_ViewportCanvas();
     void Handle_FocusRequest();
@@ -29,6 +31,9 @@ private:
 
     ImGuizmo::OPERATION _gizmoOperation = ImGuizmo::TRANSLATE;
     ImGuizmo::MODE _gizmoMode = ImGuizmo::LOCAL;
+
+    int _pendingPreviewViewportWidth = 0;
+    int _pendingPreviewViewportHeight = 0;
 
 public:
     static Shared<Scene_View> Create();

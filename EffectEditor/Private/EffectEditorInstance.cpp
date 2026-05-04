@@ -64,9 +64,7 @@ void EffectEditorInstance::Release_Editor()
     _device.Reset();
 
     _editorDesc = {};
-    _requestedViewportWidth = 1;
-    _requestedViewportHeight = 1;
-    _lastViewportRequester = EditorViewportTarget::Game;
+    _useManualPreviewViewport = false;
 
     _runtimeState = EffectEditorRuntimeState::Edit;
     _runtimeTimeScale = 1.f;
@@ -77,6 +75,8 @@ void EffectEditorInstance::Release_Editor()
 
 void EffectEditorInstance::Update_Editor(float timeDelta)
 {
+    Sync_PreviewViewportMode();
+
     _imguiManager->Update(timeDelta);
     _editorManager->Update(timeDelta);
 
@@ -236,13 +236,6 @@ void EffectEditorInstance::Activate_FreeCamera()
     GAME->Activate_CameraByType(ObjectType::FreeCamera);
 }
 
-void EffectEditorInstance::Request_ViewportSize(EditorViewportTarget targetType, uint32 width, uint32 height)
-{
-    _lastViewportRequester = targetType;
-    _requestedViewportWidth = max(1u, width);
-    _requestedViewportHeight = max(1u, height);
-}
-
 Shared<RenderTarget> EffectEditorInstance::Prepare_SharedViewportRenderTarget(uint32 width, uint32 height)
 {
     if (0 == width)
@@ -309,6 +302,42 @@ void EffectEditorInstance::Capture_BackBuffer_ToViewport()
         return;
 
     _context->CopyResource(viewportTexture.Get(), backBufferTexture.Get());
+}
+
+void EffectEditorInstance::Set_ManualPreviewViewportSize(uint32 width, uint32 height)
+{
+    GAME->Set_ViewportSize(max(1u, width), max(1u, height));
+    _useManualPreviewViewport = true;
+}
+
+void EffectEditorInstance::Enable_FitPreviewViewport()
+{
+    _useManualPreviewViewport = false;
+
+    GAME->Set_ViewportSize(
+        GAME->Get_BackBufferWidth(),
+        GAME->Get_BackBufferHeight());
+}
+
+void EffectEditorInstance::Sync_PreviewViewportMode()
+{
+    if (_useManualPreviewViewport)
+        return;
+
+    GAME->Set_ViewportSize(
+        GAME->Get_BackBufferWidth(),
+        GAME->Get_BackBufferHeight());
+}
+
+float EffectEditorInstance::Get_EffectiveViewportAspect() const
+{
+    const uint32 viewportWidth = GAME->Get_ViewportWidth();
+    const uint32 viewportHeight = max(1u, GAME->Get_ViewportHeight());
+    if (viewportWidth == 0)
+        return 0.f;
+
+    return static_cast<float>(viewportWidth) /
+        static_cast<float>(viewportHeight);
 }
 
 void EffectEditorInstance::Apply_RuntimeInputPolicy()

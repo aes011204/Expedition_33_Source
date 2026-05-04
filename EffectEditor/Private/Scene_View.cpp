@@ -6,6 +6,44 @@
 #include "GameObject.h"
 #include "RenderTarget.h"
 
+namespace EffectEditor::Internal
+{
+    struct ViewportImageRect
+    {
+        ImVec2 imageMin;
+        ImVec2 imageMax;
+    };
+
+    static ViewportImageRect Compute_AspectFitRect(const ImVec2& canvasMin, const ImVec2& canvasSize, float aspect)
+    {
+        if (aspect <= 0.f || canvasSize.x <= 1.f || canvasSize.y <= 1.f)
+        {
+            return {
+                canvasMin,
+                ImVec2(canvasMin.x + canvasSize.x, canvasMin.y + canvasSize.y)
+            };
+        }
+
+        float imageWidth = canvasSize.x;
+        float imageHeight = imageWidth / aspect;
+
+        if (imageHeight > canvasSize.y)
+        {
+            imageHeight = canvasSize.y;
+            imageWidth = imageHeight * aspect;
+        }
+
+        const ImVec2 imageMin = ImVec2(
+            canvasMin.x + (canvasSize.x - imageWidth) * 0.5f,
+            canvasMin.y + (canvasSize.y - imageHeight) * 0.5f);
+
+        return {
+            imageMin,
+            ImVec2(imageMin.x + imageWidth, imageMin.y + imageHeight)
+        };
+    }
+}
+
 Scene_View::Scene_View()
     : Editor_Window{ L"Scene" }
 {
@@ -41,6 +79,7 @@ void Scene_View::Render()
         Render_SelectedObjectGizmo();
 
         Render_GizmoOverlay();
+        Render_PreviewViewportOverlay();
     }
     else
     {
@@ -172,6 +211,80 @@ void Scene_View::Render_GizmoOverlay()
     ImGui::PopStyleVar();
 }
 
+void Scene_View::Render_PreviewViewportOverlay()
+{
+    const float viewportWidth = _viewportMax.x - _viewportMin.x;
+    const float viewportHeight = _viewportMax.y - _viewportMin.y;
+    if (viewportWidth <= 1.f || viewportHeight <= 1.f)
+        return;
+
+    if (_pendingPreviewViewportWidth <= 0 || _pendingPreviewViewportHeight <= 0)
+        Sync_PreviewViewportInput();
+
+    ImDrawList* drawList = ImGui::GetWindowDrawList();
+
+    const ImVec2 panelSize = ImVec2(252.f, 34.f);
+    const ImVec2 panelMin = ImVec2(_viewportMax.x - panelSize.x - 16.f, _viewportMin.y + 58.f);
+    const ImVec2 panelMax = ImVec2(panelMin.x + panelSize.x, panelMin.y + panelSize.y);
+
+    drawList->AddRectFilled(panelMin, panelMax, IM_COL32(36, 38, 42, 220), 6.f);
+    drawList->AddRect(panelMin, panelMax, IM_COL32(92, 96, 104, 255), 6.f);
+
+    ImGui::SetCursorScreenPos(ImVec2(panelMin.x + 8.f, panelMin.y + 5.f));
+    ImGui::PushID("PreviewViewportOverlay");
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(5.f, 3.f));
+
+    const bool isFitMode = !EDITOR->Is_ManualPreviewViewportEnabled();
+    if (isFitMode)
+    {
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.79f, 0.56f, 0.18f, 1.f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.88f, 0.64f, 0.23f, 1.f));
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.09f, 0.09f, 0.09f, 1.f));
+    }
+    if (ImGui::Button("Fit", ImVec2(34.f, 22.f)))
+    {
+        EDITOR->Enable_FitPreviewViewport();
+        Sync_PreviewViewportInput();
+    }
+    if (isFitMode)
+        ImGui::PopStyleColor(3);
+
+    ImGui::SameLine(0.f, 8.f);
+    ImGui::TextUnformatted("W");
+    ImGui::SameLine(0.f, 4.f);
+    ImGui::SetNextItemWidth(48.f);
+    ImGui::InputInt("##PreviewViewportWidth", &_pendingPreviewViewportWidth, 0, 0);
+
+    ImGui::SameLine(0.f, 4.f);
+    ImGui::TextUnformatted("x");
+
+    ImGui::SameLine(0.f, 4.f);
+    ImGui::TextUnformatted("H");
+    ImGui::SameLine(0.f, 4.f);
+    ImGui::SetNextItemWidth(48.f);
+    ImGui::InputInt("##PreviewViewportHeight", &_pendingPreviewViewportHeight, 0, 0);
+
+    ImGui::SameLine(0.f, 8.f);
+    if (ImGui::Button("Apply", ImVec2(48.f, 22.f)))
+    {
+        const uint32 width = static_cast<uint32>(max(1, _pendingPreviewViewportWidth));
+        const uint32 height = static_cast<uint32>(max(1, _pendingPreviewViewportHeight));
+
+        _pendingPreviewViewportWidth = static_cast<int>(width);
+        _pendingPreviewViewportHeight = static_cast<int>(height);
+        EDITOR->Set_ManualPreviewViewportSize(width, height);
+    }
+
+    ImGui::PopStyleVar();
+    ImGui::PopID();
+}
+
+void Scene_View::Sync_PreviewViewportInput()
+{
+    _pendingPreviewViewportWidth = static_cast<int>(GAME->Get_ViewportWidth());
+    _pendingPreviewViewportHeight = static_cast<int>(GAME->Get_ViewportHeight());
+}
+
 void Scene_View::Render_ViewportCanvas()
 {
     _viewportSize = ImGui::GetContentRegionAvail();
@@ -181,37 +294,34 @@ void Scene_View::Render_ViewportCanvas()
     if (_viewportSize.y < 1.f)
         _viewportSize.y = 1.f;
 
-    const uint32 width = static_cast<uint32>(_viewportSize.x);
-    const uint32 height = static_cast<uint32>(_viewportSize.y);
+    const ImVec2 canvasMin = ImGui::GetCursorScreenPos();
+    const ImVec2 canvasMax = ImVec2(canvasMin.x + _viewportSize.x, canvasMin.y + _viewportSize.y);
+    ImDrawList* drawList = ImGui::GetWindowDrawList();
 
-    EDITOR->Request_ViewportSize(
-        EditorViewportTarget::Scene,
-        width,
-        height);
+    drawList->AddRectFilled(canvasMin, canvasMax, IM_COL32(18, 20, 24, 255));
+    drawList->AddRect(canvasMin, canvasMax, IM_COL32(55, 60, 70, 255));
+
+    ImGui::InvisibleButton("SceneViewportCanvas", _viewportSize);
 
     ID3D11ShaderResourceView* pSRV = EDITOR->Get_SharedViewportSRV();
     if (nullptr != pSRV)
     {
+        const float aspect = EDITOR->Get_EffectiveViewportAspect();
+        const Internal::ViewportImageRect imageRect =
+            Internal::Compute_AspectFitRect(canvasMin, _viewportSize, aspect);
+
         const ImTextureID textureId =
             static_cast<ImTextureID>(reinterpret_cast<intptr_t>(pSRV));
 
-        ImGui::Image(textureId, _viewportSize);
-        _viewportMin = ImGui::GetItemRectMin();
-        _viewportMax = ImGui::GetItemRectMax();
+        drawList->AddImage(textureId, imageRect.imageMin, imageRect.imageMax);
+        _viewportMin = imageRect.imageMin;
+        _viewportMax = imageRect.imageMax;
     }
     else
     {
-        const ImVec2 canvasPos = ImGui::GetCursorScreenPos();
-        const ImVec2 canvasEnd = ImVec2(canvasPos.x + _viewportSize.x, canvasPos.y + _viewportSize.y);
-        ImDrawList* drawList = ImGui::GetWindowDrawList();
-
-        drawList->AddRectFilled(canvasPos, canvasEnd, IM_COL32(34, 38, 44, 255));
-        drawList->AddRect(canvasPos, canvasEnd, IM_COL32(85, 95, 110, 255));
-        drawList->AddText(ImVec2(canvasPos.x + 12.f, canvasPos.y + 12.f), IM_COL32(210, 216, 224, 255), "Scene RenderTarget Missing");
-
-        ImGui::InvisibleButton("SceneViewportCanvas", _viewportSize);
-        _viewportMin = ImGui::GetItemRectMin();
-        _viewportMax = ImGui::GetItemRectMax();
+        drawList->AddText(ImVec2(canvasMin.x + 12.f, canvasMin.y + 12.f), IM_COL32(210, 216, 224, 255), "Scene RenderTarget Missing");
+        _viewportMin = canvasMin;
+        _viewportMax = canvasMax;
     }
 }
 
