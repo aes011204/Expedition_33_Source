@@ -1,4 +1,8 @@
 ﻿#pragma once
 
-#include <Windows.h>
-#include "Engine_Define.h"
+namespace UIEditor
+{
+    using ObjectId = uint32;
+}
+
+using namespace UIEditor;

@@ -19,6 +19,8 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\private\UI_Editor_Manager.cpp" />
+    <ClCompile Include="..\private\UI_Inspector.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
@@ -26,9 +28,16 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="UI_Editor.cpp" />
+    <ClCompile Include="..\Private\UI_Document.cpp" />
+    <ClCompile Include="..\Private\UI_EditorApp.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\Public\UI_Document.h" />
+    <ClInclude Include="..\Public\UI_EditorApp.h" />
     <ClInclude Include="..\Public\UI_Editor_Defines.h" />
+    <ClInclude Include="..\public\UI_Editor_Manager.h" />
+    <ClInclude Include="..\Public\Editor_ImGuiInclude.h" />
+    <ClInclude Include="..\public\UI_Inspector.h" />
     <ClInclude Include="pch.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
