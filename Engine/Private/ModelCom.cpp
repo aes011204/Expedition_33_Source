@@ -30,13 +30,7 @@ ModelCom::ModelCom(const ModelCom& prototype)
     for (auto& prototypeBone : prototype._bones)
         _bones.push_back(prototypeBone->Clone());
 
-    /* 계층 구조 재구성 */
-    for (int32 i = 0; i < _numBones; ++i)
-    {
-        int32 parentIndex = _bones[i]->Get_ParentIndex();
-        if (parentIndex != -1)
-            _bones[parentIndex]->Add_Child(i);
-    }
+    // 계층 구조 재구성은 Bone 내부 배열이 DFS 순서이므로 순차 업데이트로 충분합니다.
 }
 
 int32 ModelCom::Get_BoneIndex(const char* boneName)
@@ -265,14 +259,6 @@ HRESULT ModelCom::Ready_Model(const char* modelPath)
 
         for (const auto& data : boneData)
             _bones.push_back(Bone::Create(data));
-
-        /* 계층 구조 재구성 */
-        for (int32 i = 0; i < _numBones; ++i)
-        {
-            int32 parentIndex = _bones[i]->Get_ParentIndex();
-            if (parentIndex != -1)
-                _bones[parentIndex]->Add_Child(i);
-        }
     }
 
     stream.close();

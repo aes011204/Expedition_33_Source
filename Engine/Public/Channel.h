@@ -10,6 +10,7 @@ class Channel final : public Base
 {
 public:
 	Channel();
+    Channel(const Channel& rhs);
 	~Channel() override = default;
 
 public:

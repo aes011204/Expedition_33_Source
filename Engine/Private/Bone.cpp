@@ -4,6 +4,14 @@ Bone::Bone()
 {
 }
 
+Bone::Bone(const Bone& rhs)
+    : _parentBoneIndex{rhs._parentBoneIndex}
+{
+    strcpy_s(_name, rhs._name);
+    _transformationMatrix = rhs._transformationMatrix;
+    _combinedTransformationMatrix = rhs._combinedTransformationMatrix;
+}
+
 HRESULT Bone::Initialize(const ModelBoneData& boneData)
 {
 	strcpy_s(_name, boneData.name);
@@ -26,15 +34,7 @@ void Bone::Update_CombinedTransformationMatrix(const vector<Shared<Bone>>& bones
 	}
 }
 
-void Bone::Recursive_Update_CombinedTransformationMatrix(const vector<Shared<Bone>>& bones, const Matrix& parentCombinedMatrix)
-{
-    _combinedTransformationMatrix = _transformationMatrix * parentCombinedMatrix;
 
-	for (int32 childIndex : _children)
-	{
-		bones[childIndex]->Recursive_Update_CombinedTransformationMatrix(bones, _combinedTransformationMatrix);
-	}
-}
 
 void Bone::Update_TransformationMatrix(const Matrix& transformMatrix)
 {
@@ -56,7 +56,6 @@ Shared<Bone> Bone::Create(const ModelBoneData& boneData)
 Shared<Bone> Bone::Clone()
 {
 	auto instance = make_shared<Bone>(*this);
-	instance->_children.clear();
 	return instance;
 }
 

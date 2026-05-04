@@ -64,18 +64,19 @@ namespace ModelEditor
 		ZeroMemory(&_pathBuffer, sizeof(char) * 512);
 		Clear_Converter();
         _cachedFbxPaths.clear();
-		LOG_INFO("~ModelConverter Called");
+		LOG_INFO("ModelConverter Called");
 	}
 
 	HRESULT ModelConverter::Initialize()
 	{
 		Clear_Converter();
-		LOG_INFO("~ModelConverter Called");
+		LOG_INFO("ModelConverter Called");
 		importFlags = aiProcess_ConvertToLeftHanded |
 					  aiProcess_Triangulate |
 					  aiProcess_CalcTangentSpace |
 					  aiProcess_GenSmoothNormals |
-					  aiProcess_PopulateArmatureData;
+					  aiProcess_PopulateArmatureData |
+                      aiProcess_LimitBoneWeights;
 
 		strcpy_s(_pathBuffer, Engine::String::ToString(ResourcePath).c_str());
 		_resourcePath = ResourcePath;
@@ -183,7 +184,6 @@ namespace ModelEditor
 			if (hFind != INVALID_HANDLE_VALUE)
 			{
 				do {
-					// "." 및 ".." 제외
 					if (wcscmp(fd.cFileName, L".") == 0 || wcscmp(fd.cFileName, L"..") == 0)
 						continue;
 
@@ -286,44 +286,41 @@ namespace ModelEditor
         }
 
         // 2. 수집된 본 이름들을 바탕으로 계층 구조 순서대로 _bones 배열 채우기
-        // BuildBoneHierarchy 내에서 _boneNameMap.contains(nodeName) 대신 tempOffsetMap을 참조하도록 수정 필요
-        auto RecursiveBuild = [&](auto self, const aiNode* node, int32 parentBoneIndex, Matrix accumulatedTransform) -> void {
+        auto RecursiveBuild = [&](auto self, const aiNode* node, int32 parentBoneIndex) -> void {
             string nodeName = node->mName.C_Str();
-            int32 currentBoneIndex = parentBoneIndex;
             Matrix currentTransform = Convert_Matrix(node->mTransformation);
 
+            ModelBoneData boneData{};
+            strncpy_s(boneData.name, nodeName.c_str(), maxModelNameSize - 1);
+            boneData.parentBoneIndex = parentBoneIndex;
+            
             if (tempOffsetMap.contains(nodeName))
             {
-                ModelBoneData boneData{};
-                strncpy_s(boneData.name, nodeName.c_str(), maxModelNameSize - 1);
-                boneData.parentBoneIndex = parentBoneIndex;
                 boneData.offsetMatrix = tempOffsetMap[nodeName];
-                boneData.localTransform = currentTransform * accumulatedTransform; // Correct: Local * Parent
-
-                currentBoneIndex = static_cast<int32>(_bones.size());
-                _boneNameMap[nodeName] = currentBoneIndex;
-                _bones.push_back(boneData);
-                
-                accumulatedTransform = Matrix::Identity;
             }
             else
             {
-                accumulatedTransform = currentTransform * accumulatedTransform; // Correct: Local * Parent
+                boneData.offsetMatrix = Matrix::Identity;
             }
+            
+            boneData.localTransform = currentTransform;
+
+            int32 currentBoneIndex = static_cast<int32>(_bones.size());
+            _boneNameMap[nodeName] = currentBoneIndex;
+            _bones.push_back(boneData);
 
             for (uint32 i = 0; i < node->mNumChildren; ++i)
-                self(self, node->mChildren[i], currentBoneIndex, accumulatedTransform);
+                self(self, node->mChildren[i], currentBoneIndex);
         };
 
-        RecursiveBuild(RecursiveBuild, _aiScene->mRootNode, -1, Matrix::Identity);
+        RecursiveBuild(RecursiveBuild, _aiScene->mRootNode, -1);
 
         // 3. 메쉬 데이터 읽기 (이제 _boneNameMap에 계층 순서대로 인덱스가 들어있음)
 		ReadMeshes(_aiScene);
 		ReadMaterial(_aiScene);
 		ReadAnimations(_aiScene);
-
 		Ensure_DirectoryExists(outputDir);
-// ... (rest of function)
+
 		if (FAILED(Export_ModelData(_aiScene, outputDir, modelName)))
 		{
 			return E_FAIL;
@@ -397,6 +394,7 @@ namespace ModelEditor
                 vector<uint32> boneRefs;
                 vector<Matrix> offsets;
                 vector<VTXANIMMESH> vertices(aiMesh->mNumVertices, VTXANIMMESH{});
+
                 for (uint32 j = 0; j < aiMesh->mNumVertices; ++j)
                 {
                     vertices[j].position = Vec3{ aiMesh->mVertices[j].x, aiMesh->mVertices[j].y, aiMesh->mVertices[j].z };
@@ -414,6 +412,7 @@ namespace ModelEditor
                         vertices[j].texcoord = Vec2{ aiMesh->mTextureCoords[0][j].x, aiMesh->mTextureCoords[0][j].y };
                     }
                 }
+
                 for (uint32 j = 0; j < aiMesh->mNumBones; ++j)
                 {
                     const aiBone* aiBone = aiMesh->mBones[j];
@@ -428,34 +427,48 @@ namespace ModelEditor
                         _bones.push_back(boneData);
                     }
                     boneRefs.push_back(_boneNameMap[boneName]);
-                    offsets.push_back(Convert_Matrix(aiBone->mOffsetMatrix)); // Remove Transpose()!
+                    offsets.push_back(Convert_Matrix(aiBone->mOffsetMatrix)); 
                     for (uint32 k = 0; k < aiBone->mNumWeights; ++k)
                     {
                         uint32 vertexIndex = aiBone->mWeights[k].mVertexId;
                         float weight = aiBone->mWeights[k].mWeight;
                         auto& vertex = vertices[vertexIndex];
-                        if (vertex.blendWeight.x == 0.f)
-                        {
+                        if (vertex.blendWeight.x == 0.f) {
                             vertex.blendIndex.x = j;
                             vertex.blendWeight.x = weight;
                         }
-                        else if (vertex.blendWeight.y == 0.f)
-                        {
+                        else if (vertex.blendWeight.y == 0.f) {
                             vertex.blendIndex.y = j;
                             vertex.blendWeight.y = weight;
                         }
-                        else if (vertex.blendWeight.z == 0.f)
-                        {
+                        else if (vertex.blendWeight.z == 0.f) {
                             vertex.blendIndex.z = j;
                             vertex.blendWeight.z = weight;
                         }
-                        else if (vertex.blendWeight.w == 0.f)
-                        {
+                        else if (vertex.blendWeight.w == 0.f) {
                             vertex.blendIndex.w = j;
                             vertex.blendWeight.w = weight;
                         }
                     }
                 }
+
+                for (auto& vertex : vertices) {
+                    float weightSum = vertex.blendWeight.x + vertex.blendWeight.y + vertex.blendWeight.z + vertex.blendWeight.w;
+
+                    if (weightSum > 0.f)
+                    {
+                        vertex.blendWeight.x /= weightSum;
+                        vertex.blendWeight.y /= weightSum;
+                        vertex.blendWeight.z /= weightSum;
+                        vertex.blendWeight.w /= weightSum;
+                    }
+                    else
+                    {
+                        vertex.blendIndex.x = 0;
+                        vertex.blendWeight.x = 1.f;
+                    }
+                }
+
                 meshData.numBoneRefs = static_cast<uint32>(boneRefs.size());
                 _animVertices.push_back(move(vertices));
                 _meshBoneRefs.push_back(move(boneRefs));

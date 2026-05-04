@@ -1,9 +1,15 @@
-﻿#include "Channel.h"
+#include "Channel.h"
 
 #include "Bone.h"
 
 Channel::Channel()
 {
+}
+
+Channel::Channel(const Channel& rhs)
+    : _keyFrames{ rhs._keyFrames }, _numKeyFrames{rhs._numKeyFrames}, _boneIndex{ rhs._boneIndex }
+{
+    _isFirstUpdate = true;
 }
 
 HRESULT Channel::Initialize(const ModelChannelData& channelData)
