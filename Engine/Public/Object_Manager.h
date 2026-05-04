@@ -4,6 +4,8 @@
 
 NS_BEGIN(Engine)
 
+class Layer;
+
 class Object_Manager final : public Base
 {
 private:
@@ -25,11 +27,21 @@ public:
 
     Shared<GameObject> Find_FirstObject(uint32 levelIndex, const wstring& layerTag);
 
+   void    Visit_LevelObjects(
+       const function<void(const wstring& layerTag, const Shared<GameObject>& gameObject)>& visitor) const;
+
+   uint64 Get_ObjectRevision() const { return _objectRevision; }
+
 private:
 	uint32 _numLevels = {};
-	vector<map<const wstring, Shared<class Layer>>> _layers;
+
+    using LayerType = map<wstring, Shared<Layer>>;
+	vector<LayerType> _layers;
+
+    uint64 _objectRevision = 0;
+
 private:
-	Shared<class Layer> Find_Layer(uint32 layerLevelIndex, const wstring& layerTag);
+	Shared<Layer> Find_Layer(uint32 layerLevelIndex, const wstring& layerTag);
 
 public:
 	static Unique<Object_Manager> Create(uint32 numLevels);

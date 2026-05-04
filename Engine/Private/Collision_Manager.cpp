@@ -129,7 +129,7 @@ void Collision_Manager::Update()
     }
 
 #ifdef _DEBUG
-    if (GAME->KeyDown(KEY_TYPE::F2))
+    if (GAME->KeyDown(KEY_TYPE::F1))
         _isDebug = !_isDebug;
 
     perfSample.updateMs = chrono::duration<double, milli>(chrono::steady_clock::now() - updateBegin).count();

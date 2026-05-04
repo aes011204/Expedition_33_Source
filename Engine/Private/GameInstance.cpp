@@ -406,12 +406,12 @@ HRESULT GameInstance::Change_Level(uint32 newLevelIndex, Shared<Level> newLevel)
     return _levelManager->Change_Level(newLevelIndex, newLevel);
 }
 
-uint32 GameInstance::Current_LevelIndex()
+uint32 GameInstance::Current_LevelIndex() const
 {
     return _levelManager->Get_CurrentLevelIndex();
 }
 
-Shared<Level> GameInstance::Current_LevelType()
+Shared<Level> GameInstance::Current_LevelType() const
 {
     return _levelManager->Get_CurrentLevelType();
 }
@@ -441,6 +441,17 @@ HRESULT GameInstance::Add_GameObject(uint32 prototypeLevelIndex, const wstring& 
 Shared<GameObject> GameInstance::Find_FirstObject(uint32 levelIndex, const wstring& layerTag)
 {
     return _objectManager->Find_FirstObject(levelIndex, layerTag);
+}
+
+void GameInstance::Visit_CurrentLevelObjects(
+    const function<void(const wstring& layerTag, const Shared<GameObject>& gameObject)>& visitor) const
+{
+    return _objectManager->Visit_LevelObjects(visitor);
+}
+
+uint64 GameInstance::Get_CurrentLevelObjectRevision() const
+{
+    return _objectManager->Get_ObjectRevision();
 }
 
 void GameInstance::Add_RenderGroup(RenderGroup renderGroup, Shared<GameObject> gameObject)
@@ -575,6 +586,41 @@ bool GameInstance::Is_ActiveCamera(Shared<Camera> camera)
 void GameInstance::Change_ActiveCamera(Shared<Camera> camera) const
 {
     return _cameraManager->Change_ActiveCamera(camera);
+}
+
+void GameInstance::SwitchTo_NextCamera()
+{
+    return _cameraManager->SwitchTo_NextCamera();
+}
+
+bool GameInstance::Activate_CameraByType(ObjectType objectType)
+{
+    return _cameraManager->Activate_CameraByType(objectType);
+}
+
+bool GameInstance::Is_ActiveCameraType(ObjectType objectType) const
+{
+    return _cameraManager->Is_ActiveCameraType(objectType);
+}
+
+bool GameInstance::Focus_FreeCameraOnPosition(const Vec3& position)
+{
+    return _cameraManager->Focus_FreeCameraOnPosition(position);
+}
+
+Shared<Camera> GameInstance::Get_Camera(int index) const
+{
+    return _cameraManager->Get_Camera(index);
+}
+
+Shared<Camera> GameInstance::Get_ActiveCamera()
+{
+    return _cameraManager->Get_ActiveCamera();
+}
+
+float GameInstance::Get_CameraCount()
+{
+    return _cameraManager->Get_CameraCount();
 }
 
 const TypeRegistry::ComponentTypeInfo* GameInstance::Find_ComponentType(const string& className) const

@@ -8,6 +8,8 @@ class ShaderCom;
 
 class ENGINE_DLL TransformCom final : public Component
 {
+    GENERATED_COMPONENT(TransformCom)
+
 public:
     using TRANSFORM_DESC = struct tagTransformDesc
     {
