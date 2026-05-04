@@ -141,7 +141,7 @@ Shared<VIBuffer_Terrain> VIBuffer_Terrain::Create(const ComPtr<Device>& device, 
 
 	if (FAILED(instance->Initialize_Prototype(heightMapFilePath)))
 	{
-		MSG_BOX("Failed to Created : VIBuffer_Terrain");
+		LOG_WARN("Failed to create VIBuffer_Terrain: path='{}'", String::ToString(heightMapFilePath));
 		return nullptr;
 	}
 	return instance;

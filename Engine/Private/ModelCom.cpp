@@ -18,7 +18,7 @@ ModelCom::ModelCom(const ModelCom& prototype)
     , _isSkeletal{ prototype._isSkeletal }
     , _maxTextureType{ prototype._maxTextureType }
     , _numNodes{ prototype._numNodes }
-    , _numMeshes{ prototype._numMeshes }    
+    , _numMeshes{ prototype._numMeshes }
     , _numMaterials{ prototype._numMaterials }
     , _numBones{ prototype._numBones }
     , _numAnimations { prototype._numAnimations}
@@ -69,7 +69,7 @@ void ModelCom::Set_Animation(uint32 animIndex, float blendDuration, bool isLoop)
 
 const Matrix* ModelCom::Get_BoneMatrixPtr(const char* boneName)
 {
-    auto iter = find_if(_bones.begin(), _bones.end(), [&](const Shared<Bone>& bone) {    
+    auto iter = find_if(_bones.begin(), _bones.end(), [&](const Shared<Bone>& bone) {
         return bone->Check_BoneByName(boneName);
         });
 
@@ -140,7 +140,7 @@ bool ModelCom::Play_Animation(float timeDelta)
         else
         {
             _animations[_currentAnimIndex]->Blend_TransformMatrix(timeDelta, _animations[_nextAnimIndex], ratio, _bones, _isAnimLoop, rootIndex);
-            
+
             if (rootIndex >= 0)
             {
                 const auto& curDelta = _animations[_currentAnimIndex]->Get_TransformVelocity(rootIndex);
@@ -170,7 +170,7 @@ HRESULT ModelCom::Bind_Material(ShaderCom* shader, const char* constantName, uin
 
 HRESULT ModelCom::Bind_BoneMatrices(ShaderCom* shader, const char* constantName, uint32 meshIndex)
 {
-    return _meshes[meshIndex]->Bind_BoneMatrices(shader, constantName, _bones);    
+    return _meshes[meshIndex]->Bind_BoneMatrices(shader, constantName, _bones);
 }
 
 HRESULT ModelCom::Ready_Model(const char* modelPath)
@@ -301,7 +301,7 @@ Shared<ModelCom> ModelCom::Create(const ComPtr<Device>& device, const ComPtr<Con
 
     if (FAILED(instance->Initialize_Prototype(type, modelFilePath, preLocalTransformMatrix)))
     {
-        LOG_ERROR("Failed to Created : ModelCom");
+        LOG_WARN("Failed to create ModelCom: path='{}'", nullptr != modelFilePath ? modelFilePath : "");
         return nullptr;
 	}
     return instance;

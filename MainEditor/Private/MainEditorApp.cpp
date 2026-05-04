@@ -17,14 +17,14 @@ HRESULT MainEditorApp::Initialize()
     if (!std::filesystem::exists(assetRootPath) || !std::filesystem::is_directory(assetRootPath))
         return E_FAIL;
 
-    RECT clientRect{};
+    RECT clientRect {};
     if (!GetClientRect(g_hWnd, &clientRect))
         return E_FAIL;
 
     const uint32 viewportWidth = max(1L, clientRect.right - clientRect.left);
     const uint32 viewportHeight = max(1L, clientRect.bottom - clientRect.top);
 
-    ENGINE_DESC engineDesc{};
+    ENGINE_DESC engineDesc {};
     engineDesc.hInstance = g_hInst;
     engineDesc.hWnd = g_hWnd;
     engineDesc.winMode = WinMode::Win;
