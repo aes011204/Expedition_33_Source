@@ -12,6 +12,11 @@ HRESULT Collision_Manager::Initialize()
 
 void Collision_Manager::Update()
 {
+#ifdef _DEBUG
+    const auto updateBegin = chrono::steady_clock::now();
+    UpdatePerfSample perfSample{};
+#endif
+
     const size_t iNumColliders = _colliders.size();
 
     for (size_t i = 0; i < iNumColliders; ++i)
@@ -21,6 +26,11 @@ void Collision_Manager::Update()
             continue;
 
         src->Set_IsColl(false);
+
+#ifdef _DEBUG
+        if (src->Get_IsActive())
+            ++perfSample.activeColliderCount;
+#endif
     }
 
     for (size_t i = 0; i < iNumColliders; ++i)
@@ -46,6 +56,10 @@ void Collision_Manager::Update()
             if (srcOwner == dstOwner)
                 continue;
 
+#ifdef _DEBUG
+            ++perfSample.pairCandidateCount;
+#endif
+
             CollisionResponse eResponse = Calculate_ResponseResult(
                 src->Get_Channel(), src->Get_OverlapMask(),
                 src->Get_BlockMask(), dst->Get_Channel(),
@@ -54,11 +68,19 @@ void Collision_Manager::Update()
             if (CollisionResponse::Ignore == eResponse)
                 continue;
 
+#ifdef _DEBUG
+            ++perfSample.intersectsCallCount;
+#endif
+
             const bool isIntersect = src->Intersect(dst);
             const bool wasOverlapping = src->Is_Overlapping(dst);
 
             if (true == isIntersect)
             {
+#ifdef _DEBUG
+                ++perfSample.hitCount;
+#endif
+
                 src->Set_IsColl(true);
                 dst->Set_IsColl(true);
 
@@ -109,10 +131,40 @@ void Collision_Manager::Update()
 #ifdef _DEBUG
     if (GAME->KeyDown(KEY_TYPE::F2))
         _isDebug = !_isDebug;
+
+    perfSample.updateMs = chrono::duration<double, milli>(chrono::steady_clock::now() - updateBegin).count();
+    Accumulate_UpdatePerf(perfSample);
 #endif
 }
 
 #ifdef _DEBUG
+bool Collision_Manager::Try_ConsumePerfSummary(const float windowSec, CollisionPerfSummary& outSummary)
+{
+    outSummary = {};
+
+    if (windowSec <= 0.f || 0 == _collisionPerfWindow.updateFrameCount)
+        return false;
+
+    const double updateFrameCount = static_cast<double>(_collisionPerfWindow.updateFrameCount);
+
+    outSummary.valid = true;
+    outSummary.updateFrameCount = static_cast<uint32>(_collisionPerfWindow.updateFrameCount);
+    outSummary.activeCollidersAvg = static_cast<float>(
+        Safe_Divide(static_cast<double>(_collisionPerfWindow.activeColliderCount), updateFrameCount));
+    outSummary.pairsPerSec = static_cast<float>(
+        Safe_Divide(static_cast<double>(_collisionPerfWindow.pairCandidateCount), windowSec));
+    outSummary.intersectsPerSec = static_cast<float>(
+        Safe_Divide(static_cast<double>(_collisionPerfWindow.intersectsCallCount), windowSec));
+    outSummary.hitsPerSec = static_cast<float>(
+        Safe_Divide(static_cast<double>(_collisionPerfWindow.hitCount), windowSec));
+    outSummary.updateAvgMs = static_cast<float>(
+        Safe_Divide(_collisionPerfWindow.updateAccumulatedMs, updateFrameCount));
+    outSummary.updateMaxMs = static_cast<float>(_collisionPerfWindow.updateMaxMs);
+
+    Reset_CollisionPerfWindow(_collisionPerfWindow);
+    return true;
+}
+
 void Collision_Manager::Render_Debug()
 {
     if (!_isDebug)
@@ -127,6 +179,30 @@ void Collision_Manager::Render_Debug()
             collider->Render_Debug();
         }
     }
+}
+
+void Collision_Manager::Accumulate_UpdatePerf(const UpdatePerfSample& sample)
+{
+    ++_collisionPerfWindow.updateFrameCount;
+    _collisionPerfWindow.activeColliderCount += sample.activeColliderCount;
+    _collisionPerfWindow.pairCandidateCount += sample.pairCandidateCount;
+    _collisionPerfWindow.intersectsCallCount += sample.intersectsCallCount;
+    _collisionPerfWindow.hitCount += sample.hitCount;
+    _collisionPerfWindow.updateAccumulatedMs += sample.updateMs;
+    _collisionPerfWindow.updateMaxMs = max(_collisionPerfWindow.updateMaxMs, sample.updateMs);
+}
+
+void Collision_Manager::Reset_CollisionPerfWindow(CollisionPerfWindow& window)
+{
+    window = {};
+}
+
+double Collision_Manager::Safe_Divide(const double numerator, const double denominator)
+{
+    if (denominator <= 0.0)
+        return 0.0;
+
+    return numerator / denominator;
 }
 #endif
 

@@ -3,6 +3,7 @@
 #include "ClientInstance.h"
 #include "FreeCamera.h"
 #include "TargetCamera.h"
+#include "PointParticlePreview.h"
 
 Level_GamePlay::Level_GamePlay(const ComPtr<Device>& device, const ComPtr<Context>& context)
 	: Level { device, context }
@@ -117,7 +118,9 @@ HRESULT Level_GamePlay::Ready_Layer_BackGround(const wstring& strLayerTag)
 		ETOI(LevelType::GamePlay), strLayerTag)))
 		return E_FAIL;
 
-
+	if (FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_PointParticlePreview"),
+		ETOI(LevelType::GamePlay), strLayerTag)))
+		return E_FAIL;
 
 	return S_OK;
 }

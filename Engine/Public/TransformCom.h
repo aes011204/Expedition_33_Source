@@ -51,7 +51,7 @@ public: //## Accessors
 
     // enum 기반으로 World 축 또는 World 위치를 조회한다.
     Vec3 Get_State(State state);
-    [[deprecated("회전&스케일 오염을 방지하고자 사용 금지! | Use Set_Position/Set_Scale/Set_RotationEuler/Set_RotationQuaternion instead.")]]
+    [[deprecated("회전&스케일 오염을 방지하고자 사용 금지! | Use Set_Position/Set_WorldPosition/Set_Scale/Set_RotationEuler/Set_RotationQuaternion instead.")]]
     void Set_State(State state, const Vec3& value);
 
     //## Translation
@@ -59,7 +59,7 @@ public: //## Accessors
     Vec3 Get_Position() const;
     // Local 정본 위치를 설정한다.
     void Set_Position(const Vec3& position);
-    // 현재 local/parent 관계를 반영한 계산된 World 위치를 조회한다.
+    // 현재 local/parent 관계를 반영한 계산된 World 위치를 조회한다. Get_State(State::Position)과 동일하다.
     Vec3 Get_WorldPosition();
     // 부모 유무와 관계없이 최종 World 위치가 position이 되도록 설정한다. 부모가 있을 경우에 사용시 local 위치로 역변환하여 저장한다.
     void Set_WorldPosition(const Vec3& position);
@@ -113,6 +113,7 @@ public: //## Commands::Movement
 public: //## Commands::Rotate
     void Rotate(const Vec3& axis, float degree);
     void Turn(const Vec3& axis, float timeDelta);
+    // at는 World 위치를 받는다. parent유무와 상관 없이 최종 World forward가 타겟을 향하도록 자동 보정한다
     void LookAt(const Vec3& at);
 
 private: //## Data
