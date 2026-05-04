@@ -5,7 +5,10 @@
 PanelHierarchy::PanelHierarchy(SceneContext* ctx)
     : MEWindow{ L"Hierarchy" }, _ctx{ ctx }
 {
-
+    for (int i = 0; i < static_cast<int>(EObjectType::Fail); ++i)
+    {
+        _types[i] = static_cast<EObjectType>(i);
+    }
 }
 
 void PanelHierarchy::Render()
@@ -23,10 +26,23 @@ void PanelHierarchy::Render()
 
         if (ImGui::Button("+ 추가"))
         {
-            const wstring name = L"Objecgt_" + to_wstring(_ctx->_objects.size());
-            auto obj = EditorObject::Create(name);
-            _ctx->Add(obj);
-            _ctx->_selected = obj;
+            ImGui::OpenPopup("##add_type");
+        }
+
+        if (ImGui::BeginPopup("##add_type"))
+        {
+            for (auto t : _types)
+            {
+                if (ImGui::MenuItem(ObjectTypeName(t)))
+                {
+                    wstring name = String::ToWString((ObjectTypeName(t)))
+                        + L"_" + to_wstring(_ctx->_objects.size());
+                    auto obj = EditorObject::Create(name, t);
+                    _ctx->Add(obj);
+                    _ctx->_selected = obj;
+                }
+            }
+            ImGui::EndPopup();
         }
 
         ImGui::SameLine();
@@ -68,7 +84,7 @@ void PanelHierarchy::Render()
             else
             {
                 const bool isSelected = (_ctx->_selected == obj);
-                const string nameStr = String::ToString(obj->_name);
+                const string nameStr = string(ObjectTypeLabel(obj->_type)) + " " + String::ToString(obj->_name);
 
                 if (ImGui::Selectable(nameStr.c_str(), isSelected, ImGuiSelectableFlags_AllowOverlap))
                 {

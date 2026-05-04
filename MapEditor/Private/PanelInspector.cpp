@@ -5,7 +5,10 @@
 PanelInspector::PanelInspector(SceneContext* ctx)
     : MEWindow{ L"Inspector" }, _ctx{ ctx }
 {
-
+    for (int i = 0; i < magic_enum::enum_count<EZoneShape>(); ++i)
+    {
+        _shapes[i] = magic_enum::enum_name(static_cast<EZoneShape>(i)).data();
+    }
 }
 
 void MapEditor::PanelInspector::Render()
@@ -70,6 +73,96 @@ void MapEditor::PanelInspector::Render()
                 obj->_scale = Vec3(scl[0], scl[1], scl[2]);
                 changed = true;
             }
+        }
+
+        if (obj->_type == EObjectType::EncounterZone ||
+            obj->_type == EObjectType::TriggerVolume ||
+            obj->_type == EObjectType::CameraZone ||
+            obj->_type == EObjectType::PostProcessVolume)
+        {
+            if (ImGui::CollapsingHeader("Zone Shape", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                int shapeIdx = (obj->_zoneShape == EZoneShape::Sphere) ? 1 : 0;
+                if (ImGui::Combo("Shape", &shapeIdx, _shapes, _shapeNum))
+                {
+                    obj->_zoneShape = (shapeIdx == 1) ? EZoneShape::Sphere : EZoneShape::Box;
+                }
+
+                if (obj->_zoneShape == EZoneShape::Box)
+                {
+                    float ext[3] = { obj->_zoneExtent.x, obj->_zoneExtent.y, obj->_zoneExtent.z };
+                    if (ImGui::DragFloat3("Extent", ext, 0.1f, 0.01f, 1000.f))
+                    {
+                        obj->_zoneExtent = { ext[0], ext[1], ext[2] };
+                    }
+                }
+                else
+                {
+                    ImGui::DragFloat("Radius", &obj->_zoneRadius, 0.1f, 0.01f, 1000.f);
+                }
+            }
+        }
+
+        switch (obj->_type)
+        {
+        case EObjectType::StaticMesh:
+            if (ImGui::CollapsingHeader("Static Mesh", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                string pathStr = String::ToString(obj->_modelPath);
+                ImGui::TextDisabled("%s", pathStr.empty() ? "(없음)" : pathStr.c_str());
+            }
+            break;
+
+        case EObjectType::EncounterZone:
+            if (ImGui::CollapsingHeader("Encounter Zone", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                char buf[256] = {};
+                strncpy_s(buf, obj->_zoneId.c_str(), sizeof(buf) - 1);
+                if (ImGui::InputText("EnemyGroupId", buf, sizeof(buf)))
+                {
+                    obj->_zoneId = buf;
+                }
+            }
+            break;
+
+        case EObjectType::TriggerVolume:
+            if (ImGui::CollapsingHeader("Trigger Volume", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                char buf[256] = {};
+                strncpy_s(buf, obj->_zoneId.c_str(), sizeof(buf) - 1);
+                if (ImGui::InputText("EventId", buf, sizeof(buf)))
+                {
+                    obj->_zoneId = buf;
+                }
+            }
+            break;
+
+        case EObjectType::CameraZone:
+            if (ImGui::CollapsingHeader("Camera Zone", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                ImGui::DragFloat("FOV", &obj->_cameraFov, 0.5f, 1.f, 170.f);
+                ImGui::Checkbox("Fixed Angle", &obj->_cameraFixedAngle);
+                ImGui::DragFloat("Transition Time", &obj->_cameraTransitionTime, 0.01f, 0.f, 10.f);
+            }
+            break;
+
+        case EObjectType::PostProcessVolume:
+            if (ImGui::CollapsingHeader("Post Process", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                ImGui::DragFloat("Bloom Intensity", &obj->_ppBloomIntensity, 0.01f, 0.f, 10.f);
+                ImGui::DragFloat("Exposure Min", &obj->_ppExposureMin, 0.01f, -10.f, 10.f);
+                ImGui::DragFloat("Exposure Max", &obj->_ppExposureMax, 0.01f, -10.f, 10.f);
+                ImGui::DragFloat("Fog Density", &obj->_ppFogDensity, 0.001f, 0.f, 1.f);
+                float fogColor[3] = { obj->_ppFogColor.x, obj->_ppFogColor.y, obj->_ppFogColor.z };
+                if (ImGui::ColorEdit3("Fog Color", fogColor))
+                {
+                    obj->_ppFogColor = { fogColor[0], fogColor[1], fogColor[2] };
+                }
+            }
+            break;
+
+        default:
+            break;
         }
 
         if (changed)

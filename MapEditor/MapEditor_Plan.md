@@ -129,13 +129,27 @@ MEStaticMeshActor                         — 에디터 뷰포트 시각화 전�
     - `MapEditorApp` RT 내 씬 렌더 루프
 13. 라이트 배치 및 속성 편집
 
-### Phase 3 — 볼륨 / 존 시스템 ← **다음 작업**
-14. 인카운터 존, 트리거 볼륨, 스폰 포인트
-15. Camera Zone 파라미터 편집
-16. Post-processing Volume, Volumetric Fog 존
-17. Ambient Sound Zone
-18. Water 배치, 파티클 배치 (파티클 시스템 완료 후)
-19. 지형 시스템 (방식 미확정)
+### Phase 3 — 볼륨 / 존 시스템 ← **진행 중**
+14. ✅ 타입 시스템 도입 (`EObjectType`, `EZoneShape`) — `MapEditorDefines.h`
+    - magic_enum 활용, `ObjectTypeLabel` / `ObjectTypeName` / `ObjectTypeFromName` 헬퍼
+15. ✅ `EditorObject` 타입별 파라미터 필드 추가
+    - Zone Shape (Box/Sphere), EncounterZone, TriggerVolume, CameraZone, PostProcessVolume 파라미터
+16. ✅ `SceneContext` Save/Load 멀티타입 지원
+    - JSON 배열 분리: `StaticMeshes` / `SpawnPoints` / `EncounterZones` / `TriggerVolumes` / `CameraZones` / `PostProcessVolumes`
+17. ✅ `PanelHierarchy` 타입 선택 팝업 + `[SM]`/`[SP]` 등 타입 라벨 표시
+18. ✅ `PanelInspector` 타입별 커스텀 UI (Zone Shape / 타입 파라미터 섹션)
+19. 뷰포트 디버그 드로우 — 존/볼륨 와이어프레임 박스·구 시각화 ← **다음 작업**
+20. Ambient Sound Zone
+21. Water 배치, 파티클 배치 (파티클 시스템 완료 후)
+22. 지형 시스템 (방식 미확정)
+
+### Phase 3.5 — PhysX 엔진 통합 ← **다음 작업 (맵 작업 병행)**
+- `Engine` 측에 `PhysXManager` 생성
+  - PhysX 5.5.0 초기화 / 씬 생성 / Simulate / FetchResults 루프
+  - `PxFoundation`, `PxPhysics`, `PxScene`, `PxDefaultCpuDispatcher` 관리
+  - `GameInstance`에서 매니저 접근 가능하도록 등록
+- 콜라이더 컴포넌트 연동 (기존 `ColliderCom`과 PhysX Actor 연결)
+- 맵 에디터에서 콜라이더 편집 UI는 PhysX 통합 완료 후 Phase 5에서 구현
 
 ### Phase 4 — 내비 / AI
 20. 웨이포인트, 포털 / 존 전환
@@ -182,11 +196,13 @@ MEStaticMeshActor                         — 에디터 뷰포트 시각화 전�
 
 | 기능 | 상태 |
 |------|------|
-| 트리거 볼륨 | 구현 예정 |
-| 인카운터 존 | 구현 예정 |
-| Post-processing Volume | 구현 예정 |
-| Volumetric Fog 존 | 구현 예정 |
-| Camera Zone | 구현 예정 |
+| 트리거 볼륨 | ✅ (편집·직렬화) |
+| 인카운터 존 | ✅ (편집·직렬화) |
+| Post-processing Volume | ✅ (편집·직렬화) |
+| Volumetric Fog 존 | ✅ (PostProcess에 통합) |
+| Camera Zone | ✅ (편집·직렬화) |
+| 스폰 포인트 | ✅ (편집·직렬화) |
+| 볼륨 뷰포트 시각화 | 구현 예정 |
 | Ambient Sound Zone | 구현 예정 |
 | 포털 / 존 전환 | 구현 예정 |
 
@@ -211,7 +227,7 @@ MEStaticMeshActor                         — 에디터 뷰포트 시각화 전�
 | Assimp | 메시 임포트 | 통합 완료, 엔진 리팩토링 대기 |
 | nlohmann/json | 데이터 직렬화 | 통합 완료 |
 | ImGui | UI | 통합 완료 |
-| PhysX 5.5.0 | 물리 충돌 | vcpkg 설치 완료, 엔진 통합 필요 |
+| PhysX 5.5.0 | 물리 충돌 | vcpkg 설치 완료, PhysXManager 구현 예정 |
 | Recast/Detour | 내비게이션 메시 | 미설치, 엔진 통합 필요 |
 
 ---

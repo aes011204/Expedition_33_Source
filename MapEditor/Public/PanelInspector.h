@@ -7,6 +7,9 @@ struct SceneContext;
 
 class PanelInspector final : public MEWindow
 {
+private:
+    static constexpr uint64 _shapeNum =  magic_enum::enum_count<EZoneShape>();
+
 public:
     explicit PanelInspector(SceneContext* ctx);
     virtual ~PanelInspector() = default;
@@ -16,6 +19,7 @@ public:
 
 private:
     SceneContext* _ctx = {};
+    const char* _shapes[_shapeNum] = {};
 
 public:
     static Shared<PanelInspector> Create(SceneContext* ctx);
