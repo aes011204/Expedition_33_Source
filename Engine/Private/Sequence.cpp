@@ -15,16 +15,43 @@ BNode::NODE_STATE Sequence::Update(float deltaTime)
         BNode::NODE_STATE state = child->Update(deltaTime);
 
         if (state == BNode::NODE_STATE::FAILED)
+        {
+            if (_runningNode && _runningNode != child)
+            {
+                _runningNode->Abort();
+            }
+            _runningNode = nullptr;
             return BNode::NODE_STATE::FAILED;
+        }
 
         if (state == BNode::NODE_STATE::RUN)
+        {
+            if (_runningNode && _runningNode != child)
+            {
+                _runningNode->Abort();
+            }
+            _runningNode = child;
             return BNode::NODE_STATE::RUN;
+        }
     }
 
+    if (_runningNode)
+    {
+        _runningNode->Abort();
+        _runningNode = nullptr;
+    }
 
     return BNode::NODE_STATE::SUCCESS;
 }
 
+void Sequence::Abort()
+{
+    if (_runningNode)
+    {
+        _runningNode->Abort();
+        _runningNode = nullptr;
+    }
+}
 
 Shared<Sequence> Sequence::Create()
 {

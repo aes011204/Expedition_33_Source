@@ -16,9 +16,6 @@ void BT_Idle::OnStart()
 
 BNode::NODE_STATE BT_Idle::Logic_Update(float deltaTime)
 {
-
-
-
     return BNode::NODE_STATE::RUN;
 }
 

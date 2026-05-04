@@ -17,9 +17,20 @@ BNode::NODE_STATE Decorator::Update(float deltaTime)
 {
 
     if (Check_Condition() == false)
+    {
+        Abort();
         return BNode::NODE_STATE::FAILED;
+    }
 
     return _child->Update(deltaTime);
+}
+
+void Decorator::Abort()
+{
+    if (_child)
+    {
+        _child->Abort();
+    }
 }
 
 //Shared<Decorator> Decorator::Create()

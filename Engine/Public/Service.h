@@ -15,6 +15,9 @@ public:
     
     virtual NODE_STATE Update(float deltaTime) { return BNode::NODE_STATE::SUCCESS; };
 
+
+    void Abort() override;
+
 };
 
 NS_END

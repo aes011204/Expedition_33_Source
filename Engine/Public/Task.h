@@ -16,7 +16,7 @@ public:
     virtual void OnFinish() = 0;;
 
     virtual BNode::NODE_STATE Update(float deltaTime);
-
+    virtual void Abort();
 private:
     bool _started = {};
 };

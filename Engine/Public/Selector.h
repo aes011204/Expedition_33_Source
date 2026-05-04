@@ -13,10 +13,9 @@ public:
 public:
     virtual NODE_STATE Update(float deltaTime);
 
-   // void Add_Child(Shared<class BNode> child);
-
+    virtual void Abort()override;
 private:
-
+    Shared<BNode> _runningNode = {nullptr};
 public:
     static Shared<Selector> Create();
     //virtual Shared<Component> Clone(void* arg) override;

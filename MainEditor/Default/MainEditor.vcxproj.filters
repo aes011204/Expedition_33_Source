@@ -58,6 +58,9 @@
     <ClCompile Include="..\private\Camera_Tool.cpp">
       <Filter>01. View</Filter>
     </ClCompile>
+    <ClCompile Include="..\private\BT_Tool.cpp">
+      <Filter>01. View</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -127,6 +130,9 @@
     <ClInclude Include="..\Public\Console_View.h">
     </ClInclude>
     <ClInclude Include="..\public\Camera_Tool.h">
+      <Filter>01. View</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\BT_Tool.h">
       <Filter>01. View</Filter>
     </ClInclude>
   </ItemGroup>

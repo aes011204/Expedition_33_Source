@@ -16,7 +16,7 @@ public:
 
     void Set_Owner(weak_ptr<class AIController> aiCtrl) { _AICtrl = aiCtrl; }
     shared_ptr<class AIController> Get_Owner() { return _AICtrl.lock(); }
-
+    virtual void Abort() = 0;
 protected:
     weak_ptr<class AIController> _AICtrl = {};
 };

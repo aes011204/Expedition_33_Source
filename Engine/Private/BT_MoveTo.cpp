@@ -59,6 +59,7 @@ BNode::NODE_STATE BT_MoveTo::Logic_Update(float deltaTime)
 
     }
 
+    //Get_Owner()->Get_Owner()->Get_Transform()->LookAt(target); 클라에서 
 
 
 

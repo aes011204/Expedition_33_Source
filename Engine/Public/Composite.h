@@ -11,6 +11,9 @@ public:
 public:
     vector<shared_ptr<BNode>>& Get_Children() { return _children; }
     void Add_Child(Shared<class BNode> child);
+
+    virtual void Abort()=0;
+
 protected:
     vector<shared_ptr<BNode>> _children;
 };

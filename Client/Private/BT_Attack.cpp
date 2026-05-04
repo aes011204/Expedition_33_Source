@@ -1,4 +1,5 @@
 ﻿#include "BT_Attack.h"
+#include "AIController.h"
 
 BT_Attack::BT_Attack()
 {
@@ -10,7 +11,8 @@ BT_Attack::~BT_Attack()
 
 void BT_Attack::OnStart()
 {
-    
+    LOG_DEBUG("attck");
+    Get_Owner()->Stop_Move();
     int i = 1;
 }
 

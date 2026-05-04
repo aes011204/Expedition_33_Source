@@ -16,7 +16,7 @@ public:
 
     shared_ptr<BNode>& Get_Child() { return _child; }
     void Set_Child(shared_ptr<BNode> child) { _child = child; }
-
+    virtual void Abort() ;
 protected:
     shared_ptr<BNode> _child;
 

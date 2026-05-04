@@ -28,3 +28,12 @@ BNode::NODE_STATE Task::Update(float deltaTime)
     return state;
 }
 
+void Task::Abort()
+{
+    if (_started)
+    {
+        OnFinish();
+        _started = false;
+    }
+}
+

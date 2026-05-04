@@ -12,12 +12,10 @@ public:
 
 public:
     virtual NODE_STATE Update(float deltaTime);
-
-  /*  void Add_Child(Shared<class BNode> child);*/
+    virtual void Abort()override;
 
 private:
-
-//    vector<Shared<class BNode>> _children;
+    Shared<BNode> _runningNode = { nullptr };
 
 public:
     static Shared<Sequence> Create();
