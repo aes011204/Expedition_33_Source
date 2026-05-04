@@ -5,6 +5,15 @@ Inspector::Inspector()
 {
 }
 
+Inspector::~Inspector()
+{
+    Free();
+}
+
+void Inspector::Update(float timeDelta)
+{
+}
+
 void Inspector::Render()
 {
     if (!Is_Open())
@@ -24,4 +33,9 @@ void Inspector::Render()
 Shared<Inspector> Inspector::Create()
 {
     return make_shared<Inspector>();
+}
+
+void Inspector::Free()
+{
+    __super::Free();
 }

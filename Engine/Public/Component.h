@@ -20,9 +20,15 @@ public:
 	virtual HRESULT Initialize(void* arg);
     virtual void    BeginPlay();
 
+    virtual ClassReflectionInfo& Get_ReflectionInfo()
+    {
+        static ClassReflectionInfo emptyInfo{};
+        return emptyInfo;
+    }
+
 public:
-    Shared<GameObject> Get_Owner() const { return _owner.lock(); }
-    void Set_Owner(Shared<GameObject> owner) { _owner = owner; }
+    Shared<GameObject>  Get_Owner() const { return _owner.lock(); }
+    void                Set_Owner(Shared<GameObject> owner) { _owner = owner; }
 
 protected:
 	ComPtr<Device>  _device = { nullptr };

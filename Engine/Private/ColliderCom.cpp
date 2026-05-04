@@ -209,6 +209,20 @@ HRESULT ColliderCom::Render_Debug()
     if (nullptr == _bounding || nullptr == _batch || nullptr == _effect || nullptr == _inputLayout)
         return S_OK;
 
+    // 이펙트/파티클 렌더가 남긴 파이프라인 상태 정리하기
+    // GS + AlphaBlend + SRV 때문에 문제생기네
+    {
+        ID3D11GeometryShader* nullGeometryShader = nullptr;
+        _context->GSSetShader(nullGeometryShader, nullptr, 0);
+
+        ID3D11ShaderResourceView* nullSRV[1] = { nullptr };
+        _context->PSSetShaderResources(0, 1, nullSRV);
+
+        _context->OMSetBlendState(nullptr, nullptr, 0xffffffff);
+        _context->OMSetDepthStencilState(nullptr, 0);
+        _context->RSSetState(nullptr);
+    }
+
     _effect->SetWorld(Matrix::Identity);
     _effect->SetView(*GAME->Get_Transform(D3DTS::View));
     _effect->SetProjection(*GAME->Get_Transform(D3DTS::Proj));

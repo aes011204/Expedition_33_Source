@@ -21,6 +21,8 @@ public:
 public:
     Shared<GameObject> Find_FirstObject();
 
+    const list<Shared<GameObject>>& Get_GameObjects() const { return _gameObjects; }
+
 private:
 	list<Shared<GameObject>> _gameObjects;
 

@@ -2,10 +2,18 @@
 
 Content_Browser::Content_Browser()
     : Editor_Window{ L"Content Browser" }
-    , _resourceRoot{ filesystem::path{ ".." } / "Bin" / "Resources" }
+    , _resourceRoot{ fs::path{ ".." } / "Bin" / "Resources" }
 {
 }
 
+Content_Browser::~Content_Browser()
+{
+    Free();
+}
+
+void Content_Browser::Update(float timeDelta)
+{
+}
 
 void Content_Browser::Render()
 {
@@ -25,10 +33,9 @@ void Content_Browser::Render()
     ImGui::End();
 }
 
-
-void Content_Browser::Render_Directory(const filesystem::path& rootPath)
+void Content_Browser::Render_Directory(const fs::path& rootPath)
 {
-    if (!filesystem::exists(rootPath))
+    if (!fs::exists(rootPath))
     {
         ImGui::TextDisabled("Resource folder is not available yet.");
         return;
@@ -36,7 +43,7 @@ void Content_Browser::Render_Directory(const filesystem::path& rootPath)
 
     uint32 visibleCount = 0;
 
-    for (const filesystem::directory_entry& entry : filesystem::directory_iterator(rootPath))
+    for (const fs::directory_entry& entry : fs::directory_iterator(rootPath))
     {
         const string strName = entry.path().filename().string();
         if (entry.is_directory())
@@ -55,4 +62,9 @@ void Content_Browser::Render_Directory(const filesystem::path& rootPath)
 Shared<Content_Browser> Content_Browser::Create()
 {
     return make_shared<Content_Browser>();
+}
+
+void Content_Browser::Free()
+{
+    __super::Free();
 }

@@ -28,8 +28,8 @@ public:
     // 플레이어는 InputCom에서 들어온 값으로 세팅
     struct MoveInput
     {
-        float moveAxis = 0.f;
-        float turnAxis = 0.f;
+        float moveX = 0.f;
+        float moveZ = 0.f;
 
         bool  isRunPressed = false;
         bool  isJumpDown = false;
@@ -59,10 +59,9 @@ public:
     const MoveInput& Get_MoveInput()    { return _input;}
 
     bool Is_Grounded() const            { return _isGrounded; }
-    bool Is_Jumping() const             { return _isJumping; }
-    bool Is_Moving() const              { return _input.moveAxis != 0.f; }
-    bool Is_Turning() const             { return _input.turnAxis != 0.f; }
-    bool Is_Running() const             { return _input.isRunPressed; }
+    bool Is_Jumping()  const            { return _isJumping; }
+    bool Is_Moving()   const;
+    bool Is_Running()  const            { return _input.isRunPressed; }
 
     // 땅에 충돌되고 있을 때에만 가능
     bool Can_Jump() const               { return _isGrounded; }
