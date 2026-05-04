@@ -1,9 +1,9 @@
 ﻿#pragma once
 
-#include "Editor_Enum.h"
-#include "Editor_Macro.h"
-#include "Editor_Struct.h"
-#include "Editor_ImGuiInclude.h"
+#include "EffectEditor_Enum.h"
+#include "EffectEditor_Macro.h"
+#include "EffectEditor_Struct.h"
+#include "EffectEditor_ImGuiInclude.h"
 
 NS_BEGIN(EffectEditor)
 
@@ -12,11 +12,11 @@ struct EffectEditorDesc
     // 메인 에디터 호스트 윈도우 핸들.
     HWND hWnd{};
     // 에디터 렌더 타겟에 사용할 창 모드.
-    WinMode eWinMode{ WinMode::Win };
+    WinMode winMode{ WinMode::Win };
     // 기본 에디터 뷰포트 너비.
-    uint32 iViewportWidth{};
+    uint32 viewportWidth{};
     // 기본 에디터 뷰포트 높이.
-    uint32 iViewportHeight{};
+    uint32 viewportHeight{};
 };
 
 enum class EffectEditorRuntimeState : uint8

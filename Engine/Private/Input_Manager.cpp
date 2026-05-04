@@ -1,4 +1,4 @@
-#include "Input_Manager.h"
+﻿#include "Input_Manager.h"
 
 Input_Manager::Input_Manager()
 {
@@ -114,6 +114,10 @@ void Input_Manager::Lock_Mouse()
 	if (_isMouseLocked || nullptr == _windowHandle)
 		return;
 
+	POINT currentPosition = {};
+	GetCursorPos(&currentPosition);
+	_mouseRestorePosition = currentPosition;
+
 	_isMouseLocked = true;
 	ShowCursor(FALSE);
 
@@ -138,6 +142,14 @@ void Input_Manager::Unlock_Mouse()
 	_isMouseLocked = false;
 	ShowCursor(TRUE);
 	ClipCursor(nullptr);
+
+    SetCursorPos(_mouseRestorePosition.x, _mouseRestorePosition.y);
+
+    POINT currentPosition = _mouseRestorePosition;
+    ScreenToClient(_windowHandle, &currentPosition);
+
+    _mousePosition = currentPosition;
+    _mouseDelta = Vec2::Zero;
 }
 
 KEY_STATE Input_Manager::Get_State(KEY_TYPE key) const

@@ -1,10 +1,6 @@
 ﻿#pragma once
 
-#include "Reflection_Types.h"
-#include "RegistorFactory.h"
-
-namespace Engine
-{
+#include "Reflection_Macro.h"
 /* ------------------------------------------ */
 /*                캐스팅 매크로                */
 /* ------------------------------------------ */
@@ -160,83 +156,3 @@ namespace Engine
                     m_pInstance->Free();                                               \
                 m_pInstance.reset();                                                   \
             }
-
-
-// ==================================================
-//              리플렉션 매크로
-// ==================================================
-#define STRINGIZE2(x) #x
-#define STRINGIZE(x) STRINGIZE2(x)
-#define WIDEN2(x) L##x
-#define WIDEN(x) WIDEN2(x)
-#define WSTRINGIZE(x) WIDEN(STRINGIZE(x))
-
-#define GENERATED_TYPE_BODY(ClassName, TypeKindValue)                           \
-public:                                                                         \
-    static const wchar_t* StaticClassName() { return WSTRINGIZE(ClassName); }   \
-    static const char* StaticClassNameA() { return STRINGIZE(ClassName); }      \
-    using SelfType = ClassName;                                                 \
-    static Engine::ClassReflectionInfo& GetStaticReflectionInfo() {             \
-        static Engine::ClassReflectionInfo info{                                \
-            STRINGIZE(ClassName),                                               \
-            STRINGIZE(ClassName),                                               \
-            "",                                                                 \
-            TypeKindValue,                                                      \
-            {}                                                                  \
-        };                                                                      \
-        return info;                                                            \
-    }                                                                           \
-    virtual Engine::ClassReflectionInfo& Get_ReflectionInfo() {                 \
-        return GetStaticReflectionInfo();                                       \
-    }                                                                           \
-private:                                                                        \
-    bool _name_setter_ = [this]() {                                             \
-        this->Set_Name(StaticClassName());                                      \
-        return true;                                                            \
-    }();
-
-#define GENERATED_COMPONENT(ClassName)                                          \
-    GENERATED_TYPE_BODY(ClassName, Engine::RegisteredTypeKind::Component)       \
-public:                                                                         \
-    inline static const bool _auto_register_component_ =                        \
-        Engine::Register_ComponentType_Pending(                                 \
-            STRINGIZE(ClassName),                                               \
-            [](const ComPtr<Device>& device, const ComPtr<Context>& context) -> Shared<Engine::Component> \
-            {                                                                   \
-                return Engine::Create_ComponentPrototypeInstance<ClassName>(device, context); \
-            },                                                                  \
-            &ClassName::GetStaticReflectionInfo());
-
-#define GENERATED_GAMEOBJECT(ClassName, ObjectTypeValue)                        \
-    GENERATED_TYPE_BODY(ClassName, Engine::RegisteredTypeKind::GameObject)     \
-public:                                                                         \
-    static constexpr Engine::ObjectType StaticObjectType() { return ObjectTypeValue; } \
-    inline static const bool _auto_register_gameobject_ =                       \
-        Engine::Register_GameObjectType_Pending(                                \
-            STRINGIZE(ClassName),                                               \
-            ObjectTypeValue,                                                    \
-            [](const ComPtr<Device>& device, const ComPtr<Context>& context) -> Shared<Engine::GameObject> \
-            {                                                                   \
-                return Engine::Create_GameObjectPrototypeInstance<ClassName>(device, context); \
-            },                                                                  \
-            &ClassName::GetStaticReflectionInfo());                             \
-private:                                                                        \
-    bool _object_type_setter_ = [this]() {                                      \
-        _objectType = ObjectTypeValue;                                          \
-        return true;                                                            \
-    }();
-
-#define GENERATED_BTNODE(ClassName, NodeCategory)                               \
-    GENERATED_TYPE_BODY(ClassName, Engine::RegisteredTypeKind::BTNode)         \
-public:                                                                         \
-    inline static const bool _auto_register_btnode_ =                           \
-        Engine::Register_BTNodeType_Pending(                                    \
-            STRINGIZE(ClassName),                                               \
-            NodeCategory,                                                       \
-            []() -> Shared<Engine::Base>                                        \
-            {                                                                   \
-                return Engine::Create_BTNodePrototypeInstance<ClassName>();     \
-            },                                                                  \
-            &ClassName::GetStaticReflectionInfo());
-
-};

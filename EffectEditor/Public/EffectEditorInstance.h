@@ -8,7 +8,7 @@ NS_END
 NS_BEGIN(EffectEditor)
 
 class Editor_Window;
-class Editor_Manager;
+class EffectEditor_Manager;
 class ImGui_Manager;
 
 class EffectEditorInstance final : public Base
@@ -53,7 +53,7 @@ private: //## Data::Core
     ComPtr<Context> _context{};
     EffectEditorDesc _editorDesc{};
 
-    Unique<Editor_Manager> _editorManager{};
+    Unique<EffectEditor_Manager> _editorManager{};
     Unique<ImGui_Manager> _imguiManager{};
 
     Shared<RenderTarget> _sharedViewportRenderTarget{};
@@ -69,7 +69,7 @@ private: //## Data::Runtime
     float _runtimeTimeScale{ 1.f }; // 런타임 배율
 
 private:
-    static float Clamp_RuntimeTimeScale(float fTimeScale);
+    static float Clamp_RuntimeTimeScale(float timeScale);
 
 public:
     void Free() override;

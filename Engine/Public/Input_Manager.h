@@ -97,6 +97,7 @@ private:
 	HWND _windowHandle = {};					
 	vector<KEY_STATE> _keyStates = {};			
 	POINT _mousePosition = {};
+	POINT _mouseRestorePosition = {};
 	POINT _screenCenter = {};					
 	Vec2 _mouseDelta = Vec2::Zero;				
 	float _mouseWheelDelta = 0.f;				

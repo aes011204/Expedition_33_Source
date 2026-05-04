@@ -15,9 +15,15 @@ void Game_View::Render()
 
     bool isOpen = Is_Open();
     const string windowName = String::ToString(Get_WindowName());
-    
+
+    if (EDITOR->Consume_WindowFocusRequest(EDITOR_VIEWPORT_TARGET::Game))
+        ImGui::SetNextWindowFocus();
+
     if (ImGui::Begin(windowName.c_str(), &isOpen, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse))
     {
+        _isFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows);
+        _isHovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows);
+
         ImVec2 viewportSize = ImGui::GetContentRegionAvail();
 
         if (viewportSize.x < 1.f)

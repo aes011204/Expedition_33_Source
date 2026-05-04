@@ -1,14 +1,14 @@
 #include "Engine_Shader_Defines.hlsli"
 
 /* Vertex Shader */
-/* 1. ������ ��ȯ������ �����Ѵ�.(����, ��, ���� ��) */
-/* 2. ������ ������ �����Ѵ�. */
+/* 1. 정점의 변환과정을 수행한다.(월드, 뷰, 투영 등) */
+/* 2. 정점의 구성을 변형한다. */
 
 /* float2, float3, float4 == vector */
 /* float1x4, float4x4 == matrix */
 
 
-/* ������Ʈ ���̺� */
+/* 컨스턴트 테이블 */
 float4x4 g_WorldMatrix, g_ViewMatrix, g_ProjMatrix;
 texture2D g_Texture;
 
@@ -19,7 +19,7 @@ sampler DefaultSampler = sampler_state
 
 
 
-/* �� ���̴��� �׸��ٶ�� �̾߱��� ���������� ������ ������ �޾ƿ´� */
+/* 이 쉐이더로 그린다라고 이야기한 정점버퍼의 정점을 꺼내서 받아온다 */
 struct VS_IN
 {
     float3 vPosition : POSITION;
@@ -36,11 +36,11 @@ VS_OUT VS_MAIN(VS_IN In)
 {
     VS_OUT Out;
     
-    /* ������ ��ġ * ���� * �� * ���� */
+    /* 정점의 위치 * 월드 * 뷰 * 투영 */
     float4x4 matWV, matWVP;
     
-    /* mul : ��ĳ����� ���ϱ⿬���� �����Ѵ�. */ 
-    /* XMVector3TransformCoord : ���Ϳ� ����� ���ϱ⿬���� �����ϰ� w������.*/
+    /* mul : 행렬끼리의 곱하기연산을 수행한다. */ 
+    /* XMVector3TransformCoord : 벡터와 행렬의 곱하기연산을 수행하고 w나눈다.*/
     matWV = mul(g_WorldMatrix, g_ViewMatrix);
     matWVP = mul(matWV, g_ProjMatrix);
     
@@ -50,9 +50,9 @@ VS_OUT VS_MAIN(VS_IN In)
     return Out;
 }
 
-/* w�����⿬���� �����Ѵ�.-> �� �������� �̾����� �ִ� ���� -> VS_OUT����ü�� ��ġ -> SV_ */
-/* ����Ʈ(��������ǥ)�� ��ȯ�Ѵ�. */
-/* �����Ͷ����� -> ���� ������ ������ ������ �ȼ� ������ �����Ѵ� */
+/* w나누기연산을 수행한다.-> 이 연산으로 이어질수 있는 이유 -> VS_OUT구조체의 위치 -> SV_ */
+/* 뷰포트(윈도우좌표)로 변환한다. */
+/* 래스터라이즈 -> 정점 세개로 감싸진 영역의 픽셀 정보를 생성한다 */
 
 struct PS_IN
 {
@@ -65,7 +65,7 @@ struct PS_OUT
     vector vColor : SV_TARGET0;
 };
 
-/* Pixel Shader -> �ȼ��� ���� �����Ѵ�. */
+/* Pixel Shader -> 픽셀의 색을 결정한다. */
 
 PS_OUT PS_MAIN(PS_IN In)
 {
@@ -92,3 +92,11 @@ technique11 DefaultTechnique
         PixelShader = compile ps_5_0 PS_MAIN();
     }
 }
+
+//    pass DefaultPass1
+//    {
+//        VertexShader = compile vs_5_0 VS_MAIN1();
+//        PixelShader = compile ps_5_0 PS_MAIN1();
+
+//    }
+//}

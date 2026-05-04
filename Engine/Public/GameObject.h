@@ -34,6 +34,12 @@ public:
 
     HRESULT         Try_BeginPlay();
 
+    virtual ClassReflectionInfo& Get_ReflectionInfo()
+    {
+        static ClassReflectionInfo emptyInfo{};
+        return emptyInfo;
+    }
+
 public:
     virtual void    OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other) {}
     virtual void    OnStayOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other)  {}
@@ -45,6 +51,8 @@ public:
 public:
     Shared<GameObject> Get_Owner() const { return _owner.lock(); }
     void Set_Owner(Shared<GameObject> owner) { _owner = owner; }
+
+    virtual ObjectType Get_ObjectType() const { return ObjectType::None; }
 
 public:
     // 일반적으로 컴포넌트 가져올 때 = Get_Component<ShaderCom>(); 이런느낌

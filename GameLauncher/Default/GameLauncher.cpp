@@ -96,17 +96,32 @@ static BOOL Init_GameLauncherInstance(HINSTANCE hInstance, int nCmdShow)
 {
     g_hInst = hInstance;
 
+    MONITORINFO monitorInfo{};
+    monitorInfo.cbSize = sizeof(MONITORINFO);
+
+    HMONITOR hMonitor = MonitorFromPoint(POINT{ 0, 0 }, MONITOR_DEFAULTTOPRIMARY);
+    if (!GetMonitorInfo(hMonitor, &monitorInfo))
+        return FALSE;
+
+    const RECT& monitorRect = monitorInfo.rcMonitor;
+
     RECT rcWindow = { 0, 0, static_cast<LONG>(Client::g_iWinSizeX), static_cast<LONG>(Client::g_iWinSizeY) };
     AdjustWindowRect(&rcWindow, WS_OVERLAPPEDWINDOW, FALSE);
+
+    const int windowWidth = rcWindow.right - rcWindow.left;
+    const int windowHeight = rcWindow.bottom - rcWindow.top;
+
+    const int posX = monitorRect.left + ((monitorRect.right - monitorRect.left) - windowWidth) / 2;
+    const int posY = monitorRect.top + ((monitorRect.bottom - monitorRect.top) - windowHeight) / 2;
 
     HWND hWnd = CreateWindowW(
         g_windowClass,
         g_windowTitle,
         WS_OVERLAPPEDWINDOW,
-        CW_USEDEFAULT,
-        0,
-        rcWindow.right - rcWindow.left,
-        rcWindow.bottom - rcWindow.top,
+        posX,          
+        posY,          
+        windowWidth,
+        windowHeight,
         nullptr,
         nullptr,
         hInstance,

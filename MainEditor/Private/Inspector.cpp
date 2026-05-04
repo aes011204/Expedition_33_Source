@@ -11,14 +11,14 @@ void Inspector::Render()
     if (!Is_Open())
         return;
 
-    bool bOpen = Is_Open();
-    if (ImGui::Begin("Inspector", &bOpen))
+    bool isOpen = Is_Open();
+    if (ImGui::Begin("Inspector", &isOpen))
     {
         ImGui::TextUnformatted("No Selected");
         ImGui::Separator();
         ImGui::TextDisabled("Add Component");
     }
-    Set_Open(bOpen);
+    Set_Open(isOpen);
     ImGui::End();
 }
 
