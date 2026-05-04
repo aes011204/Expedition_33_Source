@@ -2,6 +2,7 @@
 #include "Asset_Manager.h"
 #include "Camera_Manager.h"
 #include "Collision_Manager.h"
+#include "PhysX_Manager.h"
 #include "Debug_Manager.h"
 #include "Font_Manager.h"
 #include "Graphic_Device.h"
@@ -85,6 +86,9 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
     _collisionManager = Collision_Manager::Create();
     CHECK_NULL(_collisionManager, E_FAIL);
 
+    _physxManager = PhysX_Manager::Create();
+    CHECK_NULL(_physxManager, E_FAIL);
+
     return S_OK;
 }
 
@@ -104,6 +108,8 @@ void GameInstance::Update_Engine(float timeDelta)
     _collisionManager->Clear_Colliders();
     _objectManager->Late_Update(timeDelta);
     _collisionManager->Update();
+
+    _physxManager->Update(timeDelta);
 
     _levelManager->Update(timeDelta);
     _cameraManager->Update(timeDelta);
@@ -612,6 +618,18 @@ void GameInstance::Clear_Colliders()
     return _collisionManager->Clear_Colliders();
 }
 
+PxPhysics* GameInstance::Get_PhysXPhysics() const
+{
+    CHECK_NULL(_physxManager, nullptr);
+    return _physxManager->Get_Physics();
+}
+
+PxScene* GameInstance::Get_PhysXScene() const
+{
+    CHECK_NULL(_physxManager, nullptr);
+    return _physxManager->Get_Scene();
+}
+
 void GameInstance::Draw_DebugBox(const DebugBoxDesc& desc)
 {
     return _debugManager->Draw_Box(desc);
@@ -675,6 +693,7 @@ void GameInstance::Release_Engine()
     ReleaseManager(_lightManager);
     ReleaseManager(_inputManager);
     ReleaseManager(_collisionManager);
+    ReleaseManager(_physxManager);
 
     ReleaseManager(_pipeLine);
     ReleaseManager(_renderer);

@@ -169,6 +169,10 @@
     <Filter Include="01.Utility\02. Prototype">
       <UniqueIdentifier>{f7e0e01b-cc94-4954-b205-9a23a25dd305}</UniqueIdentifier>
     </Filter>
+
+    <Filter Include="97. Manager\PhysX">
+      <UniqueIdentifier>{15ff1603-a529-4c69-9607-1c1acbf555a8}</UniqueIdentifier>
+    </Filter>
     <Filter Include="01.Utility\04.Component\VIBuffer\Instance">
       <UniqueIdentifier>{62431174-4d90-4b26-ad29-bc9eee5df2e5}</UniqueIdentifier>
     </Filter>
@@ -381,6 +385,9 @@
     <ClInclude Include="..\public\Prototype_Manager.h">
       <Filter>01.Utility\02. Prototype</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\PhysX_Manager.h">
+      <Filter>97. Manager\PhysX</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\Particle_Types.h" />
     <ClInclude Include="..\Public\VIBufferCom_Instance.h">
       <Filter>01.Utility\04.Component\VIBuffer\Instance</Filter>
@@ -554,6 +561,10 @@
     </ClCompile>
     <ClCompile Include="..\private\Prototype_Manager.cpp">
       <Filter>01.Utility\02. Prototype</Filter>
+    </ClCompile>
+
+    <ClCompile Include="..\Private\PhysX_Manager.cpp">
+      <Filter>97. Manager\PhysX</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\VIBufferCom_Instance.cpp">
       <Filter>01.Utility\04.Component\VIBuffer\Instance</Filter>

@@ -27,6 +27,7 @@ class Level;
 class Camera;
 class Debug_Manager;
 class Collision_Manager;
+class PhysX_Manager;
 class ColliderCom;
 
 class ENGINE_DLL GameInstance final : public Base
@@ -173,6 +174,11 @@ public: /* For.Collision_Manager */
     void                    Add_Collider(Shared<ColliderCom> collider);
     void                    Clear_Colliders();
 
+public: // For. PhysX_Manager
+    PxPhysics*  Get_PhysXPhysics() const;
+    PxScene*    Get_PhysXScene() const;
+
+
 public: /* For.Debug_Manager */
     void                    Draw_DebugBox(const DebugBoxDesc& desc);
     void                    Draw_DebugSphere(const DebugSphereDesc& desc);
@@ -206,6 +212,7 @@ private:
     Unique<TypeRegistry>        _typeRegistry{};
     Unique<Debug_Manager>       _debugManager{};
     Unique<Collision_Manager>   _collisionManager{};
+    Unique<PhysX_Manager>       _physxManager{};
 
 private:
     uint32 _viewportWidth{ 0 };
