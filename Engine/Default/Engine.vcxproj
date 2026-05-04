@@ -209,10 +209,14 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClInclude Include="..\Public\Delegate.h" />
     <ClInclude Include="..\Public\Event_Manager.h" />
     <ClInclude Include="..\Public\Helper_Math.h" />
+    <ClInclude Include="..\Public\ICommand.h" />
     <ClInclude Include="..\Public\Log_Manager.h" />
     <ClInclude Include="..\Public\Helper_String.h" />
     <ClInclude Include="..\Public\MovementCom.h" />
     <ClInclude Include="..\Public\PathFollower.h" />
+    <ClInclude Include="..\Public\Reflection_Macro.h" />
+    <ClInclude Include="..\Public\PhysX_Manager.h" />
+    <ClInclude Include="..\Public\Particle_Types.h" />
     <ClInclude Include="..\Public\Reflection_Types.h" />
     <ClInclude Include="..\Public\RenderTarget.h" />
     <ClInclude Include="..\Public\RegistorFactory.h" />
@@ -221,6 +225,8 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClInclude Include="..\Public\Service.h" />
     <ClInclude Include="..\Public\Task.h" />
     <ClInclude Include="..\Public\TypeRegistry.h" />
+    <ClInclude Include="..\Public\VIBufferCom_Instance.h" />
+    <ClInclude Include="..\Public\VIBufferCom_PointParticle.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="..\public\Animation.h" />
     <ClInclude Include="..\public\Asset_Manager.h" />
@@ -287,9 +293,11 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClCompile Include="..\Private\DebugDraw.cpp" />
     <ClCompile Include="..\Private\Decorator.cpp" />
     <ClCompile Include="..\Private\Event_Manager.cpp" />
+    <ClCompile Include="..\Private\ICommand.cpp" />
     <ClCompile Include="..\Private\Log_Manager.cpp" />
     <ClCompile Include="..\Private\MovementCom.cpp" />
     <ClCompile Include="..\Private\PathFollower.cpp" />
+    <ClCompile Include="..\Private\PhysX_Manager.cpp" />
     <ClCompile Include="..\Private\RenderTarget.cpp" />
     <ClCompile Include="..\private\Selector.cpp" />
     <ClCompile Include="..\private\Sequence.cpp" />
@@ -298,6 +306,8 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClCompile Include="..\Private\RegistorFactory.cpp" />
     <ClCompile Include="..\Private\Task.cpp" />
     <ClCompile Include="..\Private\TypeRegistry.cpp" />
+    <ClCompile Include="..\Private\VIBufferCom_Instance.cpp" />
+    <ClCompile Include="..\Private\VIBufferCom_PointParticle.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>

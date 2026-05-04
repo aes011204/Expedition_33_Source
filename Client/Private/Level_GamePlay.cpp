@@ -2,6 +2,8 @@
 #include "GameInstance.h"
 #include "ClientInstance.h"
 #include "FreeCamera.h"
+#include "TargetCamera.h"
+#include "PointParticlePreview.h"
 
 Level_GamePlay::Level_GamePlay(const ComPtr<Device>& device, const ComPtr<Context>& context)
 	: Level { device, context }
@@ -84,6 +86,28 @@ HRESULT Level_GamePlay::Ready_Layer_Camera(const wstring& strLayerTag)
 		ETOI(LevelType::GamePlay), strLayerTag, &CameraDesc)))
 		return E_FAIL;
 
+    TargetCamera::TARGETCAMERA_DESC		TargetCameraDesc{};
+
+    TargetCameraDesc.speedPerSec = 10.f;
+    TargetCameraDesc.degreePerSec = 180.f;
+    TargetCameraDesc.eye = XMFLOAT4(0.f, 20.f, -7.f, 1.f);
+    TargetCameraDesc.at = XMFLOAT4(0.f, 0.f, 0.f, 1.f);
+    TargetCameraDesc.fovy = XMConvertToRadians(60.f) ;
+    TargetCameraDesc.pitch = 0.f;
+    TargetCameraDesc.yaw = 0.f;
+    TargetCameraDesc.nearPlane = 0.1f;
+    TargetCameraDesc.farPlane = 500.f;
+    TargetCameraDesc.mouseSensor = 0.2f;
+    TargetCameraDesc.followSpeed = 5.f;
+    TargetCameraDesc.offset = Vec3 {0.5f, 1.f, 0.f};
+    TargetCameraDesc.distance = 2.f;
+    TargetCameraDesc.sideOffset = 0.5;
+    TargetCameraDesc.heightOffset = 1.f;
+
+    if (FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_TargetCamera"),
+        ETOI(LevelType::GamePlay), strLayerTag, &TargetCameraDesc)))
+            return E_FAIL;
+
 
 	return S_OK;
 }
@@ -98,7 +122,9 @@ HRESULT Level_GamePlay::Ready_Layer_BackGround(const wstring& strLayerTag)
 		ETOI(LevelType::GamePlay), strLayerTag)))
 		return E_FAIL;
 
-
+	if (FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_PointParticlePreview"),
+		ETOI(LevelType::GamePlay), strLayerTag)))
+		return E_FAIL;
 
 
 

@@ -108,7 +108,11 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>..\..\Client\Bin\$(Configuration);..\..\EngineSDK\lib\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>Client.lib;Engine.lib;d3d11.lib;dxgi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </Link>
+    <PreBuildEvent>
+      <Command>pushd "$(ProjectDir)..\.." &amp;&amp; call "UpdateLib.bat" &amp;&amp; popd</Command>
+    </PreBuildEvent>
     <PostBuildEvent>
       <Command>if exist "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.dll" xcopy /y /d "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.dll" "$(OutDir)"
 if exist "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.pdb" xcopy /y /d "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.pdb" "$(OutDir)"
@@ -138,7 +142,11 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mtd.dll" x
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>..\..\Client\Bin\$(Configuration);..\..\EngineSDK\lib\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>Client.lib;Engine.lib;d3d11.lib;dxgi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </Link>
+    <PreBuildEvent>
+      <Command>pushd "$(ProjectDir)..\.." &amp;&amp; call "UpdateLib.bat" &amp;&amp; popd</Command>
+    </PreBuildEvent>
     <PostBuildEvent>
       <Command>if exist "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.dll" xcopy /y /d "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.dll" "$(OutDir)"
 if exist "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.pdb" xcopy /y /d "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.pdb" "$(OutDir)"
@@ -186,8 +194,13 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\Private\Action_Command.cpp" />
     <ClCompile Include="..\private\Camera_Tool.cpp" />
+    <ClCompile Include="..\Private\CommandHistory.cpp" />
+    <ClCompile Include="..\Private\Console_View.cpp" />
+    <ClCompile Include="..\Private\Editor_Context.cpp" />
     <ClCompile Include="..\Private\MainEditorApp.cpp" />
+    <ClCompile Include="..\Private\Notification_Manager.cpp" />
     <ClCompile Include="..\Private\SimpleMath.cpp" />
     <ClCompile Include="..\Private\ImGui_Manager.cpp" />
     <ClCompile Include="pch.cpp">
@@ -204,11 +217,16 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     <ClCompile Include="..\Private\Inspector.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\Public\Action_Command.h" />
     <ClInclude Include="..\public\Camera_Tool.h" />
+    <ClInclude Include="..\Public\CommandHistory.h" />
+    <ClInclude Include="..\Public\Console_View.h" />
+    <ClInclude Include="..\Public\Editor_Context.h" />
     <ClInclude Include="..\Public\Editor_Enum.h" />
     <ClInclude Include="..\Public\Editor_Macro.h" />
     <ClInclude Include="..\Public\Editor_Struct.h" />
     <ClInclude Include="..\Public\ImGui_Manager.h" />
+    <ClInclude Include="..\Public\Notification_Manager.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="..\Public\MainEditorApp.h" />
     <ClInclude Include="..\Public\EditorInstance.h" />
@@ -222,6 +240,14 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     <ClInclude Include="..\Public\Hierarchy_View.h" />
     <ClInclude Include="..\Public\Content_Browser.h" />
     <ClInclude Include="..\Public\Inspector.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Client\Default\Client.vcxproj">
+      <Project>{76CA7900-4B7D-431A-BA5C-F2AAAB3EA9CA}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\Engine\Default\Engine.vcxproj">
+      <Project>{03054186-8B87-4D59-91C6-0AC09D31002D}</Project>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />

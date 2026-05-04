@@ -1,34 +1,45 @@
 ﻿#pragma once
 
-#include "Editor_Defines.h"
+#include "Base.h"
 
 NS_BEGIN(MainEditor)
 
-class Editor_Window
+class Editor_Window abstract : public Base
 {
 public:
-	explicit Editor_Window(const wstring& strWindowName);
-	virtual ~Editor_Window() = default;
+    Editor_Window(const wstring& windowName);
+    virtual ~Editor_Window() override = default;
 
 public:
-	/* Editor_Manager가 매 프레임 창 상태를 갱신할 때 호출한다. */
-	virtual void Update(float fTimeDelta);
+    virtual HRESULT Initialize();
+    virtual void    Update(float timeDelta);
+    virtual void    Pre_Render();
+    virtual void    Render();
 
-	/* Editor_Manager가 ImGui 프레임 안에서 이 창을 그릴 때 호출한다. */
-	virtual void Render();
+    // 저장
+    virtual bool    CanSave() const;
+    virtual void    Save();
 
-	/* 메뉴나 툴바에서 창 표시 상태를 바꿀 때 호출한다. */
-	void Set_Open(bool bOpen);
+public:
+    const wstring& Get_WindowName() const { return _window; }
 
-	/* 도킹 메뉴에서 창 제목이나 검색 키가 필요할 때 호출한다. */
-	const wstring& Get_WindowName() const;
+    bool Is_Open() const { return _isOpen; }
+    void Set_Open(bool isOpen) { _isOpen = isOpen; }
 
-	/* 닫힌 창을 렌더링에서 건너뛰기 위해 호출한다. */
-	bool Is_Open() const;
+    bool Is_Focused() const { return _isFocused; }
+    bool Is_Dirty() const { return _isDirty; }
+
+    void MarkDirty() { _isDirty = true; }
+    void ClearDirty() { _isDirty = false; }
+
+    bool Is_Hovered() const { return _isHovered; }
 
 protected:
-	wstring _window = {};                        /* 창 제목과 등록 키. */
-	bool _isOpen = true;                         /* 현재 ImGui 창 열림 상태. */
+    wstring _window;
+    bool    _isOpen = true;
+    bool    _isFocused = false;
+    bool    _isDirty = false;
+    bool    _isHovered = false;
 };
 
 NS_END

@@ -72,8 +72,36 @@ void MainEditorApp::Priority_Update(float timeDelta)
 
 void MainEditorApp::Update(float timeDelta)
 {
-    GAME->Update_Engine(timeDelta);
     EDITOR->Update_Editor(timeDelta);
+
+	float runtimeDelta = 0.f;
+	float freeCameraDelta = 0.f;
+
+    if (EDITOR->IsPlaying())
+    {
+        runtimeDelta = timeDelta * EDITOR->Get_RuntimeTimeScale();
+		freeCameraDelta = 0.f;
+    }
+	else if (EDITOR->IsPaused())
+	{
+		// 1프레임 넘기기
+        if (EDITOR->Consume_FrameStep())
+            runtimeDelta = timeDelta * EDITOR->Get_RuntimeTimeScale();
+        else
+            runtimeDelta = 0.f;
+
+        freeCameraDelta = timeDelta;
+	}
+	else
+    {
+        runtimeDelta = 0.f;
+        freeCameraDelta = timeDelta;
+    }
+
+	GAME->Set_FreeCameraTimeDelta(freeCameraDelta);
+    GAME->Update_Engine(runtimeDelta);
+
+	EDITOR->Apply_RuntimeInputPolicy();
 }
 
 void MainEditorApp::Late_Update(float timeDelta)
