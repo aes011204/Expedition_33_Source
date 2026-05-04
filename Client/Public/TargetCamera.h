@@ -22,9 +22,9 @@ public:
     virtual ~TargetCamera() { Free(); }
 
 public:
-    void            BeginPlay() override;
     virtual HRESULT Initialize_Prototype() override;
     virtual HRESULT Initialize(void* arg) override;
+    void            BeginPlay() override;
     virtual void    Priority_Update(float timeDelta) override;
     virtual void    Update(float timeDelta) override;
     virtual void    Late_Update(float timeDelta) override;

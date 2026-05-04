@@ -606,6 +606,8 @@ bool GameInstance::Is_ActiveCameraType(ObjectType objectType) const
 bool GameInstance::Focus_FreeCameraOnPosition(const Vec3& position)
 {
     return _cameraManager->Focus_FreeCameraOnPosition(position);
+}
+
 Shared<Camera> GameInstance::Get_Camera(int index) const
 {
     return _cameraManager->Get_Camera(index);

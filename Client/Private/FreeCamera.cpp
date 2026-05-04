@@ -15,7 +15,9 @@ void FreeCamera::BeginPlay()
 {
     Camera::BeginPlay();
     GAME->Add_Camera(GetSharedPtr<Camera>());
-    GAME->Change_ActiveCamera(GetSharedPtr<Camera>());
+
+    // 이거 여기에서 호출하면, GameLauncher에서도, Free Camera로 시작돼서, Target Camera 쪽으로 변경합니다
+    //GAME->Change_ActiveCamera(GetSharedPtr<Camera>());
 }
 
 HRESULT FreeCamera::Initialize_Prototype()
@@ -41,15 +43,6 @@ void FreeCamera::Priority_Update(float timeDelta)
 {
     __super::Priority_Update(timeDelta);
 
-    if(_firstUpdate)
-    {
-        GAME->Add_Camera(GetSharedPtr<Camera>());
-        // 이거 여기에서 호출하면, GameLauncher에서도, Free Camera로 시작돼서, Target Camera 쪽으로 변경합니다
-        //GAME->Change_ActiveCamera(GetSharedPtr<Camera>());
-
-        _firstUpdate = false;
-    }
-
     if(!GAME->Is_ActiveCamera(GetSharedPtr<Camera>()))
         return;
 
@@ -63,14 +56,6 @@ void FreeCamera::Priority_Update(float timeDelta)
         return;
 
     //TODO movespeed 만들고 그거 기준으로 이동할 수 있도록
-
-    //if(GAME->KeyDown(KEY_TYPE::F1))
-    //{
-    //    _lock = !_lock;
-    //}
-    //
-    //if(_lock)
-    //    return;
 
     const float cameraDelta = max(timeDelta, GAME->Get_FreeCameraTimeDelta());
 

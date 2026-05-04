@@ -36,10 +36,10 @@ void Camera_Tool::Render()
         {
             Render_SpecificSettings();
         }
-
-        Set_Open(isOpen);
-        ImGui::End();
     }
+
+    Set_Open(isOpen);
+    ImGui::End();
 }
 
 void Camera_Tool::Render_CameraList()

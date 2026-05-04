@@ -10,14 +10,6 @@ TargetCamera::TargetCamera(const TargetCamera& prototype) : Camera {prototype}
 {
 }
 
-void TargetCamera::BeginPlay()
-{
-    Camera::BeginPlay();
-
-    GAME->Add_Camera(GetSharedPtr<Camera>());
-    _targetTransformCom =  CLIENT->Find_Player(GAME->Current_LevelIndex())->Get_Transform();
-}
-
 HRESULT TargetCamera::Initialize_Prototype()
 {
     if(FAILED(__super::Initialize_Prototype()))
@@ -51,19 +43,18 @@ HRESULT TargetCamera::Initialize(void* arg)
     return S_OK;
 }
 
+void TargetCamera::BeginPlay()
+{
+    Camera::BeginPlay();
+
+    GAME->Add_Camera(GetSharedPtr<Camera>());
+    GAME->Change_ActiveCamera(GetSharedPtr<Camera>());
+    _targetTransformCom =  CLIENT->Find_Player(GAME->Current_LevelIndex())->Get_Transform();
+}
+
 void TargetCamera::Priority_Update(float timeDelta)
 {
     __super::Priority_Update(timeDelta);
-
-    if(_firstUpdate)
-    {
-        GAME->Add_Camera(GetSharedPtr<Camera>());
-        GAME->Change_ActiveCamera(GetSharedPtr<Camera>());
-
-        _targetTransformCom =  CLIENT->Find_Player(GAME->Current_LevelIndex())->Get_Transform();
-
-        _firstUpdate = false;
-    }
 
     if(!GAME->Is_ActiveCamera(GetSharedPtr<Camera>()))
         return;
