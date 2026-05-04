@@ -46,9 +46,9 @@ void Channel::Get_ChannelTransform(float trackPosition, uint32& keyFrameIndex, f
         translation = Vec3::Lerp(_keyFrames[keyFrameIndex].translation, _keyFrames[keyFrameIndex + 1].translation, ratio);
 	}
 
-	XMStoreFloat3(&outTransform.scale, scale);
-	XMStoreFloat4(&outTransform.rotation, rotation);
-	XMStoreFloat3(&outTransform.position, translation);
+    outTransform.scale = scale;
+	outTransform.rotation = rotation;
+	outTransform.position = translation;
 }
 
 void Channel::Update_Velocity(const RootMotionFrame& curTransform, float trackPosition)
@@ -77,8 +77,7 @@ void Channel::ResetVelocityState()
 	_prevTrackPosition = -1.f;
 }
 
-void Channel::Update_TransformationMatrix(uint32& currentKeyFrameIndex, float currentTrackPosition, float duration,
-	const vector<Shared<Bone>>& bones, int32 rootNodeIndex, bool isLoop)
+void Channel::Update_TransformationMatrix(uint32& currentKeyFrameIndex, float currentTrackPosition, float duration, const vector<Shared<Bone>>& bones, int32 rootNodeIndex, bool isLoop)
 {
 	if (_boneIndex == -1 || _boneIndex >= bones.size())
 		return;

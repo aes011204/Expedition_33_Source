@@ -32,7 +32,7 @@ void Bone::Recursive_Update_CombinedTransformationMatrix(const vector<Shared<Bon
 
 	for (int32 childIndex : _children)
 	{
-		bones[childIndex]->Recursive_Update_CombinedTransformationMatrix(bones, _combinedTransformationMatrix));
+		bones[childIndex]->Recursive_Update_CombinedTransformationMatrix(bones, _combinedTransformationMatrix);
 	}
 }
 

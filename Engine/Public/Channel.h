@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Base.h"
 
@@ -10,7 +10,7 @@ class Channel final : public Base
 {
 public:
 	Channel();
-	virtual ~Channel() = default;
+	~Channel() override = default;
 
 public:
 	int32 Get_BoneIndex() const { return _boneIndex; }
