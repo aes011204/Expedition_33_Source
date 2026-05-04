@@ -1,12 +1,15 @@
 ﻿#include "ResourceLoader.h"
+
+#include "Component.h"
 #include "BackGround.h"
 #include "Body_Player.h"
 #include "FreeCamera.h"
 #include "TargetCamera.h"
+#include "PointParticlePreview.h"
 #include "GameInstance.h"
 #include "GameObject.h"
-#include "Component.h"
 #include "ModelCom.h"
+#include "Particle_Types.h"
 #include "ShaderCom.h"
 #include "ColliderCom.h"
 #include "Texture.h"
@@ -445,6 +448,10 @@ ResourceLoader::FInputLayoutInfo ResourceLoader::Get_InputLayout(const string& s
 
 	if ("VTXCUBE" == strName || "Cube" == strName || "VtxCube" == strName)
 		return { VTXCUBE::Elements, VTXCUBE::numElements };
+
+    // Particle instance용 InputLayout
+    if ("ParticleInstance" == strName || "PARTICLEINSTANCE" == strName)
+		return { ParticleInstanceLayout::Elements, ParticleInstanceLayout::numElements };
 
 	return { VTXTEX::Elements, VTXTEX::numElements };
 }

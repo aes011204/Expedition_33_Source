@@ -9,6 +9,11 @@ Scene_View::Scene_View()
 {
 }
 
+Scene_View::~Scene_View()
+{
+    Free();
+}
+
 void Scene_View::Update(float fTimeDelta)
 {
 }
@@ -32,9 +37,7 @@ void Scene_View::Render()
         Render_ViewportCanvas();
     }
     else
-    {
         Set_Open(isOpen);
-    }
 
     ImGui::End();
 }
@@ -85,7 +88,8 @@ void Scene_View::Render_ViewportCanvas()
     EffectEditorInstance::GetInstance()->Request_ViewportSize(
         EditorViewportTarget::Scene,
         width,
-        height);
+        height
+    );
 
     ID3D11ShaderResourceView* pSRV = EffectEditorInstance::GetInstance()->Get_SharedViewportSRV();
     if (nullptr != pSRV)
@@ -109,11 +113,12 @@ void Scene_View::Render_ViewportCanvas()
     }
 }
 
-
 Shared<Scene_View> Scene_View::Create()
 {
     return make_shared<Scene_View>();
 }
 
-
-
+void Scene_View::Free()
+{
+    __super::Free();
+}

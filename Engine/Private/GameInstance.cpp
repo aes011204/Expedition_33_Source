@@ -135,8 +135,158 @@ HRESULT GameInstance::Draw()
     }
 #endif    
 
+#ifdef _DEBUG
+    Try_FlushRuntimePerfLog();
+#endif
+
     return S_OK;
 }
+
+#ifdef _DEBUG
+void GameInstance::Try_FlushRuntimePerfLog()
+{
+    const auto now = chrono::steady_clock::now();
+    if (!_hasRuntimePerfWindowStartTime)
+    {
+        _runtimePerfWindowStartTime = now;
+        _hasRuntimePerfWindowStartTime = true;
+        return;
+    }
+
+    const float windowSec = static_cast<float>(
+        chrono::duration<double>(now - _runtimePerfWindowStartTime).count());
+
+    if (windowSec < runtimePerfSampleWindowSec)
+        return;
+
+    RuntimePerfSummary runtimeSummary{};
+    runtimeSummary.windowSec = windowSec;
+
+    const bool hasRenderSummary =
+        nullptr != _renderer &&
+        _renderer->Try_ConsumePerfSummary(windowSec, runtimeSummary.render);
+    const bool hasCollisionSummary =
+        nullptr != _collisionManager &&
+        _collisionManager->Try_ConsumePerfSummary(windowSec, runtimeSummary.collision);
+
+    if (!hasRenderSummary && !hasCollisionSummary)
+    {
+        _runtimePerfWindowStartTime = now;
+        _hasRuntimePerfWindowStartTime = true;
+        return;
+    }
+
+    if (hasRenderSummary && runtimeSummary.render.renderCallCount > 0)
+    {
+        runtimeSummary.approxFps =
+            static_cast<float>(runtimeSummary.render.renderCallCount) / windowSec;
+    }
+    else if (hasCollisionSummary && runtimeSummary.collision.updateFrameCount > 0)
+    {
+        runtimeSummary.approxFps =
+            static_cast<float>(runtimeSummary.collision.updateFrameCount) / windowSec;
+    }
+
+    LOG_INFO(
+        "[RuntimePerf] fps={:.1f} render_ms(avg={:.2f} max={:.2f}) "
+        "priority_ms(avg={:.2f}) nonblend_ms(avg={:.2f}) blend_ms(avg={:.2f}) ui_ms(avg={:.2f}) "
+        "collision_ms(avg={:.2f} max={:.2f}) colliders(active={:.1f})",
+        runtimeSummary.approxFps,
+        runtimeSummary.render.renderAvgMs,
+        runtimeSummary.render.renderMaxMs,
+        runtimeSummary.render.priorityAvgMs,
+        runtimeSummary.render.nonBlendAvgMs,
+        runtimeSummary.render.blendAvgMs,
+        runtimeSummary.render.uiAvgMs,
+        runtimeSummary.collision.updateAvgMs,
+        runtimeSummary.collision.updateMaxMs,
+        runtimeSummary.collision.activeCollidersAvg
+    );
+
+    // TODO (RuntimePerf):
+    // preview/deferred/shadow/light/combine pass가 실제 Renderer에 추가되면
+    // counter와 summary field를 먼저 연결한 뒤 아래 확장 포맷으로 교체한다.
+
+    // LOG_INFO(
+    //     "[RuntimePerf] fps={:.1f} render_ms(avg={:.2f} max={:.2f}) "
+    //     "priority_ms(avg={:.2f}) nonblend_ms(avg={:.2f}) blend_ms(avg={:.2f}) ui_ms(avg={:.2f}) "
+    //     "shadow_ms(avg={:.2f} max={:.2f}) "
+    //     "lights_ms(avg={:.2f}) combined_ms(avg={:.2f}) "
+    //     "collision_ms(avg={:.2f} max={:.2f}) colliders(active={:.1f})",
+    //     runtimeSummary.approxFps,
+    //     runtimeSummary.render.renderAvgMs,
+    //     runtimeSummary.render.renderMaxMs,
+    //     runtimeSummary.render.priorityAvgMs,
+    //     runtimeSummary.render.nonBlendAvgMs,
+    //     runtimeSummary.render.blendAvgMs,
+    //     runtimeSummary.render.uiAvgMs,
+    //     runtimeSummary.render.shadowAvgMs,
+    //     runtimeSummary.render.shadowMaxMs,
+    //     runtimeSummary.render.lightsAvgMs,
+    //     runtimeSummary.render.combinedAvgMs,
+    //     runtimeSummary.collision.updateAvgMs,
+    //     runtimeSummary.collision.updateMaxMs,
+    //     runtimeSummary.collision.activeCollidersAvg
+    // );
+
+    if (Should_LogRuntimePerfDetail(runtimeSummary))
+    {
+        LOG_INFO(
+            "[RuntimePerfDetail] render_ms(avg={:.2f} max={:.2f}) "
+            "priority_ms(avg={:.2f}) nonblend_ms(avg={:.2f}) blend_ms(avg={:.2f}) ui_ms(avg={:.2f}) "
+            "collision_ms(avg={:.2f} max={:.2f}) pairs={:.1f}/s intersects={:.1f}/s hits={:.1f}/s",
+            runtimeSummary.render.renderAvgMs,
+            runtimeSummary.render.renderMaxMs,
+            runtimeSummary.render.priorityAvgMs,
+            runtimeSummary.render.nonBlendAvgMs,
+            runtimeSummary.render.blendAvgMs,
+            runtimeSummary.render.uiAvgMs,
+            runtimeSummary.collision.updateAvgMs,
+            runtimeSummary.collision.updateMaxMs,
+            runtimeSummary.collision.pairsPerSec,
+            runtimeSummary.collision.intersectsPerSec,
+            runtimeSummary.collision.hitsPerSec
+        );
+
+        // TODO (RuntimePerfDetail):
+        // 확장 pass counter와 summary field가 연결된 뒤 detail 로그도 같은 기준으로 확장한다.
+
+        // LOG_INFO(
+        //     "[RuntimePerfDetail] render_ms(avg={:.2f} max={:.2f}) "
+        //     "priority_ms(avg={:.2f}) nonblend_ms(avg={:.2f}) blend_ms(avg={:.2f}) ui_ms(avg={:.2f}) "
+        //     "shadow_ms(avg={:.2f} max={:.2f}) lights_ms(avg={:.2f}) "
+        //     "combined_ms(avg={:.2f}) "
+        //     "collision_ms(avg={:.2f} max={:.2f}) pairs={:.1f}/s intersects={:.1f}/s hits={:.1f}/s",
+        //     runtimeSummary.render.renderAvgMs,
+        //     runtimeSummary.render.renderMaxMs,
+        //     runtimeSummary.render.priorityAvgMs,
+        //     runtimeSummary.render.nonBlendAvgMs,
+        //     runtimeSummary.render.blendAvgMs,
+        //     runtimeSummary.render.uiAvgMs,
+        //     runtimeSummary.render.shadowAvgMs,
+        //     runtimeSummary.render.shadowMaxMs,
+        //     runtimeSummary.render.lightsAvgMs,
+        //     runtimeSummary.render.combinedAvgMs,
+        //     runtimeSummary.collision.updateAvgMs,
+        //     runtimeSummary.collision.updateMaxMs,
+        //     runtimeSummary.collision.pairsPerSec,
+        //     runtimeSummary.collision.intersectsPerSec,
+        //     runtimeSummary.collision.hitsPerSec
+        // );
+    }
+
+    _runtimePerfWindowStartTime = now;
+    _hasRuntimePerfWindowStartTime = true;
+}
+
+bool GameInstance::Should_LogRuntimePerfDetail(const RuntimePerfSummary& runtimeSummary)
+{
+    return
+        runtimeSummary.render.renderAvgMs >= detailRenderAvgMsThreshold ||
+        runtimeSummary.collision.updateAvgMs >= detailCollisionAvgMsThreshold ||
+        runtimeSummary.collision.intersectsPerSec >= detailIntersectsPerSecThreshold;
+}
+#endif
 
 void GameInstance::Clear_Resources(uint32 levelIndex)
 {

@@ -218,6 +218,20 @@ private:
     uint32 _viewportWidth{ 0 };
     uint32 _viewportHeight{ 0 };
 
+#ifdef _DEBUG
+private: //## 디버그 성능 평가용
+    static constexpr float runtimePerfSampleWindowSec{ 5.f };          // RuntimePerf summary를 몇 초마다 출력할건지
+    static constexpr float detailRenderAvgMsThreshold{ 6.f };          // Render 평균 시간이 이 값을 넘으면 detail log 출력
+    static constexpr float detailCollisionAvgMsThreshold{ 2.5f };      // Collision 평균 시간이 이 값을 넘으면 detail log 출력
+    static constexpr float detailIntersectsPerSecThreshold{ 30000.f }; // 초당 Intersect 호출 수가 이 값을 넘으면 detail log 출력
+
+    chrono::steady_clock::time_point _runtimePerfWindowStartTime{};
+    bool _hasRuntimePerfWindowStartTime{ false };
+
+    void Try_FlushRuntimePerfLog();
+    static bool Should_LogRuntimePerfDetail(const RuntimePerfSummary& runtimeSummary);
+#endif
+
 public:
     void    Release_Engine();
     void    Free() override;

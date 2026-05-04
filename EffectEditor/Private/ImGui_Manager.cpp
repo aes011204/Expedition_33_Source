@@ -12,20 +12,22 @@ HRESULT ImGui_Manager::Initialize(HWND hWnd, const ComPtr<Device>& device, const
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImPlot::CreateContext();
-    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    ImGuiIO& io = ImGui::GetIO();
+    (void)io;
 
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
     io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
     io.ConfigFlags |= ImGuiConfigFlags_DpiEnableScaleViewports;
-    
+
     io.Fonts->AddFontFromFileTTF(
         "C:/Windows/Fonts/malgun.ttf",
         18.0f,
         nullptr,
-        io.Fonts->GetGlyphRangesKorean());
+        io.Fonts->GetGlyphRangesKorean()
+    );
 
     // === Font Awesome 추가 ===
     {
@@ -36,12 +38,14 @@ HRESULT ImGui_Manager::Initialize(HWND hWnd, const ComPtr<Device>& device, const
         icons_config.GlyphMinAdvanceX = 18.0f;
 
         const string iconFontPath = Get_ClientResourcePath(
-            L"Fonts/fontawesome-free-7.1.0-desktop/otfs/Font Awesome 7 Free-Solid-900.otf");
+            L"Fonts/fontawesome-free-7.1.0-desktop/otfs/Font Awesome 7 Free-Solid-900.otf"
+        );
         io.Fonts->AddFontFromFileTTF(
             iconFontPath.c_str(),
             18.0f,
             &icons_config,
-            icons_ranges);
+            icons_ranges
+        );
     }
 
     ImGuiStyleSetting();
@@ -58,7 +62,6 @@ void ImGui_Manager::Update(float timeDelta)
     ImGui_ImplDX11_NewFrame();
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
-
 }
 
 void ImGui_Manager::Render()
@@ -68,20 +71,12 @@ void ImGui_Manager::Render()
     ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 
     // 멀티 뷰포트
-    ImGuiIO& io = ImGui::GetIO();
+    const ImGuiIO& io = ImGui::GetIO();
     if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
     {
         ImGui::UpdatePlatformWindows();
         ImGui::RenderPlatformWindowsDefault();
     }
-}
-
-void ImGui_Manager::Free()
-{
-    ImGui_ImplDX11_Shutdown();
-    ImGui_ImplWin32_Shutdown();
-    ImPlot::DestroyContext();
-    ImGui::DestroyContext();
 }
 
 void ImGui_Manager::ImGuiStyleSetting()
@@ -148,8 +143,8 @@ void ImGui_Manager::ImGuiStyleSetting()
     colors[ImGuiCol_HeaderActive] = ImVec4(0.35f, 0.35f, 0.35f, 1.00f);
 
     // 포인트 컬러 (언리얼처럼 살짝 채도 낮고 고급스러운 블루)
-    ImVec4 accentColor = ImVec4(0.15f, 0.45f, 0.85f, 1.00f);
-    ImVec4 accentColorHovered = ImVec4(0.25f, 0.55f, 0.95f, 1.00f);
+    const ImVec4 accentColor = ImVec4(0.15f, 0.45f, 0.85f, 1.00f);
+    const ImVec4 accentColorHovered = ImVec4(0.25f, 0.55f, 0.95f, 1.00f);
     ImVec4 accentColorActive = ImVec4(0.10f, 0.35f, 0.75f, 1.00f);
 
     colors[ImGuiCol_Button] = ImVec4(0.22f, 0.22f, 0.22f, 1.00f);
@@ -186,10 +181,18 @@ Unique<ImGui_Manager> ImGui_Manager::Create(HWND hWnd, const ComPtr<Device>& dev
 
     if (FAILED(instance->Initialize(hWnd, device, context)))
     {
-        MSG_BOX("Faield to Created : ImGui_Manager");
-
+        LOG_CRITICAL("Failed to Create : ImGui_Manager");
+        MSG_BOX("Failed to Create : ImGui_Manager");
         return nullptr;
     }
 
     return instance;
+}
+
+void ImGui_Manager::Free()
+{
+    ImGui_ImplDX11_Shutdown();
+    ImGui_ImplWin32_Shutdown();
+    ImPlot::DestroyContext();
+    ImGui::DestroyContext();
 }

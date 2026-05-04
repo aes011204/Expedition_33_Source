@@ -1,4 +1,4 @@
-﻿#include "Editor_Manager.h"
+﻿#include "EffectEditor_Manager.h"
 
 #include "Content_Browser.h"
 #include "Editor_Window.h"
@@ -8,12 +8,12 @@
 #include "Inspector.h"
 #include "Scene_View.h"
 
-Editor_Manager::~Editor_Manager()
+EffectEditor_Manager::~EffectEditor_Manager()
 {
     Free();
 }
 
-HRESULT Editor_Manager::Initialize()
+HRESULT EffectEditor_Manager::Initialize()
 {
     Add_Window(Scene_View::Create());
     Add_Window(Game_View::Create());
@@ -24,7 +24,7 @@ HRESULT Editor_Manager::Initialize()
     return S_OK;
 }
 
-void Editor_Manager::Update(float timeDelta)
+void EffectEditor_Manager::Update(float timeDelta)
 {
     for (auto& pair : _windows)
     {
@@ -33,7 +33,7 @@ void Editor_Manager::Update(float timeDelta)
     }
 }
 
-void Editor_Manager::Render()
+void EffectEditor_Manager::Render()
 {
     Render_DockSpace();
 
@@ -44,15 +44,14 @@ void Editor_Manager::Render()
     }
 }
 
-void Editor_Manager::Add_Window(const Shared<Editor_Window>& window)
+void EffectEditor_Manager::Add_Window(const Shared<Editor_Window>& window)
 {
-    if (nullptr == window)
-        return;
+    CHECK_NULL(window);
 
     _windows[window->Get_WindowName()] = window;
 }
 
-Shared<Editor_Window> Editor_Manager::Find_Window(const wstring& windowName) const
+Shared<Editor_Window> EffectEditor_Manager::Find_Window(const wstring& windowName) const
 {
     const auto iter = _windows.find(windowName);
     if (iter == _windows.end())
@@ -61,7 +60,7 @@ Shared<Editor_Window> Editor_Manager::Find_Window(const wstring& windowName) con
     return iter->second;
 }
 
-void Editor_Manager::Render_DockSpace()
+void EffectEditor_Manager::Render_DockSpace()
 {
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
     if (nullptr == viewport)
@@ -103,7 +102,7 @@ void Editor_Manager::Render_DockSpace()
             ImGui::EndMenu();
         }
 
-        auto editor = EffectEditorInstance::GetInstance();
+        const auto editor = EffectEditorInstance::GetInstance();
         if (nullptr != editor)
         {
             const bool isPlaying = editor->IsPlaying();
@@ -175,16 +174,20 @@ void Editor_Manager::Render_DockSpace()
     ImGui::End();
 }
 
-Unique<Editor_Manager> Editor_Manager::Create()
+Unique<EffectEditor_Manager> EffectEditor_Manager::Create()
 {
-    Unique<Editor_Manager> instance{ new Editor_Manager() };
+    auto instance = make_unique<EffectEditor_Manager>();
 
     if (FAILED(instance->Initialize()))
+    {
+        LOG_CRITICAL("Failed to Create : Editor_Manager");
+        MSG_BOX("Failed to Create : Editor_Manager");
         return nullptr;
+    }
 
     return instance;
 }
 
-void Editor_Manager::Free()
+void EffectEditor_Manager::Free()
 {
 }
