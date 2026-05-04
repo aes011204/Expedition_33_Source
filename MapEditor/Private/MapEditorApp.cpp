@@ -69,6 +69,8 @@ HRESULT MapEditor::MapEditorApp::Render()
     _camera->Apply();
 
     CHECK_FAILED(_rt->Begin(), E_FAIL);
+    DrawSceneDebug();
+
     CHECK_FAILED(GAME->Draw(), E_FAIL);
     GAME->Bind_BackBuffer();
 
@@ -130,9 +132,13 @@ void MapEditorApp::DrawSceneDebug()
             GAME->Draw_DebugSphere(sphere);
 
             DebugLineDesc line;
-
+            line.start = obj->_position;
+            line.end = obj->_position + Vec3(0.f, 1.f, 0.f);
+            line.style.color = sphere.style.color;
+            line.style.depthEnabled = false;
+            GAME->Draw_DebugLine(line);
+            break;
         }
-
         default:
             break;
         }

@@ -138,7 +138,7 @@ MEStaticMeshActor                         — 에디터 뷰포트 시각화 전�
     - JSON 배열 분리: `StaticMeshes` / `SpawnPoints` / `EncounterZones` / `TriggerVolumes` / `CameraZones` / `PostProcessVolumes`
 17. ✅ `PanelHierarchy` 타입 선택 팝업 + `[SM]`/`[SP]` 등 타입 라벨 표시
 18. ✅ `PanelInspector` 타입별 커스텀 UI (Zone Shape / 타입 파라미터 섹션)
-19. 뷰포트 디버그 드로우 — 존/볼륨 와이어프레임 박스·구 시각화 ← **다음 작업**
+19. ✅ 뷰포트 디버그 드로우 — 존/볼륨 와이어프레임 박스·구 시각화
 20. Ambient Sound Zone
 21. Water 배치, 파티클 배치 (파티클 시스템 완료 후)
 22. 지형 시스템 (방식 미확정)
@@ -202,7 +202,7 @@ MEStaticMeshActor                         — 에디터 뷰포트 시각화 전�
 | Volumetric Fog 존 | ✅ (PostProcess에 통합) |
 | Camera Zone | ✅ (편집·직렬화) |
 | 스폰 포인트 | ✅ (편집·직렬화) |
-| 볼륨 뷰포트 시각화 | 구현 예정 |
+| 볼륨 뷰포트 시각화 | ✅ |
 | Ambient Sound Zone | 구현 예정 |
 | 포털 / 존 전환 | 구현 예정 |
 

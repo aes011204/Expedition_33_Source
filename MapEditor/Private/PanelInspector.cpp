@@ -5,9 +5,14 @@
 PanelInspector::PanelInspector(SceneContext* ctx)
     : MEWindow{ L"Inspector" }, _ctx{ ctx }
 {
-    for (int i = 0; i < magic_enum::enum_count<EZoneShape>(); ++i)
+    for (int i = 0; i < _shapeNum; ++i)
     {
         _shapes[i] = magic_enum::enum_name(static_cast<EZoneShape>(i)).data();
+    }
+
+    for (int i = 0; i < _lightNum; ++i)
+    {
+        _lights[i] = magic_enum::enum_name(static_cast<LightType>(i)).data();
     }
 }
 
@@ -157,6 +162,39 @@ void MapEditor::PanelInspector::Render()
                 if (ImGui::ColorEdit3("Fog Color", fogColor))
                 {
                     obj->_ppFogColor = { fogColor[0], fogColor[1], fogColor[2] };
+                }
+            }
+            break;
+
+        case EObjectType::Light:
+            if (ImGui::CollapsingHeader("Light", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                int ltIdx = (obj->_lightType == LightType::Point) ? 1 : 0;
+                if (ImGui::Combo("Type", &ltIdx, _lights, 2))
+                {
+                    obj->_lightType = (ltIdx == 1) ? LightType::Point : LightType::Directional;
+                }
+
+                float diffuse[4] = { obj->_lightDiffuse.x,  obj->_lightDiffuse.y,  obj->_lightDiffuse.z,  obj->_lightDiffuse.w };
+                float ambient[4] = { obj->_lightAmbient.x,  obj->_lightAmbient.y,  obj->_lightAmbient.z,  obj->_lightAmbient.w };
+                float specular[4] = { obj->_lightSpecular.x, obj->_lightSpecular.y, obj->_lightSpecular.z, obj->_lightSpecular.w };
+
+                if (ImGui::ColorEdit4("Diffuse", diffuse))
+                    obj->_lightDiffuse = { diffuse[0],  diffuse[1],  diffuse[2],  diffuse[3] };
+                if (ImGui::ColorEdit4("Ambient", ambient))
+                    obj->_lightAmbient = { ambient[0],  ambient[1],  ambient[2],  ambient[3] };
+                if (ImGui::ColorEdit4("Specular", specular))
+                    obj->_lightSpecular = { specular[0], specular[1], specular[2], specular[3] };
+
+                if (obj->_lightType == LightType::Directional)
+                {
+                    float dir[3] = { obj->_lightDirection.x, obj->_lightDirection.y, obj->_lightDirection.z };
+                    if (ImGui::DragFloat3("Direction", dir, 0.01f, -1.f, 1.f))
+                        obj->_lightDirection = { dir[0], dir[1], dir[2], 0.f };
+                }
+                else
+                {
+                    ImGui::DragFloat("Range", &obj->_lightRange, 0.1f, 0.1f, 1000.f);
                 }
             }
             break;

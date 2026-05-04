@@ -14,6 +14,7 @@ void SceneContext::SaveToFile(const string& filePath)
     json triggerVolumes = json::array();
     json cameraZones = json::array();
     json postProcessVols = json::array();
+    json lights = json::array();
 
     for (auto& obj : _objects)
     {
@@ -71,6 +72,17 @@ void SceneContext::SaveToFile(const string& filePath)
             e["FogColor"] = { obj->_ppFogColor.x, obj->_ppFogColor.y, obj->_ppFogColor.z };
             postProcessVols.push_back(e);
             break;
+
+        case EObjectType::Light:
+            e["LightType"] = (obj->_lightType == LightType::Directional) ? "Directional" : "Point";
+            e["Direction"] = { obj->_lightDirection.x, obj->_lightDirection.y, obj->_lightDirection.z, obj->_lightDirection.w };
+            e["Range"] = obj->_lightRange;
+            e["Diffuse"] = { obj->_lightDiffuse.x,  obj->_lightDiffuse.y,  obj->_lightDiffuse.z,  obj->_lightDiffuse.w };
+            e["Ambient"] = { obj->_lightAmbient.x,  obj->_lightAmbient.y,  obj->_lightAmbient.z,  obj->_lightAmbient.w };
+            e["Specular"] = { obj->_lightSpecular.x, obj->_lightSpecular.y, obj->_lightSpecular.z, obj->_lightSpecular.w };
+            lights.push_back(e);
+            break;
+
         default:
             break;
         }
@@ -82,6 +94,7 @@ void SceneContext::SaveToFile(const string& filePath)
     map["TriggerVolumes"] = triggerVolumes;
     map["CameraZones"] = cameraZones;
     map["PostProcessVolumes"] = postProcessVols;
+    map["Lights"] = lights;
 
     ofstream ofs(filePath);
     ofs << root.dump(4);
@@ -214,6 +227,42 @@ void SceneContext::LoadFromFile(const string& filePath)
             _objects.push_back(obj);
         }
     }
+
+    if (map.contains("Lights"))
+    {
+        for (auto& e : map["Lights"])
+        {
+            auto obj = make_shared<EditorObject>();
+            obj->_type = EObjectType::Light;
+            obj->_name = String::ToWString(e["Id"].get<string>());
+            string lt = e.value("LightType", "Directional");
+            obj->_lightType = (lt == "Point") ? LightType::Point : LightType::Directional;
+            obj->_lightRange = e.value("Range", 10.f);
+            if (e.contains("Direction"))
+            {
+                auto& d = e["Direction"];
+                obj->_lightDirection = { d[0], d[1], d[2], d[3] };
+            }
+            if (e.contains("Diffuse"))
+            {
+                auto& d = e["Diffuse"];
+                obj->_lightDiffuse = { d[0], d[1], d[2], d[3] };
+            }
+            if (e.contains("Ambient"))
+            {
+                auto& a = e["Ambient"];
+                obj->_lightAmbient = { a[0], a[1], a[2], a[3] };
+            }
+            if (e.contains("Specular"))
+            {
+                auto& s = e["Specular"];
+                obj->_lightSpecular = { s[0], s[1], s[2], s[3] };
+            }
+            LoadTransform(e, *obj);
+            _objects.push_back(obj);
+        }
+    }
+
 }
 
 void SceneContext::Add(Shared<EditorObject> obj)
