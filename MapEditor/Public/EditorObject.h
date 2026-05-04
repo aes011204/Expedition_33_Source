@@ -29,6 +29,13 @@ struct EditorObject
     float _ppFogDensity = {};
     Vec3 _ppFogColor = Vec3::One;
 
+    LightType _lightType = LightType::Directional;
+    Vec4 _lightDiffuse = { 1.f, 1.f, 1.f, 1.f };
+    Vec4 _lightAmbient = { 0.1f, 0.1f, 0.1f, 1.f };
+    Vec4 _lightSpecular = { 1.f, 1.f, 1.f, 1.f };
+    Vec4 _lightDirection = { 0.f, -1.f, 0.f, 0.f };
+    float _lightRange = 10.f;
+
     void UpdateWorldMatrix()
     {
         _worldMatrix = Matrix::CreateScale(_scale) * Matrix::CreateFromQuaternion(_rotation) * Matrix::CreateTranslation(_position);
