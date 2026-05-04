@@ -129,6 +129,7 @@ void MapEditorApp::DrawSceneDebug()
             sphere.style.depthEnabled = false;
             GAME->Draw_DebugSphere(sphere);
 
+            DebugLineDesc line;
 
         }
 
