@@ -96,9 +96,12 @@ HRESULT Level_GamePlay::Ready_Layer_Camera(const wstring& strLayerTag)
     TargetCameraDesc.yaw = 0.f;
     TargetCameraDesc.nearPlane = 0.1f;
     TargetCameraDesc.farPlane = 500.f;
-    TargetCameraDesc.mouseSensor = 0.05f;
+    TargetCameraDesc.mouseSensor = 0.2f;
     TargetCameraDesc.followSpeed = 5.f;
-    TargetCameraDesc.offset = Vec3 {0.5f, 1.f, -2.f};
+    TargetCameraDesc.offset = Vec3 {0.5f, 1.f, 0.f};
+    TargetCameraDesc.distance = 2.f;
+    TargetCameraDesc.sideOffset = 0.5;
+    TargetCameraDesc.heightOffset = 1.f;
 
     if (FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_TargetCamera"),
         ETOI(LevelType::GamePlay), strLayerTag, &TargetCameraDesc)))

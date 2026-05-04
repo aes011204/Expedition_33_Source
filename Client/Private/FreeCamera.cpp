@@ -11,6 +11,13 @@ FreeCamera::FreeCamera(const FreeCamera& prototype)
 {
 }
 
+void FreeCamera::BeginPlay()
+{
+    Camera::BeginPlay();
+    GAME->Add_Camera(GetSharedPtr<Camera>());
+    GAME->Change_ActiveCamera(GetSharedPtr<Camera>());
+}
+
 HRESULT FreeCamera::Initialize_Prototype()
 {
     return S_OK;
@@ -24,6 +31,8 @@ HRESULT FreeCamera::Initialize(void* arg)
 
     if (FAILED(__super::Initialize(arg)))
         return E_FAIL;
+
+    Set_Name(L"Free Camera");
 
     return S_OK;
 }
@@ -44,8 +53,6 @@ void FreeCamera::Priority_Update(float timeDelta)
     if(!GAME->Is_ActiveCamera(GetSharedPtr<Camera>()))
         return;
 
-    // 활성 자유카메라는 입력이 없어도 현재 transform 기준으로 view matrix를 바로 반영해야,
-    // F8 전환이나 Scene 더블클릭 포커스 이동이 그 프레임에 즉시 보인다.
     __super::Update_TransformMatrices();
 
     // 우클릭 눌렀을 때 움직일 수 있게

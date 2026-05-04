@@ -177,6 +177,10 @@ public: /* For.Camera_Manager */
     void    Set_FreeCameraTimeDelta(float timeDelta) { _freeCameraTimeDelta = timeDelta; }
     float   Get_FreeCameraTimeDelta() const { return _freeCameraTimeDelta; }
 
+    Shared<Camera>  Get_Camera(int index) const;
+    Shared<Camera>  Get_ActiveCamera();
+    float   Get_CameraCount();
+
 public: /* For.TypeRegistry */
     const TypeRegistry::ComponentTypeInfo*  Find_ComponentType(const string& className) const;
     const TypeRegistry::GameObjectTypeInfo* Find_GameObjectType(const string& className) const;

@@ -54,6 +54,8 @@
       <Filter>97. Utils</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\Console_View.cpp">
+    </ClCompile>
+    <ClCompile Include="..\private\Camera_Tool.cpp">
       <Filter>01. View</Filter>
     </ClCompile>
   </ItemGroup>
@@ -123,6 +125,8 @@
       <Filter>97. Utils</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Console_View.h">
+    </ClInclude>
+    <ClInclude Include="..\public\Camera_Tool.h">
       <Filter>01. View</Filter>
     </ClInclude>
   </ItemGroup>
