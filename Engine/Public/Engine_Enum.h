@@ -6,7 +6,7 @@ namespace Engine
 
     enum class Prototype { GameObject, Comopnent };
 
-    enum class RenderGroup { Priority, NonBlend, NonLight, Blend, UI, END };
+    enum class RenderGroup { Priority, Shadow, NonBlend, NonLight, Blend, UI, END };
 
     enum class State { Right, Up, Look, Position, END };
 

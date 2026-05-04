@@ -33,6 +33,9 @@ private:
     void Render_Combined();
 
     HRESULT Ready_RenderTargets();
+    HRESULT Ready_ShadowDSV();
+
+    void Change_ViewportDesc(uint32 width, uint32 height);
 
 private:
 	ComPtr<Device>  _device;

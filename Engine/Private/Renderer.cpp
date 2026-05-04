@@ -73,7 +73,29 @@ void Renderer::Render_Priority()
 
 void Renderer::Render_Shadow()
 {
+    if (FAILED(GAME->Begin_MRT(L"MRT_ShadowObjects", _shadowDepthDSV)))
+        return;
 
+    const uint32 originWidth = GAME->Get_ViewportWidth();
+    const uint32 originHeight = GAME->Get_ViewportHeight();
+    const uint32 shadowWidth = static_cast<uint32>(originWidth * _shadowScale);
+    const uint32 shadowHeight = static_cast<uint32>(originHeight * _shadowScale);
+
+    // 그림자용 사이즈로 변경
+    Change_ViewportDesc(shadowWidth, shadowHeight);
+
+    for (auto& renderObject : _renderGroups[ETOI(RenderGroup::Shadow)])
+    {
+        Shared<GameObject> gameObject = renderObject.lock();
+        if (nullptr != gameObject)
+            gameObject->Render();
+    }
+
+    _renderGroups[ETOI(RenderGroup::Shadow)].clear();
+
+    CHECK_FAILED(GAME->End_MRT());
+
+    Change_ViewportDesc(originWidth, originHeight);
 }
 
 void Renderer::Render_NonBlend()
@@ -105,11 +127,11 @@ void Renderer::Render_Lights()
 
     // Transform
     ENDMRT_RETURN_IF_FAILED(
-        _deferredShader->Bind_Matrix("g_WorldMatrix", reinterpret_cast<const XMFLOAT4X4*>(&_deferredWorldMatrix)));
+        _deferredShader->Bind_Matrix("g_WorldMatrix", &_deferredWorldMatrix));
     ENDMRT_RETURN_IF_FAILED(
-        _deferredShader->Bind_Matrix("g_ViewMatrix", reinterpret_cast<const XMFLOAT4X4*>(&_deferredViewMatrix)));
+        _deferredShader->Bind_Matrix("g_ViewMatrix", &_deferredViewMatrix));
     ENDMRT_RETURN_IF_FAILED(
-        _deferredShader->Bind_Matrix("g_ProjMatrix", reinterpret_cast<const XMFLOAT4X4*>(&_deferredProjMatrix)));
+        _deferredShader->Bind_Matrix("g_ProjMatrix", &_deferredProjMatrix));
 
     // depth -> World 위치 복원
     ENDMRT_RETURN_IF_FAILED(
@@ -153,11 +175,11 @@ void Renderer::Render_Combined()
         return;
 
     // Transform
-    if (FAILED(_deferredShader->Bind_Matrix("g_WorldMatrix", reinterpret_cast<const XMFLOAT4X4*>(&_deferredWorldMatrix))))
+    if (FAILED(_deferredShader->Bind_Matrix("g_WorldMatrix", &_deferredWorldMatrix)))
         return;
-    if (FAILED(_deferredShader->Bind_Matrix("g_ViewMatrix", reinterpret_cast<const XMFLOAT4X4*>(&_deferredViewMatrix))))
+    if (FAILED(_deferredShader->Bind_Matrix("g_ViewMatrix", &_deferredViewMatrix)))
         return;
-    if (FAILED(_deferredShader->Bind_Matrix("g_ProjMatrix", reinterpret_cast<const XMFLOAT4X4*>(&_deferredProjMatrix))))
+    if (FAILED(_deferredShader->Bind_Matrix("g_ProjMatrix", &_deferredProjMatrix)))
         return;
 
     // depth -> World 위치 복원 용도
@@ -166,6 +188,10 @@ void Renderer::Render_Combined()
     if (FAILED(GAME->Bind_TransformMatrix_Inverse(D3DTS::Proj, _deferredShader.get(), "g_ProjMatrixInverse")))
         return;
     if (FAILED(GAME->Bind_CamPosition(_deferredShader.get(), "g_vCamPosition")))
+        return;
+
+    // 그림자
+    if (FAILED(GAME->Bind_ShadowMatrices(_deferredShader,  "g_LightViewMatrix", "g_LightProjMatrix")))
         return;
 
     // SRV 바인딩
@@ -240,6 +266,9 @@ HRESULT Renderer::Ready_RenderTargets()
     CHECK_FAILED(GAME->Add_RenderTarget(L"Target_LightDepth",
         width * static_cast<uint32>(_shadowScale), height * static_cast<uint32>(_shadowScale), DXGI_FORMAT_R32G32B32A32_FLOAT, Color(1.f, 1.f, 1.f, 1.f), false), E_FAIL);
 
+    CHECK_FAILED(Ready_ShadowDSV(), E_FAIL);
+
+    // Create MRT
     CHECK_FAILED(GAME->Add_MRT(L"MRT_GameObjects", L"Target_Diffuse"), E_FAIL); // SV_TARGET0
     CHECK_FAILED(GAME->Add_MRT(L"MRT_GameObjects", L"Target_Normal"), E_FAIL);  // SV_TARGET1
     CHECK_FAILED(GAME->Add_MRT(L"MRT_GameObjects", L"Target_Depth"), E_FAIL);   // SV_TARGET2
@@ -267,6 +296,52 @@ HRESULT Renderer::Ready_RenderTargets()
 #endif
 
     return S_OK;
+}
+
+HRESULT Renderer::Ready_ShadowDSV()
+{
+    const float shadowWidth = static_cast<float>(GAME->Get_ViewportWidth()) * _shadowScale;
+    const float shadowHeight = static_cast<float>(GAME->Get_ViewportHeight()) * _shadowScale;
+
+    _shadowViewport.TopLeftX = 0.f;
+    _shadowViewport.TopLeftY = 0.f;
+    _shadowViewport.Width = shadowWidth;
+    _shadowViewport.Height = shadowHeight;
+    _shadowViewport.MinDepth = 0.f;
+    _shadowViewport.MaxDepth = 1.f;
+
+    _shadowDepthTexture.Reset();
+    _shadowDepthDSV.Reset();
+
+    D3D11_TEXTURE2D_DESC depthDesc = {};
+    depthDesc.Width = static_cast<uint32>(shadowWidth);
+    depthDesc.Height = static_cast<uint32>(shadowHeight);
+    depthDesc.MipLevels = 1;
+    depthDesc.ArraySize = 1;
+    depthDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+    depthDesc.SampleDesc.Count = 1;
+    depthDesc.Usage = D3D11_USAGE_DEFAULT;
+    depthDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+
+    CHECK_FAILED(_device->CreateTexture2D(&depthDesc, nullptr, _shadowDepthTexture.GetAddressOf()), E_FAIL);
+    CHECK_FAILED(_device->CreateDepthStencilView(_shadowDepthTexture.Get(), nullptr, _shadowDepthDSV.GetAddressOf()), E_FAIL);
+
+    return S_OK;
+}
+
+void Renderer::Change_ViewportDesc(uint32 width, uint32 height)
+{
+    D3D11_VIEWPORT  ViewportDesc{};
+    ZeroMemory(&ViewportDesc, sizeof(ViewportDesc));
+
+    ViewportDesc.TopLeftX = 0;
+    ViewportDesc.TopLeftY = 0;
+    ViewportDesc.Width = static_cast<float>(width);
+    ViewportDesc.Height = static_cast<float>(height);
+    ViewportDesc.MinDepth = 0.f;
+    ViewportDesc.MaxDepth = 1.f;
+
+    _context->RSSetViewports(1, &ViewportDesc);
 }
 
 Unique<Renderer> Renderer::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

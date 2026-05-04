@@ -80,6 +80,27 @@ HRESULT Body_Player::Render()
 	return S_OK;
 }
 
+HRESULT Body_Player::Render_Shadow()
+{
+    if (FAILED(_shader->Bind_Matrix("g_WorldMatrix", &_combinedWorldMatrix)))
+        return E_FAIL;
+
+    if (FAILED(GAME->Bind_ShadowMatrices(_shader, "g_ViewMatrix", "g_ProjMatrix")))
+        return E_FAIL;
+
+    const uint32 iNumMeshes = static_cast<uint32>(_model->Get_NumMeshes());
+
+    for (uint32 i = 0; i < iNumMeshes; i++)
+    {
+        _model->Bind_BoneMatrices(_shader.get(), "g_BoneMatrices", i);
+
+        if (FAILED(_shader->Begin(1)))
+            return E_FAIL;
+
+        _model->Render(i);
+    }
+}
+
 HRESULT Body_Player::Ready_Components()
 {
 	if (FAILED(Add_Component(ETOI(LevelType::GamePlay), TEXT("Shader_VtxAnimMesh"), _shader)))

@@ -17,6 +17,7 @@ public:
 
 public:
 	const LIGHT_DESC* Get_LightDesc(uint32 index);
+    const LIGHT_DESC* Get_PrimaryShadowLightDesc() const;
 
 public:
 	HRESULT Add_Light(const LIGHT_DESC& lightDesc);

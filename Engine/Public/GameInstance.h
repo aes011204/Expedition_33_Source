@@ -29,6 +29,7 @@ class Camera;
 class Debug_Manager;
 class Collision_Manager;
 class ColliderCom;
+class Shadow;
 
 class ENGINE_DLL GameInstance final : public Base
 {
@@ -190,6 +191,13 @@ public : /* For.Target_Manager */
     const map<wstring, bool>& Get_MRTs() const;
 #endif
 
+public: /* For.Shadow */
+    HRESULT                 Bind_ShadowMatrices(Shared<ShaderCom> shader, const char* viewName, const char* projName);
+    HRESULT                 Update_ShadowLight(const ShadowLightDesc& desc);
+    const ShadowLightDesc*  Get_ShadowLightDesc() const;
+    const Matrix*           Get_ShadowTransformMatrix(D3DTS eType) const;
+
+
 public: /* For.Collision_Manager */
     void                    Add_Collider(Shared<ColliderCom> collider);
     void                    Clear_Colliders();
@@ -228,6 +236,7 @@ private:
     Unique<Target_Manager>      _targetManager{};
     Unique<Debug_Manager>       _debugManager{};
     Unique<Collision_Manager>   _collisionManager{};
+    Unique<Shadow>              _shadow{};
 
 private:
     uint32 _viewportWidth{ 0 };

@@ -61,6 +61,17 @@ HRESULT Level_GamePlay::Ready_Lights()
 	if (FAILED(GAME->Add_Light(LightDesc)))
 		return E_FAIL;
 
+    ShadowLightDesc     ShadowDesc{};
+
+    ShadowDesc.eye          = Vec3(-150.f, 150.f, -150.f);
+    ShadowDesc.at           = Vec3(0.f, 0.f, 0.f);
+    ShadowDesc.fovy         = AI_DEG_TO_RAD(120.f);
+    ShadowDesc.aspect       = 16.f / 9.f;
+    ShadowDesc.zn           = 0.1f;
+    ShadowDesc.zf           = 1000.f;
+
+    if (FAILED(GAME->Update_ShadowLight(ShadowDesc)))
+        return E_FAIL;
 
 	return S_OK;
 }
@@ -140,7 +151,16 @@ HRESULT Level_GamePlay::Ready_Layer_Player(const wstring& strLayerTag)
 		ETOI(LevelType::GamePlay), strLayerTag)))
 		return E_FAIL;
 
-
+    auto goPlayer = CLIENT->Find_Player(ETOI(LevelType::GamePlay));
+    if (goPlayer)
+    {
+        auto tr = goPlayer->Get_Transform();
+        if (tr)
+        {
+            Vec3 pos(10.f, 5.f, 10.f);
+            tr->Set_Position(pos);
+        }
+    }
 
 	return S_OK;
 }

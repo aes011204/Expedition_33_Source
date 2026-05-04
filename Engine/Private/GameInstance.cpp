@@ -16,6 +16,7 @@
 #include "Renderer.h"
 #include "Timer_Manager.h"
 #include "Target_Manager.h"
+#include "Shadow.h"
 
 IMPLEMENT_SINGLETON(GameInstance)
 
@@ -89,6 +90,9 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
 
     _collisionManager = Collision_Manager::Create();
     CHECK_NULL(_collisionManager, E_FAIL);
+
+    _shadow = Shadow::Create();
+    CHECK_NULL(_shadow, E_FAIL);
 
     return S_OK;
 }
@@ -547,6 +551,7 @@ void GameInstance::Release_Engine()
     ReleaseManager(_logManager);
 
     ReleaseManager(_targetManager);
+    ReleaseManager(_shadow);
 }
 
 
@@ -611,6 +616,34 @@ HRESULT GameInstance::Render_RT_Debug(Shared<VIBuffer_Rect> viBuffer, Shared<Sha
 const map<wstring, bool>& GameInstance::Get_MRTs() const
 {
     return _targetManager->Get_MRTs();
+}
+
+HRESULT GameInstance::Bind_ShadowMatrices(Shared<ShaderCom> shader, const char* viewName, const char* projName)
+{
+    CHECK_NULL(_shadow, E_FAIL);
+    return _shadow->Bind_TransformStateMatrix(shader, viewName, projName);
+}
+
+HRESULT GameInstance::Update_ShadowLight(const ShadowLightDesc& desc)
+{
+    return _shadow->Update_ShadowLight(desc);
+}
+
+const ShadowLightDesc* GameInstance::Get_ShadowLightDesc() const
+{
+    CHECK_NULL(_shadow, nullptr);
+    return _shadow->Get_ShadowLightDesc();
+}
+
+const Matrix* GameInstance::Get_ShadowTransformMatrix(D3DTS eType) const
+{
+    CHECK_NULL(_shadow, nullptr);
+    if (eType == D3DTS::View)
+        return _shadow->Get_ViewMatrix();
+    if (eType == D3DTS::Proj)
+        return _shadow->Get_ProjMatrix();
+
+    return nullptr;
 }
 
 #endif

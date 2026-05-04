@@ -22,6 +22,26 @@ const LIGHT_DESC* Light_Manager::Get_LightDesc(uint32 index)
 	return (*iter)->Get_LightDesc();
 }
 
+const LIGHT_DESC* Light_Manager::Get_PrimaryShadowLightDesc() const
+{
+    // 아직 사용 안 한다. 이후 환경 요소 설정 관련해서 필요해지면 연결
+    if (_lights.empty())
+        return nullptr;
+
+    for (const auto& light : _lights)
+    {
+        if (!light) continue;
+
+        const LIGHT_DESC* desc = light->Get_LightDesc();
+        if (!desc) continue;
+
+        if (desc->type == LightType::Directional && desc->castShadow)
+            return desc;
+    }
+
+    return nullptr;
+}
+
 HRESULT Light_Manager::Add_Light(const LIGHT_DESC& lightDesc)
 {
 	Shared<Light> light = Light::Create(lightDesc);

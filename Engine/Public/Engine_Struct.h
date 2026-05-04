@@ -37,6 +37,18 @@ namespace Engine
         Vec4 diffuse;
         Vec4 ambient;
         Vec4 specular;
+
+        bool castShadow = false;
+    };
+
+    using ShadowLightDesc = struct tagShadowLightDesc
+    {
+        Vec3    eye;
+        Vec3    at;
+        float   fovy = AI_DEG_TO_RAD(120.f); // rad
+        float   aspect = 16.f / 9.f;
+        float   zn = 0.1f;
+        float   zf = 1000.f;
     };
 
     using FAssetMeta = struct tagAssetMeta

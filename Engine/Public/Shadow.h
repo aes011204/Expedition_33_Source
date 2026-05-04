@@ -13,25 +13,23 @@ public:
     virtual ~Shadow() = default;
 
 public:
-    HRESULT Update_LightDesc(const LIGHT_DESC& lightDesc);
+    HRESULT Update_ShadowLight(const ShadowLightDesc& desc);
     HRESULT Bind_TransformStateMatrix(Shared<ShaderCom> shader, const char* viewName, const char* projName);
     void    Clear();
 
 public:
-    const Matrix* Get_ViewMatrix() const;
-    const Matrix* Get_ProjMatrix() const;
-    const LIGHT_DESC* Get_LightDesc() const;
-    bool Has_Light() const;
+    const Matrix*           Get_ViewMatrix() const;
+    const Matrix*           Get_ProjMatrix() const;
+    const ShadowLightDesc*  Get_ShadowLightDesc() const;
 
 public:
     static Unique<Shadow> Create();
     void Free() override;
 
 private:
-    LIGHT_DESC   _lightDesc = {};
-    bool         _hasLight = false;
-    Matrix       _viewMatrix = Matrix::Identity;
-    Matrix       _projMatrix = Matrix::Identity;
+    ShadowLightDesc _desc{};
+    Matrix          _viewMatrix = Matrix::Identity;
+    Matrix          _projMatrix = Matrix::Identity;
 };
 
 NS_END
