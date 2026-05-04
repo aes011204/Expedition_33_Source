@@ -1,20 +1,11 @@
-﻿#include "Game_View.h"
+#include "Game_View.h"
 
-#include "EffectEditorInstance.h"
 #include "GameInstance.h"
+#include "EffectEditorInstance.h"
 #include "RenderTarget.h"
 
 Game_View::Game_View()
     : Editor_Window{ L"Game" }
-{
-}
-
-Game_View::~Game_View()
-{
-    Free();
-}
-
-void Game_View::Update(float timeDelta)
 {
 }
 
@@ -26,8 +17,14 @@ void Game_View::Render()
     bool isOpen = Is_Open();
     const string windowName = String::ToString(Get_WindowName());
 
+    if (EDITOR->Consume_WindowFocusRequest(EditorViewportTarget::Game))
+        ImGui::SetNextWindowFocus();
+
     if (ImGui::Begin(windowName.c_str(), &isOpen, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse))
     {
+        _isFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows);
+        _isHovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows);
+
         ImVec2 viewportSize = ImGui::GetContentRegionAvail();
 
         if (viewportSize.x < 1.f)
@@ -39,21 +36,23 @@ void Game_View::Render()
         const uint32 width = static_cast<uint32>(viewportSize.x);
         const uint32 height = static_cast<uint32>(viewportSize.y);
 
-        EffectEditorInstance::GetInstance()->Request_ViewportSize(
+        EDITOR->Request_ViewportSize(
             EditorViewportTarget::Game,
             width,
-            height
-        );
+            height);
 
-        ID3D11ShaderResourceView* pSRV = EffectEditorInstance::GetInstance()->Get_SharedViewportSRV();
+        ID3D11ShaderResourceView* pSRV = EDITOR->Get_SharedViewportSRV();
         if (nullptr != pSRV)
         {
             const ImTextureID textureId = static_cast<ImTextureID>(reinterpret_cast<intptr_t>(pSRV));
             ImGui::Image(textureId, viewportSize);
         }
         else
+        {
             ImGui::TextUnformatted("Game RenderTarget Missing");
+        }
     }
+
     Set_Open(isOpen);
     ImGui::End();
 }
@@ -61,9 +60,4 @@ void Game_View::Render()
 Shared<Game_View> Game_View::Create()
 {
     return make_shared<Game_View>();
-}
-
-void Game_View::Free()
-{
-    __super::Free();
 }
