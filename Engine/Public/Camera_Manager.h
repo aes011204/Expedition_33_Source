@@ -24,9 +24,7 @@ public:
     int                  Get_CameraCount();
     Shared<TransformCom> Get_CameraTransform(int index);
     Shared<Camera>       Get_Camera(int index);
-    //float                Get_FovY(int index);
-    //float                Get_Near(int index);
-    //float                Get_Far(int index);
+    Shared<Camera>       Get_ActiveCamera() {return m_activeCamera;}
 
 private:
     vector<Shared<Camera>> m_cameras;

@@ -1,7 +1,6 @@
 ﻿#include "Camera_Tool.h"
-
-#include <Camera.h>
-
+#include "FreeCamera.h"
+#include "TargetCamera.h"
 #include "GameInstance.h"
 
 Camera_Tool::Camera_Tool() : Editor_Window {L"Camera Tool"}
@@ -68,7 +67,7 @@ void Camera_Tool::Render_CameraList()
             bool isActive = GAME->Is_ActiveCamera(camera);
 
             char label[160]{};
-            sprintf_s(label, "%s %d. %s",isActive? "[Active]" : "　　　　",i,cameraName.c_str());
+            sprintf_s(label, "%s %d. %s",isActive? "[Active]" : "　　　",i,cameraName.c_str());
 
             const bool isSelected = (_selectedCameraIndex == i);
 
@@ -101,29 +100,34 @@ void Camera_Tool::Render_CommonSettings()
     if(cameraCount<= 0)
         return;
 
-    auto camera = GAME->Get_Camera(_selectedCameraIndex);
-
+    auto  camera = GAME->Get_Camera(_selectedCameraIndex);
     float fovY = camera->Get_FovY();
     float fNear = camera->Get_Near();
     float fFar = camera->Get_Far();
-    Vec3 pos = camera->Get_Transform()->Get_Position();
+    float mouseSensor = camera->Get_MouseSensor();
+    Vec3  pos = camera->Get_Transform()->Get_Position();
 
-    if(ImGui::DragFloat("FovY", &fovY, 0.1f))
+    if(ImGui::DragFloat("fovY", &fovY, 0.1f))
     {
       camera->Set_FovY(fovY);  
     }
 
-    if(ImGui::DragFloat("Near", &fNear, 0.01f, 0.01f,fFar - 0.01f))
+    if(ImGui::DragFloat("near", &fNear, 0.01f, 0.01f,fFar - 0.01f))
     {
         camera->Set_Near(fNear);  
     }
 
-    if(ImGui::DragFloat("Far", &fFar, 0.01f, fNear + 0.01f, 10000.f))
+    if(ImGui::DragFloat("far", &fFar, 0.01f, fNear + 0.01f, 10000.f))
     {
         camera->Set_Far(fFar);  
     }
 
-    if(ImGui::DragFloat3("Position", &pos.x))
+    if(ImGui::DragFloat("mouse sensor",&mouseSensor, 0.01f, 0.01, 10.f))
+    {
+        camera->Set_MouseSensor(mouseSensor);
+    }
+
+    if(ImGui::DragFloat3("position", &pos.x))
     {
         camera->Get_Transform()->Set_Position(pos);  
     }
@@ -131,6 +135,42 @@ void Camera_Tool::Render_CommonSettings()
 
 void Camera_Tool::Render_SpecificSettings()
 {
+    auto camera = GAME->Get_Camera(_selectedCameraIndex);
+
+    auto targetCamera = dynamic_pointer_cast<TargetCamera>(camera);
+    auto freeCamera = dynamic_pointer_cast<FreeCamera>(camera);
+
+    if(nullptr != targetCamera)
+        Render_TargetCameraProperties(targetCamera);
+
+    if(nullptr != freeCamera)
+        Render_FreeCameraProperties(freeCamera);
+}
+
+void Camera_Tool::Render_FreeCameraProperties(const Shared<FreeCamera>& freeCamera)
+{
+}
+
+void Camera_Tool::Render_TargetCameraProperties(const Shared<TargetCamera>& targetCamera)
+{
+    float followSpeed = targetCamera->Get_FollowSpeed();
+    float  sideOffset      = targetCamera->Get_SideOffset();
+    float  heightOffset      = targetCamera->Get_HeightOffset();
+
+    if(ImGui::DragFloat("follow speed", &followSpeed, 0.01f))
+    {
+        targetCamera->Set_FollowSpeed(followSpeed);  
+    }
+
+  /*  if(ImGui::DragFloat("side offset", &sideOffset, 0.01f))
+    {
+        targetCamera->Set_SideOffset(sideOffset);  
+    }*/
+
+    if(ImGui::DragFloat("height offset", &heightOffset, 0.01f))
+    {
+        targetCamera->Set_HeightOffset(heightOffset);  
+    }
 
 }
 

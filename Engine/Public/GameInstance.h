@@ -158,9 +158,9 @@ public: /* For.Camera_Manager */
     HRESULT Add_Camera(Shared<Camera> camera) const;
     bool    Is_ActiveCamera(Shared<Camera> camera);
     void    Change_ActiveCamera(Shared<Camera> camera) const;
-    Shared<Camera> Get_Camera(int index) const;
+    Shared<Camera>  Get_Camera(int index) const;
+    Shared<Camera>  Get_ActiveCamera();
     float   Get_CameraCount();
-    
 
 public: /* For.TypeRegistry */
     const TypeRegistry::ComponentTypeInfo*  Find_ComponentType(const string& className) const;

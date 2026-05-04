@@ -1,9 +1,14 @@
 ﻿#pragma once
 #include "Editor_Window.h"
 
+NS_BEGIN(Client)
+class FreeCamera;
+class TargetCamera;
+NS_END
+
 NS_BEGIN(MainEditor)
 
-class Camera_Tool : public Editor_Window
+    class Camera_Tool : public Editor_Window
 {
 public:
     Camera_Tool();
@@ -16,6 +21,8 @@ private:
     void Render_CameraList();
     void Render_CommonSettings();
     void Render_SpecificSettings();
+    void Render_FreeCameraProperties(const Shared<Client::FreeCamera>& freeCamera);
+    void Render_TargetCameraProperties(const Shared<Client::TargetCamera>& targetCamera);
 
 private:
     int _selectedCameraIndex = { 0 };

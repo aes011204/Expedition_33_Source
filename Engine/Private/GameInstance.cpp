@@ -426,6 +426,11 @@ Shared<Camera> GameInstance::Get_Camera(int index) const
     return _cameraManager->Get_Camera(index);
 }
 
+Shared<Camera> GameInstance::Get_ActiveCamera()
+{
+    return _cameraManager->Get_ActiveCamera();
+}
+
 float GameInstance::Get_CameraCount()
 {
     return _cameraManager->Get_CameraCount();

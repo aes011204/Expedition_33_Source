@@ -447,7 +447,7 @@ void TransformCom::LookAt(const Vec3& at)
 
     direction.Normalize();
 
-    _localMatrix = Matrix::CreateWorld(position, direction, Vec3::Up);
+    _localMatrix = Matrix::CreateWorld(position, -direction, Vec3::Up);
     Set_Scale(preservedScale);
     Sanitize_LocalBasis();
 }

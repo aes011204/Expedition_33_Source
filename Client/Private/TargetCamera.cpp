@@ -10,6 +10,14 @@ TargetCamera::TargetCamera(const TargetCamera& prototype) : Camera {prototype}
 {
 }
 
+void TargetCamera::BeginPlay()
+{
+    Camera::BeginPlay();
+
+    GAME->Add_Camera(GetSharedPtr<Camera>());
+    _targetTransformCom =  CLIENT->Find_Player(GAME->Current_LevelIndex())->Get_Transform();
+}
+
 HRESULT TargetCamera::Initialize_Prototype()
 {
     if(FAILED(__super::Initialize_Prototype()))
@@ -28,6 +36,10 @@ HRESULT TargetCamera::Initialize(void* arg)
     _followSpeed = desc->followSpeed;
     _offset = desc->offset;
     _mouseSensor = desc->mouseSensor;
+    _distance = desc->distance;
+    _sideOffset = desc->sideOffset;
+    _heightOffset = desc->heightOffset;
+
 
     if(FAILED(__super::Initialize(arg)))
         return E_FAIL;
@@ -43,15 +55,6 @@ void TargetCamera::Priority_Update(float timeDelta)
 {
     __super::Priority_Update(timeDelta);
 
-    if(_firstUpdate)
-    {
-        GAME->Add_Camera(GetSharedPtr<Camera>());
-
-        _targetTransformCom =  CLIENT->Find_Player(GAME->Current_LevelIndex())->Get_Transform();
-
-        _firstUpdate = false;
-    }
-
     if(!GAME->Is_ActiveCamera(GetSharedPtr<Camera>()))
         return;
 
@@ -66,33 +69,41 @@ void TargetCamera::Priority_Update(float timeDelta)
     if(nullptr == targetTransformCom)
         return;
 
-    Vec3 targetPos = targetTransformCom->Get_WorldPosition();
-
-    Vec3 desiredPos = { targetPos.x + _offset.x , targetPos.y + _offset.y, targetPos.z + _offset.z };
-
-    Vec3 currentPos = _transformCom->Get_WorldPosition();
-
-    Vec3 newPos =  Math::Lerp_Damp(currentPos, desiredPos, _followSpeed, timeDelta);
-
     const Vec2 mouseDelta = GAME->Get_MouseDelta();
 
-    _yaw += mouseDelta.x * _mouseSensor;
+    _yaw += mouseDelta.x * _mouseSensor; 
     _pitch += mouseDelta.y * _mouseSensor;
+    _pitch = std::clamp(_pitch, -80.f, 80.f);
 
-    if(0.f != mouseDelta.x || 0.f != mouseDelta.y)
-        _transformCom->Set_RotationEuler(Vec3(_pitch, _yaw, 0.f));
+    Vec3 targetPos = targetTransformCom->Get_WorldPosition();
+    targetPos.y +=_heightOffset;
+
+    float yawRad = XMConvertToRadians(_yaw);
+    float pitchRad = XMConvertToRadians(_pitch);
+
+    Vec3   baseOffset = XMVectorSet(0.f, 0.f, -_distance, 0.f);
+    Matrix rotation = XMMatrixRotationRollPitchYaw(pitchRad, yawRad, 0.f);
+    Vec3   rotatedOffset   = XMVector3TransformNormal(baseOffset, rotation);
+
+
+    Vec3  desiredPos = targetPos + rotatedOffset;
+
+   Vec3 toTarget = targetPos - desiredPos;
+    toTarget.Normalize();
+
+    Vec3 cameraRight =  Vec3::Up.Cross(toTarget);
+    cameraRight.Normalize();
+
+    desiredPos += cameraRight * _sideOffset;
+
+    Vec3  currentPos = _transformCom->Get_WorldPosition();
+    Vec3 newPos =  Math::Lerp_Damp(currentPos, desiredPos, _followSpeed, timeDelta);
 
     _transformCom->Set_WorldPosition(newPos);
+    _transformCom->LookAt(targetPos);
 
     Update_TransformMatrices();
 
-    Vec3 pos =  _transformCom->Get_WorldPosition();
-    Vec3 look = _transformCom->Get_WorldForward();
-
-    if(GAME->KeyDown(KEY_TYPE::F11))
-    {
-        LOG_DEBUG("Target Camera Settings : yaw = {}, pitch = {}, x = {}, y = {}, z = {}, look.x = {}, look.y = {}, look.z = {}", _yaw, _pitch, pos.x, pos.y, pos.z, look.x, look.y, look.z);
-    }
 }
 
 void TargetCamera::Update(float timeDelta)
@@ -116,7 +127,6 @@ HRESULT TargetCamera::Render()
 void TargetCamera::SetTargetTransform(Shared<TransformCom> targetTransform)
 {
     //타겟을 설정해줘야함
-
     _targetTransformCom = targetTransform;
 }
 
