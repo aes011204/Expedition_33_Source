@@ -1,5 +1,5 @@
 ﻿#include "Hierarchy_View.h"
-#include "Editor_Context.h"
+
 #include "EditorInstance.h"
 #include "GameInstance.h"
 #include "GameObject.h"
@@ -18,11 +18,7 @@ void Hierarchy_View::Update(float timeDelta)
 {
     Editor_Window::Update(timeDelta);
 
-    Editor_Context* context = EDITOR->Get_Context();
-    if (context == nullptr)
-        return;
-
-    const uint32 selectionRevision = context->Get_SelectionRevision();
+    const uint32 selectionRevision = EDITOR->Selection_Revision();
     if (_cachedSelectionRevision != selectionRevision)
         _cachedSelectionRevision = selectionRevision;
 
@@ -40,7 +36,6 @@ void Hierarchy_View::Update(float timeDelta)
         _dirtyHierarchyCache = true;
     }
 
-    // 매 프레임 복사 방지
     if (_dirtyHierarchyCache)
         Rebuild_Cache();
 }
@@ -130,7 +125,7 @@ string Hierarchy_View::Build_HierarchyLabel(const Shared<GameObject>& gameObject
 
     const string objectName = String::ToString(gameObject->Get_Name());
 
-     if (!objectName.empty())
+    if (!objectName.empty())
         return objectName + " [" + to_string(objectIndex) + "]";
 
     return "GameObject [" + to_string(objectIndex) + "]";
@@ -148,16 +143,7 @@ void Hierarchy_View::Render()
     {
         _isFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows);
 
-        auto context = EDITOR->Get_Context();
-        if (context == nullptr)
-        {
-            ImGui::TextDisabled("Editor Context가 없음");
-            Set_Open(isOpen);
-            ImGui::End();
-            return;
-        }
-
-        const auto selectedObject = context->Get_Selection().selectedObject;
+        const Shared<GameObject> selectedObject = EDITOR->Selected_Object();
 
         Draw_SearchBar();
 
@@ -191,15 +177,17 @@ void Hierarchy_View::Render()
                         const string label = Build_HierarchyLabel(gameObject, objectIndex);
 
                         ImGui::PushID(gameObject.get());
+
                         if (ImGui::Selectable(label.c_str(), isSelected))
-                            context->Set_SelectObject(gameObject);
+                            EDITOR->Select_Object(gameObject);
 
                         if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
                         {
-                            context->Set_SelectObject(gameObject);
-                            context->Request_FocusObject(gameObject);
+                            EDITOR->Select_Object(gameObject);
+                            EDITOR->Request_FocusObject(gameObject);
                             EDITOR->Request_WindowFocus(EDITOR_VIEWPORT_TARGET::Scene);
                         }
+
                         ImGui::PopID();
 
                         ++objectIndex;
@@ -228,15 +216,17 @@ void Hierarchy_View::Render()
                             const string label = Build_HierarchyLabel(gameObject, objectIndex);
 
                             ImGui::PushID(gameObject.get());
+
                             if (ImGui::Selectable(label.c_str(), isSelected))
-                                context->Set_SelectObject(gameObject);
+                                EDITOR->Select_Object(gameObject);
 
                             if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
                             {
-                                context->Set_SelectObject(gameObject);
-                                context->Request_FocusObject(gameObject);
+                                EDITOR->Select_Object(gameObject);
+                                EDITOR->Request_FocusObject(gameObject);
                                 EDITOR->Request_WindowFocus(EDITOR_VIEWPORT_TARGET::Scene);
                             }
+
                             ImGui::PopID();
 
                             ++objectIndex;
@@ -253,7 +243,6 @@ void Hierarchy_View::Render()
     ImGui::End();
 }
 
-
 Shared<Hierarchy_View> Hierarchy_View::Create()
 {
     return make_shared<Hierarchy_View>();
@@ -262,6 +251,5 @@ Shared<Hierarchy_View> Hierarchy_View::Create()
 void Hierarchy_View::Free()
 {
     _groupedObjects.clear();
-
     Editor_Window::Free();
 }

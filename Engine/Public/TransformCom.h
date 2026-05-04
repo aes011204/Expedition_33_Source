@@ -76,6 +76,8 @@ public: //## Accessors
     //## Rotation
     Vec3 Get_RotationEuler();
     void Set_RotationEuler(const Vec3& eulerDegree);
+    Vec3 Get_WorldRotationEuler();
+    void Set_WorldRotationEuler(const Vec3& eulerDegree);
     const Quat& Get_RotationQuaternion();
     void Set_RotationQuaternion(const Quat& rotation);
 
