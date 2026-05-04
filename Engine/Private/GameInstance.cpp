@@ -468,6 +468,12 @@ void GameInstance::Add_RenderGroup(RenderGroup renderGroup, Shared<GameObject> g
     return _renderer->Add_RenderGroup(renderGroup, gameObject);
 }
 
+uint32 GameInstance::Get_RenderCall() const
+{
+    CHECK_NULL(_renderer, 0);
+    return _renderer->Get_RenderCall();
+}
+
 HRESULT GameInstance::Bind_CamPosition(ShaderCom* shader, const char* constantName)
 {
     return _pipeLine->Bind_CamPosition(shader, constantName);

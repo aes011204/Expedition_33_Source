@@ -38,6 +38,8 @@ void Renderer::Add_RenderGroup(RenderGroup renderGroup, const Shared<GameObject>
 
 void Renderer::Draw()
 {
+    Reset_RenderCall();
+
     Render_Priority();
 
     Render_Shadow();
@@ -117,7 +119,10 @@ void Renderer::Render_Priority()
     {
         Shared<GameObject> gameObject = renderObject.lock();
         if (nullptr != gameObject)
+        {
             gameObject->Render();
+            Add_RenderCall();
+        }
     }
 
     _renderGroups[ETOI(RenderGroup::Priority)].clear();
@@ -140,7 +145,10 @@ void Renderer::Render_Shadow()
     {
         Shared<GameObject> gameObject = renderObject.lock();
         if (nullptr != gameObject)
+        {
             gameObject->Render_Shadow();
+            Add_RenderCall();
+        }
     }
 
     _renderGroups[ETOI(RenderGroup::Shadow)].clear();
@@ -160,7 +168,10 @@ void Renderer::Render_NonBlend()
 	{
 		Shared<GameObject> gameObject = renderObject.lock();
 		if (nullptr != gameObject)
+        {
 			gameObject->Render();
+            Add_RenderCall();
+        }
 	}
 
 	_renderGroups[ETOI(RenderGroup::NonBlend)].clear();
@@ -206,6 +217,7 @@ void Renderer::Render_Lights()
         _viBuffer->Bind_Resources());
     ENDMRT_RETURN_IF_FAILED(
         GAME->Render_Lights(_deferredShader, _viBuffer));
+    Add_RenderCall();
 
     if (FAILED(GAME->End_MRT()))
         return;
@@ -217,7 +229,10 @@ void Renderer::Render_NonLight()
     {
         Shared<GameObject> gameObject = renderObject.lock();
         if (nullptr != gameObject)
+        {
             gameObject->Render();
+            Add_RenderCall();
+        }
     }
 
     _renderGroups[ETOI(RenderGroup::NonLight)].clear();
@@ -271,6 +286,7 @@ void Renderer::Render_Combined()
         return;
     if (FAILED(_viBuffer->Render()))
         return;
+    Add_RenderCall();
 }
 
 
@@ -280,7 +296,10 @@ void Renderer::Render_Blend()
     {
         Shared<GameObject> gameObject = renderObject.lock();
         if (nullptr != gameObject)
+        {
             gameObject->Render();
+            Add_RenderCall();
+        }
     }
 
     _renderGroups[ETOI(RenderGroup::Blend)].clear();
@@ -292,7 +311,10 @@ void Renderer::Render_UI()
     {
         Shared<GameObject> gameObject = renderObject.lock();
         if (nullptr != gameObject)
+        {
             gameObject->Render();
+            Add_RenderCall();
+        }
     }
 
     _renderGroups[ETOI(RenderGroup::UI)].clear();
@@ -360,37 +382,6 @@ HRESULT Renderer::Ready_RenderTargets()
     return S_OK;
 }
 
-HRESULT Renderer::Ready_ShadowDSV()
-{
-    const float shadowWidth = static_cast<float>(GAME->Get_ViewportWidth()) * _shadowScale;
-    const float shadowHeight = static_cast<float>(GAME->Get_ViewportHeight()) * _shadowScale;
-
-    _shadowViewport.TopLeftX = 0.f;
-    _shadowViewport.TopLeftY = 0.f;
-    _shadowViewport.Width = shadowWidth;
-    _shadowViewport.Height = shadowHeight;
-    _shadowViewport.MinDepth = 0.f;
-    _shadowViewport.MaxDepth = 1.f;
-
-    _shadowDepthTexture.Reset();
-    _shadowDepthDSV.Reset();
-
-    D3D11_TEXTURE2D_DESC depthDesc = {};
-    depthDesc.Width = static_cast<uint32>(shadowWidth);
-    depthDesc.Height = static_cast<uint32>(shadowHeight);
-    depthDesc.MipLevels = 1;
-    depthDesc.ArraySize = 1;
-    depthDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-    depthDesc.SampleDesc.Count = 1;
-    depthDesc.Usage = D3D11_USAGE_DEFAULT;
-    depthDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
-
-    CHECK_FAILED(_device->CreateTexture2D(&depthDesc, nullptr, _shadowDepthTexture.GetAddressOf()), E_FAIL);
-    CHECK_FAILED(_device->CreateDepthStencilView(_shadowDepthTexture.Get(), nullptr, _shadowDepthDSV.GetAddressOf()), E_FAIL);
-
-    return S_OK;
-}
-
 void Renderer::Change_ViewportDesc(uint32 width, uint32 height)
 {
     D3D11_VIEWPORT  ViewportDesc{};
@@ -404,6 +395,21 @@ void Renderer::Change_ViewportDesc(uint32 width, uint32 height)
     ViewportDesc.MaxDepth = 1.f;
 
     _context->RSSetViewports(1, &ViewportDesc);
+}
+
+uint32 Renderer::Get_RenderCall() const
+{
+    return iDrawCall;
+}
+
+void Renderer::Reset_RenderCall()
+{
+    iDrawCall = 0;
+}
+
+void Renderer::Add_RenderCall(uint32 count)
+{
+    iDrawCall += count;
 }
 
 #ifdef _DEBUG
@@ -528,6 +534,7 @@ void Renderer::Render_Debug()
     }
 
     CHECK_FAILED(GAME->Render_RT_Debug(_viBuffer, _deferredShader));
+    Add_RenderCall();
 }
 
 #endif

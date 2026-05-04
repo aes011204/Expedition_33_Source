@@ -117,6 +117,7 @@ public: /* For.Object_Manager */
 
 public: /* For.Renderer */
     void Add_RenderGroup(RenderGroup renderGroup, Shared<GameObject> gameObject);
+    uint32 Get_RenderCall() const;
 
 public: /* For.PipeLine */
     HRESULT Bind_CamPosition(ShaderCom* shader, const char* constantName);

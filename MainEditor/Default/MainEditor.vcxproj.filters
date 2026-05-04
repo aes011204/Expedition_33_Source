@@ -34,6 +34,9 @@
     <ClCompile Include="..\Private\Scene_View.cpp">
       <Filter>01. View</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\Profile_View.cpp">
+      <Filter>01. View</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\ImGui_Manager.cpp">
       <Filter>01. Manager</Filter>
     </ClCompile>
@@ -94,6 +97,9 @@
       <Filter>02. Inspector</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Scene_View.h">
+      <Filter>01. View</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Profile_View.h">
       <Filter>01. View</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Editor_ImGuiInclude.h">

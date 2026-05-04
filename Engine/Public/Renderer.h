@@ -20,6 +20,7 @@ public:
 	HRESULT Initialize();
 	void Add_RenderGroup(RenderGroup renderGroup, const Shared<GameObject>& gameObject);
 	void Draw();
+    uint32 Get_RenderCall() const;
 
 #ifdef _DEBUG
 public:
@@ -38,9 +39,10 @@ private:
     void Render_Combined();
 
     HRESULT Ready_RenderTargets();
-    HRESULT Ready_ShadowDSV();
 
     void Change_ViewportDesc(uint32 width, uint32 height);
+    void Reset_RenderCall();
+    void Add_RenderCall(uint32 count = 1);
 
 private:
 	ComPtr<Device>  _device;
@@ -50,11 +52,9 @@ private:
 	list<Weak<GameObject>>		_renderGroups[ETOI(RenderGroup::END)];
 
     // shadow
-    ComPtr<Texture2D>               _shadowDepthTexture;
-    ComPtr<DepthStencilView>        _shadowDepthDSV;
     D3D11_VIEWPORT                  _shadowViewport = {};
 
-    Shared<ShaderCom>                  _deferredShader;
+    Shared<ShaderCom>               _deferredShader;
     Shared<VIBuffer_Rect>           _viBuffer;
 
     float                           _shadowScale = 2.f;
@@ -64,6 +64,7 @@ private:
     Matrix                          _deferredWorldMatrix;
     Matrix                          _deferredViewMatrix;
     Matrix                          _deferredProjMatrix;
+    uint32                          iDrawCall = 0;
     
 #ifdef _DEBUG
 private:
@@ -99,6 +100,7 @@ private:
     static void Accumulate_PassPerf(PerfCounter& counter, double passMs);
     static void Reset_RenderPerfWindow(RenderPerfWindow& window);
     static double Safe_Divide(double numerator, double denominator);
+
 #endif
 
 public:

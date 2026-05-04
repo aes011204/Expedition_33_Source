@@ -7,6 +7,7 @@
 #include "Client_Defines.h"
 #include "GameInstance.h"
 #include "MainEditorApp.h"
+#include "Profile_View.h"
 
 extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
@@ -49,6 +50,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE, _In_ LPWSTR,
 
     MSG msg{};
     float timeAcc = 0.f;
+    auto previousFrameTime = MainEditor::Profile_View::clock::now();
 
     while (true)
     {
@@ -67,10 +69,24 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE, _In_ LPWSTR,
         {
             const float dt = GAME->Compute_TimeDelta(TEXT("Timer_60FPS"));
 
-            mainApp->Priority_Update(dt);
-            mainApp->Update(dt);
-            mainApp->Late_Update(dt);
-            mainApp->Render();
+            MainEditor::Profile_View::Frame_Begin();
+
+            {
+                MainEditor::Profile_View::Scope frameScope("Frame");
+                mainApp->Priority_Update(dt);
+                mainApp->Update(dt);
+
+                mainApp->Late_Update(dt);
+                mainApp->Render();
+            }
+
+            const auto currentFrameTime = MainEditor::Profile_View::clock::now();
+            const double frameMs = std::chrono::duration<double, std::milli>(currentFrameTime - previousFrameTime).count();
+            previousFrameTime = currentFrameTime;
+
+            MainEditor::Profile_View::Set_Frame_Time_External(frameMs);
+            MainEditor::Profile_View::Set_RenderCallCount_External(GAME->Get_RenderCall());
+            MainEditor::Profile_View::Frame_End();
 
             timeAcc = 0.f;
         }
