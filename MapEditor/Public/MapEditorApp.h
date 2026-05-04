@@ -40,6 +40,9 @@ private:
 
     SceneContext _scene;
 
+private:
+    void DrawSceneDebug();
+
 public:
     static Unique<MapEditorApp> Create();
     virtual void Free() override;
