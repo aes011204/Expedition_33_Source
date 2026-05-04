@@ -1,4 +1,4 @@
-#include "SkeletalMesh.h"
+﻿#include "SkeletalMesh.h"
 
 #include "Bone.h"
 #include "ShaderCom.h"
@@ -32,6 +32,7 @@ HRESULT SkeletalMesh::Initialize_Prototype(const ModelMeshData& meshData, const 
         _boneIndices.assign(boneIndices, boneIndices + _numBones);
         _offsetMatrices.assign(offsets, offsets + _numBones);
     }
+
     /* Vertex Buffer */
     VTXANIMMESH* verticesData = static_cast<VTXANIMMESH*>(meshData.vertices);
     VTXANIMMESH* vertices = new VTXANIMMESH[_numVertices];
@@ -39,10 +40,6 @@ HRESULT SkeletalMesh::Initialize_Prototype(const ModelMeshData& meshData, const 
     for (uint32 i = 0; i < _numVertices; ++i)
     {
         vertices[i] = verticesData[i];
-        vertices[i].position = XMVector3TransformCoord(XMLoadFloat3(&verticesData[i].position), preTransformMatrix);
-        vertices[i].normal = XMVector3Normalize(XMVector3TransformNormal(XMLoadFloat3(&verticesData[i].normal), preTransformMatrix));
-        vertices[i].tangent = XMVector3Normalize(XMVector3TransformNormal(XMLoadFloat3(&verticesData[i].tangent), preTransformMatrix));
-        vertices[i].binormal = XMVector3Normalize(XMVector3TransformNormal(XMLoadFloat3(&verticesData[i].binormal), preTransformMatrix));
     }
 
     D3D11_BUFFER_DESC VertexBufferDesc{};

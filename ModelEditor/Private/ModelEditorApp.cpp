@@ -3,6 +3,10 @@
 #include "ModelImGui_Manager.h"
 #include "GameInstance.h"
 
+#include "ModelEditorCamera.h"
+#include "ModelViewerObject.h"
+#include "Level_ModelEditor.h"
+
 #include <filesystem>
 
 extern HINSTANCE g_hInst;
@@ -31,8 +35,15 @@ HRESULT ModelEditorApp::Initialize()
 	if (FAILED(GAME->Initialize_AssetManager(assetRootPath.wstring())))
 		return E_FAIL;
 
-	_imguiManager = ModelImGui_Manager::Create(g_hWnd, _device, _context);
-	if (nullptr == _imguiManager)
+	if (FAILED(ModelImGui_Manager::GetInstance()->Initialize(g_hWnd, _device, _context)))
+		return E_FAIL;
+
+	if (FAILED(GAME->Add_Prototype(0, L"Prototype_GameObject_ModelEditorCamera", ModelEditorCamera::Create(_device, _context))))
+		return E_FAIL;
+	if (FAILED(GAME->Add_Prototype(0, L"Prototype_GameObject_ModelViewerObject", ModelViewerObject::Create(_device, _context))))
+		return E_FAIL;
+
+	if (FAILED(GAME->Change_Level(0, Level_ModelEditor::Create(_device, _context))))
 		return E_FAIL;
 
 	return S_OK;
@@ -45,7 +56,7 @@ void ModelEditorApp::Priority_Update(float timeDelta)
 void ModelEditorApp::Update(float timeDelta)
 {
 	GAME->Update_Engine(timeDelta);
-	_imguiManager->Update(timeDelta);
+	ModelImGui_Manager::GetInstance()->Update(timeDelta);
 }
 
 void ModelEditorApp::Late_Update(float timeDelta)
@@ -61,7 +72,11 @@ HRESULT ModelEditorApp::Render()
 	if (FAILED(GAME->Draw()))
 		return E_FAIL;
 
-	_imguiManager->Render();
+	ModelImGui_Manager::GetInstance()->Capture_BackBuffer_ToViewport();
+
+	GAME->Bind_BackBuffer();
+
+	ModelImGui_Manager::GetInstance()->Render();
 
 	if (FAILED(GAME->Present()))
 		return E_FAIL;
@@ -95,6 +110,8 @@ wstring ModelEditorApp::Get_ClientResourcePath(const wchar_t* relativePath) cons
 ModelEditorApp::~ModelEditorApp()
 {
 	Free();
+    _device.Reset();
+    _context.Reset();
 }
 
 Unique<ModelEditorApp> ModelEditorApp::Create()
@@ -111,7 +128,11 @@ Unique<ModelEditorApp> ModelEditorApp::Create()
 
 void ModelEditorApp::Free()
 {
-	_imguiManager.reset();
+	ModelImGui_Manager::DestroyInstance();
+
+	_context.Reset();
+	_device.Reset();
+
 	if (nullptr != GAME)
 		GAME->Release_Engine();
 }

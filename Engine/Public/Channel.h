@@ -39,6 +39,7 @@ private:
 
 public:
 	static Shared<Channel> Create(const ModelChannelData& channelData);
+	Shared<Channel> Clone();
 	virtual void Free() override;
 };
 

@@ -14,7 +14,7 @@ Animation::Animation(const Animation& prototype)
 	, _currentTrackPosition{ 0.f }
 {
 	for (auto& ch : prototype._channels)
-		_channels.push_back(ch);
+		_channels.push_back(ch->Clone());
 }
 
 HRESULT Animation::Initialize(const ModelAnimationData& animData, const vector<ModelChannelData>& channels)
@@ -121,11 +121,11 @@ void Animation::Blend_TransformMatrix(float timeDelta, const Shared<Animation>& 
 
 		if (_channels[i]->Get_BoneIndex() == rootNodeIndex)
 		{
-			targetMatrix = XMMatrixAffineTransformation(tS, XMQuaternionIdentity(), tR, XMVectorZero());
+			targetMatrix = XMMatrixAffineTransformation(tS, XMVectorZero(), tR, XMVectorZero());
 		}
 		else
 		{
-			targetMatrix = XMMatrixAffineTransformation(tS, XMQuaternionIdentity(), tR, XMVectorSetW(tP, 1.f));
+			targetMatrix = XMMatrixAffineTransformation(tS, XMVectorZero(), tR, tP);
 		}
 
 		bones[_channels[i]->Get_BoneIndex()]->Update_TransformationMatrix(targetMatrix);

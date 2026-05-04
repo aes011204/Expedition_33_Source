@@ -1,4 +1,4 @@
-﻿#include "pch.h"
+#include "pch.h"
 #include "ModelImGui_Manager.h"
 #include "GameInstance.h"
 
@@ -9,9 +9,14 @@
 
 #include "LogWindow.h"
 #include "ModelConverter.h"
+#include "ModelInspector.h"
+#include "ModelSceneWindow.h"
+#include "RenderTarget.h"
 
 
 NS_BEGIN(ModelEditor)
+
+IMPLEMENT_SINGLETON(ModelImGui_Manager)
 
 ModelImGui_Manager::~ModelImGui_Manager()
 {
@@ -20,10 +25,14 @@ ModelImGui_Manager::~ModelImGui_Manager()
 
 HRESULT ModelImGui_Manager::Initialize(HWND hWnd, const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
+	_device = device;
+	_context = context;
+
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
 	ImPlot::CreateContext();
-	ImGuiIO& io = ImGui::GetIO(); (void)io;
+	ImGuiIO& io = ImGui::GetIO(); 
+    (void)io;
 
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
@@ -39,6 +48,12 @@ HRESULT ModelImGui_Manager::Initialize(HWND hWnd, const ComPtr<Device>& device, 
 
     if (nullptr == (_modelConverter = ModelConverter::Create(hWnd)))
         LOG_ERROR("[Model Editor] : Failed to Create ModelConverter!");
+
+    if (nullptr == (_modelInspector = ModelInspector::Create()))
+        LOG_ERROR("[Model Editor] : Failed to Create ModelInspector!");
+
+    if (nullptr == (_modelSceneWindow = ModelSceneWindow::Create()))
+        LOG_ERROR("[Model Editor] : Failed to Create ModelSceneWindow!");
 
 	return S_OK;
 }
@@ -72,6 +87,7 @@ void ModelImGui_Manager::Update(float timeDelta)
 			{
 				if (ImGui::MenuItem("Log Console")) { _logWindow->ToggleBlock(); }
                 if (ImGui::MenuItem("Model Converter")) { _modelConverter->ToggleBlock(); }
+                if (ImGui::MenuItem("Model Inspector")) { _modelInspector->ToggleBlock(); }
 			    ImGui::EndMenu();
 			}
 			ImGui::EndMenuBar();
@@ -81,12 +97,15 @@ void ModelImGui_Manager::Update(float timeDelta)
 
     _logWindow->Update(timeDelta);
     _modelConverter->Update(timeDelta);
+    _modelInspector->Update(timeDelta);
 }
 
 void ModelImGui_Manager::Render()
 {
     _logWindow->Render();
     _modelConverter->Render();
+    _modelInspector->Render();
+    if (_modelSceneWindow) _modelSceneWindow->Render();
 
     ImGui::Render();
 	ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
@@ -101,13 +120,22 @@ void ModelImGui_Manager::Render()
 
 void ModelImGui_Manager::Free()
 {
-	ImGui_ImplDX11_Shutdown();
-	ImGui_ImplWin32_Shutdown();
-	ImPlot::DestroyContext();
-	ImGui::DestroyContext();
-
     _logWindow.reset();
     _modelConverter.reset();
+    _modelInspector.reset();
+    _modelSceneWindow.reset();
+    _sharedViewportRenderTarget.reset();
+
+	if (ImGui::GetCurrentContext() != nullptr)
+	{
+		ImGui_ImplDX11_Shutdown();
+		ImGui_ImplWin32_Shutdown();
+		ImPlot::DestroyContext();
+		ImGui::DestroyContext();
+	}
+
+    _context.Reset();
+    _device.Reset();
 }
 
 void ModelImGui_Manager::ImGuiStyleSetting()
@@ -127,13 +155,83 @@ string ModelImGui_Manager::Get_ClientResourcePath(const wchar_t* relativePath)
 		return {};
 
 	const std::filesystem::path runtimeRoot = std::filesystem::path(modulePath).parent_path();
-	const std::filesystem::path resourceRoot =
-		std::filesystem::absolute(runtimeRoot / L"../../../Client/Bin/Resources").lexically_normal();
+	const std::filesystem::path resourceRoot = std::filesystem::absolute(runtimeRoot / L"../../../Client/Bin/Resources").lexically_normal();
 
 	if (nullptr == relativePath || L'\0' == *relativePath)
 		return resourceRoot.string();
 
 	return (resourceRoot / relativePath).lexically_normal().string();
+}
+
+void ModelImGui_Manager::Request_ViewportSize(uint32 width, uint32 height)
+{
+    _requestedViewportWidth = max(1u, width);
+    _requestedViewportHeight = max(1u, height);
+}
+
+Shared<::Engine::RenderTarget> ModelImGui_Manager::Prepare_SharedViewportRenderTarget(uint32 width, uint32 height)
+{
+    if (0 == width) width = 1;
+    if (0 == height) height = 1;
+
+    if (nullptr == _sharedViewportRenderTarget)
+    {
+        _sharedViewportRenderTarget = RenderTarget::Create(
+            _device,
+            _context,
+            width,
+            height,
+            DXGI_FORMAT_R8G8B8A8_UNORM,
+            Vec4(0.f, 0.f, 0.f, 1.f));
+    }
+    else if (FAILED(_sharedViewportRenderTarget->Resize(
+        width,
+        height,
+        DXGI_FORMAT_R8G8B8A8_UNORM,
+        Vec4(0.f, 0.f, 0.f, 1.f))))
+    {
+        return nullptr;
+    }
+
+    return _sharedViewportRenderTarget;
+}
+
+ID3D11ShaderResourceView* ModelImGui_Manager::Get_SharedViewportSRV() const
+{
+    if (nullptr == _sharedViewportRenderTarget)
+        return nullptr;
+
+    return _sharedViewportRenderTarget->Get_SRV();
+}
+
+void ModelImGui_Manager::Capture_BackBuffer_ToViewport()
+{
+    Shared<::Engine::RenderTarget> renderTarget =
+            Prepare_SharedViewportRenderTarget(
+                GAME->Get_BackBufferWidth(),
+                GAME->Get_BackBufferHeight());
+
+    if (nullptr == renderTarget || nullptr == _context)
+        return;
+
+    ComPtr<IDXGISwapChain> swapChain = GAME->Get_SwapChain();
+    if (nullptr == swapChain)
+        return;
+
+    ComPtr<ID3D11Texture2D> backBufferTexture = nullptr;
+    if (FAILED(swapChain->GetBuffer(
+        0,
+        __uuidof(ID3D11Texture2D),
+        reinterpret_cast<void**>(backBufferTexture.GetAddressOf()))))
+    {
+        return;
+    }
+
+    ComPtr<ID3D11Texture2D> viewportTexture = renderTarget->Get_Texture();
+    if (nullptr == viewportTexture)
+        return;
+
+    _context->CopyResource(viewportTexture.Get(), backBufferTexture.Get());
 }
 
 Unique<ModelImGui_Manager> ModelImGui_Manager::Create(HWND hWnd, const ComPtr<Device>& device, const ComPtr<Context>& context)

@@ -1,4 +1,4 @@
-#include "ModelCom.h"
+﻿#include "ModelCom.h"
 
 #include "Mesh.h"
 #include "Bone.h"
@@ -17,7 +17,6 @@ ModelCom::ModelCom(const ModelCom& prototype)
     , _preLocalTransformMatrix{ prototype._preLocalTransformMatrix }
     , _isSkeletal{ prototype._isSkeletal }
     , _maxTextureType{ prototype._maxTextureType }
-    , _numNodes{ prototype._numNodes }
     , _numMeshes{ prototype._numMeshes }
     , _numMaterials{ prototype._numMaterials }
     , _numBones{ prototype._numBones }
@@ -30,26 +29,32 @@ ModelCom::ModelCom(const ModelCom& prototype)
 
     for (auto& prototypeBone : prototype._bones)
         _bones.push_back(prototypeBone->Clone());
+
+    /* 계층 구조 재구성 */
+    for (int32 i = 0; i < _numBones; ++i)
+    {
+        int32 parentIndex = _bones[i]->Get_ParentIndex();
+        if (parentIndex != -1)
+            _bones[parentIndex]->Add_Child(i);
+    }
 }
 
 int32 ModelCom::Get_BoneIndex(const char* boneName)
 {
-    int32    boneIndex = { -1 };
+    for (int32 i = 0; i < _numBones; ++i)
+    {
+        if (_bones[i]->Check_BoneByName(boneName))
+            return i;
+    }
 
-    auto iter = find_if(_bones.begin(), _bones.end(), [&](const Shared<Bone>& bone)->bool {
-            ++boneIndex;
-            return bone->Check_BoneByName(boneName);
-        });
-
-    if (iter == _bones.end())
-        return -1;
-
-    return boneIndex;
+    return -1;
 }
 
 // TODO : 기존 애니메이션이면 progress 초기화 하고 정리, 그게 아니라면 바로 다음 애니메이션 초기로 세팅
 void ModelCom::Set_Animation(uint32 animIndex, bool isLoop)
 {
+    if (animIndex >= _animations.size()) return;
+
     _currentAnimIndex = animIndex;
     _isAnimLoop = isLoop;
     _isBlending = false;
@@ -59,6 +64,8 @@ void ModelCom::Set_Animation(uint32 animIndex, bool isLoop)
 // TODO : BlendSetting으로 보간 애니메이션 세팅 이미
 void ModelCom::Set_Animation(uint32 animIndex, float blendDuration, bool isLoop)
 {
+    if (animIndex >= _animations.size()) return;
+
     _nextAnimIndex = animIndex;
     _isAnimLoop = isLoop;
     _isBlending = true;
@@ -69,14 +76,11 @@ void ModelCom::Set_Animation(uint32 animIndex, float blendDuration, bool isLoop)
 
 const Matrix* ModelCom::Get_BoneMatrixPtr(const char* boneName)
 {
-    auto iter = find_if(_bones.begin(), _bones.end(), [&](const Shared<Bone>& bone) {
-        return bone->Check_BoneByName(boneName);
-        });
-
-    if (iter == _bones.end())
+    int32 boneIndex = Get_BoneIndex(boneName);
+    if (boneIndex == -1)
         return nullptr;
 
-    return (*iter)->Get_CombinedTransformationMatrixPtr();
+    return _bones[boneIndex]->Get_CombinedTransformationMatrixPtr();
 }
 
 HRESULT ModelCom::Initialize_Prototype(ModelType type, const char* modelFilePath, const Matrix& preLocalTransformMatrix)
@@ -156,8 +160,18 @@ bool ModelCom::Play_Animation(float timeDelta)
         _rootFrameVelocity = (rootIndex >= 0) ? _animations[_currentAnimIndex]->Get_TransformVelocity(rootIndex) : RootMotionFrame{};
     }
 
-    for (auto& bone : _bones) {
-        bone->Update_CombinedTransformationMatrix(_bones, _preLocalTransformMatrix);
+    /* 루트 모션 속도 보정 (preLocalTransformMatrix 적용) */
+    if (rootIndex >= 0)
+    {
+        _rootFrameVelocity.position = XMVector3TransformNormal(_rootFrameVelocity.position, _preLocalTransformMatrix);
+        /* 회전은 preLocalTransformMatrix의 회전 성분만 추출하여 적용하는 것이 정확하지만, 
+           일반적으로 루트 모션 회전은 이미 애니메이션에 포함되어 있으므로 위치 스케일링이 핵심입니다. */
+    }
+
+    /* 계층 구조 순차 업데이트 (본 배열이 DFS 순서이므로 부모가 항상 먼저 갱신됨) */
+    for (int32 i = 0; i < _numBones; ++i)
+    {
+        _bones[i]->Update_CombinedTransformationMatrix(_bones, _preLocalTransformMatrix);
     }
 
     return isFinish;
@@ -175,19 +189,22 @@ HRESULT ModelCom::Bind_BoneMatrices(ShaderCom* shader, const char* constantName,
 
 HRESULT ModelCom::Ready_Model(const char* modelPath)
 {
-    std::ifstream stream(modelPath, std::ios::binary);
+    std::string resolvedPath(modelPath);
+    {
+        size_t extPos = resolvedPath.rfind(".fbx");
+        if (extPos != std::string::npos)
+            resolvedPath = resolvedPath.substr(0, extPos) + ".model";
+    }
+    std::ifstream stream(resolvedPath, std::ios::binary);
+
+    //std::ifstream stream(modelPath, std::ios::binary);
     if (!stream.is_open()) return E_FAIL;
 
     stream.read(reinterpret_cast<char*>(&_isSkeletal), sizeof(bool));
     stream.read(reinterpret_cast<char*>(&_maxTextureType), sizeof(uint32));
-    stream.read(reinterpret_cast<char*>(&_numNodes), sizeof(uint32));
     stream.read(reinterpret_cast<char*>(&_numMaterials), sizeof(uint32));
     stream.read(reinterpret_cast<char*>(&_numMeshes), sizeof(uint32));
     stream.read(reinterpret_cast<char*>(&_numBones), sizeof(uint32));
-
-    // Node는 비교용으로 일단 놔둘게요
-    _nodeData.resize(_numNodes);
-    stream.read(reinterpret_cast<char*>(_nodeData.data()), _numNodes * sizeof(ModelNodeData));
 
     // Load Material
     for (uint32 i = 0; i < _numMaterials; ++i)
@@ -248,6 +265,14 @@ HRESULT ModelCom::Ready_Model(const char* modelPath)
 
         for (const auto& data : boneData)
             _bones.push_back(Bone::Create(data));
+
+        /* 계층 구조 재구성 */
+        for (int32 i = 0; i < _numBones; ++i)
+        {
+            int32 parentIndex = _bones[i]->Get_ParentIndex();
+            if (parentIndex != -1)
+                _bones[parentIndex]->Add_Child(i);
+        }
     }
 
     stream.close();
@@ -256,8 +281,6 @@ HRESULT ModelCom::Ready_Model(const char* modelPath)
 
 HRESULT ModelCom::Ready_Animation(const char* modelPath)
 {
-    // TODO : 추후 데이터 세팅을 통해서 필요한 애니메이션 데이터만 긁어와야함.
-
     fs::path path(modelPath);
     string modelDirectory = path.parent_path().string();
     string modelName = path.stem().string();
@@ -281,6 +304,10 @@ HRESULT ModelCom::Ready_Animation(const char* modelPath)
                 for (uint32 i = 0; i < animData.numChannels; ++i)
                 {
                     stream.read(reinterpret_cast<char*>(&channels[i]), sizeof(ModelChannelData));
+                    
+                    /* 이름 기반 본 인덱스 재매핑 (강제 매핑) */
+                    channels[i].boneIndex = Get_BoneIndex(channels[i].boneName);
+
                     keyframeSets[i].resize(channels[i].numKeyframes);
                     stream.read(reinterpret_cast<char*>(keyframeSets[i].data()), sizeof(KEYFRAME) * channels[i].numKeyframes);
                     channels[i].keyframes = keyframeSets[i].data();

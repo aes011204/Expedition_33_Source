@@ -27,6 +27,7 @@ struct VS_IN
     float3 vPosition : POSITION;
     float3 vNormal : NORMAL;
     float3 vTangent : TANGENT;
+    float3 vBinormal : BINORMAL;
     float2 vTexcoord : TEXCOORD0;    
     uint4 vBlendIndex : BLENDINDEX;
     float4 vBlendWeight : BLENDWEIGHT;
@@ -43,27 +44,27 @@ struct VS_OUT
 VS_OUT VS_MAIN(VS_IN In)
 {
     VS_OUT Out;
-    
+
     /* 정점의 위치 * 월드 * 뷰 * 투영 */
     float4x4 matWV, matWVP;
-    
+
     matrix BoneMatrix = g_BoneMatrices[In.vBlendIndex.x] * In.vBlendWeight.x + 
         g_BoneMatrices[In.vBlendIndex.y] * In.vBlendWeight.y + 
         g_BoneMatrices[In.vBlendIndex.z] * In.vBlendWeight.z + 
         g_BoneMatrices[In.vBlendIndex.w] * In.vBlendWeight.w;
-    
+
     vector vPosition = mul(float4(In.vPosition, 1.f), BoneMatrix);
-    
-    
+    vector vNormal = mul(float4(In.vNormal, 0.f), BoneMatrix);
+
     matWV = mul(g_WorldMatrix, g_ViewMatrix);
     matWVP = mul(matWV, g_ProjMatrix);
-    
+
     Out.vPosition = mul(vPosition, matWVP);
-    Out.vNormal = normalize(mul(float4(In.vNormal, 0.f), g_WorldMatrix));
-    
+    Out.vNormal = normalize(mul(vNormal, g_WorldMatrix));
+
     Out.vTexcoord = In.vTexcoord;
-    Out.vWorldPos = mul(float4(In.vPosition, 1.f), g_WorldMatrix);
-    
+    Out.vWorldPos = mul(vPosition, g_WorldMatrix);
+
     return Out;
 }
 

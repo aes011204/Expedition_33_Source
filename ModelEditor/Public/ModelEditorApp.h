@@ -1,7 +1,6 @@
-﻿#pragma once
+#pragma once
 
 #include "Base.h"
-#include "ModelImGui_Manager.h"
 
 NS_BEGIN(Engine)
 class GameInstance;
@@ -34,8 +33,6 @@ private:
 private:
 	ComPtr<Device>  _device;
 	ComPtr<Context> _context;
-
-	Unique<ModelImGui_Manager> _imguiManager;
 
 public:
 	static Unique<ModelEditorApp> Create();

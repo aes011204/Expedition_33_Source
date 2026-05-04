@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Base.h"
 
@@ -11,22 +11,26 @@ class Bone final : public Base
 {
 public:
 	Bone();
-	virtual ~Bone() = default;
+	~Bone() override = default;
 
 public:
-	const Matrix* Get_CombinedTransformationMatrixPtr() const { return &_combinedTransformationMatrix; }
-	bool Check_BoneByName(const char* boneName) const { return !strcmp(boneName, _name); }
+        const Matrix* Get_CombinedTransformationMatrixPtr() const { return &_combinedTransformationMatrix; }
+        bool Check_BoneByName(const char* boneName) const { return !strcmp(boneName, _name); }
+        int32 Get_ParentIndex() const { return _parentBoneIndex; }
+        void Add_Child(int32 childIndex) { _children.push_back(childIndex); }
 
 public:
-	HRESULT Initialize(const ModelBoneData& boneData);
-	void Update_CombinedTransformationMatrix(const vector<Shared<Bone>>& bones, FXMMATRIX preTransformMatrix);
-	void Update_TransformationMatrix(FXMMATRIX transformMatrix);
+        HRESULT Initialize(const ModelBoneData& boneData);
+        void Update_CombinedTransformationMatrix(const vector<Shared<Bone>>& bones, const Matrix& preTransformMatrix);
+        void Update_TransformationMatrix(const Matrix& transformMatrix);
+        void Recursive_Update_CombinedTransformationMatrix(const vector<Shared<Bone>>& bones, const Matrix& parentCombinedMatrix);
 
 private:
-	char					_name[maxModelNameSize] = {};
-	Matrix					_transformationMatrix{};
-	Matrix					_combinedTransformationMatrix{};
-	int32					_parentBoneIndex = { -1 };
+        char                _name[maxModelNameSize] = {};
+        Matrix              _transformationMatrix{};
+        Matrix              _combinedTransformationMatrix{};
+        int32               _parentBoneIndex = { -1 };
+        vector<int32>       _children;
 
 public:
 	static Shared<Bone> Create(const ModelBoneData& boneData);

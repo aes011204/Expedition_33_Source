@@ -1,4 +1,4 @@
-#include "Bone.h"
+﻿#include "Bone.h"
 
 Bone::Bone()
 {
@@ -7,30 +7,38 @@ Bone::Bone()
 HRESULT Bone::Initialize(const ModelBoneData& boneData)
 {
 	strcpy_s(_name, boneData.name);
-	_parentBoneIndex = boneData.nodeIndex;
-	_transformationMatrix = boneData.offsetMatrix;
-	XMStoreFloat4x4(&_combinedTransformationMatrix, XMMatrixIdentity());
+	_parentBoneIndex = boneData.parentBoneIndex;
+	_transformationMatrix = boneData.localTransform;
+    _combinedTransformationMatrix = Matrix::Identity;
 
 	return S_OK;
 }
 
-void Bone::Update_CombinedTransformationMatrix(const vector<Shared<Bone>>& bones, FXMMATRIX preTransformMatrix)
+void Bone::Update_CombinedTransformationMatrix(const vector<Shared<Bone>>& bones, const Matrix& preTransformMatrix)
 {
 	if (-1 == _parentBoneIndex)
 	{
-		XMStoreFloat4x4(&_combinedTransformationMatrix,
-			XMLoadFloat4x4(&_transformationMatrix) * preTransformMatrix);
+        _combinedTransformationMatrix = _transformationMatrix * preTransformMatrix;
 	}
 	else
 	{
-		XMStoreFloat4x4(&_combinedTransformationMatrix,
-			XMLoadFloat4x4(&_transformationMatrix) * XMLoadFloat4x4(&bones[_parentBoneIndex]->_combinedTransformationMatrix));
+        _combinedTransformationMatrix = _transformationMatrix * bones[_parentBoneIndex]->_combinedTransformationMatrix;
 	}
 }
 
-void Bone::Update_TransformationMatrix(FXMMATRIX transformMatrix)
+void Bone::Recursive_Update_CombinedTransformationMatrix(const vector<Shared<Bone>>& bones, const Matrix& parentCombinedMatrix)
 {
-	XMStoreFloat4x4(&_transformationMatrix, transformMatrix);
+    _combinedTransformationMatrix = _transformationMatrix * parentCombinedMatrix;
+
+	for (int32 childIndex : _children)
+	{
+		bones[childIndex]->Recursive_Update_CombinedTransformationMatrix(bones, _combinedTransformationMatrix));
+	}
+}
+
+void Bone::Update_TransformationMatrix(const Matrix& transformMatrix)
+{
+	_transformationMatrix = transformMatrix;
 }
 
 Shared<Bone> Bone::Create(const ModelBoneData& boneData)
@@ -47,7 +55,9 @@ Shared<Bone> Bone::Create(const ModelBoneData& boneData)
 
 Shared<Bone> Bone::Clone()
 {
-	return make_shared<Bone>(*this);
+	auto instance = make_shared<Bone>(*this);
+	instance->_children.clear();
+	return instance;
 }
 
 void Bone::Free()

@@ -93,11 +93,11 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <OutDir>\Bin\</OutDir>
+    <OutDir>..\Bin\</OutDir>
     <PublicIncludeDirectories>..\Public;..\..\Engine\Public;..\..\EngineSDK\inc;$(PublicIncludeDirectories)</PublicIncludeDirectories>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <OutDir>\Bin\</OutDir>
+    <OutDir>..\Bin\</OutDir>
     <PublicIncludeDirectories>..\Public;..\..\Engine\Public;..\..\EngineSDK\inc;$(PublicIncludeDirectories)</PublicIncludeDirectories>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -148,6 +148,15 @@
       <AdditionalLibraryDirectories>..\..\EngineSDK\lib\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>Engine.lib;d3d11.lib;dxgi.lib;Comctl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <FxCompile>
+      <ShaderType>Effect</ShaderType>
+      <ShaderModel>5.0</ShaderModel>
+      <AdditionalIncludeDirectories>$(SolutionDir)Engine\Bin\ShaderFiles;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </FxCompile>
+    <PreBuildEvent>
+      <Command>if not exist "$(ProjectDir)..\Bin\ShaderFiles" mkdir "$(ProjectDir)..\Bin\ShaderFiles"
+xcopy /y /d "$(SolutionDir)Engine\Bin\ShaderFiles\Engine_Shader_Defines.hlsli" "$(ProjectDir)..\Bin\ShaderFiles\"</Command>
+    </PreBuildEvent>
     <PostBuildEvent>
       <Command>if exist "$(SolutionDir)Engine\Bin\$(Configuration)\Engine.dll" xcopy /y /d "$(SolutionDir)Engine\Bin\$(Configuration)\Engine.dll" "$(OutDir)"
 if exist "$(SolutionDir)Engine\Bin\$(Configuration)\Engine.pdb" xcopy /y /d "$(SolutionDir)Engine\Bin\$(Configuration)\Engine.pdb" "$(OutDir)"</Command>
@@ -176,6 +185,15 @@ if exist "$(SolutionDir)Engine\Bin\$(Configuration)\Engine.pdb" xcopy /y /d "$(S
       <AdditionalLibraryDirectories>..\..\EngineSDK\lib\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>Engine.lib;d3d11.lib;dxgi.lib;Comctl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <FxCompile>
+      <ShaderType>Effect</ShaderType>
+      <ShaderModel>5.0</ShaderModel>
+      <AdditionalIncludeDirectories>$(SolutionDir)Engine\Bin\ShaderFiles;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </FxCompile>
+    <PreBuildEvent>
+      <Command>if not exist "$(ProjectDir)..\Bin\ShaderFiles" mkdir "$(ProjectDir)..\Bin\ShaderFiles"
+xcopy /y /d "$(SolutionDir)Engine\Bin\ShaderFiles\Engine_Shader_Defines.hlsli" "$(ProjectDir)..\Bin\ShaderFiles\"</Command>
+    </PreBuildEvent>
     <PostBuildEvent>
       <Command>if exist "$(SolutionDir)Engine\Bin\$(Configuration)\Engine.dll" xcopy /y /d "$(SolutionDir)Engine\Bin\$(Configuration)\Engine.dll" "$(OutDir)"
 if exist "$(SolutionDir)Engine\Bin\$(Configuration)\Engine.pdb" xcopy /y /d "$(SolutionDir)Engine\Bin\$(Configuration)\Engine.pdb" "$(OutDir)"</Command>
@@ -183,10 +201,15 @@ if exist "$(SolutionDir)Engine\Bin\$(Configuration)\Engine.pdb" xcopy /y /d "$(S
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="..\Public\EditorBlock.h" />
+    <ClInclude Include="..\Public\Level_ModelEditor.h" />
+    <ClInclude Include="..\Public\ModelEditorCamera.h" />
     <ClInclude Include="..\Public\ModelImGui_Manager.h" />
     <ClInclude Include="..\Public\LogWindow.h" />
     <ClInclude Include="..\Public\ModelConverter.h" />
     <ClInclude Include="..\Public\ModelEditorApp.h" />
+    <ClInclude Include="..\Public\ModelInspector.h" />
+    <ClInclude Include="..\Public\ModelSceneWindow.h" />
+    <ClInclude Include="..\Public\ModelViewerObject.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="ModelEditor.h" />
     <ClInclude Include="ModelEditor_Const.h" />
@@ -196,10 +219,16 @@ if exist "$(SolutionDir)Engine\Bin\$(Configuration)\Engine.pdb" xcopy /y /d "$(S
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\Private\EditorBlock.cpp" />
+    <ClCompile Include="..\Private\Level_ModelEditor.cpp" />
+    <ClCompile Include="..\Private\ModelEditorCamera.cpp" />
     <ClCompile Include="..\Private\ModelImGui_Manager.cpp" />
     <ClCompile Include="..\Private\LogWindow.cpp" />
     <ClCompile Include="..\Private\ModelConverter.cpp" />
     <ClCompile Include="..\Private\ModelEditorApp.cpp" />
+    <ClCompile Include="..\Private\ModelInspector.cpp" />
+    <ClCompile Include="..\Private\ModelSceneWindow.cpp" />
+    <ClCompile Include="..\Private\ModelViewerObject.cpp" />
+    <ClCompile Include="..\Private\SimpleMath.cpp" />
     <ClCompile Include="ModelEditor.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
@@ -214,6 +243,10 @@ if exist "$(SolutionDir)Engine\Bin\$(Configuration)\Engine.pdb" xcopy /y /d "$(S
   <ItemGroup>
     <Image Include="ModelEditor.ico" />
     <Image Include="small.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMesh.hlsl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "EditorBlock.h"
 
 NS_BEGIN(Assimp)
@@ -30,11 +30,13 @@ public:
 	void Render() override;
 
 public:
-	void ExtractAll(const wstring& path);
+	void Scan_FbxFiles(const wstring& path);
+	void Extract_Selected();
+	void Extract_All();
 	HRESULT Convert_Model(const wstring& fbxFilePath, const wstring& outputDir);
 
 private:
-	void ReadNodes(const aiNode* node, int32 parentIndex = -1);
+	void BuildBoneHierarchy(const aiNode* node, int32 parentBoneIndex, Matrix accumulatedTransform);
 	void ReadMeshes(const aiScene* aiScene);
 	void ReadMaterial(const aiScene* aiScene);
 	void ReadAnimations(const aiScene* aiScene);
@@ -48,7 +50,6 @@ private:
 	Matrix  Convert_Matrix(const aiMatrix4x4& aiMat) const;
 	string  Get_FileNameWithoutExtension(const wstring& filePath) const;
 	void    Ensure_DirectoryExists(const wstring& dirPath) const;
-	int32   FindNodeIndex(const char* name) const;
 	string  Sanitize_FileName(string name);
 
 private:
@@ -61,15 +62,15 @@ private:
 	
 	bool                                _exportJsonLog{ false };
 
+	vector<std::filesystem::path>       _cachedFbxPaths;
+	string                              _selectedFbxPath;
+
 private:
 	uint32                              importFlags{ 0 };
 	const aiScene*                      _aiScene{ nullptr };
-	Assimp::Importer                    _importer{};
 
 	bool                                _isSkeletal{ false };
-
-	vector<ModelNodeData>              _nodes;
-
+    
 	vector<ModelMeshData>              _meshHeaders;
 	vector<vector<VTXMESH>>            _staticVertices;
 	vector<vector<VTXANIMMESH>>        _animVertices;

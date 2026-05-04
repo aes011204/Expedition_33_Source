@@ -19,7 +19,7 @@ HRESULT Channel::Initialize(const ModelChannelData& channelData)
 
 void Channel::Get_ChannelTransform(float trackPosition, uint32& keyFrameIndex, float duration, bool isLoop, RootMotionFrame& outTransform)
 {
-	if (0.f == trackPosition)
+	if (trackPosition < _keyFrames[keyFrameIndex].trackPosition)
 		keyFrameIndex = 0;
 
 	KEYFRAME lastKeyFrame = _keyFrames.back();
@@ -80,6 +80,9 @@ void Channel::ResetVelocityState()
 void Channel::Update_TransformationMatrix(uint32& currentKeyFrameIndex, float currentTrackPosition, float duration,
 	const vector<Shared<Bone>>& bones, int32 rootNodeIndex, bool isLoop)
 {
+	if (_boneIndex == -1 || _boneIndex >= bones.size())
+		return;
+
 	RootMotionFrame transform{};
 	Get_ChannelTransform(currentTrackPosition, currentKeyFrameIndex, duration, isLoop, transform);
 	Update_Velocity(transform, currentTrackPosition);
@@ -91,7 +94,7 @@ void Channel::Update_TransformationMatrix(uint32& currentKeyFrameIndex, float cu
 		/* 루트 본의 Translation을 0으로 강제하여 제자리 유지 */
 		targetMatrix = XMMatrixAffineTransformation(
             transform.scale,
-            Quat::Identity,
+            XMVectorZero(),
             transform.rotation,
             Vec3::Zero
         );
@@ -100,7 +103,7 @@ void Channel::Update_TransformationMatrix(uint32& currentKeyFrameIndex, float cu
 	{
 		targetMatrix = XMMatrixAffineTransformation(
             transform.scale,
-            Quat::Identity,
+            XMVectorZero(),
             transform.rotation,
             transform.position
         );
@@ -119,6 +122,11 @@ Shared<Channel> Channel::Create(const ModelChannelData& channelData)
 		return nullptr;
 	}
 	return instance;
+}
+
+Shared<Channel> Channel::Clone()
+{
+	return make_shared<Channel>(*this);
 }
 
 void Channel::Free()

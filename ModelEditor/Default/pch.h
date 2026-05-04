@@ -42,6 +42,7 @@ namespace ModelEditor
 {
     using namespace std;
     using namespace Engine;
+    using namespace String;
 }
 using namespace ModelEditor;
 

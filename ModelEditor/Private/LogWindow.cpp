@@ -17,8 +17,8 @@ void LogWindow::Render()
 {
     static bool autoScroll = true;
 
-    if (!_showLog) return;
-    if (!ImGui::Begin("Log Console", &_showLog))
+    if (!_showBlock) return;
+    if (!ImGui::Begin("Log Console", &_showBlock))
     {
         ImGui::End();
         return;

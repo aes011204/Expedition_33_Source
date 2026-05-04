@@ -15,14 +15,14 @@ protected:
 public:
     bool ToggleBlock()
     {
-        _showLog = !_showLog;
-        return _showLog;
+        _showBlock = !_showBlock;
+        return _showBlock;
     }
     virtual void Update(float timeDelta) {};
     virtual void Render() {};
 
 protected:
-    bool _showLog{ true };
+    bool _showBlock{ true };
 };
 
 NS_END

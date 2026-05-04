@@ -63,12 +63,14 @@ namespace ModelEditor
 		_hWnd = nullptr;
 		ZeroMemory(&_pathBuffer, sizeof(char) * 512);
 		Clear_Converter();
-        _importer.FreeScene();
+        _cachedFbxPaths.clear();
+		LOG_INFO("~ModelConverter Called");
 	}
 
 	HRESULT ModelConverter::Initialize()
 	{
 		Clear_Converter();
+		LOG_INFO("~ModelConverter Called");
 		importFlags = aiProcess_ConvertToLeftHanded |
 					  aiProcess_Triangulate |
 					  aiProcess_CalcTangentSpace |
@@ -93,6 +95,8 @@ namespace ModelEditor
 
 	void ModelConverter::Render()
 	{
+        if (!_showBlock) return;
+
 		ImGui::Begin("Model Converter");
 
 		ImGui::Text("Resource Path:");
@@ -105,10 +109,48 @@ namespace ModelEditor
 		ImGui::Checkbox("Generate Debug JSON Logs", &_exportJsonLog);
 		ImGui::Separator();
 
-		if (ImGui::Button("Extract All (.fbx)", ImVec2(-1, 30)))
+		if (ImGui::Button("Scan FBX Files", ImVec2(150, 30)))
 		{
-			ExtractAll(_resourcePath);
+			Scan_FbxFiles(_resourcePath);
 		}
+		ImGui::SameLine();
+		if (ImGui::Button("Extract All", ImVec2(150, 30)))
+		{
+			Extract_All();
+		}
+		ImGui::Spacing();
+
+		ImGui::Text("FBX Files");
+		ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.15f, 0.15f, 0.15f, 1.0f));
+		if (ImGui::BeginChild("FbxListRegion", ImVec2(0, 150), true, ::ImGuiWindowFlags_HorizontalScrollbar))
+		{
+			for (const auto& path : _cachedFbxPaths)
+			{
+				string fileName = path.filename().string();
+				bool isSelected = (_selectedFbxPath == path.string());
+
+				if (ImGui::Selectable(fileName.c_str(), isSelected, 0, ImVec2(150, 0)))
+				{
+					_selectedFbxPath = path.string();
+				}
+
+				if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+				{
+					Extract_Selected();
+				}
+			}
+		}
+		ImGui::EndChild();
+		ImGui::PopStyleColor();
+
+		if (!_selectedFbxPath.empty())
+		{
+			if (ImGui::Button("Convert Selected FBX", ImVec2(-1, 30)))
+			{
+				Extract_Selected();
+			}
+		}
+
 		ImGui::Spacing();
 		ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.2f, 0.2f, 0.2f, 1.0f));
 
@@ -122,60 +164,166 @@ namespace ModelEditor
 		ImGui::End();
 	}
 
-	void ModelConverter::ExtractAll(const wstring& path)
+	void ModelConverter::Scan_FbxFiles(const wstring& path)
 	{
+		_cachedFbxPaths.clear();
+		_selectedFbxPath.clear();
+
 		if (!fs::exists(path) || !fs::is_directory(path))
 		{
 			LOG_ERROR("Invalid directory path: {}", String::ToString(path));
 			return;
 		}
 
-		LOG_INFO(">>> Start Bulk Extraction: {}", String::ToString(path));
-		uint32 successCount = 0;
-		uint32 failCount = 0;
+		function<void(const wstring&)> findFiles = [&](const wstring& currentDir) {
+			wstring searchPath = currentDir + L"\\*";
+			WIN32_FIND_DATAW fd;
+			HANDLE hFind = ::FindFirstFileW(searchPath.c_str(), &fd);
 
-		for (const auto& entry : fs::recursive_directory_iterator(path))
-		{
-			if (entry.is_regular_file() && entry.path().extension() == ".fbx")
+			if (hFind != INVALID_HANDLE_VALUE)
 			{
-				wstring fbxPath = entry.path().wstring();
-				wstring outputDir = entry.path().parent_path().wstring() + L"/";
-				LOG_INFO("Target found: {}", entry.path().filename().string());
-				if (SUCCEEDED(Convert_Model(fbxPath, outputDir)))
-				{
-					successCount++;
-				}
-				else
-				{
-					LOG_ERROR("Failed to convert: {}", entry.path().filename().string());
-					failCount++;
-				}
+				do {
+					// "." 및 ".." 제외
+					if (wcscmp(fd.cFileName, L".") == 0 || wcscmp(fd.cFileName, L"..") == 0)
+						continue;
+
+					wstring fullPath = (fs::path(currentDir) / fd.cFileName).lexically_normal().wstring();
+
+					if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+					{
+						findFiles(fullPath); // 하위 디렉토리 재귀 탐색
+					}
+					else
+					{
+						// 파일인 경우 확장자 확인
+						size_t len = wcslen(fd.cFileName);
+						if (len >= 4 && _wcsicmp(fd.cFileName + len - 4, L".fbx") == 0)
+						{
+							_cachedFbxPaths.push_back(fs::path(fullPath));
+						}
+					}
+				} while (::FindNextFileW(hFind, &fd));
+				::FindClose(hFind);
+			}
+		};
+
+		findFiles(path);
+
+		LOG_INFO(">>> Scanned {} FBX files.", _cachedFbxPaths.size());
+	}
+
+	void ModelConverter::Extract_Selected()
+	{
+		if (_selectedFbxPath.empty()) return;
+
+		fs::path path(_selectedFbxPath);
+		wstring fbxPath = path.wstring();
+		wstring outputDir = path.parent_path().wstring() + L"/";
+		LOG_INFO(">>> Start Lazy Conversion: {}", path.filename().string());
+
+		if (SUCCEEDED(Convert_Model(fbxPath, outputDir)))
+		{
+			LOG_INFO(">>> Conversion Success: {}", path.filename().string());
+		}
+		else
+		{
+			LOG_ERROR(">>> Conversion Failed: {}", path.filename().string());
+		}
+	}
+
+	void ModelConverter::Extract_All()
+	{
+		if (_cachedFbxPaths.empty()) return;
+
+		LOG_INFO(">>> Start Batch Extraction: {} files", _cachedFbxPaths.size());
+
+		uint32 successCount = 0;
+		for (const auto& path : _cachedFbxPaths)
+		{
+			wstring fbxPath = path.wstring();
+			wstring outputDir = path.parent_path().wstring();
+			if (!outputDir.empty() && outputDir.back() != L'\\' && outputDir.back() != L'/')
+				outputDir += L"/";
+
+			if (SUCCEEDED(Convert_Model(fbxPath, outputDir)))
+			{
+				successCount++;
 			}
 		}
-		LOG_INFO(">>> Extraction Finished. (Success: {}, Fail: {})", successCount, failCount);
+
+		LOG_INFO(">>> Batch Conversion Finished: {}/{} Success", successCount, _cachedFbxPaths.size());
 	}
 
 	HRESULT ModelConverter::Convert_Model(const wstring& fbxFilePath, const wstring& outputDir)
 	{
 		Clear_Converter();
+		Assimp::Importer importer;
 		string utf8FilePath = Engine::String::ToString(fbxFilePath);
-		_aiScene = _importer.ReadFile(utf8FilePath, importFlags);
+		_aiScene = importer.ReadFile(utf8FilePath, importFlags);
 
 		if (nullptr == _aiScene || _aiScene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !_aiScene->mRootNode)
 		{
-			LOG_ERROR("Assimp Error: {} \n", _importer.GetErrorString());
+			LOG_ERROR("Assimp Error: {} \n", importer.GetErrorString());
 			return E_FAIL;
 		}
 
 		string modelName = Get_FileNameWithoutExtension(fbxFilePath);
 		_isSkeletal = _aiScene->HasSkeletons() || _aiScene->mNumAnimations > 0;
 
-		ReadNodes(_aiScene->mRootNode, -1);
+        // 1. 모든 메쉬를 순회하여 본 이름과 OffsetMatrix를 먼저 수집 (임시 저장)
+        unordered_map<string, Matrix> tempOffsetMap;
+        for (uint32 i = 0; i < _aiScene->mNumMeshes; ++i)
+        {
+            const aiMesh* aiMesh = _aiScene->mMeshes[i];
+            for (uint32 j = 0; j < aiMesh->mNumBones; ++j)
+            {
+                string boneName = aiMesh->mBones[j]->mName.C_Str();
+                if (!tempOffsetMap.contains(boneName))
+                {
+                    tempOffsetMap[boneName] = Convert_Matrix(aiMesh->mBones[j]->mOffsetMatrix);
+                }
+            }
+        }
+
+        // 2. 수집된 본 이름들을 바탕으로 계층 구조 순서대로 _bones 배열 채우기
+        // BuildBoneHierarchy 내에서 _boneNameMap.contains(nodeName) 대신 tempOffsetMap을 참조하도록 수정 필요
+        auto RecursiveBuild = [&](auto self, const aiNode* node, int32 parentBoneIndex, Matrix accumulatedTransform) -> void {
+            string nodeName = node->mName.C_Str();
+            int32 currentBoneIndex = parentBoneIndex;
+            Matrix currentTransform = Convert_Matrix(node->mTransformation);
+
+            if (tempOffsetMap.contains(nodeName))
+            {
+                ModelBoneData boneData{};
+                strncpy_s(boneData.name, nodeName.c_str(), maxModelNameSize - 1);
+                boneData.parentBoneIndex = parentBoneIndex;
+                boneData.offsetMatrix = tempOffsetMap[nodeName];
+                boneData.localTransform = currentTransform * accumulatedTransform; // Correct: Local * Parent
+
+                currentBoneIndex = static_cast<int32>(_bones.size());
+                _boneNameMap[nodeName] = currentBoneIndex;
+                _bones.push_back(boneData);
+                
+                accumulatedTransform = Matrix::Identity;
+            }
+            else
+            {
+                accumulatedTransform = currentTransform * accumulatedTransform; // Correct: Local * Parent
+            }
+
+            for (uint32 i = 0; i < node->mNumChildren; ++i)
+                self(self, node->mChildren[i], currentBoneIndex, accumulatedTransform);
+        };
+
+        RecursiveBuild(RecursiveBuild, _aiScene->mRootNode, -1, Matrix::Identity);
+
+        // 3. 메쉬 데이터 읽기 (이제 _boneNameMap에 계층 순서대로 인덱스가 들어있음)
 		ReadMeshes(_aiScene);
 		ReadMaterial(_aiScene);
 		ReadAnimations(_aiScene);
 
 		Ensure_DirectoryExists(outputDir);
+// ... (rest of function)
 		if (FAILED(Export_ModelData(_aiScene, outputDir, modelName)))
 		{
 			return E_FAIL;
@@ -195,20 +343,27 @@ namespace ModelEditor
 		return S_OK;
 	}
 
-	void ModelConverter::ReadNodes(const aiNode* node, int32 parentIndex)
+	void ModelConverter::BuildBoneHierarchy(const aiNode* node, int32 parentBoneIndex, Matrix accumulatedTransform)
 	{
-		ModelNodeData nodeData{};
+		string nodeName = node->mName.C_Str();
+		int32 currentBoneIndex = parentBoneIndex;
+		Matrix currentTransform = Convert_Matrix(node->mTransformation);
 
-		strncpy_s(nodeData.name, node->mName.C_Str(), maxModelNameSize - 1);
-		nodeData.prentIndex = parentIndex;
-		nodeData.localTransform = Convert_Matrix(node->mTransformation);
-
-		_nodes.push_back(nodeData);
-		int32 curIndex = static_cast<int32>(_nodes.size() - 1);
+		if (_boneNameMap.contains(nodeName))
+		{
+			currentBoneIndex = static_cast<int32>(_boneNameMap[nodeName]);
+			_bones[currentBoneIndex].parentBoneIndex = parentBoneIndex;
+			_bones[currentBoneIndex].localTransform = currentTransform * accumulatedTransform;
+			accumulatedTransform = Matrix();
+		}
+		else
+		{
+			accumulatedTransform = currentTransform * accumulatedTransform;
+		}
 
 		for (uint32 i = 0; i < node->mNumChildren; ++i)
 		{
-			ReadNodes(node->mChildren[i], curIndex);
+			BuildBoneHierarchy(node->mChildren[i], currentBoneIndex, accumulatedTransform);
 		}
 	}
 
@@ -266,14 +421,14 @@ namespace ModelEditor
                     if (false == _boneNameMap.contains(boneName))
                     {
                         ModelBoneData boneData{};
-                        strncpy_s(boneData.name, boneName.c_str(), maxModelNameSize - 1);
+                        strncpy_s(boneData.name, sizeof(boneData.name), boneName.c_str(), _TRUNCATE);
                         boneData.offsetMatrix = Convert_Matrix(aiBone->mOffsetMatrix);
-                        boneData.nodeIndex = FindNodeIndex(boneName.c_str());
+                        boneData.localTransform = Matrix();
                         _boneNameMap[boneName] = static_cast<uint32>(_bones.size());
                         _bones.push_back(boneData);
                     }
                     boneRefs.push_back(_boneNameMap[boneName]);
-                    offsets.push_back(Convert_Matrix(aiBone->mOffsetMatrix).Transpose());
+                    offsets.push_back(Convert_Matrix(aiBone->mOffsetMatrix)); // Remove Transpose()!
                     for (uint32 k = 0; k < aiBone->mNumWeights; ++k)
                     {
                         uint32 vertexIndex = aiBone->mWeights[k].mVertexId;
@@ -425,13 +580,17 @@ namespace ModelEditor
 
 			for (uint32 j = 0; j < aiAnim->mNumChannels; ++j)
 			{
-				int32 nodeIndex = FindNodeIndex(aiAnim->mChannels[j]->mNodeName.C_Str());
-				if (nodeIndex >= 0 && _nodes[nodeIndex].prentIndex < minParentIndex)
+				string channelName = aiAnim->mChannels[j]->mNodeName.C_Str();
+				if (_boneNameMap.contains(channelName))
 				{
-					minParentIndex = _nodes[nodeIndex].prentIndex;
-					rootChannel = aiAnim->mChannels[j];
-					if (minParentIndex == -1)
-						break;
+					int32 boneIndex = static_cast<int32>(_boneNameMap[channelName]);
+					if (_bones[boneIndex].parentBoneIndex < minParentIndex)
+					{
+						minParentIndex = _bones[boneIndex].parentBoneIndex;
+						rootChannel = aiAnim->mChannels[j];
+						if (minParentIndex == -1)
+							break;
+					}
 				}
 			}
 
@@ -458,7 +617,13 @@ namespace ModelEditor
 				const aiNodeAnim* animNode = aiAnim->mChannels[j];
 				ModelChannelData channelData{};
 				strncpy_s(channelData.boneName, animNode->mNodeName.C_Str(), maxModelNameSize - 1);
-				channelData.boneIndex = FindNodeIndex(channelData.boneName);
+
+				// 본 배열 인덱스로 매핑 (노드 인덱스가 아님) 
+				auto boneIt = _boneNameMap.find(channelData.boneName);
+				if (boneIt == _boneNameMap.end())
+					continue; // 본이 아닌 노드의 채널은 스킵 
+
+				channelData.boneIndex = static_cast<int32>(boneIt->second);
 
 				uint32 numKeys = max({ animNode->mNumPositionKeys, animNode->mNumRotationKeys, animNode->mNumScalingKeys });
 				channelData.numKeyframes = numKeys;
@@ -486,6 +651,9 @@ namespace ModelEditor
 				keyFrames.push_back(move(frames));
 			}
 
+			/* 본이 아닌 노드 채널을 스킵했으므로 실제 수로 보정 */
+			animData.numChannels = static_cast<uint32>(channels.size());
+
 			_animHeaders.push_back(animData);
 			_channelHeaders.push_back(move(channels));
 			_keyframes.push_back(move(keyFrames));
@@ -499,18 +667,15 @@ namespace ModelEditor
         if (!out.is_open()) return E_FAIL;
 
         uint32 texSize = AI_TEXTURE_TYPE_MAX;
-        uint32 numNodes = static_cast<uint32>(_nodes.size());
         uint32 numMaterials = static_cast<uint32>(_matHeaders.size());
         uint32 numMeshes = static_cast<uint32>(_meshHeaders.size());
         uint32 numBones = static_cast<uint32>(_bones.size());
 
         out.write(BYTE(&_isSkeletal), sizeof(bool));
         out.write(BYTE(&texSize), sizeof(uint32));
-        out.write(BYTE(&numNodes), sizeof(uint32));
         out.write(BYTE(&numMaterials), sizeof(uint32));
         out.write(BYTE(&numMeshes), sizeof(uint32));
         out.write(BYTE(&numBones), sizeof(uint32));
-        out.write(BYTE(_nodes.data()), numNodes * sizeof(ModelNodeData));
 
         for (uint32 i = 0; i < numMaterials; ++i)
         {
@@ -598,15 +763,8 @@ namespace ModelEditor
 
 		{
 			json jArr = json::array();
-			for (const auto& n : _nodes)
-				jArr.push_back({ {"name", n.name}, {"parentIndex", n.prentIndex}, {"localTransform", MatJ(n.localTransform)} });
-			ofstream(logDir + L"Node.json") << jArr.dump(4);
-		}
-
-		{
-			json jArr = json::array();
 			for (const auto& b : _bones)
-				jArr.push_back({ {"name", b.name}, {"nodeIndex", b.nodeIndex}, {"offsetMatrix", MatJ(b.offsetMatrix)} });
+				jArr.push_back({ {"name", b.name}, {"parentIndex", b.parentBoneIndex}, {"offsetMatrix", MatJ(b.offsetMatrix)} });
 			ofstream(logDir + L"Bone.json") << jArr.dump(4);
 		}
 
@@ -664,23 +822,10 @@ namespace ModelEditor
 		return mat;
 	}
 
-	int32 ModelConverter::FindNodeIndex(const char* name) const
-	{
-		for (int32 i = 0; i < static_cast<int32>(_nodes.size()); ++i)
-		{
-			if (!strcmp(_nodes[i].name, name))
-			{
-				return i;
-			}
-		}
-		return -1;
-	}
-
 	void ModelConverter::Clear_Converter()
 	{
 		_aiScene = nullptr;
 
-		_nodes.clear();
 		_meshHeaders.clear();
 		_staticVertices.clear();
 		_animVertices.clear();
@@ -725,3 +870,4 @@ namespace ModelEditor
 	}
 
 }
+

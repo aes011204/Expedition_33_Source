@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Component.h"
 
@@ -24,6 +24,7 @@ public:
     size_t Get_NumAnimations() const { return _animations.size(); }
 
 public:
+    bool Is_Skeletal() const { return _isSkeletal; }
 	int32 Get_BoneIndex(const char* boneName);
 	const Matrix* Get_BoneMatrixPtr(const char* boneName);
 
@@ -55,13 +56,11 @@ private:
 
 private:
     uint32                              _maxTextureType{};
-    uint32                              _numNodes{};
 	uint32						        _numMeshes{};
     uint32						        _numMaterials{};
     uint32                              _numBones{};
     uint32                              _numAnimations{};
 
-    vector<ModelNodeData>               _nodeData;
     vector<Shared<Mesh>>	            _meshes;
 	vector<Shared<Material>>	        _materials;
 	vector<Shared<Bone>>		        _bones;

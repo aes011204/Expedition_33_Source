@@ -9,21 +9,11 @@ constexpr int32 maxBoneCount = 512;
 
 using ModelDataHeader = struct tagModelDataHeader
 {
-    string modelName;
     bool   isSkeletal;
     uint32 maxTextureSize;
-    uint32 numNodes;
-    uint32 numBones;
-    uint32 numMeshes;
     uint32 numMaterials;
-    uint32 numAnimations;
-};
-
-using ModelNodeData = struct tagModelNodeData
-{
-    char        name[maxModelNameSize];
-    int32       prentIndex{ -1 };
-    Matrix      localTransform{};
+    uint32 numMeshes;
+    uint32 numBones;
 };
 
 using ModelMeshData = struct tagModelMeshHeader
@@ -43,7 +33,8 @@ using ModelMeshData = struct tagModelMeshHeader
 using ModelBoneData = struct tagModelBone
 {
     char        name[maxModelNameSize];
-    int32       nodeIndex{ -1 };
+    int32       parentBoneIndex{ -1 };
+    Matrix      localTransform{};
     Matrix      offsetMatrix{};
 };
 
