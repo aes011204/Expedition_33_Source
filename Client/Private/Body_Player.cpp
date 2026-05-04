@@ -99,6 +99,8 @@ HRESULT Body_Player::Render_Shadow()
 
         _model->Render(i);
     }
+
+    return S_OK;
 }
 
 HRESULT Body_Player::Ready_Components()

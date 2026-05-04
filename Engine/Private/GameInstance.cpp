@@ -603,9 +603,19 @@ HRESULT GameInstance::Initialize_Debug(float sizeX, float sizeY)
     return _targetManager->Initialize_Debug(sizeX, sizeY);
 }
 
-HRESULT GameInstance::SetUp_Debug(const wstring& targetTag, float x, float y, float sizeX, float sizeY, bool render)
+HRESULT GameInstance::Resize_DrawArea(float sizeX, float sizeY)
 {
-    return _targetManager->SetUp_Debug(targetTag, x, y, sizeX, sizeY, render);
+    return _targetManager->Resize_DrawArea(sizeX, sizeY);
+}
+
+HRESULT GameInstance::Display_RT(const wstring& targetTag, bool render)
+{
+    return _targetManager->Display_RT(targetTag, render);
+}
+
+HRESULT GameInstance::Display_AllRTs(bool render)
+{
+    return _targetManager->Display_AllRTs(render);
 }
 
 HRESULT GameInstance::Render_RT_Debug(Shared<VIBuffer_Rect> viBuffer, Shared<ShaderCom> shader)
@@ -613,9 +623,9 @@ HRESULT GameInstance::Render_RT_Debug(Shared<VIBuffer_Rect> viBuffer, Shared<Sha
     return _targetManager->Render_Debug(shader, viBuffer);
 }
 
-const map<wstring, bool>& GameInstance::Get_MRTs() const
+const map<wstring, bool>& GameInstance::Get_RTs() const
 {
-    return _targetManager->Get_MRTs();
+    return _targetManager->Get_RTs();
 }
 
 HRESULT GameInstance::Bind_ShadowMatrices(Shared<ShaderCom> shader, const char* viewName, const char* projName)

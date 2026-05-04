@@ -55,7 +55,7 @@ void Renderer::Draw()
     Render_UI();
 
 #ifdef _DEBUG
-    // Render_Debug();
+    Render_Debug();
 #endif
 }
 

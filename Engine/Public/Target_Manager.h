@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include "Base.h"
+#include <vector>
 
 NS_BEGIN(Engine)
 
@@ -62,13 +63,35 @@ public :
 #ifdef _DEBUG
 public :
     HRESULT Initialize_Debug(float sizeX, float sizeY);
-    HRESULT SetUp_Debug(const wstring& targetTag, float x, float y, float sizeX, float sizeY, bool render = true);
+    HRESULT Resize_DrawArea(float sizeX, float sizeY);
+    HRESULT Display_RT(const wstring& targetTag, bool render);
+    HRESULT Display_AllRTs(bool render);
     HRESULT Render_Debug(Shared<ShaderCom> shader, Shared<VIBuffer_Rect> viBuffer);
-    HRESULT Render_Debug(const wstring& mrtTag, Shared<ShaderCom> shader, Shared<VIBuffer_Rect> viBuffer);
-    const map<wstring, bool>&  Get_MRTs() const;
+    const map<wstring, bool>&  Get_RTs() const;
 
 private :
-    map<wstring, bool>    _drawMapMRTs;
+    struct DebugDrawArea
+    {
+        float width = 0.f;
+        float height = 0.f;
+    };
+
+    struct DebugLayoutCell
+    {
+        float x = 0.f;
+        float y = 0.f;
+        float size = 0.f;
+    };
+
+    HRESULT Reconstruct_DrawArea();
+    HRESULT Apply_DebugLayout(const wstring& targetTag, const DebugLayoutCell& cell);
+
+private :
+    DebugDrawArea                   _debugDrawArea{};
+    map<wstring, bool>              _debugRTMaps;
+    vector<wstring>                 _debugVisibleRTs;
+    map<wstring, DebugLayoutCell>   _debugLayoutByRT;
+    bool                            _debugLayoutDirty = true;
 #endif
 
 };

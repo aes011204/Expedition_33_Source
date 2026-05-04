@@ -186,9 +186,11 @@ public : /* For.Target_Manager */
 
 #ifdef _DEBUG
     HRESULT Initialize_Debug(float sizeX, float sizeY);
-    HRESULT SetUp_Debug(const wstring& targetTag, float x, float y, float sizeX, float sizeY, bool render = true);
+    HRESULT Resize_DrawArea(float sizeX, float sizeY);
+    HRESULT Display_RT(const wstring& targetTag, bool render);
+    HRESULT Display_AllRTs(bool render);
     HRESULT Render_RT_Debug(Shared<VIBuffer_Rect> viBuffer, Shared<ShaderCom> shader);
-    const map<wstring, bool>& Get_MRTs() const;
+    const map<wstring, bool>& Get_RTs() const;
 #endif
 
 public: /* For.Shadow */

@@ -1,5 +1,6 @@
 ﻿#include "pch.h"
 #include "RenderTarget.h"
+#include "GameInstance.h"
 #include "VIBuffer_Rect.h"
 #include "ShaderCom.h"
 
@@ -169,11 +170,16 @@ void RenderTarget::Free()
 
 HRESULT RenderTarget::Setup_Debug(float x, float y, float sizeX, float sizeY)
 {
+    const float viewportWidth = static_cast<float>(GAME->Get_ViewportWidth());
+    const float viewportHeight = static_cast<float>(GAME->Get_ViewportHeight());
+    const float centerX = x + sizeX * 0.5f - viewportWidth * 0.5f;
+    const float centerY = viewportHeight * 0.5f - (y + sizeY * 0.5f);
+
     _debugWorldMatrix = Matrix::Identity;
     _debugWorldMatrix._11 = sizeX;
     _debugWorldMatrix._22 = sizeY;
-    _debugWorldMatrix._41 = x;
-    _debugWorldMatrix._42 = y;
+    _debugWorldMatrix._41 = centerX;
+    _debugWorldMatrix._42 = centerY;
 
     return S_OK;
 }

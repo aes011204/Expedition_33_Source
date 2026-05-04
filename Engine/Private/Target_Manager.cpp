@@ -35,6 +35,11 @@ HRESULT Target_Manager::Add_RenderTarget(const wstring& targetTag, uint32 sizeX,
         _currentHeight = sizeY;
     }
 
+#ifdef _DEBUG
+    _debugRTMaps.emplace(targetTag, false);
+    _debugLayoutDirty = true;
+#endif
+
     return S_OK;
 }
 
@@ -52,15 +57,11 @@ HRESULT Target_Manager::Add_MRT(const wstring& mrtTag, const wstring& targetTag)
 
         _MRTs.emplace(mrtTag, move(newMRT));
 
-#ifdef _DEBUG
-        // 디버그 렌더 MRT 단위로 on/off
-        _drawMapMRTs.emplace(mrtTag, true);
-#endif
-
         return S_OK;
     }
 
     mrt->push_back(renderTarget);
+
     return S_OK;
 }
 
@@ -284,104 +285,131 @@ void Target_Manager::Free()
 
 HRESULT Target_Manager::Initialize_Debug(float totalSizeX, float totalSizeY)
 {
-    // 디버그 RT를 타일로 배치
-    const uint32 rtCount = static_cast<uint32>(_renderTargets.size());
-    if (rtCount == 0)
+    return Resize_DrawArea(totalSizeX, totalSizeY);
+}
+
+HRESULT Target_Manager::Resize_DrawArea(float sizeX, float sizeY)
+{
+    // Debug MRTs이 그려질 전체 영역 조절
+    _debugDrawArea.width = max(sizeX, 0.f);
+    _debugDrawArea.height = max(sizeY, 0.f);
+    _debugLayoutDirty = true;
+
+    return Reconstruct_DrawArea();
+}
+
+HRESULT Target_Manager::Display_RT(const wstring& targetTag, bool render)
+{
+    auto iter = _debugRTMaps.find(targetTag);
+    if (iter == _debugRTMaps.end())
+        return E_FAIL;
+
+    if (iter->second == render)
         return S_OK;
 
-    uint32 cols = static_cast<uint32>(ceilf(sqrtf(static_cast<float>(rtCount))));
-    cols = max(cols, 1u);
+    iter->second = render;
+    _debugLayoutDirty = true;
 
-    const uint32 rows = static_cast<uint32>(ceilf(static_cast<float>(rtCount) / static_cast<float>(cols)));
+    return Reconstruct_DrawArea();
+}
 
-    const float cellSizeX = totalSizeX / static_cast<float>(cols);
-    const float cellSizeY = totalSizeY / static_cast<float>(rows);
-
-    uint32 i = 0;
-    for (auto& pair : _renderTargets)
+HRESULT Target_Manager::Display_AllRTs(bool render)
+{
+    bool changed = false;
+    for (auto& [_, isVisible] : _debugRTMaps)
     {
-        const wstring& targetTag = pair.first;
-
-        const uint32 r = i / cols;
-        const uint32 c = i % cols;
-
-        // 좌상단부터 순서대로 각 칸의 중심 좌표 
-        const float centerX = (static_cast<float>(c) + 0.5f) * cellSizeX;
-        const float centerY = (static_cast<float>(r) + 0.5f) * cellSizeY;
-
-        // 각 RT 디버그 타일 크기
-        const float tileSizeX = cellSizeX;
-        const float tileSizeY = cellSizeY;
-
-        CHECK_FAILED(SetUp_Debug(targetTag, centerX, centerY, tileSizeX, tileSizeY, true), E_FAIL);
-
-        ++i;
-        if (i >= rtCount)
-            break;
+        if (isVisible != render)
+        {
+            isVisible = render;
+            changed = true;
+        }
     }
+
+    if (!changed)
+        return S_OK;
+
+    _debugLayoutDirty = true;
+    return Reconstruct_DrawArea();
+}
+
+HRESULT Target_Manager::Reconstruct_DrawArea()
+{
+    _debugVisibleRTs.clear();
+    _debugLayoutByRT.clear();
+
+    if (_debugDrawArea.width <= 0.f || _debugDrawArea.height <= 0.f)
+    {
+        _debugLayoutDirty = false;
+        return S_OK;
+    }
+
+    for (const auto& [targetTag, isVisible] : _debugRTMaps)
+    {
+        if (isVisible)
+            _debugVisibleRTs.push_back(targetTag);
+    }
+
+    if (_debugVisibleRTs.empty())
+    {
+        _debugLayoutDirty = false;
+        return S_OK;
+    }
+
+    // 레이아웃 재구성
+    const uint32 rtCount = static_cast<uint32>(_debugVisibleRTs.size());
+    const uint32 cols = max(1u, static_cast<uint32>(ceilf(sqrtf(static_cast<float>(rtCount)))));
+    const uint32 rows = max(1u, static_cast<uint32>(ceilf(static_cast<float>(rtCount) / static_cast<float>(cols))));
+    const float cellSize = min(_debugDrawArea.width / static_cast<float>(cols), _debugDrawArea.height / static_cast<float>(rows));
+
+    for (uint32 index = 0; index < rtCount; ++index)
+    {
+        const uint32 row = index / cols;
+        const uint32 col = index % cols;
+
+        DebugLayoutCell cell{};
+        cell.x = static_cast<float>(col) * cellSize;
+        cell.y = static_cast<float>(row) * cellSize;
+        cell.size = cellSize;
+
+        const wstring& targetTag = _debugVisibleRTs[index];
+        _debugLayoutByRT.emplace(targetTag, cell);
+        CHECK_FAILED(Apply_DebugLayout(targetTag, cell), E_FAIL);
+    }
+
+    _debugLayoutDirty = false;
 
     return S_OK;
 }
 
-HRESULT Target_Manager::SetUp_Debug(const wstring& targetTag, float x, float y, float sizeX, float sizeY, bool render)
+HRESULT Target_Manager::Apply_DebugLayout(const wstring& targetTag, const DebugLayoutCell& cell)
 {
     auto renderTarget = Find_RenderTarget(targetTag);
     CHECK_NULL(renderTarget, E_FAIL);
 
-    CHECK_FAILED(renderTarget->Setup_Debug(x, y, sizeX, sizeY), E_FAIL);
-
-    // 디버그 렌더 여부는 MRT 단위로 관리한다.
-    // 해당 RT를 포함하는 모든 MRT의 draw 플래그를 갱신한다.
-    for (auto& mrtPair : _MRTs)
-    {
-        const wstring& mrtTag = mrtPair.first;
-        auto& mrtList = mrtPair.second;
-
-        for (auto& rt : mrtList)
-        {
-            if (rt == renderTarget)
-            {
-                _drawMapMRTs[mrtTag] = render;
-                break;
-            }
-        }
-    }
+    CHECK_FAILED(renderTarget->Setup_Debug(cell.x, cell.y, cell.size, cell.size), E_FAIL);
 
     return S_OK;
 }
 
 HRESULT Target_Manager::Render_Debug(Shared<ShaderCom> shader, Shared<VIBuffer_Rect> viBuffer)
 {
-    for (auto it = _drawMapMRTs.begin(); it != _drawMapMRTs.end(); ++it)
+    if (_debugLayoutDirty)
+        CHECK_FAILED(Reconstruct_DrawArea(), E_FAIL);
+
+    for (const auto& targetTag : _debugVisibleRTs)
     {
-        if (!it->second)  // draw 여부
-            continue;
+        auto renderTarget = Find_RenderTarget(targetTag);
+        CHECK_NULL(renderTarget, E_FAIL);
 
-        auto* mrt = Find_MRT(it->first);
-        if (!mrt)
-            return E_FAIL;
-
-        for (auto& rt : *mrt)
-            rt->Render_Debug(viBuffer, shader);
+        CHECK_FAILED(renderTarget->Render_Debug(viBuffer, shader), E_FAIL);
     }
 
     return S_OK;
 }
 
-HRESULT Target_Manager::Render_Debug(const wstring& mrtTag, Shared<ShaderCom> shader, Shared<VIBuffer_Rect> viBuffer)
+const map<wstring, bool>& Target_Manager::Get_RTs() const
 {
-    auto mrtList = Find_MRT(mrtTag);
-    CHECK_NULL(mrtList, E_FAIL);
-
-    for (auto renderTarget : *mrtList)
-        renderTarget->Render_Debug(viBuffer, shader);
-
-    return S_OK;
-}
-
-const map<wstring, bool>& Target_Manager::Get_MRTs() const
-{
-    return _drawMapMRTs;
+    return _debugRTMaps;
 }
 
 #endif
