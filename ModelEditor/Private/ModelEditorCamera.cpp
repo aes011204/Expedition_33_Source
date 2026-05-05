@@ -38,6 +38,41 @@ void ModelEditorCamera::Priority_Update(float timeDelta)
     if (!GAME->Is_ActiveCamera(GetSharedPtr<Camera>()))
         return;
     
+    // 1. Tab Key Presets (5 Stages for 1000+ range)
+    if (GAME->KeyDown(KEY_TYPE::TAB))
+    {
+        _presetIndex = (_presetIndex + 1) % 5;
+
+        Vec3 eye{}, at{};
+        switch (_presetIndex)
+        {
+        case 0: eye = { 0.f, 5.f, -5.f };      at = { 0.f, 0.f, 0.f };    break; 
+        case 1: eye = { 0.f, 100.f, -200.f };  at = { 0.f, 0.f, 200.f };  break; 
+        case 2: eye = { 0.f, 300.f, -500.f };  at = { 0.f, 0.f, 500.f };  break; 
+        case 3: eye = { 0.f, 600.f, -1000.f }; at = { 0.f, 0.f, 800.f };  break; 
+        case 4: eye = { 0.f, 1200.f, -2000.f }; at = { 0.f, 0.f, 1000.f }; break; 
+        }
+
+        _transformCom->Set_Position(eye);
+        _transformCom->LookAt(at);
+
+        Vec3 rotation = _transformCom->Get_RotationEuler();
+        _yaw = rotation.y;
+        _pitch = rotation.x;
+
+        LOG_INFO("Camera Preset: {} | Eye:({:.0f},{:.0f},{:.0f}) At:({:.0f},{:.0f},{:.0f})", 
+            _presetIndex, eye.x, eye.y, eye.z, at.x, at.y, at.z);
+    }
+
+    // 2. Camera Speed Control (Mouse Wheel)
+    float wheel = GAME->Get_MouseWheel();
+    if (wheel != 0)
+    {
+        _speed += (wheel > 0 ? 0.5f : -0.5f);
+        _speed = std::clamp(_speed, 0.1f, 200.0f);
+        LOG_INFO("Camera Speed: x{:.1f}", _speed);
+    }
+
     if (GAME->KeyPress(KEY_TYPE::RBUTTON))
     {
         Vec2 delta = GAME->Get_MouseDelta();
@@ -47,7 +82,7 @@ void ModelEditorCamera::Priority_Update(float timeDelta)
         _transformCom->Set_RotationEuler(Vec3(_pitch, _yaw, 0.f));
     }
 
-    float adjustedTimeDelta = timeDelta;
+    float adjustedTimeDelta = timeDelta * _speed;
     if (GAME->KeyPress(KEY_TYPE::SHIFT))
         adjustedTimeDelta *= 3.f;
 

@@ -143,6 +143,21 @@ const char* ModelViewerObject::Get_AnimationName(uint32 animIndex)
     return _modelCom->Get_AnimationName(animIndex);
 }
 
+const char* ModelViewerObject::Get_BoneName(uint32 boneIndex) const
+{
+    return _modelCom->Get_BoneName(boneIndex);
+}
+
+uint32 ModelViewerObject::Get_NumBones() const
+{
+    return (uint32)_modelCom->Get_NumBones();
+}
+
+void ModelViewerObject::Set_RootNode(int32 boneIndex)
+{
+    _modelCom->Set_LocalRootNode(boneIndex);
+}
+
 HRESULT ModelViewerObject::Ready_Components()
 {
     if (FAILED(GameObject::Add_Component(0, TEXT("Shader_VtxMesh"), _staticShaderCom)))

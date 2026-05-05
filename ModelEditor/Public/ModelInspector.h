@@ -37,7 +37,12 @@ private:
 	wstring _resourcePath{};
 
 private:
-    int32 _selectedAnimIndex{ -1 };
+    int32   _selectedAnimIndex{ -1 };
+    bool    _isLoop{ true };
+    int32   _rootNodeIndex{ -1 };
+    bool    _isRootMotion{ false };
+    
+
 
 public:
 	static Shared<ModelInspector> Create();

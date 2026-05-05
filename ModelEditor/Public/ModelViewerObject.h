@@ -30,6 +30,9 @@ public:
 	void Play_Animation(uint32 animIndex, float blendDuration, bool isLoop, bool isRoot);
     uint32 Get_NumAnimations() const;
     const char* Get_AnimationName(uint32 animIndex);
+    const char* Get_BoneName(uint32 boneIndex) const;
+    uint32 Get_NumBones() const;
+    void Set_RootNode(int32 boneIndex);
 
 public:
     Shared<ModelCom> Get_ModelComponent() const { return _modelCom; }

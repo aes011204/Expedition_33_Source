@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "Camera.h"
 
 NS_BEGIN(ModelEditor)
@@ -22,8 +22,10 @@ public:
     void    Late_Update(float timeDelta) override;
 
 private:
+    uint32 _presetIndex{ 0 };
     bool  _firstFrame{ true };  
     bool  _isRightMouseDown{ false };
+    float _speed{ 1.f };
 
 public:
     static Shared<ModelEditorCamera> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

@@ -32,7 +32,7 @@ ModelCom::ModelCom(const ModelCom& prototype)
 
 }
 
-int32 ModelCom::Get_BoneIndex(const char* boneName)
+int32 ModelCom::Get_BoneIndex(const char* boneName) const
 {
     for (int32 i = 0; i < _numBones; ++i)
     {
@@ -41,6 +41,11 @@ int32 ModelCom::Get_BoneIndex(const char* boneName)
     }
 
     return -1;
+}
+
+const char* ModelCom::Get_BoneName(uint32 boneIndex) const
+{
+    return _bones[boneIndex]->Get_BoneName();
 }
 
 // TODO : 기존 애니메이션이면 progress 초기화 하고 정리, 그게 아니라면 바로 다음 애니메이션 초기로 세팅
@@ -75,7 +80,7 @@ const char* ModelCom::Get_AnimationName(uint32 animationIndex) const
     return _animations[animationIndex]->Get_AnimationName();
 }
 
-const Matrix* ModelCom::Get_BoneMatrixPtr(const char* boneName)
+const Matrix* ModelCom::Get_BoneMatrixPtr(const char* boneName) const
 {
     int32 boneIndex = Get_BoneIndex(boneName);
     if (boneIndex == -1)

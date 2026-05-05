@@ -25,8 +25,9 @@ public:
 
 public:
     bool Is_Skeletal() const { return _isSkeletal; } 
-	int32 Get_BoneIndex(const char* boneName);
-	const Matrix* Get_BoneMatrixPtr(const char* boneName);
+	int32 Get_BoneIndex(const char* boneName) const;
+    const char* Get_BoneName(uint32 boneIndex) const;
+	const Matrix* Get_BoneMatrixPtr(const char* boneName) const;
     const Matrix* Get_BoneMatrixPtr(uint32 boneIndex) const;
 
 public:

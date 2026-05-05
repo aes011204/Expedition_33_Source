@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Base.h"
 
@@ -18,6 +18,7 @@ public:
         const Matrix* Get_CombinedTransformationMatrixPtr() const { return &_combinedTransformationMatrix; }
         bool Check_BoneByName(const char* boneName) const { return !strcmp(boneName, _name); }
         int32 Get_ParentIndex() const { return _parentBoneIndex; }
+        const char* Get_BoneName() const { return _name; }
 
 public:
         HRESULT Initialize(const ModelBoneData& boneData);
@@ -25,7 +26,7 @@ public:
         void Update_TransformationMatrix(const Matrix& transformMatrix);
 
 private:
-        char                _name[maxModelNameSize] = {};
+        char                _name[maxModelNameSize]{};
         Matrix              _transformationMatrix{};
         Matrix              _combinedTransformationMatrix{};
         int32               _parentBoneIndex = { -1 };
