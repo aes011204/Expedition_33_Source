@@ -27,7 +27,8 @@ void Content_Browser::Render()
                 _resourceRoot = filesystem::path(assetRoot);
         }
 
-        ImGui::TextUnformatted(_resourceRoot.string().c_str());
+        const string resourceRootText = String::ToString(_resourceRoot.wstring());
+        ImGui::TextUnformatted(resourceRootText.c_str());
         ImGui::Separator();
         Render_Directory(_resourceRoot);
     }
@@ -48,7 +49,7 @@ void Content_Browser::Render_Directory(const filesystem::path& rootPath)
 
     for (const filesystem::directory_entry& entry : filesystem::directory_iterator(rootPath))
     {
-        const string strName = entry.path().filename().string();
+        const string strName = String::ToString(entry.path().filename().wstring());
         if (entry.is_directory())
             ImGui::BulletText("[%s]", strName.c_str());
         else
