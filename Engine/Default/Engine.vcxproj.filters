@@ -169,6 +169,12 @@
     <Filter Include="01.Utility\02. Prototype">
       <UniqueIdentifier>{f7e0e01b-cc94-4954-b205-9a23a25dd305}</UniqueIdentifier>
     </Filter>
+    <Filter Include="E_BehavoirTreee">
+      <UniqueIdentifier>{41e03557-151c-4c1b-8cf5-a9f418be999f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="E_BehavoirTreee\node">
+      <UniqueIdentifier>{58f53e78-c19d-4eb3-88b9-e5dbece8fe0c}</UniqueIdentifier>
+    </Filter>
     <Filter Include="95. Interface">
       <UniqueIdentifier>{3122f515-8fbb-4046-864c-040a58ca6c24}</UniqueIdentifier>
     </Filter>
@@ -390,6 +396,42 @@
     <ClInclude Include="..\public\Prototype_Manager.h">
       <Filter>01.Utility\02. Prototype</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\AIController.h">
+      <Filter>E_BehavoirTreee</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\BehaviorTree.h">
+      <Filter>E_BehavoirTreee</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\BlackBoard.h">
+      <Filter>E_BehavoirTreee</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\BT_MoveTo.h">
+      <Filter>E_BehavoirTreee</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\PathFollower.h">
+      <Filter>E_BehavoirTreee</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Service.h">
+      <Filter>E_BehavoirTreee</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Composite.h">
+      <Filter>E_BehavoirTreee\node</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\BNode.h">
+      <Filter>E_BehavoirTreee\node</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Task.h">
+      <Filter>E_BehavoirTreee\node</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Decorator.h">
+      <Filter>E_BehavoirTreee\node</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\Sequence.h">
+      <Filter>E_BehavoirTreee\node</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Selector.h">
+      <Filter>E_BehavoirTreee\node</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\ICommand.h">
       <Filter>95. Interface\Command</Filter>
     </ClInclude>
@@ -573,6 +615,42 @@
     </ClCompile>
     <ClCompile Include="..\private\Prototype_Manager.cpp">
       <Filter>01.Utility\02. Prototype</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\AIController.cpp">
+      <Filter>E_BehavoirTreee</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\BehaviorTree.cpp">
+      <Filter>E_BehavoirTreee</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\BlackBoard.cpp">
+      <Filter>E_BehavoirTreee</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\BT_MoveTo.cpp">
+      <Filter>E_BehavoirTreee</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\PathFollower.cpp">
+      <Filter>E_BehavoirTreee</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Service.cpp">
+      <Filter>E_BehavoirTreee</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Composite.cpp">
+      <Filter>E_BehavoirTreee\node</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\BNode.cpp">
+      <Filter>E_BehavoirTreee\node</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\Selector.cpp">
+      <Filter>E_BehavoirTreee\node</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Task.cpp">
+      <Filter>E_BehavoirTreee\node</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Decorator.cpp">
+      <Filter>E_BehavoirTreee\node</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\Sequence.cpp">
+      <Filter>E_BehavoirTreee\node</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\ICommand.cpp">
       <Filter>95. Interface\Command</Filter>
