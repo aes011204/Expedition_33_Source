@@ -53,7 +53,7 @@ void Renderer::Draw()
     const auto shadowBegin = chrono::steady_clock::now();
 #endif
 
-    Render_Shadow();
+//    Render_Shadow();
 #ifdef _DEBUG
     shadowMs = chrono::duration<double, milli>(chrono::steady_clock::now() - shadowBegin).count();
     const auto nonBlendBegin = chrono::steady_clock::now();

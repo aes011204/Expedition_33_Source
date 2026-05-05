@@ -13,11 +13,8 @@ float g_fFar = 0.f;
 //==================================================
 // TEXTURE
 //==================================================
-texture2D g_DiffuseTexture[2];
-texture2D g_MaskTexture;
-texture2D g_BrushTexture;
+texture2D g_DiffuseTexture;
 
-//float g_fBrushRange = 15.f;
 vector g_vBrushPosition = vector(70.f, 0.f, 20.f, 1.f);
 
 //==================================================
@@ -93,34 +90,12 @@ struct PS_OUT
 PS_OUT PS_MAIN(PS_IN In)
 {
     PS_OUT Out;
-    
-    vector vSourMtrlDiffuse = g_DiffuseTexture[0].Sample(DefaultSampler, In.vTexcoord * 30.f);
-    vector vDestMtrlDiffuse = g_DiffuseTexture[1].Sample(DefaultSampler, In.vTexcoord * 30.f);
-    vector vMask = g_MaskTexture.Sample(DefaultSampler, In.vTexcoord);
-    vector vBrush = 0.f;
-
-    float g_fBrushRange = 15.f;
-    //vector g_vBrushPosition = vector(70.f, 0.f, 20.f, 1.f);
-    
-    if (g_vBrushPosition.x - g_fBrushRange < In.vWorldPos.x && In.vWorldPos.x <= g_vBrushPosition.x + g_fBrushRange && 
-        g_vBrushPosition.z - g_fBrushRange < In.vWorldPos.z && In.vWorldPos.z <= g_vBrushPosition.z + g_fBrushRange)
-    {
-        float2 vTexcoord;
-        
-        vTexcoord.x = (In.vWorldPos.x - (g_vBrushPosition.x - g_fBrushRange)) / (2.f * g_fBrushRange);
-        vTexcoord.y = ((g_vBrushPosition.z + g_fBrushRange) - In.vWorldPos.z) / (2.f * g_fBrushRange);
-        
-        vBrush = g_BrushTexture.Sample(DefaultSampler, vTexcoord);
-    }
-    
-    vector vMtrlDiffuse = vDestMtrlDiffuse * vMask + vSourMtrlDiffuse * (1.f - vMask) + vBrush;
-
+    vector vMtrlDiffuse = g_DiffuseTexture.Sample(DefaultSampler, In.vTexcoord * 30.f);
     Out.vDiffuse = vector(vMtrlDiffuse.rgb, 1.f);
     Out.vNormal = vector(In.vNormal.xyz * 0.5f + 0.5f, 1.f);
     Out.vDepth = vector(In.vProjPos.z / In.vProjPos.w, In.vProjPos.w / g_fFar, 0.f, 1.f);
     
     return Out;
-
 }
 
 technique11 DefaultTechnique

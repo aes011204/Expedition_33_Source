@@ -93,11 +93,7 @@ HRESULT Terrain::Bind_ShaderResources()
     if (FAILED(GAME->Bind_CameraFar(_shader, "g_fFar")))
         return E_FAIL;
 
-	if (FAILED(_textures[TEXTURE::Diffuse]->Bind_ShaderResourceViews(_shader.get(), "g_DiffuseTexture")))
-		return E_FAIL;
-	if (FAILED(_textures[TEXTURE::Mask]->Bind_ShaderResourceView(_shader.get(), "g_MaskTexture", 0)))
-		return E_FAIL;
-	if (FAILED(_textures[TEXTURE::Brush]->Bind_ShaderResourceView(_shader.get(), "g_BrushTexture", 0)))
+	if (FAILED(_textures[TEXTURE::Diffuse]->Bind_ShaderResourceView(_shader.get(), "g_DiffuseTexture", 0)))
 		return E_FAIL;
 
 	return S_OK;
