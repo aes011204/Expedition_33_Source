@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Base.h"
 
@@ -21,6 +21,7 @@ public:
 	void Reset();
 
 	const RootMotionFrame& Get_TransformVelocity(int32 rootNodeIndex) const;
+    const char* Get_AnimationName() const { return _animationName; }
 
 public:
 	HRESULT Initialize(const ModelAnimationData& animData, const vector<ModelChannelData>& channels);
@@ -30,6 +31,7 @@ public:
 		const vector<Shared<Bone>>& bones, bool isLoop, int32 rootNodeIndex);
 
 private:
+    char                        _animationName[maxModelNameSize];
 	uint32						_numChannels{};
 	vector<Shared<Channel>>		_channels;
 	vector<uint32>				_currentKeyFrameIndices;
