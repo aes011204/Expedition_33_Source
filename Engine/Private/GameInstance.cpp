@@ -141,9 +141,7 @@ void GameInstance::Update_Engine(float timeDelta)
 
     _physxManager->Update(timeDelta);
 
-    _levelManager->Update(timeDelta);
     _cameraManager->Update(timeDelta);
-
 }
 
 HRESULT GameInstance::Draw()
@@ -151,6 +149,8 @@ HRESULT GameInstance::Draw()
     _renderer->Draw();
 
     _levelManager->Render();
+
+    CHECK_FAILED(Update_Picking(), E_FAIL);
 
 #ifdef _DEBUG
     // Collision Manager

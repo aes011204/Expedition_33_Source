@@ -40,13 +40,23 @@ HRESULT Picking::Update()
     if (!_depthTexture)
         return E_FAIL;
 
+    CHECK_FAILED(GAME->Copy_RT_Resource(L"Target_Depth", _depthTexture.Get()), E_FAIL);
+
     D3D11_MAPPED_SUBRESOURCE subResource{};
     CHECK_FAILED(_context->Map(_depthTexture.Get(), 0, D3D11_MAP_READ, 0, &subResource), E_FAIL);
 
     const uint32 width = GAME->Get_ViewportWidth();
     const uint32 height = GAME->Get_ViewportHeight();
+    const uint8* srcBytes = reinterpret_cast<const uint8*>(subResource.pData);
 
-    memcpy(_depthPixels.data(), subResource.pData, sizeof(Vec4) * width * height);
+    for (uint32 y = 0; y < height; ++y)
+    {
+        const Vec4* srcRow = reinterpret_cast<const Vec4*>(
+            srcBytes + static_cast<size_t>(subResource.RowPitch) * y);
+        Vec4* dstRow = &_depthPixels[static_cast<size_t>(y) * width];
+
+        memcpy(dstRow, srcRow, sizeof(Vec4) * width);
+    }
 
     _context->Unmap(_depthTexture.Get(), 0);
 

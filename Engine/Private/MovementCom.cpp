@@ -7,9 +7,8 @@ IMPLEMENT_REFLECTION(MovementCom)
     auto& info = GetStaticReflectionInfo();
     info.properties.clear();
 
-    PROPERTY_FLOAT("Walk Speed", _moveDesc.walkSpeed, 0.f, 30.f, 0.1f);
-    PROPERTY_FLOAT("Run Speed", _moveDesc.runSpeed, 0.f, 30.f, 0.1f);
-    PROPERTY_FLOAT("Jump Velocity", _moveDesc.jumpVelocity, 0.f, 30.f, 0.1f);
+    PROPERTY_VEC3("뭐라고할건지", _velocity, 10.f);
+
 
     return true;
 }

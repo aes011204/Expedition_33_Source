@@ -314,33 +314,61 @@ void Scene_View::Render_ViewportCanvas()
         _viewportMin = ImGui::GetItemRectMin();
         _viewportMax = ImGui::GetItemRectMax();
 
-        // 프리펩 스폰
+        if (ImGui::BeginDragDropTarget())
         {
-            if (ImGui::BeginDragDropTarget())
-            {
-                if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_PREFAB"))
+                if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(
+                    "CONTENT_BROWSER_PREFAB",
+                    ImGuiDragDropFlags_AcceptBeforeDelivery))
                 {
                     const char* prefabName = static_cast<const char*>(payload->Data);
+                    const float viewportWidth = _viewportMax.x - _viewportMin.x;
+                    const float viewportHeight = _viewportMax.y - _viewportMin.y;
+                    const float depthWidth = static_cast<float>(GAME->Get_ViewportWidth());
+                    const float depthHeight = static_cast<float>(GAME->Get_ViewportHeight());
 
                     POINT pixelPos{};
-                    pixelPos.x = static_cast<LONG>(ImGui::GetMousePos().x - _viewportMin.x);
-                    pixelPos.y = static_cast<LONG>(ImGui::GetMousePos().y - _viewportMin.y);
+                    pixelPos.x = static_cast<LONG>(
+                        (ImGui::GetMousePos().x - _viewportMin.x) *
+                        (depthWidth / max(viewportWidth, 1.f)));
+                    pixelPos.y = static_cast<LONG>(
+                        (ImGui::GetMousePos().y - _viewportMin.y) *
+                        (depthHeight / max(viewportHeight, 1.f)));
 
                     Vec3 worldPos{};
                     if (GAME->Pick_WorldPosition(pixelPos, worldPos))
                     {
-                        worldPos.y += 0.1f;
+                    worldPos.y += 0.1f;
 
-                        Spawn_Prefab::SpawnAt(
+                    DebugBoxDesc previewBox{};
+                    previewBox.center = worldPos;
+                    previewBox.extents = Vec3(0.35f, 0.35f, 0.35f);
+                    previewBox.style.color = Color(0.2f, 0.9f, 0.4f, 1.f);
+                    previewBox.style.duration = 0.f;
+                    previewBox.style.depthEnabled = false;
+                    GAME->Draw_DebugBox(previewBox);
+
+                    ImDrawList* drawList = ImGui::GetWindowDrawList();
+                    const ImVec2 textPos = ImVec2(_viewportMin.x + 12.f, _viewportMin.y + 12.f);
+                    const string previewLabel = "Drop Prefab : " + string(prefabName);
+                    drawList->AddText(textPos, IM_COL32(120, 255, 170, 255), previewLabel.c_str());
+
+                    if (payload->IsDelivery())
+                    {
+                        Shared<GameObject> spawned = Client::Spawn_Prefab::SpawnAt(
                             prefabName,
-                            ETOI(LevelType::GamePlay),
+                            GAME->Current_LevelIndex(),
                             TEXT("Layer_GameObject"),
                             worldPos);
+
+                        if (spawned)
+                        {
+                            EDITOR->Select_Object(spawned);
+                        }
                     }
                 }
-
-                ImGui::EndDragDropTarget();
             }
+
+            ImGui::EndDragDropTarget();
         }
     }
     else
