@@ -4,6 +4,17 @@
 #include "InputCom.h"
 #include "MovementCom.h"
 
+IMPLEMENT_REFLECTION(PlayerControllerCom)
+{
+    auto& info = GetStaticReflectionInfo();
+    info.properties.clear();
+
+    PROPERTY_BOOL("Use Controll Yaw", _bUseControllerRotationYaw);
+    PROPERTY_FLOAT("Test 값", _testRelfectionValue, 0.f, 3.f, 0.05f);
+
+    return true;
+}
+
 PlayerControllerCom::PlayerControllerCom(const ComPtr<Device>& device, const ComPtr<Context>& context)
 	: Component(device, context)
 {

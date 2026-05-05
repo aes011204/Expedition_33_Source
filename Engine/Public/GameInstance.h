@@ -5,6 +5,11 @@
 #include "Prototype_Manager.h"
 #include "TypeRegistry.h"
 #include "Debug_Types.h"
+#include <string_view>
+#include <utility>
+#ifdef _DEBUG
+#include "Print_Manager.h"
+#endif
 
 NS_BEGIN(Engine)
 
@@ -131,9 +136,11 @@ public: /* For.Input_Manager */
 	bool KeyDown(KEY_TYPE eKey) const;
 	bool KeyUp(KEY_TYPE eKey) const;
 
-	Vec2 Get_MouseDelta() const;
-	void Lock_Mouse();
-	void Unlock_Mouse();
+	Vec2  Get_MouseDelta() const;
+    float Get_MouseWheel() const;
+    void  Set_MouseWheel(float mouseWheel);
+	void  Lock_Mouse();
+	void  Unlock_Mouse();
 
     // 입력 차단
     void Set_InputBlocked(bool isBlocked);
@@ -166,7 +173,6 @@ public: /* For.Camera_Manager */
     HRESULT Add_Camera(Shared<Camera> camera) const;
     bool    Is_ActiveCamera(Shared<Camera> camera);
     void    Change_ActiveCamera(Shared<Camera> camera) const;
-    float   Get_FovY();
     void    SwitchTo_NextCamera();
 
     bool    Activate_CameraByType(ObjectType objectType);
@@ -179,7 +185,7 @@ public: /* For.Camera_Manager */
 
     Shared<Camera>  Get_Camera(int index) const;
     Shared<Camera>  Get_ActiveCamera();
-    float   Get_CameraCount();
+    int             Get_CameraCount();
 
 public: /* For.TypeRegistry */
     const TypeRegistry::ComponentTypeInfo*  Find_ComponentType(const string& className) const;
@@ -215,6 +221,22 @@ public: /* For.Debug_Manager */
     HRESULT                 Render_DebugOverlay();
 #endif
 
+public: /* For.Print */
+    template<typename... Args>
+    void Print(std::wstring_view format, Args&&... args)
+    {
+#ifdef _DEBUG
+        if (!_printManager)
+            return;
+
+        _printManager->Print(format, std::forward<Args>(args)...);
+#endif
+    }
+
+    void Clear_Prints();
+    void Clear_Print(const wstring& slot);
+
+
 public: /* 입력 제어 */
     void                    Set_PlayerInputBlocked(bool isBlocked) { _isPlayerInputBlocked = isBlocked; }
     bool                    Is_PlayerInputBlocked() const { return _isPlayerInputBlocked; }
@@ -240,16 +262,19 @@ private:
     Unique<Debug_Manager>       _debugManager{};
     Unique<Collision_Manager>   _collisionManager{};
     Unique<PhysX_Manager>       _physxManager{};
+#ifdef _DEBUG
+    Unique<Print_Manager>       _printManager{};
+#endif
 
 private:
-    uint32 _viewportWidth{ 0 };
-    uint32 _viewportHeight{ 0 };
+    uint32  _viewportWidth{ 0 };
+    uint32  _viewportHeight{ 0 };
 
-    bool _isPlayerInputBlocked = false;
-    bool _isFreeCameraInputEnabled = false;
+    bool    _isPlayerInputBlocked = false;
+    bool    _isFreeCameraInputEnabled = false;
 
     // Free 카메라용 time
-    float _freeCameraTimeDelta = 0.f;
+    float   _freeCameraTimeDelta = 0.f;
     
 #ifdef _DEBUG
 private: //## 디버그 성능 평가용

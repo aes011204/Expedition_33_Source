@@ -1,6 +1,7 @@
 ﻿#include "Scene_View.h"
-#include "Editor_Context.h"
+
 #include "EditorInstance.h"
+#include "Camera.h"
 #include "GameInstance.h"
 #include "GameObject.h"
 #include "RenderTarget.h"
@@ -38,7 +39,6 @@ void Scene_View::Render()
         Render_ViewportCanvas();
         Handle_FocusRequest();
         Render_SelectedObjectGizmo();
-
         Render_GizmoOverlay();
     }
     else
@@ -91,7 +91,7 @@ void Scene_View::Render_GizmoOverlay()
 
     ImDrawList* drawList = ImGui::GetWindowDrawList();
 
-    const ImVec2 panelSize = ImVec2(232.f, 34.f);
+    const ImVec2 panelSize = ImVec2(360.f, 34.f);
     const ImVec2 panelMin = ImVec2(_viewportMax.x - panelSize.x - 16.f, _viewportMin.y + 16.f);
     const ImVec2 panelMax = ImVec2(panelMin.x + panelSize.x, panelMin.y + panelSize.y);
 
@@ -104,11 +104,46 @@ void Scene_View::Render_GizmoOverlay()
     const ImVec4 activeButtonColor = ImVec4(0.79f, 0.56f, 0.18f, 1.f);
     const ImVec4 activeHoveredColor = ImVec4(0.88f, 0.64f, 0.23f, 1.f);
     const ImVec4 activeTextColor = ImVec4(0.09f, 0.09f, 0.09f, 1.f);
+
     const bool isTranslate = (_gizmoOperation == ImGuizmo::TRANSLATE);
     const bool isRotate = (_gizmoOperation == ImGuizmo::ROTATE);
     const bool isScale = (_gizmoOperation == ImGuizmo::SCALE);
     const bool isLocal = (_gizmoMode == ImGuizmo::LOCAL);
     const bool isWorld = (_gizmoMode == ImGuizmo::WORLD);
+
+    Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
+    const bool isFreeCamera =
+        activeCamera && activeCamera->Get_ObjectType() == ObjectType::FreeCamera;
+
+    if (!isFreeCamera)
+        ImGui::BeginDisabled();
+
+    ImGui::TextUnformatted("Speed");
+    ImGui::SameLine();
+
+    if (isFreeCamera)
+    {
+        Shared<TransformCom> transform = activeCamera->Get_Transform();
+        float speed = transform ? transform->Get_SpeedPerSec() : 0.f;
+
+        ImGui::SetNextItemWidth(78.f);
+        if (ImGui::DragFloat("##FreeCameraSpeed", &speed, 0.1f, 0.1f, 200.f, "%.2f"))
+        {
+            if (transform)
+                transform->Set_SpeedPerSec(speed);
+        }
+    }
+    else
+    {
+        ImGui::SetNextItemWidth(78.f);
+        float dummySpeed = 0.f;
+        ImGui::DragFloat("##FreeCameraSpeed", &dummySpeed, 0.f, 0.f, 0.f, "N/A");
+    }
+
+    if (!isFreeCamera)
+        ImGui::EndDisabled();
+
+    ImGui::SameLine(0.f, 10.f);
 
     if (isTranslate)
     {
@@ -122,6 +157,7 @@ void Scene_View::Render_GizmoOverlay()
         ImGui::PopStyleColor(3);
 
     ImGui::SameLine();
+
     if (isRotate)
     {
         ImGui::PushStyleColor(ImGuiCol_Button, activeButtonColor);
@@ -134,6 +170,7 @@ void Scene_View::Render_GizmoOverlay()
         ImGui::PopStyleColor(3);
 
     ImGui::SameLine();
+
     if (isScale)
     {
         ImGui::PushStyleColor(ImGuiCol_Button, activeButtonColor);
@@ -146,6 +183,7 @@ void Scene_View::Render_GizmoOverlay()
         ImGui::PopStyleColor(3);
 
     ImGui::SameLine(0.f, 8.f);
+
     if (isLocal)
     {
         ImGui::PushStyleColor(ImGuiCol_Button, activeButtonColor);
@@ -158,6 +196,7 @@ void Scene_View::Render_GizmoOverlay()
         ImGui::PopStyleColor(3);
 
     ImGui::SameLine();
+
     if (isWorld)
     {
         ImGui::PushStyleColor(ImGuiCol_Button, activeButtonColor);
@@ -217,11 +256,7 @@ void Scene_View::Render_ViewportCanvas()
 
 void Scene_View::Handle_FocusRequest()
 {
-    Editor_Context* context = EDITOR->Get_Context();
-    if (context == nullptr)
-        return;
-
-    Shared<GameObject> targetObject = context->Consume_FocusObjectRequest();
+    Shared<GameObject> targetObject = EDITOR->Consume_FocusObjectRequest();
     if (targetObject == nullptr)
         return;
 
@@ -235,11 +270,7 @@ void Scene_View::Handle_FocusRequest()
 
 void Scene_View::Render_SelectedObjectGizmo()
 {
-    Editor_Context* context = EDITOR->Get_Context();
-    if (context == nullptr)
-        return;
-
-    Shared<GameObject> selectedObject = context->Get_Selection().selectedObject;
+    Shared<GameObject> selectedObject = EDITOR->Selected_Object();
     if (selectedObject == nullptr)
         return;
 

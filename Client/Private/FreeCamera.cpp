@@ -55,7 +55,27 @@ void FreeCamera::Priority_Update(float timeDelta)
     if (!GAME->KeyPress(KEY_TYPE::RBUTTON))
         return;
 
-    //TODO movespeed 만들고 그거 기준으로 이동할 수 있도록
+    float wheelDelta = GAME->Get_MouseWheel();
+
+    if(GAME->KeyPress(KEY_TYPE::CTRL) && wheelDelta != 0.f)
+    {
+        _moveSpeed = _transformCom->Get_SpeedPerSec();
+
+        int step = 2.f;
+
+        if(wheelDelta > 0.f)
+        {
+            _moveSpeed += step;
+        }
+        else
+        {
+            _moveSpeed -= step;
+        }
+
+        clamp(_moveSpeed, 0, 100);
+
+        _transformCom->Set_SpeedPerSec(_moveSpeed);
+    }
 
     const float cameraDelta = max(timeDelta, GAME->Get_FreeCameraTimeDelta());
 
