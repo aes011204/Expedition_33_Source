@@ -204,11 +204,6 @@
     <ClInclude Include="..\Public\Target_Manager.h">
       <Filter>97. Manager</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\MovementCom.h" />
-    <ClInclude Include="..\Public\Character.h" />
-    <ClInclude Include="..\Public\Reflection_Types.h" />
-    <ClInclude Include="..\Public\TypeRegistry.h" />
-    <ClInclude Include="..\Public\RegistorFactory.h" />
     <ClInclude Include="..\Public\Shadow.h">
       <Filter>01.Utility\07.Lights</Filter>
     </ClInclude>
@@ -243,9 +238,6 @@
     </ClInclude>
     <ClInclude Include="..\Public\Collision_Define.h">
       <Filter>99. Defines</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\Base.h">
-      <Filter>01.Utility\99.SuperClass</Filter>
     </ClInclude>
     <ClInclude Include="..\public\GameInstance.h">
       <Filter>01.Utility\00.GameInstance</Filter>
@@ -466,14 +458,18 @@
     <ClInclude Include="..\Public\PhysX_Manager.h">
       <Filter>97. Manager\PhysX</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\Particle_Types.h" />
+    <ClInclude Include="..\Public\Particle_Types.h">
+      <Filter>99. Defines</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\VIBufferCom_Instance.h">
       <Filter>01.Utility\04.Component\VIBuffer\Instance</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\VIBufferCom_PointParticle.h">
       <Filter>01.Utility\04.Component\VIBuffer\Instance\Particle</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\Print_Manager.h" />
+    <ClInclude Include="..\Public\Print_Manager.h">
+      <Filter>97. Manager</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -638,17 +634,12 @@
     <ClCompile Include="..\Private\SimpleMath.cpp">
       <Filter>99. Defines</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\RenderTarget.cpp" />
-    <ClCompile Include="..\Private\Log_Manager.cpp" />
     <ClCompile Include="..\Private\Target_Manager.cpp">
       <Filter>97. Manager</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\MovementCom.cpp" />
-    <ClCompile Include="..\Private\Character.cpp" />
-    <ClCompile Include="..\Private\TypeRegistry.cpp" />
-    <ClCompile Include="..\Private\RegistorFactory.cpp" />
     <ClCompile Include="..\Private\Shadow.cpp">
       <Filter>01.Utility\07.Lights</Filter>
+    </ClCompile>
     <ClCompile Include="..\private\Prototype_Manager.cpp">
       <Filter>01.Utility\02. Prototype</Filter>
     </ClCompile>
@@ -706,7 +697,9 @@
     <ClCompile Include="..\Private\VIBufferCom_PointParticle.cpp">
       <Filter>01.Utility\04.Component\VIBuffer\Instance\Particle</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\Print_Manager.cpp" />
+    <ClCompile Include="..\Private\Print_Manager.cpp">
+      <Filter>97. Manager</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Bin\ShaderFiles\Engine_Shader_Defines.hlsli">

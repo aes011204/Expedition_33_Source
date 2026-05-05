@@ -131,7 +131,6 @@ void GameInstance::Update_Engine(float timeDelta)
 
     _physxManager->Update(timeDelta);
 
-    _levelManager->Update(timeDelta);
     _cameraManager->Update(timeDelta);
 
 }
