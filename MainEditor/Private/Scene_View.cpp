@@ -1,6 +1,7 @@
 ﻿#include "Scene_View.h"
 
 #include "EditorInstance.h"
+#include "Camera.h"
 #include "GameInstance.h"
 #include "GameObject.h"
 #include "RenderTarget.h"
@@ -34,7 +35,10 @@ void Scene_View::Render()
         Set_Open(isOpen);
         ImGuizmo::BeginFrame();
         ImGuizmo::SetDrawlist(ImGui::GetWindowDrawList());
+        
+        Render_MRTDebugPopup();
 
+        ImGui::Separator();
         Render_ViewportCanvas();
         Handle_FocusRequest();
         Render_SelectedObjectGizmo();
@@ -90,7 +94,7 @@ void Scene_View::Render_GizmoOverlay()
 
     ImDrawList* drawList = ImGui::GetWindowDrawList();
 
-    const ImVec2 panelSize = ImVec2(232.f, 34.f);
+    const ImVec2 panelSize = ImVec2(360.f, 34.f);
     const ImVec2 panelMin = ImVec2(_viewportMax.x - panelSize.x - 16.f, _viewportMin.y + 16.f);
     const ImVec2 panelMax = ImVec2(panelMin.x + panelSize.x, panelMin.y + panelSize.y);
 
@@ -109,6 +113,40 @@ void Scene_View::Render_GizmoOverlay()
     const bool isScale = (_gizmoOperation == ImGuizmo::SCALE);
     const bool isLocal = (_gizmoMode == ImGuizmo::LOCAL);
     const bool isWorld = (_gizmoMode == ImGuizmo::WORLD);
+
+    Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
+    const bool isFreeCamera =
+        activeCamera && activeCamera->Get_ObjectType() == ObjectType::FreeCamera;
+
+    if (!isFreeCamera)
+        ImGui::BeginDisabled();
+
+    ImGui::TextUnformatted("Speed");
+    ImGui::SameLine();
+
+    if (isFreeCamera)
+    {
+        Shared<TransformCom> transform = activeCamera->Get_Transform();
+        float speed = transform ? transform->Get_SpeedPerSec() : 0.f;
+
+        ImGui::SetNextItemWidth(78.f);
+        if (ImGui::DragFloat("##FreeCameraSpeed", &speed, 0.1f, 0.1f, 200.f, "%.2f"))
+        {
+            if (transform)
+                transform->Set_SpeedPerSec(speed);
+        }
+    }
+    else
+    {
+        ImGui::SetNextItemWidth(78.f);
+        float dummySpeed = 0.f;
+        ImGui::DragFloat("##FreeCameraSpeed", &dummySpeed, 0.f, 0.f, 0.f, "N/A");
+    }
+
+    if (!isFreeCamera)
+        ImGui::EndDisabled();
+
+    ImGui::SameLine(0.f, 10.f);
 
     if (isTranslate)
     {
@@ -176,6 +214,67 @@ void Scene_View::Render_GizmoOverlay()
     ImGui::PopStyleVar();
 }
 
+void Scene_View::Render_MRTDebugPopup()
+{
+#ifdef _DEBUG
+    const ImGuiStyle& style = ImGui::GetStyle();
+    const float buttonWidth = ImGui::CalcTextSize("MRT").x + style.FramePadding.x * 2.f;
+    const float buttonPosX = ImGui::GetContentRegionMax().x - buttonWidth;
+
+    ImGui::SameLine();
+    if (buttonPosX > ImGui::GetCursorPosX())
+        ImGui::SetCursorPosX(buttonPosX);
+
+    if (ImGui::Button("MRT"))
+        ImGui::OpenPopup("SceneMRTDebugPopup");
+
+    const auto& rtStates = GAME->Get_RTs();
+
+    if (!ImGui::BeginPopup("SceneMRTDebugPopup"))
+        return;
+
+    if (rtStates.empty())
+    {
+        ImGui::TextDisabled("No RT");
+        ImGui::EndPopup();
+        return;
+    }
+
+    bool isAllDisplayed = true;
+    for (const auto& [_, isVisible] : rtStates)
+        isAllDisplayed = isAllDisplayed && isVisible;
+
+    if (ImGui::Checkbox("Display", &isAllDisplayed))
+        GAME->Display_AllRTs(isAllDisplayed);
+
+    if (ImGui::DragFloat2("Size", &_mrtDebugDrawArea.x, 1.f, 1.f, 4096.f, "%.0f"))
+    {
+        _mrtDebugDrawArea.x = max(_mrtDebugDrawArea.x, 1.f);
+        _mrtDebugDrawArea.y = max(_mrtDebugDrawArea.y, 1.f);
+        GAME->Resize_DrawArea(_mrtDebugDrawArea.x, _mrtDebugDrawArea.y);
+    }
+
+    ImGui::Separator();
+
+    for (const auto& [targetTag, isVisible] : rtStates)
+    {
+        bool isDisplayed = isVisible;
+        const string label = String::ToString(targetTag);
+
+        ImGui::PushID(label.c_str());
+        if (ImGui::Checkbox("##Display", &isDisplayed))
+            GAME->Display_RT(targetTag, isDisplayed);
+        ImGui::SameLine();
+        ImGui::TextUnformatted(label.c_str());
+        ImGui::PopID();
+    }
+
+    ImGui::EndPopup();
+#else
+    (void)0;
+#endif
+}
+
 void Scene_View::Render_ViewportCanvas()
 {
     _viewportSize = ImGui::GetContentRegionAvail();
@@ -184,6 +283,15 @@ void Scene_View::Render_ViewportCanvas()
         _viewportSize.x = 1.f;
     if (_viewportSize.y < 1.f)
         _viewportSize.y = 1.f;
+
+#ifdef _DEBUG
+    if (!_mrtDebugInitialized)
+    {
+        _mrtDebugDrawArea = _viewportSize;
+        GAME->Resize_DrawArea(_mrtDebugDrawArea.x, _mrtDebugDrawArea.y);
+        _mrtDebugInitialized = true;
+    }
+#endif
 
     const uint32 width = static_cast<uint32>(_viewportSize.x);
     const uint32 height = static_cast<uint32>(_viewportSize.y);

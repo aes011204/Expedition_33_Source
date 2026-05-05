@@ -24,8 +24,6 @@ HRESULT Input_Manager::Initialize(HWND hWnd)
 
 void Input_Manager::Update(float timeDelta)
 {
-	_mouseWheelDelta = 0.f;
-
 	if (_isInputBlocked)
 	{
 		Reset();
@@ -107,6 +105,15 @@ bool Input_Manager::KeyDown(KEY_TYPE key) const
 bool Input_Manager::KeyUp(KEY_TYPE key) const
 {
 	return KEY_STATE::UP == Get_State(key);
+}
+
+float Input_Manager::Get_MouseWheel()
+{
+    float mouseWheel =_mouseWheelDelta;
+
+    _mouseWheelDelta = 0.f;
+
+    return mouseWheel;
 }
 
 void Input_Manager::Lock_Mouse()

@@ -193,6 +193,7 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\Private\Action_Command.cpp" />
+    <ClCompile Include="..\private\BT_Tool.cpp" />
     <ClCompile Include="..\private\Camera_Tool.cpp" />
     <ClCompile Include="..\Private\CommandHistory.cpp" />
     <ClCompile Include="..\Private\Component_Inspector.cpp" />
@@ -211,6 +212,7 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     <ClCompile Include="..\Private\EditorInstance.cpp" />
     <ClCompile Include="..\Private\Editor_Window.cpp" />
     <ClCompile Include="..\Private\Editor_Manager.cpp" />
+    <ClCompile Include="..\Private\Profile_View.cpp" />
     <ClCompile Include="..\Private\Scene_View.cpp" />
     <ClCompile Include="..\Private\Game_View.cpp" />
     <ClCompile Include="..\Private\Hierarchy_View.cpp" />
@@ -219,6 +221,7 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Public\Action_Command.h" />
+    <ClInclude Include="..\public\BT_Tool.h" />
     <ClInclude Include="..\public\Camera_Tool.h" />
     <ClInclude Include="..\Public\CommandHistory.h" />
     <ClInclude Include="..\Public\Component_Inspector.h" />
@@ -239,6 +242,7 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     <ClInclude Include="..\Public\IconsFontAwesome6.h" />
     <ClInclude Include="..\Public\Editor_ImGuiInclude.h" />
     <ClInclude Include="..\Public\Editor_Manager.h" />
+    <ClInclude Include="..\Public\Profile_View.h" />
     <ClInclude Include="..\Public\Scene_View.h" />
     <ClInclude Include="..\Public\Game_View.h" />
     <ClInclude Include="..\Public\Hierarchy_View.h" />
