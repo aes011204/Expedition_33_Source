@@ -58,6 +58,9 @@
     <Filter Include="04. Panel\PanelSnap">
       <UniqueIdentifier>{4bf626b2-c014-4114-a198-3a770aeee972}</UniqueIdentifier>
     </Filter>
+    <Filter Include="06. EditorUtil\EditorObject">
+      <UniqueIdentifier>{2acc9088-99a7-448c-ad29-703d01bcc2a6}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="targetver.h">
@@ -105,9 +108,6 @@
     <ClInclude Include="..\Public\MECamera.h">
       <Filter>05. Camera</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\EditorObject.h">
-      <Filter>06. EditorUtil</Filter>
-    </ClInclude>
     <ClInclude Include="..\Public\MEStaticMeshActor.h">
       <Filter>07. MEStatic</Filter>
     </ClInclude>
@@ -119,6 +119,9 @@
     </ClInclude>
     <ClInclude Include="..\Public\PanelSnap.h">
       <Filter>04. Panel\PanelSnap</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\EditorObject.h">
+      <Filter>06. EditorUtil\EditorObject</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -182,6 +185,9 @@
     </ClCompile>
     <ClCompile Include="..\Private\PanelSnap.cpp">
       <Filter>04. Panel\PanelSnap</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\EditorObject.cpp">
+      <Filter>06. EditorUtil\EditorObject</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

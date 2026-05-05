@@ -72,6 +72,11 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <OutDir>..\Bin\$(Configuration)\</OutDir>
+    <IntDir>x64\$(Configuration)\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <OutDir>..\Bin\$(Configuration)\</OutDir>
+    <IntDir>x64\$(Configuration)\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -168,6 +173,7 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\Private\EditorObject.cpp" />
     <ClCompile Include="..\Private\MapEditorApp.cpp" />
     <ClCompile Include="..\Private\MECamera.cpp" />
     <ClCompile Include="..\Private\MEImGuiManager.cpp" />

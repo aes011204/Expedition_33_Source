@@ -3,6 +3,8 @@
 
 NS_BEGIN(MapEditor)
 
+class MEStaticMeshActor;
+
 struct EditorObject
 {
     wstring _name = L"Object";
@@ -35,6 +37,9 @@ struct EditorObject
     Vec4 _lightSpecular = { 1.f, 1.f, 1.f, 1.f };
     Vec4 _lightDirection = { 0.f, -1.f, 0.f, 0.f };
     float _lightRange = 10.f;
+
+    Shared<MEStaticMeshActor> _renderHandle;
+    bool _renderHandleLoaded = false;
 
     void UpdateWorldMatrix()
     {

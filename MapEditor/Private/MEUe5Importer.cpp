@@ -122,11 +122,17 @@ void MEUe5Importer::Import(const string& filePath, SceneContext& ctx, bool appen
         return;
     }
 
+    fs::path fsPath(filePath);
+    wstring mapName = fsPath.stem().wstring();
+
     if (!append)
     {
         ctx._objects.clear();
         ctx._selected = nullptr;
+        ctx._mapName = mapName;
     }
+
+    wstring mapFolder = L"../../../Client/Bin/Resources/Map/" + mapName + L"/";
 
     if (!root.is_array())
     {
@@ -155,6 +161,7 @@ void MEUe5Importer::Import(const string& filePath, SceneContext& ctx, bool appen
                 auto obj = ParseInstanced(comp, index++);
                 if (obj)
                 {
+                    obj->_modelPath = mapFolder + obj->_modelPath + L".model";
                     ctx.Add(obj);
                 }
             }
@@ -164,6 +171,7 @@ void MEUe5Importer::Import(const string& filePath, SceneContext& ctx, bool appen
             auto obj = ParseSingle(comp);
             if (obj)
             {
+                obj->_modelPath = mapFolder + obj->_modelPath + L".model";
                 ctx.Add(obj);
             }
         }

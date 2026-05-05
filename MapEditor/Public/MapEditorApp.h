@@ -6,6 +6,7 @@
 
 NS_BEGIN(Engine)
 class RenderTarget;
+class ShaderCom;
 NS_END
 
 NS_BEGIN(MapEditor)
@@ -38,10 +39,14 @@ private:
     Shared<RenderTarget> _rt;
     Shared<PanelViewport> _viewport;
 
+    Shared<ShaderCom> _meshShader;
+
     SceneContext _scene;
 
 private:
     void DrawSceneDebug();
+
+    void UpdateRenderHandles();
 
 public:
     static Unique<MapEditorApp> Create();

@@ -7,6 +7,7 @@
 #include "MEManager.h"
 #include "MECamera.h"
 #include "PanelViewport.h"
+#include "MEStaticMeshActor.h"
 
 
 extern HWND g_hWnd;
@@ -17,7 +18,7 @@ MapEditorApp::~MapEditorApp()
 
 }
 
-HRESULT MapEditor::MapEditorApp::Initialize()
+HRESULT MapEditorApp::Initialize()
 {
     ENGINE_DESC desc{};
     desc.hInstance = g_hInst;
@@ -38,6 +39,10 @@ HRESULT MapEditor::MapEditorApp::Initialize()
     _rt = RenderTarget::Create(_device, _context, g_iWinSizeX, g_iWinSizeY, DXGI_FORMAT_R8G8B8A8_UNORM, Vec4(0.1f, 0.1f, 0.1f, 1.f));
     CHECK_NULL(_rt, E_FAIL);
 
+    _meshShader = ShaderCom::Create(_device, _context,
+        L"../../../Client/Bin/ShaderFiles/Shader_VtxMesh.hlsl",
+        VTXMESH::Elements, VTXMESH::numElements);
+    CHECK_NULL(_meshShader, E_FAIL);
 
     _viewport = PanelViewport::Create(_camera, _rt, &_scene);
     CHECK_NULL(_viewport, E_FAIL);
@@ -48,19 +53,20 @@ HRESULT MapEditor::MapEditorApp::Initialize()
     return S_OK;
 }
 
-void MapEditor::MapEditorApp::Priority_Update(float timeDelta)
+void MapEditorApp::Priority_Update(float timeDelta)
 {
     UNREFERENCED_PARAMETER(timeDelta);
 }
 
-void MapEditor::MapEditorApp::Update(float timeDelta)
+void MapEditorApp::Update(float timeDelta)
 {
     GAME->Update_Engine(timeDelta);
     _imguiManager->Update(timeDelta);
     _manager->Update(timeDelta);
+    UpdateRenderHandles();
 }
 
-void MapEditor::MapEditorApp::Late_Update(float timeDelta)
+void MapEditorApp::Late_Update(float timeDelta)
 {
     UNREFERENCED_PARAMETER(timeDelta);
 }
@@ -72,7 +78,8 @@ HRESULT MapEditor::MapEditorApp::Render()
     CHECK_FAILED(_rt->Begin(), E_FAIL);
     DrawSceneDebug();
 
-    CHECK_FAILED(GAME->Draw(), E_FAIL);
+    GAME->Render_DebugDepth();
+    GAME->Render_DebugOverlay();
     GAME->Bind_BackBuffer();
 
     CHECK_FAILED(GAME->Clear_Buffers(Vec4(0.1f, 0.1f, 0.1f, 1.f)), E_FAIL);
@@ -171,13 +178,50 @@ void MapEditorApp::DrawSceneDebug()
             break;
         }
 
+        case EObjectType::StaticMesh:
+            if (obj->_renderHandle)
+            {
+                obj->_renderHandle->Render(obj->_worldMatrix);
+            }
+            break;
+
         default:
             break;
         }
     }
 }
 
-Unique<MapEditor::MapEditorApp> MapEditor::MapEditorApp::Create()
+void MapEditorApp::UpdateRenderHandles()
+{
+    if (!_scene._dirtyRenderHandles || !_meshShader)
+    {
+        return;
+    }
+    _scene._dirtyRenderHandles = false;
+
+    for (auto& obj : _scene._objects)
+    {
+        if (obj->_type != EObjectType::StaticMesh)
+        {
+            continue;
+        }
+
+        if (obj->_renderHandleLoaded)
+        {
+            continue;
+        }
+
+        obj->_renderHandleLoaded = true;
+        if (obj->_modelPath.empty())
+        {
+            continue;
+        }
+
+        obj->_renderHandle = MEStaticMeshActor::Create(_device, _context, obj->_modelPath, _meshShader);
+    }
+}
+
+Unique<MapEditorApp> MapEditorApp::Create()
 {
     Unique<MapEditorApp> instance{ new MapEditorApp() };
 
@@ -191,7 +235,7 @@ Unique<MapEditor::MapEditorApp> MapEditor::MapEditorApp::Create()
     return instance;
 }
 
-void MapEditor::MapEditorApp::Free()
+void MapEditorApp::Free()
 {
     __super::Free();
 
