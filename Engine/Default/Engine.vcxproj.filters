@@ -422,6 +422,7 @@
     <ClInclude Include="..\Public\VIBufferCom_PointParticle.h">
       <Filter>01.Utility\04.Component\VIBuffer\Instance\Particle</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\Print_Manager.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -612,6 +613,7 @@
     <ClCompile Include="..\Private\VIBufferCom_PointParticle.cpp">
       <Filter>01.Utility\04.Component\VIBuffer\Instance\Particle</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\Print_Manager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Bin\ShaderFiles\Engine_Shader_Defines.hlsli">

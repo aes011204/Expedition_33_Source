@@ -43,13 +43,13 @@ HRESULT PhysX_Manager::Initialize()
 
 void PhysX_Manager::Update(float timeDelta)
 {
-    if (!_scene)
+    if (!_scene || timeDelta <= 0.f)
     {
         return;
     }
 
-    _scene->simulate(timeDelta);
-    _scene->fetchResults(true);
+    if (_scene->simulate(timeDelta))
+        _scene->fetchResults(true);
 }
 
 Unique<PhysX_Manager> PhysX_Manager::Create()

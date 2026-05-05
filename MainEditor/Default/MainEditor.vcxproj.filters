@@ -61,6 +61,9 @@
     <ClCompile Include="..\private\Camera_Tool.cpp">
       <Filter>01. View</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\Component_Inspector.cpp" />
+    <ClCompile Include="..\Private\Transform_Inspector.cpp" />
+    <ClCompile Include="..\Private\Inspector_Factory.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -135,6 +138,9 @@
     <ClInclude Include="..\public\Camera_Tool.h">
       <Filter>01. View</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\Component_Inspector.h" />
+    <ClInclude Include="..\Public\Transform_Inspector.h" />
+    <ClInclude Include="..\Public\Inspector_Factory.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="00. Main">

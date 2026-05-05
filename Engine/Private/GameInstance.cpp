@@ -12,6 +12,9 @@
 #include "Log_Manager.h"
 #include "Object_Manager.h"
 #include "PipeLine.h"
+#ifdef _DEBUG
+#include "Print_Manager.h"
+#endif
 #include "Prototype_Manager.h"
 #include "RegistorFactory.h"
 #include "Renderer.h"
@@ -98,6 +101,11 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
     _physxManager = PhysX_Manager::Create();
     CHECK_NULL(_physxManager, E_FAIL);
 
+#ifdef _DEBUG
+    _printManager = Print_Manager::Create();
+    CHECK_NULL(_printManager, E_FAIL);
+#endif
+
     return S_OK;
 }
 
@@ -105,6 +113,9 @@ void GameInstance::Update_Engine(float timeDelta)
 {
     _debugManager->Update(timeDelta);
     _inputManager->Update(timeDelta);
+#ifdef _DEBUG
+    _printManager->Update(timeDelta);
+#endif
 
     _levelManager->Update(timeDelta);
 
@@ -142,6 +153,8 @@ HRESULT GameInstance::Draw()
         _debugManager->Render_Depth();
         _debugManager->Render_Overlay();
     }
+
+    _printManager->Render();
 #endif    
 
 #ifdef _DEBUG
@@ -747,6 +760,20 @@ HRESULT GameInstance::Render_DebugOverlay()
     return _debugManager->Render_Overlay();
 }
 
+void GameInstance::Clear_Prints()
+{
+#ifdef _DEBUG
+    _printManager->Clear();
+#endif
+}
+
+void GameInstance::Clear_Print(const wstring& slot)
+{
+#ifdef _DEBUG
+    _printManager->Clear(slot);
+#endif
+}
+
 void GameInstance::Release_Engine()
 {
     auto ReleaseManager = [](auto& manager)
@@ -761,7 +788,12 @@ void GameInstance::Release_Engine()
     ReleaseManager(_debugManager);
     ReleaseManager(_cameraManager);
     ReleaseManager(_assetManager);
+
+#ifdef _DEBUG
+    ReleaseManager(_printManager);
+#endif
     ReleaseManager(_fontManager);
+
     ReleaseManager(_lightManager);
     ReleaseManager(_inputManager);
     ReleaseManager(_collisionManager);

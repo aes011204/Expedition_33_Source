@@ -1,5 +1,5 @@
 ﻿#include "Scene_View.h"
-#include "Editor_Context.h"
+
 #include "EditorInstance.h"
 #include "GameInstance.h"
 #include "GameObject.h"
@@ -41,7 +41,6 @@ void Scene_View::Render()
         Render_ViewportCanvas();
         Handle_FocusRequest();
         Render_SelectedObjectGizmo();
-
         Render_GizmoOverlay();
     }
     else
@@ -107,6 +106,7 @@ void Scene_View::Render_GizmoOverlay()
     const ImVec4 activeButtonColor = ImVec4(0.79f, 0.56f, 0.18f, 1.f);
     const ImVec4 activeHoveredColor = ImVec4(0.88f, 0.64f, 0.23f, 1.f);
     const ImVec4 activeTextColor = ImVec4(0.09f, 0.09f, 0.09f, 1.f);
+
     const bool isTranslate = (_gizmoOperation == ImGuizmo::TRANSLATE);
     const bool isRotate = (_gizmoOperation == ImGuizmo::ROTATE);
     const bool isScale = (_gizmoOperation == ImGuizmo::SCALE);
@@ -125,6 +125,7 @@ void Scene_View::Render_GizmoOverlay()
         ImGui::PopStyleColor(3);
 
     ImGui::SameLine();
+
     if (isRotate)
     {
         ImGui::PushStyleColor(ImGuiCol_Button, activeButtonColor);
@@ -137,6 +138,7 @@ void Scene_View::Render_GizmoOverlay()
         ImGui::PopStyleColor(3);
 
     ImGui::SameLine();
+
     if (isScale)
     {
         ImGui::PushStyleColor(ImGuiCol_Button, activeButtonColor);
@@ -149,6 +151,7 @@ void Scene_View::Render_GizmoOverlay()
         ImGui::PopStyleColor(3);
 
     ImGui::SameLine(0.f, 8.f);
+
     if (isLocal)
     {
         ImGui::PushStyleColor(ImGuiCol_Button, activeButtonColor);
@@ -161,6 +164,7 @@ void Scene_View::Render_GizmoOverlay()
         ImGui::PopStyleColor(3);
 
     ImGui::SameLine();
+
     if (isWorld)
     {
         ImGui::PushStyleColor(ImGuiCol_Button, activeButtonColor);
@@ -290,11 +294,7 @@ void Scene_View::Render_ViewportCanvas()
 
 void Scene_View::Handle_FocusRequest()
 {
-    Editor_Context* context = EDITOR->Get_Context();
-    if (context == nullptr)
-        return;
-
-    Shared<GameObject> targetObject = context->Consume_FocusObjectRequest();
+    Shared<GameObject> targetObject = EDITOR->Consume_FocusObjectRequest();
     if (targetObject == nullptr)
         return;
 
@@ -308,11 +308,7 @@ void Scene_View::Handle_FocusRequest()
 
 void Scene_View::Render_SelectedObjectGizmo()
 {
-    Editor_Context* context = EDITOR->Get_Context();
-    if (context == nullptr)
-        return;
-
-    Shared<GameObject> selectedObject = context->Get_Selection().selectedObject;
+    Shared<GameObject> selectedObject = EDITOR->Selected_Object();
     if (selectedObject == nullptr)
         return;
 

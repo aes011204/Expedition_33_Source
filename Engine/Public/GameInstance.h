@@ -5,6 +5,11 @@
 #include "Prototype_Manager.h"
 #include "TypeRegistry.h"
 #include "Debug_Types.h"
+#include <string_view>
+#include <utility>
+#ifdef _DEBUG
+#include "Print_Manager.h"
+#endif
 
 NS_BEGIN(Engine)
 
@@ -252,6 +257,22 @@ public: /* For.Debug_Manager */
     HRESULT                 Render_DebugOverlay();
 #endif
 
+public: /* For.Print */
+    template<typename... Args>
+    void Print(std::wstring_view format, Args&&... args)
+    {
+#ifdef _DEBUG
+        if (!_printManager)
+            return;
+
+        _printManager->Print(format, std::forward<Args>(args)...);
+#endif
+    }
+
+    void Clear_Prints();
+    void Clear_Print(const wstring& slot);
+
+
 public: /* 입력 제어 */
     void                    Set_PlayerInputBlocked(bool isBlocked) { _isPlayerInputBlocked = isBlocked; }
     bool                    Is_PlayerInputBlocked() const { return _isPlayerInputBlocked; }
@@ -279,16 +300,19 @@ private:
     Unique<Collision_Manager>   _collisionManager{};
     Unique<Shadow>              _shadow{};
     Unique<PhysX_Manager>       _physxManager{};
+#ifdef _DEBUG
+    Unique<Print_Manager>       _printManager{};
+#endif
 
 private:
-    uint32 _viewportWidth{ 0 };
-    uint32 _viewportHeight{ 0 };
+    uint32  _viewportWidth{ 0 };
+    uint32  _viewportHeight{ 0 };
 
-    bool _isPlayerInputBlocked = false;
-    bool _isFreeCameraInputEnabled = false;
+    bool    _isPlayerInputBlocked = false;
+    bool    _isFreeCameraInputEnabled = false;
 
     // Free 카메라용 time
-    float _freeCameraTimeDelta = 0.f;
+    float   _freeCameraTimeDelta = 0.f;
     
 #ifdef _DEBUG
 private: //## 디버그 성능 평가용
