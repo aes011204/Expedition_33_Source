@@ -63,6 +63,11 @@ void MovementCom::Update_Movement(float timeDelta)
     Resolve_Ground();
 }
 
+bool MovementCom::Is_Moving() const
+{
+    return _input.moveX != 0.f || _input.moveZ != 0.f;
+}
+
 void MovementCom::Force_SetGroundY(float groundY)
 {
     _moveDesc.groundY = groundY;
@@ -111,15 +116,49 @@ void MovementCom::Start_Jump()
 
 void MovementCom::Update_Rotation(float timeDelta)
 {
-    if (_input.turnAxis == 0.f)
+    // y값은 제거
+    Vec3 desiredDir(_input.moveX, 0.f, _input.moveZ);
+    if (desiredDir.LengthSquared() <= 0.f)
         return;
 
-    _transformCom->Set_DegreePerSec(_moveDesc.turnSpeedDegree);
-    _transformCom->Turn(Vec3::Up, timeDelta * _input.turnAxis);
+    desiredDir.Normalize();
+
+    Vec3 forward = _transformCom->Get_WorldForward();
+    forward.y = 0.f;
+
+    if (forward.LengthSquared() > 0.f)
+        forward.Normalize();
+    else
+        forward = Vec3::Forward;
+
+    float dot = forward.Dot(desiredDir);
+    dot = std::clamp(dot, -1.f, 1.f);
+
+    float angle = acosf(dot);
+    if (angle <= 0.0001f)
+        return;
+
+    Vec3 cross = forward.Cross(desiredDir);
+    float sign = (cross.y >= 0.f) ? 1.f : -1.f;
+
+    const float maxStep = XMConvertToRadians(_moveDesc.turnSpeedDegree) * timeDelta;
+    const float step = min(angle, maxStep); // -> 라디안값
+
+    Quat deltaRotation = Quat::CreateFromAxisAngle(Vec3::Up, step * sign);
+    _transformCom->Add_LocalRotation(deltaRotation);
 }
 
 void MovementCom::Update_HorizontalVelocity()
 {
+    Vec3 desiredDir(_input.moveX, 0.f, _input.moveZ);
+
+    if (desiredDir.LengthSquared() <= 0.f)
+    {
+        _velocity.x = 0.f;
+        _velocity.z = 0.f;
+        return;
+    }
+
     Vec3 forward = _transformCom->Get_WorldForward();
     forward.y = 0.f;
 
@@ -129,10 +168,9 @@ void MovementCom::Update_HorizontalVelocity()
         forward = Vec3::Forward;
 
     const float moveSpeed = _input.isRunPressed ? _moveDesc.runSpeed : _moveDesc.walkSpeed;
-    const float signedSpeed = _input.moveAxis * moveSpeed;
 
-    _velocity.x = forward.x * signedSpeed;
-    _velocity.z = forward.z * signedSpeed;
+    _velocity.x = forward.x * moveSpeed;
+    _velocity.z = forward.z * moveSpeed;
 }
 
 void MovementCom::Update_VerticalVelocity(float timeDelta)

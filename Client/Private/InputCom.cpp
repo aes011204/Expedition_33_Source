@@ -36,16 +36,16 @@ void InputCom::Update_Input()
     _frame = {};
 
      if (GAME->KeyPress(KEY_TYPE::W))
-        _frame.moveAxis += 1.f;
+        _frame.moveZ += 1.f;
 
     if (GAME->KeyPress(KEY_TYPE::S))
-        _frame.moveAxis -= 1.f;
+        _frame.moveZ -= 1.f;
 
     if (GAME->KeyPress(KEY_TYPE::A))
-        _frame.turnAxis -= 1.f;
+        _frame.moveX -= 1.f;
 
     if (GAME->KeyPress(KEY_TYPE::D))
-        _frame.turnAxis += 1.f;
+        _frame.moveX += 1.f;
 
     _frame.isRunPressed = GAME->KeyPress(KEY_TYPE::SHIFT);
     _frame.isJumpDown = GAME->KeyDown(KEY_TYPE::SPACE);
@@ -53,17 +53,7 @@ void InputCom::Update_Input()
 
 bool InputCom::Has_MoveInput() const
 {
-    return _frame.moveAxis != 0.f;
-}
-
-bool InputCom::Has_TurnInput() const
-{
-    return _frame.turnAxis != 0.f;
-}
-
-bool InputCom::Has_AnyInput() const
-{
-    return Has_MoveInput() || Has_TurnInput();
+    return _frame.moveX != 0.f || _frame.moveZ != 0.f;
 }
 
 Shared<InputCom> InputCom::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

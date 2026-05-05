@@ -20,6 +20,7 @@ public:
 	virtual ~FreeCamera() = default;
 
 public:
+    void            BeginPlay() override;
 	virtual HRESULT Initialize_Prototype() override;
 	virtual HRESULT Initialize(void* arg) override;
 	virtual void    Priority_Update(float timeDelta) override;
@@ -28,7 +29,6 @@ public:
 	virtual HRESULT Render() override;
 
 private:
-    bool    _firstUpdate = true;
     bool    _lock = false;
 
 public:

@@ -4,6 +4,10 @@
 #include "Editor_Manager.h"
 #include "GameInstance.h"
 #include "ImGui_Manager.h"
+#include "Editor_Context.h"
+#include "CommandHistory.h"
+#include "Inspector_Factory.h"
+#include "Notification_Manager.h"
 
 IMPLEMENT_SINGLETON(EditorInstance)
 
@@ -26,6 +30,18 @@ HRESULT EditorInstance::Initialize_Editor(const EDITOR_DESC& EditorDesc, const C
     _editorManager = Editor_Manager::Create();
     CHECK_NULL(_editorManager, E_FAIL);
 
+    _editorContext = Editor_Context::Create();
+    CHECK_NULL(_editorContext, E_FAIL);
+
+    _commandHistory = CommandHistory::Create();
+    CHECK_NULL(_commandHistory, E_FAIL);
+
+    _notificationManager = Notification_Manager::Create();
+    CHECK_NULL(_notificationManager, E_FAIL);
+
+    _inspectorFactory = Inspector_Factory::Create();
+    CHECK_NULL(_inspectorFactory, E_FAIL);
+
     // 처음에는 Edit 모드로, 1배속으로 시작
     _runtimeState = EDITOR_RUNTIME_STATE::Edit;
     _runtimeTimeScale = 1.f;
@@ -35,14 +51,23 @@ HRESULT EditorInstance::Initialize_Editor(const EDITOR_DESC& EditorDesc, const C
 
 void EditorInstance::Release_Editor()
 {
+    auto Release_Manager = [](auto& manager)
+    {
+        if (manager)
+        {
+            manager->Free();
+            manager.reset();
+        }
+    };
+
     _sharedViewportRenderTarget.reset();
 
-    if (_imguiManager)
-    {
-        _imguiManager->Free();
-        _imguiManager.reset();
-    }
+    Release_Manager(_imguiManager);
+    Release_Manager(_inspectorFactory);
 
+    _notificationManager.reset();
+    _commandHistory.reset();
+    _editorContext.reset();
     _editorManager.reset();
 
     _context.Reset();
@@ -72,23 +97,53 @@ void EditorInstance::Render_Editor()
 void EditorInstance::Play()
 {
     _runtimeState = EDITOR_RUNTIME_STATE::Play;
+    Activate_TargetCamera();
+
+    GAME->Set_FreeCameraInputEnabled(false);
+    GAME->Unlock_Mouse();
+
+    Request_WindowFocus(EDITOR_VIEWPORT_TARGET::Game);
 }
 
 void EditorInstance::Pause()
 {
-    if (EDITOR_RUNTIME_STATE::Play == _runtimeState)
-        _runtimeState = EDITOR_RUNTIME_STATE::Pause;
+    if (EDITOR_RUNTIME_STATE::Play != _runtimeState)
+        return;
+
+    if (!GAME->Is_ActiveCameraType(ObjectType::FreeCamera))
+        GAME->SwitchTo_NextCamera();
+
+    GAME->Set_FreeCameraInputEnabled(false);
+    GAME->Unlock_Mouse();
+
+    _runtimeState = EDITOR_RUNTIME_STATE::Pause;
+    Request_WindowFocus(EDITOR_VIEWPORT_TARGET::Scene);
 }
 
 void EditorInstance::Stop()
 {
     _runtimeState = EDITOR_RUNTIME_STATE::Edit;
+
+    Activate_FreeCamera();
+
+    GAME->Set_FreeCameraInputEnabled(false);
+    GAME->Unlock_Mouse();
+
+    Request_WindowFocus(EDITOR_VIEWPORT_TARGET::Scene);
 }
 
 void EditorInstance::Resume()
 {
-    if (EDITOR_RUNTIME_STATE::Pause == _runtimeState)
-        _runtimeState = EDITOR_RUNTIME_STATE::Play;
+    if (EDITOR_RUNTIME_STATE::Pause != _runtimeState)
+        return;
+
+    _runtimeState = EDITOR_RUNTIME_STATE::Play;
+    Activate_TargetCamera();
+
+    GAME->Set_FreeCameraInputEnabled(false);
+    GAME->Unlock_Mouse();
+
+    Request_WindowFocus(EDITOR_VIEWPORT_TARGET::Game);
 }
 
 bool EditorInstance::IsPlaying() const
@@ -101,9 +156,9 @@ bool EditorInstance::IsPaused() const
     return EDITOR_RUNTIME_STATE::Pause == _runtimeState;
 }
 
-void EditorInstance::Set_RuntimeTimeScale(float fTimeScale)
+void EditorInstance::Set_RuntimeTimeScale(float timeScale)
 {
-    _runtimeTimeScale = Clamp_RuntimeTimeScale(fTimeScale);
+    _runtimeTimeScale = ::clamp(timeScale, 0.01f, 8.f);
 }
 
 void EditorInstance::Reset_RuntimeTimeScale()
@@ -116,6 +171,60 @@ float EditorInstance::Get_RuntimeTimeScale() const
     return _runtimeTimeScale;
 }
 
+void EditorInstance::Request_WindowFocus(EDITOR_VIEWPORT_TARGET target)
+{
+    _pendingWindowFocus = target;
+    _hasPendingWindowFocus = true;
+}
+
+bool EditorInstance::Consume_WindowFocusRequest(EDITOR_VIEWPORT_TARGET target)
+{
+    if (!_hasPendingWindowFocus)
+        return false;
+
+    if (_pendingWindowFocus != target)
+        return false;
+
+    _hasPendingWindowFocus = false;
+
+    return true;
+}
+
+Shared<GameObject> EditorInstance::Selected_Object() const
+{
+    return _editorContext->Get_Selection().selectedObject;
+}
+
+void EditorInstance::Select_Object(const Shared<GameObject>& gameObject)
+{
+    return _editorContext->Set_SelectObject(gameObject);
+}
+
+void EditorInstance::Clear_SelectedObject()
+{
+    return _editorContext->Clear_Selection();
+}
+
+uint32 EditorInstance::Selection_Revision() const
+{
+    return _editorContext->Get_SelectionRevision();
+}
+
+void EditorInstance::Request_FocusObject(const Shared<GameObject>& gameObject)
+{
+    return _editorContext->Request_FocusObject(gameObject);
+}
+
+Shared<GameObject> EditorInstance::Consume_FocusObjectRequest()
+{
+    return _editorContext->Consume_FocusObjectRequest();
+}
+
+Shared<Component_Inspector> EditorInstance::Find_Inspector(const string& key) const
+{
+    return _inspectorFactory->Get_Inspector(key);
+}
+
 Shared<Editor_Window> EditorInstance::Get_Window(const wstring& strWindowName) const
 {
     if (nullptr == _editorManager)
@@ -124,9 +233,35 @@ Shared<Editor_Window> EditorInstance::Get_Window(const wstring& strWindowName) c
     return _editorManager->Find_Window(strWindowName);
 }
 
-HWND EditorInstance::Get_WindowHandle() const
+void EditorInstance::Execute_Command(const Shared<ICommand>& command)
 {
-    return _editorDesc.hWnd;
+    if (_commandHistory && command)
+        _commandHistory->Execute(command);
+}
+
+void EditorInstance::Undo()
+{
+    return _commandHistory->Undo();
+}
+
+void EditorInstance::Redo()
+{
+    return _commandHistory->Redo();
+}
+
+void EditorInstance::Clear_CommandHistory()
+{
+    return _commandHistory->Clear();
+}
+
+void EditorInstance::Activate_TargetCamera()
+{
+    GAME->Activate_CameraByType(ObjectType::TargetCamera);
+}
+
+void EditorInstance::Activate_FreeCamera()
+{
+    GAME->Activate_CameraByType(ObjectType::FreeCamera);
 }
 
 void EditorInstance::Request_ViewportSize(EDITOR_VIEWPORT_TARGET targetType, uint32 width, uint32 height)
@@ -177,9 +312,9 @@ ID3D11ShaderResourceView* EditorInstance::Get_SharedViewportSRV() const
 void EditorInstance::Capture_BackBuffer_ToViewport()
 {
     Shared<RenderTarget> renderTarget =
-            Prepare_SharedViewportRenderTarget(
-                GAME->Get_BackBufferWidth(),
-                GAME->Get_BackBufferHeight());
+        Prepare_SharedViewportRenderTarget(
+            GAME->Get_BackBufferWidth(),
+            GAME->Get_BackBufferHeight());
 
     if (nullptr == renderTarget || nullptr == _context)
         return;
@@ -204,15 +339,92 @@ void EditorInstance::Capture_BackBuffer_ToViewport()
     _context->CopyResource(viewportTexture.Get(), backBufferTexture.Get());
 }
 
-float EditorInstance::Clamp_RuntimeTimeScale(float fTimeScale)
+void EditorInstance::Focus_GameView()
 {
-    if (fTimeScale < 0.01f)
-        return 0.01f;
+    ImGui::SetWindowFocus("Game");
+}
 
-    if (fTimeScale > 8.f)
-        return 8.f;
+void EditorInstance::Focus_SceneView()
+{
+    ImGui::SetWindowFocus("Scene");
+}
 
-    return fTimeScale;
+void EditorInstance::Apply_RuntimeInputPolicy()
+{
+    Shared<Editor_Window> sceneView = Get_Window(L"Scene");
+    Shared<Editor_Window> gameView = Get_Window(L"Game");
+
+    if (_runtimeState != EDITOR_RUNTIME_STATE::Play &&
+        !GAME->Is_ActiveCameraType(ObjectType::FreeCamera))
+    {
+        Activate_FreeCamera();
+    }
+
+    const bool sceneInteractive =
+        sceneView && sceneView->Is_Open() &&
+        (sceneView->Is_Focused() || sceneView->Is_Hovered());
+
+    const bool gameFocused =
+        gameView && gameView->Is_Open() && gameView->Is_Focused();
+
+    const bool isFreeCamera =
+        GAME->Is_ActiveCameraType(ObjectType::FreeCamera);
+
+    if (_runtimeState == EDITOR_RUNTIME_STATE::Play)
+    {
+        if (isFreeCamera)
+        {
+            const bool freeCameraControl =
+                gameFocused && GAME->KeyPress(KEY_TYPE::RBUTTON);
+
+            GAME->Set_PlayerInputBlocked(true);
+            GAME->Set_FreeCameraInputEnabled(freeCameraControl);
+
+            if (freeCameraControl)
+                GAME->Lock_Mouse();
+            else
+                GAME->Unlock_Mouse();
+        }
+        else
+        {
+            GAME->Set_PlayerInputBlocked(!gameFocused);
+            GAME->Set_FreeCameraInputEnabled(false);
+
+            if (gameFocused)
+                GAME->Lock_Mouse();
+            else
+                GAME->Unlock_Mouse();
+        }
+
+        return;
+    }
+
+    const bool freeCameraControl =
+        sceneInteractive && GAME->KeyPress(KEY_TYPE::RBUTTON);
+
+    GAME->Set_PlayerInputBlocked(true);
+    GAME->Set_FreeCameraInputEnabled(freeCameraControl);
+
+    if (freeCameraControl)
+        GAME->Lock_Mouse();
+    else
+        GAME->Unlock_Mouse();
+}
+
+
+void EditorInstance::Request_FrameStep()
+{
+    _pendingSingleFrameStep = true;
+}
+
+bool EditorInstance::Consume_FrameStep()
+{
+    if (!_pendingSingleFrameStep)
+        return false;
+
+    _pendingSingleFrameStep = false;
+
+    return true;
 }
 
 void EditorInstance::Free()

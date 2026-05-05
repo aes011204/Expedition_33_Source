@@ -2,6 +2,7 @@
 #include "Asset_Manager.h"
 #include "Camera_Manager.h"
 #include "Collision_Manager.h"
+#include "PhysX_Manager.h"
 #include "Debug_Manager.h"
 #include "Font_Manager.h"
 #include "Graphic_Device.h"
@@ -11,6 +12,9 @@
 #include "Log_Manager.h"
 #include "Object_Manager.h"
 #include "PipeLine.h"
+#ifdef _DEBUG
+#include "Print_Manager.h"
+#endif
 #include "Prototype_Manager.h"
 #include "RegistorFactory.h"
 #include "Renderer.h"
@@ -85,6 +89,14 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
     _collisionManager = Collision_Manager::Create();
     CHECK_NULL(_collisionManager, E_FAIL);
 
+    _physxManager = PhysX_Manager::Create();
+    CHECK_NULL(_physxManager, E_FAIL);
+
+#ifdef _DEBUG
+    _printManager = Print_Manager::Create();
+    CHECK_NULL(_printManager, E_FAIL);
+#endif
+
     return S_OK;
 }
 
@@ -92,6 +104,9 @@ void GameInstance::Update_Engine(float timeDelta)
 {
     _debugManager->Update(timeDelta);
     _inputManager->Update(timeDelta);
+#ifdef _DEBUG
+    _printManager->Update(timeDelta);
+#endif
 
     _levelManager->Update(timeDelta);
 
@@ -104,6 +119,8 @@ void GameInstance::Update_Engine(float timeDelta)
     _collisionManager->Clear_Colliders();
     _objectManager->Late_Update(timeDelta);
     _collisionManager->Update();
+
+    _physxManager->Update(timeDelta);
 
     _levelManager->Update(timeDelta);
     _cameraManager->Update(timeDelta);
@@ -127,10 +144,162 @@ HRESULT GameInstance::Draw()
         _debugManager->Render_Depth();
         _debugManager->Render_Overlay();
     }
+
+    _printManager->Render();
 #endif    
+
+#ifdef _DEBUG
+    Try_FlushRuntimePerfLog();
+#endif
 
     return S_OK;
 }
+
+#ifdef _DEBUG
+void GameInstance::Try_FlushRuntimePerfLog()
+{
+    const auto now = chrono::steady_clock::now();
+    if (!_hasRuntimePerfWindowStartTime)
+    {
+        _runtimePerfWindowStartTime = now;
+        _hasRuntimePerfWindowStartTime = true;
+        return;
+    }
+
+    const float windowSec = static_cast<float>(
+        chrono::duration<double>(now - _runtimePerfWindowStartTime).count());
+
+    if (windowSec < runtimePerfSampleWindowSec)
+        return;
+
+    RuntimePerfSummary runtimeSummary{};
+    runtimeSummary.windowSec = windowSec;
+
+    const bool hasRenderSummary =
+        nullptr != _renderer &&
+        _renderer->Try_ConsumePerfSummary(windowSec, runtimeSummary.render);
+    const bool hasCollisionSummary =
+        nullptr != _collisionManager &&
+        _collisionManager->Try_ConsumePerfSummary(windowSec, runtimeSummary.collision);
+
+    if (!hasRenderSummary && !hasCollisionSummary)
+    {
+        _runtimePerfWindowStartTime = now;
+        _hasRuntimePerfWindowStartTime = true;
+        return;
+    }
+
+    if (hasRenderSummary && runtimeSummary.render.renderCallCount > 0)
+    {
+        runtimeSummary.approxFps =
+            static_cast<float>(runtimeSummary.render.renderCallCount) / windowSec;
+    }
+    else if (hasCollisionSummary && runtimeSummary.collision.updateFrameCount > 0)
+    {
+        runtimeSummary.approxFps =
+            static_cast<float>(runtimeSummary.collision.updateFrameCount) / windowSec;
+    }
+
+    LOG_INFO(
+        "[RuntimePerf] fps={:.1f} render_ms(avg={:.2f} max={:.2f}) "
+        "priority_ms(avg={:.2f}) nonblend_ms(avg={:.2f}) blend_ms(avg={:.2f}) ui_ms(avg={:.2f}) "
+        "collision_ms(avg={:.2f} max={:.2f}) colliders(active={:.1f})",
+        runtimeSummary.approxFps,
+        runtimeSummary.render.renderAvgMs,
+        runtimeSummary.render.renderMaxMs,
+        runtimeSummary.render.priorityAvgMs,
+        runtimeSummary.render.nonBlendAvgMs,
+        runtimeSummary.render.blendAvgMs,
+        runtimeSummary.render.uiAvgMs,
+        runtimeSummary.collision.updateAvgMs,
+        runtimeSummary.collision.updateMaxMs,
+        runtimeSummary.collision.activeCollidersAvg
+    );
+
+    // TODO (RuntimePerf):
+    // preview/deferred/shadow/light/combine pass가 실제 Renderer에 추가되면
+    // counter와 summary field를 먼저 연결한 뒤 아래 확장 포맷으로 교체한다.
+
+    // LOG_INFO(
+    //     "[RuntimePerf] fps={:.1f} render_ms(avg={:.2f} max={:.2f}) "
+    //     "priority_ms(avg={:.2f}) nonblend_ms(avg={:.2f}) blend_ms(avg={:.2f}) ui_ms(avg={:.2f}) "
+    //     "shadow_ms(avg={:.2f} max={:.2f}) "
+    //     "lights_ms(avg={:.2f}) combined_ms(avg={:.2f}) "
+    //     "collision_ms(avg={:.2f} max={:.2f}) colliders(active={:.1f})",
+    //     runtimeSummary.approxFps,
+    //     runtimeSummary.render.renderAvgMs,
+    //     runtimeSummary.render.renderMaxMs,
+    //     runtimeSummary.render.priorityAvgMs,
+    //     runtimeSummary.render.nonBlendAvgMs,
+    //     runtimeSummary.render.blendAvgMs,
+    //     runtimeSummary.render.uiAvgMs,
+    //     runtimeSummary.render.shadowAvgMs,
+    //     runtimeSummary.render.shadowMaxMs,
+    //     runtimeSummary.render.lightsAvgMs,
+    //     runtimeSummary.render.combinedAvgMs,
+    //     runtimeSummary.collision.updateAvgMs,
+    //     runtimeSummary.collision.updateMaxMs,
+    //     runtimeSummary.collision.activeCollidersAvg
+    // );
+
+    if (Should_LogRuntimePerfDetail(runtimeSummary))
+    {
+        LOG_INFO(
+            "[RuntimePerfDetail] render_ms(avg={:.2f} max={:.2f}) "
+            "priority_ms(avg={:.2f}) nonblend_ms(avg={:.2f}) blend_ms(avg={:.2f}) ui_ms(avg={:.2f}) "
+            "collision_ms(avg={:.2f} max={:.2f}) pairs={:.1f}/s intersects={:.1f}/s hits={:.1f}/s",
+            runtimeSummary.render.renderAvgMs,
+            runtimeSummary.render.renderMaxMs,
+            runtimeSummary.render.priorityAvgMs,
+            runtimeSummary.render.nonBlendAvgMs,
+            runtimeSummary.render.blendAvgMs,
+            runtimeSummary.render.uiAvgMs,
+            runtimeSummary.collision.updateAvgMs,
+            runtimeSummary.collision.updateMaxMs,
+            runtimeSummary.collision.pairsPerSec,
+            runtimeSummary.collision.intersectsPerSec,
+            runtimeSummary.collision.hitsPerSec
+        );
+
+        // TODO (RuntimePerfDetail):
+        // 확장 pass counter와 summary field가 연결된 뒤 detail 로그도 같은 기준으로 확장한다.
+
+        // LOG_INFO(
+        //     "[RuntimePerfDetail] render_ms(avg={:.2f} max={:.2f}) "
+        //     "priority_ms(avg={:.2f}) nonblend_ms(avg={:.2f}) blend_ms(avg={:.2f}) ui_ms(avg={:.2f}) "
+        //     "shadow_ms(avg={:.2f} max={:.2f}) lights_ms(avg={:.2f}) "
+        //     "combined_ms(avg={:.2f}) "
+        //     "collision_ms(avg={:.2f} max={:.2f}) pairs={:.1f}/s intersects={:.1f}/s hits={:.1f}/s",
+        //     runtimeSummary.render.renderAvgMs,
+        //     runtimeSummary.render.renderMaxMs,
+        //     runtimeSummary.render.priorityAvgMs,
+        //     runtimeSummary.render.nonBlendAvgMs,
+        //     runtimeSummary.render.blendAvgMs,
+        //     runtimeSummary.render.uiAvgMs,
+        //     runtimeSummary.render.shadowAvgMs,
+        //     runtimeSummary.render.shadowMaxMs,
+        //     runtimeSummary.render.lightsAvgMs,
+        //     runtimeSummary.render.combinedAvgMs,
+        //     runtimeSummary.collision.updateAvgMs,
+        //     runtimeSummary.collision.updateMaxMs,
+        //     runtimeSummary.collision.pairsPerSec,
+        //     runtimeSummary.collision.intersectsPerSec,
+        //     runtimeSummary.collision.hitsPerSec
+        // );
+    }
+
+    _runtimePerfWindowStartTime = now;
+    _hasRuntimePerfWindowStartTime = true;
+}
+
+bool GameInstance::Should_LogRuntimePerfDetail(const RuntimePerfSummary& runtimeSummary)
+{
+    return
+        runtimeSummary.render.renderAvgMs >= detailRenderAvgMsThreshold ||
+        runtimeSummary.collision.updateAvgMs >= detailCollisionAvgMsThreshold ||
+        runtimeSummary.collision.intersectsPerSec >= detailIntersectsPerSecThreshold;
+}
+#endif
 
 void GameInstance::Clear_Resources(uint32 levelIndex)
 {
@@ -250,12 +419,12 @@ HRESULT GameInstance::Change_Level(uint32 newLevelIndex, Shared<Level> newLevel)
     return _levelManager->Change_Level(newLevelIndex, newLevel);
 }
 
-uint32 GameInstance::Current_LevelIndex()
+uint32 GameInstance::Current_LevelIndex() const
 {
     return _levelManager->Get_CurrentLevelIndex();
 }
 
-Shared<Level> GameInstance::Current_LevelType()
+Shared<Level> GameInstance::Current_LevelType() const
 {
     return _levelManager->Get_CurrentLevelType();
 }
@@ -285,6 +454,17 @@ HRESULT GameInstance::Add_GameObject(uint32 prototypeLevelIndex, const wstring& 
 Shared<GameObject> GameInstance::Find_FirstObject(uint32 levelIndex, const wstring& layerTag)
 {
     return _objectManager->Find_FirstObject(levelIndex, layerTag);
+}
+
+void GameInstance::Visit_CurrentLevelObjects(
+    const function<void(const wstring& layerTag, const Shared<GameObject>& gameObject)>& visitor) const
+{
+    return _objectManager->Visit_LevelObjects(visitor);
+}
+
+uint64 GameInstance::Get_CurrentLevelObjectRevision() const
+{
+    return _objectManager->Get_ObjectRevision();
 }
 
 void GameInstance::Add_RenderGroup(RenderGroup renderGroup, Shared<GameObject> gameObject)
@@ -421,6 +601,41 @@ void GameInstance::Change_ActiveCamera(Shared<Camera> camera) const
     return _cameraManager->Change_ActiveCamera(camera);
 }
 
+void GameInstance::SwitchTo_NextCamera()
+{
+    return _cameraManager->SwitchTo_NextCamera();
+}
+
+bool GameInstance::Activate_CameraByType(ObjectType objectType)
+{
+    return _cameraManager->Activate_CameraByType(objectType);
+}
+
+bool GameInstance::Is_ActiveCameraType(ObjectType objectType) const
+{
+    return _cameraManager->Is_ActiveCameraType(objectType);
+}
+
+bool GameInstance::Focus_FreeCameraOnPosition(const Vec3& position)
+{
+    return _cameraManager->Focus_FreeCameraOnPosition(position);
+}
+
+Shared<Camera> GameInstance::Get_Camera(int index) const
+{
+    return _cameraManager->Get_Camera(index);
+}
+
+Shared<Camera> GameInstance::Get_ActiveCamera()
+{
+    return _cameraManager->Get_ActiveCamera();
+}
+
+float GameInstance::Get_CameraCount()
+{
+    return _cameraManager->Get_CameraCount();
+}
+
 const TypeRegistry::ComponentTypeInfo* GameInstance::Find_ComponentType(const string& className) const
 {
     return _typeRegistry->Find_ComponentType(className);
@@ -460,6 +675,18 @@ void GameInstance::Add_Collider(Shared<ColliderCom> collider)
 void GameInstance::Clear_Colliders()
 {
     return _collisionManager->Clear_Colliders();
+}
+
+PxPhysics* GameInstance::Get_PhysXPhysics() const
+{
+    CHECK_NULL(_physxManager, nullptr);
+    return _physxManager->Get_Physics();
+}
+
+PxScene* GameInstance::Get_PhysXScene() const
+{
+    CHECK_NULL(_physxManager, nullptr);
+    return _physxManager->Get_Scene();
 }
 
 void GameInstance::Draw_DebugBox(const DebugBoxDesc& desc)
@@ -507,6 +734,20 @@ HRESULT GameInstance::Render_DebugOverlay()
     return _debugManager->Render_Overlay();
 }
 
+void GameInstance::Clear_Prints()
+{
+#ifdef _DEBUG
+    _printManager->Clear();
+#endif
+}
+
+void GameInstance::Clear_Print(const wstring& slot)
+{
+#ifdef _DEBUG
+    _printManager->Clear(slot);
+#endif
+}
+
 void GameInstance::Release_Engine()
 {
     auto ReleaseManager = [](auto& manager)
@@ -521,10 +762,16 @@ void GameInstance::Release_Engine()
     ReleaseManager(_debugManager);
     ReleaseManager(_cameraManager);
     ReleaseManager(_assetManager);
+
+#ifdef _DEBUG
+    ReleaseManager(_printManager);
+#endif
     ReleaseManager(_fontManager);
+
     ReleaseManager(_lightManager);
     ReleaseManager(_inputManager);
     ReleaseManager(_collisionManager);
+    ReleaseManager(_physxManager);
 
     ReleaseManager(_pipeLine);
     ReleaseManager(_renderer);

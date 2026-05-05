@@ -58,6 +58,7 @@ HRESULT Object_Manager::Add_GameObject(uint32 prototypeLevelIndex, const wstring
 		layer->Add_GameObject(outGameObject);
 	}
 
+    ++_objectRevision;
 	return S_OK;
 }
 
@@ -91,6 +92,8 @@ HRESULT Object_Manager::Clear_Layers(uint32 levelIndex)
 		return E_FAIL;
 
 	_layers[levelIndex].clear();
+    ++_objectRevision;
+
 	return S_OK;
 }
 
@@ -104,6 +107,34 @@ Shared<GameObject> Object_Manager::Find_FirstObject(uint32 levelIndex, const wst
         return nullptr;
 
     return layer->Find_FirstObject();
+}
+
+void Object_Manager::Visit_LevelObjects(
+    const function<void(const wstring& layerTag, const Shared<GameObject>& gameObject)>& visitor) const
+{
+    if (!visitor)
+        return;
+
+    const uint32 levelIndex = GAME->Current_LevelIndex();
+    if (levelIndex >= _numLevels)
+        return;
+
+    const auto& layers = _layers[levelIndex];
+
+    for (const auto& [layerTag, layer] : layers)
+    {
+        if (!layer)
+            continue;
+
+        for (const auto& gameObject : layer->Get_GameObjects())
+        {
+            if (!gameObject)
+                continue;
+
+            visitor(layerTag, gameObject);
+        }
+    }
+
 }
 
 Shared<Layer> Object_Manager::Find_Layer(uint32 layerLevelIndex, const wstring& layerTag)

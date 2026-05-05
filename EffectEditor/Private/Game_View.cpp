@@ -9,6 +9,15 @@ Game_View::Game_View()
 {
 }
 
+Game_View::~Game_View()
+{
+    Free();
+}
+
+void Game_View::Update(float timeDelta)
+{
+}
+
 void Game_View::Render()
 {
     if (!Is_Open())
@@ -16,7 +25,7 @@ void Game_View::Render()
 
     bool isOpen = Is_Open();
     const string windowName = String::ToString(Get_WindowName());
-    
+
     if (ImGui::Begin(windowName.c_str(), &isOpen, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse))
     {
         ImVec2 viewportSize = ImGui::GetContentRegionAvail();
@@ -33,7 +42,8 @@ void Game_View::Render()
         EffectEditorInstance::GetInstance()->Request_ViewportSize(
             EditorViewportTarget::Game,
             width,
-            height);
+            height
+        );
 
         ID3D11ShaderResourceView* pSRV = EffectEditorInstance::GetInstance()->Get_SharedViewportSRV();
         if (nullptr != pSRV)
@@ -42,9 +52,7 @@ void Game_View::Render()
             ImGui::Image(textureId, viewportSize);
         }
         else
-        {
             ImGui::TextUnformatted("Game RenderTarget Missing");
-        }
     }
     Set_Open(isOpen);
     ImGui::End();
@@ -55,5 +63,7 @@ Shared<Game_View> Game_View::Create()
     return make_shared<Game_View>();
 }
 
-
-
+void Game_View::Free()
+{
+    __super::Free();
+}
