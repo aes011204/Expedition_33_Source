@@ -6,6 +6,7 @@
 #include "ImGui_Manager.h"
 #include "Editor_Context.h"
 #include "CommandHistory.h"
+#include "Inspector_Factory.h"
 #include "Notification_Manager.h"
 
 IMPLEMENT_SINGLETON(EditorInstance)
@@ -38,6 +39,9 @@ HRESULT EditorInstance::Initialize_Editor(const EDITOR_DESC& EditorDesc, const C
     _notificationManager = Notification_Manager::Create();
     CHECK_NULL(_notificationManager, E_FAIL);
 
+    _inspectorFactory = Inspector_Factory::Create();
+    CHECK_NULL(_inspectorFactory, E_FAIL);
+
     // 처음에는 Edit 모드로, 1배속으로 시작
     _runtimeState = EDITOR_RUNTIME_STATE::Edit;
     _runtimeTimeScale = 1.f;
@@ -47,13 +51,19 @@ HRESULT EditorInstance::Initialize_Editor(const EDITOR_DESC& EditorDesc, const C
 
 void EditorInstance::Release_Editor()
 {
+    auto Release_Manager = [](auto& manager)
+    {
+        if (manager)
+        {
+            manager->Free();
+            manager.reset();
+        }
+    };
+
     _sharedViewportRenderTarget.reset();
 
-    if (_imguiManager)
-    {
-        _imguiManager->Free();
-        _imguiManager.reset();
-    }
+    Release_Manager(_imguiManager);
+    Release_Manager(_inspectorFactory);
 
     _notificationManager.reset();
     _commandHistory.reset();
@@ -114,8 +124,6 @@ void EditorInstance::Stop()
 {
     _runtimeState = EDITOR_RUNTIME_STATE::Edit;
 
-    // [수정] Stop 후 Scene View 조작은 FreeCamera 감각이어야 하므로
-    // TargetCamera가 아니라 FreeCamera로 복귀시킨다.
     Activate_FreeCamera();
 
     GAME->Set_FreeCameraInputEnabled(false);
@@ -180,6 +188,41 @@ bool EditorInstance::Consume_WindowFocusRequest(EDITOR_VIEWPORT_TARGET target)
     _hasPendingWindowFocus = false;
 
     return true;
+}
+
+Shared<GameObject> EditorInstance::Selected_Object() const
+{
+    return _editorContext->Get_Selection().selectedObject;
+}
+
+void EditorInstance::Select_Object(const Shared<GameObject>& gameObject)
+{
+    return _editorContext->Set_SelectObject(gameObject);
+}
+
+void EditorInstance::Clear_SelectedObject()
+{
+    return _editorContext->Clear_Selection();
+}
+
+uint32 EditorInstance::Selection_Revision() const
+{
+    return _editorContext->Get_SelectionRevision();
+}
+
+void EditorInstance::Request_FocusObject(const Shared<GameObject>& gameObject)
+{
+    return _editorContext->Request_FocusObject(gameObject);
+}
+
+Shared<GameObject> EditorInstance::Consume_FocusObjectRequest()
+{
+    return _editorContext->Consume_FocusObjectRequest();
+}
+
+Shared<Component_Inspector> EditorInstance::Find_Inspector(const string& key) const
+{
+    return _inspectorFactory->Get_Inspector(key);
 }
 
 Shared<Editor_Window> EditorInstance::Get_Window(const wstring& strWindowName) const

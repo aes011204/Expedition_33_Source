@@ -9,6 +9,7 @@ class PanelInspector final : public MEWindow
 {
 private:
     static constexpr uint64 _shapeNum =  magic_enum::enum_count<EZoneShape>();
+    static constexpr uint64 _lightNum = magic_enum::enum_count<LightType>() - 1;
 
 public:
     explicit PanelInspector(SceneContext* ctx);
@@ -20,6 +21,7 @@ public:
 private:
     SceneContext* _ctx = {};
     const char* _shapes[_shapeNum] = {};
+    const char* _lights[_lightNum] = {};
 
 public:
     static Shared<PanelInspector> Create(SceneContext* ctx);
