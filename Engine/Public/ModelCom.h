@@ -24,13 +24,15 @@ public:
     size_t Get_NumAnimations() const { return _animations.size(); }
 
 public:
-    bool Is_Skeletal() const { return _isSkeletal; }
+    bool Is_Skeletal() const { return _isSkeletal; } 
 	int32 Get_BoneIndex(const char* boneName);
 	const Matrix* Get_BoneMatrixPtr(const char* boneName);
+    const Matrix* Get_BoneMatrixPtr(uint32 boneIndex) const;
 
 public:
     void Set_Animation(uint32 animIndex, bool isLoop = false);
     void Set_Animation(uint32 animIndex, float blendDuration, bool isLoop = false);
+    const char* Get_AnimationName(uint32 animationIndex) const;
 
 public:
     void Set_RootMotionEnabled(bool enable) { _isRootMotion = enable; }
@@ -67,7 +69,7 @@ private:
     vector<Shared<Animation>>	        _animations;
 
 private: /* For Animation Control */
-	bool						        _isAnimLoop{ false };
+	bool						        _isAnimLoop{ false };       
     bool                                _isBlending{ false };
 	uint32						        _currentAnimIndex{ 0 };
     uint32                              _nextAnimIndex{ 0 };

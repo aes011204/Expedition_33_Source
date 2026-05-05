@@ -7,6 +7,9 @@
 #include "ModelViewerObject.h"
 #include "Level_ModelEditor.h"
 
+#include "ShaderCom.h"
+#include "Vertex_Types.h"
+
 #include <filesystem>
 
 extern HINSTANCE g_hInst;
@@ -38,6 +41,11 @@ HRESULT ModelEditorApp::Initialize()
 	if (FAILED(ModelImGui_Manager::GetInstance()->Initialize(g_hWnd, _device, _context)))
 		return E_FAIL;
 
+	if (FAILED(GAME->Add_Prototype(0, L"Shader_VtxMesh", ShaderCom::Create(_device, _context, TEXT("../Bin/ShaderFiles/Shader_VtxMesh.hlsl"), VTXMESH::Elements, VTXMESH::numElements))))
+		return E_FAIL;
+	if (FAILED(GAME->Add_Prototype(0, L"Shader_VtxAnimMesh", ShaderCom::Create(_device, _context, TEXT("../Bin/ShaderFiles/Shader_VtxAnimMesh.hlsl"), VTXANIMMESH::Elements, VTXANIMMESH::numElements))))
+		return E_FAIL;
+
 	if (FAILED(GAME->Add_Prototype(0, L"Prototype_GameObject_ModelEditorCamera", ModelEditorCamera::Create(_device, _context))))
 		return E_FAIL;
 	if (FAILED(GAME->Add_Prototype(0, L"Prototype_GameObject_ModelViewerObject", ModelViewerObject::Create(_device, _context))))
@@ -65,7 +73,7 @@ void ModelEditorApp::Late_Update(float timeDelta)
 
 HRESULT ModelEditorApp::Render()
 {
-	const Vec4 clearColor = Vec4(0.1f, 0.1f, 0.1f, 1.f);
+	const Vec4 clearColor = Vec4(0.15f, 0.15f, 0.15f, 1.f);
 	if (FAILED(GAME->Clear_Buffers(clearColor)))
 		return E_FAIL;
 

@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "EditorBlock.h"
 
 NS_BEGIN(ModelEditor)
@@ -22,6 +22,7 @@ private:
 	
 	void Render_ModelList();
 	void Render_AnimList();
+	void Render_TransformControl();
 
 	void Load_SelectedAsset(const string& extension);
 
@@ -34,6 +35,9 @@ private:
 
 	char _pathBuffer[512]{};
 	wstring _resourcePath{};
+
+private:
+    int32 _selectedAnimIndex{ -1 };
 
 public:
 	static Shared<ModelInspector> Create();

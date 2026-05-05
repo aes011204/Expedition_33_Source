@@ -17,6 +17,12 @@ HRESULT ModelEditorCamera::Initialize(void* arg)
     if (FAILED(Camera::Initialize(arg)))
         return E_FAIL;
 
+    if (arg)
+    {
+        ModelEditorCameraDesc* desc = static_cast<ModelEditorCameraDesc*>(arg);
+        _mouseSensor = desc->mouseSensor;
+    }
+
     return S_OK;
 }
 

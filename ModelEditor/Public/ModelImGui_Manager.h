@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Engine_Define.h"
 
@@ -12,6 +12,7 @@ class LogWindow;
 class ModelConverter;
 class ModelInspector;
 class ModelSceneWindow;
+class ModelViewerObject;
 
 class ModelImGui_Manager final 
 {
@@ -33,24 +34,24 @@ private:
 
 public:
 	void Request_ViewportSize(uint32 width, uint32 height);
-	Shared<::Engine::RenderTarget> Prepare_SharedViewportRenderTarget(uint32 width, uint32 height);
+	Shared<RenderTarget> Prepare_SharedViewportRenderTarget(uint32 width, uint32 height);
 	ID3D11ShaderResourceView* Get_SharedViewportSRV() const;
 	void Capture_BackBuffer_ToViewport();
 
 private:
 	ComPtr<Device> _device = nullptr;
 	ComPtr<Context> _context = nullptr;
-	Shared<::Engine::RenderTarget> _sharedViewportRenderTarget = nullptr;
+	Shared<RenderTarget> _sharedViewportRenderTarget = nullptr;
 	uint32 _requestedViewportWidth = 1;
 	uint32 _requestedViewportHeight = 1;
 
 
 public:
-    Shared<GameObject>      Get_CurrentModelObject() const { return _modelObject; }
-    void                    Set_CurrentModelObject(const Shared<GameObject>& modelObject) { _modelObject = modelObject; }
+    Shared<ModelViewerObject>   Get_CurrentModelObject() const { return _modelObject; }
+    void                        Set_CurrentModelObject(const Shared<ModelViewerObject>& modelObject) { _modelObject = modelObject; }
 
 private:
-    Shared<GameObject>          _modelObject{ nullptr };
+    Shared<ModelViewerObject>   _modelObject{ nullptr };
 
 private:
     Shared<LogWindow>           _logWindow;

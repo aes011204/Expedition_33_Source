@@ -28,6 +28,11 @@ public:
     bool Is_RootMotion();
 	void Change_Model(const char* modelFilePath);
 	void Play_Animation(uint32 animIndex, float blendDuration, bool isLoop, bool isRoot);
+    uint32 Get_NumAnimations() const;
+    const char* Get_AnimationName(uint32 animIndex);
+
+public:
+    Shared<ModelCom> Get_ModelComponent() const { return _modelCom; }
 
 private:
 	HRESULT Ready_Components();

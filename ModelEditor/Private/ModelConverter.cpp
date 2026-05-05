@@ -39,15 +39,37 @@ namespace ModelEditor
 
 	string ModelConverter::Sanitize_FileName(string name)
 	{
-		string forbidden = "\\/:*?\"<>|";
-		for (char& c : name)
-		{
-			if (forbidden.find(c) != string::npos)
-			{
-				c = '_';
-			}
-		}
-		return name;
+        std::string result = name;
+
+        size_t pos = result.find("UE5");
+        if (pos != std::string::npos)
+        {
+            size_t cutPos = pos + 3; 
+
+            while (cutPos < result.length() && (result[cutPos] == '_' || result[cutPos] == ' ' ||
+                result[cutPos] == '|'))
+            {
+                cutPos++;
+            }
+
+            result = result.substr(cutPos);
+        }
+
+        string forbidden = "\\/:*?\"<>|";
+        for (char& c : result)
+        {
+            if (forbidden.find(c) != string::npos)
+            {
+                c = '_';
+            }
+        }
+
+        if (result.empty())
+        {
+            result = "DefaultAnimName";
+        }
+
+        return result;
 	}
 
 	ModelConverter::ModelConverter() : EditorBlock{}
@@ -75,7 +97,6 @@ namespace ModelEditor
 					  aiProcess_Triangulate |
 					  aiProcess_CalcTangentSpace |
 					  aiProcess_GenSmoothNormals |
-					  aiProcess_PopulateArmatureData |
                       aiProcess_LimitBoneWeights;
 
 		strcpy_s(_pathBuffer, Engine::String::ToString(ResourcePath).c_str());
@@ -256,13 +277,13 @@ namespace ModelEditor
 	HRESULT ModelConverter::Convert_Model(const wstring& fbxFilePath, const wstring& outputDir)
 	{
 		Clear_Converter();
-		Assimp::Importer importer;
+		
 		string utf8FilePath = Engine::String::ToString(fbxFilePath);
-		_aiScene = importer.ReadFile(utf8FilePath, importFlags);
+		_aiScene = _importer.ReadFile(utf8FilePath, importFlags);
 
 		if (nullptr == _aiScene || _aiScene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !_aiScene->mRootNode)
 		{
-			LOG_ERROR("Assimp Error: {} \n", importer.GetErrorString());
+			LOG_ERROR("Assimp Error: {} \n", _importer.GetErrorString());
 			return E_FAIL;
 		}
 
@@ -632,7 +653,7 @@ namespace ModelEditor
 				// 본 배열 인덱스로 매핑 (노드 인덱스가 아님) 
 				auto boneIt = _boneNameMap.find(channelData.boneName);
 				if (boneIt == _boneNameMap.end())
-					continue; // 본이 아닌 노드의 채널은 스킵 
+					continue; 
 
 				channelData.boneIndex = static_cast<int32>(boneIt->second);
 
@@ -734,7 +755,7 @@ namespace ModelEditor
 			string animClipName = Sanitize_FileName(string(_animHeaders[i].name));
 			string fullFileName = modelName + "_" + animClipName;
 
-			wstring animPath = animDir + Engine::String::ToWString(fullFileName) + L".anim";
+			wstring animPath = animDir + ToWString(fullFileName) + L".anim";
 			ofstream out(animPath, ios::binary);
 			if (!out.is_open())
 			{
@@ -835,21 +856,22 @@ namespace ModelEditor
 
 	void ModelConverter::Clear_Converter()
 	{
+		_importer.FreeScene();
 		_aiScene = nullptr;
 
-		_meshHeaders.clear();
-		_staticVertices.clear();
-		_animVertices.clear();
-		_indices.clear();
-		_meshBoneRefs.clear();
-		_meshOffsets.clear();
-		_matHeaders.clear();
-		_matSlots.clear();
-		_bones.clear();
-		_boneNameMap.clear();
-		_animHeaders.clear();
-		_channelHeaders.clear();
-		_keyframes.clear();
+		_meshHeaders.clear(); _meshHeaders.shrink_to_fit();
+		_staticVertices.clear(); _staticVertices.shrink_to_fit();
+		_animVertices.clear(); _animVertices.shrink_to_fit();
+		_indices.clear(); _indices.shrink_to_fit();
+		_meshBoneRefs.clear(); _meshBoneRefs.shrink_to_fit();
+		_meshOffsets.clear(); _meshOffsets.shrink_to_fit();
+		_matHeaders.clear(); _matHeaders.shrink_to_fit();
+		_matSlots.clear(); _matSlots.shrink_to_fit();
+		_bones.clear(); _bones.shrink_to_fit();
+		_boneNameMap.clear(); 
+		_animHeaders.clear(); _animHeaders.shrink_to_fit();
+		_channelHeaders.clear(); _channelHeaders.shrink_to_fit();
+		_keyframes.clear(); _keyframes.shrink_to_fit();
 	}
 
 	string ModelConverter::Get_FileNameWithoutExtension(const wstring& filePath) const

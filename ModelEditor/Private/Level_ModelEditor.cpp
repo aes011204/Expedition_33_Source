@@ -3,10 +3,12 @@
 #include "GameInstance.h"
 
 #include "ModelEditorCamera.h"
+#include "ModelImGui_Manager.h"
+#include "ModelViewerObject.h"
 
 NS_BEGIN(ModelEditor)
 
-Level_ModelEditor::Level_ModelEditor(const ComPtr<Device>& device, const ComPtr<Context>& context)
+    Level_ModelEditor::Level_ModelEditor(const ComPtr<Device>& device, const ComPtr<Context>& context)
 	: Level(device, context)
 {
 }
@@ -44,9 +46,9 @@ HRESULT Level_ModelEditor::Render()
 HRESULT Level_ModelEditor::Ready_Layer_Camera(const wstring& layerTag)
 {
 	ModelEditorCamera::ModelEditorCameraDesc camDesc{};
-	camDesc.eye = XMFLOAT4(0.f, 2.f, -5.f, 1.f);
-	camDesc.at = XMFLOAT4(0.f, 1.f, 0.f, 1.f);
-	camDesc.fovy = XMConvertToRadians(60.0f);
+    camDesc.eye = Vec4{ 0.f, 10.f, -20.f, 1.f };
+    camDesc.at = Vec4{ 0.f, 0.f, 0.f, 1.f };
+	camDesc.fovy = XMConvertToRadians(70.0f);
 	camDesc.nearPlane = 0.1f;
 	camDesc.farPlane = 500.f;
 	camDesc.mouseSensor = 0.1f;
@@ -66,11 +68,14 @@ HRESULT Level_ModelEditor::Ready_Layer_Camera(const wstring& layerTag)
 HRESULT Level_ModelEditor::Ready_Layer_Viewer(const wstring& layerTag)
 {
 	
-	if (FAILED(GAME->Add_GameObject(0, L"Prototype_GameObject_ModelViewerObject", 0, layerTag)))
-	{
-		LOG_ERROR("Failed to add ModelViewerObject in Level_ModelEditor");
-		return E_FAIL;
-	}
+    Shared<GameObject> viewerObject = nullptr;
+    if (FAILED(GAME->Add_GameObject(0, L"Prototype_GameObject_ModelViewerObject", 0, layerTag, viewerObject)))
+    {
+        LOG_ERROR("Failed to add ModelViewerObject in Level_ModelEditor");
+        return E_FAIL;
+    }
+
+    ModelImGui_Manager::GetInstance()->Set_CurrentModelObject(static_pointer_cast<ModelViewerObject>(viewerObject));
 
 	return S_OK;
 }
@@ -82,7 +87,7 @@ HRESULT Level_ModelEditor::Ready_Lights()
 	lightDesc.direction = Vec4(1.f, -1.f, 1.f, 0.f);
 	lightDesc.direction.Normalize();
 	lightDesc.diffuse = Vec4(1.f, 1.f, 1.f, 1.f);
-	lightDesc.ambient = Vec4(0.4f, 0.4f, 0.4f, 1.f);
+	lightDesc.ambient = Vec4(0.7f, 0.7f, 0.7f, 1.f);
 	lightDesc.specular = Vec4(1.f, 1.f, 1.f, 1.f);
 
 	if (FAILED(GAME->Add_Light(lightDesc)))

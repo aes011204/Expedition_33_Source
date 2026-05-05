@@ -78,7 +78,7 @@ HRESULT StaticMesh::Initialize(void* arg)
 
 HRESULT StaticMesh::Bind_BoneMatrices(class ShaderCom* shader, const char* constantName, const vector<Shared<class Bone>>& bones)
 {
-    Matrix finalMat = Matrix::Identity;
+    Matrix finalMat = Matrix::Identity * _preTransformMatrix;
     return shader->Bind_Matrix(constantName, &finalMat);
 }
 

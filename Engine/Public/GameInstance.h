@@ -137,6 +137,7 @@ public: /* For.Input_Manager */
 	bool KeyUp(KEY_TYPE eKey) const;
 
 	Vec2 Get_MouseDelta() const;
+    float Get_MouseWheel() const;
 	void Lock_Mouse();
 	void Unlock_Mouse();
 

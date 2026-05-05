@@ -3,7 +3,7 @@
 
 NS_BEGIN(Engine)
 
-class SkeletalMesh final : public Mesh
+class ENGINE_DLL SkeletalMesh final : public Mesh
 {
 public:
     SkeletalMesh(const ComPtr<Device>& device, const ComPtr<Context>& context);
@@ -15,7 +15,7 @@ public:
 
 public:
     HRESULT Initialize_Prototype(const ModelMeshData& meshData, const Matrix& preTransformMatrix);
-    virtual HRESULT Initialize(void* arg) override;
+    HRESULT Initialize(void* arg) override;
 
 private:
     uint32              _numBones{};

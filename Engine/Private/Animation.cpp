@@ -84,8 +84,7 @@ bool Animation::Update_TransformationMatrices(float timeDelta, const vector<Shar
 
 	for (uint32 i = 0; i < _numChannels; ++i)
 	{
-		_channels[i]->Update_TransformationMatrix(
-			_currentKeyFrameIndices[i], _currentTrackPosition, _duration, bones, rootNodeIndex, isLoop);
+		_channels[i]->Update_TransformationMatrix(_currentKeyFrameIndices[i], _currentTrackPosition, _duration, bones, rootNodeIndex, isLoop);
 	}
 
 	return false;
@@ -117,19 +116,18 @@ void Animation::Blend_TransformMatrix(float timeDelta, const Shared<Animation>& 
 			nextAnim->_currentTrackPosition, nextAnim->_currentKeyFrameIndices[i], nextAnim->_duration, isLoop, nextTrans);
 		nextAnim->_channels[i]->Update_Velocity(nextTrans, nextAnim->_currentTrackPosition);
 
-		Vec3 tS = Vec3::Lerp(curTrans.scale, nextTrans.scale, blendRatio);
-		Quat tR = Quat::Slerp(curTrans.rotation, nextTrans.rotation, blendRatio);
-		Vec3 tP = Vec3::Lerp(curTrans.position, XMLoadFloat3(&nextTrans.position), blendRatio);
+		Vec3 transScale = Vec3::Lerp(curTrans.scale, nextTrans.scale, blendRatio);
+		Quat transRotation = Quat::Slerp(curTrans.rotation, nextTrans.rotation, blendRatio);
+		Vec3 transPosition = Vec3::Lerp(curTrans.position, nextTrans.position, blendRatio);
 
-		XMMATRIX targetMatrix;
-
+		Matrix targetMatrix{};
 		if (_channels[i]->Get_BoneIndex() == rootNodeIndex)
 		{
-			targetMatrix = XMMatrixAffineTransformation(tS, XMVectorZero(), tR, XMVectorZero());
+			targetMatrix = XMMatrixAffineTransformation(transScale, Vec3::Zero, transRotation, Vec3::Zero);
 		}
 		else
 		{
-			targetMatrix = XMMatrixAffineTransformation(tS, XMVectorZero(), tR, tP);
+			targetMatrix = XMMatrixAffineTransformation(transScale, Vec3::Zero, transRotation, transPosition);
 		}
 
 		bones[_channels[i]->Get_BoneIndex()]->Update_TransformationMatrix(targetMatrix);

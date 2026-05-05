@@ -2,6 +2,9 @@
 #include "ModelInspector.h"
 #include <imgui.h>
 #include "ModelEditorApp.h"
+#include "ModelImGui_Manager.h"
+#include "ModelViewerObject.h"
+#include "ModelCom.h"
 
 namespace fs = std::filesystem;
 
@@ -45,6 +48,9 @@ void ModelInspector::Render()
 
 	ImGui::Separator();
 	Render_AnimList();
+
+    ImGui::Separator();
+    Render_TransformControl();
 
 	ImGui::End();
 }
@@ -118,37 +124,100 @@ void ModelInspector::Render_AnimList()
 	ImGui::Text("Animations (.anim)");
 	ImGuiWindowFlags windowFlags = ImGuiWindowFlags_HorizontalScrollbar;
 	ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.15f, 0.15f, 0.15f, 1.0f));
-	if (ImGui::BeginChild("AnimListRegion", ImVec2(0, 100), true, windowFlags))
+
+	if (ImGui::BeginChild("AnimListRegion", ImVec2(0, 150), true, windowFlags))
 	{
-		for (const auto& path : _cachedAnimPaths)
-		{
-			string fileName = path.filename().string();
-			bool isSelected = (_selectedAnimPath == path.string());
+        auto viewer = ModelImGui_Manager::GetInstance()->Get_CurrentModelObject();
 
-			if (ImGui::Selectable(fileName.c_str(), isSelected, 0, ImVec2(150, 0)))
-			{
-				_selectedAnimPath = path.string();
-			}
+        if (!viewer || !viewer->Get_Component<ModelCom>())
+        {
+            ImGui::EndChild();
+            ImGui::PopStyleColor();
+            return;
+        }
 
-			if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
-			{
-				Load_SelectedAsset(".anim");
-			}
-		}
+        if (viewer && viewer->Is_Skeletal())
+        {
+          
+
+            uint32 numAnims = viewer->Get_NumAnimations();
+            for (uint32 i = 0; i < numAnims; ++i)
+            {
+                const char* animName = viewer->Get_AnimationName(i);
+                if (!animName) continue;
+
+                bool isSelected = (_selectedAnimIndex == static_cast<int32>(i));
+
+                if (ImGui::Selectable(animName, isSelected))
+                {
+                    _selectedAnimIndex = i;
+
+                    viewer->Play_Animation(i, 0.2f, true, false);
+                }
+            }
+        }
+        else
+        {
+            ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.f),
+                "No animations available or non-skeletal model.");
+        }
 	}
 	ImGui::EndChild();
 	ImGui::PopStyleColor();
+}
+
+void ModelInspector::Render_TransformControl()
+{
+    ImGui::Text("Transform Control");
+    ImGuiWindowFlags windowFlags = ImGuiWindowFlags_None;
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.15f, 0.15f, 0.15f, 1.0f));
+
+    if (ImGui::BeginChild("TransformRegion", ImVec2(0, 100), true, windowFlags))
+    {
+        auto viewer = ModelImGui_Manager::GetInstance()->Get_CurrentModelObject();
+        if (viewer)
+        {
+            auto transformCom = viewer->Get_Transform();
+            if (transformCom)
+            {
+                Vec3 position = transformCom->Get_Position();
+                Vec3 rotation = transformCom->Get_RotationEuler();
+                Vec3 scale = transformCom->Get_Scale();
+
+                float pos[3] = { position.x, position.y, position.z };
+                float rot[3] = { rotation.x, rotation.y, rotation.z };
+                float scl[3] = { scale.x, scale.y, scale.z };
+
+                ImGui::PushItemWidth(200.0f);
+                if (ImGui::DragFloat3("Position", pos, 0.1f))
+                    transformCom->Set_Position(Vec3(pos[0], pos[1], pos[2]));
+                if (ImGui::DragFloat3("Rotation", rot, 1.0f))
+                    transformCom->Set_RotationEuler(Vec3(rot[0], rot[1], rot[2]));
+                if (ImGui::DragFloat3("Scale", scl, 0.05f, 0.00001f, 10000))
+                    transformCom->Set_Scale(Vec3(scl[0], scl[1], scl[2]));
+                ImGui::PopItemWidth();
+            }
+        }
+        else
+        {
+            ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.f), "No Model Selected");
+        }
+    }
+    ImGui::EndChild();
+    ImGui::PopStyleColor();
 }
 
 void ModelInspector::Load_SelectedAsset(const string& extension)
 {
 	if (extension == ".model")
 	{
-		LOG_INFO("Lazy Load Model: {}", fs::path(_selectedModelPath).filename().string());
-	}
-	else if (extension == ".anim")
-	{
-		LOG_INFO("Lazy Load Animation: {}", fs::path(_selectedAnimPath).filename().string());
+        auto viewer = ModelImGui_Manager::GetInstance()->Get_CurrentModelObject();
+
+        if (viewer)
+        {
+            viewer->Change_Model(_selectedModelPath.c_str());
+            _selectedAnimIndex = -1;
+        }
 	}
 }
 

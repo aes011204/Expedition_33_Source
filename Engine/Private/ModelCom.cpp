@@ -30,7 +30,6 @@ ModelCom::ModelCom(const ModelCom& prototype)
     for (auto& prototypeBone : prototype._bones)
         _bones.push_back(prototypeBone->Clone());
 
-    // 계층 구조 재구성은 Bone 내부 배열이 DFS 순서이므로 순차 업데이트로 충분합니다.
 }
 
 int32 ModelCom::Get_BoneIndex(const char* boneName)
@@ -68,12 +67,25 @@ void ModelCom::Set_Animation(uint32 animIndex, float blendDuration, bool isLoop)
     _animations[_nextAnimIndex]->Reset();
 }
 
+const char* ModelCom::Get_AnimationName(uint32 animationIndex) const
+{
+    if (animationIndex >= _animations.size())
+        return nullptr;
+
+    return _animations[animationIndex]->Get_AnimationName();
+}
+
 const Matrix* ModelCom::Get_BoneMatrixPtr(const char* boneName)
 {
     int32 boneIndex = Get_BoneIndex(boneName);
     if (boneIndex == -1)
         return nullptr;
 
+    return _bones[boneIndex]->Get_CombinedTransformationMatrixPtr();
+}
+
+const Matrix* ModelCom::Get_BoneMatrixPtr(uint32 boneIndex) const
+{
     return _bones[boneIndex]->Get_CombinedTransformationMatrixPtr();
 }
 

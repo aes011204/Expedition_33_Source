@@ -7,7 +7,7 @@ NS_BEGIN(Engine)
 class Bone;
 class ShaderCom;
 
-class Mesh abstract : public VIBuffer
+class ENGINE_DLL Mesh abstract : public VIBuffer
 {
 public:
     Mesh(const ComPtr<Device>& device, const ComPtr<Context>& context);
@@ -21,12 +21,12 @@ public:
     virtual HRESULT Bind_BoneMatrices(ShaderCom* shader, const char* constantName, const vector<Shared<Bone>>& bones) PURE;
 
 protected:
-    char	_name[maxModelNameSize] = {};
+    char	_name[maxModelNameSize]{};
     uint32	_materialIndex = {};
     Matrix  _preTransformMatrix{};
 
 public:
-    virtual Shared<Component> Clone(void* arg) override = 0;
+    virtual Shared<Component> Clone(void* arg) override PURE;
     virtual void Free() override;
 
 };

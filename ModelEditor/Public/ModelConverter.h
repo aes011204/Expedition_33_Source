@@ -1,9 +1,6 @@
 ﻿#pragma once
 #include "EditorBlock.h"
-
-NS_BEGIN(Assimp)
-class Importer;
-NS_END
+#include <assimp/Importer.hpp>
 
 NS_BEGIN(ModelEditor)
 
@@ -67,8 +64,8 @@ private:
 
 private:
 	uint32                              importFlags{ 0 };
+	Assimp::Importer                    _importer;
 	const aiScene*                      _aiScene{ nullptr };
-
 	bool                                _isSkeletal{ false };
     
 	vector<ModelMeshData>              _meshHeaders;

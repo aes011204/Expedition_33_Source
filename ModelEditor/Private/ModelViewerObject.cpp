@@ -110,7 +110,17 @@ void ModelViewerObject::Change_Model(const char* modelFilePath)
 		_modelCom.reset();
 	}
 
+    Shared<ModelCom> newModelCom = ModelCom::Create(_device, _context, ModelType::Anim, modelFilePath);
 
+    if (newModelCom) {
+        _modelCom = newModelCom;
+        _components.emplace(TEXT("Com_Model"), _modelCom);
+
+        LOG_INFO("Successfully created and attached new ModelCom: {}", modelFilePath);
+    }
+    else {
+        LOG_ERROR("Failed to create ModelCom from: {}", modelFilePath);
+    }
 }
 
 void ModelViewerObject::Play_Animation(uint32 animIndex, float blendDuration, bool isLoop, bool isRoot)
@@ -123,9 +133,25 @@ void ModelViewerObject::Play_Animation(uint32 animIndex, float blendDuration, bo
 	}
 }
 
+uint32 ModelViewerObject::Get_NumAnimations() const
+{
+    return _modelCom->Get_NumAnimations();
+}
+
+const char* ModelViewerObject::Get_AnimationName(uint32 animIndex)
+{
+    return _modelCom->Get_AnimationName(animIndex);
+}
+
 HRESULT ModelViewerObject::Ready_Components()
 {
-	return S_OK;
+    if (FAILED(GameObject::Add_Component(0, TEXT("Shader_VtxMesh"), _staticShaderCom)))
+        return E_FAIL;
+
+    if (FAILED(GameObject::Add_Component(0, TEXT("Shader_VtxAnimMesh"), _animShaderCom)))
+        return E_FAIL;
+
+    return S_OK;
 }
 
 HRESULT ModelViewerObject::Bind_ShaderResources()
@@ -141,6 +167,18 @@ HRESULT ModelViewerObject::Bind_ShaderResources()
 		return E_FAIL;
     if (FAILED(target->Bind_Matrix("g_ProjMatrix", GAME->Get_Transform(D3DTS::Proj))))
 		return E_FAIL;
+
+    if (FAILED(GAME->Bind_CamPosition(target.get(), "g_vCamPosition")))
+        return E_FAIL;
+
+    const LIGHT_DESC* pLightDesc = GAME->Get_LightDesc(0);
+    if (nullptr != pLightDesc)
+    {
+        target->Bind_RawValue("g_vLightDir", &pLightDesc->direction, sizeof(Vec4));
+        target->Bind_RawValue("g_vLightDiffuse", &pLightDesc->diffuse, sizeof(Vec4));
+        target->Bind_RawValue("g_vLightAmbient", &pLightDesc->ambient, sizeof(Vec4));
+        target->Bind_RawValue("g_vLightSpecular", &pLightDesc->specular, sizeof(Vec4));
+    }
 
 	return S_OK;
 }
