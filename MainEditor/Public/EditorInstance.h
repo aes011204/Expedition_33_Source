@@ -88,6 +88,8 @@ public: /* For.Viewport */
     void                      Request_ViewportSize(EDITOR_VIEWPORT_TARGET targetType, uint32 width, uint32 height);
     ID3D11ShaderResourceView* Get_SharedViewportSRV() const;
     void                      Capture_BackBuffer_ToViewport();
+    ComPtr<Device>            Get_Device() const { return _device; }
+    ComPtr<Context>           Get_Context() const { return _context; }
 
     void                      Apply_RuntimeInputPolicy();
 

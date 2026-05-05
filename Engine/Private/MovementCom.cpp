@@ -2,6 +2,16 @@
 #include "GameObject.h"
 #include "TransformCom.h"
 
+IMPLEMENT_REFLECTION(MovementCom)
+{
+    auto& info = GetStaticReflectionInfo();
+    info.properties.clear();
+
+    PROPERTY_VEC3("Velocity", _velocity, 0.1f);
+
+    return true;
+}
+
 MovementCom::MovementCom(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Component(device, context)
 {

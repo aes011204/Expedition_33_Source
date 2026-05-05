@@ -122,6 +122,16 @@ public:
         return S_OK;
     }
 
+    // 컴포넌트 순회용. 반환 ㄴ
+    template<typename Visitor>
+    void Visit_Components(Visitor&& visitor) const
+    {
+        for (const auto& [tag, component] : _components)
+        {
+            visitor(tag, component);
+        }
+    }
+
 protected:
     ComPtr<Device>          _device = { nullptr };
     ComPtr<Context>         _context = { nullptr };

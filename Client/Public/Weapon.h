@@ -36,12 +36,12 @@ public:
 
 
 private:
-	Shared<ShaderCom> _shader = { nullptr };
-	Shared<ModelCom> _model = { nullptr };
+	Shared<ShaderCom>    _shader = { nullptr };
+	Shared<ModelCom>     _model = { nullptr };
 
 private:
-	const uint32* _parentState = { nullptr };
-	const XMFLOAT4X4* _socketMatrix = { nullptr };
+	const uint32*       _parentState = { nullptr };
+	const XMFLOAT4X4*   _socketMatrix = { nullptr };
 
 
 

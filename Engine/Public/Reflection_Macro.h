@@ -14,6 +14,7 @@ public:                                                                         
     using SelfType = ClassName;                                                    \
     static const wchar_t* StaticClassName() { return WSTRINGIZE(ClassName); }      \
     static const char* StaticClassNameA() { return STRINGIZE(ClassName); }         \
+    static bool Register_Properties();                                             \
     static Engine::ClassReflectionInfo& GetStaticReflectionInfo()                  \
     {                                                                              \
         static Engine::ClassReflectionInfo info = []()                             \
@@ -81,12 +82,20 @@ public:                                                                         
             },                                                                     \
             &ClassName::GetStaticReflectionInfo());
 
+#define IMPLEMENT_REFLECTION(ClassName)                                            \
+    namespace                                                                      \
+    {                                                                              \
+        const bool g_auto_register_properties_##ClassName =                        \
+            ClassName::Register_Properties();                                      \
+    }                                                                              \
+    bool ClassName::Register_Properties()
+
 #define REFLECT_BEGIN(ClassName)                                                   \
     namespace                                                                      \
     {                                                                              \
         const bool g_reflect_##ClassName = []()                                    \
         {                                                                          \
-            using CurrentReflectionType = ClassName;                               \
+            using SelfType = ClassName;                                            \
             auto& info = ClassName::GetStaticReflectionInfo();
 
 #define REFLECT_END                                                                \
@@ -97,27 +106,27 @@ public:                                                                         
 #define PROPERTY_FLOAT(DisplayName, Member, MinValue, MaxValue, DragSpeed)         \
     info.properties.push_back(Engine::PropertyInfo{                                \
         STRINGIZE(Member), DisplayName, STRINGIZE(Member),                         \
-        Engine::PropertyType::Float, offsetof(CurrentReflectionType, Member),      \
+        Engine::PropertyType::Float, offsetof(SelfType, Member),                   \
         MinValue, MaxValue, DragSpeed })
 
 #define PROPERTY_INT(DisplayName, Member, MinValue, MaxValue, DragSpeed)           \
     info.properties.push_back(Engine::PropertyInfo{                                \
         STRINGIZE(Member), DisplayName, STRINGIZE(Member),                         \
-        Engine::PropertyType::Int, offsetof(CurrentReflectionType, Member),        \
+        Engine::PropertyType::Int, offsetof(SelfType, Member),                     \
         MinValue, MaxValue, DragSpeed })
 
 #define PROPERTY_BOOL(DisplayName, Member)                                         \
     info.properties.push_back(Engine::PropertyInfo{                                \
         STRINGIZE(Member), DisplayName, STRINGIZE(Member),                         \
-        Engine::PropertyType::Bool, offsetof(CurrentReflectionType, Member) })
+        Engine::PropertyType::Bool, offsetof(SelfType, Member) })
 
 #define PROPERTY_VEC3(DisplayName, Member, DragSpeed)                              \
     info.properties.push_back(Engine::PropertyInfo{                                \
         STRINGIZE(Member), DisplayName, STRINGIZE(Member),                         \
-        Engine::PropertyType::Vec3, offsetof(CurrentReflectionType, Member),       \
+        Engine::PropertyType::Vec3, offsetof(SelfType, Member),                    \
         0.f, 0.f, DragSpeed })
 
 #define PROPERTY_STRING(DisplayName, Member)                                       \
     info.properties.push_back(Engine::PropertyInfo{                                \
         STRINGIZE(Member), DisplayName, STRINGIZE(Member),                         \
-        Engine::PropertyType::String, offsetof(CurrentReflectionType, Member) })
+        Engine::PropertyType::String, offsetof(SelfType, Member) })

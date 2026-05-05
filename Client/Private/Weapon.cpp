@@ -135,6 +135,7 @@ HRESULT Weapon::Bind_ShaderResources()
     if (FAILED(GAME->Bind_CameraFar(_shader, "g_fFar")))
         return E_FAIL;
 
+
 	return S_OK;
 }
 

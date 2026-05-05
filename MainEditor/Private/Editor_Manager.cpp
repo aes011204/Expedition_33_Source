@@ -9,6 +9,7 @@
 #include "Inspector.h"
 #include "Camera_Tool.h"
 #include "Profile_View.h"
+#include "BT_Tool.h"
 
 #include <filesystem>
 #include <shellapi.h>
@@ -31,6 +32,7 @@ HRESULT Editor_Manager::Initialize()
     Add_Window(Camera_Tool::Create());
     Add_Window(Profile_View::Create());
 
+    Add_Window(BT_Tool::Create());
     return S_OK;
 }
 

@@ -1,10 +1,13 @@
 ﻿#include "Inspector_Factory.h"
 
 #include "Transform_Inspector.h"
+#include "TransformCom.h"
 
 void Inspector_Factory::Initialize()
 {
-    Register_Inspector("Transform", Transform_Inspector::Create());
+    // StaticClassNameA -> const char* | StaticClassName -> const wchar* (엔진 내부 저장용)
+    Register_Inspector(TransformCom::StaticClassNameA(), Transform_Inspector::Create());
+
 }
 
 void Inspector_Factory::Register_Inspector(const string& key, const Shared<Component_Inspector>& inspector)
