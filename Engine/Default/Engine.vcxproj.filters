@@ -465,6 +465,7 @@
       <Filter>01.Utility\04.Component\VIBuffer\Instance\Particle</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Print_Manager.h" />
+    <ClInclude Include="..\Public\Picking.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -640,6 +641,7 @@
     <ClCompile Include="..\Private\RegistorFactory.cpp" />
     <ClCompile Include="..\Private\Shadow.cpp">
       <Filter>01.Utility\07.Lights</Filter>
+    </ClCompile>
     <ClCompile Include="..\private\Prototype_Manager.cpp">
       <Filter>01.Utility\02. Prototype</Filter>
     </ClCompile>
@@ -692,6 +694,7 @@
       <Filter>01.Utility\04.Component\VIBuffer\Instance\Particle</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\Print_Manager.cpp" />
+    <ClCompile Include="..\Private\Picking.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Bin\ShaderFiles\Engine_Shader_Defines.hlsli">

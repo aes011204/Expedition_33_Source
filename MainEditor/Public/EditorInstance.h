@@ -97,6 +97,9 @@ private:
     void Focus_GameView();
     void Focus_SceneView();
 
+    // Game, Scene View 하나만 렌더되게
+    void Sync_ViewportWindowState();
+
 private: /* Core Data */
     ComPtr<Device>               _device = {};
     ComPtr<Context>              _context = {};

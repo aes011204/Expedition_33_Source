@@ -67,6 +67,7 @@
     <ClCompile Include="..\private\BT_Tool.cpp">
       <Filter>01. View</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\Prefab_View.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -147,6 +148,7 @@
     <ClInclude Include="..\public\BT_Tool.h">
       <Filter>01. View</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\Prefab_View.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="00. Main">

@@ -86,6 +86,7 @@ private:
     bool Can_GoForward() const;
     void Go_BackFolder();
     void Go_ForwardFolder();
+    void Refresh_AssetState();
     void Handle_SideButtonEvent();
     void Handle_ThumbnailZoom();
 

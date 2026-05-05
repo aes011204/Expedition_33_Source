@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Base.h"
 
@@ -18,9 +18,7 @@ private:
 	ComPtr<Device> _device = { nullptr };
 	ComPtr<Context> _context = { nullptr };
 
-
 	vector<ComPtr<ID3D11ShaderResourceView>>	_materials[AI_TEXTURE_TYPE_MAX];
-
 
 public:
 	static Shared<Material> Create(const ComPtr<Device>& device, const ComPtr<Context>& context, const aiMaterial* aiMaterial, const char* modelFilePath);

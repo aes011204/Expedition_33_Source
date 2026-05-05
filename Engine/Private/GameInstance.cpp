@@ -19,6 +19,7 @@
 #include "Timer_Manager.h"
 #include "Target_Manager.h"
 #include "Shadow.h"
+#include "Picking.h"
 
 #ifdef _DEBUG
 #include "Print_Manager.h"
@@ -42,6 +43,9 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
         device,
         context
     );
+
+    _device = device;
+    _context = context;
 
     CHECK_NULL(_graphicDevice, E_FAIL);
 
@@ -103,6 +107,10 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
     _physxManager = PhysX_Manager::Create();
     CHECK_NULL(_physxManager, E_FAIL);
 
+    _picking = Picking::Create(device, context);
+    CHECK_NULL(_picking, E_FAIL);
+
+
 #ifdef _DEBUG
     _printManager = Print_Manager::Create();
     CHECK_NULL(_printManager, E_FAIL);
@@ -162,6 +170,13 @@ HRESULT GameInstance::Draw()
 #ifdef _DEBUG
     Try_FlushRuntimePerfLog();
 #endif
+
+    return S_OK;
+}
+
+HRESULT GameInstance::Draw_RendererOnly()
+{
+    _renderer->Draw();
 
     return S_OK;
 }
@@ -495,6 +510,11 @@ const Matrix* GameInstance::Get_Transform(D3DTS transformState) const
     return _pipeLine->Get_Transform(transformState);
 }
 
+const Matrix* GameInstance::Get_Transform_Inverse(D3DTS transformState) const
+{
+    return _pipeLine->Get_Transform_Inverse(transformState);
+}
+
 const Vec4* GameInstance::Get_CamPosition() const
 {
     return _pipeLine->Get_CamPosition();
@@ -550,9 +570,19 @@ void GameInstance::Set_InputBlocked(bool isBlocked)
     return _inputManager->Set_InputBlocked(isBlocked);
 }
 
+const POINT& GameInstance::Get_MousePosition() const
+{
+    return _inputManager->Get_MousePosition();
+}
+
 const LIGHT_DESC* GameInstance::Get_LightDesc(uint32 index)
 {
     return _lightManager->Get_LightDesc(index);
+}
+
+uint32 GameInstance::Get_LightCount() const
+{
+    return _lightManager->Get_LightCount();
 }
 
 HRESULT GameInstance::Add_Light(const LIGHT_DESC& lightDesc)
@@ -563,6 +593,21 @@ HRESULT GameInstance::Add_Light(const LIGHT_DESC& lightDesc)
 HRESULT GameInstance::Render_Lights(Shared<ShaderCom> shader, Shared<VIBuffer_Rect> viBuffer)
 {
     return _lightManager->Render_Lights(shader, viBuffer);
+}
+
+void GameInstance::Clear_Lights()
+{
+    _lightManager->Clear_Lights();
+}
+
+void GameInstance::Get_LightDescs(vector<LIGHT_DESC>& outLightDescs) const
+{
+    _lightManager->Get_LightDescs(outLightDescs);
+}
+
+HRESULT GameInstance::Set_Lights(const vector<LIGHT_DESC>& lightDescs)
+{
+    return _lightManager->Set_Lights(lightDescs);
 }
 
 HRESULT GameInstance::Add_Font(const wstring& fontTag, const wchar_t* fontFilePath)
@@ -688,7 +733,6 @@ Shared<Component> GameInstance::Create_ComponentPrototype(const string& classNam
 
 Shared<GameObject> GameInstance::Create_GameObjectPrototype(const string& className) const
 {
-
     return _typeRegistry->Create_GameObject(className, _graphicDevice->Get_Device(), _graphicDevice->Get_Context());
 }
 
@@ -882,6 +926,16 @@ HRESULT GameInstance::Create_PrefabAsset(const fs::path& path, const string& sta
     return S_OK;
 }
 
+HRESULT GameInstance::Update_Picking()
+{
+    return _picking->Update();
+}
+
+bool GameInstance::Pick_WorldPosition(const POINT& pixelPos, Vec3& outWorldPos)
+{
+     return _picking->Pick_WorldPosition(pixelPos, outWorldPos);
+}
+
 void GameInstance::Release_Engine()
 {
     auto ReleaseManager = [](auto& manager)
@@ -916,6 +970,7 @@ void GameInstance::Release_Engine()
     ReleaseManager(_prototypeManager);
     ReleaseManager(_typeRegistry);
     ReleaseManager(_levelManager);
+    ReleaseManager(_picking);
     ReleaseManager(_timerManager);
     ReleaseManager(_graphicDevice);
     ReleaseManager(_logManager);
@@ -961,6 +1016,11 @@ HRESULT GameInstance::Copy_CurrentRTV_To(const wstring& targetTag)
 HRESULT GameInstance::Copy_RTV(const wstring& srcTargetTag, const wstring& dstTargetTag)
 {
     return _targetManager->Copy_RTV(srcTargetTag, dstTargetTag);
+}
+
+HRESULT GameInstance::Copy_RT_Resource(const wstring& targetTag, ID3D11Texture2D* destTexture)
+{
+    return _targetManager->Copy_Resource(targetTag, destTexture);
 }
 
 #ifdef _DEBUG

@@ -1,9 +1,12 @@
 ﻿#include "Content_Browser.h"
 
 #include "EditorInstance.h"
+#include "Editor_Macro.h"
+#include "Notification_Manager.h"
 #include "GameInstance.h"
 #include "Helper_String.h"
 #include "Texture.h"
+#include "Prefab_View.h"
 
 #include <fstream>
 #include <shellapi.h>
@@ -46,6 +49,9 @@ Content_Browser::Content_Browser()
 void Content_Browser::Update(float timeDelta)
 {
     Editor_Window::Update(timeDelta);
+
+    if (_isFocused && ImGui::IsKeyPressed(ImGuiKey_F5, false))
+        Refresh_AssetState();
 }
 
 void Content_Browser::Render()
@@ -148,13 +154,30 @@ void Content_Browser::Render()
                 ImGui::SetNextItemWidth(pathWidth);
                 ImGui::InputText("##CurrentPath", pathBuffer, IM_ARRAYSIZE(pathBuffer), ImGuiInputTextFlags_ReadOnly);
 
+                const float refreshWidth = 120.f;
+                const float controlSpacing = 8.f;
+
                 float remainingWidth = ImGui::GetContentRegionAvail().x;
-                if (remainingWidth > 120.f)
+                float searchSlotWidth = remainingWidth - refreshWidth - controlSpacing;
+
+                if (searchSlotWidth > 120.f)
                 {
                     ImGui::SameLine();
-                    ImGui::SetNextItemWidth(min(220.f, remainingWidth));
+                    ImGui::SetNextItemWidth(min(220.f, searchSlotWidth));
                     ImGui::InputTextWithHint("##AssetNameSearch", "Search files...", _assetSearchBuffer, IM_ARRAYSIZE(_assetSearchBuffer));
                 }
+
+                ImGui::SameLine();
+
+                float rightX = ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x - refreshWidth;
+                if (rightX > ImGui::GetCursorPosX())
+                    ImGui::SetCursorPosX(rightX);
+
+                if (ImGui::Button(ICON_FA_ROTATE_RIGHT " 새로고침", ImVec2(refreshWidth, 24.f)))
+                    Refresh_AssetState();
+
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip("새로고침 [F5]");
 
                 ImGui::Separator();
 
@@ -204,6 +227,23 @@ void Content_Browser::Refresh_Resources()
 
     if (_currentFolder && _folderHistory.empty())
         Record_FolderHistory(_currentFolder->fullPath);
+}
+
+void Content_Browser::Refresh_AssetState()
+{
+    Refresh_Resources();
+
+    const wstring assetRoot = GAME->Get_AssetRoot();
+    if (assetRoot.empty())
+    {
+        NOTIFY("새로고침 실패");
+        return;
+    }
+
+    if (SUCCEEDED(GAME->Initialize_AssetManager(assetRoot)))
+        NOTIFY("새로고침");
+    else
+        NOTIFY("새로고침 실패");
 }
 
 void Content_Browser::Load_Icons()
@@ -314,7 +354,7 @@ void Content_Browser::Draw_FolderTree(FFolderNode& node)
     const string id = "##" + String::ToString(node.fullPath);
     const bool isOpen = ImGui::TreeNodeEx(id.c_str(), flags);
 
-    Draw_FolderContextMenu(node, "FolderTreeContext");
+    Draw_FolderContextMenu(node, "FolderTreeContext_" + String::ToString(node.fullPath));
 
     const bool isClicked = ImGui::IsItemClicked();
     ImGui::SameLine();
@@ -372,7 +412,11 @@ void Content_Browser::Draw_AssetView()
     {
         const fs::path path(fileEntry.filePath);
         const string fileName = String::ToString(path.filename().wstring());
-        const string pureName = String::ToString(path.stem().wstring());
+        const string prefabSuffix = ".prefab.json";
+        string pureName = String::ToString(path.stem().wstring());
+
+        if (fileName.ends_with(prefabSuffix))
+            pureName = fileName.substr(0, fileName.size() - prefabSuffix.size());
 
         if (hasAssetSearch)
         {
@@ -412,6 +456,26 @@ void Content_Browser::Draw_AssetView()
             }
         }
 
+        // 드래그해서 프리펩 스폰
+        {
+            if (path.extension() == L".json" && fileName.ends_with(prefabSuffix))
+            {
+                if (ImGui::BeginDragDropSource())
+                {
+                    ImGui::SetDragDropPayload(
+                        "CONTENT_BROWSER_PREFAB",
+                        pureName.c_str(),
+                        pureName.size() + 1);
+
+                    ImGui::Text("Prefab");
+                    ImGui::Separator();
+                    ImGui::Text("%s", pureName.c_str());
+
+                    ImGui::EndDragDropSource();
+                }
+            }
+        }
+
         const bool isFocused = ImGui::IsItemFocused();
         const bool isSelected = (_selectedFilePath == fileEntry.filePath);
 
@@ -428,6 +492,22 @@ void Content_Browser::Draw_AssetView()
         if (ImGui::IsItemClicked(ImGuiMouseButton_Left))
             _selectedFilePath = fileEntry.filePath;
 
+        // 더블클릭으로 프리펩 열기 / TODO : Behavior Tree 도 추가하기
+        if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+        {
+            if (path.extension() == L".json" && fileName.ends_with(prefabSuffix))
+            {
+                Shared<Editor_Window> prefabWindowBase = EDITOR->Get_Window(L"Prefab");
+                Shared<Prefab_View> prefabView = dynamic_pointer_cast<Prefab_View>(prefabWindowBase);
+
+                if (prefabView)
+                {
+                    const string prefabName = fileName.substr(0, fileName.size() - prefabSuffix.size());
+                    prefabView->Open_Prefab(prefabName, path);
+                }
+            }
+        }
+
         Draw_FileContextMenu(fileEntry.filePath, "FileItemContext");
 
         ImGui::TextWrapped("%s", pureName.c_str());
@@ -439,6 +519,29 @@ void Content_Browser::Draw_AssetView()
     }
 
     ImGui::Columns(1);
+
+    if (_currentFolder &&
+        ImGui::BeginPopupContextWindow("CurrentFolderContext",
+            ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems))
+    {
+        if (ImGui::MenuItem("프리팹 만들기"))
+            Open_CreatePrefabPopup(_currentFolder->fullPath);
+
+        if (ImGui::MenuItem("탐색기에서 열기"))
+        {
+            const wstring absPath = fs::absolute(_currentFolder->fullPath).wstring();
+
+            ShellExecuteW(
+                nullptr,
+                L"open",
+                absPath.c_str(),
+                nullptr,
+                nullptr,
+                SW_SHOWNORMAL);
+        }
+
+        ImGui::EndPopup();
+    }
 }
 
 void Content_Browser::Draw_FolderTile(FFolderNode& folder)
@@ -467,7 +570,7 @@ void Content_Browser::Draw_FolderTile(FFolderNode& folder)
     if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0))
         Open_Folder(&folder);
 
-    Draw_FolderContextMenu(folder, "FolderTileContext");
+    Draw_FolderContextMenu(folder, "FolderTileContext_" + String::ToString(folder.fullPath));
 
     const string folderName = String::ToString(folder.name);
     ImGui::TextWrapped("%s", folderName.c_str());
@@ -655,6 +758,26 @@ void Content_Browser::Draw_FileContextMenu(const wstring& filePath, const string
 {
     if (!ImGui::BeginPopupContextItem(popupId.c_str()))
         return;
+
+    // 프리펩 열기
+    const fs::path path(filePath);
+    const string fileName = String::ToString(path.filename().wstring());
+    const string suffix = ".prefab.json";
+
+    if (path.extension() == L".json" && fileName.ends_with(suffix))
+    {
+        if (ImGui::MenuItem("Open Prefab"))
+        {
+            Shared<Editor_Window> prefabWindowBase = EDITOR->Get_Window(L"Prefab");
+            Shared<Prefab_View> prefabView = dynamic_pointer_cast<Prefab_View>(prefabWindowBase);
+
+            if (prefabView)
+            {
+                string prefabName = fileName.substr(0, fileName.size() - suffix.size());
+                prefabView->Open_Prefab(prefabName, path);
+            }
+        }
+    }
 
     if (ImGui::MenuItem("탐색기에서 열기"))
     {

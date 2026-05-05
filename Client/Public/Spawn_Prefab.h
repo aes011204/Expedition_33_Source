@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "Base.h"
+#include "Client_Defines.h"
 
 NS_BEGIN(Engine)
 class GameObject;

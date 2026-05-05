@@ -46,6 +46,8 @@ HRESULT EditorInstance::Initialize_Editor(const EDITOR_DESC& EditorDesc, const C
     _runtimeState = EDITOR_RUNTIME_STATE::Edit;
     _runtimeTimeScale = 1.f;
 
+    Sync_ViewportWindowState();
+
     return S_OK;
 }
 
@@ -97,6 +99,7 @@ void EditorInstance::Render_Editor()
 void EditorInstance::Play()
 {
     _runtimeState = EDITOR_RUNTIME_STATE::Play;
+    Sync_ViewportWindowState();
     Activate_TargetCamera();
 
     GAME->Set_FreeCameraInputEnabled(false);
@@ -117,12 +120,14 @@ void EditorInstance::Pause()
     GAME->Unlock_Mouse();
 
     _runtimeState = EDITOR_RUNTIME_STATE::Pause;
+    Sync_ViewportWindowState();
     Request_WindowFocus(EDITOR_VIEWPORT_TARGET::Scene);
 }
 
 void EditorInstance::Stop()
 {
     _runtimeState = EDITOR_RUNTIME_STATE::Edit;
+    Sync_ViewportWindowState();
 
     Activate_FreeCamera();
 
@@ -138,6 +143,7 @@ void EditorInstance::Resume()
         return;
 
     _runtimeState = EDITOR_RUNTIME_STATE::Play;
+    Sync_ViewportWindowState();
     Activate_TargetCamera();
 
     GAME->Set_FreeCameraInputEnabled(false);
@@ -347,6 +353,22 @@ void EditorInstance::Focus_GameView()
 void EditorInstance::Focus_SceneView()
 {
     ImGui::SetWindowFocus("Scene");
+}
+
+void EditorInstance::Sync_ViewportWindowState()
+{
+    Shared<Editor_Window> sceneView = Get_Window(L"Scene");
+    Shared<Editor_Window> gameView = Get_Window(L"Game");
+
+    const bool showGameView = (_runtimeState == EDITOR_RUNTIME_STATE::Play);
+    const bool showSceneView = !showGameView;
+
+    if (sceneView)
+        sceneView->Set_Open(showSceneView);
+
+    if (gameView)
+        gameView->Set_Open(showGameView);
+
 }
 
 void EditorInstance::Apply_RuntimeInputPolicy()

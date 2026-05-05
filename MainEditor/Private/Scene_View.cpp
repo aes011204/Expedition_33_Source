@@ -5,6 +5,8 @@
 #include "GameInstance.h"
 #include "GameObject.h"
 #include "RenderTarget.h"
+#include "Client_Defines.h"
+#include "Spawn_Prefab.h"
 
 Scene_View::Scene_View()
     : Editor_Window{ L"Scene" }
@@ -311,6 +313,35 @@ void Scene_View::Render_ViewportCanvas()
         ImGui::Image(textureId, _viewportSize);
         _viewportMin = ImGui::GetItemRectMin();
         _viewportMax = ImGui::GetItemRectMax();
+
+        // 프리펩 스폰
+        {
+            if (ImGui::BeginDragDropTarget())
+            {
+                if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_PREFAB"))
+                {
+                    const char* prefabName = static_cast<const char*>(payload->Data);
+
+                    POINT pixelPos{};
+                    pixelPos.x = static_cast<LONG>(ImGui::GetMousePos().x - _viewportMin.x);
+                    pixelPos.y = static_cast<LONG>(ImGui::GetMousePos().y - _viewportMin.y);
+
+                    Vec3 worldPos{};
+                    if (GAME->Pick_WorldPosition(pixelPos, worldPos))
+                    {
+                        worldPos.y += 0.1f;
+
+                        Spawn_Prefab::SpawnAt(
+                            prefabName,
+                            ETOI(LevelType::GamePlay),
+                            TEXT("Layer_GameObject"),
+                            worldPos);
+                    }
+                }
+
+                ImGui::EndDragDropTarget();
+            }
+        }
     }
     else
     {

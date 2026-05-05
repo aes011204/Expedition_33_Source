@@ -202,6 +202,7 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     <ClCompile Include="..\Private\Inspector_Factory.cpp" />
     <ClCompile Include="..\Private\MainEditorApp.cpp" />
     <ClCompile Include="..\Private\Notification_Manager.cpp" />
+    <ClCompile Include="..\Private\Prefab_View.cpp" />
     <ClCompile Include="..\Private\SimpleMath.cpp" />
     <ClCompile Include="..\Private\ImGui_Manager.cpp" />
     <ClCompile Include="..\Private\Transform_Inspector.cpp" />
@@ -233,6 +234,7 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     <ClInclude Include="..\Public\ImGui_Manager.h" />
     <ClInclude Include="..\Public\Inspector_Factory.h" />
     <ClInclude Include="..\Public\Notification_Manager.h" />
+    <ClInclude Include="..\Public\Prefab_View.h" />
     <ClInclude Include="..\Public\Transform_Inspector.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="..\Public\MainEditorApp.h" />

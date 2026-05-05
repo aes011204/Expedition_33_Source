@@ -39,6 +39,8 @@ public :
     HRESULT Copy_CurrentRTV_To(const wstring& targetTag);
     HRESULT Copy_RTV(const wstring& srcTargetTag, const wstring& dstTargetTag);
 
+    HRESULT Copy_Resource(const wstring& targetTag, ID3D11Texture2D* destTexture);
+
 private :
     Shared<RenderTarget>        Find_RenderTarget(const wstring& targetTag);
     list<Shared<RenderTarget>>* Find_MRT(const wstring& mrtTag);
