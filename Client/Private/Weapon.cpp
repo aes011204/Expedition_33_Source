@@ -25,14 +25,13 @@ HRESULT Weapon::Initialize(void* pArg)
 	_parentState = pDesc->pParentState;
 	_socketMatrix = pDesc->pSocketMatrix;
 
-
 	if (FAILED(__super::Initialize(pArg)))
 		return E_FAIL;
 
 	if (FAILED(Ready_Components()))
 		return E_FAIL;
 
-	_transformCom->Set_Scale(Vec3(0.01f, 0.01f, 0.01f));
+	_transformCom->Set_Scale(Vec3(0.001f, 0.001f, 0.001f));
 	_transformCom->Rotate(Vec3::Up, 90.f);
 	_transformCom->Set_Position(Vec3(0.8f, 0.f, 0.f));
 
@@ -45,9 +44,9 @@ void Weapon::Priority_Update(float fTimeDelta)
 
 void Weapon::Update(float fTimeDelta)
 {	
-    // test code
-    auto temp = Matrix::Identity;
-    _socketMatrix = &temp;
+    auto identityMat = Matrix::Identity;
+    _socketMatrix = &identityMat;
+
 	XMMATRIX		SocketMatrix = XMLoadFloat4x4(_socketMatrix);
 
 	for (size_t i = 0; i < 3; i++)

@@ -33,7 +33,7 @@ HRESULT Monster::Initialize(void* arg)
         GAME->Random(0.f, 10.f)
     ));
 
-    _model->Set_Animation(/*rand() % 20*/0, true);
+    _model->Set_Animation(/*rand() % 20*/4, true);
 
     return S_OK;
 }
