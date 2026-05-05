@@ -131,9 +131,11 @@ public: /* For.Input_Manager */
 	bool KeyDown(KEY_TYPE eKey) const;
 	bool KeyUp(KEY_TYPE eKey) const;
 
-	Vec2 Get_MouseDelta() const;
-	void Lock_Mouse();
-	void Unlock_Mouse();
+	Vec2  Get_MouseDelta() const;
+    float Get_MouseWheel() const;
+    void  Set_MouseWheel(float mouseWheel);
+	void  Lock_Mouse();
+	void  Unlock_Mouse();
 
     // 입력 차단
     void Set_InputBlocked(bool isBlocked);
@@ -166,7 +168,6 @@ public: /* For.Camera_Manager */
     HRESULT Add_Camera(Shared<Camera> camera) const;
     bool    Is_ActiveCamera(Shared<Camera> camera);
     void    Change_ActiveCamera(Shared<Camera> camera) const;
-    float   Get_FovY();
     void    SwitchTo_NextCamera();
 
     bool    Activate_CameraByType(ObjectType objectType);
@@ -179,7 +180,7 @@ public: /* For.Camera_Manager */
 
     Shared<Camera>  Get_Camera(int index) const;
     Shared<Camera>  Get_ActiveCamera();
-    float   Get_CameraCount();
+    int             Get_CameraCount();
 
 public: /* For.TypeRegistry */
     const TypeRegistry::ComponentTypeInfo*  Find_ComponentType(const string& className) const;

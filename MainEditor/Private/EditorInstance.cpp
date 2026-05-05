@@ -327,6 +327,9 @@ void EditorInstance::Apply_RuntimeInputPolicy()
     const bool isFreeCamera =
         GAME->Is_ActiveCameraType(ObjectType::FreeCamera);
 
+    const bool isTargetCamera =
+    GAME->Is_ActiveCameraType(ObjectType::TargetCamera);
+
     if (_runtimeState == EDITOR_RUNTIME_STATE::Play)
     {
         if (isFreeCamera)
@@ -337,7 +340,7 @@ void EditorInstance::Apply_RuntimeInputPolicy()
             GAME->Set_PlayerInputBlocked(true);
             GAME->Set_FreeCameraInputEnabled(freeCameraControl);
 
-            if (freeCameraControl)
+            if (freeCameraControl||isTargetCamera)
                 GAME->Lock_Mouse();
             else
                 GAME->Unlock_Mouse();

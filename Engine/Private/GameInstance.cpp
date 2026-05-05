@@ -509,6 +509,16 @@ Vec2 GameInstance::Get_MouseDelta() const
     return _inputManager->Get_MouseDelta();
 }
 
+float GameInstance::Get_MouseWheel() const
+{
+    return _inputManager->Get_MouseWheel();
+}
+
+void GameInstance::Set_MouseWheel(float mouseWheel)
+{
+    return _inputManager->Set_MouseWheel(mouseWheel);
+}
+
 void GameInstance::Lock_Mouse()
 {
     return _inputManager->Lock_Mouse();
@@ -618,7 +628,7 @@ Shared<Camera> GameInstance::Get_ActiveCamera()
     return _cameraManager->Get_ActiveCamera();
 }
 
-float GameInstance::Get_CameraCount()
+int GameInstance::Get_CameraCount()
 {
     return _cameraManager->Get_CameraCount();
 }
