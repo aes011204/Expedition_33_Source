@@ -13,6 +13,7 @@ Animation::Animation(const Animation& prototype)
 	, _tickPerSecond{ prototype._tickPerSecond }
 	, _currentTrackPosition{ 0.f }
 {
+    strcpy_s(_animationName, prototype._animationName);
 	for (auto& ch : prototype._channels)
 		_channels.push_back(ch->Clone());
 }
@@ -115,9 +116,9 @@ void Animation::Blend_TransformMatrix(float timeDelta, const Shared<Animation>& 
 			nextAnim->_currentTrackPosition, nextAnim->_currentKeyFrameIndices[i], nextAnim->_duration, isLoop, nextTrans);
 		nextAnim->_channels[i]->Update_Velocity(nextTrans, nextAnim->_currentTrackPosition);
 
-		XMVECTOR tS = XMVectorLerp(XMLoadFloat3(&curTrans.scale), XMLoadFloat3(&nextTrans.scale), blendRatio);
-		XMVECTOR tR = XMQuaternionSlerp(XMLoadFloat4(&curTrans.rotation), XMLoadFloat4(&nextTrans.rotation), blendRatio);
-		XMVECTOR tP = XMVectorLerp(XMLoadFloat3(&curTrans.position), XMLoadFloat3(&nextTrans.position), blendRatio);
+		Vec3 tS = Vec3::Lerp(curTrans.scale, nextTrans.scale, blendRatio);
+		Quat tR = Quat::Slerp(curTrans.rotation, nextTrans.rotation, blendRatio);
+		Vec3 tP = Vec3::Lerp(curTrans.position, XMLoadFloat3(&nextTrans.position), blendRatio);
 
 		XMMATRIX targetMatrix;
 
