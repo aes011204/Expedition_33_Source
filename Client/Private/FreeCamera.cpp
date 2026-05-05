@@ -77,22 +77,6 @@ void FreeCamera::Priority_Update(float timeDelta)
         _transformCom->Set_SpeedPerSec(_moveSpeed);
     }
 
-
-    if(GAME->KeyPress(KEY_TYPE::ALT)&& wheelDelta != 0.f)
-    {
-        float step = 0.1f;
-
-        if(wheelDelta > 0.f)
-        {
-             _fovY += step;   
-        }
-        else
-        {
-            _fovY -= step;
-        }
-   
-    }
-
     const float cameraDelta = max(timeDelta, GAME->Get_FreeCameraTimeDelta());
 
     if (GAME->KeyPress(KEY_TYPE::W))
