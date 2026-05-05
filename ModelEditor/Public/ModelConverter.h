@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "EditorBlock.h"
 
 NS_BEGIN(Assimp)

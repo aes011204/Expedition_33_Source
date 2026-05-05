@@ -195,7 +195,6 @@ namespace ModelEditor
 					}
 					else
 					{
-						// 파일인 경우 확장자 확인
 						size_t len = wcslen(fd.cFileName);
 						if (len >= 4 && _wcsicmp(fd.cFileName + len - 4, L".fbx") == 0)
 						{
@@ -375,7 +374,6 @@ namespace ModelEditor
             meshData.numVertices = aiMesh->mNumVertices;
             meshData.numIndices = aiMesh->mNumFaces * 3;
 
-            // [추가됨] 포인터 필드들을 미리 0(nullptr)으로 밀어서 바이너리에 쓰레기값이 기록되는 것을 방지
             meshData.vertices = nullptr;
             meshData.indices = nullptr;
             meshData.boneIndices = nullptr;

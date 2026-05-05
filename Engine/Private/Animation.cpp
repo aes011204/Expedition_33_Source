@@ -1,4 +1,4 @@
-#include "Animation.h"
+﻿#include "Animation.h"
 
 #include "Channel.h"
 #include "Bone.h"
@@ -19,6 +19,8 @@ Animation::Animation(const Animation& prototype)
 
 HRESULT Animation::Initialize(const ModelAnimationData& animData, const vector<ModelChannelData>& channels)
 {
+    strcpy_s(_name, );
+
 	_duration = static_cast<float>(animData.duration);
 	_tickPerSecond = static_cast<float>(animData.ticksPerSecond);
 	_numChannels = animData.numChannels;

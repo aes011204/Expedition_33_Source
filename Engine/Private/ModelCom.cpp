@@ -158,12 +158,9 @@ bool ModelCom::Play_Animation(float timeDelta)
     if (rootIndex >= 0)
     {
         _rootFrameVelocity.position = XMVector3TransformNormal(_rootFrameVelocity.position, _preLocalTransformMatrix);
-        /* 회전은 preLocalTransformMatrix의 회전 성분만 추출하여 적용하는 것이 정확하지만, 
-           일반적으로 루트 모션 회전은 이미 애니메이션에 포함되어 있으므로 위치 스케일링이 핵심입니다. */
     }
 
-    /* 계층 구조 순차 업데이트 (본 배열이 DFS 순서이므로 부모가 항상 먼저 갱신됨) */
-    for (int32 i = 0; i < _numBones; ++i)
+    for (uint32 i = 0; i < _numBones; ++i)
     {
         _bones[i]->Update_CombinedTransformationMatrix(_bones, _preLocalTransformMatrix);
     }
@@ -178,6 +175,8 @@ HRESULT ModelCom::Bind_Material(ShaderCom* shader, const char* constantName, uin
 
 HRESULT ModelCom::Bind_BoneMatrices(ShaderCom* shader, const char* constantName, uint32 meshIndex)
 {
+    if (_numBones == 0) return S_OK;
+
     return _meshes[meshIndex]->Bind_BoneMatrices(shader, constantName, _bones);
 }
 
@@ -230,17 +229,43 @@ HRESULT ModelCom::Ready_Model(const char* modelPath)
         vector<uint32> boneRefs;
         vector<Matrix> offsets;
 
-        if (_isSkeletal && meshData.numBoneRefs > 0)
+        //if (_isSkeletal && meshData.numBoneRefs > 0)
+        //{
+        //    boneRefs.resize(meshData.numBoneRefs);
+        //    offsets.resize(meshData.numBoneRefs);
+        //    stream.read(reinterpret_cast<char*>(boneRefs.data()), sizeof(uint32) * meshData.numBoneRefs);
+        //    stream.read(reinterpret_cast<char*>(offsets.data()), sizeof(Matrix) * meshData.numBoneRefs);
+        //
+        //    meshData.boneIndices = boneRefs.data();
+        //    meshData.offsetMatrices = offsets.data();
+        //
+        //    _meshes.push_back(SkeletalMesh::Create(_device, _context, meshData, _preLocalTransformMatrix)); // 깔끔한 단일 파라미터!
+        //}
+        //else
+        //{
+        //    meshData.boneIndices = nullptr;
+        //    meshData.offsetMatrices = nullptr;
+        //    _meshes.push_back(StaticMesh::Create(_device, _context, meshData, _preLocalTransformMatrix));
+        //}
+        if (_isSkeletal)
         {
-            boneRefs.resize(meshData.numBoneRefs);
-            offsets.resize(meshData.numBoneRefs);
-            stream.read(reinterpret_cast<char*>(boneRefs.data()), sizeof(uint32) * meshData.numBoneRefs);
-            stream.read(reinterpret_cast<char*>(offsets.data()), sizeof(Matrix) * meshData.numBoneRefs);
+            if (meshData.numBoneRefs > 0)
+            {
+                boneRefs.resize(meshData.numBoneRefs);
+                offsets.resize(meshData.numBoneRefs);
+                stream.read(reinterpret_cast<char*>(boneRefs.data()), sizeof(uint32) * meshData.numBoneRefs);
+                stream.read(reinterpret_cast<char*>(offsets.data()), sizeof(Matrix) * meshData.numBoneRefs);
 
-            meshData.boneIndices = boneRefs.data();
-            meshData.offsetMatrices = offsets.data();
+                meshData.boneIndices = boneRefs.data();
+                meshData.offsetMatrices = offsets.data();
+            }
+            else
+            {
+                meshData.boneIndices = nullptr;
+                meshData.offsetMatrices = nullptr;
+            }
 
-            _meshes.push_back(SkeletalMesh::Create(_device, _context, meshData, _preLocalTransformMatrix)); // 깔끔한 단일 파라미터!
+            _meshes.push_back(SkeletalMesh::Create(_device, _context, meshData, _preLocalTransformMatrix));
         }
         else
         {

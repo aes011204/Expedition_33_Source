@@ -48,12 +48,15 @@ VS_OUT VS_MAIN(VS_IN In)
     /* 정점의 위치 * 월드 * 뷰 * 투영 */
     float4x4 matWV, matWVP;
 
+    float weightW = 1.f - (In.vBlendWeight.x + In.vBlendWeight.y + In.vBlendWeight.z);
+
     matrix BoneMatrix = g_BoneMatrices[In.vBlendIndex.x] * In.vBlendWeight.x + 
         g_BoneMatrices[In.vBlendIndex.y] * In.vBlendWeight.y + 
         g_BoneMatrices[In.vBlendIndex.z] * In.vBlendWeight.z + 
-        g_BoneMatrices[In.vBlendIndex.w] * In.vBlendWeight.w;
+        g_BoneMatrices[In.vBlendIndex.w] * weightW;
 
     vector vPosition = mul(float4(In.vPosition, 1.f), BoneMatrix);
+    vPosition.w = 1.f;
     vector vNormal = mul(float4(In.vNormal, 0.f), BoneMatrix);
 
     matWV = mul(g_WorldMatrix, g_ViewMatrix);
