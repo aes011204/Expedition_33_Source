@@ -22,6 +22,7 @@ HRESULT Animation::Initialize(const ModelAnimationData& animData, const vector<M
 {
     strcpy_s(_animationName, animData.name);
 
+
 	_duration = static_cast<float>(animData.duration);
 	_tickPerSecond = static_cast<float>(animData.ticksPerSecond);
 	_numChannels = animData.numChannels;
