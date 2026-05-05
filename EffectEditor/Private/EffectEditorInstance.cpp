@@ -252,16 +252,17 @@ Shared<RenderTarget> EffectEditorInstance::Prepare_SharedViewportRenderTarget(ui
             width,
             height,
             DXGI_FORMAT_R8G8B8A8_UNORM,
-            Vec4(0.f, 0.f, 0.f, 1.f));
+            Vec4(0.f, 0.f, 0.f, 1.f)
+        );
     }
-    else if (FAILED(_sharedViewportRenderTarget->Resize(
-        width,
-        height,
-        DXGI_FORMAT_R8G8B8A8_UNORM,
-        Vec4(0.f, 0.f, 0.f, 1.f))))
-    {
+    else if (FAILED(
+        _sharedViewportRenderTarget->Resize(
+            width,
+            height,
+            DXGI_FORMAT_R8G8B8A8_UNORM,
+            Vec4(0.f, 0.f, 0.f, 1.f))
+    ))
         return nullptr;
-    }
 
     return _sharedViewportRenderTarget;
 }
@@ -276,28 +277,29 @@ ID3D11ShaderResourceView* EffectEditorInstance::Get_SharedViewportSRV() const
 
 void EffectEditorInstance::Capture_BackBuffer_ToViewport()
 {
-    Shared<RenderTarget> renderTarget =
+    const Shared<RenderTarget> renderTarget =
         Prepare_SharedViewportRenderTarget(
             GAME->Get_BackBufferWidth(),
-            GAME->Get_BackBufferHeight());
+            GAME->Get_BackBufferHeight()
+        );
 
     if (nullptr == renderTarget || nullptr == _context)
         return;
 
-    ComPtr<IDXGISwapChain> swapChain = GAME->Get_SwapChain();
+    const ComPtr<IDXGISwapChain> swapChain = GAME->Get_SwapChain();
     if (nullptr == swapChain)
         return;
 
     ComPtr<ID3D11Texture2D> backBufferTexture = nullptr;
-    if (FAILED(swapChain->GetBuffer(
-        0,
-        __uuidof(ID3D11Texture2D),
-        reinterpret_cast<void**>(backBufferTexture.GetAddressOf()))))
-    {
+    if (FAILED(
+        swapChain->GetBuffer(
+            0,
+            __uuidof(ID3D11Texture2D),
+            reinterpret_cast<void**>(backBufferTexture.GetAddressOf()))
+    ))
         return;
-    }
 
-    ComPtr<ID3D11Texture2D> viewportTexture = renderTarget->Get_Texture();
+    const ComPtr<ID3D11Texture2D> viewportTexture = renderTarget->Get_Texture();
     if (nullptr == viewportTexture)
         return;
 
@@ -316,7 +318,8 @@ void EffectEditorInstance::Enable_FitPreviewViewport()
 
     GAME->Set_ViewportSize(
         GAME->Get_BackBufferWidth(),
-        GAME->Get_BackBufferHeight());
+        GAME->Get_BackBufferHeight()
+    );
 }
 
 void EffectEditorInstance::Sync_PreviewViewportMode()
@@ -326,7 +329,8 @@ void EffectEditorInstance::Sync_PreviewViewportMode()
 
     GAME->Set_ViewportSize(
         GAME->Get_BackBufferWidth(),
-        GAME->Get_BackBufferHeight());
+        GAME->Get_BackBufferHeight()
+    );
 }
 
 float EffectEditorInstance::Get_EffectiveViewportAspect() const
@@ -337,19 +341,17 @@ float EffectEditorInstance::Get_EffectiveViewportAspect() const
         return 0.f;
 
     return static_cast<float>(viewportWidth) /
-        static_cast<float>(viewportHeight);
+           static_cast<float>(viewportHeight);
 }
 
 void EffectEditorInstance::Apply_RuntimeInputPolicy()
 {
-    Shared<Editor_Window> sceneView = Get_Window(L"Scene");
-    Shared<Editor_Window> gameView = Get_Window(L"Game");
+    const Shared<Editor_Window> sceneView = Get_Window(L"Scene");
+    const Shared<Editor_Window> gameView = Get_Window(L"Game");
 
     if (_runtimeState != EffectEditorRuntimeState::Play &&
         !GAME->Is_ActiveCameraType(ObjectType::FreeCamera))
-    {
         Activate_FreeCamera();
-    }
 
     const bool sceneInteractive =
         sceneView && sceneView->Is_Open() &&

@@ -5,6 +5,7 @@
 #include "EffectEditorInstance.h"
 #include "GameInstance.h"
 #include "Level_Loading.h"
+#include "Profile_View.h"
 #include "ResourceLoader.h"
 
 EffectEditorApp::EffectEditorApp()
@@ -17,14 +18,14 @@ HRESULT EffectEditorApp::Initialize()
     if (!fs::exists(assetRootPath) || !fs::is_directory(assetRootPath))
         return E_FAIL;
 
-    RECT clientRect {};
+    RECT clientRect{};
     if (!GetClientRect(g_hWnd, &clientRect))
         return E_FAIL;
 
     const uint32 viewportWidth = max(1L, clientRect.right - clientRect.left);
     const uint32 viewportHeight = max(1L, clientRect.bottom - clientRect.top);
 
-    ENGINE_DESC engineDesc {};
+    ENGINE_DESC engineDesc{};
     engineDesc.hInstance = g_hInst;
     engineDesc.hWnd = g_hWnd;
     engineDesc.winMode = WinMode::Win;
@@ -51,7 +52,7 @@ HRESULT EffectEditorApp::Initialize()
     if (FAILED(Ready_StartLevel(LevelType::Logo)))
         return E_FAIL;
 
-    EffectEditorDesc editorDesc {};
+    EffectEditorDesc editorDesc{};
     editorDesc.hWnd = g_hWnd;
     editorDesc.winMode = WinMode::Win;
     editorDesc.viewportWidth = viewportWidth;
@@ -69,7 +70,10 @@ void EffectEditorApp::Priority_Update(float)
 
 void EffectEditorApp::Update(float timeDelta)
 {
-    EDITOR->Update_Editor(timeDelta);
+    {
+        Profile_View::Scope profileScope("Editor::Update");
+        EDITOR->Update_Editor(timeDelta);
+    }
 
     float runtimeDelta = 0.f;
     float freeCameraDelta = 0.f;
@@ -95,7 +99,10 @@ void EffectEditorApp::Update(float timeDelta)
     }
 
     GAME->Set_FreeCameraTimeDelta(freeCameraDelta);
-    GAME->Update_Engine(runtimeDelta);
+    {
+        Profile_View::Scope profileScope("Game::Update");
+        GAME->Update_Engine(runtimeDelta);
+    }
 
     EDITOR->Apply_RuntimeInputPolicy();
 }
@@ -106,21 +113,30 @@ void EffectEditorApp::Late_Update(float)
 
 HRESULT EffectEditorApp::Render()
 {
-    const Vec4 clearColor = Vec4(0.f, 0.f, 1.f, 1.f);
-    if (FAILED(GAME->Clear_Buffers(clearColor)))
-        return E_FAIL;
+    {
+        Profile_View::Scope profileScope("Game::Render");
 
-    if (FAILED(GAME->Draw()))
-        return E_FAIL;
+        const Vec4 clearColor = Vec4(0.f, 0.f, 1.f, 1.f);
+        if (FAILED(GAME->Clear_Buffers(clearColor)))
+            return E_FAIL;
 
-    EDITOR->Capture_BackBuffer_ToViewport();
+        if (FAILED(GAME->Draw()))
+            return E_FAIL;
+    }
 
-    GAME->Bind_BackBuffer();
+    {
+        Profile_View::Scope profileScope("Editor::Render");
 
-    EDITOR->Render_Editor();
+        EDITOR->Capture_BackBuffer_ToViewport();
+        GAME->Bind_BackBuffer();
+        EDITOR->Render_Editor();
+    }
 
-    if (FAILED(GAME->Present()))
-        return E_FAIL;
+    {
+        Profile_View::Scope profileScope("Engine::Present");
+        if (FAILED(GAME->Present()))
+            return E_FAIL;
+    }
 
     return S_OK;
 }
@@ -147,12 +163,12 @@ HRESULT EffectEditorApp::Ready_StartLevel(LevelType startLevelID)
     if (LevelType::Loading == startLevelID)
         return E_FAIL;
 
-    if (FAILED(GAME->Change_Level(
-        ETOI(LevelType::Loading),
-        Level_Loading::Create(_device.Get(), _context.Get(), startLevelID))))
-    {
+    if (FAILED(
+        GAME->Change_Level(
+            ETOI(LevelType::Loading),
+            Level_Loading::Create(_device.Get(), _context.Get(), startLevelID))
+    ))
         return E_FAIL;
-    }
 
     return S_OK;
 }

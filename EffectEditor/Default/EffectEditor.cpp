@@ -5,6 +5,7 @@
 #include <Windows.h>
 #include "EffectEditorApp.h"
 #include "GameInstance.h"
+#include "Profile_View.h"
 
 extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
@@ -44,6 +45,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE, _In_ LPWSTR,
 
     MSG msg{};
     float timeAcc = 0.f;
+    auto previousFrameTime = EffectEditor::Profile_View::clock::now();
 
     while (true)
     {
@@ -62,10 +64,23 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE, _In_ LPWSTR,
         {
             const float dt = GAME->Compute_TimeDelta(TEXT("Timer_60FPS"));
 
-            mainApp->Priority_Update(dt);
-            mainApp->Update(dt);
-            mainApp->Late_Update(dt);
-            mainApp->Render();
+            EffectEditor::Profile_View::Frame_Begin();
+
+            {
+                EffectEditor::Profile_View::Scope frameScope("Frame");
+                mainApp->Priority_Update(dt);
+                mainApp->Update(dt);
+                mainApp->Late_Update(dt);
+                mainApp->Render();
+            }
+
+            const auto currentFrameTime = EffectEditor::Profile_View::clock::now();
+            const double frameMs = std::chrono::duration<double, std::milli>(currentFrameTime - previousFrameTime).count();
+            previousFrameTime = currentFrameTime;
+
+            EffectEditor::Profile_View::Set_Frame_Time_External(frameMs);
+            EffectEditor::Profile_View::Set_RenderCallCount_External(GAME->Get_RenderCall());
+            EffectEditor::Profile_View::Frame_End();
 
             timeAcc = 0.f;
         }
@@ -98,10 +113,10 @@ static bool Create_EffectEditorWindow(HINSTANCE hInstance, int nCmdShow)
 {
     constexpr DWORD editorWindowStyle = WS_POPUP | WS_VISIBLE;
 
-    MONITORINFO monitorInfo {};
+    MONITORINFO monitorInfo{};
     monitorInfo.cbSize = sizeof(MONITORINFO);
 
-    HMONITOR hMonitor = MonitorFromPoint(POINT { 0, 0 }, MONITOR_DEFAULTTOPRIMARY);
+    const HMONITOR hMonitor = MonitorFromPoint(POINT{ 0, 0 }, MONITOR_DEFAULTTOPRIMARY);
     if (!GetMonitorInfo(hMonitor, &monitorInfo))
         return false;
 

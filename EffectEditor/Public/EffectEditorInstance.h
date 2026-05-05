@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Base.h"
 
@@ -51,7 +51,7 @@ public:
 public:
     Shared<Editor_Window> Get_Window(const wstring& windowName) const;
     HWND Get_WindowHandle() const;
-    Editor_Context* Get_Context() const { return _editorContext.get(); }
+    Editor_Context* Get_EditorContext() const { return _editorContext.get(); }
 
 public:
     void Execute_Command(const Shared<ICommand>& command);
@@ -70,6 +70,8 @@ public:
     Shared<RenderTarget> Prepare_SharedViewportRenderTarget(uint32 width, uint32 height);
     ID3D11ShaderResourceView* Get_SharedViewportSRV() const;
     void Capture_BackBuffer_ToViewport();
+    ComPtr<Device> Get_Device() const { return _device; }
+    ComPtr<Context> Get_Context() const { return _context; }
 
     void Set_ManualPreviewViewportSize(uint32 width, uint32 height);
     void Enable_FitPreviewViewport();

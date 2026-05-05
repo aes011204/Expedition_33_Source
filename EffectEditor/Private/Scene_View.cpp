@@ -1,5 +1,6 @@
-#include "Scene_View.h"
+﻿#include "Scene_View.h"
 
+#include "Camera.h"
 #include "Editor_Context.h"
 #include "EffectEditorInstance.h"
 #include "GameInstance.h"
@@ -8,40 +9,82 @@
 
 namespace EffectEditor::Internal
 {
-    struct ViewportImageRect
+struct ViewportImageRect
+{
+    ImVec2 imageMin;
+    ImVec2 imageMax;
+};
+
+struct OverlayRect
+{
+    ImVec2 min;
+    ImVec2 max;
+};
+
+static ViewportImageRect Compute_AspectFitRect(const ImVec2& canvasMin, const ImVec2& canvasSize, float aspect)
+{
+    if (aspect <= 0.f || canvasSize.x <= 1.f || canvasSize.y <= 1.f)
     {
-        ImVec2 imageMin;
-        ImVec2 imageMax;
-    };
-
-    static ViewportImageRect Compute_AspectFitRect(const ImVec2& canvasMin, const ImVec2& canvasSize, float aspect)
-    {
-        if (aspect <= 0.f || canvasSize.x <= 1.f || canvasSize.y <= 1.f)
-        {
-            return {
-                canvasMin,
-                ImVec2(canvasMin.x + canvasSize.x, canvasMin.y + canvasSize.y)
-            };
-        }
-
-        float imageWidth = canvasSize.x;
-        float imageHeight = imageWidth / aspect;
-
-        if (imageHeight > canvasSize.y)
-        {
-            imageHeight = canvasSize.y;
-            imageWidth = imageHeight * aspect;
-        }
-
-        const ImVec2 imageMin = ImVec2(
-            canvasMin.x + (canvasSize.x - imageWidth) * 0.5f,
-            canvasMin.y + (canvasSize.y - imageHeight) * 0.5f);
-
         return {
-            imageMin,
-            ImVec2(imageMin.x + imageWidth, imageMin.y + imageHeight)
+            canvasMin,
+            ImVec2(canvasMin.x + canvasSize.x, canvasMin.y + canvasSize.y)
         };
     }
+
+    float imageWidth = canvasSize.x;
+    float imageHeight = imageWidth / aspect;
+
+    if (imageHeight > canvasSize.y)
+    {
+        imageHeight = canvasSize.y;
+        imageWidth = imageHeight * aspect;
+    }
+
+    const ImVec2 imageMin = ImVec2(
+        canvasMin.x + (canvasSize.x - imageWidth) * 0.5f,
+        canvasMin.y + (canvasSize.y - imageHeight) * 0.5f
+    );
+
+    return {
+        imageMin,
+        ImVec2(imageMin.x + imageWidth, imageMin.y + imageHeight)
+    };
+}
+
+static OverlayRect Compute_GizmoOverlayRect(const ImVec2& viewportMin, const ImVec2& viewportMax)
+{
+    const ImVec2 panelSize = ImVec2(360.f, 34.f);
+    const ImVec2 panelMin = ImVec2(viewportMax.x - panelSize.x - 16.f, viewportMin.y + 16.f);
+
+    return {
+        panelMin,
+        ImVec2(panelMin.x + panelSize.x, panelMin.y + panelSize.y)
+    };
+}
+
+static OverlayRect Compute_PreviewViewportOverlayRect(const ImVec2& viewportMin, const ImVec2& viewportMax)
+{
+    const ImVec2 panelSize = ImVec2(252.f, 34.f);
+    const ImVec2 panelMin = ImVec2(viewportMax.x - panelSize.x - 16.f, viewportMin.y + 58.f);
+
+    return {
+        panelMin,
+        ImVec2(panelMin.x + panelSize.x, panelMin.y + panelSize.y)
+    };
+}
+
+static bool Is_PointInRect(const ImVec2& point, const OverlayRect& rect)
+{
+    return point.x >= rect.min.x && point.x <= rect.max.x &&
+        point.y >= rect.min.y && point.y <= rect.max.y;
+}
+
+static bool Is_MouseOverViewportOverlay(const ImVec2& viewportMin, const ImVec2& viewportMax)
+{
+    const ImVec2 mousePos = ImGui::GetIO().MousePos;
+    return Is_PointInRect(mousePos, Compute_GizmoOverlayRect(viewportMin, viewportMax)) ||
+        Is_PointInRect(mousePos, Compute_PreviewViewportOverlayRect(viewportMin, viewportMax));
+}
 }
 
 Scene_View::Scene_View()
@@ -82,9 +125,7 @@ void Scene_View::Render()
         Render_PreviewViewportOverlay();
     }
     else
-    {
         Set_Open(isOpen);
-    }
 
     ImGui::End();
 }
@@ -116,9 +157,7 @@ void Scene_View::Handle_GizmoShortcut()
     }
 
     if (ImGui::IsKeyPressed(ImGuiKey_Space, false))
-    {
-        _gizmoMode = (_gizmoMode == ImGuizmo::LOCAL) ? ImGuizmo::WORLD : ImGuizmo::LOCAL;
-    }
+        _gizmoMode = _gizmoMode == ImGuizmo::LOCAL ? ImGuizmo::WORLD : ImGuizmo::LOCAL;
 }
 
 void Scene_View::Render_GizmoOverlay()
@@ -130,24 +169,64 @@ void Scene_View::Render_GizmoOverlay()
 
     ImDrawList* drawList = ImGui::GetWindowDrawList();
 
-    const ImVec2 panelSize = ImVec2(232.f, 34.f);
-    const ImVec2 panelMin = ImVec2(_viewportMax.x - panelSize.x - 16.f, _viewportMin.y + 16.f);
-    const ImVec2 panelMax = ImVec2(panelMin.x + panelSize.x, panelMin.y + panelSize.y);
+    const Internal::OverlayRect panelRect = Internal::Compute_GizmoOverlayRect(_viewportMin, _viewportMax);
 
-    drawList->AddRectFilled(panelMin, panelMax, IM_COL32(36, 38, 42, 220), 6.f);
-    drawList->AddRect(panelMin, panelMax, IM_COL32(92, 96, 104, 255), 6.f);
+    drawList->AddRectFilled(panelRect.min, panelRect.max, IM_COL32(36, 38, 42, 220), 6.f);
+    drawList->AddRect(panelRect.min, panelRect.max, IM_COL32(92, 96, 104, 255), 6.f);
 
-    ImGui::SetCursorScreenPos(ImVec2(panelMin.x + 8.f, panelMin.y + 5.f));
+    ImGui::SetCursorScreenPos(ImVec2(panelRect.min.x + 8.f, panelRect.min.y + 5.f));
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(5.f, 3.f));
 
     const ImVec4 activeButtonColor = ImVec4(0.79f, 0.56f, 0.18f, 1.f);
     const ImVec4 activeHoveredColor = ImVec4(0.88f, 0.64f, 0.23f, 1.f);
     const ImVec4 activeTextColor = ImVec4(0.09f, 0.09f, 0.09f, 1.f);
-    const bool isTranslate = (_gizmoOperation == ImGuizmo::TRANSLATE);
-    const bool isRotate = (_gizmoOperation == ImGuizmo::ROTATE);
-    const bool isScale = (_gizmoOperation == ImGuizmo::SCALE);
-    const bool isLocal = (_gizmoMode == ImGuizmo::LOCAL);
-    const bool isWorld = (_gizmoMode == ImGuizmo::WORLD);
+    const bool isTranslate = _gizmoOperation == ImGuizmo::TRANSLATE;
+    const bool isRotate = _gizmoOperation == ImGuizmo::ROTATE;
+    const bool isScale = _gizmoOperation == ImGuizmo::SCALE;
+    const bool isLocal = _gizmoMode == ImGuizmo::LOCAL;
+    const bool isWorld = _gizmoMode == ImGuizmo::WORLD;
+
+    const Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
+    const bool isFreeCamera =
+        activeCamera && activeCamera->Get_ObjectType() == ObjectType::FreeCamera;
+
+    if (!isFreeCamera)
+        ImGui::BeginDisabled();
+
+    ImGui::TextUnformatted("Speed");
+    ImGui::SameLine();
+
+    if (isFreeCamera)
+    {
+        const Shared<TransformCom> transform = activeCamera->Get_Transform();
+        float speed = transform ? transform->Get_SpeedPerSec() : 0.f;
+
+        const ImGuiIO& io = ImGui::GetIO();
+        if (transform && (_isFocused || _isHovered) && io.KeyCtrl && io.MouseWheel != 0.f)
+        {
+            speed += io.MouseWheel > 0.f ? 2.f : -2.f;
+            speed = clamp(speed, 0.1f, 200.f);
+            transform->Set_SpeedPerSec(speed);
+        }
+
+        ImGui::SetNextItemWidth(78.f);
+        if (ImGui::DragFloat("##FreeCameraSpeed", &speed, 0.1f, 0.1f, 200.f, "%.2f"))
+        {
+            if (transform)
+                transform->Set_SpeedPerSec(speed);
+        }
+    }
+    else
+    {
+        ImGui::SetNextItemWidth(78.f);
+        float dummySpeed = 0.f;
+        ImGui::DragFloat("##FreeCameraSpeed", &dummySpeed, 0.f, 0.f, 0.f, "N/A");
+    }
+
+    if (!isFreeCamera)
+        ImGui::EndDisabled();
+
+    ImGui::SameLine(0.f, 10.f);
 
     if (isTranslate)
     {
@@ -223,14 +302,12 @@ void Scene_View::Render_PreviewViewportOverlay()
 
     ImDrawList* drawList = ImGui::GetWindowDrawList();
 
-    const ImVec2 panelSize = ImVec2(252.f, 34.f);
-    const ImVec2 panelMin = ImVec2(_viewportMax.x - panelSize.x - 16.f, _viewportMin.y + 58.f);
-    const ImVec2 panelMax = ImVec2(panelMin.x + panelSize.x, panelMin.y + panelSize.y);
+    const Internal::OverlayRect panelRect = Internal::Compute_PreviewViewportOverlayRect(_viewportMin, _viewportMax);
 
-    drawList->AddRectFilled(panelMin, panelMax, IM_COL32(36, 38, 42, 220), 6.f);
-    drawList->AddRect(panelMin, panelMax, IM_COL32(92, 96, 104, 255), 6.f);
+    drawList->AddRectFilled(panelRect.min, panelRect.max, IM_COL32(36, 38, 42, 220), 6.f);
+    drawList->AddRect(panelRect.min, panelRect.max, IM_COL32(92, 96, 104, 255), 6.f);
 
-    ImGui::SetCursorScreenPos(ImVec2(panelMin.x + 8.f, panelMin.y + 5.f));
+    ImGui::SetCursorScreenPos(ImVec2(panelRect.min.x + 8.f, panelRect.min.y + 5.f));
     ImGui::PushID("PreviewViewportOverlay");
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(5.f, 3.f));
 
@@ -298,17 +375,20 @@ void Scene_View::Render_ViewportCanvas()
     const ImVec2 canvasMax = ImVec2(canvasMin.x + _viewportSize.x, canvasMin.y + _viewportSize.y);
     ImDrawList* drawList = ImGui::GetWindowDrawList();
 
-    drawList->AddRectFilled(canvasMin, canvasMax, IM_COL32(18, 20, 24, 255));
-    drawList->AddRect(canvasMin, canvasMax, IM_COL32(55, 60, 70, 255));
-
-    ImGui::InvisibleButton("SceneViewportCanvas", _viewportSize);
-
     ID3D11ShaderResourceView* pSRV = EDITOR->Get_SharedViewportSRV();
     if (nullptr != pSRV)
     {
         const float aspect = EDITOR->Get_EffectiveViewportAspect();
         const Internal::ViewportImageRect imageRect =
             Internal::Compute_AspectFitRect(canvasMin, _viewportSize, aspect);
+
+        drawList->AddRectFilled(canvasMin, canvasMax, IM_COL32(18, 20, 24, 255));
+        drawList->AddRect(canvasMin, canvasMax, IM_COL32(55, 60, 70, 255));
+
+        if (Internal::Is_MouseOverViewportOverlay(imageRect.imageMin, imageRect.imageMax))
+            ImGui::Dummy(_viewportSize);
+        else
+            ImGui::InvisibleButton("SceneViewportCanvas", _viewportSize);
 
         const ImTextureID textureId =
             static_cast<ImTextureID>(reinterpret_cast<intptr_t>(pSRV));
@@ -319,6 +399,14 @@ void Scene_View::Render_ViewportCanvas()
     }
     else
     {
+        drawList->AddRectFilled(canvasMin, canvasMax, IM_COL32(18, 20, 24, 255));
+        drawList->AddRect(canvasMin, canvasMax, IM_COL32(55, 60, 70, 255));
+
+        if (Internal::Is_MouseOverViewportOverlay(canvasMin, canvasMax))
+            ImGui::Dummy(_viewportSize);
+        else
+            ImGui::InvisibleButton("SceneViewportCanvas", _viewportSize);
+
         drawList->AddText(ImVec2(canvasMin.x + 12.f, canvasMin.y + 12.f), IM_COL32(210, 216, 224, 255), "Scene RenderTarget Missing");
         _viewportMin = canvasMin;
         _viewportMax = canvasMax;
@@ -327,15 +415,15 @@ void Scene_View::Render_ViewportCanvas()
 
 void Scene_View::Handle_FocusRequest()
 {
-    Editor_Context* context = EDITOR->Get_Context();
+    Editor_Context* context = EDITOR->Get_EditorContext();
     if (context == nullptr)
         return;
 
-    Shared<GameObject> targetObject = context->Consume_FocusObjectRequest();
+    const Shared<GameObject> targetObject = context->Consume_FocusObjectRequest();
     if (targetObject == nullptr)
         return;
 
-    Shared<TransformCom> transform = targetObject->Get_Transform();
+    const Shared<TransformCom> transform = targetObject->Get_Transform();
     if (transform == nullptr)
         return;
 
@@ -345,15 +433,15 @@ void Scene_View::Handle_FocusRequest()
 
 void Scene_View::Render_SelectedObjectGizmo()
 {
-    Editor_Context* context = EDITOR->Get_Context();
+    const Editor_Context* context = EDITOR->Get_EditorContext();
     if (context == nullptr)
         return;
 
-    Shared<GameObject> selectedObject = context->Get_Selection().selectedObject;
+    const Shared<GameObject> selectedObject = context->Get_Selection().selectedObject;
     if (selectedObject == nullptr)
         return;
 
-    Shared<TransformCom> transform = selectedObject->Get_Transform();
+    const Shared<TransformCom> transform = selectedObject->Get_Transform();
     if (transform == nullptr)
         return;
 
@@ -377,7 +465,8 @@ void Scene_View::Render_SelectedObjectGizmo()
         reinterpret_cast<float*>(const_cast<Matrix*>(projMatrix)),
         _gizmoOperation,
         _gizmoMode,
-        reinterpret_cast<float*>(&worldMatrix));
+        reinterpret_cast<float*>(&worldMatrix)
+    );
 
     if (!manipulated)
         return;
