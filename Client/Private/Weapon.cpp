@@ -25,14 +25,13 @@ HRESULT Weapon::Initialize(void* pArg)
 	_parentState = pDesc->pParentState;
 	_socketMatrix = pDesc->pSocketMatrix;
 
-
 	if (FAILED(__super::Initialize(pArg)))
 		return E_FAIL;
 
 	if (FAILED(Ready_Components()))
 		return E_FAIL;
 
-	_transformCom->Set_Scale(Vec3(0.1f, 0.1f, 0.1f));
+	_transformCom->Set_Scale(Vec3(0.001f, 0.001f, 0.001f));
 	_transformCom->Rotate(Vec3::Up, 90.f);
 	_transformCom->Set_Position(Vec3(0.8f, 0.f, 0.f));
 
@@ -45,6 +44,9 @@ void Weapon::Priority_Update(float fTimeDelta)
 
 void Weapon::Update(float fTimeDelta)
 {	
+    auto identityMat = Matrix::Identity;
+    _socketMatrix = &identityMat;
+
 	XMMATRIX		SocketMatrix = XMLoadFloat4x4(_socketMatrix);
 
 	for (size_t i = 0; i < 3; i++)
@@ -70,7 +72,7 @@ HRESULT Weapon::Render()
 
 	for (uint32 i = 0; i < iNumMeshes; i++)
 	{
-		_model->Bind_Material(_shader.get(), "g_DiffuseTexture", i, aiTextureType_DIFFUSE, 0);
+		_model->Bind_Material(_shader.get(), "g_DiffuseTexture", i, 1, 0);
 
 		if (FAILED(_shader->Begin(0)))
 			return E_FAIL;
@@ -97,7 +99,7 @@ HRESULT Weapon::Render_Shadow()
 
     for (uint32 i = 0; i < iNumMeshes; i++)
     {
-        _model->Bind_Material(_shader.get(), "g_DiffuseTexture", i, aiTextureType_DIFFUSE, 0);
+        _model->Bind_Material(_shader.get(), "g_DiffuseTexture", i, 1, 0);
 
         if (FAILED(_shader->Begin(1)))
             return E_FAIL;

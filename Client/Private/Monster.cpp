@@ -21,24 +21,24 @@ HRESULT Monster::Initialize_Prototype()
 }
 
 HRESULT Monster::Initialize(void* arg)
-{	
+{
 	if (FAILED(__super::Initialize(arg)))
 		return E_FAIL;
-	
+
 	if (FAILED(Ready_Components()))
 		return E_FAIL;
 
 	//_transformCom->Set_Position(Vec3(
-	//	GAME->Random(0.f, 10.f), 
-	//	2.f, 
-	//	GAME->Random(0.f, 10.f)		
+	//	GAME->Random(0.f, 10.f),
+	//	2.f,
+	//	GAME->Random(0.f, 10.f)
 	//));
 
     _transformCom->Set_Position(Vec3(
         10.f,2.f,10.f
     ));
 
-	_model->Set_Animation(/*rand() % 20*/0, true);
+    _model->Set_Animation(/*rand() % 20*/4, true);
 
 	return S_OK;
 }
@@ -71,9 +71,9 @@ HRESULT Monster::Render()
 
 	for (uint32 i = 0; i < iNumMeshes; i++)
 	{
-		_model->Bind_Material(_shader.get(), "g_DiffuseTexture", i, aiTextureType_DIFFUSE, 0);
+		_model->Bind_Material(_shader.get(), "g_DiffuseTexture", i, 1, 0);
 		_model->Bind_BoneMatrices(_shader.get(), "g_BoneMatrices", i);
-		
+
 		if (FAILED(_shader->Begin(0)))
 			return E_FAIL;
 

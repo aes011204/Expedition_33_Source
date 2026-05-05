@@ -36,7 +36,7 @@ HRESULT Body_Player::Initialize(void* pArg)
 	if (FAILED(Ready_Components()))
 		return E_FAIL;
 
-	_model->Set_Animation(/*rand() % 20*/0, true);
+	_model->Set_Animation(/*rand() % 20*/1, true);
 
 	return S_OK;
 }
@@ -70,7 +70,7 @@ HRESULT Body_Player::Render()
 
 	for (uint32 i = 0; i < iNumMeshes; i++)
 	{
-		_model->Bind_Material(_shader.get(), "g_DiffuseTexture", i, aiTextureType_DIFFUSE, 0);
+		_model->Bind_Material(_shader.get(), "g_DiffuseTexture", i, 1, 0);
 		_model->Bind_BoneMatrices(_shader.get(), "g_BoneMatrices", i);
 
 		if (FAILED(_shader->Begin(0)))
@@ -113,7 +113,7 @@ HRESULT Body_Player::Ready_Components()
 	if (FAILED(Add_Component(ETOI(LevelType::GamePlay), TEXT("Shader_VtxAnimMesh"), _shader)))
 		return E_FAIL;
 
-	if (FAILED(Add_Component(ETOI(LevelType::GamePlay), TEXT("Model_Fiona"), _model)))
+	if (FAILED(Add_Component(ETOI(LevelType::GamePlay), TEXT("Model_LuneTemp"), _model)))
 		return E_FAIL;
 
 	return S_OK;

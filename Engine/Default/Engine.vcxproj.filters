@@ -217,6 +217,9 @@
     <ClInclude Include="..\public\Base.h">
       <Filter>01.Utility\99.SuperClass</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\Engine_Model_Struct.h">
+      <Filter>99. Defines</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\Engine_Function.h">
       <Filter>99. Defines</Filter>
     </ClInclude>
@@ -411,6 +414,12 @@
     </ClInclude>
     <ClInclude Include="..\public\Prototype_Manager.h">
       <Filter>01.Utility\02. Prototype</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\StaticMesh.h">
+      <Filter>01.Utility\04.Component\Model\Mesh</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\SkeletalMesh.h">
+      <Filter>01.Utility\04.Component\Model\Mesh</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\AIController.h">
       <Filter>E_BehavoirTreee</Filter>
@@ -678,6 +687,12 @@
     </ClCompile>
     <ClCompile Include="..\private\Sequence.cpp">
       <Filter>E_BehavoirTreee\node</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\StaticMesh.cpp">
+      <Filter>01.Utility\04.Component\Model\Mesh</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\SkeletalMesh.cpp">
+      <Filter>01.Utility\04.Component\Model\Mesh</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\ICommand.cpp">
       <Filter>95. Interface\Command</Filter>
