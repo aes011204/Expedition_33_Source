@@ -41,6 +41,8 @@ private:
     // 일단 33원정대 스타일에서는 필요없을거같음.
     bool                 _bUseControllerRotationYaw = true;
 
+    float                _testRelfectionValue = 1.f;
+
 public:
     static Shared<PlayerControllerCom> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
     Shared<Component> Clone(void* arg) override;

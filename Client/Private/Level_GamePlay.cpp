@@ -34,6 +34,7 @@ void Level_GamePlay::BeginPlay()
 {
     Level::BeginPlay();
 
+    
 }
 
 void Level_GamePlay::Update(float fTimeDelta)
@@ -81,22 +82,20 @@ HRESULT Level_GamePlay::Ready_Lights()
 
 HRESULT Level_GamePlay::Ready_Layer_Camera(const wstring& strLayerTag)
 {
-    FreeCamera::FREECAMERA_DESC		FreeCameraDesc{};
+	FreeCamera::FREECAMERA_DESC		CameraDesc{};
 
-    FreeCameraDesc.speedPerSec = 10.f;
-    FreeCameraDesc.degreePerSec = 180.f;
-    FreeCameraDesc.eye = XMFLOAT4(0.f, 10.f, -7.f, 1.f);
-    FreeCameraDesc.at = XMFLOAT4(0.f, 0.f, 0.f, 1.f);
-    FreeCameraDesc.fovy = XMConvertToRadians(60.f);
-    FreeCameraDesc.pitch = 0.f;
-    FreeCameraDesc.yaw = 0.f;
-    FreeCameraDesc.nearPlane = 0.1f;
-    FreeCameraDesc.farPlane = 500.f;
-    FreeCameraDesc.mouseSensor = 0.05f;
+	CameraDesc.speedPerSec = 10.f;
+	CameraDesc.degreePerSec = 180.f;
+	CameraDesc.eye = XMFLOAT4(0.f, 10.f, -7.f, 1.f);
+	CameraDesc.at = XMFLOAT4(0.f, 0.f, 0.f, 1.f);
+	CameraDesc.fovy = XMConvertToRadians(60.f) ;
+	CameraDesc.nearPlane = 0.1f;
+	CameraDesc.farPlane = 500.f;
+	CameraDesc.mouseSensor = 0.05f;
 
-    if (FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_FreeCamera"),
-        ETOI(LevelType::GamePlay), strLayerTag, &FreeCameraDesc)))
-        return E_FAIL;
+	if (FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_FreeCamera"),
+		ETOI(LevelType::GamePlay), strLayerTag, &CameraDesc)))
+		return E_FAIL;
 
     TargetCamera::TARGETCAMERA_DESC		TargetCameraDesc{};
 
@@ -143,17 +142,18 @@ HRESULT Level_GamePlay::Ready_Layer_BackGround(const wstring& strLayerTag)
         ETOI(LevelType::GamePlay), strLayerTag)))
         return E_FAIL;
 
-    return S_OK;
+
+
+	return S_OK;
 }
 
 HRESULT Level_GamePlay::Ready_Layer_Monster(const wstring& strLayerTag)
 {
-    for (size_t i = 0; i < 10; i++)
-    {
-        if (FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Monster"),
-            ETOI(LevelType::GamePlay), strLayerTag)))
-            return E_FAIL;
-    }
+
+		if (FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Monster"),
+			ETOI(LevelType::GamePlay), strLayerTag)))
+			return E_FAIL;
+	
 
     return S_OK;
 }

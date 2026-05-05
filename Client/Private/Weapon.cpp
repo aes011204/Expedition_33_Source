@@ -126,6 +126,7 @@ HRESULT Weapon::Bind_ShaderResources()
 	if (FAILED(_shader->Bind_RawValue("g_vLightSpecular", &pLightDesc->specular, sizeof(XMFLOAT4))))
 		return E_FAIL;
 
+
 	return S_OK;
 }
 
