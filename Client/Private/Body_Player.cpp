@@ -36,7 +36,7 @@ HRESULT Body_Player::Initialize(void* pArg)
 	if (FAILED(Ready_Components()))
 		return E_FAIL;
 
-	_model->Set_Animation(/*rand() % 20*/0, true);
+	_model->Set_Animation(/*rand() % 20*/1, true);
 
 	return S_OK;
 }

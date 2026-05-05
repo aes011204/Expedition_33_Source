@@ -241,24 +241,6 @@ HRESULT ModelCom::Ready_Model(const char* modelPath)
         vector<uint32> boneRefs;
         vector<Matrix> offsets;
 
-        //if (_isSkeletal && meshData.numBoneRefs > 0)
-        //{
-        //    boneRefs.resize(meshData.numBoneRefs);
-        //    offsets.resize(meshData.numBoneRefs);
-        //    stream.read(reinterpret_cast<char*>(boneRefs.data()), sizeof(uint32) * meshData.numBoneRefs);
-        //    stream.read(reinterpret_cast<char*>(offsets.data()), sizeof(Matrix) * meshData.numBoneRefs);
-        //
-        //    meshData.boneIndices = boneRefs.data();
-        //    meshData.offsetMatrices = offsets.data();
-        //
-        //    _meshes.push_back(SkeletalMesh::Create(_device, _context, meshData, _preLocalTransformMatrix)); // 깔끔한 단일 파라미터!
-        //}
-        //else
-        //{
-        //    meshData.boneIndices = nullptr;
-        //    meshData.offsetMatrices = nullptr;
-        //    _meshes.push_back(StaticMesh::Create(_device, _context, meshData, _preLocalTransformMatrix));
-        //}
         if (_isSkeletal)
         {
             if (meshData.numBoneRefs > 0)
