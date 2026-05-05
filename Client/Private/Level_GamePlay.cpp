@@ -1,4 +1,4 @@
-﻿#include "Level_GamePlay.h"
+#include "Level_GamePlay.h"
 #include "GameInstance.h"
 #include "ClientInstance.h"
 #include "FreeCamera.h"
@@ -108,19 +108,24 @@ HRESULT Level_GamePlay::Ready_Layer_Camera(const wstring& strLayerTag)
     TargetCameraDesc.yaw = 0.f;
     TargetCameraDesc.nearPlane = 0.1f;
     TargetCameraDesc.farPlane = 500.f;
-    TargetCameraDesc.mouseSensor = 0.2f;
-    TargetCameraDesc.followSpeed = 5.f;
-    TargetCameraDesc.offset = Vec3{ 0.5f, 1.f, 0.f };
-    TargetCameraDesc.distance = 2.f;
-    TargetCameraDesc.sideOffset = 0.5;
-    TargetCameraDesc.heightOffset = 1.f;
+    TargetCameraDesc.mouseSensor = 0.06f;
+    TargetCameraDesc.followSpeed = 8.f;
+    TargetCameraDesc.offset = Vec3 {0.5f, 1.f, 0.f};
+    TargetCameraDesc.distance = 1.8f;
+    TargetCameraDesc.sideOffset = 0.f;
+    TargetCameraDesc.heightOffset = 0.5f;
+    TargetCameraDesc.aimOffset = 0.5f;
+    TargetCameraDesc.pitchLookScale = 0.5;
+    TargetCameraDesc.pitchMin = -70.f;
+    TargetCameraDesc.pitchMax = 80.f;
+    TargetCameraDesc.lookHeight = 0.8f;
+    TargetCameraDesc.pivotHeight =0.3f;
 
     if (FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_TargetCamera"),
         ETOI(LevelType::GamePlay), strLayerTag, &TargetCameraDesc)))
         return E_FAIL;
 
-
-    return S_OK;
+	return S_OK;
 }
 
 HRESULT Level_GamePlay::Ready_Layer_BackGround(const wstring& strLayerTag)

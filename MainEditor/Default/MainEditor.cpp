@@ -175,6 +175,13 @@ static LRESULT CALLBACK MainEditor_WndProc(HWND hWnd, UINT message, WPARAM wPara
         DestroyWindow(hWnd);
         return 0;
 
+    case WM_MOUSEWHEEL:
+        {
+            float wheel = static_cast<float>(GET_WHEEL_DELTA_WPARAM(wParam));
+            GAME->Set_MouseWheel(wheel);
+            break;
+
+        }
     case WM_DESTROY:
         PostQuitMessage(0);
         return 0;

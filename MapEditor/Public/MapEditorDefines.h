@@ -36,6 +36,7 @@ namespace MapEditor
         TriggerVolume,
         CameraZone,
         PostProcessVolume,
+        Light,
         Fail
     };
 
@@ -61,6 +62,8 @@ namespace MapEditor
             return "[CZ]";
         case MapEditor::EObjectType::PostProcessVolume:
             return "[PP]";
+        case MapEditor::EObjectType::Light:
+            return "[LT]";
         case MapEditor::EObjectType::Fail:
         default:
             return "[??]";

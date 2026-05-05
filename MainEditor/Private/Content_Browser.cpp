@@ -71,6 +71,7 @@ void Content_Browser::Render()
                 _resourceRoot = fs::path(assetRoot);
         }
 
+<<<<<<< HEAD
         if (_rootFolder.fullPath.empty() && !_resourceRoot.empty() && fs::exists(_resourceRoot))
             Refresh_Resources();
 
@@ -168,6 +169,12 @@ void Content_Browser::Render()
             }
         }
         ImGui::EndChild();
+=======
+        const string resourceRootText = String::ToString(_resourceRoot.wstring());
+        ImGui::TextUnformatted(resourceRootText.c_str());
+        ImGui::Separator();
+        Render_Directory(_resourceRoot);
+>>>>>>> dev
     }
 
     Set_Open(isOpen);
@@ -192,6 +199,7 @@ void Content_Browser::Refresh_Resources()
 
     if (!savedPath.empty())
     {
+<<<<<<< HEAD
         FFolderNode* found = Find_FolderNode(_rootFolder, savedPath);
         _currentFolder = found ? found : &_rootFolder;
     }
@@ -199,6 +207,13 @@ void Content_Browser::Refresh_Resources()
     {
         _currentFolder = &_rootFolder;
     }
+=======
+        const string strName = String::ToString(entry.path().filename().wstring());
+        if (entry.is_directory())
+            ImGui::BulletText("[%s]", strName.c_str());
+        else
+            ImGui::BulletText("%s", strName.c_str());
+>>>>>>> dev
 
     if (_currentFolder && _folderHistory.empty())
         Record_FolderHistory(_currentFolder->fullPath);

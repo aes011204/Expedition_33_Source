@@ -69,6 +69,8 @@ HRESULT MapEditor::MapEditorApp::Render()
     _camera->Apply();
 
     CHECK_FAILED(_rt->Begin(), E_FAIL);
+    DrawSceneDebug();
+
     CHECK_FAILED(GAME->Draw(), E_FAIL);
     GAME->Bind_BackBuffer();
 
@@ -82,6 +84,65 @@ HRESULT MapEditor::MapEditorApp::Render()
     CHECK_FAILED(GAME->Present(), E_FAIL);
 
     return S_OK;
+}
+
+void MapEditorApp::DrawSceneDebug()
+{
+    for (auto& obj : _scene._objects)
+    {
+        const bool isSelected = (obj == _scene._selected);
+        const Color color = isSelected ? Color(1.f, 1.f, 0.f, 1.f) : Color(0.f, 1.f, 0.f, 1.f);
+
+        switch (obj->_type)
+        {
+        case EObjectType::EncounterZone:
+        case EObjectType::TriggerVolume:
+        case EObjectType::CameraZone:
+        case EObjectType::PostProcessVolume:
+        {
+            if (obj->_zoneShape == EZoneShape::Box)
+            {
+                DebugBoxDesc desc;
+                desc.center = obj->_position;
+                desc.extents = obj->_zoneExtent;
+                desc.rotation = obj->_rotation;
+                desc.style.color = color;
+                desc.style.depthEnabled = false;
+                GAME->Draw_DebugBox(desc);
+            }
+            else
+            {
+                DebugSphereDesc desc;
+                desc.center = obj->_position;
+                desc.radius = obj->_zoneRadius;
+                desc.style.color = color;
+                desc.style.depthEnabled = false;
+                GAME->Draw_DebugSphere(desc);
+            }
+            break;
+        }
+
+        case EObjectType::SpawnPoint:
+        {
+            DebugSphereDesc sphere;
+            sphere.center = obj->_position;
+            sphere.radius = 0.3f;
+            sphere.style.color = isSelected ? Color(1.f, 1.f, 0.f, 1.f) : Color(0.f, 0.5f, 1.f, 1.f);
+            sphere.style.depthEnabled = false;
+            GAME->Draw_DebugSphere(sphere);
+
+            DebugLineDesc line;
+            line.start = obj->_position;
+            line.end = obj->_position + Vec3(0.f, 1.f, 0.f);
+            line.style.color = sphere.style.color;
+            line.style.depthEnabled = false;
+            GAME->Draw_DebugLine(line);
+            break;
+        }
+        default:
+            break;
+        }
+    }
 }
 
 Unique<MapEditor::MapEditorApp> MapEditor::MapEditorApp::Create()
