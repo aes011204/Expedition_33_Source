@@ -24,6 +24,7 @@ class Light_Manager;
 class Font_Manager;
 class Asset_Manager;
 class Log_Manager;
+class Target_Manager;
 class Camera_Manager;
 struct ConsoleLogEntry;
 class Component;
@@ -34,6 +35,7 @@ class Debug_Manager;
 class Collision_Manager;
 class PhysX_Manager;
 class ColliderCom;
+class Shadow;
 
 class ENGINE_DLL GameInstance final : public Base
 {
@@ -120,6 +122,7 @@ public: /* For.Object_Manager */
 
 public: /* For.Renderer */
     void Add_RenderGroup(RenderGroup renderGroup, Shared<GameObject> gameObject);
+    uint32 Get_RenderCall() const;
 
 public: /* For.PipeLine */
     HRESULT Bind_CamPosition(ShaderCom* shader, const char* constantName);
@@ -148,11 +151,12 @@ public: /* For.Input_Manager */
 public: /* For.Light_Manager */
     const LIGHT_DESC* Get_LightDesc(uint32 index);
     HRESULT Add_Light(const LIGHT_DESC& lightDesc);
+    HRESULT Render_Lights(Shared<ShaderCom> shader, Shared<VIBuffer_Rect> viBuffer);
 
 public: /* For.Font_Manager */
     HRESULT Add_Font(const wstring& fontTag, const wchar_t* fontFilePath);
     void Draw_Font(const wstring& fontTag, const wchar_t* text, const Vec2& position, FXMVECTOR color = XMVectorSet(1.f, 1.f, 1.f, 1.f));
-        
+
 public: /* For.Asset_Manager */
     /* 리소스 루트를 기준으로 GUID/meta/cache registry를 준비할 때 호출한다. */
     HRESULT Initialize_AssetManager(const wstring& resourceRoot);
@@ -187,6 +191,9 @@ public: /* For.Camera_Manager */
     Shared<Camera>  Get_ActiveCamera();
     int             Get_CameraCount();
 
+    HRESULT Bind_CameraFar(Shared<ShaderCom> shader, const char* constantName);
+
+
 public: /* For.TypeRegistry */
     const TypeRegistry::ComponentTypeInfo*  Find_ComponentType(const string& className) const;
     const TypeRegistry::GameObjectTypeInfo* Find_GameObjectType(const string& className) const;
@@ -195,6 +202,36 @@ public: /* For.TypeRegistry */
     Shared<Component>   Create_ComponentPrototype(const string& className) const;
     Shared<GameObject>  Create_GameObjectPrototype(const string& className) const;
     Shared<Base>        Create_BTNodePrototype(const string& className) const;
+
+public : /* For.Target_Manager */
+    HRESULT Add_RenderTarget(const wstring& targetTag, uint32 sizeX, uint32 sizeY, DXGI_FORMAT pixelFormat, const Color& clearColor, bool resizeWithViewport = true, bool useDSV = false);
+    HRESULT Add_MRT(const wstring& mrtTag, const wstring& targetTag);
+
+    HRESULT Begin_MRT(const wstring& mrtTag, bool useDSV = false);
+    HRESULT End_MRT();
+    HRESULT Resize_MRTs(uint32 width, uint32 height);
+    HRESULT Bind_RT_ShaderResource(Shared<ShaderCom> shader, const char* constantName, const wstring& targetTag);
+
+    HRESULT Copy_CurrentRTV_To(const wstring& targetTag);
+    HRESULT Copy_RTV(const wstring& srcTargetTag, const wstring& dstTargetTag);
+
+#ifdef _DEBUG
+    HRESULT Initialize_Debug(float sizeX, float sizeY);
+    HRESULT Resize_DrawArea(float sizeX, float sizeY);
+    HRESULT Display_RT(const wstring& targetTag, bool render);
+    HRESULT Display_AllRTs(bool render);
+    HRESULT Render_RT_Debug(Shared<VIBuffer_Rect> viBuffer, Shared<ShaderCom> shader);
+    const map<wstring, bool>& Get_RTs() const;
+#endif
+
+public: /* For.Shadow */
+    HRESULT                 Bind_ShadowMatrices(Shared<ShaderCom> shader, const char* viewName, const char* projName);
+    HRESULT                 Bind_ShadowLightDesc(Shared<ShaderCom> shader, const char* lightFarName, const char* biasName = nullptr, const char* intensityName = nullptr);
+
+    HRESULT                 Update_ShadowLight(const ShadowLightDesc& desc);
+    const ShadowLightDesc*  Get_ShadowLightDesc() const;
+    const Matrix*           Get_ShadowTransformMatrix(D3DTS eType) const;
+
 
 public: /* For.Collision_Manager */
     void                    Add_Collider(Shared<ColliderCom> collider);
@@ -259,8 +296,10 @@ private:
     Unique<Asset_Manager>       _assetManager{}; /* GUID 기반 에셋 registry와 meta/cache를 관리하는 매니저 */
     Unique<Camera_Manager>      _cameraManager{};
     Unique<TypeRegistry>        _typeRegistry{};
+    Unique<Target_Manager>      _targetManager{};
     Unique<Debug_Manager>       _debugManager{};
     Unique<Collision_Manager>   _collisionManager{};
+    Unique<Shadow>              _shadow{};
     Unique<PhysX_Manager>       _physxManager{};
 #ifdef _DEBUG
     Unique<Print_Manager>       _printManager{};
@@ -275,7 +314,7 @@ private:
 
     // Free 카메라용 time
     float   _freeCameraTimeDelta = 0.f;
-    
+
 #ifdef _DEBUG
 private: //## 디버그 성능 평가용
     static constexpr float runtimePerfSampleWindowSec{ 5.f };          // RuntimePerf summary를 몇 초마다 출력할건지

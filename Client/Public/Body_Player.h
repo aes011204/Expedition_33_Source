@@ -33,6 +33,7 @@ public:
 	virtual void    Update(float fTimeDelta) override;
 	virtual void    Late_Update(float fTimeDelta) override;
 	virtual HRESULT Render() override;
+    virtual HRESULT Render_Shadow() override;
 
 
 private:

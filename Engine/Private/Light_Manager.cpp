@@ -1,5 +1,6 @@
 ﻿#include "Light_Manager.h"
 #include "Light.h"
+#include "ShaderCom.h"
 
 Light_Manager::Light_Manager()
 {
@@ -7,12 +8,39 @@ Light_Manager::Light_Manager()
 
 const LIGHT_DESC* Light_Manager::Get_LightDesc(uint32 index)
 {
-	auto	iter = _lights.begin();
+    if (_lights.empty())
+        return nullptr;
 
-	for (uint32 i = 0; i < index; i++)
-		++iter;
+	auto iter = _lights.begin();
 
-	return (*iter)->Get_LightDesc();	
+    for (uint32 i = 0; i < index; i++)
+    {
+        ++iter;
+        if (iter == _lights.end())
+            return nullptr;
+    }
+
+	return (*iter)->Get_LightDesc();
+}
+
+const LIGHT_DESC* Light_Manager::Get_PrimaryShadowLightDesc() const
+{
+    // 아직 사용 안 한다. 이후 환경 요소 설정 관련해서 필요해지면 연결
+    if (_lights.empty())
+        return nullptr;
+
+    for (const auto& light : _lights)
+    {
+        if (!light) continue;
+
+        const LIGHT_DESC* desc = light->Get_LightDesc();
+        if (!desc) continue;
+
+        if (desc->type == LightType::Directional && desc->castShadow)
+            return desc;
+    }
+
+    return nullptr;
 }
 
 HRESULT Light_Manager::Add_Light(const LIGHT_DESC& lightDesc)
@@ -24,6 +52,17 @@ HRESULT Light_Manager::Add_Light(const LIGHT_DESC& lightDesc)
 	_lights.push_back(light);
 
 	return S_OK;
+}
+
+HRESULT Light_Manager::Render_Lights(Shared<ShaderCom> shader, Shared<VIBuffer_Rect> viBuffer)
+{
+    for (auto& pLight : _lights)
+    {
+        if (nullptr != pLight)
+            pLight->Render(shader, viBuffer);
+    }
+
+    return S_OK;
 }
 
 Unique<Light_Manager> Light_Manager::Create()

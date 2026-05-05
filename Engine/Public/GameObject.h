@@ -30,6 +30,7 @@ public:
     virtual void    Update(float timeDelta);
     virtual void    Late_Update(float timeDelta);
     virtual HRESULT Render();
+    virtual HRESULT Render_Shadow() { return S_OK; }
 
     HRESULT         Try_BeginPlay();
 

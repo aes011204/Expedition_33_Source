@@ -53,10 +53,6 @@
 #include <spdlog/sinks/rotating_file_sink.h>
 //#include <fmod.hpp>
 
-#include "Assimp/Importer.hpp"
-#include "Assimp/postprocess.h"
-#include "Assimp/scene.h"
-
 // phiscx
 #include "PxPhysicsAPI.h"
 
@@ -66,6 +62,7 @@
 #include "Engine_Struct.h"
 #include "Engine_Function.h"
 #include "Vertex_Types.h"
+#include "Engine_Model_Struct.h"
 
 //## Windows SDK 라이브러리 링커
 #pragma comment(lib, "d3d11.lib")

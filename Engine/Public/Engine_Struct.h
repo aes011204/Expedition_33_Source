@@ -37,6 +37,21 @@ using LIGHT_DESC = struct tagLightDesc
     Vec4 diffuse;
     Vec4 ambient;
     Vec4 specular;
+
+    bool castShadow = false;
+};
+
+using ShadowLightDesc = struct tagShadowLightDesc
+{
+    Vec3    eye;
+    Vec3    at;
+    float   fovy = DirectX::XMConvertToRadians(120.f); // rad
+    float   aspect = 16.f / 9.f;
+    float   zn = 0.1f;
+    float   zf = 1000.f;
+
+    float   bias = 0.03f;
+    float   intensity = 0.5f;
 };
 
 using FAssetMeta = struct tagAssetMeta
@@ -52,18 +67,36 @@ struct RenderPerfSummary
 {
     bool valid{};
     uint32 renderCallCount{};
+
     float renderAvgMs{};
     float renderMaxMs{};
-    float priorityAvgMs{};
-    float nonBlendAvgMs{};
-    float blendAvgMs{};
-    float uiAvgMs{};
 
-    // TODO(RuntimePerf): deferred/shadow/light/combine pass가 추가되면 Renderer counter와 연결한다.
+    float priorityAvgMs{};
+    float priorityMaxMs{};
+
     float shadowAvgMs{};
     float shadowMaxMs{};
+
+    float nonBlendAvgMs{};
+    float nonBlendMaxMs{};
+
     float lightsAvgMs{};
+    float lightsMaxMs{};
+
     float combinedAvgMs{};
+    float combinedMaxMs{};
+
+    float nonLightAvgMs{};
+    float nonLightMaxMs{};
+
+    float blendAvgMs{};
+    float blendMaxMs{};
+
+    float uiAvgMs{};
+    float uiMaxMs{};
+
+    float debugAvgMs{};
+    float debugMaxMs{};
 };
 
 struct CollisionPerfSummary

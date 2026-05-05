@@ -36,7 +36,7 @@ HRESULT Body_Player::Initialize(void* pArg)
 	if (FAILED(Ready_Components()))
 		return E_FAIL;
 
-	_model->Set_Animation(/*rand() % 20*/0, true);
+	_model->Set_Animation(/*rand() % 20*/1, true);
 
 	return S_OK;
 }
@@ -57,6 +57,8 @@ void Body_Player::Update(float fTimeDelta)
 void Body_Player::Late_Update(float fTimeDelta)
 {
 	GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
+	GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
+
 }
 
 HRESULT Body_Player::Render()
@@ -68,7 +70,7 @@ HRESULT Body_Player::Render()
 
 	for (uint32 i = 0; i < iNumMeshes; i++)
 	{
-		_model->Bind_Material(_shader.get(), "g_DiffuseTexture", i, aiTextureType_DIFFUSE, 0);
+		_model->Bind_Material(_shader.get(), "g_DiffuseTexture", i, 1, 0);
 		_model->Bind_BoneMatrices(_shader.get(), "g_BoneMatrices", i);
 
 		if (FAILED(_shader->Begin(0)))
@@ -80,12 +82,38 @@ HRESULT Body_Player::Render()
 	return S_OK;
 }
 
+HRESULT Body_Player::Render_Shadow()
+{
+    if (FAILED(_shader->Bind_Matrix("g_WorldMatrix", &_combinedWorldMatrix)))
+        return E_FAIL;
+
+    if (FAILED(GAME->Bind_ShadowMatrices(_shader, "g_ViewMatrix", "g_ProjMatrix")))
+        return E_FAIL;
+
+    if (FAILED(GAME->Bind_ShadowLightDesc(_shader, "g_fLightFar")))
+        return E_FAIL;
+
+    const uint32 iNumMeshes = static_cast<uint32>(_model->Get_NumMeshes());
+
+    for (uint32 i = 0; i < iNumMeshes; i++)
+    {
+        _model->Bind_BoneMatrices(_shader.get(), "g_BoneMatrices", i);
+
+        if (FAILED(_shader->Begin(1)))
+            return E_FAIL;
+
+        _model->Render(i);
+    }
+
+    return S_OK;
+}
+
 HRESULT Body_Player::Ready_Components()
 {
 	if (FAILED(Add_Component(ETOI(LevelType::GamePlay), TEXT("Shader_VtxAnimMesh"), _shader)))
 		return E_FAIL;
 
-	if (FAILED(Add_Component(ETOI(LevelType::GamePlay), TEXT("Model_Fiona"), _model)))
+	if (FAILED(Add_Component(ETOI(LevelType::GamePlay), TEXT("Model_LuneTemp"), _model)))
 		return E_FAIL;
 
 	return S_OK;
@@ -93,7 +121,7 @@ HRESULT Body_Player::Ready_Components()
 
 HRESULT Body_Player::Bind_ShaderResources()
 {
-	/*if (FAILED(_transformCom->Bind_ShaderResource(_states, "g_WorldMatrix")))
+	/*if (FAILED(_transformCom->Bind_RT_ShaderResource(_states, "g_WorldMatrix")))
 		return E_FAIL;*/
 	if (FAILED(_shader->Bind_Matrix("g_WorldMatrix", &_combinedWorldMatrix)))
 		return E_FAIL;
@@ -104,23 +132,8 @@ HRESULT Body_Player::Bind_ShaderResources()
 	if (FAILED(GAME->Bind_TransformMatrix(D3DTS::Proj, _shader.get(), "g_ProjMatrix")))
 		return E_FAIL;
 
-
-
-	if (FAILED(GAME->Bind_CamPosition(_shader.get(), "g_vCamPosition")))
-		return E_FAIL;
-
-	const LIGHT_DESC* pLightDesc = GAME->Get_LightDesc(0);
-	if (nullptr == pLightDesc)
-		return E_FAIL;
-
-	if (FAILED(_shader->Bind_RawValue("g_vLightDir", &pLightDesc->direction, sizeof(XMFLOAT4))))
-		return E_FAIL;
-	if (FAILED(_shader->Bind_RawValue("g_vLightDiffuse", &pLightDesc->diffuse, sizeof(XMFLOAT4))))
-		return E_FAIL;
-	if (FAILED(_shader->Bind_RawValue("g_vLightAmbient", &pLightDesc->ambient, sizeof(XMFLOAT4))))
-		return E_FAIL;
-	if (FAILED(_shader->Bind_RawValue("g_vLightSpecular", &pLightDesc->specular, sizeof(XMFLOAT4))))
-		return E_FAIL;
+    if (FAILED(GAME->Bind_CameraFar(_shader, "g_fFar")))
+        return E_FAIL;
 
 	return S_OK;
 }
