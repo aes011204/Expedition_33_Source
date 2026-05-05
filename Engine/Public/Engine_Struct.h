@@ -67,18 +67,36 @@ struct RenderPerfSummary
 {
     bool valid{};
     uint32 renderCallCount{};
+
     float renderAvgMs{};
     float renderMaxMs{};
-    float priorityAvgMs{};
-    float nonBlendAvgMs{};
-    float blendAvgMs{};
-    float uiAvgMs{};
 
-    // TODO(RuntimePerf): deferred/shadow/light/combine pass가 추가되면 Renderer counter와 연결한다.
+    float priorityAvgMs{};
+    float priorityMaxMs{};
+
     float shadowAvgMs{};
     float shadowMaxMs{};
+
+    float nonBlendAvgMs{};
+    float nonBlendMaxMs{};
+
     float lightsAvgMs{};
+    float lightsMaxMs{};
+
     float combinedAvgMs{};
+    float combinedMaxMs{};
+
+    float nonLightAvgMs{};
+    float nonLightMaxMs{};
+
+    float blendAvgMs{};
+    float blendMaxMs{};
+
+    float uiAvgMs{};
+    float uiMaxMs{};
+
+    float debugAvgMs{};
+    float debugMaxMs{};
 };
 
 struct CollisionPerfSummary

@@ -9,6 +9,9 @@ RenderTarget::RenderTarget(const ComPtr<Device>& device, const ComPtr<Context>& 
     , _context{ context }
 {
 }
+RenderTarget::~RenderTarget()
+{
+}
 
 HRESULT RenderTarget::Initialize(uint32 width, uint32 height, DXGI_FORMAT pixelFormat, const Vec4& clearColor, bool useDepthStencil)
 {

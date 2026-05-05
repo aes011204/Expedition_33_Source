@@ -5,14 +5,6 @@
 #include "ShaderCom.h"
 #include "VIBuffer_Rect.h"
 
-/*
- * TODO . 렌더 타겟 생성 및 MRT 구성
- * TODO . Deferred Shader 생성
- * TODO . 그림자 및 빛 연산
- * TODO . Combined
- * TODO . 이외 후처리
- */
-
 Renderer::Renderer(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : _device{ device }
     , _context{ context }
@@ -38,79 +30,78 @@ void Renderer::Add_RenderGroup(RenderGroup renderGroup, const Shared<GameObject>
 
 void Renderer::Draw()
 {
+#ifdef _DEBUG
     Reset_RenderCall();
 
+    const auto renderBegin = chrono::steady_clock::now();
+    double priorityMs = 0.0;
+    double shadowMs = 0.0;
+    double nonBlendMs = 0.0;
+    double lightsMs = 0.0;
+    double combinedMs = 0.0;
+    double nonlightMs = 0.0;
+    double blendMs = 0.0;
+    double uiMs = 0.0;
+    double debugMs = 0.0;
+
+    const auto priorityBegin = chrono::steady_clock::now();
+#endif
+
     Render_Priority();
+#ifdef _DEBUG
+    priorityMs = chrono::duration<double, milli>(chrono::steady_clock::now() - priorityBegin).count();
+    const auto shadowBegin = chrono::steady_clock::now();
+#endif
 
     Render_Shadow();
+#ifdef _DEBUG
+    shadowMs = chrono::duration<double, milli>(chrono::steady_clock::now() - shadowBegin).count();
+    const auto nonBlendBegin = chrono::steady_clock::now();
+#endif
 
     Render_NonBlend();
+#ifdef _DEBUG
+    nonBlendMs = chrono::duration<double, milli>(chrono::steady_clock::now() - nonBlendBegin).count();
+    const auto lightsBegin = chrono::steady_clock::now();
+#endif
 
     Render_Lights();
-
+#ifdef _DEBUG
+    lightsMs = chrono::duration<double, milli>(chrono::steady_clock::now() - lightsBegin).count();
+    const auto combinedBegin = chrono::steady_clock::now();
+#endif
+    
     Render_Combined();
+#ifdef _DEBUG
+    combinedMs = chrono::duration<double, milli>(chrono::steady_clock::now() - combinedBegin).count();
+    const auto nonlightBegin = chrono::steady_clock::now();
+#endif
 
     Render_NonLight();
+#ifdef _DEBUG
+    nonlightMs = chrono::duration<double, milli>(chrono::steady_clock::now() - nonlightBegin).count();
+    const auto blendBegin = chrono::steady_clock::now();
+#endif
 
     Render_Blend();
+#ifdef _DEBUG
+    blendMs = chrono::duration<double, milli>(chrono::steady_clock::now() - blendBegin).count();
+    const auto uiBegin = chrono::steady_clock::now();
+#endif
 
     Render_UI();
-
+#ifdef _DEBUG
+    uiMs = chrono::duration<double, milli>(chrono::steady_clock::now() - uiBegin).count();
+    const auto debugBegin = chrono::steady_clock::now();
+#endif
 
 #ifdef _DEBUG
     Render_Debug();
+
+    debugMs = chrono::duration<double, milli>(chrono::steady_clock::now() - debugBegin).count();
+    const auto renderMs = chrono::duration<double, milli>(chrono::steady_clock::now() - renderBegin).count();
+    Accumulate_RenderPerf(renderMs, priorityMs, shadowMs, nonBlendMs, lightsMs, combinedMs, nonlightMs, blendMs, uiMs, debugMs);
 #endif
-
-
-//#ifdef _DEBUG
-//    const auto renderBegin = chrono::steady_clock::now();
-//    double priorityMs = 0.0;
-//    double nonBlendMs = 0.0;
-//    double blendMs = 0.0;
-//    double uiMs = 0.0;
-//
-//    const auto priorityBegin = chrono::steady_clock::now();
-//#endif
-//
-//    Render_Priority();
-//
-//#ifdef _DEBUG
-//    priorityMs = chrono::duration<double, milli>(chrono::steady_clock::now() - priorityBegin).count();
-//    const auto nonBlendBegin = chrono::steady_clock::now();
-//#endif
-//    Render_Shadow();
-//
-//    Render_NonBlend();
-//
-//#ifdef _DEBUG
-//    nonBlendMs = chrono::duration<double, milli>(chrono::steady_clock::now() - nonBlendBegin).count();
-//    const auto blendBegin = chrono::steady_clock::now();
-//#endif
-//    Render_Lights();
-//    
-//    Render_Combined();
-//
-//    Render_NonLight();
-//
-//    Render_Blend();
-//
-//#ifdef _DEBUG
-//    blendMs = chrono::duration<double, milli>(chrono::steady_clock::now() - blendBegin).count();
-//    const auto uiBegin = chrono::steady_clock::now();
-//#endif
-//
-//    Render_UI();
-//
-//#ifdef _DEBUG
-//    uiMs = chrono::duration<double, milli>(chrono::steady_clock::now() - uiBegin).count();
-//    const double renderMs = chrono::duration<double, milli>(chrono::steady_clock::now() - renderBegin).count();
-//
-//    Accumulate_RenderPerf(renderMs, priorityMs, nonBlendMs, blendMs, uiMs);
-//#endif
-//
-//#ifdef _DEBUG
-//    Render_Debug();
-//#endif
 }
 
 void Renderer::Render_Priority()
@@ -264,8 +255,8 @@ void Renderer::Render_Combined()
     // 그림자
     if (FAILED(GAME->Bind_ShadowMatrices(_deferredShader,  "g_LightViewMatrix", "g_LightProjMatrix")))
         return;
-    ENDMRT_RETURN_IF_FAILED(
-        GAME->Bind_ShadowLightDesc(_deferredShader, "g_fLightFar", "g_fBias", "g_fShadowIntensity"));
+    if (FAILED(GAME->Bind_ShadowLightDesc(_deferredShader, "g_fLightFar", "g_fBias", "g_fShadowIntensity")))
+        return;
 
     // SRV 바인딩
     if (FAILED(GAME->Bind_RT_ShaderResource(_deferredShader, "g_DiffuseTexture", L"Target_Diffuse")))
@@ -397,6 +388,8 @@ void Renderer::Change_ViewportDesc(uint32 width, uint32 height)
     _context->RSSetViewports(1, &ViewportDesc);
 }
 
+#ifdef _DEBUG
+
 uint32 Renderer::Get_RenderCall() const
 {
     return iDrawCall;
@@ -412,7 +405,6 @@ void Renderer::Add_RenderCall(uint32 count)
     iDrawCall += count;
 }
 
-#ifdef _DEBUG
 bool Renderer::Try_ConsumePerfSummary(const float windowSec, RenderPerfSummary& outSummary)
 {
     outSummary = {};
@@ -422,27 +414,46 @@ bool Renderer::Try_ConsumePerfSummary(const float windowSec, RenderPerfSummary& 
 
     outSummary.valid = true;
     outSummary.renderCallCount = static_cast<uint32>(_renderPerfWindow.render.sampleCount);
+
     outSummary.renderAvgMs = static_cast<float>(
         Safe_Divide(_renderPerfWindow.render.accumulatedMs, static_cast<double>(_renderPerfWindow.render.sampleCount)));
     outSummary.renderMaxMs = static_cast<float>(_renderPerfWindow.render.maxMs);
+
     outSummary.priorityAvgMs = static_cast<float>(
         Safe_Divide(_renderPerfWindow.priority.accumulatedMs, static_cast<double>(_renderPerfWindow.priority.sampleCount)));
-    outSummary.nonBlendAvgMs = static_cast<float>(
-        Safe_Divide(_renderPerfWindow.nonBlend.accumulatedMs, static_cast<double>(_renderPerfWindow.nonBlend.sampleCount)));
-    outSummary.blendAvgMs = static_cast<float>(
-        Safe_Divide(_renderPerfWindow.blend.accumulatedMs, static_cast<double>(_renderPerfWindow.blend.sampleCount)));
-    outSummary.uiAvgMs = static_cast<float>(
-        Safe_Divide(_renderPerfWindow.ui.accumulatedMs, static_cast<double>(_renderPerfWindow.ui.sampleCount)));
+    outSummary.priorityMaxMs = static_cast<float>(_renderPerfWindow.priority.maxMs);
 
-    // TODO(RuntimePerf): 아래 future fields는 counter 슬롯만 예약되어 있다.
-    // 실제 preview/deferred/shadow/light/combine path가 생기면 accumulate 지점을 먼저 연결한다.
     outSummary.shadowAvgMs = static_cast<float>(
         Safe_Divide(_renderPerfWindow.shadow.accumulatedMs, static_cast<double>(_renderPerfWindow.shadow.sampleCount)));
     outSummary.shadowMaxMs = static_cast<float>(_renderPerfWindow.shadow.maxMs);
+
+    outSummary.nonBlendAvgMs = static_cast<float>(
+        Safe_Divide(_renderPerfWindow.nonBlend.accumulatedMs, static_cast<double>(_renderPerfWindow.nonBlend.sampleCount)));
+    outSummary.nonBlendMaxMs = static_cast<float>(_renderPerfWindow.nonBlend.maxMs);
+
     outSummary.lightsAvgMs = static_cast<float>(
         Safe_Divide(_renderPerfWindow.lights.accumulatedMs, static_cast<double>(_renderPerfWindow.lights.sampleCount)));
+    outSummary.lightsMaxMs = static_cast<float>(_renderPerfWindow.lights.maxMs);
+
     outSummary.combinedAvgMs = static_cast<float>(
         Safe_Divide(_renderPerfWindow.combined.accumulatedMs, static_cast<double>(_renderPerfWindow.combined.sampleCount)));
+    outSummary.combinedMaxMs = static_cast<float>(_renderPerfWindow.combined.maxMs);
+
+    outSummary.nonLightAvgMs = static_cast<float>(
+        Safe_Divide(_renderPerfWindow.nonLight.accumulatedMs, static_cast<double>(_renderPerfWindow.nonLight.sampleCount)));
+    outSummary.nonLightMaxMs = static_cast<float>(_renderPerfWindow.nonLight.maxMs);
+
+    outSummary.blendAvgMs = static_cast<float>(
+        Safe_Divide(_renderPerfWindow.blend.accumulatedMs, static_cast<double>(_renderPerfWindow.blend.sampleCount)));
+    outSummary.blendMaxMs = static_cast<float>(_renderPerfWindow.blend.maxMs);
+
+    outSummary.uiAvgMs = static_cast<float>(
+        Safe_Divide(_renderPerfWindow.ui.accumulatedMs, static_cast<double>(_renderPerfWindow.ui.sampleCount)));
+    outSummary.uiMaxMs = static_cast<float>(_renderPerfWindow.ui.maxMs);
+
+    outSummary.debugAvgMs = static_cast<float>(
+        Safe_Divide(_renderPerfWindow.debug.accumulatedMs, static_cast<double>(_renderPerfWindow.debug.sampleCount)));
+    outSummary.debugMaxMs = static_cast<float>(_renderPerfWindow.debug.maxMs);
 
     Reset_RenderPerfWindow(_renderPerfWindow);
     return true;
@@ -451,15 +462,25 @@ bool Renderer::Try_ConsumePerfSummary(const float windowSec, RenderPerfSummary& 
 void Renderer::Accumulate_RenderPerf(
     const double renderMs,
     const double priorityMs,
+    const double shadowMs,
     const double nonBlendMs,
+    const double lightsMs,
+    const double combinedMs,
+    const double nonLightMs,
     const double blendMs,
-    const double uiMs)
+    const double uiMs,
+    const double debugMs)
 {
     Accumulate_PassPerf(_renderPerfWindow.render, renderMs);
     Accumulate_PassPerf(_renderPerfWindow.priority, priorityMs);
+    Accumulate_PassPerf(_renderPerfWindow.shadow, shadowMs);
     Accumulate_PassPerf(_renderPerfWindow.nonBlend, nonBlendMs);
+    Accumulate_PassPerf(_renderPerfWindow.lights, lightsMs);
+    Accumulate_PassPerf(_renderPerfWindow.combined, combinedMs);
+    Accumulate_PassPerf(_renderPerfWindow.nonLight, nonLightMs);
     Accumulate_PassPerf(_renderPerfWindow.blend, blendMs);
     Accumulate_PassPerf(_renderPerfWindow.ui, uiMs);
+    Accumulate_PassPerf(_renderPerfWindow.debug, debugMs);
 }
 
 void Renderer::Accumulate_PassPerf(PerfCounter& counter, const double passMs)

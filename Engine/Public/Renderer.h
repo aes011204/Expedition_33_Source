@@ -40,10 +40,6 @@ private:
 
     HRESULT Ready_RenderTargets();
 
-    void Change_ViewportDesc(uint32 width, uint32 height);
-    void Reset_RenderCall();
-    void Add_RenderCall(uint32 count = 1);
-
 private:
 	ComPtr<Device>  _device;
 	ComPtr<Context> _context;
@@ -79,24 +75,33 @@ private:
     {
         PerfCounter render{};
         PerfCounter priority{};
-        PerfCounter nonBlend{};
-        PerfCounter blend{};
-        PerfCounter ui{};
-
-        // TODO(RuntimePerf): 실제 pass가 Renderer에 들어오면 각 pass 종료 시점에서 Accumulate_PassPerf로 연결한다.
         PerfCounter shadow{};
+        PerfCounter nonBlend{};
+        PerfCounter nonLight{};
         PerfCounter lights{};
         PerfCounter combined{};
+        PerfCounter blend{};
+        PerfCounter ui{};
+        PerfCounter debug{};
     };
 
     RenderPerfWindow _renderPerfWindow{};
 
+    void Change_ViewportDesc(uint32 width, uint32 height);
+    void Reset_RenderCall();
+    void Add_RenderCall(uint32 count = 1);
+
     void Accumulate_RenderPerf(
         double renderMs,
         double priorityMs,
+        double shadowMs,
         double nonBlendMs,
+        double lightsMs,
+        double combinedMs,
+        double nonLightMs,
         double blendMs,
-        double uiMs);
+        double uiMs,
+        double debugMs);
     static void Accumulate_PassPerf(PerfCounter& counter, double passMs);
     static void Reset_RenderPerfWindow(RenderPerfWindow& window);
     static double Safe_Divide(double numerator, double denominator);
