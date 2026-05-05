@@ -53,7 +53,7 @@ private:
     Shared<ShaderCom>               _deferredShader;
     Shared<VIBuffer_Rect>           _viBuffer;
 
-    float                           _shadowScale = 2.f;
+    float                           _shadowScale = 1.f;
     bool                            _shadowEnabled = false;
     uint32                          _shadowMapSize = 0;
 
