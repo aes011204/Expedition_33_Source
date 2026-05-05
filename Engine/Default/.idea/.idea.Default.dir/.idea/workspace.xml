@@ -5,170 +5,120 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="480ed6bb-3d0d-4b48-9e00-39334e82cafd" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/../../Client/Bin/Bin/Resources/Data/Assets/AssetRegistry.cache.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../../Client/Bin/Bin/Resources/Data/Assets/AssetRegistry.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../../Client/Private/TargetCamera.cpp" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../../Client/Public/TargetCamera.h" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../Bin/Debug/Engine.lib" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/Engine.rc" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/resource.h" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../Private/Bounding.cpp" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../Private/Bounding_AABB.cpp" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../Private/Bounding_OBB.cpp" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../Private/Bounding_Sphere.cpp" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../Private/Camera_Manager.cpp" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../Private/ColliderCom.cpp" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../Private/Collision_Manager.cpp" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../Private/DebugDraw.cpp" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../Private/Debug_Manager.cpp" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../Private/Event_Manager.cpp" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../Private/ShaderCom.cpp" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../Public/Bounding.h" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../Public/Bounding_AABB.h" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../Public/Bounding_OBB.h" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../Public/Bounding_Sphere.h" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../Public/Camera_Manager.h" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../Public/ColliderCom.h" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../Public/Collision_Define.h" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../Public/Collision_Manager.h" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../Public/DebugDraw.h" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../Public/Debug_Manager.h" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../Public/Debug_Types.h" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../Public/Delegate.h" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../Public/Event_Manager.h" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../Public/ShaderCom.h" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../../EngineSDK/inc/GameInstance.h" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../../EngineSDK/lib/Release/DirectXTK.lib" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../../EngineSDK/lib/Release/Effects11.lib" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../../MainEditor/Private/Camera_Tool.cpp" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../../MainEditor/Public/Camera_Tool.h" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../Client/Bin/Resources/Textures/UI/DataTable.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../Client/Bin/Resources/Textures/UI/Folder_Icon.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../Client/Bin/Resources/Textures/UI/JSON.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../Client/Bin/Resources/Textures/UI/Python.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../Client/Bin/ShaderFiles/Shader_Deferred.hlsl" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../Client/Bin/ShaderFiles/_shader_test_Deferred.fxo" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../Client/Private/BT_Attack.cpp" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../Client/Private/BT_CheckDistance.cpp" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../Client/Private/BT_Idle.cpp" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../Client/Private/Mon_AIController.cpp" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../Client/Private/Mon_BehaviorTree.cpp" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../Client/Public/BT_Attack.h" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../Client/Public/BT_CheckDistance.h" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../Client/Public/BT_Idle.h" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../Client/Public/Mon_AIController.h" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../Client/Public/Mon_BehaviorTree.h" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../Private/AIController.cpp" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../Private/BNode.cpp" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../Private/BT_MoveTo.cpp" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../Private/BehaviorTree.cpp" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../Private/BlackBoard.cpp" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../Private/Composite.cpp" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../Private/Decorator.cpp" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../Private/PathFollower.cpp" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../Private/Selector.cpp" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../Private/Sequence.cpp" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../Private/Service.cpp" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../Private/Shadow.cpp" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../Private/Target_Manager.cpp" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../Private/Task.cpp" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../Public/AIController.h" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../Public/BNode.h" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../Public/BT_MoveTo.h" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../Public/BehaviorTree.h" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../Public/BlackBoard.h" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../Public/Composite.h" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../Public/Decorator.h" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../Public/PathFollower.h" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../Public/Selector.h" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../Public/Sequence.h" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../Public/Service.h" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../Public/Shadow.h" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../Public/Target_Manager.h" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../Public/Task.h" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../MainEditor/Private/BT_Tool.cpp" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../MainEditor/Private/Profile_View.cpp" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../MainEditor/Public/BT_Tool.h" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../MainEditor/Public/Profile_View.h" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../../Client/Bin/Resources/Data/Assets/AssetRegistry.cache.json" beforeDir="false" afterPath="$PROJECT_DIR$/../../Client/Bin/Resources/Data/Assets/AssetRegistry.cache.json" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../../Client/Bin/Resources/Data/Assets/AssetRegistry.json" beforeDir="false" afterPath="$PROJECT_DIR$/../../Client/Bin/Resources/Data/Assets/AssetRegistry.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../Client/Bin/Resources/Data/ConvertXLSX.py" beforeDir="false" afterPath="$PROJECT_DIR$/../../Client/Bin/Resources/Data/ConvertXLSX.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../Client/Bin/Resources/Data/json/DT_Component.json" beforeDir="false" afterPath="$PROJECT_DIR$/../../Client/Bin/Resources/Data/json/DT_Component.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../Client/Bin/Resources/Data/json/DT_GameObject.json" beforeDir="false" afterPath="$PROJECT_DIR$/../../Client/Bin/Resources/Data/json/DT_GameObject.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../Client/Bin/Resources/Data/json/DT_Shader.json" beforeDir="false" afterPath="$PROJECT_DIR$/../../Client/Bin/Resources/Data/json/DT_Shader.json" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../../Client/Bin/Resources/Data/xlsx/DT_Component.xlsx" beforeDir="false" afterPath="$PROJECT_DIR$/../../Client/Bin/Resources/Data/xlsx/DT_Component.xlsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../Client/Bin/Resources/Data/xlsx/DT_GameObject.xlsx" beforeDir="false" afterPath="$PROJECT_DIR$/../../Client/Bin/Resources/Data/xlsx/DT_GameObject.xlsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../Client/Default/Client.cpp" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../Client/Default/Client.h" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../Client/Default/Client.ico" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../Client/Default/Client.rc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../Client/Bin/ShaderFiles/Engine_Shader_Defines.hlsli" beforeDir="false" afterPath="$PROJECT_DIR$/../../Client/Bin/ShaderFiles/Engine_Shader_Defines.hlsli" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../Client/Bin/ShaderFiles/Shader_VtxAnimMesh.hlsl" beforeDir="false" afterPath="$PROJECT_DIR$/../../Client/Bin/ShaderFiles/Shader_VtxAnimMesh.hlsl" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../Client/Bin/ShaderFiles/Shader_VtxCube.hlsl" beforeDir="false" afterPath="$PROJECT_DIR$/../../Client/Bin/ShaderFiles/Shader_VtxCube.hlsl" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../Client/Bin/ShaderFiles/Shader_VtxMesh.hlsl" beforeDir="false" afterPath="$PROJECT_DIR$/../../Client/Bin/ShaderFiles/Shader_VtxMesh.hlsl" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../Client/Bin/ShaderFiles/Shader_VtxNorTex.hlsl" beforeDir="false" afterPath="$PROJECT_DIR$/../../Client/Bin/ShaderFiles/Shader_VtxNorTex.hlsl" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../Client/Bin/ShaderFiles/Shader_VtxTex.hlsl" beforeDir="false" afterPath="$PROJECT_DIR$/../../Client/Bin/ShaderFiles/Shader_VtxTex.hlsl" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../../Client/Default/Client.vcxproj" beforeDir="false" afterPath="$PROJECT_DIR$/../../Client/Default/Client.vcxproj" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../../Client/Default/Client.vcxproj.filters" beforeDir="false" afterPath="$PROJECT_DIR$/../../Client/Default/Client.vcxproj.filters" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../Client/Default/Resource.h" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../Client/Default/framework.h" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../Client/Default/pch.h" beforeDir="false" afterPath="$PROJECT_DIR$/../../Client/Default/pch.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../Client/Default/small.ico" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../Client/Default/targetver.h" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../Client/Private/BackGround.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../../Client/Private/BackGround.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../Client/Private/ClientInstance.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../../Client/Private/ClientInstance.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../Client/Private/Body_Player.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../../Client/Private/Body_Player.cpp" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../../Client/Private/FreeCamera.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../../Client/Private/FreeCamera.cpp" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../../Client/Private/Level_GamePlay.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../../Client/Private/Level_GamePlay.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../Client/Private/Level_Loading.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../../Client/Private/Level_Loading.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../Client/Private/MainApp.cpp" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/../../Client/Private/Monster.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../../Client/Private/Monster.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../Client/Private/Player.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../../Client/Private/Player.cpp" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../../Client/Private/PlayerControllerCom.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../../Client/Private/PlayerControllerCom.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../Client/Private/ResourceLoader.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../../Client/Private/ResourceLoader.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../Client/Private/Sky.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../../Client/Private/Sky.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../Client/Private/TargetCamera.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../../Client/Private/TargetCamera.cpp" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../../Client/Private/Terrain.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../../Client/Private/Terrain.cpp" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../../Client/Private/Weapon.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../../Client/Private/Weapon.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../Client/Public/BackGround.h" beforeDir="false" afterPath="$PROJECT_DIR$/../../Client/Public/BackGround.h" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../../Client/Public/Body_Player.h" beforeDir="false" afterPath="$PROJECT_DIR$/../../Client/Public/Body_Player.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../Client/Public/ClientInstance.h" beforeDir="false" afterPath="$PROJECT_DIR$/../../Client/Public/ClientInstance.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../Client/Public/Client_Defines.h" beforeDir="false" afterPath="$PROJECT_DIR$/../../Client/Public/Client_Defines.h" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../../Client/Public/FreeCamera.h" beforeDir="false" afterPath="$PROJECT_DIR$/../../Client/Public/FreeCamera.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../Client/Public/Level_GamePlay.h" beforeDir="false" afterPath="$PROJECT_DIR$/../../Client/Public/Level_GamePlay.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../Client/Public/MainApp.h" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/../../Client/Public/Monster.h" beforeDir="false" afterPath="$PROJECT_DIR$/../../Client/Public/Monster.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../Client/Public/Player.h" beforeDir="false" afterPath="$PROJECT_DIR$/../../Client/Public/Player.h" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../../Client/Public/PlayerControllerCom.h" beforeDir="false" afterPath="$PROJECT_DIR$/../../Client/Public/PlayerControllerCom.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../Client/Public/ResourceLoader.h" beforeDir="false" afterPath="$PROJECT_DIR$/../../Client/Public/ResourceLoader.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../Client/Public/Sky.h" beforeDir="false" afterPath="$PROJECT_DIR$/../../Client/Public/Sky.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../Client/Public/Terrain.h" beforeDir="false" afterPath="$PROJECT_DIR$/../../Client/Public/Terrain.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../Client/Public/TargetCamera.h" beforeDir="false" afterPath="$PROJECT_DIR$/../../Client/Public/TargetCamera.h" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../../Client/Public/Weapon.h" beforeDir="false" afterPath="$PROJECT_DIR$/../../Client/Public/Weapon.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../Directory.Build.props" beforeDir="false" afterPath="$PROJECT_DIR$/../../Directory.Build.props" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../EffectEditor/Private/Editor_Manager.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../../EffectEditor/Private/Editor_Manager.cpp" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../Bin/Debug/Engine.exp" beforeDir="false" afterPath="$PROJECT_DIR$/../Bin/Debug/Engine.exp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.idea.Default.dir/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.Default.dir/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Bin/Debug/Engine.lib" beforeDir="false" afterPath="$PROJECT_DIR$/../Bin/Debug/Engine.lib" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Bin/ShaderFiles/Engine_Shader_Defines.hlsli" beforeDir="false" afterPath="$PROJECT_DIR$/../Bin/ShaderFiles/Engine_Shader_Defines.hlsli" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Engine.vcxproj" beforeDir="false" afterPath="$PROJECT_DIR$/Engine.vcxproj" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Engine.vcxproj.filters" beforeDir="false" afterPath="$PROJECT_DIR$/Engine.vcxproj.filters" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Private/Animation.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../Private/Animation.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Private/Camera.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../Private/Camera.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Private/Channel.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../Private/Channel.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Private/Character.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../Private/Character.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Private/Component.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../Private/Component.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Private/ContainerObject.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../Private/ContainerObject.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Private/CustomFont.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../Private/CustomFont.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Private/Font_Manager.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../Private/Font_Manager.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Private/Camera_Manager.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../Private/Camera_Manager.cpp" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../Private/GameInstance.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../Private/GameInstance.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Private/GameObject.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../Private/GameObject.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Private/Graphic_Device.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../Private/Graphic_Device.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Private/Layer.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../Private/Layer.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Private/Level.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../Private/Level.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Private/Level_Manager.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../Private/Level_Manager.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Private/Input_Manager.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../Private/Input_Manager.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Private/Light.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../Private/Light.cpp" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../Private/Light_Manager.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../Private/Light_Manager.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Private/Material.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../Private/Material.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Private/Mesh.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../Private/Mesh.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Private/Model.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../Private/ModelCom.cpp" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../Private/MovementCom.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../Private/MovementCom.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Private/Object_Manager.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../Private/Object_Manager.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Private/PipeLine.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../Private/PipeLine.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Private/Prototype_Manager.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../Private/Prototype_Manager.cpp" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../Private/RenderTarget.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../Private/RenderTarget.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Private/Shader.cpp" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Private/Texture.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../Private/Texture.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Private/Timer_Manager.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../Private/Timer_Manager.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Private/TransformCom.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../Private/TransformCom.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Private/UIObject.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../Private/UIObject.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Private/VIBuffer.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../Private/VIBuffer.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Private/VIBuffer_Cube.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../Private/VIBuffer_Cube.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Private/VIBuffer_Rect.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../Private/VIBuffer_Rect.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Private/VIBuffer_Terrain.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../Private/VIBuffer_Terrain.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Public/Animation.h" beforeDir="false" afterPath="$PROJECT_DIR$/../Public/Animation.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Public/Camera.h" beforeDir="false" afterPath="$PROJECT_DIR$/../Public/Camera.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Public/Channel.h" beforeDir="false" afterPath="$PROJECT_DIR$/../Public/Channel.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Public/Character.h" beforeDir="false" afterPath="$PROJECT_DIR$/../Public/Character.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Public/Component.h" beforeDir="false" afterPath="$PROJECT_DIR$/../Public/Component.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Public/ContainerObject.h" beforeDir="false" afterPath="$PROJECT_DIR$/../Public/ContainerObject.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Public/CustomFont.h" beforeDir="false" afterPath="$PROJECT_DIR$/../Public/CustomFont.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Public/Engine_Define.h" beforeDir="false" afterPath="$PROJECT_DIR$/../Public/Engine_Define.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Private/Renderer.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../Private/Renderer.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Public/Camera_Manager.h" beforeDir="false" afterPath="$PROJECT_DIR$/../Public/Camera_Manager.h" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../Public/Engine_Enum.h" beforeDir="false" afterPath="$PROJECT_DIR$/../Public/Engine_Enum.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Public/Engine_Macro.h" beforeDir="false" afterPath="$PROJECT_DIR$/../Public/Engine_Macro.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Public/Font_Manager.h" beforeDir="false" afterPath="$PROJECT_DIR$/../Public/Font_Manager.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Public/Engine_Struct.h" beforeDir="false" afterPath="$PROJECT_DIR$/../Public/Engine_Struct.h" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../Public/GameInstance.h" beforeDir="false" afterPath="$PROJECT_DIR$/../Public/GameInstance.h" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../Public/GameObject.h" beforeDir="false" afterPath="$PROJECT_DIR$/../Public/GameObject.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Public/Layer.h" beforeDir="false" afterPath="$PROJECT_DIR$/../Public/Layer.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Public/Level.h" beforeDir="false" afterPath="$PROJECT_DIR$/../Public/Level.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Public/Level_Manager.h" beforeDir="false" afterPath="$PROJECT_DIR$/../Public/Level_Manager.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Public/Material.h" beforeDir="false" afterPath="$PROJECT_DIR$/../Public/Material.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Public/Mesh.h" beforeDir="false" afterPath="$PROJECT_DIR$/../Public/Mesh.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Public/Model.h" beforeDir="false" afterPath="$PROJECT_DIR$/../Public/ModelCom.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Public/MovementCom.h" beforeDir="false" afterPath="$PROJECT_DIR$/../Public/MovementCom.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Public/Object_Manager.h" beforeDir="false" afterPath="$PROJECT_DIR$/../Public/Object_Manager.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Public/PipeLine.h" beforeDir="false" afterPath="$PROJECT_DIR$/../Public/PipeLine.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Public/Prototype_Manager.h" beforeDir="false" afterPath="$PROJECT_DIR$/../Public/Prototype_Manager.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Public/Input_Manager.h" beforeDir="false" afterPath="$PROJECT_DIR$/../Public/Input_Manager.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Public/Light.h" beforeDir="false" afterPath="$PROJECT_DIR$/../Public/Light.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Public/Light_Manager.h" beforeDir="false" afterPath="$PROJECT_DIR$/../Public/Light_Manager.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Public/Reflection_Macro.h" beforeDir="false" afterPath="$PROJECT_DIR$/../Public/Reflection_Macro.h" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../Public/RenderTarget.h" beforeDir="false" afterPath="$PROJECT_DIR$/../Public/RenderTarget.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Public/Shader.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Public/Renderer.h" beforeDir="false" afterPath="$PROJECT_DIR$/../Public/Renderer.h" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../Public/Texture.h" beforeDir="false" afterPath="$PROJECT_DIR$/../Public/Texture.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Public/TransformCom.h" beforeDir="false" afterPath="$PROJECT_DIR$/../Public/TransformCom.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Public/UIObject.h" beforeDir="false" afterPath="$PROJECT_DIR$/../Public/UIObject.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Public/VIBuffer.h" beforeDir="false" afterPath="$PROJECT_DIR$/../Public/VIBuffer.h" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../../EngineSDK/lib/Debug/Engine.lib" beforeDir="false" afterPath="$PROJECT_DIR$/../../EngineSDK/lib/Debug/Engine.lib" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../GameLauncher/Private/MainApp.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../../GameLauncher/Private/MainApp.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../GameLauncher/Public/MainApp.h" beforeDir="false" afterPath="$PROJECT_DIR$/../../GameLauncher/Public/MainApp.h" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../../MainEditor/Default/MainEditor.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../../MainEditor/Default/MainEditor.cpp" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../../MainEditor/Default/MainEditor.vcxproj" beforeDir="false" afterPath="$PROJECT_DIR$/../../MainEditor/Default/MainEditor.vcxproj" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../../MainEditor/Default/MainEditor.vcxproj.filters" beforeDir="false" afterPath="$PROJECT_DIR$/../../MainEditor/Default/MainEditor.vcxproj.filters" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../MainEditor/Private/Camera_Tool.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../../MainEditor/Private/Camera_Tool.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../MainEditor/Private/Content_Browser.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../../MainEditor/Private/Content_Browser.cpp" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../../MainEditor/Private/EditorInstance.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../../MainEditor/Private/EditorInstance.cpp" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../../MainEditor/Private/Editor_Manager.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../../MainEditor/Private/Editor_Manager.cpp" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../MainEditor/Private/ImGui_Manager.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../../MainEditor/Private/ImGui_Manager.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../MainEditor/Private/Inspector.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../../MainEditor/Private/Inspector.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../MainEditor/Private/Inspector_Factory.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../../MainEditor/Private/Inspector_Factory.cpp" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../../MainEditor/Private/MainEditorApp.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../../MainEditor/Private/MainEditorApp.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../MainEditor/Private/Scene_View.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../../MainEditor/Private/Scene_View.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../MainEditor/Public/Content_Browser.h" beforeDir="false" afterPath="$PROJECT_DIR$/../../MainEditor/Public/Content_Browser.h" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../../MainEditor/Public/EditorInstance.h" beforeDir="false" afterPath="$PROJECT_DIR$/../../MainEditor/Public/EditorInstance.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../MainEditor/Public/ImGui_Manager.h" beforeDir="false" afterPath="$PROJECT_DIR$/../../MainEditor/Public/ImGui_Manager.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../MainEditor/Public/MainEditorApp.h" beforeDir="false" afterPath="$PROJECT_DIR$/../../MainEditor/Public/MainEditorApp.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../vcpkg.json" beforeDir="false" afterPath="$PROJECT_DIR$/../../vcpkg.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../MainEditor/Public/Inspector.h" beforeDir="false" afterPath="$PROJECT_DIR$/../../MainEditor/Public/Inspector.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../MainEditor/Public/Scene_View.h" beforeDir="false" afterPath="$PROJECT_DIR$/../../MainEditor/Public/Scene_View.h" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -211,6 +161,7 @@
       <workItem from="1777711744189" duration="804000" />
       <workItem from="1777801626249" duration="19000" />
       <workItem from="1777802189313" duration="115000" />
+      <workItem from="1777969310124" duration="58000" />
     </task>
     <servers />
   </component>

@@ -93,12 +93,24 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <OutDir>..\Bin\</OutDir>
+    <OutDir>..\Bin\$(Configuration)\</OutDir>
+    <IntDir>x64\$(Configuration)\</IntDir>
+    <LocalDebuggerWorkingDirectory>$(OutDir)</LocalDebuggerWorkingDirectory>
     <PublicIncludeDirectories>..\Public;..\..\Engine\Public;..\..\EngineSDK\inc;$(PublicIncludeDirectories)</PublicIncludeDirectories>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <OutDir>..\Bin\</OutDir>
+    <OutDir>..\Bin\$(Configuration)\</OutDir>
+    <IntDir>x64\$(Configuration)\</IntDir>
+    <LocalDebuggerWorkingDirectory>$(OutDir)</LocalDebuggerWorkingDirectory>
     <PublicIncludeDirectories>..\Public;..\..\Engine\Public;..\..\EngineSDK\inc;$(PublicIncludeDirectories)</PublicIncludeDirectories>
+  </PropertyGroup>
+  <PropertyGroup Label="Vcpkg" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <VcpkgTriplet>x64-windows</VcpkgTriplet>
+    <VcpkgHostTriplet>x64-windows</VcpkgHostTriplet>
+  </PropertyGroup>
+  <PropertyGroup Label="Vcpkg" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <VcpkgTriplet>x64-windows</VcpkgTriplet>
+    <VcpkgHostTriplet>x64-windows</VcpkgHostTriplet>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -154,12 +166,14 @@
       <AdditionalIncludeDirectories>$(SolutionDir)Engine\Bin\ShaderFiles;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </FxCompile>
     <PreBuildEvent>
-      <Command>if not exist "$(ProjectDir)..\Bin\ShaderFiles" mkdir "$(ProjectDir)..\Bin\ShaderFiles"
-xcopy /y /d "$(SolutionDir)Engine\Bin\ShaderFiles\Engine_Shader_Defines.hlsli" "$(ProjectDir)..\Bin\ShaderFiles\"</Command>
+      <Command>if not exist "$(OutDir)ShaderFiles" mkdir "$(OutDir)ShaderFiles"
+xcopy /y /d "$(SolutionDir)Engine\Bin\ShaderFiles\Engine_Shader_Defines.hlsli" "$(OutDir)ShaderFiles\"
+xcopy /y /d "$(SolutionDir)Client\Bin\ShaderFiles\Shader_Deferred.hlsl" "$(OutDir)ShaderFiles\"</Command>
     </PreBuildEvent>
     <PostBuildEvent>
       <Command>if exist "$(SolutionDir)Engine\Bin\$(Configuration)\Engine.dll" xcopy /y /d "$(SolutionDir)Engine\Bin\$(Configuration)\Engine.dll" "$(OutDir)"
-if exist "$(SolutionDir)Engine\Bin\$(Configuration)\Engine.pdb" xcopy /y /d "$(SolutionDir)Engine\Bin\$(Configuration)\Engine.pdb" "$(OutDir)"</Command>
+if exist "$(SolutionDir)Engine\Bin\$(Configuration)\Engine.pdb" xcopy /y /d "$(SolutionDir)Engine\Bin\$(Configuration)\Engine.pdb" "$(OutDir)"
+if exist "$(SolutionDir)Client\Bin\$(Configuration)\assimp-vc143-mtd.dll" xcopy /y /d "$(SolutionDir)Client\Bin\$(Configuration)\assimp-vc143-mtd.dll" "$(OutDir)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -191,12 +205,14 @@ if exist "$(SolutionDir)Engine\Bin\$(Configuration)\Engine.pdb" xcopy /y /d "$(S
       <AdditionalIncludeDirectories>$(SolutionDir)Engine\Bin\ShaderFiles;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </FxCompile>
     <PreBuildEvent>
-      <Command>if not exist "$(ProjectDir)..\Bin\ShaderFiles" mkdir "$(ProjectDir)..\Bin\ShaderFiles"
-xcopy /y /d "$(SolutionDir)Engine\Bin\ShaderFiles\Engine_Shader_Defines.hlsli" "$(ProjectDir)..\Bin\ShaderFiles\"</Command>
+      <Command>if not exist "$(OutDir)ShaderFiles" mkdir "$(OutDir)ShaderFiles"
+xcopy /y /d "$(SolutionDir)Engine\Bin\ShaderFiles\Engine_Shader_Defines.hlsli" "$(OutDir)ShaderFiles\"
+xcopy /y /d "$(SolutionDir)Client\Bin\ShaderFiles\Shader_Deferred.hlsl" "$(OutDir)ShaderFiles\"</Command>
     </PreBuildEvent>
     <PostBuildEvent>
       <Command>if exist "$(SolutionDir)Engine\Bin\$(Configuration)\Engine.dll" xcopy /y /d "$(SolutionDir)Engine\Bin\$(Configuration)\Engine.dll" "$(OutDir)"
-if exist "$(SolutionDir)Engine\Bin\$(Configuration)\Engine.pdb" xcopy /y /d "$(SolutionDir)Engine\Bin\$(Configuration)\Engine.pdb" "$(OutDir)"</Command>
+if exist "$(SolutionDir)Engine\Bin\$(Configuration)\Engine.pdb" xcopy /y /d "$(SolutionDir)Engine\Bin\$(Configuration)\Engine.pdb" "$(OutDir)"
+if exist "$(SolutionDir)Client\Bin\$(Configuration)\assimp-vc143-mtd.dll" xcopy /y /d "$(SolutionDir)Client\Bin\$(Configuration)\assimp-vc143-mtd.dll" "$(OutDir)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>

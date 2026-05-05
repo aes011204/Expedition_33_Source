@@ -1,4 +1,4 @@
-#include "Level_GamePlay.h"
+﻿#include "Level_GamePlay.h"
 #include "GameInstance.h"
 #include "ClientInstance.h"
 #include "FreeCamera.h"
@@ -80,7 +80,7 @@ HRESULT Level_GamePlay::Ready_Lights()
 
     ShadowDesc.eye          = Vec3(-0.f, 10.f, -7.f);
     ShadowDesc.at           = Vec3(0.f, 0.f, 0.f);
-    ShadowDesc.fovy         = AI_DEG_TO_RAD(120.f);
+    ShadowDesc.fovy         = DirectX::XMConvertToRadians(120.f);
     ShadowDesc.aspect       = 16.f / 9.f;
     ShadowDesc.zn           = 0.1f;
     ShadowDesc.zf           = 1000.f;

@@ -99,7 +99,7 @@ HRESULT Weapon::Render_Shadow()
 
     for (uint32 i = 0; i < iNumMeshes; i++)
     {
-        _model->Bind_Material(_shader.get(), "g_DiffuseTexture", i, aiTextureType_DIFFUSE, 0);
+        _model->Bind_Material(_shader.get(), "g_DiffuseTexture", i, 1, 0);
 
         if (FAILED(_shader->Begin(1)))
             return E_FAIL;

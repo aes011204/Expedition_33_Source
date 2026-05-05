@@ -41,9 +41,9 @@ HRESULT ModelEditorApp::Initialize()
 	if (FAILED(ModelImGui_Manager::GetInstance()->Initialize(g_hWnd, _device, _context)))
 		return E_FAIL;
 
-	if (FAILED(GAME->Add_Prototype(0, L"Shader_VtxMesh", ShaderCom::Create(_device, _context, TEXT("../Bin/ShaderFiles/Shader_VtxMesh.hlsl"), VTXMESH::Elements, VTXMESH::numElements))))
+	if (FAILED(GAME->Add_Prototype(0, L"Shader_VtxMesh", ShaderCom::Create(_device, _context, TEXT("../../Bin/ShaderFiles/Shader_VtxMesh.hlsl"), VTXMESH::Elements, VTXMESH::numElements))))
 		return E_FAIL;
-	if (FAILED(GAME->Add_Prototype(0, L"Shader_VtxAnimMesh", ShaderCom::Create(_device, _context, TEXT("../Bin/ShaderFiles/Shader_VtxAnimMesh.hlsl"), VTXANIMMESH::Elements, VTXANIMMESH::numElements))))
+	if (FAILED(GAME->Add_Prototype(0, L"Shader_VtxAnimMesh", ShaderCom::Create(_device, _context, TEXT("../../Bin/ShaderFiles/Shader_VtxAnimMesh.hlsl"), VTXANIMMESH::Elements, VTXANIMMESH::numElements))))
 		return E_FAIL;
 
 	if (FAILED(GAME->Add_Prototype(0, L"Prototype_GameObject_ModelEditorCamera", ModelEditorCamera::Create(_device, _context))))
@@ -104,7 +104,7 @@ wstring ModelEditorApp::Get_ClientResourceRoot() const
 		return {};
 
 	const std::filesystem::path runtimeRoot = std::filesystem::path(modulePath).parent_path();
-	return std::filesystem::absolute(runtimeRoot / L"../../../Client/Bin/Resources").lexically_normal().wstring();
+	return std::filesystem::absolute(runtimeRoot / ResourcePath).lexically_normal().wstring();
 }
 
 wstring ModelEditorApp::Get_ClientResourcePath(const wchar_t* relativePath) const
