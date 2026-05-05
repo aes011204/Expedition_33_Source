@@ -1,6 +1,17 @@
 ﻿#include "Terrain.h"
 #include "GameInstance.h"
 
+IMPLEMENT_REFLECTION(Terrain)
+{
+    auto& info = GetStaticReflectionInfo();
+    info.properties.clear();
+
+    info.displayName = "Terrain";
+    info.category = "World";
+
+    return true;
+}
+
 Terrain::Terrain(const ComPtr<Device>& device, const ComPtr<Context>& context)
 	: GameObject { device, context }
 {

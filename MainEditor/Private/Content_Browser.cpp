@@ -170,6 +170,8 @@ void Content_Browser::Render()
         ImGui::EndChild();
     }
 
+    Draw_CreatePrefabPopup();
+
     Set_Open(isOpen);
     ImGui::End();
 }
@@ -495,6 +497,9 @@ void Content_Browser::Draw_FolderContextMenu(FFolderNode& folder, const string& 
     if (!ImGui::BeginPopupContextItem(popupId.c_str()))
         return;
 
+    if (ImGui::MenuItem("프리팹 만들기"))
+        Open_CreatePrefabPopup(folder.fullPath);
+
     if (ImGui::MenuItem("탐색기에서 열기"))
     {
         const wstring absPath = fs::absolute(folder.fullPath).wstring();
@@ -509,6 +514,141 @@ void Content_Browser::Draw_FolderContextMenu(FFolderNode& folder, const string& 
     }
 
     ImGui::EndPopup();
+}
+
+void Content_Browser::Draw_CreatePrefabPopup()
+{
+    if (_openCreatePrefabPopup)
+    {
+        ImGui::OpenPopup("CreatePrefabPopup");
+        _openCreatePrefabPopup = false;
+    }
+
+    if (!ImGui::BeginPopupModal("CreatePrefabPopup", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+        return;
+
+    ImGui::InputTextWithHint(
+        "##CreatePrefabSearch",
+        "Search game object...",
+        _createPrefabSearchBuffer,
+        IM_ARRAYSIZE(_createPrefabSearchBuffer));
+
+    ImGui::Separator();
+
+    const string searchLower = ToLowerCopy(_createPrefabSearchBuffer);
+
+    string currentCategory{};
+    ImGui::BeginChild("CreatePrefabList", ImVec2(420.f, 320.f), true);
+
+    for (const auto& entry : _createPrefabEntries)
+    {
+        if (!searchLower.empty())
+        {
+            const string nameLower = ToLowerCopy(entry.displayName);
+            const string classLower = ToLowerCopy(entry.className);
+            const string categoryLower = ToLowerCopy(entry.category);
+
+            if (nameLower.find(searchLower) == string::npos &&
+                classLower.find(searchLower) == string::npos &&
+                categoryLower.find(searchLower) == string::npos)
+            {
+                continue;
+            }
+        }
+
+        if (currentCategory != entry.category)
+        {
+            currentCategory = entry.category;
+            ImGui::Separator();
+            ImGui::TextDisabled("%s", currentCategory.c_str());
+            ImGui::Separator();
+        }
+
+        const bool isSelected = (_selectedPrefabClass == entry.className);
+        if (ImGui::Selectable(entry.displayName.c_str(), isSelected))
+        {
+            _selectedPrefabClass = entry.className;
+            strcpy_s(_createPrefabNameBuffer, entry.displayName.c_str());
+        }
+    }
+
+    ImGui::EndChild();
+
+    ImGui::Separator();
+    ImGui::InputText("Prefab Name", _createPrefabNameBuffer, IM_ARRAYSIZE(_createPrefabNameBuffer));
+
+    const bool canCreate =
+        !_selectedPrefabClass.empty() &&
+        strlen(_createPrefabNameBuffer) > 0 &&
+        !_createPrefabTargetFolder.empty();
+
+    ImGui::BeginDisabled(!canCreate);
+    if (ImGui::Button("Create", ImVec2(120.f, 0.f)))
+    {
+        const string prefabName = _createPrefabNameBuffer;
+        const fs::path targetPath =
+            fs::path(_createPrefabTargetFolder) / (String::ToWString(prefabName) + L".prefab.json");
+
+        if (SUCCEEDED(GAME->Create_PrefabAsset(targetPath, _selectedPrefabClass, prefabName)))
+        {
+            Refresh_Resources();
+
+            FFolderNode* found = Find_FolderNode(_rootFolder, _createPrefabTargetFolder);
+            if (found)
+                _currentFolder = found;
+
+            ImGui::CloseCurrentPopup();
+        }
+    }
+    ImGui::EndDisabled();
+
+    ImGui::SameLine();
+
+    if (ImGui::Button("Cancel", ImVec2(120.f, 0.f)))
+        ImGui::CloseCurrentPopup();
+
+    ImGui::EndPopup();
+}
+
+void Content_Browser::Open_CreatePrefabPopup(const wstring& targetFolderPath)
+{
+    _createPrefabTargetFolder = targetFolderPath;
+    _selectedPrefabClass.clear();
+    _createPrefabNameBuffer[0] = '\0';
+    _createPrefabSearchBuffer[0] = '\0';
+
+    Rebuild_CreatePrefabEntries();
+    _openCreatePrefabPopup = true;
+}
+
+void Content_Browser::Rebuild_CreatePrefabEntries()
+{
+    _createPrefabEntries.clear();
+
+    GAME->Visit_GameObjectTypes([&](const TypeRegistry::GameObjectTypeInfo& info)
+    {
+        if (info.className.empty() || info.reflectionInfo == nullptr)
+            return;
+
+        const string className = info.className;
+        const string displayName =
+            info.reflectionInfo->displayName.empty() ? className : info.reflectionInfo->displayName;
+        const string category = info.reflectionInfo->category;
+
+        if (category.empty())
+            return;
+
+        _createPrefabEntries.push_back({ className, displayName, category });
+    });
+
+    sort(_createPrefabEntries.begin(), _createPrefabEntries.end(),
+        [](const FPrefabCreateEntry& a, const FPrefabCreateEntry& b)
+        {
+            if (a.category != b.category)
+                return a.category < b.category;
+
+            return a.displayName < b.displayName;
+        });
 }
 
 void Content_Browser::Draw_FileContextMenu(const wstring& filePath, const string& popupId)

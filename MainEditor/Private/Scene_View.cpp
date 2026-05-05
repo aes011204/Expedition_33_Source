@@ -75,11 +75,12 @@ void Scene_View::Handle_GizmoShortcut()
         return;
     }
 
-    if (ImGui::IsKeyPressed(ImGuiKey_Space, false))
-    {
-        _gizmoMode = (_gizmoMode == ImGuizmo::LOCAL) ? ImGuizmo::WORLD : ImGuizmo::LOCAL;
-        return;
-    }
+    // 전환은 키보드 세팅 막아야할거같다.
+    //if (ImGui::IsKeyPressed(ImGuiKey_Space, false))
+    //{
+    //    _gizmoMode = (_gizmoMode == ImGuizmo::LOCAL) ? ImGuizmo::WORLD : ImGuizmo::LOCAL;
+    //    return;
+    //}
 }
 
 void Scene_View::Render_GizmoOverlay()

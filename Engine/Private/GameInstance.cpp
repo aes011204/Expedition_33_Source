@@ -12,13 +12,15 @@
 #include "Log_Manager.h"
 #include "Object_Manager.h"
 #include "PipeLine.h"
-#ifdef _DEBUG
-#include "Print_Manager.h"
-#endif
+#include "GameObject.h"
 #include "Prototype_Manager.h"
 #include "RegistorFactory.h"
 #include "Renderer.h"
 #include "Timer_Manager.h"
+
+#ifdef _DEBUG
+#include "Print_Manager.h"
+#endif
 
 IMPLEMENT_SINGLETON(GameInstance)
 
@@ -451,6 +453,12 @@ HRESULT GameInstance::Add_GameObject(uint32 prototypeLevelIndex, const wstring& 
     return _objectManager->Add_GameObject(prototypeLevelIndex, prototypeTag, layerLevelIndex, layerTag, outGameObject, arg);
 }
 
+HRESULT GameInstance::Add_GameObject(uint32 layerLevelIndex, const wstring& layerTag,
+    const Shared<GameObject>& gameObject)
+{
+    return _objectManager->Add_GameObject(layerLevelIndex, layerTag, gameObject);
+}
+
 Shared<GameObject> GameInstance::Find_FirstObject(uint32 levelIndex, const wstring& layerTag)
 {
     return _objectManager->Find_FirstObject(levelIndex, layerTag);
@@ -661,6 +669,12 @@ const TypeRegistry::BTNodeTypeInfo* GameInstance::Find_BTNodeType(const string& 
     return _typeRegistry->Find_BTNodeType(className);
 }
 
+void GameInstance::Visit_GameObjectTypes(const function<void(const TypeRegistry::GameObjectTypeInfo&)>& visitor) const
+{
+    CHECK_NULL(_typeRegistry);
+    _typeRegistry->Visit_GameObjectTypes(visitor);
+}
+
 Shared<Component> GameInstance::Create_ComponentPrototype(const string& className) const
 {
     return _typeRegistry->Create_Component(className, _graphicDevice->Get_Device(), _graphicDevice->Get_Context());
@@ -756,6 +770,110 @@ void GameInstance::Clear_Print(const wstring& slot)
 #ifdef _DEBUG
     _printManager->Clear(slot);
 #endif
+}
+
+HRESULT GameInstance::Save_GameObjectJson(const fs::path& path, const Shared<GameObject>& gameObject)
+{
+    CHECK_NULL(gameObject, E_FAIL);
+
+    json root = gameObject->To_Json();
+
+    if (root.is_null() || !root.is_object())
+        return E_FAIL;
+
+    if (!path.has_parent_path())
+        return E_FAIL;
+
+    std::error_code ec;
+    fs::create_directories(path.parent_path(), ec);
+
+    std::ofstream file(path);
+    if (!file.is_open())
+        return E_FAIL;
+
+    file << root.dump(4);
+    file.close();
+
+    return S_OK;
+}
+
+json GameInstance::Load_JsonFile(const fs::path& path) const
+{
+    if (!fs::exists(path))
+        return json{};
+
+    std::ifstream file(path);
+    if (!file.is_open())
+        return json{};
+
+    json root{};
+    file >> root;
+    file.close();
+
+    return root;
+}
+
+HRESULT GameInstance::Load_GameObjectJson(const fs::path& path, const Shared<GameObject>& gameObject) const
+{
+    CHECK_NULL(gameObject, E_FAIL);
+
+    json root = Load_JsonFile(path);
+    if (root.is_null() || !root.is_object())
+        return E_FAIL;
+
+    gameObject->From_Json(root);
+
+    return S_OK;
+}
+
+Shared<GameObject> GameInstance::Instantiate_GameObjectJson(const fs::path& path)
+{
+    json root = Load_JsonFile(path);
+
+    if (root.is_null() || !root.is_object())
+        return nullptr;
+
+    if (!root.contains("static_class"))
+        return nullptr;
+
+    const string staticClass = root["static_class"].get<string>();
+    if (staticClass.empty())
+        return nullptr;
+
+    Shared<GameObject> gameObject = Create_GameObjectPrototype(staticClass);
+    CHECK_NULL(gameObject, nullptr);
+
+    CHECK_FAILED(gameObject->Initialize(nullptr), nullptr);
+
+    gameObject->From_Json(root);
+
+    return gameObject;
+}
+
+HRESULT GameInstance::Create_PrefabAsset(const fs::path& path, const string& staticClass, const string& prefabName)
+{
+    if (staticClass.empty() || prefabName.empty())
+        return E_FAIL;
+
+    Shared<GameObject> gameObject = Create_GameObjectPrototype(staticClass);
+    CHECK_NULL(gameObject, E_FAIL);
+
+    CHECK_FAILED(gameObject->Initialize(nullptr), E_FAIL);
+
+    json root = gameObject->To_Json();
+    root["prefab_name"] = prefabName;
+
+    std::error_code ec;
+    fs::create_directories(path.parent_path(), ec);
+
+    std::ofstream file(path);
+    if (!file.is_open())
+        return E_FAIL;
+
+    file << root.dump(4);
+    file.close();
+
+    return S_OK;
 }
 
 void GameInstance::Release_Engine()

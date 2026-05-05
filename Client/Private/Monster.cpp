@@ -4,6 +4,17 @@
 #include "ModelCom.h"
 #include "ShaderCom.h"
 
+IMPLEMENT_REFLECTION(Monster)
+{
+    auto& info = GetStaticReflectionInfo();
+    info.properties.clear();
+
+    info.displayName = "Monster";
+    info.category = "Character";
+
+    return true;
+}
+
 Monster::Monster(const ComPtr<Device>& device, const ComPtr<Context>& context)
 	: Character { device, context }
 {

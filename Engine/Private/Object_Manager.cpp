@@ -62,6 +62,34 @@ HRESULT Object_Manager::Add_GameObject(uint32 prototypeLevelIndex, const wstring
 	return S_OK;
 }
 
+HRESULT Object_Manager::Add_GameObject(uint32 layerLevelIndex, const wstring& layerTag,
+    const Shared<GameObject>& gameObject)
+{
+    if (gameObject == nullptr)
+        return E_FAIL;
+
+    if (layerLevelIndex >= _numLevels)
+        return E_FAIL;
+
+    Shared<Layer> layer = Find_Layer(layerLevelIndex, layerTag);
+    if (layer == nullptr)
+    {
+        layer = Layer::Create();
+        if (layer == nullptr)
+            return E_FAIL;
+
+        layer->Add_GameObject(gameObject);
+        _layers[layerLevelIndex].emplace(layerTag, layer);
+    }
+    else
+    {
+        layer->Add_GameObject(gameObject);
+    }
+
+    ++_objectRevision;
+    return S_OK;
+}
+
 void Object_Manager::Priority_Update(float timeDelta)
 {
 	for (auto& layers : _layers)

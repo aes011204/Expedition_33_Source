@@ -166,6 +166,7 @@
     <ClInclude Include="..\public\BT_Idle.h" />
     <ClInclude Include="..\public\BT_Attack.h" />
     <ClInclude Include="..\public\BT_CheckDistance.h" />
+    <ClInclude Include="..\Public\Spawn_Prefab.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -238,6 +239,7 @@
     <ClCompile Include="..\private\BT_Idle.cpp" />
     <ClCompile Include="..\private\BT_Attack.cpp" />
     <ClCompile Include="..\private\BT_CheckDistance.cpp" />
+    <ClCompile Include="..\Private\Spawn_Prefab.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">

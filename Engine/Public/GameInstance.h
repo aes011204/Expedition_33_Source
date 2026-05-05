@@ -109,6 +109,12 @@ public: /* For.Object_Manager */
         Shared<GameObject>& outGameObject,
         void* arg = nullptr);
 
+    // 프리펩 스폰용
+    HRESULT Add_GameObject(
+        uint32 layerLevelIndex,
+        const wstring& layerTag,
+        const Shared<GameObject>& gameObject);
+
     // ex) Layer_Player의 첫번째 오브젝트 찾기
     Shared<GameObject> Find_FirstObject(uint32 levelIndex, const wstring& layerTag);
 
@@ -191,6 +197,7 @@ public: /* For.TypeRegistry */
     const TypeRegistry::ComponentTypeInfo*  Find_ComponentType(const string& className) const;
     const TypeRegistry::GameObjectTypeInfo* Find_GameObjectType(const string& className) const;
     const TypeRegistry::BTNodeTypeInfo*     Find_BTNodeType(const string& className) const;
+    void Visit_GameObjectTypes(const function<void(const TypeRegistry::GameObjectTypeInfo&)>& visitor) const;
 
     Shared<Component>   Create_ComponentPrototype(const string& className) const;
     Shared<GameObject>  Create_GameObjectPrototype(const string& className) const;
@@ -243,6 +250,13 @@ public: /* 입력 제어 */
 
     void                    Set_FreeCameraInputEnabled(bool enabled) { _isFreeCameraInputEnabled = enabled; }
     bool                    Is_FreeCameraInputEnabled() const { return _isFreeCameraInputEnabled; }
+
+public: /* For.Json / Prefab Saved & Load */
+    HRESULT                 Save_GameObjectJson(const fs::path& path, const Shared<GameObject>& gameObject);
+    json                    Load_JsonFile(const fs::path& path) const;
+    HRESULT                 Load_GameObjectJson(const fs::path& path, const Shared<GameObject>& gameObject) const;
+    Shared<GameObject>      Instantiate_GameObjectJson(const fs::path& path);
+    HRESULT                 Create_PrefabAsset(const fs::path& path, const string& staticClass, const string& prefabName);
 
 private:
     Unique<Log_Manager>         _logManager{};
