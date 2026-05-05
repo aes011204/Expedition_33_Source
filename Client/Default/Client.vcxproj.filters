@@ -82,6 +82,9 @@
     <Filter Include="97.ShaderFiles">
       <UniqueIdentifier>{ab9c1d2a-b2c2-4061-a3ea-61fccfdb62d1}</UniqueIdentifier>
     </Filter>
+    <Filter Include="BehavoirTree">
+      <UniqueIdentifier>{3c8c65f9-6d15-4630-87bb-651577f82509}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -156,6 +159,13 @@
     <ClInclude Include="..\Public\PlayerControllerCom.h">
       <Filter>03. Component\PlayerController</Filter>
     </ClInclude>
+    <ClInclude Include="..\public\Mon_AIController.h">
+      <Filter>BehavoirTree</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\Mon_BehaviorTree.h" />
+    <ClInclude Include="..\public\BT_Idle.h" />
+    <ClInclude Include="..\public\BT_Attack.h" />
+    <ClInclude Include="..\public\BT_CheckDistance.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -221,6 +231,13 @@
     <ClCompile Include="..\Private\PlayerControllerCom.cpp">
       <Filter>03. Component\PlayerController</Filter>
     </ClCompile>
+    <ClCompile Include="..\private\Mon_AIController.cpp">
+      <Filter>BehavoirTree</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\Mon_BehaviorTree.cpp" />
+    <ClCompile Include="..\private\BT_Idle.cpp" />
+    <ClCompile Include="..\private\BT_Attack.cpp" />
+    <ClCompile Include="..\private\BT_CheckDistance.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">
@@ -228,6 +245,9 @@
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxCube.hlsl">
       <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_Deferred.hlsl">
+        <Filter>97.ShaderFiles</Filter>
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_BillboardParticle.hlsl">
       <Filter>97.ShaderFiles</Filter>

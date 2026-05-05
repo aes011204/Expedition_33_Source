@@ -6,10 +6,11 @@
 NS_BEGIN(Engine)
 class ShaderCom;
 class ModelCom;
-class ColliderCom;
 NS_END
 
 NS_BEGIN(Client)
+
+class Mon_AIController;
 
 class Monster final : public Character
 {
@@ -27,20 +28,16 @@ public:
 	virtual void Update(float timeDelta) override;
 	virtual void Late_Update(float timeDelta) override;
 	virtual HRESULT Render() override;
+    virtual HRESULT Render_Shadow() override;
 
 protected:
 	Shared<ShaderCom>	_shader = { nullptr };
 	Shared<ModelCom>	_model = { nullptr };
-
-    Shared<ColliderCom> _collider;
-	
+    Shared<Mon_AIController>_aiCtrl = { nullptr };
 
 protected:
 	HRESULT Ready_Components();
-    HRESULT Ready_Collider();
-
 	HRESULT Bind_ShaderResources();
-    
 
 
 public:

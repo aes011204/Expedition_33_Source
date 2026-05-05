@@ -28,8 +28,13 @@ public:
 	virtual void    Late_Update(float timeDelta) override;
 	virtual HRESULT Render() override;
 
+public:
+    int             Get_MoveSpeed() {return _moveSpeed;}
+    void            Set_MoveSpeed(int moveSpeed) {_moveSpeed = moveSpeed;}
+
 private:
     bool    _lock = false;
+    int   _moveSpeed = 0;
 
 public:
 	static Shared<FreeCamera> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

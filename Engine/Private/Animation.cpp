@@ -1,82 +1,161 @@
 ﻿#include "Animation.h"
 
 #include "Channel.h"
+#include "Bone.h"
+#include <cmath>
 
-Animation::Animation()
-{
-}
+NS_BEGIN(Engine)
 
 Animation::Animation(const Animation& prototype)
-    : _duration{ prototype._duration }
-    , _tickPerSecond{ prototype._tickPerSecond }
-    , _currentTrackPosition{ prototype._currentTrackPosition }
-    , _numChannels{ prototype._numChannels }
-    , _channels{ prototype._channels }
-    , _currentKeyFrameIndices{ prototype._currentKeyFrameIndices }
+	: _numChannels{ prototype._numChannels }
+	, _currentKeyFrameIndices{ prototype._currentKeyFrameIndices }
+	, _duration{ prototype._duration }
+	, _tickPerSecond{ prototype._tickPerSecond }
+	, _currentTrackPosition{ 0.f }
 {
-    
+    strcpy_s(_animationName, prototype._animationName);
+	for (auto& ch : prototype._channels)
+		_channels.push_back(ch->Clone());
 }
 
-HRESULT Animation::Initialize(const aiAnimation* aiAnimation, ModelCom* model)
+HRESULT Animation::Initialize(const ModelAnimationData& animData, const vector<ModelChannelData>& channels)
 {
-    _duration = static_cast<float>(aiAnimation->mDuration);
-    _tickPerSecond = static_cast<float>(aiAnimation->mTicksPerSecond);
+    strcpy_s(_animationName, animData.name);
 
-    _numChannels = aiAnimation->mNumChannels;
 
-    _currentKeyFrameIndices.resize(_numChannels);
+	_duration = static_cast<float>(animData.duration);
+	_tickPerSecond = static_cast<float>(animData.ticksPerSecond);
+	_numChannels = animData.numChannels;
+	_currentKeyFrameIndices.resize(_numChannels, 0);
 
-    for (size_t i = 0; i < _numChannels; i++)
-    {
-        Shared<Channel> channel = Channel::Create(aiAnimation->mChannels[i], model);
-        if (nullptr == channel)
-            return E_FAIL;
+	for (uint32 i = 0; i < _numChannels; ++i)
+	{
+		auto channel = Channel::Create(channels[i]);
+		if (nullptr == channel)
+			return E_FAIL;
 
-        _channels.push_back(channel);
-    }
+		_channels.push_back(channel);
+	}
 
-    return S_OK;
+	return S_OK;
 }
 
-bool Animation::Update_TransformationMatrices(float timeDelta, const vector<Shared<class Bone>>& bones, bool isLoop)
+void Animation::Set_Progress(float progress)
 {
-    _currentTrackPosition += _tickPerSecond * timeDelta;
+	_currentTrackPosition = _duration * progress;
+	std::fill(_currentKeyFrameIndices.begin(), _currentKeyFrameIndices.end(), 0);
 
-    if (_currentTrackPosition >= _duration)
-    {
-        if (false == isLoop)
-            return true;
-
-        _currentTrackPosition = 0.f;
-    }
-
-    // for (auto& channel : _channels)
-    for (size_t i = 0; i < _numChannels; i++)
-        _channels[i]->Update_TransformationMatrix(&_currentKeyFrameIndices[i], _currentTrackPosition, bones);
-
-    return false;
+	for (auto& ch : _channels)
+		ch->ResetVelocityState();
 }
 
-Shared<Animation> Animation::Create(const aiAnimation* aiAnimation, ModelCom* model)
+void Animation::Reset()
 {
-    auto instance = make_shared<Animation>();
+	Set_Progress(0.f);
+}
 
-    if (FAILED(instance->Initialize(aiAnimation, model)))
-    {
-        MSG_BOX("Failed to Created : Animation");
-        return nullptr;
-    }
-    return instance;
+const RootMotionFrame& Animation::Get_TransformVelocity(int32 rootNodeIndex) const
+{
+	static RootMotionFrame emptyFrame{};
+
+	for (const auto& ch : _channels)
+	{
+		if (ch->Get_BoneIndex() == rootNodeIndex)
+			return ch->Get_TransformVelocity();
+	}
+
+	return emptyFrame;
+}
+
+bool Animation::Update_TransformationMatrices(float timeDelta, const vector<Shared<Bone>>& bones, bool isLoop, int32 rootNodeIndex)
+{
+	_currentTrackPosition += _tickPerSecond * timeDelta;
+
+	if (_currentTrackPosition >= _duration)
+	{
+		if (!isLoop)
+		{
+			_currentTrackPosition = _duration;
+			return true;
+		}
+
+		_currentTrackPosition = std::fmod(_currentTrackPosition, _duration);
+	}
+
+	for (uint32 i = 0; i < _numChannels; ++i)
+	{
+		_channels[i]->Update_TransformationMatrix(_currentKeyFrameIndices[i], _currentTrackPosition, _duration, bones, rootNodeIndex, isLoop);
+	}
+
+	return false;
+}
+
+void Animation::Blend_TransformMatrix(float timeDelta, const Shared<Animation>& nextAnim, float blendRatio,
+	const vector<Shared<Bone>>& bones, bool isLoop, int32 rootNodeIndex)
+{
+	/* 현재 애니메이션 시간 갱신 */
+	_currentTrackPosition += _tickPerSecond * timeDelta;
+	if (_currentTrackPosition >= _duration)
+		_currentTrackPosition = isLoop ? std::fmod(_currentTrackPosition, _duration) : _duration;
+
+	/* 다음 애니메이션 시간 갱신 */
+	nextAnim->_currentTrackPosition += nextAnim->_tickPerSecond * timeDelta;
+	if (nextAnim->_currentTrackPosition >= nextAnim->_duration)
+		nextAnim->_currentTrackPosition = isLoop ? std::fmod(nextAnim->_currentTrackPosition, nextAnim->_duration) : nextAnim->_duration;
+
+	/* 블렌딩 수행 */
+	for (uint32 i = 0; i < _numChannels; ++i)
+	{
+		RootMotionFrame curTrans{}, nextTrans{};
+
+		_channels[i]->Get_ChannelTransform(
+			_currentTrackPosition, _currentKeyFrameIndices[i], _duration, isLoop, curTrans);
+		_channels[i]->Update_Velocity(curTrans, _currentTrackPosition);
+
+		nextAnim->_channels[i]->Get_ChannelTransform(
+			nextAnim->_currentTrackPosition, nextAnim->_currentKeyFrameIndices[i], nextAnim->_duration, isLoop, nextTrans);
+		nextAnim->_channels[i]->Update_Velocity(nextTrans, nextAnim->_currentTrackPosition);
+
+		Vec3 transScale = Vec3::Lerp(curTrans.scale, nextTrans.scale, blendRatio);
+		Quat transRotation = Quat::Slerp(curTrans.rotation, nextTrans.rotation, blendRatio);
+		Vec3 transPosition = Vec3::Lerp(curTrans.position, nextTrans.position, blendRatio);
+
+		Matrix targetMatrix{};
+		if (_channels[i]->Get_BoneIndex() == rootNodeIndex)
+		{
+			targetMatrix = XMMatrixAffineTransformation(transScale, Vec3::Zero, transRotation, Vec3::Zero);
+		}
+		else
+		{
+			targetMatrix = XMMatrixAffineTransformation(transScale, Vec3::Zero, transRotation, transPosition);
+		}
+
+		bones[_channels[i]->Get_BoneIndex()]->Update_TransformationMatrix(targetMatrix);
+	}
+}
+
+Shared<Animation> Animation::Create(const ModelAnimationData& animData, const vector<ModelChannelData>& channels)
+{
+	auto instance = make_shared<Animation>();
+
+	if (FAILED(instance->Initialize(animData, channels)))
+	{
+		LOG_ERROR("[MODEL] Failed to Created : Animation");
+		return nullptr;
+	}
+	return instance;
 }
 
 Shared<Animation> Animation::Clone()
 {
-    return make_shared<Animation>(*this);
+	return make_shared<Animation>(*this);
 }
 
 void Animation::Free()
 {
-    __super::Free();
+	__super::Free();
 
-    _channels.clear();
+	_channels.clear();
 }
+
+NS_END

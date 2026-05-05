@@ -12,8 +12,19 @@ public:
         Vec3 offset;
         float followSpeed;
         float distance;
+
         float sideOffset;
         float heightOffset;
+        float aimOffset;
+
+        float pitchLookScale;
+
+        float pitchMin;
+        float pitchMax;
+
+        float lookHeight;
+
+        float pivotHeight;
     }TARGETCAMERA_DESC;
 
 public:
@@ -41,7 +52,28 @@ public:
 
     float           Get_FollowSpeed() {return _followSpeed;}
     void            Set_FollowSpeed(float followSpeed) {_followSpeed = followSpeed;}
+    
+    float           Get_AimOffset() {return _aimOffset;}
+    void            Set_AimOffset(float aimOffset) {_aimOffset = aimOffset;}
 
+    float           Get_Distance() {return _distance;}
+    void            Set_Distance(float distance) {_distance = distance;}
+
+    float           Get_PitchLookScale() {return _pitchLookScale;}
+    void            Set_PitchLookScale(float pitchLookScale) {_pitchLookScale = pitchLookScale;}
+
+    float           Get_PitchMin() {return _pitchMin;}
+    void            Set_PitchMin(float pitchMin) {_pitchMin = pitchMin;}
+    
+    float           Get_PitchMax() {return _pitchMax;}
+    void            Set_PitchMax(float pitchMax) {_pitchMax = pitchMax;}
+       
+    float           Get_LookHeight() {return _lookHeight;}
+    void            Set_LookHeight(float lookHeight) {_lookHeight = lookHeight;}
+
+    float           Get_PivotHeight() {return _pivotHeight;}
+    void            Set_PivotHeight(float pivotHeight) {_pivotHeight = pivotHeight;}
+    
 private:
    Weak<TransformCom> _targetTransformCom;
     Vec3              _offset;
@@ -49,7 +81,16 @@ private:
     float             _distance;
     float             _sideOffset;
     float             _heightOffset;
+    float             _lookHeight;
+    float             _aimOffset;
 
+    float             _pitchLookScale;
+    float             _pitchMin;
+    float             _pitchMax;
+
+    float             _pivotHeight;
+
+    Vec3             _prevTargetPos;
 public:
     static Shared<TargetCamera> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
     virtual Shared<GameObject> Clone(void* arg) override;

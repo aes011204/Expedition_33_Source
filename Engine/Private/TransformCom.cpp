@@ -235,6 +235,83 @@ void TransformCom::Set_RotationEuler(const Vec3& eulerDegree)
     Clear_Dirty(TRANSFORM_DIRTY_FLAG::ROTATION);
 }
 
+Vec3 TransformCom::Get_WorldRotationEuler()
+{
+    Matrix worldMatrix = Get_WorldMatrix();
+
+    Vec3 scale = Vec3::One;
+    Quat rotation = Quat::Identity;
+    Vec3 translation = Vec3::Zero;
+
+    if (!worldMatrix.Decompose(scale, rotation, translation))
+        return Vec3::Zero;
+
+    if (rotation.LengthSquared() <= Internal::transformEpsilon)
+        rotation = Quat::Identity;
+    else
+        rotation.Normalize();
+
+    const Vec3 eulerRadian = rotation.ToEuler();
+    return Vec3(
+        XMConvertToDegrees(eulerRadian.x),
+        XMConvertToDegrees(eulerRadian.y),
+        XMConvertToDegrees(eulerRadian.z)
+    );
+}
+
+void TransformCom::Set_WorldRotationEuler(const Vec3& eulerDegree)
+{
+    const Vec3 eulerRadian(
+        XMConvertToRadians(eulerDegree.x),
+        XMConvertToRadians(eulerDegree.y),
+        XMConvertToRadians(eulerDegree.z)
+    );
+
+    Quat desiredWorldRotation =
+        Quat::CreateFromYawPitchRoll(eulerRadian.y, eulerRadian.x, eulerRadian.z);
+
+    if (desiredWorldRotation.LengthSquared() <= Internal::transformEpsilon)
+        desiredWorldRotation = Quat::Identity;
+    else
+        desiredWorldRotation.Normalize();
+
+    const Shared<TransformCom> parent = _parent.lock();
+    if (!parent)
+    {
+        Set_RotationQuaternion(desiredWorldRotation);
+        return;
+    }
+
+    Matrix parentWorld = parent->Get_WorldMatrix();
+
+    Vec3 parentScale = Vec3::One;
+    Quat parentWorldRotation = Quat::Identity;
+    Vec3 parentTranslation = Vec3::Zero;
+
+    if (!parentWorld.Decompose(parentScale, parentWorldRotation, parentTranslation))
+    {
+        Set_RotationQuaternion(desiredWorldRotation);
+        return;
+    }
+
+    if (parentWorldRotation.LengthSquared() <= Internal::transformEpsilon)
+        parentWorldRotation = Quat::Identity;
+    else
+        parentWorldRotation.Normalize();
+
+    const Matrix desiredWorldRotationMatrix = Matrix::CreateFromQuaternion(desiredWorldRotation);
+    const Matrix parentWorldRotationMatrix = Matrix::CreateFromQuaternion(parentWorldRotation);
+    const Matrix localRotationMatrix = desiredWorldRotationMatrix * parentWorldRotationMatrix.Invert();
+
+    Quat localRotation = Quat::CreateFromRotationMatrix(localRotationMatrix);
+    if (localRotation.LengthSquared() <= Internal::transformEpsilon)
+        localRotation = Quat::Identity;
+    else
+        localRotation.Normalize();
+
+    Set_RotationQuaternion(localRotation);
+}
+
 const Quat& TransformCom::Get_RotationQuaternion()
 {
     Sync_RotationCache_FromLocalMatrix();

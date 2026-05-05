@@ -18,6 +18,7 @@ enum class KEY_TYPE
 	ESCAPE = VK_ESCAPE,
 	BACK = VK_BACK,
 	TAB = VK_TAB,
+    ALT = VK_MENU,
 
 	F1 = VK_F1,
 	F2 = VK_F2,
@@ -78,7 +79,7 @@ public:
 	const POINT& Get_MousePosition() const { return _mousePosition; }
 
 	Vec2  Get_MouseDelta() const { return _mouseDelta; }
-	float Get_MouseWheel() const { return _mouseWheelDelta; }
+	float Get_MouseWheel();
 
 	void Set_MouseWheel(float fDelta) { _mouseWheelDelta = fDelta; }
 

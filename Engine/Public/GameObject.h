@@ -30,6 +30,7 @@ public:
     virtual void    Update(float timeDelta);
     virtual void    Late_Update(float timeDelta);
     virtual HRESULT Render();
+    virtual HRESULT Render_Shadow() { return S_OK; }
 
     HRESULT         Try_BeginPlay();
 
@@ -119,6 +120,16 @@ public:
         _components.emplace(prototypeTag, component);
 
         return S_OK;
+    }
+
+    // 컴포넌트 순회용. 반환 ㄴ
+    template<typename Visitor>
+    void Visit_Components(Visitor&& visitor) const
+    {
+        for (const auto& [tag, component] : _components)
+        {
+            visitor(tag, component);
+        }
     }
 
 protected:
