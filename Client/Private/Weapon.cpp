@@ -32,7 +32,7 @@ HRESULT Weapon::Initialize(void* pArg)
 	if (FAILED(Ready_Components()))
 		return E_FAIL;
 
-	_transformCom->Set_Scale(Vec3(0.01f, 0.01f, 0.01f));
+	_transformCom->Set_Scale(Vec3(0.1f, 0.1f, 0.1f));
 	_transformCom->Rotate(Vec3::Up, 90.f);
 	_transformCom->Set_Position(Vec3(0.8f, 0.f, 0.f));
 
