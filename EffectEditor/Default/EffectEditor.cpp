@@ -96,15 +96,25 @@ static ATOM Register_EffectEditorClass(HINSTANCE hInstance)
 
 static bool Create_EffectEditorWindow(HINSTANCE hInstance, int nCmdShow)
 {
-    RECT rcWindow = { 0, 0, static_cast<LONG>(Client::g_iWinSizeX), static_cast<LONG>(Client::g_iWinSizeY) };
-    AdjustWindowRect(&rcWindow, WS_OVERLAPPEDWINDOW, FALSE);
+    constexpr DWORD editorWindowStyle = WS_POPUP | WS_VISIBLE;
+
+    MONITORINFO monitorInfo {};
+    monitorInfo.cbSize = sizeof(MONITORINFO);
+
+    HMONITOR hMonitor = MonitorFromPoint(POINT { 0, 0 }, MONITOR_DEFAULTTOPRIMARY);
+    if (!GetMonitorInfo(hMonitor, &monitorInfo))
+        return false;
+
+    const RECT& monitorRect = monitorInfo.rcMonitor;
+    RECT rcWindow = { 0, 0, monitorRect.right - monitorRect.left, monitorRect.bottom - monitorRect.top };
+    AdjustWindowRect(&rcWindow, editorWindowStyle, FALSE);
 
     g_hWnd = CreateWindowW(
         g_windowClassName,
         g_windowTitle,
-        WS_OVERLAPPEDWINDOW,
-        CW_USEDEFAULT,
-        CW_USEDEFAULT,
+        editorWindowStyle,
+        monitorRect.left,
+        monitorRect.top,
         rcWindow.right - rcWindow.left,
         rcWindow.bottom - rcWindow.top,
         nullptr,

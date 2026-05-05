@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "Base.h"
 
@@ -8,13 +8,16 @@ class Editor_Window abstract : public Base
 {
 public:
     Editor_Window(const wstring& windowName);
-    virtual ~Editor_Window() override = default;
+    ~Editor_Window() override = default;
 
 public:
     virtual HRESULT Initialize();
-    virtual void    Update(float timeDelta);
-    virtual void    Pre_Render();
-    virtual void    Render();
+    virtual void Update(float timeDelta);
+    virtual void Pre_Render();
+    virtual void Render();
+
+    virtual bool CanSave() const;
+    virtual void Save();
 
 public:
     const wstring& Get_WindowName() const { return _window; }
@@ -24,15 +27,17 @@ public:
 
     bool Is_Focused() const { return _isFocused; }
     bool Is_Dirty() const { return _isDirty; }
+    bool Is_Hovered() const { return _isHovered; }
 
     void MarkDirty() { _isDirty = true; }
     void ClearDirty() { _isDirty = false; }
 
 protected:
     wstring _window;
-    bool    _isOpen = true;
-    bool    _isFocused = false;
-    bool    _isDirty = false;
+    bool _isOpen = true;
+    bool _isFocused = false;
+    bool _isDirty = false;
+    bool _isHovered = false;
 };
 
 NS_END

@@ -4,6 +4,15 @@
     <ClCompile Include="pch.cpp">
       <Filter>98. Default</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\CommandHistory.cpp">
+      <Filter>01. Manager\03. Command History</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Console_View.cpp">
+      <Filter>01. View\Console View</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Editor_Context.cpp">
+      <Filter>01. Manager\04. Editor Context</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\Editor_Window.cpp">
       <Filter>01. View</Filter>
     </ClCompile>
@@ -25,6 +34,9 @@
     <ClCompile Include="..\Private\ImGui_Manager.cpp">
       <Filter>01. Manager\02. ImGui Mgr</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\Notification_Manager.cpp">
+      <Filter>01. Manager\05. Notification Mgr</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\Content_Browser.cpp">
       <Filter>01. View\Content Browser</Filter>
     </ClCompile>
@@ -44,6 +56,15 @@
   <ItemGroup>
     <ClInclude Include="pch.h">
       <Filter>98. Default</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\CommandHistory.h">
+      <Filter>01. Manager\03. Command History</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Console_View.h">
+      <Filter>01. View\Console View</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Editor_Context.h">
+      <Filter>01. Manager\04. Editor Context</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\EffectEditor_Define.h">
       <Filter>99. Defines</Filter>
@@ -77,6 +98,9 @@
     </ClInclude>
     <ClInclude Include="..\Public\ImGui_Manager.h">
       <Filter>01. Manager\02. ImGui Mgr</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Notification_Manager.h">
+      <Filter>01. Manager\05. Notification Mgr</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Content_Browser.h">
       <Filter>01. View\Content Browser</Filter>
@@ -122,8 +146,20 @@
     <Filter Include="01. Manager\02. ImGui Mgr">
       <UniqueIdentifier>{5a5c6389-838f-44cf-baff-baaf3eb4465b}</UniqueIdentifier>
     </Filter>
+    <Filter Include="01. Manager\03. Command History">
+      <UniqueIdentifier>{b8e746e0-9f65-4c14-bb29-0d9f0e7e8d91}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="01. Manager\04. Editor Context">
+      <UniqueIdentifier>{69f7d9a5-1d36-4d77-aac4-c14b2c76ea32}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="01. Manager\05. Notification Mgr">
+      <UniqueIdentifier>{8130a5ee-5a91-430b-bb67-3c3e4945267d}</UniqueIdentifier>
+    </Filter>
     <Filter Include="01. View\Content Browser">
       <UniqueIdentifier>{a03a9159-6e62-49f9-b599-02cbabce3194}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="01. View\Console View">
+      <UniqueIdentifier>{ca4a0de3-afce-460b-bff5-bb5d8d2c83d8}</UniqueIdentifier>
     </Filter>
     <Filter Include="01. View\Hierarchy View">
       <UniqueIdentifier>{e780c9b0-4f5a-4025-b5b8-92e1c12b355c}</UniqueIdentifier>
