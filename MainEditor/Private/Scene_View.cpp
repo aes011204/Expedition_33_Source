@@ -1,6 +1,7 @@
 ﻿#include "Scene_View.h"
 
 #include "EditorInstance.h"
+#include "Camera.h"
 #include "GameInstance.h"
 #include "GameObject.h"
 #include "RenderTarget.h"
@@ -90,7 +91,7 @@ void Scene_View::Render_GizmoOverlay()
 
     ImDrawList* drawList = ImGui::GetWindowDrawList();
 
-    const ImVec2 panelSize = ImVec2(232.f, 34.f);
+    const ImVec2 panelSize = ImVec2(360.f, 34.f);
     const ImVec2 panelMin = ImVec2(_viewportMax.x - panelSize.x - 16.f, _viewportMin.y + 16.f);
     const ImVec2 panelMax = ImVec2(panelMin.x + panelSize.x, panelMin.y + panelSize.y);
 
@@ -109,6 +110,40 @@ void Scene_View::Render_GizmoOverlay()
     const bool isScale = (_gizmoOperation == ImGuizmo::SCALE);
     const bool isLocal = (_gizmoMode == ImGuizmo::LOCAL);
     const bool isWorld = (_gizmoMode == ImGuizmo::WORLD);
+
+    Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
+    const bool isFreeCamera =
+        activeCamera && activeCamera->Get_ObjectType() == ObjectType::FreeCamera;
+
+    if (!isFreeCamera)
+        ImGui::BeginDisabled();
+
+    ImGui::TextUnformatted("Speed");
+    ImGui::SameLine();
+
+    if (isFreeCamera)
+    {
+        Shared<TransformCom> transform = activeCamera->Get_Transform();
+        float speed = transform ? transform->Get_SpeedPerSec() : 0.f;
+
+        ImGui::SetNextItemWidth(78.f);
+        if (ImGui::DragFloat("##FreeCameraSpeed", &speed, 0.1f, 0.1f, 200.f, "%.2f"))
+        {
+            if (transform)
+                transform->Set_SpeedPerSec(speed);
+        }
+    }
+    else
+    {
+        ImGui::SetNextItemWidth(78.f);
+        float dummySpeed = 0.f;
+        ImGui::DragFloat("##FreeCameraSpeed", &dummySpeed, 0.f, 0.f, 0.f, "N/A");
+    }
+
+    if (!isFreeCamera)
+        ImGui::EndDisabled();
+
+    ImGui::SameLine(0.f, 10.f);
 
     if (isTranslate)
     {

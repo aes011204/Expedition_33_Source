@@ -139,7 +139,6 @@
     <ClInclude Include="..\Public\Transform_Inspector.h" />
     <ClInclude Include="..\Public\Inspector_Factory.h" />
     <ClInclude Include="..\public\BT_Tool.h">
-    </ClInclude>
       <Filter>01. View</Filter>
     </ClInclude>
   </ItemGroup>
