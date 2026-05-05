@@ -64,7 +64,7 @@ static OverlayRect Compute_GizmoOverlayRect(const ImVec2& viewportMin, const ImV
 
 static OverlayRect Compute_PreviewViewportOverlayRect(const ImVec2& viewportMin, const ImVec2& viewportMax)
 {
-    const ImVec2 panelSize = ImVec2(252.f, 34.f);
+    const ImVec2 panelSize = ImVec2(352.f, 34.f);
     const ImVec2 panelMin = ImVec2(viewportMax.x - panelSize.x - 16.f, viewportMin.y + 58.f);
 
     return {
@@ -297,7 +297,11 @@ void Scene_View::Render_PreviewViewportOverlay()
     if (viewportWidth <= 1.f || viewportHeight <= 1.f)
         return;
 
-    if (_pendingPreviewViewportWidth <= 0 || _pendingPreviewViewportHeight <= 0)
+    const PreviewViewportMode previewMode = EDITOR->Get_PreviewViewportMode();
+    const bool isAutoMode = previewMode == PreviewViewportMode::Auto;
+    const bool isManualMode = previewMode == PreviewViewportMode::Manual;
+
+    if (!isManualMode || _pendingPreviewViewportWidth <= 0 || _pendingPreviewViewportHeight <= 0)
         Sync_PreviewViewportInput();
 
     ImDrawList* drawList = ImGui::GetWindowDrawList();
@@ -311,22 +315,46 @@ void Scene_View::Render_PreviewViewportOverlay()
     ImGui::PushID("PreviewViewportOverlay");
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(5.f, 3.f));
 
-    const bool isFitMode = !EDITOR->Is_ManualPreviewViewportEnabled();
-    if (isFitMode)
+    const ImVec4 activeButtonColor = ImVec4(0.79f, 0.56f, 0.18f, 1.f);
+    const ImVec4 activeHoveredColor = ImVec4(0.88f, 0.64f, 0.23f, 1.f);
+    const ImVec4 activeTextColor = ImVec4(0.09f, 0.09f, 0.09f, 1.f);
+    const auto drawModeButton = [&](const char* label, const ImVec2& size, bool active)
     {
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.79f, 0.56f, 0.18f, 1.f));
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.88f, 0.64f, 0.23f, 1.f));
-        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.09f, 0.09f, 0.09f, 1.f));
-    }
-    if (ImGui::Button("Fit", ImVec2(34.f, 22.f)))
+        if (active)
+        {
+            ImGui::PushStyleColor(ImGuiCol_Button, activeButtonColor);
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, activeHoveredColor);
+            ImGui::PushStyleColor(ImGuiCol_Text, activeTextColor);
+        }
+
+        const bool clicked = ImGui::Button(label, size);
+
+        if (active)
+            ImGui::PopStyleColor(3);
+
+        return clicked;
+    };
+
+    if (drawModeButton("Auto", ImVec2(42.f, 22.f), isAutoMode))
     {
-        EDITOR->Enable_FitPreviewViewport();
+        EDITOR->Enable_AutoPreviewViewport();
+        EDITOR->Request_PreviewViewportSize(
+            static_cast<uint32>(max(1.f, _viewportSize.x)),
+            static_cast<uint32>(max(1.f, _viewportSize.y)));
         Sync_PreviewViewportInput();
     }
-    if (isFitMode)
-        ImGui::PopStyleColor(3);
+
+    ImGui::SameLine();
+    if (drawModeButton("Manual", ImVec2(62.f, 22.f), isManualMode))
+    {
+        EDITOR->Enable_ManualPreviewViewport();
+        Sync_PreviewViewportInput();
+    }
 
     ImGui::SameLine(0.f, 8.f);
+    if (!isManualMode)
+        ImGui::BeginDisabled();
+
     ImGui::TextUnformatted("W");
     ImGui::SameLine(0.f, 4.f);
     ImGui::SetNextItemWidth(48.f);
@@ -351,6 +379,9 @@ void Scene_View::Render_PreviewViewportOverlay()
         _pendingPreviewViewportHeight = static_cast<int>(height);
         EDITOR->Set_ManualPreviewViewportSize(width, height);
     }
+
+    if (!isManualMode)
+        ImGui::EndDisabled();
 
     ImGui::PopStyleVar();
     ImGui::PopID();
@@ -410,6 +441,13 @@ void Scene_View::Render_ViewportCanvas()
         drawList->AddText(ImVec2(canvasMin.x + 12.f, canvasMin.y + 12.f), IM_COL32(210, 216, 224, 255), "Scene RenderTarget Missing");
         _viewportMin = canvasMin;
         _viewportMax = canvasMax;
+    }
+
+    if (EDITOR->Get_PreviewViewportMode() == PreviewViewportMode::Auto)
+    {
+        EDITOR->Request_PreviewViewportSize(
+            static_cast<uint32>(max(1.f, _viewportSize.x)),
+            static_cast<uint32>(max(1.f, _viewportSize.y)));
     }
 }
 

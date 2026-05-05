@@ -73,6 +73,8 @@ public: /* For.Graphic_Device */
 
 public: /* For.Viewport */
     void    Set_ViewportSize(uint32 width, uint32 height);
+    // editor preview처럼 창 크기와 다른 렌더 비율이 필요할 때 사용하며, swapchain이 아닌 logical viewport만 갱신한다.
+    HRESULT Apply_LogicalViewportSize(uint32 width, uint32 height);
     uint32  Get_ViewportWidth() const;
     uint32  Get_ViewportHeight() const;
 

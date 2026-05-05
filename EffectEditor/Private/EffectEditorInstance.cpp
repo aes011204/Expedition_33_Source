@@ -64,7 +64,12 @@ void EffectEditorInstance::Release_Editor()
     _device.Reset();
 
     _editorDesc = {};
-    _useManualPreviewViewport = false;
+    _previewViewportMode = PreviewViewportMode::Auto;
+    _hasPendingPreviewViewportSize = false;
+    _pendingPreviewViewportWidth = 1;
+    _pendingPreviewViewportHeight = 1;
+    _appliedPreviewViewportWidth = 0;
+    _appliedPreviewViewportHeight = 0;
 
     _runtimeState = EffectEditorRuntimeState::Edit;
     _runtimeTimeScale = 1.f;
@@ -76,6 +81,7 @@ void EffectEditorInstance::Release_Editor()
 void EffectEditorInstance::Update_Editor(float timeDelta)
 {
     Sync_PreviewViewportMode();
+    Apply_PendingPreviewViewportSize();
 
     _imguiManager->Update(timeDelta);
     _editorManager->Update(timeDelta);
@@ -277,10 +283,17 @@ ID3D11ShaderResourceView* EffectEditorInstance::Get_SharedViewportSRV() const
 
 void EffectEditorInstance::Capture_BackBuffer_ToViewport()
 {
+    const uint32 viewportWidth = min(
+        max(1u, GAME->Get_ViewportWidth()),
+        max(1u, GAME->Get_BackBufferWidth()));
+    const uint32 viewportHeight = min(
+        max(1u, GAME->Get_ViewportHeight()),
+        max(1u, GAME->Get_BackBufferHeight()));
+
     const Shared<RenderTarget> renderTarget =
         Prepare_SharedViewportRenderTarget(
-            GAME->Get_BackBufferWidth(),
-            GAME->Get_BackBufferHeight()
+            viewportWidth,
+            viewportHeight
         );
 
     if (nullptr == renderTarget || nullptr == _context)
@@ -303,34 +316,54 @@ void EffectEditorInstance::Capture_BackBuffer_ToViewport()
     if (nullptr == viewportTexture)
         return;
 
-    _context->CopyResource(viewportTexture.Get(), backBufferTexture.Get());
+    D3D11_BOX sourceBox{};
+    sourceBox.left = 0;
+    sourceBox.top = 0;
+    sourceBox.front = 0;
+    sourceBox.right = viewportWidth;
+    sourceBox.bottom = viewportHeight;
+    sourceBox.back = 1;
+
+    _context->CopySubresourceRegion(
+        viewportTexture.Get(),
+        0,
+        0,
+        0,
+        0,
+        backBufferTexture.Get(),
+        0,
+        &sourceBox);
+}
+
+void EffectEditorInstance::Request_PreviewViewportSize(uint32 width, uint32 height)
+{
+    if (_previewViewportMode != PreviewViewportMode::Auto)
+        return;
+
+    Queue_PreviewViewportSize(width, height);
+}
+
+void EffectEditorInstance::Enable_AutoPreviewViewport()
+{
+    _previewViewportMode = PreviewViewportMode::Auto;
+}
+
+void EffectEditorInstance::Enable_ManualPreviewViewport()
+{
+    _previewViewportMode = PreviewViewportMode::Manual;
 }
 
 void EffectEditorInstance::Set_ManualPreviewViewportSize(uint32 width, uint32 height)
 {
-    GAME->Set_ViewportSize(max(1u, width), max(1u, height));
-    _useManualPreviewViewport = true;
-}
-
-void EffectEditorInstance::Enable_FitPreviewViewport()
-{
-    _useManualPreviewViewport = false;
-
-    GAME->Set_ViewportSize(
-        GAME->Get_BackBufferWidth(),
-        GAME->Get_BackBufferHeight()
-    );
+    _previewViewportMode = PreviewViewportMode::Manual;
+    Queue_PreviewViewportSize(width, height);
 }
 
 void EffectEditorInstance::Sync_PreviewViewportMode()
 {
-    if (_useManualPreviewViewport)
-        return;
-
-    GAME->Set_ViewportSize(
-        GAME->Get_BackBufferWidth(),
-        GAME->Get_BackBufferHeight()
-    );
+    if (GAME->Get_ViewportWidth() > GAME->Get_BackBufferWidth() ||
+        GAME->Get_ViewportHeight() > GAME->Get_BackBufferHeight())
+        Queue_PreviewViewportSize(GAME->Get_ViewportWidth(), GAME->Get_ViewportHeight());
 }
 
 float EffectEditorInstance::Get_EffectiveViewportAspect() const
@@ -342,6 +375,38 @@ float EffectEditorInstance::Get_EffectiveViewportAspect() const
 
     return static_cast<float>(viewportWidth) /
            static_cast<float>(viewportHeight);
+}
+
+void EffectEditorInstance::Queue_PreviewViewportSize(uint32 width, uint32 height)
+{
+    _pendingPreviewViewportWidth = max(1u, width);
+    _pendingPreviewViewportHeight = max(1u, height);
+    _hasPendingPreviewViewportSize = true;
+}
+
+void EffectEditorInstance::Apply_PendingPreviewViewportSize()
+{
+    if (!_hasPendingPreviewViewportSize)
+        return;
+
+    _hasPendingPreviewViewportSize = false;
+
+    const uint32 width = min(
+        max(1u, _pendingPreviewViewportWidth),
+        max(1u, GAME->Get_BackBufferWidth()));
+    const uint32 height = min(
+        max(1u, _pendingPreviewViewportHeight),
+        max(1u, GAME->Get_BackBufferHeight()));
+
+    if (_appliedPreviewViewportWidth == width &&
+        _appliedPreviewViewportHeight == height)
+        return;
+
+    if (FAILED(GAME->Apply_LogicalViewportSize(width, height)))
+        return;
+
+    _appliedPreviewViewportWidth = GAME->Get_ViewportWidth();
+    _appliedPreviewViewportHeight = GAME->Get_ViewportHeight();
 }
 
 void EffectEditorInstance::Apply_RuntimeInputPolicy()

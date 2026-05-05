@@ -372,6 +372,24 @@ void GameInstance::Set_ViewportSize(uint32 width, uint32 height)
     _viewportHeight = max(1u, height);
 }
 
+HRESULT GameInstance::Apply_LogicalViewportSize(uint32 width, uint32 height)
+{
+    CHECK_NULL(_renderer, E_FAIL);
+    CHECK_NULL(_targetManager, E_FAIL);
+
+    const uint32 backBufferWidth = max(1u, Get_BackBufferWidth());
+    const uint32 backBufferHeight = max(1u, Get_BackBufferHeight());
+    const uint32 logicalWidth = min(max(1u, width), backBufferWidth);
+    const uint32 logicalHeight = min(max(1u, height), backBufferHeight);
+
+    Set_ViewportSize(logicalWidth, logicalHeight);
+
+    CHECK_FAILED(Resize_MRTs(logicalWidth, logicalHeight), E_FAIL);
+
+    _renderer->Sync_ViewportDependentState(logicalWidth, logicalHeight);
+    return S_OK;
+}
+
 uint32 GameInstance::Get_ViewportWidth() const
 {
     return _viewportWidth;

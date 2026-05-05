@@ -32,6 +32,12 @@ enum class EditorViewportTarget : uint8
     Game,
 };
 
+enum class PreviewViewportMode : uint8
+{
+    Auto,
+    Manual,
+};
+
 NS_END
 
 using namespace EffectEditor;
