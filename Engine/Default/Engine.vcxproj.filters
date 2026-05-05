@@ -201,6 +201,22 @@
     <ClInclude Include="..\Public\Helper_Math.h">
       <Filter>99. Defines\Helper</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\Target_Manager.h">
+      <Filter>97. Manager</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\MovementCom.h" />
+    <ClInclude Include="..\Public\Character.h" />
+    <ClInclude Include="..\Public\Reflection_Types.h" />
+    <ClInclude Include="..\Public\TypeRegistry.h" />
+    <ClInclude Include="..\Public\RegistorFactory.h" />
+    <ClInclude Include="..\Public\Shadow.h">
+      <Filter>01.Utility\07.Lights</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\public\Base.h">
+      <Filter>01.Utility\99.SuperClass</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\Engine_Function.h">
       <Filter>99. Defines</Filter>
     </ClInclude>
@@ -613,6 +629,17 @@
     <ClCompile Include="..\Private\SimpleMath.cpp">
       <Filter>99. Defines</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\RenderTarget.cpp" />
+    <ClCompile Include="..\Private\Log_Manager.cpp" />
+    <ClCompile Include="..\Private\Target_Manager.cpp">
+      <Filter>97. Manager</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\MovementCom.cpp" />
+    <ClCompile Include="..\Private\Character.cpp" />
+    <ClCompile Include="..\Private\TypeRegistry.cpp" />
+    <ClCompile Include="..\Private\RegistorFactory.cpp" />
+    <ClCompile Include="..\Private\Shadow.cpp">
+      <Filter>01.Utility\07.Lights</Filter>
     <ClCompile Include="..\private\Prototype_Manager.cpp">
       <Filter>01.Utility\02. Prototype</Filter>
     </ClCompile>

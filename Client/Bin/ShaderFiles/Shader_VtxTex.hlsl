@@ -92,11 +92,3 @@ technique11 DefaultTechnique
         PixelShader = compile ps_5_0 PS_MAIN();
     }
 }
-
-//    pass DefaultPass1
-//    {
-//        VertexShader = compile vs_5_0 VS_MAIN1();
-//        PixelShader = compile ps_5_0 PS_MAIN1();
-
-//    }
-//}

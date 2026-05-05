@@ -5,6 +5,7 @@
 #include "EditorInstance.h"
 #include "GameInstance.h"
 #include "Level_Loading.h"
+#include "Profile_View.h"
 #include "ResourceLoader.h"
 
 MainEditorApp::MainEditorApp()
@@ -72,7 +73,10 @@ void MainEditorApp::Priority_Update(float timeDelta)
 
 void MainEditorApp::Update(float timeDelta)
 {
-    EDITOR->Update_Editor(timeDelta);
+    {
+        Profile_View::Scope profileScope("Editor::Update");
+        EDITOR->Update_Editor(timeDelta);
+    }
 
 	float runtimeDelta = 0.f;
 	float freeCameraDelta = 0.f;
@@ -99,7 +103,10 @@ void MainEditorApp::Update(float timeDelta)
     }
 
 	GAME->Set_FreeCameraTimeDelta(freeCameraDelta);
-    GAME->Update_Engine(runtimeDelta);
+    {
+        Profile_View::Scope profileScope("Game::Update");
+        GAME->Update_Engine(runtimeDelta);
+    }
 
 	EDITOR->Apply_RuntimeInputPolicy();
 }
@@ -111,21 +118,30 @@ void MainEditorApp::Late_Update(float timeDelta)
 
 HRESULT MainEditorApp::Render()
 {
-    const Vec4 clearColor = Vec4(0.f, 0.f, 1.f, 1.f);
-    if (FAILED(GAME->Clear_Buffers(clearColor)))
-        return E_FAIL;
+    {
+        Profile_View::Scope profileScope("Game::Render");
 
-    if (FAILED(GAME->Draw()))
-        return E_FAIL;
+        const Vec4 clearColor = Vec4(0.f, 0.f, 1.f, 1.f);
+        if (FAILED(GAME->Clear_Buffers(clearColor)))
+            return E_FAIL;
 
-    EDITOR->Capture_BackBuffer_ToViewport();
+        if (FAILED(GAME->Draw()))
+            return E_FAIL;
+    }
 
-    GAME->Bind_BackBuffer();          
+    {
+        Profile_View::Scope profileScope("Editor::Render");
 
-    EDITOR->Render_Editor();
+        EDITOR->Capture_BackBuffer_ToViewport();
+        GAME->Bind_BackBuffer();
+        EDITOR->Render_Editor();
+    }
 
-    if (FAILED(GAME->Present()))
-        return E_FAIL;
+    {
+        Profile_View::Scope profileScope("Engine::Present");
+        if (FAILED(GAME->Present()))
+            return E_FAIL;
+    }
 
     return S_OK;
 }

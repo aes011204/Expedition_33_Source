@@ -17,6 +17,8 @@
 #include "RegistorFactory.h"
 #include "Renderer.h"
 #include "Timer_Manager.h"
+#include "Target_Manager.h"
+#include "Shadow.h"
 
 #ifdef _DEBUG
 #include "Print_Manager.h"
@@ -67,6 +69,10 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
     _objectManager = Object_Manager::Create(engineDesc.numLevels);
     CHECK_NULL(_objectManager, E_FAIL);
 
+    _targetManager = Target_Manager::Create(device, context);
+    if (nullptr == _targetManager)
+        return E_FAIL;
+
     _renderer = Renderer::Create(device, context);
     CHECK_NULL(_renderer, E_FAIL);
 
@@ -91,6 +97,9 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
     _collisionManager = Collision_Manager::Create();
     CHECK_NULL(_collisionManager, E_FAIL);
 
+    _shadow = Shadow::Create();
+    CHECK_NULL(_shadow, E_FAIL);
+    
     _physxManager = PhysX_Manager::Create();
     CHECK_NULL(_physxManager, E_FAIL);
 
@@ -180,6 +189,7 @@ void GameInstance::Try_FlushRuntimePerfLog()
     const bool hasRenderSummary =
         nullptr != _renderer &&
         _renderer->Try_ConsumePerfSummary(windowSec, runtimeSummary.render);
+
     const bool hasCollisionSummary =
         nullptr != _collisionManager &&
         _collisionManager->Try_ConsumePerfSummary(windowSec, runtimeSummary.collision);
@@ -204,90 +214,69 @@ void GameInstance::Try_FlushRuntimePerfLog()
 
     LOG_INFO(
         "[RuntimePerf] fps={:.1f} render_ms(avg={:.2f} max={:.2f}) "
-        "priority_ms(avg={:.2f}) nonblend_ms(avg={:.2f}) blend_ms(avg={:.2f}) ui_ms(avg={:.2f}) "
         "collision_ms(avg={:.2f} max={:.2f}) colliders(active={:.1f})",
+
         runtimeSummary.approxFps,
+
         runtimeSummary.render.renderAvgMs,
         runtimeSummary.render.renderMaxMs,
-        runtimeSummary.render.priorityAvgMs,
-        runtimeSummary.render.nonBlendAvgMs,
-        runtimeSummary.render.blendAvgMs,
-        runtimeSummary.render.uiAvgMs,
+
         runtimeSummary.collision.updateAvgMs,
         runtimeSummary.collision.updateMaxMs,
         runtimeSummary.collision.activeCollidersAvg
     );
 
-    // TODO (RuntimePerf):
-    // preview/deferred/shadow/light/combine pass가 실제 Renderer에 추가되면
-    // counter와 summary field를 먼저 연결한 뒤 아래 확장 포맷으로 교체한다.
-
-    // LOG_INFO(
-    //     "[RuntimePerf] fps={:.1f} render_ms(avg={:.2f} max={:.2f}) "
-    //     "priority_ms(avg={:.2f}) nonblend_ms(avg={:.2f}) blend_ms(avg={:.2f}) ui_ms(avg={:.2f}) "
-    //     "shadow_ms(avg={:.2f} max={:.2f}) "
-    //     "lights_ms(avg={:.2f}) combined_ms(avg={:.2f}) "
-    //     "collision_ms(avg={:.2f} max={:.2f}) colliders(active={:.1f})",
-    //     runtimeSummary.approxFps,
-    //     runtimeSummary.render.renderAvgMs,
-    //     runtimeSummary.render.renderMaxMs,
-    //     runtimeSummary.render.priorityAvgMs,
-    //     runtimeSummary.render.nonBlendAvgMs,
-    //     runtimeSummary.render.blendAvgMs,
-    //     runtimeSummary.render.uiAvgMs,
-    //     runtimeSummary.render.shadowAvgMs,
-    //     runtimeSummary.render.shadowMaxMs,
-    //     runtimeSummary.render.lightsAvgMs,
-    //     runtimeSummary.render.combinedAvgMs,
-    //     runtimeSummary.collision.updateAvgMs,
-    //     runtimeSummary.collision.updateMaxMs,
-    //     runtimeSummary.collision.activeCollidersAvg
-    // );
-
     if (Should_LogRuntimePerfDetail(runtimeSummary))
     {
         LOG_INFO(
             "[RuntimePerfDetail] render_ms(avg={:.2f} max={:.2f}) "
-            "priority_ms(avg={:.2f}) nonblend_ms(avg={:.2f}) blend_ms(avg={:.2f}) ui_ms(avg={:.2f}) "
+            "priority_ms(avg={:.2f} max={:.2f}) "
+            "shadow_ms(avg={:.2f} max={:.2f}) "
+            "nonblend_ms(avg={:.2f} max={:.2f}) "
+            "lights_ms(avg={:.2f} max={:.2f}) "
+            "combined_ms(avg={:.2f} max={:.2f}) "
+            "nonlight_ms(avg={:.2f} max={:.2f}) "
+            "blend_ms(avg={:.2f} max={:.2f}) "
+            "ui_ms(avg={:.2f} max={:.2f}) "
+            "debug_ms(avg={:.2f} max={:.2f}) "
             "collision_ms(avg={:.2f} max={:.2f}) pairs={:.1f}/s intersects={:.1f}/s hits={:.1f}/s",
+
             runtimeSummary.render.renderAvgMs,
             runtimeSummary.render.renderMaxMs,
+
             runtimeSummary.render.priorityAvgMs,
+            runtimeSummary.render.priorityMaxMs,
+
+            runtimeSummary.render.shadowAvgMs,
+            runtimeSummary.render.shadowMaxMs,
+
             runtimeSummary.render.nonBlendAvgMs,
+            runtimeSummary.render.nonBlendMaxMs,
+
+            runtimeSummary.render.lightsAvgMs,
+            runtimeSummary.render.lightsMaxMs,
+
+            runtimeSummary.render.combinedAvgMs,
+            runtimeSummary.render.combinedMaxMs,
+
+            runtimeSummary.render.nonLightAvgMs,
+            runtimeSummary.render.nonLightMaxMs,
+
             runtimeSummary.render.blendAvgMs,
+            runtimeSummary.render.blendMaxMs,
+
             runtimeSummary.render.uiAvgMs,
+            runtimeSummary.render.uiMaxMs,
+
+            runtimeSummary.render.debugAvgMs,
+            runtimeSummary.render.debugMaxMs,
+
             runtimeSummary.collision.updateAvgMs,
             runtimeSummary.collision.updateMaxMs,
             runtimeSummary.collision.pairsPerSec,
             runtimeSummary.collision.intersectsPerSec,
             runtimeSummary.collision.hitsPerSec
         );
-
-        // TODO (RuntimePerfDetail):
-        // 확장 pass counter와 summary field가 연결된 뒤 detail 로그도 같은 기준으로 확장한다.
-
-        // LOG_INFO(
-        //     "[RuntimePerfDetail] render_ms(avg={:.2f} max={:.2f}) "
-        //     "priority_ms(avg={:.2f}) nonblend_ms(avg={:.2f}) blend_ms(avg={:.2f}) ui_ms(avg={:.2f}) "
-        //     "shadow_ms(avg={:.2f} max={:.2f}) lights_ms(avg={:.2f}) "
-        //     "combined_ms(avg={:.2f}) "
-        //     "collision_ms(avg={:.2f} max={:.2f}) pairs={:.1f}/s intersects={:.1f}/s hits={:.1f}/s",
-        //     runtimeSummary.render.renderAvgMs,
-        //     runtimeSummary.render.renderMaxMs,
-        //     runtimeSummary.render.priorityAvgMs,
-        //     runtimeSummary.render.nonBlendAvgMs,
-        //     runtimeSummary.render.blendAvgMs,
-        //     runtimeSummary.render.uiAvgMs,
-        //     runtimeSummary.render.shadowAvgMs,
-        //     runtimeSummary.render.shadowMaxMs,
-        //     runtimeSummary.render.lightsAvgMs,
-        //     runtimeSummary.render.combinedAvgMs,
-        //     runtimeSummary.collision.updateAvgMs,
-        //     runtimeSummary.collision.updateMaxMs,
-        //     runtimeSummary.collision.pairsPerSec,
-        //     runtimeSummary.collision.intersectsPerSec,
-        //     runtimeSummary.collision.hitsPerSec
-        // );
     }
 
     _runtimePerfWindowStartTime = now;
@@ -480,6 +469,12 @@ void GameInstance::Add_RenderGroup(RenderGroup renderGroup, Shared<GameObject> g
     return _renderer->Add_RenderGroup(renderGroup, gameObject);
 }
 
+uint32 GameInstance::Get_RenderCall() const
+{
+    CHECK_NULL(_renderer, 0);
+    return _renderer->Get_RenderCall();
+}
+
 HRESULT GameInstance::Bind_CamPosition(ShaderCom* shader, const char* constantName)
 {
     return _pipeLine->Bind_CamPosition(shader, constantName);
@@ -563,6 +558,11 @@ const LIGHT_DESC* GameInstance::Get_LightDesc(uint32 index)
 HRESULT GameInstance::Add_Light(const LIGHT_DESC& lightDesc)
 {
     return _lightManager->Add_Light(lightDesc);
+}
+
+HRESULT GameInstance::Render_Lights(Shared<ShaderCom> shader, Shared<VIBuffer_Rect> viBuffer)
+{
+    return _lightManager->Render_Lights(shader, viBuffer);
 }
 
 HRESULT GameInstance::Add_Font(const wstring& fontTag, const wchar_t* fontFilePath)
@@ -653,6 +653,12 @@ int GameInstance::Get_CameraCount()
 {
     return _cameraManager->Get_CameraCount();
 }
+
+HRESULT GameInstance::Bind_CameraFar(Shared<ShaderCom> shader, const char* constantName)
+{
+    return _cameraManager->Bind_CameraFar(shader, constantName);
+}
+
 
 const TypeRegistry::ComponentTypeInfo* GameInstance::Find_ComponentType(const string& className) const
 {
@@ -891,6 +897,9 @@ void GameInstance::Release_Engine()
     ReleaseManager(_cameraManager);
     ReleaseManager(_assetManager);
 
+    ReleaseManager(_targetManager);
+    ReleaseManager(_shadow);
+
 #ifdef _DEBUG
     ReleaseManager(_printManager);
 #endif
@@ -911,6 +920,116 @@ void GameInstance::Release_Engine()
     ReleaseManager(_graphicDevice);
     ReleaseManager(_logManager);
 }
+
+
+HRESULT GameInstance::Add_RenderTarget(const wstring& targetTag, uint32 sizeX, uint32 sizeY, DXGI_FORMAT pixelFormat,
+    const Color& clearColor, bool resizeWithViewport, bool useDSV)
+{
+    return _targetManager->Add_RenderTarget(targetTag, sizeX, sizeY, pixelFormat, clearColor, resizeWithViewport, useDSV);
+}
+
+HRESULT GameInstance::Add_MRT(const wstring& mrtTag, const wstring& targetTag)
+{
+    return _targetManager->Add_MRT(mrtTag, targetTag);
+}
+
+HRESULT GameInstance::Begin_MRT(const wstring& mrtTag, bool useDSV)
+{
+    return _targetManager->Begin_MRT(mrtTag, useDSV);
+}
+
+HRESULT GameInstance::End_MRT()
+{
+    return _targetManager->End_MRT();
+}
+
+HRESULT GameInstance::Resize_MRTs(uint32 width, uint32 height)
+{
+    return _targetManager->Resize_MRTs(width, height);
+}
+
+HRESULT GameInstance::Bind_RT_ShaderResource(Shared<ShaderCom> shader, const char* constantName, const wstring& targetTag)
+{
+    return _targetManager->Bind_ShaderResource(shader, constantName, targetTag);
+}
+
+HRESULT GameInstance::Copy_CurrentRTV_To(const wstring& targetTag)
+{
+    return _targetManager->Copy_CurrentRTV_To(targetTag);
+}
+
+HRESULT GameInstance::Copy_RTV(const wstring& srcTargetTag, const wstring& dstTargetTag)
+{
+    return _targetManager->Copy_RTV(srcTargetTag, dstTargetTag);
+}
+
+#ifdef _DEBUG
+
+HRESULT GameInstance::Initialize_Debug(float sizeX, float sizeY)
+{
+    return _targetManager->Initialize_Debug(sizeX, sizeY);
+}
+
+HRESULT GameInstance::Resize_DrawArea(float sizeX, float sizeY)
+{
+    return _targetManager->Resize_DrawArea(sizeX, sizeY);
+}
+
+HRESULT GameInstance::Display_RT(const wstring& targetTag, bool render)
+{
+    return _targetManager->Display_RT(targetTag, render);
+}
+
+HRESULT GameInstance::Display_AllRTs(bool render)
+{
+    return _targetManager->Display_AllRTs(render);
+}
+
+HRESULT GameInstance::Render_RT_Debug(Shared<VIBuffer_Rect> viBuffer, Shared<ShaderCom> shader)
+{
+    return _targetManager->Render_Debug(shader, viBuffer);
+}
+
+const map<wstring, bool>& GameInstance::Get_RTs() const
+{
+    return _targetManager->Get_RTs();
+}
+
+HRESULT GameInstance::Bind_ShadowMatrices(Shared<ShaderCom> shader, const char* viewName, const char* projName)
+{
+    CHECK_NULL(_shadow, E_FAIL);
+    return _shadow->Bind_TransformStateMatrix(shader, viewName, projName);
+}
+
+HRESULT GameInstance::Bind_ShadowLightDesc(Shared<ShaderCom> shader, const char* lightFarName, const char* biasName, const char* intensityName)
+{
+    CHECK_NULL(_shadow, E_FAIL);
+    return _shadow->Bind_ShadowLightDesc(shader, lightFarName, biasName, intensityName);
+}
+
+HRESULT GameInstance::Update_ShadowLight(const ShadowLightDesc& desc)
+{
+    return _shadow->Update_ShadowLight(desc);
+}
+
+const ShadowLightDesc* GameInstance::Get_ShadowLightDesc() const
+{
+    CHECK_NULL(_shadow, nullptr);
+    return _shadow->Get_ShadowLightDesc();
+}
+
+const Matrix* GameInstance::Get_ShadowTransformMatrix(D3DTS eType) const
+{
+    CHECK_NULL(_shadow, nullptr);
+    if (eType == D3DTS::View)
+        return _shadow->Get_ViewMatrix();
+    if (eType == D3DTS::Proj)
+        return _shadow->Get_ProjMatrix();
+
+    return nullptr;
+}
+
+#endif
 
 void GameInstance::Free()
 {
