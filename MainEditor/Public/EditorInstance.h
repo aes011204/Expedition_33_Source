@@ -1,10 +1,12 @@
 ﻿#pragma once
-
 #include "Base.h"
 #include "Editor_Defines.h"
 
 NS_BEGIN(Engine)
 class RenderTarget;
+class ICommand;
+class GameObject;
+class Component;
 NS_END
 
 NS_BEGIN(MainEditor)
@@ -12,73 +14,115 @@ NS_BEGIN(MainEditor)
 class Editor_Window;
 class Editor_Manager;
 class ImGui_Manager;
+class Editor_Context;
+class CommandHistory;
+class Notification_Manager;
+class Inspector_Factory;
+class Component_Inspector;
 
 class EditorInstance final : public Base
 {
-	DECLARE_SINGLETON(EditorInstance)
+    DECLARE_SINGLETON(EditorInstance)
 
 public:
-	EditorInstance();
-	~EditorInstance() = default;
+    EditorInstance();
+    virtual ~EditorInstance() = default;
 
-public:
-	HRESULT Initialize_Editor(const EDITOR_DESC& EditorDesc, const ComPtr<Device>& device, const ComPtr<Context>& context);
-	void    Release_Editor();
+public: /* Core */
+    HRESULT Initialize_Editor(const EDITOR_DESC& desc, const ComPtr<Device>& device, const ComPtr<Context>& context);
+    void    Release_Editor();
 
-	void Update_Editor(float timeDelta);
-	void Render_Editor();
+    void    Update_Editor(float timeDelta);
+    void    Render_Editor();
 
-public:
-	Shared<RenderTarget> Prepare_SharedViewportRenderTarget(uint32 width, uint32 height);
+public: /* For.Runtime */
+    void    Play();
+    void    Pause();
+    void    Stop();
+    void    Resume();
 
-	void Request_ViewportSize(EDITOR_VIEWPORT_TARGET targetType, uint32 width, uint32 height);
-	ID3D11ShaderResourceView* Get_SharedViewportSRV() const;
+    bool    IsPlaying() const;
+    bool    IsPaused() const;
 
-    void Capture_BackBuffer_ToViewport();
+    void    Set_RuntimeTimeScale(float timeScale);
+    void    Reset_RuntimeTimeScale();
+    float   Get_RuntimeTimeScale() const;
 
-public:
-	void Play();
-	void Pause();
-	void Stop();
-	void Resume();
+    void    Request_FrameStep();
+    bool    Consume_FrameStep();
 
-	bool IsPlaying() const;
-	bool IsPaused() const;
+public: /* For.Window */
+    void                    Request_WindowFocus(EDITOR_VIEWPORT_TARGET target);
+    bool                    Consume_WindowFocusRequest(EDITOR_VIEWPORT_TARGET target);
+    Shared<Editor_Window>   Get_Window(const wstring& windowName) const;
 
-	void Set_RuntimeTimeScale(float fTimeScale);
-	void Reset_RuntimeTimeScale();
+public: /* For.Editor Selection */
+    Shared<GameObject>      Selected_Object() const;
+    void                    Select_Object(const Shared<GameObject>& gameObject);
+    void                    Clear_SelectedObject();
+    uint32                  Selection_Revision() const;
 
-	float Get_RuntimeTimeScale() const;
+public: /* For.Editor Focus */
+    void                    Request_FocusObject(const Shared<GameObject>& gameObject);
+    Shared<GameObject>      Consume_FocusObjectRequest();
 
-public:
-	Shared<Editor_Window> Get_Window(const wstring& strWindowName) const;
+public: /* For.Inspector */
+    Shared<Component_Inspector> Find_Inspector(const string& key) const;
 
-	HWND Get_WindowHandle() const;
+public: /* For.Command History */
+    void    Execute_Command(const Shared<ICommand>& command);
+    void    Undo();
+    void    Redo();
+    void    Clear_CommandHistory();
+
+public: /* For.Notification */
+    public: /* Notification Manager */
+    Notification_Manager*       Get_Notification() { return _notificationManager.get(); }
+
+public: /* For.Camera */
+    void    Activate_TargetCamera();
+    void    Activate_FreeCamera();
+
+public: /* For.Viewport */
+    Shared<RenderTarget>      Prepare_SharedViewportRenderTarget(uint32 width, uint32 height);
+    void                      Request_ViewportSize(EDITOR_VIEWPORT_TARGET targetType, uint32 width, uint32 height);
+    ID3D11ShaderResourceView* Get_SharedViewportSRV() const;
+    void                      Capture_BackBuffer_ToViewport();
+
+    void                      Apply_RuntimeInputPolicy();
 
 private:
-	static float Clamp_RuntimeTimeScale(float fTimeScale);
+    void Focus_GameView();
+    void Focus_SceneView();
 
-private:
-	ComPtr<Device>      _device;
-	ComPtr<Context>     _context;
-	EDITOR_DESC         _editorDesc = {};
+private: /* Core Data */
+    ComPtr<Device>               _device = {};
+    ComPtr<Context>              _context = {};
+    EDITOR_DESC                  _editorDesc = {};
 
-private:
-	Unique<Editor_Manager> _editorManager;
-    Unique<ImGui_Manager>  _imguiManager;
+private: /* Manager */
+    Unique<Editor_Manager>       _editorManager = {};
+    Unique<ImGui_Manager>        _imguiManager = {};
+    Unique<Editor_Context>       _editorContext = {};
+    Unique<Inspector_Factory>    _inspectorFactory = {};
+    Unique<CommandHistory>       _commandHistory = {};
+    Unique<Notification_Manager> _notificationManager = {};
 
-private:
-	Shared<RenderTarget> _sharedViewportRenderTarget = nullptr;
+private: /* Viewport Data */
+    Shared<RenderTarget> _sharedViewportRenderTarget = nullptr;
 
-    // 에디터에서 뷰포트 창 사이즈 변경 시 
-	uint32 _requestedViewportWidth  = 1;
-	uint32 _requestedViewportHeight = 1;
-	EDITOR_VIEWPORT_TARGET _lastViewportRequester = EDITOR_VIEWPORT_TARGET::Game;
+    uint32 _requestedViewportWidth = 1;
+    uint32 _requestedViewportHeight = 1;
+    EDITOR_VIEWPORT_TARGET _lastViewportRequester = EDITOR_VIEWPORT_TARGET::Game;
 
-	EDITOR_RUNTIME_STATE _runtimeState = EDITOR_RUNTIME_STATE::Edit;
+private: /* Runtime Data */
+    EDITOR_RUNTIME_STATE _runtimeState = EDITOR_RUNTIME_STATE::Edit;
+    float _runtimeTimeScale = 1.f;
 
-    // 런타임 배율
-	float _runtimeTimeScale = 1.f;
+    bool _hasPendingWindowFocus = false;
+    EDITOR_VIEWPORT_TARGET _pendingWindowFocus = EDITOR_VIEWPORT_TARGET::Game;
+
+    bool _pendingSingleFrameStep = false;
 
 public:
     void Free() override;

@@ -1,8 +1,134 @@
 ﻿#include "Hierarchy_View.h"
 
+#include "EditorInstance.h"
+#include "GameInstance.h"
+#include "GameObject.h"
+
 Hierarchy_View::Hierarchy_View()
     : Editor_Window{ L"Hierarchy" }
 {
+}
+
+HRESULT Hierarchy_View::Initialize()
+{
+    return Editor_Window::Initialize();
+}
+
+void Hierarchy_View::Update(float timeDelta)
+{
+    Editor_Window::Update(timeDelta);
+
+    const uint32 selectionRevision = EDITOR->Selection_Revision();
+    if (_cachedSelectionRevision != selectionRevision)
+        _cachedSelectionRevision = selectionRevision;
+
+    const uint32 currentLevelIndex = GAME->Current_LevelIndex();
+    if (_cachedLevelIndex != currentLevelIndex)
+    {
+        _cachedLevelIndex = currentLevelIndex;
+        _dirtyHierarchyCache = true;
+    }
+
+    const uint64 objectRevision = GAME->Get_CurrentLevelObjectRevision();
+    if (_cachedObjectRevision != objectRevision)
+    {
+        _cachedObjectRevision = objectRevision;
+        _dirtyHierarchyCache = true;
+    }
+
+    if (_dirtyHierarchyCache)
+        Rebuild_Cache();
+}
+
+void Hierarchy_View::Pre_Render()
+{
+    Editor_Window::Pre_Render();
+}
+
+void Hierarchy_View::Draw_SearchBar()
+{
+    ImGui::InputTextWithHint("##SearchHierarchy", "Search...", _searchBuffer, IM_ARRAYSIZE(_searchBuffer));
+    _searchFilter = _searchBuffer;
+
+    ImGui::Separator();
+
+    const uint32 totalCount = Get_TotalObjectCount();
+    uint32 filteredCount = totalCount;
+
+    if (!_searchFilter.empty())
+    {
+        filteredCount = 0;
+
+        for (const auto& [_, objects] : _groupedObjects)
+        {
+            uint32 objectIndex = 0;
+
+            for (const auto& gameObject : objects)
+            {
+                if (gameObject != nullptr && Pass_SearchFilter(gameObject, objectIndex))
+                    ++filteredCount;
+
+                ++objectIndex;
+            }
+        }
+    }
+
+    ImGui::Text("Objects: %u / %u", filteredCount, totalCount);
+    ImGui::Separator();
+}
+
+void Hierarchy_View::Rebuild_Cache()
+{
+    _groupedObjects.clear();
+
+    GAME->Visit_CurrentLevelObjects(
+        [this](const wstring& layerTag, const Shared<GameObject>& gameObject)
+        {
+            if (gameObject == nullptr)
+                return;
+
+            _groupedObjects[layerTag].push_back(gameObject);
+        });
+
+    _dirtyHierarchyCache = false;
+}
+
+bool Hierarchy_View::Pass_SearchFilter(const Shared<GameObject>& gameObject, uint32 objectIndex) const
+{
+    if (_searchFilter.empty())
+        return true;
+
+    const string label = Build_HierarchyLabel(gameObject, objectIndex);
+    return label.find(_searchFilter) != string::npos;
+}
+
+uint32 Hierarchy_View::Get_TotalObjectCount() const
+{
+    uint32 totalCount = 0;
+
+    for (const auto& [_, objects] : _groupedObjects)
+    {
+        for (const auto& gameObject : objects)
+        {
+            if (gameObject != nullptr)
+                ++totalCount;
+        }
+    }
+
+    return totalCount;
+}
+
+string Hierarchy_View::Build_HierarchyLabel(const Shared<GameObject>& gameObject, uint32 objectIndex) const
+{
+    if (gameObject == nullptr)
+        return "<Null>";
+
+    const string objectName = String::ToString(gameObject->Get_Name());
+
+    if (!objectName.empty())
+        return objectName + " [" + to_string(objectIndex) + "]";
+
+    return "GameObject [" + to_string(objectIndex) + "]";
 }
 
 void Hierarchy_View::Render()
@@ -15,12 +141,104 @@ void Hierarchy_View::Render()
 
     if (ImGui::Begin(windowName.c_str(), &isOpen))
     {
-        if (ImGui::TreeNodeEx("Scene", ImGuiTreeNodeFlags_DefaultOpen))
+        _isFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows);
+
+        const Shared<GameObject> selectedObject = EDITOR->Selected_Object();
+
+        Draw_SearchBar();
+
+        if (_groupedObjects.empty())
         {
-            ImGui::BulletText("No scene objects registered yet");
-            ImGui::TreePop();
+            ImGui::TextDisabled("현재 레벨에 오브젝트가 없음");
+        }
+        else
+        {
+            if (!_searchFilter.empty())
+            {
+                for (const auto& [_, objects] : _groupedObjects)
+                {
+                    uint32 objectIndex = 0;
+
+                    for (const auto& gameObject : objects)
+                    {
+                        if (gameObject == nullptr)
+                        {
+                            ++objectIndex;
+                            continue;
+                        }
+
+                        if (!Pass_SearchFilter(gameObject, objectIndex))
+                        {
+                            ++objectIndex;
+                            continue;
+                        }
+
+                        const bool isSelected = (selectedObject == gameObject);
+                        const string label = Build_HierarchyLabel(gameObject, objectIndex);
+
+                        ImGui::PushID(gameObject.get());
+
+                        if (ImGui::Selectable(label.c_str(), isSelected))
+                            EDITOR->Select_Object(gameObject);
+
+                        if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+                        {
+                            EDITOR->Select_Object(gameObject);
+                            EDITOR->Request_FocusObject(gameObject);
+                            EDITOR->Request_WindowFocus(EDITOR_VIEWPORT_TARGET::Scene);
+                        }
+
+                        ImGui::PopID();
+
+                        ++objectIndex;
+                    }
+                }
+            }
+            else
+            {
+                for (const auto& [layerTag, objects] : _groupedObjects)
+                {
+                    const string layerName = String::ToString(layerTag);
+
+                    if (ImGui::TreeNodeEx(layerName.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
+                    {
+                        uint32 objectIndex = 0;
+
+                        for (const auto& gameObject : objects)
+                        {
+                            if (gameObject == nullptr)
+                            {
+                                ++objectIndex;
+                                continue;
+                            }
+
+                            const bool isSelected = (selectedObject == gameObject);
+                            const string label = Build_HierarchyLabel(gameObject, objectIndex);
+
+                            ImGui::PushID(gameObject.get());
+
+                            if (ImGui::Selectable(label.c_str(), isSelected))
+                                EDITOR->Select_Object(gameObject);
+
+                            if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+                            {
+                                EDITOR->Select_Object(gameObject);
+                                EDITOR->Request_FocusObject(gameObject);
+                                EDITOR->Request_WindowFocus(EDITOR_VIEWPORT_TARGET::Scene);
+                            }
+
+                            ImGui::PopID();
+
+                            ++objectIndex;
+                        }
+
+                        ImGui::TreePop();
+                    }
+                }
+            }
         }
     }
+
     Set_Open(isOpen);
     ImGui::End();
 }
@@ -30,5 +248,8 @@ Shared<Hierarchy_View> Hierarchy_View::Create()
     return make_shared<Hierarchy_View>();
 }
 
-
-
+void Hierarchy_View::Free()
+{
+    _groupedObjects.clear();
+    Editor_Window::Free();
+}

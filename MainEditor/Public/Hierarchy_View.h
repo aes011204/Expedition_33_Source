@@ -7,17 +7,36 @@ NS_BEGIN(MainEditor)
 class Hierarchy_View final : public Editor_Window
 {
 public:
-    /* 이후 Object_Manager 레이어를 표시할 씬 하이어라키 창을 생성한다. */
     Hierarchy_View();
     virtual ~Hierarchy_View() = default;
 
 public:
-    /* 초기 하이어라키 트리 골격을 그린다. */
-    virtual void Render() override;
+    HRESULT Initialize() override;
+    void    Update(float timeDelta) override;
+    void    Pre_Render() override;
+    void    Render() override;
+
+private:
+    void    Draw_SearchBar();
+    void    Rebuild_Cache();
+    bool    Pass_SearchFilter(const Shared<GameObject>& gameObject, uint32 objectIndex) const;
+    uint32  Get_TotalObjectCount() const;
+
+    // Get_Name은 클래스 이름만 가져와져서 Label 세팅해서 보여주기
+    string  Build_HierarchyLabel(const Shared<GameObject>& gameObject , uint32 objectIndex) const;
+
+private:
+    map<wstring, vector<Shared<GameObject>>> _groupedObjects = {};
+    char    _searchBuffer[128] = {};
+    string  _searchFilter = {};
+    uint32  _cachedSelectionRevision = 0;
+    uint32  _cachedLevelIndex = UINT32_MAX;
+    uint64  _cachedObjectRevision = UINT64_MAX;
+    bool    _dirtyHierarchyCache = true;
 
 public:
     static Shared<Hierarchy_View> Create();
-
+    void   Free() override;
 };
 
 NS_END

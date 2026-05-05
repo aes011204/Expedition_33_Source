@@ -14,7 +14,7 @@ HRESULT TypeRegistry::Register_ComponentType(const ComponentTypeInfo& info)
     {
         info.reflectionInfo->className = info.className;
         info.reflectionInfo->displayName = info.className;
-        info.reflectionInfo->kind = RegisteredTypeKind::Component;
+        info.reflectionInfo->type = RegisteredType::Component;
     }
 
     return S_OK;
@@ -34,7 +34,7 @@ HRESULT TypeRegistry::Register_GameObjectType(const GameObjectTypeInfo& info)
     {
         info.reflectionInfo->className = info.className;
         info.reflectionInfo->displayName = info.className;
-        info.reflectionInfo->kind = RegisteredTypeKind::GameObject;
+        info.reflectionInfo->type = RegisteredType::GameObject;
     }
 
     return S_OK;
@@ -54,7 +54,7 @@ HRESULT TypeRegistry::Register_BTNodeType(const BTNodeTypeInfo& info)
     {
         info.reflectionInfo->className = info.className;
         info.reflectionInfo->displayName = info.className;
-        info.reflectionInfo->kind = RegisteredTypeKind::BTNode;
+        info.reflectionInfo->type = RegisteredType::BTNode;
     }
 
     return S_OK;

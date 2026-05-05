@@ -12,8 +12,8 @@ public:
     // 현재 프레임에 입력된 값
     struct InputFrame
     {
-        float moveAxis = 0.f; // W = +1, S = -1;
-        float turnAxis = 0.f; // A = -1, D = +1;
+        float moveX = 0.f;
+        float moveZ = 0.f;
 
         bool  isRunPressed = false;
         bool  isJumpDown= false;
@@ -33,7 +33,6 @@ public:
     const InputFrame& Get_Frame() { return _frame; }
 
     bool    Has_MoveInput() const;     // W, S 입력 들어왔는지
-    bool    Has_TurnInput() const;     // A, D 입력 들어왔는지
     bool    Has_AnyInput()  const;     // WASD 중 아무거나 들어왔을 때
 
 private:

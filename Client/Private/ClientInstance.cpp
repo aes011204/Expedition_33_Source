@@ -22,6 +22,7 @@ HRESULT ClientInstance::Initialize_Client(const ComPtr<Device>& device, const Co
 		return E_FAIL;
 
 	_isInitialized = true;
+
 	return S_OK;
 }
 
