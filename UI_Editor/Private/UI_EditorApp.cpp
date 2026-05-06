@@ -1,5 +1,6 @@
 ﻿#include "pch.h"
 #include "UI_EditorApp.h"
+#include "UI_Editor_Manager.h"
 
 namespace UIEditor
 {
@@ -27,6 +28,10 @@ namespace UIEditor
         ImGui_ImplWin32_Init(hWnd);
         ImGui_ImplDX11_Init(_device.Get(), _context.Get());
 
+        _editorManager = UI_Editor_Manager::Create();
+        if (nullptr == _editorManager)
+            return E_FAIL;
+
         _initialized = true;
         return S_OK;
     }
@@ -37,6 +42,8 @@ namespace UIEditor
             return;
 
         Begin_ImGuiFrame();
+
+        _editorManager->Render();
 
         ImGui::Render();
 
@@ -62,6 +69,8 @@ namespace UIEditor
     {
         if (!_initialized)
             return;
+
+        _editorManager.reset();
 
         ImGui_ImplDX11_Shutdown();
         ImGui_ImplWin32_Shutdown();

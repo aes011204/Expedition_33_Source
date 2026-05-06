@@ -184,6 +184,21 @@
     <Filter Include="01.Utility\04.Component\VIBuffer\Instance\Particle">
       <UniqueIdentifier>{9c62bf2c-8203-4b3e-aebd-5eae6afe0067}</UniqueIdentifier>
     </Filter>
+    <Filter Include="01.Utility\09.UI">
+      <UniqueIdentifier>{87a622d9-801f-49ce-b4ff-d8af259b2d0a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="01.Utility\09.UI\Transform">
+      <UniqueIdentifier>{65147161-ca9f-45b6-a8b9-53f7d18db43a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="01.Utility\09.UI\Image">
+      <UniqueIdentifier>{3c551b52-1789-4a3f-b961-728a88f4b945}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="01.Utility\09.UI\Text">
+      <UniqueIdentifier>{917ac4ea-23b6-4fc5-9af7-098c9d26460a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="01.Utility\09.UI\Manager">
+      <UniqueIdentifier>{81f9ae0a-27a1-4171-a7d8-216e609be126}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -406,6 +421,21 @@
     <ClInclude Include="..\Public\VIBufferCom_PointParticle.h">
       <Filter>01.Utility\04.Component\VIBuffer\Instance\Particle</Filter>
     </ClInclude>
+    <ClInclude Include="..\public\UI_Transform.h">
+      <Filter>01.Utility\09.UI\Transform</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\UI_Base.h">
+      <Filter>01.Utility\09.UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\UI_Text.h">
+      <Filter>01.Utility\09.UI\Text</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\UI_Image.h">
+      <Filter>01.Utility\09.UI\Image</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\UI_Manager.h">
+      <Filter>01.Utility\09.UI\Manager</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -584,6 +614,21 @@
     </ClCompile>
     <ClCompile Include="..\Private\VIBufferCom_PointParticle.cpp">
       <Filter>01.Utility\04.Component\VIBuffer\Instance\Particle</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\UI_Transform.cpp">
+      <Filter>01.Utility\09.UI\Transform</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\UI_Base.cpp">
+      <Filter>01.Utility\09.UI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\UI_Text.cpp">
+      <Filter>01.Utility\09.UI\Text</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\UI_Image.cpp">
+      <Filter>01.Utility\09.UI\Image</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\UI_Manager.cpp">
+      <Filter>01.Utility\09.UI\Manager</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

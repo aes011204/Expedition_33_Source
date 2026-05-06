@@ -12,6 +12,7 @@ class Graphic_Device;
 class Timer_Manager;
 class Level_Manager;
 class Prototype_Manager;
+class UI_Manager;
 class Object_Manager;
 class Renderer;
 class PipeLine;
@@ -23,6 +24,7 @@ class Camera_Manager;
 struct ConsoleLogEntry;
 class Component;
 class GameObject;
+class UI_Base;
 class Level;
 class Camera;
 class Debug_Manager;
@@ -63,6 +65,8 @@ public: /* For.Graphic_Device */
     HRESULT Resize_BackBuffer(uint32 width, uint32 height);
 
     ComPtr<SwapChain> Get_SwapChain() const;
+    ComPtr<Device>    Get_Device() const;
+    ComPtr<Context>   Get_Context() const;
 
 public: /* For.Viewport */
     void    Set_ViewportSize(uint32 width, uint32 height);
@@ -86,6 +90,15 @@ public: /* For.Level_Manager */
 public: /* For.Prototype_Manager */
     HRESULT Add_Prototype(uint32 levelIndex, const wstring& prototypeTag, Shared<Base> prototype);
     Shared<Base> Clone_Prototype(Prototype prototype, uint32 levelIndex, const wstring& prototypeTag, void* arg = nullptr);
+
+public: /* For.UI_Manager */
+    HRESULT Add_UI(
+        uint32 prototypeLevelIndex,
+        const wstring& prototypeTag,
+        void* arg = nullptr,
+        Shared<UI_Base>* outUI = nullptr);
+
+    void    Pop_UI();
 
 public: /* For.Object_Manager */
     HRESULT Add_GameObject(
@@ -228,6 +241,7 @@ private:
     Unique<Timer_Manager>       _timerManager{};
     Unique<Level_Manager>       _levelManager{};
     Unique<Prototype_Manager>   _prototypeManager{};
+    Unique<UI_Manager>          _uiManager{};
     Unique<Object_Manager>      _objectManager{};
     Unique<Renderer>            _renderer{};
     Unique<PipeLine>            _pipeLine{};

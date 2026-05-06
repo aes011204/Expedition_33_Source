@@ -10,6 +10,7 @@
 #include "Level_Manager.h"
 #include "Light_Manager.h"
 #include "Log_Manager.h"
+#include "UI_Manager.h"
 #include "Object_Manager.h"
 #include "PipeLine.h"
 #include "Prototype_Manager.h"
@@ -52,6 +53,9 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
 
     _prototypeManager = Prototype_Manager::Create(engineDesc.numLevels);
     CHECK_NULL(_prototypeManager, E_FAIL);
+
+    _uiManager = UI_Manager::Create(_prototypeManager.get());
+    CHECK_NULL(_uiManager, E_FAIL);
 
     _typeRegistry = TypeRegistry::Create();
     CHECK_NULL(_typeRegistry, E_FAIL);
@@ -111,8 +115,8 @@ void GameInstance::Update_Engine(float timeDelta)
 
     _physxManager->Update(timeDelta);
 
-    _levelManager->Update(timeDelta);
     _cameraManager->Update(timeDelta);
+    _uiManager->Update(timeDelta);
 
 }
 
@@ -138,6 +142,9 @@ HRESULT GameInstance::Draw()
 #ifdef _DEBUG
     Try_FlushRuntimePerfLog();
 #endif
+
+    if (FAILED(_uiManager->Render()))
+        return E_FAIL;
 
     return S_OK;
 }
@@ -365,6 +372,22 @@ ComPtr<SwapChain> GameInstance::Get_SwapChain() const
     return _graphicDevice->Get_SwapChain();
 }
 
+ComPtr<Device> GameInstance::Get_Device() const
+{
+    if (nullptr == _graphicDevice)
+        return nullptr;
+
+    return _graphicDevice->Get_Device();
+}
+
+ComPtr<Context> GameInstance::Get_Context() const
+{
+    if (nullptr == _graphicDevice)
+        return nullptr;
+
+    return _graphicDevice->Get_Context();
+}
+
 void GameInstance::Set_ViewportSize(uint32 width, uint32 height)
 {
     _viewportWidth = max(1u, width);
@@ -424,6 +447,16 @@ HRESULT GameInstance::Add_Prototype(uint32 levelIndex, const wstring& prototypeT
 Shared<Base> GameInstance::Clone_Prototype(Prototype prototype, uint32 levelIndex, const wstring& prototypeTag, void* arg)
 {
     return _prototypeManager->Clone_Prototype(prototype, levelIndex, prototypeTag, arg);
+}
+
+HRESULT GameInstance::Add_UI(uint32 prototypeLevelIndex, const wstring& prototypeTag, void* arg, Shared<UI_Base>* outUI)
+{
+    return _uiManager->Add_UI(prototypeLevelIndex, prototypeTag, arg, outUI);
+}
+
+void GameInstance::Pop_UI()
+{
+    _uiManager->Pop_UI();
 }
 
 HRESULT GameInstance::Add_GameObject(
@@ -744,6 +777,7 @@ void GameInstance::Release_Engine()
     ReleaseManager(_pipeLine);
     ReleaseManager(_renderer);
     ReleaseManager(_objectManager);
+    ReleaseManager(_uiManager);
     ReleaseManager(_prototypeManager);
     ReleaseManager(_typeRegistry);
     ReleaseManager(_levelManager);

@@ -1,4 +1,5 @@
 ﻿#pragma once
+#include "UI_Editor_Manager.h"
 
 namespace UIEditor
 {
@@ -26,6 +27,7 @@ namespace UIEditor
         ComPtr<ID3D11DeviceContext> _context = nullptr;
         ComPtr<IDXGISwapChain> _swapChain = nullptr;
         ComPtr<ID3D11RenderTargetView> _renderTargetView = nullptr;
+        Unique<UI_Editor_Manager> _editorManager = nullptr;
 
         bool _initialized = false;
     };

@@ -4,6 +4,8 @@
 #include "FreeCamera.h"
 #include "TargetCamera.h"
 #include "PointParticlePreview.h"
+#include "UI_Image.h"
+#include "UI_Text.h"
 
 Level_GamePlay::Level_GamePlay(const ComPtr<Device>& device, const ComPtr<Context>& context)
 	: Level { device, context }
@@ -14,6 +16,9 @@ HRESULT Level_GamePlay::Initialize()
 {
 	if (FAILED(Ready_Lights()))
 		return E_FAIL;
+
+    if (FAILED(Ready_UI_SmokeTest()))
+        return E_FAIL;
 
 	if (FAILED(Ready_Layer_Camera(TEXT("Layer_Camera"))))
 		return E_FAIL;
@@ -64,6 +69,56 @@ HRESULT Level_GamePlay::Ready_Lights()
 
 
 	return S_OK;
+}
+
+HRESULT Level_GamePlay::Ready_UI_SmokeTest()
+{
+    UI_Text::UI_TEXT_DESC uiTextDesc{};
+    UI_Image::UI_IMAGE_DESC uiImageDesc{};
+
+    uiTextDesc.text = TEXT("UI Smoke Test");
+    uiTextDesc.fontTag = TEXT("Font_UI_Smoke");
+    uiTextDesc.color = Vec4(1.f, 1.f, 1.f, 1.f);
+    uiTextDesc.transformDesc.position = Vec2(100.f, 80.f);
+    uiTextDesc.transformDesc.size = Vec2(300.f, 40.f);
+    uiTextDesc.transformDesc.scale = Vec2(1.f, 1.f);
+    uiTextDesc.isOpenOnCreate = true;
+    uiTextDesc.sortOrder = 0;
+
+    const fs::path fontPath = fs::path(GAME->Get_AssetRoot()) / L"UI_Editor_Test" / L"Font" / L"33_MainKR_Font.spritefont";
+
+    if (!fs::exists(fontPath))
+        return E_FAIL;
+
+    if (FAILED(GAME->Add_Font(TEXT("Font_UI_Smoke"), fontPath.c_str())))
+        return E_FAIL;
+
+    if (FAILED(GAME->Add_Prototype(ETOI(LevelType::GamePlay), TEXT("UI_Text_Smoke"), UI_Text::Create())))
+        return E_FAIL;
+
+    if (FAILED(GAME->Add_UI(ETOI(LevelType::GamePlay), TEXT("UI_Text_Smoke"), &uiTextDesc)))
+        return E_FAIL;
+
+    const fs::path imagePath = fs::path(GAME->Get_AssetRoot()) / L"UI_Editor_Test" / L"Image" / L"T_HealthBarOutline.png";
+
+    if (!fs::exists(imagePath))
+        return E_FAIL;
+
+    uiImageDesc.texturePath = imagePath.wstring();
+    uiImageDesc.color = Vec4(0.f, 0.f, 0.f, 1.f);
+    uiImageDesc.transformDesc.position = Vec2(100.f, 140.f);
+    uiImageDesc.transformDesc.size = Vec2(384.f, 39.f);
+    uiImageDesc.transformDesc.scale = Vec2(1.f, 1.f);
+    uiImageDesc.isOpenOnCreate = true;
+    uiImageDesc.sortOrder = 1;
+
+    if (FAILED(GAME->Add_Prototype(ETOI(LevelType::GamePlay), TEXT("UI_Image_Smoke"), UI_Image::Create())))
+        return E_FAIL;
+
+    if (FAILED(GAME->Add_UI(ETOI(LevelType::GamePlay), TEXT("UI_Image_Smoke"), &uiImageDesc)))
+        return E_FAIL;
+
+    return S_OK;
 }
 
 HRESULT Level_GamePlay::Ready_Layer_Camera(const wstring& strLayerTag)
