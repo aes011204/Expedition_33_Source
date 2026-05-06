@@ -7,6 +7,7 @@
 #include "Animation.h"
 #include "SkeletalMesh.h"
 #include "StaticMesh.h"
+#include <limits>
 
 ModelCom::ModelCom(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Component { device, context } {}
@@ -16,6 +17,9 @@ ModelCom::ModelCom(const ModelCom& prototype)
     , _type{ prototype._type }
     , _preLocalTransformMatrix{ prototype._preLocalTransformMatrix }
     , _isSkeletal{ prototype._isSkeletal }
+    , _hasLocalBounds{ prototype._hasLocalBounds }
+    , _localBoundsMin{ prototype._localBoundsMin }
+    , _localBoundsMax{ prototype._localBoundsMax }
     , _maxTextureType{ prototype._maxTextureType }
     , _numMeshes{ prototype._numMeshes }
     , _numMaterials{ prototype._numMaterials }
@@ -192,6 +196,16 @@ HRESULT ModelCom::Bind_BoneMatrices(ShaderCom* shader, const char* constantName,
     return _meshes[meshIndex]->Bind_BoneMatrices(shader, constantName, _bones);
 }
 
+bool ModelCom::Try_Get_LocalBounds(Vec3& outMin, Vec3& outMax) const
+{
+    if (!_hasLocalBounds)
+        return false;
+
+    outMin = _localBoundsMin;
+    outMax = _localBoundsMax;
+    return true;
+}
+
 HRESULT ModelCom::Ready_Model(const char* modelPath)
 {
     std::string resolvedPath(modelPath);
@@ -210,6 +224,16 @@ HRESULT ModelCom::Ready_Model(const char* modelPath)
     stream.read(reinterpret_cast<char*>(&_numMaterials), sizeof(uint32));
     stream.read(reinterpret_cast<char*>(&_numMeshes), sizeof(uint32));
     stream.read(reinterpret_cast<char*>(&_numBones), sizeof(uint32));
+
+    Vec3 minBounds(
+        std::numeric_limits<float>::max(),
+        std::numeric_limits<float>::max(),
+        std::numeric_limits<float>::max());
+    Vec3 maxBounds(
+        -std::numeric_limits<float>::max(),
+        -std::numeric_limits<float>::max(),
+        -std::numeric_limits<float>::max());
+    bool hasBounds = false;
 
     // Load Material
     for (uint32 i = 0; i < _numMaterials; ++i)
@@ -233,6 +257,40 @@ HRESULT ModelCom::Ready_Model(const char* modelPath)
         vector<uint8> vtxBuffer(vtxSize * meshData.numVertices);
         stream.read(reinterpret_cast<char*>(vtxBuffer.data()), vtxBuffer.size());
         meshData.vertices = vtxBuffer.data();
+
+        if (meshData.numVertices > 0)
+        {
+            if (_isSkeletal)
+            {
+                VTXANIMMESH* vertices = reinterpret_cast<VTXANIMMESH*>(vtxBuffer.data());
+                for (uint32 vertexIndex = 0; vertexIndex < meshData.numVertices; ++vertexIndex)
+                {
+                    const Vec3& position = vertices[vertexIndex].position;
+                    minBounds.x = (std::min)(minBounds.x, position.x);
+                    minBounds.y = (std::min)(minBounds.y, position.y);
+                    minBounds.z = (std::min)(minBounds.z, position.z);
+                    maxBounds.x = (std::max)(maxBounds.x, position.x);
+                    maxBounds.y = (std::max)(maxBounds.y, position.y);
+                    maxBounds.z = (std::max)(maxBounds.z, position.z);
+                }
+            }
+            else
+            {
+                VTXMESH* vertices = reinterpret_cast<VTXMESH*>(vtxBuffer.data());
+                for (uint32 vertexIndex = 0; vertexIndex < meshData.numVertices; ++vertexIndex)
+                {
+                    const Vec3& position = vertices[vertexIndex].position;
+                    minBounds.x = (std::min)(minBounds.x, position.x);
+                    minBounds.y = (std::min)(minBounds.y, position.y);
+                    minBounds.z = (std::min)(minBounds.z, position.z);
+                    maxBounds.x = (std::max)(maxBounds.x, position.x);
+                    maxBounds.y = (std::max)(maxBounds.y, position.y);
+                    maxBounds.z = (std::max)(maxBounds.z, position.z);
+                }
+            }
+
+            hasBounds = true;
+        }
 
         vector<uint32> idxBuffer(meshData.numIndices);
         stream.read(reinterpret_cast<char*>(idxBuffer.data()), sizeof(uint32) * meshData.numIndices);
@@ -278,6 +336,13 @@ HRESULT ModelCom::Ready_Model(const char* modelPath)
 
         for (const auto& data : boneData)
             _bones.push_back(Bone::Create(data));
+    }
+
+    _hasLocalBounds = hasBounds;
+    if (hasBounds)
+    {
+        _localBoundsMin = minBounds;
+        _localBoundsMax = maxBounds;
     }
 
     stream.close();

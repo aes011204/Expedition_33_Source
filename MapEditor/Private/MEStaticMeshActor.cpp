@@ -25,7 +25,7 @@ HRESULT MEStaticMeshActor::Render(const Matrix& worldMatrix)
     const uint32 numMeshes = static_cast<uint32>(_model->Get_NumMeshes());
     for (uint32 i = 0; i < numMeshes; ++i)
     {
-        _model->Bind_Material(_shader.get(), "g_DiffuseTexture", i, aiTextureType_DIFFUSE, 0);
+        //_model->Bind_Material(_shader.get(), "g_DiffuseTexture", i, aiTextureType_DIFFUSE, 0);
         _shader->Begin(0);
         _model->Render(i);
     }
