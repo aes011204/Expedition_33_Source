@@ -207,6 +207,7 @@
     <ClInclude Include="..\Public\Shadow.h">
       <Filter>01.Utility\07.Lights</Filter>
     </ClInclude>
+    <ClInclude Include="..\public\AStar.h" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\public\Base.h">
@@ -700,6 +701,7 @@
     <ClCompile Include="..\Private\Print_Manager.cpp">
       <Filter>97. Manager</Filter>
     </ClCompile>
+    <ClCompile Include="..\private\AStar.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Bin\ShaderFiles\Engine_Shader_Defines.hlsli">
