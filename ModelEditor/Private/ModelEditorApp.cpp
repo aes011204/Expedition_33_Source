@@ -59,6 +59,7 @@ HRESULT ModelEditorApp::Initialize()
 
 void ModelEditorApp::Priority_Update(float timeDelta)
 {
+
 }
 
 void ModelEditorApp::Update(float timeDelta)
