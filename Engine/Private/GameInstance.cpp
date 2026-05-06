@@ -104,7 +104,7 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
 
     _shadow = Shadow::Create();
     CHECK_NULL(_shadow, E_FAIL);
-    
+
     _physxManager = PhysX_Manager::Create();
     CHECK_NULL(_physxManager, E_FAIL);
 
@@ -170,7 +170,7 @@ HRESULT GameInstance::Draw()
     }
 
     _printManager->Render();
-#endif    
+#endif
 
 #ifdef _DEBUG
     Try_FlushRuntimePerfLog();

@@ -217,7 +217,6 @@ Shared<VIBufferCom_PointParticle> VIBufferCom_PointParticle::Create(const ComPtr
     if (FAILED(instance->Initialize_Prototype()))
     {
         LOG_CRITICAL("Failed to Create : VIBufferCom_PointParticle");
-        MSG_BOX("Failed to Create : VIBufferCom_PointParticle");
         return nullptr;
     }
 

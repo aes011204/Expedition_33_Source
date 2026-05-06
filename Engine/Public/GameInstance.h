@@ -175,7 +175,7 @@ public: /* For.Light_Manager */
 public: /* For.Font_Manager */
     HRESULT Add_Font(const wstring& fontTag, const wchar_t* fontFilePath);
     void Draw_Font(const wstring& fontTag, const wchar_t* text, const Vec2& position, FXMVECTOR color = XMVectorSet(1.f, 1.f, 1.f, 1.f));
-        
+
 public: /* For.Asset_Manager */
     /* 리소스 루트를 기준으로 GUID/meta/cache registry를 준비할 때 호출한다. */
     HRESULT Initialize_AssetManager(const wstring& resourceRoot);
@@ -355,7 +355,7 @@ private:
 
     // Free 카메라용 time
     float   _freeCameraTimeDelta = 0.f;
-    
+
 #ifdef _DEBUG
 private: //## 디버그 성능 평가용
     static constexpr float runtimePerfSampleWindowSec{ 5.f };          // RuntimePerf summary를 몇 초마다 출력할건지

@@ -1,4 +1,4 @@
-#include "PointParticlePreview.h"
+﻿#include "PointParticlePreview.h"
 #include "GameInstance.h"
 #include "ShaderCom.h"
 #include "Texture.h"
@@ -122,7 +122,7 @@ Shared<PointParticlePreview> PointParticlePreview::Create(const ComPtr<Device>& 
 
     if (FAILED(instance->Initialize_Prototype()))
     {
-        MSG_BOX("Failed to Created : PointParticlePreview");
+        LOG_CRITICAL("Failed to Create : PointParticlePreview");
         return nullptr;
     }
 
@@ -135,7 +135,8 @@ Shared<GameObject> PointParticlePreview::Clone(void* arg)
 
     if (FAILED(instance->Initialize(arg)))
     {
-        MSG_BOX("Failed to Cloned : PointParticlePreview");
+        LOG_CRITICAL("Failed to Clone : PointParticlePreview");
+        MSG_BOX("Failed to Clone : PointParticlePreview");
         return nullptr;
     }
 
