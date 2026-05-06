@@ -9,7 +9,6 @@ class TargetCamera final : public Camera
 public:
     typedef struct tagTargetCamera final : public Camera::CAMERA_DESC
     {
-        Vec3 offset;
         float followSpeed;
         float distance;
 
@@ -76,7 +75,6 @@ public:
     
 private:
    Weak<TransformCom> _targetTransformCom;
-    Vec3              _offset;
     float             _followSpeed;
     float             _distance;
     float             _sideOffset;

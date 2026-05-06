@@ -104,4 +104,5 @@ inline Vec3 Lerp_EaseIn(const Vec3& initStart, const Vec3& end, float ratio, flo
     const float easeRatio = GetEaseInRatio(ratio, power);
     return initStart + (end - initStart) * easeRatio;
 }
+
 }

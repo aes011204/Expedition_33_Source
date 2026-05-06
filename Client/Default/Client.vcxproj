@@ -166,6 +166,10 @@
     <ClInclude Include="..\public\BT_Attack.h" />
     <ClInclude Include="..\public\BT_CheckDistance.h" />
     <ClInclude Include="..\public\BT_Idle.h" />
+    <ClInclude Include="..\public\CinematicSequencerAdapter.h" />
+    <ClInclude Include="..\public\Cinematic_Player.h" />
+    <ClInclude Include="..\public\Cinematic_SequenceIO.h" />
+    <ClInclude Include="..\public\Cinematic_Utils.h" />
     <ClInclude Include="..\Public\Client_Enum.h" />
     <ClInclude Include="..\Public\Client_Macro.h" />
     <ClInclude Include="..\Public\Client_Struct.h" />
@@ -175,6 +179,7 @@
     <ClInclude Include="..\public\Mon_BehaviorTree.h" />
     <ClInclude Include="..\Public\PlayerControllerCom.h" />
     <ClInclude Include="..\Public\TargetCamera.h" />
+    <ClInclude Include="..\Public\Cinematic_Types.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="..\public\BackGround.h" />
     <ClInclude Include="..\public\Body_Player.h" />
@@ -197,6 +202,9 @@
     <ClCompile Include="..\private\BT_Attack.cpp" />
     <ClCompile Include="..\private\BT_CheckDistance.cpp" />
     <ClCompile Include="..\private\BT_Idle.cpp" />
+    <ClCompile Include="..\private\CinematicSequencerAdapter.cpp" />
+    <ClCompile Include="..\private\Cinematic_Player.cpp" />
+    <ClCompile Include="..\private\Cinematic_SequenceIO.cpp" />
     <ClCompile Include="..\Private\CombatStatCom.cpp" />
     <ClCompile Include="..\Private\InputCom.cpp" />
     <ClCompile Include="..\private\Mon_AIController.cpp" />

@@ -8,7 +8,7 @@ NS_END
 
 NS_BEGIN(MainEditor)
 
-    class Camera_Tool : public Editor_Window
+class Camera_Tool : public Editor_Window
 {
 public:
     Camera_Tool();

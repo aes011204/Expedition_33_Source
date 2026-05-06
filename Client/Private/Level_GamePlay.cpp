@@ -1,4 +1,4 @@
-#include "Level_GamePlay.h"
+﻿#include "Level_GamePlay.h"
 #include "GameInstance.h"
 #include "ClientInstance.h"
 #include "FreeCamera.h"
@@ -110,7 +110,6 @@ HRESULT Level_GamePlay::Ready_Layer_Camera(const wstring& strLayerTag)
     TargetCameraDesc.farPlane = 500.f;
     TargetCameraDesc.mouseSensor = 0.06f;
     TargetCameraDesc.followSpeed = 8.f;
-    TargetCameraDesc.offset = Vec3 {0.5f, 1.f, 0.f};
     TargetCameraDesc.distance = 1.8f;
     TargetCameraDesc.sideOffset = 0.f;
     TargetCameraDesc.heightOffset = 0.5f;

@@ -195,6 +195,7 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     <ClCompile Include="..\Private\Action_Command.cpp" />
     <ClCompile Include="..\private\BT_Tool.cpp" />
     <ClCompile Include="..\private\Camera_Tool.cpp" />
+    <ClCompile Include="..\private\Cinematic_Tool.cpp" />
     <ClCompile Include="..\Private\CommandHistory.cpp" />
     <ClCompile Include="..\Private\Component_Inspector.cpp" />
     <ClCompile Include="..\Private\Console_View.cpp" />
@@ -222,6 +223,7 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     <ClInclude Include="..\Public\Action_Command.h" />
     <ClInclude Include="..\public\BT_Tool.h" />
     <ClInclude Include="..\public\Camera_Tool.h" />
+    <ClInclude Include="..\public\Cinematic_Tool.h" />
     <ClInclude Include="..\Public\CommandHistory.h" />
     <ClInclude Include="..\Public\Component_Inspector.h" />
     <ClInclude Include="..\Public\Console_View.h" />

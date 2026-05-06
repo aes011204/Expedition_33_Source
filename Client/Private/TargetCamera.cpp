@@ -26,7 +26,6 @@ HRESULT TargetCamera::Initialize(void* arg)
     const auto desc = static_cast<TARGETCAMERA_DESC*>(arg);
 
     _followSpeed = desc->followSpeed;
-    _offset = desc->offset;
     _mouseSensor = desc->mouseSensor;
     _distance = desc->distance;
     _sideOffset = desc->sideOffset;

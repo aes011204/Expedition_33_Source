@@ -160,7 +160,7 @@ void Camera_Tool::Render_CommonSettings()
     }
 
     Draw_SectionHeader("Input");
-    if(ImGui::DragFloat("mouse sensor",&mouseSensor, 0.01f, 0.01, 10.f))
+    if(ImGui::DragFloat("mouse sensor",&mouseSensor, 0.01f, 0.01f, 10.f))
     {
         camera->Set_MouseSensor(mouseSensor);
     }
