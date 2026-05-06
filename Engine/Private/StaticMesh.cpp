@@ -1,4 +1,4 @@
-﻿#include "StaticMesh.h"
+#include "StaticMesh.h"
 #include "ShaderCom.h"
 
 
@@ -15,7 +15,7 @@ StaticMesh::StaticMesh(const StaticMesh& prototype)
 
 HRESULT StaticMesh::Initialize_Prototype(const ModelMeshData& meshData, const Matrix& preTransformMatrix)
 {
-    strcpy_s(_name, meshData.name);
+    _name = meshData.name;
     _materialIndex = meshData.materialIndex;
     _preTransformMatrix = preTransformMatrix;
 

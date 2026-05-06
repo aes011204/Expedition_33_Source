@@ -1,6 +1,7 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "ModelSceneWindow.h"
 #include "ModelImGui_Manager.h"
+#include "GameInstance.h"
 
 NS_BEGIN(ModelEditor)
 
@@ -22,7 +23,26 @@ void ModelSceneWindow::Render()
     if (ImGui::Begin("Scene", &_showBlock, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse))
     {
         ImGuizmo::BeginFrame();
+
+        // 윈도우의 제목 표시줄 등을 제외한 실제 콘텐츠 영역의 위치와 크기 설정
+        ImVec2 windowPos = ImGui::GetWindowPos();
+        ImVec2 contentMin = ImGui::GetWindowContentRegionMin();
+        ImVec2 contentMax = ImGui::GetWindowContentRegionMax();
+        
+        float rectX = windowPos.x + contentMin.x;
+        float rectY = windowPos.y + contentMin.y;
+        float rectW = contentMax.x - contentMin.x;
+        float rectH = contentMax.y - contentMin.y;
+        
+        ImGuizmo::SetRect(rectX, rectY, rectW, rectH);
         ImGuizmo::SetDrawlist(ImGui::GetWindowDrawList());
+
+        Matrix view = *GAME->Get_Transform(D3DTS::View);
+        Matrix proj = *GAME->Get_Transform(D3DTS::Proj);
+        float gridMatrix[16];
+        XMStoreFloat4x4((XMFLOAT4X4*)gridMatrix, XMMatrixIdentity());
+
+        ImGuizmo::DrawGrid(reinterpret_cast<float*>(&view), reinterpret_cast<float*>(&proj), gridMatrix, 1000.f);
 
         Render_ViewportCanvas();
     }

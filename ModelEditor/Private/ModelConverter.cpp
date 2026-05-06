@@ -311,7 +311,7 @@ namespace ModelEditor
             Matrix currentTransform = Convert_Matrix(node->mTransformation);
 
             ModelBoneData boneData{};
-            strncpy_s(boneData.name, nodeName.c_str(), maxModelNameSize - 1);
+            boneData.name = nodeName;
             boneData.parentBoneIndex = parentBoneIndex;
             
             if (tempOffsetMap.contains(nodeName))
@@ -390,7 +390,7 @@ namespace ModelEditor
         {
             ModelMeshData meshData{};
             const aiMesh* aiMesh = aiScene->mMeshes[i];
-            strncpy_s(meshData.name, aiMesh->mName.C_Str(), maxModelNameSize - 1);
+            meshData.name = aiMesh->mName.C_Str();
             meshData.materialIndex = aiMesh->mMaterialIndex;
             meshData.numVertices = aiMesh->mNumVertices;
             meshData.numIndices = aiMesh->mNumFaces * 3;
@@ -439,7 +439,7 @@ namespace ModelEditor
                     if (false == _boneNameMap.contains(boneName))
                     {
                         ModelBoneData boneData{};
-                        strncpy_s(boneData.name, sizeof(boneData.name), boneName.c_str(), _TRUNCATE);
+                        boneData.name = boneName;
                         boneData.offsetMatrix = Convert_Matrix(aiBone->mOffsetMatrix);
                         boneData.localTransform = Matrix();
                         _boneNameMap[boneName] = static_cast<uint32>(_bones.size());
@@ -533,7 +533,7 @@ namespace ModelEditor
 			ModelMaterialData materialData{};
 			aiString materialName;
 			aiMaterial->Get(AI_MATKEY_NAME, materialName);
-			strncpy_s(materialData.name, materialName.C_Str(), maxModelNameSize - 1);
+			materialData.name = materialName.C_Str();
 
 			aiColor3D aiColor{};
 			if (AI_SUCCESS == aiMaterial->Get(AI_MATKEY_COLOR_DIFFUSE, aiColor))
@@ -575,7 +575,7 @@ namespace ModelEditor
 					ModelTextureSlot slot{};
 					slot.typeIndex = j;
 					slot.textureIndex = k;
-					strncpy_s(slot.path, fileName.c_str(), maxModelNameSize - 1);
+					slot.path = fileName;
 
 					slot.uvScale = Vec2{ uvTrans.mScaling.x != 0.f ? uvTrans.mScaling.x : 1.f, uvTrans.mScaling.y != 0.f ? uvTrans.mScaling.y : 1.f };
 					slot.uvOffset = Vec2{ uvTrans.mTranslation.x, uvTrans.mTranslation.y };
@@ -602,7 +602,7 @@ namespace ModelEditor
 		{
 			const aiAnimation* aiAnim = aiScene->mAnimations[i];
 			ModelAnimationData animData{};
-			strncpy_s(animData.name, aiAnim->mName.C_Str(), maxModelNameSize - 1);
+			animData.name = aiAnim->mName.C_Str();
 			animData.duration = aiAnim->mDuration;
 			animData.ticksPerSecond = aiAnim->mTicksPerSecond;
 			animData.numChannels = aiAnim->mNumChannels;
@@ -648,7 +648,7 @@ namespace ModelEditor
 			{
 				const aiNodeAnim* animNode = aiAnim->mChannels[j];
 				ModelChannelData channelData{};
-				strncpy_s(channelData.boneName, animNode->mNodeName.C_Str(), maxModelNameSize - 1);
+				channelData.boneName = animNode->mNodeName.C_Str();
 
 				// 본 배열 인덱스로 매핑 (노드 인덱스가 아님) 
 				auto boneIt = _boneNameMap.find(channelData.boneName);
@@ -698,6 +698,13 @@ namespace ModelEditor
         ofstream out(filePath, ios::binary);
         if (!out.is_open()) return E_FAIL;
 
+        auto WriteString = [](ofstream& out, const string& str) {
+            uint32 len = static_cast<uint32>(str.size());
+            out.write((char*)&len, sizeof(uint32));
+            if (len > 0)
+                out.write(str.c_str(), len);
+        };
+
         uint32 texSize = AI_TEXTURE_TYPE_MAX;
         uint32 numMaterials = static_cast<uint32>(_matHeaders.size());
         uint32 numMeshes = static_cast<uint32>(_meshHeaders.size());
@@ -711,12 +718,24 @@ namespace ModelEditor
 
         for (uint32 i = 0; i < numMaterials; ++i)
         {
-            out.write(BYTE(&_matHeaders[i]), sizeof(ModelMaterialData));
-            out.write(BYTE(_matSlots[i].data()), _matHeaders[i].numSlots * sizeof(ModelTextureSlot));
+            WriteString(out, _matHeaders[i].name);
+            out.write(BYTE(&_matHeaders[i].diffuseColor), sizeof(Vec4) * 4);
+            out.write(BYTE(&_matHeaders[i].shininess), sizeof(float) * 4);
+            out.write(BYTE(&_matHeaders[i].numSlots), sizeof(uint32));
+
+            for (uint32 j = 0; j < _matHeaders[i].numSlots; ++j)
+            {
+                WriteString(out, _matSlots[i][j].path);
+                out.write(BYTE(&_matSlots[i][j].typeIndex), sizeof(uint32) * 2);
+                out.write(BYTE(&_matSlots[i][j].uvScale), sizeof(Vec2) * 2);
+                out.write(BYTE(&_matSlots[i][j].uvRotation), sizeof(float) * 2);
+                out.write(BYTE(&_matSlots[i][j].blendOp), sizeof(uint32) * 3);
+            }
         }
         for (uint32 i = 0; i < numMeshes; ++i)
         {
-            out.write(BYTE(&_meshHeaders[i]), sizeof(ModelMeshData));
+            WriteString(out, _meshHeaders[i].name);
+            out.write(BYTE(&_meshHeaders[i].materialIndex), sizeof(uint32) * 4);
 
             if (_isSkeletal)
             {
@@ -737,7 +756,13 @@ namespace ModelEditor
         }
         if (numBones > 0)
         {
-            out.write(BYTE(_bones.data()), numBones * sizeof(ModelBoneData));
+            for (uint32 i = 0; i < numBones; ++i)
+            {
+                WriteString(out, _bones[i].name);
+                out.write(BYTE(&_bones[i].parentBoneIndex), sizeof(int32));
+                out.write(BYTE(&_bones[i].localTransform), sizeof(Matrix));
+                out.write(BYTE(&_bones[i].offsetMatrix), sizeof(Matrix));
+            }
         }
         out.close();
         return S_OK;
@@ -749,6 +774,13 @@ namespace ModelEditor
 
 		wstring animDir = outputDir + L"Animations/";
 		Ensure_DirectoryExists(animDir);
+
+        auto WriteString = [](ofstream& out, const string& str) {
+            uint32 len = static_cast<uint32>(str.size());
+            out.write((char*)&len, sizeof(uint32));
+            if (len > 0)
+                out.write(str.c_str(), len);
+        };
 
 		for (uint32 i = 0; i < _animHeaders.size(); ++i)
 		{
@@ -763,12 +795,19 @@ namespace ModelEditor
 				continue;
 			}
 
-			out.write(BYTE(&_animHeaders[i]), sizeof(ModelAnimationData));
+			WriteString(out, _animHeaders[i].name);
+			out.write(BYTE(&_animHeaders[i].duration), sizeof(double) * 2);
+			out.write(BYTE(&_animHeaders[i].numChannels), sizeof(uint32));
+			out.write(BYTE(&_animHeaders[i].rootTotalTranslation), sizeof(Vec3));
+			out.write(BYTE(&_animHeaders[i].rootTotalRotation), sizeof(Vec4));
 
 			uint32 numChannels = _animHeaders[i].numChannels;
 			for (uint32 j = 0; j < numChannels; ++j)
 			{
-				out.write(BYTE(&_channelHeaders[i][j]), sizeof(ModelChannelData));
+				WriteString(out, _channelHeaders[i][j].boneName);
+				out.write(BYTE(&_channelHeaders[i][j].boneIndex), sizeof(int32));
+				out.write(BYTE(&_channelHeaders[i][j].numKeyframes), sizeof(uint32));
+				
 				out.write(BYTE(_keyframes[i][j].data()), _channelHeaders[i][j].numKeyframes * sizeof(KEYFRAME));
 			}
 

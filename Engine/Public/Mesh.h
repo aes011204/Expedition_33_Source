@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "VIBuffer.h"
 #include "Engine_Model_Struct.h"
 
@@ -21,7 +21,7 @@ public:
     virtual HRESULT Bind_BoneMatrices(ShaderCom* shader, const char* constantName, const vector<Shared<Bone>>& bones) PURE;
 
 protected:
-    char	_name[maxModelNameSize]{};
+    string	_name;
     uint32	_materialIndex = {};
     Matrix  _preTransformMatrix{};
 

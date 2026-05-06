@@ -151,6 +151,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     case WM_DESTROY:
         PostQuitMessage(0);
         break;
+    case WM_MOUSEWHEEL:
+        GAME->Set_MouseWheel((float)GET_WHEEL_DELTA_WPARAM(wParam) / WHEEL_DELTA);
+        break;
     case WM_DPICHANGED:
     {
         const RECT* pRect = reinterpret_cast<const RECT*>(lParam);

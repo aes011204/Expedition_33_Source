@@ -1,4 +1,4 @@
-﻿#include "SkeletalMesh.h"
+#include "SkeletalMesh.h"
 
 #include "Bone.h"
 #include "ShaderCom.h"
@@ -13,7 +13,7 @@ SkeletalMesh::SkeletalMesh(const SkeletalMesh& prototype)
 
 HRESULT SkeletalMesh::Initialize_Prototype(const ModelMeshData& meshData, const Matrix& preTransformMatrix)
 {
-    strcpy_s(_name, meshData.name);
+    _name = meshData.name;
     _materialIndex = meshData.materialIndex;
     _preTransformMatrix = preTransformMatrix;
 

@@ -43,14 +43,16 @@ void ModelInspector::Render()
 		Scan_ModelFiles(_resourcePath);
 	}
 
+    ImGui::Separator();
+    Render_TransformControl();
+
 	ImGui::Separator();
 	Render_ModelList();
 
 	ImGui::Separator();
 	Render_AnimList();
 
-    ImGui::Separator();
-    Render_TransformControl();
+
 
 	ImGui::End();
 }
@@ -122,13 +124,46 @@ void ModelInspector::Render_ModelList()
 void ModelInspector::Render_AnimList()
 {
 	ImGui::Text("Animations (.anim)");
+
+    auto viewer = ModelImGui_Manager::GetInstance()->Get_CurrentModelObject();
+
+    // Toggles and Dropdown for Animation Settings
+    ImGui::Checkbox("Loop", &_isLoop);
+    ImGui::SameLine();
+    ImGui::Checkbox("Root Motion", &_isRootMotion);
+    ImGui::SameLine();
+
+    // Root Node Selection Dropdown
+    if (viewer && viewer->Get_ModelComponent())
+    {
+        uint32 numBones = viewer->Get_NumBones();
+        string currentBoneName = (_rootNodeIndex == -1) ? "None" : viewer->Get_BoneName(_rootNodeIndex);
+
+        ImGui::SetNextItemWidth(150.0f);
+        if (ImGui::BeginCombo("Root Node", currentBoneName.c_str()))
+        {
+            if (ImGui::Selectable("None", _rootNodeIndex == -1))
+                _rootNodeIndex = -1;
+
+            for (uint32 i = 0; i < numBones; ++i)
+            {
+                const char* boneName = viewer->Get_BoneName(i);
+                bool isSelected = (_rootNodeIndex == (int32)i);
+                if (ImGui::Selectable(boneName, isSelected))
+                {
+                    _rootNodeIndex = (int32)i;
+                    viewer->Set_RootNode(_rootNodeIndex);
+                }
+            }
+            ImGui::EndCombo();
+        }
+    }
+
 	ImGuiWindowFlags windowFlags = ImGuiWindowFlags_HorizontalScrollbar;
 	ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.15f, 0.15f, 0.15f, 1.0f));
 
 	if (ImGui::BeginChild("AnimListRegion", ImVec2(0, 150), true, windowFlags))
 	{
-        auto viewer = ModelImGui_Manager::GetInstance()->Get_CurrentModelObject();
-
         if (!viewer || !viewer->Get_Component<ModelCom>())
         {
             ImGui::EndChild();
@@ -138,8 +173,6 @@ void ModelInspector::Render_AnimList()
 
         if (viewer && viewer->Is_Skeletal())
         {
-          
-
             uint32 numAnims = viewer->Get_NumAnimations();
             for (uint32 i = 0; i < numAnims; ++i)
             {
@@ -152,7 +185,7 @@ void ModelInspector::Render_AnimList()
                 {
                     _selectedAnimIndex = i;
 
-                    viewer->Play_Animation(i, 0.2f, true, false);
+                    viewer->Play_Animation(i, 0.1f, _isLoop, _isRootMotion);
                 }
             }
         }
