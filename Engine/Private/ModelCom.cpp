@@ -130,6 +130,40 @@ HRESULT ModelCom::Bind_BoneMatrices(ShaderCom* shader, const char* constantName,
     return _meshes[meshIndex]->Bind_BoneMatrices(shader, constantName, _bones);    
 }
 
+bool ModelCom::Try_Get_LocalBounds(Vec3& outMin, Vec3& outMax) const
+{
+    if (_aiScene == nullptr || _aiScene->mNumMeshes == 0 || _aiScene->mMeshes == nullptr)
+        return false;
+
+    bool hasBounds = false;
+    Vec3 minValue = Vec3(FLT_MAX, FLT_MAX, FLT_MAX);
+    Vec3 maxValue = Vec3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
+
+    for (uint32 i = 0; i < _aiScene->mNumMeshes; ++i)
+    {
+        const aiMesh* mesh = _aiScene->mMeshes[i];
+        if (mesh == nullptr)
+            continue;
+
+        const aiAABB& aabb = mesh->mAABB;
+        minValue.x = min(minValue.x, aabb.mMin.x);
+        minValue.y = min(minValue.y, aabb.mMin.y);
+        minValue.z = min(minValue.z, aabb.mMin.z);
+
+        maxValue.x = max(maxValue.x, aabb.mMax.x);
+        maxValue.y = max(maxValue.y, aabb.mMax.y);
+        maxValue.z = max(maxValue.z, aabb.mMax.z);
+        hasBounds = true;
+    }
+
+    if (!hasBounds)
+        return false;
+
+    outMin = minValue;
+    outMax = maxValue;
+    return true;
+}
+
 
 
 HRESULT ModelCom::Ready_Meshes()

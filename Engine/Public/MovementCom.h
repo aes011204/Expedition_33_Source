@@ -20,9 +20,6 @@ public:
         float jumpVelocity = 8.f;
 
         float gravity = -20.f;
-
-        // 아직 groundY 추적이 안되니까 임시로 0으로 세팅
-        float groundY = 0.f;
     };
 
     // 플레이어는 InputCom에서 들어온 값으로 세팅
@@ -47,13 +44,11 @@ public:
 
     void    Update_Movement(float timeDelta);
 
+    
+
 public:
     void Apply_Input(const MoveInput& input) { _input = input; }
-
-    void Set_Transform(const Shared<TransformCom> transform)
-    {
-        _transformCom = transform;
-    }
+    void Set_Transform(const Shared<TransformCom> transform) { _transformCom = transform; }
 
     const MoveDesc& Get_MoveDesc()      { return _moveDesc; }
     const MoveInput& Get_MoveInput()    { return _input;}
@@ -74,6 +69,12 @@ public:
     void Stop_HorizontalMovement();
     void Stop_VerticalMovement();
 
+    Vec3 Get_Velocity() { return _velocity; }
+    void Set_Velocity(const Vec3& velocity) { _velocity = velocity; }
+
+    void Set_Groundded(bool grounded) { _isGrounded = grounded; }
+    void Land(float groundedY);
+
 private:
     void Start_Jump();
 
@@ -82,7 +83,11 @@ private:
     void Update_VerticalVelocity(float timeDelta);
     void Apply_Velocity(float timeDelta);
 
+    Vec3 Calculate_MoveDelta(float timeDelta);
+
     void Resolve_Ground();
+
+    bool Resolve_CameraRelativeMoveDirection(Vec3& outWorldDir) const;
 
 private:
     MoveDesc    _moveDesc{};

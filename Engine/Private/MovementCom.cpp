@@ -1,6 +1,7 @@
 ﻿#include "MovementCom.h"
 #include "GameObject.h"
 #include "TransformCom.h"
+#include "Camera.h"
 
 IMPLEMENT_REFLECTION(MovementCom)
 {
@@ -70,8 +71,8 @@ void MovementCom::Update_Movement(float timeDelta)
     Update_Rotation(timeDelta);
     Start_Jump();
 
-    Apply_Velocity(timeDelta);
-    Resolve_Ground();
+    Update_HorizontalVelocity();
+    Update_VerticalVelocity(timeDelta);
 }
 
 bool MovementCom::Is_Moving() const
@@ -109,6 +110,19 @@ void MovementCom::Stop_VerticalMovement()
     _velocity.y = 0.f;
 }
 
+void MovementCom::Land(float groundedY)
+{
+    CHECK_NULL(_transformCom);
+
+    Vec3 position = _transformCom->Get_WorldPosition();
+    position.y = groundedY;
+    _transformCom->Set_WorldPosition(position);
+
+    _velocity.y = 0.f;
+    _isGrounded = true;
+    _isJumping = false;
+}
+
 void MovementCom::Start_Jump()
 {
     CHECK_NULL(_transformCom);
@@ -127,12 +141,9 @@ void MovementCom::Start_Jump()
 
 void MovementCom::Update_Rotation(float timeDelta)
 {
-    // y값은 제거
-    Vec3 desiredDir(_input.moveX, 0.f, _input.moveZ);
-    if (desiredDir.LengthSquared() <= 0.f)
+    Vec3 desiredDir = Vec3::Zero;
+    if (!Resolve_CameraRelativeMoveDirection(desiredDir))
         return;
-
-    desiredDir.Normalize();
 
     Vec3 forward = _transformCom->Get_WorldForward();
     forward.y = 0.f;
@@ -140,7 +151,7 @@ void MovementCom::Update_Rotation(float timeDelta)
     if (forward.LengthSquared() > 0.f)
         forward.Normalize();
     else
-        forward = Vec3::Forward;
+        forward = Vec3::Look;
 
     float dot = forward.Dot(desiredDir);
     dot = std::clamp(dot, -1.f, 1.f);
@@ -153,7 +164,7 @@ void MovementCom::Update_Rotation(float timeDelta)
     float sign = (cross.y >= 0.f) ? 1.f : -1.f;
 
     const float maxStep = XMConvertToRadians(_moveDesc.turnSpeedDegree) * timeDelta;
-    const float step = min(angle, maxStep); // -> 라디안값
+    const float step = min(angle, maxStep);
 
     Quat deltaRotation = Quat::CreateFromAxisAngle(Vec3::Up, step * sign);
     _transformCom->Add_LocalRotation(deltaRotation);
@@ -161,27 +172,18 @@ void MovementCom::Update_Rotation(float timeDelta)
 
 void MovementCom::Update_HorizontalVelocity()
 {
-    Vec3 desiredDir(_input.moveX, 0.f, _input.moveZ);
-
-    if (desiredDir.LengthSquared() <= 0.f)
+    Vec3 desiredDir = Vec3::Zero;
+    if (!Resolve_CameraRelativeMoveDirection(desiredDir))
     {
         _velocity.x = 0.f;
         _velocity.z = 0.f;
         return;
     }
 
-    Vec3 forward = _transformCom->Get_WorldForward();
-    forward.y = 0.f;
-
-    if (forward.LengthSquared() > 0.f)
-        forward.Normalize();
-    else
-        forward = Vec3::Forward;
-
     const float moveSpeed = _input.isRunPressed ? _moveDesc.runSpeed : _moveDesc.walkSpeed;
 
-    _velocity.x = forward.x * moveSpeed;
-    _velocity.z = forward.z * moveSpeed;
+    _velocity.x = desiredDir.x * moveSpeed;
+    _velocity.z = desiredDir.z * moveSpeed;
 }
 
 void MovementCom::Update_VerticalVelocity(float timeDelta)
@@ -202,6 +204,11 @@ void MovementCom::Apply_Velocity(float timeDelta)
     _transformCom->Set_WorldPosition(position);
 }
 
+Vec3 MovementCom::Calculate_MoveDelta(float timeDelta)
+{
+    return _velocity * timeDelta;
+}
+
 void MovementCom::Resolve_Ground()
 {
     Vec3 position = _transformCom->Get_WorldPosition();
@@ -215,6 +222,51 @@ void MovementCom::Resolve_Ground()
     _velocity.y = 0.f;
     _isGrounded = true;
     _isJumping = false;
+}
+
+bool MovementCom::Resolve_CameraRelativeMoveDirection(Vec3& outWorldDir) const
+{
+    outWorldDir = Vec3::Zero;
+
+    Vec2 moveAxis(_input.moveX, _input.moveZ);
+    if (moveAxis.LengthSquared() <= 0.f)
+        return false;
+
+    if (moveAxis.LengthSquared() > 1.f)
+        moveAxis.Normalize();
+
+    Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
+    if (activeCamera == nullptr)
+        return false;
+
+    Shared<TransformCom> cameraTransform = activeCamera->Get_Transform();
+    if (cameraTransform == nullptr)
+        return false;
+
+    Vec3 cameraForward = cameraTransform->Get_WorldForward();
+    Vec3 cameraRight = cameraTransform->Get_WorldRight();
+
+    cameraForward.y = 0.f;
+    cameraRight.y = 0.f;
+
+    if (cameraForward.LengthSquared() > 0.f)
+        cameraForward.Normalize();
+    else
+        cameraForward = Vec3::Look;
+
+    if (cameraRight.LengthSquared() > 0.f)
+        cameraRight.Normalize();
+    else
+        cameraRight = Vec3::Right;
+
+    outWorldDir = cameraRight * moveAxis.x + cameraForward * moveAxis.y;
+    outWorldDir.y = 0.f;
+
+    if (outWorldDir.LengthSquared() <= 0.f)
+        return false;
+
+    outWorldDir.Normalize();
+    return true;
 }
 
 Shared<MovementCom> MovementCom::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

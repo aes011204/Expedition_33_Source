@@ -35,6 +35,7 @@ private:
 
     ImGuizmo::OPERATION _gizmoOperation = ImGuizmo::TRANSLATE;
     ImGuizmo::MODE _gizmoMode = ImGuizmo::LOCAL;
+    bool _altDuplicateActive = false;
     /* MRT 디버그 전체 드로우 영역 크기. */
     ImVec2 _mrtDebugDrawArea = ImVec2(0.f, 0.f);
     /* DrawArea 기본값을 씬 뷰 크기로 한 번만 동기화했는지 여부. */

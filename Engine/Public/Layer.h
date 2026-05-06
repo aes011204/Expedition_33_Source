@@ -14,6 +14,7 @@ public:
 
 public:
 	HRESULT Add_GameObject(Shared<GameObject> gameObject);
+    bool    Remove_GameObject(const Shared<GameObject>& gameObject);
 	void    Priority_Update(float timeDelta);
 	void    Update(float timeDelta);
 	void    Late_Update(float timeDelta);

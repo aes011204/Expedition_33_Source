@@ -29,6 +29,7 @@ public:
 
     // 프리펩 소환용
     HRESULT Add_GameObject(uint32 layerLevelIndex, const wstring& layerTag, const Shared<GameObject>& gameObject);
+    bool    Remove_GameObject(uint32 levelIndex, const Shared<GameObject>& gameObject);
 
     Shared<GameObject> Find_FirstObject(uint32 levelIndex, const wstring& layerTag);
 

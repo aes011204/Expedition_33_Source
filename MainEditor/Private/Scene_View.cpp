@@ -426,12 +426,31 @@ void Scene_View::Render_SelectedObjectGizmo()
     ImGuizmo::SetOrthographic(false);
     ImGuizmo::SetRect(_viewportMin.x, _viewportMin.y, viewportWidth, viewportHeight);
 
+    const bool altPressed = ImGui::IsKeyDown(ImGuiKey_LeftAlt) || ImGui::IsKeyDown(ImGuiKey_RightAlt);
+    if (altPressed && ImGuizmo::IsOver() && ImGui::IsMouseDragging(ImGuiMouseButton_Left) && !_altDuplicateActive)
+    {
+        Shared<GameObject> duplicatedObject = EDITOR->Duplicate_SelectedObject();
+        if (duplicatedObject == nullptr)
+            return;
+
+        selectedObject = duplicatedObject;
+        transform = selectedObject->Get_Transform();
+        if (transform == nullptr)
+            return;
+
+        worldMatrix = transform->Get_WorldMatrix();
+        _altDuplicateActive = true;
+    }
+
     const bool manipulated = ImGuizmo::Manipulate(
         reinterpret_cast<float*>(const_cast<Matrix*>(viewMatrix)),
         reinterpret_cast<float*>(const_cast<Matrix*>(projMatrix)),
         _gizmoOperation,
         _gizmoMode,
         reinterpret_cast<float*>(&worldMatrix));
+
+    if (!altPressed || !ImGui::IsMouseDown(ImGuiMouseButton_Left))
+        _altDuplicateActive = false;
 
     if (!manipulated)
         return;

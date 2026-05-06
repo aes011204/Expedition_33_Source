@@ -7,11 +7,9 @@ class GameObject;
 class RenderTarget;
 NS_END
 
-NS_BEGIN(Client)
-class FreeCamera;
-NS_END
-
 NS_BEGIN(MainEditor)
+
+class Editor_Camera_Free;
 
 class Prefab_View : public Editor_Window
 {
@@ -51,8 +49,7 @@ private:
     void Ensure_PreviewRenderTarget(uint32 width, uint32 height);
     void Ensure_PreviewGridResources();
     void Reset_PreviewCameraPose();
-    void Update_PreviewCameraInput();
-    void Update_PreviewCameraTransform();
+    void Lock_PreviewObjectToOrigin();
     void Draw_PreviewGrid() const;
 
 private:
@@ -64,19 +61,11 @@ private:
 
     Shared<GameObject>  _previewObject{};
     Shared<RenderTarget> _previewRenderTarget{};
-    Shared<Client::FreeCamera> _previewCamera{};
+    Shared<Editor_Camera_Free> _previewCamera{};
     Shared<DirectX::PrimitiveBatch<DirectX::VertexPositionColor>> _previewGridBatch{};
     Shared<DirectX::BasicEffect> _previewGridEffect{};
     ComPtr<ID3D11InputLayout> _previewGridInputLayout{};
     ComPtr<ID3D11DepthStencilState> _previewGridDepthState{};
-
-    Vec3                _previewFocusTarget = Vec3::Zero;
-    float               _previewYaw = 180.f;
-    float               _previewPitch = 10.f;
-    float               _previewDistance = 5.f;
-    float               _previewOrbitSpeed = 0.2f;
-    float               _previewZoomSpeed = 0.8f;
-    float               _previewMoveSpeed = 5.f;
 
     bool                _isPreviewHovered = false;
     bool                _isPreviewActive = false;

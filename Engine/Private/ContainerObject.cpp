@@ -89,6 +89,15 @@ PartObject* ContainerObject::Find_PartObject(const wstring& partTag)
 	return iter->second.get();
 }
 
+PartObject* ContainerObject::Get_PartObject(const wstring& partTag) const
+{
+    auto iter = _partObjects.find(partTag);
+    if (iter == _partObjects.end())
+        return nullptr;
+
+    return iter->second.get();
+}
+
 void ContainerObject::Free()
 {
 	__super::Free();

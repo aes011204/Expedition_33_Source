@@ -19,6 +19,7 @@ public:
 private:
     void    Draw_SearchBar();
     void    Rebuild_Cache();
+    void    Handle_Shortcuts();
     bool    Pass_SearchFilter(const Shared<GameObject>& gameObject, uint32 objectIndex) const;
     uint32  Get_TotalObjectCount() const;
 

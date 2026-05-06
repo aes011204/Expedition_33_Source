@@ -4,10 +4,13 @@
 #include "GameInstance.h"
 #include "GameObject.h"
 #include "Component.h"
+#include "ContainerObject.h"
+#include "PartObject.h"
+#include "Editor_Camera_Free.h"
 #include "Inspector.h"
 #include "Helper_String.h"
+#include "ModelCom.h"
 #include "RenderTarget.h"
-#include "FreeCamera.h"
 #include <algorithm>
 
 Prefab_View::Prefab_View()
@@ -20,7 +23,8 @@ void Prefab_View::Update(float timeDelta)
 {
     Editor_Window::Update(timeDelta);
 
-    Update_PreviewCameraInput();
+    if (_isPreviewHovered && _previewCamera)
+        _previewCamera->Priority_Update(timeDelta);
 }
 
 void Prefab_View::Pre_Render()
@@ -47,19 +51,14 @@ void Prefab_View::Pre_Render()
     const Matrix savedProj = *GAME->Get_Transform(D3DTS::Proj);
     vector<LIGHT_DESC> savedLightDescs{};
     GAME->Get_LightDescs(savedLightDescs);
-
-    Shared<TransformCom> cameraTransform = _previewCamera->Get_Transform();
-    if (cameraTransform == nullptr)
-        return;
-
-    Update_PreviewCameraTransform();
+    const bool wasPlayerInputBlocked = GAME->Is_PlayerInputBlocked();
 
     if (FAILED(_previewRenderTarget->Begin(true, true)))
         return;
 
-    const Matrix previewView = XMMatrixInverse(nullptr, cameraTransform->Get_WorldMatrix());
+    const Matrix previewView = _previewCamera->Get_ViewMatrix();
     const float aspect = static_cast<float>(_previewWidth) / static_cast<float>(max(1u, _previewHeight));
-    const Matrix previewProj = XMMatrixPerspectiveFovLH(XM_PIDIV4, aspect, 0.1f, 100.f);
+    const Matrix previewProj = XMMatrixPerspectiveFovLH(_previewCamera->Get_FovY(), aspect, _previewCamera->Get_Near(), _previewCamera->Get_Far());
 
     GAME->Set_Transform(D3DTS::View, const_cast<Matrix&>(previewView));
     GAME->Set_Transform(D3DTS::Proj, const_cast<Matrix&>(previewProj));
@@ -86,14 +85,17 @@ void Prefab_View::Pre_Render()
     GAME->Set_Lights(previewLightDescs);
 
     const float dt = ImGui::GetIO().DeltaTime;
+    GAME->Set_PlayerInputBlocked(true);
 
     _previewObject->Priority_Update(dt);
     _previewObject->Update(dt);
     _previewObject->Late_Update(dt);
+    Lock_PreviewObjectToOrigin();
 
     GAME->Draw_RendererOnly();
     Draw_PreviewGrid();
     GAME->Set_Lights(savedLightDescs);
+    GAME->Set_PlayerInputBlocked(wasPlayerInputBlocked);
 
     GAME->Bind_BackBuffer();
 
@@ -203,12 +205,11 @@ void Prefab_View::Open_Prefab(const string& prefabName, const fs::path& prefabPa
         if (_sourceStaticClass.empty())
             _sourceStaticClass = String::ToString(_previewObject->Get_Name());
 
-        Shared<GameObject> cameraObject = GAME->Create_GameObjectPrototype("FreeCamera");
-        _previewCamera = dynamic_pointer_cast<Client::FreeCamera>(cameraObject);
+        _previewCamera = Editor_Camera_Free::Create(GAME->Get_Device(), GAME->Get_Context());
 
         if (_previewCamera)
         {
-            Client::FreeCamera::FREECAMERA_DESC desc{};
+            Editor_Camera_Free::EDITOR_CAMERA_DESC desc{};
             desc.eye = XMFLOAT4(0.f, 1.5f, -5.f, 1.f);
             desc.at = XMFLOAT4(0.f, 0.f, 0.f, 1.f);
             desc.fovy = XM_PIDIV4;
@@ -222,14 +223,11 @@ void Prefab_View::Open_Prefab(const string& prefabName, const fs::path& prefabPa
 
             if (FAILED(_previewCamera->Initialize(&desc)))
                 _previewCamera = nullptr;
+            else
+                _previewCamera->Apply_EditorDesc(desc);
         }
 
-        _previewYaw = 180.f;
-        _previewPitch = 10.f;
-        _previewDistance = 5.f;
-        _previewOrbitSpeed = 0.2f;
-        _previewZoomSpeed = 0.8f;
-        _previewMoveSpeed = 5.f;
+        Lock_PreviewObjectToOrigin();
 
         Reset_PreviewCameraPose();
         Ensure_PreviewGridResources();
@@ -260,11 +258,6 @@ void Prefab_View::Close_Prefab()
     _previewWidth = 512;
     _previewHeight = 512;
     _previewHasBegunPlay = false;
-    _previewFocusTarget = Vec3::Zero;
-    _previewYaw = 180.f;
-    _previewPitch = 10.f;
-    _previewDistance = 5.f;
-    _previewMoveSpeed = 5.f;
     _isPreviewHovered = false;
     _isPreviewActive = false;
     _applyDefaultWindowLayout = false;
@@ -617,106 +610,66 @@ void Prefab_View::Reset_PreviewCameraPose()
     if (_previewObject == nullptr || _previewCamera == nullptr)
         return;
 
-    Shared<TransformCom> targetTransform = _previewObject->Get_Transform();
-    if (targetTransform == nullptr)
-        return;
+    Editor_Camera_Free::EDITOR_CAMERA_DESC desc{};
+    desc.eye = XMFLOAT4(0.f, 1.5f, -5.f, 1.f);
+    desc.at = XMFLOAT4(0.f, 0.f, 0.f, 1.f);
+    desc.fovy = XM_PIDIV4;
+    desc.nearPlane = 0.1f;
+    desc.farPlane = 100.f;
+    desc.yaw = 0.f;
+    desc.pitch = 0.f;
+    desc.mouseSensor = 0.15f;
+    desc.speedPerSec = 5.f;
+    desc.degreePerSec = 180.f;
 
-    _previewFocusTarget = targetTransform->Get_WorldPosition();
-
-    Update_PreviewCameraTransform();
+    _previewCamera->Apply_EditorDesc(desc);
 }
 
-void Prefab_View::Update_PreviewCameraInput()
+void Prefab_View::Lock_PreviewObjectToOrigin()
 {
-    if (_previewCamera == nullptr)
+    if (_previewObject == nullptr)
         return;
 
-    if (!_isPreviewHovered)
+    Shared<TransformCom> previewTransform = _previewObject->Get_Transform();
+    if (previewTransform == nullptr)
         return;
 
-    const ImGuiIO& io = ImGui::GetIO();
-    Shared<TransformCom> cameraTransform = _previewCamera->Get_Transform();
-    if (cameraTransform == nullptr)
-        return;
+    Vec3 desiredPosition = Vec3::Zero;
+    bool alignedFromBody = false;
 
-    if (ImGui::IsMouseDown(ImGuiMouseButton_Right))
+    Shared<ContainerObject> container = dynamic_pointer_cast<ContainerObject>(_previewObject);
+    if (container)
     {
-        Vec3 moveDir = Vec3::Zero;
-
-        Vec3 forward = cameraTransform->Get_WorldForward();
-        forward.y = 0.f;
-        if (forward.LengthSquared() > 0.0001f)
-            forward.Normalize();
-
-        Vec3 right = cameraTransform->Get_WorldRight();
-        right.y = 0.f;
-        if (right.LengthSquared() > 0.0001f)
-            right.Normalize();
-
-        if (ImGui::IsKeyDown(ImGuiKey_W))
-            moveDir += forward;
-
-        if (ImGui::IsKeyDown(ImGuiKey_S))
-            moveDir -= forward;
-
-        if (ImGui::IsKeyDown(ImGuiKey_D))
-            moveDir += right;
-
-        if (ImGui::IsKeyDown(ImGuiKey_A))
-            moveDir -= right;
-
-        if (moveDir.LengthSquared() > 0.0001f)
+        PartObject* bodyPart = container->Get_PartObject(TEXT("Part_Body"));
+        if (bodyPart != nullptr)
         {
-            moveDir.Normalize();
-            _previewFocusTarget += moveDir * (_previewMoveSpeed * io.DeltaTime);
-            Update_PreviewCameraTransform();
+            Shared<TransformCom> bodyTransform = bodyPart->Get_Transform();
+            Shared<ModelCom> bodyModel = bodyPart->Get_Component<ModelCom>();
+
+            if (bodyTransform && bodyModel)
+            {
+                Vec3 localMin{};
+                Vec3 localMax{};
+                if (bodyModel->Try_Get_LocalBounds(localMin, localMax))
+                {
+                    const Vec3 bodyPosition = bodyTransform->Get_WorldPosition();
+                    const Vec3 localCenter = (localMin + localMax) * 0.5f;
+
+                    desiredPosition.x = -(bodyPosition.x + localCenter.x);
+                    desiredPosition.y = -(bodyPosition.y + localMin.y);
+                    desiredPosition.z = -(bodyPosition.z + localCenter.z);
+                    alignedFromBody = true;
+                }
+            }
         }
     }
 
-    if (ImGui::IsMouseDragging(ImGuiMouseButton_Right))
+    if (!alignedFromBody)
     {
-        _previewYaw += io.MouseDelta.x * _previewOrbitSpeed;
-        _previewPitch -= io.MouseDelta.y * _previewOrbitSpeed;
-        _previewPitch = std::clamp(_previewPitch, -80.f, 80.f);
-
-        Update_PreviewCameraTransform();
+        desiredPosition = Vec3::Zero;
     }
 
-    if (io.MouseWheel != 0.f)
-    {
-        _previewDistance -= io.MouseWheel * _previewZoomSpeed;
-        _previewDistance = std::clamp(_previewDistance, 1.5f, 30.f);
-
-        Update_PreviewCameraTransform();
-    }
-}
-
-void Prefab_View::Update_PreviewCameraTransform()
-{
-    if (_previewCamera == nullptr)
-        return;
-
-    Shared<TransformCom> cameraTransform = _previewCamera->Get_Transform();
-    if (cameraTransform == nullptr)
-        return;
-
-    const float yawRad = XMConvertToRadians(_previewYaw);
-    const float pitchRad = XMConvertToRadians(_previewPitch);
-
-    Vec3 offset{};
-    offset.x = cosf(pitchRad) * sinf(yawRad);
-    offset.y = sinf(pitchRad);
-    offset.z = cosf(pitchRad) * cosf(yawRad);
-    offset.Normalize();
-
-    const Vec3 cameraPos = _previewFocusTarget - offset * _previewDistance;
-
-    cameraTransform->Set_WorldPosition(cameraPos);
-    cameraTransform->LookAt(_previewFocusTarget);
-
-    const Vec3 euler = cameraTransform->Get_RotationEuler();
-    _previewCamera->Set_Yaw(euler.y);
-    _previewCamera->Set_Pitch(euler.x);
+    previewTransform->Set_WorldPosition(desiredPosition);
 }
 
 void Prefab_View::Draw_PreviewGrid() const

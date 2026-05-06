@@ -90,6 +90,35 @@ HRESULT Object_Manager::Add_GameObject(uint32 layerLevelIndex, const wstring& la
     return S_OK;
 }
 
+bool Object_Manager::Remove_GameObject(uint32 levelIndex, const Shared<GameObject>& gameObject)
+{
+    if (gameObject == nullptr || levelIndex >= _numLevels)
+        return false;
+
+    auto& layers = _layers[levelIndex];
+    for (auto iter = layers.begin(); iter != layers.end(); )
+    {
+        Shared<Layer>& layer = iter->second;
+        bool removed = false;
+
+        if (layer != nullptr)
+            removed = layer->Remove_GameObject(gameObject);
+
+        if (layer != nullptr && layer->Get_GameObjects().empty())
+            iter = layers.erase(iter);
+        else
+            ++iter;
+
+        if (removed)
+        {
+            ++_objectRevision;
+            return true;
+        }
+    }
+
+    return false;
+}
+
 void Object_Manager::Priority_Update(float timeDelta)
 {
 	for (auto& layers : _layers)

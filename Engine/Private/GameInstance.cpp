@@ -20,6 +20,7 @@
 #include "Target_Manager.h"
 #include "Shadow.h"
 #include "Picking.h"
+#include "ColliderCom.h"
 
 #ifdef _DEBUG
 #include "Print_Manager.h"
@@ -135,11 +136,15 @@ void GameInstance::Update_Engine(float timeDelta)
 
     _objectManager->Update(timeDelta);
 
+    _physxManager->Begin_Frame();
     _collisionManager->Clear_Colliders();
     _objectManager->Late_Update(timeDelta);
-    _collisionManager->Update();
 
     _physxManager->Update(timeDelta);
+
+    vector<PhysXPairEvent> events;
+    _physxManager->Gather_FrameEvents(events);
+    _collisionManager->Update_FromPhysX(events);
 
     _cameraManager->Update(timeDelta);
 }
@@ -463,6 +468,11 @@ HRESULT GameInstance::Add_GameObject(uint32 layerLevelIndex, const wstring& laye
     return _objectManager->Add_GameObject(layerLevelIndex, layerTag, gameObject);
 }
 
+bool GameInstance::Remove_GameObject(uint32 levelIndex, const Shared<GameObject>& gameObject)
+{
+    return _objectManager->Remove_GameObject(levelIndex, gameObject);
+}
+
 Shared<GameObject> GameInstance::Find_FirstObject(uint32 levelIndex, const wstring& layerTag)
 {
     return _objectManager->Find_FirstObject(levelIndex, layerTag);
@@ -743,7 +753,19 @@ Shared<Base> GameInstance::Create_BTNodePrototype(const string& className) const
 
 void GameInstance::Add_Collider(Shared<ColliderCom> collider)
 {
-    return _collisionManager->Add_Collider(collider);
+    CHECK_NULL(collider);
+    CHECK_NULL(_collisionManager);
+    CHECK_NULL(_physxManager);
+
+    _collisionManager->Add_Collider(collider);
+
+    Shared<GameObject> owner = collider->Get_Owner();
+    CHECK_NULL(owner);
+
+    Shared<TransformCom> transform = owner->Get_Transform();
+    CHECK_NULL(transform);
+
+    _physxManager->Register_OrSync_Collider(collider, transform->Get_WorldMatrix());
 }
 
 void GameInstance::Clear_Colliders()

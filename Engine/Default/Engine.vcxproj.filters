@@ -212,6 +212,10 @@
     <ClInclude Include="..\Public\Shadow.h">
       <Filter>01.Utility\07.Lights</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\PhysX_Filter.h">
+      <Filter>97. Manager\PhysX</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\PhysX_Types.h" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\public\Base.h">
@@ -695,6 +699,9 @@
     </ClCompile>
     <ClCompile Include="..\Private\Print_Manager.cpp" />
     <ClCompile Include="..\Private\Picking.cpp" />
+    <ClCompile Include="..\Private\PhysX_Filter.cpp">
+      <Filter>97. Manager\PhysX</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Bin\ShaderFiles\Engine_Shader_Defines.hlsli">

@@ -124,4 +124,17 @@ struct DamageEvent
     float damage = 1.f;
     Shared<GameObject> causer; // 때린 놈
 };
+
+struct ColliderShapeDesc
+{
+    CollisionShape shape = CollisionShape::AABB;
+
+    Vec3 center = Vec3::Zero;
+    Vec3 extents = Vec3(0.5f, 0.5f, 0.5f);
+    Vec3 radians = Vec3::Zero;
+
+    float radius = 0.5f;
+
+};
+
 }

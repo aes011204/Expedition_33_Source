@@ -121,8 +121,9 @@ public: /* For.Object_Manager */
         uint32 layerLevelIndex,
         const wstring& layerTag,
         const Shared<GameObject>& gameObject);
+    bool    Remove_GameObject(uint32 levelIndex, const Shared<GameObject>& gameObject);
 
-    // ex) Layer_Player의 첫번째 오브젝트 찾기
+    // Layer_Player의 첫번째 오브젝트 찾기
     Shared<GameObject> Find_FirstObject(uint32 levelIndex, const wstring& layerTag);
 
     // 특정 레벨의 레이어에 있는 모든 오브젝트 순회 -> 에디터에서 사용

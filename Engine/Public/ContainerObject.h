@@ -36,6 +36,10 @@ protected:
 	PartObject* Find_PartObject(const wstring& partTag);
 
 public:
+    PartObject* Get_PartObject(const wstring& partTag) const;
+
+
+public:
 	virtual Shared<GameObject> Clone(void* arg) = 0;
 	virtual void Free() override;
 };

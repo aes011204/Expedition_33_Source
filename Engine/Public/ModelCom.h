@@ -35,6 +35,7 @@ public:
 public:
 	HRESULT Bind_Material(class ShaderCom* shader, const char* constantName, uint32 meshIndex, aiTextureType materialType, uint32 textureIndex = 0);
 	HRESULT Bind_BoneMatrices(class ShaderCom* shader, const char* constantName, uint32 meshIndex);
+    bool Try_Get_LocalBounds(Vec3& outMin, Vec3& outMax) const;
 
 private:
 	const aiScene*				_aiScene = { nullptr };
