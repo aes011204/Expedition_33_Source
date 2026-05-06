@@ -4,6 +4,7 @@
 #include "FreeCamera.h"
 #include "TargetCamera.h"
 #include "PointParticlePreview.h"
+#include "MapLoader.h"
 
 Level_GamePlay::Level_GamePlay(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Level{ device, context }
@@ -26,6 +27,8 @@ HRESULT Level_GamePlay::Initialize()
 
     if (FAILED(Ready_Layer_Monster(TEXT("Layer_Monster"))))
         return E_FAIL;
+
+    CHECK_FAILED(Ready_Layer_MapStaticMesh(L"Layer_MapStaticMesh"), E_FAIL);
 
     return S_OK;
 }
@@ -187,6 +190,14 @@ HRESULT Level_GamePlay::Ready_Layer_Player(const wstring& strLayerTag)
             tr->Set_Position(pos);
         }
     }
+
+    return S_OK;
+}
+
+HRESULT Level_GamePlay::Ready_Layer_MapStaticMesh(const wstring& strLayerTag)
+{
+    CHECK_FAILED(MapLoader::Load(TEXT("../../Client/Bin/Resources/Map/SaveJson/SmallLevel_SimonArea.json"),
+        ETOI(LevelType::GamePlay), strLayerTag), E_FAIL);
 
     return S_OK;
 }

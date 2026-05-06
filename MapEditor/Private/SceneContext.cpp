@@ -143,7 +143,7 @@ void SceneContext::LoadFromFile(const string& filePath)
             auto obj = make_shared<EditorObject>();
             obj->_type = EObjectType::StaticMesh;
             obj->_name = String::ToWString(e["Id"].get<string>());
-            obj->_modelPath = String::ToWString(e.value("ModelPath", string{}));
+            obj->_modelPath = L"../../../Client/Bin/Resources/Map/" + String::ToWString(e.value("ModelPath", string{}));
             auto& scl = e["Scale"];
             obj->_scale = { scl[0], scl[1], scl[2] };
             LoadTransform(e, *obj);

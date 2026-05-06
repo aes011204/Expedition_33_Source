@@ -171,6 +171,8 @@
     <ClInclude Include="..\Public\Client_Struct.h" />
     <ClInclude Include="..\Public\CombatStatCom.h" />
     <ClInclude Include="..\Public\InputCom.h" />
+    <ClInclude Include="..\Public\MapLoader.h" />
+    <ClInclude Include="..\Public\MapStaticMesh.h" />
     <ClInclude Include="..\public\Mon_AIController.h" />
     <ClInclude Include="..\public\Mon_BehaviorTree.h" />
     <ClInclude Include="..\Public\PlayerControllerCom.h" />
@@ -199,6 +201,8 @@
     <ClCompile Include="..\private\BT_Idle.cpp" />
     <ClCompile Include="..\Private\CombatStatCom.cpp" />
     <ClCompile Include="..\Private\InputCom.cpp" />
+    <ClCompile Include="..\Private\MapLoader.cpp" />
+    <ClCompile Include="..\Private\MapStaticMesh.cpp" />
     <ClCompile Include="..\private\Mon_AIController.cpp" />
     <ClCompile Include="..\private\Mon_BehaviorTree.cpp" />
     <ClCompile Include="..\Private\PlayerControllerCom.cpp" />
