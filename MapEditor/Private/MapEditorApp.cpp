@@ -8,6 +8,7 @@
 #include "MECamera.h"
 #include "PanelViewport.h"
 #include "MEStaticMeshActor.h"
+#include "MEModelManager.h"
 
 
 extern HWND g_hWnd;
@@ -40,14 +41,17 @@ HRESULT MapEditorApp::Initialize()
     CHECK_NULL(_rt, E_FAIL);
 
     _meshShader = ShaderCom::Create(_device, _context,
-        L"../../../Client/Bin/ShaderFiles/Shader_VtxMesh.hlsl",
+        L"../ShaderFiles/Shader_VtxMesh.hlsl",
         VTXMESH::Elements, VTXMESH::numElements);
     CHECK_NULL(_meshShader, E_FAIL);
+
+    _modelManager = MEModelManager::Create();
+    CHECK_NULL(_modelManager, E_FAIL);
 
     _viewport = PanelViewport::Create(_camera, _rt, &_scene);
     CHECK_NULL(_viewport, E_FAIL);
 
-    _manager = MEManager::Create(_viewport, &_scene);
+    _manager = MEManager::Create(_viewport, &_scene, _camera.get());
     CHECK_NULL(_manager, E_FAIL);
 
     return S_OK;
@@ -206,13 +210,15 @@ void MapEditorApp::UpdateRenderHandles()
             continue;
         }
 
-        if (obj->_renderHandleLoaded)
+        if (obj->_renderHandleLoaded || obj->_isInstanced || obj->_modelPath.empty())
         {
             continue;
         }
 
         obj->_renderHandleLoaded = true;
-        if (obj->_modelPath.empty())
+
+        auto model = _modelManager->GetOrLoad(_device, _context, obj->_modelPath);
+        if (!model)
         {
             continue;
         }
@@ -237,6 +243,11 @@ Unique<MapEditorApp> MapEditorApp::Create()
 
 void MapEditorApp::Free()
 {
+    _scene._selected.reset();
+    _scene._objects.clear();
+    _meshShader.reset();
+    _modelManager.reset();
+
     __super::Free();
 
     _viewport.reset();

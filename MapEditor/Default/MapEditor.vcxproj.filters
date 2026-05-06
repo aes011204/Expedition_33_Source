@@ -19,9 +19,6 @@
     <Filter Include="02. MEWindow">
       <UniqueIdentifier>{275b9051-5dcd-41c3-8656-f07cfa926805}</UniqueIdentifier>
     </Filter>
-    <Filter Include="03. MEManager">
-      <UniqueIdentifier>{89ec0581-c906-43e5-aeb8-3ba9fcbc5c06}</UniqueIdentifier>
-    </Filter>
     <Filter Include="04. Panel">
       <UniqueIdentifier>{8c044b74-e5ca-45f3-b7e5-d46a6cc095d5}</UniqueIdentifier>
     </Filter>
@@ -61,6 +58,18 @@
     <Filter Include="06. EditorUtil\EditorObject">
       <UniqueIdentifier>{2acc9088-99a7-448c-ad29-703d01bcc2a6}</UniqueIdentifier>
     </Filter>
+    <Filter Include="95. ShaderFiles">
+      <UniqueIdentifier>{227fd98b-6322-4cec-a18e-e2b91b238aaf}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="03. Manager">
+      <UniqueIdentifier>{89ec0581-c906-43e5-aeb8-3ba9fcbc5c06}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="03. Manager\MEManager">
+      <UniqueIdentifier>{98a7a0eb-6548-4b83-860f-1b1854c322f8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="03. Manager\MEModelManager">
+      <UniqueIdentifier>{3fbe4ead-0c55-43ec-b46f-f0d86a03c5b1}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="targetver.h">
@@ -89,9 +98,6 @@
     </ClInclude>
     <ClInclude Include="..\Public\MEWindow.h">
       <Filter>02. MEWindow</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\MEManager.h">
-      <Filter>03. MEManager</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\PanelViewport.h">
       <Filter>04. Panel\PanelViewport</Filter>
@@ -123,6 +129,12 @@
     <ClInclude Include="..\Public\EditorObject.h">
       <Filter>06. EditorUtil\EditorObject</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\MEManager.h">
+      <Filter>03. Manager\MEManager</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\MEModelManager.h">
+      <Filter>03. Manager\MEModelManager</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Image Include="MapEditor.ico">
@@ -152,9 +164,6 @@
     </ClCompile>
     <ClCompile Include="..\Private\MEWindow.cpp">
       <Filter>02. MEWindow</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\MEManager.cpp">
-      <Filter>03. MEManager</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\PanelViewport.cpp">
       <Filter>04. Panel\PanelViewport</Filter>
@@ -189,5 +198,34 @@
     <ClCompile Include="..\Private\EditorObject.cpp">
       <Filter>06. EditorUtil\EditorObject</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\MEManager.cpp">
+      <Filter>03. Manager\MEManager</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\MEModelManager.cpp">
+      <Filter>03. Manager\MEModelManager</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_BillboardParticle.hlsl">
+      <Filter>95. ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_Deferred.hlsl">
+      <Filter>95. ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">
+      <Filter>95. ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxCube.hlsl">
+      <Filter>95. ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMesh.hlsl">
+      <Filter>95. ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxNorTex.hlsl">
+      <Filter>95. ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxTex.hlsl">
+      <Filter>95. ShaderFiles</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

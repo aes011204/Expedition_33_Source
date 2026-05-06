@@ -15,6 +15,7 @@ class MEImGuiManager;
 class MEManager;
 class MECamera;
 class PanelViewport;
+class MEModelManager;
 
 class MapEditorApp final : public Base
 {
@@ -40,6 +41,7 @@ private:
     Shared<PanelViewport> _viewport;
 
     Shared<ShaderCom> _meshShader;
+    Unique<MEModelManager> _modelManager;
 
     SceneContext _scene;
 

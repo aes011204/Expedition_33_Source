@@ -27,6 +27,8 @@ public:
         ComPtr<Context> context,
         const wstring& modelPath,
         Shared<ShaderCom> shader);
+
+    static Shared<MEStaticMeshActor> Create(Shared<ModelCom> model, Shared<ShaderCom> shader);
 };
 
 NS_END

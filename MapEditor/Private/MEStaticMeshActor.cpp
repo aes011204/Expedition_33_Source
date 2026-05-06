@@ -25,8 +25,8 @@ HRESULT MEStaticMeshActor::Render(const Matrix& worldMatrix)
     const uint32 numMeshes = static_cast<uint32>(_model->Get_NumMeshes());
     for (uint32 i = 0; i < numMeshes; ++i)
     {
-        _model->Bind_Material(_shader.get(), "g_DiffuseTexture", i, 1, 0);
-        _shader->Begin(0);
+        bool hasTexture = SUCCEEDED(_model->Bind_Material(_shader.get(), "g_DiffuseTexture", i, 1, 0));
+        _shader->Begin(hasTexture ? 0 : 2);
         _model->Render(i);
     }
     return S_OK;
@@ -37,7 +37,7 @@ Shared<MEStaticMeshActor> MEStaticMeshActor::Create(ComPtr<Device> device, ComPt
     auto instance = make_shared<MEStaticMeshActor>();
 
     string pathA = String::ToString(modelPath);
-    instance->_model = ModelCom::Create(device, context, ModelType::NonAnim, pathA.c_str(), Matrix::Identity);
+    instance->_model = ModelCom::Create(device, context, ModelType::NonAnim, pathA.c_str(), Matrix::CreateScale(0.01f));
 
     CHECK_NULL(instance->_model, nullptr);
 
@@ -45,3 +45,10 @@ Shared<MEStaticMeshActor> MEStaticMeshActor::Create(ComPtr<Device> device, ComPt
     return instance;
 }
 
+Shared<MEStaticMeshActor> MEStaticMeshActor::Create(Shared<ModelCom> model, Shared<ShaderCom> shader)
+{
+    auto instance = make_shared<MEStaticMeshActor>();
+    instance->_model = model;
+    instance->_shader = shader;
+    return instance;
+}

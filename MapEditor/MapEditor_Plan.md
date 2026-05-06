@@ -90,17 +90,28 @@ MEUe5Importer
     — EditorObject 생성 → SceneContext 배치
 ```
 
-### MEStaticMeshActor (대기 중)
+### MEStaticMeshActor ✅
 
 ```
 MEStaticMeshActor                         — 에디터 뷰포트 시각화 전용
-├── _model   (Shared<Model>)
-├── _shader  (Shared<Shader>)
+├── _model   (Shared<ModelCom>)
+├── _shader  (Shared<ShaderCom>)
 └── Render(const Matrix& worldMatrix)
+    — 텍스처 있으면 pass 0 (DefaultPass), 없으면 pass 2 (NoTexturePass, 흰색)
 ```
 
-> **⚠️ 대기**: 엔진 Assimp 리팩토링(다른 파트 담당) 완료 후 구현.  
-> renderHandle은 뷰포트 표시 전용, JSON 직렬화와 무관.
+### MEModelManager ✅
+
+```
+MEModelManager                            — 모델 로드/캐싱 전담
+├── map<wstring, Shared<ModelCom>> _cache
+├── GetOrLoad(device, context, path)      — 캐시 조회 or 로드 후 Clone 반환
+├── Unload()                              — 씬 전체 초기화 시 캐시 clear
+└── ~MEModelManager()                     — Unload() 호출
+```
+
+> 오브젝트 1개 삭제 시에는 `EditorObject::_renderHandle.reset()`만 하면 됨.  
+> `Unload()`는 New Map / 다른 맵 로드 시 전체 캐시 비울 때 사용.
 
 ---
 
@@ -124,11 +135,19 @@ MEStaticMeshActor                         — 에디터 뷰포트 시각화 전�
     - InstancedStaticMeshComponent / StaticMeshComponent 파싱
     - UE5 → DX 좌표계 변환
     - Origin Maps 탭 더블클릭으로 씬 배치
-12. 정적 메시 뷰포트 렌더링 ← **Assimp 리팩토링 완료 후**
-    - `MEStaticMeshActor` (Model + Shader_VtxMesh 직접 렌더)
-    - `EditorObject.renderHandle` 연결
-    - `MapEditorApp` RT 내 씬 렌더 루프
+12. ✅ 정적 메시 뷰포트 렌더링
+    - ✅ `MEStaticMeshActor` (Model + Shader_VtxMesh 직접 렌더)
+    - ✅ `EditorObject.renderHandle` 연결
+    - ✅ `MapEditorApp` RT 내 씬 렌더 루프
+    - ✅ 버그 수정: `Free()` 리소스 해제 순서 (`LIVE_BLENDSTATE` / `LIVE_BUFFER`)
+    - ✅ 버그 수정: 이름 없는 모델이 `.model` 경로로 로드 시도하던 문제
+    - ✅ 버그 수정: `InstancedStaticMeshComponent` 키 대소문자 불일치 (`perInstanceSMData` → `PerInstanceSMData`)
+    - ✅ `MEModelManager` — 동일 모델 중복 로드 방지 (캐싱 + Clone 재사용)
+    - ✅ `EditorObject._isInstanced` — Instanced 오브젝트는 렌더 핸들 생성 스킵
+    - ✅ 모델 버텍스 스케일 보정: `preLocalTransformMatrix = Matrix::CreateScale(0.01f)` (UE5 cm → 엔진 단위)
+    - ✅ 텍스처 없는 모델 흰색 렌더링 — `NoTexturePass` (pass 2) 추가
 13. ✅ 라이트 배치 및 속성 편집
+14. ✅ Inspector Focus 버튼 — 선택 오브젝트 위치로 카메라 즉시 이동 (`MECamera::FocusOn`)
 
 ### Phase 3 — 볼륨 / 존 시스템 ← **진행 중**
 14. ✅ 타입 시스템 도입 (`EObjectType`, `EZoneShape`) — `MapEditorDefines.h`
@@ -173,13 +192,15 @@ MEStaticMeshActor                         — 에디터 뷰포트 시각화 전�
 | Hierarchy | ✅ |
 | Inspector | ✅ |
 | Snapping | ✅ (Ctrl 홀드, PanelSnap으로 수치 편집) |
+| Focus (Inspector) | ✅ |
 
 ### 렌더링 / 배치
 
 | 기능 | 상태 |
 |------|------|
-| 정적 메시 배치 | Assimp 리팩토링 대기 |
+| 정적 메시 배치 | ✅ |
 | 라이트 배치 | ✅ |
+| 스카이 (SkySphere) | 구현 예정 — PNG 파노라마 텍스처 사용, VIBuffer_Sphere 구현 필요 |
 | 물(Water) 배치 | 구현 예정 |
 | 파티클 이펙트 배치 | 파티클 시스템 대기 |
 | 지형 (Terrain) | 방식 미확정 |

@@ -40,6 +40,7 @@ struct EditorObject
 
     Shared<MEStaticMeshActor> _renderHandle;
     bool _renderHandleLoaded = false;
+    bool _isInstanced = false;
 
     void UpdateWorldMatrix()
     {
