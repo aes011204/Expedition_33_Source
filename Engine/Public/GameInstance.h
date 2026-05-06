@@ -157,7 +157,15 @@ public: /* For.Light_Manager */
 
 public: /* For.Font_Manager */
     HRESULT Add_Font(const wstring& fontTag, const wchar_t* fontFilePath);
-    void Draw_Font(const wstring& fontTag, const wchar_t* text, const Vec2& position, FXMVECTOR color = XMVectorSet(1.f, 1.f, 1.f, 1.f));
+    Vec2 Measure_Font(const wstring& fontTag, const wchar_t* text);
+    void Draw_Font(
+        const wstring& fontTag,
+        const wchar_t* text,
+        const Vec2& position,
+        FXMVECTOR color = XMVectorSet(1.f, 1.f, 1.f, 1.f),
+        float rotationRadians = 0.f,
+        const Vec2& pivot = Vec2(0.f, 0.f),
+        float scale = 1.f);
         
 public: /* For.Asset_Manager */
     /* 리소스 루트를 기준으로 GUID/meta/cache registry를 준비할 때 호출한다. */
@@ -168,6 +176,9 @@ public: /* For.Asset_Manager */
 
     /* GUID로 에셋 타입과 경로 메타를 조회할 때 호출한다. */
     const FAssetMeta* Find_AssetByGUID(const string& guid) const;
+
+    /* 에셋 타입별 목록이 필요한 에디터 UI에서 호출한다. */
+    vector<FAssetMeta> Get_AssetsByType(const string& type) const;
 
     /* lazy-load가 GUID만 들고 있을 때 실제 파일 경로를 복원하기 위해 호출한다. */
     wstring Resolve_AssetPath(const string& guid) const;

@@ -18,6 +18,7 @@ public:
 public:
 	HRESULT Bind_ShaderResourceView(class ShaderCom* shader, const char* constantName, uint32 index);
 	HRESULT Bind_ShaderResourceViews(class ShaderCom* shader, const char* constantName);
+	const vector<ComPtr<ID3D11ShaderResourceView>>& Get_SRVs() const;
 
 private:
 	uint32										_numSRVs = {};

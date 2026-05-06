@@ -29,6 +29,7 @@ namespace UIEditor
         ComPtr<ID3D11RenderTargetView> _renderTargetView = nullptr;
         Unique<UI_Editor_Manager> _editorManager = nullptr;
 
+        bool _assetManagerReady = false;
         bool _initialized = false;
     };
 }

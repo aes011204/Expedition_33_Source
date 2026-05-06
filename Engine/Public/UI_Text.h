@@ -7,11 +7,19 @@ NS_BEGIN(Engine)
 class ENGINE_DLL UI_Text final : public UI_Base
 {
 public:
+    enum class TextAlign
+    {
+        Left,
+        Center,
+        Right,
+    };
+
     struct UI_TEXT_DESC : public UI_Base::UI_DESC
     {
         wstring text{};
         wstring fontTag{};
         Vec4 color{ 1.f, 1.f, 1.f, 1.f };
+        TextAlign textAlign{ TextAlign::Left };
     };
 
 public:
@@ -34,10 +42,14 @@ public:
     void Set_Color(const Vec4& color) { _color = color; }
     const Vec4& Get_Color() const { return _color; }
 
+    void Set_TextAlign(TextAlign textAlign) { _textAlign = textAlign; }
+    TextAlign Get_TextAlign() const { return _textAlign; }
+
 private:
     wstring _text{};
     wstring _fontTag{};
     Vec4 _color{ 1.f, 1.f, 1.f, 1.f };
+    TextAlign _textAlign{ TextAlign::Left };
 
 public:
     static Shared<UI_Text> Create();

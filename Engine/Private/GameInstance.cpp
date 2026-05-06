@@ -572,9 +572,21 @@ HRESULT GameInstance::Add_Font(const wstring& fontTag, const wchar_t* fontFilePa
     return _fontManager->Add_Font(fontTag, fontFilePath);
 }
 
-void GameInstance::Draw_Font(const wstring& fontTag, const wchar_t* text, const Vec2& position, FXMVECTOR color)
+Vec2 GameInstance::Measure_Font(const wstring& fontTag, const wchar_t* text)
 {
-    _fontManager->Draw(fontTag, text, position, color);
+    return _fontManager->Measure(fontTag, text);
+}
+
+void GameInstance::Draw_Font(
+    const wstring& fontTag,
+    const wchar_t* text,
+    const Vec2& position,
+    FXMVECTOR color,
+    float rotationRadians,
+    const Vec2& pivot,
+    float scale)
+{
+    _fontManager->Draw(fontTag, text, position, color, rotationRadians, pivot, scale);
 }
 
 HRESULT GameInstance::Initialize_AssetManager(const wstring& resourceRoot)
@@ -588,21 +600,41 @@ HRESULT GameInstance::Initialize_AssetManager(const wstring& resourceRoot)
 
 string GameInstance::Find_AssetGUID(const wstring& filePath) const
 {
+    if (nullptr == _assetManager)
+        return {};
+
     return _assetManager->Find_GUID(filePath);
 }
 
 const FAssetMeta* GameInstance::Find_AssetByGUID(const string& guid) const
 {
+    if (nullptr == _assetManager)
+        return nullptr;
+
     return _assetManager->Find_ByGUID(guid);
+}
+
+vector<FAssetMeta> GameInstance::Get_AssetsByType(const string& type) const
+{
+    if (nullptr == _assetManager)
+        return {};
+
+    return _assetManager->Get_AssetsByType(type);
 }
 
 wstring GameInstance::Resolve_AssetPath(const string& guid) const
 {
+    if (nullptr == _assetManager)
+        return {};
+
     return _assetManager->Resolve_Path(guid);
 }
 
 wstring GameInstance::Get_AssetRoot() const
 {
+    if (nullptr == _assetManager)
+        return {};
+
     return _assetManager->Get_ResourceRoot();
 }
 

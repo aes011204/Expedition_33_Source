@@ -1,5 +1,6 @@
 ﻿#include "pch.h"
 #include "UI_EditorApp.h"
+#include "GameInstance.h"
 #include "UI_Editor_Manager.h"
 
 namespace UIEditor
@@ -23,14 +24,61 @@ namespace UIEditor
         io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
         io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
+        ImFont* editorFont = io.Fonts->AddFontFromFileTTF(
+            "C:/Windows/Fonts/malgun.ttf",
+            18.0f,
+            nullptr,
+            io.Fonts->GetGlyphRangesKorean());
+        if (nullptr != editorFont)
+            io.FontDefault = editorFont;
+        else
+            io.Fonts->AddFontDefault();
+
         ImGui::StyleColorsDark();
 
         ImGui_ImplWin32_Init(hWnd);
         ImGui_ImplDX11_Init(_device.Get(), _context.Get());
 
-        _editorManager = UI_Editor_Manager::Create();
+        const wstring resourceRoot = []() -> wstring
+        {
+            vector<fs::path> startPaths;
+
+            wchar_t modulePath[MAX_PATH] = {};
+            if (0 != GetModuleFileNameW(nullptr, modulePath, MAX_PATH))
+                startPaths.push_back(fs::path(modulePath).parent_path());
+
+            startPaths.push_back(fs::current_path());
+
+            for (fs::path startPath : startPaths)
+            {
+                startPath = fs::absolute(startPath).lexically_normal();
+
+                for (fs::path currentPath = startPath; !currentPath.empty(); currentPath = currentPath.parent_path())
+                {
+                    const fs::path candidate = currentPath / L"Client" / L"Bin" / L"Resources";
+                    if (fs::exists(candidate) && fs::is_directory(candidate))
+                        return candidate.lexically_normal().wstring();
+
+                    if (currentPath == currentPath.parent_path())
+                        break;
+                }
+            }
+
+            return {};
+        }();
+
+        _assetManagerReady = !resourceRoot.empty() && SUCCEEDED(GAME->Initialize_AssetManager(resourceRoot));
+
+        _editorManager = UI_Editor_Manager::Create(_device, _context, _assetManagerReady);
         if (nullptr == _editorManager)
+        {
+            if (_assetManagerReady)
+            {
+                GameInstance::DestroyInstance();
+                _assetManagerReady = false;
+            }
             return E_FAIL;
+        }
 
         _initialized = true;
         return S_OK;
@@ -52,6 +100,19 @@ namespace UIEditor
         _context->ClearRenderTargetView(_renderTargetView.Get(), clearColor);
         ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 
+        const ImGuiIO& io = ImGui::GetIO();
+        D3D11_VIEWPORT viewport = {};
+        viewport.TopLeftX = 0.f;
+        viewport.TopLeftY = 0.f;
+        viewport.Width = io.DisplaySize.x;
+        viewport.Height = io.DisplaySize.y;
+        viewport.MinDepth = 0.f;
+        viewport.MaxDepth = 1.f;
+        _context->OMSetRenderTargets(1, _renderTargetView.GetAddressOf(), nullptr);
+        _context->RSSetViewports(1, &viewport);
+
+        _editorManager->Render_FontPreviews();
+
         _swapChain->Present(1, 0);
     }
 
@@ -71,6 +132,11 @@ namespace UIEditor
             return;
 
         _editorManager.reset();
+        if (_assetManagerReady)
+        {
+            GameInstance::DestroyInstance();
+            _assetManagerReady = false;
+        }
 
         ImGui_ImplDX11_Shutdown();
         ImGui_ImplWin32_Shutdown();

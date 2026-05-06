@@ -10,7 +10,7 @@ namespace UIEditor
 
     void UI_Document::Reset()
     {
-        _canvasSize = ImVec2(1280.f, 720.f);
+        _canvasSize = ImVec2(1600.f, 900.f);
 
         _objects.clear();
 
@@ -22,7 +22,7 @@ namespace UIEditor
         imageObject.size = ImVec2(384.f, 39.f);
         imageObject.color = ImVec4(0.f, 0.f, 0.f, 1.f);
         imageObject.sortOrder = 0;
-        imageObject.texturePath = "UI_Editor_Test/Image/T_HealthBarOutline.png";
+        imageObject.texturePath = "../Bin/Resources/Textures/UI/T_HealthBarOutline.png";
         _objects.push_back(imageObject);
 
         UI_Object textObject = {};
@@ -33,8 +33,10 @@ namespace UIEditor
         textObject.size = ImVec2(300.f, 40.f);
         textObject.color = ImVec4(1.f, 1.f, 1.f, 1.f);
         textObject.sortOrder = 1;
-        textObject.text = "UI Smoke Test";
-        textObject.fontTag = "Font_UI_Smoke";
+        textObject.text = "New Text";
+        textObject.fontSize = 32.f;
+        textObject.fontTag = "33_MainKR_Font";
+        textObject.fontPath = "../Bin/Resources/Fonts/33_MainKR_Font.spritefont";
         _objects.push_back(textObject);
     }
 

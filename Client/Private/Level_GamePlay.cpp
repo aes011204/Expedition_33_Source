@@ -76,7 +76,7 @@ HRESULT Level_GamePlay::Ready_UI_SmokeTest()
     UI_Text::UI_TEXT_DESC uiTextDesc{};
     UI_Image::UI_IMAGE_DESC uiImageDesc{};
 
-    uiTextDesc.text = TEXT("UI Smoke Test");
+    uiTextDesc.text = TEXT("UI Smoke 1241251299");
     uiTextDesc.fontTag = TEXT("Font_UI_Smoke");
     uiTextDesc.color = Vec4(1.f, 1.f, 1.f, 1.f);
     uiTextDesc.transformDesc.position = Vec2(100.f, 80.f);

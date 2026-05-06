@@ -26,6 +26,7 @@ public:
 private:
     wstring _texturePath{};
     Vec4 _color{ 1.f, 1.f, 1.f, 1.f };
+    Vec2 _textureSize{ 1.f, 1.f };
     ComPtr<ShaderResourceView> _srv{};
     Unique<SpriteBatch> _spriteBatch{};
 
