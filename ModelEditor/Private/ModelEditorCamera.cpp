@@ -68,9 +68,11 @@ void ModelEditorCamera::Priority_Update(float timeDelta)
     float wheel = GAME->Get_MouseWheel();
     if (wheel != 0)
     {
-        _speed += (wheel > 0 ? 0.5f : -0.5f);
-        _speed = std::clamp(_speed, 0.1f, 200.0f);
-        LOG_INFO("Camera Speed: x{:.1f}", _speed);
+        float zoomAmount = wheel * _speed;
+        if (GAME->KeyPress(KEY_TYPE::LBUTTON))
+            zoomAmount *= 5.f;
+
+        _transformCom->Go_Straight(zoomAmount);
     }
 
     if (GAME->KeyPress(KEY_TYPE::RBUTTON))

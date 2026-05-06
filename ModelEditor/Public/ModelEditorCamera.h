@@ -25,7 +25,7 @@ private:
     uint32 _presetIndex{ 0 };
     bool  _firstFrame{ true };  
     bool  _isRightMouseDown{ false };
-    float _speed{ 1.f };
+    float _speed{ 3.f };
 
 public:
     static Shared<ModelEditorCamera> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

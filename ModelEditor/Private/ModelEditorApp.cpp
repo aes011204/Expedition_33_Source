@@ -73,7 +73,7 @@ void ModelEditorApp::Late_Update(float timeDelta)
 
 HRESULT ModelEditorApp::Render()
 {
-	const Vec4 clearColor = Vec4(0.15f, 0.15f, 0.15f, 1.f);
+	const Vec4 clearColor = Vec4(0.15f, 0.15f, 0.15f, 0.f);
 	if (FAILED(GAME->Clear_Buffers(clearColor)))
 		return E_FAIL;
 
@@ -83,7 +83,7 @@ HRESULT ModelEditorApp::Render()
 	ModelImGui_Manager::GetInstance()->Capture_BackBuffer_ToViewport();
 
 	GAME->Bind_BackBuffer();
-
+    GAME->Clear_Buffers(clearColor);
 	ModelImGui_Manager::GetInstance()->Render();
 
 	if (FAILED(GAME->Present()))
