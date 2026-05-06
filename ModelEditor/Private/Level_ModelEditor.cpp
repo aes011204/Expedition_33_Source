@@ -48,9 +48,9 @@ HRESULT Level_ModelEditor::Ready_Layer_Camera(const wstring& layerTag)
 	ModelEditorCamera::ModelEditorCameraDesc camDesc{};
     camDesc.eye = Vec4{ 0.f, 10.f, -20.f, 1.f };
     camDesc.at = Vec4{ 0.f, 0.f, 0.f, 1.f };
-	camDesc.fovy = XMConvertToRadians(70.0f);
+	camDesc.fovy = XMConvertToRadians(60.0f);
 	camDesc.nearPlane = 0.1f;
-	camDesc.farPlane = 500.f;
+	camDesc.farPlane = 50000.f;
 	camDesc.mouseSensor = 0.1f;
 	camDesc.speedPerSec = 8.f;
 	camDesc.yaw = 0.f;
