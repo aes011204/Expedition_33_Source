@@ -16,6 +16,7 @@ public:
     void Render();
 
 private:
+    void ShutDown();
     void ImGuiStyleSetting();
     static string Get_ClientResourcePath(const wchar_t* relativePath);
 

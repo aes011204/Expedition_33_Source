@@ -1,5 +1,3 @@
-
-
 RasterizerState RS_Default
 {
     FillMode = Solid;
@@ -24,12 +22,12 @@ DepthStencilState DSS_Default
 DepthStencilState DSS_None
 {
     DepthEnable = false;
-    DepthWriteMask = zero;    
+    DepthWriteMask = zero;
 };
 
 BlendState BS_Default
 {
-    BlendEnable[0] = false;    
+    BlendEnable[0] = false;
 };
 
 BlendState BS_AlphaBlend
@@ -39,16 +37,6 @@ BlendState BS_AlphaBlend
 
     SrcBlend = Src_Alpha;
     DestBlend = Inv_Src_Alpha;
-    BlendOp = Add;
-};
-
-BlendState BS_Blend
-{
-    BlendEnable[0] = true;
-    BlendEnable[1] = true;
-
-    SrcBlend = one;
-    DestBlend = one;
     BlendOp = Add;
 };
 

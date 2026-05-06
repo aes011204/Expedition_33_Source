@@ -46,6 +46,7 @@ public:
     void                    Set_IsActive(bool isActive) { _isActive = isActive; }
     void                    Set_IsColl(bool isColl) { _isColl = isColl; }
 
+
 #ifdef _DEBUG
 public:
     HRESULT Render_Debug();
@@ -54,12 +55,43 @@ private:
     HRESULT Ready_DebugRenderResources();
 #endif
 
+
+public: /* PhysX */
+    const ColliderShapeDesc&    Get_ShapeDesc() const { return _shapeDesc; }
+    PxRigidActor*               Get_PxActor() const { return _pxActor; }
+    PxShape*                    Get_PxShape() const { return _pxShape; }
+
+    bool                        Is_PhysXRegistered() const { return _physxRegistered; }
+    bool                        Is_Trigger() const  { return _isTrigger; }
+
+    void                        Release_PhysX();
+
+public:
+    // 피직스 월드에 들어갈 실제 충돌 객체를 만들기
+    HRESULT                     Build_PhysXActor(PxPhysics* physics);
+    // 매 프레임 게임 Transform 값을 피직스쪽 actor 위치/회전에 복사해서 맞춰주기
+    void                        Sync_ToPhysX(const Matrix& worldMatrix);
+    // 현재 preset 정보를 shape의 filter data로 넣는다.
+    void                        Apply_PhysX_FilterData();
+
+    void                        Set_PhysXRegistered(bool registered) { _physxRegistered = registered; }
+
+    PxTransform                 Build_QueryTransform(const Matrix& worldMatrix) const;
+    PxGeometryHolder            Build_QueryGeometry(const Matrix& worldMatrix) const;
+
+private:
+    // DirectX Matirx 를 PhysX PxTransform으로 변환한다.
+    PxTransform                 Build_PXTransform(const Matrix& worldMatrix) const;
+    // _shapeDesc를 PxBoxGeomtry 또는 PxSpheregemetry 로 바꾼다.
+    PxGeometryHolder            Build_PxGeometry() const;
+    void                        Update_PhysXGeometry(const Matrix& worldMatrix);
+
 private:
     CollisionShape _shape = CollisionShape::AABB;
 
     Collision_Channel _channel = Collision_Channel::CHANNEL_NONE;
     uint32 _overlapMask = 0;
-    uint32 _blockMask = 0;
+    uint32 _blockMask   = 0;
 
     Collision_Preset _preset = Collision_Preset::Custom;
 
@@ -74,6 +106,19 @@ private:
     Shared<DirectX::BasicEffect> _effect = nullptr;
     ComPtr<ID3D11InputLayout> _inputLayout = nullptr;
 #endif
+
+private:
+    ColliderShapeDesc _shapeDesc{};
+
+    // 이 collider가 PhysX world에서 사용되는 실제 Actor
+    PxRigidActor*   _pxActor = nullptr;
+    // Actor에 붙는 실제 Collision Shape 모양
+    PxShape*        _pxShape = nullptr;
+    // Scene에 들어갔는지 판단
+    bool _physxRegistered = false;
+    // overlap-only collider인지?
+    bool _isTrigger = false;
+
 
 public:
     static Shared<ColliderCom> Create(

@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "Editor_Window.h"
 
@@ -7,29 +7,36 @@ NS_BEGIN(EffectEditor)
 class Scene_View final : public Editor_Window
 {
 public:
-    // 에디터 카메라 렌더링과 기즈모 편집을 붙일 씬 뷰포트 창을 생성한다.
     Scene_View();
-    ~Scene_View() override;
+    ~Scene_View() override = default;
 
 public:
-    void Update(float fTimeDelta) override;
+    void Update(float timeDelta) override;
     void Render() override;
 
 private:
-    void Render_GizmoToolbar();   // 트랜스폼 기즈모 모드를 바꾸는 간단한 툴바를 그린다.
-    void Render_ViewportCanvas(); // 렌더 타겟이 연결되기 전까지 사용할 임시 뷰포트 영역을 그린다.
+    void Handle_GizmoShortcut();
+    void Render_GizmoOverlay();
+    void Render_PreviewViewportOverlay();
+    void Sync_PreviewViewportInput();
+
+    void Render_ViewportCanvas();
+    void Handle_FocusRequest();
+    void Render_SelectedObjectGizmo();
 
 private:
-    // 마지막으로 표시된 씬 뷰포트 크기.
-    ImVec2 _viewportSize{};
-    // 씬 기즈모의 현재 트랜스폼 동작.
-    ImGuizmo::OPERATION _gizmoOperation{ ImGuizmo::TRANSLATE };
-    // 선택 오브젝트 편집에 사용할 현재 트랜스폼 좌표계.
-    ImGuizmo::MODE _gizmoMode{ ImGuizmo::LOCAL };
+    ImVec2 _viewportSize = {};
+    ImVec2 _viewportMin = {};
+    ImVec2 _viewportMax = {};
+
+    ImGuizmo::OPERATION _gizmoOperation = ImGuizmo::TRANSLATE;
+    ImGuizmo::MODE _gizmoMode = ImGuizmo::LOCAL;
+
+    int _pendingPreviewViewportWidth = 0;
+    int _pendingPreviewViewportHeight = 0;
 
 public:
     static Shared<Scene_View> Create();
-    void Free() override;
 };
 
 NS_END

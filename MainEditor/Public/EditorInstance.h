@@ -61,6 +61,10 @@ public: /* For.Editor Selection */
     void                    Select_Object(const Shared<GameObject>& gameObject);
     void                    Clear_SelectedObject();
     uint32                  Selection_Revision() const;
+    void                    Copy_SelectedObject();
+    Shared<GameObject>      Paste_CopiedObject();
+    Shared<GameObject>      Duplicate_SelectedObject();
+    bool                    Delete_SelectedObject();
 
 public: /* For.Editor Focus */
     void                    Request_FocusObject(const Shared<GameObject>& gameObject);
@@ -96,6 +100,11 @@ public: /* For.Viewport */
 private:
     void Focus_GameView();
     void Focus_SceneView();
+    bool                    Find_ObjectLayerTag(const Shared<GameObject>& gameObject, wstring& outLayerTag) const;
+    Shared<GameObject>      Instantiate_GameObjectFromCopiedData() const;
+
+    // Game, Scene View 하나만 렌더되게
+    void Sync_ViewportWindowState();
 
 private: /* Core Data */
     ComPtr<Device>               _device = {};
@@ -125,6 +134,8 @@ private: /* Runtime Data */
     EDITOR_VIEWPORT_TARGET _pendingWindowFocus = EDITOR_VIEWPORT_TARGET::Game;
 
     bool _pendingSingleFrameStep = false;
+    string _copiedObjectJson = {};
+    wstring _copiedLayerTag = {};
 
 public:
     void Free() override;

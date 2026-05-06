@@ -3,11 +3,13 @@
 #include "RenderTarget.h"
 #include "Editor_Manager.h"
 #include "GameInstance.h"
+#include "GameObject.h"
 #include "ImGui_Manager.h"
 #include "Editor_Context.h"
 #include "CommandHistory.h"
 #include "Inspector_Factory.h"
 #include "Notification_Manager.h"
+#include "Helper_String.h"
 
 IMPLEMENT_SINGLETON(EditorInstance)
 
@@ -45,6 +47,8 @@ HRESULT EditorInstance::Initialize_Editor(const EDITOR_DESC& EditorDesc, const C
     // 처음에는 Edit 모드로, 1배속으로 시작
     _runtimeState = EDITOR_RUNTIME_STATE::Edit;
     _runtimeTimeScale = 1.f;
+
+    Sync_ViewportWindowState();
 
     return S_OK;
 }
@@ -97,6 +101,7 @@ void EditorInstance::Render_Editor()
 void EditorInstance::Play()
 {
     _runtimeState = EDITOR_RUNTIME_STATE::Play;
+    Sync_ViewportWindowState();
     Activate_TargetCamera();
 
     GAME->Set_FreeCameraInputEnabled(false);
@@ -117,12 +122,14 @@ void EditorInstance::Pause()
     GAME->Unlock_Mouse();
 
     _runtimeState = EDITOR_RUNTIME_STATE::Pause;
+    Sync_ViewportWindowState();
     Request_WindowFocus(EDITOR_VIEWPORT_TARGET::Scene);
 }
 
 void EditorInstance::Stop()
 {
     _runtimeState = EDITOR_RUNTIME_STATE::Edit;
+    Sync_ViewportWindowState();
 
     Activate_FreeCamera();
 
@@ -138,6 +145,7 @@ void EditorInstance::Resume()
         return;
 
     _runtimeState = EDITOR_RUNTIME_STATE::Play;
+    Sync_ViewportWindowState();
     Activate_TargetCamera();
 
     GAME->Set_FreeCameraInputEnabled(false);
@@ -208,6 +216,52 @@ void EditorInstance::Clear_SelectedObject()
 uint32 EditorInstance::Selection_Revision() const
 {
     return _editorContext->Get_SelectionRevision();
+}
+
+void EditorInstance::Copy_SelectedObject()
+{
+    Shared<GameObject> selectedObject = Selected_Object();
+    if (selectedObject == nullptr)
+        return;
+
+    wstring layerTag;
+    if (!Find_ObjectLayerTag(selectedObject, layerTag))
+        return;
+
+    _copiedObjectJson = selectedObject->To_Json().dump();
+    _copiedLayerTag = layerTag;
+}
+
+Shared<GameObject> EditorInstance::Paste_CopiedObject()
+{
+    Shared<GameObject> gameObject = Instantiate_GameObjectFromCopiedData();
+    if (gameObject == nullptr)
+        return nullptr;
+
+    if (FAILED(GAME->Add_GameObject(GAME->Current_LevelIndex(), _copiedLayerTag, gameObject)))
+        return nullptr;
+
+    Select_Object(gameObject);
+    return gameObject;
+}
+
+Shared<GameObject> EditorInstance::Duplicate_SelectedObject()
+{
+    Copy_SelectedObject();
+    return Paste_CopiedObject();
+}
+
+bool EditorInstance::Delete_SelectedObject()
+{
+    Shared<GameObject> selectedObject = Selected_Object();
+    if (selectedObject == nullptr)
+        return false;
+
+    if (!GAME->Remove_GameObject(GAME->Current_LevelIndex(), selectedObject))
+        return false;
+
+    Clear_SelectedObject();
+    return true;
 }
 
 void EditorInstance::Request_FocusObject(const Shared<GameObject>& gameObject)
@@ -347,6 +401,66 @@ void EditorInstance::Focus_GameView()
 void EditorInstance::Focus_SceneView()
 {
     ImGui::SetWindowFocus("Scene");
+}
+
+bool EditorInstance::Find_ObjectLayerTag(const Shared<GameObject>& gameObject, wstring& outLayerTag) const
+{
+    if (gameObject == nullptr)
+        return false;
+
+    bool found = false;
+
+    GAME->Visit_CurrentLevelObjects(
+        [&](const wstring& layerTag, const Shared<GameObject>& currentObject)
+        {
+            if (found || currentObject != gameObject)
+                return;
+
+            outLayerTag = layerTag;
+            found = true;
+        });
+
+    return found;
+}
+
+Shared<GameObject> EditorInstance::Instantiate_GameObjectFromCopiedData() const
+{
+    if (_copiedObjectJson.empty())
+        return nullptr;
+
+    json root = json::parse(_copiedObjectJson, nullptr, false);
+    if (root.is_discarded() || !root.is_object() || !root.contains("static_class"))
+        return nullptr;
+
+    const string staticClass = root["static_class"].get<string>();
+    if (staticClass.empty())
+        return nullptr;
+
+    Shared<GameObject> gameObject = GAME->Create_GameObjectPrototype(staticClass);
+    if (gameObject == nullptr)
+        return nullptr;
+
+    if (FAILED(gameObject->Initialize(nullptr)))
+        return nullptr;
+
+    gameObject->From_Json(root);
+    return gameObject;
+}
+
+void EditorInstance::Sync_ViewportWindowState()
+{
+    Shared<Editor_Window> sceneView = Get_Window(L"Scene");
+    Shared<Editor_Window> gameView = Get_Window(L"Game");
+
+    const bool showGameView = (_runtimeState == EDITOR_RUNTIME_STATE::Play);
+    const bool showSceneView = !showGameView;
+
+    if (sceneView)
+        sceneView->Set_Open(showSceneView);
+
+    if (gameView)
+        gameView->Set_Open(showGameView);
+
 }
 
 void EditorInstance::Apply_RuntimeInputPolicy()

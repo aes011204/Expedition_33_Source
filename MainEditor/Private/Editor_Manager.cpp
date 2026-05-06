@@ -14,6 +14,8 @@
 #include <filesystem>
 #include <shellapi.h>
 
+#include "Prefab_View.h"
+
 namespace fs = std::filesystem;
 
 Editor_Manager::Editor_Manager()
@@ -33,6 +35,8 @@ HRESULT Editor_Manager::Initialize()
     Add_Window(Profile_View::Create());
 
     Add_Window(BT_Tool::Create());
+    Add_Window(Prefab_View::Create());
+
     return S_OK;
 }
 
@@ -291,6 +295,8 @@ void Editor_Manager::Handle_Shortcuts()
     {
         if (EDITOR->IsPlaying())
             EDITOR->Pause();
+        else if (!EDITOR->IsPlaying())
+            EDITOR->Play();
 
         return;
     }
@@ -356,11 +362,15 @@ void Editor_Manager::Render_ShortcutHelp()
             DrawShortcutRow("Esc", "Stop");
             DrawShortcutRow("F8", "카메라 전환");
             DrawShortcutRow("F9", "Pause + Free Camera");
-            DrawShortcutRow("Ctrl + Wheel", "Free Camera Speed [미구현]");
+            DrawShortcutRow("Ctrl + Wheel", "Free Camera Speed");
             DrawShortcutRow("Shift +", "배속 증가");
             DrawShortcutRow("Shift -", "배속 감소");
             DrawShortcutRow("Ctrl + Space", "Console + Content Browser");
+
             DrawShortcutRow("오브젝트 더블클릭", "오브젝트한테 이동");
+            DrawShortcutRow("오브젝트 복사", "오브젝트 선택 후 Ctrl C + V");
+            DrawShortcutRow("오브젝트 드래그 복사", "오브젝트 선택 후 Alt + 마우스 끌어서 이동");
+            DrawShortcutRow("오브젝트 삭제", "오브젝트 선택 후 Delete");
 
             DrawShortcutRow("W E R", "Gizmo 전환");
 

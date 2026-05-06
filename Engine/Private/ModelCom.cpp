@@ -7,22 +7,27 @@
 #include "Animation.h"
 #include "SkeletalMesh.h"
 #include "StaticMesh.h"
+#include <limits>
 
 ModelCom::ModelCom(const ComPtr<Device>& device, const ComPtr<Context>& context)
-    : Component { device, context } {}
+    : Component{ device, context } {
+}
 
 ModelCom::ModelCom(const ModelCom& prototype)
     : Component{ prototype }
     , _type{ prototype._type }
     , _preLocalTransformMatrix{ prototype._preLocalTransformMatrix }
     , _isSkeletal{ prototype._isSkeletal }
+    , _hasLocalBounds{ prototype._hasLocalBounds }
+    , _localBoundsMin{ prototype._localBoundsMin }
+    , _localBoundsMax{ prototype._localBoundsMax }
     , _maxTextureType{ prototype._maxTextureType }
     , _numMeshes{ prototype._numMeshes }
     , _numMaterials{ prototype._numMaterials }
     , _numBones{ prototype._numBones }
-    , _numAnimations { prototype._numAnimations}
-    , _meshes { prototype._meshes }
-    , _materials { prototype._materials }
+    , _numAnimations{ prototype._numAnimations }
+    , _meshes{ prototype._meshes }
+    , _materials{ prototype._materials }
 {
     for (auto& prototypeAnim : prototype._animations)
         _animations.push_back(prototypeAnim->Clone());
@@ -30,6 +35,43 @@ ModelCom::ModelCom(const ModelCom& prototype)
     for (auto& prototypeBone : prototype._bones)
         _bones.push_back(prototypeBone->Clone());
 
+}
+
+uint32 ModelCom::Get_MeshMaterialIndex(uint32 meshIndex) const
+{
+    if (meshIndex >= _meshes.size())
+        return UINT32_MAX;
+
+    return _meshes[meshIndex]->Get_MaterialIndex();
+}
+
+Shared<Material> ModelCom::Get_Material(uint32 materialIndex) const
+{
+    if (materialIndex >= _materials.size())
+        return nullptr;
+
+    return _materials[materialIndex];
+}
+
+const Material::TextureSlot* ModelCom::Find_MaterialSlot(uint32 meshIndex, std::initializer_list<MaterialTextureSlot> materialSlots,
+    uint32 textureIndex) const
+{
+     if (meshIndex >= _meshes.size())
+        return nullptr;
+
+    const uint32 materialIndex = _meshes[meshIndex]->Get_MaterialIndex();
+    if (materialIndex >= _materials.size() || _materials[materialIndex] == nullptr)
+        return nullptr;
+
+    const Shared<Material>& material = _materials[materialIndex];
+
+    for (MaterialTextureSlot slot : materialSlots)
+    {
+        if (const Material::TextureSlot* textureSlot = material->Find_TextureSlot(slot, textureIndex))
+            return textureSlot;
+    }
+
+    return nullptr;
 }
 
 int32 ModelCom::Get_BoneIndex(const string& boneName) const
@@ -185,9 +227,9 @@ bool ModelCom::Play_Animation(float timeDelta)
     return isFinish;
 }
 
-HRESULT ModelCom::Bind_Material(ShaderCom* shader, const char* constantName, uint32 meshIndex, uint32 materialType, uint32 textureIndex)
+HRESULT ModelCom::Bind_Material(ShaderCom* shader, const char* constantName, uint32 meshIndex, MaterialTextureSlot slot, uint32 textureIndex)
 {
-    return _materials[_meshes[meshIndex]->Get_MaterialIndex()]->Bind_Material(shader, constantName, materialType, textureIndex);
+    return _materials[_meshes[meshIndex]->Get_MaterialIndex()]->Bind_Material(shader, constantName, slot, textureIndex);
 }
 
 HRESULT ModelCom::Bind_BoneMatrices(ShaderCom* shader, const char* constantName, uint32 meshIndex)
@@ -195,6 +237,16 @@ HRESULT ModelCom::Bind_BoneMatrices(ShaderCom* shader, const char* constantName,
     if (_numBones == 0) return S_OK;
 
     return _meshes[meshIndex]->Bind_BoneMatrices(shader, constantName, _bones);
+}
+
+bool ModelCom::Try_Get_LocalBounds(Vec3& outMin, Vec3& outMax) const
+{
+    if (!_hasLocalBounds)
+        return false;
+
+    outMin = _localBoundsMin;
+    outMax = _localBoundsMax;
+    return true;
 }
 
 HRESULT ModelCom::Ready_Model(const char* modelPath)
@@ -226,6 +278,16 @@ HRESULT ModelCom::Ready_Model(const char* modelPath)
         }
         return str;
     };
+
+    Vec3 minBounds(
+        std::numeric_limits<float>::max(),
+        std::numeric_limits<float>::max(),
+        std::numeric_limits<float>::max());
+    Vec3 maxBounds(
+        -std::numeric_limits<float>::max(),
+        -std::numeric_limits<float>::max(),
+        -std::numeric_limits<float>::max());
+    bool hasBounds = false;
 
     // Load Material
     for (uint32 i = 0; i < _numMaterials; ++i)
@@ -260,6 +322,40 @@ HRESULT ModelCom::Ready_Model(const char* modelPath)
         vector<uint8> vtxBuffer(vtxSize * meshData.numVertices);
         stream.read(reinterpret_cast<char*>(vtxBuffer.data()), vtxBuffer.size());
         meshData.vertices = vtxBuffer.data();
+
+        if (meshData.numVertices > 0)
+        {
+            if (_isSkeletal)
+            {
+                VTXANIMMESH* vertices = reinterpret_cast<VTXANIMMESH*>(vtxBuffer.data());
+                for (uint32 vertexIndex = 0; vertexIndex < meshData.numVertices; ++vertexIndex)
+                {
+                    const Vec3& position = vertices[vertexIndex].position;
+                    minBounds.x = (std::min)(minBounds.x, position.x);
+                    minBounds.y = (std::min)(minBounds.y, position.y);
+                    minBounds.z = (std::min)(minBounds.z, position.z);
+                    maxBounds.x = (std::max)(maxBounds.x, position.x);
+                    maxBounds.y = (std::max)(maxBounds.y, position.y);
+                    maxBounds.z = (std::max)(maxBounds.z, position.z);
+                }
+            }
+            else
+            {
+                VTXMESH* vertices = reinterpret_cast<VTXMESH*>(vtxBuffer.data());
+                for (uint32 vertexIndex = 0; vertexIndex < meshData.numVertices; ++vertexIndex)
+                {
+                    const Vec3& position = vertices[vertexIndex].position;
+                    minBounds.x = (std::min)(minBounds.x, position.x);
+                    minBounds.y = (std::min)(minBounds.y, position.y);
+                    minBounds.z = (std::min)(minBounds.z, position.z);
+                    maxBounds.x = (std::max)(maxBounds.x, position.x);
+                    maxBounds.y = (std::max)(maxBounds.y, position.y);
+                    maxBounds.z = (std::max)(maxBounds.z, position.z);
+                }
+            }
+
+            hasBounds = true;
+        }
 
         vector<uint32> idxBuffer(meshData.numIndices);
         stream.read(reinterpret_cast<char*>(idxBuffer.data()), sizeof(uint32) * meshData.numIndices);
@@ -310,6 +406,13 @@ HRESULT ModelCom::Ready_Model(const char* modelPath)
         }
     }
 
+    _hasLocalBounds = hasBounds;
+    if (hasBounds)
+    {
+        _localBoundsMin = minBounds;
+        _localBoundsMax = maxBounds;
+    }
+
     stream.close();
     return S_OK;
 }
@@ -356,7 +459,7 @@ HRESULT ModelCom::Ready_Animation(const char* modelPath)
                     channels[i].boneName = ReadString(stream);
                     stream.read(reinterpret_cast<char*>(&channels[i].boneIndex), sizeof(int32));
                     stream.read(reinterpret_cast<char*>(&channels[i].numKeyframes), sizeof(uint32));
-                    
+
                     /* 이름 기반 본 인덱스 재매핑 (강제 매핑) */
                     channels[i].boneIndex = Get_BoneIndex(channels[i].boneName);
 
@@ -382,7 +485,7 @@ Shared<ModelCom> ModelCom::Create(const ComPtr<Device>& device, const ComPtr<Con
     {
         LOG_WARN("Failed to create ModelCom: path='{}'", nullptr != modelFilePath ? modelFilePath : "");
         return nullptr;
-	}
+    }
     return instance;
 }
 
@@ -394,7 +497,7 @@ Shared<Component> ModelCom::Clone(void* arg)
     {
         MSG_BOX("Failed to Cloned : ModelCom");
         return nullptr;
-	}
+    }
     return instance;
 }
 

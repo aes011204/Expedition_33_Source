@@ -40,6 +40,9 @@ public:
         return emptyInfo;
     }
 
+    virtual json To_Json() const;
+    virtual void From_Json(const json& data);
+
 public:
     virtual void    OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other) {}
     virtual void    OnStayOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other)  {}

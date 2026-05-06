@@ -43,6 +43,34 @@ const LIGHT_DESC* Light_Manager::Get_PrimaryShadowLightDesc() const
     return nullptr;
 }
 
+uint32 Light_Manager::Get_LightCount() const
+{
+    return static_cast<uint32>(_lights.size());
+}
+
+void Light_Manager::Clear_Lights()
+{
+    _lights.clear();
+}
+
+void Light_Manager::Get_LightDescs(vector<LIGHT_DESC>& outLightDescs) const
+{
+    outLightDescs.clear();
+    outLightDescs.reserve(_lights.size());
+
+    for (const auto& light : _lights)
+    {
+        if (light == nullptr)
+            continue;
+
+        const LIGHT_DESC* desc = light->Get_LightDesc();
+        if (desc == nullptr)
+            continue;
+
+        outLightDescs.push_back(*desc);
+    }
+}
+
 HRESULT Light_Manager::Add_Light(const LIGHT_DESC& lightDesc)
 {
 	Shared<Light> light = Light::Create(lightDesc);
@@ -52,6 +80,19 @@ HRESULT Light_Manager::Add_Light(const LIGHT_DESC& lightDesc)
 	_lights.push_back(light);
 
 	return S_OK;
+}
+
+HRESULT Light_Manager::Set_Lights(const vector<LIGHT_DESC>& lightDescs)
+{
+    _lights.clear();
+
+    for (const LIGHT_DESC& lightDesc : lightDescs)
+    {
+        if (FAILED(Add_Light(lightDesc)))
+            return E_FAIL;
+    }
+
+    return S_OK;
 }
 
 HRESULT Light_Manager::Render_Lights(Shared<ShaderCom> shader, Shared<VIBuffer_Rect> viBuffer)

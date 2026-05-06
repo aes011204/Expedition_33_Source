@@ -4,6 +4,7 @@
 NS_BEGIN(MapEditor)
 
 struct SceneContext;
+class MECamera;
 
 class PanelInspector final : public MEWindow
 {
@@ -12,7 +13,7 @@ private:
     static constexpr uint64 _lightNum = magic_enum::enum_count<LightType>() - 1;
 
 public:
-    explicit PanelInspector(SceneContext* ctx);
+    explicit PanelInspector(SceneContext* ctx, MECamera* camera);
     virtual ~PanelInspector() = default;
 
 public:
@@ -20,11 +21,13 @@ public:
 
 private:
     SceneContext* _ctx = {};
+    MECamera* _camera = {};
+
     const char* _shapes[_shapeNum] = {};
     const char* _lights[_lightNum] = {};
 
 public:
-    static Shared<PanelInspector> Create(SceneContext* ctx);
+    static Shared<PanelInspector> Create(SceneContext* ctx, MECamera* camera);
 };
 
 NS_END

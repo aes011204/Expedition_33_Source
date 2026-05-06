@@ -17,6 +17,9 @@ public:
     virtual ~PanelViewport() = default;
 
 public:
+    void SetSnapSettings(Shared<SnapSettings> settings) { _snapSettings = settings; }
+
+public:
     virtual void Update(float timeDelta) override;
     virtual void Render() override;
 
@@ -29,6 +32,8 @@ private:
 
     ImGuizmo::OPERATION _gizmoOp = ImGuizmo::TRANSLATE;
     ImGuizmo::MODE _gizmoMode = ImGuizmo::WORLD;
+
+    Shared<SnapSettings> _snapSettings;
 
 public:
     static Shared<PanelViewport> Create(Shared<MECamera> camera, Shared<RenderTarget> rt, SceneContext* ctx);

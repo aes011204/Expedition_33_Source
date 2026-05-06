@@ -8,7 +8,10 @@ row_major matrix g_BoneMatrices[512];
 //==================================================
 // MATERIAL
 //==================================================
-texture2D g_DiffuseTexture;
+Texture2D g_DiffuseTexture;
+Texture2D g_NormalTexture;
+Texture2D g_OpacityTexture;
+Texture2D g_EmissiveTexture;
 
 //==================================================
 // CAMERA
@@ -21,13 +24,21 @@ float g_fFar = 0.f;
 float g_fLightFar = 0.f;
 
 //==================================================
+// VALUE
+//==================================================
+float2 g_UVScale = float2(1.f, 1.f);
+float2 g_UVOffset = float2(0.f, 0.f);
+float  g_UVRotation = 0.f;
+int    g_UseOpacityMask = 0;
+
+//==================================================
 // SAMPLER
 //==================================================
-sampler DefaultSampler = sampler_state
+SamplerState DefaultSampler
 {
     Filter = MIN_MAG_MIP_LINEAR;
-    AddressU = wrap;
-    AddressV = wrap;
+    AddressU = Wrap;
+    AddressV = Wrap;
 };
 
 //==================================================
@@ -35,22 +46,24 @@ sampler DefaultSampler = sampler_state
 //==================================================
 struct VS_IN
 {
-    float3 vPosition : POSITION;
-    float3 vNormal : NORMAL;
-    float3 vTangent : TANGENT;
-    float3 vBinormal : BINORMAL;
-    float2 vTexcoord : TEXCOORD0;
-    uint4 vBlendIndex : BLENDINDEX;
-    float4 vBlendWeight : BLENDWEIGHT;
+    float3  vPosition : POSITION;
+    float3  vNormal : NORMAL;
+    float3  vTangent : TANGENT;
+    float3  vBinormal : BINORMAL;
+    float2  vTexcoord : TEXCOORD0;
+    uint4   vBlendIndex : BLENDINDEX;
+    float4  vBlendWeight : BLENDWEIGHT;
 };
 
 struct VS_OUT
 {
-    float4 vPosition : SV_POSITION;
-    float4 vNormal : NORMAL;
-    float2 vTexcoord : TEXCOORD0;
-    float4 vWorldPos : TEXCOORD1;
-    float4 vProjPos : TEXCOORD2;
+    float4  vPosition : SV_POSITION;
+    float4  vNormal : NORMAL;
+    float3  vTangent : TANGENT;
+    float3  vBinormal : BINORMAL;
+    float2  vTexcoord : TEXCOORD0;
+    float4  vWorldPos : TEXCOORD1;
+    float4  vProjPos : TEXCOORD2;
 };
 
 VS_OUT VS_MAIN(VS_IN In)
@@ -69,6 +82,8 @@ VS_OUT VS_MAIN(VS_IN In)
 
     vector vPosition = mul(float4(In.vPosition, 1.f), BoneMatrix);
     vector vNormal = mul(float4(In.vNormal, 0.f), BoneMatrix);
+    vector vTangent = mul(float4(In.vTangent, 0.f), BoneMatrix);
+    vector vBinormal = mul(float4(In.vBinormal, 0.f), BoneMatrix);
 
     matWV = mul(g_WorldMatrix, g_ViewMatrix);
     matWVP = mul(matWV, g_ProjMatrix);
@@ -76,11 +91,29 @@ VS_OUT VS_MAIN(VS_IN In)
     Out.vPosition = mul(vPosition, matWVP);
     Out.vNormal = normalize(mul(vNormal, g_WorldMatrix));
 
+    Out.vTangent = normalize(mul(vTangent, g_WorldMatrix));
+    Out.vBinormal = normalize(mul(vBinormal, g_WorldMatrix));
+
     Out.vTexcoord = In.vTexcoord;
     Out.vWorldPos = mul(vPosition, g_WorldMatrix);
     Out.vProjPos = Out.vPosition;
 
     return Out;
+}
+
+// UV 변환 함수 하나 추가
+float2 ApplyUVTransform(float2 uv, float2 scale, float2 offset, float rotation)
+{
+    float2 scaled = uv * scale;
+
+    float s = sin(rotation);
+    float c = cos(rotation);
+
+    float2 rotated;
+    rotated.x = scaled.x * c - scaled.y * s;
+    rotated.y = scaled.x * s + scaled.y * c;
+
+    return rotated + offset;
 }
 
 //==================================================
@@ -90,6 +123,8 @@ struct PS_IN
 {
     float4 vPosition : SV_POSITION;
     float4 vNormal : NORMAL;
+    float3 vTangent : TANGENT;
+    float3 vBinormal : BINORMAL;
     float2 vTexcoord : TEXCOORD0;
     float4 vWorldPos : TEXCOORD1;
     float4 vProjPos : TEXCOORD2;
@@ -108,21 +143,29 @@ PS_OUT PS_MAIN(PS_IN In)
 {
     PS_OUT Out;
 
-    vector      vMtrlDiffuse = g_DiffuseTexture.Sample(DefaultSampler, In.vTexcoord);
+    float2 finalUV = ApplyUVTransform(In.vTexcoord, g_UVScale, g_UVOffset, g_UVRotation);
 
-    if (vMtrlDiffuse.a < 0.3f)
+    float4 baseColor = g_DiffuseTexture.Sample(DefaultSampler, finalUV);
+
+    float opacity = baseColor.a;
+    if (g_UseOpacityMask != 0)
+    {
+        float opacityFromMask = g_OpacityTexture.Sample(DefaultSampler, finalUV).r;
+        opacity = opacityFromMask;
+    }
+
+    if (opacity < 0.3f)
         discard;
 
-    Out.vDiffuse = vMtrlDiffuse;
+    float3 worldNormal = normalize(In.vNormal.xyz);
 
-    // -1 ~ 1 => 0 ~ 1
-    Out.vNormal = vector(normalize(In.vNormal.xyz) * 0.5f + 0.5f, 1.f);
-
-    Out.vDepth = vector(In.vProjPos.z / In.vProjPos.w, In.vProjPos.w / g_fFar, 0.f, 1.f);
+    Out.vDiffuse = baseColor;
+    Out.vNormal = float4(worldNormal * 0.5f + 0.5f, 1.f);
+    Out.vDepth = float4(In.vProjPos.z / In.vProjPos.w, In.vProjPos.w / g_fFar, 0.f, 1.f);
 
     return Out;
-
 }
+
 
 struct PS_OUT_SHADOW
 {

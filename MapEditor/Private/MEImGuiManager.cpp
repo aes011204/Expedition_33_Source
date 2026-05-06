@@ -21,7 +21,7 @@ HRESULT MEImGuiManager::Initialize(HWND hWnd, const ComPtr<Device>& device, cons
     io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 
     io.Fonts->AddFontFromFileTTF(
-        "../Bin/Resources/Fonts/Jua-Regular.ttf", 17.f,
+        "../../Bin/Resources/Fonts/Jua-Regular.ttf", 17.f,
         nullptr, io.Fonts->GetGlyphRangesKorean());
 
     ApplyStyle();

@@ -196,7 +196,8 @@ bool Camera_Manager::Focus_FreeCameraOnPosition(const Vec3& position)
 
 HRESULT Camera_Manager::Bind_CameraFar(Shared<ShaderCom> shader, const char* constantName)
 {
-    CHECK_NULL(m_activeCamera, E_FAIL);
+    if (!m_activeCamera)
+        return E_FAIL;
 
     const float farPlane = m_activeCamera->Get_Far();
     return shader->Bind_RawValue(constantName, &farPlane, sizeof(float));

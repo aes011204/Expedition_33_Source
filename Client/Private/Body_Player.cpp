@@ -1,7 +1,9 @@
 ﻿#include "Body_Player.h"
 #include "GameInstance.h"
-
+#include "Material.h"
+#include "Material_Types.h"
 #include "Player.h"
+#include "ModelCom.h"
 
 Body_Player::Body_Player(const ComPtr<Device>& device, const ComPtr<Context>& context)
 	: PartObject { device, context }
@@ -69,15 +71,33 @@ HRESULT Body_Player::Render()
 	const uint32 iNumMeshes = static_cast<uint32>(_model->Get_NumMeshes());
 
 	for (uint32 i = 0; i < iNumMeshes; i++)
-	{
-		_model->Bind_Material(_shader.get(), "g_DiffuseTexture", i, 1, 0);
-		_model->Bind_BoneMatrices(_shader.get(), "g_BoneMatrices", i);
+    {
+        if (FAILED(_model->Bind_Material(_shader.get(), "g_DiffuseTexture", i, MaterialTextureSlot::BaseColor)))
+            continue;
 
-		if (FAILED(_shader->Begin(0)))
-			return E_FAIL;
+        _model->Bind_Material(_shader.get(), "g_NormalTexture", i, MaterialTextureSlot::Normal);
+        _model->Bind_Material(_shader.get(), "g_EmissiveTexture", i, MaterialTextureSlot::Emissive);
 
-		_model->Render(i);
-	}
+        const Material::TextureSlot* baseColorSlot =
+            _model->Find_MaterialSlot(i, { MaterialTextureSlot::BaseColor });
+        const Vec2 uvScale = baseColorSlot ? baseColorSlot->uvScale : Vec2(1.f, 1.f);
+        const Vec2 uvOffset = baseColorSlot ? baseColorSlot->uvOffset : Vec2(0.f, 0.f);
+        const float uvRotation = baseColorSlot ? baseColorSlot->uvRotation : 0.f;
+        const int useOpacityMask = 0;
+
+        _shader->Bind_RawValue("g_UVScale", &uvScale, sizeof(Vec2));
+        _shader->Bind_RawValue("g_UVOffset", &uvOffset, sizeof(Vec2));
+        _shader->Bind_RawValue("g_UVRotation", &uvRotation, sizeof(float));
+        _shader->Bind_RawValue("g_UseOpacityMask", &useOpacityMask, sizeof(int));
+
+        _model->Bind_BoneMatrices(_shader.get(), "g_BoneMatrices", i);
+
+        if (FAILED(_shader->Begin(0)))
+            return E_FAIL;
+
+        _model->Render(i);
+    }
+
 
 	return S_OK;
 }
