@@ -21,8 +21,13 @@ HRESULT MapLoader::Load(const wstring& filePath, uint32 levelIndex, const wstrin
     {
         MapStaticMesh::MAPSTATICMESH_DESC desc{};
 
-        string modelPathA = "../Bin/Resources/Map/" + e.value("ModelPath", string{});
+        string modelPathA = "../../../Client/Bin/Resources/Map/" + e.value("ModelPath", string{});
         desc.modelPath = String::ToWString(modelPathA);
+
+        if (e.value("ModelPath", string{}).empty())
+        {
+            continue;
+        }
 
         auto& pos = e["Position"];
         desc.position = Vec3(pos[0], pos[1], pos[2]);

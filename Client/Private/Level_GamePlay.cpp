@@ -194,7 +194,7 @@ HRESULT Level_GamePlay::Ready_Layer_Player(const wstring& strLayerTag)
 
 HRESULT Level_GamePlay::Ready_Layer_MapStaticMesh(const wstring& strLayerTag)
 {
-    CHECK_FAILED(MapLoader::Load(TEXT("../../Client/Bin/Resources/Map/SaveJson/SmallLevel_SimonArea.json"),
+    CHECK_FAILED(MapLoader::Load(TEXT("../../../Client/Bin/Resources/Map/SaveJson/SmallLevel_SimonArea.json"),
         ETOI(LevelType::GamePlay), strLayerTag), E_FAIL);
 
     return S_OK;

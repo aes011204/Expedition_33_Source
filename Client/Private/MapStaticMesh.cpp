@@ -61,7 +61,7 @@ HRESULT MapStaticMesh::Render()
 
     for (uint32 i = 0; i < iNumMeshes; i++)
     {
-        const uint32 pass = SUCCEEDED(_model->Bind_Material(_shader.get(), "g_DiffuseTexture", i, 1, 0)) ? 0 : 2;
+        const uint32 pass = SUCCEEDED(_model->Bind_Material(_shader.get(), "g_DiffuseTexture", i, MaterialTextureSlot::BaseColor)) ? 0 : 2;
 
         if (FAILED(_shader->Begin(pass)))
         {
@@ -82,7 +82,7 @@ HRESULT MapStaticMesh::Ready_Components(const wstring& modelPath)
     }
 
     string pathA = String::ToString(modelPath);
-    _model = ModelCom::Create(_device, _context, ModelType::NonAnim, pathA.c_str(), Matrix::Identity);
+    _model = ModelCom::Create(_device, _context, ModelType::NonAnim, pathA.c_str(), Matrix::CreateScale(0.001f));
     if (!_model)
     {
         return E_FAIL;
@@ -135,7 +135,6 @@ Shared<GameObject> MapStaticMesh::Clone(void* arg)
 
     if (FAILED(clone->Initialize(arg)))
     {
-        MSG_BOX("Failed to Cloned : MapStaticMesh");
         return nullptr;
     }
 
