@@ -453,6 +453,14 @@ MainEditor/Bin/Debug/*
 !MainEditor/Bin/Release/
 MainEditor/Bin/Release/*
 !MainEditor/Bin/Release/fmod.dll
+!MapEditor/Bin/
+MapEditor/Bin/*
+!MapEditor/Bin/ShaderFiles/
+!MapEditor/Bin/ShaderFiles/**
+!ModelEditor/Bin/
+ModelEditor/Bin/*
+!ModelEditor/Bin/ShaderFiles/
+!ModelEditor/Bin/ShaderFiles/**
 
 Client/Bin/[Dd]ebug/
 Client/Bin/[Rr]elease/
