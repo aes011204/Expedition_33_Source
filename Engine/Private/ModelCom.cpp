@@ -32,7 +32,7 @@ ModelCom::ModelCom(const ModelCom& prototype)
 
 }
 
-int32 ModelCom::Get_BoneIndex(const char* boneName) const
+int32 ModelCom::Get_BoneIndex(const string& boneName) const
 {
     for (int32 i = 0; i < _numBones; ++i)
     {
@@ -43,7 +43,7 @@ int32 ModelCom::Get_BoneIndex(const char* boneName) const
     return -1;
 }
 
-const char* ModelCom::Get_BoneName(uint32 boneIndex) const
+const string& ModelCom::Get_BoneName(uint32 boneIndex) const
 {
     return _bones[boneIndex]->Get_BoneName();
 }
@@ -77,7 +77,7 @@ const char* ModelCom::Get_AnimationName(uint32 animationIndex) const
     if (animationIndex >= _animations.size())
         return nullptr;
 
-    return _animations[animationIndex]->Get_AnimationName();
+    return _animations[animationIndex]->Get_AnimationName().c_str();
 }
 
 const Matrix* ModelCom::Get_BoneMatrixPtr(const char* boneName) const
@@ -174,7 +174,7 @@ bool ModelCom::Play_Animation(float timeDelta)
     /* 루트 모션 속도 보정 (preLocalTransformMatrix 적용) */
     if (rootIndex >= 0)
     {
-        _rootFrameVelocity.position = XMVector3TransformNormal(_rootFrameVelocity.position, _preLocalTransformMatrix);
+        _rootFrameVelocity.position = Vec3::TransformNormal(_rootFrameVelocity.position, _preLocalTransformMatrix);
     }
 
     for (uint32 i = 0; i < _numBones; ++i)
@@ -216,14 +216,35 @@ HRESULT ModelCom::Ready_Model(const char* modelPath)
     stream.read(reinterpret_cast<char*>(&_numMeshes), sizeof(uint32));
     stream.read(reinterpret_cast<char*>(&_numBones), sizeof(uint32));
 
+    auto ReadString = [](std::ifstream& in) {
+        uint32 len = 0;
+        in.read(reinterpret_cast<char*>(&len), sizeof(uint32));
+        std::string str;
+        if (len > 0) {
+            str.resize(len);
+            in.read(&str[0], len);
+        }
+        return str;
+    };
+
     // Load Material
     for (uint32 i = 0; i < _numMaterials; ++i)
     {
         ModelMaterialData materialData{};
-        stream.read(reinterpret_cast<char*>(&materialData), sizeof(ModelMaterialData));
+        materialData.name = ReadString(stream);
+        stream.read(reinterpret_cast<char*>(&materialData.diffuseColor), sizeof(Vec4) * 4);
+        stream.read(reinterpret_cast<char*>(&materialData.shininess), sizeof(float) * 4);
+        stream.read(reinterpret_cast<char*>(&materialData.numSlots), sizeof(uint32));
 
         vector<ModelTextureSlot> slots(materialData.numSlots);
-        stream.read(reinterpret_cast<char*>(slots.data()), sizeof(ModelTextureSlot) * materialData.numSlots);
+        for (uint32 j = 0; j < materialData.numSlots; ++j)
+        {
+            slots[j].path = ReadString(stream);
+            stream.read(reinterpret_cast<char*>(&slots[j].typeIndex), sizeof(uint32) * 2);
+            stream.read(reinterpret_cast<char*>(&slots[j].uvScale), sizeof(Vec2) * 2);
+            stream.read(reinterpret_cast<char*>(&slots[j].uvRotation), sizeof(float) * 2);
+            stream.read(reinterpret_cast<char*>(&slots[j].blendOp), sizeof(uint32) * 3);
+        }
 
         _materials.push_back(Material::Create(_device, _context, modelPath, materialData, slots, _maxTextureType));
     }
@@ -232,7 +253,8 @@ HRESULT ModelCom::Ready_Model(const char* modelPath)
     for (uint32 i = 0; i < _numMeshes; ++i)
     {
         ModelMeshData meshData;
-        stream.read(reinterpret_cast<char*>(&meshData), sizeof(ModelMeshData));
+        meshData.name = ReadString(stream);
+        stream.read(reinterpret_cast<char*>(&meshData.materialIndex), sizeof(uint32) * 4);
 
         size_t vtxSize = _isSkeletal ? sizeof(VTXANIMMESH) : sizeof(VTXMESH);
         vector<uint8> vtxBuffer(vtxSize * meshData.numVertices);
@@ -277,12 +299,15 @@ HRESULT ModelCom::Ready_Model(const char* modelPath)
     // Load Bone
     if (_numBones > 0)
     {
-        vector<ModelBoneData> boneData(_numBones);
-        stream.read(reinterpret_cast<char*>(boneData.data()),
-            sizeof(ModelBoneData) * _numBones);
-
-        for (const auto& data : boneData)
+        for (uint32 i = 0; i < _numBones; ++i)
+        {
+            ModelBoneData data{};
+            data.name = ReadString(stream);
+            stream.read(reinterpret_cast<char*>(&data.parentBoneIndex), sizeof(int32));
+            stream.read(reinterpret_cast<char*>(&data.localTransform), sizeof(Matrix));
+            stream.read(reinterpret_cast<char*>(&data.offsetMatrix), sizeof(Matrix));
             _bones.push_back(Bone::Create(data));
+        }
     }
 
     stream.close();
@@ -305,15 +330,32 @@ HRESULT ModelCom::Ready_Animation(const char* modelPath)
                 std::ifstream stream(entry.path(), std::ios::binary);
                 if (!stream.is_open()) continue;
 
+                auto ReadString = [](std::ifstream& in) {
+                    uint32 len = 0;
+                    in.read(reinterpret_cast<char*>(&len), sizeof(uint32));
+                    std::string str;
+                    if (len > 0) {
+                        str.resize(len);
+                        in.read(&str[0], len);
+                    }
+                    return str;
+                };
+
                 ModelAnimationData animData{};
-                stream.read(reinterpret_cast<char*>(&animData), sizeof(ModelAnimationData));
+                animData.name = ReadString(stream);
+                stream.read(reinterpret_cast<char*>(&animData.duration), sizeof(double) * 2);
+                stream.read(reinterpret_cast<char*>(&animData.numChannels), sizeof(uint32));
+                stream.read(reinterpret_cast<char*>(&animData.rootTotalTranslation), sizeof(Vec3));
+                stream.read(reinterpret_cast<char*>(&animData.rootTotalRotation), sizeof(Vec4));
 
                 vector<ModelChannelData> channels(animData.numChannels);
                 vector<vector<KEYFRAME>> keyframeSets(animData.numChannels);
 
                 for (uint32 i = 0; i < animData.numChannels; ++i)
                 {
-                    stream.read(reinterpret_cast<char*>(&channels[i]), sizeof(ModelChannelData));
+                    channels[i].boneName = ReadString(stream);
+                    stream.read(reinterpret_cast<char*>(&channels[i].boneIndex), sizeof(int32));
+                    stream.read(reinterpret_cast<char*>(&channels[i].numKeyframes), sizeof(uint32));
                     
                     /* 이름 기반 본 인덱스 재매핑 (강제 매핑) */
                     channels[i].boneIndex = Get_BoneIndex(channels[i].boneName);

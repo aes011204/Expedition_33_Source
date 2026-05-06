@@ -1,4 +1,4 @@
-﻿#include "Animation.h"
+#include "Animation.h"
 
 #include "Channel.h"
 #include "Bone.h"
@@ -13,16 +13,14 @@ Animation::Animation(const Animation& prototype)
 	, _tickPerSecond{ prototype._tickPerSecond }
 	, _currentTrackPosition{ 0.f }
 {
-    strcpy_s(_animationName, prototype._animationName);
+    _animationName = prototype._animationName;
 	for (auto& ch : prototype._channels)
 		_channels.push_back(ch->Clone());
 }
 
 HRESULT Animation::Initialize(const ModelAnimationData& animData, const vector<ModelChannelData>& channels)
 {
-    strcpy_s(_animationName, animData.name);
-
-
+    _animationName = animData.name;
 	_duration = static_cast<float>(animData.duration);
 	_tickPerSecond = static_cast<float>(animData.ticksPerSecond);
 	_numChannels = animData.numChannels;

@@ -145,7 +145,7 @@ const char* ModelViewerObject::Get_AnimationName(uint32 animIndex)
 
 const char* ModelViewerObject::Get_BoneName(uint32 boneIndex) const
 {
-    return _modelCom->Get_BoneName(boneIndex);
+    return _modelCom->Get_BoneName(boneIndex).c_str();
 }
 
 uint32 ModelViewerObject::Get_NumBones() const
