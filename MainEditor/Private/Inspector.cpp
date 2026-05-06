@@ -7,6 +7,7 @@
 #include "GameObject.h"
 #include "Helper_String.h"
 #include "Inspector_Factory.h"
+#include "ModelCom.h"
 #include "Reflection_Types.h"
 #include "TransformCom.h"
 
@@ -51,6 +52,9 @@ bool Inspector::Draw_ComponentOverride(const Shared<Component>& component)
     const ClassReflectionInfo& info = component->Get_ReflectionInfo();
 
     string inspectorKey = info.className;
+    if (dynamic_pointer_cast<ModelCom>(component))
+        inspectorKey = "ModelCom";
+
     if (inspectorKey.empty())
         inspectorKey = String::ToString(component->Get_Name());
 

@@ -10,7 +10,8 @@
 #include <limits>
 
 ModelCom::ModelCom(const ComPtr<Device>& device, const ComPtr<Context>& context)
-    : Component { device, context } {}
+    : Component{ device, context } {
+}
 
 ModelCom::ModelCom(const ModelCom& prototype)
     : Component{ prototype }
@@ -24,9 +25,9 @@ ModelCom::ModelCom(const ModelCom& prototype)
     , _numMeshes{ prototype._numMeshes }
     , _numMaterials{ prototype._numMaterials }
     , _numBones{ prototype._numBones }
-    , _numAnimations { prototype._numAnimations}
-    , _meshes { prototype._meshes }
-    , _materials { prototype._materials }
+    , _numAnimations{ prototype._numAnimations }
+    , _meshes{ prototype._meshes }
+    , _materials{ prototype._materials }
 {
     for (auto& prototypeAnim : prototype._animations)
         _animations.push_back(prototypeAnim->Clone());
@@ -34,6 +35,43 @@ ModelCom::ModelCom(const ModelCom& prototype)
     for (auto& prototypeBone : prototype._bones)
         _bones.push_back(prototypeBone->Clone());
 
+}
+
+uint32 ModelCom::Get_MeshMaterialIndex(uint32 meshIndex) const
+{
+    if (meshIndex >= _meshes.size())
+        return UINT32_MAX;
+
+    return _meshes[meshIndex]->Get_MaterialIndex();
+}
+
+Shared<Material> ModelCom::Get_Material(uint32 materialIndex) const
+{
+    if (materialIndex >= _materials.size())
+        return nullptr;
+
+    return _materials[materialIndex];
+}
+
+const Material::TextureSlot* ModelCom::Find_MaterialSlot(uint32 meshIndex, std::initializer_list<MaterialTextureSlot> materialSlots,
+    uint32 textureIndex) const
+{
+     if (meshIndex >= _meshes.size())
+        return nullptr;
+
+    const uint32 materialIndex = _meshes[meshIndex]->Get_MaterialIndex();
+    if (materialIndex >= _materials.size() || _materials[materialIndex] == nullptr)
+        return nullptr;
+
+    const Shared<Material>& material = _materials[materialIndex];
+
+    for (MaterialTextureSlot slot : materialSlots)
+    {
+        if (const Material::TextureSlot* textureSlot = material->Find_TextureSlot(slot, textureIndex))
+            return textureSlot;
+    }
+
+    return nullptr;
 }
 
 int32 ModelCom::Get_BoneIndex(const char* boneName)
@@ -184,9 +222,9 @@ bool ModelCom::Play_Animation(float timeDelta)
     return isFinish;
 }
 
-HRESULT ModelCom::Bind_Material(ShaderCom* shader, const char* constantName, uint32 meshIndex, uint32 materialType, uint32 textureIndex)
+HRESULT ModelCom::Bind_Material(ShaderCom* shader, const char* constantName, uint32 meshIndex, MaterialTextureSlot slot, uint32 textureIndex)
 {
-    return _materials[_meshes[meshIndex]->Get_MaterialIndex()]->Bind_Material(shader, constantName, materialType, textureIndex);
+    return _materials[_meshes[meshIndex]->Get_MaterialIndex()]->Bind_Material(shader, constantName, slot, textureIndex);
 }
 
 HRESULT ModelCom::Bind_BoneMatrices(ShaderCom* shader, const char* constantName, uint32 meshIndex)
@@ -374,7 +412,7 @@ HRESULT ModelCom::Ready_Animation(const char* modelPath)
                 for (uint32 i = 0; i < animData.numChannels; ++i)
                 {
                     stream.read(reinterpret_cast<char*>(&channels[i]), sizeof(ModelChannelData));
-                    
+
                     /* 이름 기반 본 인덱스 재매핑 (강제 매핑) */
                     channels[i].boneIndex = Get_BoneIndex(channels[i].boneName);
 
@@ -400,7 +438,7 @@ Shared<ModelCom> ModelCom::Create(const ComPtr<Device>& device, const ComPtr<Con
     {
         LOG_WARN("Failed to create ModelCom: path='{}'", nullptr != modelFilePath ? modelFilePath : "");
         return nullptr;
-	}
+    }
     return instance;
 }
 
@@ -412,7 +450,7 @@ Shared<Component> ModelCom::Clone(void* arg)
     {
         MSG_BOX("Failed to Cloned : ModelCom");
         return nullptr;
-	}
+    }
     return instance;
 }
 

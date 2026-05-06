@@ -41,9 +41,9 @@ private:
     void Draw_StructurePanel();
     void Draw_PreviewPanel();
     void Draw_InspectorPanel();
-
-    void Draw_GameObjectEntry();
-    void Draw_ComponentEntries();
+    void Draw_GameObjectTree(const Shared<GameObject>& gameObject, const wstring& objectKey);
+    void Draw_ComponentEntries(const Shared<GameObject>& gameObject, const wstring& objectKey);
+    Shared<GameObject> Find_GameObjectByKey(const Shared<GameObject>& rootObject, const wstring& objectKey) const;
 
 private:
     void Ensure_PreviewRenderTarget(uint32 width, uint32 height);
@@ -76,10 +76,11 @@ private:
     bool                _previewHasBegunPlay = false;
 
     SelectionType       _selectionType = SelectionType::None;
-    wstring             _selectedComponentTag{};
-
     bool                _showPrefabCollider = false;
     bool                _showPreviewGrid = true;
+
+    wstring _selectedObjectKey{};
+    wstring _selectedComponentKey{};
 
 
 public:

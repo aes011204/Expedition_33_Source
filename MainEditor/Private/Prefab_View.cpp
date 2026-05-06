@@ -234,7 +234,8 @@ void Prefab_View::Open_Prefab(const string& prefabName, const fs::path& prefabPa
     }
 
     _selectionType = SelectionType::GameObject;
-    _selectedComponentTag.clear();
+    _selectedObjectKey = L"Root";
+    _selectedComponentKey.clear();
     _showPrefabCollider = false;
 
     ClearDirty();
@@ -263,7 +264,8 @@ void Prefab_View::Close_Prefab()
     _applyDefaultWindowLayout = false;
 
     _selectionType = SelectionType::None;
-    _selectedComponentTag.clear();
+    _selectedObjectKey.clear();
+    _selectedComponentKey.clear();
     _showPrefabCollider = false;
 
     ClearDirty();
@@ -329,12 +331,11 @@ void Prefab_View::Draw_StructurePanel()
         return;
     }
 
-    Draw_GameObjectEntry();
-    ImGui::Spacing();
-    Draw_ComponentEntries();
+    Draw_GameObjectTree(_previewObject, L"Root");
 
     ImGui::EndChild();
 }
+
 
 void Prefab_View::Draw_PreviewPanel()
 {
@@ -415,11 +416,15 @@ void Prefab_View::Draw_InspectorPanel()
         return;
     }
 
+    Shared<GameObject> selectedObject = Find_GameObjectByKey(_previewObject, _selectedObjectKey);
+    if (selectedObject == nullptr)
+        selectedObject = _previewObject;
+
     switch (_selectionType)
     {
     case SelectionType::GameObject:
     {
-        const Engine::ClassReflectionInfo& info = _previewObject->Get_ReflectionInfo();
+        const Engine::ClassReflectionInfo& info = selectedObject->Get_ReflectionInfo();
 
         if (info.properties.empty())
         {
@@ -427,9 +432,8 @@ void Prefab_View::Draw_InspectorPanel()
         }
         else
         {
-            Inspector::Draw_ReflectionSection(info.className, _previewObject.get(), info);
+            Inspector::Draw_ReflectionSection(info.className, selectedObject.get(), info);
         }
-
         break;
     }
 
@@ -437,11 +441,12 @@ void Prefab_View::Draw_InspectorPanel()
     {
         Shared<Component> selectedComponent = nullptr;
 
-        _previewObject->Visit_Components([&](const wstring& tag, const Shared<Component>& component)
-            {
-                if (tag == _selectedComponentTag)
-                    selectedComponent = component;
-            });
+        selectedObject->Visit_Components([&](const wstring& tag, const Shared<Component>& component)
+        {
+            const wstring componentKey = _selectedObjectKey + L"::" + tag;
+            if (componentKey == _selectedComponentKey)
+                selectedComponent = component;
+        });
 
         if (selectedComponent == nullptr)
         {
@@ -472,56 +477,156 @@ void Prefab_View::Draw_InspectorPanel()
 }
 
 
-void Prefab_View::Draw_GameObjectEntry()
+void Prefab_View::Draw_GameObjectTree(const Shared<GameObject>& gameObject, const wstring& objectKey)
 {
-    const bool isSelected = (_selectionType == SelectionType::GameObject);
+    CHECK_NULL(gameObject);
 
     string label = "GameObject";
-    if (!_prefabName.empty())
-        label += " - " + _prefabName;
+    const ClassReflectionInfo& info = gameObject->Get_ReflectionInfo();
 
-    if (ImGui::Selectable(label.c_str(), isSelected))
+    if (!info.displayName.empty())
+        label = info.displayName;
+    else if (!info.className.empty())
+        label = info.className;
+    else
+        label = String::ToString(gameObject->Get_Name());
+
+    const bool isPartObject = dynamic_pointer_cast<PartObject>(gameObject) != nullptr;
+    if (isPartObject)
+        label = "Part - " + label;
+
+    const bool isSelected =
+        (_selectionType == SelectionType::GameObject && _selectedObjectKey == objectKey);
+
+    ImGuiTreeNodeFlags nodeFlags = ImGuiTreeNodeFlags_DefaultOpen;
+    if (isSelected)
+        nodeFlags |= ImGuiTreeNodeFlags_Selected;
+
+    Shared<ContainerObject> container = dynamic_pointer_cast<ContainerObject>(gameObject);
+    const bool hasChildren = container && !container->Get_PartObjects().empty();
+    if (!hasChildren)
+        nodeFlags |= ImGuiTreeNodeFlags_Leaf;
+
+    if (isPartObject)
+        ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(244, 206, 120, 255));
+
+    const bool isOpen = ImGui::TreeNodeEx(String::ToString(objectKey).c_str(), nodeFlags, "%s", label.c_str());
+
+    if (isPartObject)
+        ImGui::PopStyleColor();
+
+    if (ImGui::IsItemClicked())
     {
         _selectionType = SelectionType::GameObject;
-        _selectedComponentTag.clear();
+        _selectedObjectKey = objectKey;
+        _selectedComponentKey.clear();
+    }
+
+    if (isOpen)
+    {
+        Draw_ComponentEntries(gameObject, objectKey);
+
+        if (container)
+        {
+            if (!container->Get_PartObjects().empty())
+                ImGui::SeparatorText("Parts");
+
+            for (const auto& [partTag, partObject] : container->Get_PartObjects())
+            {
+                if (partObject == nullptr)
+                    continue;
+
+                const wstring childKey = objectKey + L"/" + partTag;
+                Draw_GameObjectTree(partObject, childKey);
+            }
+        }
+
+        ImGui::TreePop();
     }
 }
 
-void Prefab_View::Draw_ComponentEntries()
+void Prefab_View::Draw_ComponentEntries(const Shared<GameObject>& gameObject, const wstring& objectKey)
 {
-    CHECK_NULL(_previewObject);
+    CHECK_NULL(gameObject);
 
-    ImGui::Separator();
-    ImGui::TextDisabled("Components");
+    bool hasComponents = false;
+    gameObject->Visit_Components([&](const wstring&, const Shared<Component>& component)
+    {
+        if (component != nullptr)
+            hasComponents = true;
+    });
 
-    _previewObject->Visit_Components([&](const wstring& tag, const Shared<Component>& component)
+    if (hasComponents)
+        ImGui::SeparatorText("Components");
+
+    gameObject->Visit_Components([&](const wstring& tag, const Shared<Component>& component)
+    {
+        CHECK_NULL(component);
+
+        const wstring componentKey = objectKey + L"::" + tag;
+
+        const bool isSelected =
+            (_selectionType == SelectionType::Component && _selectedComponentKey == componentKey);
+
+        string label = String::ToString(tag);
+        const ClassReflectionInfo& info = component->Get_ReflectionInfo();
+
+        if (!info.displayName.empty())
+            label = info.displayName + " (" + label + ")";
+        else if (!info.className.empty())
+            label = info.className + " (" + label + ")";
+
+        ImGui::Indent();
+
+        if (ImGui::Selectable(label.c_str(), isSelected))
         {
-            CHECK_NULL(component);
+            _selectionType = SelectionType::Component;
+            _selectedObjectKey = objectKey;
+            _selectedComponentKey = componentKey;
+        }
 
-            const bool isSelected =
-                (_selectionType == SelectionType::Component && _selectedComponentTag == tag);
-
-            string label = String::ToString(tag);
-
-            const ClassReflectionInfo& info = component->Get_ReflectionInfo();
-
-            if (!info.displayName.empty())
-            {
-                label = info.displayName + " (" + label + ")";
-            }
-
-            else if (!info.className.empty())
-            {
-                label = info.className + " (" + label + ")";
-            }
-
-            if (ImGui::Selectable(label.c_str(), isSelected))
-            {
-                _selectionType = SelectionType::Component;
-                _selectedComponentTag = tag;
-            }
-        });
+        ImGui::Unindent();
+    });
 }
+
+Shared<GameObject> Prefab_View::Find_GameObjectByKey(const Shared<GameObject>& rootObject, const wstring& objectKey) const
+{
+    if (rootObject == nullptr)
+        return nullptr;
+
+    if (objectKey.empty() || objectKey == L"Root")
+        return rootObject;
+
+    function<Shared<GameObject>(const Shared<GameObject>&, const wstring&)> findRecursive =
+        [&](const Shared<GameObject>& currentObject, const wstring& currentKey) -> Shared<GameObject>
+    {
+        if (currentObject == nullptr)
+            return nullptr;
+
+        if (currentKey == objectKey)
+            return currentObject;
+
+        Shared<ContainerObject> container = dynamic_pointer_cast<ContainerObject>(currentObject);
+        if (container == nullptr)
+            return nullptr;
+
+        for (const auto& [partTag, partObject] : container->Get_PartObjects())
+        {
+            if (partObject == nullptr)
+                continue;
+
+            const wstring childKey = currentKey + L"/" + partTag;
+            Shared<GameObject> foundObject = findRecursive(partObject, childKey);
+            if (foundObject != nullptr)
+                return foundObject;
+        }
+
+        return nullptr;
+    };
+
+    return findRecursive(rootObject, L"Root");
+}
+
 
 void Prefab_View::Ensure_PreviewRenderTarget(uint32 width, uint32 height)
 {
@@ -634,42 +739,7 @@ void Prefab_View::Lock_PreviewObjectToOrigin()
     if (previewTransform == nullptr)
         return;
 
-    Vec3 desiredPosition = Vec3::Zero;
-    bool alignedFromBody = false;
-
-    Shared<ContainerObject> container = dynamic_pointer_cast<ContainerObject>(_previewObject);
-    if (container)
-    {
-        PartObject* bodyPart = container->Get_PartObject(TEXT("Part_Body"));
-        if (bodyPart != nullptr)
-        {
-            Shared<TransformCom> bodyTransform = bodyPart->Get_Transform();
-            Shared<ModelCom> bodyModel = bodyPart->Get_Component<ModelCom>();
-
-            if (bodyTransform && bodyModel)
-            {
-                Vec3 localMin{};
-                Vec3 localMax{};
-                if (bodyModel->Try_Get_LocalBounds(localMin, localMax))
-                {
-                    const Vec3 bodyPosition = bodyTransform->Get_WorldPosition();
-                    const Vec3 localCenter = (localMin + localMax) * 0.5f;
-
-                    desiredPosition.x = -(bodyPosition.x + localCenter.x);
-                    desiredPosition.y = -(bodyPosition.y + localMin.y);
-                    desiredPosition.z = -(bodyPosition.z + localCenter.z);
-                    alignedFromBody = true;
-                }
-            }
-        }
-    }
-
-    if (!alignedFromBody)
-    {
-        desiredPosition = Vec3::Zero;
-    }
-
-    previewTransform->Set_WorldPosition(desiredPosition);
+    previewTransform->Set_WorldPosition(Vec3::Zero);
 }
 
 void Prefab_View::Draw_PreviewGrid() const

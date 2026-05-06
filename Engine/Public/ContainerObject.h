@@ -26,6 +26,8 @@ public:
 	virtual void Late_Update(float timeDelta);
 	virtual HRESULT Render();
 
+
+
 protected:
 	map<const wstring, Shared<class PartObject>>				_partObjects;
 
@@ -37,6 +39,8 @@ protected:
 
 public:
     PartObject* Get_PartObject(const wstring& partTag) const;
+
+    const map<const wstring, Shared<PartObject>>& Get_PartObjects() const { return _partObjects; }
 
 
 public:

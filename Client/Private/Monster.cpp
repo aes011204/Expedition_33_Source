@@ -2,6 +2,7 @@
 #include "GameInstance.h"
 #include "Mon_AIController.h"
 #include "ModelCom.h"
+#include "Material_Types.h"
 #include "ShaderCom.h"
 #include "Bounding_OBB.h"
 #include "ColliderCom.h"
@@ -90,7 +91,7 @@ HRESULT Monster::Render()
 
 	for (uint32 i = 0; i < iNumMeshes; i++)
 	{
-		_model->Bind_Material(_shader.get(), "g_DiffuseTexture", i, 1, 0);
+		_model->Bind_Material(_shader.get(), "g_DiffuseTexture", i, MaterialTextureSlot::BaseColor);
 		_model->Bind_BoneMatrices(_shader.get(), "g_BoneMatrices", i);
 
 		if (FAILED(_shader->Begin(0)))

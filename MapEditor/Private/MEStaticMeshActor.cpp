@@ -1,5 +1,6 @@
 ﻿#include "MEStaticMeshActor.h"
 #include "GameInstance.h"
+#include "Material_Types.h"
 
 HRESULT MEStaticMeshActor::Render(const Matrix& worldMatrix)
 {
@@ -25,9 +26,8 @@ HRESULT MEStaticMeshActor::Render(const Matrix& worldMatrix)
     const uint32 numMeshes = static_cast<uint32>(_model->Get_NumMeshes());
     for (uint32 i = 0; i < numMeshes; ++i)
     {
-        //_model->Bind_Material(_shader.get(), "g_DiffuseTexture", i, aiTextureType_DIFFUSE, 0);
         _shader->Begin(0);
-        bool hasTexture = SUCCEEDED(_model->Bind_Material(_shader.get(), "g_DiffuseTexture", i, 1, 0));
+        bool hasTexture = SUCCEEDED(_model->Bind_Material(_shader.get(), "g_DiffuseTexture", i, MaterialTextureSlot::BaseColor, 0));
         _shader->Begin(hasTexture ? 0 : 2);
         _model->Render(i);
     }

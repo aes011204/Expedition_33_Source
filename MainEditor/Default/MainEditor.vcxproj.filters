@@ -71,6 +71,7 @@
       <Filter>01. View</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\Prefab_View.cpp" />
+    <ClCompile Include="..\Private\Model_Inspector.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -155,6 +156,7 @@
       <Filter>01. View</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Prefab_View.h" />
+    <ClInclude Include="..\Public\Model_Inspector.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="00. Main">

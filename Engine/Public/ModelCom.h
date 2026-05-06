@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "Component.h"
+#include "Material.h"
 
 NS_BEGIN(Engine)
 
@@ -22,6 +23,12 @@ public:
     size_t Get_NumMaterials() const { return _materials.size(); }
     size_t Get_NumBones() const { return _bones.size(); }
     size_t Get_NumAnimations() const { return _animations.size(); }
+
+    uint32 Get_MeshMaterialIndex(uint32 meshIndex) const;
+    Shared<Material> Get_Material(uint32 materialIndex) const;
+
+    const Material::TextureSlot* Find_MaterialSlot(uint32 meshIndex, std::initializer_list<MaterialTextureSlot> materialSlots, uint32 textureIndex = 0) const;
+
 
 public:
     bool Is_Skeletal() const { return _isSkeletal; } 
@@ -48,7 +55,7 @@ public:
 	bool Play_Animation(float timeDelta);
 
 public:
-	HRESULT Bind_Material(class ShaderCom* shader, const char* constantName, uint32 meshIndex, uint32 materialType, uint32 textureIndex = 0);
+	HRESULT Bind_Material(class ShaderCom* shader, const char* constantName, uint32 meshIndex, MaterialTextureSlot slot, uint32 textureIndex = 0);
 	HRESULT Bind_BoneMatrices(class ShaderCom* shader, const char* constantName, uint32 meshIndex);
     bool Try_Get_LocalBounds(Vec3& outMin, Vec3& outMax) const;
 
