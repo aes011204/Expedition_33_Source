@@ -216,6 +216,7 @@
       <Filter>97. Manager\PhysX</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\PhysX_Types.h" />
+    <ClInclude Include="..\Public\Material_Types.h" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\public\Base.h">

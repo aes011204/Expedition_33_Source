@@ -71,8 +71,8 @@ void MovementCom::Update_Movement(float timeDelta)
     Update_Rotation(timeDelta);
     Start_Jump();
 
-    Update_HorizontalVelocity();
-    Update_VerticalVelocity(timeDelta);
+    Apply_Velocity(timeDelta);
+    Resolve_Ground();
 }
 
 bool MovementCom::Is_Moving() const
@@ -108,19 +108,6 @@ void MovementCom::Stop_HorizontalMovement()
 void MovementCom::Stop_VerticalMovement()
 {
     _velocity.y = 0.f;
-}
-
-void MovementCom::Land(float groundedY)
-{
-    CHECK_NULL(_transformCom);
-
-    Vec3 position = _transformCom->Get_WorldPosition();
-    position.y = groundedY;
-    _transformCom->Set_WorldPosition(position);
-
-    _velocity.y = 0.f;
-    _isGrounded = true;
-    _isJumping = false;
 }
 
 void MovementCom::Start_Jump()
@@ -202,11 +189,6 @@ void MovementCom::Apply_Velocity(float timeDelta)
     Vec3 position = _transformCom->Get_WorldPosition();
     position += _velocity * timeDelta;
     _transformCom->Set_WorldPosition(position);
-}
-
-Vec3 MovementCom::Calculate_MoveDelta(float timeDelta)
-{
-    return _velocity * timeDelta;
 }
 
 void MovementCom::Resolve_Ground()
