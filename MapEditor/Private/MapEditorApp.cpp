@@ -7,6 +7,8 @@
 #include "MEManager.h"
 #include "MECamera.h"
 #include "PanelViewport.h"
+#include "MEStaticMeshActor.h"
+#include "MEModelManager.h"
 
 
 extern HWND g_hWnd;
@@ -17,7 +19,7 @@ MapEditorApp::~MapEditorApp()
 
 }
 
-HRESULT MapEditor::MapEditorApp::Initialize()
+HRESULT MapEditorApp::Initialize()
 {
     ENGINE_DESC desc{};
     desc.hInstance = g_hInst;
@@ -38,28 +40,37 @@ HRESULT MapEditor::MapEditorApp::Initialize()
     _rt = RenderTarget::Create(_device, _context, g_iWinSizeX, g_iWinSizeY, DXGI_FORMAT_R8G8B8A8_UNORM, Vec4(0.1f, 0.1f, 0.1f, 1.f));
     CHECK_NULL(_rt, E_FAIL);
 
+    _meshShader = ShaderCom::Create(_device, _context,
+        L"../ShaderFiles/Shader_VtxMesh.hlsl",
+        VTXMESH::Elements, VTXMESH::numElements);
+    CHECK_NULL(_meshShader, E_FAIL);
+
+    _modelManager = MEModelManager::Create();
+    CHECK_NULL(_modelManager, E_FAIL);
+
     _viewport = PanelViewport::Create(_camera, _rt, &_scene);
     CHECK_NULL(_viewport, E_FAIL);
 
-    _manager = MEManager::Create(_viewport, &_scene);
+    _manager = MEManager::Create(_viewport, &_scene, _camera.get());
     CHECK_NULL(_manager, E_FAIL);
 
     return S_OK;
 }
 
-void MapEditor::MapEditorApp::Priority_Update(float timeDelta)
+void MapEditorApp::Priority_Update(float timeDelta)
 {
     UNREFERENCED_PARAMETER(timeDelta);
 }
 
-void MapEditor::MapEditorApp::Update(float timeDelta)
+void MapEditorApp::Update(float timeDelta)
 {
     GAME->Update_Engine(timeDelta);
     _imguiManager->Update(timeDelta);
     _manager->Update(timeDelta);
+    UpdateRenderHandles();
 }
 
-void MapEditor::MapEditorApp::Late_Update(float timeDelta)
+void MapEditorApp::Late_Update(float timeDelta)
 {
     UNREFERENCED_PARAMETER(timeDelta);
 }
@@ -71,7 +82,8 @@ HRESULT MapEditor::MapEditorApp::Render()
     CHECK_FAILED(_rt->Begin(), E_FAIL);
     DrawSceneDebug();
 
-    CHECK_FAILED(GAME->Draw(), E_FAIL);
+    GAME->Render_DebugDepth();
+    GAME->Render_DebugOverlay();
     GAME->Bind_BackBuffer();
 
     CHECK_FAILED(GAME->Clear_Buffers(Vec4(0.1f, 0.1f, 0.1f, 1.f)), E_FAIL);
@@ -139,13 +151,83 @@ void MapEditorApp::DrawSceneDebug()
             GAME->Draw_DebugLine(line);
             break;
         }
+
+        case EObjectType::Light:
+        {
+            DebugSphereDesc sphere;
+            sphere.center = obj->_position;
+            sphere.radius = 0.2f;
+            sphere.style.color = isSelected ? Color(1.f, 1.f, 0.f, 1.f) : Color(1.f, 0.9f, 0.3f, 1.f);
+            sphere.style.depthEnabled = false;
+            GAME->Draw_DebugSphere(sphere);
+
+            if (obj->_lightType == LightType::Directional)
+            {
+                DebugLineDesc line;
+                line.start = obj->_position;
+                line.end = obj->_position + Vec3(obj->_lightDirection.x, obj->_lightDirection.y, obj->_lightDirection.z) * 2.f;
+                line.style.color = sphere.style.color;
+                line.style.depthEnabled = false;
+                GAME->Draw_DebugLine(line);
+            }
+            else
+            {
+                DebugSphereDesc range;
+                range.center = obj->_position;
+                range.radius = obj->_lightRange;
+                range.style.color = Color(1.f, 0.9f, 0.3f, 0.3f);
+                range.style.depthEnabled = false;
+                GAME->Draw_DebugSphere(range);
+            }
+            break;
+        }
+
+        case EObjectType::StaticMesh:
+            if (obj->_renderHandle)
+            {
+                obj->_renderHandle->Render(obj->_worldMatrix);
+            }
+            break;
+
         default:
             break;
         }
     }
 }
 
-Unique<MapEditor::MapEditorApp> MapEditor::MapEditorApp::Create()
+void MapEditorApp::UpdateRenderHandles()
+{
+    if (!_scene._dirtyRenderHandles || !_meshShader)
+    {
+        return;
+    }
+    _scene._dirtyRenderHandles = false;
+
+    for (auto& obj : _scene._objects)
+    {
+        if (obj->_type != EObjectType::StaticMesh)
+        {
+            continue;
+        }
+
+        if (obj->_renderHandleLoaded || obj->_isInstanced || obj->_modelPath.empty())
+        {
+            continue;
+        }
+
+        obj->_renderHandleLoaded = true;
+
+        auto model = _modelManager->GetOrLoad(_device, _context, obj->_modelPath);
+        if (!model)
+        {
+            continue;
+        }
+
+        obj->_renderHandle = MEStaticMeshActor::Create(_device, _context, obj->_modelPath, _meshShader);
+    }
+}
+
+Unique<MapEditorApp> MapEditorApp::Create()
 {
     Unique<MapEditorApp> instance{ new MapEditorApp() };
 
@@ -159,8 +241,13 @@ Unique<MapEditor::MapEditorApp> MapEditor::MapEditorApp::Create()
     return instance;
 }
 
-void MapEditor::MapEditorApp::Free()
+void MapEditorApp::Free()
 {
+    _scene._selected.reset();
+    _scene._objects.clear();
+    _meshShader.reset();
+    _modelManager.reset();
+
     __super::Free();
 
     _viewport.reset();

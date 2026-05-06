@@ -114,6 +114,7 @@ void SceneContext::LoadFromFile(const string& filePath)
     _mapName = String::ToWString(map["MapName"].get<string>());
 
     _objects.clear();
+    _dirtyRenderHandles = true;
     _selected = nullptr;
 
     auto LoadTransform = [](const json& e, EditorObject& obj) {
@@ -270,6 +271,7 @@ void SceneContext::Add(Shared<EditorObject> obj)
     if (obj)
     {
         _objects.push_back(move(obj));
+        _dirtyRenderHandles = true;
     }
 }
 
@@ -301,5 +303,6 @@ Shared<EditorObject> SceneContext::Duplicate(const Shared<EditorObject>& src)
     auto copy = make_shared<EditorObject>(*src);
     copy->_name = src->_name + L"_Copy";
     _objects.push_back(copy);
+    _dirtyRenderHandles = true;
     return copy;
 }

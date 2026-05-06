@@ -1,9 +1,10 @@
 ﻿#include "pch.h"
 #include "PanelInspector.h"
 #include "SceneContext.h"
+#include "MECamera.h"
 
-PanelInspector::PanelInspector(SceneContext* ctx)
-    : MEWindow{ L"Inspector" }, _ctx{ ctx }
+PanelInspector::PanelInspector(SceneContext* ctx, MECamera* camera)
+    : MEWindow{ L"Inspector" }, _ctx{ ctx }, _camera{ camera }
 {
     for (int i = 0; i < _shapeNum; ++i)
     {
@@ -31,6 +32,11 @@ void MapEditor::PanelInspector::Render()
 
         auto& obj = _ctx->_selected;
         bool changed = false;
+
+        if (ImGui::Button("Focus"))
+        {
+            _camera->FocusOn(obj->_position);
+        }
 
         if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen))
         {
@@ -212,7 +218,7 @@ void MapEditor::PanelInspector::Render()
     SetOpen(open);
 }
 
-Shared<PanelInspector> PanelInspector::Create(SceneContext* ctx)
+Shared<PanelInspector> PanelInspector::Create(SceneContext* ctx, MECamera* camera)
 {
-    return make_shared<PanelInspector>(ctx);
+    return make_shared<PanelInspector>(ctx, camera);
 }
