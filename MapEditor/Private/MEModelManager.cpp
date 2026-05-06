@@ -15,7 +15,7 @@ Shared<ModelCom> MEModelManager::GetOrLoad(const ComPtr<Device>& device, const C
     }
 
     string pathA = String::ToString(modelPath);
-    auto prototype = ModelCom::Create(device, context, ModelType::NonAnim, pathA.c_str(), Matrix::CreateScale(0.01f));
+    auto prototype = ModelCom::Create(device, context, ModelType::NonAnim, pathA.c_str(), Matrix::Identity);
     CHECK_NULL(prototype, nullptr);
 
     _cache[modelPath] = prototype;

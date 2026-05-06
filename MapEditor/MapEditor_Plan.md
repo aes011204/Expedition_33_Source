@@ -50,7 +50,7 @@ MapEditorApp          — 엔진 초기화, 메인 루프 (Update/Render), Scene
     ├── PanelViewport     ✅ RT ImGui::Image, 카메라 입력, ImGuizmo 오버레이
     ├── PanelHierarchy    ✅ 오브젝트 목록, 선택/추가/삭제/복제/이름변경
     ├── PanelInspector    ✅ Transform 실시간 편집, Gizmo 양방향 연동
-    └── PanelAssetBrowser ✅ 폴더 탭(SaveJson/OriginJson) + 더블클릭 로드/임포트
+    └── PanelAssetBrowser ✅ 폴더 탭(SaveJson) + 더블클릭 로드
 ```
 
 **베이스 클래스**: `MEWindow` (이름, 열림 상태, Update/Render 인터페이스)
@@ -79,16 +79,19 @@ SceneContext
 └── LoadFromFile(const string& path)
 ```
 
-### MEUe5Importer ✅
+### scale_map.py ✅ (외부 변환 도구)
 
 ```
-MEUe5Importer
-└── Import(filePath, SceneContext&, append)
-    — InstancedStaticMeshComponent → PerInstanceSMData 순회
-    — StaticMeshComponent → RelativeLocation/Rotation/Scale3D 파싱
-    — 좌표계 변환 (UE5 → DX) 적용
-    — EditorObject 생성 → SceneContext 배치
+Client/Bin/Resources/Map/scale_map.py
+└── OriginJson/*.json (UE5 FModel 포맷) 읽기 → SaveJson/*.json (MapEditor 포맷) 저장
+    — StaticMeshComponent / InstancedStaticMeshComponent 파싱
+    — 좌표계 변환 (UE5 → DX): Translation /100 + factor 보정, Y↔Z 스왑
+    — Scale은 UE 원본값 유지 (factor 미적용)
+    — --factor 옵션으로 맵 배율 조정 (기본 0.001, 코드 수정 불필요)
+    — OriginJson 원본 파일 수정 없음
 ```
+
+> `scale_map.bat` 으로 실행. MEUe5Importer(C++)는 에디터에서 제거됨.
 
 ### MEStaticMeshActor ✅
 
@@ -97,7 +100,8 @@ MEStaticMeshActor                         — 에디터 뷰포트 시각화 전�
 ├── _model   (Shared<ModelCom>)
 ├── _shader  (Shared<ShaderCom>)
 └── Render(const Matrix& worldMatrix)
-    — 텍스처 있으면 pass 0 (DefaultPass), 없으면 pass 2 (NoTexturePass, 흰색)
+    — 텍스처 있으면 pass 0 (DefaultPass), 없으면 pass 1 (NoTexturePass, 회색)
+    — GAME->Get_LightDesc(0)로 Directional Light 바인딩 (Forward 라이팅)
 ```
 
 ### MEModelManager ✅
@@ -131,10 +135,11 @@ MEModelManager                            — 모델 로드/캐싱 전담
 8. ✅ Hierarchy 패널 (목록, 선택/추가/삭제/복제/이름변경, Gizmo 연동)
 9. ✅ Inspector 패널 (Transform 편집, Gizmo 양방향 연동)
 10. ✅ JSON 저장/로드 + PanelAssetBrowser + File 메뉴 다이얼로그
-11. ✅ UE5 FModel JSON 임포터 (`MEUe5Importer`)
+11. ✅ UE5 FModel JSON 변환 (`scale_map.py` 외부 도구)
     - InstancedStaticMeshComponent / StaticMeshComponent 파싱
-    - UE5 → DX 좌표계 변환
-    - Origin Maps 탭 더블클릭으로 씬 배치
+    - UE5 → DX 좌표계 변환, Position에만 배율 보정 (--factor)
+    - OriginJson → SaveJson 변환 후 에디터에서 로드
+    - `MEUe5Importer`(C++) 및 Origin Maps 탭은 에디터에서 제거
 12. ✅ 정적 메시 뷰포트 렌더링
     - ✅ `MEStaticMeshActor` (Model + Shader_VtxMesh 직접 렌더)
     - ✅ `EditorObject.renderHandle` 연결
@@ -145,7 +150,8 @@ MEModelManager                            — 모델 로드/캐싱 전담
     - ✅ `MEModelManager` — 동일 모델 중복 로드 방지 (캐싱 + Clone 재사용)
     - ✅ `EditorObject._isInstanced` — Instanced 오브젝트는 렌더 핸들 생성 스킵
     - ✅ 모델 버텍스 스케일 보정: `preLocalTransformMatrix = Matrix::CreateScale(0.01f)` (UE5 cm → 엔진 단위)
-    - ✅ 텍스처 없는 모델 흰색 렌더링 — `NoTexturePass` (pass 2) 추가
+    - ✅ 텍스처 없는 모델 회색 렌더링 — `NoTexturePass` (pass 1) 추가
+    - ✅ Forward 라이팅 — `Shader_VtxMesh` Forward 방식으로 교체 (Lambert + Specular + Ambient, 단일 RT 출력), `MapEditorApp::Initialize()`에서 기본 Directional Light 등록, `MEStaticMeshActor::Render()`에서 `GAME->Get_LightDesc(0)` 바인딩
 13. ✅ 라이트 배치 및 속성 편집
 14. ✅ Inspector Focus 버튼 — 선택 오브젝트 위치로 카메라 즉시 이동 (`MECamera::FocusOn`)
 
@@ -211,7 +217,7 @@ MEModelManager                            — 모델 로드/캐싱 전담
 |------|------|
 | JSON 저장 | ✅ |
 | JSON 로드 | ✅ |
-| UE5 FModel JSON 임포터 | ✅ |
+| UE5 FModel JSON 변환 (scale_map.py) | ✅ |
 | MainEditor 연동 | 구현 예정 |
 
 ### 볼륨 / 존
@@ -291,7 +297,7 @@ Rotation은 쿼터니언 [X, Y, Z, W]으로 저장. Inspector는 오일러(도) 
 
 FModel로 추출한 레벨 JSON을 MapEditor 오브젝트로 자동 변환.  
 파일: `Client/Bin/Resources/Map/OriginJson/`  
-Asset Browser → Origin Maps 탭 → 더블클릭으로 임포트.
+`scale_map.py --factor <배율>` 실행 → `SaveJson/` 에 저장 → Asset Browser에서 로드.
 
 ### 파싱 대상
 

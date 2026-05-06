@@ -46,6 +46,8 @@ private:
     SceneContext _scene;
 
 private:
+    HRESULT Ready_Light();
+
     void DrawSceneDebug();
 
     void UpdateRenderHandles();

@@ -54,6 +54,8 @@ HRESULT MapEditorApp::Initialize()
     _manager = MEManager::Create(_viewport, &_scene, _camera.get());
     CHECK_NULL(_manager, E_FAIL);
 
+    CHECK_FAILED(Ready_Light(), E_FAIL);
+
     return S_OK;
 }
 
@@ -225,6 +227,20 @@ void MapEditorApp::UpdateRenderHandles()
 
         obj->_renderHandle = MEStaticMeshActor::Create(_device, _context, obj->_modelPath, _meshShader);
     }
+}
+
+HRESULT MapEditorApp::Ready_Light()
+{
+    LIGHT_DESC lightDesc{};
+    lightDesc.type = LightType::Directional;
+    lightDesc.direction = Vec4(1.f, -1.f, 1.f, 0.f);
+    lightDesc.direction.Normalize();
+    lightDesc.diffuse = Vec4(1.f, 1.f, 1.f, 1.f);
+    lightDesc.ambient = Vec4(0.4f, 0.4f, 0.4f, 1.f);
+    lightDesc.specular = Vec4(1.f, 1.f, 1.f, 1.f);
+    CHECK_FAILED(GAME->Add_Light(lightDesc), E_FAIL);
+
+    return S_OK;
 }
 
 Unique<MapEditorApp> MapEditorApp::Create()
