@@ -8,6 +8,17 @@
 #include "Bounding_OBB.h"
 #include "ColliderCom.h"
 
+IMPLEMENT_REFLECTION(Player)
+{
+    auto& info = GetStaticReflectionInfo();
+    info.properties.clear();
+
+    info.displayName = "Player";
+    info.category = "Character";
+
+    return true;
+}
+
 Player::Player(const ComPtr<Device>& device, const ComPtr<Context>& context)
 	: Character { device, context }
 {
@@ -44,6 +55,7 @@ HRESULT Player::Initialize(void* arg)
 void Player::BeginPlay()
 {
     Character::BeginPlay();
+
 }
 
 void Player::Priority_Update(float timeDelta)
@@ -54,12 +66,6 @@ void Player::Priority_Update(float timeDelta)
 void Player::Update(float timeDelta)
 {
 	__super::Update(timeDelta);
-
-    if(GAME->KeyDown(KEY_TYPE::F11))
-    {
-        const Vec3 pos = _transformCom->Get_Position();
-        LOG_DEBUG("player Pos : x={}, y ={}, z={}", pos.x, pos.y, pos.z);
-    }
 
     _playerControllerCom->Update_Controller(timeDelta);
 }

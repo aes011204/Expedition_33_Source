@@ -1,6 +1,7 @@
 ﻿#include "pch.h"
 #include "ModelViewerObject.h"
 #include "GameInstance.h"
+#include "Material_Types.h"
 
 NS_BEGIN(ModelEditor)
 
@@ -61,7 +62,7 @@ HRESULT ModelViewerObject::Render()
     {
         for (uint32 i = 0; i < numMeshes; ++i)
         {
-            _modelCom->Bind_Material(_animShaderCom.get(), "g_DiffuseTexture", i, aiTextureType_DIFFUSE);
+            _modelCom->Bind_Material(_animShaderCom.get(), "g_DiffuseTexture", i, MaterialTextureSlot::BaseColor);
 
             if (_modelCom->Is_Skeletal())
             {
@@ -76,7 +77,7 @@ HRESULT ModelViewerObject::Render()
     {
         for (uint32 i = 0; i < numMeshes; ++i)
         {
-            _modelCom->Bind_Material(_staticShaderCom.get(), "g_DiffuseTexture", i, aiTextureType_DIFFUSE);
+            _modelCom->Bind_Material(_staticShaderCom.get(), "g_DiffuseTexture", i, MaterialTextureSlot::BaseColor);
 
             if (_modelCom->Is_Skeletal())
             {

@@ -2,7 +2,21 @@
 #include "GameInstance.h"
 #include "Mon_AIController.h"
 #include "ModelCom.h"
+#include "Material_Types.h"
 #include "ShaderCom.h"
+#include "Bounding_OBB.h"
+#include "ColliderCom.h"
+
+IMPLEMENT_REFLECTION(Monster)
+{
+    auto& info = GetStaticReflectionInfo();
+    info.properties.clear();
+
+    info.displayName = "Monster";
+    info.category = "Character";
+
+    return true;
+}
 
 Monster::Monster(const ComPtr<Device>& device, const ComPtr<Context>& context)
 	: Character { device, context }
@@ -35,7 +49,7 @@ HRESULT Monster::Initialize(void* arg)
 	//));
 
     _transformCom->Set_Position(Vec3(
-        10.f,2.f,10.f
+        10.f,0.f,10.f
     ));
 
     _model->Set_Animation(/*rand() % 20*/4, true);
@@ -58,6 +72,12 @@ void Monster::Update(float timeDelta)
 
 void Monster::Late_Update(float fTimeDelta)
 {
+    if (_collider)
+    {
+        _collider->Update_Collider(_transformCom->Get_WorldMatrix());
+        GAME->Add_Collider(_collider);
+    }
+
  	GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<Character>());
 	GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<Character>());
 }
@@ -71,7 +91,7 @@ HRESULT Monster::Render()
 
 	for (uint32 i = 0; i < iNumMeshes; i++)
 	{
-		_model->Bind_Material(_shader.get(), "g_DiffuseTexture", i, 1, 0);
+		_model->Bind_Material(_shader.get(), "g_DiffuseTexture", i, MaterialTextureSlot::BaseColor);
 		_model->Bind_BoneMatrices(_shader.get(), "g_BoneMatrices", i);
 
 		if (FAILED(_shader->Begin(0)))
@@ -111,8 +131,6 @@ HRESULT Monster::Render_Shadow()
 
 HRESULT Monster::Ready_Components()
 {
-
-
 	if (FAILED(__super::Add_Component(ETOI(LevelType::GamePlay), TEXT("Shader_VtxAnimMesh"), _shader)))
 		return E_FAIL;
 
@@ -124,6 +142,9 @@ HRESULT Monster::Ready_Components()
         return E_FAIL;
 
     _aiCtrl->Set_Owner(static_pointer_cast<Monster>(shared_from_this()));
+
+    CHECK_FAILED(Ready_Collider(), E_FAIL);
+
 	return S_OK;
 }
 
@@ -142,6 +163,19 @@ HRESULT Monster::Bind_ShaderResources()
         return E_FAIL;
 
 	return S_OK;
+}
+
+HRESULT Monster::Ready_Collider()
+{
+    Bounding_OBB::BoundingOBBDesc obbDesc{};
+    obbDesc.center = Vec3(0.f, 0.5f, 0.f);
+    obbDesc.extents = Vec3(0.5f, 0.6f, 0.5f);
+
+    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), L"Com_Collider_OBB", _collider, &obbDesc), E_FAIL);
+    _collider->Set_CollisionPreset(Collision_Preset::Monster_Body);
+    _collider->Set_IsActive(true);
+
+    return S_OK;
 }
 
 Shared<Monster> Monster::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

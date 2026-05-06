@@ -12,15 +12,19 @@
 #include "Log_Manager.h"
 #include "Object_Manager.h"
 #include "PipeLine.h"
-#ifdef _DEBUG
-#include "Print_Manager.h"
-#endif
+#include "GameObject.h"
 #include "Prototype_Manager.h"
 #include "RegistorFactory.h"
 #include "Renderer.h"
 #include "Timer_Manager.h"
 #include "Target_Manager.h"
 #include "Shadow.h"
+#include "Picking.h"
+#include "ColliderCom.h"
+
+#ifdef _DEBUG
+#include "Print_Manager.h"
+#endif
 
 IMPLEMENT_SINGLETON(GameInstance)
 
@@ -40,6 +44,9 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
         device,
         context
     );
+
+    _device = device;
+    _context = context;
 
     CHECK_NULL(_graphicDevice, E_FAIL);
 
@@ -101,6 +108,10 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
     _physxManager = PhysX_Manager::Create();
     CHECK_NULL(_physxManager, E_FAIL);
 
+    _picking = Picking::Create(device, context);
+    CHECK_NULL(_picking, E_FAIL);
+
+
 #ifdef _DEBUG
     _printManager = Print_Manager::Create();
     CHECK_NULL(_printManager, E_FAIL);
@@ -125,15 +136,17 @@ void GameInstance::Update_Engine(float timeDelta)
 
     _objectManager->Update(timeDelta);
 
+    _physxManager->Begin_Frame();
     _collisionManager->Clear_Colliders();
     _objectManager->Late_Update(timeDelta);
-    _collisionManager->Update();
 
     _physxManager->Update(timeDelta);
 
-    _levelManager->Update(timeDelta);
-    _cameraManager->Update(timeDelta);
+    vector<PhysXPairEvent> events;
+    _physxManager->Gather_FrameEvents(events);
+    _collisionManager->Update_FromPhysX(events);
 
+    _cameraManager->Update(timeDelta);
 }
 
 HRESULT GameInstance::Draw()
@@ -141,6 +154,8 @@ HRESULT GameInstance::Draw()
     _renderer->Draw();
 
     _levelManager->Render();
+
+    CHECK_FAILED(Update_Picking(), E_FAIL);
 
 #ifdef _DEBUG
     // Collision Manager
@@ -160,6 +175,13 @@ HRESULT GameInstance::Draw()
 #ifdef _DEBUG
     Try_FlushRuntimePerfLog();
 #endif
+
+    return S_OK;
+}
+
+HRESULT GameInstance::Draw_RendererOnly()
+{
+    _renderer->Draw();
 
     return S_OK;
 }
@@ -440,6 +462,17 @@ HRESULT GameInstance::Add_GameObject(uint32 prototypeLevelIndex, const wstring& 
     return _objectManager->Add_GameObject(prototypeLevelIndex, prototypeTag, layerLevelIndex, layerTag, outGameObject, arg);
 }
 
+HRESULT GameInstance::Add_GameObject(uint32 layerLevelIndex, const wstring& layerTag,
+    const Shared<GameObject>& gameObject)
+{
+    return _objectManager->Add_GameObject(layerLevelIndex, layerTag, gameObject);
+}
+
+bool GameInstance::Remove_GameObject(uint32 levelIndex, const Shared<GameObject>& gameObject)
+{
+    return _objectManager->Remove_GameObject(levelIndex, gameObject);
+}
+
 Shared<GameObject> GameInstance::Find_FirstObject(uint32 levelIndex, const wstring& layerTag)
 {
     return _objectManager->Find_FirstObject(levelIndex, layerTag);
@@ -485,6 +518,11 @@ HRESULT GameInstance::Bind_TransformMatrix_Inverse(D3DTS transformState, ShaderC
 const Matrix* GameInstance::Get_Transform(D3DTS transformState) const
 {
     return _pipeLine->Get_Transform(transformState);
+}
+
+const Matrix* GameInstance::Get_Transform_Inverse(D3DTS transformState) const
+{
+    return _pipeLine->Get_Transform_Inverse(transformState);
 }
 
 const Vec4* GameInstance::Get_CamPosition() const
@@ -542,9 +580,19 @@ void GameInstance::Set_InputBlocked(bool isBlocked)
     return _inputManager->Set_InputBlocked(isBlocked);
 }
 
+const POINT& GameInstance::Get_MousePosition() const
+{
+    return _inputManager->Get_MousePosition();
+}
+
 const LIGHT_DESC* GameInstance::Get_LightDesc(uint32 index)
 {
     return _lightManager->Get_LightDesc(index);
+}
+
+uint32 GameInstance::Get_LightCount() const
+{
+    return _lightManager->Get_LightCount();
 }
 
 HRESULT GameInstance::Add_Light(const LIGHT_DESC& lightDesc)
@@ -555,6 +603,21 @@ HRESULT GameInstance::Add_Light(const LIGHT_DESC& lightDesc)
 HRESULT GameInstance::Render_Lights(Shared<ShaderCom> shader, Shared<VIBuffer_Rect> viBuffer)
 {
     return _lightManager->Render_Lights(shader, viBuffer);
+}
+
+void GameInstance::Clear_Lights()
+{
+    _lightManager->Clear_Lights();
+}
+
+void GameInstance::Get_LightDescs(vector<LIGHT_DESC>& outLightDescs) const
+{
+    _lightManager->Get_LightDescs(outLightDescs);
+}
+
+HRESULT GameInstance::Set_Lights(const vector<LIGHT_DESC>& lightDescs)
+{
+    return _lightManager->Set_Lights(lightDescs);
 }
 
 HRESULT GameInstance::Add_Font(const wstring& fontTag, const wchar_t* fontFilePath)
@@ -667,6 +730,12 @@ const TypeRegistry::BTNodeTypeInfo* GameInstance::Find_BTNodeType(const string& 
     return _typeRegistry->Find_BTNodeType(className);
 }
 
+void GameInstance::Visit_GameObjectTypes(const function<void(const TypeRegistry::GameObjectTypeInfo&)>& visitor) const
+{
+    CHECK_NULL(_typeRegistry);
+    _typeRegistry->Visit_GameObjectTypes(visitor);
+}
+
 Shared<Component> GameInstance::Create_ComponentPrototype(const string& className) const
 {
     return _typeRegistry->Create_Component(className, _graphicDevice->Get_Device(), _graphicDevice->Get_Context());
@@ -674,7 +743,6 @@ Shared<Component> GameInstance::Create_ComponentPrototype(const string& classNam
 
 Shared<GameObject> GameInstance::Create_GameObjectPrototype(const string& className) const
 {
-
     return _typeRegistry->Create_GameObject(className, _graphicDevice->Get_Device(), _graphicDevice->Get_Context());
 }
 
@@ -685,7 +753,19 @@ Shared<Base> GameInstance::Create_BTNodePrototype(const string& className) const
 
 void GameInstance::Add_Collider(Shared<ColliderCom> collider)
 {
-    return _collisionManager->Add_Collider(collider);
+    CHECK_NULL(collider);
+    CHECK_NULL(_collisionManager);
+    CHECK_NULL(_physxManager);
+
+    _collisionManager->Add_Collider(collider);
+
+    Shared<GameObject> owner = collider->Get_Owner();
+    CHECK_NULL(owner);
+
+    Shared<TransformCom> transform = owner->Get_Transform();
+    CHECK_NULL(transform);
+
+    _physxManager->Register_OrSync_Collider(collider, transform->Get_WorldMatrix());
 }
 
 void GameInstance::Clear_Colliders()
@@ -764,6 +844,120 @@ void GameInstance::Clear_Print(const wstring& slot)
 #endif
 }
 
+HRESULT GameInstance::Save_GameObjectJson(const fs::path& path, const Shared<GameObject>& gameObject)
+{
+    CHECK_NULL(gameObject, E_FAIL);
+
+    json root = gameObject->To_Json();
+
+    if (root.is_null() || !root.is_object())
+        return E_FAIL;
+
+    if (!path.has_parent_path())
+        return E_FAIL;
+
+    std::error_code ec;
+    fs::create_directories(path.parent_path(), ec);
+
+    std::ofstream file(path);
+    if (!file.is_open())
+        return E_FAIL;
+
+    file << root.dump(4);
+    file.close();
+
+    return S_OK;
+}
+
+json GameInstance::Load_JsonFile(const fs::path& path) const
+{
+    if (!fs::exists(path))
+        return json{};
+
+    std::ifstream file(path);
+    if (!file.is_open())
+        return json{};
+
+    json root{};
+    file >> root;
+    file.close();
+
+    return root;
+}
+
+HRESULT GameInstance::Load_GameObjectJson(const fs::path& path, const Shared<GameObject>& gameObject) const
+{
+    CHECK_NULL(gameObject, E_FAIL);
+
+    json root = Load_JsonFile(path);
+    if (root.is_null() || !root.is_object())
+        return E_FAIL;
+
+    gameObject->From_Json(root);
+
+    return S_OK;
+}
+
+Shared<GameObject> GameInstance::Instantiate_GameObjectJson(const fs::path& path)
+{
+    json root = Load_JsonFile(path);
+
+    if (root.is_null() || !root.is_object())
+        return nullptr;
+
+    if (!root.contains("static_class"))
+        return nullptr;
+
+    const string staticClass = root["static_class"].get<string>();
+    if (staticClass.empty())
+        return nullptr;
+
+    Shared<GameObject> gameObject = Create_GameObjectPrototype(staticClass);
+    CHECK_NULL(gameObject, nullptr);
+
+    CHECK_FAILED(gameObject->Initialize(nullptr), nullptr);
+
+    gameObject->From_Json(root);
+
+    return gameObject;
+}
+
+HRESULT GameInstance::Create_PrefabAsset(const fs::path& path, const string& staticClass, const string& prefabName)
+{
+    if (staticClass.empty() || prefabName.empty())
+        return E_FAIL;
+
+    Shared<GameObject> gameObject = Create_GameObjectPrototype(staticClass);
+    CHECK_NULL(gameObject, E_FAIL);
+
+    CHECK_FAILED(gameObject->Initialize(nullptr), E_FAIL);
+
+    json root = gameObject->To_Json();
+    root["prefab_name"] = prefabName;
+
+    std::error_code ec;
+    fs::create_directories(path.parent_path(), ec);
+
+    std::ofstream file(path);
+    if (!file.is_open())
+        return E_FAIL;
+
+    file << root.dump(4);
+    file.close();
+
+    return S_OK;
+}
+
+HRESULT GameInstance::Update_Picking()
+{
+    return _picking->Update();
+}
+
+bool GameInstance::Pick_WorldPosition(const POINT& pixelPos, Vec3& outWorldPos)
+{
+     return _picking->Pick_WorldPosition(pixelPos, outWorldPos);
+}
+
 void GameInstance::Release_Engine()
 {
     auto ReleaseManager = [](auto& manager)
@@ -798,6 +992,7 @@ void GameInstance::Release_Engine()
     ReleaseManager(_prototypeManager);
     ReleaseManager(_typeRegistry);
     ReleaseManager(_levelManager);
+    ReleaseManager(_picking);
     ReleaseManager(_timerManager);
     ReleaseManager(_graphicDevice);
     ReleaseManager(_logManager);
@@ -843,6 +1038,11 @@ HRESULT GameInstance::Copy_CurrentRTV_To(const wstring& targetTag)
 HRESULT GameInstance::Copy_RTV(const wstring& srcTargetTag, const wstring& dstTargetTag)
 {
     return _targetManager->Copy_RTV(srcTargetTag, dstTargetTag);
+}
+
+HRESULT GameInstance::Copy_RT_Resource(const wstring& targetTag, ID3D11Texture2D* destTexture)
+{
+    return _targetManager->Copy_Resource(targetTag, destTexture);
 }
 
 #ifdef _DEBUG

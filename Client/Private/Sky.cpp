@@ -1,6 +1,17 @@
 ﻿#include "Sky.h"
 #include "GameInstance.h"
 
+IMPLEMENT_REFLECTION(Sky)
+{
+    auto& info = GetStaticReflectionInfo();
+    info.properties.clear();
+
+    info.displayName = "Sky";
+    info.category = "World";
+
+    return true;
+}
+
 Sky::Sky(const ComPtr<Device>& device, const ComPtr<Context>& context)
 	: GameObject { device, context }
 {

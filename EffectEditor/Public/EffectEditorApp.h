@@ -1,5 +1,6 @@
-﻿#pragma once
+#pragma once
 
+#include "Client_Defines.h"
 #include "Base.h"
 
 NS_BEGIN(Engine)
@@ -12,7 +13,7 @@ class EffectEditorApp final : public Base
 {
 public:
     EffectEditorApp();
-    ~EffectEditorApp() override;
+    ~EffectEditorApp() override = default;
 
 public:
     HRESULT Initialize();
@@ -25,13 +26,12 @@ private:
     HRESULT Ready_Fonts();
     HRESULT Ready_Prototype_For_Static_Level();
     HRESULT Ready_StartLevel(LevelType startLevelID);
-
     wstring Get_ClientResourceRoot() const;
     wstring Get_ClientResourcePath(const wchar_t* relativePath) const;
 
 private:
-    ComPtr<Device> _device{};
-    ComPtr<Context> _context{};
+    ComPtr<Device> _device;
+    ComPtr<Context> _context;
 
 public:
     static Unique<EffectEditorApp> Create();

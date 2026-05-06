@@ -1,5 +1,6 @@
 ﻿#include "MEStaticMeshActor.h"
 #include "GameInstance.h"
+#include "Material_Types.h"
 
 HRESULT MEStaticMeshActor::Render(const Matrix& worldMatrix)
 {
