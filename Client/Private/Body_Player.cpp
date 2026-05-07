@@ -133,7 +133,7 @@ HRESULT Body_Player::Ready_Components()
 	if (FAILED(Add_Component(ETOI(LevelType::GamePlay), TEXT("Shader_VtxAnimMesh"), _shader)))
 		return E_FAIL;
 
-	if (FAILED(Add_Component(ETOI(LevelType::GamePlay), TEXT("Model_LuneTemp"), _model)))
+	if (FAILED(Add_Component(ETOI(LevelType::GamePlay), TEXT("Model_LuneBody"), _model)))
 		return E_FAIL;
 
 	return S_OK;
