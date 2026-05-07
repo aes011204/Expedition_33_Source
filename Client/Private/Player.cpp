@@ -1,12 +1,16 @@
 ﻿#include "Player.h"
 #include "Weapon.h"
-#include "Body_Player.h"
 #include "GameInstance.h"
 #include "InputCom.h"
 #include "MovementCom.h"
 #include "PlayerControllerCom.h"
 #include "Bounding_OBB.h"
 #include "ColliderCom.h"
+
+#include "PlayableParts.h"
+#include "Body_Player.h"
+#include "Hair_Player.h"
+#include "Head_Player.h"
 
 IMPLEMENT_REFLECTION(Player)
 {
@@ -76,10 +80,10 @@ void Player::Late_Update(float timeDelta)
 {
 	__super::Late_Update(timeDelta);
 
-    if (_collider)
+    if (_colliderCom)
     {
-        _collider->Update_Collider(_transformCom->Get_WorldMatrix());
-        GAME->Add_Collider(_collider);
+        _colliderCom->Update_Collider(_transformCom->Get_WorldMatrix());
+        GAME->Add_Collider(_colliderCom);
     }
 }
 
@@ -112,26 +116,40 @@ HRESULT Player::Ready_Components()
 
 HRESULT Player::Ready_PartObjects()
 {
-	Body_Player::BODY_PLAYER_DESC		BodyDesc{};
-	//BodyDesc.pParentState = &_states;
-	BodyDesc.parentMatrix = &_transformCom->Get_WorldMatrix();
+    Body_Player::BODY_PLAYER_DESC playableDesc{};
+    playableDesc.parentMatrix = &_transformCom->Get_WorldMatrix();
+    playableDesc.modelType = ModelType::Anim;
+    playableDesc.modelTag = L"Model_LuneBody";
 
-	if (FAILED(__super::Add_PartObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Body_Player"),
-		TEXT("Part_Body"), &BodyDesc)))
-		return E_FAIL;
+    //> MainBody Setting
+    if (FAILED(__super::Add_PartObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Body_Player"),
+        TEXT("Part_Body"), &playableDesc)))
+        return E_FAIL;
+    Body_Player* mainBody = dynamic_cast<Body_Player*>(_partObjects[TEXT("Part_Body")].get());
+    if (nullptr == mainBody)
+        return E_FAIL;
 
-	Body_Player* pBody = dynamic_cast<Body_Player*>(_partObjects[TEXT("Part_Body")].get());
-	if (nullptr == pBody)
-		return E_FAIL;
+    //> MainBody에 붙을 파츠 세팅
+    //>> Head Part
+    Head_Player::HEAD_PLAYER_DESC headPartDesc{};
+    headPartDesc.parentMatrix = playableDesc.parentMatrix;
+    headPartDesc.modelType = ModelType::Anim;
+    headPartDesc.modelTag = L"Model_LuneHead";
 
-	Weapon::WEAPON_DESC				WeaponDesc{};
-	//WeaponDesc.pParentState = &_states;
-	WeaponDesc.parentMatrix = &_transformCom->Get_WorldMatrix();
-	WeaponDesc.pSocketMatrix = pBody->Get_SocketBoneMatrixPtr("SWORD");
+    if (FAILED(__super::Add_PartObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Head_Player"),
+        TEXT("Part_Head"), &headPartDesc)))
+        return E_FAIL;
+    
+    //>> Hair Part
+    Hair_Player::HAIR_PLAYER_DESC hairPartDesc{};
+    hairPartDesc.parentMatrix = playableDesc.parentMatrix;
+    hairPartDesc.modelType = ModelType::Anim;
+    hairPartDesc.modelTag = L"Model_LuneHair";
 
-	if (FAILED(__super::Add_PartObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Weapon"),
-		TEXT("Part_Weapon"), &WeaponDesc)))
-		return E_FAIL;
+    if (FAILED(__super::Add_PartObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Hair_Player"),
+        TEXT("Part_Hair"), &hairPartDesc)))
+        return E_FAIL;
+
 
 	return S_OK;
 }
@@ -142,9 +160,9 @@ HRESULT Player::Ready_Collider()
     obbDesc.center = Vec3(0.f, 0.5f, 0.f);
     obbDesc.extents = Vec3(0.5f, 0.6f, 0.5f);
 
-    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), L"Com_Collider_OBB", _collider, &obbDesc), E_FAIL);
-    _collider->Set_CollisionPreset(Collision_Preset::Player_Body);
-    _collider->Set_IsActive(true);
+    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), L"Com_Collider_OBB", _colliderCom, &obbDesc), E_FAIL);
+    _colliderCom->Set_CollisionPreset(Collision_Preset::Player_Body);
+    _colliderCom->Set_IsActive(true);
 
     return S_OK;
 }

@@ -44,7 +44,7 @@ private:
     Shared<MovementCom>         _movementCom;
     Shared<InputCom>            _inputCom;
     Shared<PlayerControllerCom> _playerControllerCom;
-    Shared<ColliderCom>         _collider;
+    Shared<ColliderCom>         _colliderCom;
 
     PlayerState _testPlayerState = PlayerState::Idle;
 
