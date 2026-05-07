@@ -42,12 +42,17 @@ private:
     void Insert_KeyframeAtFrame(int trackIndex, int frame);
     void Refresh_SequenceFileList();
     void Load_SelectedSequenceFile();
+    void Apply_CurrentFramePose();
 
     CINEMATIC_TRACK* Get_SelectedTrack();
     CINEMATIC_KEYFRAME* Get_SelectedKeyframe();
     Shared<Client::FreeCamera> Find_FreeCamera() const;
 
 private:
+    bool                                 _isPreviewDirty  = true;
+    int                                  _lastPreviewFrame = -1;
+    int                                  _lastPreviewTrackIndex = -1;
+    int                                  _lastPreviewKeyIndex = -1;
     Shared<Client::Cinematic_Player>     _cinematicPlayer;
     CINEMATIC_SEQUENCE                   _sequence{};
     vector<std::filesystem::path>        _sequenceFilePaths{};

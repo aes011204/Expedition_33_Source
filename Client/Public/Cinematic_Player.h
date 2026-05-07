@@ -19,12 +19,13 @@ public:
     void  Play();
     void  Pause();
     void  Stop();
-    void  Ready_CinematicPlayer(CINEMATIC_SEQUENCE* cinematicSequence, CINEMATIC_TRACK* cinematicTrack, const Shared<Camera>& camera);
+
+public:
+    void  Apply_CameraPose(const CAMERAPOSE& camPose);
+    void  Ready_CinematicPlayer(CINEMATIC_SEQUENCE* cinematicSequence, CINEMATIC_TRACK* cinematicTrack, const Shared<Camera>& camera, bool playerOnOff);
     bool  Is_CinematicPlaying() {return _isCinematicPlaying;}
     int   Get_CurrentFrame() {return _currentFrame;}
 
-public:
-    void    Apply_CameraPose(const CAMERAPOSE& camPose);
 
 private:
     CINEMATIC_SEQUENCE* _sequence;

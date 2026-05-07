@@ -72,7 +72,7 @@ void FreeCamera::Priority_Update(float timeDelta)
             _moveSpeed -= step;
         }
 
-        clamp(_moveSpeed, 0, 100);
+        _moveSpeed = clamp(_moveSpeed, 0, 100);
 
         _transformCom->Set_SpeedPerSec(static_cast<float>(_moveSpeed));
     }
