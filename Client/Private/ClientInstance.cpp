@@ -3,6 +3,7 @@
 #include "GameInstance.h"
 #include "Player.h"
 #include "ResourceLoader.h"
+#include "BT_Node_Bootstrap.h"
 
 IMPLEMENT_SINGLETON(ClientInstance)
 
@@ -22,6 +23,8 @@ HRESULT ClientInstance::Initialize_Client(const ComPtr<Device>& device, const Co
 		return E_FAIL;
 
 	_isInitialized = true;
+
+    Client::Force_Register_ClientBTNodes();
 
 	return S_OK;
 }

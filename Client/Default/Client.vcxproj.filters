@@ -204,6 +204,7 @@
     <ClInclude Include="..\Public\Client_Constants.h">
       <Filter>99.Defines</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\BT_Node_Bootstrap.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -276,7 +277,6 @@
     <ClCompile Include="..\private\BT_Idle.cpp" />
     <ClCompile Include="..\private\BT_Attack.cpp" />
     <ClCompile Include="..\private\BT_CheckDistance.cpp" />
-
     <ClCompile Include="..\Private\MapStaticMesh.cpp">
       <Filter>02.GameObject\Map\MapStaticMesh</Filter>
     </ClCompile>
@@ -294,6 +294,7 @@
       <Filter>02.GameObject\Player\PlayerParts</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\UI_RuntimeLoader.cpp" />
+    <ClCompile Include="..\private\BT_Node_Bootstrap.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">

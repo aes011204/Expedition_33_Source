@@ -13,7 +13,7 @@ void Inspector_Factory::Initialize()
 
 
     Register_Inspector("ModelCom", ModelCom_Inspector::Create());
-    Register_Inspector("AICom", AIController_Inspector::Create());
+    Register_Inspector("AIController", AIController_Inspector::Create());
 }
 
 void Inspector_Factory::Register_Inspector(const string& key, const Shared<Component_Inspector>& inspector)

@@ -17,6 +17,9 @@ public:
     HRESULT Initialize(void* arg) override;
     void Update(float timeDelta);
 public:
+public:
+    const string& Get_BehaviorTreeAssetPath() const { return _behaviorTreeAssetPath; }
+    void Set_BehaviorTreeAssetPath(const string& path) { _behaviorTreeAssetPath = path; }
     shared_ptr<class BlackBoard> Get_BlackBoard() { return _BB; }
     shared_ptr<class BehaviorTree> Get_BehaviorTree() { return _BT; }
 

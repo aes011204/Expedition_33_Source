@@ -920,6 +920,7 @@ void BT_View::Handle_CreateNodePopup()
         if (ImGui::MenuItem("Sequence"))
             Create_Node(NodeType::Sequence);
 
+
         map<string, vector<string>> groupedNodes;
 
         GAME->Visit_BTNodeTypes([&](const TypeRegistry::BTNodeTypeInfo& info)
