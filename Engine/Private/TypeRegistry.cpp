@@ -72,6 +72,15 @@ const TypeRegistry::GameObjectTypeInfo* TypeRegistry::Find_GameObjectType(const 
     return (iter == _gameObjectTypes.end()) ? nullptr : &iter->second;
 }
 
+void TypeRegistry::Visit_GameObjectTypes(const function<void(const GameObjectTypeInfo&)>& visitor) const
+{
+    if (!visitor)
+        return;
+
+    for (const auto& [_, info] : _gameObjectTypes)
+        visitor(info);
+}
+
 const TypeRegistry::BTNodeTypeInfo* TypeRegistry::Find_BTNodeType(const string& className) const
 {
     auto iter = _btNodeTypes.find(className);

@@ -52,6 +52,7 @@ public:
     const ComponentTypeInfo*    Find_ComponentType(const string& className) const;
     const GameObjectTypeInfo*   Find_GameObjectType(const string& className) const;
     const BTNodeTypeInfo*       Find_BTNodeType(const string& className) const;
+    void Visit_GameObjectTypes(const function<void(const GameObjectTypeInfo&)>& visitor) const;
 
     Shared<Component> Create_Component(
         const string& className,

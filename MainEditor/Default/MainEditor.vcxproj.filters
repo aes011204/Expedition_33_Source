@@ -7,6 +7,9 @@
     <ClCompile Include="..\Private\Content_Browser.cpp">
       <Filter>01. View</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\Editor_Camera_Free.cpp">
+      <Filter>01. View</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\Editor_Manager.cpp">
       <Filter>01. Manager</Filter>
     </ClCompile>
@@ -70,12 +73,17 @@
     <ClCompile Include="..\private\BT_Inspector.cpp">
       <Filter>01. View</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\Prefab_View.cpp" />
+    <ClCompile Include="..\Private\Model_Inspector.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
       <Filter>98. Default</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Content_Browser.h">
+      <Filter>01. View</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Editor_Camera_Free.h">
       <Filter>01. View</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Editor_Defines.h">
@@ -153,6 +161,8 @@
     <ClInclude Include="..\public\BT_Inspector.h">
       <Filter>01. View</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\Prefab_View.h" />
+    <ClInclude Include="..\Public\Model_Inspector.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="00. Main">

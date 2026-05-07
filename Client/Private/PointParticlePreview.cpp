@@ -4,6 +4,17 @@
 #include "Texture.h"
 #include "VIBufferCom_PointParticle.h"
 
+IMPLEMENT_REFLECTION(PointParticlePreview)
+{
+    auto& info = GetStaticReflectionInfo();
+    info.properties.clear();
+
+    info.displayName = "PointParticlePreview";
+    info.category = "Effect";
+
+    return true;
+}
+
 PointParticlePreview::PointParticlePreview(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : GameObject { device, context }
 {

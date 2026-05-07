@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "Component.h"
+#include "Material.h"
 
 NS_BEGIN(Engine)
 
@@ -23,10 +24,17 @@ public:
     size_t Get_NumBones() const { return _bones.size(); }
     size_t Get_NumAnimations() const { return _animations.size(); }
 
+    uint32 Get_MeshMaterialIndex(uint32 meshIndex) const;
+    Shared<Material> Get_Material(uint32 materialIndex) const;
+
+    const Material::TextureSlot* Find_MaterialSlot(uint32 meshIndex, std::initializer_list<MaterialTextureSlot> materialSlots, uint32 textureIndex = 0) const;
+
+
 public:
     bool Is_Skeletal() const { return _isSkeletal; } 
-	int32 Get_BoneIndex(const char* boneName);
-	const Matrix* Get_BoneMatrixPtr(const char* boneName);
+	int32 Get_BoneIndex(const string& boneName) const;
+    const string& Get_BoneName(uint32 boneIndex) const;
+	const Matrix* Get_BoneMatrixPtr(const char* boneName) const;
     const Matrix* Get_BoneMatrixPtr(uint32 boneIndex) const;
 
 public:
@@ -48,13 +56,17 @@ public:
 	bool Play_Animation(float timeDelta);
 
 public:
-	HRESULT Bind_Material(class ShaderCom* shader, const char* constantName, uint32 meshIndex, uint32 materialType, uint32 textureIndex = 0);
+	HRESULT Bind_Material(class ShaderCom* shader, const char* constantName, uint32 meshIndex, MaterialTextureSlot slot, uint32 textureIndex = 0);
 	HRESULT Bind_BoneMatrices(class ShaderCom* shader, const char* constantName, uint32 meshIndex);
+    bool Try_Get_LocalBounds(Vec3& outMin, Vec3& outMax) const;
 
 private:
 	ModelType					        _type = { ModelType::END };
     bool                                _isSkeletal{ false };
 	Matrix					            _preLocalTransformMatrix = {};
+    bool                                _hasLocalBounds{ false };
+    Vec3                                _localBoundsMin{};
+    Vec3                                _localBoundsMax{};
 
 private:
     uint32                              _maxTextureType{};

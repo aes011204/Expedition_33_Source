@@ -3,6 +3,8 @@
 #include "BT_Inspector.h"
 #include "Transform_Inspector.h"
 #include "TransformCom.h"
+#include "ModelCom.h"
+#include "Model_Inspector.h"
 
 void Inspector_Factory::Initialize()
 {
@@ -10,6 +12,7 @@ void Inspector_Factory::Initialize()
     Register_Inspector(TransformCom::StaticClassNameA(), Transform_Inspector::Create());
 
 
+    Register_Inspector("ModelCom", ModelCom_Inspector::Create());
 }
 
 void Inspector_Factory::Register_Inspector(const string& key, const Shared<Component_Inspector>& inspector)

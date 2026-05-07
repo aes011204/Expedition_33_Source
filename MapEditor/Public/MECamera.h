@@ -41,6 +41,7 @@ private:
 
 public:
     void Apply();
+    void FocusOn(const Vec3& target);
 
 public:
     static Shared<MECamera> Create(float fov, float aspect, float nearZ, float farZ);

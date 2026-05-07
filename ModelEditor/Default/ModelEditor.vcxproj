@@ -153,6 +153,7 @@
       <AdditionalIncludeDirectories>$(ProjectDir);..\Public;..\..\Client\Public;..\..\EngineSDK\inc\Engine;..\..\EngineSDK\inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>/utf-8 /bigobj %(AdditionalOptions)</AdditionalOptions>
       <LanguageStandard>stdcpp20</LanguageStandard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>

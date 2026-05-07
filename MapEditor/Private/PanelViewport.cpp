@@ -74,7 +74,27 @@ void PanelViewport::Render()
                 float mat[16] = {};
                 memcpy(mat, &_ctx->_selected->_worldMatrix, sizeof(float) * 16);
 
-                const bool manipulated = ImGuizmo::Manipulate(view, proj, _gizmoOp, _gizmoMode, mat);
+                const bool ctrlHeld = ImGui::GetIO().KeyCtrl && _snapSettings;
+                float snapValues[3] = {};
+
+                if (ctrlHeld)
+                {
+                    if (_gizmoOp == ImGuizmo::TRANSLATE)
+                    {
+                        snapValues[0] = snapValues[1] = snapValues[2] = _snapSettings->translate;
+                    }
+                    else if (_gizmoOp == ImGuizmo::ROTATE)
+                    {
+                        snapValues[0] = snapValues[1] = snapValues[2] = _snapSettings->rotate;
+                    }
+                    else if (_gizmoOp == ImGuizmo::SCALE)
+                    {
+                        snapValues[0] = snapValues[1] = snapValues[2] = _snapSettings->scale;
+                    }
+                }
+
+                const bool manipulated = ImGuizmo::Manipulate(view, proj, _gizmoOp, _gizmoMode, mat,
+                    nullptr, ctrlHeld ? snapValues : nullptr);
                 if (manipulated)
                 {
                     memcpy(&_ctx->_selected->_worldMatrix, mat, sizeof(float) * 16);

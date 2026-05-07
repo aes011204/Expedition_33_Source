@@ -26,6 +26,8 @@ public:
 	virtual void Late_Update(float timeDelta);
 	virtual HRESULT Render();
 
+
+
 protected:
 	map<const wstring, Shared<class PartObject>>				_partObjects;
 
@@ -34,6 +36,12 @@ protected:
 		const wstring& partTag, void* arg);
 
 	PartObject* Find_PartObject(const wstring& partTag);
+
+public:
+    PartObject* Get_PartObject(const wstring& partTag) const;
+
+    const map<const wstring, Shared<PartObject>>& Get_PartObjects() const { return _partObjects; }
+
 
 public:
 	virtual Shared<GameObject> Clone(void* arg) = 0;

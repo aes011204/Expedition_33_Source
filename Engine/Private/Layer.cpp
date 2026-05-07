@@ -17,6 +17,19 @@ HRESULT Layer::Add_GameObject(Shared<GameObject> gameObject)
 	return S_OK;
 }
 
+bool Layer::Remove_GameObject(const Shared<GameObject>& gameObject)
+{
+    if (gameObject == nullptr)
+        return false;
+
+    const auto iter = find(_gameObjects.begin(), _gameObjects.end(), gameObject);
+    if (iter == _gameObjects.end())
+        return false;
+
+    _gameObjects.erase(iter);
+    return true;
+}
+
 void Layer::Priority_Update(float timeDelta)
 {
 	for (auto& gameObject : _gameObjects)

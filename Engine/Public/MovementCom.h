@@ -74,6 +74,9 @@ public:
     void Stop_HorizontalMovement();
     void Stop_VerticalMovement();
 
+    Vec3 Get_Velocity() { return _velocity; }
+    void Set_Velocity(const Vec3& velocity) { _velocity = velocity; }
+
 private:
     void Start_Jump();
 
@@ -83,6 +86,8 @@ private:
     void Apply_Velocity(float timeDelta);
 
     void Resolve_Ground();
+
+    bool Resolve_CameraRelativeMoveDirection(Vec3& outWorldDir) const;
 
 private:
     MoveDesc    _moveDesc{};

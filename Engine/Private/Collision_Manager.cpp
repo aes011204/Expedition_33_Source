@@ -13,118 +13,117 @@ HRESULT Collision_Manager::Initialize()
 void Collision_Manager::Update()
 {
 #ifdef _DEBUG
+    if (GAME->KeyDown(KEY_TYPE::F1))
+        _isDebug = !_isDebug;
+#endif
+}
+
+void Collision_Manager::Update_FromPhysX(const vector<PhysXPairEvent>& events)
+{
+#ifdef _DEBUG
     const auto updateBegin = chrono::steady_clock::now();
     UpdatePerfSample perfSample{};
 #endif
 
-    const size_t iNumColliders = _colliders.size();
-
-    for (size_t i = 0; i < iNumColliders; ++i)
+    for (const auto& weakCollider : _colliders)
     {
-        Shared<ColliderCom> src = _colliders[i].lock();
-        if (nullptr == src)
+        Shared<ColliderCom> collider = weakCollider.lock();
+        if (collider == nullptr)
             continue;
 
-        src->Set_IsColl(false);
+        collider->Set_IsColl(false);
 
 #ifdef _DEBUG
-        if (src->Get_IsActive())
+        if (collider->Get_IsActive())
             ++perfSample.activeColliderCount;
 #endif
     }
 
-    for (size_t i = 0; i < iNumColliders; ++i)
+    for (const PhysXPairEvent& event : events)
+    {
+        Shared<ColliderCom> self = event.self.lock();
+        Shared<ColliderCom> other = event.other.lock();
+
+        if (self == nullptr || other == nullptr)
+            continue;
+
+        if (!self->Get_IsActive() || !other->Get_IsActive())
+            continue;
+
+        Shared<GameObject> selfOwner = self->Get_Owner();
+        Shared<GameObject> otherOwner = other->Get_Owner();
+
+        if (selfOwner == nullptr || otherOwner == nullptr)
+            continue;
+
+        if (selfOwner == otherOwner)
+            continue;
+
+#ifdef _DEBUG
+        ++perfSample.hitCount;
+#endif
+
+        self->Set_IsColl(true);
+        other->Set_IsColl(true);
+
+        if (event.response == CollisionResponse::Overlap)
+        {
+            if (event.began)
+            {
+                self->Add_Overlap(other);
+                selfOwner->OnBeginOverlap(self, other);
+            }
+            else if (self->Is_Overlapping(other))
+            {
+                selfOwner->OnStayOverlap(self, other);
+            }
+
+            if (event.ended)
+            {
+                self->Remove_Overlap(other);
+                selfOwner->OnEndOverlap(self, other);
+            }
+        }
+        else if (event.response == CollisionResponse::Block)
+        {
+            if (event.began)
+                selfOwner->OnBlockBegin(self, other);
+
+            if (event.staying)
+                selfOwner->OnBlockStay(self, other);
+        }
+    }
+
+    const size_t colliderCount = _colliders.size();
+
+    for (size_t i = 0; i < colliderCount; ++i)
     {
         Shared<ColliderCom> src = _colliders[i].lock();
-        if (nullptr == src || false == src->Get_IsActive())
+        if (src == nullptr || !src->Get_IsActive())
             continue;
 
         Shared<GameObject> srcOwner = src->Get_Owner();
-        if (nullptr == srcOwner)
+        if (srcOwner == nullptr)
             continue;
 
-        for (size_t j = i + 1; j < iNumColliders; ++j)
+        for (size_t j = i + 1; j < colliderCount; ++j)
         {
             Shared<ColliderCom> dst = _colliders[j].lock();
-            if (nullptr == dst || false == dst->Get_IsActive())
+            if (dst == nullptr || !dst->Get_IsActive())
                 continue;
 
             Shared<GameObject> dstOwner = dst->Get_Owner();
-            if (nullptr == dstOwner)
+            if (dstOwner == nullptr || srcOwner == dstOwner)
                 continue;
 
-            if (srcOwner == dstOwner)
+            if (!src->Is_Overlapping(dst))
                 continue;
 
-#ifdef _DEBUG
-            ++perfSample.pairCandidateCount;
-#endif
+            src->Set_IsColl(true);
+            dst->Set_IsColl(true);
 
-            CollisionResponse eResponse = Calculate_ResponseResult(
-                src->Get_Channel(), src->Get_OverlapMask(),
-                src->Get_BlockMask(), dst->Get_Channel(),
-                dst->Get_OverlapMask(), dst->Get_BlockMask());
-
-            if (CollisionResponse::Ignore == eResponse)
-                continue;
-
-#ifdef _DEBUG
-            ++perfSample.intersectsCallCount;
-#endif
-
-            const bool isIntersect = src->Intersect(dst);
-            const bool wasOverlapping = src->Is_Overlapping(dst);
-
-            if (true == isIntersect)
-            {
-#ifdef _DEBUG
-                ++perfSample.hitCount;
-#endif
-
-                src->Set_IsColl(true);
-                dst->Set_IsColl(true);
-
-                if (false == wasOverlapping)
-                {
-                    src->Add_Overlap(dst);
-                    dst->Add_Overlap(src);
-
-                    if (CollisionResponse::Block == eResponse)
-                    {
-                        srcOwner->OnBlockBegin(src, dst);
-                        dstOwner->OnBlockBegin(dst, src);
-                    }
-                    else
-                    {
-                        srcOwner->OnBeginOverlap(src, dst);
-                        dstOwner->OnBeginOverlap(dst, src);
-                    }
-                }
-                else
-                {
-                    if (CollisionResponse::Block == eResponse)
-                    {
-                        srcOwner->OnBlockStay(src, dst);
-                        dstOwner->OnBlockStay(dst, src);
-                    }
-                    else
-                    {
-                        srcOwner->OnStayOverlap(src, dst);
-                        dstOwner->OnStayOverlap(dst, src);
-                    }
-                }
-            }
-            else
-            {
-                if (true == wasOverlapping)
-                {
-                    src->Remove_Overlap(dst);
-                    dst->Remove_Overlap(src);
-
-                    srcOwner->OnEndOverlap(src, dst);
-                    dstOwner->OnEndOverlap(dst, src);
-                }
-            }
+            srcOwner->OnStayOverlap(src, dst);
+            dstOwner->OnStayOverlap(dst, src);
         }
     }
 

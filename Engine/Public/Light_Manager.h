@@ -18,6 +18,10 @@ public:
 public:
 	const LIGHT_DESC* Get_LightDesc(uint32 index);
     const LIGHT_DESC* Get_PrimaryShadowLightDesc() const;
+    uint32 Get_LightCount() const;
+    void Clear_Lights();
+    void Get_LightDescs(vector<LIGHT_DESC>& outLightDescs) const;
+    HRESULT Set_Lights(const vector<LIGHT_DESC>& lightDescs);
 
 public:
 	HRESULT Add_Light(const LIGHT_DESC& lightDesc);

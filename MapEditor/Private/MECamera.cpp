@@ -85,6 +85,12 @@ Vec3 MECamera::GetRight() const
     return right;
 }
 
+void MECamera::FocusOn(const Vec3& target)
+{
+    _position = target - GetForward() * 8.f;
+    ComputeMatrices();
+}
+
 Shared<MECamera> MECamera::Create(float fov, float aspect, float nearZ, float farZ)
 {
     auto instance = make_shared<MECamera>();

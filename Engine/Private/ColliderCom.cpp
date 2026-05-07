@@ -6,6 +6,7 @@
 #include "Bounding_AABB.h"
 #include "Bounding_OBB.h"
 #include "Bounding_Sphere.h"
+#include "PhysX_Filter.h"
 
 ColliderCom::ColliderCom(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Component(device, context)
@@ -15,12 +16,17 @@ ColliderCom::ColliderCom(const ComPtr<Device>& device, const ComPtr<Context>& co
 ColliderCom::ColliderCom(const ColliderCom& Prototype)
     : Component(Prototype)
     , _shape(Prototype._shape)
+    , _shapeDesc(Prototype._shapeDesc)
     , _channel(Prototype._channel)
     , _overlapMask(Prototype._overlapMask)
     , _blockMask(Prototype._blockMask)
     , _preset(Prototype._preset)
     , _isActive(Prototype._isActive)
     , _isColl(false)
+    , _pxActor(nullptr)
+    , _pxShape(nullptr)
+    , _physxRegistered(false)
+    , _isTrigger(Prototype._isTrigger)
 {
 }
 
@@ -59,25 +65,55 @@ HRESULT ColliderCom::Initialize(void* arg)
     switch (_shape)
     {
     case CollisionShape::AABB:
+    {
+        const auto& aabbDesc = *static_cast<Bounding_AABB::BoundingAABBDesc*>(arg);
+
+        _shapeDesc.shape = CollisionShape::AABB;
+        _shapeDesc.center = aabbDesc.center;
+        _shapeDesc.extents = aabbDesc.extents;
+        _shapeDesc.radians = Vec3::Zero;
+        _shapeDesc.radius = 0.5f;
+
         _bounding = Bounding_AABB::Create(
             _device,
             _context,
-            *static_cast<Bounding_AABB::BoundingAABBDesc*>(arg));
+            aabbDesc);
         break;
+    }
 
     case CollisionShape::OBB:
+    {
+        const auto& obbDesc = *static_cast<Bounding_OBB::BoundingOBBDesc*>(arg);
+
+        _shapeDesc.shape = CollisionShape::OBB;
+        _shapeDesc.center = obbDesc.center;
+        _shapeDesc.extents = obbDesc.extents;
+        _shapeDesc.radians = obbDesc.radians;
+        _shapeDesc.radius = 0.5f;
+
         _bounding = Bounding_OBB::Create(
             _device,
             _context,
-            *static_cast<Bounding_OBB::BoundingOBBDesc*>(arg));
+            obbDesc);
         break;
+    }
 
     case CollisionShape::Sphere:
+    {
+        const auto& sphereDesc = *static_cast<Bounding_Sphere::FBoundingSphereDesc*>(arg);
+
+        _shapeDesc.shape = CollisionShape::Sphere;
+        _shapeDesc.center = sphereDesc.center;
+        _shapeDesc.extents = Vec3::Zero;
+        _shapeDesc.radians = Vec3::Zero;
+        _shapeDesc.radius = sphereDesc.radius;
+
         _bounding = Bounding_Sphere::Create(
             _device,
             _context,
-            *static_cast<Bounding_Sphere::FBoundingSphereDesc*>(arg));
+            sphereDesc);
         break;
+    }
 
     default:
         return E_FAIL;
@@ -88,6 +124,11 @@ HRESULT ColliderCom::Initialize(void* arg)
 
     _overlapSet.clear();
     _isColl = false;
+
+    _pxActor = nullptr;
+    _pxShape = nullptr;
+    _physxRegistered = false;
+    _isTrigger = (_blockMask == 0); // blockMask가 하나도 없으면 overlap 전용
 
     return S_OK;
 }
@@ -167,6 +208,23 @@ void ColliderCom::Set_CollisionPreset(Collision_Preset preset)
     _channel = data.channel;
     _overlapMask = data.overlapMask;
     _blockMask = data.blockMask;
+
+    _isTrigger = (_blockMask == 0);
+
+    if (_pxShape != nullptr)
+    {
+        if (_isTrigger)
+        {
+            _pxShape->setFlag(PxShapeFlag::eSIMULATION_SHAPE, false);
+            _pxShape->setFlag(PxShapeFlag::eTRIGGER_SHAPE, true);
+        }
+        else
+        {
+            _pxShape->setFlag(PxShapeFlag::eTRIGGER_SHAPE, false);
+            _pxShape->setFlag(PxShapeFlag::eSIMULATION_SHAPE, true);
+        }
+        Apply_PhysX_FilterData();
+    }
 }
 
 #ifdef _DEBUG
@@ -202,6 +260,237 @@ HRESULT ColliderCom::Ready_DebugRenderResources()
     }
 
     return S_OK;
+}
+
+void ColliderCom::Release_PhysX()
+{
+    auto Release_PX = [](auto& px)
+    {
+        if (px)
+        {
+            px->release();
+            px = nullptr;
+        }
+    };
+
+    Release_PX(_pxShape);
+    Release_PX(_pxActor);
+
+    _physxRegistered = false;
+}
+
+HRESULT ColliderCom::Build_PhysXActor(PxPhysics* physics)
+{
+    if (physics == nullptr)
+        return E_FAIL;
+
+    Release_PhysX();
+
+    const PxGeometryHolder geometryHolder = Build_PxGeometry();
+    const PxGeometry& geometry = geometryHolder.any();
+
+    PxMaterial* material = physics->createMaterial(0.5f, 0.5f, 0.5f);
+    if (material == nullptr)
+        return E_FAIL;
+
+    PxRigidDynamic* dynamicActor = physics->createRigidDynamic(PxTransform(PxIdentity));
+    if (dynamicActor == nullptr)
+    {
+        material->release();
+        return E_FAIL;
+    }
+
+    PxShape* shape = physics->createShape(geometry, *material, true);
+    material->release();
+
+    if (shape == nullptr)
+    {
+        dynamicActor->release();
+        return E_FAIL;
+    }
+
+    if (_isTrigger)
+    {
+        shape->setFlag(PxShapeFlag::eSIMULATION_SHAPE, false);
+        shape->setFlag(PxShapeFlag::eTRIGGER_SHAPE, true);
+    }
+    else
+    {
+        shape->setFlag(PxShapeFlag::eTRIGGER_SHAPE, false);
+        shape->setFlag(PxShapeFlag::eSIMULATION_SHAPE, true);
+    }
+
+    dynamicActor->setRigidBodyFlag(PxRigidBodyFlag::eKINEMATIC, true);
+
+    if (dynamicActor->attachShape(*shape) == false)
+    {
+        shape->release();
+        dynamicActor->release();
+        return E_FAIL;
+    }
+
+    _pxActor = dynamicActor;
+    _pxShape = shape;
+
+    _pxActor->userData = this;
+    _pxShape->userData = this;
+
+    Apply_PhysX_FilterData();
+
+    _physxRegistered = false;
+
+    return S_OK;
+}
+
+void ColliderCom::Sync_ToPhysX(const Matrix& worldMatrix)
+{
+    if (_pxActor == nullptr)
+        return;
+
+    Update_PhysXGeometry(worldMatrix);
+
+    const PxTransform pxTransform = Build_PXTransform(worldMatrix);
+
+    if (PxRigidDynamic* dynamicActor = _pxActor->is<PxRigidDynamic>())
+    {
+        if (dynamicActor->getRigidBodyFlags().isSet(PxRigidBodyFlag::eKINEMATIC))
+            dynamicActor->setKinematicTarget(pxTransform);
+        else
+            dynamicActor->setGlobalPose(pxTransform);
+    }
+    else
+    {
+        _pxActor->setGlobalPose(pxTransform);
+    }
+}
+
+PxTransform ColliderCom::Build_PXTransform(const Matrix& worldMatrix) const
+{
+    Matrix temp = worldMatrix;
+
+    Vec3 scale;
+    Quat rotation;
+    Vec3 translation;
+
+    temp.Decompose(scale, rotation, translation);
+
+    return PxTransform(
+        PxVec3(translation.x, translation.y, translation.z),
+        PxQuat(rotation.x, rotation.y, rotation.z, rotation.w)
+    );
+}
+
+void ColliderCom::Apply_PhysX_FilterData()
+{
+    if (_pxShape == nullptr)
+        return;
+
+    const PxFilterData filterData = Build_FilterData(_channel, _overlapMask, _blockMask);
+
+    _pxShape->setSimulationFilterData(filterData);
+    _pxShape->setQueryFilterData(filterData);
+}
+
+PxTransform ColliderCom::Build_QueryTransform(const Matrix& worldMatrix) const
+{
+    return Build_PXTransform(worldMatrix);
+}
+
+PxGeometryHolder ColliderCom::Build_QueryGeometry(const Matrix& worldMatrix) const
+{
+    Matrix tempMatrix = worldMatrix;
+
+    Vec3 scale;
+    Quat rotation;
+    Vec3 translation;
+
+    tempMatrix.Decompose(scale, rotation, translation);
+
+    const float sx = abs(scale.x);
+    const float sy = abs(scale.y);
+    const float sz = abs(scale.z);
+
+    switch (_shapeDesc.shape)
+    {
+    case CollisionShape::AABB:
+    case CollisionShape::OBB:
+        return PxBoxGeometry(
+            _shapeDesc.extents.x * sx,
+            _shapeDesc.extents.y * sy,
+            _shapeDesc.extents.z * sz);
+
+    case CollisionShape::Sphere:
+    {
+        const float maxScale = max(sx, max(sy, sz));
+        return PxSphereGeometry(_shapeDesc.radius * maxScale);
+    }
+
+    default:
+        return PxBoxGeometry(0.5f, 0.5f, 0.5f);
+    }
+}
+
+PxGeometryHolder ColliderCom::Build_PxGeometry() const
+{
+    switch (_shapeDesc.shape)
+    {
+    case CollisionShape::AABB:
+    case CollisionShape::OBB:
+        return PxBoxGeometry(
+            _shapeDesc.extents.x,
+            _shapeDesc.extents.y,
+            _shapeDesc.extents.z);
+
+    case CollisionShape::Sphere:
+        return PxSphereGeometry(_shapeDesc.radius);
+
+    default:
+        return PxBoxGeometry(0.5f, 0.5f, 0.5f);
+    }
+}
+
+void ColliderCom::Update_PhysXGeometry(const Matrix& worldMatrix)
+{
+    Matrix tempMatrix = worldMatrix;
+
+    if (_pxShape == nullptr)
+        return;
+
+    Vec3 scale;
+    Quat rotation;
+    Vec3 translation;
+
+    tempMatrix.Decompose(scale, rotation, translation);
+
+    const float sx = abs(scale.x);
+    const float sy = abs(scale.y);
+    const float sz = abs(scale.z);
+
+    switch (_shapeDesc.shape)
+    {
+    case CollisionShape::AABB:
+    case CollisionShape::OBB:
+    {
+        PxBoxGeometry boxGeom(
+            _shapeDesc.extents.x * sx,
+            _shapeDesc.extents.y * sy,
+            _shapeDesc.extents.z * sz);
+
+        _pxShape->setGeometry(boxGeom);
+        break;
+    }
+
+    case CollisionShape::Sphere:
+    {
+        const float maxScale = max(sx, max(sy, sz));
+        PxSphereGeometry sphereGeom(_shapeDesc.radius * maxScale);
+        _pxShape->setGeometry(sphereGeom);
+        break;
+    }
+
+    default:
+        break;
+    }
 }
 
 HRESULT ColliderCom::Render_Debug()
@@ -279,6 +568,8 @@ Shared<Component> ColliderCom::Clone(void* arg)
 void ColliderCom::Free()
 {
     Component::Free();
+
+    Release_PhysX();
 
     _bounding = nullptr;
     _overlapSet.clear();

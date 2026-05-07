@@ -1,5 +1,6 @@
 ﻿#include "Weapon.h"
 #include "GameInstance.h"
+#include "Material_Types.h"
 
 #include "Player.h"
 
@@ -72,7 +73,7 @@ HRESULT Weapon::Render()
 
 	for (uint32 i = 0; i < iNumMeshes; i++)
 	{
-		_model->Bind_Material(_shader.get(), "g_DiffuseTexture", i, 1, 0);
+		_model->Bind_Material(_shader.get(), "g_DiffuseTexture", i, MaterialTextureSlot::BaseColor);
 
 		if (FAILED(_shader->Begin(0)))
 			return E_FAIL;
@@ -99,7 +100,7 @@ HRESULT Weapon::Render_Shadow()
 
     for (uint32 i = 0; i < iNumMeshes; i++)
     {
-        _model->Bind_Material(_shader.get(), "g_DiffuseTexture", i, 1, 0);
+        _model->Bind_Material(_shader.get(), "g_DiffuseTexture", i, MaterialTextureSlot::BaseColor);
 
         if (FAILED(_shader->Begin(1)))
             return E_FAIL;

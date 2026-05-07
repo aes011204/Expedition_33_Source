@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Base.h"
 
@@ -16,6 +16,12 @@ public:
 	const Matrix* Get_Transform(D3DTS transformState) const {
 		return reinterpret_cast<const Matrix*>(&_transformStateMatrices[ETOI(transformState)]);
 	}
+
+    const Matrix* Get_Transform_Inverse(D3DTS transformState) const
+	{
+	    return reinterpret_cast<const Matrix*>(&_transformStateInverseMatrices[ETOI(transformState)]);
+	}
+
 	const Vec4* Get_CamPosition() const {
 		return reinterpret_cast<const Vec4*>(&_transformStateInverseMatrices[ETOI(D3DTS::View)].m[3]);
 	}

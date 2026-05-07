@@ -62,6 +62,63 @@ HRESULT Object_Manager::Add_GameObject(uint32 prototypeLevelIndex, const wstring
 	return S_OK;
 }
 
+HRESULT Object_Manager::Add_GameObject(uint32 layerLevelIndex, const wstring& layerTag,
+    const Shared<GameObject>& gameObject)
+{
+    if (gameObject == nullptr)
+        return E_FAIL;
+
+    if (layerLevelIndex >= _numLevels)
+        return E_FAIL;
+
+    Shared<Layer> layer = Find_Layer(layerLevelIndex, layerTag);
+    if (layer == nullptr)
+    {
+        layer = Layer::Create();
+        if (layer == nullptr)
+            return E_FAIL;
+
+        layer->Add_GameObject(gameObject);
+        _layers[layerLevelIndex].emplace(layerTag, layer);
+    }
+    else
+    {
+        layer->Add_GameObject(gameObject);
+    }
+
+    ++_objectRevision;
+    return S_OK;
+}
+
+bool Object_Manager::Remove_GameObject(uint32 levelIndex, const Shared<GameObject>& gameObject)
+{
+    if (gameObject == nullptr || levelIndex >= _numLevels)
+        return false;
+
+    auto& layers = _layers[levelIndex];
+    for (auto iter = layers.begin(); iter != layers.end(); )
+    {
+        Shared<Layer>& layer = iter->second;
+        bool removed = false;
+
+        if (layer != nullptr)
+            removed = layer->Remove_GameObject(gameObject);
+
+        if (layer != nullptr && layer->Get_GameObjects().empty())
+            iter = layers.erase(iter);
+        else
+            ++iter;
+
+        if (removed)
+        {
+            ++_objectRevision;
+            return true;
+        }
+    }
+
+    return false;
+}
+
 void Object_Manager::Priority_Update(float timeDelta)
 {
 	for (auto& layers : _layers)

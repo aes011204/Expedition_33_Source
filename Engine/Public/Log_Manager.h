@@ -50,6 +50,9 @@ public: //## Helpers
     // Console 로그 버퍼를 비운다.
     void Clear_ConsoleLogs();
 
+    // 파일에만 저장되는 조용한 로그를 생성한다.
+    void Log_FileOnly(const spdlog::source_loc& sourceLoc, spdlog::level::level_enum level, const string& message) const;
+
 private:
     Unique<Log_Manager_Impl> _impl{};
 

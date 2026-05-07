@@ -8,7 +8,7 @@ NS_END
 
 NS_BEGIN(EffectEditor)
 
-class Editor_Context : public Base
+class Editor_Context final : public Base
 {
 public:
     Editor_Context() = default;
