@@ -37,6 +37,7 @@ void Head_Player::Priority_Update(float fTimeDelta)
 
 void Head_Player::Update(float fTimeDelta)
 {
+    _modelCom->Play_Animation(fTimeDelta);
 	Update_CombinedWorldMatrix(_transformCom->Get_WorldMatrix());
 }
 

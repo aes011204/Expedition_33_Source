@@ -48,13 +48,34 @@ VS_OUT VS_MAIN(VS_IN In)
     /* 정점의 위치 * 월드 * 뷰 * 투영 */
     float4x4 matWV, matWVP;
 
-    matrix BoneMatrix = g_BoneMatrices[In.vBlendIndex.x] * In.vBlendWeight.x +
-        g_BoneMatrices[In.vBlendIndex.y] * In.vBlendWeight.y +
-        g_BoneMatrices[In.vBlendIndex.z] * In.vBlendWeight.z +
-        g_BoneMatrices[In.vBlendIndex.w] * In.vBlendWeight.w;
+    float fWeightSum = In.vBlendWeight.x + In.vBlendWeight.y + In.vBlendWeight.z + In.vBlendWeight.w;
 
-    vector vPosition = mul(float4(In.vPosition, 1.f), BoneMatrix);
-    vector vNormal = mul(float4(In.vNormal, 0.f), BoneMatrix);
+    vector vPosition;
+    vector vNormal;
+    vector vTangent;
+    vector vBinormal;
+
+    if (fWeightSum > 0.001f)
+    {
+        float fWeightW = 1.f - (In.vBlendWeight.x + In.vBlendWeight.y + In.vBlendWeight.z);
+
+        matrix BoneMatrix = g_BoneMatrices[In.vBlendIndex.x] * In.vBlendWeight.x +
+            g_BoneMatrices[In.vBlendIndex.y] * In.vBlendWeight.y +
+            g_BoneMatrices[In.vBlendIndex.z] * In.vBlendWeight.z +
+            g_BoneMatrices[In.vBlendIndex.w] * fWeightW;
+
+        vPosition = mul(float4(In.vPosition, 1.f), BoneMatrix);
+        vNormal = mul(float4(In.vNormal, 0.f), BoneMatrix);
+        vTangent = mul(float4(In.vTangent, 0.f), BoneMatrix);
+        vBinormal = mul(float4(In.vBinormal, 0.f), BoneMatrix);
+    }
+    else
+    {
+        vPosition = float4(In.vPosition, 1.f);
+        vNormal = float4(In.vNormal, 0.f);
+        vTangent = float4(In.vTangent, 0.f);
+        vBinormal = float4(In.vBinormal, 0.f);
+    }
 
     matWV = mul(g_WorldMatrix, g_ViewMatrix);
     matWVP = mul(matWV, g_ProjMatrix);
@@ -64,6 +85,7 @@ VS_OUT VS_MAIN(VS_IN In)
 
     Out.vTexcoord = In.vTexcoord;
     Out.vWorldPos = mul(vPosition, g_WorldMatrix);
+    
 
     return Out;
 }

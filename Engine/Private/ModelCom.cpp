@@ -1,4 +1,4 @@
-﻿#include "ModelCom.h"
+#include "ModelCom.h"
 
 #include "Mesh.h"
 #include "Bone.h"
@@ -403,6 +403,12 @@ HRESULT ModelCom::Ready_Model(const char* modelPath)
             stream.read(reinterpret_cast<char*>(&data.localTransform), sizeof(Matrix));
             stream.read(reinterpret_cast<char*>(&data.offsetMatrix), sizeof(Matrix));
             _bones.push_back(Bone::Create(data));
+        }
+
+        /* 바인드 포즈 초기화: 애니메이션 없이도 Combined 행렬이 유효하도록 1회 계산 */
+        for (uint32 i = 0; i < _numBones; ++i)
+        {
+            _bones[i]->Update_CombinedTransformationMatrix(_bones, _preLocalTransformMatrix);
         }
     }
 

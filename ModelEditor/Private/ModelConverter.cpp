@@ -288,7 +288,16 @@ namespace ModelEditor
 		}
 
 		string modelName = Get_FileNameWithoutExtension(fbxFilePath);
-		_isSkeletal = _aiScene->HasSkeletons() || _aiScene->mNumAnimations > 0;
+        bool hasMeshBones = false;
+        for (uint32 i = 0; i < _aiScene->mNumMeshes; ++i)
+        {
+            if (_aiScene->mMeshes[i]->mNumBones > 0)
+            {
+                hasMeshBones = true;
+                break;
+            }
+        }
+        _isSkeletal = hasMeshBones || _aiScene->mNumAnimations > 0;
 
         // 1. 모든 메쉬를 순회하여 본 이름과 OffsetMatrix를 먼저 수집 (임시 저장)
         unordered_map<string, Matrix> tempOffsetMap;
@@ -335,7 +344,7 @@ namespace ModelEditor
 
         RecursiveBuild(RecursiveBuild, _aiScene->mRootNode, -1);
 
-        // 3. 메쉬 데이터 읽기 (이제 _boneNameMap에 계층 순서대로 인덱스가 들어있음)
+
 		ReadMeshes(_aiScene);
 		ReadMaterial(_aiScene);
 		ReadAnimations(_aiScene);
