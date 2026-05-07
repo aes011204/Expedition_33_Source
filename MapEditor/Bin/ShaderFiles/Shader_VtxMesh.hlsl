@@ -1,6 +1,7 @@
 #include "Engine_Shader_Defines.hlsli"
 
 float4x4 g_WorldMatrix, g_ViewMatrix, g_ProjMatrix;
+uint g_iObjectID;
 
 vector g_vLightDir;
 vector g_vLightDiffuse;
@@ -100,6 +101,16 @@ PS_OUT PS_MAIN_NOTEXTURE(PS_IN In)
     return Out;
 }
 
+PS_OUT PS_MAIN_ID(PS_IN In)
+{
+    PS_OUT Out;
+    Out.vColor.r = float(g_iObjectID & 0xFF) / 255.f;
+    Out.vColor.g = float((g_iObjectID >> 8) & 0xFF) / 255.f;
+    Out.vColor.b = float((g_iObjectID >> 16) & 0xFF) / 255.f;
+    Out.vColor.a = 1.f;
+    return Out;
+}
+
 technique11 DefaultTechnique
 {
     pass DefaultPass
@@ -122,4 +133,13 @@ technique11 DefaultTechnique
         PixelShader = compile ps_5_0 PS_MAIN_NOTEXTURE();
     }
 
+    pass IDPass // index 2
+    {
+        SetRasterizerState(RS_Default);
+        SetDepthStencilState(DSS_Default, 0);
+        SetBlendState(BS_Default, float4(0.f, 0.f, 0.f, 0.f), 0xffffffff);
+
+        VertexShader = compile vs_5_0 VS_MAIN();
+        PixelShader = compile ps_5_0 PS_MAIN_ID();
+    }
 }

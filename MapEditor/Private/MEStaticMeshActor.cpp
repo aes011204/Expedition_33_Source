@@ -34,6 +34,28 @@ HRESULT MEStaticMeshActor::Render(const Matrix& worldMatrix)
     return S_OK;
 }
 
+HRESULT MEStaticMeshActor::RenderID(const Matrix& worldMatrix, uint32 id)
+{
+    if (!_model || !_shader)
+    {
+        return E_FAIL;
+    }
+
+    CHECK_FAILED(_shader->Bind_Matrix("g_WorldMatrix", &worldMatrix), E_FAIL);
+    CHECK_FAILED(GAME->Bind_TransformMatrix(D3DTS::View, _shader.get(), "g_ViewMatrix"), E_FAIL);
+    CHECK_FAILED(GAME->Bind_TransformMatrix(D3DTS::Proj, _shader.get(), "g_ProjMatrix"), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_iObjectID", &id, sizeof(uint32)), E_FAIL);
+
+    const uint32 numMeshes = static_cast<uint32>(_model->Get_NumMeshes());
+    for (uint32 i = 0; i < numMeshes; ++i)
+    {
+        _shader->Begin(2);
+        _model->Render(i);
+    }
+
+    return S_OK;
+}
+
 Shared<MEStaticMeshActor> MEStaticMeshActor::Create(ComPtr<Device> device, ComPtr<Context> context, const wstring& modelPath, Shared<ShaderCom> shader)
 {
     auto instance = make_shared<MEStaticMeshActor>();

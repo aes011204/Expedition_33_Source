@@ -2,14 +2,12 @@
 #include "GameInstance.h"
 #include "MapStaticMesh.h"
 
-HRESULT MapLoader::Load(const wstring& filePath, uint32 levelIndex, const wstring& layerTag)
+HRESULT MapLoader::Load(const ComPtr<Device>& device, const ComPtr<Context>& context, const wstring& filePath, uint32 levelIndex, const wstring& layerTag)
 {
     string pathA = String::ToString(filePath);
     ifstream ifs(pathA);
     if (!ifs.is_open())
-    {
         return E_FAIL;
-    }
 
     json root = json::parse(ifs);
     const json& mapData = root["MapData"];
@@ -17,17 +15,34 @@ HRESULT MapLoader::Load(const wstring& filePath, uint32 levelIndex, const wstrin
     if (!mapData.contains("StaticMeshes"))
         return S_OK;
 
+    unordered_map<string, Shared<ModelCom>> modelCache;
+    string modelFolder = mapData.value("ModelFolder", string{});
+
     for (auto& e : mapData["StaticMeshes"])
     {
+        string modelPathStr = e.value("ModelPath", string{});
+        if (modelPathStr.empty())
+            continue;
+
         MapStaticMesh::MAPSTATICMESH_DESC desc{};
 
-        string modelPathA = "../../../Client/Bin/Resources/Map/" + e.value("ModelPath", string{});
-        desc.modelPath = String::ToWString(modelPathA);
-
-        if (e.value("ModelPath", string{}).empty())
+        auto it = modelCache.find(modelPathStr);
+        if (it != modelCache.end())
         {
-            continue;
+            desc.model = it->second;
         }
+        else
+        {
+            string fullPathA = "../../../Client/Bin/Resources/Map/" + modelFolder + "/" + modelPathStr;
+            wstring fullPathW = String::ToWString(fullPathA);
+            auto model = ModelCom::Create(device, context, ModelType::NonAnim, fullPathA.c_str(), Matrix::CreateScale(0.01f));
+            if (!model)
+                continue;
+            modelCache[modelPathStr] = model;
+            desc.model = model;
+        }
+
+        desc.modelPath = {};
 
         auto& pos = e["Position"];
         desc.position = Vec3(pos[0], pos[1], pos[2]);
@@ -38,12 +53,8 @@ HRESULT MapLoader::Load(const wstring& filePath, uint32 levelIndex, const wstrin
         auto& scl = e["Scale"];
         desc.scale = Vec3(scl[0], scl[1], scl[2]);
 
-        if (FAILED(GAME->Add_GameObject(
-            levelIndex,
-            TEXT("GameObject_MapStaticMesh"),
-            levelIndex,
-            layerTag,
-            &desc)))
+        if (FAILED(GAME->Add_GameObject(levelIndex, TEXT("GameObject_MapStaticMesh"),
+            levelIndex, layerTag, &desc)))
         {
             continue;
         }

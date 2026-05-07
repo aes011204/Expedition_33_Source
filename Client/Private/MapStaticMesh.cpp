@@ -25,7 +25,7 @@ HRESULT MapStaticMesh::Initialize(void* arg)
 
     auto pDesc = static_cast<MAPSTATICMESH_DESC*>(arg);
 
-    if (FAILED(Ready_Components(pDesc->modelPath)))
+    if (FAILED(Ready_Components(pDesc->modelPath, pDesc->model)))
     {
         return E_FAIL;
     }
@@ -74,18 +74,23 @@ HRESULT MapStaticMesh::Render()
     return S_OK;
 }
 
-HRESULT MapStaticMesh::Ready_Components(const wstring& modelPath)
+HRESULT MapStaticMesh::Ready_Components(const wstring& modelPath, Shared<ModelCom> sharedModel)
 {
     if (FAILED(__super::Add_Component(ETOI(LevelType::GamePlay), TEXT("Shader_VtxMesh"), _shader)))
     {
         return E_FAIL;
     }
 
-    string pathA = String::ToString(modelPath);
-    _model = ModelCom::Create(_device, _context, ModelType::NonAnim, pathA.c_str(), Matrix::CreateScale(0.001f));
-    if (!_model)
+    if (sharedModel)
     {
-        return E_FAIL;
+        _model = sharedModel;
+    }
+    else
+    {
+        string pathA = String::ToString(modelPath);
+        _model = ModelCom::Create(_device, _context, ModelType::NonAnim, pathA.c_str(), Matrix::CreateScale(0.001f));
+        if (!_model)
+            return E_FAIL;
     }
 
     return S_OK;

@@ -43,14 +43,20 @@ private:
     Shared<ShaderCom> _meshShader;
     Unique<MEModelManager> _modelManager;
 
+    Shared<RenderTarget> _idRT;
+    ComPtr<ID3D11Texture2D> _idStagingTex;
+
     SceneContext _scene;
 
 private:
     HRESULT Ready_Light();
+    HRESULT Ready_PickingRT();
 
     void DrawSceneDebug();
 
     void UpdateRenderHandles();
+
+    void DoPickAt(const ImVec2& mousePos, const ImVec2& vpPos, const ImVec2& vpSize);
 
 public:
     static Unique<MapEditorApp> Create();

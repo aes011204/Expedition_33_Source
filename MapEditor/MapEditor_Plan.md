@@ -155,7 +155,7 @@ MEModelManager                            — 모델 로드/캐싱 전담
 13. ✅ 라이트 배치 및 속성 편집
 14. ✅ Inspector Focus 버튼 — 선택 오브젝트 위치로 카메라 즉시 이동 (`MECamera::FocusOn`)
 
-### Phase 3 — 볼륨 / 존 시스템 ← **진행 중**
+### Phase 3 — 볼륨 / 존 시스템 ✅
 14. ✅ 타입 시스템 도입 (`EObjectType`, `EZoneShape`) — `MapEditorDefines.h`
     - magic_enum 활용, `ObjectTypeLabel` / `ObjectTypeName` / `ObjectTypeFromName` 헬퍼
 15. ✅ `EditorObject` 타입별 파라미터 필드 추가
@@ -169,6 +169,33 @@ MEModelManager                            — 모델 로드/캐싱 전담
 21. Water 배치, 파티클 배치 (파티클 시스템 완료 후)
 22. 지형 시스템 (방식 미확정)
 
+### Phase 3.6 — 뷰포트 마우스 피킹 + Inspector Delete ← **진행 중**
+
+#### 설계 결정
+- **레이캐스트 순회 방식 기각**: 오브젝트 수 많을 때 O(n) 성능 문제 확인
+- **GPU Object ID Buffer 방식 채택**: 클릭 시점에만 렌더 1회, O(1) 조회, 픽셀 정확도
+
+#### 구현 내용
+23. **GPU ID Buffer 피킹** (`MapEditorApp` + `Shader_VtxMesh.hlsl` + `MEStaticMeshActor`)
+    - `Shader_VtxMesh.hlsl`에 `g_iObjectID` 변수 + `PS_MAIN_ID` + `IDPass` (pass index 2) 추가
+    - `MEStaticMeshActor::RenderID(worldMatrix, id)` — pass 2로 ID 색상 렌더
+    - `MapEditorApp`에 `_idRT` (RGBA8, 뷰포트와 동일 크기) + `_idStagingTex` (1×1 Staging) 추가
+    - `DoPickAt()`: ID RT 렌더 → `CopySubresourceRegion` 1픽셀 → Map/Unmap → ID 디코딩 → `_selected` 갱신
+    - **ID 인코딩**: index+1 (1-based, 0=배경), R + G×256 + B×65536
+    - **빈 공간 클릭** → ID=0 → `_selected = nullptr` (선택 해제)
+    - **StaticMesh만 피킹**: Zone/SpawnPoint/Light는 메시 없어 제외 → 추후 콜라이더 편집 시 추가 예정
+    - > **TODO (미구현)**: 선택 오브젝트를 마우스 피킹 위치로 이동 — 깊이 버퍼에서 월드 포지션 복원 후 이동하는 방식이 적합. ID Buffer 방식과 별도로 구현 예정
+    - `MapEditorApp::Render()`에서 `_camera->Apply()` 직후 피킹 처리 (행렬 보장)
+
+24. **뷰포트 좌클릭 입력 감지** (`PanelViewport`)
+    - `ImGui::Image` 이후 `ImGui::IsItemClicked(Left)` + `!ImGuizmo::IsOver()` + `!ImGuizmo::IsUsing()` 조건
+    - `_pickRequested`, `_pickMousePos`, `_pickVpPos`, `_pickVpSize` 저장
+    - `ConsumePick(outMousePos, outVpPos, outVpSize)` — 소비 후 플래그 해제
+
+25. **Inspector Delete 버튼** (`PanelInspector`)
+    - Focus 버튼 오른쪽에 `ImGui::SameLine()` + `"Delete"` 버튼
+    - 클릭 시 `_ctx->Remove(_ctx->_selected)` → early return
+
 ### Phase 3.5 — PhysX 엔진 통합 ✅
 - ✅ `Engine` 측에 `PhysX_Manager` 생성
   - PhysX 5.5.0 초기화 / 씬 생성 / Simulate / FetchResults 루프
@@ -176,6 +203,31 @@ MEModelManager                            — 모델 로드/캐싱 전담
   - `GameInstance`에서 `Get_PhysXPhysics()` / `Get_PhysXScene()` 접근 가능
 - 콜라이더 컴포넌트 연동 → 다른 파트 담당
 - 맵 에디터에서 콜라이더 편집 UI는 Phase 5에서 구현
+
+### Phase 3.7 — JSON ModelFolder 분리 ← **구현 예정**
+
+#### 배경
+- 현재 `ModelPath`에 폴더명이 포함(`SmallLevel_SimonArea/xxx.model`)되어 JSON 파일명에 종속
+- JSON 이름 변경 시 모델 폴더도 같이 바꿔야 하는 불편함
+
+#### 변경 포맷
+```json
+{
+    "MapData": {
+        "MapName": "Stage_01",
+        "ModelFolder": "SmallLevel_SimonArea",
+        "StaticMeshes": [
+            { "ModelPath": "xxx.model" }
+        ]
+    }
+}
+```
+
+#### 수정 대상
+- `scale_map.py` — `ModelFolder` 필드 출력, `ModelPath`를 파일명만 저장
+- `SceneContext` — `_modelFolder` 필드 추가, SaveToFile/LoadFromFile 수정
+- `MapEditor_Plan.md` — 포맷 문서 갱신
+- > **TODO (Client 수정 필요)**: Client의 맵 JSON 로드 코드에서 `ModelFolder + "/" + ModelPath`로 경로 재구성하도록 변경
 
 ### Phase 4 — 내비 / AI
 20. 웨이포인트, 포털 / 존 전환
@@ -218,6 +270,7 @@ MEModelManager                            — 모델 로드/캐싱 전담
 | JSON 저장 | ✅ |
 | JSON 로드 | ✅ |
 | UE5 FModel JSON 변환 (scale_map.py) | ✅ |
+| ModelFolder 분리 (저장/로드) | 구현 예정 |
 | MainEditor 연동 | 구현 예정 |
 
 ### 볼륨 / 존

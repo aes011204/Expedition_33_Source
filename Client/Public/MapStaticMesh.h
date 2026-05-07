@@ -16,6 +16,7 @@ class MapStaticMesh final : public GameObject
 public:
     typedef struct tagMapStaticMeshDesc final : public GameObject::GAMEOBJECT_DESC
     {
+        Shared<ModelCom> model = nullptr;
         wstring modelPath = {};
         Vec3 position = Vec3::Zero;
         Quat rotation = Quat::Identity;
@@ -40,7 +41,7 @@ private:
     Shared<ModelCom> _model;
 
 private:
-    HRESULT Ready_Components(const wstring& modelPath);
+    HRESULT Ready_Components(const wstring& modelPath, Shared<ModelCom> sharedModel);
     HRESULT Bind_ShaderResources();
 
 public:

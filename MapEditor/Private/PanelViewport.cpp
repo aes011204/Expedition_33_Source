@@ -44,6 +44,15 @@ void PanelViewport::Render()
 
             ImGui::Image(reinterpret_cast<ImTextureID>(_rt->Get_SRV()), size);
 
+            if (_ctx && ImGui::IsItemClicked(ImGuiMouseButton_Left) &&
+                !ImGuizmo::IsOver() && !ImGuizmo::IsUsing())
+            {
+                _pickRequested = true;
+                _pickMousePos = ImGui::GetIO().MousePos;
+                _pickVpPos = ImGui::GetItemRectMin();
+                _pickVpSize = ImGui::GetItemRectSize();
+            }
+
             if (_camera && _ctx && _ctx->_selected)
             {
                 const ImVec2 winPos = ImGui::GetWindowPos();
@@ -114,6 +123,22 @@ void PanelViewport::Render()
     ImGui::End();
     ImGui::PopStyleVar();
     SetOpen(open);
+}
+
+
+
+bool PanelViewport::ConsumePick(ImVec2& outMousePos, ImVec2& outVpPos, ImVec2& outVpSize)
+{
+    if (!_pickRequested)
+    {
+        return false;
+    }
+
+    _pickRequested = false;
+    outMousePos = _pickMousePos;
+    outVpPos = _pickVpPos;
+    outVpSize = _pickVpSize;
+    return true;
 }
 
 Shared<PanelViewport> PanelViewport::Create(Shared<MECamera> camera, Shared<RenderTarget> rt, SceneContext* ctx)

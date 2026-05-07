@@ -47,7 +47,22 @@ void PanelHierarchy::Render()
 
         ImGui::SameLine();
         ImGui::TextDisabled("(%d)", static_cast<int>(_ctx->_objects.size()));
+
+        string folderStr = String::ToString(_ctx->_modelFolder);
+        strncpy_s(_modelFolderBuf, folderStr.c_str(), sizeof(_modelFolderBuf) - 1);
+        ImGui::SetNextItemWidth(-1.f);
+        if (ImGui::InputText("ModelFolder", _modelFolderBuf, sizeof(_modelFolderBuf)))
+        {
+            _ctx->_modelFolder = String::ToWString(string(_modelFolderBuf));
+        }
+
         ImGui::Separator();
+
+        if (_ctx->_selected != _prevSelected)
+        {
+            _prevSelected = _ctx->_selected;
+            _needScrollToSelected = true;
+        }
 
         ImGui::BeginChild("##hier_list", ImVec2(0.f, 0.f), false);
 
@@ -89,6 +104,12 @@ void PanelHierarchy::Render()
                 if (ImGui::Selectable(nameStr.c_str(), isSelected, ImGuiSelectableFlags_AllowOverlap))
                 {
                     _ctx->_selected = obj;
+                }
+
+                if (isSelected && _needScrollToSelected)
+                {
+                    ImGui::SetScrollHereY(0.5f);
+                    _needScrollToSelected = false;
                 }
 
                 if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
