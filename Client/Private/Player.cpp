@@ -117,18 +117,14 @@ HRESULT Player::Ready_PartObjects()
     Body_Player::BODY_PLAYER_DESC playableDesc{};
     playableDesc.parentMatrix = &_transformCom->Get_WorldMatrix();
     playableDesc.modelType = ModelType::Anim;
-    playableDesc.modelTag = L"LuneTemp";
+    playableDesc.modelTag = L"Model_LuneBody";
 
     //> MainBody Setting
-	if (FAILED(__super::Add_PartObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Body_Player"),
-		TEXT("Part_Body"), &playableDesc)))
-		return E_FAIL;
-
-	Body_Player* mainBody = dynamic_cast<Body_Player*>(_partObjects[TEXT("Part_Body")].get());
-	if (nullptr == mainBody)
-		return E_FAIL;
     if (FAILED(__super::Add_PartObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Body_Player"),
         TEXT("Part_Body"), &playableDesc)))
+        return E_FAIL;
+    Body_Player* mainBody = dynamic_cast<Body_Player*>(_partObjects[TEXT("Part_Body")].get());
+    if (nullptr == mainBody)
         return E_FAIL;
 
     //> MainBody에 붙을 파츠 세팅
@@ -136,11 +132,8 @@ HRESULT Player::Ready_PartObjects()
     Head_Player::HEAD_PLAYER_DESC headPartDesc{};
     headPartDesc.parentMatrix = playableDesc.parentMatrix;
     headPartDesc.modelType = ModelType::Anim;
-    headPartDesc.modelTag = L"LuneHead";
+    headPartDesc.modelTag = L"Model_LuneHead";
 
-    Head_Player* headPart = dynamic_cast<Head_Player*>(_partObjects[TEXT("Part_Head")].get());
-    if (nullptr == mainBody)
-        return E_FAIL;
     if (FAILED(__super::Add_PartObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Head_Player"),
         TEXT("Part_Head"), &headPartDesc)))
         return E_FAIL;
@@ -149,11 +142,8 @@ HRESULT Player::Ready_PartObjects()
     Hair_Player::HAIR_PLAYER_DESC hairPartDesc{};
     hairPartDesc.parentMatrix = playableDesc.parentMatrix;
     hairPartDesc.modelType = ModelType::Anim;
-    hairPartDesc.modelTag = L"LuneHair";
+    hairPartDesc.modelTag = L"Model_LuneHair";
 
-    Hair_Player* hairPart = dynamic_cast<Hair_Player*>(_partObjects[TEXT("Part_Hair")].get());
-    if (nullptr == mainBody)
-        return E_FAIL;
     if (FAILED(__super::Add_PartObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Hair_Player"),
         TEXT("Part_Hair"), &hairPartDesc)))
         return E_FAIL;

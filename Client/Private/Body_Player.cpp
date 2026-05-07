@@ -24,9 +24,10 @@ HRESULT Body_Player::Initialize(void* arg)
 {
 	if (FAILED(PlayableParts::Initialize(arg)))
 	{
-	    
+        MSG_BOX("[Body_Player] : Failed to Initialize");
+        return E_FAIL;
 	}
-		return E_FAIL;
+		
 
 	_modelCom->Set_Animation(/*rand() % 20*/1, true);
 
