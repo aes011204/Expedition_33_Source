@@ -63,6 +63,7 @@
 #include "Engine_Function.h"
 #include "Vertex_Types.h"
 #include "Engine_Model_Struct.h"
+#include "Engine_Constants.h"
 
 //## Windows SDK 라이브러리 링커
 #pragma comment(lib, "d3d11.lib")

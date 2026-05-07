@@ -207,7 +207,19 @@
     <ClInclude Include="..\Public\Shadow.h">
       <Filter>01.Utility\07.Lights</Filter>
     </ClInclude>
-    <ClInclude Include="..\public\AStar.h" />
+    <ClInclude Include="..\Public\AnimationNotify.h" />
+    <ClInclude Include="..\Public\Material_Types.h" />
+    <ClInclude Include="..\Public\PhysX_Filter.h" />
+    <ClInclude Include="..\Public\PhysX_Types.h" />
+    <ClInclude Include="..\Public\Picking.h" />
+    <ClInclude Include="..\public\UI_Base.h" />
+    <ClInclude Include="..\public\UI_Image.h" />
+    <ClInclude Include="..\public\UI_Manager.h" />
+    <ClInclude Include="..\public\UI_Text.h" />
+    <ClInclude Include="..\public\UI_Transform.h" />
+    <ClInclude Include="..\Public\Engine_Constants.h">
+      <Filter>99. Defines</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\public\Base.h">
@@ -701,7 +713,14 @@
     <ClCompile Include="..\Private\Print_Manager.cpp">
       <Filter>97. Manager</Filter>
     </ClCompile>
-    <ClCompile Include="..\private\AStar.cpp" />
+    <ClCompile Include="..\Private\AnimationNotify.cpp" />
+    <ClCompile Include="..\Private\PhysX_Filter.cpp" />
+    <ClCompile Include="..\Private\Picking.cpp" />
+    <ClCompile Include="..\private\UI_Base.cpp" />
+    <ClCompile Include="..\private\UI_Image.cpp" />
+    <ClCompile Include="..\private\UI_Manager.cpp" />
+    <ClCompile Include="..\private\UI_Text.cpp" />
+    <ClCompile Include="..\private\UI_Transform.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Bin\ShaderFiles\Engine_Shader_Defines.hlsli">

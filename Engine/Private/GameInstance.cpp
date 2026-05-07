@@ -10,6 +10,7 @@
 #include "Level_Manager.h"
 #include "Light_Manager.h"
 #include "Log_Manager.h"
+#include "UI_Manager.h"
 #include "Object_Manager.h"
 #include "PipeLine.h"
 #include "GameObject.h"
@@ -64,6 +65,9 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
 
     _prototypeManager = Prototype_Manager::Create(engineDesc.numLevels);
     CHECK_NULL(_prototypeManager, E_FAIL);
+
+    _uiManager = UI_Manager::Create(_prototypeManager.get());
+    CHECK_NULL(_uiManager, E_FAIL);
 
     _typeRegistry = TypeRegistry::Create();
     CHECK_NULL(_typeRegistry, E_FAIL);
@@ -145,8 +149,10 @@ void GameInstance::Update_Engine(float timeDelta)
     vector<PhysXPairEvent> events;
     _physxManager->Gather_FrameEvents(events);
     _collisionManager->Update_FromPhysX(events);
-
+    
     _cameraManager->Update(timeDelta);
+    _uiManager->Update(timeDelta);
+
 }
 
 HRESULT GameInstance::Draw()
@@ -175,6 +181,9 @@ HRESULT GameInstance::Draw()
 #ifdef _DEBUG
     Try_FlushRuntimePerfLog();
 #endif
+
+    if (FAILED(_uiManager->Render()))
+        return E_FAIL;
 
     return S_OK;
 }
@@ -443,6 +452,16 @@ Shared<Base> GameInstance::Clone_Prototype(Prototype prototype, uint32 levelInde
     return _prototypeManager->Clone_Prototype(prototype, levelIndex, prototypeTag, arg);
 }
 
+HRESULT GameInstance::Add_UI(uint32 prototypeLevelIndex, const wstring& prototypeTag, void* arg, Shared<UI_Base>* outUI)
+{
+    return _uiManager->Add_UI(prototypeLevelIndex, prototypeTag, arg, outUI);
+}
+
+void GameInstance::Pop_UI()
+{
+    _uiManager->Pop_UI();
+}
+
 HRESULT GameInstance::Add_GameObject(
     uint32 prototypeLevelIndex, const wstring& prototypeTag, uint32 layerLevelIndex, const wstring& layerTag, void* arg)
 {
@@ -618,9 +637,21 @@ HRESULT GameInstance::Add_Font(const wstring& fontTag, const wchar_t* fontFilePa
     return _fontManager->Add_Font(fontTag, fontFilePath);
 }
 
-void GameInstance::Draw_Font(const wstring& fontTag, const wchar_t* text, const Vec2& position, FXMVECTOR color)
+Vec2 GameInstance::Measure_Font(const wstring& fontTag, const wchar_t* text)
 {
-    _fontManager->Draw(fontTag, text, position, color);
+    return _fontManager->Measure(fontTag, text);
+}
+
+void GameInstance::Draw_Font(
+    const wstring& fontTag,
+    const wchar_t* text,
+    const Vec2& position,
+    FXMVECTOR color,
+    float rotationRadians,
+    const Vec2& pivot,
+    float scale)
+{
+    _fontManager->Draw(fontTag, text, position, color, rotationRadians, pivot, scale);
 }
 
 HRESULT GameInstance::Initialize_AssetManager(const wstring& resourceRoot)
@@ -634,21 +665,41 @@ HRESULT GameInstance::Initialize_AssetManager(const wstring& resourceRoot)
 
 string GameInstance::Find_AssetGUID(const wstring& filePath) const
 {
+    if (nullptr == _assetManager)
+        return {};
+
     return _assetManager->Find_GUID(filePath);
 }
 
 const FAssetMeta* GameInstance::Find_AssetByGUID(const string& guid) const
 {
+    if (nullptr == _assetManager)
+        return nullptr;
+
     return _assetManager->Find_ByGUID(guid);
+}
+
+vector<FAssetMeta> GameInstance::Get_AssetsByType(const string& type) const
+{
+    if (nullptr == _assetManager)
+        return {};
+
+    return _assetManager->Get_AssetsByType(type);
 }
 
 wstring GameInstance::Resolve_AssetPath(const string& guid) const
 {
+    if (nullptr == _assetManager)
+        return {};
+
     return _assetManager->Resolve_Path(guid);
 }
 
 wstring GameInstance::Get_AssetRoot() const
 {
+    if (nullptr == _assetManager)
+        return {};
+
     return _assetManager->Get_ResourceRoot();
 }
 
@@ -1037,6 +1088,7 @@ void GameInstance::Release_Engine()
     ReleaseManager(_pipeLine);
     ReleaseManager(_renderer);
     ReleaseManager(_objectManager);
+    ReleaseManager(_uiManager);
     ReleaseManager(_prototypeManager);
     ReleaseManager(_typeRegistry);
     ReleaseManager(_levelManager);

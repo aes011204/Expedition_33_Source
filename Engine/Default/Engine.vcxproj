@@ -211,6 +211,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClInclude Include="..\Public\DebugDraw.h" />
     <ClInclude Include="..\Public\Decorator.h" />
     <ClInclude Include="..\Public\Delegate.h" />
+    <ClInclude Include="..\Public\Engine_Constants.h" />
     <ClInclude Include="..\Public\Event_Manager.h" />
     <ClInclude Include="..\Public\Engine_Model_Struct.h" />
     <ClInclude Include="..\Public\Helper_Math.h" />
@@ -239,6 +240,11 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClInclude Include="..\Public\SkeletalMesh.h" />
     <ClInclude Include="..\Public\StaticMesh.h" />
     <ClInclude Include="..\Public\TypeRegistry.h" />
+    <ClInclude Include="..\public\UI_Base.h" />
+    <ClInclude Include="..\public\UI_Image.h" />
+    <ClInclude Include="..\public\UI_Manager.h" />
+    <ClInclude Include="..\public\UI_Text.h" />
+    <ClInclude Include="..\public\UI_Transform.h" />
     <ClInclude Include="..\Public\VIBufferCom_Instance.h" />
     <ClInclude Include="..\Public\VIBufferCom_PointParticle.h" />
     <ClInclude Include="pch.h" />
@@ -331,6 +337,11 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClCompile Include="..\Private\StaticMesh.cpp" />
     <ClCompile Include="..\Private\Task.cpp" />
     <ClCompile Include="..\Private\TypeRegistry.cpp" />
+    <ClCompile Include="..\private\UI_Base.cpp" />
+    <ClCompile Include="..\private\UI_Image.cpp" />
+    <ClCompile Include="..\private\UI_Manager.cpp" />
+    <ClCompile Include="..\private\UI_Text.cpp" />
+    <ClCompile Include="..\private\UI_Transform.cpp" />
     <ClCompile Include="..\Private\VIBufferCom_Instance.cpp" />
     <ClCompile Include="..\Private\VIBufferCom_PointParticle.cpp" />
     <ClCompile Include="pch.cpp">

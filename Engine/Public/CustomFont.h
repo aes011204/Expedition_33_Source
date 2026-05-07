@@ -12,7 +12,14 @@ public:
 
 public:
     HRESULT Initialize(const wchar_t* fontFilePath);
-    void Draw(const wchar_t* text, const Vec2& position, FXMVECTOR color);
+    Vec2 Measure(const wchar_t* text) const;
+    void Draw(
+        const wchar_t* text,
+        const Vec2& position,
+        FXMVECTOR color,
+        float rotationRadians = 0.f,
+        const Vec2& pivot = Vec2(0.f, 0.f),
+        float scale = 1.f);
 
 private:
     ComPtr<Device> _device = { nullptr };
