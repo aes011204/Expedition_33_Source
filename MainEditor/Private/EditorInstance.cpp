@@ -13,6 +13,12 @@
 
 IMPLEMENT_SINGLETON(EditorInstance)
 
+namespace
+{
+constexpr uint32 kDefaultPreviewViewportWidth = 1600;
+constexpr uint32 kDefaultPreviewViewportHeight = 900;
+}
+
 EditorInstance::EditorInstance()
 {
 }
@@ -47,6 +53,8 @@ HRESULT EditorInstance::Initialize_Editor(const EDITOR_DESC& EditorDesc, const C
     // 처음에는 Edit 모드로, 1배속으로 시작
     _runtimeState = EDITOR_RUNTIME_STATE::Edit;
     _runtimeTimeScale = 1.f;
+    _previewViewportMode = PreviewViewportMode::Manual;
+    Queue_PreviewViewportSize(kDefaultPreviewViewportWidth, kDefaultPreviewViewportHeight);
 
     Sync_ViewportWindowState();
 
@@ -81,13 +89,25 @@ void EditorInstance::Release_Editor()
     _requestedViewportWidth = 1;
     _requestedViewportHeight = 1;
     _lastViewportRequester = EDITOR_VIEWPORT_TARGET::Game;
+    _previewViewportMode = PreviewViewportMode::Manual;
+    _hasPendingPreviewViewportSize = false;
+    _pendingPreviewViewportWidth = kDefaultPreviewViewportWidth;
+    _pendingPreviewViewportHeight = kDefaultPreviewViewportHeight;
+    _appliedPreviewViewportWidth = 0;
+    _appliedPreviewViewportHeight = 0;
 
     _runtimeState = EDITOR_RUNTIME_STATE::Edit;
     _runtimeTimeScale = 1.f;
+    _hasPendingWindowFocus = false;
+    _pendingWindowFocus = EDITOR_VIEWPORT_TARGET::Game;
+    _pendingSingleFrameStep = false;
 }
 
 void EditorInstance::Update_Editor(float timeDelta)
 {
+    Sync_PreviewViewportMode();
+    Apply_PendingPreviewViewportSize();
+
     _imguiManager->Update(timeDelta);
     _editorManager->Update(timeDelta);
 }
@@ -367,8 +387,8 @@ void EditorInstance::Capture_BackBuffer_ToViewport()
 {
     Shared<RenderTarget> renderTarget =
         Prepare_SharedViewportRenderTarget(
-            GAME->Get_BackBufferWidth(),
-            GAME->Get_BackBufferHeight());
+            min(max(1u, GAME->Get_ViewportWidth()), max(1u, GAME->Get_BackBufferWidth())),
+            min(max(1u, GAME->Get_ViewportHeight()), max(1u, GAME->Get_BackBufferHeight())));
 
     if (nullptr == renderTarget || nullptr == _context)
         return;
@@ -390,7 +410,66 @@ void EditorInstance::Capture_BackBuffer_ToViewport()
     if (nullptr == viewportTexture)
         return;
 
-    _context->CopyResource(viewportTexture.Get(), backBufferTexture.Get());
+    D3D11_BOX sourceBox{};
+    sourceBox.left = 0;
+    sourceBox.top = 0;
+    sourceBox.front = 0;
+    sourceBox.right = min(
+        max(1u, GAME->Get_ViewportWidth()),
+        max(1u, GAME->Get_BackBufferWidth()));
+    sourceBox.bottom = min(
+        max(1u, GAME->Get_ViewportHeight()),
+        max(1u, GAME->Get_BackBufferHeight()));
+    sourceBox.back = 1;
+
+    _context->CopySubresourceRegion(
+        viewportTexture.Get(),
+        0,
+        0,
+        0,
+        0,
+        backBufferTexture.Get(),
+        0,
+        &sourceBox);
+}
+
+void EditorInstance::Request_PreviewViewportSize(uint32 width, uint32 height)
+{
+    (void)width;
+    (void)height;
+}
+
+void EditorInstance::Enable_AutoPreviewViewport()
+{
+    _previewViewportMode = PreviewViewportMode::Manual;
+}
+
+void EditorInstance::Enable_ManualPreviewViewport()
+{
+    _previewViewportMode = PreviewViewportMode::Manual;
+}
+
+void EditorInstance::Set_ManualPreviewViewportSize(uint32 width, uint32 height)
+{
+    _previewViewportMode = PreviewViewportMode::Manual;
+    Queue_PreviewViewportSize(width, height);
+}
+
+void EditorInstance::Sync_PreviewViewportMode()
+{
+    if (_appliedPreviewViewportWidth == 0 || _appliedPreviewViewportHeight == 0)
+        Queue_PreviewViewportSize(kDefaultPreviewViewportWidth, kDefaultPreviewViewportHeight);
+}
+
+float EditorInstance::Get_EffectiveViewportAspect() const
+{
+    const uint32 viewportWidth = GAME->Get_ViewportWidth();
+    const uint32 viewportHeight = max(1u, GAME->Get_ViewportHeight());
+    if (viewportWidth == 0)
+        return 0.f;
+
+    return static_cast<float>(viewportWidth) /
+           static_cast<float>(viewportHeight);
 }
 
 void EditorInstance::Focus_GameView()
@@ -461,6 +540,38 @@ void EditorInstance::Sync_ViewportWindowState()
     if (gameView)
         gameView->Set_Open(showGameView);
 
+}
+
+void EditorInstance::Queue_PreviewViewportSize(uint32 width, uint32 height)
+{
+    _pendingPreviewViewportWidth = max(1u, width);
+    _pendingPreviewViewportHeight = max(1u, height);
+    _hasPendingPreviewViewportSize = true;
+}
+
+void EditorInstance::Apply_PendingPreviewViewportSize()
+{
+    if (!_hasPendingPreviewViewportSize)
+        return;
+
+    _hasPendingPreviewViewportSize = false;
+
+    const uint32 width = min(
+        max(1u, _pendingPreviewViewportWidth),
+        max(1u, GAME->Get_BackBufferWidth()));
+    const uint32 height = min(
+        max(1u, _pendingPreviewViewportHeight),
+        max(1u, GAME->Get_BackBufferHeight()));
+
+    if (_appliedPreviewViewportWidth == width &&
+        _appliedPreviewViewportHeight == height)
+        return;
+
+    if (FAILED(GAME->Apply_LogicalViewportSize(width, height)))
+        return;
+
+    _appliedPreviewViewportWidth = GAME->Get_ViewportWidth();
+    _appliedPreviewViewportHeight = GAME->Get_ViewportHeight();
 }
 
 void EditorInstance::Apply_RuntimeInputPolicy()

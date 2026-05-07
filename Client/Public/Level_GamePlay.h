@@ -18,10 +18,12 @@ public:
 	virtual HRESULT Render() override;
 private:
 	HRESULT Ready_Lights();
+    HRESULT Ready_Layer_UI(const wstring& strLayerTag);
 	HRESULT Ready_Layer_Camera(const wstring& strLayerTag);
 	HRESULT Ready_Layer_BackGround(const wstring& strLayerTag);
 	HRESULT Ready_Layer_Monster(const wstring& strLayerTag);
 	HRESULT Ready_Layer_Player(const wstring& strLayerTag);
+    HRESULT Ready_Layer_MapStaticMesh(const wstring& strLayerTag);
 
 public:
 	static Shared<Level_GamePlay> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

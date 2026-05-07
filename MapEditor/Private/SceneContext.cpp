@@ -7,6 +7,7 @@ void SceneContext::SaveToFile(const string& filePath)
     json& map = root["MapData"];
 
     map["MapName"] = String::ToString(_mapName);
+    map["ModelFolder"] = String::ToString(_modelFolder);
 
     json staticMeshes = json::array();
     json spawnPoints = json::array();
@@ -26,10 +27,18 @@ void SceneContext::SaveToFile(const string& filePath)
         switch (obj->_type)
         {
         case EObjectType::StaticMesh:
-            e["ModelPath"] = String::ToString(obj->_modelPath);
+        {
+            wstring modelFile = obj->_modelPath;
+            const wstring prefix = L"../../../Client/Bin/Resources/Map/" + _modelFolder + L"/";
+            if (modelFile.substr(0, prefix.size()) == prefix)
+            {
+                modelFile = modelFile.substr(prefix.size());
+            }
+            e["ModelPath"] = String::ToString(modelFile);
             e["Scale"] = { obj->_scale.x, obj->_scale.y, obj->_scale.z };
             staticMeshes.push_back(e);
             break;
+        }
 
         case EObjectType::SpawnPoint:
             spawnPoints.push_back(e);
@@ -112,6 +121,7 @@ void SceneContext::LoadFromFile(const string& filePath)
     const json& map = root["MapData"];
 
     _mapName = String::ToWString(map["MapName"].get<string>());
+    _modelFolder = String::ToWString(map.value("ModelFolder", string{}));
 
     _objects.clear();
     _dirtyRenderHandles = true;
@@ -143,7 +153,16 @@ void SceneContext::LoadFromFile(const string& filePath)
             auto obj = make_shared<EditorObject>();
             obj->_type = EObjectType::StaticMesh;
             obj->_name = String::ToWString(e["Id"].get<string>());
-            obj->_modelPath = String::ToWString(e.value("ModelPath", string{}));
+
+            string modelPathStr = e.value("ModelPath", string{});
+            if (modelPathStr.empty())
+            {
+                continue;
+            }
+            obj->_modelPath = L"../../../Client/Bin/Resources/Map/"
+                + _modelFolder + L"/"
+                + String::ToWString(modelPathStr);
+
             auto& scl = e["Scale"];
             obj->_scale = { scl[0], scl[1], scl[2] };
             LoadTransform(e, *obj);

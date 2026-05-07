@@ -64,8 +64,6 @@ HRESULT MainApp::Render()
     if (FAILED(GAME->Draw()))
         return E_FAIL;
 
-    GAME->Draw_Font(TEXT("Font_Default"), TEXT("니네들은 싸우지말라고하시네요"), Vec2(100.f, 0.f));
-
     if (FAILED(GAME->Present()))
         return E_FAIL;
 
