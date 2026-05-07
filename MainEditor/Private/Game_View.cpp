@@ -3,6 +3,44 @@
 #include "EditorInstance.h"
 #include "RenderTarget.h"
 
+namespace MainEditor::Internal
+{
+struct ViewportImageRect
+{
+    ImVec2 imageMin;
+    ImVec2 imageMax;
+};
+
+static ViewportImageRect Compute_AspectFitRect(const ImVec2& canvasMin, const ImVec2& canvasSize, float aspect)
+{
+    if (aspect <= 0.f || canvasSize.x <= 1.f || canvasSize.y <= 1.f)
+    {
+        return {
+            canvasMin,
+            ImVec2(canvasMin.x + canvasSize.x, canvasMin.y + canvasSize.y)
+        };
+    }
+
+    float imageWidth = canvasSize.x;
+    float imageHeight = imageWidth / aspect;
+
+    if (imageHeight > canvasSize.y)
+    {
+        imageHeight = canvasSize.y;
+        imageWidth = imageHeight * aspect;
+    }
+
+    const ImVec2 imageMin = ImVec2(
+        canvasMin.x + (canvasSize.x - imageWidth) * 0.5f,
+        canvasMin.y + (canvasSize.y - imageHeight) * 0.5f);
+
+    return {
+        imageMin,
+        ImVec2(imageMin.x + imageWidth, imageMin.y + imageHeight)
+    };
+}
+}
+
 Game_View::Game_View()
     : Editor_Window{ L"Game" }
 {
@@ -40,15 +78,28 @@ void Game_View::Render()
             width,
             height);
 
+        const ImVec2 canvasMin = ImGui::GetCursorScreenPos();
+        const ImVec2 canvasMax = ImVec2(canvasMin.x + viewportSize.x, canvasMin.y + viewportSize.y);
+        ImDrawList* drawList = ImGui::GetWindowDrawList();
+
+        drawList->AddRectFilled(canvasMin, canvasMax, IM_COL32(18, 20, 24, 255));
+        drawList->AddRect(canvasMin, canvasMax, IM_COL32(55, 60, 70, 255));
+
+        ImGui::InvisibleButton("GameViewportCanvas", viewportSize);
+
         ID3D11ShaderResourceView* pSRV = EditorInstance::GetInstance()->Get_SharedViewportSRV();
         if (nullptr != pSRV)
         {
             const ImTextureID textureId = static_cast<ImTextureID>(reinterpret_cast<intptr_t>(pSRV));
-            ImGui::Image(textureId, viewportSize);
+            const float aspect = EDITOR->Get_EffectiveViewportAspect();
+            const Internal::ViewportImageRect imageRect =
+                Internal::Compute_AspectFitRect(canvasMin, viewportSize, aspect);
+
+            drawList->AddImage(textureId, imageRect.imageMin, imageRect.imageMax);
         }
         else
         {
-            ImGui::TextUnformatted("Game RenderTarget Missing");
+            drawList->AddText(ImVec2(canvasMin.x + 12.f, canvasMin.y + 12.f), IM_COL32(210, 216, 224, 255), "Game RenderTarget Missing");
         }
     }
     Set_Open(isOpen);

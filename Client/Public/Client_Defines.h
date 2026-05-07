@@ -8,6 +8,7 @@
 #include "Client_Macro.h"
 #include "Client_Enum.h"
 #include "Client_Struct.h"
+#include "Client_Constants.h"
 
 extern HWND g_hWnd;
 extern HINSTANCE g_hInst;

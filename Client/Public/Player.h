@@ -46,6 +46,9 @@ private:
     Shared<PlayerControllerCom> _playerControllerCom;
     Shared<ColliderCom>         _colliderCom;
 
+    PlayerState _testPlayerState = PlayerState::Idle;
+
+
 public:
 	static Shared<Player> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
 	virtual Shared<GameObject> Clone(void* pArg) override;
