@@ -161,7 +161,7 @@ HRESULT GameInstance::Draw()
 
     _levelManager->Render();
 
-    //CHECK_FAILED(Update_Picking(), E_FAIL);
+    CHECK_FAILED(Update_Picking(), E_FAIL);
 
 #ifdef _DEBUG
     // Collision Manager
@@ -873,6 +873,14 @@ PxScene* GameInstance::Get_PhysXScene() const
 {
     CHECK_NULL(_physxManager, nullptr);
     return _physxManager->Get_Scene();
+}
+
+void GameInstance::Visit_BTNodeTypes(const function<void(const TypeRegistry::BTNodeTypeInfo&)>& visitor) const
+{
+    if (_typeRegistry == nullptr)
+        return;
+
+    _typeRegistry->Visit_BTNodeTypes(visitor);
 }
 
 void GameInstance::Draw_DebugBox(const DebugBoxDesc& desc)

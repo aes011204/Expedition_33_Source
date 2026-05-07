@@ -174,11 +174,11 @@
     <ClInclude Include="..\Public\InputCom.h">
       <Filter>03. Component\Input</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\PlayerControllerCom.h">
-      <Filter>03. Component\PlayerController</Filter>
-    </ClInclude>
     <ClInclude Include="..\public\Mon_AIController.h">
       <Filter>BehavoirTree</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\PlayerControllerCom.h">
+      <Filter>03. Component\PlayerController</Filter>
     </ClInclude>
     <ClInclude Include="..\public\Mon_BehaviorTree.h" />
     <ClInclude Include="..\public\BT_Idle.h" />
@@ -204,6 +204,7 @@
     <ClInclude Include="..\Public\Client_Constants.h">
       <Filter>99.Defines</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\BT_Node_Bootstrap.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -266,17 +267,16 @@
     <ClCompile Include="..\Private\InputCom.cpp">
       <Filter>03. Component\Input</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\PlayerControllerCom.cpp">
-      <Filter>03. Component\PlayerController</Filter>
-    </ClCompile>
     <ClCompile Include="..\private\Mon_AIController.cpp">
       <Filter>BehavoirTree</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\PlayerControllerCom.cpp">
+      <Filter>03. Component\PlayerController</Filter>
     </ClCompile>
     <ClCompile Include="..\private\Mon_BehaviorTree.cpp" />
     <ClCompile Include="..\private\BT_Idle.cpp" />
     <ClCompile Include="..\private\BT_Attack.cpp" />
     <ClCompile Include="..\private\BT_CheckDistance.cpp" />
-
     <ClCompile Include="..\Private\MapStaticMesh.cpp">
       <Filter>02.GameObject\Map\MapStaticMesh</Filter>
     </ClCompile>
@@ -294,6 +294,7 @@
       <Filter>02.GameObject\Player\PlayerParts</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\UI_RuntimeLoader.cpp" />
+    <ClCompile Include="..\private\BT_Node_Bootstrap.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">
