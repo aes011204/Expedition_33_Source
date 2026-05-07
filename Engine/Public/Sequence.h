@@ -5,6 +5,8 @@ NS_BEGIN(Engine)
 class Sequence :
     public Composite
 {
+    GENERATED_BTNODE(Sequence, "Sequence")
+
 public:
     Sequence();
     virtual ~Sequence();

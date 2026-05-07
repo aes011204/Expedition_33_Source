@@ -15,7 +15,6 @@ bool Decorator::Check_Condition()
 
 BNode::NODE_STATE Decorator::Update(float deltaTime)
 {
-
     if (Check_Condition() == false)
     {
         Abort();

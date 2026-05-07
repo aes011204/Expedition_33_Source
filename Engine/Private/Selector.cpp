@@ -20,7 +20,7 @@ BNode::NODE_STATE Selector::Update(float deltaTime)
             {
                 _runningNode->Abort();
             }
-                _runningNode = nullptr;
+            _runningNode = nullptr;
             return BNode::NODE_STATE::SUCCESS;
         }
 
