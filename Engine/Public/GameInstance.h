@@ -78,8 +78,6 @@ public: /* For.Graphic_Device */
     HRESULT Resize_BackBuffer(uint32 width, uint32 height);
 
     ComPtr<SwapChain> Get_SwapChain() const;
-    ComPtr<Device>    Get_Device() const;
-    ComPtr<Context>   Get_Context() const;
 
 public: /* For.Viewport */
     void    Set_ViewportSize(uint32 width, uint32 height);

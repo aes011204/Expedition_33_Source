@@ -1,4 +1,4 @@
-#include "EffectEditorInstance.h"
+﻿#include "EffectEditorInstance.h"
 
 #include "RenderTarget.h"
 #include "EffectEditor_Manager.h"

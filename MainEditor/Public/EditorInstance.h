@@ -95,7 +95,18 @@ public: /* For.Viewport */
     ComPtr<Device>            Get_Device() const { return _device; }
     ComPtr<Context>           Get_Context() const { return _context; }
 
-    void                      Apply_RuntimeInputPolicy();
+
+    void                     Request_PreviewViewportSize(uint32 width, uint32 height);
+                             
+    void                     Enable_AutoPreviewViewport();
+    void                     Enable_ManualPreviewViewport();
+    void                     Set_ManualPreviewViewportSize(uint32 width, uint32 height);
+    PreviewViewportMode      Get_PreviewViewportMode() const { return _previewViewportMode; }
+    bool                     Is_ManualPreviewViewportEnabled() const { return _previewViewportMode == PreviewViewportMode::Manual; }
+    void                     Sync_PreviewViewportMode();
+    float                    Get_EffectiveViewportAspect() const;
+
+    void                     Apply_RuntimeInputPolicy();
 
 private:
     void Focus_GameView();
@@ -105,6 +116,10 @@ private:
 
     // Game, Scene View 하나만 렌더되게
     void Sync_ViewportWindowState();
+
+private:
+    void Queue_PreviewViewportSize(uint32 width, uint32 height);
+    void Apply_PendingPreviewViewportSize();
 
 private: /* Core Data */
     ComPtr<Device>               _device = {};
@@ -125,6 +140,13 @@ private: /* Viewport Data */
     uint32 _requestedViewportWidth = 1;
     uint32 _requestedViewportHeight = 1;
     EDITOR_VIEWPORT_TARGET _lastViewportRequester = EDITOR_VIEWPORT_TARGET::Game;
+
+    PreviewViewportMode _previewViewportMode = PreviewViewportMode::Manual;
+    bool _hasPendingPreviewViewportSize = false;
+    uint32 _pendingPreviewViewportWidth = 1600;
+    uint32 _pendingPreviewViewportHeight = 900;
+    uint32 _appliedPreviewViewportWidth = 0;
+    uint32 _appliedPreviewViewportHeight = 0;
 
 private: /* Runtime Data */
     EDITOR_RUNTIME_STATE _runtimeState = EDITOR_RUNTIME_STATE::Edit;

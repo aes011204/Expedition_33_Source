@@ -208,6 +208,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClInclude Include="..\Public\DebugDraw.h" />
     <ClInclude Include="..\Public\Decorator.h" />
     <ClInclude Include="..\Public\Delegate.h" />
+    <ClInclude Include="..\Public\Engine_Constants.h" />
     <ClInclude Include="..\Public\Event_Manager.h" />
     <ClInclude Include="..\Public\Engine_Model_Struct.h" />
     <ClInclude Include="..\Public\Helper_Math.h" />

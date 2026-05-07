@@ -373,22 +373,6 @@ ComPtr<SwapChain> GameInstance::Get_SwapChain() const
     return _graphicDevice->Get_SwapChain();
 }
 
-ComPtr<Device> GameInstance::Get_Device() const
-{
-    if (nullptr == _graphicDevice)
-        return nullptr;
-
-    return _graphicDevice->Get_Device();
-}
-
-ComPtr<Context> GameInstance::Get_Context() const
-{
-    if (nullptr == _graphicDevice)
-        return nullptr;
-
-    return _graphicDevice->Get_Context();
-}
-
 void GameInstance::Set_ViewportSize(uint32 width, uint32 height)
 {
     _viewportWidth = max(1u, width);

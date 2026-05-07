@@ -74,6 +74,7 @@ public:
     ComPtr<Context> Get_Context() const { return _context; }
 
     void Request_PreviewViewportSize(uint32 width, uint32 height);
+
     void Enable_AutoPreviewViewport();
     void Enable_ManualPreviewViewport();
     void Set_ManualPreviewViewportSize(uint32 width, uint32 height);

@@ -82,11 +82,6 @@ HRESULT Texture::Bind_ShaderResourceViews(ShaderCom* shader, const char* constan
     return shader->Bind_SRVs(constantName, rawSRVs.empty() ? nullptr : rawSRVs.data(), _numSRVs);
 }
 
-const vector<ComPtr<ID3D11ShaderResourceView>>& Texture::Get_SRVs() const
-{
-    return _srvs;
-}
-
 Shared<Texture> Texture::Create(const ComPtr<Device>& device, const ComPtr<Context>& context, const wchar_t* texturePathPattern, uint32 numSRVs)
 {
     auto instance = make_shared<Texture>(device, context);
