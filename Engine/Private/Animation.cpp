@@ -1,4 +1,4 @@
-﻿#include "Animation.h"
+#include "Animation.h"
 
 #include "Channel.h"
 #include "Bone.h"
@@ -13,16 +13,14 @@ Animation::Animation(const Animation& prototype)
 	, _tickPerSecond{ prototype._tickPerSecond }
 	, _currentTrackPosition{ 0.f }
 {
-    strcpy_s(_animationName, prototype._animationName);
+    _animationName = prototype._animationName;
 	for (auto& ch : prototype._channels)
 		_channels.push_back(ch->Clone());
 }
 
 HRESULT Animation::Initialize(const ModelAnimationData& animData, const vector<ModelChannelData>& channels)
 {
-    strcpy_s(_animationName, animData.name);
-
-
+    _animationName = animData.name;
 	_duration = static_cast<float>(animData.duration);
 	_tickPerSecond = static_cast<float>(animData.ticksPerSecond);
 	_numChannels = animData.numChannels;
@@ -103,35 +101,53 @@ void Animation::Blend_TransformMatrix(float timeDelta, const Shared<Animation>& 
 	if (nextAnim->_currentTrackPosition >= nextAnim->_duration)
 		nextAnim->_currentTrackPosition = isLoop ? std::fmod(nextAnim->_currentTrackPosition, nextAnim->_duration) : nextAnim->_duration;
 
-	/* 블렌딩 수행 */
-	for (uint32 i = 0; i < _numChannels; ++i)
-	{
-		RootMotionFrame curTrans{}, nextTrans{};
+    /* 블렌딩 수행 */
+    for (uint32 i = 0; i < _numChannels; ++i)
+    {
+        RootMotionFrame curTrans{}, nextTrans{};
+        int32 boneIndex = _channels[i]->Get_BoneIndex();
 
-		_channels[i]->Get_ChannelTransform(
-			_currentTrackPosition, _currentKeyFrameIndices[i], _duration, isLoop, curTrans);
-		_channels[i]->Update_Velocity(curTrans, _currentTrackPosition);
+        if (boneIndex < 0 || boneIndex >= bones.size())
+            continue;
 
-		nextAnim->_channels[i]->Get_ChannelTransform(
-			nextAnim->_currentTrackPosition, nextAnim->_currentKeyFrameIndices[i], nextAnim->_duration, isLoop, nextTrans);
-		nextAnim->_channels[i]->Update_Velocity(nextTrans, nextAnim->_currentTrackPosition);
+        _channels[i]->Get_ChannelTransform(_currentTrackPosition, _currentKeyFrameIndices[i], _duration, isLoop, curTrans);
+        _channels[i]->Update_Velocity(curTrans, _currentTrackPosition);
 
-		Vec3 transScale = Vec3::Lerp(curTrans.scale, nextTrans.scale, blendRatio);
-		Quat transRotation = Quat::Slerp(curTrans.rotation, nextTrans.rotation, blendRatio);
-		Vec3 transPosition = Vec3::Lerp(curTrans.position, nextTrans.position, blendRatio);
+        int32 nextChannelIndex = -1;
+        for (uint32 j = 0; j < nextAnim->_numChannels; ++j)
+        {
+            if (nextAnim->_channels[j]->Get_BoneIndex() == boneIndex)
+            {
+                nextChannelIndex = static_cast<int32>(j);
+                break;
+            }
+        }
 
-		Matrix targetMatrix{};
-		if (_channels[i]->Get_BoneIndex() == rootNodeIndex)
-		{
-			targetMatrix = XMMatrixAffineTransformation(transScale, Vec3::Zero, transRotation, Vec3::Zero);
-		}
-		else
-		{
-			targetMatrix = XMMatrixAffineTransformation(transScale, Vec3::Zero, transRotation, transPosition);
-		}
+        if (nextChannelIndex != -1)
+        {
+            nextAnim->_channels[nextChannelIndex]->Get_ChannelTransform(
+                nextAnim->_currentTrackPosition, nextAnim->_currentKeyFrameIndices[nextChannelIndex], nextAnim->_duration, isLoop, nextTrans);
+            nextAnim->_channels[nextChannelIndex]->Update_Velocity(nextTrans, nextAnim->_currentTrackPosition);
+        }
+        else
+        {
+            nextTrans = curTrans;
+        }
 
-		bones[_channels[i]->Get_BoneIndex()]->Update_TransformationMatrix(targetMatrix);
-	}
+        Vec3 transScale = Vec3::Lerp(curTrans.scale, nextTrans.scale, blendRatio);
+        Quat transRotation = Quat::Slerp(curTrans.rotation, nextTrans.rotation, blendRatio);
+        Vec3 transPosition = Vec3::Lerp(curTrans.position, nextTrans.position, blendRatio);
+
+        Matrix targetMatrix{};
+        if (boneIndex == rootNodeIndex) {
+            targetMatrix = XMMatrixAffineTransformation(transScale, Vec3::Zero, transRotation, Vec3::Zero);
+        }
+        else {
+            targetMatrix = XMMatrixAffineTransformation(transScale, Vec3::Zero, transRotation, transPosition);
+        }
+
+        bones[boneIndex]->Update_TransformationMatrix(targetMatrix);
+    }
 }
 
 Shared<Animation> Animation::Create(const ModelAnimationData& animData, const vector<ModelChannelData>& channels)

@@ -20,7 +20,6 @@ IMPLEMENT_SINGLETON(ModelImGui_Manager)
 
 ModelImGui_Manager::~ModelImGui_Manager()
 {
-	Free();
 }
 
 HRESULT ModelImGui_Manager::Initialize(HWND hWnd, const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -73,8 +72,7 @@ void ModelImGui_Manager::Update(float timeDelta)
         ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_MenuBar |
         ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse |
         ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
-        ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus |
-        ImGuiWindowFlags_NoBackground;
+        ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
 
     ImGui::Begin("Main Panel", nullptr, window_flags);
     {

@@ -13,7 +13,7 @@ public:
     ~CommandHistory() = default;
 
 public:
-    void Execute(Shared<ICommand> command);
+    void Execute(const Shared<ICommand>& command);
     void Undo();
     void Redo();
 

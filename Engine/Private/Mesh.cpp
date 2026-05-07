@@ -10,7 +10,7 @@ Mesh::Mesh(const ComPtr<Device>& device, const ComPtr<Context>& context)
 Mesh::Mesh(const Mesh& prototype)
     : VIBuffer{ prototype }
 {
-    strcpy_s(_name, prototype._name);
+    _name = prototype._name;
     _materialIndex = prototype._materialIndex;
 }
 

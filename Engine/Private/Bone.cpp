@@ -1,4 +1,4 @@
-﻿#include "Bone.h"
+#include "Bone.h"
 
 Bone::Bone()
 {
@@ -7,14 +7,14 @@ Bone::Bone()
 Bone::Bone(const Bone& rhs)
     : _parentBoneIndex{rhs._parentBoneIndex}
 {
-    strcpy_s(_name, rhs._name);
+    _name = rhs._name;
     _transformationMatrix = rhs._transformationMatrix;
     _combinedTransformationMatrix = rhs._combinedTransformationMatrix;
 }
 
 HRESULT Bone::Initialize(const ModelBoneData& boneData)
 {
-	strcpy_s(_name, boneData.name);
+	_name = boneData.name;
 	_parentBoneIndex = boneData.parentBoneIndex;
 	_transformationMatrix = boneData.localTransform;
     _combinedTransformationMatrix = Matrix::Identity;

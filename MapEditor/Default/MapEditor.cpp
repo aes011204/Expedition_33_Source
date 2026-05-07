@@ -79,6 +79,14 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE, _In_ LPWSTR,
     app->Free();
     app.reset();
 
+    if (nullptr != g_hWnd && IsWindow(g_hWnd))
+    {
+        DestroyWindow(g_hWnd);
+        g_hWnd = nullptr;
+    }
+
+    FreeConsole();
+
     return static_cast<int>(msg.wParam);
 }
 
@@ -151,8 +159,7 @@ static LRESULT CALLBACK MapEditor_WndProc(HWND hWnd, UINT message, WPARAM wParam
         break;
 
     case WM_CLOSE:
-        FreeConsole();
-        DestroyWindow(hWnd);
+        PostQuitMessage(0);
         return 0;
 
     case WM_DESTROY:

@@ -59,6 +59,7 @@ HRESULT ModelEditorApp::Initialize()
 
 void ModelEditorApp::Priority_Update(float timeDelta)
 {
+
 }
 
 void ModelEditorApp::Update(float timeDelta)
@@ -73,7 +74,7 @@ void ModelEditorApp::Late_Update(float timeDelta)
 
 HRESULT ModelEditorApp::Render()
 {
-	const Vec4 clearColor = Vec4(0.15f, 0.15f, 0.15f, 1.f);
+	const Vec4 clearColor = Vec4(0.15f, 0.15f, 0.15f, 0.f);
 	if (FAILED(GAME->Clear_Buffers(clearColor)))
 		return E_FAIL;
 
@@ -83,7 +84,7 @@ HRESULT ModelEditorApp::Render()
 	ModelImGui_Manager::GetInstance()->Capture_BackBuffer_ToViewport();
 
 	GAME->Bind_BackBuffer();
-
+    GAME->Clear_Buffers(clearColor);
 	ModelImGui_Manager::GetInstance()->Render();
 
 	if (FAILED(GAME->Present()))
@@ -117,9 +118,6 @@ wstring ModelEditorApp::Get_ClientResourcePath(const wchar_t* relativePath) cons
 
 ModelEditorApp::~ModelEditorApp()
 {
-	Free();
-    _device.Reset();
-    _context.Reset();
 }
 
 Unique<ModelEditorApp> ModelEditorApp::Create()
@@ -128,6 +126,7 @@ Unique<ModelEditorApp> ModelEditorApp::Create()
 
 	if (FAILED(instance->Initialize()))
 	{
+        instance->Free();
 		return nullptr;
 	}
 
@@ -141,8 +140,7 @@ void ModelEditorApp::Free()
 	_context.Reset();
 	_device.Reset();
 
-	if (nullptr != GAME)
-		GAME->Release_Engine();
+    GameInstance::DestroyInstance();
 }
 
 NS_END

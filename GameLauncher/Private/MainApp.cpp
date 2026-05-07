@@ -140,13 +140,11 @@ void MainApp::Free()
 {
     __super::Free();
 
-    CLIENT->Release_Client();
     ClientInstance::DestroyInstance();
 
     _context.Reset();
     _device.Reset();
 
-    GAME->Release_Engine();
     GameInstance::DestroyInstance();
 }
 

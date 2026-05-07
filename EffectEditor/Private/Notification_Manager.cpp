@@ -40,7 +40,7 @@ void Notification_Manager::Render()
     if (_notifications.empty())
         return;
 
-    ImGuiViewport* viewport = ImGui::GetMainViewport();
+    const ImGuiViewport* viewport = ImGui::GetMainViewport();
     const ImVec2 workPos = viewport->WorkPos;
     const ImVec2 workSize = viewport->WorkSize;
     constexpr float pad = 10.0f;
@@ -49,13 +49,13 @@ void Notification_Manager::Render()
     windowPos.x = workPos.x + workSize.x - pad;
     windowPos.y = workPos.y + workSize.y - pad;
 
-    ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration |
-        ImGuiWindowFlags_AlwaysAutoResize |
-        ImGuiWindowFlags_NoSavedSettings |
-        ImGuiWindowFlags_NoFocusOnAppearing |
-        ImGuiWindowFlags_NoNav |
-        ImGuiWindowFlags_NoMove |
-        ImGuiWindowFlags_NoInputs;
+    const ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration |
+                                   ImGuiWindowFlags_AlwaysAutoResize |
+                                   ImGuiWindowFlags_NoSavedSettings |
+                                   ImGuiWindowFlags_NoFocusOnAppearing |
+                                   ImGuiWindowFlags_NoNav |
+                                   ImGuiWindowFlags_NoMove |
+                                   ImGuiWindowFlags_NoInputs;
 
     int id = 0;
     for (auto& note : _notifications)
@@ -69,9 +69,12 @@ void Notification_Manager::Render()
         ImVec4 textColor = ImVec4(1.f, 1.f, 1.f, 1.f);
         switch (note.type)
         {
-        case NotifyType::Success: textColor = ImVec4(0.2f, 1.0f, 0.2f, 1.0f); break;
-        case NotifyType::Warning: textColor = ImVec4(1.0f, 0.8f, 0.0f, 1.0f); break;
-        case NotifyType::Error:   textColor = ImVec4(1.0f, 0.2f, 0.2f, 1.0f); break;
+        case NotifyType::Success: textColor = ImVec4(0.2f, 1.0f, 0.2f, 1.0f);
+            break;
+        case NotifyType::Warning: textColor = ImVec4(1.0f, 0.8f, 0.0f, 1.0f);
+            break;
+        case NotifyType::Error: textColor = ImVec4(1.0f, 0.2f, 0.2f, 1.0f);
+            break;
         default: break;
         }
 
@@ -81,7 +84,7 @@ void Notification_Manager::Render()
             ImGui::TextColored(textColor, note.message.c_str());
 
             const float height = ImGui::GetWindowHeight();
-            windowPos.y -= (height + pad);
+            windowPos.y -= height + pad;
         }
         ImGui::End();
         ImGui::PopStyleVar();

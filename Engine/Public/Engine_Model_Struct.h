@@ -18,7 +18,7 @@ using ModelDataHeader = struct tagModelDataHeader
 
 using ModelMeshData = struct tagModelMeshHeader
 {
-    char        name[maxModelNameSize];
+    string      name;
     uint32      materialIndex{};
     uint32      numVertices{};
     uint32      numIndices{};
@@ -32,7 +32,7 @@ using ModelMeshData = struct tagModelMeshHeader
 
 using ModelBoneData = struct tagModelBone
 {
-    char        name[maxModelNameSize];
+    string      name;
     int32       parentBoneIndex{ -1 };
     Matrix      localTransform{};
     Matrix      offsetMatrix{};
@@ -40,7 +40,7 @@ using ModelBoneData = struct tagModelBone
 
 using ModelTextureSlot = struct tagModelTextureSlot
 {
-    char        path[maxModelNameSize];
+    string      path;
 
     uint32      typeIndex{ 0 };   
     uint32      textureIndex{ 0 };
@@ -56,7 +56,7 @@ using ModelTextureSlot = struct tagModelTextureSlot
 
 using ModelMaterialData = struct tagModelMaterialData
 {
-    char        name[maxModelNameSize];
+    string      name;
 
     Vec4        diffuseColor{};
     Vec4        ambientColor{};
@@ -74,7 +74,8 @@ using ModelMaterialData = struct tagModelMaterialData
 
 using ModelAnimationData = struct tagModelAnimationData
 {
-    char        name[maxModelNameSize];
+    string      name;
+
     double      duration{};
     double      ticksPerSecond{};
     uint32      numChannels{};
@@ -84,7 +85,8 @@ using ModelAnimationData = struct tagModelAnimationData
 
 using ModelChannelData = struct tagChannelData
 {
-    char        boneName[maxModelNameSize];
+    string      boneName;
+
     int32       boneIndex{ -1 };
     uint32      numKeyframes{};
     void*       keyframes;

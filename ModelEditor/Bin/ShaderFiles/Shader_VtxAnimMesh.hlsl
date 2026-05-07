@@ -28,7 +28,7 @@ struct VS_IN
     float3 vNormal : NORMAL;
     float3 vTangent : TANGENT;
     float3 vBinormal : BINORMAL;
-    float2 vTexcoord : TEXCOORD0;    
+    float2 vTexcoord : TEXCOORD0;
     uint4 vBlendIndex : BLENDINDEX;
     float4 vBlendWeight : BLENDWEIGHT;
 };
@@ -48,9 +48,9 @@ VS_OUT VS_MAIN(VS_IN In)
     /* 정점의 위치 * 월드 * 뷰 * 투영 */
     float4x4 matWV, matWVP;
 
-    matrix BoneMatrix = g_BoneMatrices[In.vBlendIndex.x] * In.vBlendWeight.x + 
-        g_BoneMatrices[In.vBlendIndex.y] * In.vBlendWeight.y + 
-        g_BoneMatrices[In.vBlendIndex.z] * In.vBlendWeight.z + 
+    matrix BoneMatrix = g_BoneMatrices[In.vBlendIndex.x] * In.vBlendWeight.x +
+        g_BoneMatrices[In.vBlendIndex.y] * In.vBlendWeight.y +
+        g_BoneMatrices[In.vBlendIndex.z] * In.vBlendWeight.z +
         g_BoneMatrices[In.vBlendIndex.w] * In.vBlendWeight.w;
 
     vector vPosition = mul(float4(In.vPosition, 1.f), BoneMatrix);
@@ -76,7 +76,7 @@ struct PS_IN
 {
     float4 vPosition : SV_POSITION;
     float4 vNormal : NORMAL;
-    float2 vTexcoord : TEXCOORD0;    
+    float2 vTexcoord : TEXCOORD0;
     float4 vWorldPos : TEXCOORD1;
 };
 
@@ -90,24 +90,24 @@ struct PS_OUT
 PS_OUT PS_MAIN(PS_IN In)
 {
     PS_OUT Out;
-    
+
     // Out.vColor = float4(In.vTexcoord.y, In.vTexcoord.y, In.vTexcoord.y, 1.f);
     vector      vMtrlDiffuse = g_DiffuseTexture.Sample(DefaultSampler, In.vTexcoord);
-    
+
     if (vMtrlDiffuse.a < 0.3f)
         discard;
-    
+
     vector vShade = saturate(max(dot(normalize(g_vLightDir) * -1.f, In.vNormal), 0.f) + (g_vLightAmbient * g_vMtrlAmbient));
-    
+
     vector vLook = In.vWorldPos - g_vCamPosition;
-    vector vRelfect = reflect(normalize(g_vLightDir), In.vNormal);    
+    vector vRelfect = reflect(normalize(g_vLightDir), In.vNormal);
     float fSpecular = pow(max(dot(normalize(vLook) * -1.f, normalize(vRelfect)), 0.f), 50.f);
-    
+
     vector vSpecularColor = g_vLightSpecular * g_vMtrlSpecular * fSpecular;
-    
+
     Out.vColor = g_vLightDiffuse * vMtrlDiffuse * vShade + vSpecularColor;
-    Out.vColor.a = 0.3f;
-    
+    Out.vColor.a = 1.f;
+
     return Out;
 
 }

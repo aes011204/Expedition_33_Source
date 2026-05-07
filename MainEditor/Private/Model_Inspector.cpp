@@ -132,7 +132,7 @@ void ModelCom_Inspector::Draw_Inspector(const Shared<Component>& component)
 
         string label = "Mesh[" + to_string(meshIndex) + "]";
         if (material)
-            label += " -> Material[" + to_string(materialIndex) + "] : " + material->Get_Name();
+            label += " -> Material[" + to_string(materialIndex) + "] : " + material->Get_MaterialName();
         else
             label += " -> Material[Invalid]";
 
@@ -151,7 +151,7 @@ void ModelCom_Inspector::Draw_Inspector(const Shared<Component>& component)
 
         ImGui::PushID(static_cast<int>(materialIndex));
 
-        string header = "Material[" + to_string(materialIndex) + "] : " + material->Get_Name();
+        string header = "Material[" + to_string(materialIndex) + "] : " + material->Get_MaterialName();
         if (!ImGui::CollapsingHeader(header.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
         {
             ImGui::PopID();
@@ -220,7 +220,7 @@ void ModelCom_Inspector::Draw_Inspector(const Shared<Component>& component)
                     }
 
                     const string currentFileName = String::ToString(fs::path(slot.resolvedPath).filename().wstring());
-                    const string pickerKey = material->Get_Name() + "_" + to_string(typeIndex) + "_" + to_string(slotIndex);
+                    const string pickerKey = material->Get_MaterialName() + "_" + to_string(typeIndex) + "_" + to_string(slotIndex);
                     if (ImGui::BeginCombo("##TexturePicker", currentFileName.c_str()))
                     {
                         string& searchText = g_TextureSearchCache[pickerKey];
