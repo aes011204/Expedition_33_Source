@@ -39,6 +39,7 @@ namespace Engine
 
         Terrain,
         Sky,
+        StaticMesh,
         Weapon,
         PartObject,
         Projectile,

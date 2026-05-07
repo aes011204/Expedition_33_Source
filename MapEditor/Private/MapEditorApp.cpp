@@ -54,6 +54,10 @@ HRESULT MapEditorApp::Initialize()
     _manager = MEManager::Create(_viewport, &_scene, _camera.get());
     CHECK_NULL(_manager, E_FAIL);
 
+    CHECK_FAILED(Ready_PickingRT(), E_FAIL);
+
+    CHECK_FAILED(Ready_Light(), E_FAIL);
+
     return S_OK;
 }
 
@@ -78,6 +82,12 @@ void MapEditorApp::Late_Update(float timeDelta)
 HRESULT MapEditor::MapEditorApp::Render()
 {
     _camera->Apply();
+
+    ImVec2 mousePos{}, vpPos{}, vpSize{};
+    if (_viewport->ConsumePick(mousePos, vpPos, vpSize))
+    {
+        DoPickAt(mousePos, vpPos, vpSize);
+    }
 
     CHECK_FAILED(_rt->Begin(), E_FAIL);
     DrawSceneDebug();
@@ -223,13 +233,100 @@ void MapEditorApp::UpdateRenderHandles()
             continue;
         }
 
-        obj->_renderHandle = MEStaticMeshActor::Create(_device, _context, obj->_modelPath, _meshShader);
+        obj->_renderHandle = MEStaticMeshActor::Create(model, _meshShader);
     }
+}
+
+void MapEditorApp::DoPickAt(const ImVec2& mousePos, const ImVec2& vpPos, const ImVec2& vpSize)
+{
+    if (!_idRT || !_idStagingTex || vpSize.x <= 0.f || vpSize.y <= 0.f)
+    {
+        return;
+    }
+
+    const uint32 w = _rt->Get_Width();
+    const uint32 h = _rt->Get_Height();
+
+    if (w != _idRT->Get_Width() || h != _idRT->Get_Height())
+    {
+        _idRT->Resize(w, h, DXGI_FORMAT_R8G8B8A8_UNORM, Vec4(0.f, 0.f, 0.f, 1.f), true);
+    }
+
+    _idRT->Begin();
+    for (uint32 i = 0; i < static_cast<uint32>(_scene._objects.size()); ++i)
+    {
+        auto& obj = _scene._objects[i];
+        if (obj->_type != EObjectType::StaticMesh || !obj->_renderHandle)
+        {
+            continue;
+        }
+        obj->_renderHandle->RenderID(obj->_worldMatrix, i + 1);
+    }
+
+    GAME->Bind_BackBuffer();
+
+    const float u = (mousePos.x - vpPos.x) / vpSize.x;
+    const float v = (mousePos.y - vpPos.y) / vpSize.y;
+    const uint32 px = min(static_cast<uint32>(u * w), w - 1);
+    const uint32 py = min(static_cast<uint32>(v * h), h - 1);
+
+    D3D11_BOX box = { px, py, 0, px + 1, py + 1, 1 };
+    _context->CopySubresourceRegion(_idStagingTex.Get(), 0, 0, 0, 0, _idRT->Get_Texture().Get(), 0, &box);
+
+    D3D11_MAPPED_SUBRESOURCE mapped = {};
+    if (SUCCEEDED(_context->Map(_idStagingTex.Get(), 0, D3D11_MAP_READ, 0, &mapped)))
+    {
+        const uint8* pPixel = static_cast<const uint8*>(mapped.pData);
+        const uint32 id = pPixel[0] | (pPixel[1] << 8) | (pPixel[2] << 16);
+        _context->Unmap(_idStagingTex.Get(), 0);
+
+        if (id == 0)
+        {
+            _scene._selected = nullptr;
+        }
+        else if (id - 1 < static_cast<uint32>(_scene._objects.size()))
+        {
+            _scene._selected = _scene._objects[id - 1];
+        }
+    }
+}
+
+HRESULT MapEditorApp::Ready_PickingRT()
+{
+    _idRT = RenderTarget::Create(_device, _context, g_iWinSizeX, g_iWinSizeY, DXGI_FORMAT_R8G8B8A8_UNORM, Vec4(0.f, 0.f, 0.f, 1.f), true);
+    CHECK_NULL(_idRT, E_FAIL);
+
+    D3D11_TEXTURE2D_DESC stagingDesc{};
+    stagingDesc.Width = 1;
+    stagingDesc.Height = 1;
+    stagingDesc.MipLevels = 1;
+    stagingDesc.ArraySize = 1;
+    stagingDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    stagingDesc.SampleDesc.Count = 1;
+    stagingDesc.Usage = D3D11_USAGE_STAGING;
+    stagingDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+    CHECK_FAILED(_device->CreateTexture2D(&stagingDesc, nullptr, _idStagingTex.GetAddressOf()), E_FAIL);
+
+    return S_OK;
+}
+
+HRESULT MapEditorApp::Ready_Light()
+{
+    LIGHT_DESC lightDesc{};
+    lightDesc.type = LightType::Directional;
+    lightDesc.direction = Vec4(1.f, -1.f, 1.f, 0.f);
+    lightDesc.direction.Normalize();
+    lightDesc.diffuse = Vec4(1.f, 1.f, 1.f, 1.f);
+    lightDesc.ambient = Vec4(0.4f, 0.4f, 0.4f, 1.f);
+    lightDesc.specular = Vec4(1.f, 1.f, 1.f, 1.f);
+    CHECK_FAILED(GAME->Add_Light(lightDesc), E_FAIL);
+
+    return S_OK;
 }
 
 Unique<MapEditorApp> MapEditorApp::Create()
 {
-    Unique<MapEditorApp> instance{ new MapEditorApp() };
+    auto instance = make_unique<MapEditorApp>();
 
     if (FAILED(instance->Initialize()))
     {
@@ -252,6 +349,8 @@ void MapEditorApp::Free()
 
     _viewport.reset();
     _rt.reset();
+    _idRT.reset();
+    _idStagingTex.Reset();
     _camera.reset();
     _manager.reset();
     _imguiManager.reset();
