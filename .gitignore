@@ -490,10 +490,8 @@ Client/Bin/Client.dll
 Client/Bin/Engine.dll
 Engine/Bin/Engine.dll
 
-# Synced spreadsheet workbooks are local/generated artifacts.
-Client/Bin/Resources/Data/xlsx/**
-Client/Bin/Resources/Data/Assets/**
-Client/Bin/Resources/Data/json/**
+# Keep shared Data inputs tracked. Broad ignore here can delete teammates' local copies
+# once tracked files are removed on a branch.
 Client/Bin/Resources/Models/Data/Assets/**
 
 # Repo-local agent instructions
