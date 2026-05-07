@@ -210,15 +210,12 @@ void EffectEditorApp::Free()
 {
     __super::Free();
 
-    EDITOR->Release_Editor();
     EffectEditorInstance::DestroyInstance();
 
-    CLIENT->Release_Client();
     ClientInstance::DestroyInstance();
 
     _context.Reset();
     _device.Reset();
 
-    GAME->Release_Engine();
     GameInstance::DestroyInstance();
 }

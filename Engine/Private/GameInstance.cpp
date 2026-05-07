@@ -1012,6 +1012,10 @@ void GameInstance::Release_Engine()
     ReleaseManager(_levelManager);
     ReleaseManager(_picking);
     ReleaseManager(_timerManager);
+
+    _context.Reset();
+    _device.Reset();
+
     ReleaseManager(_graphicDevice);
     ReleaseManager(_logManager);
 }

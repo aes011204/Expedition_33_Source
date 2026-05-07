@@ -215,15 +215,12 @@ void MainEditorApp::Free()
 {
     __super::Free();
 
-    EDITOR->Release_Editor();
     EditorInstance::DestroyInstance();
 
-    CLIENT->Release_Client();
     ClientInstance::DestroyInstance();
 
     _context.Reset();
     _device.Reset();
 
-    GAME->Release_Engine();
     GameInstance::DestroyInstance();
 }

@@ -494,6 +494,7 @@ Engine/Bin/Engine.dll
 Client/Bin/Resources/Data/xlsx/**
 Client/Bin/Resources/Data/Assets/**
 Client/Bin/Resources/Data/json/**
+Client/Bin/Resources/Models/Data/Assets/**
 
 # Repo-local agent instructions
 /AGENTS.md

@@ -96,6 +96,14 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE, _In_ LPWSTR,
     mainApp->Free();
     mainApp.reset();
 
+    if (nullptr != g_hWnd && IsWindow(g_hWnd))
+    {
+        DestroyWindow(g_hWnd);
+        g_hWnd = nullptr;
+    }
+
+    FreeConsole();
+
     return static_cast<int>(msg.wParam);
 }
 
@@ -187,8 +195,7 @@ static LRESULT CALLBACK MainEditor_WndProc(HWND hWnd, UINT message, WPARAM wPara
         break;
 
     case WM_CLOSE:
-        FreeConsole();
-        DestroyWindow(hWnd);
+        PostQuitMessage(0);
         return 0;
 
     case WM_MOUSEWHEEL:
