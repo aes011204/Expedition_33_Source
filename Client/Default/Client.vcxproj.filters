@@ -79,6 +79,15 @@
     <Filter Include="BehavoirTree">
       <UniqueIdentifier>{3c8c65f9-6d15-4630-87bb-651577f82509}</UniqueIdentifier>
     </Filter>
+    <Filter Include="02.GameObject\Map">
+      <UniqueIdentifier>{c27dbc20-5bcd-4d18-b937-6d7b22b8250a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02.GameObject\Map\MapStaticMesh">
+      <UniqueIdentifier>{d20736d2-c70d-4e53-9932-ebaaea9095bf}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02.GameObject\Map\MapLoader">
+      <UniqueIdentifier>{44a6eca4-d07d-4d31-a121-a44beb0c0797}</UniqueIdentifier>
+    </Filter>
     <Filter Include="02.GameObject\Player\PlayerParts">
       <UniqueIdentifier>{e5a6e35f-4a37-4b1e-8e68-5f77821102f5}</UniqueIdentifier>
     </Filter>
@@ -175,6 +184,12 @@
     <ClInclude Include="..\public\BT_Idle.h" />
     <ClInclude Include="..\public\BT_Attack.h" />
     <ClInclude Include="..\public\BT_CheckDistance.h" />
+    <ClInclude Include="..\Public\MapStaticMesh.h">
+      <Filter>02.GameObject\Map\MapStaticMesh</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\MapLoader.h">
+      <Filter>02.GameObject\Map\MapLoader</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\Spawn_Prefab.h" />
     <ClInclude Include="..\Public\Head_Player.h">
       <Filter>02.GameObject\Player\PlayerParts\Head</Filter>
@@ -261,6 +276,13 @@
     <ClCompile Include="..\private\BT_Idle.cpp" />
     <ClCompile Include="..\private\BT_Attack.cpp" />
     <ClCompile Include="..\private\BT_CheckDistance.cpp" />
+
+    <ClCompile Include="..\Private\MapStaticMesh.cpp">
+      <Filter>02.GameObject\Map\MapStaticMesh</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\MapLoader.cpp">
+      <Filter>02.GameObject\Map\MapLoader</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\Spawn_Prefab.cpp" />
     <ClCompile Include="..\Private\Head_Player.cpp">
       <Filter>02.GameObject\Player\PlayerParts\Head</Filter>
