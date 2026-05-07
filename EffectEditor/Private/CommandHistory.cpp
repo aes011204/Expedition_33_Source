@@ -5,7 +5,7 @@
 #include "ICommand.h"
 #include "Notification_Manager.h"
 
-void CommandHistory::Execute(Shared<ICommand> command)
+void CommandHistory::Execute(const Shared<ICommand>& command)
 {
     if (!command)
         return;
@@ -23,7 +23,7 @@ void CommandHistory::Undo()
     if (_undoStack.empty())
         return;
 
-    Shared<ICommand> command = _undoStack.back();
+    const Shared<ICommand> command = _undoStack.back();
     _undoStack.pop_back();
     command->Undo();
     _redoStack.push_back(command);
@@ -33,7 +33,8 @@ void CommandHistory::Undo()
         EDITOR->Get_Notification()->Add_Notification_With_Type(
             NotifyType::Info,
             "Undo : {}",
-            command->Get_Description());
+            command->Get_Description()
+        );
     }
 }
 
@@ -42,7 +43,7 @@ void CommandHistory::Redo()
     if (_redoStack.empty())
         return;
 
-    Shared<ICommand> command = _redoStack.back();
+    const Shared<ICommand> command = _redoStack.back();
     _redoStack.pop_back();
     command->Redo();
     _undoStack.push_back(command);
@@ -52,7 +53,8 @@ void CommandHistory::Redo()
         EDITOR->Get_Notification()->Add_Notification_With_Type(
             NotifyType::Info,
             "Redo: {}",
-            command->Get_Description());
+            command->Get_Description()
+        );
     }
 }
 

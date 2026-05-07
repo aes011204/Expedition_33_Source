@@ -6,40 +6,41 @@
 
 namespace EffectEditor::Internal
 {
-    struct ViewportImageRect
+struct ViewportImageRect
+{
+    ImVec2 imageMin;
+    ImVec2 imageMax;
+};
+
+static ViewportImageRect Compute_AspectFitRect(const ImVec2& canvasMin, const ImVec2& canvasSize, float aspect)
+{
+    if (aspect <= 0.f || canvasSize.x <= 1.f || canvasSize.y <= 1.f)
     {
-        ImVec2 imageMin;
-        ImVec2 imageMax;
-    };
-
-    static ViewportImageRect Compute_AspectFitRect(const ImVec2& canvasMin, const ImVec2& canvasSize, float aspect)
-    {
-        if (aspect <= 0.f || canvasSize.x <= 1.f || canvasSize.y <= 1.f)
-        {
-            return {
-                canvasMin,
-                ImVec2(canvasMin.x + canvasSize.x, canvasMin.y + canvasSize.y)
-            };
-        }
-
-        float imageWidth = canvasSize.x;
-        float imageHeight = imageWidth / aspect;
-
-        if (imageHeight > canvasSize.y)
-        {
-            imageHeight = canvasSize.y;
-            imageWidth = imageHeight * aspect;
-        }
-
-        const ImVec2 imageMin = ImVec2(
-            canvasMin.x + (canvasSize.x - imageWidth) * 0.5f,
-            canvasMin.y + (canvasSize.y - imageHeight) * 0.5f);
-
         return {
-            imageMin,
-            ImVec2(imageMin.x + imageWidth, imageMin.y + imageHeight)
+            canvasMin,
+            ImVec2(canvasMin.x + canvasSize.x, canvasMin.y + canvasSize.y)
         };
     }
+
+    float imageWidth = canvasSize.x;
+    float imageHeight = imageWidth / aspect;
+
+    if (imageHeight > canvasSize.y)
+    {
+        imageHeight = canvasSize.y;
+        imageWidth = imageHeight * aspect;
+    }
+
+    const ImVec2 imageMin = ImVec2(
+        canvasMin.x + (canvasSize.x - imageWidth) * 0.5f,
+        canvasMin.y + (canvasSize.y - imageHeight) * 0.5f
+    );
+
+    return {
+        imageMin,
+        ImVec2(imageMin.x + imageWidth, imageMin.y + imageHeight)
+    };
+}
 }
 
 Game_View::Game_View()
@@ -91,9 +92,7 @@ void Game_View::Render()
             drawList->AddImage(textureId, imageRect.imageMin, imageRect.imageMax);
         }
         else
-        {
             drawList->AddText(ImVec2(canvasMin.x + 12.f, canvasMin.y + 12.f), IM_COL32(210, 216, 224, 255), "Game RenderTarget Missing");
-        }
     }
 
     Set_Open(isOpen);

@@ -30,6 +30,8 @@ void Renderer::Add_RenderGroup(RenderGroup renderGroup, const Shared<GameObject>
 
 void Renderer::Draw()
 {
+    Change_ViewportDesc(GAME->Get_ViewportWidth(), GAME->Get_ViewportHeight());
+
 #ifdef _DEBUG
     Reset_RenderCall();
 
@@ -361,9 +363,7 @@ HRESULT Renderer::Ready_RenderTargets()
         L"../../../Client/Bin/ShaderFiles/Shader_Deferred.hlsl", VTXTEX::Elements, VTXTEX::numElements);
     CHECK_NULL(_deferredShader, E_FAIL);
 
-    _deferredWorldMatrix = Matrix::CreateScale(static_cast<float>(width), static_cast<float>(height), 1.f);
-    _deferredViewMatrix = Matrix::Identity;
-    _deferredProjMatrix = XMMatrixOrthographicLH(static_cast<float>(width), static_cast<float>(height), 0.f, 1.f);
+    Sync_ViewportDependentState(width, height);
 
 #ifdef _DEBUG
     // 전체 뷰포트의 1/4만 사용하여 디버그 렌더
@@ -371,6 +371,18 @@ HRESULT Renderer::Ready_RenderTargets()
 #endif
 
     return S_OK;
+}
+
+void Renderer::Sync_ViewportDependentState(uint32 width, uint32 height)
+{
+    width = max(1u, width);
+    height = max(1u, height);
+
+    _deferredWorldMatrix = Matrix::CreateScale(static_cast<float>(width), static_cast<float>(height), 1.f);
+    _deferredViewMatrix = Matrix::Identity;
+    _deferredProjMatrix = XMMatrixOrthographicLH(static_cast<float>(width), static_cast<float>(height), 0.f, 1.f);
+
+    Change_ViewportDesc(width, height);
 }
 
 void Renderer::Change_ViewportDesc(uint32 width, uint32 height)

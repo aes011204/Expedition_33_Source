@@ -1,4 +1,4 @@
-#include "Hierarchy_View.h"
+﻿#include "Hierarchy_View.h"
 
 #include "Editor_Context.h"
 #include "EffectEditorInstance.h"
@@ -19,7 +19,7 @@ void Hierarchy_View::Update(float timeDelta)
 {
     Editor_Window::Update(timeDelta);
 
-    Editor_Context* context = EDITOR->Get_Context();
+    const Editor_Context* context = EDITOR->Get_EditorContext();
     if (context == nullptr)
         return;
 
@@ -48,6 +48,118 @@ void Hierarchy_View::Update(float timeDelta)
 void Hierarchy_View::Pre_Render()
 {
     Editor_Window::Pre_Render();
+}
+
+void Hierarchy_View::Render()
+{
+    if (!Is_Open())
+        return;
+
+    bool isOpen = Is_Open();
+    const string windowName = String::ToString(Get_WindowName());
+
+    if (ImGui::Begin(windowName.c_str(), &isOpen))
+    {
+        _isFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows);
+
+        Editor_Context* context = EDITOR->Get_EditorContext();
+        if (context == nullptr)
+        {
+            ImGui::TextDisabled("Editor Context Missing");
+            Set_Open(isOpen);
+            ImGui::End();
+            return;
+        }
+
+        const Shared<GameObject> selectedObject = context->Get_Selection().selectedObject;
+
+        Draw_SearchBar();
+
+        if (_groupedObjects.empty())
+            ImGui::TextDisabled("No objects in current level");
+        else if (!_searchFilter.empty())
+        {
+            for (const auto& [_, objects] : _groupedObjects)
+            {
+                uint32 objectIndex = 0;
+
+                for (const auto& gameObject : objects)
+                {
+                    if (gameObject == nullptr)
+                    {
+                        ++objectIndex;
+                        continue;
+                    }
+
+                    if (!Pass_SearchFilter(gameObject, objectIndex))
+                    {
+                        ++objectIndex;
+                        continue;
+                    }
+
+                    const bool isSelected = selectedObject == gameObject;
+                    const string label = Build_HierarchyLabel(gameObject, objectIndex);
+
+                    ImGui::PushID(gameObject.get());
+                    if (ImGui::Selectable(label.c_str(), isSelected))
+                        context->Set_SelectObject(gameObject);
+
+                    if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+                    {
+                        context->Set_SelectObject(gameObject);
+                        context->Request_FocusObject(gameObject);
+                        EDITOR->Request_WindowFocus(EditorViewportTarget::Scene);
+                    }
+                    ImGui::PopID();
+
+                    ++objectIndex;
+                }
+            }
+        }
+        else
+        {
+            for (const auto& [layerTag, objects] : _groupedObjects)
+            {
+                const string layerName = String::ToString(layerTag);
+
+                if (ImGui::TreeNodeEx(layerName.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
+                {
+                    uint32 objectIndex = 0;
+
+                    for (const auto& gameObject : objects)
+                    {
+                        if (gameObject == nullptr)
+                        {
+                            ++objectIndex;
+                            continue;
+                        }
+
+                        const bool isSelected = selectedObject == gameObject;
+                        const string label = Build_HierarchyLabel(gameObject, objectIndex);
+
+                        ImGui::PushID(gameObject.get());
+                        if (ImGui::Selectable(label.c_str(), isSelected))
+                            context->Set_SelectObject(gameObject);
+
+                        if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+                        {
+                            context->Set_SelectObject(gameObject);
+                            context->Request_FocusObject(gameObject);
+                            EDITOR->Request_WindowFocus(EditorViewportTarget::Scene);
+                        }
+                        ImGui::PopID();
+
+                        ++objectIndex;
+                    }
+
+                    ImGui::TreePop();
+                }
+            }
+        }
+    }
+
+    Set_Open(isOpen);
+    ImGui::End();
 }
 
 void Hierarchy_View::Draw_SearchBar()
@@ -93,7 +205,8 @@ void Hierarchy_View::Rebuild_Cache()
                 return;
 
             _groupedObjects[layerTag].push_back(gameObject);
-        });
+        }
+    );
 
     _dirtyHierarchyCache = false;
 }
@@ -133,120 +246,6 @@ string Hierarchy_View::Build_HierarchyLabel(const Shared<GameObject>& gameObject
         return objectName + " [" + to_string(objectIndex) + "]";
 
     return "GameObject [" + to_string(objectIndex) + "]";
-}
-
-void Hierarchy_View::Render()
-{
-    if (!Is_Open())
-        return;
-
-    bool isOpen = Is_Open();
-    const string windowName = String::ToString(Get_WindowName());
-
-    if (ImGui::Begin(windowName.c_str(), &isOpen))
-    {
-        _isFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows);
-
-        Editor_Context* context = EDITOR->Get_Context();
-        if (context == nullptr)
-        {
-            ImGui::TextDisabled("Editor Context Missing");
-            Set_Open(isOpen);
-            ImGui::End();
-            return;
-        }
-
-        const Shared<GameObject> selectedObject = context->Get_Selection().selectedObject;
-
-        Draw_SearchBar();
-
-        if (_groupedObjects.empty())
-        {
-            ImGui::TextDisabled("No objects in current level");
-        }
-        else if (!_searchFilter.empty())
-        {
-            for (const auto& [_, objects] : _groupedObjects)
-            {
-                uint32 objectIndex = 0;
-
-                for (const auto& gameObject : objects)
-                {
-                    if (gameObject == nullptr)
-                    {
-                        ++objectIndex;
-                        continue;
-                    }
-
-                    if (!Pass_SearchFilter(gameObject, objectIndex))
-                    {
-                        ++objectIndex;
-                        continue;
-                    }
-
-                    const bool isSelected = (selectedObject == gameObject);
-                    const string label = Build_HierarchyLabel(gameObject, objectIndex);
-
-                    ImGui::PushID(gameObject.get());
-                    if (ImGui::Selectable(label.c_str(), isSelected))
-                        context->Set_SelectObject(gameObject);
-
-                    if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
-                    {
-                        context->Set_SelectObject(gameObject);
-                        context->Request_FocusObject(gameObject);
-                        EDITOR->Request_WindowFocus(EditorViewportTarget::Scene);
-                    }
-                    ImGui::PopID();
-
-                    ++objectIndex;
-                }
-            }
-        }
-        else
-        {
-            for (const auto& [layerTag, objects] : _groupedObjects)
-            {
-                const string layerName = String::ToString(layerTag);
-
-                if (ImGui::TreeNodeEx(layerName.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
-                {
-                    uint32 objectIndex = 0;
-
-                    for (const auto& gameObject : objects)
-                    {
-                        if (gameObject == nullptr)
-                        {
-                            ++objectIndex;
-                            continue;
-                        }
-
-                        const bool isSelected = (selectedObject == gameObject);
-                        const string label = Build_HierarchyLabel(gameObject, objectIndex);
-
-                        ImGui::PushID(gameObject.get());
-                        if (ImGui::Selectable(label.c_str(), isSelected))
-                            context->Set_SelectObject(gameObject);
-
-                        if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
-                        {
-                            context->Set_SelectObject(gameObject);
-                            context->Request_FocusObject(gameObject);
-                            EDITOR->Request_WindowFocus(EditorViewportTarget::Scene);
-                        }
-                        ImGui::PopID();
-
-                        ++objectIndex;
-                    }
-
-                    ImGui::TreePop();
-                }
-            }
-        }
-    }
-
-    Set_Open(isOpen);
-    ImGui::End();
 }
 
 Shared<Hierarchy_View> Hierarchy_View::Create()

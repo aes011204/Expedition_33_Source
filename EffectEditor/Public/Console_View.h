@@ -5,7 +5,7 @@
 
 NS_BEGIN(EffectEditor)
 
-class Console_View : public Editor_Window
+class Console_View final : public Editor_Window
 {
 public:
     Console_View();

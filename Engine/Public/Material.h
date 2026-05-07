@@ -36,7 +36,7 @@ public:
 	HRESULT Bind_Material(class ShaderCom* shader, const char* constantName, MaterialTextureSlot slot, uint32 textureIndex = 0);
 	HRESULT Override_TextureSlot(MaterialTextureSlot slot, uint32 slotIndex, const wstring& texturePath);
 
-    const string& Get_Name() const { return _materialName; }
+    const string& Get_MaterialName() const { return _materialName; }
     uint32 Get_MaxTextureTypeSize() const { return _maxTextureTypeSize; }
     const vector<vector<TextureSlot>>& Get_TextureSlots() const { return _materials; }
 

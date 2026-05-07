@@ -59,6 +59,7 @@ public:
     ComPtr<Context> Get_Context() const { return _context; }
 
 public: /* For.Log_Manager */
+    void    Log_FileOnly(const spdlog::source_loc& sourceLoc, spdlog::level::level_enum level, const string& message) const;
     void    Visit_ConsoleLogs(const function<void(const ConsoleLogEntry& logEntry)>& visitor) const;
     void    Clear_ConsoleLogs();
 
@@ -78,6 +79,8 @@ public: /* For.Graphic_Device */
 
 public: /* For.Viewport */
     void    Set_ViewportSize(uint32 width, uint32 height);
+    // editor preview처럼 창 크기와 다른 렌더 비율이 필요할 때 사용하며, swapchain이 아닌 logical viewport만 갱신한다.
+    HRESULT Apply_LogicalViewportSize(uint32 width, uint32 height);
     uint32  Get_ViewportWidth() const;
     uint32  Get_ViewportHeight() const;
 
@@ -358,16 +361,12 @@ private:
 
 #ifdef _DEBUG
 private: //## 디버그 성능 평가용
-    static constexpr float runtimePerfSampleWindowSec{ 5.f };          // RuntimePerf summary를 몇 초마다 출력할건지
-    static constexpr float detailRenderAvgMsThreshold{ 6.f };          // Render 평균 시간이 이 값을 넘으면 detail log 출력
-    static constexpr float detailCollisionAvgMsThreshold{ 2.5f };      // Collision 평균 시간이 이 값을 넘으면 detail log 출력
-    static constexpr float detailIntersectsPerSecThreshold{ 30000.f }; // 초당 Intersect 호출 수가 이 값을 넘으면 detail log 출력
+    static constexpr float runtimePerfSampleWindowSec{ 5.f }; // RuntimePerfDetail을 몇 초마다 출력할건지
 
     chrono::steady_clock::time_point _runtimePerfWindowStartTime{};
     bool _hasRuntimePerfWindowStartTime{ false };
 
     void Try_FlushRuntimePerfLog();
-    static bool Should_LogRuntimePerfDetail(const RuntimePerfSummary& runtimeSummary);
 #endif
 
 public:
