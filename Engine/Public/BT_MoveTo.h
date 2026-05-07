@@ -3,6 +3,8 @@
 class ENGINE_DLL BT_MoveTo :
     public Task
 {
+    GENERATED_BTNODE(BT_MoveTo, "Task")
+
 public:
 
     BT_MoveTo();

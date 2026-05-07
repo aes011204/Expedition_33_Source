@@ -10,6 +10,13 @@ public:
     BNode();
     virtual ~BNode();
 
+public:
+
+    virtual ClassReflectionInfo& Get_ReflectionInfo()
+    {
+        static ClassReflectionInfo emptyInfo{};
+        return emptyInfo;
+    }
 
 public:
     virtual NODE_STATE Update(float deltaTime)=0;

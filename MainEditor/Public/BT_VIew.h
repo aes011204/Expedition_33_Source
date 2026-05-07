@@ -9,30 +9,38 @@ namespace ed = ax::NodeEditor;
 
 NS_BEGIN(MainEditor)
 
+enum class NodeType { Selector, Sequence, Task, Decorator };
+enum class PinType { Input, Output };
+
+struct EditorNode
+{
+
+    NodeType type;
+    ed::NodeId id;
+
+    ed::PinId inputPin;
+    ed::PinId outputPin;
+
+    PinType inputType = PinType::Input;
+    PinType outputType = PinType::Output;
+
+    std::string title;
+
+    ImVec2 position;
+
+    char titleBuffer[128];
+
+    std::string className;
+    std::string category;
+    bool isRuntimeBTNode = false;
+};
+
     class BT_View : public Editor_Window
 {
 public:
-    enum class NodeType {   Selector,Sequence,Task,Condition    };
-    enum class PinType {Input,Output};
 
-    struct EditorNode
-    {
 
-        NodeType type;
-        ed::NodeId id;
-
-        ed::PinId inputPin;
-        ed::PinId outputPin;
-
-        PinType inputType = PinType::Input;
-        PinType outputType = PinType::Output;
-
-        std::string title;
-
-        ImVec2 position;
-
-        char titleBuffer[128];
-    };
+   
 
     struct EditorLink
     {
@@ -63,18 +71,21 @@ public:
 
 
     void Create_Node(NodeType type);
+    void Create_Node(const string& className, const string& category);
     void Create_NewBT();
+
     void Save_BT(const std::string& path);
     void Load_BT(const std::string& path);
+
     void Draw_LoadPopup();
     void Draw_SavePopup();
     void Draw_Nodes();
-    void Refresh_BT_FileList();
-    //void Create_BT();
-
     void Draw_ToolBar();
     void Draw_BT();
     void Draw_Links();
+
+    void Refresh_BT_FileList();
+
 
     void Handle_CreateLink();
     void Connect_Runtime(ed::PinId startPin, ed::PinId endPin);

@@ -102,6 +102,14 @@ Shared<Base> TypeRegistry::Create_BTNode(const string& className) const
     return (info == nullptr) ? nullptr : info->createFn();
 }
 
+void TypeRegistry::Visit_BTNodeTypes(const function<void(const BTNodeTypeInfo&)>& visitor) const
+{
+    for (const auto& [_, info] : _btNodeTypes)
+    {
+        visitor(info);
+    }
+}
+
 Unique<TypeRegistry> TypeRegistry::Create()
 {
     return Unique<TypeRegistry>{ new TypeRegistry() };

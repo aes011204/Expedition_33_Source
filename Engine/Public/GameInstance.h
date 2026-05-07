@@ -242,6 +242,9 @@ public: // For. PhysX_Manager
     PxScene*    Get_PhysXScene() const;
 
 
+public: // For. BT_Node
+    void Visit_BTNodeTypes(const function<void(const TypeRegistry::BTNodeTypeInfo&)>& visitor) const;
+
 public: /* For.Debug_Manager */
     void                    Draw_DebugBox(const DebugBoxDesc& desc);
     void                    Draw_DebugSphere(const DebugSphereDesc& desc);

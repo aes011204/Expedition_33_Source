@@ -1,8 +1,10 @@
 ﻿
 #include "BT_View.h"
+#include "BT_Inspector.h"
 
 #include "EditorInstance.h"
-
+#include "TypeRegistry.h"
+#include "GameInstance.h"
 
 
 
@@ -17,7 +19,7 @@ BT_View::~BT_View()
 
 HRESULT BT_View::Initialize()
 {
-     //_btView = BT_Inspector::Create();
+     _btView = BT_Inspector::Create();
      Recreate_EditorContext();
     //Create_Node();
     return S_OK;
@@ -32,62 +34,10 @@ void BT_View::Inspactor()
 {
     EditorNode* node = FindNodeById(_selectedNodeId);
 
-    if (!node)
-    {
-        ImGui::Text("No node selected");
-    }
-    else
-    {
-        ImGui::Text("Selected Node");
-        ImGui::Separator();
+    if (_btView == nullptr)
+        _btView = BT_Inspector::Create();
 
-
-        if (ImGui::InputText("Name", node->titleBuffer, sizeof(node->titleBuffer)))
-        {
-            node->title = node->titleBuffer;
-        }
-
-        ImGui::Text("Type: %d", (int)node->type);
-
-        ImGui::Separator();
-
-        switch (node->type)
-        {
-        case NodeType::Selector:
-            {
-                
-            ImGui::Text("Selector Node");
-            break;
-            }
-
-        case NodeType::Sequence:
-            {
-            ImGui::Text("Sequence Node");
-            break;
-                
-            }
-
-        case NodeType::Task:
-            {
-            ImGui::Text("Task Node");
-
-            static int damage = 10;
-            ImGui::InputInt("Damage", &damage);
-            break;
-                
-            }
-
-        case NodeType::Condition:
-            {
-            ImGui::Text("Condition Node");
-
-            static bool flag = true;
-            ImGui::Checkbox("Condition", &flag);
-            break;
-                
-            }
-        }
-    }
+    _btView->Draw_Inspector(node);
 }
 
 
@@ -218,7 +168,7 @@ void BT_View::Render()
             ImGui::Separator();
             //
             Inspactor();
-            ImGui::Text("No node selected");
+            
         }
         ImGui::EndChild();
 
@@ -240,11 +190,8 @@ void BT_View::Render()
 
 }
 
-
 void BT_View::Create_Node(NodeType type)
 {
-
-
     //// Selector
     //EditorNode selector;
     //selector.type = NodeType::Selector;
@@ -286,6 +233,9 @@ void BT_View::Create_Node(NodeType type)
     case NodeType::Task:
         node.title = "Task";
         break;
+    case NodeType::Decorator:
+        node.title = "Decorator";
+        break;
     }
     strcpy_s(node.titleBuffer, node.title.c_str());
 
@@ -293,8 +243,36 @@ void BT_View::Create_Node(NodeType type)
 
     _nodes.push_back(node);
 
-    
+
     ed::SetNodePosition(node.id, _popupPos);
+}
+
+void BT_View::Create_Node(const string& className, const string& category)
+{
+    EditorNode node;
+
+    node.id = ed::NodeId(GenerateID());
+    node.inputPin = ed::PinId(GenerateID());
+    node.outputPin = ed::PinId(GenerateID());
+
+    node.className = className;
+    node.category = category;
+    node.isRuntimeBTNode = true;
+
+    node.title = className;
+    strcpy_s(node.titleBuffer, node.title.c_str());
+
+    if (category == "Task")
+        node.type = NodeType::Task;
+    else if (category == "Decorator" || category == "Condition")
+        node.type = NodeType::Decorator;
+    else
+        node.type = NodeType::Task;
+
+    node.position = _popupPos;
+
+    _nodes.push_back(node);
+    ed::SetNodePosition(node.id, node.position);
 }
 
 void BT_View::Create_NewBT()
@@ -325,6 +303,10 @@ void BT_View::Save_BT(const std::string& path)
         n["y"] = node.position.y;
         n["inputPin"] = (uint64_t)node.inputPin.Get();
         n["outputPin"] = (uint64_t)node.outputPin.Get();
+
+        n["className"] = node.className;
+        n["category"] = node.category;
+        n["isRuntimeBTNode"] = node.isRuntimeBTNode;
 
         j["nodes"].push_back(n);
     }
@@ -387,6 +369,10 @@ void BT_View::Load_BT(const std::string& path)
         node.outputPin = ed::PinId(n["outputPin"].get<uint64_t>());
 
         strcpy_s(node.titleBuffer, node.title.c_str());
+
+        node.className = n.value("className", "");
+        node.category = n.value("category", "");
+        node.isRuntimeBTNode = n.value("isRuntimeBTNode", false);
 
         _nodes.push_back(node);
     }
@@ -688,7 +674,7 @@ return _idCounter++;
 }
 
 
-BT_View::EditorNode* BT_View::FindNodeByPin(ed::PinId pin)
+EditorNode* BT_View::FindNodeByPin(ed::PinId pin)
 {
     for (auto& node : _nodes)
     {
@@ -701,7 +687,9 @@ BT_View::EditorNode* BT_View::FindNodeByPin(ed::PinId pin)
 
 bool BT_View::CanNodeHaveChildren(NodeType type) const
 {
-    return type == NodeType::Selector || type == NodeType::Sequence;
+    return type == NodeType::Selector
+        || type == NodeType::Sequence
+        || type == NodeType::Decorator;
 }
 
 bool BT_View::IsInputPin(ed::PinId pin) const
@@ -838,8 +826,29 @@ void BT_View::Handle_CreateNodePopup()
         if (ImGui::MenuItem("Sequence"))
             Create_Node(NodeType::Sequence);
 
-        if (ImGui::MenuItem("Task"))
-            Create_Node(NodeType::Task);
+        map<string, vector<string>> groupedNodes;
+
+        GAME->Visit_BTNodeTypes([&](const TypeRegistry::BTNodeTypeInfo& info)
+            {
+                if (info.nodeCategory != "Task" && info.nodeCategory != "Decorator")
+                    return;
+
+                groupedNodes[info.nodeCategory].push_back(info.className);
+            });
+
+        for (auto& [category, classNames] : groupedNodes)
+        {
+            if (ImGui::BeginMenu(category.c_str()))
+            {
+                for (const auto& className : classNames)
+                {
+                    if (ImGui::MenuItem(className.c_str()))
+                        Create_Node(className, category);
+                }
+
+                ImGui::EndMenu();
+            }
+        }
 
         ImGui::EndPopup();
     }
@@ -847,7 +856,7 @@ void BT_View::Handle_CreateNodePopup()
     ed::Resume();
 }
 
-BT_View::EditorNode* BT_View::FindNodeById(ed::NodeId id)
+EditorNode* BT_View::FindNodeById(ed::NodeId id)
 {
     for (auto& node : _nodes)
     {

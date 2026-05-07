@@ -1,19 +1,24 @@
 ﻿#pragma once
-#include "Editor_Window.h"
+#include "Base.h"
+
 NS_BEGIN(MainEditor)
 
+struct EditorNode;
+
+
 class BT_Inspector :
-    public Editor_Window
+    public Base
 {
 public:
-    BT_Inspector();
+    BT_Inspector() ;
     virtual ~BT_Inspector();
 
+public:
+    void Draw_Inspector(EditorNode* node);
 
 public:
-
     static Shared<BT_Inspector> Create();
-    virtual void Free();
+    void Free() override;
 };
 
 NS_END

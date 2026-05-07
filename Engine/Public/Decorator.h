@@ -5,6 +5,8 @@ NS_BEGIN(Engine)
 class ENGINE_DLL Decorator :
     public BNode
 {
+
+
 public:
     Decorator();
     virtual ~Decorator();

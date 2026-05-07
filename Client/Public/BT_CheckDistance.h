@@ -4,6 +4,8 @@ NS_BEGIN(Client)
 class BT_CheckDistance :
     public Decorator
 {
+    GENERATED_BTNODE(BT_CheckDistance, "Decorator")
+
 public:
     BT_CheckDistance();
     virtual ~BT_CheckDistance();
