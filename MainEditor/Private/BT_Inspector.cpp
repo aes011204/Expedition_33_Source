@@ -58,6 +58,15 @@ void BT_Inspector::Draw_Inspector(EditorNode* node)
     default:
         break;
     }
+
+    ImGui::Text("Class : %s", node->className.empty() ? "(Builtin)" : node->className.c_str());
+    ImGui::Text("Category : %s", node->category.empty() ? "(None)" : node->category.c_str());
+
+    if (node->runtimeNode != nullptr)
+    {
+        auto& info = node->runtimeNode->Get_ReflectionInfo();
+        Inspector::Draw_ReflectionSection(info.className, node->runtimeNode.get(), info);
+    }
 }
 Shared<BT_Inspector> BT_Inspector::Create()
 {

@@ -40,10 +40,10 @@ HRESULT Mon_AIController::Initialize(void* arg)
 
     auto select = Selector::Create();
 
-    auto deco = BT_CheckDistance::Create(5.f , true);
+    auto deco = BT_CheckDistance::Create(5.f, BT_CheckDistance::EDistanceCondition::LessThan);
     deco->Set_Child(attack);
 
-    auto deco2 = BT_CheckDistance::Create(5.f, false);
+    auto deco2 = BT_CheckDistance::Create(5.f, BT_CheckDistance::EDistanceCondition::Between, 20.f);
     deco2->Set_Child(moveTo);
 
 

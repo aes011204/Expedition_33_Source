@@ -1,11 +1,10 @@
 ﻿
 #include "BT_View.h"
-#include "BT_Inspector.h"
-
 #include "EditorInstance.h"
 #include "TypeRegistry.h"
 #include "GameInstance.h"
-
+#include "BNode.h"
+#include "Inspector.h"
 
 
 BT_View::BT_View() : Editor_Window(L"BT View")
@@ -19,7 +18,6 @@ BT_View::~BT_View()
 
 HRESULT BT_View::Initialize()
 {
-     _btView = BT_Inspector::Create();
      Recreate_EditorContext();
     //Create_Node();
     return S_OK;
@@ -34,10 +32,66 @@ void BT_View::Inspactor()
 {
     EditorNode* node = FindNodeById(_selectedNodeId);
 
-    if (_btView == nullptr)
-        _btView = BT_Inspector::Create();
+    if (node == nullptr)
+    {
+        ImGui::Text("No node selected");
+        return;
+    }
 
-    _btView->Draw_Inspector(node);
+    ImGui::Text("Selected Node");
+    ImGui::Separator();
+
+    if (ImGui::InputText("Name", node->titleBuffer, sizeof(node->titleBuffer)))
+    {
+        node->title = node->titleBuffer;
+    }
+
+    ImGui::Text("Type: %d", static_cast<int>(node->type));
+
+    if (!node->className.empty())
+        ImGui::Text("Class : %s", node->className.c_str());
+
+    if (!node->category.empty())
+        ImGui::Text("Category : %s", node->category.c_str());
+
+    ImGui::Separator();
+
+    if (node->runtimeNode != nullptr)
+    {
+        Engine::ClassReflectionInfo& info = node->runtimeNode->Get_ReflectionInfo();
+        Inspector::Draw_ReflectionSection(info.className, node->runtimeNode.get(), info);
+        return;
+    }
+
+    switch (node->type)
+    {
+    case NodeType::Selector:
+        ImGui::Text("Selector Node");
+        break;
+
+    case NodeType::Sequence:
+        ImGui::Text("Sequence Node");
+        break;
+
+    case NodeType::Task:
+    {
+        ImGui::Text("Task Node");
+        static int damage = 10;
+        ImGui::InputInt("Damage", &damage);
+        break;
+    }
+
+    case NodeType::Decorator:
+    {
+        ImGui::Text("Decorator Node");
+        static bool flag = true;
+        ImGui::Checkbox("Condition", &flag);
+        break;
+    }
+
+    default:
+        break;
+    }
 }
 
 
@@ -271,6 +325,9 @@ void BT_View::Create_Node(const string& className, const string& category)
 
     node.position = _popupPos;
 
+    node.runtimeNode = dynamic_pointer_cast<Engine::BNode>(
+        GAME->Create_BTNodePrototype(className));
+
     _nodes.push_back(node);
     ed::SetNodePosition(node.id, node.position);
 }
@@ -370,8 +427,15 @@ void BT_View::Load_BT(const std::string& path)
 
         strcpy_s(node.titleBuffer, node.title.c_str());
 
-        node.className = n.value("className", "");
-        node.category = n.value("category", "");
+        node.className = n.value("className", std::string{});
+
+        if (!node.className.empty())
+        {
+            node.runtimeNode = dynamic_pointer_cast<Engine::BNode>(
+                GAME->Create_BTNodePrototype(node.className));
+        }
+
+        node.category = n.value("category", std::string{});
         node.isRuntimeBTNode = n.value("isRuntimeBTNode", false);
 
         _nodes.push_back(node);
@@ -408,6 +472,9 @@ void BT_View::Load_BT(const std::string& path)
 
     _currentFileName = fs::path(path).filename().string();
     strcpy_s(_saveFileName, _currentFileName.c_str());
+
+
+
 
     _pendingContextRebuild = true;
     _needsInitialNodePlacement = true;
@@ -674,7 +741,7 @@ return _idCounter++;
 }
 
 
-EditorNode* BT_View::FindNodeByPin(ed::PinId pin)
+BT_View::EditorNode* BT_View::FindNodeByPin(ed::PinId pin)
 {
     for (auto& node : _nodes)
     {
@@ -856,7 +923,7 @@ void BT_View::Handle_CreateNodePopup()
     ed::Resume();
 }
 
-EditorNode* BT_View::FindNodeById(ed::NodeId id)
+BT_View::EditorNode* BT_View::FindNodeById(ed::NodeId id)
 {
     for (auto& node : _nodes)
     {

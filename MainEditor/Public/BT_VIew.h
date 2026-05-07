@@ -4,42 +4,45 @@
 namespace Engine
 {
     class BehaviorTree;
+    class BNode;
 }
 namespace ed = ax::NodeEditor;
 
 NS_BEGIN(MainEditor)
 
-enum class NodeType { Selector, Sequence, Task, Decorator };
-enum class PinType { Input, Output };
-
-struct EditorNode
-{
-
-    NodeType type;
-    ed::NodeId id;
-
-    ed::PinId inputPin;
-    ed::PinId outputPin;
-
-    PinType inputType = PinType::Input;
-    PinType outputType = PinType::Output;
-
-    std::string title;
-
-    ImVec2 position;
-
-    char titleBuffer[128];
-
-    std::string className;
-    std::string category;
-    bool isRuntimeBTNode = false;
-};
 
     class BT_View : public Editor_Window
 {
 public:
 
 
+    enum class NodeType { Selector, Sequence, Task, Decorator };
+    enum class PinType { Input, Output };
+
+    struct EditorNode
+    {
+
+        NodeType type;
+        ed::NodeId id;
+
+        ed::PinId inputPin;
+        ed::PinId outputPin;
+
+        PinType inputType = PinType::Input;
+        PinType outputType = PinType::Output;
+
+        std::string title;
+
+        ImVec2 position;
+
+        char titleBuffer[128];
+
+        std::string className;
+        std::string category;
+        bool isRuntimeBTNode = false;
+
+        Shared<Engine::BNode> runtimeNode = nullptr;
+    };
    
 
     struct EditorLink
@@ -59,7 +62,6 @@ public:
 public:
     HRESULT Initialize() override;
     void    Update(float timeDelta) override;
-    void Inspactor();
     void Update_SelectedNode();
     void Recreate_EditorContext();
     //  void    Pre_Render() override;
@@ -69,6 +71,7 @@ public:
 
     uint64_t GenerateID();
 
+    void Inspactor();
 
     void Create_Node(NodeType type);
     void Create_Node(const string& className, const string& category);
@@ -114,7 +117,6 @@ private: // save , load
 
     string _path = "../../../Client/Bin/Resources/Data/json/BT/";
 private:// Editor
-    Shared <class BT_Inspector> _btView;
     ax::NodeEditor::EditorContext* _editorContext = {};
 
     vector<EditorNode> _nodes;
@@ -124,6 +126,8 @@ private:// Editor
     ImVec2 _popupPos;
 
     ed::NodeId _selectedNodeId;
+
+  
 private:// BT
 
     Weak<BehaviorTree> _debugTarget;
