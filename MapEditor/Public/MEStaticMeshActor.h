@@ -16,6 +16,7 @@ public:
 
 public:
     HRESULT Render(const Matrix& worldMatrix);
+    HRESULT RenderID(const Matrix& worldMatrix, uint32 id);
 
 private:
     Shared<ModelCom> _model;

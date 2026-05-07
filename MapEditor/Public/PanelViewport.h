@@ -35,6 +35,14 @@ private:
 
     Shared<SnapSettings> _snapSettings;
 
+    bool _pickRequested = false;
+    ImVec2 _pickMousePos = {};
+    ImVec2 _pickVpPos = {};
+    ImVec2 _pickVpSize = {};
+
+public:
+    bool ConsumePick(ImVec2& outMousePos, ImVec2& outVpPos, ImVec2& outVpSize);
+
 public:
     static Shared<PanelViewport> Create(Shared<MECamera> camera, Shared<RenderTarget> rt, SceneContext* ctx);
 };

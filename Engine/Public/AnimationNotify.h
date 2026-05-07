@@ -35,7 +35,7 @@ private:
     
 
 public:
-    static Shared<AnimationNotify> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
+    static Shared<AnimationNotify> Create();
     Shared<AnimationNotify> Clone();
     void Free() override;
 };

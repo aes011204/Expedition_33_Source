@@ -1,4 +1,5 @@
-﻿#pragma once
+﻿// MainEditor/Public/Inspector.h
+#pragma once
 
 #include "Editor_Window.h"
 
@@ -31,7 +32,13 @@ private:
     static void Draw_Components(const Shared<GameObject>& target);
     static void Draw_ObjectReflection(const Shared<GameObject>& target);
 
+    static bool Draw_Vec2PropertyRow(const string& idPrefix, const PropertyInfo& property, Vec2& value);
     static bool Draw_Vec3PropertyRow(const string& idPrefix, const PropertyInfo& property, Vec3& value);
+    static bool Draw_Vec4PropertyRow(const string& idPrefix, const PropertyInfo& property, Vec4& value);
+
+    static bool Draw_ColorPropertyRow(const string& idPrefix, Vec4& value);
+    static bool Draw_EnumPropertyRow(const string& idPrefix, const PropertyInfo& property, int& value);
+
     static bool Draw_VecAxis(const char* axisLabel, const ImVec4& color, float& value, float speed, const string& uniqueId, float width);
 
 private:
