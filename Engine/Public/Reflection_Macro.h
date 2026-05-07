@@ -120,11 +120,46 @@ public:                                                                         
         STRINGIZE(Member), DisplayName, STRINGIZE(Member),                         \
         Engine::PropertyType::Bool, offsetof(SelfType, Member) })
 
+#define PROPERTY_VEC2(DisplayName, Member, DragSpeed)                              \
+    info.properties.push_back(Engine::PropertyInfo{                                \
+        STRINGIZE(Member), DisplayName, STRINGIZE(Member),                         \
+        Engine::PropertyType::Vec2, offsetof(SelfType, Member),                    \
+        0.f, 0.f, DragSpeed })
+
 #define PROPERTY_VEC3(DisplayName, Member, DragSpeed)                              \
     info.properties.push_back(Engine::PropertyInfo{                                \
         STRINGIZE(Member), DisplayName, STRINGIZE(Member),                         \
         Engine::PropertyType::Vec3, offsetof(SelfType, Member),                    \
         0.f, 0.f, DragSpeed })
+
+#define PROPERTY_VEC4(DisplayName, Member, DragSpeed)                              \
+    info.properties.push_back(Engine::PropertyInfo{                                \
+        STRINGIZE(Member), DisplayName, STRINGIZE(Member),                         \
+        Engine::PropertyType::Vec4, offsetof(SelfType, Member),                    \
+        0.f, 0.f, DragSpeed })
+
+#define PROPERTY_COLOR(DisplayName, Member)                                        \
+    info.properties.push_back(Engine::PropertyInfo{                                \
+        STRINGIZE(Member), DisplayName, STRINGIZE(Member),                         \
+        Engine::PropertyType::Color, offsetof(SelfType, Member),                   \
+        0.f, 1.f, 0.01f })
+
+#define PROPERTY_ENUM(DisplayName, Member, EnumType)                               \
+    {                                                                              \
+        Engine::PropertyInfo prop{};                                               \
+        prop.name = STRINGIZE(Member);                                             \
+        prop.displayName = DisplayName;                                            \
+        prop.jsonKey = STRINGIZE(Member);                                          \
+        prop.type = Engine::PropertyType::Enum;                                    \
+        prop.offset = offsetof(SelfType, Member);                                  \
+        auto entries = magic_enum::enum_entries<EnumType>();                       \
+        for (const auto& [enumValue, enumName] : entries)                          \
+        {                                                                          \
+            prop.enumNames.push_back(string(enumName));                            \
+            prop.enumValues.push_back(static_cast<int>(enumValue));                \
+        }                                                                          \
+        info.properties.push_back(std::move(prop));                                \
+    }
 
 #define PROPERTY_STRING(DisplayName, Member)                                       \
     info.properties.push_back(Engine::PropertyInfo{                                \
