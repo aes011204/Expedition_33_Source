@@ -34,6 +34,7 @@ void DrawKeyMarkers(
     bool* consumedKeyClick,
     bool* requestOpenKeyPopup,
     bool* requestOpenInsertPopup,
+    bool* requestRemoveKeyPopup,
     int* contextTrackIndex,
     int* contextFrame,
     int index,
@@ -94,6 +95,13 @@ void DrawKeyMarkers(
 
             g_keyDragState.trackIndex = index;
             g_keyDragState.keyIndex = keyIndex;
+        }
+
+        if(isHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Right))
+        {
+            if(requestRemoveKeyPopup != nullptr)
+                *requestRemoveKeyPopup = true;
+
         }
 
         if (isHovered && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
@@ -183,6 +191,7 @@ CinematicSequencerAdapter::CinematicSequencerAdapter(
     bool* consumedKeyClick,
     bool* requestOpenKeyPopup,
     bool* requestOpenInsertPopup,
+    bool* requestRemoveKeyPopup,
     int* contextTrackIndex,
     int* contextFrame)
     : _sequence(sequence)
@@ -192,6 +201,7 @@ CinematicSequencerAdapter::CinematicSequencerAdapter(
     , _consumedKeyClick(consumedKeyClick)
     , _requestOpenKeyPopup(requestOpenKeyPopup)
     , _requestOpenInsertPopup(requestOpenInsertPopup)
+    , _requestRemoveKeyPopup(requestRemoveKeyPopup)
     , _contextTrackIndex(contextTrackIndex)
     , _contextFrame(contextFrame)
 {
@@ -268,6 +278,7 @@ void CinematicSequencerAdapter::CustomDraw(int index, ImDrawList* draw_list, con
         _consumedKeyClick,
         _requestOpenKeyPopup,
         _requestOpenInsertPopup,
+        _requestRemoveKeyPopup,
         _contextTrackIndex,
         _contextFrame,
         index,
@@ -287,6 +298,7 @@ void CinematicSequencerAdapter::CustomDrawCompact(int index, ImDrawList* draw_li
         _consumedKeyClick,
         _requestOpenKeyPopup,
         _requestOpenInsertPopup,
+        _requestRemoveKeyPopup,
         _contextTrackIndex,
         _contextFrame,
         index,

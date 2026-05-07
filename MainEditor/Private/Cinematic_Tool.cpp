@@ -108,6 +108,7 @@ void Cinematic_Tool::Render_RightPanel()
     Render_TrackList();
     Render_KeyframeList();
     Render_LoadSequencePopup();
+    Render_RemoveKeyframePopup();
 }
 
 void Cinematic_Tool::Render_SequenceSettings()
@@ -222,6 +223,7 @@ void Cinematic_Tool::Render_ImSequencer()
     bool consumedKeyClick = false;
     bool requestOpenKeyPopup = false;
     bool requestOpenInsertPopup = false;
+    bool requestRemoveKeyPopup = false;
     int sequencerSelectedTrackIndex = _selectedTrackIndex;
     const int previousFrame = _currentFrame;
     const int previousTrackIndex = _selectedTrackIndex;
@@ -235,6 +237,7 @@ void Cinematic_Tool::Render_ImSequencer()
         &consumedKeyClick,
         &requestOpenKeyPopup,
         &requestOpenInsertPopup,
+        &requestRemoveKeyPopup, 
         &_contextMenuTrackIndex,
         &_contextMenuFrame);
 
@@ -251,6 +254,9 @@ void Cinematic_Tool::Render_ImSequencer()
 
     if (requestOpenInsertPopup)
         _requestOpenInsertKeyPopup = true;
+
+    if(requestRemoveKeyPopup)
+        _requestRemoveKeyPopup = true;
 
     if (previousFrame != _currentFrame ||
         previousTrackIndex != _selectedTrackIndex ||
@@ -452,6 +458,48 @@ void Cinematic_Tool::Render_SelectedKeyframeEditor(CINEMATIC_KEYFRAME& keyframe)
         keyframe.interpolation = static_cast<InterpolationMode>(interpolationIndex);
         _isPreviewDirty = true;
     }
+
+    if(ImGui::Button("Overwrite Keyframe With Current Camera"))
+    {
+        ImGui::OpenPopup("Confirm Overwrite Keyframe");
+    }
+
+    if (ImGui::BeginPopupModal("Confirm Overwrite Keyframe", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+    {
+        ImGui::Text("Overwrite the selected keyframe with the current FreeCamera pose?");
+        ImGui::Separator();
+
+        if (ImGui::Button("Yes", ImVec2(120.f, 0.f)))
+        {
+            Shared<FreeCamera> freeCamera = Find_FreeCamera();
+            CINEMATIC_TRACK* selectedTrack = Get_SelectedTrack();
+
+            if (freeCamera != nullptr &&
+                selectedTrack != nullptr &&
+                _selectedKeyIndex >= 0 &&
+                _selectedKeyIndex < static_cast<int>(selectedTrack->keyframes.size()))
+            {
+                auto& keyframe = selectedTrack->keyframes[_selectedKeyIndex];
+                keyframe.camPose.farPlane = freeCamera->Get_Far();
+                keyframe.camPose.nearPlane = freeCamera->Get_Near();
+                keyframe.camPose.fovY = freeCamera->Get_FovY();
+                keyframe.camPose.position = freeCamera->Get_Transform()->Get_WorldPosition();
+                keyframe.camPose.rotation = freeCamera->Get_Transform()->Get_RotationEuler();
+
+                _isPreviewDirty = true;
+            }
+
+            ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::SameLine();
+
+        if (ImGui::Button("Cancel", ImVec2(120.f, 0.f)))
+            ImGui::CloseCurrentPopup();
+
+        ImGui::EndPopup();
+    }
+
 }
 
 void Cinematic_Tool::Render_SelectedKeyframePopup()
@@ -501,6 +549,36 @@ void Cinematic_Tool::Render_InsertKeyframePopup()
     if (ImGui::Button("Insert Keyframe Here"))
     {
         Insert_KeyframeAtFrame(_contextMenuTrackIndex, _contextMenuFrame);
+        ImGui::CloseCurrentPopup();
+    }
+
+    if (ImGui::Button("Cancel"))
+        ImGui::CloseCurrentPopup();
+
+    ImGui::EndPopup();
+}
+
+void Cinematic_Tool::Render_RemoveKeyframePopup()
+{
+    if(_requestRemoveKeyPopup)
+    {
+        ImGui::OpenPopup("Remove Keyframe");
+        _requestRemoveKeyPopup = false;
+    }
+
+    if(!ImGui::BeginPopup("Remove Keyframe"))
+        return;
+
+    
+    if (ImGui::Button("Remove Keyframe Here"))
+    {
+        
+        CINEMATIC_TRACK* selectedTrack = Get_SelectedTrack();
+
+        selectedTrack->keyframes.erase(selectedTrack->keyframes.begin()+_selectedKeyIndex);
+        _selectedKeyIndex = std::clamp(_selectedKeyIndex, -1, static_cast<int>(selectedTrack->keyframes.size()));
+        _isPreviewDirty = true;
+
         ImGui::CloseCurrentPopup();
     }
 

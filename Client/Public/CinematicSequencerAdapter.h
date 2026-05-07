@@ -14,6 +14,7 @@ public:
         bool* consumedKeyClick,
         bool* requestOpenKeyPopup,
         bool* requestOpenInsertPopup,
+        bool* requestRemoveKeyPopup, 
         int* contextTrackIndex,
         int* contextFrame);
 
@@ -35,6 +36,7 @@ private:
     bool* _consumedKeyClick = nullptr;
     bool* _requestOpenKeyPopup = nullptr;
     bool* _requestOpenInsertPopup = nullptr;
+    bool* _requestRemoveKeyPopup = nullptr;
     int* _contextTrackIndex = nullptr;
     int* _contextFrame = nullptr;
 };

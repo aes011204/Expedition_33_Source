@@ -31,6 +31,7 @@ private:
     void Render_RightPanel();
     void Render_SelectedKeyframePopup();
     void Render_InsertKeyframePopup();
+    void Render_RemoveKeyframePopup();
     void Render_PreviewState();
     void Render_LoadSequencePopup();
     void Render_ImSequencer();
@@ -62,6 +63,7 @@ private:
     int                                  _currentFrame = 0;
     bool                                 _requestOpenSelectedKeyPopup = false;
     bool                                 _requestOpenInsertKeyPopup = false;
+    bool                                 _requestRemoveKeyPopup = false;
     int                                  _contextMenuTrackIndex = -1;
     int                                  _contextMenuFrame = 0;
 
