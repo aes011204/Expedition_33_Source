@@ -27,7 +27,7 @@ public:
 private:
     EditorSelection _selection;
     EditorFocusRequest _focusRequest;
-    uint32 _selectionRevision = 0;
+    uint32 _selectionRevision{0};
 
 public:
     static Unique<Editor_Context> Create();

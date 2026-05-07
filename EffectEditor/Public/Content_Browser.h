@@ -46,6 +46,31 @@ public:
     void Render() override;
 
 private:
+    FFolderNode _rootFolder{};
+    FFolderNode* _currentFolder{nullptr};
+
+    filesystem::path _resourceRoot{};
+
+    float _leftPanelWidth{300.f};
+    float _thumbnailSize{64.f};
+    char _searchBuffer[128]{};
+    char _assetSearchBuffer[128]{};
+
+    vector<Shared<Texture>> _iconFiles{};
+    map<wstring, Shared<Texture>> _thumbnailCache{};
+    set<wstring> _noThumbnailPaths{};
+
+    set<wstring> _expandedFolders{};
+    vector<wstring> _folderHistory{};
+    int _folderHistoryIndex{-1};
+    bool _suppressHistoryRecord{false};
+
+    wstring _selectedFilePath{};
+
+    static constexpr const wchar_t* CONTENT_BROWSER_SETTINGS_PATH =
+        L"../../Client/Bin/Resources/Data/json/EditorSettings/ContentBrowser.json";
+
+private:
     void Refresh_Resources();
     void Refresh_CurrentFolder();
     void Load_Icons();
@@ -78,31 +103,6 @@ private:
     void Go_ForwardFolder();
     void Handle_SideButtonEvent();
     void Handle_ThumbnailZoom();
-
-private:
-    FFolderNode _rootFolder{};
-    FFolderNode* _currentFolder = nullptr;
-
-    filesystem::path _resourceRoot{};
-
-    float _leftPanelWidth = 300.f;
-    float _thumbnailSize = 64.f;
-    char _searchBuffer[128] = "";
-    char _assetSearchBuffer[128] = "";
-
-    vector<Shared<Texture>> _iconFiles{};
-    map<wstring, Shared<Texture>> _thumbnailCache{};
-    set<wstring> _noThumbnailPaths{};
-
-    set<wstring> _expandedFolders{};
-    vector<wstring> _folderHistory{};
-    int _folderHistoryIndex = -1;
-    bool _suppressHistoryRecord = false;
-
-    wstring _selectedFilePath{};
-
-    static constexpr const wchar_t* CONTENT_BROWSER_SETTINGS_PATH =
-        L"../../Client/Bin/Resources/Data/json/EditorSettings/ContentBrowser.json";
 
 public:
     static Shared<Content_Browser> Create();

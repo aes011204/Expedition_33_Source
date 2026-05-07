@@ -1,75 +1,76 @@
-#include "Console_View.h"
+﻿#include "Console_View.h"
 
 #include "GameInstance.h"
 
-namespace
+NS_BEGIN(EffectEditor)
+
+namespace Internal
 {
-string Strip_LogPrefix(const string& line)
-{
-    static constexpr const char* kLevels[] =
+    string Strip_LogPrefix(const string& line)
     {
-        "[trace]",
-        "[debug]",
-        "[info]",
-        "[warning]",
-        "[error]",
-        "[critical]",
-    };
-
-    for (const char* level : kLevels)
-    {
-        const size_t pos = line.find(level);
-        if (pos == string::npos)
-            continue;
-
-        string trimmed = line.substr(pos);
-
-        const size_t levelEnd = trimmed.find(']');
-        if (levelEnd == string::npos)
-            return trimmed;
-
-        trimmed.erase(0, levelEnd + 1);
-
-        while (!trimmed.empty() && trimmed.front() == ' ')
+        static constexpr const char* kLevels[] =
         {
-            trimmed.erase(trimmed.begin());
+            "[trace]",
+            "[debug]",
+            "[info]",
+            "[warning]",
+            "[error]",
+            "[critical]",
+        };
+
+        for (const char* level : kLevels)
+        {
+            const size_t pos = line.find(level);
+            if (pos == string::npos)
+                continue;
+
+            string trimmed = line.substr(pos);
+
+            const size_t levelEnd = trimmed.find(']');
+            if (levelEnd == string::npos)
+                return trimmed;
+
+            trimmed.erase(0, levelEnd + 1);
+
+            while (!trimmed.empty() && trimmed.front() == ' ')
+            {
+                trimmed.erase(trimmed.begin());
+            }
+
+            const size_t nextBlockBegin = trimmed.find('[');
+            if (nextBlockBegin == string::npos)
+                return trimmed;
+
+            const size_t nextBlockEnd = trimmed.find(']', nextBlockBegin + 1);
+            if (nextBlockEnd == string::npos)
+                return trimmed;
+
+            const string blockContent =
+                trimmed.substr(nextBlockBegin + 1, nextBlockEnd - nextBlockBegin - 1);
+
+            const bool isNumericBlock =
+                !blockContent.empty() &&
+                ranges::all_of(
+                    blockContent,
+                    [](unsigned char ch)
+                    {
+                        return isdigit(ch) != 0;
+                    }
+                );
+
+            if (!isNumericBlock)
+                return trimmed;
+
+            trimmed.erase(nextBlockBegin, nextBlockEnd - nextBlockBegin + 1);
+
+            if (nextBlockBegin < trimmed.size() && trimmed[nextBlockBegin] == ' ')
+                trimmed.erase(nextBlockBegin, 1);
+
+            return trimmed;
         }
 
-        const size_t nextBlockBegin = trimmed.find('[');
-        if (nextBlockBegin == string::npos)
-            return trimmed;
-
-        const size_t nextBlockEnd = trimmed.find(']', nextBlockBegin + 1);
-        if (nextBlockEnd == string::npos)
-            return trimmed;
-
-        const string blockContent =
-            trimmed.substr(nextBlockBegin + 1, nextBlockEnd - nextBlockBegin - 1);
-
-        const bool isNumericBlock =
-            !blockContent.empty() &&
-            all_of(
-                blockContent.begin(),
-                blockContent.end(),
-                [](unsigned char ch)
-                {
-                    return isdigit(ch) != 0;
-                }
-            );
-
-        if (!isNumericBlock)
-            return trimmed;
-
-        trimmed.erase(nextBlockBegin, nextBlockEnd - nextBlockBegin + 1);
-
-        if (nextBlockBegin < trimmed.size() && trimmed[nextBlockBegin] == ' ')
-            trimmed.erase(nextBlockBegin, 1);
-
-        return trimmed;
+        return line;
     }
-
-    return line;
-}
 }
 
 Console_View::Console_View()
@@ -132,7 +133,7 @@ void Console_View::Render()
                     continue;
 
                 ImGui::PushStyleColor(ImGuiCol_Text, Get_LogColor(log));
-                const string displayLine = Strip_LogPrefix(log.formattedLine);
+                const string displayLine = Internal::Strip_LogPrefix(log.formattedLine);
                 ImGui::TextUnformatted(displayLine.c_str());
                 ImGui::PopStyleColor();
             }
@@ -198,3 +199,5 @@ Shared<Console_View> Console_View::Create()
 {
     return make_shared<Console_View>();
 }
+
+NS_END

@@ -2,6 +2,8 @@
 #include "ImGui_Manager.h"
 #include "GameInstance.h"
 
+NS_BEGIN(EffectEditor)
+
 ImGui_Manager::~ImGui_Manager()
 {
 }
@@ -201,3 +203,5 @@ void ImGui_Manager::Free()
     ShutDown();
     __super::Free();
 }
+
+NS_END

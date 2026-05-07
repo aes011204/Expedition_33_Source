@@ -1,34 +1,33 @@
 ﻿#include "Content_Browser.h"
 
+#include <fstream>
+#include <shellapi.h>
 #include "EffectEditorInstance.h"
 #include "GameInstance.h"
 #include "Helper_String.h"
 #include "Texture.h"
 
-#include <fstream>
-#include <shellapi.h>
+NS_BEGIN(EffectEditor)
 
-namespace fs = std::filesystem;
-
-namespace EffectEditor::Internal
+namespace Internal
 {
-static string ToLowerCopy(string value)
-{
-    ranges::transform(value, value.begin(), ::tolower);
-    return value;
-}
+    static string ToLowerCopy(string value)
+    {
+        ranges::transform(value, value.begin(), ::tolower);
+        return value;
+    }
 
-static ImTextureID ToImTextureId(const Shared<Texture>& texture)
-{
-    if (texture == nullptr)
-        return static_cast<ImTextureID>(0);
+    static ImTextureID ToImTextureId(const Shared<Texture>& texture)
+    {
+        if (texture == nullptr)
+            return static_cast<ImTextureID>(0);
 
-    const auto& srvs = texture->Get_SRVs();
-    if (srvs.empty() || srvs[0] == nullptr)
-        return static_cast<ImTextureID>(0);
+        const auto& srvs = texture->Get_SRVs();
+        if (srvs.empty() || srvs[0] == nullptr)
+            return static_cast<ImTextureID>(0);
 
-    return static_cast<ImTextureID>(reinterpret_cast<intptr_t>(srvs[0].Get()));
-}
+        return static_cast<ImTextureID>(reinterpret_cast<intptr_t>(srvs[0].Get()));
+    }
 }
 
 Content_Browser::Content_Browser()
@@ -804,3 +803,5 @@ void Content_Browser::Free()
 {
     __super::Free();
 }
+
+NS_END

@@ -5,6 +5,8 @@
 #include "GameInstance.h"
 #include "GameObject.h"
 
+NS_BEGIN(EffectEditor)
+
 Hierarchy_View::Hierarchy_View()
     : Editor_Window{ L"Hierarchy" }
 {
@@ -258,3 +260,5 @@ void Hierarchy_View::Free()
     _groupedObjects.clear();
     Editor_Window::Free();
 }
+
+NS_END

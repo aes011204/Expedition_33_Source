@@ -193,6 +193,13 @@ static LRESULT CALLBACK EffectEditor_WndProc(HWND hWnd, UINT message, WPARAM wPa
         PostQuitMessage(0);
         return 0;
 
+    case WM_MOUSEWHEEL:
+    {
+        const float wheel = static_cast<float>(GET_WHEEL_DELTA_WPARAM(wParam));
+        GAME->Set_MouseWheel(wheel);
+        break;
+    }
+
     case WM_DESTROY:
         PostQuitMessage(0);
         return 0;

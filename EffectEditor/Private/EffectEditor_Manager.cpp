@@ -1,8 +1,10 @@
-#include "EffectEditor_Manager.h"
+﻿#include "EffectEditor_Manager.h"
 
 #include "Console_View.h"
 #include "Content_Browser.h"
+#include "CurveEditor_View.h"
 #include "Editor_Window.h"
+#include "Emitter_View.h"
 #include "EffectEditorInstance.h"
 #include "GameInstance.h"
 #include "Game_View.h"
@@ -10,6 +12,8 @@
 #include "Inspector.h"
 #include "Profile_View.h"
 #include "Scene_View.h"
+
+NS_BEGIN(EffectEditor)
 
 EffectEditor_Manager::~EffectEditor_Manager()
 {
@@ -19,10 +23,16 @@ EffectEditor_Manager::~EffectEditor_Manager()
 HRESULT EffectEditor_Manager::Initialize()
 {
     Add_Window(Scene_View::Create());
-    Add_Window(Game_View::Create());
+    const Shared<Game_View> gameView = Game_View::Create();
+    if (gameView)
+        gameView->Set_Open(false);
+    Add_Window(gameView);
+
+    Add_Window(Emitter_View::Create());
     Add_Window(Hierarchy_View::Create());
     Add_Window(Content_Browser::Create());
     Add_Window(Inspector::Create());
+    Add_Window(CurveEditor_View::Create());
     Add_Window(Console_View::Create());
     Add_Window(Profile_View::Create());
 
@@ -215,10 +225,51 @@ void EffectEditor_Manager::Render_DockSpace()
     Render_RuntimeToolbar();
 
     ImGui::SetCursorPosY(toolbarHeight);
+    ImVec2 dockSpaceSize = ImGui::GetContentRegionAvail();
+    dockSpaceSize.x = max(1.f, dockSpaceSize.x);
+    dockSpaceSize.y = max(1.f, dockSpaceSize.y);
+
     const ImGuiID dockSpaceId = ImGui::GetID("EffectEditorDockSpaceId");
+    Build_DefaultDockLayout(dockSpaceId, dockSpaceSize);
     ImGui::DockSpace(dockSpaceId, ImVec2(0.f, 0.f), ImGuiDockNodeFlags_PassthruCentralNode);
 
     ImGui::End();
+}
+
+void EffectEditor_Manager::Build_DefaultDockLayout(ImGuiID dockSpaceId, ImVec2 dockSpaceSize)
+{
+    if (_defaultDockLayoutBuilt)
+        return;
+
+    _defaultDockLayoutBuilt = true;
+
+    if (nullptr != ImGui::DockBuilderGetNode(dockSpaceId))
+        return;
+
+    ImGui::DockBuilderRemoveNode(dockSpaceId);
+    ImGui::DockBuilderAddNode(dockSpaceId, ImGuiDockNodeFlags_DockSpace);
+    ImGui::DockBuilderSetNodeSize(dockSpaceId, dockSpaceSize);
+
+    ImGuiID rightDockId = dockSpaceId;
+    const ImGuiID leftDockId = ImGui::DockBuilderSplitNode(rightDockId, ImGuiDir_Left, 0.30f, nullptr, &rightDockId);
+
+    ImGuiID sceneDockId = leftDockId;
+    const ImGuiID detailDockId = ImGui::DockBuilderSplitNode(sceneDockId, ImGuiDir_Down, 0.60f, nullptr, &sceneDockId);
+
+    ImGuiID emitterDockId = rightDockId;
+    const ImGuiID consoleDockId = ImGui::DockBuilderSplitNode(emitterDockId, ImGuiDir_Down, 0.16f, nullptr, &emitterDockId);
+    const ImGuiID browserDockId = ImGui::DockBuilderSplitNode(emitterDockId, ImGuiDir_Down, 0.36f, nullptr, &emitterDockId);
+
+    ImGui::DockBuilderDockWindow("Scene", sceneDockId);
+    ImGui::DockBuilderDockWindow("Inspector", detailDockId);
+    ImGui::DockBuilderDockWindow("Hierarchy", detailDockId);
+    ImGui::DockBuilderDockWindow("Profile", detailDockId);
+    ImGui::DockBuilderDockWindow("Emitter", emitterDockId);
+    ImGui::DockBuilderDockWindow("Content Browser", browserDockId);
+    ImGui::DockBuilderDockWindow("Curve Editor", browserDockId);
+    ImGui::DockBuilderDockWindow("Console", consoleDockId);
+
+    ImGui::DockBuilderFinish(dockSpaceId);
 }
 
 void EffectEditor_Manager::Handle_Shortcuts()
@@ -420,3 +471,5 @@ Unique<EffectEditor_Manager> EffectEditor_Manager::Create()
 void EffectEditor_Manager::Free()
 {
 }
+
+NS_END

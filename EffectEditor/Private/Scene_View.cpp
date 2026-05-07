@@ -1,90 +1,138 @@
 ﻿#include "Scene_View.h"
 
 #include "Camera.h"
+#include "EffectEditorCamera.h"
 #include "Editor_Context.h"
 #include "EffectEditorInstance.h"
 #include "GameInstance.h"
 #include "GameObject.h"
 #include "RenderTarget.h"
 
-namespace EffectEditor::Internal
-{
-struct ViewportImageRect
-{
-    ImVec2 imageMin;
-    ImVec2 imageMax;
-};
+NS_BEGIN(EffectEditor)
 
-struct OverlayRect
+namespace Internal
 {
-    ImVec2 min;
-    ImVec2 max;
-};
-
-static ViewportImageRect Compute_AspectFitRect(const ImVec2& canvasMin, const ImVec2& canvasSize, float aspect)
-{
-    if (aspect <= 0.f || canvasSize.x <= 1.f || canvasSize.y <= 1.f)
+    struct ViewportImageRect
     {
+        ImVec2 imageMin;
+        ImVec2 imageMax;
+    };
+
+    struct OverlayRect
+    {
+        ImVec2 min;
+        ImVec2 max;
+    };
+
+    static ViewportImageRect Compute_AspectFitRect(const ImVec2& canvasMin, const ImVec2& canvasSize, float aspect)
+    {
+        if (aspect <= 0.f || canvasSize.x <= 1.f || canvasSize.y <= 1.f)
+        {
+            return {
+                canvasMin,
+                ImVec2(canvasMin.x + canvasSize.x, canvasMin.y + canvasSize.y)
+            };
+        }
+
+        float imageWidth = canvasSize.x;
+        float imageHeight = imageWidth / aspect;
+
+        if (imageHeight > canvasSize.y)
+        {
+            imageHeight = canvasSize.y;
+            imageWidth = imageHeight * aspect;
+        }
+
+        const ImVec2 imageMin = ImVec2(
+            canvasMin.x + (canvasSize.x - imageWidth) * 0.5f,
+            canvasMin.y + (canvasSize.y - imageHeight) * 0.5f
+        );
+
         return {
-            canvasMin,
-            ImVec2(canvasMin.x + canvasSize.x, canvasMin.y + canvasSize.y)
+            imageMin,
+            ImVec2(imageMin.x + imageWidth, imageMin.y + imageHeight)
         };
     }
 
-    float imageWidth = canvasSize.x;
-    float imageHeight = imageWidth / aspect;
-
-    if (imageHeight > canvasSize.y)
+    static OverlayRect Compute_GizmoOverlayRect(const ImVec2& viewportMin, const ImVec2& viewportMax)
     {
-        imageHeight = canvasSize.y;
-        imageWidth = imageHeight * aspect;
+        const ImVec2 panelSize = ImVec2(360.f, 34.f);
+        const ImVec2 panelMin = ImVec2(viewportMax.x - panelSize.x - 16.f, viewportMin.y + 16.f);
+
+        return {
+            panelMin,
+            ImVec2(panelMin.x + panelSize.x, panelMin.y + panelSize.y)
+        };
     }
 
-    const ImVec2 imageMin = ImVec2(
-        canvasMin.x + (canvasSize.x - imageWidth) * 0.5f,
-        canvasMin.y + (canvasSize.y - imageHeight) * 0.5f
-    );
+    static OverlayRect Compute_ToolbarHandleRect(const ImVec2& viewportMin, const ImVec2& viewportMax)
+    {
+        const ImVec2 panelSize = ImVec2(44.f, 30.f);
+        const ImVec2 panelMin = ImVec2(viewportMax.x - panelSize.x - 16.f, viewportMin.y + 16.f);
 
-    return {
-        imageMin,
-        ImVec2(imageMin.x + imageWidth, imageMin.y + imageHeight)
-    };
-}
+        return {
+            panelMin,
+            ImVec2(panelMin.x + panelSize.x, panelMin.y + panelSize.y)
+        };
+    }
 
-static OverlayRect Compute_GizmoOverlayRect(const ImVec2& viewportMin, const ImVec2& viewportMax)
-{
-    const ImVec2 panelSize = ImVec2(360.f, 34.f);
-    const ImVec2 panelMin = ImVec2(viewportMax.x - panelSize.x - 16.f, viewportMin.y + 16.f);
+    static OverlayRect Compute_ToolbarPinRect(const ImVec2& viewportMin, const ImVec2& viewportMax)
+    {
+        const OverlayRect gizmoRect = Compute_GizmoOverlayRect(viewportMin, viewportMax);
+        const ImVec2 panelSize = ImVec2(28.f, 28.f);
+        const ImVec2 panelMin = ImVec2(gizmoRect.min.x - panelSize.x - 6.f, gizmoRect.min.y + 3.f);
 
-    return {
-        panelMin,
-        ImVec2(panelMin.x + panelSize.x, panelMin.y + panelSize.y)
-    };
-}
+        return {
+            panelMin,
+            ImVec2(panelMin.x + panelSize.x, panelMin.y + panelSize.y)
+        };
+    }
 
-static OverlayRect Compute_PreviewViewportOverlayRect(const ImVec2& viewportMin, const ImVec2& viewportMax)
-{
-    const ImVec2 panelSize = ImVec2(352.f, 34.f);
-    const ImVec2 panelMin = ImVec2(viewportMax.x - panelSize.x - 16.f, viewportMin.y + 58.f);
+    static OverlayRect Compute_PreviewViewportOverlayRect(const ImVec2& viewportMin, const ImVec2& viewportMax)
+    {
+        const ImVec2 panelSize = ImVec2(352.f, 34.f);
+        const ImVec2 panelMin = ImVec2(viewportMax.x - panelSize.x - 16.f, viewportMin.y + 58.f);
 
-    return {
-        panelMin,
-        ImVec2(panelMin.x + panelSize.x, panelMin.y + panelSize.y)
-    };
-}
+        return {
+            panelMin,
+            ImVec2(panelMin.x + panelSize.x, panelMin.y + panelSize.y)
+        };
+    }
 
-static bool Is_PointInRect(const ImVec2& point, const OverlayRect& rect)
-{
-    return point.x >= rect.min.x && point.x <= rect.max.x &&
-           point.y >= rect.min.y && point.y <= rect.max.y;
-}
+    static bool Is_PointInRect(const ImVec2& point, const OverlayRect& rect)
+    {
+        return point.x >= rect.min.x && point.x <= rect.max.x &&
+               point.y >= rect.min.y && point.y <= rect.max.y;
+    }
 
-static bool Is_MouseOverViewportOverlay(const ImVec2& viewportMin, const ImVec2& viewportMax)
-{
-    const ImVec2 mousePos = ImGui::GetIO().MousePos;
-    return Is_PointInRect(mousePos, Compute_GizmoOverlayRect(viewportMin, viewportMax)) ||
-           Is_PointInRect(mousePos, Compute_PreviewViewportOverlayRect(viewportMin, viewportMax));
-}
+    static bool Should_ShowToolbarOverlay(const ImVec2& viewportMin, const ImVec2& viewportMax, bool isPinned, bool isInteracting)
+    {
+        if (isPinned || isInteracting)
+            return true;
+
+        const ImVec2 mousePos = ImGui::GetIO().MousePos;
+        return Is_PointInRect(mousePos, Compute_ToolbarHandleRect(viewportMin, viewportMax)) ||
+               Is_PointInRect(mousePos, Compute_ToolbarPinRect(viewportMin, viewportMax)) ||
+               Is_PointInRect(mousePos, Compute_GizmoOverlayRect(viewportMin, viewportMax)) ||
+               Is_PointInRect(mousePos, Compute_PreviewViewportOverlayRect(viewportMin, viewportMax));
+    }
+
+    static bool Is_MouseOverViewportOverlay(
+        const ImVec2& viewportMin,
+        const ImVec2& viewportMax,
+        bool isToolbarPinned,
+        bool isToolbarInteracting)
+    {
+        const ImVec2 mousePos = ImGui::GetIO().MousePos;
+        if (Should_ShowToolbarOverlay(viewportMin, viewportMax, isToolbarPinned, isToolbarInteracting))
+        {
+            return Is_PointInRect(mousePos, Compute_ToolbarPinRect(viewportMin, viewportMax)) ||
+                   Is_PointInRect(mousePos, Compute_GizmoOverlayRect(viewportMin, viewportMax)) ||
+                   Is_PointInRect(mousePos, Compute_PreviewViewportOverlayRect(viewportMin, viewportMax));
+        }
+
+        return Is_PointInRect(mousePos, Compute_ToolbarHandleRect(viewportMin, viewportMax));
+    }
 }
 
 Scene_View::Scene_View()
@@ -118,14 +166,28 @@ void Scene_View::Render()
         ImGuizmo::SetDrawlist(ImGui::GetWindowDrawList());
 
         Render_ViewportCanvas();
+        Render_GridOverlay();
         Handle_FocusRequest();
         Render_SelectedObjectGizmo();
 
-        Render_GizmoOverlay();
-        Render_PreviewViewportOverlay();
+        Render_CameraAxisOverlay();
+        Render_ViewportToolbarOverlay();
+
+        const bool overlayBlocked =
+            Internal::Is_MouseOverViewportOverlay(
+                _viewportMin,
+                _viewportMax,
+                _isViewportToolbarPinned,
+                _isViewportToolbarInteracting
+            ) ||
+            ImGuizmo::IsOver() || ImGuizmo::IsUsing();
+        EDITOR->Set_SceneViewportInputState(_isViewportHovered, overlayBlocked);
     }
     else
+    {
+        EDITOR->Set_SceneViewportInputState(false, false);
         Set_Open(isOpen);
+    }
 
     ImGui::End();
 }
@@ -158,6 +220,166 @@ void Scene_View::Handle_GizmoShortcut()
 
     if (ImGui::IsKeyPressed(ImGuiKey_Space, false))
         _gizmoMode = _gizmoMode == ImGuizmo::LOCAL ? ImGuizmo::WORLD : ImGuizmo::LOCAL;
+}
+
+void Scene_View::Render_GridOverlay()
+{
+    const float viewportWidth = _viewportMax.x - _viewportMin.x;
+    const float viewportHeight = _viewportMax.y - _viewportMin.y;
+    if (viewportWidth <= 1.f || viewportHeight <= 1.f)
+        return;
+
+    const Matrix* viewMatrix = GAME->Get_Transform(D3DTS::View);
+    const Matrix* projMatrix = GAME->Get_Transform(D3DTS::Proj);
+    if (viewMatrix == nullptr || projMatrix == nullptr)
+        return;
+
+    Matrix gridMatrix = XMMatrixIdentity();
+
+    ImGuizmo::SetDrawlist(ImGui::GetWindowDrawList());
+    ImGuizmo::SetRect(_viewportMin.x, _viewportMin.y, viewportWidth, viewportHeight);
+    ImGuizmo::DrawGrid(
+        reinterpret_cast<float*>(const_cast<Matrix*>(viewMatrix)),
+        reinterpret_cast<float*>(const_cast<Matrix*>(projMatrix)),
+        reinterpret_cast<float*>(&gridMatrix),
+        1000.f
+    );
+}
+
+void Scene_View::Render_CameraAxisOverlay()
+{
+    const float viewportWidth = _viewportMax.x - _viewportMin.x;
+    const float viewportHeight = _viewportMax.y - _viewportMin.y;
+    if (viewportWidth <= 1.f || viewportHeight <= 1.f)
+        return;
+
+    const Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
+    if (activeCamera == nullptr)
+        return;
+
+    const Shared<TransformCom> cameraTransform = activeCamera->Get_Transform();
+    if (cameraTransform == nullptr)
+        return;
+
+    Vec3 cameraRight = cameraTransform->Get_WorldRight();
+    Vec3 cameraUp = cameraTransform->Get_WorldUp();
+    if (cameraRight.LengthSquared() <= 0.0001f || cameraUp.LengthSquared() <= 0.0001f)
+        return;
+
+    cameraRight.Normalize();
+    cameraUp.Normalize();
+
+    const ImVec2 origin = ImVec2(_viewportMin.x + 34.f, _viewportMax.y - 36.f);
+    const float axisLength = 28.f;
+
+    struct AxisDrawDesc
+    {
+        Vec3 worldAxis;
+        ImU32 color;
+        const char* label;
+    };
+
+    const AxisDrawDesc axes[] =
+    {
+        { Vec3::Right, IM_COL32(235, 72, 72, 255), "X" },
+        { Vec3::Up, IM_COL32(72, 220, 96, 255), "Y" },
+        { Vec3::Look, IM_COL32(78, 132, 245, 255), "Z" }
+    };
+
+    ImDrawList* drawList = ImGui::GetWindowDrawList();
+    drawList->AddCircleFilled(origin, 3.f, IM_COL32(220, 220, 220, 230));
+
+    for (const AxisDrawDesc& axis : axes)
+    {
+        ImVec2 screenDir = ImVec2(
+            axis.worldAxis.Dot(cameraRight),
+            -axis.worldAxis.Dot(cameraUp)
+        );
+
+        const float lengthSq = screenDir.x * screenDir.x + screenDir.y * screenDir.y;
+        if (lengthSq <= 0.0001f)
+            continue;
+
+        const float invLength = 1.f / sqrtf(lengthSq);
+        screenDir.x *= invLength;
+        screenDir.y *= invLength;
+
+        const ImVec2 axisEnd = ImVec2(
+            origin.x + screenDir.x * axisLength,
+            origin.y + screenDir.y * axisLength
+        );
+
+        drawList->AddLine(origin, axisEnd, axis.color, 2.f);
+        drawList->AddCircleFilled(axisEnd, 3.f, axis.color);
+        drawList->AddText(ImVec2(axisEnd.x + 4.f, axisEnd.y - 6.f), axis.color, axis.label);
+    }
+}
+
+void Scene_View::Render_ViewportToolbarOverlay()
+{
+    const float viewportWidth = _viewportMax.x - _viewportMin.x;
+    const float viewportHeight = _viewportMax.y - _viewportMin.y;
+    if (viewportWidth <= 1.f || viewportHeight <= 1.f)
+        return;
+
+    const bool showToolbar =
+        Internal::Should_ShowToolbarOverlay(
+            _viewportMin,
+            _viewportMax,
+            _isViewportToolbarPinned,
+            _isViewportToolbarInteracting
+        );
+    _isViewportToolbarInteracting = false;
+
+    ImDrawList* drawList = ImGui::GetWindowDrawList();
+    if (!showToolbar)
+    {
+        const Internal::OverlayRect handleRect = Internal::Compute_ToolbarHandleRect(_viewportMin, _viewportMax);
+
+        drawList->AddRectFilled(handleRect.min, handleRect.max, IM_COL32(36, 38, 42, 220), 6.f);
+        drawList->AddRect(handleRect.min, handleRect.max, IM_COL32(92, 96, 104, 255), 6.f);
+
+        ImGui::SetCursorScreenPos(ImVec2(handleRect.min.x + 5.f, handleRect.min.y + 4.f));
+        ImGui::PushID("ViewportToolbarHandle");
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(6.f, 3.f));
+        ImGui::Button("UI", ImVec2(34.f, 22.f));
+        _isViewportToolbarInteracting = ImGui::IsItemActive();
+        ImGui::PopStyleVar();
+        ImGui::PopID();
+        return;
+    }
+
+    const Internal::OverlayRect pinRect = Internal::Compute_ToolbarPinRect(_viewportMin, _viewportMax);
+
+    drawList->AddRectFilled(pinRect.min, pinRect.max, IM_COL32(36, 38, 42, 220), 6.f);
+    drawList->AddRect(pinRect.min, pinRect.max, IM_COL32(92, 96, 104, 255), 6.f);
+
+    ImGui::SetCursorScreenPos(ImVec2(pinRect.min.x + 3.f, pinRect.min.y + 3.f));
+    ImGui::PushID("ViewportToolbarPin");
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(5.f, 3.f));
+
+    const bool wasToolbarPinned = _isViewportToolbarPinned;
+    if (wasToolbarPinned)
+    {
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.79f, 0.56f, 0.18f, 1.f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.88f, 0.64f, 0.23f, 1.f));
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.09f, 0.09f, 0.09f, 1.f));
+    }
+
+    if (ImGui::Button("P", ImVec2(22.f, 22.f)))
+        _isViewportToolbarPinned = !_isViewportToolbarPinned;
+    _isViewportToolbarInteracting = _isViewportToolbarInteracting || ImGui::IsItemActive();
+
+    if (wasToolbarPinned)
+        ImGui::PopStyleColor(3);
+
+    ImGui::PopStyleVar();
+    ImGui::PopID();
+
+    Render_GizmoOverlay();
+    _isViewportToolbarInteracting = _isViewportToolbarInteracting || ImGui::IsAnyItemActive();
+    Render_PreviewViewportOverlay();
+    _isViewportToolbarInteracting = _isViewportToolbarInteracting || ImGui::IsAnyItemActive();
 }
 
 void Scene_View::Render_GizmoOverlay()
@@ -417,10 +639,17 @@ void Scene_View::Render_ViewportCanvas()
         drawList->AddRectFilled(canvasMin, canvasMax, IM_COL32(18, 20, 24, 255));
         drawList->AddRect(canvasMin, canvasMax, IM_COL32(55, 60, 70, 255));
 
-        if (Internal::Is_MouseOverViewportOverlay(imageRect.imageMin, imageRect.imageMax))
+        if (Internal::Is_MouseOverViewportOverlay(
+            imageRect.imageMin,
+            imageRect.imageMax,
+            _isViewportToolbarPinned,
+            _isViewportToolbarInteracting
+        ))
             ImGui::Dummy(_viewportSize);
         else
             ImGui::InvisibleButton("SceneViewportCanvas", _viewportSize);
+
+        _isViewportHovered = ImGui::IsItemHovered();
 
         const ImTextureID textureId =
             static_cast<ImTextureID>(reinterpret_cast<intptr_t>(pSRV));
@@ -434,10 +663,17 @@ void Scene_View::Render_ViewportCanvas()
         drawList->AddRectFilled(canvasMin, canvasMax, IM_COL32(18, 20, 24, 255));
         drawList->AddRect(canvasMin, canvasMax, IM_COL32(55, 60, 70, 255));
 
-        if (Internal::Is_MouseOverViewportOverlay(canvasMin, canvasMax))
+        if (Internal::Is_MouseOverViewportOverlay(
+            canvasMin,
+            canvasMax,
+            _isViewportToolbarPinned,
+            _isViewportToolbarInteracting
+        ))
             ImGui::Dummy(_viewportSize);
         else
             ImGui::InvisibleButton("SceneViewportCanvas", _viewportSize);
+
+        _isViewportHovered = ImGui::IsItemHovered();
 
         drawList->AddText(ImVec2(canvasMin.x + 12.f, canvasMin.y + 12.f), IM_COL32(210, 216, 224, 255), "Scene RenderTarget Missing");
         _viewportMin = canvasMin;
@@ -467,8 +703,14 @@ void Scene_View::Handle_FocusRequest()
     if (transform == nullptr)
         return;
 
-    const Vec3 focusTargetPosition = transform->Get_WorldPosition() + Vec3(0.f, 1.5f, -4.f);
-    GAME->Focus_FreeCameraOnPosition(focusTargetPosition);
+    EDITOR->Activate_PreviewCamera();
+
+    const Shared<EffectEditorCamera> previewCamera =
+        dynamic_pointer_cast<EffectEditorCamera>(GAME->Get_ActiveCamera());
+    if (previewCamera == nullptr)
+        return;
+
+    previewCamera->Request_Focus(transform->Get_WorldPosition());
 }
 
 void Scene_View::Render_SelectedObjectGizmo()
@@ -527,3 +769,5 @@ Shared<Scene_View> Scene_View::Create()
 {
     return make_shared<Scene_View>();
 }
+
+NS_END

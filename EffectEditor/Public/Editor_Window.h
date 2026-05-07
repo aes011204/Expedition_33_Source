@@ -34,10 +34,10 @@ public:
 
 protected:
     wstring _window;
-    bool _isOpen = true;
-    bool _isFocused = false;
-    bool _isDirty = false;
-    bool _isHovered = false;
+    bool _isOpen{true};
+    bool _isFocused{false};
+    bool _isDirty{false};
+    bool _isHovered{false};
 };
 
 NS_END

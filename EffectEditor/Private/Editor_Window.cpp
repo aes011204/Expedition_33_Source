@@ -1,5 +1,7 @@
 #include "Editor_Window.h"
 
+NS_BEGIN(EffectEditor)
+
 Editor_Window::Editor_Window(const wstring& windowName)
     : _window{ windowName }
 {
@@ -30,3 +32,5 @@ bool Editor_Window::CanSave() const
 void Editor_Window::Save()
 {
 }
+
+NS_END

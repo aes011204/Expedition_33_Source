@@ -1,5 +1,7 @@
 ﻿#include "Inspector.h"
 
+NS_BEGIN(EffectEditor)
+
 Inspector::Inspector()
     : Editor_Window{ L"Inspector" }
 {
@@ -39,3 +41,5 @@ void Inspector::Free()
 {
     __super::Free();
 }
+
+NS_END
