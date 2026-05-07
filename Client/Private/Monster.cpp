@@ -6,6 +6,8 @@
 #include "ShaderCom.h"
 #include "Bounding_OBB.h"
 #include "ColliderCom.h"
+#include "ClientInstance.h"
+#include "BlackBoard.h"
 
 IMPLEMENT_REFLECTION(Monster)
 {
@@ -67,7 +69,20 @@ void Monster::Update(float timeDelta)
 	if (true == _model->Play_Animation(timeDelta))
 		int a = 10;
 
-	_aiCtrl->Update(timeDelta);
+
+    if (_aiCtrl)
+    {
+        Shared<BlackBoard> bb = _aiCtrl->Get_BlackBoard();
+        Shared<GameObject> player = CLIENT->Find_Player(ETOI(LevelType::GamePlay));
+
+        if (bb && player)
+        {
+            const Vec3 playerPos = player->Get_Transform()->Get_Position();
+            bb->Set_Value("playerPos", playerPos);
+        }
+
+        _aiCtrl->Update(timeDelta);
+    }
 }
 
 void Monster::Late_Update(float fTimeDelta)
@@ -141,7 +156,7 @@ HRESULT Monster::Ready_Components()
     if (FAILED(__super::Add_Component(ETOI(LevelType::Static), TEXT("Com_AIController"), _aiCtrl)))
         return E_FAIL;
 
-   // _aiCtrl->Set_Owner(static_pointer_cast<Monster>(shared_from_this()));
+    _aiCtrl->Set_Owner(static_pointer_cast<Monster>(shared_from_this()));
 
     CHECK_FAILED(Ready_Collider(), E_FAIL);
 

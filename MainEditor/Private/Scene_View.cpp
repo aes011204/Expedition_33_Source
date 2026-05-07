@@ -513,7 +513,7 @@ void Scene_View::Render_ViewportCanvas()
                         (depthHeight / max(viewportHeight, 1.f)));
 
                     Vec3 worldPos{};
-                    if (GAME->Pick_WorldPosition(pixelPos, worldPos))
+                    //if (GAME->Pick_WorldPosition(pixelPos, worldPos))
                     {
                     worldPos.y += 0.1f;
 

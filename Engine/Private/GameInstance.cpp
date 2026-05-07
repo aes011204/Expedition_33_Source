@@ -161,7 +161,7 @@ HRESULT GameInstance::Draw()
 
     _levelManager->Render();
 
-    //CHECK_FAILED(Update_Picking(), E_FAIL);
+    CHECK_FAILED(Update_Picking(), E_FAIL);
 
 #ifdef _DEBUG
     // Collision Manager

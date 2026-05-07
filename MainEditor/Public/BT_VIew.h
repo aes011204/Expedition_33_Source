@@ -1,10 +1,13 @@
-#pragma once
+﻿#pragma once
 
 #include "Editor_Window.h"
 #include "Reflection_Types.h"
+#include <functional>
+#include <unordered_map>
 
 namespace Engine
 {
+    class AIController;
     class BehaviorTree;
     class BNode;
 }
@@ -39,6 +42,9 @@ public:
         bool isRuntimeBTNode = false;
 
         Shared<Engine::BNode> runtimeNode = nullptr;
+
+        bool isRoot = false;
+
     };
 
     struct EditorLink
@@ -103,6 +109,8 @@ public:
     void Draw_Blackboard();
     const char* BlackboardTypeToString(Engine::BlackboardValueType type) const;
 
+    EditorNode* FindRootNode();
+    void SetRootNode(EditorNode* newRoot);
 private: // save, load
     bool _openLoadPopup = false;
     bool _openSavePopup = false;
@@ -130,8 +138,15 @@ private: // Editor
     vector<BlackboardKey> _blackboardKeys;
 
 private: // BT
-    Weak<BehaviorTree> _debugTarget;
-    Weak<BehaviorTree> _pendingDebugTarget;
+    Weak<Engine::AIController> _debugAIController;
+    unordered_map<uint64, Engine::BTNodeState> _debugNodeStates;
+
+private:
+    void Draw_DebugTargetSelector();
+    void Refresh_DebugState();
+    void Visit_RuntimeNode(
+        const Shared<Engine::BNode>& node,
+        const function<void(const Shared<Engine::BNode>&)>& visitor);
 
 public:
     static Shared<BT_View> Create();

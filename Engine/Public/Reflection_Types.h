@@ -35,6 +35,13 @@ namespace Engine
         Vec3
     };
 
+    enum class BTNodeState
+    {
+        RUN,
+        SUCCESS,
+        FAILED
+    };
+
 
 
     struct PropertyInfo

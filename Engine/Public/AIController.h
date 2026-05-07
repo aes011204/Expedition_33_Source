@@ -30,7 +30,7 @@ public:
     void Stop_Move();
     HRESULT Load_BehaviorTreeAsset();
     HRESULT Reload_BehaviorTree();
-
+    void From_Json(const json& data);
 protected:
     shared_ptr<class BlackBoard> _BB = {};
     shared_ptr<class BehaviorTree> _BT = {};

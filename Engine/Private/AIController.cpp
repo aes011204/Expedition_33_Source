@@ -3,6 +3,7 @@
 #include "PathFollower.h"
 #include "BehaviorTree.h"
 #include "BlackBoard.h"
+#include "Composite.h"
 #include "Decorator.h"
 #include "GameObject.h"
 #include "Selector.h"
@@ -45,8 +46,8 @@ HRESULT AIController::Initialize(void* arg)
     CHECK_NULL(_BB, E_FAIL);
     CHECK_NULL(_PF, E_FAIL);
 
-    if (!_behaviorTreeAssetPath.empty())
-        CHECK_FAILED(Load_BehaviorTreeAsset(), E_FAIL);
+    //if (!_behaviorTreeAssetPath.empty())
+    //    CHECK_FAILED(Load_BehaviorTreeAsset(), E_FAIL);
 
     return S_OK;
 }
@@ -62,14 +63,21 @@ void AIController::Update(float timeDelta)
     if (_BT)
         _BT->Update(timeDelta);
 
+        Vec3 pos = Get_Owner()->Get_Transform()->Get_Position();
     if (_PF)
     {
-        Vec3 pos = Get_Owner()->Get_Transform()->Get_Position();
         _PF->Update(timeDelta, pos, 1.5f);
         Get_Owner()->Get_Transform()->Set_Position(pos);
     }
-}
 
+}
+void AIController::From_Json(const json& data)
+{
+	__super::From_Json(data);
+
+	if (!_behaviorTreeAssetPath.empty())
+		Load_BehaviorTreeAsset();
+}
 void AIController::Set_BehaviorTree(shared_ptr<BehaviorTree> tree)
 {
     _BT = tree;
@@ -159,6 +167,10 @@ Shared<BehaviorTree> AIController::Instantiate_BehaviorTreeJson(const fs::path& 
     if (!root.is_object() || !root.contains("nodes"))
         return nullptr;
 
+    uint64 rootNodeId = 0;
+    if (root.contains("rootNodeId"))
+        rootNodeId = root["rootNodeId"].get<uint64>();
+
     struct FLoadedNode
     {
         uint64 id = 0;
@@ -183,6 +195,7 @@ Shared<BehaviorTree> AIController::Instantiate_BehaviorTreeJson(const fs::path& 
         if (!loaded.runtimeNode)
             continue;
 
+        loaded.runtimeNode->Set_AssetNodeId(loaded.id);
         Restore_BTNodeProperties(loaded.runtimeNode, n);
 
         loadedNodes.emplace(loaded.id, loaded);
@@ -216,12 +229,23 @@ Shared<BehaviorTree> AIController::Instantiate_BehaviorTreeJson(const fs::path& 
     }
 
     Shared<BNode> rootNode = nullptr;
-    for (auto& [id, loaded] : loadedNodes)
+
+    if (rootNodeId != 0)
     {
-        if (!childNodeIds.contains(id))
+        auto rootIt = loadedNodes.find(rootNodeId);
+        if (rootIt != loadedNodes.end())
+            rootNode = rootIt->second.runtimeNode;
+    }
+
+    if (rootNode == nullptr)
+    {
+        for (auto& [id, loaded] : loadedNodes)
         {
-            rootNode = loaded.runtimeNode;
-            break;
+            if (!childNodeIds.contains(id))
+            {
+                rootNode = loaded.runtimeNode;
+                break;
+            }
         }
     }
 
