@@ -1,7 +1,8 @@
-﻿#include "pch.h"
+#include "pch.h"
 #include "UI_EditorApp.h"
+
 #include "GameInstance.h"
-#include "UI_Editor_Manager.h"
+#include "UI_Editor_Instance.h"
 
 namespace UIEditor
 {
@@ -17,66 +18,28 @@ namespace UIEditor
         if (FAILED(Create_DeviceObjects(hWnd)))
             return E_FAIL;
 
-        IMGUI_CHECKVERSION();
-        ImGui::CreateContext();
-
-        ImGuiIO& io = ImGui::GetIO();
-        io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-        io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-
-        ImFont* editorFont = io.Fonts->AddFontFromFileTTF(
-            "C:/Windows/Fonts/malgun.ttf",
-            18.0f,
-            nullptr,
-            io.Fonts->GetGlyphRangesKorean());
-        if (nullptr != editorFont)
-            io.FontDefault = editorFont;
-        else
-            io.Fonts->AddFontDefault();
-
-        ImGui::StyleColorsDark();
-
-        ImGui_ImplWin32_Init(hWnd);
-        ImGui_ImplDX11_Init(_device.Get(), _context.Get());
-
-        const wstring resourceRoot = []() -> wstring
+        const wstring resourceRoot = Resolve_ClientResourceRoot();
+        if (!resourceRoot.empty())
         {
-            vector<fs::path> startPaths;
-
-            wchar_t modulePath[MAX_PATH] = {};
-            if (0 != GetModuleFileNameW(nullptr, modulePath, MAX_PATH))
-                startPaths.push_back(fs::path(modulePath).parent_path());
-
-            startPaths.push_back(fs::current_path());
-
-            for (fs::path startPath : startPaths)
-            {
-                startPath = fs::absolute(startPath).lexically_normal();
-
-                for (fs::path currentPath = startPath; !currentPath.empty(); currentPath = currentPath.parent_path())
-                {
-                    const fs::path candidate = currentPath / L"Client" / L"Bin" / L"Resources";
-                    if (fs::exists(candidate) && fs::is_directory(candidate))
-                        return candidate.lexically_normal().wstring();
-
-                    if (currentPath == currentPath.parent_path())
-                        break;
-                }
-            }
-
-            return {};
-        }();
-
-        _assetManagerReady = !resourceRoot.empty() && SUCCEEDED(GAME->Initialize_AssetManager(resourceRoot));
-
-        _editorManager = UI_Editor_Manager::Create(_device, _context, _assetManagerReady);
-        if (nullptr == _editorManager)
-        {
-            if (_assetManagerReady)
-            {
+            _assetManagerReady = SUCCEEDED(GAME->Initialize_AssetManager(resourceRoot));
+            if (!_assetManagerReady)
                 GameInstance::DestroyInstance();
-                _assetManagerReady = false;
-            }
+        }
+
+        UI_EDITOR_DESC editorDesc {};
+        editorDesc.hWnd = _hWnd;
+        editorDesc.winMode = WinMode::Win;
+        editorDesc.assetManagerReady = _assetManagerReady;
+
+        if (FAILED(UI_EDITOR->Initialize_Editor(editorDesc, _device, _context)))
+        {
+            UI_Editor_Instance::DestroyInstance();
+            GameInstance::DestroyInstance();
+            _assetManagerReady = false;
+            Cleanup_RenderTarget();
+            _swapChain.Reset();
+            _context.Reset();
+            _device.Reset();
             return E_FAIL;
         }
 
@@ -89,29 +52,26 @@ namespace UIEditor
         if (!_initialized)
             return;
 
-        Begin_ImGuiFrame();
-
-        _editorManager->Render();
-
-        ImGui::Render();
+        UI_EDITOR->Update_Editor(0.f);
 
         constexpr float clearColor[4] = { 0.08f, 0.08f, 0.09f, 1.0f };
         _context->OMSetRenderTargets(1, _renderTargetView.GetAddressOf(), nullptr);
         _context->ClearRenderTargetView(_renderTargetView.Get(), clearColor);
-        ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+
+        UI_EDITOR->Render_Editor();
 
         const ImGuiIO& io = ImGui::GetIO();
         D3D11_VIEWPORT viewport = {};
         viewport.TopLeftX = 0.f;
         viewport.TopLeftY = 0.f;
-        viewport.Width = io.DisplaySize.x;
-        viewport.Height = io.DisplaySize.y;
+        viewport.Width = max(1.f, io.DisplaySize.x);
+        viewport.Height = max(1.f, io.DisplaySize.y);
         viewport.MinDepth = 0.f;
         viewport.MaxDepth = 1.f;
         _context->OMSetRenderTargets(1, _renderTargetView.GetAddressOf(), nullptr);
         _context->RSSetViewports(1, &viewport);
 
-        _editorManager->Render_FontPreviews();
+        UI_EDITOR->Render_FontPreviews();
 
         _swapChain->Present(1, 0);
     }
@@ -126,26 +86,29 @@ namespace UIEditor
             Create_RenderTarget();
     }
 
+    bool UI_EditorApp::Request_Close()
+    {
+        if (!_initialized)
+            return true;
+
+        return UI_EDITOR->Request_Close();
+    }
+
     void UI_EditorApp::Shutdown()
     {
         if (!_initialized)
             return;
 
-        _editorManager.reset();
-        if (_assetManagerReady)
-        {
-            GameInstance::DestroyInstance();
-            _assetManagerReady = false;
-        }
+        UI_Editor_Instance::DestroyInstance();
 
-        ImGui_ImplDX11_Shutdown();
-        ImGui_ImplWin32_Shutdown();
-        ImGui::DestroyContext();
+        GameInstance::DestroyInstance();
+        _assetManagerReady = false;
 
         Cleanup_RenderTarget();
         _swapChain.Reset();
         _context.Reset();
         _device.Reset();
+        _hWnd = nullptr;
         _initialized = false;
     }
 
@@ -200,10 +163,31 @@ namespace UIEditor
         return _device->CreateRenderTargetView(backBuffer.Get(), nullptr, _renderTargetView.GetAddressOf());
     }
 
-    void UI_EditorApp::Begin_ImGuiFrame()
+    wstring UI_EditorApp::Resolve_ClientResourceRoot() const
     {
-        ImGui_ImplDX11_NewFrame();
-        ImGui_ImplWin32_NewFrame();
-        ImGui::NewFrame();
+        vector<fs::path> startPaths;
+
+        wchar_t modulePath[MAX_PATH] = {};
+        if (0 != GetModuleFileNameW(nullptr, modulePath, MAX_PATH))
+            startPaths.push_back(fs::path(modulePath).parent_path());
+
+        startPaths.push_back(fs::current_path());
+
+        for (fs::path startPath : startPaths)
+        {
+            startPath = fs::absolute(startPath).lexically_normal();
+
+            for (fs::path currentPath = startPath; !currentPath.empty(); currentPath = currentPath.parent_path())
+            {
+                const fs::path candidate = currentPath / L"Client" / L"Bin" / L"Resources";
+                if (fs::exists(candidate) && fs::is_directory(candidate))
+                    return candidate.lexically_normal().wstring();
+
+                if (currentPath == currentPath.parent_path())
+                    break;
+            }
+        }
+
+        return {};
     }
 }

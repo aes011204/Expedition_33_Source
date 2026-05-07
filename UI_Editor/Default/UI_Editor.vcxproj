@@ -22,6 +22,8 @@
     <ClCompile Include="..\Private\SimpleMath.cpp" />
     <ClCompile Include="..\Private\UI_Content_Browser.cpp" />
     <ClCompile Include="..\private\UI_Editor_Manager.cpp" />
+    <ClCompile Include="..\Private\UI_Editor_ImGuiManager.cpp" />
+    <ClCompile Include="..\Private\UI_Editor_Instance.cpp" />
     <ClCompile Include="..\Private\UI_Editor_Utils.cpp" />
     <ClCompile Include="..\Private\UI_Editor_Window.cpp" />
     <ClCompile Include="..\Private\UI_Hierarchy_View.cpp" />
@@ -42,14 +44,27 @@
     <ClInclude Include="..\Public\UI_Document.h" />
     <ClInclude Include="..\Public\UI_EditorApp.h" />
     <ClInclude Include="..\Public\UI_Editor_Defines.h" />
+    <ClInclude Include="..\Public\UI_Editor_Enum.h" />
+    <ClInclude Include="..\Public\UI_Editor_ImGuiInclude.h" />
+    <ClInclude Include="..\Public\UI_Editor_ImGuiManager.h" />
+    <ClInclude Include="..\Public\UI_Editor_Instance.h" />
+    <ClInclude Include="..\Public\UI_Editor_Macro.h" />
+    <ClInclude Include="..\Public\UI_Editor_Struct.h" />
     <ClInclude Include="..\Public\UI_Editor_Utils.h" />
     <ClInclude Include="..\Public\UI_Editor_Window.h" />
     <ClInclude Include="..\Public\UI_Hierarchy_View.h" />
     <ClInclude Include="..\public\UI_Editor_Manager.h" />
-    <ClInclude Include="..\Public\Editor_ImGuiInclude.h" />
     <ClInclude Include="..\public\UI_Inspector.h" />
     <ClInclude Include="..\Public\UI_Viewport_View.h" />
     <ClInclude Include="pch.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Client\Default\Client.vcxproj">
+      <Project>{76ca7900-4b7d-431a-ba5c-f2aaab3ea9ca}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\Engine\Default\Engine.vcxproj">
+      <Project>{03054186-8b87-4d59-91c6-0ac09d31002d}</Project>
+    </ProjectReference>
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>
@@ -107,11 +122,13 @@
     <OutDir>..\Bin\$(Configuration)\</OutDir>
     <IntDir>x64\$(Configuration)\</IntDir>
     <TargetName>UI_Editor</TargetName>
+    <LocalDebuggerWorkingDirectory>$(OutDir)</LocalDebuggerWorkingDirectory>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <OutDir>..\Bin\$(Configuration)\</OutDir>
     <IntDir>x64\$(Configuration)\</IntDir>
     <TargetName>UI_Editor</TargetName>
+    <LocalDebuggerWorkingDirectory>$(OutDir)</LocalDebuggerWorkingDirectory>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>

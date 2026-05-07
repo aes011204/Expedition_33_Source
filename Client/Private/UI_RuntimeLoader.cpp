@@ -26,6 +26,7 @@ namespace
         string name{};
 
         Vec2 position{ 0.f, 0.f };
+        Vec2 worldPosition{ 0.f, 0.f };
         Vec2 size{ 100.f, 100.f };
         Vec2 scale{ 1.f, 1.f };
         float rotationRadians = 0.f;
@@ -34,6 +35,8 @@ namespace
 
         string text{};
         float fontSize = 32.f;
+        UI_Text::TextAlign textAlign = UI_Text::TextAlign::Left;
+        bool textWrap = false;
         string fontTag{};
         string fontGuid{};
         string fontPath{};
@@ -77,6 +80,15 @@ namespace
             return defaultValue;
 
         return iter->get<float>();
+    }
+
+    bool Read_Bool(const json& item, const char* key, bool defaultValue = false)
+    {
+        const auto iter = item.find(key);
+        if (iter == item.end() || !iter->is_boolean())
+            return defaultValue;
+
+        return iter->get<bool>();
     }
 
     Vec2 Read_Vec2(const json& item, const char* key, const Vec2& defaultValue)
@@ -285,6 +297,8 @@ namespace
 
         object.text = Read_String(item, "text", "");
         object.fontSize = max(4.f, Read_Float(item, "fontSize", 32.f));
+        object.textAlign = Read_TextAlign(item);
+        object.textWrap = Read_Bool(item, "textWrap", Read_Bool(item, "wrap", false));
         object.fontTag = Read_String(item, "fontTag", "");
         object.fontGuid = Read_String(item, "fontGuid", "");
         object.fontPath = Read_String(item, "fontPath", "");
@@ -293,6 +307,66 @@ namespace
         object.texturePath = Read_String(item, "texturePath", "");
 
         return object;
+    }
+
+    Vec2 Resolve_WorldPosition(RuntimeUIDocument& document, RuntimeUIObject& object, unordered_set<int32>& resolvingIds)
+    {
+        if (object.parentId == 0)
+        {
+            object.worldPosition = object.position;
+            return object.worldPosition;
+        }
+
+        if (object.parentId == object.id || resolvingIds.find(object.id) != resolvingIds.end())
+        {
+            LOG_WARN("UI RuntimeLoader object {} has cyclic parent. Using canvas space.", object.id);
+            object.parentId = 0;
+            object.worldPosition = object.position;
+            return object.worldPosition;
+        }
+
+        const int32 originalParentId = object.parentId;
+        RuntimeUIObject* parentObject = nullptr;
+        for (RuntimeUIObject& candidate : document.objects)
+        {
+            if (candidate.id == originalParentId)
+            {
+                parentObject = &candidate;
+                break;
+            }
+        }
+
+        if (nullptr == parentObject)
+        {
+            LOG_WARN("UI RuntimeLoader object {} has missing parent {}. Using canvas space.", object.id, object.parentId);
+            object.parentId = 0;
+            object.worldPosition = object.position;
+            return object.worldPosition;
+        }
+
+        resolvingIds.insert(object.id);
+        const Vec2 parentWorldPosition = Resolve_WorldPosition(document, *parentObject, resolvingIds);
+        resolvingIds.erase(object.id);
+
+        if (object.parentId != originalParentId)
+        {
+            object.worldPosition = object.position;
+            return object.worldPosition;
+        }
+
+        object.worldPosition = Vec2(parentWorldPosition.x + object.position.x, parentWorldPosition.y + object.position.y);
+        return object.worldPosition;
+    }
+
+    void Resolve_WorldPositions(RuntimeUIDocument& document)
+    {
+        unordered_set<int32> resolvingIds;
+
+        for (RuntimeUIObject& object : document.objects)
+        {
+            resolvingIds.clear();
+            Resolve_WorldPosition(document, object, resolvingIds);
+        }
     }
 
     bool Parse_Document(const json& root, RuntimeUIDocument& outDocument)
@@ -332,6 +406,8 @@ namespace
                 return lhs.id < rhs.id;
             });
 
+        Resolve_WorldPositions(outDocument);
+
         return true;
     }
 
@@ -347,7 +423,7 @@ namespace
         UI_Image::UI_IMAGE_DESC desc{};
         desc.texturePath = texturePath;
         desc.color = object.color;
-        desc.transformDesc.position = object.position;
+        desc.transformDesc.position = object.worldPosition;
         desc.transformDesc.size = object.size;
         desc.transformDesc.scale = object.scale;
         desc.transformDesc.rotationRadians = object.rotationRadians;
@@ -390,8 +466,9 @@ namespace
         desc.text = String::ToWString(object.text);
         desc.fontTag = fontTag;
         desc.color = object.color;
-        desc.textAlign = UI_Text::TextAlign::Left;
-        desc.transformDesc.position = object.position;
+        desc.textAlign = object.textAlign;
+        desc.textWrap = object.textWrap;
+        desc.transformDesc.position = object.worldPosition;
         desc.transformDesc.size = object.size;
         desc.transformDesc.scale = scale;
         desc.transformDesc.rotationRadians = object.rotationRadians;

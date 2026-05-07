@@ -1,12 +1,11 @@
-﻿#pragma once
+#pragma once
 
 #ifdef new
 #pragma push_macro("new")
 #undef new
-#define MAINEDITOR_RESTORE_NEW_MACRO
+#define UIEDITOR_RESTORE_NEW_MACRO
 #endif
 
-// ImGui New 매크로 충돌 방지
 #include "imgui.h"
 #include "imgui_impl_dx11.h"
 #include "imgui_impl_win32.h"
@@ -15,7 +14,7 @@
 #include <imgui-node-editor/imgui_node_editor.h>
 #include <ImGuizmo.h>
 
-#ifdef MAINEDITOR_RESTORE_NEW_MACRO
+#ifdef UIEDITOR_RESTORE_NEW_MACRO
 #pragma pop_macro("new")
-#undef MAINEDITOR_RESTORE_NEW_MACRO
+#undef UIEDITOR_RESTORE_NEW_MACRO
 #endif

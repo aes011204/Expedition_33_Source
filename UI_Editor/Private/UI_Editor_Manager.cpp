@@ -12,6 +12,7 @@
 namespace
 {
     constexpr wchar_t kDefaultJsonFileName[] = L"UI_Layout.json";
+    constexpr size_t kMaxHistoryStateCount = 100;
 
     string Normalize_PathForCompare(const string& path)
     {
@@ -120,6 +121,9 @@ HRESULT UI_Editor_Manager::Initialize(const ComPtr<Device>& device, const ComPtr
     Add_Window(UI_Inspector::Create(*this));
     Add_Window(UI_Content_Browser::Create(*this));
 
+    Clear_History();
+    Clear_Dirty();
+
     return S_OK;
 }
 
@@ -128,12 +132,15 @@ void UI_Editor_Manager::Render()
     _fontPreviewCommands.clear();
 
     Render_DockSpace();
+    Handle_Shortcuts();
 
     for (auto& pair : _windows)
     {
         if (nullptr != pair.second)
             pair.second->Render();
     }
+
+    Render_RenamePopup();
 }
 
 void UI_Editor_Manager::Render_FontPreviews()
@@ -240,7 +247,7 @@ ObjectId UI_Editor_Manager::Get_SelectedObjectId() const
 
 void UI_Editor_Manager::Set_SelectedObjectId(ObjectId objectId)
 {
-    _selectedObjectId = objectId;
+    _selectedObjectId = nullptr != _document.Find_Object(objectId) ? objectId : 0;
 }
 
 UI_Object* UI_Editor_Manager::Get_SelectedObject()
@@ -256,6 +263,16 @@ const UI_Object* UI_Editor_Manager::Get_SelectedObject() const
 bool UI_Editor_Manager::Is_AssetManagerReady() const
 {
     return _assetManagerReady;
+}
+
+bool UI_Editor_Manager::Is_Dirty() const
+{
+    return _isDirty;
+}
+
+bool UI_Editor_Manager::Request_Close()
+{
+    return Confirm_SaveIfDirty(L"close UI Editor");
 }
 
 void UI_Editor_Manager::Render_DockSpace()
@@ -286,6 +303,10 @@ void UI_Editor_Manager::Render_DockSpace()
     {
         if (ImGui::BeginMenu("File"))
         {
+            if (ImGui::MenuItem("New"))
+            {
+                New_Document();
+            }
             if (ImGui::MenuItem("Save"))
             {
                 Save_Document();
@@ -336,8 +357,10 @@ void UI_Editor_Manager::Render_DockSpace()
 
         if (ImGui::BeginMenu("Edit"))
         {
-            ImGui::MenuItem("Undo", nullptr, false, false);
-            ImGui::MenuItem("Redo", nullptr, false, false);
+            if (ImGui::MenuItem("Undo", "Ctrl+Z", false, Can_Undo()))
+                Undo();
+            if (ImGui::MenuItem("Redo", "Ctrl+Y", false, Can_Redo()))
+                Redo();
             ImGui::EndMenu();
         }
 
@@ -352,7 +375,11 @@ bool UI_Editor_Manager::Save_Document()
     if (_currentDocumentPath.empty())
         return Save_DocumentAs();
 
-    return _document.Save_ToJsonFile(_currentDocumentPath);
+    if (!_document.Save_ToJsonFile(_currentDocumentPath))
+        return false;
+
+    Clear_Dirty();
+    return true;
 }
 
 bool UI_Editor_Manager::Save_DocumentAs()
@@ -367,11 +394,15 @@ bool UI_Editor_Manager::Save_DocumentAs()
         return false;
 
     _currentDocumentPath = filePath;
+    Clear_Dirty();
     return true;
 }
 
 bool UI_Editor_Manager::Load_Document()
 {
+    if (!Confirm_SaveIfDirty(L"load another UI document"))
+        return false;
+
     wstring filePath = {};
     if (!Show_LoadFileDialog(filePath))
         return false;
@@ -381,8 +412,135 @@ bool UI_Editor_Manager::Load_Document()
 
     _currentDocumentPath = filePath;
     _selectedObjectId = 0;
+    Clear_RuntimeCaches();
     Resolve_LoadedAssetReferences();
+    Clear_History();
+    Clear_Dirty();
     return true;
+}
+
+bool UI_Editor_Manager::New_Document()
+{
+    if (!Confirm_SaveIfDirty(L"create a new UI document"))
+        return false;
+
+    _document.Reset();
+    _currentDocumentPath.clear();
+    _selectedObjectId = 0;
+    Clear_RuntimeCaches();
+    Clear_History();
+    Clear_Dirty();
+    return true;
+}
+
+bool UI_Editor_Manager::Confirm_SaveIfDirty(const wchar_t* actionName)
+{
+    if (!_isDirty)
+        return true;
+
+    const wstring actionText = (nullptr != actionName && L'\0' != actionName[0]) ? actionName : L"continue";
+    const wstring message = L"The current UI document has unsaved changes.\n\nSave before you " + actionText + L"?";
+
+    const int result = MessageBoxW(
+        nullptr,
+        message.c_str(),
+        L"UI Editor",
+        MB_ICONQUESTION | MB_YESNOCANCEL);
+
+    if (result == IDCANCEL)
+        return false;
+
+    if (result == IDYES)
+        return Save_Document();
+
+    return true;
+}
+
+void UI_Editor_Manager::Handle_Shortcuts()
+{
+    ImGuiIO& io = ImGui::GetIO();
+    if (io.WantTextInput)
+        return;
+
+    if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Z))
+    {
+        Undo();
+        return;
+    }
+
+    if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Y))
+    {
+        Redo();
+        return;
+    }
+
+    if (ImGui::IsKeyPressed(ImGuiKey_Delete))
+    {
+        Delete_SelectedUIObject();
+        return;
+    }
+
+    if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_D))
+    {
+        Duplicate_SelectedUIObject();
+        return;
+    }
+
+    if (ImGui::IsKeyPressed(ImGuiKey_F2))
+    {
+        Request_RenameUIObject(_selectedObjectId);
+        return;
+    }
+}
+
+void UI_Editor_Manager::Render_RenamePopup()
+{
+    if (_openRenamePopup)
+    {
+        ImGui::OpenPopup("Rename Selected UI Object");
+        _openRenamePopup = false;
+    }
+
+    if (ImGui::BeginPopupModal("Rename Selected UI Object", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+    {
+        UI_Object* object = _document.Find_Object(_renameRequestObjectId);
+        if (nullptr == object)
+        {
+            _renameRequestObjectId = 0;
+            ImGui::CloseCurrentPopup();
+            ImGui::EndPopup();
+            return;
+        }
+
+        ImGui::Text("ID: %u", object->id);
+        ImGui::SetNextItemWidth(280.f);
+        const bool submitted = ImGui::InputText("Name", _renameBuffer, size(_renameBuffer), ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll);
+
+        if (submitted || ImGui::Button("OK"))
+        {
+            Rename_UIObject(_renameRequestObjectId, _renameBuffer);
+            _renameRequestObjectId = 0;
+            ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel"))
+        {
+            _renameRequestObjectId = 0;
+            ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::EndPopup();
+    }
+}
+
+void UI_Editor_Manager::Clear_RuntimeCaches()
+{
+    _textureThumbCache.clear();
+    _textureNoThumbGuids.clear();
+    _fontPreviewCache.clear();
+    _fontPreviewFailedGuids.clear();
+    _fontPreviewCommands.clear();
 }
 
 bool UI_Editor_Manager::Show_SaveFileDialog(wstring& outFilePath) const
@@ -618,26 +776,311 @@ ObjectId UI_Editor_Manager::Resolve_CreateParentId() const
 
 void UI_Editor_Manager::Create_UIObject(UI_ObjectType objectType)
 {
+    Push_UndoSnapshot();
+
     const ObjectId parentId = Resolve_CreateParentId();
-    _selectedObjectId = _document.Create_Object(objectType, parentId);
+    const ObjectId createdObjectId = _document.Create_Object(objectType, parentId);
+    if (createdObjectId == 0)
+        return;
+
+    if (objectType == UI_ObjectType::Button)
+    {
+        UI_Object* buttonObject = _document.Find_Object(createdObjectId);
+        if (nullptr != buttonObject)
+        {
+            const ObjectId labelObjectId = _document.Create_Object(UI_ObjectType::Text, createdObjectId);
+            UI_Object* labelObject = _document.Find_Object(labelObjectId);
+            if (nullptr != labelObject)
+            {
+                labelObject->name = _document.Generate_UniqueName("Label", labelObjectId);
+                labelObject->position = ImVec2(0.f, 0.f);
+                labelObject->size = buttonObject->size;
+                labelObject->scale = ImVec2(1.f, 1.f);
+                labelObject->color = ImVec4(1.f, 1.f, 1.f, 1.f);
+                labelObject->text = "Button";
+                labelObject->fontSize = 24.f;
+                labelObject->textAlign = UI_TextAlign::Center;
+                labelObject->textWrap = false;
+                labelObject->sortOrder = static_cast<int32>(_document.Get_Objects().size());
+            }
+        }
+    }
+
+    _selectedObjectId = createdObjectId;
+    Mark_Dirty();
 }
 
 void UI_Editor_Manager::Duplicate_UIObject(ObjectId objectId)
 {
+    if (nullptr == _document.Find_Object(objectId))
+        return;
+
+    Push_UndoSnapshot();
+
     const ObjectId duplicatedObjectId = _document.Duplicate_Object(objectId, ImVec2(20.f, 20.f));
     if (duplicatedObjectId == 0)
         return;
 
     _selectedObjectId = duplicatedObjectId;
+    Mark_Dirty();
 }
 
 void UI_Editor_Manager::Delete_UIObject(ObjectId objectId)
 {
+    if (nullptr == _document.Find_Object(objectId))
+        return;
+
+    Push_UndoSnapshot();
+
     if (!_document.Delete_Object(objectId))
         return;
 
     if (nullptr == _document.Find_Object(_selectedObjectId))
         _selectedObjectId = 0;
+
+    Mark_Dirty();
+}
+
+void UI_Editor_Manager::Duplicate_SelectedUIObject()
+{
+    if (_selectedObjectId == 0)
+        return;
+
+    Duplicate_UIObject(_selectedObjectId);
+}
+
+void UI_Editor_Manager::Delete_SelectedUIObject()
+{
+    if (_selectedObjectId == 0)
+        return;
+
+    Delete_UIObject(_selectedObjectId);
+}
+
+bool UI_Editor_Manager::Rename_UIObject(ObjectId objectId, const string& newName)
+{
+    UI_Object* object = _document.Find_Object(objectId);
+    if (nullptr == object || newName.empty())
+        return false;
+
+    const string uniqueName = _document.Generate_UniqueName(newName, objectId);
+    if (object->name == uniqueName)
+        return true;
+
+    Push_UndoSnapshot();
+
+    object->name = uniqueName;
+    Mark_Dirty();
+    return true;
+}
+
+void UI_Editor_Manager::Request_RenameUIObject(ObjectId objectId)
+{
+    UI_Object* object = _document.Find_Object(objectId);
+    if (nullptr == object)
+        return;
+
+    _renameRequestObjectId = objectId;
+    strncpy_s(_renameBuffer, object->name.c_str(), _TRUNCATE);
+    _openRenamePopup = true;
+}
+
+bool UI_Editor_Manager::Reparent_UIObject(ObjectId objectId, ObjectId newParentId)
+{
+    const UI_Object* object = _document.Find_Object(objectId);
+    if (nullptr == object || object->parentId == newParentId)
+        return false;
+
+    Push_UndoSnapshot();
+
+    if (!_document.Change_Parent(objectId, newParentId, true))
+        return false;
+
+    _selectedObjectId = objectId;
+    Mark_Dirty();
+    return true;
+}
+
+bool UI_Editor_Manager::Can_ReparentUIObject(ObjectId objectId, ObjectId newParentId) const
+{
+    return _document.Can_Parent(objectId, newParentId);
+}
+
+bool UI_Editor_Manager::Set_UIObjectWorldPosition(ObjectId objectId, const ImVec2& worldPosition)
+{
+    if (!_isEditTransactionOpen)
+        Push_UndoSnapshot();
+
+    if (!_document.Set_WorldPosition(objectId, worldPosition))
+        return false;
+
+    Mark_Dirty();
+    return true;
+}
+
+bool UI_Editor_Manager::Set_UIObjectWorldRect(ObjectId objectId, const ImVec2& worldPosition, const ImVec2& worldSize)
+{
+    UI_Object* object = _document.Find_Object(objectId);
+    if (nullptr == object)
+        return false;
+
+    if (!_isEditTransactionOpen)
+        Push_UndoSnapshot();
+
+    const float safeScaleX = max(0.01f, object->scale.x);
+    const float safeScaleY = max(0.01f, object->scale.y);
+    object->size = ImVec2(max(1.f, worldSize.x) / safeScaleX, max(1.f, worldSize.y) / safeScaleY);
+
+    if (!_document.Set_WorldPosition(objectId, worldPosition))
+        return false;
+
+    Mark_Dirty();
+    return true;
+}
+
+ImVec2 UI_Editor_Manager::Get_UIObjectWorldPosition(ObjectId objectId) const
+{
+    return _document.Get_WorldPosition(objectId);
+}
+
+bool UI_Editor_Manager::Undo()
+{
+    if (!Can_Undo())
+        return false;
+
+    if (_isEditTransactionOpen)
+        Commit_EditTransactionIfChanged();
+
+    const HistoryState currentState = Capture_HistoryState();
+    const HistoryState undoState = _undoStack.back();
+    _undoStack.pop_back();
+    Push_HistoryState(_redoStack, currentState);
+    Apply_HistoryState(undoState);
+    return true;
+}
+
+bool UI_Editor_Manager::Redo()
+{
+    if (!Can_Redo())
+        return false;
+
+    if (_isEditTransactionOpen)
+        Commit_EditTransactionIfChanged();
+
+    const HistoryState currentState = Capture_HistoryState();
+    const HistoryState redoState = _redoStack.back();
+    _redoStack.pop_back();
+    Push_HistoryState(_undoStack, currentState);
+    Apply_HistoryState(redoState);
+    return true;
+}
+
+bool UI_Editor_Manager::Can_Undo() const
+{
+    return !_undoStack.empty();
+}
+
+bool UI_Editor_Manager::Can_Redo() const
+{
+    return !_redoStack.empty();
+}
+
+void UI_Editor_Manager::Begin_EditTransaction()
+{
+    if (_isEditTransactionOpen)
+        return;
+
+    _editTransactionStartState = Capture_HistoryState();
+    _isEditTransactionOpen = true;
+}
+
+void UI_Editor_Manager::Commit_EditTransactionIfChanged()
+{
+    if (!_isEditTransactionOpen)
+        return;
+
+    const HistoryState currentState = Capture_HistoryState();
+    if (!Is_SameHistoryState(_editTransactionStartState, currentState))
+    {
+        Push_HistoryState(_undoStack, _editTransactionStartState);
+        _redoStack.clear();
+        _isDirty = !Is_CurrentDocumentClean();
+    }
+
+    _isEditTransactionOpen = false;
+    _editTransactionStartState = {};
+}
+
+void UI_Editor_Manager::Mark_Dirty()
+{
+    _isDirty = !Is_CurrentDocumentClean();
+}
+
+void UI_Editor_Manager::Clear_Dirty()
+{
+    _cleanDocumentSignature = Make_DocumentSignature(_document);
+    _isDirty = false;
+}
+
+string UI_Editor_Manager::Make_DocumentSignature(const UI_Document& document) const
+{
+    return document.To_Json().dump();
+}
+
+UI_Editor_Manager::HistoryState UI_Editor_Manager::Capture_HistoryState() const
+{
+    HistoryState historyState = {};
+    historyState.document = _document;
+    historyState.selectedObjectId = _selectedObjectId;
+    historyState.isDirty = _isDirty;
+    historyState.documentSignature = Make_DocumentSignature(_document);
+    return historyState;
+}
+
+bool UI_Editor_Manager::Is_SameHistoryState(const HistoryState& lhs, const HistoryState& rhs) const
+{
+    return lhs.selectedObjectId == rhs.selectedObjectId && lhs.documentSignature == rhs.documentSignature;
+}
+
+bool UI_Editor_Manager::Is_CurrentDocumentClean() const
+{
+    return !_cleanDocumentSignature.empty() && Make_DocumentSignature(_document) == _cleanDocumentSignature;
+}
+
+void UI_Editor_Manager::Push_UndoSnapshot()
+{
+    if (_isEditTransactionOpen)
+        return;
+
+    Push_HistoryState(_undoStack, Capture_HistoryState());
+    _redoStack.clear();
+}
+
+void UI_Editor_Manager::Push_HistoryState(vector<HistoryState>& historyStack, const HistoryState& historyState) const
+{
+    if (!historyStack.empty() && Is_SameHistoryState(historyStack.back(), historyState))
+        return;
+
+    historyStack.push_back(historyState);
+    if (historyStack.size() > kMaxHistoryStateCount)
+        historyStack.erase(historyStack.begin());
+}
+
+void UI_Editor_Manager::Clear_History()
+{
+    _undoStack.clear();
+    _redoStack.clear();
+    _isEditTransactionOpen = false;
+    _editTransactionStartState = {};
+}
+
+void UI_Editor_Manager::Apply_HistoryState(const HistoryState& historyState)
+{
+    _document = historyState.document;
+    _selectedObjectId = nullptr != _document.Find_Object(historyState.selectedObjectId) ? historyState.selectedObjectId : 0;
+    _isDirty = !Is_CurrentDocumentClean();
+    Clear_RuntimeCaches();
+    Resolve_LoadedAssetReferences();
 }
 
 SpriteFont* UI_Editor_Manager::Get_FontPreview(const string& fontGuid, const string& fontPath)

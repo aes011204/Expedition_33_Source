@@ -33,12 +33,14 @@ namespace UIEditor
                 ImGui::Text("Type: %s", Get_ObjectTypeName(selectedObject->type));
                 ImGui::Separator();
 
-                ImGui::DragFloat2("Position", &selectedObject->position.x, 1.f);
-                ImGui::DragFloat2("Size", &selectedObject->size.x, 1.f, 1.f, 4096.f);
-                ImGui::DragFloat2("Scale", &selectedObject->scale.x, 0.01f, 0.01f, 10.f, "%.2f");
-                ImGui::DragFloat("Rotation", &selectedObject->rotationRadians, 0.01f, -6.283f, 6.283f, "%.3f");
-                ImGui::DragInt("Sort Order", &selectedObject->sortOrder, 1.f);
-                ImGui::ColorEdit4("Color", &selectedObject->color.x);
+                bool changed = false;
+                _editorManager.Begin_EditTransaction();
+                changed |= ImGui::DragFloat2("Local Position", &selectedObject->position.x, 1.f);
+                changed |= ImGui::DragFloat2("Size", &selectedObject->size.x, 1.f, 1.f, 4096.f);
+                changed |= ImGui::DragFloat2("Scale", &selectedObject->scale.x, 0.01f, 0.01f, 10.f, "%.2f");
+                changed |= ImGui::DragFloat("Rotation", &selectedObject->rotationRadians, 0.01f, -6.283f, 6.283f, "%.3f");
+                changed |= ImGui::DragInt("Sort Order", &selectedObject->sortOrder, 1.f);
+                changed |= ImGui::ColorEdit4("Color", &selectedObject->color.x);
 
                 selectedObject->size.x = max(1.f, selectedObject->size.x);
                 selectedObject->size.y = max(1.f, selectedObject->size.y);
@@ -48,9 +50,25 @@ namespace UIEditor
 
                 if (selectedObject->type == UI_ObjectType::Image)
                 {
-                    Render_TexturePicker(*selectedObject);
+                    changed |= Render_TexturePicker(*selectedObject);
                 }
-                else if (selectedObject->type == UI_ObjectType::Text)
+                else if (Is_ContainerObjectType(selectedObject->type))
+                {
+                    ImGui::Separator();
+
+                    int32 childCount = 0;
+                    for (const UI_Object& object : _editorManager.Get_Document().Get_Objects())
+                    {
+                        if (object.parentId == selectedObject->id)
+                            ++childCount;
+                    }
+
+                    ImGui::Text("Container Children: %d", childCount);
+                    if (selectedObject->type == UI_ObjectType::Button)
+                        ImGui::TextDisabled("Button objects can own Image/Text children.");
+                }
+
+                if (selectedObject->type == UI_ObjectType::Text)
                 {
                     ImGui::Separator();
 
@@ -59,16 +77,38 @@ namespace UIEditor
 
                     ImGui::TextUnformatted("Text Content");
                     if (ImGui::InputTextMultiline("##UITextContent", textBuffer, size(textBuffer), ImVec2(-1.f, 88.f)))
+                    {
                         selectedObject->text = textBuffer;
+                        changed = true;
+                    }
 
-                    ImGui::DragFloat("Font Size", &selectedObject->fontSize, 1.f, 4.f, 256.f, "%.0f");
+                    changed |= ImGui::DragFloat("Font Size", &selectedObject->fontSize, 1.f, 4.f, 256.f, "%.0f");
                     selectedObject->fontSize = max(4.f, selectedObject->fontSize);
 
-                    Render_FontPicker(*selectedObject);
+                    const char* alignItems[] = { "Left", "Center", "Right" };
+                    int32 currentAlign = static_cast<int32>(selectedObject->textAlign);
+                    currentAlign = min(max(currentAlign, 0), 2);
+                    if (ImGui::Combo("Text Align", &currentAlign, alignItems, static_cast<int32>(size(alignItems))))
+                    {
+                        selectedObject->textAlign = static_cast<UI_TextAlign>(currentAlign);
+                        changed = true;
+                    }
+
+                    changed |= ImGui::Checkbox("Wrap Text", &selectedObject->textWrap);
+
+                    changed |= Render_FontPicker(*selectedObject);
                 }
+
+                if (changed)
+                    _editorManager.Mark_Dirty();
+
+                if (!ImGui::IsAnyItemActive())
+                    _editorManager.Commit_EditTransactionIfChanged();
             }
             else
             {
+                if (!ImGui::IsAnyItemActive())
+                    _editorManager.Commit_EditTransactionIfChanged();
                 ImGui::TextUnformatted("No Selected");
             }
         }
@@ -77,20 +117,20 @@ namespace UIEditor
         ImGui::End();
     }
 
-    void UI_Inspector::Render_TexturePicker(UI_Object& object)
+    bool UI_Inspector::Render_TexturePicker(UI_Object& object)
     {
         ImGui::Separator();
 
         const string popupId = "UITexturePicker##" + to_string(object.id);
-        Draw_UITextureSlotPicker("UI Texture", popupId.c_str(), object);
+        return Draw_UITextureSlotPicker("UI Texture", popupId.c_str(), object);
     }
 
-    void UI_Inspector::Render_FontPicker(UI_Object& object)
+    bool UI_Inspector::Render_FontPicker(UI_Object& object)
     {
         ImGui::Separator();
 
         const string popupId = "UIFontPicker##" + to_string(object.id);
-        Draw_FontSlotPicker("UI Font", popupId.c_str(), object);
+        return Draw_FontSlotPicker("UI Font", popupId.c_str(), object);
     }
 
     bool UI_Inspector::Draw_UITextureSlotPicker(const char* label, const char* popupId, UI_Object& object)

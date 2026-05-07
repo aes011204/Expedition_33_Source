@@ -31,6 +31,9 @@
     <Filter Include="04. Document">
       <UniqueIdentifier>{20ec8a81-bd45-4d17-809c-f9044fcf9237}</UniqueIdentifier>
     </Filter>
+    <Filter Include="97. Shader">
+      <UniqueIdentifier>{410d317e-37c5-4ac6-b5ee-b26a037af681}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -44,6 +47,12 @@
     </ClCompile>
     <ClCompile Include="..\private\UI_Editor_Manager.cpp">
       <Filter>01. Manager\UI_Editor_Manager</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_Editor_ImGuiManager.cpp">
+      <Filter>01. Manager\Imgui_Manager</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_Editor_Instance.cpp">
+      <Filter>01. Manager</Filter>
     </ClCompile>
     <ClCompile Include="..\private\UI_Inspector.cpp">
       <Filter>03. Inspector</Filter>
@@ -77,7 +86,16 @@
     <ClInclude Include="..\Public\UI_Editor_Defines.h">
       <Filter>99. Defines</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\Editor_ImGuiInclude.h">
+    <ClInclude Include="..\Public\UI_Editor_Enum.h">
+      <Filter>99. Defines</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_Editor_ImGuiInclude.h">
+      <Filter>99. Defines</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_Editor_Macro.h">
+      <Filter>99. Defines</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_Editor_Struct.h">
       <Filter>99. Defines</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\UI_EditorApp.h">
@@ -85,6 +103,12 @@
     </ClInclude>
     <ClInclude Include="..\public\UI_Editor_Manager.h">
       <Filter>01. Manager\UI_Editor_Manager</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_Editor_ImGuiManager.h">
+      <Filter>01. Manager\Imgui_Manager</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_Editor_Instance.h">
+      <Filter>01. Manager</Filter>
     </ClInclude>
     <ClInclude Include="..\public\UI_Inspector.h">
       <Filter>03. Inspector</Filter>

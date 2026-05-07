@@ -55,6 +55,44 @@ namespace UIEditor
             return false;
         }
 
+        const char* Get_TextAlignName(UI_TextAlign textAlign)
+        {
+            switch (textAlign)
+            {
+            case UI_TextAlign::Left:
+                return "Left";
+            case UI_TextAlign::Center:
+                return "Center";
+            case UI_TextAlign::Right:
+                return "Right";
+            default:
+                return "Left";
+            }
+        }
+
+        bool Try_ParseTextAlign(const string& alignName, UI_TextAlign& textAlign)
+        {
+            if (alignName == "Left" || alignName == "left")
+            {
+                textAlign = UI_TextAlign::Left;
+                return true;
+            }
+
+            if (alignName == "Center" || alignName == "center" || alignName == "Middle" || alignName == "middle")
+            {
+                textAlign = UI_TextAlign::Center;
+                return true;
+            }
+
+            if (alignName == "Right" || alignName == "right")
+            {
+                textAlign = UI_TextAlign::Right;
+                return true;
+            }
+
+            return false;
+        }
+
         string Make_DefaultObjectName(UI_ObjectType objectType)
         {
             return Get_ObjectTypeName(objectType);
@@ -126,6 +164,15 @@ namespace UIEditor
             return iter->get<float>();
         }
 
+        bool Read_Bool(const json& item, const char* key, bool defaultValue)
+        {
+            const auto iter = item.find(key);
+            if (iter == item.end() || !iter->is_boolean())
+                return defaultValue;
+
+            return iter->get<bool>();
+        }
+
         ImVec2 Read_Vec2(const json& item, const char* key, const ImVec2& defaultValue)
         {
             const auto iter = item.find(key);
@@ -185,6 +232,8 @@ namespace UIEditor
             {
                 object.text = "Text";
                 object.fontSize = 32.f;
+                object.textAlign = UI_TextAlign::Left;
+                object.textWrap = false;
                 object.fontPath = kDefaultFontPath;
                 object.fontTag = Make_FontTagFromPath(object.fontPath);
             }
@@ -229,7 +278,7 @@ namespace UIEditor
 
     ObjectId UI_Document::Create_Object(UI_ObjectType objectType, ObjectId parentId)
     {
-        if (parentId != 0 && nullptr == Find_Object(parentId))
+        if (parentId != 0 && !Can_HaveChildren(parentId))
             parentId = 0;
 
         UI_Object object = {};
@@ -244,33 +293,37 @@ namespace UIEditor
         switch (objectType)
         {
         case UI_ObjectType::Image:
-            object.name = "Image";
+            object.name = Generate_UniqueName("Image");
             object.size = ImVec2(100.f, 100.f);
             object.color = ImVec4(1.f, 1.f, 1.f, 1.f);
             break;
 
         case UI_ObjectType::Text:
-            object.name = "Text";
+            object.name = Generate_UniqueName("Text");
             object.size = ImVec2(300.f, 50.f);
             object.color = ImVec4(1.f, 1.f, 1.f, 1.f);
             object.text = "New Text";
             object.fontSize = 32.f;
+            object.textAlign = UI_TextAlign::Left;
+            object.textWrap = false;
+            object.fontPath = kDefaultFontPath;
+            object.fontTag = Make_FontTagFromPath(object.fontPath);
             break;
 
         case UI_ObjectType::Panel:
-            object.name = "Panel";
+            object.name = Generate_UniqueName("Panel");
             object.size = ImVec2(400.f, 300.f);
             object.color = ImVec4(0.35f, 0.35f, 0.35f, 0.6f);
             break;
 
         case UI_ObjectType::Button:
-            object.name = "Button";
+            object.name = Generate_UniqueName("Button");
             object.size = ImVec2(200.f, 60.f);
-            object.color = ImVec4(1.f, 1.f, 1.f, 1.f);
+            object.color = ImVec4(0.25f, 0.44f, 0.72f, 0.9f);
             break;
 
         default:
-            object.name = "Object";
+            object.name = Generate_UniqueName("Object");
             object.size = ImVec2(100.f, 100.f);
             object.color = ImVec4(1.f, 1.f, 1.f, 1.f);
             break;
@@ -286,7 +339,7 @@ namespace UIEditor
         if (nullptr == sourceObject)
             return 0;
 
-        return Duplicate_ObjectRecursive(*sourceObject, sourceObject->parentId, offset);
+        return Duplicate_ObjectRecursive(*sourceObject, sourceObject->parentId, offset, true);
     }
 
     bool UI_Document::Delete_Object(ObjectId objectId)
@@ -308,6 +361,175 @@ namespace UIEditor
             _objects.end());
 
         return true;
+    }
+
+    bool UI_Document::Change_Parent(ObjectId objectId, ObjectId newParentId, bool keepWorldPosition)
+    {
+        UI_Object* object = Find_Object(objectId);
+        if (nullptr == object || !Can_Parent(objectId, newParentId))
+            return false;
+
+        if (object->parentId == newParentId)
+            return true;
+
+        const ImVec2 oldWorldPosition = Get_WorldPosition(objectId);
+        object->parentId = newParentId;
+
+        if (keepWorldPosition)
+            object->position = ImVec2(oldWorldPosition.x - Get_WorldPosition(newParentId).x, oldWorldPosition.y - Get_WorldPosition(newParentId).y);
+
+        return true;
+    }
+
+    bool UI_Document::Can_Parent(ObjectId objectId, ObjectId newParentId) const
+    {
+        if (newParentId == 0)
+            return true;
+
+        const UI_Object* parentObject = Find_Object(newParentId);
+        if (nullptr == parentObject)
+            return false;
+
+        if (parentObject->type != UI_ObjectType::Panel && parentObject->type != UI_ObjectType::Button)
+            return false;
+
+        if (objectId == 0)
+            return true;
+
+        if (objectId == newParentId)
+            return false;
+
+        if (nullptr == Find_Object(objectId))
+            return false;
+
+        return !Is_Descendant(objectId, newParentId);
+    }
+
+    bool UI_Document::Can_HaveChildren(ObjectId objectId) const
+    {
+        if (objectId == 0)
+            return true;
+
+        const UI_Object* object = Find_Object(objectId);
+        if (nullptr == object)
+            return false;
+
+        return object->type == UI_ObjectType::Panel || object->type == UI_ObjectType::Button;
+    }
+
+    bool UI_Document::Is_Descendant(ObjectId ancestorId, ObjectId candidateDescendantId) const
+    {
+        if (ancestorId == 0 || candidateDescendantId == 0)
+            return false;
+
+        unordered_set<ObjectId> visitedIds;
+        const UI_Object* currentObject = Find_Object(candidateDescendantId);
+        while (nullptr != currentObject && currentObject->parentId != 0)
+        {
+            if (currentObject->parentId == ancestorId)
+                return true;
+
+            if (visitedIds.find(currentObject->parentId) != visitedIds.end())
+                return true;
+
+            visitedIds.insert(currentObject->parentId);
+            currentObject = Find_Object(currentObject->parentId);
+        }
+
+        return false;
+    }
+
+    ImVec2 UI_Document::Get_WorldPosition(ObjectId objectId) const
+    {
+        ImVec2 worldPosition = ImVec2(0.f, 0.f);
+        unordered_set<ObjectId> visitedIds;
+
+        const UI_Object* currentObject = Find_Object(objectId);
+        while (nullptr != currentObject)
+        {
+            if (visitedIds.find(currentObject->id) != visitedIds.end())
+                break;
+
+            visitedIds.insert(currentObject->id);
+            worldPosition.x += currentObject->position.x;
+            worldPosition.y += currentObject->position.y;
+
+            if (currentObject->parentId == 0)
+                break;
+
+            currentObject = Find_Object(currentObject->parentId);
+        }
+
+        return worldPosition;
+    }
+
+    bool UI_Document::Set_WorldPosition(ObjectId objectId, const ImVec2& worldPosition)
+    {
+        UI_Object* object = Find_Object(objectId);
+        if (nullptr == object)
+            return false;
+
+        const ImVec2 parentWorldPosition = Get_WorldPosition(object->parentId);
+        object->position = ImVec2(worldPosition.x - parentWorldPosition.x, worldPosition.y - parentWorldPosition.y);
+        return true;
+    }
+
+    string UI_Document::Generate_UniqueName(const string& baseName, ObjectId ignoredObjectId) const
+    {
+        const string normalizedBaseName = baseName.empty() ? "Object" : baseName;
+
+        auto nameExists = [this, ignoredObjectId](const string& name)
+        {
+            for (const UI_Object& object : _objects)
+            {
+                if (object.id != ignoredObjectId && object.name == name)
+                    return true;
+            }
+
+            return false;
+        };
+
+        if (!nameExists(normalizedBaseName))
+            return normalizedBaseName;
+
+        for (uint32 index = 1; index < 10000; ++index)
+        {
+            char suffix[16] = {};
+            sprintf_s(suffix, "_%03u", index);
+
+            const string candidateName = normalizedBaseName + suffix;
+            if (!nameExists(candidateName))
+                return candidateName;
+        }
+
+        return normalizedBaseName + "_" + to_string(_nextObjectId);
+    }
+
+    string UI_Document::Generate_DuplicateName(const string& sourceName) const
+    {
+        const string baseName = (sourceName.empty() ? "Object" : sourceName) + "_Copy";
+
+        for (uint32 index = 1; index < 10000; ++index)
+        {
+            char suffix[16] = {};
+            sprintf_s(suffix, "%03u", index);
+
+            const string candidateName = baseName + suffix;
+            bool exists = false;
+            for (const UI_Object& object : _objects)
+            {
+                if (object.name == candidateName)
+                {
+                    exists = true;
+                    break;
+                }
+            }
+
+            if (!exists)
+                return candidateName;
+        }
+
+        return baseName + to_string(_nextObjectId);
     }
 
     UI_Object* UI_Document::Find_Object(ObjectId objectId)
@@ -448,6 +670,8 @@ namespace UIEditor
                 item["text"] = object.text;
                 item["fontPath"] = object.fontPath;
                 item["fontSize"] = object.fontSize;
+                item["textAlign"] = Get_TextAlignName(object.textAlign);
+                item["textWrap"] = object.textWrap;
                 if (!object.fontGuid.empty())
                     item["fontGuid"] = object.fontGuid;
                 if (!object.fontTag.empty())
@@ -491,7 +715,6 @@ namespace UIEditor
 
         vector<UI_Object> nextObjects;
         unordered_set<ObjectId> loadedObjectIds;
-        ObjectId maxObjectId = 0;
 
         const auto objectsIter = root.find("objects");
         if (objectsIter == root.end() || !objectsIter->is_array())
@@ -520,6 +743,12 @@ namespace UIEditor
                 if (objectId == 0)
                 {
                     LOG_WARN("UI Document load skipped object with missing/invalid id.");
+                    continue;
+                }
+
+                if (objectId == numeric_limits<ObjectId>::max())
+                {
+                    LOG_WARN("UI Document load skipped object with overflow-risk id: {}", objectId);
                     continue;
                 }
 
@@ -556,6 +785,13 @@ namespace UIEditor
                     object.text = Read_String(item, "text", "Text");
                     object.fontPath = Read_String(item, "fontPath", kDefaultFontPath);
                     object.fontSize = max(4.f, Read_Float(item, "fontSize", 32.f));
+                    UI_TextAlign textAlign = UI_TextAlign::Left;
+                    string textAlignName = Read_String(item, "textAlign", "");
+                    if (textAlignName.empty())
+                        textAlignName = Read_String(item, "align", "");
+                    if (Try_ParseTextAlign(textAlignName, textAlign))
+                        object.textAlign = textAlign;
+                    object.textWrap = Read_Bool(item, "textWrap", Read_Bool(item, "wrap", false));
                     object.fontGuid = Read_String(item, "fontGuid", "");
                     object.fontTag = Read_String(item, "fontTag", Make_FontTagFromPath(object.fontPath));
                     if (object.fontTag.empty())
@@ -563,26 +799,15 @@ namespace UIEditor
                 }
 
                 loadedObjectIds.insert(object.id);
-                maxObjectId = max(maxObjectId, object.id);
                 nextObjects.push_back(object);
-            }
-        }
-
-        for (UI_Object& object : nextObjects)
-        {
-            if (object.parentId != 0 && loadedObjectIds.find(object.parentId) == loadedObjectIds.end())
-            {
-                LOG_WARN("UI Document load: object {} parent {} missing. Reparenting to Canvas.", object.id, object.parentId);
-                object.parentId = 0;
             }
         }
 
         _canvasName = nextCanvasName.empty() ? kDefaultCanvasName : nextCanvasName;
         _canvasSize = nextCanvasSize;
         _objects = move(nextObjects);
-        _nextObjectId = maxObjectId + 1;
-        if (_nextObjectId == 0)
-            _nextObjectId = 1;
+        Validate_ParentLinks();
+        Resolve_NextObjectId();
 
         return true;
     }
@@ -604,9 +829,81 @@ namespace UIEditor
         for (const UI_Object& object : _objects)
             maxObjectId = max(maxObjectId, object.id);
 
-        _nextObjectId = maxObjectId + 1;
-        if (_nextObjectId == 0)
-            _nextObjectId = 1;
+        if (maxObjectId < numeric_limits<ObjectId>::max())
+        {
+            _nextObjectId = maxObjectId + 1;
+            if (_nextObjectId == 0)
+                _nextObjectId = 1;
+            return;
+        }
+
+        unordered_set<ObjectId> usedIds;
+        for (const UI_Object& object : _objects)
+            usedIds.insert(object.id);
+
+        for (ObjectId candidateId = 1; candidateId < numeric_limits<ObjectId>::max(); ++candidateId)
+        {
+            if (usedIds.find(candidateId) == usedIds.end())
+            {
+                _nextObjectId = candidateId;
+                return;
+            }
+        }
+
+        _nextObjectId = 1;
+    }
+
+    void UI_Document::Validate_ParentLinks()
+    {
+        unordered_set<ObjectId> validObjectIds;
+        for (const UI_Object& object : _objects)
+        {
+            if (object.id != 0)
+                validObjectIds.insert(object.id);
+        }
+
+        for (UI_Object& object : _objects)
+        {
+            if (object.parentId == 0)
+                continue;
+
+            if (object.parentId == object.id || validObjectIds.find(object.parentId) == validObjectIds.end())
+            {
+                LOG_WARN("UI Document load: object {} has invalid parent {}. Reparenting to Canvas.", object.id, object.parentId);
+                object.parentId = 0;
+                continue;
+            }
+
+            unordered_set<ObjectId> visitedParentIds;
+            ObjectId currentParentId = object.parentId;
+            bool hasInvalidChain = false;
+
+            while (currentParentId != 0)
+            {
+                if (currentParentId == object.id || visitedParentIds.find(currentParentId) != visitedParentIds.end())
+                {
+                    hasInvalidChain = true;
+                    break;
+                }
+
+                visitedParentIds.insert(currentParentId);
+
+                const UI_Object* parentObject = Find_Object(currentParentId);
+                if (nullptr == parentObject)
+                {
+                    hasInvalidChain = true;
+                    break;
+                }
+
+                currentParentId = parentObject->parentId;
+            }
+
+            if (hasInvalidChain)
+            {
+                LOG_WARN("UI Document load: object {} has cyclic parent chain. Reparenting to Canvas.", object.id);
+                object.parentId = 0;
+            }
+        }
     }
 
     void UI_Document::Collect_ObjectAndChildren(ObjectId objectId, vector<ObjectId>& objectIds) const
@@ -620,16 +917,19 @@ namespace UIEditor
         }
     }
 
-    ObjectId UI_Document::Duplicate_ObjectRecursive(UI_Object sourceObject, ObjectId parentId, const ImVec2& offset)
+    ObjectId UI_Document::Duplicate_ObjectRecursive(UI_Object sourceObject, ObjectId parentId, const ImVec2& offset, bool applyOffset)
     {
         const ObjectId sourceObjectId = sourceObject.id;
 
         UI_Object duplicateObject = sourceObject;
         duplicateObject.id = _nextObjectId++;
         duplicateObject.parentId = parentId;
-        duplicateObject.name = sourceObject.name + "_Copy";
-        duplicateObject.position.x += offset.x;
-        duplicateObject.position.y += offset.y;
+        duplicateObject.name = Generate_DuplicateName(sourceObject.name);
+        if (applyOffset)
+        {
+            duplicateObject.position.x += offset.x;
+            duplicateObject.position.y += offset.y;
+        }
         duplicateObject.sortOrder = static_cast<int32>(_objects.size());
 
         _objects.push_back(duplicateObject);
@@ -639,7 +939,7 @@ namespace UIEditor
             if (_objects[i].parentId == sourceObjectId)
             {
                 UI_Object childSourceObject = _objects[i];
-                Duplicate_ObjectRecursive(childSourceObject, duplicateObject.id, offset);
+                Duplicate_ObjectRecursive(childSourceObject, duplicateObject.id, offset, false);
             }
         }
 
