@@ -43,7 +43,6 @@ HRESULT Camera::Initialize(void* arg)
     _transformCom->Set_RotationEuler(Vec3 {_pitch, _yaw, 0.f}); 
 
     Update_TransformMatrices();
-
     return S_OK;
 }
 
