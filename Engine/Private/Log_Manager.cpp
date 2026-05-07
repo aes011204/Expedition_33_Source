@@ -179,6 +179,7 @@ private:
 struct Engine::Log_Manager_Impl
 {
     Shared<spdlog::logger> logger{};
+    Shared<spdlog::logger> fileOnlyLogger{};
     Shared<Internal::ConsoleSink> consoleSink{};
 };
 
@@ -236,6 +237,8 @@ HRESULT Log_Manager::Initialize(const string& projectName)
 
         // 로거 생성
         _impl->logger = make_shared<spdlog::logger>(projectName, begin(sinks), end(sinks));
+        _impl->fileOnlyLogger = make_shared<spdlog::logger>(projectName + ".FileOnly", spFileSink);
+        _impl->fileOnlyLogger->set_level(spdlog::level::trace);
 
         // 전역 설정
         spdlog::set_default_logger(_impl->logger);
@@ -251,6 +254,8 @@ HRESULT Log_Manager::Initialize(const string& projectName)
         sinks.push_back(spFileSink);
 
         _impl->logger = make_shared<spdlog::logger>(projectName, begin(sinks), end(sinks));
+        _impl->fileOnlyLogger = make_shared<spdlog::logger>(projectName + ".FileOnly", spFileSink);
+        _impl->fileOnlyLogger->set_level(spdlog::level::info);
 
         // 전역 설정
         spdlog::set_default_logger(_impl->logger);
@@ -258,7 +263,9 @@ HRESULT Log_Manager::Initialize(const string& projectName)
 #endif
 
         // 패턴 설정: [시간] [로그레벨] [스레드ID] [소스 위치] 메시지
-        spdlog::set_pattern("[%m-%d %H:%M:%S.%e] [%^%l%$] [%t] [%!:%#] %v");
+        constexpr auto logPattern = "[%m-%d %H:%M:%S.%e] [%^%l%$] [%t] [%!:%#] %v";
+        spdlog::set_pattern(logPattern);
+        _impl->fileOnlyLogger->set_pattern(logPattern);
         LOG_INFO("{:-^50}", " [ Logging Initialized: " + projectName + ".exe ] ");
     }
     catch (const spdlog::spdlog_ex& ex)
@@ -302,6 +309,12 @@ uint32 Log_Manager::Get_ConsoleLogRevision() const
     return 0;
 }
 
+void Log_Manager::Log_FileOnly(const spdlog::source_loc& sourceLoc, spdlog::level::level_enum level, const string& message) const
+{
+    if (_impl && _impl->fileOnlyLogger)
+        _impl->fileOnlyLogger->log(sourceLoc, level, message);
+}
+
 void Log_Manager::Visit_ConsoleLogs(const function<void(const ConsoleLogEntry&)>& visitor) const
 {
     if (_impl && _impl->consoleSink)
@@ -336,10 +349,14 @@ void Log_Manager::Free()
         LOG_INFO("{:-^50}", " [ Logging Shutdown ] ");
     }
 
+    if (_impl && _impl->fileOnlyLogger)
+        _impl->fileOnlyLogger->flush();
+
     spdlog::shutdown();
     if (_impl)
     {
         _impl->consoleSink.reset();
+        _impl->fileOnlyLogger.reset();
         _impl->logger.reset();
     }
 }

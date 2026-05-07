@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <Windows.h>
 
@@ -30,6 +30,12 @@ enum class EditorViewportTarget : uint8
 {
     Scene,
     Game,
+};
+
+enum class PreviewViewportMode : uint8
+{
+    Auto,
+    Manual,
 };
 
 NS_END

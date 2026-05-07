@@ -4,7 +4,7 @@ namespace Engine
 {
     enum class WinMode { Full, Win };
 
-    enum class Prototype { GameObject, Comopnent };
+    enum class Prototype { GameObject, UI, Comopnent };
 
     enum class RenderGroup { Priority, Shadow, NonBlend, NonLight, Blend, UI, END };
 

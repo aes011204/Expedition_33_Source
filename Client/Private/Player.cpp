@@ -16,6 +16,8 @@ IMPLEMENT_REFLECTION(Player)
     info.displayName = "Player";
     info.category = "Character";
 
+    PROPERTY_ENUM("PlayerState",_testPlayerState, PlayerState);
+
     return true;
 }
 

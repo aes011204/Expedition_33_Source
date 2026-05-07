@@ -4,7 +4,12 @@
 #include "FreeCamera.h"
 #include "TargetCamera.h"
 #include "PointParticlePreview.h"
+
 #include "MapLoader.h"
+
+#include "UI_Image.h"
+#include "UI_RuntimeLoader.h"
+#include "UI_Text.h"
 
 Level_GamePlay::Level_GamePlay(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Level{ device, context }
@@ -16,8 +21,11 @@ HRESULT Level_GamePlay::Initialize()
     if (FAILED(Ready_Lights()))
         return E_FAIL;
 
-    if (FAILED(Ready_Layer_Camera(TEXT("Layer_Camera"))))
-        return E_FAIL;
+    if (FAILED(Ready_Layer_UI(TEXT("Layer_UI"))))
+		return E_FAIL;
+
+	if (FAILED(Ready_Layer_Camera(TEXT("Layer_Camera"))))
+		return E_FAIL;
 
     if (FAILED(Ready_Layer_BackGround(TEXT("Layer_BackGround"))))
         return E_FAIL;
@@ -94,6 +102,15 @@ HRESULT Level_GamePlay::Ready_Lights()
         return E_FAIL;
 
     return S_OK;
+}
+
+HRESULT Level_GamePlay::Ready_Layer_UI(const wstring& strLayerTag)
+{
+    UI_RuntimeLoader::UI_LoadDesc desc{};
+    desc.levelIndex = ETOI(LevelType::GamePlay);
+    desc.jsonPath = Constants::UI::UI_Json_Path;
+
+    return UI_RuntimeLoader::Load_Document(desc);
 }
 
 HRESULT Level_GamePlay::Ready_Layer_Camera(const wstring& strLayerTag)

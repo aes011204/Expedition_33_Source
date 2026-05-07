@@ -185,6 +185,10 @@
     <ClInclude Include="..\Public\Head_Player.h">
       <Filter>02.GameObject\Player</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\UI_RuntimeLoader.h" />
+    <ClInclude Include="..\Public\Client_Constants.h">
+      <Filter>99.Defines</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -268,6 +272,7 @@
     <ClCompile Include="..\Private\Head_Player.cpp">
       <Filter>02.GameObject\Player</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\UI_RuntimeLoader.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">

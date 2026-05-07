@@ -107,6 +107,9 @@ void Animation::Blend_TransformMatrix(float timeDelta, const Shared<Animation>& 
         RootMotionFrame curTrans{}, nextTrans{};
         int32 boneIndex = _channels[i]->Get_BoneIndex();
 
+        if (boneIndex < 0 || boneIndex >= bones.size())
+            continue;
+
         _channels[i]->Get_ChannelTransform(_currentTrackPosition, _currentKeyFrameIndices[i], _duration, isLoop, curTrans);
         _channels[i]->Update_Velocity(curTrans, _currentTrackPosition);
 

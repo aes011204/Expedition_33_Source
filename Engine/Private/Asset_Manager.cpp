@@ -42,6 +42,27 @@ const FAssetMeta* Asset_Manager::Find_ByGUID(const string& guid) const
 	return &iter->second;
 }
 
+vector<FAssetMeta> Asset_Manager::Get_AssetsByType(const string& type) const
+{
+	vector<FAssetMeta> assets;
+
+	for (const auto& pair : _guidToMeta)
+	{
+		const FAssetMeta& assetMeta = pair.second;
+		if (assetMeta.type == type)
+			assets.push_back(assetMeta);
+	}
+
+	sort(assets.begin(), assets.end(), [](const FAssetMeta& lhs, const FAssetMeta& rhs)
+	{
+		const string lhsPath = String::ToLowerCopy(String::ToString(lhs.relativePath));
+		const string rhsPath = String::ToLowerCopy(String::ToString(rhs.relativePath));
+		return lhsPath < rhsPath;
+	});
+
+	return assets;
+}
+
 string Asset_Manager::Find_GUID(const wstring& filePath) const
 {
 	const wstring key = Normalize_PathKey(filePath);
@@ -322,7 +343,7 @@ string Asset_Manager::Detect_AssetType(const wstring& filePath) const
 		return "Animation";
 	if (extension == ".wav" || extension == ".mp3" || extension == ".ogg")
 		return "Sound";
-	if (extension == ".ttf" || extension == ".otf")
+	if (extension == ".spritefont" || extension == ".ttf" || extension == ".otf")
 		return "Font";
 	if (extension == ".xlsx" || extension == ".csv")
 		return "DataTable";
@@ -334,6 +355,21 @@ bool Asset_Manager::Should_RegisterAsset(const fs::path& path) const
 {
 	const string name = String::ToLowerCopy(String::ToString(path.filename().wstring()));
 	const string extension = String::ToLowerCopy(String::ToString(path.extension().wstring()));
+
+	if (extension == ".spritefont" && !_resourceRoot.empty())
+	{
+		try
+		{
+			string relativePath = String::ToLowerCopy(String::ToString(fs::relative(path, fs::path(_resourceRoot)).wstring()));
+			replace(relativePath.begin(), relativePath.end(), '\\', '/');
+
+			if (0 == relativePath.find("fonts/"))
+				return true;
+		}
+		catch (...)
+		{
+		}
+	}
 
 	if (!_resourceRoot.empty())
 	{
@@ -378,6 +414,7 @@ bool Asset_Manager::Should_RegisterAsset(const fs::path& path) const
            || extension == ".wav"
            || extension == ".mp3"
            || extension == ".ogg"
+           || extension == ".spritefont"
            || extension == ".ttf"
            || extension == ".otf"
            || extension == ".xlsx"

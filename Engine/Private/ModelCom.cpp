@@ -427,50 +427,46 @@ HRESULT ModelCom::Ready_Animation(const char* modelPath)
     {
         if (entry.is_regular_file() && entry.path().extension() == ".anim")
         {
-            string animFileName = entry.path().filename().string();
-            if (animFileName.find(modelName) == 0)
-            {
-                std::ifstream stream(entry.path(), std::ios::binary);
-                if (!stream.is_open()) continue;
+            std::ifstream stream(entry.path(), std::ios::binary);
+            if (!stream.is_open()) continue;
 
-                auto ReadString = [](std::ifstream& in) {
-                    uint32 len = 0;
-                    in.read(reinterpret_cast<char*>(&len), sizeof(uint32));
-                    std::string str;
-                    if (len > 0) {
-                        str.resize(len);
-                        in.read(&str[0], len);
-                    }
-                    return str;
-                };
-
-                ModelAnimationData animData{};
-                animData.name = ReadString(stream);
-                stream.read(reinterpret_cast<char*>(&animData.duration), sizeof(double) * 2);
-                stream.read(reinterpret_cast<char*>(&animData.numChannels), sizeof(uint32));
-                stream.read(reinterpret_cast<char*>(&animData.rootTotalTranslation), sizeof(Vec3));
-                stream.read(reinterpret_cast<char*>(&animData.rootTotalRotation), sizeof(Vec4));
-
-                vector<ModelChannelData> channels(animData.numChannels);
-                vector<vector<KEYFRAME>> keyframeSets(animData.numChannels);
-
-                for (uint32 i = 0; i < animData.numChannels; ++i)
-                {
-                    channels[i].boneName = ReadString(stream);
-                    stream.read(reinterpret_cast<char*>(&channels[i].boneIndex), sizeof(int32));
-                    stream.read(reinterpret_cast<char*>(&channels[i].numKeyframes), sizeof(uint32));
-
-                    /* 이름 기반 본 인덱스 재매핑 (강제 매핑) */
-                    channels[i].boneIndex = Get_BoneIndex(channels[i].boneName);
-
-                    keyframeSets[i].resize(channels[i].numKeyframes);
-                    stream.read(reinterpret_cast<char*>(keyframeSets[i].data()), sizeof(KEYFRAME) * channels[i].numKeyframes);
-                    channels[i].keyframes = keyframeSets[i].data();
+            auto ReadString = [](std::ifstream& in) {
+                uint32 len = 0;
+                in.read(reinterpret_cast<char*>(&len), sizeof(uint32));
+                std::string str;
+                if (len > 0) {
+                    str.resize(len);
+                    in.read(&str[0], len);
                 }
+                return str;
+            };
 
-                _animations.push_back(Animation::Create(animData, channels));
-                stream.close();
+            ModelAnimationData animData{};
+            animData.name = ReadString(stream);
+            stream.read(reinterpret_cast<char*>(&animData.duration), sizeof(double) * 2);
+            stream.read(reinterpret_cast<char*>(&animData.numChannels), sizeof(uint32));
+            stream.read(reinterpret_cast<char*>(&animData.rootTotalTranslation), sizeof(Vec3));
+            stream.read(reinterpret_cast<char*>(&animData.rootTotalRotation), sizeof(Vec4));
+
+            vector<ModelChannelData> channels(animData.numChannels);
+            vector<vector<KEYFRAME>> keyframeSets(animData.numChannels);
+
+            for (uint32 i = 0; i < animData.numChannels; ++i)
+            {
+                channels[i].boneName = ReadString(stream);
+                stream.read(reinterpret_cast<char*>(&channels[i].boneIndex), sizeof(int32));
+                stream.read(reinterpret_cast<char*>(&channels[i].numKeyframes), sizeof(uint32));
+
+                /* 이름 기반 본 인덱스 재매핑 (강제 매핑) */
+                channels[i].boneIndex = Get_BoneIndex(channels[i].boneName);
+
+                keyframeSets[i].resize(channels[i].numKeyframes);
+                stream.read(reinterpret_cast<char*>(keyframeSets[i].data()), sizeof(KEYFRAME) * channels[i].numKeyframes);
+                channels[i].keyframes = keyframeSets[i].data();
             }
+
+            _animations.push_back(Animation::Create(animData, channels));
+            stream.close();
         }
     }
 

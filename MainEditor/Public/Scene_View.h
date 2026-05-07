@@ -18,6 +18,8 @@ public:
 private:
     void Handle_GizmoShortcut();
     void Render_GizmoOverlay();
+    void Render_PreviewViewportOverlay();
+    void Sync_PreviewViewportInput();
 
     /* MRT 디버그 렌더 */
     void Render_MRTDebugPopup();
@@ -30,6 +32,8 @@ private:
 private:
     /* 마지막으로 표시된 씬 뷰포트 크기. */
     ImVec2 _viewportSize = {};
+    ImVec2 _viewportCanvasMin = {};
+    ImVec2 _viewportCanvasMax = {};
     ImVec2 _viewportMin = {};
     ImVec2 _viewportMax = {};
 
@@ -40,6 +44,9 @@ private:
     ImVec2 _mrtDebugDrawArea = ImVec2(0.f, 0.f);
     /* DrawArea 기본값을 씬 뷰 크기로 한 번만 동기화했는지 여부. */
     bool _mrtDebugInitialized = false;
+
+    int _pendingPreviewViewportWidth = 0;
+    int _pendingPreviewViewportHeight = 0;
 
 public:
     static Shared<Scene_View> Create();

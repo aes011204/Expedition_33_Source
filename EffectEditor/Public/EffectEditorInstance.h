@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Base.h"
 
@@ -51,7 +51,7 @@ public:
 public:
     Shared<Editor_Window> Get_Window(const wstring& windowName) const;
     HWND Get_WindowHandle() const;
-    Editor_Context* Get_Context() const { return _editorContext.get(); }
+    Editor_Context* Get_EditorContext() const { return _editorContext.get(); }
 
 public:
     void Execute_Command(const Shared<ICommand>& command);
@@ -70,10 +70,16 @@ public:
     Shared<RenderTarget> Prepare_SharedViewportRenderTarget(uint32 width, uint32 height);
     ID3D11ShaderResourceView* Get_SharedViewportSRV() const;
     void Capture_BackBuffer_ToViewport();
+    ComPtr<Device> Get_Device() const { return _device; }
+    ComPtr<Context> Get_Context() const { return _context; }
 
+    void Request_PreviewViewportSize(uint32 width, uint32 height);
+
+    void Enable_AutoPreviewViewport();
+    void Enable_ManualPreviewViewport();
     void Set_ManualPreviewViewportSize(uint32 width, uint32 height);
-    void Enable_FitPreviewViewport();
-    bool Is_ManualPreviewViewportEnabled() const { return _useManualPreviewViewport; }
+    PreviewViewportMode Get_PreviewViewportMode() const { return _previewViewportMode; }
+    bool Is_ManualPreviewViewportEnabled() const { return _previewViewportMode == PreviewViewportMode::Manual; }
     void Sync_PreviewViewportMode();
     float Get_EffectiveViewportAspect() const;
 
@@ -96,7 +102,12 @@ private:
 private:
     Shared<RenderTarget> _sharedViewportRenderTarget = nullptr;
 
-    bool _useManualPreviewViewport = false;
+    PreviewViewportMode _previewViewportMode = PreviewViewportMode::Auto;
+    bool _hasPendingPreviewViewportSize = false;
+    uint32 _pendingPreviewViewportWidth = 1;
+    uint32 _pendingPreviewViewportHeight = 1;
+    uint32 _appliedPreviewViewportWidth = 0;
+    uint32 _appliedPreviewViewportHeight = 0;
 
     EffectEditorRuntimeState _runtimeState = EffectEditorRuntimeState::Edit;
     float _runtimeTimeScale = 1.f;
@@ -105,6 +116,10 @@ private:
     EditorViewportTarget _pendingWindowFocus = EditorViewportTarget::Game;
 
     bool _pendingSingleFrameStep = false;
+
+private:
+    void Queue_PreviewViewportSize(uint32 width, uint32 height);
+    void Apply_PendingPreviewViewportSize();
 
 public:
     void Free() override;

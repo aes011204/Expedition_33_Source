@@ -1,4 +1,4 @@
-#include "EffectEditorInstance.h"
+﻿#include "EffectEditorInstance.h"
 
 #include "RenderTarget.h"
 #include "EffectEditor_Manager.h"
@@ -64,7 +64,12 @@ void EffectEditorInstance::Release_Editor()
     _device.Reset();
 
     _editorDesc = {};
-    _useManualPreviewViewport = false;
+    _previewViewportMode = PreviewViewportMode::Auto;
+    _hasPendingPreviewViewportSize = false;
+    _pendingPreviewViewportWidth = 1;
+    _pendingPreviewViewportHeight = 1;
+    _appliedPreviewViewportWidth = 0;
+    _appliedPreviewViewportHeight = 0;
 
     _runtimeState = EffectEditorRuntimeState::Edit;
     _runtimeTimeScale = 1.f;
@@ -76,6 +81,7 @@ void EffectEditorInstance::Release_Editor()
 void EffectEditorInstance::Update_Editor(float timeDelta)
 {
     Sync_PreviewViewportMode();
+    Apply_PendingPreviewViewportSize();
 
     _imguiManager->Update(timeDelta);
     _editorManager->Update(timeDelta);
@@ -252,16 +258,17 @@ Shared<RenderTarget> EffectEditorInstance::Prepare_SharedViewportRenderTarget(ui
             width,
             height,
             DXGI_FORMAT_R8G8B8A8_UNORM,
-            Vec4(0.f, 0.f, 0.f, 1.f));
+            Vec4(0.f, 0.f, 0.f, 1.f)
+        );
     }
-    else if (FAILED(_sharedViewportRenderTarget->Resize(
-        width,
-        height,
-        DXGI_FORMAT_R8G8B8A8_UNORM,
-        Vec4(0.f, 0.f, 0.f, 1.f))))
-    {
+    else if (FAILED(
+        _sharedViewportRenderTarget->Resize(
+            width,
+            height,
+            DXGI_FORMAT_R8G8B8A8_UNORM,
+            Vec4(0.f, 0.f, 0.f, 1.f))
+    ))
         return nullptr;
-    }
 
     return _sharedViewportRenderTarget;
 }
@@ -276,57 +283,87 @@ ID3D11ShaderResourceView* EffectEditorInstance::Get_SharedViewportSRV() const
 
 void EffectEditorInstance::Capture_BackBuffer_ToViewport()
 {
-    Shared<RenderTarget> renderTarget =
+    const uint32 viewportWidth = min(
+        max(1u, GAME->Get_ViewportWidth()),
+        max(1u, GAME->Get_BackBufferWidth()));
+    const uint32 viewportHeight = min(
+        max(1u, GAME->Get_ViewportHeight()),
+        max(1u, GAME->Get_BackBufferHeight()));
+
+    const Shared<RenderTarget> renderTarget =
         Prepare_SharedViewportRenderTarget(
-            GAME->Get_BackBufferWidth(),
-            GAME->Get_BackBufferHeight());
+            viewportWidth,
+            viewportHeight
+        );
 
     if (nullptr == renderTarget || nullptr == _context)
         return;
 
-    ComPtr<IDXGISwapChain> swapChain = GAME->Get_SwapChain();
+    const ComPtr<IDXGISwapChain> swapChain = GAME->Get_SwapChain();
     if (nullptr == swapChain)
         return;
 
     ComPtr<ID3D11Texture2D> backBufferTexture = nullptr;
-    if (FAILED(swapChain->GetBuffer(
-        0,
-        __uuidof(ID3D11Texture2D),
-        reinterpret_cast<void**>(backBufferTexture.GetAddressOf()))))
-    {
+    if (FAILED(
+        swapChain->GetBuffer(
+            0,
+            __uuidof(ID3D11Texture2D),
+            reinterpret_cast<void**>(backBufferTexture.GetAddressOf()))
+    ))
         return;
-    }
 
-    ComPtr<ID3D11Texture2D> viewportTexture = renderTarget->Get_Texture();
+    const ComPtr<ID3D11Texture2D> viewportTexture = renderTarget->Get_Texture();
     if (nullptr == viewportTexture)
         return;
 
-    _context->CopyResource(viewportTexture.Get(), backBufferTexture.Get());
+    D3D11_BOX sourceBox{};
+    sourceBox.left = 0;
+    sourceBox.top = 0;
+    sourceBox.front = 0;
+    sourceBox.right = viewportWidth;
+    sourceBox.bottom = viewportHeight;
+    sourceBox.back = 1;
+
+    _context->CopySubresourceRegion(
+        viewportTexture.Get(),
+        0,
+        0,
+        0,
+        0,
+        backBufferTexture.Get(),
+        0,
+        &sourceBox);
+}
+
+void EffectEditorInstance::Request_PreviewViewportSize(uint32 width, uint32 height)
+{
+    if (_previewViewportMode != PreviewViewportMode::Auto)
+        return;
+
+    Queue_PreviewViewportSize(width, height);
+}
+
+void EffectEditorInstance::Enable_AutoPreviewViewport()
+{
+    _previewViewportMode = PreviewViewportMode::Auto;
+}
+
+void EffectEditorInstance::Enable_ManualPreviewViewport()
+{
+    _previewViewportMode = PreviewViewportMode::Manual;
 }
 
 void EffectEditorInstance::Set_ManualPreviewViewportSize(uint32 width, uint32 height)
 {
-    GAME->Set_ViewportSize(max(1u, width), max(1u, height));
-    _useManualPreviewViewport = true;
-}
-
-void EffectEditorInstance::Enable_FitPreviewViewport()
-{
-    _useManualPreviewViewport = false;
-
-    GAME->Set_ViewportSize(
-        GAME->Get_BackBufferWidth(),
-        GAME->Get_BackBufferHeight());
+    _previewViewportMode = PreviewViewportMode::Manual;
+    Queue_PreviewViewportSize(width, height);
 }
 
 void EffectEditorInstance::Sync_PreviewViewportMode()
 {
-    if (_useManualPreviewViewport)
-        return;
-
-    GAME->Set_ViewportSize(
-        GAME->Get_BackBufferWidth(),
-        GAME->Get_BackBufferHeight());
+    if (GAME->Get_ViewportWidth() > GAME->Get_BackBufferWidth() ||
+        GAME->Get_ViewportHeight() > GAME->Get_BackBufferHeight())
+        Queue_PreviewViewportSize(GAME->Get_ViewportWidth(), GAME->Get_ViewportHeight());
 }
 
 float EffectEditorInstance::Get_EffectiveViewportAspect() const
@@ -337,19 +374,49 @@ float EffectEditorInstance::Get_EffectiveViewportAspect() const
         return 0.f;
 
     return static_cast<float>(viewportWidth) /
-        static_cast<float>(viewportHeight);
+           static_cast<float>(viewportHeight);
+}
+
+void EffectEditorInstance::Queue_PreviewViewportSize(uint32 width, uint32 height)
+{
+    _pendingPreviewViewportWidth = max(1u, width);
+    _pendingPreviewViewportHeight = max(1u, height);
+    _hasPendingPreviewViewportSize = true;
+}
+
+void EffectEditorInstance::Apply_PendingPreviewViewportSize()
+{
+    if (!_hasPendingPreviewViewportSize)
+        return;
+
+    _hasPendingPreviewViewportSize = false;
+
+    const uint32 width = min(
+        max(1u, _pendingPreviewViewportWidth),
+        max(1u, GAME->Get_BackBufferWidth()));
+    const uint32 height = min(
+        max(1u, _pendingPreviewViewportHeight),
+        max(1u, GAME->Get_BackBufferHeight()));
+
+    if (_appliedPreviewViewportWidth == width &&
+        _appliedPreviewViewportHeight == height)
+        return;
+
+    if (FAILED(GAME->Apply_LogicalViewportSize(width, height)))
+        return;
+
+    _appliedPreviewViewportWidth = GAME->Get_ViewportWidth();
+    _appliedPreviewViewportHeight = GAME->Get_ViewportHeight();
 }
 
 void EffectEditorInstance::Apply_RuntimeInputPolicy()
 {
-    Shared<Editor_Window> sceneView = Get_Window(L"Scene");
-    Shared<Editor_Window> gameView = Get_Window(L"Game");
+    const Shared<Editor_Window> sceneView = Get_Window(L"Scene");
+    const Shared<Editor_Window> gameView = Get_Window(L"Game");
 
     if (_runtimeState != EffectEditorRuntimeState::Play &&
         !GAME->Is_ActiveCameraType(ObjectType::FreeCamera))
-    {
         Activate_FreeCamera();
-    }
 
     const bool sceneInteractive =
         sceneView && sceneView->Is_Open() &&

@@ -10,6 +10,7 @@
 #include "Level_Manager.h"
 #include "Light_Manager.h"
 #include "Log_Manager.h"
+#include "UI_Manager.h"
 #include "Object_Manager.h"
 #include "PipeLine.h"
 #include "GameObject.h"
@@ -64,6 +65,9 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
 
     _prototypeManager = Prototype_Manager::Create(engineDesc.numLevels);
     CHECK_NULL(_prototypeManager, E_FAIL);
+
+    _uiManager = UI_Manager::Create(_prototypeManager.get());
+    CHECK_NULL(_uiManager, E_FAIL);
 
     _typeRegistry = TypeRegistry::Create();
     CHECK_NULL(_typeRegistry, E_FAIL);
@@ -145,8 +149,10 @@ void GameInstance::Update_Engine(float timeDelta)
     vector<PhysXPairEvent> events;
     _physxManager->Gather_FrameEvents(events);
     _collisionManager->Update_FromPhysX(events);
-
+    
     _cameraManager->Update(timeDelta);
+    _uiManager->Update(timeDelta);
+
 }
 
 HRESULT GameInstance::Draw()
@@ -175,6 +181,9 @@ HRESULT GameInstance::Draw()
 #ifdef _DEBUG
     Try_FlushRuntimePerfLog();
 #endif
+
+    if (FAILED(_uiManager->Render()))
+        return E_FAIL;
 
     return S_OK;
 }
@@ -221,34 +230,10 @@ void GameInstance::Try_FlushRuntimePerfLog()
         return;
     }
 
-    if (hasRenderSummary && runtimeSummary.render.renderCallCount > 0)
-    {
-        runtimeSummary.approxFps =
-            static_cast<float>(runtimeSummary.render.renderCallCount) / windowSec;
-    }
-    else if (hasCollisionSummary && runtimeSummary.collision.updateFrameCount > 0)
-    {
-        runtimeSummary.approxFps =
-            static_cast<float>(runtimeSummary.collision.updateFrameCount) / windowSec;
-    }
-
-    LOG_INFO(
-        "[RuntimePerf] fps={:.1f} render_ms(avg={:.2f} max={:.2f}) "
-        "collision_ms(avg={:.2f} max={:.2f}) colliders(active={:.1f})",
-
-        runtimeSummary.approxFps,
-
-        runtimeSummary.render.renderAvgMs,
-        runtimeSummary.render.renderMaxMs,
-
-        runtimeSummary.collision.updateAvgMs,
-        runtimeSummary.collision.updateMaxMs,
-        runtimeSummary.collision.activeCollidersAvg
-    );
-
-    if (Should_LogRuntimePerfDetail(runtimeSummary))
-    {
-        LOG_INFO(
+    Log_FileOnly(
+        spdlog::source_loc{ __FILE__, __LINE__, SPDLOG_FUNCTION },
+        spdlog::level::trace,
+        fmt::format(
             "[RuntimePerfDetail] render_ms(avg={:.2f} max={:.2f}) "
             "priority_ms(avg={:.2f} max={:.2f}) "
             "shadow_ms(avg={:.2f} max={:.2f}) "
@@ -296,20 +281,13 @@ void GameInstance::Try_FlushRuntimePerfLog()
             runtimeSummary.collision.pairsPerSec,
             runtimeSummary.collision.intersectsPerSec,
             runtimeSummary.collision.hitsPerSec
-        );
-    }
+        )
+    );
 
     _runtimePerfWindowStartTime = now;
     _hasRuntimePerfWindowStartTime = true;
 }
 
-bool GameInstance::Should_LogRuntimePerfDetail(const RuntimePerfSummary& runtimeSummary)
-{
-    return
-        runtimeSummary.render.renderAvgMs >= detailRenderAvgMsThreshold ||
-        runtimeSummary.collision.updateAvgMs >= detailCollisionAvgMsThreshold ||
-        runtimeSummary.collision.intersectsPerSec >= detailIntersectsPerSecThreshold;
-}
 #endif
 
 void GameInstance::Clear_Resources(uint32 levelIndex)
@@ -321,6 +299,12 @@ void GameInstance::Clear_Resources(uint32 levelIndex)
 float GameInstance::Random(float min, float max)
 {
     return min + static_cast<float>(rand()) / RAND_MAX * (max - min);
+}
+
+void GameInstance::Log_FileOnly(const spdlog::source_loc& sourceLoc, spdlog::level::level_enum level, const string& message) const
+{
+    CHECK_NULL(_logManager);
+    _logManager->Log_FileOnly(sourceLoc, level, message);
 }
 
 void GameInstance::Visit_ConsoleLogs(const function<void(const ConsoleLogEntry& logEntry)>& visitor) const
@@ -395,6 +379,24 @@ void GameInstance::Set_ViewportSize(uint32 width, uint32 height)
     _viewportHeight = max(1u, height);
 }
 
+HRESULT GameInstance::Apply_LogicalViewportSize(uint32 width, uint32 height)
+{
+    CHECK_NULL(_renderer, E_FAIL);
+    CHECK_NULL(_targetManager, E_FAIL);
+
+    const uint32 backBufferWidth = max(1u, Get_BackBufferWidth());
+    const uint32 backBufferHeight = max(1u, Get_BackBufferHeight());
+    const uint32 logicalWidth = min(max(1u, width), backBufferWidth);
+    const uint32 logicalHeight = min(max(1u, height), backBufferHeight);
+
+    Set_ViewportSize(logicalWidth, logicalHeight);
+
+    CHECK_FAILED(Resize_MRTs(logicalWidth, logicalHeight), E_FAIL);
+
+    _renderer->Sync_ViewportDependentState(logicalWidth, logicalHeight);
+    return S_OK;
+}
+
 uint32 GameInstance::Get_ViewportWidth() const
 {
     return _viewportWidth;
@@ -450,6 +452,16 @@ Shared<Base> GameInstance::Clone_Prototype(Prototype prototype, uint32 levelInde
     return _prototypeManager->Clone_Prototype(prototype, levelIndex, prototypeTag, arg);
 }
 
+HRESULT GameInstance::Add_UI(uint32 prototypeLevelIndex, const wstring& prototypeTag, void* arg, Shared<UI_Base>* outUI)
+{
+    return _uiManager->Add_UI(prototypeLevelIndex, prototypeTag, arg, outUI);
+}
+
+void GameInstance::Pop_UI()
+{
+    _uiManager->Pop_UI();
+}
+
 HRESULT GameInstance::Add_GameObject(
     uint32 prototypeLevelIndex, const wstring& prototypeTag, uint32 layerLevelIndex, const wstring& layerTag, void* arg)
 {
@@ -457,13 +469,13 @@ HRESULT GameInstance::Add_GameObject(
 }
 
 HRESULT GameInstance::Add_GameObject(uint32 prototypeLevelIndex, const wstring& prototypeTag, uint32 layerLevelIndex,
-    const wstring& layerTag, Shared<GameObject>& outGameObject, void* arg)
+                                     const wstring& layerTag, Shared<GameObject>& outGameObject, void* arg)
 {
     return _objectManager->Add_GameObject(prototypeLevelIndex, prototypeTag, layerLevelIndex, layerTag, outGameObject, arg);
 }
 
 HRESULT GameInstance::Add_GameObject(uint32 layerLevelIndex, const wstring& layerTag,
-    const Shared<GameObject>& gameObject)
+                                     const Shared<GameObject>& gameObject)
 {
     return _objectManager->Add_GameObject(layerLevelIndex, layerTag, gameObject);
 }
@@ -625,9 +637,21 @@ HRESULT GameInstance::Add_Font(const wstring& fontTag, const wchar_t* fontFilePa
     return _fontManager->Add_Font(fontTag, fontFilePath);
 }
 
-void GameInstance::Draw_Font(const wstring& fontTag, const wchar_t* text, const Vec2& position, FXMVECTOR color)
+Vec2 GameInstance::Measure_Font(const wstring& fontTag, const wchar_t* text)
 {
-    _fontManager->Draw(fontTag, text, position, color);
+    return _fontManager->Measure(fontTag, text);
+}
+
+void GameInstance::Draw_Font(
+    const wstring& fontTag,
+    const wchar_t* text,
+    const Vec2& position,
+    FXMVECTOR color,
+    float rotationRadians,
+    const Vec2& pivot,
+    float scale)
+{
+    _fontManager->Draw(fontTag, text, position, color, rotationRadians, pivot, scale);
 }
 
 HRESULT GameInstance::Initialize_AssetManager(const wstring& resourceRoot)
@@ -641,21 +665,41 @@ HRESULT GameInstance::Initialize_AssetManager(const wstring& resourceRoot)
 
 string GameInstance::Find_AssetGUID(const wstring& filePath) const
 {
+    if (nullptr == _assetManager)
+        return {};
+
     return _assetManager->Find_GUID(filePath);
 }
 
 const FAssetMeta* GameInstance::Find_AssetByGUID(const string& guid) const
 {
+    if (nullptr == _assetManager)
+        return nullptr;
+
     return _assetManager->Find_ByGUID(guid);
+}
+
+vector<FAssetMeta> GameInstance::Get_AssetsByType(const string& type) const
+{
+    if (nullptr == _assetManager)
+        return {};
+
+    return _assetManager->Get_AssetsByType(type);
 }
 
 wstring GameInstance::Resolve_AssetPath(const string& guid) const
 {
+    if (nullptr == _assetManager)
+        return {};
+
     return _assetManager->Resolve_Path(guid);
 }
 
 wstring GameInstance::Get_AssetRoot() const
 {
+    if (nullptr == _assetManager)
+        return {};
+
     return _assetManager->Get_ResourceRoot();
 }
 
@@ -751,6 +795,52 @@ Shared<Base> GameInstance::Create_BTNodePrototype(const string& className) const
     return _typeRegistry->Create_BTNode(className);
 }
 
+HRESULT GameInstance::Add_RenderTarget(const wstring& targetTag, uint32 sizeX, uint32 sizeY, DXGI_FORMAT pixelFormat,
+                                       const Color& clearColor, bool resizeWithViewport, bool useDSV)
+{
+    return _targetManager->Add_RenderTarget(targetTag, sizeX, sizeY, pixelFormat, clearColor, resizeWithViewport, useDSV);
+}
+
+HRESULT GameInstance::Add_MRT(const wstring& mrtTag, const wstring& targetTag)
+{
+    return _targetManager->Add_MRT(mrtTag, targetTag);
+}
+
+HRESULT GameInstance::Begin_MRT(const wstring& mrtTag, bool useDSV)
+{
+    return _targetManager->Begin_MRT(mrtTag, useDSV);
+}
+
+HRESULT GameInstance::End_MRT()
+{
+    return _targetManager->End_MRT();
+}
+
+HRESULT GameInstance::Resize_MRTs(uint32 width, uint32 height)
+{
+    return _targetManager->Resize_MRTs(width, height);
+}
+
+HRESULT GameInstance::Bind_RT_ShaderResource(Shared<ShaderCom> shader, const char* constantName, const wstring& targetTag)
+{
+    return _targetManager->Bind_ShaderResource(shader, constantName, targetTag);
+}
+
+HRESULT GameInstance::Copy_CurrentRTV_To(const wstring& targetTag)
+{
+    return _targetManager->Copy_CurrentRTV_To(targetTag);
+}
+
+HRESULT GameInstance::Copy_RTV(const wstring& srcTargetTag, const wstring& dstTargetTag)
+{
+    return _targetManager->Copy_RTV(srcTargetTag, dstTargetTag);
+}
+
+HRESULT GameInstance::Copy_RT_Resource(const wstring& targetTag, ID3D11Texture2D* destTexture)
+{
+    return _targetManager->Copy_Resource(targetTag, destTexture);
+}
+
 void GameInstance::Add_Collider(Shared<ColliderCom> collider)
 {
     CHECK_NULL(collider);
@@ -836,6 +926,7 @@ void GameInstance::Clear_Prints()
     _printManager->Clear();
 #endif
 }
+
 
 void GameInstance::Clear_Print(const wstring& slot)
 {
@@ -955,7 +1046,7 @@ HRESULT GameInstance::Update_Picking()
 
 bool GameInstance::Pick_WorldPosition(const POINT& pixelPos, Vec3& outWorldPos)
 {
-     return _picking->Pick_WorldPosition(pixelPos, outWorldPos);
+    return _picking->Pick_WorldPosition(pixelPos, outWorldPos);
 }
 
 void GameInstance::Release_Engine()
@@ -989,60 +1080,18 @@ void GameInstance::Release_Engine()
     ReleaseManager(_pipeLine);
     ReleaseManager(_renderer);
     ReleaseManager(_objectManager);
+    ReleaseManager(_uiManager);
     ReleaseManager(_prototypeManager);
     ReleaseManager(_typeRegistry);
     ReleaseManager(_levelManager);
     ReleaseManager(_picking);
     ReleaseManager(_timerManager);
+
+    _context.Reset();
+    _device.Reset();
+
     ReleaseManager(_graphicDevice);
     ReleaseManager(_logManager);
-}
-
-
-HRESULT GameInstance::Add_RenderTarget(const wstring& targetTag, uint32 sizeX, uint32 sizeY, DXGI_FORMAT pixelFormat,
-    const Color& clearColor, bool resizeWithViewport, bool useDSV)
-{
-    return _targetManager->Add_RenderTarget(targetTag, sizeX, sizeY, pixelFormat, clearColor, resizeWithViewport, useDSV);
-}
-
-HRESULT GameInstance::Add_MRT(const wstring& mrtTag, const wstring& targetTag)
-{
-    return _targetManager->Add_MRT(mrtTag, targetTag);
-}
-
-HRESULT GameInstance::Begin_MRT(const wstring& mrtTag, bool useDSV)
-{
-    return _targetManager->Begin_MRT(mrtTag, useDSV);
-}
-
-HRESULT GameInstance::End_MRT()
-{
-    return _targetManager->End_MRT();
-}
-
-HRESULT GameInstance::Resize_MRTs(uint32 width, uint32 height)
-{
-    return _targetManager->Resize_MRTs(width, height);
-}
-
-HRESULT GameInstance::Bind_RT_ShaderResource(Shared<ShaderCom> shader, const char* constantName, const wstring& targetTag)
-{
-    return _targetManager->Bind_ShaderResource(shader, constantName, targetTag);
-}
-
-HRESULT GameInstance::Copy_CurrentRTV_To(const wstring& targetTag)
-{
-    return _targetManager->Copy_CurrentRTV_To(targetTag);
-}
-
-HRESULT GameInstance::Copy_RTV(const wstring& srcTargetTag, const wstring& dstTargetTag)
-{
-    return _targetManager->Copy_RTV(srcTargetTag, dstTargetTag);
-}
-
-HRESULT GameInstance::Copy_RT_Resource(const wstring& targetTag, ID3D11Texture2D* destTexture)
-{
-    return _targetManager->Copy_Resource(targetTag, destTexture);
 }
 
 #ifdef _DEBUG

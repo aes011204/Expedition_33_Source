@@ -52,6 +52,9 @@
     <ClCompile Include="..\Private\EffectEditorInstance.cpp">
       <Filter>01. Manager\00. Effect Editor Instance</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\Profile_View.cpp">
+      <Filter>01. View\Profile View</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -117,6 +120,9 @@
     <ClInclude Include="..\Public\EffectEditorInstance.h">
       <Filter>01. Manager\00. Effect Editor Instance</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\Profile_View.h">
+      <Filter>01. View\Profile View</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="00. Main">
@@ -169,6 +175,9 @@
     </Filter>
     <Filter Include="01. View\Game View">
       <UniqueIdentifier>{e6f8ccb0-4a82-4dcf-a035-a9db55d38f92}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="01. View\Profile View">
+      <UniqueIdentifier>{e6b4c6fa-77e3-4e04-b1f7-7f77ba00c35c}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

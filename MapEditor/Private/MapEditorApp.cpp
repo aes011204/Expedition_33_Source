@@ -357,8 +357,5 @@ void MapEditorApp::Free()
     _context.Reset();
     _device.Reset();
 
-    if (GAME)
-    {
-        GAME->Release_Engine();
-    }
+    GameInstance::DestroyInstance();
 }

@@ -30,6 +30,7 @@ HRESULT MEStaticMeshActor::Render(const Matrix& worldMatrix)
         bool hasTexture = SUCCEEDED(_model->Bind_Material(_shader.get(), "g_DiffuseTexture", i, MaterialTextureSlot::BaseColor, 0));
         _shader->Begin(hasTexture ? 0 : 1);
         _model->Render(i);
+
     }
     return S_OK;
 }
@@ -74,5 +75,6 @@ Shared<MEStaticMeshActor> MEStaticMeshActor::Create(Shared<ModelCom> model, Shar
     auto instance = make_shared<MEStaticMeshActor>();
     instance->_model = model;
     instance->_shader = shader;
+
     return instance;
 }
