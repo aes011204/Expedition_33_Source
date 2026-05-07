@@ -76,14 +76,14 @@ static OverlayRect Compute_PreviewViewportOverlayRect(const ImVec2& viewportMin,
 static bool Is_PointInRect(const ImVec2& point, const OverlayRect& rect)
 {
     return point.x >= rect.min.x && point.x <= rect.max.x &&
-        point.y >= rect.min.y && point.y <= rect.max.y;
+           point.y >= rect.min.y && point.y <= rect.max.y;
 }
 
 static bool Is_MouseOverViewportOverlay(const ImVec2& viewportMin, const ImVec2& viewportMax)
 {
     const ImVec2 mousePos = ImGui::GetIO().MousePos;
     return Is_PointInRect(mousePos, Compute_GizmoOverlayRect(viewportMin, viewportMax)) ||
-        Is_PointInRect(mousePos, Compute_PreviewViewportOverlayRect(viewportMin, viewportMax));
+           Is_PointInRect(mousePos, Compute_PreviewViewportOverlayRect(viewportMin, viewportMax));
 }
 }
 
@@ -340,7 +340,8 @@ void Scene_View::Render_PreviewViewportOverlay()
         EDITOR->Enable_AutoPreviewViewport();
         EDITOR->Request_PreviewViewportSize(
             static_cast<uint32>(max(1.f, _viewportSize.x)),
-            static_cast<uint32>(max(1.f, _viewportSize.y)));
+            static_cast<uint32>(max(1.f, _viewportSize.y))
+        );
         Sync_PreviewViewportInput();
     }
 
@@ -447,7 +448,8 @@ void Scene_View::Render_ViewportCanvas()
     {
         EDITOR->Request_PreviewViewportSize(
             static_cast<uint32>(max(1.f, _viewportSize.x)),
-            static_cast<uint32>(max(1.f, _viewportSize.y)));
+            static_cast<uint32>(max(1.f, _viewportSize.y))
+        );
     }
 }
 
