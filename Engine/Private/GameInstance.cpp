@@ -221,34 +221,10 @@ void GameInstance::Try_FlushRuntimePerfLog()
         return;
     }
 
-    if (hasRenderSummary && runtimeSummary.render.renderCallCount > 0)
-    {
-        runtimeSummary.approxFps =
-            static_cast<float>(runtimeSummary.render.renderCallCount) / windowSec;
-    }
-    else if (hasCollisionSummary && runtimeSummary.collision.updateFrameCount > 0)
-    {
-        runtimeSummary.approxFps =
-            static_cast<float>(runtimeSummary.collision.updateFrameCount) / windowSec;
-    }
-
-    LOG_INFO(
-        "[RuntimePerf] fps={:.1f} render_ms(avg={:.2f} max={:.2f}) "
-        "collision_ms(avg={:.2f} max={:.2f}) colliders(active={:.1f})",
-
-        runtimeSummary.approxFps,
-
-        runtimeSummary.render.renderAvgMs,
-        runtimeSummary.render.renderMaxMs,
-
-        runtimeSummary.collision.updateAvgMs,
-        runtimeSummary.collision.updateMaxMs,
-        runtimeSummary.collision.activeCollidersAvg
-    );
-
-    if (Should_LogRuntimePerfDetail(runtimeSummary))
-    {
-        LOG_INFO(
+    Log_FileOnly(
+        spdlog::source_loc{ __FILE__, __LINE__, SPDLOG_FUNCTION },
+        spdlog::level::trace,
+        fmt::format(
             "[RuntimePerfDetail] render_ms(avg={:.2f} max={:.2f}) "
             "priority_ms(avg={:.2f} max={:.2f}) "
             "shadow_ms(avg={:.2f} max={:.2f}) "
@@ -296,20 +272,13 @@ void GameInstance::Try_FlushRuntimePerfLog()
             runtimeSummary.collision.pairsPerSec,
             runtimeSummary.collision.intersectsPerSec,
             runtimeSummary.collision.hitsPerSec
-        );
-    }
+        )
+    );
 
     _runtimePerfWindowStartTime = now;
     _hasRuntimePerfWindowStartTime = true;
 }
 
-bool GameInstance::Should_LogRuntimePerfDetail(const RuntimePerfSummary& runtimeSummary)
-{
-    return
-        runtimeSummary.render.renderAvgMs >= detailRenderAvgMsThreshold ||
-        runtimeSummary.collision.updateAvgMs >= detailCollisionAvgMsThreshold ||
-        runtimeSummary.collision.intersectsPerSec >= detailIntersectsPerSecThreshold;
-}
 #endif
 
 void GameInstance::Clear_Resources(uint32 levelIndex)
@@ -321,6 +290,12 @@ void GameInstance::Clear_Resources(uint32 levelIndex)
 float GameInstance::Random(float min, float max)
 {
     return min + static_cast<float>(rand()) / RAND_MAX * (max - min);
+}
+
+void GameInstance::Log_FileOnly(const spdlog::source_loc& sourceLoc, spdlog::level::level_enum level, const string& message) const
+{
+    CHECK_NULL(_logManager);
+    _logManager->Log_FileOnly(sourceLoc, level, message);
 }
 
 void GameInstance::Visit_ConsoleLogs(const function<void(const ConsoleLogEntry& logEntry)>& visitor) const
@@ -475,13 +450,13 @@ HRESULT GameInstance::Add_GameObject(
 }
 
 HRESULT GameInstance::Add_GameObject(uint32 prototypeLevelIndex, const wstring& prototypeTag, uint32 layerLevelIndex,
-    const wstring& layerTag, Shared<GameObject>& outGameObject, void* arg)
+                                     const wstring& layerTag, Shared<GameObject>& outGameObject, void* arg)
 {
     return _objectManager->Add_GameObject(prototypeLevelIndex, prototypeTag, layerLevelIndex, layerTag, outGameObject, arg);
 }
 
 HRESULT GameInstance::Add_GameObject(uint32 layerLevelIndex, const wstring& layerTag,
-    const Shared<GameObject>& gameObject)
+                                     const Shared<GameObject>& gameObject)
 {
     return _objectManager->Add_GameObject(layerLevelIndex, layerTag, gameObject);
 }
@@ -769,6 +744,52 @@ Shared<Base> GameInstance::Create_BTNodePrototype(const string& className) const
     return _typeRegistry->Create_BTNode(className);
 }
 
+HRESULT GameInstance::Add_RenderTarget(const wstring& targetTag, uint32 sizeX, uint32 sizeY, DXGI_FORMAT pixelFormat,
+                                       const Color& clearColor, bool resizeWithViewport, bool useDSV)
+{
+    return _targetManager->Add_RenderTarget(targetTag, sizeX, sizeY, pixelFormat, clearColor, resizeWithViewport, useDSV);
+}
+
+HRESULT GameInstance::Add_MRT(const wstring& mrtTag, const wstring& targetTag)
+{
+    return _targetManager->Add_MRT(mrtTag, targetTag);
+}
+
+HRESULT GameInstance::Begin_MRT(const wstring& mrtTag, bool useDSV)
+{
+    return _targetManager->Begin_MRT(mrtTag, useDSV);
+}
+
+HRESULT GameInstance::End_MRT()
+{
+    return _targetManager->End_MRT();
+}
+
+HRESULT GameInstance::Resize_MRTs(uint32 width, uint32 height)
+{
+    return _targetManager->Resize_MRTs(width, height);
+}
+
+HRESULT GameInstance::Bind_RT_ShaderResource(Shared<ShaderCom> shader, const char* constantName, const wstring& targetTag)
+{
+    return _targetManager->Bind_ShaderResource(shader, constantName, targetTag);
+}
+
+HRESULT GameInstance::Copy_CurrentRTV_To(const wstring& targetTag)
+{
+    return _targetManager->Copy_CurrentRTV_To(targetTag);
+}
+
+HRESULT GameInstance::Copy_RTV(const wstring& srcTargetTag, const wstring& dstTargetTag)
+{
+    return _targetManager->Copy_RTV(srcTargetTag, dstTargetTag);
+}
+
+HRESULT GameInstance::Copy_RT_Resource(const wstring& targetTag, ID3D11Texture2D* destTexture)
+{
+    return _targetManager->Copy_Resource(targetTag, destTexture);
+}
+
 void GameInstance::Add_Collider(Shared<ColliderCom> collider)
 {
     CHECK_NULL(collider);
@@ -854,6 +875,7 @@ void GameInstance::Clear_Prints()
     _printManager->Clear();
 #endif
 }
+
 
 void GameInstance::Clear_Print(const wstring& slot)
 {
@@ -973,7 +995,7 @@ HRESULT GameInstance::Update_Picking()
 
 bool GameInstance::Pick_WorldPosition(const POINT& pixelPos, Vec3& outWorldPos)
 {
-     return _picking->Pick_WorldPosition(pixelPos, outWorldPos);
+    return _picking->Pick_WorldPosition(pixelPos, outWorldPos);
 }
 
 void GameInstance::Release_Engine()
@@ -1018,53 +1040,6 @@ void GameInstance::Release_Engine()
 
     ReleaseManager(_graphicDevice);
     ReleaseManager(_logManager);
-}
-
-
-HRESULT GameInstance::Add_RenderTarget(const wstring& targetTag, uint32 sizeX, uint32 sizeY, DXGI_FORMAT pixelFormat,
-    const Color& clearColor, bool resizeWithViewport, bool useDSV)
-{
-    return _targetManager->Add_RenderTarget(targetTag, sizeX, sizeY, pixelFormat, clearColor, resizeWithViewport, useDSV);
-}
-
-HRESULT GameInstance::Add_MRT(const wstring& mrtTag, const wstring& targetTag)
-{
-    return _targetManager->Add_MRT(mrtTag, targetTag);
-}
-
-HRESULT GameInstance::Begin_MRT(const wstring& mrtTag, bool useDSV)
-{
-    return _targetManager->Begin_MRT(mrtTag, useDSV);
-}
-
-HRESULT GameInstance::End_MRT()
-{
-    return _targetManager->End_MRT();
-}
-
-HRESULT GameInstance::Resize_MRTs(uint32 width, uint32 height)
-{
-    return _targetManager->Resize_MRTs(width, height);
-}
-
-HRESULT GameInstance::Bind_RT_ShaderResource(Shared<ShaderCom> shader, const char* constantName, const wstring& targetTag)
-{
-    return _targetManager->Bind_ShaderResource(shader, constantName, targetTag);
-}
-
-HRESULT GameInstance::Copy_CurrentRTV_To(const wstring& targetTag)
-{
-    return _targetManager->Copy_CurrentRTV_To(targetTag);
-}
-
-HRESULT GameInstance::Copy_RTV(const wstring& srcTargetTag, const wstring& dstTargetTag)
-{
-    return _targetManager->Copy_RTV(srcTargetTag, dstTargetTag);
-}
-
-HRESULT GameInstance::Copy_RT_Resource(const wstring& targetTag, ID3D11Texture2D* destTexture)
-{
-    return _targetManager->Copy_Resource(targetTag, destTexture);
 }
 
 #ifdef _DEBUG
