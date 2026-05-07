@@ -207,6 +207,17 @@
     <ClInclude Include="..\Public\Shadow.h">
       <Filter>01.Utility\07.Lights</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\AnimationNotify.h" />
+    <ClInclude Include="..\Public\Material_Types.h" />
+    <ClInclude Include="..\Public\PhysX_Filter.h" />
+    <ClInclude Include="..\Public\PhysX_Types.h" />
+    <ClInclude Include="..\Public\Picking.h" />
+    <ClInclude Include="..\public\Event_Bus.h">
+      <Filter>97. Manager\Event</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Event_Struct.h">
+      <Filter>97. Manager\Event</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\public\Base.h">
@@ -699,6 +710,12 @@
     </ClCompile>
     <ClCompile Include="..\Private\Print_Manager.cpp">
       <Filter>97. Manager</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\AnimationNotify.cpp" />
+    <ClCompile Include="..\Private\PhysX_Filter.cpp" />
+    <ClCompile Include="..\Private\Picking.cpp" />
+    <ClCompile Include="..\private\Event_Bus.cpp">
+      <Filter>97. Manager\Event</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
