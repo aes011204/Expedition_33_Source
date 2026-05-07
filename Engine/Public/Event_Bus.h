@@ -33,7 +33,6 @@ public:
             }});
         return handle;
     }
-        
 
     void Unsubscribe(EvtHandle handle)
     {

@@ -103,6 +103,18 @@
     <Filter Include="02.GameObject\Player\PlayerParts\Weapon">
       <UniqueIdentifier>{292bac37-111c-402f-87d5-1f785fd312bc}</UniqueIdentifier>
     </Filter>
+    <Filter Include="02.GameObject\Camera\Cinematic">
+      <UniqueIdentifier>{863ed453-b760-4d48-b7fc-dcd8cfb680b7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02.GameObject\Camera\Cinematic\Player">
+      <UniqueIdentifier>{660ed1fb-3618-4d5f-b43c-73b51b40647d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02.GameObject\Camera\Cinematic\SequenceIO">
+      <UniqueIdentifier>{5601a545-9a8d-449e-be5a-2f3834b0694a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02.GameObject\Camera\Cinematic\Adapter">
+      <UniqueIdentifier>{ed8aa6cf-f0f5-4431-b6f9-457a0b44a3e8}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -204,6 +216,21 @@
     <ClInclude Include="..\Public\Client_Constants.h">
       <Filter>99.Defines</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\Cinematic_Player.h">
+      <Filter>02.GameObject\Camera\Cinematic\Player</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Cinematic_SequenceIO.h">
+      <Filter>02.GameObject\Camera\Cinematic\SequenceIO</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\CinematicSequencerAdapter.h">
+      <Filter>02.GameObject\Camera\Cinematic\Adapter</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Cinematic_Types.h">
+      <Filter>02.GameObject\Camera\Cinematic</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Cinematic_Utils.h">
+      <Filter>02.GameObject\Camera\Cinematic</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -276,7 +303,6 @@
     <ClCompile Include="..\private\BT_Idle.cpp" />
     <ClCompile Include="..\private\BT_Attack.cpp" />
     <ClCompile Include="..\private\BT_CheckDistance.cpp" />
-
     <ClCompile Include="..\Private\MapStaticMesh.cpp">
       <Filter>02.GameObject\Map\MapStaticMesh</Filter>
     </ClCompile>
@@ -294,6 +320,15 @@
       <Filter>02.GameObject\Player\PlayerParts</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\UI_RuntimeLoader.cpp" />
+    <ClCompile Include="..\Private\Cinematic_Player.cpp">
+      <Filter>02.GameObject\Camera\Cinematic\Player</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Cinematic_SequenceIO.cpp">
+      <Filter>02.GameObject\Camera\Cinematic\SequenceIO</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\CinematicSequencerAdapter.cpp">
+      <Filter>02.GameObject\Camera\Cinematic\Adapter</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">

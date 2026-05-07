@@ -138,10 +138,10 @@ HRESULT Monster::Ready_Components()
 		return E_FAIL;
 
 
-    if (FAILED(__super::Add_Component(ETOI(LevelType::Static), TEXT("Com_MonAIController"), _aiCtrl)))
-        return E_FAIL;
-
-    _aiCtrl->Set_Owner(static_pointer_cast<Monster>(shared_from_this()));
+    //if (FAILED(__super::Add_Component(ETOI(LevelType::Static), TEXT("Com_AIController"), _aiCtrl)))
+    //    return E_FAIL;
+    //
+    //_aiCtrl->Set_Owner(static_pointer_cast<Monster>(shared_from_this()));
 
     CHECK_FAILED(Ready_Collider(), E_FAIL);
 

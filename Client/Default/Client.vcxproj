@@ -166,6 +166,11 @@
     <ClInclude Include="..\public\BT_Attack.h" />
     <ClInclude Include="..\public\BT_CheckDistance.h" />
     <ClInclude Include="..\public\BT_Idle.h" />
+    <ClInclude Include="..\Public\CinematicSequencerAdapter.h" />
+    <ClInclude Include="..\Public\Cinematic_Player.h" />
+    <ClInclude Include="..\Public\Cinematic_SequenceIO.h" />
+    <ClInclude Include="..\Public\Cinematic_Types.h" />
+    <ClInclude Include="..\Public\Cinematic_Utils.h" />
     <ClInclude Include="..\Public\Client_Constants.h" />
     <ClInclude Include="..\Public\Client_Enum.h" />
     <ClInclude Include="..\Public\Client_Macro.h" />
@@ -205,6 +210,9 @@
     <ClCompile Include="..\private\BT_Attack.cpp" />
     <ClCompile Include="..\private\BT_CheckDistance.cpp" />
     <ClCompile Include="..\private\BT_Idle.cpp" />
+    <ClCompile Include="..\Private\CinematicSequencerAdapter.cpp" />
+    <ClCompile Include="..\Private\Cinematic_Player.cpp" />
+    <ClCompile Include="..\Private\Cinematic_SequenceIO.cpp" />
     <ClCompile Include="..\Private\CombatStatCom.cpp" />
     <ClCompile Include="..\Private\Hair_Player.cpp" />
     <ClCompile Include="..\Private\Head_Player.cpp" />
