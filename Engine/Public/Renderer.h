@@ -20,6 +20,7 @@ public:
 	HRESULT Initialize();
 	void Add_RenderGroup(RenderGroup renderGroup, const Shared<GameObject>& gameObject);
 	void Draw();
+    void Sync_ViewportDependentState(uint32 width, uint32 height);
     uint32 Get_RenderCall() const;
 
 #ifdef _DEBUG
@@ -39,6 +40,7 @@ private:
     void Render_Combined();
 
     HRESULT Ready_RenderTargets();
+    void Change_ViewportDesc(uint32 width, uint32 height);
 
 private:
 	ComPtr<Device>  _device;
@@ -87,7 +89,6 @@ private:
 
     RenderPerfWindow _renderPerfWindow{};
 
-    void Change_ViewportDesc(uint32 width, uint32 height);
     void Reset_RenderCall();
     void Add_RenderCall(uint32 count = 1);
 

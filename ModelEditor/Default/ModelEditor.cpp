@@ -23,6 +23,7 @@ HWND g_hWnd;
 
 WCHAR szTitle[MAX_LOADSTRING];
 WCHAR szWindowClass[MAX_LOADSTRING];
+static bool g_runtimeInitialized = false;
 
 extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
@@ -64,6 +65,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     if (FAILED(GAME->Add_Timer(TEXT("Timer_60FPS"))))
         return FALSE;
 
+    g_runtimeInitialized = true;
+
     MSG msg;
     float timeAcc = 0.f;
 
@@ -76,6 +79,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
             TranslateMessage(&msg);
             DispatchMessage(&msg);
+            continue;
         }
         else
         {
@@ -95,8 +99,15 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         }
     }
 
+    g_runtimeInitialized = false;
     mainApp->Free();
     mainApp.reset();
+
+    if (nullptr != g_hWnd && IsWindow(g_hWnd))
+    {
+        DestroyWindow(g_hWnd);
+        g_hWnd = nullptr;
+    }
 
     return (int) msg.wParam;
 }
@@ -113,7 +124,7 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
     wcex.hIcon          = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_MODELEDITOR));
     wcex.hCursor        = LoadCursor(nullptr, IDC_ARROW);
     wcex.hbrBackground  = (HBRUSH)(COLOR_WINDOW+1);
-    wcex.lpszMenuName   = nullptr; 
+    wcex.lpszMenuName   = nullptr;
     wcex.lpszClassName  = szWindowClass;
     wcex.hIconSm        = LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_SMALL));
 
@@ -140,11 +151,15 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
-    if (ImGui_ImplWin32_WndProcHandler(hWnd, message, wParam, lParam))
+    if (g_runtimeInitialized && ImGui_ImplWin32_WndProcHandler(hWnd, message, wParam, lParam))
         return true;
 
     switch (message)
     {
+    case WM_CLOSE:
+        PostQuitMessage(0);
+        return 0;
+
     case WM_DESTROY:
         PostQuitMessage(0);
         break;

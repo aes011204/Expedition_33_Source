@@ -20,7 +20,6 @@ IMPLEMENT_SINGLETON(ModelImGui_Manager)
 
 ModelImGui_Manager::~ModelImGui_Manager()
 {
-	Free();
 }
 
 HRESULT ModelImGui_Manager::Initialize(HWND hWnd, const ComPtr<Device>& device, const ComPtr<Context>& context)

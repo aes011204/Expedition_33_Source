@@ -7,7 +7,7 @@
 
 NS_BEGIN(EffectEditor)
 
-class Notification_Manager : public Base
+class Notification_Manager final : public Base
 {
 public:
     Notification_Manager();
