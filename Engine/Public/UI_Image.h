@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "UI_Base.h"
+#include <directxtk/CommonStates.h>
 
 NS_BEGIN(Engine)
 
@@ -29,6 +30,7 @@ private:
     Vec2 _textureSize{ 1.f, 1.f };
     ComPtr<ShaderResourceView> _srv{};
     Unique<SpriteBatch> _spriteBatch{};
+    Unique<CommonStates> _states{};
 
 public:
     static Shared<UI_Image> Create();

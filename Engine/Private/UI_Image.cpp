@@ -55,6 +55,9 @@ HRESULT UI_Image::Initialize(void* arg)
     _spriteBatch = make_unique<SpriteBatch>(context.Get());
     CHECK_NULL(_spriteBatch, E_FAIL);
 
+    _states = make_unique<CommonStates>(device.Get());
+    CHECK_NULL(_states, E_FAIL);
+
     return S_OK;
 }
 
@@ -69,7 +72,7 @@ HRESULT UI_Image::Render()
     if (nullptr == _transform)
         return E_FAIL;
 
-    if (nullptr == _srv || nullptr == _spriteBatch)
+    if (nullptr == _srv || nullptr == _spriteBatch || nullptr == _states)
         return S_OK;
 
     const Vec2& position = _transform->Get_Position();
@@ -84,7 +87,7 @@ HRESULT UI_Image::Render()
 
     _spriteBatch->Begin(
         SpriteSortMode_Deferred,
-        nullptr,
+        _states->NonPremultiplied(),
         nullptr,
         nullptr,
         nullptr,
@@ -142,6 +145,7 @@ Shared<UI_Base> UI_Image::Clone(void* arg)
 
 void UI_Image::Free()
 {
+    _states.reset();
     _spriteBatch.reset();
     _srv.Reset();
 

@@ -1,5 +1,6 @@
-﻿#pragma once
+#pragma once
 #include "UI_Document.h"
+#include "UI_Editor_Window.h"
 
 NS_BEGIN(UIEditor)
 
@@ -13,6 +14,31 @@ public:
     HRESULT Initialize(const ComPtr<Device>& device, const ComPtr<Context>& context, bool assetManagerReady);
     void    Render();
     void    Render_FontPreviews();
+    void    Add_Window(const Shared<UI_Editor_Window>& window);
+    Shared<UI_Editor_Window> Find_Window(const wstring& windowName) const;
+
+public:
+    UI_Document& Get_Document();
+    const UI_Document& Get_Document() const;
+    ObjectId Get_SelectedObjectId() const;
+    void Set_SelectedObjectId(ObjectId objectId);
+    UI_Object* Get_SelectedObject();
+    const UI_Object* Get_SelectedObject() const;
+    bool Is_AssetManagerReady() const;
+    ID3D11ShaderResourceView* Get_TexturePreviewSRV(const string& textureGuid);
+    void Create_UIObject(UI_ObjectType objectType);
+    void Duplicate_UIObject(ObjectId objectId);
+    void Delete_UIObject(ObjectId objectId);
+    bool Queue_FontPreview(
+        const string& fontGuid,
+        const string& fontPath,
+        const wstring& text,
+        const Vec2& position,
+        const Vec4& color,
+        float rotationRadians,
+        const Vec2& pivot,
+        float scale,
+        const D3D11_RECT& clipRect);
 
 private:
     struct FontPreviewCommand
@@ -29,17 +55,15 @@ private:
     };
 
     void Render_DockSpace();
-    void Render_Hierarchy();
-    void Render_Viewport();
-    void Render_Inspector();
-    void Render_ContentBrowser();
-    void Render_TexturePicker(UI_Object& object);
-    void Render_FontPicker(UI_Object& object);
-    bool Draw_UITextureSlotPicker(const char* label, const char* popupId, UI_Object& object);
-    bool Draw_FontSlotPicker(const char* label, const char* popupId, UI_Object& object);
-    void Apply_TextureAsset(UI_Object& object, const FAssetMeta& assetMeta);
-    void Apply_FontAsset(UI_Object& object, const FAssetMeta& assetMeta);
-    ID3D11ShaderResourceView* Get_TexturePreviewSRV(const string& textureGuid);
+    bool Save_Document();
+    bool Save_DocumentAs();
+    bool Load_Document();
+    bool Show_SaveFileDialog(wstring& outFilePath) const;
+    bool Show_LoadFileDialog(wstring& outFilePath) const;
+    wstring Resolve_DefaultJsonDirectory() const;
+    void Ensure_JsonExtension(wstring& filePath) const;
+    void Resolve_LoadedAssetReferences();
+    ObjectId Resolve_CreateParentId() const;
     SpriteFont* Get_FontPreview(const string& fontGuid, const string& fontPath);
 
 public:
@@ -49,15 +73,11 @@ private:
     ComPtr<Device> _device = nullptr;
     ComPtr<Context> _context = nullptr;
     UI_Document _document = {};
+    map<wstring, Shared<UI_Editor_Window>> _windows = {};
     ObjectId _selectedObjectId = 0;
-    ObjectId _draggingObjectId = 0;
-    ImVec2 _dragStartMouseCanvasPos = ImVec2(0.f, 0.f);
-    ImVec2 _dragStartObjectPosition = ImVec2(0.f, 0.f);
-    float _viewportZoomScale = 1.f;
+    wstring _currentDocumentPath = {};
+    wstring _defaultJsonDirectory = {};
     bool _assetManagerReady = false;
-    char _textureSearchBuffer[128] = {};
-    char _fontSearchBuffer[128] = {};
-    char _contentBrowserSearchBuffer[128] = {};
     unordered_map<string, ComPtr<ID3D11ShaderResourceView>> _textureThumbCache = {};
     unordered_set<string> _textureNoThumbGuids = {};
     Unique<SpriteBatch> _fontPreviewSpriteBatch = nullptr;

@@ -51,6 +51,24 @@
     <ClCompile Include="..\Private\UI_Document.cpp">
       <Filter>04. Document</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\UI_Editor_Window.cpp">
+      <Filter>02. View</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_Hierarchy_View.cpp">
+      <Filter>02. View</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_Viewport_View.cpp">
+      <Filter>02. View</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_Content_Browser.cpp">
+      <Filter>02. View</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_Editor_Utils.cpp">
+      <Filter>99. Defines</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\SimpleMath.cpp">
+      <Filter>99. Defines</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -73,6 +91,21 @@
     </ClInclude>
     <ClInclude Include="..\Public\UI_Document.h">
       <Filter>04. Document</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_Editor_Window.h">
+      <Filter>02. View</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_Hierarchy_View.h">
+      <Filter>02. View</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_Viewport_View.h">
+      <Filter>02. View</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_Content_Browser.h">
+      <Filter>02. View</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_Editor_Utils.h">
+      <Filter>99. Defines</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
