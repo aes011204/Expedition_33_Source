@@ -14,8 +14,28 @@ HRESULT CustomFont::Initialize(const wchar_t* fontFilePath)
     return S_OK;
 }
 
-void CustomFont::Draw(const wchar_t* text, const Vec2& position, FXMVECTOR color)
+Vec2 CustomFont::Measure(const wchar_t* text) const
 {
+    if (nullptr == _spriteFont || nullptr == text || L'\0' == *text)
+        return Vec2(0.f, 0.f);
+
+    XMFLOAT2 measuredSize{};
+    XMStoreFloat2(&measuredSize, _spriteFont->MeasureString(text));
+
+    return Vec2(measuredSize.x, measuredSize.y);
+}
+
+void CustomFont::Draw(
+    const wchar_t* text,
+    const Vec2& position,
+    FXMVECTOR color,
+    float rotationRadians,
+    const Vec2& pivot,
+    float scale)
+{
+    if (nullptr == _spriteBatch || nullptr == _spriteFont || nullptr == text || L'\0' == *text)
+        return;
+
     _spriteBatch->Begin(
         SpriteSortMode_Deferred,
         nullptr,
@@ -30,9 +50,9 @@ void CustomFont::Draw(const wchar_t* text, const Vec2& position, FXMVECTOR color
         text,
         position,
         color,
-        0.f,
-        XMFLOAT2(0.f, 0.f),
-        1.f,
+        rotationRadians,
+        pivot,
+        scale,
         SpriteEffects_None,
         0.f);
 

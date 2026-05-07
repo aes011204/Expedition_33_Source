@@ -2,6 +2,7 @@
 
 #include "Component.h"
 #include "GameObject.h"
+#include "UI_Base.h"
 
 Prototype_Manager::Prototype_Manager()
 {
@@ -34,10 +35,13 @@ Shared<Base> Prototype_Manager::Clone_Prototype(Prototype prototype, uint32 leve
 		return nullptr;
 
 	Shared<Base> instance = nullptr;
-	if (Prototype::Comopnent == prototype)
-		instance = static_pointer_cast<Component>(foundPrototype)->Clone(arg);
-	else
-		instance = static_pointer_cast<GameObject>(foundPrototype)->Clone(arg);
+
+    if (Prototype::Comopnent == prototype)
+        instance = static_pointer_cast<Component>(foundPrototype)->Clone(arg);
+    else if (Prototype::UI == prototype)
+        instance = static_pointer_cast<UI_Base>(foundPrototype)->Clone(arg);
+    else
+        instance = static_pointer_cast<GameObject>(foundPrototype)->Clone(arg);
 
 	if (nullptr == instance)
 		MSG_BOX("Failed to Cloned");

@@ -14,6 +14,7 @@ public:
 public:
 	HRESULT Initialize(const wstring& resourceRoot);
 	const FAssetMeta* Find_ByGUID(const string& guid) const;
+	vector<FAssetMeta> Get_AssetsByType(const string& type) const;
 	string Find_GUID(const wstring& filePath) const;
 	wstring Resolve_Path(const string& guid) const;
 	const wstring& Get_ResourceRoot() const;
