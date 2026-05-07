@@ -7,6 +7,9 @@
     <ClCompile Include="..\Private\Content_Browser.cpp">
       <Filter>01. View</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\Editor_Camera_Free.cpp">
+      <Filter>01. View</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\Editor_Manager.cpp">
       <Filter>01. Manager</Filter>
     </ClCompile>
@@ -32,6 +35,9 @@
       <Filter>00. Main</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\Scene_View.cpp">
+      <Filter>01. View</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Profile_View.cpp">
       <Filter>01. View</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\ImGui_Manager.cpp">
@@ -64,15 +70,23 @@
     <ClCompile Include="..\private\BT_Tool.cpp">
       <Filter>01. View</Filter>
     </ClCompile>
+<<<<<<< HEAD
     <ClCompile Include="..\private\Cinematic_Tool.cpp">
       <Filter>01. View</Filter>
     </ClCompile>
+=======
+    <ClCompile Include="..\Private\Prefab_View.cpp" />
+    <ClCompile Include="..\Private\Model_Inspector.cpp" />
+>>>>>>> dev
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
       <Filter>98. Default</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Content_Browser.h">
+      <Filter>01. View</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Editor_Camera_Free.h">
       <Filter>01. View</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Editor_Defines.h">
@@ -103,6 +117,9 @@
       <Filter>02. Inspector</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Scene_View.h">
+      <Filter>01. View</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Profile_View.h">
       <Filter>01. View</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Editor_ImGuiInclude.h">
@@ -144,9 +161,14 @@
     <ClInclude Include="..\public\BT_Tool.h">
       <Filter>01. View</Filter>
     </ClInclude>
+<<<<<<< HEAD
     <ClInclude Include="..\public\Cinematic_Tool.h">
       <Filter>01. View</Filter>
     </ClInclude>
+=======
+    <ClInclude Include="..\Public\Prefab_View.h" />
+    <ClInclude Include="..\Public\Model_Inspector.h" />
+>>>>>>> dev
   </ItemGroup>
   <ItemGroup>
     <Filter Include="00. Main">

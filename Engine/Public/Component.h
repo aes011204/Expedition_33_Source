@@ -26,6 +26,9 @@ public:
         return emptyInfo;
     }
 
+    virtual json To_Json() const;
+    virtual void From_Json(const json& data);
+
 public:
     Shared<GameObject>  Get_Owner() const { return _owner.lock(); }
     void                Set_Owner(Shared<GameObject> owner) { _owner = owner; }

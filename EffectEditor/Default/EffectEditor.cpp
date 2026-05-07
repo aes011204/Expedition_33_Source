@@ -5,6 +5,7 @@
 #include <Windows.h>
 #include "EffectEditorApp.h"
 #include "GameInstance.h"
+#include "Profile_View.h"
 
 extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
@@ -44,6 +45,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE, _In_ LPWSTR,
 
     MSG msg{};
     float timeAcc = 0.f;
+    auto previousFrameTime = EffectEditor::Profile_View::clock::now();
 
     while (true)
     {
@@ -62,10 +64,23 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE, _In_ LPWSTR,
         {
             const float dt = GAME->Compute_TimeDelta(TEXT("Timer_60FPS"));
 
-            mainApp->Priority_Update(dt);
-            mainApp->Update(dt);
-            mainApp->Late_Update(dt);
-            mainApp->Render();
+            EffectEditor::Profile_View::Frame_Begin();
+
+            {
+                EffectEditor::Profile_View::Scope frameScope("Frame");
+                mainApp->Priority_Update(dt);
+                mainApp->Update(dt);
+                mainApp->Late_Update(dt);
+                mainApp->Render();
+            }
+
+            const auto currentFrameTime = EffectEditor::Profile_View::clock::now();
+            const double frameMs = std::chrono::duration<double, std::milli>(currentFrameTime - previousFrameTime).count();
+            previousFrameTime = currentFrameTime;
+
+            EffectEditor::Profile_View::Set_Frame_Time_External(frameMs);
+            EffectEditor::Profile_View::Set_RenderCallCount_External(GAME->Get_RenderCall());
+            EffectEditor::Profile_View::Frame_End();
 
             timeAcc = 0.f;
         }
@@ -74,6 +89,14 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE, _In_ LPWSTR,
     g_runtimeInitialized = false;
     mainApp->Free();
     mainApp.reset();
+
+    if (nullptr != g_hWnd && IsWindow(g_hWnd))
+    {
+        DestroyWindow(g_hWnd);
+        g_hWnd = nullptr;
+    }
+
+    FreeConsole();
 
     return static_cast<int>(msg.wParam);
 }
@@ -96,15 +119,25 @@ static ATOM Register_EffectEditorClass(HINSTANCE hInstance)
 
 static bool Create_EffectEditorWindow(HINSTANCE hInstance, int nCmdShow)
 {
-    RECT rcWindow = { 0, 0, static_cast<LONG>(Client::g_iWinSizeX), static_cast<LONG>(Client::g_iWinSizeY) };
-    AdjustWindowRect(&rcWindow, WS_OVERLAPPEDWINDOW, FALSE);
+    constexpr DWORD editorWindowStyle = WS_POPUP | WS_VISIBLE;
+
+    MONITORINFO monitorInfo{};
+    monitorInfo.cbSize = sizeof(MONITORINFO);
+
+    const HMONITOR hMonitor = MonitorFromPoint(POINT{ 0, 0 }, MONITOR_DEFAULTTOPRIMARY);
+    if (!GetMonitorInfo(hMonitor, &monitorInfo))
+        return false;
+
+    const RECT& monitorRect = monitorInfo.rcMonitor;
+    RECT rcWindow = { 0, 0, monitorRect.right - monitorRect.left, monitorRect.bottom - monitorRect.top };
+    AdjustWindowRect(&rcWindow, editorWindowStyle, FALSE);
 
     g_hWnd = CreateWindowW(
         g_windowClassName,
         g_windowTitle,
-        WS_OVERLAPPEDWINDOW,
-        CW_USEDEFAULT,
-        CW_USEDEFAULT,
+        editorWindowStyle,
+        monitorRect.left,
+        monitorRect.top,
         rcWindow.right - rcWindow.left,
         rcWindow.bottom - rcWindow.top,
         nullptr,
@@ -157,8 +190,7 @@ static LRESULT CALLBACK EffectEditor_WndProc(HWND hWnd, UINT message, WPARAM wPa
         break;
 
     case WM_CLOSE:
-        FreeConsole();
-        DestroyWindow(hWnd);
+        PostQuitMessage(0);
         return 0;
 
     case WM_DESTROY:

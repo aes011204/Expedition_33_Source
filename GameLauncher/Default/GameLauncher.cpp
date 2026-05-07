@@ -56,6 +56,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 
             TranslateMessage(&msg);
             DispatchMessage(&msg);
+            continue;
         }
 
         timeAcc += GAME->Compute_TimeDelta(TEXT("Timer_Default"));
@@ -72,6 +73,14 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 
     mainApp->Free();
     mainApp.reset();
+
+    if (nullptr != g_hWnd && IsWindow(g_hWnd))
+    {
+        DestroyWindow(g_hWnd);
+        g_hWnd = nullptr;
+    }
+
+    FreeConsole();
 
     return static_cast<int>(msg.wParam);
 }
@@ -154,8 +163,7 @@ static LRESULT CALLBACK GameLauncher_WndProc(HWND hWnd, UINT message, WPARAM wPa
     }
 
     case WM_CLOSE:
-        FreeConsole();
-        DestroyWindow(hWnd);
+        PostQuitMessage(0);
         break;
 
     case WM_DESTROY:

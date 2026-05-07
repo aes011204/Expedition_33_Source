@@ -28,15 +28,20 @@ public:
 	virtual void Update(float timeDelta) override;
 	virtual void Late_Update(float timeDelta) override;
 	virtual HRESULT Render() override;
+    virtual HRESULT Render_Shadow() override;
 
 protected:
-	Shared<ShaderCom>	_shader = { nullptr };
-	Shared<ModelCom>	_model = { nullptr };
+	Shared<ShaderCom>	    _shader = { nullptr };
+	Shared<ModelCom>	    _model = { nullptr };
     Shared<Mon_AIController>_aiCtrl = { nullptr };
+
+    Shared<ColliderCom>     _collider;
 
 protected:
 	HRESULT Ready_Components();
 	HRESULT Bind_ShaderResources();
+
+    HRESULT Ready_Collider();
 
 
 public:

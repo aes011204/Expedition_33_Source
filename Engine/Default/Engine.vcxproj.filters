@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <Filter Include="98. Default">
@@ -201,6 +201,20 @@
     <ClInclude Include="..\Public\Helper_Math.h">
       <Filter>99. Defines\Helper</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\Target_Manager.h">
+      <Filter>97. Manager</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Shadow.h">
+      <Filter>01.Utility\07.Lights</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\public\Base.h">
+      <Filter>01.Utility\99.SuperClass</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Engine_Model_Struct.h">
+      <Filter>99. Defines</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\Engine_Function.h">
       <Filter>99. Defines</Filter>
     </ClInclude>
@@ -224,9 +238,6 @@
     </ClInclude>
     <ClInclude Include="..\Public\Collision_Define.h">
       <Filter>99. Defines</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\Base.h">
-      <Filter>01.Utility\99.SuperClass</Filter>
     </ClInclude>
     <ClInclude Include="..\public\GameInstance.h">
       <Filter>01.Utility\00.GameInstance</Filter>
@@ -396,6 +407,12 @@
     <ClInclude Include="..\public\Prototype_Manager.h">
       <Filter>01.Utility\02. Prototype</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\StaticMesh.h">
+      <Filter>01.Utility\04.Component\Model\Mesh</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\SkeletalMesh.h">
+      <Filter>01.Utility\04.Component\Model\Mesh</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\AIController.h">
       <Filter>E_BehavoirTreee</Filter>
     </ClInclude>
@@ -441,14 +458,18 @@
     <ClInclude Include="..\Public\PhysX_Manager.h">
       <Filter>97. Manager\PhysX</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\Particle_Types.h" />
+    <ClInclude Include="..\Public\Particle_Types.h">
+      <Filter>99. Defines</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\VIBufferCom_Instance.h">
       <Filter>01.Utility\04.Component\VIBuffer\Instance</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\VIBufferCom_PointParticle.h">
       <Filter>01.Utility\04.Component\VIBuffer\Instance\Particle</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\Print_Manager.h" />
+    <ClInclude Include="..\Public\Print_Manager.h">
+      <Filter>97. Manager</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -613,6 +634,12 @@
     <ClCompile Include="..\Private\SimpleMath.cpp">
       <Filter>99. Defines</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\Target_Manager.cpp">
+      <Filter>97. Manager</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Shadow.cpp">
+      <Filter>01.Utility\07.Lights</Filter>
+    </ClCompile>
     <ClCompile Include="..\private\Prototype_Manager.cpp">
       <Filter>01.Utility\02. Prototype</Filter>
     </ClCompile>
@@ -652,6 +679,12 @@
     <ClCompile Include="..\private\Sequence.cpp">
       <Filter>E_BehavoirTreee\node</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\StaticMesh.cpp">
+      <Filter>01.Utility\04.Component\Model\Mesh</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\SkeletalMesh.cpp">
+      <Filter>01.Utility\04.Component\Model\Mesh</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\ICommand.cpp">
       <Filter>95. Interface\Command</Filter>
     </ClCompile>
@@ -664,7 +697,9 @@
     <ClCompile Include="..\Private\VIBufferCom_PointParticle.cpp">
       <Filter>01.Utility\04.Component\VIBuffer\Instance\Particle</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\Print_Manager.cpp" />
+    <ClCompile Include="..\Private\Print_Manager.cpp">
+      <Filter>97. Manager</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Bin\ShaderFiles\Engine_Shader_Defines.hlsli">

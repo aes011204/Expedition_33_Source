@@ -1,10 +1,15 @@
 ﻿#include "pch.h"
 #include "RenderTarget.h"
+#include "GameInstance.h"
+#include "VIBuffer_Rect.h"
 #include "ShaderCom.h"
 
 RenderTarget::RenderTarget(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : _device{ device }
     , _context{ context }
+{
+}
+RenderTarget::~RenderTarget()
 {
 }
 
@@ -124,6 +129,13 @@ void RenderTarget::Clear_DepthStencil()
         _context->ClearDepthStencilView(_dsv.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.f, 0);
 }
 
+HRESULT RenderTarget::Copy_Resource(ID3D11Texture2D* destTexture)
+{
+    _context->CopyResource(destTexture, _texture.Get());
+
+    return S_OK;
+}
+
 void RenderTarget::Release_TargetResources()
 {
     _dsv.Reset();
@@ -163,3 +175,38 @@ void RenderTarget::Free()
     _context.Reset();
     _device.Reset();
 }
+
+#ifdef _DEBUG
+
+HRESULT RenderTarget::Setup_Debug(float x, float y, float sizeX, float sizeY)
+{
+    const float viewportWidth = static_cast<float>(GAME->Get_ViewportWidth());
+    const float viewportHeight = static_cast<float>(GAME->Get_ViewportHeight());
+    const float centerX = x + sizeX * 0.5f - viewportWidth * 0.5f;
+    const float centerY = viewportHeight * 0.5f - (y + sizeY * 0.5f);
+
+    _debugWorldMatrix = Matrix::Identity;
+    _debugWorldMatrix._11 = sizeX;
+    _debugWorldMatrix._22 = sizeY;
+    _debugWorldMatrix._41 = centerX;
+    _debugWorldMatrix._42 = centerY;
+
+    return S_OK;
+}
+
+HRESULT RenderTarget::Render_Debug(Shared<VIBuffer_Rect> viBuffer, Shared<ShaderCom> shader)
+{
+    CHECK_NULL(viBuffer, E_FAIL);
+    CHECK_NULL(shader, E_FAIL);
+
+    shader->Bind_Matrix("g_WorldMatrix", &_debugWorldMatrix);
+    shader->Bind_SRV("g_Texture", _srv.Get());
+    shader->Begin(0);
+
+    viBuffer->Bind_Resources();
+    viBuffer->Render();
+
+    return S_OK;
+}
+
+#endif

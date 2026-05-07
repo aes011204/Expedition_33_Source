@@ -7,6 +7,7 @@
 #include "GameObject.h"
 #include "Helper_String.h"
 #include "Inspector_Factory.h"
+#include "ModelCom.h"
 #include "Reflection_Types.h"
 #include "TransformCom.h"
 
@@ -48,9 +49,12 @@ bool Inspector::Draw_ComponentOverride(const Shared<Component>& component)
     if (component == nullptr)
         return false;
 
-    const Engine::ClassReflectionInfo& info = component->Get_ReflectionInfo();
+    const ClassReflectionInfo& info = component->Get_ReflectionInfo();
 
     string inspectorKey = info.className;
+    if (dynamic_pointer_cast<ModelCom>(component))
+        inspectorKey = "ModelCom";
+
     if (inspectorKey.empty())
         inspectorKey = String::ToString(component->Get_Name());
 
@@ -88,7 +92,7 @@ void Inspector::Draw_Components(const Shared<GameObject>& target)
         if (Draw_ComponentOverride(component))
             return;
 
-        const Engine::ClassReflectionInfo& info = component->Get_ReflectionInfo();
+        const ClassReflectionInfo& info = component->Get_ReflectionInfo();
         if (info.properties.empty())
             return;
 
@@ -100,7 +104,7 @@ void Inspector::Draw_ObjectReflection(const Shared<GameObject>& target)
 {
     CHECK_NULL(target);
 
-    const Engine::ClassReflectionInfo& info = target->Get_ReflectionInfo();
+    const ClassReflectionInfo& info = target->Get_ReflectionInfo();
     if (info.properties.empty())
         return;
 
@@ -110,7 +114,7 @@ void Inspector::Draw_ObjectReflection(const Shared<GameObject>& target)
 void Inspector::Draw_ReflectionSection(
     const string& headerId,
     void* instance,
-    const Engine::ClassReflectionInfo& info)
+    const ClassReflectionInfo& info)
 {
     if (instance == nullptr || info.properties.empty())
         return;
@@ -128,9 +132,9 @@ void Inspector::Draw_ReflectionSection(
 
 void Inspector::Draw_ReflectionProperties(
     void* instance,
-    const Engine::ClassReflectionInfo& info)
+    const ClassReflectionInfo& info)
 {
-    for (const Engine::PropertyInfo& property : info.properties)
+    for (const PropertyInfo& property : info.properties)
     {
         Draw_ReflectionProperty(info.className, instance, property);
         ImGui::Spacing();
@@ -140,7 +144,7 @@ void Inspector::Draw_ReflectionProperties(
 void Inspector::Draw_ReflectionProperty(
     const string& idPrefix,
     void* instance,
-    const Engine::PropertyInfo& property)
+    const PropertyInfo& property)
 {
     char* base = reinterpret_cast<char*>(instance);
     void* address = base + property.offset;
@@ -151,25 +155,25 @@ void Inspector::Draw_ReflectionProperty(
 
     switch (property.type)
     {
-    case Engine::PropertyType::Bool:
+    case PropertyType::Bool:
     {
         bool* value = static_cast<bool*>(address);
 
         ImGui::AlignTextToFramePadding();
         ImGui::TextDisabled("%s", visibleLabel.c_str());
-        ImGui::SameLine(72.f);
+        ImGui::SameLine(InspectorLabelWidth);
         ImGui::Checkbox(hiddenId.c_str(), value);
         break;
     }
 
-    case Engine::PropertyType::Int:
+    case PropertyType::Int:
     {
         int* value = static_cast<int*>(address);
         const bool useClamp = !(property.minVal == 0.f && property.maxVal == 0.f);
 
         ImGui::AlignTextToFramePadding();
         ImGui::TextDisabled("%s", visibleLabel.c_str());
-        ImGui::SameLine(72.f);
+        ImGui::SameLine(InspectorLabelWidth);
         ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
 
         if (useClamp)
@@ -185,14 +189,14 @@ void Inspector::Draw_ReflectionProperty(
         break;
     }
 
-    case Engine::PropertyType::Float:
+    case PropertyType::Float:
     {
         float* value = static_cast<float*>(address);
         const bool useClamp = !(property.minVal == 0.f && property.maxVal == 0.f);
 
         ImGui::AlignTextToFramePadding();
         ImGui::TextDisabled("%s", visibleLabel.c_str());
-        ImGui::SameLine(72.f);
+        ImGui::SameLine(InspectorLabelWidth);
         ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
 
         if (useClamp)
@@ -203,41 +207,41 @@ void Inspector::Draw_ReflectionProperty(
         break;
     }
 
-    case Engine::PropertyType::Vec3:
+    case PropertyType::Vec3:
     {
         Vec3* value = static_cast<Vec3*>(address);
 
         ImGui::AlignTextToFramePadding();
         ImGui::TextDisabled("%s", visibleLabel.c_str());
-        ImGui::SameLine(72.f);
+        ImGui::SameLine(InspectorLabelWidth);
 
         Draw_Vec3PropertyRow(idPrefix + "_" + property.name, property, *value);
         break;
     }
 
-    case Engine::PropertyType::String:
+    case PropertyType::String:
     {
         std::string* value = static_cast<std::string*>(address);
 
         ImGui::AlignTextToFramePadding();
         ImGui::TextDisabled("%s", visibleLabel.c_str());
-        ImGui::SameLine(72.f);
+        ImGui::SameLine(InspectorLabelWidth);
         ImGui::BeginDisabled();
         ImGui::TextUnformatted(value->c_str());
         ImGui::EndDisabled();
         break;
     }
 
-    case Engine::PropertyType::Vec2:
-    case Engine::PropertyType::Vec4:
-    case Engine::PropertyType::Color:
-    case Engine::PropertyType::Enum:
-    case Engine::PropertyType::ReadOnly:
+    case PropertyType::Vec2:
+    case PropertyType::Vec4:
+    case PropertyType::Color:
+    case PropertyType::Enum:
+    case PropertyType::ReadOnly:
     default:
     {
         ImGui::AlignTextToFramePadding();
         ImGui::TextDisabled("%s", visibleLabel.c_str());
-        ImGui::SameLine(72.f);
+        ImGui::SameLine(InspectorLabelWidth);
         ImGui::BeginDisabled();
         ImGui::TextUnformatted("Unsupported");
         ImGui::EndDisabled();
@@ -248,7 +252,7 @@ void Inspector::Draw_ReflectionProperty(
 
 bool Inspector::Draw_Vec3PropertyRow(
     const string& idPrefix,
-    const Engine::PropertyInfo& property,
+    const PropertyInfo& property,
     Vec3& value)
 {
     bool changed = false;

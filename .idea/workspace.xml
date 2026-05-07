@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="ALL" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="3a724bf1-b6b6-4ccd-bee8-03e93885d56f" name="변경" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/.name" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.name" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Engine/Bin/Debug/Engine.exp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Engine/Bin/Debug/Engine.lib" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Engine/Default/Engine.vcxproj" beforeDir="false" afterPath="$PROJECT_DIR$/Engine/Default/Engine.vcxproj" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Engine/Default/Engine.vcxproj.filters" beforeDir="false" afterPath="$PROJECT_DIR$/Engine/Default/Engine.vcxproj.filters" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Engine/Private/Animation.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/Engine/Private/Animation.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Engine/Private/Bone.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/Engine/Private/Bone.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Engine/Private/Material.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/Engine/Private/Material.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Engine/Private/Mesh.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/Engine/Private/Mesh.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Engine/Private/ModelCom.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/Engine/Private/ModelCom.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Engine/Private/StaticMesh.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/Engine/Private/StaticMesh.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Engine/Public/Animation.h" beforeDir="false" afterPath="$PROJECT_DIR$/Engine/Public/Animation.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Engine/Public/Bone.h" beforeDir="false" afterPath="$PROJECT_DIR$/Engine/Public/Bone.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Engine/Public/Engine_Define.h" beforeDir="false" afterPath="$PROJECT_DIR$/Engine/Public/Engine_Define.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Engine/Public/Engine_Model_Struct.h" beforeDir="false" afterPath="$PROJECT_DIR$/Engine/Public/Engine_Model_Struct.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Engine/Public/Material.h" beforeDir="false" afterPath="$PROJECT_DIR$/Engine/Public/Material.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Engine/Public/Mesh.h" beforeDir="false" afterPath="$PROJECT_DIR$/Engine/Public/Mesh.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Engine/Public/ModelCom.h" beforeDir="false" afterPath="$PROJECT_DIR$/Engine/Public/ModelCom.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Engine/Public/StaticMesh.h" beforeDir="false" afterPath="$PROJECT_DIR$/Engine/Public/StaticMesh.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Engine/Public/VIBuffer.h" beforeDir="false" afterPath="$PROJECT_DIR$/Engine/Public/VIBuffer.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ModelEditor/Private/ModelConverter.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/ModelEditor/Private/ModelConverter.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ModelEditor/Private/ModelImGui_Manager.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/ModelEditor/Private/ModelImGui_Manager.cpp" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="MacroExpansionManager">
+    <option name="directoryName" value="yrj1x4rv" />
+  </component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 1
+}</component>
+  <component name="ProjectId" id="3DCpJfpRQiWPR4Ywhla29ZZICtK" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.rust.reset.selective.auto.import&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;feat/Animation&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;org.rust.cargo.project.model.impl.CargoExternalSystemProjectAware.subscribe.first.balloon&quot;: &quot;&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  }
+}</component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="애플리케이션 수준" UseSingleDictionary="true" transferred="true" />
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="디폴트 작업">
+      <changelist id="3a724bf1-b6b6-4ccd-bee8-03e93885d56f" name="변경" comment="" />
+      <created>1777795837038</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1777795837038</updated>
+      <workItem from="1777795838616" duration="6000" />
+      <workItem from="1777799511927" duration="23000" />
+      <workItem from="1777804624444" duration="8000" />
+      <workItem from="1777809154613" duration="2693000" />
+      <workItem from="1777862992632" duration="2929000" />
+      <workItem from="1777912636467" duration="27000" />
+    </task>
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+</project>

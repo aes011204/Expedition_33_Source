@@ -85,18 +85,6 @@
     <Filter Include="BehavoirTree">
       <UniqueIdentifier>{3c8c65f9-6d15-4630-87bb-651577f82509}</UniqueIdentifier>
     </Filter>
-    <Filter Include="02.GameObject\Camera\Cinematic">
-      <UniqueIdentifier>{90cd3da3-dd0e-4e58-9a11-67942a27b0ed}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="02.GameObject\Camera\Cinematic\Player">
-      <UniqueIdentifier>{a5f9b864-96ea-47dd-a768-18daf4dbbb43}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="02.GameObject\Camera\Cinematic\SequenceIO">
-      <UniqueIdentifier>{21d65721-e80d-48cd-a531-5e2cb48880cb}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="02.GameObject\Camera\Cinematic\SequencerAdapter">
-      <UniqueIdentifier>{591bd9e4-bffc-424c-9c7b-06c165e0c89e}</UniqueIdentifier>
-    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -178,20 +166,9 @@
     <ClInclude Include="..\public\BT_Idle.h" />
     <ClInclude Include="..\public\BT_Attack.h" />
     <ClInclude Include="..\public\BT_CheckDistance.h" />
-    <ClInclude Include="..\public\Cinematic_Utils.h">
-      <Filter>99.Defines\Helper</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\Cinematic_Types.h">
-      <Filter>99.Defines\Helper</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\Cinematic_Player.h">
-      <Filter>02.GameObject\Camera\Cinematic\Player</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\Cinematic_SequenceIO.h">
-      <Filter>02.GameObject\Camera\Cinematic\SequenceIO</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\CinematicSequencerAdapter.h">
-      <Filter>02.GameObject\Camera\Cinematic\SequencerAdapter</Filter>
+    <ClInclude Include="..\Public\Spawn_Prefab.h" />
+    <ClInclude Include="..\Public\Head_Player.h">
+      <Filter>02.GameObject\Player</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -265,14 +242,9 @@
     <ClCompile Include="..\private\BT_Idle.cpp" />
     <ClCompile Include="..\private\BT_Attack.cpp" />
     <ClCompile Include="..\private\BT_CheckDistance.cpp" />
-    <ClCompile Include="..\private\Cinematic_Player.cpp">
-      <Filter>02.GameObject\Camera\Cinematic\Player</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\Cinematic_SequenceIO.cpp">
-      <Filter>02.GameObject\Camera\Cinematic\SequenceIO</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\CinematicSequencerAdapter.cpp">
-      <Filter>02.GameObject\Camera\Cinematic\SequencerAdapter</Filter>
+    <ClCompile Include="..\Private\Spawn_Prefab.cpp" />
+    <ClCompile Include="..\Private\Head_Player.cpp">
+      <Filter>02.GameObject\Player</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -280,6 +252,9 @@
       <Filter>97.ShaderFiles</Filter>
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxCube.hlsl">
+      <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_Deferred.hlsl">
       <Filter>97.ShaderFiles</Filter>
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_BillboardParticle.hlsl">

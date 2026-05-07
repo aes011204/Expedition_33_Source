@@ -188,6 +188,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="..\Public\AIController.h" />
+    <ClInclude Include="..\Public\AnimationNotify.h" />
     <ClInclude Include="..\Public\BehaviorTree.h" />
     <ClInclude Include="..\Public\BlackBoard.h" />
     <ClInclude Include="..\Public\BNode.h" />
@@ -208,11 +209,16 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClInclude Include="..\Public\Decorator.h" />
     <ClInclude Include="..\Public\Delegate.h" />
     <ClInclude Include="..\Public\Event_Manager.h" />
+    <ClInclude Include="..\Public\Engine_Model_Struct.h" />
     <ClInclude Include="..\Public\Helper_Math.h" />
     <ClInclude Include="..\Public\ICommand.h" />
     <ClInclude Include="..\Public\Log_Manager.h" />
     <ClInclude Include="..\Public\Helper_String.h" />
+    <ClInclude Include="..\Public\Material_Types.h" />
     <ClInclude Include="..\Public\MovementCom.h" />
+    <ClInclude Include="..\Public\PhysX_Filter.h" />
+    <ClInclude Include="..\Public\PhysX_Types.h" />
+    <ClInclude Include="..\Public\Picking.h" />
     <ClInclude Include="..\Public\Print_Manager.h" />
     <ClInclude Include="..\Public\PathFollower.h" />
     <ClInclude Include="..\Public\Reflection_Macro.h" />
@@ -220,11 +226,15 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClInclude Include="..\Public\Particle_Types.h" />
     <ClInclude Include="..\Public\Reflection_Types.h" />
     <ClInclude Include="..\Public\RenderTarget.h" />
+    <ClInclude Include="..\Public\Shadow.h" />
+    <ClInclude Include="..\Public\Target_Manager.h" />
     <ClInclude Include="..\Public\RegistorFactory.h" />
     <ClInclude Include="..\Public\Selector.h" />
     <ClInclude Include="..\public\Sequence.h" />
     <ClInclude Include="..\Public\Service.h" />
     <ClInclude Include="..\Public\Task.h" />
+    <ClInclude Include="..\Public\SkeletalMesh.h" />
+    <ClInclude Include="..\Public\StaticMesh.h" />
     <ClInclude Include="..\Public\TypeRegistry.h" />
     <ClInclude Include="..\Public\VIBufferCom_Instance.h" />
     <ClInclude Include="..\Public\VIBufferCom_PointParticle.h" />
@@ -277,6 +287,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\Private\AIController.cpp" />
+    <ClCompile Include="..\Private\AnimationNotify.cpp" />
     <ClCompile Include="..\Private\BehaviorTree.cpp" />
     <ClCompile Include="..\Private\BlackBoard.cpp" />
     <ClCompile Include="..\Private\BNode.cpp" />
@@ -298,14 +309,20 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClCompile Include="..\Private\Log_Manager.cpp" />
     <ClCompile Include="..\Private\MovementCom.cpp" />
     <ClCompile Include="..\Private\PathFollower.cpp" />
+    <ClCompile Include="..\Private\PhysX_Filter.cpp" />
     <ClCompile Include="..\Private\PhysX_Manager.cpp" />
+    <ClCompile Include="..\Private\Picking.cpp" />
     <ClCompile Include="..\Private\Print_Manager.cpp" />
     <ClCompile Include="..\Private\RenderTarget.cpp" />
+    <ClCompile Include="..\Private\Shadow.cpp" />
     <ClCompile Include="..\private\Selector.cpp" />
     <ClCompile Include="..\private\Sequence.cpp" />
     <ClCompile Include="..\Private\Service.cpp" />
     <ClCompile Include="..\Private\SimpleMath.cpp" />
+    <ClCompile Include="..\Private\Target_Manager.cpp" />
     <ClCompile Include="..\Private\RegistorFactory.cpp" />
+    <ClCompile Include="..\Private\SkeletalMesh.cpp" />
+    <ClCompile Include="..\Private\StaticMesh.cpp" />
     <ClCompile Include="..\Private\Task.cpp" />
     <ClCompile Include="..\Private\TypeRegistry.cpp" />
     <ClCompile Include="..\Private\VIBufferCom_Instance.cpp" />

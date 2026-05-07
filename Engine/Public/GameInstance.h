@@ -24,6 +24,7 @@ class Light_Manager;
 class Font_Manager;
 class Asset_Manager;
 class Log_Manager;
+class Target_Manager;
 class Camera_Manager;
 struct ConsoleLogEntry;
 class Component;
@@ -34,6 +35,8 @@ class Debug_Manager;
 class Collision_Manager;
 class PhysX_Manager;
 class ColliderCom;
+class Shadow;
+class Picking;
 
 class ENGINE_DLL GameInstance final : public Base
 {
@@ -47,11 +50,16 @@ public:
     HRESULT Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<Device>& device, ComPtr<Context>& context);
     void    Update_Engine(float timeDelta);
     HRESULT Draw();
+    HRESULT Draw_RendererOnly(); // 에디터용
     void    Clear_Resources(uint32 levelIndex);
 
     float   Random(float min, float max);
 
+    ComPtr<Device>  Get_Device() const  { return _device; }
+    ComPtr<Context> Get_Context() const { return _context; }
+
 public: /* For.Log_Manager */
+    void    Log_FileOnly(const spdlog::source_loc& sourceLoc, spdlog::level::level_enum level, const string& message) const;
     void    Visit_ConsoleLogs(const function<void(const ConsoleLogEntry& logEntry)>& visitor) const;
     void    Clear_ConsoleLogs();
 
@@ -71,6 +79,8 @@ public: /* For.Graphic_Device */
 
 public: /* For.Viewport */
     void    Set_ViewportSize(uint32 width, uint32 height);
+    // editor preview처럼 창 크기와 다른 렌더 비율이 필요할 때 사용하며, swapchain이 아닌 logical viewport만 갱신한다.
+    HRESULT Apply_LogicalViewportSize(uint32 width, uint32 height);
     uint32  Get_ViewportWidth() const;
     uint32  Get_ViewportHeight() const;
 
@@ -109,7 +119,14 @@ public: /* For.Object_Manager */
         Shared<GameObject>& outGameObject,
         void* arg = nullptr);
 
-    // ex) Layer_Player의 첫번째 오브젝트 찾기
+    // 프리펩 스폰용
+    HRESULT Add_GameObject(
+        uint32 layerLevelIndex,
+        const wstring& layerTag,
+        const Shared<GameObject>& gameObject);
+    bool    Remove_GameObject(uint32 levelIndex, const Shared<GameObject>& gameObject);
+
+    // Layer_Player의 첫번째 오브젝트 찾기
     Shared<GameObject> Find_FirstObject(uint32 levelIndex, const wstring& layerTag);
 
     // 특정 레벨의 레이어에 있는 모든 오브젝트 순회 -> 에디터에서 사용
@@ -120,6 +137,7 @@ public: /* For.Object_Manager */
 
 public: /* For.Renderer */
     void Add_RenderGroup(RenderGroup renderGroup, Shared<GameObject> gameObject);
+    uint32 Get_RenderCall() const;
 
 public: /* For.PipeLine */
     HRESULT Bind_CamPosition(ShaderCom* shader, const char* constantName);
@@ -127,6 +145,7 @@ public: /* For.PipeLine */
     HRESULT Bind_TransformMatrix_Inverse(D3DTS transformState, ShaderCom* shader, const char* constantName);
 
     const Matrix* Get_Transform(D3DTS transformState) const;
+    const Matrix* Get_Transform_Inverse(D3DTS transformState) const;
     const Vec4*   Get_CamPosition() const;
 
     void Set_Transform(D3DTS transformState, FXMMATRIX& transformStateMatrix);
@@ -144,15 +163,22 @@ public: /* For.Input_Manager */
 
     // 입력 차단
     void Set_InputBlocked(bool isBlocked);
+    // 마우스 위치 반환
+    const POINT& Get_MousePosition() const;
 
 public: /* For.Light_Manager */
     const LIGHT_DESC* Get_LightDesc(uint32 index);
+    uint32  Get_LightCount() const;
     HRESULT Add_Light(const LIGHT_DESC& lightDesc);
+    HRESULT Render_Lights(Shared<ShaderCom> shader, Shared<VIBuffer_Rect> viBuffer);
+    void    Clear_Lights();
+    void    Get_LightDescs(vector<LIGHT_DESC>& outLightDescs) const;
+    HRESULT Set_Lights(const vector<LIGHT_DESC>& lightDescs);
 
 public: /* For.Font_Manager */
     HRESULT Add_Font(const wstring& fontTag, const wchar_t* fontFilePath);
     void Draw_Font(const wstring& fontTag, const wchar_t* text, const Vec2& position, FXMVECTOR color = XMVectorSet(1.f, 1.f, 1.f, 1.f));
-        
+
 public: /* For.Asset_Manager */
     /* 리소스 루트를 기준으로 GUID/meta/cache registry를 준비할 때 호출한다. */
     HRESULT Initialize_AssetManager(const wstring& resourceRoot);
@@ -187,14 +213,50 @@ public: /* For.Camera_Manager */
     Shared<Camera>  Get_ActiveCamera();
     int             Get_CameraCount();
 
+    HRESULT Bind_CameraFar(Shared<ShaderCom> shader, const char* constantName);
+
+
 public: /* For.TypeRegistry */
     const TypeRegistry::ComponentTypeInfo*  Find_ComponentType(const string& className) const;
     const TypeRegistry::GameObjectTypeInfo* Find_GameObjectType(const string& className) const;
     const TypeRegistry::BTNodeTypeInfo*     Find_BTNodeType(const string& className) const;
+    void Visit_GameObjectTypes(const function<void(const TypeRegistry::GameObjectTypeInfo&)>& visitor) const;
 
     Shared<Component>   Create_ComponentPrototype(const string& className) const;
     Shared<GameObject>  Create_GameObjectPrototype(const string& className) const;
     Shared<Base>        Create_BTNodePrototype(const string& className) const;
+
+public : /* For.Target_Manager */
+    HRESULT Add_RenderTarget(const wstring& targetTag, uint32 sizeX, uint32 sizeY, DXGI_FORMAT pixelFormat, const Color& clearColor, bool resizeWithViewport = true, bool useDSV = false);
+    HRESULT Add_MRT(const wstring& mrtTag, const wstring& targetTag);
+
+    HRESULT Begin_MRT(const wstring& mrtTag, bool useDSV = false);
+    HRESULT End_MRT();
+    HRESULT Resize_MRTs(uint32 width, uint32 height);
+    HRESULT Bind_RT_ShaderResource(Shared<ShaderCom> shader, const char* constantName, const wstring& targetTag);
+
+    HRESULT Copy_CurrentRTV_To(const wstring& targetTag);
+    HRESULT Copy_RTV(const wstring& srcTargetTag, const wstring& dstTargetTag);
+
+    HRESULT Copy_RT_Resource(const wstring& targetTag, ID3D11Texture2D* destTexture);
+
+#ifdef _DEBUG
+    HRESULT Initialize_Debug(float sizeX, float sizeY);
+    HRESULT Resize_DrawArea(float sizeX, float sizeY);
+    HRESULT Display_RT(const wstring& targetTag, bool render);
+    HRESULT Display_AllRTs(bool render);
+    HRESULT Render_RT_Debug(Shared<VIBuffer_Rect> viBuffer, Shared<ShaderCom> shader);
+    const map<wstring, bool>& Get_RTs() const;
+#endif
+
+public: /* For.Shadow */
+    HRESULT                 Bind_ShadowMatrices(Shared<ShaderCom> shader, const char* viewName, const char* projName);
+    HRESULT                 Bind_ShadowLightDesc(Shared<ShaderCom> shader, const char* lightFarName, const char* biasName = nullptr, const char* intensityName = nullptr);
+
+    HRESULT                 Update_ShadowLight(const ShadowLightDesc& desc);
+    const ShadowLightDesc*  Get_ShadowLightDesc() const;
+    const Matrix*           Get_ShadowTransformMatrix(D3DTS eType) const;
+
 
 public: /* For.Collision_Manager */
     void                    Add_Collider(Shared<ColliderCom> collider);
@@ -244,6 +306,17 @@ public: /* 입력 제어 */
     void                    Set_FreeCameraInputEnabled(bool enabled) { _isFreeCameraInputEnabled = enabled; }
     bool                    Is_FreeCameraInputEnabled() const { return _isFreeCameraInputEnabled; }
 
+public: /* For.Json / Prefab Saved & Load */
+    HRESULT                 Save_GameObjectJson(const fs::path& path, const Shared<GameObject>& gameObject);
+    json                    Load_JsonFile(const fs::path& path) const;
+    HRESULT                 Load_GameObjectJson(const fs::path& path, const Shared<GameObject>& gameObject) const;
+    Shared<GameObject>      Instantiate_GameObjectJson(const fs::path& path);
+    HRESULT                 Create_PrefabAsset(const fs::path& path, const string& staticClass, const string& prefabName);
+
+public: /* For.Picking */
+    HRESULT                 Update_Picking();
+    bool                    Pick_WorldPosition(const POINT& pixelPos, Vec3& outWorldPos);
+
 private:
     Unique<Log_Manager>         _logManager{};
     Unique<Graphic_Device>      _graphicDevice{};
@@ -259,14 +332,24 @@ private:
     Unique<Asset_Manager>       _assetManager{}; /* GUID 기반 에셋 registry와 meta/cache를 관리하는 매니저 */
     Unique<Camera_Manager>      _cameraManager{};
     Unique<TypeRegistry>        _typeRegistry{};
+    Unique<Target_Manager>      _targetManager{};
     Unique<Debug_Manager>       _debugManager{};
     Unique<Collision_Manager>   _collisionManager{};
+    Unique<Shadow>              _shadow{};
     Unique<PhysX_Manager>       _physxManager{};
+    Unique<Picking>             _picking{};
+
+
+
 #ifdef _DEBUG
     Unique<Print_Manager>       _printManager{};
 #endif
+    
 
 private:
+    ComPtr<Device>               _device = {};
+    ComPtr<Context>              _context = {};
+
     uint32  _viewportWidth{ 0 };
     uint32  _viewportHeight{ 0 };
 
@@ -275,19 +358,15 @@ private:
 
     // Free 카메라용 time
     float   _freeCameraTimeDelta = 0.f;
-    
+
 #ifdef _DEBUG
 private: //## 디버그 성능 평가용
-    static constexpr float runtimePerfSampleWindowSec{ 5.f };          // RuntimePerf summary를 몇 초마다 출력할건지
-    static constexpr float detailRenderAvgMsThreshold{ 6.f };          // Render 평균 시간이 이 값을 넘으면 detail log 출력
-    static constexpr float detailCollisionAvgMsThreshold{ 2.5f };      // Collision 평균 시간이 이 값을 넘으면 detail log 출력
-    static constexpr float detailIntersectsPerSecThreshold{ 30000.f }; // 초당 Intersect 호출 수가 이 값을 넘으면 detail log 출력
+    static constexpr float runtimePerfSampleWindowSec{ 5.f }; // RuntimePerfDetail을 몇 초마다 출력할건지
 
     chrono::steady_clock::time_point _runtimePerfWindowStartTime{};
     bool _hasRuntimePerfWindowStartTime{ false };
 
     void Try_FlushRuntimePerfLog();
-    static bool Should_LogRuntimePerfDetail(const RuntimePerfSummary& runtimeSummary);
 #endif
 
 public:

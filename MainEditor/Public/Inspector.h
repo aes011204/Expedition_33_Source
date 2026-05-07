@@ -20,18 +20,22 @@ public:
 public:
     void Render() override;
 
-private:
+public:
     static bool Draw_ComponentOverride(const Shared<Component>& component);
+    static void Draw_ReflectionSection(const string& headerId, void* instance, const ClassReflectionInfo& info);
 
+    static void Draw_ReflectionProperties(void* instance, const ClassReflectionInfo& info);
+    static void Draw_ReflectionProperty(const string& idPrefix, void* instance, const PropertyInfo& property);
+
+private:
     static void Draw_Components(const Shared<GameObject>& target);
     static void Draw_ObjectReflection(const Shared<GameObject>& target);
 
-    static void Draw_ReflectionSection(const string& headerId, void* instance, const Engine::ClassReflectionInfo& info);
-    static void Draw_ReflectionProperties(void* instance, const Engine::ClassReflectionInfo& info);
-    static void Draw_ReflectionProperty(const string& idPrefix, void* instance, const Engine::PropertyInfo& property);
-
-    static bool Draw_Vec3PropertyRow(const string& idPrefix, const Engine::PropertyInfo& property, Vec3& value);
+    static bool Draw_Vec3PropertyRow(const string& idPrefix, const PropertyInfo& property, Vec3& value);
     static bool Draw_VecAxis(const char* axisLabel, const ImVec4& color, float& value, float speed, const string& uniqueId, float width);
+
+private:
+    static constexpr float InspectorLabelWidth = 110.f;
 
 public:
     static Shared<Inspector> Create();

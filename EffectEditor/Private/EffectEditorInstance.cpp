@@ -1,19 +1,18 @@
-﻿#include "EffectEditorInstance.h"
+#include "EffectEditorInstance.h"
 
 #include "RenderTarget.h"
 #include "EffectEditor_Manager.h"
 #include "GameInstance.h"
 #include "ImGui_Manager.h"
+#include "Editor_Window.h"
+#include "Editor_Context.h"
+#include "CommandHistory.h"
+#include "Notification_Manager.h"
 
 IMPLEMENT_SINGLETON(EffectEditorInstance)
 
 EffectEditorInstance::EffectEditorInstance()
 {
-}
-
-EffectEditorInstance::~EffectEditorInstance()
-{
-    Free();
 }
 
 HRESULT EffectEditorInstance::Initialize_Editor(const EffectEditorDesc& editorDesc, const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -23,10 +22,7 @@ HRESULT EffectEditorInstance::Initialize_Editor(const EffectEditorDesc& editorDe
     _context = context;
 
     if (nullptr == _editorDesc.hWnd || nullptr == _device || nullptr == _context)
-    {
-        LOG_ERROR("Initialize_Editor failed!");
         return E_FAIL;
-    }
 
     _imguiManager = ImGui_Manager::Create(editorDesc.hWnd, _device, _context);
     CHECK_NULL(_imguiManager, E_FAIL);
@@ -34,28 +30,175 @@ HRESULT EffectEditorInstance::Initialize_Editor(const EffectEditorDesc& editorDe
     _editorManager = EffectEditor_Manager::Create();
     CHECK_NULL(_editorManager, E_FAIL);
 
-    // 처음에는 Edit 모드로, 1배속으로 시작
+    _editorContext = Editor_Context::Create();
+    CHECK_NULL(_editorContext, E_FAIL);
+
+    _commandHistory = CommandHistory::Create();
+    CHECK_NULL(_commandHistory, E_FAIL);
+
+    _notificationManager = Notification_Manager::Create();
+    CHECK_NULL(_notificationManager, E_FAIL);
+
     _runtimeState = EffectEditorRuntimeState::Edit;
     _runtimeTimeScale = 1.f;
 
     return S_OK;
 }
 
+void EffectEditorInstance::Release_Editor()
+{
+    _sharedViewportRenderTarget.reset();
+
+    if (_imguiManager)
+    {
+        _imguiManager->Free();
+        _imguiManager.reset();
+    }
+
+    _notificationManager.reset();
+    _commandHistory.reset();
+    _editorContext.reset();
+    _editorManager.reset();
+
+    _context.Reset();
+    _device.Reset();
+
+    _editorDesc = {};
+    _previewViewportMode = PreviewViewportMode::Auto;
+    _hasPendingPreviewViewportSize = false;
+    _pendingPreviewViewportWidth = 1;
+    _pendingPreviewViewportHeight = 1;
+    _appliedPreviewViewportWidth = 0;
+    _appliedPreviewViewportHeight = 0;
+
+    _runtimeState = EffectEditorRuntimeState::Edit;
+    _runtimeTimeScale = 1.f;
+    _hasPendingWindowFocus = false;
+    _pendingWindowFocus = EditorViewportTarget::Game;
+    _pendingSingleFrameStep = false;
+}
+
 void EffectEditorInstance::Update_Editor(float timeDelta)
 {
+    Sync_PreviewViewportMode();
+    Apply_PendingPreviewViewportSize();
+
     _imguiManager->Update(timeDelta);
     _editorManager->Update(timeDelta);
+
+    if (_notificationManager)
+        _notificationManager->Update(timeDelta);
 }
 
 void EffectEditorInstance::Render_Editor()
 {
     _editorManager->Render();
+
+    if (_notificationManager)
+        _notificationManager->Render();
+
     _imguiManager->Render();
+}
+
+void EffectEditorInstance::Play()
+{
+    _runtimeState = EffectEditorRuntimeState::Play;
+    Activate_TargetCamera();
+
+    GAME->Set_FreeCameraInputEnabled(false);
+    GAME->Unlock_Mouse();
+
+    Request_WindowFocus(EditorViewportTarget::Game);
+}
+
+void EffectEditorInstance::Pause()
+{
+    if (EffectEditorRuntimeState::Play != _runtimeState)
+        return;
+
+    if (!GAME->Is_ActiveCameraType(ObjectType::FreeCamera))
+        GAME->SwitchTo_NextCamera();
+
+    GAME->Set_FreeCameraInputEnabled(false);
+    GAME->Unlock_Mouse();
+
+    _runtimeState = EffectEditorRuntimeState::Pause;
+    Request_WindowFocus(EditorViewportTarget::Scene);
+}
+
+void EffectEditorInstance::Stop()
+{
+    _runtimeState = EffectEditorRuntimeState::Edit;
+
+    Activate_FreeCamera();
+
+    GAME->Set_FreeCameraInputEnabled(false);
+    GAME->Unlock_Mouse();
+
+    Request_WindowFocus(EditorViewportTarget::Scene);
+}
+
+void EffectEditorInstance::Resume()
+{
+    if (EffectEditorRuntimeState::Pause != _runtimeState)
+        return;
+
+    _runtimeState = EffectEditorRuntimeState::Play;
+    Activate_TargetCamera();
+
+    GAME->Set_FreeCameraInputEnabled(false);
+    GAME->Unlock_Mouse();
+
+    Request_WindowFocus(EditorViewportTarget::Game);
+}
+
+bool EffectEditorInstance::IsPlaying() const
+{
+    return EffectEditorRuntimeState::Play == _runtimeState;
+}
+
+bool EffectEditorInstance::IsPaused() const
+{
+    return EffectEditorRuntimeState::Pause == _runtimeState;
+}
+
+void EffectEditorInstance::Set_RuntimeTimeScale(float timeScale)
+{
+    _runtimeTimeScale = clamp(timeScale, 0.01f, 8.f);
+}
+
+void EffectEditorInstance::Reset_RuntimeTimeScale()
+{
+    _runtimeTimeScale = 1.f;
+}
+
+float EffectEditorInstance::Get_RuntimeTimeScale() const
+{
+    return _runtimeTimeScale;
+}
+
+void EffectEditorInstance::Request_WindowFocus(EditorViewportTarget target)
+{
+    _pendingWindowFocus = target;
+    _hasPendingWindowFocus = true;
+}
+
+bool EffectEditorInstance::Consume_WindowFocusRequest(EditorViewportTarget target)
+{
+    if (!_hasPendingWindowFocus)
+        return false;
+
+    if (_pendingWindowFocus != target)
+        return false;
+
+    _hasPendingWindowFocus = false;
+    return true;
 }
 
 Shared<Editor_Window> EffectEditorInstance::Get_Window(const wstring& windowName) const
 {
-    CHECK_NULL(_editorManager, nullptr);
+    if (nullptr == _editorManager)
+        return nullptr;
 
     return _editorManager->Find_Window(windowName);
 }
@@ -63,6 +206,40 @@ Shared<Editor_Window> EffectEditorInstance::Get_Window(const wstring& windowName
 HWND EffectEditorInstance::Get_WindowHandle() const
 {
     return _editorDesc.hWnd;
+}
+
+void EffectEditorInstance::Execute_Command(const Shared<ICommand>& command)
+{
+    if (_commandHistory && command)
+        _commandHistory->Execute(command);
+}
+
+void EffectEditorInstance::Undo()
+{
+    if (_commandHistory)
+        _commandHistory->Undo();
+}
+
+void EffectEditorInstance::Redo()
+{
+    if (_commandHistory)
+        _commandHistory->Redo();
+}
+
+void EffectEditorInstance::Clear_CommandHistory()
+{
+    if (_commandHistory)
+        _commandHistory->Clear();
+}
+
+void EffectEditorInstance::Activate_TargetCamera()
+{
+    GAME->Activate_CameraByType(ObjectType::TargetCamera);
+}
+
+void EffectEditorInstance::Activate_FreeCamera()
+{
+    GAME->Activate_CameraByType(ObjectType::FreeCamera);
 }
 
 Shared<RenderTarget> EffectEditorInstance::Prepare_SharedViewportRenderTarget(uint32 width, uint32 height)
@@ -84,41 +261,39 @@ Shared<RenderTarget> EffectEditorInstance::Prepare_SharedViewportRenderTarget(ui
             Vec4(0.f, 0.f, 0.f, 1.f)
         );
     }
-    else
-    {
-        CHECK_FAILED(
-            _sharedViewportRenderTarget->Resize(
-                width,
-                height,
-                DXGI_FORMAT_R8G8B8A8_UNORM,
-                Vec4(0.f, 0.f, 0.f, 1.f)),
-            nullptr
-        );
-    }
+    else if (FAILED(
+        _sharedViewportRenderTarget->Resize(
+            width,
+            height,
+            DXGI_FORMAT_R8G8B8A8_UNORM,
+            Vec4(0.f, 0.f, 0.f, 1.f))
+    ))
+        return nullptr;
 
     return _sharedViewportRenderTarget;
 }
 
-void EffectEditorInstance::Request_ViewportSize(EditorViewportTarget targetType, uint32 width, uint32 height)
-{
-    _lastViewportRequester = targetType;
-    _requestedViewportWidth = max(1u, width);
-    _requestedViewportHeight = max(1u, height);
-}
-
 ID3D11ShaderResourceView* EffectEditorInstance::Get_SharedViewportSRV() const
 {
-    CHECK_NULL(_sharedViewportRenderTarget, nullptr);
+    if (nullptr == _sharedViewportRenderTarget)
+        return nullptr;
 
     return _sharedViewportRenderTarget->Get_SRV();
 }
 
 void EffectEditorInstance::Capture_BackBuffer_ToViewport()
 {
+    const uint32 viewportWidth = min(
+        max(1u, GAME->Get_ViewportWidth()),
+        max(1u, GAME->Get_BackBufferWidth()));
+    const uint32 viewportHeight = min(
+        max(1u, GAME->Get_ViewportHeight()),
+        max(1u, GAME->Get_BackBufferHeight()));
+
     const Shared<RenderTarget> renderTarget =
         Prepare_SharedViewportRenderTarget(
-            GAME->Get_BackBufferWidth(),
-            GAME->Get_BackBufferHeight()
+            viewportWidth,
+            viewportHeight
         );
 
     if (nullptr == renderTarget || nullptr == _context)
@@ -129,90 +304,187 @@ void EffectEditorInstance::Capture_BackBuffer_ToViewport()
         return;
 
     ComPtr<ID3D11Texture2D> backBufferTexture = nullptr;
-
-    const HRESULT hr = swapChain->GetBuffer(
-        0,
-        __uuidof(ID3D11Texture2D),
-        reinterpret_cast<void**>(backBufferTexture.GetAddressOf())
-    );
-    CHECK_FAILED(hr);
+    if (FAILED(
+        swapChain->GetBuffer(
+            0,
+            __uuidof(ID3D11Texture2D),
+            reinterpret_cast<void**>(backBufferTexture.GetAddressOf()))
+    ))
+        return;
 
     const ComPtr<ID3D11Texture2D> viewportTexture = renderTarget->Get_Texture();
     if (nullptr == viewportTexture)
         return;
 
-    _context->CopyResource(viewportTexture.Get(), backBufferTexture.Get());
+    D3D11_BOX sourceBox{};
+    sourceBox.left = 0;
+    sourceBox.top = 0;
+    sourceBox.front = 0;
+    sourceBox.right = viewportWidth;
+    sourceBox.bottom = viewportHeight;
+    sourceBox.back = 1;
+
+    _context->CopySubresourceRegion(
+        viewportTexture.Get(),
+        0,
+        0,
+        0,
+        0,
+        backBufferTexture.Get(),
+        0,
+        &sourceBox);
 }
 
-void EffectEditorInstance::Play()
+void EffectEditorInstance::Request_PreviewViewportSize(uint32 width, uint32 height)
 {
-    _runtimeState = EffectEditorRuntimeState::Play;
+    if (_previewViewportMode != PreviewViewportMode::Auto)
+        return;
+
+    Queue_PreviewViewportSize(width, height);
 }
 
-void EffectEditorInstance::Pause()
+void EffectEditorInstance::Enable_AutoPreviewViewport()
 {
-    if (EffectEditorRuntimeState::Play == _runtimeState)
-        _runtimeState = EffectEditorRuntimeState::Pause;
+    _previewViewportMode = PreviewViewportMode::Auto;
 }
 
-void EffectEditorInstance::Stop()
+void EffectEditorInstance::Enable_ManualPreviewViewport()
 {
-    _runtimeState = EffectEditorRuntimeState::Edit;
+    _previewViewportMode = PreviewViewportMode::Manual;
 }
 
-void EffectEditorInstance::Resume()
+void EffectEditorInstance::Set_ManualPreviewViewportSize(uint32 width, uint32 height)
 {
-    if (EffectEditorRuntimeState::Pause == _runtimeState)
-        _runtimeState = EffectEditorRuntimeState::Play;
+    _previewViewportMode = PreviewViewportMode::Manual;
+    Queue_PreviewViewportSize(width, height);
 }
 
-bool EffectEditorInstance::IsPlaying() const
+void EffectEditorInstance::Sync_PreviewViewportMode()
 {
-    return EffectEditorRuntimeState::Play == _runtimeState;
+    if (GAME->Get_ViewportWidth() > GAME->Get_BackBufferWidth() ||
+        GAME->Get_ViewportHeight() > GAME->Get_BackBufferHeight())
+        Queue_PreviewViewportSize(GAME->Get_ViewportWidth(), GAME->Get_ViewportHeight());
 }
 
-bool EffectEditorInstance::IsPaused() const
+float EffectEditorInstance::Get_EffectiveViewportAspect() const
 {
-    return EffectEditorRuntimeState::Pause == _runtimeState;
+    const uint32 viewportWidth = GAME->Get_ViewportWidth();
+    const uint32 viewportHeight = max(1u, GAME->Get_ViewportHeight());
+    if (viewportWidth == 0)
+        return 0.f;
+
+    return static_cast<float>(viewportWidth) /
+           static_cast<float>(viewportHeight);
 }
 
-void EffectEditorInstance::Set_RuntimeTimeScale(float timeScale)
+void EffectEditorInstance::Queue_PreviewViewportSize(uint32 width, uint32 height)
 {
-    _runtimeTimeScale = Clamp_RuntimeTimeScale(timeScale);
+    _pendingPreviewViewportWidth = max(1u, width);
+    _pendingPreviewViewportHeight = max(1u, height);
+    _hasPendingPreviewViewportSize = true;
 }
 
-void EffectEditorInstance::Reset_RuntimeTimeScale()
+void EffectEditorInstance::Apply_PendingPreviewViewportSize()
 {
-    _runtimeTimeScale = 1.f;
+    if (!_hasPendingPreviewViewportSize)
+        return;
+
+    _hasPendingPreviewViewportSize = false;
+
+    const uint32 width = min(
+        max(1u, _pendingPreviewViewportWidth),
+        max(1u, GAME->Get_BackBufferWidth()));
+    const uint32 height = min(
+        max(1u, _pendingPreviewViewportHeight),
+        max(1u, GAME->Get_BackBufferHeight()));
+
+    if (_appliedPreviewViewportWidth == width &&
+        _appliedPreviewViewportHeight == height)
+        return;
+
+    if (FAILED(GAME->Apply_LogicalViewportSize(width, height)))
+        return;
+
+    _appliedPreviewViewportWidth = GAME->Get_ViewportWidth();
+    _appliedPreviewViewportHeight = GAME->Get_ViewportHeight();
 }
 
-float EffectEditorInstance::Get_RuntimeTimeScale() const
+void EffectEditorInstance::Apply_RuntimeInputPolicy()
 {
-    return _runtimeTimeScale;
+    const Shared<Editor_Window> sceneView = Get_Window(L"Scene");
+    const Shared<Editor_Window> gameView = Get_Window(L"Game");
+
+    if (_runtimeState != EffectEditorRuntimeState::Play &&
+        !GAME->Is_ActiveCameraType(ObjectType::FreeCamera))
+        Activate_FreeCamera();
+
+    const bool sceneInteractive =
+        sceneView && sceneView->Is_Open() &&
+        (sceneView->Is_Focused() || sceneView->Is_Hovered());
+
+    const bool gameFocused =
+        gameView && gameView->Is_Open() && gameView->Is_Focused();
+
+    const bool isFreeCamera =
+        GAME->Is_ActiveCameraType(ObjectType::FreeCamera);
+
+    if (_runtimeState == EffectEditorRuntimeState::Play)
+    {
+        if (isFreeCamera)
+        {
+            const bool freeCameraControl =
+                gameFocused && GAME->KeyPress(KEY_TYPE::RBUTTON);
+
+            GAME->Set_PlayerInputBlocked(true);
+            GAME->Set_FreeCameraInputEnabled(freeCameraControl);
+
+            if (freeCameraControl)
+                GAME->Lock_Mouse();
+            else
+                GAME->Unlock_Mouse();
+        }
+        else
+        {
+            GAME->Set_PlayerInputBlocked(!gameFocused);
+            GAME->Set_FreeCameraInputEnabled(false);
+
+            if (gameFocused)
+                GAME->Lock_Mouse();
+            else
+                GAME->Unlock_Mouse();
+        }
+
+        return;
+    }
+
+    const bool freeCameraControl =
+        sceneInteractive && GAME->KeyPress(KEY_TYPE::RBUTTON);
+
+    GAME->Set_PlayerInputBlocked(true);
+    GAME->Set_FreeCameraInputEnabled(freeCameraControl);
+
+    if (freeCameraControl)
+        GAME->Lock_Mouse();
+    else
+        GAME->Unlock_Mouse();
 }
 
-float EffectEditorInstance::Clamp_RuntimeTimeScale(float timeScale)
+void EffectEditorInstance::Request_FrameStep()
 {
-    if (timeScale < 0.01f)
-        return 0.01f;
+    _pendingSingleFrameStep = true;
+}
 
-    if (timeScale > 8.f)
-        return 8.f;
+bool EffectEditorInstance::Consume_FrameStep()
+{
+    if (!_pendingSingleFrameStep)
+        return false;
 
-    return timeScale;
+    _pendingSingleFrameStep = false;
+    return true;
 }
 
 void EffectEditorInstance::Free()
 {
-    _sharedViewportRenderTarget.reset();
-    _imguiManager.reset();
-    _editorManager.reset();
-    _context.Reset();
-    _device.Reset();
-    _editorDesc = {};
-    _requestedViewportWidth = 1;
-    _requestedViewportHeight = 1;
-    _lastViewportRequester = EditorViewportTarget::Game;
-    _runtimeState = EffectEditorRuntimeState::Edit;
-    _runtimeTimeScale = 1.f;
+    Release_Editor();
+    Base::Free();
 }

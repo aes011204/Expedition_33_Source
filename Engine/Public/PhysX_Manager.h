@@ -1,30 +1,72 @@
 ﻿#pragma once
 #include "Base.h"
+#include "Collision_Define.h"
+#include "PhysX_Types.h"
 
 NS_BEGIN(Engine)
 
-class PhysX_Manager final : public Base
+class ColliderCom;
+
+class PhysX_Manager final
+    : public Base
+    , public PxSimulationEventCallback // 충돌 이벤트 콜벡을 받기 위해서 상속
 {
 public:
     PhysX_Manager();
     ~PhysX_Manager() override;
 
 public:
-    PxPhysics* Get_Physics() const { return _physics; }
-    PxScene* Get_Scene() const { return _scene; }
+    PxPhysics*  Get_Physics() const { return _physics; }
+    PxScene*    Get_Scene() const { return _scene; }
 
 public:
-    HRESULT Initialize();
-    void Update(float timeDelta);
+    HRESULT     Initialize();
+    void        Update(float timeDelta);
+
+public:
+    void Begin_Frame();
+
+    // 아직 actor가 없으면 만들고 scene에 추가, 있으면 위치만 맞추기
+    void Register_OrSync_Collider(Shared<ColliderCom> collider, const Matrix& worldMatrix);
+    void Gather_FrameEvents(vector<PhysXPairEvent>& outEvents);
+
+public: /* PxSimulationEventCallback */
+    void onConstraintBreak(PxConstraintInfo* constraints, PxU32 count) override {}
+    void onWake(PxActor** actors, PxU32 count) override {}
+    void onSleep(PxActor** actors, PxU32 count) override {}
+    void onAdvance(const PxRigidBody* const* bodyBuffer, const PxTransform* poseBuffer, const PxU32 count) override {}
+
+    void onTrigger(PxTriggerPair* pairs, PxU32 count) override;
+    void onContact(const PxContactPairHeader& pairHeader, const PxContactPair* pairs, PxU32 nbPairs) override;
 
 private:
-    PxDefaultAllocator _allocator;
-    PxDefaultErrorCallback _errorCallback;
+    Shared<ColliderCom> Find_Collider(PxActor* actor) const;
 
-    PxFoundation* _foundation = {};
-    PxPhysics* _physics = {};
-    PxScene* _scene = {};
-    PxDefaultCpuDispatcher* _dispatcher = {};
+    void Push_PairEvent(Shared<ColliderCom> self, Shared<ColliderCom> other,
+						CollisionResponse response, bool began, bool staying, bool ended);
+
+public:
+	// 현재 충돌체 모양을 가져와서 주어진 방향으로, 주어진 거리만큼 query를 날려서
+	// 맞았는지, 얼마나 갔는지, 어디에 맞았는지 결과를 채워줌
+	bool Sweep_Collider(ColliderCom* collider, const Matrix& worldMatrix,
+		                const Vec3& direction, float distance, PhysXQueryHit& outHit) const;
+
+	// 현재 캐릭터 발 밑으로 짧게 아래 방향 query를 날리고 바닥이 있는지 판별용
+	bool Probe_Ground(ColliderCom* collider, const Matrix& worldMatrix,
+		                float probeDistance, PhysXQueryHit& outHit) const;
+
+private:
+    PxDefaultAllocator          _allocator;
+    PxDefaultErrorCallback      _errorCallback;
+
+    PxFoundation*               _foundation = {};
+    PxPhysics*                  _physics = {};
+    PxScene*                    _scene = {};
+    PxDefaultCpuDispatcher*     _dispatcher = {};
+
+private:
+    vector<PhysXPairEvent>              _frameEvents;
+    umap<PxActor*, Weak<ColliderCom>>   _actorColliderMap;
 
 #ifdef _DEBUG
     PxPvd* _pvd = {};

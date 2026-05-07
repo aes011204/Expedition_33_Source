@@ -3,6 +3,7 @@
 #include "Camera.h"
 #include "GameInstance.h"
 #include "Helper_Math.h"
+#include "ShaderCom.h"
 
 Camera_Manager::Camera_Manager()
 {
@@ -191,6 +192,15 @@ bool Camera_Manager::Focus_FreeCameraOnPosition(const Vec3& position)
     }
 
     return false;
+}
+
+HRESULT Camera_Manager::Bind_CameraFar(Shared<ShaderCom> shader, const char* constantName)
+{
+    if (!m_activeCamera)
+        return E_FAIL;
+
+    const float farPlane = m_activeCamera->Get_Far();
+    return shader->Bind_RawValue(constantName, &farPlane, sizeof(float));
 }
 
 Unique<Camera_Manager> Camera_Manager::Create()

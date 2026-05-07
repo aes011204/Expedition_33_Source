@@ -12,13 +12,19 @@
 #include "Log_Manager.h"
 #include "Object_Manager.h"
 #include "PipeLine.h"
-#ifdef _DEBUG
-#include "Print_Manager.h"
-#endif
+#include "GameObject.h"
 #include "Prototype_Manager.h"
 #include "RegistorFactory.h"
 #include "Renderer.h"
 #include "Timer_Manager.h"
+#include "Target_Manager.h"
+#include "Shadow.h"
+#include "Picking.h"
+#include "ColliderCom.h"
+
+#ifdef _DEBUG
+#include "Print_Manager.h"
+#endif
 
 IMPLEMENT_SINGLETON(GameInstance)
 
@@ -38,6 +44,9 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
         device,
         context
     );
+
+    _device = device;
+    _context = context;
 
     CHECK_NULL(_graphicDevice, E_FAIL);
 
@@ -65,6 +74,10 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
     _objectManager = Object_Manager::Create(engineDesc.numLevels);
     CHECK_NULL(_objectManager, E_FAIL);
 
+    _targetManager = Target_Manager::Create(device, context);
+    if (nullptr == _targetManager)
+        return E_FAIL;
+
     _renderer = Renderer::Create(device, context);
     CHECK_NULL(_renderer, E_FAIL);
 
@@ -89,8 +102,15 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
     _collisionManager = Collision_Manager::Create();
     CHECK_NULL(_collisionManager, E_FAIL);
 
+    _shadow = Shadow::Create();
+    CHECK_NULL(_shadow, E_FAIL);
+
     _physxManager = PhysX_Manager::Create();
     CHECK_NULL(_physxManager, E_FAIL);
+
+    _picking = Picking::Create(device, context);
+    CHECK_NULL(_picking, E_FAIL);
+
 
 #ifdef _DEBUG
     _printManager = Print_Manager::Create();
@@ -116,15 +136,17 @@ void GameInstance::Update_Engine(float timeDelta)
 
     _objectManager->Update(timeDelta);
 
+    _physxManager->Begin_Frame();
     _collisionManager->Clear_Colliders();
     _objectManager->Late_Update(timeDelta);
-    _collisionManager->Update();
 
     _physxManager->Update(timeDelta);
 
-    _levelManager->Update(timeDelta);
-    _cameraManager->Update(timeDelta);
+    vector<PhysXPairEvent> events;
+    _physxManager->Gather_FrameEvents(events);
+    _collisionManager->Update_FromPhysX(events);
 
+    _cameraManager->Update(timeDelta);
 }
 
 HRESULT GameInstance::Draw()
@@ -132,6 +154,8 @@ HRESULT GameInstance::Draw()
     _renderer->Draw();
 
     _levelManager->Render();
+
+    CHECK_FAILED(Update_Picking(), E_FAIL);
 
 #ifdef _DEBUG
     // Collision Manager
@@ -146,11 +170,18 @@ HRESULT GameInstance::Draw()
     }
 
     _printManager->Render();
-#endif    
+#endif
 
 #ifdef _DEBUG
     Try_FlushRuntimePerfLog();
 #endif
+
+    return S_OK;
+}
+
+HRESULT GameInstance::Draw_RendererOnly()
+{
+    _renderer->Draw();
 
     return S_OK;
 }
@@ -178,6 +209,7 @@ void GameInstance::Try_FlushRuntimePerfLog()
     const bool hasRenderSummary =
         nullptr != _renderer &&
         _renderer->Try_ConsumePerfSummary(windowSec, runtimeSummary.render);
+
     const bool hasCollisionSummary =
         nullptr != _collisionManager &&
         _collisionManager->Try_ConsumePerfSummary(windowSec, runtimeSummary.collision);
@@ -189,116 +221,64 @@ void GameInstance::Try_FlushRuntimePerfLog()
         return;
     }
 
-    if (hasRenderSummary && runtimeSummary.render.renderCallCount > 0)
-    {
-        runtimeSummary.approxFps =
-            static_cast<float>(runtimeSummary.render.renderCallCount) / windowSec;
-    }
-    else if (hasCollisionSummary && runtimeSummary.collision.updateFrameCount > 0)
-    {
-        runtimeSummary.approxFps =
-            static_cast<float>(runtimeSummary.collision.updateFrameCount) / windowSec;
-    }
-
-    LOG_INFO(
-        "[RuntimePerf] fps={:.1f} render_ms(avg={:.2f} max={:.2f}) "
-        "priority_ms(avg={:.2f}) nonblend_ms(avg={:.2f}) blend_ms(avg={:.2f}) ui_ms(avg={:.2f}) "
-        "collision_ms(avg={:.2f} max={:.2f}) colliders(active={:.1f})",
-        runtimeSummary.approxFps,
-        runtimeSummary.render.renderAvgMs,
-        runtimeSummary.render.renderMaxMs,
-        runtimeSummary.render.priorityAvgMs,
-        runtimeSummary.render.nonBlendAvgMs,
-        runtimeSummary.render.blendAvgMs,
-        runtimeSummary.render.uiAvgMs,
-        runtimeSummary.collision.updateAvgMs,
-        runtimeSummary.collision.updateMaxMs,
-        runtimeSummary.collision.activeCollidersAvg
-    );
-
-    // TODO (RuntimePerf):
-    // preview/deferred/shadow/light/combine pass가 실제 Renderer에 추가되면
-    // counter와 summary field를 먼저 연결한 뒤 아래 확장 포맷으로 교체한다.
-
-    // LOG_INFO(
-    //     "[RuntimePerf] fps={:.1f} render_ms(avg={:.2f} max={:.2f}) "
-    //     "priority_ms(avg={:.2f}) nonblend_ms(avg={:.2f}) blend_ms(avg={:.2f}) ui_ms(avg={:.2f}) "
-    //     "shadow_ms(avg={:.2f} max={:.2f}) "
-    //     "lights_ms(avg={:.2f}) combined_ms(avg={:.2f}) "
-    //     "collision_ms(avg={:.2f} max={:.2f}) colliders(active={:.1f})",
-    //     runtimeSummary.approxFps,
-    //     runtimeSummary.render.renderAvgMs,
-    //     runtimeSummary.render.renderMaxMs,
-    //     runtimeSummary.render.priorityAvgMs,
-    //     runtimeSummary.render.nonBlendAvgMs,
-    //     runtimeSummary.render.blendAvgMs,
-    //     runtimeSummary.render.uiAvgMs,
-    //     runtimeSummary.render.shadowAvgMs,
-    //     runtimeSummary.render.shadowMaxMs,
-    //     runtimeSummary.render.lightsAvgMs,
-    //     runtimeSummary.render.combinedAvgMs,
-    //     runtimeSummary.collision.updateAvgMs,
-    //     runtimeSummary.collision.updateMaxMs,
-    //     runtimeSummary.collision.activeCollidersAvg
-    // );
-
-    if (Should_LogRuntimePerfDetail(runtimeSummary))
-    {
-        LOG_INFO(
+    Log_FileOnly(
+        spdlog::source_loc{ __FILE__, __LINE__, SPDLOG_FUNCTION },
+        spdlog::level::trace,
+        fmt::format(
             "[RuntimePerfDetail] render_ms(avg={:.2f} max={:.2f}) "
-            "priority_ms(avg={:.2f}) nonblend_ms(avg={:.2f}) blend_ms(avg={:.2f}) ui_ms(avg={:.2f}) "
+            "priority_ms(avg={:.2f} max={:.2f}) "
+            "shadow_ms(avg={:.2f} max={:.2f}) "
+            "nonblend_ms(avg={:.2f} max={:.2f}) "
+            "lights_ms(avg={:.2f} max={:.2f}) "
+            "combined_ms(avg={:.2f} max={:.2f}) "
+            "nonlight_ms(avg={:.2f} max={:.2f}) "
+            "blend_ms(avg={:.2f} max={:.2f}) "
+            "ui_ms(avg={:.2f} max={:.2f}) "
+            "debug_ms(avg={:.2f} max={:.2f}) "
             "collision_ms(avg={:.2f} max={:.2f}) pairs={:.1f}/s intersects={:.1f}/s hits={:.1f}/s",
+
             runtimeSummary.render.renderAvgMs,
             runtimeSummary.render.renderMaxMs,
+
             runtimeSummary.render.priorityAvgMs,
+            runtimeSummary.render.priorityMaxMs,
+
+            runtimeSummary.render.shadowAvgMs,
+            runtimeSummary.render.shadowMaxMs,
+
             runtimeSummary.render.nonBlendAvgMs,
+            runtimeSummary.render.nonBlendMaxMs,
+
+            runtimeSummary.render.lightsAvgMs,
+            runtimeSummary.render.lightsMaxMs,
+
+            runtimeSummary.render.combinedAvgMs,
+            runtimeSummary.render.combinedMaxMs,
+
+            runtimeSummary.render.nonLightAvgMs,
+            runtimeSummary.render.nonLightMaxMs,
+
             runtimeSummary.render.blendAvgMs,
+            runtimeSummary.render.blendMaxMs,
+
             runtimeSummary.render.uiAvgMs,
+            runtimeSummary.render.uiMaxMs,
+
+            runtimeSummary.render.debugAvgMs,
+            runtimeSummary.render.debugMaxMs,
+
             runtimeSummary.collision.updateAvgMs,
             runtimeSummary.collision.updateMaxMs,
             runtimeSummary.collision.pairsPerSec,
             runtimeSummary.collision.intersectsPerSec,
             runtimeSummary.collision.hitsPerSec
-        );
-
-        // TODO (RuntimePerfDetail):
-        // 확장 pass counter와 summary field가 연결된 뒤 detail 로그도 같은 기준으로 확장한다.
-
-        // LOG_INFO(
-        //     "[RuntimePerfDetail] render_ms(avg={:.2f} max={:.2f}) "
-        //     "priority_ms(avg={:.2f}) nonblend_ms(avg={:.2f}) blend_ms(avg={:.2f}) ui_ms(avg={:.2f}) "
-        //     "shadow_ms(avg={:.2f} max={:.2f}) lights_ms(avg={:.2f}) "
-        //     "combined_ms(avg={:.2f}) "
-        //     "collision_ms(avg={:.2f} max={:.2f}) pairs={:.1f}/s intersects={:.1f}/s hits={:.1f}/s",
-        //     runtimeSummary.render.renderAvgMs,
-        //     runtimeSummary.render.renderMaxMs,
-        //     runtimeSummary.render.priorityAvgMs,
-        //     runtimeSummary.render.nonBlendAvgMs,
-        //     runtimeSummary.render.blendAvgMs,
-        //     runtimeSummary.render.uiAvgMs,
-        //     runtimeSummary.render.shadowAvgMs,
-        //     runtimeSummary.render.shadowMaxMs,
-        //     runtimeSummary.render.lightsAvgMs,
-        //     runtimeSummary.render.combinedAvgMs,
-        //     runtimeSummary.collision.updateAvgMs,
-        //     runtimeSummary.collision.updateMaxMs,
-        //     runtimeSummary.collision.pairsPerSec,
-        //     runtimeSummary.collision.intersectsPerSec,
-        //     runtimeSummary.collision.hitsPerSec
-        // );
-    }
+        )
+    );
 
     _runtimePerfWindowStartTime = now;
     _hasRuntimePerfWindowStartTime = true;
 }
 
-bool GameInstance::Should_LogRuntimePerfDetail(const RuntimePerfSummary& runtimeSummary)
-{
-    return
-        runtimeSummary.render.renderAvgMs >= detailRenderAvgMsThreshold ||
-        runtimeSummary.collision.updateAvgMs >= detailCollisionAvgMsThreshold ||
-        runtimeSummary.collision.intersectsPerSec >= detailIntersectsPerSecThreshold;
-}
 #endif
 
 void GameInstance::Clear_Resources(uint32 levelIndex)
@@ -310,6 +290,12 @@ void GameInstance::Clear_Resources(uint32 levelIndex)
 float GameInstance::Random(float min, float max)
 {
     return min + static_cast<float>(rand()) / RAND_MAX * (max - min);
+}
+
+void GameInstance::Log_FileOnly(const spdlog::source_loc& sourceLoc, spdlog::level::level_enum level, const string& message) const
+{
+    CHECK_NULL(_logManager);
+    _logManager->Log_FileOnly(sourceLoc, level, message);
 }
 
 void GameInstance::Visit_ConsoleLogs(const function<void(const ConsoleLogEntry& logEntry)>& visitor) const
@@ -384,6 +370,24 @@ void GameInstance::Set_ViewportSize(uint32 width, uint32 height)
     _viewportHeight = max(1u, height);
 }
 
+HRESULT GameInstance::Apply_LogicalViewportSize(uint32 width, uint32 height)
+{
+    CHECK_NULL(_renderer, E_FAIL);
+    CHECK_NULL(_targetManager, E_FAIL);
+
+    const uint32 backBufferWidth = max(1u, Get_BackBufferWidth());
+    const uint32 backBufferHeight = max(1u, Get_BackBufferHeight());
+    const uint32 logicalWidth = min(max(1u, width), backBufferWidth);
+    const uint32 logicalHeight = min(max(1u, height), backBufferHeight);
+
+    Set_ViewportSize(logicalWidth, logicalHeight);
+
+    CHECK_FAILED(Resize_MRTs(logicalWidth, logicalHeight), E_FAIL);
+
+    _renderer->Sync_ViewportDependentState(logicalWidth, logicalHeight);
+    return S_OK;
+}
+
 uint32 GameInstance::Get_ViewportWidth() const
 {
     return _viewportWidth;
@@ -446,9 +450,20 @@ HRESULT GameInstance::Add_GameObject(
 }
 
 HRESULT GameInstance::Add_GameObject(uint32 prototypeLevelIndex, const wstring& prototypeTag, uint32 layerLevelIndex,
-    const wstring& layerTag, Shared<GameObject>& outGameObject, void* arg)
+                                     const wstring& layerTag, Shared<GameObject>& outGameObject, void* arg)
 {
     return _objectManager->Add_GameObject(prototypeLevelIndex, prototypeTag, layerLevelIndex, layerTag, outGameObject, arg);
+}
+
+HRESULT GameInstance::Add_GameObject(uint32 layerLevelIndex, const wstring& layerTag,
+                                     const Shared<GameObject>& gameObject)
+{
+    return _objectManager->Add_GameObject(layerLevelIndex, layerTag, gameObject);
+}
+
+bool GameInstance::Remove_GameObject(uint32 levelIndex, const Shared<GameObject>& gameObject)
+{
+    return _objectManager->Remove_GameObject(levelIndex, gameObject);
 }
 
 Shared<GameObject> GameInstance::Find_FirstObject(uint32 levelIndex, const wstring& layerTag)
@@ -472,6 +487,12 @@ void GameInstance::Add_RenderGroup(RenderGroup renderGroup, Shared<GameObject> g
     return _renderer->Add_RenderGroup(renderGroup, gameObject);
 }
 
+uint32 GameInstance::Get_RenderCall() const
+{
+    CHECK_NULL(_renderer, 0);
+    return _renderer->Get_RenderCall();
+}
+
 HRESULT GameInstance::Bind_CamPosition(ShaderCom* shader, const char* constantName)
 {
     return _pipeLine->Bind_CamPosition(shader, constantName);
@@ -490,6 +511,11 @@ HRESULT GameInstance::Bind_TransformMatrix_Inverse(D3DTS transformState, ShaderC
 const Matrix* GameInstance::Get_Transform(D3DTS transformState) const
 {
     return _pipeLine->Get_Transform(transformState);
+}
+
+const Matrix* GameInstance::Get_Transform_Inverse(D3DTS transformState) const
+{
+    return _pipeLine->Get_Transform_Inverse(transformState);
 }
 
 const Vec4* GameInstance::Get_CamPosition() const
@@ -547,14 +573,44 @@ void GameInstance::Set_InputBlocked(bool isBlocked)
     return _inputManager->Set_InputBlocked(isBlocked);
 }
 
+const POINT& GameInstance::Get_MousePosition() const
+{
+    return _inputManager->Get_MousePosition();
+}
+
 const LIGHT_DESC* GameInstance::Get_LightDesc(uint32 index)
 {
     return _lightManager->Get_LightDesc(index);
 }
 
+uint32 GameInstance::Get_LightCount() const
+{
+    return _lightManager->Get_LightCount();
+}
+
 HRESULT GameInstance::Add_Light(const LIGHT_DESC& lightDesc)
 {
     return _lightManager->Add_Light(lightDesc);
+}
+
+HRESULT GameInstance::Render_Lights(Shared<ShaderCom> shader, Shared<VIBuffer_Rect> viBuffer)
+{
+    return _lightManager->Render_Lights(shader, viBuffer);
+}
+
+void GameInstance::Clear_Lights()
+{
+    _lightManager->Clear_Lights();
+}
+
+void GameInstance::Get_LightDescs(vector<LIGHT_DESC>& outLightDescs) const
+{
+    _lightManager->Get_LightDescs(outLightDescs);
+}
+
+HRESULT GameInstance::Set_Lights(const vector<LIGHT_DESC>& lightDescs)
+{
+    return _lightManager->Set_Lights(lightDescs);
 }
 
 HRESULT GameInstance::Add_Font(const wstring& fontTag, const wchar_t* fontFilePath)
@@ -646,6 +702,12 @@ int GameInstance::Get_CameraCount()
     return _cameraManager->Get_CameraCount();
 }
 
+HRESULT GameInstance::Bind_CameraFar(Shared<ShaderCom> shader, const char* constantName)
+{
+    return _cameraManager->Bind_CameraFar(shader, constantName);
+}
+
+
 const TypeRegistry::ComponentTypeInfo* GameInstance::Find_ComponentType(const string& className) const
 {
     return _typeRegistry->Find_ComponentType(className);
@@ -661,6 +723,12 @@ const TypeRegistry::BTNodeTypeInfo* GameInstance::Find_BTNodeType(const string& 
     return _typeRegistry->Find_BTNodeType(className);
 }
 
+void GameInstance::Visit_GameObjectTypes(const function<void(const TypeRegistry::GameObjectTypeInfo&)>& visitor) const
+{
+    CHECK_NULL(_typeRegistry);
+    _typeRegistry->Visit_GameObjectTypes(visitor);
+}
+
 Shared<Component> GameInstance::Create_ComponentPrototype(const string& className) const
 {
     return _typeRegistry->Create_Component(className, _graphicDevice->Get_Device(), _graphicDevice->Get_Context());
@@ -668,7 +736,6 @@ Shared<Component> GameInstance::Create_ComponentPrototype(const string& classNam
 
 Shared<GameObject> GameInstance::Create_GameObjectPrototype(const string& className) const
 {
-
     return _typeRegistry->Create_GameObject(className, _graphicDevice->Get_Device(), _graphicDevice->Get_Context());
 }
 
@@ -677,9 +744,67 @@ Shared<Base> GameInstance::Create_BTNodePrototype(const string& className) const
     return _typeRegistry->Create_BTNode(className);
 }
 
+HRESULT GameInstance::Add_RenderTarget(const wstring& targetTag, uint32 sizeX, uint32 sizeY, DXGI_FORMAT pixelFormat,
+                                       const Color& clearColor, bool resizeWithViewport, bool useDSV)
+{
+    return _targetManager->Add_RenderTarget(targetTag, sizeX, sizeY, pixelFormat, clearColor, resizeWithViewport, useDSV);
+}
+
+HRESULT GameInstance::Add_MRT(const wstring& mrtTag, const wstring& targetTag)
+{
+    return _targetManager->Add_MRT(mrtTag, targetTag);
+}
+
+HRESULT GameInstance::Begin_MRT(const wstring& mrtTag, bool useDSV)
+{
+    return _targetManager->Begin_MRT(mrtTag, useDSV);
+}
+
+HRESULT GameInstance::End_MRT()
+{
+    return _targetManager->End_MRT();
+}
+
+HRESULT GameInstance::Resize_MRTs(uint32 width, uint32 height)
+{
+    return _targetManager->Resize_MRTs(width, height);
+}
+
+HRESULT GameInstance::Bind_RT_ShaderResource(Shared<ShaderCom> shader, const char* constantName, const wstring& targetTag)
+{
+    return _targetManager->Bind_ShaderResource(shader, constantName, targetTag);
+}
+
+HRESULT GameInstance::Copy_CurrentRTV_To(const wstring& targetTag)
+{
+    return _targetManager->Copy_CurrentRTV_To(targetTag);
+}
+
+HRESULT GameInstance::Copy_RTV(const wstring& srcTargetTag, const wstring& dstTargetTag)
+{
+    return _targetManager->Copy_RTV(srcTargetTag, dstTargetTag);
+}
+
+HRESULT GameInstance::Copy_RT_Resource(const wstring& targetTag, ID3D11Texture2D* destTexture)
+{
+    return _targetManager->Copy_Resource(targetTag, destTexture);
+}
+
 void GameInstance::Add_Collider(Shared<ColliderCom> collider)
 {
-    return _collisionManager->Add_Collider(collider);
+    CHECK_NULL(collider);
+    CHECK_NULL(_collisionManager);
+    CHECK_NULL(_physxManager);
+
+    _collisionManager->Add_Collider(collider);
+
+    Shared<GameObject> owner = collider->Get_Owner();
+    CHECK_NULL(owner);
+
+    Shared<TransformCom> transform = owner->Get_Transform();
+    CHECK_NULL(transform);
+
+    _physxManager->Register_OrSync_Collider(collider, transform->Get_WorldMatrix());
 }
 
 void GameInstance::Clear_Colliders()
@@ -751,11 +876,126 @@ void GameInstance::Clear_Prints()
 #endif
 }
 
+
 void GameInstance::Clear_Print(const wstring& slot)
 {
 #ifdef _DEBUG
     _printManager->Clear(slot);
 #endif
+}
+
+HRESULT GameInstance::Save_GameObjectJson(const fs::path& path, const Shared<GameObject>& gameObject)
+{
+    CHECK_NULL(gameObject, E_FAIL);
+
+    json root = gameObject->To_Json();
+
+    if (root.is_null() || !root.is_object())
+        return E_FAIL;
+
+    if (!path.has_parent_path())
+        return E_FAIL;
+
+    std::error_code ec;
+    fs::create_directories(path.parent_path(), ec);
+
+    std::ofstream file(path);
+    if (!file.is_open())
+        return E_FAIL;
+
+    file << root.dump(4);
+    file.close();
+
+    return S_OK;
+}
+
+json GameInstance::Load_JsonFile(const fs::path& path) const
+{
+    if (!fs::exists(path))
+        return json{};
+
+    std::ifstream file(path);
+    if (!file.is_open())
+        return json{};
+
+    json root{};
+    file >> root;
+    file.close();
+
+    return root;
+}
+
+HRESULT GameInstance::Load_GameObjectJson(const fs::path& path, const Shared<GameObject>& gameObject) const
+{
+    CHECK_NULL(gameObject, E_FAIL);
+
+    json root = Load_JsonFile(path);
+    if (root.is_null() || !root.is_object())
+        return E_FAIL;
+
+    gameObject->From_Json(root);
+
+    return S_OK;
+}
+
+Shared<GameObject> GameInstance::Instantiate_GameObjectJson(const fs::path& path)
+{
+    json root = Load_JsonFile(path);
+
+    if (root.is_null() || !root.is_object())
+        return nullptr;
+
+    if (!root.contains("static_class"))
+        return nullptr;
+
+    const string staticClass = root["static_class"].get<string>();
+    if (staticClass.empty())
+        return nullptr;
+
+    Shared<GameObject> gameObject = Create_GameObjectPrototype(staticClass);
+    CHECK_NULL(gameObject, nullptr);
+
+    CHECK_FAILED(gameObject->Initialize(nullptr), nullptr);
+
+    gameObject->From_Json(root);
+
+    return gameObject;
+}
+
+HRESULT GameInstance::Create_PrefabAsset(const fs::path& path, const string& staticClass, const string& prefabName)
+{
+    if (staticClass.empty() || prefabName.empty())
+        return E_FAIL;
+
+    Shared<GameObject> gameObject = Create_GameObjectPrototype(staticClass);
+    CHECK_NULL(gameObject, E_FAIL);
+
+    CHECK_FAILED(gameObject->Initialize(nullptr), E_FAIL);
+
+    json root = gameObject->To_Json();
+    root["prefab_name"] = prefabName;
+
+    std::error_code ec;
+    fs::create_directories(path.parent_path(), ec);
+
+    std::ofstream file(path);
+    if (!file.is_open())
+        return E_FAIL;
+
+    file << root.dump(4);
+    file.close();
+
+    return S_OK;
+}
+
+HRESULT GameInstance::Update_Picking()
+{
+    return _picking->Update();
+}
+
+bool GameInstance::Pick_WorldPosition(const POINT& pixelPos, Vec3& outWorldPos)
+{
+    return _picking->Pick_WorldPosition(pixelPos, outWorldPos);
 }
 
 void GameInstance::Release_Engine()
@@ -773,6 +1013,9 @@ void GameInstance::Release_Engine()
     ReleaseManager(_cameraManager);
     ReleaseManager(_assetManager);
 
+    ReleaseManager(_targetManager);
+    ReleaseManager(_shadow);
+
 #ifdef _DEBUG
     ReleaseManager(_printManager);
 #endif
@@ -789,10 +1032,83 @@ void GameInstance::Release_Engine()
     ReleaseManager(_prototypeManager);
     ReleaseManager(_typeRegistry);
     ReleaseManager(_levelManager);
+    ReleaseManager(_picking);
     ReleaseManager(_timerManager);
+
+    _context.Reset();
+    _device.Reset();
+
     ReleaseManager(_graphicDevice);
     ReleaseManager(_logManager);
 }
+
+#ifdef _DEBUG
+
+HRESULT GameInstance::Initialize_Debug(float sizeX, float sizeY)
+{
+    return _targetManager->Initialize_Debug(sizeX, sizeY);
+}
+
+HRESULT GameInstance::Resize_DrawArea(float sizeX, float sizeY)
+{
+    return _targetManager->Resize_DrawArea(sizeX, sizeY);
+}
+
+HRESULT GameInstance::Display_RT(const wstring& targetTag, bool render)
+{
+    return _targetManager->Display_RT(targetTag, render);
+}
+
+HRESULT GameInstance::Display_AllRTs(bool render)
+{
+    return _targetManager->Display_AllRTs(render);
+}
+
+HRESULT GameInstance::Render_RT_Debug(Shared<VIBuffer_Rect> viBuffer, Shared<ShaderCom> shader)
+{
+    return _targetManager->Render_Debug(shader, viBuffer);
+}
+
+const map<wstring, bool>& GameInstance::Get_RTs() const
+{
+    return _targetManager->Get_RTs();
+}
+
+HRESULT GameInstance::Bind_ShadowMatrices(Shared<ShaderCom> shader, const char* viewName, const char* projName)
+{
+    CHECK_NULL(_shadow, E_FAIL);
+    return _shadow->Bind_TransformStateMatrix(shader, viewName, projName);
+}
+
+HRESULT GameInstance::Bind_ShadowLightDesc(Shared<ShaderCom> shader, const char* lightFarName, const char* biasName, const char* intensityName)
+{
+    CHECK_NULL(_shadow, E_FAIL);
+    return _shadow->Bind_ShadowLightDesc(shader, lightFarName, biasName, intensityName);
+}
+
+HRESULT GameInstance::Update_ShadowLight(const ShadowLightDesc& desc)
+{
+    return _shadow->Update_ShadowLight(desc);
+}
+
+const ShadowLightDesc* GameInstance::Get_ShadowLightDesc() const
+{
+    CHECK_NULL(_shadow, nullptr);
+    return _shadow->Get_ShadowLightDesc();
+}
+
+const Matrix* GameInstance::Get_ShadowTransformMatrix(D3DTS eType) const
+{
+    CHECK_NULL(_shadow, nullptr);
+    if (eType == D3DTS::View)
+        return _shadow->Get_ViewMatrix();
+    if (eType == D3DTS::Proj)
+        return _shadow->Get_ProjMatrix();
+
+    return nullptr;
+}
+
+#endif
 
 void GameInstance::Free()
 {

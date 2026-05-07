@@ -199,10 +199,13 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     <ClCompile Include="..\Private\CommandHistory.cpp" />
     <ClCompile Include="..\Private\Component_Inspector.cpp" />
     <ClCompile Include="..\Private\Console_View.cpp" />
+    <ClCompile Include="..\Private\Editor_Camera_Free.cpp" />
     <ClCompile Include="..\Private\Editor_Context.cpp" />
     <ClCompile Include="..\Private\Inspector_Factory.cpp" />
     <ClCompile Include="..\Private\MainEditorApp.cpp" />
+    <ClCompile Include="..\Private\Model_Inspector.cpp" />
     <ClCompile Include="..\Private\Notification_Manager.cpp" />
+    <ClCompile Include="..\Private\Prefab_View.cpp" />
     <ClCompile Include="..\Private\SimpleMath.cpp" />
     <ClCompile Include="..\Private\ImGui_Manager.cpp" />
     <ClCompile Include="..\Private\Transform_Inspector.cpp" />
@@ -213,6 +216,7 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     <ClCompile Include="..\Private\EditorInstance.cpp" />
     <ClCompile Include="..\Private\Editor_Window.cpp" />
     <ClCompile Include="..\Private\Editor_Manager.cpp" />
+    <ClCompile Include="..\Private\Profile_View.cpp" />
     <ClCompile Include="..\Private\Scene_View.cpp" />
     <ClCompile Include="..\Private\Game_View.cpp" />
     <ClCompile Include="..\Private\Hierarchy_View.cpp" />
@@ -227,13 +231,16 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     <ClInclude Include="..\Public\CommandHistory.h" />
     <ClInclude Include="..\Public\Component_Inspector.h" />
     <ClInclude Include="..\Public\Console_View.h" />
+    <ClInclude Include="..\Public\Editor_Camera_Free.h" />
     <ClInclude Include="..\Public\Editor_Context.h" />
     <ClInclude Include="..\Public\Editor_Enum.h" />
     <ClInclude Include="..\Public\Editor_Macro.h" />
     <ClInclude Include="..\Public\Editor_Struct.h" />
     <ClInclude Include="..\Public\ImGui_Manager.h" />
     <ClInclude Include="..\Public\Inspector_Factory.h" />
+    <ClInclude Include="..\Public\Model_Inspector.h" />
     <ClInclude Include="..\Public\Notification_Manager.h" />
+    <ClInclude Include="..\Public\Prefab_View.h" />
     <ClInclude Include="..\Public\Transform_Inspector.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="..\Public\MainEditorApp.h" />
@@ -243,6 +250,7 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     <ClInclude Include="..\Public\IconsFontAwesome6.h" />
     <ClInclude Include="..\Public\Editor_ImGuiInclude.h" />
     <ClInclude Include="..\Public\Editor_Manager.h" />
+    <ClInclude Include="..\Public\Profile_View.h" />
     <ClInclude Include="..\Public\Scene_View.h" />
     <ClInclude Include="..\Public\Game_View.h" />
     <ClInclude Include="..\Public\Hierarchy_View.h" />

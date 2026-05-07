@@ -4,14 +4,16 @@
 #include "PanelHierarchy.h"
 #include "PanelInspector.h"
 #include "PanelAssetBrowser.h"
+#include "PanelSnap.h"
 #include "SceneContext.h"
+#include "MECamera.h"
 
 MEManager::~MEManager()
 {
 
 }
 
-HRESULT MEManager::Initialize(Shared<PanelViewport> viewport, SceneContext* ctx)
+HRESULT MEManager::Initialize(Shared<PanelViewport> viewport, SceneContext* ctx, MECamera* camera)
 {
     auto Add = [this](Shared<MEWindow> w) {
         if (w)
@@ -20,11 +22,16 @@ HRESULT MEManager::Initialize(Shared<PanelViewport> viewport, SceneContext* ctx)
         }};
 
     _ctx = ctx;
+    _camera = camera;
 
     Add(viewport);
     Add(PanelHierarchy::Create(ctx));
-    Add(PanelInspector::Create(ctx));
+    Add(PanelInspector::Create(ctx, camera));
     Add(PanelAssetBrowser::Create(ctx));
+
+    _snapSettings = make_shared<SnapSettings>();
+    viewport->SetSnapSettings(_snapSettings);
+    Add(PanelSnap::Create(_snapSettings));
 
     return S_OK;
 }
@@ -177,11 +184,19 @@ void MEManager::RenderDockSpace()
     ImGui::End();
 }
 
-Unique<MEManager> MEManager::Create(Shared<PanelViewport> viewport, SceneContext* ctx)
+void MEManager::AddWindow(Shared<MEWindow> w)
+{
+    if (w)
+    {
+        _windows[w->GetName()] = w;
+    }
+}
+
+Unique<MEManager> MEManager::Create(Shared<PanelViewport> viewport, SceneContext* ctx, MECamera* camera)
 {
     auto instance = make_unique<MEManager>();
 
-    CHECK_FAILED(instance->Initialize(viewport, ctx), nullptr);
+    CHECK_FAILED(instance->Initialize(viewport, ctx, camera), nullptr);
 
     return instance;
 }

@@ -1,6 +1,17 @@
 ﻿#include "BackGround.h"
 #include "GameInstance.h"
 
+IMPLEMENT_REFLECTION(BackGround)
+{
+    auto& info = GetStaticReflectionInfo();
+    info.properties.clear();
+
+    info.displayName = "BackGround";
+    info.category = "UI";
+
+    return true;
+}
+
 BackGround::BackGround(const ComPtr<Device>& device, const ComPtr<Context>& context)
 	: UIObject { device, context }
 {

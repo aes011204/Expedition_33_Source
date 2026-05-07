@@ -1,20 +1,50 @@
-﻿#include "Game_View.h"
+#include "Game_View.h"
 
-#include "EffectEditorInstance.h"
 #include "GameInstance.h"
+#include "EffectEditorInstance.h"
 #include "RenderTarget.h"
+
+namespace EffectEditor::Internal
+{
+struct ViewportImageRect
+{
+    ImVec2 imageMin;
+    ImVec2 imageMax;
+};
+
+static ViewportImageRect Compute_AspectFitRect(const ImVec2& canvasMin, const ImVec2& canvasSize, float aspect)
+{
+    if (aspect <= 0.f || canvasSize.x <= 1.f || canvasSize.y <= 1.f)
+    {
+        return {
+            canvasMin,
+            ImVec2(canvasMin.x + canvasSize.x, canvasMin.y + canvasSize.y)
+        };
+    }
+
+    float imageWidth = canvasSize.x;
+    float imageHeight = imageWidth / aspect;
+
+    if (imageHeight > canvasSize.y)
+    {
+        imageHeight = canvasSize.y;
+        imageWidth = imageHeight * aspect;
+    }
+
+    const ImVec2 imageMin = ImVec2(
+        canvasMin.x + (canvasSize.x - imageWidth) * 0.5f,
+        canvasMin.y + (canvasSize.y - imageHeight) * 0.5f
+    );
+
+    return {
+        imageMin,
+        ImVec2(imageMin.x + imageWidth, imageMin.y + imageHeight)
+    };
+}
+}
 
 Game_View::Game_View()
     : Editor_Window{ L"Game" }
-{
-}
-
-Game_View::~Game_View()
-{
-    Free();
-}
-
-void Game_View::Update(float timeDelta)
 {
 }
 
@@ -26,8 +56,14 @@ void Game_View::Render()
     bool isOpen = Is_Open();
     const string windowName = String::ToString(Get_WindowName());
 
+    if (EDITOR->Consume_WindowFocusRequest(EditorViewportTarget::Game))
+        ImGui::SetNextWindowFocus();
+
     if (ImGui::Begin(windowName.c_str(), &isOpen, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse))
     {
+        _isFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows);
+        _isHovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows);
+
         ImVec2 viewportSize = ImGui::GetContentRegionAvail();
 
         if (viewportSize.x < 1.f)
@@ -36,24 +72,29 @@ void Game_View::Render()
         if (viewportSize.y < 1.f)
             viewportSize.y = 1.f;
 
-        const uint32 width = static_cast<uint32>(viewportSize.x);
-        const uint32 height = static_cast<uint32>(viewportSize.y);
+        const ImVec2 canvasMin = ImGui::GetCursorScreenPos();
+        const ImVec2 canvasMax = ImVec2(canvasMin.x + viewportSize.x, canvasMin.y + viewportSize.y);
+        ImDrawList* drawList = ImGui::GetWindowDrawList();
 
-        EffectEditorInstance::GetInstance()->Request_ViewportSize(
-            EditorViewportTarget::Game,
-            width,
-            height
-        );
+        drawList->AddRectFilled(canvasMin, canvasMax, IM_COL32(18, 20, 24, 255));
+        drawList->AddRect(canvasMin, canvasMax, IM_COL32(55, 60, 70, 255));
 
-        ID3D11ShaderResourceView* pSRV = EffectEditorInstance::GetInstance()->Get_SharedViewportSRV();
+        ImGui::InvisibleButton("GameViewportCanvas", viewportSize);
+
+        ID3D11ShaderResourceView* pSRV = EDITOR->Get_SharedViewportSRV();
         if (nullptr != pSRV)
         {
             const ImTextureID textureId = static_cast<ImTextureID>(reinterpret_cast<intptr_t>(pSRV));
-            ImGui::Image(textureId, viewportSize);
+            const float aspect = EDITOR->Get_EffectiveViewportAspect();
+            const Internal::ViewportImageRect imageRect =
+                Internal::Compute_AspectFitRect(canvasMin, viewportSize, aspect);
+
+            drawList->AddImage(textureId, imageRect.imageMin, imageRect.imageMax);
         }
         else
-            ImGui::TextUnformatted("Game RenderTarget Missing");
+            drawList->AddText(ImVec2(canvasMin.x + 12.f, canvasMin.y + 12.f), IM_COL32(210, 216, 224, 255), "Game RenderTarget Missing");
     }
+
     Set_Open(isOpen);
     ImGui::End();
 }
@@ -61,9 +102,4 @@ void Game_View::Render()
 Shared<Game_View> Game_View::Create()
 {
     return make_shared<Game_View>();
-}
-
-void Game_View::Free()
-{
-    __super::Free();
 }
