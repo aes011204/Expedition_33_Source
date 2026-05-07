@@ -25,6 +25,18 @@ namespace Engine
         ReadOnly, // 수정 불가
     };
 
+
+    enum class BlackboardValueType
+    {
+        None,
+        Bool,
+        Int,
+        Float,
+        Vec3
+    };
+
+
+
     struct PropertyInfo
     {
         std::string name = {};
@@ -39,6 +51,9 @@ namespace Engine
 
         std::vector<std::string> enumNames = {};
         std::vector<int> enumValues = {};
+
+        bool isBlackboardKey = false;
+        BlackboardValueType blackboardValueType = BlackboardValueType::None;
     };
 
     struct ClassReflectionInfo
@@ -49,5 +64,14 @@ namespace Engine
         RegisteredType type = RegisteredType::Component;
         std::vector<PropertyInfo> properties = {};
     };
+
+    
+
+    struct BTBlackboardKeyView
+    {
+        std::string name;
+        Engine::BlackboardValueType type = Engine::BlackboardValueType::None;
+    };
+    
 
 }

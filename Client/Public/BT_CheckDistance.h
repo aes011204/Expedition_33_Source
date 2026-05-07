@@ -25,6 +25,13 @@ protected:
     float _distance = {};
     float _distance2 = {};
     EDistanceCondition _condition = {};
+
+
+    string _targetPosKey = "playerPos";
+
+public:
+    const string& Get_TargetPosKey() const { return _targetPosKey; }
+    void Set_TargetPosKey(const string& key) { _targetPosKey = key; }
 public:
     static Shared<BT_CheckDistance> Create(float distance, enum EDistanceCondition condition, float distance2 = 0.f);
     virtual void Free()override;

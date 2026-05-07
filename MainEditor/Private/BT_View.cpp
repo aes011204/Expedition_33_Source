@@ -1,10 +1,10 @@
 ﻿
 #include "BT_View.h"
 #include "EditorInstance.h"
-#include "TypeRegistry.h"
 #include "GameInstance.h"
 #include "BNode.h"
 #include "Inspector.h"
+#include "TypeRegistry.h"
 
 
 BT_View::BT_View() : Editor_Window(L"BT View")
@@ -25,7 +25,6 @@ HRESULT BT_View::Initialize()
 
 void BT_View::Update(float timeDelta)
 {
-
 }
 
 void BT_View::Inspactor()
@@ -58,8 +57,18 @@ void BT_View::Inspactor()
 
     if (node->runtimeNode != nullptr)
     {
+        vector<Engine::BTBlackboardKeyView> keyViews;
+        keyViews.reserve(_blackboardKeys.size());
+
+        for (const auto& key : _blackboardKeys)
+            keyViews.push_back({ key.name, key.type });
+
+        Inspector::Set_BTBlackboardKeys(&keyViews);
+
         Engine::ClassReflectionInfo& info = node->runtimeNode->Get_ReflectionInfo();
         Inspector::Draw_ReflectionSection(info.className, node->runtimeNode.get(), info);
+
+        Inspector::Set_BTBlackboardKeys(nullptr);
         return;
     }
 
@@ -232,6 +241,7 @@ void BT_View::Render()
             ImGui::Text("Blackboard");
             //
             ImGui::Separator();
+            Draw_Blackboard();
         }
         ImGui::EndChild();
     }
@@ -378,7 +388,13 @@ void BT_View::Save_BT(const std::string& path)
 
         j["links"].push_back(l);
     }
-
+    for (auto& key : _blackboardKeys)
+    {
+        json bk;
+        bk["name"] = key.name;
+        bk["type"] = static_cast<int>(key.type);
+        j["blackboardKeys"].push_back(bk);
+    }
     fs::create_directories(fs::path(path).parent_path());
 
     std::ofstream file(path);
@@ -409,7 +425,7 @@ void BT_View::Load_BT(const std::string& path)
     _nodes.clear();
     _links.clear();
     _selectedNodeId = ed::NodeId();
-
+    _blackboardKeys.clear();
     // =========================
     // Nodes
     // =========================
@@ -473,7 +489,18 @@ void BT_View::Load_BT(const std::string& path)
     _currentFileName = fs::path(path).filename().string();
     strcpy_s(_saveFileName, _currentFileName.c_str());
 
-
+    // bb
+    if (j.contains("blackboardKeys"))
+    {
+        for (auto& bk : j["blackboardKeys"])
+        {
+            BlackboardKey key;
+            key.name = bk["name"].get<std::string>();
+            key.type = static_cast<BlackboardValueType>(bk["type"].get<int>());
+            strcpy_s(key.nameBuffer, key.name.c_str());
+            _blackboardKeys.push_back(key);
+        }
+    }
 
 
     _pendingContextRebuild = true;
@@ -939,6 +966,123 @@ void BT_View::Update_NodePositions()
         node.position = ed::GetNodePosition(node.id);
     }
 }
+
+
+
+void BT_View::Draw_Blackboard()
+{
+    static char newKeyName[64] = "playerPos";
+    static BlackboardValueType newKeyType = BlackboardValueType::Vec3;
+
+    ImGui::TextUnformatted("Blackboard");
+    ImGui::Separator();
+
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4.f, 3.f));
+
+    ImGui::TextDisabled("New");
+    ImGui::SameLine(40.f);
+
+    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x * 0.48f);
+    ImGui::InputText("##NewBlackboardKeyName", newKeyName, sizeof(newKeyName));
+
+    ImGui::SameLine();
+
+    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x * 0.42f);
+    if (ImGui::BeginCombo("##NewBlackboardKeyType", BlackboardTypeToString(newKeyType)))
+    {
+        if (ImGui::Selectable("Bool", newKeyType == BlackboardValueType::Bool))
+            newKeyType = BlackboardValueType::Bool;
+        if (ImGui::Selectable("Int", newKeyType == BlackboardValueType::Int))
+            newKeyType = BlackboardValueType::Int;
+        if (ImGui::Selectable("Float", newKeyType == BlackboardValueType::Float))
+            newKeyType = BlackboardValueType::Float;
+        if (ImGui::Selectable("Vec3", newKeyType == BlackboardValueType::Vec3))
+            newKeyType = BlackboardValueType::Vec3;
+
+        ImGui::EndCombo();
+    }
+
+    ImGui::SameLine();
+
+    if (ImGui::SmallButton("+"))
+    {
+        string keyName = newKeyName;
+        const size_t first = keyName.find_first_not_of(" \t");
+        if (first == string::npos)
+            keyName.clear();
+        else
+        {
+            const size_t last = keyName.find_last_not_of(" \t");
+            keyName = keyName.substr(first, last - first + 1);
+        }
+
+        if (!keyName.empty())
+        {
+            BlackboardKey key;
+            key.name = keyName;
+            strcpy_s(key.nameBuffer, key.name.c_str());
+            key.type = newKeyType;
+            _blackboardKeys.push_back(key);
+        }
+    }
+
+    ImGui::Spacing();
+    ImGui::Separator();
+
+    for (size_t i = 0; i < _blackboardKeys.size(); ++i)
+    {
+        BlackboardKey& key = _blackboardKeys[i];
+
+        ImGui::PushID(static_cast<int>(i));
+
+        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x * 0.52f);
+        if (ImGui::InputText("##BlackboardKeyName", key.nameBuffer, sizeof(key.nameBuffer)))
+            key.name = key.nameBuffer;
+
+        ImGui::SameLine();
+
+        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x * 0.34f);
+        if (ImGui::BeginCombo("##BlackboardKeyType", BlackboardTypeToString(key.type)))
+        {
+            if (ImGui::Selectable("Bool", key.type == BlackboardValueType::Bool))
+                key.type = BlackboardValueType::Bool;
+            if (ImGui::Selectable("Int", key.type == BlackboardValueType::Int))
+                key.type = BlackboardValueType::Int;
+            if (ImGui::Selectable("Float", key.type == BlackboardValueType::Float))
+                key.type = BlackboardValueType::Float;
+            if (ImGui::Selectable("Vec3", key.type == BlackboardValueType::Vec3))
+                key.type = BlackboardValueType::Vec3;
+
+            ImGui::EndCombo();
+        }
+
+        ImGui::SameLine();
+
+        if (ImGui::SmallButton("X"))
+        {
+            _blackboardKeys.erase(_blackboardKeys.begin() + i);
+            ImGui::PopID();
+            break;
+        }
+
+        ImGui::PopID();
+    }
+
+    ImGui::PopStyleVar();
+}
+
+const char* BT_View::BlackboardTypeToString(Engine::BlackboardValueType type) const
+{
+     switch (type)
+     {
+     case Engine::BlackboardValueType::Bool:  return "Bool";
+     case Engine::BlackboardValueType::Int:   return "Int";
+     case Engine::BlackboardValueType::Float: return "Float";
+     case Engine::BlackboardValueType::Vec3:  return "Vec3";
+     default:                         return "Unknown";
+     }
+}
+
 Shared<BT_View> BT_View::Create()
 {
 

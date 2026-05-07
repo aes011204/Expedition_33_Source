@@ -156,11 +156,11 @@
     <ClInclude Include="..\Public\InputCom.h">
       <Filter>03. Component\Input</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\PlayerControllerCom.h">
-      <Filter>03. Component\PlayerController</Filter>
-    </ClInclude>
     <ClInclude Include="..\public\Mon_AIController.h">
       <Filter>BehavoirTree</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\PlayerControllerCom.h">
+      <Filter>03. Component\PlayerController</Filter>
     </ClInclude>
     <ClInclude Include="..\public\Mon_BehaviorTree.h" />
     <ClInclude Include="..\public\BT_Idle.h" />
@@ -236,11 +236,11 @@
     <ClCompile Include="..\Private\InputCom.cpp">
       <Filter>03. Component\Input</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\PlayerControllerCom.cpp">
-      <Filter>03. Component\PlayerController</Filter>
-    </ClCompile>
     <ClCompile Include="..\private\Mon_AIController.cpp">
       <Filter>BehavoirTree</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\PlayerControllerCom.cpp">
+      <Filter>03. Component\PlayerController</Filter>
     </ClCompile>
     <ClCompile Include="..\private\Mon_BehaviorTree.cpp" />
     <ClCompile Include="..\private\BT_Idle.cpp" />

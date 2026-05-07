@@ -1,27 +1,26 @@
-﻿#pragma once
-#include"Editor_Window.h"
+#pragma once
+
+#include "Editor_Window.h"
+#include "Reflection_Types.h"
 
 namespace Engine
 {
     class BehaviorTree;
     class BNode;
 }
+
 namespace ed = ax::NodeEditor;
 
 NS_BEGIN(MainEditor)
 
-
-    class BT_View : public Editor_Window
+class BT_View : public Editor_Window
 {
 public:
-
-
     enum class NodeType { Selector, Sequence, Task, Decorator };
     enum class PinType { Input, Output };
 
     struct EditorNode
     {
-
         NodeType type;
         ed::NodeId id;
 
@@ -32,9 +31,7 @@ public:
         PinType outputType = PinType::Output;
 
         std::string title;
-
         ImVec2 position;
-
         char titleBuffer[128];
 
         std::string className;
@@ -43,29 +40,31 @@ public:
 
         Shared<Engine::BNode> runtimeNode = nullptr;
     };
-   
 
     struct EditorLink
     {
         ed::LinkId id;
-
         ed::PinId startPin;
         ed::PinId endPin;
     };
 
+    struct BlackboardKey
+    {
+        std::string name;
+        Engine::BlackboardValueType type = Engine::BlackboardValueType::Vec3;
+        char nameBuffer[64] = {};
+    };
 
 public:
     BT_View();
     virtual ~BT_View();
 
-
 public:
     HRESULT Initialize() override;
-    void    Update(float timeDelta) override;
+    void Update(float timeDelta) override;
     void Update_SelectedNode();
     void Recreate_EditorContext();
-    //  void    Pre_Render() override;
-    void    Render() override;
+    void Render() override;
 
     uint64_t _idCounter = 1;
 
@@ -86,9 +85,7 @@ public:
     void Draw_ToolBar();
     void Draw_BT();
     void Draw_Links();
-
     void Refresh_BT_FileList();
-
 
     void Handle_CreateLink();
     void Connect_Runtime(ed::PinId startPin, ed::PinId endPin);
@@ -101,9 +98,12 @@ public:
     bool CanNodeHaveChildren(NodeType type) const;
     bool IsInputPin(ed::PinId pin) const;
     bool IsOutputPin(ed::PinId pin) const;
-    std::string Build_SavePath(const std::string& fileName) const;
+    string Build_SavePath(const string& fileName) const;
 
-private: // save , load
+    void Draw_Blackboard();
+    const char* BlackboardTypeToString(Engine::BlackboardValueType type) const;
+
+private: // save, load
     bool _openLoadPopup = false;
     bool _openSavePopup = false;
     bool _openOverwritePopup = false;
@@ -116,7 +116,8 @@ private: // save , load
     bool _needsInitialNodePlacement = false;
 
     string _path = "../../../Client/Bin/Resources/Data/json/BT/";
-private:// Editor
+
+private: // Editor
     ax::NodeEditor::EditorContext* _editorContext = {};
 
     vector<EditorNode> _nodes;
@@ -124,19 +125,17 @@ private:// Editor
 
     bool _openNodePopup = false;
     ImVec2 _popupPos;
-
     ed::NodeId _selectedNodeId;
 
-  
-private:// BT
+    vector<BlackboardKey> _blackboardKeys;
 
+private: // BT
     Weak<BehaviorTree> _debugTarget;
     Weak<BehaviorTree> _pendingDebugTarget;
+
 public:
     static Shared<BT_View> Create();
     virtual void Free() override;
 };
-
-
 
 NS_END

@@ -10,23 +10,9 @@ IMPLEMENT_REFLECTION(BT_CheckDistance)
 
     PROPERTY_FLOAT("Distance", _distance, 0.f, 10000.f, 0.1f);
     PROPERTY_FLOAT("Distance 2", _distance2, 0.f, 10000.f, 0.1f);
-
-    info.properties.push_back(Engine::PropertyInfo{
-        "_condition",
-        "Condition",
-        "_condition",
-        Engine::PropertyType::Enum,
-        offsetof(SelfType, _condition),
-        0.f,
-        0.f,
-        0.1f,
-        { "LessThan", "GreaterThan", "Between" },
-        {
-            static_cast<int>(BT_CheckDistance::EDistanceCondition::LessThan),
-            static_cast<int>(BT_CheckDistance::EDistanceCondition::GreaterThan),
-            static_cast<int>(BT_CheckDistance::EDistanceCondition::Between)
-        }
-        });
+    PROPERTY_ENUM("Condition", _condition, EDistanceCondition);
+    PROPERTY_BBKEY_VEC3("Target Pos Key", _targetPosKey);
+   
 
     return true;
 }
@@ -54,7 +40,7 @@ bool BT_CheckDistance::Check_Condition()
     auto owner = Get_Owner();
     auto bb = owner->Get_BlackBoard();
 
-    Vec3 playerPos = bb->Get_Value<Vec3>("playerPos");
+    Vec3 playerPos = bb->Get_Value<Vec3>(_targetPosKey);
     Vec3 myPos = Get_Owner()->Get_Owner()->Get_Transform()->Get_Position();
 
     float dist = (playerPos - myPos).Length();
