@@ -98,9 +98,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     mainApp->Free();
     mainApp.reset();
 
-    GAME->Free();
-    GAME->Release_Engine();
-
     return (int) msg.wParam;
 }
 

@@ -20,7 +20,7 @@ void AnimationNotify::Update_Notify(float timeDelta)
 
 }
 
-Shared<AnimationNotify> AnimationNotify::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
+Shared<AnimationNotify> AnimationNotify::Create()
 {
     auto prototype = make_shared<AnimationNotify>();
 
