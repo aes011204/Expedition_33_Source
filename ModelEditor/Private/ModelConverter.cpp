@@ -344,6 +344,10 @@ namespace ModelEditor
 
         RecursiveBuild(RecursiveBuild, _aiScene->mRootNode, -1);
 
+        if (_bones.size() > 0)
+        {
+            _isSkeletal = true;
+        }
 
 		ReadMeshes(_aiScene);
 		ReadMaterial(_aiScene);
@@ -441,61 +445,132 @@ namespace ModelEditor
                     }
                 }
 
-                for (uint32 j = 0; j < aiMesh->mNumBones; ++j)
-                {
-                    const aiBone* aiBone = aiMesh->mBones[j];
-                    string boneName = aiBone->mName.C_Str();
-                    if (false == _boneNameMap.contains(boneName))
-                    {
-                        ModelBoneData boneData{};
-                        boneData.name = boneName;
-                        boneData.offsetMatrix = Convert_Matrix(aiBone->mOffsetMatrix);
-                        boneData.localTransform = Matrix();
-                        _boneNameMap[boneName] = static_cast<uint32>(_bones.size());
-                        _bones.push_back(boneData);
-                    }
-                    boneRefs.push_back(_boneNameMap[boneName]);
-                    offsets.push_back(Convert_Matrix(aiBone->mOffsetMatrix)); 
-                    for (uint32 k = 0; k < aiBone->mNumWeights; ++k)
-                    {
-                        uint32 vertexIndex = aiBone->mWeights[k].mVertexId;
-                        float weight = aiBone->mWeights[k].mWeight;
-                        auto& vertex = vertices[vertexIndex];
-                        if (vertex.blendWeight.x == 0.f) {
-                            vertex.blendIndex.x = j;
-                            vertex.blendWeight.x = weight;
-                        }
-                        else if (vertex.blendWeight.y == 0.f) {
-                            vertex.blendIndex.y = j;
-                            vertex.blendWeight.y = weight;
-                        }
-                        else if (vertex.blendWeight.z == 0.f) {
-                            vertex.blendIndex.z = j;
-                            vertex.blendWeight.z = weight;
-                        }
-                        else if (vertex.blendWeight.w == 0.f) {
-                            vertex.blendIndex.w = j;
-                            vertex.blendWeight.w = weight;
-                        }
-                    }
-                }
+				if (aiMesh->mNumBones == 0)
+				{
+					const aiNode* meshNode = nullptr;
+					function<void(const aiNode*)> FindNode = [&](const aiNode* node)
+					{
+						if (meshNode)
+						{
+							return;
+						}
+						for (uint32 m = 0; m < node->mNumMeshes; ++m)
+						{
+							if (node->mMeshes[m] == i)
+							{
+								meshNode = node;
+								return;
+							}
+						}
+						for (uint32 c = 0; c < node->mNumChildren; ++c)
+						{
+							FindNode(node->mChildren[c]);
+						}
+					};
+					FindNode(aiScene->mRootNode);
 
-                for (auto& vertex : vertices) {
-                    float weightSum = vertex.blendWeight.x + vertex.blendWeight.y + vertex.blendWeight.z + vertex.blendWeight.w;
+					Matrix absoluteTransform = Matrix::Identity;
+					if (meshNode)
+					{
+						const aiNode* curr = meshNode;
+						while (curr)
+						{
+							absoluteTransform = absoluteTransform * Convert_Matrix(curr->mTransformation);
+							curr = curr->mParent;
+						}
+					}
 
-                    if (weightSum > 0.f)
-                    {
-                        vertex.blendWeight.x /= weightSum;
-                        vertex.blendWeight.y /= weightSum;
-                        vertex.blendWeight.z /= weightSum;
-                        vertex.blendWeight.w /= weightSum;
-                    }
-                    else
-                    {
-                        vertex.blendIndex.x = 0;
-                        vertex.blendWeight.x = 1.f;
-                    }
-                }
+					for (auto& vertex : vertices)
+					{
+						vertex.position = Vec3::Transform(vertex.position, absoluteTransform);
+						vertex.normal = Vec3::TransformNormal(vertex.normal, absoluteTransform);
+						if (aiMesh->HasTangentsAndBitangents())
+						{
+							vertex.tangent = Vec3::TransformNormal(vertex.tangent, absoluteTransform);
+							vertex.binormal = Vec3::TransformNormal(vertex.binormal, absoluteTransform);
+						}
+						
+						vertex.blendIndex.x = 0; 
+						vertex.blendWeight.x = 1.f;
+					}
+
+					string rootName = aiScene->mRootNode->mName.C_Str();
+					if (false == _boneNameMap.contains(rootName))
+					{
+						ModelBoneData rootBoneData{};
+						rootBoneData.name = rootName;
+						rootBoneData.offsetMatrix = Matrix::Identity; 
+						rootBoneData.localTransform = Convert_Matrix(aiScene->mRootNode->mTransformation);
+						_boneNameMap[rootName] = static_cast<uint32>(_bones.size());
+						_bones.push_back(rootBoneData);
+					}
+					
+					boneRefs.push_back(_boneNameMap[rootName]);
+					offsets.push_back(Matrix::Identity); 
+				}
+				else
+				{
+					for (uint32 j = 0; j < aiMesh->mNumBones; ++j)
+					{
+						const aiBone* aiBone = aiMesh->mBones[j];
+						string boneName = aiBone->mName.C_Str();
+						if (false == _boneNameMap.contains(boneName))
+						{
+							ModelBoneData boneData{};
+							boneData.name = boneName;
+							boneData.offsetMatrix = Convert_Matrix(aiBone->mOffsetMatrix);
+							boneData.localTransform = Matrix();
+							_boneNameMap[boneName] = static_cast<uint32>(_bones.size());
+							_bones.push_back(boneData);
+						}
+						boneRefs.push_back(_boneNameMap[boneName]);
+						offsets.push_back(Convert_Matrix(aiBone->mOffsetMatrix)); 
+						for (uint32 k = 0; k < aiBone->mNumWeights; ++k)
+						{
+							uint32 vertexIndex = aiBone->mWeights[k].mVertexId;
+							float weight = aiBone->mWeights[k].mWeight;
+							auto& vertex = vertices[vertexIndex];
+							if (vertex.blendWeight.x == 0.f)
+							{
+								vertex.blendIndex.x = j;
+								vertex.blendWeight.x = weight;
+							}
+							else if (vertex.blendWeight.y == 0.f)
+							{
+								vertex.blendIndex.y = j;
+								vertex.blendWeight.y = weight;
+							}
+							else if (vertex.blendWeight.z == 0.f)
+							{
+								vertex.blendIndex.z = j;
+								vertex.blendWeight.z = weight;
+							}
+							else if (vertex.blendWeight.w == 0.f)
+							{
+								vertex.blendIndex.w = j;
+								vertex.blendWeight.w = weight;
+							}
+						}
+					}
+
+					for (auto& vertex : vertices)
+					{
+						float weightSum = vertex.blendWeight.x + vertex.blendWeight.y + vertex.blendWeight.z + vertex.blendWeight.w;
+
+						if (weightSum > 0.f)
+						{
+							vertex.blendWeight.x /= weightSum;
+							vertex.blendWeight.y /= weightSum;
+							vertex.blendWeight.z /= weightSum;
+							vertex.blendWeight.w /= weightSum;
+						}
+						else
+						{
+							vertex.blendIndex.x = 0;
+							vertex.blendWeight.x = 1.f;
+						}
+					}
+				}
 
                 meshData.numBoneRefs = static_cast<uint32>(boneRefs.size());
                 _animVertices.push_back(move(vertices));
