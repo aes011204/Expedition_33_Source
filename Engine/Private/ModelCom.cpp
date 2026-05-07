@@ -423,6 +423,7 @@ HRESULT ModelCom::Ready_Animation(const char* modelPath)
     string modelDirectory = path.parent_path().string();
     string modelName = path.stem().string();
 
+    uint32 trueAnimIndex{ 0 };
     for (const auto& entry : fs::recursive_directory_iterator(modelDirectory))
     {
         if (entry.is_regular_file() && entry.path().extension() == ".anim")
@@ -457,7 +458,6 @@ HRESULT ModelCom::Ready_Animation(const char* modelPath)
                 stream.read(reinterpret_cast<char*>(&channels[i].boneIndex), sizeof(int32));
                 stream.read(reinterpret_cast<char*>(&channels[i].numKeyframes), sizeof(uint32));
 
-                /* 이름 기반 본 인덱스 재매핑 (강제 매핑) */
                 channels[i].boneIndex = Get_BoneIndex(channels[i].boneName);
 
                 keyframeSets[i].resize(channels[i].numKeyframes);
@@ -467,8 +467,11 @@ HRESULT ModelCom::Ready_Animation(const char* modelPath)
 
             _animations.push_back(Animation::Create(animData, channels));
             stream.close();
+            ++trueAnimIndex;
         }
     }
+
+    _numAnimations = trueAnimIndex;
 
     return S_OK;
 }
