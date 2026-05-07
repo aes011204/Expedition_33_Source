@@ -258,6 +258,15 @@ HRESULT Target_Manager::Copy_RTV(const wstring& srcTargetTag, const wstring& dst
     return S_OK;
 }
 
+HRESULT Target_Manager::Copy_Resource(const wstring& targetTag, ID3D11Texture2D* destTexture)
+{
+    auto renderTarget = Find_RenderTarget(targetTag);
+    if (renderTarget == nullptr)
+        return E_FAIL;
+
+    return renderTarget->Copy_Resource(destTexture);
+}
+
 Shared<RenderTarget> Target_Manager::Find_RenderTarget(const wstring& targetTag)
 {
     auto iter = _renderTargets.find(targetTag);

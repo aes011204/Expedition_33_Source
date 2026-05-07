@@ -166,6 +166,10 @@
     <ClInclude Include="..\public\BT_Idle.h" />
     <ClInclude Include="..\public\BT_Attack.h" />
     <ClInclude Include="..\public\BT_CheckDistance.h" />
+    <ClInclude Include="..\Public\Spawn_Prefab.h" />
+    <ClInclude Include="..\Public\Head_Player.h">
+      <Filter>02.GameObject\Player</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -238,6 +242,10 @@
     <ClCompile Include="..\private\BT_Idle.cpp" />
     <ClCompile Include="..\private\BT_Attack.cpp" />
     <ClCompile Include="..\private\BT_CheckDistance.cpp" />
+    <ClCompile Include="..\Private\Spawn_Prefab.cpp" />
+    <ClCompile Include="..\Private\Head_Player.cpp">
+      <Filter>02.GameObject\Player</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">
@@ -247,7 +255,7 @@
       <Filter>97.ShaderFiles</Filter>
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_Deferred.hlsl">
-        <Filter>97.ShaderFiles</Filter>
+      <Filter>97.ShaderFiles</Filter>
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_BillboardParticle.hlsl">
       <Filter>97.ShaderFiles</Filter>

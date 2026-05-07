@@ -22,6 +22,8 @@ public:
     void Clear_RenderTarget();
     void Clear_DepthStencil();
 
+    HRESULT Copy_Resource(ID3D11Texture2D* destTexture);
+
 public:
     RenderTargetView* Get_RTV() const { return _rtv.Get(); }
     DepthStencilView* Get_DSV() const { return _dsv.Get(); }

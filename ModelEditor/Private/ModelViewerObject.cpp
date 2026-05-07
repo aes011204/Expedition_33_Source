@@ -1,6 +1,7 @@
 ﻿#include "pch.h"
 #include "ModelViewerObject.h"
 #include "GameInstance.h"
+#include "Material_Types.h"
 
 NS_BEGIN(ModelEditor)
 
@@ -61,7 +62,7 @@ HRESULT ModelViewerObject::Render()
     {
         for (uint32 i = 0; i < numMeshes; ++i)
         {
-            _modelCom->Bind_Material(_animShaderCom.get(), "g_DiffuseTexture", i, aiTextureType_DIFFUSE);
+            _modelCom->Bind_Material(_animShaderCom.get(), "g_DiffuseTexture", i, MaterialTextureSlot::BaseColor);
 
             if (_modelCom->Is_Skeletal())
             {
@@ -76,7 +77,7 @@ HRESULT ModelViewerObject::Render()
     {
         for (uint32 i = 0; i < numMeshes; ++i)
         {
-            _modelCom->Bind_Material(_staticShaderCom.get(), "g_DiffuseTexture", i, aiTextureType_DIFFUSE);
+            _modelCom->Bind_Material(_staticShaderCom.get(), "g_DiffuseTexture", i, MaterialTextureSlot::BaseColor);
 
             if (_modelCom->Is_Skeletal())
             {
@@ -141,6 +142,21 @@ uint32 ModelViewerObject::Get_NumAnimations() const
 const char* ModelViewerObject::Get_AnimationName(uint32 animIndex)
 {
     return _modelCom->Get_AnimationName(animIndex);
+}
+
+const char* ModelViewerObject::Get_BoneName(uint32 boneIndex) const
+{
+    return _modelCom->Get_BoneName(boneIndex).c_str();
+}
+
+uint32 ModelViewerObject::Get_NumBones() const
+{
+    return (uint32)_modelCom->Get_NumBones();
+}
+
+void ModelViewerObject::Set_RootNode(int32 boneIndex)
+{
+    _modelCom->Set_LocalRootNode(boneIndex);
 }
 
 HRESULT ModelViewerObject::Ready_Components()

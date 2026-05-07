@@ -8,6 +8,7 @@ struct SceneContext
     vector<Shared<EditorObject>> _objects;
     Shared<EditorObject> _selected;
     wstring _mapName = L"Untitled";
+    bool _dirtyRenderHandles = false;
 
     void SaveToFile(const string& filePath);
     void LoadFromFile(const string& filePath);

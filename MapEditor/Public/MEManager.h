@@ -5,6 +5,8 @@
 NS_BEGIN(MapEditor)
 
 class PanelViewport;
+class PanelSnap;
+class MECamera;
 struct SceneContext;
 
 class MEManager
@@ -14,7 +16,7 @@ public:
     ~MEManager();
 
 public:
-    HRESULT Initialize(Shared<PanelViewport> viewport, SceneContext* ctx);
+    HRESULT Initialize(Shared<PanelViewport> viewport, SceneContext* ctx, MECamera* camera);
     void Update(float timeDelta);
     void Render();
 
@@ -26,11 +28,18 @@ private:
     bool layoutInitialized = false;
 
     SceneContext* _ctx = {};
+    MECamera* _camera = {};
+
     string _currentMapPath = "Stage_01.json";
     char mapPathBuf[256] = {};
 
+    Shared<SnapSettings> _snapSettings;
+
 public:
-    static Unique<MEManager> Create(Shared<PanelViewport> viewport, SceneContext* ctx);
+    void AddWindow(Shared<MEWindow> w);
+
+public:
+    static Unique<MEManager> Create(Shared<PanelViewport> viewport, SceneContext* ctx, MECamera* camera);
 };
 
 NS_END

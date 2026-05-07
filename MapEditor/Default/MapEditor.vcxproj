@@ -72,6 +72,11 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <OutDir>..\Bin\$(Configuration)\</OutDir>
+    <IntDir>x64\$(Configuration)\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <OutDir>..\Bin\$(Configuration)\</OutDir>
+    <IntDir>x64\$(Configuration)\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -120,6 +125,15 @@
 if exist "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.pdb" xcopy /y /d "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.pdb" "$(OutDir)"
 if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mtd.dll" xcopy /y /d "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mtd.dll" "$(OutDir)"</Command>
     </PostBuildEvent>
+    <FxCompile>
+      <AdditionalIncludeDirectories>$(SolutionDir)Engine\Bin\ShaderFiles;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </FxCompile>
+    <FxCompile>
+      <ShaderType>Effect</ShaderType>
+    </FxCompile>
+    <FxCompile>
+      <ShaderModel>5.0</ShaderModel>
+    </FxCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -152,12 +166,14 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     <ClInclude Include="..\Public\MECamera.h" />
     <ClInclude Include="..\Public\MEImGuiManager.h" />
     <ClInclude Include="..\Public\MEManager.h" />
+    <ClInclude Include="..\Public\MEModelManager.h" />
     <ClInclude Include="..\Public\MEStaticMeshActor.h" />
     <ClInclude Include="..\Public\MEUe5Importer.h" />
     <ClInclude Include="..\Public\MEWindow.h" />
     <ClInclude Include="..\Public\PanelAssetBrowser.h" />
     <ClInclude Include="..\Public\PanelHierarchy.h" />
     <ClInclude Include="..\Public\PanelInspector.h" />
+    <ClInclude Include="..\Public\PanelSnap.h" />
     <ClInclude Include="..\Public\PanelViewport.h" />
     <ClInclude Include="..\Public\pch.h" />
     <ClInclude Include="..\Public\SceneContext.h" />
@@ -167,16 +183,19 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\Private\EditorObject.cpp" />
     <ClCompile Include="..\Private\MapEditorApp.cpp" />
     <ClCompile Include="..\Private\MECamera.cpp" />
     <ClCompile Include="..\Private\MEImGuiManager.cpp" />
     <ClCompile Include="..\Private\MEManager.cpp" />
+    <ClCompile Include="..\Private\MEModelManager.cpp" />
     <ClCompile Include="..\Private\MEStaticMeshActor.cpp" />
     <ClCompile Include="..\Private\MEUe5Importer.cpp" />
     <ClCompile Include="..\Private\MEWindow.cpp" />
     <ClCompile Include="..\Private\PanelAssetBrowser.cpp" />
     <ClCompile Include="..\Private\PanelHierarchy.cpp" />
     <ClCompile Include="..\Private\PanelInspector.cpp" />
+    <ClCompile Include="..\Private\PanelSnap.cpp" />
     <ClCompile Include="..\Private\PanelViewport.cpp" />
     <ClCompile Include="..\Private\pch.cpp" />
     <ClCompile Include="..\Private\SceneContext.cpp" />
@@ -189,6 +208,15 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
   <ItemGroup>
     <Image Include="MapEditor.ico" />
     <Image Include="small.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_BillboardParticle.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_Deferred.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxCube.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMesh.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxNorTex.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxTex.hlsl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

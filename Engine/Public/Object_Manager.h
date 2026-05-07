@@ -23,7 +23,13 @@ public:
 	HRESULT Clear_Layers(uint32 levelIndex);
 
 	HRESULT Add_GameObject(uint32 prototypeLevelIndex, const wstring& prototypeTag, uint32 layerLevelIndex, const wstring& layerTag, void* arg);
+
+    // OutGameObject로 반환받을 수 있게
     HRESULT Add_GameObject(uint32 prototypeLevelIndex, const wstring& prototypeTag, uint32 layerLevelIndex, const wstring& layerTag, Shared<GameObject>& outGameObject, void* arg = nullptr);
+
+    // 프리펩 소환용
+    HRESULT Add_GameObject(uint32 layerLevelIndex, const wstring& layerTag, const Shared<GameObject>& gameObject);
+    bool    Remove_GameObject(uint32 levelIndex, const Shared<GameObject>& gameObject);
 
     Shared<GameObject> Find_FirstObject(uint32 levelIndex, const wstring& layerTag);
 

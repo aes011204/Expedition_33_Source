@@ -1,0 +1,147 @@
+﻿#include "Spawn_Prefab.h"
+
+#include "GameInstance.h"
+#include "GameObject.h"
+#include "Helper_String.h"
+#include "TransformCom.h"
+
+namespace fs = std::filesystem;
+
+Spawn_Prefab::Builder::Builder(const string& prefabName)
+{
+    _spawnDesc.prefabName = prefabName;
+}
+
+Spawn_Prefab::Builder& Spawn_Prefab::Builder::AtLevel(uint32 levelIndex)
+{
+    _spawnDesc.levelIndex = levelIndex;
+    return *this;
+}
+
+Spawn_Prefab::Builder& Spawn_Prefab::Builder::InLayer(const wstring& layerTag)
+{
+    _spawnDesc.layerTag = layerTag;
+    return *this;
+}
+
+Spawn_Prefab::Builder& Spawn_Prefab::Builder::Position(const Vec3& position)
+{
+    _spawnDesc.overrides["position"] = { position.x, position.y, position.z };
+    return *this;
+}
+
+Spawn_Prefab::Builder& Spawn_Prefab::Builder::Rotation(const Vec3& eulerDegree)
+{
+    _spawnDesc.overrides["rotation"] = { eulerDegree.x, eulerDegree.y, eulerDegree.z };
+    return *this;
+}
+
+Spawn_Prefab::Builder& Spawn_Prefab::Builder::Scale(const Vec3& scale)
+{
+    _spawnDesc.overrides["scale"] = { scale.x, scale.y, scale.z };
+    return *this;
+}
+
+Shared<GameObject> Spawn_Prefab::Builder::Spawn() const
+{
+    return Spawn_Prefab::Spawn_Implementation(_spawnDesc);
+}
+
+Shared<GameObject> Spawn_Prefab::Spawn(
+    const string& prefabName,
+    uint32 levelIndex,
+    const wstring& layerTag)
+{
+    FSpawnDesc desc{};
+    desc.prefabName = prefabName;
+    desc.levelIndex = levelIndex;
+    desc.layerTag = layerTag;
+
+    return Spawn_Implementation(desc);
+}
+
+Shared<GameObject> Spawn_Prefab::SpawnAt(
+    const string& prefabName,
+    uint32 levelIndex,
+    const wstring& layerTag,
+    const Vec3& position)
+{
+    FSpawnDesc desc{};
+    desc.prefabName = prefabName;
+    desc.levelIndex = levelIndex;
+    desc.layerTag = layerTag;
+    desc.overrides["position"] = { position.x, position.y, position.z };
+
+    return Spawn_Implementation(desc);
+}
+
+fs::path Spawn_Prefab::Resolve_PrefabPath(const string& prefabName)
+{
+    const wstring fileName = String::ToWString(prefabName) + L".prefab.json";
+
+    return fs::path(GAME->Get_AssetRoot()) /
+        L"Data" / L"json" / L"Prefabs" / fileName;
+}
+
+void Spawn_Prefab::Apply_Overrides(const Shared<GameObject>& gameObject, const json& overrides)
+{
+    if (gameObject == nullptr || overrides.is_null() || !overrides.is_object())
+        return;
+
+    Shared<TransformCom> transform = gameObject->Get_Transform();
+    if (transform == nullptr)
+        return;
+
+    if (overrides.contains("position"))
+    {
+        const json& arr = overrides["position"];
+        if (arr.is_array() && arr.size() >= 3)
+        {
+            transform->Set_WorldPosition(Vec3(
+                arr[0].get<float>(),
+                arr[1].get<float>(),
+                arr[2].get<float>()));
+        }
+    }
+
+    if (overrides.contains("rotation"))
+    {
+        const json& arr = overrides["rotation"];
+        if (arr.is_array() && arr.size() >= 3)
+        {
+            transform->Set_WorldRotationEuler(Vec3(
+                arr[0].get<float>(),
+                arr[1].get<float>(),
+                arr[2].get<float>()));
+        }
+    }
+
+    if (overrides.contains("scale"))
+    {
+        const json& arr = overrides["scale"];
+        if (arr.is_array() && arr.size() >= 3)
+        {
+            transform->Set_Scale(Vec3(
+                arr[0].get<float>(),
+                arr[1].get<float>(),
+                arr[2].get<float>()));
+        }
+    }
+}
+
+Shared<GameObject> Spawn_Prefab::Spawn_Implementation(const FSpawnDesc& desc)
+{
+    if (desc.prefabName.empty())
+        return nullptr;
+
+    const fs::path prefabPath = Resolve_PrefabPath(desc.prefabName);
+
+    Shared<GameObject> gameObject = GAME->Instantiate_GameObjectJson(prefabPath);
+    CHECK_NULL(gameObject, nullptr);
+
+    Apply_Overrides(gameObject, desc.overrides);
+
+    CHECK_FAILED(GAME->Add_GameObject(desc.levelIndex, desc.layerTag, gameObject), nullptr);
+
+    return gameObject;
+}

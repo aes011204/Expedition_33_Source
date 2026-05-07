@@ -129,6 +129,13 @@ void RenderTarget::Clear_DepthStencil()
         _context->ClearDepthStencilView(_dsv.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.f, 0);
 }
 
+HRESULT RenderTarget::Copy_Resource(ID3D11Texture2D* destTexture)
+{
+    _context->CopyResource(destTexture, _texture.Get());
+
+    return S_OK;
+}
+
 void RenderTarget::Release_TargetResources()
 {
     _dsv.Reset();

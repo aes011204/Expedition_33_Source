@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "Base.h"
+#include "PhysX_Manager.h"
 
 NS_BEGIN(Engine)
 
@@ -15,6 +16,7 @@ public:
 public:
     HRESULT Initialize();
     void    Update();
+    void    Update_FromPhysX(const vector<PhysXPairEvent>& events);
 
 #ifdef _DEBUG
     bool Try_ConsumePerfSummary(float windowSec, CollisionPerfSummary& outSummary);

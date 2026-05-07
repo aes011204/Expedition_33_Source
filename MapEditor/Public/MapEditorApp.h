@@ -6,6 +6,7 @@
 
 NS_BEGIN(Engine)
 class RenderTarget;
+class ShaderCom;
 NS_END
 
 NS_BEGIN(MapEditor)
@@ -14,6 +15,7 @@ class MEImGuiManager;
 class MEManager;
 class MECamera;
 class PanelViewport;
+class MEModelManager;
 
 class MapEditorApp final : public Base
 {
@@ -38,10 +40,15 @@ private:
     Shared<RenderTarget> _rt;
     Shared<PanelViewport> _viewport;
 
+    Shared<ShaderCom> _meshShader;
+    Unique<MEModelManager> _modelManager;
+
     SceneContext _scene;
 
 private:
     void DrawSceneDebug();
+
+    void UpdateRenderHandles();
 
 public:
     static Unique<MapEditorApp> Create();

@@ -5,6 +5,8 @@
 #include "GameInstance.h"
 #include "GameObject.h"
 #include "RenderTarget.h"
+#include "Client_Defines.h"
+#include "Spawn_Prefab.h"
 
 Scene_View::Scene_View()
     : Editor_Window{ L"Scene" }
@@ -78,11 +80,12 @@ void Scene_View::Handle_GizmoShortcut()
         return;
     }
 
-    if (ImGui::IsKeyPressed(ImGuiKey_Space, false))
-    {
-        _gizmoMode = (_gizmoMode == ImGuizmo::LOCAL) ? ImGuizmo::WORLD : ImGuizmo::LOCAL;
-        return;
-    }
+    // 전환은 키보드 세팅 막아야할거같다.
+    //if (ImGui::IsKeyPressed(ImGuiKey_Space, false))
+    //{
+    //    _gizmoMode = (_gizmoMode == ImGuizmo::LOCAL) ? ImGuizmo::WORLD : ImGuizmo::LOCAL;
+    //    return;
+    //}
 }
 
 void Scene_View::Render_GizmoOverlay()
@@ -310,6 +313,63 @@ void Scene_View::Render_ViewportCanvas()
         ImGui::Image(textureId, _viewportSize);
         _viewportMin = ImGui::GetItemRectMin();
         _viewportMax = ImGui::GetItemRectMax();
+
+        if (ImGui::BeginDragDropTarget())
+        {
+                if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(
+                    "CONTENT_BROWSER_PREFAB",
+                    ImGuiDragDropFlags_AcceptBeforeDelivery))
+                {
+                    const char* prefabName = static_cast<const char*>(payload->Data);
+                    const float viewportWidth = _viewportMax.x - _viewportMin.x;
+                    const float viewportHeight = _viewportMax.y - _viewportMin.y;
+                    const float depthWidth = static_cast<float>(GAME->Get_ViewportWidth());
+                    const float depthHeight = static_cast<float>(GAME->Get_ViewportHeight());
+
+                    POINT pixelPos{};
+                    pixelPos.x = static_cast<LONG>(
+                        (ImGui::GetMousePos().x - _viewportMin.x) *
+                        (depthWidth / max(viewportWidth, 1.f)));
+                    pixelPos.y = static_cast<LONG>(
+                        (ImGui::GetMousePos().y - _viewportMin.y) *
+                        (depthHeight / max(viewportHeight, 1.f)));
+
+                    Vec3 worldPos{};
+                    if (GAME->Pick_WorldPosition(pixelPos, worldPos))
+                    {
+                    worldPos.y += 0.1f;
+
+                    DebugBoxDesc previewBox{};
+                    previewBox.center = worldPos;
+                    previewBox.extents = Vec3(0.35f, 0.35f, 0.35f);
+                    previewBox.style.color = Color(0.2f, 0.9f, 0.4f, 1.f);
+                    previewBox.style.duration = 0.f;
+                    previewBox.style.depthEnabled = false;
+                    GAME->Draw_DebugBox(previewBox);
+
+                    ImDrawList* drawList = ImGui::GetWindowDrawList();
+                    const ImVec2 textPos = ImVec2(_viewportMin.x + 12.f, _viewportMin.y + 12.f);
+                    const string previewLabel = "Drop Prefab : " + string(prefabName);
+                    drawList->AddText(textPos, IM_COL32(120, 255, 170, 255), previewLabel.c_str());
+
+                    if (payload->IsDelivery())
+                    {
+                        Shared<GameObject> spawned = Client::Spawn_Prefab::SpawnAt(
+                            prefabName,
+                            GAME->Current_LevelIndex(),
+                            TEXT("Layer_GameObject"),
+                            worldPos);
+
+                        if (spawned)
+                        {
+                            EDITOR->Select_Object(spawned);
+                        }
+                    }
+                }
+            }
+
+            ImGui::EndDragDropTarget();
+        }
     }
     else
     {
@@ -366,12 +426,31 @@ void Scene_View::Render_SelectedObjectGizmo()
     ImGuizmo::SetOrthographic(false);
     ImGuizmo::SetRect(_viewportMin.x, _viewportMin.y, viewportWidth, viewportHeight);
 
+    const bool altPressed = ImGui::IsKeyDown(ImGuiKey_LeftAlt) || ImGui::IsKeyDown(ImGuiKey_RightAlt);
+    if (altPressed && ImGuizmo::IsOver() && ImGui::IsMouseDragging(ImGuiMouseButton_Left) && !_altDuplicateActive)
+    {
+        Shared<GameObject> duplicatedObject = EDITOR->Duplicate_SelectedObject();
+        if (duplicatedObject == nullptr)
+            return;
+
+        selectedObject = duplicatedObject;
+        transform = selectedObject->Get_Transform();
+        if (transform == nullptr)
+            return;
+
+        worldMatrix = transform->Get_WorldMatrix();
+        _altDuplicateActive = true;
+    }
+
     const bool manipulated = ImGuizmo::Manipulate(
         reinterpret_cast<float*>(const_cast<Matrix*>(viewMatrix)),
         reinterpret_cast<float*>(const_cast<Matrix*>(projMatrix)),
         _gizmoOperation,
         _gizmoMode,
         reinterpret_cast<float*>(&worldMatrix));
+
+    if (!altPressed || !ImGui::IsMouseDown(ImGuiMouseButton_Left))
+        _altDuplicateActive = false;
 
     if (!manipulated)
         return;

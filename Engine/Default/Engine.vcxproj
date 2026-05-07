@@ -188,6 +188,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="..\Public\AIController.h" />
+    <ClInclude Include="..\Public\AnimationNotify.h" />
     <ClInclude Include="..\Public\BehaviorTree.h" />
     <ClInclude Include="..\Public\BlackBoard.h" />
     <ClInclude Include="..\Public\BNode.h" />
@@ -213,7 +214,11 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClInclude Include="..\Public\ICommand.h" />
     <ClInclude Include="..\Public\Log_Manager.h" />
     <ClInclude Include="..\Public\Helper_String.h" />
+    <ClInclude Include="..\Public\Material_Types.h" />
     <ClInclude Include="..\Public\MovementCom.h" />
+    <ClInclude Include="..\Public\PhysX_Filter.h" />
+    <ClInclude Include="..\Public\PhysX_Types.h" />
+    <ClInclude Include="..\Public\Picking.h" />
     <ClInclude Include="..\Public\Print_Manager.h" />
     <ClInclude Include="..\Public\PathFollower.h" />
     <ClInclude Include="..\Public\Reflection_Macro.h" />
@@ -282,6 +287,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\Private\AIController.cpp" />
+    <ClCompile Include="..\Private\AnimationNotify.cpp" />
     <ClCompile Include="..\Private\BehaviorTree.cpp" />
     <ClCompile Include="..\Private\BlackBoard.cpp" />
     <ClCompile Include="..\Private\BNode.cpp" />
@@ -303,7 +309,9 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClCompile Include="..\Private\Log_Manager.cpp" />
     <ClCompile Include="..\Private\MovementCom.cpp" />
     <ClCompile Include="..\Private\PathFollower.cpp" />
+    <ClCompile Include="..\Private\PhysX_Filter.cpp" />
     <ClCompile Include="..\Private\PhysX_Manager.cpp" />
+    <ClCompile Include="..\Private\Picking.cpp" />
     <ClCompile Include="..\Private\Print_Manager.cpp" />
     <ClCompile Include="..\Private\RenderTarget.cpp" />
     <ClCompile Include="..\Private\Shadow.cpp" />

@@ -93,6 +93,33 @@ void Hierarchy_View::Rebuild_Cache()
     _dirtyHierarchyCache = false;
 }
 
+void Hierarchy_View::Handle_Shortcuts()
+{
+    if (!_isFocused)
+        return;
+
+    ImGuiIO& io = ImGui::GetIO();
+    if (io.WantTextInput)
+        return;
+
+    if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_C, false))
+    {
+        EDITOR->Copy_SelectedObject();
+        return;
+    }
+
+    if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_V, false))
+    {
+        EDITOR->Paste_CopiedObject();
+        return;
+    }
+
+    if (ImGui::IsKeyPressed(ImGuiKey_Delete, false))
+    {
+        EDITOR->Delete_SelectedObject();
+    }
+}
+
 bool Hierarchy_View::Pass_SearchFilter(const Shared<GameObject>& gameObject, uint32 objectIndex) const
 {
     if (_searchFilter.empty())
@@ -142,6 +169,7 @@ void Hierarchy_View::Render()
     if (ImGui::Begin(windowName.c_str(), &isOpen))
     {
         _isFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows);
+        Handle_Shortcuts();
 
         const Shared<GameObject> selectedObject = EDITOR->Selected_Object();
 
