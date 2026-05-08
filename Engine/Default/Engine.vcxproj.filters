@@ -205,6 +205,12 @@
     <Filter Include="94. AnimNotify">
       <UniqueIdentifier>{8d36ebf8-1177-47c8-b0a9-b7afaf900cf2}</UniqueIdentifier>
     </Filter>
+    <Filter Include="01.Utility\04.Component\ComputeShader">
+      <UniqueIdentifier>{aadf4bbf-8e12-4ef8-a651-aae3aefb3b12}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="01.Utility\04.Component\ComputeShader\ComputeStructuredBuffer">
+      <UniqueIdentifier>{34c06953-7d85-4aa3-8be8-78139e8f4dec}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -247,6 +253,12 @@
     <ClInclude Include="..\public\AStar.h" />
     <ClInclude Include="..\Public\Reflection_JsonUtil.h" />
     <ClInclude Include="..\Public\Culling_Manager.h" />
+    <ClInclude Include="..\Public\ComputeShaderCom.h">
+      <Filter>01.Utility\04.Component\ComputeShader</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\ComputeStructuredBuffer.h">
+      <Filter>01.Utility\04.Component\ComputeShader\ComputeStructuredBuffer</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\public\Base.h">
@@ -772,6 +784,12 @@
     </ClCompile>
     <ClCompile Include="..\private\UI_Manager.cpp">
       <Filter>01.Utility\11. UI\Manager</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\ComputeShaderCom.cpp">
+      <Filter>01.Utility\04.Component\ComputeShader</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\ComputeStructuredBuffer.cpp">
+      <Filter>01.Utility\04.Component\ComputeShader\ComputeStructuredBuffer</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
