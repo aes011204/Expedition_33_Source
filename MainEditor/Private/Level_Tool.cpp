@@ -5,11 +5,21 @@
 Level_Tool::Level_Tool()
     : Editor_Window{ L"Level Tool" }
 {
+    Set_Open(false);
+}
 
+HRESULT Level_Tool::Initialize()
+{
+    
+
+    return S_OK;
 }
 
 void Level_Tool::Render()
 {
+    if (!Is_Open())
+        return;
+
     if (!ImGui::Begin("Level Tool", &_isOpen))
     {
         ImGui::End();

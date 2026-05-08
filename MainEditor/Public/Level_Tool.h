@@ -15,6 +15,7 @@ public:
     virtual ~Level_Tool() = default;
 
 public:
+    HRESULT Initialize() override;
     virtual void Render() override;
 
 private:
