@@ -185,6 +185,8 @@
     <ClInclude Include="..\Public\PlayableParts.h" />
     <ClInclude Include="..\Public\PlayerControllerCom.h" />
     <ClInclude Include="..\Public\Spawn_Prefab.h" />
+    <ClInclude Include="..\Public\State.h" />
+    <ClInclude Include="..\Public\StateMachine.h" />
     <ClInclude Include="..\Public\TargetCamera.h" />
     <ClInclude Include="..\Public\UI_RuntimeLoader.h" />
     <ClInclude Include="pch.h" />
@@ -225,6 +227,8 @@
     <ClCompile Include="..\Private\PlayerControllerCom.cpp" />
     <ClCompile Include="..\Private\SimpleMath.cpp" />
     <ClCompile Include="..\Private\Spawn_Prefab.cpp" />
+    <ClCompile Include="..\Private\State.cpp" />
+    <ClCompile Include="..\Private\StateMachine.cpp" />
     <ClCompile Include="..\Private\TargetCamera.cpp" />
     <ClCompile Include="..\Private\UI_RuntimeLoader.cpp" />
     <ClCompile Include="pch.cpp">

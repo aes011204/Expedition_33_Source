@@ -115,6 +115,12 @@
     <Filter Include="96. Manager">
       <UniqueIdentifier>{f7e6f048-732e-4189-8952-1cfaa7a9aa5e}</UniqueIdentifier>
     </Filter>
+    <Filter Include="03. Component\StateMachine">
+      <UniqueIdentifier>{e82a48fb-449d-4655-bbd7-e35e3480ddad}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="03. Component\StateMachine\State">
+      <UniqueIdentifier>{535700eb-0887-4cbe-a5df-3edc02bd65dd}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -226,6 +232,10 @@
     <ClInclude Include="..\Public\PersistentObjectManager.h">
       <Filter>96. Manager</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\StateMachine.h" />
+    <ClInclude Include="..\Public\State.h">
+      <Filter>03. Component\StateMachine</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -324,6 +334,12 @@
     <ClCompile Include="..\private\BT_Node_Bootstrap.cpp" />
     <ClCompile Include="..\Private\PersistentObjectManager.cpp">
       <Filter>96. Manager</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\State.cpp">
+      <Filter>03. Component\StateMachine\State</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\StateMachine.cpp">
+      <Filter>03. Component\StateMachine</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

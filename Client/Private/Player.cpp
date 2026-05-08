@@ -136,8 +136,7 @@ HRESULT Player::Ready_PartObjects()
     headPartDesc.parentMatrix = playableDesc.parentMatrix;
     headPartDesc.modelType = ModelType::Anim;
     headPartDesc.modelTag = L"Model_LuneHead";
-    headPartDesc.socketMatrixPointer = nullptr;
-    headPartDesc.socketMatrixPointer = mainBody->Get_SocketBoneMatrixPtr("Metahuman_Head");
+    headPartDesc.socketMatrixPointer = mainBody->Get_SocketBoneMatrixPtr("Meta");
 
     if (FAILED(__super::Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Head_Player"),
         TEXT("Part_Head"), &headPartDesc)))
