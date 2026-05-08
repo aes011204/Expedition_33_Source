@@ -67,6 +67,9 @@ public:
     Shared<Base> Create_BTNode(const string& className) const;
 
 public:
+    void Visit_BTNodeTypes(const function<void(const BTNodeTypeInfo&)>& visitor) const;
+
+public:
     static Unique<TypeRegistry> Create();
     void Free() override;
 

@@ -21,7 +21,7 @@ BNode::NODE_STATE Sequence::Update(float deltaTime)
                 _runningNode->Abort();
             }
             _runningNode = nullptr;
-            return BNode::NODE_STATE::FAILED;
+            return Commit_State(BNode::NODE_STATE::FAILED);
         }
 
         if (state == BNode::NODE_STATE::RUN)
@@ -31,7 +31,7 @@ BNode::NODE_STATE Sequence::Update(float deltaTime)
                 _runningNode->Abort();
             }
             _runningNode = child;
-            return BNode::NODE_STATE::RUN;
+            return Commit_State(BNode::NODE_STATE::RUN);
         }
     }
 
@@ -41,7 +41,7 @@ BNode::NODE_STATE Sequence::Update(float deltaTime)
         _runningNode = nullptr;
     }
 
-    return BNode::NODE_STATE::SUCCESS;
+    return Commit_State(BNode::NODE_STATE::SUCCESS);
 }
 
 void Sequence::Abort()

@@ -165,7 +165,7 @@ HRESULT GameInstance::Draw()
 
     _levelManager->Render();
 
-    //CHECK_FAILED(Update_Picking(), E_FAIL);
+    CHECK_FAILED(Update_Picking(), E_FAIL);
 
 #ifdef _DEBUG
     // Collision Manager
@@ -895,6 +895,13 @@ bool GameInstance::IsVisible(const BoundingBox& worldAABB) const
     }
 
     return true;
+}
+void GameInstance::Visit_BTNodeTypes(const function<void(const TypeRegistry::BTNodeTypeInfo&)>& visitor) const
+{
+    if (_typeRegistry == nullptr)
+        return;
+
+    _typeRegistry->Visit_BTNodeTypes(visitor);
 }
 
 void GameInstance::Draw_DebugBox(const DebugBoxDesc& desc)

@@ -18,6 +18,7 @@ public:
 
 
     void Set_Root(shared_ptr<BNode> root) { _root = root; }
+    shared_ptr<BNode> Get_Root() const { return _root; }
 
     void Bind_Owner(shared_ptr<AIController> owner);
     void SetOwnerRecursive(shared_ptr<BNode> root, shared_ptr<class AIController> owner);

@@ -67,7 +67,10 @@
     <ClCompile Include="..\Private\Component_Inspector.cpp" />
     <ClCompile Include="..\Private\Transform_Inspector.cpp" />
     <ClCompile Include="..\Private\Inspector_Factory.cpp" />
-    <ClCompile Include="..\private\BT_Tool.cpp">
+    <ClCompile Include="..\private\BT_View.cpp">
+      <Filter>01. View</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\BT_Inspector.cpp">
       <Filter>01. View</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\Prefab_View.cpp" />
@@ -75,6 +78,7 @@
     <ClCompile Include="..\Private\Level_Tool.cpp">
       <Filter>01. View\Level_Tool</Filter>
     </ClCompile>
+    <ClCompile Include="..\private\AIController_Inspector.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -155,7 +159,10 @@
     <ClInclude Include="..\Public\Component_Inspector.h" />
     <ClInclude Include="..\Public\Transform_Inspector.h" />
     <ClInclude Include="..\Public\Inspector_Factory.h" />
-    <ClInclude Include="..\public\BT_Tool.h">
+    <ClInclude Include="..\public\BT_VIew.h">
+      <Filter>01. View</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\BT_Inspector.h">
       <Filter>01. View</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Prefab_View.h" />
@@ -163,6 +170,7 @@
     <ClInclude Include="..\Public\Level_Tool.h">
       <Filter>01. View\Level_Tool</Filter>
     </ClInclude>
+    <ClInclude Include="..\public\AIController_Inspector.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="00. Main">

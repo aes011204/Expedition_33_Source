@@ -293,6 +293,9 @@ public: // For. Culling_Manager
     void UpdateFrustum(const Matrix& view, const Matrix& proj);
     bool IsVisible(const BoundingBox& worldAABB) const;
 
+public: // For. BT_Node
+    void Visit_BTNodeTypes(const function<void(const TypeRegistry::BTNodeTypeInfo&)>& visitor) const;
+
 public: /* For.Debug_Manager */
     void                    Draw_DebugBox(const DebugBoxDesc& desc);
     void                    Draw_DebugSphere(const DebugSphereDesc& desc);
