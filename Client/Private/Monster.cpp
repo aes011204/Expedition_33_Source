@@ -146,10 +146,10 @@ HRESULT Monster::Render_Shadow()
 
 HRESULT Monster::Ready_Components()
 {
-	if (FAILED(__super::Add_Component(ETOI(LevelType::GamePlay), TEXT("Shader_VtxAnimMesh"), _shader)))
+	if (FAILED(__super::Add_Component(ETOI(LevelType::Static), TEXT("Shader_VtxAnimMesh"), _shader)))
 		return E_FAIL;
 
-	if (FAILED(__super::Add_Component(ETOI(LevelType::GamePlay), TEXT("Model_Fiona"), _model)))
+	if (FAILED(__super::Add_Component(ETOI(LevelType::Static), TEXT("Model_Fiona"), _model)))
 		return E_FAIL;
 
 

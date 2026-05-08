@@ -22,6 +22,7 @@
 #include "Shadow.h"
 #include "Picking.h"
 #include "ColliderCom.h"
+#include "Culling_Manager.h"
 
 #ifdef _DEBUG
 #include "Print_Manager.h"
@@ -105,6 +106,9 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
 
     _collisionManager = Collision_Manager::Create();
     CHECK_NULL(_collisionManager, E_FAIL);
+
+    _cullingManager = Culling_Manager::Create();
+    CHECK_NULL(_cullingManager, E_FAIL);
 
     _shadow = Shadow::Create();
     CHECK_NULL(_shadow, E_FAIL);
@@ -875,6 +879,23 @@ PxScene* GameInstance::Get_PhysXScene() const
     return _physxManager->Get_Scene();
 }
 
+void GameInstance::UpdateFrustum(const Matrix& view, const Matrix& proj)
+{
+    if (_cullingManager)
+    {
+        _cullingManager->UpdateFrustum(view, proj);
+    }
+}
+
+bool GameInstance::IsVisible(const BoundingBox& worldAABB) const
+{
+    if (_cullingManager)
+    {
+        return _cullingManager->IsVisible(worldAABB);
+    }
+
+    return true;
+}
 void GameInstance::Visit_BTNodeTypes(const function<void(const TypeRegistry::BTNodeTypeInfo&)>& visitor) const
 {
     if (_typeRegistry == nullptr)

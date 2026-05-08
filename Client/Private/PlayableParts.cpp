@@ -142,16 +142,16 @@ HRESULT PlayableParts::Ready_Components(const PLAYABLE_PART_DESC& desc)
 
     if (desc.modelType == ModelType::Anim)
     {
-        if (FAILED(Add_Component(ETOI(LevelType::GamePlay), TEXT("Shader_VtxAnimMesh"), _shaderCom)))
+        if (FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Shader_VtxAnimMesh"), _shaderCom)))
             return E_FAIL;
     }
     else
     {
-        if (FAILED(Add_Component(ETOI(LevelType::GamePlay), TEXT("Shader_VtxMesh"), _shaderCom)))
+        if (FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Shader_VtxMesh"), _shaderCom)))
             return E_FAIL;
     }
 
-    if (FAILED(Add_Component(ETOI(LevelType::GamePlay), desc.modelTag, _modelCom)))
+    if (FAILED(Add_Component(ETOI(LevelType::Static), desc.modelTag, _modelCom)))
         return E_FAIL;
 
     return S_OK;
