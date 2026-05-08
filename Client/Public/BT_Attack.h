@@ -1,9 +1,11 @@
 ﻿#pragma once
 #include "Task.h"
+
 NS_BEGIN(Client)
 class BT_Attack :
     public Task
 {
+    GENERATED_BTNODE(BT_Attack, "Task")
 public:
     BT_Attack();
     virtual ~BT_Attack();

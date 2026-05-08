@@ -165,3 +165,58 @@ public:                                                                         
     info.properties.push_back(Engine::PropertyInfo{                                \
         STRINGIZE(Member), DisplayName, STRINGIZE(Member),                         \
         Engine::PropertyType::String, offsetof(SelfType, Member) })
+
+
+
+
+#define PROPERTY_BBKEY_VEC3(DisplayName, Member)                                   \
+    {                                                                              \
+        Engine::PropertyInfo prop{};                                               \
+        prop.name = STRINGIZE(Member);                                             \
+        prop.displayName = DisplayName;                                            \
+        prop.jsonKey = STRINGIZE(Member);                                          \
+        prop.type = Engine::PropertyType::String;                                  \
+        prop.offset = offsetof(SelfType, Member);                                  \
+        prop.isBlackboardKey = true;                                               \
+        prop.blackboardValueType = Engine::BlackboardValueType::Vec3;              \
+        info.properties.push_back(std::move(prop));                                \
+    }
+
+#define PROPERTY_BBKEY_FLOAT(DisplayName, Member)                                  \
+    {                                                                              \
+        Engine::PropertyInfo prop{};                                               \
+        prop.name = STRINGIZE(Member);                                             \
+        prop.displayName = DisplayName;                                            \
+        prop.jsonKey = STRINGIZE(Member);                                          \
+        prop.type = Engine::PropertyType::String;                                  \
+        prop.offset = offsetof(SelfType, Member);                                  \
+        prop.isBlackboardKey = true;                                               \
+        prop.blackboardValueType = Engine::BlackboardValueType::Float;             \
+        info.properties.push_back(std::move(prop));                                \
+    }
+
+#define PROPERTY_BBKEY_BOOL(DisplayName, Member)                                   \
+    {                                                                              \
+        Engine::PropertyInfo prop{};                                               \
+        prop.name = STRINGIZE(Member);                                             \
+        prop.displayName = DisplayName;                                            \
+        prop.jsonKey = STRINGIZE(Member);                                          \
+        prop.type = Engine::PropertyType::String;                                  \
+        prop.offset = offsetof(SelfType, Member);                                  \
+        prop.isBlackboardKey = true;                                               \
+        prop.blackboardValueType = Engine::BlackboardValueType::Bool;              \
+        info.properties.push_back(std::move(prop));                                \
+    }
+
+#define PROPERTY_BBKEY_INT(DisplayName, Member)                                    \
+    {                                                                              \
+        Engine::PropertyInfo prop{};                                               \
+        prop.name = STRINGIZE(Member);                                             \
+        prop.displayName = DisplayName;                                            \
+        prop.jsonKey = STRINGIZE(Member);                                          \
+        prop.type = Engine::PropertyType::String;                                  \
+        prop.offset = offsetof(SelfType, Member);                                  \
+        prop.isBlackboardKey = true;                                               \
+        prop.blackboardValueType = Engine::BlackboardValueType::Int;               \
+        info.properties.push_back(std::move(prop));                                \
+    }

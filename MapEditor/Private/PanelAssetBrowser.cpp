@@ -1,13 +1,12 @@
 ﻿#include "pch.h"
 #include "PanelAssetBrowser.h"
 #include "SceneContext.h"
-#include "MEUe5Importer.h"
+//#include "MEUe5Importer.h"
 
 PanelAssetBrowser::PanelAssetBrowser(SceneContext* ctx)
     : MEWindow{ L"Asset Browser" }, _ctx{ ctx }
 {
     AddFolder("Saved Maps", _mapSavePath);
-    AddFolder("Origin Maps", _mapOriginPath, true);
 }
 
 void PanelAssetBrowser::Render()
@@ -45,14 +44,7 @@ void PanelAssetBrowser::Render()
             if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0))
             {
                 const string fullPath = _folders[_selectedFolder].path + file;
-                if (_folders[_selectedFolder].isImport)
-                {
-                    MEUe5Importer::Import(fullPath, *_ctx, false);
-                }
-                else
-                {
-                    _ctx->LoadFromFile(fullPath);
-                }
+                _ctx->LoadFromFile(fullPath);
             }
         }
     }
