@@ -219,6 +219,7 @@ namespace
             LOG_ERROR("UI RuntimeLoader Add_Font failed. tag={}, path={}",
                 String::ToString(fontTag),
                 String::ToString(fontPath));
+
             return false;
         }
 
