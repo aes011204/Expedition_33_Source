@@ -102,6 +102,13 @@ namespace
                 g_app->Resize(LOWORD(lParam), HIWORD(lParam));
             return 0;
 
+        case WM_CLOSE:
+            if (g_app != nullptr && !g_app->Request_Close())
+                return 0;
+
+            DestroyWindow(hWnd);
+            return 0;
+
         case WM_SYSCOMMAND:
             if ((wParam & 0xfff0) == SC_KEYMENU)
                 return 0;

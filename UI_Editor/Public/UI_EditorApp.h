@@ -1,5 +1,5 @@
 ﻿#pragma once
-#include "UI_Editor_Manager.h"
+#include "UI_Editor_Defines.h"
 
 namespace UIEditor
 {
@@ -12,22 +12,21 @@ namespace UIEditor
         HRESULT Initialize(HWND hWnd);
         void Render_Frame();
         void Resize(uint32 width, uint32 height);
+        bool Request_Close();
         void Shutdown();
 
     private:
         HRESULT Create_DeviceObjects(HWND hWnd);
         void Cleanup_RenderTarget();
         HRESULT Create_RenderTarget();
-
-        void Begin_ImGuiFrame();
+        wstring Resolve_ClientResourceRoot() const;
 
     private:
         HWND _hWnd = nullptr;
-        ComPtr<ID3D11Device> _device = nullptr;
-        ComPtr<ID3D11DeviceContext> _context = nullptr;
-        ComPtr<IDXGISwapChain> _swapChain = nullptr;
+        ComPtr<Device> _device = nullptr;
+        ComPtr<Context> _context = nullptr;
+        ComPtr<SwapChain> _swapChain = nullptr;
         ComPtr<ID3D11RenderTargetView> _renderTargetView = nullptr;
-        Unique<UI_Editor_Manager> _editorManager = nullptr;
 
         bool _assetManagerReady = false;
         bool _initialized = false;
