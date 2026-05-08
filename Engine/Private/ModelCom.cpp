@@ -225,10 +225,12 @@ bool ModelCom::Play_Animation(float timeDelta)
         _rootFrameVelocity = (rootIndex >= 0) ? _animations[_currentAnimIndex]->Get_TransformVelocity(rootIndex) : RootMotionFrame{};
     }
 
-    /* 루트 모션 속도 보정 (preLocalTransformMatrix 적용) */
     if (rootIndex >= 0)
     {
         _rootFrameVelocity.position = Vec3::TransformNormal(_rootFrameVelocity.position, _preLocalTransformMatrix);
+        auto temp = _rootFrameVelocity.position.z;
+        _rootFrameVelocity.position.z = -_rootFrameVelocity.position.y;
+        _rootFrameVelocity.position.y = temp;
     }
 
     for (uint32 i = 0; i < _numBones; ++i)
