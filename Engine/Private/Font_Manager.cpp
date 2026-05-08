@@ -15,7 +15,10 @@ Font_Manager::~Font_Manager()
 HRESULT Font_Manager::Add_Font(const wstring& fontTag, const wchar_t* fontFilePath)
 {
     if (nullptr != Find_Font(fontTag))
-        return E_FAIL;
+    {
+        LOG_WARN("Font already registered: {}", String::ToString(fontTag));
+        return S_OK;
+    }
 
     Shared<CustomFont> font = CustomFont::Create(_device.Get(), _context.Get(), fontFilePath);
     if (nullptr == font)
