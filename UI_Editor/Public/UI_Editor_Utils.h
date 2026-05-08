@@ -5,6 +5,7 @@
 namespace UIEditor
 {
     const char* Get_ObjectTypeName(UI_ObjectType objectType);
+    const char* Get_TextAlignName(UI_TextAlign textAlign);
     ImU32 Get_ObjectFillColor(UI_ObjectType objectType);
     bool Is_ContainerObjectType(UI_ObjectType objectType);
 

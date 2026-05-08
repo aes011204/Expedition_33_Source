@@ -112,6 +112,9 @@
     <Filter Include="01.Levels\Stage\Stage01">
       <UniqueIdentifier>{c5fa3f83-263a-48ef-899c-ed4c7f3696dd}</UniqueIdentifier>
     </Filter>
+    <Filter Include="96. Manager">
+      <UniqueIdentifier>{f7e6f048-732e-4189-8952-1cfaa7a9aa5e}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -220,6 +223,9 @@
       <Filter>01.Levels\Stage\Stage01</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\BT_Node_Bootstrap.h" />
+    <ClInclude Include="..\Public\PersistentObjectManager.h">
+      <Filter>96. Manager</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -316,6 +322,9 @@
       <Filter>01.Levels\Stage\Stage01</Filter>
     </ClCompile>
     <ClCompile Include="..\private\BT_Node_Bootstrap.cpp" />
+    <ClCompile Include="..\Private\PersistentObjectManager.cpp">
+      <Filter>96. Manager</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">
@@ -337,6 +346,9 @@
       <Filter>97.ShaderFiles</Filter>
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxTex.hlsl">
+      <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_UI.hlsl">
       <Filter>97.ShaderFiles</Filter>
     </FxCompile>
   </ItemGroup>

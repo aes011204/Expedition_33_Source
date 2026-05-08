@@ -181,6 +181,7 @@
     <ClInclude Include="..\Public\MapStaticMesh.h" />
     <ClInclude Include="..\public\Mon_AIController.h" />
     <ClInclude Include="..\public\Mon_BehaviorTree.h" />
+    <ClInclude Include="..\Public\PersistentObjectManager.h" />
     <ClInclude Include="..\Public\PlayableParts.h" />
     <ClInclude Include="..\Public\PlayerControllerCom.h" />
     <ClInclude Include="..\Public\Spawn_Prefab.h" />
@@ -219,6 +220,7 @@
     <ClCompile Include="..\Private\MapStaticMesh.cpp" />
     <ClCompile Include="..\private\Mon_AIController.cpp" />
     <ClCompile Include="..\private\Mon_BehaviorTree.cpp" />
+    <ClCompile Include="..\Private\PersistentObjectManager.cpp" />
     <ClCompile Include="..\Private\PlayableParts.cpp" />
     <ClCompile Include="..\Private\PlayerControllerCom.cpp" />
     <ClCompile Include="..\Private\SimpleMath.cpp" />
@@ -247,6 +249,7 @@
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_Deferred.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_BillboardParticle.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_UI.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxCube.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMesh.hlsl" />

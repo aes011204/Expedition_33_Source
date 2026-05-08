@@ -108,7 +108,12 @@ namespace UIEditor
                 }
 
                 if (canApplyTexture && ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+                {
+                    _editorManager.Begin_EditTransaction();
                     Apply_TextureAsset(*selectedObject, assetMeta);
+                    _editorManager.Mark_Dirty();
+                    _editorManager.Commit_EditTransactionIfChanged();
+                }
 
                 ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + cellWidth - 12.f);
                 ImGui::TextUnformatted(Get_AssetFileName(assetMeta).c_str());
@@ -117,7 +122,12 @@ namespace UIEditor
                 if (canApplyTexture)
                 {
                     if (ImGui::SmallButton("Apply"))
+                    {
+                        _editorManager.Begin_EditTransaction();
                         Apply_TextureAsset(*selectedObject, assetMeta);
+                        _editorManager.Mark_Dirty();
+                        _editorManager.Commit_EditTransactionIfChanged();
+                    }
                 }
                 else
                 {
@@ -164,7 +174,12 @@ namespace UIEditor
                 if (ImGui::Selectable(Get_AssetFileName(assetMeta).c_str(), isCurrentFont, ImGuiSelectableFlags_AllowDoubleClick))
                 {
                     if (canApplyFont && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+                    {
+                        _editorManager.Begin_EditTransaction();
                         Apply_FontAsset(*selectedObject, assetMeta);
+                        _editorManager.Mark_Dirty();
+                        _editorManager.Commit_EditTransactionIfChanged();
+                    }
                 }
 
                 ImGui::TextDisabled("Tag: %s", Make_FontTag(assetMeta).c_str());
@@ -173,7 +188,12 @@ namespace UIEditor
                 if (canApplyFont)
                 {
                     if (ImGui::SmallButton("Apply"))
+                    {
+                        _editorManager.Begin_EditTransaction();
                         Apply_FontAsset(*selectedObject, assetMeta);
+                        _editorManager.Mark_Dirty();
+                        _editorManager.Commit_EditTransactionIfChanged();
+                    }
                 }
                 else
                 {
