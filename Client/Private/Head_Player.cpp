@@ -28,8 +28,6 @@ HRESULT Head_Player::Initialize(void* arg)
         return S_OK;
 	}
 
-    
-
 	return S_OK;
 }
 
