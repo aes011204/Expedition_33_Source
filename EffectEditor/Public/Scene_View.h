@@ -19,18 +19,17 @@ private:
     ImVec2 _viewportMin{};
     ImVec2 _viewportMax{};
 
-    ImGuizmo::OPERATION _gizmoOperation{ImGuizmo::TRANSLATE};
-    ImGuizmo::MODE _gizmoMode{ImGuizmo::LOCAL};
+    ImGuizmo::OPERATION _gizmoOperation{ ImGuizmo::TRANSLATE };
+    ImGuizmo::MODE _gizmoMode{ ImGuizmo::LOCAL };
 
-    int _pendingPreviewViewportWidth{0};
-    int _pendingPreviewViewportHeight{0};
-    bool _isViewportHovered{false};
-    bool _isViewportToolbarPinned{false};
-    bool _isViewportToolbarInteracting{false};
+    int _pendingPreviewViewportWidth{ 0 };
+    int _pendingPreviewViewportHeight{ 0 };
+    bool _isViewportHovered{ false };
+    bool _isViewportToolbarPinned{ false };
+    bool _isViewportToolbarInteracting{ false };
 
 private:
     void Handle_GizmoShortcut();
-    void Render_GridOverlay();
     void Render_CameraAxisOverlay();
     void Render_ViewportToolbarOverlay();
     void Render_GizmoOverlay();

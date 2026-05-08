@@ -1,7 +1,7 @@
 ﻿#pragma once
 
-#include "Client_Defines.h"
 #include "Base.h"
+#include "Client_Defines.h"
 
 NS_BEGIN(Engine)
 class GameInstance;
@@ -21,6 +21,9 @@ public:
     void Update(float timeDelta);
     void Late_Update(float timeDelta);
     HRESULT Render();
+
+private:
+    inline static const Vec4 defaultClearColor{ 0.13f, 0.13f, 0.13f, 1.0f };
 
 private:
     ComPtr<Device> _device;

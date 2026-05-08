@@ -2,6 +2,17 @@
 
 #include "Base.h"
 
+namespace DirectX
+{
+namespace DX11
+{
+    class BasicEffect;
+    template <typename TVertex>
+    class PrimitiveBatch;
+    struct VertexPositionColor;
+}
+}
+
 NS_BEGIN(Engine)
 class RenderTarget;
 class ICommand;
@@ -112,6 +123,9 @@ public: //## Behavior::Viewport
 private:
     static constexpr uint32 defaultPreviewViewportWidth = 900;
     static constexpr uint32 defaultPreviewViewportHeight = 900;
+    static constexpr int sceneGridDivisions = 40;
+    static constexpr float sceneGridHalfExtent = 30.f;
+    static constexpr float sceneGridHeight = 0.f;
 
 private: //## Data::Core
     ComPtr<Device> _device{};
@@ -126,6 +140,10 @@ private: //## Data::Core
 
 private: //## Data::Viewport
     Shared<RenderTarget> _sharedViewportRenderTarget{ nullptr };
+    Shared<DirectX::DX11::PrimitiveBatch<DirectX::DX11::VertexPositionColor>> _sceneGridBatch{ nullptr };
+    Shared<DirectX::DX11::BasicEffect> _sceneGridEffect{ nullptr };
+    ComPtr<ID3D11InputLayout> _sceneGridInputLayout{};
+    ComPtr<ID3D11DepthStencilState> _sceneGridDepthState{};
 
     PreviewViewportMode _previewViewportMode{ PreviewViewportMode::Manual };
     bool _hasPendingPreviewViewportSize{ false };
@@ -154,6 +172,8 @@ private: //## Data::InputPolicy
     bool _isPreviewCameraDragging{ false };
 
 private: //## Helper::PreviewViewport
+    void Ensure_SceneGridResources();
+    void Render_SceneGridToBackBuffer();
     void Queue_PreviewViewportSize(uint32 width, uint32 height);
     void Apply_PendingPreviewViewportSize();
 

@@ -1,5 +1,8 @@
 ﻿#include "EffectEditorInstance.h"
 
+#include <directxtk/Effects.h>
+#include <directxtk/PrimitiveBatch.h>
+#include <directxtk/VertexTypes.h>
 #include "CommandHistory.h"
 #include "Editor_Context.h"
 #include "Editor_Window.h"
@@ -53,6 +56,10 @@ HRESULT EffectEditorInstance::Initialize_Editor(const EffectEditorDesc& editorDe
 void EffectEditorInstance::Release_Editor()
 {
     _sharedViewportRenderTarget.reset();
+    _sceneGridBatch.reset();
+    _sceneGridEffect.reset();
+    _sceneGridInputLayout.Reset();
+    _sceneGridDepthState.Reset();
     _previewCamera.reset();
 
     if (_imguiManager)
@@ -281,10 +288,10 @@ void EffectEditorInstance::Set_GameViewportInputState(bool canInteract)
 
 Shared<RenderTarget> EffectEditorInstance::Prepare_SharedViewportRenderTarget(uint32 width, uint32 height)
 {
-    if (0 == width)
+    if (width == 0)
         width = 1;
 
-    if (0 == height)
+    if (height == 0)
         height = 1;
 
     if (nullptr == _sharedViewportRenderTarget)
@@ -322,6 +329,8 @@ ID3D11ShaderResourceView* EffectEditorInstance::Get_SharedViewportSRV() const
 
 void EffectEditorInstance::Capture_BackBuffer_ToViewport()
 {
+    Render_SceneGridToBackBuffer();
+
     const uint32 viewportWidth = min(
         max(1u, GAME->Get_ViewportWidth()),
         max(1u, GAME->Get_BackBufferWidth())
@@ -375,6 +384,7 @@ void EffectEditorInstance::Capture_BackBuffer_ToViewport()
         0,
         &sourceBox
     );
+
 }
 
 void EffectEditorInstance::Request_PreviewViewportSize(uint32 width, uint32 height)
@@ -417,6 +427,141 @@ float EffectEditorInstance::Get_EffectiveViewportAspect() const
 
     return static_cast<float>(viewportWidth) /
            static_cast<float>(viewportHeight);
+}
+
+void EffectEditorInstance::Ensure_SceneGridResources()
+{
+    if (_sceneGridBatch && _sceneGridEffect && _sceneGridInputLayout && _sceneGridDepthState)
+        return;
+
+    static constexpr D3D11_INPUT_ELEMENT_DESC kSceneGridInputElements[] =
+    {
+        { "SV_Position", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+    };
+
+    _sceneGridBatch = make_shared<PrimitiveBatch<VertexPositionColor>>(_context.Get());
+    _sceneGridEffect = make_shared<BasicEffect>(_device.Get());
+
+    if (nullptr == _sceneGridBatch || nullptr == _sceneGridEffect)
+    {
+        _sceneGridBatch.reset();
+        _sceneGridEffect.reset();
+        return;
+    }
+
+    _sceneGridEffect->SetVertexColorEnabled(true);
+
+    const void* shaderByteCode = nullptr;
+    size_t shaderByteCodeLength = 0;
+    _sceneGridEffect->GetVertexShaderBytecode(&shaderByteCode, &shaderByteCodeLength);
+
+    if (FAILED(
+        _device->CreateInputLayout(
+            kSceneGridInputElements,
+            static_cast<UINT>(_countof(kSceneGridInputElements)),
+            shaderByteCode,
+            shaderByteCodeLength,
+            _sceneGridInputLayout.GetAddressOf())
+    ))
+    {
+        _sceneGridBatch.reset();
+        _sceneGridEffect.reset();
+        _sceneGridInputLayout.Reset();
+        return;
+    }
+
+    D3D11_DEPTH_STENCIL_DESC depthDesc{};
+    depthDesc.DepthEnable = TRUE;
+    depthDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
+    depthDesc.DepthFunc = D3D11_COMPARISON_LESS_EQUAL;
+    depthDesc.StencilEnable = FALSE;
+
+    if (FAILED(_device->CreateDepthStencilState(&depthDesc, _sceneGridDepthState.GetAddressOf())))
+    {
+        _sceneGridBatch.reset();
+        _sceneGridEffect.reset();
+        _sceneGridInputLayout.Reset();
+        _sceneGridDepthState.Reset();
+    }
+}
+
+void EffectEditorInstance::Render_SceneGridToBackBuffer()
+{
+    if (!_device || !_context)
+        return;
+
+    GAME->Bind_BackBuffer();
+
+    D3D11_VIEWPORT viewportDesc{};
+    viewportDesc.TopLeftX = 0.f;
+    viewportDesc.TopLeftY = 0.f;
+    viewportDesc.Width = static_cast<float>(max(1u, GAME->Get_ViewportWidth()));
+    viewportDesc.Height = static_cast<float>(max(1u, GAME->Get_ViewportHeight()));
+    viewportDesc.MinDepth = 0.f;
+    viewportDesc.MaxDepth = 1.f;
+    _context->RSSetViewports(1, &viewportDesc);
+
+    const Matrix* viewMatrix = GAME->Get_Transform(D3DTS::View);
+    const Matrix* projMatrix = GAME->Get_Transform(D3DTS::Proj);
+    if (nullptr == viewMatrix || nullptr == projMatrix)
+        return;
+
+    Ensure_SceneGridResources();
+    if (!_sceneGridBatch || !_sceneGridEffect || !_sceneGridInputLayout || !_sceneGridDepthState)
+        return;
+
+    _sceneGridEffect->SetWorld(Matrix::Identity);
+    _sceneGridEffect->SetView(*viewMatrix);
+    _sceneGridEffect->SetProjection(*projMatrix);
+
+    ID3D11GeometryShader* nullGeometryShader = nullptr;
+    _context->GSSetShader(nullGeometryShader, nullptr, 0);
+
+    ID3D11ShaderResourceView* nullSRVs[1] = { nullptr };
+    _context->PSSetShaderResources(0, 1, nullSRVs);
+
+    _context->RSSetState(nullptr);
+    _context->IASetInputLayout(_sceneGridInputLayout.Get());
+    _context->OMSetDepthStencilState(_sceneGridDepthState.Get(), 0);
+    _context->OMSetBlendState(nullptr, nullptr, 0xffffffff);
+    _sceneGridEffect->Apply(_context.Get());
+
+    _sceneGridBatch->Begin();
+
+    const float step = sceneGridHalfExtent * 2.f / static_cast<float>(sceneGridDivisions);
+    const XMVECTOR gridColor = XMVectorSet(0.58f, 0.58f, 0.62f, 1.f);
+    const XMVECTOR xAxisColor = XMVectorSet(0.95f, 0.32f, 0.32f, 1.f);
+    const XMVECTOR zAxisColor = XMVectorSet(0.28f, 0.72f, 1.f, 1.f);
+
+    for (int i = 0; i <= sceneGridDivisions; ++i)
+    {
+        const float offset = -sceneGridHalfExtent + step * static_cast<float>(i);
+        const XMVECTOR colorX = fabsf(offset) < 0.0001f ? zAxisColor : gridColor;
+        const XMVECTOR colorZ = fabsf(offset) < 0.0001f ? xAxisColor : gridColor;
+
+        VertexPositionColor lineXStart(
+            Vec3(-sceneGridHalfExtent, sceneGridHeight, offset),
+            colorX
+        );
+        VertexPositionColor lineXEnd(
+            Vec3(sceneGridHalfExtent, sceneGridHeight, offset),
+            colorX
+        );
+        _sceneGridBatch->DrawLine(lineXStart, lineXEnd);
+
+        VertexPositionColor lineZStart(
+            Vec3(offset, sceneGridHeight, -sceneGridHalfExtent),
+            colorZ
+        );
+        VertexPositionColor lineZEnd(
+            Vec3(offset, sceneGridHeight, sceneGridHalfExtent),
+            colorZ
+        );
+        _sceneGridBatch->DrawLine(lineZStart, lineZEnd);
+    }
+
+    _sceneGridBatch->End();
 }
 
 void EffectEditorInstance::Queue_PreviewViewportSize(uint32 width, uint32 height)

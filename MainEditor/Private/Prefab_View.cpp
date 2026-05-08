@@ -758,6 +758,14 @@ void Prefab_View::Draw_PreviewGrid() const
     _previewGridEffect->SetView(*GAME->Get_Transform(D3DTS::View));
     _previewGridEffect->SetProjection(*GAME->Get_Transform(D3DTS::Proj));
 
+    // GS particle/effect pass가 남긴 상태를 정리해야 한다.
+    ID3D11GeometryShader* nullGeometryShader = nullptr;
+    context->GSSetShader(nullGeometryShader, nullptr, 0);
+
+    ID3D11ShaderResourceView* nullSRVs[1] = { nullptr };
+    context->PSSetShaderResources(0, 1, nullSRVs);
+
+    context->RSSetState(nullptr);
     context->IASetInputLayout(_previewGridInputLayout.Get());
     context->OMSetDepthStencilState(_previewGridDepthState.Get(), 0);
     context->OMSetBlendState(nullptr, nullptr, 0xffffffff);

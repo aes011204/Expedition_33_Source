@@ -1,8 +1,8 @@
 ﻿#include "Scene_View.h"
 
 #include "Camera.h"
-#include "EffectEditorCamera.h"
 #include "Editor_Context.h"
+#include "EffectEditorCamera.h"
 #include "EffectEditorInstance.h"
 #include "GameInstance.h"
 #include "GameObject.h"
@@ -67,7 +67,7 @@ namespace Internal
 
     static OverlayRect Compute_ToolbarHandleRect(const ImVec2& viewportMin, const ImVec2& viewportMax)
     {
-        const ImVec2 panelSize = ImVec2(44.f, 30.f);
+        const ImVec2 panelSize = ImVec2(34.f, 30.f);
         const ImVec2 panelMin = ImVec2(viewportMax.x - panelSize.x - 16.f, viewportMin.y + 16.f);
 
         return {
@@ -79,8 +79,8 @@ namespace Internal
     static OverlayRect Compute_ToolbarPinRect(const ImVec2& viewportMin, const ImVec2& viewportMax)
     {
         const OverlayRect gizmoRect = Compute_GizmoOverlayRect(viewportMin, viewportMax);
-        const ImVec2 panelSize = ImVec2(28.f, 28.f);
-        const ImVec2 panelMin = ImVec2(gizmoRect.min.x - panelSize.x - 6.f, gizmoRect.min.y + 3.f);
+        const ImVec2 panelSize = ImVec2(34.f, 30.f);
+        const ImVec2 panelMin = ImVec2(gizmoRect.min.x - panelSize.x - 6.f, gizmoRect.min.y + 2.f);
 
         return {
             panelMin,
@@ -166,7 +166,6 @@ void Scene_View::Render()
         ImGuizmo::SetDrawlist(ImGui::GetWindowDrawList());
 
         Render_ViewportCanvas();
-        Render_GridOverlay();
         Handle_FocusRequest();
         Render_SelectedObjectGizmo();
 
@@ -220,30 +219,6 @@ void Scene_View::Handle_GizmoShortcut()
 
     if (ImGui::IsKeyPressed(ImGuiKey_Space, false))
         _gizmoMode = _gizmoMode == ImGuizmo::LOCAL ? ImGuizmo::WORLD : ImGuizmo::LOCAL;
-}
-
-void Scene_View::Render_GridOverlay()
-{
-    const float viewportWidth = _viewportMax.x - _viewportMin.x;
-    const float viewportHeight = _viewportMax.y - _viewportMin.y;
-    if (viewportWidth <= 1.f || viewportHeight <= 1.f)
-        return;
-
-    const Matrix* viewMatrix = GAME->Get_Transform(D3DTS::View);
-    const Matrix* projMatrix = GAME->Get_Transform(D3DTS::Proj);
-    if (viewMatrix == nullptr || projMatrix == nullptr)
-        return;
-
-    Matrix gridMatrix = XMMatrixIdentity();
-
-    ImGuizmo::SetDrawlist(ImGui::GetWindowDrawList());
-    ImGuizmo::SetRect(_viewportMin.x, _viewportMin.y, viewportWidth, viewportHeight);
-    ImGuizmo::DrawGrid(
-        reinterpret_cast<float*>(const_cast<Matrix*>(viewMatrix)),
-        reinterpret_cast<float*>(const_cast<Matrix*>(projMatrix)),
-        reinterpret_cast<float*>(&gridMatrix),
-        1000.f
-    );
 }
 
 void Scene_View::Render_CameraAxisOverlay()
@@ -339,10 +314,10 @@ void Scene_View::Render_ViewportToolbarOverlay()
         drawList->AddRectFilled(handleRect.min, handleRect.max, IM_COL32(36, 38, 42, 220), 6.f);
         drawList->AddRect(handleRect.min, handleRect.max, IM_COL32(92, 96, 104, 255), 6.f);
 
-        ImGui::SetCursorScreenPos(ImVec2(handleRect.min.x + 5.f, handleRect.min.y + 4.f));
+        ImGui::SetCursorScreenPos(ImVec2(handleRect.min.x + 4.f, handleRect.min.y + 3.f));
         ImGui::PushID("ViewportToolbarHandle");
-        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(6.f, 3.f));
-        ImGui::Button("UI", ImVec2(34.f, 22.f));
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4.f, 3.f));
+        ImGui::Button(ICON_FA_SQUARE_CARET_LEFT, ImVec2(26.f, 24.f));
         _isViewportToolbarInteracting = ImGui::IsItemActive();
         ImGui::PopStyleVar();
         ImGui::PopID();
@@ -354,9 +329,9 @@ void Scene_View::Render_ViewportToolbarOverlay()
     drawList->AddRectFilled(pinRect.min, pinRect.max, IM_COL32(36, 38, 42, 220), 6.f);
     drawList->AddRect(pinRect.min, pinRect.max, IM_COL32(92, 96, 104, 255), 6.f);
 
-    ImGui::SetCursorScreenPos(ImVec2(pinRect.min.x + 3.f, pinRect.min.y + 3.f));
+    ImGui::SetCursorScreenPos(ImVec2(pinRect.min.x + 4.f, pinRect.min.y + 3.f));
     ImGui::PushID("ViewportToolbarPin");
-    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(5.f, 3.f));
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4.f, 3.f));
 
     const bool wasToolbarPinned = _isViewportToolbarPinned;
     if (wasToolbarPinned)
@@ -366,7 +341,7 @@ void Scene_View::Render_ViewportToolbarOverlay()
         ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.09f, 0.09f, 0.09f, 1.f));
     }
 
-    if (ImGui::Button("P", ImVec2(22.f, 22.f)))
+    if (ImGui::Button(ICON_FA_THUMBTACK, ImVec2(26.f, 24.f)))
         _isViewportToolbarPinned = !_isViewportToolbarPinned;
     _isViewportToolbarInteracting = _isViewportToolbarInteracting || ImGui::IsItemActive();
 

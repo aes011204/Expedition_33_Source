@@ -23,10 +23,12 @@ EffectEditor_Manager::~EffectEditor_Manager()
 HRESULT EffectEditor_Manager::Initialize()
 {
     Add_Window(Scene_View::Create());
-    const Shared<Game_View> gameView = Game_View::Create();
-    if (gameView)
-        gameView->Set_Open(false);
-    Add_Window(gameView);
+
+    // Game View 필요 없어서 비활성화
+    //const Shared<Game_View> gameView = Game_View::Create();
+    //if (gameView)
+    //    gameView->Set_Open(false);
+    //Add_Window(gameView);
 
     Add_Window(Emitter_View::Create());
     Add_Window(Hierarchy_View::Create());
@@ -43,13 +45,13 @@ void EffectEditor_Manager::Update(float timeDelta)
 {
     Handle_Shortcuts();
 
-    for (auto& [_, window] : _windows)
+    for (const auto& window : _windows | views::values)
     {
         if (window && window->Is_Open())
             window->Update(timeDelta);
     }
 
-    for (auto& [_, window] : _windows)
+    for (const auto& window : _windows | views::values)
     {
         if (window && window->Is_Open())
             window->Pre_Render();
@@ -60,7 +62,7 @@ void EffectEditor_Manager::Render()
 {
     Render_DockSpace();
 
-    for (auto& [_, window] : _windows)
+    for (const auto& window : _windows | views::values)
     {
         if (window != nullptr)
             window->Render();
@@ -286,7 +288,7 @@ void EffectEditor_Manager::Handle_Shortcuts()
 
     if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_S, false))
     {
-        for (auto& [_, window] : _windows)
+        for (const auto& window : _windows | views::values)
         {
             if (window && window->Is_Open() && window->Is_Focused() && window->CanSave())
             {
@@ -368,7 +370,7 @@ void EffectEditor_Manager::Render_ShortcutHelp()
             ImGui::TableSetupColumn("Key", ImGuiTableColumnFlags_WidthFixed, 110.f);
             ImGui::TableSetupColumn("Description", ImGuiTableColumnFlags_WidthStretch);
 
-            auto drawShortcutRow = [](const char* key, const char* description)
+            auto draw_shortcut_row = [](const char* key, const char* description)
             {
                 ImGui::TableNextRow();
                 ImGui::TableSetColumnIndex(0);
@@ -377,17 +379,17 @@ void EffectEditor_Manager::Render_ShortcutHelp()
                 ImGui::Text(": %s", description);
             };
 
-            drawShortcutRow("F1", "Collision Debug Render");
-            drawShortcutRow("F5", "Play / Resume");
-            drawShortcutRow("Esc", "Stop");
-            drawShortcutRow("F8", "Camera Switch");
-            drawShortcutRow("F9", "Pause + Free Camera");
-            drawShortcutRow("Ctrl + Wheel", "Free Camera Speed");
-            drawShortcutRow("Shift +", "Time Scale Up");
-            drawShortcutRow("Shift -", "Time Scale Down");
-            drawShortcutRow("Ctrl + Space", "Console + Content Browser");
-            drawShortcutRow("Double Click", "Focus Selected Object");
-            drawShortcutRow("W E R", "Gizmo Mode");
+            draw_shortcut_row("F1", "Collision Debug Render");
+            draw_shortcut_row("F5", "Play / Resume");
+            draw_shortcut_row("Esc", "Stop");
+            draw_shortcut_row("F8", "Camera Switch");
+            draw_shortcut_row("F9", "Pause + Free Camera");
+            draw_shortcut_row("Ctrl + Wheel", "Free Camera Speed");
+            draw_shortcut_row("Shift +", "Time Scale Up");
+            draw_shortcut_row("Shift -", "Time Scale Down");
+            draw_shortcut_row("Ctrl + Space", "Console + Content Browser");
+            draw_shortcut_row("Double Click", "Focus Selected Object");
+            draw_shortcut_row("W E R", "Gizmo Mode");
 
             ImGui::EndTable();
         }

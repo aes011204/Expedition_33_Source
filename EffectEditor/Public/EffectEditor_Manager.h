@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Base.h"
 
@@ -22,7 +22,7 @@ public:
 
 private:
     map<wstring, Shared<Editor_Window>> _windows{};
-    bool _defaultDockLayoutBuilt{false};
+    bool _defaultDockLayoutBuilt{ false };
 
 private:
     void Render_MainMenuBar();

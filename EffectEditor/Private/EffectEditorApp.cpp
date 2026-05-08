@@ -67,8 +67,8 @@ void EffectEditorApp::Update(float timeDelta)
         EDITOR->Update_Editor(timeDelta);
     }
 
-    float runtimeDelta = 0.f;
-    float freeCameraDelta = 0.f;
+    float runtimeDelta;
+    float freeCameraDelta;
 
     if (EDITOR->IsPlaying())
     {
@@ -108,8 +108,7 @@ HRESULT EffectEditorApp::Render()
     {
         Profile_View::Scope profileScope("Game::Render");
 
-        const Vec4 clearColor = Vec4(0.2f, 0.2f, 0.2f, 1.0f);
-        if (FAILED(GAME->Clear_Buffers(clearColor)))
+        if (FAILED(GAME->Clear_Buffers(defaultClearColor)))
             return E_FAIL;
 
         if (FAILED(GAME->Draw()))
@@ -199,7 +198,6 @@ void EffectEditorApp::Free()
     __super::Free();
 
     EffectEditorInstance::DestroyInstance();
-
     ClientInstance::DestroyInstance();
 
     _context.Reset();
