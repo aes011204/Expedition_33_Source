@@ -188,7 +188,11 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="..\Public\AIController.h" />
-    <ClInclude Include="..\Public\AnimationNotify.h" />
+    <ClInclude Include="..\Public\AnimNotify_Parser.h" />
+    <ClInclude Include="..\Public\AnimNotify_Types.h" />
+    <ClInclude Include="..\public\AStar.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+    </ClInclude>
     <ClInclude Include="..\Public\BehaviorTree.h" />
     <ClInclude Include="..\Public\BlackBoard.h" />
     <ClInclude Include="..\Public\BNode.h" />
@@ -203,11 +207,13 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClInclude Include="..\Public\Collision_Manager.h" />
     <ClInclude Include="..\Public\Collision_Define.h" />
     <ClInclude Include="..\Public\Composite.h" />
+    <ClInclude Include="..\Public\Culling_Manager.h" />
     <ClInclude Include="..\Public\Debug_Manager.h" />
     <ClInclude Include="..\Public\Debug_Types.h" />
     <ClInclude Include="..\Public\DebugDraw.h" />
     <ClInclude Include="..\Public\Decorator.h" />
     <ClInclude Include="..\Public\Delegate.h" />
+    <ClInclude Include="..\Public\Engine_Constants.h" />
     <ClInclude Include="..\Public\Event_Manager.h" />
     <ClInclude Include="..\Public\Engine_Model_Struct.h" />
     <ClInclude Include="..\Public\Helper_Math.h" />
@@ -221,6 +227,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClInclude Include="..\Public\Picking.h" />
     <ClInclude Include="..\Public\Print_Manager.h" />
     <ClInclude Include="..\Public\PathFollower.h" />
+    <ClInclude Include="..\Public\Reflection_JsonUtil.h" />
     <ClInclude Include="..\Public\Reflection_Macro.h" />
     <ClInclude Include="..\Public\PhysX_Manager.h" />
     <ClInclude Include="..\Public\Particle_Types.h" />
@@ -236,6 +243,11 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClInclude Include="..\Public\SkeletalMesh.h" />
     <ClInclude Include="..\Public\StaticMesh.h" />
     <ClInclude Include="..\Public\TypeRegistry.h" />
+    <ClInclude Include="..\public\UI_Base.h" />
+    <ClInclude Include="..\public\UI_Image.h" />
+    <ClInclude Include="..\public\UI_Manager.h" />
+    <ClInclude Include="..\public\UI_Text.h" />
+    <ClInclude Include="..\public\UI_Transform.h" />
     <ClInclude Include="..\Public\VIBufferCom_Instance.h" />
     <ClInclude Include="..\Public\VIBufferCom_PointParticle.h" />
     <ClInclude Include="pch.h" />
@@ -287,7 +299,10 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\Private\AIController.cpp" />
-    <ClCompile Include="..\Private\AnimationNotify.cpp" />
+    <ClCompile Include="..\Private\AnimNotify_Parser.cpp" />
+    <ClCompile Include="..\private\AStar.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="..\Private\BehaviorTree.cpp" />
     <ClCompile Include="..\Private\BlackBoard.cpp" />
     <ClCompile Include="..\Private\BNode.cpp" />
@@ -301,6 +316,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClCompile Include="..\Private\ColliderCom.cpp" />
     <ClCompile Include="..\Private\Collision_Manager.cpp" />
     <ClCompile Include="..\Private\Composite.cpp" />
+    <ClCompile Include="..\Private\Culling_Manager.cpp" />
     <ClCompile Include="..\PRivate\Debug_Manager.cpp" />
     <ClCompile Include="..\Private\DebugDraw.cpp" />
     <ClCompile Include="..\Private\Decorator.cpp" />
@@ -325,6 +341,11 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClCompile Include="..\Private\StaticMesh.cpp" />
     <ClCompile Include="..\Private\Task.cpp" />
     <ClCompile Include="..\Private\TypeRegistry.cpp" />
+    <ClCompile Include="..\private\UI_Base.cpp" />
+    <ClCompile Include="..\private\UI_Image.cpp" />
+    <ClCompile Include="..\private\UI_Manager.cpp" />
+    <ClCompile Include="..\private\UI_Text.cpp" />
+    <ClCompile Include="..\private\UI_Transform.cpp" />
     <ClCompile Include="..\Private\VIBufferCom_Instance.cpp" />
     <ClCompile Include="..\Private\VIBufferCom_PointParticle.cpp" />
     <ClCompile Include="pch.cpp">

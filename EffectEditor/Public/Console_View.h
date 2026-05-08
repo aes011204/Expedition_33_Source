@@ -5,7 +5,7 @@
 
 NS_BEGIN(EffectEditor)
 
-class Console_View : public Editor_Window
+class Console_View final : public Editor_Window
 {
 public:
     Console_View();
@@ -16,21 +16,21 @@ public:
     void Render() override;
 
 private:
+    vector<ConsoleLogEntry> _cachedLogs{};
+    uint32 _cachedRevision{0};
+    bool _autoScroll{true};
+
+    bool _showTrace{true};
+    bool _showDebug{true};
+    bool _showInfo{true};
+    bool _showWarn{true};
+    bool _showError{true};
+    bool _showCritical{true};
+
+private:
     void Refresh_Logs();
     bool Pass_Filter(const ConsoleLogEntry& entry) const;
     ImVec4 Get_LogColor(const ConsoleLogEntry& entry) const;
-
-private:
-    vector<ConsoleLogEntry> _cachedLogs = {};
-    uint32 _cachedRevision = 0;
-    bool _autoScroll = true;
-
-    bool _showTrace = true;
-    bool _showDebug = true;
-    bool _showInfo = true;
-    bool _showWarn = true;
-    bool _showError = true;
-    bool _showCritical = true;
 
 public:
     static Shared<Console_View> Create();

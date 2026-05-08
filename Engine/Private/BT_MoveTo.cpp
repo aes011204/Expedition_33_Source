@@ -3,6 +3,18 @@
 #include "BlackBoard.h"
 #include "GameObject.h"
 
+
+IMPLEMENT_REFLECTION(BT_MoveTo)
+{
+    auto& info = GetStaticReflectionInfo();
+    info.properties.clear();
+
+    PROPERTY_BBKEY_VEC3("Target Key", _targetKey);
+
+    return true;
+}
+
+
 BT_MoveTo::BT_MoveTo()
 {
 }
@@ -14,8 +26,8 @@ BT_MoveTo::~BT_MoveTo()
 void BT_MoveTo::OnStart()
 {
     auto bb = Get_Owner()->Get_BlackBoard();
-    Vec3 target = bb->Get_Value<Vec3>("playerPos");
 
+    Vec3 target = bb->Get_Value<Vec3>(_targetKey);
     Get_Owner()->Request_Move(target);
     _prevPos = target;
    // _started = true;
@@ -32,8 +44,9 @@ BNode::NODE_STATE BT_MoveTo::Logic_Update(float deltaTime)
 {
 
     auto bb = Get_Owner()->Get_BlackBoard();
-    Vec3 target = bb->Get_Value<Vec3>("playerPos");
 
+
+    Vec3 target = bb->Get_Value<Vec3>(_targetKey);
     auto ownerPos = Get_Owner()->Get_Owner()->Get_Transform()->Get_Position();
 
     float distToTarget = (target - ownerPos).Length();

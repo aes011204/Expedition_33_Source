@@ -17,6 +17,7 @@ class Graphic_Device;
 class Timer_Manager;
 class Level_Manager;
 class Prototype_Manager;
+class UI_Manager;
 class Object_Manager;
 class Renderer;
 class PipeLine;
@@ -29,6 +30,7 @@ class Camera_Manager;
 struct ConsoleLogEntry;
 class Component;
 class GameObject;
+class UI_Base;
 class Level;
 class Camera;
 class Debug_Manager;
@@ -37,6 +39,7 @@ class PhysX_Manager;
 class ColliderCom;
 class Shadow;
 class Picking;
+class Culling_Manager;
 
 class ENGINE_DLL GameInstance final : public Base
 {
@@ -59,6 +62,7 @@ public:
     ComPtr<Context> Get_Context() const { return _context; }
 
 public: /* For.Log_Manager */
+    void    Log_FileOnly(const spdlog::source_loc& sourceLoc, spdlog::level::level_enum level, const string& message) const;
     void    Visit_ConsoleLogs(const function<void(const ConsoleLogEntry& logEntry)>& visitor) const;
     void    Clear_ConsoleLogs();
 
@@ -78,6 +82,8 @@ public: /* For.Graphic_Device */
 
 public: /* For.Viewport */
     void    Set_ViewportSize(uint32 width, uint32 height);
+    // editor preview처럼 창 크기와 다른 렌더 비율이 필요할 때 사용하며, swapchain이 아닌 logical viewport만 갱신한다.
+    HRESULT Apply_LogicalViewportSize(uint32 width, uint32 height);
     uint32  Get_ViewportWidth() const;
     uint32  Get_ViewportHeight() const;
 
@@ -98,6 +104,15 @@ public: /* For.Level_Manager */
 public: /* For.Prototype_Manager */
     HRESULT Add_Prototype(uint32 levelIndex, const wstring& prototypeTag, Shared<Base> prototype);
     Shared<Base> Clone_Prototype(Prototype prototype, uint32 levelIndex, const wstring& prototypeTag, void* arg = nullptr);
+
+public: /* For.UI_Manager */
+    HRESULT Add_UI(
+        uint32 prototypeLevelIndex,
+        const wstring& prototypeTag,
+        void* arg = nullptr,
+        Shared<UI_Base>* outUI = nullptr);
+
+    void    Pop_UI();
 
 public: /* For.Object_Manager */
     HRESULT Add_GameObject(
@@ -174,23 +189,30 @@ public: /* For.Light_Manager */
 
 public: /* For.Font_Manager */
     HRESULT Add_Font(const wstring& fontTag, const wchar_t* fontFilePath);
-    void Draw_Font(const wstring& fontTag, const wchar_t* text, const Vec2& position, FXMVECTOR color = XMVectorSet(1.f, 1.f, 1.f, 1.f));
-
+    Vec2 Measure_Font(const wstring& fontTag, const wchar_t* text);
+    void Draw_Font(
+        const wstring& fontTag,
+        const wchar_t* text,
+        const Vec2& position,
+        FXMVECTOR color = XMVectorSet(1.f, 1.f, 1.f, 1.f),
+        float rotationRadians = 0.f,
+        const Vec2& pivot = Vec2(0.f, 0.f),
+        float scale = 1.f);
+        
 public: /* For.Asset_Manager */
-    /* 리소스 루트를 기준으로 GUID/meta/cache registry를 준비할 때 호출한다. */
     HRESULT Initialize_AssetManager(const wstring& resourceRoot);
 
     /* 파일 경로를 GUID로 저장해야 하는 ResourceLoader/Editor 파이프라인에서 호출한다. */
     string Find_AssetGUID(const wstring& filePath) const;
 
-    /* GUID로 에셋 타입과 경로 메타를 조회할 때 호출한다. */
-    const FAssetMeta* Find_AssetByGUID(const string& guid) const;
+    const AssetMeta* Find_AssetByGUID(const string& guid) const;
+    vector<AssetMeta> Get_AssetsByType(const string& type) const;
 
-    /* lazy-load가 GUID만 들고 있을 때 실제 파일 경로를 복원하기 위해 호출한다. */
     wstring Resolve_AssetPath(const string& guid) const;
-
-    /* ResourceLoader가 현재 정본 리소스 루트를 절대경로로 해석할 때 호출한다. */
     wstring Get_AssetRoot() const;
+
+    // 에디터/로더가 "GUID 없으면 생성" 흐름을 쓸 수 있게 하기 -> 프리펩이나 그런거 새로 만들 때
+    string Ensure_AssetGUID(const wstring& filePath, const string& type = "") const;
 
 public: /* For.Camera_Manager */
     HRESULT Add_Camera(Shared<Camera> camera) const;
@@ -263,6 +285,12 @@ public: // For. PhysX_Manager
     PxPhysics*  Get_PhysXPhysics() const;
     PxScene*    Get_PhysXScene() const;
 
+public: // For. Culling_Manager 
+    void UpdateFrustum(const Matrix& view, const Matrix& proj);
+    bool IsVisible(const BoundingBox& worldAABB) const;
+
+public: // For. BT_Node
+    void Visit_BTNodeTypes(const function<void(const TypeRegistry::BTNodeTypeInfo&)>& visitor) const;
 
 public: /* For.Debug_Manager */
     void                    Draw_DebugBox(const DebugBoxDesc& desc);
@@ -320,6 +348,7 @@ private:
     Unique<Timer_Manager>       _timerManager{};
     Unique<Level_Manager>       _levelManager{};
     Unique<Prototype_Manager>   _prototypeManager{};
+    Unique<UI_Manager>          _uiManager{};
     Unique<Object_Manager>      _objectManager{};
     Unique<Renderer>            _renderer{};
     Unique<PipeLine>            _pipeLine{};
@@ -335,7 +364,7 @@ private:
     Unique<Shadow>              _shadow{};
     Unique<PhysX_Manager>       _physxManager{};
     Unique<Picking>             _picking{};
-
+    Unique<Culling_Manager>     _cullingManager{};
 
 
 #ifdef _DEBUG
@@ -358,16 +387,12 @@ private:
 
 #ifdef _DEBUG
 private: //## 디버그 성능 평가용
-    static constexpr float runtimePerfSampleWindowSec{ 5.f };          // RuntimePerf summary를 몇 초마다 출력할건지
-    static constexpr float detailRenderAvgMsThreshold{ 6.f };          // Render 평균 시간이 이 값을 넘으면 detail log 출력
-    static constexpr float detailCollisionAvgMsThreshold{ 2.5f };      // Collision 평균 시간이 이 값을 넘으면 detail log 출력
-    static constexpr float detailIntersectsPerSecThreshold{ 30000.f }; // 초당 Intersect 호출 수가 이 값을 넘으면 detail log 출력
+    static constexpr float runtimePerfSampleWindowSec{ 5.f }; // RuntimePerfDetail을 몇 초마다 출력할건지
 
     chrono::steady_clock::time_point _runtimePerfWindowStartTime{};
     bool _hasRuntimePerfWindowStartTime{ false };
 
     void Try_FlushRuntimePerfLog();
-    static bool Should_LogRuntimePerfDetail(const RuntimePerfSummary& runtimeSummary);
 #endif
 
 public:

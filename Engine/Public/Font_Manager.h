@@ -12,7 +12,15 @@ public:
 
 public:
 	HRESULT Add_Font(const wstring& fontTag, const wchar_t* fontFilePath);
-	void Draw(const wstring& fontTag, const wchar_t* text, const Vec2& position, FXMVECTOR color);
+    Vec2 Measure(const wstring& fontTag, const wchar_t* text);
+	void Draw(
+        const wstring& fontTag,
+        const wchar_t* text,
+        const Vec2& position,
+        FXMVECTOR color,
+        float rotationRadians = 0.f,
+        const Vec2& pivot = Vec2(0.f, 0.f),
+        float scale = 1.f);
 
 private:
 	ComPtr<Device> _device = { nullptr };

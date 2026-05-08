@@ -1,17 +1,29 @@
-#include "Scene_View.h"
+﻿#include "Scene_View.h"
 
+#include "Camera.h"
 #include "Editor_Context.h"
+#include "EffectEditorCamera.h"
 #include "EffectEditorInstance.h"
 #include "GameInstance.h"
 #include "GameObject.h"
 #include "RenderTarget.h"
 
-namespace EffectEditor::Internal
+NS_BEGIN(EffectEditor)
+
+namespace Internal
 {
+    static constexpr float autoPreviewViewportScale = 1.5f;
+
     struct ViewportImageRect
     {
         ImVec2 imageMin;
         ImVec2 imageMax;
+    };
+
+    struct OverlayRect
+    {
+        ImVec2 min;
+        ImVec2 max;
     };
 
     static ViewportImageRect Compute_AspectFitRect(const ImVec2& canvasMin, const ImVec2& canvasSize, float aspect)
@@ -35,17 +47,132 @@ namespace EffectEditor::Internal
 
         const ImVec2 imageMin = ImVec2(
             canvasMin.x + (canvasSize.x - imageWidth) * 0.5f,
-            canvasMin.y + (canvasSize.y - imageHeight) * 0.5f);
+            canvasMin.y + (canvasSize.y - imageHeight) * 0.5f
+        );
 
         return {
             imageMin,
             ImVec2(imageMin.x + imageWidth, imageMin.y + imageHeight)
         };
     }
+
+    static OverlayRect Compute_GizmoOverlayRect(const ImVec2& viewportMin, const ImVec2& viewportMax)
+    {
+        const ImVec2 panelSize = ImVec2(360.f, 34.f);
+        const ImVec2 panelMin = ImVec2(viewportMax.x - panelSize.x - 16.f, viewportMin.y + 16.f);
+
+        return {
+            panelMin,
+            ImVec2(panelMin.x + panelSize.x, panelMin.y + panelSize.y)
+        };
+    }
+
+    static OverlayRect Compute_ToolbarHandleRect(const ImVec2& viewportMin, const ImVec2& viewportMax)
+    {
+        const ImVec2 panelSize = ImVec2(34.f, 30.f);
+        const ImVec2 panelMin = ImVec2(viewportMax.x - panelSize.x - 16.f, viewportMin.y + 16.f);
+
+        return {
+            panelMin,
+            ImVec2(panelMin.x + panelSize.x, panelMin.y + panelSize.y)
+        };
+    }
+
+    static OverlayRect Compute_ToolbarPinRect(const ImVec2& viewportMin, const ImVec2& viewportMax)
+    {
+        const OverlayRect gizmoRect = Compute_GizmoOverlayRect(viewportMin, viewportMax);
+        const ImVec2 panelSize = ImVec2(34.f, 30.f);
+        const ImVec2 panelMin = ImVec2(gizmoRect.min.x - panelSize.x - 6.f, gizmoRect.min.y + 2.f);
+
+        return {
+            panelMin,
+            ImVec2(panelMin.x + panelSize.x, panelMin.y + panelSize.y)
+        };
+    }
+
+    static OverlayRect Compute_PreviewViewportOverlayRect(const ImVec2& viewportMin, const ImVec2& viewportMax)
+    {
+        const ImVec2 panelSize = ImVec2(352.f, 34.f);
+        const ImVec2 panelMin = ImVec2(viewportMax.x - panelSize.x - 16.f, viewportMin.y + 58.f);
+
+        return {
+            panelMin,
+            ImVec2(panelMin.x + panelSize.x, panelMin.y + panelSize.y)
+        };
+    }
+
+    static bool Is_PointInRect(const ImVec2& point, const OverlayRect& rect)
+    {
+        return point.x >= rect.min.x && point.x <= rect.max.x &&
+               point.y >= rect.min.y && point.y <= rect.max.y;
+    }
+
+    static bool Should_OpenToolbarOverlay(const ImVec2& viewportMin, const ImVec2& viewportMax, const ImVec2& mousePos)
+    {
+        return Is_PointInRect(mousePos, Compute_ToolbarHandleRect(viewportMin, viewportMax));
+    }
+
+    static bool Should_OpenToolbarOverlay(const ImVec2& viewportMin, const ImVec2& viewportMax)
+    {
+        return Should_OpenToolbarOverlay(viewportMin, viewportMax, ImGui::GetIO().MousePos);
+    }
+
+    static OverlayRect Compute_ToolbarKeepAliveRect(const ImVec2& viewportMin, const ImVec2& viewportMax)
+    {
+        const OverlayRect pinRect = Compute_ToolbarPinRect(viewportMin, viewportMax);
+        const OverlayRect gizmoRect = Compute_GizmoOverlayRect(viewportMin, viewportMax);
+        const OverlayRect previewRect = Compute_PreviewViewportOverlayRect(viewportMin, viewportMax);
+
+        return {
+            ImVec2(
+                min(pinRect.min.x, min(gizmoRect.min.x, previewRect.min.x)),
+                min(pinRect.min.y, min(gizmoRect.min.y, previewRect.min.y))
+            ),
+            ImVec2(
+                max(pinRect.max.x, max(gizmoRect.max.x, previewRect.max.x)),
+                max(pinRect.max.y, max(gizmoRect.max.y, previewRect.max.y))
+            )
+        };
+    }
+
+    static bool Should_KeepToolbarOverlay(const ImVec2& viewportMin, const ImVec2& viewportMax, const ImVec2& mousePos)
+    {
+        return Is_PointInRect(mousePos, Compute_ToolbarKeepAliveRect(viewportMin, viewportMax));
+    }
+
+    static bool Should_KeepToolbarOverlay(const ImVec2& viewportMin, const ImVec2& viewportMax)
+    {
+        return Should_KeepToolbarOverlay(viewportMin, viewportMax, ImGui::GetIO().MousePos);
+    }
+
+    static bool Should_ShowToolbarOverlay(const ImVec2& viewportMin, const ImVec2& viewportMax, bool isPinned, bool isInteracting)
+    {
+        if (isPinned || isInteracting)
+            return true;
+
+        const ImVec2 mousePos = ImGui::GetIO().MousePos;
+        return Should_OpenToolbarOverlay(viewportMin, viewportMax, mousePos);
+    }
+
+    static bool Is_MouseOverViewportOverlay(
+        const ImVec2& viewportMin,
+        const ImVec2& viewportMax,
+        bool isToolbarPinned,
+        bool isToolbarInteracting)
+    {
+        const ImVec2 mousePos = ImGui::GetIO().MousePos;
+        if (Should_ShowToolbarOverlay(viewportMin, viewportMax, isToolbarPinned, isToolbarInteracting))
+        {
+            return Should_OpenToolbarOverlay(viewportMin, viewportMax, mousePos) ||
+                   Should_KeepToolbarOverlay(viewportMin, viewportMax, mousePos);
+        }
+
+        return Should_OpenToolbarOverlay(viewportMin, viewportMax, mousePos);
+    }
 }
 
 Scene_View::Scene_View()
-    : Editor_Window{ L"Scene" }
+    : Editor_Window{ L"Scene", ICON_FA_WINDOW_MAXIMIZE }
 {
 }
 
@@ -60,7 +187,7 @@ void Scene_View::Render()
         return;
 
     bool isOpen = Is_Open();
-    const string windowName = String::ToString(Get_WindowName());
+    const string& windowName = Get_ImGuiWindowName();
 
     if (EDITOR->Consume_WindowFocusRequest(EditorViewportTarget::Scene))
         ImGui::SetNextWindowFocus();
@@ -78,11 +205,22 @@ void Scene_View::Render()
         Handle_FocusRequest();
         Render_SelectedObjectGizmo();
 
-        Render_GizmoOverlay();
-        Render_PreviewViewportOverlay();
+        Render_CameraAxisOverlay();
+        Render_ViewportToolbarOverlay();
+
+        const bool overlayBlocked =
+            Internal::Is_MouseOverViewportOverlay(
+                _viewportMin,
+                _viewportMax,
+                _isViewportToolbarPinned,
+                _isViewportToolbarInteracting
+            ) ||
+            ImGuizmo::IsOver() || ImGuizmo::IsUsing();
+        EDITOR->Set_SceneViewportInputState(_isViewportHovered, overlayBlocked);
     }
     else
     {
+        EDITOR->Set_SceneViewportInputState(false, false);
         Set_Open(isOpen);
     }
 
@@ -116,9 +254,150 @@ void Scene_View::Handle_GizmoShortcut()
     }
 
     if (ImGui::IsKeyPressed(ImGuiKey_Space, false))
+        _gizmoMode = _gizmoMode == ImGuizmo::LOCAL ? ImGuizmo::WORLD : ImGuizmo::LOCAL;
+}
+
+void Scene_View::Render_CameraAxisOverlay()
+{
+    const float viewportWidth = _viewportMax.x - _viewportMin.x;
+    const float viewportHeight = _viewportMax.y - _viewportMin.y;
+    if (viewportWidth <= 1.f || viewportHeight <= 1.f)
+        return;
+
+    const Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
+    if (activeCamera == nullptr)
+        return;
+
+    const Shared<TransformCom> cameraTransform = activeCamera->Get_Transform();
+    if (cameraTransform == nullptr)
+        return;
+
+    Vec3 cameraRight = cameraTransform->Get_WorldRight();
+    Vec3 cameraUp = cameraTransform->Get_WorldUp();
+    if (cameraRight.LengthSquared() <= 0.0001f || cameraUp.LengthSquared() <= 0.0001f)
+        return;
+
+    cameraRight.Normalize();
+    cameraUp.Normalize();
+
+    const ImVec2 origin = ImVec2(_viewportMin.x + 34.f, _viewportMax.y - 36.f);
+    const float axisLength = 28.f;
+
+    struct AxisDrawDesc
     {
-        _gizmoMode = (_gizmoMode == ImGuizmo::LOCAL) ? ImGuizmo::WORLD : ImGuizmo::LOCAL;
+        Vec3 worldAxis;
+        ImU32 color;
+        const char* label;
+    };
+
+    const AxisDrawDesc axes[] = {
+        { Vec3::Right, IM_COL32(235, 72, 72, 255), "X" },
+        { Vec3::Up, IM_COL32(72, 220, 96, 255), "Y" },
+        { Vec3::Look, IM_COL32(78, 132, 245, 255), "Z" }
+    };
+
+    ImDrawList* drawList = ImGui::GetWindowDrawList();
+    drawList->AddCircleFilled(origin, 3.f, IM_COL32(220, 220, 220, 230));
+
+    for (const AxisDrawDesc& axis : axes)
+    {
+        ImVec2 screenDir = ImVec2(
+            axis.worldAxis.Dot(cameraRight),
+            -axis.worldAxis.Dot(cameraUp)
+        );
+
+        const float lengthSq = screenDir.x * screenDir.x + screenDir.y * screenDir.y;
+        if (lengthSq <= 0.0001f)
+            continue;
+
+        const float invLength = 1.f / sqrtf(lengthSq);
+        screenDir.x *= invLength;
+        screenDir.y *= invLength;
+
+        const ImVec2 axisEnd = ImVec2(
+            origin.x + screenDir.x * axisLength,
+            origin.y + screenDir.y * axisLength
+        );
+
+        drawList->AddLine(origin, axisEnd, axis.color, 2.f);
+        drawList->AddCircleFilled(axisEnd, 3.f, axis.color);
+        drawList->AddText(ImVec2(axisEnd.x + 4.f, axisEnd.y - 6.f), axis.color, axis.label);
     }
+}
+
+void Scene_View::Render_ViewportToolbarOverlay()
+{
+    const float viewportWidth = _viewportMax.x - _viewportMin.x;
+    const float viewportHeight = _viewportMax.y - _viewportMin.y;
+    if (viewportWidth <= 1.f || viewportHeight <= 1.f)
+        return;
+
+    const bool showToolbar =
+        Internal::Should_ShowToolbarOverlay(
+            _viewportMin,
+            _viewportMax,
+            _isViewportToolbarPinned,
+            _isViewportToolbarInteracting
+        );
+    _isViewportToolbarInteracting = false;
+
+    ImDrawList* drawList = ImGui::GetWindowDrawList();
+    if (!showToolbar)
+    {
+        const Internal::OverlayRect handleRect = Internal::Compute_ToolbarHandleRect(_viewportMin, _viewportMax);
+
+        drawList->AddRectFilled(handleRect.min, handleRect.max, IM_COL32(36, 38, 42, 220), 6.f);
+        drawList->AddRect(handleRect.min, handleRect.max, IM_COL32(92, 96, 104, 255), 6.f);
+
+        ImGui::SetCursorScreenPos(ImVec2(handleRect.min.x + 4.f, handleRect.min.y + 3.f));
+        ImGui::PushID("ViewportToolbarHandle");
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4.f, 3.f));
+        ImGui::Button(ICON_FA_SQUARE_CARET_LEFT, ImVec2(26.f, 24.f));
+        _isViewportToolbarInteracting = ImGui::IsItemActive();
+        ImGui::PopStyleVar();
+        ImGui::PopID();
+        return;
+    }
+
+    const Internal::OverlayRect pinRect = Internal::Compute_ToolbarPinRect(_viewportMin, _viewportMax);
+
+    drawList->AddRectFilled(pinRect.min, pinRect.max, IM_COL32(36, 38, 42, 220), 6.f);
+    drawList->AddRect(pinRect.min, pinRect.max, IM_COL32(92, 96, 104, 255), 6.f);
+
+    ImGui::SetCursorScreenPos(ImVec2(pinRect.min.x + 4.f, pinRect.min.y + 3.f));
+    ImGui::PushID("ViewportToolbarPin");
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4.f, 3.f));
+
+    const bool wasToolbarPinned = _isViewportToolbarPinned;
+    if (wasToolbarPinned)
+    {
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.79f, 0.56f, 0.18f, 1.f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.88f, 0.64f, 0.23f, 1.f));
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.09f, 0.09f, 0.09f, 1.f));
+    }
+
+    if (ImGui::Button(ICON_FA_THUMBTACK, ImVec2(26.f, 24.f)))
+        _isViewportToolbarPinned = !_isViewportToolbarPinned;
+    _isViewportToolbarInteracting = _isViewportToolbarInteracting || ImGui::IsItemActive();
+
+    if (wasToolbarPinned)
+        ImGui::PopStyleColor(3);
+
+    ImGui::PopStyleVar();
+    ImGui::PopID();
+
+    Render_GizmoOverlay();
+    _isViewportToolbarInteracting =
+        _isViewportToolbarInteracting ||
+        ImGui::IsAnyItemActive() ||
+        Internal::Should_OpenToolbarOverlay(_viewportMin, _viewportMax) ||
+        Internal::Should_KeepToolbarOverlay(_viewportMin, _viewportMax);
+    Render_PreviewViewportOverlay();
+    _isViewportToolbarInteracting =
+        _isViewportToolbarInteracting ||
+        ImGui::IsAnyItemActive() ||
+        Internal::Should_OpenToolbarOverlay(_viewportMin, _viewportMax) ||
+        Internal::Should_KeepToolbarOverlay(_viewportMin, _viewportMax);
 }
 
 void Scene_View::Render_GizmoOverlay()
@@ -130,24 +409,64 @@ void Scene_View::Render_GizmoOverlay()
 
     ImDrawList* drawList = ImGui::GetWindowDrawList();
 
-    const ImVec2 panelSize = ImVec2(232.f, 34.f);
-    const ImVec2 panelMin = ImVec2(_viewportMax.x - panelSize.x - 16.f, _viewportMin.y + 16.f);
-    const ImVec2 panelMax = ImVec2(panelMin.x + panelSize.x, panelMin.y + panelSize.y);
+    const Internal::OverlayRect panelRect = Internal::Compute_GizmoOverlayRect(_viewportMin, _viewportMax);
 
-    drawList->AddRectFilled(panelMin, panelMax, IM_COL32(36, 38, 42, 220), 6.f);
-    drawList->AddRect(panelMin, panelMax, IM_COL32(92, 96, 104, 255), 6.f);
+    drawList->AddRectFilled(panelRect.min, panelRect.max, IM_COL32(36, 38, 42, 220), 6.f);
+    drawList->AddRect(panelRect.min, panelRect.max, IM_COL32(92, 96, 104, 255), 6.f);
 
-    ImGui::SetCursorScreenPos(ImVec2(panelMin.x + 8.f, panelMin.y + 5.f));
+    ImGui::SetCursorScreenPos(ImVec2(panelRect.min.x + 8.f, panelRect.min.y + 5.f));
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(5.f, 3.f));
 
     const ImVec4 activeButtonColor = ImVec4(0.79f, 0.56f, 0.18f, 1.f);
     const ImVec4 activeHoveredColor = ImVec4(0.88f, 0.64f, 0.23f, 1.f);
     const ImVec4 activeTextColor = ImVec4(0.09f, 0.09f, 0.09f, 1.f);
-    const bool isTranslate = (_gizmoOperation == ImGuizmo::TRANSLATE);
-    const bool isRotate = (_gizmoOperation == ImGuizmo::ROTATE);
-    const bool isScale = (_gizmoOperation == ImGuizmo::SCALE);
-    const bool isLocal = (_gizmoMode == ImGuizmo::LOCAL);
-    const bool isWorld = (_gizmoMode == ImGuizmo::WORLD);
+    const bool isTranslate = _gizmoOperation == ImGuizmo::TRANSLATE;
+    const bool isRotate = _gizmoOperation == ImGuizmo::ROTATE;
+    const bool isScale = _gizmoOperation == ImGuizmo::SCALE;
+    const bool isLocal = _gizmoMode == ImGuizmo::LOCAL;
+    const bool isWorld = _gizmoMode == ImGuizmo::WORLD;
+
+    const Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
+    const bool isFreeCamera =
+        activeCamera && activeCamera->Get_ObjectType() == ObjectType::FreeCamera;
+
+    if (!isFreeCamera)
+        ImGui::BeginDisabled();
+
+    ImGui::TextUnformatted("Speed");
+    ImGui::SameLine();
+
+    if (isFreeCamera)
+    {
+        const Shared<TransformCom> transform = activeCamera->Get_Transform();
+        float speed = transform ? transform->Get_SpeedPerSec() : 0.f;
+
+        const ImGuiIO& io = ImGui::GetIO();
+        if (transform && (_isFocused || _isHovered) && io.KeyCtrl && io.MouseWheel != 0.f)
+        {
+            speed += io.MouseWheel > 0.f ? 2.f : -2.f;
+            speed = clamp(speed, 0.1f, 200.f);
+            transform->Set_SpeedPerSec(speed);
+        }
+
+        ImGui::SetNextItemWidth(78.f);
+        if (ImGui::DragFloat("##FreeCameraSpeed", &speed, 0.1f, 0.1f, 200.f, "%.2f"))
+        {
+            if (transform)
+                transform->Set_SpeedPerSec(speed);
+        }
+    }
+    else
+    {
+        ImGui::SetNextItemWidth(78.f);
+        float dummySpeed = 0.f;
+        ImGui::DragFloat("##FreeCameraSpeed", &dummySpeed, 0.f, 0.f, 0.f, "N/A");
+    }
+
+    if (!isFreeCamera)
+        ImGui::EndDisabled();
+
+    ImGui::SameLine(0.f, 10.f);
 
     if (isTranslate)
     {
@@ -218,38 +537,65 @@ void Scene_View::Render_PreviewViewportOverlay()
     if (viewportWidth <= 1.f || viewportHeight <= 1.f)
         return;
 
-    if (_pendingPreviewViewportWidth <= 0 || _pendingPreviewViewportHeight <= 0)
+    const PreviewViewportMode previewMode = EDITOR->Get_PreviewViewportMode();
+    const bool isAutoMode = previewMode == PreviewViewportMode::Auto;
+    const bool isManualMode = previewMode == PreviewViewportMode::Manual;
+
+    if (!isManualMode || _pendingPreviewViewportWidth <= 0 || _pendingPreviewViewportHeight <= 0)
         Sync_PreviewViewportInput();
 
     ImDrawList* drawList = ImGui::GetWindowDrawList();
 
-    const ImVec2 panelSize = ImVec2(252.f, 34.f);
-    const ImVec2 panelMin = ImVec2(_viewportMax.x - panelSize.x - 16.f, _viewportMin.y + 58.f);
-    const ImVec2 panelMax = ImVec2(panelMin.x + panelSize.x, panelMin.y + panelSize.y);
+    const Internal::OverlayRect panelRect = Internal::Compute_PreviewViewportOverlayRect(_viewportMin, _viewportMax);
 
-    drawList->AddRectFilled(panelMin, panelMax, IM_COL32(36, 38, 42, 220), 6.f);
-    drawList->AddRect(panelMin, panelMax, IM_COL32(92, 96, 104, 255), 6.f);
+    drawList->AddRectFilled(panelRect.min, panelRect.max, IM_COL32(36, 38, 42, 220), 6.f);
+    drawList->AddRect(panelRect.min, panelRect.max, IM_COL32(92, 96, 104, 255), 6.f);
 
-    ImGui::SetCursorScreenPos(ImVec2(panelMin.x + 8.f, panelMin.y + 5.f));
+    ImGui::SetCursorScreenPos(ImVec2(panelRect.min.x + 8.f, panelRect.min.y + 5.f));
     ImGui::PushID("PreviewViewportOverlay");
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(5.f, 3.f));
 
-    const bool isFitMode = !EDITOR->Is_ManualPreviewViewportEnabled();
-    if (isFitMode)
+    const ImVec4 activeButtonColor = ImVec4(0.79f, 0.56f, 0.18f, 1.f);
+    const ImVec4 activeHoveredColor = ImVec4(0.88f, 0.64f, 0.23f, 1.f);
+    const ImVec4 activeTextColor = ImVec4(0.09f, 0.09f, 0.09f, 1.f);
+    const auto drawModeButton = [&](const char* label, const ImVec2& size, bool active)
     {
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.79f, 0.56f, 0.18f, 1.f));
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.88f, 0.64f, 0.23f, 1.f));
-        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.09f, 0.09f, 0.09f, 1.f));
-    }
-    if (ImGui::Button("Fit", ImVec2(34.f, 22.f)))
+        if (active)
+        {
+            ImGui::PushStyleColor(ImGuiCol_Button, activeButtonColor);
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, activeHoveredColor);
+            ImGui::PushStyleColor(ImGuiCol_Text, activeTextColor);
+        }
+
+        const bool clicked = ImGui::Button(label, size);
+
+        if (active)
+            ImGui::PopStyleColor(3);
+
+        return clicked;
+    };
+
+    if (drawModeButton("Auto", ImVec2(42.f, 22.f), isAutoMode))
     {
-        EDITOR->Enable_FitPreviewViewport();
+        EDITOR->Enable_AutoPreviewViewport();
+        EDITOR->Request_PreviewViewportSize(
+            static_cast<uint32>(max(1.f, _viewportSize.x * Internal::autoPreviewViewportScale)),
+            static_cast<uint32>(max(1.f, _viewportSize.y * Internal::autoPreviewViewportScale))
+        );
         Sync_PreviewViewportInput();
     }
-    if (isFitMode)
-        ImGui::PopStyleColor(3);
+
+    ImGui::SameLine();
+    if (drawModeButton("Manual", ImVec2(62.f, 22.f), isManualMode))
+    {
+        EDITOR->Enable_ManualPreviewViewport();
+        Sync_PreviewViewportInput();
+    }
 
     ImGui::SameLine(0.f, 8.f);
+    if (!isManualMode)
+        ImGui::BeginDisabled();
+
     ImGui::TextUnformatted("W");
     ImGui::SameLine(0.f, 4.f);
     ImGui::SetNextItemWidth(48.f);
@@ -275,6 +621,9 @@ void Scene_View::Render_PreviewViewportOverlay()
         EDITOR->Set_ManualPreviewViewportSize(width, height);
     }
 
+    if (!isManualMode)
+        ImGui::EndDisabled();
+
     ImGui::PopStyleVar();
     ImGui::PopID();
 }
@@ -298,17 +647,27 @@ void Scene_View::Render_ViewportCanvas()
     const ImVec2 canvasMax = ImVec2(canvasMin.x + _viewportSize.x, canvasMin.y + _viewportSize.y);
     ImDrawList* drawList = ImGui::GetWindowDrawList();
 
-    drawList->AddRectFilled(canvasMin, canvasMax, IM_COL32(18, 20, 24, 255));
-    drawList->AddRect(canvasMin, canvasMax, IM_COL32(55, 60, 70, 255));
-
-    ImGui::InvisibleButton("SceneViewportCanvas", _viewportSize);
-
     ID3D11ShaderResourceView* pSRV = EDITOR->Get_SharedViewportSRV();
     if (nullptr != pSRV)
     {
         const float aspect = EDITOR->Get_EffectiveViewportAspect();
         const Internal::ViewportImageRect imageRect =
             Internal::Compute_AspectFitRect(canvasMin, _viewportSize, aspect);
+
+        drawList->AddRectFilled(canvasMin, canvasMax, IM_COL32(18, 20, 24, 255));
+        drawList->AddRect(canvasMin, canvasMax, IM_COL32(55, 60, 70, 255));
+
+        if (Internal::Is_MouseOverViewportOverlay(
+            imageRect.imageMin,
+            imageRect.imageMax,
+            _isViewportToolbarPinned,
+            _isViewportToolbarInteracting
+        ))
+            ImGui::Dummy(_viewportSize);
+        else
+            ImGui::InvisibleButton("SceneViewportCanvas", _viewportSize);
+
+        _isViewportHovered = ImGui::IsItemHovered();
 
         const ImTextureID textureId =
             static_cast<ImTextureID>(reinterpret_cast<intptr_t>(pSRV));
@@ -319,41 +678,70 @@ void Scene_View::Render_ViewportCanvas()
     }
     else
     {
+        drawList->AddRectFilled(canvasMin, canvasMax, IM_COL32(18, 20, 24, 255));
+        drawList->AddRect(canvasMin, canvasMax, IM_COL32(55, 60, 70, 255));
+
+        if (Internal::Is_MouseOverViewportOverlay(
+            canvasMin,
+            canvasMax,
+            _isViewportToolbarPinned,
+            _isViewportToolbarInteracting
+        ))
+            ImGui::Dummy(_viewportSize);
+        else
+            ImGui::InvisibleButton("SceneViewportCanvas", _viewportSize);
+
+        _isViewportHovered = ImGui::IsItemHovered();
+
         drawList->AddText(ImVec2(canvasMin.x + 12.f, canvasMin.y + 12.f), IM_COL32(210, 216, 224, 255), "Scene RenderTarget Missing");
         _viewportMin = canvasMin;
         _viewportMax = canvasMax;
+    }
+
+    if (EDITOR->Get_PreviewViewportMode() == PreviewViewportMode::Auto)
+    {
+        EDITOR->Request_PreviewViewportSize(
+            static_cast<uint32>(max(1.f, _viewportSize.x * Internal::autoPreviewViewportScale)),
+            static_cast<uint32>(max(1.f, _viewportSize.y * Internal::autoPreviewViewportScale))
+        );
     }
 }
 
 void Scene_View::Handle_FocusRequest()
 {
-    Editor_Context* context = EDITOR->Get_Context();
+    Editor_Context* context = EDITOR->Get_EditorContext();
     if (context == nullptr)
         return;
 
-    Shared<GameObject> targetObject = context->Consume_FocusObjectRequest();
+    const Shared<GameObject> targetObject = context->Consume_FocusObjectRequest();
     if (targetObject == nullptr)
         return;
 
-    Shared<TransformCom> transform = targetObject->Get_Transform();
+    const Shared<TransformCom> transform = targetObject->Get_Transform();
     if (transform == nullptr)
         return;
 
-    const Vec3 focusTargetPosition = transform->Get_WorldPosition() + Vec3(0.f, 1.5f, -4.f);
-    GAME->Focus_FreeCameraOnPosition(focusTargetPosition);
+    EDITOR->Activate_PreviewCamera();
+
+    const Shared<EffectEditorCamera> previewCamera =
+        dynamic_pointer_cast<EffectEditorCamera>(GAME->Get_ActiveCamera());
+    if (previewCamera == nullptr)
+        return;
+
+    previewCamera->Request_Focus(transform->Get_WorldPosition());
 }
 
 void Scene_View::Render_SelectedObjectGizmo()
 {
-    Editor_Context* context = EDITOR->Get_Context();
+    const Editor_Context* context = EDITOR->Get_EditorContext();
     if (context == nullptr)
         return;
 
-    Shared<GameObject> selectedObject = context->Get_Selection().selectedObject;
+    const Shared<GameObject> selectedObject = context->Get_Selection().selectedObject;
     if (selectedObject == nullptr)
         return;
 
-    Shared<TransformCom> transform = selectedObject->Get_Transform();
+    const Shared<TransformCom> transform = selectedObject->Get_Transform();
     if (transform == nullptr)
         return;
 
@@ -377,7 +765,8 @@ void Scene_View::Render_SelectedObjectGizmo()
         reinterpret_cast<float*>(const_cast<Matrix*>(projMatrix)),
         _gizmoOperation,
         _gizmoMode,
-        reinterpret_cast<float*>(&worldMatrix));
+        reinterpret_cast<float*>(&worldMatrix)
+    );
 
     if (!manipulated)
         return;
@@ -398,3 +787,5 @@ Shared<Scene_View> Scene_View::Create()
 {
     return make_shared<Scene_View>();
 }
+
+NS_END

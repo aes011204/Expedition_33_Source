@@ -1,14 +1,18 @@
-#include "EffectEditor_Manager.h"
+﻿#include "EffectEditor_Manager.h"
 
 #include "Console_View.h"
 #include "Content_Browser.h"
+#include "CurveEditor_View.h"
+#include "Detail_View.h"
 #include "Editor_Window.h"
 #include "EffectEditorInstance.h"
+#include "Emitter_View.h"
 #include "GameInstance.h"
-#include "Game_View.h"
 #include "Hierarchy_View.h"
-#include "Inspector.h"
+#include "Profile_View.h"
 #include "Scene_View.h"
+
+NS_BEGIN(EffectEditor)
 
 EffectEditor_Manager::~EffectEditor_Manager()
 {
@@ -18,11 +22,20 @@ EffectEditor_Manager::~EffectEditor_Manager()
 HRESULT EffectEditor_Manager::Initialize()
 {
     Add_Window(Scene_View::Create());
-    Add_Window(Game_View::Create());
+
+    // Game View 필요 없어서 비활성화
+    //const Shared<Game_View> gameView = Game_View::Create();
+    //if (gameView)
+    //    gameView->Set_Open(false);
+    //Add_Window(gameView);
+
+    Add_Window(Emitter_View::Create());
     Add_Window(Hierarchy_View::Create());
     Add_Window(Content_Browser::Create());
-    Add_Window(Inspector::Create());
+    Add_Window(Detail_View::Create());
+    Add_Window(CurveEditor_View::Create());
     Add_Window(Console_View::Create());
+    Add_Window(Profile_View::Create());
 
     return S_OK;
 }
@@ -31,13 +44,13 @@ void EffectEditor_Manager::Update(float timeDelta)
 {
     Handle_Shortcuts();
 
-    for (auto& [_, window] : _windows)
+    for (const auto& window : _windows | views::values)
     {
         if (window && window->Is_Open())
             window->Update(timeDelta);
     }
 
-    for (auto& [_, window] : _windows)
+    for (const auto& window : _windows | views::values)
     {
         if (window && window->Is_Open())
             window->Pre_Render();
@@ -48,7 +61,7 @@ void EffectEditor_Manager::Render()
 {
     Render_DockSpace();
 
-    for (auto& [_, window] : _windows)
+    for (const auto& window : _windows | views::values)
     {
         if (window != nullptr)
             window->Render();
@@ -70,42 +83,6 @@ Shared<Editor_Window> EffectEditor_Manager::Find_Window(const wstring& windowNam
         return nullptr;
 
     return iter->second;
-}
-
-void EffectEditor_Manager::Render_DockSpace()
-{
-    ImGuiViewport* viewport = ImGui::GetMainViewport();
-    if (nullptr == viewport)
-        return;
-
-    Render_MainMenuBar();
-
-    const float menuBarHeight = ImGui::GetFrameHeight();
-    constexpr float toolbarHeight = 34.f;
-
-    ImGui::SetNextWindowPos(ImVec2(viewport->Pos.x, viewport->Pos.y + menuBarHeight));
-    ImGui::SetNextWindowSize(ImVec2(viewport->Size.x, viewport->Size.y - menuBarHeight));
-    ImGui::SetNextWindowViewport(viewport->ID);
-
-    ImGuiWindowFlags windowFlags = ImGuiWindowFlags_NoDocking;
-    windowFlags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
-    windowFlags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
-
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.f);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.f, 0.f));
-
-    bool isOpen = true;
-    ImGui::Begin("EffectEditorDockSpaceHost", &isOpen, windowFlags);
-    ImGui::PopStyleVar(3);
-
-    Render_RuntimeToolbar();
-
-    ImGui::SetCursorPosY(toolbarHeight);
-    const ImGuiID dockSpaceId = ImGui::GetID("EffectEditorDockSpaceId");
-    ImGui::DockSpace(dockSpaceId, ImVec2(0.f, 0.f), ImGuiDockNodeFlags_PassthruCentralNode);
-
-    ImGui::End();
 }
 
 void EffectEditor_Manager::Render_MainMenuBar()
@@ -219,9 +196,86 @@ void EffectEditor_Manager::Render_RuntimeToolbar()
     Render_ExitButton(toolbarHeight);
 }
 
+void EffectEditor_Manager::Render_DockSpace()
+{
+    const ImGuiViewport* viewport = ImGui::GetMainViewport();
+    if (nullptr == viewport)
+        return;
+
+    Render_MainMenuBar();
+
+    const float menuBarHeight = ImGui::GetFrameHeight();
+    constexpr float toolbarHeight = 34.f;
+
+    ImGui::SetNextWindowPos(ImVec2(viewport->Pos.x, viewport->Pos.y + menuBarHeight));
+    ImGui::SetNextWindowSize(ImVec2(viewport->Size.x, viewport->Size.y - menuBarHeight));
+    ImGui::SetNextWindowViewport(viewport->ID);
+
+    ImGuiWindowFlags windowFlags = ImGuiWindowFlags_NoDocking;
+    windowFlags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
+    windowFlags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
+
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.f, 0.f));
+
+    bool isOpen = true;
+    ImGui::Begin("EffectEditorDockSpaceHost", &isOpen, windowFlags);
+    ImGui::PopStyleVar(3);
+
+    Render_RuntimeToolbar();
+
+    ImGui::SetCursorPosY(toolbarHeight);
+    ImVec2 dockSpaceSize = ImGui::GetContentRegionAvail();
+    dockSpaceSize.x = max(1.f, dockSpaceSize.x);
+    dockSpaceSize.y = max(1.f, dockSpaceSize.y);
+
+    const ImGuiID dockSpaceId = ImGui::GetID("EffectEditorDockSpaceId");
+    Build_DefaultDockLayout(dockSpaceId, dockSpaceSize);
+    ImGui::DockSpace(dockSpaceId, ImVec2(0.f, 0.f), ImGuiDockNodeFlags_PassthruCentralNode);
+
+    ImGui::End();
+}
+
+void EffectEditor_Manager::Build_DefaultDockLayout(ImGuiID dockSpaceId, ImVec2 dockSpaceSize)
+{
+    if (_defaultDockLayoutBuilt)
+        return;
+
+    _defaultDockLayoutBuilt = true;
+
+    if (nullptr != ImGui::DockBuilderGetNode(dockSpaceId))
+        return;
+
+    ImGui::DockBuilderRemoveNode(dockSpaceId);
+    ImGui::DockBuilderAddNode(dockSpaceId, ImGuiDockNodeFlags_DockSpace);
+    ImGui::DockBuilderSetNodeSize(dockSpaceId, dockSpaceSize);
+
+    ImGuiID rightDockId = dockSpaceId;
+    const ImGuiID leftDockId = ImGui::DockBuilderSplitNode(rightDockId, ImGuiDir_Left, 0.30f, nullptr, &rightDockId);
+
+    ImGuiID sceneDockId = leftDockId;
+    const ImGuiID detailDockId = ImGui::DockBuilderSplitNode(sceneDockId, ImGuiDir_Down, 0.60f, nullptr, &sceneDockId);
+
+    ImGuiID emitterDockId = rightDockId;
+    const ImGuiID consoleDockId = ImGui::DockBuilderSplitNode(emitterDockId, ImGuiDir_Down, 0.16f, nullptr, &emitterDockId);
+    const ImGuiID browserDockId = ImGui::DockBuilderSplitNode(emitterDockId, ImGuiDir_Down, 0.36f, nullptr, &emitterDockId);
+
+    ImGui::DockBuilderDockWindow("Scene", sceneDockId);
+    ImGui::DockBuilderDockWindow("Inspector", detailDockId);
+    ImGui::DockBuilderDockWindow("Hierarchy", detailDockId);
+    ImGui::DockBuilderDockWindow("Profile", detailDockId);
+    ImGui::DockBuilderDockWindow("Emitter", emitterDockId);
+    ImGui::DockBuilderDockWindow("Content Browser", browserDockId);
+    ImGui::DockBuilderDockWindow("Curve Editor", browserDockId);
+    ImGui::DockBuilderDockWindow("Console", consoleDockId);
+
+    ImGui::DockBuilderFinish(dockSpaceId);
+}
+
 void EffectEditor_Manager::Handle_Shortcuts()
 {
-    ImGuiIO& io = ImGui::GetIO();
+    const ImGuiIO& io = ImGui::GetIO();
     if (io.WantTextInput)
         return;
 
@@ -233,7 +287,7 @@ void EffectEditor_Manager::Handle_Shortcuts()
 
     if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_S, false))
     {
-        for (auto& [_, window] : _windows)
+        for (const auto& window : _windows | views::values)
         {
             if (window && window->Is_Open() && window->Is_Focused() && window->CanSave())
             {
@@ -284,7 +338,7 @@ void EffectEditor_Manager::Handle_Shortcuts()
     constexpr float timeScaleStep = 0.25f;
     if (io.KeyShift &&
         (ImGui::IsKeyPressed(ImGuiKey_Equal, false) ||
-            ImGui::IsKeyPressed(ImGuiKey_KeypadAdd, false)))
+         ImGui::IsKeyPressed(ImGuiKey_KeypadAdd, false)))
     {
         const float nextTimeScale = EDITOR->Get_RuntimeTimeScale() + timeScaleStep;
         EDITOR->Set_RuntimeTimeScale(nextTimeScale);
@@ -293,7 +347,7 @@ void EffectEditor_Manager::Handle_Shortcuts()
 
     if (io.KeyShift &&
         (ImGui::IsKeyPressed(ImGuiKey_Minus, false) ||
-            ImGui::IsKeyPressed(ImGuiKey_KeypadSubtract, false)))
+         ImGui::IsKeyPressed(ImGuiKey_KeypadSubtract, false)))
     {
         const float nextTimeScale = EDITOR->Get_RuntimeTimeScale() - timeScaleStep;
         EDITOR->Set_RuntimeTimeScale(nextTimeScale);
@@ -315,7 +369,7 @@ void EffectEditor_Manager::Render_ShortcutHelp()
             ImGui::TableSetupColumn("Key", ImGuiTableColumnFlags_WidthFixed, 110.f);
             ImGui::TableSetupColumn("Description", ImGuiTableColumnFlags_WidthStretch);
 
-            auto drawShortcutRow = [](const char* key, const char* description)
+            auto draw_shortcut_row = [](const char* key, const char* description)
             {
                 ImGui::TableNextRow();
                 ImGui::TableSetColumnIndex(0);
@@ -324,15 +378,18 @@ void EffectEditor_Manager::Render_ShortcutHelp()
                 ImGui::Text(": %s", description);
             };
 
-            drawShortcutRow("F5", "Play / Resume");
-            drawShortcutRow("Esc", "Stop");
-            drawShortcutRow("F8", "Camera Switch");
-            drawShortcutRow("F9", "Pause");
-            drawShortcutRow("Shift +", "Time Scale Up");
-            drawShortcutRow("Shift -", "Time Scale Down");
-            drawShortcutRow("Ctrl + Space", "Console + Content Browser");
-            drawShortcutRow("Double Click", "Focus Selected Object");
-            drawShortcutRow("W E R", "Gizmo Mode");
+            draw_shortcut_row("F1", "Collision Debug Render");
+            draw_shortcut_row("F5", "Play / Resume");
+            draw_shortcut_row("Esc", "Stop");
+            draw_shortcut_row("F8", "Camera Switch");
+            draw_shortcut_row("F9", "Pause + Free Camera");
+            draw_shortcut_row("Ctrl + Wheel", "Free Camera Speed");
+            draw_shortcut_row("Shift +", "Time Scale Up");
+            draw_shortcut_row("Shift -", "Time Scale Down");
+            draw_shortcut_row("Alt + Enter", "Fullscreen Toggle");
+            draw_shortcut_row("Ctrl + Space", "Console + Content Browser");
+            draw_shortcut_row("Double Click", "Focus Selected Object");
+            draw_shortcut_row("W E R", "Gizmo Mode");
 
             ImGui::EndTable();
         }
@@ -343,7 +400,7 @@ void EffectEditor_Manager::Render_ShortcutHelp()
 
 void EffectEditor_Manager::Toggle_Window(const wstring& windowName)
 {
-    Shared<Editor_Window> window = Find_Window(windowName);
+    const Shared<Editor_Window> window = Find_Window(windowName);
     if (nullptr == window)
         return;
 
@@ -352,8 +409,8 @@ void EffectEditor_Manager::Toggle_Window(const wstring& windowName)
 
 void EffectEditor_Manager::Toggle_WindowPair(const wstring& firstWindowName, const wstring& secondWindowName)
 {
-    Shared<Editor_Window> firstWindow = Find_Window(firstWindowName);
-    Shared<Editor_Window> secondWindow = Find_Window(secondWindowName);
+    const Shared<Editor_Window> firstWindow = Find_Window(firstWindowName);
+    const Shared<Editor_Window> secondWindow = Find_Window(secondWindowName);
 
     if (nullptr == firstWindow || nullptr == secondWindow)
         return;
@@ -369,7 +426,7 @@ void EffectEditor_Manager::Render_ExitButton(float toolbarHeight)
     const float buttonWidth = 60.f;
     const float rightPadding = 12.f;
 
-    float cursorX = ImGui::GetWindowWidth() - buttonWidth - rightPadding;
+    const float cursorX = ImGui::GetWindowWidth() - buttonWidth - rightPadding;
     if (cursorX > ImGui::GetCursorPosX())
         ImGui::SetCursorPosX(cursorX);
 
@@ -388,7 +445,8 @@ void EffectEditor_Manager::Render_ExitButton(float toolbarHeight)
     drawList->AddLine(
         ImVec2(lineStart.x, lineStart.y + 4.f),
         ImVec2(lineStart.x + ImGui::GetWindowWidth(), lineStart.y + 4.f),
-        IM_COL32(55, 55, 55, 255));
+        IM_COL32(55, 55, 55, 255)
+    );
 
     ImGui::SetCursorPosY(toolbarHeight);
 }
@@ -415,3 +473,5 @@ Unique<EffectEditor_Manager> EffectEditor_Manager::Create()
 void EffectEditor_Manager::Free()
 {
 }
+
+NS_END

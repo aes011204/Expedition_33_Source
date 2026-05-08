@@ -49,6 +49,9 @@ HRESULT MainEditorApp::Initialize()
     if (FAILED(Ready_Prototype_For_Static_Level()))
         return E_FAIL;
 
+    if (FAILED(CLIENT->Ready_StaticObjects()))
+        return E_FAIL;
+
     if (FAILED(Ready_StartLevel(LevelType::Logo)))
         return E_FAIL;
 
@@ -215,15 +218,12 @@ void MainEditorApp::Free()
 {
     __super::Free();
 
-    EDITOR->Release_Editor();
     EditorInstance::DestroyInstance();
 
-    CLIENT->Release_Client();
     ClientInstance::DestroyInstance();
 
     _context.Reset();
     _device.Reset();
 
-    GAME->Release_Engine();
     GameInstance::DestroyInstance();
 }

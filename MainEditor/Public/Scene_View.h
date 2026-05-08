@@ -13,11 +13,14 @@ public:
 
 public:
     virtual void Update(float timeDelta) override;
+    virtual void Pre_Render() override;
     virtual void Render() override;
 
 private:
     void Handle_GizmoShortcut();
     void Render_GizmoOverlay();
+    void Render_PreviewViewportOverlay();
+    void Sync_PreviewViewportInput();
 
     /* MRT 디버그 렌더 */
     void Render_MRTDebugPopup();
@@ -27,9 +30,16 @@ private:
     void Handle_FocusRequest();
     void Render_SelectedObjectGizmo();
 
+private: /* Prefab Preview */ 
+    void Set_DragPreviewObject(const string& prefabName);
+    void Clear_DragPreviewObject();
+    void Tick_DragPreview(float timeDelta);
+
 private:
     /* 마지막으로 표시된 씬 뷰포트 크기. */
     ImVec2 _viewportSize = {};
+    ImVec2 _viewportCanvasMin = {};
+    ImVec2 _viewportCanvasMax = {};
     ImVec2 _viewportMin = {};
     ImVec2 _viewportMax = {};
 
@@ -40,6 +50,18 @@ private:
     ImVec2 _mrtDebugDrawArea = ImVec2(0.f, 0.f);
     /* DrawArea 기본값을 씬 뷰 크기로 한 번만 동기화했는지 여부. */
     bool _mrtDebugInitialized = false;
+
+    int _pendingPreviewViewportWidth = 0;
+    int _pendingPreviewViewportHeight = 0;
+
+private: /* Prefab Preview */
+    Shared<GameObject>  _dragPreviewObject;
+    string              _dragPreviewPrefabName{};
+    POINT               _dragPreviewPixelPos{};
+
+    bool                _dragPreviewRequestPending = false;
+    bool                _dragPreviewHasWorldPos = false;
+    Vec3                _dragPreviewWorldPos = Vec3::Zero;
 
 public:
     static Shared<Scene_View> Create();

@@ -7,7 +7,7 @@
 
 NS_BEGIN(EffectEditor)
 
-class Notification_Manager : public Base
+class Notification_Manager final : public Base
 {
 public:
     Notification_Manager();
@@ -45,10 +45,10 @@ public:
     }
 
 private:
-    void Add_Internal(const string& message, NotifyType type = NotifyType::Info);
+    list<FNotification> _notifications;
 
 private:
-    list<FNotification> _notifications;
+    void Add_Internal(const string& message, NotifyType type = NotifyType::Info);
 
 public:
     static Unique<Notification_Manager> Create();

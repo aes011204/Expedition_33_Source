@@ -11,17 +11,17 @@
 #include <fstream>
 #include <shellapi.h>
 
+#include "Animation_View.h"
+
 namespace fs = std::filesystem;
 
-namespace
-{
-string ToLowerCopy(string value)
+static string ToLowerCopy(string value)
 {
     transform(value.begin(), value.end(), value.begin(), ::tolower);
     return value;
 }
 
-ImTextureID ToImTextureId(const Shared<Texture>& texture)
+static ImTextureID ToImTextureId(const Shared<Texture>& texture)
 {
     if (texture == nullptr)
         return static_cast<ImTextureID>(0);
@@ -32,6 +32,72 @@ ImTextureID ToImTextureId(const Shared<Texture>& texture)
 
     return static_cast<ImTextureID>(reinterpret_cast<intptr_t>(srvs[0].Get()));
 }
+
+static fs::path Resolve_ModelPath_FromAnimation(const fs::path& animPath)
+{
+    const auto findModelInDirectory = [](const fs::path& directory, const string& preferredStem) -> fs::path
+    {
+        if (directory.empty() || !fs::exists(directory))
+            return {};
+
+        fs::path firstModelPath{};
+
+        for (const auto& entry : fs::directory_iterator(directory))
+        {
+            if (!entry.is_regular_file() || entry.path().extension() != ".model")
+                continue;
+
+            if (entry.path().stem().string() == preferredStem)
+                return entry.path();
+
+            if (firstModelPath.empty())
+                firstModelPath = entry.path();
+        }
+
+        return firstModelPath;
+    };
+
+    const fs::path sameDirectory = animPath.parent_path();
+    if (fs::path modelPath = findModelInDirectory(sameDirectory, animPath.stem().string()); !modelPath.empty())
+        return modelPath;
+
+    const fs::path parentDirectory = sameDirectory.parent_path();
+    if (fs::path modelPath = findModelInDirectory(parentDirectory, parentDirectory.filename().string()); !modelPath.empty())
+        return modelPath;
+
+    return {};
+}
+
+static void Open_AnimationViewFromAssetPath(const fs::path& path, uint32 preferredDockId = 0)
+{
+    Shared<Editor_Window> viewBase = EDITOR->Get_Window(L"Animation");
+    Shared<Animation_View> animationView = dynamic_pointer_cast<Animation_View>(viewBase);
+    if (animationView == nullptr)
+        return;
+
+    fs::path modelPath = path;
+    string preferredAnimationName{};
+
+    if (path.extension() == L".anim")
+    {
+        preferredAnimationName = path.stem().string();
+        modelPath = Resolve_ModelPath_FromAnimation(path);
+    }
+
+    if (modelPath.empty())
+    {
+        NOTIFY("Animation View: model asset not found");
+        return;
+    }
+
+    const string modelGuid = GAME->Ensure_AssetGUID(modelPath.wstring(), "Model");
+    if (modelGuid.empty())
+    {
+        NOTIFY("Animation View: model GUID not found");
+        return;
+    }
+
+    animationView->Open_FromAsset(modelPath.wstring(), modelGuid, preferredAnimationName, preferredDockId);
 }
 
 Content_Browser::Content_Browser()
@@ -506,6 +572,10 @@ void Content_Browser::Draw_AssetView()
                     prefabView->Open_Prefab(prefabName, path);
                 }
             }
+            else if (path.extension() == L".model" || path.extension() == L".anim")
+            {
+                Open_AnimationViewFromAssetPath(path);
+            }
         }
 
         Draw_FileContextMenu(fileEntry.filePath, "FileItemContext");
@@ -766,7 +836,7 @@ void Content_Browser::Draw_FileContextMenu(const wstring& filePath, const string
 
     if (path.extension() == L".json" && fileName.ends_with(suffix))
     {
-        if (ImGui::MenuItem("Open Prefab"))
+        if (ImGui::MenuItem("프리펩 열기"))
         {
             Shared<Editor_Window> prefabWindowBase = EDITOR->Get_Window(L"Prefab");
             Shared<Prefab_View> prefabView = dynamic_pointer_cast<Prefab_View>(prefabWindowBase);
@@ -778,6 +848,14 @@ void Content_Browser::Draw_FileContextMenu(const wstring& filePath, const string
             }
         }
     }
+
+    // 애니메이션 열기
+    if (path.extension() == L".model" || path.extension() == L".anim")
+    {
+        if (ImGui::MenuItem("애니메이션 열기"))
+            Open_AnimationViewFromAssetPath(path);
+    }
+
 
     if (ImGui::MenuItem("탐색기에서 열기"))
     {

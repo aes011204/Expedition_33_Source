@@ -1,7 +1,6 @@
 ﻿#include "Loader.h"
 #include "GameInstance.h"
 #include "ResourceLoader.h"
-
 #include "BackGround.h"
 #include "Terrain.h"
 #include "FreeCamera.h"
@@ -48,13 +47,13 @@ HRESULT Loader::Initialize(LevelType eNextLevelID)
 
 HRESULT Loader::Loading()
 {
-	
+    // 로딩 시작 시간
+    const auto start = std::chrono::steady_clock::now();
+
 	HRESULT		hr = {};
 
 	EnterCriticalSection(&_criticalSection);
-
 	CoInitializeEx(nullptr, COINIT_MULTITHREADED);
-
 
 	switch (_nextLevel)
 	{
@@ -71,8 +70,15 @@ HRESULT Loader::Loading()
 	}
 
 	CoUninitialize();
-	
 	LeaveCriticalSection(&_criticalSection);
+
+    // 로딩 끝난 시간
+    const auto end = std::chrono::steady_clock::now();
+    const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+
+    const auto levelName = magic_enum::enum_name(_nextLevel);
+
+    LOG_ERROR("[Loader::Loading] 레벨 : {}, 로딩 시간 : {}", levelName, Format_Duration(elapsed));
 
 	return hr;
 }
@@ -128,6 +134,55 @@ HRESULT Loader::Loading_For_GamePlayLevel()
 	_isFinished = true;
 
 	return S_OK;
+}
+
+string Loader::Format_Duration(chrono::milliseconds duration)
+{
+    using namespace std::chrono;
+
+        const auto totalMs = duration.count();
+
+        const auto hours = totalMs / (1000 * 60 * 60);
+        const auto minutes = (totalMs / (1000 * 60)) % 60;
+        const auto seconds = (totalMs / 1000) % 60;
+        const auto millisecondsPart = totalMs % 1000;
+
+        std::ostringstream oss;
+
+        if (hours > 0)
+        {
+            oss << hours << (hours == 1 ? " hour" : " hours");
+
+            if (minutes > 0)
+                oss << ' ' << minutes << (minutes == 1 ? " minute" : " minutes");
+
+            if (seconds > 0)
+                oss << ' ' << seconds << (seconds == 1 ? " second" : " seconds");
+
+            return oss.str();
+        }
+
+        if (minutes > 0)
+        {
+            oss << minutes << (minutes == 1 ? " minute" : " minutes");
+
+            if (seconds > 0)
+                oss << ' ' << seconds << (seconds == 1 ? " second" : " seconds");
+
+            return oss.str();
+        }
+
+        if (seconds > 0)
+        {
+            const double secondsWithFraction = static_cast<double>(totalMs) / 1000.0;
+            oss.setf(std::ios_base::fixed);
+            oss.precision(secondsWithFraction < 10.0 ? 1 : 0);
+            oss << secondsWithFraction << (secondsWithFraction < 2.0 ? " second" : " seconds");
+            return oss.str();
+        }
+
+        oss << totalMs << (totalMs == 1 ? " millisecond" : " milliseconds");
+        return oss.str();
 }
 
 Shared<Loader> Loader::Create(const ComPtr<Device>& device, const ComPtr<Context>& context, LevelType eNextLevelID)

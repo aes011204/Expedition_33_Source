@@ -1,18 +1,50 @@
 ﻿#include "Content_Browser.h"
 
-Content_Browser::Content_Browser()
-    : Editor_Window{ L"Content Browser" }
-    , _resourceRoot{ fs::path{ ".." } / "Bin" / "Resources" }
+#include <fstream>
+#include <shellapi.h>
+#include "EffectEditorInstance.h"
+#include "GameInstance.h"
+#include "Helper_String.h"
+#include "Texture.h"
+
+NS_BEGIN(EffectEditor)
+
+namespace Internal
 {
+    static string ToLowerCopy(string value)
+    {
+        ranges::transform(value, value.begin(), ::tolower);
+        return value;
+    }
+
+    static ImTextureID ToImTextureId(const Shared<Texture>& texture)
+    {
+        if (texture == nullptr)
+            return static_cast<ImTextureID>(0);
+
+        const auto& srvs = texture->Get_SRVs();
+        if (srvs.empty() || srvs[0] == nullptr)
+            return static_cast<ImTextureID>(0);
+
+        return static_cast<ImTextureID>(reinterpret_cast<intptr_t>(srvs[0].Get()));
+    }
 }
 
-Content_Browser::~Content_Browser()
+Content_Browser::Content_Browser()
+    : Editor_Window{ L"Content Browser", ICON_FA_FOLDER_OPEN }
 {
-    Free();
+    const wstring assetRoot = GAME->Get_AssetRoot();
+    if (!assetRoot.empty())
+        _resourceRoot = fs::path(assetRoot);
+
+    Load_Icons();
+    Refresh_Resources();
+    Load_Settings();
 }
 
 void Content_Browser::Update(float timeDelta)
 {
+    Editor_Window::Update(timeDelta);
 }
 
 void Content_Browser::Render()
@@ -21,42 +53,745 @@ void Content_Browser::Render()
         return;
 
     bool isOpen = Is_Open();
+    const string& windowName = Get_ImGuiWindowName();
 
-    const string windowName = String::ToString(Get_WindowName());
     if (ImGui::Begin(windowName.c_str(), &isOpen))
     {
-        ImGui::TextUnformatted(_resourceRoot.string().c_str());
-        ImGui::Separator();
-        Render_Directory(_resourceRoot);
+        _isFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
+        _isHovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_RootAndChildWindows);
+
+        if (!_isFocused)
+            _selectedFilePath.clear();
+
+        if (_resourceRoot.empty())
+        {
+            const wstring assetRoot = GAME->Get_AssetRoot();
+            if (!assetRoot.empty())
+                _resourceRoot = fs::path(assetRoot);
+        }
+
+        if (_rootFolder.fullPath.empty() && !_resourceRoot.empty() && fs::exists(_resourceRoot))
+            Refresh_Resources();
+
+        Handle_SideButtonEvent();
+        Handle_ThumbnailZoom();
+
+        ImGui::BeginChild("FolderTree", ImVec2(_leftPanelWidth, 0.f), true);
+        {
+            if (ImGui::InputTextWithHint("##Search", "Search folders...", _searchBuffer, IM_ARRAYSIZE(_searchBuffer)))
+            {
+                if (strlen(_searchBuffer) > 0)
+                {
+                    const string searchLower = Internal::ToLowerCopy(_searchBuffer);
+
+                    FFolderNode* firstMatch = Get_FirstMatchingFolder(_rootFolder, searchLower);
+                    if (firstMatch && _currentFolder != firstMatch)
+                    {
+                        _currentFolder = firstMatch;
+                        Expand_PathTo(firstMatch->fullPath);
+                    }
+                }
+            }
+
+            ImGui::Separator();
+
+            ImGui::BeginChild("FolderTreeScroll", ImVec2(0, 0), false);
+            if (_rootFolder.fullPath.empty())
+                ImGui::TextDisabled("Resource folder is not available yet.");
+            else
+                Draw_FolderTree(_rootFolder);
+            ImGui::EndChild();
+        }
+        ImGui::EndChild();
+
+        ImGui::SameLine();
+
+        const float availHeight = ImGui::GetContentRegionAvail().y;
+        if (availHeight > 0.f)
+            ImGui::InvisibleButton("vsplitter", ImVec2(4.f, availHeight));
+
+        if (ImGui::IsItemActive())
+            _leftPanelWidth = max(180.f, _leftPanelWidth + ImGui::GetIO().MouseDelta.x);
+
+        if (ImGui::IsItemHovered())
+            ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+
+        ImGui::SameLine();
+
+        ImGui::BeginChild("AssetView", ImVec2(0.f, 0.f), true);
+        {
+            if (_currentFolder)
+            {
+                ImGui::BeginDisabled(!Can_GoBack());
+                if (ImGui::ArrowButton("##BackFolder", ImGuiDir_Left))
+                    Go_BackFolder();
+                ImGui::EndDisabled();
+
+                ImGui::SameLine();
+
+                ImGui::BeginDisabled(!Can_GoForward());
+                if (ImGui::ArrowButton("##ForwardFolder", ImGuiDir_Right))
+                    Go_ForwardFolder();
+                ImGui::EndDisabled();
+
+                ImGui::SameLine();
+
+                const string pathStr = String::ToString(_currentFolder->fullPath);
+                char pathBuffer[512] = {};
+                strncpy_s(pathBuffer, pathStr.c_str(), _TRUNCATE);
+
+                float pathWidth = min(500.f, ImGui::GetContentRegionAvail().x - 220.f);
+                if (pathWidth < 150.f)
+                    pathWidth = 150.f;
+
+                ImGui::SetNextItemWidth(pathWidth);
+                ImGui::InputText("##CurrentPath", pathBuffer, IM_ARRAYSIZE(pathBuffer), ImGuiInputTextFlags_ReadOnly);
+
+                const float remainingWidth = ImGui::GetContentRegionAvail().x;
+                if (remainingWidth > 120.f)
+                {
+                    ImGui::SameLine();
+                    ImGui::SetNextItemWidth(min(220.f, remainingWidth));
+                    ImGui::InputTextWithHint("##AssetNameSearch", "Search files...", _assetSearchBuffer, IM_ARRAYSIZE(_assetSearchBuffer));
+                }
+
+                ImGui::Separator();
+
+                ImGui::BeginChild("AssetViewScroll", ImVec2(0, 0), false);
+                Draw_AssetView();
+                ImGui::EndChild();
+            }
+            else
+                ImGui::TextDisabled("No folder selected.");
+        }
+        ImGui::EndChild();
     }
+
     Set_Open(isOpen);
     ImGui::End();
 }
 
-void Content_Browser::Render_Directory(const fs::path& rootPath)
+void Content_Browser::Refresh_Resources()
 {
-    if (!fs::exists(rootPath))
+    if (_resourceRoot.empty() || !fs::exists(_resourceRoot))
     {
-        ImGui::TextDisabled("Resource folder is not available yet.");
+        _rootFolder = {};
+        _currentFolder = nullptr;
         return;
     }
 
-    uint32 visibleCount = 0;
+    const wstring savedPath = _currentFolder ? _currentFolder->fullPath : L"";
+    _thumbnailCache.clear();
+    _noThumbnailPaths.clear();
 
-    for (const fs::directory_entry& entry : fs::directory_iterator(rootPath))
+    _rootFolder = {};
+    Scan_Folder(_resourceRoot.wstring(), _rootFolder);
+
+    if (!savedPath.empty())
     {
-        const string strName = entry.path().filename().string();
-        if (entry.is_directory())
-            ImGui::BulletText("[%s]", strName.c_str());
-        else
-            ImGui::BulletText("%s", strName.c_str());
+        FFolderNode* found = Find_FolderNode(_rootFolder, savedPath);
+        _currentFolder = found ? found : &_rootFolder;
+    }
+    else
+        _currentFolder = &_rootFolder;
 
-        if (++visibleCount >= 128)
+    if (_currentFolder && _folderHistory.empty())
+        Record_FolderHistory(_currentFolder->fullPath);
+}
+
+void Content_Browser::Refresh_CurrentFolder()
+{
+    if (!_currentFolder || !fs::exists(_currentFolder->fullPath))
+        return;
+
+    _currentFolder->files.clear();
+
+    for (const auto& entry : fs::directory_iterator(_currentFolder->fullPath))
+    {
+        if (entry.is_directory() || entry.path().extension() == L".meta")
+            continue;
+
+        FFileEntry fileEntry{};
+        fileEntry.filePath = entry.path().wstring();
+        fileEntry.guid = GAME->Find_AssetGUID(fileEntry.filePath);
+        _currentFolder->files.emplace_back(fileEntry);
+    }
+}
+
+void Content_Browser::Load_Icons()
+{
+    _iconFiles.assign(static_cast<size_t>(EIconType::END), nullptr);
+
+    fs::path iconRoot = _resourceRoot;
+    if (iconRoot.empty())
+    {
+        const wstring assetRoot = GAME->Get_AssetRoot();
+        if (!assetRoot.empty())
+            iconRoot = fs::path(assetRoot);
+    }
+
+    if (iconRoot.empty())
+        return;
+
+    iconRoot /= L"Textures";
+    iconRoot /= L"UI";
+
+    const auto loadTexture = [&](const wchar_t* fileName) -> Shared<Texture>
+    {
+        const fs::path filePath = iconRoot / fileName;
+        if (!fs::exists(filePath))
+            return nullptr;
+
+        return Texture::Create(EDITOR->Get_Device(), EDITOR->Get_Context(), filePath.c_str(), 1);
+    };
+
+    _iconFiles[static_cast<size_t>(EIconType::Folder)] = loadTexture(L"Folder_Icon.png");
+
+    const Shared<Texture> dataTableIcon = loadTexture(L"DataTable.png");
+    _iconFiles[static_cast<size_t>(EIconType::Csv)] = dataTableIcon;
+    _iconFiles[static_cast<size_t>(EIconType::Xlsx)] = dataTableIcon;
+
+    _iconFiles[static_cast<size_t>(EIconType::Json)] = loadTexture(L"JSON.png");
+    _iconFiles[static_cast<size_t>(EIconType::Python)] = loadTexture(L"Python.png");
+}
+
+void Content_Browser::Scan_Folder(const wstring& path, FFolderNode& node)
+{
+    node.fullPath = path;
+    node.name = fs::path(path).filename().wstring();
+    if (node.name.empty())
+        node.name = fs::path(path).wstring();
+
+    for (const auto& entry : fs::directory_iterator(path))
+    {
+        if (entry.is_directory())
         {
-            ImGui::TextDisabled("More items hidden...");
-            break;
+            FFolderNode child{};
+            Scan_Folder(entry.path().wstring(), child);
+            node.subFolders.emplace_back(std::move(child));
+        }
+        else if (entry.path().extension() != L".meta")
+        {
+            FFileEntry fileEntry{};
+            fileEntry.filePath = entry.path().wstring();
+            fileEntry.guid = GAME->Find_AssetGUID(fileEntry.filePath);
+            node.files.emplace_back(std::move(fileEntry));
         }
     }
+}
+
+void Content_Browser::Draw_FolderTree(FFolderNode& node)
+{
+    if (strlen(_searchBuffer) > 0 && _currentFolder != &node)
+    {
+        const string searchLower = Internal::ToLowerCopy(_searchBuffer);
+
+        if (node.fullPath != _rootFolder.fullPath && !IsFolderMatchingSearch(node, searchLower))
+            return;
+
+        ImGui::SetNextItemOpen(true, ImGuiCond_Always);
+    }
+
+    ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_OpenOnDoubleClick;
+    if (_currentFolder == &node)
+        flags |= ImGuiTreeNodeFlags_Selected;
+    if (node.subFolders.empty())
+        flags |= ImGuiTreeNodeFlags_Leaf;
+
+    if (_expandedFolders.contains(node.fullPath))
+    {
+        ImGui::SetNextItemOpen(true, ImGuiCond_Once);
+        _expandedFolders.erase(node.fullPath);
+    }
+
+    const string id = "##" + String::ToString(node.fullPath);
+    const bool isOpen = ImGui::TreeNodeEx(id.c_str(), flags);
+
+    Draw_FolderContextMenu(node, "FolderTreeContext");
+
+    const bool isClicked = ImGui::IsItemClicked();
+    ImGui::SameLine();
+
+    if (const ImTextureID iconId = Get_IconTextureId(EIconType::Folder))
+    {
+        ImGui::Image(iconId, ImVec2(16.f, 16.f));
+        ImGui::SameLine(0.f, 6.f);
+    }
+
+    const string folderName = String::ToString(node.name);
+    ImGui::TextUnformatted(folderName.c_str());
+
+    if (isClicked)
+        Open_Folder(&node);
+
+    if (isOpen)
+    {
+        for (auto& child : node.subFolders)
+            Draw_FolderTree(child);
+
+        ImGui::TreePop();
+    }
+}
+
+void Content_Browser::Draw_AssetView()
+{
+    if (!_currentFolder)
+        return;
+
+    const string assetSearchLower = Internal::ToLowerCopy(_assetSearchBuffer);
+    const bool hasAssetSearch = !assetSearchLower.empty();
+
+    const float panelWidth = ImGui::GetContentRegionAvail().x;
+    const float tileWidth = _thumbnailSize + 40.f;
+    int columnCount = static_cast<int>(panelWidth / tileWidth);
+    if (columnCount < 1)
+        columnCount = 1;
+
+    ImGui::Columns(columnCount, nullptr, false);
+
+    for (auto& childFolder : _currentFolder->subFolders)
+    {
+        if (hasAssetSearch)
+        {
+            const string folderNameLower = Internal::ToLowerCopy(String::ToString(childFolder.name));
+            if (folderNameLower.find(assetSearchLower) == string::npos)
+                continue;
+        }
+
+        Draw_FolderTile(childFolder);
+    }
+
+    for (const auto& fileEntry : _currentFolder->files)
+    {
+        const fs::path path(fileEntry.filePath);
+        const string fileName = String::ToString(path.filename().wstring());
+        const string pureName = String::ToString(path.stem().wstring());
+
+        if (hasAssetSearch)
+        {
+            const string pureNameLower = Internal::ToLowerCopy(pureName);
+            const string fileNameLower = Internal::ToLowerCopy(fileName);
+            if (pureNameLower.find(assetSearchLower) == string::npos &&
+                fileNameLower.find(assetSearchLower) == string::npos)
+                continue;
+        }
+
+        ImGui::PushID(fileName.c_str());
+
+        Shared<Texture> thumbnailTexture = Get_FileThumbnail(fileEntry);
+        if (thumbnailTexture)
+        {
+            ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0.f, 0.f));
+            ImGui::ImageButton(
+                fileName.c_str(),
+                Internal::ToImTextureId(thumbnailTexture),
+                ImVec2(_thumbnailSize, _thumbnailSize)
+            );
+            ImGui::PopStyleVar();
+        }
+        else
+        {
+            const ImTextureID iconId = Get_IconTextureId(Resolve_IconType(path));
+            if (iconId)
+            {
+                ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0.f, 0.f));
+                ImGui::ImageButton(fileName.c_str(), iconId, ImVec2(_thumbnailSize, _thumbnailSize));
+                ImGui::PopStyleVar();
+            }
+            else
+                ImGui::Button(pureName.c_str(), ImVec2(_thumbnailSize, _thumbnailSize));
+        }
+
+        const bool isFocused = ImGui::IsItemFocused();
+        const bool isSelected = _selectedFilePath == fileEntry.filePath;
+
+        if (isSelected)
+        {
+            const ImVec2 itemMin = ImGui::GetItemRectMin();
+            const ImVec2 itemMax = ImGui::GetItemRectMax();
+            ImGui::GetWindowDrawList()->AddRect(itemMin, itemMax, IM_COL32(70, 130, 210, 255), 0.f, 0, 2.f);
+        }
+
+        if (isFocused && !isSelected)
+            _selectedFilePath = fileEntry.filePath;
+
+        if (ImGui::IsItemClicked(ImGuiMouseButton_Left))
+            _selectedFilePath = fileEntry.filePath;
+
+        Draw_FileContextMenu(fileEntry.filePath, "FileItemContext");
+
+        ImGui::TextWrapped("%s", pureName.c_str());
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("%s", fileName.c_str());
+
+        ImGui::PopID();
+        ImGui::NextColumn();
+    }
+
+    ImGui::Columns(1);
+}
+
+void Content_Browser::Draw_FolderTile(FFolderNode& folder)
+{
+    ImGui::PushID(String::ToString(folder.fullPath).c_str());
+
+    const ImTextureID iconId = Get_IconTextureId(EIconType::Folder);
+    if (iconId)
+        ImGui::Image(iconId, ImVec2(_thumbnailSize, _thumbnailSize));
+    else
+        ImGui::Button("[Folder]", ImVec2(_thumbnailSize, _thumbnailSize));
+
+    const bool isFocused = ImGui::IsItemFocused();
+    const bool isSelected = _selectedFilePath == folder.fullPath;
+
+    if (isSelected)
+    {
+        const ImVec2 itemMin = ImGui::GetItemRectMin();
+        const ImVec2 itemMax = ImGui::GetItemRectMax();
+        ImGui::GetWindowDrawList()->AddRect(itemMin, itemMax, IM_COL32(70, 130, 210, 255), 0.f, 0, 2.f);
+    }
+
+    if (isFocused && !isSelected)
+        _selectedFilePath = folder.fullPath;
+
+    if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0))
+        Open_Folder(&folder);
+
+    Draw_FolderContextMenu(folder, "FolderTileContext");
+
+    const string folderName = String::ToString(folder.name);
+    ImGui::TextWrapped("%s", folderName.c_str());
+
+    ImGui::PopID();
+    ImGui::NextColumn();
+}
+
+void Content_Browser::Open_Folder(FFolderNode* folder)
+{
+    if (!folder)
+        return;
+
+    _currentFolder = folder;
+    _selectedFilePath.clear();
+
+    Expand_PathTo(folder->fullPath);
+
+    if (!_suppressHistoryRecord)
+        Record_FolderHistory(folder->fullPath);
+
+    Save_Settings();
+}
+
+void Content_Browser::Draw_FolderContextMenu(const FFolderNode& folder, const string& popupId)
+{
+    if (!ImGui::BeginPopupContextItem(popupId.c_str()))
+        return;
+
+    if (ImGui::MenuItem("탐색기에서 열기"))
+    {
+        const wstring absPath = fs::absolute(folder.fullPath).wstring();
+
+        ShellExecuteW(
+            nullptr,
+            L"open",
+            absPath.c_str(),
+            nullptr,
+            nullptr,
+            SW_SHOWNORMAL
+        );
+    }
+
+    ImGui::EndPopup();
+}
+
+void Content_Browser::Draw_FileContextMenu(const wstring& filePath, const string& popupId)
+{
+    if (!ImGui::BeginPopupContextItem(popupId.c_str()))
+        return;
+
+    if (ImGui::MenuItem("탐색기에서 열기"))
+    {
+        const wstring absPath = fs::absolute(filePath).wstring();
+        const wstring args = L"/select,\"" + absPath + L"\"";
+
+        ShellExecuteW(
+            nullptr,
+            L"open",
+            L"explorer.exe",
+            args.c_str(),
+            nullptr,
+            SW_SHOWNORMAL
+        );
+    }
+
+    ImGui::EndPopup();
+}
+
+Shared<Texture> Content_Browser::Get_FileThumbnail(const FFileEntry& fileEntry)
+{
+    if (fileEntry.filePath.empty())
+        return nullptr;
+
+    const auto cacheIt = _thumbnailCache.find(fileEntry.filePath);
+    if (cacheIt != _thumbnailCache.end())
+        return cacheIt->second;
+
+    if (_noThumbnailPaths.contains(fileEntry.filePath))
+        return nullptr;
+
+    fs::path thumbnailPath{};
+    if (!fileEntry.guid.empty())
+    {
+        thumbnailPath = _resourceRoot / L"Thumbnails" / String::ToWString(fileEntry.guid + ".png");
+        if (!fs::exists(thumbnailPath))
+            thumbnailPath.clear();
+    }
+
+    if (thumbnailPath.empty())
+    {
+        const fs::path sourcePath(fileEntry.filePath);
+        if (!Is_ThumbnailFileExtension(sourcePath))
+        {
+            _noThumbnailPaths.insert(fileEntry.filePath);
+            return nullptr;
+        }
+
+        thumbnailPath = sourcePath;
+    }
+
+    Shared<Texture> thumbnailTexture =
+        Texture::Create(EDITOR->Get_Device(), EDITOR->Get_Context(), thumbnailPath.c_str(), 1);
+
+    if (thumbnailTexture == nullptr)
+    {
+        _noThumbnailPaths.insert(fileEntry.filePath);
+        return nullptr;
+    }
+
+    _thumbnailCache[fileEntry.filePath] = thumbnailTexture;
+    return thumbnailTexture;
+}
+
+bool Content_Browser::Is_ThumbnailFileExtension(const filesystem::path& filePath)
+{
+    const string extension = Internal::ToLowerCopy(String::ToString(filePath.extension().wstring()));
+
+    return extension == ".png" ||
+           extension == ".jpg" ||
+           extension == ".jpeg" ||
+           extension == ".bmp" ||
+           extension == ".dds";
+}
+
+void Content_Browser::Save_Settings() const
+{
+    json settings{};
+    const wstring currentPath = _currentFolder ? _currentFolder->fullPath : wstring{};
+    settings["lastPath"] = String::ToString(currentPath);
+
+    const fs::path settingsPath = CONTENT_BROWSER_SETTINGS_PATH;
+    if (!fs::exists(settingsPath.parent_path()))
+        fs::create_directories(settingsPath.parent_path());
+
+    ofstream file(settingsPath);
+    if (!file.is_open())
+        return;
+
+    file << settings.dump(4);
+}
+
+void Content_Browser::Load_Settings()
+{
+    ifstream file(CONTENT_BROWSER_SETTINGS_PATH);
+    if (!file.is_open())
+        return;
+
+    json settings{};
+    file >> settings;
+
+    if (!settings.contains("lastPath"))
+        return;
+
+    const wstring lastPath = String::ToWString(settings["lastPath"].get<string>());
+    FFolderNode* found = Find_FolderNode(_rootFolder, lastPath);
+    if (!found)
+        return;
+
+    _currentFolder = found;
+    Expand_PathTo(lastPath);
+}
+
+Content_Browser::FFolderNode* Content_Browser::Find_FolderNode(FFolderNode& node, const wstring& path)
+{
+    if (node.fullPath == path)
+        return &node;
+
+    for (auto& child : node.subFolders)
+    {
+        FFolderNode* found = Find_FolderNode(child, path);
+        if (found)
+            return found;
+    }
+
+    return nullptr;
+}
+
+void Content_Browser::Expand_PathTo(const wstring& targetPath)
+{
+    _expandedFolders.clear();
+
+    fs::path current(targetPath);
+    const fs::path root(_rootFolder.fullPath);
+
+    while (current != root && !current.empty())
+    {
+        _expandedFolders.insert(current.wstring());
+        current = current.parent_path();
+    }
+
+    _expandedFolders.insert(root.wstring());
+}
+
+bool Content_Browser::IsFolderMatchingSearch(const FFolderNode& node, const string& searchStr)
+{
+    const string nameLower = Internal::ToLowerCopy(String::ToString(node.name));
+    if (nameLower.find(searchStr) != string::npos)
+        return true;
+
+    for (const auto& child : node.subFolders)
+    {
+        if (IsFolderMatchingSearch(child, searchStr))
+            return true;
+    }
+
+    return false;
+}
+
+Content_Browser::FFolderNode* Content_Browser::Get_FirstMatchingFolder(FFolderNode& node, const string& searchStr)
+{
+    const string nameLower = Internal::ToLowerCopy(String::ToString(node.name));
+    if (nameLower.find(searchStr) != string::npos)
+        return &node;
+
+    for (auto& child : node.subFolders)
+    {
+        FFolderNode* found = Get_FirstMatchingFolder(child, searchStr);
+        if (found)
+            return found;
+    }
+
+    return nullptr;
+}
+
+Content_Browser::EIconType Content_Browser::Resolve_IconType(const filesystem::path& filePath) const
+{
+    const string extension = Internal::ToLowerCopy(String::ToString(filePath.extension().wstring()));
+
+    if (extension == ".csv")
+        return EIconType::Csv;
+    if (extension == ".json")
+        return EIconType::Json;
+    if (extension == ".py")
+        return EIconType::Python;
+    if (extension == ".xlsx")
+        return EIconType::Xlsx;
+
+    return EIconType::Json;
+}
+
+ImTextureID Content_Browser::Get_IconTextureId(EIconType iconType) const
+{
+    const size_t iconIndex = static_cast<size_t>(iconType);
+    if (iconIndex >= _iconFiles.size())
+        return static_cast<ImTextureID>(0);
+
+    return Internal::ToImTextureId(_iconFiles[iconIndex]);
+}
+
+void Content_Browser::Record_FolderHistory(const wstring& path)
+{
+    if (_folderHistoryIndex >= 0 &&
+        _folderHistoryIndex < static_cast<int>(_folderHistory.size()) &&
+        _folderHistory[_folderHistoryIndex] == path)
+        return;
+
+    if (_folderHistoryIndex + 1 < static_cast<int>(_folderHistory.size()))
+        _folderHistory.erase(_folderHistory.begin() + _folderHistoryIndex + 1, _folderHistory.end());
+
+    _folderHistory.push_back(path);
+    _folderHistoryIndex = static_cast<int>(_folderHistory.size()) - 1;
+}
+
+bool Content_Browser::Can_GoBack() const
+{
+    return _folderHistoryIndex > 0;
+}
+
+bool Content_Browser::Can_GoForward() const
+{
+    return _folderHistoryIndex >= 0 &&
+           _folderHistoryIndex + 1 < static_cast<int>(_folderHistory.size());
+}
+
+void Content_Browser::Go_BackFolder()
+{
+    if (!Can_GoBack())
+        return;
+
+    --_folderHistoryIndex;
+
+    FFolderNode* target = Find_FolderNode(_rootFolder, _folderHistory[_folderHistoryIndex]);
+    if (!target)
+        return;
+
+    _suppressHistoryRecord = true;
+    Open_Folder(target);
+    _suppressHistoryRecord = false;
+}
+
+void Content_Browser::Go_ForwardFolder()
+{
+    if (!Can_GoForward())
+        return;
+
+    ++_folderHistoryIndex;
+
+    FFolderNode* target = Find_FolderNode(_rootFolder, _folderHistory[_folderHistoryIndex]);
+    if (!target)
+        return;
+
+    _suppressHistoryRecord = true;
+    Open_Folder(target);
+    _suppressHistoryRecord = false;
+}
+
+void Content_Browser::Handle_SideButtonEvent()
+{
+    const bool isBrowserFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
+    const bool isBrowserHovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_RootAndChildWindows);
+
+    if (!(isBrowserFocused || isBrowserHovered))
+        return;
+
+    if (ImGui::IsMouseClicked(3))
+        Go_BackFolder();
+
+    if (ImGui::IsMouseClicked(4))
+        Go_ForwardFolder();
+}
+
+void Content_Browser::Handle_ThumbnailZoom()
+{
+    const bool isBrowserFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
+    if (!isBrowserFocused)
+        return;
+
+    const ImGuiIO& io = ImGui::GetIO();
+    if (!io.KeyCtrl || io.MouseWheel == 0.f)
+        return;
+
+    _thumbnailSize += io.MouseWheel * 8.f;
+    _thumbnailSize = clamp(_thumbnailSize, 32.f, 128.f);
 }
 
 Shared<Content_Browser> Content_Browser::Create()
@@ -68,3 +803,5 @@ void Content_Browser::Free()
 {
     __super::Free();
 }
+
+NS_END

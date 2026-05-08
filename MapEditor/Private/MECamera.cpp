@@ -64,6 +64,7 @@ void MECamera::Apply()
 {
     GAME->Set_Transform(D3DTS::View, _view);
     GAME->Set_Transform(D3DTS::Proj, _proj);
+    GAME->UpdateFrustum(_view, _proj);
 }
 
 void MECamera::ComputeMatrices()

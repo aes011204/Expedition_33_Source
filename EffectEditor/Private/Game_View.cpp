@@ -1,10 +1,12 @@
-#include "Game_View.h"
+﻿#include "Game_View.h"
 
 #include "GameInstance.h"
 #include "EffectEditorInstance.h"
 #include "RenderTarget.h"
 
-namespace EffectEditor::Internal
+NS_BEGIN(EffectEditor)
+
+namespace Internal
 {
     struct ViewportImageRect
     {
@@ -33,7 +35,8 @@ namespace EffectEditor::Internal
 
         const ImVec2 imageMin = ImVec2(
             canvasMin.x + (canvasSize.x - imageWidth) * 0.5f,
-            canvasMin.y + (canvasSize.y - imageHeight) * 0.5f);
+            canvasMin.y + (canvasSize.y - imageHeight) * 0.5f
+        );
 
         return {
             imageMin,
@@ -53,7 +56,7 @@ void Game_View::Render()
         return;
 
     bool isOpen = Is_Open();
-    const string windowName = String::ToString(Get_WindowName());
+    const string& windowName = Get_ImGuiWindowName();
 
     if (EDITOR->Consume_WindowFocusRequest(EditorViewportTarget::Game))
         ImGui::SetNextWindowFocus();
@@ -79,6 +82,7 @@ void Game_View::Render()
         drawList->AddRect(canvasMin, canvasMax, IM_COL32(55, 60, 70, 255));
 
         ImGui::InvisibleButton("GameViewportCanvas", viewportSize);
+        EDITOR->Set_GameViewportInputState(ImGui::IsItemHovered());
 
         ID3D11ShaderResourceView* pSRV = EDITOR->Get_SharedViewportSRV();
         if (nullptr != pSRV)
@@ -91,10 +95,10 @@ void Game_View::Render()
             drawList->AddImage(textureId, imageRect.imageMin, imageRect.imageMax);
         }
         else
-        {
             drawList->AddText(ImVec2(canvasMin.x + 12.f, canvasMin.y + 12.f), IM_COL32(210, 216, 224, 255), "Game RenderTarget Missing");
-        }
     }
+    else
+        EDITOR->Set_GameViewportInputState(false);
 
     Set_Open(isOpen);
     ImGui::End();
@@ -104,3 +108,5 @@ Shared<Game_View> Game_View::Create()
 {
     return make_shared<Game_View>();
 }
+
+NS_END

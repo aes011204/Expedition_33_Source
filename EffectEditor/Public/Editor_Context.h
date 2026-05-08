@@ -8,7 +8,7 @@ NS_END
 
 NS_BEGIN(EffectEditor)
 
-class Editor_Context : public Base
+class Editor_Context final : public Base
 {
 public:
     Editor_Context() = default;
@@ -27,7 +27,7 @@ public:
 private:
     EditorSelection _selection;
     EditorFocusRequest _focusRequest;
-    uint32 _selectionRevision = 0;
+    uint32 _selectionRevision{0};
 
 public:
     static Unique<Editor_Context> Create();

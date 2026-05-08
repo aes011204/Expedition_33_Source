@@ -10,14 +10,23 @@
     <ClCompile Include="..\Private\Console_View.cpp">
       <Filter>01. View\Console View</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\CurveEditor_View.cpp">
+      <Filter>01. View\Curve Editor View</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\Editor_Context.cpp">
       <Filter>01. Manager\04. Editor Context</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Emitter_View.cpp">
+      <Filter>01. View\Emitter View</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\EffectEditorCamera.cpp">
+      <Filter>03. Level</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\Editor_Window.cpp">
       <Filter>01. View</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\Inspector.cpp">
-      <Filter>02. Inspector</Filter>
+    <ClCompile Include="..\Private\Detail_View.cpp">
+      <Filter>01. View\Detail View</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\EffectEditorApp.cpp">
       <Filter>00. Main</Filter>
@@ -52,6 +61,12 @@
     <ClCompile Include="..\Private\EffectEditorInstance.cpp">
       <Filter>01. Manager\00. Effect Editor Instance</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\Profile_View.cpp">
+      <Filter>01. View\Profile View</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Level_EffectEditor.cpp">
+      <Filter>03. Level</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -63,8 +78,17 @@
     <ClInclude Include="..\Public\Console_View.h">
       <Filter>01. View\Console View</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\CurveEditor_View.h">
+      <Filter>01. View\Curve Editor View</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\Editor_Context.h">
       <Filter>01. Manager\04. Editor Context</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Emitter_View.h">
+      <Filter>01. View\Emitter View</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\EffectEditorCamera.h">
+      <Filter>03. Level</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\EffectEditor_Define.h">
       <Filter>99. Defines</Filter>
@@ -78,8 +102,8 @@
     <ClInclude Include="..\Public\Editor_Window.h">
       <Filter>01. View</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\Inspector.h">
-      <Filter>02. Inspector</Filter>
+    <ClInclude Include="..\Public\Detail_View.h">
+      <Filter>01. View\Detail View</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\EffectEditor_ImGuiInclude.h">
       <Filter>99. Defines</Filter>
@@ -117,6 +141,12 @@
     <ClInclude Include="..\Public\EffectEditorInstance.h">
       <Filter>01. Manager\00. Effect Editor Instance</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\Profile_View.h">
+      <Filter>01. View\Profile View</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Level_EffectEditor.h">
+      <Filter>03. Level</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="00. Main">
@@ -125,8 +155,11 @@
     <Filter Include="01. View">
       <UniqueIdentifier>{a99ca1f2-640c-4bf6-aa29-88748c97013a}</UniqueIdentifier>
     </Filter>
-    <Filter Include="02. Inspector">
-      <UniqueIdentifier>{a6f51295-5edb-4694-9d55-01c07add81a5}</UniqueIdentifier>
+    <Filter Include="01. View\Curve Editor View">
+      <UniqueIdentifier>{3219b55f-d9b4-495e-9bd5-7eeaeac6ae15}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="01. View\Emitter View">
+      <UniqueIdentifier>{37d38b16-ebfc-4358-ace7-2ff7f458a3f3}</UniqueIdentifier>
     </Filter>
     <Filter Include="99. Defines">
       <UniqueIdentifier>{afbffb53-f9a7-4636-bd21-a1fa41d808c3}</UniqueIdentifier>
@@ -169,6 +202,15 @@
     </Filter>
     <Filter Include="01. View\Game View">
       <UniqueIdentifier>{e6f8ccb0-4a82-4dcf-a035-a9db55d38f92}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="01. View\Profile View">
+      <UniqueIdentifier>{e6b4c6fa-77e3-4e04-b1f7-7f77ba00c35c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="03. Level">
+      <UniqueIdentifier>{0112697d-2120-4602-94c8-9b6061ffc1e4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="01. View\Detail View">
+      <UniqueIdentifier>{a6f51295-5edb-4694-9d55-01c07add81a5}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>
