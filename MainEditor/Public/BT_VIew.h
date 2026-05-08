@@ -61,6 +61,12 @@ public:
         char nameBuffer[64] = {};
     };
 
+    struct DebugNodeState
+    {
+        Engine::BTNodeState state = Engine::BTNodeState::FAILED;
+        uint64 tick = 0;
+    };
+
 public:
     BT_View();
     virtual ~BT_View();
@@ -84,6 +90,8 @@ public:
 
     void Save_BT(const std::string& path);
     void Load_BT(const std::string& path);
+    void Open_BTAsset(const string& relativePath);
+    void Set_DebugTargetAIController(const Shared<Engine::AIController>& aiController);
 
     void Draw_LoadPopup();
     void Draw_SavePopup();
@@ -139,7 +147,8 @@ private: // Editor
 
 private: // BT
     Weak<Engine::AIController> _debugAIController;
-    unordered_map<uint64, Engine::BTNodeState> _debugNodeStates;
+    unordered_map<uint64, DebugNodeState> _debugNodeStates;
+    uint64 _currentDebugTreeTick = 0;
 
 private:
     void Draw_DebugTargetSelector();

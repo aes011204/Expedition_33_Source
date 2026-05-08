@@ -655,6 +655,21 @@ void BT_View::Load_BT(const std::string& path)
     _needsInitialNodePlacement = true;
 }
 
+void BT_View::Open_BTAsset(const string& relativePath)
+{
+    if (relativePath.empty())
+        return;
+
+    Load_BT(relativePath);
+    Set_Open(true);
+}
+
+void BT_View::Set_DebugTargetAIController(const Shared<Engine::AIController>& aiController)
+{
+    _debugAIController = aiController;
+    Set_Open(true);
+}
+
 void BT_View::Draw_LoadPopup()
 {
     if (_openLoadPopup)
@@ -756,12 +771,23 @@ void BT_View::Draw_Nodes()
 
         const bool isSelected = (node.id == _selectedNodeId);
         const auto debugIt = _debugNodeStates.find(node.id.Get());
-        const bool hasDebugState = (debugIt != _debugNodeStates.end());
+        const bool hasDebugState =
+            (debugIt != _debugNodeStates.end()) &&
+            (debugIt->second.tick == _currentDebugTreeTick);
+
+        int pushedStyleCount = 0;
 
         if (hasDebugState)
-            ed::PushStyleColor(ed::StyleColor_NodeBg, Get_DebugNodeColor(debugIt->second));
-        else if (isSelected)
-            ed::PushStyleColor(ed::StyleColor_NodeBg, ImColor(80, 80, 150));
+        {
+            ed::PushStyleColor(ed::StyleColor_NodeBg, Get_DebugNodeColor(debugIt->second.state));
+            ++pushedStyleCount;
+        }
+
+        if (isSelected)
+        {
+            ed::PushStyleColor(ed::StyleColor_NodeBorder, ImColor(120, 180, 255));
+            ++pushedStyleCount;
+        }
 
         ed::BeginNode(node.id);
 
@@ -784,7 +810,7 @@ void BT_View::Draw_Nodes()
 
         ed::EndNode();
 
-        if (hasDebugState || isSelected)
+        while (pushedStyleCount-- > 0)
             ed::PopStyleColor();
     }
 
@@ -870,6 +896,7 @@ void BT_View::Draw_DebugTargetSelector()
 void BT_View::Refresh_DebugState()
 {
     _debugNodeStates.clear();
+    _currentDebugTreeTick = 0;
 
     Shared<Engine::AIController> aiController = _debugAIController.lock();
     if (aiController == nullptr)
@@ -879,13 +906,18 @@ void BT_View::Refresh_DebugState()
     if (tree == nullptr)
         return;
 
+    _currentDebugTreeTick = tree->Get_DebugTick();
+
     Visit_RuntimeNode(tree->Get_Root(),
         [&](const Shared<Engine::BNode>& node)
         {
             if (node == nullptr)
                 return;
 
-            _debugNodeStates[node->Get_AssetNodeId()] = node->Get_LastState();
+            DebugNodeState debugState{};
+            debugState.state = node->Get_LastState();
+            debugState.tick = node->Get_LastDebugTick();
+            _debugNodeStates[node->Get_AssetNodeId()] = debugState;
         });
 }
 
