@@ -11,6 +11,9 @@
 #include "Reflection_Types.h"
 #include "TransformCom.h"
 
+const vector<Engine::BTBlackboardKeyView>* Inspector::_btBlackboardKeys = nullptr;
+
+
 Inspector::Inspector()
     : Editor_Window{ L"Inspector" }
 {
@@ -283,9 +286,38 @@ void Inspector::Draw_ReflectionProperty(
         ImGui::AlignTextToFramePadding();
         ImGui::TextDisabled("%s", visibleLabel.c_str());
         ImGui::SameLine(InspectorLabelWidth);
-        ImGui::BeginDisabled();
-        ImGui::TextUnformatted(value->c_str());
-        ImGui::EndDisabled();
+
+        if (property.isBlackboardKey && _btBlackboardKeys != nullptr)
+        {
+            ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+
+            const char* preview = value->empty() ? "(None)" : value->c_str();
+
+            if (ImGui::BeginCombo(hiddenId.c_str(), preview))
+            {
+                for (const auto& key : *_btBlackboardKeys)
+                {
+                    if (key.type != property.blackboardValueType)
+                        continue;
+
+                    const bool isSelected = (*value == key.name);
+
+                    if (ImGui::Selectable(key.name.c_str(), isSelected))
+                        *value = key.name;
+
+                    if (isSelected)
+                        ImGui::SetItemDefaultFocus();
+                }
+
+                ImGui::EndCombo();
+            }
+        }
+        else
+        {
+            ImGui::BeginDisabled();
+            ImGui::TextUnformatted(value->c_str());
+            ImGui::EndDisabled();
+        }
         break;
     }
 
@@ -448,6 +480,11 @@ bool Inspector::Draw_VecAxis(
     const string dragId = "##" + uniqueId;
 
     return ImGui::DragFloat(dragId.c_str(), &value, speed);
+}
+
+void Inspector::Set_BTBlackboardKeys(const vector<Engine::BTBlackboardKeyView>* keys)
+{
+    _btBlackboardKeys = keys;
 }
 
 Shared<Inspector> Inspector::Create()

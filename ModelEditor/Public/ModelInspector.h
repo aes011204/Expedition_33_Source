@@ -42,7 +42,7 @@ private:
     int32   _rootNodeIndex{ -1 };
     bool    _isRootMotion{ false };
     
-
+    string _selectedModelGuid = {};
 
 public:
 	static Shared<ModelInspector> Create();

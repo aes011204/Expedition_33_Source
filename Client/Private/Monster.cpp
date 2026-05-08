@@ -1,11 +1,13 @@
 ﻿#include "Monster.h"
 #include "GameInstance.h"
-#include "Mon_AIController.h"
+#include "AIController.h"
 #include "ModelCom.h"
 #include "Material_Types.h"
 #include "ShaderCom.h"
 #include "Bounding_OBB.h"
 #include "ColliderCom.h"
+#include "ClientInstance.h"
+#include "BlackBoard.h"
 
 IMPLEMENT_REFLECTION(Monster)
 {
@@ -67,7 +69,20 @@ void Monster::Update(float timeDelta)
 	if (true == _model->Play_Animation(timeDelta))
 		int a = 10;
 
-    _aiCtrl->Update(timeDelta);
+
+    if (_aiCtrl)
+    {
+        Shared<BlackBoard> bb = _aiCtrl->Get_BlackBoard();
+        Shared<GameObject> player = CLIENT->Find_Player(ETOI(LevelType::GamePlay));
+
+        if (bb && player)
+        {
+            const Vec3 playerPos = player->Get_Transform()->Get_Position();
+            bb->Set_Value("playerPos", playerPos);
+        }
+
+        _aiCtrl->Update(timeDelta);
+    }
 }
 
 void Monster::Late_Update(float fTimeDelta)
@@ -131,14 +146,14 @@ HRESULT Monster::Render_Shadow()
 
 HRESULT Monster::Ready_Components()
 {
-	if (FAILED(__super::Add_Component(ETOI(LevelType::GamePlay), TEXT("Shader_VtxAnimMesh"), _shader)))
+	if (FAILED(__super::Add_Component(ETOI(LevelType::Static), TEXT("Shader_VtxAnimMesh"), _shader)))
 		return E_FAIL;
 
-	if (FAILED(__super::Add_Component(ETOI(LevelType::GamePlay), TEXT("Model_Fiona"), _model)))
+	if (FAILED(__super::Add_Component(ETOI(LevelType::Static), TEXT("Model_Fiona"), _model)))
 		return E_FAIL;
 
 
-    if (FAILED(__super::Add_Component(ETOI(LevelType::Static), TEXT("Com_MonAIController"), _aiCtrl)))
+    if (FAILED(__super::Add_Component(ETOI(LevelType::Static), TEXT("Com_AIController"), _aiCtrl)))
         return E_FAIL;
 
     _aiCtrl->Set_Owner(static_pointer_cast<Monster>(shared_from_this()));
@@ -190,7 +205,6 @@ Shared<Monster> Monster::Create(const ComPtr<Device>& device, const ComPtr<Conte
 
     return instance;
 }
-
 
 Shared<GameObject> Monster::Clone(void* arg)
 {

@@ -10,11 +10,38 @@ Picking::Picking(const ComPtr<Device>& device, const ComPtr<Context>& context)
 
 HRESULT Picking::Initialize()
 {
+    return Ensure_DepthReadbackBuffer();
+}
+
+HRESULT Picking::Ensure_DepthReadbackBuffer()
+{
     const uint32 width = GAME->Get_ViewportWidth();
     const uint32 height = GAME->Get_ViewportHeight();
 
     if (0 == width || 0 == height)
         return E_FAIL;
+
+    if (_depthTexture)
+    {
+        D3D11_TEXTURE2D_DESC existingDesc{};
+        _depthTexture->GetDesc(&existingDesc);
+
+        const bool sizeMatches =
+            existingDesc.Width == width &&
+            existingDesc.Height == height &&
+            existingDesc.Format == DXGI_FORMAT_R32G32B32A32_FLOAT;
+
+        if (sizeMatches)
+        {
+            const size_t requiredPixelCount = static_cast<size_t>(width) * static_cast<size_t>(height);
+            if (_depthPixels.size() != requiredPixelCount)
+                _depthPixels.resize(requiredPixelCount);
+
+            return S_OK;
+        }
+    }
+
+    _depthTexture.Reset();
 
     D3D11_TEXTURE2D_DESC desc{};
     desc.Width = width;
@@ -37,8 +64,7 @@ HRESULT Picking::Initialize()
 
 HRESULT Picking::Update()
 {
-    if (!_depthTexture)
-        return E_FAIL;
+    CHECK_FAILED(Ensure_DepthReadbackBuffer(), E_FAIL);
 
     CHECK_FAILED(GAME->Copy_RT_Resource(L"Target_Depth", _depthTexture.Get()), E_FAIL);
 

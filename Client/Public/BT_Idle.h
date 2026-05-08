@@ -4,6 +4,8 @@ NS_BEGIN(Client)
 class BT_Idle :
     public Task
 {
+    GENERATED_BTNODE(BT_Idle, "Task")
+
 public:
     BT_Idle();
     virtual ~BT_Idle();

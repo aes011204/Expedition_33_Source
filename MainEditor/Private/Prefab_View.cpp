@@ -13,6 +13,53 @@
 #include "RenderTarget.h"
 #include <algorithm>
 
+static Vec3 Resolve_PreviewForward(const Shared<GameObject>& gameObject)
+{
+    if (gameObject == nullptr)
+        return Vec3::Look;
+
+    Shared<TransformCom> transformCom = gameObject->Get_Transform();
+    if (transformCom == nullptr)
+        return Vec3::Look;
+
+    Vec3 forward = transformCom->Get_WorldForward();
+    forward.y = 0.f;
+
+    if (forward.LengthSquared() <= 0.000001f)
+        return Vec3::Look;
+
+    forward.Normalize();
+    return forward;
+}
+
+static Editor_Camera_Free::EDITOR_CAMERA_DESC Build_PreviewCameraDesc(const Shared<GameObject>& gameObject)
+{
+    Editor_Camera_Free::EDITOR_CAMERA_DESC desc{};
+    desc.eye = XMFLOAT4(0.f, 1.45f, -2.35f, 1.f);
+    desc.at = XMFLOAT4(0.f, 1.1f, 0.f, 1.f);
+    desc.fovy = XM_PIDIV4;
+    desc.nearPlane = 0.1f;
+    desc.farPlane = 100.f;
+    desc.yaw = 0.f;
+    desc.pitch = 0.f;
+    desc.mouseSensor = 0.15f;
+    desc.speedPerSec = 5.f;
+    desc.degreePerSec = 180.f;
+
+    if (gameObject == nullptr)
+        return desc;
+
+    const Shared<TransformCom> transformCom = gameObject->Get_Transform();
+    const Vec3 center = transformCom ? transformCom->Get_WorldPosition() : Vec3::Zero;
+    const Vec3 forward = Resolve_PreviewForward(gameObject);
+    const Vec3 focus = center + Vec3(0.f, 1.1f, 0.f);
+    const Vec3 eye = focus - forward * 2.35f + Vec3(0.f, 0.35f, 0.f);
+
+    desc.eye = XMFLOAT4(eye.x, eye.y, eye.z, 1.f);
+    desc.at = XMFLOAT4(focus.x, focus.y, focus.z, 1.f);
+    return desc;
+}
+
 Prefab_View::Prefab_View()
     : Editor_Window(L"Prefab")
 {
@@ -92,6 +139,12 @@ void Prefab_View::Pre_Render()
     _previewObject->Late_Update(dt);
     Lock_PreviewObjectToOrigin();
 
+    if (_requestResetPreviewCamera)
+    {
+        Reset_PreviewCameraPose();
+        _requestResetPreviewCamera = false;
+    }
+
     GAME->Draw_RendererOnly();
     Draw_PreviewGrid();
     GAME->Set_Lights(savedLightDescs);
@@ -119,7 +172,6 @@ void Prefab_View::Render()
         title += " *";
 
     ImGuiWindowFlags windowFlags =
-        ImGuiWindowFlags_NoDocking |
         ImGuiWindowFlags_NoScrollbar |
         ImGuiWindowFlags_NoScrollWithMouse;
 
@@ -197,6 +249,7 @@ void Prefab_View::Open_Prefab(const string& prefabName, const fs::path& prefabPa
     _previewObject = GAME->Instantiate_GameObjectJson(prefabPath);
     _previewCamera = nullptr;
     _previewHasBegunPlay = false;
+    _requestResetPreviewCamera = false;
 
     if (_previewObject)
     {
@@ -209,17 +262,7 @@ void Prefab_View::Open_Prefab(const string& prefabName, const fs::path& prefabPa
 
         if (_previewCamera)
         {
-            Editor_Camera_Free::EDITOR_CAMERA_DESC desc{};
-            desc.eye = XMFLOAT4(0.f, 1.5f, -5.f, 1.f);
-            desc.at = XMFLOAT4(0.f, 0.f, 0.f, 1.f);
-            desc.fovy = XM_PIDIV4;
-            desc.nearPlane = 0.1f;
-            desc.farPlane = 100.f;
-            desc.yaw = 0.f;
-            desc.pitch = 0.f;
-            desc.mouseSensor = 0.15f;
-            desc.speedPerSec = 10.f;
-            desc.degreePerSec = 180.f;
+            Editor_Camera_Free::EDITOR_CAMERA_DESC desc = Build_PreviewCameraDesc(_previewObject);
 
             if (FAILED(_previewCamera->Initialize(&desc)))
                 _previewCamera = nullptr;
@@ -228,9 +271,8 @@ void Prefab_View::Open_Prefab(const string& prefabName, const fs::path& prefabPa
         }
 
         Lock_PreviewObjectToOrigin();
-
-        Reset_PreviewCameraPose();
         Ensure_PreviewGridResources();
+        _requestResetPreviewCamera = true;
     }
 
     _selectionType = SelectionType::GameObject;
@@ -259,6 +301,7 @@ void Prefab_View::Close_Prefab()
     _previewWidth = 512;
     _previewHeight = 512;
     _previewHasBegunPlay = false;
+    _requestResetPreviewCamera = false;
     _isPreviewHovered = false;
     _isPreviewActive = false;
     _applyDefaultWindowLayout = false;
@@ -715,19 +758,7 @@ void Prefab_View::Reset_PreviewCameraPose()
     if (_previewObject == nullptr || _previewCamera == nullptr)
         return;
 
-    Editor_Camera_Free::EDITOR_CAMERA_DESC desc{};
-    desc.eye = XMFLOAT4(0.f, 1.5f, -5.f, 1.f);
-    desc.at = XMFLOAT4(0.f, 0.f, 0.f, 1.f);
-    desc.fovy = XM_PIDIV4;
-    desc.nearPlane = 0.1f;
-    desc.farPlane = 100.f;
-    desc.yaw = 0.f;
-    desc.pitch = 0.f;
-    desc.mouseSensor = 0.15f;
-    desc.speedPerSec = 5.f;
-    desc.degreePerSec = 180.f;
-
-    _previewCamera->Apply_EditorDesc(desc);
+    _previewCamera->Apply_EditorDesc(Build_PreviewCameraDesc(_previewObject));
 }
 
 void Prefab_View::Lock_PreviewObjectToOrigin()

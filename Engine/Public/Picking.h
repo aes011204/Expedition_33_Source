@@ -16,6 +16,7 @@ public:
     bool    Pick_WorldPosition(const POINT& pixelPos, Vec3& outWorldPos);
 
 private:
+    HRESULT Ensure_DepthReadbackBuffer();
     bool Read_DepthPixel(const POINT& mousePos, Vec4& outDepthPixel);
     bool Reconstruct_WorldPosition(const POINT& mousePos, const Vec4& depthPixel, Vec3& outWorldPos) const;
 

@@ -166,6 +166,7 @@
     <ClInclude Include="..\public\BT_Attack.h" />
     <ClInclude Include="..\public\BT_CheckDistance.h" />
     <ClInclude Include="..\public\BT_Idle.h" />
+    <ClInclude Include="..\Public\BT_Node_Bootstrap.h" />
     <ClInclude Include="..\Public\Client_Constants.h" />
     <ClInclude Include="..\Public\Client_Enum.h" />
     <ClInclude Include="..\Public\Client_Macro.h" />
@@ -174,6 +175,8 @@
     <ClInclude Include="..\Public\Hair_Player.h" />
     <ClInclude Include="..\Public\Head_Player.h" />
     <ClInclude Include="..\Public\InputCom.h" />
+    <ClInclude Include="..\Public\Level_MapTest.h" />
+    <ClInclude Include="..\Public\Level_Stage01.h" />
     <ClInclude Include="..\Public\MapLoader.h" />
     <ClInclude Include="..\Public\MapStaticMesh.h" />
     <ClInclude Include="..\public\Mon_AIController.h" />
@@ -205,10 +208,13 @@
     <ClCompile Include="..\private\BT_Attack.cpp" />
     <ClCompile Include="..\private\BT_CheckDistance.cpp" />
     <ClCompile Include="..\private\BT_Idle.cpp" />
+    <ClCompile Include="..\private\BT_Node_Bootstrap.cpp" />
     <ClCompile Include="..\Private\CombatStatCom.cpp" />
     <ClCompile Include="..\Private\Hair_Player.cpp" />
     <ClCompile Include="..\Private\Head_Player.cpp" />
     <ClCompile Include="..\Private\InputCom.cpp" />
+    <ClCompile Include="..\Private\Level_MapTest.cpp" />
+    <ClCompile Include="..\Private\Level_Stage01.cpp" />
     <ClCompile Include="..\Private\MapLoader.cpp" />
     <ClCompile Include="..\Private\MapStaticMesh.cpp" />
     <ClCompile Include="..\private\Mon_AIController.cpp" />
