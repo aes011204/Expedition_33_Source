@@ -206,7 +206,6 @@ Shared<Monster> Monster::Create(const ComPtr<Device>& device, const ComPtr<Conte
     return instance;
 }
 
-
 Shared<GameObject> Monster::Clone(void* arg)
 {
     auto clone = make_shared<Monster>(*this);

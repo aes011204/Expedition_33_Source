@@ -388,7 +388,7 @@ void ModelCom_Inspector::Draw_AnimationSection(const Shared<Engine::ModelCom>& m
             if (animationView)
             {
                 const char* animationName = model->Get_AnimationName(static_cast<uint32>(state.selectedAnimIndex));
-                animationView->Open_FromModelComponent(model, animationName ? animationName : "");
+                animationView->Open_FromModelComponent(model, animationName ? animationName : "", ImGui::GetWindowDockID());
             }
         }
     }

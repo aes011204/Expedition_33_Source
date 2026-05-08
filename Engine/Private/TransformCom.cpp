@@ -84,6 +84,64 @@ HRESULT TransformCom::Bind_ShaderResource(ShaderCom* shader, const char* resourc
     return shader->Bind_Matrix(resourceName, reinterpret_cast<const XMFLOAT4X4*>(&Get_WorldMatrix()));
 }
 
+json TransformCom::To_Json() const
+{
+    json root = __super::To_Json();
+
+    TransformCom* self = const_cast<TransformCom*>(this);
+
+    const Vec3 worldPosition = self->Get_WorldPosition();
+    const Vec3 worldRotation = self->Get_WorldRotationEuler();
+    const Vec3 localScale = self->Get_Scale();
+
+    root["position"] = { worldPosition.x, worldPosition.y, worldPosition.z };
+    root["rotation"] = { worldRotation.x, worldRotation.y, worldRotation.z };
+    root["scale"] = { localScale.x, localScale.y, localScale.z };
+
+    return root;
+}
+
+void TransformCom::From_Json(const json& data)
+{
+    __super::From_Json(data);
+
+    if (data.contains("scale"))
+    {
+        const json& arr = data["scale"];
+        if (arr.is_array() && arr.size() >= 3)
+        {
+            Set_Scale(Vec3(
+                arr[0].get<float>(),
+                arr[1].get<float>(),
+                arr[2].get<float>()));
+        }
+    }
+
+    if (data.contains("rotation"))
+    {
+        const json& arr = data["rotation"];
+        if (arr.is_array() && arr.size() >= 3)
+        {
+            Set_WorldRotationEuler(Vec3(
+                arr[0].get<float>(),
+                arr[1].get<float>(),
+                arr[2].get<float>()));
+        }
+    }
+
+    if (data.contains("position"))
+    {
+        const json& arr = data["position"];
+        if (arr.is_array() && arr.size() >= 3)
+        {
+            Set_WorldPosition(Vec3(
+                arr[0].get<float>(),
+                arr[1].get<float>(),
+                arr[2].get<float>()));
+        }
+    }
+}
+
 const Matrix& TransformCom::Get_WorldMatrix()
 {
     Ensure_WorldMatrixUpToDate();

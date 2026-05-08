@@ -44,6 +44,10 @@ private:
 	HRESULT Loading_For_LogoLevel();
 	HRESULT Loading_For_GamePlayLevel();
 
+private:
+    static string Format_Duration(chrono::milliseconds duration);
+
+
 public:
 	static Shared<Loader> Create(const ComPtr<Device>& device, const ComPtr<Context>& context, LevelType eNextLevelID);
 	virtual void Free() override;

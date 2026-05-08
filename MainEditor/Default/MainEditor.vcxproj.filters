@@ -53,6 +53,9 @@
     <ClCompile Include="..\Private\Action_Command.cpp">
       <Filter>97. Utils</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\Animation_PreviewObject.cpp">
+      <Filter>01. View</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\Notification_Manager.cpp">
       <Filter>01. Manager</Filter>
     </ClCompile>
@@ -60,9 +63,6 @@
       <Filter>97. Utils</Filter>
     </ClCompile>
     <ClCompile Include="..\private\Camera_Tool.cpp">
-      <Filter>01. View</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\BT_Tool.cpp">
       <Filter>01. View</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\Prefab_View.cpp" />
@@ -85,6 +85,8 @@
       <Filter>02. Inspector</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\AnimSequencerAdapter.cpp" />
+    <ClCompile Include="..\private\AIController_Inspector.cpp" />
+    <ClCompile Include="..\private\BT_View.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -151,6 +153,9 @@
     <ClInclude Include="..\Public\Action_Command.h">
       <Filter>97. Utils</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\Animation_PreviewObject.h">
+      <Filter>01. View</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\Notification_Manager.h">
       <Filter>01. Manager</Filter>
     </ClInclude>
@@ -158,9 +163,6 @@
       <Filter>97. Utils</Filter>
     </ClInclude>
     <ClInclude Include="..\public\Camera_Tool.h">
-      <Filter>01. View</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\BT_Tool.h">
       <Filter>01. View</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Prefab_View.h" />
@@ -183,6 +185,8 @@
       <Filter>02. Inspector</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\AnimSequencerAdapter.h" />
+    <ClInclude Include="..\public\AIController_Inspector.h" />
+    <ClInclude Include="..\public\BT_VIew.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="00. Main">

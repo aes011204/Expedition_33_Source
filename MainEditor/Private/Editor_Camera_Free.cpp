@@ -17,12 +17,7 @@ HRESULT Editor_Camera_Free::Initialize_Prototype()
 
 HRESULT Editor_Camera_Free::Initialize(void* arg)
 {
-    const HRESULT hr = Engine::Camera::Initialize(arg);
-    if (FAILED(hr))
-        return hr;
-
-    Sync_RotationFromAngles();
-    return S_OK;
+    return Engine::Camera::Initialize(arg);
 }
 
 void Editor_Camera_Free::Priority_Update(float timeDelta)
@@ -32,32 +27,44 @@ void Editor_Camera_Free::Priority_Update(float timeDelta)
 
     if (ImGui::IsMouseDown(ImGuiMouseButton_Right))
     {
-        const ImVec2 delta = ImGui::GetIO().MouseDelta;
-
-        _yaw += delta.x * _mouseSensor;
-        _pitch += delta.y * _mouseSensor;
-        _pitch = clamp(_pitch, -89.f, 89.f);
-
-        if (delta.x != 0.f || delta.y != 0.f)
-            Sync_RotationFromAngles();
+        const float moveDistance = _transformCom->Get_SpeedPerSec() * timeDelta;
+        const Vec3 forward = _transformCom->Get_WorldForward();
+        const Vec3 right = _transformCom->Get_WorldRight();
+        Vec3 position = _transformCom->Get_WorldPosition();
 
         if (ImGui::IsKeyDown(ImGuiKey_W))
-            _transformCom->Go_Straight(timeDelta);
+            position += forward * moveDistance;
 
         if (ImGui::IsKeyDown(ImGuiKey_S))
-            _transformCom->Go_Backward(timeDelta);
+            position -= forward * moveDistance;
 
         if (ImGui::IsKeyDown(ImGuiKey_A))
-            _transformCom->Go_Left(timeDelta);
+            position -= right * moveDistance;
 
         if (ImGui::IsKeyDown(ImGuiKey_D))
-            _transformCom->Go_Right(timeDelta);
+            position += right * moveDistance;
 
         if (ImGui::IsKeyDown(ImGuiKey_E))
-            _transformCom->Go_Up(timeDelta);
+            position += Vec3::Up * moveDistance;
 
         if (ImGui::IsKeyDown(ImGuiKey_Q))
-            _transformCom->Go_Down(timeDelta);
+            position -= Vec3::Up * moveDistance;
+
+        _transformCom->Set_WorldPosition(position);
+
+        const ImVec2 delta = ImGui::GetIO().MouseDelta;
+        if (delta.x != 0.f)
+            _transformCom->Add_LocalRotation(Quat::CreateFromAxisAngle(Vec3::Up, delta.x * _mouseSensor * timeDelta));
+
+        if (delta.y != 0.f)
+        {
+            Vec3 right = _transformCom->Get_WorldRight();
+            if (right.LengthSquared() > 0.000001f)
+            {
+                right.Normalize();
+                _transformCom->Add_LocalRotation(Quat::CreateFromAxisAngle(right, delta.y * _mouseSensor * timeDelta));
+            }
+        }
     }
 
     const float wheel = ImGui::GetIO().MouseWheel;
@@ -91,31 +98,11 @@ void Editor_Camera_Free::Apply_EditorDesc(const EDITOR_CAMERA_DESC& desc)
 
         const Vec3 eye(desc.eye.x, desc.eye.y, desc.eye.z);
         const Vec3 at(desc.at.x, desc.at.y, desc.at.z);
-        const Vec3 lookVector = at - eye;
-
-        if (lookVector.LengthSquared() > 0.000001f)
-        {
+        if ((at - eye).LengthSquared() > 0.000001f)
             _transformCom->LookAt(at);
-
-            const Vec3 euler = _transformCom->Get_RotationEuler();
-            _pitch = clamp(euler.x, -89.f, 89.f);
-            _yaw = euler.y;
-            Sync_RotationFromAngles();
-        }
         else
-        {
-            _pitch = clamp(_pitch, -89.f, 89.f);
-            Sync_RotationFromAngles();
-        }
+            _transformCom->Set_RotationEuler(Vec3(desc.pitch, desc.yaw, 0.f));
     }
-}
-
-void Editor_Camera_Free::Sync_RotationFromAngles()
-{
-    if (_transformCom == nullptr)
-        return;
-
-    _transformCom->Set_RotationEuler(Vec3(_pitch, _yaw, 0.f));
 }
 
 Shared<Editor_Camera_Free> Editor_Camera_Free::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
