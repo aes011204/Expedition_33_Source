@@ -28,10 +28,10 @@ public:
     Shared<Material> Get_Material(uint32 materialIndex) const;
 
     const Material::TextureSlot* Find_MaterialSlot(uint32 meshIndex, std::initializer_list<MaterialTextureSlot> materialSlots, uint32 textureIndex = 0) const;
-
+    const wstring& Get_SourceModelPath() const { return _sourceModelPath; }
 
 public:
-    bool Is_Skeletal() const { return _isSkeletal; } 
+    bool  Is_Skeletal() const { return _isSkeletal; } 
 	int32 Get_BoneIndex(const string& boneName) const;
     const string& Get_BoneName(uint32 boneIndex) const;
 	const Matrix* Get_BoneMatrixPtr(const char* boneName) const;
@@ -59,6 +59,22 @@ public:
 	HRESULT Bind_Material(class ShaderCom* shader, const char* constantName, uint32 meshIndex, MaterialTextureSlot slot, uint32 textureIndex = 0);
 	HRESULT Bind_BoneMatrices(class ShaderCom* shader, const char* constantName, uint32 meshIndex);
     bool Try_Get_LocalBounds(Vec3& outMin, Vec3& outMax) const;
+
+
+public: /* Guid */
+    static wstring Normalize_ModelAssetPath(const char* modelFilePath);
+
+public: /* AnimNotify */
+    uint32  Get_CurrentAnimationIndex() const { return _currentAnimIndex; }
+
+    float   Get_CurrentAnimationDurationSec() const;
+    float   Get_CurrentAnimationTimeSec() const;
+
+    bool    Is_AnimationPaused() const { return _isAnimationPaused; }
+    void    Set_AnimationPaused(bool paused) { _isAnimationPaused = paused; }
+
+    void    Set_CurrentAnimationTimeSec(float timeSec);
+    void    Refresh_CurrentAnimationPose();
 
 private:
 	ModelType					        _type = { ModelType::END };
@@ -92,6 +108,12 @@ private: /* For Root Motion */
     bool                                _isRootMotion{ false };
     int32                               _rootNodeIndex{ -1 }; // -1 일때는 최상위 노드 기준으로 
     RootMotionFrame                     _rootFrameVelocity{};
+
+private: /* guid */
+    wstring                             _sourceModelPath = {};
+
+private: /* notify */
+    bool                                _isAnimationPaused = false;
 
 private:
 	HRESULT Ready_Model(const char* modelPath);

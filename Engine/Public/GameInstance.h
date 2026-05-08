@@ -199,23 +199,19 @@ public: /* For.Font_Manager */
         float scale = 1.f);
         
 public: /* For.Asset_Manager */
-    /* 리소스 루트를 기준으로 GUID/meta/cache registry를 준비할 때 호출한다. */
     HRESULT Initialize_AssetManager(const wstring& resourceRoot);
 
     /* 파일 경로를 GUID로 저장해야 하는 ResourceLoader/Editor 파이프라인에서 호출한다. */
     string Find_AssetGUID(const wstring& filePath) const;
 
-    /* GUID로 에셋 타입과 경로 메타를 조회할 때 호출한다. */
-    const FAssetMeta* Find_AssetByGUID(const string& guid) const;
+    const AssetMeta* Find_AssetByGUID(const string& guid) const;
+    vector<AssetMeta> Get_AssetsByType(const string& type) const;
 
-    /* 에셋 타입별 목록이 필요한 에디터 UI에서 호출한다. */
-    vector<FAssetMeta> Get_AssetsByType(const string& type) const;
-
-    /* lazy-load가 GUID만 들고 있을 때 실제 파일 경로를 복원하기 위해 호출한다. */
     wstring Resolve_AssetPath(const string& guid) const;
-
-    /* ResourceLoader가 현재 정본 리소스 루트를 절대경로로 해석할 때 호출한다. */
     wstring Get_AssetRoot() const;
+
+    // 에디터/로더가 "GUID 없으면 생성" 흐름을 쓸 수 있게 하기 -> 프리펩이나 그런거 새로 만들 때
+    string Ensure_AssetGUID(const wstring& filePath, const string& type = "") const;
 
 public: /* For.Camera_Manager */
     HRESULT Add_Camera(Shared<Camera> camera) const;

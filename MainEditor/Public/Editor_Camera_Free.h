@@ -22,6 +22,9 @@ public:
     Matrix Get_ViewMatrix() const;
     void Apply_EditorDesc(const EDITOR_CAMERA_DESC& desc);
 
+private:
+    void Sync_RotationFromAngles();
+
 public:
     static Shared<Editor_Camera_Free> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
     Shared<GameObject> Clone(void* arg) override;

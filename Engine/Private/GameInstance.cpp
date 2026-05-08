@@ -671,7 +671,7 @@ string GameInstance::Find_AssetGUID(const wstring& filePath) const
     return _assetManager->Find_GUID(filePath);
 }
 
-const FAssetMeta* GameInstance::Find_AssetByGUID(const string& guid) const
+const AssetMeta* GameInstance::Find_AssetByGUID(const string& guid) const
 {
     if (nullptr == _assetManager)
         return nullptr;
@@ -679,7 +679,7 @@ const FAssetMeta* GameInstance::Find_AssetByGUID(const string& guid) const
     return _assetManager->Find_ByGUID(guid);
 }
 
-vector<FAssetMeta> GameInstance::Get_AssetsByType(const string& type) const
+vector<AssetMeta> GameInstance::Get_AssetsByType(const string& type) const
 {
     if (nullptr == _assetManager)
         return {};
@@ -701,6 +701,18 @@ wstring GameInstance::Get_AssetRoot() const
         return {};
 
     return _assetManager->Get_ResourceRoot();
+}
+
+string GameInstance::Ensure_AssetGUID(const wstring& filePath, const string& type) const
+{
+    if (nullptr == _assetManager)
+        return {};
+
+    const string existingGuid = _assetManager->Find_GUID(filePath);
+    if (!existingGuid.empty())
+        return existingGuid;
+
+    return _assetManager->Register_Asset(filePath, type);
 }
 
 HRESULT GameInstance::Add_Camera(Shared<Camera> camera) const

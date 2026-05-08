@@ -125,6 +125,7 @@ HRESULT Player::Ready_PartObjects()
     if (FAILED(__super::Add_PartObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Body_Player"),
         TEXT("Part_Body"), &playableDesc)))
         return E_FAIL;
+
     Body_Player* mainBody = dynamic_cast<Body_Player*>(_partObjects[TEXT("Part_Body")].get());
     if (nullptr == mainBody)
         return E_FAIL;

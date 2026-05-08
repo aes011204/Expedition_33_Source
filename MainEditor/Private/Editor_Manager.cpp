@@ -15,6 +15,7 @@
 #include <shellapi.h>
 
 #include "Prefab_View.h"
+#include "Animation_View.h"
 
 namespace fs = std::filesystem;
 
@@ -36,6 +37,7 @@ HRESULT Editor_Manager::Initialize()
 
     Add_Window(BT_Tool::Create());
     Add_Window(Prefab_View::Create());
+    Add_Window(Animation_View::Create());
 
     return S_OK;
 }

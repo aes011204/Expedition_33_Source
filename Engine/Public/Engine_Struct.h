@@ -54,12 +54,12 @@ using ShadowLightDesc = struct tagShadowLightDesc
     float   intensity = 0.5f;
 };
 
-using FAssetMeta = struct tagAssetMeta
+using AssetMeta = struct tagAssetMeta
 {
-    std::string guid = {};          /* 에셋을 lazy-load/key lookup으로 찾기 위한 고유 식별자 */
-    std::string type = {};          /* ResourceLoader가 어떤 로더를 태울지 판단하는 에셋 타입 */
-    std::string modelType = {};     /* meshbin처럼 같은 확장자 안에서 static/anim 등을 구분하기 위한 보조 타입 */
-    std::wstring fullPath = {};     /* 실제 파일 시스템에서 접근할 절대 경로 */
+    std::string guid = {};          /* 데이터의 고유 guid */
+    std::string type = {};          /* Model, Animation, Texture 등 */
+    std::string modelType = {};     /* 필요할 때에만 사용해서 타입별 분리 */
+    std::wstring fullPath = {};     /* 절대 경로 */
     std::wstring relativePath = {}; /* 리소스 루트 기준 상대 경로로, json/테이블에서 사람이 확인하기 쉬운 경로 */
 };
 
