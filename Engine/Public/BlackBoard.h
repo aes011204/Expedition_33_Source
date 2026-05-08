@@ -30,8 +30,6 @@ public:
         return any_cast<T>(it->second);
     }
 
-
-
 private:
     unordered_map< string, any> _data;
     public:

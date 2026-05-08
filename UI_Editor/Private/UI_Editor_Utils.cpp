@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "UI_Editor_Utils.h"
 #include "GameInstance.h"
 
@@ -66,14 +66,14 @@ namespace UIEditor
         return objectType == UI_ObjectType::Panel || objectType == UI_ObjectType::Button;
     }
 
-    string Normalize_AssetRelativePath(const FAssetMeta& assetMeta)
+    string Normalize_AssetRelativePath(const AssetMeta& assetMeta)
     {
         string relativePath = String::ToString(assetMeta.relativePath);
         replace(relativePath.begin(), relativePath.end(), '\\', '/');
         return relativePath;
     }
 
-    string Make_ClientRuntimeResourcePath(const FAssetMeta& assetMeta)
+    string Make_ClientRuntimeResourcePath(const AssetMeta& assetMeta)
     {
         const string relativePath = Normalize_AssetRelativePath(assetMeta);
         if (relativePath.empty())
@@ -113,7 +113,7 @@ namespace UIEditor
         return (fs::path(assetRoot) / fs::path(String::ToWString(resourceRelativePath))).lexically_normal().wstring();
     }
 
-    string Get_AssetFileName(const FAssetMeta& assetMeta)
+    string Get_AssetFileName(const AssetMeta& assetMeta)
     {
         if (!assetMeta.relativePath.empty())
             return String::ToString(fs::path(assetMeta.relativePath).filename().wstring());
@@ -121,7 +121,7 @@ namespace UIEditor
         return String::ToString(fs::path(assetMeta.fullPath).filename().wstring());
     }
 
-    bool Is_UITextureAsset(const FAssetMeta& assetMeta)
+    bool Is_UITextureAsset(const AssetMeta& assetMeta)
     {
         if (assetMeta.type != "Texture")
             return false;
@@ -130,7 +130,7 @@ namespace UIEditor
         return StartsWith(relativePath, "textures/ui/");
     }
 
-    bool Is_UISpriteFontAsset(const FAssetMeta& assetMeta)
+    bool Is_UISpriteFontAsset(const AssetMeta& assetMeta)
     {
         if (assetMeta.type != "Font")
             return false;
@@ -142,13 +142,13 @@ namespace UIEditor
         return String::ToLowerCopy(fs::path(relativePath).extension().string()) == ".spritefont";
     }
 
-    string Make_FontTag(const FAssetMeta& assetMeta)
+    string Make_FontTag(const AssetMeta& assetMeta)
     {
         const fs::path path = !assetMeta.relativePath.empty() ? fs::path(assetMeta.relativePath) : fs::path(assetMeta.fullPath);
         return String::ToString(path.stem().wstring());
     }
 
-    bool Matches_Search(const FAssetMeta& assetMeta, const string& searchText)
+    bool Matches_Search(const AssetMeta& assetMeta, const string& searchText)
     {
         if (searchText.empty())
             return true;
@@ -235,13 +235,13 @@ namespace UIEditor
         return safeText;
     }
 
-    void Apply_TextureAsset(UI_Object& object, const FAssetMeta& assetMeta)
+    void Apply_TextureAsset(UI_Object& object, const AssetMeta& assetMeta)
     {
         object.textureGuid = assetMeta.guid;
         object.texturePath = Make_ClientRuntimeResourcePath(assetMeta);
     }
 
-    void Apply_FontAsset(UI_Object& object, const FAssetMeta& assetMeta)
+    void Apply_FontAsset(UI_Object& object, const AssetMeta& assetMeta)
     {
         object.fontGuid = assetMeta.guid;
         object.fontPath = Make_ClientRuntimeResourcePath(assetMeta);

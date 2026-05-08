@@ -11,6 +11,9 @@
 #include "Reflection_Types.h"
 #include "TransformCom.h"
 
+const vector<Engine::BTBlackboardKeyView>* Inspector::_btBlackboardKeys = nullptr;
+
+
 Inspector::Inspector()
     : Editor_Window{ L"Inspector" }
 {
@@ -111,6 +114,27 @@ void Inspector::Draw_ObjectReflection(const Shared<GameObject>& target)
     Draw_ReflectionSection(info.className, target.get(), info);
 }
 
+bool Inspector::Draw_Vec2PropertyRow(const string& idPrefix, const PropertyInfo& property, Vec2& value)
+{
+    bool changed = false;
+
+    ImGui::PushID(idPrefix.c_str());
+
+    const float availableWidth = ImGui::GetContentRegionAvail().x;
+    const float columnWidth = (availableWidth - 4.f) / 2.f;
+    const float dragWidth = columnWidth - 22.f;
+
+    static const ImVec4 colorX(0.75f, 0.18f, 0.18f, 1.f);
+    static const ImVec4 colorY(0.25f, 0.60f, 0.25f, 1.f);
+
+    changed |= Draw_VecAxis("X", colorX, value.x, property.dragSpeed, idPrefix + "_X", dragWidth);
+    ImGui::SameLine(0.f, 4.f);
+    changed |= Draw_VecAxis("Y", colorY, value.y, property.dragSpeed, idPrefix + "_Y", dragWidth);
+
+    ImGui::PopID();
+    return changed;
+}
+
 void Inspector::Draw_ReflectionSection(
     const string& headerId,
     void* instance,
@@ -207,6 +231,18 @@ void Inspector::Draw_ReflectionProperty(
         break;
     }
 
+    case PropertyType::Vec2:
+    {
+        Vec2* value = static_cast<Vec2*>(address);
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextDisabled("%s", visibleLabel.c_str());
+        ImGui::SameLine(InspectorLabelWidth);
+
+        Draw_Vec2PropertyRow(idPrefix + "_" + property.name, property, *value);
+        break;
+    }
+
     case PropertyType::Vec3:
     {
         Vec3* value = static_cast<Vec3*>(address);
@@ -219,6 +255,30 @@ void Inspector::Draw_ReflectionProperty(
         break;
     }
 
+    case PropertyType::Vec4:
+    {
+        Vec4* value = static_cast<Vec4*>(address);
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextDisabled("%s", visibleLabel.c_str());
+        ImGui::SameLine(InspectorLabelWidth);
+
+        Draw_Vec4PropertyRow(idPrefix + "_" + property.name, property, *value);
+        break;
+    }
+
+    case PropertyType::Color:
+    {
+        Vec4* value = static_cast<Vec4*>(address);
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextDisabled("%s", visibleLabel.c_str());
+        ImGui::SameLine(InspectorLabelWidth);
+
+        Draw_ColorPropertyRow(idPrefix + "_" + property.name, *value);
+        break;
+    }
+
     case PropertyType::String:
     {
         std::string* value = static_cast<std::string*>(address);
@@ -226,16 +286,53 @@ void Inspector::Draw_ReflectionProperty(
         ImGui::AlignTextToFramePadding();
         ImGui::TextDisabled("%s", visibleLabel.c_str());
         ImGui::SameLine(InspectorLabelWidth);
-        ImGui::BeginDisabled();
-        ImGui::TextUnformatted(value->c_str());
-        ImGui::EndDisabled();
+
+        if (property.isBlackboardKey && _btBlackboardKeys != nullptr)
+        {
+            ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+
+            const char* preview = value->empty() ? "(None)" : value->c_str();
+
+            if (ImGui::BeginCombo(hiddenId.c_str(), preview))
+            {
+                for (const auto& key : *_btBlackboardKeys)
+                {
+                    if (key.type != property.blackboardValueType)
+                        continue;
+
+                    const bool isSelected = (*value == key.name);
+
+                    if (ImGui::Selectable(key.name.c_str(), isSelected))
+                        *value = key.name;
+
+                    if (isSelected)
+                        ImGui::SetItemDefaultFocus();
+                }
+
+                ImGui::EndCombo();
+            }
+        }
+        else
+        {
+            ImGui::BeginDisabled();
+            ImGui::TextUnformatted(value->c_str());
+            ImGui::EndDisabled();
+        }
         break;
     }
 
-    case PropertyType::Vec2:
-    case PropertyType::Vec4:
-    case PropertyType::Color:
     case PropertyType::Enum:
+    {
+        int* value = static_cast<int*>(address);
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextDisabled("%s", visibleLabel.c_str());
+        ImGui::SameLine(InspectorLabelWidth);
+
+        Draw_EnumPropertyRow(idPrefix + "_" + property.name, property, *value);
+        break;
+    }
+
     case PropertyType::ReadOnly:
     default:
     {
@@ -249,6 +346,7 @@ void Inspector::Draw_ReflectionProperty(
     }
     }
 }
+
 
 bool Inspector::Draw_Vec3PropertyRow(
     const string& idPrefix,
@@ -280,6 +378,87 @@ bool Inspector::Draw_Vec3PropertyRow(
     return changed;
 }
 
+bool Inspector::Draw_Vec4PropertyRow(const string& idPrefix, const PropertyInfo& property, Vec4& value)
+{
+    ImGui::PushID(idPrefix.c_str());
+
+    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+    const bool changed = ImGui::DragFloat4("##Vec4", &value.x, property.dragSpeed);
+
+    ImGui::PopID();
+    return changed;
+}
+
+bool Inspector::Draw_ColorPropertyRow(const string& idPrefix, Vec4& value)
+{
+    ImGui::PushID(idPrefix.c_str());
+
+    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+
+    const bool changed = ImGui::ColorEdit4(
+        "##Color",
+        &value.x,
+        ImGuiColorEditFlags_Float | ImGuiColorEditFlags_AlphaBar);
+
+    ImGui::PopID();
+    return changed;
+}
+
+bool Inspector::Draw_EnumPropertyRow(const string& idPrefix, const PropertyInfo& property, int& value)
+{
+     ImGui::PushID(idPrefix.c_str());
+
+    if (property.enumNames.empty() || property.enumValues.empty() || property.enumNames.size() != property.enumValues.size())
+    {
+        ImGui::BeginDisabled();
+        ImGui::TextUnformatted("Invalid Enum Metadata");
+        ImGui::EndDisabled();
+        ImGui::PopID();
+        return false;
+    }
+
+    int currentIndex = -1;
+    for (int i = 0; i < static_cast<int>(property.enumValues.size()); ++i)
+    {
+        if (property.enumValues[i] == value)
+        {
+            currentIndex = i;
+            break;
+        }
+    }
+
+    const char* preview =
+        (currentIndex >= 0 && currentIndex < static_cast<int>(property.enumNames.size()))
+        ? property.enumNames[currentIndex].c_str()
+        : "Unknown";
+
+    bool changed = false;
+
+    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+    if (ImGui::BeginCombo("##Enum", preview))
+    {
+        for (int i = 0; i < static_cast<int>(property.enumNames.size()); ++i)
+        {
+            const bool isSelected = (currentIndex == i);
+
+            if (ImGui::Selectable(property.enumNames[i].c_str(), isSelected))
+            {
+                value = property.enumValues[i];
+                changed = true;
+            }
+
+            if (isSelected)
+                ImGui::SetItemDefaultFocus();
+        }
+
+        ImGui::EndCombo();
+    }
+
+    ImGui::PopID();
+
+    return changed;
+}
+
 bool Inspector::Draw_VecAxis(
     const char* axisLabel,
     const ImVec4& color,
@@ -301,6 +480,11 @@ bool Inspector::Draw_VecAxis(
     const string dragId = "##" + uniqueId;
 
     return ImGui::DragFloat(dragId.c_str(), &value, speed);
+}
+
+void Inspector::Set_BTBlackboardKeys(const vector<Engine::BTBlackboardKeyView>* keys)
+{
+    _btBlackboardKeys = keys;
 }
 
 Shared<Inspector> Inspector::Create()

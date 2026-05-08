@@ -1,4 +1,4 @@
-﻿#include "Mon_AIController.h"
+#include "Mon_AIController.h"
 #include "BlackBoard.h"
 #include "BehaviorTree.h"
 #include "BT_MoveTo.h"
@@ -24,29 +24,22 @@ Mon_AIController::Mon_AIController(const Mon_AIController& prototype)
 
 HRESULT Mon_AIController::Initialize_Prototype()
 {
-
-
     return S_OK;
 }
 
 HRESULT Mon_AIController::Initialize(void* arg)
 {
-    // behavior tree 연결
-
-    //임시 밖에서 넣어 줘야 함
     auto moveTo = BT_MoveTo::Create();
     auto idle = BT_Idle::Create();
     auto attack = BT_Attack::Create();
 
     auto select = Selector::Create();
 
-    auto deco = BT_CheckDistance::Create(5.f , true);
+    auto deco = BT_CheckDistance::Create(5.f, BT_CheckDistance::EDistanceCondition::LessThan);
     deco->Set_Child(attack);
 
-    auto deco2 = BT_CheckDistance::Create(5.f, false);
+    auto deco2 = BT_CheckDistance::Create(5.f, BT_CheckDistance::EDistanceCondition::Between, 20.f);
     deco2->Set_Child(moveTo);
-
-
 
     select->Add_Child(deco);
     select->Add_Child(deco2);
@@ -54,15 +47,9 @@ HRESULT Mon_AIController::Initialize(void* arg)
     auto tree = make_shared<BehaviorTree>();
     tree->Set_Root(select);
 
-
     Set_BehaviorTree(tree);
 
-
-    // blackboard 에 값넣기
-
     _BB = BlackBoard::Create();
-
-    // PathFollower 만들기 
     _PF = PathFollower::Create();
 
     return S_OK;
@@ -70,13 +57,11 @@ HRESULT Mon_AIController::Initialize(void* arg)
 
 void Mon_AIController::Update(float timeDelta)
 {
-   auto pos =  CLIENT->Find_Player(ETOI(LevelType::GamePlay))->Get_Transform()->Get_Position();
+   auto pos =  CLIENT->Find_Player(ETOI(LevelType::Static))->Get_Transform()->Get_Position();
     _BB->Set_Value("playerPos", pos);
 
     __super::Update(timeDelta);
-
 }
-
 
 Shared<Mon_AIController> Mon_AIController::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
@@ -90,7 +75,6 @@ Shared<Mon_AIController> Mon_AIController::Create(const ComPtr<Device>& device, 
 
     return instance;
 }
-
 
 Shared<Component> Mon_AIController::Clone(void* arg)
 {
@@ -108,5 +92,4 @@ Shared<Component> Mon_AIController::Clone(void* arg)
 void Mon_AIController::Free()
 {
     __super::Free();
-
 }

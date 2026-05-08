@@ -4,6 +4,9 @@
 #include "FreeCamera.h"
 #include "TargetCamera.h"
 #include "PointParticlePreview.h"
+
+//#include "MapLoader.h"
+
 #include "UI_Image.h"
 #include "UI_RuntimeLoader.h"
 #include "UI_Text.h"
@@ -32,6 +35,8 @@ HRESULT Level_GamePlay::Initialize()
 
     if (FAILED(Ready_Layer_Monster(TEXT("Layer_Monster"))))
         return E_FAIL;
+
+    //CHECK_FAILED(Ready_Layer_MapStaticMesh(L"Layer_MapStaticMesh"), E_FAIL);
 
     return S_OK;
 }
@@ -121,8 +126,8 @@ HRESULT Level_GamePlay::Ready_Layer_Camera(const wstring& strLayerTag)
 	CameraDesc.farPlane = 500.f;
 	CameraDesc.mouseSensor = 0.05f;
 
-	if (FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_FreeCamera"),
-		ETOI(LevelType::GamePlay), strLayerTag, &CameraDesc)))
+	if (FAILED(GAME->Add_GameObject(ETOI(LevelType::Static), TEXT("GameObject_FreeCamera"),
+		ETOI(LevelType::Static), strLayerTag, &CameraDesc)))
 		return E_FAIL;
 
     TargetCamera::TARGETCAMERA_DESC		TargetCameraDesc{};
@@ -149,8 +154,8 @@ HRESULT Level_GamePlay::Ready_Layer_Camera(const wstring& strLayerTag)
     TargetCameraDesc.lookHeight = 0.8f;
     TargetCameraDesc.pivotHeight =0.3f;
 
-    if (FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_TargetCamera"),
-        ETOI(LevelType::GamePlay), strLayerTag, &TargetCameraDesc)))
+    if (FAILED(GAME->Add_GameObject(ETOI(LevelType::Static), TEXT("GameObject_TargetCamera"),
+        ETOI(LevelType::Static), strLayerTag, &TargetCameraDesc)))
         return E_FAIL;
 
 	return S_OK;
@@ -162,8 +167,8 @@ HRESULT Level_GamePlay::Ready_Layer_BackGround(const wstring& strLayerTag)
         ETOI(LevelType::GamePlay), strLayerTag)))
         return E_FAIL;
 
-    if (FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Sky"),
-        ETOI(LevelType::GamePlay), strLayerTag)))
+    if (FAILED(GAME->Add_GameObject(ETOI(LevelType::Static), TEXT("GameObject_Sky"),
+        ETOI(LevelType::Static), strLayerTag)))
         return E_FAIL;
 
     if (FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_PointParticlePreview"),
@@ -186,11 +191,11 @@ HRESULT Level_GamePlay::Ready_Layer_Monster(const wstring& strLayerTag)
 
 HRESULT Level_GamePlay::Ready_Layer_Player(const wstring& strLayerTag)
 {
-    if (FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Player"),
-        ETOI(LevelType::GamePlay), strLayerTag)))
+    if (FAILED(GAME->Add_GameObject(ETOI(LevelType::Static), TEXT("GameObject_Player"),
+        ETOI(LevelType::Static), strLayerTag)))
         return E_FAIL;
 
-    auto goPlayer = CLIENT->Find_Player(ETOI(LevelType::GamePlay));
+    auto goPlayer = CLIENT->Find_Player(ETOI(LevelType::Static));
     if (goPlayer)
     {
         auto tr = goPlayer->Get_Transform();
@@ -203,6 +208,14 @@ HRESULT Level_GamePlay::Ready_Layer_Player(const wstring& strLayerTag)
 
     return S_OK;
 }
+
+//HRESULT Level_GamePlay::Ready_Layer_MapStaticMesh(const wstring& strLayerTag)
+//{
+//    CHECK_FAILED(MapLoader::Load(_device, _context, Constants::Map::SmallLevel_SimonArea_Remake_Path,
+//        ETOI(LevelType::GamePlay), strLayerTag), E_FAIL);
+//
+//    return S_OK;
+//}
 
 Shared<Level_GamePlay> Level_GamePlay::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {

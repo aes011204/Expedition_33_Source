@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "UI_Editor_Manager.h"
 #include "GameInstance.h"
 #include "Texture.h"
@@ -713,7 +713,7 @@ void UI_Editor_Manager::Resolve_LoadedAssetReferences()
             if (object.fontGuid.empty() && !object.fontPath.empty())
             {
                 const string targetPath = Normalize_PathForCompare(object.fontPath);
-                for (const FAssetMeta& assetMeta : GAME->Get_AssetsByType("Font"))
+                for (const AssetMeta& assetMeta : GAME->Get_AssetsByType("Font"))
                 {
                     if (Normalize_PathForCompare(Make_ClientRuntimeResourcePath(assetMeta)) == targetPath)
                     {

@@ -3,6 +3,8 @@
 class ENGINE_DLL BT_MoveTo :
     public Task
 {
+    GENERATED_BTNODE(BT_MoveTo, "Task")
+
 public:
 
     BT_MoveTo();
@@ -24,6 +26,11 @@ private:
     Vec3 _target = {};
 
     Vec3 _prevPos = {};
+protected:
+    string _targetKey = "playerPos";
+public:
+    const std::string& Get_TargetKey() const { return _targetKey; }
+    void Set_TargetKey(const std::string& key) { _targetKey = key; }
 public:
     static Shared<BT_MoveTo> Create();
     virtual void Free()override;

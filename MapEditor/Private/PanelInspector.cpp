@@ -37,6 +37,15 @@ void MapEditor::PanelInspector::Render()
         {
             _camera->FocusOn(obj->_position);
         }
+        ImGui::SameLine();
+
+        if (ImGui::Button("Delete"))
+        {
+            _ctx->Remove(_ctx->_selected);
+            ImGui::End();
+            SetOpen(open);
+            return;
+        }
 
         if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen))
         {

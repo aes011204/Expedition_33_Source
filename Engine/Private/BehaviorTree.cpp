@@ -14,7 +14,8 @@ BehaviorTree::~BehaviorTree()
 
 void BehaviorTree::Update(float deltaTime)
 {
-    _root->Update(deltaTime);
+    if (_root)
+        _root->Update(deltaTime);
 }
 
 void BehaviorTree::Bind_Owner(shared_ptr<AIController> owner)

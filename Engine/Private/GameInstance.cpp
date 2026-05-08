@@ -22,6 +22,7 @@
 #include "Shadow.h"
 #include "Picking.h"
 #include "ColliderCom.h"
+#include "Culling_Manager.h"
 
 #ifdef _DEBUG
 #include "Print_Manager.h"
@@ -106,6 +107,9 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
     _collisionManager = Collision_Manager::Create();
     CHECK_NULL(_collisionManager, E_FAIL);
 
+    _cullingManager = Culling_Manager::Create();
+    CHECK_NULL(_cullingManager, E_FAIL);
+
     _shadow = Shadow::Create();
     CHECK_NULL(_shadow, E_FAIL);
 
@@ -161,7 +165,7 @@ HRESULT GameInstance::Draw()
 
     _levelManager->Render();
 
-    CHECK_FAILED(Update_Picking(), E_FAIL);
+    //CHECK_FAILED(Update_Picking(), E_FAIL);
 
 #ifdef _DEBUG
     // Collision Manager
@@ -671,7 +675,7 @@ string GameInstance::Find_AssetGUID(const wstring& filePath) const
     return _assetManager->Find_GUID(filePath);
 }
 
-const FAssetMeta* GameInstance::Find_AssetByGUID(const string& guid) const
+const AssetMeta* GameInstance::Find_AssetByGUID(const string& guid) const
 {
     if (nullptr == _assetManager)
         return nullptr;
@@ -679,7 +683,7 @@ const FAssetMeta* GameInstance::Find_AssetByGUID(const string& guid) const
     return _assetManager->Find_ByGUID(guid);
 }
 
-vector<FAssetMeta> GameInstance::Get_AssetsByType(const string& type) const
+vector<AssetMeta> GameInstance::Get_AssetsByType(const string& type) const
 {
     if (nullptr == _assetManager)
         return {};
@@ -701,6 +705,18 @@ wstring GameInstance::Get_AssetRoot() const
         return {};
 
     return _assetManager->Get_ResourceRoot();
+}
+
+string GameInstance::Ensure_AssetGUID(const wstring& filePath, const string& type) const
+{
+    if (nullptr == _assetManager)
+        return {};
+
+    const string existingGuid = _assetManager->Find_GUID(filePath);
+    if (!existingGuid.empty())
+        return existingGuid;
+
+    return _assetManager->Register_Asset(filePath, type);
 }
 
 HRESULT GameInstance::Add_Camera(Shared<Camera> camera) const
@@ -873,6 +889,31 @@ PxScene* GameInstance::Get_PhysXScene() const
 {
     CHECK_NULL(_physxManager, nullptr);
     return _physxManager->Get_Scene();
+}
+
+void GameInstance::UpdateFrustum(const Matrix& view, const Matrix& proj)
+{
+    if (_cullingManager)
+    {
+        _cullingManager->UpdateFrustum(view, proj);
+    }
+}
+
+bool GameInstance::IsVisible(const BoundingBox& worldAABB) const
+{
+    if (_cullingManager)
+    {
+        return _cullingManager->IsVisible(worldAABB);
+    }
+
+    return true;
+}
+void GameInstance::Visit_BTNodeTypes(const function<void(const TypeRegistry::BTNodeTypeInfo&)>& visitor) const
+{
+    if (_typeRegistry == nullptr)
+        return;
+
+    _typeRegistry->Visit_BTNodeTypes(visitor);
 }
 
 void GameInstance::Draw_DebugBox(const DebugBoxDesc& desc)
