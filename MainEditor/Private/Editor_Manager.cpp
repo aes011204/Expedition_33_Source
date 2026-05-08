@@ -10,6 +10,7 @@
 #include "Camera_Tool.h"
 #include "Profile_View.h"
 #include "BT_Tool.h"
+#include "Level_Tool.h"
 
 #include <filesystem>
 #include <shellapi.h>
@@ -36,6 +37,7 @@ HRESULT Editor_Manager::Initialize()
 
     Add_Window(BT_Tool::Create());
     Add_Window(Prefab_View::Create());
+    Add_Window(Level_Tool::Create());
 
     return S_OK;
 }

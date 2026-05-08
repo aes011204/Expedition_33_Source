@@ -66,6 +66,14 @@ HRESULT Loader::Loading()
 		hr = Loading_For_GamePlayLevel();
 		break;
 
+    case LevelType::MapTest:
+        hr = Loading_For_MapTestLevel();
+        break;
+
+    case LevelType::Stage01:
+        hr = Loading_For_Stage01Level();
+        break;
+
 	default:
 		hr = E_FAIL;
 	}
@@ -128,6 +136,38 @@ HRESULT Loader::Loading_For_GamePlayLevel()
 	_isFinished = true;
 
 	return S_OK;
+}
+
+HRESULT Loader::Loading_For_MapTestLevel()
+{
+    lstrcpy(_loadingText, TEXT("json 리소스 테이블을 로딩 중입니다."));
+
+    if (FAILED(Load_ResourceTablesForLevel(LevelType::MapTest)))
+    {
+        MSG_BOX("Faild to Load Resource Tables : MapTest");
+        return E_FAIL;
+    }
+
+    lstrcpy(_loadingText, TEXT("로딩이 완료되었습니다."));
+    _isFinished = true;
+
+    return S_OK;
+}
+
+HRESULT Loader::Loading_For_Stage01Level()
+{
+    lstrcpy(_loadingText, TEXT("json 리소스 테이블을 로딩 중입니다."));
+
+    if (FAILED(Load_ResourceTablesForLevel(LevelType::Stage01)))
+    {
+        MSG_BOX("Faild to Load Resource Tables : Stage01");
+        return E_FAIL;
+    }
+
+    lstrcpy(_loadingText, TEXT("로딩이 완료되었습니다."));
+    _isFinished = true;
+
+    return S_OK;
 }
 
 Shared<Loader> Loader::Create(const ComPtr<Device>& device, const ComPtr<Context>& context, LevelType eNextLevelID)

@@ -70,7 +70,7 @@ HRESULT Mon_AIController::Initialize(void* arg)
 
 void Mon_AIController::Update(float timeDelta)
 {
-   auto pos =  CLIENT->Find_Player(ETOI(LevelType::GamePlay))->Get_Transform()->Get_Position();
+   auto pos =  CLIENT->Find_Player(ETOI(LevelType::Static))->Get_Transform()->Get_Position();
     _BB->Set_Value("playerPos", pos);
 
     __super::Update(timeDelta);

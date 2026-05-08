@@ -99,7 +99,7 @@ HRESULT MapStaticMesh::Render()
 
 HRESULT MapStaticMesh::Ready_Components(const wstring& modelPath, Shared<ModelCom> sharedModel)
 {
-    if (FAILED(__super::Add_Component(ETOI(LevelType::GamePlay), TEXT("Shader_VtxMesh"), _shader)))
+    if (FAILED(__super::Add_Component(ETOI(LevelType::Static), TEXT("Shader_VtxMesh"), _shader)))
     {
         return E_FAIL;
     }

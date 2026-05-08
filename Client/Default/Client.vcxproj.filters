@@ -103,6 +103,15 @@
     <Filter Include="02.GameObject\Player\PlayerParts\Weapon">
       <UniqueIdentifier>{292bac37-111c-402f-87d5-1f785fd312bc}</UniqueIdentifier>
     </Filter>
+    <Filter Include="01.Levels\MapTest">
+      <UniqueIdentifier>{77911e2e-65af-4efd-b338-4ab3a4f0b785}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="01.Levels\Stage">
+      <UniqueIdentifier>{ddcce0fb-3121-437f-bfa6-40721f3b2b41}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="01.Levels\Stage\Stage01">
+      <UniqueIdentifier>{c5fa3f83-263a-48ef-899c-ed4c7f3696dd}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -204,6 +213,12 @@
     <ClInclude Include="..\Public\Client_Constants.h">
       <Filter>99.Defines</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\Level_MapTest.h">
+      <Filter>01.Levels\MapTest</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Level_Stage01.h">
+      <Filter>01.Levels\Stage\Stage01</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -276,7 +291,6 @@
     <ClCompile Include="..\private\BT_Idle.cpp" />
     <ClCompile Include="..\private\BT_Attack.cpp" />
     <ClCompile Include="..\private\BT_CheckDistance.cpp" />
-
     <ClCompile Include="..\Private\MapStaticMesh.cpp">
       <Filter>02.GameObject\Map\MapStaticMesh</Filter>
     </ClCompile>
@@ -294,6 +308,12 @@
       <Filter>02.GameObject\Player\PlayerParts</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\UI_RuntimeLoader.cpp" />
+    <ClCompile Include="..\Private\Level_MapTest.cpp">
+      <Filter>01.Levels\MapTest</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Level_Stage01.cpp">
+      <Filter>01.Levels\Stage\Stage01</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">
