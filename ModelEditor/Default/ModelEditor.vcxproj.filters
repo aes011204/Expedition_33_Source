@@ -43,6 +43,9 @@
     <Filter Include="00. EditorBlock\ModelWindow">
       <UniqueIdentifier>{ec0a691e-5890-4309-a35a-46bd8c79313a}</UniqueIdentifier>
     </Filter>
+    <Filter Include="03. AnimNotify">
+      <UniqueIdentifier>{13dbc660-79ed-48b4-ad14-efa24d6420f9}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="framework.h">

@@ -1,11 +1,130 @@
 ﻿
 #include "BT_View.h"
 #include "EditorInstance.h"
+#include "AIController.h"
+#include "BehaviorTree.h"
+#include "Composite.h"
+#include "Decorator.h"
 #include "GameInstance.h"
 #include "BNode.h"
+#include "GameObject.h"
 #include "Inspector.h"
 #include "TypeRegistry.h"
 
+namespace 
+{
+    ImColor Get_DebugNodeColor(Engine::BTNodeState state)
+    {
+        switch (state)
+        {
+        case Engine::BTNodeState::RUN:     return ImVec4(180.f / 255.f, 160.f / 255.f, 40.f / 255.f, 1.f);
+        case Engine::BTNodeState::SUCCESS: return ImVec4(60.f / 255.f, 150.f / 255.f, 60.f / 255.f, 1.f);
+        case Engine::BTNodeState::FAILED:  return ImVec4(160.f / 255.f, 60.f / 255.f, 60.f / 255.f, 1.f);
+        default:                           return ImVec4(60.f / 255.f, 60.f / 255.f, 60.f / 255.f, 1.f);
+        }
+    }
+
+    string Build_DebugTargetLabel(const wstring& layerTag, const Shared<Engine::GameObject>& gameObject)
+    {
+        const string objectName = gameObject ? String::ToString(gameObject->Get_Name()) : "Unknown";
+
+        std::ostringstream oss;
+        if (!layerTag.empty())
+            oss << String::ToString(layerTag) << " / ";
+
+        oss << objectName;
+
+        if (gameObject)
+            oss << " [0x" << std::hex << reinterpret_cast<uintptr_t>(gameObject.get()) << "]";
+
+        return oss.str();
+    }
+
+    void Save_BTNodeProperties(json& nodeJson, const Shared<Engine::BNode>& node)
+    {
+        if (node == nullptr)
+            return;
+
+        auto& info = node->Get_ReflectionInfo();
+        const char* base = reinterpret_cast<const char*>(node.get());
+
+        for (const auto& prop : info.properties)
+        {
+            const string key = prop.jsonKey.empty() ? prop.name : prop.jsonKey;
+            const void* address = base + prop.offset;
+
+            switch (prop.type)
+            {
+            case PropertyType::Bool:
+                nodeJson[key] = *static_cast<const bool*>(address);
+                break;
+
+            case PropertyType::Int:
+                nodeJson[key] = *static_cast<const int*>(address);
+                break;
+
+            case PropertyType::Float:
+                nodeJson[key] = *static_cast<const float*>(address);
+                break;
+
+            case PropertyType::String:
+                nodeJson[key] = *static_cast<const string*>(address);
+                break;
+
+            case PropertyType::Enum:
+                nodeJson[key] = *reinterpret_cast<const int*>(address);
+                break;
+
+            default:
+                break;
+            }
+        }
+    }
+
+    void Restore_BTNodeProperties(const json& nodeJson, const Shared<Engine::BNode>& node)
+    {
+        if (node == nullptr)
+            return;
+
+        auto& info = node->Get_ReflectionInfo();
+        char* base = reinterpret_cast<char*>(node.get());
+
+        for (const auto& prop : info.properties)
+        {
+            const string key = prop.jsonKey.empty() ? prop.name : prop.jsonKey;
+            if (!nodeJson.contains(key))
+                continue;
+
+            void* address = base + prop.offset;
+
+            switch (prop.type)
+            {
+            case PropertyType::Bool:
+                *static_cast<bool*>(address) = nodeJson[key].get<bool>();
+                break;
+
+            case PropertyType::Int:
+                *static_cast<int*>(address) = nodeJson[key].get<int>();
+                break;
+
+            case PropertyType::Float:
+                *static_cast<float*>(address) = nodeJson[key].get<float>();
+                break;
+
+            case PropertyType::String:
+                *static_cast<string*>(address) = nodeJson[key].get<string>();
+                break;
+
+            case PropertyType::Enum:
+                *reinterpret_cast<int*>(address) = nodeJson[key].get<int>();
+                break;
+
+            default:
+                break;
+            }
+        }
+    }
+}
 
 BT_View::BT_View() : Editor_Window(L"BT View")
 {
@@ -20,6 +139,9 @@ HRESULT BT_View::Initialize()
 {
      Recreate_EditorContext();
     //Create_Node();
+
+     Set_Open(false);
+
     return S_OK;
 }
 
@@ -167,6 +289,7 @@ void BT_View::Render()
 
     ImGui::Text("Behavior Tree Editor");
     Draw_ToolBar();
+    Draw_DebugTargetSelector();
     Draw_LoadPopup();
     Draw_SavePopup();
     ImGui::Separator();
@@ -201,6 +324,7 @@ void BT_View::Render()
         Update_SelectedNode();
 
         Update_NodePositions();
+        Refresh_DebugState();
 
         Draw_Nodes();
         Draw_Links();
@@ -305,6 +429,10 @@ void BT_View::Create_Node(NodeType type)
 
     node.position = _popupPos;
 
+    if (FindRootNode() == nullptr)
+        node.isRoot = true;
+
+
     _nodes.push_back(node);
 
 
@@ -337,6 +465,10 @@ void BT_View::Create_Node(const string& className, const string& category)
 
     node.runtimeNode = dynamic_pointer_cast<Engine::BNode>(
         GAME->Create_BTNodePrototype(className));
+
+
+    if (FindRootNode() == nullptr)
+        node.isRoot = true;
 
     _nodes.push_back(node);
     ed::SetNodePosition(node.id, node.position);
@@ -375,8 +507,14 @@ void BT_View::Save_BT(const std::string& path)
         n["category"] = node.category;
         n["isRuntimeBTNode"] = node.isRuntimeBTNode;
 
+        Save_BTNodeProperties(n, node.runtimeNode);
+       
         j["nodes"].push_back(n);
     }
+
+    EditorNode* rootNode = FindRootNode();
+    if (rootNode != nullptr)
+        j["rootNodeId"] = static_cast<uint64_t>(rootNode->id.Get());
 
     for (auto& link : _links)
     {
@@ -449,6 +587,8 @@ void BT_View::Load_BT(const std::string& path)
         {
             node.runtimeNode = dynamic_pointer_cast<Engine::BNode>(
                 GAME->Create_BTNodePrototype(node.className));
+
+            Restore_BTNodeProperties(n, node.runtimeNode);
         }
 
         node.category = n.value("category", std::string{});
@@ -457,6 +597,17 @@ void BT_View::Load_BT(const std::string& path)
         _nodes.push_back(node);
     }
 
+    uint64_t rootNodeId = 0;
+    if (j.contains("rootNodeId"))
+        rootNodeId = j["rootNodeId"].get<uint64_t>();
+
+    for (auto& node : _nodes)
+    {
+        node.isRoot = (rootNodeId != 0 && node.id.Get() == rootNodeId);
+    }
+
+    if (FindRootNode() == nullptr && !_nodes.empty())
+        _nodes[0].isRoot = true;
     // =========================
     // Links
     // =========================
@@ -496,7 +647,7 @@ void BT_View::Load_BT(const std::string& path)
         {
             BlackboardKey key;
             key.name = bk["name"].get<std::string>();
-            key.type = static_cast<BlackboardValueType>(bk["type"].get<int>());
+            key.type = static_cast<Engine::BlackboardValueType>(bk["type"].get<int>());
             strcpy_s(key.nameBuffer, key.name.c_str());
             _blackboardKeys.push_back(key);
         }
@@ -607,13 +758,20 @@ void BT_View::Draw_Nodes()
             ed::SetNodePosition(node.id, node.position);
 
         const bool isSelected = (node.id == _selectedNodeId);
+        const auto debugIt = _debugNodeStates.find(node.id.Get());
+        const bool hasDebugState = (debugIt != _debugNodeStates.end());
 
-        if (isSelected)
+        if (hasDebugState)
+            ed::PushStyleColor(ed::StyleColor_NodeBg, Get_DebugNodeColor(debugIt->second));
+        else if (isSelected)
             ed::PushStyleColor(ed::StyleColor_NodeBg, ImColor(80, 80, 150));
 
         ed::BeginNode(node.id);
 
-        ImGui::Text("%s", node.title.c_str());
+        if (node.isRoot)
+            ImGui::Text("[Root] %s", node.title.c_str());
+        else
+            ImGui::Text("%s", node.title.c_str());
         ImGui::Spacing();
 
         ed::BeginPin(node.inputPin, ed::PinKind::Input);
@@ -629,11 +787,130 @@ void BT_View::Draw_Nodes()
 
         ed::EndNode();
 
-        if (isSelected)
+        if (hasDebugState || isSelected)
             ed::PopStyleColor();
     }
 
     firstFrame = false;
+}
+
+BT_View::EditorNode* BT_View::FindRootNode()
+{
+    for (auto& node : _nodes)
+    {
+        if (node.isRoot)
+            return &node;
+    }
+
+    return nullptr;
+}
+
+void BT_View::SetRootNode(EditorNode* newRoot)
+{
+    for (auto& node : _nodes)
+        node.isRoot = false;
+
+    if (newRoot != nullptr)
+        newRoot->isRoot = true;
+}
+
+void BT_View::Draw_DebugTargetSelector()
+{
+    ImGui::SameLine();
+
+    Shared<Engine::AIController> current = _debugAIController.lock();
+    Shared<Engine::GameObject> selectedObject = EDITOR->Selected_Object();
+    Shared<Engine::AIController> selectedAI =
+        selectedObject ? selectedObject->Get_Component<Engine::AIController>() : nullptr;
+
+    if (selectedAI != nullptr && ImGui::SmallButton("Use Selected"))
+        _debugAIController = selectedAI;
+
+    ImGui::SameLine();
+
+    string preview = "(None)";
+
+    if (current != nullptr)
+    {
+        Shared<Engine::GameObject> owner = current->Get_Owner();
+        preview = owner ? Build_DebugTargetLabel(L"", owner) : "Selected AI";
+    }
+
+    ImGui::SetNextItemWidth(220.f);
+    if (ImGui::BeginCombo("##BTDebugTarget", preview.c_str()))
+    {
+        const bool noneSelected = (current == nullptr);
+        if (ImGui::Selectable("(None)", noneSelected))
+            _debugAIController.reset();
+
+        if (noneSelected)
+            ImGui::SetItemDefaultFocus();
+
+        GAME->Visit_CurrentLevelObjects(
+            [&](const wstring& layerTag, const Shared<Engine::GameObject>& gameObject)
+            {
+                if (gameObject == nullptr)
+                    return;
+
+                Shared<Engine::AIController> aiController = gameObject->Get_Component<Engine::AIController>();
+                if (aiController == nullptr)
+                    return;
+
+                const string label = Build_DebugTargetLabel(layerTag, gameObject);
+                const bool isSelected = (current == aiController);
+
+                if (ImGui::Selectable(label.c_str(), isSelected))
+                    _debugAIController = aiController;
+
+                if (isSelected)
+                    ImGui::SetItemDefaultFocus();
+            });
+
+        ImGui::EndCombo();
+    }
+}
+
+void BT_View::Refresh_DebugState()
+{
+    _debugNodeStates.clear();
+
+    Shared<Engine::AIController> aiController = _debugAIController.lock();
+    if (aiController == nullptr)
+        return;
+
+    Shared<Engine::BehaviorTree> tree = aiController->Get_BehaviorTree();
+    if (tree == nullptr)
+        return;
+
+    Visit_RuntimeNode(tree->Get_Root(),
+        [&](const Shared<Engine::BNode>& node)
+        {
+            if (node == nullptr)
+                return;
+
+            _debugNodeStates[node->Get_AssetNodeId()] = node->Get_LastState();
+        });
+}
+
+void BT_View::Visit_RuntimeNode(
+    const Shared<Engine::BNode>& node,
+    const function<void(const Shared<Engine::BNode>&)>& visitor)
+{
+    if (node == nullptr)
+        return;
+
+    visitor(node);
+
+    if (auto composite = dynamic_pointer_cast<Engine::Composite>(node))
+    {
+        for (const auto& child : composite->Get_Children())
+            Visit_RuntimeNode(child, visitor);
+
+        return;
+    }
+
+    if (auto decorator = dynamic_pointer_cast<Engine::Decorator>(node))
+        Visit_RuntimeNode(decorator->Get_Child(), visitor);
 }
 
 void BT_View::Refresh_BT_FileList()
@@ -721,6 +998,8 @@ void BT_View::Handle_CreateLink()
                 else if (inputNode == outputNode)
                     canCreate = false;
                 else if (!CanNodeHaveChildren(outputNode->type))
+                    canCreate = false;
+                else if (inputNode->isRoot)
                     canCreate = false;
 
                 if (canCreate)
@@ -873,6 +1152,7 @@ void BT_View::Handle_DeleteNode()
             if (!target)
                 continue;
 
+            const bool wasRoot = target->isRoot;
             ed::PinId inputPin = target->inputPin;
             ed::PinId outputPin = target->outputPin;
 
@@ -896,6 +1176,33 @@ void BT_View::Handle_DeleteNode()
                     }),
                 _nodes.end()
             );
+
+            if (wasRoot)
+            {
+                EditorNode* newRoot = nullptr;
+
+                for (auto& node : _nodes)
+                {
+                    bool hasParent = false;
+
+                    for (const auto& link : _links)
+                    {
+                        if (link.endPin == node.inputPin)
+                        {
+                            hasParent = true;
+                            break;
+                        }
+                    }
+
+                    if (!hasParent)
+                    {
+                        newRoot = &node;
+                        break;
+                    }
+                }
+
+                SetRootNode(newRoot);
+            }
         }
 
         ed::EndDelete();
@@ -973,7 +1280,7 @@ void BT_View::Update_NodePositions()
 void BT_View::Draw_Blackboard()
 {
     static char newKeyName[64] = "playerPos";
-    static BlackboardValueType newKeyType = BlackboardValueType::Vec3;
+    static Engine::BlackboardValueType newKeyType = Engine::BlackboardValueType::Vec3;
 
     ImGui::TextUnformatted("Blackboard");
     ImGui::Separator();
@@ -991,14 +1298,14 @@ void BT_View::Draw_Blackboard()
     ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x * 0.42f);
     if (ImGui::BeginCombo("##NewBlackboardKeyType", BlackboardTypeToString(newKeyType)))
     {
-        if (ImGui::Selectable("Bool", newKeyType == BlackboardValueType::Bool))
-            newKeyType = BlackboardValueType::Bool;
-        if (ImGui::Selectable("Int", newKeyType == BlackboardValueType::Int))
-            newKeyType = BlackboardValueType::Int;
-        if (ImGui::Selectable("Float", newKeyType == BlackboardValueType::Float))
-            newKeyType = BlackboardValueType::Float;
-        if (ImGui::Selectable("Vec3", newKeyType == BlackboardValueType::Vec3))
-            newKeyType = BlackboardValueType::Vec3;
+        if (ImGui::Selectable("Bool", newKeyType == Engine::BlackboardValueType::Bool))
+            newKeyType = Engine::BlackboardValueType::Bool;
+        if (ImGui::Selectable("Int", newKeyType == Engine::BlackboardValueType::Int))
+            newKeyType = Engine::BlackboardValueType::Int;
+        if (ImGui::Selectable("Float", newKeyType == Engine::BlackboardValueType::Float))
+            newKeyType = Engine::BlackboardValueType::Float;
+        if (ImGui::Selectable("Vec3", newKeyType == Engine::BlackboardValueType::Vec3))
+            newKeyType = Engine::BlackboardValueType::Vec3;
 
         ImGui::EndCombo();
     }
@@ -1045,14 +1352,14 @@ void BT_View::Draw_Blackboard()
         ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x * 0.34f);
         if (ImGui::BeginCombo("##BlackboardKeyType", BlackboardTypeToString(key.type)))
         {
-            if (ImGui::Selectable("Bool", key.type == BlackboardValueType::Bool))
-                key.type = BlackboardValueType::Bool;
-            if (ImGui::Selectable("Int", key.type == BlackboardValueType::Int))
-                key.type = BlackboardValueType::Int;
-            if (ImGui::Selectable("Float", key.type == BlackboardValueType::Float))
-                key.type = BlackboardValueType::Float;
-            if (ImGui::Selectable("Vec3", key.type == BlackboardValueType::Vec3))
-                key.type = BlackboardValueType::Vec3;
+            if (ImGui::Selectable("Bool", key.type == Engine::BlackboardValueType::Bool))
+                key.type = Engine::BlackboardValueType::Bool;
+            if (ImGui::Selectable("Int", key.type == Engine::BlackboardValueType::Int))
+                key.type = Engine::BlackboardValueType::Int;
+            if (ImGui::Selectable("Float", key.type == Engine::BlackboardValueType::Float))
+                key.type = Engine::BlackboardValueType::Float;
+            if (ImGui::Selectable("Vec3", key.type == Engine::BlackboardValueType::Vec3))
+                key.type = Engine::BlackboardValueType::Vec3;
 
             ImGui::EndCombo();
         }

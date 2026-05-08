@@ -71,7 +71,7 @@ void TargetCamera::BeginPlay()
 
     GAME->Add_Camera(GetSharedPtr<Camera>());
     GAME->Change_ActiveCamera(GetSharedPtr<Camera>());
-    _targetTransformCom =  CLIENT->Find_Player(GAME->Current_LevelIndex())->Get_Transform();
+    _targetTransformCom =  CLIENT->Find_Player(ETOI(LevelType::Static))->Get_Transform();
     _prevTargetPos = _targetTransformCom.lock()->Get_WorldPosition();
 }
 
@@ -191,6 +191,7 @@ void TargetCamera::Update_NormalState(float timeDelta)
     _transformCom->LookAt(lookTarget);
 
     Update_TransformMatrices();
+    GAME->UpdateFrustum(*GAME->Get_Transform(D3DTS::View), *GAME->Get_Transform(D3DTS::Proj));
 
     _prevTargetPos = targetPos;
 }

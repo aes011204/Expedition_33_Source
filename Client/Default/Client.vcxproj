@@ -180,6 +180,8 @@
     <ClInclude Include="..\Public\Hair_Player.h" />
     <ClInclude Include="..\Public\Head_Player.h" />
     <ClInclude Include="..\Public\InputCom.h" />
+    <ClInclude Include="..\Public\Level_MapTest.h" />
+    <ClInclude Include="..\Public\Level_Stage01.h" />
     <ClInclude Include="..\Public\MapLoader.h" />
     <ClInclude Include="..\Public\MapStaticMesh.h" />
     <ClInclude Include="..\public\Mon_AIController.h" />
@@ -219,6 +221,8 @@
     <ClCompile Include="..\Private\Hair_Player.cpp" />
     <ClCompile Include="..\Private\Head_Player.cpp" />
     <ClCompile Include="..\Private\InputCom.cpp" />
+    <ClCompile Include="..\Private\Level_MapTest.cpp" />
+    <ClCompile Include="..\Private\Level_Stage01.cpp" />
     <ClCompile Include="..\Private\MapLoader.cpp" />
     <ClCompile Include="..\Private\MapStaticMesh.cpp" />
     <ClCompile Include="..\private\Mon_AIController.cpp" />

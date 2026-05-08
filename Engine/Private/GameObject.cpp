@@ -1,5 +1,6 @@
 ﻿#include "GameObject.h"
 #include "GameInstance.h"
+#include "Reflection_JsonUtil.h"
 
 GameObject::GameObject(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : _device { device }
@@ -90,37 +91,8 @@ json GameObject::To_Json() const
 
     for (const auto& prop : info.properties)
     {
-        const string key = prop.jsonKey.empty() ? prop.name : prop.jsonKey;
         const void* memberPtr = basePtr + prop.offset;
-
-        switch (prop.type)
-        {
-        case PropertyType::Float:
-            j["custom_properties"][key] = *static_cast<const float*>(memberPtr);
-            break;
-
-        case PropertyType::Int:
-            j["custom_properties"][key] = *static_cast<const int*>(memberPtr);
-            break;
-
-        case PropertyType::Bool:
-            j["custom_properties"][key] = *static_cast<const bool*>(memberPtr);
-            break;
-
-        case PropertyType::Vec3:
-        {
-            const Vec3* v = static_cast<const Vec3*>(memberPtr);
-            j["custom_properties"][key] = { v->x, v->y, v->z };
-            break;
-        }
-
-        case PropertyType::String:
-            j["custom_properties"][key] = *static_cast<const string*>(memberPtr);
-            break;
-
-        default:
-            break;
-        }
+        Reflection::Write_ReflectionProperty(j["custom_properties"], prop, memberPtr);
     }
 
     json components = json::array();
@@ -150,46 +122,8 @@ void GameObject::From_Json(const json& data)
 
         for (const auto& prop : info.properties)
         {
-            const string key = prop.jsonKey.empty() ? prop.name : prop.jsonKey;
-            if (!customProperties.contains(key))
-                continue;
-
             void* memberPtr = basePtr + prop.offset;
-
-            switch (prop.type)
-            {
-            case PropertyType::Float:
-                *static_cast<float*>(memberPtr) = customProperties[key].get<float>();
-                break;
-
-            case PropertyType::Int:
-                *static_cast<int*>(memberPtr) = customProperties[key].get<int>();
-                break;
-
-            case PropertyType::Bool:
-                *static_cast<bool*>(memberPtr) = customProperties[key].get<bool>();
-                break;
-
-            case PropertyType::Vec3:
-            {
-                const json& arr = customProperties[key];
-                if (!arr.is_array() || arr.size() < 3)
-                    break;
-
-                Vec3* v = static_cast<Vec3*>(memberPtr);
-                v->x = arr[0].get<float>();
-                v->y = arr[1].get<float>();
-                v->z = arr[2].get<float>();
-                break;
-            }
-
-            case PropertyType::String:
-                *static_cast<string*>(memberPtr) = customProperties[key].get<string>();
-                break;
-
-            default:
-                break;
-            }
+            Reflection::Read_ReflectionProperty(customProperties, prop, memberPtr);
         }
     }
 

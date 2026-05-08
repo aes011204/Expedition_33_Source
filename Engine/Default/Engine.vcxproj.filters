@@ -190,6 +190,9 @@
     <Filter Include="01.Utility\04.Component\VIBuffer\Instance\Particle">
       <UniqueIdentifier>{9c62bf2c-8203-4b3e-aebd-5eae6afe0067}</UniqueIdentifier>
     </Filter>
+    <Filter Include="94. AnimNotify">
+      <UniqueIdentifier>{8d36ebf8-1177-47c8-b0a9-b7afaf900cf2}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -207,7 +210,6 @@
     <ClInclude Include="..\Public\Shadow.h">
       <Filter>01.Utility\07.Lights</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\AnimationNotify.h" />
     <ClInclude Include="..\Public\Material_Types.h" />
     <ClInclude Include="..\Public\PhysX_Filter.h" />
     <ClInclude Include="..\Public\PhysX_Types.h" />
@@ -227,6 +229,7 @@
       <Filter>97. Manager\Event</Filter>
     </ClInclude>
     <ClInclude Include="..\public\AStar.h" />
+    <ClInclude Include="..\Public\Reflection_JsonUtil.h" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\public\Base.h">
@@ -490,6 +493,12 @@
     <ClInclude Include="..\Public\Print_Manager.h">
       <Filter>97. Manager</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\AnimNotify_Types.h">
+      <Filter>94. AnimNotify</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\AnimNotify_Parser.h">
+      <Filter>94. AnimNotify</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -720,7 +729,9 @@
     <ClCompile Include="..\Private\Print_Manager.cpp">
       <Filter>97. Manager</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\AnimationNotify.cpp" />
+    <ClCompile Include="..\Private\AnimNotify_Parser.cpp">
+      <Filter>94. AnimNotify</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\PhysX_Filter.cpp" />
     <ClCompile Include="..\Private\Picking.cpp" />
     <ClCompile Include="..\private\UI_Base.cpp" />

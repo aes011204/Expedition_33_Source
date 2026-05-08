@@ -13,7 +13,7 @@ public:
     void Draw_Inspector(const Shared<Component>& component) override;
 
 private:
-    string _behaviorTreeAssetPath;
+
 public:
     static Shared<AIController_Inspector> Create();
 };

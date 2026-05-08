@@ -15,6 +15,9 @@ public:
     ~MEStaticMeshActor() = default;
 
 public:
+    Shared<ModelCom> GetModel() const { return _model; }
+
+public:
     HRESULT Render(const Matrix& worldMatrix);
     HRESULT RenderID(const Matrix& worldMatrix, uint32 id);
 

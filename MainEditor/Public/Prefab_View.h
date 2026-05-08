@@ -74,6 +74,7 @@ private:
     uint32              _previewWidth = 512;
     uint32              _previewHeight = 512;
     bool                _previewHasBegunPlay = false;
+    bool                _requestResetPreviewCamera = false;
 
     SelectionType       _selectionType = SelectionType::None;
     bool                _showPrefabCollider = false;
