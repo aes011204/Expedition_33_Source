@@ -28,6 +28,8 @@ HRESULT Head_Player::Initialize(void* arg)
         return S_OK;
 	}
 
+    
+
 	return S_OK;
 }
 
@@ -35,13 +37,13 @@ void Head_Player::Priority_Update(float fTimeDelta)
 {
 }
 
-void Head_Player::Update(float fTimeDelta)
+void Head_Player::Update(float timeDelta)
 {
-    _modelCom->Play_Animation(fTimeDelta);
-	Update_CombinedWorldMatrix(_transformCom->Get_WorldMatrix());
+    _modelCom->Play_Animation(timeDelta);
+	Update_CombinedWorldMatrix(_transformCom->Get_WorldMatrix() * _headOffsetMatrix);
 }
 
-void Head_Player::Late_Update(float fTimeDelta)
+void Head_Player::Late_Update(float timeDelta)
 {
 	GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
 	GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());

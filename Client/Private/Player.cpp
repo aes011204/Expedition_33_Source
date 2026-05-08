@@ -136,6 +136,7 @@ HRESULT Player::Ready_PartObjects()
     headPartDesc.parentMatrix = playableDesc.parentMatrix;
     headPartDesc.modelType = ModelType::Anim;
     headPartDesc.modelTag = L"Model_LuneHead";
+    headPartDesc.socketMatrixPointer = mainBody->Get_SocketBoneMatrixPtr("Metahuman_Head");
 
     if (FAILED(__super::Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Head_Player"),
         TEXT("Part_Head"), &headPartDesc)))
@@ -146,6 +147,7 @@ HRESULT Player::Ready_PartObjects()
     hairPartDesc.parentMatrix = playableDesc.parentMatrix;
     hairPartDesc.modelType = ModelType::Anim;
     hairPartDesc.modelTag = L"Model_LuneHair";
+    hairPartDesc.socketMatrixPointer = mainBody->Get_SocketBoneMatrixPtr("headSocket");
 
     if (FAILED(__super::Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Hair_Player"),
         TEXT("Part_Hair"), &hairPartDesc)))

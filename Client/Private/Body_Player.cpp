@@ -29,7 +29,7 @@ HRESULT Body_Player::Initialize(void* arg)
 	}
 		
 
-	_modelCom->Set_Animation(/*rand() % 20*/1, true);
+	_modelCom->Set_Animation(/*rand() % 20*/2, true);
 
 	return S_OK;
 }

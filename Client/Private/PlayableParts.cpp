@@ -48,6 +48,8 @@ HRESULT PlayableParts::Initialize(void* arg)
 
     if (auto playableDesc = static_cast<PLAYABLE_PART_DESC*>(arg))
     {
+        _socketMatrix = playableDesc->socketMatrixPointer;
+
         if (FAILED(Ready_Components(*playableDesc)))
         {
             LOG_ERROR("[PlayableParts] : Failed to Ready Components");
@@ -135,6 +137,26 @@ HRESULT PlayableParts::Render_Shadow()
     }
 
     return S_OK;
+}
+
+void PlayableParts::Update_CombinedWorldMatrix(const Matrix& childMatrix)
+{
+    Matrix socketMatrix = (nullptr != _socketMatrix) ? *_socketMatrix : Matrix::Identity;
+
+    //Vector3 right = socketMatrix.Right();
+    //Vector3 up = socketMatrix.Up();
+    //Vector3 forward = socketMatrix.Backward();
+    //right.Normalize();
+    //up.Normalize();
+    //forward.Normalize();
+    //socketMatrix.Right(right);
+    //socketMatrix.Up(up);
+    //socketMatrix.Backward(forward);
+
+    const Matrix& parentMatrix = (nullptr != _parentMatrix) ? *_parentMatrix : Matrix::Identity;
+    const Matrix childWorld = childMatrix;
+    const Matrix combinedWorld = childWorld * socketMatrix * parentMatrix;
+    _combinedWorldMatrix = combinedWorld;
 }
 
 HRESULT PlayableParts::Ready_Components(const PLAYABLE_PART_DESC& desc)
