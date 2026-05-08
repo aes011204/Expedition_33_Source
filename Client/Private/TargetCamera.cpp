@@ -25,17 +25,33 @@ HRESULT TargetCamera::Initialize(void* arg)
 
     const auto desc = static_cast<TARGETCAMERA_DESC*>(arg);
 
-    _followSpeed = desc->followSpeed;
-    _mouseSensor = desc->mouseSensor;
-    _distance = desc->distance;
-    _sideOffset = desc->sideOffset;
-    _heightOffset = desc->heightOffset;
-    _aimOffset = desc->aimOffset;
-    _pitchLookScale = desc->pitchLookScale;
-    _pitchMin = desc->pitchMin;
-    _pitchMax = desc->pitchMax;
-    _lookHeight = desc->lookHeight;
-    _pivotHeight = desc->pivotHeight;
+    _currentSettings.followSpeed = desc->followSpeed;
+    _currentSettings.mouseSensor = desc->mouseSensor;
+    _currentSettings.distance = desc->distance;
+    _currentSettings.sideOffset = desc->sideOffset;
+    _currentSettings.heightOffset = desc->heightOffset;
+    _currentSettings.aimOffset = desc->aimOffset;
+    _currentSettings.pitchLookScale = desc->pitchLookScale;
+    _currentSettings.pitchMin = desc->pitchMin;
+    _currentSettings.pitchMax = desc->pitchMax;
+    _currentSettings.lookHeight = desc->pitchMax;
+    _currentSettings.pivotHeight = desc->pivotHeight;
+    _currentSettings.mouseSensitivity = desc->mouseSensitivity;
+
+    _yaw = 0.f;
+    _pitch = 0.f;
+    //followSpeed = desc->followSpeed;
+    //mouseSensor = desc->mouseSensor;
+    //distance = desc->distance;
+    //sideOffset = desc->sideOffset;
+    //heightOffset = desc->heightOffset;
+    //aimOffset = desc->aimOffset;
+    //pitchLookScale = desc->pitchLookScale;
+    //pitchMin = desc->pitchMin;
+    //pitchMax = desc->pitchMax;
+    //lookHeight = desc->lookHeight;
+    //pivotHeight = desc->pivotHeight;
+    //mouseSensitivity = desc->mouseSensitivity;
 
     if(FAILED(__super::Initialize(arg)))
         return E_FAIL;
@@ -43,6 +59,8 @@ HRESULT TargetCamera::Initialize(void* arg)
     Update_TransformMatrices();
 
     Set_Name(L"Target Camera");
+
+    Change_State(CAMERA_STATE::NORMAL);
 
     return S_OK;
 }
@@ -61,29 +79,72 @@ void TargetCamera::Priority_Update(float timeDelta)
 {
     __super::Priority_Update(timeDelta);
 
+    if(GAME->KeyDown(KEY_TYPE::RBUTTON))
+    {
+        Change_State(CAMERA_STATE::AIM);
+    }
+
+    if(_currentState == CAMERA_STATE::AIM && GAME->KeyUp(KEY_TYPE::RBUTTON))
+    {
+        Change_State(CAMERA_STATE::NORMAL);
+    }
+}
+
+void TargetCamera::Update(float timeDelta)
+{
+    __super::Update(timeDelta);
+
     if(!GAME->Is_ActiveCamera(GetSharedPtr<Camera>()))
         return;
 
+    switch(_currentState)
+    {
+        case CAMERA_STATE::NORMAL:
+            Update_NormalState(timeDelta);
+            break;
+
+        case CAMERA_STATE::AIM:
+            Update_AimState(timeDelta);
+            break;
+    }
+
+}
+
+void TargetCamera::Late_Update(float timeDelta)
+{
+    __super::Late_Update(timeDelta);
+}
+
+HRESULT TargetCamera::Render()
+{
+   if(FAILED(__super::Render()))
+       return E_FAIL;
+
+    return S_OK;
+}
+
+void TargetCamera::Update_NormalState(float timeDelta)
+{
     if(_targetTransformCom.expired())
     {
         MSG_BOX("Target Transform == nullptr");
         return;
     }
 
-   auto targetTransformCom  = _targetTransformCom.lock();
+    auto targetTransformCom  = _targetTransformCom.lock();
 
     if(nullptr == targetTransformCom)
         return;
 
     const Vec2 mouseDelta = GAME->Get_MouseDelta();
 
-    _yaw += mouseDelta.x * _mouseSensor;
-    _pitch += mouseDelta.y * _mouseSensor;
-    _pitch = std::clamp(_pitch, _pitchMin, _pitchMax);
+    _yaw += mouseDelta.x * _currentSettings.mouseSensor;
+    _pitch += mouseDelta.y * _currentSettings.mouseSensor * _currentSettings.mouseSensitivity;
+    _pitch = std::clamp(_pitch, _currentSettings.pitchMin, _currentSettings.pitchMax);
 
 
     const Vec3 targetPos = targetTransformCom->Get_WorldPosition();
-    const Vec3 pivotPos = targetPos + Vec3::Up * _pivotHeight;
+    const Vec3 pivotPos = targetPos + Vec3::Up * _currentSettings.pivotHeight;
 
     const float yawRad = XMConvertToRadians(_yaw);
     const float pitchRad = XMConvertToRadians(_pitch);
@@ -101,14 +162,14 @@ void TargetCamera::Priority_Update(float timeDelta)
     rightDir.Normalize();
 
     const Vec3 baseOffset =
-        backDir * _distance;
+        backDir * _currentSettings.distance;
 
     const Matrix pitchRotation = XMMatrixRotationAxis(rightDir, pitchRad);
     const Vec3 orbitOffset = XMVector3TransformNormal(baseOffset, pitchRotation);
 
-    Vec3 framingPos = pivotPos  + rightDir * _aimOffset;
-    Vec3 desiredPos = framingPos + orbitOffset + Vec3::Up * _heightOffset + rightDir * _sideOffset;
-    Vec3 lookTarget = framingPos + + Vec3::Up *_lookHeight;
+    Vec3 framingPos = pivotPos  + rightDir * _currentSettings.aimOffset;
+    Vec3 desiredPos = framingPos + orbitOffset + Vec3::Up * _currentSettings.heightOffset + rightDir * _currentSettings.sideOffset;
+    Vec3 lookTarget = framingPos + + Vec3::Up *_currentSettings.lookHeight;
 
     const Vec3 currentPos = _transformCom->Get_WorldPosition();
 
@@ -123,7 +184,7 @@ void TargetCamera::Priority_Update(float timeDelta)
     }
     else
     {
-        newPos = Math::Lerp_Damp(currentPos, desiredPos, _followSpeed, timeDelta);
+        newPos = Math::Lerp_Damp(currentPos, desiredPos, _currentSettings.followSpeed, timeDelta);
     }
 
     _transformCom->Set_WorldPosition(newPos);
@@ -134,22 +195,31 @@ void TargetCamera::Priority_Update(float timeDelta)
     _prevTargetPos = targetPos;
 }
 
-void TargetCamera::Update(float timeDelta)
+void TargetCamera::Update_AimState(float timeDelta)
 {
-    __super::Update(timeDelta);
+    //보간 처리를 하면서 천천히 움직이긴 해야겠지
+    //Vec3 forward = _transformCom->Get_WorldForward();
+
 }
 
-void TargetCamera::Late_Update(float timeDelta)
-{
-    __super::Late_Update(timeDelta);
-}
 
-HRESULT TargetCamera::Render()
+void TargetCamera::Change_State(CAMERA_STATE state)
 {
-   if(FAILED(__super::Render()))
-       return E_FAIL;
+    if(_currentState == state)
+        return;
 
-    return S_OK;
+    _currentState = state;
+
+    switch(_currentState)
+    {
+    case CAMERA_STATE::NORMAL:
+        _currentSettings = _normalPreset;
+        break;
+
+    case CAMERA_STATE::AIM:
+        _currentSettings = _aimPreset;
+        break;
+    }
 }
 
 void TargetCamera::SetTargetTransform(Shared<TransformCom> targetTransform)

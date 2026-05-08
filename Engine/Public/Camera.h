@@ -11,8 +11,9 @@ public:
 	{
 		XMFLOAT4		eye, at;
 		float		    fovy, nearPlane, farPlane;
-        float           yaw, pitch;
+   //     float           yaw, pitch;
         float           mouseSensor;
+        float           mouseSensitivity;
 	}CAMERA_DESC;
 
 public:
@@ -50,6 +51,7 @@ public:
 protected:
     float	_fovY{}, _near{}, _far{}, _aspect{};
     float	_mouseSensor = {};
+    float   _mouseSensitivity = {};
     float   _yaw {}, _pitch{};
 
 protected:

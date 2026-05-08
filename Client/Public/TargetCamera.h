@@ -5,6 +5,9 @@ NS_BEGIN(Client)
 class TargetCamera final : public Camera
 {
     GENERATED_GAMEOBJECT(TargetCamera, ObjectType::TargetCamera)
+public:
+
+    enum class CAMERA_STATE { NORMAL, AIM };
 
 public:
     typedef struct tagTargetCamera final : public Camera::CAMERA_DESC
@@ -40,7 +43,15 @@ public:
     virtual void    Late_Update(float timeDelta) override;
     virtual HRESULT Render() override;
 
+private:
+    void Update_NormalState(float timeDelta);
+    void Update_AimState(float timeDelta);
+
 public:
+    void Change_State(CAMERA_STATE state);
+
+public:
+    //TODO imgui      desc 하나로 보여주는 걸로 바꾸기?
     void            SetTargetTransform(Shared<TransformCom> targetTransform);
 
     float           Get_SideOffset() {return _sideOffset;}   
@@ -74,21 +85,25 @@ public:
     void            Set_PivotHeight(float pivotHeight) {_pivotHeight = pivotHeight;}
     
 private:
-   Weak<TransformCom> _targetTransformCom;
-    float             _followSpeed;
-    float             _distance;
-    float             _sideOffset;
-    float             _heightOffset;
-    float             _lookHeight;
-    float             _aimOffset;
+    TARGETCAMERA_DESC  _currentSettings;
+    TARGETCAMERA_DESC  _normalPreset;
+    TARGETCAMERA_DESC  _aimPreset;
+    Weak<TransformCom> _targetTransformCom;
+    float              _followSpeed;
+    float              _distance;
+    float              _sideOffset;
+    float              _heightOffset;
+    float              _lookHeight;
+    float              _aimOffset;
 
-    float             _pitchLookScale;
-    float             _pitchMin;
-    float             _pitchMax;
+    float              _pitchLookScale;
+    float              _pitchMin;
+    float              _pitchMax;
+                       
+    float              _pivotHeight;
 
-    float             _pivotHeight;
-
-    Vec3             _prevTargetPos;
+    Vec3               _prevTargetPos;
+    CAMERA_STATE       _currentState;
 public:
     static Shared<TargetCamera> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
     virtual Shared<GameObject> Clone(void* arg) override;

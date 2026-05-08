@@ -226,6 +226,7 @@
     <ClInclude Include="..\Public\Event_Struct.h">
       <Filter>97. Manager\Event</Filter>
     </ClInclude>
+    <ClInclude Include="..\public\AStar.h" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\public\Base.h">
@@ -727,6 +728,7 @@
     <ClCompile Include="..\private\UI_Manager.cpp" />
     <ClCompile Include="..\private\UI_Text.cpp" />
     <ClCompile Include="..\private\UI_Transform.cpp" />
+    <ClCompile Include="..\private\AStar.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Bin\ShaderFiles\Engine_Shader_Defines.hlsli">

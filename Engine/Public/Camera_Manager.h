@@ -29,9 +29,9 @@ public:
     Shared<Camera>       Get_ActiveCamera() {return m_activeCamera;}
 
     // 카메라 식별용
-    bool               Activate_CameraByType(ObjectType objectType);
-    bool               Is_ActiveCameraType(ObjectType objectType) const;
-    bool               Focus_FreeCameraOnPosition(const Vec3& position);
+    bool                 Activate_CameraByType(ObjectType objectType);
+    bool                 Is_ActiveCameraType(ObjectType objectType) const;
+    bool                 Focus_FreeCameraOnPosition(const Vec3& position);
 
     HRESULT             Bind_CameraFar(Shared<ShaderCom> shader, const char* constantName);
 

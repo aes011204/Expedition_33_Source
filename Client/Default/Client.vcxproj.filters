@@ -231,6 +231,9 @@
     <ClInclude Include="..\Public\Cinematic_Utils.h">
       <Filter>02.GameObject\Camera\Cinematic</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\BT_Node_Bootstrap.h">
+      <Filter>BehavoirTree</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -328,6 +331,9 @@
     </ClCompile>
     <ClCompile Include="..\Private\CinematicSequencerAdapter.cpp">
       <Filter>02.GameObject\Camera\Cinematic\Adapter</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\BT_Node_Bootstrap.cpp">
+      <Filter>BehavoirTree</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
