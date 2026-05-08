@@ -106,6 +106,7 @@ void FreeCamera::Priority_Update(float timeDelta)
              _transformCom->Set_RotationEuler(Vec3(_pitch, _yaw, 0.f));
 
     __super::Update_TransformMatrices();
+    GAME->UpdateFrustum(*GAME->Get_Transform(D3DTS::View), *GAME->Get_Transform(D3DTS::Proj));
 
     Vec3 pos = _transformCom->Get_WorldPosition();
     Vec3 look = _transformCom->Get_WorldForward();

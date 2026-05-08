@@ -39,6 +39,7 @@ class PhysX_Manager;
 class ColliderCom;
 class Shadow;
 class Picking;
+class Culling_Manager;
 
 class ENGINE_DLL GameInstance final : public Base
 {
@@ -284,6 +285,9 @@ public: // For. PhysX_Manager
     PxPhysics*  Get_PhysXPhysics() const;
     PxScene*    Get_PhysXScene() const;
 
+public: // For. Culling_Manager 
+    void UpdateFrustum(const Matrix& view, const Matrix& proj);
+    bool IsVisible(const BoundingBox& worldAABB) const;
 
 public: // For. BT_Node
     void Visit_BTNodeTypes(const function<void(const TypeRegistry::BTNodeTypeInfo&)>& visitor) const;
@@ -360,7 +364,7 @@ private:
     Unique<Shadow>              _shadow{};
     Unique<PhysX_Manager>       _physxManager{};
     Unique<Picking>             _picking{};
-
+    Unique<Culling_Manager>     _cullingManager{};
 
 
 #ifdef _DEBUG

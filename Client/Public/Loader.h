@@ -43,6 +43,8 @@ private:
 
 	HRESULT Loading_For_LogoLevel();
 	HRESULT Loading_For_GamePlayLevel();
+    HRESULT Loading_For_MapTestLevel();
+    HRESULT Loading_For_Stage01Level();
 
 private:
     static string Format_Duration(chrono::milliseconds duration);

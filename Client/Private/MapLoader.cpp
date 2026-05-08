@@ -53,7 +53,7 @@ HRESULT MapLoader::Load(const ComPtr<Device>& device, const ComPtr<Context>& con
         auto& scl = e["Scale"];
         desc.scale = Vec3(scl[0], scl[1], scl[2]);
 
-        if (FAILED(GAME->Add_GameObject(levelIndex, TEXT("GameObject_MapStaticMesh"),
+        if (FAILED(GAME->Add_GameObject(ETOI(LevelType::Static), TEXT("GameObject_MapStaticMesh"),
             levelIndex, layerTag, &desc)))
         {
             continue;

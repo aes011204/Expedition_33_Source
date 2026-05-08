@@ -74,13 +74,13 @@ HRESULT Sky::Render()
 
 HRESULT Sky::Ready_Components()
 {
-	if (FAILED(__super::Add_Component(ETOI(LevelType::GamePlay), TEXT("Texture_Sky"), _texture)))
+	if (FAILED(__super::Add_Component(ETOI(LevelType::Static), TEXT("Texture_Sky"), _texture)))
 		return E_FAIL;
 
-	if (FAILED(__super::Add_Component(ETOI(LevelType::GamePlay), TEXT("Shader_VtxCube"), _shader)))
+	if (FAILED(__super::Add_Component(ETOI(LevelType::Static), TEXT("Shader_VtxCube"), _shader)))
 		return E_FAIL;
 
-	if (FAILED(__super::Add_Component(ETOI(LevelType::GamePlay), TEXT("VIBuffer_Cube"), _vibuffer)))
+	if (FAILED(__super::Add_Component(ETOI(LevelType::Static), TEXT("VIBuffer_Cube"), _vibuffer)))
 		return E_FAIL;
 
 	return S_OK;

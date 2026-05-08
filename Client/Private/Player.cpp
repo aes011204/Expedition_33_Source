@@ -122,7 +122,7 @@ HRESULT Player::Ready_PartObjects()
     playableDesc.modelTag = L"Model_LuneBody";
 
     //> MainBody Setting
-    if (FAILED(__super::Add_PartObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Body_Player"),
+    if (FAILED(__super::Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Body_Player"),
         TEXT("Part_Body"), &playableDesc)))
         return E_FAIL;
 
@@ -137,7 +137,7 @@ HRESULT Player::Ready_PartObjects()
     headPartDesc.modelType = ModelType::Anim;
     headPartDesc.modelTag = L"Model_LuneHead";
 
-    if (FAILED(__super::Add_PartObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Head_Player"),
+    if (FAILED(__super::Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Head_Player"),
         TEXT("Part_Head"), &headPartDesc)))
         return E_FAIL;
     
@@ -147,7 +147,7 @@ HRESULT Player::Ready_PartObjects()
     hairPartDesc.modelType = ModelType::Anim;
     hairPartDesc.modelTag = L"Model_LuneHair";
 
-    if (FAILED(__super::Add_PartObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Hair_Player"),
+    if (FAILED(__super::Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Hair_Player"),
         TEXT("Part_Hair"), &hairPartDesc)))
         return E_FAIL;
 
