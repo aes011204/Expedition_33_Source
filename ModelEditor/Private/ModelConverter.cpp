@@ -445,7 +445,25 @@ namespace ModelEditor
                     }
                 }
 
-				if (aiMesh->mNumBones == 0)
+				auto GetGlobalBindMatrix = [&](const aiNode* node) -> Matrix
+				{
+					Matrix mat = Matrix::Identity;
+					const aiNode* curr = node;
+					while (curr)
+					{
+						mat = mat * Convert_Matrix(curr->mTransformation);
+						curr = curr->mParent;
+					}
+					return mat;
+				};
+
+				uint32 totalWeights = 0;
+				for (uint32 j = 0; j < aiMesh->mNumBones; ++j)
+				{
+					totalWeights += aiMesh->mBones[j]->mNumWeights;
+				}
+
+				if (aiMesh->mNumBones == 0 || totalWeights == 0)
 				{
 					const aiNode* meshNode = nullptr;
 					function<void(const aiNode*)> FindNode = [&](const aiNode* node)
@@ -469,43 +487,40 @@ namespace ModelEditor
 					};
 					FindNode(aiScene->mRootNode);
 
-					Matrix absoluteTransform = Matrix::Identity;
+					string targetBoneName = aiScene->mRootNode->mName.C_Str();
 					if (meshNode)
 					{
 						const aiNode* curr = meshNode;
 						while (curr)
 						{
-							absoluteTransform = absoluteTransform * Convert_Matrix(curr->mTransformation);
+							if (_boneNameMap.contains(curr->mName.C_Str()))
+							{
+								targetBoneName = curr->mName.C_Str();
+								break;
+							}
 							curr = curr->mParent;
 						}
 					}
 
+					Matrix meshGlobal = GetGlobalBindMatrix(meshNode);
+					Matrix targetGlobalInv = GetGlobalBindMatrix(aiScene->mRootNode->FindNode(targetBoneName.c_str())).Invert();
+					Matrix meshToBoneSpace = meshGlobal * targetGlobalInv;
+
 					for (auto& vertex : vertices)
 					{
-						vertex.position = Vec3::Transform(vertex.position, absoluteTransform);
-						vertex.normal = Vec3::TransformNormal(vertex.normal, absoluteTransform);
+						vertex.position = Vec3::Transform(vertex.position, meshToBoneSpace);
+						vertex.normal = Vec3::TransformNormal(vertex.normal, meshToBoneSpace);
 						if (aiMesh->HasTangentsAndBitangents())
 						{
-							vertex.tangent = Vec3::TransformNormal(vertex.tangent, absoluteTransform);
-							vertex.binormal = Vec3::TransformNormal(vertex.binormal, absoluteTransform);
+							vertex.tangent = Vec3::TransformNormal(vertex.tangent, meshToBoneSpace);
+							vertex.binormal = Vec3::TransformNormal(vertex.binormal, meshToBoneSpace);
 						}
 						
 						vertex.blendIndex.x = 0; 
 						vertex.blendWeight.x = 1.f;
 					}
 
-					string rootName = aiScene->mRootNode->mName.C_Str();
-					if (false == _boneNameMap.contains(rootName))
-					{
-						ModelBoneData rootBoneData{};
-						rootBoneData.name = rootName;
-						rootBoneData.offsetMatrix = Matrix::Identity; 
-						rootBoneData.localTransform = Convert_Matrix(aiScene->mRootNode->mTransformation);
-						_boneNameMap[rootName] = static_cast<uint32>(_bones.size());
-						_bones.push_back(rootBoneData);
-					}
-					
-					boneRefs.push_back(_boneNameMap[rootName]);
+					boneRefs.push_back(_boneNameMap[targetBoneName]);
 					offsets.push_back(Matrix::Identity); 
 				}
 				else
@@ -551,25 +566,96 @@ namespace ModelEditor
 								vertex.blendWeight.w = weight;
 							}
 						}
+
 					}
 
-					for (auto& vertex : vertices)
-					{
-						float weightSum = vertex.blendWeight.x + vertex.blendWeight.y + vertex.blendWeight.z + vertex.blendWeight.w;
+                    int32 defaultBoneIndex = 0; // 기본은 Root로 설정
+                    Matrix defaultOffset = Matrix::Identity;
 
-						if (weightSum > 0.f)
-						{
-							vertex.blendWeight.x /= weightSum;
-							vertex.blendWeight.y /= weightSum;
-							vertex.blendWeight.z /= weightSum;
-							vertex.blendWeight.w /= weightSum;
-						}
-						else
-						{
-							vertex.blendIndex.x = 0;
-							vertex.blendWeight.x = 1.f;
-						}
-					}
+                    if (!_bones.empty())
+                    {
+                        // 1. 현재 메쉬(인덱스 i)를 참조하고 있는 aiNode를 찾습니다.
+                        const aiNode* meshNode = nullptr;
+                        function<void(const aiNode*)> FindNode = [&](const aiNode* node) {
+                            if (meshNode) return;
+                            for (uint32 m = 0; m < node->mNumMeshes; ++m) {
+                                if (node->mMeshes[m] == i) { meshNode = node; return; }
+                            }
+                            for (uint32 c = 0; c < node->mNumChildren; ++c) FindNode(node->mChildren[c]);
+                            };
+                        FindNode(_aiScene->mRootNode);
+
+                        // 2. 해당 노드에서 부모로 거슬러 올라가며 가장 가까운 뼈(Bone)를 찾고, 오프셋을 계산합니다.
+                        if (meshNode)
+                        {
+                            const aiNode* curr = meshNode;
+                            Matrix accumulatedTransform = Matrix::Identity;
+
+                            while (curr)
+                            {
+                                string currName = curr->mName.C_Str();
+                                if (_boneNameMap.contains(currName))
+                                {
+                                    defaultBoneIndex = _boneNameMap[currName];
+                                    break;
+                                }
+                                accumulatedTransform = accumulatedTransform * Convert_Matrix(curr->mTransformation);
+                                curr = curr->mParent;
+                            }
+                            defaultOffset = accumulatedTransform;
+                        }
+                    }
+
+                    // 3. 구한 가장 안전한 기본 뼈대가 현재 메쉬의 boneRefs 배열에 존재하는지 확인합니다.
+                    uint32 safeRefIndex = 0;
+                    bool bFoundInRefs = false;
+                    for (size_t b = 0; b < boneRefs.size(); ++b)
+                    {
+                        if (boneRefs[b] == defaultBoneIndex)
+                        {
+                            safeRefIndex = static_cast<uint32>(b);
+                            bFoundInRefs = true;
+                            break;
+                        }
+                    }
+
+                    // 4. 만약 boneRefs에 등록되지 않은 뼈대라면 배열 끝에 새로 추가합니다.
+                    if (!bFoundInRefs)
+                    {
+                        boneRefs.push_back(defaultBoneIndex);
+                        offsets.push_back(defaultOffset);
+                        safeRefIndex = static_cast<uint32>(boneRefs.size() - 1);
+                    }
+                    // =========================================================================
+
+
+                    // =========================================================================
+                    // 정점 웨이트 정규화 및 안전 인덱스 매핑 적용
+                    // =========================================================================
+                    for (auto& vertex : vertices)
+                    {
+                        float weightSum = vertex.blendWeight.x + vertex.blendWeight.y + vertex.blendWeight.z + vertex.blendWeight.w;
+
+                        if (weightSum > 0.f)
+                        {
+                            // 정상적으로 웨이트가 있는 정점은 정규화
+                            vertex.blendWeight.x /= weightSum;
+                            vertex.blendWeight.y /= weightSum;
+                            vertex.blendWeight.z /= weightSum;
+                            vertex.blendWeight.w /= weightSum;
+                        }
+                        else
+                        {
+                            // [핵심 변경점] 웨이트가 전혀 없는 정점은 위에서 찾은 '가장 안전한 부모 뼈대'에 100% 바인딩
+                            vertex.blendIndex.x = safeRefIndex;
+                            vertex.blendWeight.x = 1.f;
+
+                            // 쓰레기값 방지를 위해 나머지 요소 명시적 0 초기화
+                            vertex.blendIndex.y = 0; vertex.blendWeight.y = 0.f;
+                            vertex.blendIndex.z = 0; vertex.blendWeight.z = 0.f;
+                            vertex.blendIndex.w = 0; vertex.blendWeight.w = 0.f;
+                        }
+                    }
 				}
 
                 meshData.numBoneRefs = static_cast<uint32>(boneRefs.size());

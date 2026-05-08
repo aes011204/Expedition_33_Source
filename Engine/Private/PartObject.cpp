@@ -24,7 +24,7 @@ HRESULT PartObject::Initialize(void* arg)
 	if (FAILED(__super::Initialize(arg)))
 		return E_FAIL;
 
-	XMStoreFloat4x4(&_combinedWorldMatrix, XMMatrixIdentity());
+    _combinedWorldMatrix = Matrix::Identity;
 
 	return S_OK;
 }

@@ -60,15 +60,15 @@ HRESULT Head_Player::Render()
         _modelCom->Bind_Material(_shaderCom.get(), "g_DiffuseTexture", i, MaterialTextureSlot::BaseColor);
 
         const Material::TextureSlot* baseColorSlot = _modelCom->Find_MaterialSlot(i, { MaterialTextureSlot::BaseColor });
-        const Vec2 uvScale = baseColorSlot ? baseColorSlot->uvScale : Vec2(1.f, 1.f);
-        const Vec2 uvOffset = baseColorSlot ? baseColorSlot->uvOffset : Vec2(0.f, 0.f);
-        const float uvRotation = baseColorSlot ? baseColorSlot->uvRotation : 0.f;
-        const int useOpacityMask = 0;
+        const Vec2 uvScale = Vec2(1.f, 1.f); //baseColorSlot ? baseColorSlot->uvScale : Vec2(1.f, 1.f);
+        const Vec2 uvOffset = Vec2(0.f, 0.f); //baseColorSlot ? baseColorSlot->uvOffset : Vec2(0.f, 0.f);
+        const float uvRotation = 0.f; // baseColorSlot ? baseColorSlot->uvRotation : 0.f;
+        const int32 useOpacityMask = 0;
 
         _shaderCom->Bind_RawValue("g_UVScale", &uvScale, sizeof(Vec2));
         _shaderCom->Bind_RawValue("g_UVOffset", &uvOffset, sizeof(Vec2));
         _shaderCom->Bind_RawValue("g_UVRotation", &uvRotation, sizeof(float));
-        _shaderCom->Bind_RawValue("g_UseOpacityMask", &useOpacityMask, sizeof(int));
+        _shaderCom->Bind_RawValue("g_UseOpacityMask", &useOpacityMask, sizeof(int32));
 
         _modelCom->Bind_BoneMatrices(_shaderCom.get(), "g_BoneMatrices", i);
 

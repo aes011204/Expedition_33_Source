@@ -143,7 +143,7 @@ HRESULT Player::Ready_PartObjects()
     //>> Hair Part
     Hair_Player::HAIR_PLAYER_DESC hairPartDesc{};
     hairPartDesc.parentMatrix = playableDesc.parentMatrix;
-    hairPartDesc.modelType = ModelType::NonAnim;
+    hairPartDesc.modelType = ModelType::Anim;
     hairPartDesc.modelTag = L"Model_LuneHair";
 
     if (FAILED(__super::Add_PartObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Hair_Player"),

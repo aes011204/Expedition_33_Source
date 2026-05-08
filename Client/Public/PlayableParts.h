@@ -15,6 +15,7 @@ public:
     {
         ModelType modelType{ ModelType::Anim };
         wstring modelTag{};
+        wstring socketBoneTag{};
     } PLAYABLE_PART_DESC;
 
 public:

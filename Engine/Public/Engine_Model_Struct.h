@@ -5,7 +5,7 @@ using namespace::Engine;
 using namespace::DirectX::SimpleMath;
 
 constexpr int32 maxModelNameSize = 256;
-constexpr int32 maxBoneCount = 1024;
+constexpr int32 maxBoneCount = 950;
 
 using ModelDataHeader = struct tagModelDataHeader
 {
