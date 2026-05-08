@@ -35,7 +35,7 @@ protected:
     Shared<AIController> _aiCtrl = { nullptr };
 
     Shared<ColliderCom>     _collider;
-
+    int32 _rootindex = {};
 protected:
 	HRESULT Ready_Components();
 	HRESULT Bind_ShaderResources();

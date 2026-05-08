@@ -5,12 +5,12 @@
 //#include "TargetCamera.h"
 #include "PointParticlePreview.h"
 
-<<<<<<< Updated upstream
+
 //#include "MapLoader.h"
-=======
+
 #include "MapLoader.h"
 #include "Spawn_Prefab.h"
->>>>>>> Stashed changes
+
 
 #include "UI_Image.h"
 #include "UI_RuntimeLoader.h"

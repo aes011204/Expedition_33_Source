@@ -50,6 +50,12 @@ HRESULT Monster::Initialize(void* arg)
 	//	GAME->Random(0.f, 10.f)
 	//));
 
+    _rootindex = _model->Get_BoneIndex("root");
+    _model->Set_LocalRootNode(_rootindex);
+   auto str =  _model->Get_RootTransformVelocity();
+   str.position;
+
+
     _transformCom->Set_Position(Vec3(
         10.f,0.f,10.f
     ));
@@ -149,7 +155,7 @@ HRESULT Monster::Ready_Components()
 	if (FAILED(__super::Add_Component(ETOI(LevelType::Static), TEXT("Shader_VtxAnimMesh"), _shader)))
 		return E_FAIL;
 
-	if (FAILED(__super::Add_Component(ETOI(LevelType::GamePlay), TEXT("Model_Lancelier"), _model)))
+	if (FAILED(__super::Add_Component(ETOI(LevelType::Static), TEXT("Model_Lancleier"), _model)))
 		return E_FAIL;
 
 
