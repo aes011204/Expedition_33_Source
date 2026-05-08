@@ -1,6 +1,7 @@
 ﻿#include "pch.h"
 #include "ImGui_Manager.h"
 #include "GameInstance.h"
+#include "EffectEditorInstance.h"
 
 NS_BEGIN(EffectEditor)
 
@@ -62,6 +63,13 @@ void ImGui_Manager::Update(float timeDelta)
 {
     ImGui_ImplDX11_NewFrame();
     ImGui_ImplWin32_NewFrame();
+    ImGuiIO& io = ImGui::GetIO();
+    if (EDITOR->Is_PreviewCameraDragging())
+    {
+        io.MousePos = ImVec2(-FLT_MAX, -FLT_MAX);
+        io.MouseHoveredViewport = 0;
+    }
+
     ImGui::NewFrame();
 }
 

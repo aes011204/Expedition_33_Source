@@ -17,6 +17,8 @@ static const wchar_t* g_windowClassName = L"Expedition158EffectEditor";
 static const wchar_t* g_windowTitle = L"Expedition_158 EffectEditor";
 static constexpr DWORD g_fullscreenWindowStyle = WS_POPUP | WS_VISIBLE;
 static constexpr DWORD g_windowedWindowStyle = WS_OVERLAPPEDWINDOW | WS_VISIBLE;
+static constexpr LONG g_defaultWindowedClientWidth = 1600;
+static constexpr LONG g_defaultWindowedClientHeight = 900;
 static bool g_runtimeInitialized = false;
 static bool g_isEditorFullscreen = false;
 static RECT g_windowedRect = { 0, 0, 1600, 900 };
@@ -24,6 +26,8 @@ static RECT g_windowedRect = { 0, 0, 1600, 900 };
 static ATOM Register_EffectEditorClass(HINSTANCE hInstance);
 static bool Create_EffectEditorWindow(HINSTANCE hInstance, int nCmdShow);
 static RECT Make_CenteredWindowRect(const RECT& areaRect, LONG clientWidth, LONG clientHeight);
+static RECT Make_DefaultWindowedRect(HWND hWnd);
+static void Sync_EffectEditorBackBufferToClient(HWND hWnd);
 static void Toggle_EffectEditorFullscreen(HWND hWnd);
 static LRESULT CALLBACK EffectEditor_WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
@@ -132,7 +136,10 @@ static bool Create_EffectEditorWindow(HINSTANCE hInstance, int nCmdShow)
     if (!GetMonitorInfo(hMonitor, &monitorInfo))
         return false;
 
-    g_windowedRect = Make_CenteredWindowRect(monitorInfo.rcWork, 1600, 900);
+    g_windowedRect = Make_CenteredWindowRect(
+        monitorInfo.rcWork,
+        g_defaultWindowedClientWidth,
+        g_defaultWindowedClientHeight);
 
     g_hWnd = CreateWindowW(
         g_windowClassName,
@@ -172,10 +179,51 @@ static RECT Make_CenteredWindowRect(const RECT& areaRect, LONG clientWidth, LONG
     return RECT{ left, top, left + windowWidth, top + windowHeight };
 }
 
+static RECT Make_DefaultWindowedRect(HWND hWnd)
+{
+    MONITORINFO monitorInfo{};
+    monitorInfo.cbSize = sizeof(MONITORINFO);
+
+    const HMONITOR hMonitor = MonitorFromWindow(hWnd, MONITOR_DEFAULTTONEAREST);
+    if (!GetMonitorInfo(hMonitor, &monitorInfo))
+        return g_windowedRect;
+
+    return Make_CenteredWindowRect(
+        monitorInfo.rcWork,
+        g_defaultWindowedClientWidth,
+        g_defaultWindowedClientHeight);
+}
+
+static void Sync_EffectEditorBackBufferToClient(HWND hWnd)
+{
+    if (!g_runtimeInitialized)
+        return;
+
+    RECT clientRect{};
+    if (!GetClientRect(hWnd, &clientRect))
+        return;
+
+    const uint32 width = static_cast<uint32>(max(1L, clientRect.right - clientRect.left));
+    const uint32 height = static_cast<uint32>(max(1L, clientRect.bottom - clientRect.top));
+
+    if (GAME->Get_BackBufferWidth() != width || GAME->Get_BackBufferHeight() != height)
+    {
+        if (FAILED(GAME->Resize_BackBuffer(width, height)))
+            return;
+    }
+
+    const uint32 logicalWidth = min(max(1u, GAME->Get_ViewportWidth()), width);
+    const uint32 logicalHeight = min(max(1u, GAME->Get_ViewportHeight()), height);
+    if (GAME->Get_ViewportWidth() != logicalWidth || GAME->Get_ViewportHeight() != logicalHeight)
+        GAME->Apply_LogicalViewportSize(logicalWidth, logicalHeight);
+}
+
 static void Toggle_EffectEditorFullscreen(HWND hWnd)
 {
     if (g_isEditorFullscreen)
     {
+        g_windowedRect = Make_DefaultWindowedRect(hWnd);
+
         SetWindowLongPtrW(hWnd, GWL_STYLE, g_windowedWindowStyle);
         SetWindowPos(
             hWnd,
@@ -186,6 +234,8 @@ static void Toggle_EffectEditorFullscreen(HWND hWnd)
             g_windowedRect.bottom - g_windowedRect.top,
             SWP_NOZORDER | SWP_FRAMECHANGED | SWP_SHOWWINDOW
         );
+        Sync_EffectEditorBackBufferToClient(hWnd);
+        UpdateWindow(hWnd);
         g_isEditorFullscreen = false;
         return;
     }
@@ -209,6 +259,8 @@ static void Toggle_EffectEditorFullscreen(HWND hWnd)
         monitorRect.bottom - monitorRect.top,
         SWP_FRAMECHANGED | SWP_SHOWWINDOW
     );
+    Sync_EffectEditorBackBufferToClient(hWnd);
+    UpdateWindow(hWnd);
     g_isEditorFullscreen = true;
 }
 
@@ -244,7 +296,7 @@ static LRESULT CALLBACK EffectEditor_WndProc(HWND hWnd, UINT message, WPARAM wPa
             const uint32 height = HIWORD(lParam);
 
             if (width > 0 && height > 0)
-                GAME->Resize_BackBuffer(width, height);
+                Sync_EffectEditorBackBufferToClient(hWnd);
         }
         return 0;
 
