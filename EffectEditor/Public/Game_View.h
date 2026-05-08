@@ -1,9 +1,10 @@
-#pragma once
+﻿#pragma once
 
 #include "Editor_Window.h"
 
 NS_BEGIN(EffectEditor)
 
+// 현재 비활성화중
 class Game_View final : public Editor_Window
 {
 public:
