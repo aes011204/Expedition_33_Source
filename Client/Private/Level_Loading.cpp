@@ -5,6 +5,8 @@
 
 #include "Level_Logo.h"
 #include "Level_GamePlay.h"
+#include "Level_MapTest.h"
+#include "Level_Stage01.h"
 
 
 Level_Loading::Level_Loading(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -43,6 +45,12 @@ void Level_Loading::Update(float fTimeDelta)
 			break;
 		case LevelType::GamePlay:
 			pNextLevel = Level_GamePlay::Create(_device.Get(), _context.Get());
+            break;
+        case LevelType::MapTest:
+            pNextLevel = Level_MapTest::Create(_device.Get(), _context.Get());
+            break;
+        case LevelType::Stage01:
+            pNextLevel = Level_Stage01::Create(_device.Get(), _context.Get());
 			break;
 		}
 

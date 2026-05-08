@@ -139,6 +139,9 @@ HRESULT BT_View::Initialize()
 {
      Recreate_EditorContext();
     //Create_Node();
+
+     Set_Open(false);
+
     return S_OK;
 }
 

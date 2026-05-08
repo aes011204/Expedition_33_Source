@@ -193,10 +193,10 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\Private\Action_Command.cpp" />
+    <ClCompile Include="..\Private\Animation_PreviewObject.cpp" />
+    <ClCompile Include="..\Private\Animation_View.cpp" />
+    <ClCompile Include="..\Private\AnimSequencerAdapter.cpp" />
     <ClCompile Include="..\private\AIController_Inspector.cpp" />
-    <ClCompile Include="..\private\BT_Inspector.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-    </ClCompile>
     <ClCompile Include="..\private\BT_View.cpp" />
     <ClCompile Include="..\private\Camera_Tool.cpp" />
     <ClCompile Include="..\Private\CommandHistory.cpp" />
@@ -205,6 +205,7 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     <ClCompile Include="..\Private\Editor_Camera_Free.cpp" />
     <ClCompile Include="..\Private\Editor_Context.cpp" />
     <ClCompile Include="..\Private\Inspector_Factory.cpp" />
+    <ClCompile Include="..\Private\Level_Tool.cpp" />
     <ClCompile Include="..\Private\MainEditorApp.cpp" />
     <ClCompile Include="..\Private\Model_Inspector.cpp" />
     <ClCompile Include="..\Private\Notification_Manager.cpp" />
@@ -228,10 +229,10 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Public\Action_Command.h" />
+    <ClInclude Include="..\Public\Animation_PreviewObject.h" />
+    <ClInclude Include="..\Public\Animation_View.h" />
+    <ClInclude Include="..\Public\AnimSequencerAdapter.h" />
     <ClInclude Include="..\public\AIController_Inspector.h" />
-    <ClInclude Include="..\public\BT_Inspector.h">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-    </ClInclude>
     <ClInclude Include="..\public\BT_VIew.h" />
     <ClInclude Include="..\public\Camera_Tool.h" />
     <ClInclude Include="..\Public\CommandHistory.h" />
@@ -244,6 +245,7 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     <ClInclude Include="..\Public\Editor_Struct.h" />
     <ClInclude Include="..\Public\ImGui_Manager.h" />
     <ClInclude Include="..\Public\Inspector_Factory.h" />
+    <ClInclude Include="..\Public\Level_Tool.h" />
     <ClInclude Include="..\Public\Model_Inspector.h" />
     <ClInclude Include="..\Public\Notification_Manager.h" />
     <ClInclude Include="..\Public\Prefab_View.h" />

@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "UI_Content_Browser.h"
 #include "GameInstance.h"
 #include "UI_Editor_Manager.h"
@@ -62,8 +62,8 @@ namespace UIEditor
 
     void UI_Content_Browser::Render_TextureTab(const string& searchText, UI_Object* selectedObject)
     {
-        vector<FAssetMeta> uiTextureAssets;
-        for (const FAssetMeta& assetMeta : GAME->Get_AssetsByType("Texture"))
+        vector<AssetMeta> uiTextureAssets;
+        for (const AssetMeta& assetMeta : GAME->Get_AssetsByType("Texture"))
         {
             if (Is_UITextureAsset(assetMeta) && Matches_Search(assetMeta, searchText))
                 uiTextureAssets.push_back(assetMeta);
@@ -85,7 +85,7 @@ namespace UIEditor
 
         if (ImGui::BeginChild("UITextureContentBrowser", ImVec2(0.f, 0.f), false))
         {
-            for (const FAssetMeta& assetMeta : uiTextureAssets)
+            for (const AssetMeta& assetMeta : uiTextureAssets)
             {
                 ImGui::PushID(assetMeta.guid.c_str());
                 ImGui::BeginGroup();
@@ -108,7 +108,12 @@ namespace UIEditor
                 }
 
                 if (canApplyTexture && ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+                {
+                    _editorManager.Begin_EditTransaction();
                     Apply_TextureAsset(*selectedObject, assetMeta);
+                    _editorManager.Mark_Dirty();
+                    _editorManager.Commit_EditTransactionIfChanged();
+                }
 
                 ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + cellWidth - 12.f);
                 ImGui::TextUnformatted(Get_AssetFileName(assetMeta).c_str());
@@ -117,7 +122,12 @@ namespace UIEditor
                 if (canApplyTexture)
                 {
                     if (ImGui::SmallButton("Apply"))
+                    {
+                        _editorManager.Begin_EditTransaction();
                         Apply_TextureAsset(*selectedObject, assetMeta);
+                        _editorManager.Mark_Dirty();
+                        _editorManager.Commit_EditTransactionIfChanged();
+                    }
                 }
                 else
                 {
@@ -139,8 +149,8 @@ namespace UIEditor
 
     void UI_Content_Browser::Render_FontTab(const string& searchText, UI_Object* selectedObject)
     {
-        vector<FAssetMeta> uiFontAssets;
-        for (const FAssetMeta& assetMeta : GAME->Get_AssetsByType("Font"))
+        vector<AssetMeta> uiFontAssets;
+        for (const AssetMeta& assetMeta : GAME->Get_AssetsByType("Font"))
         {
             if (Is_UISpriteFontAsset(assetMeta) && Matches_Search(assetMeta, searchText))
                 uiFontAssets.push_back(assetMeta);
@@ -156,7 +166,7 @@ namespace UIEditor
 
         if (ImGui::BeginChild("UIFontContentBrowser", ImVec2(0.f, 0.f), false))
         {
-            for (const FAssetMeta& assetMeta : uiFontAssets)
+            for (const AssetMeta& assetMeta : uiFontAssets)
             {
                 ImGui::PushID(assetMeta.guid.c_str());
 
@@ -164,7 +174,12 @@ namespace UIEditor
                 if (ImGui::Selectable(Get_AssetFileName(assetMeta).c_str(), isCurrentFont, ImGuiSelectableFlags_AllowDoubleClick))
                 {
                     if (canApplyFont && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+                    {
+                        _editorManager.Begin_EditTransaction();
                         Apply_FontAsset(*selectedObject, assetMeta);
+                        _editorManager.Mark_Dirty();
+                        _editorManager.Commit_EditTransactionIfChanged();
+                    }
                 }
 
                 ImGui::TextDisabled("Tag: %s", Make_FontTag(assetMeta).c_str());
@@ -173,7 +188,12 @@ namespace UIEditor
                 if (canApplyFont)
                 {
                     if (ImGui::SmallButton("Apply"))
+                    {
+                        _editorManager.Begin_EditTransaction();
                         Apply_FontAsset(*selectedObject, assetMeta);
+                        _editorManager.Mark_Dirty();
+                        _editorManager.Commit_EditTransactionIfChanged();
+                    }
                 }
                 else
                 {

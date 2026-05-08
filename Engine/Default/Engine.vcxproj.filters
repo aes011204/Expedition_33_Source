@@ -190,6 +190,21 @@
     <Filter Include="01.Utility\04.Component\VIBuffer\Instance\Particle">
       <UniqueIdentifier>{9c62bf2c-8203-4b3e-aebd-5eae6afe0067}</UniqueIdentifier>
     </Filter>
+    <Filter Include="01.Utility\11. UI">
+      <UniqueIdentifier>{15d6b4f8-af5e-4504-adae-95a8012cc94d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="01.Utility\11. UI\Manager">
+      <UniqueIdentifier>{d6e2f607-435d-4bb3-98e0-0e4d98b1e1bb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="01.Utility\11. UI\Transform">
+      <UniqueIdentifier>{d1e44a04-a6a0-4e74-ba20-56d67940d105}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="01.Utility\11. UI\Object">
+      <UniqueIdentifier>{d8605b79-53d7-4723-912d-966b2fc4036b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="94. AnimNotify">
+      <UniqueIdentifier>{8d36ebf8-1177-47c8-b0a9-b7afaf900cf2}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -207,19 +222,31 @@
     <ClInclude Include="..\Public\Shadow.h">
       <Filter>01.Utility\07.Lights</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\AnimationNotify.h" />
     <ClInclude Include="..\Public\Material_Types.h" />
     <ClInclude Include="..\Public\PhysX_Filter.h" />
     <ClInclude Include="..\Public\PhysX_Types.h" />
     <ClInclude Include="..\Public\Picking.h" />
-    <ClInclude Include="..\public\UI_Base.h" />
-    <ClInclude Include="..\public\UI_Image.h" />
-    <ClInclude Include="..\public\UI_Manager.h" />
-    <ClInclude Include="..\public\UI_Text.h" />
-    <ClInclude Include="..\public\UI_Transform.h" />
     <ClInclude Include="..\Public\Engine_Constants.h">
       <Filter>99. Defines</Filter>
     </ClInclude>
+    <ClInclude Include="..\public\UI_Manager.h">
+      <Filter>01.Utility\11. UI\Manager</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\UI_Transform.h">
+      <Filter>01.Utility\11. UI\Transform</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\UI_Base.h">
+      <Filter>01.Utility\11. UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\UI_Image.h">
+      <Filter>01.Utility\11. UI\Object</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\UI_Text.h">
+      <Filter>01.Utility\11. UI\Object</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\AStar.h" />
+    <ClInclude Include="..\Public\Reflection_JsonUtil.h" />
+    <ClInclude Include="..\Public\Culling_Manager.h" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\public\Base.h">
@@ -483,6 +510,12 @@
     <ClInclude Include="..\Public\Print_Manager.h">
       <Filter>97. Manager</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\AnimNotify_Types.h">
+      <Filter>94. AnimNotify</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\AnimNotify_Parser.h">
+      <Filter>94. AnimNotify</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -713,7 +746,9 @@
     <ClCompile Include="..\Private\Print_Manager.cpp">
       <Filter>97. Manager</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\AnimationNotify.cpp" />
+    <ClCompile Include="..\Private\AnimNotify_Parser.cpp">
+      <Filter>94. AnimNotify</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\PhysX_Filter.cpp" />
     <ClCompile Include="..\Private\Picking.cpp" />
     <ClCompile Include="..\private\UI_Base.cpp" />
@@ -721,6 +756,23 @@
     <ClCompile Include="..\private\UI_Manager.cpp" />
     <ClCompile Include="..\private\UI_Text.cpp" />
     <ClCompile Include="..\private\UI_Transform.cpp" />
+    <ClCompile Include="..\private\AStar.cpp" />
+    <ClCompile Include="..\Private\Culling_Manager.cpp" />
+    <ClCompile Include="..\private\UI_Base.cpp">
+      <Filter>01.Utility\11. UI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\UI_Image.cpp">
+      <Filter>01.Utility\11. UI\Object</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\UI_Text.cpp">
+      <Filter>01.Utility\11. UI\Object</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\UI_Transform.cpp">
+      <Filter>01.Utility\11. UI\Transform</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\UI_Manager.cpp">
+      <Filter>01.Utility\11. UI\Manager</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Bin\ShaderFiles\Engine_Shader_Defines.hlsli">

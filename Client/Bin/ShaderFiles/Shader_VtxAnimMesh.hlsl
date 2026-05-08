@@ -1,39 +1,20 @@
 #include "Engine_Shader_Defines.hlsli"
-//==================================================
-// MATRIX
-//==================================================
 float4x4 g_WorldMatrix, g_ViewMatrix, g_ProjMatrix;
 row_major matrix g_BoneMatrices[512];
 
-//==================================================
-// MATERIAL
-//==================================================
 Texture2D g_DiffuseTexture;
 Texture2D g_NormalTexture;
 Texture2D g_OpacityTexture;
 Texture2D g_EmissiveTexture;
 
-//==================================================
-// CAMERA
-//==================================================
 float g_fFar = 0.f;
-
-//==================================================
-// SHADOW
-//==================================================
 float g_fLightFar = 0.f;
 
-//==================================================
-// VALUE
-//==================================================
 float2 g_UVScale = float2(1.f, 1.f);
 float2 g_UVOffset = float2(0.f, 0.f);
 float  g_UVRotation = 0.f;
 int    g_UseOpacityMask = 0;
 
-//==================================================
-// SAMPLER
-//==================================================
 SamplerState DefaultSampler
 {
     Filter = MIN_MAG_MIP_LINEAR;
@@ -41,9 +22,6 @@ SamplerState DefaultSampler
     AddressV = Wrap;
 };
 
-//==================================================
-// VS
-//==================================================
 struct VS_IN
 {
     float3  vPosition : POSITION;
@@ -70,7 +48,6 @@ VS_OUT VS_MAIN(VS_IN In)
 {
     VS_OUT Out;
 
-    /* 정점의 위치 * 월드 * 뷰 * 투영 */
     float4x4 matWV, matWVP;
 
     float fWeightW = 1.f - (In.vBlendWeight.x + In.vBlendWeight.y + In.vBlendWeight.z);
@@ -101,7 +78,6 @@ VS_OUT VS_MAIN(VS_IN In)
     return Out;
 }
 
-// UV 변환 함수 하나 추가
 float2 ApplyUVTransform(float2 uv, float2 scale, float2 offset, float rotation)
 {
     float2 scaled = uv * scale;
@@ -116,9 +92,6 @@ float2 ApplyUVTransform(float2 uv, float2 scale, float2 offset, float rotation)
     return rotated + offset;
 }
 
-//==================================================
-// PS
-//==================================================
 struct PS_IN
 {
     float4 vPosition : SV_POSITION;
@@ -136,8 +109,6 @@ struct PS_OUT
     vector vNormal : SV_TARGET1;
     vector vDepth : SV_TARGET2;
 };
-
-/* Pixel Shader -> 픽셀의 색을 결정한다. */
 
 PS_OUT PS_MAIN(PS_IN In)
 {
@@ -165,7 +136,6 @@ PS_OUT PS_MAIN(PS_IN In)
 
     return Out;
 }
-
 
 struct PS_OUT_SHADOW
 {

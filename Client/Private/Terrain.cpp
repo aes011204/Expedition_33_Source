@@ -81,7 +81,7 @@ HRESULT Terrain::Ready_Components()
 	if (FAILED(__super::Add_Component(ETOI(LevelType::GamePlay), TEXT("Texture_Terrain_Brush"), _textures[TEXTURE::Brush])))
 		return E_FAIL;
 
-	if (FAILED(__super::Add_Component(ETOI(LevelType::GamePlay), TEXT("Shader_VtxNorTex"), _shader)))
+	if (FAILED(__super::Add_Component(ETOI(LevelType::Static), TEXT("Shader_VtxNorTex"), _shader)))
 		return E_FAIL;
 
 	if (FAILED(__super::Add_Component(ETOI(LevelType::GamePlay), TEXT("VIBuffer_Terrain"), _vibuffer)))

@@ -5,6 +5,8 @@
 #include "ICommand.h"
 #include "Notification_Manager.h"
 
+NS_BEGIN(EffectEditor)
+
 void CommandHistory::Execute(const Shared<ICommand>& command)
 {
     if (!command)
@@ -68,3 +70,5 @@ Unique<CommandHistory> CommandHistory::Create()
 {
     return make_unique<CommandHistory>();
 }
+
+NS_END

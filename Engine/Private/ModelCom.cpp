@@ -28,6 +28,8 @@ ModelCom::ModelCom(const ModelCom& prototype)
     , _numAnimations{ prototype._numAnimations }
     , _meshes{ prototype._meshes }
     , _materials{ prototype._materials }
+    , _sourceModelPath{ prototype._sourceModelPath }
+    , _isAnimationPaused{ prototype._isAnimationPaused }
 {
     for (auto& prototypeAnim : prototype._animations)
         _animations.push_back(prototypeAnim->Clone());
@@ -141,15 +143,19 @@ HRESULT ModelCom::Initialize_Prototype(ModelType type, const char* modelFilePath
     _type = type;
     _preLocalTransformMatrix = preLocalTransformMatrix;
 
-    if (FAILED(Ready_Model(modelFilePath)))
+    _sourceModelPath = Normalize_ModelAssetPath(modelFilePath);
+
+    const string sourcePathUtf8 = String::ToString(_sourceModelPath);
+
+    if (FAILED(Ready_Model(sourcePathUtf8.c_str())))
     {
-        LOG_ERROR("Failed to Load Model Path {}", modelFilePath);
+        LOG_ERROR("Failed to Load Model Path {}", sourcePathUtf8);
         return E_FAIL;
     }
 
-    if (FAILED(Ready_Animation(modelFilePath)))
+    if (FAILED(Ready_Animation(sourcePathUtf8.c_str())))
     {
-        LOG_ERROR("Failed to Load Model Animation Path {}", modelFilePath);
+        LOG_ERROR("Failed to Load Model Animation Path {}", sourcePathUtf8);
         return E_FAIL;
     }
 
@@ -178,6 +184,12 @@ HRESULT ModelCom::Render(uint32 meshIndex)
 bool ModelCom::Play_Animation(float timeDelta)
 {
     if (!_isSkeletal || _animations.empty()) return false;
+
+    if (_isAnimationPaused)
+    {
+        Refresh_CurrentAnimationPose();
+        return false;
+    }
 
     bool isFinish = false;
     int32 rootIndex = _isRootMotion ? _rootNodeIndex : -1;
@@ -247,6 +259,54 @@ bool ModelCom::Try_Get_LocalBounds(Vec3& outMin, Vec3& outMax) const
     outMin = _localBoundsMin;
     outMax = _localBoundsMax;
     return true;
+}
+
+wstring ModelCom::Normalize_ModelAssetPath(const char* modelFilePath)
+{
+    string resolvedPath = modelFilePath ? modelFilePath : "";
+
+    if (const size_t extPos = resolvedPath.rfind(".fbx"); extPos != string::npos)
+        resolvedPath = resolvedPath.substr(0, extPos) + ".model";
+
+    return fs::absolute(fs::path(String::ToWString(resolvedPath))).lexically_normal().wstring();
+}
+
+float ModelCom::Get_CurrentAnimationDurationSec() const
+{
+    if (_currentAnimIndex >= _animations.size())
+        return 0.f;
+
+    return _animations[_currentAnimIndex]->Get_DurationSec();
+}
+
+float ModelCom::Get_CurrentAnimationTimeSec() const
+{
+    if (_currentAnimIndex >= _animations.size())
+        return 0.f;
+
+    return _animations[_currentAnimIndex]->Get_CurrentTimeSec();
+}
+
+void ModelCom::Set_CurrentAnimationTimeSec(float timeSec)
+{
+    if (_currentAnimIndex >= _animations.size())
+        return;
+
+    _animations[_currentAnimIndex]->Set_CurrentTimeSec(timeSec);
+}
+
+void ModelCom::Refresh_CurrentAnimationPose()
+{
+    if (!_isSkeletal || _currentAnimIndex >= _animations.size())
+        return;
+
+    const int32 rootIndex = _isRootMotion ? _rootNodeIndex : -1;
+
+    _animations[_currentAnimIndex]->Evaluate_CurrentPose(_bones, rootIndex, _isAnimLoop);
+    _rootFrameVelocity = (rootIndex >= 0) ? _animations[_currentAnimIndex]->Get_TransformVelocity(rootIndex) : RootMotionFrame{};
+
+    for (uint32 i = 0; i < _numBones; ++i)
+        _bones[i]->Update_CombinedTransformationMatrix(_bones, _preLocalTransformMatrix);
 }
 
 HRESULT ModelCom::Ready_Model(const char* modelPath)

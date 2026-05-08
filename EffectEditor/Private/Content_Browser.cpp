@@ -1,38 +1,37 @@
 ﻿#include "Content_Browser.h"
 
+#include <fstream>
+#include <shellapi.h>
 #include "EffectEditorInstance.h"
 #include "GameInstance.h"
 #include "Helper_String.h"
 #include "Texture.h"
 
-#include <fstream>
-#include <shellapi.h>
+NS_BEGIN(EffectEditor)
 
-namespace fs = std::filesystem;
-
-namespace EffectEditor::Internal
+namespace Internal
 {
-static string ToLowerCopy(string value)
-{
-    ranges::transform(value, value.begin(), ::tolower);
-    return value;
-}
+    static string ToLowerCopy(string value)
+    {
+        ranges::transform(value, value.begin(), ::tolower);
+        return value;
+    }
 
-static ImTextureID ToImTextureId(const Shared<Texture>& texture)
-{
-    if (texture == nullptr)
-        return static_cast<ImTextureID>(0);
+    static ImTextureID ToImTextureId(const Shared<Texture>& texture)
+    {
+        if (texture == nullptr)
+            return static_cast<ImTextureID>(0);
 
-    const auto& srvs = texture->Get_SRVs();
-    if (srvs.empty() || srvs[0] == nullptr)
-        return static_cast<ImTextureID>(0);
+        const auto& srvs = texture->Get_SRVs();
+        if (srvs.empty() || srvs[0] == nullptr)
+            return static_cast<ImTextureID>(0);
 
-    return static_cast<ImTextureID>(reinterpret_cast<intptr_t>(srvs[0].Get()));
-}
+        return static_cast<ImTextureID>(reinterpret_cast<intptr_t>(srvs[0].Get()));
+    }
 }
 
 Content_Browser::Content_Browser()
-    : Editor_Window{ L"Content Browser" }
+    : Editor_Window{ L"Content Browser", ICON_FA_FOLDER_OPEN }
 {
     const wstring assetRoot = GAME->Get_AssetRoot();
     if (!assetRoot.empty())
@@ -54,8 +53,8 @@ void Content_Browser::Render()
         return;
 
     bool isOpen = Is_Open();
+    const string& windowName = Get_ImGuiWindowName();
 
-    const string windowName = String::ToString(Get_WindowName());
     if (ImGui::Begin(windowName.c_str(), &isOpen))
     {
         _isFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
@@ -483,7 +482,7 @@ void Content_Browser::Open_Folder(FFolderNode* folder)
     Save_Settings();
 }
 
-void Content_Browser::Draw_FolderContextMenu(FFolderNode& folder, const string& popupId)
+void Content_Browser::Draw_FolderContextMenu(const FFolderNode& folder, const string& popupId)
 {
     if (!ImGui::BeginPopupContextItem(popupId.c_str()))
         return;
@@ -804,3 +803,5 @@ void Content_Browser::Free()
 {
     __super::Free();
 }
+
+NS_END

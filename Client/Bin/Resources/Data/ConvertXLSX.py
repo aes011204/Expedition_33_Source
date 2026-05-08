@@ -1,3 +1,4 @@
+import argparse
 import glob
 import json
 import os
@@ -133,11 +134,6 @@ def convert_all_xlsx_to_json() -> None:
     os.makedirs(XLSX_DIR, exist_ok=True)
     os.makedirs(JSON_DIR, exist_ok=True)
 
-    sync_google_sheet_shortcuts()
-
-    for filename, export_url in GOOGLE_SHEET_EXPORTS.items():
-        sync_google_sheet_xlsx(filename, export_url)
-
     xlsx_files = sorted(glob.glob(os.path.join(XLSX_DIR, "DT_*.xlsx")))
     for xlsx_file in xlsx_files:
         if os.path.basename(xlsx_file).startswith("~$"):
@@ -145,5 +141,28 @@ def convert_all_xlsx_to_json() -> None:
         convert_xlsx_file(xlsx_file)
 
 
+def sync_google_sheets() -> None:
+    """Refresh local xlsx snapshots from Google Sheets."""
+    sync_google_sheet_shortcuts()
+
+    for filename, export_url in GOOGLE_SHEET_EXPORTS.items():
+        sync_google_sheet_xlsx(filename, export_url)
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Convert local DT_*.xlsx files into json resources."
+    )
+    parser.add_argument(
+        "--sync-google",
+        action="store_true",
+        help="Download the latest Google Sheet exports into Data/xlsx before conversion.",
+    )
+    return parser.parse_args()
+
+
 if __name__ == "__main__":
+    args = parse_args()
+    if args.sync_google:
+        sync_google_sheets()
     convert_all_xlsx_to_json()

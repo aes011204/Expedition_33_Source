@@ -17,10 +17,16 @@ HINSTANCE g_hInst = nullptr;
 
 static const wchar_t* g_windowClassName = L"Expedition158MainEditor";
 static const wchar_t* g_windowTitle = L"Expedition_158 MainEditor";
+static constexpr DWORD g_fullscreenWindowStyle = WS_POPUP | WS_VISIBLE;
+static constexpr DWORD g_windowedWindowStyle = WS_OVERLAPPEDWINDOW | WS_VISIBLE;
 static bool g_runtimeInitialized = false;
+static bool g_isEditorFullscreen = false;
+static RECT g_windowedRect = { 0, 0, 1600, 900 };
 
 static ATOM Register_MainEditorClass(HINSTANCE hInstance);
 static bool Create_MainEditorWindow(HINSTANCE hInstance, int nCmdShow);
+static RECT Make_CenteredWindowRect(const RECT& areaRect, LONG clientWidth, LONG clientHeight);
+static void Toggle_MainEditorFullscreen(HWND hWnd);
 static LRESULT CALLBACK MainEditor_WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE, _In_ LPWSTR, _In_ int nCmdShow)
@@ -125,8 +131,6 @@ static ATOM Register_MainEditorClass(HINSTANCE hInstance)
 
 static bool Create_MainEditorWindow(HINSTANCE hInstance, int nCmdShow)
 {
-    constexpr DWORD kEditorWindowStyle = WS_POPUP | WS_VISIBLE;
-
     MONITORINFO monitorInfo{};
     monitorInfo.cbSize = sizeof(MONITORINFO);
 
@@ -134,18 +138,16 @@ static bool Create_MainEditorWindow(HINSTANCE hInstance, int nCmdShow)
     if (!GetMonitorInfo(hMonitor, &monitorInfo))
         return false;
 
-    const RECT& monitorRect = monitorInfo.rcMonitor;
-    RECT rcWindow = { 0, 0, monitorRect.right - monitorRect.left, monitorRect.bottom - monitorRect.top };
-    AdjustWindowRect(&rcWindow, kEditorWindowStyle, FALSE);
+    g_windowedRect = Make_CenteredWindowRect(monitorInfo.rcWork, 1600, 900);
 
     g_hWnd = CreateWindowW(
         g_windowClassName,
         g_windowTitle,
-        kEditorWindowStyle,
-        monitorRect.left,
-        monitorRect.top,
-        rcWindow.right - rcWindow.left,
-        rcWindow.bottom - rcWindow.top,
+        g_windowedWindowStyle,
+        g_windowedRect.left,
+        g_windowedRect.top,
+        g_windowedRect.right - g_windowedRect.left,
+        g_windowedRect.bottom - g_windowedRect.top,
         nullptr,
         nullptr,
         hInstance,
@@ -159,8 +161,70 @@ static bool Create_MainEditorWindow(HINSTANCE hInstance, int nCmdShow)
     return true;
 }
 
+static RECT Make_CenteredWindowRect(const RECT& areaRect, LONG clientWidth, LONG clientHeight)
+{
+    RECT windowRect = { 0, 0, clientWidth, clientHeight };
+    AdjustWindowRect(&windowRect, g_windowedWindowStyle, FALSE);
+
+    const LONG windowWidth = windowRect.right - windowRect.left;
+    const LONG windowHeight = windowRect.bottom - windowRect.top;
+    const LONG areaWidth = areaRect.right - areaRect.left;
+    const LONG areaHeight = areaRect.bottom - areaRect.top;
+
+    const LONG left = areaRect.left + max(0L, (areaWidth - windowWidth) / 2);
+    const LONG top = areaRect.top + max(0L, (areaHeight - windowHeight) / 2);
+
+    return RECT{ left, top, left + windowWidth, top + windowHeight };
+}
+
+static void Toggle_MainEditorFullscreen(HWND hWnd)
+{
+    if (g_isEditorFullscreen)
+    {
+        SetWindowLongPtrW(hWnd, GWL_STYLE, g_windowedWindowStyle);
+        SetWindowPos(
+            hWnd,
+            nullptr,
+            g_windowedRect.left,
+            g_windowedRect.top,
+            g_windowedRect.right - g_windowedRect.left,
+            g_windowedRect.bottom - g_windowedRect.top,
+            SWP_NOZORDER | SWP_FRAMECHANGED | SWP_SHOWWINDOW
+        );
+        g_isEditorFullscreen = false;
+        return;
+    }
+
+    GetWindowRect(hWnd, &g_windowedRect);
+
+    MONITORINFO monitorInfo{};
+    monitorInfo.cbSize = sizeof(MONITORINFO);
+    HMONITOR hMonitor = MonitorFromWindow(hWnd, MONITOR_DEFAULTTONEAREST);
+    if (!GetMonitorInfo(hMonitor, &monitorInfo))
+        return;
+
+    const RECT& monitorRect = monitorInfo.rcMonitor;
+    SetWindowLongPtrW(hWnd, GWL_STYLE, g_fullscreenWindowStyle);
+    SetWindowPos(
+        hWnd,
+        HWND_TOP,
+        monitorRect.left,
+        monitorRect.top,
+        monitorRect.right - monitorRect.left,
+        monitorRect.bottom - monitorRect.top,
+        SWP_FRAMECHANGED | SWP_SHOWWINDOW
+    );
+    g_isEditorFullscreen = true;
+}
+
 static LRESULT CALLBACK MainEditor_WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
+    if (WM_SYSKEYDOWN == message && VK_RETURN == wParam && 0 != (HIWORD(lParam) & KF_ALTDOWN))
+    {
+        Toggle_MainEditorFullscreen(hWnd);
+        return 0;
+    }
+
     if (g_runtimeInitialized && ImGui_ImplWin32_WndProcHandler(hWnd, message, wParam, lParam))
         return true;
 
