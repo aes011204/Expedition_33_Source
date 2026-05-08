@@ -95,6 +95,17 @@ PS_OUT_SHADOW PS_MAIN_SHADOW(PS_IN In)
     return Out;
 }
 
+PS_OUT PS_MAIN_NOTEXTURE(PS_IN In)
+{
+    PS_OUT Out;
+
+    Out.vDiffuse = vector(0.8f, 0.8f, 0.8f, 1.f);
+    Out.vNormal = vector(In.vNormal.xyz * 0.5f + 0.5f, 1.f);
+    Out.vDepth = vector(In.vProjPos.z / In.vProjPos.w, In.vProjPos.w / g_fFar, 0.f, 1.f);
+
+    return Out;
+}
+
 technique11 DefaultTechnique
 {
     pass DefaultPass
@@ -117,5 +128,17 @@ technique11 DefaultTechnique
         VertexShader = compile vs_5_0 VS_MAIN();
         GeometryShader = NULL;
         PixelShader = compile ps_5_0 PS_MAIN_SHADOW();
+    }
+
+
+    pass NoTexturePass
+    {
+        SetRasterizerState(RS_Default);
+        SetDepthStencilState(DSS_Default, 0);
+        SetBlendState(BS_Default, float4(0.f, 0.f, 0.f, 0.f), 0xffffffff);
+
+        VertexShader = compile vs_5_0 VS_MAIN();
+        GeometryShader = NULL;
+        PixelShader = compile ps_5_0 PS_MAIN_NOTEXTURE();
     }
 }
