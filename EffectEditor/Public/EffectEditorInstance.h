@@ -140,12 +140,12 @@ private: //## Data::Core
 
 private: //## Data::Viewport
     Shared<RenderTarget> _sharedViewportRenderTarget{ nullptr };
-    Shared<DirectX::DX11::PrimitiveBatch<DirectX::DX11::VertexPositionColor>> _sceneGridBatch{ nullptr };
-    Shared<DirectX::DX11::BasicEffect> _sceneGridEffect{ nullptr };
+    Shared<PrimitiveBatch<VertexPositionColor>> _sceneGridBatch{ nullptr };
+    Shared<BasicEffect> _sceneGridEffect{ nullptr };
     ComPtr<ID3D11InputLayout> _sceneGridInputLayout{};
     ComPtr<ID3D11DepthStencilState> _sceneGridDepthState{};
 
-    PreviewViewportMode _previewViewportMode{ PreviewViewportMode::Manual };
+    PreviewViewportMode _previewViewportMode{ PreviewViewportMode::Auto };
     bool _hasPendingPreviewViewportSize{ false };
     uint32 _pendingPreviewViewportWidth{ defaultPreviewViewportWidth };
     uint32 _pendingPreviewViewportHeight{ defaultPreviewViewportHeight };

@@ -7,7 +7,7 @@ NS_BEGIN(EffectEditor)
 class EffectEditorCamera final : public Camera
 {
 public:
-    struct EffectEditorCameraDesc final : public Camera::CAMERA_DESC
+    struct EffectEditorCameraDesc final : public CAMERA_DESC
     {
         Vec3 pivot{ Vec3::Zero };
         float distance{ 0.f };

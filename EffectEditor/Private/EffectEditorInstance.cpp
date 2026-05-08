@@ -47,7 +47,6 @@ HRESULT EffectEditorInstance::Initialize_Editor(const EffectEditorDesc& editorDe
 
     _runtimeState = EffectEditorRuntimeState::Edit;
     _runtimeTimeScale = 1.f;
-    _previewViewportMode = PreviewViewportMode::Manual;
     Queue_PreviewViewportSize(defaultPreviewViewportWidth, defaultPreviewViewportHeight);
 
     return S_OK;
@@ -77,7 +76,6 @@ void EffectEditorInstance::Release_Editor()
     _device.Reset();
 
     _editorDesc = {};
-    _previewViewportMode = PreviewViewportMode::Manual;
     _hasPendingPreviewViewportSize = false;
     _pendingPreviewViewportWidth = defaultPreviewViewportWidth;
     _pendingPreviewViewportHeight = defaultPreviewViewportHeight;

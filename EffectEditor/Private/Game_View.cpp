@@ -1,4 +1,4 @@
-#include "Game_View.h"
+﻿#include "Game_View.h"
 
 #include "GameInstance.h"
 #include "EffectEditorInstance.h"
@@ -56,7 +56,7 @@ void Game_View::Render()
         return;
 
     bool isOpen = Is_Open();
-    const string windowName = String::ToString(Get_WindowName());
+    const string& windowName = Get_ImGuiWindowName();
 
     if (EDITOR->Consume_WindowFocusRequest(EditorViewportTarget::Game))
         ImGui::SetNextWindowFocus();

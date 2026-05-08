@@ -215,7 +215,7 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     <ClCompile Include="..\Private\Game_View.cpp" />
     <ClCompile Include="..\Private\Hierarchy_View.cpp" />
     <ClCompile Include="..\Private\Content_Browser.cpp" />
-    <ClCompile Include="..\Private\Inspector.cpp" />
+    <ClCompile Include="..\Private\Detail_View.cpp" />
     <ClCompile Include="..\Private\Profile_View.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -243,7 +243,7 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     <ClInclude Include="..\Public\Game_View.h" />
     <ClInclude Include="..\Public\Hierarchy_View.h" />
     <ClInclude Include="..\Public\Content_Browser.h" />
-    <ClInclude Include="..\Public\Inspector.h" />
+    <ClInclude Include="..\Public\Detail_View.h" />
     <ClInclude Include="..\Public\Profile_View.h" />
   </ItemGroup>
   <ItemGroup>

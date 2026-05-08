@@ -74,7 +74,7 @@ namespace Internal
 }
 
 Console_View::Console_View()
-    : Editor_Window(L"Console")
+    : Editor_Window{ L"Console", ICON_FA_TERMINAL }
 {
 }
 
@@ -91,7 +91,7 @@ void Console_View::Render()
     Refresh_Logs();
 
     bool isOpen = Is_Open();
-    const string windowName = String::ToString(Get_WindowName());
+    const string& windowName = Get_ImGuiWindowName();
 
     if (ImGui::Begin(windowName.c_str(), &isOpen))
     {
@@ -158,7 +158,7 @@ void Console_View::Refresh_Logs()
 
     _cachedLogs.clear();
     GAME->Visit_ConsoleLogs(
-        [this](const Engine::ConsoleLogEntry& entry)
+        [this](const ConsoleLogEntry& entry)
         {
             _cachedLogs.push_back(entry);
         }

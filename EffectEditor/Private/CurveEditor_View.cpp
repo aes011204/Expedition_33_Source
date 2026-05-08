@@ -1,9 +1,9 @@
-#include "CurveEditor_View.h"
+﻿#include "CurveEditor_View.h"
 
 NS_BEGIN(EffectEditor)
 
 CurveEditor_View::CurveEditor_View()
-    : Editor_Window{ L"Curve Editor" }
+    : Editor_Window{ L"Curve Editor", ICON_FA_WAVE_SQUARE }
 {
 }
 
@@ -13,7 +13,7 @@ void CurveEditor_View::Render()
         return;
 
     bool isOpen = Is_Open();
-    const string windowName = String::ToString(Get_WindowName());
+    const string& windowName = Get_ImGuiWindowName();
 
     if (ImGui::Begin(windowName.c_str(), &isOpen))
     {

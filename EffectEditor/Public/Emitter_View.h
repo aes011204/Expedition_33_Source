@@ -15,6 +15,39 @@ public:
 
 public:
     static Shared<Emitter_View> Create();
+
+private:
+    struct Module_Row
+    {
+        string name{};
+        string summary{};
+        bool required{false};
+        bool enabled{true};
+    };
+
+    struct Emitter_Row
+    {
+        string name{};
+        string sourceSystem{};
+        string rendererType{};
+        string supportState{};
+        string resourceSummary{};
+        string materialName{};
+        string textureId{};
+        ImVec4 accentColor{};
+        vector<Module_Row> modules{};
+    };
+
+private:
+    void Draw_Toolbar();
+    void Draw_EmitterBoard();
+    void Draw_EmitterColumn(size_t emitterIndex, const Emitter_Row& emitter);
+    void Draw_ModuleRow(const Module_Row& module);
+    void Draw_SelectionSummary() const;
+
+private:
+    vector<Emitter_Row> _emitters{};
+    size_t _selectedEmitterIndex{0};
 };
 
 NS_END

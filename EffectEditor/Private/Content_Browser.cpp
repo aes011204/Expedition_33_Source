@@ -31,7 +31,7 @@ namespace Internal
 }
 
 Content_Browser::Content_Browser()
-    : Editor_Window{ L"Content Browser" }
+    : Editor_Window{ L"Content Browser", ICON_FA_FOLDER_OPEN }
 {
     const wstring assetRoot = GAME->Get_AssetRoot();
     if (!assetRoot.empty())
@@ -53,8 +53,8 @@ void Content_Browser::Render()
         return;
 
     bool isOpen = Is_Open();
+    const string& windowName = Get_ImGuiWindowName();
 
-    const string windowName = String::ToString(Get_WindowName());
     if (ImGui::Begin(windowName.c_str(), &isOpen))
     {
         _isFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
@@ -482,7 +482,7 @@ void Content_Browser::Open_Folder(FFolderNode* folder)
     Save_Settings();
 }
 
-void Content_Browser::Draw_FolderContextMenu(FFolderNode& folder, const string& popupId)
+void Content_Browser::Draw_FolderContextMenu(const FFolderNode& folder, const string& popupId)
 {
     if (!ImGui::BeginPopupContextItem(popupId.c_str()))
         return;

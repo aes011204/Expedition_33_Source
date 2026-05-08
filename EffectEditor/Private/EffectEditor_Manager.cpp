@@ -3,13 +3,12 @@
 #include "Console_View.h"
 #include "Content_Browser.h"
 #include "CurveEditor_View.h"
+#include "Detail_View.h"
 #include "Editor_Window.h"
-#include "Emitter_View.h"
 #include "EffectEditorInstance.h"
+#include "Emitter_View.h"
 #include "GameInstance.h"
-#include "Game_View.h"
 #include "Hierarchy_View.h"
-#include "Inspector.h"
 #include "Profile_View.h"
 #include "Scene_View.h"
 
@@ -33,7 +32,7 @@ HRESULT EffectEditor_Manager::Initialize()
     Add_Window(Emitter_View::Create());
     Add_Window(Hierarchy_View::Create());
     Add_Window(Content_Browser::Create());
-    Add_Window(Inspector::Create());
+    Add_Window(Detail_View::Create());
     Add_Window(CurveEditor_View::Create());
     Add_Window(Console_View::Create());
     Add_Window(Profile_View::Create());
@@ -387,6 +386,7 @@ void EffectEditor_Manager::Render_ShortcutHelp()
             draw_shortcut_row("Ctrl + Wheel", "Free Camera Speed");
             draw_shortcut_row("Shift +", "Time Scale Up");
             draw_shortcut_row("Shift -", "Time Scale Down");
+            draw_shortcut_row("Alt + Enter", "Fullscreen Toggle");
             draw_shortcut_row("Ctrl + Space", "Console + Content Browser");
             draw_shortcut_row("Double Click", "Focus Selected Object");
             draw_shortcut_row("W E R", "Gizmo Mode");

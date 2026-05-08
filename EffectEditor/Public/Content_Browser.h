@@ -81,7 +81,7 @@ private:
 
     void Draw_FolderTile(FFolderNode& folder);
     void Open_Folder(FFolderNode* folder);
-    void Draw_FolderContextMenu(FFolderNode& folder, const string& popupId);
+    void Draw_FolderContextMenu(const FFolderNode& folder, const string& popupId);
     void Draw_FileContextMenu(const wstring& filePath, const string& popupId);
     Shared<Texture> Get_FileThumbnail(const FFileEntry& fileEntry);
     static bool Is_ThumbnailFileExtension(const filesystem::path& filePath);

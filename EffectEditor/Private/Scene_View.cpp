@@ -12,6 +12,8 @@ NS_BEGIN(EffectEditor)
 
 namespace Internal
 {
+    static constexpr float autoPreviewViewportScale = 1.5f;
+
     struct ViewportImageRect
     {
         ImVec2 imageMin;
@@ -105,16 +107,51 @@ namespace Internal
                point.y >= rect.min.y && point.y <= rect.max.y;
     }
 
+    static bool Should_OpenToolbarOverlay(const ImVec2& viewportMin, const ImVec2& viewportMax, const ImVec2& mousePos)
+    {
+        return Is_PointInRect(mousePos, Compute_ToolbarHandleRect(viewportMin, viewportMax));
+    }
+
+    static bool Should_OpenToolbarOverlay(const ImVec2& viewportMin, const ImVec2& viewportMax)
+    {
+        return Should_OpenToolbarOverlay(viewportMin, viewportMax, ImGui::GetIO().MousePos);
+    }
+
+    static OverlayRect Compute_ToolbarKeepAliveRect(const ImVec2& viewportMin, const ImVec2& viewportMax)
+    {
+        const OverlayRect pinRect = Compute_ToolbarPinRect(viewportMin, viewportMax);
+        const OverlayRect gizmoRect = Compute_GizmoOverlayRect(viewportMin, viewportMax);
+        const OverlayRect previewRect = Compute_PreviewViewportOverlayRect(viewportMin, viewportMax);
+
+        return {
+            ImVec2(
+                min(pinRect.min.x, min(gizmoRect.min.x, previewRect.min.x)),
+                min(pinRect.min.y, min(gizmoRect.min.y, previewRect.min.y))
+            ),
+            ImVec2(
+                max(pinRect.max.x, max(gizmoRect.max.x, previewRect.max.x)),
+                max(pinRect.max.y, max(gizmoRect.max.y, previewRect.max.y))
+            )
+        };
+    }
+
+    static bool Should_KeepToolbarOverlay(const ImVec2& viewportMin, const ImVec2& viewportMax, const ImVec2& mousePos)
+    {
+        return Is_PointInRect(mousePos, Compute_ToolbarKeepAliveRect(viewportMin, viewportMax));
+    }
+
+    static bool Should_KeepToolbarOverlay(const ImVec2& viewportMin, const ImVec2& viewportMax)
+    {
+        return Should_KeepToolbarOverlay(viewportMin, viewportMax, ImGui::GetIO().MousePos);
+    }
+
     static bool Should_ShowToolbarOverlay(const ImVec2& viewportMin, const ImVec2& viewportMax, bool isPinned, bool isInteracting)
     {
         if (isPinned || isInteracting)
             return true;
 
         const ImVec2 mousePos = ImGui::GetIO().MousePos;
-        return Is_PointInRect(mousePos, Compute_ToolbarHandleRect(viewportMin, viewportMax)) ||
-               Is_PointInRect(mousePos, Compute_ToolbarPinRect(viewportMin, viewportMax)) ||
-               Is_PointInRect(mousePos, Compute_GizmoOverlayRect(viewportMin, viewportMax)) ||
-               Is_PointInRect(mousePos, Compute_PreviewViewportOverlayRect(viewportMin, viewportMax));
+        return Should_OpenToolbarOverlay(viewportMin, viewportMax, mousePos);
     }
 
     static bool Is_MouseOverViewportOverlay(
@@ -126,17 +163,16 @@ namespace Internal
         const ImVec2 mousePos = ImGui::GetIO().MousePos;
         if (Should_ShowToolbarOverlay(viewportMin, viewportMax, isToolbarPinned, isToolbarInteracting))
         {
-            return Is_PointInRect(mousePos, Compute_ToolbarPinRect(viewportMin, viewportMax)) ||
-                   Is_PointInRect(mousePos, Compute_GizmoOverlayRect(viewportMin, viewportMax)) ||
-                   Is_PointInRect(mousePos, Compute_PreviewViewportOverlayRect(viewportMin, viewportMax));
+            return Should_OpenToolbarOverlay(viewportMin, viewportMax, mousePos) ||
+                   Should_KeepToolbarOverlay(viewportMin, viewportMax, mousePos);
         }
 
-        return Is_PointInRect(mousePos, Compute_ToolbarHandleRect(viewportMin, viewportMax));
+        return Should_OpenToolbarOverlay(viewportMin, viewportMax, mousePos);
     }
 }
 
 Scene_View::Scene_View()
-    : Editor_Window{ L"Scene" }
+    : Editor_Window{ L"Scene", ICON_FA_WINDOW_MAXIMIZE }
 {
 }
 
@@ -151,7 +187,7 @@ void Scene_View::Render()
         return;
 
     bool isOpen = Is_Open();
-    const string windowName = String::ToString(Get_WindowName());
+    const string& windowName = Get_ImGuiWindowName();
 
     if (EDITOR->Consume_WindowFocusRequest(EditorViewportTarget::Scene))
         ImGui::SetNextWindowFocus();
@@ -254,8 +290,7 @@ void Scene_View::Render_CameraAxisOverlay()
         const char* label;
     };
 
-    const AxisDrawDesc axes[] =
-    {
+    const AxisDrawDesc axes[] = {
         { Vec3::Right, IM_COL32(235, 72, 72, 255), "X" },
         { Vec3::Up, IM_COL32(72, 220, 96, 255), "Y" },
         { Vec3::Look, IM_COL32(78, 132, 245, 255), "Z" }
@@ -352,9 +387,17 @@ void Scene_View::Render_ViewportToolbarOverlay()
     ImGui::PopID();
 
     Render_GizmoOverlay();
-    _isViewportToolbarInteracting = _isViewportToolbarInteracting || ImGui::IsAnyItemActive();
+    _isViewportToolbarInteracting =
+        _isViewportToolbarInteracting ||
+        ImGui::IsAnyItemActive() ||
+        Internal::Should_OpenToolbarOverlay(_viewportMin, _viewportMax) ||
+        Internal::Should_KeepToolbarOverlay(_viewportMin, _viewportMax);
     Render_PreviewViewportOverlay();
-    _isViewportToolbarInteracting = _isViewportToolbarInteracting || ImGui::IsAnyItemActive();
+    _isViewportToolbarInteracting =
+        _isViewportToolbarInteracting ||
+        ImGui::IsAnyItemActive() ||
+        Internal::Should_OpenToolbarOverlay(_viewportMin, _viewportMax) ||
+        Internal::Should_KeepToolbarOverlay(_viewportMin, _viewportMax);
 }
 
 void Scene_View::Render_GizmoOverlay()
@@ -536,8 +579,8 @@ void Scene_View::Render_PreviewViewportOverlay()
     {
         EDITOR->Enable_AutoPreviewViewport();
         EDITOR->Request_PreviewViewportSize(
-            static_cast<uint32>(max(1.f, _viewportSize.x)),
-            static_cast<uint32>(max(1.f, _viewportSize.y))
+            static_cast<uint32>(max(1.f, _viewportSize.x * Internal::autoPreviewViewportScale)),
+            static_cast<uint32>(max(1.f, _viewportSize.y * Internal::autoPreviewViewportScale))
         );
         Sync_PreviewViewportInput();
     }
@@ -658,8 +701,8 @@ void Scene_View::Render_ViewportCanvas()
     if (EDITOR->Get_PreviewViewportMode() == PreviewViewportMode::Auto)
     {
         EDITOR->Request_PreviewViewportSize(
-            static_cast<uint32>(max(1.f, _viewportSize.x)),
-            static_cast<uint32>(max(1.f, _viewportSize.y))
+            static_cast<uint32>(max(1.f, _viewportSize.x * Internal::autoPreviewViewportScale)),
+            static_cast<uint32>(max(1.f, _viewportSize.y * Internal::autoPreviewViewportScale))
         );
     }
 }

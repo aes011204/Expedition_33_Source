@@ -8,7 +8,7 @@
 NS_BEGIN(EffectEditor)
 
 Hierarchy_View::Hierarchy_View()
-    : Editor_Window{ L"Hierarchy" }
+    : Editor_Window{ L"Hierarchy", ICON_FA_SITEMAP }
 {
 }
 
@@ -58,7 +58,7 @@ void Hierarchy_View::Render()
         return;
 
     bool isOpen = Is_Open();
-    const string windowName = String::ToString(Get_WindowName());
+    const string& windowName = Get_ImGuiWindowName();
 
     if (ImGui::Begin(windowName.c_str(), &isOpen))
     {

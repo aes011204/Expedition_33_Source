@@ -25,8 +25,8 @@
     <ClCompile Include="..\Private\Editor_Window.cpp">
       <Filter>01. View</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\Inspector.cpp">
-      <Filter>02. Inspector</Filter>
+    <ClCompile Include="..\Private\Detail_View.cpp">
+      <Filter>01. View\Detail View</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\EffectEditorApp.cpp">
       <Filter>00. Main</Filter>
@@ -102,8 +102,8 @@
     <ClInclude Include="..\Public\Editor_Window.h">
       <Filter>01. View</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\Inspector.h">
-      <Filter>02. Inspector</Filter>
+    <ClInclude Include="..\Public\Detail_View.h">
+      <Filter>01. View\Detail View</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\EffectEditor_ImGuiInclude.h">
       <Filter>99. Defines</Filter>
@@ -161,9 +161,6 @@
     <Filter Include="01. View\Emitter View">
       <UniqueIdentifier>{37d38b16-ebfc-4358-ace7-2ff7f458a3f3}</UniqueIdentifier>
     </Filter>
-    <Filter Include="02. Inspector">
-      <UniqueIdentifier>{a6f51295-5edb-4694-9d55-01c07add81a5}</UniqueIdentifier>
-    </Filter>
     <Filter Include="99. Defines">
       <UniqueIdentifier>{afbffb53-f9a7-4636-bd21-a1fa41d808c3}</UniqueIdentifier>
     </Filter>
@@ -211,6 +208,9 @@
     </Filter>
     <Filter Include="03. Level">
       <UniqueIdentifier>{0112697d-2120-4602-94c8-9b6061ffc1e4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="01. View\Detail View">
+      <UniqueIdentifier>{a6f51295-5edb-4694-9d55-01c07add81a5}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>
