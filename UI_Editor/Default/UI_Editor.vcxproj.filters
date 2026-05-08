@@ -22,9 +22,6 @@
     <Filter Include="01. Manager\UI_Editor_Manager">
       <UniqueIdentifier>{f9a10b37-f282-42b1-bea6-02bbc17592aa}</UniqueIdentifier>
     </Filter>
-    <Filter Include="01. Manager\Editor_Manager">
-      <UniqueIdentifier>{3dbc47d4-fff7-4b8b-9a2c-995efda8314d}</UniqueIdentifier>
-    </Filter>
     <Filter Include="01. Manager\Imgui_Manager">
       <UniqueIdentifier>{06ca636e-0a31-4ec7-90a3-e219d569ae3b}</UniqueIdentifier>
     </Filter>
@@ -33,6 +30,9 @@
     </Filter>
     <Filter Include="97. Shader">
       <UniqueIdentifier>{410d317e-37c5-4ac6-b5ee-b26a037af681}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="01. Manager\UI_Editor_Instance">
+      <UniqueIdentifier>{3dbc47d4-fff7-4b8b-9a2c-995efda8314d}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -50,9 +50,6 @@
     </ClCompile>
     <ClCompile Include="..\Private\UI_Editor_ImGuiManager.cpp">
       <Filter>01. Manager\Imgui_Manager</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\UI_Editor_Instance.cpp">
-      <Filter>01. Manager</Filter>
     </ClCompile>
     <ClCompile Include="..\private\UI_Inspector.cpp">
       <Filter>03. Inspector</Filter>
@@ -77,6 +74,9 @@
     </ClCompile>
     <ClCompile Include="..\Private\SimpleMath.cpp">
       <Filter>99. Defines</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_Editor_Instance.cpp">
+      <Filter>01. Manager\UI_Editor_Instance</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -107,9 +107,6 @@
     <ClInclude Include="..\Public\UI_Editor_ImGuiManager.h">
       <Filter>01. Manager\Imgui_Manager</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\UI_Editor_Instance.h">
-      <Filter>01. Manager</Filter>
-    </ClInclude>
     <ClInclude Include="..\public\UI_Inspector.h">
       <Filter>03. Inspector</Filter>
     </ClInclude>
@@ -130,6 +127,9 @@
     </ClInclude>
     <ClInclude Include="..\Public\UI_Editor_Utils.h">
       <Filter>99. Defines</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_Editor_Instance.h">
+      <Filter>01. Manager\UI_Editor_Instance</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

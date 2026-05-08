@@ -299,19 +299,14 @@ namespace UIEditor
 
         bool isOpen = Is_Open();
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.f, 0.f));
-        if (ImGui::Begin("Viewport", &isOpen, ImGuiWindowFlags_HorizontalScrollbar | ImGuiWindowFlags_NoScrollWithMouse))
+        if (ImGui::Begin("Viewport", &isOpen, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse))
         {
-            _isFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows);
-            _isHovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows);
-
-            bool requestPixelZoom = false;
+            _isFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
+            _isHovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_RootAndChildWindows);
 
             ImGui::SetCursorPosX(8.f);
             ImGui::AlignTextToFramePadding();
             ImGui::Text("Zoom: %.0f%%", _zoomFactor * 100.f);
-            ImGui::SameLine();
-            if (ImGui::SmallButton("100%"))
-                requestPixelZoom = true;
             ImGui::SameLine();
             ImGui::Checkbox("Grid", &_showGrid);
             ImGui::SameLine();
@@ -321,6 +316,10 @@ namespace UIEditor
             ImGui::DragFloat("Grid Size", &_gridSize, 1.f, kMinGridSize, kMaxGridSize, "%.0f");
             ImGui::Separator();
 
+            ImGui::BeginChild("##UIEditorViewportScrollRegion", ImVec2(0.f, 0.f), false, ImGuiWindowFlags_HorizontalScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+            _isFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
+            _isHovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_RootAndChildWindows);
+
             ImVec2 available = ImGui::GetContentRegionAvail();
             available.x = max(1.f, available.x);
             available.y = max(1.f, available.y);
@@ -328,13 +327,6 @@ namespace UIEditor
             UI_Document& document = _editorManager.Get_Document();
             const ImVec2 canvasSize = document.Get_CanvasSize();
             _gridSize = min(max(_gridSize, kMinGridSize), kMaxGridSize);
-
-            if (requestPixelZoom)
-            {
-                _zoomFactor = 1.f;
-                ImGui::SetScrollX(0.f);
-                ImGui::SetScrollY(0.f);
-            }
 
             ImGuiIO& io = ImGui::GetIO();
             const bool canZoomViewport = ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem) || ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
@@ -362,12 +354,10 @@ namespace UIEditor
 
             const float canvasWidth = max(1.f, canvasSize.x);
             const float canvasHeight = max(1.f, canvasSize.y);
-            const ImVec2 canvasScreenSize = ImVec2(canvasWidth * _zoomFactor, canvasHeight * _zoomFactor);
-            const ImVec2 viewportInteractionSize = _zoomFactor > 1.f
-                ? canvasScreenSize
-                : ImVec2(max(1.f, available.x), max(1.f, available.y));
-            const float displayScaleX = _zoomFactor;
-            const float displayScaleY = _zoomFactor;
+            const float fitScale = max(0.01f, min(available.x / canvasWidth, available.y / canvasHeight));
+            const float displayScale = fitScale * _zoomFactor;
+            const ImVec2 canvasScreenSize = ImVec2(canvasWidth * displayScale, canvasHeight * displayScale);
+            const ImVec2 viewportInteractionSize = canvasScreenSize;
 
             const ImVec2 contentCursorPos = ImGui::GetCursorPos();
             const ImVec2 viewAreaMin = ImGui::GetCursorScreenPos();
@@ -375,10 +365,6 @@ namespace UIEditor
             const ImVec2 canvasOffset = ImVec2(
                 max(0.f, (available.x - canvasScreenSize.x) * 0.5f),
                 max(0.f, (available.y - canvasScreenSize.y) * 0.5f));
-
-            ImGui::SetCursorScreenPos(viewAreaMin);
-            ImGui::InvisibleButton("##UIEditorViewportPanArea", available, ImGuiButtonFlags_MouseButtonRight);
-            const bool isPanAreaHovered = ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem);
 
             ImGui::SetCursorPos(ImVec2(contentCursorPos.x + canvasOffset.x, contentCursorPos.y + canvasOffset.y));
             ImVec2 canvasPos = ImGui::GetCursorScreenPos();
@@ -401,26 +387,27 @@ namespace UIEditor
             {
                 for (float x = 0.f; x <= canvasSize.x; x += _gridSize)
                 {
-                    float screenX = canvasPos.x + x * displayScaleX;
+                    float screenX = canvasPos.x + x * displayScale;
                     drawList->AddLine(ImVec2(screenX, canvasPos.y), ImVec2(screenX, canvasMax.y), gridColor);
                 }
                 for (float y = 0.f; y <= canvasSize.y; y += _gridSize)
                 {
-                    float screenY = canvasPos.y + y * displayScaleY;
+                    float screenY = canvasPos.y + y * displayScale;
                     drawList->AddLine(ImVec2(canvasPos.x, screenY), ImVec2(canvasMax.x, screenY), gridColor);
                 }
             }
 
-            ImGui::InvisibleButton("##UIEditorViewportCanvas", viewportInteractionSize, ImGuiButtonFlags_MouseButtonLeft);
-            const bool isViewportHovered = ImGui::IsItemHovered();
-            const bool isViewportActive = ImGui::IsItemActive();
+            ImGui::Dummy(viewportInteractionSize);
             const ImVec2 mousePos = ImGui::GetMousePos();
             const bool isMouseInViewport =
                 mousePos.x >= viewportMin.x && mousePos.x <= viewportMax.x &&
                 mousePos.y >= viewportMin.y && mousePos.y <= viewportMax.y;
+            const bool isMouseInCanvas =
+                mousePos.x >= canvasPos.x && mousePos.x <= canvasMax.x &&
+                mousePos.y >= canvasPos.y && mousePos.y <= canvasMax.y;
             const bool hasScrollableViewport = ImGui::GetScrollMaxX() > 0.f || ImGui::GetScrollMaxY() > 0.f;
 
-            const bool canPanViewport = hasScrollableViewport && (isPanAreaHovered || isMouseInViewport || _isPanningViewport);
+            const bool canPanViewport = hasScrollableViewport && (isMouseInViewport || _isPanningViewport);
             if (!_isPanningViewport && canPanViewport && ImGui::IsMouseClicked(ImGuiMouseButton_Right))
                 _isPanningViewport = true;
 
@@ -440,7 +427,7 @@ namespace UIEditor
                 }
             }
 
-            const ImVec2 mouseCanvasPos = ImVec2((mousePos.x - canvasPos.x) / displayScaleX, (mousePos.y - canvasPos.y) / displayScaleY);
+            const ImVec2 mouseCanvasPos = ImVec2((mousePos.x - canvasPos.x) / displayScale, (mousePos.y - canvasPos.y) / displayScale);
 
             const vector<UI_Object>& objects = document.Get_Objects();
             vector<const UI_Object*> sortedObjects;
@@ -470,8 +457,8 @@ namespace UIEditor
                 const UI_Object& object = *objectPtr;
                 const ImVec2 objectWorldPosition = document.Get_WorldPosition(object.id);
                 const ImVec2 objectSize = ImVec2(object.size.x * object.scale.x, object.size.y * object.scale.y);
-                const ImVec2 objectMin = ImVec2(canvasPos.x + objectWorldPosition.x * displayScaleX, canvasPos.y + objectWorldPosition.y * displayScaleY);
-                const ImVec2 objectMax = ImVec2(objectMin.x + objectSize.x * displayScaleX, objectMin.y + objectSize.y * displayScaleY);
+                const ImVec2 objectMin = ImVec2(canvasPos.x + objectWorldPosition.x * displayScale, canvasPos.y + objectWorldPosition.y * displayScale);
+                const ImVec2 objectMax = ImVec2(objectMin.x + objectSize.x * displayScale, objectMin.y + objectSize.y * displayScale);
                 const bool isSelected = (_editorManager.Get_SelectedObjectId() == object.id);
 
                 if (isSelected)
@@ -508,7 +495,7 @@ namespace UIEditor
                 drawList->AddRect(objectMin, objectMax, objectBorderColor, objectRounding, 0, borderThickness);
 
                 bool usesSpriteFontPreview = false;
-                const bool canUseSpriteFontPreview = object.textAlign == UI_TextAlign::Left && !object.textWrap;
+                const bool canUseSpriteFontPreview = !object.textWrap;
                 if (object.type == UI_ObjectType::Text && canUseSpriteFontPreview && (!object.fontGuid.empty() || !object.fontPath.empty()) && !object.text.empty())
                 {
                     D3D11_RECT clipRect = {};
@@ -518,11 +505,12 @@ namespace UIEditor
                             object.fontGuid,
                             object.fontPath,
                             String::ToWString(object.text),
-                            Vec2(objectMin.x + 4.f, objectMin.y + 3.f),
+                            Vec2(objectMin.x, objectMin.y),
+                            Vec2(objectMax.x, objectMax.y),
                             Vec4(object.color.x, object.color.y, object.color.z, object.color.w),
                             object.rotationRadians,
-                            Vec2(0.f, 0.f),
-                            (max(4.f, object.fontSize) / 32.f) * max(0.01f, object.scale.x) * displayScaleX,
+                            object.textAlign,
+                            (max(4.f, object.fontSize) / 32.f) * max(0.01f, object.scale.x) * displayScale,
                             clipRect);
                     }
                 }
@@ -531,7 +519,7 @@ namespace UIEditor
                 {
                     if (object.type == UI_ObjectType::Text)
                     {
-                        Draw_ImGuiTextPreview(drawList, object, objectMin, objectMax, displayScaleX);
+                        Draw_ImGuiTextPreview(drawList, object, objectMin, objectMax, displayScale);
                     }
                     else
                     {
@@ -556,7 +544,7 @@ namespace UIEditor
                     Set_ResizeMouseCursor(hoveredResizeHandle);
             }
 
-            if (isViewportHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+            if (isMouseInViewport && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
             {
                 if (hoveredResizeHandle != UI_ResizeHandle::None && _editorManager.Get_SelectedObjectId() != 0)
                 {
@@ -568,7 +556,7 @@ namespace UIEditor
                     _resizeStartObjectWorldSize = selectedObjectWorldSize;
                     _draggingObjectId = 0;
                 }
-                else
+                else if (isMouseInCanvas)
                 {
                     ObjectId pickedObjectId = 0;
                     for (auto iter = sortedObjects.rbegin(); iter != sortedObjects.rend(); ++iter)
@@ -600,7 +588,7 @@ namespace UIEditor
                 }
             }
 
-            if (_resizingObjectId != 0 && isViewportActive && ImGui::IsMouseDown(ImGuiMouseButton_Left))
+            if (_resizingObjectId != 0 && ImGui::IsMouseDown(ImGuiMouseButton_Left))
             {
                 UI_Object* resizingObject = document.Find_Object(_resizingObjectId);
                 if (nullptr != resizingObject)
@@ -679,7 +667,7 @@ namespace UIEditor
                         ImVec2(nextMax.x - nextMin.x, nextMax.y - nextMin.y));
                 }
             }
-            else if (_draggingObjectId != 0 && isViewportActive && ImGui::IsMouseDragging(ImGuiMouseButton_Left, 1.f))
+            else if (_draggingObjectId != 0 && ImGui::IsMouseDragging(ImGuiMouseButton_Left, 1.f))
             {
                 UI_Object* draggingObject = document.Find_Object(_draggingObjectId);
                 if (nullptr != draggingObject)
@@ -712,6 +700,7 @@ namespace UIEditor
 
             drawList->AddRect(canvasPos, canvasMax, canvasBoundaryColor, 0.f, 0, 2.f);
             drawList->AddRect(viewportMin, viewportMax, borderColor);
+            ImGui::EndChild();
         }
 
         Set_Open(isOpen);

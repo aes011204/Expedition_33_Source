@@ -136,6 +136,68 @@ namespace
         return textureGuid + "|" + maskTextureGuid;
     }
 
+    vector<wstring> Split_FontPreviewLines(const wstring& text)
+    {
+        vector<wstring> lines;
+        size_t lineStart = 0;
+
+        for (size_t i = 0; i <= text.size(); ++i)
+        {
+            if (i == text.size() || text[i] == L'\n')
+            {
+                size_t lineEnd = i;
+                if (lineEnd > lineStart && text[lineEnd - 1] == L'\r')
+                    --lineEnd;
+
+                lines.push_back(text.substr(lineStart, lineEnd - lineStart));
+                lineStart = i + 1;
+            }
+        }
+
+        if (lines.empty())
+            lines.push_back(L"");
+
+        return lines;
+    }
+
+    float Measure_FontPreviewWidth(const SpriteFont& font, const wstring& text, float scale)
+    {
+        if (text.empty())
+            return 0.f;
+
+        XMFLOAT2 measuredSize{};
+        XMStoreFloat2(&measuredSize, font.MeasureString(text.c_str()));
+        return max(0.f, measuredSize.x * scale);
+    }
+
+    float Measure_FontPreviewLineHeight(const SpriteFont& font, float scale)
+    {
+        XMFLOAT2 measuredSize{};
+        XMStoreFloat2(&measuredSize, font.MeasureString(L"Mg"));
+
+        const float measuredHeight = measuredSize.y > 0.f ? measuredSize.y : 32.f;
+        return max(1.f, measuredHeight * scale);
+    }
+
+    float Resolve_FontPreviewLineX(float boxLeft, float boxRight, float lineWidth, UI_TextAlign textAlign)
+    {
+        constexpr float textPaddingX = 4.f;
+        const float boxWidth = max(0.f, boxRight - boxLeft);
+
+        switch (textAlign)
+        {
+        case UI_TextAlign::Center:
+            return boxLeft + max(textPaddingX, (boxWidth - lineWidth) * 0.5f);
+
+        case UI_TextAlign::Right:
+            return boxRight - lineWidth - textPaddingX;
+
+        case UI_TextAlign::Left:
+        default:
+            return boxLeft + textPaddingX;
+        }
+    }
+
     bool Try_GetTexture2DDesc(ID3D11ShaderResourceView* srv, D3D11_TEXTURE2D_DESC& outDesc)
     {
         if (nullptr == srv)
@@ -832,10 +894,11 @@ bool UI_Editor_Manager::Queue_FontPreview(
     const string& fontGuid,
     const string& fontPath,
     const wstring& text,
-    const Vec2& position,
+    const Vec2& boxMin,
+    const Vec2& boxMax,
     const Vec4& color,
     float rotationRadians,
-    const Vec2& pivot,
+    UI_TextAlign textAlign,
     float scale,
     const D3D11_RECT& clipRect)
 {
@@ -843,23 +906,40 @@ bool UI_Editor_Manager::Queue_FontPreview(
     if (nullptr == font || text.empty())
         return false;
 
-    const wstring safeText = Build_SafeSpriteFontText(*font, text);
-    if (safeText.empty())
-        return false;
+    const vector<wstring> lines = Split_FontPreviewLines(text);
+    const float lineHeight = Measure_FontPreviewLineHeight(*font, scale);
+    float textY = boxMin.y + 3.f;
+    bool queuedAny = false;
 
-    FontPreviewCommand command = {};
-    command.fontGuid = fontGuid;
-    command.fontPath = fontPath;
-    command.text = safeText;
-    command.position = position;
-    command.color = color;
-    command.rotationRadians = rotationRadians;
-    command.pivot = pivot;
-    command.scale = scale;
-    command.clipRect = clipRect;
-    _fontPreviewCommands.push_back(command);
+    for (const wstring& line : lines)
+    {
+        if (textY >= boxMax.y)
+            break;
 
-    return true;
+        const wstring safeLine = Build_SafeSpriteFontText(*font, line);
+        if (!safeLine.empty())
+        {
+            const float lineWidth = Measure_FontPreviewWidth(*font, safeLine, scale);
+            const float textX = Resolve_FontPreviewLineX(boxMin.x, boxMax.x, lineWidth, textAlign);
+
+            FontPreviewCommand command = {};
+            command.fontGuid = fontGuid;
+            command.fontPath = fontPath;
+            command.text = safeLine;
+            command.position = Vec2(textX, textY);
+            command.color = color;
+            command.rotationRadians = rotationRadians;
+            command.pivot = Vec2(0.f, 0.f);
+            command.scale = scale;
+            command.clipRect = clipRect;
+            _fontPreviewCommands.push_back(command);
+            queuedAny = true;
+        }
+
+        textY += lineHeight;
+    }
+
+    return queuedAny;
 }
 
 ObjectId UI_Editor_Manager::Resolve_CreateParentId() const

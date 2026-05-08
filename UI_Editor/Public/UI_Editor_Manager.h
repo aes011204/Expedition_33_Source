@@ -60,10 +60,11 @@ public:
         const string& fontGuid,
         const string& fontPath,
         const wstring& text,
-        const Vec2& position,
+        const Vec2& boxMin,
+        const Vec2& boxMax,
         const Vec4& color,
         float rotationRadians,
-        const Vec2& pivot,
+        UI_TextAlign textAlign,
         float scale,
         const D3D11_RECT& clipRect);
 

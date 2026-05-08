@@ -246,6 +246,7 @@
     </ClInclude>
     <ClInclude Include="..\public\AStar.h" />
     <ClInclude Include="..\Public\Reflection_JsonUtil.h" />
+    <ClInclude Include="..\Public\Culling_Manager.h" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\public\Base.h">
@@ -750,27 +751,28 @@
     </ClCompile>
     <ClCompile Include="..\Private\PhysX_Filter.cpp" />
     <ClCompile Include="..\Private\Picking.cpp" />
-    <ClCompile Include="..\private\UI_Manager.cpp">
-      <Filter>01.Utility\11. UI\Manager</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\UI_Transform.cpp">
-      <Filter>01.Utility\11. UI\Transform</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\UI_Base.cpp">
-      <Filter>01.Utility\11. UI</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\UI_Text.cpp">
-      <Filter>01.Utility\11. UI\Object</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\UI_Image.cpp">
-      <Filter>01.Utility\11. UI\Object</Filter>
-    </ClCompile>
     <ClCompile Include="..\private\UI_Base.cpp" />
     <ClCompile Include="..\private\UI_Image.cpp" />
     <ClCompile Include="..\private\UI_Manager.cpp" />
     <ClCompile Include="..\private\UI_Text.cpp" />
     <ClCompile Include="..\private\UI_Transform.cpp" />
     <ClCompile Include="..\private\AStar.cpp" />
+    <ClCompile Include="..\Private\Culling_Manager.cpp" />
+    <ClCompile Include="..\private\UI_Base.cpp">
+      <Filter>01.Utility\11. UI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\UI_Image.cpp">
+      <Filter>01.Utility\11. UI\Object</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\UI_Text.cpp">
+      <Filter>01.Utility\11. UI\Object</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\UI_Transform.cpp">
+      <Filter>01.Utility\11. UI\Transform</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\UI_Manager.cpp">
+      <Filter>01.Utility\11. UI\Manager</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Bin\ShaderFiles\Engine_Shader_Defines.hlsli">
