@@ -15,14 +15,16 @@ bool Decorator::Check_Condition()
 
 BNode::NODE_STATE Decorator::Update(float deltaTime)
 {
-
     if (Check_Condition() == false)
     {
         Abort();
-        return BNode::NODE_STATE::FAILED;
+        return Commit_State(BNode::NODE_STATE::FAILED);
     }
 
-    return _child->Update(deltaTime);
+    if (_child == nullptr)
+        return Commit_State(BNode::NODE_STATE::FAILED);
+
+    return Commit_State(_child->Update(deltaTime));
 }
 
 void Decorator::Abort()

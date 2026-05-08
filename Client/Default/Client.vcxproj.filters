@@ -79,6 +79,15 @@
     <Filter Include="BehavoirTree">
       <UniqueIdentifier>{3c8c65f9-6d15-4630-87bb-651577f82509}</UniqueIdentifier>
     </Filter>
+    <Filter Include="02.GameObject\Map">
+      <UniqueIdentifier>{c27dbc20-5bcd-4d18-b937-6d7b22b8250a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02.GameObject\Map\MapStaticMesh">
+      <UniqueIdentifier>{d20736d2-c70d-4e53-9932-ebaaea9095bf}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02.GameObject\Map\MapLoader">
+      <UniqueIdentifier>{44a6eca4-d07d-4d31-a121-a44beb0c0797}</UniqueIdentifier>
+    </Filter>
     <Filter Include="02.GameObject\Player\PlayerParts">
       <UniqueIdentifier>{e5a6e35f-4a37-4b1e-8e68-5f77821102f5}</UniqueIdentifier>
     </Filter>
@@ -165,16 +174,22 @@
     <ClInclude Include="..\Public\InputCom.h">
       <Filter>03. Component\Input</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\PlayerControllerCom.h">
-      <Filter>03. Component\PlayerController</Filter>
-    </ClInclude>
     <ClInclude Include="..\public\Mon_AIController.h">
       <Filter>BehavoirTree</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\PlayerControllerCom.h">
+      <Filter>03. Component\PlayerController</Filter>
     </ClInclude>
     <ClInclude Include="..\public\Mon_BehaviorTree.h" />
     <ClInclude Include="..\public\BT_Idle.h" />
     <ClInclude Include="..\public\BT_Attack.h" />
     <ClInclude Include="..\public\BT_CheckDistance.h" />
+    <ClInclude Include="..\Public\MapStaticMesh.h">
+      <Filter>02.GameObject\Map\MapStaticMesh</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\MapLoader.h">
+      <Filter>02.GameObject\Map\MapLoader</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\Spawn_Prefab.h" />
     <ClInclude Include="..\Public\Head_Player.h">
       <Filter>02.GameObject\Player\PlayerParts\Head</Filter>
@@ -189,6 +204,7 @@
     <ClInclude Include="..\Public\Client_Constants.h">
       <Filter>99.Defines</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\BT_Node_Bootstrap.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -251,16 +267,22 @@
     <ClCompile Include="..\Private\InputCom.cpp">
       <Filter>03. Component\Input</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\PlayerControllerCom.cpp">
-      <Filter>03. Component\PlayerController</Filter>
-    </ClCompile>
     <ClCompile Include="..\private\Mon_AIController.cpp">
       <Filter>BehavoirTree</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\PlayerControllerCom.cpp">
+      <Filter>03. Component\PlayerController</Filter>
     </ClCompile>
     <ClCompile Include="..\private\Mon_BehaviorTree.cpp" />
     <ClCompile Include="..\private\BT_Idle.cpp" />
     <ClCompile Include="..\private\BT_Attack.cpp" />
     <ClCompile Include="..\private\BT_CheckDistance.cpp" />
+    <ClCompile Include="..\Private\MapStaticMesh.cpp">
+      <Filter>02.GameObject\Map\MapStaticMesh</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\MapLoader.cpp">
+      <Filter>02.GameObject\Map\MapLoader</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\Spawn_Prefab.cpp" />
     <ClCompile Include="..\Private\Head_Player.cpp">
       <Filter>02.GameObject\Player\PlayerParts\Head</Filter>
@@ -272,6 +294,7 @@
       <Filter>02.GameObject\Player\PlayerParts</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\UI_RuntimeLoader.cpp" />
+    <ClCompile Include="..\private\BT_Node_Bootstrap.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">

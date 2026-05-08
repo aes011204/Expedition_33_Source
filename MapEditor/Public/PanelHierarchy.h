@@ -18,8 +18,14 @@ public:
 private:
     SceneContext* _ctx = {};
     int _renameIndex = -1;
+
+    Shared<EditorObject> _prevSelected;
+    bool _needScrollToSelected = false;
+
     bool _justStartedRename = false;
     char _renameBuffer[256] = {};
+
+    char _modelFolderBuf[256] = {};
     
     EObjectType _types[static_cast<int>(EObjectType::Fail)] = {};
 

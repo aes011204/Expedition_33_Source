@@ -6,11 +6,10 @@
 NS_BEGIN(Engine)
 class ShaderCom;
 class ModelCom;
+class AIController;
 NS_END
 
 NS_BEGIN(Client)
-
-class Mon_AIController;
 
 class Monster final : public Character
 {
@@ -32,8 +31,8 @@ public:
 
 protected:
 	Shared<ShaderCom>	    _shader = { nullptr };
-	Shared<ModelCom>	    _model = { nullptr };
-    Shared<Mon_AIController>_aiCtrl = { nullptr };
+    Shared<ModelCom>	    _model = { nullptr };
+    Shared<AIController> _aiCtrl = { nullptr };
 
     Shared<ColliderCom>     _collider;
 

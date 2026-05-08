@@ -2,9 +2,12 @@
 #pragma once
 
 #include "Editor_Window.h"
+#include "Reflection_Types.h"
 
 NS_BEGIN(Engine)
-class GameObject;
+
+
+    class GameObject;
 class Component;
 struct ClassReflectionInfo;
 struct PropertyInfo;
@@ -28,6 +31,10 @@ public:
     static void Draw_ReflectionProperties(void* instance, const ClassReflectionInfo& info);
     static void Draw_ReflectionProperty(const string& idPrefix, void* instance, const PropertyInfo& property);
 
+
+    static void Set_BTBlackboardKeys(const vector<Engine::BTBlackboardKeyView>* keys);
+
+
 private:
     static void Draw_Components(const Shared<GameObject>& target);
     static void Draw_ObjectReflection(const Shared<GameObject>& target);
@@ -43,7 +50,7 @@ private:
 
 private:
     static constexpr float InspectorLabelWidth = 110.f;
-
+    static const vector<Engine::BTBlackboardKeyView>* _btBlackboardKeys;
 public:
     static Shared<Inspector> Create();
 };

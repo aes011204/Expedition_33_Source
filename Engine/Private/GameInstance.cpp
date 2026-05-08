@@ -887,6 +887,14 @@ PxScene* GameInstance::Get_PhysXScene() const
     return _physxManager->Get_Scene();
 }
 
+void GameInstance::Visit_BTNodeTypes(const function<void(const TypeRegistry::BTNodeTypeInfo&)>& visitor) const
+{
+    if (_typeRegistry == nullptr)
+        return;
+
+    _typeRegistry->Visit_BTNodeTypes(visitor);
+}
+
 void GameInstance::Draw_DebugBox(const DebugBoxDesc& desc)
 {
     return _debugManager->Draw_Box(desc);

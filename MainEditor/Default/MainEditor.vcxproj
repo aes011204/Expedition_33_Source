@@ -196,6 +196,11 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     <ClCompile Include="..\Private\Animation_View.cpp" />
     <ClCompile Include="..\Private\AnimSequencerAdapter.cpp" />
     <ClCompile Include="..\private\BT_Tool.cpp" />
+    <ClCompile Include="..\private\AIController_Inspector.cpp" />
+    <ClCompile Include="..\private\BT_Inspector.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\private\BT_View.cpp" />
     <ClCompile Include="..\private\Camera_Tool.cpp" />
     <ClCompile Include="..\Private\CommandHistory.cpp" />
     <ClCompile Include="..\Private\Component_Inspector.cpp" />
@@ -229,6 +234,11 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     <ClInclude Include="..\Public\Animation_View.h" />
     <ClInclude Include="..\Public\AnimSequencerAdapter.h" />
     <ClInclude Include="..\public\BT_Tool.h" />
+    <ClInclude Include="..\public\AIController_Inspector.h" />
+    <ClInclude Include="..\public\BT_Inspector.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </ClInclude>
+    <ClInclude Include="..\public\BT_VIew.h" />
     <ClInclude Include="..\public\Camera_Tool.h" />
     <ClInclude Include="..\Public\CommandHistory.h" />
     <ClInclude Include="..\Public\Component_Inspector.h" />

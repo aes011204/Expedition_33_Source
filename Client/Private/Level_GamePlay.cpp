@@ -4,6 +4,9 @@
 #include "FreeCamera.h"
 #include "TargetCamera.h"
 #include "PointParticlePreview.h"
+
+#include "MapLoader.h"
+
 #include "UI_Image.h"
 #include "UI_RuntimeLoader.h"
 #include "UI_Text.h"
@@ -32,6 +35,8 @@ HRESULT Level_GamePlay::Initialize()
 
     if (FAILED(Ready_Layer_Monster(TEXT("Layer_Monster"))))
         return E_FAIL;
+
+    //CHECK_FAILED(Ready_Layer_MapStaticMesh(L"Layer_MapStaticMesh"), E_FAIL);
 
     return S_OK;
 }
@@ -200,6 +205,14 @@ HRESULT Level_GamePlay::Ready_Layer_Player(const wstring& strLayerTag)
             tr->Set_Position(pos);
         }
     }
+
+    return S_OK;
+}
+
+HRESULT Level_GamePlay::Ready_Layer_MapStaticMesh(const wstring& strLayerTag)
+{
+    CHECK_FAILED(MapLoader::Load(_device, _context, Constants::Map::SmallLevel_SimonArea_Remake_Path,
+        ETOI(LevelType::GamePlay), strLayerTag), E_FAIL);
 
     return S_OK;
 }

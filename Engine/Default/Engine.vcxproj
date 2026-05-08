@@ -190,6 +190,10 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClInclude Include="..\Public\AIController.h" />
     <ClInclude Include="..\Public\AnimNotify_Parser.h" />
     <ClInclude Include="..\Public\AnimNotify_Types.h" />
+    <ClInclude Include="..\public\AStar.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+    </ClInclude>
+    <ClInclude Include="..\Public\AnimationNotify.h" />
     <ClInclude Include="..\Public\BehaviorTree.h" />
     <ClInclude Include="..\Public\BlackBoard.h" />
     <ClInclude Include="..\Public\BNode.h" />
@@ -295,6 +299,10 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
   <ItemGroup>
     <ClCompile Include="..\Private\AIController.cpp" />
     <ClCompile Include="..\Private\AnimNotify_Parser.cpp" />
+    <ClCompile Include="..\private\AStar.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Private\AnimationNotify.cpp" />
     <ClCompile Include="..\Private\BehaviorTree.cpp" />
     <ClCompile Include="..\Private\BlackBoard.cpp" />
     <ClCompile Include="..\Private\BNode.cpp" />
