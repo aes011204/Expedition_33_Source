@@ -241,6 +241,12 @@
     <ClInclude Include="..\public\UI_Image.h">
       <Filter>01.Utility\11. UI\Object</Filter>
     </ClInclude>
+    <ClInclude Include="..\public\UI_Panel.h">
+      <Filter>01.Utility\11. UI\Object</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\UI_Button.h">
+      <Filter>01.Utility\11. UI\Object</Filter>
+    </ClInclude>
     <ClInclude Include="..\public\UI_Text.h">
       <Filter>01.Utility\11. UI\Object</Filter>
     </ClInclude>
@@ -753,6 +759,8 @@
     <ClCompile Include="..\Private\Picking.cpp" />
     <ClCompile Include="..\private\UI_Base.cpp" />
     <ClCompile Include="..\private\UI_Image.cpp" />
+    <ClCompile Include="..\private\UI_Panel.cpp" />
+    <ClCompile Include="..\private\UI_Button.cpp" />
     <ClCompile Include="..\private\UI_Manager.cpp" />
     <ClCompile Include="..\private\UI_Text.cpp" />
     <ClCompile Include="..\private\UI_Transform.cpp" />
@@ -762,6 +770,12 @@
       <Filter>01.Utility\11. UI</Filter>
     </ClCompile>
     <ClCompile Include="..\private\UI_Image.cpp">
+      <Filter>01.Utility\11. UI\Object</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\UI_Panel.cpp">
+      <Filter>01.Utility\11. UI\Object</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\UI_Button.cpp">
       <Filter>01.Utility\11. UI\Object</Filter>
     </ClCompile>
     <ClCompile Include="..\private\UI_Text.cpp">

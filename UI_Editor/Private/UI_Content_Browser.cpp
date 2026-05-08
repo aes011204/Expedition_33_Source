@@ -149,12 +149,7 @@ namespace UIEditor
 
     void UI_Content_Browser::Render_FontTab(const string& searchText, UI_Object* selectedObject)
     {
-        vector<AssetMeta> uiFontAssets;
-        for (const AssetMeta& assetMeta : GAME->Get_AssetsByType("Font"))
-        {
-            if (Is_UISpriteFontAsset(assetMeta) && Matches_Search(assetMeta, searchText))
-                uiFontAssets.push_back(assetMeta);
-        }
+        vector<AssetMeta> uiFontAssets = Collect_UISpriteFontAssets(searchText);
 
         const bool canApplyFont = nullptr != selectedObject && selectedObject->type == UI_ObjectType::Text;
 
@@ -168,9 +163,10 @@ namespace UIEditor
         {
             for (const AssetMeta& assetMeta : uiFontAssets)
             {
-                ImGui::PushID(assetMeta.guid.c_str());
+                const string stableId = Get_FontAssetStableId(assetMeta);
+                ImGui::PushID(stableId.c_str());
 
-                const bool isCurrentFont = nullptr != selectedObject && selectedObject->fontGuid == assetMeta.guid;
+                const bool isCurrentFont = nullptr != selectedObject && Is_FontAssetApplied(*selectedObject, assetMeta);
                 if (ImGui::Selectable(Get_AssetFileName(assetMeta).c_str(), isCurrentFont, ImGuiSelectableFlags_AllowDoubleClick))
                 {
                     if (canApplyFont && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))

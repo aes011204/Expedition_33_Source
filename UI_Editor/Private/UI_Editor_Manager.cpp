@@ -1271,51 +1271,55 @@ SpriteFont* UI_Editor_Manager::Get_FontPreview(const string& fontGuid, const str
     if (nullptr == _device)
         return nullptr;
 
-    wstring resolvedFontPath = {};
-    string cacheKey = {};
+    auto loadFontPreview = [this](const string& cacheKey, const wstring& resolvedFontPath) -> SpriteFont*
+    {
+        if (cacheKey.empty() || resolvedFontPath.empty())
+            return nullptr;
+
+        const auto cachedIter = _fontPreviewCache.find(cacheKey);
+        if (cachedIter != _fontPreviewCache.end())
+            return cachedIter->second.get();
+
+        if (_fontPreviewFailedGuids.find(cacheKey) != _fontPreviewFailedGuids.end())
+            return nullptr;
+
+        if (!fs::exists(resolvedFontPath))
+        {
+            _fontPreviewFailedGuids.insert(cacheKey);
+            return nullptr;
+        }
+
+        try
+        {
+            Unique<SpriteFont> font = make_unique<SpriteFont>(_device.Get(), resolvedFontPath.c_str());
+            if (font->ContainsCharacter(L'?'))
+                font->SetDefaultCharacter(L'?');
+
+            SpriteFont* rawFont = font.get();
+            _fontPreviewCache.emplace(cacheKey, move(font));
+            return rawFont;
+        }
+        catch (...)
+        {
+            _fontPreviewFailedGuids.insert(cacheKey);
+            return nullptr;
+        }
+    };
 
     if (!fontGuid.empty())
     {
-        resolvedFontPath = GAME->Resolve_AssetPath(fontGuid);
-        cacheKey = "guid:" + fontGuid;
+        const wstring guidFontPath = GAME->Resolve_AssetPath(fontGuid);
+        if (SpriteFont* font = loadFontPreview("guid:" + fontGuid, guidFontPath))
+            return font;
     }
-    else if (!fontPath.empty())
+
+    if (!fontPath.empty())
     {
-        resolvedFontPath = Resolve_ClientRuntimeResourcePath(fontPath);
-        cacheKey = "path:" + String::ToString(resolvedFontPath);
+        const wstring resolvedFontPath = Resolve_ClientRuntimeResourcePath(fontPath);
+        return loadFontPreview("path:" + String::ToString(resolvedFontPath), resolvedFontPath);
     }
 
-    if (resolvedFontPath.empty() || cacheKey.empty())
-        return nullptr;
-
-    const auto cachedIter = _fontPreviewCache.find(cacheKey);
-    if (cachedIter != _fontPreviewCache.end())
-        return cachedIter->second.get();
-
-    if (_fontPreviewFailedGuids.find(cacheKey) != _fontPreviewFailedGuids.end())
-        return nullptr;
-
-    if (!fs::exists(resolvedFontPath))
-    {
-        _fontPreviewFailedGuids.insert(cacheKey);
-        return nullptr;
-    }
-
-    try
-    {
-        Unique<SpriteFont> font = make_unique<SpriteFont>(_device.Get(), resolvedFontPath.c_str());
-        if (font->ContainsCharacter(L'?'))
-            font->SetDefaultCharacter(L'?');
-
-        SpriteFont* rawFont = font.get();
-        _fontPreviewCache.emplace(cacheKey, move(font));
-        return rawFont;
-    }
-    catch (...)
-    {
-        _fontPreviewFailedGuids.insert(cacheKey);
-        return nullptr;
-    }
+    return nullptr;
 }
 
 ID3D11ShaderResourceView* UI_Editor_Manager::Get_TexturePreviewSRV(const string& textureGuid)

@@ -79,7 +79,7 @@ HRESULT UI_Image::Initialize(void* arg)
 
 HRESULT UI_Image::Render()
 {
-    if (!Is_Open())
+    if (!Is_EffectivelyOpen())
         return S_OK;
 
     if (FAILED(__super::Render()))
@@ -91,7 +91,7 @@ HRESULT UI_Image::Render()
     if (nullptr == _srv || nullptr == _shader || nullptr == _viBuffer)
         return S_OK;
 
-    const Vec2& position = _transform->Get_Position();
+    const Vec2 position = Get_WorldPosition();
     const Vec2& size     = _transform->Get_Size();
     const Vec2& scale    = _transform->Get_Scale();
 

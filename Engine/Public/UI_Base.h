@@ -32,12 +32,17 @@ public:
 
 public:
     bool Is_Open() const { return _isOpen; }
+    bool Is_EffectivelyOpen() const;
     int32 Get_SortOrder() const { return _sortOrder; }
 
     UI_Transform* Get_Transform() const { return _transform.get(); }
+    Vec2 Get_WorldPosition() const;
+    void Set_Parent(const Shared<UI_Base>& parent);
+    void Clear_Parent();
 
 protected:
     Unique<UI_Transform> _transform{};
+    Weak<UI_Base> _parent{};
     bool _isOpen{ false };
     int32 _sortOrder{ 0 };
 

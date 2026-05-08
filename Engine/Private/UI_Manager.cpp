@@ -84,7 +84,7 @@ void UI_Manager::Update(float timeDelta)
         if (nullptr == ui)
             continue;
 
-        if (!ui->Is_Open())
+        if (!ui->Is_EffectivelyOpen())
             continue;
 
         ui->Update(timeDelta);
@@ -98,7 +98,7 @@ HRESULT UI_Manager::Render()
         if (nullptr == ui)
             continue;
 
-        if (!ui->Is_Open())
+        if (!ui->Is_EffectivelyOpen())
             continue;
 
         if (FAILED(ui->Render()))

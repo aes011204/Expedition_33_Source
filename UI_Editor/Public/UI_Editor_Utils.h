@@ -15,6 +15,9 @@ namespace UIEditor
     string Get_AssetFileName(const AssetMeta& assetMeta);
     bool Is_UITextureAsset(const AssetMeta& assetMeta);
     bool Is_UISpriteFontAsset(const AssetMeta& assetMeta);
+    vector<AssetMeta> Collect_UISpriteFontAssets(const string& searchText);
+    string Get_FontAssetStableId(const AssetMeta& assetMeta);
+    bool Is_FontAssetApplied(const UI_Object& object, const AssetMeta& assetMeta);
     string Make_FontTag(const AssetMeta& assetMeta);
     bool Matches_Search(const AssetMeta& assetMeta, const string& searchText);
 

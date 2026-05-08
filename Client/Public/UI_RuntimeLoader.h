@@ -1,10 +1,15 @@
 ﻿#pragma once
 
+#include "Client_Defines.h"
+
+NS_BEGIN(Engine)
+class UI_Base;
+NS_END
+
 NS_BEGIN(Client)
 
 // UI_Editor가 저장한 json 문서를 런타임 UI로 생성하는 전용 로더.
-// 현재는 Image/Text만 실제 생성하고,
-// Panel/Button/parentId/canvas는 이후 확장을 고려해 파싱 구조를 미리 분리만. 아직 구현 안했음
+// Image/Text/Panel/Button을 생성하고 parentId를 런타임 부모 관계로 연결.
 class UI_RuntimeLoader
 {
 public:
@@ -13,6 +18,7 @@ public:
     {
         uint32 levelIndex = 0;
         wstring jsonPath{};
+        unordered_map<wstring, Shared<UI_Base>>* outUIByName = nullptr;
     };
 
 public:

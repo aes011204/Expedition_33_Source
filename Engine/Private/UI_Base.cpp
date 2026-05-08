@@ -57,8 +57,86 @@ HRESULT UI_Base::Render()
     return S_OK;
 }
 
+bool UI_Base::Is_EffectivelyOpen() const
+{
+    if (!_isOpen)
+        return false;
+
+    unordered_set<const UI_Base*> visitedParents;
+    Shared<UI_Base> parent = _parent.lock();
+    while (nullptr != parent)
+    {
+        if (!visitedParents.insert(parent.get()).second)
+            return false;
+
+        if (!parent->Is_Open())
+            return false;
+
+        parent = parent->_parent.lock();
+    }
+
+    return true;
+}
+
+Vec2 UI_Base::Get_WorldPosition() const
+{
+    Vec2 worldPosition = nullptr != _transform ? _transform->Get_Position() : Vec2(0.f, 0.f);
+
+    unordered_set<const UI_Base*> visitedParents;
+    Shared<UI_Base> parent = _parent.lock();
+    while (nullptr != parent)
+    {
+        if (!visitedParents.insert(parent.get()).second)
+            break;
+
+        if (nullptr != parent->_transform)
+        {
+            const Vec2& parentPosition = parent->_transform->Get_Position();
+            worldPosition.x += parentPosition.x;
+            worldPosition.y += parentPosition.y;
+        }
+
+        parent = parent->_parent.lock();
+    }
+
+    return worldPosition;
+}
+
+void UI_Base::Set_Parent(const Shared<UI_Base>& parent)
+{
+    if (nullptr == parent)
+    {
+        Clear_Parent();
+        return;
+    }
+
+    if (parent.get() == this)
+    {
+        LOG_WARN("UI_Base::Set_Parent rejected self-parent.");
+        return;
+    }
+
+    for (Shared<UI_Base> cursor = parent; nullptr != cursor; cursor = cursor->_parent.lock())
+    {
+        if (cursor.get() == this)
+        {
+            LOG_WARN("UI_Base::Set_Parent rejected cyclic parent chain.");
+            return;
+        }
+    }
+
+    _parent = parent;
+}
+
+void UI_Base::Clear_Parent()
+{
+    _parent.reset();
+}
+
 void UI_Base::Free()
 {
+    Clear_Parent();
+
     if (nullptr != _transform)
     {
         _transform->Free();

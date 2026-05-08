@@ -1,7 +1,10 @@
 ﻿#include "UI_RuntimeLoader.h"
 
 #include "GameInstance.h"
+#include "UI_Base.h"
+#include "UI_Button.h"
 #include "UI_Image.h"
+#include "UI_Panel.h"
 #include "UI_Text.h"
 
 namespace
@@ -140,6 +143,11 @@ namespace
             return RuntimeUIType::Button;
 
         return RuntimeUIType::Unknown;
+    }
+
+    bool Can_RuntimeTypeHaveChildren(RuntimeUIType type)
+    {
+        return type == RuntimeUIType::Panel || type == RuntimeUIType::Button;
     }
 
     UI_Text::TextAlign Read_TextAlign(const json& item)
@@ -416,7 +424,7 @@ namespace
         return true;
     }
 
-    HRESULT Spawn_Image(uint32 levelIndex, const RuntimeUIObject& object)
+    HRESULT Spawn_Image(uint32 levelIndex, const RuntimeUIObject& object, Shared<UI_Base>* outUI)
     {
         const wstring texturePath = Resolve_JsonAssetPath(object.textureGuid, object.texturePath);
         if (texturePath.empty() || !fs::exists(texturePath))
@@ -435,7 +443,7 @@ namespace
             LOG_WARN("UI RuntimeLoader image mask skipped: missing mask texture. id={}", object.id);
 
         desc.color = object.color;
-        desc.transformDesc.position = object.worldPosition;
+        desc.transformDesc.position = object.position;
         desc.transformDesc.size = object.size;
         desc.transformDesc.scale = object.scale;
         desc.transformDesc.rotationRadians = object.rotationRadians;
@@ -448,13 +456,13 @@ namespace
         if (FAILED(GAME->Add_Prototype(levelIndex, prototypeTag, UI_Image::Create())))
             return E_FAIL;
 
-        if (FAILED(GAME->Add_UI(levelIndex, prototypeTag, &desc)))
+        if (FAILED(GAME->Add_UI(levelIndex, prototypeTag, &desc, outUI)))
             return E_FAIL;
 
         return S_OK;
     }
 
-    HRESULT Spawn_Text(uint32 levelIndex, const RuntimeUIObject& object, unordered_set<wstring>& loadedFontTags)
+    HRESULT Spawn_Text(uint32 levelIndex, const RuntimeUIObject& object, unordered_set<wstring>& loadedFontTags, Shared<UI_Base>* outUI)
     {
         const wstring fontPath = Resolve_JsonAssetPath(object.fontGuid, object.fontPath);
         if (fontPath.empty() || !fs::exists(fontPath))
@@ -480,7 +488,7 @@ namespace
         desc.color = object.color;
         desc.textAlign = object.textAlign;
         desc.textWrap = object.textWrap;
-        desc.transformDesc.position = object.worldPosition;
+        desc.transformDesc.position = object.position;
         desc.transformDesc.size = object.size;
         desc.transformDesc.scale = scale;
         desc.transformDesc.rotationRadians = object.rotationRadians;
@@ -492,32 +500,74 @@ namespace
         if (FAILED(GAME->Add_Prototype(levelIndex, prototypeTag, UI_Text::Create())))
             return E_FAIL;
 
-        if (FAILED(GAME->Add_UI(levelIndex, prototypeTag, &desc)))
+        if (FAILED(GAME->Add_UI(levelIndex, prototypeTag, &desc, outUI)))
             return E_FAIL;
 
         return S_OK;
     }
 
-    HRESULT Spawn_Object(uint32 levelIndex, const RuntimeUIObject& object, unordered_set<wstring>& loadedFontTags)
+    HRESULT Spawn_Panel(uint32 levelIndex, const RuntimeUIObject& object, Shared<UI_Base>* outUI)
     {
+        UI_Panel::UI_PANEL_DESC desc{};
+        desc.color = object.color;
+        desc.transformDesc.position = object.position;
+        desc.transformDesc.size = object.size;
+        desc.transformDesc.scale = object.scale;
+        desc.transformDesc.rotationRadians = object.rotationRadians;
+        desc.sortOrder = object.sortOrder;
+        desc.isOpenOnCreate = true;
+
+        const wstring prototypeTag = L"UIJson_Panel_" + to_wstring(object.id);
+
+        if (FAILED(GAME->Add_Prototype(levelIndex, prototypeTag, UI_Panel::Create())))
+            return E_FAIL;
+
+        if (FAILED(GAME->Add_UI(levelIndex, prototypeTag, &desc, outUI)))
+            return E_FAIL;
+
+        return S_OK;
+    }
+
+    HRESULT Spawn_Button(uint32 levelIndex, const RuntimeUIObject& object, Shared<UI_Base>* outUI)
+    {
+        UI_Button::UI_BUTTON_DESC desc{};
+        desc.color = object.color;
+        desc.transformDesc.position = object.position;
+        desc.transformDesc.size = object.size;
+        desc.transformDesc.scale = object.scale;
+        desc.transformDesc.rotationRadians = object.rotationRadians;
+        desc.sortOrder = object.sortOrder;
+        desc.isOpenOnCreate = true;
+
+        const wstring prototypeTag = L"UIJson_Button_" + to_wstring(object.id);
+
+        if (FAILED(GAME->Add_Prototype(levelIndex, prototypeTag, UI_Button::Create())))
+            return E_FAIL;
+
+        if (FAILED(GAME->Add_UI(levelIndex, prototypeTag, &desc, outUI)))
+            return E_FAIL;
+
+        return S_OK;
+    }
+
+    HRESULT Spawn_Object(uint32 levelIndex, const RuntimeUIObject& object, unordered_set<wstring>& loadedFontTags, Shared<UI_Base>* outUI)
+    {
+        if (nullptr != outUI)
+            outUI->reset();
+
         switch (object.type)
         {
         case RuntimeUIType::Image:
-            return Spawn_Image(levelIndex, object);
+            return Spawn_Image(levelIndex, object, outUI);
 
         case RuntimeUIType::Text:
-            return Spawn_Text(levelIndex, object, loadedFontTags);
+            return Spawn_Text(levelIndex, object, loadedFontTags, outUI);
 
         case RuntimeUIType::Panel:
-            // 추후에 container/panel 전용 runtime object 추가 예정.
-            // 지금 단계에서는 json 파싱은 허용하되 렌더 생성은 건너뛴다.
-            LOG_WARN("UI RuntimeLoader panel skipped (not supported yet). id={}", object.id);
-            return S_OK;
+            return Spawn_Panel(levelIndex, object, outUI);
 
         case RuntimeUIType::Button:
-            // 버튼은 렌더뿐 아니라 상호작용 모델도 필요하므로 지금은 스킵한다.
-            LOG_WARN("UI RuntimeLoader button skipped (not supported yet). id={}", object.id);
-            return S_OK;
+            return Spawn_Button(levelIndex, object, outUI);
 
         case RuntimeUIType::Unknown:
         default:
@@ -525,10 +575,92 @@ namespace
             return S_OK;
         }
     }
+
+    bool Has_ParentCycle(const unordered_map<int32, const RuntimeUIObject*>& objectsById, int32 objectId, int32 parentId)
+    {
+        unordered_set<int32> visitedIds;
+        int32 currentParentId = parentId;
+
+        while (currentParentId != 0)
+        {
+            if (currentParentId == objectId)
+                return true;
+
+            if (!visitedIds.insert(currentParentId).second)
+                return true;
+
+            const auto parentIter = objectsById.find(currentParentId);
+            if (parentIter == objectsById.end() || nullptr == parentIter->second)
+                return false;
+
+            currentParentId = parentIter->second->parentId;
+        }
+
+        return false;
+    }
+
+    void Link_ParentRelations(const RuntimeUIDocument& document, const unordered_map<int32, Shared<UI_Base>>& spawnedUIById)
+    {
+        unordered_map<int32, const RuntimeUIObject*> objectsById;
+        objectsById.reserve(document.objects.size());
+
+        for (const RuntimeUIObject& object : document.objects)
+        {
+            if (object.id == 0)
+                continue;
+
+            objectsById.emplace(object.id, &object);
+        }
+
+        for (const RuntimeUIObject& object : document.objects)
+        {
+            if (object.parentId == 0)
+                continue;
+
+            const auto childUIIter = spawnedUIById.find(object.id);
+            if (childUIIter == spawnedUIById.end() || nullptr == childUIIter->second)
+                continue;
+
+            const auto parentObjectIter = objectsById.find(object.parentId);
+            if (parentObjectIter == objectsById.end() || nullptr == parentObjectIter->second)
+            {
+                LOG_WARN("UI RuntimeLoader object {} has missing parent {}. Using canvas space.", object.id, object.parentId);
+                childUIIter->second->Clear_Parent();
+                continue;
+            }
+
+            if (!Can_RuntimeTypeHaveChildren(parentObjectIter->second->type))
+            {
+                LOG_WARN("UI RuntimeLoader object {} has non-container parent {}. Using canvas space.", object.id, object.parentId);
+                childUIIter->second->Clear_Parent();
+                continue;
+            }
+
+            if (object.id == object.parentId || Has_ParentCycle(objectsById, object.id, object.parentId))
+            {
+                LOG_WARN("UI RuntimeLoader object {} has cyclic parent chain. Using canvas space.", object.id);
+                childUIIter->second->Clear_Parent();
+                continue;
+            }
+
+            const auto parentUIIter = spawnedUIById.find(object.parentId);
+            if (parentUIIter == spawnedUIById.end() || nullptr == parentUIIter->second)
+            {
+                LOG_WARN("UI RuntimeLoader object {} parent {} was not spawned. Using canvas space.", object.id, object.parentId);
+                childUIIter->second->Clear_Parent();
+                continue;
+            }
+
+            childUIIter->second->Set_Parent(parentUIIter->second);
+        }
+    }
 }
 
 HRESULT UI_RuntimeLoader::Load_Document(const UI_LoadDesc& desc)
 {
+    if (nullptr != desc.outUIByName)
+        desc.outUIByName->clear();
+
     json root{};
     if (!Load_JsonRoot(desc.jsonPath, root))
         return E_FAIL;
@@ -538,13 +670,39 @@ HRESULT UI_RuntimeLoader::Load_Document(const UI_LoadDesc& desc)
         return E_FAIL;
 
     unordered_set<wstring> loadedFontTags;
+    unordered_map<int32, Shared<UI_Base>> spawnedUIById;
 
     for (const RuntimeUIObject& object : document.objects)
     {
-        const HRESULT hr = Spawn_Object(desc.levelIndex, object, loadedFontTags);
+        Shared<UI_Base> spawnedUI = nullptr;
+        const HRESULT hr = Spawn_Object(desc.levelIndex, object, loadedFontTags, &spawnedUI);
         if (FAILED(hr))
             return hr;
+
+        if (nullptr == spawnedUI || object.id == 0)
+            continue;
+
+        if (!object.name.empty())
+        {
+            const wstring objectName = String::ToWString(object.name);
+            spawnedUI->Set_Name(objectName);
+
+            if (nullptr != desc.outUIByName)
+            {
+                auto [nameIter, inserted] = desc.outUIByName->emplace(objectName, spawnedUI);
+                if (!inserted)
+                {
+                    LOG_WARN("UI RuntimeLoader duplicated name replaced in output map: {}", object.name);
+                    nameIter->second = spawnedUI;
+                }
+            }
+        }
+
+        if (!spawnedUIById.emplace(object.id, spawnedUI).second)
+            LOG_WARN("UI RuntimeLoader duplicated spawned id skipped in parent map: {}", object.id);
     }
+
+    Link_ParentRelations(document, spawnedUIById);
 
     return S_OK;
 }
