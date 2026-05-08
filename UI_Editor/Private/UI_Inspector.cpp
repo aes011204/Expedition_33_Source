@@ -180,7 +180,7 @@ namespace UIEditor
         }
         else
         {
-            const FAssetMeta* assetMeta = GAME->Find_AssetByGUID(textureGuid);
+            const AssetMeta* assetMeta = GAME->Find_AssetByGUID(textureGuid);
             if (nullptr != assetMeta)
             {
                 ImGui::Text("%s", Get_AssetFileName(*assetMeta).c_str());
@@ -217,10 +217,10 @@ namespace UIEditor
             ImGui::Separator();
 
             string searchText = String::ToLowerCopy(_textureSearchBuffer);
-            vector<FAssetMeta> uiTextureAssets;
+            vector<AssetMeta> uiTextureAssets;
             if (_editorManager.Is_AssetManagerReady())
             {
-                for (const FAssetMeta& assetMeta : GAME->Get_AssetsByType("Texture"))
+                for (const AssetMeta& assetMeta : GAME->Get_AssetsByType("Texture"))
                 {
                     if (Is_UITextureAsset(assetMeta) && Matches_Search(assetMeta, searchText))
                         uiTextureAssets.push_back(assetMeta);
@@ -236,7 +236,7 @@ namespace UIEditor
                 const float listHeight = 360.f;
                 if (ImGui::BeginChild(("TextureList##" + string(popupId)).c_str(), ImVec2(520.f, listHeight), true))
                 {
-                    for (const FAssetMeta& assetMeta : uiTextureAssets)
+                    for (const AssetMeta& assetMeta : uiTextureAssets)
                     {
                         ImGui::PushID(assetMeta.guid.c_str());
 
@@ -289,7 +289,7 @@ namespace UIEditor
 
         ImGui::TextUnformatted(label);
 
-        const FAssetMeta* selectedAsset = nullptr;
+        const AssetMeta* selectedAsset = nullptr;
         if (_editorManager.Is_AssetManagerReady() && !object.fontGuid.empty())
             selectedAsset = GAME->Find_AssetByGUID(object.fontGuid);
 
@@ -338,10 +338,10 @@ namespace UIEditor
             ImGui::Separator();
 
             string searchText = String::ToLowerCopy(_fontSearchBuffer);
-            vector<FAssetMeta> uiFontAssets;
+            vector<AssetMeta> uiFontAssets;
             if (_editorManager.Is_AssetManagerReady())
             {
-                for (const FAssetMeta& assetMeta : GAME->Get_AssetsByType("Font"))
+                for (const AssetMeta& assetMeta : GAME->Get_AssetsByType("Font"))
                 {
                     if (Is_UISpriteFontAsset(assetMeta) && Matches_Search(assetMeta, searchText))
                         uiFontAssets.push_back(assetMeta);
@@ -357,7 +357,7 @@ namespace UIEditor
                 const float listHeight = 320.f;
                 if (ImGui::BeginChild(("FontList##" + string(popupId)).c_str(), ImVec2(520.f, listHeight), true))
                 {
-                    for (const FAssetMeta& assetMeta : uiFontAssets)
+                    for (const AssetMeta& assetMeta : uiFontAssets)
                     {
                         ImGui::PushID(assetMeta.guid.c_str());
 

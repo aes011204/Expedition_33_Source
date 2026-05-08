@@ -2,6 +2,12 @@
 #include "UI_Document.h"
 #include "UI_Editor_Window.h"
 
+namespace Engine
+{
+    class ShaderCom;
+    class VIBuffer_Rect;
+}
+
 NS_BEGIN(UIEditor)
 
 class UI_Editor_Manager final
@@ -28,6 +34,7 @@ public:
     bool Is_Dirty() const;
     bool Request_Close();
     ID3D11ShaderResourceView* Get_TexturePreviewSRV(const string& textureGuid);
+    ID3D11ShaderResourceView* Get_MaskedTexturePreviewSRV(const string& textureGuid, const string& maskTextureGuid);
     bool New_Document();
     void Create_UIObject(UI_ObjectType objectType);
     void Duplicate_UIObject(ObjectId objectId);
@@ -105,6 +112,11 @@ private:
     void Push_HistoryState(vector<HistoryState>& historyStack, const HistoryState& historyState) const;
     void Clear_History();
     void Apply_HistoryState(const HistoryState& historyState);
+    bool Ensure_ImagePreviewRenderer();
+    ID3D11ShaderResourceView* Create_MaskedTexturePreviewSRV(
+        const string& cacheKey,
+        ID3D11ShaderResourceView* textureSRV,
+        ID3D11ShaderResourceView* maskSRV);
 
 public:
     static Unique<UI_Editor_Manager> Create(const ComPtr<Device>& device, const ComPtr<Context>& context, bool assetManagerReady);
@@ -129,6 +141,10 @@ private:
     char _renameBuffer[128] = {};
     unordered_map<string, ComPtr<ID3D11ShaderResourceView>> _textureThumbCache = {};
     unordered_set<string> _textureNoThumbGuids = {};
+    unordered_map<string, ComPtr<ID3D11ShaderResourceView>> _maskedTexturePreviewCache = {};
+    unordered_set<string> _maskedTexturePreviewFailedKeys = {};
+    Shared<ShaderCom> _imagePreviewShader = nullptr;
+    Shared<VIBuffer_Rect> _imagePreviewVIBuffer = nullptr;
     Unique<SpriteBatch> _fontPreviewSpriteBatch = nullptr;
     ComPtr<ID3D11RasterizerState> _fontPreviewRasterizerState = nullptr;
     unordered_map<string, Unique<SpriteFont>> _fontPreviewCache = {};

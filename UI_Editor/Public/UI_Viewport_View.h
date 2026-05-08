@@ -47,6 +47,5 @@ namespace UIEditor
         float _gridSize = 16.f;
         bool _showGrid = true;
         bool _snapEnabled = false;
-        bool _fitCanvasOnNextFrame = true;
     };
 }

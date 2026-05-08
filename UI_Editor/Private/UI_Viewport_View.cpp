@@ -18,15 +18,6 @@ namespace UIEditor
             return min(max(zoomFactor, kMinViewportZoomFactor), kMaxViewportZoomFactor);
         }
 
-        float Compute_FitZoom(const ImVec2& canvasSize, const ImVec2& availableSize)
-        {
-            const float canvasWidth = max(1.f, canvasSize.x);
-            const float canvasHeight = max(1.f, canvasSize.y);
-            const float fitZoomX = availableSize.x / canvasWidth;
-            const float fitZoomY = availableSize.y / canvasHeight;
-            return Clamp_Zoom(min(fitZoomX, fitZoomY));
-        }
-
         ImVec2 Snap_Position(const ImVec2& position, float gridSize)
         {
             const float safeGridSize = max(kMinGridSize, gridSize);
@@ -313,15 +304,11 @@ namespace UIEditor
             _isFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows);
             _isHovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows);
 
-            bool requestFitZoom = false;
             bool requestPixelZoom = false;
 
             ImGui::SetCursorPosX(8.f);
             ImGui::AlignTextToFramePadding();
             ImGui::Text("Zoom: %.0f%%", _zoomFactor * 100.f);
-            ImGui::SameLine();
-            if (ImGui::SmallButton("Fit"))
-                requestFitZoom = true;
             ImGui::SameLine();
             if (ImGui::SmallButton("100%"))
                 requestPixelZoom = true;
@@ -345,13 +332,8 @@ namespace UIEditor
             if (requestPixelZoom)
             {
                 _zoomFactor = 1.f;
-                _fitCanvasOnNextFrame = false;
-            }
-
-            if (requestFitZoom || _fitCanvasOnNextFrame)
-            {
-                _zoomFactor = Compute_FitZoom(canvasSize, available);
-                _fitCanvasOnNextFrame = false;
+                ImGui::SetScrollX(0.f);
+                ImGui::SetScrollY(0.f);
             }
 
             ImGuiIO& io = ImGui::GetIO();
@@ -369,13 +351,21 @@ namespace UIEditor
                         _zoomFactor /= kViewportZoomStep;
                 }
 
-                _fitCanvasOnNextFrame = false;
             }
             _zoomFactor = Clamp_Zoom(_zoomFactor);
+            if (_zoomFactor <= 1.f)
+            {
+                _zoomFactor = 1.f;
+                ImGui::SetScrollX(0.f);
+                ImGui::SetScrollY(0.f);
+            }
 
             const float canvasWidth = max(1.f, canvasSize.x);
             const float canvasHeight = max(1.f, canvasSize.y);
             const ImVec2 canvasScreenSize = ImVec2(canvasWidth * _zoomFactor, canvasHeight * _zoomFactor);
+            const ImVec2 viewportInteractionSize = _zoomFactor > 1.f
+                ? canvasScreenSize
+                : ImVec2(max(1.f, available.x), max(1.f, available.y));
             const float displayScaleX = _zoomFactor;
             const float displayScaleY = _zoomFactor;
 
@@ -385,6 +375,11 @@ namespace UIEditor
             const ImVec2 canvasOffset = ImVec2(
                 max(0.f, (available.x - canvasScreenSize.x) * 0.5f),
                 max(0.f, (available.y - canvasScreenSize.y) * 0.5f));
+
+            ImGui::SetCursorScreenPos(viewAreaMin);
+            ImGui::InvisibleButton("##UIEditorViewportPanArea", available, ImGuiButtonFlags_MouseButtonRight);
+            const bool isPanAreaHovered = ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem);
+
             ImGui::SetCursorPos(ImVec2(contentCursorPos.x + canvasOffset.x, contentCursorPos.y + canvasOffset.y));
             ImVec2 canvasPos = ImGui::GetCursorScreenPos();
             const ImVec2 viewportMin = viewAreaMin;
@@ -416,17 +411,22 @@ namespace UIEditor
                 }
             }
 
-            ImGui::InvisibleButton("##UIEditorViewportCanvas", canvasScreenSize, ImGuiButtonFlags_MouseButtonLeft);
+            ImGui::InvisibleButton("##UIEditorViewportCanvas", viewportInteractionSize, ImGuiButtonFlags_MouseButtonLeft);
             const bool isViewportHovered = ImGui::IsItemHovered();
             const bool isViewportActive = ImGui::IsItemActive();
+            const ImVec2 mousePos = ImGui::GetMousePos();
+            const bool isMouseInViewport =
+                mousePos.x >= viewportMin.x && mousePos.x <= viewportMax.x &&
+                mousePos.y >= viewportMin.y && mousePos.y <= viewportMax.y;
+            const bool hasScrollableViewport = ImGui::GetScrollMaxX() > 0.f || ImGui::GetScrollMaxY() > 0.f;
 
-            const bool canPanViewport = _zoomFactor > kMinViewportZoomFactor && (isViewportHovered || _isPanningViewport);
+            const bool canPanViewport = hasScrollableViewport && (isPanAreaHovered || isMouseInViewport || _isPanningViewport);
             if (!_isPanningViewport && canPanViewport && ImGui::IsMouseClicked(ImGuiMouseButton_Right))
                 _isPanningViewport = true;
 
             if (_isPanningViewport)
             {
-                if (!ImGui::IsMouseDown(ImGuiMouseButton_Right) || _zoomFactor <= kMinViewportZoomFactor)
+                if (!ImGui::IsMouseDown(ImGuiMouseButton_Right) || !hasScrollableViewport)
                 {
                     _isPanningViewport = false;
                 }
@@ -440,7 +440,6 @@ namespace UIEditor
                 }
             }
 
-            const ImVec2 mousePos = ImGui::GetMousePos();
             const ImVec2 mouseCanvasPos = ImVec2((mousePos.x - canvasPos.x) / displayScaleX, (mousePos.y - canvasPos.y) / displayScaleY);
 
             const vector<UI_Object>& objects = document.Get_Objects();
@@ -491,7 +490,13 @@ namespace UIEditor
                 ID3D11ShaderResourceView* previewSRV = nullptr;
 
                 if (object.type == UI_ObjectType::Image && !object.textureGuid.empty())
-                    previewSRV = _editorManager.Get_TexturePreviewSRV(object.textureGuid);
+                {
+                    if (!object.maskTextureGuid.empty())
+                        previewSRV = _editorManager.Get_MaskedTexturePreviewSRV(object.textureGuid, object.maskTextureGuid);
+
+                    if (nullptr == previewSRV)
+                        previewSRV = _editorManager.Get_TexturePreviewSRV(object.textureGuid);
+                }
 
                 const bool hasTextContent = object.type == UI_ObjectType::Text && !object.text.empty();
 
