@@ -122,7 +122,14 @@ namespace UIEditor
         ImGui::Separator();
 
         const string popupId = "UITexturePicker##" + to_string(object.id);
-        return Draw_UITextureSlotPicker("UI Texture", popupId.c_str(), object);
+        bool changed = Draw_UITextureSlotPicker("UI Texture", popupId.c_str(), object.textureGuid, object.texturePath);
+
+        ImGui::Separator();
+
+        const string maskPopupId = "UIMaskTexturePicker##" + to_string(object.id);
+        changed |= Draw_UITextureSlotPicker("UI Mask Texture", maskPopupId.c_str(), object.maskTextureGuid, object.maskTexturePath);
+
+        return changed;
     }
 
     bool UI_Inspector::Render_FontPicker(UI_Object& object)
@@ -133,13 +140,13 @@ namespace UIEditor
         return Draw_FontSlotPicker("UI Font", popupId.c_str(), object);
     }
 
-    bool UI_Inspector::Draw_UITextureSlotPicker(const char* label, const char* popupId, UI_Object& object)
+    bool UI_Inspector::Draw_UITextureSlotPicker(const char* label, const char* popupId, string& textureGuid, string& texturePath)
     {
         bool changed = false;
 
         ImGui::TextUnformatted(label);
 
-        ID3D11ShaderResourceView* previewSRV = _editorManager.Get_TexturePreviewSRV(object.textureGuid);
+        ID3D11ShaderResourceView* previewSRV = _editorManager.Get_TexturePreviewSRV(textureGuid);
         if (nullptr != previewSRV)
         {
             ImGui::Image(To_ImTextureID(previewSRV), ImVec2(64.f, 64.f));
@@ -159,21 +166,21 @@ namespace UIEditor
         ImGui::SameLine();
         ImGui::BeginGroup();
 
-        if (object.textureGuid.empty())
+        if (textureGuid.empty())
         {
-            if (object.texturePath.empty())
+            if (texturePath.empty())
             {
                 ImGui::TextDisabled("No texture selected");
             }
             else
             {
                 ImGui::TextDisabled("Texture path is set without GUID");
-                ImGui::TextWrapped("%s", object.texturePath.c_str());
+                ImGui::TextWrapped("%s", texturePath.c_str());
             }
         }
         else
         {
-            const FAssetMeta* assetMeta = GAME->Find_AssetByGUID(object.textureGuid);
+            const FAssetMeta* assetMeta = GAME->Find_AssetByGUID(textureGuid);
             if (nullptr != assetMeta)
             {
                 ImGui::Text("%s", Get_AssetFileName(*assetMeta).c_str());
@@ -182,8 +189,8 @@ namespace UIEditor
             else
             {
                 ImGui::TextDisabled("Missing texture asset");
-                if (!object.texturePath.empty())
-                    ImGui::TextWrapped("%s", object.texturePath.c_str());
+                if (!texturePath.empty())
+                    ImGui::TextWrapped("%s", texturePath.c_str());
             }
         }
 
@@ -193,8 +200,8 @@ namespace UIEditor
         ImGui::SameLine();
         if (ImGui::Button(("Clear##Clear" + string(popupId)).c_str()))
         {
-            object.textureGuid.clear();
-            object.texturePath.clear();
+            textureGuid.clear();
+            texturePath.clear();
             changed = true;
         }
 
@@ -252,10 +259,11 @@ namespace UIEditor
                         ImGui::SameLine();
                         ImGui::BeginGroup();
 
-                        const bool isSelected = object.textureGuid == assetMeta.guid;
+                        const bool isSelected = textureGuid == assetMeta.guid;
                         if (ImGui::Selectable(Get_AssetFileName(assetMeta).c_str(), isSelected))
                         {
-                            Apply_TextureAsset(object, assetMeta);
+                            textureGuid = assetMeta.guid;
+                            texturePath = Make_ClientRuntimeResourcePath(assetMeta);
                             changed = true;
                             ImGui::CloseCurrentPopup();
                         }

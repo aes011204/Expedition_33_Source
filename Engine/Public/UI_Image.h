@@ -1,9 +1,11 @@
-﻿#pragma once
+#pragma once
 
 #include "UI_Base.h"
-#include <directxtk/CommonStates.h>
 
 NS_BEGIN(Engine)
+
+class ShaderCom;
+class VIBuffer_Rect;
 
 class ENGINE_DLL UI_Image final : public UI_Base
 {
@@ -11,7 +13,12 @@ public:
     struct UI_IMAGE_DESC : public UI_Base::UI_DESC
     {
         wstring texturePath{};
+        wstring maskTexturePath{};
         Vec4 color{ 1.f, 1.f, 1.f, 1.f };
+        uint32 shaderPrototypeLevelIndex{ 0 };
+        wstring shaderPrototypeTag{ L"Shader_UI" };
+        uint32 viBufferPrototypeLevelIndex{ 0 };
+        wstring viBufferPrototypeTag{ L"VIBuffer_Rect" };
     };
 
 public:
@@ -26,11 +33,19 @@ public:
 
 private:
     wstring _texturePath{};
+    wstring _maskTexturePath{};
     Vec4 _color{ 1.f, 1.f, 1.f, 1.f };
-    Vec2 _textureSize{ 1.f, 1.f };
+
+    uint32 _shaderPrototypeLevelIndex{ 0 };
+    wstring _shaderPrototypeTag{ L"Shader_UI" };
+    uint32 _viBufferPrototypeLevelIndex{ 0 };
+    wstring _viBufferPrototypeTag{ L"VIBuffer_Rect" };
+
     ComPtr<ShaderResourceView> _srv{};
-    Unique<SpriteBatch> _spriteBatch{};
-    Unique<CommonStates> _states{};
+    ComPtr<ShaderResourceView> _maskSrv{};
+
+    Shared<ShaderCom> _shader{};
+    Shared<VIBuffer_Rect> _viBuffer{};
 
 public:
     static Shared<UI_Image> Create();

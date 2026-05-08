@@ -664,6 +664,10 @@ namespace UIEditor
                 item["texturePath"] = object.texturePath;
                 if (!object.textureGuid.empty())
                     item["textureGuid"] = object.textureGuid;
+                if (!object.maskTexturePath.empty())
+                    item["maskTexturePath"] = object.maskTexturePath;
+                if (!object.maskTextureGuid.empty())
+                    item["maskTextureGuid"] = object.maskTextureGuid;
             }
             else if (object.type == UI_ObjectType::Text)
             {
@@ -779,6 +783,8 @@ namespace UIEditor
                 {
                     object.texturePath = Read_String(item, "texturePath", "");
                     object.textureGuid = Read_String(item, "textureGuid", "");
+                    object.maskTexturePath = Read_String(item, "maskTexturePath", "");
+                    object.maskTextureGuid = Read_String(item, "maskTextureGuid", "");
                 }
                 else if (object.type == UI_ObjectType::Text)
                 {

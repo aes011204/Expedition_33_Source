@@ -43,6 +43,8 @@ namespace
 
         string textureGuid{};
         string texturePath{};
+        string maskTextureGuid{};
+        string maskTexturePath{};
     };
 
     struct RuntimeUIDocument
@@ -305,6 +307,8 @@ namespace
 
         object.textureGuid = Read_String(item, "textureGuid", "");
         object.texturePath = Read_String(item, "texturePath", "");
+        object.maskTextureGuid = Read_String(item, "maskTextureGuid", "");
+        object.maskTexturePath = Read_String(item, "maskTexturePath", "");
 
         return object;
     }
@@ -422,6 +426,13 @@ namespace
 
         UI_Image::UI_IMAGE_DESC desc{};
         desc.texturePath = texturePath;
+
+        const wstring maskTexturePath = Resolve_JsonAssetPath(object.maskTextureGuid, object.maskTexturePath);
+        if (!maskTexturePath.empty() && fs::exists(maskTexturePath))
+            desc.maskTexturePath = maskTexturePath;
+        else if (!object.maskTextureGuid.empty() || !object.maskTexturePath.empty())
+            LOG_WARN("UI RuntimeLoader image mask skipped: missing mask texture. id={}", object.id);
+
         desc.color = object.color;
         desc.transformDesc.position = object.worldPosition;
         desc.transformDesc.size = object.size;

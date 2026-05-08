@@ -684,20 +684,29 @@ void UI_Editor_Manager::Resolve_LoadedAssetReferences()
 
     for (UI_Object& object : objects)
     {
-        if (object.type == UI_ObjectType::Image && object.textureGuid.empty() && !object.texturePath.empty())
+        if (object.type == UI_ObjectType::Image)
         {
-            const string targetPath = Normalize_PathForCompare(object.texturePath);
-            for (const FAssetMeta& assetMeta : GAME->Get_AssetsByType("Texture"))
+            auto resolveTextureGuid = [](string& guid, const string& path, const char* label)
             {
-                if (Normalize_PathForCompare(Make_ClientRuntimeResourcePath(assetMeta)) == targetPath)
-                {
-                    object.textureGuid = assetMeta.guid;
-                    break;
-                }
-            }
+                if (!guid.empty() || path.empty())
+                    return;
 
-            if (object.textureGuid.empty())
-                LOG_WARN("UI Editor load: texture not found for {}", object.texturePath);
+                const string targetPath = Normalize_PathForCompare(path);
+                for (const FAssetMeta& assetMeta : GAME->Get_AssetsByType("Texture"))
+                {
+                    if (Normalize_PathForCompare(Make_ClientRuntimeResourcePath(assetMeta)) == targetPath)
+                    {
+                        guid = assetMeta.guid;
+                        break;
+                    }
+                }
+
+                if (guid.empty())
+                    LOG_WARN("UI Editor load: {} texture not found for {}", label, path);
+            };
+
+            resolveTextureGuid(object.textureGuid, object.texturePath, "image");
+            resolveTextureGuid(object.maskTextureGuid, object.maskTexturePath, "mask");
         }
         else if (object.type == UI_ObjectType::Text)
         {

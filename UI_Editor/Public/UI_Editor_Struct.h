@@ -39,6 +39,8 @@ struct UI_Object
     string fontPath = "";
     string textureGuid = "";
     string texturePath = "";
+    string maskTextureGuid = "";
+    string maskTexturePath = "";
 };
 
 NS_END
