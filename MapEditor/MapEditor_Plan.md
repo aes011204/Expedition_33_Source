@@ -207,7 +207,47 @@ MEModelManager                            — 모델 로드/캐싱 전담
 
 ---
 
-### Phase 4 — MainEditor 레벨 구성 ← **다음 작업**
+### Phase 3.8 — Asset Browser 파일 탐색기 + 드래그 앤 드롭 스폰 ← **현재 작업**
+
+#### 목표
+- Asset Browser를 Unity Project 창처럼 파일 탐색기 방식으로 재설계
+- `.bin` 모델 파일을 뷰포트로 드래그 앤 드롭하면 해당 위치에 오브젝트 스폰
+
+#### 작업 내용
+
+1. **`PanelAssetBrowser` 재설계**
+    - 탭 기반 → 파일 탐색기 방식으로 전환
+    - 루트: `Client/Bin/Resources/Map`
+    - 브레드크럼 바: `Map > SaveJson` 형태, 각 조각 클릭 시 해당 경로로 점프
+    - 폴더 더블클릭 → 내부 탐색, 파일 더블클릭 → 타입별 처리
+    - `.json` 더블클릭 → `_ctx->LoadFromFile()` (기존 동작 유지)
+    - `.bin` 파일 → `ImGui::BeginDragDropSource` 로 드래그 소스 등록 (payload = 모델 전체 경로)
+
+2. **`PanelViewport` 수정**
+    - `ImGui::BeginDragDropTarget` 추가
+    - `.bin` payload 드롭 감지 → 마우스 뷰포트 좌표 기록, 앱에 스폰 요청 전달
+
+3. **`MapEditorApp` 수정 — 깊이 버퍼 역투영**
+    - Depth Stencil 텍스처용 Staging 텍스처 (`_depthStagingTex`) 추가
+    - `DoSpawnAt(mousePos, modelPath)`:
+        1. 드롭 위치 1픽셀 깊이 읽기 (`CopySubresourceRegion` + Map/Unmap)
+        2. NDC → 뷰 → 월드 역투영으로 3D 위치 복원
+        3. `SceneContext::SpawnObject(modelPath, worldPos)` 호출
+    - ID 피킹(`DoPickAt`)과 동일 패턴, 리소스 분리로 충돌 없음
+
+4. **`SceneContext` 수정**
+    - `SpawnObject(const wstring& modelPath, const Vec3& pos)` 추가
+    - `EditorObject` 생성 (타입 StaticMesh, 위치 worldPos) + `MEModelManager`로 렌더 핸들 연결
+
+#### 설계 결정
+- **깊이 버퍼 역투영 채택**: ID 피킹과 동일한 GPU Staging 패턴, 기존 코드 재사용
+- **Ray × Y=0 평면 교차 기각**: 경사 지형에서 부정확
+- **PhysX 레이캐스트 기각**: Phase 6 이전 콜라이더 미구축
+- **동시 실행 충돌 없음**: 피킹(좌클릭)과 드롭은 물리적으로 동시에 발생 불가, 사용 RT도 분리
+
+---
+
+### Phase 4 — MainEditor 레벨 구성
 
 #### 목표
 - Client에서 실제 플레이 가능한 레벨 구조 잡기

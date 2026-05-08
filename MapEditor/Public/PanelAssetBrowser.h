@@ -7,14 +7,6 @@ struct SceneContext;
 
 class PanelAssetBrowser final : public MEWindow
 {
-private:
-    struct FolderEntry
-    {
-        string label;
-        string path;
-        bool isImport = false;
-    };
-
 public:
     explicit PanelAssetBrowser(SceneContext* ctx);
     virtual ~PanelAssetBrowser() = default;
@@ -24,15 +16,17 @@ public:
 
 private:
     SceneContext* _ctx = {};
-    vector<FolderEntry> _folders;
-    vector<string> _files;
-    int _selectedFolder = {};
+    string _rootPath = {};
+    string _currentPath = {};
+    vector<string> _breadcrumbs;
+    vector<string> _breadcrumbPaths;
+    vector<fs::path> _dirs;
+    vector<fs::path> _files;
 
 private:
-    void ScanCurrentFolder();
-
-public:
-    void AddFolder(const string& label, const string& path, bool isImport = false);
+    void ScanCurrentPath();
+    void NavigateTo(const string& path);
+    void RebuildBreadcrumbs();
 
 public:
     static Shared<PanelAssetBrowser> Create(SceneContext* ctx);
