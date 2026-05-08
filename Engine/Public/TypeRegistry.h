@@ -7,19 +7,31 @@ NS_BEGIN(Engine)
 
 class Component;
 class GameObject;
+class AnimNotify;
+class AnimNotifyState;
 
 class TypeRegistry final : public Base
 {
 public:
+    // Component
     using ComponentCreateFn =
         function<Shared<Component>(const ComPtr<Device>&, const ComPtr<Context>&)>;
 
+    // GameObject
     using GameObjectCreateFn =
         function<Shared<GameObject>(const ComPtr<Device>&, const ComPtr<Context>&)>;
 
     // TODO : Behavior Tree는 추가로 바꿀 예정
     using BTNodeCreateFn =
         function<Shared<Base>()>;
+
+    // AnimNotify
+    using AnimNotifyCreateFn =
+        function<Shared<AnimNotify>()>;
+
+    // AnimNotifyState
+    using AnimNotifyStateCreateFn =
+        function<Shared<AnimNotifyState>()>;
 
     struct ComponentTypeInfo
     {
@@ -41,6 +53,20 @@ public:
         string className = {};
         string nodeCategory = {};
         BTNodeCreateFn createFn = {};
+        ClassReflectionInfo* reflectionInfo = nullptr;
+    };
+
+    struct AnimNotifyTypeInfo
+    {
+        string className = {};
+        AnimNotifyCreateFn createFn = {};
+        ClassReflectionInfo* reflectionInfo = nullptr;
+    };
+
+    struct AnimNotifyStateInfo
+    {
+        string className = {};
+        AnimNotifyStateCreateFn createFn = {};
         ClassReflectionInfo* reflectionInfo = nullptr;
     };
 
