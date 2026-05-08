@@ -87,6 +87,8 @@ public:
 
     TARGETCAMERA_DESC           Get_CameraDesc() {return _currentSettings;}
     TARGETCAMERA_DESC           Get_NormalPreset() {return _normalPreset;}
+    TARGETCAMERA_DESC           Get_AimPreset() { return _aimPreset;}
+
 private:
     TARGETCAMERA_DESC  _currentSettings;
     TARGETCAMERA_DESC  _targetSettings;
