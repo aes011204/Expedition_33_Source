@@ -44,6 +44,7 @@ public:
     virtual HRESULT Render() override;
 
 private:
+    void Interpolate_CurrentSettings(float timeDelta);
     void Update_NormalState(float timeDelta);
     void Update_AimState(float timeDelta);
 
@@ -54,40 +55,44 @@ public:
     //TODO imgui      desc 하나로 보여주는 걸로 바꾸기?
     void            SetTargetTransform(Shared<TransformCom> targetTransform);
 
-    float           Get_SideOffset() {return _sideOffset;}   
-    void            Set_SideOffset(float sideOffset) {_sideOffset = sideOffset;}
+   // float           Get_SideOffset() {return _sideOffset;}   
+   // void            Set_SideOffset(float sideOffset) {_sideOffset = sideOffset;}
+   //
+   // float           Get_HeightOffset() {return _heightOffset;}   
+   // void            Set_HeightOffset(float heightOffset) {_heightOffset = heightOffset;}
+   //
+   // float           Get_FollowSpeed() {return _followSpeed;}
+   // void            Set_FollowSpeed(float followSpeed) {_followSpeed = followSpeed;}
+   // 
+   // float           Get_AimOffset() {return _aimOffset;}
+   // void            Set_AimOffset(float aimOffset) {_aimOffset = aimOffset;}
+   //
+   // float           Get_Distance() {return _distance;}
+   // void            Set_Distance(float distance) {_distance = distance;}
+   //
+   // float           Get_PitchLookScale() {return _pitchLookScale;}
+   // void            Set_PitchLookScale(float pitchLookScale) {_pitchLookScale = pitchLookScale;}
+   //
+   // float           Get_PitchMin() {return _pitchMin;}
+   // void            Set_PitchMin(float pitchMin) {_pitchMin = pitchMin;}
+   // 
+   // float           Get_PitchMax() {return _pitchMax;}
+   // void            Set_PitchMax(float pitchMax) {_pitchMax = pitchMax;}
+   //    
+   // float           Get_LookHeight() {return _lookHeight;}
+   // void            Set_LookHeight(float lookHeight) {_lookHeight = lookHeight;}
+   //
+   // float           Get_PivotHeight() {return _pivotHeight;}
+   // void            Set_PivotHeight(float pivotHeight) {_pivotHeight = pivotHeight;}
 
-    float           Get_HeightOffset() {return _heightOffset;}   
-    void            Set_HeightOffset(float heightOffset) {_heightOffset = heightOffset;}
-
-    float           Get_FollowSpeed() {return _followSpeed;}
-    void            Set_FollowSpeed(float followSpeed) {_followSpeed = followSpeed;}
-    
-    float           Get_AimOffset() {return _aimOffset;}
-    void            Set_AimOffset(float aimOffset) {_aimOffset = aimOffset;}
-
-    float           Get_Distance() {return _distance;}
-    void            Set_Distance(float distance) {_distance = distance;}
-
-    float           Get_PitchLookScale() {return _pitchLookScale;}
-    void            Set_PitchLookScale(float pitchLookScale) {_pitchLookScale = pitchLookScale;}
-
-    float           Get_PitchMin() {return _pitchMin;}
-    void            Set_PitchMin(float pitchMin) {_pitchMin = pitchMin;}
-    
-    float           Get_PitchMax() {return _pitchMax;}
-    void            Set_PitchMax(float pitchMax) {_pitchMax = pitchMax;}
-       
-    float           Get_LookHeight() {return _lookHeight;}
-    void            Set_LookHeight(float lookHeight) {_lookHeight = lookHeight;}
-
-    float           Get_PivotHeight() {return _pivotHeight;}
-    void            Set_PivotHeight(float pivotHeight) {_pivotHeight = pivotHeight;}
-    
+    TARGETCAMERA_DESC           Get_CameraDesc() {return _currentSettings;}
+    TARGETCAMERA_DESC           Get_NormalPreset() {return _normalPreset;}
 private:
     TARGETCAMERA_DESC  _currentSettings;
+    TARGETCAMERA_DESC  _targetSettings;
     TARGETCAMERA_DESC  _normalPreset;
     TARGETCAMERA_DESC  _aimPreset;
+
     Weak<TransformCom> _targetTransformCom;
     float              _followSpeed;
     float              _distance;
@@ -104,6 +109,9 @@ private:
 
     Vec3               _prevTargetPos;
     CAMERA_STATE       _currentState;
+
+    float               _speed = 5.f;
+
 public:
     static Shared<TargetCamera> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
     virtual Shared<GameObject> Clone(void* arg) override;

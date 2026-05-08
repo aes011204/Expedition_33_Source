@@ -34,24 +34,12 @@ HRESULT TargetCamera::Initialize(void* arg)
     _currentSettings.pitchLookScale = desc->pitchLookScale;
     _currentSettings.pitchMin = desc->pitchMin;
     _currentSettings.pitchMax = desc->pitchMax;
-    _currentSettings.lookHeight = desc->pitchMax;
+    _currentSettings.lookHeight = desc->lookHeight;
     _currentSettings.pivotHeight = desc->pivotHeight;
     _currentSettings.mouseSensitivity = desc->mouseSensitivity;
 
     _yaw = 0.f;
     _pitch = 0.f;
-    //followSpeed = desc->followSpeed;
-    //mouseSensor = desc->mouseSensor;
-    //distance = desc->distance;
-    //sideOffset = desc->sideOffset;
-    //heightOffset = desc->heightOffset;
-    //aimOffset = desc->aimOffset;
-    //pitchLookScale = desc->pitchLookScale;
-    //pitchMin = desc->pitchMin;
-    //pitchMax = desc->pitchMax;
-    //lookHeight = desc->lookHeight;
-    //pivotHeight = desc->pivotHeight;
-    //mouseSensitivity = desc->mouseSensitivity;
 
     if(FAILED(__super::Initialize(arg)))
         return E_FAIL;
@@ -60,8 +48,9 @@ HRESULT TargetCamera::Initialize(void* arg)
 
     Set_Name(L"Target Camera");
 
-    Change_State(CAMERA_STATE::NORMAL);
-
+    _currentState = CAMERA_STATE::NORMAL;
+    _normalPreset = _currentSettings;
+    _targetSettings = _currentSettings;
     return S_OK;
 }
 
@@ -97,6 +86,8 @@ void TargetCamera::Update(float timeDelta)
     if(!GAME->Is_ActiveCamera(GetSharedPtr<Camera>()))
         return;
 
+    Interpolate_CurrentSettings(timeDelta);
+
     switch(_currentState)
     {
         case CAMERA_STATE::NORMAL:
@@ -107,7 +98,7 @@ void TargetCamera::Update(float timeDelta)
             Update_AimState(timeDelta);
             break;
     }
-
+        
 }
 
 void TargetCamera::Late_Update(float timeDelta)
@@ -121,6 +112,20 @@ HRESULT TargetCamera::Render()
        return E_FAIL;
 
     return S_OK;
+}
+
+void TargetCamera::Interpolate_CurrentSettings(float timeDelta)
+{
+    const float t = clamp(timeDelta * _speed,0.f,1.f );
+
+    _currentSettings.aimOffset = lerp(_currentSettings.aimOffset,_targetSettings.aimOffset,t);
+    _currentSettings.distance = lerp(_currentSettings.distance,_targetSettings.distance,t);
+    _currentSettings.heightOffset = lerp(_currentSettings.heightOffset,_targetSettings.heightOffset,t);
+    _currentSettings.lookHeight = lerp(_currentSettings.lookHeight,_targetSettings.lookHeight,t);
+    _currentSettings.pitchLookScale = lerp(_currentSettings.pitchLookScale,_targetSettings.pitchLookScale,t);
+    _currentSettings.pivotHeight = lerp(_currentSettings.pivotHeight,_targetSettings.pivotHeight,t);
+    _currentSettings.sideOffset = lerp(_currentSettings.sideOffset,_targetSettings.sideOffset,t);
+    _currentSettings.fovy = lerp(_currentSettings.fovy,_targetSettings.fovy,t);
 }
 
 void TargetCamera::Update_NormalState(float timeDelta)
@@ -198,9 +203,76 @@ void TargetCamera::Update_NormalState(float timeDelta)
 
 void TargetCamera::Update_AimState(float timeDelta)
 {
-    //보간 처리를 하면서 천천히 움직이긴 해야겠지
-    //Vec3 forward = _transformCom->Get_WorldForward();
 
+      if(_targetTransformCom.expired())
+    {
+        MSG_BOX("Target Transform == nullptr");
+        return;
+    }
+
+    auto targetTransformCom  = _targetTransformCom.lock();
+
+    if(nullptr == targetTransformCom)
+        return;
+
+    const Vec2 mouseDelta = GAME->Get_MouseDelta();
+
+    _yaw += mouseDelta.x * _currentSettings.mouseSensor;
+    _pitch += mouseDelta.y * _currentSettings.mouseSensor * _currentSettings.mouseSensitivity;
+    _pitch = std::clamp(_pitch, _currentSettings.pitchMin, _currentSettings.pitchMax);
+
+
+    const Vec3 targetPos = targetTransformCom->Get_WorldPosition();
+    const Vec3 pivotPos = targetPos + Vec3::Up * _currentSettings.pivotHeight;
+
+    const float yawRad = XMConvertToRadians(_yaw);
+    const float pitchRad = XMConvertToRadians(_pitch);
+
+    Vec3 backDir;
+    backDir.x = -sinf(yawRad);
+    backDir.y = 0.f;
+    backDir.z = -cosf(yawRad);
+    backDir.Normalize();
+
+    Vec3 rightDir;
+    rightDir.x = cosf(yawRad);
+    rightDir.y = 0.f;
+    rightDir.z = -sinf(yawRad);
+    rightDir.Normalize();
+
+    const Vec3 baseOffset =
+        backDir * _currentSettings.distance;
+
+    const Matrix pitchRotation = XMMatrixRotationAxis(rightDir, pitchRad);
+    const Vec3 orbitOffset = XMVector3TransformNormal(baseOffset, pitchRotation);
+
+    Vec3 framingPos = pivotPos  + rightDir * _currentSettings.aimOffset;
+    Vec3 desiredPos = framingPos + orbitOffset + Vec3::Up * _currentSettings.heightOffset + rightDir * _currentSettings.sideOffset;
+    Vec3 lookTarget = framingPos + + Vec3::Up *_currentSettings.lookHeight;
+
+    const Vec3 currentPos = _transformCom->Get_WorldPosition();
+
+    Vec3 newPos;
+
+    const bool isRotating = mouseDelta.LengthSquared() > 0.0001f;
+    const bool isTargetMoving = (targetPos - _prevTargetPos).LengthSquared() > 0.0001f;
+
+    if (isRotating && !isTargetMoving)
+    {
+        newPos = desiredPos;
+    }
+    else
+    {
+        newPos = Math::Lerp_Damp(currentPos, desiredPos, _currentSettings.followSpeed, timeDelta);
+    }
+
+    _transformCom->Set_WorldPosition(newPos);
+    _transformCom->LookAt(lookTarget);
+
+    Update_TransformMatrices();
+    GAME->UpdateFrustum(*GAME->Get_Transform(D3DTS::View), *GAME->Get_Transform(D3DTS::Proj));
+
+    _prevTargetPos = targetPos;
 }
 
 
@@ -214,13 +286,21 @@ void TargetCamera::Change_State(CAMERA_STATE state)
     switch(_currentState)
     {
     case CAMERA_STATE::NORMAL:
-        _currentSettings = _normalPreset;
+        _targetSettings = _normalPreset;
+        _currentSettings.yaw = _normalPreset.yaw;
+        _currentSettings.pitch = _normalPreset.pitch;
+        _currentSettings.followSpeed = _normalPreset.followSpeed;
         break;
 
     case CAMERA_STATE::AIM:
-        _currentSettings = _aimPreset;
+        _targetSettings = _aimPreset;
+        _currentSettings.yaw = _aimPreset.yaw;
+        _currentSettings.pitch = _aimPreset.pitch;
+        _currentSettings.followSpeed = _aimPreset.followSpeed;
         break;
     }
+
+
 }
 
 void TargetCamera::SetTargetTransform(Shared<TransformCom> targetTransform)
