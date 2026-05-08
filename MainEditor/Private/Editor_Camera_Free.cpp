@@ -27,37 +27,44 @@ void Editor_Camera_Free::Priority_Update(float timeDelta)
 
     if (ImGui::IsMouseDown(ImGuiMouseButton_Right))
     {
-        const ImVec2 delta = ImGui::GetIO().MouseDelta;
+        const float moveDistance = _transformCom->Get_SpeedPerSec() * timeDelta;
+        const Vec3 forward = _transformCom->Get_WorldForward();
+        const Vec3 right = _transformCom->Get_WorldRight();
+        Vec3 position = _transformCom->Get_WorldPosition();
 
+        if (ImGui::IsKeyDown(ImGuiKey_W))
+            position += forward * moveDistance;
+
+        if (ImGui::IsKeyDown(ImGuiKey_S))
+            position -= forward * moveDistance;
+
+        if (ImGui::IsKeyDown(ImGuiKey_A))
+            position -= right * moveDistance;
+
+        if (ImGui::IsKeyDown(ImGuiKey_D))
+            position += right * moveDistance;
+
+        if (ImGui::IsKeyDown(ImGuiKey_E))
+            position += Vec3::Up * moveDistance;
+
+        if (ImGui::IsKeyDown(ImGuiKey_Q))
+            position -= Vec3::Up * moveDistance;
+
+        _transformCom->Set_WorldPosition(position);
+
+        const ImVec2 delta = ImGui::GetIO().MouseDelta;
         if (delta.x != 0.f)
-        {
-            _transformCom->Add_LocalRotation(
-                Quat::CreateFromAxisAngle(Vec3::Up, XMConvertToRadians(delta.x * _mouseSensor)));
-        }
+            _transformCom->Add_LocalRotation(Quat::CreateFromAxisAngle(Vec3::Up, delta.x * _mouseSensor * timeDelta));
 
         if (delta.y != 0.f)
         {
-            _transformCom->Add_LocalRotation(
-                Quat::CreateFromAxisAngle(_transformCom->Get_WorldRight(), XMConvertToRadians(delta.y * _mouseSensor)));
+            Vec3 right = _transformCom->Get_WorldRight();
+            if (right.LengthSquared() > 0.000001f)
+            {
+                right.Normalize();
+                _transformCom->Add_LocalRotation(Quat::CreateFromAxisAngle(right, delta.y * _mouseSensor * timeDelta));
+            }
         }
-
-        if (ImGui::IsKeyDown(ImGuiKey_W))
-            _transformCom->Go_Straight(timeDelta);
-
-        if (ImGui::IsKeyDown(ImGuiKey_S))
-            _transformCom->Go_Backward(timeDelta);
-
-        if (ImGui::IsKeyDown(ImGuiKey_A))
-            _transformCom->Go_Left(timeDelta);
-
-        if (ImGui::IsKeyDown(ImGuiKey_D))
-            _transformCom->Go_Right(timeDelta);
-
-        if (ImGui::IsKeyDown(ImGuiKey_E))
-            _transformCom->Go_Up(timeDelta);
-
-        if (ImGui::IsKeyDown(ImGuiKey_Q))
-            _transformCom->Go_Down(timeDelta);
     }
 
     const float wheel = ImGui::GetIO().MouseWheel;
@@ -80,13 +87,21 @@ void Editor_Camera_Free::Apply_EditorDesc(const EDITOR_CAMERA_DESC& desc)
     _fovY = desc.fovy;
     _near = desc.nearPlane;
     _far = desc.farPlane;
+    _yaw = desc.yaw;
+    _pitch = desc.pitch;
 
     if (_transformCom)
     {
         _transformCom->Set_SpeedPerSec(desc.speedPerSec);
         _transformCom->Set_DegreePerSec(desc.degreePerSec);
         _transformCom->Set_WorldPosition(Vec3(desc.eye.x, desc.eye.y, desc.eye.z));
-        _transformCom->LookAt(Vec3(desc.at.x, desc.at.y, desc.at.z));
+
+        const Vec3 eye(desc.eye.x, desc.eye.y, desc.eye.z);
+        const Vec3 at(desc.at.x, desc.at.y, desc.at.z);
+        if ((at - eye).LengthSquared() > 0.000001f)
+            _transformCom->LookAt(at);
+        else
+            _transformCom->Set_RotationEuler(Vec3(desc.pitch, desc.yaw, 0.f));
     }
 }
 

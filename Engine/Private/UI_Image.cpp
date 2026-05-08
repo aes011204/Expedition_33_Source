@@ -1,4 +1,4 @@
-#include "UI_Image.h"
+﻿#include "UI_Image.h"
 #include "GameInstance.h"
 
 UI_Image::UI_Image()
@@ -76,8 +76,8 @@ HRESULT UI_Image::Render()
         return S_OK;
 
     const Vec2& position = _transform->Get_Position();
-    const Vec2& size = _transform->Get_Size();
-    const Vec2& scale = _transform->Get_Scale();
+    const Vec2& size     = _transform->Get_Size();
+    const Vec2& scale    = _transform->Get_Scale();
 
     const float width = size.x * scale.x;
     const float height = size.y * scale.y;

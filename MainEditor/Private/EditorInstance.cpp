@@ -441,7 +441,10 @@ void EditorInstance::Request_PreviewViewportSize(uint32 width, uint32 height)
 
 void EditorInstance::Enable_AutoPreviewViewport()
 {
-    _previewViewportMode = PreviewViewportMode::Manual;
+    _previewViewportMode = PreviewViewportMode::Auto;
+    Queue_PreviewViewportSize(
+        max(1u, _requestedViewportWidth),
+        max(1u, _requestedViewportHeight));
 }
 
 void EditorInstance::Enable_ManualPreviewViewport()
@@ -457,6 +460,14 @@ void EditorInstance::Set_ManualPreviewViewportSize(uint32 width, uint32 height)
 
 void EditorInstance::Sync_PreviewViewportMode()
 {
+    if (_previewViewportMode == PreviewViewportMode::Auto)
+    {
+        Queue_PreviewViewportSize(
+            max(1u, _requestedViewportWidth),
+            max(1u, _requestedViewportHeight));
+        return;
+    }
+
     if (_appliedPreviewViewportWidth == 0 || _appliedPreviewViewportHeight == 0)
         Queue_PreviewViewportSize(kDefaultPreviewViewportWidth, kDefaultPreviewViewportHeight);
 }

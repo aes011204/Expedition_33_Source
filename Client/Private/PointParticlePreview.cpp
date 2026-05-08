@@ -74,7 +74,7 @@ HRESULT PointParticlePreview::Ready_Components()
     if (FAILED(__super::Add_Component(ETOI(LevelType::GamePlay), TEXT("Texture_Snow"), _texture)))
         return E_FAIL;
 
-    if (FAILED(__super::Add_Component(ETOI(LevelType::GamePlay), TEXT("Shader_BillboardParticle"), _shader)))
+    if (FAILED(__super::Add_Component(ETOI(LevelType::Static), TEXT("Shader_BillboardParticle"), _shader)))
         return E_FAIL;
 
     PointParticleDesc desc = Make_PointParticleDesc();

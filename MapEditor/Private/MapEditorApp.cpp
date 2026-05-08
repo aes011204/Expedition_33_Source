@@ -195,6 +195,18 @@ void MapEditorApp::DrawSceneDebug()
         case EObjectType::StaticMesh:
             if (obj->_renderHandle)
             {
+                Vec3 localMin, localMax;
+                if (obj->_renderHandle->GetModel()->Try_Get_LocalBounds(localMin, localMax))
+                {
+                    BoundingBox localBox;
+                    BoundingBox::CreateFromPoints(localBox, XMLoadFloat3(&localMin), XMLoadFloat3(&localMax));
+                    BoundingBox worldBox;
+                    localBox.Transform(worldBox, obj->_renderHandle->GetModel()->Get_PreLocalTransformMatrix() * obj->_worldMatrix);
+                    if (!GAME->IsVisible(worldBox))
+                    {
+                        break;
+                    }
+                }
                 obj->_renderHandle->Render(obj->_worldMatrix);
             }
             break;

@@ -16,7 +16,7 @@ ModelInspector::ModelInspector() : EditorBlock{}
 
 HRESULT ModelInspector::Initialize()
 {
-	_resourcePath = ResourcePath; // 루트 시작 디렉토리
+	_resourcePath = ResourcePath;
 	strcpy_s(_pathBuffer, ToString(_resourcePath).c_str());
 	Scan_ModelFiles(_resourcePath);
 	return S_OK;
@@ -95,30 +95,32 @@ void ModelInspector::Scan_AnimFiles(const wstring& modelDirectory)
 
 void ModelInspector::Render_ModelList()
 {
-	ImGui::Text("Models (.model)");
-	ImGuiWindowFlags windowFlags = ImGuiWindowFlags_HorizontalScrollbar;
-	ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.15f, 0.15f, 0.15f, 1.0f));
-	if (ImGui::BeginChild("ModelListRegion", ImVec2(0, 100), true, windowFlags))
-	{
-		for (const auto& path : _cachedModelPaths)
-		{
-			string fileName = path.filename().string();
-			bool isSelected = (_selectedModelPath == path.string());
+    ImGui::Text("Models (.model)");
 
-			if (ImGui::Selectable(fileName.c_str(), isSelected, 0, ImVec2(150, 0)))
-			{
-				_selectedModelPath = path.string();
-				Scan_AnimFiles(path.parent_path().wstring());
-			}
+    if (ImGui::BeginChild("ModelListRegion", ImVec2(0, 100), true, ImGuiWindowFlags_HorizontalScrollbar))
+    {
+        for (const auto& path : _cachedModelPaths)
+        {
+            const string fileName = path.filename().string();
+            const bool isSelected = (_selectedModelPath == path.string());
 
-			if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
-			{
-				Load_SelectedAsset(".model");
-			}
-		}
-	}
-	ImGui::EndChild();
-	ImGui::PopStyleColor();
+            if (ImGui::Selectable(fileName.c_str(), isSelected, 0, ImVec2(150, 0)))
+            {
+                _selectedModelPath = path.string();
+                Scan_AnimFiles(path.parent_path().wstring());
+                _selectedModelGuid = GAME->Ensure_AssetGUID(path.wstring(), "Model");
+            }
+
+            if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+            {
+                Load_SelectedAsset(".model");
+            }
+        }
+    }
+    ImGui::EndChild();
+
+    if (!_selectedModelGuid.empty())
+        ImGui::Text("Model GUID: %s", _selectedModelGuid.c_str());
 }
 
 void ModelInspector::Render_AnimList()

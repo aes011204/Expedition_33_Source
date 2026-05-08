@@ -54,8 +54,9 @@ public:
         const wstring& layerTag,
         const Vec3& position);
 
-private:
     static fs::path Resolve_PrefabPath(const string& prefabName);
+
+private:
     static void Apply_Overrides(const Shared<GameObject>& gameObject, const json& overrides);
     static Shared<GameObject> Spawn_Implementation(const FSpawnDesc& desc);
 };
