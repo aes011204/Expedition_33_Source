@@ -11,6 +11,15 @@ class ENGINE_DLL MovementCom : public Component
     GENERATED_COMPONENT(MovementCom)
 
 public:
+    struct MovementInput
+    {
+        float moveX = 0.f;
+        float moveZ = 0.f;
+
+        bool  isRunPressed = false;
+        bool  isJumpDown = false;
+    };
+
     struct MoveDesc
     {
         float walkSpeed = 4.f;
@@ -23,16 +32,6 @@ public:
 
         // 아직 groundY 추적이 안되니까 임시로 0으로 세팅
         float groundY = 0.f;
-    };
-
-    // 플레이어는 InputCom에서 들어온 값으로 세팅
-    struct MoveInput
-    {
-        float moveX = 0.f;
-        float moveZ = 0.f;
-
-        bool  isRunPressed = false;
-        bool  isJumpDown = false;
     };
 
 public:
@@ -48,15 +47,15 @@ public:
     void    Update_Movement(float timeDelta);
 
 public:
-    void Apply_Input(const MoveInput& input) { _input = input; }
+    void Apply_Input(const MovementInput& input) { _input = input; }
 
     void Set_Transform(const Shared<TransformCom> transform)
     {
         _transformCom = transform;
     }
 
-    const MoveDesc& Get_MoveDesc()      { return _moveDesc; }
-    const MoveInput& Get_MoveInput()    { return _input;}
+    const MoveDesc&         Get_MoveDesc()      { return _moveDesc; }
+    const MovementInput&    Get_MoveInput()     { return _input;}
 
     bool Is_Grounded() const            { return _isGrounded; }
     bool Is_Jumping()  const            { return _isJumping; }
@@ -90,8 +89,8 @@ private:
     bool Resolve_CameraRelativeMoveDirection(Vec3& outWorldDir) const;
 
 private:
-    MoveDesc    _moveDesc{};
-    MoveInput   _input{};
+    MoveDesc         _moveDesc{};
+    MovementInput    _input{};
 
     Shared<TransformCom> _transformCom;
 
