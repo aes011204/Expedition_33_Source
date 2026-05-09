@@ -13,6 +13,7 @@ public:
     const Matrix& GetView() const { return _view; }
     const Matrix& GetProj() const { return _proj; }
     const Vec3& GetPosition() const { return _position; }
+    float GetFar() const { return _farZ; }
 
     void SetAspect(float aspect) { _aspect = aspect; }
 
