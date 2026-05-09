@@ -11,3 +11,8 @@ namespace Client::Constants::Map
     inline constexpr wchar_t SmallLevel_SimonArea_Remake_Path[] = L"../../../Client/Bin/Resources/Map/SaveJson/SmallLevel_SimonArea_Remake.json";
     inline constexpr wchar_t SaveJson_Dir[] = L"../../../Client/Bin/Resources/Map/SaveJson/";
 }
+
+namespace Client::Constants::Charcter
+{
+    inline constexpr int32 scaleOffset = 10000;
+}

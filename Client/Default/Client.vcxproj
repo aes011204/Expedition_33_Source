@@ -157,10 +157,13 @@
   <ItemGroup>
     <ClInclude Include="..\Public\AN_Test.h" />
     <ClInclude Include="..\Public\ANS_Test.h" />
+    <ClInclude Include="..\public\BattleController.h" />
+    <ClInclude Include="..\public\BattleStateMachine.h" />
     <ClInclude Include="..\public\BT_Attack.h" />
     <ClInclude Include="..\public\BT_CheckDistance.h" />
     <ClInclude Include="..\public\BT_Idle.h" />
     <ClInclude Include="..\Public\BT_Node_Bootstrap.h" />
+    <ClInclude Include="..\public\BT_RotateToTarget.h" />
     <ClInclude Include="..\Public\Client_Constants.h" />
     <ClInclude Include="..\Public\Client_Enum.h" />
     <ClInclude Include="..\Public\Client_Macro.h" />
@@ -173,8 +176,11 @@
     <ClInclude Include="..\Public\Level_Stage01.h" />
     <ClInclude Include="..\Public\MapLoader.h" />
     <ClInclude Include="..\Public\MapStaticMesh.h" />
+    <ClInclude Include="..\public\Monster_Part.h" />
     <ClInclude Include="..\public\Mon_AIController.h" />
     <ClInclude Include="..\public\Mon_BehaviorTree.h" />
+    <ClInclude Include="..\public\Mon_Lancleier_Body.h" />
+    <ClInclude Include="..\public\Mon_Lancleier_Weapon.h" />
     <ClInclude Include="..\Public\PersistentObjectManager.h" />
     <ClInclude Include="..\Public\PlayableParts.h" />
     <ClInclude Include="..\Public\PlayerControllerCom.h" />
@@ -209,10 +215,13 @@
   <ItemGroup>
     <ClCompile Include="..\Private\AN_Test.cpp" />
     <ClCompile Include="..\Private\ANS_Test.cpp" />
+    <ClCompile Include="..\private\BattleController.cpp" />
+    <ClCompile Include="..\private\BattleStateMachine.cpp" />
     <ClCompile Include="..\private\BT_Attack.cpp" />
     <ClCompile Include="..\private\BT_CheckDistance.cpp" />
     <ClCompile Include="..\private\BT_Idle.cpp" />
     <ClCompile Include="..\private\BT_Node_Bootstrap.cpp" />
+    <ClCompile Include="..\Private\BT_RotateToTarget.cpp" />
     <ClCompile Include="..\Private\CombatStatCom.cpp" />
     <ClCompile Include="..\Private\Hair_Player.cpp" />
     <ClCompile Include="..\Private\Head_Player.cpp" />
@@ -221,8 +230,11 @@
     <ClCompile Include="..\Private\Level_Stage01.cpp" />
     <ClCompile Include="..\Private\MapLoader.cpp" />
     <ClCompile Include="..\Private\MapStaticMesh.cpp" />
+    <ClCompile Include="..\private\Monster_Part.cpp" />
     <ClCompile Include="..\private\Mon_AIController.cpp" />
     <ClCompile Include="..\private\Mon_BehaviorTree.cpp" />
+    <ClCompile Include="..\private\Mon_Lancleier_Body.cpp" />
+    <ClCompile Include="..\private\Mon_Lancleier_Weapon.cpp" />
     <ClCompile Include="..\Private\PersistentObjectManager.cpp" />
     <ClCompile Include="..\Private\PlayableParts.cpp" />
     <ClCompile Include="..\Private\PlayerControllerCom.cpp" />

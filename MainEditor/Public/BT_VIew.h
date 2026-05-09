@@ -19,7 +19,7 @@ NS_BEGIN(MainEditor)
 class BT_View : public Editor_Window
 {
 public:
-    enum class NodeType { Selector, Sequence, Task, Decorator };
+    enum class NodeType { Selector, Sequence, Task, Decorator, Parallel };
     enum class PinType { Input, Output };
 
     struct EditorNode
@@ -28,10 +28,8 @@ public:
         ed::NodeId id;
 
         ed::PinId inputPin;
-        ed::PinId outputPin;
-
         PinType inputType = PinType::Input;
-        PinType outputType = PinType::Output;
+        vector<ed::PinId> outputPins;
 
         std::string title;
         ImVec2 position;
@@ -61,6 +59,12 @@ public:
         char nameBuffer[64] = {};
     };
 
+    struct DebugNodeState
+    {
+        Engine::BTNodeState state = Engine::BTNodeState::FAILED;
+        uint64 tick = 0;
+    };
+
 public:
     BT_View();
     virtual ~BT_View();
@@ -84,6 +88,8 @@ public:
 
     void Save_BT(const std::string& path);
     void Load_BT(const std::string& path);
+    void Open_BTAsset(const string& relativePath);
+    void Set_DebugTargetAIController(const Shared<Engine::AIController>& aiController);
 
     void Draw_LoadPopup();
     void Draw_SavePopup();
@@ -101,6 +107,7 @@ public:
     EditorNode* FindNodeById(ed::NodeId id);
     void Update_NodePositions();
     EditorNode* FindNodeByPin(ed::PinId pin);
+    int FindOutputPinIndex(const EditorNode& node, ed::PinId pin) const;
     bool CanNodeHaveChildren(NodeType type) const;
     bool IsInputPin(ed::PinId pin) const;
     bool IsOutputPin(ed::PinId pin) const;
@@ -111,6 +118,9 @@ public:
 
     EditorNode* FindRootNode();
     void SetRootNode(EditorNode* newRoot);
+    void EnsureOutputPins(EditorNode& node, size_t desiredCount);
+    size_t GetDefaultOutputPinCount(NodeType type) const;
+    const char* GetOutputPinLabel(const EditorNode& node, size_t pinIndex) const;
 private: // save, load
     bool _openLoadPopup = false;
     bool _openSavePopup = false;
@@ -139,11 +149,13 @@ private: // Editor
 
 private: // BT
     Weak<Engine::AIController> _debugAIController;
-    unordered_map<uint64, Engine::BTNodeState> _debugNodeStates;
+    unordered_map<uint64, DebugNodeState> _debugNodeStates;
+    uint64 _currentDebugTreeTick = 0;
 
 private:
     void Draw_DebugTargetSelector();
     void Refresh_DebugState();
+    void Reload_AIControllersUsingBT(const string& savedPath);
     void Visit_RuntimeNode(
         const Shared<Engine::BNode>& node,
         const function<void(const Shared<Engine::BNode>&)>& visitor);

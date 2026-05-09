@@ -17,6 +17,7 @@ HINSTANCE g_hInst = nullptr;
 static WCHAR g_windowClass[MAX_LOADSTRING] = L"Expedition158GameLauncher";
 static WCHAR g_windowTitle[MAX_LOADSTRING] = L"Expedition_158";
 
+
 static ATOM Register_GameLauncherClass(HINSTANCE hInstance);
 static BOOL Init_GameLauncherInstance(HINSTANCE hInstance, int nCmdShow);
 static LRESULT CALLBACK GameLauncher_WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
