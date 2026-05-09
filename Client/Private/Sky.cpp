@@ -1,5 +1,6 @@
 ﻿#include "Sky.h"
 #include "GameInstance.h"
+#include "Camera.h"
 
 IMPLEMENT_REFLECTION(Sky)
 {
@@ -45,8 +46,8 @@ void Sky::Priority_Update(float fTimeDelta)
 
 void Sky::Update(float fTimeDelta)
 {
-	const Vec4* camPosition = GAME->Get_CamPosition();
-	_transformCom->Set_Position(Vec3(camPosition->x, camPosition->y, camPosition->z));
+   const Vec4* camPosition = GAME->Get_CamPosition();
+    _transformCom->Set_Position(Vec3(camPosition->x, camPosition->y, camPosition->z));
 }
 
 void Sky::Late_Update(float fTimeDelta)

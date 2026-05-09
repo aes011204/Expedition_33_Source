@@ -225,9 +225,15 @@ bool MovementCom::Resolve_CameraRelativeMoveDirection(Vec3& outWorldDir) const
     Shared<TransformCom> cameraTransform = activeCamera->Get_Transform();
     if (cameraTransform == nullptr)
         return false;
+//
+//    Vec3 cameraForward = cameraTransform->Get_WorldForward();
+//    Vec3 cameraRight = cameraTransform->Get_WorldRight();
 
-    Vec3 cameraForward = cameraTransform->Get_WorldForward();
-    Vec3 cameraRight = cameraTransform->Get_WorldRight();
+    Vec3 cameraForward = Vec3::Zero;
+    Vec3 cameraRight = Vec3::Zero;
+
+    if(!activeCamera->Try_GetFlatMoveBasis(cameraForward, cameraRight))
+        return false;
 
     cameraForward.y = 0.f;
     cameraRight.y = 0.f;

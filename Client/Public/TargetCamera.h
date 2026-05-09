@@ -52,6 +52,7 @@ private:
 
 public:
     void Change_State(CAMERA_STATE state);
+    bool Try_GetFlatMoveBasis(Vec3& outForward, Vec3& outRight) const override;
 
 public:
     //TODO imgui      desc 하나로 보여주는 걸로 바꾸기?
@@ -87,9 +88,9 @@ public:
     float           Get_PivotHeight() {return _pivotHeight;}
     void            Set_PivotHeight(float pivotHeight) {_pivotHeight = pivotHeight;}
 
-    const TARGETCAMERA_DESC& Get_Preset(CAMERA_STATE state) const;
-    void  Set_Preset(CAMERA_STATE state, const TARGETCAMERA_DESC& preset);
-    void  Apply_PreviewPreset(const TARGETCAMERA_DESC& preset);
+    const           TARGETCAMERA_DESC& Get_Preset(CAMERA_STATE state) const;
+    void            Set_Preset(CAMERA_STATE state, const TARGETCAMERA_DESC& preset);
+    void            Apply_PreviewPreset(const TARGETCAMERA_DESC& preset);
 
 private:
     TARGETCAMERA_DESC  _currentSettings;
@@ -111,6 +112,7 @@ private:
                        
     float              _pivotHeight;
 
+    Vec3                _smoothedTargetPos;
     Vec3               _prevTargetPos;
     CAMERA_STATE       _currentState;
 

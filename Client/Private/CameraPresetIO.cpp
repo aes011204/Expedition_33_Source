@@ -13,17 +13,18 @@ void CameraPresetIO::SavePresetToFile(TargetCamera::CAMERA_STATE cameraState, co
 {
     json jsonData {};
 
-    jsonData["followSpeed"]   = preset.followSpeed;
-    jsonData["aimOffset"]     = preset.aimOffset;
-    jsonData["pivotHeight"]   = preset.pivotHeight;
-    jsonData["sideOffset"]    = preset.sideOffset;
-    jsonData["distance"]      = preset.distance;
-    jsonData["heightOffset"]  = preset.heightOffset;
-    jsonData["lookHeight"]    = preset.lookHeight;
-    jsonData["pitchLookScale"]= preset.pitchLookScale;
-    jsonData["pitchMax"]      = preset.pitchMax;
-    jsonData["pitchMin"]      = preset.pitchMin;
-
+    jsonData["followSpeed"]     = preset.followSpeed;
+    jsonData["aimOffset"]       = preset.aimOffset;
+    jsonData["pivotHeight"]     = preset.pivotHeight;
+    jsonData["sideOffset"]      = preset.sideOffset;
+    jsonData["distance"]        = preset.distance;
+    jsonData["heightOffset"]    = preset.heightOffset;
+    jsonData["lookHeight"]      = preset.lookHeight;
+    jsonData["pitchLookScale"]  = preset.pitchLookScale;
+    jsonData["pitchMax"]        = preset.pitchMax;
+    jsonData["pitchMin"]        = preset.pitchMin;
+    jsonData["mouseSensor"]     = preset.mouseSensor;
+    jsonData["mouseSensitivity"]= preset.mouseSensitivity;
     
     const string name = string(magic_enum::enum_name(cameraState));
 
@@ -69,6 +70,9 @@ bool CameraPresetIO::LoadPresetFromFile(TargetCamera::CAMERA_STATE cameraState, 
     preset.pitchLookScale  = jsonData.value("pitchLookScale", preset.pitchLookScale);
     preset.pitchMax  = jsonData.value("pitchMax", preset.pitchMax);
     preset.pitchMin  = jsonData.value("pitchMin", preset.pitchMin);
+    preset.mouseSensor = jsonData.value("mouseSensor",preset.mouseSensor);
+    preset.mouseSensitivity = jsonData.value("mouseSensitivity", preset.mouseSensitivity);
+
     outPreset = preset;
 
     return true;

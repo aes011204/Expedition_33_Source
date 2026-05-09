@@ -314,6 +314,8 @@ void Camera_Tool::Edit_TargetCameraPreset()
     isChanged |= ImGui::DragFloat("pivot height", &preset.pivotHeight, 0.01f);
     isChanged |= ImGui::DragFloat("aim offset", &preset.aimOffset, 0.01f);
     isChanged |= ImGui::DragFloat("look height", &preset.lookHeight, 0.01f);
+    isChanged |= ImGui::DragFloat("mouse sensor", &preset.mouseSensor, 0.01f);
+    isChanged |= ImGui::DragFloat("mouse sensitivity", &preset.mouseSensitivity, 0.01f);
     isChanged |= ImGui::DragFloat("pitch look scale", &preset.pitchLookScale, 0.01f);
     isChanged |= ImGui::DragFloat("Min##Pitch", &preset .pitchMin, 0.1f, -89.f, preset.pitchMax);
     isChanged |= ImGui::DragFloat("Max##Pitch", &preset.pitchMax, 0.1f, preset.pitchMin,89.f);

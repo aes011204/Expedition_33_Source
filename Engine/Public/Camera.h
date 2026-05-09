@@ -48,6 +48,9 @@ public:
     float Get_MouseSensor() {return _mouseSensor; }
     void  Set_MouseSensor(float mouseSensor) { _mouseSensor = mouseSensor; }
 
+public:
+    virtual bool Try_GetFlatMoveBasis(Vec3& outForward, Vec3& outRight) const;
+
 protected:
     float	_fovY{}, _near{}, _far{}, _aspect{};
     float	_mouseSensor = {};
