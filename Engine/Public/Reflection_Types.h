@@ -5,9 +5,12 @@ namespace Engine
     // 이거 세개면 될거같은데
     enum class RegisteredType
     {
+        None,
         Component,
         GameObject,
         BTNode,
+        AnimNotify,
+        AnimNotifyState,
     };
 
     // 리플렉션 프로퍼티 종류

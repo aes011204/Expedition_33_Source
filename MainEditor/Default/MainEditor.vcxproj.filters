@@ -46,6 +46,7 @@
     <ClCompile Include="..\Private\SimpleMath.cpp">
       <Filter>99. Defines</Filter>
     </ClCompile>
+    <ClCompile Include="..\private\Camera_Tool.cpp" />
     <ClCompile Include="..\Private\CommandHistory.cpp">
       <Filter>97. Utils</Filter>
     </ClCompile>
@@ -75,6 +76,28 @@
     </ClCompile>
     <ClCompile Include="..\Private\Prefab_View.cpp" />
     <ClCompile Include="..\Private\Model_Inspector.cpp" />
+    <ClCompile Include="..\Private\Component_Inspector.cpp">
+      <Filter>02. Inspector</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Animation_View.cpp">
+      <Filter>01. View</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Console_View.cpp">
+      <Filter>01. View</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Inspector_Factory.cpp">
+      <Filter>97. Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Model_Inspector.cpp">
+      <Filter>02. Inspector</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Transform_Inspector.cpp">
+      <Filter>02. Inspector</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\AnimSequencerAdapter.cpp" />
+    <ClCompile Include="..\Private\ImSequencer.cpp">
+      <Filter>01. View</Filter>
+    </ClCompile>
     <ClCompile Include="..\private\AIController_Inspector.cpp" />
   </ItemGroup>
   <ItemGroup>

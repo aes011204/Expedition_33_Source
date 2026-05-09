@@ -112,6 +112,11 @@ Content_Browser::Content_Browser()
     Load_Settings();
 }
 
+Content_Browser::~Content_Browser()
+{
+    Save_Settings();
+}
+
 void Content_Browser::Update(float timeDelta)
 {
     Editor_Window::Update(timeDelta);
@@ -160,8 +165,7 @@ void Content_Browser::Render()
                     FFolderNode* firstMatch = Get_FirstMatchingFolder(_rootFolder, searchLower);
                     if (firstMatch && _currentFolder != firstMatch)
                     {
-                        _currentFolder = firstMatch;
-                        Expand_PathTo(firstMatch->fullPath);
+                        Open_Folder(firstMatch);
                     }
                 }
             }

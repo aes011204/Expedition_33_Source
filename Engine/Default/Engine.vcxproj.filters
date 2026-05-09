@@ -230,6 +230,9 @@
     </ClInclude>
     <ClInclude Include="..\public\AStar.h" />
     <ClInclude Include="..\Public\Reflection_JsonUtil.h" />
+    <ClInclude Include="..\Public\Culling_Manager.h" />
+    <ClInclude Include="..\Public\AnimNotify.h" />
+    <ClInclude Include="..\Public\AnimNotifyState.h" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\public\Base.h">
@@ -740,6 +743,9 @@
     <ClCompile Include="..\private\UI_Text.cpp" />
     <ClCompile Include="..\private\UI_Transform.cpp" />
     <ClCompile Include="..\private\AStar.cpp" />
+    <ClCompile Include="..\Private\Culling_Manager.cpp" />
+    <ClCompile Include="..\Private\AnimNotify.cpp" />
+    <ClCompile Include="..\Private\AnimNotifyState.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Bin\ShaderFiles\Engine_Shader_Defines.hlsli">

@@ -1,8 +1,8 @@
 ﻿#include "Hierarchy_View.h"
-
 #include "EditorInstance.h"
 #include "GameInstance.h"
 #include "GameObject.h"
+#include "Client_Defines.h"
 
 Hierarchy_View::Hierarchy_View()
     : Editor_Window{ L"Hierarchy" }
@@ -81,14 +81,28 @@ void Hierarchy_View::Rebuild_Cache()
 {
     _groupedObjects.clear();
 
-    GAME->Visit_CurrentLevelObjects(
-        [this](const wstring& layerTag, const Shared<GameObject>& gameObject)
+    auto appendLevelObjects =
+        [this](uint32 levelIndex, const char* levelLabel)
         {
-            if (gameObject == nullptr)
-                return;
+            GAME->Visit_LevelObjects(
+                levelIndex,
+                [this, levelLabel](const wstring& layerTag, const Shared<GameObject>& gameObject)
+                {
+                    if (gameObject == nullptr)
+                        return;
 
-            _groupedObjects[layerTag].push_back(gameObject);
-        });
+                    const wstring groupedLayerTag =
+                        String::ToWString(format("[{}] {}", levelLabel, String::ToString(layerTag)));
+
+                    _groupedObjects[groupedLayerTag].push_back(gameObject);
+                });
+        };
+
+    appendLevelObjects(ETOI(LevelType::Static), "Static");
+
+    const uint32 currentLevelIndex = GAME->Current_LevelIndex();
+    if (currentLevelIndex != ETOI(LevelType::Static))
+        appendLevelObjects(currentLevelIndex, "Current");
 
     _dirtyHierarchyCache = false;
 }

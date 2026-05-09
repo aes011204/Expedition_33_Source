@@ -4,6 +4,7 @@
 #include "Player.h"
 #include "ResourceLoader.h"
 #include "BT_Node_Bootstrap.h"
+#include "PersistentObjectManager.h"
 
 IMPLEMENT_SINGLETON(ClientInstance)
 
@@ -26,6 +27,9 @@ HRESULT ClientInstance::Initialize_Client(const ComPtr<Device>& device, const Co
 
     Client::Force_Register_ClientBTNodes();
 
+    _persistentObjectManager = PersistentObjectManager::Create();
+    CHECK_NULL(_persistentObjectManager, E_FAIL);
+
 	return S_OK;
 }
 
@@ -33,7 +37,7 @@ HRESULT ClientInstance::Ready_StaticResources()
 {
     CHECK_NULL(_resourceLoader, E_FAIL);
 
-	if (FAILED(_resourceLoader->Load_LevelTables(static_cast<LevelType>(LevelType::Static))))
+	if (FAILED(_resourceLoader->Load_LevelTables((LevelType::Static))))
 		return E_FAIL;
 
 	return S_OK;
@@ -56,11 +60,17 @@ Shared<ResourceLoader> ClientInstance::Get_ResourceLoader() const
 
 Shared<GameObject> ClientInstance::Find_Player(uint32 levelIndex)
 {
-    auto gameObject = GAME->Find_FirstObject(levelIndex, TEXT("Layer_Player"));
-    if (gameObject == nullptr)
-        return nullptr;
+    //auto gameObject = GAME->Find_FirstObject(levelIndex, TEXT("Layer_Player"));
+    //if (gameObject == nullptr)
+    //    return nullptr;
 
-    return dynamic_pointer_cast<Player>(gameObject);
+    //return dynamic_pointer_cast<Player>(gameObject);
+    return _persistentObjectManager->Find_Player();
+}
+
+HRESULT ClientInstance::Ready_StaticObjects()
+{
+    return _persistentObjectManager->Spawn_StaticObjects();
 }
 
 HRESULT ClientInstance::Ready_ResourceLoader()
@@ -73,6 +83,12 @@ HRESULT ClientInstance::Ready_ResourceLoader()
 
 void ClientInstance::Release_Client()
 {
+    if (_persistentObjectManager)
+    {
+        _persistentObjectManager->Free();
+        _persistentObjectManager.reset();
+    }
+
     if (_resourceLoader)
     {
         _resourceLoader->Free();

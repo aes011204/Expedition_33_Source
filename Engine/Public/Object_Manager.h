@@ -33,8 +33,11 @@ public:
 
     Shared<GameObject> Find_FirstObject(uint32 levelIndex, const wstring& layerTag);
 
-   void    Visit_LevelObjects(
-       const function<void(const wstring& layerTag, const Shared<GameObject>& gameObject)>& visitor) const;
+    void    Visit_LevelObjects(
+                    const function<void(const wstring& layerTag, const Shared<GameObject>& gameObject)>& visitor) const;
+
+    void    Visit_LevelObjects(uint32 levelIndex,
+                    const function<void(const wstring& layerTag, const Shared<GameObject>& gameObject)>& visitor) const;
 
    uint64 Get_ObjectRevision() const { return _objectRevision; }
 

@@ -124,10 +124,6 @@
       <ForcedIncludeFiles>pch.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
       <AdditionalOptions>/utf-8 /bigobj %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
-    <Lib>
-      <AdditionalLibraryDirectories>../../EngineSDK/lib/$(Configuration)/;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>Engine.lib;%(AdditionalDependencies)</AdditionalDependencies>
-    </Lib>
     <FxCompile>
       <ShaderType>Effect</ShaderType>
     </FxCompile>
@@ -151,10 +147,6 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <AdditionalOptions>/utf-8 /bigobj %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
-    <Lib>
-      <AdditionalLibraryDirectories>../../EngineSDK/lib/$(Configuration)/;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>Engine.lib;%(AdditionalDependencies)</AdditionalDependencies>
-    </Lib>
     <FxCompile>
       <ShaderType>Effect</ShaderType>
     </FxCompile>
@@ -163,6 +155,8 @@
     </FxCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\Public\AN_Test.h" />
+    <ClInclude Include="..\Public\ANS_Test.h" />
     <ClInclude Include="..\public\BT_Attack.h" />
     <ClInclude Include="..\public\BT_CheckDistance.h" />
     <ClInclude Include="..\public\BT_Idle.h" />
@@ -187,6 +181,7 @@
     <ClInclude Include="..\Public\MapStaticMesh.h" />
     <ClInclude Include="..\public\Mon_AIController.h" />
     <ClInclude Include="..\public\Mon_BehaviorTree.h" />
+    <ClInclude Include="..\Public\PersistentObjectManager.h" />
     <ClInclude Include="..\Public\PlayableParts.h" />
     <ClInclude Include="..\Public\PlayerControllerCom.h" />
     <ClInclude Include="..\Public\Spawn_Prefab.h" />
@@ -211,6 +206,8 @@
     <ClInclude Include="..\Public\Weapon.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\Private\AN_Test.cpp" />
+    <ClCompile Include="..\Private\ANS_Test.cpp" />
     <ClCompile Include="..\private\BT_Attack.cpp" />
     <ClCompile Include="..\private\BT_CheckDistance.cpp" />
     <ClCompile Include="..\private\BT_Idle.cpp" />
@@ -229,6 +226,7 @@
     <ClCompile Include="..\Private\MapStaticMesh.cpp" />
     <ClCompile Include="..\private\Mon_AIController.cpp" />
     <ClCompile Include="..\private\Mon_BehaviorTree.cpp" />
+    <ClCompile Include="..\Private\PersistentObjectManager.cpp" />
     <ClCompile Include="..\Private\PlayableParts.cpp" />
     <ClCompile Include="..\Private\PlayerControllerCom.cpp" />
     <ClCompile Include="..\Private\SimpleMath.cpp" />
@@ -257,6 +255,7 @@
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_Deferred.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_BillboardParticle.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_UI.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxCube.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMesh.hlsl" />

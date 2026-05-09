@@ -1,9 +1,10 @@
 ﻿#include "Level_GamePlay.h"
 #include "GameInstance.h"
 #include "ClientInstance.h"
-#include "FreeCamera.h"
-#include "TargetCamera.h"
+//#include "FreeCamera.h"
+//#include "TargetCamera.h"
 #include "PointParticlePreview.h"
+#include "Spawn_Prefab.h"
 
 //#include "MapLoader.h"
 
@@ -24,8 +25,8 @@ HRESULT Level_GamePlay::Initialize()
     if (FAILED(Ready_Layer_UI(TEXT("Layer_UI"))))
 		return E_FAIL;
 
-	if (FAILED(Ready_Layer_Camera(TEXT("Layer_Camera"))))
-		return E_FAIL;
+	//if (FAILED(Ready_Layer_Camera(TEXT("Layer_Camera"))))
+	//	return E_FAIL;
 
     if (FAILED(Ready_Layer_BackGround(TEXT("Layer_BackGround"))))
         return E_FAIL;
@@ -165,9 +166,9 @@ HRESULT Level_GamePlay::Ready_Layer_BackGround(const wstring& strLayerTag)
         ETOI(LevelType::GamePlay), strLayerTag)))
         return E_FAIL;
 
-    if (FAILED(GAME->Add_GameObject(ETOI(LevelType::Static), TEXT("GameObject_Sky"),
-        ETOI(LevelType::Static), strLayerTag)))
-        return E_FAIL;
+    //if (FAILED(GAME->Add_GameObject(ETOI(LevelType::Static), TEXT("GameObject_Sky"),
+    //    ETOI(LevelType::Static), strLayerTag)))
+    //    return E_FAIL;
 
     if (FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_PointParticlePreview"),
         ETOI(LevelType::GamePlay), strLayerTag)))
@@ -189,9 +190,9 @@ HRESULT Level_GamePlay::Ready_Layer_Monster(const wstring& strLayerTag)
 
 HRESULT Level_GamePlay::Ready_Layer_Player(const wstring& strLayerTag)
 {
-    if (FAILED(GAME->Add_GameObject(ETOI(LevelType::Static), TEXT("GameObject_Player"),
-        ETOI(LevelType::Static), strLayerTag)))
-        return E_FAIL;
+    //if (FAILED(GAME->Add_GameObject(ETOI(LevelType::Static), TEXT("GameObject_Player"),
+    //    ETOI(LevelType::Static), strLayerTag)))
+    //    return E_FAIL;
 
     auto goPlayer = CLIENT->Find_Player(ETOI(LevelType::Static));
     if (goPlayer)

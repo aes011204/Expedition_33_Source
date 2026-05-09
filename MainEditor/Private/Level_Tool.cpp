@@ -1,11 +1,13 @@
 ﻿#include "Level_Tool.h"
 #include "GameInstance.h"
+#include "ClientInstance.h"
 #include "Level_Loading.h"
+#include "MapLoader.h"
 
 Level_Tool::Level_Tool()
     : Editor_Window{ L"Level Tool" }
 {
-    Set_Open(false);
+    Set_Open(true);
 }
 
 HRESULT Level_Tool::Initialize()
@@ -40,9 +42,20 @@ void Level_Tool::Render_LevelSwitcher()
 
     ImGui::Combo("Target Level", &_selectedLevelIndex, _levelNames, IM_ARRAYSIZE(_levelNames));
 
+    const bool isSameLevel = (GAME->Current_LevelIndex() == ETOI(_levelTypes[_selectedLevelIndex]));
+    if (isSameLevel)
+    {
+        ImGui::BeginDisabled();
+    }
+
     if (ImGui::Button("Switch Level", ImVec2(-1, 0)))
     {
         Change_To(_levelTypes[_selectedLevelIndex]);
+    }
+
+    if (isSameLevel)
+    {
+        ImGui::EndDisabled();
     }
 }
 
@@ -85,8 +98,9 @@ void Level_Tool::Render_MapLoader()
         {
             wstring fullPath = wstring(Client::Constants::Map::SaveJson_Dir) +
                 String::ToWString(_jsonFiles[_selectedJsonIndex]);
-            // TODO: 현재 레벨의 MapStaticMesh 레이어에 로드
-            // MapLoader::Load(_device, _context, fullPath, GAME->Current_LevelIndex(), L"Layer_MapStaticMesh");
+
+            MapLoader::Load(GAME->Get_Device(), GAME->Get_Context(), fullPath,
+                GAME->Current_LevelIndex(), L"Layer_MapStaticMesh");
         }
     }
 }
