@@ -32,6 +32,9 @@
 #include <unordered_set>
 #include <vector>
 #include <set>
+#include <atomic>
+#include <mutex>
+#include <queue>
 
 #pragma warning(disable : 4251 4275)
 

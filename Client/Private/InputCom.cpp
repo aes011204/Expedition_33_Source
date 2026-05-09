@@ -7,7 +7,8 @@ InputCom::InputCom(const ComPtr<Device>& device, const ComPtr<Context>& context)
 }
 
 InputCom::InputCom(const InputCom& Prototype)
-    : Component{Prototype}, _frame(Prototype._frame)
+    : Component{Prototype}
+    , _movementInput(Prototype._movementInput)
 {
 }
 
@@ -24,7 +25,7 @@ HRESULT InputCom::Initialize(void* arg)
 {
     CHECK_FAILED(Component::Initialize(arg), E_FAIL);
 
-    _frame = {};
+    _movementInput = {};
 
     return S_OK;
 }
@@ -32,35 +33,35 @@ HRESULT InputCom::Initialize(void* arg)
 void InputCom::Update_Input()
 {
     // 매 프레임 입력 초기화
-    _frame = {};
+    _movementInput = {};
 
      if (GAME->KeyPress(KEY_TYPE::W))
-        _frame.moveZ += 1.f;
+        _movementInput.moveZ += 1.f;
 
     if (GAME->KeyPress(KEY_TYPE::S))
-        _frame.moveZ -= 1.f;
+        _movementInput.moveZ -= 1.f;
 
     if (GAME->KeyPress(KEY_TYPE::A))
-        _frame.moveX -= 1.f;
+        _movementInput.moveX -= 1.f;
 
     if (GAME->KeyPress(KEY_TYPE::D))
-        _frame.moveX += 1.f;
+        _movementInput.moveX += 1.f;
 
-    _frame.isRunPressed = GAME->KeyPress(KEY_TYPE::SHIFT);
-    _frame.isJumpDown = GAME->KeyDown(KEY_TYPE::SPACE);
-    _frame.isWalkDown = GAME->KeyDown(KEY_TYPE::CTRL);
+    _movementInput.isRunPressed = GAME->KeyPress(KEY_TYPE::SHIFT);
+    _movementInput.isJumpDown = GAME->KeyDown(KEY_TYPE::SPACE);
+    _movementInput.isWalkDown = GAME->KeyDown(KEY_TYPE::CTRL);
 
-    _frame.isInteractionDown = GAME->KeyDown(KEY_TYPE::E);
-    _frame.isSuddenAttack = GAME->KeyDown(KEY_TYPE::F);
+    _movementInput.isInteractionDown = GAME->KeyDown(KEY_TYPE::E);
+    _movementInput.isSuddenAttack = GAME->KeyDown(KEY_TYPE::F);
 
-    _frame.isMouseLDown = GAME->KeyDown(KEY_TYPE::LBUTTON);
-    _frame.isMouseRPress = GAME->KeyPress(KEY_TYPE::RBUTTON);
-    _frame.isMouseRUp = GAME->KeyUp(KEY_TYPE::RBUTTON);
+    _movementInput.isMouseLDown = GAME->KeyDown(KEY_TYPE::LBUTTON);
+    _movementInput.isMouseRPress = GAME->KeyPress(KEY_TYPE::RBUTTON);
+    _movementInput.isMouseRUp = GAME->KeyUp(KEY_TYPE::RBUTTON);
 }
 
 bool InputCom::Has_MoveInput() const
 {
-    return _frame.moveX != 0.f || _frame.moveZ != 0.f;
+    return _movementInput.moveX != 0.f || _movementInput.moveZ != 0.f;
 }
 
 bool InputCom::Has_AnyInput() const

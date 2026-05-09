@@ -49,7 +49,7 @@ private:
     Shared<InputCom>                _inputCom{ nullptr };
     Shared<PlayerControllerCom>     _playerControllerCom{ nullptr };
     Shared<ColliderCom>             _colliderCom{ nullptr };
-    Shared<PlayerStateMachineCom>  _PlayerStateMachineCom{ nullptr };
+
 
 public:
 	static Shared<Player> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

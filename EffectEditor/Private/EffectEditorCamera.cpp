@@ -119,11 +119,14 @@ void EffectEditorCamera::Priority_Update(float timeDelta)
 
     if (!EDITOR->Is_PreviewCameraControlEnabled())
     {
-        EDITOR->Set_PreviewCameraDragging(false);
+        EDITOR->End_PreviewCameraDrag();
         Update_CameraTransform();
         Update_TransformMatrices();
         return;
     }
+
+    if (EDITOR->Is_PreviewCameraDragging() && !GAME->KeyPress(KEY_TYPE::RBUTTON))
+        EDITOR->End_PreviewCameraDrag();
 
     if (ImGui::IsKeyPressed(ImGuiKey_F, false))
         Start_HomeTransition();
@@ -132,13 +135,11 @@ void EffectEditorCamera::Priority_Update(float timeDelta)
         GAME->KeyPress(KEY_TYPE::ALT) || GAME->KeyDown(KEY_TYPE::ALT);
     const bool panDragging = altHeld && ImGui::IsMouseDown(ImGuiMouseButton_Middle);
     const bool orbitDragging = altHeld && ImGui::IsMouseDown(ImGuiMouseButton_Left);
-    const bool dollyDragging = altHeld && ImGui::IsMouseDown(ImGuiMouseButton_Right);
-    const bool rightMouseHeld = GAME->KeyPress(KEY_TYPE::RBUTTON);
-    const bool freeFlyDragging = !altHeld && GAME->KeyPress(KEY_TYPE::RBUTTON);
+    const bool rightMouseHeld = EDITOR->Is_PreviewCameraDragging() && GAME->KeyPress(KEY_TYPE::RBUTTON);
+    const bool dollyDragging = altHeld && rightMouseHeld;
+    const bool freeFlyDragging = !altHeld && rightMouseHeld;
     const bool isDragging = panDragging || orbitDragging || dollyDragging || freeFlyDragging;
     const float wheelDelta = GAME->Get_MouseWheel();
-
-    EDITOR->Set_PreviewCameraDragging(isDragging);
 
     if (rightMouseHeld && wheelDelta != 0.f)
     {

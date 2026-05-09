@@ -1,31 +1,13 @@
 ﻿#pragma once
 
 #include "Component.h"
+#include "MovementCom.h"
 
 NS_BEGIN(Client)
 
 class InputCom : public Component
 {
     GENERATED_COMPONENT(InputCom)
-
-public:
-    // 현재 프레임에 입력된 값
-    struct InputFrame
-    {
-        float   moveX{ 0.f };
-        float   moveZ{ 0.f };
-
-        bool    isRunPressed{ false };          // Shift
-        bool    isJumpDown{ false };            // Space
-        bool    isWalkDown{ false };            // Ctrl
-
-        bool    isInteractionDown{ false };     // 상호작용 E
-        bool    isSuddenAttack{ false };        // 장풍 F
-
-        bool    isMouseLDown{ false };          // 좌 클릭 발사 
-        bool    isMouseRPress{ false };         // 우클릭 에이밍
-        bool    isMouseRUp{ false };            // 우클릭 취소 에이밍 취소
-    };
 
 public:
     explicit InputCom(const ComPtr<Device>& device, const ComPtr<Context>& context);
@@ -38,14 +20,11 @@ public:
 
     void    Update_Input();
 
-    const InputFrame& Get_Frame() { return _frame; }
-
-    bool    Has_MoveInput() const;     // W, S 입력 들어왔는지
-    bool    Has_AnyInput()  const;     // WASD 중 아무거나 들어왔을 때
+    const MovementCom::MovementInput& Get_MovementInput() const { return _movementInput; }
+    bool    Has_MoveInput() const;     // 입력이 들어왔는지
 
 private:
-    InputFrame _frame;
-    
+    MovementCom::MovementInput _movementInput{};
 
 public:
     static Shared<InputCom> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

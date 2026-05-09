@@ -267,6 +267,13 @@
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxTex.hlsl" />
   </ItemGroup>
   <ItemGroup>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_BufferSmoke.hlsl">
+      <ShaderType>Compute</ShaderType>
+      <ShaderModel>5.0</ShaderModel>
+      <EntryPointName>CS_Main</EntryPointName>
+    </FxCompile>
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\..\Engine\Default\Engine.vcxproj">
       <Project>{03054186-8B87-4D59-91C6-0AC09D31002D}</Project>
     </ProjectReference>

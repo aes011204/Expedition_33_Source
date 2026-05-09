@@ -40,6 +40,10 @@ BlendState BS_AlphaBlend
     SrcBlend = Src_Alpha;
     DestBlend = Inv_Src_Alpha;
     BlendOp = Add;
+
+    SrcBlendAlpha = Zero;
+    DestBlendAlpha = One;
+    BlendOpAlpha = Add;
 };
 
 BlendState BS_Blend

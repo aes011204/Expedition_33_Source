@@ -55,24 +55,14 @@ void PlayerControllerCom::Update_Controller(float timeDelta)
 {
 	if (GAME->Is_PlayerInputBlocked())
 	{
-		MovementCom::MoveInput moveInput{};
-		_movementCom->Apply_Input(moveInput);
+		_movementCom->Apply_Input({});
 		return;
 	}
 
 	_inputCom->Update_Input();
 
-	MovementCom::MoveInput moveInput{};
-	const InputCom::InputFrame& inputFrame = _inputCom->Get_Frame();
-
-	moveInput.moveX = inputFrame.moveX;
-	moveInput.moveZ = inputFrame.moveZ;
-	moveInput.isRunPressed = inputFrame.isRunPressed;
-	moveInput.isJumpDown = inputFrame.isJumpDown;
-
-	_movementCom->Apply_Input(moveInput);
+	_movementCom->Apply_Input(_inputCom->Get_MovementInput());
 	_movementCom->Update_Movement(timeDelta);
-
 }
 
 Shared<PlayerControllerCom> PlayerControllerCom::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

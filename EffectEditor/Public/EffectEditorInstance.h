@@ -105,7 +105,10 @@ public: //## Behavior::CameraControl
 public: //## Behavior::InputPolicy
     void Set_SceneViewportInputState(bool canInteract, bool blocked);
     void Set_GameViewportInputState(bool canInteract);
-    void Set_PreviewCameraDragging(bool isDragging) { _isPreviewCameraDragging = isDragging; }
+    void Set_PreviewCameraLockScreenRect(const RECT& lockRectScreen);
+    void Clear_PreviewCameraLockScreenRect();
+    void Begin_PreviewCameraDrag();
+    void End_PreviewCameraDrag();
 
     void Apply_RuntimeInputPolicy();
 
@@ -170,6 +173,8 @@ private: //## Data::InputPolicy
     bool _isGameViewportInputEnabled{ false };
     bool _isPreviewCameraControlEnabled{ false };
     bool _isPreviewCameraDragging{ false };
+    bool _hasPreviewCameraLockScreenRect{ false };
+    RECT _previewCameraLockScreenRect{};
 
 private: //## Helper::PreviewViewport
     void Ensure_SceneGridResources();
