@@ -1,23 +1,23 @@
-#include "Editor_Camera_Free.h"
+﻿#include "Editor_Camera_Free.h"
 
 Editor_Camera_Free::Editor_Camera_Free(const ComPtr<Device>& device, const ComPtr<Context>& context)
-    : Engine::Camera(device, context)
+    : Camera(device, context)
 {
 }
 
 Editor_Camera_Free::Editor_Camera_Free(const Editor_Camera_Free& prototype)
-    : Engine::Camera(prototype)
+    : Camera(prototype)
 {
 }
 
 HRESULT Editor_Camera_Free::Initialize_Prototype()
 {
-    return Engine::Camera::Initialize_Prototype();
+    return Camera::Initialize_Prototype();
 }
 
 HRESULT Editor_Camera_Free::Initialize(void* arg)
 {
-    return Engine::Camera::Initialize(arg);
+    return Camera::Initialize(arg);
 }
 
 void Editor_Camera_Free::Priority_Update(float timeDelta)
@@ -133,5 +133,5 @@ Shared<GameObject> Editor_Camera_Free::Clone(void* arg)
 
 void Editor_Camera_Free::Free()
 {
-    Engine::Camera::Free();
+    Camera::Free();
 }

@@ -1,4 +1,4 @@
-﻿@echo off
+@echo off
 chcp 949 > nul
 setlocal
 pushd "%~dp0"
@@ -13,7 +13,7 @@ if /I "%~1"=="google" goto sync_mode
 if /I "%~1"=="sync-google" goto sync_mode
 if /I "%~1"=="help" goto help
 
-echo 잘못된 옵션입니다: %~1
+echo �߸��� �ɼ��Դϴ�: %~1
 echo.
 goto help_error
 
@@ -24,14 +24,14 @@ echo ========================================
 echo   Table Convert
 echo ========================================
 echo.
-echo   1^) xlsx to json으로 변환
-echo   2^) 구글 시트 가져오기 ^(다른 사람이 수정한거^)
+echo   1^) xlsx to json���� ��ȯ
+echo   2^) ���� ��Ʈ �������� ^(�ٸ� ����� �����Ѱ�^)
 echo.
-set /p USER_CHOICE=번호 선택 ^(1-2^): 
+set /p USER_CHOICE=��ȣ ���� ^(1-2^): 
 if "%USER_CHOICE%"=="1" goto local_mode
 if "%USER_CHOICE%"=="2" goto sync_mode
 echo.
-echo 1 또는 2를 입력해주세요.
+echo 1 �Ǵ� 2�� �Է����ּ���.
 pause
 goto prompt
 
@@ -48,13 +48,13 @@ goto run
 :help
 echo Usage:
 echo   RunConvertXLSX.bat
-echo     - 메뉴를 띄우고 선택합니다.
+echo     - �޴��� ���� �����մϴ�.
 echo   RunConvertXLSX.bat 1
-echo     - 로컬 xlsx만 json으로 변환합니다.
+echo     - ���� xlsx�� json���� ��ȯ�մϴ�.
 echo   RunConvertXLSX.bat 2
-echo     - 구글 시트를 먼저 가져온 뒤 변환합니다.
+echo     - ���� ��Ʈ�� ���� ������ �� ��ȯ�մϴ�.
 echo   RunConvertXLSX.bat sync
-echo     - 2번과 같은 동작입니다.
+echo     - 2���� ���� �����Դϴ�.
 popd
 pause
 exit /b 0
@@ -85,4 +85,5 @@ if not "%EXIT_CODE%"=="0" (
 echo ConvertXLSX completed.
 popd
 if defined SHOW_PAUSE pause
+
 exit /b 0

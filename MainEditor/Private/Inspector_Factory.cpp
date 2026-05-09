@@ -11,7 +11,6 @@ void Inspector_Factory::Initialize()
     // StaticClassNameA -> const char* | StaticClassName -> const wchar* (엔진 내부 저장용)
     Register_Inspector(TransformCom::StaticClassNameA(), Transform_Inspector::Create());
 
-
     Register_Inspector("ModelCom", ModelCom_Inspector::Create());
     Register_Inspector("AIController", AIController_Inspector::Create());
 }
