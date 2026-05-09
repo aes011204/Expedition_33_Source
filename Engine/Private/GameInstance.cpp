@@ -596,6 +596,26 @@ void GameInstance::Unlock_Mouse()
     return _inputManager->Unlock_Mouse();
 }
 
+void GameInstance::Begin_EditorMouseLockSession()
+{
+    return _inputManager->Begin_EditorMouseLockSession();
+}
+
+void GameInstance::End_EditorMouseLockSession()
+{
+    return _inputManager->End_EditorMouseLockSession();
+}
+
+void GameInstance::Set_MouseLockOverrideRect(const RECT& lockRectScreen)
+{
+    return _inputManager->Set_MouseLockOverrideRect(lockRectScreen);
+}
+
+void GameInstance::Clear_MouseLockOverrideRect()
+{
+    return _inputManager->Clear_MouseLockOverrideRect();
+}
+
 void GameInstance::Set_InputBlocked(bool isBlocked)
 {
     return _inputManager->Set_InputBlocked(isBlocked);

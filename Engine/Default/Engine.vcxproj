@@ -209,6 +209,8 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClInclude Include="..\Public\Collision_Manager.h" />
     <ClInclude Include="..\Public\Collision_Define.h" />
     <ClInclude Include="..\Public\Composite.h" />
+    <ClInclude Include="..\Public\ComputeShaderCom.h" />
+    <ClInclude Include="..\Public\ComputeStructuredBuffer.h" />
     <ClInclude Include="..\Public\Culling_Manager.h" />
     <ClInclude Include="..\Public\Debug_Manager.h" />
     <ClInclude Include="..\Public\Debug_Types.h" />
@@ -320,6 +322,8 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClCompile Include="..\Private\ColliderCom.cpp" />
     <ClCompile Include="..\Private\Collision_Manager.cpp" />
     <ClCompile Include="..\Private\Composite.cpp" />
+    <ClCompile Include="..\Private\ComputeShaderCom.cpp" />
+    <ClCompile Include="..\Private\ComputeStructuredBuffer.cpp" />
     <ClCompile Include="..\Private\Culling_Manager.cpp" />
     <ClCompile Include="..\PRivate\Debug_Manager.cpp" />
     <ClCompile Include="..\Private\DebugDraw.cpp" />
