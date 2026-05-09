@@ -4,8 +4,12 @@
 
 namespace UIEditor
 {
+    class UI_DocumentSerializer;
+
     class UI_Document final
     {
+        friend class UI_DocumentSerializer;
+
     public:
         UI_Document();
 

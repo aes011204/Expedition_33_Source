@@ -43,7 +43,9 @@ namespace UIEditor
             if (_editorManager.Get_SelectedObjectId() == 0)
                 canvasFlags |= ImGuiTreeNodeFlags_Selected;
 
-            const bool isCanvasOpen = ImGui::TreeNodeEx("CanvasRoot", canvasFlags, "Canvas");
+            const string& canvasName = _editorManager.Get_Document().Get_CanvasName();
+            const char* canvasLabel = canvasName.empty() ? "Canvas" : canvasName.c_str();
+            const bool isCanvasOpen = ImGui::TreeNodeEx("CanvasRoot", canvasFlags, "%s", canvasLabel);
             if (ImGui::IsItemClicked())
                 _editorManager.Set_SelectedObjectId(0);
 
@@ -145,7 +147,14 @@ namespace UIEditor
         Render_CreateMenu();
 
         if (objectId == 0)
+        {
+            ImGui::Separator();
+
+            if (ImGui::MenuItem("Rename"))
+                _editorManager.Request_RenameCanvas();
+
             return;
+        }
 
         ImGui::Separator();
 

@@ -1,12 +1,9 @@
 #pragma once
 #include "UI_Document.h"
+#include "UI_Editor_FileService.h"
+#include "UI_Editor_HistoryService.h"
+#include "UI_Editor_PreviewService.h"
 #include "UI_Editor_Window.h"
-
-namespace Engine
-{
-    class ShaderCom;
-    class VIBuffer_Rect;
-}
 
 NS_BEGIN(UIEditor)
 
@@ -41,6 +38,8 @@ public:
     void Delete_UIObject(ObjectId objectId);
     void Duplicate_SelectedUIObject();
     void Delete_SelectedUIObject();
+    bool Rename_Canvas(const string& newName);
+    void Request_RenameCanvas();
     bool Rename_UIObject(ObjectId objectId, const string& newName);
     void Request_RenameUIObject(ObjectId objectId);
     bool Reparent_UIObject(ObjectId objectId, ObjectId newParentId);
@@ -69,27 +68,6 @@ public:
         const D3D11_RECT& clipRect);
 
 private:
-    struct FontPreviewCommand
-    {
-        string fontGuid = "";
-        string fontPath = "";
-        wstring text = L"";
-        Vec2 position = Vec2(0.f, 0.f);
-        Vec4 color = Vec4(1.f, 1.f, 1.f, 1.f);
-        float rotationRadians = 0.f;
-        Vec2 pivot = Vec2(0.f, 0.f);
-        float scale = 1.f;
-        D3D11_RECT clipRect = {};
-    };
-
-    struct HistoryState
-    {
-        UI_Document document = {};
-        ObjectId selectedObjectId = 0;
-        bool isDirty = false;
-        string documentSignature = "";
-    };
-
     void Render_DockSpace();
     bool Save_Document();
     bool Save_DocumentAs();
@@ -98,59 +76,26 @@ private:
     void Handle_Shortcuts();
     void Render_RenamePopup();
     void Clear_RuntimeCaches();
-    bool Show_SaveFileDialog(wstring& outFilePath) const;
-    bool Show_LoadFileDialog(wstring& outFilePath) const;
-    wstring Resolve_DefaultJsonDirectory() const;
-    void Ensure_JsonExtension(wstring& filePath) const;
     void Resolve_LoadedAssetReferences();
     ObjectId Resolve_CreateParentId() const;
-    SpriteFont* Get_FontPreview(const string& fontGuid, const string& fontPath);
-    string Make_DocumentSignature(const UI_Document& document) const;
-    HistoryState Capture_HistoryState() const;
-    bool Is_SameHistoryState(const HistoryState& lhs, const HistoryState& rhs) const;
-    bool Is_CurrentDocumentClean() const;
     void Push_UndoSnapshot();
-    void Push_HistoryState(vector<HistoryState>& historyStack, const HistoryState& historyState) const;
     void Clear_History();
-    void Apply_HistoryState(const HistoryState& historyState);
-    bool Ensure_ImagePreviewRenderer();
-    ID3D11ShaderResourceView* Create_MaskedTexturePreviewSRV(
-        const string& cacheKey,
-        ID3D11ShaderResourceView* textureSRV,
-        ID3D11ShaderResourceView* maskSRV);
 
 public:
     static Unique<UI_Editor_Manager> Create(const ComPtr<Device>& device, const ComPtr<Context>& context, bool assetManagerReady);
 
 private:
-    ComPtr<Device> _device = nullptr;
-    ComPtr<Context> _context = nullptr;
     UI_Document _document = {};
     map<wstring, Shared<UI_Editor_Window>> _windows = {};
     ObjectId _selectedObjectId = 0;
-    wstring _currentDocumentPath = {};
-    wstring _defaultJsonDirectory = {};
     bool _assetManagerReady = false;
-    bool _isDirty = false;
-    string _cleanDocumentSignature = "";
-    vector<HistoryState> _undoStack = {};
-    vector<HistoryState> _redoStack = {};
-    bool _isEditTransactionOpen = false;
-    HistoryState _editTransactionStartState = {};
+    UI_Editor_HistoryService _historyService = {};
+    UI_Editor_PreviewService _previewService = {};
+    UI_Editor_FileService _fileService = {};
     ObjectId _renameRequestObjectId = 0;
+    bool _isRenamingCanvas = false;
     bool _openRenamePopup = false;
     char _renameBuffer[128] = {};
-    unordered_map<string, ComPtr<ID3D11ShaderResourceView>> _textureThumbCache = {};
-    unordered_set<string> _textureNoThumbGuids = {};
-    unordered_map<string, ComPtr<ID3D11ShaderResourceView>> _maskedTexturePreviewCache = {};
-    unordered_set<string> _maskedTexturePreviewFailedKeys = {};
-    Shared<ShaderCom> _imagePreviewShader = nullptr;
-    Shared<VIBuffer_Rect> _imagePreviewVIBuffer = nullptr;
-    Unique<SpriteBatch> _fontPreviewSpriteBatch = nullptr;
-    ComPtr<ID3D11RasterizerState> _fontPreviewRasterizerState = nullptr;
-    unordered_map<string, Unique<SpriteFont>> _fontPreviewCache = {};
-    unordered_set<string> _fontPreviewFailedGuids = {};
-    vector<FontPreviewCommand> _fontPreviewCommands = {};
 };
 
 NS_END

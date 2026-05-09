@@ -109,7 +109,14 @@ namespace UIEditor
             {
                 if (!ImGui::IsAnyItemActive())
                     _editorManager.Commit_EditTransactionIfChanged();
-                ImGui::TextUnformatted("No Selected");
+
+                const UI_Document& document = _editorManager.Get_Document();
+                ImGui::Text("Name: %s", document.Get_CanvasName().c_str());
+                ImGui::TextUnformatted("Type: Canvas");
+                ImGui::Separator();
+
+                if (ImGui::Button("Rename"))
+                    _editorManager.Request_RenameCanvas();
             }
         }
 
