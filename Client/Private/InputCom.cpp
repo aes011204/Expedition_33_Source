@@ -64,11 +64,6 @@ bool InputCom::Has_MoveInput() const
     return _movementInput.moveX != 0.f || _movementInput.moveZ != 0.f;
 }
 
-bool InputCom::Has_AnyInput() const
-{
-    return false;
-}
-
 Shared<InputCom> InputCom::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
     auto instance = make_shared<InputCom>(device, context);

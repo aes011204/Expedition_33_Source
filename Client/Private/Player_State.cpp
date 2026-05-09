@@ -56,6 +56,21 @@ void Player_State::ExitInvoke()
     State::ExitInvoke();
 }
 
+bool Player_State::Has_MoveInput() const
+{
+    return _controllerCom->Has_MoveInput();
+}
+
+bool Player_State::Is_WalkToggled() const
+{
+    return _controllerCom->Is_WalkToggled();
+}
+
+const MovementCom::MovementInput& Player_State::Get_MovementInput() const
+{
+    return _controllerCom->Get_MovementInput();
+}
+
 
 void Player_State::Free()
 {

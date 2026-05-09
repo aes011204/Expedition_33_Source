@@ -70,6 +70,7 @@ public: /* Guid */
 
 public: /* AnimNotify */
     uint32  Get_CurrentAnimationIndex() const { return _currentAnimIndex; }
+    uint32  Get_AnimationIndex() const;
 
     float   Get_CurrentAnimationDurationSec() const;
     float   Get_CurrentAnimationTimeSec() const;

@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include "State.h"
+#include "MovementCom.h"
 
 NS_BEGIN(Client)
 
@@ -19,17 +20,22 @@ public:
 public:
     virtual HRESULT Initialize() override;
     virtual void Begin_Play() override;
+
+public:
     virtual bool EnterInvoke() override;
     virtual void Update(float timeDelta) override;
     virtual void LateUpdate(float timeDelta) override;
     virtual void ExitInvoke() override;
 
 protected:
-    Weak<Player>            _owner{};
+    bool Has_MoveInput() const;
+    bool Is_WalkToggled() const;
+    const MovementCom::MovementInput& Get_MovementInput() const;
 
+protected:
+    Weak<Player>            _owner{};
     PlayerControllerCom* _controllerCom{ nullptr };
     PlayerStateMachineCom* _stateCom{ nullptr };
-
     Body_Player* _bodyPlayer{ nullptr };
 
 public:

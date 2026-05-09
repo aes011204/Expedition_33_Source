@@ -313,6 +313,11 @@ wstring ModelCom::Normalize_ModelAssetPath(const char* modelFilePath)
     return fs::absolute(fs::path(String::ToWString(resolvedPath))).lexically_normal().wstring();
 }
 
+uint32 ModelCom::Get_AnimationIndex() const
+{
+    return _isBlending ? _nextAnimIndex : _currentAnimIndex;
+}
+
 float ModelCom::Get_CurrentAnimationDurationSec() const
 {
     if (_currentAnimIndex >= _animations.size())

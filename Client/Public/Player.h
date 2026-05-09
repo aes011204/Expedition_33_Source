@@ -48,6 +48,7 @@ private:
     Shared<MovementCom>             _movementCom{ nullptr };
     Shared<InputCom>                _inputCom{ nullptr };
     Shared<PlayerControllerCom>     _playerControllerCom{ nullptr };
+    Shared<PlayerStateMachineCom>   _PlayerStateMachineCom{ nullptr };
     Shared<ColliderCom>             _colliderCom{ nullptr };
 
 

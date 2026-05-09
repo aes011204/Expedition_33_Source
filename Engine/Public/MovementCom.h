@@ -18,6 +18,15 @@ public:
 
         bool  isRunPressed = false;
         bool  isJumpDown = false;
+
+        bool isWalkDown{ false };
+
+        bool isInteractionDown{ false };
+        bool isSuddenAttack{ false };
+        
+        bool isMouseLDown{ false };
+        bool isMouseRPress{ false };
+        bool isMouseRUp{ false };
     };
 
     struct MoveDesc

@@ -44,7 +44,7 @@ uint32 PlayableParts::Get_AnimationIndex() const
 {
     if (nullptr == _modelCom) return UINT_MAX;
 
-    return _modelCom->Get_CurrentAnimationIndex();
+    return _modelCom->Get_AnimationIndex();
 }
 
 float PlayableParts::Get_AnimationProgress() const

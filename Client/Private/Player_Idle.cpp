@@ -28,10 +28,22 @@ bool Player_Idle::EnterInvoke()
 void Player_Idle::Update(float timeDelta)
 {
     bool isFinished = _bodyPlayer->Is_AnimationFinished();
-    
-    
+    auto& input = Get_MovementInput();
 
-    if (isFinished) {
+    if (input.isJumpDown)
+    {
+        _stateCom->Change_State(PlayerState::Jump);
+        return;
+    }
+
+    if (Has_MoveInput())
+    {
+        _stateCom->Change_State(PlayerState::Move);
+        return;
+    }
+
+    if (isFinished)
+    {
         Set_IdleAnimation();
     }
 }

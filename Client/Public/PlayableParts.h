@@ -53,7 +53,7 @@ protected:
     virtual HRESULT Bind_ShaderResources();
 
 public:
-    virtual Shared<GameObject> Clone(void* arg) override;
+    virtual Shared<GameObject> Clone(void* arg) override PURE;
     virtual void Free() override;
 };
 
