@@ -1,5 +1,7 @@
 #include "Editor_Context.h"
 
+NS_BEGIN(EffectEditor)
+
 void Editor_Context::Set_SelectObject(const Shared<GameObject>& gameObject)
 {
     if (_selection.selectedObject == gameObject)
@@ -39,3 +41,5 @@ void Editor_Context::Free()
 {
     Base::Free();
 }
+
+NS_END

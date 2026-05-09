@@ -41,6 +41,7 @@ private:
     bool    _isLoop{ true };
     int32   _rootNodeIndex{ -1 };
     bool    _isRootMotion{ false };
+    bool    _isRootMotionLog{ false };
     
     string _selectedModelGuid = {};
 

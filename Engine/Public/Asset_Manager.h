@@ -57,7 +57,7 @@ private:
 	umap<string, AssetMeta>             _guidToMeta = {};
 	umap<wstring, string>               _pathToGuid = {};
 
-	vector<string> _ignoreFolders = { ".git", ".vs", "Fonts", "Data/Assets" };
+    vector<string> _ignoreFolders = { ".git", ".vs", "Fonts", "Data/Assets" };
 
 public:
 	static Unique<Asset_Manager> Create(const wstring& resourceRoot);

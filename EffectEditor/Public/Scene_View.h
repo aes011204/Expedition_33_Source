@@ -15,7 +15,23 @@ public:
     void Render() override;
 
 private:
+    ImVec2 _viewportSize{};
+    ImVec2 _viewportMin{};
+    ImVec2 _viewportMax{};
+
+    ImGuizmo::OPERATION _gizmoOperation{ ImGuizmo::TRANSLATE };
+    ImGuizmo::MODE _gizmoMode{ ImGuizmo::LOCAL };
+
+    int _pendingPreviewViewportWidth{ 0 };
+    int _pendingPreviewViewportHeight{ 0 };
+    bool _isViewportHovered{ false };
+    bool _isViewportToolbarPinned{ false };
+    bool _isViewportToolbarInteracting{ false };
+
+private:
     void Handle_GizmoShortcut();
+    void Render_CameraAxisOverlay();
+    void Render_ViewportToolbarOverlay();
     void Render_GizmoOverlay();
     void Render_PreviewViewportOverlay();
     void Sync_PreviewViewportInput();
@@ -23,17 +39,6 @@ private:
     void Render_ViewportCanvas();
     void Handle_FocusRequest();
     void Render_SelectedObjectGizmo();
-
-private:
-    ImVec2 _viewportSize = {};
-    ImVec2 _viewportMin = {};
-    ImVec2 _viewportMax = {};
-
-    ImGuizmo::OPERATION _gizmoOperation = ImGuizmo::TRANSLATE;
-    ImGuizmo::MODE _gizmoMode = ImGuizmo::LOCAL;
-
-    int _pendingPreviewViewportWidth = 0;
-    int _pendingPreviewViewportHeight = 0;
 
 public:
     static Shared<Scene_View> Create();

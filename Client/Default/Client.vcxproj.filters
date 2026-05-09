@@ -232,8 +232,10 @@
     <ClInclude Include="..\Public\PersistentObjectManager.h">
       <Filter>96. Manager</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\StateMachine.h" />
     <ClInclude Include="..\Public\State.h">
+      <Filter>03. Component\StateMachine\State</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\StateMachine.h">
       <Filter>03. Component\StateMachine</Filter>
     </ClInclude>
   </ItemGroup>
