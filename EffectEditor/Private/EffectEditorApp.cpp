@@ -1,12 +1,15 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "EffectEditorApp.h"
 
 #include "ClientInstance.h"
 #include "EffectEditorInstance.h"
 #include "GameInstance.h"
+#include "Level_EffectEditor.h"
 #include "Level_Loading.h"
 #include "Profile_View.h"
 #include "ResourceLoader.h"
+
+NS_BEGIN(EffectEditor)
 
 EffectEditorApp::EffectEditorApp()
 {
@@ -34,23 +37,13 @@ HRESULT EffectEditorApp::Initialize()
     engineDesc.viewportHeight = viewportHeight;
     engineDesc.projectName = "EffectEditor";
 
-    if (FAILED(GAME->Initialize_Engine(engineDesc, _device, _context)))
-        return E_FAIL;
-
-    if (FAILED(GAME->Initialize_AssetManager(assetRootPath.wstring())))
-        return E_FAIL;
-
-    if (FAILED(CLIENT->Initialize_Client(_device, _context)))
-        return E_FAIL;
-
-    if (FAILED(Ready_Fonts()))
-        return E_FAIL;
-
-    if (FAILED(Ready_Prototype_For_Static_Level()))
-        return E_FAIL;
-
-    if (FAILED(Ready_StartLevel(LevelType::Logo)))
-        return E_FAIL;
+    CHECK_FAILED(GAME->Initialize_Engine(engineDesc, _device, _context), E_FAIL);
+    CHECK_FAILED(GAME->Initialize_AssetManager(assetRootPath.wstring()), E_FAIL);
+    CHECK_FAILED(CLIENT->Initialize_Client(_device, _context), E_FAIL);
+    CHECK_FAILED(Ready_Fonts(), E_FAIL);
+    CHECK_FAILED(Ready_Prototype_For_Static_Level(), E_FAIL);
+    CHECK_FAILED(CLIENT->Ready_LevelResources(LevelType::GamePlay), E_FAIL);
+    CHECK_FAILED(Ready_PreviewLevel(), E_FAIL);
 
     EffectEditorDesc editorDesc{};
     editorDesc.hWnd = g_hWnd;
@@ -58,8 +51,7 @@ HRESULT EffectEditorApp::Initialize()
     editorDesc.viewportWidth = viewportWidth;
     editorDesc.viewportHeight = viewportHeight;
 
-    if (FAILED(EDITOR->Initialize_Editor(editorDesc, _device, _context)))
-        return E_FAIL;
+    CHECK_FAILED(EDITOR->Initialize_Editor(editorDesc, _device, _context), E_FAIL);
 
     return S_OK;
 }
@@ -75,8 +67,8 @@ void EffectEditorApp::Update(float timeDelta)
         EDITOR->Update_Editor(timeDelta);
     }
 
-    float runtimeDelta = 0.f;
-    float freeCameraDelta = 0.f;
+    float runtimeDelta;
+    float freeCameraDelta;
 
     if (EDITOR->IsPlaying())
     {
@@ -116,8 +108,7 @@ HRESULT EffectEditorApp::Render()
     {
         Profile_View::Scope profileScope("Game::Render");
 
-        const Vec4 clearColor = Vec4(0.f, 0.f, 1.f, 1.f);
-        if (FAILED(GAME->Clear_Buffers(clearColor)))
+        if (FAILED(GAME->Clear_Buffers(defaultClearColor)))
             return E_FAIL;
 
         if (FAILED(GAME->Draw()))
@@ -147,8 +138,7 @@ HRESULT EffectEditorApp::Ready_Fonts()
     if (!fs::exists(fontPath))
         return E_FAIL;
 
-    if (FAILED(GAME->Add_Font(TEXT("Font_Default"), fontPath.c_str())))
-        return E_FAIL;
+    CHECK_FAILED(GAME->Add_Font(TEXT("Font_Default"), fontPath.c_str()), E_FAIL);
 
     return S_OK;
 }
@@ -158,17 +148,14 @@ HRESULT EffectEditorApp::Ready_Prototype_For_Static_Level()
     return CLIENT->Ready_StaticResources();
 }
 
-HRESULT EffectEditorApp::Ready_StartLevel(LevelType startLevelID)
+HRESULT EffectEditorApp::Ready_PreviewLevel()
 {
-    if (LevelType::Loading == startLevelID)
-        return E_FAIL;
-
-    if (FAILED(
-        GAME->Change_Level(
-            ETOI(LevelType::Loading),
-            Level_Loading::Create(_device.Get(), _context.Get(), startLevelID))
-    ))
-        return E_FAIL;
+    // preview level은 저장 level이 아니므로 GamePlay resource index를 명시적으로 빌려 쓴다.
+    const HRESULT hr = GAME->Change_Level(
+        ETOI(LevelType::GamePlay),
+        Level_EffectEditor::Create(_device, _context)
+    );
+    CHECK_FAILED(hr, E_FAIL);
 
     return S_OK;
 }
@@ -211,7 +198,6 @@ void EffectEditorApp::Free()
     __super::Free();
 
     EffectEditorInstance::DestroyInstance();
-
     ClientInstance::DestroyInstance();
 
     _context.Reset();
@@ -219,3 +205,5 @@ void EffectEditorApp::Free()
 
     GameInstance::DestroyInstance();
 }
+
+NS_END

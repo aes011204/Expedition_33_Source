@@ -1,4 +1,7 @@
-﻿#include "AnimNotify_Parser.h"
+﻿#include "pch.h"
+#include "AnimNotify_Parser.h"
+#include "AnimNotify.h"
+#include "AnimNotifyState.h"
 #include "GameInstance.h"
 
 json AnimNotify_Parser::To_Json(const AnimNotifyAsset& asset)
@@ -28,24 +31,28 @@ json AnimNotify_Parser::To_Json(const AnimNotifyAsset& asset)
         animationNode["notifies"] = json::array();
         for (const auto& entry : animationData.notifies)
         {
-            animationNode["notifies"].push_back({
-                { "id", entry.id },
-                { "time_sec", entry.timeSec },
-                { "track_index", entry.trackIndex },
-                { "name", entry.name }
-            });
+            json entryNode = json::object();
+            entryNode["id"] = entry.id;
+            entryNode["time_sec"] = entry.timeSec;
+            entryNode["track_index"] = entry.trackIndex;
+            entryNode["type_name"] = entry.notify ? entry.notify->Get_TypeName() : "";
+            entryNode["payload"] = entry.notify ? entry.notify->To_Json() : json::object();
+
+            animationNode["notifies"].push_back(::move(entryNode));
         }
 
         animationNode["notify_states"] = json::array();
         for (const auto& entry : animationData.notifyStates)
         {
-            animationNode["notify_states"].push_back({
-                { "id", entry.id },
-                { "start_sec", entry.startSec },
-                { "duration_sec", entry.durationSec },
-                { "track_index", entry.trackIndex },
-                { "name", entry.name }
-            });
+            json entryNode = json::object();
+            entryNode["id"] = entry.id;
+            entryNode["start_sec"] = entry.startSec;
+            entryNode["duration_sec"] = entry.durationSec;
+            entryNode["track_index"] = entry.trackIndex;
+            entryNode["type_name"] = entry.notifyState ? entry.notifyState->Get_TypeName() : "";
+            entryNode["payload"] = entry.notifyState ? entry.notifyState->To_Json() : json::object();
+
+            animationNode["notify_states"].push_back(::move(entryNode));
         }
 
         root["animations"].push_back(::move(animationNode));
@@ -60,45 +67,120 @@ bool AnimNotify_Parser::From_Json(const json& root, AnimNotifyAsset& outAsset)
         return false;
 
     outAsset = {};
-    outAsset.version = root.value("version", 1);
+    outAsset.version = root.value("version", 2);
     outAsset.modelGuid = root.value("model_guid", string{});
 
-    for (const auto& animationNode : root.value("animations", json::array()))
+    const json animationsNode =
+        (root.contains("animations") && root["animations"].is_array())
+        ? root["animations"]
+        : json::array();
+
+    for (const auto& animationNode : animationsNode)
     {
+        if (!animationNode.is_object())
+            continue;
+
         AnimNotifyData animationData{};
         animationData.animationName = animationNode.value("animation_name", string{});
         animationData.displayFps = max(1, animationNode.value("display_fps", 60));
         animationData.nextNotifyId = max(1, animationNode.value("next_notify_id", 1));
         animationData.nextStateId = max(1, animationNode.value("next_state_id", 1));
 
-        for (const auto& trackNameNode : animationNode.value("notify_tracks", json::array()))
-            animationData.notifyTracks.push_back({ trackNameNode.get<string>() });
+        const json notifyTracksNode =
+            (animationNode.contains("notify_tracks") && animationNode["notify_tracks"].is_array())
+            ? animationNode["notify_tracks"]
+            : json::array();
 
-        for (const auto& trackNameNode : animationNode.value("notify_state_tracks", json::array()))
-            animationData.notifyStateTracks.push_back({ trackNameNode.get<string>() });
-
-        for (const auto& entryNode : animationNode.value("notifies", json::array()))
+        for (const auto& trackNameNode : notifyTracksNode)
         {
+            if (trackNameNode.is_string())
+                animationData.notifyTracks.push_back({ trackNameNode.get<string>() });
+        }
+
+        const json notifyStateTracksNode =
+            (animationNode.contains("notify_state_tracks") && animationNode["notify_state_tracks"].is_array())
+            ? animationNode["notify_state_tracks"]
+            : json::array();
+
+        for (const auto& trackNameNode : notifyStateTracksNode)
+        {
+            if (trackNameNode.is_string())
+                animationData.notifyStateTracks.push_back({ trackNameNode.get<string>() });
+        }
+
+        Ensure_DefaultTracks(animationData);
+
+        const json notifiesNode =
+            (animationNode.contains("notifies") && animationNode["notifies"].is_array())
+            ? animationNode["notifies"]
+            : json::array();
+
+        for (const auto& entryNode : notifiesNode)
+        {
+            if (!entryNode.is_object())
+                continue;
+
             AnimNotifyEventEntry entry{};
             entry.id = entryNode.value("id", 0);
             entry.timeSec = entryNode.value("time_sec", 0.f);
             entry.trackIndex = entryNode.value("track_index", 0);
-            entry.name = entryNode.value("name", string{});
+
+            if (animationData.notifyTracks.empty())
+                entry.trackIndex = 0;
+            else
+                entry.trackIndex = ::clamp(entry.trackIndex, 0, static_cast<int32>(animationData.notifyTracks.size()) - 1);
+
+            const string typeName = entryNode.value("type_name", entryNode.value("name", string{}));
+            if (typeName.empty())
+                continue;
+
+            Shared<AnimNotify> instance = GAME->Create_AnimNotifyPrototype(typeName);
+            if (!instance)
+                continue;
+
+            if (entryNode.contains("payload") && entryNode["payload"].is_object())
+                instance->From_Json(entryNode["payload"]);
+
+            entry.notify = instance;
             animationData.notifies.push_back(::move(entry));
         }
 
-        for (const auto& entryNode : animationNode.value("notify_states", json::array()))
+        const json notifyStatesNode =
+            (animationNode.contains("notify_states") && animationNode["notify_states"].is_array())
+            ? animationNode["notify_states"]
+            : json::array();
+
+        for (const auto& entryNode : notifyStatesNode)
         {
+            if (!entryNode.is_object())
+                continue;
+
             AnimNotifyStateEntry entry{};
             entry.id = entryNode.value("id", 0);
             entry.startSec = entryNode.value("start_sec", 0.f);
             entry.durationSec = entryNode.value("duration_sec", 0.f);
             entry.trackIndex = entryNode.value("track_index", 0);
-            entry.name = entryNode.value("name", string{});
+
+            if (animationData.notifyStateTracks.empty())
+                entry.trackIndex = 0;
+            else
+                entry.trackIndex = ::clamp(entry.trackIndex, 0, static_cast<int32>(animationData.notifyStateTracks.size()) - 1);
+
+            const string typeName = entryNode.value("type_name", entryNode.value("name", string{}));
+            if (typeName.empty())
+                continue;
+
+            Shared<AnimNotifyState> instance = GAME->Create_AnimNotifyStatePrototype(typeName);
+            if (!instance)
+                continue;
+
+            if (entryNode.contains("payload") && entryNode["payload"].is_object())
+                instance->From_Json(entryNode["payload"]);
+
+            entry.notifyState = instance;
             animationData.notifyStates.push_back(::move(entry));
         }
 
-        Ensure_DefaultTracks(animationData);
         Sort_And_Clamp(animationData);
         outAsset.animations.push_back(::move(animationData));
     }
@@ -110,9 +192,10 @@ bool AnimNotify_Parser::Save_ToFile(const wstring& filePath, const AnimNotifyAss
 {
     try
     {
-        fs::create_directories(fs::path(filePath).parent_path());
+        const fs::path path(filePath);
+        fs::create_directories(path.parent_path());
 
-        ::ofstream file(filePath);
+        ::ofstream file(path);
         if (!file.is_open())
             return false;
 
@@ -129,10 +212,12 @@ bool AnimNotify_Parser::Load_FromFile(const wstring& filePath, AnimNotifyAsset& 
 {
     try
     {
-        if (!fs::exists(filePath))
+        const fs::path path(filePath);
+
+        if (!fs::exists(path))
             return false;
 
-        ::ifstream file(filePath);
+        ::ifstream file(path);
         if (!file.is_open())
             return false;
 
@@ -156,16 +241,24 @@ fs::path AnimNotify_Parser::Get_BaseFolderPath()
 
 fs::path AnimNotify_Parser::Get_ModelNotifyFilePath(const string& modelGuid)
 {
-    wstring resolvedPath = GAME->Resolve_AssetPath(modelGuid);
+    const wstring resolvedPath = GAME->Resolve_AssetPath(modelGuid);
     string fileStem = modelGuid;
 
     if (!resolvedPath.empty())
-    {
         fileStem = fs::path(resolvedPath).stem().string();
-        return Get_BaseFolderPath() / (fileStem + "_" + modelGuid + ".animnotify.json");
-    }
 
-    return Get_BaseFolderPath() / (fileStem + ".animnotify.json");
+    return Get_BaseFolderPath() / (fileStem + ".notify.json");
+}
+
+fs::path AnimNotify_Parser::Get_LegacyModelNotifyFilePath(const string& modelGuid)
+{
+    const wstring resolvedPath = GAME->Resolve_AssetPath(modelGuid);
+    string fileStem = modelGuid;
+
+    if (!resolvedPath.empty())
+        fileStem = fs::path(resolvedPath).stem().string();
+
+    return Get_BaseFolderPath() / (fileStem + "_" + modelGuid + ".animnotify.json");
 }
 
 AnimNotifyData* AnimNotify_Parser::Find_Animation(AnimNotifyAsset& asset, const string& animationName)
@@ -206,10 +299,10 @@ AnimNotifyData& AnimNotify_Parser::Get_OrAddAnimation(AnimNotifyAsset& asset, co
 void AnimNotify_Parser::Ensure_DefaultTracks(AnimNotifyData& animationData)
 {
     if (animationData.notifyTracks.empty())
-        animationData.notifyTracks.push_back({ "Notifies" });
+        animationData.notifyTracks.push_back({ "Notify" });
 
     if (animationData.notifyStateTracks.empty())
-        animationData.notifyStateTracks.push_back({ "Notify States" });
+        animationData.notifyStateTracks.push_back({ "Notify State" });
 
     animationData.displayFps = max(1, animationData.displayFps);
     animationData.nextNotifyId = max(1, animationData.nextNotifyId);
@@ -225,7 +318,11 @@ void AnimNotify_Parser::Sort_And_Clamp(AnimNotifyData& animationData, float anim
         if (entry.id <= 0)
             entry.id = animationData.nextNotifyId++;
 
-        entry.trackIndex = 0;
+        if (animationData.notifyTracks.empty())
+            entry.trackIndex = 0;
+        else
+            entry.trackIndex = ::clamp(entry.trackIndex, 0, static_cast<int32>(animationData.notifyTracks.size()) - 1);
+
         entry.timeSec = Clamp_TimeSec(entry.timeSec, animationLengthSec);
     }
 
@@ -234,7 +331,11 @@ void AnimNotify_Parser::Sort_And_Clamp(AnimNotifyData& animationData, float anim
         if (entry.id <= 0)
             entry.id = animationData.nextStateId++;
 
-        entry.trackIndex = 0;
+        if (animationData.notifyStateTracks.empty())
+            entry.trackIndex = 0;
+        else
+            entry.trackIndex = ::clamp(entry.trackIndex, 0, static_cast<int32>(animationData.notifyStateTracks.size()) - 1);
+
         entry.startSec = Clamp_TimeSec(entry.startSec, animationLengthSec);
         entry.durationSec = max(0.f, entry.durationSec);
 

@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Base.h"
 
@@ -7,7 +7,7 @@ NS_BEGIN(EffectEditor)
 class Editor_Window abstract : public Base
 {
 public:
-    Editor_Window(const wstring& windowName);
+    Editor_Window(const wstring& windowName, const char* windowIcon = nullptr);
     ~Editor_Window() override = default;
 
 public:
@@ -21,6 +21,7 @@ public:
 
 public:
     const wstring& Get_WindowName() const { return _window; }
+    const string& Get_ImGuiWindowName() const { return _imguiWindowName; }
 
     bool Is_Open() const { return _isOpen; }
     void Set_Open(bool isOpen) { _isOpen = isOpen; }
@@ -34,10 +35,12 @@ public:
 
 protected:
     wstring _window;
-    bool _isOpen = true;
-    bool _isFocused = false;
-    bool _isDirty = false;
-    bool _isHovered = false;
+    string _imguiWindowName;
+
+    bool _isOpen{ true };
+    bool _isFocused{ false };
+    bool _isDirty{ false };
+    bool _isHovered{ false };
 };
 
 NS_END

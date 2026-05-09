@@ -1,5 +1,4 @@
 ﻿#include "Animation_PreviewObject.h"
-
 #include "Client_Defines.h"
 #include "GameInstance.h"
 #include "Material_Types.h"
@@ -7,75 +6,6 @@
 #include "ShaderCom.h"
 #include <filesystem>
 #include <fstream>
-
-namespace fs = std::filesystem;
-
-static wstring Resolve_PreviewShaderPath(const wchar_t* fileName)
-{
-    const fs::path assetRoot = fs::path(GAME->Get_AssetRoot());
-    return (assetRoot.parent_path() / L"ShaderFiles" / fileName).lexically_normal().wstring();
-}
-
-static wstring Resolve_ModelTablePath(const string& path)
-{
-    if (path.empty())
-        return {};
-
-    const fs::path inputPath = fs::path(String::ToWString(path));
-    if (inputPath.is_absolute())
-        return inputPath.lexically_normal().wstring();
-
-    const fs::path assetRoot = fs::path(GAME->Get_AssetRoot());
-    const fs::path clientBinPath = assetRoot.parent_path();
-    wstring normalized = inputPath.wstring();
-
-    for (wchar_t& ch : normalized)
-    {
-        if (ch == L'/')
-            ch = L'\\';
-        else
-            ch = static_cast<wchar_t>(towlower(ch));
-    }
-
-    const wstring resourcesPrefix = L"..\\bin\\resources\\";
-    if (normalized.size() >= resourcesPrefix.size() &&
-        0 == normalized.compare(0, resourcesPrefix.size(), resourcesPrefix))
-    {
-        return (assetRoot / fs::path(normalized.substr(resourcesPrefix.size()))).lexically_normal().wstring();
-    }
-
-    return (clientBinPath / inputPath).lexically_normal().wstring();
-}
-
-static wstring Find_ModelPrototypeTag(const wstring& modelPath)
-{
-    const fs::path tablePath = fs::path(GAME->Get_AssetRoot()) / L"Data" / L"json" / L"DT_Model.json";
-    std::ifstream file(tablePath);
-    if (!file.is_open())
-        return {};
-
-    json root{};
-    file >> root;
-
-    if (!root.contains("DT_Model") || !root["DT_Model"].is_array())
-        return {};
-
-    const wstring targetPath = fs::absolute(fs::path(modelPath)).lexically_normal().wstring();
-    for (const json& item : root["DT_Model"])
-    {
-        const string rawPath = item.value("Path", string{});
-        const string id = item.value("Id", string{});
-        if (rawPath.empty() || id.empty())
-            continue;
-
-        if (Resolve_ModelTablePath(rawPath) == targetPath)
-            return String::ToWString(id);
-    }
-
-    return {};
-}
-
-NS_BEGIN(MainEditor)
 
 Animation_PreviewObject::Animation_PreviewObject(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : GameObject(device, context)
@@ -199,6 +129,8 @@ bool Animation_PreviewObject::Set_ModelPath(const wstring& modelPath)
     if (newModelCom == nullptr)
         return false;
 
+    newModelCom->Set_AnimNotifyExecutionEnabled(false);
+
     _modelCom = newModelCom;
     _components.emplace(TEXT("Com_Model"), _modelCom);
 
@@ -214,6 +146,71 @@ bool Animation_PreviewObject::Set_ModelPath(const wstring& modelPath)
 Shared<ModelCom> Animation_PreviewObject::Get_ModelComponent() const
 {
     return _modelCom;
+}
+
+wstring Animation_PreviewObject::Resolve_PreviewShaderPath(const wchar_t* fileName)
+{
+    const fs::path assetRoot = fs::path(GAME->Get_AssetRoot());
+    return (assetRoot.parent_path() / L"ShaderFiles" / fileName).lexically_normal().wstring();
+}
+
+wstring Animation_PreviewObject::Resolve_ModelTablePath(const string& path)
+{
+    if (path.empty())
+        return {};
+
+    const fs::path inputPath = fs::path(String::ToWString(path));
+    if (inputPath.is_absolute())
+        return inputPath.lexically_normal().wstring();
+
+    const fs::path assetRoot = fs::path(GAME->Get_AssetRoot());
+    const fs::path clientBinPath = assetRoot.parent_path();
+    wstring normalized = inputPath.wstring();
+
+    for (wchar_t& ch : normalized)
+    {
+        if (ch == L'/')
+            ch = L'\\';
+        else
+            ch = static_cast<wchar_t>(towlower(ch));
+    }
+
+    const wstring resourcesPrefix = L"..\\bin\\resources\\";
+    if (normalized.size() >= resourcesPrefix.size() &&
+        0 == normalized.compare(0, resourcesPrefix.size(), resourcesPrefix))
+    {
+        return (assetRoot / fs::path(normalized.substr(resourcesPrefix.size()))).lexically_normal().wstring();
+    }
+
+    return (clientBinPath / inputPath).lexically_normal().wstring();
+}
+
+wstring Animation_PreviewObject::Find_ModelPrototypeTag(const wstring& modelPath)
+{
+    const fs::path tablePath = fs::path(GAME->Get_AssetRoot()) / L"Data" / L"json" / L"DT_Model.json";
+    std::ifstream file(tablePath);
+    if (!file.is_open())
+        return {};
+
+    json root{};
+    file >> root;
+
+    if (!root.contains("DT_Model") || !root["DT_Model"].is_array())
+        return {};
+
+    const wstring targetPath = fs::absolute(fs::path(modelPath)).lexically_normal().wstring();
+    for (const json& item : root["DT_Model"])
+    {
+        const string rawPath = item.value("Path", string{});
+        const string id = item.value("Id", string{});
+        if (rawPath.empty() || id.empty())
+            continue;
+
+        if (Resolve_ModelTablePath(rawPath) == targetPath)
+            return String::ToWString(id);
+    }
+
+    return {};
 }
 
 HRESULT Animation_PreviewObject::Ready_Components()
@@ -298,5 +295,3 @@ void Animation_PreviewObject::Free()
 {
     GameObject::Free();
 }
-
-NS_END

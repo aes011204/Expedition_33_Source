@@ -47,6 +47,7 @@ private:
     Shared<ColliderCom>         _colliderCom;
 
     PlayerState _testPlayerState = PlayerState::Idle;
+    float       _testHp = 10.f;
 
 
 public:

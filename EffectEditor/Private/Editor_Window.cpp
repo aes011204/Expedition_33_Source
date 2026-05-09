@@ -1,8 +1,16 @@
-#include "Editor_Window.h"
+﻿#include "Editor_Window.h"
 
-Editor_Window::Editor_Window(const wstring& windowName)
+NS_BEGIN(EffectEditor)
+
+Editor_Window::Editor_Window(const wstring& windowName, const char* windowIcon)
     : _window{ windowName }
 {
+    const string windowNameText = String::ToString(_window);
+
+    if (nullptr != windowIcon && '\0' != windowIcon[0])
+        _imguiWindowName = string{ windowIcon } + " " + windowNameText + "###" + windowNameText;
+    else
+        _imguiWindowName = windowNameText;
 }
 
 HRESULT Editor_Window::Initialize()
@@ -30,3 +38,5 @@ bool Editor_Window::CanSave() const
 void Editor_Window::Save()
 {
 }
+
+NS_END

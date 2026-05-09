@@ -28,6 +28,11 @@ public:
     Shared<ModelCom> Get_ModelComponent() const;
 
 private:
+    static wstring Resolve_PreviewShaderPath(const wchar_t* fileName);
+    static wstring Resolve_ModelTablePath(const string& path);
+    static wstring Find_ModelPrototypeTag(const wstring& modelPath);
+
+private:
     HRESULT Ready_Components();
     HRESULT Bind_ShaderResources();
 
