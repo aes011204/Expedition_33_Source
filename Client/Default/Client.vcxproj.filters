@@ -112,6 +112,12 @@
     <Filter Include="01.Levels\Stage\Stage01">
       <UniqueIdentifier>{c5fa3f83-263a-48ef-899c-ed4c7f3696dd}</UniqueIdentifier>
     </Filter>
+    <Filter Include="02.GameObject\Camera\Cinematic">
+      <UniqueIdentifier>{d53ff54a-605b-446d-803e-b7224c240225}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02.GameObject\Camera\PresetIO">
+      <UniqueIdentifier>{8ef6fb12-f42b-4ce8-828e-8d5ef2dd6a29}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -220,6 +226,24 @@
       <Filter>01.Levels\Stage\Stage01</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\BT_Node_Bootstrap.h" />
+    <ClInclude Include="..\Public\Cinematic_Player.h">
+      <Filter>02.GameObject\Camera\Cinematic</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Cinematic_SequenceIO.h">
+      <Filter>02.GameObject\Camera\Cinematic</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Cinematic_Types.h">
+      <Filter>02.GameObject\Camera\Cinematic</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Cinematic_Utils.h">
+      <Filter>02.GameObject\Camera\Cinematic</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\CinematicSequencerAdapter.h">
+      <Filter>02.GameObject\Camera\Cinematic</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\CameraPresetIO.h">
+      <Filter>02.GameObject\Camera\PresetIO</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -316,6 +340,18 @@
       <Filter>01.Levels\Stage\Stage01</Filter>
     </ClCompile>
     <ClCompile Include="..\private\BT_Node_Bootstrap.cpp" />
+    <ClCompile Include="..\Private\Cinematic_Player.cpp">
+      <Filter>02.GameObject\Camera\Cinematic</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Cinematic_SequenceIO.cpp">
+      <Filter>02.GameObject\Camera\Cinematic</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\CinematicSequencerAdapter.cpp">
+      <Filter>02.GameObject\Camera\Cinematic</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\CameraPresetIO.cpp">
+      <Filter>02.GameObject\Camera\PresetIO</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">

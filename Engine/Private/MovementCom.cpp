@@ -3,6 +3,7 @@
 #include "TransformCom.h"
 #include "Camera.h"
 
+
 IMPLEMENT_REFLECTION(MovementCom)
 {
     auto& info = GetStaticReflectionInfo();

@@ -1,4 +1,4 @@
-#include "Cinematic_SequenceIO.h"
+﻿#include "Cinematic_SequenceIO.h"
 
 namespace
 {

@@ -167,6 +167,7 @@
     <ClInclude Include="..\public\BT_CheckDistance.h" />
     <ClInclude Include="..\public\BT_Idle.h" />
     <ClInclude Include="..\Public\BT_Node_Bootstrap.h" />
+    <ClInclude Include="..\Public\CameraPresetIO.h" />
     <ClInclude Include="..\Public\CinematicSequencerAdapter.h" />
     <ClInclude Include="..\Public\Cinematic_Player.h" />
     <ClInclude Include="..\Public\Cinematic_SequenceIO.h" />
@@ -214,6 +215,7 @@
     <ClCompile Include="..\private\BT_CheckDistance.cpp" />
     <ClCompile Include="..\private\BT_Idle.cpp" />
     <ClCompile Include="..\Private\BT_Node_Bootstrap.cpp" />
+    <ClCompile Include="..\Private\CameraPresetIO.cpp" />
     <ClCompile Include="..\Private\CinematicSequencerAdapter.cpp" />
     <ClCompile Include="..\Private\Cinematic_Player.cpp" />
     <ClCompile Include="..\Private\Cinematic_SequenceIO.cpp" />

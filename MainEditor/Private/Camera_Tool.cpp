@@ -2,7 +2,10 @@
 #include "FreeCamera.h"
 #include "TargetCamera.h"
 #include "GameInstance.h"
+#include <magic_enum/magic_enum.hpp>
 #include <algorithm>
+
+#include "CameraPresetIO.h"
 
 namespace
 {
@@ -192,7 +195,9 @@ void Camera_Tool::Render_FreeCameraProperties(const Shared<FreeCamera>& freeCame
 
 void Camera_Tool::Render_TargetCameraProperties(const Shared<TargetCamera>& targetCamera)
 {
-    float followSpeed = targetCamera->Get_FollowSpeed();
+    Select_EditingCameraState();
+    Edit_TargetCameraPreset();
+    /*float followSpeed = targetCamera->Get_FollowSpeed();
     float sideOffset = targetCamera->Get_SideOffset();
     float heightOffset = targetCamera->Get_HeightOffset();
     float aimOffset = targetCamera->Get_AimOffset();
@@ -201,9 +206,9 @@ void Camera_Tool::Render_TargetCameraProperties(const Shared<TargetCamera>& targ
     float pitchMin = targetCamera->Get_PitchMin();
     float pitchMax = targetCamera->Get_PitchMax();
     float lookHeight = targetCamera->Get_LookHeight();
-    float pivotHeight = targetCamera->Get_PivotHeight();
+    float pivotHeight = targetCamera->Get_PivotHeight();*/
 
-    Draw_SectionHeader("Follow");
+   /* Draw_SectionHeader("Follow");
     if(ImGui::DragFloat("follow speed", &followSpeed, 0.01f))
     {
         targetCamera->Set_FollowSpeed(followSpeed);  
@@ -262,8 +267,68 @@ void Camera_Tool::Render_TargetCameraProperties(const Shared<TargetCamera>& targ
     if(ImGui::DragFloat("Max##Pitch", &pitchMax, 0.1f, pitchMin, 89.f))
     {
         targetCamera->Set_PitchMax(pitchMax);
+    }*/
+
+}
+
+void Camera_Tool::Select_EditingCameraState()
+{
+    TargetCamera::CAMERA_STATE editingState =_editingCameraState;
+
+    const char* currentLabel = magic_enum::enum_name(editingState).data();
+
+    if(ImGui::BeginCombo("Edit Preset", currentLabel))
+    {
+         for(TargetCamera::CAMERA_STATE state : magic_enum::enum_values<TargetCamera::CAMERA_STATE>())
+         {
+             const bool isSelected = (editingState == state);
+
+             if(ImGui::Selectable(magic_enum::enum_name(state).data(), isSelected))
+             {
+                 _editingCameraState = state;
+             }
+
+             if(isSelected)
+                 ImGui::SetItemDefaultFocus();
+         }
+
+        ImGui::EndCombo();
+    }
+}
+
+void Camera_Tool::Edit_TargetCameraPreset()
+{
+
+    Shared<Camera> camera = Get_SelectedCamera(_selectedCameraIndex);
+
+    auto targetCamera = static_pointer_cast<TargetCamera>(camera);
+
+    auto preset = targetCamera->Get_Preset(_editingCameraState);
+
+    bool isChanged = false;
+
+    isChanged |= ImGui::DragFloat("follow speed", &preset.followSpeed, 0.01f);
+    isChanged |= ImGui::DragFloat("distance", &preset.distance, 0.01f);
+    isChanged |= ImGui::DragFloat("side offset", &preset.sideOffset, 0.01f);
+    isChanged |= ImGui::DragFloat("height offset", &preset.heightOffset, 0.01f);
+    isChanged |= ImGui::DragFloat("pivot height", &preset.pivotHeight, 0.01f);
+    isChanged |= ImGui::DragFloat("aim offset", &preset.aimOffset, 0.01f);
+    isChanged |= ImGui::DragFloat("look height", &preset.lookHeight, 0.01f);
+    isChanged |= ImGui::DragFloat("pitch look scale", &preset.pitchLookScale, 0.01f);
+    isChanged |= ImGui::DragFloat("Min##Pitch", &preset .pitchMin, 0.1f, -89.f, preset.pitchMax);
+    isChanged |= ImGui::DragFloat("Max##Pitch", &preset.pitchMax, 0.1f, preset.pitchMin,89.f);
+
+    if(isChanged)
+    {
+        targetCamera->Set_Preset(_editingCameraState, preset);
+        targetCamera->Apply_PreviewPreset(preset);
     }
 
+    ImGui::SameLine();
+    if(ImGui::Button("Save Preset"))
+    {
+        CameraPresetIO::SavePresetToFile(_editingCameraState,preset);
+    }
 }
 
 Shared<Camera_Tool> Camera_Tool::Create()
