@@ -11,10 +11,20 @@ NS_END
 
 NS_BEGIN(Client)
 
-class Monster final : public Character
+class Mon_Lancleier_Weapon;
+
+    class Mon_Lancleier_Body;
+
+    class Monster final : public Character
 {
     GENERATED_GAMEOBJECT(Monster, ObjectType::Monster)
-
+public:
+    enum class MonsterAction
+    {
+        Idle,
+        Move,
+        Attack
+    };
 public:
 	Monster(const ComPtr<Device>& device, const ComPtr<Context>& context);
 	Monster(const Monster& prototype);
@@ -30,18 +40,28 @@ public:
     virtual HRESULT Render_Shadow() override;
 
 protected:
-	Shared<ShaderCom>	    _shader = { nullptr };
-    Shared<ModelCom>	    _model = { nullptr };
+    Shared<Mon_Lancleier_Body> _body = {};
+    Shared<Mon_Lancleier_Weapon> _weapon = {};
+
     Shared<AIController> _aiCtrl = { nullptr };
 
     Shared<ColliderCom>     _collider;
     int32 _rootindex = {};
 protected:
 	HRESULT Ready_Components();
-	HRESULT Bind_ShaderResources();
+    HRESULT Ready_PartObjects();
+    HRESULT Bind_ShaderResources();
 
     HRESULT Ready_Collider();
 
+private:
+    MonsterAction _currentAction = MonsterAction::Idle;
+    MonsterAction _previousAction = MonsterAction::Idle;
+
+
+public:
+    void Set_CurrentAction(MonsterAction action) { _currentAction = action; }
+    MonsterAction Get_CurrentAction() const { return _currentAction; }
 
 public:
 	static Shared<Monster> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

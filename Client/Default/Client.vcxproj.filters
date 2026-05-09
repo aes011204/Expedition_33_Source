@@ -192,10 +192,6 @@
     <ClInclude Include="..\Public\PlayerControllerCom.h">
       <Filter>03. Component\PlayerController</Filter>
     </ClInclude>
-    <ClInclude Include="..\public\Mon_BehaviorTree.h" />
-    <ClInclude Include="..\public\BT_Idle.h" />
-    <ClInclude Include="..\public\BT_Attack.h" />
-    <ClInclude Include="..\public\BT_CheckDistance.h" />
     <ClInclude Include="..\Public\MapStaticMesh.h">
       <Filter>02.GameObject\Map\MapStaticMesh</Filter>
     </ClInclude>
@@ -222,10 +218,34 @@
     <ClInclude Include="..\Public\Level_Stage01.h">
       <Filter>01.Levels\Stage\Stage01</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\BT_Node_Bootstrap.h" />
     <ClInclude Include="..\Public\PersistentObjectManager.h">
       <Filter>96. Manager</Filter>
     </ClInclude>
+    <ClInclude Include="..\public\BT_Attack.h">
+      <Filter>BehavoirTree</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\BT_CheckDistance.h">
+      <Filter>BehavoirTree</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\BT_Idle.h">
+      <Filter>BehavoirTree</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\BT_Node_Bootstrap.h">
+      <Filter>BehavoirTree</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\BT_RotateToTarget.h">
+      <Filter>BehavoirTree</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\Mon_BehaviorTree.h">
+      <Filter>BehavoirTree</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\Mon_Lancleier_Body.h">
+      <Filter>02.GameObject\Monster</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\Mon_Lancleier_Weapon.h">
+      <Filter>02.GameObject\Monster</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\Monster_Part.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -294,10 +314,6 @@
     <ClCompile Include="..\Private\PlayerControllerCom.cpp">
       <Filter>03. Component\PlayerController</Filter>
     </ClCompile>
-    <ClCompile Include="..\private\Mon_BehaviorTree.cpp" />
-    <ClCompile Include="..\private\BT_Idle.cpp" />
-    <ClCompile Include="..\private\BT_Attack.cpp" />
-    <ClCompile Include="..\private\BT_CheckDistance.cpp" />
     <ClCompile Include="..\Private\MapStaticMesh.cpp">
       <Filter>02.GameObject\Map\MapStaticMesh</Filter>
     </ClCompile>
@@ -321,10 +337,34 @@
     <ClCompile Include="..\Private\Level_Stage01.cpp">
       <Filter>01.Levels\Stage\Stage01</Filter>
     </ClCompile>
-    <ClCompile Include="..\private\BT_Node_Bootstrap.cpp" />
     <ClCompile Include="..\Private\PersistentObjectManager.cpp">
       <Filter>96. Manager</Filter>
     </ClCompile>
+    <ClCompile Include="..\private\BT_Attack.cpp">
+      <Filter>BehavoirTree</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\BT_CheckDistance.cpp">
+      <Filter>BehavoirTree</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\BT_Idle.cpp">
+      <Filter>BehavoirTree</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\BT_Node_Bootstrap.cpp">
+      <Filter>BehavoirTree</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\BT_RotateToTarget.cpp">
+      <Filter>BehavoirTree</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\Mon_BehaviorTree.cpp">
+      <Filter>BehavoirTree</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\Mon_Lancleier_Body.cpp">
+      <Filter>02.GameObject\Monster</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\Mon_Lancleier_Weapon.cpp">
+      <Filter>02.GameObject\Monster</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\Monster_Part.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">

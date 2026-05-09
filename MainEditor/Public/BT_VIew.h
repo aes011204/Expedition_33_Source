@@ -19,7 +19,7 @@ NS_BEGIN(MainEditor)
 class BT_View : public Editor_Window
 {
 public:
-    enum class NodeType { Selector, Sequence, Task, Decorator };
+    enum class NodeType { Selector, Sequence, Task, Decorator, Parallel };
     enum class PinType { Input, Output };
 
     struct EditorNode
@@ -28,10 +28,8 @@ public:
         ed::NodeId id;
 
         ed::PinId inputPin;
-        ed::PinId outputPin;
-
         PinType inputType = PinType::Input;
-        PinType outputType = PinType::Output;
+        vector<ed::PinId> outputPins;
 
         std::string title;
         ImVec2 position;
@@ -109,6 +107,7 @@ public:
     EditorNode* FindNodeById(ed::NodeId id);
     void Update_NodePositions();
     EditorNode* FindNodeByPin(ed::PinId pin);
+    int FindOutputPinIndex(const EditorNode& node, ed::PinId pin) const;
     bool CanNodeHaveChildren(NodeType type) const;
     bool IsInputPin(ed::PinId pin) const;
     bool IsOutputPin(ed::PinId pin) const;
@@ -119,6 +118,9 @@ public:
 
     EditorNode* FindRootNode();
     void SetRootNode(EditorNode* newRoot);
+    void EnsureOutputPins(EditorNode& node, size_t desiredCount);
+    size_t GetDefaultOutputPinCount(NodeType type) const;
+    const char* GetOutputPinLabel(const EditorNode& node, size_t pinIndex) const;
 private: // save, load
     bool _openLoadPopup = false;
     bool _openSavePopup = false;
@@ -153,6 +155,7 @@ private: // BT
 private:
     void Draw_DebugTargetSelector();
     void Refresh_DebugState();
+    void Reload_AIControllersUsingBT(const string& savedPath);
     void Visit_RuntimeNode(
         const Shared<Engine::BNode>& node,
         const function<void(const Shared<Engine::BNode>&)>& visitor);

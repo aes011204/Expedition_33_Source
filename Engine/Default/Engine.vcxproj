@@ -222,6 +222,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClInclude Include="..\Public\Helper_String.h" />
     <ClInclude Include="..\Public\Material_Types.h" />
     <ClInclude Include="..\Public\MovementCom.h" />
+    <ClInclude Include="..\public\Parallel.h" />
     <ClInclude Include="..\Public\PhysX_Filter.h" />
     <ClInclude Include="..\Public\PhysX_Types.h" />
     <ClInclude Include="..\Public\Picking.h" />
@@ -324,6 +325,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClCompile Include="..\Private\ICommand.cpp" />
     <ClCompile Include="..\Private\Log_Manager.cpp" />
     <ClCompile Include="..\Private\MovementCom.cpp" />
+    <ClCompile Include="..\private\Parallel.cpp" />
     <ClCompile Include="..\Private\PathFollower.cpp" />
     <ClCompile Include="..\Private\PhysX_Filter.cpp" />
     <ClCompile Include="..\Private\PhysX_Manager.cpp" />

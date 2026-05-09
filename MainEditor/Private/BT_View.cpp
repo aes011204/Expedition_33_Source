@@ -177,7 +177,8 @@ void BT_View::Inspactor()
 
     ImGui::Separator();
 
-    if (node->runtimeNode != nullptr)
+    const bool hasRuntimeNode = (node->runtimeNode != nullptr);
+    if (hasRuntimeNode)
     {
         vector<Engine::BTBlackboardKeyView> keyViews;
         keyViews.reserve(_blackboardKeys.size());
@@ -191,37 +192,78 @@ void BT_View::Inspactor()
         Inspector::Draw_ReflectionSection(info.className, node->runtimeNode.get(), info);
 
         Inspector::Set_BTBlackboardKeys(nullptr);
-        return;
     }
 
-    switch (node->type)
+    if (!hasRuntimeNode)
     {
-    case NodeType::Selector:
-        ImGui::Text("Selector Node");
-        break;
+        switch (node->type)
+        {
+        case NodeType::Selector:
+            ImGui::Text("Selector Node");
+            break;
 
-    case NodeType::Sequence:
-        ImGui::Text("Sequence Node");
-        break;
+        case NodeType::Sequence:
+            ImGui::Text("Sequence Node");
+            break;
 
-    case NodeType::Task:
-    {
-        ImGui::Text("Task Node");
-        static int damage = 10;
-        ImGui::InputInt("Damage", &damage);
-        break;
+        case NodeType::Task:
+        {
+            ImGui::Text("Task Node");
+            static int damage = 10;
+            ImGui::InputInt("Damage", &damage);
+            break;
+        }
+
+        case NodeType::Decorator:
+        {
+            ImGui::Text("Decorator Node");
+            ImGui::TextDisabled("Child order is fixed by slot index.");
+            static bool flag = true;
+            ImGui::Checkbox("Condition", &flag);
+            break;
+        }
+
+        case NodeType::Parallel:
+        {
+            ImGui::Text("Parallel Node");
+            ImGui::TextDisabled("Child 0 is the main task.");
+            break;
+        }
+
+        default:
+            break;
+        }
     }
 
-    case NodeType::Decorator:
+    if (CanNodeHaveChildren(node->type))
     {
-        ImGui::Text("Decorator Node");
-        static bool flag = true;
-        ImGui::Checkbox("Condition", &flag);
-        break;
-    }
+        ImGui::Separator();
+        ImGui::Text("Child Slots");
 
-    default:
-        break;
+        for (size_t i = 0; i < node->outputPins.size(); ++i)
+            ImGui::BulletText("%s", GetOutputPinLabel(*node, i));
+
+        if (node->type != NodeType::Decorator)
+        {
+            if (ImGui::Button("Add Slot"))
+                node->outputPins.push_back(ed::PinId(GenerateID()));
+
+            ImGui::SameLine();
+
+            if (ImGui::Button("Remove Slot") && node->outputPins.size() > GetDefaultOutputPinCount(node->type))
+            {
+                const ed::PinId removedPin = node->outputPins.back();
+                node->outputPins.pop_back();
+
+                _links.erase(
+                    std::remove_if(_links.begin(), _links.end(),
+                        [removedPin](const EditorLink& link)
+                        {
+                            return link.startPin == removedPin;
+                        }),
+                    _links.end());
+            }
+        }
     }
 }
 
@@ -405,10 +447,8 @@ void BT_View::Create_Node(NodeType type)
 
     node.id = ed::NodeId(GenerateID());
     node.inputPin = ed::PinId(GenerateID());
-    node.outputPin = ed::PinId(GenerateID());
-
     node.type = type;
-
+    EnsureOutputPins(node, GetDefaultOutputPinCount(type));
 
     switch (type)
     {
@@ -417,6 +457,9 @@ void BT_View::Create_Node(NodeType type)
         break;
     case NodeType::Sequence:
         node.title = "Sequence";
+        break;
+    case NodeType::Parallel:
+        node.title = "Parallel";
         break;
     case NodeType::Task:
         node.title = "Task";
@@ -445,7 +488,6 @@ void BT_View::Create_Node(const string& className, const string& category)
 
     node.id = ed::NodeId(GenerateID());
     node.inputPin = ed::PinId(GenerateID());
-    node.outputPin = ed::PinId(GenerateID());
 
     node.className = className;
     node.category = category;
@@ -460,6 +502,8 @@ void BT_View::Create_Node(const string& className, const string& category)
         node.type = NodeType::Decorator;
     else
         node.type = NodeType::Task;
+
+    EnsureOutputPins(node, GetDefaultOutputPinCount(node.type));
 
     node.position = _popupPos;
 
@@ -501,7 +545,13 @@ void BT_View::Save_BT(const std::string& path)
         n["x"] = node.position.x;
         n["y"] = node.position.y;
         n["inputPin"] = (uint64_t)node.inputPin.Get();
-        n["outputPin"] = (uint64_t)node.outputPin.Get();
+
+        if (!node.outputPins.empty())
+        {
+            n["outputPin"] = (uint64_t)node.outputPins.front().Get();
+            for (const auto& outputPin : node.outputPins)
+                n["outputPins"].push_back((uint64_t)outputPin.Get());
+        }
 
         n["className"] = node.className;
         n["category"] = node.category;
@@ -545,6 +595,8 @@ void BT_View::Save_BT(const std::string& path)
     _currentFileName = fs::path(path).filename().string();
     strcpy_s(_saveFileName, _currentFileName.c_str());
 
+    Reload_AIControllersUsingBT(path);
+
 }
 
 void BT_View::Load_BT(const std::string& path)
@@ -577,7 +629,16 @@ void BT_View::Load_BT(const std::string& path)
         node.position = ImVec2(n["x"], n["y"]);
 
         node.inputPin = ed::PinId(n["inputPin"].get<uint64_t>());
-        node.outputPin = ed::PinId(n["outputPin"].get<uint64_t>());
+
+        if (n.contains("outputPins"))
+        {
+            for (auto& outputPin : n["outputPins"])
+                node.outputPins.push_back(ed::PinId(outputPin.get<uint64_t>()));
+        }
+        else if (n.contains("outputPin"))
+        {
+            node.outputPins.push_back(ed::PinId(n["outputPin"].get<uint64_t>()));
+        }
 
         strcpy_s(node.titleBuffer, node.title.c_str());
 
@@ -629,13 +690,20 @@ void BT_View::Load_BT(const std::string& path)
     {
         _idCounter = max(_idCounter, (uint64_t)node.id.Get() + 1);
         _idCounter = max(_idCounter, (uint64_t)node.inputPin.Get() + 1);
-        _idCounter = max(_idCounter, (uint64_t)node.outputPin.Get() + 1);
+
+        for (const auto& outputPin : node.outputPins)
+            _idCounter = max(_idCounter, (uint64_t)outputPin.Get() + 1);
     }
 
     for (auto& link : _links)
     {
         _idCounter = max(_idCounter, (uint64_t)link.id.Get() + 1);
     }
+
+    // Older BT assets may have fewer output pins than the current editor expects.
+    // Expand them only after the max serialized ID is known to avoid pin ID collisions.
+    for (auto& node : _nodes)
+        EnsureOutputPins(node, GetDefaultOutputPinCount(node.type));
 
     _currentFileName = fs::path(path).filename().string();
     strcpy_s(_saveFileName, _currentFileName.c_str());
@@ -806,9 +874,12 @@ void BT_View::Draw_Nodes()
 
         if (CanNodeHaveChildren(node.type))
         {
-            ed::BeginPin(node.outputPin, ed::PinKind::Output);
-            ImGui::Text("Out ->");
-            ed::EndPin();
+            for (size_t i = 0; i < node.outputPins.size(); ++i)
+            {
+                ed::BeginPin(node.outputPins[i], ed::PinKind::Output);
+                ImGui::Text("%s ->", GetOutputPinLabel(node, i));
+                ed::EndPin();
+            }
         }
 
         ed::EndNode();
@@ -921,6 +992,32 @@ void BT_View::Refresh_DebugState()
             debugState.state = node->Get_LastState();
             debugState.tick = node->Get_LastDebugTick();
             _debugNodeStates[node->Get_AssetNodeId()] = debugState;
+        });
+}
+
+void BT_View::Reload_AIControllersUsingBT(const string& savedPath)
+{
+    const string normalizedSavedPath = fs::path(savedPath).generic_string();
+
+    GAME->Visit_CurrentLevelObjects(
+        [&](const wstring&, const Shared<Engine::GameObject>& gameObject)
+        {
+            if (gameObject == nullptr)
+                return;
+
+            Shared<Engine::AIController> aiController =
+                gameObject->Get_Component<Engine::AIController>();
+
+            if (aiController == nullptr)
+                return;
+
+            const string normalizedAssetPath =
+                fs::path(aiController->Get_BehaviorTreeAssetPath()).generic_string();
+
+            if (normalizedAssetPath != normalizedSavedPath)
+                return;
+
+            aiController->Reload_BehaviorTree();
         });
 }
 
@@ -1046,6 +1143,18 @@ void BT_View::Handle_CreateLink()
                     }
                 }
 
+                if (canCreate)
+                {
+                    for (const auto& link : _links)
+                    {
+                        if (link.startPin == outputPin)
+                        {
+                            canCreate = false;
+                            break;
+                        }
+                    }
+                }
+
                 if (!canCreate)
                 {
                     ed::RejectNewItem();
@@ -1083,17 +1192,35 @@ BT_View::EditorNode* BT_View::FindNodeByPin(ed::PinId pin)
 {
     for (auto& node : _nodes)
     {
-        if (node.inputPin == pin || node.outputPin == pin)
+        if (node.inputPin == pin)
             return &node;
+
+        for (const auto& outputPin : node.outputPins)
+        {
+            if (outputPin == pin)
+                return &node;
+        }
     }
 
     return nullptr;
+}
+
+int BT_View::FindOutputPinIndex(const EditorNode& node, ed::PinId pin) const
+{
+    for (size_t i = 0; i < node.outputPins.size(); ++i)
+    {
+        if (node.outputPins[i] == pin)
+            return static_cast<int>(i);
+    }
+
+    return -1;
 }
 
 bool BT_View::CanNodeHaveChildren(NodeType type) const
 {
     return type == NodeType::Selector
         || type == NodeType::Sequence
+        || type == NodeType::Parallel
         || type == NodeType::Decorator;
 }
 
@@ -1112,8 +1239,14 @@ bool BT_View::IsOutputPin(ed::PinId pin) const
 {
     for (const auto& node : _nodes)
     {
-        if (node.outputPin == pin && CanNodeHaveChildren(node.type))
-            return true;
+        if (!CanNodeHaveChildren(node.type))
+            continue;
+
+        for (const auto& outputPin : node.outputPins)
+        {
+            if (outputPin == pin)
+                return true;
+        }
     }
 
     return false;
@@ -1186,15 +1319,22 @@ void BT_View::Handle_DeleteNode()
 
             const bool wasRoot = target->isRoot;
             ed::PinId inputPin = target->inputPin;
-            ed::PinId outputPin = target->outputPin;
 
            
             _links.erase(
                 std::remove_if(_links.begin(), _links.end(),
-                    [inputPin, outputPin](const EditorLink& link)
+                    [inputPin, target](const EditorLink& link)
                     {
-                        return (link.startPin == outputPin ||
-                            link.endPin == inputPin);
+                        if (link.endPin == inputPin)
+                            return true;
+
+                        for (const auto& outputPin : target->outputPins)
+                        {
+                            if (link.startPin == outputPin)
+                                return true;
+                        }
+
+                        return false;
                     }),
                 _links.end()
             );
@@ -1259,6 +1399,8 @@ void BT_View::Handle_CreateNodePopup()
         if (ImGui::MenuItem("Sequence"))
             Create_Node(NodeType::Sequence);
 
+        if (ImGui::MenuItem("Parallel"))
+            Create_Node(NodeType::Parallel);
 
         map<string, vector<string>> groupedNodes;
 
@@ -1305,6 +1447,47 @@ void BT_View::Update_NodePositions()
     {
         node.position = ed::GetNodePosition(node.id);
     }
+}
+
+void BT_View::EnsureOutputPins(EditorNode& node, size_t desiredCount)
+{
+    if (!CanNodeHaveChildren(node.type))
+    {
+        node.outputPins.clear();
+        return;
+    }
+
+    while (node.outputPins.size() < desiredCount)
+        node.outputPins.push_back(ed::PinId(GenerateID()));
+}
+
+size_t BT_View::GetDefaultOutputPinCount(NodeType type) const
+{
+    switch (type)
+    {
+    case NodeType::Decorator:
+        return 1;
+
+    case NodeType::Selector:
+    case NodeType::Sequence:
+    case NodeType::Parallel:
+        return 2;
+
+    default:
+        return 0;
+    }
+}
+
+const char* BT_View::GetOutputPinLabel(const EditorNode& node, size_t pinIndex) const
+{
+    static thread_local string label;
+
+    if (node.type == NodeType::Parallel && pinIndex == 0)
+        label = "Main";
+    else
+        label = "Child " + std::to_string(pinIndex);
+
+    return label.c_str();
 }
 
 

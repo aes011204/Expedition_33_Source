@@ -1,5 +1,6 @@
 ﻿#include "BT_Attack.h"
 #include "AIController.h"
+#include "Monster.h"
 
 BT_Attack::BT_Attack()
 {
@@ -13,7 +14,8 @@ void BT_Attack::OnStart()
 {
     LOG_DEBUG("attck");
     Get_Owner()->Stop_Move();
-    int i = 1;
+    Shared<Monster> monster = dynamic_pointer_cast<Monster>(Get_Owner()->Get_Owner());
+    monster->Set_CurrentAction(Monster::MonsterAction::Idle);
 }
 
 BNode::NODE_STATE BT_Attack::Logic_Update(float deltaTime)

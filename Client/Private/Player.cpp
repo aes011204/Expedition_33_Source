@@ -43,7 +43,7 @@ HRESULT Player::Initialize_Prototype()
 HRESULT Player::Initialize(void* arg)
 {	
 	Character::ContainerObjectDesc desc{};
-	desc.speedPerSec = 10.f;
+	desc.speedPerSec = 20.f;
 	desc.degreePerSec = 180.f;
 
 	if (FAILED(__super::Initialize(&desc)))
@@ -98,8 +98,8 @@ HRESULT Player::Ready_Components()
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_Input"), _inputCom), E_FAIL);
 
     MovementCom::MoveDesc moveDesc{};
-    moveDesc.walkSpeed = 4.f;
-    moveDesc.runSpeed = 7.f;
+    moveDesc.walkSpeed = 9.f;
+    moveDesc.runSpeed = 10.f;
     moveDesc.turnSpeedDegree = 180.f;
     moveDesc.jumpVelocity = 8.f;
     moveDesc.gravity = -20.f;
