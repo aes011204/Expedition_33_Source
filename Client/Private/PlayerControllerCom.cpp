@@ -49,31 +49,42 @@ void PlayerControllerCom::BeginPlay()
 
 	_inputCom = owner->Get_Component<InputCom>();
 	CHECK_NULL(_inputCom);
-
 }
 
 void PlayerControllerCom::Update_Controller(float timeDelta)
 {
 	if (GAME->Is_PlayerInputBlocked())
 	{
-		MovementCom::MoveInput moveInput{};
-		_movementCom->Apply_Input(moveInput);
+		_movementCom->Apply_Input({});
 		return;
 	}
 
 	_inputCom->Update_Input();
+    auto currentInput = _inputCom->Get_MovementInput();
 
-	MovementCom::MoveInput moveInput{};
-	const InputCom::InputFrame& inputFrame = _inputCom->Get_Frame();
+    if (currentInput.isWalkDown)
+    {
+        _isWalkToggled = !_isWalkToggled;
+    }
 
-	moveInput.moveX = inputFrame.moveX;
-	moveInput.moveZ = inputFrame.moveZ;
-	moveInput.isRunPressed = inputFrame.isRunPressed;
-	moveInput.isJumpDown = inputFrame.isJumpDown;
-
-	_movementCom->Apply_Input(moveInput);
+    currentInput.isWalkDown = _isWalkToggled;
+	_movementCom->Apply_Input(currentInput);
 	_movementCom->Update_Movement(timeDelta);
+}
 
+bool PlayerControllerCom::Has_MoveInput() const
+{
+    return _inputCom->Has_MoveInput();
+}
+
+bool PlayerControllerCom::Is_WalkToggled() const
+{
+    return _isWalkToggled;
+}
+
+const MovementCom::MovementInput& PlayerControllerCom::Get_MovementInput() const
+{
+    return _inputCom->Get_MovementInput();
 }
 
 Shared<PlayerControllerCom> PlayerControllerCom::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

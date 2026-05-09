@@ -40,6 +40,7 @@ class ColliderCom;
 class Shadow;
 class Picking;
 class Culling_Manager;
+class ThreadPool;
 
 class ENGINE_DLL GameInstance final : public Base
 {
@@ -362,6 +363,10 @@ public: /* For.Picking */
     HRESULT                 Update_Picking();
     bool                    Pick_WorldPosition(const POINT& pixelPos, Vec3& outWorldPos);
 
+public: /* For.Thread Pool */
+    bool                    Enqueue_ThreadJob(function<void()> job);
+    size_t                  Get_PendingThreadJobCount() const;
+
 private:
     Unique<Log_Manager>         _logManager{};
     Unique<Graphic_Device>      _graphicDevice{};
@@ -385,6 +390,7 @@ private:
     Unique<PhysX_Manager>       _physxManager{};
     Unique<Picking>             _picking{};
     Unique<Culling_Manager>     _cullingManager{};
+    Unique<ThreadPool>          _threadPool{};
 
 
 #ifdef _DEBUG

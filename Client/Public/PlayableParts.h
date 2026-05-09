@@ -13,8 +13,9 @@ class PlayableParts abstract : public PartObject
 public:
     typedef struct tagBodyPlayerDesc : public PartObject::PARTOBJECT_DESC
     {
-        ModelType modelType{ ModelType::Anim };
-        wstring modelTag{};
+        ModelType       modelType{ ModelType::Anim };
+        wstring         modelTag{};
+        const Matrix*   socketMatrixPointer{ nullptr };
     } PLAYABLE_PART_DESC;
 
 public:
@@ -25,7 +26,10 @@ public:
 public:
     const Matrix* Get_SocketBoneMatrixPtr(const string& boneName) const;
     const Matrix* Get_SocketBoneMatrixPtr(uint32 boneIndex) const;
-    //Shared<ModelCom> Get_Model(); // 일단 편의성을 위해서 살릴까 말까
+    void Set_Animation(uint32 animIndex, float blendDuration, bool isLoop = false) const;
+    uint32 Get_AnimationIndex() const;
+    float Get_AnimationProgress() const;
+    bool Is_AnimationFinished() const;
 
 public:
     virtual HRESULT Initialize_Prototype() override;
@@ -37,8 +41,12 @@ public:
     virtual HRESULT Render_Shadow() override;
 
 protected:
-    Shared<ShaderCom> _shaderCom{ nullptr };
-    Shared<ModelCom>  _modelCom{ nullptr };
+    void Update_CombinedWorldMatrix(const Matrix& childMatrix) override;
+
+protected:
+    const Matrix*       _socketMatrix{ nullptr };
+    Shared<ShaderCom>   _shaderCom{ nullptr };
+    Shared<ModelCom>    _modelCom{ nullptr };
 
 protected:
     virtual HRESULT Ready_Components(const PLAYABLE_PART_DESC& desc);

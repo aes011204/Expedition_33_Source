@@ -246,6 +246,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClInclude Include="..\Public\Task.h" />
     <ClInclude Include="..\Public\SkeletalMesh.h" />
     <ClInclude Include="..\Public\StaticMesh.h" />
+    <ClInclude Include="..\Public\ThreadPool.h" />
     <ClInclude Include="..\Public\TypeRegistry.h" />
     <ClInclude Include="..\public\UI_Base.h" />
     <ClInclude Include="..\public\UI_Image.h" />
@@ -348,6 +349,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClCompile Include="..\Private\SkeletalMesh.cpp" />
     <ClCompile Include="..\Private\StaticMesh.cpp" />
     <ClCompile Include="..\Private\Task.cpp" />
+    <ClCompile Include="..\Private\ThreadPool.cpp" />
     <ClCompile Include="..\Private\TypeRegistry.cpp" />
     <ClCompile Include="..\private\UI_Base.cpp" />
     <ClCompile Include="..\private\UI_Image.cpp" />

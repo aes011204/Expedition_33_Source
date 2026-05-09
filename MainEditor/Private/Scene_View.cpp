@@ -8,6 +8,9 @@
 #include "Client_Defines.h"
 #include "Spawn_Prefab.h"
 
+//add
+#include "MapStaticMesh.h"
+
 namespace MainEditor::Internal
 {
     struct ViewportImageRect
@@ -496,7 +499,13 @@ void Scene_View::Render_ViewportCanvas()
             activePayload != nullptr &&
             activePayload->IsDataType("CONTENT_BROWSER_PREFAB");
 
-        if (isPrefabDragging && !isMouseOverOverlay)
+        // add
+        const bool isModelDragging =
+            activePayload != nullptr &&
+            activePayload->IsDataType("CONTENT_BROWSER_MODEL");
+
+        // fix isPrefabDragging -> (isPrefabDragging || isModelDragging)
+        if ((isPrefabDragging || isModelDragging) && !isMouseOverOverlay)
             ImGui::InvisibleButton("SceneViewportCanvas", _viewportSize);
         else
             ImGui::Dummy(_viewportSize);
@@ -507,7 +516,8 @@ void Scene_View::Render_ViewportCanvas()
         _viewportMin = imageRect.imageMin;
         _viewportMax = imageRect.imageMax;
 
-        if (isPrefabDragging && !isMouseOverOverlay && ImGui::BeginDragDropTarget())
+        // fix isPrefabDragging -> (isPrefabDragging || isModelDragging)
+        if ((isPrefabDragging || isModelDragging) && !isMouseOverOverlay && ImGui::BeginDragDropTarget())
         {
             if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(
                 "CONTENT_BROWSER_PREFAB",
@@ -555,6 +565,55 @@ void Scene_View::Render_ViewportCanvas()
                     Clear_DragPreviewObject();
                 }
             }
+            // add
+            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(
+                "CONTENT_BROWSER_MODEL",
+                ImGuiDragDropFlags_AcceptBeforeDelivery))
+            {
+                const char* modelPathA = static_cast<const char*>(payload->Data);
+
+                const float viewportWidth = _viewportMax.x - _viewportMin.x;
+                const float viewportHeight = _viewportMax.y - _viewportMin.y;
+                const float depthWidth = static_cast<float>(GAME->Get_ViewportWidth());
+                const float depthHeight = static_cast<float>(GAME->Get_ViewportHeight());
+
+                POINT pixelPos{};
+                pixelPos.x = static_cast<LONG>(
+                    (ImGui::GetMousePos().x - _viewportMin.x) *
+                    (depthWidth / max(viewportWidth, 1.f)));
+                pixelPos.y = static_cast<LONG>(
+                    (ImGui::GetMousePos().y - _viewportMin.y) *
+                    (depthHeight / max(viewportHeight, 1.f)));
+
+                if (payload->IsDelivery())
+                {
+                    Vec3 worldPos = Vec3::Zero;
+                    if (SUCCEEDED(GAME->Update_Picking()))
+                        GAME->Pick_WorldPosition(pixelPos, worldPos);
+
+                    auto model = ModelCom::Create(
+                        EDITOR->Get_Device(), EDITOR->Get_Context(),
+                        ModelType::NonAnim, modelPathA, Matrix::CreateScale(0.01f));
+
+                    if (model)
+                    {
+                        Client::MapStaticMesh::MAPSTATICMESH_DESC desc{};
+                        desc.model = model;
+                        desc.position = worldPos;
+
+                        Shared<GameObject> spawned;
+                        if (SUCCEEDED(GAME->Add_GameObject(
+                            ETOI(LevelType::Static), TEXT("GameObject_MapStaticMesh"),
+                            GAME->Current_LevelIndex(), L"Layer_MapStaticMesh",
+                            spawned, &desc)))
+                        {
+                            EDITOR->Select_Object(spawned);
+                        }
+                    }
+                }
+            }
+            //
+
             ImGui::EndDragDropTarget();
         }
     }
@@ -570,7 +629,13 @@ void Scene_View::Render_ViewportCanvas()
             activePayload != nullptr &&
             activePayload->IsDataType("CONTENT_BROWSER_PREFAB");
 
-        if (isPrefabDragging && !isMouseOverOverlay)
+        // add
+        const bool isModelDragging =
+            activePayload != nullptr &&
+            activePayload->IsDataType("CONTENT_BROWSER_MODEL");
+
+        // fix isPrefabDragging -> (isPrefabDragging || isModelDragging)
+        if ((isPrefabDragging || isModelDragging) && !isMouseOverOverlay)
             ImGui::InvisibleButton("SceneViewportCanvas", _viewportSize);
         else
             ImGui::Dummy(_viewportSize);

@@ -14,6 +14,7 @@ NS_BEGIN(Client)
 
 class InputCom;
 class PlayerControllerCom;
+class PlayerStateMachineCom;
 
 class Player final : public Character
 {
@@ -22,17 +23,17 @@ class Player final : public Character
 public:
 	Player(const ComPtr<Device>& device, const ComPtr<Context>& context);
 	Player(const Player& prototype);
-	virtual ~Player() = default;
+	virtual ~Player() override = default;
 
 public:
-	virtual HRESULT Initialize_Prototype() override;
-	virtual HRESULT Initialize(void* arg) override;
-    virtual void    BeginPlay() override;
+	HRESULT Initialize_Prototype() override;
+	HRESULT Initialize(void* arg) override;
+    void    BeginPlay() override;
 
-	virtual void Priority_Update(float timeDelta) override;
-	virtual void Update(float timeDelta) override;
-	virtual void Late_Update(float timeDelta) override;
-	virtual HRESULT Render() override;	
+	void Priority_Update(float timeDelta) override;
+	void Update(float timeDelta) override;
+	void Late_Update(float timeDelta) override;
+	HRESULT Render() override;
 
 protected:
 	HRESULT Ready_Components();
@@ -41,19 +42,21 @@ protected:
     HRESULT Ready_Collider();
 
 private:
-    Shared<MovementCom>         _movementCom;
-    Shared<InputCom>            _inputCom;
-    Shared<PlayerControllerCom> _playerControllerCom;
-    Shared<ColliderCom>         _colliderCom;
+    PlayerState                     _currentState;
+    float                           _testHp = 10.f;
 
-    PlayerState _testPlayerState = PlayerState::Idle;
-    float       _testHp = 10.f;
+    Shared<MovementCom>             _movementCom{ nullptr };
+    Shared<InputCom>                _inputCom{ nullptr };
+    Shared<PlayerControllerCom>     _playerControllerCom{ nullptr };
+    Shared<PlayerStateMachineCom>   _PlayerStateMachineCom{ nullptr };
+    Shared<ColliderCom>             _colliderCom{ nullptr };
 
 
 public:
 	static Shared<Player> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
-	virtual Shared<GameObject> Clone(void* pArg) override;
+	virtual Shared<GameObject> Clone(void* arg) override;
 	virtual void Free() override;
+
 };
 
 NS_END
