@@ -235,12 +235,8 @@
     <ClInclude Include="..\Public\PersistentObjectManager.h">
       <Filter>96. Manager</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\State.h">
-      <Filter>03. Component\StateMachine\State</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\StateMachine.h">
-      <Filter>03. Component\StateMachine</Filter>
-    </ClInclude>
+    <ClInclude Include="..\Public\AN_Test.h" />
+    <ClInclude Include="..\Public\ANS_Test.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -340,12 +336,8 @@
     <ClCompile Include="..\Private\PersistentObjectManager.cpp">
       <Filter>96. Manager</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\State.cpp">
-      <Filter>03. Component\StateMachine\State</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\StateMachine.cpp">
-      <Filter>03. Component\StateMachine</Filter>
-    </ClCompile>
+    <ClCompile Include="..\Private\AN_Test.cpp" />
+    <ClCompile Include="..\Private\ANS_Test.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">
@@ -367,6 +359,9 @@
       <Filter>97.ShaderFiles</Filter>
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxTex.hlsl">
+      <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_UI.hlsl">
       <Filter>97.ShaderFiles</Filter>
     </FxCompile>
   </ItemGroup>
