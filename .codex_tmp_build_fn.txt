@@ -1,0 +1,410 @@
+﻿bool Material_View::Build_MaterialInstances()
+{
+    if (_textureIndexDirty || _textureIndex.empty())
+        Rebuild_TextureIndex();
+
+    _materialInstances.clear();
+
+    _heuristics.erase(remove_if(_heuristics.begin(), _heuristics.end(), [](const HeuristicNote& n)
+    {
+        return n.kind == "tex_key" || n.kind == "template_pick";
+    }), _heuristics.end());
+
+    // resolve 실패한 base name만 요약한다.
+    unordered_map<string, uint32> missingBaseCounts{};
+    unordered_map<string, uint32> emptyUassetCounts{};
+    unordered_map<string, uint32> invalidUassetCounts{};
+    unordered_map<string, uint32> indexEmptyCounts{};
+    unordered_map<string, uint32> missingMiJsonCounts{};
+
+    // 인덱스가 비어서 resolve 자체가 불가능한 케이스
+    const bool textureIndexEmpty = _textureIndex.empty();
+
+    auto recordMissingBase = [&missingBaseCounts, &emptyUassetCounts, &invalidUassetCounts, &indexEmptyCounts, textureIndexEmpty](
+        const char* slotLabel,
+        const string& uassetPath,
+        const wstring& resolvedPath)
+    {
+        if (slotLabel == nullptr)
+            slotLabel = "Unknown";
+
+        // 1) MI json에서 uasset 문자열 자체를 못 뽑은 케이스
+        if (uassetPath.empty())
+        {
+            emptyUassetCounts[slotLabel] += 1;
+            return;
+        }
+
+        // 2) uasset 문자열은 있는데, 현재 Texture Root 인덱스가 비어있어서 resolve 자체가 불가능한 케이스
+        if (textureIndexEmpty)
+        {
+            indexEmptyCounts[slotLabel] += 1;
+            return;
+        }
+
+        // 2) uasset은 뽑았는데, 실제 파일 resolve가 실패한 케이스(Texture Root에 파일이 없거나 이름이 다름)
+        if (!resolvedPath.empty())
+            return;
+
+        const string base = Material_View::Extract_UAssetBaseName(uassetPath);
+        if (base.empty())
+        {
+            // uasset 형식이 예상과 다르거나 점만 있거나 이름이 비어있는 케이스,
+            // Extract_UAssetBaseName에서 baseName 추출에 실패한 케이스를 별도로 분리한다.
+            invalidUassetCounts[slotLabel] += 1;
+            return;
+        }
+
+        missingBaseCounts[base] += 1;
+    };
+
+    auto tryReadFloat = [](const json& obj, const char* key, float& outValue) -> bool
+    {
+        if (!obj.is_object())
+            return false;
+        auto it = obj.find(key);
+        if (it == obj.end())
+            return false;
+        if (it->is_number_float() || it->is_number_integer() || it->is_number_unsigned())
+        {
+            outValue = it->get<float>();
+            return true;
+        }
+        return false;
+    };
+
+    auto tryReadBool = [](const json& obj, const char* key, bool& outValue) -> bool
+    {
+        if (!obj.is_object())
+            return false;
+        auto it = obj.find(key);
+        if (it == obj.end())
+            return false;
+        if (it->is_boolean())
+        {
+            outValue = it->get<bool>();
+            return true;
+        }
+        if (it->is_number_integer() || it->is_number_unsigned())
+        {
+            outValue = (0 != it->get<int>());
+            return true;
+        }
+        return false;
+    };
+
+    auto resolveBlendMode = [](const json& parameters, const json& baseOverrides) -> MaterialBlendMode
+    {
+        MaterialBlendMode mode = MaterialBlendMode::Opaque;
+
+        string blendModeStr{};
+        if (Material_View::Try_ReadString(baseOverrides, "BlendMode", blendModeStr))
+        {
+            const string lower = To_Lower(blendModeStr);
+            if (string::npos != lower.find("masked"))
+                return MaterialBlendMode::Masked;
+            if (string::npos != lower.find("translucent"))
+                return MaterialBlendMode::Translucent;
+            return MaterialBlendMode::Opaque;
+        }
+
+        auto it = parameters.find("BlendMode");
+        if (it != parameters.end() && (it->is_number_integer() || it->is_number_unsigned()))
+        {
+            const int v = it->get<int>();
+            if (v == 1)
+                return MaterialBlendMode::Masked;
+            if (v == 2)
+                return MaterialBlendMode::Translucent;
+        }
+
+        return mode;
+    };
+
+    auto templateName = [](Engine::MaterialShaderTemplate id) -> const char*
+    {
+        switch (id)
+        {
+        case Engine::MaterialShaderTemplate::OpaquePBR: return "OpaquePBR";
+        case Engine::MaterialShaderTemplate::MaskedPBR: return "MaskedPBR";
+        case Engine::MaterialShaderTemplate::EmissivePBR: return "EmissivePBR";
+        case Engine::MaterialShaderTemplate::TransparentPBR: return "TransparentPBR";
+        default: return "Unknown";
+        }
+    };
+
+    // mappings에 등장한 MI만 대상으로 MI json을 읽고, 텍스처와 파라미터를 해석한다.
+    for (const MaterialMapping& mapping : _materialMappings)
+    {
+        if (mapping.material.kind != MaterialRefKind::MI)
+            continue;
+
+        const string assetName = mapping.material.assetName;
+        if (assetName.empty())
+            continue;
+
+        if (_materialInstances.contains(assetName))
+            continue;
+
+        json miRoot{};
+        if (!Load_MiJsonByName(assetName, miRoot))
+        {
+            missingMiJsonCounts[assetName] += 1;
+            continue;
+        }
+
+        MaterialInstanceData inst{};
+        inst.assetName = assetName;
+
+        const json& textures = miRoot.value("Textures", json::object());
+        const json& parameters = miRoot.value("Parameters", json::object());
+
+        string usedKey{};
+        const string baseColorU = Pick_TextureUAssetPath(textures, { "Base Color Map", "PM_Diffuse", "Color_MAIN" }, &usedKey);
+        if (!baseColorU.empty() && usedKey != "Base Color Map")
+        {
+            HeuristicNote note{};
+            note.kind = "tex_key";
+            note.detail = assetName + " BC " + usedKey;
+            _heuristics.push_back(move(note));
+        }
+
+        usedKey.clear();
+        const string normalU = Pick_TextureUAssetPath(textures, { "Normal Map", "PM_Normals", "Normal_MAIN" }, &usedKey);
+        if (!normalU.empty() && usedKey != "Normal Map")
+        {
+            HeuristicNote note{};
+            note.kind = "tex_key";
+            note.detail = assetName + " N " + usedKey;
+            _heuristics.push_back(move(note));
+        }
+
+        const string ormU = Pick_TextureUAssetPath(textures, { "ORM Map" });
+
+        usedKey.clear();
+        const string emissiveU = Pick_TextureUAssetPath(textures, { "Glow_Map", "PM_Emissive" }, &usedKey);
+        if (!emissiveU.empty() && usedKey != "Glow_Map")
+        {
+            HeuristicNote note{};
+            note.kind = "tex_key";
+            note.detail = assetName + " E " + usedKey;
+            _heuristics.push_back(move(note));
+        }
+
+        usedKey.clear();
+        const string opacityMaskU = Pick_TextureUAssetPath(textures, { "Opacity Mask Map", "OpacityMask", "Opacity Mask", "Opacity_Map" }, &usedKey);
+        if (!opacityMaskU.empty() && usedKey != "Opacity Mask Map")
+        {
+            HeuristicNote note{};
+            note.kind = "tex_key";
+            note.detail = assetName + " OpacityMask " + usedKey;
+            _heuristics.push_back(move(note));
+        }
+
+        inst.baseColorPath = Resolve_TextureFileByUAsset(baseColorU);
+        inst.normalPath = Resolve_TextureFileByUAsset(normalU);
+        inst.ormPath = Resolve_TextureFileByUAsset(ormU);
+        inst.emissivePath = Resolve_TextureFileByUAsset(emissiveU);
+        inst.opacityMaskPath = Resolve_TextureFileByUAsset(opacityMaskU);
+
+        recordMissingBase("BC", baseColorU, inst.baseColorPath);
+        recordMissingBase("N", normalU, inst.normalPath);
+        recordMissingBase("ORM", ormU, inst.ormPath);
+        recordMissingBase("E", emissiveU, inst.emissivePath);
+        recordMissingBase("OpacityMask", opacityMaskU, inst.opacityMaskPath);
+
+        const json& props = parameters.value("Properties", json::object());
+        const json& baseOverrides = props.value("BasePropertyOverrides", json::object());
+
+        bool twoSided = false;
+        tryReadBool(baseOverrides, "TwoSided", twoSided);
+
+        float opacityClip = inst.renderState.opacityMaskClipValue;
+        tryReadFloat(baseOverrides, "OpacityMaskClipValue", opacityClip);
+
+        inst.renderState.twoSided = twoSided;
+        inst.renderState.blendMode = resolveBlendMode(parameters, baseOverrides);
+        inst.renderState.opacityMaskClipValue = opacityClip;
+
+        inst.cb.opacityMaskClipValue = opacityClip;
+
+        const json& colors = parameters.value("Colors", json::object());
+        {
+            const json& glowColor = colors.value("GlowColor", json::object());
+            float r = 1.f, g = 1.f, b = 1.f, a = 1.f;
+            tryReadFloat(glowColor, "R", r);
+            tryReadFloat(glowColor, "G", g);
+            tryReadFloat(glowColor, "B", b);
+            tryReadFloat(glowColor, "A", a);
+            inst.cb.emissiveColor = Vec4(r, g, b, a);
+        }
+
+        const json& scalars = parameters.value("Scalars", json::object());
+        tryReadFloat(scalars, "Value_Glow", inst.cb.emissiveIntensity);
+        tryReadFloat(scalars, "Glow_Mask_Mult", inst.cb.emissiveMaskMul);
+        tryReadFloat(scalars, "Normal/Bump Multiplier", inst.cb.normalStrength);
+
+        Engine::MaterialShaderTemplate pickedTemplate = Engine::MaterialShaderTemplate::OpaquePBR;
+        string templateReason = "default";
+        if (inst.renderState.blendMode == MaterialBlendMode::Masked)
+        {
+            pickedTemplate = Engine::MaterialShaderTemplate::MaskedPBR;
+            templateReason = "blend masked";
+        }
+        else if (inst.renderState.blendMode == MaterialBlendMode::Translucent)
+        {
+            pickedTemplate = Engine::MaterialShaderTemplate::TransparentPBR;
+            templateReason = "blend translucent";
+        }
+        else if (!inst.emissivePath.empty() || inst.cb.emissiveIntensity > 0.f)
+        {
+            pickedTemplate = Engine::MaterialShaderTemplate::EmissivePBR;
+            templateReason = "emissive";
+        }
+
+        inst.templateId = pickedTemplate;
+
+        {
+            HeuristicNote note{};
+            note.kind = "template_pick";
+            note.detail = assetName + " " + templateName(pickedTemplate) + " " + templateReason;
+            _heuristics.push_back(move(note));
+        }
+
+        _materialInstances.emplace(assetName, move(inst));
+    }
+
+#ifdef _DEBUG
+    if (!missingBaseCounts.empty() || !emptyUassetCounts.empty() || !invalidUassetCounts.empty() || !indexEmptyCounts.empty() || !missingMiJsonCounts.empty())
+    {
+        constexpr size_t kMaxPrint = 16;
+
+        string msg = "[Material_View] Missing textures summary: ";
+
+        if (!emptyUassetCounts.empty())
+        {
+            // empty uasset counts (e.g. E slot not present in MI)
+            vector<pair<string, uint32>> empties{};
+            empties.reserve(emptyUassetCounts.size());
+            for (const auto& kv : emptyUassetCounts)
+                empties.push_back(kv);
+
+            sort(empties.begin(), empties.end(), [](const auto& a, const auto& b)
+            {
+                if (a.second != b.second) return a.second > b.second;
+                return a.first < b.first;
+            });
+
+            msg += "empty_uasset=[";
+            const size_t ecount = (std::min)(empties.size(), kMaxPrint);
+            for (size_t i = 0; i < ecount; ++i)
+            {
+                msg += empties[i].first + " x" + to_string(empties[i].second);
+                if (i + 1 < ecount) msg += ", ";
+            }
+            if (empties.size() > kMaxPrint) msg += " ...";
+            msg += "] ";
+        }
+
+        if (!indexEmptyCounts.empty())
+        {
+            vector<pair<string, uint32>> items{};
+            items.reserve(indexEmptyCounts.size());
+            for (const auto& kv : indexEmptyCounts)
+                items.push_back(kv);
+
+            sort(items.begin(), items.end(), [](const auto& a, const auto& b)
+            {
+                if (a.second != b.second) return a.second > b.second;
+                return a.first < b.first;
+            });
+
+            msg += "index_empty=[";
+            const size_t count = (std::min)(items.size(), kMaxPrint);
+            for (size_t i = 0; i < count; ++i)
+            {
+                msg += items[i].first + " x" + to_string(items[i].second);
+                if (i + 1 < count) msg += ", ";
+            }
+            if (items.size() > kMaxPrint) msg += " ...";
+            msg += "] ";
+        }
+
+        if (!invalidUassetCounts.empty())
+        {
+            vector<pair<string, uint32>> items{};
+            items.reserve(invalidUassetCounts.size());
+            for (const auto& kv : invalidUassetCounts)
+                items.push_back(kv);
+
+            sort(items.begin(), items.end(), [](const auto& a, const auto& b)
+            {
+                if (a.second != b.second) return a.second > b.second;
+                return a.first < b.first;
+            });
+
+            msg += "invalid_uasset=[";
+            const size_t count = (std::min)(items.size(), kMaxPrint);
+            for (size_t i = 0; i < count; ++i)
+            {
+                msg += items[i].first + " x" + to_string(items[i].second);
+                if (i + 1 < count) msg += ", ";
+            }
+            if (items.size() > kMaxPrint) msg += " ...";
+            msg += "] ";
+        }
+
+        if (!missingBaseCounts.empty())
+        {
+            vector<pair<string, uint32>> items{};
+            items.reserve(missingBaseCounts.size());
+            for (const auto& kv : missingBaseCounts)
+                items.push_back(kv);
+
+            sort(items.begin(), items.end(), [](const auto& a, const auto& b)
+            {
+                if (a.second != b.second) return a.second > b.second;
+                return a.first < b.first;
+            });
+
+            msg += "missing_files=[";
+            const size_t count = (std::min)(items.size(), kMaxPrint);
+            for (size_t i = 0; i < count; ++i)
+            {
+                msg += items[i].first + " x" + to_string(items[i].second);
+                if (i + 1 < count) msg += ", ";
+            }
+            if (items.size() > kMaxPrint) msg += " ...";
+            msg += "]";
+        }
+
+        if (!missingMiJsonCounts.empty())
+        {
+            vector<pair<string, uint32>> items{};
+            items.reserve(missingMiJsonCounts.size());
+            for (const auto& kv : missingMiJsonCounts)
+                items.push_back(kv);
+
+            sort(items.begin(), items.end(), [](const auto& a, const auto& b)
+            {
+                if (a.second != b.second) return a.second > b.second;
+                return a.first < b.first;
+            });
+
+            msg += " missing_mi_json=[";
+            const size_t count = (std::min)(items.size(), kMaxPrint);
+            for (size_t i = 0; i < count; ++i)
+            {
+                msg += items[i].first + " x" + to_string(items[i].second);
+                if (i + 1 < count) msg += ", ";
+            }
+            if (items.size() > kMaxPrint) msg += " ...";
+            msg += "]";
+        }
+
+        LOG_WARN("{}", msg);
+    }
+#endif
+
+    return !_materialInstances.empty();
+}
