@@ -118,6 +118,12 @@
     <Filter Include="97.ShaderFiles\Compute">
       <UniqueIdentifier>{a10ec434-0458-4165-95ea-bc90cbd84fe3}</UniqueIdentifier>
     </Filter>
+    <Filter Include="03. Component\StateMachine">
+      <UniqueIdentifier>{e82a48fb-449d-4655-bbd7-e35e3480ddad}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="03. Component\StateMachine\State">
+      <UniqueIdentifier>{535700eb-0887-4cbe-a5df-3edc02bd65dd}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -229,6 +235,12 @@
     <ClInclude Include="..\Public\PersistentObjectManager.h">
       <Filter>96. Manager</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\State.h">
+      <Filter>03. Component\StateMachine\State</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\StateMachine.h">
+      <Filter>03. Component\StateMachine</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -328,6 +340,12 @@
     <ClCompile Include="..\Private\PersistentObjectManager.cpp">
       <Filter>96. Manager</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\State.cpp">
+      <Filter>03. Component\StateMachine\State</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\StateMachine.cpp">
+      <Filter>03. Component\StateMachine</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">
@@ -349,9 +367,6 @@
       <Filter>97.ShaderFiles</Filter>
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxTex.hlsl">
-      <Filter>97.ShaderFiles</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_UI.hlsl">
       <Filter>97.ShaderFiles</Filter>
     </FxCompile>
   </ItemGroup>
