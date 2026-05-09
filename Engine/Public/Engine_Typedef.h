@@ -50,7 +50,7 @@ namespace Engine
     inline const Vec3 Vec3::Look{ 0.f, 0.f, 1.f };
 
     using Vec4 = DirectX::SimpleMath::Vector4;
-    using Matrix = DirectX::SimpleMath::Matrix;
+    //using Matrix = DirectX::SimpleMath::Matrix;
 
     using Quat = DirectX::SimpleMath::Quaternion;
     using Color = DirectX::SimpleMath::Color;

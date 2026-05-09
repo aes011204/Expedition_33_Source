@@ -21,6 +21,7 @@ public:
     static fs::path Get_BaseFolderPath();
     // model의 guid를 추적해서, 모델이 가지고있는 애니메이션 가져오기
     static fs::path Get_ModelNotifyFilePath(const string& modelGuid);
+    static fs::path Get_LegacyModelNotifyFilePath(const string& modelGuid);
 
     // 애니메이션 이름으로 현재 asset 안의 notify 찾기
     static AnimNotifyData* Find_Animation(AnimNotifyAsset& asset, const string& animationName);

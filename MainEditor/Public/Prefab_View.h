@@ -1,15 +1,15 @@
 ﻿#pragma once
 
+#include "Editor_Camera_Free.h"
 #include "Editor_Window.h"
 
 NS_BEGIN(Engine)
 class GameObject;
+class ModelCom;
 class RenderTarget;
 NS_END
 
 NS_BEGIN(MainEditor)
-
-class Editor_Camera_Free;
 
 class Prefab_View : public Editor_Window
 {
@@ -34,6 +34,7 @@ public:
 
     const string& Get_PrefabName() const { return _prefabName; }
     bool Is_PreviewPrefab(const string& prefabName) const;
+    uint32 Get_DockId() const { return _dockId; }
 
 
 private:
@@ -51,6 +52,15 @@ private:
     void Reset_PreviewCameraPose();
     void Lock_PreviewObjectToOrigin();
     void Draw_PreviewGrid() const;
+    Shared<ModelCom> Find_FirstModelComponent() const;
+    void Prepare_AnimationViewSiblingDock();
+    void Open_PendingAnimationView();
+
+private:
+    static Editor_Camera_Free::EDITOR_CAMERA_DESC Build_PreviewCameraDesc(const Shared<GameObject>& gameObject);
+    static void Apply_PreviewCameraTransform(const Shared<Editor_Camera_Free>& camera);
+    static void Disable_PreviewAnimNotifyExecution(const Shared<GameObject>& gameObject);
+    static bool Is_AnimationViewFocused();
 
 private:
     string              _prefabName {};
@@ -70,6 +80,12 @@ private:
     bool                _isPreviewHovered = false;
     bool                _isPreviewActive = false;
     bool                _applyDefaultWindowLayout = false;
+    bool                _openAnimationViewWithPrefab = false;
+    bool                _pendingOpenAnimationView = false;
+    uint32              _dockId = 0;
+    uint32              _pendingDockId = 0;
+    uint32              _pendingAnimationDockId = 0;
+    int32               _focusPrefabFrames = 0;
 
     uint32              _previewWidth = 512;
     uint32              _previewHeight = 512;
@@ -82,7 +98,6 @@ private:
 
     wstring _selectedObjectKey{};
     wstring _selectedComponentKey{};
-
 
 public:
     static Shared<Prefab_View> Create();

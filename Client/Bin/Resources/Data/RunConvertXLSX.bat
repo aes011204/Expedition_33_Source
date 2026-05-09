@@ -13,7 +13,7 @@ if /I "%~1"=="google" goto sync_mode
 if /I "%~1"=="sync-google" goto sync_mode
 if /I "%~1"=="help" goto help
 
-echo Àß¸øµÈ ¿É¼ÇÀÔ´Ï´Ù: %~1
+echo ï¿½ß¸ï¿½ï¿½ï¿½ ï¿½É¼ï¿½ï¿½Ô´Ï´ï¿½: %~1
 echo.
 goto help_error
 
@@ -24,14 +24,14 @@ echo ========================================
 echo   Table Convert
 echo ========================================
 echo.
-echo   1^) xlsx to jsonÀ¸·Î º¯È¯
-echo   2^) ±¸±Û ½ÃÆ® °¡Á®¿À±â ^(´Ù¸¥ »ç¶÷ÀÌ ¼öÁ¤ÇÑ°Å^)
+echo   1^) xlsx to jsonï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½È¯
+echo   2^) ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Æ® ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ^(ï¿½Ù¸ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ñ°ï¿½^)
 echo.
-set /p USER_CHOICE=¹øÈ£ ¼±ÅÃ ^(1-2^): 
+set /p USER_CHOICE=ï¿½ï¿½È£ ï¿½ï¿½ï¿½ï¿½ ^(1-2^): 
 if "%USER_CHOICE%"=="1" goto local_mode
 if "%USER_CHOICE%"=="2" goto sync_mode
 echo.
-echo 1 ¶Ç´Â 2¸¦ ÀÔ·ÂÇØÁÖ¼¼¿ä.
+echo 1 ï¿½Ç´ï¿½ 2ï¿½ï¿½ ï¿½Ô·ï¿½ï¿½ï¿½ï¿½Ö¼ï¿½ï¿½ï¿½.
 pause
 goto prompt
 
@@ -48,13 +48,13 @@ goto run
 :help
 echo Usage:
 echo   RunConvertXLSX.bat
-echo     - ¸Þ´º¸¦ ¶ç¿ì°í ¼±ÅÃÇÕ´Ï´Ù.
+echo     - ï¿½Þ´ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
 echo   RunConvertXLSX.bat 1
-echo     - ·ÎÄÃ xlsx¸¸ jsonÀ¸·Î º¯È¯ÇÕ´Ï´Ù.
+echo     - ï¿½ï¿½ï¿½ï¿½ xlsxï¿½ï¿½ jsonï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½È¯ï¿½Õ´Ï´ï¿½.
 echo   RunConvertXLSX.bat 2
-echo     - ±¸±Û ½ÃÆ®¸¦ ¸ÕÀú °¡Á®¿Â µÚ º¯È¯ÇÕ´Ï´Ù.
+echo     - ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Æ®ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½È¯ï¿½Õ´Ï´ï¿½.
 echo   RunConvertXLSX.bat sync
-echo     - 2¹ø°ú °°Àº µ¿ÀÛÀÔ´Ï´Ù.
+echo     - 2ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ô´Ï´ï¿½.
 popd
 pause
 exit /b 0
@@ -85,4 +85,5 @@ if not "%EXIT_CODE%"=="0" (
 echo ConvertXLSX completed.
 popd
 if defined SHOW_PAUSE pause
+
 exit /b 0

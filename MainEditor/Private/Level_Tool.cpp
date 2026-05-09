@@ -7,7 +7,7 @@
 Level_Tool::Level_Tool()
     : Editor_Window{ L"Level Tool" }
 {
-    Set_Open(false);
+    Set_Open(true);
 }
 
 HRESULT Level_Tool::Initialize()

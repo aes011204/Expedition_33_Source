@@ -46,7 +46,7 @@ private:
 
 public:
     Content_Browser();
-    ~Content_Browser() override = default;
+    ~Content_Browser() override;
 
 public:
     void Update(float timeDelta) override;
