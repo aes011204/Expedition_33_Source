@@ -33,9 +33,9 @@ public:
 public:
 	virtual HRESULT Initialize_Prototype() override;
 	virtual HRESULT Initialize(void* arg) override;
-	virtual void Priority_Update(float timeDelta) override;
-	virtual void Update(float timeDelta) override;
-	virtual void Late_Update(float timeDelta) override;
+	virtual void    Priority_Update(float timeDelta) override;
+	virtual void    Update(float timeDelta) override;
+	virtual void    Late_Update(float timeDelta) override;
 	virtual HRESULT Render() override;
     virtual HRESULT Render_Shadow() override;
 

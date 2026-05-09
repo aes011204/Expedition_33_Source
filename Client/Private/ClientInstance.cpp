@@ -37,7 +37,7 @@ HRESULT ClientInstance::Ready_StaticResources()
 {
     CHECK_NULL(_resourceLoader, E_FAIL);
 
-	if (FAILED(_resourceLoader->Load_LevelTables(static_cast<LevelType>(LevelType::Static))))
+	if (FAILED(_resourceLoader->Load_LevelTables((LevelType::Static))))
 		return E_FAIL;
 
 	return S_OK;
@@ -60,12 +60,12 @@ Shared<ResourceLoader> ClientInstance::Get_ResourceLoader() const
 
 Shared<GameObject> ClientInstance::Find_Player(uint32 levelIndex)
 {
-    //auto gameObject = GAME->Find_FirstObject(levelIndex, TEXT("Layer_Player"));
-    //if (gameObject == nullptr)
-    //    return nullptr;
+    auto gameObject = GAME->Find_FirstObject(levelIndex, TEXT("Layer_Player"));
+    CHECK_NULL(gameObject, nullptr);
 
-    //return dynamic_pointer_cast<Player>(gameObject);
-    return _persistentObjectManager->Find_Player();
+    return gameObject;
+
+    //return _persistentObjectManager->Find_Player();
 }
 
 HRESULT ClientInstance::Ready_StaticObjects()

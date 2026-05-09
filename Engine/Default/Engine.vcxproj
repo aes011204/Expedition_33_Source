@@ -188,6 +188,8 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="..\Public\AIController.h" />
+    <ClInclude Include="..\Public\AnimNotify.h" />
+    <ClInclude Include="..\Public\AnimNotifyState.h" />
     <ClInclude Include="..\Public\AnimNotify_Parser.h" />
     <ClInclude Include="..\Public\AnimNotify_Types.h" />
     <ClInclude Include="..\public\AStar.h">
@@ -207,6 +209,8 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClInclude Include="..\Public\Collision_Manager.h" />
     <ClInclude Include="..\Public\Collision_Define.h" />
     <ClInclude Include="..\Public\Composite.h" />
+    <ClInclude Include="..\Public\ComputeShaderCom.h" />
+    <ClInclude Include="..\Public\ComputeStructuredBuffer.h" />
     <ClInclude Include="..\Public\Culling_Manager.h" />
     <ClInclude Include="..\Public\Debug_Manager.h" />
     <ClInclude Include="..\Public\Debug_Types.h" />
@@ -243,6 +247,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClInclude Include="..\Public\Task.h" />
     <ClInclude Include="..\Public\SkeletalMesh.h" />
     <ClInclude Include="..\Public\StaticMesh.h" />
+    <ClInclude Include="..\Public\ThreadPool.h" />
     <ClInclude Include="..\Public\TypeRegistry.h" />
     <ClInclude Include="..\public\UI_Base.h" />
     <ClInclude Include="..\public\UI_Image.h" />
@@ -300,6 +305,8 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\Private\AIController.cpp" />
+    <ClCompile Include="..\Private\AnimNotify.cpp" />
+    <ClCompile Include="..\Private\AnimNotifyState.cpp" />
     <ClCompile Include="..\Private\AnimNotify_Parser.cpp" />
     <ClCompile Include="..\private\AStar.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
@@ -317,6 +324,8 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClCompile Include="..\Private\ColliderCom.cpp" />
     <ClCompile Include="..\Private\Collision_Manager.cpp" />
     <ClCompile Include="..\Private\Composite.cpp" />
+    <ClCompile Include="..\Private\ComputeShaderCom.cpp" />
+    <ClCompile Include="..\Private\ComputeStructuredBuffer.cpp" />
     <ClCompile Include="..\Private\Culling_Manager.cpp" />
     <ClCompile Include="..\PRivate\Debug_Manager.cpp" />
     <ClCompile Include="..\Private\DebugDraw.cpp" />
@@ -342,6 +351,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClCompile Include="..\Private\SkeletalMesh.cpp" />
     <ClCompile Include="..\Private\StaticMesh.cpp" />
     <ClCompile Include="..\Private\Task.cpp" />
+    <ClCompile Include="..\Private\ThreadPool.cpp" />
     <ClCompile Include="..\Private\TypeRegistry.cpp" />
     <ClCompile Include="..\private\UI_Base.cpp" />
     <ClCompile Include="..\private\UI_Image.cpp" />

@@ -1,5 +1,6 @@
 ﻿#pragma once
 
+#include "AnimNotify_Types.h"
 #include "Component.h"
 #include "Material.h"
 
@@ -46,7 +47,8 @@ public:
 public:
     void Set_RootMotionEnabled(bool enable) { _isRootMotion = enable; }
     void Set_LocalRootNode(int32 nodeIndex) { _rootNodeIndex = nodeIndex; _isRootMotion = true; }
-    const RootMotionFrame& Get_RootTransformVelocity() const { return _rootFrameVelocity; }
+    const RootMotionFrame& Get_RootTransformVelocity() const { return _rootOriginalFrameVelocity; }
+    const RootMotionFrame& Get_RootTransformVelocity(float scaleOffset);
 
 public:
 	HRESULT Initialize_Prototype(ModelType type, const char* modelFilePath, const Matrix& preLocalTransformMatrix);
@@ -76,6 +78,46 @@ public: /* AnimNotify */
 
     void    Set_CurrentAnimationTimeSec(float timeSec);
     void    Refresh_CurrentAnimationPose();
+
+    // 현재 모델의 notify asset lazy-load
+    bool    Ensure_AnimNotifyAssetLoaded();
+    // 소스 모델이 바뀌면 notify 캐시 무효화
+    void    Invalidate_AnimNotifyAsset();
+
+    void    Set_AnimNotifyExecutionEnabled(bool enabled) { _isAnimNotifyExecutionEnabled = enabled; }
+    bool    Is_AnimNotifyExecutionEnabled() const { return _isAnimNotifyExecutionEnabled; }
+
+private:
+    // 현재 애니메이션 이름으로 노티파이 데이터 찾기
+    const AnimNotifyData* Find_CurrentNotifyAnimation() const;
+    void    Stop_AllNotifyStates(bool executeEndCheck);
+    // 다른 애니메이션에 속한 active state 정리
+    void    Stop_NotifyStates_ExceptAnimation(const string& keepAnimationName, bool executeEndCheck);
+
+    // 현재 재생 구간에서 event notify를 갱신한다.
+    void    Update_AnimNotifies(
+                const AnimNotifyData& animationData,
+                const AnimNotifyContext& context,
+                bool executeNotifies);
+
+    // 현재 재생 구간에서 state notify를 갱신한다.
+    void Update_AnimNotifyStates(
+        const AnimNotifyData& animationData,
+        const AnimNotifyContext& context,
+        bool executeNotifies);
+
+    // 루프 wrap을 포함해서 특정 시점이 재생 구간 안에 있는지 판정한다.
+    static bool Is_NotifyTimeInRange(float targetTime, float previousTime, float currentTime, bool wrapped);
+
+    // 현재 시간이 state 활성 범위 안에 있는지 판정한다.
+    static bool Is_NotifyStateActiveTime(float currentTime, float startTime, float duration);
+
+    // active state 목록에서 동일 state를 찾는다.
+    static int32 Find_ActiveNotifyStateIndex(
+        const vector<ActiveAnimNotifyState>& activeStates,
+        const string& animationName,
+        int32 stateIndex);
+
 
 private:
 	ModelType					        _type = { ModelType::END };
@@ -108,6 +150,7 @@ private: /* For Animation Control */
 private: /* For Root Motion */
     bool                                _isRootMotion{ false };
     int32                               _rootNodeIndex{ -1 }; // -1 일때는 최상위 노드 기준으로 
+    RootMotionFrame                     _rootOriginalFrameVelocity{};
     RootMotionFrame                     _rootFrameVelocity{};
 
 private: /* guid */
@@ -115,6 +158,12 @@ private: /* guid */
 
 private: /* notify */
     bool                                _isAnimationPaused = false;
+
+    bool _isAnimNotifyAssetLoaded = false;
+    bool _isAnimNotifyExecutionEnabled = true;
+
+    AnimNotifyAsset _animNotifyAsset{};
+    vector<ActiveAnimNotifyState> _activeNotifyStates{};
 
 private:
 	HRESULT Ready_Model(const char* modelPath);

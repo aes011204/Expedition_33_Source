@@ -21,6 +21,7 @@ IMPLEMENT_REFLECTION(Player)
     info.category = "Character";
 
     PROPERTY_ENUM("PlayerState",_testPlayerState, PlayerState);
+    PROPERTY_FLOAT("TestHp", _testHp);
 
     return true;
 }
