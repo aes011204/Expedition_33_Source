@@ -6,6 +6,7 @@
 #include "PlayerControllerCom.h"
 #include "Bounding_OBB.h"
 #include "ColliderCom.h"
+#include "PlayerStateMachineCom.h"
 
 #include "PlayableParts.h"
 #include "Body_Player.h"
@@ -20,7 +21,7 @@ IMPLEMENT_REFLECTION(Player)
     info.displayName = "Player";
     info.category = "Character";
 
-    PROPERTY_ENUM("PlayerState",_testPlayerState, PlayerState);
+    PROPERTY_ENUM("PlayerState", _currentState, PlayerState);
 
     return true;
 }
@@ -33,6 +34,7 @@ Player::Player(const ComPtr<Device>& device, const ComPtr<Context>& context)
 Player::Player(const Player& prototype)
 	: Character{ prototype }
 {
+    
 }
 
 HRESULT Player::Initialize_Prototype()
@@ -74,6 +76,8 @@ void Player::Update(float timeDelta)
 	__super::Update(timeDelta);
 
     _playerControllerCom->Update_Controller(timeDelta);
+    _PlayerStateMachineCom->Update_StateMachine(timeDelta);
+    _currentState = _PlayerStateMachineCom->Get_CurrentPlayerState();
 }
 
 void Player::Late_Update(float timeDelta)
@@ -107,9 +111,8 @@ HRESULT Player::Ready_Components()
 
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_Movement"), _movementCom, &moveDesc), E_FAIL);
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_PlayerController"), _playerControllerCom), E_FAIL);
-
+    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_PlayerStateMachine"), _PlayerStateMachineCom), E_FAIL);
     CHECK_FAILED(Ready_Collider(), E_FAIL);
-
 
     return S_OK;
 }
@@ -187,11 +190,11 @@ Shared<Player> Player::Create(const ComPtr<Device>& device, const ComPtr<Context
 }
 
 
-Shared<GameObject> Player::Clone(void* pArg)
+Shared<GameObject> Player::Clone(void* arg)
 {
 	auto instance = make_shared<Player>(*this);
 
-	if (FAILED(instance->Initialize(pArg)))
+	if (FAILED(instance->Initialize(arg)))
 	{
 		MSG_BOX("Failed to Cloned : Player");
 		return nullptr;

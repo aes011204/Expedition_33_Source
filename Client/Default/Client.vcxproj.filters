@@ -121,6 +121,12 @@
     <Filter Include="03. Component\StateMachine\State">
       <UniqueIdentifier>{535700eb-0887-4cbe-a5df-3edc02bd65dd}</UniqueIdentifier>
     </Filter>
+    <Filter Include="02.GameObject\Player\PlayerStateMachine">
+      <UniqueIdentifier>{06824f3a-44ed-4909-b292-0b395d0620f4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02.GameObject\Player\PlayerStateMachine\State">
+      <UniqueIdentifier>{2ff895e8-c801-4ce1-8657-6b74912325b5}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -238,6 +244,15 @@
     <ClInclude Include="..\Public\StateMachine.h">
       <Filter>03. Component\StateMachine</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\PlayerStateMachineCom.h">
+      <Filter>02.GameObject\Player\PlayerStateMachine</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Player_State.h">
+      <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Player_Idle.h">
+      <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -343,6 +358,15 @@
     <ClCompile Include="..\Private\StateMachine.cpp">
       <Filter>03. Component\StateMachine</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\PlayerStateMachineCom.cpp">
+      <Filter>02.GameObject\Player\PlayerStateMachine</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Player_State.cpp">
+      <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Player_Idle.cpp">
+      <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">
@@ -366,5 +390,6 @@
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxTex.hlsl">
       <Filter>97.ShaderFiles</Filter>
     </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_UI.hlsl" />
   </ItemGroup>
 </Project>

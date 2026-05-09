@@ -184,6 +184,9 @@
     <ClInclude Include="..\Public\PersistentObjectManager.h" />
     <ClInclude Include="..\Public\PlayableParts.h" />
     <ClInclude Include="..\Public\PlayerControllerCom.h" />
+    <ClInclude Include="..\Public\Player_Idle.h" />
+    <ClInclude Include="..\Public\Player_State.h" />
+    <ClInclude Include="..\Public\PlayerStateMachineCom.h" />
     <ClInclude Include="..\Public\Spawn_Prefab.h" />
     <ClInclude Include="..\Public\State.h" />
     <ClInclude Include="..\Public\StateMachine.h" />
@@ -225,6 +228,9 @@
     <ClCompile Include="..\Private\PersistentObjectManager.cpp" />
     <ClCompile Include="..\Private\PlayableParts.cpp" />
     <ClCompile Include="..\Private\PlayerControllerCom.cpp" />
+    <ClCompile Include="..\Private\Player_Idle.cpp" />
+    <ClCompile Include="..\Private\Player_State.cpp" />
+    <ClCompile Include="..\Private\PlayerStateMachineCom.cpp" />
     <ClCompile Include="..\Private\SimpleMath.cpp" />
     <ClCompile Include="..\Private\Spawn_Prefab.cpp" />
     <ClCompile Include="..\Private\State.cpp" />
