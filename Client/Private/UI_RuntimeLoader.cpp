@@ -2,6 +2,7 @@
 
 #include "GameInstance.h"
 #include "UI_Base.h"
+#include "UI_Animation.h"
 #include "UI_Button.h"
 #include "UI_Image.h"
 #include "UI_Panel.h"
@@ -48,6 +49,9 @@ namespace
         string texturePath{};
         string maskTextureGuid{};
         string maskTexturePath{};
+
+        vector<UI_AnimationClip> animationClips{};
+        vector<UI_KeyframeAnimationAsset> keyframeAnimationAssets{};
     };
 
     struct RuntimeUIDocument
@@ -55,6 +59,12 @@ namespace
         string canvasName = "MainCanvas";
         Vec2 canvasSize{ 1600.f, 900.f };
         vector<RuntimeUIObject> objects{};
+    };
+
+    struct RuntimeUIAnimationAssetBinding
+    {
+        string targetName{};
+        UI_KeyframeAnimationAsset asset{};
     };
 
     // -----------------------------
@@ -131,6 +141,11 @@ namespace
         return value.size() >= prefix.size() && equal(prefix.begin(), prefix.end(), value.begin());
     }
 
+    bool EndsWith(const string& value, const string& suffix)
+    {
+        return value.size() >= suffix.size() && equal(suffix.rbegin(), suffix.rend(), value.rbegin());
+    }
+
     RuntimeUIType Parse_UIType(const string& typeName)
     {
         if ("Image" == typeName)
@@ -164,6 +179,333 @@ namespace
             return UI_Text::TextAlign::Right;
 
         return UI_Text::TextAlign::Left;
+    }
+
+    bool Try_ReadAnimationTrack(const json& item, UI_AnimationTrack& outTrack)
+    {
+        if (!item.is_object())
+            return false;
+
+        UI_AnimationTrackType trackType = UI_AnimationTrackType::Fade;
+        if (!Try_ParseUIAnimationTrackType(Read_String(item, "type", ""), trackType))
+            return false;
+
+        UI_AnimationTrack track{};
+        track.type = trackType;
+        track.enabled = Read_Bool(item, "enabled", true);
+
+        if (track.type == UI_AnimationTrackType::Color)
+        {
+            track.fromColor = Read_Color(item, "from", Vec4(1.f, 1.f, 1.f, 1.f));
+            track.toColor = Read_Color(item, "to", Vec4(1.f, 1.f, 1.f, 1.f));
+        }
+        else if (track.type == UI_AnimationTrackType::Move || track.type == UI_AnimationTrackType::Scale)
+        {
+            const Vec2 defaultValue = track.type == UI_AnimationTrackType::Scale ? Vec2(1.f, 1.f) : Vec2(0.f, 0.f);
+            track.fromVec2 = Read_Vec2(item, "from", defaultValue);
+            track.toVec2 = Read_Vec2(item, "to", defaultValue);
+        }
+        else
+        {
+            track.fromFloat = Read_Float(item, "from", 0.f);
+            track.toFloat = Read_Float(item, "to", 0.f);
+
+            if (track.type == UI_AnimationTrackType::Fade)
+            {
+                track.fromFloat = min(max(track.fromFloat, 0.f), 1.f);
+                track.toFloat = min(max(track.toFloat, 0.f), 1.f);
+            }
+        }
+
+        outTrack = track;
+        return true;
+    }
+
+    bool Try_ReadAnimationClip(const json& item, UI_AnimationClip& outClip)
+    {
+        if (!item.is_object())
+            return false;
+
+        UI_AnimationClip clip{};
+        clip.name = String::ToWString(Read_String(item, "name", "Default"));
+        clip.enabled = Read_Bool(item, "enabled", true);
+        clip.playOnOpen = Read_Bool(item, "playOnOpen", true);
+        clip.delay = max(0.f, Read_Float(item, "delay", 0.f));
+        clip.duration = max(0.001f, Read_Float(item, "duration", 0.35f));
+        clip.loop = Read_Bool(item, "loop", false);
+
+        UI_AnimationEasing easing = UI_AnimationEasing::EaseOut;
+        const string easingName = Read_String(item, "easing", "EaseOut");
+        if (Try_ParseUIAnimationEasing(easingName, easing))
+            clip.easing = easing;
+        else
+            LOG_WARN("UI RuntimeLoader unknown animation easing '{}'. Using EaseOut.", easingName);
+
+        const auto tracksIter = item.find("tracks");
+        if (tracksIter != item.end() && tracksIter->is_array())
+        {
+            for (const json& trackItem : *tracksIter)
+            {
+                UI_AnimationTrack track{};
+                if (!Try_ReadAnimationTrack(trackItem, track))
+                {
+                    LOG_WARN("UI RuntimeLoader skipped invalid animation track.");
+                    continue;
+                }
+
+                clip.tracks.push_back(track);
+            }
+        }
+
+        outClip = move(clip);
+        return true;
+    }
+
+    vector<UI_AnimationClip> Read_AnimationClips(const json& item)
+    {
+        vector<UI_AnimationClip> clips{};
+
+        const auto animationsIter = item.find("animations");
+        if (animationsIter == item.end() || !animationsIter->is_array())
+            return clips;
+
+        for (const json& animationItem : *animationsIter)
+        {
+            UI_AnimationClip clip{};
+            if (!Try_ReadAnimationClip(animationItem, clip))
+            {
+                LOG_WARN("UI RuntimeLoader skipped invalid animation clip.");
+                continue;
+            }
+
+            clips.push_back(move(clip));
+        }
+
+        return clips;
+    }
+
+    vector<UI_AnimationClip> Make_TextAnimationClips(const RuntimeUIObject& object)
+    {
+        vector<UI_AnimationClip> clips = object.animationClips;
+        const float fontScale = max(4.f, object.fontSize) / 32.f;
+
+        for (UI_AnimationClip& clip : clips)
+        {
+            for (UI_AnimationTrack& track : clip.tracks)
+            {
+                if (track.type != UI_AnimationTrackType::Scale)
+                    continue;
+
+                track.fromVec2.x *= fontScale;
+                track.toVec2.x *= fontScale;
+            }
+        }
+
+        return clips;
+    }
+
+    void Sort_KeyframeTrack(UI_KeyframeAnimationTrack& track, const UI_KeyframeAnimationAsset& asset)
+    {
+        for (UI_KeyframeAnimationKey& key : track.keys)
+        {
+            key.frame = min(max(key.frame, asset.startFrame), asset.endFrame);
+            if (track.type == UI_KeyframeAnimationTrackType::ScaleX || track.type == UI_KeyframeAnimationTrackType::ScaleY)
+                key.value = max(0.01f, key.value);
+            else if (track.type == UI_KeyframeAnimationTrackType::Alpha)
+                key.value = min(max(key.value, 0.f), 1.f);
+        }
+
+        stable_sort(
+            track.keys.begin(),
+            track.keys.end(),
+            [](const UI_KeyframeAnimationKey& lhs, const UI_KeyframeAnimationKey& rhs)
+            {
+                return lhs.frame < rhs.frame;
+            });
+
+        vector<UI_KeyframeAnimationKey> mergedKeys;
+        mergedKeys.reserve(track.keys.size());
+        for (const UI_KeyframeAnimationKey& key : track.keys)
+        {
+            if (!mergedKeys.empty() && mergedKeys.back().frame == key.frame)
+            {
+                mergedKeys.back() = key;
+                continue;
+            }
+
+            mergedKeys.push_back(key);
+        }
+
+        track.keys = move(mergedKeys);
+    }
+
+    bool Try_ReadKeyframeAnimationKey(const json& item, UI_KeyframeAnimationKey& outKey)
+    {
+        if (!item.is_object())
+            return false;
+
+        UI_KeyframeAnimationKey key{};
+        key.frame = Read_Int(item, "frame", 0);
+        key.value = Read_Float(item, "value", 0.f);
+
+        outKey = key;
+        return true;
+    }
+
+    bool Try_ReadKeyframeAnimationTrack(const json& item, UI_KeyframeAnimationTrack& outTrack)
+    {
+        if (!item.is_object())
+            return false;
+
+        UI_KeyframeAnimationTrackType trackType = UI_KeyframeAnimationTrackType::PositionX;
+        const string typeName = Read_String(item, "type", "");
+        if (!Try_ParseUIKeyframeAnimationTrackType(typeName, trackType))
+        {
+            LOG_WARN("UI RuntimeLoader unknown keyframe animation track type '{}'.", typeName);
+            return false;
+        }
+
+        UI_KeyframeAnimationTrack track{};
+        track.type = trackType;
+        track.enabled = Read_Bool(item, "enabled", true);
+
+        const auto keysIter = item.find("keys");
+        if (keysIter != item.end() && keysIter->is_array())
+        {
+            for (const json& keyItem : *keysIter)
+            {
+                UI_KeyframeAnimationKey key{};
+                if (Try_ReadKeyframeAnimationKey(keyItem, key))
+                    track.keys.push_back(key);
+            }
+        }
+
+        outTrack = move(track);
+        return true;
+    }
+
+    bool Try_ReadKeyframeAnimationAssetBinding(const json& root, RuntimeUIAnimationAssetBinding& outBinding)
+    {
+        if (!root.is_object())
+            return false;
+
+        RuntimeUIAnimationAssetBinding binding{};
+        binding.targetName = Read_String(root, "targetName", "");
+        if (binding.targetName.empty())
+            return false;
+
+        UI_KeyframeAnimationAsset asset{};
+        asset.name = String::ToWString(Read_String(root, "name", "NewUIAnimation"));
+        asset.enabled = true;
+        asset.playOnOpen = true;
+        asset.fps = max(1, Read_Int(root, "fps", 60));
+        asset.startFrame = Read_Int(root, "startFrame", 0);
+        asset.endFrame = max(asset.startFrame + 1, Read_Int(root, "endFrame", 60));
+        asset.loop = Read_Bool(root, "loop", false);
+
+        const auto tracksIter = root.find("tracks");
+        if (tracksIter != root.end() && tracksIter->is_array())
+        {
+            for (const json& trackItem : *tracksIter)
+            {
+                UI_KeyframeAnimationTrack track{};
+                if (!Try_ReadKeyframeAnimationTrack(trackItem, track))
+                    continue;
+
+                Sort_KeyframeTrack(track, asset);
+                asset.tracks.push_back(move(track));
+            }
+        }
+
+        binding.asset = move(asset);
+        outBinding = move(binding);
+        return true;
+    }
+
+    bool Load_KeyframeAnimationAssetFile(const fs::path& assetPath, RuntimeUIAnimationAssetBinding& outBinding)
+    {
+        try
+        {
+            ifstream file(assetPath);
+            if (!file.is_open())
+                return false;
+
+            json root = json::parse(file, nullptr, false);
+            if (root.is_discarded())
+                return false;
+
+            return Try_ReadKeyframeAnimationAssetBinding(root, outBinding);
+        }
+        catch (const exception& exception)
+        {
+            LOG_WARN("UI RuntimeLoader keyframe animation parse failed: {} ({})",
+                exception.what(),
+                String::ToString(assetPath.wstring()));
+            return false;
+        }
+    }
+
+    vector<RuntimeUIAnimationAssetBinding> Load_KeyframeAnimationAssetBindings(const wstring& animationDirectory)
+    {
+        vector<RuntimeUIAnimationAssetBinding> bindings{};
+        if (animationDirectory.empty())
+            return bindings;
+
+        const wstring assetRoot = GAME->Get_AssetRoot();
+        if (assetRoot.empty())
+            return bindings;
+
+        const fs::path directoryPath = (fs::path(assetRoot) / animationDirectory).lexically_normal();
+        if (!fs::exists(directoryPath) || !fs::is_directory(directoryPath))
+        {
+            LOG_WARN("UI RuntimeLoader animation directory not found: {}", String::ToString(directoryPath.wstring()));
+            return bindings;
+        }
+
+        try
+        {
+            for (const fs::directory_entry& entry : fs::directory_iterator(directoryPath))
+            {
+                if (!entry.is_regular_file())
+                    continue;
+
+                const string fileName = String::ToLowerCopy(String::ToString(entry.path().filename().wstring()));
+                if (!EndsWith(fileName, ".uianim.json"))
+                    continue;
+
+                RuntimeUIAnimationAssetBinding binding{};
+                if (Load_KeyframeAnimationAssetFile(entry.path(), binding))
+                    bindings.push_back(move(binding));
+            }
+        }
+        catch (const exception& exception)
+        {
+            LOG_WARN("UI RuntimeLoader animation directory scan failed: {} ({})",
+                exception.what(),
+                String::ToString(directoryPath.wstring()));
+        }
+
+        return bindings;
+    }
+
+    vector<UI_KeyframeAnimationAsset> Make_TextKeyframeAnimationAssets(const RuntimeUIObject& object)
+    {
+        vector<UI_KeyframeAnimationAsset> assets = object.keyframeAnimationAssets;
+        const float fontScale = max(4.f, object.fontSize) / 32.f;
+
+        for (UI_KeyframeAnimationAsset& asset : assets)
+        {
+            for (UI_KeyframeAnimationTrack& track : asset.tracks)
+            {
+                if (track.type != UI_KeyframeAnimationTrackType::ScaleX)
+                    continue;
+
+                for (UI_KeyframeAnimationKey& key : track.keys)
+                    key.value *= fontScale;
+            }
+        }
+
+        return assets;
     }
 
     wstring Resolve_RuntimeResourcePath(const string& runtimePath)
@@ -318,6 +660,7 @@ namespace
         object.texturePath = Read_String(item, "texturePath", "");
         object.maskTextureGuid = Read_String(item, "maskTextureGuid", "");
         object.maskTexturePath = Read_String(item, "maskTexturePath", "");
+        object.animationClips = Read_AnimationClips(item);
 
         return object;
     }
@@ -424,6 +767,30 @@ namespace
         return true;
     }
 
+    void Apply_KeyframeAnimationAssets(
+        RuntimeUIDocument& document,
+        const vector<RuntimeUIAnimationAssetBinding>& animationBindings)
+    {
+        if (animationBindings.empty())
+            return;
+
+        for (const RuntimeUIAnimationAssetBinding& binding : animationBindings)
+        {
+            bool bound = false;
+            for (RuntimeUIObject& object : document.objects)
+            {
+                if (object.name != binding.targetName)
+                    continue;
+
+                object.keyframeAnimationAssets.push_back(binding.asset);
+                bound = true;
+            }
+
+            if (!bound)
+                LOG_WARN("UI RuntimeLoader keyframe animation target not found: {}", binding.targetName);
+        }
+    }
+
     HRESULT Spawn_Image(uint32 levelIndex, const RuntimeUIObject& object, Shared<UI_Base>* outUI)
     {
         const wstring texturePath = Resolve_JsonAssetPath(object.textureGuid, object.texturePath);
@@ -449,6 +816,8 @@ namespace
         desc.transformDesc.rotationRadians = object.rotationRadians;
         desc.sortOrder = object.sortOrder;
         desc.isOpenOnCreate = true;
+        desc.animationClips = object.animationClips;
+        desc.keyframeAnimationAssets = object.keyframeAnimationAssets;
 
         // object id 기반 prototype tag를 유지해 기존 동작을 최대한 그대로 둔다.
         const wstring prototypeTag = L"UIJson_Image_" + to_wstring(object.id);
@@ -494,6 +863,8 @@ namespace
         desc.transformDesc.rotationRadians = object.rotationRadians;
         desc.sortOrder = object.sortOrder;
         desc.isOpenOnCreate = true;
+        desc.animationClips = Make_TextAnimationClips(object);
+        desc.keyframeAnimationAssets = Make_TextKeyframeAnimationAssets(object);
 
         const wstring prototypeTag = L"UIJson_Text_" + to_wstring(object.id);
 
@@ -516,6 +887,8 @@ namespace
         desc.transformDesc.rotationRadians = object.rotationRadians;
         desc.sortOrder = object.sortOrder;
         desc.isOpenOnCreate = true;
+        desc.animationClips = object.animationClips;
+        desc.keyframeAnimationAssets = object.keyframeAnimationAssets;
 
         const wstring prototypeTag = L"UIJson_Panel_" + to_wstring(object.id);
 
@@ -538,6 +911,8 @@ namespace
         desc.transformDesc.rotationRadians = object.rotationRadians;
         desc.sortOrder = object.sortOrder;
         desc.isOpenOnCreate = true;
+        desc.animationClips = object.animationClips;
+        desc.keyframeAnimationAssets = object.keyframeAnimationAssets;
 
         const wstring prototypeTag = L"UIJson_Button_" + to_wstring(object.id);
 
@@ -668,6 +1043,8 @@ HRESULT UI_RuntimeLoader::Load_Document(const UI_LoadDesc& desc)
     RuntimeUIDocument document{};
     if (!Parse_Document(root, document))
         return E_FAIL;
+
+    Apply_KeyframeAnimationAssets(document, Load_KeyframeAnimationAssetBindings(desc.animationDirectory));
 
     unordered_set<wstring> loadedFontTags;
     unordered_map<int32, Shared<UI_Base>> spawnedUIById;

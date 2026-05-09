@@ -5,7 +5,7 @@ namespace UIEditor
 {
     namespace
     {
-        constexpr int32 kCurrentUIJsonVersion = 1;
+        constexpr int32 kCurrentUIJsonVersion = 3;
         constexpr const char* kDefaultCanvasName = "MainCanvas";
         constexpr const char* kDefaultFontPath = "../Bin/Resources/Fonts/33_MainKR_Font.spritefont";
 
@@ -216,6 +216,130 @@ namespace UIEditor
             });
         }
 
+        json AnimationTrack_ToJson(const UI_AnimationTrack& track)
+        {
+            json item = {};
+            item["type"] = Get_AnimationTrackTypeName(track.type);
+            if (!track.enabled)
+                item["enabled"] = false;
+
+            if (track.type == UI_AnimationTrackType::Color)
+            {
+                item["from"] = Color_ToJson(track.fromColor);
+                item["to"] = Color_ToJson(track.toColor);
+            }
+            else if (track.type == UI_AnimationTrackType::Move || track.type == UI_AnimationTrackType::Scale)
+            {
+                item["from"] = Vec2_ToJson(track.fromVec2);
+                item["to"] = Vec2_ToJson(track.toVec2);
+            }
+            else
+            {
+                item["from"] = track.fromFloat;
+                item["to"] = track.toFloat;
+            }
+
+            return item;
+        }
+
+        json AnimationClip_ToJson(const UI_AnimationClip& clip)
+        {
+            json item = {};
+            item["name"] = clip.name.empty() ? "Default" : clip.name;
+            item["enabled"] = clip.enabled;
+            item["playOnOpen"] = clip.playOnOpen;
+            item["delay"] = max(0.f, clip.delay);
+            item["duration"] = max(0.001f, clip.duration);
+            item["easing"] = Get_AnimationEasingName(clip.easing);
+            item["loop"] = clip.loop;
+            item["tracks"] = json::array();
+
+            for (const UI_AnimationTrack& track : clip.tracks)
+                item["tracks"].push_back(AnimationTrack_ToJson(track));
+
+            return item;
+        }
+
+        bool Try_ReadAnimationTrack(const json& item, UI_AnimationTrack& outTrack)
+        {
+            if (!item.is_object())
+                return false;
+
+            UI_AnimationTrackType trackType = UI_AnimationTrackType::Fade;
+            const string trackTypeName = Read_String(item, "type", "");
+            if (!Try_ParseAnimationTrackType(trackTypeName, trackType))
+                return false;
+
+            UI_AnimationTrack track = {};
+            track.type = trackType;
+            track.enabled = Read_Bool(item, "enabled", true);
+
+            if (track.type == UI_AnimationTrackType::Color)
+            {
+                track.fromColor = Read_Color(item, "from", ImVec4(1.f, 1.f, 1.f, 1.f));
+                track.toColor = Read_Color(item, "to", ImVec4(1.f, 1.f, 1.f, 1.f));
+            }
+            else if (track.type == UI_AnimationTrackType::Move || track.type == UI_AnimationTrackType::Scale)
+            {
+                const ImVec2 defaultValue = track.type == UI_AnimationTrackType::Scale ? ImVec2(1.f, 1.f) : ImVec2(0.f, 0.f);
+                track.fromVec2 = Read_Vec2(item, "from", defaultValue);
+                track.toVec2 = Read_Vec2(item, "to", defaultValue);
+            }
+            else
+            {
+                track.fromFloat = Read_Float(item, "from", 0.f);
+                track.toFloat = Read_Float(item, "to", 0.f);
+            }
+
+            outTrack = track;
+            return true;
+        }
+
+        bool Try_ReadAnimationClip(const json& item, UI_AnimationClip& outClip)
+        {
+            if (!item.is_object())
+                return false;
+
+            UI_AnimationClip clip = {};
+            clip.name = Read_String(item, "name", "Default");
+            clip.enabled = Read_Bool(item, "enabled", true);
+            clip.playOnOpen = Read_Bool(item, "playOnOpen", true);
+            clip.delay = max(0.f, Read_Float(item, "delay", 0.f));
+            clip.duration = max(0.001f, Read_Float(item, "duration", 0.35f));
+            clip.loop = Read_Bool(item, "loop", false);
+
+            UI_AnimationEasing easing = UI_AnimationEasing::EaseOut;
+            const string easingName = Read_String(item, "easing", "EaseOut");
+            if (Try_ParseAnimationEasing(easingName, easing))
+            {
+                clip.easing = easing;
+            }
+            else
+            {
+                LOG_WARN("UI Document load: unknown animation easing '{}'. Using EaseOut.", easingName);
+                clip.easing = UI_AnimationEasing::EaseOut;
+            }
+
+            const auto tracksIter = item.find("tracks");
+            if (tracksIter != item.end() && tracksIter->is_array())
+            {
+                for (const json& trackItem : *tracksIter)
+                {
+                    UI_AnimationTrack track = {};
+                    if (!Try_ReadAnimationTrack(trackItem, track))
+                    {
+                        LOG_WARN("UI Document load skipped invalid animation track.");
+                        continue;
+                    }
+
+                    clip.tracks.push_back(track);
+                }
+            }
+
+            outClip = move(clip);
+            return true;
+        }
+
         UI_Object Make_DefaultObject(UI_ObjectType objectType)
         {
             UI_Object object = {};
@@ -370,6 +494,13 @@ namespace UIEditor
                     item["fontTag"] = object.fontTag;
             }
 
+            if (!object.animationClips.empty())
+            {
+                item["animations"] = json::array();
+                for (const UI_AnimationClip& clip : object.animationClips)
+                    item["animations"].push_back(AnimationClip_ToJson(clip));
+            }
+
             root["objects"].push_back(item);
         }
 
@@ -384,9 +515,9 @@ namespace UIEditor
             return false;
         }
 
-        const int32 version = Read_Int(root, "version", kCurrentUIJsonVersion);
-        if (version != kCurrentUIJsonVersion)
-            LOG_WARN("UI Document json version {} is not explicitly supported. Trying version 1 compatible load.", version);
+        const int32 version = Read_Int(root, "version", 1);
+        if (version > kCurrentUIJsonVersion)
+            LOG_WARN("UI Document json version {} is newer than supported version {}. Trying compatible load.", version, kCurrentUIJsonVersion);
 
         string nextCanvasName = kDefaultCanvasName;
         ImVec2 nextCanvasSize = ImVec2(1600.f, 900.f);
@@ -490,6 +621,22 @@ namespace UIEditor
                     object.fontTag = Read_String(item, "fontTag", Make_FontTagFromPath(object.fontPath));
                     if (object.fontTag.empty())
                         object.fontTag = Make_FontTagFromPath(object.fontPath);
+                }
+
+                const auto animationsIter = item.find("animations");
+                if (animationsIter != item.end() && animationsIter->is_array())
+                {
+                    for (const json& animationItem : *animationsIter)
+                    {
+                        UI_AnimationClip clip = {};
+                        if (!Try_ReadAnimationClip(animationItem, clip))
+                        {
+                            LOG_WARN("UI Document load skipped invalid animation clip. object id={}", object.id);
+                            continue;
+                        }
+
+                        object.animationClips.push_back(move(clip));
+                    }
                 }
 
                 loadedObjectIds.insert(object.id);

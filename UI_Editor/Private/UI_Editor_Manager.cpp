@@ -2,6 +2,7 @@
 #include "UI_Editor_Manager.h"
 
 #include "GameInstance.h"
+#include "UI_Animation_View.h"
 #include "UI_Content_Browser.h"
 #include "UI_Editor_Utils.h"
 #include "UI_Hierarchy_View.h"
@@ -33,6 +34,7 @@ namespace UIEditor
         Add_Window(UI_Hierarchy_View::Create(*this));
         Add_Window(UI_Viewport_View::Create(*this));
         Add_Window(UI_Inspector::Create(*this));
+        Add_Window(UI_Animation_View::Create(*this));
         Add_Window(UI_Content_Browser::Create(*this));
 
         Clear_History();
@@ -44,6 +46,7 @@ namespace UIEditor
     void UI_Editor_Manager::Render()
     {
         _previewService.Begin_Frame();
+        _animationPreviewService.Update(ImGui::GetIO().DeltaTime);
 
         Render_DockSpace();
         Handle_Shortcuts();
@@ -96,7 +99,90 @@ namespace UIEditor
 
     void UI_Editor_Manager::Set_SelectedObjectId(ObjectId objectId)
     {
-        _selectedObjectId = nullptr != _document.Find_Object(objectId) ? objectId : 0;
+        Set_SingleSelection(objectId);
+    }
+
+    void UI_Editor_Manager::Set_SingleSelection(ObjectId objectId)
+    {
+        const ObjectId nextSelectedObjectId = nullptr != _document.Find_Object(objectId) ? objectId : 0;
+        if (_selectedObjectId != nextSelectedObjectId)
+            _animationPreviewService.Stop();
+
+        _selectedObjectId = nextSelectedObjectId;
+        _selectedObjectIds.clear();
+        if (_selectedObjectId != 0)
+            _selectedObjectIds.push_back(_selectedObjectId);
+    }
+
+    void UI_Editor_Manager::Set_SelectedObjectIds(const vector<ObjectId>& objectIds, ObjectId primaryObjectId)
+    {
+        Apply_Selection(objectIds, primaryObjectId);
+    }
+
+    const vector<ObjectId>& UI_Editor_Manager::Get_SelectedObjectIds() const
+    {
+        return _selectedObjectIds;
+    }
+
+    vector<ObjectId> UI_Editor_Manager::Get_RootSelectedObjectIds() const
+    {
+        return Collect_RootObjectIds(_selectedObjectIds);
+    }
+
+    bool UI_Editor_Manager::Is_ObjectSelected(ObjectId objectId) const
+    {
+        if (objectId == 0)
+            return _selectedObjectId == 0 && _selectedObjectIds.empty();
+
+        return find(_selectedObjectIds.begin(), _selectedObjectIds.end(), objectId) != _selectedObjectIds.end();
+    }
+
+    bool UI_Editor_Manager::Has_SelectedObjects() const
+    {
+        return !_selectedObjectIds.empty();
+    }
+
+    size_t UI_Editor_Manager::Get_SelectedObjectCount() const
+    {
+        return _selectedObjectIds.size();
+    }
+
+    void UI_Editor_Manager::Add_ToSelection(ObjectId objectId)
+    {
+        if (objectId == 0 || nullptr == _document.Find_Object(objectId))
+            return;
+
+        vector<ObjectId> nextSelection = _selectedObjectIds;
+        if (find(nextSelection.begin(), nextSelection.end(), objectId) == nextSelection.end())
+            nextSelection.push_back(objectId);
+
+        Apply_Selection(nextSelection, objectId);
+    }
+
+    void UI_Editor_Manager::Toggle_Selection(ObjectId objectId)
+    {
+        if (objectId == 0 || nullptr == _document.Find_Object(objectId))
+            return;
+
+        vector<ObjectId> nextSelection = _selectedObjectIds;
+        const auto iter = find(nextSelection.begin(), nextSelection.end(), objectId);
+        if (iter == nextSelection.end())
+        {
+            nextSelection.push_back(objectId);
+            Apply_Selection(nextSelection, objectId);
+            return;
+        }
+
+        nextSelection.erase(iter);
+        const ObjectId nextPrimaryObjectId = nextSelection.empty()
+            ? 0
+            : (_selectedObjectId == objectId ? nextSelection.back() : _selectedObjectId);
+        Apply_Selection(nextSelection, nextPrimaryObjectId);
+    }
+
+    void UI_Editor_Manager::Clear_Selection()
+    {
+        Apply_Selection({}, 0);
     }
 
     UI_Object* UI_Editor_Manager::Get_SelectedObject()
@@ -213,6 +299,29 @@ namespace UIEditor
                     Undo();
                 if (ImGui::MenuItem("Redo", "Ctrl+Y", false, Can_Redo()))
                     Redo();
+
+                ImGui::Separator();
+                if (ImGui::BeginMenu("Align", Get_SelectedObjectCount() >= 2))
+                {
+                    if (ImGui::MenuItem("Left"))
+                        Align_SelectedObjects(UI_AlignmentCommand::Left);
+                    if (ImGui::MenuItem("Right"))
+                        Align_SelectedObjects(UI_AlignmentCommand::Right);
+                    if (ImGui::MenuItem("Top"))
+                        Align_SelectedObjects(UI_AlignmentCommand::Top);
+                    if (ImGui::MenuItem("Bottom"))
+                        Align_SelectedObjects(UI_AlignmentCommand::Bottom);
+                    if (ImGui::MenuItem("Center X"))
+                        Align_SelectedObjects(UI_AlignmentCommand::CenterX);
+                    if (ImGui::MenuItem("Center Y"))
+                        Align_SelectedObjects(UI_AlignmentCommand::CenterY);
+                    ImGui::Separator();
+                    if (ImGui::MenuItem("Distribute Horizontal", nullptr, false, Get_SelectedObjectCount() >= 3))
+                        Align_SelectedObjects(UI_AlignmentCommand::DistributeHorizontal);
+                    if (ImGui::MenuItem("Distribute Vertical", nullptr, false, Get_SelectedObjectCount() >= 3))
+                        Align_SelectedObjects(UI_AlignmentCommand::DistributeVertical);
+                    ImGui::EndMenu();
+                }
                 ImGui::EndMenu();
             }
 
@@ -248,7 +357,8 @@ namespace UIEditor
         if (!_fileService.Load_Document(_document))
             return false;
 
-        _selectedObjectId = 0;
+        Clear_Selection();
+        _animationPreviewService.Stop();
         Clear_RuntimeCaches();
         Resolve_LoadedAssetReferences();
         Clear_History();
@@ -263,7 +373,8 @@ namespace UIEditor
 
         _document.Reset();
         _fileService.Clear_CurrentDocumentPath();
-        _selectedObjectId = 0;
+        Clear_Selection();
+        _animationPreviewService.Stop();
         Clear_RuntimeCaches();
         Clear_History();
         Clear_Dirty();
@@ -481,6 +592,81 @@ namespace UIEditor
         return selectedObject->parentId;
     }
 
+    vector<ObjectId> UI_Editor_Manager::Normalize_Selection(const vector<ObjectId>& objectIds) const
+    {
+        vector<ObjectId> normalizedObjectIds;
+        unordered_set<ObjectId> visitedObjectIds;
+
+        for (ObjectId objectId : objectIds)
+        {
+            if (objectId == 0 || nullptr == _document.Find_Object(objectId))
+                continue;
+
+            if (!visitedObjectIds.insert(objectId).second)
+                continue;
+
+            normalizedObjectIds.push_back(objectId);
+        }
+
+        return normalizedObjectIds;
+    }
+
+    vector<ObjectId> UI_Editor_Manager::Collect_RootObjectIds(const vector<ObjectId>& objectIds) const
+    {
+        const vector<ObjectId> normalizedObjectIds = Normalize_Selection(objectIds);
+        unordered_set<ObjectId> selectedObjectIdSet(normalizedObjectIds.begin(), normalizedObjectIds.end());
+        vector<ObjectId> rootObjectIds;
+
+        for (ObjectId objectId : normalizedObjectIds)
+        {
+            bool hasSelectedAncestor = false;
+            const UI_Object* object = _document.Find_Object(objectId);
+            while (nullptr != object && object->parentId != 0)
+            {
+                if (selectedObjectIdSet.find(object->parentId) != selectedObjectIdSet.end())
+                {
+                    hasSelectedAncestor = true;
+                    break;
+                }
+
+                object = _document.Find_Object(object->parentId);
+            }
+
+            if (!hasSelectedAncestor)
+                rootObjectIds.push_back(objectId);
+        }
+
+        return rootObjectIds;
+    }
+
+    void UI_Editor_Manager::Apply_Selection(const vector<ObjectId>& objectIds, ObjectId primaryObjectId)
+    {
+        vector<ObjectId> normalizedObjectIds = Normalize_Selection(objectIds);
+        ObjectId nextSelectedObjectId = 0;
+
+        if (primaryObjectId != 0 && _document.Find_Object(primaryObjectId) != nullptr)
+            nextSelectedObjectId = primaryObjectId;
+        else if (!normalizedObjectIds.empty())
+            nextSelectedObjectId = normalizedObjectIds.back();
+
+        if (nextSelectedObjectId != 0 &&
+            find(normalizedObjectIds.begin(), normalizedObjectIds.end(), nextSelectedObjectId) == normalizedObjectIds.end())
+        {
+            normalizedObjectIds.push_back(nextSelectedObjectId);
+        }
+
+        if (_selectedObjectId != nextSelectedObjectId)
+            _animationPreviewService.Stop();
+
+        _selectedObjectIds = move(normalizedObjectIds);
+        _selectedObjectId = nextSelectedObjectId;
+    }
+
+    void UI_Editor_Manager::Prune_InvalidSelection()
+    {
+        Apply_Selection(_selectedObjectIds, _selectedObjectId);
+    }
+
     void UI_Editor_Manager::Create_UIObject(UI_ObjectType objectType)
     {
         Push_UndoSnapshot();
@@ -513,7 +699,7 @@ namespace UIEditor
             }
         }
 
-        _selectedObjectId = createdObjectId;
+        Set_SingleSelection(createdObjectId);
         Mark_Dirty();
     }
 
@@ -528,7 +714,7 @@ namespace UIEditor
         if (duplicatedObjectId == 0)
             return;
 
-        _selectedObjectId = duplicatedObjectId;
+        Set_SingleSelection(duplicatedObjectId);
         Mark_Dirty();
     }
 
@@ -542,26 +728,60 @@ namespace UIEditor
         if (!_document.Delete_Object(objectId))
             return;
 
-        if (nullptr == _document.Find_Object(_selectedObjectId))
-            _selectedObjectId = 0;
+        Prune_InvalidSelection();
 
+        _animationPreviewService.Stop();
         Mark_Dirty();
     }
 
     void UI_Editor_Manager::Duplicate_SelectedUIObject()
     {
-        if (_selectedObjectId == 0)
+        if (_selectedObjectIds.empty())
             return;
 
-        Duplicate_UIObject(_selectedObjectId);
+        const vector<ObjectId> rootObjectIds = Collect_RootObjectIds(_selectedObjectIds);
+        if (rootObjectIds.empty())
+            return;
+
+        Push_UndoSnapshot();
+
+        vector<ObjectId> duplicatedObjectIds;
+        duplicatedObjectIds.reserve(rootObjectIds.size());
+        for (ObjectId objectId : rootObjectIds)
+        {
+            const ObjectId duplicatedObjectId = _document.Duplicate_Object(objectId, ImVec2(20.f, 20.f));
+            if (duplicatedObjectId != 0)
+                duplicatedObjectIds.push_back(duplicatedObjectId);
+        }
+
+        if (duplicatedObjectIds.empty())
+            return;
+
+        Set_SelectedObjectIds(duplicatedObjectIds, duplicatedObjectIds.back());
+        Mark_Dirty();
     }
 
     void UI_Editor_Manager::Delete_SelectedUIObject()
     {
-        if (_selectedObjectId == 0)
+        if (_selectedObjectIds.empty())
             return;
 
-        Delete_UIObject(_selectedObjectId);
+        const vector<ObjectId> rootObjectIds = Collect_RootObjectIds(_selectedObjectIds);
+        if (rootObjectIds.empty())
+            return;
+
+        Push_UndoSnapshot();
+
+        bool deletedAny = false;
+        for (ObjectId objectId : rootObjectIds)
+            deletedAny |= _document.Delete_Object(objectId);
+
+        if (!deletedAny)
+            return;
+
+        Clear_Selection();
+        _animationPreviewService.Stop();
+        Mark_Dirty();
     }
 
     bool UI_Editor_Manager::Rename_Canvas(const string& newName)
@@ -626,7 +846,7 @@ namespace UIEditor
         if (!_document.Change_Parent(objectId, newParentId, true))
             return false;
 
-        _selectedObjectId = objectId;
+        Set_SingleSelection(objectId);
         Mark_Dirty();
         return true;
     }
@@ -673,11 +893,161 @@ namespace UIEditor
         return _document.Get_WorldPosition(objectId);
     }
 
-    bool UI_Editor_Manager::Undo()
+    bool UI_Editor_Manager::Align_SelectedObjects(UI_AlignmentCommand command)
     {
-        if (!_historyService.Undo(_document, _selectedObjectId))
+        vector<ObjectId> targetObjectIds = Collect_RootObjectIds(_selectedObjectIds);
+        if (targetObjectIds.size() < 2)
             return false;
 
+        if ((command == UI_AlignmentCommand::DistributeHorizontal ||
+            command == UI_AlignmentCommand::DistributeVertical) &&
+            targetObjectIds.size() < 3)
+        {
+            return false;
+        }
+
+        struct ObjectRect
+        {
+            ObjectId id = 0;
+            ImVec2 worldPosition = ImVec2(0.f, 0.f);
+            ImVec2 size = ImVec2(0.f, 0.f);
+            ImVec2 center = ImVec2(0.f, 0.f);
+        };
+
+        vector<ObjectRect> objectRects;
+        objectRects.reserve(targetObjectIds.size());
+
+        ImVec2 selectionMin = ImVec2(FLT_MAX, FLT_MAX);
+        ImVec2 selectionMax = ImVec2(-FLT_MAX, -FLT_MAX);
+
+        for (ObjectId objectId : targetObjectIds)
+        {
+            const UI_Object* object = _document.Find_Object(objectId);
+            if (nullptr == object)
+                continue;
+
+            ObjectRect rect = {};
+            rect.id = objectId;
+            rect.worldPosition = _document.Get_WorldPosition(objectId);
+            rect.size = ImVec2(
+                max(1.f, object->size.x * object->scale.x),
+                max(1.f, object->size.y * object->scale.y));
+            rect.center = ImVec2(
+                rect.worldPosition.x + rect.size.x * 0.5f,
+                rect.worldPosition.y + rect.size.y * 0.5f);
+
+            selectionMin.x = min(selectionMin.x, rect.worldPosition.x);
+            selectionMin.y = min(selectionMin.y, rect.worldPosition.y);
+            selectionMax.x = max(selectionMax.x, rect.worldPosition.x + rect.size.x);
+            selectionMax.y = max(selectionMax.y, rect.worldPosition.y + rect.size.y);
+
+            objectRects.push_back(rect);
+        }
+
+        if (objectRects.size() < 2)
+            return false;
+
+        const ImVec2 selectionCenter = ImVec2(
+            (selectionMin.x + selectionMax.x) * 0.5f,
+            (selectionMin.y + selectionMax.y) * 0.5f);
+
+        if (command == UI_AlignmentCommand::DistributeHorizontal)
+        {
+            sort(objectRects.begin(), objectRects.end(), [](const ObjectRect& lhs, const ObjectRect& rhs)
+                {
+                    if (lhs.center.x != rhs.center.x)
+                        return lhs.center.x < rhs.center.x;
+
+                    return lhs.id < rhs.id;
+                });
+        }
+        else if (command == UI_AlignmentCommand::DistributeVertical)
+        {
+            sort(objectRects.begin(), objectRects.end(), [](const ObjectRect& lhs, const ObjectRect& rhs)
+                {
+                    if (lhs.center.y != rhs.center.y)
+                        return lhs.center.y < rhs.center.y;
+
+                    return lhs.id < rhs.id;
+                });
+        }
+
+        Begin_EditTransaction();
+
+        bool changed = false;
+        for (size_t index = 0; index < objectRects.size(); ++index)
+        {
+            const ObjectRect& rect = objectRects[index];
+            UI_Object* object = _document.Find_Object(rect.id);
+            if (nullptr == object)
+                continue;
+
+            ImVec2 nextWorldPosition = rect.worldPosition;
+            switch (command)
+            {
+            case UI_AlignmentCommand::Left:
+                nextWorldPosition.x = selectionMin.x;
+                break;
+            case UI_AlignmentCommand::Right:
+                nextWorldPosition.x = selectionMax.x - rect.size.x;
+                break;
+            case UI_AlignmentCommand::Top:
+                nextWorldPosition.y = selectionMin.y;
+                break;
+            case UI_AlignmentCommand::Bottom:
+                nextWorldPosition.y = selectionMax.y - rect.size.y;
+                break;
+            case UI_AlignmentCommand::CenterX:
+                nextWorldPosition.x = selectionCenter.x - rect.size.x * 0.5f;
+                break;
+            case UI_AlignmentCommand::CenterY:
+                nextWorldPosition.y = selectionCenter.y - rect.size.y * 0.5f;
+                break;
+            case UI_AlignmentCommand::DistributeHorizontal:
+            {
+                const float firstCenter = objectRects.front().center.x;
+                const float lastCenter = objectRects.back().center.x;
+                const float step = (lastCenter - firstCenter) / static_cast<float>(objectRects.size() - 1);
+                nextWorldPosition.x = firstCenter + step * static_cast<float>(index) - rect.size.x * 0.5f;
+                break;
+            }
+            case UI_AlignmentCommand::DistributeVertical:
+            {
+                const float firstCenter = objectRects.front().center.y;
+                const float lastCenter = objectRects.back().center.y;
+                const float step = (lastCenter - firstCenter) / static_cast<float>(objectRects.size() - 1);
+                nextWorldPosition.y = firstCenter + step * static_cast<float>(index) - rect.size.y * 0.5f;
+                break;
+            }
+            default:
+                break;
+            }
+
+            nextWorldPosition = Clamp_ObjectPosition(*object, _document.Get_CanvasSize(), nextWorldPosition);
+            if (fabsf(nextWorldPosition.x - rect.worldPosition.x) <= 0.001f &&
+                fabsf(nextWorldPosition.y - rect.worldPosition.y) <= 0.001f)
+            {
+                continue;
+            }
+
+            if (_document.Set_WorldPosition(rect.id, nextWorldPosition))
+                changed = true;
+        }
+
+        if (changed)
+            Mark_Dirty();
+
+        Commit_EditTransactionIfChanged();
+        return changed;
+    }
+
+    bool UI_Editor_Manager::Undo()
+    {
+        if (!_historyService.Undo(_document, _selectedObjectId, _selectedObjectIds))
+            return false;
+
+        Prune_InvalidSelection();
+        _animationPreviewService.Stop();
         Clear_RuntimeCaches();
         Resolve_LoadedAssetReferences();
         return true;
@@ -685,9 +1055,11 @@ namespace UIEditor
 
     bool UI_Editor_Manager::Redo()
     {
-        if (!_historyService.Redo(_document, _selectedObjectId))
+        if (!_historyService.Redo(_document, _selectedObjectId, _selectedObjectIds))
             return false;
 
+        Prune_InvalidSelection();
+        _animationPreviewService.Stop();
         Clear_RuntimeCaches();
         Resolve_LoadedAssetReferences();
         return true;
@@ -705,12 +1077,12 @@ namespace UIEditor
 
     void UI_Editor_Manager::Begin_EditTransaction()
     {
-        _historyService.Begin_EditTransaction(_document, _selectedObjectId);
+        _historyService.Begin_EditTransaction(_document, _selectedObjectId, _selectedObjectIds);
     }
 
     void UI_Editor_Manager::Commit_EditTransactionIfChanged()
     {
-        _historyService.Commit_EditTransactionIfChanged(_document, _selectedObjectId);
+        _historyService.Commit_EditTransactionIfChanged(_document, _selectedObjectId, _selectedObjectIds);
     }
 
     void UI_Editor_Manager::Mark_Dirty()
@@ -725,12 +1097,67 @@ namespace UIEditor
 
     void UI_Editor_Manager::Push_UndoSnapshot()
     {
-        _historyService.Push_UndoSnapshot(_document, _selectedObjectId);
+        _historyService.Push_UndoSnapshot(_document, _selectedObjectId, _selectedObjectIds);
     }
 
     void UI_Editor_Manager::Clear_History()
     {
         _historyService.Clear_History();
+    }
+
+    void UI_Editor_Manager::Play_AnimationPreview(ObjectId objectId)
+    {
+        _animationPreviewService.Play(objectId);
+    }
+
+    void UI_Editor_Manager::Play_AnimationAssetPreview(const UIAnimationAsset& asset, int32 startFrame)
+    {
+        _animationPreviewService.Play_KeyframeAsset(asset, startFrame);
+    }
+
+    void UI_Editor_Manager::Preview_AnimationAsset(const UIAnimationAsset& asset, int32 frame)
+    {
+        _animationPreviewService.Preview_KeyframeAsset(asset, frame);
+    }
+
+    void UI_Editor_Manager::Pause_AnimationPreview()
+    {
+        _animationPreviewService.Pause();
+    }
+
+    void UI_Editor_Manager::Stop_AnimationPreview()
+    {
+        _animationPreviewService.Stop();
+    }
+
+    void UI_Editor_Manager::Restart_AnimationPreview(ObjectId objectId)
+    {
+        _animationPreviewService.Restart(objectId);
+    }
+
+    bool UI_Editor_Manager::Is_AnimationPreviewActive() const
+    {
+        return _animationPreviewService.Is_Active();
+    }
+
+    bool UI_Editor_Manager::Is_AnimationPreviewPlaying() const
+    {
+        return _animationPreviewService.Is_Playing();
+    }
+
+    float UI_Editor_Manager::Get_AnimationPreviewTime() const
+    {
+        return _animationPreviewService.Get_Time();
+    }
+
+    int32 UI_Editor_Manager::Get_AnimationPreviewFrame() const
+    {
+        return _animationPreviewService.Get_CurrentFrame();
+    }
+
+    bool UI_Editor_Manager::Sample_AnimationPreview(const UI_Object& object, UI_AnimationPreviewSample& outSample) const
+    {
+        return _animationPreviewService.Sample_Object(object, outSample);
     }
 
     Unique<UI_Editor_Manager> UI_Editor_Manager::Create(

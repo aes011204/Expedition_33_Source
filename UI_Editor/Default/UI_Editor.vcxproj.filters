@@ -55,10 +55,16 @@
     <Filter Include="02. View\Viewport\Utility">
       <UniqueIdentifier>{df871b42-962a-4fd2-aed6-9a814b2d3dbf}</UniqueIdentifier>
     </Filter>
+    <Filter Include="02. View\Animation">
+      <UniqueIdentifier>{a01f31fb-b31d-4ba8-a9f3-0df824fb0900}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
       <Filter>98. Default</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_AnimationAssetSerializer.cpp">
+      <Filter>02. View\Animation</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\UI_EditorApp.cpp">
       <Filter>00. Main</Filter>
@@ -96,6 +102,9 @@
     <ClCompile Include="..\Private\UI_Editor_PreviewService.cpp">
       <Filter>01. Manager\UI_Editor_Manager\PreviewService</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\UI_AnimationPreviewService.cpp">
+      <Filter>01. Manager\UI_Editor_Manager\PreviewService</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\UI_Editor_HistoryService.cpp">
       <Filter>01. Manager\UI_Editor_Manager\HistoryService</Filter>
     </ClCompile>
@@ -104,6 +113,9 @@
     </ClCompile>
     <ClCompile Include="..\Private\UI_Content_Browser.cpp">
       <Filter>02. View\Content_Browser</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_Animation_View.cpp">
+      <Filter>02. View\Animation</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\UI_Hierarchy_View.cpp">
       <Filter>02. View\Hierarchy</Filter>
@@ -133,6 +145,12 @@
     </ClInclude>
     <ClInclude Include="..\Public\UI_Editor_Struct.h">
       <Filter>99. Defines</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_AnimationTypes.h">
+      <Filter>99. Defines</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_AnimationAssetSerializer.h">
+      <Filter>02. View\Animation</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\UI_EditorApp.h">
       <Filter>00. Main</Filter>
@@ -164,6 +182,9 @@
     <ClInclude Include="..\Public\UI_Editor_PreviewService.h">
       <Filter>01. Manager\UI_Editor_Manager\PreviewService</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\UI_AnimationPreviewService.h">
+      <Filter>01. Manager\UI_Editor_Manager\PreviewService</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\UI_Editor_HistoryService.h">
       <Filter>01. Manager\UI_Editor_Manager\HistoryService</Filter>
     </ClInclude>
@@ -172,6 +193,9 @@
     </ClInclude>
     <ClInclude Include="..\Public\UI_Content_Browser.h">
       <Filter>02. View\Content_Browser</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_Animation_View.h">
+      <Filter>02. View\Animation</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\UI_Hierarchy_View.h">
       <Filter>02. View\Hierarchy</Filter>

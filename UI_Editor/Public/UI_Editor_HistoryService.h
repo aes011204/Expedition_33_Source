@@ -20,28 +20,29 @@ namespace UIEditor
         void Clear_Dirty(const UI_Document& document);
         void Clear_History();
 
-        void Push_UndoSnapshot(const UI_Document& document, ObjectId selectedObjectId);
-        void Begin_EditTransaction(const UI_Document& document, ObjectId selectedObjectId);
-        void Commit_EditTransactionIfChanged(const UI_Document& document, ObjectId selectedObjectId);
+        void Push_UndoSnapshot(const UI_Document& document, ObjectId selectedObjectId, const vector<ObjectId>& selectedObjectIds);
+        void Begin_EditTransaction(const UI_Document& document, ObjectId selectedObjectId, const vector<ObjectId>& selectedObjectIds);
+        void Commit_EditTransactionIfChanged(const UI_Document& document, ObjectId selectedObjectId, const vector<ObjectId>& selectedObjectIds);
 
-        bool Undo(UI_Document& document, ObjectId& selectedObjectId);
-        bool Redo(UI_Document& document, ObjectId& selectedObjectId);
+        bool Undo(UI_Document& document, ObjectId& selectedObjectId, vector<ObjectId>& selectedObjectIds);
+        bool Redo(UI_Document& document, ObjectId& selectedObjectId, vector<ObjectId>& selectedObjectIds);
 
     private:
         struct HistoryState
         {
             UI_Document document = {};
             ObjectId selectedObjectId = 0;
+            vector<ObjectId> selectedObjectIds = {};
             string documentSignature = "";
         };
 
     private:
         string Make_DocumentSignature(const UI_Document& document) const;
-        HistoryState Capture_HistoryState(const UI_Document& document, ObjectId selectedObjectId) const;
+        HistoryState Capture_HistoryState(const UI_Document& document, ObjectId selectedObjectId, const vector<ObjectId>& selectedObjectIds) const;
         bool Is_SameHistoryState(const HistoryState& lhs, const HistoryState& rhs) const;
         bool Is_CurrentDocumentClean(const UI_Document& document) const;
         void Push_HistoryState(vector<HistoryState>& historyStack, const HistoryState& historyState) const;
-        void Apply_HistoryState(const HistoryState& historyState, UI_Document& document, ObjectId& selectedObjectId);
+        void Apply_HistoryState(const HistoryState& historyState, UI_Document& document, ObjectId& selectedObjectId, vector<ObjectId>& selectedObjectIds);
 
     private:
         bool _isDirty = false;

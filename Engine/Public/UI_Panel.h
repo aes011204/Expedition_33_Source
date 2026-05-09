@@ -28,6 +28,8 @@ public:
     HRESULT Initialize_Prototype() override;
     HRESULT Initialize(void* arg) override;
     HRESULT Render() override;
+    void Set_Color(const Vec4& color) override { _color = color; }
+    Vec4 Get_Color() const override { return _color; }
 
 protected:
     virtual Vec4 Resolve_RenderColor() const;

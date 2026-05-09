@@ -19,6 +19,9 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\Private\UI_AnimationAssetSerializer.cpp" />
+    <ClCompile Include="..\Private\UI_Animation_View.cpp" />
+    <ClCompile Include="..\Private\UI_AnimationPreviewService.cpp" />
     <ClCompile Include="..\Private\SimpleMath.cpp" />
     <ClCompile Include="..\Private\UI_Content_Browser.cpp" />
     <ClCompile Include="..\Private\UI_DocumentSerializer.cpp" />
@@ -45,6 +48,10 @@
     <ClCompile Include="..\Private\UI_EditorApp.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\Public\UI_AnimationAssetSerializer.h" />
+    <ClInclude Include="..\Public\UI_Animation_View.h" />
+    <ClInclude Include="..\Public\UI_AnimationPreviewService.h" />
+    <ClInclude Include="..\Public\UI_AnimationTypes.h" />
     <ClInclude Include="..\Public\UI_Content_Browser.h" />
     <ClInclude Include="..\Public\UI_Document.h" />
     <ClInclude Include="..\Public\UI_DocumentSerializer.h" />

@@ -296,6 +296,7 @@ void GameInstance::Try_FlushRuntimePerfLog()
 
 void GameInstance::Clear_Resources(uint32 levelIndex)
 {
+    _uiManager->Clear_Level(levelIndex);
     _objectManager->Clear_Layers(levelIndex);
     _prototypeManager->Clear_Prototypes(levelIndex);
 }

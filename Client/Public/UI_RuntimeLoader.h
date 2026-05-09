@@ -18,6 +18,7 @@ public:
     {
         uint32 levelIndex = 0;
         wstring jsonPath{};
+        wstring animationDirectory{};
         unordered_map<wstring, Shared<UI_Base>>* outUIByName = nullptr;
     };
 

@@ -35,21 +35,55 @@ HRESULT UI_Base::Initialize(void* Arg)
     _transform = UI_Transform::Create(&Desc.transformDesc);
     CHECK_NULL(_transform, E_FAIL);
 
+    _animationPlayer.Set_BaseTransformState(
+        _transform->Get_Position(),
+        _transform->Get_Scale(),
+        _transform->Get_RotationRadians());
+    _animationPlayer.Set_Clips(Desc.animationClips);
+    _animationPlayer.Set_KeyframeAssets(Desc.keyframeAnimationAssets);
+    if (_isOpen)
+        _animationPlayer.Play_OnOpen();
+
     return S_OK;
 }
 
 void UI_Base::Open()
 {
     _isOpen = true;
+    _animationPlayer.Play_OnOpen();
 }
 
 void UI_Base::Close()
 {
     _isOpen = false;
+    _animationPlayer.Stop();
 }
 
 void UI_Base::Update(float TimeDelta)
 {
+    if (nullptr == _transform)
+        return;
+
+    UI_AnimationSample sample = {};
+    if (!_animationPlayer.Update(TimeDelta, sample))
+        return;
+
+    if (sample.hasPosition)
+        _transform->Set_Position(sample.position);
+
+    if (sample.hasScale)
+        _transform->Set_Scale(sample.scale);
+
+    if (sample.hasRotation)
+        _transform->Set_RotationRadians(sample.rotationRadians);
+
+    if (sample.hasColor)
+    {
+        Vec4 color = sample.hasColorTrack ? sample.color : Get_Color();
+        if (sample.hasFadeTrack)
+            color.w = sample.color.w;
+        Set_Color(color);
+    }
 }
 
 HRESULT UI_Base::Render()
@@ -131,6 +165,15 @@ void UI_Base::Set_Parent(const Shared<UI_Base>& parent)
 void UI_Base::Clear_Parent()
 {
     _parent.reset();
+}
+
+void UI_Base::Set_Color(const Vec4&)
+{
+}
+
+Vec4 UI_Base::Get_Color() const
+{
+    return Vec4(1.f, 1.f, 1.f, 1.f);
 }
 
 void UI_Base::Free()

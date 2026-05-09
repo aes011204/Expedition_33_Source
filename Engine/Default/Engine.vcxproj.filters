@@ -231,6 +231,9 @@
     <ClInclude Include="..\public\UI_Base.h">
       <Filter>01.Utility\11. UI</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\UI_Animation.h">
+      <Filter>01.Utility\11. UI</Filter>
+    </ClInclude>
     <ClInclude Include="..\public\UI_Image.h">
       <Filter>01.Utility\11. UI\Object</Filter>
     </ClInclude>
@@ -762,6 +765,9 @@
     <ClCompile Include="..\private\AStar.cpp" />
     <ClCompile Include="..\Private\Culling_Manager.cpp" />
     <ClCompile Include="..\private\UI_Base.cpp">
+      <Filter>01.Utility\11. UI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_Animation.cpp">
       <Filter>01.Utility\11. UI</Filter>
     </ClCompile>
     <ClCompile Include="..\private\UI_Image.cpp">
