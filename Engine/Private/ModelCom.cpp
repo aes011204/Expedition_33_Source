@@ -142,6 +142,14 @@ const Matrix* ModelCom::Get_BoneMatrixPtr(uint32 boneIndex) const
     return _bones[boneIndex]->Get_CombinedTransformationMatrixPtr();
 }
 
+const RootMotionFrame& ModelCom::Get_RootTransformVelocity(float scaleOffset)
+{
+    _rootFrameVelocity.position = scaleOffset * _rootOriginalFrameVelocity.position;
+    _rootFrameVelocity.rotation = scaleOffset * _rootOriginalFrameVelocity.rotation;
+    
+    return _rootFrameVelocity;
+}
+
 HRESULT ModelCom::Initialize_Prototype(ModelType type, const char* modelFilePath, const Matrix& preLocalTransformMatrix)
 {
     _type = type;
@@ -210,7 +218,7 @@ bool ModelCom::Play_Animation(float timeDelta)
             _isBlending = false;
             _currentAnimIndex = _nextAnimIndex;
             isFinish = _animations[_currentAnimIndex]->Update_TransformationMatrices(timeDelta, _bones, _isAnimLoop, rootIndex);
-            _rootFrameVelocity = rootIndex >= 0 ? _animations[_currentAnimIndex]->Get_TransformVelocity(rootIndex) : RootMotionFrame{};
+            _rootOriginalFrameVelocity = rootIndex >= 0 ? _animations[_currentAnimIndex]->Get_TransformVelocity(rootIndex) : RootMotionFrame{};
         }
         else
         {
@@ -220,21 +228,23 @@ bool ModelCom::Play_Animation(float timeDelta)
             {
                 const auto& curDelta = _animations[_currentAnimIndex]->Get_TransformVelocity(rootIndex);
                 const auto& nextDelta = _animations[_nextAnimIndex]->Get_TransformVelocity(rootIndex);
-                _rootFrameVelocity.position = Vector3::Lerp(curDelta.position, nextDelta.position, ratio);
-                _rootFrameVelocity.rotation = Quaternion::Slerp(curDelta.rotation, nextDelta.rotation, ratio);
+                _rootOriginalFrameVelocity.position = Vector3::Lerp(curDelta.position, nextDelta.position, ratio);
+                _rootOriginalFrameVelocity.rotation = Quaternion::Slerp(curDelta.rotation, nextDelta.rotation, ratio);
             }
         }
     }
     else
     {
         isFinish = _animations[_currentAnimIndex]->Update_TransformationMatrices(timeDelta, _bones, _isAnimLoop, rootIndex);
-        _rootFrameVelocity = (rootIndex >= 0) ? _animations[_currentAnimIndex]->Get_TransformVelocity(rootIndex) : RootMotionFrame{};
+        _rootOriginalFrameVelocity = (rootIndex >= 0) ? _animations[_currentAnimIndex]->Get_TransformVelocity(rootIndex) : RootMotionFrame{};
     }
 
-    /* 루트 모션 속도 보정 (preLocalTransformMatrix 적용) */
     if (rootIndex >= 0)
     {
-        _rootFrameVelocity.position = Vec3::TransformNormal(_rootFrameVelocity.position, _preLocalTransformMatrix);
+        _rootOriginalFrameVelocity.position = Vec3::TransformNormal(_rootOriginalFrameVelocity.position, _preLocalTransformMatrix);
+        auto temp = _rootOriginalFrameVelocity.position.z;
+        _rootOriginalFrameVelocity.position.z = -_rootOriginalFrameVelocity.position.y;
+        _rootOriginalFrameVelocity.position.y = temp;
     }
 
     for (uint32 i = 0; i < _numBones; ++i)
@@ -336,7 +346,7 @@ void ModelCom::Refresh_CurrentAnimationPose()
     const int32 rootIndex = _isRootMotion ? _rootNodeIndex : -1;
 
     _animations[_currentAnimIndex]->Evaluate_CurrentPose(_bones, rootIndex, _isAnimLoop);
-    _rootFrameVelocity = (rootIndex >= 0) ? _animations[_currentAnimIndex]->Get_TransformVelocity(rootIndex) : RootMotionFrame{};
+    _rootOriginalFrameVelocity = (rootIndex >= 0) ? _animations[_currentAnimIndex]->Get_TransformVelocity(rootIndex) : RootMotionFrame{};
 
     for (uint32 i = 0; i < _numBones; ++i)
         _bones[i]->Update_CombinedTransformationMatrix(_bones, _preLocalTransformMatrix);
@@ -723,6 +733,7 @@ HRESULT ModelCom::Ready_Animation(const char* modelPath)
     string modelDirectory = path.parent_path().string();
     string modelName = path.stem().string();
 
+    uint32 trueAnimIndex{ 0 };
     for (const auto& entry : fs::recursive_directory_iterator(modelDirectory))
     {
         if (entry.is_regular_file() && entry.path().extension() == ".anim")
@@ -757,7 +768,6 @@ HRESULT ModelCom::Ready_Animation(const char* modelPath)
                 stream.read(reinterpret_cast<char*>(&channels[i].boneIndex), sizeof(int32));
                 stream.read(reinterpret_cast<char*>(&channels[i].numKeyframes), sizeof(uint32));
 
-                /* 이름 기반 본 인덱스 재매핑 (강제 매핑) */
                 channels[i].boneIndex = Get_BoneIndex(channels[i].boneName);
 
                 keyframeSets[i].resize(channels[i].numKeyframes);
@@ -767,8 +777,11 @@ HRESULT ModelCom::Ready_Animation(const char* modelPath)
 
             _animations.push_back(Animation::Create(animData, channels));
             stream.close();
+            ++trueAnimIndex;
         }
     }
+
+    _numAnimations = trueAnimIndex;
 
     return S_OK;
 }

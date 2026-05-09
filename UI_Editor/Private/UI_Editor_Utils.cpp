@@ -29,6 +29,21 @@ namespace UIEditor
         }
     }
 
+    const char* Get_TextAlignName(UI_TextAlign textAlign)
+    {
+        switch (textAlign)
+        {
+        case UI_TextAlign::Left:
+            return "Left";
+        case UI_TextAlign::Center:
+            return "Center";
+        case UI_TextAlign::Right:
+            return "Right";
+        default:
+            return "Left";
+        }
+    }
+
     ImU32 Get_ObjectFillColor(UI_ObjectType objectType)
     {
         switch (objectType)

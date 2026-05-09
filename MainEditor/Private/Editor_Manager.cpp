@@ -373,6 +373,7 @@ void Editor_Manager::Render_ShortcutHelp()
             DrawShortcutRow("Ctrl + Wheel", "Free Camera Speed");
             DrawShortcutRow("Shift +", "배속 증가");
             DrawShortcutRow("Shift -", "배속 감소");
+            DrawShortcutRow("Alt + Enter", "Fullscreen Toggle");
             DrawShortcutRow("Ctrl + Space", "Console + Content Browser");
 
             DrawShortcutRow("오브젝트 더블클릭", "오브젝트한테 이동");

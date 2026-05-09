@@ -47,7 +47,8 @@ public:
 public:
     void Set_RootMotionEnabled(bool enable) { _isRootMotion = enable; }
     void Set_LocalRootNode(int32 nodeIndex) { _rootNodeIndex = nodeIndex; _isRootMotion = true; }
-    const RootMotionFrame& Get_RootTransformVelocity() const { return _rootFrameVelocity; }
+    const RootMotionFrame& Get_RootTransformVelocity() const { return _rootOriginalFrameVelocity; }
+    const RootMotionFrame& Get_RootTransformVelocity(float scaleOffset);
 
 public:
 	HRESULT Initialize_Prototype(ModelType type, const char* modelFilePath, const Matrix& preLocalTransformMatrix);
@@ -149,6 +150,7 @@ private: /* For Animation Control */
 private: /* For Root Motion */
     bool                                _isRootMotion{ false };
     int32                               _rootNodeIndex{ -1 }; // -1 일때는 최상위 노드 기준으로 
+    RootMotionFrame                     _rootOriginalFrameVelocity{};
     RootMotionFrame                     _rootFrameVelocity{};
 
 private: /* guid */

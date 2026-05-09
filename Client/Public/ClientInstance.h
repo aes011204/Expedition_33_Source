@@ -9,6 +9,7 @@ NS_END
 NS_BEGIN(Client)
 
 class ResourceLoader;
+class PersistentObjectManager;
 
 class ClientInstance : public Base
 {
@@ -34,6 +35,9 @@ public:
 public: /* 플레이어 찾기 -> 일단 임시 */
     Shared<GameObject> Find_Player(uint32 levelIndex);
 
+public:
+    HRESULT Ready_StaticObjects();
+
 private:
 	HRESULT Ready_ResourceLoader();
 
@@ -41,6 +45,7 @@ private:
 	ComPtr<Device> _device;
 	ComPtr<Context> _context;
     Shared<ResourceLoader> _resourceLoader;
+    Unique<PersistentObjectManager> _persistentObjectManager;
 
 	bool _isInitialized = false;
 

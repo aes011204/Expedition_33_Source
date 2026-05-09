@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Base.h"
 
@@ -21,9 +21,14 @@ public:
     Shared<Editor_Window> Find_Window(const wstring& windowName) const;
 
 private:
+    map<wstring, Shared<Editor_Window>> _windows{};
+    bool _defaultDockLayoutBuilt{ false };
+
+private:
     void Render_MainMenuBar();
     void Render_RuntimeToolbar();
     void Render_DockSpace();
+    void Build_DefaultDockLayout(ImGuiID dockSpaceId, ImVec2 dockSpaceSize);
     void Handle_Shortcuts();
     void Render_ShortcutHelp();
 
@@ -32,9 +37,6 @@ private:
 
     void Render_ExitButton(float toolbarHeight);
     void Request_Exit();
-
-private:
-    map<wstring, Shared<Editor_Window>> _windows = {};
 
 public:
     static Unique<EffectEditor_Manager> Create();
