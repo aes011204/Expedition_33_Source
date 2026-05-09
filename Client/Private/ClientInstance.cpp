@@ -60,12 +60,12 @@ Shared<ResourceLoader> ClientInstance::Get_ResourceLoader() const
 
 Shared<GameObject> ClientInstance::Find_Player(uint32 levelIndex)
 {
-    //auto gameObject = GAME->Find_FirstObject(levelIndex, TEXT("Layer_Player"));
-    //if (gameObject == nullptr)
-    //    return nullptr;
+    auto gameObject = GAME->Find_FirstObject(levelIndex, TEXT("Layer_Player"));
+    CHECK_NULL(gameObject, nullptr);
 
-    //return dynamic_pointer_cast<Player>(gameObject);
-    return _persistentObjectManager->Find_Player();
+    return gameObject;
+
+    //return _persistentObjectManager->Find_Player();
 }
 
 HRESULT ClientInstance::Ready_StaticObjects()

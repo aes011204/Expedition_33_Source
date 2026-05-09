@@ -23,6 +23,7 @@
 #include "Picking.h"
 #include "ColliderCom.h"
 #include "Culling_Manager.h"
+#include "ThreadPool.h"
 
 #ifdef _DEBUG
 #include "Print_Manager.h"
@@ -80,8 +81,7 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
     CHECK_NULL(_objectManager, E_FAIL);
 
     _targetManager = Target_Manager::Create(device, context);
-    if (nullptr == _targetManager)
-        return E_FAIL;
+    CHECK_NULL(_targetManager, E_FAIL);
 
     _renderer = Renderer::Create(device, context);
     CHECK_NULL(_renderer, E_FAIL);
@@ -118,6 +118,21 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
 
     _picking = Picking::Create(device, context);
     CHECK_NULL(_picking, E_FAIL);
+
+    // Thread Pool
+    {
+        // PC가 동시에 돌릴 수 있는 하드웨어 스레드 수 가져오기
+        const size_t hardwareThreadCount = thread::hardware_concurrency();
+        // 메인 스레드도 게임 업데이트/렌더링을 해야하니까 CPU를 전부 worker한테 넘기는게 아니라 하나 뺴기
+        const size_t workerCount = max<size_t>(1, hardwareThreadCount > 1 ? hardwareThreadCount - 1 : 1);
+
+        _threadPool = ThreadPool::Create(workerCount);
+        CHECK_NULL(_threadPool, E_FAIL);
+
+        LOG_ERROR("[GameInstance::Initialize_Engine] ThreadPool created. workerCount={}",
+        static_cast<int>(workerCount));
+    }
+    
 
 
 #ifdef _DEBUG
@@ -1146,6 +1161,22 @@ bool GameInstance::Pick_WorldPosition(const POINT& pixelPos, Vec3& outWorldPos)
     return _picking->Pick_WorldPosition(pixelPos, outWorldPos);
 }
 
+bool GameInstance::Enqueue_ThreadJob(function<void()> job)
+{
+    if (_threadPool == nullptr)
+        return false;
+
+    return _threadPool->Enqueue(std::move(job));
+}
+
+size_t GameInstance::Get_PendingThreadJobCount() const
+{
+    if (_threadPool == nullptr)
+        return 0;
+
+    return _threadPool->Get_PendingJobCount();
+}
+
 void GameInstance::Release_Engine()
 {
     auto ReleaseManager = [](auto& manager)
@@ -1157,6 +1188,7 @@ void GameInstance::Release_Engine()
         }
     };
 
+    ReleaseManager(_threadPool);
     ReleaseManager(_debugManager);
     ReleaseManager(_cameraManager);
     ReleaseManager(_assetManager);
