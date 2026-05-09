@@ -18,12 +18,22 @@ public:
 
         bool  isRunPressed = false;
         bool  isJumpDown = false;
+
+        bool isWalkDown{ false };
+
+        bool isInteractionDown{ false };
+        bool isSuddenAttack{ false };
+        
+        bool isMouseLDown{ false };
+        bool isMouseRPress{ false };
+        bool isMouseRUp{ false };
     };
 
     struct MoveDesc
     {
         float walkSpeed = 4.f;
         float runSpeed = 7.f;
+        float sprintSpeed = 10.f;
         float turnSpeedDegree = 180.f;
 
         float jumpVelocity = 8.f;
@@ -37,7 +47,7 @@ public:
 public:
     MovementCom(const ComPtr<Device>& device, const ComPtr<Context>& context);
     MovementCom(const MovementCom& Prototype);
-    virtual ~MovementCom() = default;
+    virtual ~MovementCom() override = default;
 
 public:
     HRESULT Initialize_Prototype() override;

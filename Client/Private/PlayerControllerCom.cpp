@@ -49,7 +49,6 @@ void PlayerControllerCom::BeginPlay()
 
 	_inputCom = owner->Get_Component<InputCom>();
 	CHECK_NULL(_inputCom);
-
 }
 
 void PlayerControllerCom::Update_Controller(float timeDelta)
@@ -61,9 +60,31 @@ void PlayerControllerCom::Update_Controller(float timeDelta)
 	}
 
 	_inputCom->Update_Input();
+    auto currentInput = _inputCom->Get_MovementInput();
 
-	_movementCom->Apply_Input(_inputCom->Get_MovementInput());
+    if (currentInput.isWalkDown)
+    {
+        _isWalkToggled = !_isWalkToggled;
+    }
+
+    currentInput.isWalkDown = _isWalkToggled;
+	_movementCom->Apply_Input(currentInput);
 	_movementCom->Update_Movement(timeDelta);
+}
+
+bool PlayerControllerCom::Has_MoveInput() const
+{
+    return _inputCom->Has_MoveInput();
+}
+
+bool PlayerControllerCom::Is_WalkToggled() const
+{
+    return _isWalkToggled;
+}
+
+const MovementCom::MovementInput& PlayerControllerCom::Get_MovementInput() const
+{
+    return _inputCom->Get_MovementInput();
 }
 
 Shared<PlayerControllerCom> PlayerControllerCom::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

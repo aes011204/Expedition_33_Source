@@ -546,6 +546,28 @@ void Content_Browser::Draw_AssetView()
             }
         }
 
+        // 맵 스태틱 매쉬 스폰
+        {
+            const wstring ext = path.extension().wstring();
+            if (ext == L".model")
+            {
+                if (ImGui::BeginDragDropSource())
+                {
+                    const string pathA = String::ToString(fileEntry.filePath);
+                    ImGui::SetDragDropPayload(
+                        "CONTENT_BROWSER_MODEL",
+                        pathA.c_str(),
+                        pathA.size() + 1);
+                    ImGui::Text("Map Static Mesh");
+                    ImGui::Separator();
+                    ImGui::Text("%s", pureName.c_str());
+
+                    ImGui::EndDragDropSource();
+                }
+            }
+        }
+        //
+
         const bool isFocused = ImGui::IsItemFocused();
         const bool isSelected = (_selectedFilePath == fileEntry.filePath);
 

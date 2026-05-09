@@ -14,7 +14,7 @@ public:
 public:
 	PartObject(const ComPtr<Device>& device, const ComPtr<Context>& context);
 	PartObject(const PartObject& prototype);
-	virtual ~PartObject() = default;
+	virtual ~PartObject() override = default;
 public:
 	virtual HRESULT Initialize_Prototype();
 	virtual HRESULT Initialize(void* arg);
@@ -26,18 +26,18 @@ public:
 
 protected:
 	const Matrix*			_parentMatrix = { nullptr };
-	XMFLOAT4X4				_combinedWorldMatrix = {};
+    Matrix				    _combinedWorldMatrix = {};
 
 protected:
-	void Update_CombinedWorldMatrix(FXMMATRIX childMatrix) {
+	virtual void Update_CombinedWorldMatrix(const Matrix& childMatrix) {
 		const Matrix parentMatrix = (nullptr != _parentMatrix) ? *_parentMatrix : Matrix::Identity;
 		const Matrix childWorld = childMatrix;
 		const Matrix combinedWorld = childWorld * parentMatrix;
-		XMStoreFloat4x4(&_combinedWorldMatrix, combinedWorld);
+        _combinedWorldMatrix = combinedWorld;
 	}
 
 public:
-	virtual Shared<GameObject> Clone(void* arg) = 0;
+	virtual Shared<GameObject> Clone(void* arg) override = 0;
 	virtual void Free() override;
 };
 

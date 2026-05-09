@@ -50,7 +50,7 @@ MapEditorApp          — 엔진 초기화, 메인 루프 (Update/Render), Scene
     ├── PanelViewport     ✅ RT ImGui::Image, 카메라 입력, ImGuizmo 오버레이
     ├── PanelHierarchy    ✅ 오브젝트 목록, 선택/추가/삭제/복제/이름변경
     ├── PanelInspector    ✅ Transform 실시간 편집, Gizmo 양방향 연동
-    └── PanelAssetBrowser ✅ 폴더 탭(SaveJson) + 더블클릭 로드
+    └── PanelAssetBrowser ✅ 파일 탐색기 방식, 브레드크럼, .bin 드래그 앤 드롭 스폰
 ```
 
 **베이스 클래스**: `MEWindow` (이름, 열림 상태, Update/Render 인터페이스)
@@ -99,9 +99,8 @@ Client/Bin/Resources/Map/scale_map.py
 MEStaticMeshActor                         — 에디터 뷰포트 시각화 전용
 ├── _model   (Shared<ModelCom>)
 ├── _shader  (Shared<ShaderCom>)
-├── Render(const Matrix& worldMatrix)
-│   — 텍스처 있으면 pass 0 (DefaultPass), 없으면 pass 1 (NoTexturePass, 회색)
-│   — GAME->Get_LightDesc(0)로 Directional Light 바인딩 (Forward 라이팅)
+├── Render(const Matrix& worldMatrix)     — G-buffer 출력 (pass 0: 텍스처, pass 1: 회색)
+├── RenderID(const Matrix& worldMatrix, uint32 id) — ID 버퍼용 (pass 2)
 └── GetModel() — 컬링용 AABB 접근에 사용
 ```
 
@@ -152,8 +151,15 @@ MEModelManager                            — 모델 로드/캐싱 전담
     - ✅ `EditorObject._isInstanced` — Instanced 오브젝트는 렌더 핸들 생성 스킵
     - ✅ 모델 버텍스 스케일 보정: `preLocalTransformMatrix = Matrix::CreateScale(0.001f)` (UE5 cm → 엔진 단위)
     - ✅ 텍스처 없는 모델 회색 렌더링 — `NoTexturePass` (pass 1) 추가
-    - ✅ Forward 라이팅 — `Shader_VtxMesh` Forward 방식으로 교체 (Lambert + Specular + Ambient, 단일 RT 출력), `MapEditorApp::Initialize()`에서 기본 Directional Light 등록, `MEStaticMeshActor::Render()`에서 `GAME->Get_LightDesc(0)` 바인딩
+    - ✅ Deferred 라이팅 전환
+      - G-buffer MRT 패스 → 라이트 누적 패스 → CombinedSimple 컴바인 패스
+      - `Shader_VtxMesh.hlsl`: G-buffer 출력 (Diffuse/Normal/Depth, 3 targets)
+      - `Shader_Deferred.hlsl`: CombinedSimple pass (index 4) 추가 — 섀도우 없는 단순 합성
+      - `SyncSceneLights()`: 매 프레임 GAME Light_Manager를 SceneContext 기준으로 재동기화
 13. ✅ 라이트 배치 및 속성 편집
+    - Directional / Point Light 지원, Inspector 실시간 수치 조정
+    - 기본 Directional Light를 EditorObject로 관리 (Hierarchy 표시, 삭제 가능)
+    - `EditorObject._lightType` / `_lightRange` / `_lightDiffuse` 등 파라미터 편집
 14. ✅ Inspector Focus 버튼 — 선택 오브젝트 위치로 카메라 즉시 이동 (`MECamera::FocusOn`)
 
 ### Phase 3 — 볼륨 / 존 시스템 ✅
@@ -207,7 +213,77 @@ MEModelManager                            — 모델 로드/캐싱 전담
 
 ---
 
-### Phase 4 — MainEditor 레벨 구성 ← **다음 작업**
+### Phase 3.8 — Asset Browser 파일 탐색기 + 드래그 앤 드롭 스폰 ✅
+
+#### 목표
+- Asset Browser를 Unity Project 창처럼 파일 탐색기 방식으로 재설계
+- `.bin` 모델 파일을 뷰포트로 드래그 앤 드롭하면 3D 커서 위치에 오브젝트 스폰
+
+#### 구현 내용
+
+1. **`PanelAssetBrowser` 재설계** ✅
+    - 탭 기반 → 파일 탐색기 방식으로 전환 (`Initialize()` 분리, `Create`에서 호출)
+    - 루트: `Client/Bin/Resources/Map` (`_mapSavePath` → `fs::canonical`로 절대 경로 변환)
+    - 브레드크럼 바: `Map > SaveJson` 형태, 클릭 시 해당 경로로 점프 (루프 내 `NavigateTo` 후 `break`)
+    - 폴더 더블클릭 → 내부 탐색 (`_dirs` / `_files` 분리 스캔)
+    - `.json` 더블클릭 → `_ctx->LoadFromFile()` (기존 동작 유지)
+    - `.bin` / `.model` → `ImGui::BeginDragDropSource` 드래그 소스 (payload = 절대 경로)
+
+2. **`PanelViewport` 수정** ✅
+    - `BeginDragDropTarget` → `ConsumeSpawn` 패턴 (ConsumePick과 동일 구조)
+    - Shift+좌클릭 → `ConsumeCursorSet` (기존 좌클릭 피킹과 분기)
+
+3. **`MapEditorApp` 수정 — 3D 커서 + 스폰** ✅
+    - `SceneContext`에 `_cursorPos` / `_cursorVisible` 추가 (뷰포트 오버레이 공유)
+    - `SetCursorAt()`: GPU ID 버퍼로 히트 오브젝트 식별 → 레이 × 해당 오브젝트 AABB 교차로 정확한 표면 위치 계산 (O(1))
+    - `DoSpawnAt()`: `_scene._cursorPos` 위치에 `SceneContext::SpawnObject` 호출
+    - 빈 공간 Shift+클릭 → 카메라 시선 방향 10 단위 앞 폴백
+
+4. **`SceneContext` 수정** ✅
+    - `SpawnObject(const wstring& modelPath, const Vec3& pos)` 추가
+    - `EditorObject` 생성 (StaticMesh, 파일명을 이름으로) + `_dirtyRenderHandles = true` → `UpdateRenderHandles`가 다음 프레임에 렌더 핸들 연결
+
+5. **뷰포트 커서 오버레이** ✅
+    - `Image` 아래 좌하단 `##CursorOverlay` 윈도우 — 보라색 `Cursor X.XX Y.XX Z.XX` 표시
+
+#### 설계 결정
+- **3D 커서 방식 채택**: Blender 스타일, 지면 높이 무관, Shift+클릭으로 위치 지정 후 드롭
+- **Ray × Y=0 기각**: 경사 지형에서 부정확
+- **CPU AABB 전체 순회 기각**: 오브젝트 수 많을 때 O(n) 성능 문제
+- **GPU ID + 단일 AABB 교차 채택**: ID 버퍼로 히트 오브젝트 특정 후 해당 1개만 레이캐스트 → O(1)
+- **PhysX 레이캐스트 기각**: Phase 6 이전 콜라이더 미구축
+- **동시 실행 충돌 없음**: 피킹(좌클릭)과 드롭은 물리적으로 동시에 발생 불가, 사용 RT도 분리
+
+---
+
+### Phase 3.9 — 편집 UX 개선 ← **다음 작업**
+
+#### 목표
+- 오브젝트 배치 흐름을 Prefab 드래그 앤 드롭으로 통일하고, 실수 복구 기능 추가
+
+#### 작업 내용
+
+1. **오브젝트 추가 시 자동 선택**
+   - 스폰 직후 `_scene._selected = newObj` 설정
+   - 추가 즉시 Inspector 포커스 + Gizmo 활성화
+
+2. **Prefab 시스템 (Asset Browser 통합)**
+   - Light / SpawnPoint / TriggerVolume 등 비메시 오브젝트를 `.prefab` JSON 파일로 저장
+   - Asset Browser에서 `.prefab` 파일 인식 → 드래그 앤 드롭으로 3D 커서 위치에 스폰
+   - 포맷: `{ "Type": "Light", "Name": "Point Light", "LightType": "Point", "Range": 10.0, ... }`
+   - 저장 경로: `Client/Bin/Resources/Map/Prefabs/` (Asset Browser 탐색 대상에 추가)
+   - `ConsumeSpawn`에서 확장자로 `.bin` / `.prefab` 분기 — 기존 메시 파이프라인 재사용
+   - Prefab 시스템 완성 후 Hierarchy "Add" 버튼(타입 팝업) 제거
+
+3. **Ctrl+Z / Ctrl+Y Undo/Redo**
+   - Command 패턴 — `IEditorCommand` 인터페이스 (`Execute` / `Undo`)
+   - 커맨드 종류: `CmdAddObject`, `CmdDeleteObject`, `CmdTransformObject`
+   - `SceneContext`에 `_undoStack` / `_redoStack` 보관, 스택 최대 50개
+   - Inspector Transform 편집은 마우스 릴리스 / Enter 확정 시점에 커맨드 기록 (드래그 중 매 프레임 기록 방지)
+
+---
+
+### Phase 4 — MainEditor 레벨 구성
 
 #### 목표
 - Client에서 실제 플레이 가능한 레벨 구조 잡기
@@ -256,13 +332,19 @@ MEModelManager                            — 모델 로드/캐싱 전담
 | Snapping | ✅ (Ctrl 홀드, PanelSnap으로 수치 편집) |
 | Focus (Inspector) | ✅ |
 | 마우스 피킹 (GPU ID Buffer) | ✅ |
+| Asset Browser 파일 탐색기 | ✅ |
+| 3D 커서 스폰 (Shift+클릭 + 드래그 앤 드롭) | ✅ |
+| 추가 시 자동 선택 | 구현 예정 (Phase 3.9) |
+| Prefab 시스템 (.prefab 드래그 앤 드롭) | 구현 예정 (Phase 3.9) |
+| Undo / Redo (Ctrl+Z / Ctrl+Y) | 구현 예정 (Phase 3.9) |
 
 ### 렌더링 / 배치
 
 | 기능 | 상태 |
 |------|------|
 | 정적 메시 배치 | ✅ |
-| 라이트 배치 | ✅ |
+| 라이트 배치 (Directional / Point) | ✅ |
+| Deferred 라이팅 (G-buffer + 라이트 누적 + 합성) | ✅ |
 | 절두체 컬링 (Client/MainEditor) | ✅ |
 | 절두체 컬링 (MapEditor 뷰포트) | ✅ |
 | Octree 공간 분할 컬링 | 구현 예정 (Phase 6) |
