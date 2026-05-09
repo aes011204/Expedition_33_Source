@@ -8,6 +8,8 @@
 #include "ColliderCom.h"
 #include "ClientInstance.h"
 #include "BlackBoard.h"
+#include "Mon_Lancleier_Body.h"
+#include "Mon_Lancleier_Weapon.h"
 
 IMPLEMENT_REFLECTION(Monster)
 {
@@ -50,11 +52,15 @@ HRESULT Monster::Initialize(void* arg)
 	//	GAME->Random(0.f, 10.f)
 	//));
 
+
+    //_currentAction = MonsterAction::Idle;
+
+
     _transformCom->Set_Position(Vec3(
         10.f,0.f,10.f
     ));
 
-    _model->Set_Animation(/*rand() % 20*/4, true);
+    //_model->Set_Animation(5, true);
 
 	return S_OK;
 }
@@ -66,14 +72,10 @@ void Monster::Priority_Update(float timeDelta)
 
 void Monster::Update(float timeDelta)
 {
-	if (true == _model->Play_Animation(timeDelta))
-		int a = 10;
-
-
     if (_aiCtrl)
     {
         Shared<BlackBoard> bb = _aiCtrl->Get_BlackBoard();
-        Shared<GameObject> player = CLIENT->Find_Player(ETOI(LevelType::GamePlay));
+        Shared<GameObject> player = CLIENT->Find_Player(ETOI(LevelType::Static));
 
         if (bb && player)
         {
@@ -83,7 +85,49 @@ void Monster::Update(float timeDelta)
 
         _aiCtrl->Update(timeDelta);
     }
+
+    if (_aiCtrl && _aiCtrl->Get_IsMoving() == true)
+    {
+        Set_CurrentAction(MonsterAction::Move);
+    }
+
+    if (_body && _currentAction != _previousAction)
+    {
+        switch (_currentAction)
+        {
+        case MonsterAction::Idle:
+            
+            _body->Set_Animation( 5,0.3f, true);
+            break;
+
+        case MonsterAction::Move:
+            _body->Set_Animation( 11, 0.3f, true);
+            break;
+
+        case MonsterAction::Attack:
+            _body->Set_Animation( 11, 0.3f, false);
+            break;
+        }
+
+        _previousAction = _currentAction;
+    }
+
+    if (_body)
+    {
+        _body->Play_Animation(timeDelta);
+
+        auto str = _body->Get_RootTransformVelocity();
+        _transformCom->Set_SpeedPerSec((str.position.z * Constants::Charcter::scaleOffset));
+    }
+
+   // Matrix ax;
+   // Vector3 vec3;
+   // Quat a;
+   // Vec3 vevec;
+   // ax.Decompose(vec3, a, vevec);
+    __super::Update(timeDelta);
 }
+
 
 void Monster::Late_Update(float fTimeDelta)
 {
@@ -92,93 +136,60 @@ void Monster::Late_Update(float fTimeDelta)
         _collider->Update_Collider(_transformCom->Get_WorldMatrix());
         GAME->Add_Collider(_collider);
     }
+    __super::Late_Update(fTimeDelta);
 
- 	GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<Character>());
-	GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<Character>());
 }
 
 HRESULT Monster::Render()
 {
-	if (FAILED(Bind_ShaderResources()))
-		return E_FAIL;
-
-	const uint32 iNumMeshes = static_cast<uint32>(_model->Get_NumMeshes());
-
-	for (uint32 i = 0; i < iNumMeshes; i++)
-	{
-		_model->Bind_Material(_shader.get(), "g_DiffuseTexture", i, MaterialTextureSlot::BaseColor);
-		_model->Bind_BoneMatrices(_shader.get(), "g_BoneMatrices", i);
-
-		if (FAILED(_shader->Begin(0)))
-			return E_FAIL;
-
-		_model->Render(i);
-	}
-
-	return S_OK;
+    return S_OK;
 }
 
 HRESULT Monster::Render_Shadow()
 {
-    if (FAILED(_transformCom->Bind_ShaderResource(_shader.get(), "g_WorldMatrix")))
-        return E_FAIL;
-
-    if (FAILED(GAME->Bind_ShadowMatrices(_shader, "g_ViewMatrix", "g_ProjMatrix")))
-        return E_FAIL;
-
-    if (FAILED(GAME->Bind_ShadowLightDesc(_shader, "g_fLightFar")))
-        return E_FAIL;
-
-    const uint32 iNumMeshes = static_cast<uint32>(_model->Get_NumMeshes());
-
-    for (uint32 i = 0; i < iNumMeshes; i++)
-    {
-        _model->Bind_BoneMatrices(_shader.get(), "g_BoneMatrices", i);
-
-        if (FAILED(_shader->Begin(1)))
-            return E_FAIL;
-
-        _model->Render(i);
-    }
-
     return S_OK;
 }
 
 HRESULT Monster::Ready_Components()
 {
-	if (FAILED(__super::Add_Component(ETOI(LevelType::Static), TEXT("Shader_VtxAnimMesh"), _shader)))
-		return E_FAIL;
-
-	if (FAILED(__super::Add_Component(ETOI(LevelType::Static), TEXT("Model_Fiona"), _model)))
-		return E_FAIL;
-
-
     if (FAILED(__super::Add_Component(ETOI(LevelType::Static), TEXT("Com_AIController"), _aiCtrl)))
         return E_FAIL;
 
     _aiCtrl->Set_Owner(static_pointer_cast<Monster>(shared_from_this()));
 
     CHECK_FAILED(Ready_Collider(), E_FAIL);
+    CHECK_FAILED(Ready_PartObjects(), E_FAIL);
 
-	return S_OK;
+    return S_OK;
 }
-
-HRESULT Monster::Bind_ShaderResources()
+HRESULT Monster::Ready_PartObjects()
 {
-	if (FAILED(_transformCom->Bind_ShaderResource(_shader.get(), "g_WorldMatrix")))
-		return E_FAIL;
+    Mon_Lancleier_Body::BODY_DESC bodyDesc{};
+    bodyDesc.parentMatrix = &_transformCom->Get_WorldMatrix();
+    bodyDesc.modelType = ModelType::Anim;
+    bodyDesc.modelTag = L"Model_Lancleier";
 
-	if (FAILED(GAME->Bind_TransformMatrix(D3DTS::View, _shader.get(), "g_ViewMatrix")))
-		return E_FAIL;
+    CHECK_FAILED(Add_PartObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Lancleier_Body"), TEXT("Part_Body"), &bodyDesc), E_FAIL);
 
-	if (FAILED(GAME->Bind_TransformMatrix(D3DTS::Proj, _shader.get(), "g_ProjMatrix")))
-		return E_FAIL;
-
-    if (FAILED(GAME->Bind_CameraFar(_shader, "g_fFar")))
+    _body = dynamic_pointer_cast<Mon_Lancleier_Body>(_partObjects[TEXT("Part_Body")]);
+    if (nullptr == _body)
         return E_FAIL;
 
-	return S_OK;
+    Mon_Lancleier_Weapon::WEAPON_DESC weaponDesc{};
+    weaponDesc.parentMatrix = &_transformCom->Get_WorldMatrix();
+    weaponDesc.modelType = ModelType::NonAnim;
+    weaponDesc.modelTag = L"Model_Lancleier_Weapon";
+    weaponDesc.socketMatrix = _body->Get_SocketBoneMatrixPtr("Weapon_R");
+
+    CHECK_FAILED(Add_PartObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Lancleier_Weapon"), TEXT("Part_Weapon"), &weaponDesc), E_FAIL);
+
+    _weapon = dynamic_pointer_cast<Mon_Lancleier_Weapon>(_partObjects[TEXT("Part_Weapon")]);
+    if (nullptr == _weapon)
+        return E_FAIL;
+
+    return S_OK;
 }
+
 
 HRESULT Monster::Ready_Collider()
 {
@@ -212,7 +223,7 @@ Shared<GameObject> Monster::Clone(void* arg)
 
     if (FAILED(clone->Initialize(arg)))
     {
-        MSG_BOX("Failed to Cloned : Monster");
+       // MSG_BOX("Failed to Cloned : Monster");
         return nullptr;
     }
 

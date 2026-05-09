@@ -6,8 +6,14 @@
 #include "Composite.h"
 #include "Decorator.h"
 #include "GameObject.h"
+#include "Parallel.h"
 #include "Selector.h"
 #include "Sequence.h"
+
+namespace Client
+{
+    class Monster;
+}
 
 IMPLEMENT_REFLECTION(AIController)
 {
@@ -66,8 +72,12 @@ void AIController::Update(float timeDelta)
         Vec3 pos = Get_Owner()->Get_Transform()->Get_Position();
     if (_PF)
     {
-        _PF->Update(timeDelta, pos, 1.5f);
+        auto tmp = Get_Owner()->Get_Transform()->Get_SpeedPerSec() ;
+
+       //LOG_DEBUG("{}", tmp);
+        _PF->Update(timeDelta, pos, tmp);
         Get_Owner()->Get_Transform()->Set_Position(pos);
+
     }
 
 }
@@ -89,6 +99,7 @@ void AIController::Set_BehaviorTree(shared_ptr<BehaviorTree> tree)
 bool AIController::Is_Finished()
 {
     return _PF->Is_Finished();
+
 }
 
 void AIController::Request_Move(Vec3& target)
@@ -96,12 +107,14 @@ void AIController::Request_Move(Vec3& target)
     Vec3 pos = Get_Owner()->Get_Transform()->Get_Position();
     _PF->Request_Move(pos,target);
 
+    _isMoving = true;
 }
 
 void AIController::Stop_Move()
 {
     Vec3 pos = Get_Owner()->Get_Transform()->Get_Position();
     _PF->Stop_Move(pos);
+    _isMoving = false;
 }
 
 
@@ -175,7 +188,7 @@ Shared<BehaviorTree> AIController::Instantiate_BehaviorTreeJson(const fs::path& 
     {
         uint64 id = 0;
         uint64 inputPin = 0;
-        uint64 outputPin = 0;
+        vector<uint64> outputPins = {};
         Shared<BNode> runtimeNode = nullptr;
     };
 
@@ -189,7 +202,17 @@ Shared<BehaviorTree> AIController::Instantiate_BehaviorTreeJson(const fs::path& 
         FLoadedNode loaded{};
         loaded.id = n["id"].get<uint64>();
         loaded.inputPin = n["inputPin"].get<uint64>();
-        loaded.outputPin = n["outputPin"].get<uint64>();
+
+        if (n.contains("outputPins"))
+        {
+            for (auto& outputPin : n["outputPins"])
+                loaded.outputPins.push_back(outputPin.get<uint64>());
+        }
+        else if (n.contains("outputPin"))
+        {
+            loaded.outputPins.push_back(n["outputPin"].get<uint64>());
+        }
+
         loaded.runtimeNode = Create_RuntimeBTNode(n);
 
         if (!loaded.runtimeNode)
@@ -200,7 +223,9 @@ Shared<BehaviorTree> AIController::Instantiate_BehaviorTreeJson(const fs::path& 
 
         loadedNodes.emplace(loaded.id, loaded);
         inputPinToNodeId.emplace(loaded.inputPin, loaded.id);
-        outputPinToNodeId.emplace(loaded.outputPin, loaded.id);
+
+        for (const uint64 outputPin : loaded.outputPins)
+            outputPinToNodeId.emplace(outputPin, loaded.id);
     }
 
     for (auto& l : root["links"])
@@ -277,11 +302,17 @@ Shared<BNode> AIController::Create_RuntimeBTNode(const json& nodeJson) const
     if (title == "Decorator")
         return nullptr;
 
+    if (title == "Parallel")
+        return Parallel::Create();
+
     if (type == 0)
         return Selector::Create();
 
     if (type == 1)
         return Sequence::Create();
+
+    if (type == 4)
+        return Parallel::Create();
 
     return nullptr;
 }

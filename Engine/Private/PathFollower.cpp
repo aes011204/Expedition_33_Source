@@ -17,12 +17,12 @@ void PathFollower::Update(float deltaTime, Vec3& position, float speed)
     float dist = dir.Length();
 
 
-    if (dist <= 0.5f)
-    {
-        //position = _target;
-        _fin = true;
-        return;
-    }
+    //if (dist <= 0.5f)
+    //{
+    //    //position = _target;
+    //    _fin = true;
+    //    return;
+    //}
 
     float moveDist = speed * deltaTime;
 

@@ -168,7 +168,22 @@ void MovementCom::Update_HorizontalVelocity()
         return;
     }
 
-    const float moveSpeed = _input.isRunPressed ? _moveDesc.runSpeed : _moveDesc.walkSpeed;
+    float moveSpeed{ 0.f };
+    if (_input.moveX != 0.f || _input.moveZ != 0.f)
+    {
+        if (_input.isRunPressed)
+        {
+            moveSpeed = _moveDesc.sprintSpeed;
+        }
+        else if (_input.isWalkDown)
+        {
+            moveSpeed = _moveDesc.walkSpeed;
+        }
+        else
+        {
+            moveSpeed = _moveDesc.runSpeed;
+        }
+    }
 
     _velocity.x = desiredDir.x * moveSpeed;
     _velocity.z = desiredDir.z * moveSpeed;

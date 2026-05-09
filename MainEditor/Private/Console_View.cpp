@@ -138,6 +138,25 @@ void Console_View::Render()
         }
 
         ImGui::SameLine();
+        if (ImGui::Button("Copy"))
+        {
+            string clipboardText;
+
+            for (const auto& log : _cachedLogs)
+            {
+                if (!Pass_Filter(log))
+                    continue;
+
+                if (!clipboardText.empty())
+                    clipboardText += '\n';
+
+                clipboardText += Strip_LogPrefix(log.formattedLine);
+            }
+
+            ImGui::SetClipboardText(clipboardText.c_str());
+        }
+
+        ImGui::SameLine();
         ImGui::Checkbox("Auto Scroll", &_autoScroll);
 
         ImGui::Separator();

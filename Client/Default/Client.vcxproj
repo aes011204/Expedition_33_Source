@@ -157,16 +157,13 @@
   <ItemGroup>
     <ClInclude Include="..\Public\AN_Test.h" />
     <ClInclude Include="..\Public\ANS_Test.h" />
+    <ClInclude Include="..\public\BattleController.h" />
+    <ClInclude Include="..\public\BattleStateMachine.h" />
     <ClInclude Include="..\public\BT_Attack.h" />
     <ClInclude Include="..\public\BT_CheckDistance.h" />
     <ClInclude Include="..\public\BT_Idle.h" />
     <ClInclude Include="..\Public\BT_Node_Bootstrap.h" />
-    <ClInclude Include="..\Public\CameraPresetIO.h" />
-    <ClInclude Include="..\Public\CinematicSequencerAdapter.h" />
-    <ClInclude Include="..\Public\Cinematic_Player.h" />
-    <ClInclude Include="..\Public\Cinematic_SequenceIO.h" />
-    <ClInclude Include="..\Public\Cinematic_Types.h" />
-    <ClInclude Include="..\Public\Cinematic_Utils.h" />
+    <ClInclude Include="..\public\BT_RotateToTarget.h" />
     <ClInclude Include="..\Public\Client_Constants.h" />
     <ClInclude Include="..\Public\Client_Enum.h" />
     <ClInclude Include="..\Public\Client_Macro.h" />
@@ -179,12 +176,22 @@
     <ClInclude Include="..\Public\Level_Stage01.h" />
     <ClInclude Include="..\Public\MapLoader.h" />
     <ClInclude Include="..\Public\MapStaticMesh.h" />
+    <ClInclude Include="..\public\Monster_Part.h" />
     <ClInclude Include="..\public\Mon_AIController.h" />
     <ClInclude Include="..\public\Mon_BehaviorTree.h" />
+    <ClInclude Include="..\public\Mon_Lancleier_Body.h" />
+    <ClInclude Include="..\public\Mon_Lancleier_Weapon.h" />
     <ClInclude Include="..\Public\PersistentObjectManager.h" />
     <ClInclude Include="..\Public\PlayableParts.h" />
     <ClInclude Include="..\Public\PlayerControllerCom.h" />
+    <ClInclude Include="..\Public\Player_Idle.h" />
+    <ClInclude Include="..\Public\Player_Jump.h" />
+    <ClInclude Include="..\Public\Player_Move.h" />
+    <ClInclude Include="..\Public\Player_State.h" />
+    <ClInclude Include="..\Public\PlayerStateMachineCom.h" />
     <ClInclude Include="..\Public\Spawn_Prefab.h" />
+    <ClInclude Include="..\Public\State.h" />
+    <ClInclude Include="..\Public\StateMachineCom.h" />
     <ClInclude Include="..\Public\TargetCamera.h" />
     <ClInclude Include="..\Public\UI_RuntimeLoader.h" />
     <ClInclude Include="pch.h" />
@@ -208,14 +215,13 @@
   <ItemGroup>
     <ClCompile Include="..\Private\AN_Test.cpp" />
     <ClCompile Include="..\Private\ANS_Test.cpp" />
+    <ClCompile Include="..\private\BattleController.cpp" />
+    <ClCompile Include="..\private\BattleStateMachine.cpp" />
     <ClCompile Include="..\private\BT_Attack.cpp" />
     <ClCompile Include="..\private\BT_CheckDistance.cpp" />
     <ClCompile Include="..\private\BT_Idle.cpp" />
-    <ClCompile Include="..\Private\BT_Node_Bootstrap.cpp" />
-    <ClCompile Include="..\Private\CameraPresetIO.cpp" />
-    <ClCompile Include="..\Private\CinematicSequencerAdapter.cpp" />
-    <ClCompile Include="..\Private\Cinematic_Player.cpp" />
-    <ClCompile Include="..\Private\Cinematic_SequenceIO.cpp" />
+    <ClCompile Include="..\private\BT_Node_Bootstrap.cpp" />
+    <ClCompile Include="..\Private\BT_RotateToTarget.cpp" />
     <ClCompile Include="..\Private\CombatStatCom.cpp" />
     <ClCompile Include="..\Private\Hair_Player.cpp" />
     <ClCompile Include="..\Private\Head_Player.cpp" />
@@ -224,13 +230,23 @@
     <ClCompile Include="..\Private\Level_Stage01.cpp" />
     <ClCompile Include="..\Private\MapLoader.cpp" />
     <ClCompile Include="..\Private\MapStaticMesh.cpp" />
+    <ClCompile Include="..\private\Monster_Part.cpp" />
     <ClCompile Include="..\private\Mon_AIController.cpp" />
     <ClCompile Include="..\private\Mon_BehaviorTree.cpp" />
+    <ClCompile Include="..\private\Mon_Lancleier_Body.cpp" />
+    <ClCompile Include="..\private\Mon_Lancleier_Weapon.cpp" />
     <ClCompile Include="..\Private\PersistentObjectManager.cpp" />
     <ClCompile Include="..\Private\PlayableParts.cpp" />
     <ClCompile Include="..\Private\PlayerControllerCom.cpp" />
+    <ClCompile Include="..\Private\Player_Idle.cpp" />
+    <ClCompile Include="..\Private\Player_Jump.cpp" />
+    <ClCompile Include="..\Private\Player_Move.cpp" />
+    <ClCompile Include="..\Private\Player_State.cpp" />
+    <ClCompile Include="..\Private\PlayerStateMachineCom.cpp" />
     <ClCompile Include="..\Private\SimpleMath.cpp" />
     <ClCompile Include="..\Private\Spawn_Prefab.cpp" />
+    <ClCompile Include="..\Private\State.cpp" />
+    <ClCompile Include="..\Private\StateMachineCom.cpp" />
     <ClCompile Include="..\Private\TargetCamera.cpp" />
     <ClCompile Include="..\Private\UI_RuntimeLoader.cpp" />
     <ClCompile Include="pch.cpp">
@@ -261,6 +277,13 @@
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMesh.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxNorTex.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxTex.hlsl" />
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_BufferSmoke.hlsl">
+      <ShaderType>Compute</ShaderType>
+      <ShaderModel>5.0</ShaderModel>
+      <EntryPointName>CS_Main</EntryPointName>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Engine\Default\Engine.vcxproj">

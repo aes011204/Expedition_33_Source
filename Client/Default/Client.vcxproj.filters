@@ -112,20 +112,23 @@
     <Filter Include="01.Levels\Stage\Stage01">
       <UniqueIdentifier>{c5fa3f83-263a-48ef-899c-ed4c7f3696dd}</UniqueIdentifier>
     </Filter>
-    <Filter Include="02.GameObject\Camera\Cinematic">
-      <UniqueIdentifier>{d53ff54a-605b-446d-803e-b7224c240225}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="02.GameObject\Camera\PresetIO">
-      <UniqueIdentifier>{8ef6fb12-f42b-4ce8-828e-8d5ef2dd6a29}</UniqueIdentifier>
-    </Filter>
     <Filter Include="96. Manager">
       <UniqueIdentifier>{f7e6f048-732e-4189-8952-1cfaa7a9aa5e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="97.ShaderFiles\Compute">
+      <UniqueIdentifier>{a10ec434-0458-4165-95ea-bc90cbd84fe3}</UniqueIdentifier>
     </Filter>
     <Filter Include="03. Component\StateMachine">
       <UniqueIdentifier>{e82a48fb-449d-4655-bbd7-e35e3480ddad}</UniqueIdentifier>
     </Filter>
     <Filter Include="03. Component\StateMachine\State">
       <UniqueIdentifier>{535700eb-0887-4cbe-a5df-3edc02bd65dd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02.GameObject\Player\PlayerStateMachine">
+      <UniqueIdentifier>{06824f3a-44ed-4909-b292-0b395d0620f4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02.GameObject\Player\PlayerStateMachine\State">
+      <UniqueIdentifier>{2ff895e8-c801-4ce1-8657-6b74912325b5}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -204,10 +207,6 @@
     <ClInclude Include="..\Public\PlayerControllerCom.h">
       <Filter>03. Component\PlayerController</Filter>
     </ClInclude>
-    <ClInclude Include="..\public\Mon_BehaviorTree.h" />
-    <ClInclude Include="..\public\BT_Idle.h" />
-    <ClInclude Include="..\public\BT_Attack.h" />
-    <ClInclude Include="..\public\BT_CheckDistance.h" />
     <ClInclude Include="..\Public\MapStaticMesh.h">
       <Filter>02.GameObject\Map\MapStaticMesh</Filter>
     </ClInclude>
@@ -234,32 +233,62 @@
     <ClInclude Include="..\Public\Level_Stage01.h">
       <Filter>01.Levels\Stage\Stage01</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\BT_Node_Bootstrap.h" />
-    <ClInclude Include="..\Public\Cinematic_Player.h">
-      <Filter>02.GameObject\Camera\Cinematic</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\Cinematic_SequenceIO.h">
-      <Filter>02.GameObject\Camera\Cinematic</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\Cinematic_Types.h">
-      <Filter>02.GameObject\Camera\Cinematic</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\Cinematic_Utils.h">
-      <Filter>02.GameObject\Camera\Cinematic</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\CinematicSequencerAdapter.h">
-      <Filter>02.GameObject\Camera\Cinematic</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\CameraPresetIO.h">
-      <Filter>02.GameObject\Camera\PresetIO</Filter>
     <ClInclude Include="..\Public\PersistentObjectManager.h">
       <Filter>96. Manager</Filter>
     </ClInclude>
+    <ClInclude Include="..\public\BT_Attack.h">
+      <Filter>BehavoirTree</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\BT_CheckDistance.h">
+      <Filter>BehavoirTree</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\BT_Idle.h">
+      <Filter>BehavoirTree</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\BT_Node_Bootstrap.h">
+      <Filter>BehavoirTree</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\BT_RotateToTarget.h">
+      <Filter>BehavoirTree</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\Mon_BehaviorTree.h">
+      <Filter>BehavoirTree</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\Mon_Lancleier_Body.h">
+      <Filter>02.GameObject\Monster</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\Mon_Lancleier_Weapon.h">
+      <Filter>02.GameObject\Monster</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\Monster_Part.h">
+      <Filter>02.GameObject\Monster</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\AN_Test.h" />
+    <ClInclude Include="..\Public\ANS_Test.h" />
+    <ClInclude Include="..\public\BattleController.h" />
+    <ClInclude Include="..\public\BattleStateMachine.h" />
     <ClInclude Include="..\Public\State.h">
       <Filter>03. Component\StateMachine\State</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\StateMachine.h">
+    <ClInclude Include="..\Public\StateMachineCom.h">
       <Filter>03. Component\StateMachine</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\PlayerStateMachineCom.h">
+      <Filter>02.GameObject\Player\PlayerStateMachine</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Player_State.h">
+      <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Player_Idle.h">
+      <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\AN_Test.h" />
+    <ClInclude Include="..\Public\ANS_Test.h" />
+    <ClInclude Include="..\Public\Player_Move.h">
+      <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Player_Jump.h">
+      <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -329,10 +358,6 @@
     <ClCompile Include="..\Private\PlayerControllerCom.cpp">
       <Filter>03. Component\PlayerController</Filter>
     </ClCompile>
-    <ClCompile Include="..\private\Mon_BehaviorTree.cpp" />
-    <ClCompile Include="..\private\BT_Idle.cpp" />
-    <ClCompile Include="..\private\BT_Attack.cpp" />
-    <ClCompile Include="..\private\BT_CheckDistance.cpp" />
     <ClCompile Include="..\Private\MapStaticMesh.cpp">
       <Filter>02.GameObject\Map\MapStaticMesh</Filter>
     </ClCompile>
@@ -356,27 +381,62 @@
     <ClCompile Include="..\Private\Level_Stage01.cpp">
       <Filter>01.Levels\Stage\Stage01</Filter>
     </ClCompile>
-    <ClCompile Include="..\private\BT_Node_Bootstrap.cpp" />
-    <ClCompile Include="..\Private\Cinematic_Player.cpp">
-      <Filter>02.GameObject\Camera\Cinematic</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\Cinematic_SequenceIO.cpp">
-      <Filter>02.GameObject\Camera\Cinematic</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\CinematicSequencerAdapter.cpp">
-      <Filter>02.GameObject\Camera\Cinematic</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\CameraPresetIO.cpp">
-      <Filter>02.GameObject\Camera\PresetIO</Filter>
-     </ClCompile>
     <ClCompile Include="..\Private\PersistentObjectManager.cpp">
       <Filter>96. Manager</Filter>
     </ClCompile>
+    <ClCompile Include="..\private\BT_Attack.cpp">
+      <Filter>BehavoirTree</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\BT_CheckDistance.cpp">
+      <Filter>BehavoirTree</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\BT_Idle.cpp">
+      <Filter>BehavoirTree</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\BT_Node_Bootstrap.cpp">
+      <Filter>BehavoirTree</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\BT_RotateToTarget.cpp">
+      <Filter>BehavoirTree</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\Mon_BehaviorTree.cpp">
+      <Filter>BehavoirTree</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\Mon_Lancleier_Body.cpp">
+      <Filter>02.GameObject\Monster</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\Mon_Lancleier_Weapon.cpp">
+      <Filter>02.GameObject\Monster</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\Monster_Part.cpp">
+      <Filter>02.GameObject\Monster</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\AN_Test.cpp" />
+    <ClCompile Include="..\Private\ANS_Test.cpp" />
+    <ClCompile Include="..\private\BattleController.cpp" />
+    <ClCompile Include="..\private\BattleStateMachine.cpp" />
     <ClCompile Include="..\Private\State.cpp">
       <Filter>03. Component\StateMachine\State</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\StateMachine.cpp">
+    <ClCompile Include="..\Private\StateMachineCom.cpp">
       <Filter>03. Component\StateMachine</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\PlayerStateMachineCom.cpp">
+      <Filter>02.GameObject\Player\PlayerStateMachine</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Player_State.cpp">
+      <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Player_Idle.cpp">
+      <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\AN_Test.cpp" />
+    <ClCompile Include="..\Private\ANS_Test.cpp" />
+    <ClCompile Include="..\Private\Player_Move.cpp">
+      <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Player_Jump.cpp">
+      <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -400,6 +460,14 @@
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxTex.hlsl">
       <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_UI.hlsl">
+      <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_BufferSmoke.hlsl">
+      <Filter>97.ShaderFiles\Compute</Filter>
     </FxCompile>
   </ItemGroup>
 </Project>

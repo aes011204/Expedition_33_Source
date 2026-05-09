@@ -216,6 +216,14 @@ void Scene_View::Render()
                 _isViewportToolbarInteracting
             ) ||
             ImGuizmo::IsOver() || ImGuizmo::IsUsing();
+
+        if (!overlayBlocked &&
+            _isViewportHovered &&
+            ImGui::IsMouseClicked(ImGuiMouseButton_Right))
+        {
+            EDITOR->Begin_PreviewCameraDrag();
+        }
+
         EDITOR->Set_SceneViewportInputState(_isViewportHovered, overlayBlocked);
     }
     else
@@ -697,6 +705,13 @@ void Scene_View::Render_ViewportCanvas()
         _viewportMin = canvasMin;
         _viewportMax = canvasMax;
     }
+
+    RECT viewportLockRect = {};
+    viewportLockRect.left = static_cast<LONG>(_viewportMin.x);
+    viewportLockRect.top = static_cast<LONG>(_viewportMin.y);
+    viewportLockRect.right = static_cast<LONG>(_viewportMax.x);
+    viewportLockRect.bottom = static_cast<LONG>(_viewportMax.y);
+    EDITOR->Set_PreviewCameraLockScreenRect(viewportLockRect);
 
     if (EDITOR->Get_PreviewViewportMode() == PreviewViewportMode::Auto)
     {
