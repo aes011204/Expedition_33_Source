@@ -33,7 +33,7 @@ public:
 	void Priority_Update(float timeDelta) override;
 	void Update(float timeDelta) override;
 	void Late_Update(float timeDelta) override;
-	HRESULT Render() override;	
+	HRESULT Render() override;
 
 protected:
 	HRESULT Ready_Components();
@@ -43,11 +43,12 @@ protected:
 
 private:
     PlayerState                 _currentState;
+    float                       _testHp = 10.f;
 
-    Shared<MovementCom>         _movementCom{ nullptr };
-    Shared<InputCom>            _inputCom{ nullptr };
-    Shared<PlayerControllerCom> _playerControllerCom{ nullptr };
-    Shared<ColliderCom>         _colliderCom{ nullptr };
+    Shared<MovementCom>             _movementCom{ nullptr };
+    Shared<InputCom>                _inputCom{ nullptr };
+    Shared<PlayerControllerCom>     _playerControllerCom{ nullptr };
+    Shared<ColliderCom>             _colliderCom{ nullptr };
     Shared<PlayerStateMachineCom>  _PlayerStateMachineCom{ nullptr };
 
 public:

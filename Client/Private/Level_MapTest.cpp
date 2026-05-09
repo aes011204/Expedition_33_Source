@@ -1,5 +1,11 @@
 ﻿#include "Level_MapTest.h"
+
+#include <Camera.h>
+
+#include "GameObject.h"
+
 #include "GameInstance.h"
+#include "ClientInstance.h"
 
 Level_MapTest::Level_MapTest(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Level{ device, context }
@@ -10,7 +16,23 @@ HRESULT Level_MapTest::Initialize()
 {
     CHECK_FAILED(Ready_Lights(), E_FAIL);
 
+    auto player = CLIENT->Find_Player(ETOI(LevelType::Static));
+    if (player)
+    {
+        Vec3 pos = Vec3(205.f, 4.5f, -1.24f);
+
+        player->Get_Transform()->Set_WorldPosition(pos);
+        GAME->Get_ActiveCamera()->Get_Transform()->Set_WorldPosition(Vec3(pos.x, pos.y + 1, pos.z - 2.f));
+    }
+
     return S_OK;
+}
+
+void Level_MapTest::BeginPlay()
+{
+    Level::BeginPlay();
+
+
 }
 
 void Level_MapTest::Update(float fTimeDelta)

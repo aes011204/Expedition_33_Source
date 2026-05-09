@@ -1,12 +1,14 @@
 ﻿#include "Model_Inspector.h"
 
 #include "GameInstance.h"
+#include "Animation_NameUtils.h"
 #include "ModelCom.h"
 #include "Material.h"
 #include <filesystem>
 #include "EditorInstance.h"
 #include "Animation_View.h"
 #include "Editor_Window.h"
+#include "Prefab_View.h"
 
 using TexturePreviewCache   = umap<wstring, ComPtr<ID3D11ShaderResourceView>>;
 using TextureSearchCache    = umap<string, string>;
@@ -316,6 +318,61 @@ void ModelCom_Inspector::Draw_AnimationSection(const Shared<Engine::ModelCom>& m
     }
 
     const uint32 numAnimations = static_cast<uint32>(model->Get_NumAnimations());
+    const vector<AnimationNameUtils::AssetAnimationInfo> assetInfos =
+        AnimationNameUtils::Collect_AssetAnimationInfos(model->Get_SourceModelPath());
+    vector<string> playbackNames{};
+    playbackNames.reserve(numAnimations);
+
+    for (uint32 i = 0; i < numAnimations; ++i)
+    {
+        const char* animName = model->Get_AnimationName(i);
+        if (!animName)
+            continue;
+
+        playbackNames.push_back(animName);
+    }
+
+    struct AnimationListItem
+    {
+        int32 playbackIndex = -1;
+        string displayName{};
+    };
+
+    vector<AnimationListItem> animationItems{};
+    if (!assetInfos.empty())
+    {
+        vector<bool> usedPlayback(playbackNames.size(), false);
+        animationItems.reserve(assetInfos.size());
+
+        for (const auto& assetInfo : assetInfos)
+        {
+            AnimationListItem item{};
+            item.displayName = assetInfo.displayName;
+
+            const int32 matchedPlaybackListIndex =
+                AnimationNameUtils::Find_BestPlaybackMatchIndex(assetInfo, playbackNames, usedPlayback);
+            if (matchedPlaybackListIndex >= 0)
+            {
+                item.playbackIndex = matchedPlaybackListIndex;
+                usedPlayback[matchedPlaybackListIndex] = true;
+            }
+
+            animationItems.push_back(move(item));
+        }
+
+    }
+    else
+    {
+        animationItems.reserve(playbackNames.size());
+        for (int32 i = 0; i < static_cast<int32>(playbackNames.size()); ++i)
+        {
+            AnimationListItem item{};
+            item.playbackIndex = i;
+            item.displayName = AnimationNameUtils::Make_DisplayNameFallback(playbackNames[i]);
+            animationItems.push_back(move(item));
+        }
+    }
+
     AnimPreviewState& state = Get_AnimPreviewState(model.get());
 
     if (state.selectedAnimIndex >= static_cast<int32>(numAnimations))
@@ -337,24 +394,36 @@ void ModelCom_Inspector::Draw_AnimationSection(const Shared<Engine::ModelCom>& m
     }
 
     const char* selectedAnimName = "None";
+    string selectedAnimLabel{};
     if (state.selectedAnimIndex >= 0)
     {
-        if (const char* animName = model->Get_AnimationName(static_cast<uint32>(state.selectedAnimIndex)))
-            selectedAnimName = animName;
+        for (const auto& item : animationItems)
+        {
+            if (item.playbackIndex != state.selectedAnimIndex)
+                continue;
+
+            selectedAnimLabel = item.displayName;
+            selectedAnimName = selectedAnimLabel.c_str();
+            break;
+        }
     }
 
     ImGui::SetNextItemWidth(-FLT_MIN);
     if (ImGui::BeginCombo("Animation Clip", selectedAnimName))
     {
-        for (uint32 i = 0; i < numAnimations; ++i)
+        for (const auto& item : animationItems)
         {
-            const char* animName = model->Get_AnimationName(i);
+            if (item.playbackIndex < 0 || item.playbackIndex >= static_cast<int32>(numAnimations))
+                continue;
+
+            const char* animName = model->Get_AnimationName(static_cast<uint32>(item.playbackIndex));
             if (!animName)
                 continue;
 
-            const bool isSelected = state.selectedAnimIndex == static_cast<int32>(i);
-            if (ImGui::Selectable(animName, isSelected))
-                state.selectedAnimIndex = static_cast<int32>(i);
+            const bool isSelected = state.selectedAnimIndex == item.playbackIndex;
+            const string label = item.displayName + "##" + animName;
+            if (ImGui::Selectable(label.c_str(), isSelected))
+                state.selectedAnimIndex = item.playbackIndex;
 
             if (isSelected)
                 ImGui::SetItemDefaultFocus();
@@ -388,31 +457,42 @@ void ModelCom_Inspector::Draw_AnimationSection(const Shared<Engine::ModelCom>& m
             if (animationView)
             {
                 const char* animationName = model->Get_AnimationName(static_cast<uint32>(state.selectedAnimIndex));
-                animationView->Open_FromModelComponent(model, animationName ? animationName : "", ImGui::GetWindowDockID());
+                uint32 preferredDockId = ImGui::GetWindowDockID();
+
+                Shared<Editor_Window> prefabBase = EDITOR->Get_Window(L"Prefab");
+                Shared<Prefab_View> prefabView = dynamic_pointer_cast<Prefab_View>(prefabBase);
+                if (prefabView != nullptr && prefabView->Is_Open() && prefabView->Get_DockId() != 0)
+                    preferredDockId = prefabView->Get_DockId();
+
+                animationView->Open_FromModelComponent(model, animationName ? animationName : "", preferredDockId);
             }
         }
     }
 
     if (ImGui::BeginChild("ModelAnimList", ImVec2(0.f, 180.f), true, ImGuiWindowFlags_HorizontalScrollbar))
     {
-        for (uint32 i = 0; i < numAnimations; ++i)
+        for (const auto& item : animationItems)
         {
-            const char* animName = model->Get_AnimationName(i);
+            if (item.playbackIndex < 0 || item.playbackIndex >= static_cast<int32>(numAnimations))
+                continue;
+
+            const char* animName = model->Get_AnimationName(static_cast<uint32>(item.playbackIndex));
             if (!animName)
                 continue;
 
-            const bool isSelected = state.selectedAnimIndex == static_cast<int32>(i);
-            if (ImGui::Selectable(animName, isSelected))
-                state.selectedAnimIndex = static_cast<int32>(i);
+            const bool isSelected = state.selectedAnimIndex == item.playbackIndex;
+            const string label = item.displayName + "##List" + animName;
+            if (ImGui::Selectable(label.c_str(), isSelected))
+                state.selectedAnimIndex = item.playbackIndex;
 
             if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
             {
-                state.selectedAnimIndex = static_cast<int32>(i);
+                state.selectedAnimIndex = item.playbackIndex;
 
                 if (state.blendDuration > 0.f)
-                    model->Set_Animation(i, state.blendDuration, state.loop);
+                    model->Set_Animation(static_cast<uint32>(item.playbackIndex), state.blendDuration, state.loop);
                 else
-                    model->Set_Animation(i, state.loop);
+                    model->Set_Animation(static_cast<uint32>(item.playbackIndex), state.loop);
             }
         }
     }

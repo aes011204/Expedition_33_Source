@@ -21,7 +21,8 @@ IMPLEMENT_REFLECTION(Player)
     info.displayName = "Player";
     info.category = "Character";
 
-    PROPERTY_ENUM("PlayerState", _currentState, PlayerState);
+    PROPERTY_ENUM("PlayerState",_currentState, PlayerState);
+    PROPERTY_FLOAT("TestHp", _testHp);
 
     return true;
 }
@@ -34,7 +35,7 @@ Player::Player(const ComPtr<Device>& device, const ComPtr<Context>& context)
 Player::Player(const Player& prototype)
 	: Character{ prototype }
 {
-    
+
 }
 
 HRESULT Player::Initialize_Prototype()
@@ -43,14 +44,14 @@ HRESULT Player::Initialize_Prototype()
 }
 
 HRESULT Player::Initialize(void* arg)
-{	
+{
 	Character::ContainerObjectDesc desc{};
 	desc.speedPerSec = 10.f;
 	desc.degreePerSec = 180.f;
 
 	if (FAILED(__super::Initialize(&desc)))
 		return E_FAIL;
-	
+
 	if (FAILED(Ready_Components()))
 		return E_FAIL;
 
@@ -148,7 +149,7 @@ HRESULT Player::Ready_PartObjects()
     Head_Player* head = dynamic_cast<Head_Player*>(_partObjects[TEXT("Part_Head")].get());
     if (nullptr == head)
         return E_FAIL;
-    
+
     //>> Hair Part
     Hair_Player::HAIR_PLAYER_DESC hairPartDesc{};
     hairPartDesc.parentMatrix = playableDesc.parentMatrix;

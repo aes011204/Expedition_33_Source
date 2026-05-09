@@ -110,11 +110,13 @@ void EditorInstance::Update_Editor(float timeDelta)
 
     _imguiManager->Update(timeDelta);
     _editorManager->Update(timeDelta);
+    _notificationManager->Update(timeDelta);
 }
 
 void EditorInstance::Render_Editor()
 {
     _editorManager->Render();
+    _notificationManager->Render();
     _imguiManager->Render();
 }
 

@@ -17,9 +17,14 @@ namespace Engine
     class GameObject;
     class TypeRegistry;
 
+    class AnimNotify;
+    class AnimNotifyState;
+
     using ComponentCreateFn = std::function<Shared<Component>(const ComPtr<Device>&, const ComPtr<Context>&)>;
     using GameObjectCreateFn = std::function<Shared<GameObject>(const ComPtr<Device>&, const ComPtr<Context>&)>;
     using BTNodeCreateFn = std::function<Shared<Base>()>;
+    using AnimNotifyCreateFn = std::function<Shared<AnimNotify>()>;
+    using AnimNotifyStateCreateFn = std::function<Shared<AnimNotifyState>()>;
 
     struct ComponentRegistorInfo
     {
@@ -41,6 +46,20 @@ namespace Engine
         std::string className = {};
         std::string nodeCategory = {};
         BTNodeCreateFn createFn = {};
+        ClassReflectionInfo* reflectionInfo = nullptr;
+    };
+
+    struct AnimNotifyRegistorInfo
+    {
+        std::string className = {};
+        AnimNotifyCreateFn createFn = {};
+        ClassReflectionInfo* reflectionInfo = nullptr;
+    };
+
+    struct AnimNotifyStateRegistorInfo
+    {
+        std::string className = {};
+        AnimNotifyStateCreateFn createFn = {};
         ClassReflectionInfo* reflectionInfo = nullptr;
     };
 
@@ -71,9 +90,27 @@ namespace Engine
         return static_pointer_cast<Base>(instance);
     }
 
+    template<typename T>
+    Shared<AnimNotify> Create_AnimNotifyPrototypeInstance()
+    {
+        auto instance = make_shared<T>();
+        return static_pointer_cast<AnimNotify>(instance);
+    }
+
+    template<typename T>
+    Shared<AnimNotifyState> Create_AnimNotifyStatePrototypeInstance()
+    {
+        auto instance = make_shared<T>();
+        return static_pointer_cast<AnimNotifyState>(instance);
+    }
+
+
     ENGINE_DLL bool Register_ComponentType_Pending(const char* className, const ComponentCreateFn& createFn, ClassReflectionInfo* reflectionInfo);
     ENGINE_DLL bool Register_GameObjectType_Pending(const char* className, ObjectType objectType, const GameObjectCreateFn& createFn, ClassReflectionInfo* reflectionInfo);
     ENGINE_DLL bool Register_BTNodeType_Pending(const char* className, const std::string& nodeCategory, const BTNodeCreateFn& createFn, ClassReflectionInfo* reflectionInfo);
+
+    ENGINE_DLL bool Register_AnimNotifyType_Pending(const char* className, const AnimNotifyCreateFn& createFn, ClassReflectionInfo* reflectionInfo);
+    ENGINE_DLL bool Register_AnimNotifyStateType_Pending(const char* className, const AnimNotifyStateCreateFn& createFn, ClassReflectionInfo* reflectionInfo);
 
     ENGINE_DLL HRESULT Flush_PendingTypeRegistrations(TypeRegistry& registry);
 }
