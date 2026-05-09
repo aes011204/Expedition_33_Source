@@ -78,12 +78,26 @@ void TargetCamera::Priority_Update(float timeDelta)
     {
         Change_State(CAMERA_STATE::NORMAL);
     }
+
+    const Vec2 mouseDelta = GAME->Get_MouseDelta();
+
+    _yaw += mouseDelta.x * _currentSettings.mouseSensor;
+    _pitch += mouseDelta.y * _currentSettings.mouseSensor * _currentSettings.mouseSensitivity;
+    _pitch = std::clamp(_pitch, _currentSettings.pitchMin, _currentSettings.pitchMax);
+
 }
 
 void TargetCamera::Update(float timeDelta)
 {
     __super::Update(timeDelta);
 
+}
+
+void TargetCamera::Late_Update(float timeDelta)
+{
+    __super::Late_Update(timeDelta);
+
+    
     if(!GAME->Is_ActiveCamera(GetSharedPtr<Camera>()))
         return;
 
@@ -91,20 +105,14 @@ void TargetCamera::Update(float timeDelta)
 
     switch(_currentState)
     {
-        case CAMERA_STATE::NORMAL:
-            Update_NormalState(timeDelta);
-            break;
+    case CAMERA_STATE::NORMAL:
+        Update_NormalState(timeDelta);
+        break;
 
-        case CAMERA_STATE::AIM:
-            Update_AimState(timeDelta);
-            break;
+    case CAMERA_STATE::AIM:
+        Update_AimState(timeDelta);
+        break;
     }
-        
-}
-
-void TargetCamera::Late_Update(float timeDelta)
-{
-    __super::Late_Update(timeDelta);
 }
 
 HRESULT TargetCamera::Render()
@@ -147,12 +155,12 @@ void TargetCamera::Update_FromCurrentSettings(float timeDelta)
     if (!Try_GetTargetTransform(targetTransformCom))
         return;
 
-    const Vec2 mouseDelta = GAME->Get_MouseDelta();
-
-    _yaw += mouseDelta.x * _currentSettings.mouseSensor;
-    _pitch += mouseDelta.y * _currentSettings.mouseSensor * _currentSettings.mouseSensitivity;
-    _pitch = std::clamp(_pitch, _currentSettings.pitchMin, _currentSettings.pitchMax);
-
+   const Vec2 mouseDelta = GAME->Get_MouseDelta();
+//
+//    _yaw += mouseDelta.x * _currentSettings.mouseSensor;
+//    _pitch += mouseDelta.y * _currentSettings.mouseSensor * _currentSettings.mouseSensitivity;
+//    _pitch = std::clamp(_pitch, _currentSettings.pitchMin, _currentSettings.pitchMax);
+//
 
     const Vec3 targetPos = targetTransformCom->Get_WorldPosition();
     const Vec3 pivotPos = targetPos + Vec3::Up * _currentSettings.pivotHeight;
@@ -186,46 +194,25 @@ void TargetCamera::Update_FromCurrentSettings(float timeDelta)
 
     Vec3 newPos;
 
-    //const bool isRotating = mouseDelta.LengthSquared() > 0.0001f;
-    //const bool isTargetMoving = (targetPos - _prevTargetPos).LengthSquared() > 0.0001f;
-
-    //const bool useSnap = isRotating && !isTargetMoving;
-    //static bool prevIsRotating = false;
-    //static bool prevIsTargetMoving = false;
-    //static bool prevUseSnap = false;
-
-    //const bool rotationStartedThisFrame = isRotating && !prevIsRotating;
-    //const float gapSq = (desiredPos - currentPos).LengthSquared();
-
-    ////
-//   if(canSnap)
-//   {
-       newPos = desiredPos;
-   //}
-   // else
-   //{
-   //  newPos = Math::Lerp_Damp(currentPos, desiredPos, _currentSettings.followSpeed, timeDelta);
-   //}
-
-   /* if (prevIsRotating != isRotating ||
-    prevIsTargetMoving != isTargetMoving ||
-    prevUseSnap != useSnap)
+    const bool isRotating = mouseDelta.LengthSquared() > 0.0001f;
+    static bool prevIsRotating = false;
+    const bool rotationStartedThisFrame = isRotating && !prevIsRotating;
+    
+    if (rotationStartedThisFrame)
     {
-        LOG_DEBUG(
-            "[TargetCamera] rot {}->{} targetMoving {}->{} useSnap {}->{} "
-            "current=({}, {}, {}) desired=({}, {}, {}) new=({}, {}, {})",
-            prevIsRotating, isRotating,
-            prevIsTargetMoving, isTargetMoving,
-            prevUseSnap, useSnap,
-            currentPos.x, currentPos.y, currentPos.z,
-            desiredPos.x, desiredPos.y, desiredPos.z,
-            newPos.x, newPos.y, newPos.z);
+        newPos = Math::Lerp_Damp(currentPos, desiredPos, _currentSettings.followSpeed, timeDelta);
+    }
+    else if (isRotating)
+    {
+        newPos = desiredPos;
+    }
+    else
+    {
+        newPos = Math::Lerp_Damp(currentPos, desiredPos, _currentSettings.followSpeed, timeDelta);
     }
 
     prevIsRotating = isRotating;
-    prevIsTargetMoving = isTargetMoving;
-    prevUseSnap = useSnap;*/
-
+    
 
     _transformCom->Set_WorldPosition(newPos);
     _transformCom->LookAt(lookTarget);
@@ -234,6 +221,8 @@ void TargetCamera::Update_FromCurrentSettings(float timeDelta)
     GAME->UpdateFrustum(*GAME->Get_Transform(D3DTS::View), *GAME->Get_Transform(D3DTS::Proj));
 
     _prevTargetPos = targetPos;
+
+    //LOG_DEBUG("[Prev Target Pos] x = {}, y = {}, z = {} [Current Target Pos] x= {}, y = {}, z = {} [FovY] = {} [target Pos] x = {}, y = {}, z = {} ",_prevTargetPos.x, _prevTargetPos.y, _prevTargetPos.z, targetPos.z, targetPos.y, targetPos.z, _fovY, targetPos.x, targetPos.y, targetPos.z);
 }
 
 void TargetCamera::Update_NormalState(float timeDelta)

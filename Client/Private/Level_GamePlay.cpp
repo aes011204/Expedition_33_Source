@@ -1,13 +1,13 @@
 ﻿#include "Level_GamePlay.h"
 #include "GameInstance.h"
 #include "ClientInstance.h"
-//#include "FreeCamera.h"
-//#include "TargetCamera.h"
 #include "PointParticlePreview.h"
 #include "Spawn_Prefab.h"
 
 //#include "MapLoader.h"
 
+//#include "FreeCamera.h"
+//#include "TargetCamera.h"
 #include "UI_Image.h"
 #include "UI_RuntimeLoader.h"
 #include "UI_Text.h"
@@ -114,51 +114,51 @@ HRESULT Level_GamePlay::Ready_Layer_UI(const wstring& strLayerTag)
     return UI_RuntimeLoader::Load_Document(desc);
 }
 
-HRESULT Level_GamePlay::Ready_Layer_Camera(const wstring& strLayerTag)
-{
-	FreeCamera::FREECAMERA_DESC		CameraDesc{};
-
-	CameraDesc.speedPerSec = 10.f;
-	CameraDesc.degreePerSec = 180.f;
-	CameraDesc.eye = XMFLOAT4(0.f, 10.f, -7.f, 1.f);
-	CameraDesc.at = XMFLOAT4(0.f, 0.f, 0.f, 1.f);
-	CameraDesc.fovy = XMConvertToRadians(60.f) ;
-	CameraDesc.nearPlane = 0.1f;
-	CameraDesc.farPlane = 500.f;
-	CameraDesc.mouseSensor = 0.05f;
-
-	if (FAILED(GAME->Add_GameObject(ETOI(LevelType::Static), TEXT("GameObject_FreeCamera"),
-		ETOI(LevelType::Static), strLayerTag, &CameraDesc)))
-		return E_FAIL;
-
-    TargetCamera::TARGETCAMERA_DESC		TargetCameraDesc{};
-
-    TargetCameraDesc.speedPerSec = 10.f;
-    TargetCameraDesc.degreePerSec = 180.f;
-    TargetCameraDesc.eye = XMFLOAT4(0.f, 20.f, -7.f, 1.f);
-    TargetCameraDesc.at = XMFLOAT4(0.f, 0.f, 0.f, 1.f);
-    TargetCameraDesc.fovy = XMConvertToRadians(60.f);
-    TargetCameraDesc.nearPlane = 0.1f;
-    TargetCameraDesc.farPlane = 500.f;
-    TargetCameraDesc.followSpeed = 8.f;
-    TargetCameraDesc.distance = 1.8f;
-    TargetCameraDesc.sideOffset = 0.f;
-    TargetCameraDesc.heightOffset = 0.5f;
-    TargetCameraDesc.aimOffset = 0.5f;
-    TargetCameraDesc.pitchLookScale = 0.5;
-    TargetCameraDesc.pitchMin = -70.f;
-    TargetCameraDesc.pitchMax = 80.f;
-    TargetCameraDesc.lookHeight = 0.8f;
-    TargetCameraDesc.pivotHeight =0.3f;
-    TargetCameraDesc.mouseSensor = 0.05f;
-    TargetCameraDesc.mouseSensitivity = 0.5f;
-
-    if (FAILED(GAME->Add_GameObject(ETOI(LevelType::Static), TEXT("GameObject_TargetCamera"),
-        ETOI(LevelType::Static), strLayerTag, &TargetCameraDesc)))
-        return E_FAIL;
-
-	return S_OK;
-}
+//HRESULT Level_GamePlay::Ready_Layer_Camera(const wstring& strLayerTag)
+//{
+//	FreeCamera::FREECAMERA_DESC		CameraDesc{};
+//
+//	CameraDesc.speedPerSec = 10.f;
+//	CameraDesc.degreePerSec = 180.f;
+//	CameraDesc.eye = XMFLOAT4(0.f, 10.f, -7.f, 1.f);
+//	CameraDesc.at = XMFLOAT4(0.f, 0.f, 0.f, 1.f);
+//	CameraDesc.fovy = XMConvertToRadians(60.f) ;
+//	CameraDesc.nearPlane = 0.1f;
+//	CameraDesc.farPlane = 500.f;
+//	CameraDesc.mouseSensor = 0.05f;
+//
+//	if (FAILED(GAME->Add_GameObject(ETOI(LevelType::Static), TEXT("GameObject_FreeCamera"),
+//		ETOI(LevelType::Static), strLayerTag, &CameraDesc)))
+//		return E_FAIL;
+//
+//    TargetCamera::TARGETCAMERA_DESC		TargetCameraDesc{};
+//
+//    TargetCameraDesc.speedPerSec = 10.f;
+//    TargetCameraDesc.degreePerSec = 180.f;
+//    TargetCameraDesc.eye = XMFLOAT4(0.f, 20.f, -7.f, 1.f);
+//    TargetCameraDesc.at = XMFLOAT4(0.f, 0.f, 0.f, 1.f);
+//    TargetCameraDesc.fovy = XMConvertToRadians(60.f);
+//    TargetCameraDesc.nearPlane = 0.1f;
+//    TargetCameraDesc.farPlane = 500.f;
+//    TargetCameraDesc.followSpeed = 8.f;
+//    TargetCameraDesc.distance = 1.8f;
+//    TargetCameraDesc.sideOffset = 0.f;
+//    TargetCameraDesc.heightOffset = 0.5f;
+//    TargetCameraDesc.aimOffset = 0.5f;
+//    TargetCameraDesc.pitchLookScale = 0.5;
+//    TargetCameraDesc.pitchMin = -70.f;
+//    TargetCameraDesc.pitchMax = 80.f;
+//    TargetCameraDesc.lookHeight = 0.8f;
+//    TargetCameraDesc.pivotHeight =0.3f;
+//    TargetCameraDesc.mouseSensor = 0.05f;
+//    TargetCameraDesc.mouseSensitivity = 0.5f;
+//
+//    if (FAILED(GAME->Add_GameObject(ETOI(LevelType::Static), TEXT("GameObject_TargetCamera"),
+//        ETOI(LevelType::Static), strLayerTag, &TargetCameraDesc)))
+//        return E_FAIL;
+//
+//	return S_OK;
+//}
 
 HRESULT Level_GamePlay::Ready_Layer_BackGround(const wstring& strLayerTag)
 {
