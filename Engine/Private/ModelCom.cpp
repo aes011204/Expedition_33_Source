@@ -138,6 +138,14 @@ const Matrix* ModelCom::Get_BoneMatrixPtr(uint32 boneIndex) const
     return _bones[boneIndex]->Get_CombinedTransformationMatrixPtr();
 }
 
+const RootMotionFrame& ModelCom::Get_RootTransformVelocity(float scaleOffset)
+{
+    _rootFrameVelocity.position = scaleOffset * _rootOriginalFrameVelocity.position;
+    _rootFrameVelocity.rotation = scaleOffset * _rootOriginalFrameVelocity.rotation;
+    
+    return _rootFrameVelocity;
+}
+
 HRESULT ModelCom::Initialize_Prototype(ModelType type, const char* modelFilePath, const Matrix& preLocalTransformMatrix)
 {
     _type = type;
@@ -204,7 +212,7 @@ bool ModelCom::Play_Animation(float timeDelta)
             _isBlending = false;
             _currentAnimIndex = _nextAnimIndex;
             isFinish = _animations[_currentAnimIndex]->Update_TransformationMatrices(timeDelta, _bones, _isAnimLoop, rootIndex);
-            _rootFrameVelocity = rootIndex >= 0 ? _animations[_currentAnimIndex]->Get_TransformVelocity(rootIndex) : RootMotionFrame{};
+            _rootOriginalFrameVelocity = rootIndex >= 0 ? _animations[_currentAnimIndex]->Get_TransformVelocity(rootIndex) : RootMotionFrame{};
         }
         else
         {
@@ -214,23 +222,23 @@ bool ModelCom::Play_Animation(float timeDelta)
             {
                 const auto& curDelta = _animations[_currentAnimIndex]->Get_TransformVelocity(rootIndex);
                 const auto& nextDelta = _animations[_nextAnimIndex]->Get_TransformVelocity(rootIndex);
-                _rootFrameVelocity.position = Vector3::Lerp(curDelta.position, nextDelta.position, ratio);
-                _rootFrameVelocity.rotation = Quaternion::Slerp(curDelta.rotation, nextDelta.rotation, ratio);
+                _rootOriginalFrameVelocity.position = Vector3::Lerp(curDelta.position, nextDelta.position, ratio);
+                _rootOriginalFrameVelocity.rotation = Quaternion::Slerp(curDelta.rotation, nextDelta.rotation, ratio);
             }
         }
     }
     else
     {
         isFinish = _animations[_currentAnimIndex]->Update_TransformationMatrices(timeDelta, _bones, _isAnimLoop, rootIndex);
-        _rootFrameVelocity = (rootIndex >= 0) ? _animations[_currentAnimIndex]->Get_TransformVelocity(rootIndex) : RootMotionFrame{};
+        _rootOriginalFrameVelocity = (rootIndex >= 0) ? _animations[_currentAnimIndex]->Get_TransformVelocity(rootIndex) : RootMotionFrame{};
     }
 
     if (rootIndex >= 0)
     {
-        _rootFrameVelocity.position = Vec3::TransformNormal(_rootFrameVelocity.position, _preLocalTransformMatrix);
-        auto temp = _rootFrameVelocity.position.z;
-        _rootFrameVelocity.position.z = -_rootFrameVelocity.position.y;
-        _rootFrameVelocity.position.y = temp;
+        _rootOriginalFrameVelocity.position = Vec3::TransformNormal(_rootOriginalFrameVelocity.position, _preLocalTransformMatrix);
+        auto temp = _rootOriginalFrameVelocity.position.z;
+        _rootOriginalFrameVelocity.position.z = -_rootOriginalFrameVelocity.position.y;
+        _rootOriginalFrameVelocity.position.y = temp;
     }
 
     for (uint32 i = 0; i < _numBones; ++i)
@@ -305,7 +313,7 @@ void ModelCom::Refresh_CurrentAnimationPose()
     const int32 rootIndex = _isRootMotion ? _rootNodeIndex : -1;
 
     _animations[_currentAnimIndex]->Evaluate_CurrentPose(_bones, rootIndex, _isAnimLoop);
-    _rootFrameVelocity = (rootIndex >= 0) ? _animations[_currentAnimIndex]->Get_TransformVelocity(rootIndex) : RootMotionFrame{};
+    _rootOriginalFrameVelocity = (rootIndex >= 0) ? _animations[_currentAnimIndex]->Get_TransformVelocity(rootIndex) : RootMotionFrame{};
 
     for (uint32 i = 0; i < _numBones; ++i)
         _bones[i]->Update_CombinedTransformationMatrix(_bones, _preLocalTransformMatrix);
