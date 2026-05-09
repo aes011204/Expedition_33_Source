@@ -260,7 +260,9 @@
     <ClInclude Include="..\public\Mon_Lancleier_Weapon.h">
       <Filter>02.GameObject\Monster</Filter>
     </ClInclude>
-    <ClInclude Include="..\public\Monster_Part.h" />
+    <ClInclude Include="..\public\Monster_Part.h">
+      <Filter>02.GameObject\Monster</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\AN_Test.h" />
     <ClInclude Include="..\Public\ANS_Test.h" />
     <ClInclude Include="..\public\BattleController.h" />
@@ -406,7 +408,9 @@
     <ClCompile Include="..\private\Mon_Lancleier_Weapon.cpp">
       <Filter>02.GameObject\Monster</Filter>
     </ClCompile>
-    <ClCompile Include="..\private\Monster_Part.cpp" />
+    <ClCompile Include="..\private\Monster_Part.cpp">
+      <Filter>02.GameObject\Monster</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\AN_Test.cpp" />
     <ClCompile Include="..\Private\ANS_Test.cpp" />
     <ClCompile Include="..\private\BattleController.cpp" />
