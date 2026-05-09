@@ -33,6 +33,11 @@ HRESULT ClientInstance::Initialize_Client(const ComPtr<Device>& device, const Co
 	return S_OK;
 }
 
+void ClientInstance::Update_Client(float timeDelta)
+{
+
+}
+
 HRESULT ClientInstance::Ready_StaticResources()
 {
     CHECK_NULL(_resourceLoader, E_FAIL);
@@ -64,13 +69,19 @@ Shared<GameObject> ClientInstance::Find_Player(uint32 levelIndex)
     CHECK_NULL(gameObject, nullptr);
 
     return gameObject;
-
-    //return _persistentObjectManager->Find_Player();
 }
 
 HRESULT ClientInstance::Ready_StaticObjects()
 {
-    return _persistentObjectManager->Spawn_StaticObjects();
+    if (_isStaticObjectsSpawned)
+        return S_OK;
+
+    CHECK_NULL(_persistentObjectManager, E_FAIL);
+
+    CHECK_FAILED(_persistentObjectManager->Spawn_StaticObjects(), E_FAIL);
+
+    _isStaticObjectsSpawned = true;
+    return S_OK;
 }
 
 HRESULT ClientInstance::Ready_ResourceLoader()
@@ -83,20 +94,22 @@ HRESULT ClientInstance::Ready_ResourceLoader()
 
 void ClientInstance::Release_Client()
 {
-    if (_persistentObjectManager)
+    auto ReleaseManager = [](auto& manager)
     {
-        _persistentObjectManager->Free();
-        _persistentObjectManager.reset();
-    }
+        if (manager)
+        {
+            manager->Free();
+            manager.reset();
+        }
+    };
 
-    if (_resourceLoader)
-    {
-        _resourceLoader->Free();
-        _resourceLoader.reset();
-    }
+    ReleaseManager(_persistentObjectManager);
+    ReleaseManager(_resourceLoader);
 
     _context.Reset();
     _device.Reset();
+    _isStaticResourcesLoaded.store(false);
+    _isStaticObjectsSpawned = false;
     _isInitialized = false;
 }
 

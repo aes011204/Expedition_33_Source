@@ -50,7 +50,6 @@ void Body_Player::Late_Update(float fTimeDelta)
 {
 	GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
 	GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
-
 }
 
 HRESULT Body_Player::Render()

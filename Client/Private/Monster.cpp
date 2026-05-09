@@ -69,11 +69,10 @@ void Monster::Update(float timeDelta)
 	if (true == _model->Play_Animation(timeDelta))
 		int a = 10;
 
-
     if (_aiCtrl)
     {
         Shared<BlackBoard> bb = _aiCtrl->Get_BlackBoard();
-        Shared<GameObject> player = CLIENT->Find_Player(ETOI(LevelType::Static));
+        Shared<GameObject> player = CLIENT->Find_Player(GAME->Current_LevelIndex());
 
         if (bb && player)
         {
@@ -149,7 +148,7 @@ HRESULT Monster::Ready_Components()
 	if (FAILED(__super::Add_Component(ETOI(LevelType::Static), TEXT("Shader_VtxAnimMesh"), _shader)))
 		return E_FAIL;
 
-	if (FAILED(__super::Add_Component(ETOI(LevelType::Static), TEXT("Model_Fiona"), _model)))
+	if (FAILED(__super::Add_Component(ETOI(LevelType::GamePlay), TEXT("Model_Fiona"), _model)))
 		return E_FAIL;
 
 

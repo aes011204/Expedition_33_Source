@@ -149,7 +149,7 @@ technique11 DefaultTechnique
         GeometryShader = NULL;
         PixelShader = compile ps_5_0 PS_MAIN();
     }
-
+    
     pass ShadowPass
     {
         SetRasterizerState(RS_Default);
@@ -160,4 +160,5 @@ technique11 DefaultTechnique
         GeometryShader = NULL;
         PixelShader = compile ps_5_0 PS_MAIN_SHADOW();
     }
+
 }

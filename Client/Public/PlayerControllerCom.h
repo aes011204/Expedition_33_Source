@@ -33,14 +33,13 @@ public:
 
 private:
     // Owner가 어차피 weak라 순환참조 걱정없어서 Shared 사용
-    Shared<MovementCom> _movementCom;
-    Shared<InputCom>    _inputCom;
+    Shared<MovementCom>  _movementCom;
+    Shared<InputCom>     _inputCom;
 
 private:
     // 카메라 회전값에 따라서 플레이에 Yaw를 회전시킬 것인지?
     // 일단 33원정대 스타일에서는 필요없을거같음.
     bool                 _bUseControllerRotationYaw = true;
-
     float                _testRelfectionValue = 1.f;
 
 public:
