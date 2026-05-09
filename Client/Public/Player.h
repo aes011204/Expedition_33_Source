@@ -49,7 +49,6 @@ private:
     PlayerState _testPlayerState = PlayerState::Idle;
     float       _testHp = 10.f;
 
-
 public:
 	static Shared<Player> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
 	virtual Shared<GameObject> Clone(void* pArg) override;

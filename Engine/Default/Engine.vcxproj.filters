@@ -227,6 +227,7 @@
     <ClInclude Include="..\Public\Culling_Manager.h" />
     <ClInclude Include="..\Public\AnimNotify.h" />
     <ClInclude Include="..\Public\AnimNotifyState.h" />
+    <ClInclude Include="..\Public\ThreadPool.h" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\public\Base.h">
@@ -740,6 +741,7 @@
     <ClCompile Include="..\Private\Culling_Manager.cpp" />
     <ClCompile Include="..\Private\AnimNotify.cpp" />
     <ClCompile Include="..\Private\AnimNotifyState.cpp" />
+    <ClCompile Include="..\Private\ThreadPool.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Bin\ShaderFiles\Engine_Shader_Defines.hlsli">
