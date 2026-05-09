@@ -61,6 +61,30 @@ public:
         string playbackName{};
     };
 
+    enum class NotifyClipboardKind : uint8
+    {
+        None,
+        Notify,
+        State
+    };
+
+    struct CopiedNotifyEntry
+    {
+        string typeName{};
+        json payload{};
+        float timeSec = 0.f;
+        int32 trackIndex = 0;
+    };
+
+    struct CopiedNotifyStateEntry
+    {
+        string typeName{};
+        json payload{};
+        float startSec = 0.f;
+        float durationSec = 0.f;
+        int32 trackIndex = 0;
+    };
+
 private:
     void Refresh_Source();
     void Refresh_AssetAnimationList();
@@ -92,6 +116,11 @@ private:
     void Delete_SelectedState();
     void Delete_SelectedNotifyTrack();
     void Delete_SelectedNotifyStateTrack();
+    void Handle_ClipboardShortcuts();
+    void Copy_SelectedNotify();
+    void Copy_SelectedState();
+    void Paste_CopiedNotify();
+    void Paste_CopiedState();
 
     void Begin_SequencerContextMenu(int32 frame, bool hasTrackContext, bool isStateTrack, int32 trackIndex);
     bool Try_GetSequencerTrackContext(const ImVec2& sequencerRectMin, const ImVec2& mousePos, bool& outIsStateTrack, int32& outTrackIndex) const;
@@ -192,6 +221,10 @@ private:
     // 트랙
     string _newNotifyTrackName{};
     string _newNotifyStateTrackName{};
+
+    NotifyClipboardKind _notifyClipboardKind = NotifyClipboardKind::None;
+    CopiedNotifyEntry _copiedNotify{};
+    CopiedNotifyStateEntry _copiedNotifyState{};
 
     Unique<AnimSequencerAdapter> _sequencer{};
 

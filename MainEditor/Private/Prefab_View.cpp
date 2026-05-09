@@ -1,5 +1,5 @@
 ﻿#include "Prefab_View.h"
-
+#include "Notification_Manager.h"
 #include "EditorInstance.h"
 #include "GameInstance.h"
 #include "GameObject.h"
@@ -13,7 +13,6 @@
 #include "ModelCom.h"
 #include "RenderTarget.h"
 #include "imgui_internal.h"
-#include <algorithm>
 
 Prefab_View::Prefab_View()
     : Editor_Window(L"Prefab")
@@ -222,7 +221,15 @@ void Prefab_View::Save()
         return;
 
     if (SUCCEEDED(GAME->Save_GameObjectJson(_prefabPath, _previewObject)))
+    {
         ClearDirty();
+        if (EDITOR->Get_Notification())
+            EDITOR->Get_Notification()->Add_Notification("프리펩 저장: {}", _prefabName);
+    }
+    else if (EDITOR->Get_Notification())
+    {
+        EDITOR->Get_Notification()->Add_Notification_With_Type(NotifyType::Warning, "프리펩 저장 실패: {}", _prefabName);
+    }
 }
 
 void Prefab_View::Open_Prefab(const string& prefabName, const fs::path& prefabPath)

@@ -9,6 +9,7 @@
 #include "GameInstance.h"
 #include "GameObject.h"
 #include "DebugDraw.h"
+#include "Editor_Macro.h"
 #include "Inspector.h"
 #include "ModelCom.h"
 #include "Prefab_View.h"
@@ -17,6 +18,7 @@
 #include "AnimNotify.h"
 #include "AnimNotifyState.h"
 #include "imgui_internal.h"
+#include "Notification_Manager.h"
 
 Animation_View::Animation_View()
     : Editor_Window(L"Animation")
@@ -157,6 +159,8 @@ void Animation_View::Render()
             if (playbackModel != nullptr)
                 playbackModel->Set_AnimationPaused(!playbackModel->Is_AnimationPaused());
         }
+
+        Handle_ClipboardShortcuts();
 
         Draw_Header();
         ImGui::Separator();
@@ -514,7 +518,14 @@ void Animation_View::Save_NotifyAsset()
 
     const fs::path filePath = AnimNotify_Parser::Get_ModelNotifyFilePath(_modelGuid);
     if (AnimNotify_Parser::Save_ToFile(filePath.wstring(), _asset))
+    {
         _isDirty = false;
+        NOTIFY("애니메이션 노티파이 저장: {}", _currentAnimationName);
+    }
+    else if (EDITOR->Get_Notification())
+    {
+        EDITOR->Get_Notification()->Add_Notification_With_Type(NotifyType::Warning, "애니메이션 노티파이 저장 실패: {}", _currentAnimationName);
+    }
 }
 
 void Animation_View::Draw_Header()
@@ -1190,6 +1201,140 @@ void Animation_View::Delete_SelectedNotifyStateTrack()
     _selectedNotifyStateTrackIndex = animationData->notifyStateTracks.empty() ? 0 : min(_selectedNotifyStateTrackIndex, static_cast<int32>(animationData->notifyStateTracks.size()) - 1);
     _selectedStateId = -1;
     _isDirty = true;
+}
+
+void Animation_View::Handle_ClipboardShortcuts()
+{
+    if (!_isFocused)
+        return;
+
+    const ImGuiIO& io = ImGui::GetIO();
+    if (io.WantTextInput || !io.KeyCtrl)
+        return;
+
+    if (ImGui::IsKeyPressed(ImGuiKey_C, false))
+    {
+        if (_selectedNotifyId != -1)
+            Copy_SelectedNotify();
+        else if (_selectedStateId != -1)
+            Copy_SelectedState();
+    }
+
+    if (ImGui::IsKeyPressed(ImGuiKey_V, false))
+    {
+        if (_notifyClipboardKind == NotifyClipboardKind::Notify)
+            Paste_CopiedNotify();
+        else if (_notifyClipboardKind == NotifyClipboardKind::State)
+            Paste_CopiedState();
+    }
+}
+
+void Animation_View::Copy_SelectedNotify()
+{
+    AnimNotifyEventEntry* selectedNotify = Find_SelectedNotify();
+    if (selectedNotify == nullptr || selectedNotify->notify == nullptr)
+        return;
+
+    _notifyClipboardKind = NotifyClipboardKind::Notify;
+    _copiedNotify = {};
+    _copiedNotifyState = {};
+    _copiedNotify.typeName = selectedNotify->notify->Get_TypeName();
+    _copiedNotify.payload = selectedNotify->notify->To_Json();
+    _copiedNotify.timeSec = selectedNotify->timeSec;
+    _copiedNotify.trackIndex = selectedNotify->trackIndex;
+
+    NOTIFY("노티파이 복사: {}", _copiedNotify.typeName);
+}
+
+void Animation_View::Copy_SelectedState()
+{
+    AnimNotifyStateEntry* selectedState = Find_SelectedState();
+    if (selectedState == nullptr || selectedState->notifyState == nullptr)
+        return;
+
+    _notifyClipboardKind = NotifyClipboardKind::State;
+    _copiedNotify = {};
+    _copiedNotifyState = {};
+    _copiedNotifyState.typeName = selectedState->notifyState->Get_TypeName();
+    _copiedNotifyState.payload = selectedState->notifyState->To_Json();
+    _copiedNotifyState.startSec = selectedState->startSec;
+    _copiedNotifyState.durationSec = selectedState->durationSec;
+    _copiedNotifyState.trackIndex = selectedState->trackIndex;
+
+    NOTIFY("노티파이 스테이트 복사: {}", _copiedNotifyState.typeName);
+}
+
+void Animation_View::Paste_CopiedNotify()
+{
+    AnimNotifyData* animationData = Get_CurrentAnimation();
+    if (animationData == nullptr || _copiedNotify.typeName.empty())
+        return;
+
+    Shared<AnimNotify> notifyInstance = GAME->Create_AnimNotifyPrototype(_copiedNotify.typeName);
+    if (notifyInstance == nullptr)
+        return;
+
+    notifyInstance->From_Json(_copiedNotify.payload);
+
+    if (animationData->notifyTracks.empty())
+        Add_NotifyTrack("Notify");
+
+    const int32 fps = max(1, Get_CurrentAnimationFps());
+    const int32 trackIndex = std::clamp(_selectedNotifyTrackIndex, 0, static_cast<int32>(animationData->notifyTracks.size()) - 1);
+
+    AnimNotifyEventEntry entry{};
+    const int32 createdId = animationData->nextNotifyId++;
+    entry.id = createdId;
+    entry.timeSec = static_cast<float>(_sequencerCurrentFrame) / static_cast<float>(fps);
+    entry.trackIndex = trackIndex;
+    entry.notify = notifyInstance;
+
+    animationData->notifies.push_back(std::move(entry));
+    AnimNotify_Parser::Sort_And_Clamp(*animationData, Get_CurrentAnimationLengthSec());
+
+    _selectedNotifyId = createdId;
+    _selectedStateId = -1;
+    _selectedNotifyTrackIndex = trackIndex;
+    _isDirty = true;
+
+    NOTIFY("노티파이 붙여넣기: {}", _copiedNotify.typeName);
+}
+
+void Animation_View::Paste_CopiedState()
+{
+    AnimNotifyData* animationData = Get_CurrentAnimation();
+    if (animationData == nullptr || _copiedNotifyState.typeName.empty())
+        return;
+
+    Shared<AnimNotifyState> notifyStateInstance = GAME->Create_AnimNotifyStatePrototype(_copiedNotifyState.typeName);
+    if (notifyStateInstance == nullptr)
+        return;
+
+    notifyStateInstance->From_Json(_copiedNotifyState.payload);
+
+    if (animationData->notifyStateTracks.empty())
+        Add_NotifyStateTrack("Notify State");
+
+    const int32 fps = max(1, Get_CurrentAnimationFps());
+    const int32 trackIndex = std::clamp(_selectedNotifyStateTrackIndex, 0, static_cast<int32>(animationData->notifyStateTracks.size()) - 1);
+
+    AnimNotifyStateEntry entry{};
+    const int32 createdId = animationData->nextStateId++;
+    entry.id = createdId;
+    entry.startSec = static_cast<float>(_sequencerCurrentFrame) / static_cast<float>(fps);
+    entry.durationSec = max(_copiedNotifyState.durationSec, 1.f / static_cast<float>(fps));
+    entry.trackIndex = trackIndex;
+    entry.notifyState = notifyStateInstance;
+
+    animationData->notifyStates.push_back(std::move(entry));
+    AnimNotify_Parser::Sort_And_Clamp(*animationData, Get_CurrentAnimationLengthSec());
+
+    _selectedStateId = createdId;
+    _selectedNotifyId = -1;
+    _selectedNotifyStateTrackIndex = trackIndex;
+    _isDirty = true;
+
+    NOTIFY("노티파이 스테이트 붙여넣기: {}", _copiedNotifyState.typeName);
 }
 
 void Animation_View::Begin_SequencerContextMenu(int32 frame, bool hasTrackContext, bool isStateTrack, int32 trackIndex)

@@ -145,7 +145,19 @@ const char* AnimSequencerAdapter::GetItemLabel(int index) const
     else if (index == Get_StateHeaderRow(animationData))
         _rowLabels[index] = "Notify States";
     else
-        _rowLabels[index].clear();
+    {
+        const vector<AnimNotifyTrackDesc>& tracks = isStateTrack
+            ? animationData->notifyStateTracks
+            : animationData->notifyTracks;
+
+        if (trackIndex >= 0 && trackIndex < static_cast<int32>(tracks.size()))
+            _rowLabels[index] = Normalize_DefaultTrackName(tracks[trackIndex].name);
+        else
+            _rowLabels[index] = isStateTrack ? "Notify State" : "Notify";
+
+        if (_rowLabels[index].empty())
+            _rowLabels[index] = isStateTrack ? "Notify State" : "Notify";
+    }
 
     return _rowLabels[index].c_str();
 }

@@ -36,20 +36,20 @@ private:
     struct TrackColors
     {
         static constexpr unsigned int NotifyTrack = 0x2223A85A;
-        static constexpr unsigned int StateTrack = 0x221A76C4;
+        static constexpr unsigned int StateTrack = 0x22FFA34D;
 
         static constexpr unsigned int NotifyFill = 0xFF33CC55;
         static constexpr unsigned int NotifyHover = 0xFF55EE77;
         static constexpr unsigned int NotifyBorder = 0xFF146B2D;
 
-        static constexpr unsigned int StateFill = 0xFF4DA3FF;
-        static constexpr unsigned int StateHover = 0xFF79BEFF;
-        static constexpr unsigned int StateBorder = 0xFF1B4F8A;
+        static constexpr unsigned int StateFill = 0xFFFFA34D;
+        static constexpr unsigned int StateHover = 0xFFFFBE79;
+        static constexpr unsigned int StateBorder = 0xFF8A4F1B;
 
         static constexpr unsigned int SelectedBorder = 0xFF00FFFF;
         static constexpr unsigned int Text = 0xFFFFFFFF;
-        static constexpr unsigned int StateHandle = 0xFF225588;
-        static constexpr unsigned int StateHandleHover = 0xFF3D79C5;
+        static constexpr unsigned int StateHandle = 0xFF885522;
+        static constexpr unsigned int StateHandleHover = 0xFFC5793D;
     };
 
     static int32 TimeSec_ToFrame(float timeSec, int32 fps);
