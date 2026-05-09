@@ -1,4 +1,4 @@
-@echo off
+ï»¿@echo off
 chcp 949 > nul
 setlocal
 pushd "%~dp0"
@@ -13,7 +13,7 @@ if /I "%~1"=="google" goto sync_mode
 if /I "%~1"=="sync-google" goto sync_mode
 if /I "%~1"=="help" goto help
 
-echo Àß¸øµÈ ¿É¼ÇÀÔ´Ï´Ù: %~1
+echo ìž˜ëª»ëœ ì˜µì…˜ìž…ë‹ˆë‹¤: %~1
 echo.
 goto help_error
 
@@ -24,14 +24,14 @@ echo ========================================
 echo   Table Convert
 echo ========================================
 echo.
-echo   1^) xlsx to jsonÀ¸·Î º¯È¯
-echo   2^) ±¸±Û ½ÃÆ® °¡Á®¿À±â ^(´Ù¸¥ »ç¶÷ÀÌ ¼öÁ¤ÇÑ°Å^)
+echo   1^) xlsx to jsonìœ¼ë¡œ ë³€í™˜
+echo   2^) êµ¬ê¸€ ì‹œíŠ¸ ê°€ì ¸ì˜¤ê¸° ^(ë‹¤ë¥¸ ì‚¬ëžŒì´ ìˆ˜ì •í•œê±°^)
 echo.
-set /p USER_CHOICE=¹øÈ£ ¼±ÅÃ ^(1-2^): 
+set /p USER_CHOICE=ë²ˆí˜¸ ì„ íƒ ^(1-2^): 
 if "%USER_CHOICE%"=="1" goto local_mode
 if "%USER_CHOICE%"=="2" goto sync_mode
 echo.
-echo 1 ¶Ç´Â 2¸¦ ÀÔ·ÂÇØÁÖ¼¼¿ä.
+echo 1 ë˜ëŠ” 2ë¥¼ ìž…ë ¥í•´ì£¼ì„¸ìš”.
 pause
 goto prompt
 
@@ -48,13 +48,13 @@ goto run
 :help
 echo Usage:
 echo   RunConvertXLSX.bat
-echo     - ¸Þ´º¸¦ ¶ç¿ì°í ¼±ÅÃÇÕ´Ï´Ù.
+echo     - ë©”ë‰´ë¥¼ ë„ìš°ê³  ì„ íƒí•©ë‹ˆë‹¤.
 echo   RunConvertXLSX.bat 1
-echo     - ·ÎÄÃ xlsx¸¸ jsonÀ¸·Î º¯È¯ÇÕ´Ï´Ù.
+echo     - ë¡œì»¬ xlsxë§Œ jsonìœ¼ë¡œ ë³€í™˜í•©ë‹ˆë‹¤.
 echo   RunConvertXLSX.bat 2
-echo     - ±¸±Û ½ÃÆ®¸¦ ¸ÕÀú °¡Á®¿Â µÚ º¯È¯ÇÕ´Ï´Ù.
+echo     - êµ¬ê¸€ ì‹œíŠ¸ë¥¼ ë¨¼ì € ê°€ì ¸ì˜¨ ë’¤ ë³€í™˜í•©ë‹ˆë‹¤.
 echo   RunConvertXLSX.bat sync
-echo     - 2¹ø°ú °°Àº µ¿ÀÛÀÔ´Ï´Ù.
+echo     - 2ë²ˆê³¼ ê°™ì€ ë™ìž‘ìž…ë‹ˆë‹¤.
 popd
 pause
 exit /b 0
