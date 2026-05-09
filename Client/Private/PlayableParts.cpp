@@ -33,6 +33,32 @@ const Matrix* PlayableParts::Get_SocketBoneMatrixPtr(uint32 boneIndex) const
     return _modelCom->Get_BoneMatrixPtr(boneIndex);
 }
 
+void PlayableParts::Set_Animation(uint32 animIndex, float blendDuration, bool isLoop) const
+{
+    if (nullptr == _modelCom) return;
+
+    _modelCom->Set_Animation(animIndex, blendDuration, isLoop);
+}
+
+uint32 PlayableParts::Get_AnimationIndex() const
+{
+    if (nullptr == _modelCom) return UINT_MAX;
+
+    return _modelCom->Get_CurrentAnimationIndex();
+}
+
+float PlayableParts::Get_AnimationProgress() const
+{
+    if (nullptr == _modelCom) return D3D11_FLOAT32_MAX;
+
+    return _modelCom->Get_CurrentAnimationTimeSec() / _modelCom->Get_CurrentAnimationDurationSec();
+}
+
+bool PlayableParts::Is_AnimationFinished() const
+{
+    return _modelCom->Is_AnimationFinished();
+}
+
 HRESULT PlayableParts::Initialize_Prototype()
 {
     return PartObject::Initialize_Prototype();

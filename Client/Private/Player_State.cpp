@@ -1,6 +1,10 @@
 ﻿#include "pch.h"
 #include "Player_State.h"
 
+#include "InputCom.h"
+#include "PlayerControllerCom.h"
+#include "PlayerStateMachineCom.h"
+
 #include "Player.h"
 #include "Body_Player.h"
 
@@ -21,6 +25,14 @@ void Player_State::Begin_Play()
 {
     if (_owner.expired()) return;
 
+    _controllerCom = _owner.lock()->Get_Component<PlayerControllerCom>().get();
+    if (nullptr == _controllerCom)
+        MSG_BOX("[PLAYER STATE] : Failed to Begin Player State");
+
+    _stateCom = _owner.lock()->Get_Component<PlayerStateMachineCom>().get();
+    if (nullptr == _stateCom)
+        MSG_BOX("[PLAYER STATE] : Failed to Begin Player State");
+
     _bodyPlayer = static_cast<Body_Player*>(_owner.lock()->Get_PartObject(L"Part_Body"));
 }
 
@@ -31,12 +43,12 @@ bool Player_State::EnterInvoke()
 
 void Player_State::Update(float timeDelta)
 {
-    State::Update(timeDelta);
+    
 }
 
 void Player_State::LateUpdate(float timeDelta)
 {
-    State::LateUpdate(timeDelta);
+    
 }
 
 void Player_State::ExitInvoke()

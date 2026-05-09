@@ -1,4 +1,4 @@
-#include "ModelCom.h"
+﻿#include "ModelCom.h"
 #include "GameInstance.h"
 #include "Mesh.h"
 #include "Bone.h"
@@ -205,7 +205,6 @@ bool ModelCom::Play_Animation(float timeDelta)
 
     const float previousTimeSec = Get_CurrentAnimationTimeSec();
 
-    bool isFinish = false;
     int32 rootIndex = _isRootMotion ? _rootNodeIndex : -1;
 
     if (_isBlending)
@@ -217,7 +216,7 @@ bool ModelCom::Play_Animation(float timeDelta)
         {
             _isBlending = false;
             _currentAnimIndex = _nextAnimIndex;
-            isFinish = _animations[_currentAnimIndex]->Update_TransformationMatrices(timeDelta, _bones, _isAnimLoop, rootIndex);
+            _isFinished = _animations[_currentAnimIndex]->Update_TransformationMatrices(timeDelta, _bones, _isAnimLoop, rootIndex);
             _rootOriginalFrameVelocity = rootIndex >= 0 ? _animations[_currentAnimIndex]->Get_TransformVelocity(rootIndex) : RootMotionFrame{};
         }
         else
@@ -235,7 +234,7 @@ bool ModelCom::Play_Animation(float timeDelta)
     }
     else
     {
-        isFinish = _animations[_currentAnimIndex]->Update_TransformationMatrices(timeDelta, _bones, _isAnimLoop, rootIndex);
+        _isFinished = _animations[_currentAnimIndex]->Update_TransformationMatrices(timeDelta, _bones, _isAnimLoop, rootIndex);
         _rootOriginalFrameVelocity = (rootIndex >= 0) ? _animations[_currentAnimIndex]->Get_TransformVelocity(rootIndex) : RootMotionFrame{};
     }
 
@@ -276,10 +275,10 @@ bool ModelCom::Play_Animation(float timeDelta)
         }
     }
 
-    if (isFinish && !_isAnimLoop)
+    if (_isFinished && !_isAnimLoop)
         Stop_AllNotifyStates(_isAnimNotifyExecutionEnabled);
 
-    return isFinish;
+    return _isFinished;
 }
 
 HRESULT ModelCom::Bind_Material(ShaderCom* shader, const char* constantName, uint32 meshIndex, MaterialTextureSlot slot, uint32 textureIndex)

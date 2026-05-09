@@ -12,17 +12,25 @@ public:
     // 현재 프레임에 입력된 값
     struct InputFrame
     {
-        float moveX = 0.f;
-        float moveZ = 0.f;
+        float   moveX{ 0.f };
+        float   moveZ{ 0.f };
 
-        bool  isRunPressed = false;
-        bool  isJumpDown= false;
+        bool    isRunPressed{ false };          // Shift
+        bool    isJumpDown{ false };            // Space
+        bool    isWalkDown{ false };            // Ctrl
+
+        bool    isInteractionDown{ false };     // 상호작용 E
+        bool    isSuddenAttack{ false };        // 장풍 F
+
+        bool    isMouseLDown{ false };          // 좌 클릭 발사 
+        bool    isMouseRPress{ false };         // 우클릭 에이밍
+        bool    isMouseRUp{ false };            // 우클릭 취소 에이밍 취소
     };
 
 public:
     explicit InputCom(const ComPtr<Device>& device, const ComPtr<Context>& context);
     explicit InputCom(const InputCom& Prototype);
-    virtual ~InputCom();
+    virtual ~InputCom() override;
 
 public:
     HRESULT Initialize_Prototype() override;
@@ -37,6 +45,7 @@ public:
 
 private:
     InputFrame _frame;
+    
 
 public:
     static Shared<InputCom> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

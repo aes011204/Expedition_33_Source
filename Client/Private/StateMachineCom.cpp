@@ -1,26 +1,38 @@
 ﻿#include "pch.h"
-#include "StateMachine.h"
+#include "StateMachineCom.h"
 
 #include "State.h"
 
+
 NS_BEGIN(Client)
 
-StateMachine::StateMachine(const ComPtr<Device>& device, const ComPtr<Context>& context)
+IMPLEMENT_REFLECTION(StateMachineCom)
+{
+    auto& info = GetStaticReflectionInfo();
+    info.properties.clear();
+    info.displayName = "StateMachine";
+
+    PROPERTY_ENUM("PlayerState", _currentState, PlayerState);
+
+    return true;
+}
+
+StateMachineCom::StateMachineCom(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Component{ device, context } {}
-StateMachine::StateMachine(const StateMachine& prototype)
+StateMachineCom::StateMachineCom(const StateMachineCom& prototype)
     : Component{ prototype } {}
 
-HRESULT StateMachine::Initialize_Prototype()
+HRESULT StateMachineCom::Initialize_Prototype()
 {
     return Component::Initialize_Prototype();
 }
 
-HRESULT StateMachine::Initialize(void* arg)
+HRESULT StateMachineCom::Initialize(void* arg)
 {
     return Component::Initialize(arg);
 }
 
-void StateMachine::Update_StateMachine(float timeDelta)
+void StateMachineCom::Update_StateMachine(float timeDelta)
 {
     if (_currentState != nullptr)
     {
@@ -29,7 +41,7 @@ void StateMachine::Update_StateMachine(float timeDelta)
     }
 }
 
-HRESULT StateMachine::Add_State(const wstring& stateName, Shared<State> state)
+HRESULT StateMachineCom::Add_State(const wstring& stateName, Shared<State> state)
 {
     if (state == nullptr)
     {
@@ -48,7 +60,7 @@ HRESULT StateMachine::Add_State(const wstring& stateName, Shared<State> state)
     return S_OK;
 }
 
-HRESULT StateMachine::Remove_State(const wstring& stateName)
+HRESULT StateMachineCom::Remove_State(const wstring& stateName)
 {
     auto iter = _states.find(stateName);
     if (iter == _states.end())
@@ -68,7 +80,7 @@ HRESULT StateMachine::Remove_State(const wstring& stateName)
     return S_OK;
 }
 
-bool StateMachine::Change_State(const wstring& stateName)
+bool StateMachineCom::Change_State(const wstring& stateName)
 {
     if(_states.contains(stateName))
     {
@@ -89,9 +101,9 @@ bool StateMachine::Change_State(const wstring& stateName)
     return false;
 }
 
-Shared<StateMachine> StateMachine::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
+Shared<StateMachineCom> StateMachineCom::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
-    auto instance = make_shared<StateMachine>(device, context);
+    auto instance = make_shared<StateMachineCom>(device, context);
 
     if (FAILED(instance->Initialize_Prototype()))
     {
@@ -102,9 +114,9 @@ Shared<StateMachine> StateMachine::Create(const ComPtr<Device>& device, const Co
     return instance;
 }
 
-Shared<Component> StateMachine::Clone(void* arg)
+Shared<Component> StateMachineCom::Clone(void* arg)
 {
-    auto clone = make_shared<StateMachine>(*this);
+    auto clone = make_shared<StateMachineCom>(*this);
 
     if (FAILED(clone->Initialize(arg)))
     {
@@ -115,7 +127,7 @@ Shared<Component> StateMachine::Clone(void* arg)
     return clone;
 }
 
-void StateMachine::Free()
+void StateMachineCom::Free()
 {
     _states.clear();
     _currentState.reset();

@@ -9,6 +9,7 @@ NS_END
 NS_BEGIN(Client)
 
 class InputCom;
+class PlayerStateMachineCom;
 
 class PlayerControllerCom : public Component
 {
@@ -17,7 +18,7 @@ class PlayerControllerCom : public Component
 public:
     PlayerControllerCom(const ComPtr<Device>& device, const ComPtr<Context>& context);
     PlayerControllerCom(const PlayerControllerCom& Prototype);
-    virtual ~PlayerControllerCom() = default;
+    virtual ~PlayerControllerCom() override = default;
 
 public:
     HRESULT Initialize_Prototype() override;
@@ -33,8 +34,8 @@ public:
 
 private:
     // Owner가 어차피 weak라 순환참조 걱정없어서 Shared 사용
-    Shared<MovementCom> _movementCom;
-    Shared<InputCom>    _inputCom;
+    Shared<MovementCom>             _movementCom{ nullptr };
+    Shared<InputCom>                _inputCom{ nullptr };
 
 private:
     // 카메라 회전값에 따라서 플레이에 Yaw를 회전시킬 것인지?

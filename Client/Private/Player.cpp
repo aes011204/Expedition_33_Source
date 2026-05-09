@@ -12,6 +12,9 @@
 #include "Body_Player.h"
 #include "Hair_Player.h"
 #include "Head_Player.h"
+#include "Player_Idle.h"
+#include "Player_Jump.h"
+#include "Player_Move.h"
 
 IMPLEMENT_REFLECTION(Player)
 {
@@ -65,6 +68,7 @@ void Player::BeginPlay()
 {
     Character::BeginPlay();
 
+    _PlayerStateMachineCom->Change_State(PlayerState::Idle);
 }
 
 void Player::Priority_Update(float timeDelta)
@@ -113,6 +117,12 @@ HRESULT Player::Ready_Components()
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_Movement"), _movementCom, &moveDesc), E_FAIL);
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_PlayerController"), _playerControllerCom), E_FAIL);
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_PlayerStateMachine"), _PlayerStateMachineCom), E_FAIL);
+    if (auto stateMachine = Get_Component<PlayerStateMachineCom>())
+    {
+        stateMachine->Add_State(PlayerState::Idle, Player_Idle::Create(GetSharedPtr<Player>()));
+        stateMachine->Add_State(PlayerState::Move, Player_Move::Create(GetSharedPtr<Player>()));
+        stateMachine->Add_State(PlayerState::Jump, Player_Jump::Create(GetSharedPtr<Player>()));
+    }
     CHECK_FAILED(Ready_Collider(), E_FAIL);
 
     return S_OK;

@@ -42,8 +42,8 @@ protected:
     HRESULT Ready_Collider();
 
 private:
-    PlayerState                 _currentState;
-    float                       _testHp = 10.f;
+    PlayerState                     _currentState;
+    float                           _testHp = 10.f;
 
     Shared<MovementCom>             _movementCom{ nullptr };
     Shared<InputCom>                _inputCom{ nullptr };

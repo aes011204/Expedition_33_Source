@@ -6,6 +6,10 @@ NS_BEGIN(Client)
 class Player;
 class Body_Player;
 
+class PlayerControllerCom;
+class PlayerStateMachineCom;
+class InputCom;
+
 class Player_State abstract : public State
 {
 public:
@@ -20,9 +24,13 @@ public:
     virtual void LateUpdate(float timeDelta) override;
     virtual void ExitInvoke() override;
 
-private:
+protected:
     Weak<Player>            _owner{};
-    Body_Player*            _bodyPlayer{};
+
+    PlayerControllerCom* _controllerCom{ nullptr };
+    PlayerStateMachineCom* _stateCom{ nullptr };
+
+    Body_Player* _bodyPlayer{ nullptr };
 
 public:
     virtual void Free() override;

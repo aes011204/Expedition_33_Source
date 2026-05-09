@@ -26,7 +26,10 @@ public:
 public:
     const Matrix* Get_SocketBoneMatrixPtr(const string& boneName) const;
     const Matrix* Get_SocketBoneMatrixPtr(uint32 boneIndex) const;
-    //Shared<ModelCom> Get_Model(); // 일단 편의성을 위해서 살릴까 말까
+    void Set_Animation(uint32 animIndex, float blendDuration, bool isLoop = false) const;
+    uint32 Get_AnimationIndex() const;
+    float Get_AnimationProgress() const;
+    bool Is_AnimationFinished() const;
 
 public:
     virtual HRESULT Initialize_Prototype() override;
@@ -50,7 +53,7 @@ protected:
     virtual HRESULT Bind_ShaderResources();
 
 public:
-    virtual Shared<GameObject> Clone(void* arg) override PURE;
+    virtual Shared<GameObject> Clone(void* arg) override;
     virtual void Free() override;
 };
 

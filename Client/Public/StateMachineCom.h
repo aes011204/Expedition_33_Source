@@ -5,13 +5,13 @@ NS_BEGIN(Client)
 
 class State;
 
-class StateMachine : public Component
+class StateMachineCom : public Component
 {
-    GENERATED_COMPONENT(StateMachine)
+    GENERATED_COMPONENT(StateMachineCom)
 public:
-    StateMachine(const ComPtr<Device>& device, const ComPtr<Context>& context);
-    StateMachine(const StateMachine& prototype);
-    virtual ~StateMachine() override = default;
+    StateMachineCom(const ComPtr<Device>& device, const ComPtr<Context>& context);
+    StateMachineCom(const StateMachineCom& prototype);
+    virtual ~StateMachineCom() override = default;
 
 public:
     virtual HRESULT Initialize_Prototype() override;
@@ -35,7 +35,7 @@ protected:
     wstring                                 _currentStateName{};
 
 private:
-    static Shared<StateMachine> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
+    static Shared<StateMachineCom> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
     virtual Shared<Component> Clone(void* arg) override;
     virtual void Free() override;
 };

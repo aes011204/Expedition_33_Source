@@ -1,21 +1,32 @@
 ﻿#include "pch.h"
 #include "PlayerStateMachineCom.h"
+#include "Player_State.h"
 
-#include "State.h"
+NS_BEGIN(Client);
+
+IMPLEMENT_REFLECTION(PlayerStateMachineCom)
+{
+    auto& info = GetStaticReflectionInfo();
+    info.properties.clear();
+    info.displayName = "PlayerStateMachine";
+
+    return true;
+}
+
 
 PlayerStateMachineCom::PlayerStateMachineCom(const ComPtr<Device>& device, const ComPtr<Context>& context)
-    : StateMachine{ device, context } {}
-PlayerStateMachineCom::PlayerStateMachineCom(const StateMachine& prototype)
-    : StateMachine{ prototype } {}
+    : StateMachineCom{ device, context } {}
+PlayerStateMachineCom::PlayerStateMachineCom(const StateMachineCom& prototype)
+    : StateMachineCom{ prototype } {}
 
 HRESULT PlayerStateMachineCom::Initialize_Prototype()
 {
-    return StateMachine::Initialize_Prototype();
+    return StateMachineCom::Initialize_Prototype();
 }
 
 HRESULT PlayerStateMachineCom::Initialize(void* arg)
 {
-    return StateMachine::Initialize(arg);
+    return StateMachineCom::Initialize(arg);
 }
 
 void PlayerStateMachineCom::BeginPlay()
@@ -26,11 +37,18 @@ void PlayerStateMachineCom::BeginPlay()
     }
 }
 
+HRESULT PlayerStateMachineCom::Add_State(PlayerState playerState, const Shared<State>& state)
+{
+    const wstring& str = String::ToWString(magic_enum::enum_name(playerState).data());
+
+    return StateMachineCom::Add_State(str, state);
+}
+
 bool PlayerStateMachineCom::Change_State(PlayerState playerState)
 {
     const wstring& str = String::ToWString( magic_enum::enum_name(playerState).data());
 
-    return StateMachine::Change_State(str);
+    return StateMachineCom::Change_State(str);
 }
 
 PlayerState PlayerStateMachineCom::Get_CurrentPlayerState() const
@@ -70,3 +88,5 @@ void PlayerStateMachineCom::Free()
 {
     Component::Free();
 }
+
+NS_END

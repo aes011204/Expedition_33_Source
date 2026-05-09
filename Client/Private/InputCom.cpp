@@ -7,8 +7,7 @@ InputCom::InputCom(const ComPtr<Device>& device, const ComPtr<Context>& context)
 }
 
 InputCom::InputCom(const InputCom& Prototype)
-    : Component{Prototype}
-    , _frame(Prototype._frame)
+    : Component{Prototype}, _frame(Prototype._frame)
 {
 }
 
@@ -49,11 +48,24 @@ void InputCom::Update_Input()
 
     _frame.isRunPressed = GAME->KeyPress(KEY_TYPE::SHIFT);
     _frame.isJumpDown = GAME->KeyDown(KEY_TYPE::SPACE);
+    _frame.isWalkDown = GAME->KeyDown(KEY_TYPE::CTRL);
+
+    _frame.isInteractionDown = GAME->KeyDown(KEY_TYPE::E);
+    _frame.isSuddenAttack = GAME->KeyDown(KEY_TYPE::F);
+
+    _frame.isMouseLDown = GAME->KeyDown(KEY_TYPE::LBUTTON);
+    _frame.isMouseRPress = GAME->KeyPress(KEY_TYPE::RBUTTON);
+    _frame.isMouseRUp = GAME->KeyUp(KEY_TYPE::RBUTTON);
 }
 
 bool InputCom::Has_MoveInput() const
 {
     return _frame.moveX != 0.f || _frame.moveZ != 0.f;
+}
+
+bool InputCom::Has_AnyInput() const
+{
+    return false;
 }
 
 Shared<InputCom> InputCom::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

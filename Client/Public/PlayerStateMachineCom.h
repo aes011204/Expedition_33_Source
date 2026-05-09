@@ -1,14 +1,14 @@
 ﻿#pragma once
-#include "StateMachine.h"
+#include "StateMachineCom.h"
 
 NS_BEGIN(Client)
 
-class PlayerStateMachineCom final :public StateMachine
+class PlayerStateMachineCom final :public StateMachineCom
 {
-    GENERATED_COMPONENT(StateMachine)
+    GENERATED_COMPONENT(PlayerStateMachineCom)
 public:
     PlayerStateMachineCom(const ComPtr<Device>& device, const ComPtr<Context>& context);
-    PlayerStateMachineCom(const StateMachine& prototype);
+    PlayerStateMachineCom(const StateMachineCom& prototype);
     virtual ~PlayerStateMachineCom() override = default;
 
 public:
@@ -17,6 +17,7 @@ public:
     void BeginPlay() override;
 
 public:
+    HRESULT Add_State(PlayerState playerState, const Shared<State>& state);
     bool Change_State(PlayerState playerState);
 
 public:

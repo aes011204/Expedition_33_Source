@@ -49,7 +49,6 @@ void PlayerControllerCom::BeginPlay()
 
 	_inputCom = owner->Get_Component<InputCom>();
 	CHECK_NULL(_inputCom);
-
 }
 
 void PlayerControllerCom::Update_Controller(float timeDelta)
