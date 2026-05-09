@@ -16,6 +16,11 @@ EffectEditorApp::EffectEditorApp()
 {
 }
 
+EffectEditorApp::~EffectEditorApp()
+{
+    Free();
+}
+
 HRESULT EffectEditorApp::Initialize()
 {
     const fs::path assetRootPath(Get_ClientResourceRoot());
@@ -113,7 +118,7 @@ HRESULT EffectEditorApp::Render()
     {
         Profile_View::Scope profileScope("Game::Render");
 
-        if (FAILED(GAME->Clear_Buffers(defaultClearColor)))
+        if (FAILED(GAME->Clear_Buffers(kDefaultClearColor)))
             return E_FAIL;
 
         if (FAILED(GAME->Draw()))
@@ -177,7 +182,7 @@ HRESULT EffectEditorApp::Run_ComputeShaderSmokeTest()
 
     // 1. CPU에서 검증용 입력 데이터를 준비한다.
     // shader는 각 float4를 2배로 만들어 output buffer에 쓴다.
-    const array<Vec4, computeSmokeElementCount> inputData{
+    const array<Vec4, kComputeSmokeElementCount> inputData{
         Vec4{ 1.f, 2.f, 3.f, 4.f },
         Vec4{ 2.f, 3.f, 4.f, 5.f },
         Vec4{ 3.f, 4.f, 5.f, 6.f },
@@ -189,7 +194,7 @@ HRESULT EffectEditorApp::Run_ComputeShaderSmokeTest()
         _device,
         _context,
         sizeof(Vec4),
-        computeSmokeElementCount,
+        kComputeSmokeElementCount,
         inputData.data()
     );
     CHECK_NULL(inputBuffer, E_FAIL);
@@ -198,7 +203,7 @@ HRESULT EffectEditorApp::Run_ComputeShaderSmokeTest()
         _device,
         _context,
         sizeof(Vec4),
-        computeSmokeElementCount
+        kComputeSmokeElementCount
     );
     CHECK_NULL(outputBuffer, E_FAIL);
 
@@ -215,7 +220,7 @@ HRESULT EffectEditorApp::Run_ComputeShaderSmokeTest()
     CHECK_FAILED(computeShader->Bind_SRV(0, inputBuffer->Get_SRV()), E_FAIL);
     CHECK_FAILED(computeShader->Bind_UAV(0, outputBuffer->Get_UAV()), E_FAIL);
 
-    const uint32 groupCount = (computeSmokeElementCount + computeSmokeThreadCount - 1) / computeSmokeThreadCount;
+    const uint32 groupCount = (kComputeSmokeElementCount + kComputeSmokeThreadCount - 1) / kComputeSmokeThreadCount;
     CHECK_FAILED(computeShader->Dispatch(groupCount, 1, 1), E_FAIL);
 
     // 5. GPU output buffer는 CPU가 직접 읽을 수 없으므로 staging buffer로 복사한다.
@@ -236,7 +241,7 @@ HRESULT EffectEditorApp::Run_ComputeShaderSmokeTest()
 
     const Vec4* resultData = static_cast<const Vec4*>(mappedSubResource.pData);
     bool valid = true;
-    for (uint32 i = 0; i < computeSmokeElementCount; ++i)
+    for (uint32 i = 0; i < kComputeSmokeElementCount; ++i)
     {
         const Vec4 expected = inputData[i] * 2.f;
         if (resultData[i].x != expected.x || resultData[i].y != expected.y || resultData[i].z != expected.z || resultData[i].w != expected.w)

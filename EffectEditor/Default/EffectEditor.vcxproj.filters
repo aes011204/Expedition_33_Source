@@ -93,6 +93,9 @@
     <ClInclude Include="..\Public\EffectEditor_Define.h">
       <Filter>99. Defines</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\EffectAuthoring_Types.h">
+      <Filter>99. Defines</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\IconsFontAwesome6.h">
       <Filter>99. Defines</Filter>
     </ClInclude>

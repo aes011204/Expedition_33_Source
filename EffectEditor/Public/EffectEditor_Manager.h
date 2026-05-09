@@ -25,12 +25,16 @@ private:
     bool _defaultDockLayoutBuilt{ false };
 
 private:
+    // 등록된 editor window들의 초기화 hook을 한 번씩 실행한다.
+    HRESULT Initialize_Windows();
+
     void Render_MainMenuBar();
     void Render_RuntimeToolbar();
     void Render_DockSpace();
     void Build_DefaultDockLayout(ImGuiID dockSpaceId, ImVec2 dockSpaceSize);
     void Handle_Shortcuts();
     void Render_ShortcutHelp();
+    void Render_CameraShortcutHelp();
 
     void Toggle_Window(const wstring& windowName);
     void Toggle_WindowPair(const wstring& firstWindowName, const wstring& secondWindowName);

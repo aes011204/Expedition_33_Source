@@ -13,7 +13,7 @@ class EffectEditorApp final : public Base
 {
 public:
     EffectEditorApp();
-    ~EffectEditorApp() override = default;
+    ~EffectEditorApp() override;
 
 public:
     HRESULT Initialize();
@@ -23,9 +23,9 @@ public:
     HRESULT Render();
 
 private:
-    inline static const Vec4 defaultClearColor{ 0.13f, 0.13f, 0.13f, 1.0f };
-    static constexpr uint32 computeSmokeElementCount{ 4 }; // compute smoke test에서 검증할 float4 개수.
-    static constexpr uint32 computeSmokeThreadCount{ 4 };  // smoke shader의 numthreads.x 값.
+    inline static const Vec4 kDefaultClearColor{ 0.13f, 0.13f, 0.13f, 1.0f };
+    static constexpr uint32 kComputeSmokeElementCount{ 4 }; // compute smoke test에서 검증할 float4 개수.
+    static constexpr uint32 kComputeSmokeThreadCount{ 4 };  // smoke shader의 numthreads.x 값.
 
 private:
     ComPtr<Device> _device;

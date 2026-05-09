@@ -37,6 +37,8 @@ HRESULT EffectEditor_Manager::Initialize()
     Add_Window(Console_View::Create());
     Add_Window(Profile_View::Create());
 
+    CHECK_FAILED(Initialize_Windows(), E_FAIL);
+
     return S_OK;
 }
 
@@ -85,6 +87,19 @@ Shared<Editor_Window> EffectEditor_Manager::Find_Window(const wstring& windowNam
     return iter->second;
 }
 
+HRESULT EffectEditor_Manager::Initialize_Windows()
+{
+    for (const auto& window : _windows | views::values)
+    {
+        if (nullptr == window)
+            continue;
+
+        CHECK_FAILED(window->Initialize(), E_FAIL);
+    }
+
+    return S_OK;
+}
+
 void EffectEditor_Manager::Render_MainMenuBar()
 {
     if (!ImGui::BeginMainMenuBar())
@@ -126,7 +141,7 @@ void EffectEditor_Manager::Render_RuntimeToolbar()
     const bool paused = EDITOR->IsPaused();
 
     constexpr float toolbarHeight = 34.f;
-    constexpr float toolbarControlWidth = 460.f;
+    constexpr float toolbarControlWidth = 560.f;
 
     ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 4.f);
     ImGui::SetCursorPosX(max(12.f, (ImGui::GetWindowWidth() - toolbarControlWidth) * 0.5f));
@@ -191,6 +206,9 @@ void EffectEditor_Manager::Render_RuntimeToolbar()
 
     ImGui::SameLine();
     Render_ShortcutHelp();
+
+    ImGui::SameLine();
+    Render_CameraShortcutHelp();
 
     ImGui::SameLine();
     Render_ExitButton(toolbarHeight);
@@ -381,15 +399,57 @@ void EffectEditor_Manager::Render_ShortcutHelp()
             draw_shortcut_row("F1", "Collision Debug Render");
             draw_shortcut_row("F5", "Play / Resume");
             draw_shortcut_row("Esc", "Stop");
-            draw_shortcut_row("F8", "Camera Switch");
-            draw_shortcut_row("F9", "Pause + Free Camera");
-            draw_shortcut_row("Ctrl + Wheel", "Free Camera Speed");
             draw_shortcut_row("Shift +", "Time Scale Up");
             draw_shortcut_row("Shift -", "Time Scale Down");
             draw_shortcut_row("Alt + Enter", "Fullscreen Toggle");
             draw_shortcut_row("Ctrl + Space", "Console + Content Browser");
-            draw_shortcut_row("Double Click", "Focus Selected Object");
+            draw_shortcut_row("Ctrl + C / V", "Copy / Paste Selected Object");
+            draw_shortcut_row("Delete", "Delete Selected Object");
             draw_shortcut_row("W E R", "Gizmo Mode");
+
+            ImGui::EndTable();
+        }
+
+        ImGui::EndTooltip();
+    }
+}
+
+void EffectEditor_Manager::Render_CameraShortcutHelp()
+{
+    if (ImGui::SmallButton("Cam Shortcut"))
+    {
+    }
+
+    if (ImGui::IsItemHovered())
+    {
+        ImGui::BeginTooltip();
+
+        if (ImGui::BeginTable("CameraShortcutHelpTable", 2, ImGuiTableFlags_SizingFixedFit))
+        {
+            ImGui::TableSetupColumn("Input", ImGuiTableColumnFlags_WidthFixed, 150.f);
+            ImGui::TableSetupColumn("Description", ImGuiTableColumnFlags_WidthStretch);
+
+            auto draw_shortcut_row = [](const char* input, const char* description)
+            {
+                ImGui::TableNextRow();
+                ImGui::TableSetColumnIndex(0);
+                ImGui::TextUnformatted(input);
+                ImGui::TableSetColumnIndex(1);
+                ImGui::Text(": %s", description);
+            };
+
+            draw_shortcut_row("F8", "Switch Camera");
+            draw_shortcut_row("F9", "Pause + Preview Camera");
+            draw_shortcut_row("Double Click", "Focus Selected Object");
+            draw_shortcut_row("F", "Home Preview Camera");
+            draw_shortcut_row("RMB + Mouse", "Free Look");
+            draw_shortcut_row("RMB + W A S D", "Move Free Camera");
+            draw_shortcut_row("RMB + Q / E", "Move Down / Up");
+            draw_shortcut_row("RMB + Wheel", "Preview Dolly");
+            draw_shortcut_row("Alt + LMB Drag", "Orbit");
+            draw_shortcut_row("Alt + MMB Drag", "Pan");
+            draw_shortcut_row("Alt + RMB Drag", "Dolly");
+            draw_shortcut_row("Ctrl + Wheel", "Free Camera Speed");
 
             ImGui::EndTable();
         }

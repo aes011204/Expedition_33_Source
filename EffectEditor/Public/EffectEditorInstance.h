@@ -2,15 +2,12 @@
 
 #include "Base.h"
 
-namespace DirectX
+namespace DirectX::DX11
 {
-namespace DX11
-{
-    class BasicEffect;
-    template <typename TVertex>
-    class PrimitiveBatch;
-    struct VertexPositionColor;
-}
+class BasicEffect;
+template <typename TVertex>
+class PrimitiveBatch;
+struct VertexPositionColor;
 }
 
 NS_BEGIN(Engine)
@@ -35,7 +32,7 @@ class EffectEditorInstance final : public Base
 
 public:
     EffectEditorInstance();
-    ~EffectEditorInstance() override = default;
+    ~EffectEditorInstance() override;
 
 public:
     HRESULT Initialize_Editor(const EffectEditorDesc& editorDesc, const ComPtr<Device>& device, const ComPtr<Context>& context);
@@ -96,6 +93,12 @@ public: //## Behavior::Command
     void Redo();
     void Clear_CommandHistory();
 
+public: //## Behavior::Selection
+    void Copy_SelectedObject();
+    Shared<GameObject> Paste_CopiedObject();
+    Shared<GameObject> Duplicate_SelectedObject();
+    bool Delete_SelectedObject();
+
 public: //## Behavior::CameraControl
     void Activate_TargetCamera();
     void Activate_PreviewCamera();
@@ -123,12 +126,12 @@ public: //## Behavior::Viewport
     void Set_ManualPreviewViewportSize(uint32 width, uint32 height);
     void Sync_PreviewViewportMode();
 
-private:
-    static constexpr uint32 defaultPreviewViewportWidth = 900;
-    static constexpr uint32 defaultPreviewViewportHeight = 900;
-    static constexpr int sceneGridDivisions = 40;
-    static constexpr float sceneGridHalfExtent = 30.f;
-    static constexpr float sceneGridHeight = 0.f;
+private: //## Static Values
+    static constexpr uint32 kDefaultPreviewViewportWidth = 900;
+    static constexpr uint32 kDefaultPreviewViewportHeight = 900;
+    static constexpr int kSceneGridDivisions = 40;
+    static constexpr float kSceneGridHalfExtent = 30.f;
+    static constexpr float kSceneGridHeight = 0.f;
 
 private: //## Data::Core
     ComPtr<Device> _device{};
@@ -150,8 +153,8 @@ private: //## Data::Viewport
 
     PreviewViewportMode _previewViewportMode{ PreviewViewportMode::Auto };
     bool _hasPendingPreviewViewportSize{ false };
-    uint32 _pendingPreviewViewportWidth{ defaultPreviewViewportWidth };
-    uint32 _pendingPreviewViewportHeight{ defaultPreviewViewportHeight };
+    uint32 _pendingPreviewViewportWidth{ kDefaultPreviewViewportWidth };
+    uint32 _pendingPreviewViewportHeight{ kDefaultPreviewViewportHeight };
     uint32 _appliedPreviewViewportWidth{ 0 };
     uint32 _appliedPreviewViewportHeight{ 0 };
 
@@ -159,6 +162,8 @@ private: //## Data::Runtime
     EffectEditorRuntimeState _runtimeState{ EffectEditorRuntimeState::Edit };
     float _runtimeTimeScale{ 1.f };
     bool _pendingSingleFrameStep{ false };
+    string _copiedObjectJson{};
+    wstring _copiedLayerTag{};
 
 private: //## Data::Window
     bool _hasPendingWindowFocus{ false };
@@ -181,6 +186,10 @@ private: //## Helper::PreviewViewport
     void Render_SceneGridToBackBuffer();
     void Queue_PreviewViewportSize(uint32 width, uint32 height);
     void Apply_PendingPreviewViewportSize();
+
+private: //## Helper::Selection
+    bool Find_ObjectLayerTag(const Shared<GameObject>& gameObject, wstring& outLayerTag) const;
+    Shared<GameObject> Instantiate_GameObjectFromCopiedData() const;
 
 public:
     void Free() override;

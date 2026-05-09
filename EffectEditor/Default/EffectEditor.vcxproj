@@ -225,6 +225,7 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     <ClInclude Include="..\Public\Editor_Context.h" />
     <ClInclude Include="..\Public\Emitter_View.h" />
     <ClInclude Include="..\Public\EffectEditorCamera.h" />
+    <ClInclude Include="..\Public\EffectAuthoring_Types.h" />
     <ClInclude Include="..\Public\EffectEditor_Enum.h" />
     <ClInclude Include="..\Public\EffectEditor_Macro.h" />
     <ClInclude Include="..\Public\EffectEditor_Struct.h" />
