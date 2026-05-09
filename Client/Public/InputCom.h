@@ -12,7 +12,7 @@ class InputCom : public Component
 public:
     explicit InputCom(const ComPtr<Device>& device, const ComPtr<Context>& context);
     explicit InputCom(const InputCom& Prototype);
-    virtual ~InputCom();
+    virtual ~InputCom() override;
 
 public:
     HRESULT Initialize_Prototype() override;

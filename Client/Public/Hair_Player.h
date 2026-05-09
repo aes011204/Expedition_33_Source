@@ -31,6 +31,9 @@ public:
     HRESULT Render() override;
     HRESULT Render_Shadow() override;
 
+private:
+    Matrix _offsetMatrix{};
+
 public:
     static Shared<Hair_Player> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
     Shared<GameObject> Clone(void* arg) override;

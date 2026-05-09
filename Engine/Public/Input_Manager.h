@@ -35,6 +35,7 @@ enum class KEY_TYPE
 	D = 'D',
 	Q = 'Q',
 	E = 'E',
+    F = 'F',
 	Z = 'Z',
 	C = 'C',
 	V = 'V',

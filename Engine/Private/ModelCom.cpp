@@ -146,7 +146,7 @@ const RootMotionFrame& ModelCom::Get_RootTransformVelocity(float scaleOffset)
 {
     _rootFrameVelocity.position = scaleOffset * _rootOriginalFrameVelocity.position;
     _rootFrameVelocity.rotation = scaleOffset * _rootOriginalFrameVelocity.rotation;
-    
+
     return _rootFrameVelocity;
 }
 
@@ -205,7 +205,6 @@ bool ModelCom::Play_Animation(float timeDelta)
 
     const float previousTimeSec = Get_CurrentAnimationTimeSec();
 
-    bool isFinish = false;
     int32 rootIndex = _isRootMotion ? _rootNodeIndex : -1;
 
     if (_isBlending)
@@ -217,7 +216,7 @@ bool ModelCom::Play_Animation(float timeDelta)
         {
             _isBlending = false;
             _currentAnimIndex = _nextAnimIndex;
-            isFinish = _animations[_currentAnimIndex]->Update_TransformationMatrices(timeDelta, _bones, _isAnimLoop, rootIndex);
+            _isFinished = _animations[_currentAnimIndex]->Update_TransformationMatrices(timeDelta, _bones, _isAnimLoop, rootIndex);
             _rootOriginalFrameVelocity = rootIndex >= 0 ? _animations[_currentAnimIndex]->Get_TransformVelocity(rootIndex) : RootMotionFrame{};
         }
         else
@@ -235,7 +234,7 @@ bool ModelCom::Play_Animation(float timeDelta)
     }
     else
     {
-        isFinish = _animations[_currentAnimIndex]->Update_TransformationMatrices(timeDelta, _bones, _isAnimLoop, rootIndex);
+        _isFinished = _animations[_currentAnimIndex]->Update_TransformationMatrices(timeDelta, _bones, _isAnimLoop, rootIndex);
         _rootOriginalFrameVelocity = (rootIndex >= 0) ? _animations[_currentAnimIndex]->Get_TransformVelocity(rootIndex) : RootMotionFrame{};
     }
 
@@ -276,10 +275,10 @@ bool ModelCom::Play_Animation(float timeDelta)
         }
     }
 
-    if (isFinish && !_isAnimLoop)
+    if (_isFinished && !_isAnimLoop)
         Stop_AllNotifyStates(_isAnimNotifyExecutionEnabled);
 
-    return isFinish;
+    return _isFinished;
 }
 
 HRESULT ModelCom::Bind_Material(ShaderCom* shader, const char* constantName, uint32 meshIndex, MaterialTextureSlot slot, uint32 textureIndex)
@@ -312,6 +311,11 @@ wstring ModelCom::Normalize_ModelAssetPath(const char* modelFilePath)
         resolvedPath = resolvedPath.substr(0, extPos) + ".model";
 
     return fs::absolute(fs::path(String::ToWString(resolvedPath))).lexically_normal().wstring();
+}
+
+uint32 ModelCom::Get_AnimationIndex() const
+{
+    return _isBlending ? _nextAnimIndex : _currentAnimIndex;
 }
 
 float ModelCom::Get_CurrentAnimationDurationSec() const
@@ -713,6 +717,12 @@ HRESULT ModelCom::Ready_Model(const char* modelPath)
             stream.read(reinterpret_cast<char*>(&data.localTransform), sizeof(Matrix));
             stream.read(reinterpret_cast<char*>(&data.offsetMatrix), sizeof(Matrix));
             _bones.push_back(Bone::Create(data));
+        }
+
+        /* 바인드 포즈 초기화: 애니메이션 없이도 Combined 행렬이 유효하도록 1회 계산 */
+        for (uint32 i = 0; i < _numBones; ++i)
+        {
+            _bones[i]->Update_CombinedTransformationMatrix(_bones, _preLocalTransformMatrix);
         }
     }
 
