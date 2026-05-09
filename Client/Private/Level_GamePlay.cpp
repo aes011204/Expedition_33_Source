@@ -4,6 +4,7 @@
 #include "FreeCamera.h"
 #include "TargetCamera.h"
 #include "PointParticlePreview.h"
+#include "Spawn_Prefab.h"
 
 //#include "MapLoader.h"
 

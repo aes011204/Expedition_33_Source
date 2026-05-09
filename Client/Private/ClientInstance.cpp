@@ -33,7 +33,7 @@ HRESULT ClientInstance::Ready_StaticResources()
 {
     CHECK_NULL(_resourceLoader, E_FAIL);
 
-	if (FAILED(_resourceLoader->Load_LevelTables(static_cast<LevelType>(LevelType::Static))))
+	if (FAILED(_resourceLoader->Load_LevelTables((LevelType::Static))))
 		return E_FAIL;
 
 	return S_OK;

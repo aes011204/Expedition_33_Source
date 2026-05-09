@@ -34,7 +34,6 @@ public:
 public: /* 플레이어 찾기 -> 일단 임시 */
     Shared<GameObject> Find_Player(uint32 levelIndex);
 
-
 private:
 	HRESULT Ready_ResourceLoader();
 

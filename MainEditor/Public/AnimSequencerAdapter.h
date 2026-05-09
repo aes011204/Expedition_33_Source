@@ -25,17 +25,54 @@ public:
     void EndEdit() override;
 
 private:
+    enum class EStateDragMode : uint8
+    {
+        None,
+        Move,
+        ResizeStart,
+        ResizeEnd
+    };
+
+    struct TrackColors
+    {
+        static constexpr unsigned int NotifyTrack = 0x2223A85A;
+        static constexpr unsigned int StateTrack = 0x221A76C4;
+
+        static constexpr unsigned int NotifyFill = 0xFF33CC55;
+        static constexpr unsigned int NotifyHover = 0xFF55EE77;
+        static constexpr unsigned int NotifyBorder = 0xFF146B2D;
+
+        static constexpr unsigned int StateFill = 0xFF4DA3FF;
+        static constexpr unsigned int StateHover = 0xFF79BEFF;
+        static constexpr unsigned int StateBorder = 0xFF1B4F8A;
+
+        static constexpr unsigned int SelectedBorder = 0xFF00FFFF;
+        static constexpr unsigned int Text = 0xFFFFFFFF;
+        static constexpr unsigned int StateHandle = 0xFF225588;
+        static constexpr unsigned int StateHandleHover = 0xFF3D79C5;
+    };
+
     static int32 TimeSec_ToFrame(float timeSec, int32 fps);
     static float Frame_ToTimeSec(int32 frame, int32 fps);
+    bool Resolve_TrackRow(int32 rowIndex, bool& outIsStateTrack, int32& outTrackIndex) const;
 
-    void Draw_NotifyRow(ImDrawList* drawList, const ImRect& rc);
-    void Draw_StateRow(ImDrawList* drawList, const ImRect& rc);
+    void Draw_NotifyRow(int32 trackIndex, ImDrawList* drawList, const ImRect& rc);
+    void Draw_StateRow(int32 trackIndex, ImDrawList* drawList, const ImRect& rc);
+    void Handle_StateMarkGesture(int32 trackIndex, const ImRect& rc);
 
 private:
     Animation_View* _view = nullptr;
 
-    int _rowStart[2]{ 0, 0 };
-    int _rowEnd[2]{ 0, 0 };
+    mutable vector<int> _rowStart{};
+    mutable vector<int> _rowEnd{};
+    mutable vector<string> _rowLabels{};
+
+private:
+    int32 _draggingNotifyId = -1;
+    int32 _draggingStateId = -1;
+    float _notifyDragOffsetX = 0.f;
+    float _stateDragOffsetX = 0.f;
+    EStateDragMode _stateDragMode = EStateDragMode::None;
 };
 
 NS_END

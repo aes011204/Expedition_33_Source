@@ -142,6 +142,9 @@ public: /* For.Object_Manager */
     Shared<GameObject> Find_FirstObject(uint32 levelIndex, const wstring& layerTag);
 
     // 특정 레벨의 레이어에 있는 모든 오브젝트 순회 -> 에디터에서 사용
+    void    Visit_LevelObjects(uint32 levelIndex,
+        const function<void(const wstring& layerTag, const Shared<GameObject>& gameObject)>& visitor) const;
+
     void    Visit_CurrentLevelObjects(
         const function<void(const wstring& layerTag, const Shared<GameObject>& gameObject)>& visitor) const;
 
@@ -236,14 +239,22 @@ public: /* For.Camera_Manager */
 
 
 public: /* For.TypeRegistry */
-    const TypeRegistry::ComponentTypeInfo*  Find_ComponentType(const string& className) const;
-    const TypeRegistry::GameObjectTypeInfo* Find_GameObjectType(const string& className) const;
-    const TypeRegistry::BTNodeTypeInfo*     Find_BTNodeType(const string& className) const;
-    void Visit_GameObjectTypes(const function<void(const TypeRegistry::GameObjectTypeInfo&)>& visitor) const;
+    const TypeRegistry::ComponentTypeInfo*       Find_ComponentType(const string& className) const;
+    const TypeRegistry::GameObjectTypeInfo*      Find_GameObjectType(const string& className) const;
+    const TypeRegistry::BTNodeTypeInfo*          Find_BTNodeType(const string& className) const;
+    const TypeRegistry::AnimNotifyTypeInfo*      Find_AnimNotifyType(const string& className) const;
+    const TypeRegistry::AnimNotifyStateTypeInfo* Find_AnimNotifyStateType(const string& className) const;
 
-    Shared<Component>   Create_ComponentPrototype(const string& className) const;
-    Shared<GameObject>  Create_GameObjectPrototype(const string& className) const;
-    Shared<Base>        Create_BTNodePrototype(const string& className) const;
+    void Visit_GameObjectTypes(const function<void(const TypeRegistry::GameObjectTypeInfo&)>& visitor) const;
+    void Visit_AnimNotifyTypes(const function<void(const TypeRegistry::AnimNotifyTypeInfo&)>& visitor) const;
+    void Visit_AnimNotifyStateTypes(const function<void(const TypeRegistry::AnimNotifyStateTypeInfo&)>& visitor) const;
+
+    Shared<Component>       Create_ComponentPrototype(const string& className) const;
+    Shared<GameObject>      Create_GameObjectPrototype(const string& className) const;
+    Shared<Base>            Create_BTNodePrototype(const string& className) const;
+    Shared<AnimNotify>      Create_AnimNotifyPrototype(const string& className) const;
+    Shared<AnimNotifyState> Create_AnimNotifyStatePrototype(const string& className) const;
+
 
 public : /* For.Target_Manager */
     HRESULT Add_RenderTarget(const wstring& targetTag, uint32 sizeX, uint32 sizeY, DXGI_FORMAT pixelFormat, const Color& clearColor, bool resizeWithViewport = true, bool useDSV = false);

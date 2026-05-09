@@ -220,6 +220,8 @@
       <Filter>01.Levels\Stage\Stage01</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\BT_Node_Bootstrap.h" />
+    <ClInclude Include="..\Public\AN_Test.h" />
+    <ClInclude Include="..\Public\ANS_Test.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -316,6 +318,8 @@
       <Filter>01.Levels\Stage\Stage01</Filter>
     </ClCompile>
     <ClCompile Include="..\private\BT_Node_Bootstrap.cpp" />
+    <ClCompile Include="..\Private\AN_Test.cpp" />
+    <ClCompile Include="..\Private\ANS_Test.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">

@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "Base.h"
+#include "AnimNotify_Types.h"
 
 NS_BEGIN(Engine)
 
@@ -17,11 +18,11 @@ public:
     virtual json To_Json() const;
     virtual void From_Json(const json& data);
 
-    virtual ClassReflectionInfo Get_RelectionInfo()
-    {
-        static ClassReflectionInfo emptyInfo{};
-        return emptyInfo;
-    }
+    virtual ClassReflectionInfo& Get_ReflectionInfo()
+{
+    static ClassReflectionInfo emptyInfo{};
+    return emptyInfo;
+}
 };
 
 NS_END

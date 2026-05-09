@@ -494,8 +494,13 @@ Shared<GameObject> GameInstance::Find_FirstObject(uint32 levelIndex, const wstri
     return _objectManager->Find_FirstObject(levelIndex, layerTag);
 }
 
-void GameInstance::Visit_CurrentLevelObjects(
+void GameInstance::Visit_LevelObjects(uint32 levelIndex,
     const function<void(const wstring& layerTag, const Shared<GameObject>& gameObject)>& visitor) const
+{
+    return _objectManager->Visit_LevelObjects(levelIndex, visitor);
+}
+
+void GameInstance::Visit_CurrentLevelObjects(const function<void(const wstring& layerTag, const Shared<GameObject>& gameObject)>& visitor) const
 {
     return _objectManager->Visit_LevelObjects(visitor);
 }
@@ -790,10 +795,31 @@ const TypeRegistry::BTNodeTypeInfo* GameInstance::Find_BTNodeType(const string& 
     return _typeRegistry->Find_BTNodeType(className);
 }
 
+const TypeRegistry::AnimNotifyTypeInfo* GameInstance::Find_AnimNotifyType(const string& className) const
+{
+    return _typeRegistry->Find_AnimNotifyType(className);
+}
+
+const TypeRegistry::AnimNotifyStateTypeInfo* GameInstance::Find_AnimNotifyStateType(const string& className) const
+{
+    return _typeRegistry->Find_AnimNotifyStateType(className);
+}
+
 void GameInstance::Visit_GameObjectTypes(const function<void(const TypeRegistry::GameObjectTypeInfo&)>& visitor) const
 {
     CHECK_NULL(_typeRegistry);
     _typeRegistry->Visit_GameObjectTypes(visitor);
+}
+
+void GameInstance::Visit_AnimNotifyTypes(const function<void(const TypeRegistry::AnimNotifyTypeInfo&)>& visitor) const
+{
+    return _typeRegistry->Visit_AnimNotifyTypes(visitor);
+}
+
+void GameInstance::Visit_AnimNotifyStateTypes(
+    const function<void(const TypeRegistry::AnimNotifyStateTypeInfo&)>& visitor) const
+{
+    return _typeRegistry->Visit_AnimNotifyStateTypes(visitor);
 }
 
 Shared<Component> GameInstance::Create_ComponentPrototype(const string& className) const
@@ -809,6 +835,16 @@ Shared<GameObject> GameInstance::Create_GameObjectPrototype(const string& classN
 Shared<Base> GameInstance::Create_BTNodePrototype(const string& className) const
 {
     return _typeRegistry->Create_BTNode(className);
+}
+
+Shared<AnimNotify> GameInstance::Create_AnimNotifyPrototype(const string& className) const
+{
+    return _typeRegistry->Create_AnimNotify(className);
+}
+
+Shared<AnimNotifyState> GameInstance::Create_AnimNotifyStatePrototype(const string& className) const
+{
+    return _typeRegistry->Create_AnimNotifyState(className);
 }
 
 HRESULT GameInstance::Add_RenderTarget(const wstring& targetTag, uint32 sizeX, uint32 sizeY, DXGI_FORMAT pixelFormat,
