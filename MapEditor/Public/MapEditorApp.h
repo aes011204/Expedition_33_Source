@@ -7,6 +7,7 @@
 NS_BEGIN(Engine)
 class RenderTarget;
 class ShaderCom;
+class VIBuffer_Rect;
 NS_END
 
 NS_BEGIN(MapEditor)
@@ -45,6 +46,9 @@ private:
     Shared<PanelViewport> _viewport;
 
     Shared<ShaderCom> _meshShader;
+    Shared<ShaderCom> _deferredShader;
+    Shared<VIBuffer_Rect> _rectBuffer;
+
     Unique<MEModelManager> _modelManager;
 
     Shared<RenderTarget> _idRT;
@@ -55,6 +59,8 @@ private:
 private:
     HRESULT Ready_Light();
     HRESULT Ready_PickingRT();
+
+    void SyncSceneLights();
 
     void DrawSceneDebug();
 

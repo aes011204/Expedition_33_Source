@@ -99,9 +99,8 @@ Client/Bin/Resources/Map/scale_map.py
 MEStaticMeshActor                         — 에디터 뷰포트 시각화 전용
 ├── _model   (Shared<ModelCom>)
 ├── _shader  (Shared<ShaderCom>)
-├── Render(const Matrix& worldMatrix)
-│   — 텍스처 있으면 pass 0 (DefaultPass), 없으면 pass 1 (NoTexturePass, 회색)
-│   — GAME->Get_LightDesc(0)로 Directional Light 바인딩 (Forward 라이팅)
+├── Render(const Matrix& worldMatrix)     — G-buffer 출력 (pass 0: 텍스처, pass 1: 회색)
+├── RenderID(const Matrix& worldMatrix, uint32 id) — ID 버퍼용 (pass 2)
 └── GetModel() — 컬링용 AABB 접근에 사용
 ```
 
@@ -152,8 +151,15 @@ MEModelManager                            — 모델 로드/캐싱 전담
     - ✅ `EditorObject._isInstanced` — Instanced 오브젝트는 렌더 핸들 생성 스킵
     - ✅ 모델 버텍스 스케일 보정: `preLocalTransformMatrix = Matrix::CreateScale(0.001f)` (UE5 cm → 엔진 단위)
     - ✅ 텍스처 없는 모델 회색 렌더링 — `NoTexturePass` (pass 1) 추가
-    - ✅ Forward 라이팅 — `Shader_VtxMesh` Forward 방식으로 교체 (Lambert + Specular + Ambient, 단일 RT 출력), `MapEditorApp::Initialize()`에서 기본 Directional Light 등록, `MEStaticMeshActor::Render()`에서 `GAME->Get_LightDesc(0)` 바인딩
+    - ✅ Deferred 라이팅 전환
+      - G-buffer MRT 패스 → 라이트 누적 패스 → CombinedSimple 컴바인 패스
+      - `Shader_VtxMesh.hlsl`: G-buffer 출력 (Diffuse/Normal/Depth, 3 targets)
+      - `Shader_Deferred.hlsl`: CombinedSimple pass (index 4) 추가 — 섀도우 없는 단순 합성
+      - `SyncSceneLights()`: 매 프레임 GAME Light_Manager를 SceneContext 기준으로 재동기화
 13. ✅ 라이트 배치 및 속성 편집
+    - Directional / Point Light 지원, Inspector 실시간 수치 조정
+    - 기본 Directional Light를 EditorObject로 관리 (Hierarchy 표시, 삭제 가능)
+    - `EditorObject._lightType` / `_lightRange` / `_lightDiffuse` 등 파라미터 편집
 14. ✅ Inspector Focus 버튼 — 선택 오브젝트 위치로 카메라 즉시 이동 (`MECamera::FocusOn`)
 
 ### Phase 3 — 볼륨 / 존 시스템 ✅
@@ -250,7 +256,34 @@ MEModelManager                            — 모델 로드/캐싱 전담
 
 ---
 
-### Phase 4 — MainEditor 레벨 구성 ← **다음 작업**
+### Phase 3.9 — 편집 UX 개선 ← **다음 작업**
+
+#### 목표
+- 오브젝트 배치 흐름을 Prefab 드래그 앤 드롭으로 통일하고, 실수 복구 기능 추가
+
+#### 작업 내용
+
+1. **오브젝트 추가 시 자동 선택**
+   - 스폰 직후 `_scene._selected = newObj` 설정
+   - 추가 즉시 Inspector 포커스 + Gizmo 활성화
+
+2. **Prefab 시스템 (Asset Browser 통합)**
+   - Light / SpawnPoint / TriggerVolume 등 비메시 오브젝트를 `.prefab` JSON 파일로 저장
+   - Asset Browser에서 `.prefab` 파일 인식 → 드래그 앤 드롭으로 3D 커서 위치에 스폰
+   - 포맷: `{ "Type": "Light", "Name": "Point Light", "LightType": "Point", "Range": 10.0, ... }`
+   - 저장 경로: `Client/Bin/Resources/Map/Prefabs/` (Asset Browser 탐색 대상에 추가)
+   - `ConsumeSpawn`에서 확장자로 `.bin` / `.prefab` 분기 — 기존 메시 파이프라인 재사용
+   - Prefab 시스템 완성 후 Hierarchy "Add" 버튼(타입 팝업) 제거
+
+3. **Ctrl+Z / Ctrl+Y Undo/Redo**
+   - Command 패턴 — `IEditorCommand` 인터페이스 (`Execute` / `Undo`)
+   - 커맨드 종류: `CmdAddObject`, `CmdDeleteObject`, `CmdTransformObject`
+   - `SceneContext`에 `_undoStack` / `_redoStack` 보관, 스택 최대 50개
+   - Inspector Transform 편집은 마우스 릴리스 / Enter 확정 시점에 커맨드 기록 (드래그 중 매 프레임 기록 방지)
+
+---
+
+### Phase 4 — MainEditor 레벨 구성
 
 #### 목표
 - Client에서 실제 플레이 가능한 레벨 구조 잡기
@@ -301,13 +334,17 @@ MEModelManager                            — 모델 로드/캐싱 전담
 | 마우스 피킹 (GPU ID Buffer) | ✅ |
 | Asset Browser 파일 탐색기 | ✅ |
 | 3D 커서 스폰 (Shift+클릭 + 드래그 앤 드롭) | ✅ |
+| 추가 시 자동 선택 | 구현 예정 (Phase 3.9) |
+| Prefab 시스템 (.prefab 드래그 앤 드롭) | 구현 예정 (Phase 3.9) |
+| Undo / Redo (Ctrl+Z / Ctrl+Y) | 구현 예정 (Phase 3.9) |
 
 ### 렌더링 / 배치
 
 | 기능 | 상태 |
 |------|------|
 | 정적 메시 배치 | ✅ |
-| 라이트 배치 | ✅ |
+| 라이트 배치 (Directional / Point) | ✅ |
+| Deferred 라이팅 (G-buffer + 라이트 누적 + 합성) | ✅ |
 | 절두체 컬링 (Client/MainEditor) | ✅ |
 | 절두체 컬링 (MapEditor 뷰포트) | ✅ |
 | Octree 공간 분할 컬링 | 구현 예정 (Phase 6) |

@@ -56,6 +56,14 @@ HRESULT MapEditorApp::Initialize()
 
     CHECK_FAILED(Ready_PickingRT(), E_FAIL);
 
+    _deferredShader = ShaderCom::Create(_device, _context,
+        L"../ShaderFiles/Shader_Deferred.hlsl",
+        VTXTEX::Elements, VTXTEX::numElements);
+    CHECK_NULL(_deferredShader, E_FAIL);
+
+    _rectBuffer = VIBuffer_Rect::Create(_device, _context);
+    CHECK_NULL(_rectBuffer, E_FAIL);
+
     CHECK_FAILED(Ready_Light(), E_FAIL);
 
     return S_OK;
@@ -79,7 +87,7 @@ void MapEditorApp::Late_Update(float timeDelta)
     UNREFERENCED_PARAMETER(timeDelta);
 }
 
-HRESULT MapEditor::MapEditorApp::Render()
+HRESULT MapEditorApp::Render()
 {
     _camera->Apply();
 
@@ -94,22 +102,95 @@ HRESULT MapEditor::MapEditorApp::Render()
         SetCursorAt(mousePos, vpPos, vpSize);
     }
 
-    string spawnPath = {};
+    string spawnPath{};
     ImVec2 spawnMouse{}, spawnVpPos{}, spawnVpSize{};
     if (_viewport->ConsumeSpawn(spawnPath, spawnMouse, spawnVpPos, spawnVpSize))
     {
         DoSpawnAt(spawnPath);
     }
 
+    SyncSceneLights();
+
+    CHECK_FAILED(GAME->Begin_MRT(L"MRT_GameObjects"), E_FAIL);
+    {
+        float farZ = _camera->GetFar();
+        _meshShader->Bind_RawValue("g_fCameraFar", &farZ, sizeof(float));
+
+        for (auto& obj : _scene._objects)
+        {
+            if (obj->_type != EObjectType::StaticMesh || !obj->_renderHandle)
+            {
+                continue;
+            }
+
+            const auto& model = obj->_renderHandle->GetModel();
+            Vec3 localMin, localMax;
+            if (model->Try_Get_LocalBounds(localMin, localMax))
+            {
+                BoundingBox localBox, worldBox;
+                BoundingBox::CreateFromPoints(localBox, XMLoadFloat3(&localMin), XMLoadFloat3(&localMax));
+                localBox.Transform(worldBox, model->Get_PreLocalTransformMatrix() * obj->_worldMatrix);
+                if (!GAME->IsVisible(worldBox))
+                {
+                    continue;
+                }
+            }
+            obj->_renderHandle->Render(obj->_worldMatrix);
+        }
+    }
+    CHECK_FAILED(GAME->End_MRT(), E_FAIL);
+
+    CHECK_FAILED(GAME->Begin_MRT(L"MRT_LightAcc"), E_FAIL);
+    {
+        GAME->Bind_RT_ShaderResource(_deferredShader, "g_NormalTexture", L"Target_Normal");
+        GAME->Bind_RT_ShaderResource(_deferredShader, "g_DepthTexture", L"Target_Depth");
+        GAME->Bind_CamPosition(_deferredShader.get(), "g_vCamPosition");
+
+        Matrix view = *GAME->Get_Transform(D3DTS::View);
+        Matrix proj = *GAME->Get_Transform(D3DTS::Proj);
+        Matrix viewInv = view.Invert();
+        Matrix projInv = proj.Invert();
+        _deferredShader->Bind_Matrix("g_ViewMatrixInverse", &viewInv);
+        _deferredShader->Bind_Matrix("g_ProjMatrixInverse", &projInv);
+
+        const float farZ = _camera->GetFar();
+        _deferredShader->Bind_RawValue("g_fFar", &farZ, sizeof(float));
+
+        Matrix rectWorld = Matrix::CreateScale(2.f, 2.f, 1.f);
+        Matrix identity = Matrix::Identity;
+        _deferredShader->Bind_Matrix("g_WorldMatrix", &rectWorld);
+        _deferredShader->Bind_Matrix("g_ViewMatrix", &identity);
+        _deferredShader->Bind_Matrix("g_ProjMatrix", &identity);
+        _rectBuffer->Bind_Resources();
+
+        GAME->Render_Lights(_deferredShader, _rectBuffer);
+    }
+    CHECK_FAILED(GAME->End_MRT(), E_FAIL);
+
     CHECK_FAILED(_rt->Begin(), E_FAIL);
-    DrawSceneDebug();
+    {
+        GAME->Bind_RT_ShaderResource(_deferredShader, "g_DiffuseTexture", L"Target_Diffuse");
+        GAME->Bind_RT_ShaderResource(_deferredShader, "g_ShadeTexture", L"Target_Shade");
+        GAME->Bind_RT_ShaderResource(_deferredShader, "g_SpecularTexture", L"Target_Specular");
+
+        Matrix rectWorld = Matrix::CreateScale(2.f, 2.f, 1.f);
+        Matrix identity = Matrix::Identity;
+        _deferredShader->Bind_Matrix("g_WorldMatrix", &rectWorld);
+        _deferredShader->Bind_Matrix("g_ViewMatrix", &identity);
+        _deferredShader->Bind_Matrix("g_ProjMatrix", &identity);
+
+        _deferredShader->Begin(4); // CombinedSimple pass
+        _rectBuffer->Bind_Resources();
+        _rectBuffer->Render();
+
+
+        DrawSceneDebug();
+    }
 
     GAME->Render_DebugDepth();
     GAME->Render_DebugOverlay();
     GAME->Bind_BackBuffer();
-
     CHECK_FAILED(GAME->Clear_Buffers(Vec4(0.1f, 0.1f, 0.1f, 1.f)), E_FAIL);
-
     GAME->Bind_BackBuffer();
 
     _manager->Render();
@@ -119,6 +200,7 @@ HRESULT MapEditor::MapEditorApp::Render()
 
     return S_OK;
 }
+
 
 void MapEditorApp::DrawSceneDebug()
 {
@@ -205,24 +287,7 @@ void MapEditorApp::DrawSceneDebug()
         }
 
         case EObjectType::StaticMesh:
-            if (obj->_renderHandle)
-            {
-                Vec3 localMin, localMax;
-                if (obj->_renderHandle->GetModel()->Try_Get_LocalBounds(localMin, localMax))
-                {
-                    BoundingBox localBox;
-                    BoundingBox::CreateFromPoints(localBox, XMLoadFloat3(&localMin), XMLoadFloat3(&localMax));
-                    BoundingBox worldBox;
-                    localBox.Transform(worldBox, obj->_renderHandle->GetModel()->Get_PreLocalTransformMatrix() * obj->_worldMatrix);
-                    if (!GAME->IsVisible(worldBox))
-                    {
-                        break;
-                    }
-                }
-                obj->_renderHandle->Render(obj->_worldMatrix);
-            }
             break;
-
         default:
             break;
         }
@@ -454,17 +519,38 @@ HRESULT MapEditorApp::Ready_PickingRT()
     return S_OK;
 }
 
+void MapEditorApp::SyncSceneLights()
+{
+    GAME->Clear_Lights();
+
+    for (const auto& obj : _scene._objects)
+    {
+        if (obj->_type != EObjectType::Light)
+        {
+            continue;
+        }
+
+        LIGHT_DESC desc{};
+        desc.type = obj->_lightType;
+        desc.direction = obj->_lightDirection;
+        desc.position = Vec4(obj->_position.x, obj->_position.y, obj->_position.z, 1.f);
+        desc.range = obj->_lightRange;
+        desc.diffuse = obj->_lightDiffuse;
+        desc.ambient = obj->_lightAmbient;
+        desc.specular = obj->_lightSpecular;
+        GAME->Add_Light(desc);
+    }
+}
+
 HRESULT MapEditorApp::Ready_Light()
 {
-    LIGHT_DESC lightDesc{};
-    lightDesc.type = LightType::Directional;
-    lightDesc.direction = Vec4(1.f, -1.f, 1.f, 0.f);
-    lightDesc.direction.Normalize();
-    lightDesc.diffuse = Vec4(1.f, 1.f, 1.f, 1.f);
-    lightDesc.ambient = Vec4(0.4f, 0.4f, 0.4f, 1.f);
-    lightDesc.specular = Vec4(1.f, 1.f, 1.f, 1.f);
-    CHECK_FAILED(GAME->Add_Light(lightDesc), E_FAIL);
-
+    auto obj = EditorObject::Create(L"Directional Light", EObjectType::Light);
+    obj->_lightType = LightType::Directional;
+    obj->_lightDirection = Vec4(1.f, -1.f, 1.f, 0.f);
+    obj->_lightDiffuse = Vec4(1.f, 1.f, 1.f, 1.f);
+    obj->_lightAmbient = Vec4(0.4f, 0.4f, 0.4f, 1.f);
+    obj->_lightSpecular = Vec4(1.f, 1.f, 1.f, 1.f);
+    _scene._objects.push_back(obj);
     return S_OK;
 }
 
