@@ -285,7 +285,7 @@ void SceneContext::LoadFromFile(const string& filePath)
 
 }
 
-void SceneContext::SpawnObject(const wstring& modelPath, const Vec3& pos)
+Shared<EditorObject> SceneContext::SpawnObject(const wstring& modelPath, const Vec3& pos)
 {
     auto obj = make_shared<EditorObject>();
 
@@ -304,6 +304,117 @@ void SceneContext::SpawnObject(const wstring& modelPath, const Vec3& pos)
 
     _dirtyRenderHandles = true;
     Add(obj);
+    return obj;
+}
+
+Shared<EditorObject> SceneContext::SpawnFromPrefab(const string& prefabPath, const Vec3& pos)
+{
+    ifstream ifs(prefabPath);
+    if (!ifs.is_open())
+    {
+        return nullptr;
+    }
+
+    json j = json::parse(ifs);
+
+    string typeName = j.value("Type", "StaticMesh");
+    EObjectType type = ObjectTypeFromName(typeName);
+    if(type == EObjectType::Fail)
+    {
+        return nullptr;
+    }
+
+    string nameStr = j.value("Name", typeName);
+    wstring name = String::ToWString(nameStr) + L"_" + to_wstring(_objects.size());
+
+    auto obj = EditorObject::Create(name, type);
+    obj->_position = pos;
+
+    switch (type)
+    {
+    case MapEditor::EObjectType::Light:
+    {
+        string ltStr = j.value("LightType", "Directional");
+        obj->_lightType = (ltStr == "Point") ? LightType::Point : LightType::Directional;
+
+        if (j.contains("Direction"))
+        {
+            auto& d = j["Direction"];
+            obj->_lightDirection = { d[0], d[1], d[2], d[3] };
+        }
+
+        obj->_lightRange = j.value("Range", 10.f);
+        if (j.contains("Diffuse"))
+        {
+            auto& d = j["Diffuse"];
+            obj->_lightDiffuse = { d[0], d[1], d[2], d[3] };
+        }
+
+        if (j.contains("Ambient"))
+        {
+            auto& d = j["Ambient"];
+            obj->_lightAmbient = { d[0], d[1], d[2], d[3] };
+        }
+
+        if (j.contains("Specular"))
+        {
+            auto& d = j["Specular"];
+            obj->_lightAmbient = { d[0], d[1], d[2], d[3] };
+        }
+        break;
+    }
+    case MapEditor::EObjectType::EncounterZone:
+    case MapEditor::EObjectType::TriggerVolume:
+    case MapEditor::EObjectType::CameraZone:
+    case MapEditor::EObjectType::PostProcessVolume:
+    {
+        string shapeStr = j.value("Shape", "Box");
+        obj->_zoneShape = (shapeStr == "Sphere") ? EZoneShape::Sphere : EZoneShape::Box;
+
+        if (j.contains("Extent"))
+        {
+            auto& ext = j["Extent"];
+            obj->_zoneExtent = { ext[0], ext[1], ext[2] };
+        }
+        obj->_zoneRadius = j.value("Radius", 5.f);
+
+        if (type == EObjectType::EncounterZone)
+        {
+            obj->_zoneId = j.value("EnemyGroupId", "");
+        }
+        else if (type == EObjectType::TriggerVolume)
+        {
+            obj->_zoneId = j.value("EventId", "");
+        }
+        else if (type == EObjectType::CameraZone)
+        {
+            obj->_cameraFov = j.value("FOV", 60.f);
+            obj->_cameraFixedAngle = j.value("FixedAngle", false);
+            obj->_cameraTransitionTime = j.value("TransitionTime", 0.5f);
+        }
+        else if (type == EObjectType::PostProcessVolume)
+        {
+            obj->_ppBloomIntensity = j.value("BloomIntensity", 1.f);
+            obj->_ppExposureMin = j.value("ExposureMin", 0.f);
+            obj->_ppExposureMax = j.value("ExposureMax", 2.f);
+            obj->_ppFogDensity = j.value("FogDensity", 0.f);
+            if (j.contains("FogColor"))
+            {
+                auto& fc = j["FogColor"];
+                obj->_ppFogColor = { fc[0], fc[1], fc[2] };
+            }
+        }
+        break;
+    }
+    case MapEditor::EObjectType::Fail:
+        break;
+    default:
+        break;
+    }
+
+    obj->UpdateWorldMatrix();
+    Add(obj);
+    return obj;
 }
 
 void SceneContext::Add(Shared<EditorObject> obj)

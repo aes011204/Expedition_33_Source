@@ -17,7 +17,9 @@ struct SceneContext
 
     void SaveToFile(const string& filePath);
     void LoadFromFile(const string& filePath);
-    void SpawnObject(const wstring& modelPath, const Vec3& pos);
+    Shared<EditorObject> SpawnObject(const wstring& modelPath, const Vec3& pos);
+    Shared<EditorObject> SpawnFromPrefab(const string& prefabPath, const Vec3& pos);
+
 
     void Add(Shared<EditorObject> obj);
 
