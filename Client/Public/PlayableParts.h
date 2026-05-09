@@ -44,6 +44,7 @@ protected:
     void Update_CombinedWorldMatrix(const Matrix& childMatrix) override;
 
 protected:
+    Matrix              _offsetMatrix{};
     const Matrix*       _socketMatrix{ nullptr };
     Shared<ShaderCom>   _shaderCom{ nullptr };
     Shared<ModelCom>    _modelCom{ nullptr };

@@ -28,6 +28,8 @@ HRESULT Head_Player::Initialize(void* arg)
         return S_OK;
 	}
 
+    _offsetMatrix = Matrix::CreateRotationX(XMConvertToRadians(-90.f)) * Matrix::CreateTranslation(0.f, 0.f, -10.f);
+
 	return S_OK;
 }
 

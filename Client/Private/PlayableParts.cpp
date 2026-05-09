@@ -74,6 +74,7 @@ HRESULT PlayableParts::Initialize(void* arg)
 
     if (auto playableDesc = static_cast<PLAYABLE_PART_DESC*>(arg))
     {
+        _offsetMatrix = Matrix::Identity;
         _socketMatrix = playableDesc->socketMatrixPointer;
 
         if (FAILED(Ready_Components(*playableDesc)))
@@ -181,7 +182,7 @@ void PlayableParts::Update_CombinedWorldMatrix(const Matrix& childMatrix)
 
     const Matrix& parentMatrix = (nullptr != _parentMatrix) ? *_parentMatrix : Matrix::Identity;
     const Matrix childWorld = childMatrix;
-    const Matrix combinedWorld = childWorld * socketMatrix * parentMatrix;
+    const Matrix combinedWorld = _offsetMatrix * childWorld * socketMatrix * parentMatrix;
     _combinedWorldMatrix = combinedWorld;
 }
 
