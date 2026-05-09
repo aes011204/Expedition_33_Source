@@ -19,6 +19,10 @@ class MEModelManager;
 
 class MapEditorApp final : public Base
 {
+private:
+    static constexpr float _debugLinePos = 0.4f;
+    static constexpr Color _debugLineCol = { 0.9f, 0.3f, 0.9f, 1.f };
+
 public:
     MapEditorApp() = default;
     virtual ~MapEditorApp();
@@ -57,6 +61,9 @@ private:
     void UpdateRenderHandles();
 
     void DoPickAt(const ImVec2& mousePos, const ImVec2& vpPos, const ImVec2& vpSize);
+
+    void SetCursorAt(const ImVec2& mousePos, const ImVec2& vpPos, const ImVec2& vpSize);
+    void DoSpawnAt(const string& modelPath);
 
 public:
     static Unique<MapEditorApp> Create();

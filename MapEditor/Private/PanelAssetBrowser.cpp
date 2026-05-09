@@ -5,13 +5,19 @@
 PanelAssetBrowser::PanelAssetBrowser(SceneContext* ctx)
     : MEWindow{ L"Asset Browser" }, _ctx{ ctx }
 {
-    _rootPath = _mapSavePath;
-    if (!_rootPath.empty() && _rootPath.back() != '/' && _rootPath.back() != '\\')
+}
+
+HRESULT PanelAssetBrowser::Initialize()
+{
+    error_code ec;
+    _rootPath = fs::canonical(_mapSavePath, ec).string();
+    if (ec || _rootPath.empty())
     {
-        _rootPath += '/';
+        return E_FAIL;
     }
 
     NavigateTo(_rootPath);
+    return S_OK;
 }
 
 void PanelAssetBrowser::Render()
@@ -32,6 +38,7 @@ void PanelAssetBrowser::Render()
             if (ImGui::SmallButton(_breadcrumbs[i].c_str()))
             {
                 NavigateTo(_breadcrumbPaths[i]);
+                break;
             }
         }
 
@@ -123,7 +130,7 @@ void PanelAssetBrowser::RebuildBreadcrumbs()
     _breadcrumbs.clear();
     _breadcrumbPaths.clear();
 
-    fs::path root = fs::canonical(_rootPath);
+    fs::path root = fs::path(_rootPath);
     fs::path cur = fs::path(_currentPath);
 
     vector<fs::path> parts;
@@ -146,5 +153,11 @@ void PanelAssetBrowser::RebuildBreadcrumbs()
 
 Shared<PanelAssetBrowser> PanelAssetBrowser::Create(SceneContext* ctx)
 {
-    return make_shared<PanelAssetBrowser>(ctx);
+    auto instance = make_shared<PanelAssetBrowser>(ctx);
+    if (FAILED(instance->Initialize()))
+    {
+        return nullptr;
+    }
+
+    return instance;
 }

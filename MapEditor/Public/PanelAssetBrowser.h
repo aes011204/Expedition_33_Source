@@ -12,6 +12,8 @@ public:
     virtual ~PanelAssetBrowser() = default;
 
 public:
+    HRESULT Initialize();
+
     virtual void Render() override;
 
 private:
