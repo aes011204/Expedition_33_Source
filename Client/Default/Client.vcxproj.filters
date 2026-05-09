@@ -130,6 +130,9 @@
     <Filter Include="02.GameObject\Player\PlayerStateMachine\State">
       <UniqueIdentifier>{2ff895e8-c801-4ce1-8657-6b74912325b5}</UniqueIdentifier>
     </Filter>
+    <Filter Include="02.GameObject\Camera\Cinematic">
+      <UniqueIdentifier>{9da3a249-fde0-4202-8400-e101dd8261f9}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -290,6 +293,21 @@
     <ClInclude Include="..\Public\Player_Jump.h">
       <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\Cinematic_Player.h">
+      <Filter>02.GameObject\Camera\Cinematic</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Cinematic_SequenceIO.h">
+      <Filter>02.GameObject\Camera\Cinematic</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Cinematic_Types.h">
+      <Filter>02.GameObject\Camera\Cinematic</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Cinematic_Utils.h">
+      <Filter>02.GameObject\Camera\Cinematic</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\CinematicSequencerAdapter.h">
+      <Filter>02.GameObject\Camera\Cinematic</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -437,6 +455,18 @@
     </ClCompile>
     <ClCompile Include="..\Private\Player_Jump.cpp">
       <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\CameraPresetIO.cpp">
+      <Filter>02.GameObject\Camera</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Cinematic_Player.cpp">
+      <Filter>02.GameObject\Camera\Cinematic</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Cinematic_SequenceIO.cpp">
+      <Filter>02.GameObject\Camera\Cinematic</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\CinematicSequencerAdapter.cpp">
+      <Filter>02.GameObject\Camera\Cinematic</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

@@ -224,7 +224,7 @@ void Cinematic_Tool::Render_ImSequencer()
     bool requestOpenKeyPopup = false;
     bool requestOpenInsertPopup = false;
     bool requestRemoveKeyPopup = false;
-    int sequencerSelectedTrackIndex = _selectedTrackIndex;
+    int  sequencerSelectedTrackIndex = _selectedTrackIndex;
     const int previousFrame = _currentFrame;
     const int previousTrackIndex = _selectedTrackIndex;
     const int previousKeyIndex = _selectedKeyIndex;
@@ -268,9 +268,10 @@ void Cinematic_Tool::Render_ImSequencer()
 
 void Cinematic_Tool::Render_TrackList()
 {
+
     Draw_SectionHeader("Cinematic Tracks");
 
-    if (ImGui::Button("Add Track"))
+    if (ImGui::Button("Add World Track"))
     {
         CINEMATIC_TRACK track{};
         track.name = "Camera Track " + std::to_string(_sequence.cinematicTracks.size());
@@ -280,6 +281,18 @@ void Cinematic_Tool::Render_TrackList()
         _isPreviewDirty = true;
     }
 
+    ImGui::SameLine();
+
+    if (ImGui::Button("Add Interaction Track"))
+    {
+        CINEMATIC_TRACK track{};
+        track.name = "Camera Track " + std::to_string(_sequence.cinematicTracks.size());
+        _sequence.cinematicTracks.push_back(track);
+        _selectedTrackIndex = static_cast<int>(_sequence.cinematicTracks.size()) - 1;
+        _selectedKeyIndex = -1;
+        _isPreviewDirty = true;
+
+    }
     ImGui::SameLine();
     const bool isRemoveTrackDisabled = (_sequence.cinematicTracks.size() <= 1);
     if (isRemoveTrackDisabled)
