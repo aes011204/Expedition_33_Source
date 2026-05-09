@@ -117,7 +117,7 @@ void Monster::Update(float timeDelta)
         _body->Play_Animation(timeDelta);
 
         auto str = _body->Get_RootTransformVelocity();
-        _transformCom->Set_SpeedPerSec(-(str.position.y * Constants::Charcter::scaleOffset));
+        _transformCom->Set_SpeedPerSec((str.position.z * Constants::Charcter::scaleOffset));
     }
 
    // Matrix ax;

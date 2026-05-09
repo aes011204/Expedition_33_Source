@@ -157,6 +157,8 @@
   <ItemGroup>
     <ClInclude Include="..\Public\AN_Test.h" />
     <ClInclude Include="..\Public\ANS_Test.h" />
+    <ClInclude Include="..\public\BattleController.h" />
+    <ClInclude Include="..\public\BattleStateMachine.h" />
     <ClInclude Include="..\public\BT_Attack.h" />
     <ClInclude Include="..\public\BT_CheckDistance.h" />
     <ClInclude Include="..\public\BT_Idle.h" />
@@ -206,6 +208,8 @@
   <ItemGroup>
     <ClCompile Include="..\Private\AN_Test.cpp" />
     <ClCompile Include="..\Private\ANS_Test.cpp" />
+    <ClCompile Include="..\private\BattleController.cpp" />
+    <ClCompile Include="..\private\BattleStateMachine.cpp" />
     <ClCompile Include="..\private\BT_Attack.cpp" />
     <ClCompile Include="..\private\BT_CheckDistance.cpp" />
     <ClCompile Include="..\private\BT_Idle.cpp" />
