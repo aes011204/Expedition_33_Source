@@ -2,8 +2,8 @@
 
 float4x4 g_WorldMatrix, g_ViewMatrix, g_ProjMatrix;
 
-texture2D g_Texture;
-texture2D g_MaskTexture;
+Texture2D g_Texture;
+Texture2D g_MaskTexture;
 
 float4 g_Color = float4(1.f, 1.f, 1.f, 1.f);
 

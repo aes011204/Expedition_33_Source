@@ -176,6 +176,15 @@ public: /* For.Input_Manager */
     void  Set_MouseWheel(float mouseWheel);
 	void  Lock_Mouse();
 	void  Unlock_Mouse();
+    
+    // 에디터 뷰 전환 중 포커스가 흔들려도 마우스 락을 유지할 때 시작한다.
+	void  Begin_EditorMouseLockSession();
+    // 에디터 뷰 전환용 마우스 락 유지 상태를 끝낸다.
+	void  End_EditorMouseLockSession();
+    // Scene View 같은 부분 뷰 기준으로 마우스 락 영역을 임시 지정한다.
+    void  Set_MouseLockOverrideRect(const RECT& lockRectScreen);
+    // 임시 마우스 락 영역을 해제하고 기본 창 영역으로 되돌린다.
+    void  Clear_MouseLockOverrideRect();
 
     // 입력 차단
     void Set_InputBlocked(bool isBlocked);
