@@ -50,7 +50,7 @@ MapEditorApp          — 엔진 초기화, 메인 루프 (Update/Render), Scene
     ├── PanelViewport     ✅ RT ImGui::Image, 카메라 입력, ImGuizmo 오버레이
     ├── PanelHierarchy    ✅ 오브젝트 목록, 선택/추가/삭제/복제/이름변경
     ├── PanelInspector    ✅ Transform 실시간 편집, Gizmo 양방향 연동
-    └── PanelAssetBrowser ✅ 폴더 탭(SaveJson) + 더블클릭 로드
+    └── PanelAssetBrowser ✅ 파일 탐색기 방식, 브레드크럼, .bin 드래그 앤 드롭 스폰
 ```
 
 **베이스 클래스**: `MEWindow` (이름, 열림 상태, Update/Render 인터페이스)
@@ -207,47 +207,50 @@ MEModelManager                            — 모델 로드/캐싱 전담
 
 ---
 
-### Phase 3.8 — Asset Browser 파일 탐색기 + 드래그 앤 드롭 스폰 ← **현재 작업**
+### Phase 3.8 — Asset Browser 파일 탐색기 + 드래그 앤 드롭 스폰 ✅
 
 #### 목표
 - Asset Browser를 Unity Project 창처럼 파일 탐색기 방식으로 재설계
-- `.bin` 모델 파일을 뷰포트로 드래그 앤 드롭하면 해당 위치에 오브젝트 스폰
+- `.bin` 모델 파일을 뷰포트로 드래그 앤 드롭하면 3D 커서 위치에 오브젝트 스폰
 
-#### 작업 내용
+#### 구현 내용
 
-1. **`PanelAssetBrowser` 재설계**
-    - 탭 기반 → 파일 탐색기 방식으로 전환
-    - 루트: `Client/Bin/Resources/Map`
-    - 브레드크럼 바: `Map > SaveJson` 형태, 각 조각 클릭 시 해당 경로로 점프
-    - 폴더 더블클릭 → 내부 탐색, 파일 더블클릭 → 타입별 처리
+1. **`PanelAssetBrowser` 재설계** ✅
+    - 탭 기반 → 파일 탐색기 방식으로 전환 (`Initialize()` 분리, `Create`에서 호출)
+    - 루트: `Client/Bin/Resources/Map` (`_mapSavePath` → `fs::canonical`로 절대 경로 변환)
+    - 브레드크럼 바: `Map > SaveJson` 형태, 클릭 시 해당 경로로 점프 (루프 내 `NavigateTo` 후 `break`)
+    - 폴더 더블클릭 → 내부 탐색 (`_dirs` / `_files` 분리 스캔)
     - `.json` 더블클릭 → `_ctx->LoadFromFile()` (기존 동작 유지)
-    - `.bin` 파일 → `ImGui::BeginDragDropSource` 로 드래그 소스 등록 (payload = 모델 전체 경로)
+    - `.bin` / `.model` → `ImGui::BeginDragDropSource` 드래그 소스 (payload = 절대 경로)
 
-2. **`PanelViewport` 수정**
-    - `ImGui::BeginDragDropTarget` 추가
-    - `.bin` payload 드롭 감지 → 마우스 뷰포트 좌표 기록, 앱에 스폰 요청 전달
+2. **`PanelViewport` 수정** ✅
+    - `BeginDragDropTarget` → `ConsumeSpawn` 패턴 (ConsumePick과 동일 구조)
+    - Shift+좌클릭 → `ConsumeCursorSet` (기존 좌클릭 피킹과 분기)
 
-3. **`MapEditorApp` 수정 — 깊이 버퍼 역투영**
-    - Depth Stencil 텍스처용 Staging 텍스처 (`_depthStagingTex`) 추가
-    - `DoSpawnAt(mousePos, modelPath)`:
-        1. 드롭 위치 1픽셀 깊이 읽기 (`CopySubresourceRegion` + Map/Unmap)
-        2. NDC → 뷰 → 월드 역투영으로 3D 위치 복원
-        3. `SceneContext::SpawnObject(modelPath, worldPos)` 호출
-    - ID 피킹(`DoPickAt`)과 동일 패턴, 리소스 분리로 충돌 없음
+3. **`MapEditorApp` 수정 — 3D 커서 + 스폰** ✅
+    - `SceneContext`에 `_cursorPos` / `_cursorVisible` 추가 (뷰포트 오버레이 공유)
+    - `SetCursorAt()`: GPU ID 버퍼로 히트 오브젝트 식별 → 레이 × 해당 오브젝트 AABB 교차로 정확한 표면 위치 계산 (O(1))
+    - `DoSpawnAt()`: `_scene._cursorPos` 위치에 `SceneContext::SpawnObject` 호출
+    - 빈 공간 Shift+클릭 → 카메라 시선 방향 10 단위 앞 폴백
 
-4. **`SceneContext` 수정**
+4. **`SceneContext` 수정** ✅
     - `SpawnObject(const wstring& modelPath, const Vec3& pos)` 추가
-    - `EditorObject` 생성 (타입 StaticMesh, 위치 worldPos) + `MEModelManager`로 렌더 핸들 연결
+    - `EditorObject` 생성 (StaticMesh, 파일명을 이름으로) + `_dirtyRenderHandles = true` → `UpdateRenderHandles`가 다음 프레임에 렌더 핸들 연결
+
+5. **뷰포트 커서 오버레이** ✅
+    - `Image` 아래 좌하단 `##CursorOverlay` 윈도우 — 보라색 `Cursor X.XX Y.XX Z.XX` 표시
 
 #### 설계 결정
-- **깊이 버퍼 역투영 채택**: ID 피킹과 동일한 GPU Staging 패턴, 기존 코드 재사용
-- **Ray × Y=0 평면 교차 기각**: 경사 지형에서 부정확
+- **3D 커서 방식 채택**: Blender 스타일, 지면 높이 무관, Shift+클릭으로 위치 지정 후 드롭
+- **Ray × Y=0 기각**: 경사 지형에서 부정확
+- **CPU AABB 전체 순회 기각**: 오브젝트 수 많을 때 O(n) 성능 문제
+- **GPU ID + 단일 AABB 교차 채택**: ID 버퍼로 히트 오브젝트 특정 후 해당 1개만 레이캐스트 → O(1)
 - **PhysX 레이캐스트 기각**: Phase 6 이전 콜라이더 미구축
 - **동시 실행 충돌 없음**: 피킹(좌클릭)과 드롭은 물리적으로 동시에 발생 불가, 사용 RT도 분리
 
 ---
 
-### Phase 4 — MainEditor 레벨 구성
+### Phase 4 — MainEditor 레벨 구성 ← **다음 작업**
 
 #### 목표
 - Client에서 실제 플레이 가능한 레벨 구조 잡기
@@ -296,6 +299,8 @@ MEModelManager                            — 모델 로드/캐싱 전담
 | Snapping | ✅ (Ctrl 홀드, PanelSnap으로 수치 편집) |
 | Focus (Inspector) | ✅ |
 | 마우스 피킹 (GPU ID Buffer) | ✅ |
+| Asset Browser 파일 탐색기 | ✅ |
+| 3D 커서 스폰 (Shift+클릭 + 드래그 앤 드롭) | ✅ |
 
 ### 렌더링 / 배치
 
