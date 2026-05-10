@@ -6,7 +6,7 @@
 #include "PlayerControllerCom.h"
 #include "Bounding_OBB.h"
 #include "ColliderCom.h"
-
+#include "CombatStatCom.h"
 #include "PlayableParts.h"
 #include "Body_Player.h"
 #include "Hair_Player.h"
@@ -21,7 +21,6 @@ IMPLEMENT_REFLECTION(Player)
     info.category = "Character";
 
     PROPERTY_ENUM("PlayerState",_testPlayerState, PlayerState);
-    PROPERTY_FLOAT("TestHp", _testHp);
 
     return true;
 }
@@ -110,6 +109,8 @@ HRESULT Player::Ready_Components()
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_PlayerController"), _playerControllerCom), E_FAIL);
 
     CHECK_FAILED(Ready_Collider(), E_FAIL);
+
+    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_CombatStat"), _combatStatCom), E_FAIL);
 
 
     return S_OK;
