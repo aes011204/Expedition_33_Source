@@ -273,14 +273,14 @@ void Content_Browser::Scan_Folder(const wstring& path, FFolderNode& node)
         {
             FFolderNode child{};
             Scan_Folder(entry.path().wstring(), child);
-            node.subFolders.emplace_back(std::move(child));
+            node.subFolders.emplace_back(move(child));
         }
         else if (entry.path().extension() != L".meta")
         {
             FFileEntry fileEntry{};
             fileEntry.filePath = entry.path().wstring();
             fileEntry.guid = GAME->Find_AssetGUID(fileEntry.filePath);
-            node.files.emplace_back(std::move(fileEntry));
+            node.files.emplace_back(move(fileEntry));
         }
     }
 }

@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Client_Defines.h"
 #include "GameObject.h"
@@ -29,9 +29,9 @@ public:
     HRESULT Render() override;
 
 private:
-    Shared<ShaderCom> _shader = { nullptr };
-    Shared<Texture> _texture = { nullptr };
-    Shared<VIBufferCom_PointParticle> _vibuffer = { nullptr };
+    Shared<ShaderCom> _shader{ nullptr };
+    Shared<Texture> _texture{ nullptr };
+    Shared<VIBufferCom_PointParticle> _viBuffer{ nullptr };
 
 private:
     HRESULT Ready_Components();

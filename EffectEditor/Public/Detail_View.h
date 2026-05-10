@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Editor_Window.h"
 #include "EffectAuthoring_Types.h"
@@ -18,6 +18,7 @@ public:
 
 private: //## Helper::EffectAuthoring
     void Render_EffectAuthoringDetail();
+    void Render_ParticleSystemDetail(ParticleSystemAuthoringData& data);
     void Render_EmitterDetail(AuthoringEmitter& emitter);
     void Render_ModuleDetail(AuthoringEmitter& emitter, AuthoringModule& module);
     void Render_RequiredDetail(AuthoringEmitter& emitter, AuthoringModule& module, RequiredModuleData& data);
@@ -27,12 +28,24 @@ private: //## Helper::EffectAuthoring
     void Render_InitialVelocityDetail(AuthoringEmitter& emitter, AuthoringModule& module, InitialVelocityModuleData& data);
     void Render_ColorOverLifeDetail(AuthoringEmitter& emitter, AuthoringModule& module, ColorOverLifeModuleData& data);
 
+    bool Begin_PropertyTable(const char* id);
+    void End_PropertyTable();
+    void Draw_PropertyLabel(const char* label);
     bool Draw_StringProperty(const char* label, string& value);
     bool Draw_BoolProperty(const char* label, bool& value);
+    bool Draw_FloatProperty(const char* label, float& value, float speed = 0.01f);
+    bool Draw_FloatDistributionProperty(const char* label, FloatDistributionData& value, float speed = 0.01f);
+    bool Draw_Vector2DistributionProperty(const char* label, Vector2DistributionData& value, float speed = 0.01f);
+    bool Draw_Vector3DistributionProperty(const char* label, Vector3DistributionData& value, float speed = 0.01f);
+    bool Draw_BurstListProperty(vector<SpawnModuleData::ParticleBurstData>& burstList);
+    bool Draw_BurstEntryProperty(SpawnModuleData::ParticleBurstData& burst);
+    bool Draw_ScreenAlignmentProperty(const char* label, EmitterScreenAlignment& value);
+    bool Draw_SortModeProperty(const char* label, EmitterSortMode& value);
     bool Draw_UintProperty(const char* label, uint32& value);
+    bool Draw_DistributionModeProperty(const char* label, DistributionMode& value);
     bool Draw_Vec2Property(const char* label, Vec2& value, float speed = 0.01f);
     bool Draw_Vec3Property(const char* label, Vec3& value, float speed = 0.01f);
-    bool Draw_ColorProperty(const char* label, float value[4]);
+    bool Draw_ColorProperty(const char* label, Color& value);
     void Mark_Changed(AuthoringEmitter& emitter, bool changed);
 
 public:

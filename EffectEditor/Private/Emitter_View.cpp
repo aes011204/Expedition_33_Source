@@ -1,7 +1,8 @@
-#include "Emitter_View.h"
+﻿#include "Emitter_View.h"
 
 #include "Editor_Context.h"
 #include "EffectEditorInstance.h"
+#include "Helper_ImGui.h"
 
 NS_BEGIN(EffectEditor)
 
@@ -14,6 +15,7 @@ HRESULT Emitter_View::Initialize()
 {
     CHECK_FAILED(Editor_Window::Initialize(), E_FAIL);
 
+    _particleSystemData = {};
     _emitters.clear();
     _emitters.push_back(Make_DefaultSpriteEmitter());
     _selectedEmitterIndex = 0;
@@ -80,15 +82,19 @@ AuthoringEmitter Emitter_View::Make_DefaultSpriteEmitter()
     AuthoringEmitter emitter{};
     emitter.id = Issue_AuthoringId();
     emitter.name = "Particle Emitter";
-    emitter.rendererType = "Sprite";
-    emitter.supportState = "Supported";
-    emitter.resourceSummary = "Texture_Snow";
-    emitter.materialName = "DefaultSpriteMaterial";
-    emitter.textureId = "Texture_Snow";
     emitter.enabled = true;
     emitter.previewDirty = true;
 
-    emitter.modules.push_back(Make_RequiredModule());
+    AuthoringModule requiredModule = Make_RequiredModule();
+    if (const auto* requiredData = get_if<RequiredModuleData>(&requiredModule.data))
+    {
+        emitter.rendererType = requiredData->rendererType;
+        emitter.materialName = requiredData->materialName;
+        emitter.textureId = requiredData->textureId;
+        emitter.resourceSummary = requiredData->textureId;
+    }
+
+    emitter.modules.push_back(move(requiredModule));
     emitter.modules.push_back(Make_SpawnModule());
     emitter.modules.push_back(Make_LifetimeModule());
     emitter.modules.push_back(Make_InitialSizeModule());
@@ -105,7 +111,7 @@ AuthoringModule Emitter_View::Make_RequiredModule()
     module.type = AuthoringModuleType::Required;
     module.key = "Required";
     module.displayName = L"필수";
-    module.summary = L"텍스처, 머티리얼, 에디터 컬러";
+    module.summary = L"텍스처, 머티리얼";
     module.enabled = true;
     module.movable = false;
     module.removable = false;
@@ -179,7 +185,7 @@ AuthoringModule Emitter_View::Make_ColorOverLifeModule()
     module.id = Issue_AuthoringId();
     module.type = AuthoringModuleType::ColorOverLife;
     module.key = "Color Over Life";
-    module.displayName = L"컬러 오버 라이프";
+    module.displayName = L"수명에 따른 컬러";
     module.summary = L"수명 진행률 기준 색 변화";
     module.enabled = true;
     module.movable = true;
@@ -276,20 +282,15 @@ void Emitter_View::Draw_EmitterBoard()
     ImGui::EndChild();
 }
 
-void Emitter_View::Draw_EmitterColumn(size_t emitterIndex, const AuthoringEmitter& emitter, float columnHeight)
+void Emitter_View::Draw_EmitterColumn(size_t emitterIndex, AuthoringEmitter& emitter, float columnHeight)
 {
     constexpr float headerPaddingX = 10.f;
     constexpr float headerPaddingY = 12.f;
 
     const bool isSelected = _selectedEmitterIndex.has_value() && _selectedEmitterIndex.value() == emitterIndex;
-    const ImVec4 accentColor{
-        kEmitterAccentOrange[0],
-        kEmitterAccentOrange[1],
-        kEmitterAccentOrange[2],
-        kEmitterAccentOrange[3]
-    };
-    const ImVec4 headerColor = isSelected ? accentColor : ImVec4{ 0.36f, 0.36f, 0.36f, 1.0f };
-    const ImVec4 textColor = isSelected ? ImVec4{ 0.05f, 0.05f, 0.05f, 1.0f } : ImGui::GetStyleColorVec4(ImGuiCol_Text);
+    const ImVec4 accentColor = To_ImVec4(kEmitterAccentColor);
+    const ImVec4 headerColor = isSelected ? accentColor : To_ImVec4(Color{ 0.36f, 0.36f, 0.36f, 1.0f });
+    const ImVec4 textColor = isSelected ? To_ImVec4(Color{ 0.05f, 0.05f, 0.05f, 1.0f }) : ImGui::GetStyleColorVec4(ImGuiCol_Text);
 
     ImGui::BeginGroup();
     const ImVec2 columnMin = ImGui::GetCursorScreenPos();
@@ -301,28 +302,19 @@ void Emitter_View::Draw_EmitterColumn(size_t emitterIndex, const AuthoringEmitte
     drawList->AddRectFilled(
         columnMin,
         columnMax,
-        ImGui::ColorConvertFloat4ToU32(ImVec4{
-            kEmitterColumnBackgroundColor[0],
-            kEmitterColumnBackgroundColor[1],
-            kEmitterColumnBackgroundColor[2],
-            kEmitterColumnBackgroundColor[3]
-        })
+        ImGui::ColorConvertFloat4ToU32(To_ImVec4(kEmitterColumnBackgroundColor))
     );
     drawList->AddRectFilled(
         ImVec2(columnMax.x - kEmitterDividerWidth, columnMin.y),
         columnMax,
-        ImGui::ColorConvertFloat4ToU32(ImVec4{
-            kEmitterDividerColor[0],
-            kEmitterDividerColor[1],
-            kEmitterDividerColor[2],
-            kEmitterDividerColor[3]
-        })
+        ImGui::ColorConvertFloat4ToU32(To_ImVec4(kEmitterDividerColor))
     );
 
     const ImVec2 headerCursor = ImGui::GetCursorPos();
     ImGui::PushStyleColor(ImGuiCol_Button, headerColor);
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, accentColor);
-    ImGui::PushStyleColor(ImGuiCol_ButtonActive, accentColor);
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, headerColor);
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, headerColor);
+    ImGui::SetNextItemAllowOverlap();
     if (ImGui::Button("##EmitterHeader", ImVec2(kEmitterColumnWidth, kEmitterHeaderHeight)))
     {
         _selectedEmitterIndex = emitterIndex;
@@ -342,6 +334,21 @@ void Emitter_View::Draw_EmitterColumn(size_t emitterIndex, const AuthoringEmitte
     ImGui::EndGroup();
     ImGui::PopTextWrapPos();
     ImGui::PopStyleColor();
+
+    ImGui::SetCursorPos(
+        ImVec2(
+            headerCursor.x + headerPaddingX,
+            headerCursor.y + kEmitterHeaderHeight - ImGui::GetFrameHeight() - headerPaddingY
+        )
+    );
+    ImGui::PushID("EmitterEnabled");
+    if (ImGui::Checkbox("##Enabled", &emitter.enabled))
+    {
+        emitter.previewDirty = true;
+        MarkDirty();
+    }
+    ImGui::PopID();
+
     ImGui::SetCursorPos(afterHeaderCursor);
 
     if (isHeaderHovered)
@@ -353,12 +360,7 @@ void Emitter_View::Draw_EmitterColumn(size_t emitterIndex, const AuthoringEmitte
     drawList->AddRectFilled(
         typeDataReserveMin,
         typeDataReserveMax,
-        ImGui::ColorConvertFloat4ToU32(ImVec4{
-            kEmitterTypeDataReserveColor[0],
-            kEmitterTypeDataReserveColor[1],
-            kEmitterTypeDataReserveColor[2],
-            kEmitterTypeDataReserveColor[3]
-        })
+        ImGui::ColorConvertFloat4ToU32(To_ImVec4(kEmitterTypeDataReserveColor))
     );
 
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(ImGui::GetStyle().ItemSpacing.x, 0.f));
@@ -377,30 +379,44 @@ void Emitter_View::Draw_EmitterColumn(size_t emitterIndex, const AuthoringEmitte
     ImGui::EndGroup();
 }
 
-void Emitter_View::Draw_ModuleRow(size_t emitterIndex, size_t moduleIndex, const AuthoringModule& module)
+void Emitter_View::Draw_ModuleRow(size_t emitterIndex, size_t moduleIndex, AuthoringModule& module)
 {
     constexpr float rowHeight = 28.f;
     constexpr float rowPaddingX = 10.f;
+    constexpr float moduleCheckboxRightPadding = 34.f;
 
+    const bool isSelected =
+        _selectedEmitterIndex.has_value() &&
+        _selectedEmitterIndex.value() == emitterIndex &&
+        _selectedModuleIndex.has_value() &&
+        _selectedModuleIndex.value() == moduleIndex;
     const bool isRequiredRow = module.type == AuthoringModuleType::Required;
     const bool isSpawnRow = module.type == AuthoringModuleType::Spawn;
-    const ImVec4 rowColor = isRequiredRow
-                            ? ImVec4{ 0.78f, 0.75f, 0.34f, 1.0f }
-                            : isSpawnRow
-                              ? ImVec4{ 0.78f, 0.36f, 0.38f, 1.0f }
-                              : ImVec4{ 0.18f, 0.19f, 0.24f, 1.0f };
-    const ImVec4 disabledColor{ 0.16f, 0.16f, 0.17f, 1.0f };
+    const ImVec4 accentColor = To_ImVec4(kEmitterAccentColor);
+    const ImVec4 categoryColor = To_ImVec4(
+        isRequiredRow
+        ? Color{ 0.78f, 0.75f, 0.34f, 1.0f }
+        : isSpawnRow
+          ? Color{ 0.78f, 0.36f, 0.38f, 1.0f }
+          : Color{ 0.18f, 0.19f, 0.24f, 1.0f }
+    );
+    const ImVec4 disabledColor = To_ImVec4(Color{ 0.16f, 0.16f, 0.17f, 1.0f });
     const bool usesCategoryColor = isRequiredRow || isSpawnRow;
-    const ImVec4 textColor = usesCategoryColor
-                             ? ImVec4{ 0.08f, 0.08f, 0.08f, 1.0f }
-                             : ImGui::GetStyleColorVec4(ImGuiCol_Text);
+    const ImVec4 rowColor = isSelected ? accentColor : categoryColor;
+    const ImVec4 textColor = isSelected
+                             ? To_ImVec4(Color{ 0.05f, 0.05f, 0.05f, 1.0f })
+                             : usesCategoryColor
+                               ? To_ImVec4(Color{ 0.08f, 0.08f, 0.08f, 1.0f })
+                               : ImGui::GetStyleColorVec4(ImGuiCol_Text);
 
     const ImVec2 rowCursor = ImGui::GetCursorPos();
-    ImGui::PushStyleColor(ImGuiCol_Button, module.enabled || usesCategoryColor ? rowColor : disabledColor);
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, rowColor);
-    ImGui::PushStyleColor(ImGuiCol_ButtonActive, rowColor);
+    const ImVec4 buttonColor = module.enabled || usesCategoryColor ? rowColor : disabledColor;
+    ImGui::PushStyleColor(ImGuiCol_Button, buttonColor);
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, buttonColor);
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, buttonColor);
     ImGui::PushStyleColor(ImGuiCol_Text, module.enabled ? textColor : ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
     ImGui::PushID(module.key.c_str());
+    ImGui::SetNextItemAllowOverlap();
     ImGui::Button("##ModuleRow", ImVec2(kEmitterColumnWidth, rowHeight));
     if (ImGui::IsItemClicked())
     {
@@ -419,6 +435,24 @@ void Emitter_View::Draw_ModuleRow(size_t emitterIndex, size_t moduleIndex, const
     ImGui::PushStyleColor(ImGuiCol_Text, module.enabled ? textColor : ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
     ImGui::TextUnformatted(String::ToString(module.displayName).c_str());
     ImGui::PopStyleColor();
+
+    if (!isRequiredRow)
+    {
+        ImGui::SetCursorPos(
+            ImVec2(
+                rowCursor.x + kEmitterColumnWidth - moduleCheckboxRightPadding,
+                rowCursor.y + (rowHeight - ImGui::GetFrameHeight()) * 0.5f
+            )
+        );
+        ImGui::PushID("ModuleEnabled");
+        if (ImGui::Checkbox("##Enabled", &module.enabled))
+        {
+            _emitters[emitterIndex].previewDirty = true;
+            MarkDirty();
+        }
+        ImGui::PopID();
+    }
+
     ImGui::SetCursorPos(afterRowCursor);
 
     if (isRowHovered)

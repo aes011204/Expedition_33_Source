@@ -16,21 +16,24 @@ public:
     void Render() override;
 
 public: //## Accessor::Authoring
+    ParticleSystemAuthoringData& Get_ParticleSystemData() { return _particleSystemData; }
+    const ParticleSystemAuthoringData& Get_ParticleSystemData() const { return _particleSystemData; }
     AuthoringEmitter* Find_Emitter(uint32 emitterId);
     AuthoringModule* Find_Module(uint32 emitterId, uint32 moduleId);
 
 private:
-    // 선택 emitter 공통 강조색.
-    static constexpr float kEmitterAccentOrange[4]{ 1.0f, 0.42f, 0.10f, 1.0f };
+    inline static const Color kEmitterAccentColor{ 1.0f, 0.55f, 0.20f, 1.0f };
+    inline static const Color kEmitterColumnBackgroundColor{ 0.06f, 0.065f, 0.08f, 1.0f };
+    inline static const Color kEmitterTypeDataReserveColor{ 0.035f, 0.040f, 0.055f, 1.0f };
+    inline static const Color kEmitterDividerColor{ 0.015f, 0.018f, 0.025f, 1.0f };
+
     static constexpr float kEmitterColumnWidth{ 270.f };
     static constexpr float kEmitterHeaderHeight{ 90.f };
-    static constexpr float kEmitterTypeDataReserveHeight{ 22.f };
+    static constexpr float kEmitterTypeDataReserveHeight{ 20.f };
     static constexpr float kEmitterDividerWidth{ 1.f };
-    static constexpr float kEmitterColumnBackgroundColor[4]{ 0.06f, 0.065f, 0.08f, 1.0f };
-    static constexpr float kEmitterTypeDataReserveColor[4]{ 0.035f, 0.040f, 0.055f, 1.0f };
-    static constexpr float kEmitterDividerColor[4]{ 0.015f, 0.018f, 0.025f, 1.0f };
 
 private: //## Data
+    ParticleSystemAuthoringData _particleSystemData{};
     // 현재 편집 중인 effect의 emitter 목록이다.
     vector<AuthoringEmitter> _emitters{};
     // 현재 선택된 emitter index다. 값이 없으면 emitter 선택이 해제된 상태다.
@@ -56,8 +59,8 @@ private: //## Helpers
     void Clamp_Selection();
 
     void Draw_EmitterBoard();
-    void Draw_EmitterColumn(size_t emitterIndex, const AuthoringEmitter& emitter, float columnHeight);
-    void Draw_ModuleRow(size_t emitterIndex, size_t moduleIndex, const AuthoringModule& module);
+    void Draw_EmitterColumn(size_t emitterIndex, AuthoringEmitter& emitter, float columnHeight);
+    void Draw_ModuleRow(size_t emitterIndex, size_t moduleIndex, AuthoringModule& module);
 
 public:
     static Shared<Emitter_View> Create();

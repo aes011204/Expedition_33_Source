@@ -85,7 +85,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE, _In_ LPWSTR,
             }
 
             const auto currentFrameTime = Profile_View::clock::now();
-            const double frameMs = std::chrono::duration<double, std::milli>(currentFrameTime - previousFrameTime).count();
+            const double frameMs = chrono::duration<double, milli>(currentFrameTime - previousFrameTime).count();
             previousFrameTime = currentFrameTime;
 
             Profile_View::Set_Frame_Time_External(frameMs);

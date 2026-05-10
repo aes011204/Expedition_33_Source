@@ -182,9 +182,9 @@ string ImGui_Manager::Get_ClientResourcePath(const wchar_t* relativePath)
     if (0 == GetModuleFileNameW(nullptr, modulePath, MAX_PATH))
         return {};
 
-    const std::filesystem::path runtimeRoot = std::filesystem::path(modulePath).parent_path();
-    const std::filesystem::path resourceRoot =
-        std::filesystem::absolute(runtimeRoot / L"../../../Client/Bin/Resources").lexically_normal();
+    const fs::path runtimeRoot = fs::path(modulePath).parent_path();
+    const fs::path resourceRoot =
+        fs::absolute(runtimeRoot / L"../../../Client/Bin/Resources").lexically_normal();
 
     if (nullptr == relativePath || L'\0' == *relativePath)
         return resourceRoot.string();

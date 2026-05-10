@@ -208,9 +208,6 @@ void EffectEditor_Manager::Render_RuntimeToolbar()
     Render_ShortcutHelp();
 
     ImGui::SameLine();
-    Render_CameraShortcutHelp();
-
-    ImGui::SameLine();
     Render_ExitButton(toolbarHeight);
 }
 
@@ -380,11 +377,12 @@ void EffectEditor_Manager::Render_ShortcutHelp()
 
     if (ImGui::IsItemHovered())
     {
+        ImGui::SetNextWindowSizeConstraints(ImVec2(520.f, 0.f), ImVec2(FLT_MAX, FLT_MAX));
         ImGui::BeginTooltip();
 
-        if (ImGui::BeginTable("ShortcutHelpTable", 2, ImGuiTableFlags_SizingFixedFit))
+        if (ImGui::BeginTable("ShortcutHelpTable", 2, ImGuiTableFlags_SizingStretchProp))
         {
-            ImGui::TableSetupColumn("Key", ImGuiTableColumnFlags_WidthFixed, 110.f);
+            ImGui::TableSetupColumn("Key", ImGuiTableColumnFlags_WidthFixed, 180.f);
             ImGui::TableSetupColumn("Description", ImGuiTableColumnFlags_WidthStretch);
 
             auto draw_shortcut_row = [](const char* key, const char* description)
@@ -396,51 +394,36 @@ void EffectEditor_Manager::Render_ShortcutHelp()
                 ImGui::Text(": %s", description);
             };
 
-            draw_shortcut_row("F1", "Collision Debug Render");
-            draw_shortcut_row("F5", "Play / Resume");
-            draw_shortcut_row("Esc", "Stop");
-            draw_shortcut_row("Shift +", "Time Scale Up");
-            draw_shortcut_row("Shift -", "Time Scale Down");
-            draw_shortcut_row("Alt + Enter", "Fullscreen Toggle");
-            draw_shortcut_row("Ctrl + Space", "Console + Content Browser");
-            draw_shortcut_row("Ctrl + C / V", "Copy / Paste Selected Object");
-            draw_shortcut_row("Delete", "Delete Selected Object");
-            draw_shortcut_row("W E R", "Gizmo Mode");
-
-            ImGui::EndTable();
-        }
-
-        ImGui::EndTooltip();
-    }
-}
-
-void EffectEditor_Manager::Render_CameraShortcutHelp()
-{
-    if (ImGui::SmallButton("Cam Shortcut"))
-    {
-    }
-
-    if (ImGui::IsItemHovered())
-    {
-        ImGui::BeginTooltip();
-
-        if (ImGui::BeginTable("CameraShortcutHelpTable", 2, ImGuiTableFlags_SizingFixedFit))
-        {
-            ImGui::TableSetupColumn("Input", ImGuiTableColumnFlags_WidthFixed, 150.f);
-            ImGui::TableSetupColumn("Description", ImGuiTableColumnFlags_WidthStretch);
-
-            auto draw_shortcut_row = [](const char* input, const char* description)
+            auto draw_section_row = [](const char* sectionTitle)
             {
                 ImGui::TableNextRow();
                 ImGui::TableSetColumnIndex(0);
-                ImGui::TextUnformatted(input);
+                ImGui::TextDisabled("%s", sectionTitle);
                 ImGui::TableSetColumnIndex(1);
-                ImGui::Text(": %s", description);
+                ImGui::TextDisabled(":");
             };
 
+            draw_section_row("Playback / Runtime");
+            draw_shortcut_row("F5", "Play / Resume");
+            draw_shortcut_row("F9", "Pause");
+            draw_shortcut_row("Esc", "Stop");
+            draw_shortcut_row("Shift +", "Time Scale Up");
+            draw_shortcut_row("Shift -", "Time Scale Down");
+
+            draw_section_row("Windows / Global");
             draw_shortcut_row("F8", "Switch Camera");
-            draw_shortcut_row("F9", "Pause + Preview Camera");
-            draw_shortcut_row("Double Click", "Focus Selected Object");
+            draw_shortcut_row("Alt + Enter", "Fullscreen Toggle");
+            draw_shortcut_row("Ctrl + Space", "Console + Content Browser");
+
+            draw_section_row("Hierarchy");
+            draw_shortcut_row("Ctrl + C / V", "Copy / Paste Selected Object");
+            draw_shortcut_row("Delete", "Delete Selected Object");
+            draw_shortcut_row("Hierarchy Double Click", "Focus selected object in Scene");
+
+            draw_section_row("Scene Gizmo");
+            draw_shortcut_row("W E R", "Gizmo Mode");
+
+            draw_section_row("Camera");
             draw_shortcut_row("F", "Home Preview Camera");
             draw_shortcut_row("RMB + Mouse", "Free Look");
             draw_shortcut_row("RMB + W A S D", "Move Free Camera");

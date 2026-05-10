@@ -34,7 +34,6 @@ private:
     void Build_DefaultDockLayout(ImGuiID dockSpaceId, ImVec2 dockSpaceSize);
     void Handle_Shortcuts();
     void Render_ShortcutHelp();
-    void Render_CameraShortcutHelp();
 
     void Toggle_Window(const wstring& windowName);
     void Toggle_WindowPair(const wstring& firstWindowName, const wstring& secondWindowName);

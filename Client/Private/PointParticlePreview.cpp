@@ -16,12 +16,12 @@ IMPLEMENT_REFLECTION(PointParticlePreview)
 }
 
 PointParticlePreview::PointParticlePreview(const ComPtr<Device>& device, const ComPtr<Context>& context)
-    : GameObject { device, context }
+    : GameObject{ device, context }
 {
 }
 
 PointParticlePreview::PointParticlePreview(const PointParticlePreview& prototype)
-    : GameObject { prototype }
+    : GameObject{ prototype }
 {
 }
 
@@ -43,8 +43,8 @@ HRESULT PointParticlePreview::Initialize(void* arg)
 
 void PointParticlePreview::Update(float timeDelta)
 {
-    if (nullptr != _vibuffer)
-        _vibuffer->Spread(timeDelta);
+    if (nullptr != _viBuffer)
+        _viBuffer->Spread(timeDelta);
 }
 
 void PointParticlePreview::Late_Update(float)
@@ -60,10 +60,10 @@ HRESULT PointParticlePreview::Render()
     if (FAILED(_shader->Begin(0)))
         return E_FAIL;
 
-    if (FAILED(_vibuffer->Bind_Resources()))
+    if (FAILED(_viBuffer->Bind_Resources()))
         return E_FAIL;
 
-    if (FAILED(_vibuffer->Render()))
+    if (FAILED(_viBuffer->Render()))
         return E_FAIL;
 
     return S_OK;
@@ -78,7 +78,7 @@ HRESULT PointParticlePreview::Ready_Components()
         return E_FAIL;
 
     PointParticleDesc desc = Make_PointParticleDesc();
-    if (FAILED(__super::Add_Component(ETOI(LevelType::Static), TEXT("Com_VIBuffer_PointParticle"), _vibuffer, &desc)))
+    if (FAILED(__super::Add_Component(ETOI(LevelType::Static), TEXT("Com_VIBuffer_PointParticle"), _viBuffer, &desc)))
         return E_FAIL;
 
     return S_OK;
@@ -105,12 +105,12 @@ PointParticleDesc PointParticlePreview::Make_PointParticleDesc() const
 {
     PointParticleDesc desc{};
     desc.instanceCount = 64;
-    desc.center = Vec3 { 0.f, 2.f, 0.f };
-    desc.range = Vec3 { 2.f, 2.f, 2.f };
-    desc.scale = Vec2 { 0.15f, 0.35f };
-    desc.pivot = Vec3 { 0.f, 2.f, 0.f };
-    desc.speed = Vec2 { 0.5f, 1.5f };
-    desc.lifeTime = Vec2 { 1.f, 2.f };
+    desc.center = Vec3{ 0.f, 2.f, 0.f };
+    desc.range = Vec3{ 2.f, 2.f, 2.f };
+    desc.scale = Vec2{ 0.15f, 0.35f };
+    desc.pivot = Vec3{ 0.f, 2.f, 0.f };
+    desc.speed = Vec2{ 0.5f, 1.5f };
+    desc.lifeTime = Vec2{ 1.f, 2.f };
     desc.loop = true;
 
     return desc;
