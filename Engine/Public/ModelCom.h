@@ -40,6 +40,7 @@ public:
     const Matrix* Get_BoneMatrixPtr(uint32 boneIndex) const;
 
 public:
+    bool Is_AnimationFinished() const { return _isFinished; }
     void Set_Animation(uint32 animIndex, bool isLoop = false);
     void Set_Animation(uint32 animIndex, float blendDuration, bool isLoop = false);
     const char* Get_AnimationName(uint32 animationIndex) const;
@@ -69,6 +70,7 @@ public: /* Guid */
 
 public: /* AnimNotify */
     uint32  Get_CurrentAnimationIndex() const { return _currentAnimIndex; }
+    uint32  Get_AnimationIndex() const;
 
     float   Get_CurrentAnimationDurationSec() const;
     float   Get_CurrentAnimationTimeSec() const;
@@ -140,6 +142,7 @@ private:
     vector<Shared<Animation>>	        _animations;
 
 private: /* For Animation Control */
+    bool                                _isFinished{ false };
 	bool						        _isAnimLoop{ false };       
     bool                                _isBlending{ false };
 	uint32						        _currentAnimIndex{ 0 };

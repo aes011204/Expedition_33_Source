@@ -6,9 +6,12 @@
 #include "PointParticlePreview.h"
 #include "Spawn_Prefab.h"
 
+
 //#include "MapLoader.h"
 
 #include "TargetCamera.h"
+#include "MapLoader.h"
+#include "Spawn_Prefab.h"
 #include "UI_Image.h"
 #include "UI_RuntimeLoader.h"
 #include "UI_Text.h"
@@ -173,6 +176,13 @@ HRESULT Level_GamePlay::Ready_Layer_Monster(const wstring& strLayerTag)
         ETOI(LevelType::GamePlay), strLayerTag)))
         return E_FAIL;
 
+    Shared<GameObject> monster = Client::Spawn_Prefab::Spawn(
+        "Monster123123",
+        ETOI(LevelType::GamePlay),
+        strLayerTag);
+
+    CHECK_NULL(monster, E_FAIL);
+    return S_OK;
     return S_OK;
 }
 

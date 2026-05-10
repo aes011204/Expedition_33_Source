@@ -1,6 +1,10 @@
 #include "Engine_Shader_Defines.hlsli"
 float4x4 g_WorldMatrix, g_ViewMatrix, g_ProjMatrix;
-row_major matrix g_BoneMatrices[512];
+
+cbuffer BoneTransform : register(b1)
+{
+    matrix g_BoneMatrices[950];
+}
 
 Texture2D g_DiffuseTexture;
 Texture2D g_NormalTexture;
