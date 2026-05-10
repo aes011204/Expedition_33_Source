@@ -1,4 +1,5 @@
 ﻿#include "ShaderCom.h"
+#include "Material.h"
 
 ShaderCom::ShaderCom(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Component{ device, context }
@@ -11,6 +12,10 @@ ShaderCom::ShaderCom(const ShaderCom& prototype)
     , _numPasses{ prototype._numPasses }
     , _inputLayouts{ prototype._inputLayouts }
 {
+    for (uint32 i = 0; i < ETOI(ConstantBuffer::END); ++i)
+        _CB[i] = prototype._CB[i];
+
+    _materialTextures = prototype._materialTextures;
 }
 
 HRESULT ShaderCom::Initialize_Prototype(const wchar_t* shaderFilePath, const D3D11_INPUT_ELEMENT_DESC* elements, uint32 numElements)
@@ -70,6 +75,12 @@ HRESULT ShaderCom::Initialize_Prototype(const wchar_t* shaderFilePath, const D3D
 
         _inputLayouts.emplace_back(std::move(inputLayout));
     }
+
+    // TODO CB 확장에 따른 추가 !!  캐싱 ==========================================
+    _CB[ETOI(ConstantBuffer::Material)] =
+        _effect->GetConstantBufferByName("MaterialBuffer");
+
+    _materialTextures = _effect->GetVariableByName("g_MaterialTextures")->AsShaderResource();
 
     return S_OK;
 }
@@ -176,6 +187,61 @@ HRESULT ShaderCom::Bind_RawValue(const char* constantName, const void* data, uin
     }
 
     return variable->SetRawValue(data, 0, length);
+}
+
+HRESULT ShaderCom::Update_CBuffer(ConstantBuffer cbType, const void* pData, size_t size)
+{
+    if (pData == nullptr || size == 0)
+        return E_INVALIDARG;
+
+    const uint32 cbIndex = ETOI(cbType);
+    if (cbIndex >= ETOI(ConstantBuffer::END))
+        return E_FAIL;
+
+    if (_CB[cbIndex] == nullptr)
+        return E_FAIL;
+
+    if (_allocatedCB[cbIndex] == nullptr)
+    {
+        D3D11_BUFFER_DESC bufferDesc{};
+        bufferDesc.ByteWidth = static_cast<UINT>(size);
+        bufferDesc.Usage = D3D11_USAGE_DYNAMIC;
+        bufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+        bufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+        bufferDesc.MiscFlags = 0;
+        bufferDesc.StructureByteStride = 0;
+
+        if (FAILED(_device->CreateBuffer(&bufferDesc, nullptr, _allocatedCB[cbIndex].GetAddressOf())))
+            return E_FAIL;
+    }
+
+    D3D11_MAPPED_SUBRESOURCE mapped{};
+    if (FAILED(_context->Map(_allocatedCB[cbIndex].Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped)))
+        return E_FAIL;
+
+    memcpy(mapped.pData, pData, size);
+    _context->Unmap(_allocatedCB[cbIndex].Get(), 0);
+
+    return _CB[cbIndex]->SetConstantBuffer(_allocatedCB[cbIndex].Get());
+}
+
+HRESULT ShaderCom::Bind_MaterialTextures(const Material& material)
+{
+    if (_materialTextures == nullptr)
+        return E_FAIL;
+
+    ID3D11ShaderResourceView* srvs[ETOI(MaterialTextureSlot::END)]{};
+
+    for (uint32 i = 0; i < ETOI(MaterialTextureSlot::END); ++i)
+    {
+        const Material::TextureSlot* textureSlot =
+            material.Find_TextureSlot(static_cast<MaterialTextureSlot>(i), 0);
+
+        if (textureSlot != nullptr && textureSlot->shaderResourceView != nullptr)
+            srvs[i] = textureSlot->shaderResourceView.Get();
+    }
+
+    return _materialTextures->SetResourceArray(srvs, 0, ETOI(MaterialTextureSlot::END));
 }
 
 Shared<ShaderCom> ShaderCom::Create(

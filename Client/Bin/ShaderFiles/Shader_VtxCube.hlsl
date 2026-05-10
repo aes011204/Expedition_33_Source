@@ -1,5 +1,7 @@
-
 #include "Engine_Shader_Defines.hlsli"
+#include "Engine_Shader_RenderState.hlsl"
+#include "Engine_Shader_Samplers.hlsl"
+
 //==================================================
 // MATRIX
 //==================================================
@@ -8,7 +10,7 @@ float4x4 g_WorldMatrix, g_ViewMatrix, g_ProjMatrix;
 //==================================================
 // TEXTURE
 //==================================================
-textureCUBE g_Texture;
+TextureCube g_Texture;
 
 //==================================================
 // SAMPLER
@@ -76,7 +78,7 @@ technique11 DefaultTechnique
 {
     pass DefaultPass
     {
-        SetRasterizerState(RS_Cull_CW);
+        SetRasterizerState(RS_CullNone);
         SetDepthStencilState(DSS_None, 0);
         SetBlendState(BS_Default, float4(0.f, 0.f, 0.f, 0.f), 0xffffffff);
 

@@ -76,17 +76,33 @@ enum class MaterialShaderTemplate : uint8
 
 enum class MaterialBlendMode : uint8
 {
-    Opaque,
-    Masked,
-    Translucent
+    Opaque,         // Nonblend::Opaque
+    Masked,         // Nonblend::Masked(discard)
+    Translucent,    // 현재 구소 상 blend 패스는 따로 뺄 수가 없음. 확장 or 걍 의미적으로만 둠.
+    Additive,       // 마찬가지
+
+    END
 };
 
-struct MaterialRenderState
+enum class MappingInputKind : uint8
 {
-    bool twoSided = false;
-    MaterialBlendMode blendMode = MaterialBlendMode::Opaque;
+    Skeletal,
+    StaticMesh,
+    Fx,
+};
 
-    float opacityMaskClipValue = 0.3333f;
+enum class MaterialRefKind : uint8
+{
+    MI,
+    M,
+    Unknown,
+};
+
+enum class MaterialSourceKind : uint8
+{
+    SK,
+    SM,
+    FX,
 };
 
 NS_END

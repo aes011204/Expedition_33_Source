@@ -78,8 +78,8 @@ void Monster::Late_Update(float fTimeDelta)
         GAME->Add_Collider(_collider);
     }
 
- 	GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<Character>());
-	GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<Character>());
+ 	// GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<Character>());
+	// GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<Character>());
 }
 
 HRESULT Monster::Render()

@@ -66,4 +66,22 @@ namespace Engine
         END
     };
 
+    enum class VtxAnimMeshPass : uint8
+    {
+        Opaque = 0,
+        Masked,
+        OpaqueTwoSided,
+        MaskedTwoSided,
+        Shadow,
+
+        END
+    };
+
+    enum class ConstantBuffer : uint8
+    {
+        Material = 0,
+
+        END
+    };
+
 }

@@ -1,4 +1,5 @@
 #include "Engine_Shader_Defines.hlsli"
+#include "Engine_Shader_RenderState.hlsl"
 
 //==================================================
 // MATRIX
@@ -10,13 +11,13 @@ float4x4 g_LightViewMatrix, g_LightProjMatrix;
 //==================================================
 // TEXTURE
 //==================================================
-texture2D g_Texture;
-texture2D g_DiffuseTexture;
-texture2D g_NormalTexture;
-texture2D g_ShadeTexture;
-texture2D g_SpecularTexture;
-texture2D g_DepthTexture;
-texture2D g_LightDepthTexture;
+Texture2D g_Texture;
+Texture2D g_DiffuseTexture;
+Texture2D g_NormalTexture;
+Texture2D g_ShadeTexture;
+Texture2D g_SpecularTexture;
+Texture2D g_DepthTexture;
+Texture2D g_LightDepthTexture;
 
 //==================================================
 // LIGHT

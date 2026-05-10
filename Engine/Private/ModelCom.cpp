@@ -76,7 +76,7 @@ const Material::TextureSlot* ModelCom::Find_MaterialSlot(uint32 meshIndex, std::
 
 int32 ModelCom::Get_BoneIndex(const string& boneName) const
 {
-    for (int32 i = 0; i < _numBones; ++i)
+    for (uint32 i = 0; i < _numBones; ++i)
     {
         if (_bones[i]->Check_BoneByName(boneName))
             return i;

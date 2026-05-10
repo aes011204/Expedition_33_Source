@@ -1,5 +1,8 @@
-
 #include "Engine_Shader_Defines.hlsli"
+#include "Engine_Shader_RenderState.hlsl"
+#include "Engine_Shader_Samplers.hlsl"
+#include "Engine_Shader_Passes.hlsl"
+
 //==================================================
 // MATRIX
 //==================================================
@@ -8,7 +11,7 @@ float4x4 g_WorldMatrix, g_ViewMatrix, g_ProjMatrix;
 //==================================================
 // MATERIAL
 //==================================================
-texture2D g_DiffuseTexture;
+Texture2D g_DiffuseTexture;
 
 //==================================================
 // CAMERA
@@ -19,16 +22,6 @@ float g_fFar = 0.f;
 // SHADOW
 //==================================================
 float g_fLightFar = 0.f;
-
-//==================================================
-// SAMPLER
-//==================================================
-sampler DefaultSampler = sampler_state
-{
-    Filter = MIN_MAG_MIP_LINEAR;   
-    AddressU = wrap;
-    AddressV = wrap;
-};
 
 //==================================================
 // VS
@@ -50,7 +43,7 @@ struct VS_OUT
     float4 vProjPos : TEXCOORD2;
 };
 
-VS_OUT VS_MAIN(VS_IN In)
+VS_OUT VS_Default(VS_IN In)
 {
     VS_OUT Out;
     
@@ -90,11 +83,11 @@ struct PS_OUT
     vector vDepth : SV_TARGET2;
 };
 
-PS_OUT PS_MAIN(PS_IN In)
+PS_OUT PS_Default(PS_IN In)
 {
     PS_OUT Out;
     
-    vector      vMtrlDiffuse = g_DiffuseTexture.Sample(DefaultSampler, In.vTexcoord);
+    vector      vMtrlDiffuse = g_DiffuseTexture.Sample(LinearWrapSampler, In.vTexcoord);
     
     if (vMtrlDiffuse.a < 0.3f)
         discard;
@@ -114,7 +107,7 @@ struct PS_OUT_SHADOW
     vector vLightDepth : SV_TARGET0;
 };
 
-PS_OUT_SHADOW PS_MAIN_SHADOW(PS_IN In)
+PS_OUT_SHADOW PS_Shadow(PS_IN In)
 {
     PS_OUT_SHADOW Out;
     
@@ -123,7 +116,7 @@ PS_OUT_SHADOW PS_MAIN_SHADOW(PS_IN In)
     return Out;
 }
 
-PS_OUT PS_MAIN_NOTEXTURE(PS_IN In)
+PS_OUT PS_NoTexture(PS_IN In)
 {
     PS_OUT Out;
 
@@ -136,37 +129,7 @@ PS_OUT PS_MAIN_NOTEXTURE(PS_IN In)
 
 technique11 DefaultTechnique
 {
-    pass DefaultPass
-    {
-        SetRasterizerState(RS_Default);
-        SetDepthStencilState(DSS_Default, 0);
-        SetBlendState(BS_Default, float4(0.f, 0.f, 0.f, 0.f), 0xffffffff);
-
-        VertexShader = compile vs_5_0 VS_MAIN();
-        GeometryShader = NULL;
-        PixelShader = compile ps_5_0 PS_MAIN();
-    }
-
-    pass ShadowPass
-    {
-        SetRasterizerState(RS_Default);
-        SetDepthStencilState(DSS_Default, 0);
-        SetBlendState(BS_Default, float4(0.f, 0.f, 0.f, 0.f), 0xffffffff);
-
-        VertexShader = compile vs_5_0 VS_MAIN();
-        GeometryShader = NULL;
-        PixelShader = compile ps_5_0 PS_MAIN_SHADOW();
-    }
-
-    pass NoTexturePass
-    {
-        SetRasterizerState(RS_Default);
-        SetDepthStencilState(DSS_Default, 0);
-        SetBlendState(BS_Default, float4(0.f, 0.f, 0.f, 0.f), 0xffffffff);
-
-        VertexShader = compile vs_5_0 VS_MAIN();
-        GeometryShader = NULL;
-        PixelShader = compile ps_5_0 PS_MAIN_NOTEXTURE();
-    }
-
+    PASS_RS_DS_BS_VP(DefaultPass,   RS_Default, DSS_Default, BS_Default, VS_Default, PS_Default)    // 0
+    PASS_RS_DS_BS_VP(ShadowPass,    RS_Default, DSS_Default, BS_Default, VS_Default, PS_Shadow)     // 1
+    PASS_RS_DS_BS_VP(NoTexturePass, RS_Default, DSS_Default, BS_Default, VS_Default, PS_NoTexture)  // 2
 }

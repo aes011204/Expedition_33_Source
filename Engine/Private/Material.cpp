@@ -50,6 +50,8 @@ HRESULT Material::Initialize(const char* modelPath, const ModelMaterialData& mat
         _materials[static_cast<uint32>(texSlot.slot)].push_back(texSlot);
     }
 
+    Update_MaterialState();
+
     return S_OK;
 }
 
@@ -68,8 +70,25 @@ HRESULT Material::Bind_Material(ShaderCom* shader, const char* constantName, Mat
 HRESULT Material::Override_TextureSlot(MaterialTextureSlot slot, uint32 slotIndex, const wstring& texturePath)
 {
     const uint32 materialSlotIndex = static_cast<uint32>(slot);
-    if (materialSlotIndex >= _maxTextureTypeSize || slotIndex >= _materials[materialSlotIndex].size())
+    if (materialSlotIndex >= _maxTextureTypeSize)
         return E_FAIL;
+
+    if (slotIndex >= _materials[materialSlotIndex].size())
+        _materials[materialSlotIndex].resize(slotIndex + 1);
+
+    // 빈 경로는 해당 슬롯을 비우는 용도로 사용한다.
+    // 모델에 원래 없던 슬롯을 추가하거나, 원래 있던 슬롯을 제거하고 싶을 때 사용한다.
+    if (texturePath.empty())
+    {
+        TextureSlot& textureSlot = _materials[materialSlotIndex][slotIndex];
+        textureSlot.slot = slot;
+        textureSlot.textureIndex = slotIndex;
+        textureSlot.resolvedPath.clear();
+        textureSlot.shaderResourceView.Reset();
+
+        Update_MaterialState();
+        return S_OK;
+    }
 
     const fs::path resolvedPath(texturePath);
     if (!fs::exists(resolvedPath) || !fs::is_regular_file(resolvedPath))
@@ -80,11 +99,43 @@ HRESULT Material::Override_TextureSlot(MaterialTextureSlot slot, uint32 slotInde
         return E_FAIL;
 
     TextureSlot& textureSlot = _materials[materialSlotIndex][slotIndex];
+    textureSlot.slot = slot;
+    textureSlot.textureIndex = slotIndex;
     textureSlot.resolvedPath = resolvedPath.lexically_normal().wstring();
     textureSlot.shaderResourceView.Reset();
     textureSlot.shaderResourceView.Attach(srv);
 
+
+    Update_MaterialState();
+
     return S_OK;
+}
+
+// 텍스처 존재 여부를 materialMask에 반영하고, BaseColor 슬롯 UV를 반영한다.
+void Material::Update_MaterialState()
+{
+    _cb.materialMask = 0;
+
+    for (uint32 i = 0; i < ETOI(MaterialTextureSlot::END); ++i)
+    {
+        const MaterialTextureSlot slot = static_cast<MaterialTextureSlot>(i);
+        const TextureSlot* textureSlot = Find_TextureSlot(slot, 0);
+
+        if (textureSlot != nullptr && textureSlot->shaderResourceView != nullptr)
+            _cb.materialMask |= (1u << i);
+    }
+
+    const TextureSlot* baseColorSlot = Find_TextureSlot(MaterialTextureSlot::BaseColor, 0);
+    if (baseColorSlot != nullptr)
+    {
+        _cb.uvScale = baseColorSlot->uvScale;
+        _cb.uvOffset = baseColorSlot->uvOffset;
+    }
+    else
+    {
+        _cb.uvScale = Vec2(1.f, 1.f);
+        _cb.uvOffset = Vec2(0.f, 0.f);
+    }
 }
 
 uint32 Material::Get_TextureCount(MaterialTextureSlot slot) const
@@ -107,6 +158,34 @@ const Material::TextureSlot* Material::Find_TextureSlot(MaterialTextureSlot slot
         return nullptr;
 
     return &slots[textureIndex];
+}
+
+void Material::Set_CB(const MaterialCB& cb)
+{
+    _cb = cb;
+    Update_MaterialState();
+}
+
+
+// 메쉬의 머테리얼 별로 pass를 세분화할 때 사용한다.
+uint32 Material::Get_PassIndex() const
+{
+    const bool isMasked =
+        _renderState.blendMode == MaterialBlendMode::Masked ||
+        _renderState.alphaClip;
+
+    if (isMasked)
+    {
+        if (_renderState.twoSided)
+            return static_cast<uint32>(VtxAnimMeshPass::MaskedTwoSided);
+
+        return static_cast<uint32>(VtxAnimMeshPass::Masked);
+    }
+
+    if (_renderState.twoSided)
+        return static_cast<uint32>(VtxAnimMeshPass::OpaqueTwoSided);
+
+    return static_cast<uint32>(VtxAnimMeshPass::Opaque);
 }
 
 wstring Material::Find_TextureFile(const fs::path& searchRoot, const string& fileName)

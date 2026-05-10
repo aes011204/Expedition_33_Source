@@ -383,6 +383,29 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
   <ItemGroup>
     <ResourceCompile Include="Engine.rc" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="..\Bin\ShaderFiles\Engine_Shader_ConstantBuffer.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="..\Bin\ShaderFiles\Engine_Shader_Material.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="..\Bin\ShaderFiles\Engine_Shader_Passes.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="..\Bin\ShaderFiles\Engine_Shader_RenderState.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="..\Bin\ShaderFiles\Engine_Shader_Samplers.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="..\Bin\ShaderFiles\Engine_Shader_Utils.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\Bin\ShaderFiles\Engine_Shader_Defines.hlsli" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

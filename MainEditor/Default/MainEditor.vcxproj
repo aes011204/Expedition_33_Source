@@ -202,6 +202,8 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     <ClCompile Include="..\Private\Editor_Context.cpp" />
     <ClCompile Include="..\Private\Inspector_Factory.cpp" />
     <ClCompile Include="..\Private\MainEditorApp.cpp" />
+    <ClCompile Include="..\Private\MaterialCreateHelper.cpp" />
+    <ClCompile Include="..\Private\Material_View.cpp" />
     <ClCompile Include="..\Private\Model_Inspector.cpp" />
     <ClCompile Include="..\Private\Notification_Manager.cpp" />
     <ClCompile Include="..\Private\Prefab_View.cpp" />
@@ -236,6 +238,9 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     <ClInclude Include="..\Public\Editor_Struct.h" />
     <ClInclude Include="..\Public\ImGui_Manager.h" />
     <ClInclude Include="..\Public\Inspector_Factory.h" />
+    <ClInclude Include="..\Public\Material_BundleTypes.h" />
+    <ClInclude Include="..\Public\MaterialCreateHelper.h" />
+    <ClInclude Include="..\Public\Material_View.h" />
     <ClInclude Include="..\Public\Model_Inspector.h" />
     <ClInclude Include="..\Public\Notification_Manager.h" />
     <ClInclude Include="..\Public\Prefab_View.h" />
