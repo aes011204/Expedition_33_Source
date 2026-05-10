@@ -1,5 +1,6 @@
 ﻿#include "SceneContext.h"
 #include "Helper_String.h"
+#include "IEditorCommand.h"
 
 void SceneContext::SaveToFile(const string& filePath)
 {
@@ -127,11 +128,19 @@ void SceneContext::LoadFromFile(const string& filePath)
     _dirtyRenderHandles = true;
     _selected = nullptr;
 
+    _undoStack.clear();
+    _redoStack.clear();
+
     auto LoadTransform = [](const json& e, EditorObject& obj) {
         auto& pos = e["Position"];
         obj._position = { pos[0], pos[1], pos[2] };
         auto& rot = e["Rotation"];
         obj._rotation = { rot[0], rot[1], rot[2], rot[3] };
+        if (e.contains("Scale"))
+        {
+            auto& s = e["Scale"];
+            obj._scale = { s[0], s[1], s[2] };
+        }
         obj.UpdateWorldMatrix();
         };
 
@@ -163,8 +172,6 @@ void SceneContext::LoadFromFile(const string& filePath)
                 + _modelFolder + L"/"
                 + String::ToWString(modelPathStr);
 
-            auto& scl = e["Scale"];
-            obj->_scale = { scl[0], scl[1], scl[2] };
             LoadTransform(e, *obj);
             _objects.push_back(obj);
         }
@@ -359,7 +366,7 @@ Shared<EditorObject> SceneContext::SpawnFromPrefab(const string& prefabPath, con
         if (j.contains("Specular"))
         {
             auto& d = j["Specular"];
-            obj->_lightAmbient = { d[0], d[1], d[2], d[3] };
+            obj->_lightSpecular = { d[0], d[1], d[2], d[3] };
         }
         break;
     }
@@ -415,6 +422,50 @@ Shared<EditorObject> SceneContext::SpawnFromPrefab(const string& prefabPath, con
     obj->UpdateWorldMatrix();
     Add(obj);
     return obj;
+}
+
+void SceneContext::PushCommand(Shared<IEditorCommand> cmd)
+{
+    if (!cmd)
+    {
+        return;
+    }
+
+    cmd->Execute(*this);
+
+    _undoStack.push_back(move(cmd));
+    if (_undoStack.size() > 50)
+    {
+        _undoStack.erase(_undoStack.begin());
+    }
+
+    _redoStack.clear();
+}
+
+void SceneContext::UndoCommand()
+{
+    if (_undoStack.empty())
+    {
+        return;
+    }
+
+    auto cmd = _undoStack.back();
+    _undoStack.pop_back();
+    cmd->Undo(*this);
+    _redoStack.push_back(move(cmd));
+}
+
+void SceneContext::RedoCommand()
+{
+    if (_redoStack.empty())
+    {
+        return;
+    }
+
+    auto cmd = _redoStack.back();
+    _redoStack.pop_back();
+    cmd->Execute(*this);
+    _undoStack.push_back(move(cmd));
 }
 
 void SceneContext::Add(Shared<EditorObject> obj)

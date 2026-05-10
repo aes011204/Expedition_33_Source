@@ -160,13 +160,18 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\Public\CmdAddObject.h" />
+    <ClInclude Include="..\Public\CmdDeleteObject.h" />
+    <ClInclude Include="..\Public\CmdTransformObject.h" />
     <ClInclude Include="..\Public\EditorObject.h" />
+    <ClInclude Include="..\Public\IEditorCommand.h" />
     <ClInclude Include="..\Public\MapEditorApp.h" />
     <ClInclude Include="..\Public\MapEditorDefines.h" />
     <ClInclude Include="..\Public\MECamera.h" />
     <ClInclude Include="..\Public\MEImGuiManager.h" />
     <ClInclude Include="..\Public\MEManager.h" />
     <ClInclude Include="..\Public\MEModelManager.h" />
+    <ClInclude Include="..\Public\MEPickingSystem.h" />
     <ClInclude Include="..\Public\MEStaticMeshActor.h" />
     <ClInclude Include="..\Public\MEUe5Importer.h" />
     <ClInclude Include="..\Public\MEWindow.h" />
@@ -183,12 +188,16 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\Private\CmdAddObject.cpp" />
+    <ClCompile Include="..\Private\CmdDeleteObject.cpp" />
+    <ClCompile Include="..\Private\CmdTransformObject.cpp" />
     <ClCompile Include="..\Private\EditorObject.cpp" />
     <ClCompile Include="..\Private\MapEditorApp.cpp" />
     <ClCompile Include="..\Private\MECamera.cpp" />
     <ClCompile Include="..\Private\MEImGuiManager.cpp" />
     <ClCompile Include="..\Private\MEManager.cpp" />
     <ClCompile Include="..\Private\MEModelManager.cpp" />
+    <ClCompile Include="..\Private\MEPickingSystem.cpp" />
     <ClCompile Include="..\Private\MEStaticMeshActor.cpp" />
     <ClCompile Include="..\Private\MEUe5Importer.cpp" />
     <ClCompile Include="..\Private\MEWindow.cpp" />

@@ -70,6 +70,27 @@
     <Filter Include="03. Manager\MEModelManager">
       <UniqueIdentifier>{3fbe4ead-0c55-43ec-b46f-f0d86a03c5b1}</UniqueIdentifier>
     </Filter>
+    <Filter Include="09. EditorCommands">
+      <UniqueIdentifier>{233c2c9d-0392-40d4-b077-fdcb06c59c11}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="09. EditorCommands\IEditorCommand">
+      <UniqueIdentifier>{e83066e5-f277-4fad-bbde-089cea067cc9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="09. EditorCommands\IEditorCommand\CmdAddObject">
+      <UniqueIdentifier>{28ca647f-5ec4-4dde-99d1-f6ba5fbb96e2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="09. EditorCommands\IEditorCommand\CmdDeleteObject">
+      <UniqueIdentifier>{ca1c3a2e-7884-416b-8ee4-8c7c23affdb5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="09. EditorCommands\IEditorCommand\CmdTransformObject">
+      <UniqueIdentifier>{dc5d53dd-39d7-4553-a53b-eb7431dc1302}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="10. System">
+      <UniqueIdentifier>{66696bb6-7437-450c-8787-d982d9bb38d4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="10. System\MEPickingSystem">
+      <UniqueIdentifier>{e6f46635-7d2c-4d86-897b-4722f643cb96}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="targetver.h">
@@ -134,6 +155,21 @@
     </ClInclude>
     <ClInclude Include="..\Public\MEModelManager.h">
       <Filter>03. Manager\MEModelManager</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\IEditorCommand.h">
+      <Filter>09. EditorCommands\IEditorCommand</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\CmdAddObject.h">
+      <Filter>09. EditorCommands\IEditorCommand\CmdAddObject</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\CmdDeleteObject.h">
+      <Filter>09. EditorCommands\IEditorCommand\CmdDeleteObject</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\CmdTransformObject.h">
+      <Filter>09. EditorCommands\IEditorCommand\CmdTransformObject</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\MEPickingSystem.h">
+      <Filter>10. System\MEPickingSystem</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -203,6 +239,18 @@
     </ClCompile>
     <ClCompile Include="..\Private\MEModelManager.cpp">
       <Filter>03. Manager\MEModelManager</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\CmdAddObject.cpp">
+      <Filter>09. EditorCommands\IEditorCommand\CmdAddObject</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\CmdDeleteObject.cpp">
+      <Filter>09. EditorCommands\IEditorCommand\CmdDeleteObject</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\CmdTransformObject.cpp">
+      <Filter>09. EditorCommands\IEditorCommand\CmdTransformObject</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\MEPickingSystem.cpp">
+      <Filter>10. System\MEPickingSystem</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

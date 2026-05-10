@@ -48,9 +48,9 @@ MapEditorApp          — 엔진 초기화, 메인 루프 (Update/Render), Scene
 ├── SceneContext      — 씬 오브젝트 목록 + 선택 상태 + JSON 저장/로드
 └── MEManager         — DockSpace + 패널 컨테이너 + File 메뉴
     ├── PanelViewport     ✅ RT ImGui::Image, 카메라 입력, ImGuizmo 오버레이
-    ├── PanelHierarchy    ✅ 오브젝트 목록, 선택/추가/삭제/복제/이름변경
-    ├── PanelInspector    ✅ Transform 실시간 편집, Gizmo 양방향 연동
-    └── PanelAssetBrowser ✅ 파일 탐색기 방식, 브레드크럼, .bin 드래그 앤 드롭 스폰
+    ├── PanelHierarchy    ✅ 오브젝트 목록, 선택/삭제/복제/이름변경 (Add 버튼 제거 — Prefab으로 대체)
+    ├── PanelInspector    ✅ Transform 실시간 편집, Gizmo 양방향 연동, Undo 기록
+    └── PanelAssetBrowser ✅ 파일 탐색기 방식, 브레드크럼, .bin/.prefab 드래그 앤 드롭 스폰
 ```
 
 **베이스 클래스**: `MEWindow` (이름, 열림 상태, Update/Render 인터페이스)
@@ -75,9 +75,30 @@ SceneContext
 ├── objects       (vector<Shared<EditorObject>>)
 ├── selected      (Shared<EditorObject>)
 ├── mapName       (wstring)
+├── _undoStack    (vector<Shared<IEditorCommand>>)  — 최대 50개
+├── _redoStack    (vector<Shared<IEditorCommand>>)
 ├── SaveToFile(const string& path)
-└── LoadFromFile(const string& path)
+├── LoadFromFile(const string& path)               — 로드 시 Undo/Redo 스택 초기화
+├── SpawnObject(const wstring& modelPath, const Vec3& pos) → Shared<EditorObject>
+├── SpawnFromPrefab(const string& prefabPath, const Vec3& pos) → Shared<EditorObject>
+├── PushCommand(Shared<IEditorCommand> cmd)        — Execute 호출 후 undoStack push, redoStack clear
+├── UndoCommand()
+└── RedoCommand()
 ```
+
+### Command 시스템 ✅
+
+```
+IEditorCommand (abstract)          — Execute / Undo 인터페이스
+├── CmdAddObject                   — obj 추가 (Execute: Add+선택, Undo: Remove)
+├── CmdDeleteObject                — obj 삭제 (Execute: Remove, Undo: 원래 인덱스에 재삽입+선택)
+└── CmdTransformObject             — Transform 변경 (old/new pos·rot·scale 보관, 양방향 복원)
+```
+
+> Prefab/메시 스폰, Inspector Delete, Hierarchy Delete, Gizmo/Inspector Transform 편집 모두 Command로 기록.  
+> Ctrl+Z / Ctrl+Y 로 Undo/Redo. `WantTextInput` 체크로 텍스트 입력 중 오작동 방지.
+
+---
 
 ### scale_map.py ✅ (외부 변환 도구)
 
@@ -256,30 +277,40 @@ MEModelManager                            — 모델 로드/캐싱 전담
 
 ---
 
-### Phase 3.9 — 편집 UX 개선 ← **다음 작업**
+### Phase 3.9 — 편집 UX 개선 ✅
 
 #### 목표
 - 오브젝트 배치 흐름을 Prefab 드래그 앤 드롭으로 통일하고, 실수 복구 기능 추가
 
-#### 작업 내용
+#### 구현 내용
 
-1. **오브젝트 추가 시 자동 선택**
-   - 스폰 직후 `_scene._selected = newObj` 설정
-   - 추가 즉시 Inspector 포커스 + Gizmo 활성화
+1. **오브젝트 추가 시 자동 선택** ✅
+   - `SpawnObject` / `SpawnFromPrefab` → `Shared<EditorObject>` 반환
+   - `DoSpawnAt`에서 `PushCommand(CmdAddObject)` → Execute 내에서 자동 선택
+   - Hierarchy `_prevSelected` 비교로 스크롤 자동 동기화
 
-2. **Prefab 시스템 (Asset Browser 통합)**
+2. **Prefab 시스템 (Asset Browser 통합)** ✅
    - Light / SpawnPoint / TriggerVolume 등 비메시 오브젝트를 `.prefab` JSON 파일로 저장
-   - Asset Browser에서 `.prefab` 파일 인식 → 드래그 앤 드롭으로 3D 커서 위치에 스폰
-   - 포맷: `{ "Type": "Light", "Name": "Point Light", "LightType": "Point", "Range": 10.0, ... }`
-   - 저장 경로: `Client/Bin/Resources/Map/Prefabs/` (Asset Browser 탐색 대상에 추가)
-   - `ConsumeSpawn`에서 확장자로 `.bin` / `.prefab` 분기 — 기존 메시 파이프라인 재사용
-   - Prefab 시스템 완성 후 Hierarchy "Add" 버튼(타입 팝업) 제거
+   - 저장 경로: `Client/Bin/Resources/Map/Prefabs/` (7종 기본 프리팹 제공)
+   - `PanelAssetBrowser`: `.prefab` 드래그 소스 추가 (payload 재사용: `"MODEL_PATH"`)
+   - `DoSpawnAt`: 확장자 분기 — `.prefab` → `SpawnFromPrefab`, 나머지 → `SpawnObject`
+   - `SceneContext::SpawnFromPrefab`: JSON 파싱 → 타입별 파라미터 복원 → `Add`
+   - Hierarchy "추가" 버튼(타입 팝업) 제거, `_types` 배열 제거
+   - 버그 수정: `DoSpawnAt`에서 `SpawnObject`/`SpawnFromPrefab` 내부 `Add` 후 `Remove` → `PushCommand` 순서로 이중 스폰 방지
 
-3. **Ctrl+Z / Ctrl+Y Undo/Redo**
-   - Command 패턴 — `IEditorCommand` 인터페이스 (`Execute` / `Undo`)
-   - 커맨드 종류: `CmdAddObject`, `CmdDeleteObject`, `CmdTransformObject`
-   - `SceneContext`에 `_undoStack` / `_redoStack` 보관, 스택 최대 50개
-   - Inspector Transform 편집은 마우스 릴리스 / Enter 확정 시점에 커맨드 기록 (드래그 중 매 프레임 기록 방지)
+3. **Ctrl+Z / Ctrl+Y Undo/Redo** ✅
+   - `IEditorCommand` (abstract class) — `Execute` / `Undo` 인터페이스
+   - `CmdAddObject` / `CmdDeleteObject` / `CmdTransformObject` — Initialize/Create 패턴
+   - `SceneContext`에 `_undoStack` / `_redoStack` (vector, 최대 50개)
+   - `PushCommand`: Execute 호출 → undoStack push → redoStack clear
+   - `MapEditorApp::Update`: `WantTextInput` 체크 후 Ctrl+Z → `UndoCommand`, Ctrl+Y → `RedoCommand`
+   - Inspector Transform: DragFloat3 `IsItemActive` 추적, 드래그 시작 시 before 스냅샷, 드래그 종료 시 `CmdTransformObject` push
+     - `frameStartPos/Rot/Scale`로 첫 프레임 수정 전 값 캡처
+   - Gizmo: `IsUsing()` 전환 감지, 드래그 시작 시 before 캡처, 드래그 종료 시 `CmdTransformObject` push (`_gizmoWasUsing` 업데이트 필수)
+   - Inspector/Hierarchy Delete → `CmdDeleteObject` (삭제 전 인덱스 보존)
+   - `LoadFromFile` 시 Undo/Redo 스택 초기화
+   - `Free()` 시 스택 clear → D3D11 리소스 누수 방지
+   - 버그 수정: `Free()`에서 `_deferredShader` / `_rectBuffer` 누락으로 인한 `LIVE_BLENDSTATE` / `LIVE_BUFFER` 해결
 
 ---
 
@@ -334,9 +365,9 @@ MEModelManager                            — 모델 로드/캐싱 전담
 | 마우스 피킹 (GPU ID Buffer) | ✅ |
 | Asset Browser 파일 탐색기 | ✅ |
 | 3D 커서 스폰 (Shift+클릭 + 드래그 앤 드롭) | ✅ |
-| 추가 시 자동 선택 | 구현 예정 (Phase 3.9) |
-| Prefab 시스템 (.prefab 드래그 앤 드롭) | 구현 예정 (Phase 3.9) |
-| Undo / Redo (Ctrl+Z / Ctrl+Y) | 구현 예정 (Phase 3.9) |
+| 추가 시 자동 선택 | ✅ |
+| Prefab 시스템 (.prefab 드래그 앤 드롭) | ✅ |
+| Undo / Redo (Ctrl+Z / Ctrl+Y) | ✅ |
 
 ### 렌더링 / 배치
 

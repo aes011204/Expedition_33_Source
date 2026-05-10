@@ -9,7 +9,9 @@
 #include "PanelViewport.h"
 #include "MEStaticMeshActor.h"
 #include "MEModelManager.h"
-
+#include "CmdAddObject.h"
+#include "CmdDeleteObject.h"
+#include "CmdTransformObject.h"
 
 extern HWND g_hWnd;
 extern HINSTANCE g_hInst;
@@ -78,6 +80,19 @@ void MapEditorApp::Update(float timeDelta)
 {
     GAME->Update_Engine(timeDelta);
     _imguiManager->Update(timeDelta);
+
+    if (!ImGui::GetIO().WantTextInput)
+    {
+        if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_Z))
+        {
+            _scene.UndoCommand();
+        }
+        else if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_Y))
+        {
+            _scene.RedoCommand();
+        }
+    }
+
     _manager->Update(timeDelta);
     UpdateRenderHandles();
 }
@@ -496,8 +511,23 @@ void MapEditorApp::DoSpawnAt(const string& modelPath)
         return;
     }
 
-    wstring wPath = String::ToWString(modelPath);
-    _scene.SpawnObject(wPath, _scene._cursorPos);
+    string ext = fs::path(modelPath).extension().string();
+
+    Shared<EditorObject> spawned;
+    if (ext == ".prefab")
+    {
+        spawned = _scene.SpawnFromPrefab(modelPath, _scene._cursorPos);
+    }
+    else
+    {
+        spawned = _scene.SpawnObject(String::ToWString(modelPath), _scene._cursorPos);
+    }
+
+    if (spawned)
+    {
+        _scene.Remove(spawned);
+        _scene.PushCommand(CmdAddObject::Create(spawned));
+    }
 }
 
 HRESULT MapEditorApp::Ready_PickingRT()
@@ -572,7 +602,11 @@ void MapEditorApp::Free()
 {
     _scene._selected.reset();
     _scene._objects.clear();
+    _scene._undoStack.clear();
+    _scene._redoStack.clear();
     _meshShader.reset();
+    _deferredShader.reset();
+    _rectBuffer.reset();
     _modelManager.reset();
 
     __super::Free();
