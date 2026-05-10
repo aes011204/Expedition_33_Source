@@ -199,6 +199,12 @@
     <Filter Include="01.Utility\04.Component\ComputeShader\ComputeStructuredBuffer">
       <UniqueIdentifier>{34c06953-7d85-4aa3-8be8-78139e8f4dec}</UniqueIdentifier>
     </Filter>
+    <Filter Include="01.Utility\04.Component\VIBuffer\Instance\Mesh">
+      <UniqueIdentifier>{924c5aa5-cf16-4247-9354-2499cb763936}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="97. Manager\Culling">
+      <UniqueIdentifier>{0e30feaa-f164-460e-b631-5ee065871dc7}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -230,7 +236,6 @@
     </ClInclude>
     <ClInclude Include="..\public\AStar.h" />
     <ClInclude Include="..\Public\Reflection_JsonUtil.h" />
-    <ClInclude Include="..\Public\Culling_Manager.h" />
     <ClInclude Include="..\public\Parallel.h">
       <Filter>E_BehavoirTreee\node</Filter>
     </ClInclude>
@@ -243,6 +248,12 @@
     <ClInclude Include="..\Public\AnimNotify.h" />
     <ClInclude Include="..\Public\AnimNotifyState.h" />
     <ClInclude Include="..\Public\ThreadPool.h" />
+    <ClInclude Include="..\Public\VIBuffer_Mesh.h">
+      <Filter>01.Utility\04.Component\VIBuffer\Instance\Mesh</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Culling_Manager.h">
+      <Filter>97. Manager\Culling</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\public\Base.h">
@@ -753,7 +764,6 @@
     <ClCompile Include="..\private\UI_Text.cpp" />
     <ClCompile Include="..\private\UI_Transform.cpp" />
     <ClCompile Include="..\private\AStar.cpp" />
-    <ClCompile Include="..\Private\Culling_Manager.cpp" />
     <ClCompile Include="..\private\UI_Base.cpp">
       <Filter>01.Utility\11. UI</Filter>
     </ClCompile>
@@ -781,6 +791,12 @@
     <ClCompile Include="..\Private\AnimNotify.cpp" />
     <ClCompile Include="..\Private\AnimNotifyState.cpp" />
     <ClCompile Include="..\Private\ThreadPool.cpp" />
+    <ClCompile Include="..\Private\VIBuffer_Mesh.cpp">
+      <Filter>01.Utility\04.Component\VIBuffer\Instance\Mesh</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Culling_Manager.cpp">
+      <Filter>97. Manager\Culling</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Bin\ShaderFiles\Engine_Shader_Defines.hlsli">

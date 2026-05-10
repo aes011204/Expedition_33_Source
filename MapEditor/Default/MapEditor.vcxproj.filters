@@ -91,6 +91,9 @@
     <Filter Include="10. System\MEPickingSystem">
       <UniqueIdentifier>{e6f46635-7d2c-4d86-897b-4722f643cb96}</UniqueIdentifier>
     </Filter>
+    <Filter Include="11. MEDebugRenderer">
+      <UniqueIdentifier>{301f6db0-0489-4df9-a76b-a628cbb7e0f9}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="targetver.h">
@@ -170,6 +173,9 @@
     </ClInclude>
     <ClInclude Include="..\Public\MEPickingSystem.h">
       <Filter>10. System\MEPickingSystem</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\MEDebugRenderer.h">
+      <Filter>11. MEDebugRenderer</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -251,6 +257,9 @@
     </ClCompile>
     <ClCompile Include="..\Private\MEPickingSystem.cpp">
       <Filter>10. System\MEPickingSystem</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\MEDebugRenderer.cpp">
+      <Filter>11. MEDebugRenderer</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

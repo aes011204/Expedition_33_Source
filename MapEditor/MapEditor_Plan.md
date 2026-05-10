@@ -46,10 +46,13 @@ MapEditorApp          — 엔진 초기화, 메인 루프 (Update/Render), Scene
 ├── MECamera          — 에디터 자유시점 카메라 (우클릭+WASD, 뷰/프로젝션 행렬 → GAME)
 ├── RenderTarget      — 씬을 RT에 렌더, PanelViewport에 SRV 전달
 ├── SceneContext      — 씬 오브젝트 목록 + 선택 상태 + JSON 저장/로드
+├── MEPickingSystem   ✅ GPU ID 버퍼 피킹 + 3D 커서 레이캐스트 캡슐화
+├── MEDebugRenderer   ✅ 씬 디버그 드로우 (존 와이어프레임, 스폰포인트, 라이트, 커서 십자선)
 └── MEManager         — DockSpace + 패널 컨테이너 + File 메뉴
     ├── PanelViewport     ✅ RT ImGui::Image, 카메라 입력, ImGuizmo 오버레이
     ├── PanelHierarchy    ✅ 오브젝트 목록, 선택/삭제/복제/이름변경 (Add 버튼 제거 — Prefab으로 대체)
     ├── PanelInspector    ✅ Transform 실시간 편집, Gizmo 양방향 연동, Undo 기록
+    │                        DrawTransform / DrawZoneShape / DrawTypeParams 로 분리
     └── PanelAssetBrowser ✅ 파일 탐색기 방식, 브레드크럼, .bin/.prefab 드래그 앤 드롭 스폰
 ```
 
@@ -311,6 +314,67 @@ MEModelManager                            — 모델 로드/캐싱 전담
    - `LoadFromFile` 시 Undo/Redo 스택 초기화
    - `Free()` 시 스택 clear → D3D11 리소스 누수 방지
    - 버그 수정: `Free()`에서 `_deferredShader` / `_rectBuffer` 누락으로 인한 `LIVE_BLENDSTATE` / `LIVE_BUFFER` 해결
+
+---
+
+### Phase 3.10 — 코드 정리 ✅
+
+#### 버그 수정
+- ✅ `SceneContext::SpawnFromPrefab` — Light Specular 로드 시 `_lightAmbient` 에 잘못 할당하던 버그 수정 → `_lightSpecular` 로 교정
+
+#### 중복 제거
+- ✅ `SceneContext::LoadFromFile` — `LoadTransform` 람다에 Scale 로드 추가, StaticMesh 섹션의 별도 Scale 3줄 제거
+- ✅ `PanelInspector::Render` — `char buf[256]` + `strncpy_s` + `InputText` 중복 패턴을 `InputZoneId` 람다로 통합
+
+#### 구조 분리
+- ✅ `PanelInspector::Render` (247줄) → `DrawTransform` / `DrawZoneShape` / `DrawTypeParams` 3개 private 함수로 분리
+- ✅ `MEPickingSystem` 신규 클래스 — `MapEditorApp`에서 GPU ID 피킹 로직 추출
+  - `DoPickAt` / `SetCursorAt` 의 공통 GPU ID 렌더+샘플 코드를 `SampleID` 로 통합
+  - `_idRT` / `_idStagingTex` 리소스 소유권 이전
+- ✅ `MEDebugRenderer` 신규 클래스 — `DrawSceneDebug` 추출
+  - `SceneContext const&` 참조만으로 동작, D3D 리소스 없음
+
+---
+
+### Phase 3.11 — 메시 인스턴싱 + Compute Shader 컬링 (진행 중)
+
+#### 목표
+- 풀, 바위, 나무 등 반복 배치 오브젝트를 GPU 인스턴싱으로 렌더, Compute Shader로 컬링
+
+#### 구조 설계
+- **방식 1 (1단계)**: CPU 드리븐 — DYNAMIC 인스턴스 VB, `DrawIndexedInstanced`
+- **방식 2 (2단계)**: GPU 드리븐 — StructuredBuffer SRV + CS 컬링 + `DrawIndexedInstancedIndirect`
+
+#### 진행 현황
+
+**완료**
+- ✅ `MESHINSTANCEDATA` 구조체 추가 (`Engine/Public/Vertex_Types.h`)
+  - 필드: position / scale / windPhase / yRotation / colorVariation / lodIndex (총 36바이트)
+  - 풀·바위·나무 등 정적 메시 인스턴싱 공용
+- ✅ `MeshInstanceInitDesc` 구조체 추가 (`Engine/Public/Engine_Struct.h`)
+  - 정점/인덱스/인스턴스 데이터를 한 번에 넘기는 초기화 디스크립터
+  - `Engine_Struct.h`에 `#include "Vertex_Types.h"` 추가 (선언 순서 문제 해결)
+- ✅ `VIBuffer_Mesh.h` 헤더 작성 (`Engine/Public/VIBuffer_Mesh.h`)
+  - `VIBufferCom_Instance` 상속, `Initialize` / `UpdateInstances` / `Create` / `Clone`
+
+**대기 중**
+- ⏸ `VIBuffer_Mesh.cpp` 구현 — 이펙트 담당이 `VIBufferCom_Instance` 수정 중, 완료 후 재개
+  - 정점/인덱스 버퍼 생성 (USAGE_DEFAULT)
+  - 인스턴스 버퍼 생성 (USAGE_DYNAMIC + CPU_ACCESS_WRITE)
+  - `UpdateInstances`: `Map(WRITE_DISCARD)` → `memcpy` → `Unmap`
+  - 인스턴스 수 초과 시 버퍼 재생성 처리 필요
+
+**미구현**
+- ⬜ `GrassActor` (또는 `InstancedMeshActor`) — GameObject 상속, 영역/밀도 파라미터, 풀 날 쿼드 생성
+- ⬜ `Shader_Grass.hlsl` — 바람 VS (sin파, uvY 가중치), G-buffer 출력
+- ⬜ CS 컬링 단계 (`CS_FrustumCull.hlsl`) — SRV → AppendStructuredBuffer UAV + DrawArgs UAV
+- ⬜ `DrawIndexedInstancedIndirect` 전환 (`VIBufferCom_Instance` 또는 별도 경로)
+- ⬜ MapEditor 연동 — Inspector에서 area/density 편집, JSON 직렬화
+
+#### 참고 사항
+- 이펙트 담당 작업 완료 전까지 `VIBuffer_Mesh.cpp` 작성 보류
+- `UpdateInstances`에서 `D3D11_MAP_WRITE_DISCARD` 사용 → 버퍼 크기 고정, 초과 시 재생성 필요
+- 컬링 CS는 position + scale로 바운딩 구 계산 가능 → 별도 컬링 전용 필드 불필요
 
 ---
 

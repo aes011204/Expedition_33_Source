@@ -86,4 +86,14 @@ namespace Engine
             {"BLENDWEIGHT", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 72, D3D11_INPUT_PER_VERTEX_DATA, 0},
         };
     }VTXANIMMESH;
+
+    typedef struct tagMeshInstanceData
+    {
+        Vec3 position; // 12
+        float scale; // 4
+        float windPhase; // 4
+        float yRotation; // 4
+        float colorVariation; // 4
+        float lodIndex; // 4
+    } MESHINSTANCEDATA;
 }

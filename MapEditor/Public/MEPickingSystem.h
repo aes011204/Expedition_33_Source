@@ -9,6 +9,7 @@ NS_BEGIN(MapEditor)
 
 class MECamera;
 struct SceneContext;
+struct EditorObject;
 
 class MEPickingSystem
 {

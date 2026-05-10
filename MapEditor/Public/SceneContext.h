@@ -20,6 +20,8 @@ struct SceneContext
     Vec3 _cursorPos = {};
     bool _cursorVisible = false;
 
+    bool _octreeDirty = true;
+
     void SaveToFile(const string& filePath);
     void LoadFromFile(const string& filePath);
     Shared<EditorObject> SpawnObject(const wstring& modelPath, const Vec3& pos);

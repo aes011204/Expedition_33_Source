@@ -289,7 +289,7 @@ void SceneContext::LoadFromFile(const string& filePath)
             _objects.push_back(obj);
         }
     }
-
+    _octreeDirty = true;
 }
 
 Shared<EditorObject> SceneContext::SpawnObject(const wstring& modelPath, const Vec3& pos)
@@ -474,6 +474,7 @@ void SceneContext::Add(Shared<EditorObject> obj)
     {
         _objects.push_back(move(obj));
         _dirtyRenderHandles = true;
+        _octreeDirty = true;
     }
 }
 
@@ -494,6 +495,7 @@ void SceneContext::Remove(const Shared<EditorObject>& obj)
         _selected = nullptr;
     }
     _objects.erase(it);
+    _octreeDirty = true;
 }
 
 Shared<EditorObject> SceneContext::Duplicate(const Shared<EditorObject>& src)
@@ -506,6 +508,7 @@ Shared<EditorObject> SceneContext::Duplicate(const Shared<EditorObject>& src)
     copy->_name = src->_name + L"_Copy";
     _objects.push_back(copy);
     _dirtyRenderHandles = true;
+    _octreeDirty = true;
     return copy;
 }
 

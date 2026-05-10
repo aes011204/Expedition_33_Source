@@ -3,6 +3,8 @@
 #include "GameInstance.h"
 #include "RenderTarget.h"
 
+#include "MEPickingSystem.h"
+#include "MEDebugRenderer.h"
 #include "MEImGuiManager.h"
 #include "MEManager.h"
 #include "MECamera.h"
@@ -56,7 +58,10 @@ HRESULT MapEditorApp::Initialize()
     _manager = MEManager::Create(_viewport, &_scene, _camera.get());
     CHECK_NULL(_manager, E_FAIL);
 
-    CHECK_FAILED(Ready_PickingRT(), E_FAIL);
+    _pickingSystem = MEPickingSystem::Create(_device, _context, g_iWinSizeX, g_iWinSizeY);
+    CHECK_NULL(_pickingSystem, E_FAIL);
+    _debugRenderer = MEDebugRenderer::Create();
+    CHECK_NULL(_debugRenderer, E_FAIL);
 
     _deferredShader = ShaderCom::Create(_device, _context,
         L"../ShaderFiles/Shader_Deferred.hlsl",
@@ -109,12 +114,12 @@ HRESULT MapEditorApp::Render()
     ImVec2 mousePos{}, vpPos{}, vpSize{};
     if (_viewport->ConsumePick(mousePos, vpPos, vpSize))
     {
-        DoPickAt(mousePos, vpPos, vpSize);
+        _pickingSystem->DoPickAt(_scene, mousePos, vpPos, vpSize, *_rt);
     }
 
     if (_viewport->ConsumeCursorSet(mousePos, vpPos, vpSize))
     {
-        SetCursorAt(mousePos, vpPos, vpSize);
+        _pickingSystem->SetCursorAt(_scene, *_camera, mousePos, vpPos, vpSize, *_rt);
     }
 
     string spawnPath{};
@@ -198,8 +203,7 @@ HRESULT MapEditorApp::Render()
         _rectBuffer->Bind_Resources();
         _rectBuffer->Render();
 
-
-        DrawSceneDebug();
+        _debugRenderer->Draw(_scene);
     }
 
     GAME->Render_DebugDepth();
@@ -214,116 +218,6 @@ HRESULT MapEditorApp::Render()
     CHECK_FAILED(GAME->Present(), E_FAIL);
 
     return S_OK;
-}
-
-
-void MapEditorApp::DrawSceneDebug()
-{
-    for (auto& obj : _scene._objects)
-    {
-        const bool isSelected = (obj == _scene._selected);
-        const Color color = isSelected ? Color(1.f, 1.f, 0.f, 1.f) : Color(0.f, 1.f, 0.f, 1.f);
-
-        switch (obj->_type)
-        {
-        case EObjectType::EncounterZone:
-        case EObjectType::TriggerVolume:
-        case EObjectType::CameraZone:
-        case EObjectType::PostProcessVolume:
-        {
-            if (obj->_zoneShape == EZoneShape::Box)
-            {
-                DebugBoxDesc desc;
-                desc.center = obj->_position;
-                desc.extents = obj->_zoneExtent;
-                desc.rotation = obj->_rotation;
-                desc.style.color = color;
-                desc.style.depthEnabled = false;
-                GAME->Draw_DebugBox(desc);
-            }
-            else
-            {
-                DebugSphereDesc desc;
-                desc.center = obj->_position;
-                desc.radius = obj->_zoneRadius;
-                desc.style.color = color;
-                desc.style.depthEnabled = false;
-                GAME->Draw_DebugSphere(desc);
-            }
-            break;
-        }
-
-        case EObjectType::SpawnPoint:
-        {
-            DebugSphereDesc sphere;
-            sphere.center = obj->_position;
-            sphere.radius = 0.3f;
-            sphere.style.color = isSelected ? Color(1.f, 1.f, 0.f, 1.f) : Color(0.f, 0.5f, 1.f, 1.f);
-            sphere.style.depthEnabled = false;
-            GAME->Draw_DebugSphere(sphere);
-
-            DebugLineDesc line;
-            line.start = obj->_position;
-            line.end = obj->_position + Vec3(0.f, 1.f, 0.f);
-            line.style.color = sphere.style.color;
-            line.style.depthEnabled = false;
-            GAME->Draw_DebugLine(line);
-            break;
-        }
-
-        case EObjectType::Light:
-        {
-            DebugSphereDesc sphere;
-            sphere.center = obj->_position;
-            sphere.radius = 0.2f;
-            sphere.style.color = isSelected ? Color(1.f, 1.f, 0.f, 1.f) : Color(1.f, 0.9f, 0.3f, 1.f);
-            sphere.style.depthEnabled = false;
-            GAME->Draw_DebugSphere(sphere);
-
-            if (obj->_lightType == LightType::Directional)
-            {
-                DebugLineDesc line;
-                line.start = obj->_position;
-                line.end = obj->_position + Vec3(obj->_lightDirection.x, obj->_lightDirection.y, obj->_lightDirection.z) * 2.f;
-                line.style.color = sphere.style.color;
-                line.style.depthEnabled = false;
-                GAME->Draw_DebugLine(line);
-            }
-            else
-            {
-                DebugSphereDesc range;
-                range.center = obj->_position;
-                range.radius = obj->_lightRange;
-                range.style.color = Color(1.f, 0.9f, 0.3f, 0.3f);
-                range.style.depthEnabled = false;
-                GAME->Draw_DebugSphere(range);
-            }
-            break;
-        }
-
-        case EObjectType::StaticMesh:
-            break;
-        default:
-            break;
-        }
-    }
-
-    if (_scene._cursorVisible)
-    {
-        auto line = [&](Vec3 a, Vec3 b)
-            {
-                DebugLineDesc d;
-                d.start = a;
-                d.end = b;
-                d.style.color = _debugLineCol;
-                d.style.depthEnabled = false;
-                GAME->Draw_DebugLine(d);
-            };
-
-        line(_scene._cursorPos - Vec3(_debugLinePos, 0.f, 0.f), _scene._cursorPos + Vec3(_debugLinePos, 0.f, 0.f));
-        line(_scene._cursorPos - Vec3(0.f, _debugLinePos, 0.f), _scene._cursorPos + Vec3(0.f, _debugLinePos, 0.f));
-        line(_scene._cursorPos - Vec3(0.f, 0.f, _debugLinePos), _scene._cursorPos + Vec3(0.f, 0.f, _debugLinePos));
-    }
 }
 
 void MapEditorApp::UpdateRenderHandles()
@@ -358,152 +252,6 @@ void MapEditorApp::UpdateRenderHandles()
     }
 }
 
-void MapEditorApp::DoPickAt(const ImVec2& mousePos, const ImVec2& vpPos, const ImVec2& vpSize)
-{
-    if (!_idRT || !_idStagingTex || vpSize.x <= 0.f || vpSize.y <= 0.f)
-    {
-        return;
-    }
-
-    const uint32 w = _rt->Get_Width();
-    const uint32 h = _rt->Get_Height();
-
-    if (w != _idRT->Get_Width() || h != _idRT->Get_Height())
-    {
-        _idRT->Resize(w, h, DXGI_FORMAT_R8G8B8A8_UNORM, Vec4(0.f, 0.f, 0.f, 1.f), true);
-    }
-
-    _idRT->Begin();
-    for (uint32 i = 0; i < static_cast<uint32>(_scene._objects.size()); ++i)
-    {
-        auto& obj = _scene._objects[i];
-        if (obj->_type != EObjectType::StaticMesh || !obj->_renderHandle)
-        {
-            continue;
-        }
-        obj->_renderHandle->RenderID(obj->_worldMatrix, i + 1);
-    }
-
-    GAME->Bind_BackBuffer();
-
-    const float u = (mousePos.x - vpPos.x) / vpSize.x;
-    const float v = (mousePos.y - vpPos.y) / vpSize.y;
-    const uint32 px = min(static_cast<uint32>(u * w), w - 1);
-    const uint32 py = min(static_cast<uint32>(v * h), h - 1);
-
-    D3D11_BOX box = { px, py, 0, px + 1, py + 1, 1 };
-    _context->CopySubresourceRegion(_idStagingTex.Get(), 0, 0, 0, 0, _idRT->Get_Texture().Get(), 0, &box);
-
-    D3D11_MAPPED_SUBRESOURCE mapped = {};
-    if (SUCCEEDED(_context->Map(_idStagingTex.Get(), 0, D3D11_MAP_READ, 0, &mapped)))
-    {
-        const uint8* pPixel = static_cast<const uint8*>(mapped.pData);
-        const uint32 id = pPixel[0] | (pPixel[1] << 8) | (pPixel[2] << 16);
-        _context->Unmap(_idStagingTex.Get(), 0);
-
-        if (id == 0)
-        {
-            _scene._selected = nullptr;
-        }
-        else if (id - 1 < static_cast<uint32>(_scene._objects.size()))
-        {
-            _scene._selected = _scene._objects[id - 1];
-        }
-    }
-}
-
-void MapEditorApp::SetCursorAt(const ImVec2& mousePos, const ImVec2& vpPos, const ImVec2& vpSize)
-{
-    if (!_idRT || !_idStagingTex || vpSize.x <= 0.f || vpSize.y <= 0.f)
-    {
-        return;
-    }
-
-    const uint32 w = _rt->Get_Width();
-    const uint32 h = _rt->Get_Height();
-
-    if (w != _idRT->Get_Width() || h != _idRT->Get_Height())
-    {
-        _idRT->Resize(w, h, DXGI_FORMAT_R8G8B8A8_UNORM, Vec4(0.f, 0.f, 0.f, 1.f), true);
-    }
-
-    CHECK_FAILED(_idRT->Begin());
-
-    for (uint32 i = 0; i < static_cast<uint32>(_scene._objects.size()); ++i)
-    {
-        auto& obj = _scene._objects[i];
-        if (obj->_type != EObjectType::StaticMesh || !obj->_renderHandle)
-        {
-            continue;
-        }
-
-        obj->_renderHandle->RenderID(obj->_worldMatrix, i + 1);
-    }
-
-    GAME->Bind_BackBuffer();
-
-    const float u = (mousePos.x - vpPos.x) / vpSize.x;
-    const float v = (mousePos.y - vpPos.y) / vpSize.y;
-    const uint32 px = min(static_cast<uint32>(u * w), w - 1);
-    const uint32 py = min(static_cast<uint32>(v * h), h - 1);
-
-    D3D11_BOX box = { px, py, 0, px + 1, py + 1, 1 };
-    _context->CopySubresourceRegion(_idStagingTex.Get(), 0, 0, 0, 0, _idRT->Get_Texture().Get(), 0, &box);
-
-    D3D11_MAPPED_SUBRESOURCE mapped = {};
-    if (SUCCEEDED(_context->Map(_idStagingTex.Get(), 0, D3D11_MAP_READ, 0, &mapped)))
-    {
-        const uint8* p = static_cast<const uint8*>(mapped.pData);
-        const uint32 id = p[0] | (p[1] << 8) | (p[2] << 16);
-        _context->Unmap(_idStagingTex.Get(), 0);
-
-        const float ndcX = ((mousePos.x - vpPos.x) / vpSize.x) * 2.f - 1.f;
-        const float ndcY = -((mousePos.y - vpPos.y) / vpSize.y) * 2.f + 1.f;
-        const Matrix& proj = _camera->GetProj();
-        const Matrix invView = _camera->GetView().Invert();
-        Vec3 rayOrigin(invView._41, invView._42, invView._43);
-        Vec3 rayDir = Vec3::TransformNormal(Vec3(ndcX / proj._11, ndcY / proj._22, 1.f), invView);
-        rayDir.Normalize();
-
-        if (id > 0 && id - 1 < static_cast<uint32>(_scene._objects.size()))
-        {
-            auto& obj = _scene._objects[id - 1];
-
-            Vec3 localMin, localMax;
-            if (obj->_renderHandle &&
-                obj->_renderHandle->GetModel()->Try_Get_LocalBounds(localMin, localMax))
-            {
-                BoundingBox localBox;
-                BoundingBox::CreateFromPoints(localBox, XMLoadFloat3(&localMin), XMLoadFloat3(&localMax));
-
-                BoundingBox worldBox;
-                localBox.Transform(worldBox,
-                    obj->_renderHandle->GetModel()->Get_PreLocalTransformMatrix() * obj->_worldMatrix);
-
-                float dist = 0.f;
-                if (worldBox.Intersects(XMLoadFloat3(&rayOrigin), XMLoadFloat3(&rayDir), dist))
-                {
-                    _scene._cursorPos = rayOrigin + rayDir * dist;
-                }
-                else
-                {
-                    _scene._cursorPos = obj->_position;
-                }
-            }
-            else
-            {
-                _scene._cursorPos = obj->_position;
-            }
-        }
-        else
-        {
-            _scene._cursorPos = rayOrigin + rayDir * 10.f;
-        }
-
-        _scene._cursorVisible = true;
-    }
-}
-
 void MapEditorApp::DoSpawnAt(const string& modelPath)
 {
     if (!_scene._cursorVisible)
@@ -528,25 +276,6 @@ void MapEditorApp::DoSpawnAt(const string& modelPath)
         _scene.Remove(spawned);
         _scene.PushCommand(CmdAddObject::Create(spawned));
     }
-}
-
-HRESULT MapEditorApp::Ready_PickingRT()
-{
-    _idRT = RenderTarget::Create(_device, _context, g_iWinSizeX, g_iWinSizeY, DXGI_FORMAT_R8G8B8A8_UNORM, Vec4(0.f, 0.f, 0.f, 1.f), true);
-    CHECK_NULL(_idRT, E_FAIL);
-
-    D3D11_TEXTURE2D_DESC stagingDesc{};
-    stagingDesc.Width = 1;
-    stagingDesc.Height = 1;
-    stagingDesc.MipLevels = 1;
-    stagingDesc.ArraySize = 1;
-    stagingDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-    stagingDesc.SampleDesc.Count = 1;
-    stagingDesc.Usage = D3D11_USAGE_STAGING;
-    stagingDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
-    CHECK_FAILED(_device->CreateTexture2D(&stagingDesc, nullptr, _idStagingTex.GetAddressOf()), E_FAIL);
-
-    return S_OK;
 }
 
 void MapEditorApp::SyncSceneLights()
@@ -613,8 +342,8 @@ void MapEditorApp::Free()
 
     _viewport.reset();
     _rt.reset();
-    _idRT.reset();
-    _idStagingTex.Reset();
+    _pickingSystem.reset();
+    _debugRenderer.reset();
     _camera.reset();
     _manager.reset();
     _imguiManager.reset();
