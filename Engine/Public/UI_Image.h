@@ -34,6 +34,9 @@ public:
     Vec4 Get_Color() const override { return _color; }
 
 private:
+    HRESULT Ready_RenderResources();
+
+private:
     wstring _texturePath{};
     wstring _maskTexturePath{};
     Vec4 _color{ 1.f, 1.f, 1.f, 1.f };

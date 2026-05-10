@@ -60,19 +60,8 @@ HRESULT UI_Image::Initialize(void* arg)
         }
     }
 
-    _shader = dynamic_pointer_cast<ShaderCom>(
-        GAME->Clone_Prototype(
-            Prototype::Comopnent,
-            _shaderPrototypeLevelIndex,
-            _shaderPrototypeTag));
-    CHECK_NULL(_shader, E_FAIL);
-
-    _viBuffer = dynamic_pointer_cast<VIBuffer_Rect>(
-        GAME->Clone_Prototype(
-            Prototype::Comopnent,
-            _viBufferPrototypeLevelIndex,
-            _viBufferPrototypeTag));
-    CHECK_NULL(_viBuffer, E_FAIL);
+    if (FAILED(Ready_RenderResources()))
+        LOG_WARN("UI_Image render resources are not ready. Retrying during Render.");
 
     return S_OK;
 }
@@ -88,7 +77,16 @@ HRESULT UI_Image::Render()
     if (nullptr == _transform)
         return E_FAIL;
 
-    if (nullptr == _srv || nullptr == _shader || nullptr == _viBuffer)
+    if (nullptr == _srv)
+        return S_OK;
+
+    if (nullptr == _shader || nullptr == _viBuffer)
+    {
+        if (FAILED(Ready_RenderResources()))
+            return S_OK;
+    }
+
+    if (nullptr == _shader || nullptr == _viBuffer)
         return S_OK;
 
     const Vec2 position = Get_WorldPosition();
@@ -148,6 +146,31 @@ HRESULT UI_Image::Render()
 
     if (FAILED(_viBuffer->Render()))
         return E_FAIL;
+
+    return S_OK;
+}
+
+HRESULT UI_Image::Ready_RenderResources()
+{
+    if (nullptr == _shader)
+    {
+        _shader = dynamic_pointer_cast<ShaderCom>(
+            GAME->Clone_Prototype(
+                Prototype::Comopnent,
+                _shaderPrototypeLevelIndex,
+                _shaderPrototypeTag));
+    }
+    CHECK_NULL(_shader, E_FAIL);
+
+    if (nullptr == _viBuffer)
+    {
+        _viBuffer = dynamic_pointer_cast<VIBuffer_Rect>(
+            GAME->Clone_Prototype(
+                Prototype::Comopnent,
+                _viBufferPrototypeLevelIndex,
+                _viBufferPrototypeTag));
+    }
+    CHECK_NULL(_viBuffer, E_FAIL);
 
     return S_OK;
 }

@@ -39,7 +39,10 @@ HRESULT UI_Panel::Initialize(void* arg)
         _viBufferPrototypeTag = desc->viBufferPrototypeTag;
     }
 
-    return Ready_RenderResources();
+    if (FAILED(Ready_RenderResources()))
+        LOG_WARN("UI_Panel render resources are not ready. Retrying during Render.");
+
+    return S_OK;
 }
 
 HRESULT UI_Panel::Render()
@@ -54,7 +57,10 @@ HRESULT UI_Panel::Render()
         return E_FAIL;
 
     if (nullptr == _whiteSrv || nullptr == _shader || nullptr == _viBuffer)
-        return S_OK;
+    {
+        if (FAILED(Ready_RenderResources()))
+            return S_OK;
+    }
 
     const Vec2 position = Get_WorldPosition();
     const Vec2& size = _transform->Get_Size();
@@ -121,18 +127,24 @@ HRESULT UI_Panel::Ready_RenderResources()
     if (FAILED(Ready_WhiteTexture()))
         return E_FAIL;
 
-    _shader = dynamic_pointer_cast<ShaderCom>(
-        GAME->Clone_Prototype(
-            Prototype::Comopnent,
-            _shaderPrototypeLevelIndex,
-            _shaderPrototypeTag));
+    if (nullptr == _shader)
+    {
+        _shader = dynamic_pointer_cast<ShaderCom>(
+            GAME->Clone_Prototype(
+                Prototype::Comopnent,
+                _shaderPrototypeLevelIndex,
+                _shaderPrototypeTag));
+    }
     CHECK_NULL(_shader, E_FAIL);
 
-    _viBuffer = dynamic_pointer_cast<VIBuffer_Rect>(
-        GAME->Clone_Prototype(
-            Prototype::Comopnent,
-            _viBufferPrototypeLevelIndex,
-            _viBufferPrototypeTag));
+    if (nullptr == _viBuffer)
+    {
+        _viBuffer = dynamic_pointer_cast<VIBuffer_Rect>(
+            GAME->Clone_Prototype(
+                Prototype::Comopnent,
+                _viBufferPrototypeLevelIndex,
+                _viBufferPrototypeTag));
+    }
     CHECK_NULL(_viBuffer, E_FAIL);
 
     return S_OK;
