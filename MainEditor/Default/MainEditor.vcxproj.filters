@@ -191,6 +191,9 @@
     <ClInclude Include="..\public\BT_VIew.h" />
     <ClInclude Include="..\Public\Level_Tool.h" />
     <ClInclude Include="..\Public\Collider_Inspector.h" />
+    <ClInclude Include="..\Public\Animation_NameUtils.h">
+      <Filter>97. Utils</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="00. Main">

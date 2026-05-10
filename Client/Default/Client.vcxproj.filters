@@ -290,6 +290,9 @@
     <ClInclude Include="..\Public\Player_Jump.h">
       <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\GameDataTable.h" />
+    <ClInclude Include="..\Public\SkillTreeCom.h" />
+    <ClInclude Include="..\Public\Hero_Manager.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -438,6 +441,9 @@
     <ClCompile Include="..\Private\Player_Jump.cpp">
       <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\GameDataTable.cpp" />
+    <ClCompile Include="..\Private\SkillTreeCom.cpp" />
+    <ClCompile Include="..\Private\Hero_Manager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">

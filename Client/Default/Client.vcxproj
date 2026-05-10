@@ -172,6 +172,7 @@
     <ClInclude Include="..\Public\GameDataTable.h" />
     <ClInclude Include="..\Public\Hair_Player.h" />
     <ClInclude Include="..\Public\Head_Player.h" />
+    <ClInclude Include="..\Public\Hero_Manager.h" />
     <ClInclude Include="..\Public\InputCom.h" />
     <ClInclude Include="..\Public\Level_MapTest.h" />
     <ClInclude Include="..\Public\Level_Stage01.h" />
@@ -228,6 +229,7 @@
     <ClCompile Include="..\Private\GameDataTable.cpp" />
     <ClCompile Include="..\Private\Hair_Player.cpp" />
     <ClCompile Include="..\Private\Head_Player.cpp" />
+    <ClCompile Include="..\Private\Hero_Manager.cpp" />
     <ClCompile Include="..\Private\InputCom.cpp" />
     <ClCompile Include="..\Private\Level_MapTest.cpp" />
     <ClCompile Include="..\Private\Level_Stage01.cpp" />

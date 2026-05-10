@@ -86,29 +86,20 @@ namespace AnimationNameUtils
             return infos;
 
         const fs::path modelDir = fs::path(sourceModelPath).parent_path();
-        if (!fs::exists(modelDir))
+        if (!fs::exists(modelDir) || !fs::is_directory(modelDir))
             return infos;
 
-        const auto scanDirectory = [&infos](const fs::path& directory)
+        for (const auto& entry : fs::recursive_directory_iterator(modelDir))
         {
-            if (!fs::exists(directory) || !fs::is_directory(directory))
-                return;
+            if (!entry.is_regular_file() || entry.path().extension() != ".anim")
+                continue;
 
-            for (const auto& entry : fs::directory_iterator(directory))
-            {
-                if (!entry.is_regular_file() || entry.path().extension() != ".anim")
-                    continue;
-
-                AssetAnimationInfo info{};
-                info.filePath = entry.path();
-                info.stem = entry.path().stem().string();
-                info.displayName = Read_DisplayNameFromMeta(entry.path());
-                infos.push_back(move(info));
-            }
-        };
-
-        scanDirectory(modelDir);
-        scanDirectory(modelDir / "Animations");
+            AssetAnimationInfo info{};
+            info.filePath = entry.path();
+            info.stem = entry.path().stem().string();
+            info.displayName = Read_DisplayNameFromMeta(entry.path());
+            infos.push_back(move(info));
+        }
 
         ::sort(infos.begin(), infos.end(), [](const AssetAnimationInfo& lhs, const AssetAnimationInfo& rhs)
         {

@@ -220,6 +220,7 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Public\Action_Command.h" />
+    <ClInclude Include="..\Public\Animation_NameUtils.h" />
     <ClInclude Include="..\Public\Animation_PreviewObject.h" />
     <ClInclude Include="..\Public\Animation_View.h" />
     <ClInclude Include="..\Public\AnimSequencerAdapter.h" />

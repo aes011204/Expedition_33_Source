@@ -342,7 +342,7 @@ void ModelCom_Inspector::Draw_AnimationSection(const Shared<Engine::ModelCom>& m
     if (!assetInfos.empty())
     {
         vector<bool> usedPlayback(playbackNames.size(), false);
-        animationItems.reserve(assetInfos.size());
+        animationItems.reserve(assetInfos.size() + playbackNames.size());
 
         for (const auto& assetInfo : assetInfos)
         {
@@ -357,6 +357,17 @@ void ModelCom_Inspector::Draw_AnimationSection(const Shared<Engine::ModelCom>& m
                 usedPlayback[matchedPlaybackListIndex] = true;
             }
 
+            animationItems.push_back(move(item));
+        }
+
+        for (int32 i = 0; i < static_cast<int32>(playbackNames.size()); ++i)
+        {
+            if (i < static_cast<int32>(usedPlayback.size()) && usedPlayback[i])
+                continue;
+
+            AnimationListItem item{};
+            item.playbackIndex = i;
+            item.displayName = AnimationNameUtils::Make_DisplayNameFallback(playbackNames[i]);
             animationItems.push_back(move(item));
         }
 
