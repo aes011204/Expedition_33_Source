@@ -43,31 +43,31 @@ namespace UIEditor
             return iter->get<bool>();
         }
 
-        void Normalize_AssetRange(UIAnimationAsset& asset)
+        void Normalize_AssetRange(UI_AnimationAsset& asset)
         {
             asset.fps = max(1, asset.fps);
             asset.endFrame = max(asset.startFrame + 1, asset.endFrame);
         }
 
-        void Normalize_Track(UIAnimationTrack& track, const UIAnimationAsset& asset)
+        void Normalize_Track(UI_AnimationKeyframeTrack& track, const UI_AnimationAsset& asset)
         {
-            for (UIAnimationKeyframe& key : track.keys)
+            for (UI_AnimationKeyframe& key : track.keys)
             {
                 key.frame = min(max(key.frame, asset.startFrame), asset.endFrame);
-                key.value = Clamp_UIAnimationTrackValue(track.type, key.value);
+                key.value = Clamp_AnimationKeyframeTrackValue(track.type, key.value);
             }
 
             stable_sort(
                 track.keys.begin(),
                 track.keys.end(),
-                [](const UIAnimationKeyframe& lhs, const UIAnimationKeyframe& rhs)
+                [](const UI_AnimationKeyframe& lhs, const UI_AnimationKeyframe& rhs)
                 {
                     return lhs.frame < rhs.frame;
                 });
 
-            vector<UIAnimationKeyframe> mergedKeys;
+            vector<UI_AnimationKeyframe> mergedKeys;
             mergedKeys.reserve(track.keys.size());
-            for (const UIAnimationKeyframe& key : track.keys)
+            for (const UI_AnimationKeyframe& key : track.keys)
             {
                 if (!mergedKeys.empty() && mergedKeys.back().frame == key.frame)
                 {
@@ -81,7 +81,7 @@ namespace UIEditor
             track.keys = move(mergedKeys);
         }
 
-        json Keyframe_ToJson(const UIAnimationKeyframe& key)
+        json Keyframe_ToJson(const UI_AnimationKeyframe& key)
         {
             json item = json::object();
             item["frame"] = key.frame;
@@ -89,25 +89,25 @@ namespace UIEditor
             return item;
         }
 
-        json Track_ToJson(const UIAnimationTrack& track)
+        json Track_ToJson(const UI_AnimationKeyframeTrack& track)
         {
             json item = json::object();
-            item["type"] = Get_UIAnimationTrackTypeName(track.type);
+            item["type"] = Get_AnimationKeyframeTrackTypeName(track.type);
             item["enabled"] = track.enabled;
             item["keys"] = json::array();
 
-            for (const UIAnimationKeyframe& key : track.keys)
+            for (const UI_AnimationKeyframe& key : track.keys)
                 item["keys"].push_back(Keyframe_ToJson(key));
 
             return item;
         }
 
-        bool Try_ReadKeyframe(const json& item, UIAnimationKeyframe& outKeyframe)
+        bool Try_ReadKeyframe(const json& item, UI_AnimationKeyframe& outKeyframe)
         {
             if (!item.is_object())
                 return false;
 
-            UIAnimationKeyframe key = {};
+            UI_AnimationKeyframe key = {};
             key.frame = Read_Int(item, "frame", 0);
             key.value = Read_Float(item, "value", 0.f);
 
@@ -115,16 +115,16 @@ namespace UIEditor
             return true;
         }
 
-        bool Try_ReadTrack(const json& item, UIAnimationTrack& outTrack)
+        bool Try_ReadTrack(const json& item, UI_AnimationKeyframeTrack& outTrack)
         {
             if (!item.is_object())
                 return false;
 
-            UIAnimationTrackType trackType = UIAnimationTrackType::PositionX;
-            if (!Try_ParseUIAnimationTrackType(Read_String(item, "type", ""), trackType))
+            UI_AnimationKeyframeTrackType trackType = UI_AnimationKeyframeTrackType::PositionX;
+            if (!Try_ParseAnimationKeyframeTrackType(Read_String(item, "type", ""), trackType))
                 return false;
 
-            UIAnimationTrack track = {};
+            UI_AnimationKeyframeTrack track = {};
             track.type = trackType;
             track.enabled = Read_Bool(item, "enabled", true);
 
@@ -133,7 +133,7 @@ namespace UIEditor
             {
                 for (const json& keyItem : *keyIter)
                 {
-                    UIAnimationKeyframe key = {};
+                    UI_AnimationKeyframe key = {};
                     if (Try_ReadKeyframe(keyItem, key))
                         track.keys.push_back(key);
                 }
@@ -144,7 +144,7 @@ namespace UIEditor
         }
     }
 
-    bool UI_AnimationAssetSerializer::Save_ToJsonFile(const UIAnimationAsset& asset, const wstring& filePath)
+    bool UI_AnimationAssetSerializer::Save_ToJsonFile(const UI_AnimationAsset& asset, const wstring& filePath)
     {
         try
         {
@@ -162,7 +162,7 @@ namespace UIEditor
         }
     }
 
-    bool UI_AnimationAssetSerializer::Load_FromJsonFile(UIAnimationAsset& asset, const wstring& filePath)
+    bool UI_AnimationAssetSerializer::Load_FromJsonFile(UI_AnimationAsset& asset, const wstring& filePath)
     {
         try
         {
@@ -183,11 +183,11 @@ namespace UIEditor
         }
     }
 
-    json UI_AnimationAssetSerializer::To_Json(const UIAnimationAsset& asset)
+    json UI_AnimationAssetSerializer::To_Json(const UI_AnimationAsset& asset)
     {
-        UIAnimationAsset normalizedAsset = asset;
+        UI_AnimationAsset normalizedAsset = asset;
         Normalize_AssetRange(normalizedAsset);
-        for (UIAnimationTrack& track : normalizedAsset.tracks)
+        for (UI_AnimationKeyframeTrack& track : normalizedAsset.tracks)
             Normalize_Track(track, normalizedAsset);
 
         json root = json::object();
@@ -200,18 +200,18 @@ namespace UIEditor
         root["loop"] = normalizedAsset.loop;
         root["tracks"] = json::array();
 
-        for (const UIAnimationTrack& track : normalizedAsset.tracks)
+        for (const UI_AnimationKeyframeTrack& track : normalizedAsset.tracks)
             root["tracks"].push_back(Track_ToJson(track));
 
         return root;
     }
 
-    bool UI_AnimationAssetSerializer::From_Json(UIAnimationAsset& asset, const json& root)
+    bool UI_AnimationAssetSerializer::From_Json(UI_AnimationAsset& asset, const json& root)
     {
         if (!root.is_object())
             return false;
 
-        UIAnimationAsset loadedAsset = {};
+        UI_AnimationAsset loadedAsset = {};
         loadedAsset.name = Read_String(root, "name", "NewUIAnimation");
         loadedAsset.targetName = Read_String(root, "targetName", "");
         loadedAsset.targetObjectId = 0;
@@ -226,7 +226,7 @@ namespace UIEditor
         {
             for (const json& trackItem : *trackIter)
             {
-                UIAnimationTrack track = {};
+                UI_AnimationKeyframeTrack track = {};
                 if (!Try_ReadTrack(trackItem, track))
                     continue;
 

@@ -43,7 +43,7 @@
     <Filter Include="01. Manager\UI_Editor_Manager\PreviewService">
       <UniqueIdentifier>{c09b0833-3eab-437d-bfdb-a25b5dd98c4e}</UniqueIdentifier>
     </Filter>
-    <Filter Include="02. View\Content_Browser">
+    <Filter Include="02. View\Prefab_Browser">
       <UniqueIdentifier>{1569f604-d5bd-41e7-b007-3d82298e6c9a}</UniqueIdentifier>
     </Filter>
     <Filter Include="02. View\Hierarchy">
@@ -64,6 +64,12 @@
       <Filter>98. Default</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\UI_AnimationAssetSerializer.cpp">
+      <Filter>02. View\Animation</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_AnimationAssetService.cpp">
+      <Filter>02. View\Animation</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_AnimationTimelineView.cpp">
       <Filter>02. View\Animation</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\UI_EditorApp.cpp">
@@ -111,8 +117,11 @@
     <ClCompile Include="..\Private\UI_Editor_FileService.cpp">
       <Filter>01. Manager\UI_Editor_Manager\FileService</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\UI_Content_Browser.cpp">
-      <Filter>02. View\Content_Browser</Filter>
+    <ClCompile Include="..\Private\UI_Prefab_Browser.cpp">
+      <Filter>02. View\Prefab_Browser</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_PrefabService.cpp">
+      <Filter>02. View\Prefab_Browser</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\UI_Animation_View.cpp">
       <Filter>02. View\Animation</Filter>
@@ -150,6 +159,12 @@
       <Filter>99. Defines</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\UI_AnimationAssetSerializer.h">
+      <Filter>02. View\Animation</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_AnimationAssetService.h">
+      <Filter>02. View\Animation</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_AnimationTimelineView.h">
       <Filter>02. View\Animation</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\UI_EditorApp.h">
@@ -191,8 +206,11 @@
     <ClInclude Include="..\Public\UI_Editor_FileService.h">
       <Filter>01. Manager\UI_Editor_Manager\FileService</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\UI_Content_Browser.h">
-      <Filter>02. View\Content_Browser</Filter>
+    <ClInclude Include="..\Public\UI_Prefab_Browser.h">
+      <Filter>02. View\Prefab_Browser</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_PrefabService.h">
+      <Filter>02. View\Prefab_Browser</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\UI_Animation_View.h">
       <Filter>02. View\Animation</Filter>

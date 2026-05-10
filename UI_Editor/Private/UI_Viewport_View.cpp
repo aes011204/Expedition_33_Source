@@ -366,7 +366,7 @@ namespace UIEditor
                 }
 
                 const ImVec2 objectWorldPosition = getPreviewWorldPosition(object.id);
-                const ImVec2 objectSize = ImVec2(renderObject.size.x * renderObject.scale.x, renderObject.size.y * renderObject.scale.y);
+                const ImVec2 objectSize = Get_UIObjectRuntimeSize(renderObject);
                 const ImVec2 objectMin = ImVec2(canvasPos.x + objectWorldPosition.x * displayScale, canvasPos.y + objectWorldPosition.y * displayScale);
                 const ImVec2 objectMax = ImVec2(objectMin.x + objectSize.x * displayScale, objectMin.y + objectSize.y * displayScale);
                 const bool isSelected = _editorManager.Is_ObjectSelected(object.id);
@@ -445,11 +445,10 @@ namespace UIEditor
                     drawList->AddRect(objectMin, objectMax, objectBorderColor, objectRounding, 0, borderThickness);
 
                 bool usesSpriteFontPreview = false;
-                const bool canUseSpriteFontPreview = !renderObject.textWrap;
-                if (!hasBlockingPopup && renderObject.type == UI_ObjectType::Text && canUseSpriteFontPreview && (!renderObject.fontGuid.empty() || !renderObject.fontPath.empty()) && !renderObject.text.empty())
+                if (!hasBlockingPopup && renderObject.type == UI_ObjectType::Text && (!renderObject.fontGuid.empty() || !renderObject.fontPath.empty()) && !renderObject.text.empty())
                 {
                     D3D11_RECT clipRect = {};
-                    if (buildViewportClipRect(objectMin, objectMax, clipRect))
+                    if (buildViewportClipRect(viewportMin, viewportMax, clipRect))
                     {
                         usesSpriteFontPreview = _editorManager.Queue_FontPreview(
                             renderObject.fontGuid,
@@ -460,7 +459,8 @@ namespace UIEditor
                             Vec4(renderObject.color.x, renderObject.color.y, renderObject.color.z, renderObject.color.w),
                             renderObject.rotationRadians,
                             renderObject.textAlign,
-                            (max(4.f, renderObject.fontSize) / 32.f) * max(0.01f, renderObject.scale.x) * displayScale,
+                            Get_UITextRuntimeScale(renderObject) * displayScale,
+                            renderObject.textWrap,
                             clipRect);
                     }
                 }
@@ -515,7 +515,7 @@ namespace UIEditor
                     {
                         const UI_Object& object = **iter;
                         const ImVec2 objectWorldPosition = document.Get_WorldPosition(object.id);
-                        const ImVec2 objectSize = ImVec2(object.size.x * object.scale.x, object.size.y * object.scale.y);
+                        const ImVec2 objectSize = Get_UIObjectRuntimeSize(object);
                         const bool isInsideObject =
                             mouseCanvasPos.x >= objectWorldPosition.x && mouseCanvasPos.x <= objectWorldPosition.x + objectSize.x &&
                             mouseCanvasPos.y >= objectWorldPosition.y && mouseCanvasPos.y <= objectWorldPosition.y + objectSize.y;
@@ -723,7 +723,7 @@ namespace UIEditor
                         {
                             const UI_Object& object = *objectPtr;
                             const ImVec2 objectWorldPosition = document.Get_WorldPosition(object.id);
-                            const ImVec2 objectSize = ImVec2(object.size.x * object.scale.x, object.size.y * object.scale.y);
+                            const ImVec2 objectSize = Get_UIObjectRuntimeSize(object);
                             const ImVec2 objectMax = ImVec2(objectWorldPosition.x + objectSize.x, objectWorldPosition.y + objectSize.y);
                             const bool intersects =
                                 objectWorldPosition.x <= boxCanvasMax.x &&

@@ -5,6 +5,7 @@
 #include "UI_Editor_HistoryService.h"
 #include "UI_Editor_PreviewService.h"
 #include "UI_Editor_Window.h"
+#include "UI_PrefabService.h"
 
 NS_BEGIN(UIEditor)
 
@@ -45,6 +46,7 @@ public:
     ID3D11ShaderResourceView* Get_MaskedTexturePreviewSRV(const string& textureGuid, const string& maskTextureGuid);
     bool New_Document();
     void Create_UIObject(UI_ObjectType objectType);
+    bool Create_UIObjectsFromPrefab(const UI_PrefabAsset& prefab);
     void Duplicate_UIObject(ObjectId objectId);
     void Delete_UIObject(ObjectId objectId);
     void Duplicate_SelectedUIObject();
@@ -77,10 +79,11 @@ public:
         float rotationRadians,
         UI_TextAlign textAlign,
         float scale,
+        bool textWrap,
         const D3D11_RECT& clipRect);
     void Play_AnimationPreview(ObjectId objectId);
-    void Play_AnimationAssetPreview(const UIAnimationAsset& asset, int32 startFrame);
-    void Preview_AnimationAsset(const UIAnimationAsset& asset, int32 frame);
+    void Play_AnimationAssetPreview(const UI_AnimationAsset& asset, int32 startFrame);
+    void Preview_AnimationAsset(const UI_AnimationAsset& asset, int32 frame);
     void Pause_AnimationPreview();
     void Stop_AnimationPreview();
     void Restart_AnimationPreview(ObjectId objectId);

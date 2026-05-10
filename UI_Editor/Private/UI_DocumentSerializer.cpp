@@ -459,52 +459,148 @@ namespace UIEditor
             }
             savedObjectIds.insert(object.id);
 
-            json item = {};
-            item["id"] = object.id;
-            item["type"] = Get_ObjectTypeName(object.type);
-            item["name"] = object.name.empty() ? Make_DefaultObjectName(object.type) : object.name;
-            item["parentId"] = object.parentId;
-            item["position"] = Vec2_ToJson(object.position);
-            item["size"] = Vec2_ToJson(object.size);
-            item["scale"] = Vec2_ToJson(object.scale);
-            item["rotation"] = object.rotationRadians;
-            item["sortOrder"] = object.sortOrder;
-            item["color"] = Color_ToJson(object.color);
-
-            if (object.type == UI_ObjectType::Image)
-            {
-                item["texturePath"] = object.texturePath;
-                if (!object.textureGuid.empty())
-                    item["textureGuid"] = object.textureGuid;
-                if (!object.maskTexturePath.empty())
-                    item["maskTexturePath"] = object.maskTexturePath;
-                if (!object.maskTextureGuid.empty())
-                    item["maskTextureGuid"] = object.maskTextureGuid;
-            }
-            else if (object.type == UI_ObjectType::Text)
-            {
-                item["text"] = object.text;
-                item["fontPath"] = object.fontPath;
-                item["fontSize"] = object.fontSize;
-                item["textAlign"] = Get_TextAlignName(object.textAlign);
-                item["textWrap"] = object.textWrap;
-                if (!object.fontGuid.empty())
-                    item["fontGuid"] = object.fontGuid;
-                if (!object.fontTag.empty())
-                    item["fontTag"] = object.fontTag;
-            }
-
-            if (!object.animationClips.empty())
-            {
-                item["animations"] = json::array();
-                for (const UI_AnimationClip& clip : object.animationClips)
-                    item["animations"].push_back(AnimationClip_ToJson(clip));
-            }
-
-            root["objects"].push_back(item);
+            root["objects"].push_back(Object_ToJson(object));
         }
 
         return root;
+    }
+
+    json UI_DocumentSerializer::Object_ToJson(const UI_Object& object)
+    {
+        json item = {};
+        item["id"] = object.id;
+        item["type"] = Get_ObjectTypeName(object.type);
+        item["name"] = object.name.empty() ? Make_DefaultObjectName(object.type) : object.name;
+        item["parentId"] = object.parentId;
+        item["position"] = Vec2_ToJson(object.position);
+        item["size"] = Vec2_ToJson(object.size);
+        item["scale"] = Vec2_ToJson(object.scale);
+        item["rotation"] = object.rotationRadians;
+        item["sortOrder"] = object.sortOrder;
+        item["color"] = Color_ToJson(object.color);
+
+        if (object.type == UI_ObjectType::Image)
+        {
+            item["texturePath"] = object.texturePath;
+            if (!object.textureGuid.empty())
+                item["textureGuid"] = object.textureGuid;
+            if (!object.maskTexturePath.empty())
+                item["maskTexturePath"] = object.maskTexturePath;
+            if (!object.maskTextureGuid.empty())
+                item["maskTextureGuid"] = object.maskTextureGuid;
+        }
+        else if (object.type == UI_ObjectType::Text)
+        {
+            item["text"] = object.text;
+            item["fontPath"] = object.fontPath;
+            item["fontSize"] = object.fontSize;
+            item["textAlign"] = Get_TextAlignName(object.textAlign);
+            item["textWrap"] = object.textWrap;
+            if (!object.fontGuid.empty())
+                item["fontGuid"] = object.fontGuid;
+            if (!object.fontTag.empty())
+                item["fontTag"] = object.fontTag;
+        }
+
+        if (!object.animationClips.empty())
+        {
+            item["animations"] = json::array();
+            for (const UI_AnimationClip& clip : object.animationClips)
+                item["animations"].push_back(AnimationClip_ToJson(clip));
+        }
+
+        return item;
+    }
+
+    bool UI_DocumentSerializer::Try_ReadObject(const json& item, UI_Object& outObject)
+    {
+        if (!item.is_object())
+        {
+            LOG_WARN("UI object load skipped non-object item.");
+            return false;
+        }
+
+        UI_ObjectType objectType = UI_ObjectType::Image;
+        const string typeName = Read_String(item, "type", "");
+        if (!Try_ParseObjectType(typeName, objectType))
+        {
+            LOG_WARN("UI object load skipped unknown object type: {}", typeName);
+            return false;
+        }
+
+        const ObjectId objectId = Read_ObjectId(item, "id", 0);
+        if (objectId == 0)
+        {
+            LOG_WARN("UI object load skipped object with missing/invalid id.");
+            return false;
+        }
+
+        if (objectId == numeric_limits<ObjectId>::max())
+        {
+            LOG_WARN("UI object load skipped object with overflow-risk id: {}", objectId);
+            return false;
+        }
+
+        UI_Object object = Make_DefaultObject(objectType);
+        object.id = objectId;
+        object.type = objectType;
+        object.parentId = Read_ObjectId(item, "parentId", 0);
+        object.name = Read_String(item, "name", Make_DefaultObjectName(objectType));
+        object.position = Read_Vec2(item, "position", ImVec2(0.f, 0.f));
+        object.size = Read_Vec2(item, "size", ImVec2(100.f, 100.f));
+        object.scale = Read_Vec2(item, "scale", ImVec2(1.f, 1.f));
+        object.rotationRadians = Read_Float(item, "rotation", 0.f);
+        object.sortOrder = Read_Int(item, "sortOrder", 0);
+        object.color = Read_Color(item, "color", ImVec4(1.f, 1.f, 1.f, 1.f));
+
+        object.size.x = max(1.f, object.size.x);
+        object.size.y = max(1.f, object.size.y);
+        object.scale.x = max(0.01f, object.scale.x);
+        object.scale.y = max(0.01f, object.scale.y);
+
+        if (object.type == UI_ObjectType::Image)
+        {
+            object.texturePath = Read_String(item, "texturePath", "");
+            object.textureGuid = Read_String(item, "textureGuid", "");
+            object.maskTexturePath = Read_String(item, "maskTexturePath", "");
+            object.maskTextureGuid = Read_String(item, "maskTextureGuid", "");
+        }
+        else if (object.type == UI_ObjectType::Text)
+        {
+            object.text = Read_String(item, "text", "Text");
+            object.fontPath = Read_String(item, "fontPath", kDefaultFontPath);
+            object.fontSize = max(4.f, Read_Float(item, "fontSize", 32.f));
+            UI_TextAlign textAlign = UI_TextAlign::Left;
+            string textAlignName = Read_String(item, "textAlign", "");
+            if (textAlignName.empty())
+                textAlignName = Read_String(item, "align", "");
+            if (Try_ParseTextAlign(textAlignName, textAlign))
+                object.textAlign = textAlign;
+            object.textWrap = Read_Bool(item, "textWrap", Read_Bool(item, "wrap", false));
+            object.fontGuid = Read_String(item, "fontGuid", "");
+            object.fontTag = Read_String(item, "fontTag", Make_FontTagFromPath(object.fontPath));
+            if (object.fontTag.empty())
+                object.fontTag = Make_FontTagFromPath(object.fontPath);
+        }
+
+        const auto animationsIter = item.find("animations");
+        if (animationsIter != item.end() && animationsIter->is_array())
+        {
+            for (const json& animationItem : *animationsIter)
+            {
+                UI_AnimationClip clip = {};
+                if (!Try_ReadAnimationClip(animationItem, clip))
+                {
+                    LOG_WARN("UI object load skipped invalid animation clip. object id={}", object.id);
+                    continue;
+                }
+
+                object.animationClips.push_back(move(clip));
+            }
+        }
+
+        outObject = move(object);
+        return true;
     }
 
     bool UI_DocumentSerializer::From_Json(UI_Document& document, const json& root)
@@ -548,95 +644,14 @@ namespace UIEditor
         {
             for (const json& item : *objectsIter)
             {
-                if (!item.is_object())
-                {
-                    LOG_WARN("UI Document load skipped non-object item.");
+                UI_Object object = {};
+                if (!Try_ReadObject(item, object))
                     continue;
-                }
 
-                UI_ObjectType objectType = UI_ObjectType::Image;
-                const string typeName = Read_String(item, "type", "");
-                if (!Try_ParseObjectType(typeName, objectType))
+                if (loadedObjectIds.find(object.id) != loadedObjectIds.end())
                 {
-                    LOG_WARN("UI Document load skipped unknown object type: {}", typeName);
+                    LOG_WARN("UI Document load skipped duplicated object id: {}", object.id);
                     continue;
-                }
-
-                const ObjectId objectId = Read_ObjectId(item, "id", 0);
-                if (objectId == 0)
-                {
-                    LOG_WARN("UI Document load skipped object with missing/invalid id.");
-                    continue;
-                }
-
-                if (objectId == numeric_limits<ObjectId>::max())
-                {
-                    LOG_WARN("UI Document load skipped object with overflow-risk id: {}", objectId);
-                    continue;
-                }
-
-                if (loadedObjectIds.find(objectId) != loadedObjectIds.end())
-                {
-                    LOG_WARN("UI Document load skipped duplicated object id: {}", objectId);
-                    continue;
-                }
-
-                UI_Object object = Make_DefaultObject(objectType);
-                object.id = objectId;
-                object.type = objectType;
-                object.parentId = Read_ObjectId(item, "parentId", 0);
-                object.name = Read_String(item, "name", Make_DefaultObjectName(objectType));
-                object.position = Read_Vec2(item, "position", ImVec2(0.f, 0.f));
-                object.size = Read_Vec2(item, "size", ImVec2(100.f, 100.f));
-                object.scale = Read_Vec2(item, "scale", ImVec2(1.f, 1.f));
-                object.rotationRadians = Read_Float(item, "rotation", 0.f);
-                object.sortOrder = Read_Int(item, "sortOrder", 0);
-                object.color = Read_Color(item, "color", ImVec4(1.f, 1.f, 1.f, 1.f));
-
-                object.size.x = max(1.f, object.size.x);
-                object.size.y = max(1.f, object.size.y);
-                object.scale.x = max(0.01f, object.scale.x);
-                object.scale.y = max(0.01f, object.scale.y);
-
-                if (object.type == UI_ObjectType::Image)
-                {
-                    object.texturePath = Read_String(item, "texturePath", "");
-                    object.textureGuid = Read_String(item, "textureGuid", "");
-                    object.maskTexturePath = Read_String(item, "maskTexturePath", "");
-                    object.maskTextureGuid = Read_String(item, "maskTextureGuid", "");
-                }
-                else if (object.type == UI_ObjectType::Text)
-                {
-                    object.text = Read_String(item, "text", "Text");
-                    object.fontPath = Read_String(item, "fontPath", kDefaultFontPath);
-                    object.fontSize = max(4.f, Read_Float(item, "fontSize", 32.f));
-                    UI_TextAlign textAlign = UI_TextAlign::Left;
-                    string textAlignName = Read_String(item, "textAlign", "");
-                    if (textAlignName.empty())
-                        textAlignName = Read_String(item, "align", "");
-                    if (Try_ParseTextAlign(textAlignName, textAlign))
-                        object.textAlign = textAlign;
-                    object.textWrap = Read_Bool(item, "textWrap", Read_Bool(item, "wrap", false));
-                    object.fontGuid = Read_String(item, "fontGuid", "");
-                    object.fontTag = Read_String(item, "fontTag", Make_FontTagFromPath(object.fontPath));
-                    if (object.fontTag.empty())
-                        object.fontTag = Make_FontTagFromPath(object.fontPath);
-                }
-
-                const auto animationsIter = item.find("animations");
-                if (animationsIter != item.end() && animationsIter->is_array())
-                {
-                    for (const json& animationItem : *animationsIter)
-                    {
-                        UI_AnimationClip clip = {};
-                        if (!Try_ReadAnimationClip(animationItem, clip))
-                        {
-                            LOG_WARN("UI Document load skipped invalid animation clip. object id={}", object.id);
-                            continue;
-                        }
-
-                        object.animationClips.push_back(move(clip));
-                    }
                 }
 
                 loadedObjectIds.insert(object.id);

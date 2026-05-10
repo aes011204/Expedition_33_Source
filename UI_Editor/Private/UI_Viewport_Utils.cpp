@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "UI_Viewport_Utils.h"
+#include "UI_Editor_Utils.h"
 
 namespace UIEditor::ViewportUtils
 {
@@ -100,18 +101,17 @@ namespace UIEditor::ViewportUtils
 
         float Resolve_TextLineX(const ImVec2& objectMin, const ImVec2& objectMax, float lineWidth, UI_TextAlign textAlign)
         {
-            constexpr float textPaddingX = 4.f;
             const float textWidth = max(0.f, objectMax.x - objectMin.x);
 
             switch (textAlign)
             {
             case UI_TextAlign::Center:
-                return objectMin.x + max(textPaddingX, (textWidth - lineWidth) * 0.5f);
+                return objectMin.x + (textWidth - lineWidth) * 0.5f;
             case UI_TextAlign::Right:
-                return objectMax.x - lineWidth - textPaddingX;
+                return objectMax.x - lineWidth;
             case UI_TextAlign::Left:
             default:
-                return objectMin.x + textPaddingX;
+                return objectMin.x;
             }
         }
     }
@@ -258,22 +258,18 @@ namespace UIEditor::ViewportUtils
         if (nullptr == font)
             return;
 
-        const float fontPixelSize = max(4.f, object.fontSize) * max(0.01f, object.scale.x) * displayScaleX;
-        const float maxTextWidth = max(1.f, objectMax.x - objectMin.x - 8.f);
+        const float fontPixelSize = 32.f * Get_UITextRuntimeScale(object) * displayScaleX;
+        const float maxTextWidth = max(1.f, objectMax.x - objectMin.x);
         const float lineHeight = max(4.f, fontPixelSize * 1.2f);
         const ImU32 previewTextColor = ImGui::ColorConvertFloat4ToU32(object.color);
-        const ImVec4 clipRect = ImVec4(objectMin.x, objectMin.y, objectMax.x, objectMax.y);
         const vector<string> lines = Build_TextPreviewLines(font, object.text, fontPixelSize, maxTextWidth, object.textWrap);
 
-        float textY = objectMin.y + 3.f;
+        float textY = objectMin.y;
         for (const string& line : lines)
         {
-            if (textY >= objectMax.y)
-                break;
-
             const float lineWidth = font->CalcTextSizeA(fontPixelSize, FLT_MAX, 0.f, line.c_str()).x;
             const float textX = Resolve_TextLineX(objectMin, objectMax, lineWidth, object.textAlign);
-            drawList->AddText(font, fontPixelSize, ImVec2(textX, textY), previewTextColor, line.c_str(), nullptr, 0.f, &clipRect);
+            drawList->AddText(font, fontPixelSize, ImVec2(textX, textY), previewTextColor, line.c_str());
             textY += lineHeight;
         }
     }

@@ -3,10 +3,10 @@
 
 #include "GameInstance.h"
 #include "UI_Animation_View.h"
-#include "UI_Content_Browser.h"
 #include "UI_Editor_Utils.h"
 #include "UI_Hierarchy_View.h"
 #include "UI_Inspector.h"
+#include "UI_Prefab_Browser.h"
 #include "UI_Viewport_View.h"
 
 namespace UIEditor
@@ -35,7 +35,7 @@ namespace UIEditor
         Add_Window(UI_Viewport_View::Create(*this));
         Add_Window(UI_Inspector::Create(*this));
         Add_Window(UI_Animation_View::Create(*this));
-        Add_Window(UI_Content_Browser::Create(*this));
+        Add_Window(UI_Prefab_Browser::Create(*this));
 
         Clear_History();
         Clear_Dirty();
@@ -562,6 +562,7 @@ namespace UIEditor
         float rotationRadians,
         UI_TextAlign textAlign,
         float scale,
+        bool textWrap,
         const D3D11_RECT& clipRect)
     {
         return _previewService.Queue_FontPreview(
@@ -574,6 +575,7 @@ namespace UIEditor
             rotationRadians,
             textAlign,
             scale,
+            textWrap,
             clipRect);
     }
 
@@ -701,6 +703,30 @@ namespace UIEditor
 
         Set_SingleSelection(createdObjectId);
         Mark_Dirty();
+    }
+
+    bool UI_Editor_Manager::Create_UIObjectsFromPrefab(const UI_PrefabAsset& prefab)
+    {
+        if (prefab.objects.empty() || prefab.rootObjectIds.empty())
+            return false;
+
+        Push_UndoSnapshot();
+
+        const ObjectId parentId = Resolve_CreateParentId();
+        const vector<ObjectId> createdRootObjectIds = _document.Import_PrefabObjects(
+            prefab.objects,
+            prefab.rootObjectIds,
+            parentId,
+            ImVec2(100.f, 100.f));
+
+        if (createdRootObjectIds.empty())
+            return false;
+
+        Set_SelectedObjectIds(createdRootObjectIds, createdRootObjectIds.back());
+        Resolve_LoadedAssetReferences();
+        Clear_RuntimeCaches();
+        Mark_Dirty();
+        return true;
     }
 
     void UI_Editor_Manager::Duplicate_UIObject(ObjectId objectId)
@@ -877,9 +903,17 @@ namespace UIEditor
         if (!_historyService.Is_EditTransactionOpen())
             Push_UndoSnapshot();
 
-        const float safeScaleX = max(0.01f, object->scale.x);
-        const float safeScaleY = max(0.01f, object->scale.y);
-        object->size = ImVec2(max(1.f, worldSize.x) / safeScaleX, max(1.f, worldSize.y) / safeScaleY);
+        if (object->type == UI_ObjectType::Text)
+        {
+            const float safeTextScale = Get_UITextRuntimeScale(*object);
+            object->size = ImVec2(max(1.f, worldSize.x) / safeTextScale, max(1.f, worldSize.y) / safeTextScale);
+        }
+        else
+        {
+            const float safeScaleX = max(0.01f, object->scale.x);
+            const float safeScaleY = max(0.01f, object->scale.y);
+            object->size = ImVec2(max(1.f, worldSize.x) / safeScaleX, max(1.f, worldSize.y) / safeScaleY);
+        }
 
         if (!_document.Set_WorldPosition(objectId, worldPosition))
             return false;
@@ -929,9 +963,7 @@ namespace UIEditor
             ObjectRect rect = {};
             rect.id = objectId;
             rect.worldPosition = _document.Get_WorldPosition(objectId);
-            rect.size = ImVec2(
-                max(1.f, object->size.x * object->scale.x),
-                max(1.f, object->size.y * object->scale.y));
+            rect.size = Get_UIObjectRuntimeSize(*object);
             rect.center = ImVec2(
                 rect.worldPosition.x + rect.size.x * 0.5f,
                 rect.worldPosition.y + rect.size.y * 0.5f);
@@ -1110,12 +1142,12 @@ namespace UIEditor
         _animationPreviewService.Play(objectId);
     }
 
-    void UI_Editor_Manager::Play_AnimationAssetPreview(const UIAnimationAsset& asset, int32 startFrame)
+    void UI_Editor_Manager::Play_AnimationAssetPreview(const UI_AnimationAsset& asset, int32 startFrame)
     {
         _animationPreviewService.Play_KeyframeAsset(asset, startFrame);
     }
 
-    void UI_Editor_Manager::Preview_AnimationAsset(const UIAnimationAsset& asset, int32 frame)
+    void UI_Editor_Manager::Preview_AnimationAsset(const UI_AnimationAsset& asset, int32 frame)
     {
         _animationPreviewService.Preview_KeyframeAsset(asset, frame);
     }

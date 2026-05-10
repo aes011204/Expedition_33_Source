@@ -21,8 +21,8 @@ public:
 public:
     void Update(float deltaTime);
     void Play(ObjectId objectId);
-    void Play_KeyframeAsset(const UIAnimationAsset& asset, int32 startFrame);
-    void Preview_KeyframeAsset(const UIAnimationAsset& asset, int32 frame);
+    void Play_KeyframeAsset(const UI_AnimationAsset& asset, int32 startFrame);
+    void Preview_KeyframeAsset(const UI_AnimationAsset& asset, int32 frame);
     void Pause();
     void Stop();
     void Restart(ObjectId objectId);
@@ -45,7 +45,7 @@ private:
     bool _isPlaying = false;
     ObjectId _targetObjectId = 0;
     float _time = 0.f;
-    const UIAnimationAsset* _keyframeAsset = nullptr;
+    const UI_AnimationAsset* _keyframeAsset = nullptr;
     int32 _previewStartFrame = 0;
     int32 _previewStaticFrame = 0;
 };

@@ -148,23 +148,115 @@ namespace UIEditor
             return max(1.f, measuredHeight * scale);
         }
 
+        void Push_WrappedFontPreviewWord(
+            const SpriteFont& font,
+            const wstring& word,
+            float maxWidth,
+            float scale,
+            wstring& currentLine,
+            vector<wstring>& wrappedLines)
+        {
+            if (word.empty())
+                return;
+
+            const wstring candidate = currentLine.empty() ? word : currentLine + L" " + word;
+            if (Measure_FontPreviewWidth(font, candidate, scale) <= maxWidth)
+            {
+                currentLine = candidate;
+                return;
+            }
+
+            if (!currentLine.empty())
+            {
+                wrappedLines.push_back(currentLine);
+                currentLine.clear();
+            }
+
+            if (Measure_FontPreviewWidth(font, word, scale) <= maxWidth)
+            {
+                currentLine = word;
+                return;
+            }
+
+            wstring fragment;
+            for (wchar_t character : word)
+            {
+                const wstring candidateFragment = fragment + character;
+                if (!fragment.empty() && Measure_FontPreviewWidth(font, candidateFragment, scale) > maxWidth)
+                {
+                    wrappedLines.push_back(fragment);
+                    fragment = wstring(1, character);
+                }
+                else
+                {
+                    fragment = candidateFragment;
+                }
+            }
+
+            currentLine = fragment;
+        }
+
+        vector<wstring> Wrap_FontPreviewLines(const SpriteFont& font, const wstring& text, float maxWidth, float scale)
+        {
+            vector<wstring> wrappedLines;
+            const vector<wstring> rawLines = Split_FontPreviewLines(text);
+
+            for (const wstring& rawLine : rawLines)
+            {
+                if (rawLine.empty())
+                {
+                    wrappedLines.push_back(L"");
+                    continue;
+                }
+
+                wstring currentLine;
+                size_t wordStart = 0;
+
+                for (size_t i = 0; i <= rawLine.size(); ++i)
+                {
+                    if (i == rawLine.size() || rawLine[i] == L' ' || rawLine[i] == L'\t')
+                    {
+                        Push_WrappedFontPreviewWord(font, rawLine.substr(wordStart, i - wordStart), maxWidth, scale, currentLine, wrappedLines);
+                        wordStart = i + 1;
+                    }
+                }
+
+                if (!currentLine.empty())
+                    wrappedLines.push_back(currentLine);
+            }
+
+            if (wrappedLines.empty())
+                wrappedLines.push_back(L"");
+
+            return wrappedLines;
+        }
+
         float Resolve_FontPreviewLineX(float boxLeft, float boxRight, float lineWidth, UI_TextAlign textAlign)
         {
-            constexpr float textPaddingX = 4.f;
             const float boxWidth = max(0.f, boxRight - boxLeft);
 
             switch (textAlign)
             {
             case UI_TextAlign::Center:
-                return boxLeft + max(textPaddingX, (boxWidth - lineWidth) * 0.5f);
+                return boxLeft + (boxWidth - lineWidth) * 0.5f;
 
             case UI_TextAlign::Right:
-                return boxRight - lineWidth - textPaddingX;
+                return boxRight - lineWidth;
 
             case UI_TextAlign::Left:
             default:
-                return boxLeft + textPaddingX;
+                return boxLeft;
             }
+        }
+
+        Vec4 Make_PremultipliedFontColor(const Vec4& color)
+        {
+            const float alpha = min(max(color.w, 0.f), 1.f);
+            return Vec4(
+                min(max(color.x, 0.f), 1.f) * alpha,
+                min(max(color.y, 0.f), 1.f) * alpha,
+                min(max(color.z, 0.f), 1.f) * alpha,
+                alpha);
         }
 
         bool Try_GetTexture2DDesc(ID3D11ShaderResourceView* srv, D3D11_TEXTURE2D_DESC& outDesc)
@@ -283,11 +375,12 @@ namespace UIEditor
                     XMMatrixIdentity());
                 isBatchOpen = true;
 
+                const Vec4 fontColor = Make_PremultipliedFontColor(command.color);
                 font->DrawString(
                     _fontPreviewSpriteBatch.get(),
                     safeText.c_str(),
                     command.position,
-                    XMVectorSet(command.color.x, command.color.y, command.color.z, command.color.w),
+                    XMVectorSet(fontColor.x, fontColor.y, fontColor.z, fontColor.w),
                     command.rotationRadians,
                     command.pivot,
                     command.scale,
@@ -379,37 +472,45 @@ namespace UIEditor
         float rotationRadians,
         UI_TextAlign textAlign,
         float scale,
+        bool textWrap,
         const D3D11_RECT& clipRect)
     {
         SpriteFont* font = Get_FontPreview(fontGuid, fontPath);
         if (nullptr == font || text.empty())
             return false;
 
-        const vector<wstring> lines = Split_FontPreviewLines(text);
-        const float lineHeight = Measure_FontPreviewLineHeight(*font, scale);
-        float textY = boxMin.y + 3.f;
+        const wstring safeText = Build_SafeSpriteFontText(*font, text);
+        if (safeText.empty())
+            return false;
+
+        const float safeScale = max(0.0001f, scale);
+        const float boxWidth = max(1.f, boxMax.x - boxMin.x);
+        const vector<wstring> lines = textWrap
+            ? Wrap_FontPreviewLines(*font, safeText, boxWidth, safeScale)
+            : Split_FontPreviewLines(safeText);
+        const float lineHeight = Measure_FontPreviewLineHeight(*font, safeScale);
+        const Vec2 boxCenter(
+            boxMin.x + max(0.f, boxMax.x - boxMin.x) * 0.5f,
+            boxMin.y + max(0.f, boxMax.y - boxMin.y) * 0.5f);
+        float textY = boxMin.y;
         bool queuedAny = false;
 
         for (const wstring& line : lines)
         {
-            if (textY >= boxMax.y)
-                break;
-
-            const wstring safeLine = Build_SafeSpriteFontText(*font, line);
-            if (!safeLine.empty())
+            if (!line.empty())
             {
-                const float lineWidth = Measure_FontPreviewWidth(*font, safeLine, scale);
+                const float lineWidth = Measure_FontPreviewWidth(*font, line, safeScale);
                 const float textX = Resolve_FontPreviewLineX(boxMin.x, boxMax.x, lineWidth, textAlign);
 
                 FontPreviewCommand command = {};
                 command.fontGuid = fontGuid;
                 command.fontPath = fontPath;
-                command.text = safeLine;
-                command.position = Vec2(textX, textY);
+                command.text = line;
+                command.position = boxCenter;
                 command.color = color;
                 command.rotationRadians = rotationRadians;
-                command.pivot = Vec2(0.f, 0.f);
-                command.scale = scale;
+                command.pivot = Vec2((boxCenter.x - textX) / safeScale, (boxCenter.y - textY) / safeScale);
+                command.scale = safeScale;
                 command.clipRect = clipRect;
                 _fontPreviewCommands.push_back(command);
                 queuedAny = true;

@@ -136,6 +136,16 @@ namespace
         return color;
     }
 
+    Vec4 Make_PremultipliedSpriteFontColor(const Vec4& color)
+    {
+        const float alpha = min(max(color.w, 0.f), 1.f);
+        return Vec4(
+            min(max(color.x, 0.f), 1.f) * alpha,
+            min(max(color.y, 0.f), 1.f) * alpha,
+            min(max(color.z, 0.f), 1.f) * alpha,
+            alpha);
+    }
+
     bool StartsWith(const string& value, const string& prefix)
     {
         return value.size() >= prefix.size() && equal(prefix.begin(), prefix.end(), value.begin());
@@ -854,7 +864,7 @@ namespace
         UI_Text::UI_TEXT_DESC desc{};
         desc.text = String::ToWString(object.text);
         desc.fontTag = fontTag;
-        desc.color = object.color;
+        desc.color = Make_PremultipliedSpriteFontColor(object.color);
         desc.textAlign = object.textAlign;
         desc.textWrap = object.textWrap;
         desc.transformDesc.position = object.position;

@@ -35,6 +35,7 @@ namespace UIEditor
             float rotationRadians,
             UI_TextAlign textAlign,
             float scale,
+            bool textWrap,
             const D3D11_RECT& clipRect);
 
     private:

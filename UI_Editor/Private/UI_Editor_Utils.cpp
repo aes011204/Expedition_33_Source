@@ -274,11 +274,30 @@ namespace UIEditor
         return static_cast<ImTextureID>(reinterpret_cast<intptr_t>(srv));
     }
 
-    ImVec2 Clamp_ObjectPosition(const UI_Object& object, const ImVec2& canvasSize, const ImVec2& position)
+    float Get_UITextRuntimeScale(const UI_Object& object)
     {
-        const ImVec2 objectSize = ImVec2(
+        const float fontScale = max(4.f, object.fontSize) / 32.f;
+        return max(0.01f, object.scale.x * fontScale);
+    }
+
+    ImVec2 Get_UIObjectRuntimeSize(const UI_Object& object)
+    {
+        if (object.type == UI_ObjectType::Text)
+        {
+            const float textScale = Get_UITextRuntimeScale(object);
+            return ImVec2(
+                max(1.f, object.size.x * textScale),
+                max(1.f, object.size.y * textScale));
+        }
+
+        return ImVec2(
             max(1.f, object.size.x * object.scale.x),
             max(1.f, object.size.y * object.scale.y));
+    }
+
+    ImVec2 Clamp_ObjectPosition(const UI_Object& object, const ImVec2& canvasSize, const ImVec2& position)
+    {
+        const ImVec2 objectSize = Get_UIObjectRuntimeSize(object);
 
         const float maxX = max(0.f, canvasSize.x - objectSize.x);
         const float maxY = max(0.f, canvasSize.y - objectSize.y);

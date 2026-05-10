@@ -118,6 +118,169 @@ namespace UIEditor
         return Duplicate_ObjectRecursive(*sourceObject, sourceObject->parentId, offset, true);
     }
 
+    vector<ObjectId> UI_Document::Import_PrefabObjects(
+        const vector<UI_Object>& sourceObjects,
+        const vector<ObjectId>& rootObjectIds,
+        ObjectId parentId,
+        const ImVec2& rootOffset)
+    {
+        if (sourceObjects.empty())
+            return {};
+
+        if (parentId != 0 && !Can_HaveChildren(parentId))
+            parentId = 0;
+
+        unordered_map<ObjectId, const UI_Object*> sourceObjectById;
+        sourceObjectById.reserve(sourceObjects.size());
+        for (const UI_Object& sourceObject : sourceObjects)
+        {
+            if (sourceObject.id == 0)
+                continue;
+
+            sourceObjectById.emplace(sourceObject.id, &sourceObject);
+        }
+
+        if (sourceObjectById.empty())
+            return {};
+
+        vector<ObjectId> effectiveRootObjectIds;
+        unordered_set<ObjectId> rootObjectIdSet;
+        for (ObjectId rootObjectId : rootObjectIds)
+        {
+            if (sourceObjectById.find(rootObjectId) == sourceObjectById.end())
+                continue;
+
+            if (rootObjectIdSet.insert(rootObjectId).second)
+                effectiveRootObjectIds.push_back(rootObjectId);
+        }
+
+        if (effectiveRootObjectIds.empty())
+        {
+            for (const UI_Object& sourceObject : sourceObjects)
+            {
+                if (sourceObject.id != 0 && sourceObject.parentId == 0 && rootObjectIdSet.insert(sourceObject.id).second)
+                    effectiveRootObjectIds.push_back(sourceObject.id);
+            }
+        }
+
+        if (effectiveRootObjectIds.empty())
+            return {};
+
+        unordered_map<ObjectId, ObjectId> importedObjectIds;
+        unordered_set<ObjectId> importingObjectIds;
+
+        const auto belongsToRoot = [&](ObjectId objectId)
+        {
+            unordered_set<ObjectId> visitedObjectIds;
+            ObjectId currentObjectId = objectId;
+            while (currentObjectId != 0)
+            {
+                if (!visitedObjectIds.insert(currentObjectId).second)
+                    return false;
+
+                if (rootObjectIdSet.find(currentObjectId) != rootObjectIdSet.end())
+                    return true;
+
+                const auto sourceIter = sourceObjectById.find(currentObjectId);
+                if (sourceIter == sourceObjectById.end())
+                    return false;
+
+                currentObjectId = sourceIter->second->parentId;
+            }
+
+            return false;
+        };
+
+        int32 maxExistingSortOrder = -1;
+        for (const UI_Object& object : _objects)
+            maxExistingSortOrder = max(maxExistingSortOrder, object.sortOrder);
+
+        int32 minPrefabSortOrder = numeric_limits<int32>::max();
+        for (const UI_Object& sourceObject : sourceObjects)
+        {
+            if (sourceObject.id != 0 && belongsToRoot(sourceObject.id))
+                minPrefabSortOrder = min(minPrefabSortOrder, sourceObject.sortOrder);
+        }
+
+        if (minPrefabSortOrder == numeric_limits<int32>::max())
+            minPrefabSortOrder = 0;
+
+        const int64 sortOrderBase = static_cast<int64>(maxExistingSortOrder) + 1;
+        const auto resolveImportedSortOrder = [&](const UI_Object& sourceObject)
+        {
+            const int64 relativeSortOrder = static_cast<int64>(sourceObject.sortOrder) - static_cast<int64>(minPrefabSortOrder);
+            const int64 resolvedSortOrder = sortOrderBase + max<int64>(0, relativeSortOrder);
+            return static_cast<int32>(min<int64>(resolvedSortOrder, numeric_limits<int32>::max()));
+        };
+
+        const auto importObject = [&](auto&& self, ObjectId sourceObjectId) -> ObjectId
+        {
+            const auto importedIter = importedObjectIds.find(sourceObjectId);
+            if (importedIter != importedObjectIds.end())
+                return importedIter->second;
+
+            const auto sourceIter = sourceObjectById.find(sourceObjectId);
+            if (sourceIter == sourceObjectById.end())
+                return 0;
+
+            if (!importingObjectIds.insert(sourceObjectId).second)
+            {
+                LOG_WARN("UI prefab import skipped cyclic object id: {}", sourceObjectId);
+                return 0;
+            }
+
+            const UI_Object& sourceObject = *sourceIter->second;
+            const bool isRootObject = rootObjectIdSet.find(sourceObject.id) != rootObjectIdSet.end();
+
+            ObjectId importedParentId = parentId;
+            if (!isRootObject)
+            {
+                importedParentId = self(self, sourceObject.parentId);
+                if (importedParentId == 0)
+                    importedParentId = parentId;
+            }
+
+            if (importedParentId != 0 && !Can_HaveChildren(importedParentId))
+                importedParentId = parentId;
+            if (importedParentId != 0 && !Can_HaveChildren(importedParentId))
+                importedParentId = 0;
+
+            UI_Object importedObject = sourceObject;
+            importedObject.id = _nextObjectId++;
+            importedObject.parentId = importedParentId;
+            importedObject.name = Generate_UniqueName(sourceObject.name.empty() ? "Object" : sourceObject.name);
+            if (isRootObject)
+            {
+                importedObject.position.x += rootOffset.x;
+                importedObject.position.y += rootOffset.y;
+            }
+            importedObject.sortOrder = resolveImportedSortOrder(sourceObject);
+
+            const ObjectId importedObjectId = importedObject.id;
+            _objects.push_back(importedObject);
+            importedObjectIds[sourceObject.id] = importedObjectId;
+            importingObjectIds.erase(sourceObject.id);
+            return importedObjectId;
+        };
+
+        vector<ObjectId> importedRootObjectIds;
+        importedRootObjectIds.reserve(effectiveRootObjectIds.size());
+        for (ObjectId rootObjectId : effectiveRootObjectIds)
+        {
+            const ObjectId importedRootObjectId = importObject(importObject, rootObjectId);
+            if (importedRootObjectId != 0)
+                importedRootObjectIds.push_back(importedRootObjectId);
+        }
+
+        for (const UI_Object& sourceObject : sourceObjects)
+        {
+            if (sourceObject.id != 0 && belongsToRoot(sourceObject.id))
+                importObject(importObject, sourceObject.id);
+        }
+
+        return importedRootObjectIds;
+    }
+
     bool UI_Document::Delete_Object(ObjectId objectId)
     {
         if (objectId == 0 || nullptr == Find_Object(objectId))

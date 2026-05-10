@@ -24,12 +24,12 @@ namespace UIEditor
                 Lerp_Float(from.w, to.w, t));
         }
 
-        int32 Clamp_Frame(const UIAnimationAsset& asset, int32 frame)
+        int32 Clamp_Frame(const UI_AnimationAsset& asset, int32 frame)
         {
             return min(max(frame, asset.startFrame), asset.endFrame);
         }
 
-        float Normalize_KeyframeFrame(const UIAnimationAsset& asset, float frame)
+        float Normalize_KeyframeFrame(const UI_AnimationAsset& asset, float frame)
         {
             const float startFrame = static_cast<float>(asset.startFrame);
             const float endFrame = static_cast<float>(asset.endFrame);
@@ -47,7 +47,7 @@ namespace UIEditor
             return min(max(frame, startFrame), endFrame);
         }
 
-        float Evaluate_Keyframes(const UIAnimationTrack& track, float frame, bool& outHasValue)
+        float Evaluate_Keyframes(const UI_AnimationKeyframeTrack& track, float frame, bool& outHasValue)
         {
             outHasValue = false;
             if (track.keys.empty())
@@ -65,8 +65,8 @@ namespace UIEditor
 
             for (size_t index = 0; index + 1 < track.keys.size(); ++index)
             {
-                const UIAnimationKeyframe& currentKey = track.keys[index];
-                const UIAnimationKeyframe& nextKey = track.keys[index + 1];
+                const UI_AnimationKeyframe& currentKey = track.keys[index];
+                const UI_AnimationKeyframe& nextKey = track.keys[index + 1];
                 if (frame < static_cast<float>(currentKey.frame) || frame > static_cast<float>(nextKey.frame))
                     continue;
 
@@ -116,7 +116,7 @@ namespace UIEditor
         _isPlaying = true;
     }
 
-    void UI_AnimationPreviewService::Play_KeyframeAsset(const UIAnimationAsset& asset, int32 startFrame)
+    void UI_AnimationPreviewService::Play_KeyframeAsset(const UI_AnimationAsset& asset, int32 startFrame)
     {
         if (asset.targetObjectId == 0)
             return;
@@ -130,7 +130,7 @@ namespace UIEditor
         _isPlaying = true;
     }
 
-    void UI_AnimationPreviewService::Preview_KeyframeAsset(const UIAnimationAsset& asset, int32 frame)
+    void UI_AnimationPreviewService::Preview_KeyframeAsset(const UI_AnimationAsset& asset, int32 frame)
     {
         if (asset.targetObjectId == 0)
             return;
@@ -302,35 +302,35 @@ namespace UIEditor
         sample.color = object.color;
 
         bool hasSampledTrack = false;
-        for (const UIAnimationTrack& track : _keyframeAsset->tracks)
+        for (const UI_AnimationKeyframeTrack& track : _keyframeAsset->tracks)
         {
             if (!track.enabled)
                 continue;
 
             bool hasValue = false;
-            const float value = Clamp_UIAnimationTrackValue(track.type, Evaluate_Keyframes(track, frame, hasValue));
+            const float value = Clamp_AnimationKeyframeTrackValue(track.type, Evaluate_Keyframes(track, frame, hasValue));
             if (!hasValue)
                 continue;
 
             hasSampledTrack = true;
             switch (track.type)
             {
-            case UIAnimationTrackType::PositionX:
+            case UI_AnimationKeyframeTrackType::PositionX:
                 sample.position.x = value;
                 break;
-            case UIAnimationTrackType::PositionY:
+            case UI_AnimationKeyframeTrackType::PositionY:
                 sample.position.y = value;
                 break;
-            case UIAnimationTrackType::ScaleX:
+            case UI_AnimationKeyframeTrackType::ScaleX:
                 sample.scale.x = value;
                 break;
-            case UIAnimationTrackType::ScaleY:
+            case UI_AnimationKeyframeTrackType::ScaleY:
                 sample.scale.y = value;
                 break;
-            case UIAnimationTrackType::Rotation:
+            case UI_AnimationKeyframeTrackType::Rotation:
                 sample.rotationRadians = value;
                 break;
-            case UIAnimationTrackType::Alpha:
+            case UI_AnimationKeyframeTrackType::Alpha:
                 sample.color.w = value;
                 break;
             default:

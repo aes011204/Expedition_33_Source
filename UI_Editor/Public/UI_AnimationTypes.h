@@ -46,7 +46,7 @@ struct UI_AnimationClip
     vector<UI_AnimationTrack> tracks = {};
 };
 
-enum class UIAnimationTrackType
+enum class UI_AnimationKeyframeTrackType
 {
     PositionX,
     PositionY,
@@ -56,20 +56,20 @@ enum class UIAnimationTrackType
     Alpha,
 };
 
-struct UIAnimationKeyframe
+struct UI_AnimationKeyframe
 {
     int32 frame = 0;
     float value = 0.f;
 };
 
-struct UIAnimationTrack
+struct UI_AnimationKeyframeTrack
 {
-    UIAnimationTrackType type = UIAnimationTrackType::PositionX;
+    UI_AnimationKeyframeTrackType type = UI_AnimationKeyframeTrackType::PositionX;
     bool enabled = true;
-    vector<UIAnimationKeyframe> keys = {};
+    vector<UI_AnimationKeyframe> keys = {};
 };
 
-struct UIAnimationAsset
+struct UI_AnimationAsset
 {
     string name = "NewUIAnimation";
     string targetName = "";
@@ -78,7 +78,7 @@ struct UIAnimationAsset
     int32 startFrame = 0;
     int32 endFrame = 60;
     bool loop = false;
-    vector<UIAnimationTrack> tracks = {};
+    vector<UI_AnimationKeyframeTrack> tracks = {};
 };
 
 inline const char* Get_AnimationTrackTypeName(UI_AnimationTrackType type)
@@ -135,76 +135,76 @@ inline bool Try_ParseAnimationTrackType(const string& typeName, UI_AnimationTrac
     return false;
 }
 
-inline const char* Get_UIAnimationTrackTypeName(UIAnimationTrackType type)
+inline const char* Get_AnimationKeyframeTrackTypeName(UI_AnimationKeyframeTrackType type)
 {
     switch (type)
     {
-    case UIAnimationTrackType::PositionX:
+    case UI_AnimationKeyframeTrackType::PositionX:
         return "PositionX";
-    case UIAnimationTrackType::PositionY:
+    case UI_AnimationKeyframeTrackType::PositionY:
         return "PositionY";
-    case UIAnimationTrackType::ScaleX:
+    case UI_AnimationKeyframeTrackType::ScaleX:
         return "ScaleX";
-    case UIAnimationTrackType::ScaleY:
+    case UI_AnimationKeyframeTrackType::ScaleY:
         return "ScaleY";
-    case UIAnimationTrackType::Rotation:
+    case UI_AnimationKeyframeTrackType::Rotation:
         return "Rotation";
-    case UIAnimationTrackType::Alpha:
+    case UI_AnimationKeyframeTrackType::Alpha:
         return "Alpha";
     default:
         return "PositionX";
     }
 }
 
-inline bool Try_ParseUIAnimationTrackType(const string& typeName, UIAnimationTrackType& outType)
+inline bool Try_ParseAnimationKeyframeTrackType(const string& typeName, UI_AnimationKeyframeTrackType& outType)
 {
     if (typeName == "PositionX")
     {
-        outType = UIAnimationTrackType::PositionX;
+        outType = UI_AnimationKeyframeTrackType::PositionX;
         return true;
     }
 
     if (typeName == "PositionY")
     {
-        outType = UIAnimationTrackType::PositionY;
+        outType = UI_AnimationKeyframeTrackType::PositionY;
         return true;
     }
 
     if (typeName == "ScaleX")
     {
-        outType = UIAnimationTrackType::ScaleX;
+        outType = UI_AnimationKeyframeTrackType::ScaleX;
         return true;
     }
 
     if (typeName == "ScaleY")
     {
-        outType = UIAnimationTrackType::ScaleY;
+        outType = UI_AnimationKeyframeTrackType::ScaleY;
         return true;
     }
 
     if (typeName == "Rotation")
     {
-        outType = UIAnimationTrackType::Rotation;
+        outType = UI_AnimationKeyframeTrackType::Rotation;
         return true;
     }
 
     if (typeName == "Alpha")
     {
-        outType = UIAnimationTrackType::Alpha;
+        outType = UI_AnimationKeyframeTrackType::Alpha;
         return true;
     }
 
     return false;
 }
 
-inline float Clamp_UIAnimationTrackValue(UIAnimationTrackType type, float value)
+inline float Clamp_AnimationKeyframeTrackValue(UI_AnimationKeyframeTrackType type, float value)
 {
     switch (type)
     {
-    case UIAnimationTrackType::ScaleX:
-    case UIAnimationTrackType::ScaleY:
+    case UI_AnimationKeyframeTrackType::ScaleX:
+    case UI_AnimationKeyframeTrackType::ScaleY:
         return max(0.01f, value);
-    case UIAnimationTrackType::Alpha:
+    case UI_AnimationKeyframeTrackType::Alpha:
         return min(max(value, 0.f), 1.f);
     default:
         return value;

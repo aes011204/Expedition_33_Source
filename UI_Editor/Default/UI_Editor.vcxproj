@@ -20,10 +20,11 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\Private\UI_AnimationAssetSerializer.cpp" />
+    <ClCompile Include="..\Private\UI_AnimationAssetService.cpp" />
+    <ClCompile Include="..\Private\UI_AnimationTimelineView.cpp" />
     <ClCompile Include="..\Private\UI_Animation_View.cpp" />
     <ClCompile Include="..\Private\UI_AnimationPreviewService.cpp" />
     <ClCompile Include="..\Private\SimpleMath.cpp" />
-    <ClCompile Include="..\Private\UI_Content_Browser.cpp" />
     <ClCompile Include="..\Private\UI_DocumentSerializer.cpp" />
     <ClCompile Include="..\Private\UI_Editor_FileService.cpp" />
     <ClCompile Include="..\Private\UI_Editor_HistoryService.cpp" />
@@ -35,6 +36,8 @@
     <ClCompile Include="..\Private\UI_Editor_Window.cpp" />
     <ClCompile Include="..\Private\UI_Hierarchy_View.cpp" />
     <ClCompile Include="..\private\UI_Inspector.cpp" />
+    <ClCompile Include="..\Private\UI_Prefab_Browser.cpp" />
+    <ClCompile Include="..\Private\UI_PrefabService.cpp" />
     <ClCompile Include="..\Private\UI_Viewport_View.cpp" />
     <ClCompile Include="..\Private\UI_Viewport_Utils.cpp" />
     <ClCompile Include="pch.cpp">
@@ -49,10 +52,11 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Public\UI_AnimationAssetSerializer.h" />
+    <ClInclude Include="..\Public\UI_AnimationAssetService.h" />
+    <ClInclude Include="..\Public\UI_AnimationTimelineView.h" />
     <ClInclude Include="..\Public\UI_Animation_View.h" />
     <ClInclude Include="..\Public\UI_AnimationPreviewService.h" />
     <ClInclude Include="..\Public\UI_AnimationTypes.h" />
-    <ClInclude Include="..\Public\UI_Content_Browser.h" />
     <ClInclude Include="..\Public\UI_Document.h" />
     <ClInclude Include="..\Public\UI_DocumentSerializer.h" />
     <ClInclude Include="..\Public\UI_EditorApp.h" />
@@ -71,6 +75,8 @@
     <ClInclude Include="..\Public\UI_Hierarchy_View.h" />
     <ClInclude Include="..\public\UI_Editor_Manager.h" />
     <ClInclude Include="..\public\UI_Inspector.h" />
+    <ClInclude Include="..\Public\UI_Prefab_Browser.h" />
+    <ClInclude Include="..\Public\UI_PrefabService.h" />
     <ClInclude Include="..\Public\UI_Viewport_View.h" />
     <ClInclude Include="..\Public\UI_Viewport_Utils.h" />
     <ClInclude Include="pch.h" />
