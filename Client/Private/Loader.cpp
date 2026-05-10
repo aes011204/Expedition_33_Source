@@ -1,5 +1,6 @@
 ﻿#include "Loader.h"
 #include "GameInstance.h"
+#include "ClientInstance.h"
 #include "ResourceLoader.h"
 #include "BackGround.h"
 #include "Terrain.h"
@@ -16,29 +17,30 @@ Loader::Loader(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
 }
 
-unsigned int APIENTRY ThreadMain(void* pArg)
-{
-    Loader* pLoader = static_cast<Loader*>(pArg);
-    if (nullptr == pLoader)
-        return 1;
-
-    if (FAILED(pLoader->Loading()))
-        return 1;
-
-    return 0;
-}
-
 HRESULT Loader::Initialize(LevelType eNextLevelID)
 {
     _nextLevel = eNextLevelID;
 
-    InitializeCriticalSection(&_criticalSection);
+    _workerStarted.store(true);
 
-    _threadHandle = (HANDLE)_beginthreadex(nullptr, 0, ThreadMain, this, 0, nullptr);
-
-    if (0 == _threadHandle)
+    const bool enqueued = GAME->Enqueue_ThreadJob([this]()
     {
-        MSG_BOX("Failed To Created : Thread");
+        const HRESULT hr = Loading();
+
+        if (FAILED(hr))
+        {
+            _hasFailed.store(true);
+            _workerDone.store(true);
+        }
+    });
+
+    if (!enqueued)
+    {
+        _workerStarted.store(false);
+        _hasFailed.store(true);
+        _workerDone.store(true);
+
+        LOG_ERROR("[Loader::Initialize] Failed to enqueue loading job.");
         return E_FAIL;
     }
 
@@ -52,7 +54,7 @@ HRESULT Loader::Loading()
 
     HRESULT		hr = {};
 
-    EnterCriticalSection(&_criticalSection);
+    //EnterCriticalSection(&_criticalSection);
     CoInitializeEx(nullptr, COINIT_MULTITHREADED);
 
     switch (_nextLevel)
@@ -78,7 +80,7 @@ HRESULT Loader::Loading()
     }
 
     CoUninitialize();
-    LeaveCriticalSection(&_criticalSection);
+    //LeaveCriticalSection(&_criticalSection);
 
     // 로딩 끝난 시간
     const auto end = std::chrono::steady_clock::now();
@@ -88,92 +90,280 @@ HRESULT Loader::Loading()
 
     LOG_ERROR("[Loader::Loading] 레벨 : {}, 로딩 시간 : {}", levelName, Format_Duration(elapsed));
 
+    if (FAILED(hr))
+        _hasFailed.store(true);
+
     return hr;
 }
 
-#ifdef _DEBUG
+HRESULT Loader::Process_PendingLoadJobs(size_t maxJobPerFrame)
+{
+    // 이미 완료됐거나, 실패한 상태면 더 처리할 작업이 없다.
+    if (_isFinished.load() || _hasFailed.load())
+        return S_OK;
 
+    if (maxJobPerFrame == 0)
+        return S_OK;
+
+    Shared<ResourceLoader> resourceLoader = ResourceLoader::Create(_device, _context);
+    if (resourceLoader == nullptr)
+    {
+        LOG_ERROR("[Loader::Process_PendingLoadJobs] ResourceLoader::Create failed");
+        _hasFailed.store(true);
+        return E_FAIL;
+    }
+
+    vector<FLoadJob> loadJobsToProcess;;
+
+    {
+        // 이번 프레임에 처리할 양만 꺼내기
+        lock_guard<mutex> lock(_pendingJobsMutex);
+
+        const size_t jobCount = min(maxJobPerFrame, _pendingJobs.size());
+        loadJobsToProcess.reserve(jobCount);
+
+        for (size_t i = 0; i < jobCount; ++i)
+            loadJobsToProcess.push_back(_pendingJobs[i]);
+
+        // 이번 프레임에 처리할 job들은 local vector로 복사했으니까 pending 목록에서는 제외
+        _pendingJobs.erase(_pendingJobs.begin(), _pendingJobs.begin() + jobCount);
+    }
+
+    // 실제 무거운 작업은 lock 밖에서 진행
+    for (const FLoadJob& loadJob : loadJobsToProcess)
+    {
+        const auto startTime = chrono::steady_clock::now();
+
+        if (FAILED(resourceLoader->Register_LoadJob(loadJob)))
+        {
+            LOG_ERROR("[Loader::Process_PendingLoadJobs] Register_LoadJob failed. tag={}, level={}",
+                String::ToString(loadJob.strPrototypeTag),
+                loadJob.iLevelIndex);
+
+            _hasFailed.store(true);
+            return E_FAIL;
+        }
+
+        const auto elapsed = chrono::duration_cast<chrono::milliseconds>(
+            chrono::steady_clock::now() - startTime);
+
+        Accumulate_LoadJobStats(loadJob.eType, elapsed);
+
+        const string jobTypeName = string(magic_enum::enum_name(loadJob.eType));
+
+        LOG_ERROR("[Loader::Process_PendingLoadJobs] Processed load job. tag={}, type={}, elapsed={}",
+            String::ToString(loadJob.strPrototypeTag),
+            jobTypeName,
+            Format_Duration(elapsed));
+
+        _completedJobCount.fetch_add(1);
+    }
+
+    // worker thread가 job 생성을 끝냈고, main thread에도 pending job을 모두 처리했으면 이제 로딩 완료
+    if (_workerDone.load())
+    {
+        lock_guard<mutex> lock(_pendingJobsMutex);
+
+        if (_pendingJobs.empty())
+        {
+            if (_includedStaticJobs.load())
+            {
+                if (FAILED(CLIENT->Ready_StaticObjects()))
+                {
+                    _hasFailed.store(true);
+                    return E_FAIL;
+                }
+
+                CLIENT->Set_StaticResourcesLoaded(true);
+            }
+
+            lstrcpy(_loadingText, TEXT("Loading completed."));
+            _isFinished.store(true);
+
+            Print_LoadJobSummary();
+        }
+    }
+
+     return S_OK;
+}
+
+float Loader::Get_Progress() const
+{
+    const size_t totalJobCount = _totalJobCount.load();
+    const size_t completedJobCount = _completedJobCount.load();
+
+    // 아직 job 목록 만들기 전
+    if (totalJobCount == 0)
+        return _isFinished.load() ? 1.f : 0.f;
+
+    return static_cast<float>(completedJobCount) / totalJobCount;
+}
+
+#ifdef _DEBUG
 HRESULT Loader::Print_LoadingText()
 {
     SetWindowText(g_hWnd, _loadingText);
 
     return S_OK;
 }
-
 #endif
-
-HRESULT Loader::Load_ResourceTablesForLevel(LevelType eLevel)
-{
-    Shared<ResourceLoader> pResourceLoader = ResourceLoader::Create(_device, _context);
-    if (nullptr == pResourceLoader)
-        return E_FAIL;
-
-    return pResourceLoader->Load_LevelTables(eLevel);
-}
 
 HRESULT Loader::Loading_For_LogoLevel()
 {
-    lstrcpy(_loadingText, TEXT("json 리소스 테이블을 로딩 중입니다."));
-    if (FAILED(Load_ResourceTablesForLevel(LevelType::Logo)))
+    lstrcpy(_loadingText, TEXT("Logo 로딩 중..."));
+
+    if (FAILED(Load_ResourceJobsForNextLevel()))
     {
         MSG_BOX("Faild to Load Resource Tables : Logo");
         return E_FAIL;
     }
-
-    lstrcpy(_loadingText, TEXT("로딩이 완료되었습니다."));
-
-    _isFinished = true;
 
     return S_OK;
 }
 
 HRESULT Loader::Loading_For_GamePlayLevel()
 {
-    lstrcpy(_loadingText, TEXT("json 리소스 테이블을 로딩 중입니다."));
+    lstrcpy(_loadingText, TEXT("GamePlay 로딩 중..."));
 
-    if (FAILED(Load_ResourceTablesForLevel(LevelType::GamePlay)))
+    if (FAILED(Load_ResourceJobsForNextLevel()))
     {
         MSG_BOX("Faild to Load Resource Tables : GamePlay");
         return E_FAIL;
     }
-
-    lstrcpy(_loadingText, TEXT("로딩이 완료되었습니다."));
-
-    _isFinished = true;
 
     return S_OK;
 }
 
 HRESULT Loader::Loading_For_MapTestLevel()
 {
-    lstrcpy(_loadingText, TEXT("json 리소스 테이블을 로딩 중입니다."));
-    if (FAILED(Load_ResourceTablesForLevel(LevelType::Logo)))
+    lstrcpy(_loadingText, TEXT("MapTest 로딩 중..."));
+
+    if (FAILED(Load_ResourceJobsForNextLevel()))
     {
         MSG_BOX("Faild to Load Resource Tables : Logo");
         return E_FAIL;
     }
 
-    lstrcpy(_loadingText, TEXT("로딩이 완료되었습니다."));
-
-    _isFinished = true;
-    
     return S_OK;
 }
 
 HRESULT Loader::Loading_For_Stage01Level()
 {
-    lstrcpy(_loadingText, TEXT("json 리소스 테이블을 로딩 중입니다."));
-    if (FAILED(Load_ResourceTablesForLevel(LevelType::Logo)))
+    lstrcpy(_loadingText, TEXT("Stage01 로딩 중..."));
+
+    if (FAILED(Load_ResourceJobsForNextLevel()))
     {
         MSG_BOX("Faild to Load Resource Tables : Logo");
         return E_FAIL;
     }
 
-    lstrcpy(_loadingText, TEXT("로딩이 완료되었습니다."));
-
-    _isFinished = true;
-    
     return S_OK;
+}
+
+void Loader::Accumulate_LoadJobStats(ELoadJobType jobType, chrono::milliseconds duration)
+{
+    const size_t index = static_cast<size_t>(jobType);
+
+    if (index >= _loadJobStats.size())
+        return;
+
+    LoadJobStats& stats = _loadJobStats[index];
+    ++stats.count;
+    stats.totalDuration += duration;
+}
+
+void Loader::Print_LoadJobSummary()
+{
+    LOG_ERROR("[Loader::Print_LoadJobSummary] ---- LoadJob Summary Begin ----");
+
+    for (size_t i = 0; i < _loadJobStats.size(); ++i)
+    {
+        const LoadJobStats& stats = _loadJobStats[i];
+        if (stats.count == 0)
+            continue;
+
+        const ELoadJobType jobType = static_cast<ELoadJobType>(i);
+        const string jobTypeName = string(magic_enum::enum_name(jobType));
+
+        LOG_ERROR("[Loader::Print_LoadJobSummary] type={}, count={}, total={}",
+            jobTypeName,
+            static_cast<int>(stats.count),
+            Format_Duration(stats.totalDuration));
+    }
+
+    LOG_ERROR("[Loader::Print_LoadJobSummary] ---- LoadJob Summary End ----");
+}
+
+
+HRESULT Loader::Append_ResourceJobsForLevel(LevelType levelType)
+{
+    Shared<ResourceLoader> resourceLoader = ResourceLoader::Create(_device, _context);
+    if (resourceLoader == nullptr)
+    {
+        LOG_ERROR("[Loader::Load_ResourceJobsForLevel] ResourceLoader::Create failed");
+        return E_FAIL;
+    }
+
+    vector<FLoadJob> builtJobs;
+    if (FAILED(resourceLoader->Build_LevelJobs(levelType, builtJobs)))
+    {
+        LOG_ERROR("[Loader::Load_ResourceJobsForLevel] Build_LevelJobs failed. level={}",
+            static_cast<int>(levelType));
+        return E_FAIL;
+    }
+
+    {
+        lock_guard<mutex> lock(_pendingJobsMutex);
+        _pendingJobs.insert(_pendingJobs.end(), builtJobs.begin(), builtJobs.end());
+    }
+
+    _totalJobCount.fetch_add(builtJobs.size());
+
+    //LOG_ERROR("[Loader::Load_ResourceJobsForLevel] level={}, totalJobs={}",
+    //    static_cast<int>(levelType),
+    //    static_cast<int>(builtJobs.size()));
+
+    return S_OK;
+}
+
+HRESULT Loader::Load_ResourceJobsForLevel(LevelType levelType)
+{
+    return Load_ResourceJobsForLevels({ levelType });
+}
+
+HRESULT Loader::Load_ResourceJobsForLevels(const vector<LevelType>& levelTypes)
+{
+    _completedJobCount.store(0);
+    _totalJobCount.store(0);
+
+    {
+        lock_guard<mutex> lock(_pendingJobsMutex);
+        _pendingJobs.clear();
+    }
+
+    for (LevelType levelType : levelTypes)
+    {
+        if (FAILED(Append_ResourceJobsForLevel(levelType)))
+            return E_FAIL;
+    }
+
+    _workerDone.store(true);
+    return S_OK;
+}
+
+HRESULT Loader::Load_ResourceJobsForNextLevel()
+{
+    vector<LevelType> levelTypes;
+
+    if (!CLIENT->Is_StaticResourcesLoaded())
+    {
+        levelTypes.push_back(LevelType::Static);
+        _includedStaticJobs.store(true);
+    }
+
+    levelTypes.push_back(_nextLevel);
+
+    return Load_ResourceJobsForLevels(levelTypes);
 }
 
 string Loader::Format_Duration(chrono::milliseconds duration)
@@ -239,12 +429,10 @@ Shared<Loader> Loader::Create(const ComPtr<Device>& device, const ComPtr<Context
 
 void Loader::Free()
 {
+    while (_workerStarted.load() && !Is_WorkerDone())
+        this_thread::sleep_for(chrono::milliseconds(1));
+
     __super::Free();
-
-    WaitForSingleObject(_threadHandle, INFINITE);
-    CloseHandle(_threadHandle);
-
-    DeleteCriticalSection(&_criticalSection);
 }
 
 

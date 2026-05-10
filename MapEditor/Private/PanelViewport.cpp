@@ -44,13 +44,62 @@ void PanelViewport::Render()
 
             ImGui::Image(reinterpret_cast<ImTextureID>(_rt->Get_SRV()), size);
 
+            if (_ctx->_cursorVisible)
+            {
+                const ImVec2 vpMin = ImGui::GetItemRectMin();
+                const ImVec2 vpMax = ImGui::GetItemRectMax();
+                const ImVec2 ovrPos = ImVec2(vpMin.x + 10.f, vpMax.y - 36.f);
+
+                ImGui::SetNextWindowPos(ovrPos);
+                ImGui::SetNextWindowBgAlpha(0.6f);
+                ImGui::SetNextWindowSize(ImVec2(240.f, 0.f));
+                constexpr ImGuiWindowFlags ovrFlags =
+                    ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs |
+                    ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoMove |
+                    ImGuiWindowFlags_NoSavedSettings;
+                if (ImGui::Begin("##CursorOverlay", nullptr, ovrFlags))
+                {
+                    const Vec3& p = _ctx->_cursorPos;
+                    ImGui::TextColored(ImVec4(0.9f, 0.4f, 0.9f, 1.f), "Cursor");
+                    ImGui::SameLine();
+                    ImGui::Text("%.2f  %.2f  %.2f", p.x, p.y, p.z);
+                }
+                ImGui::End();
+            }
+
+
+            if (ImGui::BeginDragDropTarget())
+            {
+                if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("MODEL_PATH"))
+                {
+                    _spawnModelPath = static_cast<const char*> (payload->Data);
+                    _spawnMousePos = ImGui::GetIO().MousePos;
+                    _spawnVpPos = ImGui::GetItemRectMin();
+                    _spawnVpSize = ImGui::GetItemRectSize();
+                    _spawnRequested = true;
+                }
+                ImGui::EndDragDropTarget();
+            }
+
             if (_ctx && ImGui::IsItemClicked(ImGuiMouseButton_Left) &&
                 !ImGuizmo::IsOver() && !ImGuizmo::IsUsing())
             {
-                _pickRequested = true;
-                _pickMousePos = ImGui::GetIO().MousePos;
-                _pickVpPos = ImGui::GetItemRectMin();
-                _pickVpSize = ImGui::GetItemRectSize();
+                const bool shiftHeld = ImGui::GetIO().KeyShift;
+                if (shiftHeld)
+                {
+                    _cursorSetRequested = true;
+                    _cursorMousePos = ImGui::GetIO().MousePos;
+                    _cursorVpPos = ImGui::GetItemRectMin();
+                    _cursorVpSize = ImGui::GetItemRectSize();
+                }
+
+                else
+                {
+                    _pickRequested = true;
+                    _pickMousePos = ImGui::GetIO().MousePos;
+                    _pickVpPos = ImGui::GetItemRectMin();
+                    _pickVpSize = ImGui::GetItemRectSize();
+                }
             }
 
             if (_camera && _ctx && _ctx->_selected)
@@ -138,6 +187,37 @@ bool PanelViewport::ConsumePick(ImVec2& outMousePos, ImVec2& outVpPos, ImVec2& o
     outMousePos = _pickMousePos;
     outVpPos = _pickVpPos;
     outVpSize = _pickVpSize;
+    return true;
+}
+
+bool PanelViewport::ConsumeSpawn(string& outModelPath, ImVec2& outMousePos, ImVec2& outVpPos, ImVec2& outVpSize)
+{
+    if (!_spawnRequested)
+    {
+        return false;
+    }
+
+    _spawnRequested = false;
+    outModelPath = _spawnModelPath;
+    outMousePos = _spawnMousePos;
+    outVpPos = _spawnVpPos;
+    outVpSize = _spawnVpSize;
+
+    return true;
+}
+
+bool PanelViewport::ConsumeCursorSet(ImVec2& outMousePos, ImVec2& outVpPos, ImVec2& outVpSize)
+{
+    if (!_cursorSetRequested)
+    {
+        return false;
+    }
+
+    _cursorSetRequested = false;
+    outMousePos = _cursorMousePos;
+    outVpPos = _cursorVpPos;
+    outVpSize = _cursorVpSize;
+
     return true;
 }
 

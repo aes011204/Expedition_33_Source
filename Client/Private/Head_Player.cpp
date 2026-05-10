@@ -28,6 +28,9 @@ HRESULT Head_Player::Initialize(void* arg)
         return S_OK;
 	}
 
+    //_offsetMatrix = Matrix::CreateRotationX(XMConvertToRadians(-90.f)) * Matrix::CreateTranslation(0.f, 0.f, -10.f);
+    _offsetMatrix = Matrix::Identity;
+
 	return S_OK;
 }
 
@@ -35,12 +38,21 @@ void Head_Player::Priority_Update(float fTimeDelta)
 {
 }
 
-void Head_Player::Update(float fTimeDelta)
+void Head_Player::Update(float timeDelta)
 {
+    if (Has_LeaderPoseComponent())
+    {
+        Update_LeaderPoseMatrices();
+    }
+    else
+    {
+        _modelCom->Play_Animation(timeDelta);
+    }
+
 	Update_CombinedWorldMatrix(_transformCom->Get_WorldMatrix());
 }
 
-void Head_Player::Late_Update(float fTimeDelta)
+void Head_Player::Late_Update(float timeDelta)
 {
 	GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
 	GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
@@ -59,15 +71,15 @@ HRESULT Head_Player::Render()
         _modelCom->Bind_Material(_shaderCom.get(), "g_DiffuseTexture", i, MaterialTextureSlot::BaseColor);
 
         const Material::TextureSlot* baseColorSlot = _modelCom->Find_MaterialSlot(i, { MaterialTextureSlot::BaseColor });
-        const Vec2 uvScale = baseColorSlot ? baseColorSlot->uvScale : Vec2(1.f, 1.f);
-        const Vec2 uvOffset = baseColorSlot ? baseColorSlot->uvOffset : Vec2(0.f, 0.f);
-        const float uvRotation = baseColorSlot ? baseColorSlot->uvRotation : 0.f;
-        const int useOpacityMask = 0;
+        const Vec2 uvScale = Vec2(1.f, 1.f); //baseColorSlot ? baseColorSlot->uvScale : Vec2(1.f, 1.f);
+        const Vec2 uvOffset = Vec2(0.f, 0.f); //baseColorSlot ? baseColorSlot->uvOffset : Vec2(0.f, 0.f);
+        const float uvRotation = 0.f; // baseColorSlot ? baseColorSlot->uvRotation : 0.f;
+        const int32 useOpacityMask = 0;
 
         _shaderCom->Bind_RawValue("g_UVScale", &uvScale, sizeof(Vec2));
         _shaderCom->Bind_RawValue("g_UVOffset", &uvOffset, sizeof(Vec2));
         _shaderCom->Bind_RawValue("g_UVRotation", &uvRotation, sizeof(float));
-        _shaderCom->Bind_RawValue("g_UseOpacityMask", &useOpacityMask, sizeof(int));
+        _shaderCom->Bind_RawValue("g_UseOpacityMask", &useOpacityMask, sizeof(int32));
 
         _modelCom->Bind_BoneMatrices(_shaderCom.get(), "g_BoneMatrices", i);
 

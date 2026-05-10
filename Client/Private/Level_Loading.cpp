@@ -39,6 +39,17 @@ void Level_Loading::Update(float fTimeDelta)
     _sleepTime += fTimeDelta;
 
 	if (true == _loader->isFinished() && _sleepTime >= MIN_LOADING_SECONDS)
+    CHECK_NULL(_loader);
+
+    CHECK_FAILED(_loader->Process_PendingLoadJobs(8));
+
+#ifdef _DEBUG
+    // 퍼센트 디버깅용
+    const float progress = _loader->Get_Progress();
+    LOG_ERROR("[Level_Loading::Update] progress={:.2f}%%", progress * 100.f);
+#endif
+
+	if (_loader->isFinished())
 	{
 		Shared<Level> pNextLevel = nullptr;
 
@@ -112,11 +123,15 @@ Shared<Level_Loading> Level_Loading::Create(const ComPtr<Device>& device, const 
 	return pInstance;
 }
 
-
 void Level_Loading::Free()
 {
-	__super::Free();
+    if (_loader)
+    {
+        while (!_loader->Is_WorkerDone())
+            this_thread::sleep_for(chrono::milliseconds(1));
+    }
 
+	__super::Free();
 }
 
 

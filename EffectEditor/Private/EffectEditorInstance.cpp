@@ -54,6 +54,8 @@ HRESULT EffectEditorInstance::Initialize_Editor(const EffectEditorDesc& editorDe
 
 void EffectEditorInstance::Release_Editor()
 {
+    End_PreviewCameraDrag();
+
     _sharedViewportRenderTarget.reset();
     _sceneGridBatch.reset();
     _sceneGridEffect.reset();
@@ -92,6 +94,8 @@ void EffectEditorInstance::Release_Editor()
     _isGameViewportInputEnabled = false;
     _isPreviewCameraControlEnabled = false;
     _isPreviewCameraDragging = false;
+    _hasPreviewCameraLockScreenRect = false;
+    _previewCameraLockScreenRect = {};
 }
 
 void EffectEditorInstance::Update_Editor(float timeDelta)
@@ -118,6 +122,8 @@ void EffectEditorInstance::Render_Editor()
 
 void EffectEditorInstance::Play()
 {
+    End_PreviewCameraDrag();
+
     _runtimeState = EffectEditorRuntimeState::Play;
     Activate_TargetCamera();
 
@@ -132,6 +138,8 @@ void EffectEditorInstance::Pause()
     if (EffectEditorRuntimeState::Play != _runtimeState)
         return;
 
+    End_PreviewCameraDrag();
+
     if (!Is_PreviewCameraActive())
         Activate_PreviewCamera();
 
@@ -144,6 +152,8 @@ void EffectEditorInstance::Pause()
 
 void EffectEditorInstance::Stop()
 {
+    End_PreviewCameraDrag();
+
     _runtimeState = EffectEditorRuntimeState::Edit;
 
     Activate_PreviewCamera();
@@ -158,6 +168,8 @@ void EffectEditorInstance::Resume()
 {
     if (EffectEditorRuntimeState::Pause != _runtimeState)
         return;
+
+    End_PreviewCameraDrag();
 
     _runtimeState = EffectEditorRuntimeState::Play;
     Activate_TargetCamera();
@@ -282,6 +294,45 @@ void EffectEditorInstance::Set_SceneViewportInputState(bool canInteract, bool bl
 void EffectEditorInstance::Set_GameViewportInputState(bool canInteract)
 {
     _isGameViewportInputEnabled = canInteract;
+}
+
+void EffectEditorInstance::Set_PreviewCameraLockScreenRect(const RECT& lockRectScreen)
+{
+    _previewCameraLockScreenRect = lockRectScreen;
+    _hasPreviewCameraLockScreenRect = true;
+
+    if (_isPreviewCameraDragging)
+        GAME->Set_MouseLockOverrideRect(lockRectScreen);
+}
+
+void EffectEditorInstance::Clear_PreviewCameraLockScreenRect()
+{
+    _hasPreviewCameraLockScreenRect = false;
+    _previewCameraLockScreenRect = {};
+
+    if (_isPreviewCameraDragging)
+        GAME->Clear_MouseLockOverrideRect();
+}
+
+void EffectEditorInstance::Begin_PreviewCameraDrag()
+{
+    if (_isPreviewCameraDragging)
+        return;
+
+    _isPreviewCameraDragging = true;
+    if (_hasPreviewCameraLockScreenRect)
+        GAME->Set_MouseLockOverrideRect(_previewCameraLockScreenRect);
+
+    GAME->Begin_EditorMouseLockSession();
+    GAME->Lock_Mouse();
+}
+
+void EffectEditorInstance::End_PreviewCameraDrag()
+{
+    _isPreviewCameraDragging = false;
+    GAME->Clear_MouseLockOverrideRect();
+    GAME->End_EditorMouseLockSession();
+    GAME->Unlock_Mouse();
 }
 
 Shared<RenderTarget> EffectEditorInstance::Prepare_SharedViewportRenderTarget(uint32 width, uint32 height)
@@ -600,6 +651,9 @@ void EffectEditorInstance::Apply_RuntimeInputPolicy()
     const Shared<Editor_Window> sceneView = Get_Window(L"Scene");
     const Shared<Editor_Window> gameView = Get_Window(L"Game");
 
+    if (_isPreviewCameraDragging && !GAME->KeyPress(KEY_TYPE::RBUTTON))
+        End_PreviewCameraDrag();
+
     if (_runtimeState != EffectEditorRuntimeState::Play &&
         !Is_PreviewCameraActive())
         Activate_PreviewCamera();
@@ -622,11 +676,13 @@ void EffectEditorInstance::Apply_RuntimeInputPolicy()
                 keepPreviewCameraControl;
 
             if (_isPreviewCameraControlEnabled && _isPreviewCameraDragging)
+            {
+                GAME->Begin_EditorMouseLockSession();
                 GAME->Lock_Mouse();
+            }
             else
             {
-                GAME->Unlock_Mouse();
-                _isPreviewCameraDragging = false;
+                End_PreviewCameraDrag();
             }
         }
         else
@@ -634,7 +690,7 @@ void EffectEditorInstance::Apply_RuntimeInputPolicy()
             GAME->Set_PlayerInputBlocked(!gameFocused);
             GAME->Set_FreeCameraInputEnabled(false);
             _isPreviewCameraControlEnabled = false;
-            _isPreviewCameraDragging = false;
+            End_PreviewCameraDrag();
 
             if (gameFocused)
                 GAME->Lock_Mouse();
@@ -654,12 +710,12 @@ void EffectEditorInstance::Apply_RuntimeInputPolicy()
          keepPreviewCameraControl);
 
     if (_isPreviewCameraControlEnabled && _isPreviewCameraDragging)
-        GAME->Lock_Mouse();
-    else
     {
-        GAME->Unlock_Mouse();
-        _isPreviewCameraDragging = false;
+        GAME->Begin_EditorMouseLockSession();
+        GAME->Lock_Mouse();
     }
+    else
+        End_PreviewCameraDrag();
 }
 
 void EffectEditorInstance::Request_FrameStep()

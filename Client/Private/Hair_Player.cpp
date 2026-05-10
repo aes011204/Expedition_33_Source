@@ -25,7 +25,21 @@ HRESULT Hair_Player::Initialize(void* arg)
         return S_OK;
     }
 
+    _offsetMatrix = Matrix::Identity;
+
+    //Vec3 hairOffset = Vec3(17.61f, 0.0f, -2.765f);
+    Vec3 hairOffset = Vec3(17.61f, -2.765f, 0.f);
+
+    _transformCom->Set_Position(hairOffset);
+
+
     return S_OK;
+}
+
+void Hair_Player::BeginPlay()
+{
+    PlayableParts::BeginPlay();
+    
 }
 
 void Hair_Player::Priority_Update(float timeDelta)
@@ -45,7 +59,36 @@ void Hair_Player::Late_Update(float timeDelta)
 
 HRESULT Hair_Player::Render()
 {
-    return PlayableParts::Render();
+    //return PlayableParts::Render();
+
+    if (FAILED(Bind_ShaderResources()))
+        return E_FAIL;
+
+    const uint32 numMeshes = static_cast<uint32>(_modelCom->Get_NumMeshes());
+    for (uint32 i = 0; i < numMeshes; i++)
+    {
+        _modelCom->Bind_Material(_shaderCom.get(), "g_DiffuseTexture", i, MaterialTextureSlot::BaseColor);
+
+        const Material::TextureSlot* baseColorSlot = _modelCom->Find_MaterialSlot(i, { MaterialTextureSlot::BaseColor });
+        const Vec2 uvScale = Vec2(1.f, 1.f); //baseColorSlot ? baseColorSlot->uvScale : Vec2(1.f, 1.f);
+        const Vec2 uvOffset = Vec2(0.f, 0.f); //baseColorSlot ? baseColorSlot->uvOffset : Vec2(0.f, 0.f);
+        const float uvRotation = 0.f; // baseColorSlot ? baseColorSlot->uvRotation : 0.f;
+        const int32 useOpacityMask = 0;
+
+        _shaderCom->Bind_RawValue("g_UVScale", &uvScale, sizeof(Vec2));
+        _shaderCom->Bind_RawValue("g_UVOffset", &uvOffset, sizeof(Vec2));
+        _shaderCom->Bind_RawValue("g_UVRotation", &uvRotation, sizeof(float));
+        _shaderCom->Bind_RawValue("g_UseOpacityMask", &useOpacityMask, sizeof(int32));
+
+        _modelCom->Bind_BoneMatrices(_shaderCom.get(), "g_BoneMatrices", i);
+
+        if (FAILED(_shaderCom->Begin(0)))
+            return E_FAIL;
+
+        _modelCom->Render(i);
+    }
+
+    return S_OK;
 }
 
 HRESULT Hair_Player::Render_Shadow()

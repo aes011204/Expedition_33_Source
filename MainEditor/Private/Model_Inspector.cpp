@@ -71,7 +71,7 @@ void ModelCom_Inspector::Draw_Inspector(const Shared<Component>& component)
 
     ImGui::SeparatorText("Materials");
 
-    const uint32 numMaterials = model->Get_NumMaterials();
+    const size_t numMaterials = model->Get_NumMaterials();
     for (uint32 materialIndex = 0; materialIndex < numMaterials; ++materialIndex)
     {
         Shared<Material> material = model->Get_Material(materialIndex);

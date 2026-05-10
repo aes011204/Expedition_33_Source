@@ -23,6 +23,8 @@ private:
     bool    Pass_SearchFilter(const Shared<GameObject>& gameObject, uint32 objectIndex) const;
     uint32  Get_TotalObjectCount() const;
 
+    // PartObject 하이어라이키 노출을 위한 함수
+    void    Draw_NodeObject(const Shared<GameObject>& gameObject, uint32 objectIndex);
     // Get_Name은 클래스 이름만 가져와져서 Label 세팅해서 보여주기
     string  Build_HierarchyLabel(const Shared<GameObject>& gameObject , uint32 objectIndex) const;
 

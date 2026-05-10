@@ -61,36 +61,28 @@ public:
     HRESULT Initialize();
 
     HRESULT Load_TextureTable(const wstring& strTablePath);
-
     HRESULT Load_ShaderTable(const wstring& strTablePath);
-
     HRESULT Load_ModelTable(const wstring& strTablePath);
-
     HRESULT Load_GameObjectTable(const wstring& strTablePath);
-
     HRESULT Load_StaticLevelTable(const wstring& strTablePath);
-
     HRESULT Load_LevelTables(LevelType eLevel, const wstring& strJsonRootPath = L"");
 
     HRESULT Build_TextureJobs(const wstring& strTablePath, vector<FLoadJob>& LoadJobs);
-
     HRESULT Build_ShaderJobs(const wstring& strTablePath, vector<FLoadJob>& LoadJobs);
-
     HRESULT Build_ModelJobs(const wstring& strTablePath, vector<FLoadJob>& LoadJobs);
-
     HRESULT Build_GameObjectJobs(const wstring& strTablePath, vector<FLoadJob>& LoadJobs);
     HRESULT Build_ComponentJobs(const wstring& strTablePath, vector<FLoadJob>& loadJobs);
-
     HRESULT Build_StaticLevelJobs(const wstring& strTablePath, vector<FLoadJob>& LoadJobs);
+
+    // 이번 레벨에서 필요한 LoadJob 생성. 여기서는 Add_Prototype을 하지 않음
+    HRESULT Build_LevelJobs(LevelType levelType, vector<FLoadJob>& outJobs, const wstring& strJsonRootPath = L"");
 
     static FInputLayoutInfo Get_InputLayout(const string& strName);
 
+    HRESULT Register_LoadJob(const FLoadJob& LoadJob);
 private:
     HRESULT Load_Textures(const json& JsonData);
-
     HRESULT Load_Shaders(const json& JsonData);
-
-    HRESULT Register_LoadJob(const FLoadJob& LoadJob);
 
     Shared<Base> Create_StaticPrototype(const FLoadJob& LoadJob);
 

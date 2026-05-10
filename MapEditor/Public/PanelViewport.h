@@ -40,8 +40,21 @@ private:
     ImVec2 _pickVpPos = {};
     ImVec2 _pickVpSize = {};
 
+    bool _spawnRequested = false;
+    string _spawnModelPath = {};
+    ImVec2 _spawnMousePos = {};
+    ImVec2 _spawnVpPos = {};
+    ImVec2 _spawnVpSize = {};
+
+    bool _cursorSetRequested = false;
+    ImVec2 _cursorMousePos = {};
+    ImVec2 _cursorVpPos = {};
+    ImVec2 _cursorVpSize = {};
+
 public:
     bool ConsumePick(ImVec2& outMousePos, ImVec2& outVpPos, ImVec2& outVpSize);
+    bool ConsumeSpawn(string& outModelPath, ImVec2& outMousePos, ImVec2& outVpPos, ImVec2& outVpSize);
+    bool ConsumeCursorSet(ImVec2& outMousePos, ImVec2& outVpPos, ImVec2& outVpSize);
 
 public:
     static Shared<PanelViewport> Create(Shared<MECamera> camera, Shared<RenderTarget> rt, SceneContext* ctx);

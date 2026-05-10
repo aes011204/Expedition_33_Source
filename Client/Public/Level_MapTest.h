@@ -18,6 +18,7 @@ public:
 
 private:
     HRESULT Ready_Lights();
+    HRESULT Ready_Layer_BackGround(const wstring& strLayerTag);
 
 public:
     static Shared<Level_MapTest> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

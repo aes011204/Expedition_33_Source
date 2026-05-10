@@ -13,17 +13,7 @@ HRESULT MEStaticMeshActor::Render(const Matrix& worldMatrix)
     CHECK_FAILED(GAME->Bind_TransformMatrix(D3DTS::View, _shader.get(), "g_ViewMatrix"), E_FAIL);
     CHECK_FAILED(GAME->Bind_TransformMatrix(D3DTS::Proj, _shader.get(), "g_ProjMatrix"), E_FAIL);
 
-    CHECK_FAILED(GAME->Bind_CamPosition(_shader.get(), "g_vCamPosition"), E_FAIL);
-
-    const LIGHT_DESC* pLightDesc = GAME->Get_LightDesc(0);
-    if (pLightDesc)
-    {
-        _shader->Bind_RawValue("g_vLightDir", &pLightDesc->direction, sizeof(Vec4));
-        _shader->Bind_RawValue("g_vLightDiffuse", &pLightDesc->diffuse, sizeof(Vec4));
-        _shader->Bind_RawValue("g_vLightAmbient", &pLightDesc->ambient, sizeof(Vec4));
-        _shader->Bind_RawValue("g_vLightSpecular", &pLightDesc->specular, sizeof(Vec4));
-    }
-
+    // compute shade?
     const uint32 numMeshes = static_cast<uint32>(_model->Get_NumMeshes());
     for (uint32 i = 0; i < numMeshes; ++i)
     {
