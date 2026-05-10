@@ -30,6 +30,8 @@ struct UI_Object
     float rotationRadians = 0.f;
     ImVec4 color = ImVec4(1.f, 1.f, 1.f, 1.f);
     bool isOpenOnCreate = true;
+    bool visible = true;
+    bool locked = false;
     int32 sortOrder = 0;
     string text = "";
     float fontSize = 32.f;
