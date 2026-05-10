@@ -30,31 +30,29 @@ void ContainerObject::BeginPlay()
 {
     GameObject::BeginPlay();
 
-    for (auto& [_, partObject] : _partObjects)
+    for (auto& partObject : _partObjectUpdateOrder)
     {
-        if (partObject == nullptr)
-            continue;
-
-        partObject->BeginPlay();
+        if (partObject)
+            partObject->BeginPlay();
     }
 }
 
 void ContainerObject::Priority_Update(float timeDelta)
 {
-	for (auto& Pair : _partObjects)
-		Pair.second->Priority_Update(timeDelta);
+	for (auto& partObject : _partObjectUpdateOrder)
+        partObject->Priority_Update(timeDelta);
 }
 
 void ContainerObject::Update(float timeDelta)
 {
-	for (auto& Pair : _partObjects)
-		Pair.second->Update(timeDelta);
+	for (auto& partObject : _partObjectUpdateOrder)
+        partObject->Update(timeDelta);
 }
 
 void ContainerObject::Late_Update(float timeDelta)
 {
-	for (auto& Pair : _partObjects)
-		Pair.second->Late_Update(timeDelta);
+	for (auto& partObject : _partObjectUpdateOrder)
+        partObject->Late_Update(timeDelta);
 }
 
 HRESULT ContainerObject::Render()
@@ -68,13 +66,16 @@ HRESULT ContainerObject::Add_PartObject(uint32 prototypeLevelIndex, const wstrin
 	if (nullptr != Find_PartObject(partTag))
 		return E_FAIL;
 
-	Shared<PartObject> partObject = static_pointer_cast<PartObject>(GAME->Clone_Prototype(Prototype::GameObject, prototypeLevelIndex, prototypeTag, arg));
+	Shared<PartObject> partObject = static_pointer_cast<PartObject>(
+        GAME->Clone_Prototype(Prototype::GameObject, prototypeLevelIndex, prototypeTag, arg));
+
 	if (nullptr == partObject)
 		return E_FAIL;
 
     partObject->Set_Owner(this->GetSharedPtr<GameObject>());
 
-	_partObjects.emplace(partTag, partObject);	
+	_partObjects.emplace(partTag, partObject);
+    _partObjectUpdateOrder.push_back(partObject);
 
 	return S_OK; 
 }
@@ -102,6 +103,7 @@ void ContainerObject::Free()
 {
 	__super::Free();
 
+    _partObjectUpdateOrder.clear();
 	_partObjects.clear();
 }
 

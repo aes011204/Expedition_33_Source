@@ -7,7 +7,6 @@ IMPLEMENT_REFLECTION(CombatStatCom)
     info.properties.clear();
 
     info.className = "CombatStat";
-    info.className = "CombatStat";
     info.displayName = "Combat Stat";
 
     PROPERTY_INT("Level", _level, 1.f, 99.f, 1.f);

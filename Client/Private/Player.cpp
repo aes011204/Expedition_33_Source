@@ -8,6 +8,7 @@
 #include "ColliderCom.h"
 #include "CombatStatCom.h"
 #include "PlayableParts.h"
+#include "PlayerStateMachineCom.h"
 #include "Body_Player.h"
 #include "Hair_Player.h"
 #include "Head_Player.h"
@@ -23,7 +24,7 @@ IMPLEMENT_REFLECTION(Player)
     info.displayName = "Player";
     info.category = "Character";
 
-    PROPERTY_ENUM("PlayerState",_testPlayerState, PlayerState);
+    PROPERTY_ENUM("PlayerState",_currentState, PlayerState);
 
     return true;
 }
@@ -151,7 +152,8 @@ HRESULT Player::Ready_PartObjects()
     headPartDesc.parentMatrix = playableDesc.parentMatrix;
     headPartDesc.modelType = ModelType::Anim;
     headPartDesc.modelTag = L"Model_LuneHead";
-    headPartDesc.socketMatrixPointer = mainBody->Get_SocketBoneMatrixPtr("Metahuman_Head");
+    //headPartDesc.socketMatrixPointer = mainBody->Get_SocketBoneMatrixPtr("Metahuman_Head");
+    headPartDesc.socketMatrixPointer = nullptr;
 
     if (FAILED(__super::Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Head_Player"),
         TEXT("Part_Head"), &headPartDesc)))
@@ -160,6 +162,8 @@ HRESULT Player::Ready_PartObjects()
     Head_Player* head = dynamic_cast<Head_Player*>(_partObjects[TEXT("Part_Head")].get());
     if (nullptr == head)
         return E_FAIL;
+
+    head->Set_LeaderPoseComponent(mainBody);
 
     //>> Hair Part
     Hair_Player::HAIR_PLAYER_DESC hairPartDesc{};

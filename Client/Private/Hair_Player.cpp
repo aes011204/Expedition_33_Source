@@ -42,7 +42,7 @@ void Hair_Player::Priority_Update(float timeDelta)
 
 void Hair_Player::Update(float timeDelta)
 {
-    Update_CombinedWorldMatrix(_transformCom->Get_WorldMatrix() * _offsetMatrix);
+    Update_CombinedWorldMatrix(_transformCom->Get_WorldMatrix());
 }
 
 void Hair_Player::Late_Update(float timeDelta)

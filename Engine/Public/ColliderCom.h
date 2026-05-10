@@ -45,6 +45,7 @@ public:
     void                    Set_CollisionPreset(Collision_Preset preset);
     void                    Set_IsActive(bool isActive) { _isActive = isActive; }
     void                    Set_IsColl(bool isColl) { _isColl = isColl; }
+    void                    Set_ShapeDesc(const ColliderShapeDesc& shapeDesc);
 
 
 #ifdef _DEBUG

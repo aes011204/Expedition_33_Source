@@ -29,7 +29,12 @@ public:
 
 
 protected:
-	map<const wstring, Shared<class PartObject>>				_partObjects;
+	map<const wstring, Shared<class PartObject>>	_partObjects;
+
+    // partObject 업데이트 순서 보장. map이여서 Hair -> Head 순으로 될 수도 있음
+    // 업데이트 순서가 다르면 문제점이, Hair다음으로 Head가 업데이트돼서
+    // Hair 가 이전 프레임 위치를 가져서 업데이트가 돼서 한 프레임 늦게 따라올 수도 있다.
+    vector<Shared<PartObject>>                      _partObjectUpdateOrder;
 
 protected:
 	HRESULT Add_PartObject(uint32 prototypeLevelIndex, const wstring& prototypeTag, 

@@ -120,6 +120,16 @@ private:
         const string& animationName,
         int32 stateIndex);
 
+public: /* 머리 붙이기 */
+    void Set_LeaderPoseComponent(const ModelCom* leaderModel);
+    void Clear_LeaderPoseComponent();
+    bool Has_LeaderPoseComponent() const { return _leaderPoseModel != nullptr; }
+
+    void Update_LeaderPoseMatrices();
+
+private:
+    Matrix Convert_LeaderPoseMatrix(const Matrix& leaderMatrix) const;
+    Matrix Build_LeaderPoseMatrix(uint32 boneIndex, vector<uint8>& visited);
 
 private:
 	ModelType					        _type = { ModelType::END };
@@ -167,6 +177,12 @@ private: /* notify */
 
     AnimNotifyAsset _animNotifyAsset{};
     vector<ActiveAnimNotifyState> _activeNotifyStates{};
+
+private: /* 머리 붙이기 */
+    const ModelCom*         _leaderPoseModel = nullptr;
+
+    vector<int32>       _leaderPoseBoneMap;           // follower bone index => leader bone index
+    vector<Matrix>      _leaderPoseCombinedMatrices;  // follower 기준으로 최종 행렬
 
 private:
 	HRESULT Ready_Model(const char* modelPath);

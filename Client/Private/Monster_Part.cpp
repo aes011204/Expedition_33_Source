@@ -144,7 +144,7 @@ HRESULT Monster_Part::Ready_Components(const MONSTER_PART_DESC& desc)
             return E_FAIL;
     }
 
-    if (FAILED(Add_Component(ETOI(LevelType::Static), desc.modelTag, _model)))
+    if (FAILED(Add_Component(ETOI(LevelType::GamePlay), desc.modelTag, _model)))
         return E_FAIL;
 
     return S_OK;

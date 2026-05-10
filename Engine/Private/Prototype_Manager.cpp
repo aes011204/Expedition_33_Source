@@ -43,8 +43,14 @@ Shared<Base> Prototype_Manager::Clone_Prototype(Prototype prototype, uint32 leve
     else
         instance = static_pointer_cast<GameObject>(foundPrototype)->Clone(arg);
 
-	if (nullptr == instance)
-		MSG_BOX("Failed to Cloned");
+    if (nullptr == instance)
+    {
+        wstring message =
+            L"Failed to Cloned\nLevel: " + to_wstring(levelIndex) +
+            L"\nTag: " + prototypeTag;
+
+        MSG_BOX_S(message.c_str());
+    }
 
 	return instance;
 }
