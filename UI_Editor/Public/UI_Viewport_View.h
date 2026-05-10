@@ -35,6 +35,8 @@ namespace UIEditor
     private:
         UI_Editor_Manager& _editorManager;
         ObjectId _draggingObjectId = 0;
+        vector<ObjectId> _draggingObjectIds = {};
+        unordered_map<ObjectId, ImVec2> _dragStartObjectWorldPositions = {};
         ObjectId _resizingObjectId = 0;
         UI_ResizeHandle _activeResizeHandle = UI_ResizeHandle::None;
         ImVec2 _dragStartMouseCanvasPos = ImVec2(0.f, 0.f);
@@ -43,6 +45,9 @@ namespace UIEditor
         ImVec2 _resizeStartObjectWorldPosition = ImVec2(0.f, 0.f);
         ImVec2 _resizeStartObjectWorldSize = ImVec2(0.f, 0.f);
         bool _isPanningViewport = false;
+        bool _isBoxSelecting = false;
+        ImVec2 _boxSelectStartCanvasPos = ImVec2(0.f, 0.f);
+        ImVec2 _boxSelectCurrentCanvasPos = ImVec2(0.f, 0.f);
         float _zoomFactor = 1.f;
         float _gridSize = 16.f;
         bool _showGrid = true;

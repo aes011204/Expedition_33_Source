@@ -109,7 +109,14 @@ namespace UIEditor
             {
                 if (!ImGui::IsAnyItemActive())
                     _editorManager.Commit_EditTransactionIfChanged();
-                ImGui::TextUnformatted("No Selected");
+
+                const UI_Document& document = _editorManager.Get_Document();
+                ImGui::Text("Name: %s", document.Get_CanvasName().c_str());
+                ImGui::TextUnformatted("Type: Canvas");
+                ImGui::Separator();
+
+                if (ImGui::Button("Rename"))
+                    _editorManager.Request_RenameCanvas();
             }
         }
 
@@ -338,15 +345,7 @@ namespace UIEditor
             ImGui::Separator();
 
             string searchText = String::ToLowerCopy(_fontSearchBuffer);
-            vector<AssetMeta> uiFontAssets;
-            if (_editorManager.Is_AssetManagerReady())
-            {
-                for (const AssetMeta& assetMeta : GAME->Get_AssetsByType("Font"))
-                {
-                    if (Is_UISpriteFontAsset(assetMeta) && Matches_Search(assetMeta, searchText))
-                        uiFontAssets.push_back(assetMeta);
-                }
-            }
+            vector<AssetMeta> uiFontAssets = _editorManager.Is_AssetManagerReady() ? Collect_UISpriteFontAssets(searchText) : vector<AssetMeta>{};
 
             if (uiFontAssets.empty())
             {
@@ -359,9 +358,10 @@ namespace UIEditor
                 {
                     for (const AssetMeta& assetMeta : uiFontAssets)
                     {
-                        ImGui::PushID(assetMeta.guid.c_str());
+                        const string stableId = Get_FontAssetStableId(assetMeta);
+                        ImGui::PushID(stableId.c_str());
 
-                        const bool isSelected = object.fontGuid == assetMeta.guid;
+                        const bool isSelected = Is_FontAssetApplied(object, assetMeta);
                         if (ImGui::Selectable(Get_AssetFileName(assetMeta).c_str(), isSelected))
                         {
                             Apply_FontAsset(object, assetMeta);

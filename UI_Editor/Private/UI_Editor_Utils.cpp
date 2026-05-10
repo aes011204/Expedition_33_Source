@@ -10,6 +10,21 @@ namespace UIEditor
         {
             return value.size() >= prefix.size() && equal(prefix.begin(), prefix.end(), value.begin());
         }
+
+        string NormalizePathKey(string path)
+        {
+            replace(path.begin(), path.end(), '\\', '/');
+            return String::ToLowerCopy(path);
+        }
+
+        string MakeFontAssetPathKey(const AssetMeta& assetMeta)
+        {
+            string pathKey = Make_ClientRuntimeResourcePath(assetMeta);
+            if (pathKey.empty())
+                pathKey = String::ToString(assetMeta.fullPath);
+
+            return NormalizePathKey(pathKey);
+        }
     }
 
     const char* Get_ObjectTypeName(UI_ObjectType objectType)
@@ -142,6 +157,95 @@ namespace UIEditor
         return String::ToLowerCopy(fs::path(relativePath).extension().string()) == ".spritefont";
     }
 
+    vector<AssetMeta> Collect_UISpriteFontAssets(const string& searchText)
+    {
+        vector<AssetMeta> uiFontAssets;
+        unordered_set<string> collectedPathKeys;
+
+        const auto tryAddFontAsset = [&](const AssetMeta& assetMeta)
+            {
+                if (!Is_UISpriteFontAsset(assetMeta) || !Matches_Search(assetMeta, searchText))
+                    return;
+
+                const string pathKey = MakeFontAssetPathKey(assetMeta);
+                if (pathKey.empty() || !collectedPathKeys.insert(pathKey).second)
+                    return;
+
+                uiFontAssets.push_back(assetMeta);
+            };
+
+        for (const AssetMeta& assetMeta : GAME->Get_AssetsByType("Font"))
+            tryAddFontAsset(assetMeta);
+
+        const wstring assetRoot = GAME->Get_AssetRoot();
+        if (!assetRoot.empty())
+        {
+            const fs::path assetRootPath = fs::path(assetRoot);
+            const fs::path fontDirectory = assetRootPath / L"Fonts";
+
+            try
+            {
+                if (fs::exists(fontDirectory) && fs::is_directory(fontDirectory))
+                {
+                    for (const fs::directory_entry& entry : fs::directory_iterator(fontDirectory))
+                    {
+                        if (!entry.is_regular_file())
+                            continue;
+
+                        if (String::ToLowerCopy(entry.path().extension().string()) != ".spritefont")
+                            continue;
+
+                        AssetMeta fontAsset = {};
+                        fontAsset.type = "Font";
+                        fontAsset.fullPath = fs::absolute(entry.path()).lexically_normal().wstring();
+
+                        try
+                        {
+                            fontAsset.relativePath = fs::relative(entry.path(), assetRootPath).lexically_normal().wstring();
+                        }
+                        catch (...)
+                        {
+                            fontAsset.relativePath = (fs::path(L"Fonts") / entry.path().filename()).wstring();
+                        }
+
+                        tryAddFontAsset(fontAsset);
+                    }
+                }
+            }
+            catch (...)
+            {
+            }
+        }
+
+        sort(uiFontAssets.begin(), uiFontAssets.end(), [](const AssetMeta& lhs, const AssetMeta& rhs)
+            {
+                return NormalizePathKey(Normalize_AssetRelativePath(lhs)) < NormalizePathKey(Normalize_AssetRelativePath(rhs));
+            });
+
+        return uiFontAssets;
+    }
+
+    string Get_FontAssetStableId(const AssetMeta& assetMeta)
+    {
+        if (!assetMeta.guid.empty())
+            return assetMeta.guid;
+
+        string stableId = Make_ClientRuntimeResourcePath(assetMeta);
+        if (!stableId.empty())
+            return stableId;
+
+        return String::ToString(assetMeta.fullPath);
+    }
+
+    bool Is_FontAssetApplied(const UI_Object& object, const AssetMeta& assetMeta)
+    {
+        if (!object.fontGuid.empty() && !assetMeta.guid.empty())
+            return object.fontGuid == assetMeta.guid;
+
+        const string assetPath = Make_ClientRuntimeResourcePath(assetMeta);
+        return !object.fontPath.empty() && !assetPath.empty() && NormalizePathKey(object.fontPath) == NormalizePathKey(assetPath);
+    }
+
     string Make_FontTag(const AssetMeta& assetMeta)
     {
         const fs::path path = !assetMeta.relativePath.empty() ? fs::path(assetMeta.relativePath) : fs::path(assetMeta.fullPath);
@@ -170,11 +274,30 @@ namespace UIEditor
         return static_cast<ImTextureID>(reinterpret_cast<intptr_t>(srv));
     }
 
-    ImVec2 Clamp_ObjectPosition(const UI_Object& object, const ImVec2& canvasSize, const ImVec2& position)
+    float Get_UITextRuntimeScale(const UI_Object& object)
     {
-        const ImVec2 objectSize = ImVec2(
+        const float fontScale = max(4.f, object.fontSize) / 32.f;
+        return max(0.01f, object.scale.x * fontScale);
+    }
+
+    ImVec2 Get_UIObjectRuntimeSize(const UI_Object& object)
+    {
+        if (object.type == UI_ObjectType::Text)
+        {
+            const float textScale = Get_UITextRuntimeScale(object);
+            return ImVec2(
+                max(1.f, object.size.x * textScale),
+                max(1.f, object.size.y * textScale));
+        }
+
+        return ImVec2(
             max(1.f, object.size.x * object.scale.x),
             max(1.f, object.size.y * object.scale.y));
+    }
+
+    ImVec2 Clamp_ObjectPosition(const UI_Object& object, const ImVec2& canvasSize, const ImVec2& position)
+    {
+        const ImVec2 objectSize = Get_UIObjectRuntimeSize(object);
 
         const float maxX = max(0.f, canvasSize.x - objectSize.x);
         const float maxY = max(0.f, canvasSize.y - objectSize.y);
