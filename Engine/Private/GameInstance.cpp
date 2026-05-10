@@ -1,6 +1,7 @@
 ﻿#include "GameInstance.h"
 #include "Asset_Manager.h"
 #include "Camera_Manager.h"
+#include "Camera.h"
 #include "Collision_Manager.h"
 #include "PhysX_Manager.h"
 #include "Debug_Manager.h"
@@ -311,6 +312,16 @@ void GameInstance::Try_FlushRuntimePerfLog()
 
 void GameInstance::Clear_Resources(uint32 levelIndex)
 {
+    _objectManager->Visit_LevelObjects(levelIndex,
+        [this](const wstring& layerTag, const Shared<GameObject>& gameObject)
+        {
+            UNREFERENCED_PARAMETER(layerTag);
+
+            Shared<Camera> camera = dynamic_pointer_cast<Camera>(gameObject);
+            if (camera != nullptr)
+                _cameraManager->Remove_Camera(camera);
+        });
+
     _objectManager->Clear_Layers(levelIndex);
     _prototypeManager->Clear_Prototypes(levelIndex);
 }

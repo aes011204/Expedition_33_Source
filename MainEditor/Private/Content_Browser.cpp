@@ -121,8 +121,9 @@ void Content_Browser::Update(float timeDelta)
 {
     Editor_Window::Update(timeDelta);
 
-    if (_isFocused && ImGui::IsKeyPressed(ImGuiKey_F5, false))
-        Refresh_AssetState();
+    // F5 키 겹쳐서 새로고침 이거로 사용 ㄴ
+    //if (_isFocused && ImGui::IsKeyPressed(ImGuiKey_F5, false))
+    //    Refresh_AssetState();
 }
 
 void Content_Browser::Render()

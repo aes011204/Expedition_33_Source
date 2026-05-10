@@ -237,6 +237,8 @@
     </ClInclude>
     <ClInclude Include="..\Public\AN_Test.h" />
     <ClInclude Include="..\Public\ANS_Test.h" />
+    <ClInclude Include="..\Public\SkillTreeCom.h" />
+    <ClInclude Include="..\Public\GameDataTable.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -338,6 +340,8 @@
     </ClCompile>
     <ClCompile Include="..\Private\AN_Test.cpp" />
     <ClCompile Include="..\Private\ANS_Test.cpp" />
+    <ClCompile Include="..\Private\SkillTreeCom.cpp" />
+    <ClCompile Include="..\Private\GameDataTable.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">

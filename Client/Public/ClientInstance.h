@@ -10,6 +10,7 @@ NS_BEGIN(Client)
 
 class ResourceLoader;
 class PersistentObjectManager;
+class GameDataTable;
 
 class ClientInstance : public Base
 {
@@ -30,26 +31,33 @@ public:
     HRESULT Ready_StaticObjects();
 
 	Shared<ResourceLoader> Get_ResourceLoader() const;
+
     bool    Is_StaticResourcesLoaded() const { return _isStaticResourcesLoaded.load(); }
     void    Set_StaticResourcesLoaded(bool isLoaded) { _isStaticResourcesLoaded.store(isLoaded); }
 
 public: /* 플레이어 찾기 -> 일단 임시 */
     Shared<GameObject> Find_Player(uint32 levelIndex);
 
+public: /* For.GameData Table */
+    uint32  Get_NextExp(uint32 level) const;
 
 private:
 	HRESULT Ready_ResourceLoader();
+    HRESULT Ready_GameDataTables();
 
 private:
 	ComPtr<Device>  _device;
 	ComPtr<Context> _context;
-    Shared<ResourceLoader> _resourceLoader;
-
-    Unique<PersistentObjectManager> _persistentObjectManager;
 
     atomic<bool> _isStaticResourcesLoaded = false;
     bool _isStaticObjectsSpawned = false;
 	bool _isInitialized = false;
+
+private:
+    Shared<ResourceLoader>  _resourceLoader;
+    Unique<GameDataTable>   _gameDataTable;
+
+    Unique<PersistentObjectManager> _persistentObjectManager;
 
 public:
 	void Free() override;
