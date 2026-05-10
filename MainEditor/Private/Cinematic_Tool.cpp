@@ -274,7 +274,7 @@ void Cinematic_Tool::Render_TrackList()
     if (ImGui::Button("Add World Track"))
     {
         CINEMATIC_TRACK track{};
-        track.name = "Camera Track " + std::to_string(_sequence.cinematicTracks.size());
+        track.name = "World Track " + std::to_string(_sequence.cinematicTracks.size());
         _sequence.cinematicTracks.push_back(track);
         _selectedTrackIndex = static_cast<int>(_sequence.cinematicTracks.size()) - 1;
         _selectedKeyIndex = -1;
@@ -285,10 +285,10 @@ void Cinematic_Tool::Render_TrackList()
 
     if (ImGui::Button("Add Interaction Track"))
     {
-        CINEMATIC_TRACK track{};
-        track.name = "Camera Track " + std::to_string(_sequence.cinematicTracks.size());
-        _sequence.cinematicTracks.push_back(track);
-        _selectedTrackIndex = static_cast<int>(_sequence.cinematicTracks.size()) - 1;
+        INTERACTION_TRACK track{};
+        track.name = "Interaction Track " + std::to_string(_sequence.interactionTracks.size());
+        _sequence.interactionTracks.push_back(track);
+        _selectedTrackIndex = static_cast<int>(_sequence.interactionTracks.size()) - 1;
         _selectedKeyIndex = -1;
         _isPreviewDirty = true;
 

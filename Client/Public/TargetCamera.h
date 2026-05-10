@@ -6,8 +6,8 @@ class TargetCamera final : public Camera
 {
     GENERATED_GAMEOBJECT(TargetCamera, ObjectType::TargetCamera)
 public:
-
-    enum class CAMERA_STATE { NORMAL, AIM };
+    
+    enum class CAMERA_STATE { NORMAL, AIM, BATTLE_ENTER};
 
 public:
     typedef struct tagTargetCamera final : public Camera::CAMERA_DESC
@@ -24,9 +24,15 @@ public:
         float        pitchMin;
         float        pitchMax;
 
+        float        yawOffset = 0.f;
+        float        pitchOffset = 0.f;
+        float        rollOffset = 0.f;
+
         float        lookHeight;
 
         float        pivotHeight;
+
+        bool         allowMouseRotation = true;
     }TARGETCAMERA_DESC;
 
 public:
@@ -47,8 +53,11 @@ private:
     void Interpolate_CurrentSettings(float timeDelta);
     bool Try_GetTargetTransform(Shared<TransformCom>& outTargetTransformCom) const;
     void Update_FromCurrentSettings(float timeDelta);
+
+private:
     void Update_NormalState(float timeDelta);
     void Update_AimState(float timeDelta);
+    void Update_BattleEnterState(float timeDelta);
 
 public:
     void Change_State(CAMERA_STATE state);
@@ -95,8 +104,13 @@ public:
 private:
     TARGETCAMERA_DESC  _currentSettings;
     TARGETCAMERA_DESC  _targetSettings;
+
     TARGETCAMERA_DESC  _normalPreset;
     TARGETCAMERA_DESC  _aimPreset;
+    TARGETCAMERA_DESC  _battleEnterPreset;
+
+    float               _battleEnterDuration = 3.f;
+    float               _battleEnterAcc = { 0.f };
 
     Weak<TransformCom> _targetTransformCom;
     float              _followSpeed;
@@ -116,7 +130,7 @@ private:
     Vec3               _prevTargetPos;
     CAMERA_STATE       _currentState;
 
-    float               _speed = 5.f;
+    //float               _speed = 5.f;
 
 public:
     static Shared<TargetCamera> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

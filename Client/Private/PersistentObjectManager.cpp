@@ -41,6 +41,8 @@ HRESULT PersistentObjectManager::SpawnStaticCamera()
     TargetCameraDesc.lookHeight = 0.8f;
     TargetCameraDesc.pivotHeight = 0.3f;
     TargetCameraDesc.mouseSensitivity = 0.5f;
+    TargetCameraDesc.yawOffset = 0.f;
+    TargetCameraDesc.pitchOffset = 0.f;
 
     if (FAILED(GAME->Add_GameObject(ETOI(LevelType::Static), TEXT("GameObject_TargetCamera"),
         ETOI(LevelType::Static), TEXT("Layer_Camera"), &TargetCameraDesc)))

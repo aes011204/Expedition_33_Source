@@ -11,7 +11,6 @@ public:
 	{
 		XMFLOAT4		eye, at;
 		float		    fovy, nearPlane, farPlane;
-   //     float           yaw, pitch;
         float           mouseSensor;
         float           mouseSensitivity;
 	}CAMERA_DESC;

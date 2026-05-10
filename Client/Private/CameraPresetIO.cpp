@@ -25,7 +25,11 @@ void CameraPresetIO::SavePresetToFile(TargetCamera::CAMERA_STATE cameraState, co
     jsonData["pitchMin"]        = preset.pitchMin;
     jsonData["mouseSensor"]     = preset.mouseSensor;
     jsonData["mouseSensitivity"]= preset.mouseSensitivity;
-    
+    jsonData["yawOffset"]       = preset.yawOffset;
+    jsonData["pitchOffset"]     = preset.pitchOffset;
+    jsonData["rollOffset"]        = preset.rollOffset;
+    jsonData["allowMouseRotation"] = preset.allowMouseRotation;
+
     const string name = string(magic_enum::enum_name(cameraState));
 
     const string filePath = "../../../Client/Bin/Resources/Data/json/CameraPreset/CameraPreset_" + name + ".json";
@@ -72,7 +76,10 @@ bool CameraPresetIO::LoadPresetFromFile(TargetCamera::CAMERA_STATE cameraState, 
     preset.pitchMin  = jsonData.value("pitchMin", preset.pitchMin);
     preset.mouseSensor = jsonData.value("mouseSensor",preset.mouseSensor);
     preset.mouseSensitivity = jsonData.value("mouseSensitivity", preset.mouseSensitivity);
-
+    preset.yawOffset = jsonData.value("yawOffset", 0.f);
+    preset.pitchOffset = jsonData.value ("pitchOffset", 0.f);
+    preset.rollOffset = jsonData.value("rollOffset", 0.f);
+    preset.allowMouseRotation = jsonData.value("allowMouseRotation",true);
     outPreset = preset;
 
     return true;

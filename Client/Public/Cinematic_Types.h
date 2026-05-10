@@ -31,14 +31,14 @@ typedef struct CinematicKeyframe
     
 }CINEMATIC_KEYFRAME;
 
+//월드 좌표 키가 아닌, 두 액터 기준 샷 파라미터를 저장하는 것이 목적
 typedef struct InteractionKeyframe
 {
    int   frame = 0;
-   float time = 0.f;
    float distance = 0.f;
    float height = 0.f;
    float sideOffset = 0.f;
-   float yaw = 0.f;
+   float yawOffset = 0.f;
    float pitch = 0.f;
    float lookHeight = 0.f;
 
@@ -57,7 +57,7 @@ typedef struct CinematicTrack
 
 typedef struct InteractionTrack
 {
-    string name = "Camera Track";
+    string name = "Interaction Track";
     bool   enabled = true;
     vector<INTERACTION_KEYFRAME> keyframes;
 }INTERACTION_TRACK;
