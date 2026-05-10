@@ -14,8 +14,12 @@ BehaviorTree::~BehaviorTree()
 
 void BehaviorTree::Update(float deltaTime)
 {
-    if (_root)
-        _root->Update(deltaTime);
+    if (_root == nullptr)
+        return;
+
+    ++_debugTick;
+    SetDebugTickRecursive(_root, _debugTick);
+    _root->Update(deltaTime);
 }
 
 void BehaviorTree::Bind_Owner(shared_ptr<AIController> owner)
@@ -43,4 +47,23 @@ void BehaviorTree::SetOwnerRecursive(shared_ptr<BNode> node, shared_ptr<class AI
         SetOwnerRecursive(De->Get_Child(), owner);
 
     }
+}
+
+void BehaviorTree::SetDebugTickRecursive(shared_ptr<BNode> node, uint64 tick)
+{
+    if (node == nullptr)
+        return;
+
+    node->Set_CurrentDebugTick(tick);
+
+    if (auto com = dynamic_pointer_cast<Composite>(node))
+    {
+        for (auto& child : com->Get_Children())
+            SetDebugTickRecursive(child, tick);
+
+        return;
+    }
+
+    if (auto de = dynamic_pointer_cast<Decorator>(node))
+        SetDebugTickRecursive(de->Get_Child(), tick);
 }

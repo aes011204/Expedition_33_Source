@@ -1,5 +1,6 @@
 ﻿#include "Loader.h"
 #include "GameInstance.h"
+#include "ClientInstance.h"
 #include "ResourceLoader.h"
 #include "BackGround.h"
 #include "Terrain.h"
@@ -165,6 +166,17 @@ HRESULT Loader::Process_PendingLoadJobs(size_t maxJobPerFrame)
 
         if (_pendingJobs.empty())
         {
+            if (_includedStaticJobs.load())
+            {
+                if (FAILED(CLIENT->Ready_StaticObjects()))
+                {
+                    _hasFailed.store(true);
+                    return E_FAIL;
+                }
+
+                CLIENT->Set_StaticResourcesLoaded(true);
+            }
+
             lstrcpy(_loadingText, TEXT("Loading completed."));
             _isFinished.store(true);
 
@@ -200,7 +212,7 @@ HRESULT Loader::Loading_For_LogoLevel()
 {
     lstrcpy(_loadingText, TEXT("Logo 로딩 중..."));
 
-    if (FAILED(Load_ResourceJobsForLevel(LevelType::Logo)))
+    if (FAILED(Load_ResourceJobsForNextLevel()))
     {
         MSG_BOX("Faild to Load Resource Tables : Logo");
         return E_FAIL;
@@ -213,7 +225,7 @@ HRESULT Loader::Loading_For_GamePlayLevel()
 {
     lstrcpy(_loadingText, TEXT("GamePlay 로딩 중..."));
 
-    if (FAILED(Load_ResourceJobsForLevel(LevelType::GamePlay)))
+    if (FAILED(Load_ResourceJobsForNextLevel()))
     {
         MSG_BOX("Faild to Load Resource Tables : GamePlay");
         return E_FAIL;
@@ -226,7 +238,7 @@ HRESULT Loader::Loading_For_MapTestLevel()
 {
     lstrcpy(_loadingText, TEXT("MapTest 로딩 중..."));
 
-    if (FAILED(Load_ResourceJobsForLevel(LevelType::MapTest)))
+    if (FAILED(Load_ResourceJobsForNextLevel()))
     {
         MSG_BOX("Faild to Load Resource Tables : Logo");
         return E_FAIL;
@@ -239,7 +251,7 @@ HRESULT Loader::Loading_For_Stage01Level()
 {
     lstrcpy(_loadingText, TEXT("Stage01 로딩 중..."));
 
-    if (FAILED(Load_ResourceJobsForLevel(LevelType::Stage01)))
+    if (FAILED(Load_ResourceJobsForNextLevel()))
     {
         MSG_BOX("Faild to Load Resource Tables : Logo");
         return E_FAIL;
@@ -283,7 +295,7 @@ void Loader::Print_LoadJobSummary()
 }
 
 
-HRESULT Loader::Load_ResourceJobsForLevel(LevelType levelType)
+HRESULT Loader::Append_ResourceJobsForLevel(LevelType levelType)
 {
     Shared<ResourceLoader> resourceLoader = ResourceLoader::Create(_device, _context);
     if (resourceLoader == nullptr)
@@ -300,22 +312,58 @@ HRESULT Loader::Load_ResourceJobsForLevel(LevelType levelType)
         return E_FAIL;
     }
 
-    const size_t totalJobCount = builtJobs.size();
-
     {
         lock_guard<mutex> lock(_pendingJobsMutex);
-        _pendingJobs = std::move(builtJobs);
+        _pendingJobs.insert(_pendingJobs.end(), builtJobs.begin(), builtJobs.end());
     }
 
-    _totalJobCount.store(totalJobCount);
-    _completedJobCount.store(0);
-    _workerDone.store(true);
+    _totalJobCount.fetch_add(builtJobs.size());
 
     //LOG_ERROR("[Loader::Load_ResourceJobsForLevel] level={}, totalJobs={}",
     //    static_cast<int>(levelType),
-    //    static_cast<int>(totalJobCount));
+    //    static_cast<int>(builtJobs.size()));
 
     return S_OK;
+}
+
+HRESULT Loader::Load_ResourceJobsForLevel(LevelType levelType)
+{
+    return Load_ResourceJobsForLevels({ levelType });
+}
+
+HRESULT Loader::Load_ResourceJobsForLevels(const vector<LevelType>& levelTypes)
+{
+    _completedJobCount.store(0);
+    _totalJobCount.store(0);
+
+    {
+        lock_guard<mutex> lock(_pendingJobsMutex);
+        _pendingJobs.clear();
+    }
+
+    for (LevelType levelType : levelTypes)
+    {
+        if (FAILED(Append_ResourceJobsForLevel(levelType)))
+            return E_FAIL;
+    }
+
+    _workerDone.store(true);
+    return S_OK;
+}
+
+HRESULT Loader::Load_ResourceJobsForNextLevel()
+{
+    vector<LevelType> levelTypes;
+
+    if (!CLIENT->Is_StaticResourcesLoaded())
+    {
+        levelTypes.push_back(LevelType::Static);
+        _includedStaticJobs.store(true);
+    }
+
+    levelTypes.push_back(_nextLevel);
+
+    return Load_ResourceJobsForLevels(levelTypes);
 }
 
 string Loader::Format_Duration(chrono::milliseconds duration)

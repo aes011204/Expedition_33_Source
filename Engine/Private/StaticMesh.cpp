@@ -1,4 +1,4 @@
-#include "StaticMesh.h"
+﻿#include "StaticMesh.h"
 #include "ShaderCom.h"
 
 
@@ -80,6 +80,12 @@ HRESULT StaticMesh::Bind_BoneMatrices(class ShaderCom* shader, const char* const
 {
     Matrix finalMat = Matrix::Identity * _preTransformMatrix;
     return shader->Bind_Matrix(constantName, &finalMat);
+}
+
+HRESULT StaticMesh::Bind_BoneMatrices(ShaderCom* shader, const char* constantName,
+    const vector<Matrix>& combinedMatrices)
+{
+    return S_OK;
 }
 
 Shared<StaticMesh> StaticMesh::Create(const ComPtr<Device>& device, const ComPtr<Context>& context, const ModelMeshData& meshData, const Matrix& preTransformMatrix)

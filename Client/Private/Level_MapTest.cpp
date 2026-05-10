@@ -15,8 +15,14 @@ Level_MapTest::Level_MapTest(const ComPtr<Device>& device, const ComPtr<Context>
 HRESULT Level_MapTest::Initialize()
 {
     CHECK_FAILED(Ready_Lights(), E_FAIL);
+    CHECK_FAILED(Ready_Layer_BackGround(TEXT("Layer_BackGround")), E_FAIL);
 
-    auto player = CLIENT->Find_Player(ETOI(LevelType::Static));
+    Shared<GameObject> player = nullptr;
+    CHECK_FAILED(GAME->Add_GameObject(
+        ETOI(LevelType::Static), TEXT("GameObject_Player"),
+        ETOI(LevelType::MapTest), TEXT("Layer_Player"),
+        player), E_FAIL);
+
     if (player)
     {
         Vec3 pos = Vec3(205.f, 4.5f, -1.24f);
@@ -62,6 +68,15 @@ HRESULT Level_MapTest::Ready_Lights()
     {
         return E_FAIL;
     }
+    return S_OK;
+}
+
+HRESULT Level_MapTest::Ready_Layer_BackGround(const wstring& strLayerTag)
+{
+    CHECK_FAILED(GAME->Add_GameObject(
+        ETOI(LevelType::MapTest), TEXT("GameObject_Sky_MapTest"),
+        ETOI(LevelType::MapTest), strLayerTag), E_FAIL);
+
     return S_OK;
 }
 

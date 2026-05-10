@@ -231,6 +231,9 @@
     <ClInclude Include="..\public\AStar.h" />
     <ClInclude Include="..\Public\Reflection_JsonUtil.h" />
     <ClInclude Include="..\Public\Culling_Manager.h" />
+    <ClInclude Include="..\public\Parallel.h">
+      <Filter>E_BehavoirTreee\node</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\ComputeShaderCom.h">
       <Filter>01.Utility\04.Component\ComputeShader</Filter>
     </ClInclude>
@@ -765,6 +768,9 @@
     </ClCompile>
     <ClCompile Include="..\private\UI_Manager.cpp">
       <Filter>01.Utility\11. UI\Manager</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\Parallel.cpp">
+      <Filter>E_BehavoirTreee\node</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\ComputeShaderCom.cpp">
       <Filter>01.Utility\04.Component\ComputeShader</Filter>

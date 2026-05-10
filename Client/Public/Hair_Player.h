@@ -25,6 +25,7 @@ public:
 public:
     HRESULT Initialize_Prototype() override;
     HRESULT Initialize(void* arg) override;
+    void    BeginPlay() override;
     void    Priority_Update(float timeDelta) override;
     void    Update(float timeDelta) override;
     void    Late_Update(float timeDelta) override;

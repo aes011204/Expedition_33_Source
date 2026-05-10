@@ -48,15 +48,17 @@ BNode::NODE_STATE BT_MoveTo::Logic_Update(float deltaTime)
 
     Vec3 target = bb->Get_Value<Vec3>(_targetKey);
     auto ownerPos = Get_Owner()->Get_Owner()->Get_Transform()->Get_Position();
+    Vec3 faceTarget = target;
+    faceTarget.y = ownerPos.y;
 
     float distToTarget = (target - ownerPos).Length();
 
-    if (distToTarget <= 1.5f)
-    {
-        //_started = false;
-       
-        return BNode::NODE_STATE::SUCCESS;
-    }
+    //if (distToTarget <= 1.5f)
+    //{
+    //    //_started = false;
+    //   
+    //    return BNode::NODE_STATE::SUCCESS;
+    //}
 
     //_started
     /*if (!_started)
@@ -72,7 +74,10 @@ BNode::NODE_STATE BT_MoveTo::Logic_Update(float deltaTime)
 
     }
 
-    //Get_Owner()->Get_Owner()->Get_Transform()->LookAt(target); 클라에서 
+    //if ((faceTarget - ownerPos).LengthSquared() > 0.0001f)
+    //{
+    //    Get_Owner()->Get_Owner()->Get_Transform()->LookAt(faceTarget);
+    //}
 
 
 

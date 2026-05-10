@@ -25,15 +25,21 @@ HRESULT Hair_Player::Initialize(void* arg)
         return S_OK;
     }
 
-    float pitch = XMConvertToRadians(0.0f);
-    float yaw = XMConvertToRadians(0.0f);
-    float roll = XMConvertToRadians(90.0f);
-    Matrix rotation = Matrix::CreateFromYawPitchRoll(yaw, pitch, roll);
-    Matrix position = Matrix::CreateTranslation(17.61f, 0.0f, -2.765f);
+    _offsetMatrix = Matrix::Identity;
 
-    _offsetMatrix = rotation * position;
+    //Vec3 hairOffset = Vec3(17.61f, 0.0f, -2.765f);
+    Vec3 hairOffset = Vec3(17.61f, -2.765f, 0.f);
+
+    _transformCom->Set_Position(hairOffset);
+
 
     return S_OK;
+}
+
+void Hair_Player::BeginPlay()
+{
+    PlayableParts::BeginPlay();
+    
 }
 
 void Hair_Player::Priority_Update(float timeDelta)
@@ -42,7 +48,7 @@ void Hair_Player::Priority_Update(float timeDelta)
 
 void Hair_Player::Update(float timeDelta)
 {
-    Update_CombinedWorldMatrix(_transformCom->Get_WorldMatrix() * _offsetMatrix);
+    Update_CombinedWorldMatrix(_transformCom->Get_WorldMatrix());
 }
 
 void Hair_Player::Late_Update(float timeDelta)

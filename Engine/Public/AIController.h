@@ -31,6 +31,8 @@ public:
     HRESULT Load_BehaviorTreeAsset();
     HRESULT Reload_BehaviorTree();
     void From_Json(const json& data);
+
+    bool Get_IsMoving() { return _isMoving; };
 protected:
     shared_ptr<class BlackBoard> _BB = {};
     shared_ptr<class BehaviorTree> _BT = {};
@@ -41,6 +43,8 @@ protected:
     string _behaviorTreeAssetPath = {};
 
     Vec3 _testPos = {};
+
+    bool _isMoving = {};
 
     static Shared<AIController> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
     virtual Shared<Component> Clone(void* arg) ;

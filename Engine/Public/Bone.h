@@ -26,6 +26,9 @@ public:
         void Update_CombinedTransformationMatrix(const vector<Shared<Bone>>& bones, const Matrix& preTransformMatrix);
         void Update_TransformationMatrix(const Matrix& transformMatrix);
 
+        const Matrix& Get_TransformationMatrix() const { return _transformationMatrix; }
+        const Matrix& Get_CombinedTransformationMatrix() const { return _combinedTransformationMatrix; }
+
 private:
         string              _name;
         Matrix              _transformationMatrix{};

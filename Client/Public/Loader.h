@@ -38,7 +38,10 @@ public:
 #endif
 
 private:
+    HRESULT Append_ResourceJobsForLevel(LevelType levelType);
     HRESULT Load_ResourceJobsForLevel(LevelType levelType);
+    HRESULT Load_ResourceJobsForLevels(const vector<LevelType>& levelTypes);
+    HRESULT Load_ResourceJobsForNextLevel();
 
     HRESULT Loading_For_LogoLevel();
     HRESULT Loading_For_GamePlayLevel();
@@ -74,6 +77,7 @@ private:
     atomic<bool>                _workerDone = false;
     atomic<bool>                _isFinished = false;
     atomic<bool>                _hasFailed = false;
+    atomic<bool>                _includedStaticJobs = false;
 
     wchar_t						_loadingText[MAX_PATH] = {};
 
