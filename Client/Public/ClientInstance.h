@@ -11,6 +11,7 @@ NS_BEGIN(Client)
 class ResourceLoader;
 class PersistentObjectManager;
 class GameDataTable;
+class Hero_Manager;
 
 class ClientInstance : public Base
 {
@@ -58,6 +59,7 @@ private:
     Unique<GameDataTable>   _gameDataTable;
 
     Unique<PersistentObjectManager> _persistentObjectManager;
+    Unique<Hero_Manager> _heroManager;
 
 public:
 	void Free() override;

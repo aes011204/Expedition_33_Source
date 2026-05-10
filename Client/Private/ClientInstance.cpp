@@ -6,6 +6,7 @@
 #include "BT_Node_Bootstrap.h"
 #include "GameDataTable.h"
 #include "PersistentObjectManager.h"
+#include "Hero_Manager.h"
 
 IMPLEMENT_SINGLETON(ClientInstance)
 
@@ -35,6 +36,9 @@ HRESULT ClientInstance::Initialize_Client(const ComPtr<Device>& device, const Co
 
     _persistentObjectManager = PersistentObjectManager::Create();
     CHECK_NULL(_persistentObjectManager, E_FAIL);
+
+    _heroManager = Hero_Manager::Create();
+    CHECK_NULL(_heroManager, E_FAIL);
 
 	return S_OK;
 }

@@ -59,6 +59,13 @@ void PlayerControllerCom::Update_Controller(float timeDelta)
 		return;
 	}
 
+    if (!_controlEnabled)
+    {
+        // 위치 이동은 Hero Manager에서 직접 처리
+        _movementCom->Apply_Input({});
+        return;
+    }
+
 	_inputCom->Update_Input();
     auto currentInput = _inputCom->Get_MovementInput();
 
