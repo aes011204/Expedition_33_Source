@@ -254,6 +254,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClInclude Include="..\public\UI_Manager.h" />
     <ClInclude Include="..\public\UI_Text.h" />
     <ClInclude Include="..\public\UI_Transform.h" />
+    <ClInclude Include="..\Public\VIBufferCom_ComputePointParticle.h" />
     <ClInclude Include="..\Public\VIBufferCom_Instance.h" />
     <ClInclude Include="..\Public\VIBufferCom_PointParticle.h" />
     <ClInclude Include="pch.h" />
@@ -358,6 +359,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClCompile Include="..\private\UI_Manager.cpp" />
     <ClCompile Include="..\private\UI_Text.cpp" />
     <ClCompile Include="..\private\UI_Transform.cpp" />
+    <ClCompile Include="..\Private\VIBufferCom_ComputePointParticle.cpp" />
     <ClCompile Include="..\Private\VIBufferCom_Instance.cpp" />
     <ClCompile Include="..\Private\VIBufferCom_PointParticle.cpp" />
     <ClCompile Include="pch.cpp">

@@ -18,9 +18,7 @@ public:
     HRESULT Initialize(void* arg) override;
 
 public: //## Behavior::ParticleUpdate
-    // TODO :
-    // 이 함수들은 임시로 여기에 두되, 최종적으로는 각 파티클 이펙트 형태마다 동작을 관리하는 것이 더 좋아보임
-    // Stage 6 에서 수정할 예정
+    // TODO : 이 함수들은 임시로 여기에 두되, 최종적으로는 각 파티클 이펙트 형태마다 동작을 관리하는 것이 더 좋아보임
     void Drop(float timeDelta);   // clone runtime payload를 아래 방향으로 갱신한다.
     void Spread(float timeDelta); // clone runtime payload를 pivot 기준 바깥 방향으로 갱신한다.
 

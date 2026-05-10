@@ -84,15 +84,27 @@ HRESULT Level_EffectEditor::Ready_Layer_Camera(const wstring& layerTag)
 HRESULT Level_EffectEditor::Ready_Layer_Preview(const wstring& layerTag)
 {
     // TODO : 임시 파티클이므로 나중에 변경할 것
-    const HRESULT hr = GAME->Add_GameObject(
+    //const HRESULT hr = GAME->Add_GameObject(
+    //    ETOI(LevelType::GamePlay),
+    //    L"GameObject_PointParticlePreview",
+    //    ETOI(LevelType::GamePlay),
+    //    layerTag
+    //);
+    //if (FAILED(hr))
+    //{
+    //    LOG_ERROR("Failed to add PointParticlePreview in Level_EffectEditor");
+    //    return E_FAIL;
+    //}
+
+    const HRESULT computeHr = GAME->Add_GameObject(
         ETOI(LevelType::GamePlay),
-        L"GameObject_PointParticlePreview",
+        L"GameObject_ComputePointParticlePreview",
         ETOI(LevelType::GamePlay),
         layerTag
     );
-    if (FAILED(hr))
+    if (FAILED(computeHr))
     {
-        LOG_ERROR("Failed to add PointParticlePreview in Level_EffectEditor");
+        LOG_ERROR("Failed to add ComputePointParticlePreview in Level_EffectEditor");
         return E_FAIL;
     }
 

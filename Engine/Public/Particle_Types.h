@@ -48,4 +48,13 @@ struct PointParticleDesc : public InstanceSpawnDesc
     bool loop{};     // true면 생존 시간이 끝난 인스턴스를 재생성한다.
 };
 
+// compute shader가 instance payload를 갱신하는 point particle 검증용 desc.
+struct ComputePointParticleDesc : public InstanceSpawnDesc
+{
+    Vec2 lifeTime{};                     // compute shader가 누적 시간을 계산할 때 사용할 생존 시간 범위.
+    Vec2 radius{};                       // 화면 확인용 원형 이동 반경 범위.
+    uint32 computeShaderLevelIndex{};    // compute shader prototype이 등록된 level index. Engine은 Client의 LevelType을 알지 않는다.
+    wstring computeShaderPrototypeTag{}; // instance payload를 갱신할 compute shader component prototype tag.
+};
+
 NS_END
