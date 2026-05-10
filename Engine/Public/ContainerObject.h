@@ -21,6 +21,9 @@ public:
 	virtual HRESULT Initialize(void* arg);
     virtual void BeginPlay() override;
 
+    json To_Json() const override;
+    void From_Json(const json& data) override;
+
 	virtual void Priority_Update(float timeDelta);
 	virtual void Update(float timeDelta);
 	virtual void Late_Update(float timeDelta);

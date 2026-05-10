@@ -188,16 +188,12 @@ HRESULT Level_GamePlay::Ready_Layer_Monster(const wstring& strLayerTag)
 
 HRESULT Level_GamePlay::Ready_Layer_Player(const wstring& strLayerTag)
 {
-    Shared<GameObject> goPlayer = nullptr;
+    auto player = Spawn_Prefab::Prefab("TestPlayer")
+        .AtLevel(ETOI(LevelType::GamePlay))
+        .InLayer(strLayerTag)
+        .Spawn();
 
-    if (FAILED(GAME->Add_GameObject(
-        ETOI(LevelType::Static), TEXT("GameObject_Player"), ETOI(LevelType::GamePlay),
-        strLayerTag, goPlayer)))
-    {
-        return E_FAIL;
-    }
-
-    auto tr = goPlayer->Get_Transform();
+    auto tr = player->Get_Transform();
     if (tr)
         tr->Set_Position(Vec3(10.f, 5.f, 10.f));
 

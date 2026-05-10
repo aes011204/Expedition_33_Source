@@ -37,6 +37,54 @@ void ContainerObject::BeginPlay()
     }
 }
 
+json ContainerObject::To_Json() const
+{
+    json root = GameObject::To_Json();
+    json parts = json::array();
+
+    for (const auto& [partTag, partObject] : _partObjects)
+    {
+        if (partObject == nullptr)
+            continue;
+
+        json partJson = json::object();
+        partJson["part_tag"] = String::ToString(partTag);
+        partJson["object"] = partObject->To_Json();
+
+        parts.emplace_back(partJson);
+    }
+
+    root["parts"] = parts;
+
+    return root;
+}
+
+void ContainerObject::From_Json(const json& data)
+{
+    GameObject::From_Json(data);
+
+    if (!data.contains("parts") || !data["parts"].is_array())
+        return;
+
+    for (const json& partJson : data["parts"])
+    {
+        if (!partJson.is_object())
+            continue;
+
+        if (!partJson.contains("part_tag") || !partJson.contains("object"))
+            continue;
+
+        const string partTagString = partJson["part_tag"].get<string>();
+        const wstring partTag = String::ToWString(partTagString);
+
+        PartObject* partObject = Get_PartObject(partTag);
+        if (partObject == nullptr)
+            continue;
+
+        partObject->From_Json(partJson["object"]);
+    }
+}
+
 void ContainerObject::Priority_Update(float timeDelta)
 {
 	for (auto& partObject : _partObjectUpdateOrder)
