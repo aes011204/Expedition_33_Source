@@ -103,9 +103,6 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalOptions>/WHOLEARCHIVE:Client.lib </AdditionalOptions>
     </Link>
-    <PreBuildEvent>
-      <Command>pushd "$(ProjectDir)..\.." &amp;&amp; call "UpdateLib.bat" &amp;&amp; popd</Command>
-    </PreBuildEvent>
     <PostBuildEvent>
       <Command>if exist "$(ProjectDir)..\..\Engine\Bin\Engine.dll" xcopy /y /d "$(ProjectDir)..\..\Engine\Bin\Engine.dll" "$(OutDir)"
 if exist "$(ProjectDir)..\..\Client\Bin\assimp-vc143-mtd.dll" xcopy /y /d "$(ProjectDir)..\..\Client\Bin\assimp-vc143-mtd.dll" "$(OutDir)"
@@ -131,9 +128,6 @@ if exist "$(ProjectDir)..\..\Client\Bin\assimp-vc143-mt.dll" xcopy /y /d "$(Proj
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalOptions>/WHOLEARCHIVE:Client.lib </AdditionalOptions>
     </Link>
-    <PreBuildEvent>
-      <Command>pushd "$(ProjectDir)..\.." &amp;&amp; call "UpdateLib.bat" &amp;&amp; popd</Command>
-    </PreBuildEvent>
     <PostBuildEvent>
       <Command>if exist "$(ProjectDir)..\..\Engine\Bin\Engine.dll" xcopy /y /d "$(ProjectDir)..\..\Engine\Bin\Engine.dll" "$(OutDir)"
 if exist "$(ProjectDir)..\..\Client\Bin\assimp-vc143-mtd.dll" xcopy /y /d "$(ProjectDir)..\..\Client\Bin\assimp-vc143-mtd.dll" "$(OutDir)"
@@ -161,9 +155,6 @@ if exist "$(ProjectDir)..\..\Client\Bin\assimp-vc143-mt.dll" xcopy /y /d "$(Proj
       <AdditionalDependencies>Client.lib;Engine.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalOptions>/WHOLEARCHIVE:Client.lib </AdditionalOptions>
     </Link>
-    <PreBuildEvent>
-      <Command>pushd "$(ProjectDir)..\.." &amp;&amp; call "UpdateLib.bat" &amp;&amp; popd</Command>
-    </PreBuildEvent>
     <PostBuildEvent>
       <Command>if exist "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.dll" xcopy /y /d "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.dll" "$(OutDir)"
 if exist "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.pdb" xcopy /y /d "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.pdb" "$(OutDir)"
@@ -194,9 +185,6 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mtd.dll" x
       <AdditionalDependencies>Client.lib;Engine.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalOptions>/WHOLEARCHIVE:Client.lib </AdditionalOptions>
     </Link>
-    <PreBuildEvent>
-      <Command>pushd "$(ProjectDir)..\.." &amp;&amp; call "UpdateLib.bat" &amp;&amp; popd</Command>
-    </PreBuildEvent>
     <PostBuildEvent>
       <Command>if exist "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.dll" xcopy /y /d "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.dll" "$(OutDir)"
 if exist "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.pdb" xcopy /y /d "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.pdb" "$(OutDir)"

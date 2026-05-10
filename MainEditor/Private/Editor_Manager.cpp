@@ -9,13 +9,17 @@
 #include "Inspector.h"
 #include "Camera_Tool.h"
 #include "Profile_View.h"
-#include "BT_Tool.h"
 #include "Material_View.h"
+
+#include "Level_Tool.h"
+
+#include "BT_View.h"
 
 #include <filesystem>
 #include <shellapi.h>
 
 #include "Prefab_View.h"
+#include "Animation_View.h"
 
 namespace fs = std::filesystem;
 
@@ -35,8 +39,11 @@ HRESULT Editor_Manager::Initialize()
     Add_Window(Camera_Tool::Create());
     Add_Window(Profile_View::Create());
 
-    Add_Window(BT_Tool::Create());
+    Add_Window(BT_View::Create());
+
     Add_Window(Prefab_View::Create());
+    Add_Window(Animation_View::Create());
+    Add_Window(Level_Tool::Create());
 
     Add_Window(Material_View::Create());
 
@@ -368,6 +375,7 @@ void Editor_Manager::Render_ShortcutHelp()
             DrawShortcutRow("Ctrl + Wheel", "Free Camera Speed");
             DrawShortcutRow("Shift +", "배속 증가");
             DrawShortcutRow("Shift -", "배속 감소");
+            DrawShortcutRow("Alt + Enter", "Fullscreen Toggle");
             DrawShortcutRow("Ctrl + Space", "Console + Content Browser");
 
             DrawShortcutRow("오브젝트 더블클릭", "오브젝트한테 이동");

@@ -22,19 +22,55 @@
     <Filter Include="01. Manager\UI_Editor_Manager">
       <UniqueIdentifier>{f9a10b37-f282-42b1-bea6-02bbc17592aa}</UniqueIdentifier>
     </Filter>
-    <Filter Include="01. Manager\Editor_Manager">
-      <UniqueIdentifier>{3dbc47d4-fff7-4b8b-9a2c-995efda8314d}</UniqueIdentifier>
-    </Filter>
     <Filter Include="01. Manager\Imgui_Manager">
       <UniqueIdentifier>{06ca636e-0a31-4ec7-90a3-e219d569ae3b}</UniqueIdentifier>
     </Filter>
     <Filter Include="04. Document">
       <UniqueIdentifier>{20ec8a81-bd45-4d17-809c-f9044fcf9237}</UniqueIdentifier>
     </Filter>
+    <Filter Include="97. Shader">
+      <UniqueIdentifier>{410d317e-37c5-4ac6-b5ee-b26a037af681}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="01. Manager\UI_Editor_Instance">
+      <UniqueIdentifier>{3dbc47d4-fff7-4b8b-9a2c-995efda8314d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="01. Manager\UI_Editor_Manager\FileService">
+      <UniqueIdentifier>{626fd539-37a1-412d-a2ca-d4296f9865c9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="01. Manager\UI_Editor_Manager\HistoryService">
+      <UniqueIdentifier>{b9714a6c-7ae5-4e38-b689-d5a728af4555}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="01. Manager\UI_Editor_Manager\PreviewService">
+      <UniqueIdentifier>{c09b0833-3eab-437d-bfdb-a25b5dd98c4e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02. View\Prefab_Browser">
+      <UniqueIdentifier>{1569f604-d5bd-41e7-b007-3d82298e6c9a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02. View\Hierarchy">
+      <UniqueIdentifier>{9eb1582a-85bf-47f6-af94-48cd930b8a4b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02. View\Viewport">
+      <UniqueIdentifier>{2916335b-960d-40ba-a867-23352fcb3827}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02. View\Viewport\Utility">
+      <UniqueIdentifier>{df871b42-962a-4fd2-aed6-9a814b2d3dbf}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02. View\Animation">
+      <UniqueIdentifier>{a01f31fb-b31d-4ba8-a9f3-0df824fb0900}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
       <Filter>98. Default</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_AnimationAssetSerializer.cpp">
+      <Filter>02. View\Animation</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_AnimationAssetService.cpp">
+      <Filter>02. View\Animation</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_AnimationTimelineView.cpp">
+      <Filter>02. View\Animation</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\UI_EditorApp.cpp">
       <Filter>00. Main</Filter>
@@ -45,22 +81,19 @@
     <ClCompile Include="..\private\UI_Editor_Manager.cpp">
       <Filter>01. Manager\UI_Editor_Manager</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\UI_Editor_ImGuiManager.cpp">
+      <Filter>01. Manager\Imgui_Manager</Filter>
+    </ClCompile>
     <ClCompile Include="..\private\UI_Inspector.cpp">
       <Filter>03. Inspector</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\UI_Document.cpp">
       <Filter>04. Document</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\UI_DocumentSerializer.cpp">
+      <Filter>04. Document</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\UI_Editor_Window.cpp">
-      <Filter>02. View</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\UI_Hierarchy_View.cpp">
-      <Filter>02. View</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\UI_Viewport_View.cpp">
-      <Filter>02. View</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\UI_Content_Browser.cpp">
       <Filter>02. View</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\UI_Editor_Utils.cpp">
@@ -68,6 +101,39 @@
     </ClCompile>
     <ClCompile Include="..\Private\SimpleMath.cpp">
       <Filter>99. Defines</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_Editor_Instance.cpp">
+      <Filter>01. Manager\UI_Editor_Instance</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_Editor_PreviewService.cpp">
+      <Filter>01. Manager\UI_Editor_Manager\PreviewService</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_AnimationPreviewService.cpp">
+      <Filter>01. Manager\UI_Editor_Manager\PreviewService</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_Editor_HistoryService.cpp">
+      <Filter>01. Manager\UI_Editor_Manager\HistoryService</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_Editor_FileService.cpp">
+      <Filter>01. Manager\UI_Editor_Manager\FileService</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_Prefab_Browser.cpp">
+      <Filter>02. View\Prefab_Browser</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_PrefabService.cpp">
+      <Filter>02. View\Prefab_Browser</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_Animation_View.cpp">
+      <Filter>02. View\Animation</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_Hierarchy_View.cpp">
+      <Filter>02. View\Hierarchy</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_Viewport_View.cpp">
+      <Filter>02. View\Viewport</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_Viewport_Utils.cpp">
+      <Filter>02. View\Viewport\Utility</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -77,8 +143,29 @@
     <ClInclude Include="..\Public\UI_Editor_Defines.h">
       <Filter>99. Defines</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\Editor_ImGuiInclude.h">
+    <ClInclude Include="..\Public\UI_Editor_Enum.h">
       <Filter>99. Defines</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_Editor_ImGuiInclude.h">
+      <Filter>99. Defines</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_Editor_Macro.h">
+      <Filter>99. Defines</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_Editor_Struct.h">
+      <Filter>99. Defines</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_AnimationTypes.h">
+      <Filter>99. Defines</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_AnimationAssetSerializer.h">
+      <Filter>02. View\Animation</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_AnimationAssetService.h">
+      <Filter>02. View\Animation</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_AnimationTimelineView.h">
+      <Filter>02. View\Animation</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\UI_EditorApp.h">
       <Filter>00. Main</Filter>
@@ -86,26 +173,56 @@
     <ClInclude Include="..\public\UI_Editor_Manager.h">
       <Filter>01. Manager\UI_Editor_Manager</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\UI_Editor_ImGuiManager.h">
+      <Filter>01. Manager\Imgui_Manager</Filter>
+    </ClInclude>
     <ClInclude Include="..\public\UI_Inspector.h">
       <Filter>03. Inspector</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\UI_Document.h">
       <Filter>04. Document</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\UI_DocumentSerializer.h">
+      <Filter>04. Document</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\UI_Editor_Window.h">
-      <Filter>02. View</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\UI_Hierarchy_View.h">
-      <Filter>02. View</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\UI_Viewport_View.h">
-      <Filter>02. View</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\UI_Content_Browser.h">
       <Filter>02. View</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\UI_Editor_Utils.h">
       <Filter>99. Defines</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_Editor_Instance.h">
+      <Filter>01. Manager\UI_Editor_Instance</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_Editor_PreviewService.h">
+      <Filter>01. Manager\UI_Editor_Manager\PreviewService</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_AnimationPreviewService.h">
+      <Filter>01. Manager\UI_Editor_Manager\PreviewService</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_Editor_HistoryService.h">
+      <Filter>01. Manager\UI_Editor_Manager\HistoryService</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_Editor_FileService.h">
+      <Filter>01. Manager\UI_Editor_Manager\FileService</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_Prefab_Browser.h">
+      <Filter>02. View\Prefab_Browser</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_PrefabService.h">
+      <Filter>02. View\Prefab_Browser</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_Animation_View.h">
+      <Filter>02. View\Animation</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_Hierarchy_View.h">
+      <Filter>02. View\Hierarchy</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_Viewport_View.h">
+      <Filter>02. View\Viewport</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_Viewport_Utils.h">
+      <Filter>02. View\Viewport\Utility</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

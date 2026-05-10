@@ -1,4 +1,4 @@
-#include "Profile_View.h"
+﻿#include "Profile_View.h"
 
 #include <cctype>
 #include <cstring>
@@ -68,18 +68,18 @@ Profile_View::Scope::Scope(const char* scopeName)
     if (nullptr == scopeName || '\0' == scopeName[0])
         return;
 
-    Profile_View::Begin_Scope(scopeName);
+    Begin_Scope(scopeName);
     _active = true;
 }
 
 Profile_View::Scope::~Scope()
 {
     if (_active)
-        Profile_View::End_Scope();
+        End_Scope();
 }
 
 Profile_View::Profile_View()
-    : Editor_Window(L"Profile")
+    : Editor_Window{ L"Profile", ICON_FA_GAUGE }
 {
     _runtime = make_unique<Profiler_Runtime>();
     _prevFrame = clock::now();
@@ -98,7 +98,7 @@ void Profile_View::Render()
         return;
 
     bool isOpen = Is_Open();
-    const string windowName = String::ToString(Get_WindowName());
+    const string& windowName = Get_ImGuiWindowName();
 
     if (ImGui::Begin(windowName.c_str(), &isOpen))
     {

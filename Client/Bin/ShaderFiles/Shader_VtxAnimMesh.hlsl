@@ -9,16 +9,19 @@
 // MATRIX
 //==================================================
 float4x4 g_WorldMatrix, g_ViewMatrix, g_ProjMatrix;
-float4x4 g_BoneMatrices[512];
+float4x4 g_WorldMatrix, g_ViewMatrix, g_ProjMatrix;
 
-//==================================================
-// CAMERA
-//==================================================
+cbuffer BoneTransform : register(b1)
+{
+    matrix g_BoneMatrices[950];
+}
+
+Texture2D g_DiffuseTexture;
+Texture2D g_NormalTexture;
+Texture2D g_OpacityTexture;
+Texture2D g_EmissiveTexture;
+
 float g_fFar = 0.f;
-
-//==================================================
-// SHADOW
-//==================================================
 float g_fLightFar = 0.f;
 
 //==================================================
@@ -50,7 +53,6 @@ VS_OUT VS_Main(VS_IN In)
 {
     VS_OUT Out;
 
-    /* 정점의 위치 * 월드 * 뷰 * 투영 */
     float4x4 matWV, matWVP;
 
     float fWeightW = 1.f - (In.vBlendWeight.x + In.vBlendWeight.y + In.vBlendWeight.z);

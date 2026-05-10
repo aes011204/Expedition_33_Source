@@ -28,6 +28,9 @@ HRESULT Head_Player::Initialize(void* arg)
         return S_OK;
 	}
 
+    //_offsetMatrix = Matrix::CreateRotationX(XMConvertToRadians(-90.f)) * Matrix::CreateTranslation(0.f, 0.f, -10.f);
+    _offsetMatrix = Matrix::Identity;
+
 	return S_OK;
 }
 
@@ -35,12 +38,21 @@ void Head_Player::Priority_Update(float fTimeDelta)
 {
 }
 
-void Head_Player::Update(float fTimeDelta)
+void Head_Player::Update(float timeDelta)
 {
+    if (Has_LeaderPoseComponent())
+    {
+        Update_LeaderPoseMatrices();
+    }
+    else
+    {
+        _modelCom->Play_Animation(timeDelta);
+    }
+
 	Update_CombinedWorldMatrix(_transformCom->Get_WorldMatrix());
 }
 
-void Head_Player::Late_Update(float fTimeDelta)
+void Head_Player::Late_Update(float timeDelta)
 {
 	GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
 	GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());

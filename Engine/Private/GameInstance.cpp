@@ -1,6 +1,7 @@
 ﻿#include "GameInstance.h"
 #include "Asset_Manager.h"
 #include "Camera_Manager.h"
+#include "Camera.h"
 #include "Collision_Manager.h"
 #include "PhysX_Manager.h"
 #include "Debug_Manager.h"
@@ -22,6 +23,8 @@
 #include "Shadow.h"
 #include "Picking.h"
 #include "ColliderCom.h"
+#include "Culling_Manager.h"
+#include "ThreadPool.h"
 
 #ifdef _DEBUG
 #include "Print_Manager.h"
@@ -79,8 +82,7 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
     CHECK_NULL(_objectManager, E_FAIL);
 
     _targetManager = Target_Manager::Create(device, context);
-    if (nullptr == _targetManager)
-        return E_FAIL;
+    CHECK_NULL(_targetManager, E_FAIL);
 
     _renderer = Renderer::Create(device, context);
     CHECK_NULL(_renderer, E_FAIL);
@@ -106,6 +108,9 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
     _collisionManager = Collision_Manager::Create();
     CHECK_NULL(_collisionManager, E_FAIL);
 
+    _cullingManager = Culling_Manager::Create();
+    CHECK_NULL(_cullingManager, E_FAIL);
+
     _shadow = Shadow::Create();
     CHECK_NULL(_shadow, E_FAIL);
 
@@ -114,6 +119,21 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
 
     _picking = Picking::Create(device, context);
     CHECK_NULL(_picking, E_FAIL);
+
+    // Thread Pool
+    {
+        // PC가 동시에 돌릴 수 있는 하드웨어 스레드 수 가져오기
+        const size_t hardwareThreadCount = thread::hardware_concurrency();
+        // 메인 스레드도 게임 업데이트/렌더링을 해야하니까 CPU를 전부 worker한테 넘기는게 아니라 하나 뺴기
+        const size_t workerCount = max<size_t>(1, hardwareThreadCount > 1 ? hardwareThreadCount - 1 : 1);
+
+        _threadPool = ThreadPool::Create(workerCount);
+        CHECK_NULL(_threadPool, E_FAIL);
+
+        LOG_ERROR("[GameInstance::Initialize_Engine] ThreadPool created. workerCount={}",
+        static_cast<int>(workerCount));
+    }
+    
 
 
 #ifdef _DEBUG
@@ -292,6 +312,17 @@ void GameInstance::Try_FlushRuntimePerfLog()
 
 void GameInstance::Clear_Resources(uint32 levelIndex)
 {
+    _uiManager->Clear_Level(levelIndex);
+    _objectManager->Visit_LevelObjects(levelIndex,
+        [this](const wstring& layerTag, const Shared<GameObject>& gameObject)
+        {
+            UNREFERENCED_PARAMETER(layerTag);
+
+            Shared<Camera> camera = dynamic_pointer_cast<Camera>(gameObject);
+            if (camera != nullptr)
+                _cameraManager->Remove_Camera(camera);
+        });
+
     _objectManager->Clear_Layers(levelIndex);
     _prototypeManager->Clear_Prototypes(levelIndex);
 }
@@ -490,8 +521,13 @@ Shared<GameObject> GameInstance::Find_FirstObject(uint32 levelIndex, const wstri
     return _objectManager->Find_FirstObject(levelIndex, layerTag);
 }
 
-void GameInstance::Visit_CurrentLevelObjects(
+void GameInstance::Visit_LevelObjects(uint32 levelIndex,
     const function<void(const wstring& layerTag, const Shared<GameObject>& gameObject)>& visitor) const
+{
+    return _objectManager->Visit_LevelObjects(levelIndex, visitor);
+}
+
+void GameInstance::Visit_CurrentLevelObjects(const function<void(const wstring& layerTag, const Shared<GameObject>& gameObject)>& visitor) const
 {
     return _objectManager->Visit_LevelObjects(visitor);
 }
@@ -587,6 +623,26 @@ void GameInstance::Unlock_Mouse()
     return _inputManager->Unlock_Mouse();
 }
 
+void GameInstance::Begin_EditorMouseLockSession()
+{
+    return _inputManager->Begin_EditorMouseLockSession();
+}
+
+void GameInstance::End_EditorMouseLockSession()
+{
+    return _inputManager->End_EditorMouseLockSession();
+}
+
+void GameInstance::Set_MouseLockOverrideRect(const RECT& lockRectScreen)
+{
+    return _inputManager->Set_MouseLockOverrideRect(lockRectScreen);
+}
+
+void GameInstance::Clear_MouseLockOverrideRect()
+{
+    return _inputManager->Clear_MouseLockOverrideRect();
+}
+
 void GameInstance::Set_InputBlocked(bool isBlocked)
 {
     return _inputManager->Set_InputBlocked(isBlocked);
@@ -671,7 +727,7 @@ string GameInstance::Find_AssetGUID(const wstring& filePath) const
     return _assetManager->Find_GUID(filePath);
 }
 
-const FAssetMeta* GameInstance::Find_AssetByGUID(const string& guid) const
+const AssetMeta* GameInstance::Find_AssetByGUID(const string& guid) const
 {
     if (nullptr == _assetManager)
         return nullptr;
@@ -679,7 +735,7 @@ const FAssetMeta* GameInstance::Find_AssetByGUID(const string& guid) const
     return _assetManager->Find_ByGUID(guid);
 }
 
-vector<FAssetMeta> GameInstance::Get_AssetsByType(const string& type) const
+vector<AssetMeta> GameInstance::Get_AssetsByType(const string& type) const
 {
     if (nullptr == _assetManager)
         return {};
@@ -701,6 +757,18 @@ wstring GameInstance::Get_AssetRoot() const
         return {};
 
     return _assetManager->Get_ResourceRoot();
+}
+
+string GameInstance::Ensure_AssetGUID(const wstring& filePath, const string& type) const
+{
+    if (nullptr == _assetManager)
+        return {};
+
+    const string existingGuid = _assetManager->Find_GUID(filePath);
+    if (!existingGuid.empty())
+        return existingGuid;
+
+    return _assetManager->Register_Asset(filePath, type);
 }
 
 HRESULT GameInstance::Add_Camera(Shared<Camera> camera) const
@@ -774,10 +842,31 @@ const TypeRegistry::BTNodeTypeInfo* GameInstance::Find_BTNodeType(const string& 
     return _typeRegistry->Find_BTNodeType(className);
 }
 
+const TypeRegistry::AnimNotifyTypeInfo* GameInstance::Find_AnimNotifyType(const string& className) const
+{
+    return _typeRegistry->Find_AnimNotifyType(className);
+}
+
+const TypeRegistry::AnimNotifyStateTypeInfo* GameInstance::Find_AnimNotifyStateType(const string& className) const
+{
+    return _typeRegistry->Find_AnimNotifyStateType(className);
+}
+
 void GameInstance::Visit_GameObjectTypes(const function<void(const TypeRegistry::GameObjectTypeInfo&)>& visitor) const
 {
     CHECK_NULL(_typeRegistry);
     _typeRegistry->Visit_GameObjectTypes(visitor);
+}
+
+void GameInstance::Visit_AnimNotifyTypes(const function<void(const TypeRegistry::AnimNotifyTypeInfo&)>& visitor) const
+{
+    return _typeRegistry->Visit_AnimNotifyTypes(visitor);
+}
+
+void GameInstance::Visit_AnimNotifyStateTypes(
+    const function<void(const TypeRegistry::AnimNotifyStateTypeInfo&)>& visitor) const
+{
+    return _typeRegistry->Visit_AnimNotifyStateTypes(visitor);
 }
 
 Shared<Component> GameInstance::Create_ComponentPrototype(const string& className) const
@@ -793,6 +882,16 @@ Shared<GameObject> GameInstance::Create_GameObjectPrototype(const string& classN
 Shared<Base> GameInstance::Create_BTNodePrototype(const string& className) const
 {
     return _typeRegistry->Create_BTNode(className);
+}
+
+Shared<AnimNotify> GameInstance::Create_AnimNotifyPrototype(const string& className) const
+{
+    return _typeRegistry->Create_AnimNotify(className);
+}
+
+Shared<AnimNotifyState> GameInstance::Create_AnimNotifyStatePrototype(const string& className) const
+{
+    return _typeRegistry->Create_AnimNotifyState(className);
 }
 
 HRESULT GameInstance::Add_RenderTarget(const wstring& targetTag, uint32 sizeX, uint32 sizeY, DXGI_FORMAT pixelFormat,
@@ -873,6 +972,31 @@ PxScene* GameInstance::Get_PhysXScene() const
 {
     CHECK_NULL(_physxManager, nullptr);
     return _physxManager->Get_Scene();
+}
+
+void GameInstance::UpdateFrustum(const Matrix& view, const Matrix& proj)
+{
+    if (_cullingManager)
+    {
+        _cullingManager->UpdateFrustum(view, proj);
+    }
+}
+
+bool GameInstance::IsVisible(const BoundingBox& worldAABB) const
+{
+    if (_cullingManager)
+    {
+        return _cullingManager->IsVisible(worldAABB);
+    }
+
+    return true;
+}
+void GameInstance::Visit_BTNodeTypes(const function<void(const TypeRegistry::BTNodeTypeInfo&)>& visitor) const
+{
+    if (_typeRegistry == nullptr)
+        return;
+
+    _typeRegistry->Visit_BTNodeTypes(visitor);
 }
 
 void GameInstance::Draw_DebugBox(const DebugBoxDesc& desc)
@@ -1049,6 +1173,22 @@ bool GameInstance::Pick_WorldPosition(const POINT& pixelPos, Vec3& outWorldPos)
     return _picking->Pick_WorldPosition(pixelPos, outWorldPos);
 }
 
+bool GameInstance::Enqueue_ThreadJob(function<void()> job)
+{
+    if (_threadPool == nullptr)
+        return false;
+
+    return _threadPool->Enqueue(std::move(job));
+}
+
+size_t GameInstance::Get_PendingThreadJobCount() const
+{
+    if (_threadPool == nullptr)
+        return 0;
+
+    return _threadPool->Get_PendingJobCount();
+}
+
 void GameInstance::Release_Engine()
 {
     auto ReleaseManager = [](auto& manager)
@@ -1060,6 +1200,7 @@ void GameInstance::Release_Engine()
         }
     };
 
+    ReleaseManager(_threadPool);
     ReleaseManager(_debugManager);
     ReleaseManager(_cameraManager);
     ReleaseManager(_assetManager);

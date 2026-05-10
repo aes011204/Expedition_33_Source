@@ -47,6 +47,9 @@ public:
     void Update_WorldMatrix();
     HRESULT Bind_ShaderResource(ShaderCom* shader, const char* resourceName);
 
+    json To_Json() const override;
+    void From_Json(const json& data) override;
+
 public: //## Accessors
     const Matrix& Get_WorldMatrix();
     Matrix Get_LocalMatrix() const;

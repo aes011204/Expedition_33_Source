@@ -1,5 +1,6 @@
 ﻿#pragma once
 
+#include "AnimNotify_Types.h"
 #include "Component.h"
 #include "Material.h"
 
@@ -23,21 +24,23 @@ public:
     size_t Get_NumMaterials() const { return _materials.size(); }
     size_t Get_NumBones() const { return _bones.size(); }
     size_t Get_NumAnimations() const { return _animations.size(); }
+    const Matrix& Get_PreLocalTransformMatrix() const { return _preLocalTransformMatrix; }
 
     uint32 Get_MeshMaterialIndex(uint32 meshIndex) const;
     Shared<Material> Get_Material(uint32 materialIndex) const;
 
     const Material::TextureSlot* Find_MaterialSlot(uint32 meshIndex, std::initializer_list<MaterialTextureSlot> materialSlots, uint32 textureIndex = 0) const;
-
+    const wstring& Get_SourceModelPath() const { return _sourceModelPath; }
 
 public:
-    bool Is_Skeletal() const { return _isSkeletal; } 
+    bool  Is_Skeletal() const { return _isSkeletal; } 
 	int32 Get_BoneIndex(const string& boneName) const;
     const string& Get_BoneName(uint32 boneIndex) const;
 	const Matrix* Get_BoneMatrixPtr(const char* boneName) const;
     const Matrix* Get_BoneMatrixPtr(uint32 boneIndex) const;
 
 public:
+    bool Is_AnimationFinished() const { return _isFinished; }
     void Set_Animation(uint32 animIndex, bool isLoop = false);
     void Set_Animation(uint32 animIndex, float blendDuration, bool isLoop = false);
     const char* Get_AnimationName(uint32 animationIndex) const;
@@ -45,7 +48,8 @@ public:
 public:
     void Set_RootMotionEnabled(bool enable) { _isRootMotion = enable; }
     void Set_LocalRootNode(int32 nodeIndex) { _rootNodeIndex = nodeIndex; _isRootMotion = true; }
-    const RootMotionFrame& Get_RootTransformVelocity() const { return _rootFrameVelocity; }
+    const RootMotionFrame& Get_RootTransformVelocity() const { return _rootOriginalFrameVelocity; }
+    const RootMotionFrame& Get_RootTransformVelocity(float scaleOffset);
 
 public:
 	HRESULT Initialize_Prototype(ModelType type, const char* modelFilePath, const Matrix& preLocalTransformMatrix);
@@ -59,6 +63,73 @@ public:
 	HRESULT Bind_Material(class ShaderCom* shader, const char* constantName, uint32 meshIndex, MaterialTextureSlot slot, uint32 textureIndex = 0);
 	HRESULT Bind_BoneMatrices(class ShaderCom* shader, const char* constantName, uint32 meshIndex);
     bool Try_Get_LocalBounds(Vec3& outMin, Vec3& outMax) const;
+
+
+public: /* Guid */
+    static wstring Normalize_ModelAssetPath(const char* modelFilePath);
+
+public: /* AnimNotify */
+    uint32  Get_CurrentAnimationIndex() const { return _currentAnimIndex; }
+    uint32  Get_AnimationIndex() const;
+
+    float   Get_CurrentAnimationDurationSec() const;
+    float   Get_CurrentAnimationTimeSec() const;
+
+    bool    Is_AnimationPaused() const { return _isAnimationPaused; }
+    void    Set_AnimationPaused(bool paused) { _isAnimationPaused = paused; }
+
+    void    Set_CurrentAnimationTimeSec(float timeSec);
+    void    Refresh_CurrentAnimationPose();
+
+    // 현재 모델의 notify asset lazy-load
+    bool    Ensure_AnimNotifyAssetLoaded();
+    // 소스 모델이 바뀌면 notify 캐시 무효화
+    void    Invalidate_AnimNotifyAsset();
+
+    void    Set_AnimNotifyExecutionEnabled(bool enabled) { _isAnimNotifyExecutionEnabled = enabled; }
+    bool    Is_AnimNotifyExecutionEnabled() const { return _isAnimNotifyExecutionEnabled; }
+
+private:
+    // 현재 애니메이션 이름으로 노티파이 데이터 찾기
+    const AnimNotifyData* Find_CurrentNotifyAnimation() const;
+    void    Stop_AllNotifyStates(bool executeEndCheck);
+    // 다른 애니메이션에 속한 active state 정리
+    void    Stop_NotifyStates_ExceptAnimation(const string& keepAnimationName, bool executeEndCheck);
+
+    // 현재 재생 구간에서 event notify를 갱신한다.
+    void    Update_AnimNotifies(
+                const AnimNotifyData& animationData,
+                const AnimNotifyContext& context,
+                bool executeNotifies);
+
+    // 현재 재생 구간에서 state notify를 갱신한다.
+    void Update_AnimNotifyStates(
+        const AnimNotifyData& animationData,
+        const AnimNotifyContext& context,
+        bool executeNotifies);
+
+    // 루프 wrap을 포함해서 특정 시점이 재생 구간 안에 있는지 판정한다.
+    static bool Is_NotifyTimeInRange(float targetTime, float previousTime, float currentTime, bool wrapped);
+
+    // 현재 시간이 state 활성 범위 안에 있는지 판정한다.
+    static bool Is_NotifyStateActiveTime(float currentTime, float startTime, float duration);
+
+    // active state 목록에서 동일 state를 찾는다.
+    static int32 Find_ActiveNotifyStateIndex(
+        const vector<ActiveAnimNotifyState>& activeStates,
+        const string& animationName,
+        int32 stateIndex);
+
+public: /* 머리 붙이기 */
+    void Set_LeaderPoseComponent(const ModelCom* leaderModel);
+    void Clear_LeaderPoseComponent();
+    bool Has_LeaderPoseComponent() const { return _leaderPoseModel != nullptr; }
+
+    void Update_LeaderPoseMatrices();
+
+private:
+    Matrix Convert_LeaderPoseMatrix(const Matrix& leaderMatrix) const;
+    Matrix Build_LeaderPoseMatrix(uint32 boneIndex, vector<uint8>& visited);
 
 private:
 	ModelType					        _type = { ModelType::END };
@@ -81,6 +152,7 @@ private:
     vector<Shared<Animation>>	        _animations;
 
 private: /* For Animation Control */
+    bool                                _isFinished{ false };
 	bool						        _isAnimLoop{ false };       
     bool                                _isBlending{ false };
 	uint32						        _currentAnimIndex{ 0 };
@@ -91,7 +163,26 @@ private: /* For Animation Control */
 private: /* For Root Motion */
     bool                                _isRootMotion{ false };
     int32                               _rootNodeIndex{ -1 }; // -1 일때는 최상위 노드 기준으로 
+    RootMotionFrame                     _rootOriginalFrameVelocity{};
     RootMotionFrame                     _rootFrameVelocity{};
+
+private: /* guid */
+    wstring                             _sourceModelPath = {};
+
+private: /* notify */
+    bool                                _isAnimationPaused = false;
+
+    bool _isAnimNotifyAssetLoaded = false;
+    bool _isAnimNotifyExecutionEnabled = true;
+
+    AnimNotifyAsset _animNotifyAsset{};
+    vector<ActiveAnimNotifyState> _activeNotifyStates{};
+
+private: /* 머리 붙이기 */
+    const ModelCom*         _leaderPoseModel = nullptr;
+
+    vector<int32>       _leaderPoseBoneMap;           // follower bone index => leader bone index
+    vector<Matrix>      _leaderPoseCombinedMatrices;  // follower 기준으로 최종 행렬
 
 private:
 	HRESULT Ready_Model(const char* modelPath);

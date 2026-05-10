@@ -59,7 +59,7 @@ const Quaternion Quaternion::Identity = { 0.f, 0.f, 0.f, 1.f };
  ****************************************************************************/
 
 #if defined(__d3d11_h__) || defined(__d3d11_x_h__)
-static_assert(sizeof(DirectX::SimpleMath::Viewport) == sizeof(D3D11_VIEWPORT), "Size mismatch");
+static_assert(sizeof(Viewport) == sizeof(D3D11_VIEWPORT), "Size mismatch");
 static_assert(offsetof(DirectX::SimpleMath::Viewport, x) == offsetof(D3D11_VIEWPORT, TopLeftX), "Layout mismatch");
 static_assert(offsetof(DirectX::SimpleMath::Viewport, y) == offsetof(D3D11_VIEWPORT, TopLeftY), "Layout mismatch");
 static_assert(offsetof(DirectX::SimpleMath::Viewport, width) == offsetof(D3D11_VIEWPORT, Width), "Layout mismatch");
@@ -79,7 +79,7 @@ static_assert(offsetof(DirectX::SimpleMath::Viewport, maxDepth) == offsetof(D3D1
 #endif
 
 #if defined(__dxgi1_2_h__) || defined(__d3d11_x_h__) || defined(__d3d12_x_h__) || defined(__XBOX_D3D12_X__)
-RECT DirectX::SimpleMath::Viewport::ComputeDisplayArea(
+RECT Viewport::ComputeDisplayArea(
     DXGI_SCALING scaling,
     UINT backBufferWidth,
     UINT backBufferHeight,
@@ -145,7 +145,7 @@ RECT DirectX::SimpleMath::Viewport::ComputeDisplayArea(
 }
 #endif
 
-RECT DirectX::SimpleMath::Viewport::ComputeTitleSafeArea(UINT backBufferWidth, UINT backBufferHeight) noexcept
+RECT Viewport::ComputeTitleSafeArea(UINT backBufferWidth, UINT backBufferHeight) noexcept
 {
     const float safew = (static_cast<float>(backBufferWidth) + 19.f) / 20.f;
     const float safeh = (static_cast<float>(backBufferHeight) + 19.f) / 20.f;

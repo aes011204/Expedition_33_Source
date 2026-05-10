@@ -113,7 +113,7 @@ HRESULT Weapon::Render_Shadow()
 HRESULT Weapon::Ready_Components()
 {
 
-	if (FAILED(__super::Add_Component(ETOI(LevelType::GamePlay), TEXT("Shader_VtxMesh"), _shader)))
+	if (FAILED(__super::Add_Component(ETOI(LevelType::Static), TEXT("Shader_VtxMesh"), _shader)))
 		return E_FAIL;
 
 	if (FAILED(__super::Add_Component(ETOI(LevelType::GamePlay), TEXT("Model_ForkLift"), _model)))

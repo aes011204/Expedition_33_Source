@@ -34,6 +34,32 @@ const Matrix* PlayableParts::Get_SocketBoneMatrixPtr(uint32 boneIndex) const
     return _modelCom->Get_BoneMatrixPtr(boneIndex);
 }
 
+void PlayableParts::Set_Animation(uint32 animIndex, float blendDuration, bool isLoop) const
+{
+    if (nullptr == _modelCom) return;
+
+    _modelCom->Set_Animation(animIndex, blendDuration, isLoop);
+}
+
+uint32 PlayableParts::Get_AnimationIndex() const
+{
+    if (nullptr == _modelCom) return UINT_MAX;
+
+    return _modelCom->Get_AnimationIndex();
+}
+
+float PlayableParts::Get_AnimationProgress() const
+{
+    if (nullptr == _modelCom) return D3D11_FLOAT32_MAX;
+
+    return _modelCom->Get_CurrentAnimationTimeSec() / _modelCom->Get_CurrentAnimationDurationSec();
+}
+
+bool PlayableParts::Is_AnimationFinished() const
+{
+    return _modelCom->Is_AnimationFinished();
+}
+
 HRESULT PlayableParts::Initialize_Prototype()
 {
     return PartObject::Initialize_Prototype();
@@ -49,6 +75,9 @@ HRESULT PlayableParts::Initialize(void* arg)
 
     if (auto playableDesc = static_cast<PLAYABLE_PART_DESC*>(arg))
     {
+        _offsetMatrix = Matrix::Identity;
+        _socketMatrix = playableDesc->socketMatrixPointer;
+
         if (FAILED(Ready_Components(*playableDesc)))
         {
             LOG_ERROR("[PlayableParts] : Failed to Ready Components");
@@ -130,21 +159,65 @@ HRESULT PlayableParts::Render_Shadow()
     return S_OK;
 }
 
+void PlayableParts::Set_LeaderPoseComponent(const PlayableParts* leaderPart) const
+{
+    CHECK_NULL(_modelCom);
+
+    if (leaderPart && leaderPart->_modelCom)
+        _modelCom->Set_LeaderPoseComponent(leaderPart->_modelCom.get());
+    else
+        _modelCom->Clear_LeaderPoseComponent();
+}
+
+bool PlayableParts::Has_LeaderPoseComponent() const
+{
+    if (_modelCom == nullptr)
+        return false;
+
+    return _modelCom->Has_LeaderPoseComponent();
+}
+
+void PlayableParts::Update_LeaderPoseMatrices() const
+{
+    if (_modelCom)
+        _modelCom->Update_LeaderPoseMatrices();
+}
+
+void PlayableParts::Update_CombinedWorldMatrix(const Matrix& childMatrix)
+{
+    Matrix socketMatrix = (nullptr != _socketMatrix) ? *_socketMatrix : Matrix::Identity;
+
+    //Vector3 right = socketMatrix.Right();
+    //Vector3 up = socketMatrix.Up();
+    //Vector3 forward = socketMatrix.Backward();
+    //right.Normalize();
+    //up.Normalize();
+    //forward.Normalize();
+    //socketMatrix.Right(right);
+    //socketMatrix.Up(up);
+    //socketMatrix.Backward(forward);
+
+    const Matrix& parentMatrix = (nullptr != _parentMatrix) ? *_parentMatrix : Matrix::Identity;
+    const Matrix childWorld = childMatrix;
+    const Matrix combinedWorld = _offsetMatrix * childWorld * socketMatrix * parentMatrix;
+    _combinedWorldMatrix = combinedWorld;
+}
+
 HRESULT PlayableParts::Ready_Components(const PLAYABLE_PART_DESC& desc)
 {
 
     if (desc.modelType == ModelType::Anim)
     {
-        if (FAILED(Add_Component(ETOI(LevelType::GamePlay), TEXT("Shader_VtxAnimMesh"), _shaderCom)))
+        if (FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Shader_VtxAnimMesh"), _shaderCom)))
             return E_FAIL;
     }
     else
     {
-        if (FAILED(Add_Component(ETOI(LevelType::GamePlay), TEXT("Shader_VtxMesh"), _shaderCom)))
+        if (FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Shader_VtxMesh"), _shaderCom)))
             return E_FAIL;
     }
 
-    if (FAILED(Add_Component(ETOI(LevelType::GamePlay), desc.modelTag, _modelCom)))
+    if (FAILED(Add_Component(ETOI(LevelType::Static), desc.modelTag, _modelCom)))
         return E_FAIL;
 
     return S_OK;

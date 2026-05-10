@@ -1,733 +1,1207 @@
 #include "pch.h"
 #include "UI_Editor_Manager.h"
+
 #include "GameInstance.h"
-#include "Texture.h"
-#include "UI_Content_Browser.h"
+#include "UI_Animation_View.h"
+#include "UI_Editor_Utils.h"
 #include "UI_Hierarchy_View.h"
 #include "UI_Inspector.h"
+#include "UI_Prefab_Browser.h"
 #include "UI_Viewport_View.h"
-#include "UI_Editor_Utils.h"
-#include <commdlg.h>
 
-namespace
+namespace UIEditor
 {
-    constexpr wchar_t kDefaultJsonFileName[] = L"UI_Layout.json";
-
-    string Normalize_PathForCompare(const string& path)
+    namespace
     {
-        string normalizedPath = String::ToLowerCopy(path);
-        replace(normalizedPath.begin(), normalizedPath.end(), '\\', '/');
-        return normalizedPath;
+        string Normalize_PathForCompare(const string& path)
+        {
+            string normalizedPath = String::ToLowerCopy(path);
+            replace(normalizedPath.begin(), normalizedPath.end(), '\\', '/');
+            return normalizedPath;
+        }
     }
 
-    fs::path Get_ModuleDirectory()
+    HRESULT UI_Editor_Manager::Initialize(const ComPtr<Device>& device, const ComPtr<Context>& context, bool assetManagerReady)
     {
-        wchar_t modulePath[MAX_PATH] = {};
-        if (0 == GetModuleFileNameW(nullptr, modulePath, MAX_PATH))
-            return {};
+        _assetManagerReady = assetManagerReady;
 
-        return fs::path(modulePath).parent_path();
+        if (FAILED(_previewService.Initialize(device, context, assetManagerReady)))
+            return E_FAIL;
+
+        if (FAILED(_fileService.Initialize()))
+            return E_FAIL;
+
+        Add_Window(UI_Hierarchy_View::Create(*this));
+        Add_Window(UI_Viewport_View::Create(*this));
+        Add_Window(UI_Inspector::Create(*this));
+        Add_Window(UI_Animation_View::Create(*this));
+        Add_Window(UI_Prefab_Browser::Create(*this));
+
+        Clear_History();
+        Clear_Dirty();
+
+        return S_OK;
     }
 
-    bool Try_CreateDirectory(const fs::path& directory)
+    void UI_Editor_Manager::Render()
     {
-        if (directory.empty())
+        _previewService.Begin_Frame();
+        _animationPreviewService.Update(ImGui::GetIO().DeltaTime);
+
+        Render_DockSpace();
+        Handle_Shortcuts();
+
+        for (auto& pair : _windows)
+        {
+            if (nullptr != pair.second)
+                pair.second->Render();
+        }
+
+        Render_RenamePopup();
+    }
+
+    void UI_Editor_Manager::Render_FontPreviews()
+    {
+        _previewService.Render_FontPreviews();
+    }
+
+    void UI_Editor_Manager::Add_Window(const Shared<UI_Editor_Window>& window)
+    {
+        if (nullptr == window)
+            return;
+
+        _windows[window->Get_WindowName()] = window;
+    }
+
+    Shared<UI_Editor_Window> UI_Editor_Manager::Find_Window(const wstring& windowName) const
+    {
+        const auto iter = _windows.find(windowName);
+        if (iter == _windows.end())
+            return nullptr;
+
+        return iter->second;
+    }
+
+    UI_Document& UI_Editor_Manager::Get_Document()
+    {
+        return _document;
+    }
+
+    const UI_Document& UI_Editor_Manager::Get_Document() const
+    {
+        return _document;
+    }
+
+    ObjectId UI_Editor_Manager::Get_SelectedObjectId() const
+    {
+        return _selectedObjectId;
+    }
+
+    void UI_Editor_Manager::Set_SelectedObjectId(ObjectId objectId)
+    {
+        Set_SingleSelection(objectId);
+    }
+
+    void UI_Editor_Manager::Set_SingleSelection(ObjectId objectId)
+    {
+        const ObjectId nextSelectedObjectId = nullptr != _document.Find_Object(objectId) ? objectId : 0;
+        if (_selectedObjectId != nextSelectedObjectId)
+            _animationPreviewService.Stop();
+
+        _selectedObjectId = nextSelectedObjectId;
+        _selectedObjectIds.clear();
+        if (_selectedObjectId != 0)
+            _selectedObjectIds.push_back(_selectedObjectId);
+    }
+
+    void UI_Editor_Manager::Set_SelectedObjectIds(const vector<ObjectId>& objectIds, ObjectId primaryObjectId)
+    {
+        Apply_Selection(objectIds, primaryObjectId);
+    }
+
+    const vector<ObjectId>& UI_Editor_Manager::Get_SelectedObjectIds() const
+    {
+        return _selectedObjectIds;
+    }
+
+    vector<ObjectId> UI_Editor_Manager::Get_RootSelectedObjectIds() const
+    {
+        return Collect_RootObjectIds(_selectedObjectIds);
+    }
+
+    bool UI_Editor_Manager::Is_ObjectSelected(ObjectId objectId) const
+    {
+        if (objectId == 0)
+            return _selectedObjectId == 0 && _selectedObjectIds.empty();
+
+        return find(_selectedObjectIds.begin(), _selectedObjectIds.end(), objectId) != _selectedObjectIds.end();
+    }
+
+    bool UI_Editor_Manager::Has_SelectedObjects() const
+    {
+        return !_selectedObjectIds.empty();
+    }
+
+    size_t UI_Editor_Manager::Get_SelectedObjectCount() const
+    {
+        return _selectedObjectIds.size();
+    }
+
+    void UI_Editor_Manager::Add_ToSelection(ObjectId objectId)
+    {
+        if (objectId == 0 || nullptr == _document.Find_Object(objectId))
+            return;
+
+        vector<ObjectId> nextSelection = _selectedObjectIds;
+        if (find(nextSelection.begin(), nextSelection.end(), objectId) == nextSelection.end())
+            nextSelection.push_back(objectId);
+
+        Apply_Selection(nextSelection, objectId);
+    }
+
+    void UI_Editor_Manager::Toggle_Selection(ObjectId objectId)
+    {
+        if (objectId == 0 || nullptr == _document.Find_Object(objectId))
+            return;
+
+        vector<ObjectId> nextSelection = _selectedObjectIds;
+        const auto iter = find(nextSelection.begin(), nextSelection.end(), objectId);
+        if (iter == nextSelection.end())
+        {
+            nextSelection.push_back(objectId);
+            Apply_Selection(nextSelection, objectId);
+            return;
+        }
+
+        nextSelection.erase(iter);
+        const ObjectId nextPrimaryObjectId = nextSelection.empty()
+            ? 0
+            : (_selectedObjectId == objectId ? nextSelection.back() : _selectedObjectId);
+        Apply_Selection(nextSelection, nextPrimaryObjectId);
+    }
+
+    void UI_Editor_Manager::Clear_Selection()
+    {
+        Apply_Selection({}, 0);
+    }
+
+    UI_Object* UI_Editor_Manager::Get_SelectedObject()
+    {
+        return _document.Find_Object(_selectedObjectId);
+    }
+
+    const UI_Object* UI_Editor_Manager::Get_SelectedObject() const
+    {
+        return _document.Find_Object(_selectedObjectId);
+    }
+
+    bool UI_Editor_Manager::Is_AssetManagerReady() const
+    {
+        return _assetManagerReady;
+    }
+
+    bool UI_Editor_Manager::Is_Dirty() const
+    {
+        return _historyService.Is_Dirty();
+    }
+
+    bool UI_Editor_Manager::Request_Close()
+    {
+        return Confirm_SaveIfDirty(L"close UI Editor");
+    }
+
+    ID3D11ShaderResourceView* UI_Editor_Manager::Get_TexturePreviewSRV(const string& textureGuid)
+    {
+        return _previewService.Get_TexturePreviewSRV(textureGuid);
+    }
+
+    ID3D11ShaderResourceView* UI_Editor_Manager::Get_MaskedTexturePreviewSRV(const string& textureGuid, const string& maskTextureGuid)
+    {
+        return _previewService.Get_MaskedTexturePreviewSRV(textureGuid, maskTextureGuid);
+    }
+
+    void UI_Editor_Manager::Render_DockSpace()
+    {
+        ImGuiViewport* viewport = ImGui::GetMainViewport();
+        if (nullptr == viewport)
+            return;
+
+        ImGui::SetNextWindowPos(viewport->WorkPos);
+        ImGui::SetNextWindowSize(viewport->WorkSize);
+        ImGui::SetNextWindowViewport(viewport->ID);
+
+        ImGuiWindowFlags windowFlags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
+        windowFlags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus;
+
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.f);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.f, 0.f));
+
+        bool isOpen = true;
+        ImGui::Begin("UIEditorDockSpace", &isOpen, windowFlags);
+        ImGui::PopStyleVar(3);
+
+        const ImGuiID dockSpaceId = ImGui::GetID("UIEditorDockSpaceId");
+        ImGui::DockSpace(dockSpaceId, ImVec2(0.f, 0.f), ImGuiDockNodeFlags_None);
+
+        if (ImGui::BeginMenuBar())
+        {
+            if (ImGui::BeginMenu("File"))
+            {
+                if (ImGui::MenuItem("New"))
+                    New_Document();
+                if (ImGui::MenuItem("Save"))
+                    Save_Document();
+                if (ImGui::MenuItem("Save As"))
+                    Save_DocumentAs();
+                if (ImGui::MenuItem("Load"))
+                    Load_Document();
+
+                ImGui::EndMenu();
+            }
+
+            if (ImGui::BeginMenu("Create"))
+            {
+                if (ImGui::MenuItem("Image"))
+                    Create_UIObject(UI_ObjectType::Image);
+
+                if (ImGui::MenuItem("Text"))
+                    Create_UIObject(UI_ObjectType::Text);
+
+                if (ImGui::MenuItem("Panel"))
+                    Create_UIObject(UI_ObjectType::Panel);
+
+                if (ImGui::MenuItem("Button"))
+                    Create_UIObject(UI_ObjectType::Button);
+
+                ImGui::EndMenu();
+            }
+
+            if (ImGui::BeginMenu("Window"))
+            {
+                for (auto& pair : _windows)
+                {
+                    if (nullptr == pair.second)
+                        continue;
+
+                    bool isWindowOpen = pair.second->Is_Open();
+                    const string windowName = String::ToString(pair.first);
+                    if (ImGui::MenuItem(windowName.c_str(), nullptr, &isWindowOpen))
+                        pair.second->Set_Open(isWindowOpen);
+                }
+
+                ImGui::EndMenu();
+            }
+
+            if (ImGui::BeginMenu("Edit"))
+            {
+                if (ImGui::MenuItem("Undo", "Ctrl+Z", false, Can_Undo()))
+                    Undo();
+                if (ImGui::MenuItem("Redo", "Ctrl+Y", false, Can_Redo()))
+                    Redo();
+
+                ImGui::Separator();
+                if (ImGui::BeginMenu("Align", Get_SelectedObjectCount() >= 2))
+                {
+                    if (ImGui::MenuItem("Left"))
+                        Align_SelectedObjects(UI_AlignmentCommand::Left);
+                    if (ImGui::MenuItem("Right"))
+                        Align_SelectedObjects(UI_AlignmentCommand::Right);
+                    if (ImGui::MenuItem("Top"))
+                        Align_SelectedObjects(UI_AlignmentCommand::Top);
+                    if (ImGui::MenuItem("Bottom"))
+                        Align_SelectedObjects(UI_AlignmentCommand::Bottom);
+                    if (ImGui::MenuItem("Center X"))
+                        Align_SelectedObjects(UI_AlignmentCommand::CenterX);
+                    if (ImGui::MenuItem("Center Y"))
+                        Align_SelectedObjects(UI_AlignmentCommand::CenterY);
+                    ImGui::Separator();
+                    if (ImGui::MenuItem("Distribute Horizontal", nullptr, false, Get_SelectedObjectCount() >= 3))
+                        Align_SelectedObjects(UI_AlignmentCommand::DistributeHorizontal);
+                    if (ImGui::MenuItem("Distribute Vertical", nullptr, false, Get_SelectedObjectCount() >= 3))
+                        Align_SelectedObjects(UI_AlignmentCommand::DistributeVertical);
+                    ImGui::EndMenu();
+                }
+                ImGui::EndMenu();
+            }
+
+            ImGui::EndMenuBar();
+        }
+
+        ImGui::End();
+    }
+
+    bool UI_Editor_Manager::Save_Document()
+    {
+        if (!_fileService.Save_Document(_document, false))
             return false;
 
-        try
-        {
-            if (fs::exists(directory))
-                return fs::is_directory(directory);
-
-            return fs::create_directories(directory);
-        }
-        catch (const exception& exception)
-        {
-            LOG_WARN("UI Editor json directory create failed: {} ({})", exception.what(), String::ToString(directory.wstring()));
-            return false;
-        }
+        Clear_Dirty();
+        return true;
     }
 
-    bool Try_FindResourceRootFromStart(const fs::path& startPath, fs::path& outResourceRoot)
+    bool UI_Editor_Manager::Save_DocumentAs()
     {
-        if (startPath.empty())
+        if (!_fileService.Save_Document(_document, true))
             return false;
 
-        try
+        Clear_Dirty();
+        return true;
+    }
+
+    bool UI_Editor_Manager::Load_Document()
+    {
+        if (!Confirm_SaveIfDirty(L"load another UI document"))
+            return false;
+
+        if (!_fileService.Load_Document(_document))
+            return false;
+
+        Clear_Selection();
+        _animationPreviewService.Stop();
+        Clear_RuntimeCaches();
+        Resolve_LoadedAssetReferences();
+        Clear_History();
+        Clear_Dirty();
+        return true;
+    }
+
+    bool UI_Editor_Manager::New_Document()
+    {
+        if (!Confirm_SaveIfDirty(L"create a new UI document"))
+            return false;
+
+        _document.Reset();
+        _fileService.Clear_CurrentDocumentPath();
+        Clear_Selection();
+        _animationPreviewService.Stop();
+        Clear_RuntimeCaches();
+        Clear_History();
+        Clear_Dirty();
+        return true;
+    }
+
+    bool UI_Editor_Manager::Confirm_SaveIfDirty(const wchar_t* actionName)
+    {
+        const UI_FileConfirmResult result = _fileService.Confirm_SaveIfDirty(Is_Dirty(), actionName, _document);
+        if (result == UI_FileConfirmResult::Saved)
+            Clear_Dirty();
+
+        return result != UI_FileConfirmResult::Cancel;
+    }
+
+    void UI_Editor_Manager::Handle_Shortcuts()
+    {
+        ImGuiIO& io = ImGui::GetIO();
+        if (io.WantTextInput)
+            return;
+
+        if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Z))
         {
-            fs::path start = fs::absolute(startPath).lexically_normal();
-            for (fs::path currentPath = start; !currentPath.empty(); currentPath = currentPath.parent_path())
+            Undo();
+            return;
+        }
+
+        if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Y))
+        {
+            Redo();
+            return;
+        }
+
+        if (ImGui::IsKeyPressed(ImGuiKey_Delete))
+        {
+            Delete_SelectedUIObject();
+            return;
+        }
+
+        if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_D))
+        {
+            Duplicate_SelectedUIObject();
+            return;
+        }
+
+        if (ImGui::IsKeyPressed(ImGuiKey_F2))
+        {
+            if (_selectedObjectId == 0)
+                Request_RenameCanvas();
+            else
+                Request_RenameUIObject(_selectedObjectId);
+            return;
+        }
+    }
+
+    void UI_Editor_Manager::Render_RenamePopup()
+    {
+        const char* popupTitle = _isRenamingCanvas ? "Rename Canvas" : "Rename Selected UI Object";
+
+        if (_openRenamePopup)
+        {
+            ImGui::OpenPopup(popupTitle);
+            _openRenamePopup = false;
+        }
+
+        if (ImGui::BeginPopupModal(popupTitle, nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+        {
+            UI_Object* object = _isRenamingCanvas ? nullptr : _document.Find_Object(_renameRequestObjectId);
+            if (!_isRenamingCanvas && nullptr == object)
             {
-                const fs::path candidate = (currentPath / L"Client" / L"Bin" / L"Resources").lexically_normal();
-                if (fs::exists(candidate) && fs::is_directory(candidate))
+                _renameRequestObjectId = 0;
+                _isRenamingCanvas = false;
+                ImGui::CloseCurrentPopup();
+                ImGui::EndPopup();
+                return;
+            }
+
+            if (_isRenamingCanvas)
+            {
+                ImGui::TextUnformatted("Type: Canvas");
+            }
+            else
+            {
+                ImGui::Text("ID: %u", object->id);
+            }
+
+            ImGui::SetNextItemWidth(280.f);
+            const bool submitted = ImGui::InputText("Name", _renameBuffer, size(_renameBuffer), ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll);
+
+            if (submitted || ImGui::Button("OK"))
+            {
+                if (_isRenamingCanvas)
+                    Rename_Canvas(_renameBuffer);
+                else
+                    Rename_UIObject(_renameRequestObjectId, _renameBuffer);
+
+                _renameRequestObjectId = 0;
+                _isRenamingCanvas = false;
+                ImGui::CloseCurrentPopup();
+            }
+
+            ImGui::SameLine();
+            if (ImGui::Button("Cancel"))
+            {
+                _renameRequestObjectId = 0;
+                _isRenamingCanvas = false;
+                ImGui::CloseCurrentPopup();
+            }
+
+            ImGui::EndPopup();
+        }
+    }
+
+    void UI_Editor_Manager::Clear_RuntimeCaches()
+    {
+        _previewService.Clear_RuntimeCaches();
+    }
+
+    void UI_Editor_Manager::Resolve_LoadedAssetReferences()
+    {
+        if (!_assetManagerReady)
+            return;
+
+        vector<UI_Object>& objects = _document.Get_MutableObjects();
+
+        for (UI_Object& object : objects)
+        {
+            if (object.type == UI_ObjectType::Image)
+            {
+                auto resolveTextureGuid = [](string& guid, const string& path, const char* label)
                 {
-                    outResourceRoot = candidate;
-                    return true;
-                }
-
-                if (currentPath == currentPath.parent_path())
-                    break;
-            }
-        }
-        catch (const exception& exception)
-        {
-            LOG_WARN("UI Editor resource root search failed: {}", exception.what());
-        }
-
-        return false;
-    }
-
-    vector<fs::path> Build_DefaultJsonDirectoryCandidates(const fs::path& startPath)
-    {
-        vector<fs::path> candidates;
-        if (startPath.empty())
-            return candidates;
-
-        candidates.push_back(startPath / L"..\\Bin\\Resources\\UI\\UI_Json");
-        candidates.push_back(startPath / L"..\\Client\\Bin\\Resources\\UI\\UI_Json");
-        candidates.push_back(startPath / L"..\\..\\Client\\Bin\\Resources\\UI\\UI_Json");
-        candidates.push_back(startPath / L"..\\..\\..\\Client\\Bin\\Resources\\UI\\UI_Json");
-        candidates.push_back(startPath / L"Bin\\Resources\\UI\\UI_Json");
-        candidates.push_back(startPath / L"Client\\Bin\\Resources\\UI\\UI_Json");
-
-        return candidates;
-    }
-}
-
-HRESULT UI_Editor_Manager::Initialize(const ComPtr<Device>& device, const ComPtr<Context>& context, bool assetManagerReady)
-{
-    _device = device;
-    _context = context;
-    _assetManagerReady = assetManagerReady;
-
-    if (nullptr != _context)
-        _fontPreviewSpriteBatch = make_unique<SpriteBatch>(_context.Get());
-
-    if (nullptr != _device)
-    {
-        D3D11_RASTERIZER_DESC rasterizerDesc = {};
-        rasterizerDesc.FillMode = D3D11_FILL_SOLID;
-        rasterizerDesc.CullMode = D3D11_CULL_NONE;
-        rasterizerDesc.ScissorEnable = TRUE;
-        rasterizerDesc.DepthClipEnable = TRUE;
-        _device->CreateRasterizerState(&rasterizerDesc, _fontPreviewRasterizerState.GetAddressOf());
-    }
-
-    _defaultJsonDirectory = Resolve_DefaultJsonDirectory();
-
-    Add_Window(UI_Hierarchy_View::Create(*this));
-    Add_Window(UI_Viewport_View::Create(*this));
-    Add_Window(UI_Inspector::Create(*this));
-    Add_Window(UI_Content_Browser::Create(*this));
-
-    return S_OK;
-}
-
-void UI_Editor_Manager::Render()
-{
-    _fontPreviewCommands.clear();
-
-    Render_DockSpace();
-
-    for (auto& pair : _windows)
-    {
-        if (nullptr != pair.second)
-            pair.second->Render();
-    }
-}
-
-void UI_Editor_Manager::Render_FontPreviews()
-{
-    if (nullptr == _fontPreviewSpriteBatch || nullptr == _context || _fontPreviewCommands.empty())
-        return;
-
-    const ImGuiIO& io = ImGui::GetIO();
-    D3D11_VIEWPORT viewport = {};
-    viewport.TopLeftX = 0.f;
-    viewport.TopLeftY = 0.f;
-    viewport.Width = max(1.f, io.DisplaySize.x);
-    viewport.Height = max(1.f, io.DisplaySize.y);
-    viewport.MinDepth = 0.f;
-    viewport.MaxDepth = 1.f;
-    _fontPreviewSpriteBatch->SetViewport(viewport);
-
-    for (const FontPreviewCommand& command : _fontPreviewCommands)
-    {
-        SpriteFont* font = Get_FontPreview(command.fontGuid, command.fontPath);
-        if (nullptr == font || command.text.empty())
-            continue;
-
-        const wstring safeText = Build_SafeSpriteFontText(*font, command.text);
-        if (safeText.empty())
-            continue;
-
-        bool isBatchOpen = false;
-        try
-        {
-            _context->RSSetScissorRects(1, &command.clipRect);
-
-            _fontPreviewSpriteBatch->Begin(
-                SpriteSortMode_Deferred,
-                nullptr,
-                nullptr,
-                nullptr,
-                _fontPreviewRasterizerState.Get(),
-                nullptr,
-                XMMatrixIdentity());
-            isBatchOpen = true;
-
-            font->DrawString(
-                _fontPreviewSpriteBatch.get(),
-                safeText.c_str(),
-                command.position,
-                XMVectorSet(command.color.x, command.color.y, command.color.z, command.color.w),
-                command.rotationRadians,
-                command.pivot,
-                command.scale,
-                SpriteEffects_None,
-                0.f);
-
-            _fontPreviewSpriteBatch->End();
-            isBatchOpen = false;
-        }
-        catch (...)
-        {
-            if (isBatchOpen)
-            {
-                try
-                {
-                    _fontPreviewSpriteBatch->End();
-                }
-                catch (...)
-                {
-                }
-            }
-        }
-    }
-}
-
-void UI_Editor_Manager::Add_Window(const Shared<UI_Editor_Window>& window)
-{
-    if (nullptr == window)
-        return;
-
-    _windows[window->Get_WindowName()] = window;
-}
-
-Shared<UI_Editor_Window> UI_Editor_Manager::Find_Window(const wstring& windowName) const
-{
-    const auto iter = _windows.find(windowName);
-    if (iter == _windows.end())
-        return nullptr;
-
-    return iter->second;
-}
-
-UI_Document& UI_Editor_Manager::Get_Document()
-{
-    return _document;
-}
-
-const UI_Document& UI_Editor_Manager::Get_Document() const
-{
-    return _document;
-}
-
-ObjectId UI_Editor_Manager::Get_SelectedObjectId() const
-{
-    return _selectedObjectId;
-}
-
-void UI_Editor_Manager::Set_SelectedObjectId(ObjectId objectId)
-{
-    _selectedObjectId = objectId;
-}
-
-UI_Object* UI_Editor_Manager::Get_SelectedObject()
-{
-    return _document.Find_Object(_selectedObjectId);
-}
-
-const UI_Object* UI_Editor_Manager::Get_SelectedObject() const
-{
-    return _document.Find_Object(_selectedObjectId);
-}
-
-bool UI_Editor_Manager::Is_AssetManagerReady() const
-{
-    return _assetManagerReady;
-}
-
-void UI_Editor_Manager::Render_DockSpace()
-{
-    ImGuiViewport* pViewport = ImGui::GetMainViewport();
-    if (nullptr == pViewport)
-        return;
-
-    ImGui::SetNextWindowPos(pViewport->WorkPos);
-    ImGui::SetNextWindowSize(pViewport->WorkSize);
-    ImGui::SetNextWindowViewport(pViewport->ID);
-
-    ImGuiWindowFlags WindowFlags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
-    WindowFlags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus;
-
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.f);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.f, 0.f));
-
-    bool isOpen = true;
-    ImGui::Begin("UIEditorDockSpace", &isOpen, WindowFlags);
-    ImGui::PopStyleVar(3);
-
-    const ImGuiID DockSpaceId = ImGui::GetID("UIEditorDockSpaceId");
-    ImGui::DockSpace(DockSpaceId, ImVec2(0.f, 0.f), ImGuiDockNodeFlags_None);
-
-    if (ImGui::BeginMenuBar())
-    {
-        if (ImGui::BeginMenu("File"))
-        {
-            if (ImGui::MenuItem("Save"))
-            {
-                Save_Document();
-            }
-            if (ImGui::MenuItem("Save As"))
-            {
-                Save_DocumentAs();
-            }
-            if (ImGui::MenuItem("Load"))
-            {
-                Load_Document();
-            }
-            ImGui::EndMenu();
-        }
-
-        if (ImGui::BeginMenu("Create"))
-        {
-            if (ImGui::MenuItem("Image"))
-                Create_UIObject(UI_ObjectType::Image);
-
-            if (ImGui::MenuItem("Text"))
-                Create_UIObject(UI_ObjectType::Text);
-
-            if (ImGui::MenuItem("Panel"))
-                Create_UIObject(UI_ObjectType::Panel);
-
-            if (ImGui::MenuItem("Button"))
-                Create_UIObject(UI_ObjectType::Button);
-
-            ImGui::EndMenu();
-        }
-
-        if (ImGui::BeginMenu("Window"))
-        {
-            for (auto& pair : _windows)
-            {
-                if (nullptr == pair.second)
-                    continue;
-
-                bool isWindowOpen = pair.second->Is_Open();
-                const string windowName = String::ToString(pair.first);
-                if (ImGui::MenuItem(windowName.c_str(), nullptr, &isWindowOpen))
-                    pair.second->Set_Open(isWindowOpen);
-            }
-
-            ImGui::EndMenu();
-        }
-
-        if (ImGui::BeginMenu("Edit"))
-        {
-            ImGui::MenuItem("Undo", nullptr, false, false);
-            ImGui::MenuItem("Redo", nullptr, false, false);
-            ImGui::EndMenu();
-        }
-
-        ImGui::EndMenuBar();
-    }
-
-    ImGui::End();
-}
-
-bool UI_Editor_Manager::Save_Document()
-{
-    if (_currentDocumentPath.empty())
-        return Save_DocumentAs();
-
-    return _document.Save_ToJsonFile(_currentDocumentPath);
-}
-
-bool UI_Editor_Manager::Save_DocumentAs()
-{
-    wstring filePath = _currentDocumentPath;
-    if (!Show_SaveFileDialog(filePath))
-        return false;
-
-    Ensure_JsonExtension(filePath);
-
-    if (!_document.Save_ToJsonFile(filePath))
-        return false;
-
-    _currentDocumentPath = filePath;
-    return true;
-}
-
-bool UI_Editor_Manager::Load_Document()
-{
-    wstring filePath = {};
-    if (!Show_LoadFileDialog(filePath))
-        return false;
-
-    if (!_document.Load_FromJsonFile(filePath))
-        return false;
-
-    _currentDocumentPath = filePath;
-    _selectedObjectId = 0;
-    Resolve_LoadedAssetReferences();
-    return true;
-}
-
-bool UI_Editor_Manager::Show_SaveFileDialog(wstring& outFilePath) const
-{
-    wchar_t filePathBuffer[MAX_PATH] = {};
-    if (!outFilePath.empty())
-    {
-        wcsncpy_s(filePathBuffer, outFilePath.c_str(), _TRUNCATE);
-    }
-    else
-    {
-        wcsncpy_s(filePathBuffer, kDefaultJsonFileName, _TRUNCATE);
-    }
-
-    const wstring initialDirectory = !_defaultJsonDirectory.empty() ? _defaultJsonDirectory : Resolve_DefaultJsonDirectory();
-
-    OPENFILENAMEW openFileName = {};
-    openFileName.lStructSize = sizeof(openFileName);
-    openFileName.lpstrFilter = L"JSON Files\0*.json\0All Files\0*.*\0";
-    openFileName.lpstrFile = filePathBuffer;
-    openFileName.nMaxFile = MAX_PATH;
-    if (!initialDirectory.empty())
-        openFileName.lpstrInitialDir = initialDirectory.c_str();
-    openFileName.lpstrDefExt = L"json";
-    openFileName.Flags = OFN_OVERWRITEPROMPT | OFN_PATHMUSTEXIST;
-
-    if (FALSE == GetSaveFileNameW(&openFileName))
-        return false;
-
-    outFilePath = filePathBuffer;
-    Ensure_JsonExtension(outFilePath);
-    return !outFilePath.empty();
-}
-
-bool UI_Editor_Manager::Show_LoadFileDialog(wstring& outFilePath) const
-{
-    wchar_t filePathBuffer[MAX_PATH] = {};
-    const wstring initialDirectory = !_defaultJsonDirectory.empty() ? _defaultJsonDirectory : Resolve_DefaultJsonDirectory();
-
-    OPENFILENAMEW openFileName = {};
-    openFileName.lStructSize = sizeof(openFileName);
-    openFileName.lpstrFilter = L"JSON Files\0*.json\0All Files\0*.*\0";
-    openFileName.lpstrFile = filePathBuffer;
-    openFileName.nMaxFile = MAX_PATH;
-    if (!initialDirectory.empty())
-        openFileName.lpstrInitialDir = initialDirectory.c_str();
-    openFileName.lpstrDefExt = L"json";
-    openFileName.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST;
-
-    if (FALSE == GetOpenFileNameW(&openFileName))
-        return false;
-
-    outFilePath = filePathBuffer;
-    return !outFilePath.empty();
-}
-
-wstring UI_Editor_Manager::Resolve_DefaultJsonDirectory() const
-{
-    vector<fs::path> startPaths;
-
-    const fs::path moduleDirectory = Get_ModuleDirectory();
-    if (!moduleDirectory.empty())
-        startPaths.push_back(moduleDirectory);
-
-    try
-    {
-        startPaths.push_back(fs::current_path());
-    }
-    catch (const exception& exception)
-    {
-        LOG_WARN("UI Editor current path query failed: {}", exception.what());
-    }
-
-    for (const fs::path& startPath : startPaths)
-    {
-        fs::path resourceRoot = {};
-        if (Try_FindResourceRootFromStart(startPath, resourceRoot))
-        {
-            const fs::path jsonDirectory = (resourceRoot / L"UI" / L"UI_Json").lexically_normal();
-            if (Try_CreateDirectory(jsonDirectory))
-                return jsonDirectory.wstring();
-        }
-    }
-
-    vector<fs::path> fallbackCandidates;
-    for (const fs::path& startPath : startPaths)
-    {
-        vector<fs::path> candidates = Build_DefaultJsonDirectoryCandidates(startPath);
-        fallbackCandidates.insert(fallbackCandidates.end(), candidates.begin(), candidates.end());
-    }
-
-    for (const fs::path& candidate : fallbackCandidates)
-    {
-        try
-        {
-            const fs::path normalizedCandidate = fs::absolute(candidate).lexically_normal();
-            if (fs::exists(normalizedCandidate) && fs::is_directory(normalizedCandidate))
-                return normalizedCandidate.wstring();
-        }
-        catch (...)
-        {
-        }
-    }
-
-    for (const fs::path& candidate : fallbackCandidates)
-    {
-        try
-        {
-            const fs::path normalizedCandidate = fs::absolute(candidate).lexically_normal();
-            if (Try_CreateDirectory(normalizedCandidate))
-                return normalizedCandidate.wstring();
-        }
-        catch (const exception& exception)
-        {
-            LOG_WARN("UI Editor fallback json directory failed: {} ({})", exception.what(), String::ToString(candidate.wstring()));
-        }
-    }
-
-    LOG_WARN("UI Editor default json directory could not be resolved.");
-    return {};
-}
-
-void UI_Editor_Manager::Ensure_JsonExtension(wstring& filePath) const
-{
-    if (filePath.empty())
-        return;
-
-    fs::path path = fs::path(filePath);
-    if (path.extension().empty())
-        path.replace_extension(L".json");
-
-    filePath = path.wstring();
-}
-
-void UI_Editor_Manager::Resolve_LoadedAssetReferences()
-{
-    if (!_assetManagerReady)
-        return;
-
-    vector<UI_Object>& objects = _document.Get_MutableObjects();
-
-    for (UI_Object& object : objects)
-    {
-        if (object.type == UI_ObjectType::Image && object.textureGuid.empty() && !object.texturePath.empty())
-        {
-            const string targetPath = Normalize_PathForCompare(object.texturePath);
-            for (const FAssetMeta& assetMeta : GAME->Get_AssetsByType("Texture"))
-            {
-                if (Normalize_PathForCompare(Make_ClientRuntimeResourcePath(assetMeta)) == targetPath)
-                {
-                    object.textureGuid = assetMeta.guid;
-                    break;
-                }
-            }
-
-            if (object.textureGuid.empty())
-                LOG_WARN("UI Editor load: texture not found for {}", object.texturePath);
-        }
-        else if (object.type == UI_ObjectType::Text)
-        {
-            if (object.fontGuid.empty() && !object.fontPath.empty())
-            {
-                const string targetPath = Normalize_PathForCompare(object.fontPath);
-                for (const FAssetMeta& assetMeta : GAME->Get_AssetsByType("Font"))
-                {
-                    if (Normalize_PathForCompare(Make_ClientRuntimeResourcePath(assetMeta)) == targetPath)
+                    if (!guid.empty() || path.empty())
+                        return;
+
+                    const string targetPath = Normalize_PathForCompare(path);
+                    for (const AssetMeta& assetMeta : GAME->Get_AssetsByType("Texture"))
                     {
-                        object.fontGuid = assetMeta.guid;
-                        if (object.fontTag.empty())
-                            object.fontTag = Make_FontTag(assetMeta);
-                        break;
+                        if (Normalize_PathForCompare(Make_ClientRuntimeResourcePath(assetMeta)) == targetPath)
+                        {
+                            guid = assetMeta.guid;
+                            break;
+                        }
                     }
+
+                    if (guid.empty())
+                        LOG_WARN("UI Editor load: {} texture not found for {}", label, path);
+                };
+
+                resolveTextureGuid(object.textureGuid, object.texturePath, "image");
+                resolveTextureGuid(object.maskTextureGuid, object.maskTexturePath, "mask");
+            }
+            else if (object.type == UI_ObjectType::Text)
+            {
+                if (object.fontGuid.empty() && !object.fontPath.empty())
+                {
+                    const string targetPath = Normalize_PathForCompare(object.fontPath);
+                    for (const AssetMeta& assetMeta : GAME->Get_AssetsByType("Font"))
+                    {
+                        if (Normalize_PathForCompare(Make_ClientRuntimeResourcePath(assetMeta)) == targetPath)
+                        {
+                            object.fontGuid = assetMeta.guid;
+                            if (object.fontTag.empty())
+                                object.fontTag = Make_FontTag(assetMeta);
+                            break;
+                        }
+                    }
+
+                    if (object.fontGuid.empty())
+                        LOG_WARN("UI Editor load: font not found for {}", object.fontPath);
                 }
 
-                if (object.fontGuid.empty())
-                    LOG_WARN("UI Editor load: font not found for {}", object.fontPath);
+                if (object.fontTag.empty() && !object.fontPath.empty())
+                    object.fontTag = String::ToString(fs::path(String::ToWString(object.fontPath)).stem().wstring());
             }
-
-            if (object.fontTag.empty() && !object.fontPath.empty())
-                object.fontTag = String::ToString(fs::path(String::ToWString(object.fontPath)).stem().wstring());
         }
     }
-}
 
-bool UI_Editor_Manager::Queue_FontPreview(
-    const string& fontGuid,
-    const string& fontPath,
-    const wstring& text,
-    const Vec2& position,
-    const Vec4& color,
-    float rotationRadians,
-    const Vec2& pivot,
-    float scale,
-    const D3D11_RECT& clipRect)
-{
-    SpriteFont* font = Get_FontPreview(fontGuid, fontPath);
-    if (nullptr == font || text.empty())
-        return false;
-
-    const wstring safeText = Build_SafeSpriteFontText(*font, text);
-    if (safeText.empty())
-        return false;
-
-    FontPreviewCommand command = {};
-    command.fontGuid = fontGuid;
-    command.fontPath = fontPath;
-    command.text = safeText;
-    command.position = position;
-    command.color = color;
-    command.rotationRadians = rotationRadians;
-    command.pivot = pivot;
-    command.scale = scale;
-    command.clipRect = clipRect;
-    _fontPreviewCommands.push_back(command);
-
-    return true;
-}
-
-ObjectId UI_Editor_Manager::Resolve_CreateParentId() const
-{
-    if (_selectedObjectId == 0)
-        return 0;
-
-    const UI_Object* selectedObject = _document.Find_Object(_selectedObjectId);
-    if (nullptr == selectedObject)
-        return 0;
-
-    if (Is_ContainerObjectType(selectedObject->type))
-        return selectedObject->id;
-
-    return selectedObject->parentId;
-}
-
-void UI_Editor_Manager::Create_UIObject(UI_ObjectType objectType)
-{
-    const ObjectId parentId = Resolve_CreateParentId();
-    _selectedObjectId = _document.Create_Object(objectType, parentId);
-}
-
-void UI_Editor_Manager::Duplicate_UIObject(ObjectId objectId)
-{
-    const ObjectId duplicatedObjectId = _document.Duplicate_Object(objectId, ImVec2(20.f, 20.f));
-    if (duplicatedObjectId == 0)
-        return;
-
-    _selectedObjectId = duplicatedObjectId;
-}
-
-void UI_Editor_Manager::Delete_UIObject(ObjectId objectId)
-{
-    if (!_document.Delete_Object(objectId))
-        return;
-
-    if (nullptr == _document.Find_Object(_selectedObjectId))
-        _selectedObjectId = 0;
-}
-
-SpriteFont* UI_Editor_Manager::Get_FontPreview(const string& fontGuid, const string& fontPath)
-{
-    if (nullptr == _device)
-        return nullptr;
-
-    wstring resolvedFontPath = {};
-    string cacheKey = {};
-
-    if (!fontGuid.empty())
+    bool UI_Editor_Manager::Queue_FontPreview(
+        const string& fontGuid,
+        const string& fontPath,
+        const wstring& text,
+        const Vec2& boxMin,
+        const Vec2& boxMax,
+        const Vec4& color,
+        float rotationRadians,
+        UI_TextAlign textAlign,
+        float scale,
+        bool textWrap,
+        const D3D11_RECT& clipRect)
     {
-        resolvedFontPath = GAME->Resolve_AssetPath(fontGuid);
-        cacheKey = "guid:" + fontGuid;
-    }
-    else if (!fontPath.empty())
-    {
-        resolvedFontPath = Resolve_ClientRuntimeResourcePath(fontPath);
-        cacheKey = "path:" + String::ToString(resolvedFontPath);
+        return _previewService.Queue_FontPreview(
+            fontGuid,
+            fontPath,
+            text,
+            boxMin,
+            boxMax,
+            color,
+            rotationRadians,
+            textAlign,
+            scale,
+            textWrap,
+            clipRect);
     }
 
-    if (resolvedFontPath.empty() || cacheKey.empty())
-        return nullptr;
-
-    const auto cachedIter = _fontPreviewCache.find(cacheKey);
-    if (cachedIter != _fontPreviewCache.end())
-        return cachedIter->second.get();
-
-    if (_fontPreviewFailedGuids.find(cacheKey) != _fontPreviewFailedGuids.end())
-        return nullptr;
-
-    if (!fs::exists(resolvedFontPath))
+    ObjectId UI_Editor_Manager::Resolve_CreateParentId() const
     {
-        _fontPreviewFailedGuids.insert(cacheKey);
-        return nullptr;
+        if (_selectedObjectId == 0)
+            return 0;
+
+        const UI_Object* selectedObject = _document.Find_Object(_selectedObjectId);
+        if (nullptr == selectedObject)
+            return 0;
+
+        if (Is_ContainerObjectType(selectedObject->type))
+            return selectedObject->id;
+
+        return selectedObject->parentId;
     }
 
-    try
+    vector<ObjectId> UI_Editor_Manager::Normalize_Selection(const vector<ObjectId>& objectIds) const
     {
-        Unique<SpriteFont> font = make_unique<SpriteFont>(_device.Get(), resolvedFontPath.c_str());
-        if (font->ContainsCharacter(L'?'))
-            font->SetDefaultCharacter(L'?');
+        vector<ObjectId> normalizedObjectIds;
+        unordered_set<ObjectId> visitedObjectIds;
 
-        SpriteFont* rawFont = font.get();
-        _fontPreviewCache.emplace(cacheKey, move(font));
-        return rawFont;
-    }
-    catch (...)
-    {
-        _fontPreviewFailedGuids.insert(cacheKey);
-        return nullptr;
-    }
-}
+        for (ObjectId objectId : objectIds)
+        {
+            if (objectId == 0 || nullptr == _document.Find_Object(objectId))
+                continue;
 
-ID3D11ShaderResourceView* UI_Editor_Manager::Get_TexturePreviewSRV(const string& textureGuid)
-{
-    if (!_assetManagerReady || textureGuid.empty() || nullptr == _device || nullptr == _context)
-        return nullptr;
+            if (!visitedObjectIds.insert(objectId).second)
+                continue;
 
-    const auto cachedIter = _textureThumbCache.find(textureGuid);
-    if (cachedIter != _textureThumbCache.end())
-        return cachedIter->second.Get();
+            normalizedObjectIds.push_back(objectId);
+        }
 
-    if (_textureNoThumbGuids.find(textureGuid) != _textureNoThumbGuids.end())
-        return nullptr;
-
-    const wstring texturePath = GAME->Resolve_AssetPath(textureGuid);
-    if (texturePath.empty())
-    {
-        _textureNoThumbGuids.insert(textureGuid);
-        return nullptr;
+        return normalizedObjectIds;
     }
 
-    Shared<Texture> texture = Texture::Create(_device, _context, texturePath.c_str(), 1);
-    if (nullptr == texture || texture->Get_SRVs().empty() || nullptr == texture->Get_SRVs().front().Get())
+    vector<ObjectId> UI_Editor_Manager::Collect_RootObjectIds(const vector<ObjectId>& objectIds) const
     {
-        _textureNoThumbGuids.insert(textureGuid);
-        return nullptr;
+        const vector<ObjectId> normalizedObjectIds = Normalize_Selection(objectIds);
+        unordered_set<ObjectId> selectedObjectIdSet(normalizedObjectIds.begin(), normalizedObjectIds.end());
+        vector<ObjectId> rootObjectIds;
+
+        for (ObjectId objectId : normalizedObjectIds)
+        {
+            bool hasSelectedAncestor = false;
+            const UI_Object* object = _document.Find_Object(objectId);
+            while (nullptr != object && object->parentId != 0)
+            {
+                if (selectedObjectIdSet.find(object->parentId) != selectedObjectIdSet.end())
+                {
+                    hasSelectedAncestor = true;
+                    break;
+                }
+
+                object = _document.Find_Object(object->parentId);
+            }
+
+            if (!hasSelectedAncestor)
+                rootObjectIds.push_back(objectId);
+        }
+
+        return rootObjectIds;
     }
 
-    _textureThumbCache.emplace(textureGuid, texture->Get_SRVs().front());
-    return _textureThumbCache[textureGuid].Get();
-}
+    void UI_Editor_Manager::Apply_Selection(const vector<ObjectId>& objectIds, ObjectId primaryObjectId)
+    {
+        vector<ObjectId> normalizedObjectIds = Normalize_Selection(objectIds);
+        ObjectId nextSelectedObjectId = 0;
 
-Unique<UI_Editor_Manager> UI_Editor_Manager::Create(const ComPtr<Device>& device, const ComPtr<Context>& context, bool assetManagerReady)
-{
-    Unique<UI_Editor_Manager> pInstance{ new UI_Editor_Manager() };
+        if (primaryObjectId != 0 && _document.Find_Object(primaryObjectId) != nullptr)
+            nextSelectedObjectId = primaryObjectId;
+        else if (!normalizedObjectIds.empty())
+            nextSelectedObjectId = normalizedObjectIds.back();
 
-    if (FAILED(pInstance->Initialize(device, context, assetManagerReady)))
-        return nullptr;
+        if (nextSelectedObjectId != 0 &&
+            find(normalizedObjectIds.begin(), normalizedObjectIds.end(), nextSelectedObjectId) == normalizedObjectIds.end())
+        {
+            normalizedObjectIds.push_back(nextSelectedObjectId);
+        }
 
-    return pInstance;
+        if (_selectedObjectId != nextSelectedObjectId)
+            _animationPreviewService.Stop();
+
+        _selectedObjectIds = move(normalizedObjectIds);
+        _selectedObjectId = nextSelectedObjectId;
+    }
+
+    void UI_Editor_Manager::Prune_InvalidSelection()
+    {
+        Apply_Selection(_selectedObjectIds, _selectedObjectId);
+    }
+
+    void UI_Editor_Manager::Create_UIObject(UI_ObjectType objectType)
+    {
+        Push_UndoSnapshot();
+
+        const ObjectId parentId = Resolve_CreateParentId();
+        const ObjectId createdObjectId = _document.Create_Object(objectType, parentId);
+        if (createdObjectId == 0)
+            return;
+
+        if (objectType == UI_ObjectType::Button)
+        {
+            UI_Object* buttonObject = _document.Find_Object(createdObjectId);
+            if (nullptr != buttonObject)
+            {
+                const ObjectId labelObjectId = _document.Create_Object(UI_ObjectType::Text, createdObjectId);
+                UI_Object* labelObject = _document.Find_Object(labelObjectId);
+                if (nullptr != labelObject)
+                {
+                    labelObject->name = _document.Generate_UniqueName("Label", labelObjectId);
+                    labelObject->position = ImVec2(0.f, 0.f);
+                    labelObject->size = buttonObject->size;
+                    labelObject->scale = ImVec2(1.f, 1.f);
+                    labelObject->color = ImVec4(1.f, 1.f, 1.f, 1.f);
+                    labelObject->text = "Button";
+                    labelObject->fontSize = 24.f;
+                    labelObject->textAlign = UI_TextAlign::Center;
+                    labelObject->textWrap = false;
+                    labelObject->sortOrder = static_cast<int32>(_document.Get_Objects().size());
+                }
+            }
+        }
+
+        Set_SingleSelection(createdObjectId);
+        Mark_Dirty();
+    }
+
+    bool UI_Editor_Manager::Create_UIObjectsFromPrefab(const UI_PrefabAsset& prefab)
+    {
+        if (prefab.objects.empty() || prefab.rootObjectIds.empty())
+            return false;
+
+        Push_UndoSnapshot();
+
+        const ObjectId parentId = Resolve_CreateParentId();
+        const vector<ObjectId> createdRootObjectIds = _document.Import_PrefabObjects(
+            prefab.objects,
+            prefab.rootObjectIds,
+            parentId,
+            ImVec2(100.f, 100.f));
+
+        if (createdRootObjectIds.empty())
+            return false;
+
+        Set_SelectedObjectIds(createdRootObjectIds, createdRootObjectIds.back());
+        Resolve_LoadedAssetReferences();
+        Clear_RuntimeCaches();
+        Mark_Dirty();
+        return true;
+    }
+
+    void UI_Editor_Manager::Duplicate_UIObject(ObjectId objectId)
+    {
+        if (nullptr == _document.Find_Object(objectId))
+            return;
+
+        Push_UndoSnapshot();
+
+        const ObjectId duplicatedObjectId = _document.Duplicate_Object(objectId, ImVec2(20.f, 20.f));
+        if (duplicatedObjectId == 0)
+            return;
+
+        Set_SingleSelection(duplicatedObjectId);
+        Mark_Dirty();
+    }
+
+    void UI_Editor_Manager::Delete_UIObject(ObjectId objectId)
+    {
+        if (nullptr == _document.Find_Object(objectId))
+            return;
+
+        Push_UndoSnapshot();
+
+        if (!_document.Delete_Object(objectId))
+            return;
+
+        Prune_InvalidSelection();
+
+        _animationPreviewService.Stop();
+        Mark_Dirty();
+    }
+
+    void UI_Editor_Manager::Duplicate_SelectedUIObject()
+    {
+        if (_selectedObjectIds.empty())
+            return;
+
+        const vector<ObjectId> rootObjectIds = Collect_RootObjectIds(_selectedObjectIds);
+        if (rootObjectIds.empty())
+            return;
+
+        Push_UndoSnapshot();
+
+        vector<ObjectId> duplicatedObjectIds;
+        duplicatedObjectIds.reserve(rootObjectIds.size());
+        for (ObjectId objectId : rootObjectIds)
+        {
+            const ObjectId duplicatedObjectId = _document.Duplicate_Object(objectId, ImVec2(20.f, 20.f));
+            if (duplicatedObjectId != 0)
+                duplicatedObjectIds.push_back(duplicatedObjectId);
+        }
+
+        if (duplicatedObjectIds.empty())
+            return;
+
+        Set_SelectedObjectIds(duplicatedObjectIds, duplicatedObjectIds.back());
+        Mark_Dirty();
+    }
+
+    void UI_Editor_Manager::Delete_SelectedUIObject()
+    {
+        if (_selectedObjectIds.empty())
+            return;
+
+        const vector<ObjectId> rootObjectIds = Collect_RootObjectIds(_selectedObjectIds);
+        if (rootObjectIds.empty())
+            return;
+
+        Push_UndoSnapshot();
+
+        bool deletedAny = false;
+        for (ObjectId objectId : rootObjectIds)
+            deletedAny |= _document.Delete_Object(objectId);
+
+        if (!deletedAny)
+            return;
+
+        Clear_Selection();
+        _animationPreviewService.Stop();
+        Mark_Dirty();
+    }
+
+    bool UI_Editor_Manager::Rename_Canvas(const string& newName)
+    {
+        if (newName.empty())
+            return false;
+
+        if (_document.Get_CanvasName() == newName)
+            return true;
+
+        Push_UndoSnapshot();
+        _document.Set_CanvasName(newName);
+        Mark_Dirty();
+        return true;
+    }
+
+    void UI_Editor_Manager::Request_RenameCanvas()
+    {
+        _renameRequestObjectId = 0;
+        _isRenamingCanvas = true;
+        strncpy_s(_renameBuffer, _document.Get_CanvasName().c_str(), _TRUNCATE);
+        _openRenamePopup = true;
+    }
+
+    bool UI_Editor_Manager::Rename_UIObject(ObjectId objectId, const string& newName)
+    {
+        UI_Object* object = _document.Find_Object(objectId);
+        if (nullptr == object || newName.empty())
+            return false;
+
+        const string uniqueName = _document.Generate_UniqueName(newName, objectId);
+        if (object->name == uniqueName)
+            return true;
+
+        Push_UndoSnapshot();
+
+        object->name = uniqueName;
+        Mark_Dirty();
+        return true;
+    }
+
+    void UI_Editor_Manager::Request_RenameUIObject(ObjectId objectId)
+    {
+        UI_Object* object = _document.Find_Object(objectId);
+        if (nullptr == object)
+            return;
+
+        _renameRequestObjectId = objectId;
+        _isRenamingCanvas = false;
+        strncpy_s(_renameBuffer, object->name.c_str(), _TRUNCATE);
+        _openRenamePopup = true;
+    }
+
+    bool UI_Editor_Manager::Reparent_UIObject(ObjectId objectId, ObjectId newParentId)
+    {
+        const UI_Object* object = _document.Find_Object(objectId);
+        if (nullptr == object || object->parentId == newParentId)
+            return false;
+
+        Push_UndoSnapshot();
+
+        if (!_document.Change_Parent(objectId, newParentId, true))
+            return false;
+
+        Set_SingleSelection(objectId);
+        Mark_Dirty();
+        return true;
+    }
+
+    bool UI_Editor_Manager::Can_ReparentUIObject(ObjectId objectId, ObjectId newParentId) const
+    {
+        return _document.Can_Parent(objectId, newParentId);
+    }
+
+    bool UI_Editor_Manager::Set_UIObjectWorldPosition(ObjectId objectId, const ImVec2& worldPosition)
+    {
+        if (!_historyService.Is_EditTransactionOpen())
+            Push_UndoSnapshot();
+
+        if (!_document.Set_WorldPosition(objectId, worldPosition))
+            return false;
+
+        Mark_Dirty();
+        return true;
+    }
+
+    bool UI_Editor_Manager::Set_UIObjectWorldRect(ObjectId objectId, const ImVec2& worldPosition, const ImVec2& worldSize)
+    {
+        UI_Object* object = _document.Find_Object(objectId);
+        if (nullptr == object)
+            return false;
+
+        if (!_historyService.Is_EditTransactionOpen())
+            Push_UndoSnapshot();
+
+        if (object->type == UI_ObjectType::Text)
+        {
+            const float safeTextScale = Get_UITextRuntimeScale(*object);
+            object->size = ImVec2(max(1.f, worldSize.x) / safeTextScale, max(1.f, worldSize.y) / safeTextScale);
+        }
+        else
+        {
+            const float safeScaleX = max(0.01f, object->scale.x);
+            const float safeScaleY = max(0.01f, object->scale.y);
+            object->size = ImVec2(max(1.f, worldSize.x) / safeScaleX, max(1.f, worldSize.y) / safeScaleY);
+        }
+
+        if (!_document.Set_WorldPosition(objectId, worldPosition))
+            return false;
+
+        Mark_Dirty();
+        return true;
+    }
+
+    ImVec2 UI_Editor_Manager::Get_UIObjectWorldPosition(ObjectId objectId) const
+    {
+        return _document.Get_WorldPosition(objectId);
+    }
+
+    bool UI_Editor_Manager::Align_SelectedObjects(UI_AlignmentCommand command)
+    {
+        vector<ObjectId> targetObjectIds = Collect_RootObjectIds(_selectedObjectIds);
+        if (targetObjectIds.size() < 2)
+            return false;
+
+        if ((command == UI_AlignmentCommand::DistributeHorizontal ||
+            command == UI_AlignmentCommand::DistributeVertical) &&
+            targetObjectIds.size() < 3)
+        {
+            return false;
+        }
+
+        struct ObjectRect
+        {
+            ObjectId id = 0;
+            ImVec2 worldPosition = ImVec2(0.f, 0.f);
+            ImVec2 size = ImVec2(0.f, 0.f);
+            ImVec2 center = ImVec2(0.f, 0.f);
+        };
+
+        vector<ObjectRect> objectRects;
+        objectRects.reserve(targetObjectIds.size());
+
+        ImVec2 selectionMin = ImVec2(FLT_MAX, FLT_MAX);
+        ImVec2 selectionMax = ImVec2(-FLT_MAX, -FLT_MAX);
+
+        for (ObjectId objectId : targetObjectIds)
+        {
+            const UI_Object* object = _document.Find_Object(objectId);
+            if (nullptr == object)
+                continue;
+
+            ObjectRect rect = {};
+            rect.id = objectId;
+            rect.worldPosition = _document.Get_WorldPosition(objectId);
+            rect.size = Get_UIObjectRuntimeSize(*object);
+            rect.center = ImVec2(
+                rect.worldPosition.x + rect.size.x * 0.5f,
+                rect.worldPosition.y + rect.size.y * 0.5f);
+
+            selectionMin.x = min(selectionMin.x, rect.worldPosition.x);
+            selectionMin.y = min(selectionMin.y, rect.worldPosition.y);
+            selectionMax.x = max(selectionMax.x, rect.worldPosition.x + rect.size.x);
+            selectionMax.y = max(selectionMax.y, rect.worldPosition.y + rect.size.y);
+
+            objectRects.push_back(rect);
+        }
+
+        if (objectRects.size() < 2)
+            return false;
+
+        const ImVec2 selectionCenter = ImVec2(
+            (selectionMin.x + selectionMax.x) * 0.5f,
+            (selectionMin.y + selectionMax.y) * 0.5f);
+
+        if (command == UI_AlignmentCommand::DistributeHorizontal)
+        {
+            sort(objectRects.begin(), objectRects.end(), [](const ObjectRect& lhs, const ObjectRect& rhs)
+                {
+                    if (lhs.center.x != rhs.center.x)
+                        return lhs.center.x < rhs.center.x;
+
+                    return lhs.id < rhs.id;
+                });
+        }
+        else if (command == UI_AlignmentCommand::DistributeVertical)
+        {
+            sort(objectRects.begin(), objectRects.end(), [](const ObjectRect& lhs, const ObjectRect& rhs)
+                {
+                    if (lhs.center.y != rhs.center.y)
+                        return lhs.center.y < rhs.center.y;
+
+                    return lhs.id < rhs.id;
+                });
+        }
+
+        Begin_EditTransaction();
+
+        bool changed = false;
+        for (size_t index = 0; index < objectRects.size(); ++index)
+        {
+            const ObjectRect& rect = objectRects[index];
+            UI_Object* object = _document.Find_Object(rect.id);
+            if (nullptr == object)
+                continue;
+
+            ImVec2 nextWorldPosition = rect.worldPosition;
+            switch (command)
+            {
+            case UI_AlignmentCommand::Left:
+                nextWorldPosition.x = selectionMin.x;
+                break;
+            case UI_AlignmentCommand::Right:
+                nextWorldPosition.x = selectionMax.x - rect.size.x;
+                break;
+            case UI_AlignmentCommand::Top:
+                nextWorldPosition.y = selectionMin.y;
+                break;
+            case UI_AlignmentCommand::Bottom:
+                nextWorldPosition.y = selectionMax.y - rect.size.y;
+                break;
+            case UI_AlignmentCommand::CenterX:
+                nextWorldPosition.x = selectionCenter.x - rect.size.x * 0.5f;
+                break;
+            case UI_AlignmentCommand::CenterY:
+                nextWorldPosition.y = selectionCenter.y - rect.size.y * 0.5f;
+                break;
+            case UI_AlignmentCommand::DistributeHorizontal:
+            {
+                const float firstCenter = objectRects.front().center.x;
+                const float lastCenter = objectRects.back().center.x;
+                const float step = (lastCenter - firstCenter) / static_cast<float>(objectRects.size() - 1);
+                nextWorldPosition.x = firstCenter + step * static_cast<float>(index) - rect.size.x * 0.5f;
+                break;
+            }
+            case UI_AlignmentCommand::DistributeVertical:
+            {
+                const float firstCenter = objectRects.front().center.y;
+                const float lastCenter = objectRects.back().center.y;
+                const float step = (lastCenter - firstCenter) / static_cast<float>(objectRects.size() - 1);
+                nextWorldPosition.y = firstCenter + step * static_cast<float>(index) - rect.size.y * 0.5f;
+                break;
+            }
+            default:
+                break;
+            }
+
+            nextWorldPosition = Clamp_ObjectPosition(*object, _document.Get_CanvasSize(), nextWorldPosition);
+            if (fabsf(nextWorldPosition.x - rect.worldPosition.x) <= 0.001f &&
+                fabsf(nextWorldPosition.y - rect.worldPosition.y) <= 0.001f)
+            {
+                continue;
+            }
+
+            if (_document.Set_WorldPosition(rect.id, nextWorldPosition))
+                changed = true;
+        }
+
+        if (changed)
+            Mark_Dirty();
+
+        Commit_EditTransactionIfChanged();
+        return changed;
+    }
+
+    bool UI_Editor_Manager::Undo()
+    {
+        if (!_historyService.Undo(_document, _selectedObjectId, _selectedObjectIds))
+            return false;
+
+        Prune_InvalidSelection();
+        _animationPreviewService.Stop();
+        Clear_RuntimeCaches();
+        Resolve_LoadedAssetReferences();
+        return true;
+    }
+
+    bool UI_Editor_Manager::Redo()
+    {
+        if (!_historyService.Redo(_document, _selectedObjectId, _selectedObjectIds))
+            return false;
+
+        Prune_InvalidSelection();
+        _animationPreviewService.Stop();
+        Clear_RuntimeCaches();
+        Resolve_LoadedAssetReferences();
+        return true;
+    }
+
+    bool UI_Editor_Manager::Can_Undo() const
+    {
+        return _historyService.Can_Undo();
+    }
+
+    bool UI_Editor_Manager::Can_Redo() const
+    {
+        return _historyService.Can_Redo();
+    }
+
+    void UI_Editor_Manager::Begin_EditTransaction()
+    {
+        _historyService.Begin_EditTransaction(_document, _selectedObjectId, _selectedObjectIds);
+    }
+
+    void UI_Editor_Manager::Commit_EditTransactionIfChanged()
+    {
+        _historyService.Commit_EditTransactionIfChanged(_document, _selectedObjectId, _selectedObjectIds);
+    }
+
+    void UI_Editor_Manager::Mark_Dirty()
+    {
+        _historyService.Mark_Dirty(_document);
+    }
+
+    void UI_Editor_Manager::Clear_Dirty()
+    {
+        _historyService.Clear_Dirty(_document);
+    }
+
+    void UI_Editor_Manager::Push_UndoSnapshot()
+    {
+        _historyService.Push_UndoSnapshot(_document, _selectedObjectId, _selectedObjectIds);
+    }
+
+    void UI_Editor_Manager::Clear_History()
+    {
+        _historyService.Clear_History();
+    }
+
+    void UI_Editor_Manager::Play_AnimationPreview(ObjectId objectId)
+    {
+        _animationPreviewService.Play(objectId);
+    }
+
+    void UI_Editor_Manager::Play_AnimationAssetPreview(const UI_AnimationAsset& asset, int32 startFrame)
+    {
+        _animationPreviewService.Play_KeyframeAsset(asset, startFrame);
+    }
+
+    void UI_Editor_Manager::Preview_AnimationAsset(const UI_AnimationAsset& asset, int32 frame)
+    {
+        _animationPreviewService.Preview_KeyframeAsset(asset, frame);
+    }
+
+    void UI_Editor_Manager::Pause_AnimationPreview()
+    {
+        _animationPreviewService.Pause();
+    }
+
+    void UI_Editor_Manager::Stop_AnimationPreview()
+    {
+        _animationPreviewService.Stop();
+    }
+
+    void UI_Editor_Manager::Restart_AnimationPreview(ObjectId objectId)
+    {
+        _animationPreviewService.Restart(objectId);
+    }
+
+    bool UI_Editor_Manager::Is_AnimationPreviewActive() const
+    {
+        return _animationPreviewService.Is_Active();
+    }
+
+    bool UI_Editor_Manager::Is_AnimationPreviewPlaying() const
+    {
+        return _animationPreviewService.Is_Playing();
+    }
+
+    float UI_Editor_Manager::Get_AnimationPreviewTime() const
+    {
+        return _animationPreviewService.Get_Time();
+    }
+
+    int32 UI_Editor_Manager::Get_AnimationPreviewFrame() const
+    {
+        return _animationPreviewService.Get_CurrentFrame();
+    }
+
+    bool UI_Editor_Manager::Sample_AnimationPreview(const UI_Object& object, UI_AnimationPreviewSample& outSample) const
+    {
+        return _animationPreviewService.Sample_Object(object, outSample);
+    }
+
+    Unique<UI_Editor_Manager> UI_Editor_Manager::Create(
+        const ComPtr<Device>& device,
+        const ComPtr<Context>& context,
+        bool assetManagerReady)
+    {
+        Unique<UI_Editor_Manager> instance{ new UI_Editor_Manager() };
+
+        if (FAILED(instance->Initialize(device, context, assetManagerReady)))
+            return nullptr;
+
+        return instance;
+    }
 }

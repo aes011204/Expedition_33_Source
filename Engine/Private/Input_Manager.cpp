@@ -26,16 +26,31 @@ void Input_Manager::Update(float timeDelta)
 {
 	if (_isInputBlocked)
 	{
+		if (_isEditorMouseLockSessionActive)
+			End_EditorMouseLockSession();
+		if (_isMouseLocked)
+			Unlock_Mouse();
+
 		Reset();
 		return;
 	}
 
 	if (_windowHandle != GetActiveWindow())
 	{
-		Reset();
-		if (_isMouseLocked)
-			Unlock_Mouse();
-		return;
+		const bool canKeepEditorMouseLock =
+			_isEditorMouseLockSessionActive &&
+			Is_WindowOwnedByCurrentProcess(GetForegroundWindow());
+
+		if (!canKeepEditorMouseLock)
+		{
+			if (_isEditorMouseLockSessionActive)
+				End_EditorMouseLockSession();
+
+			Reset();
+			if (_isMouseLocked)
+				Unlock_Mouse();
+			return;
+		}
 	}
 
 	BYTE KeyBuffer[256] = {};
@@ -60,10 +75,12 @@ void Input_Manager::Update(float timeDelta)
 
 	if (_isMouseLocked)
 	{
-		POINT CenterScreen = _screenCenter;
-		ClientToScreen(_windowHandle, &CenterScreen);
-		SetCursorPos(CenterScreen.x, CenterScreen.y);
-		_mousePosition = _screenCenter;
+		const POINT centerScreen = Get_ActiveMouseLockCenterScreen();
+		SetCursorPos(centerScreen.x, centerScreen.y);
+
+		POINT centerClient = centerScreen;
+		ScreenToClient(_windowHandle, &centerClient);
+		_mousePosition = centerClient;
 	}
 	else
 	{
@@ -128,17 +145,15 @@ void Input_Manager::Lock_Mouse()
 	_isMouseLocked = true;
 	ShowCursor(FALSE);
 
-	POINT CenterScreen = _screenCenter;
-	ClientToScreen(_windowHandle, &CenterScreen);
+	const POINT CenterScreen = Get_ActiveMouseLockCenterScreen();
 	SetCursorPos(CenterScreen.x, CenterScreen.y);
 
-	RECT ClientRect = {};
-	GetClientRect(_windowHandle, &ClientRect);
-	ClientToScreen(_windowHandle, reinterpret_cast<POINT*>(&ClientRect.left));
-	ClientToScreen(_windowHandle, reinterpret_cast<POINT*>(&ClientRect.right));
-	ClipCursor(&ClientRect);
+	const RECT lockRectScreen = Get_ActiveMouseLockRectScreen();
+	ClipCursor(&lockRectScreen);
 
-	_mousePosition = _screenCenter;
+	POINT centerClient = CenterScreen;
+	ScreenToClient(_windowHandle, &centerClient);
+	_mousePosition = centerClient;
 }
 
 void Input_Manager::Unlock_Mouse()
@@ -159,6 +174,29 @@ void Input_Manager::Unlock_Mouse()
     _mouseDelta = Vec2::Zero;
 }
 
+void Input_Manager::Begin_EditorMouseLockSession()
+{
+	_isEditorMouseLockSessionActive = true;
+}
+
+void Input_Manager::End_EditorMouseLockSession()
+{
+	_isEditorMouseLockSessionActive = false;
+	Clear_MouseLockOverrideRect();
+}
+
+void Input_Manager::Set_MouseLockOverrideRect(const RECT& lockRectScreen)
+{
+	_mouseLockOverrideRect = lockRectScreen;
+	_hasMouseLockOverrideRect = true;
+}
+
+void Input_Manager::Clear_MouseLockOverrideRect()
+{
+	_hasMouseLockOverrideRect = false;
+	_mouseLockOverrideRect = {};
+}
+
 KEY_STATE Input_Manager::Get_State(KEY_TYPE key) const
 {
 	const uint32 index = static_cast<uint32>(key);
@@ -166,6 +204,37 @@ KEY_STATE Input_Manager::Get_State(KEY_TYPE key) const
 		return KEY_STATE::NONE;
 
 	return _keyStates[index];
+}
+
+bool Input_Manager::Is_WindowOwnedByCurrentProcess(HWND hWnd)
+{
+	if (nullptr == hWnd)
+		return false;
+
+	DWORD processId = 0;
+	GetWindowThreadProcessId(hWnd, &processId);
+	return processId == GetCurrentProcessId();
+}
+
+RECT Input_Manager::Get_ActiveMouseLockRectScreen() const
+{
+	if (_hasMouseLockOverrideRect)
+		return _mouseLockOverrideRect;
+
+	RECT clientRect = {};
+	GetClientRect(_windowHandle, &clientRect);
+	ClientToScreen(_windowHandle, reinterpret_cast<POINT*>(&clientRect.left));
+	ClientToScreen(_windowHandle, reinterpret_cast<POINT*>(&clientRect.right));
+	return clientRect;
+}
+
+POINT Input_Manager::Get_ActiveMouseLockCenterScreen() const
+{
+	const RECT lockRectScreen = Get_ActiveMouseLockRectScreen();
+	POINT centerScreen = {};
+	centerScreen.x = (lockRectScreen.left + lockRectScreen.right) / 2;
+	centerScreen.y = (lockRectScreen.top + lockRectScreen.bottom) / 2;
+	return centerScreen;
 }
 
 Unique<Input_Manager> Input_Manager::Create(HWND hWnd)

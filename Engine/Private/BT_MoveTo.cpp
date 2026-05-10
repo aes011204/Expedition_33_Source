@@ -3,6 +3,18 @@
 #include "BlackBoard.h"
 #include "GameObject.h"
 
+
+IMPLEMENT_REFLECTION(BT_MoveTo)
+{
+    auto& info = GetStaticReflectionInfo();
+    info.properties.clear();
+
+    PROPERTY_BBKEY_VEC3("Target Key", _targetKey);
+
+    return true;
+}
+
+
 BT_MoveTo::BT_MoveTo()
 {
 }
@@ -14,8 +26,8 @@ BT_MoveTo::~BT_MoveTo()
 void BT_MoveTo::OnStart()
 {
     auto bb = Get_Owner()->Get_BlackBoard();
-    Vec3 target = bb->Get_Value<Vec3>("playerPos");
 
+    Vec3 target = bb->Get_Value<Vec3>(_targetKey);
     Get_Owner()->Request_Move(target);
     _prevPos = target;
    // _started = true;
@@ -32,18 +44,21 @@ BNode::NODE_STATE BT_MoveTo::Logic_Update(float deltaTime)
 {
 
     auto bb = Get_Owner()->Get_BlackBoard();
-    Vec3 target = bb->Get_Value<Vec3>("playerPos");
 
+
+    Vec3 target = bb->Get_Value<Vec3>(_targetKey);
     auto ownerPos = Get_Owner()->Get_Owner()->Get_Transform()->Get_Position();
+    Vec3 faceTarget = target;
+    faceTarget.y = ownerPos.y;
 
     float distToTarget = (target - ownerPos).Length();
 
-    if (distToTarget <= 1.5f)
-    {
-        //_started = false;
-       
-        return BNode::NODE_STATE::SUCCESS;
-    }
+    //if (distToTarget <= 1.5f)
+    //{
+    //    //_started = false;
+    //   
+    //    return BNode::NODE_STATE::SUCCESS;
+    //}
 
     //_started
     /*if (!_started)
@@ -59,7 +74,10 @@ BNode::NODE_STATE BT_MoveTo::Logic_Update(float deltaTime)
 
     }
 
-    //Get_Owner()->Get_Owner()->Get_Transform()->LookAt(target); 클라에서 
+    //if ((faceTarget - ownerPos).LengthSquared() > 0.0001f)
+    //{
+    //    Get_Owner()->Get_Owner()->Get_Transform()->LookAt(faceTarget);
+    //}
 
 
 

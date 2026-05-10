@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Base.h"
 
@@ -15,6 +15,7 @@ public:
 	~Bone() override = default;
 
 public:
+        const Matrix* Get_OffsetMatrix() const { return &_offsetMatrix; }
         const Matrix* Get_CombinedTransformationMatrixPtr() const { return &_combinedTransformationMatrix; }
         bool Check_BoneByName(const string& boneName) const { return boneName == _name; }
         int32 Get_ParentIndex() const { return _parentBoneIndex; }
@@ -25,10 +26,14 @@ public:
         void Update_CombinedTransformationMatrix(const vector<Shared<Bone>>& bones, const Matrix& preTransformMatrix);
         void Update_TransformationMatrix(const Matrix& transformMatrix);
 
+        const Matrix& Get_TransformationMatrix() const { return _transformationMatrix; }
+        const Matrix& Get_CombinedTransformationMatrix() const { return _combinedTransformationMatrix; }
+
 private:
         string              _name;
         Matrix              _transformationMatrix{};
         Matrix              _combinedTransformationMatrix{};
+        Matrix              _offsetMatrix{};
         int32               _parentBoneIndex = { -1 };
 
 public:

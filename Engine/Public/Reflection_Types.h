@@ -5,9 +5,12 @@ namespace Engine
     // 이거 세개면 될거같은데
     enum class RegisteredType
     {
+        None,
         Component,
         GameObject,
         BTNode,
+        AnimNotify,
+        AnimNotifyState,
     };
 
     // 리플렉션 프로퍼티 종류
@@ -25,6 +28,25 @@ namespace Engine
         ReadOnly, // 수정 불가
     };
 
+
+    enum class BlackboardValueType
+    {
+        None,
+        Bool,
+        Int,
+        Float,
+        Vec3
+    };
+
+    enum class BTNodeState
+    {
+        RUN,
+        SUCCESS,
+        FAILED
+    };
+
+
+
     struct PropertyInfo
     {
         std::string name = {};
@@ -39,6 +61,9 @@ namespace Engine
 
         std::vector<std::string> enumNames = {};
         std::vector<int> enumValues = {};
+
+        bool isBlackboardKey = false;
+        BlackboardValueType blackboardValueType = BlackboardValueType::None;
     };
 
     struct ClassReflectionInfo
@@ -49,5 +74,14 @@ namespace Engine
         RegisteredType type = RegisteredType::Component;
         std::vector<PropertyInfo> properties = {};
     };
+
+    
+
+    struct BTBlackboardKeyView
+    {
+        std::string name;
+        Engine::BlackboardValueType type = Engine::BlackboardValueType::None;
+    };
+    
 
 }

@@ -131,6 +131,7 @@ void TargetCamera::Priority_Update(float timeDelta)
     _transformCom->LookAt(lookTarget);
 
     Update_TransformMatrices();
+    GAME->UpdateFrustum(*GAME->Get_Transform(D3DTS::View), *GAME->Get_Transform(D3DTS::Proj));
 
     _prevTargetPos = targetPos;
 }

@@ -4,38 +4,12 @@
 
 namespace UIEditor
 {
-    enum class UI_ObjectType
-    {
-        Image,
-        Text,
-        Panel,
-        Button,
-    };
-
-    struct UI_Object
-    {
-        ObjectId id = 0;
-        ObjectId parentId = 0;
-        string name = "";
-        UI_ObjectType type = UI_ObjectType::Image;
-        ImVec2 position = ImVec2(0.f, 0.f);
-        ImVec2 size = ImVec2(100.f, 100.f);
-        ImVec2 scale = ImVec2(1.f, 1.f);
-        float rotationRadians = 0.f;
-        ImVec4 color = ImVec4(1.f, 1.f, 1.f, 1.f);
-        bool isOpenOnCreate = true;
-        int32 sortOrder = 0;
-        string text = "";
-        float fontSize = 32.f;
-        string fontTag = "";
-        string fontGuid = "";
-        string fontPath = "";
-        string textureGuid = "";
-        string texturePath = "";
-    };
+    class UI_DocumentSerializer;
 
     class UI_Document final
     {
+        friend class UI_DocumentSerializer;
+
     public:
         UI_Document();
 
@@ -44,7 +18,16 @@ namespace UIEditor
         const vector<UI_Object>& Get_Objects() const;
         ObjectId Create_Object(UI_ObjectType objectType, ObjectId parentId);
         ObjectId Duplicate_Object(ObjectId objectId, const ImVec2& offset);
+        vector<ObjectId> Import_PrefabObjects(const vector<UI_Object>& sourceObjects, const vector<ObjectId>& rootObjectIds, ObjectId parentId, const ImVec2& rootOffset);
         bool Delete_Object(ObjectId objectId);
+        bool Change_Parent(ObjectId objectId, ObjectId newParentId, bool keepWorldPosition);
+        bool Can_Parent(ObjectId objectId, ObjectId newParentId) const;
+        bool Can_HaveChildren(ObjectId objectId) const;
+        bool Is_Descendant(ObjectId ancestorId, ObjectId candidateDescendantId) const;
+        ImVec2 Get_WorldPosition(ObjectId objectId) const;
+        bool Set_WorldPosition(ObjectId objectId, const ImVec2& worldPosition);
+        string Generate_UniqueName(const string& baseName, ObjectId ignoredObjectId = 0) const;
+        string Generate_DuplicateName(const string& sourceName) const;
         UI_Object* Find_Object(ObjectId objectId);
         const UI_Object* Find_Object(ObjectId objectId) const;
         bool Save_ToJsonFile(const wstring& filePath) const;
@@ -59,8 +42,9 @@ namespace UIEditor
         void Reset();
 
     private:
+        void Validate_ParentLinks();
         void Collect_ObjectAndChildren(ObjectId objectId, vector<ObjectId>& objectIds) const;
-        ObjectId Duplicate_ObjectRecursive(UI_Object sourceObject, ObjectId parentId, const ImVec2& offset);
+        ObjectId Duplicate_ObjectRecursive(UI_Object sourceObject, ObjectId parentId, const ImVec2& offset, bool applyOffset);
 
     private:
         string _canvasName = "MainCanvas";

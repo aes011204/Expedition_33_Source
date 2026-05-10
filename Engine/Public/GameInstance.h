@@ -39,6 +39,8 @@ class PhysX_Manager;
 class ColliderCom;
 class Shadow;
 class Picking;
+class Culling_Manager;
+class ThreadPool;
 
 class ENGINE_DLL GameInstance final : public Base
 {
@@ -141,6 +143,9 @@ public: /* For.Object_Manager */
     Shared<GameObject> Find_FirstObject(uint32 levelIndex, const wstring& layerTag);
 
     // 특정 레벨의 레이어에 있는 모든 오브젝트 순회 -> 에디터에서 사용
+    void    Visit_LevelObjects(uint32 levelIndex,
+        const function<void(const wstring& layerTag, const Shared<GameObject>& gameObject)>& visitor) const;
+
     void    Visit_CurrentLevelObjects(
         const function<void(const wstring& layerTag, const Shared<GameObject>& gameObject)>& visitor) const;
 
@@ -171,6 +176,15 @@ public: /* For.Input_Manager */
     void  Set_MouseWheel(float mouseWheel);
 	void  Lock_Mouse();
 	void  Unlock_Mouse();
+    
+    // 에디터 뷰 전환 중 포커스가 흔들려도 마우스 락을 유지할 때 시작한다.
+	void  Begin_EditorMouseLockSession();
+    // 에디터 뷰 전환용 마우스 락 유지 상태를 끝낸다.
+	void  End_EditorMouseLockSession();
+    // Scene View 같은 부분 뷰 기준으로 마우스 락 영역을 임시 지정한다.
+    void  Set_MouseLockOverrideRect(const RECT& lockRectScreen);
+    // 임시 마우스 락 영역을 해제하고 기본 창 영역으로 되돌린다.
+    void  Clear_MouseLockOverrideRect();
 
     // 입력 차단
     void Set_InputBlocked(bool isBlocked);
@@ -199,23 +213,19 @@ public: /* For.Font_Manager */
         float scale = 1.f);
         
 public: /* For.Asset_Manager */
-    /* 리소스 루트를 기준으로 GUID/meta/cache registry를 준비할 때 호출한다. */
     HRESULT Initialize_AssetManager(const wstring& resourceRoot);
 
     /* 파일 경로를 GUID로 저장해야 하는 ResourceLoader/Editor 파이프라인에서 호출한다. */
     string Find_AssetGUID(const wstring& filePath) const;
 
-    /* GUID로 에셋 타입과 경로 메타를 조회할 때 호출한다. */
-    const FAssetMeta* Find_AssetByGUID(const string& guid) const;
+    const AssetMeta* Find_AssetByGUID(const string& guid) const;
+    vector<AssetMeta> Get_AssetsByType(const string& type) const;
 
-    /* 에셋 타입별 목록이 필요한 에디터 UI에서 호출한다. */
-    vector<FAssetMeta> Get_AssetsByType(const string& type) const;
-
-    /* lazy-load가 GUID만 들고 있을 때 실제 파일 경로를 복원하기 위해 호출한다. */
     wstring Resolve_AssetPath(const string& guid) const;
-
-    /* ResourceLoader가 현재 정본 리소스 루트를 절대경로로 해석할 때 호출한다. */
     wstring Get_AssetRoot() const;
+
+    // 에디터/로더가 "GUID 없으면 생성" 흐름을 쓸 수 있게 하기 -> 프리펩이나 그런거 새로 만들 때
+    string Ensure_AssetGUID(const wstring& filePath, const string& type = "") const;
 
 public: /* For.Camera_Manager */
     HRESULT Add_Camera(Shared<Camera> camera) const;
@@ -239,14 +249,22 @@ public: /* For.Camera_Manager */
 
 
 public: /* For.TypeRegistry */
-    const TypeRegistry::ComponentTypeInfo*  Find_ComponentType(const string& className) const;
-    const TypeRegistry::GameObjectTypeInfo* Find_GameObjectType(const string& className) const;
-    const TypeRegistry::BTNodeTypeInfo*     Find_BTNodeType(const string& className) const;
-    void Visit_GameObjectTypes(const function<void(const TypeRegistry::GameObjectTypeInfo&)>& visitor) const;
+    const TypeRegistry::ComponentTypeInfo*       Find_ComponentType(const string& className) const;
+    const TypeRegistry::GameObjectTypeInfo*      Find_GameObjectType(const string& className) const;
+    const TypeRegistry::BTNodeTypeInfo*          Find_BTNodeType(const string& className) const;
+    const TypeRegistry::AnimNotifyTypeInfo*      Find_AnimNotifyType(const string& className) const;
+    const TypeRegistry::AnimNotifyStateTypeInfo* Find_AnimNotifyStateType(const string& className) const;
 
-    Shared<Component>   Create_ComponentPrototype(const string& className) const;
-    Shared<GameObject>  Create_GameObjectPrototype(const string& className) const;
-    Shared<Base>        Create_BTNodePrototype(const string& className) const;
+    void Visit_GameObjectTypes(const function<void(const TypeRegistry::GameObjectTypeInfo&)>& visitor) const;
+    void Visit_AnimNotifyTypes(const function<void(const TypeRegistry::AnimNotifyTypeInfo&)>& visitor) const;
+    void Visit_AnimNotifyStateTypes(const function<void(const TypeRegistry::AnimNotifyStateTypeInfo&)>& visitor) const;
+
+    Shared<Component>       Create_ComponentPrototype(const string& className) const;
+    Shared<GameObject>      Create_GameObjectPrototype(const string& className) const;
+    Shared<Base>            Create_BTNodePrototype(const string& className) const;
+    Shared<AnimNotify>      Create_AnimNotifyPrototype(const string& className) const;
+    Shared<AnimNotifyState> Create_AnimNotifyStatePrototype(const string& className) const;
+
 
 public : /* For.Target_Manager */
     HRESULT Add_RenderTarget(const wstring& targetTag, uint32 sizeX, uint32 sizeY, DXGI_FORMAT pixelFormat, const Color& clearColor, bool resizeWithViewport = true, bool useDSV = false);
@@ -288,6 +306,12 @@ public: // For. PhysX_Manager
     PxPhysics*  Get_PhysXPhysics() const;
     PxScene*    Get_PhysXScene() const;
 
+public: // For. Culling_Manager 
+    void UpdateFrustum(const Matrix& view, const Matrix& proj);
+    bool IsVisible(const BoundingBox& worldAABB) const;
+
+public: // For. BT_Node
+    void Visit_BTNodeTypes(const function<void(const TypeRegistry::BTNodeTypeInfo&)>& visitor) const;
 
 public: /* For.Debug_Manager */
     void                    Draw_DebugBox(const DebugBoxDesc& desc);
@@ -339,6 +363,10 @@ public: /* For.Picking */
     HRESULT                 Update_Picking();
     bool                    Pick_WorldPosition(const POINT& pixelPos, Vec3& outWorldPos);
 
+public: /* For.Thread Pool */
+    bool                    Enqueue_ThreadJob(function<void()> job);
+    size_t                  Get_PendingThreadJobCount() const;
+
 private:
     Unique<Log_Manager>         _logManager{};
     Unique<Graphic_Device>      _graphicDevice{};
@@ -361,7 +389,8 @@ private:
     Unique<Shadow>              _shadow{};
     Unique<PhysX_Manager>       _physxManager{};
     Unique<Picking>             _picking{};
-
+    Unique<Culling_Manager>     _cullingManager{};
+    Unique<ThreadPool>          _threadPool{};
 
 
 #ifdef _DEBUG

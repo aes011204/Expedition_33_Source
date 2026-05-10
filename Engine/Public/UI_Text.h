@@ -20,6 +20,7 @@ public:
         wstring fontTag{};
         Vec4 color{ 1.f, 1.f, 1.f, 1.f };
         TextAlign textAlign{ TextAlign::Left };
+        bool textWrap{ false };
     };
 
 public:
@@ -39,17 +40,21 @@ public:
     void Set_FontTag(const wstring& fontTag) { _fontTag = fontTag; }
     const wstring& Get_FontTag() const { return _fontTag; }
 
-    void Set_Color(const Vec4& color) { _color = color; }
-    const Vec4& Get_Color() const { return _color; }
+    void Set_Color(const Vec4& color) override { _color = color; }
+    Vec4 Get_Color() const override { return _color; }
 
     void Set_TextAlign(TextAlign textAlign) { _textAlign = textAlign; }
     TextAlign Get_TextAlign() const { return _textAlign; }
+
+    void Set_TextWrap(bool textWrap) { _textWrap = textWrap; }
+    bool Get_TextWrap() const { return _textWrap; }
 
 private:
     wstring _text{};
     wstring _fontTag{};
     Vec4 _color{ 1.f, 1.f, 1.f, 1.f };
     TextAlign _textAlign{ TextAlign::Left };
+    bool _textWrap{ false };
 
 public:
     static Shared<UI_Text> Create();

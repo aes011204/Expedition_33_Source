@@ -13,6 +13,7 @@ public:
 
 public:
     virtual void Update(float timeDelta) override;
+    virtual void Pre_Render() override;
     virtual void Render() override;
 
 private:
@@ -28,6 +29,11 @@ private:
     void Render_ViewportCanvas();
     void Handle_FocusRequest();
     void Render_SelectedObjectGizmo();
+
+private: /* Prefab Preview */ 
+    void Set_DragPreviewObject(const string& prefabName);
+    void Clear_DragPreviewObject();
+    void Tick_DragPreview(float timeDelta);
 
 private:
     /* 마지막으로 표시된 씬 뷰포트 크기. */
@@ -47,6 +53,15 @@ private:
 
     int _pendingPreviewViewportWidth = 0;
     int _pendingPreviewViewportHeight = 0;
+
+private: /* Prefab Preview */
+    Shared<GameObject>  _dragPreviewObject;
+    string              _dragPreviewPrefabName{};
+    POINT               _dragPreviewPixelPos{};
+
+    bool                _dragPreviewRequestPending = false;
+    bool                _dragPreviewHasWorldPos = false;
+    Vec3                _dragPreviewWorldPos = Vec3::Zero;
 
 public:
     static Shared<Scene_View> Create();

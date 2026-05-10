@@ -1,104 +1,20 @@
 ﻿#include "Model_Inspector.h"
 
 #include "GameInstance.h"
+#include "Animation_NameUtils.h"
 #include "ModelCom.h"
 #include "Material.h"
 #include <filesystem>
+#include "EditorInstance.h"
+#include "Animation_View.h"
+#include "Editor_Window.h"
+#include "Prefab_View.h"
 
-namespace
-{
-    namespace fs = std::filesystem;
-    using TexturePreviewCache = std::unordered_map<wstring, ComPtr<ID3D11ShaderResourceView>>;
-    using TextureSearchCache = std::unordered_map<string, string>;
+using TexturePreviewCache   = umap<wstring, ComPtr<ID3D11ShaderResourceView>>;
+using TextureSearchCache    = umap<string, string>;
 
-    TexturePreviewCache g_TexturePreviewCache{};
-    TextureSearchCache g_TextureSearchCache{};
-
-    string To_DisplayTexturePath(const wstring& resolvedPath)
-    {
-        string fullPath = String::ToString(resolvedPath);
-
-        const size_t modelsPos = fullPath.find("Models\\");
-        if (modelsPos != string::npos)
-            return fullPath.substr(modelsPos);
-
-        const size_t modelsPosAlt = fullPath.find("Models/");
-        if (modelsPosAlt != string::npos)
-            return fullPath.substr(modelsPosAlt);
-
-        return fullPath;
-    }
-
-    bool Is_TextureExtension(const fs::path& path)
-    {
-        const string ext = String::ToString(path.extension().wstring());
-        return ext == ".png" || ext == ".PNG" ||
-               ext == ".jpg" || ext == ".JPG" ||
-               ext == ".jpeg" || ext == ".JPEG" ||
-               ext == ".tga" || ext == ".TGA" ||
-               ext == ".dds" || ext == ".DDS" ||
-               ext == ".bmp" || ext == ".BMP";
-    }
-
-    vector<fs::path> Collect_TextureCandidates(const wstring& resolvedPath)
-    {
-        vector<fs::path> candidates{};
-
-        if (resolvedPath.empty())
-            return candidates;
-
-        const fs::path currentPath(resolvedPath);
-        const fs::path directory = currentPath.parent_path();
-        if (directory.empty() || !fs::exists(directory))
-            return candidates;
-
-        for (const auto& entry : fs::directory_iterator(directory))
-        {
-            if (!entry.is_regular_file())
-                continue;
-
-            if (!Is_TextureExtension(entry.path()))
-                continue;
-
-            candidates.push_back(entry.path().lexically_normal());
-        }
-
-        sort(candidates.begin(), candidates.end(), [](const fs::path& lhs, const fs::path& rhs)
-        {
-            return lhs.filename().wstring() < rhs.filename().wstring();
-        });
-
-        return candidates;
-    }
-
-    ID3D11ShaderResourceView* Get_TexturePreviewSRV(const fs::path& texturePath)
-    {
-        const wstring normalizedPath = texturePath.lexically_normal().wstring();
-
-        const auto cached = g_TexturePreviewCache.find(normalizedPath);
-        if (cached != g_TexturePreviewCache.end())
-            return cached->second.Get();
-
-        if (!fs::exists(texturePath) || !fs::is_regular_file(texturePath))
-            return nullptr;
-
-        ID3D11ShaderResourceView* srv = nullptr;
-        const fs::path ext = texturePath.extension();
-
-        HRESULT hr = S_OK;
-        if (ext == ".dds" || ext == ".DDS")
-            hr = DirectX::CreateDDSTextureFromFile(GAME->Get_Device().Get(), texturePath.c_str(), nullptr, &srv);
-        else
-            hr = DirectX::CreateWICTextureFromFile(GAME->Get_Device().Get(), texturePath.c_str(), nullptr, &srv);
-
-        if (FAILED(hr) || srv == nullptr)
-            return nullptr;
-
-        g_TexturePreviewCache.emplace(normalizedPath, srv);
-        return srv;
-    }
-}
-
+static TexturePreviewCache  g_TexturePreviewCache {};
+static TextureSearchCache   g_TextureSearchCache  {};
 
 void ModelCom_Inspector::Draw_Inspector(const Shared<Component>& component)
 {
@@ -108,6 +24,21 @@ void ModelCom_Inspector::Draw_Inspector(const Shared<Component>& component)
 
     if (!Draw_Header("Model"))
         return;
+
+    const wstring& sourceModelPath = model->Get_SourceModelPath();
+    const string modelGuid = sourceModelPath.empty() ? string{} : GAME->Ensure_AssetGUID(sourceModelPath, "Model");
+
+    ImGui::TextDisabled("Source Model");
+    ImGui::SameLine(120.f);
+    ImGui::BeginDisabled();
+    ImGui::TextWrapped("%s", String::ToString(sourceModelPath).c_str());
+    ImGui::EndDisabled();
+
+    ImGui::TextDisabled("Model GUID");
+    ImGui::SameLine(120.f);
+    ImGui::TextWrapped("%s", modelGuid.empty() ? "(none)" : modelGuid.c_str());
+
+    Draw_AnimationSection(model);
 
     ImGui::TextDisabled("Meshes");
     ImGui::SameLine(120.f);
@@ -123,7 +54,6 @@ void ModelCom_Inspector::Draw_Inspector(const Shared<Component>& component)
 
     ImGui::SeparatorText("Mesh Slots");
 
-    // Top / Shoulder / Coat 같은 파츠별 mesh -> material 매핑 표시
     const uint32 numMeshes = static_cast<uint32>(model->Get_NumMeshes());
     for (uint32 meshIndex = 0; meshIndex < numMeshes; ++meshIndex)
     {
@@ -200,9 +130,7 @@ void ModelCom_Inspector::Draw_Inspector(const Shared<Component>& component)
                 {
                     ImGui::TextDisabled("Preview");
                     ImGui::SameLine(120.f);
-                    ImGui::Image(
-                        reinterpret_cast<ImTextureID>(slot.shaderResourceView.Get()),
-                        ImVec2(64.f, 64.f));
+                    ImGui::Image(reinterpret_cast<ImTextureID>(slot.shaderResourceView.Get()), ImVec2(64.f, 64.f));
                 }
 
                 const vector<fs::path> textureCandidates = Collect_TextureCandidates(slot.resolvedPath);
@@ -213,9 +141,7 @@ void ModelCom_Inspector::Draw_Inspector(const Shared<Component>& component)
 
                     if (slot.shaderResourceView)
                     {
-                        ImGui::Image(
-                            reinterpret_cast<ImTextureID>(slot.shaderResourceView.Get()),
-                            ImVec2(32.f, 32.f));
+                        ImGui::Image(reinterpret_cast<ImTextureID>(slot.shaderResourceView.Get()), ImVec2(32.f, 32.f));
                         ImGui::SameLine();
                     }
 
@@ -283,6 +209,295 @@ void ModelCom_Inspector::Draw_Inspector(const Shared<Component>& component)
 
         ImGui::PopID();
     }
+}
+
+string ModelCom_Inspector::To_DisplayTexturePath(const wstring& resolvedPath)
+{
+    string fullPath = String::ToString(resolvedPath);
+
+    const size_t modelsPos = fullPath.find("Models\\");
+    if (modelsPos != string::npos)
+        return fullPath.substr(modelsPos);
+
+    const size_t modelsPosAlt = fullPath.find("Models/");
+    if (modelsPosAlt != string::npos)
+        return fullPath.substr(modelsPosAlt);
+
+    return fullPath;
+}
+
+bool ModelCom_Inspector::Is_TextureExtension(const fs::path& path)
+{
+    const string ext = String::ToString(path.extension().wstring());
+    return ext == ".png" || ext == ".PNG" ||
+           ext == ".jpg" || ext == ".JPG" ||
+           ext == ".jpeg" || ext == ".JPEG" ||
+           ext == ".tga" || ext == ".TGA" ||
+           ext == ".dds" || ext == ".DDS" ||
+           ext == ".bmp" || ext == ".BMP";
+}
+
+vector<fs::path> ModelCom_Inspector::Collect_TextureCandidates(const wstring& resolvedPath)
+{
+    namespace fs = fs;
+
+    vector<fs::path> candidates{};
+
+    if (resolvedPath.empty())
+        return candidates;
+
+    const fs::path currentPath(resolvedPath);
+    const fs::path directory = currentPath.parent_path();
+    if (directory.empty() || !fs::exists(directory))
+        return candidates;
+
+    for (const auto& entry : fs::directory_iterator(directory))
+    {
+        if (!entry.is_regular_file())
+            continue;
+
+        if (!Is_TextureExtension(entry.path()))
+            continue;
+
+        candidates.push_back(entry.path().lexically_normal());
+    }
+
+    sort(candidates.begin(), candidates.end(), [](const fs::path& lhs, const fs::path& rhs)
+    {
+        return lhs.filename().wstring() < rhs.filename().wstring();
+    });
+
+    return candidates;
+}
+
+ID3D11ShaderResourceView* ModelCom_Inspector::Get_TexturePreviewSRV(const fs::path& texturePath)
+{
+    namespace fs = fs;
+
+    const wstring normalizedPath = texturePath.lexically_normal().wstring();
+
+    const auto cached = g_TexturePreviewCache.find(normalizedPath);
+    if (cached != g_TexturePreviewCache.end())
+        return cached->second.Get();
+
+    if (!fs::exists(texturePath) || !fs::is_regular_file(texturePath))
+        return nullptr;
+
+    ID3D11ShaderResourceView* srv = nullptr;
+    const fs::path ext = texturePath.extension();
+
+    HRESULT hr = S_OK;
+    if (ext == ".dds" || ext == ".DDS")
+        hr = DirectX::CreateDDSTextureFromFile(GAME->Get_Device().Get(), texturePath.c_str(), nullptr, &srv);
+    else
+        hr = DirectX::CreateWICTextureFromFile(GAME->Get_Device().Get(), texturePath.c_str(), nullptr, &srv);
+
+    if (FAILED(hr) || srv == nullptr)
+        return nullptr;
+
+    g_TexturePreviewCache.emplace(normalizedPath, srv);
+    return srv;
+}
+
+ModelCom_Inspector::AnimPreviewState& ModelCom_Inspector::Get_AnimPreviewState(const Engine::ModelCom* model)
+{
+    static umap<const ModelCom*, AnimPreviewState> s_AnimPreviewStates{};
+    return s_AnimPreviewStates[model];
+}
+
+void ModelCom_Inspector::Draw_AnimationSection(const Shared<Engine::ModelCom>& model)
+{
+    if (model == nullptr)
+        return;
+
+    ImGui::SeparatorText("Animation");
+
+    if (!model->Is_Skeletal())
+    {
+        ImGui::TextDisabled("Static model does not have animation.");
+        return;
+    }
+
+    const uint32 numAnimations = static_cast<uint32>(model->Get_NumAnimations());
+    const vector<AnimationNameUtils::AssetAnimationInfo> assetInfos =
+        AnimationNameUtils::Collect_AssetAnimationInfos(model->Get_SourceModelPath());
+    vector<string> playbackNames{};
+    playbackNames.reserve(numAnimations);
+
+    for (uint32 i = 0; i < numAnimations; ++i)
+    {
+        const char* animName = model->Get_AnimationName(i);
+        if (!animName)
+            continue;
+
+        playbackNames.push_back(animName);
+    }
+
+    struct AnimationListItem
+    {
+        int32 playbackIndex = -1;
+        string displayName{};
+    };
+
+    vector<AnimationListItem> animationItems{};
+    if (!assetInfos.empty())
+    {
+        vector<bool> usedPlayback(playbackNames.size(), false);
+        animationItems.reserve(assetInfos.size());
+
+        for (const auto& assetInfo : assetInfos)
+        {
+            AnimationListItem item{};
+            item.displayName = assetInfo.displayName;
+
+            const int32 matchedPlaybackListIndex =
+                AnimationNameUtils::Find_BestPlaybackMatchIndex(assetInfo, playbackNames, usedPlayback);
+            if (matchedPlaybackListIndex >= 0)
+            {
+                item.playbackIndex = matchedPlaybackListIndex;
+                usedPlayback[matchedPlaybackListIndex] = true;
+            }
+
+            animationItems.push_back(move(item));
+        }
+
+    }
+    else
+    {
+        animationItems.reserve(playbackNames.size());
+        for (int32 i = 0; i < static_cast<int32>(playbackNames.size()); ++i)
+        {
+            AnimationListItem item{};
+            item.playbackIndex = i;
+            item.displayName = AnimationNameUtils::Make_DisplayNameFallback(playbackNames[i]);
+            animationItems.push_back(move(item));
+        }
+    }
+
+    AnimPreviewState& state = Get_AnimPreviewState(model.get());
+
+    if (state.selectedAnimIndex >= static_cast<int32>(numAnimations))
+        state.selectedAnimIndex = numAnimations > 0 ? 0 : -1;
+
+    ImGui::TextDisabled("Animation Count");
+    ImGui::SameLine(120.f);
+    ImGui::Text("%u", numAnimations);
+
+    ImGui::Checkbox("Loop", &state.loop);
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(120.f);
+    ImGui::DragFloat("Blend", &state.blendDuration, 0.01f, 0.f, 5.f, "%.2f");
+
+    if (numAnimations == 0)
+    {
+        ImGui::TextDisabled("No animations found.");
+        return;
+    }
+
+    const char* selectedAnimName = "None";
+    string selectedAnimLabel{};
+    if (state.selectedAnimIndex >= 0)
+    {
+        for (const auto& item : animationItems)
+        {
+            if (item.playbackIndex != state.selectedAnimIndex)
+                continue;
+
+            selectedAnimLabel = item.displayName;
+            selectedAnimName = selectedAnimLabel.c_str();
+            break;
+        }
+    }
+
+    ImGui::SetNextItemWidth(-FLT_MIN);
+    if (ImGui::BeginCombo("Animation Clip", selectedAnimName))
+    {
+        for (const auto& item : animationItems)
+        {
+            if (item.playbackIndex < 0 || item.playbackIndex >= static_cast<int32>(numAnimations))
+                continue;
+
+            const char* animName = model->Get_AnimationName(static_cast<uint32>(item.playbackIndex));
+            if (!animName)
+                continue;
+
+            const bool isSelected = state.selectedAnimIndex == item.playbackIndex;
+            const string label = item.displayName + "##" + animName;
+            if (ImGui::Selectable(label.c_str(), isSelected))
+                state.selectedAnimIndex = item.playbackIndex;
+
+            if (isSelected)
+                ImGui::SetItemDefaultFocus();
+        }
+
+        ImGui::EndCombo();
+    }
+
+    if (state.selectedAnimIndex >= 0)
+    {
+        if (ImGui::Button("Play Selected", ImVec2(140.f, 0.f)))
+        {
+            if (state.blendDuration > 0.f)
+                model->Set_Animation(static_cast<uint32>(state.selectedAnimIndex), state.blendDuration, state.loop);
+            else
+                model->Set_Animation(static_cast<uint32>(state.selectedAnimIndex), state.loop);
+        }
+
+        ImGui::SameLine();
+
+        if (ImGui::Button("Restart", ImVec2(100.f, 0.f)))
+            model->Set_Animation(static_cast<uint32>(state.selectedAnimIndex), state.loop);
+
+        ImGui::SameLine();
+
+        if (ImGui::Button("Open Animation View", ImVec2(180.f, 0.f)))
+        {
+            Shared<Editor_Window> viewBase = EDITOR->Get_Window(L"Animation");
+            Shared<Animation_View> animationView = dynamic_pointer_cast<Animation_View>(viewBase);
+
+            if (animationView)
+            {
+                const char* animationName = model->Get_AnimationName(static_cast<uint32>(state.selectedAnimIndex));
+                uint32 preferredDockId = ImGui::GetWindowDockID();
+
+                Shared<Editor_Window> prefabBase = EDITOR->Get_Window(L"Prefab");
+                Shared<Prefab_View> prefabView = dynamic_pointer_cast<Prefab_View>(prefabBase);
+                if (prefabView != nullptr && prefabView->Is_Open() && prefabView->Get_DockId() != 0)
+                    preferredDockId = prefabView->Get_DockId();
+
+                animationView->Open_FromModelComponent(model, animationName ? animationName : "", preferredDockId);
+            }
+        }
+    }
+
+    if (ImGui::BeginChild("ModelAnimList", ImVec2(0.f, 180.f), true, ImGuiWindowFlags_HorizontalScrollbar))
+    {
+        for (const auto& item : animationItems)
+        {
+            if (item.playbackIndex < 0 || item.playbackIndex >= static_cast<int32>(numAnimations))
+                continue;
+
+            const char* animName = model->Get_AnimationName(static_cast<uint32>(item.playbackIndex));
+            if (!animName)
+                continue;
+
+            const bool isSelected = state.selectedAnimIndex == item.playbackIndex;
+            const string label = item.displayName + "##List" + animName;
+            if (ImGui::Selectable(label.c_str(), isSelected))
+                state.selectedAnimIndex = item.playbackIndex;
+
+            if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+            {
+                state.selectedAnimIndex = item.playbackIndex;
+
+                if (state.blendDuration > 0.f)
+                    model->Set_Animation(static_cast<uint32>(item.playbackIndex), state.blendDuration, state.loop);
+                else
+                    model->Set_Animation(static_cast<uint32>(item.playbackIndex), state.loop);
+            }
+        }
+    }
+    ImGui::EndChild();
 }
 
 const char* ModelCom_Inspector::Get_TextureTypeLabel(uint32 typeIndex)

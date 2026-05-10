@@ -63,7 +63,6 @@ inline MaterialTextureSlot ResolveMaterialTextureSlot(MaterialRawTextureType raw
     }
 }
 
-
 enum class MaterialShaderTemplate : uint8
 {
     OpaquePBR,

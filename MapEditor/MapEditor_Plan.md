@@ -50,7 +50,7 @@ MapEditorApp          — 엔진 초기화, 메인 루프 (Update/Render), Scene
     ├── PanelViewport     ✅ RT ImGui::Image, 카메라 입력, ImGuizmo 오버레이
     ├── PanelHierarchy    ✅ 오브젝트 목록, 선택/추가/삭제/복제/이름변경
     ├── PanelInspector    ✅ Transform 실시간 편집, Gizmo 양방향 연동
-    └── PanelAssetBrowser ✅ 폴더 탭(SaveJson) + 더블클릭 로드
+    └── PanelAssetBrowser ✅ 파일 탐색기 방식, 브레드크럼, .bin 드래그 앤 드롭 스폰
 ```
 
 **베이스 클래스**: `MEWindow` (이름, 열림 상태, Update/Render 인터페이스)
@@ -99,9 +99,9 @@ Client/Bin/Resources/Map/scale_map.py
 MEStaticMeshActor                         — 에디터 뷰포트 시각화 전용
 ├── _model   (Shared<ModelCom>)
 ├── _shader  (Shared<ShaderCom>)
-└── Render(const Matrix& worldMatrix)
-    — 텍스처 있으면 pass 0 (DefaultPass), 없으면 pass 1 (NoTexturePass, 회색)
-    — GAME->Get_LightDesc(0)로 Directional Light 바인딩 (Forward 라이팅)
+├── Render(const Matrix& worldMatrix)     — G-buffer 출력 (pass 0: 텍스처, pass 1: 회색)
+├── RenderID(const Matrix& worldMatrix, uint32 id) — ID 버퍼용 (pass 2)
+└── GetModel() — 컬링용 AABB 접근에 사용
 ```
 
 ### MEModelManager ✅
@@ -149,34 +149,50 @@ MEModelManager                            — 모델 로드/캐싱 전담
     - ✅ 버그 수정: `InstancedStaticMeshComponent` 키 대소문자 불일치 (`perInstanceSMData` → `PerInstanceSMData`)
     - ✅ `MEModelManager` — 동일 모델 중복 로드 방지 (캐싱 + Clone 재사용)
     - ✅ `EditorObject._isInstanced` — Instanced 오브젝트는 렌더 핸들 생성 스킵
-    - ✅ 모델 버텍스 스케일 보정: `preLocalTransformMatrix = Matrix::CreateScale(0.01f)` (UE5 cm → 엔진 단위)
+    - ✅ 모델 버텍스 스케일 보정: `preLocalTransformMatrix = Matrix::CreateScale(0.001f)` (UE5 cm → 엔진 단위)
     - ✅ 텍스처 없는 모델 회색 렌더링 — `NoTexturePass` (pass 1) 추가
-    - ✅ Forward 라이팅 — `Shader_VtxMesh` Forward 방식으로 교체 (Lambert + Specular + Ambient, 단일 RT 출력), `MapEditorApp::Initialize()`에서 기본 Directional Light 등록, `MEStaticMeshActor::Render()`에서 `GAME->Get_LightDesc(0)` 바인딩
+    - ✅ Deferred 라이팅 전환
+      - G-buffer MRT 패스 → 라이트 누적 패스 → CombinedSimple 컴바인 패스
+      - `Shader_VtxMesh.hlsl`: G-buffer 출력 (Diffuse/Normal/Depth, 3 targets)
+      - `Shader_Deferred.hlsl`: CombinedSimple pass (index 4) 추가 — 섀도우 없는 단순 합성
+      - `SyncSceneLights()`: 매 프레임 GAME Light_Manager를 SceneContext 기준으로 재동기화
 13. ✅ 라이트 배치 및 속성 편집
+    - Directional / Point Light 지원, Inspector 실시간 수치 조정
+    - 기본 Directional Light를 EditorObject로 관리 (Hierarchy 표시, 삭제 가능)
+    - `EditorObject._lightType` / `_lightRange` / `_lightDiffuse` 등 파라미터 편집
 14. ✅ Inspector Focus 버튼 — 선택 오브젝트 위치로 카메라 즉시 이동 (`MECamera::FocusOn`)
 
 ### Phase 3 — 볼륨 / 존 시스템 ✅
-14. ✅ 타입 시스템 도입 (`EObjectType`, `EZoneShape`) — `MapEditorDefines.h`
+15. ✅ 타입 시스템 도입 (`EObjectType`, `EZoneShape`) — `MapEditorDefines.h`
     - magic_enum 활용, `ObjectTypeLabel` / `ObjectTypeName` / `ObjectTypeFromName` 헬퍼
-15. ✅ `EditorObject` 타입별 파라미터 필드 추가
+16. ✅ `EditorObject` 타입별 파라미터 필드 추가
     - Zone Shape (Box/Sphere), EncounterZone, TriggerVolume, CameraZone, PostProcessVolume 파라미터
-16. ✅ `SceneContext` Save/Load 멀티타입 지원
+17. ✅ `SceneContext` Save/Load 멀티타입 지원
     - JSON 배열 분리: `StaticMeshes` / `SpawnPoints` / `EncounterZones` / `TriggerVolumes` / `CameraZones` / `PostProcessVolumes`
-17. ✅ `PanelHierarchy` 타입 선택 팝업 + `[SM]`/`[SP]` 등 타입 라벨 표시
-18. ✅ `PanelInspector` 타입별 커스텀 UI (Zone Shape / 타입 파라미터 섹션)
-19. ✅ 뷰포트 디버그 드로우 — 존/볼륨 와이어프레임 박스·구 시각화
-20. Ambient Sound Zone
-21. Water 배치, 파티클 배치 (파티클 시스템 완료 후)
-22. 지형 시스템 (방식 미확정)
+18. ✅ `PanelHierarchy` 타입 선택 팝업 + `[SM]`/`[SP]` 등 타입 라벨 표시
+19. ✅ `PanelInspector` 타입별 커스텀 UI (Zone Shape / 타입 파라미터 섹션)
+20. ✅ 뷰포트 디버그 드로우 — 존/볼륨 와이어프레임 박스·구 시각화
 
-### Phase 3.6 — 뷰포트 마우스 피킹 + Inspector Delete ← **진행 중**
+### Phase 3.5 — 엔진 확장 ✅
+- ✅ **PhysX 5.5.0 통합** (`PhysX_Manager`, `GameInstance` 등록)
+  - PhysX 초기화 / 씬 생성 / Simulate / FetchResults 루프
+  - `GameInstance`에서 `Get_PhysXPhysics()` / `Get_PhysXScene()` 접근 가능
+  - 콜라이더 컴포넌트 연동 → 다른 파트 담당
+- ✅ **절두체 컬링 (Frustum Culling)** (`Culling_Manager`)
+  - `UpdateFrustum(view, proj)` — `BoundingFrustum::CreateFromMatrix` + `XMMatrixInverse` 기반
+  - `IsVisible(worldAABB)` — `BoundingFrustum::Intersects` 판정
+  - `GameInstance`에 등록, `ModelCom::Get_PreLocalTransformMatrix()` getter 추가
+  - `MapStaticMesh::Late_Update()` — `preLocalTransformMatrix * worldMatrix`로 worldAABB 구성 후 컬링
+  - 버그: `FreeCamera` / `TargetCamera` 둘 다 UpdateFrustum 호출 → 절두체 덮어쓰기 → 각자 호출로 분리
+  - MapEditor: `MECamera::Apply()`에 UpdateFrustum 추가, `DrawSceneDebug()` StaticMesh 케이스에 IsVisible 체크
 
+### Phase 3.6 — 뷰포트 마우스 피킹 + Inspector Delete ✅
 #### 설계 결정
 - **레이캐스트 순회 방식 기각**: 오브젝트 수 많을 때 O(n) 성능 문제 확인
 - **GPU Object ID Buffer 방식 채택**: 클릭 시점에만 렌더 1회, O(1) 조회, 픽셀 정확도
 
 #### 구현 내용
-23. **GPU ID Buffer 피킹** (`MapEditorApp` + `Shader_VtxMesh.hlsl` + `MEStaticMeshActor`)
+- ✅ **GPU ID Buffer 피킹** (`MapEditorApp` + `Shader_VtxMesh.hlsl` + `MEStaticMeshActor`)
     - `Shader_VtxMesh.hlsl`에 `g_iObjectID` 변수 + `PS_MAIN_ID` + `IDPass` (pass index 2) 추가
     - `MEStaticMeshActor::RenderID(worldMatrix, id)` — pass 2로 ID 색상 렌더
     - `MapEditorApp`에 `_idRT` (RGBA8, 뷰포트와 동일 크기) + `_idStagingTex` (1×1 Staging) 추가
@@ -184,58 +200,122 @@ MEModelManager                            — 모델 로드/캐싱 전담
     - **ID 인코딩**: index+1 (1-based, 0=배경), R + G×256 + B×65536
     - **빈 공간 클릭** → ID=0 → `_selected = nullptr` (선택 해제)
     - **StaticMesh만 피킹**: Zone/SpawnPoint/Light는 메시 없어 제외 → 추후 콜라이더 편집 시 추가 예정
-    - > **TODO (미구현)**: 선택 오브젝트를 마우스 피킹 위치로 이동 — 깊이 버퍼에서 월드 포지션 복원 후 이동하는 방식이 적합. ID Buffer 방식과 별도로 구현 예정
-    - `MapEditorApp::Render()`에서 `_camera->Apply()` 직후 피킹 처리 (행렬 보장)
-
-24. **뷰포트 좌클릭 입력 감지** (`PanelViewport`)
-    - `ImGui::Image` 이후 `ImGui::IsItemClicked(Left)` + `!ImGuizmo::IsOver()` + `!ImGuizmo::IsUsing()` 조건
-    - `_pickRequested`, `_pickMousePos`, `_pickVpPos`, `_pickVpSize` 저장
+    - > **TODO**: 선택 오브젝트를 마우스 피킹 위치로 이동 — 깊이 버퍼 월드 포지션 복원 방식, 별도 구현 예정
+- ✅ **뷰포트 좌클릭 입력 감지** (`PanelViewport`)
+    - `ImGui::IsItemClicked(Left)` + `!ImGuizmo::IsOver()` + `!ImGuizmo::IsUsing()` 조건
     - `ConsumePick(outMousePos, outVpPos, outVpSize)` — 소비 후 플래그 해제
+- ✅ **Inspector Delete 버튼** — `_ctx->Remove(_ctx->_selected)` 호출
 
-25. **Inspector Delete 버튼** (`PanelInspector`)
-    - Focus 버튼 오른쪽에 `ImGui::SameLine()` + `"Delete"` 버튼
-    - 클릭 시 `_ctx->Remove(_ctx->_selected)` → early return
+### Phase 3.7 — JSON ModelFolder 분리 ✅
 
-### Phase 3.5 — PhysX 엔진 통합 ✅
-- ✅ `Engine` 측에 `PhysX_Manager` 생성
-  - PhysX 5.5.0 초기화 / 씬 생성 / Simulate / FetchResults 루프
-  - `PxFoundation`, `PxPhysics`, `PxScene`, `PxDefaultCpuDispatcher` 관리
-  - `GameInstance`에서 `Get_PhysXPhysics()` / `Get_PhysXScene()` 접근 가능
-- 콜라이더 컴포넌트 연동 → 다른 파트 담당
-- 맵 에디터에서 콜라이더 편집 UI는 Phase 5에서 구현
-
-### Phase 3.7 — JSON ModelFolder 분리 ← **구현 예정**
-
-#### 배경
-- 현재 `ModelPath`에 폴더명이 포함(`SmallLevel_SimonArea/xxx.model`)되어 JSON 파일명에 종속
-- JSON 이름 변경 시 모델 폴더도 같이 바꿔야 하는 불편함
-
-#### 변경 포맷
-```json
-{
-    "MapData": {
-        "MapName": "Stage_01",
-        "ModelFolder": "SmallLevel_SimonArea",
-        "StaticMeshes": [
-            { "ModelPath": "xxx.model" }
-        ]
-    }
-}
-```
-
-#### 수정 대상
+- `SceneContext`에 `_modelFolder` 필드 추가, SaveToFile/LoadFromFile에서 `ModelFolder + "/" + ModelPath`로 경로 구성
 - `scale_map.py` — `ModelFolder` 필드 출력, `ModelPath`를 파일명만 저장
-- `SceneContext` — `_modelFolder` 필드 추가, SaveToFile/LoadFromFile 수정
-- `MapEditor_Plan.md` — 포맷 문서 갱신
-- > **TODO (Client 수정 필요)**: Client의 맵 JSON 로드 코드에서 `ModelFolder + "/" + ModelPath`로 경로 재구성하도록 변경
 
-### Phase 4 — 내비 / AI
-20. 웨이포인트, 포털 / 존 전환
-21. Recast 통합 → NavMesh 베이크 및 시각화
+---
 
-### Phase 5 — 물리 / 최적화
-22. PhysX 통합 → 콜라이더 편집, 지형 충돌
-23. 인스턴싱 그룹, Occlusion Volume
+### Phase 3.8 — Asset Browser 파일 탐색기 + 드래그 앤 드롭 스폰 ✅
+
+#### 목표
+- Asset Browser를 Unity Project 창처럼 파일 탐색기 방식으로 재설계
+- `.bin` 모델 파일을 뷰포트로 드래그 앤 드롭하면 3D 커서 위치에 오브젝트 스폰
+
+#### 구현 내용
+
+1. **`PanelAssetBrowser` 재설계** ✅
+    - 탭 기반 → 파일 탐색기 방식으로 전환 (`Initialize()` 분리, `Create`에서 호출)
+    - 루트: `Client/Bin/Resources/Map` (`_mapSavePath` → `fs::canonical`로 절대 경로 변환)
+    - 브레드크럼 바: `Map > SaveJson` 형태, 클릭 시 해당 경로로 점프 (루프 내 `NavigateTo` 후 `break`)
+    - 폴더 더블클릭 → 내부 탐색 (`_dirs` / `_files` 분리 스캔)
+    - `.json` 더블클릭 → `_ctx->LoadFromFile()` (기존 동작 유지)
+    - `.bin` / `.model` → `ImGui::BeginDragDropSource` 드래그 소스 (payload = 절대 경로)
+
+2. **`PanelViewport` 수정** ✅
+    - `BeginDragDropTarget` → `ConsumeSpawn` 패턴 (ConsumePick과 동일 구조)
+    - Shift+좌클릭 → `ConsumeCursorSet` (기존 좌클릭 피킹과 분기)
+
+3. **`MapEditorApp` 수정 — 3D 커서 + 스폰** ✅
+    - `SceneContext`에 `_cursorPos` / `_cursorVisible` 추가 (뷰포트 오버레이 공유)
+    - `SetCursorAt()`: GPU ID 버퍼로 히트 오브젝트 식별 → 레이 × 해당 오브젝트 AABB 교차로 정확한 표면 위치 계산 (O(1))
+    - `DoSpawnAt()`: `_scene._cursorPos` 위치에 `SceneContext::SpawnObject` 호출
+    - 빈 공간 Shift+클릭 → 카메라 시선 방향 10 단위 앞 폴백
+
+4. **`SceneContext` 수정** ✅
+    - `SpawnObject(const wstring& modelPath, const Vec3& pos)` 추가
+    - `EditorObject` 생성 (StaticMesh, 파일명을 이름으로) + `_dirtyRenderHandles = true` → `UpdateRenderHandles`가 다음 프레임에 렌더 핸들 연결
+
+5. **뷰포트 커서 오버레이** ✅
+    - `Image` 아래 좌하단 `##CursorOverlay` 윈도우 — 보라색 `Cursor X.XX Y.XX Z.XX` 표시
+
+#### 설계 결정
+- **3D 커서 방식 채택**: Blender 스타일, 지면 높이 무관, Shift+클릭으로 위치 지정 후 드롭
+- **Ray × Y=0 기각**: 경사 지형에서 부정확
+- **CPU AABB 전체 순회 기각**: 오브젝트 수 많을 때 O(n) 성능 문제
+- **GPU ID + 단일 AABB 교차 채택**: ID 버퍼로 히트 오브젝트 특정 후 해당 1개만 레이캐스트 → O(1)
+- **PhysX 레이캐스트 기각**: Phase 6 이전 콜라이더 미구축
+- **동시 실행 충돌 없음**: 피킹(좌클릭)과 드롭은 물리적으로 동시에 발생 불가, 사용 RT도 분리
+
+---
+
+### Phase 3.9 — 편집 UX 개선 ← **다음 작업**
+
+#### 목표
+- 오브젝트 배치 흐름을 Prefab 드래그 앤 드롭으로 통일하고, 실수 복구 기능 추가
+
+#### 작업 내용
+
+1. **오브젝트 추가 시 자동 선택**
+   - 스폰 직후 `_scene._selected = newObj` 설정
+   - 추가 즉시 Inspector 포커스 + Gizmo 활성화
+
+2. **Prefab 시스템 (Asset Browser 통합)**
+   - Light / SpawnPoint / TriggerVolume 등 비메시 오브젝트를 `.prefab` JSON 파일로 저장
+   - Asset Browser에서 `.prefab` 파일 인식 → 드래그 앤 드롭으로 3D 커서 위치에 스폰
+   - 포맷: `{ "Type": "Light", "Name": "Point Light", "LightType": "Point", "Range": 10.0, ... }`
+   - 저장 경로: `Client/Bin/Resources/Map/Prefabs/` (Asset Browser 탐색 대상에 추가)
+   - `ConsumeSpawn`에서 확장자로 `.bin` / `.prefab` 분기 — 기존 메시 파이프라인 재사용
+   - Prefab 시스템 완성 후 Hierarchy "Add" 버튼(타입 팝업) 제거
+
+3. **Ctrl+Z / Ctrl+Y Undo/Redo**
+   - Command 패턴 — `IEditorCommand` 인터페이스 (`Execute` / `Undo`)
+   - 커맨드 종류: `CmdAddObject`, `CmdDeleteObject`, `CmdTransformObject`
+   - `SceneContext`에 `_undoStack` / `_redoStack` 보관, 스택 최대 50개
+   - Inspector Transform 편집은 마우스 릴리스 / Enter 확정 시점에 커맨드 기록 (드래그 중 매 프레임 기록 방지)
+
+---
+
+### Phase 4 — MainEditor 레벨 구성
+
+#### 목표
+- Client에서 실제 플레이 가능한 레벨 구조 잡기
+- MapEditor에서 저장한 JSON을 MainEditor/Client에서 로드하는 파이프라인 완성
+
+#### 작업 내용
+1. **레벨 추가**
+    - `Level_GamePlay` 외 `Level_TestMap` (기능 테스트용) + 실제 스테이지 레벨 몇 개 추가
+    - 레벨별 리소스 로딩 (`Loader` 연동) 구조 정리
+
+2. **맵 JSON 로드 파이프라인**
+    - `MapLoader` — MapEditor JSON 포맷 파싱, `MapStaticMesh` / 존 오브젝트 스폰
+    - 현재 `MapStaticMesh`는 있으나 레벨 진입 시 자동 로드 흐름 미완성
+    - 로드 시 `ModelCom` 공유(`sharedModel`) 활용으로 중복 로드 방지
+    - SpawnPoint / EncounterZone / TriggerVolume 등 존 오브젝트도 스폰 대상에 포함
+
+3. **레벨 전환**
+    - 포털/트리거 존 진입 시 다음 레벨로 전환하는 기본 흐름 구현
+
+> Phase 3.7 (ModelFolder 분리)과 동시에 진행 시 Client 로드 코드를 `ModelFolder + "/" + ModelPath` 포맷으로 맞춰야 함.
+
+---
+
+### Phase 5 — 내비 / AI
+- 웨이포인트, 포털 / 존 전환
+- Recast 통합 → NavMesh 베이크 및 시각화
+
+### Phase 6 — 물리 / 최적화
+- PhysX 콜라이더 편집 UI (맵 에디터)
+- PhysX 지형 충돌
+- Octree 기반 공간 분할 컬링 (현재 O(n) → O(log n))
+- 인스턴싱 그룹, Occlusion Volume
 
 ---
 
@@ -251,14 +331,24 @@ MEModelManager                            — 모델 로드/캐싱 전담
 | Inspector | ✅ |
 | Snapping | ✅ (Ctrl 홀드, PanelSnap으로 수치 편집) |
 | Focus (Inspector) | ✅ |
+| 마우스 피킹 (GPU ID Buffer) | ✅ |
+| Asset Browser 파일 탐색기 | ✅ |
+| 3D 커서 스폰 (Shift+클릭 + 드래그 앤 드롭) | ✅ |
+| 추가 시 자동 선택 | 구현 예정 (Phase 3.9) |
+| Prefab 시스템 (.prefab 드래그 앤 드롭) | 구현 예정 (Phase 3.9) |
+| Undo / Redo (Ctrl+Z / Ctrl+Y) | 구현 예정 (Phase 3.9) |
 
 ### 렌더링 / 배치
 
 | 기능 | 상태 |
 |------|------|
 | 정적 메시 배치 | ✅ |
-| 라이트 배치 | ✅ |
-| 스카이 (SkySphere) | 구현 예정 — PNG 파노라마 텍스처 사용, VIBuffer_Sphere 구현 필요 |
+| 라이트 배치 (Directional / Point) | ✅ |
+| Deferred 라이팅 (G-buffer + 라이트 누적 + 합성) | ✅ |
+| 절두체 컬링 (Client/MainEditor) | ✅ |
+| 절두체 컬링 (MapEditor 뷰포트) | ✅ |
+| Octree 공간 분할 컬링 | 구현 예정 (Phase 6) |
+| 스카이 (SkySphere) | 구현 예정 — PNG 파노라마 텍스처, VIBuffer_Sphere 필요 |
 | 물(Water) 배치 | 구현 예정 |
 | 파티클 이펙트 배치 | 파티클 시스템 대기 |
 | 지형 (Terrain) | 방식 미확정 |
@@ -270,8 +360,9 @@ MEModelManager                            — 모델 로드/캐싱 전담
 | JSON 저장 | ✅ |
 | JSON 로드 | ✅ |
 | UE5 FModel JSON 변환 (scale_map.py) | ✅ |
-| ModelFolder 분리 (저장/로드) | 구현 예정 |
-| MainEditor 연동 | 구현 예정 |
+| ModelFolder 분리 (저장/로드) | ✅ |
+| MainEditor 맵 JSON 로드 파이프라인 | 구현 예정 (Phase 4) |
+| 레벨 추가 및 전환 | 구현 예정 (Phase 4) |
 
 ### 볼륨 / 존
 
@@ -285,17 +376,16 @@ MEModelManager                            — 모델 로드/캐싱 전담
 | 스폰 포인트 | ✅ (편집·직렬화) |
 | 볼륨 뷰포트 시각화 | ✅ |
 | Ambient Sound Zone | 구현 예정 |
-| 포털 / 존 전환 | 구현 예정 |
+| 포털 / 존 전환 | 구현 예정 (Phase 4) |
 
 ### 물리 / 내비게이션
 
 | 기능 | 상태 |
 |------|------|
-| 콜라이더 편집 | 구현 예정 |
-| PhysX 지형 충돌 | 구현 예정 |
-| NavMesh 베이크/시각화 | 엔진 Recast 통합 후 |
-| 웨이포인트 | 구현 예정 |
-| 스폰 포인트 | 구현 예정 |
+| 콜라이더 편집 | 구현 예정 (Phase 6) |
+| PhysX 지형 충돌 | 구현 예정 (Phase 6) |
+| NavMesh 베이크/시각화 | 엔진 Recast 통합 후 (Phase 5) |
+| 웨이포인트 | 구현 예정 (Phase 5) |
 
 ---
 
@@ -374,4 +464,4 @@ DX_Quat = Quat(UE.x, UE.z, UE.y, -UE.w);
 ### 지형 데이터
 
 UE5 Landscape는 FModel 레벨 JSON에 포함되지 않음 (별도 스트리밍 에셋).  
-지형 처리 방식은 Phase 3에서 결정.
+지형 처리 방식은 추후 결정.

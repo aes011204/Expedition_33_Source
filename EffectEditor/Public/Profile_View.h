@@ -11,13 +11,13 @@ public:
 
     struct Scope_Stats
     {
-        string name = {};
-        double lastMs = 0.0;
-        double avgMs = 0.0;
-        double minMs = 0.0;
-        double maxMs = 0.0;
-        uint64 samples = 0;
-        bool isEnabled = true;
+        string name{};
+        double lastMs{0.0};
+        double avgMs{0.0};
+        double minMs{0.0};
+        double maxMs{0.0};
+        uint64 samples{0};
+        bool isEnabled{true};
     };
 
     class Scope final
@@ -27,7 +27,7 @@ public:
         ~Scope();
 
     private:
-        bool _active = false;
+        bool _active{false};
     };
 
 public:
@@ -50,9 +50,28 @@ private:
 
     struct Process_Memory
     {
-        size_t workingSetMb = 0;
-        size_t privateBytesMb = 0;
+        size_t workingSetMb{0};
+        size_t privateBytesMb{0};
     };
+
+private:
+    static Profile_View* s_active;
+
+    Unique<Profiler_Runtime> _runtime{nullptr};
+    clock::time_point _prevFrame{clock::now()};
+
+    bool _capture{true};
+    bool _sortByCost{true};
+    bool _showDisabled{false};
+    int _avgWindow{120};
+    int _maxScopeRows{64};
+    char _filter[128]{};
+
+    double _frameMsLast{0.0};
+    double _frameMsAvg{0.0};
+    double _fpsLast{0.0};
+    double _fpsAvg{0.0};
+    uint32 _renderCallCount{0};
 
 private:
     void Draw_Toolbar();
@@ -62,25 +81,6 @@ private:
     void Reset_Stats();
     void Prune_Dead_Scopes();
     Process_Memory Get_Process_Memory() const;
-
-private:
-    static Profile_View* s_active;
-
-    Unique<Profiler_Runtime> _runtime = nullptr;
-    clock::time_point _prevFrame = clock::now();
-
-    bool _capture = true;
-    bool _sortByCost = true;
-    bool _showDisabled = false;
-    int _avgWindow = 120;
-    int _maxScopeRows = 64;
-    char _filter[128] = {};
-
-    double _frameMsLast = 0.0;
-    double _frameMsAvg = 0.0;
-    double _fpsLast = 0.0;
-    double _fpsAvg = 0.0;
-    uint32 _renderCallCount = 0;
 
 public:
     static Shared<Profile_View> Create();

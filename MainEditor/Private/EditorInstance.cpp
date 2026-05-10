@@ -110,11 +110,13 @@ void EditorInstance::Update_Editor(float timeDelta)
 
     _imguiManager->Update(timeDelta);
     _editorManager->Update(timeDelta);
+    _notificationManager->Update(timeDelta);
 }
 
 void EditorInstance::Render_Editor()
 {
     _editorManager->Render();
+    _notificationManager->Render();
     _imguiManager->Render();
 }
 
@@ -151,7 +153,7 @@ void EditorInstance::Stop()
     _runtimeState = EDITOR_RUNTIME_STATE::Edit;
     Sync_ViewportWindowState();
 
-    Activate_FreeCamera();
+    //Activate_FreeCamera();
 
     GAME->Set_FreeCameraInputEnabled(false);
     GAME->Unlock_Mouse();
@@ -441,7 +443,10 @@ void EditorInstance::Request_PreviewViewportSize(uint32 width, uint32 height)
 
 void EditorInstance::Enable_AutoPreviewViewport()
 {
-    _previewViewportMode = PreviewViewportMode::Manual;
+    _previewViewportMode = PreviewViewportMode::Auto;
+    Queue_PreviewViewportSize(
+        max(1u, _requestedViewportWidth),
+        max(1u, _requestedViewportHeight));
 }
 
 void EditorInstance::Enable_ManualPreviewViewport()
@@ -457,6 +462,14 @@ void EditorInstance::Set_ManualPreviewViewportSize(uint32 width, uint32 height)
 
 void EditorInstance::Sync_PreviewViewportMode()
 {
+    if (_previewViewportMode == PreviewViewportMode::Auto)
+    {
+        Queue_PreviewViewportSize(
+            max(1u, _requestedViewportWidth),
+            max(1u, _requestedViewportHeight));
+        return;
+    }
+
     if (_appliedPreviewViewportWidth == 0 || _appliedPreviewViewportHeight == 0)
         Queue_PreviewViewportSize(kDefaultPreviewViewportWidth, kDefaultPreviewViewportHeight);
 }
@@ -579,11 +592,11 @@ void EditorInstance::Apply_RuntimeInputPolicy()
     Shared<Editor_Window> sceneView = Get_Window(L"Scene");
     Shared<Editor_Window> gameView = Get_Window(L"Game");
 
-    if (_runtimeState != EDITOR_RUNTIME_STATE::Play &&
-        !GAME->Is_ActiveCameraType(ObjectType::FreeCamera))
-    {
-        Activate_FreeCamera();
-    }
+    //if (_runtimeState != EDITOR_RUNTIME_STATE::Play &&
+    //    !GAME->Is_ActiveCameraType(ObjectType::FreeCamera))
+    //{
+    //    Activate_FreeCamera();
+    //}
 
     const bool sceneInteractive =
         sceneView && sceneView->Is_Open() &&

@@ -1,5 +1,7 @@
 #include "Notification_Manager.h"
 
+NS_BEGIN(EffectEditor)
+
 Notification_Manager::Notification_Manager()
 {
 }
@@ -111,3 +113,5 @@ Unique<Notification_Manager> Notification_Manager::Create()
     instance->Initialize();
     return instance;
 }
+
+NS_END

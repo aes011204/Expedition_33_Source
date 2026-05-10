@@ -16,7 +16,7 @@ ModelInspector::ModelInspector() : EditorBlock{}
 
 HRESULT ModelInspector::Initialize()
 {
-	_resourcePath = ResourcePath; // 루트 시작 디렉토리
+	_resourcePath = ResourcePath;
 	strcpy_s(_pathBuffer, ToString(_resourcePath).c_str());
 	Scan_ModelFiles(_resourcePath);
 	return S_OK;
@@ -95,30 +95,42 @@ void ModelInspector::Scan_AnimFiles(const wstring& modelDirectory)
 
 void ModelInspector::Render_ModelList()
 {
-	ImGui::Text("Models (.model)");
-	ImGuiWindowFlags windowFlags = ImGuiWindowFlags_HorizontalScrollbar;
-	ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.15f, 0.15f, 0.15f, 1.0f));
-	if (ImGui::BeginChild("ModelListRegion", ImVec2(0, 100), true, windowFlags))
-	{
-		for (const auto& path : _cachedModelPaths)
-		{
-			string fileName = path.filename().string();
-			bool isSelected = (_selectedModelPath == path.string());
+    ImGui::Text("Models (.model)");
 
-			if (ImGui::Selectable(fileName.c_str(), isSelected, 0, ImVec2(150, 0)))
-			{
-				_selectedModelPath = path.string();
-				Scan_AnimFiles(path.parent_path().wstring());
-			}
+    if (ImGui::BeginChild("ModelListRegion", ImVec2(0, 200), true, ImGuiWindowFlags_HorizontalScrollbar))
+    {
+        for (const auto& path : _cachedModelPaths)
+        {
+            const string fileName = path.filename().string();
+            const string fullPath = path.string();
+            const bool isSelected = (_selectedModelPath == fullPath);
 
-			if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
-			{
-				Load_SelectedAsset(".model");
-			}
-		}
-	}
-	ImGui::EndChild();
-	ImGui::PopStyleColor();
+            // 표시될 이름과 고유 식별자(경로)를 '##'로 구분하여 ImGui ID 충돌을 방지합니다.
+            string imguiId = fileName + "##" + fullPath;
+
+            if (ImGui::Selectable(imguiId.c_str(), isSelected, 0, ImVec2(200, 0)))
+            {
+                _selectedModelPath = fullPath;
+                Scan_AnimFiles(path.parent_path().wstring());
+                _selectedModelGuid = GAME->Ensure_AssetGUID(path.wstring(), "Model");
+
+                Load_SelectedAsset(".model");
+            }
+
+            // 툴팁으로 전체 경로 정보 제공
+            if (ImGui::IsItemHovered())
+            {
+                ImGui::BeginTooltip();
+                ImGui::Text("File: %s", fileName.c_str());
+                ImGui::Text("Path: %s", fullPath.c_str());
+                ImGui::EndTooltip();
+            }
+        }
+    }
+    ImGui::EndChild();
+
+    if (!_selectedModelGuid.empty())
+        ImGui::Text("Model GUID: %s", _selectedModelGuid.c_str());
 }
 
 void ModelInspector::Render_AnimList()
@@ -127,13 +139,13 @@ void ModelInspector::Render_AnimList()
 
     auto viewer = ModelImGui_Manager::GetInstance()->Get_CurrentModelObject();
 
-    // Toggles and Dropdown for Animation Settings
     ImGui::Checkbox("Loop", &_isLoop);
     ImGui::SameLine();
     ImGui::Checkbox("Root Motion", &_isRootMotion);
     ImGui::SameLine();
+    ImGui::Checkbox("Root Motion Log", &_isRootMotionLog);
+    ImGui::SameLine();
 
-    // Root Node Selection Dropdown
     if (viewer && viewer->Get_ModelComponent())
     {
         uint32 numBones = viewer->Get_NumBones();
@@ -162,7 +174,7 @@ void ModelInspector::Render_AnimList()
 	ImGuiWindowFlags windowFlags = ImGuiWindowFlags_HorizontalScrollbar;
 	ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.15f, 0.15f, 0.15f, 1.0f));
 
-	if (ImGui::BeginChild("AnimListRegion", ImVec2(0, 150), true, windowFlags))
+	if (ImGui::BeginChild("AnimListRegion", ImVec2(0, 200), true, windowFlags))
 	{
         if (!viewer || !viewer->Get_Component<ModelCom>())
         {
@@ -193,6 +205,17 @@ void ModelInspector::Render_AnimList()
         {
             ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.f),
                 "No animations available or non-skeletal model.");
+        }
+
+        if (_isRootMotionLog)
+        {
+            auto modelCom = viewer->Get_ModelComponent();
+            if (modelCom)
+            {
+                Vec3 translation;
+                const RootMotionFrame& rootMatrix = modelCom->Get_RootTransformVelocity();
+                LOG_INFO("  - Translation: x: {:.3f}, y: {:.3f}, z: {:.3f}\n ", rootMatrix.position.x, rootMatrix.position.y, rootMatrix.position.z);
+            }
         }
 	}
 	ImGui::EndChild();

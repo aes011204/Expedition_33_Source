@@ -1,4 +1,4 @@
-#include "SkeletalMesh.h"
+﻿#include "SkeletalMesh.h"
 
 #include "Bone.h"
 #include "ShaderCom.h"
@@ -82,6 +82,17 @@ HRESULT SkeletalMesh::Bind_BoneMatrices(ShaderCom* shader, const char* constantN
     for (uint32 i = 0; i < _numBones; ++i)
     {
         _boneMatrices[i] = _offsetMatrices[i] * *bones[_boneIndices[i]]->Get_CombinedTransformationMatrixPtr();
+    }
+
+    return shader->Bind_Matrices(constantName, _boneMatrices, _numBones);
+}
+
+HRESULT SkeletalMesh::Bind_BoneMatrices(ShaderCom* shader, const char* constantName,
+    const vector<Matrix>& combinedMatrices)
+{
+    for (uint32 i = 0; i < _numBones; ++i)
+    {
+        _boneMatrices[i] = _offsetMatrices[i] * combinedMatrices[_boneIndices[i]];
     }
 
     return shader->Bind_Matrices(constantName, _boneMatrices, _numBones);

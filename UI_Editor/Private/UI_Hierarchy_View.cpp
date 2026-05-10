@@ -6,6 +6,8 @@ namespace UIEditor
 {
     namespace
     {
+        constexpr const char* kHierarchyDragDropPayload = "UI_EDITOR_HIERARCHY_OBJECT";
+
         bool Has_ChildObject(const vector<UI_Object>& objects, ObjectId parentId)
         {
             for (const UI_Object& object : objects)
@@ -38,16 +40,29 @@ namespace UIEditor
             _isHovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows);
 
             ImGuiTreeNodeFlags canvasFlags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth;
-            if (_editorManager.Get_SelectedObjectId() == 0)
+            if (!_editorManager.Has_SelectedObjects())
                 canvasFlags |= ImGuiTreeNodeFlags_Selected;
 
-            const bool isCanvasOpen = ImGui::TreeNodeEx("CanvasRoot", canvasFlags, "Canvas");
+            const string& canvasName = _editorManager.Get_Document().Get_CanvasName();
+            const char* canvasLabel = canvasName.empty() ? "Canvas" : canvasName.c_str();
+            const bool isCanvasOpen = ImGui::TreeNodeEx("CanvasRoot", canvasFlags, "%s", canvasLabel);
             if (ImGui::IsItemClicked())
-                _editorManager.Set_SelectedObjectId(0);
+                _editorManager.Clear_Selection();
+
+            if (ImGui::BeginDragDropTarget())
+            {
+                if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(kHierarchyDragDropPayload))
+                {
+                    const ObjectId droppedObjectId = *static_cast<const ObjectId*>(payload->Data);
+                    _editorManager.Reparent_UIObject(droppedObjectId, 0);
+                }
+
+                ImGui::EndDragDropTarget();
+            }
 
             if (ImGui::BeginPopupContextItem("CanvasContextMenu", ImGuiPopupFlags_MouseButtonRight))
             {
-                _editorManager.Set_SelectedObjectId(0);
+                _editorManager.Clear_Selection();
                 Render_ContextMenu(0);
                 ImGui::EndPopup();
             }
@@ -60,7 +75,7 @@ namespace UIEditor
 
             if (ImGui::BeginPopupContextWindow("HierarchyEmptyContextMenu", ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems))
             {
-                _editorManager.Set_SelectedObjectId(0);
+                _editorManager.Clear_Selection();
                 Render_ContextMenu(0);
                 ImGui::EndPopup();
             }
@@ -86,16 +101,44 @@ namespace UIEditor
             ImGuiTreeNodeFlags nodeFlags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
             if (!hasChildren)
                 nodeFlags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
-            if (_editorManager.Get_SelectedObjectId() == object.id)
+            if (_editorManager.Is_ObjectSelected(object.id))
                 nodeFlags |= ImGuiTreeNodeFlags_Selected;
 
             const bool isOpen = ImGui::TreeNodeEx(reinterpret_cast<void*>(static_cast<intptr_t>(object.id)), nodeFlags, "%s", object.name.c_str());
             if (ImGui::IsItemClicked())
-                _editorManager.Set_SelectedObjectId(object.id);
+            {
+                ImGuiIO& io = ImGui::GetIO();
+                if (io.KeyCtrl)
+                    _editorManager.Toggle_Selection(object.id);
+                else if (io.KeyShift)
+                    _editorManager.Add_ToSelection(object.id);
+                else
+                    _editorManager.Set_SingleSelection(object.id);
+            }
+
+            if (ImGui::BeginDragDropSource())
+            {
+                const ObjectId payloadObjectId = object.id;
+                ImGui::SetDragDropPayload(kHierarchyDragDropPayload, &payloadObjectId, sizeof(payloadObjectId));
+                ImGui::TextUnformatted(object.name.c_str());
+                ImGui::EndDragDropSource();
+            }
+
+            if (_editorManager.Get_Document().Can_HaveChildren(object.id) && ImGui::BeginDragDropTarget())
+            {
+                if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(kHierarchyDragDropPayload))
+                {
+                    const ObjectId droppedObjectId = *static_cast<const ObjectId*>(payload->Data);
+                    _editorManager.Reparent_UIObject(droppedObjectId, object.id);
+                }
+
+                ImGui::EndDragDropTarget();
+            }
 
             if (ImGui::BeginPopupContextItem())
             {
-                _editorManager.Set_SelectedObjectId(object.id);
+                if (!_editorManager.Is_ObjectSelected(object.id))
+                    _editorManager.Set_SingleSelection(object.id);
                 Render_ContextMenu(object.id);
                 ImGui::EndPopup();
             }
@@ -113,7 +156,14 @@ namespace UIEditor
         Render_CreateMenu();
 
         if (objectId == 0)
+        {
+            ImGui::Separator();
+
+            if (ImGui::MenuItem("Rename"))
+                _editorManager.Request_RenameCanvas();
+
             return;
+        }
 
         ImGui::Separator();
 
@@ -185,7 +235,7 @@ namespace UIEditor
             if (submitted || ImGui::Button("OK"))
             {
                 if (_renameBuffer[0] != '\0')
-                    object->name = _renameBuffer;
+                    _editorManager.Rename_UIObject(_renamingObjectId, _renameBuffer);
 
                 _renamingObjectId = 0;
                 ImGui::CloseCurrentPopup();
@@ -206,7 +256,10 @@ namespace UIEditor
     {
         if (_pendingDeleteObjectId != 0)
         {
-            _editorManager.Delete_UIObject(_pendingDeleteObjectId);
+            if (_editorManager.Is_ObjectSelected(_pendingDeleteObjectId) && _editorManager.Get_SelectedObjectCount() > 1)
+                _editorManager.Delete_SelectedUIObject();
+            else
+                _editorManager.Delete_UIObject(_pendingDeleteObjectId);
             _pendingDeleteObjectId = 0;
             _pendingDuplicateObjectId = 0;
             _hasPendingCreateObject = false;
@@ -215,7 +268,10 @@ namespace UIEditor
 
         if (_pendingDuplicateObjectId != 0)
         {
-            _editorManager.Duplicate_UIObject(_pendingDuplicateObjectId);
+            if (_editorManager.Is_ObjectSelected(_pendingDuplicateObjectId) && _editorManager.Get_SelectedObjectCount() > 1)
+                _editorManager.Duplicate_SelectedUIObject();
+            else
+                _editorManager.Duplicate_UIObject(_pendingDuplicateObjectId);
             _pendingDuplicateObjectId = 0;
             _hasPendingCreateObject = false;
             return;

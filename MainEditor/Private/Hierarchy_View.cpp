@@ -1,8 +1,10 @@
 ﻿#include "Hierarchy_View.h"
-
 #include "EditorInstance.h"
 #include "GameInstance.h"
 #include "GameObject.h"
+#include "Client_Defines.h"
+#include "ContainerObject.h"
+#include "PartObject.h"
 
 Hierarchy_View::Hierarchy_View()
     : Editor_Window{ L"Hierarchy" }
@@ -81,14 +83,28 @@ void Hierarchy_View::Rebuild_Cache()
 {
     _groupedObjects.clear();
 
-    GAME->Visit_CurrentLevelObjects(
-        [this](const wstring& layerTag, const Shared<GameObject>& gameObject)
+    auto appendLevelObjects =
+        [this](uint32 levelIndex, const char* levelLabel)
         {
-            if (gameObject == nullptr)
-                return;
+            GAME->Visit_LevelObjects(
+                levelIndex,
+                [this, levelLabel](const wstring& layerTag, const Shared<GameObject>& gameObject)
+                {
+                    if (gameObject == nullptr)
+                        return;
 
-            _groupedObjects[layerTag].push_back(gameObject);
-        });
+                    const wstring groupedLayerTag =
+                        String::ToWString(format("[{}] {}", levelLabel, String::ToString(layerTag)));
+
+                    _groupedObjects[groupedLayerTag].push_back(gameObject);
+                });
+        };
+
+    appendLevelObjects(ETOI(LevelType::Static), "Static");
+
+    const uint32 currentLevelIndex = GAME->Current_LevelIndex();
+    if (currentLevelIndex != ETOI(LevelType::Static))
+        appendLevelObjects(currentLevelIndex, "Current");
 
     _dirtyHierarchyCache = false;
 }
@@ -201,22 +217,7 @@ void Hierarchy_View::Render()
                             continue;
                         }
 
-                        const bool isSelected = (selectedObject == gameObject);
-                        const string label = Build_HierarchyLabel(gameObject, objectIndex);
-
-                        ImGui::PushID(gameObject.get());
-
-                        if (ImGui::Selectable(label.c_str(), isSelected))
-                            EDITOR->Select_Object(gameObject);
-
-                        if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
-                        {
-                            EDITOR->Select_Object(gameObject);
-                            EDITOR->Request_FocusObject(gameObject);
-                            EDITOR->Request_WindowFocus(EDITOR_VIEWPORT_TARGET::Scene);
-                        }
-
-                        ImGui::PopID();
+                        Draw_NodeObject(gameObject, objectIndex);
 
                         ++objectIndex;
                     }
@@ -240,22 +241,7 @@ void Hierarchy_View::Render()
                                 continue;
                             }
 
-                            const bool isSelected = (selectedObject == gameObject);
-                            const string label = Build_HierarchyLabel(gameObject, objectIndex);
-
-                            ImGui::PushID(gameObject.get());
-
-                            if (ImGui::Selectable(label.c_str(), isSelected))
-                                EDITOR->Select_Object(gameObject);
-
-                            if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
-                            {
-                                EDITOR->Select_Object(gameObject);
-                                EDITOR->Request_FocusObject(gameObject);
-                                EDITOR->Request_WindowFocus(EDITOR_VIEWPORT_TARGET::Scene);
-                            }
-
-                            ImGui::PopID();
+                            Draw_NodeObject(gameObject, objectIndex);
 
                             ++objectIndex;
                         }
@@ -269,6 +255,79 @@ void Hierarchy_View::Render()
 
     Set_Open(isOpen);
     ImGui::End();
+}
+
+void Hierarchy_View::Draw_NodeObject(const Shared<GameObject>& gameObject, uint32 objectIndex)
+{
+    if (gameObject == nullptr) return;
+
+    const Shared<GameObject> selectedObject = EDITOR->Selected_Object();
+    const bool isSelected = (selectedObject == gameObject);
+    const string label = Build_HierarchyLabel(gameObject, objectIndex);
+
+    ImGui::PushID(gameObject.get());
+
+    Shared<ContainerObject> container = dynamic_pointer_cast<ContainerObject>(gameObject);
+    bool isContainer = (container != nullptr) && !container->Get_PartObjects().empty();
+
+    ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
+    if (isSelected)
+        flags |= ImGuiTreeNodeFlags_Selected;
+    if (!isContainer)
+        flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
+
+    bool nodeOpen = ImGui::TreeNodeEx(label.c_str(), flags);
+
+    if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen())
+    {
+        EDITOR->Select_Object(gameObject);
+    }
+
+    if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+    {
+        EDITOR->Select_Object(gameObject);
+        EDITOR->Request_FocusObject(gameObject);
+        EDITOR->Request_WindowFocus(EDITOR_VIEWPORT_TARGET::Scene);
+    }
+
+    if (nodeOpen && isContainer)
+    {
+        uint32 partIndex = 0;
+        for (const auto& [partTag, partObject] : container->Get_PartObjects())
+        {
+            if (partObject == nullptr) continue;
+
+            ImGui::PushID(partObject.get());
+
+            const bool isPartSelected = (selectedObject == partObject);
+            const string partLabel = Build_HierarchyLabel(partObject, partIndex++);
+
+            // 파츠 오브젝트는 더 이상 자식이 없다고 가정하고 Leaf 노드로 출력
+            ImGuiTreeNodeFlags partFlags = ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen |
+                ImGuiTreeNodeFlags_SpanAvailWidth;
+            if (isPartSelected)
+                partFlags |= ImGuiTreeNodeFlags_Selected;
+
+            ImGui::TreeNodeEx(partLabel.c_str(), partFlags);
+
+            if (ImGui::IsItemClicked())
+            {
+                EDITOR->Select_Object(partObject);
+            }
+
+            if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+            {
+                EDITOR->Select_Object(partObject);
+                EDITOR->Request_FocusObject(partObject);
+                EDITOR->Request_WindowFocus(EDITOR_VIEWPORT_TARGET::Scene);
+            }
+
+            ImGui::PopID();
+        }
+        ImGui::TreePop(); // 폴더 닫기
+    }
+
+    ImGui::PopID();
 }
 
 Shared<Hierarchy_View> Hierarchy_View::Create()

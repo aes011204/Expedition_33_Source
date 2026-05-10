@@ -285,6 +285,27 @@ void SceneContext::LoadFromFile(const string& filePath)
 
 }
 
+void SceneContext::SpawnObject(const wstring& modelPath, const Vec3& pos)
+{
+    auto obj = make_shared<EditorObject>();
+
+    obj->_type = EObjectType::StaticMesh;
+    obj->_modelPath = modelPath;
+    obj->_position = pos;
+    obj->_scale = Vec3(1.f, 1.f, 1.f);
+    obj->_rotation = Quat::Identity;
+
+    const wstring filename = fs::path(modelPath).stem().wstring();
+    obj->_name = filename.empty() ? L"SM_New" : filename;
+
+    obj->_worldMatrix = Matrix::CreateScale(obj->_scale)
+        * Matrix::CreateFromQuaternion(obj->_rotation)
+        * Matrix::CreateTranslation(obj->_position);
+
+    _dirtyRenderHandles = true;
+    Add(obj);
+}
+
 void SceneContext::Add(Shared<EditorObject> obj)
 {
     if (obj)
@@ -325,3 +346,4 @@ Shared<EditorObject> SceneContext::Duplicate(const Shared<EditorObject>& src)
     _dirtyRenderHandles = true;
     return copy;
 }
+

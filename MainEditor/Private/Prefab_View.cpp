@@ -1,5 +1,5 @@
 ﻿#include "Prefab_View.h"
-
+#include "Notification_Manager.h"
 #include "EditorInstance.h"
 #include "GameInstance.h"
 #include "GameObject.h"
@@ -9,9 +9,10 @@
 #include "Editor_Camera_Free.h"
 #include "Inspector.h"
 #include "Helper_String.h"
+#include "Animation_View.h"
 #include "ModelCom.h"
 #include "RenderTarget.h"
-#include <algorithm>
+#include "imgui_internal.h"
 
 Prefab_View::Prefab_View()
     : Editor_Window(L"Prefab")
@@ -23,6 +24,9 @@ void Prefab_View::Update(float timeDelta)
 {
     Editor_Window::Update(timeDelta);
 
+    if (Is_AnimationViewFocused())
+        return;
+
     if (_isPreviewHovered && _previewCamera)
         _previewCamera->Priority_Update(timeDelta);
 }
@@ -30,6 +34,9 @@ void Prefab_View::Update(float timeDelta)
 void Prefab_View::Pre_Render()
 {
     if (!Is_Open())
+        return;
+
+    if (Is_AnimationViewFocused())
         return;
 
     if (_previewObject == nullptr || _previewCamera == nullptr)
@@ -92,6 +99,12 @@ void Prefab_View::Pre_Render()
     _previewObject->Late_Update(dt);
     Lock_PreviewObjectToOrigin();
 
+    if (_requestResetPreviewCamera)
+    {
+        Reset_PreviewCameraPose();
+        _requestResetPreviewCamera = false;
+    }
+
     GAME->Draw_RendererOnly();
     Draw_PreviewGrid();
     GAME->Set_Lights(savedLightDescs);
@@ -118,12 +131,20 @@ void Prefab_View::Render()
     if (Is_Dirty())
         title += " *";
 
+    if (_openAnimationViewWithPrefab)
+        Prepare_AnimationViewSiblingDock();
+
     ImGuiWindowFlags windowFlags =
-        ImGuiWindowFlags_NoDocking |
         ImGuiWindowFlags_NoScrollbar |
         ImGuiWindowFlags_NoScrollWithMouse;
 
-    if (_applyDefaultWindowLayout)
+    if (_pendingDockId != 0)
+        ImGui::SetNextWindowDockID(_pendingDockId, ImGuiCond_Always);
+
+    if (_focusPrefabFrames > 0)
+        ImGui::SetNextWindowFocus();
+
+    if (_applyDefaultWindowLayout && _pendingDockId == 0)
     {
         ImGuiViewport* viewport = ImGui::GetMainViewport();
         const ImVec2 defaultSize = ImVec2(1500.f, 920.f);
@@ -139,11 +160,21 @@ void Prefab_View::Render()
         }
     }
 
+    _isFocused = false;
+    _isHovered = false;
+
     if (ImGui::Begin(title.c_str(), &isOpen, windowFlags))
     {
         _applyDefaultWindowLayout = false;
+        if (_pendingDockId != 0 || _focusPrefabFrames > 0)
+            ImGui::SetWindowFocus();
+
         _isFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows);
         _isHovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows);
+        _dockId = ImGui::GetWindowDockID();
+        _pendingDockId = 0;
+        if (_focusPrefabFrames > 0)
+            --_focusPrefabFrames;
 
         Draw_Header();
         ImGui::Separator();
@@ -171,6 +202,12 @@ void Prefab_View::Render()
 
     Set_Open(isOpen);
     ImGui::End();
+
+    if (_focusPrefabFrames > 0)
+        ImGui::SetWindowFocus(title.c_str());
+
+    if (_pendingOpenAnimationView)
+        Open_PendingAnimationView();
 }
 
 bool Prefab_View::CanSave() const
@@ -184,7 +221,15 @@ void Prefab_View::Save()
         return;
 
     if (SUCCEEDED(GAME->Save_GameObjectJson(_prefabPath, _previewObject)))
+    {
         ClearDirty();
+        if (EDITOR->Get_Notification())
+            EDITOR->Get_Notification()->Add_Notification("프리펩 저장: {}", _prefabName);
+    }
+    else if (EDITOR->Get_Notification())
+    {
+        EDITOR->Get_Notification()->Add_Notification_With_Type(NotifyType::Warning, "프리펩 저장 실패: {}", _prefabName);
+    }
 }
 
 void Prefab_View::Open_Prefab(const string& prefabName, const fs::path& prefabPath)
@@ -193,13 +238,16 @@ void Prefab_View::Open_Prefab(const string& prefabName, const fs::path& prefabPa
     _prefabPath = prefabPath;
     _sourceStaticClass.clear();
     _applyDefaultWindowLayout = true;
+    _openAnimationViewWithPrefab = true;
 
     _previewObject = GAME->Instantiate_GameObjectJson(prefabPath);
     _previewCamera = nullptr;
     _previewHasBegunPlay = false;
+    _requestResetPreviewCamera = false;
 
     if (_previewObject)
     {
+        Disable_PreviewAnimNotifyExecution(_previewObject);
         _sourceStaticClass = _previewObject->Get_ReflectionInfo().className;
 
         if (_sourceStaticClass.empty())
@@ -209,28 +257,20 @@ void Prefab_View::Open_Prefab(const string& prefabName, const fs::path& prefabPa
 
         if (_previewCamera)
         {
-            Editor_Camera_Free::EDITOR_CAMERA_DESC desc{};
-            desc.eye = XMFLOAT4(0.f, 1.5f, -5.f, 1.f);
-            desc.at = XMFLOAT4(0.f, 0.f, 0.f, 1.f);
-            desc.fovy = XM_PIDIV4;
-            desc.nearPlane = 0.1f;
-            desc.farPlane = 100.f;
-            desc.yaw = 0.f;
-            desc.pitch = 0.f;
-            desc.mouseSensor = 0.15f;
-            desc.speedPerSec = 10.f;
-            desc.degreePerSec = 180.f;
+            Editor_Camera_Free::EDITOR_CAMERA_DESC desc = Build_PreviewCameraDesc(_previewObject);
 
             if (FAILED(_previewCamera->Initialize(&desc)))
                 _previewCamera = nullptr;
             else
+            {
                 _previewCamera->Apply_EditorDesc(desc);
+                Apply_PreviewCameraTransform(_previewCamera);
+            }
         }
 
         Lock_PreviewObjectToOrigin();
-
-        Reset_PreviewCameraPose();
         Ensure_PreviewGridResources();
+        _requestResetPreviewCamera = true;
     }
 
     _selectionType = SelectionType::GameObject;
@@ -259,9 +299,16 @@ void Prefab_View::Close_Prefab()
     _previewWidth = 512;
     _previewHeight = 512;
     _previewHasBegunPlay = false;
+    _requestResetPreviewCamera = false;
     _isPreviewHovered = false;
     _isPreviewActive = false;
     _applyDefaultWindowLayout = false;
+    _openAnimationViewWithPrefab = false;
+    _pendingOpenAnimationView = false;
+    _dockId = 0;
+    _pendingDockId = 0;
+    _pendingAnimationDockId = 0;
+    _focusPrefabFrames = 0;
 
     _selectionType = SelectionType::None;
     _selectedObjectKey.clear();
@@ -275,6 +322,94 @@ void Prefab_View::Close_Prefab()
 bool Prefab_View::Is_PreviewPrefab(const string& prefabName) const
 {
     return Is_Open() && _prefabName == prefabName;
+}
+
+Shared<ModelCom> Prefab_View::Find_FirstModelComponent() const
+{
+    function<Shared<ModelCom>(const Shared<GameObject>&)> findRecursive =
+        [&](const Shared<GameObject>& gameObject) -> Shared<ModelCom>
+    {
+        if (gameObject == nullptr)
+            return nullptr;
+
+        Shared<ModelCom> foundModel = nullptr;
+        gameObject->Visit_Components([&](const wstring&, const Shared<Component>& component)
+        {
+            if (foundModel == nullptr)
+                foundModel = dynamic_pointer_cast<ModelCom>(component);
+        });
+
+        if (foundModel != nullptr)
+            return foundModel;
+
+        Shared<ContainerObject> container = dynamic_pointer_cast<ContainerObject>(gameObject);
+        if (container == nullptr)
+            return nullptr;
+
+        for (const auto& [partTag, partObject] : container->Get_PartObjects())
+        {
+            UNREFERENCED_PARAMETER(partTag);
+
+            if (Shared<ModelCom> partModel = findRecursive(partObject))
+                return partModel;
+        }
+
+        return nullptr;
+    };
+
+    return findRecursive(_previewObject);
+}
+
+void Prefab_View::Prepare_AnimationViewSiblingDock()
+{
+    _openAnimationViewWithPrefab = false;
+
+    Shared<ModelCom> modelCom = Find_FirstModelComponent();
+    if (modelCom == nullptr)
+        return;
+
+    ImGuiViewport* viewport = ImGui::GetMainViewport();
+    const ImVec2 defaultSize = ImVec2(1500.f, 920.f);
+    const ImVec2 defaultPos = viewport
+        ? ImVec2(viewport->GetCenter().x - defaultSize.x * 0.5f, viewport->GetCenter().y - defaultSize.y * 0.5f)
+        : ImVec2(80.f, 80.f);
+
+    const ImGuiID dockId = ImHashStr(("PrefabAnimationDock_" + _prefabName).c_str());
+    ImGui::DockBuilderRemoveNode(dockId);
+    ImGui::DockBuilderAddNode(dockId, ImGuiDockNodeFlags_None);
+    ImGui::DockBuilderSetNodePos(dockId, defaultPos);
+    ImGui::DockBuilderSetNodeSize(dockId, defaultSize);
+    ImGui::DockBuilderFinish(dockId);
+
+    _dockId = dockId;
+    _pendingDockId = dockId;
+    _pendingAnimationDockId = dockId;
+    _pendingOpenAnimationView = true;
+    _focusPrefabFrames = 10;
+    _applyDefaultWindowLayout = false;
+}
+
+void Prefab_View::Open_PendingAnimationView()
+{
+    _pendingOpenAnimationView = false;
+
+    Shared<ModelCom> modelCom = Find_FirstModelComponent();
+    if (modelCom == nullptr)
+        return;
+
+    Shared<Editor_Window> animationWindow = EDITOR->Get_Window(L"Animation");
+    Shared<Animation_View> animationView = dynamic_pointer_cast<Animation_View>(animationWindow);
+    if (animationView == nullptr)
+        return;
+
+    string preferredAnimation{};
+    if (modelCom->Get_NumAnimations() > 0)
+    {
+        if (const char* animationName = modelCom->Get_AnimationName(0))
+            preferredAnimation = animationName;
+    }
+
+    animationView->Open_FromModelComponent(modelCom, preferredAnimation, _pendingAnimationDockId, false);
 }
 
 void Prefab_View::Draw_Header()
@@ -627,6 +762,67 @@ Shared<GameObject> Prefab_View::Find_GameObjectByKey(const Shared<GameObject>& r
     return findRecursive(rootObject, L"Root");
 }
 
+Editor_Camera_Free::EDITOR_CAMERA_DESC Prefab_View::Build_PreviewCameraDesc(const Shared<GameObject>& gameObject)
+{
+    UNREFERENCED_PARAMETER(gameObject);
+
+    Editor_Camera_Free::EDITOR_CAMERA_DESC desc{};
+    desc.eye = XMFLOAT4(1.15f, 1.35f, 5.2f, 1.f);
+    desc.at = XMFLOAT4(0.25f, 1.0f, 0.f, 1.f);
+    desc.fovy = XM_PIDIV4;
+    desc.nearPlane = 0.1f;
+    desc.farPlane = 100.f;
+    desc.yaw = 0.f;
+    desc.pitch = 0.f;
+    desc.mouseSensor = 0.15f;
+    desc.speedPerSec = 5.f;
+    desc.degreePerSec = 180.f;
+
+    return desc;
+}
+
+void Prefab_View::Apply_PreviewCameraTransform(const Shared<Editor_Camera_Free>& camera)
+{
+    if (camera == nullptr)
+        return;
+
+    Shared<TransformCom> cameraTransform = camera->Get_Transform();
+    if (cameraTransform == nullptr)
+        return;
+
+    cameraTransform->Set_WorldPosition(Vec3(-1.75f, 2.35f, 6.5f));
+    cameraTransform->LookAt(Vec3(-0.35f, -3.65f, -14.8f));
+}
+
+void Prefab_View::Disable_PreviewAnimNotifyExecution(const Shared<GameObject>& gameObject)
+{
+    if (gameObject == nullptr)
+        return;
+
+    gameObject->Visit_Components([&](const wstring&, const Shared<Component>& component)
+    {
+        Shared<ModelCom> modelCom = dynamic_pointer_cast<ModelCom>(component);
+        if (modelCom != nullptr)
+            modelCom->Set_AnimNotifyExecutionEnabled(false);
+    });
+
+    Shared<ContainerObject> container = dynamic_pointer_cast<ContainerObject>(gameObject);
+    if (container == nullptr)
+        return;
+
+    for (const auto& [partTag, partObject] : container->Get_PartObjects())
+    {
+        UNREFERENCED_PARAMETER(partTag);
+        Disable_PreviewAnimNotifyExecution(partObject);
+    }
+}
+
+bool Prefab_View::Is_AnimationViewFocused()
+{
+    Shared<Editor_Window> animationWindow = EDITOR->Get_Window(L"Animation");
+    Shared<Animation_View> animationView = dynamic_pointer_cast<Animation_View>(animationWindow);
+    return animationView != nullptr && animationView->Is_Open() && animationView->Is_Focused();
+}
 
 void Prefab_View::Ensure_PreviewRenderTarget(uint32 width, uint32 height)
 {
@@ -715,19 +911,8 @@ void Prefab_View::Reset_PreviewCameraPose()
     if (_previewObject == nullptr || _previewCamera == nullptr)
         return;
 
-    Editor_Camera_Free::EDITOR_CAMERA_DESC desc{};
-    desc.eye = XMFLOAT4(0.f, 1.5f, -5.f, 1.f);
-    desc.at = XMFLOAT4(0.f, 0.f, 0.f, 1.f);
-    desc.fovy = XM_PIDIV4;
-    desc.nearPlane = 0.1f;
-    desc.farPlane = 100.f;
-    desc.yaw = 0.f;
-    desc.pitch = 0.f;
-    desc.mouseSensor = 0.15f;
-    desc.speedPerSec = 5.f;
-    desc.degreePerSec = 180.f;
-
-    _previewCamera->Apply_EditorDesc(desc);
+    _previewCamera->Apply_EditorDesc(Build_PreviewCameraDesc(_previewObject));
+    Apply_PreviewCameraTransform(_previewCamera);
 }
 
 void Prefab_View::Lock_PreviewObjectToOrigin()
@@ -758,6 +943,14 @@ void Prefab_View::Draw_PreviewGrid() const
     _previewGridEffect->SetView(*GAME->Get_Transform(D3DTS::View));
     _previewGridEffect->SetProjection(*GAME->Get_Transform(D3DTS::Proj));
 
+    // GS particle/effect pass가 남긴 상태를 정리해야 한다.
+    ID3D11GeometryShader* nullGeometryShader = nullptr;
+    context->GSSetShader(nullGeometryShader, nullptr, 0);
+
+    ID3D11ShaderResourceView* nullSRVs[1] = { nullptr };
+    context->PSSetShaderResources(0, 1, nullSRVs);
+
+    context->RSSetState(nullptr);
     context->IASetInputLayout(_previewGridInputLayout.Get());
     context->OMSetDepthStencilState(_previewGridDepthState.Get(), 0);
     context->OMSetBlendState(nullptr, nullptr, 0xffffffff);

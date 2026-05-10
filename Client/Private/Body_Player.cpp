@@ -28,8 +28,8 @@ HRESULT Body_Player::Initialize(void* arg)
         return E_FAIL;
 	}
 		
-
-	_modelCom->Set_Animation(/*rand() % 20*/1, true);
+    _rootBoneIndex = _modelCom->Get_BoneIndex("root");
+    _modelCom->Set_LocalRootNode(_rootBoneIndex);
 
 	return S_OK;
 }
@@ -50,7 +50,6 @@ void Body_Player::Late_Update(float fTimeDelta)
 {
 	GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
 	GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
-
 }
 
 HRESULT Body_Player::Render()

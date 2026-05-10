@@ -30,31 +30,77 @@ void ContainerObject::BeginPlay()
 {
     GameObject::BeginPlay();
 
-    for (auto& [_, partObject] : _partObjects)
+    for (auto& partObject : _partObjectUpdateOrder)
+    {
+        if (partObject)
+            partObject->BeginPlay();
+    }
+}
+
+json ContainerObject::To_Json() const
+{
+    json root = GameObject::To_Json();
+    json parts = json::array();
+
+    for (const auto& [partTag, partObject] : _partObjects)
     {
         if (partObject == nullptr)
             continue;
 
-        partObject->BeginPlay();
+        json partJson = json::object();
+        partJson["part_tag"] = String::ToString(partTag);
+        partJson["object"] = partObject->To_Json();
+
+        parts.emplace_back(partJson);
+    }
+
+    root["parts"] = parts;
+
+    return root;
+}
+
+void ContainerObject::From_Json(const json& data)
+{
+    GameObject::From_Json(data);
+
+    if (!data.contains("parts") || !data["parts"].is_array())
+        return;
+
+    for (const json& partJson : data["parts"])
+    {
+        if (!partJson.is_object())
+            continue;
+
+        if (!partJson.contains("part_tag") || !partJson.contains("object"))
+            continue;
+
+        const string partTagString = partJson["part_tag"].get<string>();
+        const wstring partTag = String::ToWString(partTagString);
+
+        PartObject* partObject = Get_PartObject(partTag);
+        if (partObject == nullptr)
+            continue;
+
+        partObject->From_Json(partJson["object"]);
     }
 }
 
 void ContainerObject::Priority_Update(float timeDelta)
 {
-	for (auto& Pair : _partObjects)
-		Pair.second->Priority_Update(timeDelta);
+	for (auto& partObject : _partObjectUpdateOrder)
+        partObject->Priority_Update(timeDelta);
 }
 
 void ContainerObject::Update(float timeDelta)
 {
-	for (auto& Pair : _partObjects)
-		Pair.second->Update(timeDelta);
+	for (auto& partObject : _partObjectUpdateOrder)
+        partObject->Update(timeDelta);
 }
 
 void ContainerObject::Late_Update(float timeDelta)
 {
-	for (auto& Pair : _partObjects)
-		Pair.second->Late_Update(timeDelta);
+	for (auto& partObject : _partObjectUpdateOrder)
+        partObject->Late_Update(timeDelta);
 }
 
 HRESULT ContainerObject::Render()
@@ -68,13 +114,16 @@ HRESULT ContainerObject::Add_PartObject(uint32 prototypeLevelIndex, const wstrin
 	if (nullptr != Find_PartObject(partTag))
 		return E_FAIL;
 
-	Shared<PartObject> partObject = static_pointer_cast<PartObject>(GAME->Clone_Prototype(Prototype::GameObject, prototypeLevelIndex, prototypeTag, arg));
+	Shared<PartObject> partObject = static_pointer_cast<PartObject>(
+        GAME->Clone_Prototype(Prototype::GameObject, prototypeLevelIndex, prototypeTag, arg));
+
 	if (nullptr == partObject)
 		return E_FAIL;
 
     partObject->Set_Owner(this->GetSharedPtr<GameObject>());
 
-	_partObjects.emplace(partTag, partObject);	
+	_partObjects.emplace(partTag, partObject);
+    _partObjectUpdateOrder.push_back(partObject);
 
 	return S_OK; 
 }
@@ -102,6 +151,7 @@ void ContainerObject::Free()
 {
 	__super::Free();
 
+    _partObjectUpdateOrder.clear();
 	_partObjects.clear();
 }
 

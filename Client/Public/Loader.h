@@ -2,8 +2,7 @@
 
 #include "Client_Defines.h"
 #include "Base.h"
-
-/* 지정된 다음 레벨에 필요한 리소스를 백그라운드 스레드에서 로딩한다. */
+#include "ResourceLoader.h"
 
 NS_BEGIN(Engine)
 class GameInstance;
@@ -14,39 +13,87 @@ NS_BEGIN(Client)
 class Loader final : public Base
 {
 public:
-	Loader(const ComPtr<Device>& device, const ComPtr<Context>& context);
-	virtual ~Loader() = default;
+    Loader(const ComPtr<Device>& device, const ComPtr<Context>& context);
+    virtual ~Loader() = default;
 
 public:
-	HRESULT Initialize(LevelType eNextLevelID);
-	HRESULT Loading();
-	bool isFinished() {
-		return _isFinished;
-	}
+    // - worker thread 여기에서 시작
+    HRESULT Initialize(LevelType eNextLevelID);
+    // - worker thread 진입점이 호출하는 실제 작업 함수
+    HRESULT Loading();
+
+    HRESULT Process_PendingLoadJobs(size_t maxJobPerFrame);
+
+    bool isFinished() { return _isFinished.load(); }
+    bool Has_Failed() const { return _hasFailed.load(); }
+
+    // 진행률. 그런데 33원정대 로딩에서 Progress Bar 없던거같은데
+    float Get_Progress() const;
+
+    bool Is_WorkerDone() const { return _workerDone.load() || _hasFailed.load(); }
+
 #ifdef _DEBUG
 public:
-	HRESULT Print_LoadingText();
+    HRESULT Print_LoadingText();
 #endif
 
 private:
-	ComPtr<Device> _device = { nullptr };
-	ComPtr<Context> _context = { nullptr };
-	HANDLE						_threadHandle = {};
-	CRITICAL_SECTION			_criticalSection = {};
-	LevelType						_nextLevel = { LevelType::END };
+    HRESULT Append_ResourceJobsForLevel(LevelType levelType);
+    HRESULT Load_ResourceJobsForLevel(LevelType levelType);
+    HRESULT Load_ResourceJobsForLevels(const vector<LevelType>& levelTypes);
+    HRESULT Load_ResourceJobsForNextLevel();
 
-	wchar_t						_loadingText[MAX_PATH] = {};
-	bool						_isFinished = { false };
+    HRESULT Loading_For_LogoLevel();
+    HRESULT Loading_For_GamePlayLevel();
+    HRESULT Loading_For_MapTestLevel();
+    HRESULT Loading_For_Stage01Level();
+
 private:
-	/* 로딩 스레드에서 json 테이블 기반 prototype을 등록할 때 호출한다. */
-	HRESULT Load_ResourceTablesForLevel(LevelType eLevel);
+    void Accumulate_LoadJobStats(ELoadJobType jobType, chrono::milliseconds duration);
+    void Print_LoadJobSummary();
 
-	HRESULT Loading_For_LogoLevel();
-	HRESULT Loading_For_GamePlayLevel();
+private:
+    static string Format_Duration(chrono::milliseconds duration);
+
+private:
+    struct LoadJobStats
+    {
+        size_t count = 0;
+        chrono::milliseconds totalDuration{0};
+    };
+
+private:
+    ComPtr<Device>              _device = {};
+    ComPtr<Context>             _context = {};
+
+    LevelType					_nextLevel = { LevelType::END };
+
+    atomic<bool>                _workerStarted = false;
+            
+    //HANDLE					_threadHandle = {};
+    //CRITICAL_SECTION			_criticalSection = {}; 이제 사용 안할듯?
+
+    // worker thread 완료 여부
+    atomic<bool>                _workerDone = false;
+    atomic<bool>                _isFinished = false;
+    atomic<bool>                _hasFailed = false;
+    atomic<bool>                _includedStaticJobs = false;
+
+    wchar_t						_loadingText[MAX_PATH] = {};
+
+    // worker가 만들어 놓은 job 목록
+    mutex               _pendingJobsMutex;
+    vector<FLoadJob>    _pendingJobs;
+
+    // 진행률 계산용
+    atomic<size_t>      _totalJobCount = 0;
+    atomic<size_t>      _completedJobCount = 0;
+
+    array<LoadJobStats, static_cast<size_t>(ELoadJobType::Unknown) + 1> _loadJobStats = {};
 
 public:
-	static Shared<Loader> Create(const ComPtr<Device>& device, const ComPtr<Context>& context, LevelType eNextLevelID);
-	virtual void Free() override;
+    static Shared<Loader> Create(const ComPtr<Device>& device, const ComPtr<Context>& context, LevelType eNextLevelID);
+    virtual void Free() override;
 
 };
 

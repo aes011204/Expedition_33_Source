@@ -1,4 +1,4 @@
-#include "Bone.h"
+﻿#include "Bone.h"
 
 Bone::Bone()
 {
@@ -18,6 +18,7 @@ HRESULT Bone::Initialize(const ModelBoneData& boneData)
 	_parentBoneIndex = boneData.parentBoneIndex;
 	_transformationMatrix = boneData.localTransform;
     _combinedTransformationMatrix = Matrix::Identity;
+    _offsetMatrix = boneData.offsetMatrix;
 
 	return S_OK;
 }

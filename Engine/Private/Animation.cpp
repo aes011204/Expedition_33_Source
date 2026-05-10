@@ -1,4 +1,4 @@
-#include "Animation.h"
+﻿#include "Animation.h"
 
 #include "Channel.h"
 #include "Bone.h"
@@ -18,6 +18,7 @@ Animation::Animation(const Animation& prototype)
 		_channels.push_back(ch->Clone());
 }
 
+
 HRESULT Animation::Initialize(const ModelAnimationData& animData, const vector<ModelChannelData>& channels)
 {
     _animationName = animData.name;
@@ -36,6 +37,36 @@ HRESULT Animation::Initialize(const ModelAnimationData& animData, const vector<M
 	}
 
 	return S_OK;
+}
+
+float Animation::Get_DurationSec() const
+{
+    return (_tickPerSecond > 0.f) ? (_duration / _tickPerSecond) : 0.f;
+}
+
+float Animation::Get_CurrentTimeSec() const
+{
+    return (_tickPerSecond > 0.f) ? (_currentTrackPosition / _tickPerSecond) : 0.f;
+}
+
+void Animation::Set_CurrentTimeSec(float timeSec)
+{
+    const float durationSec = Get_DurationSec();
+    const float clampedSec = ::clamp(timeSec, 0.f, durationSec);
+
+    _currentTrackPosition = clampedSec * _tickPerSecond;
+    ::fill(_currentKeyFrameIndices.begin(), _currentKeyFrameIndices.end(), 0);
+
+    for (auto& ch : _channels)
+        ch->ResetVelocityState();
+}
+
+void Animation::Evaluate_CurrentPose(const vector<Shared<Bone>>& bones, int32 rootNodeIndex, bool isLoop)
+{
+    for (uint32 i = 0; i < _numChannels; ++i)
+    {
+        _channels[i]->Update_TransformationMatrix(_currentKeyFrameIndices[i], _currentTrackPosition, _duration, bones, rootNodeIndex, isLoop);
+    }
 }
 
 void Animation::Set_Progress(float progress)

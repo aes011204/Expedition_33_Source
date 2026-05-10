@@ -19,13 +19,13 @@ BNode::NODE_STATE Task::Update(float deltaTime)
 
     NODE_STATE state = Logic_Update(deltaTime);
 
-    if (state != RUN)
+    if (state != BTNodeState::RUN)
     {
         OnFinish();
         _started = false;
     }
 
-    return state;
+    return Commit_State(state);
 }
 
 void Task::Abort()

@@ -228,6 +228,19 @@ PS_OUT_BACKBUFFER PS_MAIN_COMBINED(PS_IN In)
     return Out;
 }
 
+PS_OUT_BACKBUFFER PS_MAIN_COMBINED_SIMPLE(PS_IN In)
+{
+    PS_OUT_BACKBUFFER Out;
+
+    vector vDiffuse = g_DiffuseTexture.Sample(DefaultSampler, In.vTexcoord);
+
+    vector vShade = g_ShadeTexture.Sample(DefaultSampler, In.vTexcoord);
+    vector vSpecular = g_SpecularTexture.Sample(DefaultSampler, In.vTexcoord);
+
+    Out.vColor = vDiffuse * vShade + vSpecular;
+    return Out;
+}
+
 technique11 DefaultTechnique
 {
     pass Debug
@@ -272,5 +285,16 @@ technique11 DefaultTechnique
         VertexShader = compile vs_5_0 VS_MAIN();
         GeometryShader = NULL;
         PixelShader = compile ps_5_0 PS_MAIN_COMBINED();
+    }
+
+    pass CombinedSimple // index 4
+    {
+        SetRasterizerState(RS_Default);
+        SetDepthStencilState(DSS_None, 0);
+        SetBlendState(BS_Default, float4(0.f, 0.f, 0.f, 0.f), 0xffffffff);
+
+        VertexShader = compile vs_5_0 VS_MAIN();
+        GeometryShader = NULL;
+        PixelShader = compile ps_5_0 PS_MAIN_COMBINED_SIMPLE();
     }
 }

@@ -6,16 +6,25 @@
 NS_BEGIN(Engine)
 class ShaderCom;
 class ModelCom;
+class AIController;
 NS_END
 
 NS_BEGIN(Client)
 
-class Mon_AIController;
+class Mon_Lancleier_Weapon;
 
-class Monster final : public Character
+    class Mon_Lancleier_Body;
+
+    class Monster final : public Character
 {
     GENERATED_GAMEOBJECT(Monster, ObjectType::Monster)
-
+public:
+    enum class MonsterAction
+    {
+        Idle,
+        Move,
+        Attack
+    };
 public:
 	Monster(const ComPtr<Device>& device, const ComPtr<Context>& context);
 	Monster(const Monster& prototype);
@@ -24,25 +33,35 @@ public:
 public:
 	virtual HRESULT Initialize_Prototype() override;
 	virtual HRESULT Initialize(void* arg) override;
-	virtual void Priority_Update(float timeDelta) override;
-	virtual void Update(float timeDelta) override;
-	virtual void Late_Update(float timeDelta) override;
+	virtual void    Priority_Update(float timeDelta) override;
+	virtual void    Update(float timeDelta) override;
+	virtual void    Late_Update(float timeDelta) override;
 	virtual HRESULT Render() override;
     virtual HRESULT Render_Shadow() override;
 
 protected:
-	Shared<ShaderCom>	    _shader = { nullptr };
-	Shared<ModelCom>	    _model = { nullptr };
-    Shared<Mon_AIController>_aiCtrl = { nullptr };
+    Shared<Mon_Lancleier_Body> _body = {};
+    Shared<Mon_Lancleier_Weapon> _weapon = {};
+
+    Shared<AIController> _aiCtrl = { nullptr };
 
     Shared<ColliderCom>     _collider;
-
+    int32 _rootindex = {};
 protected:
 	HRESULT Ready_Components();
-	HRESULT Bind_ShaderResources();
+    HRESULT Ready_PartObjects();
+    HRESULT Bind_ShaderResources();
 
     HRESULT Ready_Collider();
 
+private:
+    MonsterAction _currentAction = MonsterAction::Idle;
+    MonsterAction _previousAction = MonsterAction::Idle;
+
+
+public:
+    void Set_CurrentAction(MonsterAction action) { _currentAction = action; }
+    MonsterAction Get_CurrentAction() const { return _currentAction; }
 
 public:
 	static Shared<Monster> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

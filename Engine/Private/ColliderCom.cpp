@@ -227,6 +227,58 @@ void ColliderCom::Set_CollisionPreset(Collision_Preset preset)
     }
 }
 
+void ColliderCom::Set_ShapeDesc(const ColliderShapeDesc& shapeDesc)
+{
+    _shapeDesc = shapeDesc;
+    _shapeDesc.shape = _shape;
+
+    switch (_shape)
+    {
+    case CollisionShape::AABB:
+    {
+        Shared<Bounding_AABB> aabb = dynamic_pointer_cast<Bounding_AABB>(_bounding);
+        if (aabb == nullptr)
+            break;
+
+        BoundingBox& origin = aabb->Get_OriginAABB();
+        origin.Center = _shapeDesc.center;
+        origin.Extents = _shapeDesc.extents;
+        break;
+    }
+
+    case CollisionShape::OBB:
+    {
+        Shared<Bounding_OBB> obb = dynamic_pointer_cast<Bounding_OBB>(_bounding);
+        if (obb == nullptr)
+            break;
+
+        BoundingOrientedBox& origin = obb->Get_OriginOBB();
+        origin.Center = _shapeDesc.center;
+        origin.Extents = _shapeDesc.extents;
+        origin.Orientation = Quat::CreateFromYawPitchRoll(
+            _shapeDesc.radians.y,
+            _shapeDesc.radians.x,
+            _shapeDesc.radians.z);
+        break;
+    }
+
+    case CollisionShape::Sphere:
+    {
+        Shared<Bounding_Sphere> sphere = dynamic_pointer_cast<Bounding_Sphere>(_bounding);
+        if (sphere == nullptr)
+            break;
+
+        BoundingSphere& origin = sphere->Get_OriginSphere();
+        origin.Center = _shapeDesc.center;
+        origin.Radius = _shapeDesc.radius;
+        break;
+    }
+
+    default:
+        break;
+    }
+}
+
 #ifdef _DEBUG
 HRESULT ColliderCom::Ready_DebugRenderResources()
 {

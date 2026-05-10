@@ -481,7 +481,9 @@ vcpkg_installed/
 /EngineSDK/inc/Engine/
 .agent/
 .claude/
+.gemini/
 .gemini/**
+.idea/
 /docs/
 
 # Ignore project build artifacts that still live under versioned Bin trees
@@ -503,5 +505,8 @@ Client/Bin/Client.pdb
 Engine/Bin/Engine.lib
 Engine/Bin/Engine.exp
 Engine/Bin/Engine.pdb
+
+# Ignore generated asset metadata files
+*.meta
 
 

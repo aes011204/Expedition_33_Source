@@ -5,6 +5,8 @@ NS_BEGIN(Engine)
 class ENGINE_DLL Selector :
     public Composite
 {
+    GENERATED_BTNODE(Selector, "Selector")
+
 public:
     Selector();
     virtual ~Selector();
