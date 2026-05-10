@@ -38,7 +38,10 @@ HRESULT ComputePointParticlePreview::Initialize_Prototype()
 
 HRESULT ComputePointParticlePreview::Initialize(void* arg)
 {
-    if (FAILED(__super::Initialize(arg)))
+    if (nullptr != arg)
+        _desc = *static_cast<ComputePointParticlePreviewDesc*>(arg);
+
+    if (FAILED(__super::Initialize(&_desc)))
         return E_FAIL;
 
     CHECK_FAILED(Ready_Components(), E_FAIL);
@@ -101,11 +104,12 @@ ComputePointParticleDesc ComputePointParticlePreview::Make_ComputePointParticleD
 {
     ComputePointParticleDesc desc{};
     desc.instanceCount = 96;
-    desc.center = Vec3{ 0.f, 2.f, 0.f };
+    desc.center = _desc.center;
     desc.range = Vec3{ 3.f, 1.f, 3.f };
     desc.scale = Vec2{ 0.12f, 0.28f };
     desc.lifeTime = Vec2{ 1.f, 2.f };
     desc.radius = Vec2{ 1.2f, 2.2f };
+    desc.drawMode = _desc.drawMode;
     desc.computeShaderLevelIndex = ETOI(LevelType::Static);
     desc.computeShaderPrototypeTag = L"ComputeShader_PointParticle";
 

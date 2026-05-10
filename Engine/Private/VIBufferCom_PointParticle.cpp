@@ -56,8 +56,39 @@ HRESULT VIBufferCom_PointParticle::Initialize(void* arg)
 
     CHECK_FAILED(Ready_InstanceSeedData(), E_FAIL);
     CHECK_FAILED(Ready_InstanceBuffer(), E_FAIL);
+    CHECK_FAILED(Ready_IndexedDrawBuffer(), E_FAIL);
+    CHECK_FAILED(Ready_IndirectArgsBuffer(), E_FAIL);
 
     return S_OK;
+}
+
+HRESULT VIBufferCom_PointParticle::Render()
+{
+    if (_instanceCount == 0)
+        return E_FAIL;
+
+    switch (_desc.drawMode)
+    {
+    case PointParticleDrawMode::Direct:
+        return __super::Render();
+
+    case PointParticleDrawMode::DrawInstancedIndirect:
+        if (nullptr == _indirectArgsBuffer)
+            return E_FAIL;
+
+        _context->DrawInstancedIndirect(_indirectArgsBuffer.Get(), 0);
+        return S_OK;
+
+    case PointParticleDrawMode::DrawIndexedInstancedIndirect:
+        if (nullptr == _indirectArgsBuffer || nullptr == _ib)
+            return E_FAIL;
+
+        _context->DrawIndexedInstancedIndirect(_indirectArgsBuffer.Get(), 0);
+        return S_OK;
+
+    default:
+        return E_FAIL;
+    }
 }
 
 void VIBufferCom_PointParticle::Drop(float timeDelta)
@@ -181,6 +212,71 @@ HRESULT VIBufferCom_PointParticle::Ready_InstanceBuffer()
     return S_OK;
 }
 
+HRESULT VIBufferCom_PointParticle::Ready_IndexedDrawBuffer()
+{
+    if (PointParticleDrawMode::DrawIndexedInstancedIndirect != _desc.drawMode)
+        return S_OK;
+
+    _numIndices = 1;
+    _indexStride = sizeof(uint16);
+
+    D3D11_BUFFER_DESC indexBufferDesc{};
+    indexBufferDesc.ByteWidth = _indexStride * _numIndices;
+    indexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
+    indexBufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+    indexBufferDesc.StructureByteStride = _indexStride;
+
+    const uint16 index = 0;
+
+    D3D11_SUBRESOURCE_DATA initialData{};
+    initialData.pSysMem = &index;
+
+    CHECK_FAILED(_device->CreateBuffer(&indexBufferDesc, &initialData, _ib.GetAddressOf()), E_FAIL);
+    return S_OK;
+}
+
+HRESULT VIBufferCom_PointParticle::Ready_IndirectArgsBuffer()
+{
+    if (PointParticleDrawMode::Direct == _desc.drawMode)
+        return S_OK;
+
+    D3D11_BUFFER_DESC argsBufferDesc{};
+    argsBufferDesc.Usage = D3D11_USAGE_DEFAULT;
+    argsBufferDesc.BindFlags = 0;
+    argsBufferDesc.CPUAccessFlags = 0;
+    argsBufferDesc.MiscFlags = D3D11_RESOURCE_MISC_DRAWINDIRECT_ARGS;
+
+    D3D11_SUBRESOURCE_DATA initialData{};
+
+    DrawInstancedIndirectArgs instancedArgs{};
+    DrawIndexedInstancedIndirectArgs indexedArgs{};
+
+    if (PointParticleDrawMode::DrawInstancedIndirect == _desc.drawMode)
+    {
+        instancedArgs.vertexCountPerInstance = _verticesPerInstance;
+        instancedArgs.instanceCount = _instanceCount;
+        instancedArgs.startVertexLocation = 0;
+        instancedArgs.startInstanceLocation = 0;
+
+        argsBufferDesc.ByteWidth = sizeof(DrawInstancedIndirectArgs);
+        initialData.pSysMem = &instancedArgs;
+    }
+    else
+    {
+        indexedArgs.indexCountPerInstance = _numIndices;
+        indexedArgs.instanceCount = _instanceCount;
+        indexedArgs.startIndexLocation = 0;
+        indexedArgs.baseVertexLocation = 0;
+        indexedArgs.startInstanceLocation = 0;
+
+        argsBufferDesc.ByteWidth = sizeof(DrawIndexedInstancedIndirectArgs);
+        initialData.pSysMem = &indexedArgs;
+    }
+
+    CHECK_FAILED(_device->CreateBuffer(&argsBufferDesc, &initialData, _indirectArgsBuffer.GetAddressOf()), E_FAIL);
+    return S_OK;
+}
+
 HRESULT VIBufferCom_PointParticle::Upload_InstancePayload()
 {
     if (nullptr == _instanceVB.Get() || _runtimePayload.empty())
@@ -239,5 +335,6 @@ Shared<Component> VIBufferCom_PointParticle::Clone(void* arg)
 
 void VIBufferCom_PointParticle::Free()
 {
+    _indirectArgsBuffer.Reset();
     __super::Free();
 }

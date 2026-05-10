@@ -2,7 +2,9 @@
 
 #include "EffectEditorCamera.h"
 #include "EffectEditorInstance.h"
+#include "ComputePointParticlePreview.h"
 #include "GameInstance.h"
+#include "PointParticlePreview.h"
 
 NS_BEGIN(EffectEditor)
 
@@ -83,28 +85,90 @@ HRESULT Level_EffectEditor::Ready_Layer_Camera(const wstring& layerTag)
 
 HRESULT Level_EffectEditor::Ready_Layer_Preview(const wstring& layerTag)
 {
-    // TODO : 임시 파티클이므로 나중에 변경할 것
-    //const HRESULT hr = GAME->Add_GameObject(
-    //    ETOI(LevelType::GamePlay),
-    //    L"GameObject_PointParticlePreview",
-    //    ETOI(LevelType::GamePlay),
-    //    layerTag
-    //);
-    //if (FAILED(hr))
-    //{
-    //    LOG_ERROR("Failed to add PointParticlePreview in Level_EffectEditor");
-    //    return E_FAIL;
-    //}
+    // TODO : 여기 있는 건 임시 파티클 들이므로 나중에 지울 것
+
+    Client::PointParticlePreview::PointParticlePreviewDesc instancedIndirectDesc{};
+    instancedIndirectDesc.drawMode = PointParticleDrawMode::DrawInstancedIndirect;
+    instancedIndirectDesc.center = Vec3{ -2.f, 2.f, 0.f };
+
+    const HRESULT instancedHr = GAME->Add_GameObject(
+        ETOI(LevelType::GamePlay),
+        L"GameObject_PointParticlePreview",
+        ETOI(LevelType::GamePlay),
+        layerTag,
+        &instancedIndirectDesc
+    );
+    if (FAILED(instancedHr))
+    {
+        LOG_ERROR("Failed to add DrawInstancedIndirect PointParticlePreview in Level_EffectEditor");
+        return E_FAIL;
+    }
+
+    Client::PointParticlePreview::PointParticlePreviewDesc indexedInstancedIndirectDesc{};
+    indexedInstancedIndirectDesc.drawMode = PointParticleDrawMode::DrawIndexedInstancedIndirect;
+    indexedInstancedIndirectDesc.center = Vec3{ 2.f, 2.f, 0.f };
+
+    const HRESULT indexedHr = GAME->Add_GameObject(
+        ETOI(LevelType::GamePlay),
+        L"GameObject_PointParticlePreview",
+        ETOI(LevelType::GamePlay),
+        layerTag,
+        &indexedInstancedIndirectDesc
+    );
+    if (FAILED(indexedHr))
+    {
+        LOG_ERROR("Failed to add DrawIndexedInstancedIndirect PointParticlePreview in Level_EffectEditor");
+        return E_FAIL;
+    }
+
+    Client::ComputePointParticlePreview::ComputePointParticlePreviewDesc computeDirectDesc{};
+    computeDirectDesc.drawMode = PointParticleDrawMode::Direct;
+    computeDirectDesc.center = Vec3{ 0.f, 2.f, 0.f };
 
     const HRESULT computeHr = GAME->Add_GameObject(
         ETOI(LevelType::GamePlay),
         L"GameObject_ComputePointParticlePreview",
         ETOI(LevelType::GamePlay),
-        layerTag
+        layerTag,
+        &computeDirectDesc
     );
     if (FAILED(computeHr))
     {
         LOG_ERROR("Failed to add ComputePointParticlePreview in Level_EffectEditor");
+        return E_FAIL;
+    }
+
+    Client::ComputePointParticlePreview::ComputePointParticlePreviewDesc computeInstancedIndirectDesc{};
+    computeInstancedIndirectDesc.drawMode = PointParticleDrawMode::DrawInstancedIndirect;
+    computeInstancedIndirectDesc.center = Vec3{ -4.f, 2.f, 0.f };
+
+    const HRESULT computeInstancedHr = GAME->Add_GameObject(
+        ETOI(LevelType::GamePlay),
+        L"GameObject_ComputePointParticlePreview",
+        ETOI(LevelType::GamePlay),
+        layerTag,
+        &computeInstancedIndirectDesc
+    );
+    if (FAILED(computeInstancedHr))
+    {
+        LOG_ERROR("Failed to add compute DrawInstancedIndirect preview in Level_EffectEditor");
+        return E_FAIL;
+    }
+
+    Client::ComputePointParticlePreview::ComputePointParticlePreviewDesc computeIndexedIndirectDesc{};
+    computeIndexedIndirectDesc.drawMode = PointParticleDrawMode::DrawIndexedInstancedIndirect;
+    computeIndexedIndirectDesc.center = Vec3{ 4.f, 2.f, 0.f };
+
+    const HRESULT computeIndexedHr = GAME->Add_GameObject(
+        ETOI(LevelType::GamePlay),
+        L"GameObject_ComputePointParticlePreview",
+        ETOI(LevelType::GamePlay),
+        layerTag,
+        &computeIndexedIndirectDesc
+    );
+    if (FAILED(computeIndexedHr))
+    {
+        LOG_ERROR("Failed to add compute DrawIndexedInstancedIndirect preview in Level_EffectEditor");
         return E_FAIL;
     }
 

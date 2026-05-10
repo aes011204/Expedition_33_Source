@@ -32,7 +32,10 @@ HRESULT PointParticlePreview::Initialize_Prototype()
 
 HRESULT PointParticlePreview::Initialize(void* arg)
 {
-    if (FAILED(__super::Initialize(arg)))
+    if (nullptr != arg)
+        _desc = *static_cast<PointParticlePreviewDesc*>(arg);
+
+    if (FAILED(__super::Initialize(&_desc)))
         return E_FAIL;
 
     if (FAILED(Ready_Components()))
@@ -105,13 +108,14 @@ PointParticleDesc PointParticlePreview::Make_PointParticleDesc() const
 {
     PointParticleDesc desc{};
     desc.instanceCount = 64;
-    desc.center = Vec3{ 0.f, 2.f, 0.f };
+    desc.center = _desc.center;
     desc.range = Vec3{ 2.f, 2.f, 2.f };
     desc.scale = Vec2{ 0.15f, 0.35f };
-    desc.pivot = Vec3{ 0.f, 2.f, 0.f };
+    desc.pivot = _desc.center;
     desc.speed = Vec2{ 0.5f, 1.5f };
     desc.lifeTime = Vec2{ 1.f, 2.f };
     desc.loop = true;
+    desc.drawMode = _desc.drawMode;
 
     return desc;
 }
