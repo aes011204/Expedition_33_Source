@@ -4,8 +4,12 @@
 
 namespace UIEditor
 {
+    class UI_DocumentSerializer;
+
     class UI_Document final
     {
+        friend class UI_DocumentSerializer;
+
     public:
         UI_Document();
 
@@ -14,6 +18,7 @@ namespace UIEditor
         const vector<UI_Object>& Get_Objects() const;
         ObjectId Create_Object(UI_ObjectType objectType, ObjectId parentId);
         ObjectId Duplicate_Object(ObjectId objectId, const ImVec2& offset);
+        vector<ObjectId> Import_PrefabObjects(const vector<UI_Object>& sourceObjects, const vector<ObjectId>& rootObjectIds, ObjectId parentId, const ImVec2& rootOffset);
         bool Delete_Object(ObjectId objectId);
         bool Change_Parent(ObjectId objectId, ObjectId newParentId, bool keepWorldPosition);
         bool Can_Parent(ObjectId objectId, ObjectId newParentId) const;

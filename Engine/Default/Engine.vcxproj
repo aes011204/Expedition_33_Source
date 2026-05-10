@@ -249,9 +249,12 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClInclude Include="..\Public\StaticMesh.h" />
     <ClInclude Include="..\Public\ThreadPool.h" />
     <ClInclude Include="..\Public\TypeRegistry.h" />
+    <ClInclude Include="..\Public\UI_Animation.h" />
     <ClInclude Include="..\public\UI_Base.h" />
+    <ClInclude Include="..\public\UI_Button.h" />
     <ClInclude Include="..\public\UI_Image.h" />
     <ClInclude Include="..\public\UI_Manager.h" />
+    <ClInclude Include="..\public\UI_Panel.h" />
     <ClInclude Include="..\public\UI_Text.h" />
     <ClInclude Include="..\public\UI_Transform.h" />
     <ClInclude Include="..\Public\VIBufferCom_Instance.h" />
@@ -353,9 +356,12 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClCompile Include="..\Private\Task.cpp" />
     <ClCompile Include="..\Private\ThreadPool.cpp" />
     <ClCompile Include="..\Private\TypeRegistry.cpp" />
+    <ClCompile Include="..\Private\UI_Animation.cpp" />
     <ClCompile Include="..\private\UI_Base.cpp" />
+    <ClCompile Include="..\private\UI_Button.cpp" />
     <ClCompile Include="..\private\UI_Image.cpp" />
     <ClCompile Include="..\private\UI_Manager.cpp" />
+    <ClCompile Include="..\private\UI_Panel.cpp" />
     <ClCompile Include="..\private\UI_Text.cpp" />
     <ClCompile Include="..\private\UI_Transform.cpp" />
     <ClCompile Include="..\Private\VIBufferCom_Instance.cpp" />
