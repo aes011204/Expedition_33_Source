@@ -25,11 +25,15 @@ public:
 public:
     HRESULT Initialize_Prototype() override;
     HRESULT Initialize(void* arg) override;
+    void    BeginPlay() override;
     void    Priority_Update(float timeDelta) override;
     void    Update(float timeDelta) override;
     void    Late_Update(float timeDelta) override;
     HRESULT Render() override;
     HRESULT Render_Shadow() override;
+
+private:
+    Matrix _offsetMatrix{};
 
 public:
     static Shared<Hair_Player> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

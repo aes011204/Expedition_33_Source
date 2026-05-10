@@ -1,6 +1,8 @@
 ﻿#include "AIController_Inspector.h"
 
 #include "AIController.h"
+#include "BT_View.h"
+#include "EditorInstance.h"
 #include "Inspector.h"
 #include <filesystem>
 
@@ -91,6 +93,35 @@ void AIController_Inspector::Draw_Inspector(const Shared<Component>& component)
 
         ImGui::EndCombo();
     }
+
+    const bool hasBTAsset = !currentPath.empty();
+
+    ImGui::BeginDisabled(!hasBTAsset);
+
+    if (ImGui::Button("Open BT"))
+    {
+        Shared<Editor_Window> window = EDITOR->Get_Window(L"BT View");
+        Shared<BT_View> btView = dynamic_pointer_cast<BT_View>(window);
+
+        if (btView)
+            btView->Open_BTAsset(currentPath);
+    }
+
+    ImGui::SameLine();
+
+    if (ImGui::Button("Open + Debug Me"))
+    {
+        Shared<Editor_Window> window = EDITOR->Get_Window(L"BT View");
+        Shared<BT_View> btView = dynamic_pointer_cast<BT_View>(window);
+
+        if (btView)
+        {
+            btView->Open_BTAsset(currentPath);
+            btView->Set_DebugTargetAIController(aiCtrl);
+        }
+    }
+
+    ImGui::EndDisabled();
 
     ImGui::Spacing();
 

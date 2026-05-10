@@ -49,6 +49,14 @@ void InputCom::Update_Input()
 
     _movementInput.isRunPressed = GAME->KeyPress(KEY_TYPE::SHIFT);
     _movementInput.isJumpDown = GAME->KeyDown(KEY_TYPE::SPACE);
+    _movementInput.isWalkDown = GAME->KeyDown(KEY_TYPE::CTRL);
+
+    _movementInput.isInteractionDown = GAME->KeyDown(KEY_TYPE::E);
+    _movementInput.isSuddenAttack = GAME->KeyDown(KEY_TYPE::F);
+
+    _movementInput.isMouseLDown = GAME->KeyDown(KEY_TYPE::LBUTTON);
+    _movementInput.isMouseRPress = GAME->KeyPress(KEY_TYPE::RBUTTON);
+    _movementInput.isMouseRUp = GAME->KeyUp(KEY_TYPE::RBUTTON);
 }
 
 bool InputCom::Has_MoveInput() const

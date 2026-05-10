@@ -26,10 +26,13 @@ public:
 	HRESULT Initialize_Prototype() override;
 	HRESULT Initialize(void* arg) override;
 	void    Priority_Update(float fTimeDelta) override;
-	void    Update(float fTimeDelta) override;
-	void    Late_Update(float fTimeDelta) override;
+	void    Update(float timeDelta) override;
+	void    Late_Update(float timeDelta) override;
 	HRESULT Render() override;
     HRESULT Render_Shadow() override;
+
+private:
+    Matrix _headOffsetMatrix{};
 
 public:
 	static Shared<Head_Player> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

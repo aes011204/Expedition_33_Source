@@ -12,6 +12,7 @@ public:
 
 public:
     HRESULT Bind_BoneMatrices(ShaderCom* shader, const char* constantName, const vector<Shared<Bone>>& bones) override;
+    HRESULT Bind_BoneMatrices(ShaderCom* shader, const char* constantName, const vector<Matrix>& combinedMatrices) override;
 
 public:
     HRESULT Initialize_Prototype(const ModelMeshData& meshData, const Matrix& preTransformMatrix);

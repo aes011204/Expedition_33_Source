@@ -15,12 +15,12 @@ class Body_Player final : public PlayableParts
 public:
 	typedef struct tagBodyPlayerDesc final : public PlayableParts::PLAYABLE_PART_DESC
 	{
-	}BODY_PLAYER_DESC;
+	} BODY_PLAYER_DESC;
 
 public:
 	Body_Player(const ComPtr<Device>& device, const ComPtr<Context>& context);
 	Body_Player(const Body_Player& prototype);
-	virtual ~Body_Player() = default;
+	~Body_Player() override = default;
 
 public:
 	virtual HRESULT Initialize_Prototype() override;
@@ -31,10 +31,25 @@ public:
 	virtual HRESULT Render() override;
     virtual HRESULT Render_Shadow() override;
 
+private:
+    int32 _rootBoneIndex{ -1 };
+
 public:
 	static Shared<Body_Player> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
 	virtual Shared<GameObject> Clone(void* arg) override;
 	virtual void Free() override;
+
+public:
+    enum class PlayerAnimation
+    {
+        Pl_Jump = 0,
+        Pl_Idle_0,
+        Pl_SprintStart,
+        Pl_SprintCycle,
+        Pl_Run,
+        Pl_Walk,
+        Pl_Idle_1,
+    };
 };
 
 NS_END

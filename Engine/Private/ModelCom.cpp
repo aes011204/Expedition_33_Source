@@ -134,11 +134,14 @@ const Matrix* ModelCom::Get_BoneMatrixPtr(const char* boneName) const
     if (boneIndex == -1)
         return nullptr;
 
-    return _bones[boneIndex]->Get_CombinedTransformationMatrixPtr();
+    return Get_BoneMatrixPtr(static_cast<uint32>(boneIndex));
 }
 
 const Matrix* ModelCom::Get_BoneMatrixPtr(uint32 boneIndex) const
 {
+    if (!_leaderPoseCombinedMatrices.empty())
+        return &_leaderPoseCombinedMatrices[boneIndex];
+
     return _bones[boneIndex]->Get_CombinedTransformationMatrixPtr();
 }
 
@@ -146,7 +149,7 @@ const RootMotionFrame& ModelCom::Get_RootTransformVelocity(float scaleOffset)
 {
     _rootFrameVelocity.position = scaleOffset * _rootOriginalFrameVelocity.position;
     _rootFrameVelocity.rotation = scaleOffset * _rootOriginalFrameVelocity.rotation;
-    
+
     return _rootFrameVelocity;
 }
 
@@ -205,7 +208,6 @@ bool ModelCom::Play_Animation(float timeDelta)
 
     const float previousTimeSec = Get_CurrentAnimationTimeSec();
 
-    bool isFinish = false;
     int32 rootIndex = _isRootMotion ? _rootNodeIndex : -1;
 
     if (_isBlending)
@@ -217,7 +219,7 @@ bool ModelCom::Play_Animation(float timeDelta)
         {
             _isBlending = false;
             _currentAnimIndex = _nextAnimIndex;
-            isFinish = _animations[_currentAnimIndex]->Update_TransformationMatrices(timeDelta, _bones, _isAnimLoop, rootIndex);
+            _isFinished = _animations[_currentAnimIndex]->Update_TransformationMatrices(timeDelta, _bones, _isAnimLoop, rootIndex);
             _rootOriginalFrameVelocity = rootIndex >= 0 ? _animations[_currentAnimIndex]->Get_TransformVelocity(rootIndex) : RootMotionFrame{};
         }
         else
@@ -235,7 +237,7 @@ bool ModelCom::Play_Animation(float timeDelta)
     }
     else
     {
-        isFinish = _animations[_currentAnimIndex]->Update_TransformationMatrices(timeDelta, _bones, _isAnimLoop, rootIndex);
+        _isFinished = _animations[_currentAnimIndex]->Update_TransformationMatrices(timeDelta, _bones, _isAnimLoop, rootIndex);
         _rootOriginalFrameVelocity = (rootIndex >= 0) ? _animations[_currentAnimIndex]->Get_TransformVelocity(rootIndex) : RootMotionFrame{};
     }
 
@@ -276,10 +278,10 @@ bool ModelCom::Play_Animation(float timeDelta)
         }
     }
 
-    if (isFinish && !_isAnimLoop)
+    if (_isFinished && !_isAnimLoop)
         Stop_AllNotifyStates(_isAnimNotifyExecutionEnabled);
 
-    return isFinish;
+    return _isFinished;
 }
 
 HRESULT ModelCom::Bind_Material(ShaderCom* shader, const char* constantName, uint32 meshIndex, MaterialTextureSlot slot, uint32 textureIndex)
@@ -289,7 +291,17 @@ HRESULT ModelCom::Bind_Material(ShaderCom* shader, const char* constantName, uin
 
 HRESULT ModelCom::Bind_BoneMatrices(ShaderCom* shader, const char* constantName, uint32 meshIndex)
 {
-    if (_numBones == 0) return S_OK;
+    if (_numBones == 0)
+        return S_OK;
+
+    if (!_leaderPoseCombinedMatrices.empty())
+    {
+        Update_LeaderPoseMatrices();
+        return _meshes[meshIndex]->Bind_BoneMatrices(
+            shader,
+            constantName,
+            _leaderPoseCombinedMatrices);
+    }
 
     return _meshes[meshIndex]->Bind_BoneMatrices(shader, constantName, _bones);
 }
@@ -312,6 +324,11 @@ wstring ModelCom::Normalize_ModelAssetPath(const char* modelFilePath)
         resolvedPath = resolvedPath.substr(0, extPos) + ".model";
 
     return fs::absolute(fs::path(String::ToWString(resolvedPath))).lexically_normal().wstring();
+}
+
+uint32 ModelCom::Get_AnimationIndex() const
+{
+    return _isBlending ? _nextAnimIndex : _currentAnimIndex;
 }
 
 float ModelCom::Get_CurrentAnimationDurationSec() const
@@ -559,6 +576,93 @@ int32 ModelCom::Find_ActiveNotifyStateIndex(const vector<ActiveAnimNotifyState>&
     return -1;
 }
 
+void ModelCom::Set_LeaderPoseComponent(const ModelCom* leaderModel)
+{
+    _leaderPoseModel = leaderModel;
+    _leaderPoseBoneMap.clear();
+    _leaderPoseCombinedMatrices.clear();
+
+    if (nullptr == _leaderPoseModel || !_isSkeletal || !_leaderPoseModel->Is_Skeletal())
+        return;
+
+    _leaderPoseBoneMap.resize(_numBones, -1);
+    _leaderPoseCombinedMatrices.resize(_numBones, Matrix::Identity);
+
+    for (uint32 i = 0; i < _numBones; ++i)
+    {
+        _leaderPoseBoneMap[i] =
+            _leaderPoseModel->Get_BoneIndex(_bones[i]->Get_BoneName());
+    }
+
+    Update_LeaderPoseMatrices();
+}
+
+void ModelCom::Clear_LeaderPoseComponent()
+{
+    _leaderPoseModel = nullptr;
+    _leaderPoseBoneMap.clear();
+    _leaderPoseCombinedMatrices.clear();
+}
+
+void ModelCom::Update_LeaderPoseMatrices()
+{
+    if (nullptr == _leaderPoseModel || _leaderPoseBoneMap.empty())
+        return;
+
+    vector<uint8> visited(_numBones, 0);
+
+    for (uint32 i = 0; i < _numBones; ++i)
+    {
+        Build_LeaderPoseMatrix(i, visited);
+    }
+}
+
+Matrix ModelCom::Convert_LeaderPoseMatrix(const Matrix& leaderMatrix) const
+{
+    /*Matrix leaderPrevInverse = _leaderPoseModel->Get_PreLocalTransformMatrix();
+    leaderPrevInverse.Invert();
+
+    return leaderMatrix * leaderPrevInverse * _preLocalTransformMatrix;*/
+    return leaderMatrix;
+}
+
+Matrix ModelCom::Build_LeaderPoseMatrix(uint32 boneIndex, vector<uint8>& visited)
+{
+    if (visited[boneIndex])
+        return _leaderPoseCombinedMatrices[boneIndex];
+
+    visited[boneIndex] = 1;
+
+    const int32 leaderBoneIndex = _leaderPoseBoneMap[boneIndex];
+
+    if (leaderBoneIndex >= 0)
+    {
+        _leaderPoseCombinedMatrices[boneIndex] =
+            Convert_LeaderPoseMatrix(
+                *_leaderPoseModel->Get_BoneMatrixPtr(static_cast<uint32>(leaderBoneIndex))
+            );
+
+        return _leaderPoseCombinedMatrices[boneIndex];
+    }
+
+    const int32 parentIndex = _bones[boneIndex]->Get_ParentIndex();
+
+    if (parentIndex >= 0)
+    {
+        _leaderPoseCombinedMatrices[boneIndex] =
+            _bones[boneIndex]->Get_TransformationMatrix() *
+            Build_LeaderPoseMatrix(static_cast<uint32>(parentIndex), visited);
+    }
+    else
+    {
+        _leaderPoseCombinedMatrices[boneIndex] =
+            _bones[boneIndex]->Get_TransformationMatrix() *
+            _preLocalTransformMatrix;
+    }
+
+    return _leaderPoseCombinedMatrices[boneIndex];
+}
+
 HRESULT ModelCom::Ready_Model(const char* modelPath)
 {
     std::string resolvedPath(modelPath);
@@ -713,6 +817,12 @@ HRESULT ModelCom::Ready_Model(const char* modelPath)
             stream.read(reinterpret_cast<char*>(&data.localTransform), sizeof(Matrix));
             stream.read(reinterpret_cast<char*>(&data.offsetMatrix), sizeof(Matrix));
             _bones.push_back(Bone::Create(data));
+        }
+
+        /* 바인드 포즈 초기화: 애니메이션 없이도 Combined 행렬이 유효하도록 1회 계산 */
+        for (uint32 i = 0; i < _numBones; ++i)
+        {
+            _bones[i]->Update_CombinedTransformationMatrix(_bones, _preLocalTransformMatrix);
         }
     }
 

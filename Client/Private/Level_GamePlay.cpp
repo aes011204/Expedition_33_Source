@@ -6,8 +6,12 @@
 #include "PointParticlePreview.h"
 #include "Spawn_Prefab.h"
 
+
 //#include "MapLoader.h"
 
+#include "TargetCamera.h"
+#include "MapLoader.h"
+#include "Spawn_Prefab.h"
 #include "UI_Image.h"
 #include "UI_RuntimeLoader.h"
 #include "UI_Text.h"
@@ -25,8 +29,8 @@ HRESULT Level_GamePlay::Initialize()
     if (FAILED(Ready_Layer_UI(TEXT("Layer_UI"))))
 		return E_FAIL;
 
-	//if (FAILED(Ready_Layer_Camera(TEXT("Layer_Camera"))))
-	//	return E_FAIL;
+	if (FAILED(Ready_Layer_Camera(TEXT("Layer_Camera"))))
+		return E_FAIL;
 
     if (FAILED(Ready_Layer_BackGround(TEXT("Layer_BackGround"))))
         return E_FAIL;
@@ -114,53 +118,38 @@ HRESULT Level_GamePlay::Ready_Layer_UI(const wstring& strLayerTag)
     return UI_RuntimeLoader::Load_Document(desc);
 }
 
-//HRESULT Level_GamePlay::Ready_Layer_Camera(const wstring& strLayerTag)
-//{
-//	FreeCamera::FREECAMERA_DESC		CameraDesc{};
-//
-//	CameraDesc.speedPerSec = 10.f;
-//	CameraDesc.degreePerSec = 180.f;
-//	CameraDesc.eye = XMFLOAT4(0.f, 10.f, -7.f, 1.f);
-//	CameraDesc.at = XMFLOAT4(0.f, 0.f, 0.f, 1.f);
-//	CameraDesc.fovy = XMConvertToRadians(60.f) ;
-//	CameraDesc.nearPlane = 0.1f;
-//	CameraDesc.farPlane = 500.f;
-//	CameraDesc.mouseSensor = 0.05f;
-//
-//	if (FAILED(GAME->Add_GameObject(ETOI(LevelType::Static), TEXT("GameObject_FreeCamera"),
-//		ETOI(LevelType::Static), strLayerTag, &CameraDesc)))
-//		return E_FAIL;
-//
-//    TargetCamera::TARGETCAMERA_DESC		TargetCameraDesc{};
-//
-//    TargetCameraDesc.speedPerSec = 10.f;
-//    TargetCameraDesc.degreePerSec = 180.f;
-//    TargetCameraDesc.eye = XMFLOAT4(0.f, 20.f, -7.f, 1.f);
-//    TargetCameraDesc.at = XMFLOAT4(0.f, 0.f, 0.f, 1.f);
-//    TargetCameraDesc.fovy = XMConvertToRadians(60.f);
-//    TargetCameraDesc.pitch = 0.f;
-//    TargetCameraDesc.yaw = 0.f;
-//    TargetCameraDesc.nearPlane = 0.1f;
-//    TargetCameraDesc.farPlane = 500.f;
-//    TargetCameraDesc.mouseSensor = 0.06f;
-//    TargetCameraDesc.followSpeed = 8.f;
-//    TargetCameraDesc.offset = Vec3 {0.5f, 1.f, 0.f};
-//    TargetCameraDesc.distance = 1.8f;
-//    TargetCameraDesc.sideOffset = 0.f;
-//    TargetCameraDesc.heightOffset = 0.5f;
-//    TargetCameraDesc.aimOffset = 0.5f;
-//    TargetCameraDesc.pitchLookScale = 0.5;
-//    TargetCameraDesc.pitchMin = -70.f;
-//    TargetCameraDesc.pitchMax = 80.f;
-//    TargetCameraDesc.lookHeight = 0.8f;
-//    TargetCameraDesc.pivotHeight =0.3f;
-//
-//    if (FAILED(GAME->Add_GameObject(ETOI(LevelType::Static), TEXT("GameObject_TargetCamera"),
-//        ETOI(LevelType::Static), strLayerTag, &TargetCameraDesc)))
-//        return E_FAIL;
-//
-//	return S_OK;
-//}
+HRESULT Level_GamePlay::Ready_Layer_Camera(const wstring& strLayerTag)
+{
+    TargetCamera::TARGETCAMERA_DESC		TargetCameraDesc{};
+
+    TargetCameraDesc.speedPerSec = 10.f;
+    TargetCameraDesc.degreePerSec = 180.f;
+    TargetCameraDesc.eye = XMFLOAT4(0.f, 20.f, -7.f, 1.f);
+    TargetCameraDesc.at = XMFLOAT4(0.f, 0.f, 0.f, 1.f);
+    TargetCameraDesc.fovy = XMConvertToRadians(60.f);
+    TargetCameraDesc.pitch = 0.f;
+    TargetCameraDesc.yaw = 0.f;
+    TargetCameraDesc.nearPlane = 0.1f;
+    TargetCameraDesc.farPlane = 500.f;
+    TargetCameraDesc.mouseSensor = 0.06f;
+    TargetCameraDesc.followSpeed = 8.f;
+    TargetCameraDesc.offset = Vec3 {0.5f, 1.f, 0.f};
+    TargetCameraDesc.distance = 1.8f;
+    TargetCameraDesc.sideOffset = 0.f;
+    TargetCameraDesc.heightOffset = 0.5f;
+    TargetCameraDesc.aimOffset = 0.5f;
+    TargetCameraDesc.pitchLookScale = 0.5;
+    TargetCameraDesc.pitchMin = -70.f;
+    TargetCameraDesc.pitchMax = 80.f;
+    TargetCameraDesc.lookHeight = 0.8f;
+    TargetCameraDesc.pivotHeight =0.3f;
+
+    if (FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_TargetCamera_GamePlay"),
+        ETOI(LevelType::GamePlay), strLayerTag, &TargetCameraDesc)))
+        return E_FAIL;
+
+	return S_OK;
+}
 
 HRESULT Level_GamePlay::Ready_Layer_BackGround(const wstring& strLayerTag)
 {
@@ -168,9 +157,9 @@ HRESULT Level_GamePlay::Ready_Layer_BackGround(const wstring& strLayerTag)
         ETOI(LevelType::GamePlay), strLayerTag)))
         return E_FAIL;
 
-    //if (FAILED(GAME->Add_GameObject(ETOI(LevelType::Static), TEXT("GameObject_Sky"),
-    //    ETOI(LevelType::Static), strLayerTag)))
-    //    return E_FAIL;
+    if (FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Sky_GamePlay"),
+        ETOI(LevelType::GamePlay), strLayerTag)))
+        return E_FAIL;
 
     if (FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_PointParticlePreview"),
         ETOI(LevelType::GamePlay), strLayerTag)))
@@ -187,25 +176,26 @@ HRESULT Level_GamePlay::Ready_Layer_Monster(const wstring& strLayerTag)
         ETOI(LevelType::GamePlay), strLayerTag)))
         return E_FAIL;
 
+    Shared<GameObject> monster = Client::Spawn_Prefab::Spawn(
+        "Monster123123",
+        ETOI(LevelType::GamePlay),
+        strLayerTag);
+
+    CHECK_NULL(monster, E_FAIL);
+    return S_OK;
     return S_OK;
 }
 
 HRESULT Level_GamePlay::Ready_Layer_Player(const wstring& strLayerTag)
 {
-    //if (FAILED(GAME->Add_GameObject(ETOI(LevelType::Static), TEXT("GameObject_Player"),
-    //    ETOI(LevelType::Static), strLayerTag)))
-    //    return E_FAIL;
+    auto player = Spawn_Prefab::Prefab("TestPlayer")
+        .AtLevel(ETOI(LevelType::GamePlay))
+        .InLayer(strLayerTag)
+        .Spawn();
 
-    auto goPlayer = CLIENT->Find_Player(ETOI(LevelType::Static));
-    if (goPlayer)
-    {
-        auto tr = goPlayer->Get_Transform();
-        if (tr)
-        {
-            Vec3 pos(10.f, 5.f, 10.f);
-            tr->Set_Position(pos);
-        }
-    }
+    auto tr = player->Get_Transform();
+    if (tr)
+        tr->Set_Position(Vec3(10.f, 5.f, 10.f));
 
     return S_OK;
 }
