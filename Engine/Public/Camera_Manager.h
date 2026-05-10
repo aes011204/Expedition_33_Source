@@ -20,6 +20,7 @@ public:
     void                 Change_ActiveCamera(Shared<Camera> camera);
     void                 SwitchTo_NextCamera();
     HRESULT              Add_Camera(Shared<Camera> camera);
+    void                 Remove_Camera(Shared<Camera> camera);
     Shared<Camera>       Find_Camera(Shared<Camera> camera);
     bool                 Is_ActiveCamera(Shared<Camera> camera);
     

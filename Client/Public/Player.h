@@ -14,6 +14,7 @@ NS_BEGIN(Client)
 
 class InputCom;
 class PlayerControllerCom;
+class CombatStatCom;
 class PlayerStateMachineCom;
 
 class Player final : public Character
@@ -43,14 +44,13 @@ protected:
 
 private:
     PlayerState                     _currentState;
-    float                           _testHp = 10.f;
 
-    Shared<MovementCom>             _movementCom{ nullptr };
-    Shared<InputCom>                _inputCom{ nullptr };
-    Shared<PlayerControllerCom>     _playerControllerCom{ nullptr };
-    Shared<PlayerStateMachineCom>   _PlayerStateMachineCom{ nullptr };
-    Shared<ColliderCom>             _colliderCom{ nullptr };
-
+    Shared<MovementCom>             _movementCom;
+    Shared<InputCom>                _inputCom;
+    Shared<PlayerControllerCom>     _playerControllerCom;
+    Shared<PlayerStateMachineCom>   _PlayerStateMachineCom;
+    Shared<ColliderCom>             _colliderCom;
+    Shared<CombatStatCom>           _combatStatCom;
 
 public:
 	static Shared<Player> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

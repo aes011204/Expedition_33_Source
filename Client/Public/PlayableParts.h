@@ -40,6 +40,11 @@ public:
     virtual HRESULT Render() override;
     virtual HRESULT Render_Shadow() override;
 
+    // 머리 붙이기
+    void Set_LeaderPoseComponent(const PlayableParts* leaderPart) const;
+    bool Has_LeaderPoseComponent() const;
+    void Update_LeaderPoseMatrices() const;
+
 protected:
     void Update_CombinedWorldMatrix(const Matrix& childMatrix) override;
 

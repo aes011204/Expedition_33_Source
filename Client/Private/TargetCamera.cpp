@@ -68,7 +68,7 @@ void TargetCamera::BeginPlay()
 
     GAME->Add_Camera(GetSharedPtr<Camera>());
     GAME->Change_ActiveCamera(GetSharedPtr<Camera>());
-    _targetTransformCom =  CLIENT->Find_Player(ETOI(LevelType::Static))->Get_Transform();
+    _targetTransformCom =  CLIENT->Find_Player(GAME->Current_LevelIndex())->Get_Transform();
     _prevTargetPos = _targetTransformCom.lock()->Get_WorldPosition();
     _smoothedTargetPos = _prevTargetPos;
 }

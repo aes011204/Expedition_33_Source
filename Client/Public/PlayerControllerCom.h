@@ -46,7 +46,6 @@ private:
     // 일단 33원정대 스타일에서는 필요없을거같음.
     bool                 _isWalkToggled{ false };
     bool                 _bUseControllerRotationYaw = true;
-
     float                _testRelfectionValue = 1.f;
 
 public:

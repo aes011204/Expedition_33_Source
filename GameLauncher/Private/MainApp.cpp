@@ -41,14 +41,6 @@ HRESULT MainApp::Initialize()
     if (FAILED(Ready_Fonts()))
         return E_FAIL;
 
-    if (FAILED(Ready_Prototype_For_Static_Level()))
-        return E_FAIL;
-
-    // Add
-    if (FAILED(CLIENT->Ready_StaticObjects()))
-        return E_FAIL;
-    //
-
     if (FAILED(Ready_StartLevel(LevelType::Logo)))
         return E_FAIL;
 

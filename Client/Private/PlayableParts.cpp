@@ -166,6 +166,30 @@ HRESULT PlayableParts::Render_Shadow()
     return S_OK;
 }
 
+void PlayableParts::Set_LeaderPoseComponent(const PlayableParts* leaderPart) const
+{
+    CHECK_NULL(_modelCom);
+
+    if (leaderPart && leaderPart->_modelCom)
+        _modelCom->Set_LeaderPoseComponent(leaderPart->_modelCom.get());
+    else
+        _modelCom->Clear_LeaderPoseComponent();
+}
+
+bool PlayableParts::Has_LeaderPoseComponent() const
+{
+    if (_modelCom == nullptr)
+        return false;
+
+    return _modelCom->Has_LeaderPoseComponent();
+}
+
+void PlayableParts::Update_LeaderPoseMatrices() const
+{
+    if (_modelCom)
+        _modelCom->Update_LeaderPoseMatrices();
+}
+
 void PlayableParts::Update_CombinedWorldMatrix(const Matrix& childMatrix)
 {
     Matrix socketMatrix = (nullptr != _socketMatrix) ? *_socketMatrix : Matrix::Identity;

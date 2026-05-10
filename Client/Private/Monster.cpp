@@ -75,7 +75,7 @@ void Monster::Update(float timeDelta)
     if (_aiCtrl)
     {
         Shared<BlackBoard> bb = _aiCtrl->Get_BlackBoard();
-        Shared<GameObject> player = CLIENT->Find_Player(ETOI(LevelType::Static));
+        Shared<GameObject> player = CLIENT->Find_Player(GAME->Current_LevelIndex());
 
         if (bb && player)
         {
