@@ -7,6 +7,7 @@
 #include "EffectEditorInstance.h"
 #include "GameInstance.h"
 #include "Level_EffectEditor.h"
+#include "Particle_Types.h"
 #include "Profile_View.h"
 #include "ResourceLoader.h"
 
@@ -14,6 +15,11 @@ NS_BEGIN(EffectEditor)
 
 EffectEditorApp::EffectEditorApp()
 {
+}
+
+EffectEditorApp::~EffectEditorApp()
+{
+    Free();
 }
 
 HRESULT EffectEditorApp::Initialize()
@@ -48,6 +54,7 @@ HRESULT EffectEditorApp::Initialize()
 
 #ifdef _DEBUG
     CHECK_FAILED(Run_ComputeShaderSmokeTest(), E_FAIL);
+    CHECK_FAILED(Run_ComputeInstancingSmokeTest(), E_FAIL);
 #endif
 
     EffectEditorDesc editorDesc{};
@@ -113,7 +120,7 @@ HRESULT EffectEditorApp::Render()
     {
         Profile_View::Scope profileScope("Game::Render");
 
-        if (FAILED(GAME->Clear_Buffers(defaultClearColor)))
+        if (FAILED(GAME->Clear_Buffers(kDefaultClearColor)))
             return E_FAIL;
 
         if (FAILED(GAME->Draw()))
@@ -167,17 +174,9 @@ HRESULT EffectEditorApp::Ready_PreviewLevel()
 
 HRESULT EffectEditorApp::Run_ComputeShaderSmokeTest()
 {
-    // TODO : Smoke test용. 정식 compute shader는 이후 DT_ComputeShader 같은 authoring table에 등록해 Id로 사용할 예정이다.
-    const wstring shaderPath = Get_ClientShaderPath(L"Compute/Shader_Compute_BufferSmoke.hlsl");
-    if (!fs::exists(shaderPath))
-    {
-        LOG_ERROR("Compute smoke shader not found: {}", String::ToString(shaderPath));
-        return E_FAIL;
-    }
-
     // 1. CPU에서 검증용 입력 데이터를 준비한다.
     // shader는 각 float4를 2배로 만들어 output buffer에 쓴다.
-    const array<Vec4, computeSmokeElementCount> inputData{
+    const array<Vec4, kComputeSmokeElementCount> inputData{
         Vec4{ 1.f, 2.f, 3.f, 4.f },
         Vec4{ 2.f, 3.f, 4.f, 5.f },
         Vec4{ 3.f, 4.f, 5.f, 6.f },
@@ -189,7 +188,7 @@ HRESULT EffectEditorApp::Run_ComputeShaderSmokeTest()
         _device,
         _context,
         sizeof(Vec4),
-        computeSmokeElementCount,
+        kComputeSmokeElementCount,
         inputData.data()
     );
     CHECK_NULL(inputBuffer, E_FAIL);
@@ -198,16 +197,13 @@ HRESULT EffectEditorApp::Run_ComputeShaderSmokeTest()
         _device,
         _context,
         sizeof(Vec4),
-        computeSmokeElementCount
+        kComputeSmokeElementCount
     );
     CHECK_NULL(outputBuffer, E_FAIL);
 
     // 3. compute-only hlsl을 cs_5_0으로 컴파일하고 CS_Main entry를 실행 대상으로 잡는다.
-    const auto computeShader = ComputeShaderCom::Create(
-        _device,
-        _context,
-        shaderPath.c_str(),
-        "CS_Main"
+    const auto computeShader = dynamic_pointer_cast<ComputeShaderCom>(
+        GAME->Clone_Prototype(Prototype::Comopnent, ETOI(LevelType::Static), TEXT("ComputeShader_BufferSmoke"))
     );
     CHECK_NULL(computeShader, E_FAIL);
 
@@ -215,7 +211,7 @@ HRESULT EffectEditorApp::Run_ComputeShaderSmokeTest()
     CHECK_FAILED(computeShader->Bind_SRV(0, inputBuffer->Get_SRV()), E_FAIL);
     CHECK_FAILED(computeShader->Bind_UAV(0, outputBuffer->Get_UAV()), E_FAIL);
 
-    const uint32 groupCount = (computeSmokeElementCount + computeSmokeThreadCount - 1) / computeSmokeThreadCount;
+    const uint32 groupCount = (kComputeSmokeElementCount + kComputeSmokeThreadCount - 1) / kComputeSmokeThreadCount;
     CHECK_FAILED(computeShader->Dispatch(groupCount, 1, 1), E_FAIL);
 
     // 5. GPU output buffer는 CPU가 직접 읽을 수 없으므로 staging buffer로 복사한다.
@@ -236,7 +232,7 @@ HRESULT EffectEditorApp::Run_ComputeShaderSmokeTest()
 
     const Vec4* resultData = static_cast<const Vec4*>(mappedSubResource.pData);
     bool valid = true;
-    for (uint32 i = 0; i < computeSmokeElementCount; ++i)
+    for (uint32 i = 0; i < kComputeSmokeElementCount; ++i)
     {
         const Vec4 expected = inputData[i] * 2.f;
         if (resultData[i].x != expected.x || resultData[i].y != expected.y || resultData[i].z != expected.z || resultData[i].w != expected.w)
@@ -258,6 +254,92 @@ HRESULT EffectEditorApp::Run_ComputeShaderSmokeTest()
     return S_OK;
 }
 
+HRESULT EffectEditorApp::Run_ComputeInstancingSmokeTest()
+{
+    const auto outputBuffer = ComputeStructuredBuffer::Create(
+        _device,
+        _context,
+        sizeof(ParticleInstanceVertex),
+        kComputeInstancingSmokeElementCount
+    );
+    CHECK_NULL(outputBuffer, E_FAIL);
+
+    const auto computeShader = dynamic_pointer_cast<ComputeShaderCom>(
+        GAME->Clone_Prototype(Prototype::Comopnent, ETOI(LevelType::Static), TEXT("ComputeShader_InstancingSmoke"))
+    );
+    CHECK_NULL(computeShader, E_FAIL);
+
+    CHECK_FAILED(computeShader->Bind_UAV(0, outputBuffer->Get_UAV()), E_FAIL);
+
+    const uint32 groupCount = (kComputeInstancingSmokeElementCount + kComputeInstancingSmokeThreadCount - 1) / kComputeInstancingSmokeThreadCount;
+    CHECK_FAILED(computeShader->Dispatch(groupCount, 1, 1), E_FAIL);
+
+    D3D11_BUFFER_DESC instanceBufferDesc{};
+    outputBuffer->Get_Buffer()->GetDesc(&instanceBufferDesc);
+    instanceBufferDesc.Usage = D3D11_USAGE_DEFAULT;
+    instanceBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+    instanceBufferDesc.CPUAccessFlags = 0;
+    instanceBufferDesc.MiscFlags = 0;
+
+    ComPtr<ID3D11Buffer> instanceBuffer{};
+    CHECK_FAILED(_device->CreateBuffer(&instanceBufferDesc, nullptr, instanceBuffer.GetAddressOf()), E_FAIL);
+
+    _context->CopyResource(instanceBuffer.Get(), outputBuffer->Get_Buffer());
+
+    D3D11_BUFFER_DESC stagingDesc{};
+    instanceBuffer->GetDesc(&stagingDesc);
+    stagingDesc.Usage = D3D11_USAGE_STAGING;
+    stagingDesc.BindFlags = 0;
+    stagingDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+
+    ComPtr<ID3D11Buffer> stagingBuffer{};
+    CHECK_FAILED(_device->CreateBuffer(&stagingDesc, nullptr, stagingBuffer.GetAddressOf()), E_FAIL);
+
+    _context->CopyResource(stagingBuffer.Get(), instanceBuffer.Get());
+
+    D3D11_MAPPED_SUBRESOURCE mappedSubResource{};
+    CHECK_FAILED(_context->Map(stagingBuffer.Get(), 0, D3D11_MAP_READ, 0, &mappedSubResource), E_FAIL);
+
+    const ParticleInstanceVertex* resultData = static_cast<const ParticleInstanceVertex*>(mappedSubResource.pData);
+    const bool valid = Validate_ComputeInstancePayload(resultData);
+
+    _context->Unmap(stagingBuffer.Get(), 0);
+
+    if (!valid)
+    {
+        LOG_ERROR("Compute instancing smoke test failed: instance payload mismatch.");
+        return E_FAIL;
+    }
+
+    LOG_INFO("Compute instancing smoke test passed.");
+    return S_OK;
+}
+
+bool EffectEditorApp::Validate_ComputeInstancePayload(const Engine::ParticleInstanceVertex* resultData) const
+{
+    if (nullptr == resultData)
+        return false;
+
+    for (uint32 i = 0; i < kComputeInstancingSmokeElementCount; ++i)
+    {
+        const float index = static_cast<float>(i);
+        const ParticleInstanceVertex& instance = resultData[i];
+
+        if (instance.right.x != 1.f || instance.right.y != 0.f || instance.right.z != 0.f || instance.right.w != 0.f)
+            return false;
+        if (instance.up.x != 0.f || instance.up.y != 1.f || instance.up.z != 0.f || instance.up.w != 0.f)
+            return false;
+        if (instance.look.x != 0.f || instance.look.y != 0.f || instance.look.z != 1.f || instance.look.w != 0.f)
+            return false;
+        if (instance.translation.x != index || instance.translation.y != index * 0.5f || instance.translation.z != 0.f || instance.translation.w != 1.f)
+            return false;
+        if (instance.lifeTime.x != 2.f || instance.lifeTime.y != index * 0.25f)
+            return false;
+    }
+
+    return true;
+}
+
 wstring EffectEditorApp::Get_ClientResourceRoot() const
 {
     wchar_t modulePath[MAX_PATH] = {};
@@ -274,22 +356,6 @@ wstring EffectEditorApp::Get_ClientResourcePath(const wchar_t* relativePath) con
         return Get_ClientResourceRoot();
 
     return (fs::path(Get_ClientResourceRoot()) / relativePath).lexically_normal().wstring();
-}
-
-wstring EffectEditorApp::Get_ClientShaderPath(const wchar_t* fileName) const
-{
-    wchar_t modulePath[MAX_PATH] = {};
-    if (0 == GetModuleFileNameW(nullptr, modulePath, MAX_PATH))
-        return {};
-
-    // 런타임 위치로부터 ShaderFiles 폴더 찾아가는 코드
-    const fs::path runtimeRoot = fs::path(modulePath).parent_path();
-    const fs::path shaderRoot = fs::absolute(runtimeRoot / L"../../../Client/Bin/ShaderFiles").lexically_normal();
-
-    if (nullptr == fileName || L'\0' == *fileName)
-        return shaderRoot.wstring();
-
-    return (shaderRoot / fileName).lexically_normal().wstring();
 }
 
 Unique<EffectEditorApp> EffectEditorApp::Create()

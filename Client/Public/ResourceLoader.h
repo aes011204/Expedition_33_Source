@@ -17,6 +17,7 @@ enum class ELoadJobType
     TextureCreate,
     TextureAppend,
     Shader,
+    ComputeShader,
     Model,
     GameObject,
     Component,
@@ -33,6 +34,7 @@ using FLoadJob = struct tagLoadJob
     wstring strPath = {};
 
     string strInputLayout = {};
+    string strEntryPoint = {};
     string strResourceType = {};
     string strModelType = {};
     string strClassName = {};

@@ -130,6 +130,12 @@
     <Filter Include="02.GameObject\Player\PlayerStateMachine\State">
       <UniqueIdentifier>{2ff895e8-c801-4ce1-8657-6b74912325b5}</UniqueIdentifier>
     </Filter>
+    <Filter Include="02.GameObject\Effect\PointParticle">
+      <UniqueIdentifier>{eed9e460-dd4d-43e8-ab48-b224711cbd67}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02.GameObject\Effect\ComputePointParticle">
+      <UniqueIdentifier>{ceac3f7c-9e53-4638-aa47-729e8f089b5d}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -191,9 +197,6 @@
     </ClInclude>
     <ClInclude Include="..\Public\Sky.h">
       <Filter>02.GameObject\Sky</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\PointParticlePreview.h">
-      <Filter>02.GameObject\Effect</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\CombatStatCom.h">
       <Filter>03. Component\CombatStat</Filter>
@@ -290,6 +293,14 @@
     <ClInclude Include="..\Public\Player_Jump.h">
       <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\GameDataTable.h" />
+    <ClInclude Include="..\Public\SkillTreeCom.h" />
+    <ClInclude Include="..\Public\PointParticlePreview.h">
+      <Filter>02.GameObject\Effect\PointParticle</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\ComputePointParticlePreview.h">
+      <Filter>02.GameObject\Effect\ComputePointParticle</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -336,9 +347,6 @@
     </ClCompile>
     <ClCompile Include="..\Private\Sky.cpp">
       <Filter>02.GameObject\Sky</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\PointParticlePreview.cpp">
-      <Filter>02.GameObject\Effect</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\ClientInstance.cpp">
       <Filter>00.Core</Filter>
@@ -438,6 +446,14 @@
     <ClCompile Include="..\Private\Player_Jump.cpp">
       <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\GameDataTable.cpp" />
+    <ClCompile Include="..\Private\SkillTreeCom.cpp" />
+    <ClCompile Include="..\Private\PointParticlePreview.cpp">
+      <Filter>02.GameObject\Effect\PointParticle</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\ComputePointParticlePreview.cpp">
+      <Filter>02.GameObject\Effect\ComputePointParticle</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">
@@ -464,9 +480,15 @@
     <FxCompile Include="..\Bin\ShaderFiles\Shader_UI.hlsl">
       <Filter>97.ShaderFiles</Filter>
     </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_PointParticle.hlsl">
+      <Filter>97.ShaderFiles\Compute</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_BufferSmoke.hlsl">
+      <Filter>97.ShaderFiles\Compute</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_InstancingSmoke.hlsl">
       <Filter>97.ShaderFiles\Compute</Filter>
     </FxCompile>
   </ItemGroup>
