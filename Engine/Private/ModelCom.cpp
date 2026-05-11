@@ -182,6 +182,69 @@ HRESULT ModelCom::Initialize(void* arg)
     return S_OK;
 }
 
+json ModelCom::To_Json() const
+{
+    json root = __super::To_Json();
+
+    if (!_sourceModelPath.empty())
+    {
+        const string modelGuid = GAME->Ensure_AssetGUID(_sourceModelPath, "Model");
+        if (!modelGuid.empty())
+            root["model_guid"] = modelGuid;
+    }
+
+    root["model_type"] = To_ModelTypeString(_type);
+
+    return root;
+}
+
+void ModelCom::From_Json(const json& data)
+{
+    __super::From_Json(data);
+
+    if (!data.contains("model_guid") || !data["model_guid"].is_string())
+        return;
+
+    const string modelGuid = data["model_guid"].get<string>();
+    if (modelGuid.empty())
+        return;
+
+    const string modelTypeString = data.value("model_type", To_ModelTypeString(_type));
+    const ModelType modelType = Parse_ModelType(modelTypeString);
+
+    const string currentGuid = _sourceModelPath.empty()
+        ? string{}
+        : GAME->Find_AssetGUID(_sourceModelPath);
+
+    if (modelGuid == currentGuid && modelType == _type)
+        return;
+
+    if (FAILED(Reload_ModelFromGuid(modelGuid, modelType)))
+        LOG_WARN("ModelCom::From_Json - failed to reload model. guid={}", modelGuid);
+}
+
+HRESULT ModelCom::Reload_ModelFromGuid(const string& guid, ModelType modelType)
+{
+    const wstring resolvedPath = GAME->Resolve_AssetPath(guid);
+    if (resolvedPath.empty())
+        return E_FAIL;
+
+    const fs::path modelPath = fs::path(resolvedPath).lexically_normal();
+    if (!fs::exists(modelPath) || !fs::is_regular_file(modelPath))
+        return E_FAIL;
+
+    Reset_ModelData();
+
+    _type = modelType;
+    _sourceModelPath = modelPath.wstring();
+
+    const string sourcePathUtf8 = String::ToString(_sourceModelPath);
+    CHECK_FAILED(Ready_Model(sourcePathUtf8.c_str()), E_FAIL);
+    CHECK_FAILED(Ready_Animation(sourcePathUtf8.c_str()), E_FAIL);
+
+    return S_OK;
+}
+
 HRESULT ModelCom::Render(uint32 meshIndex)
 {
     if (meshIndex >= _numMeshes)
@@ -894,6 +957,58 @@ HRESULT ModelCom::Ready_Animation(const char* modelPath)
     _numAnimations = trueAnimIndex;
 
     return S_OK;
+}
+
+void ModelCom::Reset_ModelData()
+{
+    Stop_AllNotifyStates(false);
+
+    _isSkeletal = false;
+    _hasLocalBounds = false;
+    _localBoundsMin = {};
+    _localBoundsMax = {};
+    _maxTextureType = 0;
+    _numMeshes = 0;
+    _numMaterials = 0;
+    _numBones = 0;
+    _numAnimations = 0;
+
+    _meshes.clear();
+    _materials.clear();
+    _bones.clear();
+    _animations.clear();
+
+    _isFinished = false;
+    _isAnimLoop = false;
+    _isBlending = false;
+    _currentAnimIndex = 0;
+    _nextAnimIndex = 0;
+    _blendDuration = 0.f;
+    _blendElapsedTime = 0.f;
+
+    _isRootMotion = false;
+    _rootNodeIndex = -1;
+    _rootOriginalFrameVelocity = {};
+    _rootFrameVelocity = {};
+
+    Invalidate_AnimNotifyAsset();
+    Clear_LeaderPoseComponent();
+}
+
+ModelType ModelCom::Parse_ModelType(const string& modelType)
+{
+    if (modelType == "Anim" || modelType == "ANIM" || modelType == "SkeletalMesh")
+        return ModelType::Anim;
+
+    if (modelType == "NonAnim" || modelType == "NONANIM" || modelType == "StaticMesh")
+        return ModelType::NonAnim;
+
+    return ModelType::NonAnim;
+}
+
+string ModelCom::To_ModelTypeString(ModelType modelType)
+{
+    return modelType == ModelType::Anim ? "Anim" : "NonAnim";
 }
 
 Shared<ModelCom> ModelCom::Create(const ComPtr<Device>& device, const ComPtr<Context>& context, ModelType type, const char* modelFilePath, const Matrix& preLocalTransformMatrix)

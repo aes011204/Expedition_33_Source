@@ -21,7 +21,6 @@ HRESULT Mon_Lancleier_Weapon::Initialize_Prototype()
 
 HRESULT Mon_Lancleier_Weapon::Initialize(void* arg)
 {
-
     auto* desc = static_cast<WEAPON_DESC*>(arg);
     if (desc == nullptr)
         return E_FAIL;
