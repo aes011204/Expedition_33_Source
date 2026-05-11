@@ -46,20 +46,21 @@ public:
     const TextureSlot* Find_TextureSlot(MaterialTextureSlot slot, uint32 textureIndex = 0) const;
 
 public:
-    MaterialShaderTemplate Get_TemplateId() const { return _templateId; }
-    const MaterialRenderState& Get_RenderState() const { return _renderState; }
-    const MaterialCB& Get_CB() const { return _cb; }
-    MaterialCB& Get_CB() { return _cb; }
-    uint32 Get_PassIndex() const;
+    MaterialShaderTemplate      Get_TemplateId() const { return _templateId; }
+    const MaterialRenderState&  Get_RenderState() const { return _renderState; }
+    const MaterialCB&           Get_CB() const { return _cb; }
+    MaterialCB&                 Get_CB() { return _cb; }
+    uint32                      Get_PassIndex();
 
     void Set_TemplateId(MaterialShaderTemplate templateId) { _templateId = templateId; }
     void Set_RenderState(const MaterialRenderState& renderState) { _renderState = renderState; }
     void Set_CB(const MaterialCB& cb);
+    void Set_ShaderType(ShaderType shaderType);
 
 private:
-	std::wstring Find_TextureFile(const std::filesystem::path& searchRoot, const std::string& fileName);
-	HRESULT Create_TextureSRV(const std::filesystem::path& texturePath, ID3D11ShaderResourceView** outSrv);
-
+	std::wstring    Find_TextureFile(const std::filesystem::path& searchRoot, const std::string& fileName);
+	HRESULT         Create_TextureSRV(const std::filesystem::path& texturePath, ID3D11ShaderResourceView** outSrv);
+    void            Refresh_PassIndex();
 private:
     string                          _materialName;
 
@@ -71,6 +72,10 @@ private:
     MaterialShaderTemplate          _templateId = MaterialShaderTemplate::OpaquePBR;
     MaterialRenderState             _renderState{};
     MaterialCB                      _cb{};
+
+    ShaderType                      _shaderType = ShaderType::VtxTex;
+    uint32                          _passIndex = 0;
+    bool                            _passDirty = true;
 
 public:
 	static Shared<Material> Create(const ComPtr<Device>& device, const ComPtr<Context>& context, const char* modelPath, const ModelMaterialData& materialData, const vector<ModelTextureSlot>& slots, uint32 maxTextureTypeSize);

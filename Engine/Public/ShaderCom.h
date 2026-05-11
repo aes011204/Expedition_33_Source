@@ -5,6 +5,7 @@
 
 NS_BEGIN(Engine)
 class Material;
+struct MaterialRenderState;
 
 class ENGINE_DLL ShaderCom final : public Component
 {
@@ -14,7 +15,7 @@ public:
     virtual ~ShaderCom() = default;
 
 public:
-    virtual HRESULT Initialize_Prototype(const wchar_t* shaderFilePath, const D3D11_INPUT_ELEMENT_DESC* elements, uint32 numElements);
+    virtual HRESULT Initialize_Prototype(const wchar_t* shaderFilePath, const D3D11_INPUT_ELEMENT_DESC* elements, uint32 numElements, ShaderType shader);
     virtual HRESULT Initialize(void* arg);
 
 public:
@@ -26,6 +27,8 @@ public:
     HRESULT Bind_RawValue(const char* constantName, const void* data, uint32 length);
 
     HRESULT Bind_MaterialTextures(const Material& material);
+
+    ShaderType  Get_Type() const { return _type; }
 private :
     HRESULT Update_CBuffer(ConstantBuffer cbType, const void* pData, size_t size);
 
@@ -44,6 +47,7 @@ private:
     uint32 _numPasses = 0;
 
     vector<ComPtr<ID3D11InputLayout>> _inputLayouts;
+    ShaderType                          _type;
 
     // 핸들
     ComPtr<ID3DX11EffectConstantBuffer>             _CB[ETOI(ConstantBuffer::END)]{};
@@ -58,7 +62,8 @@ public:
         const ComPtr<Context>& context,
         const wchar_t* shaderFilePath,
         const D3D11_INPUT_ELEMENT_DESC* elements,
-        uint32 numElements);
+        uint32 numElements,
+        ShaderType shade);
 
     virtual Shared<Component> Clone(void* arg) override;
     virtual void Free() override;

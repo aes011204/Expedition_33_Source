@@ -182,6 +182,8 @@ void Material_View::Draw_Settings()
     ImGui::SeparatorText("Settings");
 
     static char texRootBuf[512]{};
+    static char bundleDirBuf[512]{};
+    static char bundleNameBuf[256]{};
 
     auto syncToBufOnce = [](char* buf, size_t bufSize, const wstring& value)
     {
@@ -192,6 +194,8 @@ void Material_View::Draw_Settings()
     };
 
     syncToBufOnce(texRootBuf, sizeof(texRootBuf), _textureSearchRoot);
+    syncToBufOnce(bundleDirBuf, sizeof(bundleDirBuf), _bundleOutputDir);
+    syncToBufOnce(bundleNameBuf, sizeof(bundleNameBuf), _bundleOutputName);
 
     ImGui::TextDisabled("Texture Root");
     ImGui::SameLine(120.f);
@@ -216,10 +220,65 @@ void Material_View::Draw_Settings()
         }
     }
 
+    ImGui::SeparatorText("Bundle Output");
+
+    ImGui::TextDisabled("Save Folder");
+    ImGui::SameLine(120.f);
+    ImGui::SetNextItemWidth(-100.f);
+    if (ImGui::InputText("##BundleDir", bundleDirBuf, sizeof(bundleDirBuf)))
+        _bundleOutputDir = String::ToWString(string(bundleDirBuf));
+
+    ImGui::SameLine();
+    if (ImGui::Button("Browse##BundleDir"))
+    {
+        wstring picked{};
+        if (Try_PickFolderDialog(L"Select Bundle Output Folder", picked))
+        {
+            _bundleOutputDir = picked;
+            const string s = String::ToString(_bundleOutputDir);
+            strncpy_s(bundleDirBuf, sizeof(bundleDirBuf), s.c_str(), _TRUNCATE);
+        }
+    }
+
+    ImGui::TextDisabled("Save Name");
+    ImGui::SameLine(120.f);
+    ImGui::SetNextItemWidth(-FLT_MIN);
+    if (ImGui::InputText("##BundleName", bundleNameBuf, sizeof(bundleNameBuf)))
+        _bundleOutputName = String::ToWString(string(bundleNameBuf));
+
+    auto buildBundleOutputPath = [&]() -> fs::path
+    {
+        fs::path dir(_bundleOutputDir);
+        if (dir.empty())
+            return {};
+
+        const wstring nameW = _bundleOutputName;
+        if (nameW.empty())
+            return {};
+
+        fs::path fileName(nameW);
+
+        // 이름만 입력하면 자동으로 .material.json을 붙인다.
+        // 확장자까지 입력했다면 그대로 사용한다.
+        if (fileName.extension().empty())
+        {
+            const string base = String::ToString(fileName.wstring());
+            if (base.ends_with(".material"))
+                fileName.replace_extension(".json");
+            else
+                fileName = fs::path(base + ".material.json");
+        }
+
+        fs::path out = dir / fileName;
+        return out.lexically_normal();
+    };
+
     // 저장 경로가 상대경로면, 실제로는 프로세스 CWD 기준으로 해석된다
     // 파일이 어디로 저장됐는지 헷갈릴 때가 많아서, 여기서 절대 경로를 같이 보여준다
     {
-        fs::path outPath(_bundleOutputPath);
+        fs::path outPath = buildBundleOutputPath();
+        _bundleOutputPath = outPath.wstring();
+
         if (!outPath.empty())
         {
             if (outPath.is_relative())
@@ -769,6 +828,14 @@ void Material_View::Draw_CreateWithJson()
         ImGui::DragFloat("MetalnessScale", &inst->cb.metalnessScale, 0.01f, 0.f, 10.f);
         ImGui::DragFloat("AoScale", &inst->cb.aoScale, 0.01f, 0.f, 10.f);
 
+        float uvScale[2] = { inst->cb.uvScale.x, inst->cb.uvScale.y };
+        if (ImGui::InputFloat2("UV Scale", uvScale))
+            inst->cb.uvScale = Engine::Vec2(uvScale[0], uvScale[1]);
+
+        float uvOffset[2] = { inst->cb.uvOffset.x, inst->cb.uvOffset.y };
+        if (ImGui::InputFloat2("UV Offset", uvOffset))
+            inst->cb.uvOffset = Engine::Vec2(uvOffset[0], uvOffset[1]);
+
         ImGui::PopID();
     }
 
@@ -1200,23 +1267,27 @@ bool Material_View::Save_BundleFile(const wstring& outputPath) const
             return false;
         }
 
+        // 이름만 들어온 경우를 대비해서, 확장자가 없으면 .material.json을 붙인다.
+        // 확장자가 있으면 그대로 사용한다.
+        if (outPath.extension().empty())
+        {
+            const string base = String::ToString(outPath.wstring());
+            if (base.ends_with(".material"))
+                outPath.replace_extension(".json");
+            else
+                outPath = fs::path(base + ".material.json");
+        }
+
         // 상대 경로로 받았더라도 실제 파일 쓰기는 절대 경로로 정리해서 진행한다
         if (outPath.is_relative())
             outPath = fs::absolute(outPath);
         outPath = outPath.lexically_normal();
 
         std::error_code ec{};
-        if (outPath.has_parent_path() && !fs::exists(outPath.parent_path(), ec))
+        if (outPath.has_parent_path() && (!fs::exists(outPath.parent_path(), ec) || ec))
         {
-            // 폴더가 없으면 먼저 만들어준다
-            // 여기서 실패하면 파일을 열 수가 없어서 바로 종료한다
-            ec.clear();
-            fs::create_directories(outPath.parent_path(), ec);
-            if (ec)
-            {
-                _lastBundleSaveError = "create_directories failed: " + ec.message();
-                return false;
-            }
+            _lastBundleSaveError = "output folder does not exist: " + String::ToString(outPath.parent_path().wstring());
+            return false;
         }
 
         // 번들 파일이 들어갈 Resources 폴더를 기준으로 상대 경로를 저장한다
@@ -1363,6 +1434,8 @@ bool Material_View::Save_BundleFile(const wstring& outputPath) const
             jcb["roughnessScale"] = inst.cb.roughnessScale;
             jcb["metalnessScale"] = inst.cb.metalnessScale;
             jcb["aoScale"] = inst.cb.aoScale;
+            jcb["uvScale"] = { inst.cb.uvScale.x, inst.cb.uvScale.y };
+            jcb["uvOffset"] = { inst.cb.uvOffset.x, inst.cb.uvOffset.y };
             ji["cb"] = move(jcb);
 
             out["instances"].push_back(move(ji));

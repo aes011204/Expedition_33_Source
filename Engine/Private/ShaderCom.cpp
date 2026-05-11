@@ -11,6 +11,7 @@ ShaderCom::ShaderCom(const ShaderCom& prototype)
     , _effect{ prototype._effect }
     , _numPasses{ prototype._numPasses }
     , _inputLayouts{ prototype._inputLayouts }
+    , _type{ prototype._type }
 {
     for (uint32 i = 0; i < ETOI(ConstantBuffer::END); ++i)
         _CB[i] = prototype._CB[i];
@@ -18,7 +19,7 @@ ShaderCom::ShaderCom(const ShaderCom& prototype)
     _materialTextures = prototype._materialTextures;
 }
 
-HRESULT ShaderCom::Initialize_Prototype(const wchar_t* shaderFilePath, const D3D11_INPUT_ELEMENT_DESC* elements, uint32 numElements)
+HRESULT ShaderCom::Initialize_Prototype(const wchar_t* shaderFilePath, const D3D11_INPUT_ELEMENT_DESC* elements, uint32 numElements, ShaderType shader)
 {
     uint32 hlslFlag = 0;
 
@@ -81,6 +82,8 @@ HRESULT ShaderCom::Initialize_Prototype(const wchar_t* shaderFilePath, const D3D
         _effect->GetConstantBufferByName("MaterialBuffer");
 
     _materialTextures = _effect->GetVariableByName("g_MaterialTextures")->AsShaderResource();
+
+    _type = shader;
 
     return S_OK;
 }
@@ -249,11 +252,12 @@ Shared<ShaderCom> ShaderCom::Create(
     const ComPtr<Context>& context,
     const wchar_t* shaderFilePath,
     const D3D11_INPUT_ELEMENT_DESC* elements,
-    uint32 numElements)
+    uint32 numElements,
+    ShaderType shader)
 {
     auto instance = make_shared<ShaderCom>(device, context);
 
-    if (FAILED(instance->Initialize_Prototype(shaderFilePath, elements, numElements)))
+    if (FAILED(instance->Initialize_Prototype(shaderFilePath, elements, numElements, shader)))
     {
         LOG_WARN("Failed to create ShaderCom: path='{}'", String::ToString(shaderFilePath));
         return nullptr;

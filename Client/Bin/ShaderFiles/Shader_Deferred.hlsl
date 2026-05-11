@@ -1,5 +1,7 @@
 #include "Engine_Shader_Defines.hlsli"
 #include "Engine_Shader_RenderState.hlsl"
+#include "Engine_Shader_Passes.hlsl"
+#include "Engine_Shader_Samplers.hlsl"
 
 //==================================================
 // MATRIX
@@ -44,26 +46,9 @@ float   g_fShadowIntensity = 0.4f;
 vector  g_vCamPosition;
 float   g_fFar = 0.f;
 
-//==================================================
-// SAMPLER
-//==================================================
-sampler DefaultSampler = sampler_state
-{
-    Filter = MIN_MAG_MIP_LINEAR;
-    AddressU = wrap;
-    AddressV = wrap;
-};
-
-sampler ShadowSampler = sampler_state
-{
-    Filter = MIN_MAG_MIP_LINEAR;
-    AddressU = clamp;
-    AddressV = clamp;
-};
-
 float4 Reconstruct_WorldPos(float2 vTexcoord)
 {
-    vector vDepthDesc = g_DepthTexture.Sample(DefaultSampler, vTexcoord);
+    vector vDepthDesc = g_DepthTexture.Sample(LinearWrapSampler, vTexcoord);
     float fViewZ = vDepthDesc.y * g_fFar;
 
     float4 vWorldPos;
@@ -134,7 +119,7 @@ PS_OUT_BACKBUFFER PS_MAIN_DEBUG(PS_IN In)
 {
     PS_OUT_BACKBUFFER Out;
     
-    Out.vColor = g_Texture.Sample(DefaultSampler, In.vTexcoord);
+    Out.vColor = g_Texture.Sample(LinearWrapSampler, In.vTexcoord);
     
     return Out;
 }
@@ -150,7 +135,7 @@ PS_OUT_LIGHT PS_MAIN_DIRECTIONAL(PS_IN In)
     PS_OUT_LIGHT Out;
 
     // Normal : DXGI_FORMAT_R16G16B16A16_UNORM
-    vector vNormalDesc = g_NormalTexture.Sample(DefaultSampler, In.vTexcoord);
+    vector vNormalDesc = g_NormalTexture.Sample(LinearWrapSampler, In.vTexcoord);
     vector vNormal = vector(normalize(vNormalDesc.xyz * 2.f - 1.f), 0.f);
 
     // Light
@@ -173,7 +158,7 @@ PS_OUT_LIGHT PS_MAIN_POINT(PS_IN In)
     PS_OUT_LIGHT Out;
 
     // Normal : DXGI_FORMAT_R16G16B16A16_UNORM
-    vector vNormalDesc = g_NormalTexture.Sample(DefaultSampler, In.vTexcoord);
+    vector vNormalDesc = g_NormalTexture.Sample(LinearWrapSampler, In.vTexcoord);
     vector vNormal = vector(normalize(vNormalDesc.xyz * 2.f - 1.f), 0.f);
 
     // Light
@@ -197,13 +182,13 @@ PS_OUT_BACKBUFFER PS_MAIN_COMBINED(PS_IN In)
     PS_OUT_BACKBUFFER Out;
 
     // Diffuse
-    vector vDiffuse = g_DiffuseTexture.Sample(DefaultSampler, In.vTexcoord);
+    vector vDiffuse = g_DiffuseTexture.Sample(LinearWrapSampler, In.vTexcoord);
     if (vDiffuse.a == 0.f)
         discard;
 
     // Light
-    vector vShade = g_ShadeTexture.Sample(DefaultSampler, In.vTexcoord);
-    vector vSpecular = g_SpecularTexture.Sample(DefaultSampler, In.vTexcoord);
+    vector vShade = g_ShadeTexture.Sample(LinearWrapSampler, In.vTexcoord);
+    vector vSpecular = g_SpecularTexture.Sample(LinearWrapSampler, In.vTexcoord);
 
     Out.vColor = vDiffuse * vShade + vSpecular;
 
@@ -217,7 +202,7 @@ PS_OUT_BACKBUFFER PS_MAIN_COMBINED(PS_IN In)
     vLightTexcoord.x = (vShadowPos.x / vShadowPos.w) * 0.5f + 0.5f;
     vLightTexcoord.y = (vShadowPos.y / vShadowPos.w) * -0.5f + 0.5f;
 
-    float4 vLightDepthDesc = g_LightDepthTexture.Sample(ShadowSampler, vLightTexcoord);
+    float4 vLightDepthDesc = g_LightDepthTexture.Sample(LinearClampSampler, vLightTexcoord);
     float fOldLightZ = vLightDepthDesc.y * g_fLightFar;
 
     if (all(vLightTexcoord >= 0.f) && all(vLightTexcoord <= 1.f))
@@ -231,47 +216,8 @@ PS_OUT_BACKBUFFER PS_MAIN_COMBINED(PS_IN In)
 
 technique11 DefaultTechnique
 {
-    pass Debug
-    {
-        SetRasterizerState(RS_Default);
-        SetDepthStencilState(DSS_Default, 0);
-        SetBlendState(BS_Default, float4(0.f, 0.f, 0.f, 0.f), 0xffffffff);
-
-        VertexShader = compile vs_5_0 VS_MAIN();
-        GeometryShader = NULL;
-        PixelShader = compile ps_5_0 PS_MAIN_DEBUG();
-    }
-
-    pass Directional
-    {
-        SetRasterizerState(RS_Default);
-        SetDepthStencilState(DSS_None, 0);
-        SetBlendState(BS_Blend, float4(0.f, 0.f, 0.f, 0.f), 0xffffffff);
-
-        VertexShader = compile vs_5_0 VS_MAIN();
-        GeometryShader = NULL;
-        PixelShader = compile ps_5_0 PS_MAIN_DIRECTIONAL();
-    }
-
-    pass Point
-    {
-        SetRasterizerState(RS_Default);
-        SetDepthStencilState(DSS_None, 0);
-        SetBlendState(BS_Blend, float4(0.f, 0.f, 0.f, 0.f), 0xffffffff);
-
-        VertexShader = compile vs_5_0 VS_MAIN();
-        GeometryShader = NULL;
-        PixelShader = compile ps_5_0 PS_MAIN_POINT();
-    }
-
-    pass Combined
-    {
-        SetRasterizerState(RS_Default);
-        SetDepthStencilState(DSS_None, 0);
-        SetBlendState(BS_Default, float4(0.f, 0.f, 0.f, 0.f), 0xffffffff);
-
-        VertexShader = compile vs_5_0 VS_MAIN();
-        GeometryShader = NULL;
-        PixelShader = compile ps_5_0 PS_MAIN_COMBINED();
-    }
+    PASS_RS_DS_BS_VP(Debug,         RS_Default, DSS_Default,    BS_Default, VS_MAIN,    PS_MAIN_DEBUG)          // 0
+    PASS_RS_DS_BS_VP(Directional,   RS_Default, DSS_None,       BS_Blend,   VS_MAIN,    PS_MAIN_DIRECTIONAL)    // 1
+    PASS_RS_DS_BS_VP(Point,         RS_Default, DSS_None,       BS_Blend,   VS_MAIN,    PS_MAIN_POINT)          // 2
+    PASS_RS_DS_BS_VP(Combined,      RS_Default, DSS_None,       BS_Default, VS_MAIN,    PS_MAIN_COMBINED)       // 3
 }

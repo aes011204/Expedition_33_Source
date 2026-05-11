@@ -15,11 +15,6 @@ cbuffer BoneTransform : register(b1)
     matrix g_BoneMatrices[950];
 }
 
-Texture2D g_DiffuseTexture;
-Texture2D g_NormalTexture;
-Texture2D g_OpacityTexture;
-Texture2D g_EmissiveTexture;
-
 float g_fFar = 0.f;
 float g_fLightFar = 0.f;
 

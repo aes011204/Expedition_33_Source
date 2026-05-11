@@ -43,9 +43,10 @@ cbuffer MaterialBuffer
 
     float2 g_UVScale;               // 64 ~ 71
     float2 g_UVOffset;              // 72 ~ 79
+    float g_UVRotate;              // 80 ~ 83
 
-    uint g_iMaterialMask;           // 80 ~ 83
-    float3 g_MaterialPadding1;      // 84 ~ 95
+    uint g_iMaterialMask;           // 84 ~ 87
+    float2 g_MaterialPadding1;      // 88 ~ 95
 }; // 96 bytes
 
 #endif

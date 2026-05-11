@@ -1,6 +1,7 @@
 #include "Engine_Shader_Defines.hlsli"
 #include "Engine_Shader_RenderState.hlsl"
 #include "Engine_Shader_Samplers.hlsl"
+#include "Engine_Shader_Passes.hlsl"
 
 //==================================================
 // MATRIX
@@ -35,7 +36,7 @@ struct VS_OUT
     float3 vTexcoord : TEXCOORD0;
 };
 
-VS_OUT VS_MAIN(VS_IN In)
+VS_OUT VS_Default(VS_IN In)
 {
     VS_OUT Out;
     
@@ -64,7 +65,7 @@ struct PS_OUT
     vector vColor : SV_TARGET0;
 };
 
-PS_OUT PS_MAIN(PS_IN In)
+PS_OUT PS_Default(PS_IN In)
 {
     PS_OUT Out;
   
@@ -76,14 +77,5 @@ PS_OUT PS_MAIN(PS_IN In)
 
 technique11 DefaultTechnique
 {
-    pass DefaultPass
-    {
-        SetRasterizerState(RS_CullNone);
-        SetDepthStencilState(DSS_None, 0);
-        SetBlendState(BS_Default, float4(0.f, 0.f, 0.f, 0.f), 0xffffffff);
-
-        VertexShader = compile vs_5_0 VS_MAIN();
-        GeometryShader = NULL;
-        PixelShader = compile ps_5_0 PS_MAIN();
-    }
+    PASS_RS_DS_BS_VP(DefaultPass, RS_CullNone, DSS_None, BS_Default, VS_Default, PS_Default)
 }

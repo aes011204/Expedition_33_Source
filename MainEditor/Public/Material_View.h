@@ -65,6 +65,8 @@ private:
     wstring _originRoot = L"../../../Client/Bin/Resources/Materials/Origins/MappingSrc";
     wstring _miRoot = L"../../../Client/Bin/Resources/Materials/Origins/InstanceData";
     wstring _textureSearchRoot = L"../../../Client/Bin/Resources/Models";
+    wstring _bundleOutputDir = L"../../../Client/Bin/Resources/Materials/";
+    wstring _bundleOutputName = L"MaterialBundle";
     wstring _bundleOutputPath = L"../../../Client/Bin/Resources/Materials/MaterialBundle.material.json";
 
     wstring _selectedJsonPath{};

@@ -23,7 +23,16 @@ bool HasMaterialTexture(uint iSlot)
 //==================================================
 float2 ApplyUVTransform(float2 uv)
 {
-    return uv * g_UVScale + g_UVOffset;
+    float2 scaled = uv * g_UVScale;
+
+    float s = sin(g_UVRotate);
+    float c = cos(g_UVRotate);
+
+    float2 rotated;
+    rotated.x = scaled.x * c - scaled.y * s;
+    rotated.y = scaled.x * s + scaled.y * c;
+
+    return rotated + g_UVOffset;
 }
 
 //==================================================
@@ -32,6 +41,10 @@ float2 ApplyUVTransform(float2 uv)
 float4 SampleBaseColor(float2 uv)
 {
     float4 baseColor = g_MaterialTextures[MATERIAL_SLOT_BASECOLOR].Sample(LinearWrapSampler, uv);
+
+    if (baseColor.a < 0.34)
+        discard;
+
     baseColor.rgb *= g_BaseColorTint.rgb;
     baseColor.a *= g_BaseColorTint.a;
     return baseColor;
@@ -42,9 +55,6 @@ float GetOpacityMaskForMasked(float2 uv, float4 baseColor)
     if (HasMaterialTexture(MATERIAL_SLOT_OPACITY_MASK))
         return g_MaterialTextures[MATERIAL_SLOT_OPACITY_MASK].Sample(LinearWrapSampler, uv).r;
 
-    // Masked인데 마스크 텍스처가 없으면 BaseColor.a는 패킹 채널(ORM/마스크 등)인 경우가 많아서
-    // 예기치 않게 거의 전부 discard 되는 문제가 생길 수 있다.
-    // 따라서 기본값은 "마스크 없음 = 전부 통과"로 둔다.
     return 1.f;
 }
 

@@ -41,9 +41,10 @@ struct alignas(16) MaterialCB
 
     Vec2 uvScale{ 1.f, 1.f };
     Vec2 uvOffset{ 0.f, 0.f };
+    float uvRotation{ 0.f };
 
     uint32 materialMask{ 0 };
-    float _pad1[3]{};
+    float _pad1[2]{};
 };
 
 // 저장/에셋/데이터 단계에서의 텍스처 슬롯 정보
