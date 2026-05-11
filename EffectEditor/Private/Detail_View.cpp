@@ -774,18 +774,38 @@ bool Detail_View::Draw_ScreenAlignmentProperty(const char* label, EmitterScreenA
     case EmitterScreenAlignment::Square:
         currentIndex = 0;
         break;
-    case EmitterScreenAlignment::CameraFacing:
+    case EmitterScreenAlignment::FacingCameraPosition:
         currentIndex = 1;
         break;
-    case EmitterScreenAlignment::Velocity:
+    case EmitterScreenAlignment::Rectangle:
         currentIndex = 2;
+        break;
+    case EmitterScreenAlignment::Velocity:
+        currentIndex = 3;
+        break;
+    case EmitterScreenAlignment::AwayFromCenter:
+        currentIndex = 4;
+        break;
+    case EmitterScreenAlignment::TypeSpecific:
+        currentIndex = 5;
+        break;
+    case EmitterScreenAlignment::FacingCameraDistanceBlend:
+        currentIndex = 6;
         break;
     default:
         currentIndex = 0;
         break;
     }
 
-    static constexpr const char* kScreenAlignmentLabels[] = { "정사각형", "카메라 방향", "속도 방향" };
+    static constexpr const char* kScreenAlignmentLabels[] = {
+        "Square",
+        "Facing Camera Position",
+        "Rectangle",
+        "Velocity",
+        "Away from Center",
+        "Type Specific",
+        "Facing Camera Distance Blend",
+    };
 
     ImGui::PushID(label);
     Draw_PropertyLabel(label);
@@ -802,10 +822,22 @@ bool Detail_View::Draw_ScreenAlignmentProperty(const char* label, EmitterScreenA
         value = EmitterScreenAlignment::Square;
         break;
     case 1:
-        value = EmitterScreenAlignment::CameraFacing;
+        value = EmitterScreenAlignment::FacingCameraPosition;
         break;
     case 2:
+        value = EmitterScreenAlignment::Rectangle;
+        break;
+    case 3:
         value = EmitterScreenAlignment::Velocity;
+        break;
+    case 4:
+        value = EmitterScreenAlignment::AwayFromCenter;
+        break;
+    case 5:
+        value = EmitterScreenAlignment::TypeSpecific;
+        break;
+    case 6:
+        value = EmitterScreenAlignment::FacingCameraDistanceBlend;
         break;
     default:
         value = EmitterScreenAlignment::Square;
@@ -823,18 +855,30 @@ bool Detail_View::Draw_SortModeProperty(const char* label, EmitterSortMode& valu
     case EmitterSortMode::None:
         currentIndex = 0;
         break;
-    case EmitterSortMode::ViewDepth:
+    case EmitterSortMode::ViewProjDepth:
         currentIndex = 1;
         break;
-    case EmitterSortMode::Age:
+    case EmitterSortMode::DistanceToView:
         currentIndex = 2;
+        break;
+    case EmitterSortMode::AgeOldestFirst:
+        currentIndex = 3;
+        break;
+    case EmitterSortMode::AgeNewestFirst:
+        currentIndex = 4;
         break;
     default:
         currentIndex = 0;
         break;
     }
 
-    static constexpr const char* kSortModeLabels[] = { "없음", "카메라 깊이", "수명 진행" };
+    static constexpr const char* kSortModeLabels[] = {
+        "None",
+        "View Proj Depth",
+        "Distance to View",
+        "Age Oldest First",
+        "Age Newest First",
+    };
 
     ImGui::PushID(label);
     Draw_PropertyLabel(label);
@@ -851,10 +895,16 @@ bool Detail_View::Draw_SortModeProperty(const char* label, EmitterSortMode& valu
         value = EmitterSortMode::None;
         break;
     case 1:
-        value = EmitterSortMode::ViewDepth;
+        value = EmitterSortMode::ViewProjDepth;
         break;
     case 2:
-        value = EmitterSortMode::Age;
+        value = EmitterSortMode::DistanceToView;
+        break;
+    case 3:
+        value = EmitterSortMode::AgeOldestFirst;
+        break;
+    case 4:
+        value = EmitterSortMode::AgeNewestFirst;
         break;
     default:
         value = EmitterSortMode::None;

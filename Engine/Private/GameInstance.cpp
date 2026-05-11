@@ -1220,11 +1220,11 @@ void GameInstance::Release_Engine()
 
     ReleaseManager(_pipeLine);
     ReleaseManager(_renderer);
+    ReleaseManager(_levelManager);
     ReleaseManager(_objectManager);
     ReleaseManager(_uiManager);
     ReleaseManager(_prototypeManager);
     ReleaseManager(_typeRegistry);
-    ReleaseManager(_levelManager);
     ReleaseManager(_picking);
     ReleaseManager(_timerManager);
 

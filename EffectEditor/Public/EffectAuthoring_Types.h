@@ -24,15 +24,21 @@ enum class EffectAuthoringSelectionKind : uint8
 enum class EmitterScreenAlignment : uint8
 {
     Square,
-    CameraFacing,
+    FacingCameraPosition,
+    Rectangle,
     Velocity,
+    AwayFromCenter,
+    TypeSpecific,
+    FacingCameraDistanceBlend,
 };
 
 enum class EmitterSortMode : uint8
 {
     None,
-    ViewDepth,
-    Age,
+    ViewProjDepth,
+    DistanceToView,
+    AgeOldestFirst,
+    AgeNewestFirst,
 };
 
 enum class DistributionValueKind : uint8

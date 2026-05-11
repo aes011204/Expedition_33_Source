@@ -11,9 +11,9 @@ NS_BEGIN(EffectEditor)
 namespace Internal
 {
     template <typename TData>
-    TData* Find_ModuleData(AuthoringEmitter& emitter, AuthoringModuleType type)
+    const TData* Find_ModuleData(const AuthoringEmitter& emitter, AuthoringModuleType type)
     {
-        for (AuthoringModule& module : emitter.modules)
+        for (const AuthoringModule& module : emitter.modules)
         {
             if (module.type != type)
                 continue;
@@ -68,7 +68,7 @@ namespace Internal
         return fallbackValue;
     }
 
-    Client::PointParticlePreview::PointParticlePreviewDesc Make_PreviewDesc(AuthoringEmitter& emitter)
+    Client::PointParticlePreview::PointParticlePreviewDesc Make_PreviewDesc(const AuthoringEmitter& emitter)
     {
         Client::PointParticlePreview::PointParticlePreviewDesc desc{};
         desc.drawMode = PointParticleDrawMode::Direct;
@@ -148,11 +148,7 @@ HRESULT Level_EffectEditor::Render()
 
 HRESULT Level_EffectEditor::Restart_PreviewFromAuthoring()
 {
-    if (nullptr != _previewObject)
-    {
-        GAME->Remove_GameObject(ETOI(LevelType::GamePlay), _previewObject);
-        _previewObject.reset();
-    }
+    Clear_PreviewObjects();
 
     const Shared<Editor_Window> emitterWindow = EDITOR->Get_Window(L"Emitter");
     const Shared<Emitter_View> emitterView = dynamic_pointer_cast<Emitter_View>(emitterWindow);
@@ -162,21 +158,38 @@ HRESULT Level_EffectEditor::Restart_PreviewFromAuthoring()
         return E_FAIL;
     }
 
-    AuthoringEmitter* emitter = emitterView->Get_SelectedOrFirstEmitter();
-    if (nullptr == emitter || !emitter->enabled)
-        return S_OK;
+    vector<Shared<GameObject>> restartedPreviewObjects{};
+    vector<uint32> restartedEmitterIds{};
+    for (const AuthoringEmitter& emitter : emitterView->Get_Emitters())
+    {
+        if (!emitter.enabled)
+            continue;
 
-    Client::PointParticlePreview::PointParticlePreviewDesc previewDesc = Internal::Make_PreviewDesc(*emitter);
-    CHECK_FAILED(GAME->Add_GameObject(
-        ETOI(LevelType::GamePlay),
-        L"GameObject_PointParticlePreview",
-        ETOI(LevelType::GamePlay),
-        kPreviewLayerTag,
-        _previewObject,
-        &previewDesc
-    ), E_FAIL);
+        Client::PointParticlePreview::PointParticlePreviewDesc previewDesc = Internal::Make_PreviewDesc(emitter);
+        Shared<GameObject> previewObject{};
+        if (FAILED(GAME->Add_GameObject(
+            ETOI(LevelType::GamePlay),
+            L"GameObject_PointParticlePreview",
+            ETOI(LevelType::GamePlay),
+            kPreviewLayerTag,
+            previewObject,
+            &previewDesc
+        )))
+        {
+            for (Shared<GameObject>& createdPreviewObject : restartedPreviewObjects)
+                GAME->Remove_GameObject(ETOI(LevelType::GamePlay), createdPreviewObject);
 
-    emitterView->Clear_PreviewDirty(emitter->id);
+            return E_FAIL;
+        }
+
+        restartedPreviewObjects.push_back(previewObject);
+        restartedEmitterIds.push_back(emitter.id);
+    }
+
+    _previewObjects = move(restartedPreviewObjects);
+
+    for (const uint32 emitterId : restartedEmitterIds)
+        emitterView->Clear_PreviewDirty(emitterId);
 
     return S_OK;
 }
@@ -229,14 +242,16 @@ HRESULT Level_EffectEditor::Ready_Layer_Preview(const wstring& layerTag)
     Client::PointParticlePreview::PointParticlePreviewDesc previewDesc{};
     previewDesc.drawMode = PointParticleDrawMode::Direct;
 
+    Shared<GameObject> previewObject{};
     CHECK_FAILED(GAME->Add_GameObject(
         ETOI(LevelType::GamePlay),
         L"GameObject_PointParticlePreview",
         ETOI(LevelType::GamePlay),
         layerTag,
-        _previewObject,
+        previewObject,
         &previewDesc
     ), E_FAIL);
+    _previewObjects.push_back(previewObject);
 
     return S_OK;
 }
@@ -254,8 +269,20 @@ Shared<Level_EffectEditor> Level_EffectEditor::Create(const ComPtr<Device>& devi
     return instance;
 }
 
+void Level_EffectEditor::Clear_PreviewObjects()
+{
+    for (Shared<GameObject>& previewObject : _previewObjects)
+    {
+        if (previewObject != nullptr)
+            GAME->Remove_GameObject(ETOI(LevelType::GamePlay), previewObject);
+    }
+
+    _previewObjects.clear();
+}
+
 void Level_EffectEditor::Free()
 {
+    Clear_PreviewObjects();
     __super::Free();
 }
 

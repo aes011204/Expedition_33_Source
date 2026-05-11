@@ -139,6 +139,13 @@ void EffectEditor_Manager::Render_RuntimeToolbar()
 
     const bool playing = EDITOR->IsPlaying();
     const bool paused = EDITOR->IsPaused();
+    bool hasPreviewDirtyEmitter = false;
+    if (const Shared<Editor_Window> emitterWindow = Find_Window(L"Emitter"))
+    {
+        const Shared<Emitter_View> emitterView = dynamic_pointer_cast<Emitter_View>(emitterWindow);
+        if (emitterView != nullptr)
+            hasPreviewDirtyEmitter = emitterView->Has_PreviewDirtyEmitter();
+    }
 
     constexpr float toolbarHeight = 34.f;
     ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 4.f);
@@ -159,8 +166,25 @@ void EffectEditor_Manager::Render_RuntimeToolbar()
     ImGui::TextDisabled("|");
     ImGui::SameLine(0.f, 12.f);
 
+    if (hasPreviewDirtyEmitter)
+    {
+        const ImVec4 dirtyButtonColor{ 0.72f, 0.40f, 0.12f, 1.f };
+        const ImVec4 dirtyButtonHoveredColor{ 0.80f, 0.46f, 0.14f, 1.f };
+        ImGui::PushStyleColor(ImGuiCol_Button, dirtyButtonColor);
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, dirtyButtonHoveredColor);
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, dirtyButtonHoveredColor);
+    }
+
     if (ImGui::Button(ICON_FA_ROTATE_RIGHT " Restart Preview"))
         EDITOR->Request_RestartPreview();
+
+    if (hasPreviewDirtyEmitter)
+    {
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("변경 사항이 아직 preview에 반영되지 않았습니다.");
+
+        ImGui::PopStyleColor(3);
+    }
 
     ImGui::SameLine(0.f, 24.f);
 
