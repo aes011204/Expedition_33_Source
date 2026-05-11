@@ -53,6 +53,8 @@ private:
 
     bool                 _controlEnabled = true;
 
+    MovementCom::MovementInput _currentInput{};
+
 public:
     static Shared<PlayerControllerCom> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
     Shared<Component> Clone(void* arg) override;

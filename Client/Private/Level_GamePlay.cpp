@@ -55,6 +55,8 @@ void Level_GamePlay::BeginPlay()
 
 void Level_GamePlay::Update(float fTimeDelta)
 {
+    CLIENT->Update_HeroManager(fTimeDelta);
+
     // 테스트
 #ifdef _DEBUG
     static float accumulatedTime = 0.f;
@@ -144,9 +146,18 @@ HRESULT Level_GamePlay::Ready_Layer_Camera(const wstring& strLayerTag)
     TargetCameraDesc.lookHeight = 0.8f;
     TargetCameraDesc.pivotHeight =0.3f;
 
-    if (FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_TargetCamera_GamePlay"),
-        ETOI(LevelType::GamePlay), strLayerTag, &TargetCameraDesc)))
-        return E_FAIL;
+    Shared<GameObject> cameraObject = nullptr;
+
+    CHECK_FAILED(GAME->Add_GameObject(
+        ETOI(LevelType::GamePlay),
+        TEXT("GameObject_TargetCamera_GamePlay"),
+        ETOI(LevelType::GamePlay),
+        strLayerTag,
+        cameraObject,
+        &TargetCameraDesc), E_FAIL);
+
+    auto targetCamera = dynamic_pointer_cast<TargetCamera>(cameraObject);
+    CLIENT->Set_TargetCamera(targetCamera);
 
 	return S_OK;
 }
@@ -188,16 +199,18 @@ HRESULT Level_GamePlay::Ready_Layer_Monster(const wstring& strLayerTag)
 
 HRESULT Level_GamePlay::Ready_Layer_Player(const wstring& strLayerTag)
 {
-    auto player = Spawn_Prefab::Prefab("TestPlayer")
+    /*auto player = Spawn_Prefab::Prefab("TestPlayer")
         .AtLevel(ETOI(LevelType::GamePlay))
         .InLayer(strLayerTag)
         .Spawn();
 
     auto tr = player->Get_Transform();
     if (tr)
-        tr->Set_Position(Vec3(10.f, 5.f, 10.f));
+        tr->Set_Position(Vec3(10.f, 5.f, 10.f));*/
 
-    return S_OK;
+    HRESULT hr = CLIENT->Initialize_Hero(ETOI(LevelType::GamePlay), strLayerTag);
+
+    return hr;
 }
 
 //HRESULT Level_GamePlay::Ready_Layer_MapStaticMesh(const wstring& strLayerTag)

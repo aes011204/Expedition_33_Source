@@ -53,6 +53,8 @@ void PlayerControllerCom::BeginPlay()
 
 void PlayerControllerCom::Update_Controller(float timeDelta)
 {
+    _currentInput = {};
+
 	if (GAME->Is_PlayerInputBlocked())
 	{
 		_movementCom->Apply_Input({});
@@ -67,21 +69,21 @@ void PlayerControllerCom::Update_Controller(float timeDelta)
     }
 
 	_inputCom->Update_Input();
-    auto currentInput = _inputCom->Get_MovementInput();
+    _currentInput = _inputCom->Get_MovementInput();
 
-    if (currentInput.isWalkDown)
+    if (_currentInput.isWalkDown)
     {
         _isWalkToggled = !_isWalkToggled;
     }
 
-    currentInput.isWalkDown = _isWalkToggled;
-	_movementCom->Apply_Input(currentInput);
+    _currentInput.isWalkDown = _isWalkToggled;
+	_movementCom->Apply_Input(_currentInput);
 	_movementCom->Update_Movement(timeDelta);
 }
 
 bool PlayerControllerCom::Has_MoveInput() const
 {
-    return _inputCom->Has_MoveInput();
+    return _currentInput.moveX != 0.f || _currentInput.moveZ != 0.f;
 }
 
 bool PlayerControllerCom::Is_WalkToggled() const
@@ -91,7 +93,7 @@ bool PlayerControllerCom::Is_WalkToggled() const
 
 const MovementCom::MovementInput& PlayerControllerCom::Get_MovementInput() const
 {
-    return _inputCom->Get_MovementInput();
+    return _currentInput;
 }
 
 Shared<PlayerControllerCom> PlayerControllerCom::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

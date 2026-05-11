@@ -23,8 +23,8 @@ public:
     };
 
 public:
-    HRESULT Initialize(uint32 levelIndex, const wstring& layerTag);
-    void    Update(float timeDelta);
+    HRESULT Initialize_Hero(uint32 levelIndex, const wstring& layerTag);
+    void    Update_HeroManager(float timeDelta);
 
     // 현재 플레이중인 Hero
     Shared<Player> Get_ActiveHero() const;
@@ -34,12 +34,18 @@ public:
 
 private:
     void    Switch_NextHero();
+    void    Snap_AllHeroesToFormation(
+                const Vec3& anchorPos,
+                const Vec3& anchorRot,
+                Vec3 anchorForward,
+                Vec3 anchorRight);
+
     void    Apply_ControlRoles();
 
     void    Set_ActiveTrail(float timeDelta);
     void    Update_Followers(float timeDelta);
 
-    Vec3    Get_TrailPosition(float delaySeconds) const;
+    TrailPoint    Get_TrailPoint(float delaySeconds) const;
 
     void    Move_FollowerTo(
                 const Shared<Player>& follower,
@@ -66,11 +72,16 @@ private:
     float _recordInterval = 0.05f;
 
     // follower 1은 조금 전 위치, follower 2는 더 이전 위치
-    float _followerDelayA = 0.25f;
-    float _followerDelayB = 0.50f;
+    float _followerDelayA = 0.70f;
+    float _followerDelayB = 1.20f;
+
+    float _followerSideOffset = 1.4f;
 
     float _followStopDistance = 0.25f;
     float _followerMoveSpeed = 8.f; // MovementCom에서 입력값 받아오는거로 바꾸긴 해야함
+
+    float _snapBackDistanceA = 2.0f;
+    float _snapBackDistanceB = 3.0f;
 
 public:
     static Unique<Hero_Manager> Create();

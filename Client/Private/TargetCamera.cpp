@@ -158,6 +158,10 @@ void TargetCamera::SetTargetTransform(Shared<TransformCom> targetTransform)
 {
     //타겟을 설정해줘야함
     _targetTransformCom = targetTransform;
+
+      // 전환 직후 이전 target 위치가 남아 있으면 카메라 보간이 튈 수 있어서
+    if (targetTransform)
+        _prevTargetPos = targetTransform->Get_WorldPosition();
 }
 
 Shared<TargetCamera> TargetCamera::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
