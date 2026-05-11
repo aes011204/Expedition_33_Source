@@ -2,7 +2,10 @@
 #include "FreeCamera.h"
 #include "TargetCamera.h"
 #include "GameInstance.h"
+#include <magic_enum/magic_enum.hpp>
 #include <algorithm>
+
+#include "CameraPresetIO.h"
 
 namespace
 {
@@ -160,7 +163,7 @@ void Camera_Tool::Render_CommonSettings()
     }
 
     Draw_SectionHeader("Input");
-    if(ImGui::DragFloat("mouse sensor",&mouseSensor, 0.01f, 0.01, 10.f))
+    if(ImGui::DragFloat("mouse sensor",&mouseSensor, 0.01f, 0.01f, 10.f))
     {
         camera->Set_MouseSensor(mouseSensor);
     }
@@ -192,78 +195,73 @@ void Camera_Tool::Render_FreeCameraProperties(const Shared<FreeCamera>& freeCame
 
 void Camera_Tool::Render_TargetCameraProperties(const Shared<TargetCamera>& targetCamera)
 {
-    float followSpeed = targetCamera->Get_FollowSpeed();
-    float sideOffset = targetCamera->Get_SideOffset();
-    float heightOffset = targetCamera->Get_HeightOffset();
-    float aimOffset = targetCamera->Get_AimOffset();
-    float distance = targetCamera->Get_Distance();
-    float pitchLookScale = targetCamera->Get_PitchLookScale();
-    float pitchMin = targetCamera->Get_PitchMin();
-    float pitchMax = targetCamera->Get_PitchMax();
-    float lookHeight = targetCamera->Get_LookHeight();
-    float pivotHeight = targetCamera->Get_PivotHeight();
+    Select_EditingCameraState();
+    Edit_TargetCameraPreset();
+}
 
-    Draw_SectionHeader("Follow");
-    if(ImGui::DragFloat("follow speed", &followSpeed, 0.01f))
+void Camera_Tool::Select_EditingCameraState()
+{
+    TargetCamera::CAMERA_STATE editingState =_editingCameraState;
+
+    const char* currentLabel = magic_enum::enum_name(editingState).data();
+
+    if(ImGui::BeginCombo("Edit Preset", currentLabel))
     {
-        targetCamera->Set_FollowSpeed(followSpeed);  
+         for(TargetCamera::CAMERA_STATE state : magic_enum::enum_values<TargetCamera::CAMERA_STATE>())
+         {
+             const bool isSelected = (editingState == state);
+
+             if(ImGui::Selectable(magic_enum::enum_name(state).data(), isSelected))
+             {
+                 _editingCameraState = state;
+             }
+
+             if(isSelected)
+                 ImGui::SetItemDefaultFocus();
+         }
+
+        ImGui::EndCombo();
     }
+}
 
-    Draw_SectionHeader("Orbit");
-    if(ImGui::DragFloat("distance", &distance, 0.01f))
-    {
-        targetCamera->Set_Distance(distance);  
-    }
+void Camera_Tool::Edit_TargetCameraPreset()
+{
 
-    if(ImGui::DragFloat("side offset", &sideOffset, 0.01f))
-    {
-        targetCamera->Set_SideOffset(sideOffset);  
-    }
+    Shared<Camera> camera = Get_SelectedCamera(_selectedCameraIndex);
 
-    if(ImGui::DragFloat("height offset", &heightOffset, 0.01f))
-    {
-        targetCamera->Set_HeightOffset(heightOffset);  
-    }
+    auto targetCamera = static_pointer_cast<TargetCamera>(camera);
 
-    if(ImGui::DragFloat("pivot height", &pivotHeight, 0.01f))
-    {
-        targetCamera->Set_PivotHeight(pivotHeight);  
-    }
+    auto preset = targetCamera->Get_Preset(_editingCameraState);
 
-    Draw_SectionHeader("Framing");
-    if(ImGui::DragFloat("aim offset", &aimOffset, 0.01f))
-    {
-        targetCamera->Set_AimOffset(aimOffset);  
-    }
+    bool isChanged = false;
 
-    if(ImGui::DragFloat("look height", &lookHeight, 0.01f))
-    {
-        targetCamera->Set_LookHeight(lookHeight);  
-    }
+    isChanged |= ImGui::DragFloat("follow speed", &preset.followSpeed, 0.01f);
+    isChanged |= ImGui::DragFloat("distance", &preset.distance, 0.01f);
+    isChanged |= ImGui::DragFloat("side offset", &preset.sideOffset, 0.01f);
+    isChanged |= ImGui::DragFloat("height offset", &preset.heightOffset, 0.01f);
+    isChanged |= ImGui::DragFloat("pivot height", &preset.pivotHeight, 0.01f);
+    isChanged |= ImGui::DragFloat("aim offset", &preset.aimOffset, 0.01f);
+    isChanged |= ImGui::DragFloat("look height", &preset.lookHeight, 0.01f);
+    isChanged |= ImGui::DragFloat("mouse sensitivity", &preset.mouseSensitivity, 0.01f);
+    isChanged |= ImGui::DragFloat("pitch look scale", &preset.pitchLookScale, 0.01f);
+    isChanged |= ImGui::DragFloat("yaw offset", &preset.yawOffset, 0.001f);
+    isChanged |= ImGui::DragFloat("pitch offset", &preset.pitchOffset, 0.001f);
+    isChanged |= ImGui::DragFloat("roll offset", &preset.rollOffset, 0.001f);
+    isChanged |= ImGui::DragFloat("Min##Pitch", &preset .pitchMin, 0.1f, -89.f, preset.pitchMax);
+    isChanged |= ImGui::DragFloat("Max##Pitch", &preset.pitchMax, 0.1f, preset.pitchMin,89.f);
+    isChanged |= ImGui::Checkbox("allow mouse rotation", &preset.allowMouseRotation);
 
-    Draw_SectionHeader("Pitch");
-    if(ImGui::DragFloat("pitch look scale", &pitchLookScale, 0.01f))
+    if(isChanged)
     {
-        targetCamera->Set_PitchLookScale(pitchLookScale);  
-    }
-    
-    ImGui::TextDisabled("Pitch Limit");
-    ImGui::SameLine();
-
-    ImGui::SetNextItemWidth(90.f);
-    if(ImGui::DragFloat("Min##Pitch", &pitchMin, 0.1f, -89.f, pitchMax))
-    {
-        targetCamera->Set_PitchMin(pitchMin);
+        targetCamera->Set_Preset(_editingCameraState, preset);
+        targetCamera->Apply_PreviewPreset(preset);
     }
 
     ImGui::SameLine();
-
-    ImGui::SetNextItemWidth(90.f);
-    if(ImGui::DragFloat("Max##Pitch", &pitchMax, 0.1f, pitchMin, 89.f))
+    if(ImGui::Button("Save Preset"))
     {
-        targetCamera->Set_PitchMax(pitchMax);
+        CameraPresetIO::SavePresetToFile(_editingCameraState,preset);
     }
-
 }
 
 Shared<Camera_Tool> Camera_Tool::Create()

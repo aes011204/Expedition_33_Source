@@ -593,7 +593,7 @@ namespace UIEditor
             return false;
         }
 
-        _imagePreviewShader = ShaderCom::Create(_device, _context, shaderPath.c_str(), VTXTEX::Elements, VTXTEX::numElements, ShaderType::VtxTex);
+        _imagePreviewShader = ShaderCom::Create(_device, _context, shaderPath.c_str(), VTXTEX::Elements, VTXTEX::numElements, ShaderType::UI);
         _imagePreviewVIBuffer = VIBuffer_Rect::Create(_device, _context);
 
         if (nullptr == _imagePreviewShader || nullptr == _imagePreviewVIBuffer)

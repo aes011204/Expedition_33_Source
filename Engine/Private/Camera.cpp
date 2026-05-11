@@ -63,6 +63,31 @@ HRESULT Camera::Render()
     return S_OK;
 }
 
+bool Camera::Try_GetFlatMoveBasis(Vec3& outForward, Vec3& outRight) const
+{
+    outForward = Vec3::Zero;
+    outRight = Vec3::Zero;
+
+
+    if(_transformCom == nullptr)
+        return false;
+
+    outForward = _transformCom->Get_WorldForward();
+    outRight = _transformCom->Get_WorldRight();
+
+    if(outForward.LengthSquared() > 0.f)
+        outForward.Normalize();
+    else
+        outForward = Vec3::Look;
+
+    if(outRight.LengthSquared() > 0.f)
+        outRight.Normalize();
+    else
+        outRight = Vec3::Right;
+
+    return true;
+}
+
 void Camera::Update_TransformMatrices()
 {
     _aspect = static_cast<float>(GAME->Get_ViewportWidth()) /

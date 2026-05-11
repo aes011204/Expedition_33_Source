@@ -231,6 +231,36 @@
     <ClInclude Include="..\Public\Engine_Constants.h">
       <Filter>99. Defines</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\Event_Bus.h">
+      <Filter>97. Manager\Event</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Event_Struct.h">
+      <Filter>97. Manager\Event</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\UI_Manager.h">
+      <Filter>01.Utility\11. UI\Manager</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\UI_Transform.h">
+      <Filter>01.Utility\11. UI\Transform</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\UI_Base.h">
+      <Filter>01.Utility\11. UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_Animation.h">
+      <Filter>01.Utility\11. UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\UI_Image.h">
+      <Filter>01.Utility\11. UI\Object</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\UI_Panel.h">
+      <Filter>01.Utility\11. UI\Object</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\UI_Button.h">
+      <Filter>01.Utility\11. UI\Object</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\UI_Text.h">
+      <Filter>01.Utility\11. UI\Object</Filter>
+    </ClInclude>
     <ClInclude Include="..\public\AStar.h" />
     <ClInclude Include="..\Public\Reflection_JsonUtil.h" />
     <ClInclude Include="..\Public\Culling_Manager.h" />

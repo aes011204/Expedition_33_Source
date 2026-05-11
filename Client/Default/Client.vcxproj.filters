@@ -130,6 +130,15 @@
     <Filter Include="02.GameObject\Player\PlayerStateMachine\State">
       <UniqueIdentifier>{2ff895e8-c801-4ce1-8657-6b74912325b5}</UniqueIdentifier>
     </Filter>
+    <Filter Include="02.GameObject\Camera\Cinematic">
+      <UniqueIdentifier>{9da3a249-fde0-4202-8400-e101dd8261f9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02.GameObject\Effect\PointParticle">
+      <UniqueIdentifier>{eed9e460-dd4d-43e8-ab48-b224711cbd67}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02.GameObject\Effect\ComputePointParticle">
+      <UniqueIdentifier>{ceac3f7c-9e53-4638-aa47-729e8f089b5d}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -282,13 +291,26 @@
     <ClInclude Include="..\Public\Player_Idle.h">
       <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\AN_Test.h" />
-    <ClInclude Include="..\Public\ANS_Test.h" />
     <ClInclude Include="..\Public\Player_Move.h">
       <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Player_Jump.h">
       <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Cinematic_Player.h">
+      <Filter>02.GameObject\Camera\Cinematic</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Cinematic_SequenceIO.h">
+      <Filter>02.GameObject\Camera\Cinematic</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Cinematic_Types.h">
+      <Filter>02.GameObject\Camera\Cinematic</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Cinematic_Utils.h">
+      <Filter>02.GameObject\Camera\Cinematic</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\CinematicSequencerAdapter.h">
+      <Filter>02.GameObject\Camera\Cinematic</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\GameDataTable.h" />
     <ClInclude Include="..\Public\SkillTreeCom.h" />
@@ -433,13 +455,23 @@
     <ClCompile Include="..\Private\Player_Idle.cpp">
       <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\AN_Test.cpp" />
-    <ClCompile Include="..\Private\ANS_Test.cpp" />
     <ClCompile Include="..\Private\Player_Move.cpp">
       <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\Player_Jump.cpp">
       <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\CameraPresetIO.cpp">
+      <Filter>02.GameObject\Camera</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Cinematic_Player.cpp">
+      <Filter>02.GameObject\Camera\Cinematic</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Cinematic_SequenceIO.cpp">
+      <Filter>02.GameObject\Camera\Cinematic</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\CinematicSequencerAdapter.cpp">
+      <Filter>02.GameObject\Camera\Cinematic</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\GameDataTable.cpp" />
     <ClCompile Include="..\Private\SkillTreeCom.cpp" />

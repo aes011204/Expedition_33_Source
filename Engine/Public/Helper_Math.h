@@ -46,6 +46,13 @@ inline float GetEaseInRatio(float ratio, float power = 2.0f)
     return std::clamp(easeRatio, 0.0f, 1.0f);
 }
 
+inline float GetSmoothStepRatio(float ratio, float power = 2.0f)
+{
+    ratio = std::clamp(ratio, 0.f, 1.f);
+    return ratio * ratio * (3.f - 2.f * ratio);
+}
+
+
 /**
  * @brief 감속 보간
  * 
@@ -104,4 +111,5 @@ inline Vec3 Lerp_EaseIn(const Vec3& initStart, const Vec3& end, float ratio, flo
     const float easeRatio = GetEaseInRatio(ratio, power);
     return initStart + (end - initStart) * easeRatio;
 }
+
 }
