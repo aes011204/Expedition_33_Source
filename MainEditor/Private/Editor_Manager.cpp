@@ -9,8 +9,8 @@
 #include "Inspector.h"
 #include "Camera_Tool.h"
 #include "Profile_View.h"
+#include "Material_View.h"
 
-//#include "BT_Tool.h"
 #include "Level_Tool.h"
 
 #include "BT_View.h"
@@ -44,6 +44,8 @@ HRESULT Editor_Manager::Initialize()
     Add_Window(Prefab_View::Create());
     Add_Window(Animation_View::Create());
     Add_Window(Level_Tool::Create());
+
+    Add_Window(Material_View::Create());
 
     return S_OK;
 }

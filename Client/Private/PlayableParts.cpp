@@ -2,6 +2,7 @@
 #include "PlayableParts.h"
 #include "ModelCom.h"
 #include "ShaderCom.h"
+#include "Engine_Enum.h"
 
 NS_BEGIN(Client)
 
@@ -111,32 +112,24 @@ HRESULT PlayableParts::Render()
 
     for (uint32 i = 0; i < iNumMeshes; i++)
     {
-        if (FAILED(_modelCom->Bind_Material(_shaderCom.get(), "g_DiffuseTexture", i, MaterialTextureSlot::BaseColor)))
+        const Shared<Material> material = _modelCom->Get_Material(i);
+        if (material == nullptr)
             continue;
 
-        _modelCom->Bind_Material(_shaderCom.get(), "g_NormalTexture", i, MaterialTextureSlot::Normal);
-        _modelCom->Bind_Material(_shaderCom.get(), "g_EmissiveTexture", i, MaterialTextureSlot::Emissive);
+        if (FAILED(_shaderCom->Bind_MaterialTextures(*material)))
+            continue;
 
-        const Material::TextureSlot* baseColorSlot =
-            _modelCom->Find_MaterialSlot(i, { MaterialTextureSlot::BaseColor });
-        const Vec2 uvScale = baseColorSlot ? baseColorSlot->uvScale : Vec2(1.f, 1.f);
-        const Vec2 uvOffset = baseColorSlot ? baseColorSlot->uvOffset : Vec2(0.f, 0.f);
-        const float uvRotation = baseColorSlot ? baseColorSlot->uvRotation : 0.f;
-        const int useOpacityMask = 0;
-
-        _shaderCom->Bind_RawValue("g_UVScale", &uvScale, sizeof(Vec2));
-        _shaderCom->Bind_RawValue("g_UVOffset", &uvOffset, sizeof(Vec2));
-        _shaderCom->Bind_RawValue("g_UVRotation", &uvRotation, sizeof(float));
-        _shaderCom->Bind_RawValue("g_UseOpacityMask", &useOpacityMask, sizeof(int));
+        if (FAILED(_shaderCom->Bind_CBufferData(material->Get_CB())))
+            return E_FAIL;
 
         _modelCom->Bind_BoneMatrices(_shaderCom.get(), "g_BoneMatrices", i);
 
-        if (FAILED(_shaderCom->Begin(0)))
+        const uint32 passIndex = material->Get_PassIndex();
+        if (FAILED(_shaderCom->Begin(passIndex)))
             return E_FAIL;
 
         _modelCom->Render(i);
     }
-
 
     return S_OK;
 }
@@ -157,8 +150,8 @@ HRESULT PlayableParts::Render_Shadow()
     for (uint32 i = 0; i < numMeshes; i++) {
         _modelCom->Bind_BoneMatrices(_shaderCom.get(), "g_BoneMatrices", i);
 
-        if (FAILED(_shaderCom->Begin(1)))
-            return E_FAIL;
+        //if (FAILED(_shaderCom->Begin(static_cast<uint32>(VtxAnimMeshPass::Shadow))))
+        //    return E_FAIL;
 
         _modelCom->Render(i);
     }

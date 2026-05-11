@@ -34,6 +34,12 @@
     <ClCompile Include="..\Private\MainEditorApp.cpp">
       <Filter>00. Main</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\MaterialCreateHelper.cpp">
+      <Filter>97. Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Material_View.cpp">
+      <Filter>01. View</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\Scene_View.cpp">
       <Filter>01. View</Filter>
     </ClCompile>
@@ -114,6 +120,15 @@
     </ClInclude>
     <ClInclude Include="..\Public\MainEditorApp.h">
       <Filter>00. Main</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Material_View.h">
+      <Filter>01. View</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Material_BundleTypes.h">
+      <Filter>97. Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\MaterialCreateHelper.h">
+      <Filter>97. Utils</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Editor_Window.h">
       <Filter>01. View</Filter>

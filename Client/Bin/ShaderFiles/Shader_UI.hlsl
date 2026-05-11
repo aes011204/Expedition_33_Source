@@ -1,4 +1,7 @@
 #include "Engine_Shader_Defines.hlsli"
+#include "Engine_Shader_RenderState.hlsl"
+#include "Engine_Shader_Passes.hlsl"
+#include "Engine_Shader_Samplers.hlsl"
 
 float4x4 g_WorldMatrix, g_ViewMatrix, g_ProjMatrix;
 
@@ -7,19 +10,6 @@ Texture2D g_MaskTexture;
 
 float4 g_Color = float4(1.f, 1.f, 1.f, 1.f);
 
-sampler DefaultSampler = sampler_state
-{
-    Filter = MIN_MAG_MIP_LINEAR;
-    AddressU = Clamp;
-    AddressV = Clamp;
-};
-
-RasterizerState RS_UI
-{
-    FillMode = Solid;
-    CullMode = none;
-    FrontCounterClockwise = false;
-};
 
 struct VS_IN
 {
@@ -61,7 +51,7 @@ PS_OUT PS_NORMAL(PS_IN In)
 {
     PS_OUT Out;
 
-    Out.vColor = g_Texture.Sample(DefaultSampler, In.vTexcoord) * g_Color;
+    Out.vColor = g_Texture.Sample(LinearClampSampler, In.vTexcoord) * g_Color;
 
     return Out;
 }
@@ -70,33 +60,14 @@ PS_OUT PS_MASK(PS_IN In)
 {
     PS_OUT Out;
 
-    Out.vColor = g_Texture.Sample(DefaultSampler, In.vTexcoord) * g_Color;
-    Out.vColor.a *= g_MaskTexture.Sample(DefaultSampler, In.vTexcoord).a;
+    Out.vColor = g_Texture.Sample(LinearClampSampler, In.vTexcoord) * g_Color;
+    Out.vColor.a *= g_MaskTexture.Sample(LinearClampSampler, In.vTexcoord).a;
 
     return Out;
 }
 
 technique11 DefaultTechnique
 {
-    pass NormalPass
-    {
-        SetRasterizerState(RS_UI);
-        SetDepthStencilState(DSS_None, 0);
-        SetBlendState(BS_AlphaBlend, float4(0.f, 0.f, 0.f, 0.f), 0xffffffff);
-
-        VertexShader = compile vs_5_0 VS_MAIN();
-        GeometryShader = NULL;
-        PixelShader = compile ps_5_0 PS_NORMAL();
-    }
-
-    pass MaskPass
-    {
-        SetRasterizerState(RS_UI);
-        SetDepthStencilState(DSS_None, 0);
-        SetBlendState(BS_AlphaBlend, float4(0.f, 0.f, 0.f, 0.f), 0xffffffff);
-
-        VertexShader = compile vs_5_0 VS_MAIN();
-        GeometryShader = NULL;
-        PixelShader = compile ps_5_0 PS_MASK();
-    }
+    PASS_RS_DS_BS_VP(NormalPass,    RS_UI, DSS_None, BS_AlphaBlend, VS_MAIN, PS_NORMAL) // 0
+    PASS_RS_DS_BS_VP(MaskPass,      RS_UI, DSS_None, BS_AlphaBlend, VS_MAIN, PS_MASK)   // 1
 }

@@ -48,7 +48,7 @@ namespace Engine
         UI,
     };
 
-    enum class DeferredPass : uint8
+    enum class DeferredPass : uint8_t
     {
         Debug,
         Directional,
@@ -56,12 +56,53 @@ namespace Engine
         Combined,
     };
 
-    enum class CollisionShape : uint8
+    enum class CollisionShape : uint8_t
     {
         AABB,
         OBB,
         Sphere,
         Capsule,
+
+        END
+    };
+
+    enum class VtxAnimMeshPass : uint8_t
+    {
+        Opaque = 0,
+        Masked,
+        OpaqueTwoSided,
+        MaskedTwoSided,
+        Shadow,
+
+        END
+    };
+
+    enum class ConstantBuffer : uint8_t
+    {
+        Material = 0,
+
+        END
+    };
+
+    enum class MaterialPassKey : uint8_t
+    {
+        Opaque = 0,
+        OpaqueTwoSided,
+        Masked,
+        MaskedTwoSided,
+
+        END
+    };
+
+    enum class ShaderType : uint8_t
+    {
+        VtxTex = 0,
+        VtxNorTex,
+        VtxMesh,
+        VtxAnimMesh,
+        VtxCube,
+        BillboardParticle,
+        UI,
 
         END
     };
