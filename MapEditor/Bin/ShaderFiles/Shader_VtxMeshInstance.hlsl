@@ -3,6 +3,7 @@
 #include "Engine_Shader_Defines.hlsli"
 
 float4x4 g_ViewMatrix, g_ProjMatrix;
+float4x4 g_PreTransformMatrix;
 
 texture2D g_Texture;
 
@@ -62,11 +63,12 @@ VS_OUT VS_MAIN(VS_IN In)
 
     float4x4 matWVP = mul(mul(matWorld, g_ViewMatrix), g_ProjMatrix);
 
-    Out.vPosition = mul(float4(In.vPosition, 1.f), matWVP);
-    Out.vNormal = normalize(mul(float4(In.vNormal, 0.f), matWorld));
-    Out.vTexcoord = In.vTexcoord;
-    Out.vWorldPos = mul(float4(In.vPosition, 1.f), matWorld);
+    float4 localPos = mul(float4(In.vPosition, 1.f), g_PreTransformMatrix);
+    Out.vPosition = mul(localPos, matWVP);
+    Out.vNormal = normalize(mul(float4(In.vNormal, 0.f), mul(g_PreTransformMatrix, matWorld)));
+    Out.vWorldPos = mul(localPos, matWorld);
     Out.vProjPos = Out.vPosition;
+    Out.vTexcoord = In.vTexcoord;
     Out.vColor = In.iColor;
 
     return Out;
@@ -106,6 +108,15 @@ PS_OUT PS_MAIN(PS_IN In)
     return Out;
 }
 
+PS_OUT PS_MAIN_NOTEXTURE(PS_IN In)
+{
+    PS_OUT Out;
+    Out.vDiffuse = vector(0.8f, 0.8f, 0.8f, 1.f);
+    Out.vNormal  = vector(In.vNormal.xyz * 0.5f + 0.5f, 1.f);
+    Out.vDepth   = vector(In.vProjPos.z / In.vProjPos.w, In.vProjPos.w / g_fFar, 0.f, 1.f);
+    return Out;
+}
+
 technique11 DefaultTechnique
 {
     pass DefaultPass
@@ -117,5 +128,15 @@ technique11 DefaultTechnique
         VertexShader = compile vs_5_0 VS_MAIN();
         GeometryShader = NULL;
         PixelShader = compile ps_5_0 PS_MAIN();
+    }
+
+    pass NoTexturePass // index 1
+    {
+        SetRasterizerState(RS_Default);
+        SetDepthStencilState(DSS_Default, 0);
+        SetBlendState(BS_Default, float4(0.f, 0.f, 0.f, 0.f), 0xffffffff);
+
+        VertexShader = compile vs_5_0 VS_MAIN();
+        PixelShader = compile ps_5_0 PS_MAIN_NOTEXTURE();
     }
 }

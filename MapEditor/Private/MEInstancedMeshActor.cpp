@@ -15,12 +15,14 @@ HRESULT MEInstancedMeshActor::Initialize(ComPtr<Device>  device, ComPtr<Context>
     return S_OK;
 }
 
-HRESULT MEInstancedMeshActor::Render()
+HRESULT MEInstancedMeshActor::Render(float cameraFar)
 {
     if (_instanceCount == 0 || !_model || !_shader)
     {
         return S_OK;
     }
+
+    Matrix preTransform = _model->Get_PreLocalTransformMatrix();
 
     if (FAILED(GAME->Bind_TransformMatrix(D3DTS::View, _shader.get(), "g_ViewMatrix")))
     {
@@ -30,13 +32,21 @@ HRESULT MEInstancedMeshActor::Render()
     {
         return E_FAIL;
     }
+    if (FAILED(_shader->Bind_RawValue("g_fFar", &cameraFar, sizeof(float))))
+    {
+        return E_FAIL;
+    }
+    if (FAILED(_shader->Bind_Matrix("g_PreTransformMatrix", &preTransform)))
+    {
+        return E_FAIL;
+    }
 
     const uint32 numMeshes = static_cast<uint32>(_model->Get_NumMeshes());
     for (uint32 i = 0; i < numMeshes; ++i)
     {
         bool hasTexture = SUCCEEDED(_model->Bind_Material(_shader.get(), "g_Texture", i, MaterialTextureSlot::BaseColor));
 
-        if (FAILED(_shader->Begin(0)))
+        if (FAILED(_shader->Begin(hasTexture ? 0 : 1)))
         {
             return E_FAIL;
         }
@@ -137,7 +147,7 @@ HRESULT MEInstancedMeshActor::Ready_Components()
 {
     _shader = ShaderCom::Create(_device, _context,
         L"../ShaderFiles/Shader_VtxMeshInstance.hlsl",
-        VtxMeshInstanceLayout::Elements, VtxMeshInstanceLayout::numElements);
+        VtxMeshInstanceLayout::Elements, VtxMeshInstanceLayout::numElements, ShaderType::VtxMesh);
 
     if (!_shader)
     {
