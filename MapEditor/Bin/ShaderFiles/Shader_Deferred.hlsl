@@ -134,7 +134,7 @@ PS_OUT_LIGHT PS_MAIN_DIRECTIONAL(PS_IN In)
 {
     PS_OUT_LIGHT Out;
 
-    vector vDepthDesc = g_DepthTexture.Sample(DefaultSampler, In.vTexcoord);
+    vector vDepthDesc = g_DepthTexture.Sample(LinearWrapSampler, In.vTexcoord);
     if (vDepthDesc.y == 0.f)
         discard;
     
@@ -222,11 +222,11 @@ PS_OUT_BACKBUFFER PS_MAIN_COMBINED_SIMPLE(PS_IN In)
 {
     PS_OUT_BACKBUFFER Out;
 
-    vector vDiffuse = g_DiffuseTexture.Sample(DefaultSampler, In.vTexcoord);
+    vector vDiffuse = g_DiffuseTexture.Sample(LinearWrapSampler, In.vTexcoord);
     if (vDiffuse.a == 0.f)
         discard;
-    vector vShade = g_ShadeTexture.Sample(DefaultSampler, In.vTexcoord);
-    vector vSpecular = g_SpecularTexture.Sample(DefaultSampler, In.vTexcoord);
+    vector vShade = g_ShadeTexture.Sample(LinearWrapSampler, In.vTexcoord);
+    vector vSpecular = g_SpecularTexture.Sample(LinearWrapSampler, In.vTexcoord);
 
     Out.vColor = vDiffuse * vShade + vSpecular;
     return Out;
