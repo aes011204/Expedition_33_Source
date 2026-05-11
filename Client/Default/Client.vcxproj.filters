@@ -329,6 +329,7 @@
     <ClInclude Include="..\Public\Hero_Manager.h" />
     <ClInclude Include="..\Public\ComputePointParticlePreview.h" />
     <ClInclude Include="..\Public\GameplayUI.h" />
+    <ClInclude Include="..\Public\CharacterStatus_Panel.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -501,6 +502,7 @@
     <ClCompile Include="..\Private\Hero_Manager.cpp" />
     <ClCompile Include="..\Private\ComputePointParticlePreview.cpp" />
     <ClCompile Include="..\Private\GameplayUI.cpp" />
+    <ClCompile Include="..\Private\CharacterStatus_Panel.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">
