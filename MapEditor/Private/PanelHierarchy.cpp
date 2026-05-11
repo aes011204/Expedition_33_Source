@@ -1,14 +1,11 @@
 ﻿#include "pch.h"
 #include "PanelHierarchy.h"
 #include "SceneContext.h"
+#include "CmdDeleteObject.h"
 
 PanelHierarchy::PanelHierarchy(SceneContext* ctx)
     : MEWindow{ L"Hierarchy" }, _ctx{ ctx }
 {
-    for (int i = 0; i < static_cast<int>(EObjectType::Fail); ++i)
-    {
-        _types[i] = static_cast<EObjectType>(i);
-    }
 }
 
 void PanelHierarchy::Render()
@@ -24,28 +21,6 @@ void PanelHierarchy::Render()
             return;
         }
 
-        if (ImGui::Button("+ 추가"))
-        {
-            ImGui::OpenPopup("##add_type");
-        }
-
-        if (ImGui::BeginPopup("##add_type"))
-        {
-            for (auto t : _types)
-            {
-                if (ImGui::MenuItem(ObjectTypeName(t)))
-                {
-                    wstring name = String::ToWString((ObjectTypeName(t)))
-                        + L"_" + to_wstring(_ctx->_objects.size());
-                    auto obj = EditorObject::Create(name, t);
-                    _ctx->Add(obj);
-                    _ctx->_selected = obj;
-                }
-            }
-            ImGui::EndPopup();
-        }
-
-        ImGui::SameLine();
         ImGui::TextDisabled("(%d)", static_cast<int>(_ctx->_objects.size()));
 
         string folderStr = String::ToString(_ctx->_modelFolder);
@@ -155,7 +130,16 @@ void PanelHierarchy::Render()
 
         if (toDelete)
         {
-            _ctx->Remove(toDelete);
+            auto it = find(_ctx->_objects.begin(), _ctx->_objects.end(), toDelete);
+            if (it == _ctx->_objects.end())
+            {
+                ImGui::End();
+                SetOpen(open);
+                return;
+            }
+            
+            int index = static_cast<int>(distance(_ctx->_objects.begin(), it));
+            _ctx->PushCommand(CmdDeleteObject::Create(toDelete, index));
         }
     }
     ImGui::End();

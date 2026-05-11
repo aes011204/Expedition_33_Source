@@ -66,7 +66,7 @@ void PanelAssetBrowser::Render()
 
             ImGui::Selectable(filename.c_str());
 
-            if (ext == ".bin" || ext == ".model")
+            if (ext == ".model" || ext == ".prefab")
             {
                 if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID))
                 {

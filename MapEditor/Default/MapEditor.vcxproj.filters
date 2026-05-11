@@ -40,9 +40,6 @@
     <Filter Include="96. SimpleMath">
       <UniqueIdentifier>{6b1adc6e-e031-406c-85a7-f2ba018b9662}</UniqueIdentifier>
     </Filter>
-    <Filter Include="07. MEStatic">
-      <UniqueIdentifier>{a636401e-835d-4b70-8122-bdf00cb238f7}</UniqueIdentifier>
-    </Filter>
     <Filter Include="06. EditorUtil">
       <UniqueIdentifier>{f6749250-5d5d-465d-a104-6a0ca79eee0a}</UniqueIdentifier>
     </Filter>
@@ -69,6 +66,39 @@
     </Filter>
     <Filter Include="03. Manager\MEModelManager">
       <UniqueIdentifier>{3fbe4ead-0c55-43ec-b46f-f0d86a03c5b1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="09. EditorCommands">
+      <UniqueIdentifier>{233c2c9d-0392-40d4-b077-fdcb06c59c11}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="09. EditorCommands\IEditorCommand">
+      <UniqueIdentifier>{e83066e5-f277-4fad-bbde-089cea067cc9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="09. EditorCommands\IEditorCommand\CmdAddObject">
+      <UniqueIdentifier>{28ca647f-5ec4-4dde-99d1-f6ba5fbb96e2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="09. EditorCommands\IEditorCommand\CmdDeleteObject">
+      <UniqueIdentifier>{ca1c3a2e-7884-416b-8ee4-8c7c23affdb5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="09. EditorCommands\IEditorCommand\CmdTransformObject">
+      <UniqueIdentifier>{dc5d53dd-39d7-4553-a53b-eb7431dc1302}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="10. System">
+      <UniqueIdentifier>{66696bb6-7437-450c-8787-d982d9bb38d4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="10. System\MEPickingSystem">
+      <UniqueIdentifier>{e6f46635-7d2c-4d86-897b-4722f643cb96}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="11. MEDebugRenderer">
+      <UniqueIdentifier>{301f6db0-0489-4df9-a76b-a628cbb7e0f9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="07. MeshActor">
+      <UniqueIdentifier>{a636401e-835d-4b70-8122-bdf00cb238f7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="07. MeshActor\StaticMeshActor">
+      <UniqueIdentifier>{036462ad-ad68-47ad-91a8-693c4552d074}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="07. MeshActor\InstancedMeshActor">
+      <UniqueIdentifier>{0a528664-f966-4fbb-93fd-8f214f93f3da}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -114,9 +144,6 @@
     <ClInclude Include="..\Public\MECamera.h">
       <Filter>05. Camera</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\MEStaticMeshActor.h">
-      <Filter>07. MEStatic</Filter>
-    </ClInclude>
     <ClInclude Include="..\Public\SceneContext.h">
       <Filter>06. EditorUtil\SceneContext</Filter>
     </ClInclude>
@@ -134,6 +161,30 @@
     </ClInclude>
     <ClInclude Include="..\Public\MEModelManager.h">
       <Filter>03. Manager\MEModelManager</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\IEditorCommand.h">
+      <Filter>09. EditorCommands\IEditorCommand</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\CmdAddObject.h">
+      <Filter>09. EditorCommands\IEditorCommand\CmdAddObject</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\CmdDeleteObject.h">
+      <Filter>09. EditorCommands\IEditorCommand\CmdDeleteObject</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\CmdTransformObject.h">
+      <Filter>09. EditorCommands\IEditorCommand\CmdTransformObject</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\MEPickingSystem.h">
+      <Filter>10. System\MEPickingSystem</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\MEDebugRenderer.h">
+      <Filter>11. MEDebugRenderer</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\MEStaticMeshActor.h">
+      <Filter>07. MeshActor\StaticMeshActor</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\MEInstancedMeshActor.h">
+      <Filter>07. MeshActor\InstancedMeshActor</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -183,9 +234,6 @@
     <ClCompile Include="..\Private\SimpleMath.cpp">
       <Filter>96. SimpleMath</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\MEStaticMeshActor.cpp">
-      <Filter>07. MEStatic</Filter>
-    </ClCompile>
     <ClCompile Include="..\Private\SceneContext.cpp">
       <Filter>06. EditorUtil\SceneContext</Filter>
     </ClCompile>
@@ -203,6 +251,27 @@
     </ClCompile>
     <ClCompile Include="..\Private\MEModelManager.cpp">
       <Filter>03. Manager\MEModelManager</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\CmdAddObject.cpp">
+      <Filter>09. EditorCommands\IEditorCommand\CmdAddObject</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\CmdDeleteObject.cpp">
+      <Filter>09. EditorCommands\IEditorCommand\CmdDeleteObject</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\CmdTransformObject.cpp">
+      <Filter>09. EditorCommands\IEditorCommand\CmdTransformObject</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\MEPickingSystem.cpp">
+      <Filter>10. System\MEPickingSystem</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\MEDebugRenderer.cpp">
+      <Filter>11. MEDebugRenderer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\MEStaticMeshActor.cpp">
+      <Filter>07. MeshActor\StaticMeshActor</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\MEInstancedMeshActor.cpp">
+      <Filter>07. MeshActor\InstancedMeshActor</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -225,6 +294,9 @@
       <Filter>95. ShaderFiles</Filter>
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxTex.hlsl">
+      <Filter>95. ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMeshInstance.hlsl">
       <Filter>95. ShaderFiles</Filter>
     </FxCompile>
   </ItemGroup>

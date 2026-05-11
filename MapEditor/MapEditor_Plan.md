@@ -46,11 +46,14 @@ MapEditorApp          — 엔진 초기화, 메인 루프 (Update/Render), Scene
 ├── MECamera          — 에디터 자유시점 카메라 (우클릭+WASD, 뷰/프로젝션 행렬 → GAME)
 ├── RenderTarget      — 씬을 RT에 렌더, PanelViewport에 SRV 전달
 ├── SceneContext      — 씬 오브젝트 목록 + 선택 상태 + JSON 저장/로드
+├── MEPickingSystem   ✅ GPU ID 버퍼 피킹 + 3D 커서 레이캐스트 캡슐화
+├── MEDebugRenderer   ✅ 씬 디버그 드로우 (존 와이어프레임, 스폰포인트, 라이트, 커서 십자선)
 └── MEManager         — DockSpace + 패널 컨테이너 + File 메뉴
     ├── PanelViewport     ✅ RT ImGui::Image, 카메라 입력, ImGuizmo 오버레이
-    ├── PanelHierarchy    ✅ 오브젝트 목록, 선택/추가/삭제/복제/이름변경
-    ├── PanelInspector    ✅ Transform 실시간 편집, Gizmo 양방향 연동
-    └── PanelAssetBrowser ✅ 파일 탐색기 방식, 브레드크럼, .bin 드래그 앤 드롭 스폰
+    ├── PanelHierarchy    ✅ 오브젝트 목록, 선택/삭제/복제/이름변경 (Add 버튼 제거 — Prefab으로 대체)
+    ├── PanelInspector    ✅ Transform 실시간 편집, Gizmo 양방향 연동, Undo 기록
+    │                        DrawTransform / DrawZoneShape / DrawTypeParams 로 분리
+    └── PanelAssetBrowser ✅ 파일 탐색기 방식, 브레드크럼, .bin/.prefab 드래그 앤 드롭 스폰
 ```
 
 **베이스 클래스**: `MEWindow` (이름, 열림 상태, Update/Render 인터페이스)
@@ -75,9 +78,30 @@ SceneContext
 ├── objects       (vector<Shared<EditorObject>>)
 ├── selected      (Shared<EditorObject>)
 ├── mapName       (wstring)
+├── _undoStack    (vector<Shared<IEditorCommand>>)  — 최대 50개
+├── _redoStack    (vector<Shared<IEditorCommand>>)
 ├── SaveToFile(const string& path)
-└── LoadFromFile(const string& path)
+├── LoadFromFile(const string& path)               — 로드 시 Undo/Redo 스택 초기화
+├── SpawnObject(const wstring& modelPath, const Vec3& pos) → Shared<EditorObject>
+├── SpawnFromPrefab(const string& prefabPath, const Vec3& pos) → Shared<EditorObject>
+├── PushCommand(Shared<IEditorCommand> cmd)        — Execute 호출 후 undoStack push, redoStack clear
+├── UndoCommand()
+└── RedoCommand()
 ```
+
+### Command 시스템 ✅
+
+```
+IEditorCommand (abstract)          — Execute / Undo 인터페이스
+├── CmdAddObject                   — obj 추가 (Execute: Add+선택, Undo: Remove)
+├── CmdDeleteObject                — obj 삭제 (Execute: Remove, Undo: 원래 인덱스에 재삽입+선택)
+└── CmdTransformObject             — Transform 변경 (old/new pos·rot·scale 보관, 양방향 복원)
+```
+
+> Prefab/메시 스폰, Inspector Delete, Hierarchy Delete, Gizmo/Inspector Transform 편집 모두 Command로 기록.  
+> Ctrl+Z / Ctrl+Y 로 Undo/Redo. `WantTextInput` 체크로 텍스트 입력 중 오작동 방지.
+
+---
 
 ### scale_map.py ✅ (외부 변환 도구)
 
@@ -256,30 +280,151 @@ MEModelManager                            — 모델 로드/캐싱 전담
 
 ---
 
-### Phase 3.9 — 편집 UX 개선 ← **다음 작업**
+### Phase 3.9 — 편집 UX 개선 ✅
 
 #### 목표
 - 오브젝트 배치 흐름을 Prefab 드래그 앤 드롭으로 통일하고, 실수 복구 기능 추가
 
-#### 작업 내용
+#### 구현 내용
 
-1. **오브젝트 추가 시 자동 선택**
-   - 스폰 직후 `_scene._selected = newObj` 설정
-   - 추가 즉시 Inspector 포커스 + Gizmo 활성화
+1. **오브젝트 추가 시 자동 선택** ✅
+   - `SpawnObject` / `SpawnFromPrefab` → `Shared<EditorObject>` 반환
+   - `DoSpawnAt`에서 `PushCommand(CmdAddObject)` → Execute 내에서 자동 선택
+   - Hierarchy `_prevSelected` 비교로 스크롤 자동 동기화
 
-2. **Prefab 시스템 (Asset Browser 통합)**
+2. **Prefab 시스템 (Asset Browser 통합)** ✅
    - Light / SpawnPoint / TriggerVolume 등 비메시 오브젝트를 `.prefab` JSON 파일로 저장
-   - Asset Browser에서 `.prefab` 파일 인식 → 드래그 앤 드롭으로 3D 커서 위치에 스폰
-   - 포맷: `{ "Type": "Light", "Name": "Point Light", "LightType": "Point", "Range": 10.0, ... }`
-   - 저장 경로: `Client/Bin/Resources/Map/Prefabs/` (Asset Browser 탐색 대상에 추가)
-   - `ConsumeSpawn`에서 확장자로 `.bin` / `.prefab` 분기 — 기존 메시 파이프라인 재사용
-   - Prefab 시스템 완성 후 Hierarchy "Add" 버튼(타입 팝업) 제거
+   - 저장 경로: `Client/Bin/Resources/Map/Prefabs/` (7종 기본 프리팹 제공)
+   - `PanelAssetBrowser`: `.prefab` 드래그 소스 추가 (payload 재사용: `"MODEL_PATH"`)
+   - `DoSpawnAt`: 확장자 분기 — `.prefab` → `SpawnFromPrefab`, 나머지 → `SpawnObject`
+   - `SceneContext::SpawnFromPrefab`: JSON 파싱 → 타입별 파라미터 복원 → `Add`
+   - Hierarchy "추가" 버튼(타입 팝업) 제거, `_types` 배열 제거
+   - 버그 수정: `DoSpawnAt`에서 `SpawnObject`/`SpawnFromPrefab` 내부 `Add` 후 `Remove` → `PushCommand` 순서로 이중 스폰 방지
 
-3. **Ctrl+Z / Ctrl+Y Undo/Redo**
-   - Command 패턴 — `IEditorCommand` 인터페이스 (`Execute` / `Undo`)
-   - 커맨드 종류: `CmdAddObject`, `CmdDeleteObject`, `CmdTransformObject`
-   - `SceneContext`에 `_undoStack` / `_redoStack` 보관, 스택 최대 50개
-   - Inspector Transform 편집은 마우스 릴리스 / Enter 확정 시점에 커맨드 기록 (드래그 중 매 프레임 기록 방지)
+3. **Ctrl+Z / Ctrl+Y Undo/Redo** ✅
+   - `IEditorCommand` (abstract class) — `Execute` / `Undo` 인터페이스
+   - `CmdAddObject` / `CmdDeleteObject` / `CmdTransformObject` — Initialize/Create 패턴
+   - `SceneContext`에 `_undoStack` / `_redoStack` (vector, 최대 50개)
+   - `PushCommand`: Execute 호출 → undoStack push → redoStack clear
+   - `MapEditorApp::Update`: `WantTextInput` 체크 후 Ctrl+Z → `UndoCommand`, Ctrl+Y → `RedoCommand`
+   - Inspector Transform: DragFloat3 `IsItemActive` 추적, 드래그 시작 시 before 스냅샷, 드래그 종료 시 `CmdTransformObject` push
+     - `frameStartPos/Rot/Scale`로 첫 프레임 수정 전 값 캡처
+   - Gizmo: `IsUsing()` 전환 감지, 드래그 시작 시 before 캡처, 드래그 종료 시 `CmdTransformObject` push (`_gizmoWasUsing` 업데이트 필수)
+   - Inspector/Hierarchy Delete → `CmdDeleteObject` (삭제 전 인덱스 보존)
+   - `LoadFromFile` 시 Undo/Redo 스택 초기화
+   - `Free()` 시 스택 clear → D3D11 리소스 누수 방지
+   - 버그 수정: `Free()`에서 `_deferredShader` / `_rectBuffer` 누락으로 인한 `LIVE_BLENDSTATE` / `LIVE_BUFFER` 해결
+
+---
+
+### Phase 3.10 — 코드 정리 ✅
+
+#### 버그 수정
+- ✅ `SceneContext::SpawnFromPrefab` — Light Specular 로드 시 `_lightAmbient` 에 잘못 할당하던 버그 수정 → `_lightSpecular` 로 교정
+
+#### 중복 제거
+- ✅ `SceneContext::LoadFromFile` — `LoadTransform` 람다에 Scale 로드 추가, StaticMesh 섹션의 별도 Scale 3줄 제거
+- ✅ `PanelInspector::Render` — `char buf[256]` + `strncpy_s` + `InputText` 중복 패턴을 `InputZoneId` 람다로 통합
+
+#### 구조 분리
+- ✅ `PanelInspector::Render` (247줄) → `DrawTransform` / `DrawZoneShape` / `DrawTypeParams` 3개 private 함수로 분리
+- ✅ `MEPickingSystem` 신규 클래스 — `MapEditorApp`에서 GPU ID 피킹 로직 추출
+  - `DoPickAt` / `SetCursorAt` 의 공통 GPU ID 렌더+샘플 코드를 `SampleID` 로 통합
+  - `_idRT` / `_idStagingTex` 리소스 소유권 이전
+- ✅ `MEDebugRenderer` 신규 클래스 — `DrawSceneDebug` 추출
+  - `SceneContext const&` 참조만으로 동작, D3D 리소스 없음
+
+---
+
+### Phase 3.12 — Octree 공간 분할 컬링 + SceneContext 타입 분리 ✅
+
+#### 목표
+- 씬 전체 O(n) 컬링을 Octree 기반 O(log n)으로 교체
+- `SceneContext._objects` 단일 벡터를 타입별로 분리해 불필요한 순회 제거
+
+#### 구현 내용
+
+1. **`Culling_Manager` Octree 확장** ✅
+   - `OctreeNode` 내부 구조체 — bounds / indices / children[8] / IsLeaf()
+   - `BuildOctree(worldAABBs)` — 전체 씬 AABB 배열로 트리 구성 (MAX_DEPTH=6, MAX_OBJECTS=8)
+     - 루트 AABB: 전체 오브젝트를 감싸는 최소/최대 계산 (`Vec3::Min/Max` 활용)
+     - `subdivide` 재귀 람다 — 경계 교차 오브젝트는 여러 자식에 중복 배정
+   - `QueryVisible(outIndices)` — `_frustum` 기준 가시 인덱스 수집, DISJOINT 가지 스킵
+     - `sort + unique + erase`로 중복 제거 (경계 오브젝트 중복 배정 방식 유지)
+   - `ClearOctree()` — `_octreeRoot.reset()` 으로 트리 전체 재귀 소멸
+   - `GameInstance`에 `BuildOctree` / `QueryVisible` 래퍼 추가
+
+2. **`SceneContext` 타입 벡터 분리** ✅
+   - `_staticMeshes` — 렌더링, Octree, 피킹 전용
+   - `_lights` — 라이트 싱크 전용
+   - `_objects` — Hierarchy 표시, Undo/Redo 인덱스 보존용 유지
+   - `Add` / `Remove` / `Duplicate` — 타입에 따라 해당 벡터 동시 관리
+   - `Clear()` 메서드 추가 — 모든 벡터 + 스택 일괄 초기화
+   - `LoadFromFile` — `_objects.push_back` → `Add()` 교체, `Clear()` 호출로 통합
+
+3. **`MapEditorApp` private 메서드 분리** ✅
+   - `RebuildOctreeIfDirty()` — `_scene._octreeDirty` 체크 → `_staticMeshes` 순회해 worldAABB 수집 → `GAME->BuildOctree`
+   - `RenderStaticMeshes()` — `GAME->QueryVisible` → `_staticMeshes[idx]` 렌더
+   - `SyncSceneLights()` — `_scene._lights` 직접 순회 (타입 체크 제거)
+   - `UpdateRenderHandles()` — `_scene._staticMeshes` 직접 순회 (타입 체크 제거)
+
+4. **`MEPickingSystem` 수정** ✅
+   - `SampleID` / `DoPickAt` / `SetCursorAt` — `scene._objects` → `scene._staticMeshes`
+   - `SampleID` 내 타입 체크 제거 (StaticMesh만 있으므로)
+
+5. **`CmdDeleteObject::Undo` 수정** ✅
+   - `_objects` 원래 인덱스 복원 유지 + 타입 벡터에도 push
+
+6. **Deferred 셰이더 배경 버그 수정** ✅ (`Shader_Deferred.hlsl`)
+   - `PS_MAIN_DIRECTIONAL` / `PS_MAIN_POINT` — `vDepthDesc.y == 0.f` 시 `discard` 추가 (배경 픽셀 라이팅 차단)
+   - `PS_MAIN_COMBINED_SIMPLE` — `vDiffuse.a == 0.f` 시 `discard` 추가 (배경 출력 차단)
+
+#### 설계 결정
+- **Octree vs CS 컬링**: 역할 분리 — Octree는 일반 오브젝트, CS 컬링은 인스턴싱 메시 전용
+- **교차 오브젝트 중복 배정 방식 유지**: 큰 오브젝트 많은 환경에서 부모 노드 누적보다 안정적, sort+unique 비용은 visible 수 기준 무시 가능
+- **Client 적용 보류**: Client는 GameObject 루프 구조라 QueryVisible 연동 시 레벨 단위 리팩토링 필요 → Phase 4 이후
+
+---
+
+### Phase 3.11 — 메시 인스턴싱 + Compute Shader 컬링 (진행 중)
+
+#### 목표
+- 풀, 바위, 나무 등 반복 배치 오브젝트를 GPU 인스턴싱으로 렌더, Compute Shader로 컬링
+
+#### 구조 설계
+- **방식 1 (1단계)**: CPU 드리븐 — DYNAMIC 인스턴스 VB, `DrawIndexedInstanced`
+- **방식 2 (2단계)**: GPU 드리븐 — StructuredBuffer SRV + CS 컬링 + `DrawIndexedInstancedIndirect`
+
+#### 진행 현황
+
+**완료**
+- ✅ `MESHINSTANCEDATA` 구조체 추가 (`Engine/Public/Vertex_Types.h`)
+  - 필드: position / scale / windPhase / yRotation / colorVariation / lodIndex (총 36바이트)
+  - 풀·바위·나무 등 정적 메시 인스턴싱 공용
+- ✅ `MeshInstanceInitDesc` 구조체 추가 (`Engine/Public/Engine_Struct.h`)
+  - 정점/인덱스/인스턴스 데이터를 한 번에 넘기는 초기화 디스크립터
+  - `Engine_Struct.h`에 `#include "Vertex_Types.h"` 추가 (선언 순서 문제 해결)
+- ✅ `VIBuffer_Mesh.h` 헤더 작성 (`Engine/Public/VIBuffer_Mesh.h`)
+  - `VIBufferCom_Instance` 상속, `Initialize` / `UpdateInstances` / `Create` / `Clone`
+
+**대기 중**
+- ⏸ `VIBuffer_Mesh.cpp` 구현 — 이펙트 담당이 `VIBufferCom_Instance` 수정 중, 완료 후 재개
+  - 정점/인덱스 버퍼 생성 (USAGE_DEFAULT)
+  - 인스턴스 버퍼 생성 (USAGE_DYNAMIC + CPU_ACCESS_WRITE)
+  - `UpdateInstances`: `Map(WRITE_DISCARD)` → `memcpy` → `Unmap`
+  - 인스턴스 수 초과 시 버퍼 재생성 처리 필요
+
+**미구현**
+- ⬜ `GrassActor` (또는 `InstancedMeshActor`) — GameObject 상속, 영역/밀도 파라미터, 풀 날 쿼드 생성
+- ⬜ `Shader_Grass.hlsl` — 바람 VS (sin파, uvY 가중치), G-buffer 출력
+- ⬜ CS 컬링 단계 (`CS_FrustumCull.hlsl`) — SRV → AppendStructuredBuffer UAV + DrawArgs UAV
+- ⬜ `DrawIndexedInstancedIndirect` 전환 (`VIBufferCom_Instance` 또는 별도 경로)
+- ⬜ MapEditor 연동 — Inspector에서 area/density 편집, JSON 직렬화
+
+#### 참고 사항
+- 이펙트 담당 작업 완료 전까지 `VIBuffer_Mesh.cpp` 작성 보류
+- `UpdateInstances`에서 `D3D11_MAP_WRITE_DISCARD` 사용 → 버퍼 크기 고정, 초과 시 재생성 필요
+- 컬링 CS는 position + scale로 바운딩 구 계산 가능 → 별도 컬링 전용 필드 불필요
 
 ---
 
@@ -314,7 +459,7 @@ MEModelManager                            — 모델 로드/캐싱 전담
 ### Phase 6 — 물리 / 최적화
 - PhysX 콜라이더 편집 UI (맵 에디터)
 - PhysX 지형 충돌
-- Octree 기반 공간 분할 컬링 (현재 O(n) → O(log n))
+- Octree 기반 공간 분할 컬링 Client 적용 (MapEditor는 Phase 3.12에서 완료)
 - 인스턴싱 그룹, Occlusion Volume
 
 ---
@@ -334,9 +479,9 @@ MEModelManager                            — 모델 로드/캐싱 전담
 | 마우스 피킹 (GPU ID Buffer) | ✅ |
 | Asset Browser 파일 탐색기 | ✅ |
 | 3D 커서 스폰 (Shift+클릭 + 드래그 앤 드롭) | ✅ |
-| 추가 시 자동 선택 | 구현 예정 (Phase 3.9) |
-| Prefab 시스템 (.prefab 드래그 앤 드롭) | 구현 예정 (Phase 3.9) |
-| Undo / Redo (Ctrl+Z / Ctrl+Y) | 구현 예정 (Phase 3.9) |
+| 추가 시 자동 선택 | ✅ |
+| Prefab 시스템 (.prefab 드래그 앤 드롭) | ✅ |
+| Undo / Redo (Ctrl+Z / Ctrl+Y) | ✅ |
 
 ### 렌더링 / 배치
 
@@ -347,7 +492,7 @@ MEModelManager                            — 모델 로드/캐싱 전담
 | Deferred 라이팅 (G-buffer + 라이트 누적 + 합성) | ✅ |
 | 절두체 컬링 (Client/MainEditor) | ✅ |
 | 절두체 컬링 (MapEditor 뷰포트) | ✅ |
-| Octree 공간 분할 컬링 | 구현 예정 (Phase 6) |
+| Octree 공간 분할 컬링 (MapEditor) | ✅ |
 | 스카이 (SkySphere) | 구현 예정 — PNG 파노라마 텍스처, VIBuffer_Sphere 필요 |
 | 물(Water) 배치 | 구현 예정 |
 | 파티클 이펙트 배치 | 파티클 시스템 대기 |

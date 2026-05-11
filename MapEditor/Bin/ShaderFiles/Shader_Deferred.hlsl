@@ -148,6 +148,10 @@ PS_OUT_LIGHT PS_MAIN_DIRECTIONAL(PS_IN In)
 {
     PS_OUT_LIGHT Out;
 
+    vector vDepthDesc = g_DepthTexture.Sample(DefaultSampler, In.vTexcoord);
+    if (vDepthDesc.y == 0.f)
+        discard;
+    
     // Normal : DXGI_FORMAT_R16G16B16A16_UNORM
     vector vNormalDesc = g_NormalTexture.Sample(DefaultSampler, In.vTexcoord);
     vector vNormal = vector(normalize(vNormalDesc.xyz * 2.f - 1.f), 0.f);
@@ -233,7 +237,8 @@ PS_OUT_BACKBUFFER PS_MAIN_COMBINED_SIMPLE(PS_IN In)
     PS_OUT_BACKBUFFER Out;
 
     vector vDiffuse = g_DiffuseTexture.Sample(DefaultSampler, In.vTexcoord);
-
+    if (vDiffuse.a == 0.f)
+        discard;
     vector vShade = g_ShadeTexture.Sample(DefaultSampler, In.vTexcoord);
     vector vSpecular = g_SpecularTexture.Sample(DefaultSampler, In.vTexcoord);
 

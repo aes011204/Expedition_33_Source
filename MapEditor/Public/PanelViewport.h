@@ -51,6 +51,11 @@ private:
     ImVec2 _cursorVpPos = {};
     ImVec2 _cursorVpSize = {};
 
+    bool _gizmoWasUsing = false;
+    Vec3 _gizmoPrevPos = {};
+    Quat _gizmoPrevRot = {};
+    Vec3 _gizmoPrevScale = {};
+
 public:
     bool ConsumePick(ImVec2& outMousePos, ImVec2& outVpPos, ImVec2& outVpSize);
     bool ConsumeSpawn(string& outModelPath, ImVec2& outMousePos, ImVec2& outVpPos, ImVec2& outVpSize);
