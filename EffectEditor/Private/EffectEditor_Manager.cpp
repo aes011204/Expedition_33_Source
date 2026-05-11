@@ -37,6 +37,8 @@ HRESULT EffectEditor_Manager::Initialize()
     Add_Window(Console_View::Create());
     Add_Window(Profile_View::Create());
 
+    CHECK_FAILED(Initialize_Windows(), E_FAIL);
+
     return S_OK;
 }
 
@@ -85,6 +87,19 @@ Shared<Editor_Window> EffectEditor_Manager::Find_Window(const wstring& windowNam
     return iter->second;
 }
 
+HRESULT EffectEditor_Manager::Initialize_Windows()
+{
+    for (const auto& window : _windows | views::values)
+    {
+        if (nullptr == window)
+            continue;
+
+        CHECK_FAILED(window->Initialize(), E_FAIL);
+    }
+
+    return S_OK;
+}
+
 void EffectEditor_Manager::Render_MainMenuBar()
 {
     if (!ImGui::BeginMainMenuBar())
@@ -126,7 +141,7 @@ void EffectEditor_Manager::Render_RuntimeToolbar()
     const bool paused = EDITOR->IsPaused();
 
     constexpr float toolbarHeight = 34.f;
-    constexpr float toolbarControlWidth = 460.f;
+    constexpr float toolbarControlWidth = 560.f;
 
     ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 4.f);
     ImGui::SetCursorPosX(max(12.f, (ImGui::GetWindowWidth() - toolbarControlWidth) * 0.5f));
@@ -362,11 +377,12 @@ void EffectEditor_Manager::Render_ShortcutHelp()
 
     if (ImGui::IsItemHovered())
     {
+        ImGui::SetNextWindowSizeConstraints(ImVec2(520.f, 0.f), ImVec2(FLT_MAX, FLT_MAX));
         ImGui::BeginTooltip();
 
-        if (ImGui::BeginTable("ShortcutHelpTable", 2, ImGuiTableFlags_SizingFixedFit))
+        if (ImGui::BeginTable("ShortcutHelpTable", 2, ImGuiTableFlags_SizingStretchProp))
         {
-            ImGui::TableSetupColumn("Key", ImGuiTableColumnFlags_WidthFixed, 110.f);
+            ImGui::TableSetupColumn("Key", ImGuiTableColumnFlags_WidthFixed, 180.f);
             ImGui::TableSetupColumn("Description", ImGuiTableColumnFlags_WidthStretch);
 
             auto draw_shortcut_row = [](const char* key, const char* description)
@@ -378,18 +394,45 @@ void EffectEditor_Manager::Render_ShortcutHelp()
                 ImGui::Text(": %s", description);
             };
 
-            draw_shortcut_row("F1", "Collision Debug Render");
+            auto draw_section_row = [](const char* sectionTitle)
+            {
+                ImGui::TableNextRow();
+                ImGui::TableSetColumnIndex(0);
+                ImGui::TextDisabled("%s", sectionTitle);
+                ImGui::TableSetColumnIndex(1);
+                ImGui::TextDisabled(":");
+            };
+
+            draw_section_row("Playback / Runtime");
             draw_shortcut_row("F5", "Play / Resume");
+            draw_shortcut_row("F9", "Pause");
             draw_shortcut_row("Esc", "Stop");
-            draw_shortcut_row("F8", "Camera Switch");
-            draw_shortcut_row("F9", "Pause + Free Camera");
-            draw_shortcut_row("Ctrl + Wheel", "Free Camera Speed");
             draw_shortcut_row("Shift +", "Time Scale Up");
             draw_shortcut_row("Shift -", "Time Scale Down");
+
+            draw_section_row("Windows / Global");
+            draw_shortcut_row("F8", "Switch Camera");
             draw_shortcut_row("Alt + Enter", "Fullscreen Toggle");
             draw_shortcut_row("Ctrl + Space", "Console + Content Browser");
-            draw_shortcut_row("Double Click", "Focus Selected Object");
+
+            draw_section_row("Hierarchy");
+            draw_shortcut_row("Ctrl + C / V", "Copy / Paste Selected Object");
+            draw_shortcut_row("Delete", "Delete Selected Object");
+            draw_shortcut_row("Hierarchy Double Click", "Focus selected object in Scene");
+
+            draw_section_row("Scene Gizmo");
             draw_shortcut_row("W E R", "Gizmo Mode");
+
+            draw_section_row("Camera");
+            draw_shortcut_row("F", "Home Preview Camera");
+            draw_shortcut_row("RMB + Mouse", "Free Look");
+            draw_shortcut_row("RMB + W A S D", "Move Free Camera");
+            draw_shortcut_row("RMB + Q / E", "Move Down / Up");
+            draw_shortcut_row("RMB + Wheel", "Preview Dolly");
+            draw_shortcut_row("Alt + LMB Drag", "Orbit");
+            draw_shortcut_row("Alt + MMB Drag", "Pan");
+            draw_shortcut_row("Alt + RMB Drag", "Dolly");
+            draw_shortcut_row("Ctrl + Wheel", "Free Camera Speed");
 
             ImGui::EndTable();
         }

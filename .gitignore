@@ -481,6 +481,7 @@ vcpkg_installed/
 /EngineSDK/inc/Engine/
 .agent/
 .claude/
+.codex/
 .gemini/
 .gemini/**
 .idea/

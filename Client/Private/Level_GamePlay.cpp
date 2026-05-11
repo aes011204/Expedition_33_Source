@@ -289,11 +289,15 @@ HRESULT Level_GamePlay::Ready_Layer_BackGround(const wstring& strLayerTag)
         ETOI(LevelType::GamePlay), strLayerTag)))
         return E_FAIL;
 
-    if (FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_PointParticlePreview"),
-        ETOI(LevelType::GamePlay), strLayerTag)))
+#pragma region [Effect] Particle test
+    //if (FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_PointParticlePreview"),
+    //    ETOI(LevelType::GamePlay), strLayerTag)))
+    //    return E_FAIL;
+
+    if (FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_ComputePointParticlePreview"),
+        ETOI(LevelType::GamePlay), TEXT("Layer_BackGround"))))
         return E_FAIL;
-
-
+#pragma endregion
 
 	return S_OK;
 }

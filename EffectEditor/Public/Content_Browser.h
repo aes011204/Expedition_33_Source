@@ -10,7 +10,15 @@ NS_BEGIN(EffectEditor)
 
 class Content_Browser final : public Editor_Window
 {
-private:
+public:
+    Content_Browser();
+    ~Content_Browser() override;
+
+public:
+    void Update(float timeDelta) override;
+    void Render() override;
+
+private: //## Types
     enum class EIconType
     {
         Folder,
@@ -18,10 +26,9 @@ private:
         Json,
         Python,
         Xlsx,
-        END
+        End
     };
 
-private:
     struct FFileEntry
     {
         wstring filePath{};
@@ -37,22 +44,18 @@ private:
         vector<FFileEntry> files{};
     };
 
-public:
-    Content_Browser();
-    ~Content_Browser() override = default;
+private: //## Static Values
+    static constexpr const wchar_t* kContentBrowserSettingsPath =
+        L"../../Client/Bin/Resources/Data/json/EditorSettings/ContentBrowser.json";
 
-public:
-    void Update(float timeDelta) override;
-    void Render() override;
-
-private:
+private: //## Data
     FFolderNode _rootFolder{};
-    FFolderNode* _currentFolder{nullptr};
+    FFolderNode* _currentFolder{ nullptr };
 
     filesystem::path _resourceRoot{};
 
-    float _leftPanelWidth{300.f};
-    float _thumbnailSize{64.f};
+    float _leftPanelWidth{ 300.f };
+    float _thumbnailSize{ 64.f };
     char _searchBuffer[128]{};
     char _assetSearchBuffer[128]{};
 
@@ -62,15 +65,12 @@ private:
 
     set<wstring> _expandedFolders{};
     vector<wstring> _folderHistory{};
-    int _folderHistoryIndex{-1};
-    bool _suppressHistoryRecord{false};
+    int _folderHistoryIndex{ -1 };
+    bool _suppressHistoryRecord{ false };
 
     wstring _selectedFilePath{};
 
-    static constexpr const wchar_t* CONTENT_BROWSER_SETTINGS_PATH =
-        L"../../Client/Bin/Resources/Data/json/EditorSettings/ContentBrowser.json";
-
-private:
+private: //## Helpers
     void Refresh_Resources();
     void Refresh_CurrentFolder();
     void Load_Icons();
@@ -106,7 +106,6 @@ private:
 
 public:
     static Shared<Content_Browser> Create();
-
     void Free() override;
 };
 
