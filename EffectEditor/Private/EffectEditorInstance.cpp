@@ -10,6 +10,7 @@
 #include "EffectEditor_Manager.h"
 #include "GameInstance.h"
 #include "ImGui_Manager.h"
+#include "Level_EffectEditor.h"
 #include "Notification_Manager.h"
 #include "RenderTarget.h"
 
@@ -802,6 +803,17 @@ bool EffectEditorInstance::Consume_FrameStep()
 
     _pendingSingleFrameStep = false;
     return true;
+}
+
+void EffectEditorInstance::Request_RestartPreview()
+{
+    const Shared<Level> currentLevel = GAME->Current_LevelType();
+    const Shared<Level_EffectEditor> effectEditorLevel = dynamic_pointer_cast<Level_EffectEditor>(currentLevel);
+    if (nullptr == effectEditorLevel)
+        return;
+
+    if (FAILED(effectEditorLevel->Restart_PreviewFromAuthoring()))
+        LOG_ERROR("Failed to restart EffectEditor preview.");
 }
 
 bool EffectEditorInstance::Find_ObjectLayerTag(const Shared<GameObject>& gameObject, wstring& outLayerTag) const
