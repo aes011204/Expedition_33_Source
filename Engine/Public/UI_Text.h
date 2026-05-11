@@ -40,8 +40,8 @@ public:
     void Set_FontTag(const wstring& fontTag) { _fontTag = fontTag; }
     const wstring& Get_FontTag() const { return _fontTag; }
 
-    void Set_Color(const Vec4& color) { _color = color; }
-    const Vec4& Get_Color() const { return _color; }
+    void Set_Color(const Vec4& color) override { _color = color; }
+    Vec4 Get_Color() const override { return _color; }
 
     void Set_TextAlign(TextAlign textAlign) { _textAlign = textAlign; }
     TextAlign Get_TextAlign() const { return _textAlign; }

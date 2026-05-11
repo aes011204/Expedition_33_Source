@@ -22,6 +22,8 @@ public:
 private:
 	LevelType			_nextLevel = { LevelType::END };
 	Shared<class Loader> _loader = nullptr;
+	float				_sleepTime = 0.f;
+	static constexpr float MIN_LOADING_SECONDS = 5.f;
 
 private:
 	HRESULT Ready_Layer_BackGround(const wchar_t* pLayerTag);

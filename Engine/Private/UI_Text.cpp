@@ -160,7 +160,7 @@ HRESULT UI_Text::Initialize(void* arg)
 
 HRESULT UI_Text::Render()
 {
-    if (!Is_Open())
+    if (!Is_EffectivelyOpen())
         return S_OK;
 
     if (FAILED(__super::Render()))
@@ -172,7 +172,7 @@ HRESULT UI_Text::Render()
     if (_fontTag.empty() || _text.empty())
         return S_OK;
 
-    const Vec2& position = _transform->Get_Position();
+    const Vec2 position = Get_WorldPosition();
     const Vec2& size = _transform->Get_Size();
     const float textScale = max(0.01f, _transform->Get_Scale().x);
     const float boxWidth = max(0.f, size.x * textScale);

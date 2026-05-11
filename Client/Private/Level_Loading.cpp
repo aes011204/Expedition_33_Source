@@ -1,7 +1,9 @@
 ﻿#include "Level_Loading.h"
 #include "Loader.h"
 
+#include "Client_Constants.h"
 #include "GameInstance.h"
+#include "UI_RuntimeLoader.h"
 
 #include "Level_Logo.h"
 #include "Level_GamePlay.h"
@@ -34,6 +36,9 @@ HRESULT Level_Loading::Initialize(LevelType eNextLevelID)
 
 void Level_Loading::Update(float fTimeDelta)
 {
+    _sleepTime += fTimeDelta;
+
+	if (true == _loader->isFinished() && _sleepTime >= MIN_LOADING_SECONDS)
     CHECK_NULL(_loader);
 
     CHECK_FAILED(_loader->Process_PendingLoadJobs(8));
@@ -96,6 +101,13 @@ HRESULT Level_Loading::Ready_Layer_BackGround(const wchar_t* pLayerTag)
 
 HRESULT Level_Loading::Ready_Layer_UI(const wchar_t* pLayerTag)
 {
+	UI_RuntimeLoader::UI_LoadDesc desc{};
+	desc.levelIndex = ETOI(LevelType::Loading);
+	desc.jsonPath = Constants::UI::Loading_UI_Json_Path;
+	desc.animationDirectory = Constants::UI::Loading_UI_Animation_Dir;
+
+	CHECK_FAILED(UI_RuntimeLoader::Load_Document(desc), E_FAIL);
+
 	return S_OK;
 }
 

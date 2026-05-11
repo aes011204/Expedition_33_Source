@@ -19,4 +19,16 @@ enum class UI_TextAlign
     Right,
 };
 
+enum class UI_AlignmentCommand
+{
+    Left,
+    Right,
+    Top,
+    Bottom,
+    CenterX,
+    CenterY,
+    DistributeHorizontal,
+    DistributeVertical,
+};
+
 NS_END
