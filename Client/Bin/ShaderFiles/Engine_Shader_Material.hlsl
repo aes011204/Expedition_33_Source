@@ -92,10 +92,10 @@ float3 SampleEmissive(float2 uv)
     if (!HasMaterialTexture(MATERIAL_SLOT_EMISSIVE))
         return float3(0.f, 0.f, 0.f);
 
-    float3 emissiveTex = g_MaterialTextures[MATERIAL_SLOT_EMISSIVE].Sample(LinearWrapSampler, uv).rgb;
+    float emissiveMask = g_MaterialTextures[MATERIAL_SLOT_EMISSIVE]
+        .Sample(LinearWrapSampler, uv).r;
 
-    float3 emissive = emissiveTex * g_EmissiveColor.rgb * g_EmissiveIntensity;
-    emissive += emissiveTex * g_EmissiveMaskMul;
+    float3 emissive = g_EmissiveColor.rgb * emissiveMask * g_EmissiveIntensity;
 
     return emissive;
 }

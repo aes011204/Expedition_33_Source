@@ -1011,6 +1011,23 @@ bool GameInstance::IsVisible(const BoundingBox& worldAABB) const
 
     return true;
 }
+
+void GameInstance::BuildOctree(const vector<BoundingBox>& worldAABBs)
+{
+    if (_cullingManager)
+    {
+        _cullingManager->BuildOctree(worldAABBs);
+    }
+}
+
+void GameInstance::QueryVisible(vector<uint32>& outIndices) const
+{
+    if (_cullingManager)
+    {
+        _cullingManager->QueryVisible(outIndices);
+    }
+}
+
 void GameInstance::Visit_BTNodeTypes(const function<void(const TypeRegistry::BTNodeTypeInfo&)>& visitor) const
 {
     if (_typeRegistry == nullptr)

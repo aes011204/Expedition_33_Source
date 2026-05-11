@@ -71,5 +71,4 @@ RasterizerState RS_CullNone
     CullMode = None;
     FrontCounterClockwise = false;
 };
-
 #endif

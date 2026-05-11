@@ -259,6 +259,16 @@ HRESULT ModelCom::Render(uint32 meshIndex)
     return S_OK;
 }
 
+HRESULT ModelCom::RenderInstanced(uint32 meshIndex, Buffer* instanceVB, uint32 instanceStride, uint32 instanceCount)
+{
+    if (meshIndex >= _numMeshes || !instanceVB || instanceCount == 0)
+    {
+        return E_FAIL;
+    }
+
+    return _meshes[meshIndex]->RenderInstanced(instanceVB, instanceStride, instanceCount);
+}
+
 bool ModelCom::Play_Animation(float timeDelta)
 {
     if (!_isSkeletal || _animations.empty()) return false;

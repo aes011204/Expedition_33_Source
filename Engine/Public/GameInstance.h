@@ -319,6 +319,8 @@ public: // For. PhysX_Manager
 public: // For. Culling_Manager 
     void UpdateFrustum(const Matrix& view, const Matrix& proj);
     bool IsVisible(const BoundingBox& worldAABB) const;
+    void BuildOctree(const vector<BoundingBox>& worldAABBs);
+    void QueryVisible(vector<uint32>& outIndices) const;
 
 public: // For. BT_Node
     void Visit_BTNodeTypes(const function<void(const TypeRegistry::BTNodeTypeInfo&)>& visitor) const;

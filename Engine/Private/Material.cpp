@@ -95,6 +95,10 @@ HRESULT Material::Override_TextureSlot(MaterialTextureSlot slot, uint32 slotInde
     if (texturePath.empty())
     {
         TextureSlot& textureSlot = _materials[materialSlotIndex][slotIndex];
+        // 이미 비어있다면 그대로 둔다. (Apply 버튼 반복 클릭 시 불필요한 업데이트/히치 방지)
+        if (textureSlot.resolvedPath.empty() && textureSlot.shaderResourceView == nullptr)
+            return S_OK;
+
         textureSlot.slot = slot;
         textureSlot.textureIndex = slotIndex;
         textureSlot.resolvedPath.clear();
@@ -107,6 +111,19 @@ HRESULT Material::Override_TextureSlot(MaterialTextureSlot slot, uint32 slotInde
     const fs::path resolvedPath(texturePath);
     if (!fs::exists(resolvedPath) || !fs::is_regular_file(resolvedPath))
         return E_FAIL;
+
+    // 동일 경로가 이미 적용되어 있고 SRV도 살아있으면 재로딩하지 않는다.
+    // (Editor에서 Apply를 여러 번 눌렀을 때 매번 WIC/DDS 로드를 다시 하는 비용이 매우 크다)
+    {
+        TextureSlot& existingSlot = _materials[materialSlotIndex][slotIndex];
+        const wstring normalized = resolvedPath.lexically_normal().wstring();
+        if (!existingSlot.resolvedPath.empty() &&
+            existingSlot.resolvedPath == normalized &&
+            existingSlot.shaderResourceView != nullptr)
+        {
+            return S_OK;
+        }
+    }
 
     ID3D11ShaderResourceView* srv = nullptr;
     if (FAILED(Create_TextureSRV(resolvedPath, &srv)))
