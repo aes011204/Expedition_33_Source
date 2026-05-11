@@ -17,7 +17,6 @@ HRESULT GameDataTable::Load_All()
         return E_FAIL;
     }
 
-    // Currently only exp is loaded. Skill/item tables can be added here later.
     CHECK_FAILED(Load_ExpLevel(jsonRootPath), E_FAIL);
 
     _isLoaded = true;
