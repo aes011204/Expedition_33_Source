@@ -92,12 +92,14 @@ void TargetCamera::Priority_Update(float timeDelta)
         Change_State(CAMERA_STATE::BATTLE_ENTER);
     }
 
-   
 }
 
 void TargetCamera::Update(float timeDelta)
 {
     __super::Update(timeDelta);
+
+    if(!GAME->Is_ActiveCamera(GetSharedPtr<Camera>()))
+         return;
 
     if(GAME->Is_ActiveCamera(GetSharedPtr<Camera>())&&_targetSettings.allowMouseRotation)
     {

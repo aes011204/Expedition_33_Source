@@ -7,6 +7,7 @@
 #include "CinematicSequencerAdapter.h"
 #include "Cinematic_SequenceIO.h"
 #include "EditorInstance.h"
+#include "magic_enum/magic_enum.hpp"
 
 namespace
 {
@@ -46,8 +47,7 @@ void Cinematic_Tool::Update(float timeDelta)
         }
     }
 
-
-    if(_isPreviewDirty)
+    if(_isPreviewDirty && !_hasPendingInsertRequest)
     {
         Apply_CurrentFramePose();
         _isPreviewDirty = false;
@@ -79,7 +79,7 @@ void Cinematic_Tool::Render()
             ImGui::BeginChild("##SequencerPanel", ImVec2(0.f, 0.f), true);
             Draw_SectionHeader("Timeline");
             ImGui::TextDisabled("Left click : select / drag keyframe");
-            ImGui::TextDisabled("Double click : edit selected key");
+            ImGui::TextDisabled("Double click : expand selected key editor");
             ImGui::TextDisabled("Right click row : insert keyframe at clicked frame");
             ImGui::Spacing();
             Render_ImSequencer();
@@ -93,7 +93,7 @@ void Cinematic_Tool::Render()
             ImGui::EndTable();
         }
 
-        Render_SelectedKeyframePopup();
+      /*  Render_SelectedKeyframePopup();*/
         Render_InsertKeyframePopup();
     }
 
@@ -104,11 +104,13 @@ void Cinematic_Tool::Render()
 void Cinematic_Tool::Render_RightPanel()
 {
     Render_PreviewState();
+    Render_SelectedKeyframePopup();
     Render_SequenceSettings();
     Render_TrackList();
     Render_KeyframeList();
     Render_LoadSequencePopup();
     Render_RemoveKeyframePopup();
+
 }
 
 void Cinematic_Tool::Render_SequenceSettings()
@@ -253,7 +255,13 @@ void Cinematic_Tool::Render_ImSequencer()
         _requestOpenSelectedKeyPopup = true;
 
     if (requestOpenInsertPopup)
+    {
+        _hasPendingInsertRequest = true;
+        _pendingInsertTrackIndex = _contextMenuTrackIndex;
+        _pendingInsertFrame = _contextMenuFrame;
+        _hasPendingInsertPose = Try_CaptureActiveFreeCameraPose(_pendingInsertPose);
         _requestOpenInsertKeyPopup = true;
+    }
 
     if(requestRemoveKeyPopup)
         _requestRemoveKeyPopup = true;
@@ -464,12 +472,33 @@ void Cinematic_Tool::Render_SelectedKeyframeEditor(CINEMATIC_KEYFRAME& keyframe)
         keyframe.camPose.farPlane = std::max(keyframe.camPose.farPlane, keyframe.camPose.nearPlane + 0.01f);
     }
 
-    const char* interpolationLabels[] = { "Step", "Linear" };
-    int interpolationIndex = static_cast<int>(keyframe.interpolation);
-    if (ImGui::Combo("interpolation", &interpolationIndex, interpolationLabels, IM_ARRAYSIZE(interpolationLabels)))
+   // const char* interpolationLabels[] = { "Step", "Linear" };
+   // int interpolationIndex = static_cast<int>(keyframe.interpolation);
+   // if (ImGui::Combo("interpolation", &interpolationIndex, interpolationLabels, IM_ARRAYSIZE(interpolationLabels)))
+   // {
+   //     keyframe.interpolation = static_cast<InterpolationMode>(interpolationIndex);
+   //     _isPreviewDirty = true;
+   // }
+   //
+
+    const char* interpolationLabel = magic_enum::enum_name(keyframe.interpolation).data();
+    
+    if(ImGui::BeginCombo("Interpolation", interpolationLabel))
     {
-        keyframe.interpolation = static_cast<InterpolationMode>(interpolationIndex);
-        _isPreviewDirty = true;
+        for(InterpolationMode mode : magic_enum::enum_values<InterpolationMode>())
+        {
+            const bool isSelected = (mode == keyframe.interpolation);
+
+            if(ImGui::Selectable(magic_enum::enum_name(mode).data(), isSelected))
+            {
+               keyframe.interpolation = mode; 
+            }
+
+            if(isSelected)
+                ImGui::SetItemDefaultFocus();
+        }
+
+        ImGui::EndCombo();
     }
 
     if(ImGui::Button("Overwrite Keyframe With Current Camera"))
@@ -484,7 +513,7 @@ void Cinematic_Tool::Render_SelectedKeyframeEditor(CINEMATIC_KEYFRAME& keyframe)
 
         if (ImGui::Button("Yes", ImVec2(120.f, 0.f)))
         {
-            Shared<FreeCamera> freeCamera = Find_FreeCamera();
+            Shared<FreeCamera> freeCamera = Get_ActiveFreeCamera();
             CINEMATIC_TRACK* selectedTrack = Get_SelectedTrack();
 
             if (freeCamera != nullptr &&
@@ -517,31 +546,30 @@ void Cinematic_Tool::Render_SelectedKeyframeEditor(CINEMATIC_KEYFRAME& keyframe)
 
 void Cinematic_Tool::Render_SelectedKeyframePopup()
 {
-    if (_requestOpenSelectedKeyPopup)
-    {
-        ImGui::OpenPopup("Edit Keyframe");
-        _requestOpenSelectedKeyPopup = false;
-    }
-    
-    if (!ImGui::BeginPopup("Edit Keyframe"))
-        return;
-    
     CINEMATIC_KEYFRAME* keyframe = Get_SelectedKeyframe();
+
     if (keyframe == nullptr)
     {
-        ImGui::TextDisabled("No keyframe selected.");
+        _requestOpenSelectedKeyPopup = false;
+        return;
     }
-    else
+
+    const bool shouldExpandEditor = _requestOpenSelectedKeyPopup;
+    if (shouldExpandEditor)
     {
-        ImGui::TextDisabled("Track %d | Key %d", _selectedTrackIndex, _selectedKeyIndex);
-        ImGui::Separator();
-        Render_SelectedKeyframeEditor(*keyframe);
+        ImGui::SetNextItemOpen(true, ImGuiCond_Always);
+        _requestOpenSelectedKeyPopup = false;
     }
-    
-    if (ImGui::Button("Close"))
-        ImGui::CloseCurrentPopup();
-    
-    ImGui::EndPopup();
+
+    if (!ImGui::CollapsingHeader("Selected Keyframe", ImGuiTreeNodeFlags_None))
+        return;
+
+    if (shouldExpandEditor)
+        ImGui::SetScrollHereY();
+
+    ImGui::TextDisabled("Track %d | Key %d", _selectedTrackIndex, _selectedKeyIndex);
+    ImGui::Separator();
+    Render_SelectedKeyframeEditor(*keyframe);
 }
 
 void Cinematic_Tool::Render_InsertKeyframePopup()
@@ -553,20 +581,42 @@ void Cinematic_Tool::Render_InsertKeyframePopup()
     }
 
     if (!ImGui::BeginPopup("Insert Keyframe"))
+    {
+        if (_hasPendingInsertRequest && !ImGui::IsPopupOpen("Insert Keyframe"))
+            Clear_PendingInsertRequest();
         return;
+    }
 
-    ImGui::TextDisabled("Track %d", _contextMenuTrackIndex);
-    ImGui::TextDisabled("Frame %d", _contextMenuFrame);
+    ImGui::TextDisabled("Track %d", _pendingInsertTrackIndex);
+    ImGui::TextDisabled("Frame %d", _pendingInsertFrame);
     ImGui::Separator();
+
+    if (!_hasPendingInsertPose)
+        ImGui::TextDisabled("Active FreeCamera is required to insert from the current camera pose.");
+
+    const bool canInsertFromCamera =
+        _hasPendingInsertRequest &&
+        _hasPendingInsertPose &&
+        _pendingInsertTrackIndex >= 0;
+
+    if (!canInsertFromCamera)
+        ImGui::BeginDisabled();
 
     if (ImGui::Button("Insert Keyframe Here"))
     {
-        Insert_KeyframeAtFrame(_contextMenuTrackIndex, _contextMenuFrame);
+        Insert_KeyframeAtFrame(_pendingInsertTrackIndex, _pendingInsertFrame);
+        Clear_PendingInsertRequest();
         ImGui::CloseCurrentPopup();
     }
 
+    if (!canInsertFromCamera)
+        ImGui::EndDisabled();
+
     if (ImGui::Button("Cancel"))
+    {
+        Clear_PendingInsertRequest();
         ImGui::CloseCurrentPopup();
+    }
 
     ImGui::EndPopup();
 }
@@ -616,7 +666,7 @@ void Cinematic_Tool::Render_PreviewState()
     {
         if(!_cinematicPlayer->Is_CinematicPlaying())
         {
-            auto freeCamera = Find_FreeCamera();
+            auto freeCamera = Get_ActiveFreeCamera();
 
             if(nullptr == freeCamera)
                 return;
@@ -730,8 +780,8 @@ void Cinematic_Tool::Sort_SelectedTrackKeyframes()
 
 void Cinematic_Tool::Capture_KeyframeFromFreeCamera()
 {
-    Shared<FreeCamera> freeCamera = Find_FreeCamera();
-    if (freeCamera == nullptr)
+    CAMERAPOSE camPose{};
+    if (!Try_CaptureActiveFreeCameraPose(camPose))
         return;
 
     CINEMATIC_TRACK* selectedTrack = Get_SelectedTrack();
@@ -740,11 +790,7 @@ void Cinematic_Tool::Capture_KeyframeFromFreeCamera()
 
     CINEMATIC_KEYFRAME keyframe{};
     keyframe.frame = _currentFrame;
-    keyframe.camPose.position = freeCamera->Get_Transform()->Get_Position();
-    keyframe.camPose.rotation = freeCamera->Get_Transform()->Get_RotationEuler();
-    keyframe.camPose.fovY = freeCamera->Get_FovY();
-    keyframe.camPose.nearPlane = freeCamera->Get_Near();
-    keyframe.camPose.farPlane = freeCamera->Get_Far();
+    keyframe.camPose = camPose;
 
     selectedTrack->keyframes.push_back(keyframe);
     Sort_SelectedTrackKeyframes();
@@ -781,16 +827,14 @@ void Cinematic_Tool::Insert_KeyframeAtFrame(int trackIndex, int frame)
 
     CINEMATIC_KEYFRAME keyframe{};
     keyframe.frame = frame;
+    if (!_hasPendingInsertPose ||
+        _pendingInsertTrackIndex != trackIndex ||
+        _pendingInsertFrame != frame)
+    {
+        return;
+    }
 
-        Shared<FreeCamera> freeCamera = Find_FreeCamera();
-        if (freeCamera != nullptr)
-        {
-            keyframe.camPose.position = freeCamera->Get_Transform()->Get_Position();
-            keyframe.camPose.rotation = freeCamera->Get_Transform()->Get_RotationEuler();
-            keyframe.camPose.fovY = freeCamera->Get_FovY();
-            keyframe.camPose.nearPlane = freeCamera->Get_Near();
-            keyframe.camPose.farPlane = freeCamera->Get_Far();
-        }
+    keyframe.camPose = _pendingInsertPose;
 
     track.keyframes.push_back(keyframe);
     _selectedTrackIndex = trackIndex;
@@ -846,6 +890,7 @@ void Cinematic_Tool::Load_SelectedSequenceFile()
         return;
 
     _cinematicPlayer->Stop();
+    Clear_PendingInsertRequest();
     _sequence = std::move(loadedSequence);
 
     Ensure_DefaultTrack();
@@ -861,7 +906,7 @@ void Cinematic_Tool::Load_SelectedSequenceFile()
 
 void Cinematic_Tool::Apply_CurrentFramePose()
 {
-    Shared<FreeCamera> freeCamera = Find_FreeCamera();
+    Shared<FreeCamera> freeCamera = Get_ActiveFreeCamera();
     if(nullptr == freeCamera)
         return;
 
@@ -879,6 +924,9 @@ void Cinematic_Tool::Apply_CurrentFramePose()
     freeCamera->Set_FovY(camPose.fovY);
     freeCamera->Set_Near(camPose.nearPlane);
     freeCamera->Set_Far(camPose.farPlane);
+
+    freeCamera->Update_TransformMatrices();
+    GAME->UpdateFrustum(*GAME->Get_Transform(D3DTS::View), *GAME->Get_Transform(D3DTS::Proj));
 }
 
 CINEMATIC_TRACK* Cinematic_Tool::Get_SelectedTrack()
@@ -901,21 +949,37 @@ CINEMATIC_KEYFRAME* Cinematic_Tool::Get_SelectedKeyframe()
     return &selectedTrack->keyframes[_selectedKeyIndex];
 }
 
-Shared<FreeCamera> Cinematic_Tool::Find_FreeCamera() const
+void Cinematic_Tool::Clear_PendingInsertRequest()
 {
-    const int cameraCount = GAME->Get_CameraCount();
-    for (int i = 0; i < cameraCount; ++i)
-    {
-        Shared<Camera> camera = GAME->Get_Camera(i);
-        if (camera == nullptr || camera->Get_ObjectType() != ObjectType::FreeCamera)
-            continue;
+    _hasPendingInsertRequest = false;
+    _hasPendingInsertPose = false;
+    _pendingInsertTrackIndex = -1;
+    _pendingInsertFrame = 0;
+    _pendingInsertPose = {};
+    _isPreviewDirty = true;
+}
 
-        Shared<Client::FreeCamera> freeCamera = dynamic_pointer_cast<FreeCamera>(camera);
-        if (freeCamera != nullptr)
-            return freeCamera;
-    }
+Shared<FreeCamera> Cinematic_Tool::Get_ActiveFreeCamera() const
+{
+    Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
+    if (activeCamera == nullptr || activeCamera->Get_ObjectType() != ObjectType::FreeCamera)
+        return nullptr;
 
-    return nullptr;
+    return dynamic_pointer_cast<FreeCamera>(activeCamera);
+}
+
+bool Cinematic_Tool::Try_CaptureActiveFreeCameraPose(CAMERAPOSE& outPose) const
+{
+    Shared<FreeCamera> freeCamera = Get_ActiveFreeCamera();
+    if (freeCamera == nullptr)
+        return false;
+
+    outPose.position = freeCamera->Get_Transform()->Get_WorldPosition();
+    outPose.rotation = freeCamera->Get_Transform()->Get_RotationEuler();
+    outPose.fovY = freeCamera->Get_FovY();
+    outPose.nearPlane = freeCamera->Get_Near();
+    outPose.farPlane = freeCamera->Get_Far();
+    return true;
 }
 
 Shared<Cinematic_Tool> Cinematic_Tool::Create()

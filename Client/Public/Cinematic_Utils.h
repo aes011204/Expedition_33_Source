@@ -21,10 +21,75 @@ inline void Find_SurroundingKeyFrames(CINEMATIC_TRACK* cameraTrack, int currentF
         }
     }
 }
-//Tool 쪽에서는 어떻게 쓰냐..
-//Evaluate_CinematicPose를 호출해서 이걸로 player에 적용을 해서 그 시점으로 카메라가 볼 수 있도록 처리를 ㅐㅎ줘야하는건데
-//그럼 player에 ApplyPose 함수가 있으니까 이걸 호출하는 식으로? 
 
+inline CAMERAPOSE Evaluate_LinearPose(CINEMATIC_KEYFRAME*& outLeft, CINEMATIC_KEYFRAME*& outRight, float t)
+{
+    CAMERAPOSE camPose {};
+
+    camPose.position = Vec3::Lerp(outLeft->camPose.position,outRight->camPose.position,t);
+    camPose.rotation = Vec3::Lerp(outLeft->camPose.rotation, outRight->camPose.rotation, t);
+    camPose.fovY    = lerp(outLeft->camPose.fovY, outRight->camPose.fovY, t);
+    camPose.nearPlane = lerp(outLeft->camPose.nearPlane, outRight->camPose.nearPlane, t);
+    camPose.farPlane = lerp(outLeft->camPose.farPlane, outRight->camPose.farPlane, t);
+
+    return camPose;
+}
+
+
+inline CAMERAPOSE Evaluate_StepPose( CINEMATIC_KEYFRAME*& outLeft, CINEMATIC_KEYFRAME*& outRight, float t)
+{
+    CAMERAPOSE camPose {};
+
+    camPose.position = outLeft->camPose.position;
+    camPose.rotation = outLeft->camPose.rotation;
+    camPose.fovY = outLeft->camPose.fovY;
+    camPose.nearPlane = outLeft->camPose.nearPlane;
+    camPose.farPlane = outLeft->camPose.farPlane;
+    return camPose;
+}
+
+
+inline CAMERAPOSE Evaluate_EaseInOutPose(CINEMATIC_KEYFRAME*& outLeft, CINEMATIC_KEYFRAME*& outRight, float t)
+{
+    CAMERAPOSE camPose {};
+
+    float smoothT = Math::GetSmoothStepRatio(t);
+    camPose.position = Vec3::SmoothStep(outLeft->camPose.position, outRight->camPose.position,t);
+    camPose.rotation = Vec3::SmoothStep(outLeft->camPose.rotation, outRight->camPose.rotation,t);
+    camPose.fovY = lerp(outLeft->camPose.fovY, outRight->camPose.fovY, smoothT);
+    camPose.nearPlane = lerp(outLeft->camPose.nearPlane, outRight->camPose.nearPlane, smoothT);
+    camPose.farPlane = lerp(outLeft->camPose.farPlane, outRight->camPose.farPlane, smoothT);
+
+    return camPose;
+}
+
+inline CAMERAPOSE Evaluate_EaseInPose(CINEMATIC_KEYFRAME*& outLeft, CINEMATIC_KEYFRAME*& outRight, float t)
+{
+    CAMERAPOSE camPose {};
+
+    float easeInT = t * t;
+    camPose.position = Vec3::Lerp(outLeft->camPose.position, outRight->camPose.position,easeInT);
+    camPose.rotation = Vec3::Lerp(outLeft->camPose.rotation, outRight->camPose.rotation,easeInT);
+    camPose.fovY = lerp(outLeft->camPose.fovY, outRight->camPose.fovY, easeInT);
+    camPose.nearPlane = lerp(outLeft->camPose.nearPlane, outRight->camPose.nearPlane, easeInT);
+    camPose.farPlane = lerp(outLeft->camPose.farPlane, outRight->camPose.farPlane, easeInT);
+
+    return camPose;
+}
+
+inline CAMERAPOSE Evaluate_EaseOutPose(CINEMATIC_KEYFRAME*& outLeft, CINEMATIC_KEYFRAME*& outRight, float t)
+{
+    CAMERAPOSE camPose {};
+
+    float easeInT = 1.f - (1.f - t) * (1.f - t);
+    camPose.position = Vec3::Lerp(outLeft->camPose.position, outRight->camPose.position,easeInT);
+    camPose.rotation = Vec3::Lerp(outLeft->camPose.rotation, outRight->camPose.rotation,easeInT);
+    camPose.fovY = lerp(outLeft->camPose.fovY, outRight->camPose.fovY, easeInT);
+    camPose.nearPlane = lerp(outLeft->camPose.nearPlane, outRight->camPose.nearPlane, easeInT);
+    camPose.farPlane = lerp(outLeft->camPose.farPlane, outRight->camPose.farPlane, easeInT);
+
+    return camPose;
+}
 
 inline CAMERAPOSE Evaluate_CinematicPose(CINEMATIC_TRACK* cameraTrack, int currentFrame, CINEMATIC_KEYFRAME*& outLeft, CINEMATIC_KEYFRAME*& outRight)
 {
@@ -34,7 +99,7 @@ inline CAMERAPOSE Evaluate_CinematicPose(CINEMATIC_TRACK* cameraTrack, int curre
 
     if(outLeft == nullptr && outRight == nullptr)
         return camPose;
-
+    
     if(outLeft == nullptr)
     {
         camPose.position = outRight->camPose.position;
@@ -67,11 +132,23 @@ inline CAMERAPOSE Evaluate_CinematicPose(CINEMATIC_TRACK* cameraTrack, int curre
 
     float t = static_cast<float>(currentFrame - outLeft->frame) / static_cast<float>(outRight->frame - outLeft->frame);
 
-    camPose.position = Vec3::Lerp(outLeft->camPose.position,outRight->camPose.position,t);
-    camPose.rotation = Vec3::Lerp(outLeft->camPose.rotation, outRight->camPose.rotation, t);
-    camPose.fovY    = lerp(outLeft->camPose.fovY, outRight->camPose.fovY, t);
-    camPose.nearPlane = lerp(outLeft->camPose.nearPlane, outRight->camPose.nearPlane, t);
-    camPose.farPlane = lerp(outLeft->camPose.farPlane, outRight->camPose.farPlane, t);
+    switch(outLeft->interpolation)
+    {
+    case InterpolationMode::Linear:
+        return  Evaluate_LinearPose(outLeft, outRight, t);
+
+    case InterpolationMode::Step:
+        return  Evaluate_StepPose(outLeft, outRight, t);
+
+    case InterpolationMode::EaseInOut:
+        return  Evaluate_EaseInOutPose(outLeft, outRight, t);
+
+    case InterpolationMode::EaseIn:
+        return Evaluate_EaseInPose(outLeft, outRight, t);
+
+    case InterpolationMode::EaseOut:
+        return Evaluate_EaseOutPose(outLeft, outRight,t);
+    }
 
     return camPose;
 }

@@ -4,6 +4,9 @@ enum class InterpolationMode
 {
     Step,
     Linear,
+    EaseInOut,
+    EaseIn,
+    EaseOut
 };
 
 enum class CinematicType

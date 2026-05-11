@@ -46,75 +46,62 @@ void FreeCamera::Priority_Update(float timeDelta)
     if(!GAME->Is_ActiveCamera(GetSharedPtr<Camera>()))
         return;
 
-    __super::Update_TransformMatrices();
-
-    // 우클릭 눌렀을 때 움직일 수 있게
-    if (!GAME->Is_FreeCameraInputEnabled())
-        return;
-
-    if (!GAME->KeyPress(KEY_TYPE::RBUTTON))
-        return;
+    bool canControl = GAME->Is_FreeCameraInputEnabled() && GAME->KeyPress(KEY_TYPE::RBUTTON);
 
     float wheelDelta = GAME->Get_MouseWheel();
 
-    if(GAME->KeyPress(KEY_TYPE::CTRL) && wheelDelta != 0.f)
+    if(canControl)
     {
-        _moveSpeed = static_cast<int>(_transformCom->Get_SpeedPerSec());
-
-        int step = 2;
-
-        if(wheelDelta > 0.f)
+        if(GAME->KeyPress(KEY_TYPE::CTRL) && wheelDelta != 0.f)
         {
-            _moveSpeed += step;
-        }
-        else
-        {
-            _moveSpeed -= step;
+            _moveSpeed = static_cast<int>(_transformCom->Get_SpeedPerSec());
+
+            int step = 2;
+
+            if(wheelDelta > 0.f)
+            {
+                _moveSpeed += step;
+            }
+            else
+            {
+                _moveSpeed -= step;
+            }
+
+            _moveSpeed = clamp(_moveSpeed, 0, 100);
+
+            _transformCom->Set_SpeedPerSec(static_cast<float>(_moveSpeed));
         }
 
-        _moveSpeed = clamp(_moveSpeed, 0, 100);
+        const float cameraDelta = max(timeDelta, GAME->Get_FreeCameraTimeDelta());
 
-        _transformCom->Set_SpeedPerSec(static_cast<float>(_moveSpeed));
+        if (GAME->KeyPress(KEY_TYPE::W))
+            _transformCom->Go_Straight(cameraDelta);
+
+        if (GAME->KeyPress(KEY_TYPE::S))
+            _transformCom->Go_Backward(cameraDelta);
+
+        if (GAME->KeyPress(KEY_TYPE::A))
+            _transformCom->Go_Left(cameraDelta);
+
+        if (GAME->KeyPress(KEY_TYPE::D))
+            _transformCom->Go_Right(cameraDelta);
+
+        if (GAME->KeyPress(KEY_TYPE::E))
+            _transformCom->Go_Up(cameraDelta);
+
+        if (GAME->KeyPress(KEY_TYPE::Q))
+            _transformCom->Go_Down(cameraDelta);
+
+        const Vec2 mouseDelta = GAME->Get_MouseDelta();
+
+        _yaw += mouseDelta.x * _mouseSensor;
+        _pitch += mouseDelta.y * _mouseSensor;
+
+        if (0.f != mouseDelta.x || 0.f != mouseDelta.y )
+                 _transformCom->Set_RotationEuler(Vec3(_pitch, _yaw, 0.f));
     }
-
-    const float cameraDelta = max(timeDelta, GAME->Get_FreeCameraTimeDelta());
-
-    if (GAME->KeyPress(KEY_TYPE::W))
-        _transformCom->Go_Straight(cameraDelta);
-
-    if (GAME->KeyPress(KEY_TYPE::S))
-        _transformCom->Go_Backward(cameraDelta);
-
-    if (GAME->KeyPress(KEY_TYPE::A))
-        _transformCom->Go_Left(cameraDelta);
-
-    if (GAME->KeyPress(KEY_TYPE::D))
-        _transformCom->Go_Right(cameraDelta);
-
-    if (GAME->KeyPress(KEY_TYPE::E))
-        _transformCom->Go_Up(cameraDelta);
-
-    if (GAME->KeyPress(KEY_TYPE::Q))
-        _transformCom->Go_Down(cameraDelta);
-
-    const Vec2 mouseDelta = GAME->Get_MouseDelta();
-
-    _yaw += mouseDelta.x * _mouseSensor;
-    _pitch += mouseDelta.y * _mouseSensor;
-
-    if (0.f != mouseDelta.x || 0.f != mouseDelta.y )
-             _transformCom->Set_RotationEuler(Vec3(_pitch, _yaw, 0.f));
-
     __super::Update_TransformMatrices();
     GAME->UpdateFrustum(*GAME->Get_Transform(D3DTS::View), *GAME->Get_Transform(D3DTS::Proj));
-
-    Vec3 pos = _transformCom->Get_WorldPosition();
-    Vec3 look = _transformCom->Get_WorldForward();
-
-    if(GAME->KeyDown(KEY_TYPE::F11))
-    {
-        LOG_DEBUG("Target Camera Settings : yaw = {}, pitch = {}, x = {}, y = {}, z = {}, look.x = {}, look.y = {}, look.z = {}", _yaw, _pitch, pos.x, pos.y, pos.z, look.x, look.y, look.z);
-    }
 }
 
 void FreeCamera::Update(float timeDelta)
@@ -125,23 +112,14 @@ void FreeCamera::Late_Update(float timeDelta)
 {
 }
 
-//void FreeCamera::ApplyPreset(const FreeCameraPreset& preset)
-//{
-//    _transformCom->Set_WorldPosition(preset.position);
-//    _transformCom->Set_RotationEuler(preset.rotation);
-//    _transformCom->Set_SpeedPerSec(preset.moveSpeed);
-//
-//    _mouseSensor = preset.mouseSensor;
-//    _fovy = preset.fovy;
-//    _near = preset.nearPlane;
-//    _far = preset.farPlane;
-//
-//    Update_TransformMatrices();
-//}
-
 HRESULT FreeCamera::Render()
 {
     return S_OK;
+}
+
+void FreeCamera::Update_TransformMatrices()
+{
+    return __super::Update_TransformMatrices();
 }
 
 Shared<FreeCamera> FreeCamera::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

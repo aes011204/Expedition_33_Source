@@ -28,39 +28,6 @@ void Cinematic_Player::Update(float timeDelta)
 
 void Cinematic_Player::Play()
 {
-    //Find_SurroundingKeyFrames(_cinematicTrack, _currentFrame, _leftKey, _rightKey);
-    //
-    //if(_leftKey == nullptr && _rightKey == nullptr)
-    //    return;
-    //
-    //if(_leftKey == nullptr)
-    //{
-    //    Apply_CameraPose(_rightKey->camPose);
-    //    return;
-    //}
-    //
-    //if(_rightKey == nullptr)
-    //{
-    //    Apply_CameraPose(_leftKey->camPose);
-    //    return;
-    //}
-    //
-    //if(_leftKey->frame == _rightKey->frame)
-    //{
-    //    Apply_CameraPose(_leftKey->camPose);
-    //    return;
-    //}
-    //
-    //CAMERAPOSE camPose {};
-    //
-    //float t = static_cast<float>(_currentFrame - _leftKey->frame) / static_cast<float>(_rightKey->frame - _leftKey->frame);
-    //
-    //camPose.position = Vec3::Lerp(_leftKey->camPose.position,_rightKey->camPose.position,t);
-    //camPose.rotation = Vec3::Lerp(_leftKey->camPose.rotation, _rightKey->camPose.rotation, t);
-    //camPose.fovY    = lerp(_leftKey->camPose.fovY, _rightKey->camPose.fovY, t);
-    //
-    //Apply_CameraPose(camPose);
-
     CAMERAPOSE camPose =Evaluate_CinematicPose(_cinematicTrack, _currentFrame, _leftKey, _rightKey);
 
     Apply_CameraPose(camPose);

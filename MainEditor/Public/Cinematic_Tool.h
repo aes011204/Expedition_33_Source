@@ -44,10 +44,12 @@ private:
     void Refresh_SequenceFileList();
     void Load_SelectedSequenceFile();
     void Apply_CurrentFramePose();
+    void Clear_PendingInsertRequest();
 
     CINEMATIC_TRACK* Get_SelectedTrack();
     CINEMATIC_KEYFRAME* Get_SelectedKeyframe();
-    Shared<Client::FreeCamera> Find_FreeCamera() const;
+    Shared<Client::FreeCamera> Get_ActiveFreeCamera() const;
+    bool Try_CaptureActiveFreeCameraPose(CAMERAPOSE& outPose) const;
 
 private:
     bool                                 _isPreviewDirty  = true;
@@ -66,6 +68,11 @@ private:
     bool                                 _requestRemoveKeyPopup = false;
     int                                  _contextMenuTrackIndex = -1;
     int                                  _contextMenuFrame = 0;
+    bool                                 _hasPendingInsertRequest = false;
+    bool                                 _hasPendingInsertPose = false;
+    int                                  _pendingInsertTrackIndex = -1;
+    int                                  _pendingInsertFrame = 0;
+    CAMERAPOSE                           _pendingInsertPose{};
 
 public:
     static Shared<Cinematic_Tool> Create();
