@@ -147,6 +147,12 @@
     <ClInclude Include="..\Public\Level_EffectEditor.h">
       <Filter>03. Level</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\EffectAuthoring_Types.h">
+      <Filter>99. Defines\Types</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Helper_ImGui.h">
+      <Filter>99. Defines\Helper</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="00. Main">
@@ -211,6 +217,12 @@
     </Filter>
     <Filter Include="01. View\Detail View">
       <UniqueIdentifier>{a6f51295-5edb-4694-9d55-01c07add81a5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="99. Defines\Helper">
+      <UniqueIdentifier>{ef73b393-66ad-4324-9aa1-5c44538b324e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="99. Defines\Types">
+      <UniqueIdentifier>{e5f70fcb-abed-4d3c-8bc3-3eaa1084905f}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

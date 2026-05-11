@@ -42,6 +42,11 @@ Content_Browser::Content_Browser()
     Load_Settings();
 }
 
+Content_Browser::~Content_Browser()
+{
+    Free();
+}
+
 void Content_Browser::Update(float timeDelta)
 {
     Editor_Window::Update(timeDelta);
@@ -220,7 +225,7 @@ void Content_Browser::Refresh_CurrentFolder()
 
 void Content_Browser::Load_Icons()
 {
-    _iconFiles.assign(static_cast<size_t>(EIconType::END), nullptr);
+    _iconFiles.assign(static_cast<size_t>(EIconType::End), nullptr);
 
     fs::path iconRoot = _resourceRoot;
     if (iconRoot.empty())
@@ -235,8 +240,10 @@ void Content_Browser::Load_Icons()
 
     iconRoot /= L"Textures";
     iconRoot /= L"UI";
+    iconRoot /= L"Icon";
+    iconRoot /= L"FileType";
 
-    const auto loadTexture = [&](const wchar_t* fileName) -> Shared<Texture>
+    const auto load_texture = [&](const wchar_t* fileName) -> Shared<Texture>
     {
         const fs::path filePath = iconRoot / fileName;
         if (!fs::exists(filePath))
@@ -245,14 +252,14 @@ void Content_Browser::Load_Icons()
         return Texture::Create(EDITOR->Get_Device(), EDITOR->Get_Context(), filePath.c_str(), 1);
     };
 
-    _iconFiles[static_cast<size_t>(EIconType::Folder)] = loadTexture(L"Folder_Icon.png");
+    _iconFiles[static_cast<size_t>(EIconType::Folder)] = load_texture(L"Folder_Icon.png");
 
-    const Shared<Texture> dataTableIcon = loadTexture(L"DataTable.png");
+    const Shared<Texture> dataTableIcon = load_texture(L"DataTable.png");
     _iconFiles[static_cast<size_t>(EIconType::Csv)] = dataTableIcon;
     _iconFiles[static_cast<size_t>(EIconType::Xlsx)] = dataTableIcon;
 
-    _iconFiles[static_cast<size_t>(EIconType::Json)] = loadTexture(L"JSON.png");
-    _iconFiles[static_cast<size_t>(EIconType::Python)] = loadTexture(L"Python.png");
+    _iconFiles[static_cast<size_t>(EIconType::Json)] = load_texture(L"JSON.png");
+    _iconFiles[static_cast<size_t>(EIconType::Python)] = load_texture(L"Python.png");
 }
 
 void Content_Browser::Scan_Folder(const wstring& path, FFolderNode& node)
@@ -268,14 +275,14 @@ void Content_Browser::Scan_Folder(const wstring& path, FFolderNode& node)
         {
             FFolderNode child{};
             Scan_Folder(entry.path().wstring(), child);
-            node.subFolders.emplace_back(std::move(child));
+            node.subFolders.emplace_back(move(child));
         }
         else if (entry.path().extension() != L".meta")
         {
             FFileEntry fileEntry{};
             fileEntry.filePath = entry.path().wstring();
             fileEntry.guid = GAME->Find_AssetGUID(fileEntry.filePath);
-            node.files.emplace_back(std::move(fileEntry));
+            node.files.emplace_back(move(fileEntry));
         }
     }
 }
@@ -589,7 +596,7 @@ void Content_Browser::Save_Settings() const
     const wstring currentPath = _currentFolder ? _currentFolder->fullPath : wstring{};
     settings["lastPath"] = String::ToString(currentPath);
 
-    const fs::path settingsPath = CONTENT_BROWSER_SETTINGS_PATH;
+    const fs::path settingsPath = kContentBrowserSettingsPath;
     if (!fs::exists(settingsPath.parent_path()))
         fs::create_directories(settingsPath.parent_path());
 
@@ -602,7 +609,7 @@ void Content_Browser::Save_Settings() const
 
 void Content_Browser::Load_Settings()
 {
-    ifstream file(CONTENT_BROWSER_SETTINGS_PATH);
+    ifstream file(kContentBrowserSettingsPath);
     if (!file.is_open())
         return;
 

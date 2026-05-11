@@ -15,10 +15,15 @@ namespace UIEditor
     string Get_AssetFileName(const AssetMeta& assetMeta);
     bool Is_UITextureAsset(const AssetMeta& assetMeta);
     bool Is_UISpriteFontAsset(const AssetMeta& assetMeta);
+    vector<AssetMeta> Collect_UISpriteFontAssets(const string& searchText);
+    string Get_FontAssetStableId(const AssetMeta& assetMeta);
+    bool Is_FontAssetApplied(const UI_Object& object, const AssetMeta& assetMeta);
     string Make_FontTag(const AssetMeta& assetMeta);
     bool Matches_Search(const AssetMeta& assetMeta, const string& searchText);
 
     ImTextureID To_ImTextureID(ID3D11ShaderResourceView* srv);
+    float Get_UITextRuntimeScale(const UI_Object& object);
+    ImVec2 Get_UIObjectRuntimeSize(const UI_Object& object);
     ImVec2 Clamp_ObjectPosition(const UI_Object& object, const ImVec2& canvasSize, const ImVec2& position);
     bool Build_ScreenClipRect(const ImVec2& minPosition, const ImVec2& maxPosition, D3D11_RECT& outRect);
     wstring Build_SafeSpriteFontText(const SpriteFont& font, const wstring& text);

@@ -3,6 +3,7 @@
 #include "Engine_Define.h"
 #include "UI_Editor_ImGuiInclude.h"
 #include "UI_Editor_Enum.h"
+#include "UI_AnimationTypes.h"
 
 NS_BEGIN(UIEditor)
 
@@ -41,6 +42,7 @@ struct UI_Object
     string texturePath = "";
     string maskTextureGuid = "";
     string maskTexturePath = "";
+    vector<UI_AnimationClip> animationClips = {};
 };
 
 NS_END

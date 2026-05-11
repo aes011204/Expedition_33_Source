@@ -25,6 +25,9 @@ private:
     bool _defaultDockLayoutBuilt{ false };
 
 private:
+    // 등록된 editor window들의 초기화 hook을 한 번씩 실행한다.
+    HRESULT Initialize_Windows();
+
     void Render_MainMenuBar();
     void Render_RuntimeToolbar();
     void Render_DockSpace();

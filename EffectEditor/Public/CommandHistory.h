@@ -22,11 +22,12 @@ public:
     bool CanUndo() const { return !_undoStack.empty(); }
     bool CanRedo() const { return !_redoStack.empty(); }
 
-private:
+private: //## Static Values
+    static constexpr size_t kMaxHistory = 100;
+
+private: //## Data
     vector<Shared<ICommand>> _undoStack;
     vector<Shared<ICommand>> _redoStack;
-
-    static constexpr size_t MAX_HISTORY = 100;
 
 public:
     static Unique<CommandHistory> Create();

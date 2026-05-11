@@ -8,7 +8,7 @@ namespace Internal
 {
     string Strip_LogPrefix(const string& line)
     {
-        static constexpr const char* kLevels[] =
+        static constexpr const char* levels[] =
         {
             "[trace]",
             "[debug]",
@@ -18,7 +18,7 @@ namespace Internal
             "[critical]",
         };
 
-        for (const char* level : kLevels)
+        for (const char* level : levels)
         {
             const size_t pos = line.find(level);
             if (pos == string::npos)

@@ -1,5 +1,6 @@
 ﻿#include "Hierarchy_View.h"
 
+#include "Client_Defines.h"
 #include "Editor_Context.h"
 #include "EffectEditorInstance.h"
 #include "GameInstance.h"
@@ -10,6 +11,11 @@ NS_BEGIN(EffectEditor)
 Hierarchy_View::Hierarchy_View()
     : Editor_Window{ L"Hierarchy", ICON_FA_SITEMAP }
 {
+}
+
+Hierarchy_View::~Hierarchy_View()
+{
+    Free();
 }
 
 HRESULT Hierarchy_View::Initialize()
@@ -74,6 +80,7 @@ void Hierarchy_View::Render()
         }
 
         const Shared<GameObject> selectedObject = context->Get_Selection().selectedObject;
+        Handle_Shortcuts();
 
         Draw_SearchBar();
 
@@ -200,17 +207,56 @@ void Hierarchy_View::Rebuild_Cache()
 {
     _groupedObjects.clear();
 
-    GAME->Visit_CurrentLevelObjects(
-        [this](const wstring& layerTag, const Shared<GameObject>& gameObject)
-        {
-            if (gameObject == nullptr)
-                return;
+    const auto append_level_objects =
+        [this](uint32 levelIndex, const char* levelLabel)
+    {
+        GAME->Visit_LevelObjects(
+            levelIndex,
+            [this, levelLabel](const wstring& layerTag, const Shared<GameObject>& gameObject)
+            {
+                if (gameObject == nullptr)
+                    return;
 
-            _groupedObjects[layerTag].push_back(gameObject);
-        }
-    );
+                const wstring groupedLayerTag =
+                    String::ToWString(format("[{}] {}", levelLabel, String::ToString(layerTag)));
+
+                _groupedObjects[groupedLayerTag].push_back(gameObject);
+            }
+        );
+    };
+
+    append_level_objects(ETOI(LevelType::Static), "Static");
+
+    const uint32 currentLevelIndex = GAME->Current_LevelIndex();
+    if (currentLevelIndex != ETOI(LevelType::Static))
+        append_level_objects(currentLevelIndex, "Current");
 
     _dirtyHierarchyCache = false;
+}
+
+void Hierarchy_View::Handle_Shortcuts()
+{
+    if (!_isFocused)
+        return;
+
+    const ImGuiIO& io = ImGui::GetIO();
+    if (io.WantTextInput)
+        return;
+
+    if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_C, false))
+    {
+        EDITOR->Copy_SelectedObject();
+        return;
+    }
+
+    if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_V, false))
+    {
+        EDITOR->Paste_CopiedObject();
+        return;
+    }
+
+    if (ImGui::IsKeyPressed(ImGuiKey_Delete, false))
+        EDITOR->Delete_SelectedObject();
 }
 
 bool Hierarchy_View::Pass_SearchFilter(const Shared<GameObject>& gameObject, uint32 objectIndex) const

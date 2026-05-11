@@ -27,13 +27,20 @@ public:
     HRESULT Render();
     void    Update(float timeDelta);
     void    Clear();
+    void    Clear_Level(uint32 levelIndex);
 
 private:
     void Sort_UIList();
 
 private:
+    struct UI_Entry
+    {
+        uint32 levelIndex = 0;
+        Shared<UI_Base> ui = nullptr;
+    };
+
     Prototype_Manager* _prototypeManager{ nullptr };
-    vector<Shared<UI_Base>> _uiList{};
+    vector<UI_Entry> _uiList{};
     vector<Weak<UI_Base>> _openedUIStack{};
 
 public:

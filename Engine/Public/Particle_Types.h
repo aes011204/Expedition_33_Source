@@ -4,6 +4,14 @@
 
 NS_BEGIN(Engine)
 
+// point particle 검증 경로에서 사용할 instanced draw 제출 방식.
+enum class PointParticleDrawMode : uint8
+{
+    Direct,                       // 기존 DrawInstanced 경로로 제출한다.
+    DrawInstancedIndirect,        // CPU가 작성한 args buffer로 DrawInstancedIndirect를 호출한다.
+    DrawIndexedInstancedIndirect  // CPU가 작성한 args buffer로 DrawIndexedInstancedIndirect를 호출한다.
+};
+
 // GPU instance buffer에 저장되는 per-instance world/lifetime payload.
 struct ParticleInstanceVertex
 {
@@ -46,6 +54,17 @@ struct PointParticleDesc : public InstanceSpawnDesc
     Vec2 speed{};    // 랜덤 속도 범위.
     Vec2 lifeTime{}; // 랜덤 생존 시간 범위.
     bool loop{};     // true면 생존 시간이 끝난 인스턴스를 재생성한다.
+    PointParticleDrawMode drawMode{ PointParticleDrawMode::Direct }; // Stage2 indirect draw 검증용 제출 방식.
+};
+
+// compute shader가 instance payload를 갱신하는 point particle 검증용 desc.
+struct ComputePointParticleDesc : public InstanceSpawnDesc
+{
+    Vec2 lifeTime{};                     // compute shader가 누적 시간을 계산할 때 사용할 생존 시간 범위.
+    Vec2 radius{};                       // 화면 확인용 원형 이동 반경 범위.
+    PointParticleDrawMode drawMode{ PointParticleDrawMode::Direct }; // compute particle 검증 경로의 draw 제출 방식.
+    uint32 computeShaderLevelIndex{};    // compute shader prototype이 등록된 level index. Engine은 Client의 LevelType을 알지 않는다.
+    wstring computeShaderPrototypeTag{}; // instance payload를 갱신할 compute shader component prototype tag.
 };
 
 NS_END

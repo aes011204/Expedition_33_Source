@@ -1,18 +1,21 @@
 ﻿#include "ResourceLoader.h"
 
-#include "Component.h"
 #include "BackGround.h"
 #include "Body_Player.h"
+#include "ColliderCom.h"
+#include "Component.h"
+#include "ComputePointParticlePreview.h"
+#include "ComputeShaderCom.h"
 #include "FreeCamera.h"
-#include "TargetCamera.h"
-#include "PointParticlePreview.h"
 #include "GameInstance.h"
 #include "GameObject.h"
 #include "ModelCom.h"
 #include "Particle_Types.h"
+#include "PointParticlePreview.h"
 #include "ShaderCom.h"
-#include "ColliderCom.h"
+#include "TargetCamera.h"
 #include "Texture.h"
+#include "VIBufferCom_ComputePointParticle.h"
 #include "VIBuffer_Cube.h"
 #include "VIBuffer_Rect.h"
 #include "VIBuffer_Terrain.h"
@@ -283,16 +286,20 @@ HRESULT ResourceLoader::Build_ShaderJobs(const wstring& strTablePath, vector<FLo
         const string strPath = Read_String(JsonItem, "Path", "path");
         const string strLevel = Read_String(JsonItem, "Level", "level", "Static");
         const string strInputLayout = Read_String(JsonItem, "Type", "type", "VTXTEX");
+        const string strEntryPoint = Read_String(JsonItem, "EntryPoint", "entryPoint", "CS_Main");
 
         if (strId.empty() || strPath.empty())
             continue;
 
         FLoadJob LoadJob = {};
-        LoadJob.eType = ELoadJobType::Shader;
+        LoadJob.eType = ("Compute" == strInputLayout || "COMPUTE" == strInputLayout)
+            ? ELoadJobType::ComputeShader
+            : ELoadJobType::Shader;
         LoadJob.iLevelIndex = Get_LevelIndex_FromString(strLevel);
         LoadJob.strPrototypeTag = String::ToWString(strId);
         LoadJob.strPath = Resolve_RuntimePath(String::ToWString(strPath));
         LoadJob.strInputLayout = strInputLayout;
+        LoadJob.strEntryPoint = strEntryPoint;
         LoadJob.iCount = 1;
 
         LoadJobs.push_back(LoadJob);
@@ -574,12 +581,32 @@ HRESULT ResourceLoader::Load_Shaders(const json& JsonData)
         const string strPath = Read_String(JsonItem, "Path", "path");
         const string strLevel = Read_String(JsonItem, "Level", "level", "Static");
         const string strInputLayout = Read_String(JsonItem, "Type", "type", "VTXTEX");
+        const string strEntryPoint = Read_String(JsonItem, "EntryPoint", "entryPoint", "CS_Main");
 
         if (strId.empty() || strPath.empty())
             continue;
 
-        const FInputLayoutInfo InputLayout = Get_InputLayout(strInputLayout);
         const wstring resolvedPath = Resolve_RuntimePath(String::ToWString(strPath));
+        if ("Compute" == strInputLayout || "COMPUTE" == strInputLayout)
+        {
+            Shared<ComputeShaderCom> computeShader =
+                ComputeShaderCom::Create(_device, _context, resolvedPath.c_str(), strEntryPoint.c_str());
+            if (nullptr == computeShader)
+            {
+                LOG_WARN("Skipping ComputeShader prototype registration. id='{}', path='{}', entry='{}'", strId, strPath, strEntryPoint);
+                continue;
+            }
+
+            if (FAILED(GAME->Add_Prototype(Get_LevelIndex_FromString(strLevel), String::ToWString(strId), computeShader)))
+            {
+                LOG_WARN("Skipping ComputeShader Add_Prototype failure. id='{}', level='{}'", strId, strLevel);
+                continue;
+            }
+
+            continue;
+        }
+
+        const FInputLayoutInfo InputLayout = Get_InputLayout(strInputLayout);
         Shared<ShaderCom> pShader = ShaderCom::Create(_device, _context, resolvedPath.c_str(), InputLayout.pElements, InputLayout.iNumElements);
         if (nullptr == pShader)
         {
@@ -643,6 +670,31 @@ HRESULT ResourceLoader::Register_LoadJob(const FLoadJob& LoadJob)
         {
             LOG_WARN(
                 "Skipping Shader Add_Prototype failure. id='{}', level={}",
+                String::ToString(LoadJob.strPrototypeTag),
+                LoadJob.iLevelIndex);
+        }
+        return S_OK;
+    }
+
+    case ELoadJobType::ComputeShader:
+    {
+        Shared<ComputeShaderCom> computeShader =
+            ComputeShaderCom::Create(_device, _context, LoadJob.strPath.c_str(), LoadJob.strEntryPoint.c_str());
+        if (nullptr == computeShader)
+        {
+            LOG_WARN(
+                "Skipping ComputeShader prototype registration. id='{}', path='{}', entry='{}', level={}",
+                String::ToString(LoadJob.strPrototypeTag),
+                String::ToString(LoadJob.strPath),
+                LoadJob.strEntryPoint,
+                LoadJob.iLevelIndex);
+            return S_OK;
+        }
+
+        if (FAILED(GAME->Add_Prototype(LoadJob.iLevelIndex, LoadJob.strPrototypeTag, computeShader)))
+        {
+            LOG_WARN(
+                "Skipping ComputeShader Add_Prototype failure. id='{}', level={}",
                 String::ToString(LoadJob.strPrototypeTag),
                 LoadJob.iLevelIndex);
         }
