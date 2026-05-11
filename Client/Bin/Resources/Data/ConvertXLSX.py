@@ -23,6 +23,7 @@ GOOGLE_SHEET_EXPORTS = {
     "DT_ExpLevel.xlsx": "https://docs.google.com/spreadsheets/d/1tGnts2HdLZXOccMK21symSV6jAdooHCckLeEtwOz97Y/export?format=xlsx",
     "DT_SkillTree.xlsx": "https://docs.google.com/spreadsheets/d/19--V-7P5UoZd7SRJ3vdMl235gXcka5eVsyjFxOHVHoY/export?format=xlsx",
     "DT_Skill.xlsx": "https://docs.google.com/spreadsheets/d/1ZYbFBUcuUSYvSQR8D_o_Z95pZRv2HLopIpwxryuCo4Q/export?format=xlsx",
+    "DT_SkillAction.xlsx": "https://docs.google.com/spreadsheets/d/1Zgifm1ACD1RdCZdtqT5FhCy02dZJK663VcyNEWxtCts/export?format=xlsx",
 }
 
 

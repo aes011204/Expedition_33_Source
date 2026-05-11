@@ -11,10 +11,22 @@ if exist ".\Engine\Public\" (
 )
 
 ::: Shared shader include files only
-if exist ".\Engine\Bin\ShaderFiles\" (
-    echo Copying Engine shader include files...
-    xcopy /y /i /d ".\Engine\Bin\ShaderFiles\*.hlsli" ".\Client\Bin\ShaderFiles\"
-    xcopy /y /i /d ".\Engine\Bin\ShaderFiles\*.hlsl"  ".\Client\Bin\ShaderFiles\"
+set ROOT=%~dp0
+
+if not exist "%ROOT%Client\Bin\ShaderFiles\" mkdir "%ROOT%Client\Bin\ShaderFiles\"
+if not exist "%ROOT%MapEditor\Bin\ShaderFiles\" mkdir "%ROOT%MapEditor\Bin\ShaderFiles\"
+if not exist "%ROOT%ModelEditor\Bin\ShaderFiles\" mkdir "%ROOT%ModelEditor\Bin\ShaderFiles\"
+
+if exist "%ROOT%Engine\Bin\ShaderFiles\" (
+    echo Copying Engine shader files...
+
+    xcopy /y /i /d "%ROOT%Engine\Bin\ShaderFiles\*.hlsli" "%ROOT%Client\Bin\ShaderFiles\"
+    xcopy /y /i /d "%ROOT%Engine\Bin\ShaderFiles\*.hlsli" "%ROOT%MapEditor\Bin\ShaderFiles\"
+    xcopy /y /i /d "%ROOT%Engine\Bin\ShaderFiles\*.hlsli" "%ROOT%ModelEditor\Bin\ShaderFiles\"
+
+    xcopy /y /i /d "%ROOT%Engine\Bin\ShaderFiles\*.hlsl" "%ROOT%Client\Bin\ShaderFiles\"
+    xcopy /y /i /d "%ROOT%Engine\Bin\ShaderFiles\*.hlsl" "%ROOT%MapEditor\Bin\ShaderFiles\"
+    xcopy /y /i /d "%ROOT%Engine\Bin\ShaderFiles\*.hlsl" "%ROOT%ModelEditor\Bin\ShaderFiles\"
 )
 
 ::: Engine.lib

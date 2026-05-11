@@ -1,6 +1,15 @@
 ﻿#include "MapStaticMesh.h"
 #include "GameInstance.h"
 
+IMPLEMENT_REFLECTION(MapStaticMesh)
+{
+    auto& info = GetStaticReflectionInfo();
+    info.properties.clear();
+    info.displayName = "MapStaticMesh";
+    info.category = "World";
+    return true;
+}
+
 MapStaticMesh::MapStaticMesh(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : GameObject{ device, context }
 {

@@ -79,7 +79,7 @@ HRESULT Animation_PreviewObject::Render()
 
             _animShaderCom->Bind_RawValue("g_UVScale", &uvScale, sizeof(Vec2));
             _animShaderCom->Bind_RawValue("g_UVOffset", &uvOffset, sizeof(Vec2));
-            _animShaderCom->Bind_RawValue("g_UVRotation", &uvRotation, sizeof(float));
+            _animShaderCom->Bind_RawValue("g_UVRotate", &uvRotation, sizeof(float));
             _animShaderCom->Bind_RawValue("g_UseOpacityMask", &useOpacityMask, sizeof(int));
 
             _modelCom->Bind_BoneMatrices(_animShaderCom.get(), "g_BoneMatrices", i);

@@ -1,54 +1,21 @@
+#ifndef ENGINE_SHADER_DEFINES_HLSLI
+#define ENGINE_SHADER_DEFINES_HLSLI
 
+#define EPSILON 0.0001f
 
-RasterizerState RS_Default
-{
-    FillMode = Solid;
-    CullMode = Back;
-    FrontCounterClockwise = false;
-};
+// Material Texture Slot
+#define MATERIAL_SLOT_BASECOLOR      0
+#define MATERIAL_SLOT_NORMAL         1
+#define MATERIAL_SLOT_EMISSIVE       2
+#define MATERIAL_SLOT_OPACITY_MASK   3
+#define MATERIAL_SLOT_ORM            4
+#define MATERIAL_SLOT_END            5
 
-RasterizerState RS_Cull_CW
-{
-    FillMode = Solid;
-    CullMode = front;
-    FrontCounterClockwise = false;
-};
+// Material Flags
+#define MATERIAL_FLAG_BASECOLOR      (1u << MATERIAL_SLOT_BASECOLOR)
+#define MATERIAL_FLAG_NORMAL         (1u << MATERIAL_SLOT_NORMAL)
+#define MATERIAL_FLAG_EMISSIVE       (1u << MATERIAL_SLOT_EMISSIVE)
+#define MATERIAL_FLAG_OPACITY_MASK   (1u << MATERIAL_SLOT_OPACITY_MASK)
+#define MATERIAL_FLAG_ORM            (1u << MATERIAL_SLOT_ORM)
 
-DepthStencilState DSS_Default
-{
-    DepthEnable = true;
-    DepthWriteMask = All;
-    DepthFunc = less_equal;
-};
-
-DepthStencilState DSS_None
-{
-    DepthEnable = false;
-    DepthWriteMask = zero;    
-};
-
-BlendState BS_Default
-{
-    BlendEnable[0] = false;    
-};
-
-BlendState BS_AlphaBlend
-{
-    BlendEnable[0] = true;
-    BlendEnable[1] = true;
-
-    SrcBlend = Src_Alpha;
-    DestBlend = Inv_Src_Alpha;
-    BlendOp = Add;
-};
-
-BlendState BS_Blend
-{
-    BlendEnable[0] = true;
-    BlendEnable[1] = true;
-
-    SrcBlend = one;
-    DestBlend = one;
-    BlendOp = Add;
-};
-
+#endif

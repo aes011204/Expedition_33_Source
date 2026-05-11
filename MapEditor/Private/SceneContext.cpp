@@ -1,5 +1,6 @@
 ﻿#include "SceneContext.h"
 #include "Helper_String.h"
+#include "IEditorCommand.h"
 
 void SceneContext::SaveToFile(const string& filePath)
 {
@@ -16,6 +17,7 @@ void SceneContext::SaveToFile(const string& filePath)
     json cameraZones = json::array();
     json postProcessVols = json::array();
     json lights = json::array();
+    json instancedMeshes = json::array();
 
     for (auto& obj : _objects)
     {
@@ -92,6 +94,21 @@ void SceneContext::SaveToFile(const string& filePath)
             lights.push_back(e);
             break;
 
+        case EObjectType::InstancedMesh:
+        {
+            wstring modelFile = obj->_instancedModelPath;
+            const wstring prefix = L"../../../Client/Bin/Resources/Map/" + _modelFolder + L"/";
+            if (modelFile.substr(0, prefix.size()) == prefix)
+                modelFile = modelFile.substr(prefix.size());
+            e["ModelPath"] = String::ToString(modelFile);
+            e["AreaWidth"] = obj->_instancedAreaWidth;
+            e["AreaDepth"] = obj->_instancedAreaDepth;
+            e["Density"] = obj->_instancedDensity;
+            e["Seed"] = obj->_instancedSeed;
+            instancedMeshes.push_back(e);
+            break;
+        }
+
         default:
             break;
         }
@@ -104,6 +121,7 @@ void SceneContext::SaveToFile(const string& filePath)
     map["CameraZones"] = cameraZones;
     map["PostProcessVolumes"] = postProcessVols;
     map["Lights"] = lights;
+    map["InstancedMeshes"] = instancedMeshes;
 
     ofstream ofs(filePath);
     ofs << root.dump(4);
@@ -124,14 +142,26 @@ void SceneContext::LoadFromFile(const string& filePath)
     _modelFolder = String::ToWString(map.value("ModelFolder", string{}));
 
     _objects.clear();
+    _staticMeshes.clear();
+    _lights.clear();
+    _instancedMeshes.clear();
+
     _dirtyRenderHandles = true;
     _selected = nullptr;
+
+    _undoStack.clear();
+    _redoStack.clear();
 
     auto LoadTransform = [](const json& e, EditorObject& obj) {
         auto& pos = e["Position"];
         obj._position = { pos[0], pos[1], pos[2] };
         auto& rot = e["Rotation"];
         obj._rotation = { rot[0], rot[1], rot[2], rot[3] };
+        if (e.contains("Scale"))
+        {
+            auto& s = e["Scale"];
+            obj._scale = { s[0], s[1], s[2] };
+        }
         obj.UpdateWorldMatrix();
         };
 
@@ -163,10 +193,8 @@ void SceneContext::LoadFromFile(const string& filePath)
                 + _modelFolder + L"/"
                 + String::ToWString(modelPathStr);
 
-            auto& scl = e["Scale"];
-            obj->_scale = { scl[0], scl[1], scl[2] };
             LoadTransform(e, *obj);
-            _objects.push_back(obj);
+            Add(obj);
         }
     }
 
@@ -178,7 +206,7 @@ void SceneContext::LoadFromFile(const string& filePath)
             obj->_type = EObjectType::SpawnPoint;
             obj->_name = String::ToWString(e["Id"].get<string>());
             LoadTransform(e, *obj);
-            _objects.push_back(obj);
+            Add(obj);
         }
     }
 
@@ -192,7 +220,7 @@ void SceneContext::LoadFromFile(const string& filePath)
             obj->_zoneId = e.value("EnemyGroupId", string{});
             LoadTransform(e, *obj);
             LoadZoneShape(e, *obj);
-            _objects.push_back(obj);
+            Add(obj);
         }
     }
 
@@ -206,7 +234,7 @@ void SceneContext::LoadFromFile(const string& filePath)
             obj->_zoneId = e.value("EventId", string{});
             LoadTransform(e, *obj);
             LoadZoneShape(e, *obj);
-            _objects.push_back(obj);
+            Add(obj);
         }
     }
 
@@ -222,7 +250,7 @@ void SceneContext::LoadFromFile(const string& filePath)
             obj->_cameraTransitionTime = e.value("TransitionTime", 0.5f);
             LoadTransform(e, *obj);
             LoadZoneShape(e, *obj);
-            _objects.push_back(obj);
+            Add(obj);
         }
     }
 
@@ -244,7 +272,7 @@ void SceneContext::LoadFromFile(const string& filePath)
             }
             LoadTransform(e, *obj);
             LoadZoneShape(e, *obj);
-            _objects.push_back(obj);
+            Add(obj);
         }
     }
 
@@ -279,13 +307,39 @@ void SceneContext::LoadFromFile(const string& filePath)
                 obj->_lightSpecular = { s[0], s[1], s[2], s[3] };
             }
             LoadTransform(e, *obj);
-            _objects.push_back(obj);
+            Add(obj);
         }
     }
 
+    if (map.contains("InstancedMeshes"))
+    {
+        for (auto& e : map["InstancedMeshes"])
+        {
+            auto obj = make_shared<EditorObject>();
+            obj->_type = EObjectType::InstancedMesh;
+            obj->_name = String::ToWString(e["Id"].get<string>());
+
+            string modelPathStr = e.value("ModelPath", string{});
+            if (!modelPathStr.empty())
+            {
+                obj->_instancedModelPath = L"../../../Client/Bin/Resources/Map/"
+                    + _modelFolder + L"/"
+                    + String::ToWString(modelPathStr);
+            }
+
+            obj->_instancedAreaWidth = e.value("AreaWidth", 10.f);
+            obj->_instancedAreaDepth = e.value("AreaDepth", 10.f);
+            obj->_instancedDensity = e.value("Density", 1.f);
+            obj->_instancedSeed = e.value("Seed", 0u);
+            LoadTransform(e, *obj);
+            Add(obj);
+        }
+    }
+
+    _octreeDirty = true;
 }
 
-void SceneContext::SpawnObject(const wstring& modelPath, const Vec3& pos)
+Shared<EditorObject> SceneContext::SpawnObject(const wstring& modelPath, const Vec3& pos)
 {
     auto obj = make_shared<EditorObject>();
 
@@ -304,15 +358,205 @@ void SceneContext::SpawnObject(const wstring& modelPath, const Vec3& pos)
 
     _dirtyRenderHandles = true;
     Add(obj);
+    return obj;
+}
+
+Shared<EditorObject> SceneContext::SpawnFromPrefab(const string& prefabPath, const Vec3& pos)
+{
+    ifstream ifs(prefabPath);
+    if (!ifs.is_open())
+    {
+        return nullptr;
+    }
+
+    json j = json::parse(ifs);
+
+    string typeName = j.value("Type", "StaticMesh");
+    EObjectType type = ObjectTypeFromName(typeName);
+    if(type == EObjectType::Fail)
+    {
+        return nullptr;
+    }
+
+    string nameStr = j.value("Name", typeName);
+    wstring name = String::ToWString(nameStr) + L"_" + to_wstring(_objects.size());
+
+    auto obj = EditorObject::Create(name, type);
+    obj->_position = pos;
+
+    switch (type)
+    {
+    case EObjectType::Light:
+    {
+        string ltStr = j.value("LightType", "Directional");
+        obj->_lightType = (ltStr == "Point") ? LightType::Point : LightType::Directional;
+
+        if (j.contains("Direction"))
+        {
+            auto& d = j["Direction"];
+            obj->_lightDirection = { d[0], d[1], d[2], d[3] };
+        }
+
+        obj->_lightRange = j.value("Range", 10.f);
+        if (j.contains("Diffuse"))
+        {
+            auto& d = j["Diffuse"];
+            obj->_lightDiffuse = { d[0], d[1], d[2], d[3] };
+        }
+
+        if (j.contains("Ambient"))
+        {
+            auto& d = j["Ambient"];
+            obj->_lightAmbient = { d[0], d[1], d[2], d[3] };
+        }
+
+        if (j.contains("Specular"))
+        {
+            auto& d = j["Specular"];
+            obj->_lightSpecular = { d[0], d[1], d[2], d[3] };
+        }
+        break;
+    }
+    case EObjectType::EncounterZone:
+    case EObjectType::TriggerVolume:
+    case EObjectType::CameraZone:
+    case EObjectType::PostProcessVolume:
+    {
+        string shapeStr = j.value("Shape", "Box");
+        obj->_zoneShape = (shapeStr == "Sphere") ? EZoneShape::Sphere : EZoneShape::Box;
+
+        if (j.contains("Extent"))
+        {
+            auto& ext = j["Extent"];
+            obj->_zoneExtent = { ext[0], ext[1], ext[2] };
+        }
+        obj->_zoneRadius = j.value("Radius", 5.f);
+
+        if (type == EObjectType::EncounterZone)
+        {
+            obj->_zoneId = j.value("EnemyGroupId", "");
+        }
+        else if (type == EObjectType::TriggerVolume)
+        {
+            obj->_zoneId = j.value("EventId", "");
+        }
+        else if (type == EObjectType::CameraZone)
+        {
+            obj->_cameraFov = j.value("FOV", 60.f);
+            obj->_cameraFixedAngle = j.value("FixedAngle", false);
+            obj->_cameraTransitionTime = j.value("TransitionTime", 0.5f);
+        }
+        else if (type == EObjectType::PostProcessVolume)
+        {
+            obj->_ppBloomIntensity = j.value("BloomIntensity", 1.f);
+            obj->_ppExposureMin = j.value("ExposureMin", 0.f);
+            obj->_ppExposureMax = j.value("ExposureMax", 2.f);
+            obj->_ppFogDensity = j.value("FogDensity", 0.f);
+            if (j.contains("FogColor"))
+            {
+                auto& fc = j["FogColor"];
+                obj->_ppFogColor = { fc[0], fc[1], fc[2] };
+            }
+        }
+        break;
+    }
+
+    case MapEditor::EObjectType::InstancedMesh:
+    {
+        string modelPathStr = j.value("ModelPath", string{});
+        if (!modelPathStr.empty())
+        {
+            obj->_instancedModelPath = L"../../../Client/Bin/Resources/Map/"
+                + _modelFolder + L"/"
+                + String::ToWString(modelPathStr);
+        }
+        obj->_instancedAreaWidth = j.value("AreaWidth", 10.f);
+        obj->_instancedAreaDepth = j.value("AreaDepth", 10.f);
+        obj->_instancedDensity = j.value("Density", 1.f);
+        obj->_instancedSeed = j.value("Seed", 0u);
+        break;
+    }
+
+
+    case EObjectType::Fail:
+        break;
+    default:
+        break;
+    }
+
+    obj->UpdateWorldMatrix();
+    Add(obj);
+    return obj;
+}
+
+void SceneContext::PushCommand(Shared<IEditorCommand> cmd)
+{
+    if (!cmd)
+    {
+        return;
+    }
+
+    cmd->Execute(*this);
+
+    _undoStack.push_back(move(cmd));
+    if (_undoStack.size() > 50)
+    {
+        _undoStack.erase(_undoStack.begin());
+    }
+
+    _redoStack.clear();
+}
+
+void SceneContext::UndoCommand()
+{
+    if (_undoStack.empty())
+    {
+        return;
+    }
+
+    auto cmd = _undoStack.back();
+    _undoStack.pop_back();
+    cmd->Undo(*this);
+    _redoStack.push_back(move(cmd));
+}
+
+void SceneContext::RedoCommand()
+{
+    if (_redoStack.empty())
+    {
+        return;
+    }
+
+    auto cmd = _redoStack.back();
+    _redoStack.pop_back();
+    cmd->Execute(*this);
+    _undoStack.push_back(move(cmd));
 }
 
 void SceneContext::Add(Shared<EditorObject> obj)
 {
-    if (obj)
+    if (!obj)
     {
-        _objects.push_back(move(obj));
-        _dirtyRenderHandles = true;
+        return;
     }
+
+    _objects.push_back(obj);
+
+    if (obj->_type == EObjectType::StaticMesh)
+    {
+        _staticMeshes.push_back(obj);
+    }
+    else if (obj->_type == EObjectType::Light)
+    {
+        _lights.push_back(obj);
+    }
+    else if (obj->_type == EObjectType::InstancedMesh)
+    {
+        _instancedMeshes.push_back(obj);
+    }
+
+    _dirtyRenderHandles = true;
+    _octreeDirty = true;
 }
 
 void SceneContext::Remove(const Shared<EditorObject>& obj)
@@ -321,17 +565,38 @@ void SceneContext::Remove(const Shared<EditorObject>& obj)
     {
         return;
     }
-    auto it = find(_objects.begin(), _objects.end(), obj);
-    if (it == _objects.end())
+
+    auto erase = [](auto& vec, const Shared<EditorObject>& o)
+        {
+            auto it = find(vec.begin(), vec.end(), o);
+            if (it != vec.end())
+            {
+                vec.erase(it);
+            }
+        };
+
+    erase(_objects, obj);
+
+    if (obj->_type == EObjectType::StaticMesh)
     {
-        return;
+        erase(_staticMeshes, obj);
     }
+    else if (obj->_type == EObjectType::Light)
+    {
+        erase(_lights, obj);
+    }
+    else if (obj->_type == EObjectType::InstancedMesh)
+    {
+        erase(_instancedMeshes, obj);
+    }
+
 
     if (obj == _selected)
     {
         _selected = nullptr;
     }
-    _objects.erase(it);
+
+    _octreeDirty = true;
 }
 
 Shared<EditorObject> SceneContext::Duplicate(const Shared<EditorObject>& src)
@@ -342,8 +607,20 @@ Shared<EditorObject> SceneContext::Duplicate(const Shared<EditorObject>& src)
     }
     auto copy = make_shared<EditorObject>(*src);
     copy->_name = src->_name + L"_Copy";
-    _objects.push_back(copy);
-    _dirtyRenderHandles = true;
+    Add(copy);
     return copy;
+}
+
+void SceneContext::ClearScene()
+{
+    _objects.clear();
+    _staticMeshes.clear();
+    _lights.clear();
+    _instancedMeshes.clear();
+    _selected = nullptr;
+    _undoStack.clear();
+    _redoStack.clear();
+    _dirtyRenderHandles = true;
+    _octreeDirty = true;
 }
 
