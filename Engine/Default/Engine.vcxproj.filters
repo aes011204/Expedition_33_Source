@@ -205,6 +205,9 @@
     <Filter Include="97. Manager\Culling">
       <UniqueIdentifier>{0e30feaa-f164-460e-b631-5ee065871dc7}</UniqueIdentifier>
     </Filter>
+    <Filter Include="01.Utility\04.Component\VIBuffer\Instance\Particle w. ComputeShader">
+      <UniqueIdentifier>{238dde8a-837b-49b6-9623-31af69115dcd}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -234,6 +237,30 @@
     <ClInclude Include="..\Public\Engine_Constants.h">
       <Filter>99. Defines</Filter>
     </ClInclude>
+    <ClInclude Include="..\public\UI_Manager.h">
+      <Filter>01.Utility\11. UI\Manager</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\UI_Transform.h">
+      <Filter>01.Utility\11. UI\Transform</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\UI_Base.h">
+      <Filter>01.Utility\11. UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_Animation.h">
+      <Filter>01.Utility\11. UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\UI_Image.h">
+      <Filter>01.Utility\11. UI\Object</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\UI_Panel.h">
+      <Filter>01.Utility\11. UI\Object</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\UI_Button.h">
+      <Filter>01.Utility\11. UI\Object</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\UI_Text.h">
+      <Filter>01.Utility\11. UI\Object</Filter>
+    </ClInclude>
     <ClInclude Include="..\public\AStar.h" />
     <ClInclude Include="..\Public\Reflection_JsonUtil.h" />
     <ClInclude Include="..\public\Parallel.h">
@@ -253,6 +280,9 @@
     </ClInclude>
     <ClInclude Include="..\Public\Culling_Manager.h">
       <Filter>97. Manager\Culling</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\VIBufferCom_ComputePointParticle.h">
+      <Filter>01.Utility\04.Component\VIBuffer\Instance\Particle w. ComputeShader</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -760,12 +790,26 @@
     <ClCompile Include="..\Private\Picking.cpp" />
     <ClCompile Include="..\private\UI_Base.cpp" />
     <ClCompile Include="..\private\UI_Image.cpp" />
+    <ClCompile Include="..\private\UI_Panel.cpp" />
+    <ClCompile Include="..\private\UI_Button.cpp" />
     <ClCompile Include="..\private\UI_Manager.cpp" />
     <ClCompile Include="..\private\UI_Text.cpp" />
     <ClCompile Include="..\private\UI_Transform.cpp" />
     <ClCompile Include="..\private\AStar.cpp" />
     <ClCompile Include="..\private\UI_Base.cpp">
       <Filter>01.Utility\11. UI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_Animation.cpp">
+      <Filter>01.Utility\11. UI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\UI_Image.cpp">
+      <Filter>01.Utility\11. UI\Object</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\UI_Panel.cpp">
+      <Filter>01.Utility\11. UI\Object</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\UI_Button.cpp">
+      <Filter>01.Utility\11. UI\Object</Filter>
     </ClCompile>
     <ClCompile Include="..\private\UI_Image.cpp">
       <Filter>01.Utility\11. UI\Object</Filter>
@@ -796,6 +840,9 @@
     </ClCompile>
     <ClCompile Include="..\Private\Culling_Manager.cpp">
       <Filter>97. Manager\Culling</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\VIBufferCom_ComputePointParticle.cpp">
+      <Filter>01.Utility\04.Component\VIBuffer\Instance\Particle w. ComputeShader</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Editor_Window.h"
 #include "Log_Manager.h"
@@ -17,15 +17,15 @@ public:
 
 private:
     vector<ConsoleLogEntry> _cachedLogs{};
-    uint32 _cachedRevision{0};
-    bool _autoScroll{true};
+    uint32 _cachedRevision{ 0 };
+    bool _autoScroll{ true };
 
-    bool _showTrace{true};
-    bool _showDebug{true};
-    bool _showInfo{true};
-    bool _showWarn{true};
-    bool _showError{true};
-    bool _showCritical{true};
+    bool _showTrace{ true };
+    bool _showDebug{ true };
+    bool _showInfo{ true };
+    bool _showWarn{ true };
+    bool _showError{ true };
+    bool _showCritical{ true };
 
 private:
     void Refresh_Logs();

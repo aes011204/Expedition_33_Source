@@ -1,11 +1,12 @@
 ﻿#include "pch.h"
 #include "ClientInstance.h"
+#include "BT_Node_Bootstrap.h"
+#include "ComputePointParticlePreview.h"
+#include "GameDataTable.h"
 #include "GameInstance.h"
+#include "PersistentObjectManager.h"
 #include "Player.h"
 #include "ResourceLoader.h"
-#include "BT_Node_Bootstrap.h"
-#include "GameDataTable.h"
-#include "PersistentObjectManager.h"
 
 IMPLEMENT_SINGLETON(ClientInstance)
 

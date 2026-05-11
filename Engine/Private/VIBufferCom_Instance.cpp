@@ -31,25 +31,6 @@ HRESULT VIBufferCom_Instance::Bind_Resources()
         return E_FAIL;
     }
 
-    // TODO : 일단 상세 로그는 보류
-    //if (_numVertexBuffers != 2)
-    //{
-    //    LOG_WARN("VIBufferCom_Instance requires exactly two vertex buffers for instanced binding.");
-    //    return E_FAIL;
-    //}
-    //
-    //if (_instanceStride == 0)
-    //{
-    //    LOG_WARN("VIBufferCom_Instance requires a non-zero instance stride before binding.");
-    //    return E_FAIL;
-    //}
-    //
-    //if (nullptr != _ib.Get() && _numIndices > 0 && _indexStride != 2 && _indexStride != 4)
-    //{
-    //    LOG_WARN("VIBufferCom_Instance requires 16-bit or 32-bit index stride for indexed instanced draw.");
-    //    return E_FAIL;
-    //}
-
     Buffer* vertexBuffers[] = {
         _vb.Get(),
         _instanceVB.Get(),

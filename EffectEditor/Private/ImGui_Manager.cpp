@@ -1,7 +1,7 @@
 ﻿#include "pch.h"
 #include "ImGui_Manager.h"
-#include "GameInstance.h"
 #include "EffectEditorInstance.h"
+#include "GameInstance.h"
 
 NS_BEGIN(EffectEditor)
 
@@ -33,11 +33,11 @@ HRESULT ImGui_Manager::Initialize(HWND hWnd, const ComPtr<Device>& device, const
 
     // === Font Awesome 추가 ===
     {
-        static const ImWchar icons_ranges[] = { ICON_MIN_FA, ICON_MAX_16_FA, 0 };
-        ImFontConfig icons_config;
-        icons_config.MergeMode = true;
-        icons_config.PixelSnapH = true;
-        icons_config.GlyphMinAdvanceX = 18.0f;
+        static const ImWchar iconsRanges[] = { ICON_MIN_FA, ICON_MAX_16_FA, 0 };
+        ImFontConfig iconsConfig;
+        iconsConfig.MergeMode = true;
+        iconsConfig.PixelSnapH = true;
+        iconsConfig.GlyphMinAdvanceX = 18.0f;
 
         const string iconFontPath = Get_ClientResourcePath(
             L"Fonts/fontawesome-free-7.1.0-desktop/otfs/Font Awesome 7 Free-Solid-900.otf"
@@ -45,8 +45,8 @@ HRESULT ImGui_Manager::Initialize(HWND hWnd, const ComPtr<Device>& device, const
         io.Fonts->AddFontFromFileTTF(
             iconFontPath.c_str(),
             18.0f,
-            &icons_config,
-            icons_ranges
+            &iconsConfig,
+            iconsRanges
         );
     }
 
@@ -182,9 +182,9 @@ string ImGui_Manager::Get_ClientResourcePath(const wchar_t* relativePath)
     if (0 == GetModuleFileNameW(nullptr, modulePath, MAX_PATH))
         return {};
 
-    const std::filesystem::path runtimeRoot = std::filesystem::path(modulePath).parent_path();
-    const std::filesystem::path resourceRoot =
-        std::filesystem::absolute(runtimeRoot / L"../../../Client/Bin/Resources").lexically_normal();
+    const fs::path runtimeRoot = fs::path(modulePath).parent_path();
+    const fs::path resourceRoot =
+        fs::absolute(runtimeRoot / L"../../../Client/Bin/Resources").lexically_normal();
 
     if (nullptr == relativePath || L'\0' == *relativePath)
         return resourceRoot.string();

@@ -10,24 +10,24 @@ NS_BEGIN(EffectEditor)
 
 Profile_View* Profile_View::s_active = nullptr;
 
-struct Profile_View::Profiler_Runtime
+struct Profile_View::ProfilerRuntime
 {
-    struct Active_Scope
+    struct ActiveScope
     {
         const char* name = nullptr;
         clock::time_point beginTime = {};
     };
 
-    struct Scope_Stats_Internal
+    struct ScopeStatsInternal
     {
-        Scope_Stats ui = {};
+        ScopeStats ui = {};
         deque<double> window = {};
         double windowSum = 0.0;
         uint64 lastTouchedFrame = 0;
     };
 
-    vector<Active_Scope> scopeStack = {};
-    unordered_map<string, Scope_Stats_Internal> scopes = {};
+    vector<ActiveScope> scopeStack = {};
+    unordered_map<string, ScopeStatsInternal> scopes = {};
 
     uint64 frameIndex = 0;
     int avgWindow = 120;
@@ -47,17 +47,17 @@ namespace Internal
         if (nullptr == needle || '\0' == needle[0])
             return true;
 
-        auto toLower = [](unsigned char ch) { return static_cast<char>(tolower(ch)); };
+        auto to_lower = [](unsigned char ch) { return static_cast<char>(tolower(ch)); };
 
         string lowerHaystack = {};
         lowerHaystack.reserve(haystack.size());
         for (const char ch : haystack)
-            lowerHaystack.push_back(toLower(static_cast<unsigned char>(ch)));
+            lowerHaystack.push_back(to_lower(static_cast<unsigned char>(ch)));
 
         string lowerNeedle = {};
         lowerNeedle.reserve(strlen(needle));
         for (const char* cursor = needle; '\0' != *cursor; ++cursor)
-            lowerNeedle.push_back(toLower(static_cast<unsigned char>(*cursor)));
+            lowerNeedle.push_back(to_lower(static_cast<unsigned char>(*cursor)));
 
         return string::npos != lowerHaystack.find(lowerNeedle);
     }
@@ -81,7 +81,7 @@ Profile_View::Scope::~Scope()
 Profile_View::Profile_View()
     : Editor_Window{ L"Profile", ICON_FA_GAUGE }
 {
-    _runtime = make_unique<Profiler_Runtime>();
+    _runtime = make_unique<ProfilerRuntime>();
     _prevFrame = clock::now();
     s_active = this;
 }
@@ -180,7 +180,7 @@ void Profile_View::Begin_Scope(const char* scopeName)
     if (!runtime.capture)
         return;
 
-    Profiler_Runtime::Active_Scope activeScope = {};
+    ProfilerRuntime::ActiveScope activeScope = {};
     activeScope.name = scopeName;
     activeScope.beginTime = clock::now();
     runtime.scopeStack.push_back(activeScope);
@@ -197,7 +197,7 @@ void Profile_View::End_Scope()
         return;
 
     const clock::time_point endTime = clock::now();
-    const Profiler_Runtime::Active_Scope activeScope = runtime.scopeStack.back();
+    const ProfilerRuntime::ActiveScope activeScope = runtime.scopeStack.back();
     runtime.scopeStack.pop_back();
 
     auto& entry = runtime.scopes[activeScope.name];
@@ -297,7 +297,7 @@ void Profile_View::Draw_Scopes()
 
     struct Row
     {
-        Scope_Stats* stats = nullptr;
+        ScopeStats* stats = nullptr;
         double sortKey = 0.0;
     };
 
@@ -306,7 +306,7 @@ void Profile_View::Draw_Scopes()
 
     for (auto& [_, entry] : _runtime->scopes)
     {
-        Scope_Stats& stats = entry.ui;
+        ScopeStats& stats = entry.ui;
 
         if (!_showDisabled && !stats.isEnabled)
             continue;
@@ -358,7 +358,7 @@ void Profile_View::Draw_Scopes()
 
         for (const Row& row : rows)
         {
-            Scope_Stats& stats = *row.stats;
+            ScopeStats& stats = *row.stats;
 
             ImGui::TableNextRow();
 
@@ -389,7 +389,7 @@ void Profile_View::Draw_Scopes()
 
 void Profile_View::Draw_Memory()
 {
-    const Process_Memory memory = Get_Process_Memory();
+    const ProcessMemory memory = Get_Process_Memory();
 
     ImGui::Text("Memory");
     ImGui::BulletText("Working Set : %zu MB", memory.workingSetMb);
@@ -403,7 +403,7 @@ void Profile_View::Reset_Stats()
 
     for (auto& [_, entry] : _runtime->scopes)
     {
-        Scope_Stats& stats = entry.ui;
+        ScopeStats& stats = entry.ui;
         stats.lastMs = 0.0;
         stats.avgMs = 0.0;
         stats.minMs = 0.0;
@@ -440,7 +440,7 @@ void Profile_View::Prune_Dead_Scopes()
     }
 }
 
-Profile_View::Process_Memory Profile_View::Get_Process_Memory() const
+Profile_View::ProcessMemory Profile_View::Get_Process_Memory() const
 {
     PROCESS_MEMORY_COUNTERS_EX processMemoryCounters = {};
     GetProcessMemoryInfo(
@@ -449,7 +449,7 @@ Profile_View::Process_Memory Profile_View::Get_Process_Memory() const
         sizeof(processMemoryCounters)
     );
 
-    Process_Memory result = {};
+    ProcessMemory result = {};
     result.workingSetMb = processMemoryCounters.WorkingSetSize / (1024 * 1024);
     result.privateBytesMb = processMemoryCounters.PrivateUsage / (1024 * 1024);
     return result;

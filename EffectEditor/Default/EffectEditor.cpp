@@ -15,10 +15,10 @@ HINSTANCE g_hInst = nullptr;
 
 static const wchar_t* g_windowClassName = L"Expedition158EffectEditor";
 static const wchar_t* g_windowTitle = L"Expedition_158 EffectEditor";
-static constexpr DWORD g_fullscreenWindowStyle = WS_POPUP | WS_VISIBLE;
-static constexpr DWORD g_windowedWindowStyle = WS_OVERLAPPEDWINDOW | WS_VISIBLE;
-static constexpr LONG g_defaultWindowedClientWidth = 1600;
-static constexpr LONG g_defaultWindowedClientHeight = 900;
+static constexpr DWORD kFullscreenWindowStyle = WS_POPUP | WS_VISIBLE;
+static constexpr DWORD kWindowedWindowStyle = WS_OVERLAPPEDWINDOW | WS_VISIBLE;
+static constexpr LONG kDefaultWindowedClientWidth = 1600;
+static constexpr LONG kDefaultWindowedClientHeight = 900;
 static bool g_runtimeInitialized = false;
 static bool g_isEditorFullscreen = false;
 static RECT g_windowedRect = { 0, 0, 1600, 900 };
@@ -85,7 +85,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE, _In_ LPWSTR,
             }
 
             const auto currentFrameTime = Profile_View::clock::now();
-            const double frameMs = std::chrono::duration<double, std::milli>(currentFrameTime - previousFrameTime).count();
+            const double frameMs = chrono::duration<double, milli>(currentFrameTime - previousFrameTime).count();
             previousFrameTime = currentFrameTime;
 
             Profile_View::Set_Frame_Time_External(frameMs);
@@ -138,13 +138,14 @@ static bool Create_EffectEditorWindow(HINSTANCE hInstance, int nCmdShow)
 
     g_windowedRect = Make_CenteredWindowRect(
         monitorInfo.rcWork,
-        g_defaultWindowedClientWidth,
-        g_defaultWindowedClientHeight);
+        kDefaultWindowedClientWidth,
+        kDefaultWindowedClientHeight
+    );
 
     g_hWnd = CreateWindowW(
         g_windowClassName,
         g_windowTitle,
-        g_windowedWindowStyle,
+        kWindowedWindowStyle,
         g_windowedRect.left,
         g_windowedRect.top,
         g_windowedRect.right - g_windowedRect.left,
@@ -166,7 +167,7 @@ static bool Create_EffectEditorWindow(HINSTANCE hInstance, int nCmdShow)
 static RECT Make_CenteredWindowRect(const RECT& areaRect, LONG clientWidth, LONG clientHeight)
 {
     RECT windowRect = { 0, 0, clientWidth, clientHeight };
-    AdjustWindowRect(&windowRect, g_windowedWindowStyle, FALSE);
+    AdjustWindowRect(&windowRect, kWindowedWindowStyle, FALSE);
 
     const LONG windowWidth = windowRect.right - windowRect.left;
     const LONG windowHeight = windowRect.bottom - windowRect.top;
@@ -190,8 +191,9 @@ static RECT Make_DefaultWindowedRect(HWND hWnd)
 
     return Make_CenteredWindowRect(
         monitorInfo.rcWork,
-        g_defaultWindowedClientWidth,
-        g_defaultWindowedClientHeight);
+        kDefaultWindowedClientWidth,
+        kDefaultWindowedClientHeight
+    );
 }
 
 static void Sync_EffectEditorBackBufferToClient(HWND hWnd)
@@ -224,7 +226,7 @@ static void Toggle_EffectEditorFullscreen(HWND hWnd)
     {
         g_windowedRect = Make_DefaultWindowedRect(hWnd);
 
-        SetWindowLongPtrW(hWnd, GWL_STYLE, g_windowedWindowStyle);
+        SetWindowLongPtrW(hWnd, GWL_STYLE, kWindowedWindowStyle);
         SetWindowPos(
             hWnd,
             nullptr,
@@ -249,7 +251,7 @@ static void Toggle_EffectEditorFullscreen(HWND hWnd)
         return;
 
     const RECT& monitorRect = monitorInfo.rcMonitor;
-    SetWindowLongPtrW(hWnd, GWL_STYLE, g_fullscreenWindowStyle);
+    SetWindowLongPtrW(hWnd, GWL_STYLE, kFullscreenWindowStyle);
     SetWindowPos(
         hWnd,
         HWND_TOP,

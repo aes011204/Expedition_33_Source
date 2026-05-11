@@ -17,7 +17,7 @@ public:
 public:
     EffectEditorCamera(const ComPtr<Device>& device, const ComPtr<Context>& context);
     EffectEditorCamera(const EffectEditorCamera& prototype);
-    ~EffectEditorCamera() override = default;
+    ~EffectEditorCamera() override;
 
 public:
     HRESULT Initialize_Prototype() override;
