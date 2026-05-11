@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "UI_Editor_PreviewService.h"
 
 #include "GameInstance.h"
@@ -593,7 +593,7 @@ namespace UIEditor
             return false;
         }
 
-        _imagePreviewShader = ShaderCom::Create(_device, _context, shaderPath.c_str(), VTXTEX::Elements, VTXTEX::numElements);
+        _imagePreviewShader = ShaderCom::Create(_device, _context, shaderPath.c_str(), VTXTEX::Elements, VTXTEX::numElements, ShaderType::UI);
         _imagePreviewVIBuffer = VIBuffer_Rect::Create(_device, _context);
 
         if (nullptr == _imagePreviewShader || nullptr == _imagePreviewVIBuffer)

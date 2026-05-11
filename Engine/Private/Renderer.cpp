@@ -360,7 +360,7 @@ HRESULT Renderer::Ready_RenderTargets()
     CHECK_NULL(_viBuffer, E_FAIL);
 
     _deferredShader = ShaderCom::Create(_device, _context,
-        L"../../../Client/Bin/ShaderFiles/Shader_Deferred.hlsl", VTXTEX::Elements, VTXTEX::numElements);
+        L"../../../Client/Bin/ShaderFiles/Shader_Deferred.hlsl", VTXTEX::Elements, VTXTEX::numElements, ShaderType::VtxTex);
     CHECK_NULL(_deferredShader, E_FAIL);
 
     Sync_ViewportDependentState(width, height);

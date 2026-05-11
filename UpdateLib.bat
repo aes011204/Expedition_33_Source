@@ -14,6 +14,7 @@ if exist ".\Engine\Public\" (
 if exist ".\Engine\Bin\ShaderFiles\" (
     echo Copying Engine shader include files...
     xcopy /y /i /d ".\Engine\Bin\ShaderFiles\*.hlsli" ".\Client\Bin\ShaderFiles\"
+    xcopy /y /i /d ".\Engine\Bin\ShaderFiles\*.hlsl"  ".\Client\Bin\ShaderFiles\"
 )
 
 ::: Engine.lib

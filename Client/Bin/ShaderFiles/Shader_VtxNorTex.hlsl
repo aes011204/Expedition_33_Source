@@ -1,4 +1,7 @@
 #include "Engine_Shader_Defines.hlsli"
+#include "Engine_Shader_RenderState.hlsl"
+#include "Engine_Shader_Samplers.hlsl"
+#include "Engine_Shader_Passes.hlsl"
 
 //==================================================
 // MATRIX
@@ -13,19 +16,9 @@ float g_fFar = 0.f;
 //==================================================
 // TEXTURE
 //==================================================
-texture2D g_DiffuseTexture;
+Texture2D g_DiffuseTexture;
 
 vector g_vBrushPosition = vector(70.f, 0.f, 20.f, 1.f);
-
-//==================================================
-// SAMPLER
-//==================================================
-sampler DefaultSampler = sampler_state
-{
-    Filter = MIN_MAG_MIP_LINEAR;   
-    AddressU = wrap;
-    AddressV = wrap;
-};
 
 //==================================================
 // VS
@@ -47,7 +40,7 @@ struct VS_OUT
 
 };
 
-VS_OUT VS_MAIN(VS_IN In)
+VS_OUT VS_Default(VS_IN In)
 {
     VS_OUT Out;
     
@@ -87,10 +80,10 @@ struct PS_OUT
     vector vDepth : SV_TARGET2;
 };
 
-PS_OUT PS_MAIN(PS_IN In)
+PS_OUT PS_Default(PS_IN In)
 {
     PS_OUT Out;
-    vector vMtrlDiffuse = g_DiffuseTexture.Sample(DefaultSampler, In.vTexcoord * 30.f);
+    vector vMtrlDiffuse = g_DiffuseTexture.Sample(LinearWrapSampler, In.vTexcoord * 30.f);
     Out.vDiffuse = vector(vMtrlDiffuse.rgb, 1.f);
     Out.vNormal = vector(In.vNormal.xyz * 0.5f + 0.5f, 1.f);
     Out.vDepth = vector(In.vProjPos.z / In.vProjPos.w, In.vProjPos.w / g_fFar, 0.f, 1.f);
@@ -100,14 +93,5 @@ PS_OUT PS_MAIN(PS_IN In)
 
 technique11 DefaultTechnique
 {
-    pass DefaultPass
-    {
-        SetRasterizerState(RS_Default);
-        SetDepthStencilState(DSS_Default, 0);
-        SetBlendState(BS_Default, float4(0.f, 0.f, 0.f, 0.f), 0xffffffff);
-
-        VertexShader = compile vs_5_0 VS_MAIN();
-        GeometryShader = NULL;
-        PixelShader = compile ps_5_0 PS_MAIN();
-    }
+    PASS_RS_DS_BS_VP(DefaultPass, RS_Default, DSS_Default, BS_Default, VS_Default, PS_Default) // 0
 }

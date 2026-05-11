@@ -1,5 +1,6 @@
 ﻿#include "Material.h"
 #include "ShaderCom.h"
+#include "ShaderPassFinder.h"
 
 Material::Material(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : _device{ device }, _context{ context } {}
@@ -50,6 +51,18 @@ HRESULT Material::Initialize(const char* modelPath, const ModelMaterialData& mat
         _materials[static_cast<uint32>(texSlot.slot)].push_back(texSlot);
     }
 
+    // 모델(.model)에 포함된 baseColor 슬롯의 UV를 기본값으로 한 번만 복사해둔다.
+    // 이후에는 Editor/Bundle에서 Set_CB()로 덮어쓴 값이 유지되어야 한다.
+    if (const TextureSlot* baseColorSlot = Find_TextureSlot(MaterialTextureSlot::BaseColor, 0))
+    {
+        _cb.uvScale = baseColorSlot->uvScale;
+        _cb.uvOffset = baseColorSlot->uvOffset;
+    }
+
+    Update_MaterialState();
+
+    _passDirty = true;
+
     return S_OK;
 }
 
@@ -62,14 +75,34 @@ HRESULT Material::Bind_Material(ShaderCom* shader, const char* constantName, Mat
     if (!_materials[slotIndex][textureIndex].shaderResourceView)
         return E_FAIL;
 
+    // Bind_Material이 Begin보다 반드시 먼저 실행된다.
+    _shaderType = shader->Get_Type();
+
     return shader->Bind_SRV(constantName, _materials[slotIndex][textureIndex].shaderResourceView.Get());
 }
 
 HRESULT Material::Override_TextureSlot(MaterialTextureSlot slot, uint32 slotIndex, const wstring& texturePath)
 {
     const uint32 materialSlotIndex = static_cast<uint32>(slot);
-    if (materialSlotIndex >= _maxTextureTypeSize || slotIndex >= _materials[materialSlotIndex].size())
+    if (materialSlotIndex >= _maxTextureTypeSize)
         return E_FAIL;
+
+    if (slotIndex >= _materials[materialSlotIndex].size())
+        _materials[materialSlotIndex].resize(slotIndex + 1);
+
+    // 빈 경로는 해당 슬롯을 비우는 용도로 사용한다.
+    // 모델에 원래 없던 슬롯을 추가하거나, 원래 있던 슬롯을 제거하고 싶을 때 사용한다.
+    if (texturePath.empty())
+    {
+        TextureSlot& textureSlot = _materials[materialSlotIndex][slotIndex];
+        textureSlot.slot = slot;
+        textureSlot.textureIndex = slotIndex;
+        textureSlot.resolvedPath.clear();
+        textureSlot.shaderResourceView.Reset();
+
+        Update_MaterialState();
+        return S_OK;
+    }
 
     const fs::path resolvedPath(texturePath);
     if (!fs::exists(resolvedPath) || !fs::is_regular_file(resolvedPath))
@@ -80,11 +113,31 @@ HRESULT Material::Override_TextureSlot(MaterialTextureSlot slot, uint32 slotInde
         return E_FAIL;
 
     TextureSlot& textureSlot = _materials[materialSlotIndex][slotIndex];
+    textureSlot.slot = slot;
+    textureSlot.textureIndex = slotIndex;
     textureSlot.resolvedPath = resolvedPath.lexically_normal().wstring();
     textureSlot.shaderResourceView.Reset();
     textureSlot.shaderResourceView.Attach(srv);
 
+
+    Update_MaterialState();
+
     return S_OK;
+}
+
+// 텍스처 존재 여부를 materialMask에 반영한다.
+void Material::Update_MaterialState()
+{
+    _cb.materialMask = 0;
+
+    for (uint32 i = 0; i < ETOI(MaterialTextureSlot::END); ++i)
+    {
+        const MaterialTextureSlot slot = static_cast<MaterialTextureSlot>(i);
+        const TextureSlot* textureSlot = Find_TextureSlot(slot, 0);
+
+        if (textureSlot != nullptr && textureSlot->shaderResourceView != nullptr)
+            _cb.materialMask |= (1u << i);
+    }
 }
 
 uint32 Material::Get_TextureCount(MaterialTextureSlot slot) const
@@ -107,6 +160,27 @@ const Material::TextureSlot* Material::Find_TextureSlot(MaterialTextureSlot slot
         return nullptr;
 
     return &slots[textureIndex];
+}
+
+void Material::Set_CB(const MaterialCB& cb)
+{
+    _cb = cb;
+    Update_MaterialState();
+}
+
+void Material::Set_ShaderType(ShaderType shaderType)
+{
+    _shaderType = shaderType;
+    _passDirty = true;
+}
+
+// 메쉬의 머테리얼 별로 pass를 세분화할 때 사용한다.
+uint32 Material::Get_PassIndex()
+{
+    if (_passDirty)
+        Refresh_PassIndex();
+
+    return _passIndex;
 }
 
 wstring Material::Find_TextureFile(const fs::path& searchRoot, const string& fileName)
@@ -138,6 +212,12 @@ HRESULT Material::Create_TextureSRV(const fs::path& texturePath, ID3D11ShaderRes
         return DirectX::CreateDDSTextureFromFile(_device.Get(), texturePath.c_str(), nullptr, outSrv);
 
     return DirectX::CreateWICTextureFromFile(_device.Get(), texturePath.c_str(), nullptr, outSrv);
+}
+
+void Material::Refresh_PassIndex()
+{
+    _passIndex = ShaderPassFinder::Find_PassIndex(_shaderType, _renderState);
+    _passDirty = false;
 }
 
 Shared<Material> Material::Create(const ComPtr<Device>& device, const ComPtr<Context>& context, const char* modelPath, const ModelMaterialData& materialData, const vector<ModelTextureSlot>& slots, uint32 maxTextureTypeSize)

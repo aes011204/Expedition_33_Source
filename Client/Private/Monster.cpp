@@ -138,6 +138,8 @@ void Monster::Late_Update(float fTimeDelta)
     }
     __super::Late_Update(fTimeDelta);
 
+ 	// GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<Character>());
+	// GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<Character>());
 }
 
 HRESULT Monster::Render()
