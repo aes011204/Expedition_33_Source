@@ -319,7 +319,7 @@ void VIBufferCom_ComputePointParticle::Debug_LogIndirectArgs()
     {
         LOG_INFO(
             "Compute indirect args: mode={}, value0={}, instanceCount={}, value2={}, value3={}, startInstance={}",
-            ETOI(_desc.drawMode),
+            magic_enum::enum_name(_desc.drawMode),
             args->value0,
             args->instanceCount,
             args->value2,

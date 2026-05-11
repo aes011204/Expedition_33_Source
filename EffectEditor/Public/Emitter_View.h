@@ -20,6 +20,8 @@ public: //## Accessor::Authoring
     const ParticleSystemAuthoringData& Get_ParticleSystemData() const { return _particleSystemData; }
     AuthoringEmitter* Find_Emitter(uint32 emitterId);
     AuthoringModule* Find_Module(uint32 emitterId, uint32 moduleId);
+    AuthoringEmitter* Get_SelectedOrFirstEmitter();
+    void Clear_PreviewDirty(uint32 emitterId);
 
 private:
     inline static const Color kEmitterAccentColor{ 1.0f, 0.55f, 0.20f, 1.0f };

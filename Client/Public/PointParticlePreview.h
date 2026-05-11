@@ -21,6 +21,12 @@ public:
     {
         PointParticleDrawMode drawMode{ PointParticleDrawMode::Direct }; // 이 preview clone의 draw 제출 방식.
         Vec3 center{ 0.f, 2.f, 0.f };                                    // 이 preview clone의 스폰 중심.
+        uint32 instanceCount{ 64 };                                      // 이 preview clone이 생성할 particle 수.
+        Vec2 scale{ 0.15f, 0.35f };                                      // 이 preview clone의 랜덤 scale 범위.
+        Vec3 pivot{ 0.f, 2.f, 0.f };                                     // 이 preview clone의 퍼짐 기준점.
+        Vec2 speed{ 0.5f, 1.5f };                                        // 이 preview clone의 랜덤 속도 범위.
+        Vec2 lifeTime{ 1.f, 2.f };                                       // 이 preview clone의 랜덤 생존 시간 범위.
+        bool loop{ true };                                               // true면 생존 시간이 끝난 particle을 재생성한다.
     };
 
 public:

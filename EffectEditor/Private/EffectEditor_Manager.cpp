@@ -141,11 +141,28 @@ void EffectEditor_Manager::Render_RuntimeToolbar()
     const bool paused = EDITOR->IsPaused();
 
     constexpr float toolbarHeight = 34.f;
-    constexpr float toolbarControlWidth = 560.f;
-
     ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 4.f);
-    ImGui::SetCursorPosX(max(12.f, (ImGui::GetWindowWidth() - toolbarControlWidth) * 0.5f));
+    ImGui::SetCursorPosX(12.f);
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(8.f, 4.f));
+
+    ImGui::BeginDisabled();
+    ImGui::Button(ICON_FA_FLOPPY_DISK " Save");
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+        ImGui::SetTooltip("후속 지원 예정");
+    ImGui::SameLine();
+    ImGui::Button(ICON_FA_FOLDER_OPEN " Open");
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+        ImGui::SetTooltip("후속 지원 예정");
+    ImGui::EndDisabled();
+
+    ImGui::SameLine(0.f, 12.f);
+    ImGui::TextDisabled("|");
+    ImGui::SameLine(0.f, 12.f);
+
+    if (ImGui::Button(ICON_FA_ROTATE_RIGHT " Restart Preview"))
+        EDITOR->Request_RestartPreview();
+
+    ImGui::SameLine(0.f, 24.f);
 
     if (playing)
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.13f, 0.42f, 0.72f, 1.f));
@@ -209,6 +226,8 @@ void EffectEditor_Manager::Render_RuntimeToolbar()
 
     ImGui::SameLine();
     Render_ExitButton(toolbarHeight);
+
+    ImGui::PopStyleVar();
 }
 
 void EffectEditor_Manager::Render_DockSpace()
@@ -481,7 +500,6 @@ void EffectEditor_Manager::Render_ExitButton(float toolbarHeight)
         Request_Exit();
 
     ImGui::PopStyleColor(3);
-    ImGui::PopStyleVar();
 
     ImDrawList* drawList = ImGui::GetWindowDrawList();
     const ImVec2 lineStart = ImGui::GetCursorScreenPos();
