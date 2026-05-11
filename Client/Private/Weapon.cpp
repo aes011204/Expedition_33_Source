@@ -66,23 +66,33 @@ void Weapon::Late_Update(float fTimeDelta)
 
 HRESULT Weapon::Render()
 {
-	if (FAILED(Bind_ShaderResources()))
-		return E_FAIL;
+    if (FAILED(Bind_ShaderResources()))
+        return E_FAIL;
 
-	const uint32 iNumMeshes = static_cast<uint32>(_model->Get_NumMeshes());
+    const uint32 iNumMeshes = static_cast<uint32>(_model->Get_NumMeshes());
 
-	for (uint32 i = 0; i < iNumMeshes; i++)
-	{
-		_model->Bind_Material(_shader.get(), "g_DiffuseTexture", i, MaterialTextureSlot::BaseColor);
+    for (uint32 i = 0; i < iNumMeshes; i++)
+    {
+        const Shared<Material> material = _model->Get_Material(i);
+        if (material == nullptr)
+            continue;
 
-		if (FAILED(_shader->Begin(0)))
-			return E_FAIL;
+        if (FAILED(_shader->Bind_MaterialTextures(*material)))
+            continue;
 
-		_model->Render(i);
-	}
+        if (FAILED(_shader->Bind_CBufferData(material->Get_CB())))
+            return E_FAIL;
 
+        _model->Bind_BoneMatrices(_shader.get(), "g_BoneMatrices", i);
 
-	return S_OK;
+        const uint32 passIndex = material->Get_PassIndex();
+        if (FAILED(_shader->Begin(passIndex)))
+            return E_FAIL;
+
+        _model->Render(i);
+    }
+
+    return S_OK;
 }
 
 HRESULT Weapon::Render_Shadow()

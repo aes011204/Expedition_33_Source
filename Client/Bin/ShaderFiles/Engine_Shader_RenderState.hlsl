@@ -15,13 +15,6 @@ RasterizerState RS_CullFront
     FrontCounterClockwise = false;
 };
 
-RasterizerState RS_UI
-{
-    FillMode = Solid;
-    CullMode = none;
-    FrontCounterClockwise = false;
-};
-
 DepthStencilState DSS_Default
 {
     DepthEnable = true;
@@ -64,6 +57,13 @@ RasterizerState RS_CullNone
 {
     FillMode = Solid;
     CullMode = None;
+    FrontCounterClockwise = false;
+};
+
+RasterizerState RS_UI
+{
+    FillMode = Solid;
+    CullMode = none;
     FrontCounterClockwise = false;
 };
 

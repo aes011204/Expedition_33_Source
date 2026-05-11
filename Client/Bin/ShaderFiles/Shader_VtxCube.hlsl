@@ -14,14 +14,6 @@ float4x4 g_WorldMatrix, g_ViewMatrix, g_ProjMatrix;
 TextureCube g_Texture;
 
 //==================================================
-// SAMPLER
-//==================================================
-sampler DefaultSampler = sampler_state
-{
-    Filter = MIN_MAG_MIP_LINEAR;    
-};
-
-//==================================================
 // VS
 //==================================================
 struct VS_IN
@@ -69,7 +61,7 @@ PS_OUT PS_Default(PS_IN In)
 {
     PS_OUT Out;
   
-    Out.vColor = g_Texture.Sample(DefaultSampler, In.vTexcoord);
+    Out.vColor = g_Texture.Sample(LinearSampler, In.vTexcoord);
     Out.vColor.a = 1.f;
 
     return Out;
