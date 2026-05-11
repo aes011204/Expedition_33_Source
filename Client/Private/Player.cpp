@@ -24,43 +24,42 @@ IMPLEMENT_REFLECTION(Player)
     info.displayName = "Player";
     info.category = "Character";
 
-    PROPERTY_ENUM("PlayerState",_currentState, PlayerState);
+    PROPERTY_ENUM("PlayerState", _currentState, PlayerState);
 
     return true;
 }
 
 Player::Player(const ComPtr<Device>& device, const ComPtr<Context>& context)
-	: Character { device, context }
+    : Character{ device, context }
 {
 }
 
 Player::Player(const Player& prototype)
-	: Character{ prototype }
+    : Character{ prototype }
 {
-
 }
 
 HRESULT Player::Initialize_Prototype()
 {
-	return S_OK;
+    return S_OK;
 }
 
 HRESULT Player::Initialize(void* arg)
 {
-	Character::ContainerObjectDesc desc{};
-	desc.speedPerSec = 20.f;
-	desc.degreePerSec = 180.f;
+    Character::ContainerObjectDesc desc{};
+    desc.speedPerSec = 20.f;
+    desc.degreePerSec = 180.f;
 
-	if (FAILED(__super::Initialize(&desc)))
-		return E_FAIL;
+    if (FAILED(__super::Initialize(&desc)))
+        return E_FAIL;
 
-	if (FAILED(Ready_Components()))
-		return E_FAIL;
+    if (FAILED(Ready_Components()))
+        return E_FAIL;
 
-	if (FAILED(Ready_PartObjects()))
-		return E_FAIL;
+    if (FAILED(Ready_PartObjects()))
+        return E_FAIL;
 
-	return S_OK;
+    return S_OK;
 }
 
 void Player::BeginPlay()
@@ -72,12 +71,12 @@ void Player::BeginPlay()
 
 void Player::Priority_Update(float timeDelta)
 {
-	__super::Priority_Update(timeDelta);
+    __super::Priority_Update(timeDelta);
 }
 
 void Player::Update(float timeDelta)
 {
-	__super::Update(timeDelta);
+    __super::Update(timeDelta);
 
     _playerControllerCom->Update_Controller(timeDelta);
     _PlayerStateMachineCom->Update_StateMachine(timeDelta);
@@ -86,7 +85,7 @@ void Player::Update(float timeDelta)
 
 void Player::Late_Update(float timeDelta)
 {
-	__super::Late_Update(timeDelta);
+    __super::Late_Update(timeDelta);
 
     if (_colliderCom)
     {
@@ -97,8 +96,7 @@ void Player::Late_Update(float timeDelta)
 
 HRESULT Player::Render()
 {
-
-	return S_OK;
+    return S_OK;
 }
 
 HRESULT Player::Ready_Components()
@@ -116,7 +114,7 @@ HRESULT Player::Ready_Components()
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_Movement"), _movementCom, &moveDesc), E_FAIL);
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_PlayerController"), _playerControllerCom), E_FAIL);
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_PlayerStateMachine"), _PlayerStateMachineCom), E_FAIL);
-    if (auto stateMachine = Get_Component<PlayerStateMachineCom>())
+    if (const auto stateMachine = Get_Component<PlayerStateMachineCom>())
     {
         stateMachine->Add_State(PlayerState::Idle, Player_Idle::Create(GetSharedPtr<Player>()));
         stateMachine->Add_State(PlayerState::Move, Player_Move::Create(GetSharedPtr<Player>()));
@@ -125,7 +123,6 @@ HRESULT Player::Ready_Components()
     CHECK_FAILED(Ready_Collider(), E_FAIL);
 
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_CombatStat"), _combatStatCom), E_FAIL);
-
 
     return S_OK;
 }
@@ -139,11 +136,13 @@ HRESULT Player::Ready_PartObjects()
     playableDesc.modelTag = L"Model_LuneTemp";
 
     //> MainBody Setting
-    if (FAILED(__super::Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Body_Player"),
-        TEXT("Part_Body"), &playableDesc)))
+    if (FAILED(
+        __super::Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Body_Player"),
+            TEXT("Part_Body"), &playableDesc)
+    ))
         return E_FAIL;
 
-    Body_Player* mainBody = dynamic_cast<Body_Player*>(_partObjects[TEXT("Part_Body")].get());
+    const Body_Player* mainBody = dynamic_cast<Body_Player*>(_partObjects[TEXT("Part_Body")].get());
     if (nullptr == mainBody)
         return E_FAIL;
 
@@ -156,11 +155,13 @@ HRESULT Player::Ready_PartObjects()
     //headPartDesc.socketMatrixPointer = mainBody->Get_SocketBoneMatrixPtr("Metahuman_Head");
     headPartDesc.socketMatrixPointer = nullptr;
 
-    if (FAILED(__super::Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Head_Player"),
-        TEXT("Part_Head"), &headPartDesc)))
+    if (FAILED(
+        __super::Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Head_Player"),
+            TEXT("Part_Head"), &headPartDesc)
+    ))
         return E_FAIL;
 
-    Head_Player* head = dynamic_cast<Head_Player*>(_partObjects[TEXT("Part_Head")].get());
+    const Head_Player* head = dynamic_cast<Head_Player*>(_partObjects[TEXT("Part_Head")].get());
     if (nullptr == head)
         return E_FAIL;
 
@@ -173,12 +174,13 @@ HRESULT Player::Ready_PartObjects()
     hairPartDesc.modelTag = L"Model_LuneHair";
     hairPartDesc.socketMatrixPointer = head->Get_SocketBoneMatrixPtr("head");
 
-    if (FAILED(__super::Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Hair_Player"),
-        TEXT("Part_Hair"), &hairPartDesc)))
+    if (FAILED(
+        __super::Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Hair_Player"),
+            TEXT("Part_Hair"), &hairPartDesc)
+    ))
         return E_FAIL;
 
-
-	return S_OK;
+    return S_OK;
 }
 
 HRESULT Player::Ready_Collider()
@@ -196,34 +198,29 @@ HRESULT Player::Ready_Collider()
 
 Shared<Player> Player::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
-	auto instance = make_shared<Player>(device, context);
+    auto instance = make_shared<Player>(device, context);
 
-	if (FAILED(instance->Initialize_Prototype()))
-	{
-		MSG_BOX("Failed to Created : Player");
-		return nullptr;
-	}
-	return instance;
+    if (FAILED(instance->Initialize_Prototype()))
+    {
+        MSG_BOX("Failed to Created : Player");
+        return nullptr;
+    }
+    return instance;
 }
-
 
 Shared<GameObject> Player::Clone(void* arg)
 {
-	auto instance = make_shared<Player>(*this);
+    auto instance = make_shared<Player>(*this);
 
-	if (FAILED(instance->Initialize(arg)))
-	{
-		MSG_BOX("Failed to Cloned : Player");
-		return nullptr;
-	}
-	return instance;
+    if (FAILED(instance->Initialize(arg)))
+    {
+        MSG_BOX("Failed to Cloned : Player");
+        return nullptr;
+    }
+    return instance;
 }
 
 void Player::Free()
 {
-	__super::Free();
-
+    __super::Free();
 }
-
-
-

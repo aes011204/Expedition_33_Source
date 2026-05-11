@@ -67,6 +67,12 @@
     <ClCompile Include="..\Private\Level_EffectEditor.cpp">
       <Filter>03. Level</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\ModuleDetail_Drawers.cpp">
+      <Filter>01. View\Detail View\Detail Drawer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Helper_DetailProperty.cpp">
+      <Filter>99. Defines\Helper</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -153,6 +159,15 @@
     <ClInclude Include="..\Public\Helper_ImGui.h">
       <Filter>99. Defines\Helper</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\Helper_Distribution.h">
+      <Filter>99. Defines\Helper</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\ModuleDetail_Drawers.h">
+      <Filter>01. View\Detail View\Detail Drawer</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Helper_DetailProperty.h">
+      <Filter>99. Defines\Helper</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="00. Main">
@@ -223,6 +238,9 @@
     </Filter>
     <Filter Include="99. Defines\Types">
       <UniqueIdentifier>{e5f70fcb-abed-4d3c-8bc3-3eaa1084905f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="01. View\Detail View\Detail Drawer">
+      <UniqueIdentifier>{89aacff8-7bb2-41de-832f-51ed470948d4}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

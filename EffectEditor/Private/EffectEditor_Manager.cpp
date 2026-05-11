@@ -107,6 +107,16 @@ void EffectEditor_Manager::Render_MainMenuBar()
 
     if (ImGui::BeginMenu("File"))
     {
+        const bool canSaveFocusedWindow = nullptr != Find_FocusedSavableWindow();
+        if (ImGui::MenuItem("Save", "Ctrl+S", false, canSaveFocusedWindow))
+            Save_FocusedWindow();
+
+        ImGui::MenuItem("Open", nullptr, false, false);
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+            ImGui::SetTooltip("후속 지원 예정");
+
+        ImGui::Separator();
+
         if (ImGui::MenuItem("Exit"))
             Request_Exit();
 
@@ -344,16 +354,7 @@ void EffectEditor_Manager::Handle_Shortcuts()
         EDITOR->Redo();
 
     if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_S, false))
-    {
-        for (const auto& window : _windows | views::values)
-        {
-            if (window && window->Is_Open() && window->Is_Focused() && window->CanSave())
-            {
-                window->Save();
-                return;
-            }
-        }
-    }
+        Save_FocusedWindow();
 
     if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Space, false))
     {
@@ -482,6 +483,27 @@ void EffectEditor_Manager::Render_ShortcutHelp()
 
         ImGui::EndTooltip();
     }
+}
+
+Shared<Editor_Window> EffectEditor_Manager::Find_FocusedSavableWindow() const
+{
+    for (const auto& window : _windows | views::values)
+    {
+        if (window && window->Is_Open() && window->Is_Focused() && window->CanSave())
+            return window;
+    }
+
+    return nullptr;
+}
+
+bool EffectEditor_Manager::Save_FocusedWindow()
+{
+    const Shared<Editor_Window> window = Find_FocusedSavableWindow();
+    if (nullptr == window)
+        return false;
+
+    window->Save();
+    return true;
 }
 
 void EffectEditor_Manager::Toggle_Window(const wstring& windowName)

@@ -64,6 +64,7 @@ HRESULT EffectEditorApp::Initialize()
     editorDesc.viewportHeight = viewportHeight;
 
     CHECK_FAILED(EDITOR->Initialize_Editor(editorDesc, _device, _context), E_FAIL);
+    EDITOR->Request_RestartPreview();
 
     return S_OK;
 }
@@ -331,7 +332,8 @@ bool EffectEditorApp::Validate_ComputeInstancePayload(const Engine::ParticleInst
             return false;
         if (instance.look.x != 0.f || instance.look.y != 0.f || instance.look.z != 1.f || instance.look.w != 0.f)
             return false;
-        if (instance.translation.x != index || instance.translation.y != index * 0.5f || instance.translation.z != 0.f || instance.translation.w != 1.f)
+        if (instance.translation.x != index || instance.translation.y != index * 0.5f || instance.translation.z != 0.f || instance.translation.w !=
+            1.f)
             return false;
         if (instance.lifeTime.x != 2.f || instance.lifeTime.y != index * 0.25f)
             return false;

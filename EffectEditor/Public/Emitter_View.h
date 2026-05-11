@@ -35,6 +35,13 @@ private:
         InsertAfter
     };
 
+    enum class PendingModuleAction
+    {
+        None,
+        Delete,
+        ResetData
+    };
+
 private:
     inline static const Color kEmitterAccentColor{ 1.0f, 0.55f, 0.20f, 1.0f };
     inline static const Color kEmitterColumnBackgroundColor{ 0.06f, 0.065f, 0.08f, 1.0f };
@@ -57,6 +64,9 @@ private: //## Data
     uint32 _nextAuthoringId{ 1 };
     PendingEmitterAction _pendingEmitterAction{ PendingEmitterAction::None };
     optional<size_t> _pendingEmitterActionIndex{};
+    PendingModuleAction _pendingModuleAction{ PendingModuleAction::None };
+    optional<size_t> _pendingModuleEmitterIndex{};
+    optional<size_t> _pendingModuleIndex{};
 
 private: //## Helpers
     // 새 emitter/module에 부여할 editor-local id를 발급한다.
@@ -69,6 +79,7 @@ private: //## Helpers
     AuthoringModule Make_LifetimeModule();
     AuthoringModule Make_InitialSizeModule();
     AuthoringModule Make_InitialVelocityModule();
+    AuthoringModule Make_InitialColorModule();
     AuthoringModule Make_ColorOverLifeModule();
     void Clear_Selection();
     void Select_Emitter(size_t emitterIndex);
@@ -77,12 +88,18 @@ private: //## Helpers
     void Delete_Emitter(size_t emitterIndex);
     void Queue_EmitterAction(PendingEmitterAction action, size_t emitterIndex);
     void Process_PendingEmitterAction();
+    void Select_Module(size_t emitterIndex, size_t moduleIndex);
+    void Delete_Module(size_t emitterIndex, size_t moduleIndex);
+    void Reset_ModuleData(size_t emitterIndex, size_t moduleIndex);
+    void Queue_ModuleAction(PendingModuleAction action, size_t emitterIndex, size_t moduleIndex);
+    void Process_PendingModuleAction();
     // 현재 선택 index가 emitter 목록 범위를 벗어나지 않도록 보정한다.
     // TODO : 삭제/이동 단계에서 호출 예정
     void Clamp_Selection();
     // hover tooltip은 설명 dump가 아니라 경고성 사유만 노출하는 채널로 유지한다.
     string Build_ModuleWarningTooltip(const AuthoringEmitter& emitter, const AuthoringModule& module) const;
     void Draw_EmitterContextMenu(size_t emitterIndex);
+    void Draw_ModuleContextMenu(size_t emitterIndex, size_t moduleIndex, const AuthoringModule& module);
 
     void Draw_EmitterBoard();
     void Draw_EmitterColumn(size_t emitterIndex, AuthoringEmitter& emitter, float columnHeight);

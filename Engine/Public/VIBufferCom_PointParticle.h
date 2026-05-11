@@ -56,11 +56,11 @@ private: //## Data::GPU
     ComPtr<Buffer> _indirectArgsBuffer{};    // CPU가 작성한 indirect draw argument buffer.
 
 private: //## Helper::Setup
-    HRESULT Ready_VertexBuffer();     // prototype 공용 point vertex 1개를 만든다.
-    HRESULT Ready_InstanceSeedData(); // desc 기준 baseline/runtime payload와 speed 배열을 만든다.
-    HRESULT Ready_InstanceBuffer();   // clone 전용 GPU instance buffer를 만든다.
-    HRESULT Upload_InstancePayload(); // CPU runtime payload를 GPU dynamic buffer로 업로드한다.
-    HRESULT Ready_IndexedDrawBuffer(); // indexed indirect 검증용 1-index buffer를 만든다.
+    HRESULT Ready_VertexBuffer();       // prototype 공용 point vertex 1개를 만든다.
+    HRESULT Ready_InstanceSeedData();   // desc 기준 baseline/runtime payload와 speed 배열을 만든다.
+    HRESULT Ready_InstanceBuffer();     // clone 전용 GPU instance buffer를 만든다.
+    HRESULT Upload_InstancePayload();   // CPU runtime payload를 GPU dynamic buffer로 업로드한다.
+    HRESULT Ready_IndexedDrawBuffer();  // indexed indirect 검증용 1-index buffer를 만든다.
     HRESULT Ready_IndirectArgsBuffer(); // CPU-authored indirect args buffer를 만든다.
 
 private: //## Helper::Seed

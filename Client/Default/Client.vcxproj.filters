@@ -201,9 +201,6 @@
     <ClInclude Include="..\Public\Sky.h">
       <Filter>02.GameObject\Sky</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\PointParticlePreview.h">
-      <Filter>02.GameObject\Effect</Filter>
-    </ClInclude>
     <ClInclude Include="..\Public\CombatStatCom.h">
       <Filter>03. Component\CombatStat</Filter>
     </ClInclude>
@@ -315,6 +312,12 @@
     <ClInclude Include="..\Public\GameDataTable.h" />
     <ClInclude Include="..\Public\SkillTreeCom.h" />
     <ClInclude Include="..\Public\Hero_Manager.h" />
+    <ClInclude Include="..\Public\ComputePointParticlePreview.h">
+      <Filter>02.GameObject\Effect\ComputePointParticle</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\PointParticlePreview.h">
+      <Filter>02.GameObject\Effect\PointParticle</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -361,9 +364,6 @@
     </ClCompile>
     <ClCompile Include="..\Private\Sky.cpp">
       <Filter>02.GameObject\Sky</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\PointParticlePreview.cpp">
-      <Filter>02.GameObject\Effect</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\ClientInstance.cpp">
       <Filter>00.Core</Filter>
@@ -476,6 +476,12 @@
     <ClCompile Include="..\Private\GameDataTable.cpp" />
     <ClCompile Include="..\Private\SkillTreeCom.cpp" />
     <ClCompile Include="..\Private\Hero_Manager.cpp" />
+    <ClCompile Include="..\Private\ComputePointParticlePreview.cpp">
+      <Filter>02.GameObject\Effect\ComputePointParticle</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\PointParticlePreview.cpp">
+      <Filter>02.GameObject\Effect\PointParticle</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">
@@ -501,6 +507,12 @@
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_UI.hlsl">
       <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_InstancingSmoke.hlsl">
+      <Filter>97.ShaderFiles\Compute</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_PointParticle.hlsl">
+      <Filter>97.ShaderFiles\Compute</Filter>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>

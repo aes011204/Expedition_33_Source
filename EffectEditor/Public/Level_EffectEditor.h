@@ -33,7 +33,7 @@ private:
     HRESULT Ready_Lights();
     // EffectEditor preview용 orbit camera를 만들고 active camera로 지정한다.
     HRESULT Ready_Layer_Camera(const wstring& layerTag);
-    // editor 초기화 전에도 보이는 기본 preview consumer를 preview layer에 올린다.
+    // preview layer는 authoring emitter 기반 runtime preview만 담는다.
     HRESULT Ready_Layer_Preview(const wstring& layerTag);
     void Clear_PreviewObjects();
 

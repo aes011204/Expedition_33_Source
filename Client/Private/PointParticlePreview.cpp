@@ -114,6 +114,10 @@ PointParticleDesc PointParticlePreview::Make_PointParticleDesc() const
     desc.pivot = _desc.pivot;
     desc.speed = _desc.speed;
     desc.lifeTime = _desc.lifeTime;
+    desc.startColorMin = _desc.startColorMin;
+    desc.startColorMax = _desc.startColorMax;
+    desc.endColorMin = _desc.endColorMin;
+    desc.endColorMax = _desc.endColorMax;
     desc.loop = _desc.loop;
     desc.drawMode = _desc.drawMode;
 

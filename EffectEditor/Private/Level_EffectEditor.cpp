@@ -18,6 +18,9 @@ namespace Internal
             if (module.type != type)
                 continue;
 
+            if (!module.enabled)
+                continue;
+
             return get_if<TData>(&module.data);
         }
 
@@ -68,7 +71,38 @@ namespace Internal
         return fallbackValue;
     }
 
-    Client::PointParticlePreview::PointParticlePreviewDesc Make_PreviewDesc(const AuthoringEmitter& emitter)
+    Color Clamp_PreviewColor(Color value)
+    {
+        value.R(clamp(value.R(), 0.f, 1.f));
+        value.G(clamp(value.G(), 0.f, 1.f));
+        value.B(clamp(value.B(), 0.f, 1.f));
+        value.A(clamp(value.A(), 0.f, 1.f));
+        return value;
+    }
+
+    Color Evaluate_ColorDistributionMin(const ColorDistributionData& data, const Color& fallbackValue)
+    {
+        if (const auto* constant = get_if<ConstantColorDistributionData>(&data.payload))
+            return Clamp_PreviewColor(constant->value);
+
+        if (const auto* uniform = get_if<UniformColorDistributionData>(&data.payload))
+            return Clamp_PreviewColor(uniform->minValue);
+
+        return Clamp_PreviewColor(fallbackValue);
+    }
+
+    Color Evaluate_ColorDistributionMax(const ColorDistributionData& data, const Color& fallbackValue)
+    {
+        if (const auto* constant = get_if<ConstantColorDistributionData>(&data.payload))
+            return Clamp_PreviewColor(constant->value);
+
+        if (const auto* uniform = get_if<UniformColorDistributionData>(&data.payload))
+            return Clamp_PreviewColor(uniform->maxValue);
+
+        return Clamp_PreviewColor(fallbackValue);
+    }
+
+    Client::PointParticlePreview::PointParticlePreviewDesc Build_PointParticlePreviewDesc(const AuthoringEmitter& emitter)
     {
         Client::PointParticlePreview::PointParticlePreviewDesc desc{};
         desc.drawMode = PointParticleDrawMode::Direct;
@@ -98,9 +132,7 @@ namespace Internal
             };
         }
         else
-        {
             desc.pivot = desc.center;
-        }
 
         if (const auto* lifetime = Find_ModuleData<LifetimeModuleData>(emitter, AuthoringModuleType::Lifetime))
         {
@@ -108,6 +140,38 @@ namespace Internal
                 Evaluate_FloatDistributionMin(lifetime->lifeTime, desc.lifeTime.x),
                 Evaluate_FloatDistributionMax(lifetime->lifeTime, desc.lifeTime.y)
             };
+        }
+
+        if (const auto* initialColor = Find_ModuleData<InitialColorModuleData>(emitter, AuthoringModuleType::InitialColor))
+        {
+            const Color minColor = Evaluate_ColorDistributionMin(
+                initialColor->color,
+                Color{ desc.startColorMin.x, desc.startColorMin.y, desc.startColorMin.z, desc.startColorMin.w }
+            );
+            const Color maxColor = Evaluate_ColorDistributionMax(
+                initialColor->color,
+                Color{ desc.startColorMax.x, desc.startColorMax.y, desc.startColorMax.z, desc.startColorMax.w }
+            );
+
+            desc.startColorMin = Vec4{ minColor.R(), minColor.G(), minColor.B(), minColor.A() };
+            desc.startColorMax = Vec4{ maxColor.R(), maxColor.G(), maxColor.B(), maxColor.A() };
+            desc.endColorMin = desc.startColorMin;
+            desc.endColorMax = desc.startColorMax;
+        }
+
+        if (const auto* colorOverLife = Find_ModuleData<ColorOverLifeModuleData>(emitter, AuthoringModuleType::ColorOverLife))
+        {
+            const Color minEndColor = Evaluate_ColorDistributionMin(
+                colorOverLife->colorOverLife,
+                Color{ desc.endColorMin.x, desc.endColorMin.y, desc.endColorMin.z, desc.endColorMin.w }
+            );
+            const Color maxEndColor = Evaluate_ColorDistributionMax(
+                colorOverLife->colorOverLife,
+                Color{ desc.endColorMax.x, desc.endColorMax.y, desc.endColorMax.z, desc.endColorMax.w }
+            );
+
+            desc.endColorMin = Vec4{ minEndColor.R(), minEndColor.G(), minEndColor.B(), minEndColor.A() };
+            desc.endColorMax = Vec4{ maxEndColor.R(), maxEndColor.G(), maxEndColor.B(), maxEndColor.A() };
         }
 
         return desc;
@@ -165,16 +229,18 @@ HRESULT Level_EffectEditor::Restart_PreviewFromAuthoring()
         if (!emitter.enabled)
             continue;
 
-        Client::PointParticlePreview::PointParticlePreviewDesc previewDesc = Internal::Make_PreviewDesc(emitter);
+        Client::PointParticlePreview::PointParticlePreviewDesc previewDesc = Internal::Build_PointParticlePreviewDesc(emitter);
         Shared<GameObject> previewObject{};
-        if (FAILED(GAME->Add_GameObject(
-            ETOI(LevelType::GamePlay),
-            L"GameObject_PointParticlePreview",
-            ETOI(LevelType::GamePlay),
-            kPreviewLayerTag,
-            previewObject,
-            &previewDesc
-        )))
+        if (FAILED(
+            GAME->Add_GameObject(
+                ETOI(LevelType::GamePlay),
+                L"GameObject_PointParticlePreview",
+                ETOI(LevelType::GamePlay),
+                kPreviewLayerTag,
+                previewObject,
+                &previewDesc
+            )
+        ))
         {
             for (Shared<GameObject>& createdPreviewObject : restartedPreviewObjects)
                 GAME->Remove_GameObject(ETOI(LevelType::GamePlay), createdPreviewObject);
@@ -239,21 +305,21 @@ HRESULT Level_EffectEditor::Ready_Layer_Camera(const wstring& layerTag)
 
 HRESULT Level_EffectEditor::Ready_Layer_Preview(const wstring& layerTag)
 {
-    Client::PointParticlePreview::PointParticlePreviewDesc previewDesc{};
-    previewDesc.drawMode = PointParticleDrawMode::Direct;
-
-    Shared<GameObject> previewObject{};
-    CHECK_FAILED(GAME->Add_GameObject(
-        ETOI(LevelType::GamePlay),
-        L"GameObject_PointParticlePreview",
-        ETOI(LevelType::GamePlay),
-        layerTag,
-        previewObject,
-        &previewDesc
-    ), E_FAIL);
-    _previewObjects.push_back(previewObject);
+    if (layerTag.empty())
+        return E_FAIL;
 
     return S_OK;
+}
+
+void Level_EffectEditor::Clear_PreviewObjects()
+{
+    for (Shared<GameObject>& previewObject : _previewObjects)
+    {
+        if (previewObject != nullptr)
+            GAME->Remove_GameObject(ETOI(LevelType::GamePlay), previewObject);
+    }
+
+    _previewObjects.clear();
 }
 
 Shared<Level_EffectEditor> Level_EffectEditor::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -267,17 +333,6 @@ Shared<Level_EffectEditor> Level_EffectEditor::Create(const ComPtr<Device>& devi
     }
 
     return instance;
-}
-
-void Level_EffectEditor::Clear_PreviewObjects()
-{
-    for (Shared<GameObject>& previewObject : _previewObjects)
-    {
-        if (previewObject != nullptr)
-            GAME->Remove_GameObject(ETOI(LevelType::GamePlay), previewObject);
-    }
-
-    _previewObjects.clear();
 }
 
 void Level_EffectEditor::Free()

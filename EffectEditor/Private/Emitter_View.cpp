@@ -132,6 +132,7 @@ AuthoringEmitter Emitter_View::Make_DefaultSpriteEmitter()
     emitter.modules.push_back(Make_LifetimeModule());
     emitter.modules.push_back(Make_InitialSizeModule());
     emitter.modules.push_back(Make_InitialVelocityModule());
+    emitter.modules.push_back(Make_InitialColorModule());
     emitter.modules.push_back(Make_ColorOverLifeModule());
 
     return emitter;
@@ -224,6 +225,21 @@ AuthoringModule Emitter_View::Make_InitialVelocityModule()
     return module;
 }
 
+AuthoringModule Emitter_View::Make_InitialColorModule()
+{
+    AuthoringModule module{};
+    module.id = Issue_AuthoringId();
+    module.type = AuthoringModuleType::InitialColor;
+    module.key = "Initial Color";
+    module.displayName = L"초기 컬러";
+    module.summary = L"생성 시점 색상 / 알파";
+    module.enabled = true;
+    module.movable = true;
+    module.removable = true;
+    module.data = InitialColorModuleData{};
+    return module;
+}
+
 AuthoringModule Emitter_View::Make_ColorOverLifeModule()
 {
     AuthoringModule module{};
@@ -232,7 +248,7 @@ AuthoringModule Emitter_View::Make_ColorOverLifeModule()
     module.key = "Color Over Life";
     module.displayName = L"수명에 따른 색상";
     module.summary = L"수명 진행률 기준 색 변화";
-    module.enabled = true;
+    module.enabled = false;
     module.movable = true;
     module.removable = true;
     module.data = ColorOverLifeModuleData{};
@@ -279,7 +295,8 @@ void Emitter_View::Duplicate_Emitter(size_t emitterIndex)
     const size_t insertIndex = emitterIndex + 1;
     _emitters.insert(
         _emitters.begin() + static_cast<ptrdiff_t>(insertIndex),
-        Clone_Emitter(_emitters[emitterIndex]));
+        Clone_Emitter(_emitters[emitterIndex])
+    );
     Select_Emitter(insertIndex);
     MarkDirty();
 }
@@ -293,9 +310,7 @@ void Emitter_View::Delete_Emitter(size_t emitterIndex)
     Clamp_Selection();
 
     if (_emitters.empty())
-    {
         Clear_Selection();
-    }
     else
     {
         const size_t nextIndex = min(emitterIndex, _emitters.size() - 1);
@@ -338,6 +353,131 @@ void Emitter_View::Process_PendingEmitterAction()
 
     _pendingEmitterAction = PendingEmitterAction::None;
     _pendingEmitterActionIndex.reset();
+}
+
+void Emitter_View::Select_Module(size_t emitterIndex, size_t moduleIndex)
+{
+    if (emitterIndex >= _emitters.size() || moduleIndex >= _emitters[emitterIndex].modules.size())
+    {
+        Clear_Selection();
+        return;
+    }
+
+    _selectedEmitterIndex = emitterIndex;
+    _selectedModuleIndex = moduleIndex;
+
+    if (EDITOR != nullptr && EDITOR->Get_EditorContext() != nullptr)
+        EDITOR->Get_EditorContext()->Set_SelectEffectModule(_emitters[emitterIndex].id, _emitters[emitterIndex].modules[moduleIndex].id);
+}
+
+void Emitter_View::Delete_Module(size_t emitterIndex, size_t moduleIndex)
+{
+    if (emitterIndex >= _emitters.size())
+        return;
+
+    AuthoringEmitter& emitter = _emitters[emitterIndex];
+    if (moduleIndex >= emitter.modules.size())
+        return;
+
+    const AuthoringModule& module = emitter.modules[moduleIndex];
+    if (!module.removable)
+        return;
+
+    const bool isSelectedEmitter = _selectedEmitterIndex.has_value() && _selectedEmitterIndex.value() == emitterIndex;
+    const bool isSelectedModule = isSelectedEmitter && _selectedModuleIndex.has_value();
+    const bool isDeletingSelectedModule = isSelectedModule && _selectedModuleIndex.value() == moduleIndex;
+
+    emitter.modules.erase(emitter.modules.begin() + static_cast<ptrdiff_t>(moduleIndex));
+
+    if (isDeletingSelectedModule)
+        Select_Emitter(emitterIndex);
+    else if (isSelectedModule && _selectedModuleIndex.value() > moduleIndex)
+        _selectedModuleIndex = _selectedModuleIndex.value() - 1;
+
+    emitter.previewDirty = true;
+    MarkDirty();
+}
+
+void Emitter_View::Reset_ModuleData(size_t emitterIndex, size_t moduleIndex)
+{
+    if (emitterIndex >= _emitters.size())
+        return;
+
+    AuthoringEmitter& emitter = _emitters[emitterIndex];
+    if (moduleIndex >= emitter.modules.size())
+        return;
+
+    AuthoringModule& module = emitter.modules[moduleIndex];
+    switch (module.type)
+    {
+    case AuthoringModuleType::Required:
+    {
+        RequiredModuleData data{};
+        module.data = data;
+        emitter.rendererType = data.rendererType;
+        emitter.textureId = data.textureId;
+        emitter.materialName = data.materialName;
+        emitter.resourceSummary = data.textureId;
+        break;
+    }
+    case AuthoringModuleType::Spawn:
+        module.data = SpawnModuleData{};
+        break;
+    case AuthoringModuleType::Lifetime:
+        module.data = LifetimeModuleData{};
+        break;
+    case AuthoringModuleType::InitialSize:
+        module.data = InitialSizeModuleData{};
+        break;
+    case AuthoringModuleType::InitialVelocity:
+        module.data = InitialVelocityModuleData{};
+        break;
+    case AuthoringModuleType::InitialColor:
+        module.data = InitialColorModuleData{};
+        break;
+    case AuthoringModuleType::ColorOverLife:
+        module.data = ColorOverLifeModuleData{};
+        break;
+    default:
+        return;
+    }
+
+    emitter.previewDirty = true;
+    MarkDirty();
+}
+
+void Emitter_View::Queue_ModuleAction(PendingModuleAction action, size_t emitterIndex, size_t moduleIndex)
+{
+    _pendingModuleAction = action;
+    _pendingModuleEmitterIndex = emitterIndex;
+    _pendingModuleIndex = moduleIndex;
+}
+
+void Emitter_View::Process_PendingModuleAction()
+{
+    if (_pendingModuleAction == PendingModuleAction::None ||
+        !_pendingModuleEmitterIndex.has_value() ||
+        !_pendingModuleIndex.has_value())
+        return;
+
+    const size_t emitterIndex = _pendingModuleEmitterIndex.value();
+    const size_t moduleIndex = _pendingModuleIndex.value();
+    switch (_pendingModuleAction)
+    {
+    case PendingModuleAction::Delete:
+        Delete_Module(emitterIndex, moduleIndex);
+        break;
+    case PendingModuleAction::ResetData:
+        Reset_ModuleData(emitterIndex, moduleIndex);
+        break;
+    case PendingModuleAction::None:
+    default:
+        break;
+    }
+
+    _pendingModuleAction = PendingModuleAction::None;
+    _pendingModuleEmitterIndex.reset();
+    _pendingModuleIndex.reset();
 }
 
 void Emitter_View::Clamp_Selection()
@@ -411,6 +551,21 @@ void Emitter_View::Draw_EmitterContextMenu(size_t emitterIndex)
     }
 }
 
+void Emitter_View::Draw_ModuleContextMenu(size_t emitterIndex, size_t moduleIndex, const AuthoringModule& module)
+{
+    if (ImGui::MenuItem("모듈 값 초기화"))
+        Queue_ModuleAction(PendingModuleAction::ResetData, emitterIndex, moduleIndex);
+
+    if (!module.removable)
+        ImGui::BeginDisabled();
+
+    if (ImGui::MenuItem("모듈 삭제"))
+        Queue_ModuleAction(PendingModuleAction::Delete, emitterIndex, moduleIndex);
+
+    if (!module.removable)
+        ImGui::EndDisabled();
+}
+
 void Emitter_View::Draw_EmitterBoard()
 {
     if (ImGui::BeginChild("##EmitterBoard", ImVec2(0.f, 0.f), true, ImGuiWindowFlags_HorizontalScrollbar))
@@ -444,9 +599,7 @@ void Emitter_View::Draw_EmitterBoard()
             mousePos.y < boardMax.y;
 
         if (isRightBlankHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
-        {
             Clear_Selection();
-        }
         else if (isRightBlankHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Right))
         {
             Clear_Selection();
@@ -463,6 +616,7 @@ void Emitter_View::Draw_EmitterBoard()
         }
 
         Process_PendingEmitterAction();
+        Process_PendingModuleAction();
     }
     ImGui::EndChild();
 }
@@ -608,16 +762,17 @@ void Emitter_View::Draw_ModuleRow(size_t emitterIndex, size_t moduleIndex, Autho
     ImGui::PushID(module.key.c_str());
     ImGui::SetNextItemAllowOverlap();
     ImGui::Button("##ModuleRow", ImVec2(kEmitterColumnWidth, rowHeight));
-    if (ImGui::IsItemClicked())
-    {
-        Select_Emitter(emitterIndex);
-        _selectedModuleIndex = moduleIndex;
-        if (EDITOR != nullptr && EDITOR->Get_EditorContext() != nullptr)
-            EDITOR->Get_EditorContext()->Set_SelectEffectModule(_emitters[emitterIndex].id, module.id);
-    }
-    ImGui::PopID();
+    if (ImGui::IsItemClicked(ImGuiMouseButton_Left) || ImGui::IsItemClicked(ImGuiMouseButton_Right))
+        Select_Module(emitterIndex, moduleIndex);
+
     const bool isRowHovered = ImGui::IsItemHovered();
     ImGui::PopStyleColor(4);
+    if (ImGui::BeginPopupContextItem("##ModuleRowPopup"))
+    {
+        Draw_ModuleContextMenu(emitterIndex, moduleIndex, module);
+        ImGui::EndPopup();
+    }
+    ImGui::PopID();
     const string warningTooltip = Build_ModuleWarningTooltip(_emitters[emitterIndex], module);
 
     const ImVec2 afterRowCursor = ImGui::GetCursorPos();
