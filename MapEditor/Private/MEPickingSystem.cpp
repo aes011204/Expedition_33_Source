@@ -36,7 +36,7 @@ uint32 MEPickingSystem::SampleID(const vector<Shared<EditorObject>>& objects, co
     for (uint32 i = 0; i < static_cast<uint32>(objects.size()); ++i)
     {
         auto& obj = objects[i];
-        if (obj->_type != EObjectType::StaticMesh || !obj->_renderHandle)
+        if (!obj->_renderHandle)
         {
             continue;
         }
@@ -79,15 +79,15 @@ void MEPickingSystem::DoPickAt(SceneContext& scene, const ImVec2& mousePos, cons
         return;
     }
 
-    uint32 id = SampleID(scene._objects, mousePos, vpPos, vpSize, rt);
+    uint32 id = SampleID(scene._staticMeshes, mousePos, vpPos, vpSize, rt);
 
     if (id == 0)
     {
         scene._selected = nullptr;
     }
-    else if (id - 1 < static_cast<uint32>(scene._objects.size()))
+    else if (id - 1 < static_cast<uint32>(scene._staticMeshes.size()))
     {
-        scene._selected = scene._objects[id - 1];
+        scene._selected = scene._staticMeshes[id - 1];
     }
 }
 
@@ -98,7 +98,7 @@ void MEPickingSystem::SetCursorAt(SceneContext& scene, const MECamera& camera, c
         return;
     }
 
-    uint32 id = SampleID(scene._objects, mousePos, vpPos, vpSize, rt);
+    uint32 id = SampleID(scene._staticMeshes, mousePos, vpPos, vpSize, rt);
 
     const float ndcX = ((mousePos.x - vpPos.x) / vpSize.x) * 2.f - 1.f;
     const float ndcY = -((mousePos.y - vpPos.y) / vpSize.y) * 2.f + 1.f;
@@ -108,9 +108,9 @@ void MEPickingSystem::SetCursorAt(SceneContext& scene, const MECamera& camera, c
     Vec3 rayDir = Vec3::TransformNormal(Vec3(ndcX / proj._11, ndcY / proj._22, 1.f), invView);
     rayDir.Normalize();
 
-    if (id > 0 && id - 1 < static_cast<uint32>(scene._objects.size()))
+    if (id > 0 && id - 1 < static_cast<uint32>(scene._staticMeshes.size()))
     {
-        auto& obj = scene._objects[static_cast<vector<Shared<EditorObject>, allocator<Shared<EditorObject>>>::size_type>(id) - 1];
+        auto& obj = scene._staticMeshes[static_cast<vector<Shared<EditorObject>, allocator<Shared<EditorObject>>>::size_type>(id) - 1];
         Vec3 localMin, localMax;
         if (obj->_renderHandle && obj->_renderHandle->GetModel()->Try_Get_LocalBounds(localMin, localMax))
         {

@@ -95,5 +95,37 @@ namespace Engine
         float yRotation; // 4
         float colorVariation; // 4
         float lodIndex; // 4
+
+        static const unsigned int numElements = { 6 };
+        static constexpr D3D11_INPUT_ELEMENT_DESC Elements[] = {
+        { "INST_POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 1, 0, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+        { "INST_SCALE",    0, DXGI_FORMAT_R32_FLOAT,       1, 12, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+        { "INST_WINDPHASE",0, DXGI_FORMAT_R32_FLOAT,       1, 16, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+        { "INST_YROT",     0, DXGI_FORMAT_R32_FLOAT,       1, 20, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+        { "INST_COLOR",    0, DXGI_FORMAT_R32_FLOAT,       1, 24, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+        { "INST_LOD",      0, DXGI_FORMAT_R32_FLOAT,       1, 28, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+        };
     } MESHINSTANCEDATA;
+
+    // for shader_VtxMeshInstance
+    struct VtxMeshInstanceLayout
+    {
+        static constexpr uint32 numElements = 11;
+
+        static constexpr D3D11_INPUT_ELEMENT_DESC Elements[] = {
+            // slot 0: VTXMESH
+            { "POSITION",  0, DXGI_FORMAT_R32G32B32_FLOAT, 0,  0, D3D11_INPUT_PER_VERTEX_DATA,   0 },
+            { "NORMAL",    0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA,   0 },
+            { "TANGENT",   0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 24, D3D11_INPUT_PER_VERTEX_DATA,   0 },
+            { "BINORMAL",  0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 36, D3D11_INPUT_PER_VERTEX_DATA,   0 },
+            { "TEXCOORD",  0, DXGI_FORMAT_R32G32_FLOAT,    0, 48, D3D11_INPUT_PER_VERTEX_DATA,   0 },
+            // slot 1: MESHINSTANCEDATA
+            { "INST_POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 1,  0, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+            { "INST_SCALE",    0, DXGI_FORMAT_R32_FLOAT,       1, 12, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+            { "INST_WINDPHASE",0, DXGI_FORMAT_R32_FLOAT,       1, 16, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+            { "INST_YROT",     0, DXGI_FORMAT_R32_FLOAT,       1, 20, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+            { "INST_COLOR",    0, DXGI_FORMAT_R32_FLOAT,       1, 24, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+            { "INST_LOD",      0, DXGI_FORMAT_R32_FLOAT,       1, 28, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+        };
+    };
 }

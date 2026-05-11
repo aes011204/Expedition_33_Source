@@ -534,6 +534,10 @@ ResourceLoader::FInputLayoutInfo ResourceLoader::Get_InputLayout(const string& s
     if ("ParticleInstance" == strName || "PARTICLEINSTANCE" == strName)
         return { ParticleInstanceLayout::Elements, ParticleInstanceLayout::numElements };
 
+    // Mesh Instance
+    if("VTXMESHINST" == strName)
+        return { VtxMeshInstanceLayout::Elements, VtxMeshInstanceLayout::numElements };
+
     return { VTXTEX::Elements, VTXTEX::numElements };
 }
 

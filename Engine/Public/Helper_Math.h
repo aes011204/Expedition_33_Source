@@ -9,6 +9,7 @@
 #include "Engine_Typedef.h"
 #include <algorithm>  // clamp
 #include <cmath>      // lerp, exp, pow
+#include <random>
 
 namespace Engine::Math
 {
@@ -104,4 +105,41 @@ inline Vec3 Lerp_EaseIn(const Vec3& initStart, const Vec3& end, float ratio, flo
     const float easeRatio = GetEaseInRatio(ratio, power);
     return initStart + (end - initStart) * easeRatio;
 }
+
+inline int RandNum(int startNum, int endNum)
+{
+    std::random_device rd;
+    std::mt19937 gen(rd());
+
+    std::uniform_int_distribution<int> disInt(startNum, endNum);
+
+    return disInt(gen);
+}
+
+inline unsigned int RandNum(unsigned int startNum, unsigned int endNum)
+{
+    std::random_device rd;
+    std::mt19937 gen(rd());
+
+    std::uniform_int_distribution<unsigned int> disUInt(startNum, endNum);
+
+    return disUInt(gen);
+}
+
+inline float RandNum(float startNum, float endNum)
+{
+    std::random_device rd;
+    std::mt19937 gen(rd());
+
+    std::uniform_real_distribution<float> disFloat(startNum, endNum);
+
+    return disFloat(gen);
+}
+
+inline float RandNum(float startNum, float endNum, std::mt19937& rng)
+{
+    std::uniform_real_distribution<float> dist(startNum, endNum);
+    return dist(rng);
+}
+
 }

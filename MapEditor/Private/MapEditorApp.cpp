@@ -14,6 +14,7 @@
 #include "CmdAddObject.h"
 #include "CmdDeleteObject.h"
 #include "CmdTransformObject.h"
+#include "MEInstancedMeshActor.h"
 
 extern HWND g_hWnd;
 extern HINSTANCE g_hInst;
@@ -100,6 +101,7 @@ void MapEditorApp::Update(float timeDelta)
 
     _manager->Update(timeDelta);
     UpdateRenderHandles();
+    RebuildOctreeIfDirty();
 }
 
 void MapEditorApp::Late_Update(float timeDelta)
@@ -157,6 +159,8 @@ HRESULT MapEditorApp::Render()
             }
             obj->_renderHandle->Render(obj->_worldMatrix);
         }
+        RenderStaticMeshes();
+        RenderInstancedMeshes();
     }
     CHECK_FAILED(GAME->End_MRT(), E_FAIL);
 
@@ -222,33 +226,57 @@ HRESULT MapEditorApp::Render()
 
 void MapEditorApp::UpdateRenderHandles()
 {
-    if (!_scene._dirtyRenderHandles || !_meshShader)
+    if (_scene._dirtyRenderHandles && _meshShader)
     {
-        return;
-    }
-    _scene._dirtyRenderHandles = false;
+        _scene._dirtyRenderHandles = false;
 
-    for (auto& obj : _scene._objects)
-    {
-        if (obj->_type != EObjectType::StaticMesh)
+        for (auto& obj : _scene._staticMeshes)
         {
-            continue;
+            if (obj->_renderHandleLoaded || obj->_isInstanced || obj->_modelPath.empty())
+            {
+                continue;
+            }
+
+            obj->_renderHandleLoaded = true;
+
+            auto model = _modelManager->GetOrLoad(_device, _context, obj->_modelPath);
+            if (!model)
+            {
+                continue;
+            }
+
+            obj->_renderHandle = MEStaticMeshActor::Create(model, _meshShader);
         }
 
-        if (obj->_renderHandleLoaded || obj->_isInstanced || obj->_modelPath.empty())
+        for (auto& obj : _scene._instancedMeshes)
         {
-            continue;
+            if (!obj->_instancedParamsDirty)
+            {
+                continue;
+            }
+
+            obj->_instancedParamsDirty = false;
+
+            if (!obj->_instancedRenderHandle)
+            {
+                obj->_instancedRenderHandle = MEInstancedMeshActor::Create(_device, _context);
+                if (!obj->_instancedRenderHandle)
+                {
+                    continue;
+                }
+            }
+
+            if (!obj->_instancedModelPath.empty())
+            {
+                obj->_instancedRenderHandle->UpdateInstances(
+                    obj->_instancedModelPath,
+                    obj->_position,
+                    obj->_instancedAreaWidth,
+                    obj->_instancedAreaDepth,
+                    obj->_instancedDensity,
+                    obj->_instancedSeed);
+            }
         }
-
-        obj->_renderHandleLoaded = true;
-
-        auto model = _modelManager->GetOrLoad(_device, _context, obj->_modelPath);
-        if (!model)
-        {
-            continue;
-        }
-
-        obj->_renderHandle = MEStaticMeshActor::Create(model, _meshShader);
     }
 }
 
@@ -278,17 +306,77 @@ void MapEditorApp::DoSpawnAt(const string& modelPath)
     }
 }
 
-void MapEditorApp::SyncSceneLights()
+void MapEditorApp::RebuildOctreeIfDirty()
 {
-    GAME->Clear_Lights();
-
-    for (const auto& obj : _scene._objects)
+    if (!_scene._octreeDirty)
     {
-        if (obj->_type != EObjectType::Light)
+        return;
+    }
+
+    vector<BoundingBox> worldAABBs;
+    worldAABBs.reserve(_scene._staticMeshes.size());
+
+    for (auto& obj : _scene._staticMeshes)
+    {
+        BoundingBox worldBox{};
+        if (obj->_renderHandle)
+        {
+            const auto& model = obj->_renderHandle->GetModel();
+            Vec3 localMin{}, localMax{};
+
+            if (model->Try_Get_LocalBounds(localMin, localMax))
+            {
+                BoundingBox localBox;
+                BoundingBox::CreateFromPoints(localBox, localMin, localMax);
+                localBox.Transform(worldBox, model->Get_PreLocalTransformMatrix() * obj->_worldMatrix);
+            }
+        }
+        worldAABBs.push_back(worldBox);
+    }
+
+    GAME->BuildOctree(worldAABBs);
+    _scene._octreeDirty = false;
+}
+
+void MapEditorApp::RenderStaticMeshes()
+{
+    float farZ = _camera->GetFar();
+    _meshShader->Bind_RawValue("g_fCameraFar", &farZ, sizeof(float));
+
+    vector<uint32> visibleIndices;
+    GAME->QueryVisible(visibleIndices);
+
+    for (uint32 idx : visibleIndices)
+    {
+        auto& obj = _scene._staticMeshes[idx];
+        if (!obj->_renderHandle)
         {
             continue;
         }
 
+        obj->_renderHandle->Render(obj->_worldMatrix);
+    }
+}
+
+void MapEditorApp::RenderInstancedMeshes()
+{
+    for (auto& obj : _scene._instancedMeshes)
+    {
+        if (!obj->_instancedRenderHandle)
+        {
+            continue;
+        }
+
+        obj->_instancedRenderHandle->Render();
+    }
+}
+
+void MapEditorApp::SyncSceneLights()
+{
+    GAME->Clear_Lights();
+
+    for (const auto& obj : _scene._lights)
+    {
         LIGHT_DESC desc{};
         desc.type = obj->_lightType;
         desc.direction = obj->_lightDirection;
@@ -309,7 +397,7 @@ HRESULT MapEditorApp::Ready_Light()
     obj->_lightDiffuse = Vec4(1.f, 1.f, 1.f, 1.f);
     obj->_lightAmbient = Vec4(0.4f, 0.4f, 0.4f, 1.f);
     obj->_lightSpecular = Vec4(1.f, 1.f, 1.f, 1.f);
-    _scene._objects.push_back(obj);
+    _scene.Add(obj);
     return S_OK;
 }
 
@@ -329,10 +417,7 @@ Unique<MapEditorApp> MapEditorApp::Create()
 
 void MapEditorApp::Free()
 {
-    _scene._selected.reset();
-    _scene._objects.clear();
-    _scene._undoStack.clear();
-    _scene._redoStack.clear();
+    _scene.ClearScene();
     _meshShader.reset();
     _deferredShader.reset();
     _rectBuffer.reset();

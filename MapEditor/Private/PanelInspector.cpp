@@ -283,6 +283,50 @@ void PanelInspector::DrawTypeParams(Shared<EditorObject>& obj)
         }
         break;
 
+    case EObjectType::InstancedMesh:
+        if (ImGui::CollapsingHeader("Instanced Mesh", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            wstring displayPath = fs::path(obj->_instancedModelPath).filename().wstring();
+            string displayStr = String::ToString(displayPath);
+
+            char pathBuf[256] = {};
+            strncpy_s(pathBuf, displayStr.c_str(), sizeof(pathBuf) - 1);
+
+            if (ImGui::InputText("Model Path", pathBuf, sizeof(pathBuf)))
+            {
+                if (strlen(pathBuf) > 0)
+                {
+                    obj->_instancedModelPath = L"../../../Client/Bin/Resources/Map/"
+                        + _ctx->_modelFolder + L"/"
+                        + String::ToWString(string(pathBuf));
+                }
+                else
+                {
+                    obj->_instancedModelPath = {};
+                }
+                obj->_instancedParamsDirty = true;
+            }
+
+
+            bool changed = false;
+            changed |= ImGui::DragFloat("Area Width", &obj->_instancedAreaWidth, 0.5f, 0.1f, 1000.f);
+            changed |= ImGui::DragFloat("Area Depth", &obj->_instancedAreaDepth, 0.5f, 0.1f, 1000.f);
+            changed |= ImGui::DragFloat("Density", &obj->_instancedDensity, 0.01f, 0.01f, 100.f);
+
+            int seed = static_cast<int>(obj->_instancedSeed);
+            if (ImGui::DragInt("Seed", &seed, 1, 0, INT_MAX))
+            {
+                obj->_instancedSeed = static_cast<uint32>(seed);
+                changed = true;
+            }
+
+            if (changed)
+            {
+                obj->_instancedParamsDirty = true;
+            }
+        }
+        break;
+
     default:
         break;
     }

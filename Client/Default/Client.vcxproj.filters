@@ -136,6 +136,9 @@
     <Filter Include="02.GameObject\Effect\ComputePointParticle">
       <UniqueIdentifier>{ceac3f7c-9e53-4638-aa47-729e8f089b5d}</UniqueIdentifier>
     </Filter>
+    <Filter Include="02.GameObject\InstancedMeshActor">
+      <UniqueIdentifier>{2e753ff9-c664-4b59-b631-8362dc321ba5}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -301,6 +304,9 @@
     <ClInclude Include="..\Public\ComputePointParticlePreview.h">
       <Filter>02.GameObject\Effect\ComputePointParticle</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\InstancedMeshActor.h">
+      <Filter>02.GameObject\InstancedMeshActor</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -454,6 +460,9 @@
     <ClCompile Include="..\Private\ComputePointParticlePreview.cpp">
       <Filter>02.GameObject\Effect\ComputePointParticle</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\InstancedMeshActor.cpp">
+      <Filter>02.GameObject\InstancedMeshActor</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">
@@ -482,6 +491,9 @@
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_PointParticle.hlsl">
       <Filter>97.ShaderFiles\Compute</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMeshInstance.hlsl">
+      <Filter>97.ShaderFiles</Filter>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>

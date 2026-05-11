@@ -4,6 +4,7 @@
 NS_BEGIN(MapEditor)
 
 class MEStaticMeshActor;
+class MEInstancedMeshActor;
 
 struct EditorObject
 {
@@ -41,6 +42,15 @@ struct EditorObject
     Shared<MEStaticMeshActor> _renderHandle;
     bool _renderHandleLoaded = false;
     bool _isInstanced = false;
+
+    wstring _instancedModelPath = {};
+    float _instancedAreaWidth = 10.f;
+    float _instancedAreaDepth = 10.f;
+    float _instancedDensity = 1.f;
+    uint32 _instancedSeed = {};
+
+    Shared<MEInstancedMeshActor> _instancedRenderHandle;
+    bool _instancedParamsDirty = true;
 
     void UpdateWorldMatrix()
     {

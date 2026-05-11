@@ -55,6 +55,7 @@ public:
 	HRESULT Initialize_Prototype(ModelType type, const char* modelFilePath, const Matrix& preLocalTransformMatrix);
 	HRESULT Initialize(void* arg) override;
 	HRESULT Render(uint32 meshIndex);
+    HRESULT RenderInstanced(uint32 meshIndex, Buffer* instanceVB, uint32 instanceStride, uint32 instanceCount);
 
 public:
 	bool Play_Animation(float timeDelta);

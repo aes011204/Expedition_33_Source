@@ -11,6 +11,10 @@ struct SceneContext
     vector<Shared<IEditorCommand>> _redoStack;
 
     vector<Shared<EditorObject>> _objects;
+    vector<Shared<EditorObject>> _staticMeshes;
+    vector<Shared<EditorObject>> _lights;
+    vector<Shared<EditorObject>> _instancedMeshes;
+
     Shared<EditorObject> _selected;
     wstring _mapName = L"Untitled";
     wstring _modelFolder = {};
@@ -34,6 +38,8 @@ struct SceneContext
     void Add(Shared<EditorObject> obj);
     void Remove(const Shared<EditorObject>& obj);
     Shared<EditorObject> Duplicate(const Shared<EditorObject>& src);
+
+    void ClearScene();
 };
 
 NS_END

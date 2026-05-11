@@ -22,7 +22,18 @@ void CmdDeleteObject::Undo(SceneContext& ctx)
 {
     int clampedIndex = min(_insertIndex, static_cast<int>(ctx._objects.size()));
     ctx._objects.insert(ctx._objects.begin() + clampedIndex, _obj);
+
+    if (_obj->_type == EObjectType::StaticMesh)
+    {
+        ctx._staticMeshes.push_back(_obj);
+    }
+    else if (_obj->_type == EObjectType::Light)
+    {
+        ctx._lights.push_back(_obj);
+    }
+
     ctx._dirtyRenderHandles = true;
+    ctx._octreeDirty = true;
     ctx._selected = _obj;
 }
 

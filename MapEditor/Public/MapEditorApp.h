@@ -54,12 +54,17 @@ private:
 
     SceneContext _scene;
 
+    bool _octreeDirty = true;
+
 private:
     HRESULT Ready_Light();
 
     void SyncSceneLights();
     void UpdateRenderHandles();
     void DoSpawnAt(const string& modelPath);
+    void RebuildOctreeIfDirty();
+    void RenderStaticMeshes();
+    void RenderInstancedMeshes();
 
 public:
     static Unique<MapEditorApp> Create();

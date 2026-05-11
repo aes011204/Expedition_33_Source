@@ -336,6 +336,56 @@ MEModelManager                            — 모델 로드/캐싱 전담
 
 ---
 
+### Phase 3.12 — Octree 공간 분할 컬링 + SceneContext 타입 분리 ✅
+
+#### 목표
+- 씬 전체 O(n) 컬링을 Octree 기반 O(log n)으로 교체
+- `SceneContext._objects` 단일 벡터를 타입별로 분리해 불필요한 순회 제거
+
+#### 구현 내용
+
+1. **`Culling_Manager` Octree 확장** ✅
+   - `OctreeNode` 내부 구조체 — bounds / indices / children[8] / IsLeaf()
+   - `BuildOctree(worldAABBs)` — 전체 씬 AABB 배열로 트리 구성 (MAX_DEPTH=6, MAX_OBJECTS=8)
+     - 루트 AABB: 전체 오브젝트를 감싸는 최소/최대 계산 (`Vec3::Min/Max` 활용)
+     - `subdivide` 재귀 람다 — 경계 교차 오브젝트는 여러 자식에 중복 배정
+   - `QueryVisible(outIndices)` — `_frustum` 기준 가시 인덱스 수집, DISJOINT 가지 스킵
+     - `sort + unique + erase`로 중복 제거 (경계 오브젝트 중복 배정 방식 유지)
+   - `ClearOctree()` — `_octreeRoot.reset()` 으로 트리 전체 재귀 소멸
+   - `GameInstance`에 `BuildOctree` / `QueryVisible` 래퍼 추가
+
+2. **`SceneContext` 타입 벡터 분리** ✅
+   - `_staticMeshes` — 렌더링, Octree, 피킹 전용
+   - `_lights` — 라이트 싱크 전용
+   - `_objects` — Hierarchy 표시, Undo/Redo 인덱스 보존용 유지
+   - `Add` / `Remove` / `Duplicate` — 타입에 따라 해당 벡터 동시 관리
+   - `Clear()` 메서드 추가 — 모든 벡터 + 스택 일괄 초기화
+   - `LoadFromFile` — `_objects.push_back` → `Add()` 교체, `Clear()` 호출로 통합
+
+3. **`MapEditorApp` private 메서드 분리** ✅
+   - `RebuildOctreeIfDirty()` — `_scene._octreeDirty` 체크 → `_staticMeshes` 순회해 worldAABB 수집 → `GAME->BuildOctree`
+   - `RenderStaticMeshes()` — `GAME->QueryVisible` → `_staticMeshes[idx]` 렌더
+   - `SyncSceneLights()` — `_scene._lights` 직접 순회 (타입 체크 제거)
+   - `UpdateRenderHandles()` — `_scene._staticMeshes` 직접 순회 (타입 체크 제거)
+
+4. **`MEPickingSystem` 수정** ✅
+   - `SampleID` / `DoPickAt` / `SetCursorAt` — `scene._objects` → `scene._staticMeshes`
+   - `SampleID` 내 타입 체크 제거 (StaticMesh만 있으므로)
+
+5. **`CmdDeleteObject::Undo` 수정** ✅
+   - `_objects` 원래 인덱스 복원 유지 + 타입 벡터에도 push
+
+6. **Deferred 셰이더 배경 버그 수정** ✅ (`Shader_Deferred.hlsl`)
+   - `PS_MAIN_DIRECTIONAL` / `PS_MAIN_POINT` — `vDepthDesc.y == 0.f` 시 `discard` 추가 (배경 픽셀 라이팅 차단)
+   - `PS_MAIN_COMBINED_SIMPLE` — `vDiffuse.a == 0.f` 시 `discard` 추가 (배경 출력 차단)
+
+#### 설계 결정
+- **Octree vs CS 컬링**: 역할 분리 — Octree는 일반 오브젝트, CS 컬링은 인스턴싱 메시 전용
+- **교차 오브젝트 중복 배정 방식 유지**: 큰 오브젝트 많은 환경에서 부모 노드 누적보다 안정적, sort+unique 비용은 visible 수 기준 무시 가능
+- **Client 적용 보류**: Client는 GameObject 루프 구조라 QueryVisible 연동 시 레벨 단위 리팩토링 필요 → Phase 4 이후
+
+---
+
 ### Phase 3.11 — 메시 인스턴싱 + Compute Shader 컬링 (진행 중)
 
 #### 목표
@@ -409,7 +459,7 @@ MEModelManager                            — 모델 로드/캐싱 전담
 ### Phase 6 — 물리 / 최적화
 - PhysX 콜라이더 편집 UI (맵 에디터)
 - PhysX 지형 충돌
-- Octree 기반 공간 분할 컬링 (현재 O(n) → O(log n))
+- Octree 기반 공간 분할 컬링 Client 적용 (MapEditor는 Phase 3.12에서 완료)
 - 인스턴싱 그룹, Occlusion Volume
 
 ---
@@ -442,7 +492,7 @@ MEModelManager                            — 모델 로드/캐싱 전담
 | Deferred 라이팅 (G-buffer + 라이트 누적 + 합성) | ✅ |
 | 절두체 컬링 (Client/MainEditor) | ✅ |
 | 절두체 컬링 (MapEditor 뷰포트) | ✅ |
-| Octree 공간 분할 컬링 | 구현 예정 (Phase 6) |
+| Octree 공간 분할 컬링 (MapEditor) | ✅ |
 | 스카이 (SkySphere) | 구현 예정 — PNG 파노라마 텍스처, VIBuffer_Sphere 필요 |
 | 물(Water) 배치 | 구현 예정 |
 | 파티클 이펙트 배치 | 파티클 시스템 대기 |

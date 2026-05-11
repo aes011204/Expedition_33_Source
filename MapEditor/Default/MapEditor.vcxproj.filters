@@ -40,9 +40,6 @@
     <Filter Include="96. SimpleMath">
       <UniqueIdentifier>{6b1adc6e-e031-406c-85a7-f2ba018b9662}</UniqueIdentifier>
     </Filter>
-    <Filter Include="07. MEStatic">
-      <UniqueIdentifier>{a636401e-835d-4b70-8122-bdf00cb238f7}</UniqueIdentifier>
-    </Filter>
     <Filter Include="06. EditorUtil">
       <UniqueIdentifier>{f6749250-5d5d-465d-a104-6a0ca79eee0a}</UniqueIdentifier>
     </Filter>
@@ -94,6 +91,15 @@
     <Filter Include="11. MEDebugRenderer">
       <UniqueIdentifier>{301f6db0-0489-4df9-a76b-a628cbb7e0f9}</UniqueIdentifier>
     </Filter>
+    <Filter Include="07. MeshActor">
+      <UniqueIdentifier>{a636401e-835d-4b70-8122-bdf00cb238f7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="07. MeshActor\StaticMeshActor">
+      <UniqueIdentifier>{036462ad-ad68-47ad-91a8-693c4552d074}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="07. MeshActor\InstancedMeshActor">
+      <UniqueIdentifier>{0a528664-f966-4fbb-93fd-8f214f93f3da}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="targetver.h">
@@ -138,9 +144,6 @@
     <ClInclude Include="..\Public\MECamera.h">
       <Filter>05. Camera</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\MEStaticMeshActor.h">
-      <Filter>07. MEStatic</Filter>
-    </ClInclude>
     <ClInclude Include="..\Public\SceneContext.h">
       <Filter>06. EditorUtil\SceneContext</Filter>
     </ClInclude>
@@ -176,6 +179,12 @@
     </ClInclude>
     <ClInclude Include="..\Public\MEDebugRenderer.h">
       <Filter>11. MEDebugRenderer</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\MEStaticMeshActor.h">
+      <Filter>07. MeshActor\StaticMeshActor</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\MEInstancedMeshActor.h">
+      <Filter>07. MeshActor\InstancedMeshActor</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -225,9 +234,6 @@
     <ClCompile Include="..\Private\SimpleMath.cpp">
       <Filter>96. SimpleMath</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\MEStaticMeshActor.cpp">
-      <Filter>07. MEStatic</Filter>
-    </ClCompile>
     <ClCompile Include="..\Private\SceneContext.cpp">
       <Filter>06. EditorUtil\SceneContext</Filter>
     </ClCompile>
@@ -261,6 +267,12 @@
     <ClCompile Include="..\Private\MEDebugRenderer.cpp">
       <Filter>11. MEDebugRenderer</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\MEStaticMeshActor.cpp">
+      <Filter>07. MeshActor\StaticMeshActor</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\MEInstancedMeshActor.cpp">
+      <Filter>07. MeshActor\InstancedMeshActor</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_BillboardParticle.hlsl">
@@ -282,6 +294,9 @@
       <Filter>95. ShaderFiles</Filter>
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxTex.hlsl">
+      <Filter>95. ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMeshInstance.hlsl">
       <Filter>95. ShaderFiles</Filter>
     </FxCompile>
   </ItemGroup>

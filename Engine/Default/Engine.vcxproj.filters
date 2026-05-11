@@ -246,16 +246,7 @@
     <ClInclude Include="..\public\UI_Base.h">
       <Filter>01.Utility\11. UI</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\UI_Animation.h">
-      <Filter>01.Utility\11. UI</Filter>
-    </ClInclude>
     <ClInclude Include="..\public\UI_Image.h">
-      <Filter>01.Utility\11. UI\Object</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\UI_Panel.h">
-      <Filter>01.Utility\11. UI\Object</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\UI_Button.h">
       <Filter>01.Utility\11. UI\Object</Filter>
     </ClInclude>
     <ClInclude Include="..\public\UI_Text.h">
@@ -275,7 +266,7 @@
     <ClInclude Include="..\Public\AnimNotify.h" />
     <ClInclude Include="..\Public\AnimNotifyState.h" />
     <ClInclude Include="..\Public\ThreadPool.h" />
-    <ClInclude Include="..\Public\VIBuffer_Mesh.h">
+    <ClInclude Include="..\Public\VIBuffer_MeshInstance.h">
       <Filter>01.Utility\04.Component\VIBuffer\Instance\Mesh</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Culling_Manager.h">
@@ -284,6 +275,9 @@
     <ClInclude Include="..\Public\VIBufferCom_ComputePointParticle.h">
       <Filter>01.Utility\04.Component\VIBuffer\Instance\Particle w. ComputeShader</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\UI_Animation.h" />
+    <ClInclude Include="..\public\UI_Button.h" />
+    <ClInclude Include="..\public\UI_Panel.h" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\public\Base.h">
@@ -799,9 +793,6 @@
     <ClCompile Include="..\private\UI_Base.cpp">
       <Filter>01.Utility\11. UI</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\UI_Animation.cpp">
-      <Filter>01.Utility\11. UI</Filter>
-    </ClCompile>
     <ClCompile Include="..\private\UI_Image.cpp">
       <Filter>01.Utility\11. UI\Object</Filter>
     </ClCompile>
@@ -835,7 +826,7 @@
     <ClCompile Include="..\Private\AnimNotify.cpp" />
     <ClCompile Include="..\Private\AnimNotifyState.cpp" />
     <ClCompile Include="..\Private\ThreadPool.cpp" />
-    <ClCompile Include="..\Private\VIBuffer_Mesh.cpp">
+    <ClCompile Include="..\Private\VIBuffer_MeshInstance.cpp">
       <Filter>01.Utility\04.Component\VIBuffer\Instance\Mesh</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\Culling_Manager.cpp">
@@ -844,6 +835,7 @@
     <ClCompile Include="..\Private\VIBufferCom_ComputePointParticle.cpp">
       <Filter>01.Utility\04.Component\VIBuffer\Instance\Particle w. ComputeShader</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\UI_Animation.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Bin\ShaderFiles\Engine_Shader_Defines.hlsli">
