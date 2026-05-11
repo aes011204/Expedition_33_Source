@@ -231,6 +231,12 @@
     <ClInclude Include="..\Public\Engine_Constants.h">
       <Filter>99. Defines</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\Event_Bus.h">
+      <Filter>97. Manager\Event</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Event_Struct.h">
+      <Filter>97. Manager\Event</Filter>
+   </ClInclude>
     <ClInclude Include="..\public\UI_Manager.h">
       <Filter>01.Utility\11. UI\Manager</Filter>
     </ClInclude>

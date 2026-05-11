@@ -9,15 +9,12 @@
 #include "Inspector.h"
 #include "Camera_Tool.h"
 #include "Profile_View.h"
-
+#include "Cinematic_Tool.h"
 //#include "BT_Tool.h"
 #include "Level_Tool.h"
-
 #include "BT_View.h"
-
 #include <filesystem>
 #include <shellapi.h>
-
 #include "Prefab_View.h"
 #include "Animation_View.h"
 
@@ -38,9 +35,8 @@ HRESULT Editor_Manager::Initialize()
     Add_Window(Console_View::Create());
     Add_Window(Camera_Tool::Create());
     Add_Window(Profile_View::Create());
-
+    Add_Window(Cinematic_Tool::Create());
     Add_Window(BT_View::Create());
-
     Add_Window(Prefab_View::Create());
     Add_Window(Animation_View::Create());
     Add_Window(Level_Tool::Create());

@@ -100,7 +100,7 @@ public:
 	bool Is_MouseLocked() const { return _isMouseLocked; }
 	bool Is_InputBlocked() const { return _isInputBlocked; }
 	void Set_InputBlocked(bool isBlocked) { _isInputBlocked = isBlocked; }
-
+    
 private:
 	KEY_STATE Get_State(KEY_TYPE eKey) const;
 	static bool Is_WindowOwnedByCurrentProcess(HWND hWnd);

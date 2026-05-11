@@ -1,5 +1,6 @@
 ﻿#include "Sky.h"
 #include "GameInstance.h"
+#include "Camera.h"
 
 IMPLEMENT_REFLECTION(Sky)
 {
@@ -36,6 +37,8 @@ HRESULT Sky::Initialize(void* pArg)
 	if (FAILED(Ready_Components()))
 		return E_FAIL;
 
+    _transformCom->Set_Scale(Vec3(100.f, 100.f, 100.f));
+
 	return S_OK;
 }
 
@@ -45,13 +48,11 @@ void Sky::Priority_Update(float fTimeDelta)
 
 void Sky::Update(float fTimeDelta)
 {
-	const Vec4* camPosition = GAME->Get_CamPosition();
-	_transformCom->Set_Position(Vec3(camPosition->x, camPosition->y, camPosition->z));
 }
 
 void Sky::Late_Update(float fTimeDelta)
 {
- 	GAME->Add_RenderGroup(RenderGroup::Priority, GetSharedPtr<GameObject>());
+	GAME->Add_RenderGroup(RenderGroup::Priority, GetSharedPtr<GameObject>());
 }
 
 HRESULT Sky::Render()
@@ -88,6 +89,16 @@ HRESULT Sky::Ready_Components()
 
 HRESULT Sky::Bind_ShaderResources()
 {
+    Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
+    if (activeCamera != nullptr)
+    {
+        Shared<TransformCom> cameraTransform = activeCamera->Get_Transform();
+        if (cameraTransform != nullptr)
+        {
+            _transformCom->Set_WorldPosition(cameraTransform->Get_WorldPosition());
+        }
+    }
+
 	if (FAILED(_transformCom->Bind_ShaderResource(_shader.get(), "g_WorldMatrix")))
 		return E_FAIL;
 

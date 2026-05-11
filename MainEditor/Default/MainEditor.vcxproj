@@ -189,6 +189,7 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     <ClCompile Include="..\private\AIController_Inspector.cpp" />
     <ClCompile Include="..\private\BT_View.cpp" />
     <ClCompile Include="..\private\Camera_Tool.cpp" />
+    <ClCompile Include="..\private\Cinematic_Tool.cpp" />
     <ClCompile Include="..\Private\Collider_Inspector.cpp" />
     <ClCompile Include="..\Private\CommandHistory.cpp" />
     <ClCompile Include="..\Private\Component_Inspector.cpp" />
