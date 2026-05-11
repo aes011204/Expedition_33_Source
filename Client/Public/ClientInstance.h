@@ -12,6 +12,7 @@ class Player;
 class TargetCamera;
 
 class ResourceLoader;
+class GameplayUI;
 class PersistentObjectManager;
 class GameDataTable;
 class Hero_Manager;
@@ -52,6 +53,10 @@ public: /* For.Hero Manager */
     void           Set_TargetCamera(const Shared<TargetCamera>& camera);
     void           Clear_Party();
 
+public: /* For.Gameplay UI */
+    HRESULT Initialize_GameplayUI(uint32 levelIndex);
+    void    Clear_GameplayUI();
+
 private:
 	HRESULT Ready_ResourceLoader();
     HRESULT Ready_GameDataTables();
@@ -68,8 +73,9 @@ private:
     Shared<ResourceLoader>  _resourceLoader;
     Unique<GameDataTable>   _gameDataTable;
 
+    Unique<GameplayUI>      _gamePlayUI;
     Unique<PersistentObjectManager> _persistentObjectManager;
-    Unique<Hero_Manager> _heroManager;
+    Unique<Hero_Manager>    _heroManager;
 
 public:
 	void Free() override;

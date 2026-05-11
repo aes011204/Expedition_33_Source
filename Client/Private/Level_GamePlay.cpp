@@ -88,8 +88,7 @@ void Level_GamePlay::BeginPlay()
 
 void Level_GamePlay::Update(float fTimeDelta)
 {
-    CLIENT->Update_HeroManager(fTimeDelta);
-    Update_Input_TestUI();
+    //Update_Input_TestUI();
 
     // 테스트
 #ifdef _DEBUG
@@ -146,14 +145,15 @@ HRESULT Level_GamePlay::Ready_Lights()
 
 HRESULT Level_GamePlay::Ready_Layer_UI(const wstring& strLayerTag)
 {
-    UI_RuntimeLoader::UI_LoadDesc desc{};
+    /*UI_RuntimeLoader::UI_LoadDesc desc{};
     desc.levelIndex = ETOI(LevelType::GamePlay);
     desc.jsonPath = Constants::UI::UI_Json_Path;
     desc.outUIByName = &_uiByName;
 
-    CHECK_FAILED(UI_RuntimeLoader::Load_Document(desc), E_FAIL);
+    CHECK_FAILED(UI_RuntimeLoader::Load_Document(desc), E_FAIL);*/
+    CHECK_FAILED(CLIENT->Initialize_GameplayUI(ETOI(LevelType::GamePlay)), E_FAIL);
 
-    return Bind_TestUI();
+    return S_OK;
 }
 
 HRESULT Level_GamePlay::Ready_Layer_Camera(const wstring& strLayerTag)
@@ -357,6 +357,8 @@ Shared<Level_GamePlay> Level_GamePlay::Create(const ComPtr<Device>& device, cons
 
 void Level_GamePlay::Free()
 {
+    CLIENT->Clear_GameplayUI();
+
     _removeExpButton.reset();
     _addExpButton.reset();
     _removeHpButton.reset();

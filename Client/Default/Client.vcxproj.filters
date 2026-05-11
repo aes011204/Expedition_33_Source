@@ -139,6 +139,9 @@
     <Filter Include="02.GameObject\Effect\ComputePointParticle">
       <UniqueIdentifier>{ceac3f7c-9e53-4638-aa47-729e8f089b5d}</UniqueIdentifier>
     </Filter>
+    <Filter Include="02.GameObject\InstancedMeshActor">
+      <UniqueIdentifier>{2e753ff9-c664-4b59-b631-8362dc321ba5}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -311,13 +314,17 @@
     </ClInclude>
     <ClInclude Include="..\Public\GameDataTable.h" />
     <ClInclude Include="..\Public\SkillTreeCom.h" />
-    <ClInclude Include="..\Public\Hero_Manager.h" />
-    <ClInclude Include="..\Public\ComputePointParticlePreview.h">
-      <Filter>02.GameObject\Effect\ComputePointParticle</Filter>
-    </ClInclude>
     <ClInclude Include="..\Public\PointParticlePreview.h">
       <Filter>02.GameObject\Effect\PointParticle</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\ComputePointParticlePreview.h">
+      <Filter>02.GameObject\Effect\ComputePointParticle</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\InstancedMeshActor.h">
+      <Filter>02.GameObject\InstancedMeshActor</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Hero_Manager.h" />
+    <ClInclude Include="..\Public\GameplayUI.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -475,13 +482,17 @@
     </ClCompile>
     <ClCompile Include="..\Private\GameDataTable.cpp" />
     <ClCompile Include="..\Private\SkillTreeCom.cpp" />
-    <ClCompile Include="..\Private\Hero_Manager.cpp" />
-    <ClCompile Include="..\Private\ComputePointParticlePreview.cpp">
-      <Filter>02.GameObject\Effect\ComputePointParticle</Filter>
-    </ClCompile>
     <ClCompile Include="..\Private\PointParticlePreview.cpp">
       <Filter>02.GameObject\Effect\PointParticle</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\ComputePointParticlePreview.cpp">
+      <Filter>02.GameObject\Effect\ComputePointParticle</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\InstancedMeshActor.cpp">
+      <Filter>02.GameObject\InstancedMeshActor</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Hero_Manager.cpp" />
+    <ClCompile Include="..\Private\GameplayUI.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">
@@ -513,6 +524,9 @@
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_PointParticle.hlsl">
       <Filter>97.ShaderFiles\Compute</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMeshInstance.hlsl">
+      <Filter>97.ShaderFiles</Filter>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>

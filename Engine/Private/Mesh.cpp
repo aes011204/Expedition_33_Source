@@ -14,6 +14,22 @@ Mesh::Mesh(const Mesh& prototype)
     _materialIndex = prototype._materialIndex;
 }
 
+HRESULT Mesh::RenderInstanced(Buffer* instanceVB, uint32 instanceStride, uint32 instanceCount)
+{
+    if (!instanceVB || instanceCount == 0)
+    {
+        return E_FAIL;
+    }
+
+    Bind_Resources();
+
+    const uint32 offset = 0;
+    _context->IASetVertexBuffers(1, 1, &instanceVB, &instanceStride, &offset);
+    _context->DrawIndexedInstanced(_numIndices, instanceCount, 0, 0, 0);
+
+    return S_OK;
+}
+
 void Mesh::Free()
 {
     VIBuffer::Free();

@@ -60,11 +60,20 @@ HRESULT Monster_Part::Render()
 
     for (uint32 i = 0; i < iNumMeshes; i++)
     {
-        _model->Bind_Material(_shader.get(), "g_DiffuseTexture", i, MaterialTextureSlot::BaseColor);
-        if(_model->Is_Skeletal())
-            _model->Bind_BoneMatrices(_shader.get(), "g_BoneMatrices", i);
+        const Shared<Material> material = _model->Get_Material(i);
+        if (material == nullptr)
+            continue;
 
-        if (FAILED(_shader->Begin(0)))
+        if (FAILED(_shader->Bind_MaterialTextures(*material)))
+            continue;
+
+        if (FAILED(_shader->Bind_CBufferData(material->Get_CB())))
+            return E_FAIL;
+
+        _model->Bind_BoneMatrices(_shader.get(), "g_BoneMatrices", i);
+
+        const uint32 passIndex = material->Get_PassIndex();
+        if (FAILED(_shader->Begin(passIndex)))
             return E_FAIL;
 
         _model->Render(i);

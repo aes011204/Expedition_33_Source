@@ -176,10 +176,12 @@
     <ClInclude Include="..\Public\CombatStatCom.h" />
     <ClInclude Include="..\Public\ComputePointParticlePreview.h" />
     <ClInclude Include="..\Public\GameDataTable.h" />
+    <ClInclude Include="..\Public\GameplayUI.h" />
     <ClInclude Include="..\Public\Hair_Player.h" />
     <ClInclude Include="..\Public\Head_Player.h" />
     <ClInclude Include="..\Public\Hero_Manager.h" />
     <ClInclude Include="..\Public\InputCom.h" />
+    <ClInclude Include="..\Public\InstancedMeshActor.h" />
     <ClInclude Include="..\Public\Level_MapTest.h" />
     <ClInclude Include="..\Public\Level_Stage01.h" />
     <ClInclude Include="..\Public\MapLoader.h" />
@@ -238,10 +240,12 @@
     <ClCompile Include="..\Private\CombatStatCom.cpp" />
     <ClCompile Include="..\Private\ComputePointParticlePreview.cpp" />
     <ClCompile Include="..\Private\GameDataTable.cpp" />
+    <ClCompile Include="..\Private\GameplayUI.cpp" />
     <ClCompile Include="..\Private\Hair_Player.cpp" />
     <ClCompile Include="..\Private\Head_Player.cpp" />
     <ClCompile Include="..\Private\Hero_Manager.cpp" />
     <ClCompile Include="..\Private\InputCom.cpp" />
+    <ClCompile Include="..\Private\InstancedMeshActor.cpp" />
     <ClCompile Include="..\Private\Level_MapTest.cpp" />
     <ClCompile Include="..\Private\Level_Stage01.cpp" />
     <ClCompile Include="..\Private\MapLoader.cpp" />
@@ -296,6 +300,7 @@
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxCube.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMesh.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMeshInstance.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxNorTex.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxTex.hlsl" />
   </ItemGroup>

@@ -48,8 +48,12 @@ public:
 public:
     MaterialShaderTemplate      Get_TemplateId() const { return _templateId; }
     const MaterialRenderState&  Get_RenderState() const { return _renderState; }
-    const MaterialCB&           Get_CB() const { return _cb; }
-    MaterialCB&                 Get_CB() { return _cb; }
+    const MaterialCB&           Get_CB() const  {
+        return _cb;
+    }
+    MaterialCB&                 Get_CB() {
+        return _cb;
+    }
     uint32                      Get_PassIndex();
 
     void Set_TemplateId(MaterialShaderTemplate templateId) { _templateId = templateId; }

@@ -4,6 +4,7 @@
 
 #include "MECamera.h"
 #include "SceneContext.h"
+#include "CmdTransformObject.h"
 
 PanelViewport::PanelViewport(Shared<MECamera> camera, Shared<RenderTarget> rt, SceneContext* ctx)
     : MEWindow{ L"Viewport" }, _camera{ camera }, _rt{ rt }, _ctx{ ctx }
@@ -151,6 +152,14 @@ void PanelViewport::Render()
                     }
                 }
 
+                bool gizmoUsing = ImGuizmo::IsUsing();
+                if (gizmoUsing && !_gizmoWasUsing)
+                {
+                    _gizmoPrevPos = _ctx->_selected->_position;
+                    _gizmoPrevRot = _ctx->_selected->_rotation;
+                    _gizmoPrevScale = _ctx->_selected->_scale;
+                }
+
                 const bool manipulated = ImGuizmo::Manipulate(view, proj, _gizmoOp, _gizmoMode, mat,
                     nullptr, ctrlHeld ? snapValues : nullptr);
                 if (manipulated)
@@ -161,6 +170,16 @@ void PanelViewport::Render()
                         _ctx->_selected->_rotation,
                         _ctx->_selected->_position);
                 }
+
+                if (!gizmoUsing && _gizmoWasUsing)
+                {
+                    _ctx->PushCommand(CmdTransformObject::Create(
+                        _ctx->_selected,
+                        _gizmoPrevPos, _gizmoPrevRot, _gizmoPrevScale,
+                        _ctx->_selected->_position, _ctx->_selected->_rotation, _ctx->_selected->_scale));
+                }
+
+                _gizmoWasUsing = gizmoUsing;
             }
         }
 
