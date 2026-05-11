@@ -94,6 +94,41 @@ HRESULT GameDataTable::Load_ExpLevel(const wstring& jsonRootPath)
     return S_OK;
 }
 
+HRESULT GameDataTable::Load_SkillData(const wstring& jsonRootPath)
+{
+    const fs::path tablePath = fs::path(jsonRootPath) / L"DT_Skill.json";
+
+    json root = {};
+
+    try
+    {
+        ifstream file(tablePath);
+
+        if(!file.is_open())
+        {
+            LOG_ERROR("[GameDataTable] failed to open skill table : {}", String::ToString(tablePath.wstring()));
+            return E_FAIL;
+        }
+
+        file >> root;
+        
+    }
+    catch (const std::exception& e)
+    {
+        LOG_ERROR("[GameDataTable] failed to parse skill table : {} ({})", String::ToString(tablePath.wstring()), e.what());
+        return E_FAIL;
+    }
+
+    if(!root.contains("DT_Skill") || !root["DT_Skill"].is_array())
+    {
+        LOG_ERROR("[GameDataTable] DT_Skill array not found: {}",String::ToString(tablePath.wstring()));
+        return E_FAIL;
+    }
+
+
+
+}
+
 wstring GameDataTable::Get_DefaultJsonRootPath() const
 {
     const wstring assetRoot = GAME->Get_AssetRoot();
