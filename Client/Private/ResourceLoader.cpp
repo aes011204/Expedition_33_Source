@@ -607,7 +607,8 @@ HRESULT ResourceLoader::Load_Shaders(const json& JsonData)
         }
 
         const FInputLayoutInfo InputLayout = Get_InputLayout(strInputLayout);
-        Shared<ShaderCom> pShader = ShaderCom::Create(_device, _context, resolvedPath.c_str(), InputLayout.pElements, InputLayout.iNumElements);
+        Shared<ShaderCom> pShader = ShaderCom::Create(
+            _device, _context, resolvedPath.c_str(), InputLayout.pElements, InputLayout.iNumElements, InputLayout.eShaderType);
         if (nullptr == pShader)
         {
             LOG_WARN("Skipping Shader prototype registration. id='{}', path='{}', type='{}'", strId, strPath, strInputLayout);
