@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "ModelCom.h"
 #include "ShaderCom.h"
@@ -22,6 +22,8 @@ public:
 	HRESULT Add_Prototype(uint32 levelIndex, const wstring& prototypeTag, Shared<Base> prototype);
 	Shared<Base> Clone_Prototype(Prototype prototype, uint32 levelIndex, const wstring& prototypeTag, void* arg);
 	HRESULT Clear_Prototypes(uint32 levelIndex);
+
+    bool Has_Prototype(uint32 levelIndex, const wstring& prototypeTag) const;
 
 private:
 	vector<map<const wstring, Shared<Base>>> _prototypes;
