@@ -26,8 +26,9 @@ public:
 private:
     HRESULT Load_ExpLevel(const wstring& jsonRootPath);
 
+private:
     wstring Get_DefaultJsonRootPath() const;
-    uint32 Get_FallbackNextExp(uint32 level) const;
+    uint32  Get_FallbackNextExp(uint32 level) const;
 
 private:
     // index == level. 0번은 사용하지 않는다.

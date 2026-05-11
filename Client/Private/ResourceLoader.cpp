@@ -519,26 +519,28 @@ HRESULT ResourceLoader::Build_LevelJobs(LevelType levelType, vector<FLoadJob>& o
 ResourceLoader::FInputLayoutInfo ResourceLoader::Get_InputLayout(const string& strName)
 {
     if ("VTXNORTEX" == strName || "NorTex" == strName || "VtxNorTex" == strName)
-        return { VTXNORTEX::Elements, VTXNORTEX::numElements };
+        return { VTXNORTEX::Elements, VTXNORTEX::numElements, ShaderType::VtxNorTex };
 
     if ("VTXMESH" == strName || "Mesh" == strName || "VtxMesh" == strName)
-        return { VTXMESH::Elements, VTXMESH::numElements };
+        return { VTXMESH::Elements, VTXMESH::numElements, ShaderType::VtxMesh };
 
     if ("VTXANIMMESH" == strName || "AnimMesh" == strName || "VtxAnimMesh" == strName)
-        return { VTXANIMMESH::Elements, VTXANIMMESH::numElements };
+        return { VTXANIMMESH::Elements, VTXANIMMESH::numElements, ShaderType::VtxAnimMesh };
 
     if ("VTXCUBE" == strName || "Cube" == strName || "VtxCube" == strName)
-        return { VTXCUBE::Elements, VTXCUBE::numElements };
+        return { VTXCUBE::Elements, VTXCUBE::numElements, ShaderType::VtxCube };
 
     // Particle instance용 InputLayout
     if ("ParticleInstance" == strName || "PARTICLEINSTANCE" == strName)
-        return { ParticleInstanceLayout::Elements, ParticleInstanceLayout::numElements };
+        return { ParticleInstanceLayout::Elements, ParticleInstanceLayout::numElements, ShaderType::BillboardParticle };
 
     // Mesh Instance
     if("VTXMESHINST" == strName)
         return { VtxMeshInstanceLayout::Elements, VtxMeshInstanceLayout::numElements };
 
-    return { VTXTEX::Elements, VTXTEX::numElements };
+    //return { VTXTEX::Elements, VTXTEX::numElements };
+
+    return { VTXTEX::Elements, VTXTEX::numElements, ShaderType::VtxTex };
 }
 
 HRESULT ResourceLoader::Load_Textures(const json& JsonData)
@@ -611,7 +613,8 @@ HRESULT ResourceLoader::Load_Shaders(const json& JsonData)
         }
 
         const FInputLayoutInfo InputLayout = Get_InputLayout(strInputLayout);
-        Shared<ShaderCom> pShader = ShaderCom::Create(_device, _context, resolvedPath.c_str(), InputLayout.pElements, InputLayout.iNumElements);
+        Shared<ShaderCom> pShader = ShaderCom::Create(
+            _device, _context, resolvedPath.c_str(), InputLayout.pElements, InputLayout.iNumElements, InputLayout.eShaderType);
         if (nullptr == pShader)
         {
             LOG_WARN("Skipping Shader prototype registration. id='{}', path='{}', type='{}'", strId, strPath, strInputLayout);
@@ -658,7 +661,7 @@ HRESULT ResourceLoader::Register_LoadJob(const FLoadJob& LoadJob)
     case ELoadJobType::Shader:
     {
         const FInputLayoutInfo InputLayout = Get_InputLayout(LoadJob.strInputLayout);
-        Shared<ShaderCom> pShader = ShaderCom::Create(_device, _context, LoadJob.strPath.c_str(), InputLayout.pElements, InputLayout.iNumElements);
+        Shared<ShaderCom> pShader = ShaderCom::Create(_device, _context, LoadJob.strPath.c_str(), InputLayout.pElements, InputLayout.iNumElements, InputLayout.eShaderType);
         if (nullptr == pShader)
         {
             LOG_WARN(

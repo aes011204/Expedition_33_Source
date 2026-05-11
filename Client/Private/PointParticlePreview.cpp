@@ -107,14 +107,14 @@ HRESULT PointParticlePreview::Bind_ShaderResources()
 PointParticleDesc PointParticlePreview::Make_PointParticleDesc() const
 {
     PointParticleDesc desc{};
-    desc.instanceCount = 64;
+    desc.instanceCount = max(1u, _desc.instanceCount);
     desc.center = _desc.center;
     desc.range = Vec3{ 2.f, 2.f, 2.f };
-    desc.scale = Vec2{ 0.15f, 0.35f };
-    desc.pivot = _desc.center;
-    desc.speed = Vec2{ 0.5f, 1.5f };
-    desc.lifeTime = Vec2{ 1.f, 2.f };
-    desc.loop = true;
+    desc.scale = _desc.scale;
+    desc.pivot = _desc.pivot;
+    desc.speed = _desc.speed;
+    desc.lifeTime = _desc.lifeTime;
+    desc.loop = _desc.loop;
     desc.drawMode = _desc.drawMode;
 
     return desc;

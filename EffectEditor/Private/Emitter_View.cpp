@@ -72,6 +72,28 @@ AuthoringModule* Emitter_View::Find_Module(uint32 emitterId, uint32 moduleId)
     return nullptr;
 }
 
+AuthoringEmitter* Emitter_View::Get_SelectedOrFirstEmitter()
+{
+    Clamp_Selection();
+
+    if (_selectedEmitterIndex.has_value())
+        return &_emitters[_selectedEmitterIndex.value()];
+
+    if (!_emitters.empty())
+        return &_emitters.front();
+
+    return nullptr;
+}
+
+void Emitter_View::Clear_PreviewDirty(uint32 emitterId)
+{
+    AuthoringEmitter* emitter = Find_Emitter(emitterId);
+    if (nullptr == emitter)
+        return;
+
+    emitter->previewDirty = false;
+}
+
 uint32 Emitter_View::Issue_AuthoringId()
 {
     return _nextAuthoringId++;
@@ -331,6 +353,11 @@ void Emitter_View::Draw_EmitterColumn(size_t emitterIndex, AuthoringEmitter& emi
     ImGui::PushTextWrapPos(headerCursor.x + kEmitterColumnWidth - headerPaddingX);
     ImGui::BeginGroup();
     ImGui::TextUnformatted(emitter.name.c_str());
+    if (emitter.previewDirty)
+    {
+        ImGui::SameLine();
+        ImGui::TextDisabled("Preview Dirty");
+    }
     ImGui::EndGroup();
     ImGui::PopTextWrapPos();
     ImGui::PopStyleColor();

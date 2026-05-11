@@ -1,4 +1,13 @@
 #include "Engine_Shader_Defines.hlsli"
+#include "Engine_Shader_RenderState.hlsl"
+#include "Engine_Shader_Passes.hlsl"
+#include "Engine_Shader_Material.hlsl"
+#include "Engine_Shader_Samplers.hlsl"
+#include "Engine_Shader_Utils.hlsl"
+
+//==================================================
+// MATRIX
+//==================================================
 float4x4 g_WorldMatrix, g_ViewMatrix, g_ProjMatrix;
 
 cbuffer BoneTransform : register(b1)
@@ -6,26 +15,12 @@ cbuffer BoneTransform : register(b1)
     matrix g_BoneMatrices[950];
 }
 
-Texture2D g_DiffuseTexture;
-Texture2D g_NormalTexture;
-Texture2D g_OpacityTexture;
-Texture2D g_EmissiveTexture;
-
 float g_fFar = 0.f;
 float g_fLightFar = 0.f;
 
-float2 g_UVScale = float2(1.f, 1.f);
-float2 g_UVOffset = float2(0.f, 0.f);
-float  g_UVRotation = 0.f;
-int    g_UseOpacityMask = 0;
-
-SamplerState DefaultSampler
-{
-    Filter = MIN_MAG_MIP_LINEAR;
-    AddressU = Wrap;
-    AddressV = Wrap;
-};
-
+//==================================================
+// VS
+//==================================================
 struct VS_IN
 {
     float3  vPosition : POSITION;
@@ -48,7 +43,7 @@ struct VS_OUT
     float4  vProjPos : TEXCOORD2;
 };
 
-VS_OUT VS_MAIN(VS_IN In)
+VS_OUT VS_Main(VS_IN In)
 {
     VS_OUT Out;
 
@@ -56,7 +51,7 @@ VS_OUT VS_MAIN(VS_IN In)
 
     float fWeightW = 1.f - (In.vBlendWeight.x + In.vBlendWeight.y + In.vBlendWeight.z);
 
-    matrix BoneMatrix = g_BoneMatrices[In.vBlendIndex.x] * In.vBlendWeight.x +
+    float4x4 BoneMatrix = g_BoneMatrices[In.vBlendIndex.x] * In.vBlendWeight.x +
         g_BoneMatrices[In.vBlendIndex.y] * In.vBlendWeight.y +
         g_BoneMatrices[In.vBlendIndex.z] * In.vBlendWeight.z +
         g_BoneMatrices[In.vBlendIndex.w] * fWeightW;
@@ -82,20 +77,9 @@ VS_OUT VS_MAIN(VS_IN In)
     return Out;
 }
 
-float2 ApplyUVTransform(float2 uv, float2 scale, float2 offset, float rotation)
-{
-    float2 scaled = uv * scale;
-
-    float s = sin(rotation);
-    float c = cos(rotation);
-
-    float2 rotated;
-    rotated.x = scaled.x * c - scaled.y * s;
-    rotated.y = scaled.x * s + scaled.y * c;
-
-    return rotated + offset;
-}
-
+//==================================================
+// PS
+//==================================================
 struct PS_IN
 {
     float4 vPosition : SV_POSITION;
@@ -114,28 +98,47 @@ struct PS_OUT
     vector vDepth : SV_TARGET2;
 };
 
-PS_OUT PS_MAIN(PS_IN In)
+PS_OUT PS_Opaque(PS_IN In)
 {
     PS_OUT Out;
 
-    float2 finalUV = ApplyUVTransform(In.vTexcoord, g_UVScale, g_UVOffset, g_UVRotation);
+    float2 finalUV = ApplyUVTransform(In.vTexcoord);
 
-    float4 baseColor = g_DiffuseTexture.Sample(DefaultSampler, finalUV);
+    float4 baseColor = SampleBaseColor(finalUV);
 
-    float opacity = baseColor.a;
-    if (g_UseOpacityMask != 0)
-    {
-        float opacityFromMask = g_OpacityTexture.Sample(DefaultSampler, finalUV).r;
-        opacity = opacityFromMask;
-    }
+    float3 worldNormal = ComputeWorldNormal(In.vNormal.xyz, In.vTangent, In.vBinormal, finalUV);
 
-    if (opacity < 0.3f)
-        discard;
-
-    float3 worldNormal = normalize(In.vNormal.xyz);
+    float3 orm = SampleOrm(finalUV);
+    float3 emissive = SampleEmissive(finalUV);
+    baseColor.rgb = baseColor.rgb * orm.r + emissive;
 
     Out.vDiffuse = baseColor;
-    Out.vNormal = float4(worldNormal * 0.5f + 0.5f, 1.f);
+    Out.vNormal = float4(EncodeNormal(worldNormal), 1.f);
+    Out.vDepth = float4(In.vProjPos.z / In.vProjPos.w, In.vProjPos.w / g_fFar, 0.f, 1.f);
+
+    return Out;
+}
+
+PS_OUT PS_Mask(PS_IN In)
+{
+    PS_OUT Out;
+
+    float2 finalUV = ApplyUVTransform(In.vTexcoord);
+
+    float4 baseColor = SampleBaseColor(finalUV);
+
+    float mask = GetOpacityMaskForMasked(finalUV, baseColor);
+    if (mask < g_OpacityMaskClipValue)
+        discard;
+
+    float3 worldNormal = ComputeWorldNormal(In.vNormal.xyz, In.vTangent, In.vBinormal, finalUV);
+
+    float3 orm = SampleOrm(finalUV);
+    float3 emissive = SampleEmissive(finalUV);
+    baseColor.rgb = baseColor.rgb * orm.r + emissive;
+
+    Out.vDiffuse = baseColor;
+    Out.vNormal = float4(EncodeNormal(worldNormal), 1.f);
     Out.vDepth = float4(In.vProjPos.z / In.vProjPos.w, In.vProjPos.w / g_fFar, 0.f, 1.f);
 
     return Out;
@@ -146,7 +149,7 @@ struct PS_OUT_SHADOW
     vector vLightDepth : SV_TARGET0;
 };
 
-PS_OUT_SHADOW PS_MAIN_SHADOW(PS_IN In)
+PS_OUT_SHADOW PS_Shadow(PS_IN In)
 {
     PS_OUT_SHADOW Out;
 
@@ -156,25 +159,9 @@ PS_OUT_SHADOW PS_MAIN_SHADOW(PS_IN In)
 
 technique11 DefaultTechnique
 {
-    pass DefaultPass
-    {
-        SetRasterizerState(RS_Default);
-        SetDepthStencilState(DSS_Default, 0);
-        SetBlendState(BS_Default, float4(0.f, 0.f, 0.f, 0.f), 0xffffffff);
-
-        VertexShader = compile vs_5_0 VS_MAIN();
-        GeometryShader = NULL;
-        PixelShader = compile ps_5_0 PS_MAIN();
-    }
-
-    pass ShadowPass
-    {
-        SetRasterizerState(RS_Default);
-        SetDepthStencilState(DSS_Default, 0);
-        SetBlendState(BS_Default, float4(0.f, 0.f, 0.f, 0.f), 0xffffffff);
-
-        VertexShader = compile vs_5_0 VS_MAIN();
-        GeometryShader = NULL;
-        PixelShader = compile ps_5_0 PS_MAIN_SHADOW();
-    }
-}
+    PASS_RS_DS_BS_VP(OpaquePass,         RS_Default,  DSS_Default, BS_Default, VS_Main, PS_Opaque)      // 0
+    PASS_RS_DS_BS_VP(MaskedPass,         RS_Default,  DSS_Default, BS_Default, VS_Main, PS_Mask)        // 1
+    PASS_RS_DS_BS_VP(OpaqueTwoSidedPass, RS_CullNone, DSS_Default, BS_Default, VS_Main, PS_Opaque)      // 2
+    PASS_RS_DS_BS_VP(MaskedTwoSidedPass, RS_CullNone, DSS_Default, BS_Default, VS_Main, PS_Mask)        // 3
+    PASS_RS_DS_BS_VP(ShadowPass,         RS_Default,  DSS_Default, BS_Default, VS_Main, PS_Shadow)      // 4
+}   

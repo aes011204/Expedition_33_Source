@@ -47,7 +47,7 @@ HRESULT MapEditorApp::Initialize()
 
     _meshShader = ShaderCom::Create(_device, _context,
         L"../ShaderFiles/Shader_VtxMesh.hlsl",
-        VTXMESH::Elements, VTXMESH::numElements);
+        VTXMESH::Elements, VTXMESH::numElements, ShaderType::VtxMesh);
     CHECK_NULL(_meshShader, E_FAIL);
 
     _modelManager = MEModelManager::Create();
@@ -66,7 +66,7 @@ HRESULT MapEditorApp::Initialize()
 
     _deferredShader = ShaderCom::Create(_device, _context,
         L"../ShaderFiles/Shader_Deferred.hlsl",
-        VTXTEX::Elements, VTXTEX::numElements);
+        VTXTEX::Elements, VTXTEX::numElements, ShaderType::VtxTex);
     CHECK_NULL(_deferredShader, E_FAIL);
 
     _rectBuffer = VIBuffer_Rect::Create(_device, _context);

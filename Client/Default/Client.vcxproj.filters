@@ -130,6 +130,9 @@
     <Filter Include="02.GameObject\Player\PlayerStateMachine\State">
       <UniqueIdentifier>{2ff895e8-c801-4ce1-8657-6b74912325b5}</UniqueIdentifier>
     </Filter>
+    <Filter Include="02.GameObject\Camera\Cinematic">
+      <UniqueIdentifier>{9da3a249-fde0-4202-8400-e101dd8261f9}</UniqueIdentifier>
+    </Filter>
     <Filter Include="02.GameObject\Effect\PointParticle">
       <UniqueIdentifier>{eed9e460-dd4d-43e8-ab48-b224711cbd67}</UniqueIdentifier>
     </Filter>
@@ -200,6 +203,9 @@
     </ClInclude>
     <ClInclude Include="..\Public\Sky.h">
       <Filter>02.GameObject\Sky</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\PointParticlePreview.h">
+      <Filter>02.GameObject\Effect</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\CombatStatCom.h">
       <Filter>03. Component\CombatStat</Filter>
@@ -288,13 +294,26 @@
     <ClInclude Include="..\Public\Player_Idle.h">
       <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\AN_Test.h" />
-    <ClInclude Include="..\Public\ANS_Test.h" />
     <ClInclude Include="..\Public\Player_Move.h">
       <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Player_Jump.h">
       <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Cinematic_Player.h">
+      <Filter>02.GameObject\Camera\Cinematic</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Cinematic_SequenceIO.h">
+      <Filter>02.GameObject\Camera\Cinematic</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Cinematic_Types.h">
+      <Filter>02.GameObject\Camera\Cinematic</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Cinematic_Utils.h">
+      <Filter>02.GameObject\Camera\Cinematic</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\CinematicSequencerAdapter.h">
+      <Filter>02.GameObject\Camera\Cinematic</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\GameDataTable.h" />
     <ClInclude Include="..\Public\SkillTreeCom.h" />
@@ -307,6 +326,7 @@
     <ClInclude Include="..\Public\InstancedMeshActor.h">
       <Filter>02.GameObject\InstancedMeshActor</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\Hero_Manager.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -353,6 +373,9 @@
     </ClCompile>
     <ClCompile Include="..\Private\Sky.cpp">
       <Filter>02.GameObject\Sky</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\PointParticlePreview.cpp">
+      <Filter>02.GameObject\Effect</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\ClientInstance.cpp">
       <Filter>00.Core</Filter>
@@ -444,13 +467,23 @@
     <ClCompile Include="..\Private\Player_Idle.cpp">
       <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\AN_Test.cpp" />
-    <ClCompile Include="..\Private\ANS_Test.cpp" />
     <ClCompile Include="..\Private\Player_Move.cpp">
       <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\Player_Jump.cpp">
       <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\CameraPresetIO.cpp">
+      <Filter>02.GameObject\Camera</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Cinematic_Player.cpp">
+      <Filter>02.GameObject\Camera\Cinematic</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Cinematic_SequenceIO.cpp">
+      <Filter>02.GameObject\Camera\Cinematic</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\CinematicSequencerAdapter.cpp">
+      <Filter>02.GameObject\Camera\Cinematic</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\GameDataTable.cpp" />
     <ClCompile Include="..\Private\SkillTreeCom.cpp" />
@@ -463,6 +496,7 @@
     <ClCompile Include="..\Private\InstancedMeshActor.cpp">
       <Filter>02.GameObject\InstancedMeshActor</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\Hero_Manager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">
@@ -498,9 +532,6 @@
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_BufferSmoke.hlsl">
-      <Filter>97.ShaderFiles\Compute</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_InstancingSmoke.hlsl">
       <Filter>97.ShaderFiles\Compute</Filter>
     </FxCompile>
   </ItemGroup>

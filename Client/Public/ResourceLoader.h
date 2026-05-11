@@ -53,6 +53,7 @@ public:
     {
         const D3D11_INPUT_ELEMENT_DESC* pElements = nullptr;
         uint32 iNumElements = {};
+        ShaderType eShaderType = ShaderType::VtxTex;
     };
 
 public:
@@ -101,7 +102,6 @@ private:
     static uint32  Get_LevelIndex_FromString(const string& strLevel);
     static wstring Get_DefaultJsonRootPath();
     static wstring Resolve_RuntimePath(const wstring& path);
-
 
 private:
     ComPtr<Device> _device = { nullptr };

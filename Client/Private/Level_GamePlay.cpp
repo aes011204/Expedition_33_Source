@@ -1,12 +1,8 @@
 ﻿#include "Level_GamePlay.h"
 #include "GameInstance.h"
 #include "ClientInstance.h"
-//#include "FreeCamera.h"
-//#include "TargetCamera.h"
 #include "PointParticlePreview.h"
 #include "Spawn_Prefab.h"
-
-
 //#include "MapLoader.h"
 #include "TargetCamera.h"
 #include "MapLoader.h"
@@ -94,6 +90,7 @@ void Level_GamePlay::BeginPlay()
 
 void Level_GamePlay::Update(float fTimeDelta)
 {
+    CLIENT->Update_HeroManager(fTimeDelta);
     Update_Input_TestUI();
 
     // 테스트
@@ -248,33 +245,42 @@ void Level_GamePlay::ReSize_TestGauge(const Shared<UI_Base>& gauge, const Vec2& 
 
 HRESULT Level_GamePlay::Ready_Layer_Camera(const wstring& strLayerTag)
 {
-    TargetCamera::TARGETCAMERA_DESC		TargetCameraDesc{};
 
+    TargetCamera::TARGETCAMERA_DESC TargetCameraDesc{};
     TargetCameraDesc.speedPerSec = 10.f;
     TargetCameraDesc.degreePerSec = 180.f;
     TargetCameraDesc.eye = XMFLOAT4(0.f, 20.f, -7.f, 1.f);
     TargetCameraDesc.at = XMFLOAT4(0.f, 0.f, 0.f, 1.f);
     TargetCameraDesc.fovy = XMConvertToRadians(60.f);
-    TargetCameraDesc.pitch = 0.f;
-    TargetCameraDesc.yaw = 0.f;
     TargetCameraDesc.nearPlane = 0.1f;
     TargetCameraDesc.farPlane = 500.f;
     TargetCameraDesc.mouseSensor = 0.06f;
-    TargetCameraDesc.followSpeed = 8.f;
-    TargetCameraDesc.offset = Vec3 {0.5f, 1.f, 0.f};
+    TargetCameraDesc.followSpeed = 4.f;
     TargetCameraDesc.distance = 1.8f;
     TargetCameraDesc.sideOffset = 0.f;
     TargetCameraDesc.heightOffset = 0.5f;
     TargetCameraDesc.aimOffset = 0.5f;
-    TargetCameraDesc.pitchLookScale = 0.5;
+    TargetCameraDesc.pitchLookScale = 0.5f;
     TargetCameraDesc.pitchMin = -70.f;
     TargetCameraDesc.pitchMax = 80.f;
     TargetCameraDesc.lookHeight = 0.8f;
-    TargetCameraDesc.pivotHeight =0.3f;
+    TargetCameraDesc.pivotHeight = 0.3f;
+    TargetCameraDesc.mouseSensitivity = 0.5f;
+    TargetCameraDesc.yawOffset = 0.f;
+    TargetCameraDesc.pitchOffset = 0.f;
 
-    if (FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_TargetCamera_GamePlay"),
-        ETOI(LevelType::GamePlay), strLayerTag, &TargetCameraDesc)))
-        return E_FAIL;
+    Shared<GameObject> cameraObject = nullptr;
+
+    CHECK_FAILED(GAME->Add_GameObject(
+        ETOI(LevelType::GamePlay),
+        TEXT("GameObject_TargetCamera_GamePlay"),
+        ETOI(LevelType::GamePlay),
+        strLayerTag,
+        cameraObject,
+        &TargetCameraDesc), E_FAIL);
+
+    auto targetCamera = dynamic_pointer_cast<TargetCamera>(cameraObject);
+    CLIENT->Set_TargetCamera(targetCamera);
 
 	return S_OK;
 }
@@ -315,21 +321,22 @@ HRESULT Level_GamePlay::Ready_Layer_Monster(const wstring& strLayerTag)
 
     CHECK_NULL(monster, E_FAIL);
     return S_OK;
-    return S_OK;
 }
 
 HRESULT Level_GamePlay::Ready_Layer_Player(const wstring& strLayerTag)
 {
-    auto player = Spawn_Prefab::Prefab("TestPlayer")
+    /*auto player = Spawn_Prefab::Prefab("TestPlayer")
         .AtLevel(ETOI(LevelType::GamePlay))
         .InLayer(strLayerTag)
         .Spawn();
 
     auto tr = player->Get_Transform();
     if (tr)
-        tr->Set_Position(Vec3(10.f, 5.f, 10.f));
+        tr->Set_Position(Vec3(10.f, 5.f, 10.f));*/
 
-    return S_OK;
+    HRESULT hr = CLIENT->Initialize_Hero(ETOI(LevelType::GamePlay), strLayerTag);
+
+    return hr;
 }
 
 //HRESULT Level_GamePlay::Ready_Layer_MapStaticMesh(const wstring& strLayerTag)

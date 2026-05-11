@@ -82,6 +82,7 @@ public: //## Behavior::RuntimeControl
 
     void Request_FrameStep();
     bool Consume_FrameStep();
+    void Request_RestartPreview();
 
 public: //## Behavior::Window
     void Request_WindowFocus(EditorViewportTarget target);

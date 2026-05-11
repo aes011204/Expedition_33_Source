@@ -29,12 +29,15 @@ public:
 	virtual HRESULT Render() override;
 
 public:
+    void            Update_TransformMatrices();
+
+public:
     int             Get_MoveSpeed() {return _moveSpeed;}
     void            Set_MoveSpeed(int moveSpeed) {_moveSpeed = moveSpeed;}
 
 private:
     bool    _lock = false;
-    int   _moveSpeed = 0;
+    int     _moveSpeed = 0;
 
 public:
 	static Shared<FreeCamera> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

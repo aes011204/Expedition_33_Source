@@ -237,6 +237,12 @@
     <ClInclude Include="..\Public\Engine_Constants.h">
       <Filter>99. Defines</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\Event_Bus.h">
+      <Filter>97. Manager\Event</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Event_Struct.h">
+      <Filter>97. Manager\Event</Filter>
+    </ClInclude>
     <ClInclude Include="..\public\UI_Manager.h">
       <Filter>01.Utility\11. UI\Manager</Filter>
     </ClInclude>
@@ -275,6 +281,8 @@
     <ClInclude Include="..\Public\VIBufferCom_ComputePointParticle.h">
       <Filter>01.Utility\04.Component\VIBuffer\Instance\Particle w. ComputeShader</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\Material_Define.h" />
+    <ClInclude Include="..\Public\ShaderPassFinder.h" />
     <ClInclude Include="..\Public\UI_Animation.h" />
     <ClInclude Include="..\public\UI_Button.h" />
     <ClInclude Include="..\public\UI_Panel.h" />
@@ -784,8 +792,6 @@
     <ClCompile Include="..\Private\Picking.cpp" />
     <ClCompile Include="..\private\UI_Base.cpp" />
     <ClCompile Include="..\private\UI_Image.cpp" />
-    <ClCompile Include="..\private\UI_Panel.cpp" />
-    <ClCompile Include="..\private\UI_Button.cpp" />
     <ClCompile Include="..\private\UI_Manager.cpp" />
     <ClCompile Include="..\private\UI_Text.cpp" />
     <ClCompile Include="..\private\UI_Transform.cpp" />
@@ -836,9 +842,29 @@
       <Filter>01.Utility\04.Component\VIBuffer\Instance\Particle w. ComputeShader</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\UI_Animation.cpp" />
+    <ClCompile Include="..\private\UI_Button.cpp" />
+    <ClCompile Include="..\private\UI_Panel.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Bin\ShaderFiles\Engine_Shader_Defines.hlsli">
+      <Filter>02.ShaderFiles</Filter>
+    </None>
+    <None Include="..\Bin\ShaderFiles\Engine_Shader_ConstantBuffer.hlsl">
+      <Filter>02.ShaderFiles</Filter>
+    </None>
+    <None Include="..\Bin\ShaderFiles\Engine_Shader_Material.hlsl">
+      <Filter>02.ShaderFiles</Filter>
+    </None>
+    <None Include="..\Bin\ShaderFiles\Engine_Shader_Passes.hlsl">
+      <Filter>02.ShaderFiles</Filter>
+    </None>
+    <None Include="..\Bin\ShaderFiles\Engine_Shader_RenderState.hlsl">
+      <Filter>02.ShaderFiles</Filter>
+    </None>
+    <None Include="..\Bin\ShaderFiles\Engine_Shader_Samplers.hlsl">
+      <Filter>02.ShaderFiles</Filter>
+    </None>
+    <None Include="..\Bin\ShaderFiles\Engine_Shader_Utils.hlsl">
       <Filter>02.ShaderFiles</Filter>
     </None>
   </ItemGroup>

@@ -118,6 +118,8 @@ HRESULT MainEditorApp::Render()
     {
         Profile_View::Scope profileScope("Game::Render");
 
+        GAME->Bind_BackBuffer();
+
         const Vec4 clearColor = Vec4(0.f, 0.f, 1.f, 1.f);
         if (FAILED(GAME->Clear_Buffers(clearColor)))
             return E_FAIL;
@@ -132,6 +134,8 @@ HRESULT MainEditorApp::Render()
         EDITOR->Capture_BackBuffer_ToViewport();
         GAME->Bind_BackBuffer();
         EDITOR->Render_Editor();
+
+        GAME->Bind_BackBuffer();
     }
 
     {
