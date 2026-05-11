@@ -64,6 +64,16 @@ HRESULT Prototype_Manager::Clear_Prototypes(uint32 levelIndex)
 	return S_OK;
 }
 
+bool Prototype_Manager::Has_Prototype(uint32 levelIndex, const wstring& prototypeTag) const
+{
+    if (levelIndex >= _numLevels)
+        return false;
+
+    const auto iter = _prototypes[levelIndex].find(prototypeTag);
+
+    return iter != _prototypes[levelIndex].end();
+}
+
 Shared<Base> Prototype_Manager::Find_Prototype(uint32 levelIndex, const wstring& prototypeTag)
 {
 	if (levelIndex >= _numLevels)

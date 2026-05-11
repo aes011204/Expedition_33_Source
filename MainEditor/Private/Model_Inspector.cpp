@@ -25,6 +25,9 @@ void ModelCom_Inspector::Draw_Inspector(const Shared<Component>& component)
     if (!Draw_Header("Model"))
         return;
 
+    Draw_ModelPicker(model);
+    ImGui::Separator();
+
     const wstring& sourceModelPath = model->Get_SourceModelPath();
     const string modelGuid = sourceModelPath.empty() ? string{} : GAME->Ensure_AssetGUID(sourceModelPath, "Model");
 
@@ -208,6 +211,132 @@ void ModelCom_Inspector::Draw_Inspector(const Shared<Component>& component)
         }
 
         ImGui::PopID();
+    }
+}
+
+string ModelCom_Inspector::Build_ModelPickerLabel(const AssetMeta& assetMeta)
+{
+    const fs::path fullPath(assetMeta.fullPath);
+    string label = String::ToString(fullPath.stem().wstring());
+
+    if (!assetMeta.modelType.empty())
+        label += " [" + assetMeta.modelType + "]";
+
+    if (!assetMeta.relativePath.empty())
+        label += " {" + String::ToString(assetMeta.relativePath) + "}";
+
+    if (!assetMeta.guid.empty())
+    {
+        const string shortGuid = assetMeta.guid.size() > 8 ? assetMeta.guid.substr(0, 8) : assetMeta.guid;
+        label += " <" + shortGuid + ">";
+    }
+
+    return label;
+}
+
+bool ModelCom_Inspector::Is_ModelAssetOfType(const AssetMeta& assetMeta, Engine::ModelType expectedModelType)
+{
+    if (assetMeta.type != "Model" && assetMeta.type != "model")
+        return false;
+
+    const string extension = String::ToLowerCopy(String::ToString(fs::path(assetMeta.fullPath).extension().wstring()));
+    if (extension != ".model")
+        return false;
+
+    if (assetMeta.modelType.empty())
+        return true;
+
+    if (expectedModelType == Engine::ModelType::Anim)
+        return assetMeta.modelType == "Anim" || assetMeta.modelType == "ANIM" || assetMeta.modelType == "SkeletalMesh";
+
+    if (expectedModelType == Engine::ModelType::NonAnim)
+        return assetMeta.modelType == "NonAnim" || assetMeta.modelType == "NONANIM" || assetMeta.modelType == "StaticMesh";
+
+    return true;
+}
+
+void ModelCom_Inspector::Draw_ModelPicker(const Shared<Engine::ModelCom>& model)
+{
+    if (model == nullptr)
+        return;
+
+    static char searchBuffer[128] = "";
+
+    const wstring& sourceModelPath = model->Get_SourceModelPath();
+    const string currentGuid = sourceModelPath.empty() ? string{} : GAME->Ensure_AssetGUID(sourceModelPath, "Model");
+    const string displayName = sourceModelPath.empty()
+        ? "(None)"
+        : String::ToString(fs::path(sourceModelPath).stem().wstring());
+
+    const auto toModelTypeString = [](Engine::ModelType modelType)
+    {
+        return modelType == Engine::ModelType::Anim ? string("Anim") : string("NonAnim");
+    };
+
+    ImGui::TextDisabled("Mesh");
+    ImGui::SameLine(120.f);
+
+    if (ImGui::Button(displayName.c_str(), ImVec2(ImGui::GetContentRegionAvail().x, 0.f)))
+        ImGui::OpenPopup("##ModelComModelPicker");
+
+    if (ImGui::BeginPopup("##ModelComModelPicker"))
+    {
+        ImGui::TextUnformatted("Model Select");
+        ImGui::Separator();
+
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        ImGui::InputTextWithHint("##ModelSearch", "Search model...", searchBuffer, IM_ARRAYSIZE(searchBuffer));
+
+        vector<AssetMeta> modelAssets = GAME->Get_AssetsByType("Model");
+        if (modelAssets.empty())
+            modelAssets = GAME->Get_AssetsByType("model");
+
+        const string searchText = String::ToLowerCopy(string(searchBuffer));
+        bool hasSelectableModel = false;
+
+        for (const AssetMeta& assetMeta : modelAssets)
+        {
+            if (!Is_ModelAssetOfType(assetMeta, model->Get_ModelType()))
+                continue;
+
+            const string label = Build_ModelPickerLabel(assetMeta);
+            if (!searchText.empty())
+            {
+                const string lowerLabel = String::ToLowerCopy(label);
+                const string lowerPath = String::ToLowerCopy(String::ToString(assetMeta.fullPath));
+                if (lowerLabel.find(searchText) == string::npos &&
+                    lowerPath.find(searchText) == string::npos)
+                {
+                    continue;
+                }
+            }
+
+            hasSelectableModel = true;
+            const bool isSelected = assetMeta.guid == currentGuid;
+
+            if (isSelected)
+                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.3f, 0.85f, 0.3f, 1.f));
+
+            if (ImGui::Selectable(label.c_str(), isSelected))
+            {
+                json swapData = model->To_Json();
+                swapData["model_guid"] = assetMeta.guid;
+                swapData["model_type"] = assetMeta.modelType.empty()
+                    ? toModelTypeString(model->Get_ModelType())
+                    : assetMeta.modelType;
+
+                model->From_Json(swapData);
+                ImGui::CloseCurrentPopup();
+            }
+
+            if (isSelected)
+                ImGui::PopStyleColor();
+        }
+
+        if (!hasSelectableModel)
+            ImGui::TextDisabled("(No matching .model assets)");
+
+        ImGui::EndPopup();
     }
 }
 

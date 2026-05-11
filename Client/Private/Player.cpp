@@ -108,7 +108,7 @@ HRESULT Player::Ready_Components()
     MovementCom::MoveDesc moveDesc{};
     moveDesc.walkSpeed = 9.f;
     moveDesc.runSpeed = 10.f;
-    moveDesc.turnSpeedDegree = 180.f;
+    moveDesc.turnSpeedDegree = 360.f;
     moveDesc.jumpVelocity = 8.f;
     moveDesc.gravity = -20.f;
     moveDesc.groundY = 0.f;

@@ -9,6 +9,7 @@
 #include "ResourceLoader.h"
 #include "BT_Node_Bootstrap.h"
 #include "GameDataTable.h"
+#include "GameplayUI.h"
 #include "PersistentObjectManager.h"
 #include "Hero_Manager.h"
 
@@ -49,7 +50,11 @@ HRESULT ClientInstance::Initialize_Client(const ComPtr<Device>& device, const Co
 
 void ClientInstance::Update_Client(float timeDelta)
 {
-    _heroManager->Update_HeroManager(timeDelta);
+    if (_heroManager)
+        _heroManager->Update_HeroManager(timeDelta);
+
+    if (_gamePlayUI)
+        _gamePlayUI->Update(timeDelta);
 }
 
 HRESULT ClientInstance::Ready_StaticResources()
@@ -110,6 +115,27 @@ void ClientInstance::Clear_Party()
     return _heroManager->Clear_Party();
 }
 
+HRESULT ClientInstance::Initialize_GameplayUI(uint32 levelIndex)
+{
+    Clear_GameplayUI();
+
+    _gamePlayUI = GameplayUI::Create(levelIndex);
+    CHECK_NULL(_gamePlayUI, E_FAIL);
+
+    return S_OK;
+}
+
+void ClientInstance::Clear_GameplayUI()
+{
+    if (_gamePlayUI)
+    {
+        _gamePlayUI->Free();
+        _gamePlayUI.reset();
+    }
+
+    GAME->Set_GameplayPaused(false);
+}
+
 Shared<GameObject> ClientInstance::Find_Player(uint32 levelIndex)
 {
     if (_heroManager)
@@ -168,6 +194,7 @@ void ClientInstance::Release_Client()
     ReleaseManager(_persistentObjectManager);
     ReleaseManager(_resourceLoader);
     ReleaseManager(_heroManager);
+    ReleaseManager(_gamePlayUI);
 
     _context.Reset();
     _device.Reset();

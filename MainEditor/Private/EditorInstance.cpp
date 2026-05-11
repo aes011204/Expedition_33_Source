@@ -613,6 +613,14 @@ void EditorInstance::Apply_RuntimeInputPolicy()
 
     if (_runtimeState == EDITOR_RUNTIME_STATE::Play)
     {
+        if (GAME->Is_GameplayPaused())
+        {
+            GAME->Set_PlayerInputBlocked(true);
+            GAME->Set_FreeCameraInputEnabled(false);
+            GAME->Unlock_Mouse();
+            return;
+        }
+
         if (isFreeCamera)
         {
             const bool freeCameraControl =
