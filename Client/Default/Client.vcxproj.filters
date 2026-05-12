@@ -130,6 +130,18 @@
     <Filter Include="02.GameObject\Player\PlayerStateMachine\State">
       <UniqueIdentifier>{2ff895e8-c801-4ce1-8657-6b74912325b5}</UniqueIdentifier>
     </Filter>
+    <Filter Include="BehavoirTree\NewFilter1">
+      <UniqueIdentifier>{292bb4f3-1a9f-4b3b-aef8-1d9d3507d618}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="BattleState">
+      <UniqueIdentifier>{21844272-3fd6-40f4-a309-70b8c3338935}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="BattleState\Battle">
+      <UniqueIdentifier>{4802d102-93d0-463f-a180-a9055980620e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="BattleState\BattleController">
+      <UniqueIdentifier>{060c6d38-2340-4996-a3dc-93aeb84e6312}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -265,8 +277,6 @@
     </ClInclude>
     <ClInclude Include="..\Public\AN_Test.h" />
     <ClInclude Include="..\Public\ANS_Test.h" />
-    <ClInclude Include="..\public\BattleController.h" />
-    <ClInclude Include="..\public\BattleStateMachine.h" />
     <ClInclude Include="..\Public\State.h">
       <Filter>03. Component\StateMachine\State</Filter>
     </ClInclude>
@@ -290,6 +300,43 @@
     <ClInclude Include="..\Public\Player_Jump.h">
       <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
     </ClInclude>
+    <ClInclude Include="..\public\UltimateTargeting.h" />
+    <ClInclude Include="..\public\AttackTargeting.h">
+      <Filter>BattleState</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\ChooseAction.h">
+      <Filter>BattleState</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\ChooseItem.h">
+      <Filter>BattleState</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\ChooseSkill.h">
+      <Filter>BattleState</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\ChooseUltimate.h">
+      <Filter>BattleState</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\ItemTargeting.h">
+      <Filter>BattleState</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\SkillTargeting.h">
+      <Filter>BattleState</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\Battle_State.h">
+      <Filter>BattleState\Battle</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\BattleStateMachine.h">
+      <Filter>BattleState\Battle</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\BStateMachine.h">
+      <Filter>BattleState\Battle</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\BattleController.h">
+      <Filter>BattleState\BattleController</Filter>
+    </ClInclude>
+    <ClInclude Include="Battle_Enum.h" />
+    <ClInclude Include="..\public\UtilitySystem.h" />
+    <ClInclude Include="..\public\BuffInstance.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -413,8 +460,6 @@
     </ClCompile>
     <ClCompile Include="..\Private\AN_Test.cpp" />
     <ClCompile Include="..\Private\ANS_Test.cpp" />
-    <ClCompile Include="..\private\BattleController.cpp" />
-    <ClCompile Include="..\private\BattleStateMachine.cpp" />
     <ClCompile Include="..\Private\State.cpp">
       <Filter>03. Component\StateMachine\State</Filter>
     </ClCompile>
@@ -438,6 +483,42 @@
     <ClCompile Include="..\Private\Player_Jump.cpp">
       <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
     </ClCompile>
+    <ClCompile Include="..\private\UltimateTargeting.cpp" />
+    <ClCompile Include="..\private\AttackTargeting.cpp">
+      <Filter>BattleState</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\SkillTargeting.cpp">
+      <Filter>BattleState</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\ItemTargeting.cpp">
+      <Filter>BattleState</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\ChooseAction.cpp">
+      <Filter>BattleState</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\ChooseItem.cpp">
+      <Filter>BattleState</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\ChooseSkill.cpp">
+      <Filter>BattleState</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\ChooseUltimate.cpp">
+      <Filter>BattleState</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\Battle_State.cpp">
+      <Filter>BattleState\Battle</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\BattleStateMachine.cpp">
+      <Filter>BattleState\Battle</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\BStateMachine.cpp">
+      <Filter>BattleState\Battle</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\BattleController.cpp">
+      <Filter>BattleState\BattleController</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\UtilitySystem.cpp" />
+    <ClCompile Include="..\private\BuffInstance.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">

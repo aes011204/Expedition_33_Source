@@ -1,6 +1,7 @@
 ﻿#include "Monster.h"
 #include "GameInstance.h"
 #include "AIController.h"
+#include "Battle_Enum.h"
 #include "ModelCom.h"
 #include "Material_Types.h"
 #include "ShaderCom.h"
@@ -139,6 +140,15 @@ void Monster::Late_Update(float fTimeDelta)
     __super::Late_Update(fTimeDelta);
 
 }
+
+//Action Monster::Decide_BattleAction()
+//{
+//    Action action{};
+//    action._curChar = static_pointer_cast<Character>(shared_from_this());
+//    action.type = EBattleContext::BaseAttack;
+//    action.target = 0;
+//    return action;
+//}
 
 HRESULT Monster::Render()
 {
