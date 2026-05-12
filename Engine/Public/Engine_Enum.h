@@ -104,6 +104,7 @@ namespace Engine
         VtxCube,
         BillboardParticle,
         UI,
+        VtxInstanceMesh,
 
         END
     };

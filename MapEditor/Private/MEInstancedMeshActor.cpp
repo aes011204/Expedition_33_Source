@@ -147,7 +147,7 @@ HRESULT MEInstancedMeshActor::Ready_Components()
 {
     _shader = ShaderCom::Create(_device, _context,
         L"../ShaderFiles/Shader_VtxMeshInstance.hlsl",
-        VtxMeshInstanceLayout::Elements, VtxMeshInstanceLayout::numElements, ShaderType::VtxMesh);
+        VtxMeshInstanceLayout::Elements, VtxMeshInstanceLayout::numElements, ShaderType::VtxInstanceMesh);
 
     if (!_shader)
     {
