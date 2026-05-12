@@ -1,4 +1,5 @@
 #include "Engine_Shader_Defines.hlsli"
+#include "Engine_Shader_Passes.hlsl"
 #include "Engine_Shader_RenderState.hlsl"
 
 cbuffer cbCamera : register(b1)
@@ -157,15 +158,6 @@ PS_OUT PS_MAIN(PS_IN In)
 // @formatter:off
 technique11 DefaultTechnique
 {
-    pass DefaultPass
-    {
-        SetRasterizerState(RS_CullNone);
-        SetDepthStencilState(DSS_Default, 0);
-        SetBlendState(BS_AlphaBlend, float4(0.f, 0.f, 0.f, 0.f), 0xffffffff);
-
-        VertexShader = compile vs_5_0 VS_MAIN();
-        GeometryShader = compile gs_5_0 GS_MAIN();
-        PixelShader = compile ps_5_0 PS_MAIN();
-    }
+    PASS_RS_DS_BS_VGP(DefaultPass, RS_CullNone, DSS_Default, BS_AlphaBlend, VS_MAIN, GS_MAIN, PS_MAIN) // 0
 }
 // @formatter:on
