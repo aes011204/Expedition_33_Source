@@ -22,6 +22,8 @@ void ModelSceneWindow::Render()
 
     if (ImGui::Begin("Scene", &_showBlock, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse))
     {
+        _isHovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows);
+
         ImGuizmo::BeginFrame();
 
         // 윈도우의 제목 표시줄 등을 제외한 실제 콘텐츠 영역의 위치와 크기 설정
