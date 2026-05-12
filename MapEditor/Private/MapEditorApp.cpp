@@ -46,7 +46,7 @@ HRESULT MapEditorApp::Initialize()
     CHECK_NULL(_rt, E_FAIL);
 
     _meshShader = ShaderCom::Create(_device, _context,
-        L"../ShaderFiles/Shader_VtxMesh.hlsl",
+        L"../../../Client/Bin/ShaderFiles/Shader_VtxMesh.hlsl",
         VTXMESH::Elements, VTXMESH::numElements, ShaderType::VtxMesh);
     CHECK_NULL(_meshShader, E_FAIL);
 
@@ -65,7 +65,7 @@ HRESULT MapEditorApp::Initialize()
     CHECK_NULL(_debugRenderer, E_FAIL);
 
     _deferredShader = ShaderCom::Create(_device, _context,
-        L"../ShaderFiles/Shader_Deferred.hlsl",
+        L"../../../Client/Bin/ShaderFiles/Shader_Deferred.hlsl",
         VTXTEX::Elements, VTXTEX::numElements, ShaderType::VtxTex);
     CHECK_NULL(_deferredShader, E_FAIL);
 
@@ -136,7 +136,7 @@ HRESULT MapEditorApp::Render()
     CHECK_FAILED(GAME->Begin_MRT(L"MRT_GameObjects"), E_FAIL);
     {
         float farZ = _camera->GetFar();
-        _meshShader->Bind_RawValue("g_fCameraFar", &farZ, sizeof(float));
+        _meshShader->Bind_RawValue("g_fFar", &farZ, sizeof(float));
 
         for (auto& obj : _scene._objects)
         {
@@ -341,7 +341,7 @@ void MapEditorApp::RebuildOctreeIfDirty()
 void MapEditorApp::RenderStaticMeshes()
 {
     float farZ = _camera->GetFar();
-    _meshShader->Bind_RawValue("g_fCameraFar", &farZ, sizeof(float));
+    _meshShader->Bind_RawValue("g_fFar", &farZ, sizeof(float));
 
     vector<uint32> visibleIndices;
     GAME->QueryVisible(visibleIndices);

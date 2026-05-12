@@ -1,6 +1,7 @@
 ﻿#include "Target_Manager.h"
 #include "RenderTarget.h"
 #include "ShaderCom.h"
+#include "Helper_String.h"
 
 Target_Manager::Target_Manager(ComPtr<Device> device, ComPtr<ID3D11DeviceContext> context)
     : _device(device), _context(context)
@@ -129,7 +130,20 @@ HRESULT Target_Manager::Begin_MRT(const wstring& mrtTag, bool useDSV)
         renderTargets[renderTargetCount++] = rt->Get_RTV();
     }
 
-    dsv = dsv ? dsv: _originalDSV.Get();
+    if (!useDSV)
+    {
+        dsv = nullptr;
+    }
+    else
+    {
+        if (!dsv)
+        {
+            // Depth 정확도 보장을 위해 원본(backbuffer) DSV fallback을 막는다. 창이 리사이즈되면 backbuffer DSV 크기가 MRT 크기와 달라질 수 있음.
+            LOG_ERROR("[Target_Manager::Begin_MRT] No DSV in MRT. mrtTag='{}'", Engine::String::ToString(mrtTag));
+            return E_FAIL;
+        }
+    }
+
     _context->OMSetRenderTargets(renderTargetCount, renderTargets, dsv);
 
     if (hasMRTViewport)
@@ -284,6 +298,24 @@ list<Shared<RenderTarget>>* Target_Manager::Find_MRT(const wstring& mrtTag)
         return nullptr;
 
     return &iter->second;
+}
+
+bool Target_Manager::Try_GetViewTexture(ID3D11View* view, D3D11_TEXTURE2D_DESC& outDesc)
+{
+    if (!view)
+        return false;
+
+    ComPtr<ID3D11Resource> resource;
+    view->GetResource(resource.GetAddressOf());
+    if (!resource)
+        return false;
+
+    ComPtr<ID3D11Texture2D> tex2d;
+    if (FAILED(resource.As(&tex2d)) || !tex2d)
+        return false;
+
+    tex2d->GetDesc(&outDesc);
+    return true;
 }
 
 Unique<Target_Manager> Target_Manager::Create(ComPtr<Device> device, ComPtr<Context> context)
