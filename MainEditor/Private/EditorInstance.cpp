@@ -10,6 +10,7 @@
 #include "Inspector_Factory.h"
 #include "Notification_Manager.h"
 #include "Helper_String.h"
+#include "Profile_View.h"
 
 IMPLEMENT_SINGLETON(EditorInstance)
 
@@ -115,9 +116,20 @@ void EditorInstance::Update_Editor(float timeDelta)
 
 void EditorInstance::Render_Editor()
 {
-    _editorManager->Render();
-    _notificationManager->Render();
-    _imguiManager->Render();
+    {
+        Profile_View::Scope scope("Editor::EditorManager");
+        _editorManager->Render();
+    }
+
+    {
+        Profile_View::Scope scope("Editor::Notification");
+        _notificationManager->Render();
+    }
+
+    {
+        Profile_View::Scope scope("Editor::ImGui");
+        _imguiManager->Render();
+    }
 }
 
 void EditorInstance::Play()
@@ -387,26 +399,26 @@ ID3D11ShaderResourceView* EditorInstance::Get_SharedViewportSRV() const
 
 void EditorInstance::Capture_BackBuffer_ToViewport()
 {
-    Shared<RenderTarget> renderTarget =
-        Prepare_SharedViewportRenderTarget(
-            min(max(1u, GAME->Get_ViewportWidth()), max(1u, GAME->Get_BackBufferWidth())),
-            min(max(1u, GAME->Get_ViewportHeight()), max(1u, GAME->Get_BackBufferHeight())));
+    const uint32 copyWidth = min(max(1u, GAME->Get_ViewportWidth()), max(1u, GAME->Get_BackBufferWidth()));
+    const uint32 copyHeight = min(max(1u, GAME->Get_ViewportHeight()), max(1u, GAME->Get_BackBufferHeight()));
+
+    Shared<RenderTarget> renderTarget = nullptr;
+    {
+        Profile_View::Scope scope("Capture::PrepareRT");
+        renderTarget = Prepare_SharedViewportRenderTarget(copyWidth, copyHeight);
+    }
 
     if (nullptr == renderTarget || nullptr == _context)
         return;
 
-    ComPtr<IDXGISwapChain> swapChain = GAME->Get_SwapChain();
-    if (nullptr == swapChain)
-        return;
-
-    ComPtr<ID3D11Texture2D> backBufferTexture = nullptr;
-    if (FAILED(swapChain->GetBuffer(
-        0,
-        __uuidof(ID3D11Texture2D),
-        reinterpret_cast<void**>(backBufferTexture.GetAddressOf()))))
+    ID3D11Texture2D* backBufferTexture = nullptr;
     {
-        return;
+        Profile_View::Scope scope("Capture::GetBackBuffer");
+        backBufferTexture = Get_CachedBackBufferTexture();
     }
+
+    if (nullptr == backBufferTexture)
+        return;
 
     ComPtr<ID3D11Texture2D> viewportTexture = renderTarget->Get_Texture();
     if (nullptr == viewportTexture)
@@ -416,23 +428,61 @@ void EditorInstance::Capture_BackBuffer_ToViewport()
     sourceBox.left = 0;
     sourceBox.top = 0;
     sourceBox.front = 0;
-    sourceBox.right = min(
-        max(1u, GAME->Get_ViewportWidth()),
-        max(1u, GAME->Get_BackBufferWidth()));
-    sourceBox.bottom = min(
-        max(1u, GAME->Get_ViewportHeight()),
-        max(1u, GAME->Get_BackBufferHeight()));
+    sourceBox.right = copyWidth;
+    sourceBox.bottom = copyHeight;
     sourceBox.back = 1;
 
-    _context->CopySubresourceRegion(
-        viewportTexture.Get(),
+    {
+        Profile_View::Scope scope("Capture::CopySubresource");
+        _context->CopySubresourceRegion(
+            viewportTexture.Get(),
+            0,
+            0,
+            0,
+            0,
+            backBufferTexture,
+            0,
+            &sourceBox);
+    }
+}
+
+void EditorInstance::Invalidate_BackBufferCache()
+{
+    _cachedBackBufferTexture.Reset();
+    _cachedBackBufferWidth = 0;
+    _cachedBackBufferHeight = 0;
+}
+
+ID3D11Texture2D* EditorInstance::Get_CachedBackBufferTexture()
+{
+    const uint32 width = GAME->Get_BackBufferWidth();
+    const uint32 height = GAME->Get_BackBufferHeight();
+
+    if (_cachedBackBufferTexture &&
+        _cachedBackBufferWidth == width &&
+        _cachedBackBufferHeight == height)
+    {
+        return _cachedBackBufferTexture.Get();
+    }
+
+    ComPtr<IDXGISwapChain> swapChain = GAME->Get_SwapChain();
+    if (nullptr == swapChain)
+        return nullptr;
+
+    ComPtr<ID3D11Texture2D> backBufferTexture = nullptr;
+    if (FAILED(swapChain->GetBuffer(
         0,
-        0,
-        0,
-        0,
-        backBufferTexture.Get(),
-        0,
-        &sourceBox);
+        __uuidof(ID3D11Texture2D),
+        reinterpret_cast<void**>(backBufferTexture.GetAddressOf()))))
+    {
+        return nullptr;
+    }
+
+    _cachedBackBufferTexture = backBufferTexture;
+    _cachedBackBufferWidth = width;
+    _cachedBackBufferHeight = height;
+
+    return _cachedBackBufferTexture.Get();
 }
 
 void EditorInstance::Request_PreviewViewportSize(uint32 width, uint32 height)
