@@ -102,13 +102,35 @@ namespace Internal
         return Clamp_PreviewColor(fallbackValue);
     }
 
-    Client::PointParticlePreview::PointParticlePreviewDesc Build_PointParticlePreviewDesc(const AuthoringEmitter& emitter)
+    PointParticlePreview::PointParticlePreviewDesc Build_PointParticlePreviewDesc(const AuthoringEmitter& emitter)
     {
-        Client::PointParticlePreview::PointParticlePreviewDesc desc{};
+        PointParticlePreview::PointParticlePreviewDesc desc{};
         desc.drawMode = PointParticleDrawMode::Direct;
 
         if (const auto* required = Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
         {
+            if (!required->textureId.empty())
+                desc.textureId = required->textureId;
+
+            if (!required->materialName.empty())
+                desc.materialName = required->materialName;
+
+            if (!required->blendMode.empty())
+                desc.blendMode = required->blendMode;
+
+            if (!required->opacitySource.empty())
+                desc.opacitySource = required->opacitySource;
+
+            desc.tint = required->tint; //RGBA
+            desc.intensity = required->intensity;
+            desc.opacityPower = required->opacityPower;
+
+            if (!required->noiseTextureId.empty())
+                desc.noiseTextureId = required->noiseTextureId;
+
+            desc.noiseStrength = required->noiseStrength;
+            desc.subUvRows = max(1u, required->subUvRows);
+            desc.subUvCols = max(1u, required->subUvCols);
             desc.center = required->emitterOrigin;
             desc.loop = required->loopCount == 0;
         }
@@ -229,7 +251,7 @@ HRESULT Level_EffectEditor::Restart_PreviewFromAuthoring()
         if (!emitter.enabled)
             continue;
 
-        Client::PointParticlePreview::PointParticlePreviewDesc previewDesc = Internal::Build_PointParticlePreviewDesc(emitter);
+        PointParticlePreview::PointParticlePreviewDesc previewDesc = Internal::Build_PointParticlePreviewDesc(emitter);
         Shared<GameObject> previewObject{};
         if (FAILED(
             GAME->Add_GameObject(

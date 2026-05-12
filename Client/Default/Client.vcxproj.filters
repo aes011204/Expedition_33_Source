@@ -142,6 +142,9 @@
     <Filter Include="02.GameObject\InstancedMeshActor">
       <UniqueIdentifier>{2e753ff9-c664-4b59-b631-8362dc321ba5}</UniqueIdentifier>
     </Filter>
+    <Filter Include="97.ShaderFiles\Effect">
+      <UniqueIdentifier>{eabf24e1-fc6a-403f-a7d5-20fff06e772b}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -504,9 +507,6 @@
     <FxCompile Include="..\Bin\ShaderFiles\Shader_Deferred.hlsl">
       <Filter>97.ShaderFiles</Filter>
     </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_BillboardParticle.hlsl">
-      <Filter>97.ShaderFiles</Filter>
-    </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMesh.hlsl">
       <Filter>97.ShaderFiles</Filter>
     </FxCompile>
@@ -527,6 +527,12 @@
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMeshInstance.hlsl">
       <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_BillboardParticle.hlsl">
+      <Filter>97.ShaderFiles\Effect</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectSprite.hlsl">
+      <Filter>97.ShaderFiles\Effect</Filter>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>

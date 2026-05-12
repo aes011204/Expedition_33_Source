@@ -27,6 +27,11 @@ bool ModuleDetailDrawContext::Draw_FloatProperty(const char* label, float& value
     return DetailProperty::Draw_FloatProperty(label, value, defaultValue, speed);
 }
 
+bool ModuleDetailDrawContext::Draw_ColorProperty(const char* label, Color& value, const Color& defaultValue)
+{
+    return DetailProperty::Draw_ColorProperty(label, value, defaultValue);
+}
+
 bool ModuleDetailDrawContext::Draw_FloatDistributionGroup(
     const char* label,
     FloatDistributionData& value,
@@ -94,12 +99,21 @@ bool RequiredModuleDetail::Draw(AuthoringEmitter& emitter, AuthoringModule&, Req
     const RequiredModuleData defaultData{};
     bool changed = false;
 
-    if (ImGui::CollapsingHeader("리소스", ImGuiTreeNodeFlags_DefaultOpen))
+    if (ImGui::CollapsingHeader("머티리얼", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        if (drawContext.Begin_PropertyTable("RequiredResource"))
+        if (drawContext.Begin_PropertyTable("RequiredMaterial"))
         {
-            changed |= drawContext.Draw_StringProperty("텍스처 ID (임시)", data.textureId, defaultData.textureId);
-            changed |= drawContext.Draw_StringProperty("머티리얼", data.materialName, defaultData.materialName);
+            changed |= drawContext.Draw_StringProperty("머티리얼 프리셋", data.materialName, defaultData.materialName);
+            changed |= drawContext.Draw_StringProperty("메인 텍스처 슬롯", data.textureId, defaultData.textureId);
+            changed |= drawContext.Draw_StringProperty("블렌드 모드", data.blendMode, defaultData.blendMode);
+            changed |= drawContext.Draw_StringProperty("투명도 소스", data.opacitySource, defaultData.opacitySource);
+            changed |= drawContext.Draw_ColorProperty("틴트", data.tint, defaultData.tint);
+            changed |= drawContext.Draw_FloatProperty("강도", data.intensity, defaultData.intensity);
+            changed |= drawContext.Draw_FloatProperty("투명도 파워", data.opacityPower, defaultData.opacityPower);
+            changed |= drawContext.Draw_StringProperty("노이즈 텍스처 슬롯", data.noiseTextureId, defaultData.noiseTextureId);
+            changed |= drawContext.Draw_FloatProperty("노이즈 강도", data.noiseStrength, defaultData.noiseStrength);
+            changed |= drawContext.Draw_UintProperty("SubUV 행", data.subUvRows, defaultData.subUvRows);
+            changed |= drawContext.Draw_UintProperty("SubUV 열", data.subUvCols, defaultData.subUvCols);
             drawContext.End_PropertyTable();
         }
     }

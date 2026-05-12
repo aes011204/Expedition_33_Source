@@ -306,6 +306,11 @@ bool DetailProperty::Draw_FloatProperty(const char* label, float& value, float d
     return changed;
 }
 
+bool DetailProperty::Draw_ColorProperty(const char* label, Color& value, const Color& defaultValue)
+{
+    return Internal::Draw_ColorProperty(label, value, defaultValue);
+}
+
 bool DetailProperty::Draw_FloatDistributionGroup(const char* label, FloatDistributionData& value, const FloatDistributionData& defaultValue, float speed)
 {
     bool changed = false;

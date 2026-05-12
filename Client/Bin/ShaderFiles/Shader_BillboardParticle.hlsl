@@ -1,6 +1,7 @@
 #include "Engine_Shader_Defines.hlsli"
 #include "Engine_Shader_Passes.hlsl"
 #include "Engine_Shader_RenderState.hlsl"
+#include "Engine_Shader_Samplers.hlsl"
 
 cbuffer cbCamera : register(b1)
 {
@@ -10,14 +11,6 @@ cbuffer cbCamera : register(b1)
 };
 
 Texture2D g_Texture : register(t0);
-
-// 파티클 텍스처 샘플링용 기본 샘플러.
-SamplerState DefaultSampler
-{
-    Filter = MIN_MAG_MIP_LINEAR;
-    AddressU = Clamp;
-    AddressV = Clamp;
-};
 
 struct VS_IN
 {
@@ -146,7 +139,7 @@ PS_OUT PS_MAIN(PS_IN In)
     const float fLifeProgress = saturate(In.vLifeTime.y / fLifeMax);
     const float fLifeAlphaFade = saturate(1.f - fLifeProgress);
     const float4 vParticleColor = lerp(In.vStartColor, In.vEndColor, fLifeProgress);
-    Out.vColor = g_Texture.Sample(DefaultSampler, In.vTexCoord) * vParticleColor;
+    Out.vColor = g_Texture.Sample(LinearClampSampler, In.vTexCoord) * vParticleColor;
     Out.vColor.a *= fLifeAlphaFade;
 
     if (Out.vColor.a < 0.2f)
@@ -155,9 +148,7 @@ PS_OUT PS_MAIN(PS_IN In)
     return Out;
 }
 
-// @formatter:off
 technique11 DefaultTechnique
 {
     PASS_RS_DS_BS_VGP(DefaultPass, RS_CullNone, DSS_Default, BS_AlphaBlend, VS_MAIN, GS_MAIN, PS_MAIN) // 0
 }
-// @formatter:on

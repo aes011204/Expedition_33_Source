@@ -1,5 +1,4 @@
-#pragma once
-
+﻿#pragma once
 #include <variant>
 
 NS_BEGIN(EffectEditor)
@@ -213,8 +212,19 @@ struct ParticleSystemAuthoringData
 struct RequiredModuleData
 {
     string rendererType{ "Sprite" };
-    string materialName{ "DefaultSpriteMaterial" };
+    string materialName{ "SpriteSymbolTranslucent" };
     string textureId{ "Texture_Snow" };
+
+    string blendMode{ "AlphaBlend" };
+    string opacitySource{ "Alpha" };
+    Color tint{ 1.f, 1.f, 1.f, 1.f };
+    float intensity{ 1.f };
+    float opacityPower{ 1.f };
+    string noiseTextureId{};
+    float noiseStrength{ 0.f };
+    uint32 subUvRows{ 1 };
+    uint32 subUvCols{ 1 };
+
     Vec3 emitterOrigin{ 0.f, 0.f, 0.f };
     Vec3 emitterRotationDegrees{ 0.f, 0.f, 0.f };
     EmitterScreenAlignment screenAlignment{ EmitterScreenAlignment::Square };
@@ -309,7 +319,7 @@ struct AuthoringEmitter
     string name{};
     string rendererType{ "Sprite" };
     string resourceSummary{};
-    string materialName{ "DefaultSpriteMaterial" };
+    string materialName{ "SpriteSymbolTranslucent" };
     string textureId{ "Texture_Snow" };
     bool enabled{ true };
     bool previewDirty{ true };
