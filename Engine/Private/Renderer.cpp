@@ -549,6 +549,9 @@ void Renderer::Render_Debug()
     //for (auto& debugCom : _debugComponents)
     //    debugCom->Render_Debug();
 
+    if (GAME->Get_ActiveCamera() == nullptr)
+        return;
+
     _debugComponents.clear();
 
     // 디버그 RT 프리뷰는 Deferred 셰이더의 VS_MAIN(= g_ViewMatrix/g_ProjMatrix 사용)로 그린다.

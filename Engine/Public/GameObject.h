@@ -43,6 +43,9 @@ public:
     virtual json To_Json() const;
     virtual void From_Json(const json& data);
 
+    void Set_SourcePrefabName(const string& prefabName) { _sourcePrefabName = prefabName; }
+    const string& Get_SourcePrefabName() const { return _sourcePrefabName; }
+
 public:
     virtual void    OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other) {}
     virtual void    OnStayOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other)  {}
@@ -141,6 +144,8 @@ protected:
     Shared<TransformCom>    _transformCom = { nullptr };
 
     ObjectType              _objectType = ObjectType::None;
+
+    string  _sourcePrefabName = {};
 
 protected:
     map<const wstring, Shared<Component>> _components;
