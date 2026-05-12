@@ -36,6 +36,7 @@ namespace MapEditor
         CameraZone,
         PostProcessVolume,
         Light,
+        InstancedMesh,
         Fail
     };
 
@@ -63,6 +64,8 @@ namespace MapEditor
             return "[PP]";
         case MapEditor::EObjectType::Light:
             return "[LT]";
+        case MapEditor::EObjectType::InstancedMesh:
+            return "[IM]";
         case MapEditor::EObjectType::Fail:
         default:
             return "[??]";

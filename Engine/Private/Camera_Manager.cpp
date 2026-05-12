@@ -75,7 +75,7 @@ void Camera_Manager::SwitchTo_NextCamera()
 
     if (iter != m_cameras.end())
     {
-        int currentIndex = distance(m_cameras.begin(), iter);
+        int currentIndex = static_cast<int>(distance(m_cameras.begin(), iter));
         nextIndex = (currentIndex + 1) % m_cameras.size();
     }
 
@@ -115,6 +115,23 @@ HRESULT Camera_Manager::Add_Camera(Shared<Camera> camera)
     return S_OK;
 }
 
+void Camera_Manager::Remove_Camera(Shared<Camera> camera)
+{
+    if (camera == nullptr)
+        return;
+
+    auto iter = remove(m_cameras.begin(), m_cameras.end(), camera);
+    if (iter == m_cameras.end())
+        return;
+
+    m_cameras.erase(iter, m_cameras.end());
+
+    if (m_activeCamera == camera)
+        m_activeCamera.reset();
+
+    _hasPendingFreeCameraFocus = false;
+}
+
 Shared<Camera> Camera_Manager::Find_Camera(Shared<Camera> camera)
 {
     auto iter = find(m_cameras.begin(), m_cameras.end(), camera);
@@ -135,7 +152,7 @@ bool Camera_Manager::Is_ActiveCamera(Shared<Camera> camera)
 
 int Camera_Manager::Get_CameraCount()
 {
-    return m_cameras.size();
+    return static_cast<int>(m_cameras.size());
 }
 
 Shared<TransformCom> Camera_Manager::Get_CameraTransform(int index)

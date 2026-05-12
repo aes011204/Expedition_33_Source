@@ -7,6 +7,20 @@
 
 NS_BEGIN(EffectEditor)
 
+namespace Internal
+{
+    static bool Is_PreviewCameraDragInputHeld()
+    {
+        const bool altHeld =
+            GAME->KeyPress(KEY_TYPE::ALT) || GAME->KeyDown(KEY_TYPE::ALT);
+
+        return GAME->KeyPress(KEY_TYPE::RBUTTON) ||
+               (altHeld &&
+                (ImGui::IsMouseDown(ImGuiMouseButton_Left) ||
+                 ImGui::IsMouseDown(ImGuiMouseButton_Middle)));
+    }
+}
+
 EffectEditorCamera::EffectEditorCamera(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Camera{ device, context }
 {
@@ -23,6 +37,11 @@ EffectEditorCamera::EffectEditorCamera(const EffectEditorCamera& prototype)
     , _homeYaw{ prototype._homeYaw }
     , _homePitch{ prototype._homePitch }
 {
+}
+
+EffectEditorCamera::~EffectEditorCamera()
+{
+    Free();
 }
 
 HRESULT EffectEditorCamera::Initialize_Prototype()
@@ -125,7 +144,7 @@ void EffectEditorCamera::Priority_Update(float timeDelta)
         return;
     }
 
-    if (EDITOR->Is_PreviewCameraDragging() && !GAME->KeyPress(KEY_TYPE::RBUTTON))
+    if (EDITOR->Is_PreviewCameraDragging() && !Internal::Is_PreviewCameraDragInputHeld())
         EDITOR->End_PreviewCameraDrag();
 
     if (ImGui::IsKeyPressed(ImGuiKey_F, false))

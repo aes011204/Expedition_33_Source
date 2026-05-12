@@ -153,7 +153,7 @@ void EditorInstance::Stop()
     _runtimeState = EDITOR_RUNTIME_STATE::Edit;
     Sync_ViewportWindowState();
 
-    Activate_FreeCamera();
+    //Activate_FreeCamera();
 
     GAME->Set_FreeCameraInputEnabled(false);
     GAME->Unlock_Mouse();
@@ -592,11 +592,11 @@ void EditorInstance::Apply_RuntimeInputPolicy()
     Shared<Editor_Window> sceneView = Get_Window(L"Scene");
     Shared<Editor_Window> gameView = Get_Window(L"Game");
 
-    if (_runtimeState != EDITOR_RUNTIME_STATE::Play &&
-        !GAME->Is_ActiveCameraType(ObjectType::FreeCamera))
-    {
-        Activate_FreeCamera();
-    }
+    //if (_runtimeState != EDITOR_RUNTIME_STATE::Play &&
+    //    !GAME->Is_ActiveCameraType(ObjectType::FreeCamera))
+    //{
+    //    Activate_FreeCamera();
+    //}
 
     const bool sceneInteractive =
         sceneView && sceneView->Is_Open() &&
@@ -613,6 +613,14 @@ void EditorInstance::Apply_RuntimeInputPolicy()
 
     if (_runtimeState == EDITOR_RUNTIME_STATE::Play)
     {
+        if (GAME->Is_GameplayPaused())
+        {
+            GAME->Set_PlayerInputBlocked(true);
+            GAME->Set_FreeCameraInputEnabled(false);
+            GAME->Unlock_Mouse();
+            return;
+        }
+
         if (isFreeCamera)
         {
             const bool freeCameraControl =

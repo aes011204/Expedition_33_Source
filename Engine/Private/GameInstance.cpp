@@ -1,6 +1,7 @@
 ﻿#include "GameInstance.h"
 #include "Asset_Manager.h"
 #include "Camera_Manager.h"
+#include "Camera.h"
 #include "Collision_Manager.h"
 #include "PhysX_Manager.h"
 #include "Debug_Manager.h"
@@ -145,33 +146,48 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
 
 void GameInstance::Update_Engine(float timeDelta)
 {
+    Update_Engine(timeDelta, nullptr);
+}
+
+void GameInstance::Update_Engine(float timeDelta, const function<void(float)>& clientUpdate)
+{
     _debugManager->Update(timeDelta);
     _inputManager->Update(timeDelta);
 #ifdef _DEBUG
     _printManager->Update(timeDelta);
 #endif
 
+    // 입력 갱신 직후, 레벨/오브젝트/UI 업데이트 전에 클라이언트쪽 런타임 갱신을 위해
+    if (clientUpdate)
+    {
+        clientUpdate(timeDelta);
+    }
+
     _levelManager->Update(timeDelta);
 
-    _objectManager->Priority_Update(timeDelta);
+    // UI 키면서 게임 멈출 때 Update 안돌릴 애들
+    if (!_isGameplayPaused)
+    {
+        _objectManager->Priority_Update(timeDelta);
 
-    _pipeLine->Update();
+        _pipeLine->Update();
 
-    _objectManager->Update(timeDelta);
+        _objectManager->Update(timeDelta);
 
-    _physxManager->Begin_Frame();
-    _collisionManager->Clear_Colliders();
-    _objectManager->Late_Update(timeDelta);
+        _physxManager->Begin_Frame();
+        _collisionManager->Clear_Colliders();
+        _objectManager->Late_Update(timeDelta);
 
-    _physxManager->Update(timeDelta);
+        _physxManager->Update(timeDelta);
 
-    vector<PhysXPairEvent> events;
-    _physxManager->Gather_FrameEvents(events);
-    _collisionManager->Update_FromPhysX(events);
+        vector<PhysXPairEvent> events;
+        _physxManager->Gather_FrameEvents(events);
+        _collisionManager->Update_FromPhysX(events);
+
+        _cameraManager->Update(timeDelta);
+    }
     
-    _cameraManager->Update(timeDelta);
     _uiManager->Update(timeDelta);
-
 }
 
 HRESULT GameInstance::Draw()
@@ -311,6 +327,17 @@ void GameInstance::Try_FlushRuntimePerfLog()
 
 void GameInstance::Clear_Resources(uint32 levelIndex)
 {
+    _uiManager->Clear_Level(levelIndex);
+    _objectManager->Visit_LevelObjects(levelIndex,
+        [this](const wstring& layerTag, const Shared<GameObject>& gameObject)
+        {
+            UNREFERENCED_PARAMETER(layerTag);
+
+            Shared<Camera> camera = dynamic_pointer_cast<Camera>(gameObject);
+            if (camera != nullptr)
+                _cameraManager->Remove_Camera(camera);
+        });
+
     _objectManager->Clear_Layers(levelIndex);
     _prototypeManager->Clear_Prototypes(levelIndex);
 }
@@ -469,6 +496,11 @@ HRESULT GameInstance::Add_Prototype(uint32 levelIndex, const wstring& prototypeT
 Shared<Base> GameInstance::Clone_Prototype(Prototype prototype, uint32 levelIndex, const wstring& prototypeTag, void* arg)
 {
     return _prototypeManager->Clone_Prototype(prototype, levelIndex, prototypeTag, arg);
+}
+
+bool GameInstance::Has_Prototype(uint32 levelIndex, const wstring& prototypeTag) const
+{
+    return _prototypeManager->Has_Prototype(levelIndex, prototypeTag);
 }
 
 HRESULT GameInstance::Add_UI(uint32 prototypeLevelIndex, const wstring& prototypeTag, void* arg, Shared<UI_Base>* outUI)
@@ -979,6 +1011,23 @@ bool GameInstance::IsVisible(const BoundingBox& worldAABB) const
 
     return true;
 }
+
+void GameInstance::BuildOctree(const vector<BoundingBox>& worldAABBs)
+{
+    if (_cullingManager)
+    {
+        _cullingManager->BuildOctree(worldAABBs);
+    }
+}
+
+void GameInstance::QueryVisible(vector<uint32>& outIndices) const
+{
+    if (_cullingManager)
+    {
+        _cullingManager->QueryVisible(outIndices);
+    }
+}
+
 void GameInstance::Visit_BTNodeTypes(const function<void(const TypeRegistry::BTNodeTypeInfo&)>& visitor) const
 {
     if (_typeRegistry == nullptr)

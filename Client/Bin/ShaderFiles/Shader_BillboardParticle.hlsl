@@ -1,4 +1,5 @@
 #include "Engine_Shader_Defines.hlsli"
+#include "Engine_Shader_RenderState.hlsl"
 
 cbuffer cbCamera : register(b1)
 {
@@ -15,13 +16,6 @@ SamplerState DefaultSampler
     Filter = MIN_MAG_MIP_LINEAR;
     AddressU = Clamp;
     AddressV = Clamp;
-};
-
-RasterizerState RS_CullNone
-{
-    FillMode = Solid;
-    CullMode = None;
-    FrontCounterClockwise = false;
 };
 
 struct VS_IN

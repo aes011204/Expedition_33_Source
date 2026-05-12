@@ -1,7 +1,9 @@
 ﻿#include "Level_Loading.h"
 #include "Loader.h"
 
+#include "Client_Constants.h"
 #include "GameInstance.h"
+#include "UI_RuntimeLoader.h"
 
 #include "Level_Logo.h"
 #include "Level_GamePlay.h"
@@ -17,6 +19,9 @@ Level_Loading::Level_Loading(const ComPtr<Device>& device, const ComPtr<Context>
 HRESULT Level_Loading::Initialize(LevelType eNextLevelID)
 {
 	_nextLevel = eNextLevelID;
+
+    if (FAILED(Ready_LoadingUIRenderResources()))
+        return E_FAIL;
 
 	if (FAILED(Ready_Layer_BackGround(TEXT("Layer_BackGround"))))
 		return E_FAIL;
@@ -36,7 +41,7 @@ void Level_Loading::Update(float fTimeDelta)
 {
     CHECK_NULL(_loader);
 
-    CHECK_FAILED(_loader->Process_PendingLoadJobs(8));
+    CHECK_FAILED(_loader->Process_PendingLoadJobs(4));
 
 #ifdef _DEBUG
     // 퍼센트 디버깅용
@@ -89,13 +94,45 @@ HRESULT Level_Loading::Render()
 	return S_OK;
 }
 
+HRESULT Level_Loading::Ready_LoadingUIRenderResources()
+{
+    Shared<ResourceLoader> resourceLoader = ResourceLoader::Create(_device, _context);
+    CHECK_NULL(resourceLoader, E_FAIL);
+
+    vector<FLoadJob> loadJobs;
+    CHECK_FAILED(resourceLoader->Build_LevelJobs(LevelType::Static, loadJobs), E_FAIL);
+
+    for (const FLoadJob& loadJob : loadJobs)
+    {
+        const bool isLoadingUIResource =
+            loadJob.strPrototypeTag == TEXT("Shader_UI") ||
+            loadJob.strPrototypeTag == TEXT("VIBuffer_Rect");
+
+        if (!isLoadingUIResource)
+            continue;
+
+        CHECK_FAILED(resourceLoader->Register_LoadJob(loadJob), E_FAIL);
+    }
+
+    return S_OK;
+}
+
 HRESULT Level_Loading::Ready_Layer_BackGround(const wchar_t* pLayerTag)
 {
+    // 여기에 나중에 이팩트 추가?
+
 	return S_OK;
 }
 
 HRESULT Level_Loading::Ready_Layer_UI(const wchar_t* pLayerTag)
 {
+	UI_RuntimeLoader::UI_LoadDesc desc{};
+	desc.levelIndex = ETOI(LevelType::Loading);
+	desc.jsonPath = Constants::UI::Loading_UI_Json_Path;
+	desc.animationDirectory = Constants::UI::Loading_UI_Animation_Dir;
+
+	CHECK_FAILED(UI_RuntimeLoader::Load_Document(desc), E_FAIL);
+
 	return S_OK;
 }
 

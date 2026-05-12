@@ -31,6 +31,7 @@ public:
 
     const Material::TextureSlot* Find_MaterialSlot(uint32 meshIndex, std::initializer_list<MaterialTextureSlot> materialSlots, uint32 textureIndex = 0) const;
     const wstring& Get_SourceModelPath() const { return _sourceModelPath; }
+    ModelType Get_ModelType() const { return _type; }
 
 public:
     bool  Is_Skeletal() const { return _isSkeletal; } 
@@ -54,7 +55,11 @@ public:
 public:
 	HRESULT Initialize_Prototype(ModelType type, const char* modelFilePath, const Matrix& preLocalTransformMatrix);
 	HRESULT Initialize(void* arg) override;
+    json To_Json() const override;
+    void From_Json(const json& data) override;
+    HRESULT Reload_ModelFromGuid(const string& guid, ModelType modelType);
 	HRESULT Render(uint32 meshIndex);
+    HRESULT RenderInstanced(uint32 meshIndex, Buffer* instanceVB, uint32 instanceStride, uint32 instanceCount);
 
 public:
 	bool Play_Animation(float timeDelta);
@@ -120,6 +125,16 @@ private:
         const string& animationName,
         int32 stateIndex);
 
+public: /* 머리 붙이기 */
+    void Set_LeaderPoseComponent(const ModelCom* leaderModel);
+    void Clear_LeaderPoseComponent();
+    bool Has_LeaderPoseComponent() const { return _leaderPoseModel != nullptr; }
+
+    void Update_LeaderPoseMatrices();
+
+private:
+    Matrix Convert_LeaderPoseMatrix(const Matrix& leaderMatrix) const;
+    Matrix Build_LeaderPoseMatrix(uint32 boneIndex, vector<uint8>& visited);
 
 private:
 	ModelType					        _type = { ModelType::END };
@@ -168,9 +183,18 @@ private: /* notify */
     AnimNotifyAsset _animNotifyAsset{};
     vector<ActiveAnimNotifyState> _activeNotifyStates{};
 
+private: /* 머리 붙이기 */
+    const ModelCom*         _leaderPoseModel = nullptr;
+
+    vector<int32>       _leaderPoseBoneMap;           // follower bone index => leader bone index
+    vector<Matrix>      _leaderPoseCombinedMatrices;  // follower 기준으로 최종 행렬
+
 private:
 	HRESULT Ready_Model(const char* modelPath);
     HRESULT Ready_Animation(const char* modelPath);
+    void Reset_ModelData();
+    static ModelType Parse_ModelType(const string& modelType);
+    static string To_ModelTypeString(ModelType modelType);
 
 public:
 	static Shared<ModelCom> Create(const ComPtr<Device>& device, const ComPtr<Context>& context, ModelType type, const char* modelFilePath, const Matrix& preLocalTransformMatrix = XMMatrixIdentity());

@@ -10,12 +10,32 @@
 #include "EffectEditor_Manager.h"
 #include "GameInstance.h"
 #include "ImGui_Manager.h"
+#include "Level_EffectEditor.h"
 #include "Notification_Manager.h"
 #include "RenderTarget.h"
 
 NS_BEGIN(EffectEditor)
 
+namespace Internal
+{
+    static bool Is_PreviewCameraDragInputHeld()
+    {
+        const bool altHeld =
+            GAME->KeyPress(KEY_TYPE::ALT) || GAME->KeyDown(KEY_TYPE::ALT);
+
+        return GAME->KeyPress(KEY_TYPE::RBUTTON) ||
+               (altHeld &&
+                (ImGui::IsMouseDown(ImGuiMouseButton_Left) ||
+                 ImGui::IsMouseDown(ImGuiMouseButton_Middle)));
+    }
+}
+
 IMPLEMENT_SINGLETON(EffectEditorInstance)
+
+EffectEditorInstance::~EffectEditorInstance()
+{
+    Free();
+}
 
 EffectEditorInstance::EffectEditorInstance()
 {
@@ -47,7 +67,7 @@ HRESULT EffectEditorInstance::Initialize_Editor(const EffectEditorDesc& editorDe
 
     _runtimeState = EffectEditorRuntimeState::Edit;
     _runtimeTimeScale = 1.f;
-    Queue_PreviewViewportSize(defaultPreviewViewportWidth, defaultPreviewViewportHeight);
+    Queue_PreviewViewportSize(kDefaultPreviewViewportWidth, kDefaultPreviewViewportHeight);
 
     return S_OK;
 }
@@ -79,8 +99,8 @@ void EffectEditorInstance::Release_Editor()
 
     _editorDesc = {};
     _hasPendingPreviewViewportSize = false;
-    _pendingPreviewViewportWidth = defaultPreviewViewportWidth;
-    _pendingPreviewViewportHeight = defaultPreviewViewportHeight;
+    _pendingPreviewViewportWidth = kDefaultPreviewViewportWidth;
+    _pendingPreviewViewportHeight = kDefaultPreviewViewportHeight;
     _appliedPreviewViewportWidth = 0;
     _appliedPreviewViewportHeight = 0;
 
@@ -89,6 +109,8 @@ void EffectEditorInstance::Release_Editor()
     _hasPendingWindowFocus = false;
     _pendingWindowFocus = EditorViewportTarget::Game;
     _pendingSingleFrameStep = false;
+    _copiedObjectJson.clear();
+    _copiedLayerTag.clear();
     _isSceneViewportInputEnabled = false;
     _isSceneViewportInputBlocked = false;
     _isGameViewportInputEnabled = false;
@@ -258,6 +280,60 @@ void EffectEditorInstance::Clear_CommandHistory()
 {
     if (_commandHistory)
         _commandHistory->Clear();
+}
+
+void EffectEditorInstance::Copy_SelectedObject()
+{
+    if (_editorContext == nullptr)
+        return;
+
+    const Shared<GameObject> selectedObject = _editorContext->Get_Selection().selectedObject;
+    if (selectedObject == nullptr)
+        return;
+
+    wstring layerTag{};
+    if (!Find_ObjectLayerTag(selectedObject, layerTag))
+        return;
+
+    _copiedObjectJson = selectedObject->To_Json().dump();
+    _copiedLayerTag = layerTag;
+}
+
+Shared<GameObject> EffectEditorInstance::Paste_CopiedObject()
+{
+    Shared<GameObject> gameObject = Instantiate_GameObjectFromCopiedData();
+    if (gameObject == nullptr)
+        return nullptr;
+
+    if (FAILED(GAME->Add_GameObject(GAME->Current_LevelIndex(), _copiedLayerTag, gameObject)))
+        return nullptr;
+
+    if (_editorContext)
+        _editorContext->Set_SelectObject(gameObject);
+
+    return gameObject;
+}
+
+Shared<GameObject> EffectEditorInstance::Duplicate_SelectedObject()
+{
+    Copy_SelectedObject();
+    return Paste_CopiedObject();
+}
+
+bool EffectEditorInstance::Delete_SelectedObject()
+{
+    if (_editorContext == nullptr)
+        return false;
+
+    const Shared<GameObject> selectedObject = _editorContext->Get_Selection().selectedObject;
+    if (selectedObject == nullptr)
+        return false;
+
+    if (!GAME->Remove_GameObject(GAME->Current_LevelIndex(), selectedObject))
+        return false;
+
+    _editorContext->Clear_Selection();
+    return true;
 }
 
 void EffectEditorInstance::Activate_TargetCamera()
@@ -433,7 +509,6 @@ void EffectEditorInstance::Capture_BackBuffer_ToViewport()
         0,
         &sourceBox
     );
-
 }
 
 void EffectEditorInstance::Request_PreviewViewportSize(uint32 width, uint32 height)
@@ -483,7 +558,7 @@ void EffectEditorInstance::Ensure_SceneGridResources()
     if (_sceneGridBatch && _sceneGridEffect && _sceneGridInputLayout && _sceneGridDepthState)
         return;
 
-    static constexpr D3D11_INPUT_ELEMENT_DESC kSceneGridInputElements[] =
+    static constexpr D3D11_INPUT_ELEMENT_DESC sceneGridInputElements[] =
     {
         { "SV_Position", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
         { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
@@ -507,8 +582,8 @@ void EffectEditorInstance::Ensure_SceneGridResources()
 
     if (FAILED(
         _device->CreateInputLayout(
-            kSceneGridInputElements,
-            static_cast<UINT>(_countof(kSceneGridInputElements)),
+            sceneGridInputElements,
+            static_cast<UINT>(_countof(sceneGridInputElements)),
             shaderByteCode,
             shaderByteCodeLength,
             _sceneGridInputLayout.GetAddressOf())
@@ -567,8 +642,8 @@ void EffectEditorInstance::Render_SceneGridToBackBuffer()
     ID3D11GeometryShader* nullGeometryShader = nullptr;
     _context->GSSetShader(nullGeometryShader, nullptr, 0);
 
-    ID3D11ShaderResourceView* nullSRVs[1] = { nullptr };
-    _context->PSSetShaderResources(0, 1, nullSRVs);
+    ID3D11ShaderResourceView* nullShaderResourceViews[1] = { nullptr };
+    _context->PSSetShaderResources(0, 1, nullShaderResourceViews);
 
     _context->RSSetState(nullptr);
     _context->IASetInputLayout(_sceneGridInputLayout.Get());
@@ -578,33 +653,33 @@ void EffectEditorInstance::Render_SceneGridToBackBuffer()
 
     _sceneGridBatch->Begin();
 
-    const float step = sceneGridHalfExtent * 2.f / static_cast<float>(sceneGridDivisions);
+    const float step = kSceneGridHalfExtent * 2.f / static_cast<float>(kSceneGridDivisions);
     const XMVECTOR gridColor = XMVectorSet(0.58f, 0.58f, 0.62f, 1.f);
     const XMVECTOR xAxisColor = XMVectorSet(0.95f, 0.32f, 0.32f, 1.f);
     const XMVECTOR zAxisColor = XMVectorSet(0.28f, 0.72f, 1.f, 1.f);
 
-    for (int i = 0; i <= sceneGridDivisions; ++i)
+    for (int i = 0; i <= kSceneGridDivisions; ++i)
     {
-        const float offset = -sceneGridHalfExtent + step * static_cast<float>(i);
+        const float offset = -kSceneGridHalfExtent + step * static_cast<float>(i);
         const XMVECTOR colorX = fabsf(offset) < 0.0001f ? zAxisColor : gridColor;
         const XMVECTOR colorZ = fabsf(offset) < 0.0001f ? xAxisColor : gridColor;
 
         VertexPositionColor lineXStart(
-            Vec3(-sceneGridHalfExtent, sceneGridHeight, offset),
+            Vec3(-kSceneGridHalfExtent, kSceneGridHeight, offset),
             colorX
         );
         VertexPositionColor lineXEnd(
-            Vec3(sceneGridHalfExtent, sceneGridHeight, offset),
+            Vec3(kSceneGridHalfExtent, kSceneGridHeight, offset),
             colorX
         );
         _sceneGridBatch->DrawLine(lineXStart, lineXEnd);
 
         VertexPositionColor lineZStart(
-            Vec3(offset, sceneGridHeight, -sceneGridHalfExtent),
+            Vec3(offset, kSceneGridHeight, -kSceneGridHalfExtent),
             colorZ
         );
         VertexPositionColor lineZEnd(
-            Vec3(offset, sceneGridHeight, sceneGridHalfExtent),
+            Vec3(offset, kSceneGridHeight, kSceneGridHalfExtent),
             colorZ
         );
         _sceneGridBatch->DrawLine(lineZStart, lineZEnd);
@@ -651,7 +726,7 @@ void EffectEditorInstance::Apply_RuntimeInputPolicy()
     const Shared<Editor_Window> sceneView = Get_Window(L"Scene");
     const Shared<Editor_Window> gameView = Get_Window(L"Game");
 
-    if (_isPreviewCameraDragging && !GAME->KeyPress(KEY_TYPE::RBUTTON))
+    if (_isPreviewCameraDragging && !Internal::Is_PreviewCameraDragInputHeld())
         End_PreviewCameraDrag();
 
     if (_runtimeState != EffectEditorRuntimeState::Play &&
@@ -681,9 +756,7 @@ void EffectEditorInstance::Apply_RuntimeInputPolicy()
                 GAME->Lock_Mouse();
             }
             else
-            {
                 End_PreviewCameraDrag();
-            }
         }
         else
         {
@@ -730,6 +803,61 @@ bool EffectEditorInstance::Consume_FrameStep()
 
     _pendingSingleFrameStep = false;
     return true;
+}
+
+void EffectEditorInstance::Request_RestartPreview()
+{
+    const Shared<Level> currentLevel = GAME->Current_LevelType();
+    const Shared<Level_EffectEditor> effectEditorLevel = dynamic_pointer_cast<Level_EffectEditor>(currentLevel);
+    if (nullptr == effectEditorLevel)
+        return;
+
+    if (FAILED(effectEditorLevel->Restart_PreviewFromAuthoring()))
+        LOG_ERROR("Failed to restart EffectEditor preview.");
+}
+
+bool EffectEditorInstance::Find_ObjectLayerTag(const Shared<GameObject>& gameObject, wstring& outLayerTag) const
+{
+    if (gameObject == nullptr)
+        return false;
+
+    bool found = false;
+    GAME->Visit_CurrentLevelObjects(
+        [&](const wstring& layerTag, const Shared<GameObject>& currentObject)
+        {
+            if (found || currentObject != gameObject)
+                return;
+
+            outLayerTag = layerTag;
+            found = true;
+        }
+    );
+
+    return found;
+}
+
+Shared<GameObject> EffectEditorInstance::Instantiate_GameObjectFromCopiedData() const
+{
+    if (_copiedObjectJson.empty())
+        return nullptr;
+
+    json root = json::parse(_copiedObjectJson, nullptr, false);
+    if (root.is_discarded() || !root.is_object() || !root.contains("static_class"))
+        return nullptr;
+
+    const string staticClass = root["static_class"].get<string>();
+    if (staticClass.empty())
+        return nullptr;
+
+    Shared<GameObject> gameObject = GAME->Create_GameObjectPrototype(staticClass);
+    if (gameObject == nullptr)
+        return nullptr;
+
+    if (FAILED(gameObject->Initialize(nullptr)))
+        return nullptr;
+
+    gameObject->From_Json(root);
+    return gameObject;
 }
 
 void EffectEditorInstance::Free()

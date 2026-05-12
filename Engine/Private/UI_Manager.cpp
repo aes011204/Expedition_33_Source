@@ -23,7 +23,7 @@ HRESULT UI_Manager::Add_UI(uint32 prototypeLevelIndex, const wstring& prototypeT
     Shared<UI_Base> ui = dynamic_pointer_cast<UI_Base>(clonedBase);
     CHECK_NULL(ui, E_FAIL);
 
-    _uiList.push_back(ui);
+    _uiList.push_back(UI_Entry{ prototypeLevelIndex, ui });
     Sort_UIList();
 
     if (ui->Is_Open())
@@ -39,8 +39,11 @@ HRESULT UI_Manager::Add_UI(uint32 prototypeLevelIndex, const wstring& prototypeT
 void UI_Manager::Sort_UIList()
 {
     stable_sort(_uiList.begin(), _uiList.end(),
-        [](const Shared<UI_Base>& leftUI, const Shared<UI_Base>& rightUI)
+        [](const UI_Entry& leftEntry, const UI_Entry& rightEntry)
         {
+            const Shared<UI_Base>& leftUI = leftEntry.ui;
+            const Shared<UI_Base>& rightUI = rightEntry.ui;
+
             if (nullptr == leftUI)
                 return false;
 
@@ -50,7 +53,6 @@ void UI_Manager::Sort_UIList()
             return leftUI->Get_SortOrder() < rightUI->Get_SortOrder();
         });
 }
-
 
 void UI_Manager::Pop_UI()
 {
@@ -79,12 +81,14 @@ HRESULT UI_Manager::Initialize()
 
 void UI_Manager::Update(float timeDelta)
 {
-    for (auto& ui : _uiList)
+    for (auto& entry : _uiList)
     {
+        Shared<UI_Base>& ui = entry.ui;
+
         if (nullptr == ui)
             continue;
 
-        if (!ui->Is_Open())
+        if (!ui->Is_EffectivelyOpen())
             continue;
 
         ui->Update(timeDelta);
@@ -93,12 +97,14 @@ void UI_Manager::Update(float timeDelta)
 
 HRESULT UI_Manager::Render()
 {
-    for (const auto& ui : _uiList)
+    for (const auto& entry : _uiList)
     {
+        const Shared<UI_Base>& ui = entry.ui;
+
         if (nullptr == ui)
             continue;
 
-        if (!ui->Is_Open())
+        if (!ui->Is_EffectivelyOpen())
             continue;
 
         if (FAILED(ui->Render()))
@@ -110,14 +116,58 @@ HRESULT UI_Manager::Render()
 
 void UI_Manager::Clear()
 {
-    for (auto& ui : _uiList)
+    for (auto& entry : _uiList)
     {
+        Shared<UI_Base>& ui = entry.ui;
+
         if (nullptr != ui)
             ui->Free();
     }
 
     _uiList.clear();
     _openedUIStack.clear();
+}
+
+void UI_Manager::Clear_Level(uint32 levelIndex)
+{
+    vector<UI_Base*> clearedUIs{};
+
+    for (auto& entry : _uiList)
+    {
+        if (entry.levelIndex != levelIndex)
+            continue;
+
+        if (nullptr != entry.ui)
+        {
+            clearedUIs.push_back(entry.ui.get());
+            entry.ui->Free();
+        }
+    }
+
+    _uiList.erase(
+        remove_if(_uiList.begin(), _uiList.end(),
+            [levelIndex](const UI_Entry& entry)
+            {
+                return entry.levelIndex == levelIndex;
+            }),
+        _uiList.end());
+
+    vector<Weak<UI_Base>> validStack{};
+    validStack.reserve(_openedUIStack.size());
+
+    for (const Weak<UI_Base>& weakUI : _openedUIStack)
+    {
+        Shared<UI_Base> ui = weakUI.lock();
+        if (nullptr == ui)
+            continue;
+
+        if (find(clearedUIs.begin(), clearedUIs.end(), ui.get()) != clearedUIs.end())
+            continue;
+
+        validStack.push_back(weakUI);
+    }
+
+    _openedUIStack.swap(validStack);
 }
 
 Unique<UI_Manager> UI_Manager::Create(Prototype_Manager* prototypeManager)

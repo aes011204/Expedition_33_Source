@@ -6,9 +6,9 @@
 #include "PlayerControllerCom.h"
 #include "Bounding_OBB.h"
 #include "ColliderCom.h"
-#include "PlayerStateMachineCom.h"
-
+#include "CombatStatCom.h"
 #include "PlayableParts.h"
+#include "PlayerStateMachineCom.h"
 #include "Body_Player.h"
 #include "Hair_Player.h"
 #include "Head_Player.h"
@@ -25,7 +25,6 @@ IMPLEMENT_REFLECTION(Player)
     info.category = "Character";
 
     PROPERTY_ENUM("PlayerState",_currentState, PlayerState);
-    PROPERTY_FLOAT("TestHp", _testHp);
 
     return true;
 }
@@ -109,7 +108,7 @@ HRESULT Player::Ready_Components()
     MovementCom::MoveDesc moveDesc{};
     moveDesc.walkSpeed = 9.f;
     moveDesc.runSpeed = 10.f;
-    moveDesc.turnSpeedDegree = 180.f;
+    moveDesc.turnSpeedDegree = 360.f;
     moveDesc.jumpVelocity = 8.f;
     moveDesc.gravity = -20.f;
     moveDesc.groundY = 0.f;
@@ -124,6 +123,9 @@ HRESULT Player::Ready_Components()
         stateMachine->Add_State(PlayerState::Jump, Player_Jump::Create(GetSharedPtr<Player>()));
     }
     CHECK_FAILED(Ready_Collider(), E_FAIL);
+
+    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_CombatStat"), _combatStatCom), E_FAIL);
+
 
     return S_OK;
 }
@@ -150,7 +152,8 @@ HRESULT Player::Ready_PartObjects()
     headPartDesc.parentMatrix = playableDesc.parentMatrix;
     headPartDesc.modelType = ModelType::Anim;
     headPartDesc.modelTag = L"Model_LuneHead";
-    headPartDesc.socketMatrixPointer = mainBody->Get_SocketBoneMatrixPtr("Metahuman_Head");
+    //headPartDesc.socketMatrixPointer = mainBody->Get_SocketBoneMatrixPtr("Metahuman_Head");
+    headPartDesc.socketMatrixPointer = nullptr;
 
     if (FAILED(__super::Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Head_Player"),
         TEXT("Part_Head"), &headPartDesc)))
@@ -159,6 +162,8 @@ HRESULT Player::Ready_PartObjects()
     Head_Player* head = dynamic_cast<Head_Player*>(_partObjects[TEXT("Part_Head")].get());
     if (nullptr == head)
         return E_FAIL;
+
+    head->Set_LeaderPoseComponent(mainBody);
 
     //>> Hair Part
     Hair_Player::HAIR_PLAYER_DESC hairPartDesc{};

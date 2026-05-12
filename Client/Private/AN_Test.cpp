@@ -1,5 +1,7 @@
 ﻿#include "AN_Test.h"
 
+#include <GameObject.h>
+
 IMPLEMENT_REFLECTION(AN_Test)
 {
     auto& info = GetStaticReflectionInfo();

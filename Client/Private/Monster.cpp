@@ -76,7 +76,7 @@ void Monster::Update(float timeDelta)
     if (_aiCtrl)
     {
         Shared<BlackBoard> bb = _aiCtrl->Get_BlackBoard();
-        Shared<GameObject> player = CLIENT->Find_Player(ETOI(LevelType::Static));
+        Shared<GameObject> player = CLIENT->Find_Player(GAME->Current_LevelIndex());
 
         if (bb && player)
         {
@@ -139,6 +139,8 @@ void Monster::Late_Update(float fTimeDelta)
     }
     __super::Late_Update(fTimeDelta);
 
+ 	// GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<Character>());
+	// GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<Character>());
 }
 
 //Action Monster::Decide_BattleAction()

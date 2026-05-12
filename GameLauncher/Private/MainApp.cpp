@@ -41,15 +41,7 @@ HRESULT MainApp::Initialize()
     if (FAILED(Ready_Fonts()))
         return E_FAIL;
 
-    if (FAILED(Ready_Prototype_For_Static_Level()))
-        return E_FAIL;
-
-    // Add
-    if (FAILED(CLIENT->Ready_StaticObjects()))
-        return E_FAIL;
-    //
-
-    if (FAILED(Ready_StartLevel(LevelType::Logo)))
+    if (FAILED(Ready_StartLevel(LevelType::GamePlay)))
         return E_FAIL;
 
     return S_OK;
@@ -57,12 +49,19 @@ HRESULT MainApp::Initialize()
 
 void MainApp::Update(float fTimeDelta)
 {
-    GAME->Update_Engine(fTimeDelta);
+    GAME->Update_Engine(fTimeDelta, [](float dt)
+    {
+        CLIENT->Update_Client(dt);
+    });
 }
 
 HRESULT MainApp::Render()
 {
-    const Vec4 clearColor = Vec4(0.f, 0.f, 1.f, 1.f);
+    const bool isLoading = GAME->Current_LevelIndex() == ETOI(LevelType::Loading);
+    const Vec4 clearColor = isLoading
+        ? Vec4(0.f, 0.f, 0.f, 1.f)
+        : Vec4(0.f, 0.f, 1.f, 1.f);
+
     if (FAILED(GAME->Clear_Buffers(clearColor)))
         return E_FAIL;
 

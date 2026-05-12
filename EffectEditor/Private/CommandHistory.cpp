@@ -16,7 +16,7 @@ void CommandHistory::Execute(const Shared<ICommand>& command)
     _undoStack.push_back(command);
     _redoStack.clear();
 
-    if (_undoStack.size() > MAX_HISTORY)
+    if (_undoStack.size() > kMaxHistory)
         _undoStack.erase(_undoStack.begin());
 }
 

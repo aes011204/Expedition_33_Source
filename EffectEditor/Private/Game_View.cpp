@@ -1,7 +1,7 @@
 ﻿#include "Game_View.h"
 
-#include "GameInstance.h"
 #include "EffectEditorInstance.h"
+#include "GameInstance.h"
 #include "RenderTarget.h"
 
 NS_BEGIN(EffectEditor)
@@ -84,10 +84,10 @@ void Game_View::Render()
         ImGui::InvisibleButton("GameViewportCanvas", viewportSize);
         EDITOR->Set_GameViewportInputState(ImGui::IsItemHovered());
 
-        ID3D11ShaderResourceView* pSRV = EDITOR->Get_SharedViewportSRV();
-        if (nullptr != pSRV)
+        ID3D11ShaderResourceView* viewportSrv = EDITOR->Get_SharedViewportSRV();
+        if (nullptr != viewportSrv)
         {
-            const ImTextureID textureId = static_cast<ImTextureID>(reinterpret_cast<intptr_t>(pSRV));
+            const ImTextureID textureId = static_cast<ImTextureID>(reinterpret_cast<intptr_t>(viewportSrv));
             const float aspect = EDITOR->Get_EffectiveViewportAspect();
             const Internal::ViewportImageRect imageRect =
                 Internal::Compute_AspectFitRect(canvasMin, viewportSize, aspect);

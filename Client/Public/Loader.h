@@ -22,7 +22,7 @@ public:
     // - worker thread 진입점이 호출하는 실제 작업 함수
     HRESULT Loading();
 
-    HRESULT Process_PendingLoadJobs(size_t maxJobPerFrame);
+    HRESULT Process_PendingLoadJobs(size_t maxCommitPerFrame);
 
     bool isFinished() { return _isFinished.load(); }
     bool Has_Failed() const { return _hasFailed.load(); }
@@ -30,7 +30,11 @@ public:
     // 진행률. 그런데 33원정대 로딩에서 Progress Bar 없던거같은데
     float Get_Progress() const;
 
-    bool Is_WorkerDone() const { return _workerDone.load() || _hasFailed.load(); }
+    bool Is_WorkerDone() const
+    {
+        return (_workerDone.load() && _activeCreateJobCount.load() == 0) || _hasFailed.load();
+    }
+
 
 #ifdef _DEBUG
 public:
@@ -38,7 +42,10 @@ public:
 #endif
 
 private:
+    HRESULT Append_ResourceJobsForLevel(LevelType levelType);
     HRESULT Load_ResourceJobsForLevel(LevelType levelType);
+    HRESULT Load_ResourceJobsForLevels(const vector<LevelType>& levelTypes);
+    HRESULT Load_ResourceJobsForNextLevel();
 
     HRESULT Loading_For_LogoLevel();
     HRESULT Loading_For_GamePlayLevel();
@@ -52,11 +59,29 @@ private:
 private:
     static string Format_Duration(chrono::milliseconds duration);
 
+    HRESULT Schedule_PendingCreateJobs();
+    HRESULT Push_CompletedLoadJob(
+        const FLoadJob& loadJob,
+        const Shared<Base>& prototype,
+        HRESULT result,
+        chrono::milliseconds elapsed);
+
+    HRESULT Commit_CompletedLoadJobs(size_t maxCommitPerFrame);
+    HRESULT Try_FinishLoading();
+
 private:
     struct LoadJobStats
     {
         size_t count = 0;
-        chrono::milliseconds totalDuration{0};
+        chrono::milliseconds totalDuration{ 0 };
+    };
+
+    struct CompletedLoadJob
+    {
+        FLoadJob loadJob{};
+        Shared<Base> prototype = nullptr;
+        HRESULT result = S_OK;
+        chrono::milliseconds elapsed{};
     };
 
 private:
@@ -66,7 +91,7 @@ private:
     LevelType					_nextLevel = { LevelType::END };
 
     atomic<bool>                _workerStarted = false;
-            
+
     //HANDLE					_threadHandle = {};
     //CRITICAL_SECTION			_criticalSection = {}; 이제 사용 안할듯?
 
@@ -74,6 +99,7 @@ private:
     atomic<bool>                _workerDone = false;
     atomic<bool>                _isFinished = false;
     atomic<bool>                _hasFailed = false;
+    atomic<bool>                _includedStaticJobs = false;
 
     wchar_t						_loadingText[MAX_PATH] = {};
 
@@ -86,6 +112,15 @@ private:
     atomic<size_t>      _completedJobCount = 0;
 
     array<LoadJobStats, static_cast<size_t>(ELoadJobType::Unknown) + 1> _loadJobStats = {};
+
+private:
+    // worker thread에서 prototype 생성이 끝난 job들
+    // main thread가 여기서 꺼내서 GAME->Add_Prototype이 생성되게
+    mutex               _completedJobsMutex;
+    vector<CompletedLoadJob>  _completedJobs;
+
+    // 현재 스레드풀에서 prototype 생성중인 job 수
+    atomic<size_t>      _activeCreateJobCount = 0;
 
 public:
     static Shared<Loader> Create(const ComPtr<Device>& device, const ComPtr<Context>& context, LevelType eNextLevelID);

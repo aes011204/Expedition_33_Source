@@ -43,8 +43,14 @@ Shared<Base> Prototype_Manager::Clone_Prototype(Prototype prototype, uint32 leve
     else
         instance = static_pointer_cast<GameObject>(foundPrototype)->Clone(arg);
 
-	if (nullptr == instance)
-		MSG_BOX("Failed to Cloned");
+    if (nullptr == instance)
+    {
+        wstring message =
+            L"Failed to Cloned\nLevel: " + to_wstring(levelIndex) +
+            L"\nTag: " + prototypeTag;
+
+        MSG_BOX_S(message.c_str());
+    }
 
 	return instance;
 }
@@ -56,6 +62,16 @@ HRESULT Prototype_Manager::Clear_Prototypes(uint32 levelIndex)
 
 	_prototypes[levelIndex].clear();
 	return S_OK;
+}
+
+bool Prototype_Manager::Has_Prototype(uint32 levelIndex, const wstring& prototypeTag) const
+{
+    if (levelIndex >= _numLevels)
+        return false;
+
+    const auto iter = _prototypes[levelIndex].find(prototypeTag);
+
+    return iter != _prototypes[levelIndex].end();
 }
 
 Shared<Base> Prototype_Manager::Find_Prototype(uint32 levelIndex, const wstring& prototypeTag)

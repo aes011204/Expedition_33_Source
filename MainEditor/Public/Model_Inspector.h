@@ -27,6 +27,9 @@ private:
     };
 
 private:
+    static string Build_ModelPickerLabel(const AssetMeta& assetMeta);
+    static bool Is_ModelAssetOfType(const AssetMeta& assetMeta, Engine::ModelType expectedModelType);
+    static void Draw_ModelPicker(const Shared<Engine::ModelCom>& model);
     static const char* Get_TextureTypeLabel(uint32 typeIndex);
     static string To_DisplayTexturePath(const wstring& resolvedPath);
     static bool Is_TextureExtension(const fs::path& path);

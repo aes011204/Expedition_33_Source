@@ -73,7 +73,7 @@ exit /b 1
 cls
 echo [Mode] %MODE_NAME%
 echo.
-python ConvertXLSX.py %SYNC_ARG%
+py ConvertXLSX.py %SYNC_ARG%
 set "EXIT_CODE=%ERRORLEVEL%"
 echo.
 if not "%EXIT_CODE%"=="0" (

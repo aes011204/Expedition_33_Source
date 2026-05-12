@@ -1,12 +1,11 @@
 #pragma once
 #include "UI_Document.h"
+#include "UI_AnimationPreviewService.h"
+#include "UI_Editor_FileService.h"
+#include "UI_Editor_HistoryService.h"
+#include "UI_Editor_PreviewService.h"
 #include "UI_Editor_Window.h"
-
-namespace Engine
-{
-    class ShaderCom;
-    class VIBuffer_Rect;
-}
+#include "UI_PrefabService.h"
 
 NS_BEGIN(UIEditor)
 
@@ -28,6 +27,16 @@ public:
     const UI_Document& Get_Document() const;
     ObjectId Get_SelectedObjectId() const;
     void Set_SelectedObjectId(ObjectId objectId);
+    void Set_SingleSelection(ObjectId objectId);
+    void Set_SelectedObjectIds(const vector<ObjectId>& objectIds, ObjectId primaryObjectId);
+    const vector<ObjectId>& Get_SelectedObjectIds() const;
+    vector<ObjectId> Get_RootSelectedObjectIds() const;
+    bool Is_ObjectSelected(ObjectId objectId) const;
+    bool Has_SelectedObjects() const;
+    size_t Get_SelectedObjectCount() const;
+    void Add_ToSelection(ObjectId objectId);
+    void Toggle_Selection(ObjectId objectId);
+    void Clear_Selection();
     UI_Object* Get_SelectedObject();
     const UI_Object* Get_SelectedObject() const;
     bool Is_AssetManagerReady() const;
@@ -37,10 +46,13 @@ public:
     ID3D11ShaderResourceView* Get_MaskedTexturePreviewSRV(const string& textureGuid, const string& maskTextureGuid);
     bool New_Document();
     void Create_UIObject(UI_ObjectType objectType);
+    bool Create_UIObjectsFromPrefab(const UI_PrefabAsset& prefab);
     void Duplicate_UIObject(ObjectId objectId);
     void Delete_UIObject(ObjectId objectId);
     void Duplicate_SelectedUIObject();
     void Delete_SelectedUIObject();
+    bool Rename_Canvas(const string& newName);
+    void Request_RenameCanvas();
     bool Rename_UIObject(ObjectId objectId, const string& newName);
     void Request_RenameUIObject(ObjectId objectId);
     bool Reparent_UIObject(ObjectId objectId, ObjectId newParentId);
@@ -48,6 +60,7 @@ public:
     bool Set_UIObjectWorldPosition(ObjectId objectId, const ImVec2& worldPosition);
     bool Set_UIObjectWorldRect(ObjectId objectId, const ImVec2& worldPosition, const ImVec2& worldSize);
     ImVec2 Get_UIObjectWorldPosition(ObjectId objectId) const;
+    bool Align_SelectedObjects(UI_AlignmentCommand command);
     bool Undo();
     bool Redo();
     bool Can_Undo() const;
@@ -66,30 +79,21 @@ public:
         float rotationRadians,
         UI_TextAlign textAlign,
         float scale,
+        bool textWrap,
         const D3D11_RECT& clipRect);
+    void Play_AnimationPreview(ObjectId objectId);
+    void Play_AnimationAssetPreview(const UI_AnimationAsset& asset, int32 startFrame);
+    void Preview_AnimationAsset(const UI_AnimationAsset& asset, int32 frame);
+    void Pause_AnimationPreview();
+    void Stop_AnimationPreview();
+    void Restart_AnimationPreview(ObjectId objectId);
+    bool Is_AnimationPreviewActive() const;
+    bool Is_AnimationPreviewPlaying() const;
+    float Get_AnimationPreviewTime() const;
+    int32 Get_AnimationPreviewFrame() const;
+    bool Sample_AnimationPreview(const UI_Object& object, UI_AnimationPreviewSample& outSample) const;
 
 private:
-    struct FontPreviewCommand
-    {
-        string fontGuid = "";
-        string fontPath = "";
-        wstring text = L"";
-        Vec2 position = Vec2(0.f, 0.f);
-        Vec4 color = Vec4(1.f, 1.f, 1.f, 1.f);
-        float rotationRadians = 0.f;
-        Vec2 pivot = Vec2(0.f, 0.f);
-        float scale = 1.f;
-        D3D11_RECT clipRect = {};
-    };
-
-    struct HistoryState
-    {
-        UI_Document document = {};
-        ObjectId selectedObjectId = 0;
-        bool isDirty = false;
-        string documentSignature = "";
-    };
-
     void Render_DockSpace();
     bool Save_Document();
     bool Save_DocumentAs();
@@ -98,59 +102,32 @@ private:
     void Handle_Shortcuts();
     void Render_RenamePopup();
     void Clear_RuntimeCaches();
-    bool Show_SaveFileDialog(wstring& outFilePath) const;
-    bool Show_LoadFileDialog(wstring& outFilePath) const;
-    wstring Resolve_DefaultJsonDirectory() const;
-    void Ensure_JsonExtension(wstring& filePath) const;
     void Resolve_LoadedAssetReferences();
     ObjectId Resolve_CreateParentId() const;
-    SpriteFont* Get_FontPreview(const string& fontGuid, const string& fontPath);
-    string Make_DocumentSignature(const UI_Document& document) const;
-    HistoryState Capture_HistoryState() const;
-    bool Is_SameHistoryState(const HistoryState& lhs, const HistoryState& rhs) const;
-    bool Is_CurrentDocumentClean() const;
+    vector<ObjectId> Normalize_Selection(const vector<ObjectId>& objectIds) const;
+    vector<ObjectId> Collect_RootObjectIds(const vector<ObjectId>& objectIds) const;
+    void Apply_Selection(const vector<ObjectId>& objectIds, ObjectId primaryObjectId);
+    void Prune_InvalidSelection();
     void Push_UndoSnapshot();
-    void Push_HistoryState(vector<HistoryState>& historyStack, const HistoryState& historyState) const;
     void Clear_History();
-    void Apply_HistoryState(const HistoryState& historyState);
-    bool Ensure_ImagePreviewRenderer();
-    ID3D11ShaderResourceView* Create_MaskedTexturePreviewSRV(
-        const string& cacheKey,
-        ID3D11ShaderResourceView* textureSRV,
-        ID3D11ShaderResourceView* maskSRV);
 
 public:
     static Unique<UI_Editor_Manager> Create(const ComPtr<Device>& device, const ComPtr<Context>& context, bool assetManagerReady);
 
 private:
-    ComPtr<Device> _device = nullptr;
-    ComPtr<Context> _context = nullptr;
     UI_Document _document = {};
     map<wstring, Shared<UI_Editor_Window>> _windows = {};
     ObjectId _selectedObjectId = 0;
-    wstring _currentDocumentPath = {};
-    wstring _defaultJsonDirectory = {};
+    vector<ObjectId> _selectedObjectIds = {};
     bool _assetManagerReady = false;
-    bool _isDirty = false;
-    string _cleanDocumentSignature = "";
-    vector<HistoryState> _undoStack = {};
-    vector<HistoryState> _redoStack = {};
-    bool _isEditTransactionOpen = false;
-    HistoryState _editTransactionStartState = {};
+    UI_Editor_HistoryService _historyService = {};
+    UI_Editor_PreviewService _previewService = {};
+    UI_AnimationPreviewService _animationPreviewService = {};
+    UI_Editor_FileService _fileService = {};
     ObjectId _renameRequestObjectId = 0;
+    bool _isRenamingCanvas = false;
     bool _openRenamePopup = false;
     char _renameBuffer[128] = {};
-    unordered_map<string, ComPtr<ID3D11ShaderResourceView>> _textureThumbCache = {};
-    unordered_set<string> _textureNoThumbGuids = {};
-    unordered_map<string, ComPtr<ID3D11ShaderResourceView>> _maskedTexturePreviewCache = {};
-    unordered_set<string> _maskedTexturePreviewFailedKeys = {};
-    Shared<ShaderCom> _imagePreviewShader = nullptr;
-    Shared<VIBuffer_Rect> _imagePreviewVIBuffer = nullptr;
-    Unique<SpriteBatch> _fontPreviewSpriteBatch = nullptr;
-    ComPtr<ID3D11RasterizerState> _fontPreviewRasterizerState = nullptr;
-    unordered_map<string, Unique<SpriteFont>> _fontPreviewCache = {};
-    unordered_set<string> _fontPreviewFailedGuids = {};
-    vector<FontPreviewCommand> _fontPreviewCommands = {};
 };
 
 NS_END

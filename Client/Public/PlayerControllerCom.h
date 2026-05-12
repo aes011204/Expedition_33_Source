@@ -35,6 +35,9 @@ public:
     bool    Get_UseControlYaw() const { return _bUseControllerRotationYaw; }
     void    Set_UseControlYaw(bool check) { _bUseControllerRotationYaw = check; }
 
+    // 입력을 받을 수 있는지. 조작중인 메인 플레이어만 입력 들어오게
+    void    Set_ControlEnabled(bool enabled) { _controlEnabled = enabled; }
+    bool    Is_ControlEnabled() const { return _controlEnabled; }
 
 private:
     // Owner가 어차피 weak라 순환참조 걱정없어서 Shared 사용
@@ -46,8 +49,11 @@ private:
     // 일단 33원정대 스타일에서는 필요없을거같음.
     bool                 _isWalkToggled{ false };
     bool                 _bUseControllerRotationYaw = true;
-
     float                _testRelfectionValue = 1.f;
+
+    bool                 _controlEnabled = true;
+
+    MovementCom::MovementInput _currentInput{};
 
 public:
     static Shared<PlayerControllerCom> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
