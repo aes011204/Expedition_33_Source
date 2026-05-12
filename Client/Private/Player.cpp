@@ -16,19 +16,6 @@
 #include "Player_Jump.h"
 #include "Player_Move.h"
 
-IMPLEMENT_REFLECTION(Player)
-{
-    auto& info = GetStaticReflectionInfo();
-    info.properties.clear();
-
-    info.displayName = "Player";
-    info.category = "Character";
-
-    PROPERTY_ENUM("PlayerState",_currentState, PlayerState);
-
-    return true;
-}
-
 Player::Player(const ComPtr<Device>& device, const ComPtr<Context>& context)
 	: Character { device, context }
 {
@@ -133,7 +120,7 @@ HRESULT Player::Ready_PartObjects()
     Body_Player::BODY_PLAYER_DESC playableDesc{};
     playableDesc.parentMatrix = &_transformCom->Get_WorldMatrix();
     playableDesc.modelType = ModelType::Anim;
-    playableDesc.modelTag = L"Model_LuneBody";
+    playableDesc.modelTag = Get_BodyModelTag();;
 
     //> MainBody Setting
     if (FAILED(__super::Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Body_Player"),
@@ -149,7 +136,7 @@ HRESULT Player::Ready_PartObjects()
     Head_Player::HEAD_PLAYER_DESC headPartDesc{};
     headPartDesc.parentMatrix = playableDesc.parentMatrix;
     headPartDesc.modelType = ModelType::Anim;
-    headPartDesc.modelTag = L"Model_LuneHead";
+    headPartDesc.modelTag = Get_HeadModelTag();
     //headPartDesc.socketMatrixPointer = mainBody->Get_SocketBoneMatrixPtr("Metahuman_Head");
     headPartDesc.socketMatrixPointer = nullptr;
 
@@ -168,7 +155,7 @@ HRESULT Player::Ready_PartObjects()
     Hair_Player::HAIR_PLAYER_DESC hairPartDesc{};
     hairPartDesc.parentMatrix = playableDesc.parentMatrix;
     hairPartDesc.modelType = ModelType::Anim;
-    hairPartDesc.modelTag = L"Model_LuneHair";
+    hairPartDesc.modelTag = Get_HairModelTag();
     hairPartDesc.socketMatrixPointer = head->Get_SocketBoneMatrixPtr("head");
 
     if (FAILED(__super::Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Hair_Player"),
@@ -222,6 +209,3 @@ void Player::Free()
 	__super::Free();
 
 }
-
-
-

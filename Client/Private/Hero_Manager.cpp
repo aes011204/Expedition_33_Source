@@ -18,17 +18,27 @@ HRESULT Hero_Manager::Initialize_Hero(uint32 levelIndex, const wstring& layerTag
 
     const Vec3 startPos(10.f, 5.f, 10.f);
 
+    const wstring heroPrototypeTags[] =
+    {
+        TEXT("GameObject_Player_Lune"),
+        TEXT("GameObject_Player_Maelle"),
+        TEXT("GameObject_Player_Gustave"),
+    };
+
     for (uint32 i = 0; i < 3; ++i)
     {
-        auto object = Spawn_Prefab::Prefab("TestPlayer")
-            .AtLevel(levelIndex)
-            .InLayer(layerTag)
-            .Spawn();
+        Shared<GameObject> object = nullptr;
+
+        CHECK_FAILED(GAME->Add_GameObject(
+            ETOI(LevelType::Static),
+            heroPrototypeTags[i],
+            levelIndex,
+            layerTag,
+            object), E_FAIL);
 
         auto hero = dynamic_pointer_cast<Player>(object);
         CHECK_NULL(hero, E_FAIL);
 
-        // 초기 위치 설정
         Vec3 pos = startPos;
         pos.z -= static_cast<float>(i) * 1.5f;
 

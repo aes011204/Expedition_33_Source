@@ -35,8 +35,6 @@ HRESULT ClientInstance::Initialize_Client(const ComPtr<Device>& device, const Co
     if (FAILED(Ready_GameDataTables()))
         return E_FAIL;
 
-	_isInitialized = true;
-
     Client::Force_Register_ClientBTNodes();
 
     _persistentObjectManager = PersistentObjectManager::Create();
@@ -44,6 +42,8 @@ HRESULT ClientInstance::Initialize_Client(const ComPtr<Device>& device, const Co
 
     _heroManager = Hero_Manager::Create();
     CHECK_NULL(_heroManager, E_FAIL);
+
+	_isInitialized = true;
 
 	return S_OK;
 }
