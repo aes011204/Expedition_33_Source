@@ -29,6 +29,9 @@ public:
     virtual HRESULT Render() override;
     virtual HRESULT Render_Shadow() override;
 
+private :
+    virtual uint32 Decide_PassIndex(Shared<Material> mat) override;
+
 private:
     const Matrix* _socketMatrix = nullptr;
 public:

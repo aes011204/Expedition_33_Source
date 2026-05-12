@@ -534,9 +534,9 @@ ResourceLoader::FInputLayoutInfo ResourceLoader::Get_InputLayout(const string& s
     if ("ParticleInstance" == strName || "PARTICLEINSTANCE" == strName)
         return { ParticleInstanceLayout::Elements, ParticleInstanceLayout::numElements, ShaderType::BillboardParticle };
 
-    // Mesh Instance -> need to change
-    if("VTXMESHINST" == strName)
-        return { VtxMeshInstanceLayout::Elements, VtxMeshInstanceLayout::numElements, ShaderType::VtxMesh };
+    // Mesh Instance
+    if("VTXMESHINST" == strName || "VtxMeshInst" == strName || "vtxmeshinst" == strName)
+        return { VtxMeshInstanceLayout::Elements, VtxMeshInstanceLayout::numElements, ShaderType::VtxInstanceMesh };
 
     //return { VTXTEX::Elements, VTXTEX::numElements };
 

@@ -60,6 +60,12 @@ HRESULT Mon_Lancleier_Weapon::Render_Shadow()
     return Monster_Part::Render_Shadow();
 }
 
+uint32 Mon_Lancleier_Weapon::Decide_PassIndex(Shared<Material> mat)
+{
+    const int OPAQUE_PASS = 0;
+    return OPAQUE_PASS;
+}
+
 Shared<Mon_Lancleier_Weapon> Mon_Lancleier_Weapon::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
     auto instance = make_shared<Mon_Lancleier_Weapon>(device, context);
