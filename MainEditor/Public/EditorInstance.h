@@ -57,6 +57,7 @@ public: /* For.Window */
     Shared<Editor_Window>   Get_Window(const wstring& windowName) const;
 
 public: /* For.Editor Selection */
+    const Editor_Context*   Get_EditorContext() const { return _editorContext.get(); }
     Shared<GameObject>      Selected_Object() const;
     void                    Select_Object(const Shared<GameObject>& gameObject);
     void                    Clear_SelectedObject();

@@ -12,7 +12,19 @@ NS_BEGIN(EffectEditor)
 
 namespace Internal
 {
-    static constexpr float autoPreviewViewportScale = 1.5f;
+    static constexpr float kAutoPreviewViewportScale = 1.5f;
+
+    static bool Should_BeginPreviewCameraDrag()
+    {
+        const bool altHeld =
+            GAME->KeyPress(KEY_TYPE::ALT) || GAME->KeyDown(KEY_TYPE::ALT);
+
+        const bool orbitClicked = altHeld && ImGui::IsMouseClicked(ImGuiMouseButton_Left);
+        const bool panClicked = altHeld && ImGui::IsMouseClicked(ImGuiMouseButton_Middle);
+        const bool rightClicked = ImGui::IsMouseClicked(ImGuiMouseButton_Right);
+
+        return orbitClicked || panClicked || rightClicked;
+    }
 
     struct ViewportImageRect
     {
@@ -219,10 +231,8 @@ void Scene_View::Render()
 
         if (!overlayBlocked &&
             _isViewportHovered &&
-            ImGui::IsMouseClicked(ImGuiMouseButton_Right))
-        {
+            Internal::Should_BeginPreviewCameraDrag())
             EDITOR->Begin_PreviewCameraDrag();
-        }
 
         EDITOR->Set_SceneViewportInputState(_isViewportHovered, overlayBlocked);
     }
@@ -566,7 +576,7 @@ void Scene_View::Render_PreviewViewportOverlay()
     const ImVec4 activeButtonColor = ImVec4(0.79f, 0.56f, 0.18f, 1.f);
     const ImVec4 activeHoveredColor = ImVec4(0.88f, 0.64f, 0.23f, 1.f);
     const ImVec4 activeTextColor = ImVec4(0.09f, 0.09f, 0.09f, 1.f);
-    const auto drawModeButton = [&](const char* label, const ImVec2& size, bool active)
+    const auto draw_mode_button = [&](const char* label, const ImVec2& size, bool active)
     {
         if (active)
         {
@@ -583,18 +593,18 @@ void Scene_View::Render_PreviewViewportOverlay()
         return clicked;
     };
 
-    if (drawModeButton("Auto", ImVec2(42.f, 22.f), isAutoMode))
+    if (draw_mode_button("Auto", ImVec2(42.f, 22.f), isAutoMode))
     {
         EDITOR->Enable_AutoPreviewViewport();
         EDITOR->Request_PreviewViewportSize(
-            static_cast<uint32>(max(1.f, _viewportSize.x * Internal::autoPreviewViewportScale)),
-            static_cast<uint32>(max(1.f, _viewportSize.y * Internal::autoPreviewViewportScale))
+            static_cast<uint32>(max(1.f, _viewportSize.x * Internal::kAutoPreviewViewportScale)),
+            static_cast<uint32>(max(1.f, _viewportSize.y * Internal::kAutoPreviewViewportScale))
         );
         Sync_PreviewViewportInput();
     }
 
     ImGui::SameLine();
-    if (drawModeButton("Manual", ImVec2(62.f, 22.f), isManualMode))
+    if (draw_mode_button("Manual", ImVec2(62.f, 22.f), isManualMode))
     {
         EDITOR->Enable_ManualPreviewViewport();
         Sync_PreviewViewportInput();
@@ -655,8 +665,8 @@ void Scene_View::Render_ViewportCanvas()
     const ImVec2 canvasMax = ImVec2(canvasMin.x + _viewportSize.x, canvasMin.y + _viewportSize.y);
     ImDrawList* drawList = ImGui::GetWindowDrawList();
 
-    ID3D11ShaderResourceView* pSRV = EDITOR->Get_SharedViewportSRV();
-    if (nullptr != pSRV)
+    ID3D11ShaderResourceView* viewportSrv = EDITOR->Get_SharedViewportSRV();
+    if (nullptr != viewportSrv)
     {
         const float aspect = EDITOR->Get_EffectiveViewportAspect();
         const Internal::ViewportImageRect imageRect =
@@ -678,7 +688,7 @@ void Scene_View::Render_ViewportCanvas()
         _isViewportHovered = ImGui::IsItemHovered();
 
         const ImTextureID textureId =
-            static_cast<ImTextureID>(reinterpret_cast<intptr_t>(pSRV));
+            static_cast<ImTextureID>(reinterpret_cast<intptr_t>(viewportSrv));
 
         drawList->AddImage(textureId, imageRect.imageMin, imageRect.imageMax);
         _viewportMin = imageRect.imageMin;
@@ -716,8 +726,8 @@ void Scene_View::Render_ViewportCanvas()
     if (EDITOR->Get_PreviewViewportMode() == PreviewViewportMode::Auto)
     {
         EDITOR->Request_PreviewViewportSize(
-            static_cast<uint32>(max(1.f, _viewportSize.x * Internal::autoPreviewViewportScale)),
-            static_cast<uint32>(max(1.f, _viewportSize.y * Internal::autoPreviewViewportScale))
+            static_cast<uint32>(max(1.f, _viewportSize.x * Internal::kAutoPreviewViewportScale)),
+            static_cast<uint32>(max(1.f, _viewportSize.y * Internal::kAutoPreviewViewportScale))
         );
     }
 }

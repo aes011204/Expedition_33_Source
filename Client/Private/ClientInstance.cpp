@@ -1,11 +1,17 @@
 ﻿#include "pch.h"
 #include "ClientInstance.h"
+#include "BT_Node_Bootstrap.h"
+#include "ComputePointParticlePreview.h"
+#include "GameDataTable.h"
 #include "GameInstance.h"
+#include "PersistentObjectManager.h"
 #include "Player.h"
 #include "ResourceLoader.h"
 #include "BT_Node_Bootstrap.h"
 #include "GameDataTable.h"
+#include "GameplayUI.h"
 #include "PersistentObjectManager.h"
+#include "Hero_Manager.h"
 
 IMPLEMENT_SINGLETON(ClientInstance)
 
@@ -36,12 +42,19 @@ HRESULT ClientInstance::Initialize_Client(const ComPtr<Device>& device, const Co
     _persistentObjectManager = PersistentObjectManager::Create();
     CHECK_NULL(_persistentObjectManager, E_FAIL);
 
+    _heroManager = Hero_Manager::Create();
+    CHECK_NULL(_heroManager, E_FAIL);
+
 	return S_OK;
 }
 
 void ClientInstance::Update_Client(float timeDelta)
 {
+    if (_heroManager)
+        _heroManager->Update_HeroManager(timeDelta);
 
+    if (_gamePlayUI)
+        _gamePlayUI->Update(timeDelta);
 }
 
 HRESULT ClientInstance::Ready_StaticResources()
@@ -77,12 +90,62 @@ uint32 ClientInstance::Get_NextExp(uint32 level) const
     return _gameDataTable->Get_NextExp(level);
 }
 
+HRESULT ClientInstance::Initialize_Hero(uint32 levelIndex, const wstring& layerTag)
+{
+    return _heroManager->Initialize_Hero(levelIndex, layerTag);
+}
+
+void ClientInstance::Update_HeroManager(float timeDelta)
+{
+    return _heroManager->Update_HeroManager(timeDelta);
+}
+
+Shared<Player> ClientInstance::Get_ActiveHero() const
+{
+    return _heroManager->Get_ActiveHero();
+}
+
+void ClientInstance::Set_TargetCamera(const Shared<TargetCamera>& camera)
+{
+    return _heroManager->Set_TargetCamera(camera);
+}
+
+void ClientInstance::Clear_Party()
+{
+    return _heroManager->Clear_Party();
+}
+
+HRESULT ClientInstance::Initialize_GameplayUI(uint32 levelIndex)
+{
+    Clear_GameplayUI();
+
+    _gamePlayUI = GameplayUI::Create(levelIndex);
+    CHECK_NULL(_gamePlayUI, E_FAIL);
+
+    return S_OK;
+}
+
+void ClientInstance::Clear_GameplayUI()
+{
+    if (_gamePlayUI)
+    {
+        _gamePlayUI->Free();
+        _gamePlayUI.reset();
+    }
+
+    GAME->Set_GameplayPaused(false);
+}
+
 Shared<GameObject> ClientInstance::Find_Player(uint32 levelIndex)
 {
-    auto gameObject = GAME->Find_FirstObject(levelIndex, TEXT("Layer_Player"));
-    CHECK_NULL(gameObject, nullptr);
+    if (_heroManager)
+    {
+        auto activeHero = _heroManager->Get_ActiveHero();
+        if (activeHero)
+            return activeHero;
+    }
 
-    return gameObject;
+    return GAME->Find_FirstObject(levelIndex, TEXT("Layer_Player"));
 }
 
 HRESULT ClientInstance::Ready_StaticObjects()
@@ -130,6 +193,8 @@ void ClientInstance::Release_Client()
     ReleaseManager(_gameDataTable);
     ReleaseManager(_persistentObjectManager);
     ReleaseManager(_resourceLoader);
+    ReleaseManager(_heroManager);
+    ReleaseManager(_gamePlayUI);
 
     _context.Reset();
     _device.Reset();

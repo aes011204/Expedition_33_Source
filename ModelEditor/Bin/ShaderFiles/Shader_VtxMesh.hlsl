@@ -1,4 +1,7 @@
 #include "Engine_Shader_Defines.hlsli"
+#include "Engine_Shader_RenderState.hlsl"
+#include "Engine_Shader_Samplers.hlsl"
+#include "Engine_Shader_Passes.hlsl"
 
 float4x4 g_WorldMatrix, g_ViewMatrix, g_ProjMatrix;
 
@@ -11,14 +14,6 @@ Texture2D g_DiffuseTexture;
 vector g_vMtrlAmbient = vector(0.3f, 0.3f, 0.3f, 1.f);
 vector g_vMtrlSpecular = vector(1.f, 1.f, 1.f, 1.f);
 vector g_vCamPosition;
-
-sampler DefaultSampler = sampler_state
-{
-    Filter = MIN_MAG_MIP_LINEAR;   
-    AddressU = wrap;
-    AddressV = wrap;
-};
-
 
 struct VS_IN
 {
@@ -73,7 +68,7 @@ PS_OUT PS_MAIN(PS_IN In)
 {
     PS_OUT Out;
 
-    vector      vMtrlDiffuse = g_DiffuseTexture.Sample(DefaultSampler, In.vTexcoord);
+    vector      vMtrlDiffuse = g_DiffuseTexture.Sample(LinearWrapSampler, In.vTexcoord);
     
     if (vMtrlDiffuse.a < 0.3f)
         discard;
@@ -95,13 +90,5 @@ PS_OUT PS_MAIN(PS_IN In)
 
 technique11 DefaultTechnique
 {
-    pass DefaultPass
-    {
-        SetRasterizerState(RS_Default);
-        SetDepthStencilState(DSS_Default, 0);
-        SetBlendState(BS_Default, float4(0.f, 0.f, 0.f, 0.f), 0xffffffff);
-
-        VertexShader = compile vs_5_0 VS_MAIN();
-        PixelShader = compile ps_5_0 PS_MAIN();
-    }
+    PASS_RS_DS_BS_VP(DefaultPass, RS_Default, DSS_Default, BS_Default, VS_MAIN, PS_MAIN)    // 0
 }

@@ -1,20 +1,55 @@
 ﻿#include "Level_GamePlay.h"
 #include "GameInstance.h"
 #include "ClientInstance.h"
-//#include "FreeCamera.h"
-//#include "TargetCamera.h"
 #include "PointParticlePreview.h"
 #include "Spawn_Prefab.h"
-
-
 //#include "MapLoader.h"
-
 #include "TargetCamera.h"
 #include "MapLoader.h"
 #include "Spawn_Prefab.h"
+#include "UI_Base.h"
+#include "UI_Button.h"
 #include "UI_Image.h"
 #include "UI_RuntimeLoader.h"
 #include "UI_Text.h"
+#include "UI_Transform.h"
+
+namespace
+{
+    constexpr int32 TEST_HP_STEP = 50;
+    constexpr int32 TEST_EXP_STEP = 25;
+
+    wstring Make_TestStatText(int32 value, int32 maxValue)
+    {
+        return to_wstring(value) + L"    /    " + to_wstring(maxValue);
+    }
+
+    Shared<UI_Base> Find_NamedBaseUI(const unordered_map<wstring, Shared<UI_Base>>& uiByName, const wstring& name)
+    {
+        const auto iter = uiByName.find(name);
+        if (iter == uiByName.end() || nullptr == iter->second)
+        {
+            LOG_WARN("Test Missing Object: {}", String::ToString(name));
+            return nullptr;
+        }
+
+        return iter->second;
+    }
+
+    template<typename T>
+    Shared<T> Find_NamedUI(const unordered_map<wstring, Shared<UI_Base>>& uiByName, const wstring& name)
+    {
+        Shared<UI_Base> ui = Find_NamedBaseUI(uiByName, name);
+        if (nullptr == ui)
+            return nullptr;
+
+        Shared<T> typedUI = dynamic_pointer_cast<T>(ui);
+        if (nullptr == typedUI)
+            LOG_WARN("Test Type Mismatch: {}", String::ToString(name));
+
+        return typedUI;
+    }
+}
 
 Level_GamePlay::Level_GamePlay(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Level{ device, context }
@@ -55,6 +90,8 @@ void Level_GamePlay::BeginPlay()
 
 void Level_GamePlay::Update(float fTimeDelta)
 {
+    //Update_Input_TestUI();
+
     // 테스트
 #ifdef _DEBUG
     static float accumulatedTime = 0.f;
@@ -111,42 +148,139 @@ HRESULT Level_GamePlay::Ready_Lights()
 
 HRESULT Level_GamePlay::Ready_Layer_UI(const wstring& strLayerTag)
 {
-    UI_RuntimeLoader::UI_LoadDesc desc{};
+    /*UI_RuntimeLoader::UI_LoadDesc desc{};
     desc.levelIndex = ETOI(LevelType::GamePlay);
     desc.jsonPath = Constants::UI::UI_Json_Path;
+    desc.outUIByName = &_uiByName;
 
-    return UI_RuntimeLoader::Load_Document(desc);
+    CHECK_FAILED(UI_RuntimeLoader::Load_Document(desc), E_FAIL);*/
+    CHECK_FAILED(CLIENT->Initialize_GameplayUI(ETOI(LevelType::GamePlay)), E_FAIL);
+
+    return S_OK;
+}
+
+HRESULT Level_GamePlay::Bind_TestUI()
+{
+    _hpText = Find_NamedUI<UI_Text>(_uiByName, L"Lune_HP_Text");
+    _expText = Find_NamedUI<UI_Text>(_uiByName, L"Lune_EXP_Text");
+    _hpGauge = Find_NamedBaseUI(_uiByName, L"Lune_HP_Gauge");
+    _expGauge = Find_NamedBaseUI(_uiByName, L"Lune_EXP_Gauge");
+    _addHpButton = Find_NamedUI<UI_Button>(_uiByName, L"Add_HP");
+    _removeHpButton = Find_NamedUI<UI_Button>(_uiByName, L"Remove_HP");
+    _addExpButton = Find_NamedUI<UI_Button>(_uiByName, L"Add_EXP");
+    _removeExpButton = Find_NamedUI<UI_Button>(_uiByName, L"Remove_EXP");
+
+    if (nullptr != _hpGauge && nullptr != _hpGauge->Get_Transform())
+        _hpGaugeOriginalSize = _hpGauge->Get_Transform()->Get_Size();
+    else
+        LOG_WARN("Failed HP Gauge");
+
+    if (nullptr != _expGauge && nullptr != _expGauge->Get_Transform())
+        _expGaugeOriginalSize = _expGauge->Get_Transform()->Get_Size();
+    else
+        LOG_WARN("Failed EXP Gauge");
+
+    Update_TestUI();
+
+    return S_OK;
+}
+
+void Level_GamePlay::Update_Input_TestUI()
+{
+    bool needsRefresh = false;
+
+    if (nullptr != _addHpButton && _addHpButton->Was_Clicked())
+    {
+        _testCurrentHp = std::clamp(_testCurrentHp + TEST_HP_STEP, 0, _testMaxHp);
+        needsRefresh = true;
+    }
+
+    if (nullptr != _removeHpButton && _removeHpButton->Was_Clicked())
+    {
+        _testCurrentHp = std::clamp(_testCurrentHp - TEST_HP_STEP, 0, _testMaxHp);
+        needsRefresh = true;
+    }
+
+    if (nullptr != _addExpButton && _addExpButton->Was_Clicked())
+    {
+        _testCurrentExp = std::clamp(_testCurrentExp + TEST_EXP_STEP, 0, _testMaxExp);
+        needsRefresh = true;
+    }
+
+    if (nullptr != _removeExpButton && _removeExpButton->Was_Clicked())
+    {
+        _testCurrentExp = std::clamp(_testCurrentExp - TEST_EXP_STEP, 0, _testMaxExp);
+        needsRefresh = true;
+    }
+
+    if (needsRefresh)
+        Update_TestUI();
+}
+
+void Level_GamePlay::Update_TestUI()
+{
+    if (nullptr != _hpText)
+        _hpText->Set_Text(Make_TestStatText(_testCurrentHp, _testMaxHp));
+
+    if (nullptr != _expText)
+        _expText->Set_Text(Make_TestStatText(_testCurrentExp, _testMaxExp));
+
+    ReSize_TestGauge(_hpGauge, _hpGaugeOriginalSize, _testCurrentHp, _testMaxHp);
+    ReSize_TestGauge(_expGauge, _expGaugeOriginalSize, _testCurrentExp, _testMaxExp);
+}
+
+void Level_GamePlay::ReSize_TestGauge(const Shared<UI_Base>& gauge, const Vec2& originalSize, int32 value, int32 maxValue)
+{
+    if (nullptr == gauge || nullptr == gauge->Get_Transform())
+        return;
+
+    const float ratio = maxValue > 0
+        ? std::clamp(static_cast<float>(value) / static_cast<float>(maxValue), 0.f, 1.f)
+        : 0.f;
+
+    Vec2 gaugeSize = originalSize;
+    gaugeSize.x = originalSize.x * ratio;
+    gauge->Get_Transform()->Set_Size(gaugeSize);
 }
 
 HRESULT Level_GamePlay::Ready_Layer_Camera(const wstring& strLayerTag)
 {
-    TargetCamera::TARGETCAMERA_DESC		TargetCameraDesc{};
 
+    TargetCamera::TARGETCAMERA_DESC TargetCameraDesc{};
     TargetCameraDesc.speedPerSec = 10.f;
     TargetCameraDesc.degreePerSec = 180.f;
     TargetCameraDesc.eye = XMFLOAT4(0.f, 20.f, -7.f, 1.f);
     TargetCameraDesc.at = XMFLOAT4(0.f, 0.f, 0.f, 1.f);
     TargetCameraDesc.fovy = XMConvertToRadians(60.f);
-    TargetCameraDesc.pitch = 0.f;
-    TargetCameraDesc.yaw = 0.f;
     TargetCameraDesc.nearPlane = 0.1f;
     TargetCameraDesc.farPlane = 500.f;
     TargetCameraDesc.mouseSensor = 0.06f;
-    TargetCameraDesc.followSpeed = 8.f;
-    TargetCameraDesc.offset = Vec3 {0.5f, 1.f, 0.f};
+    TargetCameraDesc.followSpeed = 4.f;
     TargetCameraDesc.distance = 1.8f;
     TargetCameraDesc.sideOffset = 0.f;
     TargetCameraDesc.heightOffset = 0.5f;
     TargetCameraDesc.aimOffset = 0.5f;
-    TargetCameraDesc.pitchLookScale = 0.5;
+    TargetCameraDesc.pitchLookScale = 0.5f;
     TargetCameraDesc.pitchMin = -70.f;
     TargetCameraDesc.pitchMax = 80.f;
     TargetCameraDesc.lookHeight = 0.8f;
-    TargetCameraDesc.pivotHeight =0.3f;
+    TargetCameraDesc.pivotHeight = 0.3f;
+    TargetCameraDesc.mouseSensitivity = 0.5f;
+    TargetCameraDesc.yawOffset = 0.f;
+    TargetCameraDesc.pitchOffset = 0.f;
 
-    if (FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_TargetCamera_GamePlay"),
-        ETOI(LevelType::GamePlay), strLayerTag, &TargetCameraDesc)))
-        return E_FAIL;
+    Shared<GameObject> cameraObject = nullptr;
+
+    CHECK_FAILED(GAME->Add_GameObject(
+        ETOI(LevelType::GamePlay),
+        TEXT("GameObject_TargetCamera_GamePlay"),
+        ETOI(LevelType::GamePlay),
+        strLayerTag,
+        cameraObject,
+        &TargetCameraDesc), E_FAIL);
+
+    auto targetCamera = dynamic_pointer_cast<TargetCamera>(cameraObject);
+    CLIENT->Set_TargetCamera(targetCamera);
 
 	return S_OK;
 }
@@ -161,11 +295,15 @@ HRESULT Level_GamePlay::Ready_Layer_BackGround(const wstring& strLayerTag)
         ETOI(LevelType::GamePlay), strLayerTag)))
         return E_FAIL;
 
-    if (FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_PointParticlePreview"),
-        ETOI(LevelType::GamePlay), strLayerTag)))
+#pragma region [Effect] Particle test
+    //if (FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_PointParticlePreview"),
+    //    ETOI(LevelType::GamePlay), strLayerTag)))
+    //    return E_FAIL;
+
+    if (FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_ComputePointParticlePreview"),
+        ETOI(LevelType::GamePlay), TEXT("Layer_BackGround"))))
         return E_FAIL;
-
-
+#pragma endregion
 
 	return S_OK;
 }
@@ -183,21 +321,22 @@ HRESULT Level_GamePlay::Ready_Layer_Monster(const wstring& strLayerTag)
 
     CHECK_NULL(monster, E_FAIL);
     return S_OK;
-    return S_OK;
 }
 
 HRESULT Level_GamePlay::Ready_Layer_Player(const wstring& strLayerTag)
 {
-    auto player = Spawn_Prefab::Prefab("TestPlayer")
+    /*auto player = Spawn_Prefab::Prefab("TestPlayer")
         .AtLevel(ETOI(LevelType::GamePlay))
         .InLayer(strLayerTag)
         .Spawn();
 
     auto tr = player->Get_Transform();
     if (tr)
-        tr->Set_Position(Vec3(10.f, 5.f, 10.f));
+        tr->Set_Position(Vec3(10.f, 5.f, 10.f));*/
 
-    return S_OK;
+    HRESULT hr = CLIENT->Initialize_Hero(ETOI(LevelType::GamePlay), strLayerTag);
+
+    return hr;
 }
 
 //HRESULT Level_GamePlay::Ready_Layer_MapStaticMesh(const wstring& strLayerTag)
@@ -223,6 +362,18 @@ Shared<Level_GamePlay> Level_GamePlay::Create(const ComPtr<Device>& device, cons
 
 void Level_GamePlay::Free()
 {
+    CLIENT->Clear_GameplayUI();
+
+    _removeExpButton.reset();
+    _addExpButton.reset();
+    _removeHpButton.reset();
+    _addHpButton.reset();
+    _expGauge.reset();
+    _hpGauge.reset();
+    _expText.reset();
+    _hpText.reset();
+    _uiByName.clear();
+
     __super::Free();
 
 }
