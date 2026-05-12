@@ -40,11 +40,11 @@ public:
         return emptyInfo;
     }
 
-    virtual json To_Json() const;
-    virtual void From_Json(const json& data);
+    virtual json    To_Json() const;
+    virtual void    From_Json(const json& data);
 
-    void Set_SourcePrefabName(const string& prefabName) { _sourcePrefabName = prefabName; }
-    const string& Get_SourcePrefabName() const { return _sourcePrefabName; }
+    void            Set_SourcePrefabName(const string& prefabName) { _sourcePrefabName = prefabName; }
+    const string&   Get_SourcePrefabName() const { return _sourcePrefabName; }
 
 public:
     virtual void    OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other) {}
