@@ -16,7 +16,7 @@ public:
 
 public:
     HRESULT Initialize(ComPtr<Device> device, ComPtr<Context> context);
-    HRESULT Render();
+    HRESULT Render(float cameraFar);
 
 private:
     Shared<ModelCom> _model;
