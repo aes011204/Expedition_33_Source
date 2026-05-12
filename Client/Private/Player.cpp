@@ -118,9 +118,7 @@ HRESULT Player::Ready_Components()
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_PlayerStateMachine"), _PlayerStateMachineCom), E_FAIL);
     if (auto stateMachine = Get_Component<PlayerStateMachineCom>())
     {
-        stateMachine->Add_State(PlayerState::Idle, Player_Idle::Create(GetSharedPtr<Player>()));
-        stateMachine->Add_State(PlayerState::Move, Player_Move::Create(GetSharedPtr<Player>()));
-        stateMachine->Add_State(PlayerState::Jump, Player_Jump::Create(GetSharedPtr<Player>()));
+      
     }
     CHECK_FAILED(Ready_Collider(), E_FAIL);
 
@@ -135,7 +133,7 @@ HRESULT Player::Ready_PartObjects()
     Body_Player::BODY_PLAYER_DESC playableDesc{};
     playableDesc.parentMatrix = &_transformCom->Get_WorldMatrix();
     playableDesc.modelType = ModelType::Anim;
-    playableDesc.modelTag = L"Model_LuneTemp";
+    playableDesc.modelTag = L"Model_LuneBody";
 
     //> MainBody Setting
     if (FAILED(__super::Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Body_Player"),
