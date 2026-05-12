@@ -1,4 +1,5 @@
-﻿#include "GameInstance.h"
+﻿#pragma region INCLUDE
+#include "GameInstance.h"
 #include "Asset_Manager.h"
 #include "Camera_Manager.h"
 #include "Camera.h"
@@ -29,6 +30,8 @@
 #ifdef _DEBUG
 #include "Print_Manager.h"
 #endif
+
+#pragma endregion
 
 IMPLEMENT_SINGLETON(GameInstance)
 

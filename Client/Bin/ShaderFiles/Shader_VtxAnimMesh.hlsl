@@ -109,6 +109,8 @@ PS_OUT PS_Opaque(PS_IN In)
     float3 worldNormal = ComputeWorldNormal(In.vNormal.xyz, In.vTangent, In.vBinormal, finalUV);
 
     float3 orm = SampleOrm(finalUV);
+
+    // emissive 는 이후에 별도 RTV로 분리해야 한다. 일단은 텍스처 잘 들어오는지 확
     float3 emissive = SampleEmissive(finalUV);
     baseColor.rgb = baseColor.rgb * orm.r + emissive;
 
