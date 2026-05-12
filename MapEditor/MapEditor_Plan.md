@@ -392,39 +392,66 @@ MEModelManager                            — 모델 로드/캐싱 전담
 - 풀, 바위, 나무 등 반복 배치 오브젝트를 GPU 인스턴싱으로 렌더, Compute Shader로 컬링
 
 #### 구조 설계
-- **방식 1 (1단계)**: CPU 드리븐 — DYNAMIC 인스턴스 VB, `DrawIndexedInstanced`
+- **방식 1 (1단계, 현재)**: CPU 드리븐 — DYNAMIC 인스턴스 VB, `DrawIndexedInstanced`
 - **방식 2 (2단계)**: GPU 드리븐 — StructuredBuffer SRV + CS 컬링 + `DrawIndexedInstancedIndirect`
 
 #### 진행 현황
 
-**완료**
-- ✅ `MESHINSTANCEDATA` 구조체 추가 (`Engine/Public/Vertex_Types.h`)
+**완료 — 엔진/공용**
+- ✅ `MESHINSTANCEDATA` 구조체 + `VtxMeshInstanceLayout` 입력 레이아웃 (`Engine/Public/Vertex_Types.h`)
   - 필드: position / scale / windPhase / yRotation / colorVariation / lodIndex (총 36바이트)
-  - 풀·바위·나무 등 정적 메시 인스턴싱 공용
-- ✅ `MeshInstanceInitDesc` 구조체 추가 (`Engine/Public/Engine_Struct.h`)
-  - 정점/인덱스/인스턴스 데이터를 한 번에 넘기는 초기화 디스크립터
-  - `Engine_Struct.h`에 `#include "Vertex_Types.h"` 추가 (선언 순서 문제 해결)
-- ✅ `VIBuffer_Mesh.h` 헤더 작성 (`Engine/Public/VIBuffer_Mesh.h`)
-  - `VIBufferCom_Instance` 상속, `Initialize` / `UpdateInstances` / `Create` / `Clone`
+- ✅ `VIBuffer_MeshInstance` 클래스 (`Engine/Public·Private/VIBuffer_MeshInstance.h·cpp`)
+  - VB(USAGE_DEFAULT) / IB(USAGE_DEFAULT) / 인스턴스 VB(DYNAMIC + CPU_WRITE) 생성
+  - `UpdateInstances`: `Map(WRITE_DISCARD)` → `memcpy` → `Unmap`, 초과 시 버퍼 재생성
+- ✅ `Mesh::RenderInstanced` / `ModelCom::RenderInstanced` 추가
+  - 슬롯 0 메시 VB + 슬롯 1 인스턴스 VB 바인딩 후 `DrawIndexedInstanced`
+- ✅ `Helper_Math::RandNum(float, float, std::mt19937&)` 오버로드 추가 — 시드 기반 재현 가능 난수
 
-**대기 중**
-- ⏸ `VIBuffer_Mesh.cpp` 구현 — 이펙트 담당이 `VIBufferCom_Instance` 수정 중, 완료 후 재개
-  - 정점/인덱스 버퍼 생성 (USAGE_DEFAULT)
-  - 인스턴스 버퍼 생성 (USAGE_DYNAMIC + CPU_ACCESS_WRITE)
-  - `UpdateInstances`: `Map(WRITE_DISCARD)` → `memcpy` → `Unmap`
-  - 인스턴스 수 초과 시 버퍼 재생성 처리 필요
+**완료 — Client**
+- ✅ `InstancedMeshActor` (`Client/Public·Private/InstancedMeshActor.h·cpp`)
+  - `ObjectType::Foliage`, IMPLEMENT_REFLECTION 등록
+  - `ModelCom`으로 .model 로드, 별도 `ComPtr<Buffer>` 인스턴스 VB 관리
+  - `UpdateInstances(instances, count)` — Map/Unmap 또는 버퍼 재생성
+- ✅ `Shader_VtxMeshInstance.hlsl` (`Client/Bin/ShaderFiles/`)
+  - per-instance 월드 행렬(scale + rotateY + translate), G-buffer 출력
+  - `g_PreTransformMatrix` 적용 (0.01 스케일), alpha discard < 0.3
+- ✅ ResourceLoader에 `VTXMESHINST` 타입 등록, Shader XML 등록
+
+**완료 — MapEditor (Phase A: CPU 드리븐 시각화)**
+- ✅ `EObjectType::InstancedMesh` 추가 (`MapEditorDefines.h`)
+- ✅ `EditorObject` 인스턴싱 파라미터 필드 추가
+  - `_instancedModelPath` / `_instancedAreaWidth` / `_instancedAreaDepth` / `_instancedDensity` / `_instancedSeed`
+  - `_instancedRenderHandle` / `_instancedParamsDirty`
+- ✅ `MEInstancedMeshActor` (`MapEditor/Public·Private/`)
+  - `Ready_Components()` 내부에서 `Shader_VtxMeshInstance.hlsl` 직접 생성
+  - `UpdateInstances(modelPath, centerPos, areaWidth, areaDepth, density, seed)`
+  - `GenerateInstances` — `mt19937(seed)` 기반 재현 가능 배치, `Math::RandNum` 활용
+  - `CreateInstanceBuffer` — DYNAMIC VB, count 초과 시 재생성
+  - `Render(float cameraFar)` — `g_PreTransformMatrix` 바인딩, 텍스처 유무 pass 0/1 분기
+- ✅ `SceneContext` 확장 — `_instancedMeshes` 벡터, Add/Remove/ClearScene/SaveToFile/LoadFromFile 연동
+- ✅ `MapEditorApp` 확장
+  - `UpdateRenderHandles` — StaticMesh(`_dirtyRenderHandles`)와 InstancedMesh(`_instancedParamsDirty`) 분리 처리
+  - `RenderInstancedMeshes()` — MRT_GameObjects 블록 내 렌더
+- ✅ `PanelInspector::DrawTypeParams` — InstancedMesh 섹션 (ModelPath 파일명 입력, 자동 경로 조립, Area/Density/Seed 편집)
+- ✅ `Shader_VtxMeshInstance.hlsl` MapEditor 복사본 (`MapEditor/Bin/ShaderFiles/`)
+  - `g_PreTransformMatrix` 적용, `PS_MAIN_NOTEXTURE` pass 1 추가
 
 **미구현**
-- ⬜ `GrassActor` (또는 `InstancedMeshActor`) — GameObject 상속, 영역/밀도 파라미터, 풀 날 쿼드 생성
-- ⬜ `Shader_Grass.hlsl` — 바람 VS (sin파, uvY 가중치), G-buffer 출력
-- ⬜ CS 컬링 단계 (`CS_FrustumCull.hlsl`) — SRV → AppendStructuredBuffer UAV + DrawArgs UAV
-- ⬜ `DrawIndexedInstancedIndirect` 전환 (`VIBufferCom_Instance` 또는 별도 경로)
-- ⬜ MapEditor 연동 — Inspector에서 area/density 편집, JSON 직렬화
+- ⬜ **Phase B — Client 맵 로드 연동**
+  - `MapLoader`에서 JSON `InstancedMeshes` 배열 파싱 → `InstancedMeshActor` 스폰
+  - `VTXMESHINST` 셰이더를 Static 레벨에 프로토타입으로 등록
+  - `InstancedMeshActor::Initialize` — `Add_Component`로 셰이더 로드
+  - > ⚠️ **UE5 임포트 주의**: `scale_map.py`가 현재 `InstancedStaticMeshComponent`를 `StaticMesh`로 변환 중. Client 로드 시 `InstancedMesh` 타입으로 분리 로드하도록 수정 필요 (JSON `"Type"` 필드 또는 별도 배열 분리)
+  - > ⚠️ **Client 미로드 모델**: 현재 StaticMesh만 로드 — EncounterZone / TriggerVolume / CameraZone / SpawnPoint / Light 등 비메시 오브젝트 및 InstancedMesh 로드 파이프라인 미완성. Phase 4에서 일괄 처리 예정
+- ⬜ **Phase C — Compute Shader 컬링 전환**
+  - `CS_FrustumCull.hlsl` — SRV(전체 인스턴스) → AppendStructuredBuffer UAV(가시 인스턴스) + DrawArgs UAV
+  - `DrawIndexedInstancedIndirect` 전환
+  - `InstancedMeshActor` compute path 추가
 
 #### 참고 사항
-- 이펙트 담당 작업 완료 전까지 `VIBuffer_Mesh.cpp` 작성 보류
-- `UpdateInstances`에서 `D3D11_MAP_WRITE_DISCARD` 사용 → 버퍼 크기 고정, 초과 시 재생성 필요
+- `UpdateInstances`에서 `D3D11_MAP_WRITE_DISCARD` 사용 → 버퍼 크기 고정, 초과 시 재생성
 - 컬링 CS는 position + scale로 바운딩 구 계산 가능 → 별도 컬링 전용 필드 불필요
+- Octree는 일반 오브젝트 전담, CS 컬링은 인스턴싱 메시 전담으로 역할 분리
 
 ---
 
