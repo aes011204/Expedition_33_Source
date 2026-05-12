@@ -146,33 +146,48 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
 
 void GameInstance::Update_Engine(float timeDelta)
 {
+    Update_Engine(timeDelta, nullptr);
+}
+
+void GameInstance::Update_Engine(float timeDelta, const function<void(float)>& clientUpdate)
+{
     _debugManager->Update(timeDelta);
     _inputManager->Update(timeDelta);
 #ifdef _DEBUG
     _printManager->Update(timeDelta);
 #endif
 
+    // 입력 갱신 직후, 레벨/오브젝트/UI 업데이트 전에 클라이언트쪽 런타임 갱신을 위해
+    if (clientUpdate)
+    {
+        clientUpdate(timeDelta);
+    }
+
     _levelManager->Update(timeDelta);
 
-    _objectManager->Priority_Update(timeDelta);
+    // UI 키면서 게임 멈출 때 Update 안돌릴 애들
+    if (!_isGameplayPaused)
+    {
+        _objectManager->Priority_Update(timeDelta);
 
-    _pipeLine->Update();
+        _pipeLine->Update();
 
-    _objectManager->Update(timeDelta);
+        _objectManager->Update(timeDelta);
 
-    _physxManager->Begin_Frame();
-    _collisionManager->Clear_Colliders();
-    _objectManager->Late_Update(timeDelta);
+        _physxManager->Begin_Frame();
+        _collisionManager->Clear_Colliders();
+        _objectManager->Late_Update(timeDelta);
 
-    _physxManager->Update(timeDelta);
+        _physxManager->Update(timeDelta);
 
-    vector<PhysXPairEvent> events;
-    _physxManager->Gather_FrameEvents(events);
-    _collisionManager->Update_FromPhysX(events);
+        vector<PhysXPairEvent> events;
+        _physxManager->Gather_FrameEvents(events);
+        _collisionManager->Update_FromPhysX(events);
+
+        _cameraManager->Update(timeDelta);
+    }
     
-    _cameraManager->Update(timeDelta);
     _uiManager->Update(timeDelta);
-
 }
 
 HRESULT GameInstance::Draw()
@@ -483,6 +498,11 @@ Shared<Base> GameInstance::Clone_Prototype(Prototype prototype, uint32 levelInde
     return _prototypeManager->Clone_Prototype(prototype, levelIndex, prototypeTag, arg);
 }
 
+bool GameInstance::Has_Prototype(uint32 levelIndex, const wstring& prototypeTag) const
+{
+    return _prototypeManager->Has_Prototype(levelIndex, prototypeTag);
+}
+
 HRESULT GameInstance::Add_UI(uint32 prototypeLevelIndex, const wstring& prototypeTag, void* arg, Shared<UI_Base>* outUI)
 {
     return _uiManager->Add_UI(prototypeLevelIndex, prototypeTag, arg, outUI);
@@ -513,7 +533,26 @@ HRESULT GameInstance::Add_GameObject(uint32 layerLevelIndex, const wstring& laye
 
 bool GameInstance::Remove_GameObject(uint32 levelIndex, const Shared<GameObject>& gameObject)
 {
+    Shared<Camera> camera = dynamic_pointer_cast<Camera>(gameObject);
+    if (camera != nullptr)
+        _cameraManager->Remove_Camera(camera);
+
     return _objectManager->Remove_GameObject(levelIndex, gameObject);
+}
+
+HRESULT GameInstance::Clear_LevelObjects(uint32 levelIndex)
+{
+    _objectManager->Visit_LevelObjects(levelIndex,
+        [this](const wstring& layerTag, const Shared<GameObject>& gameObject)
+        {
+            UNREFERENCED_PARAMETER(layerTag);
+
+            Shared<Camera> camera = dynamic_pointer_cast<Camera>(gameObject);
+            if (camera != nullptr)
+                _cameraManager->Remove_Camera(camera);
+        });
+
+    return _objectManager->Clear_Layers(levelIndex);
 }
 
 Shared<GameObject> GameInstance::Find_FirstObject(uint32 levelIndex, const wstring& layerTag)
@@ -581,6 +620,18 @@ const Vec4* GameInstance::Get_CamPosition() const
 void GameInstance::Set_Transform(D3DTS transformState, FXMMATRIX& transformStateMatrix)
 {
     _pipeLine->Set_Transform(transformState, transformStateMatrix);
+}
+
+HRESULT GameInstance::Bind_CameraCB(Shared<ShaderCom> shader) const
+{
+    CHECK_NULL(shader, E_FAIL);
+    CHECK_NULL(_pipeLine, E_FAIL);
+    CHECK_NULL(_cameraManager, E_FAIL);
+
+    Shared<Camera> activeCamera = _cameraManager->Get_ActiveCamera();
+    CHECK_NULL(activeCamera, E_FAIL);
+
+    return _pipeLine->Bind_CameraCB(shader.get(), activeCamera->Get_Far());
 }
 
 bool GameInstance::KeyPress(KEY_TYPE key) const
@@ -991,6 +1042,23 @@ bool GameInstance::IsVisible(const BoundingBox& worldAABB) const
 
     return true;
 }
+
+void GameInstance::BuildOctree(const vector<BoundingBox>& worldAABBs)
+{
+    if (_cullingManager)
+    {
+        _cullingManager->BuildOctree(worldAABBs);
+    }
+}
+
+void GameInstance::QueryVisible(vector<uint32>& outIndices) const
+{
+    if (_cullingManager)
+    {
+        _cullingManager->QueryVisible(outIndices);
+    }
+}
+
 void GameInstance::Visit_BTNodeTypes(const function<void(const TypeRegistry::BTNodeTypeInfo&)>& visitor) const
 {
     if (_typeRegistry == nullptr)
@@ -1113,10 +1181,8 @@ HRESULT GameInstance::Load_GameObjectJson(const fs::path& path, const Shared<Gam
     return S_OK;
 }
 
-Shared<GameObject> GameInstance::Instantiate_GameObjectJson(const fs::path& path)
+Shared<GameObject> GameInstance::Instantiate_GameObjectJson(const json& root)
 {
-    json root = Load_JsonFile(path);
-
     if (root.is_null() || !root.is_object())
         return nullptr;
 
@@ -1135,6 +1201,13 @@ Shared<GameObject> GameInstance::Instantiate_GameObjectJson(const fs::path& path
     gameObject->From_Json(root);
 
     return gameObject;
+}
+
+Shared<GameObject> GameInstance::Instantiate_GameObjectJson(const fs::path& path)
+{
+    json root = Load_JsonFile(path);
+
+    return Instantiate_GameObjectJson(root);
 }
 
 HRESULT GameInstance::Create_PrefabAsset(const fs::path& path, const string& staticClass, const string& prefabName)
@@ -1220,11 +1293,11 @@ void GameInstance::Release_Engine()
 
     ReleaseManager(_pipeLine);
     ReleaseManager(_renderer);
+    ReleaseManager(_levelManager);
     ReleaseManager(_objectManager);
     ReleaseManager(_uiManager);
     ReleaseManager(_prototypeManager);
     ReleaseManager(_typeRegistry);
-    ReleaseManager(_levelManager);
     ReleaseManager(_picking);
     ReleaseManager(_timerManager);
 
@@ -1277,6 +1350,12 @@ HRESULT GameInstance::Bind_ShadowLightDesc(Shared<ShaderCom> shader, const char*
 {
     CHECK_NULL(_shadow, E_FAIL);
     return _shadow->Bind_ShadowLightDesc(shader, lightFarName, biasName, intensityName);
+}
+
+HRESULT GameInstance::Bind_ShadowCB(Shared<ShaderCom> shader)
+{
+    CHECK_NULL(_shadow, E_FAIL);
+    return _shadow->Bind_ShadowCB(shader);
 }
 
 HRESULT GameInstance::Update_ShadowLight(const ShadowLightDesc& desc)

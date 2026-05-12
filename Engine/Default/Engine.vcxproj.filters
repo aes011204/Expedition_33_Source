@@ -199,6 +199,12 @@
     <Filter Include="01.Utility\04.Component\ComputeShader\ComputeStructuredBuffer">
       <UniqueIdentifier>{34c06953-7d85-4aa3-8be8-78139e8f4dec}</UniqueIdentifier>
     </Filter>
+    <Filter Include="01.Utility\04.Component\VIBuffer\Instance\Mesh">
+      <UniqueIdentifier>{924c5aa5-cf16-4247-9354-2499cb763936}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="97. Manager\Culling">
+      <UniqueIdentifier>{0e30feaa-f164-460e-b631-5ee065871dc7}</UniqueIdentifier>
+    </Filter>
     <Filter Include="01.Utility\04.Component\VIBuffer\Instance\Particle w. ComputeShader">
       <UniqueIdentifier>{238dde8a-837b-49b6-9623-31af69115dcd}</UniqueIdentifier>
     </Filter>
@@ -211,6 +217,9 @@
       <Filter>99. Defines\Helper</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Helper_Math.h">
+      <Filter>99. Defines\Helper</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Helper_LogRateLimit.h">
       <Filter>99. Defines\Helper</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Target_Manager.h">
@@ -231,6 +240,12 @@
     <ClInclude Include="..\Public\Engine_Constants.h">
       <Filter>99. Defines</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\Event_Bus.h">
+      <Filter>97. Manager\Event</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Event_Struct.h">
+      <Filter>97. Manager\Event</Filter>
+    </ClInclude>
     <ClInclude Include="..\public\UI_Manager.h">
       <Filter>01.Utility\11. UI\Manager</Filter>
     </ClInclude>
@@ -240,16 +255,7 @@
     <ClInclude Include="..\public\UI_Base.h">
       <Filter>01.Utility\11. UI</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\UI_Animation.h">
-      <Filter>01.Utility\11. UI</Filter>
-    </ClInclude>
     <ClInclude Include="..\public\UI_Image.h">
-      <Filter>01.Utility\11. UI\Object</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\UI_Panel.h">
-      <Filter>01.Utility\11. UI\Object</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\UI_Button.h">
       <Filter>01.Utility\11. UI\Object</Filter>
     </ClInclude>
     <ClInclude Include="..\public\UI_Text.h">
@@ -257,7 +263,6 @@
     </ClInclude>
     <ClInclude Include="..\public\AStar.h" />
     <ClInclude Include="..\Public\Reflection_JsonUtil.h" />
-    <ClInclude Include="..\Public\Culling_Manager.h" />
     <ClInclude Include="..\public\Parallel.h">
       <Filter>E_BehavoirTreee\node</Filter>
     </ClInclude>
@@ -270,9 +275,21 @@
     <ClInclude Include="..\Public\AnimNotify.h" />
     <ClInclude Include="..\Public\AnimNotifyState.h" />
     <ClInclude Include="..\Public\ThreadPool.h" />
+    <ClInclude Include="..\Public\VIBuffer_MeshInstance.h">
+      <Filter>01.Utility\04.Component\VIBuffer\Instance\Mesh</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Culling_Manager.h">
+      <Filter>97. Manager\Culling</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\VIBufferCom_ComputePointParticle.h">
       <Filter>01.Utility\04.Component\VIBuffer\Instance\Particle w. ComputeShader</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\Material_Define.h" />
+    <ClInclude Include="..\Public\ShaderPassFinder.h" />
+    <ClInclude Include="..\Public\UI_Animation.h" />
+    <ClInclude Include="..\public\UI_Button.h" />
+    <ClInclude Include="..\public\UI_Panel.h" />
+    <ClInclude Include="..\Public\Shader_CBuffer_Define.h" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\public\Base.h">
@@ -779,26 +796,14 @@
     <ClCompile Include="..\Private\Picking.cpp" />
     <ClCompile Include="..\private\UI_Base.cpp" />
     <ClCompile Include="..\private\UI_Image.cpp" />
-    <ClCompile Include="..\private\UI_Panel.cpp" />
-    <ClCompile Include="..\private\UI_Button.cpp" />
     <ClCompile Include="..\private\UI_Manager.cpp" />
     <ClCompile Include="..\private\UI_Text.cpp" />
     <ClCompile Include="..\private\UI_Transform.cpp" />
     <ClCompile Include="..\private\AStar.cpp" />
-    <ClCompile Include="..\Private\Culling_Manager.cpp" />
     <ClCompile Include="..\private\UI_Base.cpp">
       <Filter>01.Utility\11. UI</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\UI_Animation.cpp">
-      <Filter>01.Utility\11. UI</Filter>
-    </ClCompile>
     <ClCompile Include="..\private\UI_Image.cpp">
-      <Filter>01.Utility\11. UI\Object</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\UI_Panel.cpp">
-      <Filter>01.Utility\11. UI\Object</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\UI_Button.cpp">
       <Filter>01.Utility\11. UI\Object</Filter>
     </ClCompile>
     <ClCompile Include="..\private\UI_Image.cpp">
@@ -825,12 +830,41 @@
     <ClCompile Include="..\Private\AnimNotify.cpp" />
     <ClCompile Include="..\Private\AnimNotifyState.cpp" />
     <ClCompile Include="..\Private\ThreadPool.cpp" />
+    <ClCompile Include="..\Private\VIBuffer_MeshInstance.cpp">
+      <Filter>01.Utility\04.Component\VIBuffer\Instance\Mesh</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Culling_Manager.cpp">
+      <Filter>97. Manager\Culling</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\VIBufferCom_ComputePointParticle.cpp">
       <Filter>01.Utility\04.Component\VIBuffer\Instance\Particle w. ComputeShader</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\UI_Animation.cpp" />
+    <ClCompile Include="..\private\UI_Button.cpp" />
+    <ClCompile Include="..\private\UI_Panel.cpp" />
+    <ClCompile Include="..\private\UI_Button.cpp" />
+    <ClCompile Include="..\private\UI_Panel.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Bin\ShaderFiles\Engine_Shader_Defines.hlsli">
+      <Filter>02.ShaderFiles</Filter>
+    </None>
+    <None Include="..\Bin\ShaderFiles\Engine_Shader_ConstantBuffer.hlsl">
+      <Filter>02.ShaderFiles</Filter>
+    </None>
+    <None Include="..\Bin\ShaderFiles\Engine_Shader_Material.hlsl">
+      <Filter>02.ShaderFiles</Filter>
+    </None>
+    <None Include="..\Bin\ShaderFiles\Engine_Shader_Passes.hlsl">
+      <Filter>02.ShaderFiles</Filter>
+    </None>
+    <None Include="..\Bin\ShaderFiles\Engine_Shader_RenderState.hlsl">
+      <Filter>02.ShaderFiles</Filter>
+    </None>
+    <None Include="..\Bin\ShaderFiles\Engine_Shader_Samplers.hlsl">
+      <Filter>02.ShaderFiles</Filter>
+    </None>
+    <None Include="..\Bin\ShaderFiles\Engine_Shader_Utils.hlsl">
       <Filter>02.ShaderFiles</Filter>
     </None>
   </ItemGroup>

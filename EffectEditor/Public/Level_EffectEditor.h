@@ -2,6 +2,10 @@
 
 #include "Level.h"
 
+NS_BEGIN(Engine)
+class GameObject;
+NS_END
+
 NS_BEGIN(EffectEditor)
 
 class Level_EffectEditor final : public Level
@@ -15,13 +19,23 @@ public:
     void Update(float timeDelta) override;
     HRESULT Render() override;
 
+public:
+    HRESULT Restart_PreviewFromAuthoring();
+
+private:
+    static constexpr const wchar_t* kPreviewLayerTag = L"Layer_Preview";
+
+private:
+    vector<Shared<GameObject>> _previewObjects{};
+
 private:
     // preview에 필요한 최소 directional light만 준비한다.
     HRESULT Ready_Lights();
     // EffectEditor preview용 orbit camera를 만들고 active camera로 지정한다.
     HRESULT Ready_Layer_Camera(const wstring& layerTag);
-    // 현재 smoke-test effect consumer만 preview layer에 올린다.
+    // preview layer는 authoring emitter 기반 runtime preview만 담는다.
     HRESULT Ready_Layer_Preview(const wstring& layerTag);
+    void Clear_PreviewObjects();
 
 public:
     static Shared<Level_EffectEditor> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

@@ -8,6 +8,8 @@ struct ParticleInstanceVertex
     float4 look;
     float4 translation;
     float2 lifeTime;
+    float4 startColor;
+    float4 endColor;
 };
 
 cbuffer ComputePointParticleParams : register(b0)
@@ -67,6 +69,8 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
     instance.look = float4(0.0f, 0.0f, scale, 0.0f);
     instance.translation = float4(g_Center.x + cos(angle) * radius, g_Center.y + sin(angle * 1.7f) * 0.5f, g_Center.z + sin(angle) * radius, 1.0f);
     instance.lifeTime = float2(2.0f, frac(g_ElapsedTime + ratio));
+    instance.startColor = float4(1.0f, 1.0f, 1.0f, 1.0f);
+    instance.endColor = float4(1.0f, 1.0f, 1.0f, 1.0f);
 
     OutputData[index] = instance;
 }

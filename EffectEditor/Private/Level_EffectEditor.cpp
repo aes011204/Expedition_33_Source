@@ -2,11 +2,203 @@
 
 #include "EffectEditorCamera.h"
 #include "EffectEditorInstance.h"
-#include "ComputePointParticlePreview.h"
+#include "Emitter_View.h"
 #include "GameInstance.h"
 #include "PointParticlePreview.h"
 
 NS_BEGIN(EffectEditor)
+
+namespace Internal
+{
+    template <typename TData>
+    const TData* Find_ModuleData(const AuthoringEmitter& emitter, AuthoringModuleType type)
+    {
+        for (const AuthoringModule& module : emitter.modules)
+        {
+            if (module.type != type)
+                continue;
+
+            if (!module.enabled)
+                continue;
+
+            return get_if<TData>(&module.data);
+        }
+
+        return nullptr;
+    }
+
+    float Evaluate_FloatDistributionMin(const FloatDistributionData& data, float fallbackValue)
+    {
+        if (const auto* constant = get_if<ConstantFloatDistributionData>(&data.payload))
+            return constant->value;
+
+        if (const auto* uniform = get_if<UniformFloatDistributionData>(&data.payload))
+            return uniform->minValue;
+
+        return fallbackValue;
+    }
+
+    float Evaluate_FloatDistributionMax(const FloatDistributionData& data, float fallbackValue)
+    {
+        if (const auto* constant = get_if<ConstantFloatDistributionData>(&data.payload))
+            return constant->value;
+
+        if (const auto* uniform = get_if<UniformFloatDistributionData>(&data.payload))
+            return uniform->maxValue;
+
+        return fallbackValue;
+    }
+
+    Vec2 Evaluate_Vector2DistributionMin(const Vector2DistributionData& data, const Vec2& fallbackValue)
+    {
+        if (const auto* constant = get_if<ConstantVector2DistributionData>(&data.payload))
+            return constant->value;
+
+        if (const auto* uniform = get_if<UniformVector2DistributionData>(&data.payload))
+            return uniform->minValue;
+
+        return fallbackValue;
+    }
+
+    Vec2 Evaluate_Vector2DistributionMax(const Vector2DistributionData& data, const Vec2& fallbackValue)
+    {
+        if (const auto* constant = get_if<ConstantVector2DistributionData>(&data.payload))
+            return constant->value;
+
+        if (const auto* uniform = get_if<UniformVector2DistributionData>(&data.payload))
+            return uniform->maxValue;
+
+        return fallbackValue;
+    }
+
+    Color Clamp_PreviewColor(Color value)
+    {
+        value.R(clamp(value.R(), 0.f, 1.f));
+        value.G(clamp(value.G(), 0.f, 1.f));
+        value.B(clamp(value.B(), 0.f, 1.f));
+        value.A(clamp(value.A(), 0.f, 1.f));
+        return value;
+    }
+
+    Color Evaluate_ColorDistributionMin(const ColorDistributionData& data, const Color& fallbackValue)
+    {
+        if (const auto* constant = get_if<ConstantColorDistributionData>(&data.payload))
+            return Clamp_PreviewColor(constant->value);
+
+        if (const auto* uniform = get_if<UniformColorDistributionData>(&data.payload))
+            return Clamp_PreviewColor(uniform->minValue);
+
+        return Clamp_PreviewColor(fallbackValue);
+    }
+
+    Color Evaluate_ColorDistributionMax(const ColorDistributionData& data, const Color& fallbackValue)
+    {
+        if (const auto* constant = get_if<ConstantColorDistributionData>(&data.payload))
+            return Clamp_PreviewColor(constant->value);
+
+        if (const auto* uniform = get_if<UniformColorDistributionData>(&data.payload))
+            return Clamp_PreviewColor(uniform->maxValue);
+
+        return Clamp_PreviewColor(fallbackValue);
+    }
+
+    PointParticlePreview::PointParticlePreviewDesc Build_PointParticlePreviewDesc(const AuthoringEmitter& emitter)
+    {
+        PointParticlePreview::PointParticlePreviewDesc desc{};
+        desc.drawMode = PointParticleDrawMode::Direct;
+
+        if (const auto* required = Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
+        {
+            if (!required->textureId.empty())
+                desc.textureId = required->textureId;
+
+            if (!required->materialName.empty())
+                desc.materialName = required->materialName;
+
+            if (!required->blendMode.empty())
+                desc.blendMode = required->blendMode;
+
+            if (!required->opacitySource.empty())
+                desc.opacitySource = required->opacitySource;
+
+            desc.tint = required->tint; //RGBA
+            desc.intensity = required->intensity;
+            desc.opacityPower = required->opacityPower;
+
+            if (!required->noiseTextureId.empty())
+                desc.noiseTextureId = required->noiseTextureId;
+
+            desc.noiseStrength = required->noiseStrength;
+            desc.subUvRows = max(1u, required->subUvRows);
+            desc.subUvCols = max(1u, required->subUvCols);
+            desc.center = required->emitterOrigin;
+            desc.loop = required->loopCount == 0;
+        }
+
+        if (const auto* spawn = Find_ModuleData<SpawnModuleData>(emitter, AuthoringModuleType::Spawn))
+            desc.instanceCount = max(1u, spawn->maxParticleCount);
+
+        if (const auto* initialSize = Find_ModuleData<InitialSizeModuleData>(emitter, AuthoringModuleType::InitialSize))
+        {
+            const Vec2 minScale = Evaluate_Vector2DistributionMin(initialSize->size, desc.scale);
+            const Vec2 maxScale = Evaluate_Vector2DistributionMax(initialSize->size, desc.scale);
+            desc.scale = Vec2{ min(minScale.x, maxScale.x), max(minScale.y, maxScale.y) };
+        }
+
+        if (const auto* initialVelocity = Find_ModuleData<InitialVelocityModuleData>(emitter, AuthoringModuleType::InitialVelocity))
+        {
+            desc.pivot = initialVelocity->radialPivot;
+            desc.speed = Vec2{
+                Evaluate_FloatDistributionMin(initialVelocity->speed, desc.speed.x),
+                Evaluate_FloatDistributionMax(initialVelocity->speed, desc.speed.y)
+            };
+        }
+        else
+            desc.pivot = desc.center;
+
+        if (const auto* lifetime = Find_ModuleData<LifetimeModuleData>(emitter, AuthoringModuleType::Lifetime))
+        {
+            desc.lifeTime = Vec2{
+                Evaluate_FloatDistributionMin(lifetime->lifeTime, desc.lifeTime.x),
+                Evaluate_FloatDistributionMax(lifetime->lifeTime, desc.lifeTime.y)
+            };
+        }
+
+        if (const auto* initialColor = Find_ModuleData<InitialColorModuleData>(emitter, AuthoringModuleType::InitialColor))
+        {
+            const Color minColor = Evaluate_ColorDistributionMin(
+                initialColor->color,
+                Color{ desc.startColorMin.x, desc.startColorMin.y, desc.startColorMin.z, desc.startColorMin.w }
+            );
+            const Color maxColor = Evaluate_ColorDistributionMax(
+                initialColor->color,
+                Color{ desc.startColorMax.x, desc.startColorMax.y, desc.startColorMax.z, desc.startColorMax.w }
+            );
+
+            desc.startColorMin = Vec4{ minColor.R(), minColor.G(), minColor.B(), minColor.A() };
+            desc.startColorMax = Vec4{ maxColor.R(), maxColor.G(), maxColor.B(), maxColor.A() };
+            desc.endColorMin = desc.startColorMin;
+            desc.endColorMax = desc.startColorMax;
+        }
+
+        if (const auto* colorOverLife = Find_ModuleData<ColorOverLifeModuleData>(emitter, AuthoringModuleType::ColorOverLife))
+        {
+            const Color minEndColor = Evaluate_ColorDistributionMin(
+                colorOverLife->colorOverLife,
+                Color{ desc.endColorMin.x, desc.endColorMin.y, desc.endColorMin.z, desc.endColorMin.w }
+            );
+            const Color maxEndColor = Evaluate_ColorDistributionMax(
+                colorOverLife->colorOverLife,
+                Color{ desc.endColorMax.x, desc.endColorMax.y, desc.endColorMax.z, desc.endColorMax.w }
+            );
+
+            desc.endColorMin = Vec4{ minEndColor.R(), minEndColor.G(), minEndColor.B(), minEndColor.A() };
+            desc.endColorMax = Vec4{ maxEndColor.R(), maxEndColor.G(), maxEndColor.B(), maxEndColor.A() };
+        }
+
+        return desc;
+    }
+}
 
 Level_EffectEditor::Level_EffectEditor(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Level{ device, context }
@@ -23,7 +215,7 @@ HRESULT Level_EffectEditor::Initialize()
     CHECK_FAILED(Level::Initialize(), E_FAIL);
     CHECK_FAILED(Ready_Lights(), E_FAIL);
     CHECK_FAILED(Ready_Layer_Camera(L"Layer_Camera"), E_FAIL);
-    CHECK_FAILED(Ready_Layer_Preview(L"Layer_Preview"), E_FAIL);
+    CHECK_FAILED(Ready_Layer_Preview(kPreviewLayerTag), E_FAIL);
 
     return S_OK;
 }
@@ -36,6 +228,56 @@ void Level_EffectEditor::Update(float timeDelta)
 HRESULT Level_EffectEditor::Render()
 {
     CHECK_FAILED(__super::Render(), E_FAIL);
+
+    return S_OK;
+}
+
+HRESULT Level_EffectEditor::Restart_PreviewFromAuthoring()
+{
+    Clear_PreviewObjects();
+
+    const Shared<Editor_Window> emitterWindow = EDITOR->Get_Window(L"Emitter");
+    const Shared<Emitter_View> emitterView = dynamic_pointer_cast<Emitter_View>(emitterWindow);
+    if (nullptr == emitterView)
+    {
+        LOG_ERROR("Emitter view is not available for preview restart.");
+        return E_FAIL;
+    }
+
+    vector<Shared<GameObject>> restartedPreviewObjects{};
+    vector<uint32> restartedEmitterIds{};
+    for (const AuthoringEmitter& emitter : emitterView->Get_Emitters())
+    {
+        if (!emitter.enabled)
+            continue;
+
+        PointParticlePreview::PointParticlePreviewDesc previewDesc = Internal::Build_PointParticlePreviewDesc(emitter);
+        Shared<GameObject> previewObject{};
+        if (FAILED(
+            GAME->Add_GameObject(
+                ETOI(LevelType::GamePlay),
+                L"GameObject_PointParticlePreview",
+                ETOI(LevelType::GamePlay),
+                kPreviewLayerTag,
+                previewObject,
+                &previewDesc
+            )
+        ))
+        {
+            for (Shared<GameObject>& createdPreviewObject : restartedPreviewObjects)
+                GAME->Remove_GameObject(ETOI(LevelType::GamePlay), createdPreviewObject);
+
+            return E_FAIL;
+        }
+
+        restartedPreviewObjects.push_back(previewObject);
+        restartedEmitterIds.push_back(emitter.id);
+    }
+
+    _previewObjects = move(restartedPreviewObjects);
+
+    for (const uint32 emitterId : restartedEmitterIds)
+        emitterView->Clear_PreviewDirty(emitterId);
 
     return S_OK;
 }
@@ -85,94 +327,21 @@ HRESULT Level_EffectEditor::Ready_Layer_Camera(const wstring& layerTag)
 
 HRESULT Level_EffectEditor::Ready_Layer_Preview(const wstring& layerTag)
 {
-    // TODO : 여기 있는 건 임시 파티클 들이므로 나중에 지울 것
-
-    Client::PointParticlePreview::PointParticlePreviewDesc instancedIndirectDesc{};
-    instancedIndirectDesc.drawMode = PointParticleDrawMode::DrawInstancedIndirect;
-    instancedIndirectDesc.center = Vec3{ -2.f, 2.f, 0.f };
-
-    const HRESULT instancedHr = GAME->Add_GameObject(
-        ETOI(LevelType::GamePlay),
-        L"GameObject_PointParticlePreview",
-        ETOI(LevelType::GamePlay),
-        layerTag,
-        &instancedIndirectDesc
-    );
-    if (FAILED(instancedHr))
-    {
-        LOG_ERROR("Failed to add DrawInstancedIndirect PointParticlePreview in Level_EffectEditor");
+    if (layerTag.empty())
         return E_FAIL;
-    }
-
-    Client::PointParticlePreview::PointParticlePreviewDesc indexedInstancedIndirectDesc{};
-    indexedInstancedIndirectDesc.drawMode = PointParticleDrawMode::DrawIndexedInstancedIndirect;
-    indexedInstancedIndirectDesc.center = Vec3{ 2.f, 2.f, 0.f };
-
-    const HRESULT indexedHr = GAME->Add_GameObject(
-        ETOI(LevelType::GamePlay),
-        L"GameObject_PointParticlePreview",
-        ETOI(LevelType::GamePlay),
-        layerTag,
-        &indexedInstancedIndirectDesc
-    );
-    if (FAILED(indexedHr))
-    {
-        LOG_ERROR("Failed to add DrawIndexedInstancedIndirect PointParticlePreview in Level_EffectEditor");
-        return E_FAIL;
-    }
-
-    Client::ComputePointParticlePreview::ComputePointParticlePreviewDesc computeDirectDesc{};
-    computeDirectDesc.drawMode = PointParticleDrawMode::Direct;
-    computeDirectDesc.center = Vec3{ 0.f, 2.f, 0.f };
-
-    const HRESULT computeHr = GAME->Add_GameObject(
-        ETOI(LevelType::GamePlay),
-        L"GameObject_ComputePointParticlePreview",
-        ETOI(LevelType::GamePlay),
-        layerTag,
-        &computeDirectDesc
-    );
-    if (FAILED(computeHr))
-    {
-        LOG_ERROR("Failed to add ComputePointParticlePreview in Level_EffectEditor");
-        return E_FAIL;
-    }
-
-    Client::ComputePointParticlePreview::ComputePointParticlePreviewDesc computeInstancedIndirectDesc{};
-    computeInstancedIndirectDesc.drawMode = PointParticleDrawMode::DrawInstancedIndirect;
-    computeInstancedIndirectDesc.center = Vec3{ -4.f, 2.f, 0.f };
-
-    const HRESULT computeInstancedHr = GAME->Add_GameObject(
-        ETOI(LevelType::GamePlay),
-        L"GameObject_ComputePointParticlePreview",
-        ETOI(LevelType::GamePlay),
-        layerTag,
-        &computeInstancedIndirectDesc
-    );
-    if (FAILED(computeInstancedHr))
-    {
-        LOG_ERROR("Failed to add compute DrawInstancedIndirect preview in Level_EffectEditor");
-        return E_FAIL;
-    }
-
-    Client::ComputePointParticlePreview::ComputePointParticlePreviewDesc computeIndexedIndirectDesc{};
-    computeIndexedIndirectDesc.drawMode = PointParticleDrawMode::DrawIndexedInstancedIndirect;
-    computeIndexedIndirectDesc.center = Vec3{ 4.f, 2.f, 0.f };
-
-    const HRESULT computeIndexedHr = GAME->Add_GameObject(
-        ETOI(LevelType::GamePlay),
-        L"GameObject_ComputePointParticlePreview",
-        ETOI(LevelType::GamePlay),
-        layerTag,
-        &computeIndexedIndirectDesc
-    );
-    if (FAILED(computeIndexedHr))
-    {
-        LOG_ERROR("Failed to add compute DrawIndexedInstancedIndirect preview in Level_EffectEditor");
-        return E_FAIL;
-    }
 
     return S_OK;
+}
+
+void Level_EffectEditor::Clear_PreviewObjects()
+{
+    for (Shared<GameObject>& previewObject : _previewObjects)
+    {
+        if (previewObject != nullptr)
+            GAME->Remove_GameObject(ETOI(LevelType::GamePlay), previewObject);
+    }
+
+    _previewObjects.clear();
 }
 
 Shared<Level_EffectEditor> Level_EffectEditor::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -190,6 +359,7 @@ Shared<Level_EffectEditor> Level_EffectEditor::Create(const ComPtr<Device>& devi
 
 void Level_EffectEditor::Free()
 {
+    Clear_PreviewObjects();
     __super::Free();
 }
 

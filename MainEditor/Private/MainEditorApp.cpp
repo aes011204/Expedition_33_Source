@@ -46,7 +46,7 @@ HRESULT MainEditorApp::Initialize()
     if (FAILED(Ready_Fonts()))
         return E_FAIL;
 
-    if (FAILED(Ready_StartLevel(LevelType::Logo)))
+    if (FAILED(Ready_StartLevel(LevelType::GamePlay)))
         return E_FAIL;
 
     EDITOR_DESC editorDesc{};
@@ -75,38 +75,53 @@ void MainEditorApp::Update(float timeDelta)
         EDITOR->Update_Editor(timeDelta);
     }
 
-	float runtimeDelta = 0.f;
-	float freeCameraDelta = 0.f;
+    float runtimeDelta = 0.f;
+    float freeCameraDelta = 0.f;
 
-    if (EDITOR->IsPlaying())
+    const bool isLoading = GAME->Current_LevelIndex() == ETOI(LevelType::Loading);
+
+    if (isLoading)
+    {
+        runtimeDelta = timeDelta;
+        freeCameraDelta = 0.f;
+    }
+    else if (EDITOR->IsPlaying())
     {
         runtimeDelta = timeDelta * EDITOR->Get_RuntimeTimeScale();
-		freeCameraDelta = 0.f;
+        freeCameraDelta = 0.f;
     }
-	else if (EDITOR->IsPaused())
-	{
-		// 1프레임 넘기기
+    else if (EDITOR->IsPaused())
+    {
         if (EDITOR->Consume_FrameStep())
             runtimeDelta = timeDelta * EDITOR->Get_RuntimeTimeScale();
         else
             runtimeDelta = 0.f;
 
         freeCameraDelta = timeDelta;
-	}
-	else
+    }
+    else
     {
         runtimeDelta = 0.f;
         freeCameraDelta = timeDelta;
     }
 
-	GAME->Set_FreeCameraTimeDelta(freeCameraDelta);
+    GAME->Set_FreeCameraTimeDelta(freeCameraDelta);
+
     {
         Profile_View::Scope profileScope("Game::Update");
-        GAME->Update_Engine(runtimeDelta);
+
+        GAME->Update_Engine(
+            runtimeDelta,
+            [](float dt)
+            {
+                if (dt > 0.f)
+                    CLIENT->Update_Client(dt);
+            });
     }
 
-	EDITOR->Apply_RuntimeInputPolicy();
+    EDITOR->Apply_RuntimeInputPolicy();
 }
+
 
 void MainEditorApp::Late_Update(float timeDelta)
 {
@@ -118,7 +133,13 @@ HRESULT MainEditorApp::Render()
     {
         Profile_View::Scope profileScope("Game::Render");
 
-        const Vec4 clearColor = Vec4(0.f, 0.f, 1.f, 1.f);
+        GAME->Bind_BackBuffer();
+
+        const bool isLoading = GAME->Current_LevelIndex() == ETOI(LevelType::Loading);
+        const Vec4 clearColor = isLoading
+            ? Vec4(0.f, 0.f, 0.f, 1.f)
+            : Vec4(0.f, 0.f, 1.f, 1.f);
+
         if (FAILED(GAME->Clear_Buffers(clearColor)))
             return E_FAIL;
 
@@ -127,11 +148,24 @@ HRESULT MainEditorApp::Render()
     }
 
     {
-        Profile_View::Scope profileScope("Editor::Render");
-
+        Profile_View::Scope profileScope("Editor::CaptureViewport");
         EDITOR->Capture_BackBuffer_ToViewport();
+    }
+
+    {
+        Profile_View::Scope profileScope("Editor::RenderUI");
+
+        {
+            Profile_View::Scope bindScope("Editor::BindBackBuffer");
+            GAME->Bind_BackBuffer();
+        }
+
+        {
+            Profile_View::Scope renderScope("Editor::Render_Editor");
+            EDITOR->Render_Editor();
+        }
+
         GAME->Bind_BackBuffer();
-        EDITOR->Render_Editor();
     }
 
     {

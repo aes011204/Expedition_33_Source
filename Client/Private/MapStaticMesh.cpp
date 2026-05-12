@@ -1,6 +1,15 @@
 ﻿#include "MapStaticMesh.h"
 #include "GameInstance.h"
 
+IMPLEMENT_REFLECTION(MapStaticMesh)
+{
+    auto& info = GetStaticReflectionInfo();
+    info.properties.clear();
+    info.displayName = "MapStaticMesh";
+    info.category = "World";
+    return true;
+}
+
 MapStaticMesh::MapStaticMesh(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : GameObject{ device, context }
 {
@@ -121,25 +130,11 @@ HRESULT MapStaticMesh::Ready_Components(const wstring& modelPath, Shared<ModelCo
 
 HRESULT MapStaticMesh::Bind_ShaderResources()
 {
-    if (FAILED(_transformCom->Bind_ShaderResource(_shader.get(), "g_WorldMatrix")))
-    {
+    if (FAILED(_shader->Bind_ObjectCB(_transformCom->Get_WorldMatrix())))
         return E_FAIL;
-    }
 
-    if (FAILED(GAME->Bind_TransformMatrix(D3DTS::View, _shader.get(), "g_ViewMatrix")))
-    {
+    if (FAILED(GAME->Bind_CameraCB(_shader)))
         return E_FAIL;
-    }
-
-    if (FAILED(GAME->Bind_TransformMatrix(D3DTS::Proj, _shader.get(), "g_ProjMatrix")))
-    {
-        return E_FAIL;
-    }
-
-    if (FAILED(GAME->Bind_CameraFar(_shader, "g_fFar")))
-    {
-        return E_FAIL;
-    }
 
     return S_OK;
 }

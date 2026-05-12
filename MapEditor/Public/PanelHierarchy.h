@@ -26,8 +26,6 @@ private:
     char _renameBuffer[256] = {};
 
     char _modelFolderBuf[256] = {};
-    
-    EObjectType _types[static_cast<int>(EObjectType::Fail)] = {};
 
 private:
     void StartRename(int index, const Shared<EditorObject>& obj);

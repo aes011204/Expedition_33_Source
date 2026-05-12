@@ -1,6 +1,7 @@
 ﻿#include "pch.h"
 #include "ImGui_Manager.h"
 #include "GameInstance.h"
+#include "Profile_View.h"
 
 ImGui_Manager::~ImGui_Manager()
 {
@@ -63,18 +64,22 @@ void ImGui_Manager::Update(float timeDelta)
 
 }
 
-void ImGui_Manager::Render()
+void ImGui_Manager::Render(bool renderPlatformWindows)
 {
-    // Rendering
-    ImGui::Render();
-    ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+    {
+        Profile_View::Scope scope("ImGui::RenderMain");
+        ImGui::Render();
+        ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+    }
 
-    // 멀티 뷰포트
     ImGuiIO& io = ImGui::GetIO();
     if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
     {
+        Profile_View::Scope scope("ImGui::PlatformWindows");
         ImGui::UpdatePlatformWindows();
-        ImGui::RenderPlatformWindowsDefault();
+
+        if (renderPlatformWindows)
+            ImGui::RenderPlatformWindowsDefault();
     }
 }
 

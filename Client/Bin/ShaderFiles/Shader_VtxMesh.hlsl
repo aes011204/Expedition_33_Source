@@ -1,18 +1,17 @@
 #include "Engine_Shader_Defines.hlsli"
-float4x4 g_WorldMatrix, g_ViewMatrix, g_ProjMatrix;
+#include "Engine_Shader_RenderState.hlsl"
+#include "Engine_Shader_Samplers.hlsl"
+#include "Engine_Shader_Passes.hlsl"
+#include "Engine_Shader_ConstantBuffer.hlsl"
 
-texture2D g_DiffuseTexture;
+//==================================================
+// MATERIAL
+//==================================================
+Texture2D g_DiffuseTexture;
 
-float g_fFar = 0.f;
-float g_fLightFar = 0.f;
-
-sampler DefaultSampler = sampler_state
-{
-    Filter = MIN_MAG_MIP_LINEAR;
-    AddressU = wrap;
-    AddressV = wrap;
-};
-
+//==================================================
+// VS
+//==================================================
 struct VS_IN
 {
     float3 vPosition : POSITION;
@@ -30,7 +29,7 @@ struct VS_OUT
     float4 vProjPos : TEXCOORD2;
 };
 
-VS_OUT VS_MAIN(VS_IN In)
+VS_OUT VS_Default(VS_IN In)
 {
     VS_OUT Out;
 
@@ -38,6 +37,25 @@ VS_OUT VS_MAIN(VS_IN In)
 
     matWV = mul(g_WorldMatrix, g_ViewMatrix);
     matWVP = mul(matWV, g_ProjMatrix);
+
+    Out.vPosition = mul(float4(In.vPosition, 1.f), matWVP);
+    Out.vNormal = normalize(mul(float4(In.vNormal, 0.f), g_WorldMatrix));
+
+    Out.vTexcoord = In.vTexcoord;
+    Out.vWorldPos = mul(float4(In.vPosition, 1.f), g_WorldMatrix);
+    Out.vProjPos = Out.vPosition;
+
+    return Out;
+}
+
+VS_OUT VS_Shadow(VS_IN In)
+{
+    VS_OUT Out;
+
+    float4x4 matWV, matWVP;
+
+    matWV = mul(g_WorldMatrix, g_LightViewMatrix);
+    matWVP = mul(matWV, g_LightProjMatrix);
 
     Out.vPosition = mul(float4(In.vPosition, 1.f), matWVP);
     Out.vNormal = normalize(mul(float4(In.vNormal, 0.f), g_WorldMatrix));
@@ -65,18 +83,18 @@ struct PS_OUT
     vector vDepth : SV_TARGET2;
 };
 
-PS_OUT PS_MAIN(PS_IN In)
+PS_OUT PS_Default(PS_IN In)
 {
     PS_OUT Out;
-
-    vector vMtrlDiffuse = g_DiffuseTexture.Sample(DefaultSampler, In.vTexcoord);
-
+    
+    vector      vMtrlDiffuse = g_DiffuseTexture.Sample(LinearWrapSampler, In.vTexcoord);
+    
     if (vMtrlDiffuse.a < 0.3f)
         discard;
 
     Out.vDiffuse = vMtrlDiffuse;
     Out.vNormal = vector(In.vNormal.xyz * 0.5f + 0.5f, 1.f);
-    Out.vDepth = vector(In.vProjPos.z / In.vProjPos.w, In.vProjPos.w / g_fFar, 0.f, 1.f);
+    Out.vDepth = vector(In.vProjPos.z / In.vProjPos.w, In.vProjPos.w / g_Far, 0.f, 1.f);
 
     return Out;
 }
@@ -86,59 +104,29 @@ struct PS_OUT_SHADOW
     vector vLightDepth : SV_TARGET0;
 };
 
-PS_OUT_SHADOW PS_MAIN_SHADOW(PS_IN In)
+PS_OUT_SHADOW PS_Shadow(PS_IN In)
 {
     PS_OUT_SHADOW Out;
 
-    Out.vLightDepth = vector(In.vProjPos.z / In.vProjPos.w, In.vProjPos.w / g_fLightFar, 0.f, 1.f);
+    Out.vLightDepth = vector(In.vProjPos.z / In.vProjPos.w, In.vProjPos.w / g_LightFar, 0.f, 1.f);
 
     return Out;
 }
 
-PS_OUT PS_MAIN_NOTEXTURE(PS_IN In)
+PS_OUT PS_NoTexture(PS_IN In)
 {
     PS_OUT Out;
 
     Out.vDiffuse = vector(0.8f, 0.8f, 0.8f, 1.f);
     Out.vNormal = vector(In.vNormal.xyz * 0.5f + 0.5f, 1.f);
-    Out.vDepth = vector(In.vProjPos.z / In.vProjPos.w, In.vProjPos.w / g_fFar, 0.f, 1.f);
+    Out.vDepth = vector(In.vProjPos.z / In.vProjPos.w, In.vProjPos.w / g_Far, 0.f, 1.f);
 
     return Out;
 }
 
 technique11 DefaultTechnique
 {
-    pass DefaultPass
-    {
-        SetRasterizerState(RS_Default);
-        SetDepthStencilState(DSS_Default, 0);
-        SetBlendState(BS_Default, float4(0.f, 0.f, 0.f, 0.f), 0xffffffff);
-
-        VertexShader = compile vs_5_0 VS_MAIN();
-        GeometryShader = NULL;
-        PixelShader = compile ps_5_0 PS_MAIN();
-    }
-
-    pass ShadowPass
-    {
-        SetRasterizerState(RS_Default);
-        SetDepthStencilState(DSS_Default, 0);
-        SetBlendState(BS_Default, float4(0.f, 0.f, 0.f, 0.f), 0xffffffff);
-
-        VertexShader = compile vs_5_0 VS_MAIN();
-        GeometryShader = NULL;
-        PixelShader = compile ps_5_0 PS_MAIN_SHADOW();
-    }
-
-
-    pass NoTexturePass
-    {
-        SetRasterizerState(RS_Default);
-        SetDepthStencilState(DSS_Default, 0);
-        SetBlendState(BS_Default, float4(0.f, 0.f, 0.f, 0.f), 0xffffffff);
-
-        VertexShader = compile vs_5_0 VS_MAIN();
-        GeometryShader = NULL;
-        PixelShader = compile ps_5_0 PS_MAIN_NOTEXTURE();
-    }
+    PASS_RS_DS_BS_VP(DefaultPass,   RS_Default, DSS_Default, BS_Default, VS_Default, PS_Default)    // 0
+    PASS_RS_DS_BS_VP(ShadowPass,    RS_Default, DSS_Default, BS_Default, VS_Shadow, PS_Shadow)      // 1
+    PASS_RS_DS_BS_VP(NoTexturePass, RS_Default, DSS_Default, BS_Default, VS_Default, PS_NoTexture)  // 2
 }

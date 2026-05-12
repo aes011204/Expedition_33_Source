@@ -25,6 +25,9 @@ void ModelCom_Inspector::Draw_Inspector(const Shared<Component>& component)
     if (!Draw_Header("Model"))
         return;
 
+    Draw_ModelPicker(model);
+    ImGui::Separator();
+
     const wstring& sourceModelPath = model->Get_SourceModelPath();
     const string modelGuid = sourceModelPath.empty() ? string{} : GAME->Ensure_AssetGUID(sourceModelPath, "Model");
 
@@ -71,7 +74,8 @@ void ModelCom_Inspector::Draw_Inspector(const Shared<Component>& component)
 
     ImGui::SeparatorText("Materials");
 
-    const size_t numMaterials = model->Get_NumMaterials();
+    // 각 머티리얼 내부 텍스처 슬롯 표시
+    const uint32 numMaterials = static_cast<uint32>(model->Get_NumMaterials());
     for (uint32 materialIndex = 0; materialIndex < numMaterials; ++materialIndex)
     {
         Shared<Material> material = model->Get_Material(materialIndex);
@@ -89,124 +93,259 @@ void ModelCom_Inspector::Draw_Inspector(const Shared<Component>& component)
 
         const vector<vector<Material::TextureSlot>>& allSlots = material->Get_TextureSlots();
 
-        for (uint32 typeIndex = 0; typeIndex < allSlots.size(); ++typeIndex)
+        auto drawTextureSlot = [&](uint32 typeIndex, uint32 slotIndex, const Material::TextureSlot* slot)
         {
-            const vector<Material::TextureSlot>& slots = allSlots[typeIndex];
-            if (slots.empty())
-                continue;
+            const wstring resolvedPath = slot ? slot->resolvedPath : wstring{};
+            ID3D11ShaderResourceView* slotSrv = slot ? slot->shaderResourceView.Get() : nullptr;
+
+            ImGui::PushID(static_cast<int>(slotIndex));
+
+            ImGui::TextDisabled("TextureIndex");
+            ImGui::SameLine(120.f);
+            ImGui::Text("%u", slot ? slot->textureIndex : slotIndex);
+
+            ImGui::TextDisabled("Loaded");
+            ImGui::SameLine(120.f);
+            ImGui::TextUnformatted(slotSrv ? "Yes" : "No");
+
+            ImGui::TextDisabled("Path");
+            ImGui::SameLine(120.f);
+            ImGui::BeginDisabled();
+            const string displayPath = resolvedPath.empty() ? "(empty)" : To_DisplayTexturePath(resolvedPath);
+            ImGui::TextWrapped("%s", displayPath.c_str());
+            ImGui::EndDisabled();
+
+            if (slotSrv)
+            {
+                ImGui::TextDisabled("Preview");
+                ImGui::SameLine(120.f);
+                ImGui::Image(reinterpret_cast<ImTextureID>(slotSrv), ImVec2(64.f, 64.f));
+            }
+
+            const vector<fs::path> textureCandidates = Collect_TextureCandidates(resolvedPath, sourceModelPath);
+            if (!textureCandidates.empty())
+            {
+                ImGui::TextDisabled("Texture");
+                ImGui::SameLine(120.f);
+
+                if (slotSrv)
+                {
+                    ImGui::Image(reinterpret_cast<ImTextureID>(slotSrv), ImVec2(32.f, 32.f));
+                    ImGui::SameLine();
+                }
+
+                const string currentFileName = resolvedPath.empty()
+                    ? string{ "<Select Texture>" }
+                    : String::ToString(fs::path(resolvedPath).filename().wstring());
+                const string pickerKey = material->Get_MaterialName() + "_" + to_string(typeIndex) + "_" + to_string(slotIndex);
+                if (ImGui::BeginCombo("##TexturePicker", currentFileName.c_str()))
+                {
+                    string& searchText = g_TextureSearchCache[pickerKey];
+                    char searchBuffer[256]{};
+                    strncpy_s(searchBuffer, searchText.c_str(), _TRUNCATE);
+
+                    ImGui::SetNextItemWidth(-FLT_MIN);
+                    if (ImGui::InputTextWithHint("##TextureSearch", "Search texture...", searchBuffer, sizeof(searchBuffer)))
+                        searchText = searchBuffer;
+
+                    ImGui::Separator();
+
+                    for (const fs::path& candidatePath : textureCandidates)
+                    {
+                        const string candidateName = String::ToString(candidatePath.filename().wstring());
+                        const bool isSelected = !resolvedPath.empty() &&
+                            candidatePath.wstring() == fs::path(resolvedPath).lexically_normal().wstring();
+
+                        if (!searchText.empty())
+                        {
+                            string candidateNameLower = candidateName;
+                            string searchTextLower = searchText;
+
+                            transform(candidateNameLower.begin(), candidateNameLower.end(), candidateNameLower.begin(), ::tolower);
+                            transform(searchTextLower.begin(), searchTextLower.end(), searchTextLower.begin(), ::tolower);
+
+                            if (candidateNameLower.find(searchTextLower) == string::npos)
+                                continue;
+                        }
+
+                        ImGui::PushID(candidateName.c_str());
+
+                        ID3D11ShaderResourceView* previewSrv = Get_TexturePreviewSRV(candidatePath);
+                        if (previewSrv)
+                            ImGui::Image(reinterpret_cast<ImTextureID>(previewSrv), ImVec2(32.f, 32.f));
+                        else
+                            ImGui::Dummy(ImVec2(32.f, 32.f));
+
+                        ImGui::SameLine();
+
+                        if (ImGui::Selectable(candidateName.c_str(), isSelected, 0, ImVec2(0.f, 32.f)))
+                            material->Override_TextureSlot(static_cast<MaterialTextureSlot>(typeIndex), slotIndex, candidatePath.wstring());
+
+                        if (isSelected)
+                            ImGui::SetItemDefaultFocus();
+
+                        ImGui::PopID();
+                    }
+
+                    ImGui::EndCombo();
+                }
+            }
+
+            ImGui::Separator();
+            ImGui::PopID();
+        };
+
+        for (uint32 typeIndex = 0; typeIndex < ETOI(MaterialTextureSlot::END); ++typeIndex)
+        {
+            const vector<Material::TextureSlot>* slots = typeIndex < allSlots.size() ? &allSlots[typeIndex] : nullptr;
+            const size_t slotCount = slots ? slots->size() : 0;
 
             ImGui::PushID(static_cast<int>(typeIndex));
 
-            string slotHeader = string(Get_TextureTypeLabel(typeIndex)) + " [" + to_string(typeIndex) + "] (" + to_string(slots.size()) + ")";
+            string slotHeader = string(Get_TextureTypeLabel(typeIndex)) + " [" + to_string(typeIndex) + "] (" + to_string(slotCount) + ")";
             if (!ImGui::TreeNode(slotHeader.c_str()))
             {
                 ImGui::PopID();
                 continue;
             }
 
-            for (size_t slotIndex = 0; slotIndex < slots.size(); ++slotIndex)
-            {
-                const Material::TextureSlot& slot = slots[slotIndex];
-
-                ImGui::PushID(static_cast<int>(slotIndex));
-
-                ImGui::TextDisabled("TextureIndex");
-                ImGui::SameLine(120.f);
-                ImGui::Text("%u", slot.textureIndex);
-
-                ImGui::TextDisabled("Loaded");
-                ImGui::SameLine(120.f);
-                ImGui::TextUnformatted(slot.shaderResourceView ? "Yes" : "No");
-
-                ImGui::TextDisabled("Path");
-                ImGui::SameLine(120.f);
-                ImGui::BeginDisabled();
-                const string displayPath = To_DisplayTexturePath(slot.resolvedPath);
-                ImGui::TextWrapped("%s", displayPath.c_str());
-                ImGui::EndDisabled();
-
-                if (slot.shaderResourceView)
-                {
-                    ImGui::TextDisabled("Preview");
-                    ImGui::SameLine(120.f);
-                    ImGui::Image(reinterpret_cast<ImTextureID>(slot.shaderResourceView.Get()), ImVec2(64.f, 64.f));
-                }
-
-                const vector<fs::path> textureCandidates = Collect_TextureCandidates(slot.resolvedPath);
-                if (!textureCandidates.empty())
-                {
-                    ImGui::TextDisabled("Texture");
-                    ImGui::SameLine(120.f);
-
-                    if (slot.shaderResourceView)
-                    {
-                        ImGui::Image(reinterpret_cast<ImTextureID>(slot.shaderResourceView.Get()), ImVec2(32.f, 32.f));
-                        ImGui::SameLine();
-                    }
-
-                    const string currentFileName = String::ToString(fs::path(slot.resolvedPath).filename().wstring());
-                    const string pickerKey = material->Get_MaterialName() + "_" + to_string(typeIndex) + "_" + to_string(slotIndex);
-                    if (ImGui::BeginCombo("##TexturePicker", currentFileName.c_str()))
-                    {
-                        string& searchText = g_TextureSearchCache[pickerKey];
-                        char searchBuffer[256]{};
-                        strncpy_s(searchBuffer, searchText.c_str(), _TRUNCATE);
-
-                        ImGui::SetNextItemWidth(-FLT_MIN);
-                        if (ImGui::InputTextWithHint("##TextureSearch", "Search texture...", searchBuffer, sizeof(searchBuffer)))
-                            searchText = searchBuffer;
-
-                        ImGui::Separator();
-
-                        for (const fs::path& candidatePath : textureCandidates)
-                        {
-                            const string candidateName = String::ToString(candidatePath.filename().wstring());
-                            const bool isSelected = candidatePath.wstring() == fs::path(slot.resolvedPath).lexically_normal().wstring();
-
-                            if (!searchText.empty())
-                            {
-                                string candidateNameLower = candidateName;
-                                string searchTextLower = searchText;
-
-                                transform(candidateNameLower.begin(), candidateNameLower.end(), candidateNameLower.begin(), ::tolower);
-                                transform(searchTextLower.begin(), searchTextLower.end(), searchTextLower.begin(), ::tolower);
-
-                                if (candidateNameLower.find(searchTextLower) == string::npos)
-                                    continue;
-                            }
-
-                            ImGui::PushID(candidateName.c_str());
-
-                            ID3D11ShaderResourceView* previewSrv = Get_TexturePreviewSRV(candidatePath);
-                            if (previewSrv)
-                                ImGui::Image(reinterpret_cast<ImTextureID>(previewSrv), ImVec2(32.f, 32.f));
-                            else
-                                ImGui::Dummy(ImVec2(32.f, 32.f));
-
-                            ImGui::SameLine();
-
-                            if (ImGui::Selectable(candidateName.c_str(), isSelected, 0, ImVec2(0.f, 32.f)))
-                                material->Override_TextureSlot(static_cast<MaterialTextureSlot>(typeIndex), static_cast<uint32>(slotIndex), candidatePath.wstring());
-
-                            if (isSelected)
-                                ImGui::SetItemDefaultFocus();
-
-                            ImGui::PopID();
-                        }
-
-                        ImGui::EndCombo();
-                    }
-                }
-
-                ImGui::Separator();
-                ImGui::PopID();
-            }
+            if (slotCount == 0)
+                drawTextureSlot(typeIndex, 0, nullptr);
+            else
+                for (uint32 slotIndex = 0; slotIndex < slotCount; ++slotIndex)
+                    drawTextureSlot(typeIndex, slotIndex, &(*slots)[slotIndex]);
 
             ImGui::TreePop();
             ImGui::PopID();
         }
 
         ImGui::PopID();
+    }
+}
+
+string ModelCom_Inspector::Build_ModelPickerLabel(const AssetMeta& assetMeta)
+{
+    const fs::path fullPath(assetMeta.fullPath);
+    string label = String::ToString(fullPath.stem().wstring());
+
+    if (!assetMeta.modelType.empty())
+        label += " [" + assetMeta.modelType + "]";
+
+    if (!assetMeta.relativePath.empty())
+        label += " {" + String::ToString(assetMeta.relativePath) + "}";
+
+    if (!assetMeta.guid.empty())
+    {
+        const string shortGuid = assetMeta.guid.size() > 8 ? assetMeta.guid.substr(0, 8) : assetMeta.guid;
+        label += " <" + shortGuid + ">";
+    }
+
+    return label;
+}
+
+bool ModelCom_Inspector::Is_ModelAssetOfType(const AssetMeta& assetMeta, Engine::ModelType expectedModelType)
+{
+    if (assetMeta.type != "Model" && assetMeta.type != "model")
+        return false;
+
+    const string extension = String::ToLowerCopy(String::ToString(fs::path(assetMeta.fullPath).extension().wstring()));
+    if (extension != ".model")
+        return false;
+
+    if (assetMeta.modelType.empty())
+        return true;
+
+    if (expectedModelType == Engine::ModelType::Anim)
+        return assetMeta.modelType == "Anim" || assetMeta.modelType == "ANIM" || assetMeta.modelType == "SkeletalMesh";
+
+    if (expectedModelType == Engine::ModelType::NonAnim)
+        return assetMeta.modelType == "NonAnim" || assetMeta.modelType == "NONANIM" || assetMeta.modelType == "StaticMesh";
+
+    return true;
+}
+
+void ModelCom_Inspector::Draw_ModelPicker(const Shared<Engine::ModelCom>& model)
+{
+    if (model == nullptr)
+        return;
+
+    static char searchBuffer[128] = "";
+
+    const wstring& sourceModelPath = model->Get_SourceModelPath();
+    const string currentGuid = sourceModelPath.empty() ? string{} : GAME->Ensure_AssetGUID(sourceModelPath, "Model");
+    const string displayName = sourceModelPath.empty()
+        ? "(None)"
+        : String::ToString(fs::path(sourceModelPath).stem().wstring());
+
+    const auto toModelTypeString = [](Engine::ModelType modelType)
+    {
+        return modelType == Engine::ModelType::Anim ? string("Anim") : string("NonAnim");
+    };
+
+    ImGui::TextDisabled("Mesh");
+    ImGui::SameLine(120.f);
+
+    if (ImGui::Button(displayName.c_str(), ImVec2(ImGui::GetContentRegionAvail().x, 0.f)))
+        ImGui::OpenPopup("##ModelComModelPicker");
+
+    if (ImGui::BeginPopup("##ModelComModelPicker"))
+    {
+        ImGui::TextUnformatted("Model Select");
+        ImGui::Separator();
+
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        ImGui::InputTextWithHint("##ModelSearch", "Search model...", searchBuffer, IM_ARRAYSIZE(searchBuffer));
+
+        vector<AssetMeta> modelAssets = GAME->Get_AssetsByType("Model");
+        if (modelAssets.empty())
+            modelAssets = GAME->Get_AssetsByType("model");
+
+        const string searchText = String::ToLowerCopy(string(searchBuffer));
+        bool hasSelectableModel = false;
+
+        for (const AssetMeta& assetMeta : modelAssets)
+        {
+            if (!Is_ModelAssetOfType(assetMeta, model->Get_ModelType()))
+                continue;
+
+            const string label = Build_ModelPickerLabel(assetMeta);
+            if (!searchText.empty())
+            {
+                const string lowerLabel = String::ToLowerCopy(label);
+                const string lowerPath = String::ToLowerCopy(String::ToString(assetMeta.fullPath));
+                if (lowerLabel.find(searchText) == string::npos &&
+                    lowerPath.find(searchText) == string::npos)
+                {
+                    continue;
+                }
+            }
+
+            hasSelectableModel = true;
+            const bool isSelected = assetMeta.guid == currentGuid;
+
+            if (isSelected)
+                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.3f, 0.85f, 0.3f, 1.f));
+
+            if (ImGui::Selectable(label.c_str(), isSelected))
+            {
+                json swapData = model->To_Json();
+                swapData["model_guid"] = assetMeta.guid;
+                swapData["model_type"] = assetMeta.modelType.empty()
+                    ? toModelTypeString(model->Get_ModelType())
+                    : assetMeta.modelType;
+
+                model->From_Json(swapData);
+                ImGui::CloseCurrentPopup();
+            }
+
+            if (isSelected)
+                ImGui::PopStyleColor();
+        }
+
+        if (!hasSelectableModel)
+            ImGui::TextDisabled("(No matching .model assets)");
+
+        ImGui::EndPopup();
     }
 }
 
@@ -236,17 +375,22 @@ bool ModelCom_Inspector::Is_TextureExtension(const fs::path& path)
            ext == ".bmp" || ext == ".BMP";
 }
 
-vector<fs::path> ModelCom_Inspector::Collect_TextureCandidates(const wstring& resolvedPath)
+vector<fs::path> ModelCom_Inspector::Collect_TextureCandidates(const wstring& resolvedPath, const wstring& sourceModelPath)
 {
     namespace fs = fs;
 
     vector<fs::path> candidates{};
 
-    if (resolvedPath.empty())
-        return candidates;
+    fs::path directory{};
+    if (!resolvedPath.empty())
+        directory = fs::path(resolvedPath).parent_path();
+    else if (!sourceModelPath.empty())
+    {
+        const fs::path modelDirectory = fs::path(sourceModelPath).parent_path();
+        const fs::path textureDirectory = modelDirectory / L"Texture";
+        directory = fs::exists(textureDirectory) ? textureDirectory : modelDirectory;
+    }
 
-    const fs::path currentPath(resolvedPath);
-    const fs::path directory = currentPath.parent_path();
     if (directory.empty() || !fs::exists(directory))
         return candidates;
 
@@ -342,7 +486,7 @@ void ModelCom_Inspector::Draw_AnimationSection(const Shared<Engine::ModelCom>& m
     if (!assetInfos.empty())
     {
         vector<bool> usedPlayback(playbackNames.size(), false);
-        animationItems.reserve(assetInfos.size());
+        animationItems.reserve(assetInfos.size() + playbackNames.size());
 
         for (const auto& assetInfo : assetInfos)
         {
@@ -357,6 +501,17 @@ void ModelCom_Inspector::Draw_AnimationSection(const Shared<Engine::ModelCom>& m
                 usedPlayback[matchedPlaybackListIndex] = true;
             }
 
+            animationItems.push_back(move(item));
+        }
+
+        for (int32 i = 0; i < static_cast<int32>(playbackNames.size()); ++i)
+        {
+            if (i < static_cast<int32>(usedPlayback.size()) && usedPlayback[i])
+                continue;
+
+            AnimationListItem item{};
+            item.playbackIndex = i;
+            item.displayName = AnimationNameUtils::Make_DisplayNameFallback(playbackNames[i]);
             animationItems.push_back(move(item));
         }
 

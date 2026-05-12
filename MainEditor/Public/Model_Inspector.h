@@ -27,10 +27,13 @@ private:
     };
 
 private:
+    static string Build_ModelPickerLabel(const AssetMeta& assetMeta);
+    static bool Is_ModelAssetOfType(const AssetMeta& assetMeta, Engine::ModelType expectedModelType);
+    static void Draw_ModelPicker(const Shared<Engine::ModelCom>& model);
     static const char* Get_TextureTypeLabel(uint32 typeIndex);
     static string To_DisplayTexturePath(const wstring& resolvedPath);
     static bool Is_TextureExtension(const fs::path& path);
-    static vector<fs::path> Collect_TextureCandidates(const wstring& resolvedPath);
+    static vector<fs::path> Collect_TextureCandidates(const wstring& resolvedPath, const wstring& sourceModelPath);
     static ID3D11ShaderResourceView* Get_TexturePreviewSRV(const fs::path& texturePath);
     static AnimPreviewState& Get_AnimPreviewState(const Engine::ModelCom* model);
     static void Draw_AnimationSection(const Shared<Engine::ModelCom>& model);

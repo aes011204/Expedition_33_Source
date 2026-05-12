@@ -1,4 +1,5 @@
 ﻿#include "ShaderCom.h"
+#include "Material.h"
 
 ShaderCom::ShaderCom(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Component{ device, context }
@@ -10,10 +11,15 @@ ShaderCom::ShaderCom(const ShaderCom& prototype)
     , _effect{ prototype._effect }
     , _numPasses{ prototype._numPasses }
     , _inputLayouts{ prototype._inputLayouts }
+    , _type{ prototype._type }
 {
+    for (uint32 i = 0; i < ETOI(ConstantBuffer::END); ++i)
+        _CB[i] = prototype._CB[i];
+
+    _materialTextures = prototype._materialTextures;
 }
 
-HRESULT ShaderCom::Initialize_Prototype(const wchar_t* shaderFilePath, const D3D11_INPUT_ELEMENT_DESC* elements, uint32 numElements)
+HRESULT ShaderCom::Initialize_Prototype(const wchar_t* shaderFilePath, const D3D11_INPUT_ELEMENT_DESC* elements, uint32 numElements, ShaderType shader)
 {
     uint32 hlslFlag = 0;
 
@@ -70,6 +76,29 @@ HRESULT ShaderCom::Initialize_Prototype(const wchar_t* shaderFilePath, const D3D
 
         _inputLayouts.emplace_back(std::move(inputLayout));
     }
+
+    // TODO CB 확장에 따른 추가 !!  캐싱 ==========================================
+    _CB[ETOI(ConstantBuffer::Material)] =
+        _effect->GetConstantBufferByName(ShaderCB::Material.data());
+
+    _CB[ETOI(ConstantBuffer::Camera)] =
+        _effect->GetConstantBufferByName(ShaderCB::Camera.data());
+
+    _CB[ETOI(ConstantBuffer::Object)] =
+        _effect->GetConstantBufferByName(ShaderCB::Object.data());
+
+    _CB[ETOI(ConstantBuffer::Shadow)] =
+        _effect->GetConstantBufferByName(ShaderCB::Shadow.data());
+
+    _CB[ETOI(ConstantBuffer::Deferred)] =
+        _effect->GetConstantBufferByName(ShaderCB::Deferred.data());
+
+    _CB[ETOI(ConstantBuffer::Light)] =
+        _effect->GetConstantBufferByName(ShaderCB::Light.data());
+
+    _materialTextures = _effect->GetVariableByName("g_MaterialTextures")->AsShaderResource();
+
+    _type = shader;
 
     return S_OK;
 }
@@ -178,16 +207,80 @@ HRESULT ShaderCom::Bind_RawValue(const char* constantName, const void* data, uin
     return variable->SetRawValue(data, 0, length);
 }
 
+HRESULT ShaderCom::Update_CBuffer(ConstantBuffer cbType, const void* pData, size_t size)
+{
+    if (pData == nullptr || size == 0)
+        return E_INVALIDARG;
+
+    const uint32 cbIndex = ETOI(cbType);
+    if (cbIndex >= ETOI(ConstantBuffer::END))
+        return E_FAIL;
+
+    if (_CB[cbIndex] == nullptr)
+        return E_FAIL;
+
+    if (_allocatedCB[cbIndex] == nullptr)
+    {
+        D3D11_BUFFER_DESC bufferDesc{};
+        bufferDesc.ByteWidth = static_cast<UINT>(size);
+        bufferDesc.Usage = D3D11_USAGE_DYNAMIC;
+        bufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+        bufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+        bufferDesc.MiscFlags = 0;
+        bufferDesc.StructureByteStride = 0;
+
+        if (FAILED(_device->CreateBuffer(&bufferDesc, nullptr, _allocatedCB[cbIndex].GetAddressOf())))
+            return E_FAIL;
+    }
+
+    D3D11_MAPPED_SUBRESOURCE mapped{};
+    if (FAILED(_context->Map(_allocatedCB[cbIndex].Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped)))
+        return E_FAIL;
+
+    memcpy(mapped.pData, pData, size);
+    _context->Unmap(_allocatedCB[cbIndex].Get(), 0);
+
+    return _CB[cbIndex]->SetConstantBuffer(_allocatedCB[cbIndex].Get());
+}
+
+HRESULT ShaderCom::Bind_MaterialTextures(const Material& material)
+{
+    if (_materialTextures == nullptr)
+        return E_FAIL;
+
+    ID3D11ShaderResourceView* srvs[ETOI(MaterialTextureSlot::END)]{};
+
+    for (uint32 i = 0; i < ETOI(MaterialTextureSlot::END); ++i)
+    {
+        const Material::TextureSlot* textureSlot =
+            material.Find_TextureSlot(static_cast<MaterialTextureSlot>(i), 0);
+
+        if (textureSlot != nullptr && textureSlot->shaderResourceView != nullptr)
+            srvs[i] = textureSlot->shaderResourceView.Get();
+    }
+
+    return _materialTextures->SetResourceArray(srvs, 0, ETOI(MaterialTextureSlot::END));
+}
+
+HRESULT ShaderCom::Bind_ObjectCB(const Matrix& worldMatrix)
+{
+    ObjectCB objectCB{};
+    objectCB.worldMatrix = worldMatrix;
+
+    return Bind_CBufferData(objectCB);
+}
+
 Shared<ShaderCom> ShaderCom::Create(
     const ComPtr<Device>& device,
     const ComPtr<Context>& context,
     const wchar_t* shaderFilePath,
     const D3D11_INPUT_ELEMENT_DESC* elements,
-    uint32 numElements)
+    uint32 numElements,
+    ShaderType shader)
 {
     auto instance = make_shared<ShaderCom>(device, context);
 
-    if (FAILED(instance->Initialize_Prototype(shaderFilePath, elements, numElements)))
+    if (FAILED(instance->Initialize_Prototype(shaderFilePath, elements, numElements, shader)))
     {
         LOG_WARN("Failed to create ShaderCom: path='{}'", String::ToString(shaderFilePath));
         return nullptr;

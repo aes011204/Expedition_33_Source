@@ -364,7 +364,7 @@ void Animation_View::Refresh_Source()
         if (!assetInfos.empty())
         {
             vector<bool> usedPlayback(playbackNames.size(), false);
-            _availableAnimations.reserve(assetInfos.size());
+            _availableAnimations.reserve(assetInfos.size() + playbackNames.size());
 
             for (const auto& assetInfo : assetInfos)
             {
@@ -381,6 +381,20 @@ void Animation_View::Refresh_Source()
                     usedPlayback[matchedPlaybackIndex] = true;
                 }
 
+                _availableAnimations.push_back(move(entry));
+            }
+
+            for (int32 i = 0; i < static_cast<int32>(playbackNames.size()); ++i)
+            {
+                if (i < static_cast<int32>(usedPlayback.size()) && usedPlayback[i])
+                    continue;
+
+                const string& playbackName = playbackNames[i];
+
+                AnimationEntry entry{};
+                entry.name = playbackName;
+                entry.playbackName = playbackName;
+                entry.displayName = AnimationNameUtils::Make_DisplayNameFallback(playbackName);
                 _availableAnimations.push_back(move(entry));
             }
 
@@ -456,7 +470,7 @@ void Animation_View::Refresh_LiveAnimationList()
     if (!assetInfos.empty())
     {
         vector<bool> usedPlayback(playbackNames.size(), false);
-        _availableAnimations.reserve(assetInfos.size());
+        _availableAnimations.reserve(assetInfos.size() + playbackNames.size());
 
         for (const auto& assetInfo : assetInfos)
         {
@@ -473,6 +487,20 @@ void Animation_View::Refresh_LiveAnimationList()
                 usedPlayback[matchedPlaybackIndex] = true;
             }
 
+            _availableAnimations.push_back(move(entry));
+        }
+
+        for (int32 i = 0; i < static_cast<int32>(playbackNames.size()); ++i)
+        {
+            if (i < static_cast<int32>(usedPlayback.size()) && usedPlayback[i])
+                continue;
+
+            const string& playbackName = playbackNames[i];
+
+            AnimationEntry entry{};
+            entry.name = playbackName;
+            entry.displayName = AnimationNameUtils::Make_DisplayNameFallback(playbackName);
+            entry.playbackName = playbackName;
             _availableAnimations.push_back(move(entry));
         }
 

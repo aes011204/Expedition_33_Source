@@ -87,6 +87,9 @@ json GameObject::To_Json() const
     j["static_class"] = info.className;
     j["custom_properties"] = json::object();
 
+    if (!_sourcePrefabName.empty())
+        j["source_prefab"] = _sourcePrefabName;
+
     const char* basePtr = reinterpret_cast<const char*>(this);
 
     for (const auto& prop : info.properties)
@@ -113,6 +116,8 @@ json GameObject::To_Json() const
 
 void GameObject::From_Json(const json& data)
 {
+    _sourcePrefabName = data.value("source_prefab", string{});
+
     auto& info = Get_ReflectionInfo();
 
     if (data.contains("custom_properties") && data["custom_properties"].is_object())
@@ -151,6 +156,7 @@ void GameObject::From_Json(const json& data)
         iter->second->From_Json(componentJson);
     }
 }
+
 
 void GameObject::Free()
 {

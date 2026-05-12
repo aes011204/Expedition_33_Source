@@ -14,15 +14,15 @@ public:
     {
         uint32 level = 1;
         uint32 exp = 0;
-        uint32 statPoint = 0;
-        uint32 skillPoint = 0;
+        uint32 statPoint = 10;
+        uint32 skillPoint = 10;
         uint32 respecCount = 1; // 스탯 초기화 횟수
 
-        int32 vitality = 0;     // 활력
-        int32 might = 0;        // 무력
-        int32 agility = 0;      // 민첩
-        int32 defense = 0;      // 방어
-        int32 luck = 0;         // 행운
+        int32 vitality = 1;     // 활력
+        int32 might = 1;        // 무력
+        int32 agility = 1;      // 민첩
+        int32 defense = 1;      // 방어
+        int32 luck = 1;         // 행운
     };
 
     // UI, 전투 데미지 계산, 디버그 출력이 읽는 값
@@ -32,15 +32,15 @@ public:
         uint32 level = 1;
         uint32 exp  = 0;
         uint32 nextExp = 0;
-        uint32 statPoint = 0;
-        uint32 skillPoint = 0;
-        uint32 respecCount = 0;
+        uint32 statPoint = 10;
+        uint32 skillPoint = 10;
+        uint32 respecCount = 1;
 
-        int32 vitality = 0;
-        int32 might = 0;
-        int32 agility = 0;
-        int32 defense = 0;
-        int32 luck = 0;
+        int32 vitality = 1;
+        int32 might = 1;
+        int32 agility = 1;
+        int32 defense = 1;
+        int32 luck = 1;
 
         float maxHp = 0.f;
         float hp = 0.f;
@@ -58,6 +58,9 @@ public:
 public:
     HRESULT Initialize_Prototype() override;
     HRESULT Initialize(void* arg) override;
+
+    json To_Json() const override;
+    void From_Json(const json& data) override;
 
 public:
     const CombatStatInfo& Get_StatInfo() const { return _statInfo; }
@@ -88,11 +91,11 @@ private:
     uint32 _skillPoint = 0;
     uint32 _respecCount = 1;
 
-    int32 _vitality = 0;            
-    int32 _might = 0;               
-    int32 _agility = 0;             
-    int32 _defenseStat = 0;         
-    int32 _luck = 0;                
+    int32 _vitality = 2;            
+    int32 _might = 3;               
+    int32 _agility = 4;             
+    int32 _defenseStat = 5;         
+    int32 _luck = 6;                
 
     float _maxHp = 100.f;
     float _hp = 100.f;

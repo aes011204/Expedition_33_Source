@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 NS_BEGIN(Engine)
 class ICommand;

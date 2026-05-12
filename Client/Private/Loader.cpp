@@ -23,16 +23,18 @@ HRESULT Loader::Initialize(LevelType eNextLevelID)
 
     _workerStarted.store(true);
 
-    const bool enqueued = GAME->Enqueue_ThreadJob([this]()
-    {
-        const HRESULT hr = Loading();
-
-        if (FAILED(hr))
+    const bool enqueued = GAME->Enqueue_ThreadJob(
+        [this]
         {
-            _hasFailed.store(true);
-            _workerDone.store(true);
+            const HRESULT hr = Loading();
+
+            if (FAILED(hr))
+            {
+                _hasFailed.store(true);
+                _workerDone.store(true);
+            }
         }
-    });
+    );
 
     if (!enqueued)
     {
@@ -52,7 +54,7 @@ HRESULT Loader::Loading()
     // 로딩 시작 시간
     const auto start = std::chrono::steady_clock::now();
 
-    HRESULT		hr = {};
+    HRESULT hr = {};
 
     //EnterCriticalSection(&_criticalSection);
     CoInitializeEx(nullptr, COINIT_MULTITHREADED);
@@ -88,7 +90,7 @@ HRESULT Loader::Loading()
 
     const auto levelName = magic_enum::enum_name(_nextLevel);
 
-    LOG_ERROR("[Loader::Loading] 레벨 : {}, 로딩 시간 : {}", levelName, Format_Duration(elapsed));
+    LOG_INFO("[Loader::Loading] 레벨 : {}, 로딩 시간 : {}", levelName, Format_Duration(elapsed));
 
     if (FAILED(hr))
         _hasFailed.store(true);
@@ -96,95 +98,17 @@ HRESULT Loader::Loading()
     return hr;
 }
 
-HRESULT Loader::Process_PendingLoadJobs(size_t maxJobPerFrame)
+HRESULT Loader::Process_PendingLoadJobs(size_t maxCommitPerFrame)
 {
     // 이미 완료됐거나, 실패한 상태면 더 처리할 작업이 없다.
     if (_isFinished.load() || _hasFailed.load())
         return S_OK;
 
-    if (maxJobPerFrame == 0)
-        return S_OK;
+    CHECK_FAILED(Schedule_PendingCreateJobs(), E_FAIL);
+    CHECK_FAILED(Commit_CompletedLoadJobs(maxCommitPerFrame), E_FAIL);
+    CHECK_FAILED(Try_FinishLoading(), E_FAIL);
 
-    Shared<ResourceLoader> resourceLoader = ResourceLoader::Create(_device, _context);
-    if (resourceLoader == nullptr)
-    {
-        LOG_ERROR("[Loader::Process_PendingLoadJobs] ResourceLoader::Create failed");
-        _hasFailed.store(true);
-        return E_FAIL;
-    }
-
-    vector<FLoadJob> loadJobsToProcess;;
-
-    {
-        // 이번 프레임에 처리할 양만 꺼내기
-        lock_guard<mutex> lock(_pendingJobsMutex);
-
-        const size_t jobCount = min(maxJobPerFrame, _pendingJobs.size());
-        loadJobsToProcess.reserve(jobCount);
-
-        for (size_t i = 0; i < jobCount; ++i)
-            loadJobsToProcess.push_back(_pendingJobs[i]);
-
-        // 이번 프레임에 처리할 job들은 local vector로 복사했으니까 pending 목록에서는 제외
-        _pendingJobs.erase(_pendingJobs.begin(), _pendingJobs.begin() + jobCount);
-    }
-
-    // 실제 무거운 작업은 lock 밖에서 진행
-    for (const FLoadJob& loadJob : loadJobsToProcess)
-    {
-        const auto startTime = chrono::steady_clock::now();
-
-        if (FAILED(resourceLoader->Register_LoadJob(loadJob)))
-        {
-            LOG_ERROR("[Loader::Process_PendingLoadJobs] Register_LoadJob failed. tag={}, level={}",
-                String::ToString(loadJob.strPrototypeTag),
-                loadJob.iLevelIndex);
-
-            _hasFailed.store(true);
-            return E_FAIL;
-        }
-
-        const auto elapsed = chrono::duration_cast<chrono::milliseconds>(
-            chrono::steady_clock::now() - startTime);
-
-        Accumulate_LoadJobStats(loadJob.eType, elapsed);
-
-        const string jobTypeName = string(magic_enum::enum_name(loadJob.eType));
-
-        LOG_ERROR("[Loader::Process_PendingLoadJobs] Processed load job. tag={}, type={}, elapsed={}",
-            String::ToString(loadJob.strPrototypeTag),
-            jobTypeName,
-            Format_Duration(elapsed));
-
-        _completedJobCount.fetch_add(1);
-    }
-
-    // worker thread가 job 생성을 끝냈고, main thread에도 pending job을 모두 처리했으면 이제 로딩 완료
-    if (_workerDone.load())
-    {
-        lock_guard<mutex> lock(_pendingJobsMutex);
-
-        if (_pendingJobs.empty())
-        {
-            if (_includedStaticJobs.load())
-            {
-                if (FAILED(CLIENT->Ready_StaticObjects()))
-                {
-                    _hasFailed.store(true);
-                    return E_FAIL;
-                }
-
-                CLIENT->Set_StaticResourcesLoaded(true);
-            }
-
-            lstrcpy(_loadingText, TEXT("Loading completed."));
-            _isFinished.store(true);
-
-            Print_LoadJobSummary();
-        }
-    }
-
-     return S_OK;
+    return S_OK;
 }
 
 float Loader::Get_Progress() const
@@ -207,6 +131,79 @@ HRESULT Loader::Print_LoadingText()
     return S_OK;
 }
 #endif
+
+HRESULT Loader::Append_ResourceJobsForLevel(LevelType levelType)
+{
+    const Shared<ResourceLoader> resourceLoader = ResourceLoader::Create(_device, _context);
+    if (resourceLoader == nullptr)
+    {
+        LOG_ERROR("[Loader::Load_ResourceJobsForLevel] ResourceLoader::Create failed");
+        return E_FAIL;
+    }
+
+    vector<FLoadJob> builtJobs;
+    if (FAILED(resourceLoader->Build_LevelJobs(levelType, builtJobs)))
+    {
+        LOG_ERROR(
+            "[Loader::Load_ResourceJobsForLevel] Build_LevelJobs failed. level={}",
+            static_cast<int>(levelType)
+        );
+        return E_FAIL;
+    }
+
+    {
+        lock_guard<mutex> lock(_pendingJobsMutex);
+        _pendingJobs.insert(_pendingJobs.end(), builtJobs.begin(), builtJobs.end());
+    }
+
+    _totalJobCount.fetch_add(builtJobs.size());
+
+    //LOG_ERROR("[Loader::Load_ResourceJobsForLevel] level={}, totalJobs={}",
+    //    static_cast<int>(levelType),
+    //    static_cast<int>(builtJobs.size()));
+
+    return S_OK;
+}
+
+HRESULT Loader::Load_ResourceJobsForLevel(LevelType levelType)
+{
+    return Load_ResourceJobsForLevels({ levelType });
+}
+
+HRESULT Loader::Load_ResourceJobsForLevels(const vector<LevelType>& levelTypes)
+{
+    _completedJobCount.store(0);
+    _totalJobCount.store(0);
+
+    {
+        lock_guard<mutex> lock(_pendingJobsMutex);
+        _pendingJobs.clear();
+    }
+
+    for (const LevelType levelType : levelTypes)
+    {
+        if (FAILED(Append_ResourceJobsForLevel(levelType)))
+            return E_FAIL;
+    }
+
+    _workerDone.store(true);
+    return S_OK;
+}
+
+HRESULT Loader::Load_ResourceJobsForNextLevel()
+{
+    vector<LevelType> levelTypes;
+
+    if (!CLIENT->Is_StaticResourcesLoaded())
+    {
+        levelTypes.push_back(LevelType::Static);
+        _includedStaticJobs.store(true);
+    }
+
+    levelTypes.push_back(_nextLevel);
+
+    return Load_ResourceJobsForLevels(levelTypes);
+}
 
 HRESULT Loader::Loading_For_LogoLevel()
 {
@@ -274,7 +271,7 @@ void Loader::Accumulate_LoadJobStats(ELoadJobType jobType, chrono::milliseconds 
 
 void Loader::Print_LoadJobSummary()
 {
-    LOG_ERROR("[Loader::Print_LoadJobSummary] ---- LoadJob Summary Begin ----");
+    LOG_INFO("[Loader::Print_LoadJobSummary] ---- LoadJob Summary Begin ----");
 
     for (size_t i = 0; i < _loadJobStats.size(); ++i)
     {
@@ -285,85 +282,14 @@ void Loader::Print_LoadJobSummary()
         const ELoadJobType jobType = static_cast<ELoadJobType>(i);
         const string jobTypeName = string(magic_enum::enum_name(jobType));
 
-        LOG_ERROR("[Loader::Print_LoadJobSummary] type={}, count={}, total={}",
+        LOG_INFO("[Loader::Print_LoadJobSummary] type={}, count={}, total={}",
             jobTypeName,
             static_cast<int>(stats.count),
-            Format_Duration(stats.totalDuration));
+            Format_Duration(stats.totalDuration)
+        );
     }
 
-    LOG_ERROR("[Loader::Print_LoadJobSummary] ---- LoadJob Summary End ----");
-}
-
-
-HRESULT Loader::Append_ResourceJobsForLevel(LevelType levelType)
-{
-    Shared<ResourceLoader> resourceLoader = ResourceLoader::Create(_device, _context);
-    if (resourceLoader == nullptr)
-    {
-        LOG_ERROR("[Loader::Load_ResourceJobsForLevel] ResourceLoader::Create failed");
-        return E_FAIL;
-    }
-
-    vector<FLoadJob> builtJobs;
-    if (FAILED(resourceLoader->Build_LevelJobs(levelType, builtJobs)))
-    {
-        LOG_ERROR("[Loader::Load_ResourceJobsForLevel] Build_LevelJobs failed. level={}",
-            static_cast<int>(levelType));
-        return E_FAIL;
-    }
-
-    {
-        lock_guard<mutex> lock(_pendingJobsMutex);
-        _pendingJobs.insert(_pendingJobs.end(), builtJobs.begin(), builtJobs.end());
-    }
-
-    _totalJobCount.fetch_add(builtJobs.size());
-
-    //LOG_ERROR("[Loader::Load_ResourceJobsForLevel] level={}, totalJobs={}",
-    //    static_cast<int>(levelType),
-    //    static_cast<int>(builtJobs.size()));
-
-    return S_OK;
-}
-
-HRESULT Loader::Load_ResourceJobsForLevel(LevelType levelType)
-{
-    return Load_ResourceJobsForLevels({ levelType });
-}
-
-HRESULT Loader::Load_ResourceJobsForLevels(const vector<LevelType>& levelTypes)
-{
-    _completedJobCount.store(0);
-    _totalJobCount.store(0);
-
-    {
-        lock_guard<mutex> lock(_pendingJobsMutex);
-        _pendingJobs.clear();
-    }
-
-    for (LevelType levelType : levelTypes)
-    {
-        if (FAILED(Append_ResourceJobsForLevel(levelType)))
-            return E_FAIL;
-    }
-
-    _workerDone.store(true);
-    return S_OK;
-}
-
-HRESULT Loader::Load_ResourceJobsForNextLevel()
-{
-    vector<LevelType> levelTypes;
-
-    if (!CLIENT->Is_StaticResourcesLoaded())
-    {
-        levelTypes.push_back(LevelType::Static);
-        _includedStaticJobs.store(true);
-    }
-
-    levelTypes.push_back(_nextLevel);
-
-    return Load_ResourceJobsForLevels(levelTypes);
+    LOG_INFO("[Loader::Print_LoadJobSummary] ---- LoadJob Summary End ----");
 }
 
 string Loader::Format_Duration(chrono::milliseconds duration)
@@ -373,8 +299,8 @@ string Loader::Format_Duration(chrono::milliseconds duration)
     const auto totalMs = duration.count();
 
     const auto hours = totalMs / (1000 * 60 * 60);
-    const auto minutes = (totalMs / (1000 * 60)) % 60;
-    const auto seconds = (totalMs / 1000) % 60;
+    const auto minutes = totalMs / (1000 * 60) % 60;
+    const auto seconds = totalMs / 1000 % 60;
     const auto millisecondsPart = totalMs % 1000;
 
     std::ostringstream oss;
@@ -415,6 +341,216 @@ string Loader::Format_Duration(chrono::milliseconds duration)
     return oss.str();
 }
 
+HRESULT Loader::Schedule_PendingCreateJobs()
+{
+    vector<FLoadJob> jobsToSchedule;
+
+    {
+        lock_guard<mutex> lock(_pendingJobsMutex);
+
+        if (_pendingJobs.empty())
+            return S_OK;
+
+        jobsToSchedule = std::move(_pendingJobs);
+        _pendingJobs.clear();
+    }
+
+    for (const FLoadJob& loadJob : jobsToSchedule)
+    {
+        // 이미 등록된 prototype이면 완료 처리만 한다.
+        if (GAME->Has_Prototype(loadJob.iLevelIndex, loadJob.strPrototypeTag))
+        {
+            _completedJobCount.fetch_add(1);
+            continue;
+        }
+
+        if (!ResourceLoader::Can_CreatePrototypeOnWorker(loadJob))
+        {
+            const auto startTime = chrono::steady_clock::now();
+
+            Shared<ResourceLoader> resourceLoader = ResourceLoader::Create(_device, _context);
+            CHECK_NULL(resourceLoader, E_FAIL);
+
+            Shared<Base> prototype = nullptr;
+            const HRESULT hr = resourceLoader->Create_LoadJobPrototype(loadJob, prototype);
+
+            const auto elapsed = chrono::duration_cast<chrono::milliseconds>(
+                chrono::steady_clock::now() - startTime);
+
+            CHECK_FAILED(Push_CompletedLoadJob(loadJob, prototype, hr, elapsed), E_FAIL);
+            continue;
+        }
+
+        _activeCreateJobCount.fetch_add(1);
+
+        const bool enqueued = GAME->Enqueue_ThreadJob([this, loadJob]()
+        {
+            const auto startTime = chrono::steady_clock::now();
+
+            HRESULT coHr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+            const bool needCoUninitialize = SUCCEEDED(coHr);
+
+            Shared<Base> prototype = nullptr;
+            HRESULT hr = S_OK;
+
+            Shared<ResourceLoader> resourceLoader = ResourceLoader::Create(_device, _context);
+            if (resourceLoader == nullptr)
+            {
+                hr = E_FAIL;
+            }
+            else
+            {
+                hr = resourceLoader->Create_LoadJobPrototype(loadJob, prototype);
+            }
+
+            if (needCoUninitialize)
+                CoUninitialize();
+
+            const auto elapsed = chrono::duration_cast<chrono::milliseconds>(
+                chrono::steady_clock::now() - startTime);
+
+            Push_CompletedLoadJob(loadJob, prototype, hr, elapsed);
+
+            if (FAILED(hr))
+                _hasFailed.store(true);
+
+            _activeCreateJobCount.fetch_sub(1);
+        });
+
+        if (!enqueued)
+        {
+            _activeCreateJobCount.fetch_sub(1);
+            _hasFailed.store(true);
+
+            LOG_ERROR(
+                "[Loader::Schedule_PendingCreateJobs] Failed to enqueue load job. tag={}, type={}",
+                String::ToString(loadJob.strPrototypeTag),
+                string(magic_enum::enum_name(loadJob.eType)));
+
+            return E_FAIL;
+        }
+    }
+
+    return S_OK;
+}
+
+HRESULT Loader::Push_CompletedLoadJob(
+    const FLoadJob& loadJob,
+    const Shared<Base>& prototype,
+    HRESULT result,
+    chrono::milliseconds elapsed)
+{
+    CompletedLoadJob completedJob{};
+    completedJob.loadJob = loadJob;
+    completedJob.prototype = prototype;
+    completedJob.result = result;
+    completedJob.elapsed = elapsed;
+
+    {
+        lock_guard<mutex> lock(_completedJobsMutex);
+        _completedJobs.push_back(std::move(completedJob));
+    }
+
+    return S_OK;
+}
+
+HRESULT Loader::Commit_CompletedLoadJobs(size_t maxCommitPerFrame)
+{
+    if (maxCommitPerFrame == 0)
+        return S_OK;
+
+    vector<CompletedLoadJob> jobsToCommit;
+
+    {
+        lock_guard<mutex> lock(_completedJobsMutex);
+
+        const size_t commitCount = min(maxCommitPerFrame, _completedJobs.size());
+        jobsToCommit.reserve(commitCount);
+
+        for (size_t i = 0; i < commitCount; ++i)
+            jobsToCommit.push_back(std::move(_completedJobs[i]));
+
+        _completedJobs.erase(_completedJobs.begin(), _completedJobs.begin() + commitCount);
+    }
+
+    if (jobsToCommit.empty())
+        return S_OK;
+
+    Shared<ResourceLoader> resourceLoader = ResourceLoader::Create(_device, _context);
+    CHECK_NULL(resourceLoader, E_FAIL);
+
+    for (const CompletedLoadJob& completedJob : jobsToCommit)
+    {
+        const FLoadJob& loadJob = completedJob.loadJob;
+
+        if (FAILED(completedJob.result))
+        {
+            LOG_ERROR(
+                "[Loader::Commit_CompletedLoadJobs] Create prototype failed. tag={}, type={}",
+                String::ToString(loadJob.strPrototypeTag),
+                string(magic_enum::enum_name(loadJob.eType)));
+
+            _hasFailed.store(true);
+            return E_FAIL;
+        }
+
+        CHECK_FAILED(
+            resourceLoader->Commit_LoadJobPrototype(loadJob, completedJob.prototype),
+            E_FAIL);
+
+        Accumulate_LoadJobStats(loadJob.eType, completedJob.elapsed);
+
+        LOG_INFO(
+            "[Loader::Commit_CompletedLoadJobs] Committed load job. tag={}, type={}, createElapsed={}",
+            String::ToString(loadJob.strPrototypeTag),
+            string(magic_enum::enum_name(loadJob.eType)),
+            Format_Duration(completedJob.elapsed));
+
+        _completedJobCount.fetch_add(1);
+    }
+
+    return S_OK;
+}
+
+HRESULT Loader::Try_FinishLoading()
+{
+    if (!_workerDone.load())
+        return S_OK;
+
+    if (_activeCreateJobCount.load() != 0)
+        return S_OK;
+
+    {
+        lock_guard<mutex> pendingLock(_pendingJobsMutex);
+        if (!_pendingJobs.empty())
+            return S_OK;
+    }
+
+    {
+        lock_guard<mutex> completedLock(_completedJobsMutex);
+        if (!_completedJobs.empty())
+            return S_OK;
+    }
+
+    if (_includedStaticJobs.load())
+    {
+        if (FAILED(CLIENT->Ready_StaticObjects()))
+        {
+            _hasFailed.store(true);
+            return E_FAIL;
+        }
+
+        CLIENT->Set_StaticResourcesLoaded(true);
+    }
+
+    lstrcpy(_loadingText, TEXT("Loading completed."));
+    _isFinished.store(true);
+
+    Print_LoadJobSummary();
+
+    return S_OK;
+}
+
 Shared<Loader> Loader::Create(const ComPtr<Device>& device, const ComPtr<Context>& context, LevelType eNextLevelID)
 {
     auto pInstance = make_shared<Loader>(device, context);
@@ -430,12 +566,9 @@ Shared<Loader> Loader::Create(const ComPtr<Device>& device, const ComPtr<Context
 void Loader::Free()
 {
     while (_workerStarted.load() && !Is_WorkerDone())
+    {
         this_thread::sleep_for(chrono::milliseconds(1));
+    }
 
     __super::Free();
 }
-
-
-
-
-

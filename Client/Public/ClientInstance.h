@@ -8,9 +8,14 @@ NS_END
 
 NS_BEGIN(Client)
 
+class Player;
+class TargetCamera;
+
 class ResourceLoader;
+class GameplayUI;
 class PersistentObjectManager;
 class GameDataTable;
+class Hero_Manager;
 
 class ClientInstance : public Base
 {
@@ -41,6 +46,17 @@ public: /* 플레이어 찾기 -> 일단 임시 */
 public: /* For.GameData Table */
     uint32  Get_NextExp(uint32 level) const;
 
+public: /* For.Hero Manager */
+    HRESULT        Initialize_Hero(uint32 levelIndex, const wstring& layerTag);
+    void           Update_HeroManager(float timeDelta);
+    Shared<Player> Get_ActiveHero() const;
+    void           Set_TargetCamera(const Shared<TargetCamera>& camera);
+    void           Clear_Party();
+
+public: /* For.Gameplay UI */
+    HRESULT Initialize_GameplayUI(uint32 levelIndex);
+    void    Clear_GameplayUI();
+
 private:
 	HRESULT Ready_ResourceLoader();
     HRESULT Ready_GameDataTables();
@@ -57,7 +73,9 @@ private:
     Shared<ResourceLoader>  _resourceLoader;
     Unique<GameDataTable>   _gameDataTable;
 
+    Unique<GameplayUI>      _gamePlayUI;
     Unique<PersistentObjectManager> _persistentObjectManager;
+    Unique<Hero_Manager>    _heroManager;
 
 public:
 	void Free() override;

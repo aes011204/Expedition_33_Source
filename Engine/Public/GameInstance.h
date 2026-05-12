@@ -52,7 +52,11 @@ public:
 
 public:
     HRESULT Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<Device>& device, ComPtr<Context>& context);
+
     void    Update_Engine(float timeDelta);
+    // ClientInstance쪽 업데이트 순서 맞추려고
+    void    Update_Engine(float timeDelta, const function<void(float)>& clientUpdate);
+
     HRESULT Draw();
     HRESULT Draw_RendererOnly(); // 에디터용
     void    Clear_Resources(uint32 levelIndex);
@@ -61,6 +65,10 @@ public:
 
     ComPtr<Device>  Get_Device() const  { return _device; }
     ComPtr<Context> Get_Context() const { return _context; }
+
+public:
+    void    Set_GameplayPaused(bool paused) { _isGameplayPaused = paused; }
+    bool    Is_GameplayPaused() const { return _isGameplayPaused; }
 
 public: /* For.Log_Manager */
     void    Log_FileOnly(const spdlog::source_loc& sourceLoc, spdlog::level::level_enum level, const string& message) const;
@@ -106,6 +114,8 @@ public: /* For.Prototype_Manager */
     HRESULT Add_Prototype(uint32 levelIndex, const wstring& prototypeTag, Shared<Base> prototype);
     Shared<Base> Clone_Prototype(Prototype prototype, uint32 levelIndex, const wstring& prototypeTag, void* arg = nullptr);
 
+    bool Has_Prototype(uint32 levelIndex, const wstring& prototypeTag) const;
+
 public: /* For.UI_Manager */
     HRESULT Add_UI(
         uint32 prototypeLevelIndex,
@@ -137,7 +147,9 @@ public: /* For.Object_Manager */
         uint32 layerLevelIndex,
         const wstring& layerTag,
         const Shared<GameObject>& gameObject);
+
     bool    Remove_GameObject(uint32 levelIndex, const Shared<GameObject>& gameObject);
+    HRESULT Clear_LevelObjects(uint32 levelIndex);
 
     // Layer_Player의 첫번째 오브젝트 찾기
     Shared<GameObject> Find_FirstObject(uint32 levelIndex, const wstring& layerTag);
@@ -150,6 +162,8 @@ public: /* For.Object_Manager */
         const function<void(const wstring& layerTag, const Shared<GameObject>& gameObject)>& visitor) const;
 
     uint64 Get_CurrentLevelObjectRevision() const;
+
+    
 
 public: /* For.Renderer */
     void Add_RenderGroup(RenderGroup renderGroup, Shared<GameObject> gameObject);
@@ -165,6 +179,8 @@ public: /* For.PipeLine */
     const Vec4*   Get_CamPosition() const;
 
     void Set_Transform(D3DTS transformState, FXMMATRIX& transformStateMatrix);
+
+    HRESULT Bind_CameraCB(Shared<ShaderCom> shader) const;
 
 public: /* For.Input_Manager */
 	bool KeyPress(KEY_TYPE eKey) const;
@@ -292,10 +308,12 @@ public : /* For.Target_Manager */
 public: /* For.Shadow */
     HRESULT                 Bind_ShadowMatrices(Shared<ShaderCom> shader, const char* viewName, const char* projName);
     HRESULT                 Bind_ShadowLightDesc(Shared<ShaderCom> shader, const char* lightFarName, const char* biasName = nullptr, const char* intensityName = nullptr);
+    HRESULT                 Bind_ShadowCB(Shared<ShaderCom> shader);
 
     HRESULT                 Update_ShadowLight(const ShadowLightDesc& desc);
     const ShadowLightDesc*  Get_ShadowLightDesc() const;
     const Matrix*           Get_ShadowTransformMatrix(D3DTS eType) const;
+
 
 
 public: /* For.Collision_Manager */
@@ -309,6 +327,8 @@ public: // For. PhysX_Manager
 public: // For. Culling_Manager 
     void UpdateFrustum(const Matrix& view, const Matrix& proj);
     bool IsVisible(const BoundingBox& worldAABB) const;
+    void BuildOctree(const vector<BoundingBox>& worldAABBs);
+    void QueryVisible(vector<uint32>& outIndices) const;
 
 public: // For. BT_Node
     void Visit_BTNodeTypes(const function<void(const TypeRegistry::BTNodeTypeInfo&)>& visitor) const;
@@ -356,6 +376,7 @@ public: /* For.Json / Prefab Saved & Load */
     HRESULT                 Save_GameObjectJson(const fs::path& path, const Shared<GameObject>& gameObject);
     json                    Load_JsonFile(const fs::path& path) const;
     HRESULT                 Load_GameObjectJson(const fs::path& path, const Shared<GameObject>& gameObject) const;
+    Shared<GameObject>      Instantiate_GameObjectJson(const json& root);
     Shared<GameObject>      Instantiate_GameObjectJson(const fs::path& path);
     HRESULT                 Create_PrefabAsset(const fs::path& path, const string& staticClass, const string& prefabName);
 
@@ -407,6 +428,8 @@ private:
 
     bool    _isPlayerInputBlocked = false;
     bool    _isFreeCameraInputEnabled = false;
+
+    bool    _isGameplayPaused = false;
 
     // Free 카메라용 time
     float   _freeCameraTimeDelta = 0.f;

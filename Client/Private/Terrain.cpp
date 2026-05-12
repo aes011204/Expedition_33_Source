@@ -101,7 +101,7 @@ HRESULT Terrain::Bind_ShaderResources()
 	if (FAILED(GAME->Bind_TransformMatrix(D3DTS::Proj, _shader.get(), "g_ProjMatrix")))
 		return E_FAIL;
 
-    if (FAILED(GAME->Bind_CameraFar(_shader, "g_fFar")))
+    if (FAILED(GAME->Bind_CameraFar(_shader, "g_Far")))
         return E_FAIL;
 
 	if (FAILED(_textures[TEXTURE::Diffuse]->Bind_ShaderResourceView(_shader.get(), "g_DiffuseTexture", 0)))

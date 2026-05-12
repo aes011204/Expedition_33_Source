@@ -107,6 +107,16 @@ void EffectEditor_Manager::Render_MainMenuBar()
 
     if (ImGui::BeginMenu("File"))
     {
+        const bool canSaveFocusedWindow = nullptr != Find_FocusedSavableWindow();
+        if (ImGui::MenuItem("Save", "Ctrl+S", false, canSaveFocusedWindow))
+            Save_FocusedWindow();
+
+        ImGui::MenuItem("Open", nullptr, false, false);
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+            ImGui::SetTooltip("후속 지원 예정");
+
+        ImGui::Separator();
+
         if (ImGui::MenuItem("Exit"))
             Request_Exit();
 
@@ -139,13 +149,54 @@ void EffectEditor_Manager::Render_RuntimeToolbar()
 
     const bool playing = EDITOR->IsPlaying();
     const bool paused = EDITOR->IsPaused();
+    bool hasPreviewDirtyEmitter = false;
+    if (const Shared<Editor_Window> emitterWindow = Find_Window(L"Emitter"))
+    {
+        const Shared<Emitter_View> emitterView = dynamic_pointer_cast<Emitter_View>(emitterWindow);
+        if (emitterView != nullptr)
+            hasPreviewDirtyEmitter = emitterView->Has_PreviewDirtyEmitter();
+    }
 
     constexpr float toolbarHeight = 34.f;
-    constexpr float toolbarControlWidth = 560.f;
-
     ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 4.f);
-    ImGui::SetCursorPosX(max(12.f, (ImGui::GetWindowWidth() - toolbarControlWidth) * 0.5f));
+    ImGui::SetCursorPosX(12.f);
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(8.f, 4.f));
+
+    ImGui::BeginDisabled();
+    ImGui::Button(ICON_FA_FLOPPY_DISK " Save");
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+        ImGui::SetTooltip("후속 지원 예정");
+    ImGui::SameLine();
+    ImGui::Button(ICON_FA_FOLDER_OPEN " Open");
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+        ImGui::SetTooltip("후속 지원 예정");
+    ImGui::EndDisabled();
+
+    ImGui::SameLine(0.f, 12.f);
+    ImGui::TextDisabled("|");
+    ImGui::SameLine(0.f, 12.f);
+
+    if (hasPreviewDirtyEmitter)
+    {
+        const ImVec4 dirtyButtonColor{ 0.72f, 0.40f, 0.12f, 1.f };
+        const ImVec4 dirtyButtonHoveredColor{ 0.80f, 0.46f, 0.14f, 1.f };
+        ImGui::PushStyleColor(ImGuiCol_Button, dirtyButtonColor);
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, dirtyButtonHoveredColor);
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, dirtyButtonHoveredColor);
+    }
+
+    if (ImGui::Button(ICON_FA_ROTATE_RIGHT " Restart Preview"))
+        EDITOR->Request_RestartPreview();
+
+    if (hasPreviewDirtyEmitter)
+    {
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("변경 사항이 아직 preview에 반영되지 않았습니다.");
+
+        ImGui::PopStyleColor(3);
+    }
+
+    ImGui::SameLine(0.f, 24.f);
 
     if (playing)
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.13f, 0.42f, 0.72f, 1.f));
@@ -209,6 +260,8 @@ void EffectEditor_Manager::Render_RuntimeToolbar()
 
     ImGui::SameLine();
     Render_ExitButton(toolbarHeight);
+
+    ImGui::PopStyleVar();
 }
 
 void EffectEditor_Manager::Render_DockSpace()
@@ -301,16 +354,7 @@ void EffectEditor_Manager::Handle_Shortcuts()
         EDITOR->Redo();
 
     if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_S, false))
-    {
-        for (const auto& window : _windows | views::values)
-        {
-            if (window && window->Is_Open() && window->Is_Focused() && window->CanSave())
-            {
-                window->Save();
-                return;
-            }
-        }
-    }
+        Save_FocusedWindow();
 
     if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Space, false))
     {
@@ -441,6 +485,27 @@ void EffectEditor_Manager::Render_ShortcutHelp()
     }
 }
 
+Shared<Editor_Window> EffectEditor_Manager::Find_FocusedSavableWindow() const
+{
+    for (const auto& window : _windows | views::values)
+    {
+        if (window && window->Is_Open() && window->Is_Focused() && window->CanSave())
+            return window;
+    }
+
+    return nullptr;
+}
+
+bool EffectEditor_Manager::Save_FocusedWindow()
+{
+    const Shared<Editor_Window> window = Find_FocusedSavableWindow();
+    if (nullptr == window)
+        return false;
+
+    window->Save();
+    return true;
+}
+
 void EffectEditor_Manager::Toggle_Window(const wstring& windowName)
 {
     const Shared<Editor_Window> window = Find_Window(windowName);
@@ -481,7 +546,6 @@ void EffectEditor_Manager::Render_ExitButton(float toolbarHeight)
         Request_Exit();
 
     ImGui::PopStyleColor(3);
-    ImGui::PopStyleVar();
 
     ImDrawList* drawList = ImGui::GetWindowDrawList();
     const ImVec2 lineStart = ImGui::GetCursorScreenPos();

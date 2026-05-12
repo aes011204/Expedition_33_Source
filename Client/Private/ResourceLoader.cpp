@@ -519,22 +519,28 @@ HRESULT ResourceLoader::Build_LevelJobs(LevelType levelType, vector<FLoadJob>& o
 ResourceLoader::FInputLayoutInfo ResourceLoader::Get_InputLayout(const string& strName)
 {
     if ("VTXNORTEX" == strName || "NorTex" == strName || "VtxNorTex" == strName)
-        return { VTXNORTEX::Elements, VTXNORTEX::numElements };
+        return { VTXNORTEX::Elements, VTXNORTEX::numElements, ShaderType::VtxNorTex };
 
     if ("VTXMESH" == strName || "Mesh" == strName || "VtxMesh" == strName)
-        return { VTXMESH::Elements, VTXMESH::numElements };
+        return { VTXMESH::Elements, VTXMESH::numElements, ShaderType::VtxMesh };
 
     if ("VTXANIMMESH" == strName || "AnimMesh" == strName || "VtxAnimMesh" == strName)
-        return { VTXANIMMESH::Elements, VTXANIMMESH::numElements };
+        return { VTXANIMMESH::Elements, VTXANIMMESH::numElements, ShaderType::VtxAnimMesh };
 
     if ("VTXCUBE" == strName || "Cube" == strName || "VtxCube" == strName)
-        return { VTXCUBE::Elements, VTXCUBE::numElements };
+        return { VTXCUBE::Elements, VTXCUBE::numElements, ShaderType::VtxCube };
 
     // Particle instance용 InputLayout
     if ("ParticleInstance" == strName || "PARTICLEINSTANCE" == strName)
-        return { ParticleInstanceLayout::Elements, ParticleInstanceLayout::numElements };
+        return { ParticleInstanceLayout::Elements, ParticleInstanceLayout::numElements, ShaderType::BillboardParticle };
 
-    return { VTXTEX::Elements, VTXTEX::numElements };
+    // Mesh Instance -> need to change
+    if("VTXMESHINST" == strName)
+        return { VtxMeshInstanceLayout::Elements, VtxMeshInstanceLayout::numElements, ShaderType::VtxMesh };
+
+    //return { VTXTEX::Elements, VTXTEX::numElements };
+
+    return { VTXTEX::Elements, VTXTEX::numElements, ShaderType::VtxTex };
 }
 
 HRESULT ResourceLoader::Load_Textures(const json& JsonData)
@@ -607,7 +613,8 @@ HRESULT ResourceLoader::Load_Shaders(const json& JsonData)
         }
 
         const FInputLayoutInfo InputLayout = Get_InputLayout(strInputLayout);
-        Shared<ShaderCom> pShader = ShaderCom::Create(_device, _context, resolvedPath.c_str(), InputLayout.pElements, InputLayout.iNumElements);
+        Shared<ShaderCom> pShader = ShaderCom::Create(
+            _device, _context, resolvedPath.c_str(), InputLayout.pElements, InputLayout.iNumElements, InputLayout.eShaderType);
         if (nullptr == pShader)
         {
             LOG_WARN("Skipping Shader prototype registration. id='{}', path='{}', type='{}'", strId, strPath, strInputLayout);
@@ -624,218 +631,158 @@ HRESULT ResourceLoader::Load_Shaders(const json& JsonData)
     return S_OK;
 }
 
-HRESULT ResourceLoader::Register_LoadJob(const FLoadJob& LoadJob)
+HRESULT ResourceLoader::Register_LoadJob(const FLoadJob& loadJob)
 {
-    switch (LoadJob.eType)
+    if (GAME->Has_Prototype(loadJob.iLevelIndex, loadJob.strPrototypeTag))
+        return S_OK;
+
+    Shared<Base> prototype = nullptr;
+
+    CHECK_FAILED(Create_LoadJobPrototype(loadJob, prototype), E_FAIL);
+    CHECK_FAILED(Commit_LoadJobPrototype(loadJob, prototype), E_FAIL);
+
+    return S_OK;
+}
+
+bool ResourceLoader::Can_CreatePrototypeOnWorker(const FLoadJob& loadJob)
+{
+    switch (loadJob.eType)
+    {
+    case ELoadJobType::TextureCreate:
+    case ELoadJobType::Shader:
+    case ELoadJobType::ComputeShader:
+    case ELoadJobType::Model:
+        return true;
+
+    default:
+        return false;
+    }
+}
+
+HRESULT ResourceLoader::Create_LoadJobPrototype(const FLoadJob& loadJob, Shared<Base>& outPrototype)
+{
+    outPrototype = nullptr;
+
+    switch (loadJob.eType)
     {
     case ELoadJobType::TextureCreate:
     {
-        Shared<Texture> pTexture = Texture::Create(_device, _context, LoadJob.strPath.c_str(), LoadJob.iCount);
-        if (nullptr == pTexture)
-        {
-            LOG_WARN(
-                "Skipping Texture prototype registration. id='{}', path='{}', level={}",
-                String::ToString(LoadJob.strPrototypeTag),
-                String::ToString(LoadJob.strPath),
-                LoadJob.iLevelIndex);
-            return S_OK;
-        }
-
-        if (FAILED(GAME->Add_Prototype(LoadJob.iLevelIndex, LoadJob.strPrototypeTag, pTexture)))
-        {
-            LOG_WARN(
-                "Skipping Texture Add_Prototype failure. id='{}', level={}",
-                String::ToString(LoadJob.strPrototypeTag),
-                LoadJob.iLevelIndex);
-        }
+        outPrototype = Texture::Create(_device, _context, loadJob.strPath.c_str(), loadJob.iCount);
         return S_OK;
     }
 
     case ELoadJobType::Shader:
     {
-        const FInputLayoutInfo InputLayout = Get_InputLayout(LoadJob.strInputLayout);
-        Shared<ShaderCom> pShader = ShaderCom::Create(_device, _context, LoadJob.strPath.c_str(), InputLayout.pElements, InputLayout.iNumElements);
-        if (nullptr == pShader)
-        {
-            LOG_WARN(
-                "Skipping Shader prototype registration. id='{}', path='{}', type='{}', level={}",
-                String::ToString(LoadJob.strPrototypeTag),
-                String::ToString(LoadJob.strPath),
-                LoadJob.strInputLayout,
-                LoadJob.iLevelIndex);
-            return S_OK;
-        }
+        const FInputLayoutInfo inputLayout = Get_InputLayout(loadJob.strInputLayout);
 
-        if (FAILED(GAME->Add_Prototype(LoadJob.iLevelIndex, LoadJob.strPrototypeTag, pShader)))
-        {
-            LOG_WARN(
-                "Skipping Shader Add_Prototype failure. id='{}', level={}",
-                String::ToString(LoadJob.strPrototypeTag),
-                LoadJob.iLevelIndex);
-        }
+        outPrototype = ShaderCom::Create(
+            _device,
+            _context,
+            loadJob.strPath.c_str(),
+            inputLayout.pElements,
+            inputLayout.iNumElements,
+            inputLayout.eShaderType);
+
         return S_OK;
     }
 
     case ELoadJobType::ComputeShader:
     {
-        Shared<ComputeShaderCom> computeShader =
-            ComputeShaderCom::Create(_device, _context, LoadJob.strPath.c_str(), LoadJob.strEntryPoint.c_str());
-        if (nullptr == computeShader)
-        {
-            LOG_WARN(
-                "Skipping ComputeShader prototype registration. id='{}', path='{}', entry='{}', level={}",
-                String::ToString(LoadJob.strPrototypeTag),
-                String::ToString(LoadJob.strPath),
-                LoadJob.strEntryPoint,
-                LoadJob.iLevelIndex);
-            return S_OK;
-        }
+        outPrototype = ComputeShaderCom::Create(
+            _device,
+            _context,
+            loadJob.strPath.c_str(),
+            loadJob.strEntryPoint.c_str());
 
-        if (FAILED(GAME->Add_Prototype(LoadJob.iLevelIndex, LoadJob.strPrototypeTag, computeShader)))
-        {
-            LOG_WARN(
-                "Skipping ComputeShader Add_Prototype failure. id='{}', level={}",
-                String::ToString(LoadJob.strPrototypeTag),
-                LoadJob.iLevelIndex);
-        }
         return S_OK;
     }
 
     case ELoadJobType::Model:
     {
-        const ModelType eModelType = ("ANIM" == LoadJob.strModelType || "Anim" == LoadJob.strModelType) ? ModelType::Anim : ModelType::NonAnim;
-        const XMMATRIX PreLocalTransformMatrix = XMMatrixScaling(LoadJob.fScaleX, LoadJob.fScaleY, LoadJob.fScaleZ) * XMMatrixRotationY(XMConvertToRadians(LoadJob.fRotY));
-        const string strPath = String::ToString(LoadJob.strPath);
+        const ModelType modelType =
+            ("ANIM" == loadJob.strModelType || "Anim" == loadJob.strModelType)
+            ? ModelType::Anim
+            : ModelType::NonAnim;
 
-        Shared<ModelCom> model = ModelCom::Create(_device, _context, eModelType, strPath.c_str(), PreLocalTransformMatrix);
-        if (nullptr == model)
-        {
-            LOG_WARN(
-                "Skipping Model prototype registration. id='{}', path='{}', level={}",
-                String::ToString(LoadJob.strPrototypeTag),
-                strPath,
-                LoadJob.iLevelIndex);
-            return S_OK;
-        }
+        const XMMATRIX preLocalTransform =
+            XMMatrixScaling(loadJob.fScaleX, loadJob.fScaleY, loadJob.fScaleZ) *
+            XMMatrixRotationY(XMConvertToRadians(loadJob.fRotY));
 
-        if (FAILED(GAME->Add_Prototype(LoadJob.iLevelIndex, LoadJob.strPrototypeTag, model)))
-        {
-            LOG_WARN(
-                "Skipping Model Add_Prototype failure. id='{}', level={}",
-                String::ToString(LoadJob.strPrototypeTag),
-                LoadJob.iLevelIndex);
-        }
+        const string modelPath = String::ToString(loadJob.strPath);
+
+        outPrototype = ModelCom::Create(
+            _device,
+            _context,
+            modelType,
+            modelPath.c_str(),
+            preLocalTransform);
+
         return S_OK;
     }
 
     case ELoadJobType::GameObject:
     {
-        Shared<GameObject> gameObject = GAME->Create_GameObjectPrototype(LoadJob.strClassName);
-        if (nullptr == gameObject)
-        {
-            LOG_WARN(
-                "Skipping GameObject prototype registration. class='{}', id='{}', level={}",
-                LoadJob.strClassName,
-                String::ToString(LoadJob.strPrototypeTag),
-                LoadJob.iLevelIndex);
-            return S_OK;
-        }
-
-        if (FAILED(GAME->Add_Prototype(
-            LoadJob.iLevelIndex,
-            LoadJob.strPrototypeTag,
-            static_pointer_cast<Base>(gameObject))))
-        {
-            LOG_WARN(
-                "Skipping GameObject Add_Prototype failure. class='{}', id='{}', level={}",
-                LoadJob.strClassName,
-                String::ToString(LoadJob.strPrototypeTag),
-                LoadJob.iLevelIndex);
-        }
+        Shared<GameObject> gameObject = GAME->Create_GameObjectPrototype(loadJob.strClassName);
+        outPrototype = static_pointer_cast<Base>(gameObject);
         return S_OK;
     }
 
     case ELoadJobType::Component:
     {
-        // 충돌체 프로토타입 등록
-        if (LoadJob.strClassName == "ColliderCom")
+        if (loadJob.strClassName == "ColliderCom")
         {
             Shared<ColliderCom> collider =
-                ColliderCom::Create(_device, _context, Get_Shape_FromPrototypeTag(LoadJob.strPrototypeTag));
+                ColliderCom::Create(_device, _context, Get_Shape_FromPrototypeTag(loadJob.strPrototypeTag));
 
-            if (nullptr == collider)
-            {
-                LOG_WARN(
-                    "Skipping ColliderCom prototype registration. id='{}', level={}",
-                    String::ToString(LoadJob.strPrototypeTag),
-                    LoadJob.iLevelIndex);
-                return S_OK;
-            }
-
-            if (FAILED(GAME->Add_Prototype(
-                LoadJob.iLevelIndex,
-                LoadJob.strPrototypeTag,
-                static_pointer_cast<Base>(collider))))
-            {
-                LOG_WARN(
-                    "Skipping ColliderCom Add_Prototype failure. id='{}', level={}",
-                    String::ToString(LoadJob.strPrototypeTag),
-                    LoadJob.iLevelIndex);
-            }
+            outPrototype = static_pointer_cast<Base>(collider);
             return S_OK;
         }
 
-        Shared<Component> component = GAME->Create_ComponentPrototype(LoadJob.strClassName);
-        if (nullptr == component)
-        {
-            LOG_WARN(
-                "Skipping Component prototype registration. class='{}', id='{}', level={}",
-                LoadJob.strClassName,
-                String::ToString(LoadJob.strPrototypeTag),
-                LoadJob.iLevelIndex);
-            return S_OK;
-        }
-
-        if (FAILED(GAME->Add_Prototype(
-            LoadJob.iLevelIndex,
-            LoadJob.strPrototypeTag,
-            static_pointer_cast<Base>(component))))
-        {
-            LOG_WARN(
-                "Skipping Component Add_Prototype failure. class='{}', id='{}', level={}",
-                LoadJob.strClassName,
-                String::ToString(LoadJob.strPrototypeTag),
-                LoadJob.iLevelIndex);
-        }
+        Shared<Component> component = GAME->Create_ComponentPrototype(loadJob.strClassName);
+        outPrototype = static_pointer_cast<Base>(component);
         return S_OK;
     }
 
     case ELoadJobType::StaticLevel:
     {
-        Shared<Base> staticPrototype = Create_StaticPrototype(LoadJob);
-        if (nullptr == staticPrototype)
-        {
-            LOG_WARN(
-                "Skipping StaticLevel prototype registration. id='{}', resourceType='{}', level={}",
-                String::ToString(LoadJob.strPrototypeTag),
-                LoadJob.strResourceType,
-                LoadJob.iLevelIndex);
-            return S_OK;
-        }
-
-        if (FAILED(GAME->Add_Prototype(LoadJob.iLevelIndex, LoadJob.strPrototypeTag, staticPrototype)))
-        {
-            LOG_WARN(
-                "Skipping StaticLevel Add_Prototype failure. id='{}', level={}",
-                String::ToString(LoadJob.strPrototypeTag),
-                LoadJob.iLevelIndex);
-        }
+        outPrototype = Create_StaticPrototype(loadJob);
         return S_OK;
     }
 
     default:
         return S_OK;
     }
+}
+
+HRESULT ResourceLoader::Commit_LoadJobPrototype(const FLoadJob& loadJob, const Shared<Base>& prototype)
+{
+    // Loading UI가 미리 만든 Shader_UI / VIBuffer_Rect 같은 중복 등록 방지.
+    if (GAME->Has_Prototype(loadJob.iLevelIndex, loadJob.strPrototypeTag))
+        return S_OK;
+
+    if (nullptr == prototype)
+    {
+        LOG_WARN(
+            "Skipping prototype registration. id='{}', type={}, level={}",
+            String::ToString(loadJob.strPrototypeTag),
+            string(magic_enum::enum_name(loadJob.eType)),
+            loadJob.iLevelIndex);
+
+        return S_OK;
+    }
+
+    if (FAILED(GAME->Add_Prototype(loadJob.iLevelIndex, loadJob.strPrototypeTag, prototype)))
+    {
+        LOG_WARN(
+            "Skipping Add_Prototype failure. id='{}', type={}, level={}",
+            String::ToString(loadJob.strPrototypeTag),
+            string(magic_enum::enum_name(loadJob.eType)),
+            loadJob.iLevelIndex);
+
+        return E_FAIL;
+    }
+
+    return S_OK;
 }
 
 Shared<Base> ResourceLoader::Create_StaticPrototype(const FLoadJob& LoadJob)

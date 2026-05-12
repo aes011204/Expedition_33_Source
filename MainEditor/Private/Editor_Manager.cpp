@@ -9,15 +9,13 @@
 #include "Inspector.h"
 #include "Camera_Tool.h"
 #include "Profile_View.h"
-
+#include "Material_View.h"
+#include "Cinematic_Tool.h"
 //#include "BT_Tool.h"
 #include "Level_Tool.h"
-
 #include "BT_View.h"
-
 #include <filesystem>
 #include <shellapi.h>
-
 #include "Prefab_View.h"
 #include "Animation_View.h"
 
@@ -38,12 +36,13 @@ HRESULT Editor_Manager::Initialize()
     Add_Window(Console_View::Create());
     Add_Window(Camera_Tool::Create());
     Add_Window(Profile_View::Create());
-
+    Add_Window(Cinematic_Tool::Create());
     Add_Window(BT_View::Create());
-
     Add_Window(Prefab_View::Create());
     Add_Window(Animation_View::Create());
     Add_Window(Level_Tool::Create());
+
+    Add_Window(Material_View::Create());
 
     return S_OK;
 }
@@ -72,10 +71,10 @@ void Editor_Manager::Render()
 {
     Render_DockSpace();
 
-    for (auto& Pair : _windows)
+    for (auto& [name, window] : _windows)
     {
-        if (nullptr != Pair.second)
-            Pair.second->Render();
+        if (window && window->Is_Open())
+            window->Render();
     }
 }
 

@@ -1,4 +1,4 @@
-#include "Editor_Context.h"
+﻿#include "Editor_Context.h"
 
 NS_BEGIN(EffectEditor)
 

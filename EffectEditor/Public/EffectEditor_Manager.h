@@ -35,6 +35,9 @@ private:
     void Handle_Shortcuts();
     void Render_ShortcutHelp();
 
+    Shared<Editor_Window> Find_FocusedSavableWindow() const;
+    bool Save_FocusedWindow();
+
     void Toggle_Window(const wstring& windowName);
     void Toggle_WindowPair(const wstring& firstWindowName, const wstring& secondWindowName);
 
