@@ -570,6 +570,12 @@ void EditorInstance::Invalidate_BackBufferCache()
     _cachedBackBufferHeight = 0;
 }
 
+void EditorInstance::EndImGuiFrameIfBegun()
+{
+    if (_imguiManager)
+        _imguiManager->EndFrameIfBegun();
+}
+
 ID3D11Texture2D* EditorInstance::Get_CachedBackBufferTexture()
 {
     const uint32 width = GAME->Get_BackBufferWidth();
