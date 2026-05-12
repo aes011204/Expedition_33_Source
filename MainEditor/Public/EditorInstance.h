@@ -71,6 +71,11 @@ public: /* For.Editor Focus */
     void                    Request_FocusObject(const Shared<GameObject>& gameObject);
     Shared<GameObject>      Consume_FocusObjectRequest();
 
+public: /* For.Editor World */
+    HRESULT Save_CurrentLevelSnapShot(const fs::path& path) const;
+    HRESULT Load_CurrentLevelSnapShot(const fs::path& path);
+    void    Apply_SavedPrefabToCurrentLevel(const string& prefabName, const fs::path& prefabPath);
+
 public: /* For.Inspector */
     Shared<Component_Inspector> Find_Inspector(const string& key) const;
 
@@ -93,6 +98,7 @@ public: /* For.Viewport */
     void                      Request_ViewportSize(EDITOR_VIEWPORT_TARGET targetType, uint32 width, uint32 height);
     ID3D11ShaderResourceView* Get_SharedViewportSRV() const;
     void                      Capture_BackBuffer_ToViewport();
+    void                      Invalidate_BackBufferCache();
     ComPtr<Device>            Get_Device() const { return _device; }
     ComPtr<Context>           Get_Context() const { return _context; }
 
@@ -121,6 +127,21 @@ private:
 private:
     void Queue_PreviewViewportSize(uint32 width, uint32 height);
     void Apply_PendingPreviewViewportSize();
+    ID3D11Texture2D* Get_CachedBackBufferTexture();
+
+private: /* 저장 */
+    struct EditorWorldObjectSnapshot
+    {
+        wstring layerTag = {};
+        json objectJson = {};
+        Weak<GameObject> originalObject = {};
+    };
+
+    void Capture_PlayStartSnapshot();
+    void Restore_PlayStartSnapshot();
+    bool Is_SnapshotExcludedObject(const Shared<GameObject>& gameObject) const;
+    vector<EditorWorldObjectSnapshot> Capture_CurrentLevelObjects(int32* outSelectedIndex = nullptr) const;
+    HRESULT Restore_CurrentLevelObjects(const vector<EditorWorldObjectSnapshot>& snapshots, int32 selectedIndex);
 
 private: /* Core Data */
     ComPtr<Device>               _device = {};
@@ -137,6 +158,9 @@ private: /* Manager */
 
 private: /* Viewport Data */
     Shared<RenderTarget> _sharedViewportRenderTarget = nullptr;
+    ComPtr<ID3D11Texture2D> _cachedBackBufferTexture = nullptr;
+    uint32 _cachedBackBufferWidth = 0;
+    uint32 _cachedBackBufferHeight = 0;
 
     uint32 _requestedViewportWidth = 1;
     uint32 _requestedViewportHeight = 1;
@@ -152,6 +176,9 @@ private: /* Viewport Data */
 private: /* Runtime Data */
     EDITOR_RUNTIME_STATE _runtimeState = EDITOR_RUNTIME_STATE::Edit;
     float _runtimeTimeScale = 1.f;
+
+    vector<EditorWorldObjectSnapshot> _playStartWorldSnapshot = {};
+    int32 _playStartSelectedObjectIndex = -1;
 
     bool _hasPendingWindowFocus = false;
     EDITOR_VIEWPORT_TARGET _pendingWindowFocus = EDITOR_VIEWPORT_TARGET::Game;

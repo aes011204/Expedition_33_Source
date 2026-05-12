@@ -41,9 +41,7 @@ HRESULT ComputePointParticlePreview::Initialize(void* arg)
     if (nullptr != arg)
         _desc = *static_cast<ComputePointParticlePreviewDesc*>(arg);
 
-    if (FAILED(__super::Initialize(&_desc)))
-        return E_FAIL;
-
+    CHECK_FAILED(__super::Initialize(&_desc), E_FAIL);
     CHECK_FAILED(Ready_Components(), E_FAIL);
 
     return S_OK;
@@ -62,10 +60,10 @@ void ComputePointParticlePreview::Late_Update(float timeDelta)
 
 HRESULT ComputePointParticlePreview::Render()
 {
-    CHECK_FAILED(Bind_ShaderResources(), E_FAIL);
-    CHECK_FAILED(_shader->Begin(0), E_FAIL);
-    CHECK_FAILED(_viBuffer->Bind_Resources(), E_FAIL);
-    CHECK_FAILED(_viBuffer->Render(), E_FAIL);
+    CHECK_FAILED_ONCE(Bind_ShaderResources(), E_FAIL);
+    CHECK_FAILED_ONCE(_shader->Begin(0), E_FAIL);
+    CHECK_FAILED_ONCE(_viBuffer->Bind_Resources(), E_FAIL);
+    CHECK_FAILED_ONCE(_viBuffer->Render(), E_FAIL);
 
     return S_OK;
 }
@@ -92,10 +90,10 @@ HRESULT ComputePointParticlePreview::Ready_Components()
 
 HRESULT ComputePointParticlePreview::Bind_ShaderResources()
 {
-    CHECK_FAILED(GAME->Bind_TransformMatrix(D3DTS::View, _shader.get(), "g_ViewMatrix"), E_FAIL);
-    CHECK_FAILED(GAME->Bind_TransformMatrix(D3DTS::Proj, _shader.get(), "g_ProjMatrix"), E_FAIL);
-    CHECK_FAILED(GAME->Bind_CamPosition(_shader.get(), "g_vBillboardTarget"), E_FAIL);
-    CHECK_FAILED(_texture->Bind_ShaderResourceView(_shader.get(), "g_Texture", 0), E_FAIL);
+    CHECK_FAILED_ONCE(GAME->Bind_TransformMatrix(D3DTS::View, _shader.get(), "g_ViewMatrix"), E_FAIL);
+    CHECK_FAILED_ONCE(GAME->Bind_TransformMatrix(D3DTS::Proj, _shader.get(), "g_ProjMatrix"), E_FAIL);
+    CHECK_FAILED_ONCE(GAME->Bind_CamPosition(_shader.get(), "g_vBillboardTarget"), E_FAIL);
+    CHECK_FAILED_ONCE(_texture->Bind_ShaderResourceView(_shader.get(), "g_Texture", 0), E_FAIL);
 
     return S_OK;
 }

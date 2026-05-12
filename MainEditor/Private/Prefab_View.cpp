@@ -223,6 +223,9 @@ void Prefab_View::Save()
     if (SUCCEEDED(GAME->Save_GameObjectJson(_prefabPath, _previewObject)))
     {
         ClearDirty();
+
+        EDITOR->Apply_SavedPrefabToCurrentLevel(_prefabName, _prefabPath);
+
         if (EDITOR->Get_Notification())
             EDITOR->Get_Notification()->Add_Notification("프리펩 저장: {}", _prefabName);
     }

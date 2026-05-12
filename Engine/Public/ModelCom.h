@@ -137,6 +137,9 @@ private:
     Matrix Build_LeaderPoseMatrix(uint32 boneIndex, vector<uint8>& visited);
 
 private:
+    void Apply_MaterialOverrides(const json& data);
+
+private:
 	ModelType					        _type = { ModelType::END };
     bool                                _isSkeletal{ false };
 	Matrix					            _preLocalTransformMatrix = {};

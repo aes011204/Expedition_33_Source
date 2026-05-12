@@ -11,7 +11,7 @@ NS_BEGIN(Engine)
 class ENGINE_DLL Material final : public Base
 {
 public:
-	struct TextureSlot
+	struct TextureSlot  
 	{
 		MaterialTextureSlot slot = MaterialTextureSlot::BaseColor;
 		uint32 textureIndex{};
@@ -19,12 +19,14 @@ public:
         // 인스펙터에서 실제 어떤 파일이 연결됐는지 보기 위한 경로
         wstring resolvedPath{};
 
-        Vec2 uvScale{ 1.f, 1.f };
-        Vec2 uvOffset{ 0.f, 0.f };
-        float uvRotation{ 0.f };
-        float blendFactor{ 1.f };
-        uint32 uvChannel{};
-        uint32 wrapMode{};
+        Vec2    uvScale{ 1.f, 1.f };
+        Vec2    uvOffset{ 0.f, 0.f };
+        float   uvRotation{ 0.f };
+        float   blendFactor{ 1.f };
+        uint32  uvChannel{};
+        uint32  wrapMode{};
+
+        bool    isOverride{};
 
 		ComPtr<ID3D11ShaderResourceView> shaderResourceView{ nullptr };
 	};

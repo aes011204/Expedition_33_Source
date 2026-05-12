@@ -181,6 +181,18 @@ HRESULT VIBufferCom_PointParticle::Ready_InstanceSeedData()
         const float scale = Pick_RandomFloat(_desc.scale.x, _desc.scale.y);
         const float speed = Pick_RandomFloat(_desc.speed.x, _desc.speed.y);
         const float lifeTime = Pick_RandomFloat(_desc.lifeTime.x, _desc.lifeTime.y);
+        const Vec4 startColor{
+            Pick_RandomFloat(_desc.startColorMin.x, _desc.startColorMax.x),
+            Pick_RandomFloat(_desc.startColorMin.y, _desc.startColorMax.y),
+            Pick_RandomFloat(_desc.startColorMin.z, _desc.startColorMax.z),
+            Pick_RandomFloat(_desc.startColorMin.w, _desc.startColorMax.w)
+        };
+        const Vec4 endColor{
+            Pick_RandomFloat(_desc.endColorMin.x, _desc.endColorMax.x),
+            Pick_RandomFloat(_desc.endColorMin.y, _desc.endColorMax.y),
+            Pick_RandomFloat(_desc.endColorMin.z, _desc.endColorMax.z),
+            Pick_RandomFloat(_desc.endColorMin.w, _desc.endColorMax.w)
+        };
 
         ParticleInstanceVertex instance{};
         instance.right = Vec4{ scale, 0.f, 0.f, 0.f };
@@ -193,6 +205,8 @@ HRESULT VIBufferCom_PointParticle::Ready_InstanceSeedData()
             1.f
         };
         instance.lifeTime = Vec2{ lifeTime, 0.f };
+        instance.startColor = startColor;
+        instance.endColor = endColor;
 
         // baseline은 loop reset 기준이고, runtime은 매 프레임 GPU에 업로드될 clone 전용 payload다.
         _baselinePayload.push_back(instance);
@@ -209,6 +223,20 @@ HRESULT VIBufferCom_PointParticle::Ready_InstanceBuffer()
     initialData.pSysMem = _runtimePayload.data();
 
     CHECK_FAILED(_device->CreateBuffer(&_instanceBufferDesc, &initialData, _instanceVB.GetAddressOf()), E_FAIL);
+    return S_OK;
+}
+
+HRESULT VIBufferCom_PointParticle::Upload_InstancePayload()
+{
+    if (nullptr == _instanceVB.Get() || _runtimePayload.empty())
+        return E_FAIL;
+
+    D3D11_MAPPED_SUBRESOURCE mappedSubResource{};
+    CHECK_FAILED(_context->Map(_instanceVB.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedSubResource), E_FAIL);
+
+    memcpy(mappedSubResource.pData, _runtimePayload.data(), sizeof(ParticleInstanceVertex) * _runtimePayload.size());
+    _context->Unmap(_instanceVB.Get(), 0);
+
     return S_OK;
 }
 
@@ -277,25 +305,12 @@ HRESULT VIBufferCom_PointParticle::Ready_IndirectArgsBuffer()
     return S_OK;
 }
 
-HRESULT VIBufferCom_PointParticle::Upload_InstancePayload()
-{
-    if (nullptr == _instanceVB.Get() || _runtimePayload.empty())
-        return E_FAIL;
-
-    D3D11_MAPPED_SUBRESOURCE mappedSubResource{};
-    CHECK_FAILED(_context->Map(_instanceVB.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedSubResource), E_FAIL);
-
-    memcpy(mappedSubResource.pData, _runtimePayload.data(), sizeof(ParticleInstanceVertex) * _runtimePayload.size());
-    _context->Unmap(_instanceVB.Get(), 0);
-
-    return S_OK;
-}
-
 float VIBufferCom_PointParticle::Pick_RandomFloat(float minValue, float maxValue)
 {
     if (minValue > maxValue)
         swap(minValue, maxValue);
 
+    // TODO : 랜덤 임시
     static thread_local mt19937 randomEngine{ random_device{}() };
     uniform_real_distribution<float> distribution{ minValue, maxValue };
     return distribution(randomEngine);
