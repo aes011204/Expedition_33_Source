@@ -275,13 +275,13 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_Deferred.hlsl">
+    <FxCompile Include="..\..\Client\Bin\ShaderFiles\Shader_Deferred.hlsl">
       <Filter>95. ShaderFiles</Filter>
     </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMesh.hlsl">
+    <FxCompile Include="..\..\Client\Bin\ShaderFiles\Shader_VtxMesh.hlsl">
       <Filter>95. ShaderFiles</Filter>
     </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMeshInstance.hlsl">
+    <FxCompile Include="..\..\Client\Bin\ShaderFiles\Shader_VtxMeshInstance.hlsl">
       <Filter>95. ShaderFiles</Filter>
     </FxCompile>
   </ItemGroup>
