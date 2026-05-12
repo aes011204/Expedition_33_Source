@@ -339,10 +339,10 @@ void Hero_Manager::Update_FollowerAnimation(const Shared<Player>& follower, floa
     {
         const uint32 current = body->Get_AnimationIndex();
 
-        if (current != ETOI(Anim::Pl_Idle_0) &&
-            current != ETOI(Anim::Pl_Idle_1))
+        if (current != ETOI(Anim::Pl_Walk) &&
+            current != ETOI(Anim::Pl_Idle))
         {
-            body->Set_Animation(ETOI(Anim::Pl_Idle_0), 0.1f, true);
+            body->Set_Animation(ETOI(Anim::Pl_Walk), 0.1f, true);
         }
 
         return;

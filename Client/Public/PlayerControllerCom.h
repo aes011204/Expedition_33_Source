@@ -31,6 +31,8 @@ public:
 public:
     bool    Has_MoveInput() const;
     bool    Is_WalkToggled() const;
+    bool    Is_Grounded() const;
+
     const MovementCom::MovementInput& Get_MovementInput() const;
     bool    Get_UseControlYaw() const { return _bUseControllerRotationYaw; }
     void    Set_UseControlYaw(bool check) { _bUseControllerRotationYaw = check; }

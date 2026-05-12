@@ -197,6 +197,7 @@
     <ClInclude Include="..\Public\Player_Gustave.h" />
     <ClInclude Include="..\Public\Player_Lune.h" />
     <ClInclude Include="..\Public\Player_Maelle.h" />
+    <ClInclude Include="..\Public\Player_WorldAction.h" />
     <ClInclude Include="..\Public\SkillTreeCom.h" />
     <ClInclude Include="..\Public\Player_Idle.h" />
     <ClInclude Include="..\Public\Player_Jump.h" />
@@ -270,6 +271,7 @@
     <ClCompile Include="..\Private\Player_Move.cpp" />
     <ClCompile Include="..\Private\Player_State.cpp" />
     <ClCompile Include="..\Private\PlayerStateMachineCom.cpp" />
+    <ClCompile Include="..\Private\Player_WorldAction.cpp" />
     <ClCompile Include="..\Private\SimpleMath.cpp" />
     <ClCompile Include="..\Private\SkillTreeCom.cpp" />
     <ClCompile Include="..\Private\Spawn_Prefab.cpp" />
