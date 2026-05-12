@@ -243,6 +243,10 @@ public: /* For.Asset_Manager */
     // 에디터/로더가 "GUID 없으면 생성" 흐름을 쓸 수 있게 하기 -> 프리펩이나 그런거 새로 만들 때
     string Ensure_AssetGUID(const wstring& filePath, const string& type = "") const;
 
+public: /* For.Asset_Manager (access) */
+    const Asset_Manager* Get_AssetManager() const { return _assetManager.get(); }
+    Asset_Manager*       Get_AssetManager() { return _assetManager.get(); }
+
 public: /* For.Camera_Manager */
     HRESULT Add_Camera(Shared<Camera> camera) const;
     bool    Is_ActiveCamera(Shared<Camera> camera);

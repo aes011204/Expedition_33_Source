@@ -403,6 +403,9 @@
     <ClInclude Include="..\public\Material.h">
       <Filter>01.Utility\04.Component\Model\Material</Filter>
     </ClInclude>
+    <ClInclude Include="..\public\MaterialBuilder.h">
+      <Filter>01.Utility\04.Component\Model\Material</Filter>
+    </ClInclude>
     <ClInclude Include="..\public\Bone.h">
       <Filter>01.Utility\04.Component\Model\Bone</Filter>
     </ClInclude>
@@ -646,6 +649,9 @@
       <Filter>01.Utility\04.Component\Model\Mesh</Filter>
     </ClCompile>
     <ClCompile Include="..\private\Material.cpp">
+      <Filter>01.Utility\04.Component\Model\Material</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\MaterialBuilder.cpp">
       <Filter>01.Utility\04.Component\Model\Material</Filter>
     </ClCompile>
     <ClCompile Include="..\private\Bone.cpp">

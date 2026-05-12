@@ -1,5 +1,7 @@
 ﻿#include "ModelCom.h"
 #include "GameInstance.h"
+#include "Asset_Manager.h"
+#include "MaterialBuilder.h"
 #include "Mesh.h"
 #include "Bone.h"
 #include "ShaderCom.h"
@@ -204,6 +206,16 @@ HRESULT ModelCom::Initialize_Prototype(ModelType type, const char* modelFilePath
     {
         LOG_ERROR("Failed to Load Model Path {}", sourcePathUtf8);
         return E_FAIL;
+    }
+
+    if (Asset_Manager* assetManager = GAME->Get_AssetManager(); assetManager != nullptr)
+    {
+        if (const MaterialBuilder* builder = assetManager->Get_MaterialBuilder(); builder != nullptr)
+        {
+            const string key = String::ToLowerCopy(String::ToString(fs::path(_sourceModelPath).stem().wstring()));
+            if (!key.empty())
+                (void)builder->Try_ApplyToModelByKey(*this, key);
+        }
     }
 
     if (FAILED(Ready_Animation(sourcePathUtf8.c_str())))

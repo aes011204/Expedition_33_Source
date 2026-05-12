@@ -294,6 +294,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClInclude Include="..\public\Light.h" />
     <ClInclude Include="..\public\Light_Manager.h" />
     <ClInclude Include="..\public\Material.h" />
+    <ClInclude Include="..\public\MaterialBuilder.h" />
     <ClInclude Include="..\public\Mesh.h" />
     <ClInclude Include="..\public\ModelCom.h" />
     <ClInclude Include="..\public\Object_Manager.h" />
@@ -399,6 +400,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClCompile Include="..\private\Light.cpp" />
     <ClCompile Include="..\private\Light_Manager.cpp" />
     <ClCompile Include="..\private\Material.cpp" />
+    <ClCompile Include="..\private\MaterialBuilder.cpp" />
     <ClCompile Include="..\private\Mesh.cpp" />
     <ClCompile Include="..\private\ModelCom.cpp" />
     <ClCompile Include="..\private\Object_Manager.cpp" />
