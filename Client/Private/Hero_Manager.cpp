@@ -18,23 +18,20 @@ HRESULT Hero_Manager::Initialize_Hero(uint32 levelIndex, const wstring& layerTag
 
     const Vec3 startPos(10.f, 5.f, 10.f);
 
-    const wstring heroPrototypeTags[] =
+    const string heroPrefabNames[] =
     {
-        TEXT("GameObject_Player_Lune"),
-        TEXT("GameObject_Player_Maelle"),
-        TEXT("GameObject_Player_Gustave"),
+        "Player_Lune",
+        "Player_Maelle",
+        "Player_Gustave",
     };
+
 
     for (uint32 i = 0; i < 3; ++i)
     {
-        Shared<GameObject> object = nullptr;
-
-        CHECK_FAILED(GAME->Add_GameObject(
-            ETOI(LevelType::Static),
-            heroPrototypeTags[i],
-            levelIndex,
-            layerTag,
-            object), E_FAIL);
+        auto object = Spawn_Prefab::Prefab(heroPrefabNames[i])
+            .AtLevel(levelIndex)
+            .InLayer(layerTag)
+            .Spawn();
 
         auto hero = dynamic_pointer_cast<Player>(object);
         CHECK_NULL(hero, E_FAIL);
