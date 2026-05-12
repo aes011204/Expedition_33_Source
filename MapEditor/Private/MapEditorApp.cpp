@@ -51,11 +51,6 @@ HRESULT MapEditorApp::Initialize()
     _rt = RenderTarget::Create(_device, _context, g_iWinSizeX, g_iWinSizeY, DXGI_FORMAT_R8G8B8A8_UNORM, Vec4(0.1f, 0.1f, 0.1f, 1.f));
     CHECK_NULL(_rt, E_FAIL);
 
-    //_meshShader = ShaderCom::Create(_device, _context,
-    //    L"../../../Client/Bin/ShaderFiles/Shader_VtxMesh.hlsl",
-    //    VTXMESH::Elements, VTXMESH::numElements, ShaderType::VtxMesh);
-    //CHECK_NULL(_meshShader, E_FAIL);
-
     _modelManager = MEModelManager::Create();
     CHECK_NULL(_modelManager, E_FAIL);
 
@@ -69,14 +64,6 @@ HRESULT MapEditorApp::Initialize()
     CHECK_NULL(_pickingSystem, E_FAIL);
     _debugRenderer = MEDebugRenderer::Create();
     CHECK_NULL(_debugRenderer, E_FAIL);
-
-    //_deferredShader = ShaderCom::Create(_device, _context,
-    //    L"../../../Client/Bin/ShaderFiles/Shader_Deferred.hlsl",
-    //    VTXTEX::Elements, VTXTEX::numElements, ShaderType::VtxTex);
-    //CHECK_NULL(_deferredShader, E_FAIL);
-
-    //_rectBuffer = VIBuffer_Rect::Create(_device, _context);
-    //CHECK_NULL(_rectBuffer, E_FAIL);
 
     CHECK_FAILED(GAME->Add_Prototype(0, L"Shader_VtxMesh_Static",
         ShaderCom::Create(_device, _context,
@@ -349,9 +336,6 @@ Unique<MapEditorApp> MapEditorApp::Create()
 void MapEditorApp::Free()
 {
     _scene.ClearScene();
-    //_meshShader.reset();
-    //_deferredShader.reset();
-    //_rectBuffer.reset();
     _modelManager.reset();
 
     __super::Free();
