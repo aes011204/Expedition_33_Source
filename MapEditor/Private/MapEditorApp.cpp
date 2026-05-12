@@ -70,6 +70,14 @@ HRESULT MapEditorApp::Initialize()
             L"../../../Client/Bin/ShaderFiles/Shader_VtxMesh.hlsl",
             VTXMESH::Elements, VTXMESH::numElements, ShaderType::VtxMesh)), E_FAIL);
 
+    CHECK_FAILED(GAME->Add_Prototype(0, L"Shader_VtxMeshInstance",
+        ShaderCom::Create(_device, _context,
+            L"../../../Client/Bin/ShaderFiles/Shader_VtxMeshInstance.hlsl",
+            VtxMeshInstanceLayout::Elements, VtxMeshInstanceLayout::numElements, ShaderType::VtxInstanceMesh)), E_FAIL);
+
+    CHECK_FAILED(GAME->Add_Prototype(0, L"MEInstancedMeshActor",
+        MEInstancedMeshActor::Create(_device, _context)), E_FAIL);
+
     CHECK_FAILED(Ready_Light(), E_FAIL);
 
     return S_OK;
@@ -131,9 +139,15 @@ HRESULT MapEditorApp::Render()
 
     SyncSceneLights();
 
-    for (auto& obj : _scene._objects)
+    GAME->UpdateFrustum(_camera->GetView(), _camera->GetProj());
+
+    vector<uint32> visibleIndices;
+    GAME->QueryVisible(visibleIndices);
+
+    for (uint32 idx : visibleIndices)
     {
-        if (obj->_type != EObjectType::StaticMesh || !obj->_renderHandle)
+        auto& obj = _scene._staticMeshes[idx];
+        if (!obj->_renderHandle)
         {
             continue;
         }
@@ -146,6 +160,16 @@ HRESULT MapEditorApp::Render()
         obj->_renderHandle->Set_CameraFar(_camera->GetFar());
         obj->_renderHandle->Late_Update(0.f);
     }
+
+    for (auto& obj : _scene._instancedMeshes)
+    {
+        if (!obj->_instancedRenderHandle)
+            continue;
+
+        obj->_instancedRenderHandle->Set_CameraFar(_camera->GetFar());
+        obj->_instancedRenderHandle->Late_Update(0.f);
+    }
+
 
     GAME->Bind_BackBuffer();
     CHECK_FAILED(GAME->Clear_Buffers(Vec4(0.1f, 0.1f, 0.1f, 1.f)), E_FAIL);
@@ -210,7 +234,8 @@ void MapEditorApp::UpdateRenderHandles()
 
             if (!obj->_instancedRenderHandle)
             {
-                obj->_instancedRenderHandle = MEInstancedMeshActor::Create(_device, _context);
+                obj->_instancedRenderHandle = static_pointer_cast<MEInstancedMeshActor>(
+                    GAME->Clone_Prototype(Prototype::GameObject, 0, L"MEInstancedMeshActor", nullptr));
                 if (!obj->_instancedRenderHandle)
                 {
                     continue;

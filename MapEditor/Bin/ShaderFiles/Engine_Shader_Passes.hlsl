@@ -21,4 +21,5 @@ pass PassName                                                       \
     SetGeometryShader(CompileShader(gs_5_0, GS()));                \
     SetPixelShader(CompileShader(ps_5_0, PS()));                   \
 }
+
 #endif
