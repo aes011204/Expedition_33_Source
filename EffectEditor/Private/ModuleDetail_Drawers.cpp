@@ -1,4 +1,4 @@
-#include "ModuleDetail_Drawers.h"
+﻿#include "ModuleDetail_Drawers.h"
 
 NS_BEGIN(EffectEditor)
 
@@ -103,8 +103,8 @@ bool RequiredModuleDetail::Draw(AuthoringEmitter& emitter, AuthoringModule&, Req
     {
         if (drawContext.Begin_PropertyTable("RequiredMaterial"))
         {
-            changed |= drawContext.Draw_StringProperty("머티리얼 프리셋", data.materialName, defaultData.materialName);
-            changed |= drawContext.Draw_StringProperty("메인 텍스처 슬롯", data.textureId, defaultData.textureId);
+            changed |= drawContext.Draw_StringProperty("머티리얼", data.materialName, defaultData.materialName);
+            changed |= drawContext.Draw_StringProperty("텍스처 슬롯 (임시)", data.textureId, defaultData.textureId);
             changed |= drawContext.Draw_StringProperty("블렌드 모드", data.blendMode, defaultData.blendMode);
             changed |= drawContext.Draw_StringProperty("투명도 소스", data.opacitySource, defaultData.opacitySource);
             changed |= drawContext.Draw_ColorProperty("틴트", data.tint, defaultData.tint);
