@@ -100,6 +100,9 @@
     <Filter Include="07. MeshActor\InstancedMeshActor">
       <UniqueIdentifier>{0a528664-f966-4fbb-93fd-8f214f93f3da}</UniqueIdentifier>
     </Filter>
+    <Filter Include="05. Camera\MEBridgeCamera">
+      <UniqueIdentifier>{04de1247-1b5f-42c5-88fe-ae50422195d5}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="targetver.h">
@@ -140,9 +143,6 @@
     </ClInclude>
     <ClInclude Include="..\Public\PanelAssetBrowser.h">
       <Filter>04. Panel\PanelAssetBrowser</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\MECamera.h">
-      <Filter>05. Camera</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\SceneContext.h">
       <Filter>06. EditorUtil\SceneContext</Filter>
@@ -186,6 +186,12 @@
     <ClInclude Include="..\Public\MEInstancedMeshActor.h">
       <Filter>07. MeshActor\InstancedMeshActor</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\MEBridgeCamera.h">
+      <Filter>05. Camera\MEBridgeCamera</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\MECamera.h">
+      <Filter>05. Camera</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Image Include="MapEditor.ico">
@@ -227,9 +233,6 @@
     </ClCompile>
     <ClCompile Include="..\Private\PanelAssetBrowser.cpp">
       <Filter>04. Panel\PanelAssetBrowser</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\MECamera.cpp">
-      <Filter>05. Camera</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\SimpleMath.cpp">
       <Filter>96. SimpleMath</Filter>
@@ -273,30 +276,21 @@
     <ClCompile Include="..\Private\MEInstancedMeshActor.cpp">
       <Filter>07. MeshActor\InstancedMeshActor</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\MEBridgeCamera.cpp">
+      <Filter>05. Camera\MEBridgeCamera</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\MECamera.cpp">
+      <Filter>05. Camera</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_BillboardParticle.hlsl">
+    <FxCompile Include="..\..\Client\Bin\ShaderFiles\Shader_Deferred.hlsl">
       <Filter>95. ShaderFiles</Filter>
     </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_Deferred.hlsl">
+    <FxCompile Include="..\..\Client\Bin\ShaderFiles\Shader_VtxMesh.hlsl">
       <Filter>95. ShaderFiles</Filter>
     </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">
-      <Filter>95. ShaderFiles</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxCube.hlsl">
-      <Filter>95. ShaderFiles</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMesh.hlsl">
-      <Filter>95. ShaderFiles</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxNorTex.hlsl">
-      <Filter>95. ShaderFiles</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxTex.hlsl">
-      <Filter>95. ShaderFiles</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMeshInstance.hlsl">
+    <FxCompile Include="..\..\Client\Bin\ShaderFiles\Shader_VtxMeshInstance.hlsl">
       <Filter>95. ShaderFiles</Filter>
     </FxCompile>
   </ItemGroup>
