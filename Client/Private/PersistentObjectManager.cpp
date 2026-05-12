@@ -26,7 +26,7 @@ HRESULT PersistentObjectManager::SpawnStaticCamera()
 
 HRESULT PersistentObjectManager::SpawnStaticPlayer()
 {
-    if (FAILED(GAME->Add_GameObject(ETOI(LevelType::Static), TEXT("GameObject_Player"),
+    if (FAILED(GAME->Add_GameObject(ETOI(LevelType::Static), TEXT("GameObject_Player_Lune"),
         ETOI(LevelType::Static), TEXT("Layer_Player"))))
     {
         return E_FAIL;

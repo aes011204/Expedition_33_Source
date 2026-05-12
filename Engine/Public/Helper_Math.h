@@ -53,7 +53,6 @@ inline float GetSmoothStepRatio(float ratio, float power = 2.0f)
     return ratio * ratio * (3.f - 2.f * ratio);
 }
 
-
 /**
  * @brief 감속 보간
  * 
@@ -148,5 +147,4 @@ inline float RandNum(float startNum, float endNum, std::mt19937& rng)
     std::uniform_real_distribution<float> dist(startNum, endNum);
     return dist(rng);
 }
-
 }

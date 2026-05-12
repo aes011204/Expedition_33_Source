@@ -1,6 +1,7 @@
 ﻿#include "pch.h"
 #include "Shadow.h"
 #include "ShaderCom.h"
+#include "Shader_CBuffer_Define.h"
 
 HRESULT Shadow::Update_ShadowLight(const ShadowLightDesc& desc)
 {
@@ -19,6 +20,20 @@ HRESULT Shadow::Bind_TransformStateMatrix(Shared<ShaderCom> shader, const char* 
     CHECK_FAILED(shader->Bind_Matrix(projName, &_projMatrix), E_FAIL);
 
     return S_OK;
+}
+
+HRESULT Shadow::Bind_ShadowCB(Shared<ShaderCom> shader)
+{
+    CHECK_NULL(shader, E_FAIL);
+
+    ShadowCB shadowCB{};
+    shadowCB.lightViewMatrix = _viewMatrix;
+    shadowCB.lightProjMatrix = _projMatrix;
+    shadowCB.lightFar = _desc.zf;
+    shadowCB.bias = _desc.bias;
+    shadowCB.intensity = _desc.intensity;
+
+    return shader->Bind_CBufferData(shadowCB);
 }
 
 HRESULT Shadow::Bind_ShadowLightDesc(Shared<ShaderCom> shader, const char* lightFarName, const char* biasName, const char* intensityName)

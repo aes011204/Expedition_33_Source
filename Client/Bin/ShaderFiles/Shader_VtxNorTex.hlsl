@@ -11,7 +11,7 @@ float4x4 g_WorldMatrix, g_ViewMatrix, g_ProjMatrix;
 //==================================================
 // CAMERA
 //==================================================
-float g_fFar = 0.f;
+float g_Far = 0.f;
 
 //==================================================
 // TEXTURE
@@ -86,7 +86,7 @@ PS_OUT PS_Default(PS_IN In)
     vector vMtrlDiffuse = g_DiffuseTexture.Sample(LinearWrapSampler, In.vTexcoord * 30.f);
     Out.vDiffuse = vector(vMtrlDiffuse.rgb, 1.f);
     Out.vNormal = vector(In.vNormal.xyz * 0.5f + 0.5f, 1.f);
-    Out.vDepth = vector(In.vProjPos.z / In.vProjPos.w, In.vProjPos.w / g_fFar, 0.f, 1.f);
+    Out.vDepth = vector(In.vProjPos.z / In.vProjPos.w, In.vProjPos.w / g_Far, 0.f, 1.f);
     
     return Out;
 }

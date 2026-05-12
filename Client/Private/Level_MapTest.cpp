@@ -19,7 +19,7 @@ HRESULT Level_MapTest::Initialize()
 
     Shared<GameObject> player = nullptr;
     CHECK_FAILED(GAME->Add_GameObject(
-        ETOI(LevelType::Static), TEXT("GameObject_Player"),
+        ETOI(LevelType::Static), TEXT("GameObject_Player_Lune"),
         ETOI(LevelType::MapTest), TEXT("Layer_Player"),
         player), E_FAIL);
 

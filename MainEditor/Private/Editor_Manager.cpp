@@ -71,10 +71,10 @@ void Editor_Manager::Render()
 {
     Render_DockSpace();
 
-    for (auto& Pair : _windows)
+    for (auto& [name, window] : _windows)
     {
-        if (nullptr != Pair.second)
-            Pair.second->Render();
+        if (window && window->Is_Open())
+            window->Render();
     }
 }
 
