@@ -70,7 +70,7 @@ HRESULT Monster_Part::Render()
         if (FAILED(_shader->Bind_CBufferData(material->Get_CB())))
             return E_FAIL;
 
-        if (_model->Is_Skeletal())
+        if (_model->Get_NumAnimations() != 0)
             _model->Bind_BoneMatrices(_shader.get(), "g_BoneMatrices", i);
 
         const uint32 passIndex = Decide_PassIndex(material);

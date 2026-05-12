@@ -118,7 +118,7 @@ PS_OUT PS_Opaque(PS_IN In)
 
     Out.vDiffuse = baseColor;
     Out.vNormal = float4(EncodeNormal(worldNormal), 1.f);
-    Out.vDepth = float4(In.vProjPos.z / In.vProjPos.w, In.vProjPos.w / g_fFar, 0.f, 1.f);
+    Out.vDepth = float4(In.vProjPos.z / In.vProjPos.w, In.vProjPos.w / g_Far, 0.f, 1.f);
 
     return Out;
 }
