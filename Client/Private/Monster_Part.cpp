@@ -70,9 +70,10 @@ HRESULT Monster_Part::Render()
         if (FAILED(_shader->Bind_CBufferData(material->Get_CB())))
             return E_FAIL;
 
-        _model->Bind_BoneMatrices(_shader.get(), "g_BoneMatrices", i);
+        if (_model->Get_NumAnimations() != 0)
+            _model->Bind_BoneMatrices(_shader.get(), "g_BoneMatrices", i);
 
-        const uint32 passIndex = material->Get_PassIndex();
+        const uint32 passIndex = Decide_PassIndex(material);
         if (FAILED(_shader->Begin(passIndex)))
             return E_FAIL;
 
@@ -168,6 +169,11 @@ HRESULT Monster_Part::Bind_ShaderResources()
         return E_FAIL;
 
     return S_OK;
+}
+
+uint32 Monster_Part::Decide_PassIndex(Shared<Material> mat)
+{
+    return mat->Get_PassIndex();
 }
 
 void Monster_Part::Free()

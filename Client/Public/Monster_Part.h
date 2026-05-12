@@ -44,6 +44,7 @@ public:
 protected:
     virtual HRESULT Ready_Components(const MONSTER_PART_DESC& desc);
     virtual HRESULT Bind_ShaderResources();
+    virtual uint32 Decide_PassIndex(Shared<Material> mat);
 
 protected:
     Shared<ShaderCom> _shader = nullptr;

@@ -19,10 +19,9 @@ namespace
         constexpr uint32 ShadowPass = 1;
         constexpr uint32 NoTexturePass = 2;
 
-        // TODO: VtxMesh.hlsl에 pass가 추가되면 아래 값을 실제 인덱스로 교체한다.
-        constexpr uint32 MaskedPass = DefaultPass;
-        constexpr uint32 TwoSidedPass = DefaultPass;
-        constexpr uint32 MaskedTwoSidedPass = DefaultPass;
+        constexpr uint32 MaskedPass = 3;
+        constexpr uint32 TwoSidedPass = 4;
+        constexpr uint32 MaskedTwoSidedPass = 5;
     }
     namespace VtxCubePassIndex
     {
