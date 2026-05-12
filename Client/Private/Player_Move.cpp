@@ -37,8 +37,8 @@ void Player_Move::Update(float timeDelta)
     using plAnim = Body_Player::PlayerAnimation;
     if (input.isRunPressed)
     {
-        if (animIndex != ETOI(plAnim::Pl_SprintCycle))
-            _bodyPlayer->Set_Animation(ETOI(plAnim::Pl_SprintCycle), 0.1f, true);
+        if (animIndex != ETOI(plAnim::Pl_Sprint))
+            _bodyPlayer->Set_Animation(ETOI(plAnim::Pl_Sprint), 0.1f, true);
     }
     else if (Is_WalkToggled())
     {
