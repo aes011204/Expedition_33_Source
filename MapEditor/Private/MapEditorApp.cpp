@@ -15,6 +15,7 @@
 #include "CmdDeleteObject.h"
 #include "CmdTransformObject.h"
 #include "MEInstancedMeshActor.h"
+#include "MEBridgeCamera.h"
 
 extern HWND g_hWnd;
 extern HINSTANCE g_hInst;
@@ -42,13 +43,13 @@ HRESULT MapEditorApp::Initialize()
 
     _camera = MECamera::Create(60.f, static_cast<float>(g_iWinSizeX) / g_iWinSizeY, 0.1f, 1000.f);
 
+    _bridgeCamera = MEBridgeCamera::Create(_device, _context);
+    CHECK_NULL(_bridgeCamera, E_FAIL);
+    GAME->Add_Camera(_bridgeCamera);
+    GAME->Change_ActiveCamera(_bridgeCamera);
+
     _rt = RenderTarget::Create(_device, _context, g_iWinSizeX, g_iWinSizeY, DXGI_FORMAT_R8G8B8A8_UNORM, Vec4(0.1f, 0.1f, 0.1f, 1.f));
     CHECK_NULL(_rt, E_FAIL);
-
-    _meshShader = ShaderCom::Create(_device, _context,
-        L"../../../Client/Bin/ShaderFiles/Shader_VtxMesh.hlsl",
-        VTXMESH::Elements, VTXMESH::numElements, ShaderType::VtxMesh);
-    CHECK_NULL(_meshShader, E_FAIL);
 
     _modelManager = MEModelManager::Create();
     CHECK_NULL(_modelManager, E_FAIL);
@@ -64,13 +65,18 @@ HRESULT MapEditorApp::Initialize()
     _debugRenderer = MEDebugRenderer::Create();
     CHECK_NULL(_debugRenderer, E_FAIL);
 
-    _deferredShader = ShaderCom::Create(_device, _context,
-        L"../../../Client/Bin/ShaderFiles/Shader_Deferred.hlsl",
-        VTXTEX::Elements, VTXTEX::numElements, ShaderType::VtxTex);
-    CHECK_NULL(_deferredShader, E_FAIL);
+    CHECK_FAILED(GAME->Add_Prototype(0, L"Shader_VtxMesh_Static",
+        ShaderCom::Create(_device, _context,
+            L"../../../Client/Bin/ShaderFiles/Shader_VtxMesh.hlsl",
+            VTXMESH::Elements, VTXMESH::numElements, ShaderType::VtxMesh)), E_FAIL);
 
-    _rectBuffer = VIBuffer_Rect::Create(_device, _context);
-    CHECK_NULL(_rectBuffer, E_FAIL);
+    CHECK_FAILED(GAME->Add_Prototype(0, L"Shader_VtxMeshInstance",
+        ShaderCom::Create(_device, _context,
+            L"../../../Client/Bin/ShaderFiles/Shader_VtxMeshInstance.hlsl",
+            VtxMeshInstanceLayout::Elements, VtxMeshInstanceLayout::numElements, ShaderType::VtxInstanceMesh)), E_FAIL);
+
+    CHECK_FAILED(GAME->Add_Prototype(0, L"MEInstancedMeshActor",
+        MEInstancedMeshActor::Create(_device, _context)), E_FAIL);
 
     CHECK_FAILED(Ready_Light(), E_FAIL);
 
@@ -133,87 +139,49 @@ HRESULT MapEditorApp::Render()
 
     SyncSceneLights();
 
-    CHECK_FAILED(GAME->Begin_MRT(L"MRT_GameObjects", true), E_FAIL);
-    {
-        float farZ = _camera->GetFar();
-        _meshShader->Bind_RawValue("g_fFar", &farZ, sizeof(float));
+    GAME->UpdateFrustum(_camera->GetView(), _camera->GetProj());
 
-        for (auto& obj : _scene._objects)
+    vector<uint32> visibleIndices;
+    GAME->QueryVisible(visibleIndices);
+
+    for (uint32 idx : visibleIndices)
+    {
+        auto& obj = _scene._staticMeshes[idx];
+        if (!obj->_renderHandle)
         {
-            if (obj->_type != EObjectType::StaticMesh || !obj->_renderHandle)
-            {
-                continue;
-            }
-
-            const auto& model = obj->_renderHandle->GetModel();
-            Vec3 localMin, localMax;
-            if (model->Try_Get_LocalBounds(localMin, localMax))
-            {
-                BoundingBox localBox, worldBox;
-                BoundingBox::CreateFromPoints(localBox, XMLoadFloat3(&localMin), XMLoadFloat3(&localMax));
-                localBox.Transform(worldBox, model->Get_PreLocalTransformMatrix() * obj->_worldMatrix);
-                if (!GAME->IsVisible(worldBox))
-                {
-                    continue;
-                }
-            }
-            obj->_renderHandle->Render(obj->_worldMatrix);
+            continue;
         }
-        RenderStaticMeshes();
-        RenderInstancedMeshes();
-    }
-    CHECK_FAILED(GAME->End_MRT(), E_FAIL);
 
-    CHECK_FAILED(GAME->Begin_MRT(L"MRT_LightAcc"), E_FAIL);
+        auto tf = obj->_renderHandle->Get_Transform();
+        tf->Set_Position(obj->_position);
+        tf->Set_Scale(obj->_scale);
+        tf->Set_RotationQuaternion(obj->_rotation);
+
+        obj->_renderHandle->Set_CameraFar(_camera->GetFar());
+        obj->_renderHandle->Late_Update(0.f);
+    }
+
+    for (auto& obj : _scene._instancedMeshes)
     {
-        GAME->Bind_RT_ShaderResource(_deferredShader, "g_NormalTexture", L"Target_Normal");
-        GAME->Bind_RT_ShaderResource(_deferredShader, "g_DepthTexture", L"Target_Depth");
-        GAME->Bind_CamPosition(_deferredShader.get(), "g_CamPosition");
+        if (!obj->_instancedRenderHandle)
+            continue;
 
-        Matrix view = *GAME->Get_Transform(D3DTS::View);
-        Matrix proj = *GAME->Get_Transform(D3DTS::Proj);
-        Matrix viewInv = view.Invert();
-        Matrix projInv = proj.Invert();
-        _deferredShader->Bind_Matrix("g_ViewMatrixInverse", &viewInv);
-        _deferredShader->Bind_Matrix("g_ProjMatrixInverse", &projInv);
-
-        const float farZ = _camera->GetFar();
-        _deferredShader->Bind_RawValue("g_Far", &farZ, sizeof(float));
-
-        Matrix rectWorld = Matrix::CreateScale(2.f, 2.f, 1.f);
-        Matrix identity = Matrix::Identity;
-        _deferredShader->Bind_Matrix("g_WorldMatrix", &rectWorld);
-        _deferredShader->Bind_Matrix("g_ViewMatrix", &identity);
-        _deferredShader->Bind_Matrix("g_ProjMatrix", &identity);
-        _rectBuffer->Bind_Resources();
-
-        GAME->Render_Lights(_deferredShader, _rectBuffer);
+        obj->_instancedRenderHandle->Set_CameraFar(_camera->GetFar());
+        obj->_instancedRenderHandle->Late_Update(0.f);
     }
-    CHECK_FAILED(GAME->End_MRT(), E_FAIL);
 
-    CHECK_FAILED(_rt->Begin(), E_FAIL);
-    {
-        GAME->Bind_RT_ShaderResource(_deferredShader, "g_DiffuseTexture", L"Target_Diffuse");
-        GAME->Bind_RT_ShaderResource(_deferredShader, "g_ShadeTexture", L"Target_Shade");
-        GAME->Bind_RT_ShaderResource(_deferredShader, "g_SpecularTexture", L"Target_Specular");
+    GAME->Bind_BackBuffer();
+    CHECK_FAILED(GAME->Clear_Buffers(Vec4(0.1f, 0.1f, 0.1f, 1.f)), E_FAIL);
+    CHECK_FAILED(GAME->Draw_RendererOnly(), E_FAIL);
 
-        Matrix rectWorld = Matrix::CreateScale(2.f, 2.f, 1.f);
-        Matrix identity = Matrix::Identity;
-        _deferredShader->Bind_Matrix("g_WorldMatrix", &rectWorld);
-        _deferredShader->Bind_Matrix("g_ViewMatrix", &identity);
-        _deferredShader->Bind_Matrix("g_ProjMatrix", &identity);
+    _imguiManager->Capture_BackBuffer_ToViewport();
+    _viewport->Set_SceneSRV(_imguiManager->Get_SharedViewportSRV());
 
-        _deferredShader->Begin(4); // CombinedSimple pass
-        _rectBuffer->Bind_Resources();
-        _rectBuffer->Render();
-
-        _debugRenderer->Draw(_scene);
-    }
+    _rt->Begin();
+    _debugRenderer->Draw(_scene);
 
     GAME->Render_DebugDepth();
     GAME->Render_DebugOverlay();
-    GAME->Bind_BackBuffer();
-    CHECK_FAILED(GAME->Clear_Buffers(Vec4(0.1f, 0.1f, 0.1f, 1.f)), E_FAIL);
     GAME->Bind_BackBuffer();
 
     _manager->Render();
@@ -226,7 +194,7 @@ HRESULT MapEditorApp::Render()
 
 void MapEditorApp::UpdateRenderHandles()
 {
-    if (_scene._dirtyRenderHandles && _meshShader)
+    if (_scene._dirtyRenderHandles)
     {
         _scene._dirtyRenderHandles = false;
 
@@ -245,7 +213,13 @@ void MapEditorApp::UpdateRenderHandles()
                 continue;
             }
 
-            obj->_renderHandle = MEStaticMeshActor::Create(model, _meshShader);
+            auto actor = MEStaticMeshActor::Create(_device, _context);
+            if (!actor)
+                continue;
+
+            actor->Set_Model(model);
+            obj->_renderHandle = actor;
+            _scene._octreeDirty = true;
         }
 
         for (auto& obj : _scene._instancedMeshes)
@@ -259,7 +233,8 @@ void MapEditorApp::UpdateRenderHandles()
 
             if (!obj->_instancedRenderHandle)
             {
-                obj->_instancedRenderHandle = MEInstancedMeshActor::Create(_device, _context);
+                obj->_instancedRenderHandle = static_pointer_cast<MEInstancedMeshActor>(
+                    GAME->Clone_Prototype(Prototype::GameObject, 0, L"MEInstancedMeshActor", nullptr));
                 if (!obj->_instancedRenderHandle)
                 {
                     continue;
@@ -338,40 +313,6 @@ void MapEditorApp::RebuildOctreeIfDirty()
     _scene._octreeDirty = false;
 }
 
-void MapEditorApp::RenderStaticMeshes()
-{
-    float farZ = _camera->GetFar();
-    _meshShader->Bind_RawValue("g_fFar", &farZ, sizeof(float));
-
-    vector<uint32> visibleIndices;
-    GAME->QueryVisible(visibleIndices);
-
-    for (uint32 idx : visibleIndices)
-    {
-        auto& obj = _scene._staticMeshes[idx];
-        if (!obj->_renderHandle)
-        {
-            continue;
-        }
-
-        obj->_renderHandle->Render(obj->_worldMatrix);
-    }
-}
-
-void MapEditorApp::RenderInstancedMeshes()
-{
-    float farZ = _camera->GetFar();
-
-    for (auto& obj : _scene._instancedMeshes)
-    {
-        if (!obj->_instancedRenderHandle)
-        {
-            continue;
-        }
-        obj->_instancedRenderHandle->Render(farZ);
-    }
-}
-
 void MapEditorApp::SyncSceneLights()
 {
     GAME->Clear_Lights();
@@ -419,9 +360,6 @@ Unique<MapEditorApp> MapEditorApp::Create()
 void MapEditorApp::Free()
 {
     _scene.ClearScene();
-    _meshShader.reset();
-    _deferredShader.reset();
-    _rectBuffer.reset();
     _modelManager.reset();
 
     __super::Free();
@@ -430,6 +368,7 @@ void MapEditorApp::Free()
     _rt.reset();
     _pickingSystem.reset();
     _debugRenderer.reset();
+    _bridgeCamera.reset();
     _camera.reset();
     _manager.reset();
     _imguiManager.reset();
