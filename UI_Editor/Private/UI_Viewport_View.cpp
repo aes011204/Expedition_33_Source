@@ -63,12 +63,17 @@ namespace UIEditor
             ImGui::AlignTextToFramePadding();
             ImGui::Text("Zoom: %.0f%%", _zoomFactor * 100.f);
             ImGui::SameLine();
+            if (ImGui::Checkbox("Preview", &_previewMode))
+                Cancel_InteractionState(true);
+            ImGui::SameLine();
+            ImGui::BeginDisabled(_previewMode);
             ImGui::Checkbox("Grid", &_showGrid);
             ImGui::SameLine();
             ImGui::Checkbox("Snap", &_snapEnabled);
             ImGui::SameLine();
             ImGui::SetNextItemWidth(82.f);
             ImGui::DragFloat("Grid Size", &_gridSize, 1.f, kMinGridSize, kMaxGridSize, "%.0f");
+            ImGui::EndDisabled();
             ImGui::Separator();
 
             ImGui::BeginChild("##UIEditorViewportScrollRegion", ImVec2(0.f, 0.f), false, ImGuiWindowFlags_HorizontalScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
@@ -125,18 +130,7 @@ namespace UIEditor
             const bool viewportHoveredForInput = ImGui::IsWindowHovered(ImGuiHoveredFlags_RootAndChildWindows);
             const bool viewportInputAllowed = !hasBlockingPopup && viewportHoveredForInput;
             if (hasBlockingPopup)
-            {
-                if (_draggingObjectId != 0 || _resizingObjectId != 0)
-                    _editorManager.Commit_EditTransactionIfChanged();
-
-                _isPanningViewport = false;
-                _draggingObjectId = 0;
-                _draggingObjectIds.clear();
-                _dragStartObjectWorldPositions.clear();
-                _resizingObjectId = 0;
-                _activeResizeHandle = UI_ResizeHandle::None;
-                _isBoxSelecting = false;
-            }
+                Cancel_InteractionState(true);
 
             const bool canZoomViewport = viewportInputAllowed;
             if (canZoomViewport && io.MouseWheel != 0.f)
@@ -242,7 +236,7 @@ namespace UIEditor
             drawList->AddRectFilled(viewportMin, viewportMax, viewportColor);
             drawList->AddRectFilled(canvasPos, canvasMax, canvasColor);
 
-            if (_showGrid)
+            if (!_previewMode && _showGrid)
             {
                 for (float x = 0.f; x <= canvasSize.x; x += _gridSize)
                 {
@@ -351,10 +345,14 @@ namespace UIEditor
             ImVec2 selectedObjectMax = ImVec2(0.f, 0.f);
             ImVec2 selectedObjectWorldPosition = ImVec2(0.f, 0.f);
             ImVec2 selectedObjectWorldSize = ImVec2(0.f, 0.f);
+            bool selectedObjectIsLocked = false;
 
             for (const UI_Object* objectPtr : sortedObjects)
             {
                 const UI_Object& object = *objectPtr;
+                if (!_editorManager.Is_ObjectEffectivelyVisible(object.id))
+                    continue;
+
                 UI_Object renderObject = object;
                 UI_AnimationPreviewSample previewSample = {};
                 if (_editorManager.Sample_AnimationPreview(object, previewSample))
@@ -371,6 +369,7 @@ namespace UIEditor
                 const ImVec2 objectMax = ImVec2(objectMin.x + objectSize.x * displayScale, objectMin.y + objectSize.y * displayScale);
                 const bool isSelected = _editorManager.Is_ObjectSelected(object.id);
                 const bool isPrimarySelected = (_editorManager.Get_SelectedObjectId() == object.id);
+                const bool isEffectivelyLocked = _editorManager.Is_ObjectEffectivelyLocked(object.id);
 
                 if (isPrimarySelected)
                 {
@@ -379,12 +378,13 @@ namespace UIEditor
                     selectedObjectMax = objectMax;
                     selectedObjectWorldPosition = objectWorldPosition;
                     selectedObjectWorldSize = objectSize;
+                    selectedObjectIsLocked = isEffectivelyLocked;
                 }
 
                 const ImU32 fillColor = Is_ContainerObjectType(renderObject.type) ? ImGui::ColorConvertFloat4ToU32(renderObject.color) : Get_ObjectFillColor(renderObject.type);
                 const ImU32 objectBorderColor = isPrimarySelected
-                    ? IM_COL32(255, 217, 102, 255)
-                    : (isSelected ? IM_COL32(102, 205, 255, 245) : IM_COL32(210, 214, 220, 220));
+                    ? (isEffectivelyLocked ? IM_COL32(255, 167, 38, 255) : IM_COL32(255, 217, 102, 255))
+                    : (isSelected ? (isEffectivelyLocked ? IM_COL32(255, 183, 77, 245) : IM_COL32(102, 205, 255, 245)) : IM_COL32(210, 214, 220, 220));
                 const float borderThickness = isPrimarySelected ? 2.5f : (isSelected ? 2.f : 1.5f);
                 const float objectRounding = renderObject.type == UI_ObjectType::Button ? 4.f : 0.f;
                 ID3D11ShaderResourceView* previewSRV = nullptr;
@@ -431,7 +431,7 @@ namespace UIEditor
                             ImGui::ColorConvertFloat4ToU32(renderObject.color));
                     }
                 }
-                else if (!hasTextContent)
+                else if (!hasTextContent && (!_previewMode || renderObject.type != UI_ObjectType::Image))
                 {
                     if (isRotated)
                         drawList->AddQuadFilled(rotatedQuad[0], rotatedQuad[1], rotatedQuad[2], rotatedQuad[3], fillColor);
@@ -439,10 +439,13 @@ namespace UIEditor
                         drawList->AddRectFilled(objectMin, objectMax, fillColor, objectRounding);
                 }
 
-                if (isRotated)
-                    Draw_QuadOutline(drawList, rotatedQuad, objectBorderColor, borderThickness);
-                else
-                    drawList->AddRect(objectMin, objectMax, objectBorderColor, objectRounding, 0, borderThickness);
+                if (!_previewMode)
+                {
+                    if (isRotated)
+                        Draw_QuadOutline(drawList, rotatedQuad, objectBorderColor, borderThickness);
+                    else
+                        drawList->AddRect(objectMin, objectMax, objectBorderColor, objectRounding, 0, borderThickness);
+                }
 
                 bool usesSpriteFontPreview = false;
                 if (!hasBlockingPopup && renderObject.type == UI_ObjectType::Text && (!renderObject.fontGuid.empty() || !renderObject.fontPath.empty()) && !renderObject.text.empty())
@@ -471,22 +474,25 @@ namespace UIEditor
                     {
                         Draw_ImGuiTextPreview(drawList, renderObject, objectMin, objectMax, displayScale);
                     }
-                    else
+                    else if (!_previewMode)
                     {
                         const ImVec2 textPosition = ImVec2(objectMin.x + 4.f, objectMin.y + 3.f);
                         drawList->AddText(textPosition, IM_COL32(245, 247, 250, 230), renderObject.name.c_str());
                     }
 
-                    if (renderObject.type == UI_ObjectType::Text && isSelected && !renderObject.fontTag.empty() && objectMax.y - objectMin.y > 34.f)
+                    if (!_previewMode && renderObject.type == UI_ObjectType::Text && isSelected && !renderObject.fontTag.empty() && objectMax.y - objectMin.y > 34.f)
                     {
                         const string fontPreviewText = "Font: " + renderObject.fontTag;
                         drawList->AddText(ImVec2(objectMin.x + 4.f, objectMax.y - 17.f), IM_COL32(255, 217, 102, 240), fontPreviewText.c_str());
                     }
                 }
+
+                if (!_previewMode && isEffectivelyLocked && objectMax.x - objectMin.x > 32.f && objectMax.y - objectMin.y > 18.f)
+                    drawList->AddText(ImVec2(objectMax.x - 30.f, objectMin.y + 3.f), IM_COL32(255, 217, 102, 245), "LOCK");
             }
 
             UI_ResizeHandle hoveredResizeHandle = UI_ResizeHandle::None;
-            if (hasSelectedObjectRect)
+            if (!_previewMode && hasSelectedObjectRect && !selectedObjectIsLocked)
             {
                 Draw_ResizeHandles(drawList, selectedObjectMin, selectedObjectMax);
                 hoveredResizeHandle = Hit_TestResizeHandle(mousePos, selectedObjectMin, selectedObjectMax);
@@ -494,7 +500,7 @@ namespace UIEditor
                     Set_ResizeMouseCursor(hoveredResizeHandle);
             }
 
-            if (!isAnimationPreviewActive && viewportInputAllowed && isMouseInViewport && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+            if (!_previewMode && !isAnimationPreviewActive && viewportInputAllowed && isMouseInViewport && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
             {
                 if (hoveredResizeHandle != UI_ResizeHandle::None && _editorManager.Get_SelectedObjectId() != 0)
                 {
@@ -514,6 +520,9 @@ namespace UIEditor
                     for (auto iter = sortedObjects.rbegin(); iter != sortedObjects.rend(); ++iter)
                     {
                         const UI_Object& object = **iter;
+                        if (!_editorManager.Is_ObjectEffectivelyVisible(object.id))
+                            continue;
+
                         const ImVec2 objectWorldPosition = document.Get_WorldPosition(object.id);
                         const ImVec2 objectSize = Get_UIObjectRuntimeSize(object);
                         const bool isInsideObject =
@@ -550,16 +559,30 @@ namespace UIEditor
 
                         if (_editorManager.Is_ObjectSelected(pickedObjectId))
                         {
-                            _draggingObjectId = pickedObjectId;
-                            _draggingObjectIds = _editorManager.Get_RootSelectedObjectIds();
+                            _draggingObjectId = 0;
+                            _draggingObjectIds.clear();
                             _dragStartObjectWorldPositions.clear();
                             _dragStartMouseCanvasPos = mouseCanvasPos;
 
-                            for (ObjectId draggingObjectId : _draggingObjectIds)
-                                _dragStartObjectWorldPositions[draggingObjectId] = document.Get_WorldPosition(draggingObjectId);
+                            if (!_editorManager.Is_ObjectEffectivelyLocked(pickedObjectId))
+                            {
+                                _draggingObjectId = pickedObjectId;
+                                const vector<ObjectId> rootSelectedObjectIds = _editorManager.Get_RootSelectedObjectIds();
+                                for (ObjectId draggingObjectId : rootSelectedObjectIds)
+                                {
+                                    if (_editorManager.Is_ObjectEffectivelyLocked(draggingObjectId))
+                                        continue;
 
-                            _dragStartObjectWorldPosition = document.Get_WorldPosition(pickedObjectId);
-                            _editorManager.Begin_EditTransaction();
+                                    _draggingObjectIds.push_back(draggingObjectId);
+                                    _dragStartObjectWorldPositions[draggingObjectId] = document.Get_WorldPosition(draggingObjectId);
+                                }
+
+                                if (!_draggingObjectIds.empty())
+                                {
+                                    _dragStartObjectWorldPosition = document.Get_WorldPosition(pickedObjectId);
+                                    _editorManager.Begin_EditTransaction();
+                                }
+                            }
                         }
                     }
                     else
@@ -577,7 +600,7 @@ namespace UIEditor
                 }
             }
 
-            if (!hasBlockingPopup && !isAnimationPreviewActive && _resizingObjectId != 0 && ImGui::IsMouseDown(ImGuiMouseButton_Left))
+            if (!_previewMode && !hasBlockingPopup && !isAnimationPreviewActive && _resizingObjectId != 0 && ImGui::IsMouseDown(ImGuiMouseButton_Left))
             {
                 UI_Object* resizingObject = document.Find_Object(_resizingObjectId);
                 if (nullptr != resizingObject)
@@ -656,7 +679,7 @@ namespace UIEditor
                         ImVec2(nextMax.x - nextMin.x, nextMax.y - nextMin.y));
                 }
             }
-            else if (!hasBlockingPopup && !isAnimationPreviewActive && _draggingObjectId != 0 && ImGui::IsMouseDragging(ImGuiMouseButton_Left, 1.f))
+            else if (!_previewMode && !hasBlockingPopup && !isAnimationPreviewActive && _draggingObjectId != 0 && ImGui::IsMouseDragging(ImGuiMouseButton_Left, 1.f))
             {
                 const ImVec2 delta = ImVec2(
                     mouseCanvasPos.x - _dragStartMouseCanvasPos.x,
@@ -685,7 +708,7 @@ namespace UIEditor
                 }
             }
 
-            if (!hasBlockingPopup && !isAnimationPreviewActive && _isBoxSelecting && ImGui::IsMouseDown(ImGuiMouseButton_Left))
+            if (!_previewMode && !hasBlockingPopup && !isAnimationPreviewActive && _isBoxSelecting && ImGui::IsMouseDown(ImGuiMouseButton_Left))
             {
                 _boxSelectCurrentCanvasPos = ImVec2(
                     min(max(mouseCanvasPos.x, 0.f), canvasSize.x),
@@ -722,6 +745,9 @@ namespace UIEditor
                         for (const UI_Object* objectPtr : sortedObjects)
                         {
                             const UI_Object& object = *objectPtr;
+                            if (!_editorManager.Is_ObjectEffectivelyVisible(object.id))
+                                continue;
+
                             const ImVec2 objectWorldPosition = document.Get_WorldPosition(object.id);
                             const ImVec2 objectSize = Get_UIObjectRuntimeSize(object);
                             const ImVec2 objectMax = ImVec2(objectWorldPosition.x + objectSize.x, objectWorldPosition.y + objectSize.y);
@@ -749,7 +775,8 @@ namespace UIEditor
                 _activeResizeHandle = UI_ResizeHandle::None;
             }
 
-            drawList->AddRect(canvasPos, canvasMax, canvasBoundaryColor, 0.f, 0, 2.f);
+            if (!_previewMode)
+                drawList->AddRect(canvasPos, canvasMax, canvasBoundaryColor, 0.f, 0, 2.f);
             drawList->PopClipRect();
             ImGui::EndChild();
         }
@@ -762,5 +789,19 @@ namespace UIEditor
     Shared<UI_Viewport_View> UI_Viewport_View::Create(UI_Editor_Manager& editorManager)
     {
         return make_shared<UI_Viewport_View>(editorManager);
+    }
+
+    void UI_Viewport_View::Cancel_InteractionState(bool commitTransaction)
+    {
+        if (commitTransaction && (_draggingObjectId != 0 || _resizingObjectId != 0))
+            _editorManager.Commit_EditTransactionIfChanged();
+
+        _isPanningViewport = false;
+        _draggingObjectId = 0;
+        _draggingObjectIds.clear();
+        _dragStartObjectWorldPositions.clear();
+        _resizingObjectId = 0;
+        _activeResizeHandle = UI_ResizeHandle::None;
+        _isBoxSelecting = false;
     }
 }
