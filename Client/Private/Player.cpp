@@ -118,9 +118,7 @@ HRESULT Player::Ready_Components()
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_PlayerStateMachine"), _PlayerStateMachineCom), E_FAIL);
     if (auto stateMachine = Get_Component<PlayerStateMachineCom>())
     {
-        stateMachine->Add_State(PlayerState::Idle, Player_Idle::Create(GetSharedPtr<Player>()));
-        stateMachine->Add_State(PlayerState::Move, Player_Move::Create(GetSharedPtr<Player>()));
-        stateMachine->Add_State(PlayerState::Jump, Player_Jump::Create(GetSharedPtr<Player>()));
+      
     }
     CHECK_FAILED(Ready_Collider(), E_FAIL);
 

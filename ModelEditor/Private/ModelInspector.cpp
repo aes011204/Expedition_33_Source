@@ -96,12 +96,17 @@ void ModelInspector::Scan_AnimFiles(const wstring& modelDirectory)
 void ModelInspector::Render_ModelList()
 {
     ImGui::Text("Models (.model)");
+    _modelFilter.Draw("Search Model");
 
     if (ImGui::BeginChild("ModelListRegion", ImVec2(0, 200), true, ImGuiWindowFlags_HorizontalScrollbar))
     {
         for (const auto& path : _cachedModelPaths)
         {
             const string fileName = path.filename().string();
+            
+            if (!_modelFilter.PassFilter(fileName.c_str()))
+                continue;
+
             const string fullPath = path.string();
             const bool isSelected = (_selectedModelPath == fullPath);
 
@@ -160,10 +165,10 @@ void ModelInspector::Render_AnimList()
             for (uint32 i = 0; i < numBones; ++i)
             {
                 const char* boneName = viewer->Get_BoneName(i);
-                bool isSelected = (_rootNodeIndex == (int32)i);
+                bool isSelected = (_rootNodeIndex == static_cast<int32>(i));
                 if (ImGui::Selectable(boneName, isSelected))
                 {
-                    _rootNodeIndex = (int32)i;
+                    _rootNodeIndex = static_cast<int32>(i);
                     viewer->Set_RootNode(_rootNodeIndex);
                 }
             }
@@ -225,6 +230,9 @@ void ModelInspector::Render_AnimList()
 void ModelInspector::Render_TransformControl()
 {
     ImGui::Text("Transform Control");
+    ImGui::SameLine();
+    ImGui::Checkbox("Force Scale 0.0001", &_isScaleMicro);
+
     ImGuiWindowFlags windowFlags = ImGuiWindowFlags_None;
     ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.15f, 0.15f, 0.15f, 1.0f));
 
@@ -236,6 +244,11 @@ void ModelInspector::Render_TransformControl()
             auto transformCom = viewer->Get_Transform();
             if (transformCom)
             {
+                if (_isScaleMicro)
+                {
+                    transformCom->Set_Scale(Vec3(0.0001f, 0.0001f, 0.0001f));
+                }
+
                 Vec3 position = transformCom->Get_Position();
                 Vec3 rotation = transformCom->Get_RotationEuler();
                 Vec3 scale = transformCom->Get_Scale();
@@ -249,8 +262,15 @@ void ModelInspector::Render_TransformControl()
                     transformCom->Set_Position(Vec3(pos[0], pos[1], pos[2]));
                 if (ImGui::DragFloat3("Rotation", rot, 1.0f))
                     transformCom->Set_RotationEuler(Vec3(rot[0], rot[1], rot[2]));
-                if (ImGui::DragFloat3("Scale", scl, 0.05f, 0.00001f, 10000))
-                    transformCom->Set_Scale(Vec3(scl[0], scl[1], scl[2]));
+                
+                ImGuiSliderFlags scaleFlags = _isScaleMicro ? ImGuiSliderFlags_ReadOnly : 0;
+                if (ImGui::DragFloat3("Scale", scl, 0.05f, 0.00001f, 10000.f, "%.4f", scaleFlags))
+                {
+                    if (!_isScaleMicro)
+                    {
+                        transformCom->Set_Scale(Vec3(scl[0], scl[1], scl[2]));
+                    }
+                }
                 ImGui::PopItemWidth();
             }
         }
