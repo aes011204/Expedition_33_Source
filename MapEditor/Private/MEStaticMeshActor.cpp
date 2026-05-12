@@ -20,15 +20,22 @@ HRESULT MEStaticMeshActor::Render(const Matrix& worldMatrix)
 
     for (uint32 i = 0; i < iNumMeshes; i++)
     {
+        //const Shared<Material> material = _model->Get_Material(i);
+        //if (material == nullptr)
+        //    continue;
+
+        //if (FAILED(_shader->Bind_MaterialTextures(*material)))
+        //    continue;
+
+        //if (FAILED(_shader->Bind_CBufferData(material->Get_CB())))
+        //    return E_FAIL;
+
         const Shared<Material> material = _model->Get_Material(i);
-        if (material == nullptr)
-            continue;
-
-        if (FAILED(_shader->Bind_MaterialTextures(*material)))
-            continue;
-
-        if (FAILED(_shader->Bind_CBufferData(material->Get_CB())))
-            return E_FAIL;
+        if (material != nullptr)
+        {
+            _shader->Bind_MaterialTextures(*material);
+            _shader->Bind_CBufferData(material->Get_CB());
+        }
 
         const uint32 passIndex = 2;
         if (FAILED(_shader->Begin(passIndex)))
@@ -70,7 +77,7 @@ HRESULT MEStaticMeshActor::RenderID(const Matrix& worldMatrix, uint32 id)
             return E_FAIL;
 
         // 하드코딩 !!!!!!!!!! TODO 추후 적당한 매핑 필요
-        const uint32 passIndex = 6;
+        const uint32 passIndex = 2;
         if (FAILED(_shader->Begin(passIndex)))
             return E_FAIL;
 

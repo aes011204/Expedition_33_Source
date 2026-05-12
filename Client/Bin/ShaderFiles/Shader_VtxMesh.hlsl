@@ -150,8 +150,8 @@ PS_OUT PS_NoTexture(PS_IN In)
     PS_OUT Out;
 
     Out.vDiffuse = float4(0.8f, 0.8f, 0.8f, 1.f);
-    Out.vNormal = float4(EncodeNormal(In.vNormal.xyz), 1.f);
-    Out.vDepth = float4(In.vProjPos.z / In.vProjPos.w, In.vProjPos.w / g_fFar, 0.f, 1.f);
+    Out.vNormal = vector(In.vNormal.xyz * 0.5f + 0.5f, 1.f);
+    Out.vDepth = vector(In.vPosition.z, In.vPosition.w / g_fFar, 0.f, 0.f);
 
     return Out;
 }
@@ -177,5 +177,4 @@ technique11 DefaultTechnique
     PASS_RS_DS_BS_VP(TwoSidedPass,        RS_CullNone, DSS_Default, BS_Default, VS_Default, PS_Opaque)      // 4
     PASS_RS_DS_BS_VP(MaskedTwoSidedPass,  RS_CullNone, DSS_Default, BS_Default, VS_Default, PS_Mask)        // 5
     PASS_RS_DS_BS_VP(IDPass,              RS_Default,  DSS_Default, BS_Default, VS_Default, PS_ID)          // 6
-
 }
