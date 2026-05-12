@@ -36,7 +36,7 @@ public:
         float sprintSpeed = 10.f;
         float turnSpeedDegree = 180.f;
 
-        float jumpVelocity = 20.f;
+        float jumpVelocity = 40.f;
 
         float gravity = -20.f;
 

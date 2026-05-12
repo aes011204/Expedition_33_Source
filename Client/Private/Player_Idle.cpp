@@ -30,6 +30,12 @@ void Player_Idle::Update(float timeDelta)
     bool isFinished = _bodyPlayer->Is_AnimationFinished();
     auto& input = Get_MovementInput();
 
+    if (input.isSuddenAttack)
+    {
+        _stateCom->Change_State(PlayerState::WorldAction);
+        return;
+    }
+
     if (input.isJumpDown)
     {
         _stateCom->Change_State(PlayerState::Jump);
@@ -60,7 +66,7 @@ void Player_Idle::ExitInvoke()
 
 void Player_Idle::Set_IdleAnimation() const
 {
-    _bodyPlayer->Set_Animation(ETOI(pl::Pl_Idle), 0.1f, true);
+    _bodyPlayer->Set_Animation(ETOI(pl::Pl_Idle), 0.25f, true);
 }
 
 Shared<Player_Idle> Player_Idle::Create(const Shared<Player>& owner)

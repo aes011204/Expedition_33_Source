@@ -21,11 +21,11 @@ bool Player_Jump::EnterInvoke()
 
     if (animIndex == ETOI(plAnim::Pl_Run) || animIndex == ETOI(plAnim::Pl_Sprint))
     {
-        _bodyPlayer->Set_Animation(ETOI(plAnim::Pl_JumpRun), 0.1f, false);
+        _bodyPlayer->Set_Animation(ETOI(plAnim::Pl_JumpRun), 0.2f, false);
     }
     else
     {
-        _bodyPlayer->Set_Animation(ETOI(plAnim::Pl_JumpWalk), 0.1f, false);
+        _bodyPlayer->Set_Animation(ETOI(plAnim::Pl_JumpWalk), 0.2f, false);
     }
 
     return true;
@@ -34,24 +34,34 @@ bool Player_Jump::EnterInvoke()
 void Player_Jump::Update(float timeDelta)
 {
     uint32 animIndex = _bodyPlayer->Get_AnimationIndex();
+    float curProgress = _bodyPlayer->Get_AnimationProgress();
+    bool isFinished = _bodyPlayer->Is_AnimationFinished();
+    bool isGrounded = _controllerCom->Is_Grounded();
 
-    if (_bodyPlayer->Is_AnimationFinished())
+    if (!isGrounded)
     {
-        if (animIndex == ETOI(plAnim::Pl_JumpWalk) || animIndex == ETOI(plAnim::Pl_JumpRun))
+        if (isFinished)
         {
-            _bodyPlayer->Set_Animation(ETOI(plAnim::Pl_Fall), 0.1f, true);
+            if (animIndex == ETOI(plAnim::Pl_JumpWalk) || animIndex == ETOI(plAnim::Pl_JumpRun))
+            {
+                _bodyPlayer->Set_Animation(ETOI(plAnim::Pl_Fall), 0.2f, true);
+            }
         }
     }
-
-    if (_controllerCom->Is_Grounded())
+    else
     {
-        if (Has_MoveInput())
+        if (animIndex != ETOI(plAnim::Pl_Land))
         {
-            _stateCom->Change_State(PlayerState::Move);
+            _bodyPlayer->Set_Animation(ETOI(plAnim::Pl_Land), 0.2f, false);
+            return;
         }
-        else
+
+        if (animIndex == ETOI(plAnim::Pl_Land) && curProgress >= 0.6f)
         {
-            _stateCom->Change_State(PlayerState::Idle);
+            if (Has_MoveInput())
+                _stateCom->Change_State(PlayerState::Move);
+            else
+                _stateCom->Change_State(PlayerState::Idle);
         }
     }
 }

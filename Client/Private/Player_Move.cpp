@@ -28,6 +28,12 @@ void Player_Move::Update(float timeDelta)
         return;
     }
 
+    if (input.isSuddenAttack)
+    {
+        _stateCom->Change_State(PlayerState::WorldAction);
+        return;
+    }
+
     if (input.isJumpDown)
     {
         _stateCom->Change_State(PlayerState::Jump);
@@ -38,19 +44,19 @@ void Player_Move::Update(float timeDelta)
     if (input.isRunPressed)
     {
         if (animIndex != ETOI(plAnim::Pl_Sprint))
-            _bodyPlayer->Set_Animation(ETOI(plAnim::Pl_Sprint), 0.1f, true);
+            _bodyPlayer->Set_Animation(ETOI(plAnim::Pl_Sprint), 0.2f, true);
     }
     else if (Is_WalkToggled())
     {
         if (animIndex != ETOI(plAnim::Pl_Walk))
-            _bodyPlayer->Set_Animation(ETOI(plAnim::Pl_Walk), 0.1f, true);
+            _bodyPlayer->Set_Animation(ETOI(plAnim::Pl_Walk), 0.2f, true);
     }
     else
     {
         if (animIndex != ETOI(plAnim::Pl_Run))
         {
             LOG_INFO("{}", ETOI(plAnim::Pl_Run));
-            _bodyPlayer->Set_Animation(ETOI(plAnim::Pl_Run), 0.1f, true);
+            _bodyPlayer->Set_Animation(ETOI(plAnim::Pl_Run), 0.2f, true);
         }
     }
 }

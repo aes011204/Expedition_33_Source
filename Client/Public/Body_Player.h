@@ -49,6 +49,7 @@ public:
         Pl_JumpWalk,
         Pl_JumpRun,
         Pl_Fall,
+        Pl_Land,
         Pl_Explo
     };
 };
