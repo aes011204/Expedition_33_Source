@@ -10,6 +10,8 @@
 #include "Inspector_Factory.h"
 #include "Notification_Manager.h"
 #include "Helper_String.h"
+#include "Profile_View.h"
+#include <fstream>
 
 IMPLEMENT_SINGLETON(EditorInstance)
 
@@ -115,13 +117,27 @@ void EditorInstance::Update_Editor(float timeDelta)
 
 void EditorInstance::Render_Editor()
 {
-    _editorManager->Render();
-    _notificationManager->Render();
-    _imguiManager->Render();
+    {
+        Profile_View::Scope scope("Editor::EditorManager");
+        _editorManager->Render();
+    }
+
+    {
+        Profile_View::Scope scope("Editor::Notification");
+        _notificationManager->Render();
+    }
+
+    {
+        Profile_View::Scope scope("Editor::ImGui");
+        _imguiManager->Render();
+    }
 }
 
 void EditorInstance::Play()
 {
+    if (_runtimeState == EDITOR_RUNTIME_STATE::Edit)
+        Capture_PlayStartSnapshot();
+
     _runtimeState = EDITOR_RUNTIME_STATE::Play;
     Sync_ViewportWindowState();
     Activate_TargetCamera();
@@ -150,10 +166,16 @@ void EditorInstance::Pause()
 
 void EditorInstance::Stop()
 {
+    if (_runtimeState == EDITOR_RUNTIME_STATE::Play ||
+        _runtimeState == EDITOR_RUNTIME_STATE::Pause)
+    {
+        Restore_PlayStartSnapshot();
+    }
+
     _runtimeState = EDITOR_RUNTIME_STATE::Edit;
     Sync_ViewportWindowState();
 
-    //Activate_FreeCamera();
+    Activate_FreeCamera();
 
     GAME->Set_FreeCameraInputEnabled(false);
     GAME->Unlock_Mouse();
@@ -296,6 +318,113 @@ Shared<GameObject> EditorInstance::Consume_FocusObjectRequest()
     return _editorContext->Consume_FocusObjectRequest();
 }
 
+HRESULT EditorInstance::Save_CurrentLevelSnapShot(const fs::path& path) const
+{
+    int32 selectedIndex = -1;
+    vector<EditorWorldObjectSnapshot> snapshots = Capture_CurrentLevelObjects(&selectedIndex);
+
+    json root = json::object();
+    root["level_index"] = GAME->Current_LevelIndex();
+    root["selected_index"] = selectedIndex;
+    root["objects"] = json::array();
+
+    for (const EditorWorldObjectSnapshot& snapshot : snapshots)
+    {
+        json entry = json::object();
+        entry["layer_tag"] = String::ToString(snapshot.layerTag);
+        entry["object"] = snapshot.objectJson;
+        root["objects"].emplace_back(entry);
+    }
+
+    if (!path.has_parent_path())
+        return E_FAIL;
+
+    std::error_code ec;
+    fs::create_directories(path.parent_path(), ec);
+
+    ofstream file(path);
+    if (!file.is_open())
+        return E_FAIL;
+
+    file << root.dump(4);
+    file.close();
+
+    return S_OK;
+}
+
+HRESULT EditorInstance::Load_CurrentLevelSnapShot(const fs::path& path)
+{
+    json root = GAME->Load_JsonFile(path);
+    if (root.is_null() || !root.is_object())
+        return E_FAIL;
+
+    if (!root.contains("objects") || !root["objects"].is_array())
+        return E_FAIL;
+
+    vector<EditorWorldObjectSnapshot> snapshots;
+    for (const json& entry : root["objects"])
+    {
+        if (!entry.is_object())
+            continue;
+
+        if (!entry.contains("layer_tag") || !entry.contains("object"))
+            continue;
+
+        EditorWorldObjectSnapshot snapshot{};
+        snapshot.layerTag = String::ToWString(entry["layer_tag"].get<string>());
+        snapshot.objectJson = entry["object"];
+        snapshots.emplace_back(snapshot);
+    }
+
+    const int32 selectedIndex = root.value("selected_index", -1);
+    return Restore_CurrentLevelObjects(snapshots, selectedIndex);
+}
+
+void EditorInstance::Apply_SavedPrefabToCurrentLevel(const string& prefabName, const fs::path& prefabPath)
+{
+    if (prefabName.empty())
+        return;
+
+    json prefabRoot = GAME->Load_JsonFile(prefabPath);
+    if (prefabRoot.is_null() || !prefabRoot.is_object())
+        return;
+
+    GAME->Visit_CurrentLevelObjects(
+        [&](const wstring& layerTag, const Shared<GameObject>& gameObject)
+        {
+            UNREFERENCED_PARAMETER(layerTag);
+
+            if (gameObject == nullptr)
+                return;
+
+            if (gameObject->Get_SourcePrefabName() != prefabName)
+                return;
+
+            Shared<TransformCom> transform = gameObject->Get_Transform();
+
+            Vec3 worldPosition{};
+            Vec3 worldRotation{};
+            Vec3 scale{ 1.f, 1.f, 1.f };
+
+            if (transform != nullptr)
+            {
+                worldPosition = transform->Get_WorldPosition();
+                worldRotation = transform->Get_WorldRotationEuler();
+                scale = transform->Get_Scale();
+            }
+
+            gameObject->From_Json(prefabRoot);
+            gameObject->Set_SourcePrefabName(prefabName);
+
+            if (transform != nullptr)
+            {
+                transform->Set_WorldPosition(worldPosition);
+                transform->Set_WorldRotationEuler(worldRotation);
+                transform->Set_Scale(scale);
+            }
+        });
+}
+
 Shared<Component_Inspector> EditorInstance::Find_Inspector(const string& key) const
 {
     return _inspectorFactory->Get_Inspector(key);
@@ -387,26 +516,26 @@ ID3D11ShaderResourceView* EditorInstance::Get_SharedViewportSRV() const
 
 void EditorInstance::Capture_BackBuffer_ToViewport()
 {
-    Shared<RenderTarget> renderTarget =
-        Prepare_SharedViewportRenderTarget(
-            min(max(1u, GAME->Get_ViewportWidth()), max(1u, GAME->Get_BackBufferWidth())),
-            min(max(1u, GAME->Get_ViewportHeight()), max(1u, GAME->Get_BackBufferHeight())));
+    const uint32 copyWidth = min(max(1u, GAME->Get_ViewportWidth()), max(1u, GAME->Get_BackBufferWidth()));
+    const uint32 copyHeight = min(max(1u, GAME->Get_ViewportHeight()), max(1u, GAME->Get_BackBufferHeight()));
+
+    Shared<RenderTarget> renderTarget = nullptr;
+    {
+        Profile_View::Scope scope("Capture::PrepareRT");
+        renderTarget = Prepare_SharedViewportRenderTarget(copyWidth, copyHeight);
+    }
 
     if (nullptr == renderTarget || nullptr == _context)
         return;
 
-    ComPtr<IDXGISwapChain> swapChain = GAME->Get_SwapChain();
-    if (nullptr == swapChain)
-        return;
-
-    ComPtr<ID3D11Texture2D> backBufferTexture = nullptr;
-    if (FAILED(swapChain->GetBuffer(
-        0,
-        __uuidof(ID3D11Texture2D),
-        reinterpret_cast<void**>(backBufferTexture.GetAddressOf()))))
+    ID3D11Texture2D* backBufferTexture = nullptr;
     {
-        return;
+        Profile_View::Scope scope("Capture::GetBackBuffer");
+        backBufferTexture = Get_CachedBackBufferTexture();
     }
+
+    if (nullptr == backBufferTexture)
+        return;
 
     ComPtr<ID3D11Texture2D> viewportTexture = renderTarget->Get_Texture();
     if (nullptr == viewportTexture)
@@ -416,23 +545,181 @@ void EditorInstance::Capture_BackBuffer_ToViewport()
     sourceBox.left = 0;
     sourceBox.top = 0;
     sourceBox.front = 0;
-    sourceBox.right = min(
-        max(1u, GAME->Get_ViewportWidth()),
-        max(1u, GAME->Get_BackBufferWidth()));
-    sourceBox.bottom = min(
-        max(1u, GAME->Get_ViewportHeight()),
-        max(1u, GAME->Get_BackBufferHeight()));
+    sourceBox.right = copyWidth;
+    sourceBox.bottom = copyHeight;
     sourceBox.back = 1;
 
-    _context->CopySubresourceRegion(
-        viewportTexture.Get(),
+    {
+        Profile_View::Scope scope("Capture::CopySubresource");
+        _context->CopySubresourceRegion(
+            viewportTexture.Get(),
+            0,
+            0,
+            0,
+            0,
+            backBufferTexture,
+            0,
+            &sourceBox);
+    }
+}
+
+void EditorInstance::Invalidate_BackBufferCache()
+{
+    _cachedBackBufferTexture.Reset();
+    _cachedBackBufferWidth = 0;
+    _cachedBackBufferHeight = 0;
+}
+
+ID3D11Texture2D* EditorInstance::Get_CachedBackBufferTexture()
+{
+    const uint32 width = GAME->Get_BackBufferWidth();
+    const uint32 height = GAME->Get_BackBufferHeight();
+
+    if (_cachedBackBufferTexture &&
+        _cachedBackBufferWidth == width &&
+        _cachedBackBufferHeight == height)
+    {
+        return _cachedBackBufferTexture.Get();
+    }
+
+    ComPtr<IDXGISwapChain> swapChain = GAME->Get_SwapChain();
+    if (nullptr == swapChain)
+        return nullptr;
+
+    ComPtr<ID3D11Texture2D> backBufferTexture = nullptr;
+    if (FAILED(swapChain->GetBuffer(
         0,
-        0,
-        0,
-        0,
-        backBufferTexture.Get(),
-        0,
-        &sourceBox);
+        __uuidof(ID3D11Texture2D),
+        reinterpret_cast<void**>(backBufferTexture.GetAddressOf()))))
+    {
+        return nullptr;
+    }
+
+    _cachedBackBufferTexture = backBufferTexture;
+    _cachedBackBufferWidth = width;
+    _cachedBackBufferHeight = height;
+
+    return _cachedBackBufferTexture.Get();
+}
+
+void EditorInstance::Capture_PlayStartSnapshot()
+{
+    _playStartWorldSnapshot = Capture_CurrentLevelObjects(&_playStartSelectedObjectIndex);
+}
+
+void EditorInstance::Restore_PlayStartSnapshot()
+{
+    Restore_CurrentLevelObjects(_playStartWorldSnapshot, _playStartSelectedObjectIndex);
+
+    _playStartWorldSnapshot.clear();
+    _playStartSelectedObjectIndex = -1;
+}
+
+bool EditorInstance::Is_SnapshotExcludedObject(const Shared<GameObject>& gameObject) const
+{
+    if (gameObject == nullptr)
+        return true;
+
+    return gameObject->Get_ObjectType() == ObjectType::FreeCamera ||
+        gameObject->Get_ObjectType() == ObjectType::TargetCamera;
+}
+
+vector<EditorInstance::EditorWorldObjectSnapshot> EditorInstance::Capture_CurrentLevelObjects(
+    int32* outSelectedIndex) const
+{
+    vector<EditorWorldObjectSnapshot> snapshots;
+    Shared<GameObject> selectedObject = Selected_Object();
+
+    if (outSelectedIndex != nullptr)
+        *outSelectedIndex = -1;
+
+    // 오브젝트들 긁어와서
+    GAME->Visit_CurrentLevelObjects(
+        [&](const wstring& layerTag, const Shared<GameObject>& gameObject)
+        {
+            if (Is_SnapshotExcludedObject(gameObject))
+                return;
+
+            if (outSelectedIndex != nullptr && gameObject == selectedObject)
+                *outSelectedIndex = static_cast<int32>(snapshots.size());
+
+            // 저장
+            EditorWorldObjectSnapshot snapshot{};
+            snapshot.layerTag = layerTag;
+            snapshot.objectJson = gameObject->To_Json();
+            snapshot.originalObject = gameObject;
+            snapshots.emplace_back(snapshot);
+        });
+
+    return snapshots;
+}
+
+HRESULT EditorInstance::Restore_CurrentLevelObjects(const vector<EditorWorldObjectSnapshot>& snapshots,
+    int32 selectedIndex)
+{
+    Clear_SelectedObject();
+
+    const uint32 levelIndex = GAME->Current_LevelIndex();
+
+    vector<Shared<GameObject>> snapshotObjects;
+    for (const EditorWorldObjectSnapshot& snapshot : snapshots)
+    {
+        Shared<GameObject> originalObject = snapshot.originalObject.lock();
+        if (originalObject != nullptr)
+            snapshotObjects.emplace_back(originalObject);
+    }
+
+    vector<Shared<GameObject>> objectsToRemove;
+    GAME->Visit_CurrentLevelObjects(
+        [&](const wstring& layerTag, const Shared<GameObject>& gameObject)
+        {
+            UNREFERENCED_PARAMETER(layerTag);
+
+            if (Is_SnapshotExcludedObject(gameObject))
+                return;
+
+            const auto iter = find(snapshotObjects.begin(), snapshotObjects.end(), gameObject);
+            if (iter == snapshotObjects.end())
+                objectsToRemove.emplace_back(gameObject);
+        });
+
+    for (const Shared<GameObject>& gameObject : objectsToRemove)
+        GAME->Remove_GameObject(levelIndex, gameObject);
+
+    Shared<GameObject> restoredSelectedObject = nullptr;
+
+    for (size_t i = 0; i < snapshots.size(); i++)
+    {
+        const EditorWorldObjectSnapshot& snapshot = snapshots[i];
+
+        Shared<GameObject> gameObject = snapshot.originalObject.lock();
+
+        if (gameObject != nullptr)
+        {
+            gameObject->From_Json(snapshot.objectJson);
+        }
+        else
+        {
+            gameObject = GAME->Instantiate_GameObjectJson(snapshot.objectJson);
+        }
+
+        if (gameObject == nullptr)
+            continue;
+
+        if (snapshot.originalObject.expired())
+        {
+            if (FAILED(GAME->Add_GameObject(levelIndex, snapshot.layerTag, gameObject)))
+                continue;
+        }
+
+        if (static_cast<int32>(i) == selectedIndex)
+            restoredSelectedObject = gameObject;
+    }
+
+    if (restoredSelectedObject != nullptr)
+        Select_Object(restoredSelectedObject);
+
+    return S_OK;
 }
 
 void EditorInstance::Request_PreviewViewportSize(uint32 width, uint32 height)
@@ -521,22 +808,10 @@ Shared<GameObject> EditorInstance::Instantiate_GameObjectFromCopiedData() const
         return nullptr;
 
     json root = json::parse(_copiedObjectJson, nullptr, false);
-    if (root.is_discarded() || !root.is_object() || !root.contains("static_class"))
+    if (root.is_discarded() || !root.is_object())
         return nullptr;
 
-    const string staticClass = root["static_class"].get<string>();
-    if (staticClass.empty())
-        return nullptr;
-
-    Shared<GameObject> gameObject = GAME->Create_GameObjectPrototype(staticClass);
-    if (gameObject == nullptr)
-        return nullptr;
-
-    if (FAILED(gameObject->Initialize(nullptr)))
-        return nullptr;
-
-    gameObject->From_Json(root);
-    return gameObject;
+    return GAME->Instantiate_GameObjectJson(root);
 }
 
 void EditorInstance::Sync_ViewportWindowState()

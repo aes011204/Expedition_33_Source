@@ -45,7 +45,7 @@ void Level_Loading::Update(float fTimeDelta)
 #ifdef _DEBUG
     // 퍼센트 디버깅용
     const float progress = _loader->Get_Progress();
-    LOG_ERROR("[Level_Loading::Update] progress={:.2f}%%", progress * 100.f);
+    LOG_INFO("[Level_Loading::Update] progress={:.2f}%%", progress * 100.f);
 #endif
 
     if (_loader->isFinished())

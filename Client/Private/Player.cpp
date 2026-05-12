@@ -16,19 +16,6 @@
 #include "Player_Jump.h"
 #include "Player_Move.h"
 
-IMPLEMENT_REFLECTION(Player)
-{
-    auto& info = GetStaticReflectionInfo();
-    info.properties.clear();
-
-    info.displayName = "Player";
-    info.category = "Character";
-
-    PROPERTY_ENUM("PlayerState", _currentState, PlayerState);
-
-    return true;
-}
-
 Player::Player(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Character{ device, context }
 {
@@ -130,7 +117,7 @@ HRESULT Player::Ready_PartObjects()
     Body_Player::BODY_PLAYER_DESC playableDesc{};
     playableDesc.parentMatrix = &_transformCom->Get_WorldMatrix();
     playableDesc.modelType = ModelType::Anim;
-    playableDesc.modelTag = L"Model_LuneBody";
+    playableDesc.modelTag = Get_BodyModelTag();;
 
     //> MainBody Setting
     if (FAILED(
@@ -148,7 +135,7 @@ HRESULT Player::Ready_PartObjects()
     Head_Player::HEAD_PLAYER_DESC headPartDesc{};
     headPartDesc.parentMatrix = playableDesc.parentMatrix;
     headPartDesc.modelType = ModelType::Anim;
-    headPartDesc.modelTag = L"Model_LuneHead";
+    headPartDesc.modelTag = Get_HeadModelTag();
     //headPartDesc.socketMatrixPointer = mainBody->Get_SocketBoneMatrixPtr("Metahuman_Head");
     headPartDesc.socketMatrixPointer = nullptr;
 
@@ -162,13 +149,14 @@ HRESULT Player::Ready_PartObjects()
     if (nullptr == head)
         return E_FAIL;
 
+    // 머리붙이기
     head->Set_LeaderPoseComponent(mainBody);
 
     //>> Hair Part
     Hair_Player::HAIR_PLAYER_DESC hairPartDesc{};
     hairPartDesc.parentMatrix = playableDesc.parentMatrix;
     hairPartDesc.modelType = ModelType::Anim;
-    hairPartDesc.modelTag = L"Model_LuneHair";
+    hairPartDesc.modelTag = Get_HairModelTag();
     hairPartDesc.socketMatrixPointer = head->Get_SocketBoneMatrixPtr("head");
 
     if (FAILED(

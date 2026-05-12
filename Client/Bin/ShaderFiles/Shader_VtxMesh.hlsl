@@ -2,19 +2,12 @@
 #include "Engine_Shader_RenderState.hlsl"
 #include "Engine_Shader_Samplers.hlsl"
 #include "Engine_Shader_Passes.hlsl"
-
-//==================================================
-// MATRIX
-//==================================================
-float4x4 g_WorldMatrix, g_ViewMatrix, g_ProjMatrix;
+#include "Engine_Shader_ConstantBuffer.hlsl"
 
 //==================================================
 // MATERIAL
 //==================================================
 Texture2D g_DiffuseTexture;
-
-float g_fFar = 0.f;
-float g_fLightFar = 0.f;
 
 //==================================================
 // VS
@@ -55,6 +48,25 @@ VS_OUT VS_Default(VS_IN In)
     return Out;
 }
 
+VS_OUT VS_Shadow(VS_IN In)
+{
+    VS_OUT Out;
+
+    float4x4 matWV, matWVP;
+
+    matWV = mul(g_WorldMatrix, g_LightViewMatrix);
+    matWVP = mul(matWV, g_LightProjMatrix);
+
+    Out.vPosition = mul(float4(In.vPosition, 1.f), matWVP);
+    Out.vNormal = normalize(mul(float4(In.vNormal, 0.f), g_WorldMatrix));
+
+    Out.vTexcoord = In.vTexcoord;
+    Out.vWorldPos = mul(float4(In.vPosition, 1.f), g_WorldMatrix);
+    Out.vProjPos = Out.vPosition;
+
+    return Out;
+}
+
 struct PS_IN
 {
     float4 vPosition : SV_POSITION;
@@ -82,7 +94,7 @@ PS_OUT PS_Default(PS_IN In)
 
     Out.vDiffuse = vMtrlDiffuse;
     Out.vNormal = vector(In.vNormal.xyz * 0.5f + 0.5f, 1.f);
-    Out.vDepth = vector(In.vProjPos.z / In.vProjPos.w, In.vProjPos.w / g_fFar, 0.f, 1.f);
+    Out.vDepth = vector(In.vProjPos.z / In.vProjPos.w, In.vProjPos.w / g_Far, 0.f, 1.f);
 
     return Out;
 }
@@ -96,7 +108,7 @@ PS_OUT_SHADOW PS_Shadow(PS_IN In)
 {
     PS_OUT_SHADOW Out;
 
-    Out.vLightDepth = vector(In.vProjPos.z / In.vProjPos.w, In.vProjPos.w / g_fLightFar, 0.f, 1.f);
+    Out.vLightDepth = vector(In.vProjPos.z / In.vProjPos.w, In.vProjPos.w / g_LightFar, 0.f, 1.f);
 
     return Out;
 }
@@ -107,7 +119,7 @@ PS_OUT PS_NoTexture(PS_IN In)
 
     Out.vDiffuse = vector(0.8f, 0.8f, 0.8f, 1.f);
     Out.vNormal = vector(In.vNormal.xyz * 0.5f + 0.5f, 1.f);
-    Out.vDepth = vector(In.vProjPos.z / In.vProjPos.w, In.vProjPos.w / g_fFar, 0.f, 1.f);
+    Out.vDepth = vector(In.vProjPos.z / In.vProjPos.w, In.vProjPos.w / g_Far, 0.f, 1.f);
 
     return Out;
 }
@@ -115,6 +127,6 @@ PS_OUT PS_NoTexture(PS_IN In)
 technique11 DefaultTechnique
 {
     PASS_RS_DS_BS_VP(DefaultPass,   RS_Default, DSS_Default, BS_Default, VS_Default, PS_Default)    // 0
-    PASS_RS_DS_BS_VP(ShadowPass,    RS_Default, DSS_Default, BS_Default, VS_Default, PS_Shadow)     // 1
+    PASS_RS_DS_BS_VP(ShadowPass,    RS_Default, DSS_Default, BS_Default, VS_Shadow, PS_Shadow)      // 1
     PASS_RS_DS_BS_VP(NoTexturePass, RS_Default, DSS_Default, BS_Default, VS_Default, PS_NoTexture)  // 2
 }

@@ -148,11 +148,22 @@ HRESULT MainEditorApp::Render()
     }
 
     {
-        Profile_View::Scope profileScope("Editor::Render");
-
+        Profile_View::Scope profileScope("Editor::CaptureViewport");
         EDITOR->Capture_BackBuffer_ToViewport();
-        GAME->Bind_BackBuffer();
-        EDITOR->Render_Editor();
+    }
+
+    {
+        Profile_View::Scope profileScope("Editor::RenderUI");
+
+        {
+            Profile_View::Scope bindScope("Editor::BindBackBuffer");
+            GAME->Bind_BackBuffer();
+        }
+
+        {
+            Profile_View::Scope renderScope("Editor::Render_Editor");
+            EDITOR->Render_Editor();
+        }
 
         GAME->Bind_BackBuffer();
     }

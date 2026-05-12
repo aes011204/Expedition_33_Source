@@ -93,118 +93,127 @@ void ModelCom_Inspector::Draw_Inspector(const Shared<Component>& component)
 
         const vector<vector<Material::TextureSlot>>& allSlots = material->Get_TextureSlots();
 
-        for (uint32 typeIndex = 0; typeIndex < allSlots.size(); ++typeIndex)
+        auto drawTextureSlot = [&](uint32 typeIndex, uint32 slotIndex, const Material::TextureSlot* slot)
         {
-            const vector<Material::TextureSlot>& slots = allSlots[typeIndex];
-            if (slots.empty())
-                continue;
+            const wstring resolvedPath = slot ? slot->resolvedPath : wstring{};
+            ID3D11ShaderResourceView* slotSrv = slot ? slot->shaderResourceView.Get() : nullptr;
+
+            ImGui::PushID(static_cast<int>(slotIndex));
+
+            ImGui::TextDisabled("TextureIndex");
+            ImGui::SameLine(120.f);
+            ImGui::Text("%u", slot ? slot->textureIndex : slotIndex);
+
+            ImGui::TextDisabled("Loaded");
+            ImGui::SameLine(120.f);
+            ImGui::TextUnformatted(slotSrv ? "Yes" : "No");
+
+            ImGui::TextDisabled("Path");
+            ImGui::SameLine(120.f);
+            ImGui::BeginDisabled();
+            const string displayPath = resolvedPath.empty() ? "(empty)" : To_DisplayTexturePath(resolvedPath);
+            ImGui::TextWrapped("%s", displayPath.c_str());
+            ImGui::EndDisabled();
+
+            if (slotSrv)
+            {
+                ImGui::TextDisabled("Preview");
+                ImGui::SameLine(120.f);
+                ImGui::Image(reinterpret_cast<ImTextureID>(slotSrv), ImVec2(64.f, 64.f));
+            }
+
+            const vector<fs::path> textureCandidates = Collect_TextureCandidates(resolvedPath, sourceModelPath);
+            if (!textureCandidates.empty())
+            {
+                ImGui::TextDisabled("Texture");
+                ImGui::SameLine(120.f);
+
+                if (slotSrv)
+                {
+                    ImGui::Image(reinterpret_cast<ImTextureID>(slotSrv), ImVec2(32.f, 32.f));
+                    ImGui::SameLine();
+                }
+
+                const string currentFileName = resolvedPath.empty()
+                    ? string{ "<Select Texture>" }
+                    : String::ToString(fs::path(resolvedPath).filename().wstring());
+                const string pickerKey = material->Get_MaterialName() + "_" + to_string(typeIndex) + "_" + to_string(slotIndex);
+                if (ImGui::BeginCombo("##TexturePicker", currentFileName.c_str()))
+                {
+                    string& searchText = g_TextureSearchCache[pickerKey];
+                    char searchBuffer[256]{};
+                    strncpy_s(searchBuffer, searchText.c_str(), _TRUNCATE);
+
+                    ImGui::SetNextItemWidth(-FLT_MIN);
+                    if (ImGui::InputTextWithHint("##TextureSearch", "Search texture...", searchBuffer, sizeof(searchBuffer)))
+                        searchText = searchBuffer;
+
+                    ImGui::Separator();
+
+                    for (const fs::path& candidatePath : textureCandidates)
+                    {
+                        const string candidateName = String::ToString(candidatePath.filename().wstring());
+                        const bool isSelected = !resolvedPath.empty() &&
+                            candidatePath.wstring() == fs::path(resolvedPath).lexically_normal().wstring();
+
+                        if (!searchText.empty())
+                        {
+                            string candidateNameLower = candidateName;
+                            string searchTextLower = searchText;
+
+                            transform(candidateNameLower.begin(), candidateNameLower.end(), candidateNameLower.begin(), ::tolower);
+                            transform(searchTextLower.begin(), searchTextLower.end(), searchTextLower.begin(), ::tolower);
+
+                            if (candidateNameLower.find(searchTextLower) == string::npos)
+                                continue;
+                        }
+
+                        ImGui::PushID(candidateName.c_str());
+
+                        ID3D11ShaderResourceView* previewSrv = Get_TexturePreviewSRV(candidatePath);
+                        if (previewSrv)
+                            ImGui::Image(reinterpret_cast<ImTextureID>(previewSrv), ImVec2(32.f, 32.f));
+                        else
+                            ImGui::Dummy(ImVec2(32.f, 32.f));
+
+                        ImGui::SameLine();
+
+                        if (ImGui::Selectable(candidateName.c_str(), isSelected, 0, ImVec2(0.f, 32.f)))
+                            material->Override_TextureSlot(static_cast<MaterialTextureSlot>(typeIndex), slotIndex, candidatePath.wstring());
+
+                        if (isSelected)
+                            ImGui::SetItemDefaultFocus();
+
+                        ImGui::PopID();
+                    }
+
+                    ImGui::EndCombo();
+                }
+            }
+
+            ImGui::Separator();
+            ImGui::PopID();
+        };
+
+        for (uint32 typeIndex = 0; typeIndex < ETOI(MaterialTextureSlot::END); ++typeIndex)
+        {
+            const vector<Material::TextureSlot>* slots = typeIndex < allSlots.size() ? &allSlots[typeIndex] : nullptr;
+            const size_t slotCount = slots ? slots->size() : 0;
 
             ImGui::PushID(static_cast<int>(typeIndex));
 
-            string slotHeader = string(Get_TextureTypeLabel(typeIndex)) + " [" + to_string(typeIndex) + "] (" + to_string(slots.size()) + ")";
+            string slotHeader = string(Get_TextureTypeLabel(typeIndex)) + " [" + to_string(typeIndex) + "] (" + to_string(slotCount) + ")";
             if (!ImGui::TreeNode(slotHeader.c_str()))
             {
                 ImGui::PopID();
                 continue;
             }
 
-            for (size_t slotIndex = 0; slotIndex < slots.size(); ++slotIndex)
-            {
-                const Material::TextureSlot& slot = slots[slotIndex];
-
-                ImGui::PushID(static_cast<int>(slotIndex));
-
-                ImGui::TextDisabled("TextureIndex");
-                ImGui::SameLine(120.f);
-                ImGui::Text("%u", slot.textureIndex);
-
-                ImGui::TextDisabled("Loaded");
-                ImGui::SameLine(120.f);
-                ImGui::TextUnformatted(slot.shaderResourceView ? "Yes" : "No");
-
-                ImGui::TextDisabled("Path");
-                ImGui::SameLine(120.f);
-                ImGui::BeginDisabled();
-                const string displayPath = To_DisplayTexturePath(slot.resolvedPath);
-                ImGui::TextWrapped("%s", displayPath.c_str());
-                ImGui::EndDisabled();
-
-                if (slot.shaderResourceView)
-                {
-                    ImGui::TextDisabled("Preview");
-                    ImGui::SameLine(120.f);
-                    ImGui::Image(reinterpret_cast<ImTextureID>(slot.shaderResourceView.Get()), ImVec2(64.f, 64.f));
-                }
-
-                const vector<fs::path> textureCandidates = Collect_TextureCandidates(slot.resolvedPath);
-                if (!textureCandidates.empty())
-                {
-                    ImGui::TextDisabled("Texture");
-                    ImGui::SameLine(120.f);
-
-                    if (slot.shaderResourceView)
-                    {
-                        ImGui::Image(reinterpret_cast<ImTextureID>(slot.shaderResourceView.Get()), ImVec2(32.f, 32.f));
-                        ImGui::SameLine();
-                    }
-
-                    const string currentFileName = String::ToString(fs::path(slot.resolvedPath).filename().wstring());
-                    const string pickerKey = material->Get_MaterialName() + "_" + to_string(typeIndex) + "_" + to_string(slotIndex);
-                    if (ImGui::BeginCombo("##TexturePicker", currentFileName.c_str()))
-                    {
-                        string& searchText = g_TextureSearchCache[pickerKey];
-                        char searchBuffer[256]{};
-                        strncpy_s(searchBuffer, searchText.c_str(), _TRUNCATE);
-
-                        ImGui::SetNextItemWidth(-FLT_MIN);
-                        if (ImGui::InputTextWithHint("##TextureSearch", "Search texture...", searchBuffer, sizeof(searchBuffer)))
-                            searchText = searchBuffer;
-
-                        ImGui::Separator();
-
-                        for (const fs::path& candidatePath : textureCandidates)
-                        {
-                            const string candidateName = String::ToString(candidatePath.filename().wstring());
-                            const bool isSelected = candidatePath.wstring() == fs::path(slot.resolvedPath).lexically_normal().wstring();
-
-                            if (!searchText.empty())
-                            {
-                                string candidateNameLower = candidateName;
-                                string searchTextLower = searchText;
-
-                                transform(candidateNameLower.begin(), candidateNameLower.end(), candidateNameLower.begin(), ::tolower);
-                                transform(searchTextLower.begin(), searchTextLower.end(), searchTextLower.begin(), ::tolower);
-
-                                if (candidateNameLower.find(searchTextLower) == string::npos)
-                                    continue;
-                            }
-
-                            ImGui::PushID(candidateName.c_str());
-
-                            ID3D11ShaderResourceView* previewSrv = Get_TexturePreviewSRV(candidatePath);
-                            if (previewSrv)
-                                ImGui::Image(reinterpret_cast<ImTextureID>(previewSrv), ImVec2(32.f, 32.f));
-                            else
-                                ImGui::Dummy(ImVec2(32.f, 32.f));
-
-                            ImGui::SameLine();
-
-                            if (ImGui::Selectable(candidateName.c_str(), isSelected, 0, ImVec2(0.f, 32.f)))
-                                material->Override_TextureSlot(static_cast<MaterialTextureSlot>(typeIndex), static_cast<uint32>(slotIndex), candidatePath.wstring());
-
-                            if (isSelected)
-                                ImGui::SetItemDefaultFocus();
-
-                            ImGui::PopID();
-                        }
-
-                        ImGui::EndCombo();
-                    }
-                }
-
-                ImGui::Separator();
-                ImGui::PopID();
-            }
+            if (slotCount == 0)
+                drawTextureSlot(typeIndex, 0, nullptr);
+            else
+                for (uint32 slotIndex = 0; slotIndex < slotCount; ++slotIndex)
+                    drawTextureSlot(typeIndex, slotIndex, &(*slots)[slotIndex]);
 
             ImGui::TreePop();
             ImGui::PopID();
@@ -366,17 +375,22 @@ bool ModelCom_Inspector::Is_TextureExtension(const fs::path& path)
            ext == ".bmp" || ext == ".BMP";
 }
 
-vector<fs::path> ModelCom_Inspector::Collect_TextureCandidates(const wstring& resolvedPath)
+vector<fs::path> ModelCom_Inspector::Collect_TextureCandidates(const wstring& resolvedPath, const wstring& sourceModelPath)
 {
     namespace fs = fs;
 
     vector<fs::path> candidates{};
 
-    if (resolvedPath.empty())
-        return candidates;
+    fs::path directory{};
+    if (!resolvedPath.empty())
+        directory = fs::path(resolvedPath).parent_path();
+    else if (!sourceModelPath.empty())
+    {
+        const fs::path modelDirectory = fs::path(sourceModelPath).parent_path();
+        const fs::path textureDirectory = modelDirectory / L"Texture";
+        directory = fs::exists(textureDirectory) ? textureDirectory : modelDirectory;
+    }
 
-    const fs::path currentPath(resolvedPath);
-    const fs::path directory = currentPath.parent_path();
     if (directory.empty() || !fs::exists(directory))
         return candidates;
 

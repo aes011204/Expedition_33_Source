@@ -289,6 +289,7 @@
     <ClInclude Include="..\Public\UI_Animation.h" />
     <ClInclude Include="..\public\UI_Button.h" />
     <ClInclude Include="..\public\UI_Panel.h" />
+    <ClInclude Include="..\Public\Shader_CBuffer_Define.h" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\public\Base.h">
@@ -805,12 +806,6 @@
     <ClCompile Include="..\private\UI_Image.cpp">
       <Filter>01.Utility\11. UI\Object</Filter>
     </ClCompile>
-    <ClCompile Include="..\private\UI_Panel.cpp">
-      <Filter>01.Utility\11. UI\Object</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\UI_Button.cpp">
-      <Filter>01.Utility\11. UI\Object</Filter>
-    </ClCompile>
     <ClCompile Include="..\private\UI_Image.cpp">
       <Filter>01.Utility\11. UI\Object</Filter>
     </ClCompile>
@@ -845,6 +840,8 @@
       <Filter>01.Utility\04.Component\VIBuffer\Instance\Particle w. ComputeShader</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\UI_Animation.cpp" />
+    <ClCompile Include="..\private\UI_Button.cpp" />
+    <ClCompile Include="..\private\UI_Panel.cpp" />
     <ClCompile Include="..\private\UI_Button.cpp" />
     <ClCompile Include="..\private\UI_Panel.cpp" />
   </ItemGroup>

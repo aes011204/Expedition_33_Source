@@ -533,7 +533,26 @@ HRESULT GameInstance::Add_GameObject(uint32 layerLevelIndex, const wstring& laye
 
 bool GameInstance::Remove_GameObject(uint32 levelIndex, const Shared<GameObject>& gameObject)
 {
+    Shared<Camera> camera = dynamic_pointer_cast<Camera>(gameObject);
+    if (camera != nullptr)
+        _cameraManager->Remove_Camera(camera);
+
     return _objectManager->Remove_GameObject(levelIndex, gameObject);
+}
+
+HRESULT GameInstance::Clear_LevelObjects(uint32 levelIndex)
+{
+    _objectManager->Visit_LevelObjects(levelIndex,
+        [this](const wstring& layerTag, const Shared<GameObject>& gameObject)
+        {
+            UNREFERENCED_PARAMETER(layerTag);
+
+            Shared<Camera> camera = dynamic_pointer_cast<Camera>(gameObject);
+            if (camera != nullptr)
+                _cameraManager->Remove_Camera(camera);
+        });
+
+    return _objectManager->Clear_Layers(levelIndex);
 }
 
 Shared<GameObject> GameInstance::Find_FirstObject(uint32 levelIndex, const wstring& layerTag)
@@ -601,6 +620,18 @@ const Vec4* GameInstance::Get_CamPosition() const
 void GameInstance::Set_Transform(D3DTS transformState, FXMMATRIX& transformStateMatrix)
 {
     _pipeLine->Set_Transform(transformState, transformStateMatrix);
+}
+
+HRESULT GameInstance::Bind_CameraCB(Shared<ShaderCom> shader) const
+{
+    CHECK_NULL(shader, E_FAIL);
+    CHECK_NULL(_pipeLine, E_FAIL);
+    CHECK_NULL(_cameraManager, E_FAIL);
+
+    Shared<Camera> activeCamera = _cameraManager->Get_ActiveCamera();
+    CHECK_NULL(activeCamera, E_FAIL);
+
+    return _pipeLine->Bind_CameraCB(shader.get(), activeCamera->Get_Far());
 }
 
 bool GameInstance::KeyPress(KEY_TYPE key) const
@@ -1150,10 +1181,8 @@ HRESULT GameInstance::Load_GameObjectJson(const fs::path& path, const Shared<Gam
     return S_OK;
 }
 
-Shared<GameObject> GameInstance::Instantiate_GameObjectJson(const fs::path& path)
+Shared<GameObject> GameInstance::Instantiate_GameObjectJson(const json& root)
 {
-    json root = Load_JsonFile(path);
-
     if (root.is_null() || !root.is_object())
         return nullptr;
 
@@ -1172,6 +1201,13 @@ Shared<GameObject> GameInstance::Instantiate_GameObjectJson(const fs::path& path
     gameObject->From_Json(root);
 
     return gameObject;
+}
+
+Shared<GameObject> GameInstance::Instantiate_GameObjectJson(const fs::path& path)
+{
+    json root = Load_JsonFile(path);
+
+    return Instantiate_GameObjectJson(root);
 }
 
 HRESULT GameInstance::Create_PrefabAsset(const fs::path& path, const string& staticClass, const string& prefabName)
@@ -1314,6 +1350,12 @@ HRESULT GameInstance::Bind_ShadowLightDesc(Shared<ShaderCom> shader, const char*
 {
     CHECK_NULL(_shadow, E_FAIL);
     return _shadow->Bind_ShadowLightDesc(shader, lightFarName, biasName, intensityName);
+}
+
+HRESULT GameInstance::Bind_ShadowCB(Shared<ShaderCom> shader)
+{
+    CHECK_NULL(_shadow, E_FAIL);
+    return _shadow->Bind_ShadowCB(shader);
 }
 
 HRESULT GameInstance::Update_ShadowLight(const ShadowLightDesc& desc)

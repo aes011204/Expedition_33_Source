@@ -90,7 +90,7 @@ HRESULT Loader::Loading()
 
     const auto levelName = magic_enum::enum_name(_nextLevel);
 
-    LOG_ERROR("[Loader::Loading] 레벨 : {}, 로딩 시간 : {}", levelName, Format_Duration(elapsed));
+    LOG_INFO("[Loader::Loading] 레벨 : {}, 로딩 시간 : {}", levelName, Format_Duration(elapsed));
 
     if (FAILED(hr))
         _hasFailed.store(true);
@@ -271,7 +271,7 @@ void Loader::Accumulate_LoadJobStats(ELoadJobType jobType, chrono::milliseconds 
 
 void Loader::Print_LoadJobSummary()
 {
-    LOG_ERROR("[Loader::Print_LoadJobSummary] ---- LoadJob Summary Begin ----");
+    LOG_INFO("[Loader::Print_LoadJobSummary] ---- LoadJob Summary Begin ----");
 
     for (size_t i = 0; i < _loadJobStats.size(); ++i)
     {
@@ -282,15 +282,14 @@ void Loader::Print_LoadJobSummary()
         const ELoadJobType jobType = static_cast<ELoadJobType>(i);
         const string jobTypeName = string(magic_enum::enum_name(jobType));
 
-        LOG_ERROR(
-            "[Loader::Print_LoadJobSummary] type={}, count={}, total={}",
+        LOG_INFO("[Loader::Print_LoadJobSummary] type={}, count={}, total={}",
             jobTypeName,
             static_cast<int>(stats.count),
             Format_Duration(stats.totalDuration)
         );
     }
 
-    LOG_ERROR("[Loader::Print_LoadJobSummary] ---- LoadJob Summary End ----");
+    LOG_INFO("[Loader::Print_LoadJobSummary] ---- LoadJob Summary End ----");
 }
 
 string Loader::Format_Duration(chrono::milliseconds duration)
@@ -501,7 +500,7 @@ HRESULT Loader::Commit_CompletedLoadJobs(size_t maxCommitPerFrame)
 
         Accumulate_LoadJobStats(loadJob.eType, completedJob.elapsed);
 
-        LOG_ERROR(
+        LOG_INFO(
             "[Loader::Commit_CompletedLoadJobs] Committed load job. tag={}, type={}, createElapsed={}",
             String::ToString(loadJob.strPrototypeTag),
             string(magic_enum::enum_name(loadJob.eType)),

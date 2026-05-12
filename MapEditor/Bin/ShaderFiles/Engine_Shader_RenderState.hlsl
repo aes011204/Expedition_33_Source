@@ -48,6 +48,11 @@ BlendState BS_AlphaBlend
     SrcBlend = Src_Alpha;
     DestBlend = Inv_Src_Alpha;
     BlendOp = Add;
+
+    // 이거 안하면, UI 검은색 뒷배경 남아있음
+    SrcBlendAlpha = Zero;
+    DestBlendAlpha = One;
+    BlendOpAlpha = Add;
 };
 
 BlendState BS_Blend

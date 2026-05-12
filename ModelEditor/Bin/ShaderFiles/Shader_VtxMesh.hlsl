@@ -13,7 +13,7 @@ vector g_vLightSpecular;
 Texture2D g_DiffuseTexture;
 vector g_vMtrlAmbient = vector(0.3f, 0.3f, 0.3f, 1.f);
 vector g_vMtrlSpecular = vector(1.f, 1.f, 1.f, 1.f);
-vector g_vCamPosition;
+vector g_CamPosition;
 
 struct VS_IN
 {
@@ -75,7 +75,7 @@ PS_OUT PS_MAIN(PS_IN In)
     
     vector vShade = saturate(max(dot(normalize(g_vLightDir) * -1.f, In.vNormal), 0.f) + (g_vLightAmbient * g_vMtrlAmbient));
     
-    vector vLook = In.vWorldPos - g_vCamPosition;
+    vector vLook = In.vWorldPos - g_CamPosition;
     vector vRelfect = reflect(normalize(g_vLightDir), In.vNormal);    
     float fSpecular = pow(max(dot(normalize(vLook) * -1.f, normalize(vRelfect)), 0.f), 50.f);
     

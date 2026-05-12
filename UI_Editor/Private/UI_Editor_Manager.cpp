@@ -301,6 +301,14 @@ namespace UIEditor
                     Redo();
 
                 ImGui::Separator();
+                if (ImGui::MenuItem("Copy", "Ctrl+C", false, Has_SelectedObjects()))
+                    Copy_SelectedUIObjects();
+                if (ImGui::MenuItem("Paste", "Ctrl+V", false, Has_CopiedUIObjects()))
+                    Paste_UIObjects();
+                if (ImGui::MenuItem("Duplicate", "Ctrl+D", false, Has_SelectedObjects()))
+                    Duplicate_SelectedUIObject();
+
+                ImGui::Separator();
                 if (ImGui::BeginMenu("Align", Get_SelectedObjectCount() >= 2))
                 {
                     if (ImGui::MenuItem("Left"))
@@ -405,6 +413,18 @@ namespace UIEditor
         if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Y))
         {
             Redo();
+            return;
+        }
+
+        if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_C))
+        {
+            Copy_SelectedUIObjects();
+            return;
+        }
+
+        if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_V))
+        {
+            Paste_UIObjects();
             return;
         }
 
@@ -584,6 +604,9 @@ namespace UIEditor
         if (_selectedObjectId == 0)
             return 0;
 
+        if (Is_ObjectEffectivelyLocked(_selectedObjectId))
+            return 0;
+
         const UI_Object* selectedObject = _document.Find_Object(_selectedObjectId);
         if (nullptr == selectedObject)
             return 0;
@@ -591,7 +614,7 @@ namespace UIEditor
         if (Is_ContainerObjectType(selectedObject->type))
             return selectedObject->id;
 
-        return selectedObject->parentId;
+        return Is_ObjectEffectivelyLocked(selectedObject->parentId) ? 0 : selectedObject->parentId;
     }
 
     vector<ObjectId> UI_Editor_Manager::Normalize_Selection(const vector<ObjectId>& objectIds) const
@@ -639,6 +662,32 @@ namespace UIEditor
         }
 
         return rootObjectIds;
+    }
+
+    void UI_Editor_Manager::Collect_ObjectAndChildren(ObjectId objectId, vector<ObjectId>& outObjectIds) const
+    {
+        if (objectId == 0 || nullptr == _document.Find_Object(objectId))
+            return;
+
+        outObjectIds.push_back(objectId);
+        for (const UI_Object& object : _document.Get_Objects())
+        {
+            if (object.parentId == objectId)
+                Collect_ObjectAndChildren(object.id, outObjectIds);
+        }
+    }
+
+    ObjectId UI_Editor_Manager::Resolve_PasteParentId() const
+    {
+        const UI_Object* selectedObject = _document.Find_Object(_selectedObjectId);
+        if (nullptr == selectedObject)
+            return 0;
+
+        const ObjectId parentId = selectedObject->parentId;
+        if (parentId != 0 && Is_ObjectEffectivelyLocked(parentId))
+            return 0;
+
+        return _document.Can_HaveChildren(parentId) ? parentId : 0;
     }
 
     void UI_Editor_Manager::Apply_Selection(const vector<ObjectId>& objectIds, ObjectId primaryObjectId)
@@ -731,7 +780,7 @@ namespace UIEditor
 
     void UI_Editor_Manager::Duplicate_UIObject(ObjectId objectId)
     {
-        if (nullptr == _document.Find_Object(objectId))
+        if (nullptr == _document.Find_Object(objectId) || Is_ObjectEffectivelyLocked(objectId))
             return;
 
         Push_UndoSnapshot();
@@ -746,7 +795,7 @@ namespace UIEditor
 
     void UI_Editor_Manager::Delete_UIObject(ObjectId objectId)
     {
-        if (nullptr == _document.Find_Object(objectId))
+        if (nullptr == _document.Find_Object(objectId) || Is_ObjectEffectivelyLocked(objectId))
             return;
 
         Push_UndoSnapshot();
@@ -765,7 +814,17 @@ namespace UIEditor
         if (_selectedObjectIds.empty())
             return;
 
-        const vector<ObjectId> rootObjectIds = Collect_RootObjectIds(_selectedObjectIds);
+        vector<ObjectId> rootObjectIds = Collect_RootObjectIds(_selectedObjectIds);
+        rootObjectIds.erase(
+            remove_if(
+                rootObjectIds.begin(),
+                rootObjectIds.end(),
+                [this](ObjectId objectId)
+                {
+                    return Is_ObjectEffectivelyLocked(objectId);
+                }),
+            rootObjectIds.end());
+
         if (rootObjectIds.empty())
             return;
 
@@ -792,7 +851,17 @@ namespace UIEditor
         if (_selectedObjectIds.empty())
             return;
 
-        const vector<ObjectId> rootObjectIds = Collect_RootObjectIds(_selectedObjectIds);
+        vector<ObjectId> rootObjectIds = Collect_RootObjectIds(_selectedObjectIds);
+        rootObjectIds.erase(
+            remove_if(
+                rootObjectIds.begin(),
+                rootObjectIds.end(),
+                [this](ObjectId objectId)
+                {
+                    return Is_ObjectEffectivelyLocked(objectId);
+                }),
+            rootObjectIds.end());
+
         if (rootObjectIds.empty())
             return;
 
@@ -805,9 +874,90 @@ namespace UIEditor
         if (!deletedAny)
             return;
 
-        Clear_Selection();
+        Prune_InvalidSelection();
         _animationPreviewService.Stop();
         Mark_Dirty();
+    }
+
+    bool UI_Editor_Manager::Copy_SelectedUIObjects()
+    {
+        const vector<ObjectId> rootObjectIds = Collect_RootObjectIds(_selectedObjectIds);
+        if (rootObjectIds.empty())
+            return false;
+
+        vector<ObjectId> copiedObjectIds;
+        unordered_set<ObjectId> copiedObjectIdSet;
+        for (ObjectId rootObjectId : rootObjectIds)
+        {
+            vector<ObjectId> objectAndChildrenIds;
+            Collect_ObjectAndChildren(rootObjectId, objectAndChildrenIds);
+
+            for (ObjectId objectId : objectAndChildrenIds)
+            {
+                if (copiedObjectIdSet.insert(objectId).second)
+                    copiedObjectIds.push_back(objectId);
+            }
+        }
+
+        if (copiedObjectIds.empty())
+            return false;
+
+        unordered_set<ObjectId> rootObjectIdSet(rootObjectIds.begin(), rootObjectIds.end());
+        vector<UI_Object> clipboardObjects;
+        clipboardObjects.reserve(copiedObjectIds.size());
+
+        for (ObjectId objectId : copiedObjectIds)
+        {
+            const UI_Object* sourceObject = _document.Find_Object(objectId);
+            if (nullptr == sourceObject)
+                continue;
+
+            UI_Object clipboardObject = *sourceObject;
+            if (rootObjectIdSet.find(clipboardObject.id) != rootObjectIdSet.end())
+                clipboardObject.parentId = 0;
+
+            clipboardObjects.push_back(move(clipboardObject));
+        }
+
+        if (clipboardObjects.empty())
+            return false;
+
+        _clipboardObjects = move(clipboardObjects);
+        _clipboardRootObjectIds = rootObjectIds;
+        _clipboardPasteCount = 0;
+        return true;
+    }
+
+    bool UI_Editor_Manager::Paste_UIObjects()
+    {
+        if (_clipboardObjects.empty() || _clipboardRootObjectIds.empty())
+            return false;
+
+        const ObjectId parentId = Resolve_PasteParentId();
+        const float pasteOffset = 20.f * static_cast<float>(_clipboardPasteCount + 1);
+
+        Push_UndoSnapshot();
+
+        const vector<ObjectId> createdRootObjectIds = _document.Import_PrefabObjects(
+            _clipboardObjects,
+            _clipboardRootObjectIds,
+            parentId,
+            ImVec2(pasteOffset, pasteOffset));
+
+        if (createdRootObjectIds.empty())
+            return false;
+
+        ++_clipboardPasteCount;
+        Set_SelectedObjectIds(createdRootObjectIds, createdRootObjectIds.back());
+        Resolve_LoadedAssetReferences();
+        Clear_RuntimeCaches();
+        Mark_Dirty();
+        return true;
+    }
+
+    bool UI_Editor_Manager::Has_CopiedUIObjects() const
+    {
+        return !_clipboardObjects.empty() && !_clipboardRootObjectIds.empty();
     }
 
     bool UI_Editor_Manager::Rename_Canvas(const string& newName)
@@ -835,7 +985,7 @@ namespace UIEditor
     bool UI_Editor_Manager::Rename_UIObject(ObjectId objectId, const string& newName)
     {
         UI_Object* object = _document.Find_Object(objectId);
-        if (nullptr == object || newName.empty())
+        if (nullptr == object || newName.empty() || Is_ObjectEffectivelyLocked(objectId))
             return false;
 
         const string uniqueName = _document.Generate_UniqueName(newName, objectId);
@@ -852,7 +1002,7 @@ namespace UIEditor
     void UI_Editor_Manager::Request_RenameUIObject(ObjectId objectId)
     {
         UI_Object* object = _document.Find_Object(objectId);
-        if (nullptr == object)
+        if (nullptr == object || Is_ObjectEffectivelyLocked(objectId))
             return;
 
         _renameRequestObjectId = objectId;
@@ -867,6 +1017,9 @@ namespace UIEditor
         if (nullptr == object || object->parentId == newParentId)
             return false;
 
+        if (Is_ObjectEffectivelyLocked(objectId) || Is_ObjectEffectivelyLocked(newParentId))
+            return false;
+
         Push_UndoSnapshot();
 
         if (!_document.Change_Parent(objectId, newParentId, true))
@@ -879,11 +1032,85 @@ namespace UIEditor
 
     bool UI_Editor_Manager::Can_ReparentUIObject(ObjectId objectId, ObjectId newParentId) const
     {
+        if (Is_ObjectEffectivelyLocked(objectId) || Is_ObjectEffectivelyLocked(newParentId))
+            return false;
+
         return _document.Can_Parent(objectId, newParentId);
+    }
+
+    bool UI_Editor_Manager::Is_ObjectEffectivelyVisible(ObjectId objectId) const
+    {
+        unordered_set<ObjectId> visitedObjectIds;
+        const UI_Object* object = _document.Find_Object(objectId);
+
+        while (nullptr != object)
+        {
+            if (!visitedObjectIds.insert(object->id).second)
+                break;
+
+            if (!object->visible)
+                return false;
+
+            if (object->parentId == 0)
+                break;
+
+            object = _document.Find_Object(object->parentId);
+        }
+
+        return nullptr != _document.Find_Object(objectId);
+    }
+
+    bool UI_Editor_Manager::Is_ObjectEffectivelyLocked(ObjectId objectId) const
+    {
+        unordered_set<ObjectId> visitedObjectIds;
+        const UI_Object* object = _document.Find_Object(objectId);
+
+        while (nullptr != object)
+        {
+            if (!visitedObjectIds.insert(object->id).second)
+                break;
+
+            if (object->locked)
+                return true;
+
+            if (object->parentId == 0)
+                break;
+
+            object = _document.Find_Object(object->parentId);
+        }
+
+        return false;
+    }
+
+    bool UI_Editor_Manager::Set_ObjectVisible(ObjectId objectId, bool visible)
+    {
+        UI_Object* object = _document.Find_Object(objectId);
+        if (nullptr == object || object->visible == visible)
+            return false;
+
+        Push_UndoSnapshot();
+        object->visible = visible;
+        Mark_Dirty();
+        return true;
+    }
+
+    bool UI_Editor_Manager::Set_ObjectLocked(ObjectId objectId, bool locked)
+    {
+        UI_Object* object = _document.Find_Object(objectId);
+        if (nullptr == object || object->locked == locked)
+            return false;
+
+        Push_UndoSnapshot();
+        object->locked = locked;
+        Mark_Dirty();
+        return true;
     }
 
     bool UI_Editor_Manager::Set_UIObjectWorldPosition(ObjectId objectId, const ImVec2& worldPosition)
     {
+        if (Is_ObjectEffectivelyLocked(objectId))
+            return false;
+
         if (!_historyService.Is_EditTransactionOpen())
             Push_UndoSnapshot();
 
@@ -896,6 +1123,9 @@ namespace UIEditor
 
     bool UI_Editor_Manager::Set_UIObjectWorldRect(ObjectId objectId, const ImVec2& worldPosition, const ImVec2& worldSize)
     {
+        if (Is_ObjectEffectivelyLocked(objectId))
+            return false;
+
         UI_Object* object = _document.Find_Object(objectId);
         if (nullptr == object)
             return false;
@@ -930,6 +1160,16 @@ namespace UIEditor
     bool UI_Editor_Manager::Align_SelectedObjects(UI_AlignmentCommand command)
     {
         vector<ObjectId> targetObjectIds = Collect_RootObjectIds(_selectedObjectIds);
+        targetObjectIds.erase(
+            remove_if(
+                targetObjectIds.begin(),
+                targetObjectIds.end(),
+                [this](ObjectId objectId)
+                {
+                    return Is_ObjectEffectivelyLocked(objectId);
+                }),
+            targetObjectIds.end());
+
         if (targetObjectIds.size() < 2)
             return false;
 

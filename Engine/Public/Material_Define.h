@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "Material_Types.h"
+#include "Shader_CBuffer_Define.h"
 
 NS_BEGIN(Engine)
 
@@ -12,39 +13,6 @@ struct MaterialRenderState
     bool twoSided = false;                                      // 양면 렌더링
     bool alphaClip = false;
     float opacityMaskClipValue = 0.3333f;
-};
-
-struct alignas(16) MaterialCB
-{
-    static constexpr ConstantBuffer CBType = ConstantBuffer::Material;
-
-    Vec4 baseColorTint{ 1.f, 1.f, 1.f, 1.f };
-    Vec4 emissiveColor{ 1.f, 1.f, 1.f, 1.f };
-
-    // MI json의 Scalars.Value_Glow 계열
-    float emissiveIntensity{ 0.f };
-
-    // MI json의 Scalars.Glow_Mask_Mult 계열
-    float emissiveMaskMul{ 1.f };
-
-    // MI json의 Normal/Bump Multiplier 또는 NormalIntensity 계열
-    float normalStrength{ 1.f };
-
-    // 셰이더에서 clip 기준으로 사용
-    float opacityMaskClipValue{ 0.3333f };
-
-    // ORM 보정값
-    float aoScale{ 1.f };           // ORM.r = AO
-    float roughnessScale{ 1.f };    // ORM.g = Roughness
-    float metalnessScale{ 1.f };    // ORM.b = Metalness
-    float _pad0{ 0.f };
-
-    Vec2 uvScale{ 1.f, 1.f };
-    Vec2 uvOffset{ 0.f, 0.f };
-    float uvRotation{ 0.f };
-
-    uint32 materialMask{ 0 };
-    float _pad1[2]{};
 };
 
 // 저장/에셋/데이터 단계에서의 텍스처 슬롯 정보

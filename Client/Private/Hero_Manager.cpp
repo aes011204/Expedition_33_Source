@@ -18,9 +18,17 @@ HRESULT Hero_Manager::Initialize_Hero(uint32 levelIndex, const wstring& layerTag
 
     const Vec3 startPos(10.f, 5.f, 10.f);
 
+    const string heroPrefabNames[] =
+    {
+        "Player_Lune",
+        "Player_Maelle",
+        "Player_Gustave",
+    };
+
+
     for (uint32 i = 0; i < 3; ++i)
     {
-        auto object = Spawn_Prefab::Prefab("TestPlayer")
+        auto object = Spawn_Prefab::Prefab(heroPrefabNames[i])
             .AtLevel(levelIndex)
             .InLayer(layerTag)
             .Spawn();
@@ -28,7 +36,6 @@ HRESULT Hero_Manager::Initialize_Hero(uint32 levelIndex, const wstring& layerTag
         auto hero = dynamic_pointer_cast<Player>(object);
         CHECK_NULL(hero, E_FAIL);
 
-        // 초기 위치 설정
         Vec3 pos = startPos;
         pos.z -= static_cast<float>(i) * 1.5f;
 
