@@ -327,6 +327,8 @@
       <Filter>02.GameObject\InstancedMeshActor</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Hero_Manager.h" />
+    <ClInclude Include="..\Public\ComputePointParticlePreview.h" />
+    <ClInclude Include="..\Public\GameplayUI.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -497,6 +499,8 @@
       <Filter>02.GameObject\InstancedMeshActor</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\Hero_Manager.cpp" />
+    <ClCompile Include="..\Private\ComputePointParticlePreview.cpp" />
+    <ClCompile Include="..\Private\GameplayUI.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">
@@ -523,6 +527,8 @@
     <FxCompile Include="..\Bin\ShaderFiles\Shader_UI.hlsl">
       <Filter>97.ShaderFiles</Filter>
     </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_PointParticle.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_InstancingSmoke.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_PointParticle.hlsl">
       <Filter>97.ShaderFiles\Compute</Filter>
     </FxCompile>

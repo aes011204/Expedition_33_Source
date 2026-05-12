@@ -70,6 +70,7 @@ namespace
     // -----------------------------
     // 기본 json 유틸
     // -----------------------------
+
     string Read_String(const json& item, const char* key, const string& defaultValue = "")
     {
         const auto iter = item.find(key);
@@ -801,7 +802,11 @@ namespace
         }
     }
 
-    HRESULT Spawn_Image(uint32 levelIndex, const RuntimeUIObject& object, Shared<UI_Base>* outUI)
+    HRESULT Spawn_Image(
+        uint32 levelIndex,
+        const wstring& prototypeTagPrefix,
+        const RuntimeUIObject& object,
+        Shared<UI_Base>* outUI)
     {
         const wstring texturePath = Resolve_JsonAssetPath(object.textureGuid, object.texturePath);
         if (texturePath.empty() || !fs::exists(texturePath))
@@ -830,7 +835,8 @@ namespace
         desc.keyframeAnimationAssets = object.keyframeAnimationAssets;
 
         // object id 기반 prototype tag를 유지해 기존 동작을 최대한 그대로 둔다.
-        const wstring prototypeTag = L"UIJson_Image_" + to_wstring(object.id);
+        const wstring prototypeTag =
+            prototypeTagPrefix + L"_Image_" + to_wstring(object.id);
 
         if (FAILED(GAME->Add_Prototype(levelIndex, prototypeTag, UI_Image::Create())))
             return E_FAIL;
@@ -841,7 +847,12 @@ namespace
         return S_OK;
     }
 
-    HRESULT Spawn_Text(uint32 levelIndex, const RuntimeUIObject& object, unordered_set<wstring>& loadedFontTags, Shared<UI_Base>* outUI)
+    HRESULT Spawn_Text(
+        uint32 levelIndex,
+        const wstring& prototypeTagPrefix,
+        const RuntimeUIObject& object,
+        unordered_set<wstring>& loadedFontTags,
+        Shared<UI_Base>* outUI)
     {
         const wstring fontPath = Resolve_JsonAssetPath(object.fontGuid, object.fontPath);
         if (fontPath.empty() || !fs::exists(fontPath))
@@ -876,7 +887,8 @@ namespace
         desc.animationClips = Make_TextAnimationClips(object);
         desc.keyframeAnimationAssets = Make_TextKeyframeAnimationAssets(object);
 
-        const wstring prototypeTag = L"UIJson_Text_" + to_wstring(object.id);
+        const wstring prototypeTag =
+            prototypeTagPrefix + L"_Text_" + to_wstring(object.id);
 
         if (FAILED(GAME->Add_Prototype(levelIndex, prototypeTag, UI_Text::Create())))
             return E_FAIL;
@@ -887,7 +899,11 @@ namespace
         return S_OK;
     }
 
-    HRESULT Spawn_Panel(uint32 levelIndex, const RuntimeUIObject& object, Shared<UI_Base>* outUI)
+    HRESULT Spawn_Panel(
+        uint32 levelIndex,
+        const wstring& prototypeTagPrefix,
+        const RuntimeUIObject& object,
+        Shared<UI_Base>* outUI)
     {
         UI_Panel::UI_PANEL_DESC desc{};
         desc.color = object.color;
@@ -900,7 +916,8 @@ namespace
         desc.animationClips = object.animationClips;
         desc.keyframeAnimationAssets = object.keyframeAnimationAssets;
 
-        const wstring prototypeTag = L"UIJson_Panel_" + to_wstring(object.id);
+        const wstring prototypeTag =
+            prototypeTagPrefix + L"_Panel_" + to_wstring(object.id);
 
         if (FAILED(GAME->Add_Prototype(levelIndex, prototypeTag, UI_Panel::Create())))
             return E_FAIL;
@@ -911,7 +928,11 @@ namespace
         return S_OK;
     }
 
-    HRESULT Spawn_Button(uint32 levelIndex, const RuntimeUIObject& object, Shared<UI_Base>* outUI)
+    HRESULT Spawn_Button(
+    uint32 levelIndex,
+    const wstring& prototypeTagPrefix,
+    const RuntimeUIObject& object,
+    Shared<UI_Base>* outUI)
     {
         UI_Button::UI_BUTTON_DESC desc{};
         desc.color = object.color;
@@ -924,7 +945,8 @@ namespace
         desc.animationClips = object.animationClips;
         desc.keyframeAnimationAssets = object.keyframeAnimationAssets;
 
-        const wstring prototypeTag = L"UIJson_Button_" + to_wstring(object.id);
+        const wstring prototypeTag =
+            prototypeTagPrefix + L"_Button_" + to_wstring(object.id);
 
         if (FAILED(GAME->Add_Prototype(levelIndex, prototypeTag, UI_Button::Create())))
             return E_FAIL;
@@ -935,7 +957,12 @@ namespace
         return S_OK;
     }
 
-    HRESULT Spawn_Object(uint32 levelIndex, const RuntimeUIObject& object, unordered_set<wstring>& loadedFontTags, Shared<UI_Base>* outUI)
+    HRESULT Spawn_Object(
+        uint32 levelIndex,
+        const wstring& prototypeTagPrefix,
+        const RuntimeUIObject& object,
+        unordered_set<wstring>& loadedFontTags,
+        Shared<UI_Base>* outUI)
     {
         if (nullptr != outUI)
             outUI->reset();
@@ -943,16 +970,16 @@ namespace
         switch (object.type)
         {
         case RuntimeUIType::Image:
-            return Spawn_Image(levelIndex, object, outUI);
+            return Spawn_Image(levelIndex, prototypeTagPrefix, object, outUI);
 
         case RuntimeUIType::Text:
-            return Spawn_Text(levelIndex, object, loadedFontTags, outUI);
+            return Spawn_Text(levelIndex, prototypeTagPrefix, object, loadedFontTags, outUI);
 
         case RuntimeUIType::Panel:
-            return Spawn_Panel(levelIndex, object, outUI);
+            return Spawn_Panel(levelIndex, prototypeTagPrefix, object, outUI);
 
         case RuntimeUIType::Button:
-            return Spawn_Button(levelIndex, object, outUI);
+            return Spawn_Button(levelIndex, prototypeTagPrefix, object, outUI);
 
         case RuntimeUIType::Unknown:
         default:
@@ -1043,6 +1070,13 @@ namespace
 
 HRESULT UI_RuntimeLoader::Load_Document(const UI_LoadDesc& desc)
 {
+    wstring prototypeTagPrefix = desc.prototypeTagPrefix;
+    if (prototypeTagPrefix.empty())
+        prototypeTagPrefix = fs::path(desc.jsonPath).stem().wstring();
+
+    if (prototypeTagPrefix.empty())
+        prototypeTagPrefix = L"UIJson";
+
     if (nullptr != desc.outUIByName)
         desc.outUIByName->clear();
 
@@ -1062,7 +1096,7 @@ HRESULT UI_RuntimeLoader::Load_Document(const UI_LoadDesc& desc)
     for (const RuntimeUIObject& object : document.objects)
     {
         Shared<UI_Base> spawnedUI = nullptr;
-        const HRESULT hr = Spawn_Object(desc.levelIndex, object, loadedFontTags, &spawnedUI);
+        const HRESULT hr = Spawn_Object(desc.levelIndex, prototypeTagPrefix, object, loadedFontTags, &spawnedUI);
         if (FAILED(hr))
             return hr;
 

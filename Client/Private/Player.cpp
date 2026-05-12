@@ -108,7 +108,7 @@ HRESULT Player::Ready_Components()
     MovementCom::MoveDesc moveDesc{};
     moveDesc.walkSpeed = 9.f;
     moveDesc.runSpeed = 10.f;
-    moveDesc.turnSpeedDegree = 180.f;
+    moveDesc.turnSpeedDegree = 360.f;
     moveDesc.jumpVelocity = 8.f;
     moveDesc.gravity = -20.f;
     moveDesc.groundY = 0.f;
@@ -135,8 +135,7 @@ HRESULT Player::Ready_PartObjects()
     Body_Player::BODY_PLAYER_DESC playableDesc{};
     playableDesc.parentMatrix = &_transformCom->Get_WorldMatrix();
     playableDesc.modelType = ModelType::Anim;
-    //playableDesc.modelTag = L"Model_LuneBody";
-    playableDesc.modelTag = L"Model_LuneTemp";
+    playableDesc.modelTag = L"Model_LuneBody";
 
     //> MainBody Setting
     if (FAILED(__super::Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Body_Player"),

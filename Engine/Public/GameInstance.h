@@ -52,7 +52,11 @@ public:
 
 public:
     HRESULT Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<Device>& device, ComPtr<Context>& context);
+
     void    Update_Engine(float timeDelta);
+    // ClientInstance쪽 업데이트 순서 맞추려고
+    void    Update_Engine(float timeDelta, const function<void(float)>& clientUpdate);
+
     HRESULT Draw();
     HRESULT Draw_RendererOnly(); // 에디터용
     void    Clear_Resources(uint32 levelIndex);
@@ -61,6 +65,10 @@ public:
 
     ComPtr<Device>  Get_Device() const  { return _device; }
     ComPtr<Context> Get_Context() const { return _context; }
+
+public:
+    void    Set_GameplayPaused(bool paused) { _isGameplayPaused = paused; }
+    bool    Is_GameplayPaused() const { return _isGameplayPaused; }
 
 public: /* For.Log_Manager */
     void    Log_FileOnly(const spdlog::source_loc& sourceLoc, spdlog::level::level_enum level, const string& message) const;
@@ -105,6 +113,8 @@ public: /* For.Level_Manager */
 public: /* For.Prototype_Manager */
     HRESULT Add_Prototype(uint32 levelIndex, const wstring& prototypeTag, Shared<Base> prototype);
     Shared<Base> Clone_Prototype(Prototype prototype, uint32 levelIndex, const wstring& prototypeTag, void* arg = nullptr);
+
+    bool Has_Prototype(uint32 levelIndex, const wstring& prototypeTag) const;
 
 public: /* For.UI_Manager */
     HRESULT Add_UI(
@@ -409,6 +419,8 @@ private:
 
     bool    _isPlayerInputBlocked = false;
     bool    _isFreeCameraInputEnabled = false;
+
+    bool    _isGameplayPaused = false;
 
     // Free 카메라용 time
     float   _freeCameraTimeDelta = 0.f;

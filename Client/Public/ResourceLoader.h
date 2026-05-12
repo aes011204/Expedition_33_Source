@@ -82,7 +82,17 @@ public:
 
     static FInputLayoutInfo Get_InputLayout(const string& strName);
 
-    HRESULT Register_LoadJob(const FLoadJob& LoadJob);
+    HRESULT Register_LoadJob(const FLoadJob& loadJob);
+
+public:
+    static bool Can_CreatePrototypeOnWorker(const FLoadJob& loadJob);
+
+    HRESULT Create_LoadJobPrototype(const FLoadJob& loadJob, Shared<Base>& outPrototype);
+
+    // main thread에서만 호출한다.
+    // 이미 같은 prototype이 있으면 성공 처리하고 넘어간다.
+    HRESULT Commit_LoadJobPrototype(const FLoadJob& loadJob, const Shared<Base>& prototype);
+
 private:
     HRESULT Load_Textures(const json& JsonData);
     HRESULT Load_Shaders(const json& JsonData);
