@@ -94,15 +94,10 @@ void Level_GamePlay::Update(float fTimeDelta)
 
     // 테스트
 #ifdef _DEBUG
-    static float accumulatedTime = 0.f;
-    accumulatedTime += fTimeDelta;
+    const int32 fps = (fTimeDelta > 0.f)
+            ? static_cast<int32>(1.f / fTimeDelta) : 0.f;
 
-    const int fakeHP = 100 - static_cast<int>(accumulatedTime) % 100;
-    const wchar_t* stateText = (static_cast<int>(accumulatedTime) % 2 == 0) ? L"Idle" : L"Run";
-
-    GAME->Print(L"프린트 테스트", duration(0.f));
-    GAME->Print(L"Player State : {}", stateText, duration(0.f));
-    GAME->Print(L"Time : {:.2f}", accumulatedTime, duration(0.f), color(Vec4(1.f, 1.f, 0.f, 1.f)));
+     GAME->Print(L"현재 FPS : {}", fps, duration(0.f), color(Vec4(1.f, 1.f, 0.f, 1.f)));
 #endif
 }
 

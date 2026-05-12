@@ -603,6 +603,18 @@ void GameInstance::Set_Transform(D3DTS transformState, FXMMATRIX& transformState
     _pipeLine->Set_Transform(transformState, transformStateMatrix);
 }
 
+HRESULT GameInstance::Bind_CameraCB(Shared<ShaderCom> shader) const
+{
+    CHECK_NULL(shader, E_FAIL);
+    CHECK_NULL(_pipeLine, E_FAIL);
+    CHECK_NULL(_cameraManager, E_FAIL);
+
+    Shared<Camera> activeCamera = _cameraManager->Get_ActiveCamera();
+    CHECK_NULL(activeCamera, E_FAIL);
+
+    return _pipeLine->Bind_CameraCB(shader.get(), activeCamera->Get_Far());
+}
+
 bool GameInstance::KeyPress(KEY_TYPE key) const
 {
     return _inputManager->KeyPress(key);
@@ -1314,6 +1326,12 @@ HRESULT GameInstance::Bind_ShadowLightDesc(Shared<ShaderCom> shader, const char*
 {
     CHECK_NULL(_shadow, E_FAIL);
     return _shadow->Bind_ShadowLightDesc(shader, lightFarName, biasName, intensityName);
+}
+
+HRESULT GameInstance::Bind_ShadowCB(Shared<ShaderCom> shader)
+{
+    CHECK_NULL(_shadow, E_FAIL);
+    return _shadow->Bind_ShadowCB(shader);
 }
 
 HRESULT GameInstance::Update_ShadowLight(const ShadowLightDesc& desc)

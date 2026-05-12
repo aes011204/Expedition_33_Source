@@ -1,4 +1,4 @@
-#include "PipeLine.h"
+﻿#include "PipeLine.h"
 #include "ShaderCom.h"
 
 PipeLine::PipeLine()
@@ -27,6 +27,23 @@ void PipeLine::Update()
 		XMStoreFloat4x4(&_transformStateInverseMatrices[i],
 			XMMatrixInverse(nullptr, XMLoadFloat4x4(&_transformStateMatrices[i])));
 	}
+}
+
+HRESULT PipeLine::Bind_CameraCB(ShaderCom* shader, float farPlane) const
+{
+    CHECK_NULL(shader, E_FAIL);
+
+    CameraCB cameraCB{};
+    cameraCB.viewMatrix = *Get_Transform(D3DTS::View);
+    cameraCB.projMatrix = *Get_Transform(D3DTS::Proj);
+
+    cameraCB.viewInverseMatrix = *Get_Transform_Inverse(D3DTS::View);
+    cameraCB.projInverseMatrix = *Get_Transform_Inverse(D3DTS::Proj);
+
+    cameraCB.cameraPosition = *Get_CamPosition();
+    cameraCB.farPlane = farPlane;
+
+    return shader->Bind_CBufferData(cameraCB);
 }
 
 Unique<PipeLine> PipeLine::Create()

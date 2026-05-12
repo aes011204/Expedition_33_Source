@@ -15,7 +15,7 @@ HRESULT CharacterStatus_Panel::Initialize(uint32 levelIndex)
     CHECK_FAILED(Bind_UI(), E_FAIL);
 
     Close();
-
+    
     return S_OK;
 }
 

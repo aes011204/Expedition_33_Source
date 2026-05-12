@@ -59,28 +59,7 @@ HRESULT Body_Player::Render()
 
 HRESULT Body_Player::Render_Shadow()
 {
-    if (FAILED(_shaderCom->Bind_Matrix("g_WorldMatrix", &_combinedWorldMatrix)))
-        return E_FAIL;
-
-    if (FAILED(GAME->Bind_ShadowMatrices(_shaderCom, "g_ViewMatrix", "g_ProjMatrix")))
-        return E_FAIL;
-
-    if (FAILED(GAME->Bind_ShadowLightDesc(_shaderCom, "g_fLightFar")))
-        return E_FAIL;
-
-    const uint32 iNumMeshes = static_cast<uint32>(_modelCom->Get_NumMeshes());
-
-    for (uint32 i = 0; i < iNumMeshes; i++)
-    {
-        _modelCom->Bind_BoneMatrices(_shaderCom.get(), "g_BoneMatrices", i);
-
-        if (FAILED(_shaderCom->Begin(1)))
-            return E_FAIL;
-
-        _modelCom->Render(i);
-    }
-
-    return S_OK;
+    return PlayableParts::Render_Shadow();
 }
 
 Shared<Body_Player> Body_Player::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

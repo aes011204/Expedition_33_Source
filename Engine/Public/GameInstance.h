@@ -176,6 +176,8 @@ public: /* For.PipeLine */
 
     void Set_Transform(D3DTS transformState, FXMMATRIX& transformStateMatrix);
 
+    HRESULT Bind_CameraCB(Shared<ShaderCom> shader) const;
+
 public: /* For.Input_Manager */
 	bool KeyPress(KEY_TYPE eKey) const;
 	bool KeyDown(KEY_TYPE eKey) const;
@@ -302,10 +304,12 @@ public : /* For.Target_Manager */
 public: /* For.Shadow */
     HRESULT                 Bind_ShadowMatrices(Shared<ShaderCom> shader, const char* viewName, const char* projName);
     HRESULT                 Bind_ShadowLightDesc(Shared<ShaderCom> shader, const char* lightFarName, const char* biasName = nullptr, const char* intensityName = nullptr);
+    HRESULT                 Bind_ShadowCB(Shared<ShaderCom> shader);
 
     HRESULT                 Update_ShadowLight(const ShadowLightDesc& desc);
     const ShadowLightDesc*  Get_ShadowLightDesc() const;
     const Matrix*           Get_ShadowTransformMatrix(D3DTS eType) const;
+
 
 
 public: /* For.Collision_Manager */

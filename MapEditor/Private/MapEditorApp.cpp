@@ -168,7 +168,7 @@ HRESULT MapEditorApp::Render()
     {
         GAME->Bind_RT_ShaderResource(_deferredShader, "g_NormalTexture", L"Target_Normal");
         GAME->Bind_RT_ShaderResource(_deferredShader, "g_DepthTexture", L"Target_Depth");
-        GAME->Bind_CamPosition(_deferredShader.get(), "g_vCamPosition");
+        GAME->Bind_CamPosition(_deferredShader.get(), "g_CamPosition");
 
         Matrix view = *GAME->Get_Transform(D3DTS::View);
         Matrix proj = *GAME->Get_Transform(D3DTS::Proj);
@@ -178,7 +178,7 @@ HRESULT MapEditorApp::Render()
         _deferredShader->Bind_Matrix("g_ProjMatrixInverse", &projInv);
 
         const float farZ = _camera->GetFar();
-        _deferredShader->Bind_RawValue("g_fFar", &farZ, sizeof(float));
+        _deferredShader->Bind_RawValue("g_Far", &farZ, sizeof(float));
 
         Matrix rectWorld = Matrix::CreateScale(2.f, 2.f, 1.f);
         Matrix identity = Matrix::Identity;
