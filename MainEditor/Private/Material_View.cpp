@@ -10,6 +10,7 @@
 #include "ContainerObject.h"
 #include "PartObject.h"
 #include "ModelCom.h"
+#include "Mesh.h"
 #include "Material.h"
 
 #include <algorithm>
@@ -386,6 +387,78 @@ void Material_View::Draw_CreateWithJson()
         _activeMappingGroup = 0;
     }
 
+    // 선택된 ModelCom의 mesh -> materialIndex를 먼저 보여주고, material slot을 골라서 해당 slot만 편집하기 쉽게 한다.
+    ImGui::SeparatorText("Selected ModelCom");
+    const Editor_Context* context = EDITOR->Get_EditorContext();
+    Shared<ModelCom> selectedModel = nullptr;
+    if (context != nullptr)
+    {
+        const Shared<GameObject> selectedObject = context->Get_Selection().selectedObject;
+        if (selectedObject != nullptr)
+            selectedModel = selectedObject->Get_Component<ModelCom>();
+    }
+
+    int selectedMaterialIndexFilter = -1;
+    if (selectedModel == nullptr)
+    {
+        ImGui::TextDisabled("Select a GameObject that has ModelCom.");
+    }
+    else
+    {
+        if (ImGui::CollapsingHeader("Mesh -> Material Slot", &_showSelectedModelMeshMap, ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            const auto& meshes = selectedModel->Get_Meshes();
+            for (uint32 i = 0; i < static_cast<uint32>(meshes.size()); ++i)
+            {
+                const Shared<Mesh>& mesh = meshes[i];
+                if (mesh == nullptr)
+                    continue;
+
+                const uint32 matIndex = mesh->Get_MaterialIndex();
+                const Shared<Material> mat = selectedModel->Get_Material(matIndex);
+                const char* matName = (mat != nullptr) ? mat->Get_MaterialName().c_str() : "<null>";
+
+                ImGui::BulletText("Mesh[%u] %s  ->  Material[%u] : %s",
+                    i,
+                    mesh->Get_Name().c_str(),
+                    matIndex,
+                    matName);
+            }
+        }
+
+        const uint32 numMaterials = static_cast<uint32>(selectedModel->Get_NumMaterials());
+        if (numMaterials == 0)
+        {
+            ImGui::TextDisabled("ModelCom has no materials.");
+        }
+        else
+        {
+            if (_selectedModelMaterialIndex < 0 || _selectedModelMaterialIndex >= static_cast<int>(numMaterials))
+                _selectedModelMaterialIndex = 0;
+
+            selectedMaterialIndexFilter = _selectedModelMaterialIndex;
+
+            const Shared<Material> currentMaterial = selectedModel->Get_Material(static_cast<uint32>(_selectedModelMaterialIndex));
+            const string preview = "[" + to_string(_selectedModelMaterialIndex) + "] " +
+                (currentMaterial ? currentMaterial->Get_MaterialName() : string("<null>"));
+
+            if (ImGui::BeginCombo("Material Slot", preview.c_str()))
+            {
+                for (uint32 i = 0; i < numMaterials; ++i)
+                {
+                    const Shared<Material> mat = selectedModel->Get_Material(i);
+                    const string label = "[" + to_string(i) + "] " + (mat ? mat->Get_MaterialName() : string("<null>"));
+                    const bool isSelected = (static_cast<int>(i) == _selectedModelMaterialIndex);
+                    if (ImGui::Selectable(label.c_str(), isSelected))
+                        _selectedModelMaterialIndex = static_cast<int>(i);
+                    if (isSelected)
+                        ImGui::SetItemDefaultFocus();
+                }
+                ImGui::EndCombo();
+            }
+        }
+    }
+
     // SK_LUNE_UE5.json(Mapping Src) 파일이 참조하는 M, MI_*.json 파일을 읽어 실제 머테리얼로 파싱할 데이터들 보여주는 곳.
     ImGui::SeparatorText("Mappings");
     if (_materialMappings.empty())
@@ -692,6 +765,15 @@ void Material_View::Draw_CreateWithJson()
     for (MaterialMapping* mPtr : activeMappings)
     {
         MaterialMapping& m = *mPtr;
+
+        // 선택된 ModelCom 기반으로 slot을 고른 경우, 해당 materialIndex만 보여준다.
+        if (selectedMaterialIndexFilter >= 0 &&
+            m.source != MaterialSourceKind::FX &&
+            static_cast<int>(m.materialIndex) != selectedMaterialIndexFilter)
+        {
+            continue;
+        }
+
         ImGui::PushID(mPtr);
 
         string header{};

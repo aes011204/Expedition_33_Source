@@ -25,6 +25,7 @@ public:
     size_t Get_NumBones() const { return _bones.size(); }
     size_t Get_NumAnimations() const { return _animations.size(); }
     const Matrix& Get_PreLocalTransformMatrix() const { return _preLocalTransformMatrix; }
+    const vector<Shared<Mesh>>& Get_Meshes() const { return _meshes; };
 
     uint32 Get_MeshMaterialIndex(uint32 meshIndex) const;
     Shared<Material> Get_Material(uint32 materialIndex) const;

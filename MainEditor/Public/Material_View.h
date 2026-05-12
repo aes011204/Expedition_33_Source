@@ -95,6 +95,10 @@ private:
     // 현재 UI에서 보고 있는 mapping 묶음이다. source + sourceFile 기준으로 좁혀서 보여준다
     int _activeMappingGroup = 0;
 
+    // Selected ModelCom UI
+    bool _showSelectedModelMeshMap = true;
+    int  _selectedModelMaterialIndex = 0;
+
 public:
     static Shared<Material_View> Create();
     void Free() override;
