@@ -130,19 +130,21 @@ HRESULT Target_Manager::Begin_MRT(const wstring& mrtTag, bool useDSV)
         renderTargets[renderTargetCount++] = rt->Get_RTV();
     }
 
-    if (!useDSV)
-    {
-        dsv = nullptr;
-    }
-    else
-    {
-        if (!dsv)
-        {
-            // Depth 정확도 보장을 위해 원본(backbuffer) DSV fallback을 막는다. 창이 리사이즈되면 backbuffer DSV 크기가 MRT 크기와 달라질 수 있음.
-            LOG_ERROR("[Target_Manager::Begin_MRT] No DSV in MRT. mrtTag='{}'", Engine::String::ToString(mrtTag));
-            return E_FAIL;
-        }
-    }
+    dsv = dsv ? dsv : _originalDSV.Get();
+
+    //if (!useDSV)
+    //{
+    //    dsv = nullptr;
+    //}
+    //else
+    //{
+    //    if (!dsv)
+    //    {
+    //        // Depth 정확도 보장을 위해 원본(backbuffer) DSV fallback을 막는다. 창이 리사이즈되면 backbuffer DSV 크기가 MRT 크기와 달라질 수 있음.
+    //        LOG_ERROR("[Target_Manager::Begin_MRT] No DSV in MRT. mrtTag='{}'", Engine::String::ToString(mrtTag));
+    //        return E_FAIL;
+    //    }
+    //}
 
     _context->OMSetRenderTargets(renderTargetCount, renderTargets, dsv);
 

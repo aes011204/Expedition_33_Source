@@ -154,7 +154,7 @@ void Renderer::Render_Shadow()
 void Renderer::Render_NonBlend()
 {
     // Diffuse + Normal
-    CHECK_FAILED(GAME->Begin_MRT(L"MRT_GameObjects", true));
+    CHECK_FAILED(GAME->Begin_MRT(L"MRT_GameObjects"));
 
     // TODO 필요 시 정렬
 	for (auto& renderObject : _renderGroups[ETOI(RenderGroup::NonBlend)])
@@ -329,7 +329,7 @@ HRESULT Renderer::Ready_RenderTargets()
         width, height, DXGI_FORMAT_R16G16B16A16_UNORM, Color(0, 0, 0, 0), resizeWithViewport, !useDSV), E_FAIL);
 
     CHECK_FAILED(GAME->Add_RenderTarget(L"Target_Depth",
-        width, height, DXGI_FORMAT_R32G32B32A32_FLOAT, Color(0, 0, 0, 0), resizeWithViewport, useDSV), E_FAIL);
+        width, height, DXGI_FORMAT_R32G32B32A32_FLOAT, Color(0, 0, 0, 0), resizeWithViewport, !useDSV), E_FAIL);
 
     // MRT_LightAcc
     CHECK_FAILED(GAME->Add_RenderTarget(L"Target_Shade",

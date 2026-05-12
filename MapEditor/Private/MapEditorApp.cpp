@@ -133,7 +133,7 @@ HRESULT MapEditorApp::Render()
 
     SyncSceneLights();
 
-    CHECK_FAILED(GAME->Begin_MRT(L"MRT_GameObjects"), E_FAIL);
+    CHECK_FAILED(GAME->Begin_MRT(L"MRT_GameObjects", true), E_FAIL);
     {
         float farZ = _camera->GetFar();
         _meshShader->Bind_RawValue("g_fFar", &farZ, sizeof(float));
