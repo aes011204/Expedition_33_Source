@@ -142,6 +142,9 @@
     <Filter Include="02.GameObject\InstancedMeshActor">
       <UniqueIdentifier>{2e753ff9-c664-4b59-b631-8362dc321ba5}</UniqueIdentifier>
     </Filter>
+    <Filter Include="97.ShaderFiles\Effect">
+      <UniqueIdentifier>{eabf24e1-fc6a-403f-a7d5-20fff06e772b}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -203,9 +206,6 @@
     </ClInclude>
     <ClInclude Include="..\Public\Sky.h">
       <Filter>02.GameObject\Sky</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\PointParticlePreview.h">
-      <Filter>02.GameObject\Effect</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\CombatStatCom.h">
       <Filter>03. Component\CombatStat</Filter>
@@ -327,7 +327,6 @@
       <Filter>02.GameObject\InstancedMeshActor</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Hero_Manager.h" />
-    <ClInclude Include="..\Public\ComputePointParticlePreview.h" />
     <ClInclude Include="..\Public\GameplayUI.h" />
   </ItemGroup>
   <ItemGroup>
@@ -375,9 +374,6 @@
     </ClCompile>
     <ClCompile Include="..\Private\Sky.cpp">
       <Filter>02.GameObject\Sky</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\PointParticlePreview.cpp">
-      <Filter>02.GameObject\Effect</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\ClientInstance.cpp">
       <Filter>00.Core</Filter>
@@ -499,7 +495,6 @@
       <Filter>02.GameObject\InstancedMeshActor</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\Hero_Manager.cpp" />
-    <ClCompile Include="..\Private\ComputePointParticlePreview.cpp" />
     <ClCompile Include="..\Private\GameplayUI.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -510,9 +505,6 @@
       <Filter>97.ShaderFiles</Filter>
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_Deferred.hlsl">
-      <Filter>97.ShaderFiles</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_BillboardParticle.hlsl">
       <Filter>97.ShaderFiles</Filter>
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMesh.hlsl">
@@ -527,13 +519,20 @@
     <FxCompile Include="..\Bin\ShaderFiles\Shader_UI.hlsl">
       <Filter>97.ShaderFiles</Filter>
     </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_PointParticle.hlsl" />
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_InstancingSmoke.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_InstancingSmoke.hlsl">
+      <Filter>97.ShaderFiles\Compute</Filter>
+    </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_PointParticle.hlsl">
       <Filter>97.ShaderFiles\Compute</Filter>
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMeshInstance.hlsl">
       <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_BillboardParticle.hlsl">
+      <Filter>97.ShaderFiles\Effect</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectSprite.hlsl">
+      <Filter>97.ShaderFiles\Effect</Filter>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>

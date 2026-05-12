@@ -18,20 +18,38 @@ public:
 public: //## Accessor::Authoring
     ParticleSystemAuthoringData& Get_ParticleSystemData() { return _particleSystemData; }
     const ParticleSystemAuthoringData& Get_ParticleSystemData() const { return _particleSystemData; }
+    const vector<AuthoringEmitter>& Get_Emitters() const { return _emitters; }
     AuthoringEmitter* Find_Emitter(uint32 emitterId);
     AuthoringModule* Find_Module(uint32 emitterId, uint32 moduleId);
     AuthoringEmitter* Get_SelectedOrFirstEmitter();
     void Clear_PreviewDirty(uint32 emitterId);
+    bool Has_PreviewDirtyEmitter() const;
+
+private:
+    enum class PendingEmitterAction
+    {
+        None,
+        Duplicate,
+        Delete,
+        InsertBefore,
+        InsertAfter
+    };
+
+    enum class PendingModuleAction
+    {
+        None,
+        Delete,
+        ResetData
+    };
 
 private:
     inline static const Color kEmitterAccentColor{ 1.0f, 0.55f, 0.20f, 1.0f };
     inline static const Color kEmitterColumnBackgroundColor{ 0.06f, 0.065f, 0.08f, 1.0f };
-    inline static const Color kEmitterTypeDataReserveColor{ 0.035f, 0.040f, 0.055f, 1.0f };
     inline static const Color kEmitterDividerColor{ 0.015f, 0.018f, 0.025f, 1.0f };
 
     static constexpr float kEmitterColumnWidth{ 270.f };
     static constexpr float kEmitterHeaderHeight{ 90.f };
-    static constexpr float kEmitterTypeDataReserveHeight{ 20.f };
+    static constexpr float kEmitterTypeDataReserveHeight{ 18.f };
     static constexpr float kEmitterDividerWidth{ 1.f };
 
 private: //## Data
@@ -44,21 +62,44 @@ private: //## Data
     optional<size_t> _selectedModuleIndex{};
     // 저장용 id가 아니라 editor 세션 안에서 emitter/module을 구분하기 위한 임시 id 발급값이다.
     uint32 _nextAuthoringId{ 1 };
+    PendingEmitterAction _pendingEmitterAction{ PendingEmitterAction::None };
+    optional<size_t> _pendingEmitterActionIndex{};
+    PendingModuleAction _pendingModuleAction{ PendingModuleAction::None };
+    optional<size_t> _pendingModuleEmitterIndex{};
+    optional<size_t> _pendingModuleIndex{};
 
 private: //## Helpers
     // 새 emitter/module에 부여할 editor-local id를 발급한다.
     uint32 Issue_AuthoringId();
     // Cascade의 기본 더미 emitter 하나를 만든다.
     AuthoringEmitter Make_DefaultSpriteEmitter();
+    AuthoringEmitter Clone_Emitter(const AuthoringEmitter& sourceEmitter);
     AuthoringModule Make_RequiredModule();
     AuthoringModule Make_SpawnModule();
     AuthoringModule Make_LifetimeModule();
     AuthoringModule Make_InitialSizeModule();
     AuthoringModule Make_InitialVelocityModule();
+    AuthoringModule Make_InitialColorModule();
     AuthoringModule Make_ColorOverLifeModule();
+    void Clear_Selection();
+    void Select_Emitter(size_t emitterIndex);
+    void Insert_NewEmitter(size_t insertIndex);
+    void Duplicate_Emitter(size_t emitterIndex);
+    void Delete_Emitter(size_t emitterIndex);
+    void Queue_EmitterAction(PendingEmitterAction action, size_t emitterIndex);
+    void Process_PendingEmitterAction();
+    void Select_Module(size_t emitterIndex, size_t moduleIndex);
+    void Delete_Module(size_t emitterIndex, size_t moduleIndex);
+    void Reset_ModuleData(size_t emitterIndex, size_t moduleIndex);
+    void Queue_ModuleAction(PendingModuleAction action, size_t emitterIndex, size_t moduleIndex);
+    void Process_PendingModuleAction();
     // 현재 선택 index가 emitter 목록 범위를 벗어나지 않도록 보정한다.
     // TODO : 삭제/이동 단계에서 호출 예정
     void Clamp_Selection();
+    // hover tooltip은 설명 dump가 아니라 경고성 사유만 노출하는 채널로 유지한다.
+    string Build_ModuleWarningTooltip(const AuthoringEmitter& emitter, const AuthoringModule& module) const;
+    void Draw_EmitterContextMenu(size_t emitterIndex);
+    void Draw_ModuleContextMenu(size_t emitterIndex, size_t moduleIndex, const AuthoringModule& module);
 
     void Draw_EmitterBoard();
     void Draw_EmitterColumn(size_t emitterIndex, AuthoringEmitter& emitter, float columnHeight);

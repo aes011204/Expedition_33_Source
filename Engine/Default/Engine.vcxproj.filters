@@ -219,6 +219,9 @@
     <ClInclude Include="..\Public\Helper_Math.h">
       <Filter>99. Defines\Helper</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\Helper_LogRateLimit.h">
+      <Filter>99. Defines\Helper</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\Target_Manager.h">
       <Filter>97. Manager</Filter>
     </ClInclude>

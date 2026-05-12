@@ -25,17 +25,17 @@ HRESULT ClientInstance::Initialize_Client(const ComPtr<Device>& device, const Co
         return S_OK;
 
     _device = device;
-	_context = context;
+    _context = context;
 
     // 프로토타입 등록
-	if (FAILED(Ready_ResourceLoader()))
-		return E_FAIL;
+    if (FAILED(Ready_ResourceLoader()))
+        return E_FAIL;
 
     // 게임 플레이 데이터
     if (FAILED(Ready_GameDataTables()))
         return E_FAIL;
 
-	_isInitialized = true;
+    _isInitialized = true;
 
     Client::Force_Register_ClientBTNodes();
 
@@ -45,7 +45,7 @@ HRESULT ClientInstance::Initialize_Client(const ComPtr<Device>& device, const Co
     _heroManager = Hero_Manager::Create();
     CHECK_NULL(_heroManager, E_FAIL);
 
-	return S_OK;
+    return S_OK;
 }
 
 void ClientInstance::Update_Client(float timeDelta)
@@ -61,20 +61,20 @@ HRESULT ClientInstance::Ready_StaticResources()
 {
     CHECK_NULL(_resourceLoader, E_FAIL);
 
-	if (FAILED(_resourceLoader->Load_LevelTables((LevelType::Static))))
-		return E_FAIL;
+    if (FAILED(_resourceLoader->Load_LevelTables(LevelType::Static)))
+        return E_FAIL;
 
-	return S_OK;
+    return S_OK;
 }
 
 HRESULT ClientInstance::Ready_LevelResources(LevelType levelType)
 {
     CHECK_NULL(_resourceLoader, E_FAIL);
 
-	if (FAILED(_resourceLoader->Load_LevelTables(levelType)))
-		return E_FAIL;
+    if (FAILED(_resourceLoader->Load_LevelTables(levelType)))
+        return E_FAIL;
 
-	return S_OK;
+    return S_OK;
 }
 
 Shared<ResourceLoader> ClientInstance::Get_ResourceLoader() const
@@ -164,9 +164,9 @@ HRESULT ClientInstance::Ready_StaticObjects()
 HRESULT ClientInstance::Ready_ResourceLoader()
 {
     _resourceLoader = ResourceLoader::Create(_device, _context);
-	CHECK_NULL(_resourceLoader, E_FAIL);
+    CHECK_NULL(_resourceLoader, E_FAIL);
 
-	return S_OK;
+    return S_OK;
 }
 
 HRESULT ClientInstance::Ready_GameDataTables()
