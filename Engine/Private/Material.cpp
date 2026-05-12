@@ -101,6 +101,7 @@ HRESULT Material::Override_TextureSlot(MaterialTextureSlot slot, uint32 slotInde
 
         textureSlot.slot = slot;
         textureSlot.textureIndex = slotIndex;
+        textureSlot.isOverride = true;
         textureSlot.resolvedPath.clear();
         textureSlot.shaderResourceView.Reset();
 
@@ -132,6 +133,7 @@ HRESULT Material::Override_TextureSlot(MaterialTextureSlot slot, uint32 slotInde
     TextureSlot& textureSlot = _materials[materialSlotIndex][slotIndex];
     textureSlot.slot = slot;
     textureSlot.textureIndex = slotIndex;
+    textureSlot.isOverride = true;
     textureSlot.resolvedPath = resolvedPath.lexically_normal().wstring();
     textureSlot.shaderResourceView.Reset();
     textureSlot.shaderResourceView.Attach(srv);

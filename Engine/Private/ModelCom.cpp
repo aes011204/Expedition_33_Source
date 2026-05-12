@@ -13,6 +13,44 @@
 #include "AnimNotify.h"
 #include "AnimNotifyState.h"
 
+namespace
+{
+    const char* To_MaterialTextureSlotString(MaterialTextureSlot slot)
+    {
+        switch (slot)
+        {
+        case MaterialTextureSlot::BaseColor: return "BaseColor";
+        case MaterialTextureSlot::Normal: return "Normal";
+        case MaterialTextureSlot::Emissive: return "Emissive";
+        case MaterialTextureSlot::OpacityMask: return "OpacityMask";
+        case MaterialTextureSlot::ORM: return "ORM";
+        default: return "END";
+        }
+    }
+
+    MaterialTextureSlot Parse_MaterialTextureSlot(const json& value)
+    {
+        if (value.is_number_unsigned())
+        {
+            const uint32 slotIndex = value.get<uint32>();
+            if (slotIndex < ETOI(MaterialTextureSlot::END))
+                return static_cast<MaterialTextureSlot>(slotIndex);
+        }
+
+        if (!value.is_string())
+            return MaterialTextureSlot::END;
+
+        const string slotName = value.get<string>();
+        if (slotName == "BaseColor") return MaterialTextureSlot::BaseColor;
+        if (slotName == "Normal") return MaterialTextureSlot::Normal;
+        if (slotName == "Emissive") return MaterialTextureSlot::Emissive;
+        if (slotName == "OpacityMask") return MaterialTextureSlot::OpacityMask;
+        if (slotName == "ORM") return MaterialTextureSlot::ORM;
+
+        return MaterialTextureSlot::END;
+    }
+}
+
 ModelCom::ModelCom(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Component{ device, context } {
 }
@@ -195,6 +233,45 @@ json ModelCom::To_Json() const
 
     root["model_type"] = To_ModelTypeString(_type);
 
+    json materialOverrides = json::array();
+    for (uint32 materialIndex = 0; materialIndex < _materials.size(); ++materialIndex)
+    {
+        const Shared<Material>& material = _materials[materialIndex];
+        if (material == nullptr)
+            continue;
+
+        const vector<vector<Material::TextureSlot>>& textureSlots = material->Get_TextureSlots();
+        for (uint32 typeIndex = 0; typeIndex < textureSlots.size(); ++typeIndex)
+        {
+            const vector<Material::TextureSlot>& slots = textureSlots[typeIndex];
+            for (uint32 slotIndex = 0; slotIndex < slots.size(); ++slotIndex)
+            {
+                const Material::TextureSlot& slot = slots[slotIndex];
+                if (!slot.isOverride)
+                    continue;
+
+                json overrideData{};
+                overrideData["material_index"] = materialIndex;
+                overrideData["slot"] = To_MaterialTextureSlotString(slot.slot);
+                overrideData["texture_index"] = slot.textureIndex;
+
+                if (!slot.resolvedPath.empty())
+                {
+                    const string textureGuid = GAME->Ensure_AssetGUID(slot.resolvedPath, "Texture");
+                    if (!textureGuid.empty())
+                        overrideData["texture_guid"] = textureGuid;
+                    else
+                        overrideData["texture_path"] = String::ToString(slot.resolvedPath);
+                }
+
+                materialOverrides.push_back(overrideData);
+            }
+        }
+    }
+
+    if (!materialOverrides.empty())
+        root["material_overrides"] = materialOverrides;
+
     return root;
 }
 
@@ -203,11 +280,17 @@ void ModelCom::From_Json(const json& data)
     __super::From_Json(data);
 
     if (!data.contains("model_guid") || !data["model_guid"].is_string())
+    {
+        Apply_MaterialOverrides(data);
         return;
+    }
 
     const string modelGuid = data["model_guid"].get<string>();
     if (modelGuid.empty())
+    {
+        Apply_MaterialOverrides(data);
         return;
+    }
 
     const string modelTypeString = data.value("model_type", To_ModelTypeString(_type));
     const ModelType modelType = Parse_ModelType(modelTypeString);
@@ -217,10 +300,54 @@ void ModelCom::From_Json(const json& data)
         : GAME->Find_AssetGUID(_sourceModelPath);
 
     if (modelGuid == currentGuid && modelType == _type)
+    {
+        Apply_MaterialOverrides(data);
         return;
+    }
 
     if (FAILED(Reload_ModelFromGuid(modelGuid, modelType)))
         LOG_WARN("ModelCom::From_Json - failed to reload model. guid={}", modelGuid);
+
+    Apply_MaterialOverrides(data);
+}
+
+void ModelCom::Apply_MaterialOverrides(const json& data)
+{
+    if (!data.contains("material_overrides") || !data["material_overrides"].is_array())
+        return;
+
+    for (const json& overrideData : data["material_overrides"])
+    {
+        const uint32 materialIndex = overrideData.value("material_index", UINT32_MAX);
+        if (materialIndex >= _materials.size() || _materials[materialIndex] == nullptr)
+            continue;
+
+        if (!overrideData.contains("slot"))
+            continue;
+
+        const MaterialTextureSlot slot = Parse_MaterialTextureSlot(overrideData["slot"]);
+        if (slot == MaterialTextureSlot::END)
+            continue;
+
+        const uint32 textureIndex = overrideData.value("texture_index", 0u);
+        wstring texturePath{};
+
+        const string textureGuid = overrideData.value("texture_guid", string{});
+        if (!textureGuid.empty())
+            texturePath = GAME->Resolve_AssetPath(textureGuid);
+
+        if (texturePath.empty())
+        {
+            const string rawPath = overrideData.value("texture_path", string{});
+            if (!rawPath.empty())
+                texturePath = String::ToWString(rawPath);
+        }
+
+        if (texturePath.empty() && !overrideData.contains("texture_guid") && !overrideData.contains("texture_path"))
+            continue;
+
+        _materials[materialIndex]->Override_TextureSlot(slot, textureIndex, texturePath);
+    }
 }
 
 HRESULT ModelCom::Reload_ModelFromGuid(const string& guid, ModelType modelType)

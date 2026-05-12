@@ -26,6 +26,8 @@ public:
         uint32  uvChannel{};
         uint32  wrapMode{};
 
+        bool    isOverride{};
+
 		ComPtr<ID3D11ShaderResourceView> shaderResourceView{ nullptr };
 	};
 

@@ -391,7 +391,8 @@ HRESULT Renderer::Bind_DeferredCB() const
     CHECK_NULL(_deferredShader, E_FAIL);
 
     Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
-    CHECK_NULL(activeCamera, E_FAIL);
+    if (activeCamera == nullptr)
+        return E_FAIL;
 
     DeferredCB deferredCB{};
     deferredCB.screenViewMatrix = _deferredViewMatrix;

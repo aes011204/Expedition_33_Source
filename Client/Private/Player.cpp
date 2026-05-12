@@ -163,6 +163,7 @@ HRESULT Player::Ready_PartObjects()
     if (nullptr == head)
         return E_FAIL;
 
+    // 머리붙이기
     head->Set_LeaderPoseComponent(mainBody);
 
     //>> Hair Part
