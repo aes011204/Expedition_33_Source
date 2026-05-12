@@ -139,6 +139,8 @@ Shared<GameObject> Spawn_Prefab::Spawn_Implementation(const FSpawnDesc& desc)
     Shared<GameObject> gameObject = GAME->Instantiate_GameObjectJson(prefabPath);
     CHECK_NULL(gameObject, nullptr);
 
+    gameObject->Set_SourcePrefabName(desc.prefabName);
+
     Apply_Overrides(gameObject, desc.overrides);
 
     CHECK_FAILED(GAME->Add_GameObject(desc.levelIndex, desc.layerTag, gameObject), nullptr);

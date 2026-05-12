@@ -13,7 +13,7 @@ public:
 public:
     HRESULT Initialize(HWND hWnd, const ComPtr<Device>& device, const ComPtr<Context>& context);
     void    Update(float timeDelta);
-    void    Render();
+    void    Render(bool renderPlatformWindows = true);
 
 private:
     void    ShutDown();

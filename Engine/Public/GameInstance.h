@@ -147,7 +147,9 @@ public: /* For.Object_Manager */
         uint32 layerLevelIndex,
         const wstring& layerTag,
         const Shared<GameObject>& gameObject);
+
     bool    Remove_GameObject(uint32 levelIndex, const Shared<GameObject>& gameObject);
+    HRESULT Clear_LevelObjects(uint32 levelIndex);
 
     // Layer_Player의 첫번째 오브젝트 찾기
     Shared<GameObject> Find_FirstObject(uint32 levelIndex, const wstring& layerTag);
@@ -160,6 +162,8 @@ public: /* For.Object_Manager */
         const function<void(const wstring& layerTag, const Shared<GameObject>& gameObject)>& visitor) const;
 
     uint64 Get_CurrentLevelObjectRevision() const;
+
+    
 
 public: /* For.Renderer */
     void Add_RenderGroup(RenderGroup renderGroup, Shared<GameObject> gameObject);
@@ -175,6 +179,8 @@ public: /* For.PipeLine */
     const Vec4*   Get_CamPosition() const;
 
     void Set_Transform(D3DTS transformState, FXMMATRIX& transformStateMatrix);
+
+    HRESULT Bind_CameraCB(Shared<ShaderCom> shader) const;
 
 public: /* For.Input_Manager */
 	bool KeyPress(KEY_TYPE eKey) const;
@@ -302,10 +308,12 @@ public : /* For.Target_Manager */
 public: /* For.Shadow */
     HRESULT                 Bind_ShadowMatrices(Shared<ShaderCom> shader, const char* viewName, const char* projName);
     HRESULT                 Bind_ShadowLightDesc(Shared<ShaderCom> shader, const char* lightFarName, const char* biasName = nullptr, const char* intensityName = nullptr);
+    HRESULT                 Bind_ShadowCB(Shared<ShaderCom> shader);
 
     HRESULT                 Update_ShadowLight(const ShadowLightDesc& desc);
     const ShadowLightDesc*  Get_ShadowLightDesc() const;
     const Matrix*           Get_ShadowTransformMatrix(D3DTS eType) const;
+
 
 
 public: /* For.Collision_Manager */
@@ -368,6 +376,7 @@ public: /* For.Json / Prefab Saved & Load */
     HRESULT                 Save_GameObjectJson(const fs::path& path, const Shared<GameObject>& gameObject);
     json                    Load_JsonFile(const fs::path& path) const;
     HRESULT                 Load_GameObjectJson(const fs::path& path, const Shared<GameObject>& gameObject) const;
+    Shared<GameObject>      Instantiate_GameObjectJson(const json& root);
     Shared<GameObject>      Instantiate_GameObjectJson(const fs::path& path);
     HRESULT                 Create_PrefabAsset(const fs::path& path, const string& staticClass, const string& prefabName);
 

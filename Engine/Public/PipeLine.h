@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "Base.h"
+#include "Material_Define.h"
 
 NS_BEGIN(Engine)
 
@@ -35,8 +36,11 @@ public:
 	HRESULT Bind_CamPosition(class ShaderCom* shader, const char* constantName);
 	HRESULT Bind_TransformMatrix(D3DTS transformState, class ShaderCom* shader, const char* constantName);
 	HRESULT Bind_TransformMatrix_Inverse(D3DTS transformState, class ShaderCom* shader, const char* constantName);
-	void Update();
+	void    Update();
 	
+public:
+    HRESULT Bind_CameraCB(ShaderCom* shader, float farPlane) const;
+
 
 private:
 	XMFLOAT4X4				_transformStateMatrices[ETOI(D3DTS::END)] = { };

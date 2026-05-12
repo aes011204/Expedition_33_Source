@@ -5,6 +5,7 @@
 #include <tchar.h>
 
 #include "Client_Defines.h"
+#include "EditorInstance.h"
 #include "GameInstance.h"
 #include "MainEditorApp.h"
 #include "Profile_View.h"
@@ -249,7 +250,10 @@ static LRESULT CALLBACK MainEditor_WndProc(HWND hWnd, UINT message, WPARAM wPara
             const uint32 height = HIWORD(lParam);
 
             if (width > 0 && height > 0)
+            {
                 GAME->Resize_BackBuffer(width, height);
+                EDITOR->Invalidate_BackBufferCache();
+            }
         }
         return 0;
 

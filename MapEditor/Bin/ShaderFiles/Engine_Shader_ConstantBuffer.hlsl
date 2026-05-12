@@ -1,30 +1,66 @@
 #ifndef ENGINE_SHADER_CONSTANTBUFFER_HLSL
 #define ENGINE_SHADER_CONSTANTBUFFER_HLSL
 
-//cbuffer Camera
-//{
-//    float4x4 g_ViewMatrix;          //   0 ~  63
-//    float4x4 g_ProjMatrix;          //  64 ~ 127
-//    float4x4 g_VPMatrix;            // 128 ~ 191
-//
-//    float g_ViewZ;                  // 192 ~ 195
-//    float3 g_CameraPadding0;        // 196 ~ 207
-//}; // 208 bytes
-//
 //cbuffer CameraInv
 //{
 //    float4x4 g_ViewInvMatrix;       //   0 ~  63
 //    float4x4 g_ProjInvMatrix;       //  64 ~ 127
 //}; // 128 bytes
-//
-//cbuffer Light
-//{
-//    float4 g_LightAmbient;          //   0 ~  15
-//    float4 g_LightDiffuse;          //  16 ~  31
-//    float4 g_LightSpecular;         //  32 ~  47
-//    float4 g_LightPos;              //  48 ~  63
-//    float4 g_LightDir;              //  64 ~  79
-//}; // 80 bytes
+
+cbuffer CameraBuffer
+{
+    row_major float4x4 g_ViewMatrix;
+    row_major float4x4 g_ProjMatrix;
+    row_major float4x4 g_ViewMatrixInverse;
+    row_major float4x4 g_ProjMatrixInverse;
+
+    float4 g_CamPosition;
+    float g_Far;
+    float3 g_CameraPadding0;
+};
+
+cbuffer ObjectBuffer
+{
+    row_major float4x4 g_WorldMatrix;
+};
+
+cbuffer ShadowBuffer
+{
+    row_major float4x4 g_LightViewMatrix; // 64
+    row_major float4x4 g_LightProjMatrix; // 128
+
+    float g_LightFar;           // 132
+    float g_Bias;               // 136
+    float g_ShadowIntensity;    // 140
+    float g_ShadowPadding0;     // 144
+};
+
+cbuffer DeferredBuffer
+{
+    row_major float4x4 g_ScreenViewMatrix;  // 64
+    row_major float4x4 g_ScreenProjMatrix;  // 128
+
+    row_major float4x4 g_DeferredViewMatrixInverse; // 192
+    row_major float4x4 g_DeferredProjMatrixInverse; // 256
+
+    float4  g_DeferredCamPosition;           // 272
+
+    float   g_DeferredFar;                   // 276
+    float3  g_DeferredPadding0;              // 288
+};
+
+cbuffer LightBuffer
+{
+    float4 g_LightDir;
+    float4 g_LightPos;
+
+    float4 g_LightAmbient;
+    float4 g_LightDiffuse;
+    float4 g_LightSpecular;
+
+    float g_LightRange;
+    float3 g_LightPadding0;
+};
 
 cbuffer MaterialBuffer
 {

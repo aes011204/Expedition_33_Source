@@ -1,5 +1,4 @@
-#pragma once
-
+﻿#pragma once
 #include <variant>
 
 NS_BEGIN(EffectEditor)
@@ -11,6 +10,7 @@ enum class AuthoringModuleType : uint8
     Lifetime,
     InitialSize,
     InitialVelocity,
+    InitialColor,
     ColorOverLife,
 };
 
@@ -24,15 +24,21 @@ enum class EffectAuthoringSelectionKind : uint8
 enum class EmitterScreenAlignment : uint8
 {
     Square,
-    CameraFacing,
+    FacingCameraPosition,
+    Rectangle,
     Velocity,
+    AwayFromCenter,
+    TypeSpecific,
+    FacingCameraDistanceBlend,
 };
 
 enum class EmitterSortMode : uint8
 {
     None,
-    ViewDepth,
-    Age,
+    ViewProjDepth,
+    DistanceToView,
+    AgeOldestFirst,
+    AgeNewestFirst,
 };
 
 enum class DistributionValueKind : uint8
@@ -40,14 +46,23 @@ enum class DistributionValueKind : uint8
     Float,
     Vector2,
     Vector3,
+    Color,
 };
 
 enum class DistributionMode : uint8
 {
     Constant,
     Uniform,
-    ConstantCurveReserved,
+    ConstantCurve,
+    UniformCurve,
+    ParticleParameter,
 };
+
+// 현재 authoring payload가 실제로 보유하는 분포 모드만 true로 둔다.
+constexpr bool Is_DistributionModeEditable(DistributionMode mode)
+{
+    return mode == DistributionMode::Constant || mode == DistributionMode::Uniform;
+}
 
 struct ConstantFloatDistributionData
 {
@@ -154,6 +169,41 @@ struct Vector3DistributionData
     }
 };
 
+struct ConstantColorDistributionData
+{
+    Color value{ 1.f, 1.f, 1.f, 1.f };
+};
+
+struct UniformColorDistributionData
+{
+    Color minValue{ 1.f, 1.f, 1.f, 1.f };
+    Color maxValue{ 1.f, 1.f, 1.f, 1.f };
+};
+
+struct ColorDistributionData
+{
+    using Payload = variant<ConstantColorDistributionData, UniformColorDistributionData>;
+
+    DistributionMode mode{ DistributionMode::Constant };
+    Payload payload{ ConstantColorDistributionData{} };
+
+    static ColorDistributionData Make_Constant(const Color& value)
+    {
+        ColorDistributionData data{};
+        data.mode = DistributionMode::Constant;
+        data.payload = ConstantColorDistributionData{ value };
+        return data;
+    }
+
+    static ColorDistributionData Make_Uniform(const Color& minValue, const Color& maxValue)
+    {
+        ColorDistributionData data{};
+        data.mode = DistributionMode::Uniform;
+        data.payload = UniformColorDistributionData{ minValue, maxValue };
+        return data;
+    }
+};
+
 struct ParticleSystemAuthoringData
 {
     bool autoDeactivate{ true };
@@ -162,8 +212,19 @@ struct ParticleSystemAuthoringData
 struct RequiredModuleData
 {
     string rendererType{ "Sprite" };
-    string materialName{ "DefaultSpriteMaterial" };
+    string materialName{ "SpriteSymbolTranslucent" };
     string textureId{ "Texture_Snow" };
+
+    string blendMode{ "AlphaBlend" };
+    string opacitySource{ "Alpha" };
+    Color tint{ 1.f, 1.f, 1.f, 1.f };
+    float intensity{ 1.f };
+    float opacityPower{ 1.f };
+    string noiseTextureId{};
+    float noiseStrength{ 0.f };
+    uint32 subUvRows{ 1 };
+    uint32 subUvCols{ 1 };
+
     Vec3 emitterOrigin{ 0.f, 0.f, 0.f };
     Vec3 emitterRotationDegrees{ 0.f, 0.f, 0.f };
     EmitterScreenAlignment screenAlignment{ EmitterScreenAlignment::Square };
@@ -220,10 +281,14 @@ struct InitialVelocityModuleData
     FloatDistributionData speed{ FloatDistributionData::Make_Uniform(0.5f, 1.5f) };
 };
 
+struct InitialColorModuleData
+{
+    ColorDistributionData color{ ColorDistributionData::Make_Constant(Color{ 1.f, 1.f, 1.f, 1.f }) };
+};
+
 struct ColorOverLifeModuleData
 {
-    Vector3DistributionData colorOverLife{ Vector3DistributionData::Make_Constant(Vec3{ 1.f, 1.f, 1.f }) };
-    FloatDistributionData alphaOverLife{ FloatDistributionData::Make_Constant(1.f) };
+    ColorDistributionData colorOverLife{ ColorDistributionData::Make_Constant(Color{ 1.f, 1.f, 1.f, 1.f }) };
 };
 
 using AuthoringModuleData = std::variant<
@@ -232,6 +297,7 @@ using AuthoringModuleData = std::variant<
     LifetimeModuleData,
     InitialSizeModuleData,
     InitialVelocityModuleData,
+    InitialColorModuleData,
     ColorOverLifeModuleData>;
 
 struct AuthoringModule
@@ -253,7 +319,7 @@ struct AuthoringEmitter
     string name{};
     string rendererType{ "Sprite" };
     string resourceSummary{};
-    string materialName{ "DefaultSpriteMaterial" };
+    string materialName{ "SpriteSymbolTranslucent" };
     string textureId{ "Texture_Snow" };
     bool enabled{ true };
     bool previewDirty{ true };

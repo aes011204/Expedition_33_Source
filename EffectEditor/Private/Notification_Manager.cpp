@@ -1,4 +1,4 @@
-#include "Notification_Manager.h"
+﻿#include "Notification_Manager.h"
 
 NS_BEGIN(EffectEditor)
 
@@ -20,20 +20,20 @@ void Notification_Manager::Update(float timeDelta)
     if (_notifications.empty())
         return;
 
-    for (auto it = _notifications.begin(); it != _notifications.end();)
+    for (auto iter = _notifications.begin(); iter != _notifications.end();)
     {
-        it->timer += timeDelta;
+        iter->timer += timeDelta;
 
-        if (it->timer > it->duration - 0.5f)
+        if (iter->timer > iter->duration - 0.5f)
         {
-            const float remaining = it->duration - it->timer;
-            it->alpha = clamp(remaining / 0.5f, 0.0f, 1.0f);
+            const float remaining = iter->duration - iter->timer;
+            iter->alpha = clamp(remaining / 0.5f, 0.0f, 1.0f);
         }
 
-        if (it->timer >= it->duration)
-            it = _notifications.erase(it);
+        if (iter->timer >= iter->duration)
+            iter = _notifications.erase(iter);
         else
-            ++it;
+            ++iter;
     }
 }
 
@@ -51,13 +51,14 @@ void Notification_Manager::Render()
     windowPos.x = workPos.x + workSize.x - pad;
     windowPos.y = workPos.y + workSize.y - pad;
 
-    const ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration |
-                                   ImGuiWindowFlags_AlwaysAutoResize |
-                                   ImGuiWindowFlags_NoSavedSettings |
-                                   ImGuiWindowFlags_NoFocusOnAppearing |
-                                   ImGuiWindowFlags_NoNav |
-                                   ImGuiWindowFlags_NoMove |
-                                   ImGuiWindowFlags_NoInputs;
+    const ImGuiWindowFlags flags =
+        ImGuiWindowFlags_NoDecoration |
+        ImGuiWindowFlags_AlwaysAutoResize |
+        ImGuiWindowFlags_NoSavedSettings |
+        ImGuiWindowFlags_NoFocusOnAppearing |
+        ImGuiWindowFlags_NoNav |
+        ImGuiWindowFlags_NoMove |
+        ImGuiWindowFlags_NoInputs;
 
     int id = 0;
     for (auto& note : _notifications)

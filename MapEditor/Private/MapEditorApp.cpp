@@ -140,6 +140,10 @@ HRESULT MapEditorApp::Render()
     SyncSceneLights();
 
     GAME->UpdateFrustum(_camera->GetView(), _camera->GetProj());
+    CHECK_FAILED(GAME->Begin_MRT(L"MRT_GameObjects", true), E_FAIL);
+    {
+        float farZ = _camera->GetFar();
+        _meshShader->Bind_RawValue("g_fFar", &farZ, sizeof(float));
 
     vector<uint32> visibleIndices;
     GAME->QueryVisible(visibleIndices);
@@ -168,6 +172,30 @@ HRESULT MapEditorApp::Render()
 
         obj->_instancedRenderHandle->Set_CameraFar(_camera->GetFar());
         obj->_instancedRenderHandle->Late_Update(0.f);
+// =======
+//         GAME->Bind_RT_ShaderResource(_deferredShader, "g_NormalTexture", L"Target_Normal");
+//         GAME->Bind_RT_ShaderResource(_deferredShader, "g_DepthTexture", L"Target_Depth");
+//         GAME->Bind_CamPosition(_deferredShader.get(), "g_CamPosition");
+
+//         Matrix view = *GAME->Get_Transform(D3DTS::View);
+//         Matrix proj = *GAME->Get_Transform(D3DTS::Proj);
+//         Matrix viewInv = view.Invert();
+//         Matrix projInv = proj.Invert();
+//         _deferredShader->Bind_Matrix("g_ViewMatrixInverse", &viewInv);
+//         _deferredShader->Bind_Matrix("g_ProjMatrixInverse", &projInv);
+
+//         const float farZ = _camera->GetFar();
+//         _deferredShader->Bind_RawValue("g_Far", &farZ, sizeof(float));
+
+//         Matrix rectWorld = Matrix::CreateScale(2.f, 2.f, 1.f);
+//         Matrix identity = Matrix::Identity;
+//         _deferredShader->Bind_Matrix("g_WorldMatrix", &rectWorld);
+//         _deferredShader->Bind_Matrix("g_ViewMatrix", &identity);
+//         _deferredShader->Bind_Matrix("g_ProjMatrix", &identity);
+//         _rectBuffer->Bind_Resources();
+
+//         GAME->Render_Lights(_deferredShader, _rectBuffer);
+// >>>>>>> dev
     }
 
 

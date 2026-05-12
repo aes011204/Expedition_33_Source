@@ -1,10 +1,12 @@
 ﻿#include "pch.h"
 #include "ModelEditorCamera.h"
 #include "Input_Manager.h"
+#include "ModelImGui_Manager.h"
+#include "ModelSceneWindow.h"
 
 NS_BEGIN(ModelEditor)
 
-ModelEditorCamera::ModelEditorCamera(const ComPtr<Device>& device, const ComPtr<Context>& context)
+    ModelEditorCamera::ModelEditorCamera(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Camera{ device, context } {}
 
 HRESULT ModelEditorCamera::Initialize_Prototype()
@@ -37,8 +39,7 @@ void ModelEditorCamera::Priority_Update(float timeDelta)
     
     if (!GAME->Is_ActiveCamera(GetSharedPtr<Camera>()))
         return;
-    
-    // 1. Tab Key Presets (5 Stages for 1000+ range)
+
     if (GAME->KeyDown(KEY_TYPE::TAB))
     {
         _presetIndex = (_presetIndex + 1) % 5;
@@ -64,9 +65,14 @@ void ModelEditorCamera::Priority_Update(float timeDelta)
             _presetIndex, eye.x, eye.y, eye.z, at.x, at.y, at.z);
     }
 
+    bool isHovered = false;
+    auto imguiManager = ModelImGui_Manager::GetInstance();
+    if (imguiManager && imguiManager->Get_ModelSceneWindow())
+        isHovered = imguiManager->Get_ModelSceneWindow()->IsHovered();
+
     // 2. Camera Speed Control (Mouse Wheel)
     float wheel = GAME->Get_MouseWheel();
-    if (wheel != 0)
+    if (wheel != 0 && isHovered)
     {
         float zoomAmount = wheel * _speed;
         if (GAME->KeyPress(KEY_TYPE::LBUTTON))

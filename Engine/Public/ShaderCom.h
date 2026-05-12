@@ -27,6 +27,7 @@ public:
     HRESULT Bind_RawValue(const char* constantName, const void* data, uint32 length);
 
     HRESULT Bind_MaterialTextures(const Material& material);
+    HRESULT Bind_ObjectCB(const Matrix& worldMatrix);
 
     ShaderType  Get_Type() const { return _type; }
 private :

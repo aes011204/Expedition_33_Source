@@ -49,6 +49,7 @@ private:
 public:
     Shared<ModelViewerObject>   Get_CurrentModelObject() const { return _modelObject; }
     void                        Set_CurrentModelObject(const Shared<ModelViewerObject>& modelObject) { _modelObject = modelObject; }
+    Shared<ModelSceneWindow>    Get_ModelSceneWindow() const { return _modelSceneWindow; }
 
 private:
     Shared<ModelViewerObject>   _modelObject{ nullptr };

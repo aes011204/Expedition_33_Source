@@ -1,5 +1,5 @@
 ﻿#include "Renderer.h"
-
+#include "Camera.h"
 #include "GameInstance.h"
 #include "GameObject.h"
 #include "ShaderCom.h"
@@ -56,6 +56,7 @@ void Renderer::Draw()
 #endif
 
 //    Render_Shadow();
+    _renderGroups[ETOI(RenderGroup::Shadow)].clear(); // 이거 Render Shadow 키면 없애야함
 #ifdef _DEBUG
     shadowMs = chrono::duration<double, milli>(chrono::steady_clock::now() - shadowBegin).count();
     const auto nonBlendBegin = chrono::steady_clock::now();
@@ -154,7 +155,7 @@ void Renderer::Render_Shadow()
 void Renderer::Render_NonBlend()
 {
     // Diffuse + Normal
-    CHECK_FAILED(GAME->Begin_MRT(L"MRT_GameObjects", true));
+    CHECK_FAILED(GAME->Begin_MRT(L"MRT_GameObjects"));
 
     // TODO 필요 시 정렬
 	for (auto& renderObject : _renderGroups[ETOI(RenderGroup::NonBlend)])
@@ -183,21 +184,11 @@ void Renderer::Render_Lights()
 
     // Transform
     ENDMRT_RETURN_IF_FAILED(
-        _deferredShader->Bind_Matrix("g_WorldMatrix", &_deferredWorldMatrix));
-    ENDMRT_RETURN_IF_FAILED(
-        _deferredShader->Bind_Matrix("g_ViewMatrix", &_deferredViewMatrix));
-    ENDMRT_RETURN_IF_FAILED(
-        _deferredShader->Bind_Matrix("g_ProjMatrix", &_deferredProjMatrix));
+        _deferredShader->Bind_ObjectCB(_deferredWorldMatrix));
 
     // depth -> World 위치 복원
     ENDMRT_RETURN_IF_FAILED(
-        GAME->Bind_TransformMatrix_Inverse(D3DTS::View, _deferredShader.get(), "g_ViewMatrixInverse"));
-    ENDMRT_RETURN_IF_FAILED(
-        GAME->Bind_TransformMatrix_Inverse(D3DTS::Proj, _deferredShader.get(), "g_ProjMatrixInverse"));
-    ENDMRT_RETURN_IF_FAILED(
-        GAME->Bind_CamPosition(_deferredShader.get(), "g_vCamPosition"));
-    ENDMRT_RETURN_IF_FAILED(
-        GAME->Bind_CameraFar(_deferredShader, "g_fFar"));
+        Bind_DeferredCB());
 
     // 명암 연산을 위한 SRV
     ENDMRT_RETURN_IF_FAILED(
@@ -237,27 +228,15 @@ void Renderer::Render_Combined()
         return;
 
     // Transform
-    if (FAILED(_deferredShader->Bind_Matrix("g_WorldMatrix", &_deferredWorldMatrix)))
-        return;
-    if (FAILED(_deferredShader->Bind_Matrix("g_ViewMatrix", &_deferredViewMatrix)))
-        return;
-    if (FAILED(_deferredShader->Bind_Matrix("g_ProjMatrix", &_deferredProjMatrix)))
+    if (FAILED(_deferredShader->Bind_ObjectCB(_deferredWorldMatrix)))
         return;
 
     // depth -> World 위치 복원 용도
-    if (FAILED(GAME->Bind_TransformMatrix_Inverse(D3DTS::View, _deferredShader.get(), "g_ViewMatrixInverse")))
-        return;
-    if (FAILED(GAME->Bind_TransformMatrix_Inverse(D3DTS::Proj, _deferredShader.get(), "g_ProjMatrixInverse")))
-        return;
-    if (FAILED(GAME->Bind_CamPosition(_deferredShader.get(), "g_vCamPosition")))
-        return;
-    if (FAILED(GAME->Bind_CameraFar(_deferredShader, "g_fFar")))
+    if (FAILED(Bind_DeferredCB()))
         return;
 
     // 그림자
-    if (FAILED(GAME->Bind_ShadowMatrices(_deferredShader,  "g_LightViewMatrix", "g_LightProjMatrix")))
-        return;
-    if (FAILED(GAME->Bind_ShadowLightDesc(_deferredShader, "g_fLightFar", "g_fBias", "g_fShadowIntensity")))
+    if (FAILED(GAME->Bind_ShadowCB(_deferredShader)))
         return;
 
     // SRV 바인딩
@@ -329,7 +308,7 @@ HRESULT Renderer::Ready_RenderTargets()
         width, height, DXGI_FORMAT_R16G16B16A16_UNORM, Color(0, 0, 0, 0), resizeWithViewport, !useDSV), E_FAIL);
 
     CHECK_FAILED(GAME->Add_RenderTarget(L"Target_Depth",
-        width, height, DXGI_FORMAT_R32G32B32A32_FLOAT, Color(0, 0, 0, 0), resizeWithViewport, useDSV), E_FAIL);
+        width, height, DXGI_FORMAT_R32G32B32A32_FLOAT, Color(0, 0, 0, 0), resizeWithViewport, !useDSV), E_FAIL);
 
     // MRT_LightAcc
     CHECK_FAILED(GAME->Add_RenderTarget(L"Target_Shade",
@@ -405,6 +384,27 @@ void Renderer::Change_ViewportDesc(uint32 width, uint32 height)
 uint32 Renderer::Get_RenderCall() const
 {
     return iDrawCall;
+}
+
+HRESULT Renderer::Bind_DeferredCB() const
+{
+    CHECK_NULL(_deferredShader, E_FAIL);
+
+    Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
+    if (activeCamera == nullptr)
+        return E_FAIL;
+
+    DeferredCB deferredCB{};
+    deferredCB.screenViewMatrix = _deferredViewMatrix;
+    deferredCB.screenProjMatrix = _deferredProjMatrix;
+
+    deferredCB.viewInverseMatrix = *GAME->Get_Transform_Inverse(D3DTS::View);
+    deferredCB.projInverseMatrix = *GAME->Get_Transform_Inverse(D3DTS::Proj);
+
+    deferredCB.cameraPosition = *GAME->Get_CamPosition();
+    deferredCB.farPlane = activeCamera->Get_Far();
+
+    return _deferredShader->Bind_CBufferData(deferredCB);
 }
 
 void Renderer::Reset_RenderCall()
@@ -550,6 +550,9 @@ void Renderer::Render_Debug()
     //for (auto& debugCom : _debugComponents)
     //    debugCom->Render_Debug();
 
+    if (GAME->Get_ActiveCamera() == nullptr)
+        return;
+
     _debugComponents.clear();
 
     // 디버그 RT 프리뷰는 Deferred 셰이더의 VS_MAIN(= g_ViewMatrix/g_ProjMatrix 사용)로 그린다.
@@ -562,8 +565,7 @@ void Renderer::Render_Debug()
         _deferredViewMatrix = Matrix::Identity;
         _deferredProjMatrix = XMMatrixOrthographicLH(static_cast<float>(width), static_cast<float>(height), 0.f, 1.f);
 
-        _deferredShader->Bind_Matrix("g_ViewMatrix", &_deferredViewMatrix);
-        _deferredShader->Bind_Matrix("g_ProjMatrix", &_deferredProjMatrix);
+        CHECK_FAILED(Bind_DeferredCB());
     }
 
     CHECK_FAILED(GAME->Render_RT_Debug(_viBuffer, _deferredShader));
