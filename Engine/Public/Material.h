@@ -9,7 +9,7 @@ NS_BEGIN(Engine)
 class ENGINE_DLL Material final : public Base
 {
 public:
-	struct TextureSlot
+	struct TextureSlot  
 	{
 		MaterialTextureSlot slot = MaterialTextureSlot::BaseColor;
 		uint32 textureIndex{};

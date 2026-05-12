@@ -135,7 +135,7 @@ HRESULT Player::Ready_PartObjects()
     Body_Player::BODY_PLAYER_DESC playableDesc{};
     playableDesc.parentMatrix = &_transformCom->Get_WorldMatrix();
     playableDesc.modelType = ModelType::Anim;
-    playableDesc.modelTag = L"Model_LuneBody";
+    playableDesc.modelTag = L"Model_LuneTemp";
 
     //> MainBody Setting
     if (FAILED(__super::Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Body_Player"),
