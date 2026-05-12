@@ -147,7 +147,7 @@ HRESULT Level_GamePlay::Ready_Layer_UI(const wstring& strLayerTag)
 
     CHECK_FAILED(UI_RuntimeLoader::Load_Document(desc), E_FAIL);*/
     CHECK_FAILED(CLIENT->Initialize_GameplayUI(ETOI(LevelType::GamePlay)), E_FAIL);
-
+     
     return S_OK;
 }
 
