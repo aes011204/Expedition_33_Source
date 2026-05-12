@@ -331,19 +331,29 @@ void ModelCom::Apply_MaterialOverrides(const json& data)
 
         const uint32 textureIndex = overrideData.value("texture_index", 0u);
         wstring texturePath{};
+        bool hasTexturePath = false;
 
         const string textureGuid = overrideData.value("texture_guid", string{});
         if (!textureGuid.empty())
+        {
             texturePath = GAME->Resolve_AssetPath(textureGuid);
+            if (texturePath.empty())
+                continue;
+
+            hasTexturePath = true;
+        }
 
         if (texturePath.empty())
         {
             const string rawPath = overrideData.value("texture_path", string{});
             if (!rawPath.empty())
+            {
                 texturePath = String::ToWString(rawPath);
+                hasTexturePath = true;
+            }
         }
 
-        if (texturePath.empty() && !overrideData.contains("texture_guid") && !overrideData.contains("texture_path"))
+        if (!hasTexturePath)
             continue;
 
         _materials[materialIndex]->Override_TextureSlot(slot, textureIndex, texturePath);
