@@ -6,55 +6,54 @@
 #include "ModelCom.h"
 
 Body_Player::Body_Player(const ComPtr<Device>& device, const ComPtr<Context>& context)
-	: PlayableParts { device, context }
+    : PlayableParts{ device, context }
 {
 }
 
 Body_Player::Body_Player(const Body_Player& prototype)
-	: PlayableParts { prototype }
+    : PlayableParts{ prototype }
 {
 }
 
 HRESULT Body_Player::Initialize_Prototype()
 {
-	return S_OK;
+    return S_OK;
 }
 
 HRESULT Body_Player::Initialize(void* arg)
 {
-	if (FAILED(PlayableParts::Initialize(arg)))
-	{
+    if (FAILED(PlayableParts::Initialize(arg)))
+    {
         MSG_BOX("[Body_Player] : Failed to Initialize");
         return E_FAIL;
-	}
-		
+    }
+
     _rootBoneIndex = _modelCom->Get_BoneIndex("root");
     _modelCom->Set_LocalRootNode(_rootBoneIndex);
 
-	return S_OK;
+    return S_OK;
 }
 
 void Body_Player::Priority_Update(float fTimeDelta)
 {
-
 }
 
 void Body_Player::Update(float fTimeDelta)
 {
     _modelCom->Play_Animation(fTimeDelta);
 
-	Update_CombinedWorldMatrix(_transformCom->Get_WorldMatrix());
+    Update_CombinedWorldMatrix(_transformCom->Get_WorldMatrix());
 }
 
 void Body_Player::Late_Update(float fTimeDelta)
 {
-	GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
-	GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
+    GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
+    GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
 }
 
 HRESULT Body_Player::Render()
 {
-	return PlayableParts::Render();
+    return PlayableParts::Render();
 }
 
 HRESULT Body_Player::Render_Shadow()
@@ -90,10 +89,5 @@ Shared<GameObject> Body_Player::Clone(void* arg)
 
 void Body_Player::Free()
 {
-	__super::Free();
-
-
+    __super::Free();
 }
-
-
-

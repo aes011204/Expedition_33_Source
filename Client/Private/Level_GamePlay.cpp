@@ -16,39 +16,39 @@
 
 namespace
 {
-    constexpr int32 TEST_HP_STEP = 50;
-    constexpr int32 TEST_EXP_STEP = 25;
+constexpr int32 TEST_HP_STEP = 50;
+constexpr int32 TEST_EXP_STEP = 25;
 
-    wstring Make_TestStatText(int32 value, int32 maxValue)
+wstring Make_TestStatText(int32 value, int32 maxValue)
+{
+    return to_wstring(value) + L"    /    " + to_wstring(maxValue);
+}
+
+Shared<UI_Base> Find_NamedBaseUI(const unordered_map<wstring, Shared<UI_Base>>& uiByName, const wstring& name)
+{
+    const auto iter = uiByName.find(name);
+    if (iter == uiByName.end() || nullptr == iter->second)
     {
-        return to_wstring(value) + L"    /    " + to_wstring(maxValue);
+        LOG_WARN("Test Missing Object: {}", String::ToString(name));
+        return nullptr;
     }
 
-    Shared<UI_Base> Find_NamedBaseUI(const unordered_map<wstring, Shared<UI_Base>>& uiByName, const wstring& name)
-    {
-        const auto iter = uiByName.find(name);
-        if (iter == uiByName.end() || nullptr == iter->second)
-        {
-            LOG_WARN("Test Missing Object: {}", String::ToString(name));
-            return nullptr;
-        }
+    return iter->second;
+}
 
-        return iter->second;
-    }
+template <typename T>
+Shared<T> Find_NamedUI(const unordered_map<wstring, Shared<UI_Base>>& uiByName, const wstring& name)
+{
+    const Shared<UI_Base> ui = Find_NamedBaseUI(uiByName, name);
+    if (nullptr == ui)
+        return nullptr;
 
-    template<typename T>
-    Shared<T> Find_NamedUI(const unordered_map<wstring, Shared<UI_Base>>& uiByName, const wstring& name)
-    {
-        Shared<UI_Base> ui = Find_NamedBaseUI(uiByName, name);
-        if (nullptr == ui)
-            return nullptr;
+    Shared<T> typedUI = dynamic_pointer_cast<T>(ui);
+    if (nullptr == typedUI)
+        LOG_WARN("Test Type Mismatch: {}", String::ToString(name));
 
-        Shared<T> typedUI = dynamic_pointer_cast<T>(ui);
-        if (nullptr == typedUI)
-            LOG_WARN("Test Type Mismatch: {}", String::ToString(name));
-
-        return typedUI;
-    }
+    return typedUI;
+}
 }
 
 Level_GamePlay::Level_GamePlay(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -62,7 +62,7 @@ HRESULT Level_GamePlay::Initialize()
         return E_FAIL;
 
     if (FAILED(Ready_Layer_UI(TEXT("Layer_UI"))))
-		return E_FAIL;
+        return E_FAIL;
 
     if (FAILED(Ready_Layer_BackGround(TEXT("Layer_BackGround"))))
         return E_FAIL;
@@ -84,8 +84,6 @@ HRESULT Level_GamePlay::Initialize()
 void Level_GamePlay::BeginPlay()
 {
     Level::BeginPlay();
-
-    
 }
 
 void Level_GamePlay::Update(float fTimeDelta)
@@ -106,34 +104,33 @@ HRESULT Level_GamePlay::Render()
 #ifdef _DEBUG
     SetWindowText(g_hWnd, TEXT("Level GamePlay"));
 
-
 #endif
     return S_OK;
 }
 
 HRESULT Level_GamePlay::Ready_Lights()
 {
-    LIGHT_DESC			LightDesc{};
+    LIGHT_DESC LightDesc{};
 
-	LightDesc.type          = LightType::Directional;
-	LightDesc.direction     = XMFLOAT4(1.f, -1.f, 1.f, 0.f);
-	LightDesc.diffuse       = XMFLOAT4(1.f, 1.f, 1.f, 1.f);
-	LightDesc.ambient       = XMFLOAT4(0.3f, 0.3f, 0.3f, 1.f);
-	LightDesc.specular      = XMFLOAT4(1.f, 1.f, 1.f, 1.f);
+    LightDesc.type = LightType::Directional;
+    LightDesc.direction = XMFLOAT4(1.f, -1.f, 1.f, 0.f);
+    LightDesc.diffuse = XMFLOAT4(1.f, 1.f, 1.f, 1.f);
+    LightDesc.ambient = XMFLOAT4(0.3f, 0.3f, 0.3f, 1.f);
+    LightDesc.specular = XMFLOAT4(1.f, 1.f, 1.f, 1.f);
 
     if (FAILED(GAME->Add_Light(LightDesc)))
         return E_FAIL;
 
-    ShadowLightDesc     ShadowDesc{};
+    ShadowLightDesc ShadowDesc{};
 
-    ShadowDesc.eye          = Vec3(-0.f, 10.f, -7.f);
-    ShadowDesc.at           = Vec3(0.f, 0.f, 0.f);
-    ShadowDesc.fovy         = DirectX::XMConvertToRadians(120.f);
-    ShadowDesc.aspect       = 16.f / 9.f;
-    ShadowDesc.zn           = 0.1f;
-    ShadowDesc.zf           = 1000.f;
-    ShadowDesc.bias         = 0.03f;
-    ShadowDesc.intensity    = 0.4f;
+    ShadowDesc.eye = Vec3(-0.f, 10.f, -7.f);
+    ShadowDesc.at = Vec3(0.f, 0.f, 0.f);
+    ShadowDesc.fovy = DirectX::XMConvertToRadians(120.f);
+    ShadowDesc.aspect = 16.f / 9.f;
+    ShadowDesc.zn = 0.1f;
+    ShadowDesc.zf = 1000.f;
+    ShadowDesc.bias = 0.03f;
+    ShadowDesc.intensity = 0.4f;
 
     if (FAILED(GAME->Update_ShadowLight(ShadowDesc)))
         return E_FAIL;
@@ -152,6 +149,101 @@ HRESULT Level_GamePlay::Ready_Layer_UI(const wstring& strLayerTag)
     CHECK_FAILED(CLIENT->Initialize_GameplayUI(ETOI(LevelType::GamePlay)), E_FAIL);
 
     return S_OK;
+}
+
+HRESULT Level_GamePlay::Ready_Layer_Camera(const wstring& strLayerTag)
+{
+    TargetCamera::TARGETCAMERA_DESC TargetCameraDesc{};
+    TargetCameraDesc.speedPerSec = 10.f;
+    TargetCameraDesc.degreePerSec = 180.f;
+    TargetCameraDesc.eye = XMFLOAT4(0.f, 20.f, -7.f, 1.f);
+    TargetCameraDesc.at = XMFLOAT4(0.f, 0.f, 0.f, 1.f);
+    TargetCameraDesc.fovy = XMConvertToRadians(60.f);
+    TargetCameraDesc.nearPlane = 0.1f;
+    TargetCameraDesc.farPlane = 500.f;
+    TargetCameraDesc.mouseSensor = 0.06f;
+    TargetCameraDesc.followSpeed = 4.f;
+    TargetCameraDesc.distance = 1.8f;
+    TargetCameraDesc.sideOffset = 0.f;
+    TargetCameraDesc.heightOffset = 0.5f;
+    TargetCameraDesc.aimOffset = 0.5f;
+    TargetCameraDesc.pitchLookScale = 0.5f;
+    TargetCameraDesc.pitchMin = -70.f;
+    TargetCameraDesc.pitchMax = 80.f;
+    TargetCameraDesc.lookHeight = 0.8f;
+    TargetCameraDesc.pivotHeight = 0.3f;
+    TargetCameraDesc.mouseSensitivity = 0.5f;
+    TargetCameraDesc.yawOffset = 0.f;
+    TargetCameraDesc.pitchOffset = 0.f;
+
+    Shared<GameObject> cameraObject = nullptr;
+
+    CHECK_FAILED(
+        GAME->Add_GameObject(
+            ETOI(LevelType::GamePlay),
+            TEXT("GameObject_TargetCamera_GamePlay"),
+            ETOI(LevelType::GamePlay),
+            strLayerTag,
+            cameraObject,
+            &TargetCameraDesc),
+        E_FAIL
+    );
+
+    const auto targetCamera = dynamic_pointer_cast<TargetCamera>(cameraObject);
+    CLIENT->Set_TargetCamera(targetCamera);
+
+    return S_OK;
+}
+
+HRESULT Level_GamePlay::Ready_Layer_BackGround(const wstring& strLayerTag)
+{
+    if (FAILED(
+        GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Terrain"),
+            ETOI(LevelType::GamePlay), strLayerTag)
+    ))
+        return E_FAIL;
+
+    if (FAILED(
+        GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Sky_GamePlay"),
+            ETOI(LevelType::GamePlay), strLayerTag)
+    ))
+        return E_FAIL;
+
+    return S_OK;
+}
+
+HRESULT Level_GamePlay::Ready_Layer_Monster(const wstring& strLayerTag)
+{
+    if (FAILED(
+        GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Monster"),
+            ETOI(LevelType::GamePlay), strLayerTag)
+    ))
+        return E_FAIL;
+
+    const Shared<GameObject> monster = Client::Spawn_Prefab::Spawn(
+        "Monster123123",
+        ETOI(LevelType::GamePlay),
+        strLayerTag
+    );
+
+    CHECK_NULL(monster, E_FAIL);
+    return S_OK;
+}
+
+HRESULT Level_GamePlay::Ready_Layer_Player(const wstring& strLayerTag)
+{
+    /*auto player = Spawn_Prefab::Prefab("TestPlayer")
+        .AtLevel(ETOI(LevelType::GamePlay))
+        .InLayer(strLayerTag)
+        .Spawn();
+
+    auto tr = player->Get_Transform();
+    if (tr)
+        tr->Set_Position(Vec3(10.f, 5.f, 10.f));*/
+
+    const HRESULT hr = CLIENT->Initialize_Hero(ETOI(LevelType::GamePlay), strLayerTag);
+
+    return hr;
 }
 
 HRESULT Level_GamePlay::Bind_TestUI()
@@ -230,108 +322,12 @@ void Level_GamePlay::ReSize_TestGauge(const Shared<UI_Base>& gauge, const Vec2& 
         return;
 
     const float ratio = maxValue > 0
-        ? std::clamp(static_cast<float>(value) / static_cast<float>(maxValue), 0.f, 1.f)
-        : 0.f;
+                        ? std::clamp(static_cast<float>(value) / static_cast<float>(maxValue), 0.f, 1.f)
+                        : 0.f;
 
     Vec2 gaugeSize = originalSize;
     gaugeSize.x = originalSize.x * ratio;
     gauge->Get_Transform()->Set_Size(gaugeSize);
-}
-
-HRESULT Level_GamePlay::Ready_Layer_Camera(const wstring& strLayerTag)
-{
-
-    TargetCamera::TARGETCAMERA_DESC TargetCameraDesc{};
-    TargetCameraDesc.speedPerSec = 10.f;
-    TargetCameraDesc.degreePerSec = 180.f;
-    TargetCameraDesc.eye = XMFLOAT4(0.f, 20.f, -7.f, 1.f);
-    TargetCameraDesc.at = XMFLOAT4(0.f, 0.f, 0.f, 1.f);
-    TargetCameraDesc.fovy = XMConvertToRadians(60.f);
-    TargetCameraDesc.nearPlane = 0.1f;
-    TargetCameraDesc.farPlane = 500.f;
-    TargetCameraDesc.mouseSensor = 0.06f;
-    TargetCameraDesc.followSpeed = 4.f;
-    TargetCameraDesc.distance = 1.8f;
-    TargetCameraDesc.sideOffset = 0.f;
-    TargetCameraDesc.heightOffset = 0.5f;
-    TargetCameraDesc.aimOffset = 0.5f;
-    TargetCameraDesc.pitchLookScale = 0.5f;
-    TargetCameraDesc.pitchMin = -70.f;
-    TargetCameraDesc.pitchMax = 80.f;
-    TargetCameraDesc.lookHeight = 0.8f;
-    TargetCameraDesc.pivotHeight = 0.3f;
-    TargetCameraDesc.mouseSensitivity = 0.5f;
-    TargetCameraDesc.yawOffset = 0.f;
-    TargetCameraDesc.pitchOffset = 0.f;
-
-    Shared<GameObject> cameraObject = nullptr;
-
-    CHECK_FAILED(GAME->Add_GameObject(
-        ETOI(LevelType::GamePlay),
-        TEXT("GameObject_TargetCamera_GamePlay"),
-        ETOI(LevelType::GamePlay),
-        strLayerTag,
-        cameraObject,
-        &TargetCameraDesc), E_FAIL);
-
-    auto targetCamera = dynamic_pointer_cast<TargetCamera>(cameraObject);
-    CLIENT->Set_TargetCamera(targetCamera);
-
-	return S_OK;
-}
-
-HRESULT Level_GamePlay::Ready_Layer_BackGround(const wstring& strLayerTag)
-{
-    if (FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Terrain"),
-        ETOI(LevelType::GamePlay), strLayerTag)))
-        return E_FAIL;
-
-    if (FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Sky_GamePlay"),
-        ETOI(LevelType::GamePlay), strLayerTag)))
-        return E_FAIL;
-
-#pragma region [Effect] Particle test
-    //if (FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_PointParticlePreview"),
-    //    ETOI(LevelType::GamePlay), strLayerTag)))
-    //    return E_FAIL;
-
-    if (FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_ComputePointParticlePreview"),
-        ETOI(LevelType::GamePlay), TEXT("Layer_BackGround"))))
-        return E_FAIL;
-#pragma endregion
-
-	return S_OK;
-}
-
-HRESULT Level_GamePlay::Ready_Layer_Monster(const wstring& strLayerTag)
-{
-    if (FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Monster"),
-        ETOI(LevelType::GamePlay), strLayerTag)))
-        return E_FAIL;
-
-    Shared<GameObject> monster = Client::Spawn_Prefab::Spawn(
-        "Monster123123",
-        ETOI(LevelType::GamePlay),
-        strLayerTag);
-
-    CHECK_NULL(monster, E_FAIL);
-    return S_OK;
-}
-
-HRESULT Level_GamePlay::Ready_Layer_Player(const wstring& strLayerTag)
-{
-    /*auto player = Spawn_Prefab::Prefab("TestPlayer")
-        .AtLevel(ETOI(LevelType::GamePlay))
-        .InLayer(strLayerTag)
-        .Spawn();
-
-    auto tr = player->Get_Transform();
-    if (tr)
-        tr->Set_Position(Vec3(10.f, 5.f, 10.f));*/
-
-    HRESULT hr = CLIENT->Initialize_Hero(ETOI(LevelType::GamePlay), strLayerTag);
-
-    return hr;
 }
 
 //HRESULT Level_GamePlay::Ready_Layer_MapStaticMesh(const wstring& strLayerTag)
@@ -354,7 +350,6 @@ Shared<Level_GamePlay> Level_GamePlay::Create(const ComPtr<Device>& device, cons
     return pInstance;
 }
 
-
 void Level_GamePlay::Free()
 {
     CLIENT->Clear_GameplayUI();
@@ -370,6 +365,4 @@ void Level_GamePlay::Free()
     _uiByName.clear();
 
     __super::Free();
-
 }
-

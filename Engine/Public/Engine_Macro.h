@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "Reflection_Macro.h"
+#include "Helper_LogRateLimit.h"
 /* ------------------------------------------ */
 /*                캐스팅 매크로                */
 /* ------------------------------------------ */
@@ -47,6 +48,47 @@
 #define LOG_CRITICAL(...)       SPDLOG_CRITICAL(__VA_ARGS__)
 
 /* ------------------------------------------ */
+/*                로깅 매크로 EX               */
+/* ------------------------------------------ */
+
+#define ENGINE_LOG_UNIQUE_NAME_IMPL(_prefix, _line) _prefix##_line
+#define ENGINE_LOG_UNIQUE_NAME(_prefix, _line) ENGINE_LOG_UNIQUE_NAME_IMPL(_prefix, _line)
+
+#define ENGINE_LOG_ONCE_IMPL(_logged, _logMacro, ...)                           \
+{                                                                               \
+    static Engine::LogRateLimit::OnceState _logged{};                           \
+    if (Engine::LogRateLimit::Should_LogOnce(_logged)) [[unlikely]] {           \
+        _logMacro(__VA_ARGS__);                                                 \
+    }                                                                           \
+}
+
+#define ENGINE_LOG_THROTTLED_IMPL(_count, _logMacro, _interval, ...)            \
+{                                                                               \
+    static Engine::LogRateLimit::ThrottleState _count{};                        \
+    if (Engine::LogRateLimit::Should_LogThrottled(                              \
+        _count,                                                                 \
+        static_cast<uint32>(_interval))) [[unlikely]] {                         \
+        _logMacro(__VA_ARGS__);                                                 \
+    }                                                                           \
+}
+
+// 같은 호출 위치에서 첫 1회만 TRACE 로그를 남긴다.
+#define LOG_TRACE_ONCE(...)    ENGINE_LOG_ONCE_IMPL(ENGINE_LOG_UNIQUE_NAME(engineLogOnce, __LINE__), LOG_TRACE, __VA_ARGS__)
+// 같은 호출 위치에서 첫 1회만 DEBUG 로그를 남긴다.
+#define LOG_DEBUG_ONCE(...)    ENGINE_LOG_ONCE_IMPL(ENGINE_LOG_UNIQUE_NAME(engineLogOnce, __LINE__), LOG_DEBUG, __VA_ARGS__)
+// 같은 호출 위치에서 첫 1회만 INFO 로그를 남긴다.
+#define LOG_INFO_ONCE(...)     ENGINE_LOG_ONCE_IMPL(ENGINE_LOG_UNIQUE_NAME(engineLogOnce, __LINE__), LOG_INFO, __VA_ARGS__)
+// 같은 호출 위치에서 첫 1회만 WARN 로그를 남긴다.
+#define LOG_WARN_ONCE(...)     ENGINE_LOG_ONCE_IMPL(ENGINE_LOG_UNIQUE_NAME(engineLogOnce, __LINE__), LOG_WARN, __VA_ARGS__)
+// 같은 호출 위치에서 첫 1회만 ERROR 로그를 남긴다.
+#define LOG_ERROR_ONCE(...)    ENGINE_LOG_ONCE_IMPL(ENGINE_LOG_UNIQUE_NAME(engineLogOnce, __LINE__), LOG_ERROR, __VA_ARGS__)
+// 같은 호출 위치에서 첫 1회만 CRITICAL 로그를 남긴다.
+#define LOG_CRITICAL_ONCE(...) ENGINE_LOG_ONCE_IMPL(ENGINE_LOG_UNIQUE_NAME(engineLogOnce, __LINE__), LOG_CRITICAL, __VA_ARGS__)
+
+// 같은 호출 위치에서 첫 1회와 지정 interval 주기마다 로그를 남긴다.
+#define LOG_WARN_THROTTLED(_interval, ...) ENGINE_LOG_THROTTLED_IMPL(ENGINE_LOG_UNIQUE_NAME(engineLogThrottle, __LINE__), LOG_WARN, _interval, __VA_ARGS__)
+
+/* ------------------------------------------ */
 /*           네임스페이스 관련 매크로           */
 /* ------------------------------------------ */
 
@@ -72,6 +114,29 @@
 {                                                                               \
     if ((_ptr) == 0) [[unlikely]] {                                             \
         LOG_ERROR("NULL Pointer Detected!");                                    \
+        return __VA_ARGS__;                                                     \
+    }                                                                           \
+}
+
+// _ptr이 nullptr이면 항상 반환하되, generic error 로그는 첫 1회만 남긴다.
+#define CHECK_NULL_ONCE(_ptr, ...)                                              \
+{                                                                               \
+    if ((_ptr) == 0) [[unlikely]] {                                             \
+        LOG_ERROR_ONCE("NULL Pointer Detected!");                               \
+        return __VA_ARGS__;                                                     \
+    }                                                                           \
+}
+
+// _ptr이 nullptr이면 항상 반환하되, generic error 로그는 제한 주기로 남긴다.
+#define CHECK_NULL_THROTTLED(_ptr, _interval, ...)                              \
+{                                                                               \
+    if ((_ptr) == 0) [[unlikely]] {                                             \
+        ENGINE_LOG_THROTTLED_IMPL(                                              \
+            ENGINE_LOG_UNIQUE_NAME(engineLogThrottle, __LINE__),                \
+            LOG_ERROR,                                                          \
+            _interval,                                                          \
+            "NULL Pointer Detected!"                                            \
+        );                                                                      \
         return __VA_ARGS__;                                                     \
     }                                                                           \
 }
@@ -107,7 +172,7 @@
 }
 
 /* ------------------------------------------ */
-/*            HRESULT 검사 매크로              */
+/*             HRESULT 검사 매크로             */
 /* ------------------------------------------ */
 
 // HRESULT가 실패면 __VA_ARGS__로 지정한 값을 반환 (비어있으면 void 반환)
@@ -119,9 +184,32 @@
     }                                                                           \
 }
 
-// ==================================================
-//              싱글톤 매크로
-// ==================================================
+// HRESULT가 실패면 항상 반환하되, generic error 로그는 첫 1회만 남긴다.
+#define CHECK_FAILED_ONCE(_hr, ...)                                             \
+{                                                                               \
+    if (((HRESULT)(_hr)) < 0) [[unlikely]] {                                    \
+        LOG_ERROR_ONCE("Check Failed!");                                        \
+        return __VA_ARGS__;                                                     \
+    }                                                                           \
+}
+
+// HRESULT가 실패면 항상 반환하되, generic error 로그는 제한 주기로 남긴다.
+#define CHECK_FAILED_THROTTLED(_hr, _interval, ...)                             \
+{                                                                               \
+    if (((HRESULT)(_hr)) < 0) [[unlikely]] {                                    \
+        ENGINE_LOG_THROTTLED_IMPL(                                              \
+            ENGINE_LOG_UNIQUE_NAME(engineLogThrottle, __LINE__),                \
+            LOG_ERROR,                                                          \
+            _interval,                                                          \
+            "Check Failed!"                                                     \
+        );                                                                      \
+        return __VA_ARGS__;                                                     \
+    }                                                                           \
+}
+
+/* ------------------------------------------ */
+/*                싱글톤 매크로                */
+/* ------------------------------------------ */
 
 #define GET_SINGLE(classname) classname::GetInstance()
 

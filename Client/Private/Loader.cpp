@@ -23,16 +23,18 @@ HRESULT Loader::Initialize(LevelType eNextLevelID)
 
     _workerStarted.store(true);
 
-    const bool enqueued = GAME->Enqueue_ThreadJob([this]()
-    {
-        const HRESULT hr = Loading();
-
-        if (FAILED(hr))
+    const bool enqueued = GAME->Enqueue_ThreadJob(
+        [this]
         {
-            _hasFailed.store(true);
-            _workerDone.store(true);
+            const HRESULT hr = Loading();
+
+            if (FAILED(hr))
+            {
+                _hasFailed.store(true);
+                _workerDone.store(true);
+            }
         }
-    });
+    );
 
     if (!enqueued)
     {
@@ -52,7 +54,7 @@ HRESULT Loader::Loading()
     // 로딩 시작 시간
     const auto start = std::chrono::steady_clock::now();
 
-    HRESULT		hr = {};
+    HRESULT hr = {};
 
     //EnterCriticalSection(&_criticalSection);
     CoInitializeEx(nullptr, COINIT_MULTITHREADED);
@@ -129,6 +131,79 @@ HRESULT Loader::Print_LoadingText()
     return S_OK;
 }
 #endif
+
+HRESULT Loader::Append_ResourceJobsForLevel(LevelType levelType)
+{
+    const Shared<ResourceLoader> resourceLoader = ResourceLoader::Create(_device, _context);
+    if (resourceLoader == nullptr)
+    {
+        LOG_ERROR("[Loader::Load_ResourceJobsForLevel] ResourceLoader::Create failed");
+        return E_FAIL;
+    }
+
+    vector<FLoadJob> builtJobs;
+    if (FAILED(resourceLoader->Build_LevelJobs(levelType, builtJobs)))
+    {
+        LOG_ERROR(
+            "[Loader::Load_ResourceJobsForLevel] Build_LevelJobs failed. level={}",
+            static_cast<int>(levelType)
+        );
+        return E_FAIL;
+    }
+
+    {
+        lock_guard<mutex> lock(_pendingJobsMutex);
+        _pendingJobs.insert(_pendingJobs.end(), builtJobs.begin(), builtJobs.end());
+    }
+
+    _totalJobCount.fetch_add(builtJobs.size());
+
+    //LOG_ERROR("[Loader::Load_ResourceJobsForLevel] level={}, totalJobs={}",
+    //    static_cast<int>(levelType),
+    //    static_cast<int>(builtJobs.size()));
+
+    return S_OK;
+}
+
+HRESULT Loader::Load_ResourceJobsForLevel(LevelType levelType)
+{
+    return Load_ResourceJobsForLevels({ levelType });
+}
+
+HRESULT Loader::Load_ResourceJobsForLevels(const vector<LevelType>& levelTypes)
+{
+    _completedJobCount.store(0);
+    _totalJobCount.store(0);
+
+    {
+        lock_guard<mutex> lock(_pendingJobsMutex);
+        _pendingJobs.clear();
+    }
+
+    for (const LevelType levelType : levelTypes)
+    {
+        if (FAILED(Append_ResourceJobsForLevel(levelType)))
+            return E_FAIL;
+    }
+
+    _workerDone.store(true);
+    return S_OK;
+}
+
+HRESULT Loader::Load_ResourceJobsForNextLevel()
+{
+    vector<LevelType> levelTypes;
+
+    if (!CLIENT->Is_StaticResourcesLoaded())
+    {
+        levelTypes.push_back(LevelType::Static);
+        _includedStaticJobs.store(true);
+    }
+
+    levelTypes.push_back(_nextLevel);
+
+    return Load_ResourceJobsForLevels(levelTypes);
+}
 
 HRESULT Loader::Loading_For_LogoLevel()
 {
@@ -210,82 +285,11 @@ void Loader::Print_LoadJobSummary()
         LOG_INFO("[Loader::Print_LoadJobSummary] type={}, count={}, total={}",
             jobTypeName,
             static_cast<int>(stats.count),
-            Format_Duration(stats.totalDuration));
+            Format_Duration(stats.totalDuration)
+        );
     }
 
     LOG_INFO("[Loader::Print_LoadJobSummary] ---- LoadJob Summary End ----");
-}
-
-
-HRESULT Loader::Append_ResourceJobsForLevel(LevelType levelType)
-{
-    Shared<ResourceLoader> resourceLoader = ResourceLoader::Create(_device, _context);
-    if (resourceLoader == nullptr)
-    {
-        LOG_ERROR("[Loader::Load_ResourceJobsForLevel] ResourceLoader::Create failed");
-        return E_FAIL;
-    }
-
-    vector<FLoadJob> builtJobs;
-    if (FAILED(resourceLoader->Build_LevelJobs(levelType, builtJobs)))
-    {
-        LOG_ERROR("[Loader::Load_ResourceJobsForLevel] Build_LevelJobs failed. level={}",
-            static_cast<int>(levelType));
-        return E_FAIL;
-    }
-
-    {
-        lock_guard<mutex> lock(_pendingJobsMutex);
-        _pendingJobs.insert(_pendingJobs.end(), builtJobs.begin(), builtJobs.end());
-    }
-
-    _totalJobCount.fetch_add(builtJobs.size());
-
-    //LOG_ERROR("[Loader::Load_ResourceJobsForLevel] level={}, totalJobs={}",
-    //    static_cast<int>(levelType),
-    //    static_cast<int>(builtJobs.size()));
-
-    return S_OK;
-}
-
-HRESULT Loader::Load_ResourceJobsForLevel(LevelType levelType)
-{
-    return Load_ResourceJobsForLevels({ levelType });
-}
-
-HRESULT Loader::Load_ResourceJobsForLevels(const vector<LevelType>& levelTypes)
-{
-    _completedJobCount.store(0);
-    _totalJobCount.store(0);
-
-    {
-        lock_guard<mutex> lock(_pendingJobsMutex);
-        _pendingJobs.clear();
-    }
-
-    for (LevelType levelType : levelTypes)
-    {
-        if (FAILED(Append_ResourceJobsForLevel(levelType)))
-            return E_FAIL;
-    }
-
-    _workerDone.store(true);
-    return S_OK;
-}
-
-HRESULT Loader::Load_ResourceJobsForNextLevel()
-{
-    vector<LevelType> levelTypes;
-
-    if (!CLIENT->Is_StaticResourcesLoaded())
-    {
-        levelTypes.push_back(LevelType::Static);
-        _includedStaticJobs.store(true);
-    }
-
-    levelTypes.push_back(_nextLevel);
-
-    return Load_ResourceJobsForLevels(levelTypes);
 }
 
 string Loader::Format_Duration(chrono::milliseconds duration)
@@ -295,8 +299,8 @@ string Loader::Format_Duration(chrono::milliseconds duration)
     const auto totalMs = duration.count();
 
     const auto hours = totalMs / (1000 * 60 * 60);
-    const auto minutes = (totalMs / (1000 * 60)) % 60;
-    const auto seconds = (totalMs / 1000) % 60;
+    const auto minutes = totalMs / (1000 * 60) % 60;
+    const auto seconds = totalMs / 1000 % 60;
     const auto millisecondsPart = totalMs % 1000;
 
     std::ostringstream oss;
@@ -562,12 +566,9 @@ Shared<Loader> Loader::Create(const ComPtr<Device>& device, const ComPtr<Context
 void Loader::Free()
 {
     while (_workerStarted.load() && !Is_WorkerDone())
+    {
         this_thread::sleep_for(chrono::milliseconds(1));
+    }
 
     __super::Free();
 }
-
-
-
-
-
