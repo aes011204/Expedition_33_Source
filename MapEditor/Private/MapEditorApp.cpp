@@ -360,14 +360,15 @@ void MapEditorApp::RenderStaticMeshes()
 
 void MapEditorApp::RenderInstancedMeshes()
 {
+    float farZ = _camera->GetFar();
+
     for (auto& obj : _scene._instancedMeshes)
     {
         if (!obj->_instancedRenderHandle)
         {
             continue;
         }
-
-        obj->_instancedRenderHandle->Render();
+        obj->_instancedRenderHandle->Render(farZ);
     }
 }
 
