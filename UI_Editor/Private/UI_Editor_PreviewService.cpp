@@ -105,6 +105,47 @@ namespace UIEditor
             return textureGuid + "|" + maskTextureGuid;
         }
 
+        float Resolve_FontPreviewScaleCorrectionFromPath(const wstring& fontFilePath)
+        {
+            if (fontFilePath.empty())
+                return 1.f;
+
+            const string fileName = String::ToLowerCopy(
+                String::ToString(fs::path(fontFilePath).filename().wstring()));
+
+            if (fileName == "33_mainen_font.spritefont" ||
+                fileName == "33_subnum_font.spritefont")
+            {
+                return 1.f / 3.f;
+            }
+
+            if (fileName == "33_mainnum_font.spritefont")
+                return 1.f / 4.f;
+
+            if (fileName == "33_mainkr_font.spritefont" ||
+                fileName == "33_subkr_font.spritefont")
+            {
+                return 1.f / 2.f;
+            }
+
+            return 1.f;
+        }
+
+        float Resolve_FontPreviewScaleCorrection(const string& fontGuid, const string& fontPath)
+        {
+            if (!fontGuid.empty())
+            {
+                const wstring guidFontPath = GAME->Resolve_AssetPath(fontGuid);
+                if (!guidFontPath.empty())
+                    return Resolve_FontPreviewScaleCorrectionFromPath(guidFontPath);
+            }
+
+            if (!fontPath.empty())
+                return Resolve_FontPreviewScaleCorrectionFromPath(Resolve_ClientRuntimeResourcePath(fontPath));
+
+            return 1.f;
+        }
+
         vector<wstring> Split_FontPreviewLines(const wstring& text)
         {
             vector<wstring> lines;
@@ -484,11 +525,12 @@ namespace UIEditor
             return false;
 
         const float safeScale = max(0.0001f, scale);
+        const float drawScale = safeScale * Resolve_FontPreviewScaleCorrection(fontGuid, fontPath);
         const float boxWidth = max(1.f, boxMax.x - boxMin.x);
         const vector<wstring> lines = textWrap
-            ? Wrap_FontPreviewLines(*font, safeText, boxWidth, safeScale)
+            ? Wrap_FontPreviewLines(*font, safeText, boxWidth, drawScale)
             : Split_FontPreviewLines(safeText);
-        const float lineHeight = Measure_FontPreviewLineHeight(*font, safeScale);
+        const float lineHeight = Measure_FontPreviewLineHeight(*font, drawScale);
         const Vec2 boxCenter(
             boxMin.x + max(0.f, boxMax.x - boxMin.x) * 0.5f,
             boxMin.y + max(0.f, boxMax.y - boxMin.y) * 0.5f);
@@ -499,7 +541,7 @@ namespace UIEditor
         {
             if (!line.empty())
             {
-                const float lineWidth = Measure_FontPreviewWidth(*font, line, safeScale);
+                const float lineWidth = Measure_FontPreviewWidth(*font, line, drawScale);
                 const float textX = Resolve_FontPreviewLineX(boxMin.x, boxMax.x, lineWidth, textAlign);
 
                 FontPreviewCommand command = {};
@@ -509,8 +551,8 @@ namespace UIEditor
                 command.position = boxCenter;
                 command.color = color;
                 command.rotationRadians = rotationRadians;
-                command.pivot = Vec2((boxCenter.x - textX) / safeScale, (boxCenter.y - textY) / safeScale);
-                command.scale = safeScale;
+                command.pivot = Vec2((boxCenter.x - textX) / drawScale, (boxCenter.y - textY) / drawScale);
+                command.scale = drawScale;
                 command.clipRect = clipRect;
                 _fontPreviewCommands.push_back(command);
                 queuedAny = true;
