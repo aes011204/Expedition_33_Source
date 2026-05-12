@@ -20,8 +20,12 @@ public:
 private:
     void Render_ViewportCanvas();
 
+public:
+    bool IsHovered() const { return _isHovered; }
+
 private:
     ImVec2 _viewportSize = {};
+    bool _isHovered = false;
 
 public:
     static Shared<ModelSceneWindow> Create();
