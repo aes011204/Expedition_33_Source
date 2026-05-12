@@ -165,7 +165,7 @@ PS_OUT PS_NoTexture(PS_IN In)
 
     Out.vDiffuse = vector(0.8f, 0.8f, 0.8f, 1.f);
     Out.vNormal = vector(In.vNormal.xyz * 0.5f + 0.5f, 1.f);
-    Out.vDepth = vector(In.vPosition.z, In.vPosition.w / g_fFar, 0.f, 0.f);
+    Out.vDepth = vector(In.vPosition.z, In.vPosition.w / g_Far, 0.f, 0.f);
 
     return Out;
 }

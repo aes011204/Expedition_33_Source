@@ -7,7 +7,7 @@ float4x4 g_PreTransformMatrix;
 
 Texture2D g_Texture;
 
-float g_fFar = 0.f;
+float g_Far = 0.f;
 
 sampler DefaultSampler = sampler_state
 {
@@ -103,7 +103,7 @@ PS_OUT PS_MAIN(PS_IN In)
     float brightness = lerp(0.85f, 1.15f, In.vColor);
     Out.vDiffuse = vector(vDiffuse.rgb * brightness, vDiffuse.a);
     Out.vNormal = vector(In.vNormal.xyz * 0.5f + 0.5f, 1.f);
-    Out.vDepth = vector(In.vProjPos.z / In.vProjPos.w, In.vProjPos.w / g_fFar, 0.f, 1.f);
+    Out.vDepth = vector(In.vProjPos.z / In.vProjPos.w, In.vProjPos.w / g_Far, 0.f, 1.f);
 
     return Out;
 }
@@ -113,7 +113,7 @@ PS_OUT PS_MAIN_NOTEXTURE(PS_IN In)
     PS_OUT Out;
     Out.vDiffuse = vector(0.8f, 0.8f, 0.8f, 1.f);
     Out.vNormal = vector(In.vNormal.xyz * 0.5f + 0.5f, 1.f);
-    Out.vDepth = vector(In.vProjPos.z / In.vProjPos.w, In.vProjPos.w / g_fFar, 0.f, 1.f);
+    Out.vDepth = vector(In.vProjPos.z / In.vProjPos.w, In.vProjPos.w / g_Far, 0.f, 1.f);
     return Out;
 }
 

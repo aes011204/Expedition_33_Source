@@ -78,7 +78,7 @@ HRESULT MEInstancedMeshActor::Bind_ShaderResources()
     if (FAILED(GAME->Bind_TransformMatrix(D3DTS::Proj, _shader.get(), "g_ProjMatrix")))
         return E_FAIL;
 
-    if (FAILED(_shader->Bind_RawValue("g_fFar", &_cameraFar, sizeof(float))))
+    if (FAILED(_shader->Bind_RawValue("g_Far", &_cameraFar, sizeof(float))))
         return E_FAIL;
 
     Matrix preTransform = _model->Get_PreLocalTransformMatrix();
