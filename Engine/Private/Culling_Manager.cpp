@@ -51,7 +51,7 @@ void Culling_Manager::BuildOctree(const vector<BoundingBox>& worldAABBs)
 
     _octreeRoot = make_unique<OctreeNode>();
     _octreeRoot->bounds.Center = (minPt + maxPt) * 0.5f;
-    _octreeRoot->bounds.Extents = (minPt - maxPt) * 0.5f;
+    _octreeRoot->bounds.Extents = (maxPt - minPt) * 0.5f;
 
     for (uint32 i = 0; i < static_cast<uint32>(worldAABBs.size()); ++i)
     {

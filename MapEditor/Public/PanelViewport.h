@@ -18,6 +18,7 @@ public:
 
 public:
     void SetSnapSettings(Shared<SnapSettings> settings) { _snapSettings = settings; }
+    void Set_SceneSRV(ID3D11ShaderResourceView* srv) { _sceneSRV = srv; }
 
 public:
     virtual void Update(float timeDelta) override;
@@ -55,6 +56,8 @@ private:
     Vec3 _gizmoPrevPos = {};
     Quat _gizmoPrevRot = {};
     Vec3 _gizmoPrevScale = {};
+
+    ID3D11ShaderResourceView* _sceneSRV = {};
 
 public:
     bool ConsumePick(ImVec2& outMousePos, ImVec2& outVpPos, ImVec2& outVpSize);

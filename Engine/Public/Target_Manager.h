@@ -44,6 +44,7 @@ public :
 private :
     Shared<RenderTarget>        Find_RenderTarget(const wstring& targetTag);
     list<Shared<RenderTarget>>* Find_MRT(const wstring& mrtTag);
+    bool                        Try_GetViewTexture(ID3D11View* view, D3D11_TEXTURE2D_DESC& outDesc);
 
     ComPtr<Device>                  _device;
     ComPtr<Context>                 _context;
