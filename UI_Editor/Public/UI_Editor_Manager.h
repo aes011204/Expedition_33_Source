@@ -51,12 +51,19 @@ public:
     void Delete_UIObject(ObjectId objectId);
     void Duplicate_SelectedUIObject();
     void Delete_SelectedUIObject();
+    bool Copy_SelectedUIObjects();
+    bool Paste_UIObjects();
+    bool Has_CopiedUIObjects() const;
     bool Rename_Canvas(const string& newName);
     void Request_RenameCanvas();
     bool Rename_UIObject(ObjectId objectId, const string& newName);
     void Request_RenameUIObject(ObjectId objectId);
     bool Reparent_UIObject(ObjectId objectId, ObjectId newParentId);
     bool Can_ReparentUIObject(ObjectId objectId, ObjectId newParentId) const;
+    bool Is_ObjectEffectivelyVisible(ObjectId objectId) const;
+    bool Is_ObjectEffectivelyLocked(ObjectId objectId) const;
+    bool Set_ObjectVisible(ObjectId objectId, bool visible);
+    bool Set_ObjectLocked(ObjectId objectId, bool locked);
     bool Set_UIObjectWorldPosition(ObjectId objectId, const ImVec2& worldPosition);
     bool Set_UIObjectWorldRect(ObjectId objectId, const ImVec2& worldPosition, const ImVec2& worldSize);
     ImVec2 Get_UIObjectWorldPosition(ObjectId objectId) const;
@@ -106,6 +113,8 @@ private:
     ObjectId Resolve_CreateParentId() const;
     vector<ObjectId> Normalize_Selection(const vector<ObjectId>& objectIds) const;
     vector<ObjectId> Collect_RootObjectIds(const vector<ObjectId>& objectIds) const;
+    void Collect_ObjectAndChildren(ObjectId objectId, vector<ObjectId>& outObjectIds) const;
+    ObjectId Resolve_PasteParentId() const;
     void Apply_Selection(const vector<ObjectId>& objectIds, ObjectId primaryObjectId);
     void Prune_InvalidSelection();
     void Push_UndoSnapshot();
@@ -124,6 +133,9 @@ private:
     UI_Editor_PreviewService _previewService = {};
     UI_AnimationPreviewService _animationPreviewService = {};
     UI_Editor_FileService _fileService = {};
+    vector<UI_Object> _clipboardObjects = {};
+    vector<ObjectId> _clipboardRootObjectIds = {};
+    int32 _clipboardPasteCount = 0;
     ObjectId _renameRequestObjectId = 0;
     bool _isRenamingCanvas = false;
     bool _openRenamePopup = false;
