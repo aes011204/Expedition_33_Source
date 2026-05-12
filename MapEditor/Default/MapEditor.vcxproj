@@ -167,6 +167,7 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     <ClInclude Include="..\Public\IEditorCommand.h" />
     <ClInclude Include="..\Public\MapEditorApp.h" />
     <ClInclude Include="..\Public\MapEditorDefines.h" />
+    <ClInclude Include="..\Public\MEBridgeCamera.h" />
     <ClInclude Include="..\Public\MECamera.h" />
     <ClInclude Include="..\Public\MEDebugRenderer.h" />
     <ClInclude Include="..\Public\MEImGuiManager.h" />
@@ -195,6 +196,7 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     <ClCompile Include="..\Private\CmdTransformObject.cpp" />
     <ClCompile Include="..\Private\EditorObject.cpp" />
     <ClCompile Include="..\Private\MapEditorApp.cpp" />
+    <ClCompile Include="..\Private\MEBridgeCamera.cpp" />
     <ClCompile Include="..\Private\MECamera.cpp" />
     <ClCompile Include="..\Private\MEDebugRenderer.cpp" />
     <ClCompile Include="..\Private\MEImGuiManager.cpp" />

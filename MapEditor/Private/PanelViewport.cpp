@@ -43,7 +43,8 @@ void PanelViewport::Render()
                 }
             }
 
-            ImGui::Image(reinterpret_cast<ImTextureID>(_rt->Get_SRV()), size);
+            ImGui::Image(reinterpret_cast<ImTextureID>(_sceneSRV ? _sceneSRV : _rt->Get_SRV()), size);
+
 
             if (_ctx->_cursorVisible)
             {

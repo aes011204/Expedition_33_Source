@@ -1,5 +1,7 @@
 ﻿#include "pch.h"
 #include "MEImGuiManager.h"
+#include "RenderTarget.h"
+#include "GameInstance.h"
 
 MEImGuiManager::~MEImGuiManager()
 {
@@ -11,6 +13,9 @@ MEImGuiManager::~MEImGuiManager()
 
 HRESULT MEImGuiManager::Initialize(HWND hWnd, const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
+    _device = device;
+    _context = context;
+
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImPlot::CreateContext();
@@ -86,6 +91,61 @@ void MEImGuiManager::ApplyStyle()
     colors[ImGuiCol_DockingPreview] = ImVec4(0.15f, 0.45f, 0.85f, 0.40f);
     colors[ImGuiCol_Border] = ImVec4(0.20f, 0.20f, 0.20f, 1.00f);
 }
+
+void MEImGuiManager::Capture_BackBuffer_ToViewport()
+{
+    Shared<Engine::RenderTarget> renderTarget =
+        Prepare_SharedViewportRenderTarget(
+            GAME->Get_BackBufferWidth(),
+            GAME->Get_BackBufferHeight());
+
+    if (!renderTarget || !_context)
+        return;
+
+    ComPtr<IDXGISwapChain> swapChain = GAME->Get_SwapChain();
+    if (!swapChain)
+        return;
+
+    ComPtr<ID3D11Texture2D> backBufferTexture;
+    if (FAILED(swapChain->GetBuffer(0, __uuidof(ID3D11Texture2D),
+        reinterpret_cast<void**>(backBufferTexture.GetAddressOf()))))
+        return;
+
+    ComPtr<ID3D11Texture2D> viewportTexture = renderTarget->Get_Texture();
+    if (!viewportTexture)
+        return;
+
+    _context->CopyResource(viewportTexture.Get(), backBufferTexture.Get());
+}
+
+ID3D11ShaderResourceView* MEImGuiManager::Get_SharedViewportSRV() const
+{
+    if (!_sharedViewportRenderTarget)
+        return nullptr;
+
+    return _sharedViewportRenderTarget->Get_SRV();
+}
+
+Shared<Engine::RenderTarget> MEImGuiManager::Prepare_SharedViewportRenderTarget(uint32 width, uint32 height)
+{
+    if (width == 0) width = 1;
+    if (height == 0) height = 1;
+
+    if (!_sharedViewportRenderTarget)
+    {
+        _sharedViewportRenderTarget = RenderTarget::Create(
+            _device, _context, width, height,
+            DXGI_FORMAT_R8G8B8A8_UNORM, Vec4(0.f, 0.f, 0.f, 1.f));
+    }
+    else if (FAILED(_sharedViewportRenderTarget->Resize(
+        width, height, DXGI_FORMAT_R8G8B8A8_UNORM, Vec4(0.f, 0.f, 0.f, 1.f))))
+    {
+        return nullptr;
+    }
+
+    return _sharedViewportRenderTarget;
+}
+
 
 Unique<MEImGuiManager> MEImGuiManager::Create(HWND hWnd, const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
