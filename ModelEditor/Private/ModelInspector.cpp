@@ -165,11 +165,10 @@ void ModelInspector::Render_AnimList()
             for (uint32 i = 0; i < numBones; ++i)
             {
                 const char* boneName = viewer->Get_BoneName(i);
-                bool isSelected = (_rootNodeIndex == (int32)i);
+                bool isSelected = (_rootNodeIndex == static_cast<int32>(i));
                 if (ImGui::Selectable(boneName, isSelected))
                 {
-                    _rootNodeIndex = 2;// (int32)i;
-                    LOG_INFO("{} {}", _rootNodeIndex, viewer->Get_BoneName(2));
+                    _rootNodeIndex = static_cast<int32>(i);
                     viewer->Set_RootNode(_rootNodeIndex);
                 }
             }
