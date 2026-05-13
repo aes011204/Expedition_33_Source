@@ -53,18 +53,21 @@ void PlayerControllerCom::BeginPlay()
 
 void PlayerControllerCom::Update_Controller(float timeDelta)
 {
+    Update_InputState();
+    Update_Movement(timeDelta);
+}
+
+void PlayerControllerCom::Update_InputState()
+{
     _currentInput = {};
 
 	if (GAME->Is_PlayerInputBlocked())
 	{
-		_movementCom->Apply_Input({});
 		return;
 	}
 
     if (!_controlEnabled)
     {
-        // 위치 이동은 Hero Manager에서 직접 처리
-        _movementCom->Apply_Input({});
         return;
     }
 
@@ -77,6 +80,22 @@ void PlayerControllerCom::Update_Controller(float timeDelta)
     }
 
     _currentInput.isWalkDown = _isWalkToggled;
+}
+
+void PlayerControllerCom::Update_Movement(float timeDelta)
+{
+	if (GAME->Is_PlayerInputBlocked())
+	{
+		_movementCom->Apply_Input({});
+		return;
+	}
+
+    if (!_controlEnabled)
+    {
+        // 위치 이동은 Hero Manager에서 직접 처리
+        _movementCom->Apply_Input({});
+        return;
+    }
 
     Check_RigidInput();
 

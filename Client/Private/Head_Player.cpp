@@ -39,7 +39,15 @@ void Head_Player::Priority_Update(float fTimeDelta)
 
 void Head_Player::Update(float timeDelta)
 {
-    _modelCom->Play_Animation(timeDelta);
+    if (Has_LeaderPoseComponent())
+    {
+        Update_LeaderPoseMatrices();
+    }
+    else
+    {
+        _modelCom->Play_Animation(timeDelta);
+    }
+
 	Update_CombinedWorldMatrix(_transformCom->Get_WorldMatrix());
 }
 
@@ -67,7 +75,7 @@ HRESULT Head_Player::Render()
         if (FAILED(_shaderCom->Bind_CBufferData(material->Get_CB())))
             return E_FAIL;
 
-        _modelCom->Bind_BoneMatrices(_shaderCom.get(), "g_BoneMatrices", i);
+        CHECK_FAILED(_modelCom->Bind_BoneMatrices(_shaderCom.get(), "g_BoneMatrices", i), E_FAIL);
 
         const uint32 passIndex = material->Get_PassIndex();
         if (FAILED(_shaderCom->Begin(passIndex)))

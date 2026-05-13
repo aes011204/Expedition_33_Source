@@ -60,15 +60,21 @@ void Player::BeginPlay()
 void Player::Priority_Update(float timeDelta)
 {
     __super::Priority_Update(timeDelta);
+
+       // 업데이트 순서 조정
+    _playerControllerCom->Update_InputState();
+    _PlayerStateMachineCom->Update_CurrentState(timeDelta);
+    _playerControllerCom->Update_Movement(timeDelta);
+    _PlayerStateMachineCom->LateUpdate_CurrentState(timeDelta);
+
+    _currentState = _PlayerStateMachineCom->Get_CurrentPlayerState();
 }
 
 void Player::Update(float timeDelta)
 {
     __super::Update(timeDelta);
 
-    _playerControllerCom->Update_Controller(timeDelta);
-    _PlayerStateMachineCom->Update_StateMachine(timeDelta);
-    _currentState = _PlayerStateMachineCom->Get_CurrentPlayerState();
+ 
 }
 
 void Player::Late_Update(float timeDelta)
