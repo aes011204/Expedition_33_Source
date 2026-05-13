@@ -1,5 +1,7 @@
 ﻿#pragma once
 
+#pragma region INCLUDE
+
 #include "Base.h"
 #include "Input_Manager.h"
 #include "Prototype_Manager.h"
@@ -8,12 +10,15 @@
 #include <string_view>
 #include <utility>
 
+#include "Log_Define.h"
 #ifdef _DEBUG
 #include "Print_Manager.h"
 #endif
 
-NS_BEGIN(Engine)
+#pragma endregion
 
+#pragma region FD
+NS_BEGIN(Engine)
 class Graphic_Device;
 class Timer_Manager;
 class Level_Manager;
@@ -42,6 +47,10 @@ class Shadow;
 class Picking;
 class Culling_Manager;
 class ThreadPool;
+NS_END
+#pragma endregion
+
+NS_BEGIN(Engine)
 
 enum class Collision_Preset;
 
@@ -248,6 +257,10 @@ public: /* For.Asset_Manager */
 
     // 에디터/로더가 "GUID 없으면 생성" 흐름을 쓸 수 있게 하기 -> 프리펩이나 그런거 새로 만들 때
     string Ensure_AssetGUID(const wstring& filePath, const string& type = "") const;
+
+public: /* For.Asset_Manager (access) */
+    const Asset_Manager* Get_AssetManager() const { return _assetManager.get(); }
+    Asset_Manager*       Get_AssetManager() { return _assetManager.get(); }
 
 public: /* For.Camera_Manager */
     HRESULT Add_Camera(Shared<Camera> camera) const;
@@ -467,6 +480,29 @@ private: //## 디버그 성능 평가용
     chrono::steady_clock::time_point _runtimePerfWindowStartTime{};
     bool _hasRuntimePerfWindowStartTime{ false };
 
+private:
+    UpdatePerfWindow _updatePerfWindow{};
+
+    void Accumulate_UpdatePerf(
+        double updateMs,
+        double debugMgrMs,
+        double inputMgrMs,
+        double printMgrMs,
+        double clientMs,
+        double levelMs,
+        double priorityObjMs,
+        double pipelineMs,
+        double objMs,
+        double physxBeginMs,
+        double collClearMs,
+        double lateObjMs,
+        double physxUpdateMs,
+        double physxGatherMs,
+        double collFromPhysxMs,
+        double cameraMs,
+        double uiMs);
+
+    bool Try_ConsumeUpdatePerfSummary(float windowSec, UpdatePerfSummary& outSummary);
     void Try_FlushRuntimePerfLog();
 #endif
 

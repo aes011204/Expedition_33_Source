@@ -42,6 +42,14 @@ void PlayableParts::Set_Animation(uint32 animIndex, float blendDuration, bool is
     _modelCom->Set_Animation(animIndex, blendDuration, isLoop);
 }
 
+void PlayableParts::Set_Animation(uint32 animIndex, bool isLoop) const
+{
+    if (nullptr == _modelCom) return;
+
+    _modelCom->Set_Animation(animIndex, isLoop);
+}
+
+
 uint32 PlayableParts::Get_AnimationIndex() const
 {
     if (nullptr == _modelCom) return UINT_MAX;

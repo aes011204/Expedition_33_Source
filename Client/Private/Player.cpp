@@ -103,7 +103,7 @@ HRESULT Player::Ready_Components()
     moveDesc.walkSpeed = 9.f;
     moveDesc.runSpeed = 10.f;
     moveDesc.turnSpeedDegree = 360.f;
-    moveDesc.jumpVelocity = 8.f;
+    moveDesc.jumpVelocity = 20.f;
     moveDesc.gravity = -20.f;
     moveDesc.skinWidth = 0.03f;
     moveDesc.groundSnapUp = 0.35f;
@@ -114,10 +114,7 @@ HRESULT Player::Ready_Components()
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_Movement"), _movementCom, &moveDesc), E_FAIL);
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_PlayerController"), _playerControllerCom), E_FAIL);
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_PlayerStateMachine"), _PlayerStateMachineCom), E_FAIL);
-    if (const auto stateMachine = Get_Component<PlayerStateMachineCom>())
-    {
-      
-    }
+    
     CHECK_FAILED(Ready_Collider(), E_FAIL);
 
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_CombatStat"), _combatStatCom), E_FAIL);

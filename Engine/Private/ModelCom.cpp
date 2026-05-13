@@ -1,5 +1,7 @@
 ﻿#include "ModelCom.h"
 #include "GameInstance.h"
+#include "Asset_Manager.h"
+#include "MaterialBuilder.h"
 #include "Mesh.h"
 #include "Bone.h"
 #include "ShaderCom.h"
@@ -8,48 +10,11 @@
 #include "SkeletalMesh.h"
 #include "StaticMesh.h"
 #include <limits>
+#include <algorithm>
 
 #include "AnimNotify_Parser.h"
 #include "AnimNotify.h"
 #include "AnimNotifyState.h"
-
-namespace
-{
-    const char* To_MaterialTextureSlotString(MaterialTextureSlot slot)
-    {
-        switch (slot)
-        {
-        case MaterialTextureSlot::BaseColor: return "BaseColor";
-        case MaterialTextureSlot::Normal: return "Normal";
-        case MaterialTextureSlot::Emissive: return "Emissive";
-        case MaterialTextureSlot::OpacityMask: return "OpacityMask";
-        case MaterialTextureSlot::ORM: return "ORM";
-        default: return "END";
-        }
-    }
-
-    MaterialTextureSlot Parse_MaterialTextureSlot(const json& value)
-    {
-        if (value.is_number_unsigned())
-        {
-            const uint32 slotIndex = value.get<uint32>();
-            if (slotIndex < ETOI(MaterialTextureSlot::END))
-                return static_cast<MaterialTextureSlot>(slotIndex);
-        }
-
-        if (!value.is_string())
-            return MaterialTextureSlot::END;
-
-        const string slotName = value.get<string>();
-        if (slotName == "BaseColor") return MaterialTextureSlot::BaseColor;
-        if (slotName == "Normal") return MaterialTextureSlot::Normal;
-        if (slotName == "Emissive") return MaterialTextureSlot::Emissive;
-        if (slotName == "OpacityMask") return MaterialTextureSlot::OpacityMask;
-        if (slotName == "ORM") return MaterialTextureSlot::ORM;
-
-        return MaterialTextureSlot::END;
-    }
-}
 
 ModelCom::ModelCom(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Component{ device, context } {
@@ -209,6 +174,9 @@ HRESULT ModelCom::Initialize_Prototype(ModelType type, const char* modelFilePath
         return E_FAIL;
     }
 
+    Ensure_MaterialBindings();
+    Apply_BaseMaterialFromBundle_AllSlots();
+
     if (FAILED(Ready_Animation(sourcePathUtf8.c_str())))
     {
         LOG_ERROR("Failed to Load Model Animation Path {}", sourcePathUtf8);
@@ -221,6 +189,145 @@ HRESULT ModelCom::Initialize_Prototype(ModelType type, const char* modelFilePath
 HRESULT ModelCom::Initialize(void* arg)
 {
     return S_OK;
+}
+
+void ModelCom::Ensure_MaterialBindings()
+{
+    const size_t desired = _materials.size();
+    if (_materialBindings.size() == desired)
+        return;
+
+    _materialBindings.resize(desired);
+
+    const string defaultKey = String::ToLowerCopy(String::ToString(fs::path(_sourceModelPath).stem().wstring()));
+    for (size_t i = 0; i < _materialBindings.size(); ++i)
+    {
+        if (_materialBindings[i].baseBundleKey.empty())
+            _materialBindings[i].baseBundleKey = defaultKey;
+    }
+}
+
+void ModelCom::Set_BaseBundleKey(uint32 materialIndex, const string& bundleKey)
+{
+    Ensure_MaterialBindings();
+    if (materialIndex >= _materialBindings.size())
+        return;
+
+    _materialBindings[materialIndex].baseBundleKey = String::ToLowerCopy(bundleKey);
+}
+
+void ModelCom::Set_InstanceOverride(uint32 materialIndex, const MaterialInstanceOverride& overrideData)
+{
+    Ensure_MaterialBindings();
+    if (materialIndex >= _materialBindings.size())
+        return;
+
+    _materialBindings[materialIndex].instance = overrideData;
+}
+
+void ModelCom::Clear_InstanceOverride(uint32 materialIndex)
+{
+    Ensure_MaterialBindings();
+    if (materialIndex >= _materialBindings.size())
+        return;
+
+    _materialBindings[materialIndex].instance = MaterialInstanceOverride{};
+}
+
+static void Apply_TextureOverride(Engine::Material* material, Engine::MaterialTextureSlot slot, const Engine::TextureOverride& ov)
+{
+    if (material == nullptr || !ov.enabled)
+        return;
+    (void)material->Override_TextureSlot(slot, 0, ov.path);
+}
+
+void ModelCom::Apply_BaseMaterialFromBundle_AllSlots()
+{
+    Ensure_MaterialBindings();
+
+    Asset_Manager* assetManager = GAME->Get_AssetManager();
+    if (assetManager == nullptr)
+        return;
+
+    MaterialBuilder* builder = assetManager->Get_MaterialBuilder();
+    if (builder == nullptr)
+        return;
+
+    for (uint32 i = 0; i < static_cast<uint32>(_materials.size()); ++i)
+        Apply_EffectiveMaterial(i);
+}
+
+void ModelCom::Apply_EffectiveMaterial(uint32 materialIndex)
+{
+    Ensure_MaterialBindings();
+    if (materialIndex >= _materials.size() || materialIndex >= _materialBindings.size())
+        return;
+
+    const Shared<Material> material = _materials[materialIndex];
+    if (material == nullptr)
+        return;
+
+    Asset_Manager* assetManager = GAME->Get_AssetManager();
+    if (assetManager == nullptr)
+        return;
+
+    MaterialBuilder* builder = assetManager->Get_MaterialBuilder();
+    if (builder == nullptr)
+        return;
+
+    const MaterialBinding& binding = _materialBindings[materialIndex];
+    if (!binding.baseBundleKey.empty())
+    {
+        const MaterialBuilder::BundleAsset* bundle = builder->GetOrLoadBundle(binding.baseBundleKey);
+        if (bundle != nullptr)
+        {
+            const auto itName = bundle->materialIndexToAssetName.find(materialIndex);
+            if (itName != bundle->materialIndexToAssetName.end())
+            {
+                const auto itInst = bundle->instancesByAssetName.find(itName->second);
+                if (itInst != bundle->instancesByAssetName.end())
+                {
+                    const auto& base = itInst->second;
+
+                    material->Set_RenderState(base.renderState);
+                    material->Set_CB(base.cb);
+
+                    if (base.baseColorOverride) (void)material->Override_TextureSlot(MaterialTextureSlot::BaseColor, 0, base.baseColorPath);
+                    if (base.normalOverride) (void)material->Override_TextureSlot(MaterialTextureSlot::Normal, 0, base.normalPath);
+                    if (base.ormOverride) (void)material->Override_TextureSlot(MaterialTextureSlot::ORM, 0, base.ormPath);
+                    if (base.emissiveOverride) (void)material->Override_TextureSlot(MaterialTextureSlot::Emissive, 0, base.emissivePath);
+
+                    // opacity mask는 "없으면 지우기"가 현행 에디터 Apply 정책이라 동일하게 맞춘다(스테일 슬롯 방지).
+                    if (base.opacityMaskOverride)
+                        (void)material->Override_TextureSlot(MaterialTextureSlot::OpacityMask, 0, base.opacityMaskPath);
+                    else
+                        (void)material->Override_TextureSlot(MaterialTextureSlot::OpacityMask, 0, L"");
+                }
+            }
+        }
+    }
+
+    const MaterialInstanceOverride& inst = binding.instance;
+    if (inst.overrideRenderStateEnabled)
+        material->Set_RenderState(inst.renderState);
+
+    if (inst.cbMask.Any())
+    {
+        MaterialCB effective = material->Get_CB();
+
+#define MODEL_COM_APPLY_CB_FIELD(_key, _member, _kind) \
+        if (inst.cbMask._member) effective._member = inst.cb._member;
+        MATERIAL_CB_OVERRIDE_FIELDS(MODEL_COM_APPLY_CB_FIELD)
+#undef MODEL_COM_APPLY_CB_FIELD
+
+        material->Set_CB(effective);
+    }
+
+    Apply_TextureOverride(material.get(), MaterialTextureSlot::BaseColor, inst.baseColor);
+    Apply_TextureOverride(material.get(), MaterialTextureSlot::Normal, inst.normal);
+    Apply_TextureOverride(material.get(), MaterialTextureSlot::ORM, inst.orm);
+    Apply_TextureOverride(material.get(), MaterialTextureSlot::Emissive, inst.emissive);
+    Apply_TextureOverride(material.get(), MaterialTextureSlot::OpacityMask, inst.opacityMask);
 }
 
 json ModelCom::To_Json() const
@@ -236,44 +343,125 @@ json ModelCom::To_Json() const
 
     root["model_type"] = To_ModelTypeString(_type);
 
-    json materialOverrides = json::array();
-    for (uint32 materialIndex = 0; materialIndex < _materials.size(); ++materialIndex)
+    // NOTE:
+    // 기존 `material_overrides`는 Runtime Material의 isOverride 플래그 기반이라,
+    // 번들(base) 적용 시 "자산 값"까지 override로 저장되는 문제가 생길 수 있다.
+    // 따라서 v2부터는 `material_bindings`(base+instance)만 저장한다.
+    const string defaultKey = String::ToLowerCopy(String::ToString(fs::path(_sourceModelPath).stem().wstring()));
+
+    json materialBindings = json::array();
+    const uint32 numBindings = static_cast<uint32>(std::min(_materials.size(), _materialBindings.size()));
+    for (uint32 materialIndex = 0; materialIndex < numBindings; ++materialIndex)
     {
-        const Shared<Material>& material = _materials[materialIndex];
-        if (material == nullptr)
+        const MaterialBinding& binding = _materialBindings[materialIndex];
+
+        const MaterialInstanceOverride& inst = binding.instance;
+        const bool hasAnyTextureOverride =
+            inst.baseColor.enabled || inst.normal.enabled || inst.orm.enabled || inst.emissive.enabled || inst.opacityMask.enabled;
+        const bool hasInstanceOverride =
+            inst.overrideRenderStateEnabled || inst.cbMask.Any() || hasAnyTextureOverride;
+
+        const string baseKey = String::ToLowerCopy(binding.baseBundleKey);
+        const bool hasBaseKey = !baseKey.empty() && baseKey != defaultKey;
+
+        if (!hasBaseKey && !hasInstanceOverride)
             continue;
 
-        const vector<vector<Material::TextureSlot>>& textureSlots = material->Get_TextureSlots();
-        for (uint32 typeIndex = 0; typeIndex < textureSlots.size(); ++typeIndex)
+        json entry{};
+        entry["material_index"] = materialIndex;
+        if (hasBaseKey)
+            entry["base_bundle_key"] = baseKey;
+
+        if (hasInstanceOverride)
         {
-            const vector<Material::TextureSlot>& slots = textureSlots[typeIndex];
-            for (uint32 slotIndex = 0; slotIndex < slots.size(); ++slotIndex)
+            json instJson{};
+            instJson["override_render_state_enabled"] = inst.overrideRenderStateEnabled;
+
+            if (inst.overrideRenderStateEnabled)
             {
-                const Material::TextureSlot& slot = slots[slotIndex];
-                if (!slot.isOverride)
-                    continue;
+                json rs{};
+                rs["twoSided"] = inst.renderState.twoSided;
+                rs["blendMode"] = static_cast<uint32>(inst.renderState.blendMode);
+                rs["opacityMaskClipValue"] = inst.renderState.opacityMaskClipValue;
+                rs["alphaClip"] = inst.renderState.alphaClip;
+                instJson["render_state"] = rs;
+            }
 
-                json overrideData{};
-                overrideData["material_index"] = materialIndex;
-                overrideData["slot"] = To_MaterialTextureSlotString(slot.slot);
-                overrideData["texture_index"] = slot.textureIndex;
+            if (inst.cbMask.Any())
+            {
+                json jmask = json::object();
 
-                if (!slot.resolvedPath.empty())
+#define MODEL_COM_WRITE_CB_MASK(_key, _member, _kind) \
+                if (inst.cbMask._member) jmask[_key] = true;
+                MATERIAL_CB_OVERRIDE_FIELDS(MODEL_COM_WRITE_CB_MASK)
+#undef MODEL_COM_WRITE_CB_MASK
+
+                instJson["cb_overrides"] = jmask;
+
+                json cb{};
+
+                if (inst.cbMask.baseColorTint)
+                    cb["baseColorTint"] = { inst.cb.baseColorTint.x, inst.cb.baseColorTint.y, inst.cb.baseColorTint.z, inst.cb.baseColorTint.w };
+                if (inst.cbMask.emissiveColor)
+                    cb["emissiveColor"] = { inst.cb.emissiveColor.x, inst.cb.emissiveColor.y, inst.cb.emissiveColor.z, inst.cb.emissiveColor.w };
+
+                if (inst.cbMask.emissiveIntensity) cb["emissiveIntensity"] = inst.cb.emissiveIntensity;
+                if (inst.cbMask.emissiveMaskMul) cb["emissiveMaskMul"] = inst.cb.emissiveMaskMul;
+                if (inst.cbMask.normalStrength) cb["normalStrength"] = inst.cb.normalStrength;
+                if (inst.cbMask.opacityMaskClipValue) cb["opacityMaskClipValue"] = inst.cb.opacityMaskClipValue;
+                if (inst.cbMask.roughnessScale) cb["roughnessScale"] = inst.cb.roughnessScale;
+                if (inst.cbMask.metalnessScale) cb["metalnessScale"] = inst.cb.metalnessScale;
+                if (inst.cbMask.aoScale) cb["aoScale"] = inst.cb.aoScale;
+
+                if (inst.cbMask.uvScale) cb["uvScale"] = { inst.cb.uvScale.x, inst.cb.uvScale.y };
+                if (inst.cbMask.uvOffset) cb["uvOffset"] = { inst.cb.uvOffset.x, inst.cb.uvOffset.y };
+                if (inst.cbMask.uvRotation) cb["uvRotation"] = inst.cb.uvRotation;
+                if (inst.cbMask.materialMask) cb["materialMask"] = inst.cb.materialMask;
+
+                instJson["cb"] = cb;
+            }
+
+            auto writeTextureOverride = [&](const char* name, const TextureOverride& ov) -> void
+            {
+                if (!ov.enabled)
+                    return;
+
+                json tex{};
+                tex["enabled"] = true;
+
+                if (!ov.path.empty())
                 {
-                    const string textureGuid = GAME->Ensure_AssetGUID(slot.resolvedPath, "Texture");
+                    const string textureGuid = GAME->Ensure_AssetGUID(ov.path, "Texture");
                     if (!textureGuid.empty())
-                        overrideData["texture_guid"] = textureGuid;
+                        tex["texture_guid"] = textureGuid;
                     else
-                        overrideData["texture_path"] = String::ToString(slot.resolvedPath);
+                        tex["texture_path"] = String::ToString(ov.path);
+                }
+                else
+                {
+                    // enabled + empty path = clear slot
+                    tex["texture_path"] = string{};
                 }
 
-                materialOverrides.push_back(overrideData);
-            }
+                if (!instJson.contains("textures"))
+                    instJson["textures"] = json::object();
+                instJson["textures"][name] = tex;
+            };
+
+            writeTextureOverride("base_color", inst.baseColor);
+            writeTextureOverride("normal", inst.normal);
+            writeTextureOverride("orm", inst.orm);
+            writeTextureOverride("emissive", inst.emissive);
+            writeTextureOverride("opacity_mask", inst.opacityMask);
+
+            entry["instance_override"] = instJson;
         }
+
+        materialBindings.push_back(entry);
     }
 
-    if (!materialOverrides.empty())
-        root["material_overrides"] = materialOverrides;
+    if (!materialBindings.empty())
+        root["material_bindings"] = materialBindings;
 
     return root;
 }
@@ -284,14 +472,30 @@ void ModelCom::From_Json(const json& data)
 
     if (!data.contains("model_guid") || !data["model_guid"].is_string())
     {
-        Apply_MaterialOverrides(data);
+        Asset_Manager* assetManager = GAME->Get_AssetManager();
+        MaterialBuilder* builder = assetManager ? assetManager->Get_MaterialBuilder() : nullptr;
+        if (builder != nullptr)
+        {
+            builder->Try_ApplyMaterialBindingsFromJson(*this, data);
+            builder->Try_ApplyModelMaterialOverridesFromJson(*this, data);
+        }
+
+        Apply_BaseMaterialFromBundle_AllSlots();
         return;
     }
 
     const string modelGuid = data["model_guid"].get<string>();
     if (modelGuid.empty())
     {
-        Apply_MaterialOverrides(data);
+        Asset_Manager* assetManager = GAME->Get_AssetManager();
+        MaterialBuilder* builder = assetManager ? assetManager->Get_MaterialBuilder() : nullptr;
+        if (builder != nullptr)
+        {
+            builder->Try_ApplyMaterialBindingsFromJson(*this, data);
+            builder->Try_ApplyModelMaterialOverridesFromJson(*this, data);
+        }
+
+        Apply_BaseMaterialFromBundle_AllSlots();
         return;
     }
 
@@ -304,63 +508,30 @@ void ModelCom::From_Json(const json& data)
 
     if (modelGuid == currentGuid && modelType == _type)
     {
-        Apply_MaterialOverrides(data);
+        Asset_Manager* assetManager = GAME->Get_AssetManager();
+        MaterialBuilder* builder = assetManager ? assetManager->Get_MaterialBuilder() : nullptr;
+        if (builder != nullptr)
+        {
+            builder->Try_ApplyMaterialBindingsFromJson(*this, data);
+            builder->Try_ApplyModelMaterialOverridesFromJson(*this, data);
+        }
+
+        Apply_BaseMaterialFromBundle_AllSlots();
         return;
     }
 
     if (FAILED(Reload_ModelFromGuid(modelGuid, modelType)))
         LOG_WARN("ModelCom::From_Json - failed to reload model. guid={}", modelGuid);
 
-    Apply_MaterialOverrides(data);
-}
-
-void ModelCom::Apply_MaterialOverrides(const json& data)
-{
-    if (!data.contains("material_overrides") || !data["material_overrides"].is_array())
-        return;
-
-    for (const json& overrideData : data["material_overrides"])
+    Asset_Manager* assetManager = GAME->Get_AssetManager();
+    MaterialBuilder* builder = assetManager ? assetManager->Get_MaterialBuilder() : nullptr;
+    if (builder != nullptr)
     {
-        const uint32 materialIndex = overrideData.value("material_index", UINT32_MAX);
-        if (materialIndex >= _materials.size() || _materials[materialIndex] == nullptr)
-            continue;
-
-        if (!overrideData.contains("slot"))
-            continue;
-
-        const MaterialTextureSlot slot = Parse_MaterialTextureSlot(overrideData["slot"]);
-        if (slot == MaterialTextureSlot::END)
-            continue;
-
-        const uint32 textureIndex = overrideData.value("texture_index", 0u);
-        wstring texturePath{};
-        bool hasTexturePath = false;
-
-        const string textureGuid = overrideData.value("texture_guid", string{});
-        if (!textureGuid.empty())
-        {
-            texturePath = GAME->Resolve_AssetPath(textureGuid);
-            if (texturePath.empty())
-                continue;
-
-            hasTexturePath = true;
-        }
-
-        if (texturePath.empty())
-        {
-            const string rawPath = overrideData.value("texture_path", string{});
-            if (!rawPath.empty())
-            {
-                texturePath = String::ToWString(rawPath);
-                hasTexturePath = true;
-            }
-        }
-
-        if (!hasTexturePath)
-            continue;
-
-        _materials[materialIndex]->Override_TextureSlot(slot, textureIndex, texturePath);
+        builder->Try_ApplyMaterialBindingsFromJson(*this, data);
+        builder->Try_ApplyModelMaterialOverridesFromJson(*this, data);
     }
+
+    Apply_BaseMaterialFromBundle_AllSlots();
 }
 
 HRESULT ModelCom::Reload_ModelFromGuid(const string& guid, ModelType modelType)
@@ -832,11 +1003,11 @@ void ModelCom::Update_LeaderPoseMatrices()
 
 Matrix ModelCom::Convert_LeaderPoseMatrix(const Matrix& leaderMatrix) const
 {
-    /*Matrix leaderPrevInverse = _leaderPoseModel->Get_PreLocalTransformMatrix();
-    leaderPrevInverse.Invert();
-
-    return leaderMatrix * leaderPrevInverse * _preLocalTransformMatrix;*/
-    return leaderMatrix;
+    Matrix leaderPrevInverse = _leaderPoseModel->Get_PreLocalTransformMatrix();
+    leaderPrevInverse = leaderPrevInverse.Invert();
+    
+    return leaderMatrix * leaderPrevInverse * _preLocalTransformMatrix;
+    //return leaderMatrix;
 }
 
 Matrix ModelCom::Build_LeaderPoseMatrix(uint32 boneIndex, vector<uint8>& visited)

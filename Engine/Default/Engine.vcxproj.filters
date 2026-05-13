@@ -208,6 +208,9 @@
     <Filter Include="01.Utility\04.Component\VIBuffer\Instance\Particle w. ComputeShader">
       <UniqueIdentifier>{238dde8a-837b-49b6-9623-31af69115dcd}</UniqueIdentifier>
     </Filter>
+    <Filter Include="01.Utility\04.Component\Model\NewFilter1">
+      <UniqueIdentifier>{674e308c-e066-439e-9767-3b9408f411b5}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -290,7 +293,13 @@
     <ClInclude Include="..\public\UI_Button.h" />
     <ClInclude Include="..\public\UI_Panel.h" />
     <ClInclude Include="..\Public\Shader_CBuffer_Define.h" />
+<<<<<<< HEAD
     <ClInclude Include="..\Public\PhysX_Handle.h" />
+=======
+    <ClInclude Include="..\Public\Log_Define.h">
+      <Filter>97. Manager\Log</Filter>
+    </ClInclude>
+>>>>>>> dev
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\public\Base.h">
@@ -402,6 +411,9 @@
       <Filter>01.Utility\04.Component\Model\Mesh</Filter>
     </ClInclude>
     <ClInclude Include="..\public\Material.h">
+      <Filter>01.Utility\04.Component\Model\Material</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\MaterialBuilder.h">
       <Filter>01.Utility\04.Component\Model\Material</Filter>
     </ClInclude>
     <ClInclude Include="..\public\Bone.h">
@@ -647,6 +659,9 @@
       <Filter>01.Utility\04.Component\Model\Mesh</Filter>
     </ClCompile>
     <ClCompile Include="..\private\Material.cpp">
+      <Filter>01.Utility\04.Component\Model\Material</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\MaterialBuilder.cpp">
       <Filter>01.Utility\04.Component\Model\Material</Filter>
     </ClCompile>
     <ClCompile Include="..\private\Bone.cpp">
