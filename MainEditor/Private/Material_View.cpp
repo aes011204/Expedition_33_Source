@@ -10,6 +10,8 @@
 #include "ContainerObject.h"
 #include "PartObject.h"
 #include "ModelCom.h"
+#include "Asset_Manager.h"
+#include "MaterialBuilder.h"
 #include "Mesh.h"
 #include "Material.h"
 
@@ -398,7 +400,7 @@ void Material_View::Draw_CreateWithJson()
     // 선택된 모델 기준으로 materialIndex를 골라서, 아래 편집 UI를 그 슬롯만 보이게 필터링한다.
     Shared<Engine::ModelCom> selectedModel = nullptr;
     const int selectedMaterialIndexFilter = Draw_SelectedModelSection(selectedModel);
-    Draw_MappingsEditorUI(selectedMaterialIndexFilter);
+    Draw_MappingsEditorUI(selectedMaterialIndexFilter, selectedModel);
 }
 
 void Material_View::Draw_EditWithBundle()
@@ -448,7 +450,7 @@ void Material_View::Draw_EditWithBundle()
 
     Shared<Engine::ModelCom> selectedModel = nullptr;
     const int selectedMaterialIndexFilter = Draw_SelectedModelSection(selectedModel);
-    Draw_MappingsEditorUI(selectedMaterialIndexFilter);
+    Draw_MappingsEditorUI(selectedMaterialIndexFilter, selectedModel);
 }
 
 void Material_View::Draw_EditWithModelCom()
@@ -480,7 +482,7 @@ void Material_View::Draw_EditWithModelCom()
 
     Shared<Engine::ModelCom> selectedModel = nullptr;
     const int selectedMaterialIndexFilter = Draw_SelectedModelSection(selectedModel);
-    Draw_MappingsEditorUI(selectedMaterialIndexFilter);
+    Draw_MappingsEditorUI(selectedMaterialIndexFilter, selectedModel);
 }
 
 int Material_View::Draw_SelectedModelSection(Shared<Engine::ModelCom>& outSelectedModel)
@@ -558,7 +560,7 @@ int Material_View::Draw_SelectedModelSection(Shared<Engine::ModelCom>& outSelect
     return selectedMaterialIndexFilter;
 }
 
-void Material_View::Draw_MappingsEditorUI(int selectedMaterialIndexFilter)
+void Material_View::Draw_MappingsEditorUI(int selectedMaterialIndexFilter, const Shared<Engine::ModelCom>& selectedModel)
 {
     // SK_LUNE_UE5.json(Mapping Src) 파일이 참조하는 M, MI_*.json 파일을 읽어 실제 머테리얼로 파싱할 데이터들 보여주는 곳.
     ImGui::SeparatorText("Mappings");
@@ -995,29 +997,228 @@ void Material_View::Draw_MappingsEditorUI(int selectedMaterialIndexFilter)
         drawBlendModePicker(inst->renderState);
         ImGui::DragFloat("Clip", &inst->renderState.opacityMaskClipValue, 0.001f, 0.f, 1.f);
 
-        float baseTint[4] = { inst->cb.baseColorTint.x, inst->cb.baseColorTint.y, inst->cb.baseColorTint.z, inst->cb.baseColorTint.w };
-        if (ImGui::InputFloat4("BaseTint", baseTint))
-            inst->cb.baseColorTint = Engine::Vec4(baseTint[0], baseTint[1], baseTint[2], baseTint[3]);
+        Engine::MaterialCB baseCb{};
+        bool hasBaseCb = false;
+        if (_mode == CreateMode::EditWithModelCom && selectedModel != nullptr)
+        {
+            const Engine::Asset_Manager* am = GAME->Get_AssetManager();
+            const Engine::MaterialBuilder* builder = am ? am->Get_MaterialBuilder() : nullptr;
+            if (builder != nullptr)
+            {
+                const auto& bindings = selectedModel->Get_MaterialBindings();
+                if (m.materialIndex < bindings.size())
+                {
+                    const string& bundleKey = bindings[m.materialIndex].baseBundleKey;
+                    hasBaseCb = builder->Try_GetBaseCBForMaterial(bundleKey, m.materialIndex, baseCb);
+                }
+            }
+        }
 
-        float emiColor[4] = { inst->cb.emissiveColor.x, inst->cb.emissiveColor.y, inst->cb.emissiveColor.z, inst->cb.emissiveColor.w };
-        if (ImGui::InputFloat4("EmissiveColor", emiColor))
-            inst->cb.emissiveColor = Engine::Vec4(emiColor[0], emiColor[1], emiColor[2], emiColor[3]);
+        if (_mode == CreateMode::EditWithModelCom)
+        {
+            if (ImGui::Button("Clear Instance Overrides (slot)"))
+            {
+                inst->cbMask.Clear();
+                inst->baseColorOverride = false;
+                inst->normalOverride = false;
+                inst->ormOverride = false;
+                inst->emissiveOverride = false;
+                inst->opacityMaskOverride = false;
+            }
+        }
 
-        ImGui::DragFloat("EmissiveIntensity", &inst->cb.emissiveIntensity, 0.01f, 0.f, 100.f);
-        ImGui::DragFloat("EmissiveMaskMul", &inst->cb.emissiveMaskMul, 0.01f, 0.f, 100.f);
-        ImGui::DragFloat("NormalStrength", &inst->cb.normalStrength, 0.01f, 0.f, 10.f);
-        ImGui::DragFloat("OpacityClipCB", &inst->cb.opacityMaskClipValue, 0.001f, 0.f, 1.f);
-        ImGui::DragFloat("RoughnessScale", &inst->cb.roughnessScale, 0.01f, 0.f, 10.f);
-        ImGui::DragFloat("MetalnessScale", &inst->cb.metalnessScale, 0.01f, 0.f, 10.f);
-        ImGui::DragFloat("AoScale", &inst->cb.aoScale, 0.01f, 0.f, 10.f);
+        auto drawOverrideCheckbox = [&](const char* label, bool& enabled, const char* basePreview) -> bool
+        {
+            bool before = enabled;
+            ImGui::Checkbox(label, &enabled);
+            if (basePreview != nullptr)
+            {
+                ImGui::SameLine();
+                ImGui::TextDisabled("%s", basePreview);
+            }
+            return (before != enabled);
+        };
 
-        float uvScale[2] = { inst->cb.uvScale.x, inst->cb.uvScale.y };
-        if (ImGui::InputFloat2("UV Scale", uvScale))
-            inst->cb.uvScale = Engine::Vec2(uvScale[0], uvScale[1]);
+        {
+            const char* basePreview = nullptr;
+            string preview{};
+            if (hasBaseCb)
+            {
+                preview = "Base: " +
+                    to_string(baseCb.baseColorTint.x) + ", " +
+                    to_string(baseCb.baseColorTint.y) + ", " +
+                    to_string(baseCb.baseColorTint.z) + ", " +
+                    to_string(baseCb.baseColorTint.w);
+                basePreview = preview.c_str();
+            }
+            const bool toggled = drawOverrideCheckbox("Override BaseTint", inst->cbMask.baseColorTint, basePreview);
+            if (toggled && inst->cbMask.baseColorTint && hasBaseCb)
+                inst->cb.baseColorTint = baseCb.baseColorTint;
 
-        float uvOffset[2] = { inst->cb.uvOffset.x, inst->cb.uvOffset.y };
-        if (ImGui::InputFloat2("UV Offset", uvOffset))
-            inst->cb.uvOffset = Engine::Vec2(uvOffset[0], uvOffset[1]);
+            ImGui::BeginDisabled(!inst->cbMask.baseColorTint);
+            float baseTint[4] = { inst->cb.baseColorTint.x, inst->cb.baseColorTint.y, inst->cb.baseColorTint.z, inst->cb.baseColorTint.w };
+            if (ImGui::InputFloat4("BaseTint", baseTint))
+                inst->cb.baseColorTint = Engine::Vec4(baseTint[0], baseTint[1], baseTint[2], baseTint[3]);
+            ImGui::EndDisabled();
+        }
+
+        {
+            const char* basePreview = nullptr;
+            string preview{};
+            if (hasBaseCb)
+            {
+                preview = "Base: " +
+                    to_string(baseCb.emissiveColor.x) + ", " +
+                    to_string(baseCb.emissiveColor.y) + ", " +
+                    to_string(baseCb.emissiveColor.z) + ", " +
+                    to_string(baseCb.emissiveColor.w);
+                basePreview = preview.c_str();
+            }
+            const bool toggled = drawOverrideCheckbox("Override EmissiveColor", inst->cbMask.emissiveColor, basePreview);
+            if (toggled && inst->cbMask.emissiveColor && hasBaseCb)
+                inst->cb.emissiveColor = baseCb.emissiveColor;
+
+            ImGui::BeginDisabled(!inst->cbMask.emissiveColor);
+            float emiColor[4] = { inst->cb.emissiveColor.x, inst->cb.emissiveColor.y, inst->cb.emissiveColor.z, inst->cb.emissiveColor.w };
+            if (ImGui::InputFloat4("EmissiveColor", emiColor))
+                inst->cb.emissiveColor = Engine::Vec4(emiColor[0], emiColor[1], emiColor[2], emiColor[3]);
+            ImGui::EndDisabled();
+        }
+
+        {
+            string preview{};
+            const char* basePreview = nullptr;
+            if (hasBaseCb) { preview = "Base: " + to_string(baseCb.emissiveIntensity); basePreview = preview.c_str(); }
+            const bool toggled = drawOverrideCheckbox("Override EmissiveIntensity", inst->cbMask.emissiveIntensity, basePreview);
+            if (toggled && inst->cbMask.emissiveIntensity && hasBaseCb) inst->cb.emissiveIntensity = baseCb.emissiveIntensity;
+            ImGui::BeginDisabled(!inst->cbMask.emissiveIntensity);
+            ImGui::DragFloat("EmissiveIntensity", &inst->cb.emissiveIntensity, 0.01f, 0.f, 100.f);
+            ImGui::EndDisabled();
+        }
+
+        {
+            string preview{};
+            const char* basePreview = nullptr;
+            if (hasBaseCb) { preview = "Base: " + to_string(baseCb.emissiveMaskMul); basePreview = preview.c_str(); }
+            const bool toggled = drawOverrideCheckbox("Override EmissiveMaskMul", inst->cbMask.emissiveMaskMul, basePreview);
+            if (toggled && inst->cbMask.emissiveMaskMul && hasBaseCb) inst->cb.emissiveMaskMul = baseCb.emissiveMaskMul;
+            ImGui::BeginDisabled(!inst->cbMask.emissiveMaskMul);
+            ImGui::DragFloat("EmissiveMaskMul", &inst->cb.emissiveMaskMul, 0.01f, 0.f, 100.f);
+            ImGui::EndDisabled();
+        }
+
+        {
+            string preview{};
+            const char* basePreview = nullptr;
+            if (hasBaseCb) { preview = "Base: " + to_string(baseCb.normalStrength); basePreview = preview.c_str(); }
+            const bool toggled = drawOverrideCheckbox("Override NormalStrength", inst->cbMask.normalStrength, basePreview);
+            if (toggled && inst->cbMask.normalStrength && hasBaseCb) inst->cb.normalStrength = baseCb.normalStrength;
+            ImGui::BeginDisabled(!inst->cbMask.normalStrength);
+            ImGui::DragFloat("NormalStrength", &inst->cb.normalStrength, 0.01f, 0.f, 10.f);
+            ImGui::EndDisabled();
+        }
+
+        {
+            string preview{};
+            const char* basePreview = nullptr;
+            if (hasBaseCb) { preview = "Base: " + to_string(baseCb.opacityMaskClipValue); basePreview = preview.c_str(); }
+            const bool toggled = drawOverrideCheckbox("Override OpacityClipCB", inst->cbMask.opacityMaskClipValue, basePreview);
+            if (toggled && inst->cbMask.opacityMaskClipValue && hasBaseCb) inst->cb.opacityMaskClipValue = baseCb.opacityMaskClipValue;
+            ImGui::BeginDisabled(!inst->cbMask.opacityMaskClipValue);
+            ImGui::DragFloat("OpacityClipCB", &inst->cb.opacityMaskClipValue, 0.001f, 0.f, 1.f);
+            ImGui::EndDisabled();
+        }
+
+        {
+            string preview{};
+            const char* basePreview = nullptr;
+            if (hasBaseCb) { preview = "Base: " + to_string(baseCb.roughnessScale); basePreview = preview.c_str(); }
+            const bool toggled = drawOverrideCheckbox("Override RoughnessScale", inst->cbMask.roughnessScale, basePreview);
+            if (toggled && inst->cbMask.roughnessScale && hasBaseCb) inst->cb.roughnessScale = baseCb.roughnessScale;
+            ImGui::BeginDisabled(!inst->cbMask.roughnessScale);
+            ImGui::DragFloat("RoughnessScale", &inst->cb.roughnessScale, 0.01f, 0.f, 10.f);
+            ImGui::EndDisabled();
+        }
+
+        {
+            string preview{};
+            const char* basePreview = nullptr;
+            if (hasBaseCb) { preview = "Base: " + to_string(baseCb.metalnessScale); basePreview = preview.c_str(); }
+            const bool toggled = drawOverrideCheckbox("Override MetalnessScale", inst->cbMask.metalnessScale, basePreview);
+            if (toggled && inst->cbMask.metalnessScale && hasBaseCb) inst->cb.metalnessScale = baseCb.metalnessScale;
+            ImGui::BeginDisabled(!inst->cbMask.metalnessScale);
+            ImGui::DragFloat("MetalnessScale", &inst->cb.metalnessScale, 0.01f, 0.f, 10.f);
+            ImGui::EndDisabled();
+        }
+
+        {
+            string preview{};
+            const char* basePreview = nullptr;
+            if (hasBaseCb) { preview = "Base: " + to_string(baseCb.aoScale); basePreview = preview.c_str(); }
+            const bool toggled = drawOverrideCheckbox("Override AoScale", inst->cbMask.aoScale, basePreview);
+            if (toggled && inst->cbMask.aoScale && hasBaseCb) inst->cb.aoScale = baseCb.aoScale;
+            ImGui::BeginDisabled(!inst->cbMask.aoScale);
+            ImGui::DragFloat("AoScale", &inst->cb.aoScale, 0.01f, 0.f, 10.f);
+            ImGui::EndDisabled();
+        }
+
+        {
+            string preview{};
+            const char* basePreview = nullptr;
+            if (hasBaseCb)
+            {
+                preview = "Base: " + to_string(baseCb.uvScale.x) + ", " + to_string(baseCb.uvScale.y);
+                basePreview = preview.c_str();
+            }
+            const bool toggled = drawOverrideCheckbox("Override UV Scale", inst->cbMask.uvScale, basePreview);
+            if (toggled && inst->cbMask.uvScale && hasBaseCb) inst->cb.uvScale = baseCb.uvScale;
+            ImGui::BeginDisabled(!inst->cbMask.uvScale);
+            float uvScale[2] = { inst->cb.uvScale.x, inst->cb.uvScale.y };
+            if (ImGui::InputFloat2("UV Scale", uvScale))
+                inst->cb.uvScale = Engine::Vec2(uvScale[0], uvScale[1]);
+            ImGui::EndDisabled();
+        }
+
+        {
+            string preview{};
+            const char* basePreview = nullptr;
+            if (hasBaseCb)
+            {
+                preview = "Base: " + to_string(baseCb.uvOffset.x) + ", " + to_string(baseCb.uvOffset.y);
+                basePreview = preview.c_str();
+            }
+            const bool toggled = drawOverrideCheckbox("Override UV Offset", inst->cbMask.uvOffset, basePreview);
+            if (toggled && inst->cbMask.uvOffset && hasBaseCb) inst->cb.uvOffset = baseCb.uvOffset;
+            ImGui::BeginDisabled(!inst->cbMask.uvOffset);
+            float uvOffset[2] = { inst->cb.uvOffset.x, inst->cb.uvOffset.y };
+            if (ImGui::InputFloat2("UV Offset", uvOffset))
+                inst->cb.uvOffset = Engine::Vec2(uvOffset[0], uvOffset[1]);
+            ImGui::EndDisabled();
+        }
+
+        {
+            string preview{};
+            const char* basePreview = nullptr;
+            if (hasBaseCb) { preview = "Base: " + to_string(baseCb.uvRotation); basePreview = preview.c_str(); }
+            const bool toggled = drawOverrideCheckbox("Override UV Rotation", inst->cbMask.uvRotation, basePreview);
+            if (toggled && inst->cbMask.uvRotation && hasBaseCb) inst->cb.uvRotation = baseCb.uvRotation;
+            ImGui::BeginDisabled(!inst->cbMask.uvRotation);
+            ImGui::DragFloat("UV Rotation", &inst->cb.uvRotation, 0.001f, -100.f, 100.f);
+            ImGui::EndDisabled();
+        }
+
+        {
+            string preview{};
+            const char* basePreview = nullptr;
+            if (hasBaseCb) { preview = "Base: " + to_string(baseCb.materialMask); basePreview = preview.c_str(); }
+            const bool toggled = drawOverrideCheckbox("Override MaterialMask", inst->cbMask.materialMask, basePreview);
+            if (toggled && inst->cbMask.materialMask && hasBaseCb) inst->cb.materialMask = baseCb.materialMask;
+            ImGui::BeginDisabled(!inst->cbMask.materialMask);
+            int mask = static_cast<int>(inst->cb.materialMask);
+            if (ImGui::InputInt("MaterialMask", &mask))
+                inst->cb.materialMask = static_cast<uint32>(std::max(0, mask));
+            ImGui::EndDisabled();
+        }
 
         ImGui::PopID();
     }
@@ -1151,11 +1352,23 @@ void Material_View::Apply_ToSelectedModel()
             // =====================================================================================================================
             if (_mode == CreateMode::EditWithModelCom)
             {
-                Engine::ModelCom::MaterialInstanceOverride ov{};
+                Engine::MaterialInstanceOverride ov{};
                 ov.overrideRenderStateEnabled = true;
-                ov.overrideCBEnabled = true;
                 ov.renderState = inst.renderState;
                 ov.cb = inst.cb;
+                ov.cbMask.baseColorTint = inst.cbMask.baseColorTint;
+                ov.cbMask.emissiveColor = inst.cbMask.emissiveColor;
+                ov.cbMask.emissiveIntensity = inst.cbMask.emissiveIntensity;
+                ov.cbMask.emissiveMaskMul = inst.cbMask.emissiveMaskMul;
+                ov.cbMask.normalStrength = inst.cbMask.normalStrength;
+                ov.cbMask.opacityMaskClipValue = inst.cbMask.opacityMaskClipValue;
+                ov.cbMask.aoScale = inst.cbMask.aoScale;
+                ov.cbMask.roughnessScale = inst.cbMask.roughnessScale;
+                ov.cbMask.metalnessScale = inst.cbMask.metalnessScale;
+                ov.cbMask.uvScale = inst.cbMask.uvScale;
+                ov.cbMask.uvOffset = inst.cbMask.uvOffset;
+                ov.cbMask.uvRotation = inst.cbMask.uvRotation;
+                ov.cbMask.materialMask = inst.cbMask.materialMask;
 
                 if (inst.baseColorOverride) { ov.baseColor.enabled = true; ov.baseColor.path = inst.baseColorPath; }
                 if (inst.normalOverride) { ov.normal.enabled = true; ov.normal.path = inst.normalPath; }
@@ -1642,6 +1855,12 @@ bool Material_View::Load_FromSelectedModelCom()
         inst.templateId = mat->Get_TemplateId();
         inst.renderState = mat->Get_RenderState();
         inst.cb = mat->Get_CB();
+
+        // Edit With ModelCom은 "현재 런타임 상태를 인스턴스 편집 시작점"으로 쓰는 모드라
+        // 기본으로 모든 CB 필드를 override 대상으로 켠다. (사용자가 체크를 끄면 base를 따르게 된다)
+#define EDITOR_DEFAULT_CB_MASK_ON(_key, _member, _kind) inst.cbMask._member = true;
+        MATERIAL_CB_OVERRIDE_FIELDS(EDITOR_DEFAULT_CB_MASK_ON)
+#undef EDITOR_DEFAULT_CB_MASK_ON
 
         auto slotToPath = [&](MaterialTextureSlot slot, wstring& outPath, bool& outOverride) -> void
         {

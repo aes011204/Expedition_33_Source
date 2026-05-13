@@ -4,20 +4,27 @@
 
 #include "Material_Define.h"
 #include "Shader_CBuffer_Define.h"
+#include "MaterialCB_OverrideFields.inl"
 
 NS_BEGIN(Engine)
 
-// forward decl
 class ModelCom;
 
-// .material.json 전용 런타임 로더/인덱서
-// - MaterialsRoot 아래 *.material.json을 재귀 스캔해서 stem->path 맵만 구성한다.
-// - 번들은 "자산(base)"로만 캐싱하며, 실제 Runtime Material 적용은 ModelCom이 이벤트 기반으로 수행한다.
+/**
+ * \brief .material.json 전용 런타임 로더/인덱서
+ * MaterialsRoot 아래 *.material.json을 재귀 스캔해서 stem->path 맵만 구성한다.
+ * 번들은 자산(base, master material)로만 캐싱하며, 실제 Runtime Material 적용은 ModelCom이 이벤트 기반으로 수행한다.
+ */
 class ENGINE_DLL MaterialBuilder final
 {
 public:
     MaterialBuilder();
     ~MaterialBuilder();
+
+    MaterialBuilder(const MaterialBuilder&) = delete;
+    MaterialBuilder& operator=(const MaterialBuilder&) = delete;
+    MaterialBuilder(MaterialBuilder&&) = default;
+    MaterialBuilder& operator=(MaterialBuilder&&) = default;
 
 public:
     static Unique<MaterialBuilder> Create(const fs::path& materialsRoot);
@@ -29,13 +36,16 @@ public:
     const BundleAsset* GetOrLoadBundle(std::string_view bundleKey);
 
     // ModelCom prefab/json의 material_bindings 섹션을 읽어서, ModelCom의 binding 구조를 채운다.
-    // (texture_guid는 여기서 Resolve_AssetPath까지 처리한다)
     bool Try_ApplyMaterialBindingsFromJson(ModelCom& model, const json& data) const;
 
-    // legacy: material_overrides[]를 instance override로 흡수한다.
     bool Try_ApplyModelMaterialOverridesFromJson(ModelCom& model, const json& data) const;
 
+    bool Try_GetBaseCBForMaterial(std::string_view bundleKey, uint32 materialIndex, MaterialCB& outCB) const;
+
 private:
+    // 머테리얼의 기본 RenderState / 기본 CB / 기본 텍스처 경로를 들고 있는 구조체
+    // .material.json 안의 instances 하나를 c++로 옮긴 것
+    // MI_LuneBody, MI_LuneArmBand, MI_LunePants 같은 것들
     struct BaseInstanceData
     {
         MaterialRenderState renderState{};
@@ -55,10 +65,11 @@ private:
     };
 
 public:
+    // .material.json 파일 하나를 읽은 결과 전체
     struct BundleAsset
     {
-        unordered_map<uint32, string> materialIndexToAssetName{};
-        unordered_map<string, BaseInstanceData> instancesByAssetName{};
+        unordered_map<uint32, string> materialIndexToAssetName{};       // 머테리얼(슬롯) 인덱스와 이름 매핑
+        unordered_map<string, BaseInstanceData> instancesByAssetName{}; // 이름과 베이스 매핑
     };
 
 private:

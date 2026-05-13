@@ -76,7 +76,7 @@ private:
     // - 편집 대상 materialIndex를 하나 고른다.
     // return: 필터링에 사용할 materialIndex, 선택 실패면 -1
     int Draw_SelectedModelSection(Shared<Engine::ModelCom>& outSelectedModel);
-    void Draw_MappingsEditorUI(int selectedMaterialIndexFilter);
+    void Draw_MappingsEditorUI(int selectedMaterialIndexFilter, const Shared<Engine::ModelCom>& selectedModel);
 
 private:
     CreateMode _mode = CreateMode::CreateWithJson;

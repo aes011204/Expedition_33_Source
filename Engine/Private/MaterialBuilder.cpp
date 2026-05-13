@@ -327,7 +327,7 @@ bool MaterialBuilder::Try_ApplyMaterialBindingsFromJson(ModelCom& model, const j
         return false;
 
     model.Ensure_MaterialBindings();
-    vector<ModelCom::MaterialBinding>& bindings = model.Get_MaterialBindings();
+    vector<MaterialBinding>& bindings = model.Get_MaterialBindings();
 
     bool anyApplied = false;
 
@@ -340,7 +340,7 @@ bool MaterialBuilder::Try_ApplyMaterialBindingsFromJson(ModelCom& model, const j
         if (materialIndex >= bindings.size())
             continue;
 
-        ModelCom::MaterialBinding& binding = bindings[materialIndex];
+        MaterialBinding& binding = bindings[materialIndex];
 
         // base_bundle_key는 이 materialIndex가 참조할 .material.json 번들의 key다.
         // 실제 번들 로드는 ModelCom 쪽에서 Apply할 때 MaterialBuilder에게 요청한다.
@@ -355,19 +355,51 @@ bool MaterialBuilder::Try_ApplyMaterialBindingsFromJson(ModelCom& model, const j
         }
 
         const json& instJson = item["instance_override"];
-        ModelCom::MaterialInstanceOverride& inst = binding.instance;
+        MaterialInstanceOverride& inst = binding.instance;
 
         inst.overrideRenderStateEnabled =
             ParseBool(instJson.value("override_render_state_enabled", inst.overrideRenderStateEnabled), inst.overrideRenderStateEnabled);
-        inst.overrideCBEnabled =
-            ParseBool(instJson.value("override_cb_enabled", inst.overrideCBEnabled), inst.overrideCBEnabled);
 
         if (inst.overrideRenderStateEnabled && instJson.contains("render_state"))
             (void)Try_ParseRenderState(instJson["render_state"], inst.renderState);
-        if (inst.overrideCBEnabled && instJson.contains("cb"))
-            (void)Try_ParseCB(instJson["cb"], inst.cb);
 
-        auto parseTextureOverride = [&](const char* name, ModelCom::TextureOverride& out) -> void
+        // CB는 "필드별 override"만 지원한다(레거시 무시).
+        inst.cbMask.Clear();
+        if (instJson.contains("cb_overrides") && instJson["cb_overrides"].is_object())
+        {
+            const json& jmask = instJson["cb_overrides"];
+#define MB_READ_CB_MASK(_key, _member, _kind) \
+            if (jmask.contains(_key)) inst.cbMask._member = ParseBool(jmask[_key], false);
+            MATERIAL_CB_OVERRIDE_FIELDS(MB_READ_CB_MASK)
+#undef MB_READ_CB_MASK
+        }
+
+        if (inst.cbMask.Any() && instJson.contains("cb") && instJson["cb"].is_object())
+        {
+            const json& jcb = instJson["cb"];
+
+            if (inst.cbMask.baseColorTint && jcb.contains("baseColorTint"))
+                (void)Try_ParseVec4(jcb["baseColorTint"], inst.cb.baseColorTint);
+            if (inst.cbMask.emissiveColor && jcb.contains("emissiveColor"))
+                (void)Try_ParseVec4(jcb["emissiveColor"], inst.cb.emissiveColor);
+
+            if (inst.cbMask.emissiveIntensity) inst.cb.emissiveIntensity = jcb.value("emissiveIntensity", inst.cb.emissiveIntensity);
+            if (inst.cbMask.emissiveMaskMul) inst.cb.emissiveMaskMul = jcb.value("emissiveMaskMul", inst.cb.emissiveMaskMul);
+            if (inst.cbMask.normalStrength) inst.cb.normalStrength = jcb.value("normalStrength", inst.cb.normalStrength);
+            if (inst.cbMask.opacityMaskClipValue) inst.cb.opacityMaskClipValue = jcb.value("opacityMaskClipValue", inst.cb.opacityMaskClipValue);
+            if (inst.cbMask.roughnessScale) inst.cb.roughnessScale = jcb.value("roughnessScale", inst.cb.roughnessScale);
+            if (inst.cbMask.metalnessScale) inst.cb.metalnessScale = jcb.value("metalnessScale", inst.cb.metalnessScale);
+            if (inst.cbMask.aoScale) inst.cb.aoScale = jcb.value("aoScale", inst.cb.aoScale);
+
+            if (inst.cbMask.uvScale && jcb.contains("uvScale"))
+                (void)Try_ParseVec2(jcb["uvScale"], inst.cb.uvScale);
+            if (inst.cbMask.uvOffset && jcb.contains("uvOffset"))
+                (void)Try_ParseVec2(jcb["uvOffset"], inst.cb.uvOffset);
+            if (inst.cbMask.uvRotation) inst.cb.uvRotation = jcb.value("uvRotation", inst.cb.uvRotation);
+            if (inst.cbMask.materialMask) inst.cb.materialMask = jcb.value("materialMask", inst.cb.materialMask);
+        }
+
+        auto parseTextureOverride = [&](const char* name, TextureOverride& out) -> void
         {
             if (!instJson.contains("textures") || !instJson["textures"].is_object())
                 return;
@@ -413,7 +445,7 @@ bool MaterialBuilder::Try_ApplyModelMaterialOverridesFromJson(ModelCom& model, c
         return false;
 
     model.Ensure_MaterialBindings();
-    vector<ModelCom::MaterialBinding>& bindings = model.Get_MaterialBindings();
+    vector<MaterialBinding>& bindings = model.Get_MaterialBindings();
 
     bool anyApplied = false;
 
@@ -462,8 +494,8 @@ bool MaterialBuilder::Try_ApplyModelMaterialOverridesFromJson(ModelCom& model, c
         if (texturePath.empty())
             continue;
 
-        ModelCom::MaterialInstanceOverride& inst = bindings[materialIndex].instance;
-        ModelCom::TextureOverride* target = nullptr;
+        MaterialInstanceOverride& inst = bindings[materialIndex].instance;
+        TextureOverride* target = nullptr;
         if (slot == MaterialTextureSlot::BaseColor) target = &inst.baseColor;
         else if (slot == MaterialTextureSlot::Normal) target = &inst.normal;
         else if (slot == MaterialTextureSlot::ORM) target = &inst.orm;
@@ -479,6 +511,27 @@ bool MaterialBuilder::Try_ApplyModelMaterialOverridesFromJson(ModelCom& model, c
     }
 
     return anyApplied;
+}
+
+bool MaterialBuilder::Try_GetBaseCBForMaterial(std::string_view bundleKey, uint32 materialIndex, MaterialCB& outCB) const
+{
+    if (bundleKey.empty())
+        return false;
+
+    const BundleAsset* bundle = const_cast<MaterialBuilder*>(this)->GetOrLoadBundle(bundleKey);
+    if (bundle == nullptr)
+        return false;
+
+    const auto itName = bundle->materialIndexToAssetName.find(materialIndex);
+    if (itName == bundle->materialIndexToAssetName.end())
+        return false;
+
+    const auto itInst = bundle->instancesByAssetName.find(itName->second);
+    if (itInst == bundle->instancesByAssetName.end())
+        return false;
+
+    outCB = itInst->second.cb;
+    return true;
 }
 
 bool MaterialBuilder::Is_MaterialBundleFile(const fs::path& path)

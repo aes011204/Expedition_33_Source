@@ -231,7 +231,7 @@ void ModelCom::Clear_InstanceOverride(uint32 materialIndex)
     _materialBindings[materialIndex].instance = MaterialInstanceOverride{};
 }
 
-static void Apply_TextureOverride(Engine::Material* material, Engine::MaterialTextureSlot slot, const Engine::ModelCom::TextureOverride& ov)
+static void Apply_TextureOverride(Engine::Material* material, Engine::MaterialTextureSlot slot, const Engine::TextureOverride& ov)
 {
     if (material == nullptr || !ov.enabled)
         return;
@@ -307,8 +307,18 @@ void ModelCom::Apply_EffectiveMaterial(uint32 materialIndex)
     const MaterialInstanceOverride& inst = binding.instance;
     if (inst.overrideRenderStateEnabled)
         material->Set_RenderState(inst.renderState);
-    if (inst.overrideCBEnabled)
-        material->Set_CB(inst.cb);
+
+    if (inst.cbMask.Any())
+    {
+        MaterialCB effective = material->Get_CB();
+
+#define MODEL_COM_APPLY_CB_FIELD(_key, _member, _kind) \
+        if (inst.cbMask._member) effective._member = inst.cb._member;
+        MATERIAL_CB_OVERRIDE_FIELDS(MODEL_COM_APPLY_CB_FIELD)
+#undef MODEL_COM_APPLY_CB_FIELD
+
+        material->Set_CB(effective);
+    }
 
     Apply_TextureOverride(material.get(), MaterialTextureSlot::BaseColor, inst.baseColor);
     Apply_TextureOverride(material.get(), MaterialTextureSlot::Normal, inst.normal);
@@ -346,7 +356,7 @@ json ModelCom::To_Json() const
         const bool hasAnyTextureOverride =
             inst.baseColor.enabled || inst.normal.enabled || inst.orm.enabled || inst.emissive.enabled || inst.opacityMask.enabled;
         const bool hasInstanceOverride =
-            inst.overrideRenderStateEnabled || inst.overrideCBEnabled || hasAnyTextureOverride;
+            inst.overrideRenderStateEnabled || inst.cbMask.Any() || hasAnyTextureOverride;
 
         const string baseKey = String::ToLowerCopy(binding.baseBundleKey);
         const bool hasBaseKey = !baseKey.empty() && baseKey != defaultKey;
@@ -363,7 +373,6 @@ json ModelCom::To_Json() const
         {
             json instJson{};
             instJson["override_render_state_enabled"] = inst.overrideRenderStateEnabled;
-            instJson["override_cb_enabled"] = inst.overrideCBEnabled;
 
             if (inst.overrideRenderStateEnabled)
             {
@@ -375,22 +384,37 @@ json ModelCom::To_Json() const
                 instJson["render_state"] = rs;
             }
 
-            if (inst.overrideCBEnabled)
+            if (inst.cbMask.Any())
             {
+                json jmask = json::object();
+
+#define MODEL_COM_WRITE_CB_MASK(_key, _member, _kind) \
+                if (inst.cbMask._member) jmask[_key] = true;
+                MATERIAL_CB_OVERRIDE_FIELDS(MODEL_COM_WRITE_CB_MASK)
+#undef MODEL_COM_WRITE_CB_MASK
+
+                instJson["cb_overrides"] = jmask;
+
                 json cb{};
-                cb["baseColorTint"] = { inst.cb.baseColorTint.x, inst.cb.baseColorTint.y, inst.cb.baseColorTint.z, inst.cb.baseColorTint.w };
-                cb["emissiveColor"] = { inst.cb.emissiveColor.x, inst.cb.emissiveColor.y, inst.cb.emissiveColor.z, inst.cb.emissiveColor.w };
 
-                cb["emissiveIntensity"] = inst.cb.emissiveIntensity;
-                cb["emissiveMaskMul"] = inst.cb.emissiveMaskMul;
-                cb["normalStrength"] = inst.cb.normalStrength;
-                cb["opacityMaskClipValue"] = inst.cb.opacityMaskClipValue;
-                cb["roughnessScale"] = inst.cb.roughnessScale;
-                cb["metalnessScale"] = inst.cb.metalnessScale;
-                cb["aoScale"] = inst.cb.aoScale;
+                if (inst.cbMask.baseColorTint)
+                    cb["baseColorTint"] = { inst.cb.baseColorTint.x, inst.cb.baseColorTint.y, inst.cb.baseColorTint.z, inst.cb.baseColorTint.w };
+                if (inst.cbMask.emissiveColor)
+                    cb["emissiveColor"] = { inst.cb.emissiveColor.x, inst.cb.emissiveColor.y, inst.cb.emissiveColor.z, inst.cb.emissiveColor.w };
 
-                cb["uvScale"] = { inst.cb.uvScale.x, inst.cb.uvScale.y };
-                cb["uvOffset"] = { inst.cb.uvOffset.x, inst.cb.uvOffset.y };
+                if (inst.cbMask.emissiveIntensity) cb["emissiveIntensity"] = inst.cb.emissiveIntensity;
+                if (inst.cbMask.emissiveMaskMul) cb["emissiveMaskMul"] = inst.cb.emissiveMaskMul;
+                if (inst.cbMask.normalStrength) cb["normalStrength"] = inst.cb.normalStrength;
+                if (inst.cbMask.opacityMaskClipValue) cb["opacityMaskClipValue"] = inst.cb.opacityMaskClipValue;
+                if (inst.cbMask.roughnessScale) cb["roughnessScale"] = inst.cb.roughnessScale;
+                if (inst.cbMask.metalnessScale) cb["metalnessScale"] = inst.cb.metalnessScale;
+                if (inst.cbMask.aoScale) cb["aoScale"] = inst.cb.aoScale;
+
+                if (inst.cbMask.uvScale) cb["uvScale"] = { inst.cb.uvScale.x, inst.cb.uvScale.y };
+                if (inst.cbMask.uvOffset) cb["uvOffset"] = { inst.cb.uvOffset.x, inst.cb.uvOffset.y };
+                if (inst.cbMask.uvRotation) cb["uvRotation"] = inst.cb.uvRotation;
+                if (inst.cbMask.materialMask) cb["materialMask"] = inst.cb.materialMask;
+
                 instJson["cb"] = cb;
             }
 

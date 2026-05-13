@@ -34,34 +34,7 @@ public:
     const wstring& Get_SourceModelPath() const { return _sourceModelPath; }
     ModelType Get_ModelType() const { return _type; }
 
-public: /* Material Binding (Base/Instance) */
-    struct TextureOverride
-    {
-        bool enabled = false;
-        wstring path{};
-    };
-
-    struct MaterialInstanceOverride
-    {
-        bool overrideRenderStateEnabled = false;
-        bool overrideCBEnabled = false;
-
-        MaterialRenderState renderState{};
-        MaterialCB cb{};
-
-        TextureOverride baseColor{};
-        TextureOverride normal{};
-        TextureOverride orm{};
-        TextureOverride emissive{};
-        TextureOverride opacityMask{};
-    };
-
-    struct MaterialBinding
-    {
-        string baseBundleKey{};
-        MaterialInstanceOverride instance{};
-    };
-
+public:
     const vector<MaterialBinding>& Get_MaterialBindings() const { return _materialBindings; }
     vector<MaterialBinding>& Get_MaterialBindings() { return _materialBindings; }
 
