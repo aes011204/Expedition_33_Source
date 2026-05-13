@@ -61,6 +61,7 @@ void ImGui_Manager::Update(float timeDelta)
     ImGui_ImplDX11_NewFrame();
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
+    _frameBegun = true;
 
 }
 
@@ -81,6 +82,17 @@ void ImGui_Manager::Render(bool renderPlatformWindows)
         if (renderPlatformWindows)
             ImGui::RenderPlatformWindowsDefault();
     }
+
+    _frameBegun = false;
+}
+
+void ImGui_Manager::EndFrameIfBegun()
+{
+    if (!_initialized || !_frameBegun)
+        return;
+
+    ImGui::EndFrame();
+    _frameBegun = false;
 }
 
 void ImGui_Manager::ShutDown()
@@ -95,6 +107,7 @@ void ImGui_Manager::ShutDown()
     ImGui::DestroyContext();
 
     _initialized = false;
+    _frameBegun = false;
 }
 
 void ImGui_Manager::ImGuiStyleSetting()
