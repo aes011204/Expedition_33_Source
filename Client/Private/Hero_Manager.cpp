@@ -8,7 +8,7 @@
 #include "TargetCamera.h"
 #include "TransformCom.h"
 
-HRESULT Hero_Manager::Initialize_Hero(uint32 levelIndex, const wstring& layerTag)
+HRESULT Hero_Manager::Initialize_Hero(uint32 levelIndex, const wstring& layerTag, const Vec3& startPos)
 {
     Clear_Party();
 
@@ -16,13 +16,11 @@ HRESULT Hero_Manager::Initialize_Hero(uint32 levelIndex, const wstring& layerTag
     _layerTag = layerTag;
     _activeIndex = 0;
 
-    const Vec3 startPos(10.f, 5.f, 10.f);
-
     const string heroPrefabNames[] =
     {
         "Player_Lune",
-        "Player_Maelle",
         "Player_Gustave",
+        "Player_Maelle",
     };
 
 
@@ -88,6 +86,14 @@ void Hero_Manager::Clear_Party()
     _activeTrail.clear();
     _activeIndex = 0;
     _recordTimer = 0.f;
+}
+
+Shared<Player> Hero_Manager::Get_FrontHero() const
+{
+    if (_heroes.empty())
+        return nullptr;
+
+    return _heroes.front();
 }
 
 void Hero_Manager::Switch_NextHero()

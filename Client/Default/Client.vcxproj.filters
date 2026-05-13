@@ -338,6 +338,7 @@
     <ClInclude Include="..\Public\Player_Lune.h">
       <Filter>02.GameObject\Player</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\PreviewCamera.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -516,6 +517,7 @@
     <ClCompile Include="..\Private\Player_Maelle.cpp">
       <Filter>02.GameObject\Player</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\PreviewCamera.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">

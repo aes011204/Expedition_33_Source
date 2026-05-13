@@ -241,9 +241,10 @@ HRESULT Level_GamePlay::Ready_Layer_Player(const wstring& strLayerTag)
     if (tr)
         tr->Set_Position(Vec3(10.f, 5.f, 10.f));*/
 
-    const HRESULT hr = CLIENT->Initialize_Hero(ETOI(LevelType::GamePlay), strLayerTag);
+    const Vec3 startPos = Vec3(-10.f, 0.f, 10.f);
+    CHECK_FAILED(CLIENT->Initialize_Hero(ETOI(LevelType::GamePlay), strLayerTag, startPos), E_FAIL);
 
-    return hr;
+    return S_OK;
 }
 
 HRESULT Level_GamePlay::Bind_TestUI()

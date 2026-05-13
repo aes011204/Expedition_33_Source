@@ -37,6 +37,8 @@ namespace
         Vec4 color{ 1.f, 1.f, 1.f, 1.f };
         int32 sortOrder = 0;
 
+        UI_RenderGroup renderGroup = UI_RenderGroup::Foreground;
+
         string text{};
         float fontSize = 32.f;
         UI_Text::TextAlign textAlign = UI_Text::TextAlign::Left;
@@ -169,6 +171,16 @@ namespace
             return RuntimeUIType::Button;
 
         return RuntimeUIType::Unknown;
+    }
+
+    UI_RenderGroup Parse_RenderLayer(const string& layerName)
+    {
+        const string layer = String::ToLowerCopy(layerName);
+
+        if ("background" == layer)
+            return UI_RenderGroup::Background;
+
+        return UI_RenderGroup::Foreground;
     }
 
     bool Can_RuntimeTypeHaveChildren(RuntimeUIType type)
@@ -658,6 +670,7 @@ namespace
         object.rotationRadians = Read_Float(item, "rotation", Read_Float(item, "rotationRadians", 0.f));
         object.color = Read_Color(item, "color", Vec4(1.f, 1.f, 1.f, 1.f));
         object.sortOrder = Read_Int(item, "sortOrder", 0);
+        object.renderGroup = Parse_RenderLayer(Read_String(item, "renderLayer", "Foreground"));
 
         object.text = Read_String(item, "text", "");
         object.fontSize = max(4.f, Read_Float(item, "fontSize", 32.f));
@@ -833,6 +846,7 @@ namespace
         desc.isOpenOnCreate = true;
         desc.animationClips = object.animationClips;
         desc.keyframeAnimationAssets = object.keyframeAnimationAssets;
+        desc.renderGroup = object.renderGroup;
 
         // object id 기반 prototype tag를 유지해 기존 동작을 최대한 그대로 둔다.
         const wstring prototypeTag =
@@ -886,6 +900,7 @@ namespace
         desc.isOpenOnCreate = true;
         desc.animationClips = Make_TextAnimationClips(object);
         desc.keyframeAnimationAssets = Make_TextKeyframeAnimationAssets(object);
+        desc.renderGroup = object.renderGroup;
 
         const wstring prototypeTag =
             prototypeTagPrefix + L"_Text_" + to_wstring(object.id);
@@ -915,6 +930,7 @@ namespace
         desc.isOpenOnCreate = true;
         desc.animationClips = object.animationClips;
         desc.keyframeAnimationAssets = object.keyframeAnimationAssets;
+        desc.renderGroup = object.renderGroup;
 
         const wstring prototypeTag =
             prototypeTagPrefix + L"_Panel_" + to_wstring(object.id);
@@ -944,6 +960,7 @@ namespace
         desc.isOpenOnCreate = true;
         desc.animationClips = object.animationClips;
         desc.keyframeAnimationAssets = object.keyframeAnimationAssets;
+        desc.renderGroup = object.renderGroup;
 
         const wstring prototypeTag =
             prototypeTagPrefix + L"_Button_" + to_wstring(object.id);
