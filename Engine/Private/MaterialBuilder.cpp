@@ -1,7 +1,5 @@
 ﻿#include "MaterialBuilder.h"
-
 #include "GameInstance.h"
-#include "Material.h"
 #include "ModelCom.h"
 
 MaterialBuilder::MaterialBuilder()
@@ -21,6 +19,7 @@ Unique<MaterialBuilder> MaterialBuilder::Create(const fs::path& materialsRoot)
 
 bool MaterialBuilder::Try_ParseVec2(const json& value, Vec2& out)
 {
+    // json 값이 없거나 형식이 다르면 기존 out 값을 유지한다.
     if (!value.is_array() || value.size() < 2)
         return false;
     out.x = value[0].get<float>();
@@ -28,10 +27,26 @@ bool MaterialBuilder::Try_ParseVec2(const json& value, Vec2& out)
     return true;
 }
 
+bool MaterialBuilder::ParseBool(const json& value, bool fallback)
+{
+    // 예전 데이터에서 0, 1로 저장한 경우를 대비해서 bool/int/uint를 같이 처리한다.
+    if (value.is_boolean())
+        return value.get<bool>();
+
+    if (value.is_number_integer())
+        return value.get<int32>() != 0;
+
+    if (value.is_number_unsigned())
+        return value.get<uint32>() != 0u;
+
+    return fallback;
+}
+
 bool MaterialBuilder::Try_ParseVec4(const json& value, Vec4& out)
 {
     if (!value.is_array() || value.size() < 4)
         return false;
+    // 잘못된 값 하나 때문에 전체 로드를 실패시키지 않기 위해 bool로 성공 여부만 반환한다.
     out.x = value[0].get<float>();
     out.y = value[1].get<float>();
     out.z = value[2].get<float>();
@@ -41,24 +56,30 @@ bool MaterialBuilder::Try_ParseVec4(const json& value, Vec4& out)
 
 bool MaterialBuilder::Try_ParseRenderState(const json& value, MaterialRenderState& out)
 {
+    // renderState는 머테리얼이 결정하는 렌더 상태이다.
     if (!value.is_object())
         return false;
 
     out.twoSided = value.value("twoSided", out.twoSided);
 
     const uint32 blendMode = value.value("blendMode", static_cast<uint32>(out.blendMode));
+
+    // 범위를 벗어난 값이면 잘못된 캐스팅을 막고 기존 값을 유지한다.
     if (blendMode < static_cast<uint32>(MaterialBlendMode::END))
         out.blendMode = static_cast<MaterialBlendMode>(blendMode);
 
     out.opacityMaskClipValue = value.value("opacityMaskClipValue", out.opacityMaskClipValue);
 
-    // alphaClip은 번들에 없을 수도 있다. (template/블렌드로 유도 가능)
+    // alphaClip은 번들에 없을 수도 있음. 
     out.alphaClip = value.value("alphaClip", out.alphaClip);
     return true;
 }
 
 bool MaterialBuilder::Try_ParseCB(const json& value, MaterialCB& out)
 {
+    // MaterialCB는 셰이더에 넘길 머테리얼 파라미터 묶음이다.
+
+    // NOTE !!!!!!!!!!!!!!! 일부 값만 저장될 수 있으니, 존재하는 필드만 덮어쓴다.
     if (!value.is_object())
         return false;
 
@@ -85,6 +106,8 @@ bool MaterialBuilder::Try_ParseCB(const json& value, MaterialCB& out)
 
 fs::path MaterialBuilder::To_AbsoluteTexturePath(const fs::path& resourceRoot, const string& relGeneric)
 {
+    // 번들에는 Resources 기준 상대 경로가 들어오는 것을 기본으로 본다.
+    // 이미 절대 경로로 들어온 값은 그대로 정규화해서 사용한다.
     if (relGeneric.empty())
         return {};
 
@@ -97,7 +120,10 @@ fs::path MaterialBuilder::To_AbsoluteTexturePath(const fs::path& resourceRoot, c
 
 void MaterialBuilder::Initialize(const fs::path& materialsRoot)
 {
+    // MaterialsRoot 아래의 *.material.json을 찾아 key -> path 인덱스를 만든다.
+    // 여기서는 파일 내용을 파싱하지 않고, 실제 json 파싱은 GetOrLoadBundle()에서 처음 요청될 때 1회만 한다.
     _keyToBundlePath.clear();
+    _bundleCache.clear();
     _root.clear();
 
     if (materialsRoot.empty())
@@ -126,6 +152,8 @@ void MaterialBuilder::Initialize(const fs::path& materialsRoot)
         if (!Is_MaterialBundleFile(path))
             continue;
 
+        // 파일명에서 번들 key를 만든다.
+        // e.g., lunebody.material.json -> lunebody
         const string key = To_Key(path);
         if (key.empty())
             continue;
@@ -134,6 +162,7 @@ void MaterialBuilder::Initialize(const fs::path& materialsRoot)
         if (ec)
             continue;
 
+        // NOTE ! 중복 시 먼저 발견한 파일을 유지하고, 중복 파일은 경고만 남긴다.
         const auto it = _keyToBundlePath.find(key);
         if (it != _keyToBundlePath.end())
         {
@@ -153,21 +182,42 @@ const fs::path* MaterialBuilder::FindBundlePath(std::string_view key) const
     if (key.empty())
         return nullptr;
 
-    const auto it = _keyToBundlePath.find(string(key));
+    // 소문자로 통일
+    const auto it = _keyToBundlePath.find(String::ToLowerCopy(string(key)));
     if (it == _keyToBundlePath.end())
         return nullptr;
 
     return &it->second;
 }
 
-bool MaterialBuilder::Try_ApplyToModelByKey(ModelCom& model, std::string_view key) const
+const MaterialBuilder::BundleAsset* MaterialBuilder::GetOrLoadBundle(std::string_view bundleKey)
 {
+    // bundleKey로 번들 데이터를 찾아 반환하는데, 이미 로드된 번들이면 캐시를 바로 반환하고 처음 요청된 번들이면 이 시점에 파일을 읽어서 캐시에 올린다.
+    if (bundleKey.empty())
+        return nullptr;
+
+    const string key = String::ToLowerCopy(string(bundleKey));
+
+    if (const auto itCache = _bundleCache.find(key); itCache != _bundleCache.end())
+        return itCache->second.get();
+
     const fs::path* bundlePathPtr = FindBundlePath(key);
     if (bundlePathPtr == nullptr)
-        return false;
+        return nullptr;
 
-    const fs::path& bundlePath = *bundlePathPtr;
+    Unique<BundleAsset> asset(new BundleAsset());
+    if (!Try_LoadBundleAsset(*bundlePathPtr, *asset))
+        return nullptr;
 
+    BundleAsset* raw = asset.get();
+    _bundleCache.emplace(key, std::move(asset));
+    return raw;
+}
+
+bool MaterialBuilder::Try_LoadBundleAsset(const fs::path& bundlePath, BundleAsset& outAsset) const
+{
+    // .material.json 하나를 읽어서 BundleAsset으로 변환한다.
+    // BundleAsset은 [ materialIndex -> assetName 매핑 ]과  [ assetName -> 실제 기본 머테리얼 데이터 ] 를 가진다.
     std::ifstream file(bundlePath);
     if (!file.is_open())
         return false;
@@ -185,12 +235,15 @@ bool MaterialBuilder::Try_ApplyToModelByKey(ModelCom& model, std::string_view ke
     if (!root.is_object())
         return false;
 
-    // 번들 파일이 들어갈 Resources 폴더를 기준으로 상대 경로를 저장한다 (Material_View 저장 규칙)
+    outAsset.materialIndexToAssetName.clear();
+    outAsset.instancesByAssetName.clear();
+
+    // 현재 저장 포맷은 번들 파일 위치를 기준으로 Resources 루트를 알아낸다.
+    // e.g., Resources/Materials/lunebody.material.json 이면 resourceRoot = Resources
     const fs::path resourceRoot = bundlePath.has_parent_path()
         ? bundlePath.parent_path().parent_path()
         : fs::path{};
 
-    unordered_map<string, BundleInstance> instances{};
     if (root.contains("instances") && root["instances"].is_array())
     {
         for (const json& ji : root["instances"])
@@ -202,14 +255,18 @@ bool MaterialBuilder::Try_ApplyToModelByKey(ModelCom& model, std::string_view ke
             if (assetName.empty())
                 continue;
 
-            BundleInstance inst{};
+            BaseInstanceData inst{};
 
+            // 인스턴스에 저장된 기본 렌더 상태를 읽는다.
             if (ji.contains("renderState"))
                 (void)Try_ParseRenderState(ji["renderState"], inst.renderState);
 
+            // 셰이더 CB 값도 저장된 값만 덮어쓴다.
             if (ji.contains("cb"))
                 (void)Try_ParseCB(ji["cb"], inst.cb);
 
+            // overrides는 이 인스턴스가 어떤 텍스처 슬롯을 실제로 사용하는지 나타낸다.
+            // path가 비어 있어도 override가 true면 비우는 의미로 쓸 수 있다. 예를 들어 마스크 텍스처를 비워서 사용하지 않는다 등 
             if (ji.contains("overrides") && ji["overrides"].is_object())
             {
                 const json& jov = ji["overrides"];
@@ -220,87 +277,208 @@ bool MaterialBuilder::Try_ApplyToModelByKey(ModelCom& model, std::string_view ke
                 inst.opacityMaskOverride = jov.value("opacityMask", inst.opacityMaskOverride);
             }
 
+            // 상대 경로로 저장 된 번들의 텍스쳐 경로를 런타임 접근을 위한 절대로 변경
             if (ji.contains("textures") && ji["textures"].is_object())
             {
                 const json& jtex = ji["textures"];
-                inst.baseColorRel = jtex.value("baseColor", string{});
-                inst.normalRel = jtex.value("normal", string{});
-                inst.ormRel = jtex.value("orm", string{});
-                inst.emissiveRel = jtex.value("emissive", string{});
-                inst.opacityMaskRel = jtex.value("opacityMask", string{});
+                inst.baseColorPath = To_AbsoluteTexturePath(resourceRoot, jtex.value("baseColor", string{})).wstring();
+                inst.normalPath = To_AbsoluteTexturePath(resourceRoot, jtex.value("normal", string{})).wstring();
+                inst.ormPath = To_AbsoluteTexturePath(resourceRoot, jtex.value("orm", string{})).wstring();
+                inst.emissivePath = To_AbsoluteTexturePath(resourceRoot, jtex.value("emissive", string{})).wstring();
+                inst.opacityMaskPath = To_AbsoluteTexturePath(resourceRoot, jtex.value("opacityMask", string{})).wstring();
             }
 
-            instances.emplace(assetName, std::move(inst));
+            outAsset.instancesByAssetName.emplace(assetName, std::move(inst));
         }
     }
 
-    if (!root.contains("mappings") || !root["mappings"].is_array())
-        return false;
-
-    for (const json& jm : root["mappings"])
+    if (root.contains("mappings") && root["mappings"].is_array())
     {
-        if (!jm.is_object())
-            continue;
-
-        const uint32 materialIndex = jm.value("materialIndex", UINT32_MAX);
-        if (materialIndex == UINT32_MAX)
-            continue;
-
-        if (!jm.contains("ref") || !jm["ref"].is_object())
-            continue;
-
-        const json& jref = jm["ref"];
-        const string assetName = jref.value("assetName", string{});
-        if (assetName.empty())
-            continue;
-
-        const auto itInst = instances.find(assetName);
-        if (itInst == instances.end())
-            continue;
-
-        const BundleInstance& inst = itInst->second;
-
-        const Shared<Material> material = model.Get_Material(materialIndex);
-        if (material == nullptr)
-            continue;
-
-        material->Set_RenderState(inst.renderState);
-        material->Set_CB(inst.cb);
-
-        auto applySlot = [&](Engine::MaterialTextureSlot slot, bool enabled, const string& relPath) -> void
+        for (const json& jm : root["mappings"])
         {
-            if (!enabled)
-                return;
+            if (!jm.is_object())
+                continue;
 
-            const fs::path abs = To_AbsoluteTexturePath(resourceRoot, relPath);
-            if (abs.empty())
-            {
-                (void)material->Override_TextureSlot(slot, 0, L"");
-                return;
-            }
+            const uint32 materialIndex = jm.value("materialIndex", UINT32_MAX);
+            if (materialIndex == UINT32_MAX)
+                continue;
 
-            (void)material->Override_TextureSlot(slot, 0, abs.wstring());
-        };
+            if (!jm.contains("ref") || !jm["ref"].is_object())
+                continue;
 
-        applySlot(Engine::MaterialTextureSlot::BaseColor, inst.baseColorOverride, inst.baseColorRel);
-        applySlot(Engine::MaterialTextureSlot::Normal, inst.normalOverride, inst.normalRel);
-        applySlot(Engine::MaterialTextureSlot::ORM, inst.ormOverride, inst.ormRel);
-        applySlot(Engine::MaterialTextureSlot::Emissive, inst.emissiveOverride, inst.emissiveRel);
+            const json& jref = jm["ref"];
+            const string assetName = jref.value("assetName", string{});
+            if (assetName.empty())
+                continue;
 
-        // opacityMask는 에디터 Apply와 동일 정책 유지
-        // - override true: relPath가 비어있으면 clear
-        // - override false: 명시적으로 clear
-        if (inst.opacityMaskOverride)
-        {
-            applySlot(Engine::MaterialTextureSlot::OpacityMask, true, inst.opacityMaskRel);
-        }
-        else
-        {
-            (void)material->Override_TextureSlot(Engine::MaterialTextureSlot::OpacityMask, 0, L"");
+            outAsset.materialIndexToAssetName[materialIndex] = assetName;
         }
     }
 
     return true;
+}
+
+bool MaterialBuilder::Try_ApplyMaterialBindingsFromJson(ModelCom& model, const json& data) const
+{
+    // material_bindings를 ModelCom에 아래 정보를 복원한다.
+    // 1. 이 모델 슬롯이 어떤 번들을 참조하는지
+    // 2. 오브젝트별 인스턴스 오버라이드가 있는지
+    if (!data.contains("material_bindings") || !data["material_bindings"].is_array())
+        return false;
+
+    model.Ensure_MaterialBindings();
+    vector<ModelCom::MaterialBinding>& bindings = model.Get_MaterialBindings();
+
+    bool anyApplied = false;
+
+    for (const json& item : data["material_bindings"])
+    {
+        if (!item.is_object())
+            continue;
+
+        const uint32 materialIndex = item.value("material_index", UINT32_MAX);
+        if (materialIndex >= bindings.size())
+            continue;
+
+        ModelCom::MaterialBinding& binding = bindings[materialIndex];
+
+        // base_bundle_key는 이 materialIndex가 참조할 .material.json 번들의 key다.
+        // 실제 번들 로드는 ModelCom 쪽에서 Apply할 때 MaterialBuilder에게 요청한다.
+        if (item.contains("base_bundle_key") && item["base_bundle_key"].is_string())
+            binding.baseBundleKey = String::ToLowerCopy(item["base_bundle_key"].get<string>());
+
+        // override 플래그가 켜진 항목만 실제 base 값 위에 덮어쓴다.
+        if (!item.contains("instance_override") || !item["instance_override"].is_object())
+        {
+            anyApplied = true;
+            continue;
+        }
+
+        const json& instJson = item["instance_override"];
+        ModelCom::MaterialInstanceOverride& inst = binding.instance;
+
+        inst.overrideRenderStateEnabled =
+            ParseBool(instJson.value("override_render_state_enabled", inst.overrideRenderStateEnabled), inst.overrideRenderStateEnabled);
+        inst.overrideCBEnabled =
+            ParseBool(instJson.value("override_cb_enabled", inst.overrideCBEnabled), inst.overrideCBEnabled);
+
+        if (inst.overrideRenderStateEnabled && instJson.contains("render_state"))
+            (void)Try_ParseRenderState(instJson["render_state"], inst.renderState);
+        if (inst.overrideCBEnabled && instJson.contains("cb"))
+            (void)Try_ParseCB(instJson["cb"], inst.cb);
+
+        auto parseTextureOverride = [&](const char* name, ModelCom::TextureOverride& out) -> void
+        {
+            if (!instJson.contains("textures") || !instJson["textures"].is_object())
+                return;
+
+            const json& texObj = instJson["textures"];
+            if (!texObj.contains(name) || !texObj[name].is_object())
+                return;
+
+            const json& tex = texObj[name];
+            out.enabled = ParseBool(tex.value("enabled", out.enabled), out.enabled);
+            if (!out.enabled)
+                return;
+
+            wstring resolved{};
+            const string guid = tex.value("texture_guid", string{});
+            if (!guid.empty())
+                resolved = GAME->Resolve_AssetPath(guid);
+
+            if (resolved.empty())
+            {
+                const string path = tex.value("texture_path", string{});
+                resolved = String::ToWString(path);
+            }
+
+            out.path = resolved;
+        };
+
+        parseTextureOverride("base_color", inst.baseColor);
+        parseTextureOverride("normal", inst.normal);
+        parseTextureOverride("orm", inst.orm);
+        parseTextureOverride("emissive", inst.emissive);
+        parseTextureOverride("opacity_mask", inst.opacityMask);
+
+        anyApplied = true;
+    }
+
+    return anyApplied;
+}
+
+bool MaterialBuilder::Try_ApplyModelMaterialOverridesFromJson(ModelCom& model, const json& data) const
+{
+    if (!data.contains("material_overrides") || !data["material_overrides"].is_array())
+        return false;
+
+    model.Ensure_MaterialBindings();
+    vector<ModelCom::MaterialBinding>& bindings = model.Get_MaterialBindings();
+
+    bool anyApplied = false;
+
+    for (const json& overrideData : data["material_overrides"])
+    {
+        if (!overrideData.is_object())
+            continue;
+
+        const uint32 materialIndex = overrideData.value("material_index", UINT32_MAX);
+        if (materialIndex >= bindings.size())
+            continue;
+
+        if (!overrideData.contains("slot"))
+            continue;
+
+        MaterialTextureSlot slot = MaterialTextureSlot::END;
+        if (overrideData["slot"].is_string())
+        {
+            const string slotName = overrideData["slot"].get<string>();
+            if (slotName == "BaseColor") slot = MaterialTextureSlot::BaseColor;
+            else if (slotName == "Normal") slot = MaterialTextureSlot::Normal;
+            else if (slotName == "Emissive") slot = MaterialTextureSlot::Emissive;
+            else if (slotName == "OpacityMask") slot = MaterialTextureSlot::OpacityMask;
+            else if (slotName == "ORM") slot = MaterialTextureSlot::ORM;
+        }
+
+        if (slot == MaterialTextureSlot::END)
+            continue;
+
+        const uint32 textureIndex = overrideData.value("texture_index", 0u);
+        if (textureIndex != 0u)
+            continue;
+
+        wstring texturePath{};
+        const string textureGuid = overrideData.value("texture_guid", string{});
+        if (!textureGuid.empty())
+            texturePath = GAME->Resolve_AssetPath(textureGuid);
+
+        if (texturePath.empty())
+        {
+            const string rawPath = overrideData.value("texture_path", string{});
+            if (!rawPath.empty())
+                texturePath = String::ToWString(rawPath);
+        }
+
+        if (texturePath.empty())
+            continue;
+
+        ModelCom::MaterialInstanceOverride& inst = bindings[materialIndex].instance;
+        ModelCom::TextureOverride* target = nullptr;
+        if (slot == MaterialTextureSlot::BaseColor) target = &inst.baseColor;
+        else if (slot == MaterialTextureSlot::Normal) target = &inst.normal;
+        else if (slot == MaterialTextureSlot::ORM) target = &inst.orm;
+        else if (slot == MaterialTextureSlot::Emissive) target = &inst.emissive;
+        else if (slot == MaterialTextureSlot::OpacityMask) target = &inst.opacityMask;
+
+        if (target == nullptr)
+            continue;
+
+        target->enabled = true;
+        target->path = texturePath;
+        anyApplied = true;
+    }
+
+    return anyApplied;
 }
 
 bool MaterialBuilder::Is_MaterialBundleFile(const fs::path& path)

@@ -173,6 +173,14 @@ void Material_View::Draw_ModeSelector()
         _mode = CreateMode::CreateWithJson;
 
     ImGui::SameLine();
+    if (ImGui::Button("Edit With material.json"))
+        _mode = CreateMode::EditWithBundle;
+
+    ImGui::SameLine();
+    if (ImGui::Button("Edit With ModelCom"))
+        _mode = CreateMode::EditWithModelCom;
+
+    ImGui::SameLine();
     if (ImGui::Button("Create Material"))
         _mode = CreateMode::CreateMaterial;
 }
@@ -387,78 +395,171 @@ void Material_View::Draw_CreateWithJson()
         _activeMappingGroup = 0;
     }
 
-    // 선택된 ModelCom의 mesh -> materialIndex를 먼저 보여주고, material slot을 골라서 해당 slot만 편집하기 쉽게 한다.
+    // 선택된 모델 기준으로 materialIndex를 골라서, 아래 편집 UI를 그 슬롯만 보이게 필터링한다.
+    Shared<Engine::ModelCom> selectedModel = nullptr;
+    const int selectedMaterialIndexFilter = Draw_SelectedModelSection(selectedModel);
+    Draw_MappingsEditorUI(selectedMaterialIndexFilter);
+}
+
+void Material_View::Draw_EditWithBundle()
+{
+    // 이미 저장된 .material.json(번들)을 불러와서 편집한다.
+    ImGui::SeparatorText("Input");
+
+    if (ImGui::Button("Choose material.json"))
+    {
+        wstring picked{};
+        fs::path defaultFolder(_bundleOutputDir);
+        if (Try_PickJsonFileDialog(L"Select material.json", defaultFolder.wstring(), picked))
+            _selectedBundlePath = picked;
+    }
+
+    ImGui::SameLine();
+    {
+        const fs::path p(_selectedBundlePath);
+        const string label = _selectedBundlePath.empty() ? "<None>" : String::ToString(p.filename().wstring());
+        ImGui::TextDisabled("%s", label.c_str());
+    }
+
+    if (ImGui::Button("Load"))
+    {
+        if (!_selectedBundlePath.empty())
+            (void)Load_BundleFile(_selectedBundlePath);
+    }
+
+    ImGui::SameLine();
+    if (ImGui::Button("Save Bundle"))
+        (void)Save_BundleFile(_bundleOutputPath);
+
+    ImGui::SameLine();
+    if (ImGui::Button("Apply To Selected ModelCom"))
+        Apply_ToSelectedModel();
+
+    ImGui::SameLine();
+    if (ImGui::Button("Clear Bundle"))
+    {
+        _materialMappings.clear();
+        _materialInstances.clear();
+        _manualInstances.clear();
+        _manualInstanceKinds.clear();
+        _heuristics.clear();
+        _activeMappingGroup = 0;
+    }
+
+    Shared<Engine::ModelCom> selectedModel = nullptr;
+    const int selectedMaterialIndexFilter = Draw_SelectedModelSection(selectedModel);
+    Draw_MappingsEditorUI(selectedMaterialIndexFilter);
+}
+
+void Material_View::Draw_EditWithModelCom()
+{
+    // 선택된 ModelCom의 Runtime Material 상태(CB/텍스처)를 편집 상태로 가져온다.
+    ImGui::SeparatorText("Input");
+
+    if (ImGui::Button("Load From Selected ModelCom"))
+        (void)Load_FromSelectedModelCom();
+
+    ImGui::SameLine();
+    if (ImGui::Button("Save Bundle"))
+        (void)Save_BundleFile(_bundleOutputPath);
+
+    ImGui::SameLine();
+    if (ImGui::Button("Apply To Selected ModelCom"))
+        Apply_ToSelectedModel();
+
+    ImGui::SameLine();
+    if (ImGui::Button("Clear Bundle"))
+    {
+        _materialMappings.clear();
+        _materialInstances.clear();
+        _manualInstances.clear();
+        _manualInstanceKinds.clear();
+        _heuristics.clear();
+        _activeMappingGroup = 0;
+    }
+
+    Shared<Engine::ModelCom> selectedModel = nullptr;
+    const int selectedMaterialIndexFilter = Draw_SelectedModelSection(selectedModel);
+    Draw_MappingsEditorUI(selectedMaterialIndexFilter);
+}
+
+int Material_View::Draw_SelectedModelSection(Shared<Engine::ModelCom>& outSelectedModel)
+{
     ImGui::SeparatorText("Selected ModelCom");
+
+    outSelectedModel = nullptr;
     const Editor_Context* context = EDITOR->Get_EditorContext();
-    Shared<ModelCom> selectedModel = nullptr;
     if (context != nullptr)
     {
         const Shared<GameObject> selectedObject = context->Get_Selection().selectedObject;
         if (selectedObject != nullptr)
-            selectedModel = selectedObject->Get_Component<ModelCom>();
+            outSelectedModel = selectedObject->Get_Component<ModelCom>();
     }
 
     int selectedMaterialIndexFilter = -1;
-    if (selectedModel == nullptr)
+    if (outSelectedModel == nullptr)
     {
         ImGui::TextDisabled("Select a GameObject that has ModelCom.");
+        return -1;
     }
-    else
+
+    if (ImGui::CollapsingHeader("Mesh -> Material Slot", &_showSelectedModelMeshMap, ImGuiTreeNodeFlags_DefaultOpen))
     {
-        if (ImGui::CollapsingHeader("Mesh -> Material Slot", &_showSelectedModelMeshMap, ImGuiTreeNodeFlags_DefaultOpen))
+        const auto& meshes = outSelectedModel->Get_Meshes();
+        for (uint32 i = 0; i < static_cast<uint32>(meshes.size()); ++i)
         {
-            const auto& meshes = selectedModel->Get_Meshes();
-            for (uint32 i = 0; i < static_cast<uint32>(meshes.size()); ++i)
-            {
-                const Shared<Mesh>& mesh = meshes[i];
-                if (mesh == nullptr)
-                    continue;
+            const Shared<Mesh>& mesh = meshes[i];
+            if (mesh == nullptr)
+                continue;
 
-                const uint32 matIndex = mesh->Get_MaterialIndex();
-                const Shared<Material> mat = selectedModel->Get_Material(matIndex);
-                const char* matName = (mat != nullptr) ? mat->Get_MaterialName().c_str() : "<null>";
+            const uint32 matIndex = mesh->Get_MaterialIndex();
+            const Shared<Material> mat = outSelectedModel->Get_Material(matIndex);
+            const char* matName = (mat != nullptr) ? mat->Get_MaterialName().c_str() : "<null>";
 
-                ImGui::BulletText("Mesh[%u] %s  ->  Material[%u] : %s",
-                    i,
-                    mesh->Get_Name().c_str(),
-                    matIndex,
-                    matName);
-            }
-        }
-
-        const uint32 numMaterials = static_cast<uint32>(selectedModel->Get_NumMaterials());
-        if (numMaterials == 0)
-        {
-            ImGui::TextDisabled("ModelCom has no materials.");
-        }
-        else
-        {
-            if (_selectedModelMaterialIndex < 0 || _selectedModelMaterialIndex >= static_cast<int>(numMaterials))
-                _selectedModelMaterialIndex = 0;
-
-            selectedMaterialIndexFilter = _selectedModelMaterialIndex;
-
-            const Shared<Material> currentMaterial = selectedModel->Get_Material(static_cast<uint32>(_selectedModelMaterialIndex));
-            const string preview = "[" + to_string(_selectedModelMaterialIndex) + "] " +
-                (currentMaterial ? currentMaterial->Get_MaterialName() : string("<null>"));
-
-            if (ImGui::BeginCombo("Material Slot", preview.c_str()))
-            {
-                for (uint32 i = 0; i < numMaterials; ++i)
-                {
-                    const Shared<Material> mat = selectedModel->Get_Material(i);
-                    const string label = "[" + to_string(i) + "] " + (mat ? mat->Get_MaterialName() : string("<null>"));
-                    const bool isSelected = (static_cast<int>(i) == _selectedModelMaterialIndex);
-                    if (ImGui::Selectable(label.c_str(), isSelected))
-                        _selectedModelMaterialIndex = static_cast<int>(i);
-                    if (isSelected)
-                        ImGui::SetItemDefaultFocus();
-                }
-                ImGui::EndCombo();
-            }
+            ImGui::BulletText("Mesh[%u] %s  ->  Material[%u] : %s",
+                i,
+                mesh->Get_Name().c_str(),
+                matIndex,
+                matName);
         }
     }
 
+    const uint32 numMaterials = static_cast<uint32>(outSelectedModel->Get_NumMaterials());
+    if (numMaterials == 0)
+    {
+        ImGui::TextDisabled("ModelCom has no materials.");
+        return -1;
+    }
+
+    if (_selectedModelMaterialIndex < 0 || _selectedModelMaterialIndex >= static_cast<int>(numMaterials))
+        _selectedModelMaterialIndex = 0;
+
+    selectedMaterialIndexFilter = _selectedModelMaterialIndex;
+
+    const Shared<Material> currentMaterial = outSelectedModel->Get_Material(static_cast<uint32>(_selectedModelMaterialIndex));
+    const string preview = "[" + to_string(_selectedModelMaterialIndex) + "] " +
+        (currentMaterial ? currentMaterial->Get_MaterialName() : string("<null>"));
+
+    if (ImGui::BeginCombo("Material Slot", preview.c_str()))
+    {
+        for (uint32 i = 0; i < numMaterials; ++i)
+        {
+            const Shared<Material> mat = outSelectedModel->Get_Material(i);
+            const string label = "[" + to_string(i) + "] " + (mat ? mat->Get_MaterialName() : string("<null>"));
+            const bool isSelected = (static_cast<int>(i) == _selectedModelMaterialIndex);
+            if (ImGui::Selectable(label.c_str(), isSelected))
+                _selectedModelMaterialIndex = static_cast<int>(i);
+            if (isSelected)
+                ImGui::SetItemDefaultFocus();
+        }
+        ImGui::EndCombo();
+    }
+
+    return selectedMaterialIndexFilter;
+}
+
+void Material_View::Draw_MappingsEditorUI(int selectedMaterialIndexFilter)
+{
     // SK_LUNE_UE5.json(Mapping Src) 파일이 참조하는 M, MI_*.json 파일을 읽어 실제 머테리얼로 파싱할 데이터들 보여주는 곳.
     ImGui::SeparatorText("Mappings");
     if (_materialMappings.empty())
@@ -955,6 +1056,10 @@ void Material_View::Render()
 
         if (_mode == CreateMode::CreateWithJson)
             Draw_CreateWithJson();
+        else if (_mode == CreateMode::EditWithBundle)
+            Draw_EditWithBundle();
+        else if (_mode == CreateMode::EditWithModelCom)
+            Draw_EditWithModelCom();
         else
             Draw_CreateMaterial();
     }
@@ -1038,6 +1143,31 @@ void Material_View::Apply_ToSelectedModel()
                 continue;
 
             const MaterialInstanceData& inst = *instPtr;
+
+            // =================================================== NOTE ============================================================
+            // Edit With ModelCom 모드에서는 "오브젝트별(instance)"만 저장/적용한다.
+            // 즉, runtime Material을 직접 덮어쓰는 게 아니라 ModelCom의 instance override를 갱신하고,
+            // base(bundle) + instance를 합성 적용한다.
+            // =====================================================================================================================
+            if (_mode == CreateMode::EditWithModelCom)
+            {
+                Engine::ModelCom::MaterialInstanceOverride ov{};
+                ov.overrideRenderStateEnabled = true;
+                ov.overrideCBEnabled = true;
+                ov.renderState = inst.renderState;
+                ov.cb = inst.cb;
+
+                if (inst.baseColorOverride) { ov.baseColor.enabled = true; ov.baseColor.path = inst.baseColorPath; }
+                if (inst.normalOverride) { ov.normal.enabled = true; ov.normal.path = inst.normalPath; }
+                if (inst.ormOverride) { ov.orm.enabled = true; ov.orm.path = inst.ormPath; }
+                if (inst.emissiveOverride) { ov.emissive.enabled = true; ov.emissive.path = inst.emissivePath; }
+                if (inst.opacityMaskOverride) { ov.opacityMask.enabled = true; ov.opacityMask.path = inst.opacityMaskPath; }
+
+                model->Set_InstanceOverride(m.materialIndex, ov);
+                model->Apply_EffectiveMaterial(m.materialIndex);
+                continue;
+            }
+
             const Shared<Material> material = model->Get_Material(m.materialIndex);
             if (material == nullptr)
                 continue;
@@ -1056,10 +1186,10 @@ void Material_View::Apply_ToSelectedModel()
             if (inst.emissiveOverride)
                 material->Override_TextureSlot(MaterialTextureSlot::Emissive, 0, inst.emissivePath);
 
-             // 빈 문자열 전달 필수!!!!!!! 
-             if (inst.opacityMaskOverride)
+            // 빈 문자열 전달 필수!!!!!!!
+            if (inst.opacityMaskOverride)
                 material->Override_TextureSlot(MaterialTextureSlot::OpacityMask, 0, inst.opacityMaskPath);
-             else
+            else
                 material->Override_TextureSlot(MaterialTextureSlot::OpacityMask, 0, L"");
 
 #ifdef _DEBUG
@@ -1265,6 +1395,280 @@ bool Material_View::Try_PickJsonFileDialog(const wstring& title, const wstring& 
         CoUninitialize();
 
     return !outFilePath.empty();
+}
+
+bool Material_View::Load_BundleFile(const wstring& bundlePath)
+{
+    // 저장된 .material.json(번들)을 읽어서
+    // - _materialMappings / _materialInstances / _manualInstances
+    // 를 편집 가능한 상태로 복원한다.
+    fs::path p(bundlePath);
+    if (p.empty())
+        return false;
+
+    if (p.is_relative())
+        p = fs::absolute(p);
+    p = p.lexically_normal();
+
+    if (!fs::exists(p) || !fs::is_regular_file(p))
+        return false;
+
+    json root{};
+    try
+    {
+        ifstream ifs(p);
+        if (!ifs.is_open())
+            return false;
+        ifs >> root;
+    }
+    catch (...)
+    {
+        return false;
+    }
+
+    if (!root.is_object())
+        return false;
+
+    _materialMappings.clear();
+    _materialInstances.clear();
+    _manualInstances.clear();
+    _manualInstanceKinds.clear();
+    _heuristics.clear();
+    _activeMappingGroup = 0;
+
+    if (root.contains("heuristics") && root["heuristics"].is_array())
+    {
+        for (const json& jn : root["heuristics"])
+        {
+            if (!jn.is_object())
+                continue;
+            HeuristicNote note{};
+            note.kind = jn.value("kind", string{});
+            note.detail = jn.value("detail", string{});
+            _heuristics.push_back(move(note));
+        }
+    }
+
+    auto parseRefKind = [](const string& s) -> MaterialRefKind
+    {
+        if (s == "MI") return MaterialRefKind::MI;
+        if (s == "M") return MaterialRefKind::M;
+        return MaterialRefKind::Unknown;
+    };
+
+    const fs::path resourceRoot = p.has_parent_path() ? p.parent_path().parent_path() : fs::path{};
+
+    auto relToAbsUnderResourceRoot = [&](const string& rel) -> wstring
+    {
+        if (rel.empty())
+            return {};
+
+        fs::path rp(rel);
+        if (rp.is_absolute())
+            return rp.lexically_normal().wstring();
+
+        if (!resourceRoot.empty())
+            return (resourceRoot / rp).lexically_normal().wstring();
+
+        return rp.lexically_normal().wstring();
+    };
+
+    if (root.contains("instances") && root["instances"].is_array())
+    {
+        for (const json& ji : root["instances"])
+        {
+            if (!ji.is_object())
+                continue;
+
+            MaterialInstanceData inst{};
+            inst.assetName = ji.value("assetName", string{});
+            if (inst.assetName.empty())
+                continue;
+
+            inst.templateId = static_cast<Engine::MaterialShaderTemplate>(ji.value("template", static_cast<uint32>(inst.templateId)));
+
+            if (ji.contains("renderState") && ji["renderState"].is_object())
+            {
+                const json& rs = ji["renderState"];
+                inst.renderState.twoSided = rs.value("twoSided", inst.renderState.twoSided);
+                inst.renderState.blendMode = static_cast<Engine::MaterialBlendMode>(rs.value("blendMode", static_cast<uint32>(inst.renderState.blendMode)));
+                inst.renderState.opacityMaskClipValue = rs.value("opacityMaskClipValue", inst.renderState.opacityMaskClipValue);
+            }
+
+            if (ji.contains("overrides") && ji["overrides"].is_object())
+            {
+                const json& jov = ji["overrides"];
+                inst.baseColorOverride = jov.value("baseColor", inst.baseColorOverride);
+                inst.normalOverride = jov.value("normal", inst.normalOverride);
+                inst.ormOverride = jov.value("orm", inst.ormOverride);
+                inst.emissiveOverride = jov.value("emissive", inst.emissiveOverride);
+                inst.opacityMaskOverride = jov.value("opacityMask", inst.opacityMaskOverride);
+            }
+
+            if (ji.contains("textures") && ji["textures"].is_object())
+            {
+                const json& jt = ji["textures"];
+                inst.baseColorPath = relToAbsUnderResourceRoot(jt.value("baseColor", string{}));
+                inst.normalPath = relToAbsUnderResourceRoot(jt.value("normal", string{}));
+                inst.ormPath = relToAbsUnderResourceRoot(jt.value("orm", string{}));
+                inst.emissivePath = relToAbsUnderResourceRoot(jt.value("emissive", string{}));
+                inst.opacityMaskPath = relToAbsUnderResourceRoot(jt.value("opacityMask", string{}));
+            }
+
+            if (ji.contains("cb") && ji["cb"].is_object())
+            {
+                const json& jcb = ji["cb"];
+                if (jcb.contains("baseColorTint") && jcb["baseColorTint"].is_array() && jcb["baseColorTint"].size() >= 4)
+                    inst.cb.baseColorTint = Engine::Vec4(jcb["baseColorTint"][0], jcb["baseColorTint"][1], jcb["baseColorTint"][2], jcb["baseColorTint"][3]);
+                if (jcb.contains("emissiveColor") && jcb["emissiveColor"].is_array() && jcb["emissiveColor"].size() >= 4)
+                    inst.cb.emissiveColor = Engine::Vec4(jcb["emissiveColor"][0], jcb["emissiveColor"][1], jcb["emissiveColor"][2], jcb["emissiveColor"][3]);
+
+                inst.cb.emissiveIntensity = jcb.value("emissiveIntensity", inst.cb.emissiveIntensity);
+                inst.cb.emissiveMaskMul = jcb.value("emissiveMaskMul", inst.cb.emissiveMaskMul);
+                inst.cb.normalStrength = jcb.value("normalStrength", inst.cb.normalStrength);
+                inst.cb.opacityMaskClipValue = jcb.value("opacityMaskClipValue", inst.cb.opacityMaskClipValue);
+                inst.cb.roughnessScale = jcb.value("roughnessScale", inst.cb.roughnessScale);
+                inst.cb.metalnessScale = jcb.value("metalnessScale", inst.cb.metalnessScale);
+                inst.cb.aoScale = jcb.value("aoScale", inst.cb.aoScale);
+
+                if (jcb.contains("uvScale") && jcb["uvScale"].is_array() && jcb["uvScale"].size() >= 2)
+                    inst.cb.uvScale = Engine::Vec2(jcb["uvScale"][0], jcb["uvScale"][1]);
+                if (jcb.contains("uvOffset") && jcb["uvOffset"].is_array() && jcb["uvOffset"].size() >= 2)
+                    inst.cb.uvOffset = Engine::Vec2(jcb["uvOffset"][0], jcb["uvOffset"][1]);
+            }
+
+            const MaterialRefKind kind = parseRefKind(ji.value("refKind", string{}));
+            if (kind == MaterialRefKind::MI)
+            {
+                _materialInstances.emplace(inst.assetName, move(inst));
+            }
+            else
+            {
+                _manualInstanceKinds[inst.assetName] = kind;
+                _manualInstances.emplace(inst.assetName, move(inst));
+            }
+        }
+    }
+
+    if (root.contains("mappings") && root["mappings"].is_array())
+    {
+        for (const json& jm : root["mappings"])
+        {
+            if (!jm.is_object())
+                continue;
+
+            MaterialMapping m{};
+            m.source = MaterialSourceKind::SK;
+            m.sourceFile = p.filename().string();
+            m.materialIndex = jm.value("materialIndex", 0u);
+            m.originalMaterialIndex = m.materialIndex;
+            m.slotName = jm.value("slotName", string{});
+
+            if (jm.contains("ref") && jm["ref"].is_object())
+            {
+                const json& jref = jm["ref"];
+                m.material.assetName = jref.value("assetName", string{});
+                const string kindStr = jref.value("kind", string{});
+                m.material.kind = (kindStr == "MI") ? MaterialRefKind::MI : (kindStr == "M") ? MaterialRefKind::M : MaterialRefKind::Unknown;
+                m.material.objectName = jref.value("objectName", string{});
+                m.material.objectPath = jref.value("objectPath", string{});
+            }
+
+            _materialMappings.push_back(move(m));
+        }
+    }
+
+    _selectedBundlePath = p.wstring();
+    _bundleOutputPath = _selectedBundlePath;
+
+    // 번들 파일 안 경로들은 Resources 루트 기준 상대 경로라서, texture root는 저장 위치 기준으로 세팅해두는 게 편하다.
+    if (p.has_parent_path())
+    {
+        _textureSearchRoot = resourceRoot.wstring() + L"\\Models";
+        _textureIndexDirty = true;
+    }
+
+    return true;
+}
+
+bool Material_View::Load_FromSelectedModelCom()
+{
+    // 선택된 ModelCom의 Runtime Material 상태를 읽어서 편집 상태로 만든다.
+    // 목표:
+    // - 런타임에서 조정된 CB 값(색/강도/UV 등)을 그대로 가져오기
+    // - SRV가 있는 슬롯은 resolvedPath를 경로로 노출하기
+    const Editor_Context* context = EDITOR->Get_EditorContext();
+    if (context == nullptr)
+        return false;
+
+    const Shared<GameObject> selectedObject = context->Get_Selection().selectedObject;
+    if (selectedObject == nullptr)
+        return false;
+
+    const Shared<ModelCom> model = selectedObject->Get_Component<ModelCom>();
+    if (model == nullptr)
+        return false;
+
+    _materialMappings.clear();
+    _materialInstances.clear();
+    _manualInstances.clear();
+    _manualInstanceKinds.clear();
+    _heuristics.clear();
+    _activeMappingGroup = 0;
+
+    const uint32 numMaterials = static_cast<uint32>(model->Get_NumMaterials());
+    for (uint32 materialIndex = 0; materialIndex < numMaterials; ++materialIndex)
+    {
+        const Shared<Material> mat = model->Get_Material(materialIndex);
+        if (mat == nullptr)
+            continue;
+
+        const string assetName = mat->Get_MaterialName().empty()
+            ? ("Material_" + to_string(materialIndex))
+            : mat->Get_MaterialName();
+
+        MaterialMapping mapping{};
+        mapping.source = MaterialSourceKind::SK;
+        mapping.sourceFile = "SelectedModelCom";
+        mapping.materialIndex = materialIndex;
+        mapping.originalMaterialIndex = materialIndex;
+        mapping.slotName = "Runtime";
+        mapping.material.assetName = assetName;
+        mapping.material.kind = MaterialRefKind::Unknown;
+        _materialMappings.push_back(mapping);
+
+        MaterialInstanceData inst{};
+        inst.assetName = assetName;
+        inst.templateId = mat->Get_TemplateId();
+        inst.renderState = mat->Get_RenderState();
+        inst.cb = mat->Get_CB();
+
+        auto slotToPath = [&](MaterialTextureSlot slot, wstring& outPath, bool& outOverride) -> void
+        {
+            const Material::TextureSlot* s = mat->Find_TextureSlot(slot, 0);
+            if (s != nullptr && s->shaderResourceView != nullptr)
+            {
+                outPath = s->resolvedPath;
+                outOverride = true;
+            }
+            else
+            {
+                outPath.clear();
+                outOverride = false;
+            }
+        };
+
+        slotToPath(MaterialTextureSlot::BaseColor, inst.baseColorPath, inst.baseColorOverride);
+        slotToPath(MaterialTextureSlot::Normal, inst.normalPath, inst.normalOverride);
+        slotToPath(MaterialTextureSlot::ORM, inst.ormPath, inst.ormOverride);
+        slotToPath(MaterialTextureSlot::Emissive, inst.emissivePath, inst.emissiveOverride);
+        slotToPath(MaterialTextureSlot::OpacityMask, inst.opacityMaskPath, inst.opacityMaskOverride);
+
+        _manualInstances.emplace(assetName, move(inst));
+        _manualInstanceKinds[assetName] = MaterialRefKind::Unknown;
+    }
+
+    return !_materialMappings.empty();
 }
 
 bool Material_View::Try_PickTextureFileDialog(const wstring& title, const wstring& defaultFolder, wstring& outFilePath)

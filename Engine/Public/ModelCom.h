@@ -34,6 +34,49 @@ public:
     const wstring& Get_SourceModelPath() const { return _sourceModelPath; }
     ModelType Get_ModelType() const { return _type; }
 
+public: /* Material Binding (Base/Instance) */
+    struct TextureOverride
+    {
+        bool enabled = false;
+        wstring path{};
+    };
+
+    struct MaterialInstanceOverride
+    {
+        bool overrideRenderStateEnabled = false;
+        bool overrideCBEnabled = false;
+
+        MaterialRenderState renderState{};
+        MaterialCB cb{};
+
+        TextureOverride baseColor{};
+        TextureOverride normal{};
+        TextureOverride orm{};
+        TextureOverride emissive{};
+        TextureOverride opacityMask{};
+    };
+
+    struct MaterialBinding
+    {
+        string baseBundleKey{};
+        MaterialInstanceOverride instance{};
+    };
+
+    const vector<MaterialBinding>& Get_MaterialBindings() const { return _materialBindings; }
+    vector<MaterialBinding>& Get_MaterialBindings() { return _materialBindings; }
+
+    void Set_BaseBundleKey(uint32 materialIndex, const string& bundleKey);
+    void Set_InstanceOverride(uint32 materialIndex, const MaterialInstanceOverride& overrideData);
+    void Clear_InstanceOverride(uint32 materialIndex);
+
+    void Apply_BaseMaterialFromBundle_AllSlots();
+    void Apply_EffectiveMaterial(uint32 materialIndex);
+
+public:
+    // MaterialBuilder가 prefab/json에서 binding을 채울 때 사용한다.
+    // (material slot 수에 맞춰 _materialBindings를 준비하고 기본 baseBundleKey를 설정)
+    void Ensure_MaterialBindings();
+
 public:
     bool  Is_Skeletal() const { return _isSkeletal; } 
 	int32 Get_BoneIndex(const string& boneName) const;
@@ -138,7 +181,6 @@ private:
     Matrix Build_LeaderPoseMatrix(uint32 boneIndex, vector<uint8>& visited);
 
 private:
-    void Apply_MaterialOverrides(const json& data);
 
 private:
 	ModelType					        _type = { ModelType::END };
@@ -177,6 +219,9 @@ private: /* For Root Motion */
 
 private: /* guid */
     wstring                             _sourceModelPath = {};
+
+private:
+    vector<MaterialBinding> _materialBindings{};
 
 private: /* notify */
     bool                                _isAnimationPaused = false;
