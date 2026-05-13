@@ -679,7 +679,7 @@ HRESULT ModelCom::Bind_BoneMatrices(ShaderCom* shader, const char* constantName,
 
     if (!_leaderPoseCombinedMatrices.empty())
     {
-        //Update_LeaderPoseMatrices();
+        Update_LeaderPoseMatrices();
         return _meshes[meshIndex]->Bind_BoneMatrices(
             shader,
             constantName,
@@ -1002,11 +1002,11 @@ void ModelCom::Update_LeaderPoseMatrices()
 
 Matrix ModelCom::Convert_LeaderPoseMatrix(const Matrix& leaderMatrix) const
 {
-    /*Matrix leaderPrevInverse = _leaderPoseModel->Get_PreLocalTransformMatrix();
-    leaderPrevInverse.Invert();
-
-    return leaderMatrix * leaderPrevInverse * _preLocalTransformMatrix;*/
-    return leaderMatrix;
+    Matrix leaderPrevInverse = _leaderPoseModel->Get_PreLocalTransformMatrix();
+    leaderPrevInverse = leaderPrevInverse.Invert();
+    
+    return leaderMatrix * leaderPrevInverse * _preLocalTransformMatrix;
+    //return leaderMatrix;
 }
 
 Matrix ModelCom::Build_LeaderPoseMatrix(uint32 boneIndex, vector<uint8>& visited)
