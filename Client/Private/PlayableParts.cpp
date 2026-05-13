@@ -113,9 +113,8 @@ HRESULT PlayableParts::Render()
 
     for (uint32 i = 0; i < iNumMeshes; i++)
     {
-        const Shared<Material> material = _modelCom->Get_Material(i);
-        if (material == nullptr)
-            continue;
+        const uint32 materialIndex = _modelCom->Get_MeshMaterialIndex(i);
+        const Shared<Material> material = _modelCom->Get_Material(materialIndex);
 
         if (FAILED(_shaderCom->Bind_MaterialTextures(*material)))
             continue;

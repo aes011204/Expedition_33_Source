@@ -33,6 +33,7 @@ struct UI_Object
     bool visible = true;
     bool locked = false;
     int32 sortOrder = 0;
+    UI_RenderGroup renderGroup = UI_RenderGroup::Foreground;
     string text = "";
     float fontSize = 32.f;
     UI_TextAlign textAlign = UI_TextAlign::Left;

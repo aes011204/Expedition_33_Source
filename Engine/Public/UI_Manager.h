@@ -24,7 +24,7 @@ public:
 
 public:
     HRESULT Initialize();
-    HRESULT Render();
+    HRESULT Render(UI_RenderGroup renderGroup = UI_RenderGroup::Foreground);
     void    Update(float timeDelta);
     void    Clear();
     void    Clear_Level(uint32 levelIndex);

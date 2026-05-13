@@ -195,6 +195,9 @@ void GameInstance::Update_Engine(float timeDelta, const function<void(float)>& c
 
 HRESULT GameInstance::Draw()
 {
+    if (FAILED(_uiManager->Render(UI_RenderGroup::Background)))
+        return E_FAIL;
+
     _renderer->Draw();
 
     _levelManager->Render();

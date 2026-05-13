@@ -418,6 +418,43 @@ string Asset_Manager::Detect_AssetType(const wstring& filePath) const
 {
     const string extension = String::ToLowerCopy(String::ToString(fs::path(filePath).extension().wstring()));
 
+    if (extension == ".json")
+    {
+        string relativePath = String::ToLowerCopy(fs::path(filePath).generic_string());
+
+        try
+        {
+            if (!_resourceRoot.empty())
+                relativePath = String::ToLowerCopy(fs::relative(fs::path(filePath), fs::path(_resourceRoot)).generic_string());
+        }
+        catch (...)
+        {
+        }
+
+        if (0 == relativePath.find("ui/ui_json/"))
+            return "UIJson";
+
+        if (0 == relativePath.find("data/json/animnotifies/"))
+            return "AnimNotify";
+
+        if (0 == relativePath.find("data/json/bt/"))
+            return "BehaviorTree";
+
+        if (0 == relativePath.find("data/json/camerapreset/"))
+            return "CameraPreset";
+
+        if (0 == relativePath.find("data/json/cinematics/"))
+            return "Cinematic";
+
+        if (0 == relativePath.find("data/json/prefabs/"))
+            return "Prefab";
+
+        if (0 == relativePath.find("materials/"))
+            return "Material";
+
+        return "Json";
+    }
+
     if (extension == ".model" || extension == ".meshbin")
         return "Model";
 
@@ -469,12 +506,14 @@ bool Asset_Manager::Should_RegisterAsset(const fs::path& path) const
     if (EndsWith(name, ".meta") ||
         name == "assetregistry.json" ||
         name == "assetregistry.cache.json" ||
-        extension == ".json" ||
         extension == ".xlsx" ||
         extension == ".csv")
     {
         return false;
     }
+
+    if (extension == ".json")
+        return Should_RegisterJsonAsset(path);
 
     return extension == ".model"
         || extension == ".meshbin"
@@ -494,6 +533,31 @@ bool Asset_Manager::Should_RegisterAsset(const fs::path& path) const
         || extension == ".spritefont"
         || extension == ".ttf"
         || extension == ".otf";
+}
+
+bool Asset_Manager::Should_RegisterJsonAsset(const fs::path& path) const
+{
+    if (_resourceRoot.empty())
+        return false;
+
+    string relativePath = {};
+
+    try
+    {
+        relativePath = String::ToLowerCopy(fs::relative(path, fs::path(_resourceRoot)).generic_string());
+    }
+    catch (...)
+    {
+        return false;
+    }
+
+    return 0 == relativePath.find("ui/ui_json/") ||
+        0 == relativePath.find("data/json/animnotifies/") ||
+        0 == relativePath.find("data/json/bt/") ||
+        0 == relativePath.find("data/json/camerapreset/") ||
+        0 == relativePath.find("data/json/cinematics/") ||
+        0 == relativePath.find("data/json/prefabs/") ||
+        0 == relativePath.find("materials/");
 }
 
 wstring Asset_Manager::Build_MetaPath(const wstring& assetPath)

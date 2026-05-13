@@ -18,10 +18,10 @@ public:
 	virtual ~Level_GamePlay() = default;
 
 public:
-	virtual HRESULT Initialize() override;
-    virtual void    BeginPlay() override;
-	virtual void    Update(float fTimeDelta) override;
-	virtual HRESULT Render() override;
+	HRESULT Initialize() override;
+    void    BeginPlay() override;
+	void    Update(float fTimeDelta) override;
+	HRESULT Render() override;
 private:
 	HRESULT Ready_Lights();
     HRESULT Ready_Layer_UI(const wstring& strLayerTag);
@@ -32,6 +32,7 @@ private:
     //HRESULT Ready_Layer_MapStaticMesh(const wstring& strLayerTag);
 
 private:
+    // UI 로드 방법에 대한 테스트 코드임.
     HRESULT Bind_TestUI();
     void    Update_Input_TestUI();
     void    Update_TestUI();

@@ -91,6 +91,11 @@ bool PlayerControllerCom::Is_WalkToggled() const
     return _isWalkToggled;
 }
 
+bool PlayerControllerCom::Is_Grounded() const
+{
+    return _movementCom->Is_Grounded();
+}
+
 const MovementCom::MovementInput& PlayerControllerCom::Get_MovementInput() const
 {
     return _currentInput;
