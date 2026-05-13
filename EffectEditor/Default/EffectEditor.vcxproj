@@ -189,6 +189,8 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     <ClCompile Include="..\Private\EffectEditorCamera.cpp" />
     <ClCompile Include="..\Private\EffectEditorApp.cpp" />
     <ClCompile Include="..\Private\EffectEditorInstance.cpp" />
+    <ClCompile Include="..\Private\EffectMaterial_View.cpp" />
+    <ClCompile Include="..\Private\EffectMaterialInstance_View.cpp" />
     <ClCompile Include="..\Private\Level_EffectEditor.cpp" />
     <ClCompile Include="..\Private\SimpleMath.cpp" />
     <ClCompile Include="..\Private\ImGui_Manager.cpp" />
@@ -216,6 +218,9 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     <ClInclude Include="..\Public\Emitter_View.h" />
     <ClInclude Include="..\Public\EffectEditorCamera.h" />
     <ClInclude Include="..\Public\EffectAuthoring_Types.h" />
+    <ClInclude Include="..\Public\EffectMaterialAuthoring_Types.h" />
+    <ClInclude Include="..\Public\EffectMaterial_View.h" />
+    <ClInclude Include="..\Public\EffectMaterialInstance_View.h" />
     <ClInclude Include="..\Public\EffectEditor_Enum.h" />
     <ClInclude Include="..\Public\EffectEditor_Macro.h" />
     <ClInclude Include="..\Public\EffectEditor_Struct.h" />

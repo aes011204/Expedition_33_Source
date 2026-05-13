@@ -1,6 +1,26 @@
 ﻿#include "ModuleDetail_Drawers.h"
 
+#include "EffectEditorInstance.h"
+#include "EffectMaterialInstance_View.h"
+
 NS_BEGIN(EffectEditor)
+
+namespace Internal
+{
+    void Open_MaterialInstanceWindow(uint32 emitterId, uint32 moduleId)
+    {
+        if (EDITOR == nullptr)
+            return;
+
+        const Shared<Editor_Window> materialInstanceWindow = EDITOR->Get_Window(L"Effect Material Instance");
+        const Shared<EffectMaterialInstance_View> materialInstanceView =
+            dynamic_pointer_cast<EffectMaterialInstance_View>(materialInstanceWindow);
+        if (materialInstanceView == nullptr)
+            return;
+
+        materialInstanceView->Open_Instance(emitterId, moduleId);
+    }
+}
 
 bool ModuleDetailDrawContext::Begin_PropertyTable(const char* id)
 {
@@ -94,7 +114,7 @@ bool ModuleDetailDrawContext::Draw_Vec3Property(const char* label, Vec3& value, 
     return DetailProperty::Draw_Vec3Property(label, value, defaultValue, speed);
 }
 
-bool RequiredModuleDetail::Draw(AuthoringEmitter& emitter, AuthoringModule&, RequiredModuleData& data, ModuleDetailDrawContext& drawContext)
+bool RequiredModuleDetail::Draw(AuthoringEmitter& emitter, AuthoringModule& module, RequiredModuleData& data, ModuleDetailDrawContext& drawContext)
 {
     const RequiredModuleData defaultData{};
     bool changed = false;
@@ -103,17 +123,33 @@ bool RequiredModuleDetail::Draw(AuthoringEmitter& emitter, AuthoringModule&, Req
     {
         if (drawContext.Begin_PropertyTable("RequiredMaterial"))
         {
-            changed |= drawContext.Draw_StringProperty("머티리얼", data.materialName, defaultData.materialName);
-            changed |= drawContext.Draw_StringProperty("텍스처 슬롯 (임시)", data.textureId, defaultData.textureId);
-            changed |= drawContext.Draw_StringProperty("블렌드 모드", data.blendMode, defaultData.blendMode);
-            changed |= drawContext.Draw_StringProperty("투명도 소스", data.opacitySource, defaultData.opacitySource);
-            changed |= drawContext.Draw_ColorProperty("틴트", data.tint, defaultData.tint);
-            changed |= drawContext.Draw_FloatProperty("강도", data.intensity, defaultData.intensity);
-            changed |= drawContext.Draw_FloatProperty("투명도 파워", data.opacityPower, defaultData.opacityPower);
-            changed |= drawContext.Draw_StringProperty("노이즈 텍스처 슬롯", data.noiseTextureId, defaultData.noiseTextureId);
-            changed |= drawContext.Draw_FloatProperty("노이즈 강도", data.noiseStrength, defaultData.noiseStrength);
-            changed |= drawContext.Draw_UintProperty("SubUV 행", data.subUvRows, defaultData.subUvRows);
-            changed |= drawContext.Draw_UintProperty("SubUV 열", data.subUvCols, defaultData.subUvCols);
+            ImGui::PushID("MaterialDefinition");
+            DetailProperty::Draw_PropertyLabel("머티리얼");
+            ImGui::TextUnformatted(data.material.definitionName.c_str());
+            DetailProperty::Draw_ResetButton(false);
+            ImGui::PopID();
+
+            ImGui::PushID("MaterialTexture");
+            DetailProperty::Draw_PropertyLabel("텍스처");
+            ImGui::TextUnformatted(data.material.mainTextureId.c_str());
+            DetailProperty::Draw_ResetButton(false);
+            ImGui::PopID();
+
+            ImGui::PushID("MaterialSummary");
+            DetailProperty::Draw_PropertyLabel("요약");
+            ImGui::Text("%s / %s", data.material.blendMode.c_str(), data.material.opacitySource.c_str());
+            DetailProperty::Draw_ResetButton(false);
+            ImGui::PopID();
+
+            ImGui::PushID("MaterialEdit");
+            DetailProperty::Draw_PropertyLabel("편집");
+            if (ImGui::Button("Edit Instance"))
+                Internal::Open_MaterialInstanceWindow(emitter.id, module.id);
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
+                ImGui::SetTooltip("embedded material instance 편집");
+            DetailProperty::Draw_ResetButton(false);
+            ImGui::PopID();
+
             drawContext.End_PropertyTable();
         }
     }
@@ -181,9 +217,9 @@ bool RequiredModuleDetail::Draw(AuthoringEmitter& emitter, AuthoringModule&, Req
     if (changed)
     {
         emitter.rendererType = data.rendererType;
-        emitter.textureId = data.textureId;
-        emitter.materialName = data.materialName;
-        emitter.resourceSummary = data.textureId;
+        emitter.textureId = data.material.mainTextureId;
+        emitter.materialName = data.material.definitionName;
+        emitter.resourceSummary = data.material.mainTextureId;
     }
 
     return changed;

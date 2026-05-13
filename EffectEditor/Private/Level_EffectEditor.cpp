@@ -109,28 +109,30 @@ namespace Internal
 
         if (const auto* required = Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
         {
-            if (!required->textureId.empty())
-                desc.textureId = required->textureId;
+            const EffectMaterialInstanceData& material = required->material;
 
-            if (!required->materialName.empty())
-                desc.materialName = required->materialName;
+            if (!material.mainTextureId.empty())
+                desc.textureId = material.mainTextureId;
 
-            if (!required->blendMode.empty())
-                desc.blendMode = required->blendMode;
+            if (!material.definitionName.empty())
+                desc.materialName = material.definitionName;
 
-            if (!required->opacitySource.empty())
-                desc.opacitySource = required->opacitySource;
+            if (!material.blendMode.empty())
+                desc.blendMode = material.blendMode;
 
-            desc.tint = required->tint; //RGBA
-            desc.intensity = required->intensity;
-            desc.opacityPower = required->opacityPower;
+            if (!material.opacitySource.empty())
+                desc.opacitySource = material.opacitySource;
 
-            if (!required->noiseTextureId.empty())
-                desc.noiseTextureId = required->noiseTextureId;
+            desc.tint = material.tint; //RGBA
+            desc.intensity = material.intensity;
+            desc.opacityPower = material.opacityPower;
 
-            desc.noiseStrength = required->noiseStrength;
-            desc.subUvRows = max(1u, required->subUvRows);
-            desc.subUvCols = max(1u, required->subUvCols);
+            if (!material.noiseTextureId.empty())
+                desc.noiseTextureId = material.noiseTextureId;
+
+            desc.noiseStrength = material.noiseStrength;
+            desc.subUvRows = max(1u, material.subUvRows);
+            desc.subUvCols = max(1u, material.subUvCols);
             desc.center = required->emitterOrigin;
             desc.loop = required->loopCount == 0;
         }
