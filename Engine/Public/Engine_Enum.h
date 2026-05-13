@@ -110,6 +110,8 @@ namespace Engine
         BillboardParticle,
         UI,
         VtxInstanceMesh,
+        VtxInstanceMeshExact,
+
 
         END
     };

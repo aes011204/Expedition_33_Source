@@ -534,11 +534,13 @@ ResourceLoader::FInputLayoutInfo ResourceLoader::Get_InputLayout(const string& s
     if ("ParticleInstance" == strName || "PARTICLEINSTANCE" == strName)
         return { ParticleInstanceLayout::Elements, ParticleInstanceLayout::numElements, ShaderType::BillboardParticle };
 
-    // Mesh Instance
+    // Mesh Instance (roughly)
     if("VTXMESHINST" == strName || "VtxMeshInst" == strName || "vtxmeshinst" == strName)
         return { VtxMeshInstanceLayout::Elements, VtxMeshInstanceLayout::numElements, ShaderType::VtxInstanceMesh };
 
-    //return { VTXTEX::Elements, VTXTEX::numElements };
+    // Mesh Instance (for real)
+    if ("VTXMESHINSTEXACT" == strName || "VtxMeshInstExact" == strName)
+        return { VtxMeshInstanceExactLayout::Elements, VtxMeshInstanceExactLayout::numElements, ShaderType::VtxInstanceMeshExact };
 
     return { VTXTEX::Elements, VTXTEX::numElements, ShaderType::VtxTex };
 }
