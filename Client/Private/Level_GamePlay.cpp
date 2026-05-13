@@ -67,6 +67,9 @@ HRESULT Level_GamePlay::Initialize()
     if (FAILED(Ready_Layer_BackGround(TEXT("Layer_BackGround"))))
         return E_FAIL;
 
+    if(FAILED(Ready_Layer_MapStaticMesh(L"Layer_MapStaticMesh")))
+        return E_FAIL;
+
     if (FAILED(Ready_Layer_Player(TEXT("Layer_Player"))))
         return E_FAIL;
 
@@ -76,7 +79,6 @@ HRESULT Level_GamePlay::Initialize()
     if (FAILED(Ready_Layer_Monster(TEXT("Layer_Monster"))))
         return E_FAIL;
 
-    //CHECK_FAILED(Ready_Layer_MapStaticMesh(L"Layer_MapStaticMesh"), E_FAIL);
 
     return S_OK;
 }
@@ -198,16 +200,19 @@ HRESULT Level_GamePlay::Ready_Layer_Camera(const wstring& strLayerTag)
 HRESULT Level_GamePlay::Ready_Layer_BackGround(const wstring& strLayerTag)
 {
     if (FAILED(
-        GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Terrain"),
-            ETOI(LevelType::GamePlay), strLayerTag)
-    ))
+        GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Sky_GamePlay"),
+            ETOI(LevelType::GamePlay), strLayerTag)))
         return E_FAIL;
 
-    if (FAILED(
-        GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Sky_GamePlay"),
-            ETOI(LevelType::GamePlay), strLayerTag)
-    ))
-        return E_FAIL;
+    return S_OK;
+}
+
+HRESULT Level_GamePlay::Ready_Layer_MapStaticMesh(const wstring& strLayerTag)
+{
+    CHECK_FAILED(MapLoader::Load(
+        _device, _context,
+        Constants::Map::SmallLevel_SimonArea_Remake_Path,
+        ETOI(LevelType::MapTest), strLayerTag), E_FAIL);
 
     return S_OK;
 }
@@ -232,16 +237,7 @@ HRESULT Level_GamePlay::Ready_Layer_Monster(const wstring& strLayerTag)
 
 HRESULT Level_GamePlay::Ready_Layer_Player(const wstring& strLayerTag)
 {
-    /*auto player = Spawn_Prefab::Prefab("TestPlayer")
-        .AtLevel(ETOI(LevelType::GamePlay))
-        .InLayer(strLayerTag)
-        .Spawn();
-
-    auto tr = player->Get_Transform();
-    if (tr)
-        tr->Set_Position(Vec3(10.f, 5.f, 10.f));*/
-
-    const Vec3 startPos = Vec3(-10.f, 0.f, 10.f);
+    Vec3 startPos = Vec3(205.f, -4020.5f, -1.24f);
     CHECK_FAILED(CLIENT->Initialize_Hero(ETOI(LevelType::GamePlay), strLayerTag, startPos), E_FAIL);
 
     return S_OK;

@@ -48,6 +48,11 @@ void Hair_Player::Priority_Update(float timeDelta)
 
 void Hair_Player::Update(float timeDelta)
 {
+    if (Has_LeaderPoseComponent())
+    {
+        Update_LeaderPoseMatrices();
+    }
+
     Update_CombinedWorldMatrix(_transformCom->Get_WorldMatrix());
 }
 

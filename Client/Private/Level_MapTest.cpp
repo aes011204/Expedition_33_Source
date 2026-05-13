@@ -139,7 +139,7 @@ HRESULT Level_MapTest::Ready_Layer_Camera(const wstring& strLayerTag)
 
 HRESULT Level_MapTest::Ready_Layer_Player(const wstring& strLayerTag)
 {
-    Vec3 startPos = Vec3(205.f, 4.5f, -1.24f);
+    Vec3 startPos = Vec3(205.f, 6.5f, -1.24f);
 
     CHECK_FAILED(CLIENT->Initialize_Hero(ETOI(LevelType::MapTest), TEXT("Layer_Player"), startPos), E_FAIL);
 

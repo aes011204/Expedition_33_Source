@@ -1,9 +1,49 @@
 ﻿#include "PhysX_Manager.h"
 #include "ColliderCom.h"
 #include "PhysX_Filter.h"
+#include "ModelCom.h"
+#include "cooking/PxCooking.h"
 
 namespace
 {
+    PxTransform To_PxTransform(const Matrix& worldMatrix)
+    {
+        Matrix tempMatix = worldMatrix;
+
+        Vec3 scale{};
+        Quat rotation{};
+        Vec3 translation{};
+        tempMatix.Decompose(scale, rotation, translation);
+
+        return PxTransform(
+            PxVec3(translation.x, translation.y, translation.z),
+            PxQuat(rotation.x, rotation.y, rotation.z, rotation.w));
+    }
+
+    PxMeshScale To_PxMeshScale(const Matrix& worldMatrix)
+    {
+        Matrix tempMatix = worldMatrix;
+
+        Vec3 scale{};
+        Quat rotation{};
+        Vec3 translation{};
+        tempMatix.Decompose(scale, rotation, translation);
+
+        return PxMeshScale(PxVec3(
+            max(0.0001f, fabsf(scale.x)),
+            max(0.0001f, fabsf(scale.y)),
+            max(0.0001f, fabsf(scale.z))));
+    }
+
+    PxFilterData Build_PresetFilterData(Collision_Preset preset)
+    {
+        const Collision_Preset_Data& presetData = Get_PresetData(preset);
+        return Build_FilterData(
+            presetData.channel,
+            presetData.overlapMask,
+            presetData.blockMask);
+    }
+
     class Movement_QueryFilterCallback final : public PxQueryFilterCallback
     {
     public:
@@ -85,6 +125,11 @@ HRESULT PhysX_Manager::Initialize()
 #endif
     );
     CHECK_NULL(_physics, E_FAIL);
+
+    // Static Mesh Collision Shape가 공통적으로 사용할 material
+    // 마찰계수는 일단 기본값으로 넣고, 테스트해보면서 조절 예정
+    _defaultStaticMaterial = _physics->createMaterial(0.5f, 0.5f, 0.5f);
+    CHECK_NULL(_defaultStaticMaterial, E_FAIL);
 
     _dispatcher = PxDefaultCpuDispatcherCreate(2);
 
@@ -229,6 +274,91 @@ void PhysX_Manager::onContact(const PxContactPairHeader& pairHeader, const PxCon
     }
 }
 
+PhysXStaticActorHandle PhysX_Manager::Register_StaticModel(const ModelCom& model, const Matrix& worldMatrix,
+    Collision_Preset preset)
+{
+    PhysXStaticActorHandle emptyHandle{};
+
+    CHECK_NULL(_physics, emptyHandle);
+    CHECK_NULL(_scene, emptyHandle);
+    CHECK_NULL(_defaultStaticMaterial, emptyHandle);
+
+    vector<PxTriangleMesh*> triangleMeshes = Build_OrGetTriangleMeshes(model);
+    if (triangleMeshes.empty())
+         return emptyHandle;
+
+    PxRigidStatic* actor = _physics->createRigidStatic(To_PxTransform(worldMatrix));
+    if (actor == nullptr)
+    {
+        return emptyHandle;
+    }
+
+    const PxFilterData filterData = Build_PresetFilterData(preset);
+    uint32 attachedShapeCount = 0;
+
+    for (PxTriangleMesh* triangleMesh : triangleMeshes)
+    {
+        if (triangleMesh == nullptr)
+            continue;
+
+        PxTriangleMeshGeometry geometry(triangleMesh, To_PxMeshScale(worldMatrix));
+        if (!geometry.isValid())
+            continue;
+
+        PxShape* shape = _physics->createShape(geometry, *_defaultStaticMaterial, true);
+        if (shape == nullptr)
+            continue;
+
+        // Static map collision은 simulation/query 둘 다 켠다.
+        // MovementCom의 sweep/probe는 query filter data를 본다.
+        shape->setFlag(PxShapeFlag::eSIMULATION_SHAPE, true);
+        shape->setFlag(PxShapeFlag::eTRIGGER_SHAPE, false);
+        shape->setSimulationFilterData(filterData);
+        shape->setQueryFilterData(filterData);
+
+        if (actor->attachShape(*shape))
+            ++attachedShapeCount;
+
+        // actor가 shape reference를 잡으므로 local reference는 놓는다.
+        shape->release();
+    }
+
+    if (attachedShapeCount == 0)
+    {
+        actor->release();
+        return emptyHandle;
+    }
+
+    _scene->addActor(*actor);
+
+    PhysXStaticActorHandle handle{};
+    handle.id = _nextStaticActorId++;
+    _staticActors.emplace(handle.id, actor);
+
+    return handle;
+}
+
+void PhysX_Manager::Unregister_StaticActor(PhysXStaticActorHandle handle)
+{
+    if (!handle.Is_Valid())
+        return;
+
+    auto iter = _staticActors.find(handle.id);
+    if (iter == _staticActors.end())
+        return;
+
+    PxRigidStatic* actor = iter->second;
+    _staticActors.erase(iter);
+
+    if (actor == nullptr)
+        return;
+
+    if (_scene)
+        _scene->removeActor(*actor);
+
+    actor->release();
+}
+
 Shared<ColliderCom> PhysX_Manager::Find_Collider(PxActor* actor) const
 {
     if (actor == nullptr)
@@ -337,6 +467,69 @@ bool PhysX_Manager::Probe_Ground(ColliderCom* collider, const Matrix& worldMatri
     return Sweep_Collider(collider, worldMatrix, Vec3(0.f, -1.f, 0.f), probeDistance, outHit);
 }
 
+vector<PxTriangleMesh*> PhysX_Manager::Build_OrGetTriangleMeshes(const ModelCom& model)
+{
+    const wstring key = model.Get_SourceModelPath();
+
+    auto iter = _triangleMeshCache.find(key);
+    if (iter != _triangleMeshCache.end())
+        return iter->second;
+
+    vector<PxTriangleMesh*> cookedMeshes;
+
+    for (const ModelCollisionMesh& collisionMesh : model.Get_CollisionMeshes())
+    {
+        PxTriangleMesh* triangleMesh = Create_TriangleMesh(collisionMesh, model.Get_PreLocalTransformMatrix());
+        if (triangleMesh == nullptr)
+            continue;
+
+        cookedMeshes.push_back(triangleMesh);
+    }
+
+    _triangleMeshCache.emplace(key, cookedMeshes);
+    return cookedMeshes;
+}
+
+PxTriangleMesh* PhysX_Manager::Create_TriangleMesh(const ModelCollisionMesh& meshData, const Matrix& preTransformMatrix)
+{
+     if (_physics == nullptr)
+        return nullptr;
+
+    if (meshData.positions.empty() || meshData.indices.size() < 3)
+        return nullptr;
+
+    if (meshData.indices.size() % 3 != 0)
+        return nullptr;
+
+    vector<PxVec3> pxVertices;
+    pxVertices.reserve(meshData.positions.size());
+
+    for (const Vec3& position : meshData.positions)
+    {
+        const Vec3 transformedPosition = Vec3::Transform(position, preTransformMatrix);
+        pxVertices.emplace_back(transformedPosition.x, transformedPosition.y, transformedPosition.z);
+    }
+
+    PxTriangleMeshDesc meshDesc{};
+    meshDesc.points.count = static_cast<PxU32>(pxVertices.size());
+    meshDesc.points.stride = sizeof(PxVec3);
+    meshDesc.points.data = pxVertices.data();
+
+    meshDesc.triangles.count = static_cast<PxU32>(meshData.indices.size() / 3);
+    meshDesc.triangles.stride = sizeof(PxU32) * 3;
+    meshDesc.triangles.data = meshData.indices.data();
+
+    PxCookingParams params(_physics->getTolerancesScale());
+    params.midphaseDesc = PxMeshMidPhase::eBVH34;
+
+    // 일단ㅇ은 offline serialize까지 가지 않고 runtime cooking으로 시작한다.
+    // 맵 로딩이 너무 느려지면 이후 cooked binary cache를 추가한다.
+    return PxCreateTriangleMesh(
+        params,
+        meshDesc,
+        _physics->getPhysicsInsertionCallback());
+}
+
 Unique<PhysX_Manager> PhysX_Manager::Create()
 {
     auto instance = make_unique<PhysX_Manager>();
@@ -350,6 +543,33 @@ Unique<PhysX_Manager> PhysX_Manager::Create()
 
 void PhysX_Manager::Free()
 {
+    for (auto& [id, actor] : _staticActors)
+    {
+        UNREFERENCED_PARAMETER(id);
+
+        if (actor)
+            actor->release();
+    }
+    _staticActors.clear();
+
+    for (auto& [path, meshes] : _triangleMeshCache)
+    {
+        UNREFERENCED_PARAMETER(path);
+
+        for (PxTriangleMesh* mesh : meshes)
+        {
+            if (mesh)
+                mesh->release();
+        }
+    }
+    _triangleMeshCache.clear();
+
+    if (_defaultStaticMaterial)
+    {
+        _defaultStaticMaterial->release();
+        _defaultStaticMaterial = nullptr;
+    }
+
     if (_scene)
     {
         _scene->release();

@@ -2,9 +2,13 @@
 
 #include <objbase.h>
 
+#include "MaterialBuilder.h"
+
 Asset_Manager::Asset_Manager()
 {
 }
+
+Asset_Manager::~Asset_Manager() = default;
 
 HRESULT Asset_Manager::Initialize(const wstring& resourceRoot)
 {
@@ -22,6 +26,8 @@ HRESULT Asset_Manager::Initialize(const wstring& resourceRoot)
     Refresh_Cache();
     Save_Registry();
     Save_Cache();
+
+    _materialBuilder = MaterialBuilder::Create(fs::path(_resourceRoot) / L"Materials");
     return S_OK;
 }
 

@@ -15,6 +15,7 @@
 #include "Player_Idle.h"
 #include "Player_Jump.h"
 #include "Player_Move.h"
+#include "Create_Class.h"
 
 Player::Player(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Character{ device, context }
@@ -102,17 +103,18 @@ HRESULT Player::Ready_Components()
     moveDesc.walkSpeed = 9.f;
     moveDesc.runSpeed = 10.f;
     moveDesc.turnSpeedDegree = 360.f;
-    moveDesc.jumpVelocity = 8.f;
+    moveDesc.jumpVelocity = 20.f;
     moveDesc.gravity = -20.f;
+    moveDesc.skinWidth = 0.03f;
+    moveDesc.groundSnapUp = 0.35f;
+    moveDesc.groundSnapDown = 0.65f;
+    moveDesc.walkableNormalY = 0.65f;
     moveDesc.groundY = 0.f;
 
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_Movement"), _movementCom, &moveDesc), E_FAIL);
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_PlayerController"), _playerControllerCom), E_FAIL);
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_PlayerStateMachine"), _PlayerStateMachineCom), E_FAIL);
-    if (const auto stateMachine = Get_Component<PlayerStateMachineCom>())
-    {
-      
-    }
+    
     CHECK_FAILED(Ready_Collider(), E_FAIL);
 
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_CombatStat"), _combatStatCom), E_FAIL);
@@ -179,8 +181,8 @@ HRESULT Player::Ready_PartObjects()
 HRESULT Player::Ready_Collider()
 {
     Bounding_OBB::BoundingOBBDesc obbDesc{};
-    obbDesc.center = Vec3(0.f, 0.5f, 0.f);
-    obbDesc.extents = Vec3(0.5f, 0.6f, 0.5f);
+    obbDesc.center = Vec3(0.f, 0.75f, 0.f);
+    obbDesc.extents = Vec3(0.35f, 0.75f, 0.35f);
 
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), L"Com_Collider_OBB", _colliderCom, &obbDesc), E_FAIL);
     _colliderCom->Set_CollisionPreset(Collision_Preset::Player_Body);

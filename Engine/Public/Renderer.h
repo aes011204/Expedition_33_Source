@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "Base.h"
+#include "Log_Define.h"
 
 NS_BEGIN(Engine)
 

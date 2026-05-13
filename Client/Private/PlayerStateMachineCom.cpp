@@ -61,7 +61,7 @@ HRESULT PlayerStateMachineCom::Add_State(PlayerState playerState, const Shared<S
 bool PlayerStateMachineCom::Change_State(PlayerState playerState)
 {
     const wstring& str = String::ToWString( magic_enum::enum_name(playerState).data());
-
+    
     return StateMachineCom::Change_State(str);
 }
 
