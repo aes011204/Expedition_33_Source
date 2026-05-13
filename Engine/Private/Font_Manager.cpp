@@ -11,19 +11,21 @@ namespace
         const string fileName = String::ToLowerCopy(
             String::ToString(fs::path(fontFilePath).filename().wstring()));
 
-        if (fileName == "33_mainen_font.spritefont" ||
-            fileName == "33_subnum_font.spritefont")
+        if (fileName == "33_mainkr_font.spritefont")
         {
-            return 1.f / 3.f;
+            return 24.f / 56.f;
         }
 
-        if (fileName == "33_mainnum_font.spritefont")
-            return 1.f / 4.f;
-
-        if (fileName == "33_mainkr_font.spritefont" ||
-            fileName == "33_subkr_font.spritefont")
+        if (fileName == "33_subkr_font.spritefont")
         {
-            return 1.f / 2.f;
+            return 24.f / 60.f;
+        }
+
+        if (fileName == "33_mainen_font.spritefont"  ||
+            fileName == "33_mainnum_font.spritefont" ||
+            fileName == "33_subnum_font.spritefont")
+        {
+            return 24.f / 96.f;
         }
 
         return 1.f;
