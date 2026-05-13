@@ -134,6 +134,14 @@ void Monster::Late_Update(float fTimeDelta)
         _collider->Update_Collider(_transformCom->Get_WorldMatrix());
         GAME->Add_Collider(_collider);
     }
+
+    // culling
+    _cullingAABB.Center = _transformCom->Get_Position();
+
+    //// Adjustments may be necessary to suit the player
+    _cullingAABB.Extents = Vec3(1.f, 2.f, 1.f);
+    Set_Visible(GAME->IsVisible(_cullingAABB));
+
     __super::Late_Update(fTimeDelta);
 
     // GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<Character>());

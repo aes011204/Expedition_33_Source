@@ -85,19 +85,19 @@ public:
 	HRESULT Register_AnimNotifyStateType(const AnimNotifyStateTypeInfo& info);
 	HRESULT Register_GlobalEnum(const GlobalEnumInfo& info);
 
-	const ComponentTypeInfo*	Find_ComponentType(const string& className) const;
-    const GameObjectTypeInfo*   Find_GameObjectType(const string& className) const;
-    const BTNodeTypeInfo*       Find_BTNodeType(const string& className) const;
-	const AnimNotifyTypeInfo*	Find_AnimNotifyType(const string& className) const;
-	const AnimNotifyStateTypeInfo* Find_AnimNotifyStateType(const string& className) const;
-	const GlobalEnumInfo*		Find_GlobalEnum(const string& displayName) const;
+    const ComponentTypeInfo*        Find_ComponentType(const string& className) const;
+    const GameObjectTypeInfo*       Find_GameObjectType(const string& className) const;
+    const BTNodeTypeInfo*           Find_BTNodeType(const string& className) const;
+    const AnimNotifyTypeInfo*       Find_AnimNotifyType(const string& className) const;
+    const AnimNotifyStateTypeInfo*  Find_AnimNotifyStateType(const string& className) const;
+	const GlobalEnumInfo*		    Find_GlobalEnum(const string& displayName) const;
 
     void Visit_GameObjectTypes(const function<void(const GameObjectTypeInfo&)>& visitor) const;
     void Visit_AnimNotifyTypes(const function<void(const AnimNotifyTypeInfo&)>& visitor) const;
-	void Visit_AnimNotifyStateTypes(const function<void(const AnimNotifyStateTypeInfo&)>& visitor) const;
-	void Visit_GlobalEnums(const function<void(const GlobalEnumInfo&)>& visitor) const;
+    void Visit_AnimNotifyStateTypes(const function<void(const AnimNotifyStateTypeInfo&)>& visitor) const;
+    void Visit_GlobalEnums(const function<void(const GlobalEnumInfo&)>& visitor) const;
 
-	Shared<Component> Create_Component(
+    Shared<Component> Create_Component(
         const string& className,
         const ComPtr<Device>& device,
         const ComPtr<Context>& context) const;
@@ -120,13 +120,13 @@ public:
     void Free() override;
 
 private:
-    map<string, ComponentTypeInfo>  _componentTypes{};
-    map<string, GameObjectTypeInfo> _gameObjectTypes{};
-    map<string, BTNodeTypeInfo>     _btNodeTypes{};
+    map<string, ComponentTypeInfo>          _componentTypes{};
+    map<string, GameObjectTypeInfo>         _gameObjectTypes{};
+    map<string, BTNodeTypeInfo>             _btNodeTypes{};
 
-	map<string, AnimNotifyTypeInfo> _animNotifyTypes{};
-	map<string, AnimNotifyStateTypeInfo> _animNotifyStateTypes{};
-	map<string, GlobalEnumInfo> _globalEnums{};
+    map<string, AnimNotifyTypeInfo>         _animNotifyTypes{};
+    map<string, AnimNotifyStateTypeInfo>    _animNotifyStateTypes{};
+    map<string, GlobalEnumInfo>             _globalEnums{};
 };
 
 NS_END

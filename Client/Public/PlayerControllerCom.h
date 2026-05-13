@@ -34,6 +34,8 @@ public:
     void    BeginPlay() override;
 
     void    Update_Controller(float timeDelta);
+    void    Update_InputState();
+    void    Update_Movement(float timeDelta);
 
 public:
     bool    Has_MoveInput() const;
