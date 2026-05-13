@@ -56,11 +56,11 @@ void Player_Jump::Update(float timeDelta)
             return;
         }
 
-        if (animIndex == ETOI(plAnim::Pl_Land) && curProgress >= 0.6f)
+        if (animIndex == ETOI(plAnim::Pl_Land))
         {
             if (Has_MoveInput())
                 _stateCom->Change_State(PlayerState::Move);
-            else
+            else if (!Has_MoveInput() && curProgress >= 0.6f)
                 _stateCom->Change_State(PlayerState::Idle);
         }
     }
@@ -68,7 +68,10 @@ void Player_Jump::Update(float timeDelta)
 
 void Player_Jump::LateUpdate(float timeDelta)
 {
-    
+    PlayerControllerCom::RigidControl rigidControl{};
+    rigidControl.rigidMovement = false;
+    rigidControl.rigidJump = true;
+    _controllerCom->Set_RigidControl(rigidControl);
 }
 
 void Player_Jump::ExitInvoke()

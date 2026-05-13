@@ -66,7 +66,17 @@ void Player_Idle::ExitInvoke()
 
 void Player_Idle::Set_IdleAnimation() const
 {
-    _bodyPlayer->Set_Animation(ETOI(pl::Pl_Idle), 0.25f, true);
+    if (_isFirstState)
+    {
+        _bodyPlayer->Set_Animation(ETOI(pl::Pl_Idle), 0.1f, true);
+        return;
+    }
+
+    auto state = _stateCom->Get_CurrentPlayerState();
+    if (state == PlayerState::WorldAction)
+        _bodyPlayer->Set_Animation(ETOI(pl::Pl_Idle), 0.25f, true);
+    else
+        _bodyPlayer->Set_Animation(ETOI(pl::Pl_Idle), 0.2f, true);
 }
 
 Shared<Player_Idle> Player_Idle::Create(const Shared<Player>& owner)
