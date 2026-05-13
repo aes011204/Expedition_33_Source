@@ -227,6 +227,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClInclude Include="..\Public\ICommand.h" />
     <ClInclude Include="..\Public\Log_Manager.h" />
     <ClInclude Include="..\Public\Helper_String.h" />
+    <ClInclude Include="..\Public\Log_Define.h" />
     <ClInclude Include="..\Public\Material_Define.h" />
     <ClInclude Include="..\Public\Material_Types.h" />
     <ClInclude Include="..\Public\MovementCom.h" />

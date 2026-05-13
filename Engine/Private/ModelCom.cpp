@@ -677,7 +677,7 @@ HRESULT ModelCom::Bind_BoneMatrices(ShaderCom* shader, const char* constantName,
 
     if (!_leaderPoseCombinedMatrices.empty())
     {
-        Update_LeaderPoseMatrices();
+        //Update_LeaderPoseMatrices();
         return _meshes[meshIndex]->Bind_BoneMatrices(
             shader,
             constantName,

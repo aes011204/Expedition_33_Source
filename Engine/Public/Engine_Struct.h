@@ -63,61 +63,6 @@ using AssetMeta = struct tagAssetMeta
     std::wstring relativePath = {}; /* 리소스 루트 기준 상대 경로로, json/테이블에서 사람이 확인하기 쉬운 경로 */
 };
 
-struct RenderPerfSummary
-{
-    bool valid{};
-    uint32 renderCallCount{};
-
-    float renderAvgMs{};
-    float renderMaxMs{};
-
-    float priorityAvgMs{};
-    float priorityMaxMs{};
-
-    float shadowAvgMs{};
-    float shadowMaxMs{};
-
-    float nonBlendAvgMs{};
-    float nonBlendMaxMs{};
-
-    float lightsAvgMs{};
-    float lightsMaxMs{};
-
-    float combinedAvgMs{};
-    float combinedMaxMs{};
-
-    float nonLightAvgMs{};
-    float nonLightMaxMs{};
-
-    float blendAvgMs{};
-    float blendMaxMs{};
-
-    float uiAvgMs{};
-    float uiMaxMs{};
-
-    float debugAvgMs{};
-    float debugMaxMs{};
-};
-
-struct CollisionPerfSummary
-{
-    bool valid{};
-    uint32 updateFrameCount{};
-    float activeCollidersAvg{};
-    float pairsPerSec{};
-    float intersectsPerSec{};
-    float hitsPerSec{};
-    float updateAvgMs{};
-    float updateMaxMs{};
-};
-
-struct RuntimePerfSummary
-{
-    float windowSec{};
-    float approxFps{};
-    RenderPerfSummary render{};
-    CollisionPerfSummary collision{};
-};
 
 struct DamageEvent
 {

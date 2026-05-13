@@ -290,6 +290,9 @@
     <ClInclude Include="..\public\UI_Button.h" />
     <ClInclude Include="..\public\UI_Panel.h" />
     <ClInclude Include="..\Public\Shader_CBuffer_Define.h" />
+    <ClInclude Include="..\Public\Log_Define.h">
+      <Filter>97. Manager\Log</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\public\Base.h">

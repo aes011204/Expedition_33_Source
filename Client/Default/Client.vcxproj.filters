@@ -297,9 +297,6 @@
     <ClInclude Include="..\Public\Player_Move.h">
       <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\Player_Jump.h">
-      <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
-    </ClInclude>
     <ClInclude Include="..\Public\Cinematic_Player.h">
       <Filter>02.GameObject\Camera\Cinematic</Filter>
     </ClInclude>
@@ -337,6 +334,9 @@
     </ClInclude>
     <ClInclude Include="..\Public\Player_Lune.h">
       <Filter>02.GameObject\Player</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Player_Jump.h">
+      <Filter>02.GameObject\Player\PlayerParts\Hair</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
