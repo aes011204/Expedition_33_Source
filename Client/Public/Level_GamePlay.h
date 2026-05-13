@@ -27,9 +27,11 @@ private:
     HRESULT Ready_Layer_UI(const wstring& strLayerTag);
 	HRESULT Ready_Layer_Camera(const wstring& strLayerTag);
 	HRESULT Ready_Layer_BackGround(const wstring& strLayerTag);
+
+    HRESULT Ready_Layer_MapStaticMesh(const wstring& strLayerTag);
+
 	HRESULT Ready_Layer_Monster(const wstring& strLayerTag);
 	HRESULT Ready_Layer_Player(const wstring& strLayerTag);
-    //HRESULT Ready_Layer_MapStaticMesh(const wstring& strLayerTag);
 
 private:
     // UI 로드 방법에 대한 테스트 코드임.

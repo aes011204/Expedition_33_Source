@@ -119,16 +119,16 @@ bool Animation::Update_TransformationMatrices(float timeDelta, const vector<Shar
 	return false;
 }
 
-void Animation::Blend_TransformMatrix(float timeDelta, const Shared<Animation>& nextAnim, float blendRatio,
+void Animation::Blend_TransformMatrix(float currentTimeDelta, const Shared<Animation>& nextAnim, float blendRatio,
 	const vector<Shared<Bone>>& bones, bool isLoop, int32 rootNodeIndex)
 {
 	/* 현재 애니메이션 시간 갱신 */
-	_currentTrackPosition += _tickPerSecond * timeDelta;
+	_currentTrackPosition += _tickPerSecond * currentTimeDelta;
 	if (_currentTrackPosition >= _duration)
 		_currentTrackPosition = isLoop ? std::fmod(_currentTrackPosition, _duration) : _duration;
 
 	/* 다음 애니메이션 시간 갱신 */
-	nextAnim->_currentTrackPosition += nextAnim->_tickPerSecond * timeDelta;
+	nextAnim->_currentTrackPosition += nextAnim->_tickPerSecond * currentTimeDelta;
 	if (nextAnim->_currentTrackPosition >= nextAnim->_duration)
 		nextAnim->_currentTrackPosition = isLoop ? std::fmod(nextAnim->_currentTrackPosition, nextAnim->_duration) : nextAnim->_duration;
 

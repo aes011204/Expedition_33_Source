@@ -27,6 +27,9 @@
 #include "Culling_Manager.h"
 #include "ThreadPool.h"
 
+#include "Collision_Define.h"
+#include "PhysX_Types.h"
+
 #ifdef _DEBUG
 #include "Print_Manager.h"
 #endif
@@ -1029,6 +1032,33 @@ PxScene* GameInstance::Get_PhysXScene() const
 {
     CHECK_NULL(_physxManager, nullptr);
     return _physxManager->Get_Scene();
+}
+
+PhysXStaticActorHandle GameInstance::Register_PhysXStaticModel(const ModelCom& model, const Matrix& worldMatrix,
+    Collision_Preset preset)
+{
+    CHECK_NULL(_physxManager, {});
+    return _physxManager->Register_StaticModel(model, worldMatrix, preset);
+}
+
+void GameInstance::Unregister_PhysXStaticActor(PhysXStaticActorHandle handle)
+{
+    CHECK_NULL(_physxManager);
+    _physxManager->Unregister_StaticActor(handle);
+}
+
+bool GameInstance::Sweep_Collider(ColliderCom* collider, const Matrix& worldMatrix, const Vec3& direction,
+    float distance, PhysXQueryHit& outHit) const
+{
+    CHECK_NULL(_physxManager, false);
+    return _physxManager->Sweep_Collider(collider, worldMatrix, direction, distance, outHit);
+}
+
+bool GameInstance::Probe_Ground(ColliderCom* collider, const Matrix& worldMatrix, float probeDistance,
+    PhysXQueryHit& outHit) const
+{
+    CHECK_NULL(_physxManager, false);
+    return _physxManager->Probe_Ground(collider, worldMatrix, probeDistance, outHit);
 }
 
 void GameInstance::UpdateFrustum(const Matrix& view, const Matrix& proj)

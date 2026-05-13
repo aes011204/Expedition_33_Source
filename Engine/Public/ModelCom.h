@@ -14,9 +14,9 @@ class Animation;
 class ENGINE_DLL ModelCom final : public Component
 {
 public:
-	ModelCom(const ComPtr<Device>& device, const ComPtr<Context>& context);
-	ModelCom(const ModelCom& prototype);
-	~ModelCom() override = default;
+    ModelCom(const ComPtr<Device>& device, const ComPtr<Context>& context);
+    ModelCom(const ModelCom& prototype);
+    ~ModelCom() override = default;
 
 public:
     uint32 Get_MaxTextureType() const { return _maxTextureType; }
@@ -34,10 +34,10 @@ public:
     ModelType Get_ModelType() const { return _type; }
 
 public:
-    bool  Is_Skeletal() const { return _isSkeletal; } 
-	int32 Get_BoneIndex(const string& boneName) const;
+    bool  Is_Skeletal() const { return _isSkeletal; }
+    int32 Get_BoneIndex(const string& boneName) const;
     const string& Get_BoneName(uint32 boneIndex) const;
-	const Matrix* Get_BoneMatrixPtr(const char* boneName) const;
+    const Matrix* Get_BoneMatrixPtr(const char* boneName) const;
     const Matrix* Get_BoneMatrixPtr(uint32 boneIndex) const;
 
 public:
@@ -53,20 +53,20 @@ public:
     const RootMotionFrame& Get_RootTransformVelocity(float scaleOffset);
 
 public:
-	HRESULT Initialize_Prototype(ModelType type, const char* modelFilePath, const Matrix& preLocalTransformMatrix);
-	HRESULT Initialize(void* arg) override;
+    HRESULT Initialize_Prototype(ModelType type, const char* modelFilePath, const Matrix& preLocalTransformMatrix);
+    HRESULT Initialize(void* arg) override;
     json To_Json() const override;
     void From_Json(const json& data) override;
     HRESULT Reload_ModelFromGuid(const string& guid, ModelType modelType);
-	HRESULT Render(uint32 meshIndex);
+    HRESULT Render(uint32 meshIndex);
     HRESULT RenderInstanced(uint32 meshIndex, Buffer* instanceVB, uint32 instanceStride, uint32 instanceCount);
 
 public:
-	bool Play_Animation(float timeDelta);
+    bool Play_Animation(float timeDelta);
 
 public:
-	HRESULT Bind_Material(class ShaderCom* shader, const char* constantName, uint32 meshIndex, MaterialTextureSlot slot, uint32 textureIndex = 0);
-	HRESULT Bind_BoneMatrices(class ShaderCom* shader, const char* constantName, uint32 meshIndex);
+    HRESULT Bind_Material(class ShaderCom* shader, const char* constantName, uint32 meshIndex, MaterialTextureSlot slot, uint32 textureIndex = 0);
+    HRESULT Bind_BoneMatrices(class ShaderCom* shader, const char* constantName, uint32 meshIndex);
     bool Try_Get_LocalBounds(Vec3& outMin, Vec3& outMax) const;
 
 
@@ -103,9 +103,9 @@ private:
 
     // 현재 재생 구간에서 event notify를 갱신한다.
     void    Update_AnimNotifies(
-                const AnimNotifyData& animationData,
-                const AnimNotifyContext& context,
-                bool executeNotifies);
+        const AnimNotifyData& animationData,
+        const AnimNotifyContext& context,
+        bool executeNotifies);
 
     // 현재 재생 구간에서 state notify를 갱신한다.
     void Update_AnimNotifyStates(
@@ -132,6 +132,10 @@ public: /* 머리 붙이기 */
 
     void Update_LeaderPoseMatrices();
 
+public: /* PhysX 충돌 */
+    // static collision 생성용 CPU Mesh 데이터
+    const vector<ModelCollisionMesh>& Get_CollisionMeshes() const { return _collisionMeshes; }
+
 private:
     Matrix Convert_LeaderPoseMatrix(const Matrix& leaderMatrix) const;
     Matrix Build_LeaderPoseMatrix(uint32 boneIndex, vector<uint8>& visited);
@@ -140,30 +144,30 @@ private:
     void Apply_MaterialOverrides(const json& data);
 
 private:
-	ModelType					        _type = { ModelType::END };
+    ModelType					        _type = { ModelType::END };
     bool                                _isSkeletal{ false };
-	Matrix					            _preLocalTransformMatrix = {};
+    Matrix					            _preLocalTransformMatrix = {};
     bool                                _hasLocalBounds{ false };
     Vec3                                _localBoundsMin{};
     Vec3                                _localBoundsMax{};
 
 private:
     uint32                              _maxTextureType{};
-	uint32						        _numMeshes{};
+    uint32						        _numMeshes{};
     uint32						        _numMaterials{};
     uint32                              _numBones{};
     uint32                              _numAnimations{};
 
     vector<Shared<Mesh>>	            _meshes;
-	vector<Shared<Material>>	        _materials;
-	vector<Shared<Bone>>		        _bones;
+    vector<Shared<Material>>	        _materials;
+    vector<Shared<Bone>>		        _bones;
     vector<Shared<Animation>>	        _animations;
 
 private: /* For Animation Control */
     bool                                _isFinished{ false };
-	bool						        _isAnimLoop{ false };       
+    bool						        _isAnimLoop{ false };
     bool                                _isBlending{ false };
-	uint32						        _currentAnimIndex{ 0 };
+    uint32						        _currentAnimIndex{ 0 };
     uint32                              _nextAnimIndex{ 0 };
     float                               _blendDuration{ 0.f };
     float                               _blendElapsedTime{ 0.f };
@@ -187,22 +191,25 @@ private: /* notify */
     vector<ActiveAnimNotifyState> _activeNotifyStates{};
 
 private: /* 머리 붙이기 */
-    const ModelCom*         _leaderPoseModel = nullptr;
+    const ModelCom* _leaderPoseModel = nullptr;
 
     vector<int32>       _leaderPoseBoneMap;           // follower bone index => leader bone index
     vector<Matrix>      _leaderPoseCombinedMatrices;  // follower 기준으로 최종 행렬
 
+private: /* PhysX 충돌 */
+    vector<ModelCollisionMesh> _collisionMeshes;
+
 private:
-	HRESULT Ready_Model(const char* modelPath);
+    HRESULT Ready_Model(const char* modelPath);
     HRESULT Ready_Animation(const char* modelPath);
     void Reset_ModelData();
     static ModelType Parse_ModelType(const string& modelType);
     static string To_ModelTypeString(ModelType modelType);
 
 public:
-	static Shared<ModelCom> Create(const ComPtr<Device>& device, const ComPtr<Context>& context, ModelType type, const char* modelFilePath, const Matrix& preLocalTransformMatrix = XMMatrixIdentity());
-	virtual Shared<Component> Clone(void* arg) override;
-	virtual void Free() override;
+    static Shared<ModelCom> Create(const ComPtr<Device>& device, const ComPtr<Context>& context, ModelType type, const char* modelFilePath, const Matrix& preLocalTransformMatrix = XMMatrixIdentity());
+    virtual Shared<Component> Clone(void* arg) override;
+    virtual void Free() override;
 };
 
 NS_END

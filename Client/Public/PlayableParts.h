@@ -26,10 +26,10 @@ public:
 public:
     const Matrix* Get_SocketBoneMatrixPtr(const string& boneName) const;
     const Matrix* Get_SocketBoneMatrixPtr(uint32 boneIndex) const;
-    void Set_Animation(uint32 animIndex, float blendDuration, bool isLoop = false) const;
-    uint32 Get_AnimationIndex() const;
-    float Get_AnimationProgress() const;
-    bool Is_AnimationFinished() const;
+    void	Set_Animation(uint32 animIndex, float blendDuration, bool isLoop = false) const;
+    uint32	Get_AnimationIndex() const;
+    float	Get_AnimationProgress() const;
+    bool	Is_AnimationFinished() const;
 
 public:
     virtual HRESULT Initialize_Prototype() override;

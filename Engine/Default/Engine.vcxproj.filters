@@ -290,6 +290,7 @@
     <ClInclude Include="..\public\UI_Button.h" />
     <ClInclude Include="..\public\UI_Panel.h" />
     <ClInclude Include="..\Public\Shader_CBuffer_Define.h" />
+    <ClInclude Include="..\Public\PhysX_Handle.h" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\public\Base.h">

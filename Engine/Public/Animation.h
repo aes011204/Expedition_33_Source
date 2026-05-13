@@ -33,8 +33,13 @@ public:
 	HRESULT Initialize(const ModelAnimationData& animData, const vector<ModelChannelData>& channels);
 
 	bool    Update_TransformationMatrices(float timeDelta, const vector<Shared<Bone>>& bones, bool isLoop, int32 rootNodeIndex);
-	void    Blend_TransformMatrix(float timeDelta, const Shared<Animation>& nextAnim, float blendRatio,
-		        const vector<Shared<Bone>>& bones, bool isLoop, int32 rootNodeIndex);
+	void    Blend_TransformMatrix(
+        float currentTimeDelta,
+        const Shared<Animation>& nextAnim,
+        float blendRatio,
+		const vector<Shared<Bone>>& bones,
+        bool isLoop,
+        int32 rootNodeIndex);
 
 private:
     string                      _animationName;

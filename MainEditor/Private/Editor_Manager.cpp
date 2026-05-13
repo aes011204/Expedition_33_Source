@@ -18,6 +18,7 @@
 #include <shellapi.h>
 #include "Prefab_View.h"
 #include "Animation_View.h"
+#include "AnimState_View.h"
 
 namespace fs = std::filesystem;
 
@@ -43,6 +44,7 @@ HRESULT Editor_Manager::Initialize()
     Add_Window(Level_Tool::Create());
 
     Add_Window(Material_View::Create());
+    Add_Window(AnimState_View::Create());
 
     return S_OK;
 }

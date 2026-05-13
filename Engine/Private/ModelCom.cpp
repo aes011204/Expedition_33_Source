@@ -72,6 +72,7 @@ ModelCom::ModelCom(const ModelCom& prototype)
     , _materials{ prototype._materials }
     , _sourceModelPath{ prototype._sourceModelPath }
     , _isAnimationPaused{ prototype._isAnimationPaused }
+    , _collisionMeshes{ prototype._collisionMeshes }
 {
     for (auto& prototypeAnim : prototype._animations)
         _animations.push_back(prototypeAnim->Clone());
@@ -883,6 +884,14 @@ HRESULT ModelCom::Ready_Model(const char* modelPath)
         if (extPos != std::string::npos)
             resolvedPath = resolvedPath.substr(0, extPos) + ".model";
     }
+
+    // 모델 guid
+    const string modelGuid = GAME->Ensure_AssetGUID(String::ToWString(resolvedPath), "Model");
+    const AssetMeta* modelAssetMeta = modelGuid.empty()
+        ? nullptr
+        : GAME->Find_AssetByGUID(modelGuid);
+    UNREFERENCED_PARAMETER(modelAssetMeta);
+
     std::ifstream stream(resolvedPath, ::ios_base::binary);
 
     //std::ifstream stream(modelPath, std::ios::binary);
@@ -987,6 +996,25 @@ HRESULT ModelCom::Ready_Model(const char* modelPath)
         stream.read(reinterpret_cast<char*>(idxBuffer.data()), sizeof(uint32) * meshData.numIndices);
         meshData.indices = idxBuffer.data();
 
+        // StaticMesh용 PhysX collision CPU 데이터 보관
+        if (!_isSkeletal && meshData.numVertices > 0 && meshData.numIndices >= 3)
+        {
+            VTXMESH* vertices = reinterpret_cast<VTXMESH*>(vtxBuffer.data());
+
+            ModelCollisionMesh collisionMesh{};
+            collisionMesh.name = meshData.name;
+            collisionMesh.positions.reserve(meshData.numVertices);
+            collisionMesh.indices.reserve(meshData.numIndices);
+
+            for (uint32 vertexIndex = 0; vertexIndex < meshData.numVertices; ++vertexIndex)
+                collisionMesh.positions.push_back(vertices[vertexIndex].position);
+
+            for (uint32 index : idxBuffer)
+                collisionMesh.indices.push_back(index);
+
+            _collisionMeshes.push_back(std::move(collisionMesh));
+        }
+
         vector<uint32> boneRefs;
         vector<Matrix> offsets;
 
@@ -1048,6 +1076,7 @@ HRESULT ModelCom::Ready_Model(const char* modelPath)
     stream.close();
     return S_OK;
 }
+
 
 HRESULT ModelCom::Ready_Animation(const char* modelPath)
 {
@@ -1126,6 +1155,7 @@ void ModelCom::Reset_ModelData()
     _materials.clear();
     _bones.clear();
     _animations.clear();
+    _collisionMeshes.clear();
 
     _isFinished = false;
     _isAnimLoop = false;

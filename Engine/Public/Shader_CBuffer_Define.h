@@ -111,8 +111,8 @@ struct alignas(16) LightCB
     Vec4 direction;
     Vec4 position;
 
-    Vec4 diffuse;
     Vec4 ambient;
+    Vec4 diffuse;
     Vec4 specular;
 
     float range = 0.f;

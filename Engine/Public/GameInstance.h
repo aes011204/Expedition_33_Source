@@ -7,6 +7,7 @@
 #include "Debug_Types.h"
 #include <string_view>
 #include <utility>
+
 #ifdef _DEBUG
 #include "Print_Manager.h"
 #endif
@@ -41,6 +42,11 @@ class Shadow;
 class Picking;
 class Culling_Manager;
 class ThreadPool;
+
+enum class Collision_Preset;
+
+struct PhysXStaticActorHandle;
+struct PhysXQueryHit;
 
 class ENGINE_DLL GameInstance final : public Base
 {
@@ -323,6 +329,26 @@ public: /* For.Collision_Manager */
 public: // For. PhysX_Manager
     PxPhysics*  Get_PhysXPhysics() const;
     PxScene*    Get_PhysXScene() const;
+
+    PhysXStaticActorHandle Register_PhysXStaticModel(
+        const ModelCom& model,
+        const Matrix& worldMatrix,
+        Collision_Preset preset);
+
+    void Unregister_PhysXStaticActor(PhysXStaticActorHandle handle);
+
+    bool Sweep_Collider(
+        ColliderCom* collider,
+        const Matrix& worldMatrix,
+        const Vec3& direction,
+        float distance,
+        PhysXQueryHit& outHit) const;
+
+    bool Probe_Ground(
+        ColliderCom* collider,
+        const Matrix& worldMatrix,
+        float probeDistance,
+        PhysXQueryHit& outHit) const;
 
 public: // For. Culling_Manager 
     void UpdateFrustum(const Matrix& view, const Matrix& proj);

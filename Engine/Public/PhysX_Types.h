@@ -1,5 +1,7 @@
 ﻿#pragma once
 
+#include "PhysX_Handle.h"
+
 namespace Engine
 {
     class ColliderCom;
@@ -25,5 +27,6 @@ namespace Engine
         Vec3    normal = Vec3::Up;      // 충돌면 법선벡터
 
     };
+
 }
 

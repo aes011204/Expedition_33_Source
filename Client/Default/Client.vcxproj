@@ -205,6 +205,7 @@
     <ClInclude Include="..\Public\Player_Move.h" />
     <ClInclude Include="..\Public\Player_State.h" />
     <ClInclude Include="..\Public\PlayerStateMachineCom.h" />
+    <ClInclude Include="..\Public\Create_Class.h" />
     <ClInclude Include="..\Public\Spawn_Prefab.h" />
     <ClInclude Include="..\Public\State.h" />
     <ClInclude Include="..\Public\StateMachineCom.h" />
@@ -276,6 +277,7 @@
     <ClCompile Include="..\Private\Player_WorldAction.cpp" />
     <ClCompile Include="..\Private\SimpleMath.cpp" />
     <ClCompile Include="..\Private\SkillTreeCom.cpp" />
+    <ClCompile Include="..\Private\Create_Class.cpp" />
     <ClCompile Include="..\Private\Spawn_Prefab.cpp" />
     <ClCompile Include="..\Private\State.cpp" />
     <ClCompile Include="..\Private\StateMachineCom.cpp" />
