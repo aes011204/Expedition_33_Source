@@ -42,8 +42,10 @@ private:
     int32   _rootNodeIndex{ -1 };
     bool    _isRootMotion{ false };
     bool    _isRootMotionLog{ false };
+    bool    _isScaleMicro{ false };
     
     string _selectedModelGuid = {};
+    ImGuiTextFilter _modelFilter;
 
 public:
 	static Shared<ModelInspector> Create();

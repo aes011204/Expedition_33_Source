@@ -2,13 +2,7 @@
 #include "Engine_Shader_RenderState.hlsl"
 #include "Engine_Shader_Passes.hlsl"
 #include "Engine_Shader_Samplers.hlsl"
-
-//==================================================
-// MATRIX
-//==================================================
-float4x4 g_WorldMatrix, g_ViewMatrix, g_ProjMatrix;
-float4x4 g_ViewMatrixInverse, g_ProjMatrixInverse;
-float4x4 g_LightViewMatrix, g_LightProjMatrix;
+#include "Engine_Shader_ConstantBuffer.hlsl"
 
 //==================================================
 // TEXTURE
@@ -24,32 +18,13 @@ Texture2D g_LightDepthTexture;
 //==================================================
 // LIGHT
 //==================================================
-vector g_vLightDir;
-vector g_vLightPos;
-float  g_fLightRange;
-vector g_vLightDiffuse;
-vector g_vLightAmbient;
-vector g_vLightSpecular;
 vector g_vMtrlAmbient = float4(1.f, 1.f, 1.f, 1.f);
 vector g_vMtrlSpecular = float4(1.f, 1.f, 1.f, 1.f);
-
-//==================================================
-// SHADOW
-//==================================================
-float   g_fLightFar = 0.f;
-float   g_fBias = 0.01f;
-float   g_fShadowIntensity = 0.4f;
-
-//==================================================
-// CAMERA
-//==================================================
-vector  g_vCamPosition;
-float   g_fFar = 0.f;
 
 float4 Reconstruct_WorldPos(float2 vTexcoord)
 {
     vector vDepthDesc = g_DepthTexture.Sample(LinearWrapSampler, vTexcoord);
-    float fViewZ = vDepthDesc.y * g_fFar;
+    float fViewZ = vDepthDesc.y * g_DeferredFar;
 
     float4 vWorldPos;
 
@@ -63,10 +38,10 @@ float4 Reconstruct_WorldPos(float2 vTexcoord)
     vWorldPos *= fViewZ;
 
     // -> view space
-    vWorldPos = mul(vWorldPos, g_ProjMatrixInverse);
+    vWorldPos = mul(vWorldPos, g_DeferredProjMatrixInverse);
 
     // -> world space
-    vWorldPos = mul(vWorldPos, g_ViewMatrixInverse);
+    vWorldPos = mul(vWorldPos, g_DeferredViewMatrixInverse);
 
     return vWorldPos;
 }
@@ -92,8 +67,8 @@ VS_OUT VS_MAIN(VS_IN In)
 
     float4x4 matWV, matWVP;
 
-    matWV = mul(g_WorldMatrix, g_ViewMatrix);
-    matWVP = mul(matWV, g_ProjMatrix);
+    matWV = mul(g_WorldMatrix, g_ScreenViewMatrix);
+    matWVP = mul(matWV, g_ScreenProjMatrix);
 
     Out.vPosition = mul(float4(In.vPosition, 1.f), matWVP);
     Out.vTexcoord = In.vTexcoord;
@@ -139,16 +114,16 @@ PS_OUT_LIGHT PS_MAIN_DIRECTIONAL(PS_IN In)
     vector vNormal = vector(normalize(vNormalDesc.xyz * 2.f - 1.f), 0.f);
 
     // Light
-    float4 vReflect = reflect(normalize(g_vLightDir), vNormal);
+    float4 vReflect = reflect(normalize(g_LightDir), vNormal);
     float4 vWorldPos = Reconstruct_WorldPos(In.vTexcoord);
-    float4 vLook = vWorldPos - g_vCamPosition;
+    float4 vLook = vWorldPos - g_DeferredCamPosition;
 
     float fSpecular = pow(max(dot(normalize(vLook) * -1.f, normalize(vReflect)), 0.f), 50.f);
 
-    Out.vShade = g_vLightDiffuse *
-        (max(dot(normalize(g_vLightDir) * -1.f, normalize(vNormal)), 0.f) + (g_vLightAmbient * g_vMtrlAmbient));
+    Out.vShade = g_LightDiffuse *
+        (max(dot(normalize(g_LightDir) * -1.f, normalize(vNormal)), 0.f) + (g_LightAmbient * g_vMtrlAmbient));
 
-    Out.vSpecular = (g_vLightSpecular * g_vMtrlSpecular) * fSpecular;
+    Out.vSpecular = (g_LightSpecular * g_vMtrlSpecular) * fSpecular;
 
     return Out;
 }
@@ -163,14 +138,14 @@ PS_OUT_LIGHT PS_MAIN_POINT(PS_IN In)
 
     // Light
     float4 vWorldPos = Reconstruct_WorldPos(In.vTexcoord);
-    vector vLightVec = vWorldPos - g_vLightPos;
+    vector vLightVec = vWorldPos - g_LightPos;
     float fDistance = length(vLightVec);
     vector vLightDir = (fDistance > 0.f) ? (vLightVec / fDistance) : float4(0.f, 0.f, 0.f, 0.f);
 
-    float fAtt = saturate((g_fLightRange - fDistance) / g_fLightRange);
+    float fAtt = saturate((g_LightRange - fDistance) / g_LightRange);
 
     Out.vShade
-        = (g_vLightDiffuse * (max(dot(normalize(vLightDir) * -1.f, normalize(vNormal)), 0.f) + (g_vLightAmbient * g_vMtrlAmbient))) * fAtt;
+        = (g_LightDiffuse * (max(dot(normalize(vLightDir) * -1.f, normalize(vNormal)), 0.f) + (g_LightAmbient * g_vMtrlAmbient))) * fAtt;
 
     Out.vSpecular = 0.f;
 
@@ -203,14 +178,28 @@ PS_OUT_BACKBUFFER PS_MAIN_COMBINED(PS_IN In)
     vLightTexcoord.y = (vShadowPos.y / vShadowPos.w) * -0.5f + 0.5f;
 
     float4 vLightDepthDesc = g_LightDepthTexture.Sample(LinearClampSampler, vLightTexcoord);
-    float fOldLightZ = vLightDepthDesc.y * g_fLightFar;
+    float fOldLightZ = vLightDepthDesc.y * g_LightFar;
 
     if (all(vLightTexcoord >= 0.f) && all(vLightTexcoord <= 1.f))
     {
-        if (fOldLightZ + g_fBias < vShadowPos.w)
-            Out.vColor.rgb *= g_fShadowIntensity;
+        if (fOldLightZ + g_Bias < vShadowPos.w)
+            Out.vColor.rgb *= g_ShadowIntensity;
     }
 
+    return Out;
+}
+
+PS_OUT_BACKBUFFER PS_MAIN_COMBINED_SIMPLE(PS_IN In)
+{
+    PS_OUT_BACKBUFFER Out;
+
+    vector vDiffuse = g_DiffuseTexture.Sample(LinearWrapSampler, In.vTexcoord);
+    if (vDiffuse.a == 0.f)
+        discard;
+    vector vShade = g_ShadeTexture.Sample(LinearWrapSampler, In.vTexcoord);
+    vector vSpecular = g_SpecularTexture.Sample(LinearWrapSampler, In.vTexcoord);
+
+    Out.vColor = vDiffuse * vShade + vSpecular;
     return Out;
 }
 
@@ -220,4 +209,5 @@ technique11 DefaultTechnique
     PASS_RS_DS_BS_VP(Directional,   RS_Default, DSS_None,       BS_Blend,   VS_MAIN,    PS_MAIN_DIRECTIONAL)    // 1
     PASS_RS_DS_BS_VP(Point,         RS_Default, DSS_None,       BS_Blend,   VS_MAIN,    PS_MAIN_POINT)          // 2
     PASS_RS_DS_BS_VP(Combined,      RS_Default, DSS_None,       BS_Default, VS_MAIN,    PS_MAIN_COMBINED)       // 3
+    PASS_RS_DS_BS_VP(CombinedSimple, RS_Default, DSS_None, BS_Default, VS_MAIN, PS_MAIN_COMBINED_SIMPLE)        // 4
 }

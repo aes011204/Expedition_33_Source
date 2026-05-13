@@ -23,59 +23,60 @@ IMPLEMENT_REFLECTION(Monster)
 }
 
 Monster::Monster(const ComPtr<Device>& device, const ComPtr<Context>& context)
-	: Character { device, context }
+    : Character{ device, context }
 {
 }
 
 Monster::Monster(const Monster& prototype)
-	: Character { prototype }
+    : Character{ prototype }
 
 {
 }
 
 HRESULT Monster::Initialize_Prototype()
 {
-	return S_OK;
+    return S_OK;
 }
 
 HRESULT Monster::Initialize(void* arg)
 {
-	if (FAILED(__super::Initialize(arg)))
-		return E_FAIL;
+    if (FAILED(__super::Initialize(arg)))
+        return E_FAIL;
 
-	if (FAILED(Ready_Components()))
-		return E_FAIL;
+    if (FAILED(Ready_Components()))
+        return E_FAIL;
 
-	//_transformCom->Set_Position(Vec3(
-	//	GAME->Random(0.f, 10.f),
-	//	2.f,
-	//	GAME->Random(0.f, 10.f)
-	//));
-
+    //_transformCom->Set_Position(Vec3(
+    //	GAME->Random(0.f, 10.f),
+    //	2.f,
+    //	GAME->Random(0.f, 10.f)
+    //));
 
     //_currentAction = MonsterAction::Idle;
 
-
-    _transformCom->Set_Position(Vec3(
-        10.f,0.f,10.f
-    ));
+    _transformCom->Set_Position(
+        Vec3(
+            10.f,
+            0.f,
+            10.f
+        )
+    );
 
     //_model->Set_Animation(5, true);
 
-	return S_OK;
+    return S_OK;
 }
 
 void Monster::Priority_Update(float timeDelta)
 {
-
 }
 
 void Monster::Update(float timeDelta)
 {
     if (_aiCtrl)
     {
-        Shared<BlackBoard> bb = _aiCtrl->Get_BlackBoard();
-        Shared<GameObject> player = CLIENT->Find_Player(GAME->Current_LevelIndex());
+        const Shared<BlackBoard> bb = _aiCtrl->Get_BlackBoard();
+        const Shared<GameObject> player = CLIENT->Find_Player(GAME->Current_LevelIndex());
 
         if (bb && player)
         {
@@ -87,25 +88,23 @@ void Monster::Update(float timeDelta)
     }
 
     if (_aiCtrl && _aiCtrl->Get_IsMoving() == true)
-    {
         Set_CurrentAction(MonsterAction::Move);
-    }
 
     if (_body && _currentAction != _previousAction)
     {
         switch (_currentAction)
         {
         case MonsterAction::Idle:
-            
-            _body->Set_Animation( 5,0.3f, true);
+
+            _body->Set_Animation(5, 0.3f, true);
             break;
 
         case MonsterAction::Move:
-            _body->Set_Animation( 11, 0.3f, true);
+            _body->Set_Animation(11, 0.3f, true);
             break;
 
         case MonsterAction::Attack:
-            _body->Set_Animation( 11, 0.3f, false);
+            _body->Set_Animation(11, 0.3f, false);
             break;
         }
 
@@ -116,18 +115,17 @@ void Monster::Update(float timeDelta)
     {
         _body->Play_Animation(timeDelta);
 
-        auto str = _body->Get_RootTransformVelocity();
-        _transformCom->Set_SpeedPerSec((str.position.z * Constants::Charcter::scaleOffset));
+        const auto str = _body->Get_RootTransformVelocity();
+        _transformCom->Set_SpeedPerSec(str.position.z * Constants::Charcter::scaleOffset);
     }
 
-   // Matrix ax;
-   // Vector3 vec3;
-   // Quat a;
-   // Vec3 vevec;
-   // ax.Decompose(vec3, a, vevec);
+    // Matrix ax;
+    // Vector3 vec3;
+    // Quat a;
+    // Vec3 vevec;
+    // ax.Decompose(vec3, a, vevec);
     __super::Update(timeDelta);
 }
-
 
 void Monster::Late_Update(float fTimeDelta)
 {
@@ -138,8 +136,8 @@ void Monster::Late_Update(float fTimeDelta)
     }
     __super::Late_Update(fTimeDelta);
 
- 	// GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<Character>());
-	// GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<Character>());
+    // GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<Character>());
+    // GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<Character>());
 }
 
 HRESULT Monster::Render()
@@ -164,6 +162,7 @@ HRESULT Monster::Ready_Components()
 
     return S_OK;
 }
+
 HRESULT Monster::Ready_PartObjects()
 {
     Mon_Lancleier_Body::BODY_DESC bodyDesc{};
@@ -191,7 +190,6 @@ HRESULT Monster::Ready_PartObjects()
 
     return S_OK;
 }
-
 
 HRESULT Monster::Ready_Collider()
 {
@@ -225,7 +223,7 @@ Shared<GameObject> Monster::Clone(void* arg)
 
     if (FAILED(clone->Initialize(arg)))
     {
-       // MSG_BOX("Failed to Cloned : Monster");
+        // MSG_BOX("Failed to Cloned : Monster");
         return nullptr;
     }
 
@@ -234,8 +232,5 @@ Shared<GameObject> Monster::Clone(void* arg)
 
 void Monster::Free()
 {
-	__super::Free();
-
+    __super::Free();
 }
-
-

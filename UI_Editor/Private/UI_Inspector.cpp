@@ -33,13 +33,41 @@ namespace UIEditor
                 ImGui::Text("Type: %s", Get_ObjectTypeName(selectedObject->type));
                 ImGui::Separator();
 
+                bool visible = selectedObject->visible;
+                if (ImGui::Checkbox("Visible in Editor", &visible))
+                    _editorManager.Set_ObjectVisible(selectedObject->id, visible);
+
+                bool locked = selectedObject->locked;
+                if (ImGui::Checkbox("Locked", &locked))
+                    _editorManager.Set_ObjectLocked(selectedObject->id, locked);
+
+                const bool isEffectivelyLocked = _editorManager.Is_ObjectEffectivelyLocked(selectedObject->id);
+                if (isEffectivelyLocked)
+                    ImGui::TextDisabled("Editing is locked by this object or one of its parents.");
+
+                ImGui::Separator();
+
                 bool changed = false;
-                _editorManager.Begin_EditTransaction();
+                if (!isEffectivelyLocked)
+                    _editorManager.Begin_EditTransaction();
+                else
+                    ImGui::BeginDisabled(true);
+
                 changed |= ImGui::DragFloat2("Local Position", &selectedObject->position.x, 1.f);
                 changed |= ImGui::DragFloat2("Size", &selectedObject->size.x, 1.f, 1.f, 4096.f);
                 changed |= ImGui::DragFloat2("Scale", &selectedObject->scale.x, 0.01f, 0.01f, 10.f, "%.2f");
                 changed |= ImGui::DragFloat("Rotation", &selectedObject->rotationRadians, 0.01f, -6.283f, 6.283f, "%.3f");
                 changed |= ImGui::DragInt("Sort Order", &selectedObject->sortOrder, 1.f);
+
+                const char* renderGroupItems[] = { "Background", "Foreground" };
+                int32 currentRenderGroup = static_cast<int32>(selectedObject->renderGroup);
+                currentRenderGroup = min(max(currentRenderGroup, 0), static_cast<int32>(size(renderGroupItems)) - 1);
+                if (ImGui::Combo("Render Group", &currentRenderGroup, renderGroupItems, static_cast<int32>(size(renderGroupItems))))
+                {
+                    selectedObject->renderGroup = static_cast<UI_RenderGroup>(currentRenderGroup);
+                    changed = true;
+                }
+
                 changed |= ImGui::ColorEdit4("Color", &selectedObject->color.x);
 
                 selectedObject->size.x = max(1.f, selectedObject->size.x);
@@ -101,6 +129,9 @@ namespace UIEditor
 
                 if (changed)
                     _editorManager.Mark_Dirty();
+
+                if (isEffectivelyLocked)
+                    ImGui::EndDisabled();
 
                 if (!ImGui::IsAnyItemActive())
                     _editorManager.Commit_EditTransactionIfChanged();

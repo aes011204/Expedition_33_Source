@@ -79,7 +79,22 @@ HRESULT ShaderCom::Initialize_Prototype(const wchar_t* shaderFilePath, const D3D
 
     // TODO CB 확장에 따른 추가 !!  캐싱 ==========================================
     _CB[ETOI(ConstantBuffer::Material)] =
-        _effect->GetConstantBufferByName("MaterialBuffer");
+        _effect->GetConstantBufferByName(ShaderCB::Material.data());
+
+    _CB[ETOI(ConstantBuffer::Camera)] =
+        _effect->GetConstantBufferByName(ShaderCB::Camera.data());
+
+    _CB[ETOI(ConstantBuffer::Object)] =
+        _effect->GetConstantBufferByName(ShaderCB::Object.data());
+
+    _CB[ETOI(ConstantBuffer::Shadow)] =
+        _effect->GetConstantBufferByName(ShaderCB::Shadow.data());
+
+    _CB[ETOI(ConstantBuffer::Deferred)] =
+        _effect->GetConstantBufferByName(ShaderCB::Deferred.data());
+
+    _CB[ETOI(ConstantBuffer::Light)] =
+        _effect->GetConstantBufferByName(ShaderCB::Light.data());
 
     _materialTextures = _effect->GetVariableByName("g_MaterialTextures")->AsShaderResource();
 
@@ -245,6 +260,14 @@ HRESULT ShaderCom::Bind_MaterialTextures(const Material& material)
     }
 
     return _materialTextures->SetResourceArray(srvs, 0, ETOI(MaterialTextureSlot::END));
+}
+
+HRESULT ShaderCom::Bind_ObjectCB(const Matrix& worldMatrix)
+{
+    ObjectCB objectCB{};
+    objectCB.worldMatrix = worldMatrix;
+
+    return Bind_CBufferData(objectCB);
 }
 
 Shared<ShaderCom> ShaderCom::Create(

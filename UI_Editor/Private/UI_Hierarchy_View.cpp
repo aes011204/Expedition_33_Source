@@ -104,7 +104,33 @@ namespace UIEditor
             if (_editorManager.Is_ObjectSelected(object.id))
                 nodeFlags |= ImGuiTreeNodeFlags_Selected;
 
-            const bool isOpen = ImGui::TreeNodeEx(reinterpret_cast<void*>(static_cast<intptr_t>(object.id)), nodeFlags, "%s", object.name.c_str());
+            const bool isEffectivelyVisible = _editorManager.Is_ObjectEffectivelyVisible(object.id);
+            const bool isEffectivelyLocked = _editorManager.Is_ObjectEffectivelyLocked(object.id);
+
+            ImGui::PushID(static_cast<int32>(object.id));
+            ImGui::PushStyleVar(ImGuiStyleVar_Alpha, isEffectivelyVisible ? 1.f : 0.45f);
+
+            const char* visibilityLabel = object.visible ? "V" : "-";
+            if (ImGui::SmallButton(visibilityLabel))
+                _editorManager.Set_ObjectVisible(object.id, !object.visible);
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip(object.visible ? "Hide in editor viewport" : "Show in editor viewport");
+
+            ImGui::SameLine();
+            const char* lockLabel = object.locked ? "L" : "U";
+            if (ImGui::SmallButton(lockLabel))
+                _editorManager.Set_ObjectLocked(object.id, !object.locked);
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip(object.locked ? "Unlock editing" : "Lock editing");
+
+            ImGui::SameLine();
+            if (isEffectivelyLocked)
+                ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(255, 217, 102, 255));
+
+            const bool isOpen = ImGui::TreeNodeEx("ObjectNode", nodeFlags, "%s", object.name.c_str());
+            if (isEffectivelyLocked)
+                ImGui::PopStyleColor();
+
             if (ImGui::IsItemClicked())
             {
                 ImGuiIO& io = ImGui::GetIO();
@@ -116,7 +142,7 @@ namespace UIEditor
                     _editorManager.Set_SingleSelection(object.id);
             }
 
-            if (ImGui::BeginDragDropSource())
+            if (!isEffectivelyLocked && ImGui::BeginDragDropSource())
             {
                 const ObjectId payloadObjectId = object.id;
                 ImGui::SetDragDropPayload(kHierarchyDragDropPayload, &payloadObjectId, sizeof(payloadObjectId));
@@ -148,6 +174,9 @@ namespace UIEditor
                 Render_Children(object.id);
                 ImGui::TreePop();
             }
+
+            ImGui::PopStyleVar();
+            ImGui::PopID();
         }
     }
 
@@ -167,13 +196,15 @@ namespace UIEditor
 
         ImGui::Separator();
 
-        if (ImGui::MenuItem("Rename"))
+        const bool isLocked = _editorManager.Is_ObjectEffectivelyLocked(objectId);
+
+        if (ImGui::MenuItem("Rename", nullptr, false, !isLocked))
             Begin_RenameObject(objectId);
 
-        if (ImGui::MenuItem("Duplicate"))
+        if (ImGui::MenuItem("Duplicate", nullptr, false, !isLocked))
             _pendingDuplicateObjectId = objectId;
 
-        if (ImGui::MenuItem("Delete"))
+        if (ImGui::MenuItem("Delete", nullptr, false, !isLocked))
             _pendingDeleteObjectId = objectId;
     }
 
@@ -287,7 +318,7 @@ namespace UIEditor
     void UI_Hierarchy_View::Begin_RenameObject(ObjectId objectId)
     {
         UI_Object* object = _editorManager.Get_Document().Find_Object(objectId);
-        if (nullptr == object)
+        if (nullptr == object || _editorManager.Is_ObjectEffectivelyLocked(objectId))
             return;
 
         _renamingObjectId = objectId;

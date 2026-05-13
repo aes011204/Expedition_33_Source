@@ -89,16 +89,24 @@ HRESULT MapStaticMesh::Render()
         return E_FAIL;
     }
 
-    const uint32 iNumMeshes = static_cast<uint32>(_model->Get_NumMeshes());
 
+    const uint32 iNumMeshes = static_cast<uint32>(_model->Get_NumMeshes());
     for (uint32 i = 0; i < iNumMeshes; i++)
     {
-        const uint32 pass = SUCCEEDED(_model->Bind_Material(_shader.get(), "g_DiffuseTexture", i, MaterialTextureSlot::BaseColor)) ? 0 : 2;
+        const Shared<Material> material = _model->Get_Material(i);
+        if (material == nullptr)
+            continue;
 
-        if (FAILED(_shader->Begin(pass)))
-        {
+        if (FAILED(_shader->Bind_MaterialTextures(*material)))
+            continue;
+
+        if (FAILED(_shader->Bind_CBufferData(material->Get_CB())))
             return E_FAIL;
-        }
+
+        // TODO 패스 수정 필요
+        const uint32 passIndex = 2;
+        if (FAILED(_shader->Begin(passIndex)))
+            return E_FAIL;
 
         _model->Render(i);
     }
@@ -130,25 +138,11 @@ HRESULT MapStaticMesh::Ready_Components(const wstring& modelPath, Shared<ModelCo
 
 HRESULT MapStaticMesh::Bind_ShaderResources()
 {
-    if (FAILED(_transformCom->Bind_ShaderResource(_shader.get(), "g_WorldMatrix")))
-    {
+    if (FAILED(_shader->Bind_ObjectCB(_transformCom->Get_WorldMatrix())))
         return E_FAIL;
-    }
 
-    if (FAILED(GAME->Bind_TransformMatrix(D3DTS::View, _shader.get(), "g_ViewMatrix")))
-    {
+    if (FAILED(GAME->Bind_CameraCB(_shader)))
         return E_FAIL;
-    }
-
-    if (FAILED(GAME->Bind_TransformMatrix(D3DTS::Proj, _shader.get(), "g_ProjMatrix")))
-    {
-        return E_FAIL;
-    }
-
-    if (FAILED(GAME->Bind_CameraFar(_shader, "g_fFar")))
-    {
-        return E_FAIL;
-    }
 
     return S_OK;
 }

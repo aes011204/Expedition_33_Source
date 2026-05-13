@@ -7,7 +7,7 @@ NS_BEGIN(EffectEditor)
 class Editor_Window abstract : public Base
 {
 public:
-    Editor_Window(const wstring& windowName, const char* windowIcon = nullptr);
+    explicit Editor_Window(const wstring& windowName, const char* windowIcon = nullptr);
     ~Editor_Window() override = default;
 
 public:

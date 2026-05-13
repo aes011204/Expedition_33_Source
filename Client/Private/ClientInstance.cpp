@@ -25,17 +25,15 @@ HRESULT ClientInstance::Initialize_Client(const ComPtr<Device>& device, const Co
         return S_OK;
 
     _device = device;
-	_context = context;
+    _context = context;
 
     // 프로토타입 등록
-	if (FAILED(Ready_ResourceLoader()))
-		return E_FAIL;
+    if (FAILED(Ready_ResourceLoader()))
+        return E_FAIL;
 
     // 게임 플레이 데이터
     if (FAILED(Ready_GameDataTables()))
         return E_FAIL;
-
-	_isInitialized = true;
 
     Client::Force_Register_ClientBTNodes();
 
@@ -44,6 +42,8 @@ HRESULT ClientInstance::Initialize_Client(const ComPtr<Device>& device, const Co
 
     _heroManager = Hero_Manager::Create();
     CHECK_NULL(_heroManager, E_FAIL);
+
+	_isInitialized = true;
 
 	return S_OK;
 }
@@ -61,20 +61,20 @@ HRESULT ClientInstance::Ready_StaticResources()
 {
     CHECK_NULL(_resourceLoader, E_FAIL);
 
-	if (FAILED(_resourceLoader->Load_LevelTables((LevelType::Static))))
-		return E_FAIL;
+    if (FAILED(_resourceLoader->Load_LevelTables(LevelType::Static)))
+        return E_FAIL;
 
-	return S_OK;
+    return S_OK;
 }
 
 HRESULT ClientInstance::Ready_LevelResources(LevelType levelType)
 {
     CHECK_NULL(_resourceLoader, E_FAIL);
 
-	if (FAILED(_resourceLoader->Load_LevelTables(levelType)))
-		return E_FAIL;
+    if (FAILED(_resourceLoader->Load_LevelTables(levelType)))
+        return E_FAIL;
 
-	return S_OK;
+    return S_OK;
 }
 
 Shared<ResourceLoader> ClientInstance::Get_ResourceLoader() const
@@ -90,9 +90,9 @@ uint32 ClientInstance::Get_NextExp(uint32 level) const
     return _gameDataTable->Get_NextExp(level);
 }
 
-HRESULT ClientInstance::Initialize_Hero(uint32 levelIndex, const wstring& layerTag)
+HRESULT ClientInstance::Initialize_Hero(uint32 levelIndex, const wstring& layerTag, const Vec3& startPos)
 {
-    return _heroManager->Initialize_Hero(levelIndex, layerTag);
+    return _heroManager->Initialize_Hero(levelIndex, layerTag, startPos);
 }
 
 void ClientInstance::Update_HeroManager(float timeDelta)
@@ -113,6 +113,16 @@ void ClientInstance::Set_TargetCamera(const Shared<TargetCamera>& camera)
 void ClientInstance::Clear_Party()
 {
     return _heroManager->Clear_Party();
+}
+
+Shared<Player> ClientInstance::Get_FrontHero() const
+{
+    return _heroManager->Get_FrontHero();
+}
+
+vector<Shared<Player>> ClientInstance::Get_HeroesInPartyOrder() const
+{
+    return _heroManager->Get_HeroesInPartyOrder();
 }
 
 HRESULT ClientInstance::Initialize_GameplayUI(uint32 levelIndex)
@@ -164,9 +174,9 @@ HRESULT ClientInstance::Ready_StaticObjects()
 HRESULT ClientInstance::Ready_ResourceLoader()
 {
     _resourceLoader = ResourceLoader::Create(_device, _context);
-	CHECK_NULL(_resourceLoader, E_FAIL);
+    CHECK_NULL(_resourceLoader, E_FAIL);
 
-	return S_OK;
+    return S_OK;
 }
 
 HRESULT ClientInstance::Ready_GameDataTables()

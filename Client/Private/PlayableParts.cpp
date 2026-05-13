@@ -3,6 +3,7 @@
 #include "ModelCom.h"
 #include "ShaderCom.h"
 #include "Engine_Enum.h"
+#include "GameInstance.h"
 
 NS_BEGIN(Client)
 
@@ -40,6 +41,14 @@ void PlayableParts::Set_Animation(uint32 animIndex, float blendDuration, bool is
 
     _modelCom->Set_Animation(animIndex, blendDuration, isLoop);
 }
+
+void PlayableParts::Set_Animation(uint32 animIndex, bool isLoop) const
+{
+    if (nullptr == _modelCom) return;
+
+    _modelCom->Set_Animation(animIndex, isLoop);
+}
+
 
 uint32 PlayableParts::Get_AnimationIndex() const
 {
@@ -112,9 +121,8 @@ HRESULT PlayableParts::Render()
 
     for (uint32 i = 0; i < iNumMeshes; i++)
     {
-        const Shared<Material> material = _modelCom->Get_Material(i);
-        if (material == nullptr)
-            continue;
+        const uint32 materialIndex = _modelCom->Get_MeshMaterialIndex(i);
+        const Shared<Material> material = _modelCom->Get_Material(materialIndex);
 
         if (FAILED(_shaderCom->Bind_MaterialTextures(*material)))
             continue;
@@ -136,13 +144,10 @@ HRESULT PlayableParts::Render()
 
 HRESULT PlayableParts::Render_Shadow()
 {
-    if (FAILED(_shaderCom->Bind_Matrix("g_WorldMatrix", &_combinedWorldMatrix)))
+    if (FAILED(_shaderCom->Bind_ObjectCB(_combinedWorldMatrix)))
         return E_FAIL;
 
-    if (FAILED(GAME->Bind_ShadowMatrices(_shaderCom, "g_ViewMatrix", "g_ProjMatrix")))
-        return E_FAIL;
-
-    if (FAILED(GAME->Bind_ShadowLightDesc(_shaderCom, "g_fLightFar")))
+    if (FAILED(GAME->Bind_ShadowCB(_shaderCom)))
         return E_FAIL;
 
     const uint32 numMeshes = static_cast<uint32>(_modelCom->Get_NumMeshes());
@@ -225,17 +230,10 @@ HRESULT PlayableParts::Ready_Components(const PLAYABLE_PART_DESC& desc)
 
 HRESULT PlayableParts::Bind_ShaderResources()
 {
-
-    if (FAILED(_shaderCom->Bind_Matrix("g_WorldMatrix", &_combinedWorldMatrix)))
+    if (FAILED(_shaderCom->Bind_ObjectCB(_combinedWorldMatrix)))
         return E_FAIL;
 
-    if (FAILED(GAME->Bind_TransformMatrix(D3DTS::View, _shaderCom.get(), "g_ViewMatrix")))
-        return E_FAIL;
-
-    if (FAILED(GAME->Bind_TransformMatrix(D3DTS::Proj, _shaderCom.get(), "g_ProjMatrix")))
-        return E_FAIL;
-
-    if (FAILED(GAME->Bind_CameraFar(_shaderCom, "g_fFar")))
+    if (FAILED(GAME->Bind_CameraCB(_shaderCom)))
         return E_FAIL;
 
     return S_OK;
