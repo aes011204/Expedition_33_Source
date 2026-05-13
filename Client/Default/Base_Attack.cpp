@@ -1,6 +1,8 @@
 ﻿#include "pch.h"
 #include "Base_Attack.h"
 
+#include "Character.h"
+
 Base_Attack::Base_Attack()
 {
 }
@@ -12,7 +14,7 @@ void Base_Attack::Execute(const Skill_Data& skill, const BattleChar& attacker, c
 
 
 
-
+    //attacker.actor->Get_Name() 
 
 
 

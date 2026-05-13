@@ -295,7 +295,7 @@ void BattleController::Execute_BaseAttack(const BattleChar actor, const Action& 
 void BattleController::Execute_Skill(const BattleChar actor, const Action& turnAction)
 {
     const Skill_Data& skill = turnAction._selected_SkillKey;
-    auto script = Reflection::CreateInstance<SkillScript>(
+    auto script = Create_Class::
         skill.scriptClassName);
 
     auto target = turnAction.target;
