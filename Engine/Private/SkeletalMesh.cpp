@@ -77,6 +77,32 @@ HRESULT SkeletalMesh::Initialize(void* arg)
     return Mesh::Initialize(arg);
 }
 
+HRESULT SkeletalMesh::Build_MeshBoneMatrices(const vector<Matrix>& combinedMatrices,
+    vector<Matrix>& outBoneMatrices) const
+{
+    if (_numBones == 0)
+    {
+        outBoneMatrices.clear();
+        return S_OK;
+    }
+
+    if (combinedMatrices.empty())
+        return E_FAIL;
+
+    outBoneMatrices.resize(_numBones);
+
+    for (uint32 i = 0; i < _numBones; ++i)
+    {
+        const uint32 sourceBoneIndex = _boneIndices[i];
+        if (sourceBoneIndex >= combinedMatrices.size())
+            return E_FAIL;
+
+        outBoneMatrices[i] = _offsetMatrices[i] * combinedMatrices[sourceBoneIndex];
+    }
+
+    return S_OK;
+}
+
 HRESULT SkeletalMesh::Bind_BoneMatrices(ShaderCom* shader, const char* constantName, const vector<Shared<Bone>>& bones)
 {
     for (uint32 i = 0; i < _numBones; ++i)
@@ -90,12 +116,16 @@ HRESULT SkeletalMesh::Bind_BoneMatrices(ShaderCom* shader, const char* constantN
 HRESULT SkeletalMesh::Bind_BoneMatrices(ShaderCom* shader, const char* constantName,
     const vector<Matrix>& combinedMatrices)
 {
-    for (uint32 i = 0; i < _numBones; ++i)
-    {
-        _boneMatrices[i] = _offsetMatrices[i] * combinedMatrices[_boneIndices[i]];
-    }
+    vector<Matrix> meshBoneMatrices;
+    CHECK_FAILED(Build_MeshBoneMatrices(combinedMatrices, meshBoneMatrices), E_FAIL);
 
-    return shader->Bind_Matrices(constantName, _boneMatrices, _numBones);
+    if (meshBoneMatrices.empty())
+        return S_OK;
+
+    return shader->Bind_Matrices(
+        constantName,
+        meshBoneMatrices.data(),
+        static_cast<uint32>(meshBoneMatrices.size()));
 }
 
 Shared<SkeletalMesh> SkeletalMesh::Create(const ComPtr<ID3D11Device>& device, const ComPtr<ID3D11DeviceContext>& context, const ModelMeshData& meshData, const Matrix& preTransformMatrix)

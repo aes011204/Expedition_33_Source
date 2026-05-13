@@ -45,6 +45,10 @@ ModelCom::ModelCom(const ModelCom& prototype)
     for (auto& prototypeBone : prototype._bones)
         _bones.push_back(prototypeBone->Clone());
 
+    _combinedBoneMatrixCache.resize(_numBones, Matrix::Identity);
+    _meshBoneMatrixCaches.resize(_meshes.size());
+    _boneMatricesDirty = true;
+    _leaderPoseMatricesValid = false;
 }
 
 uint32 ModelCom::Get_MeshMaterialIndex(uint32 meshIndex) const
@@ -110,6 +114,8 @@ void ModelCom::Set_Animation(uint32 animIndex, bool isLoop)
     _isBlending = false;
     _isFinished = false;
     _animations[_currentAnimIndex]->Reset();
+
+    Mark_BoneMatricesDirty();
 }
 
 // TODO : BlendSetting으로 보간 애니메이션 세팅 이미
@@ -124,6 +130,8 @@ void ModelCom::Set_Animation(uint32 animIndex, float blendDuration, bool isLoop)
     _blendElapsedTime = 0.f;
     _isFinished = false;
     _animations[_nextAnimIndex]->Reset();
+
+    Mark_BoneMatricesDirty();
 }
 
 const char* ModelCom::Get_AnimationName(uint32 animationIndex) const
@@ -638,6 +646,8 @@ bool ModelCom::Play_Animation(float timeDelta)
         _bones[i]->Update_CombinedTransformationMatrix(_bones, _preLocalTransformMatrix);
     }
 
+    Mark_BoneMatricesDirty();
+
     const float currentTimeSec = Get_CurrentAnimationTimeSec();
     const bool wrapped = (_isAnimLoop && currentTimeSec < previousTimeSec);
 
@@ -675,19 +685,37 @@ HRESULT ModelCom::Bind_Material(ShaderCom* shader, const char* constantName, uin
 
 HRESULT ModelCom::Bind_BoneMatrices(ShaderCom* shader, const char* constantName, uint32 meshIndex)
 {
-    if (_numBones == 0)
+    if (shader == nullptr || constantName == nullptr)
+        return E_FAIL;
+
+    if (!_isSkeletal || _numBones == 0)
         return S_OK;
 
-    if (!_leaderPoseCombinedMatrices.empty())
+    if (meshIndex >= _meshes.size())
+        return E_FAIL;
+
+    if (_leaderPoseModel != nullptr)
     {
-        Update_LeaderPoseMatrices();
-        return _meshes[meshIndex]->Bind_BoneMatrices(
-            shader,
-            constantName,
-            _leaderPoseCombinedMatrices);
+        if (!_leaderPoseMatricesValid)
+            Update_LeaderPoseMatrices();
+
+        if (_leaderPoseCombinedMatrices.empty())
+            return E_FAIL;
     }
 
-    return _meshes[meshIndex]->Bind_BoneMatrices(shader, constantName, _bones);
+    CHECK_FAILED(Ensure_MeshBoneMatrices(), E_FAIL);
+
+    if (meshIndex >= _meshBoneMatrixCaches.size())
+        return E_FAIL;
+
+    const vector<Matrix>& meshBoneMatrices = _meshBoneMatrixCaches[meshIndex];
+    if (meshBoneMatrices.empty())
+        return S_OK;
+
+    return shader->Bind_Matrices(
+        constantName,
+        meshBoneMatrices.data(),
+        static_cast<uint32>(meshBoneMatrices.size()));
 }
 
 bool ModelCom::Try_Get_LocalBounds(Vec3& outMin, Vec3& outMax) const
@@ -731,12 +759,20 @@ float ModelCom::Get_CurrentAnimationTimeSec() const
     return _animations[_currentAnimIndex]->Get_CurrentTimeSec();
 }
 
+void ModelCom::Set_AnimationPaused(bool paused)
+{
+    _isAnimationPaused = paused;
+    Mark_BoneMatricesDirty();
+}
+
 void ModelCom::Set_CurrentAnimationTimeSec(float timeSec)
 {
     if (_currentAnimIndex >= _animations.size())
         return;
 
     _animations[_currentAnimIndex]->Set_CurrentTimeSec(timeSec);
+
+    Mark_BoneMatricesDirty();
 }
 
 void ModelCom::Refresh_CurrentAnimationPose()
@@ -751,6 +787,8 @@ void ModelCom::Refresh_CurrentAnimationPose()
 
     for (uint32 i = 0; i < _numBones; ++i)
         _bones[i]->Update_CombinedTransformationMatrix(_bones, _preLocalTransformMatrix);
+
+    Mark_BoneMatricesDirty();
 }
 
 bool ModelCom::Ensure_AnimNotifyAssetLoaded()
@@ -978,6 +1016,7 @@ void ModelCom::Set_LeaderPoseComponent(const ModelCom* leaderModel)
             _leaderPoseModel->Get_BoneIndex(_bones[i]->Get_BoneName());
     }
 
+    _leaderPoseMatricesValid = false;
     Update_LeaderPoseMatrices();
 }
 
@@ -986,6 +1025,9 @@ void ModelCom::Clear_LeaderPoseComponent()
     _leaderPoseModel = nullptr;
     _leaderPoseBoneMap.clear();
     _leaderPoseCombinedMatrices.clear();
+
+    _leaderPoseMatricesValid = false;
+    Mark_BoneMatricesDirty();
 }
 
 void ModelCom::Update_LeaderPoseMatrices()
@@ -999,15 +1041,61 @@ void ModelCom::Update_LeaderPoseMatrices()
     {
         Build_LeaderPoseMatrix(i, visited);
     }
+
+    _leaderPoseMatricesValid = true;
+    Mark_BoneMatricesDirty();
+}
+
+HRESULT ModelCom::Ensure_MeshBoneMatrices()
+{
+    if (!_isSkeletal || _numBones == 0)
+        return S_OK;
+
+    if (!_boneMatricesDirty)
+        return S_OK;
+
+    if (_meshBoneMatrixCaches.size() != _meshes.size())
+        _meshBoneMatrixCaches.resize(_meshes.size());
+
+    const vector<Matrix>* sourceMatrices = nullptr;
+    if (_leaderPoseModel != nullptr)
+    {
+        sourceMatrices = &_leaderPoseCombinedMatrices;
+    }
+    else
+    {
+        _combinedBoneMatrixCache.resize(_numBones);
+
+        for (uint32 i = 0; i < _numBones; ++i)
+        {
+            const Matrix* combined = _bones[i]->Get_CombinedTransformationMatrixPtr();
+            _combinedBoneMatrixCache[i] = combined ? *combined : Matrix::Identity;
+        }
+
+        sourceMatrices = &_combinedBoneMatrixCache;
+    }
+
+    if (sourceMatrices == nullptr || sourceMatrices->empty())
+        return E_FAIL;
+
+    for (uint32 meshIndex = 0; meshIndex < _meshes.size(); ++meshIndex)
+    {
+        const Shared<Mesh>& mesh = _meshes[meshIndex];
+        if (mesh == nullptr)
+            return E_FAIL;
+
+        CHECK_FAILED(
+            mesh->Build_MeshBoneMatrices(*sourceMatrices, _meshBoneMatrixCaches[meshIndex]),
+            E_FAIL);
+    }
+
+    _boneMatricesDirty = false;
+    return S_OK;
 }
 
 Matrix ModelCom::Convert_LeaderPoseMatrix(const Matrix& leaderMatrix) const
 {
-    Matrix leaderPrevInverse = _leaderPoseModel->Get_PreLocalTransformMatrix();
-    leaderPrevInverse = leaderPrevInverse.Invert();
-    
-    return leaderMatrix * leaderPrevInverse * _preLocalTransformMatrix;
-    //return leaderMatrix;
+    return leaderMatrix;
 }
 
 Matrix ModelCom::Build_LeaderPoseMatrix(uint32 boneIndex, vector<uint8>& visited)
@@ -1237,6 +1325,11 @@ HRESULT ModelCom::Ready_Model(const char* modelPath)
         }
     }
 
+    _combinedBoneMatrixCache.resize(_numBones, Matrix::Identity);
+    _meshBoneMatrixCaches.resize(_meshes.size());
+    Mark_BoneMatricesDirty();
+    _leaderPoseMatricesValid = false;
+
     _hasLocalBounds = hasBounds;
     if (hasBounds)
     {
@@ -1340,6 +1433,11 @@ void ModelCom::Reset_ModelData()
     _rootNodeIndex = -1;
     _rootOriginalFrameVelocity = {};
     _rootFrameVelocity = {};
+
+    _combinedBoneMatrixCache.clear();
+    _meshBoneMatrixCaches.clear();
+    _boneMatricesDirty = true;
+    _leaderPoseMatricesValid = false;
 
     Invalidate_AnimNotifyAsset();
     Clear_LeaderPoseComponent();
