@@ -64,6 +64,9 @@
     <ClCompile Include="..\Private\EffectMaterial_View.cpp">
       <Filter>01. View\Effect Material View</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\EffectMaterialPreviewRenderer.cpp">
+      <Filter>01. View\Effect Material View</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\EffectMaterialInstance_View.cpp">
       <Filter>01. View\Effect Material View</Filter>
     </ClCompile>
@@ -166,6 +169,9 @@
       <Filter>99. Defines\Types</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\EffectMaterial_View.h">
+      <Filter>01. View\Effect Material View</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\EffectMaterialPreviewRenderer.h">
       <Filter>01. View\Effect Material View</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\EffectMaterialInstance_View.h">

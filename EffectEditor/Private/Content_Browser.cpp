@@ -12,10 +12,18 @@ NS_BEGIN(EffectEditor)
 
 namespace Internal
 {
+    constexpr const char* kEffectTexturePayloadType = "CONTENT_BROWSER_EFFECT_TEXTURE";
+
     static string ToLowerCopy(string value)
     {
         ranges::transform(value, value.begin(), ::tolower);
         return value;
+    }
+
+    bool Is_TexturePayloadFile(const fs::path& filePath)
+    {
+        const string extension = ToLowerCopy(filePath.extension().string());
+        return extension == ".png" || extension == ".dds";
     }
 
     static ImTextureID ToImTextureId(const Shared<Texture>& texture)
@@ -408,6 +416,43 @@ void Content_Browser::Draw_AssetView()
             }
             else
                 ImGui::Button(pureName.c_str(), ImVec2(_thumbnailSize, _thumbnailSize));
+        }
+
+        if (Is_EffectMaterialPresetFile(path))
+        {
+            if (ImGui::BeginDragDropSource())
+            {
+                const wstring payloadPath = fileEntry.filePath;
+                ImGui::SetDragDropPayload(
+                    "CONTENT_BROWSER_EFFECT_MATERIAL",
+                    payloadPath.c_str(),
+                    (payloadPath.size() + 1) * sizeof(wchar_t)
+                );
+
+                ImGui::TextUnformatted("Effect Material");
+                ImGui::Separator();
+                ImGui::Text("%s", fileName.c_str());
+
+                ImGui::EndDragDropSource();
+            }
+        }
+        else if (Internal::Is_TexturePayloadFile(path))
+        {
+            if (ImGui::BeginDragDropSource())
+            {
+                const wstring payloadPath = fileEntry.filePath;
+                ImGui::SetDragDropPayload(
+                    Internal::kEffectTexturePayloadType,
+                    payloadPath.c_str(),
+                    (payloadPath.size() + 1) * sizeof(wchar_t)
+                );
+
+                ImGui::TextUnformatted("Effect Texture");
+                ImGui::Separator();
+                ImGui::Text("%s", fileName.c_str());
+
+                ImGui::EndDragDropSource();
+            }
         }
 
         const bool isFocused = ImGui::IsItemFocused();

@@ -6,9 +6,11 @@ struct EffectMaterialInstanceData
 {
     // Definition에서 만든 embedded 사본이 실제 편집/저장할 값이다.
     string definitionName{ "SpriteSymbolTranslucent" };
+    // 원본 preset 파일명 표시용 값이다. live reference나 저장 identity로 사용하지 않는다.
+    string sourcePresetName{};
 
     string mainTextureId{ "Texture_Effect_DefaultTexture" };
-    string noiseTextureId{};
+    string noiseTextureId{ "Texture_Effect_Clouds4" };
 
     Color tint{ 1.f, 1.f, 1.f, 1.f };
 

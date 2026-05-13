@@ -1,6 +1,9 @@
 ﻿#include "ModuleDetail_Drawers.h"
 
+#include <shobjidl.h>
+
 #include "EffectEditorInstance.h"
+#include "EffectMaterialPreviewRenderer.h"
 #include "EffectMaterial_View.h"
 #include "EffectMaterialInstance_View.h"
 
@@ -8,6 +11,95 @@ NS_BEGIN(EffectEditor)
 
 namespace Internal
 {
+    constexpr const char* kEffectMaterialPayloadType = "CONTENT_BROWSER_EFFECT_MATERIAL";
+    constexpr const wchar_t* kMaterialDialogDefaultFolder = L"../../../Client/Bin/Resources/Effects/Materials";
+
+    fs::path Normalize_MaterialDialogPath(const fs::path& filePath)
+    {
+        try
+        {
+            if (fs::exists(filePath))
+                return fs::weakly_canonical(filePath);
+        }
+        catch (...)
+        {
+        }
+
+        try
+        {
+            return fs::absolute(filePath).lexically_normal();
+        }
+        catch (...)
+        {
+        }
+
+        return filePath.lexically_normal();
+    }
+
+    bool Try_PickMaterialPresetDialog(wstring& outFilePath)
+    {
+        outFilePath.clear();
+
+        const HRESULT initHr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+        const bool shouldUninit = SUCCEEDED(initHr);
+
+        IFileOpenDialog* dialog = nullptr;
+        HRESULT hr = CoCreateInstance(CLSID_FileOpenDialog, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&dialog));
+        if (FAILED(hr) || dialog == nullptr)
+        {
+            if (shouldUninit)
+                CoUninitialize();
+            return false;
+        }
+
+        dialog->SetTitle(L"Select Effect Material");
+
+        DWORD options = 0;
+        dialog->GetOptions(&options);
+        dialog->SetOptions(options | FOS_FORCEFILESYSTEM | FOS_PATHMUSTEXIST | FOS_FILEMUSTEXIST);
+
+        const fs::path defaultFolder = Normalize_MaterialDialogPath(kMaterialDialogDefaultFolder);
+        if (!defaultFolder.empty())
+        {
+            IShellItem* folderItem = nullptr;
+            if (SUCCEEDED(SHCreateItemFromParsingName(defaultFolder.wstring().c_str(), nullptr, IID_PPV_ARGS(&folderItem))) && folderItem != nullptr)
+            {
+                dialog->SetFolder(folderItem);
+                folderItem->Release();
+            }
+        }
+
+        const COMDLG_FILTERSPEC filters[] =
+        {
+            { L"Effect Materials", L"*.effectmaterial.json" },
+            { L"All", L"*.*" },
+        };
+        dialog->SetFileTypes(static_cast<UINT>(std::size(filters)), filters);
+
+        hr = dialog->Show(nullptr);
+        if (SUCCEEDED(hr))
+        {
+            IShellItem* item = nullptr;
+            if (SUCCEEDED(dialog->GetResult(&item)) && item != nullptr)
+            {
+                PWSTR path = nullptr;
+                if (SUCCEEDED(item->GetDisplayName(SIGDN_FILESYSPATH, &path)) && path != nullptr)
+                {
+                    outFilePath = path;
+                    CoTaskMemFree(path);
+                }
+                item->Release();
+            }
+        }
+
+        dialog->Release();
+
+        if (shouldUninit)
+            CoUninitialize();
+
+        return !outFilePath.empty();
+    }
+
     Shared<EffectMaterial_View> Get_MaterialView()
     {
         if (nullptr == EDITOR)
@@ -40,15 +132,113 @@ namespace Internal
         materialView->Open_PresetBrowser();
     }
 
-    bool Try_GetSelectedPresetMaterial(EffectMaterialInstanceData& outMaterial, string& outFileName)
+    bool Apply_PresetFileToRequired(const wchar_t* filePath, RequiredModuleData& data)
     {
-        const Shared<EffectMaterial_View> materialView = Get_MaterialView();
-        if (materialView == nullptr || !materialView->Has_SelectedPreset())
+        if (filePath == nullptr || filePath[0] == L'\0')
             return false;
 
-        outMaterial = materialView->Get_SelectedPresetMaterial();
-        outFileName = materialView->Get_SelectedMaterialFileName();
+        const Shared<EffectMaterial_View> materialView = Get_MaterialView();
+        if (materialView == nullptr)
+            return false;
+
+        materialView->Open_Preset(filePath);
+        if (!materialView->Has_SelectedPreset())
+            return false;
+
+        data.material = materialView->Get_SelectedPresetMaterial();
         return true;
+    }
+
+    bool Draw_MaterialDropSlot(RequiredModuleData& data)
+    {
+        constexpr float browseButtonWidth{ 28.f };
+        constexpr float slotHeight = 54.f;
+        const float spacing = ImGui::GetStyle().ItemSpacing.x;
+        const ImGuiPayload* activePayload = ImGui::GetDragDropPayload();
+        const bool isMaterialDragging =
+            activePayload != nullptr &&
+            activePayload->IsDataType(kEffectMaterialPayloadType);
+
+        const ImVec2 slotMin = ImGui::GetCursorScreenPos();
+        const float slotWidth = max(180.f, ImGui::GetContentRegionAvail().x - browseButtonWidth - spacing);
+        ImGui::InvisibleButton("##MaterialDropSlot", ImVec2(slotWidth, slotHeight));
+
+        bool changed = false;
+        if (ImGui::BeginDragDropTarget())
+        {
+            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(
+                kEffectMaterialPayloadType,
+                ImGuiDragDropFlags_AcceptBeforeDelivery))
+            {
+                if (payload->IsDelivery())
+                    changed = Apply_PresetFileToRequired(static_cast<const wchar_t*>(payload->Data), data);
+            }
+
+            ImGui::EndDragDropTarget();
+        }
+
+        const bool isHovered = ImGui::IsItemHovered();
+        const ImVec2 slotMax{ slotMin.x + slotWidth, slotMin.y + slotHeight };
+        const ImU32 fillColor = isMaterialDragging
+            ? IM_COL32(42, 56, 78, 255)
+            : IM_COL32(30, 34, 42, 255);
+        const ImU32 borderColor = isMaterialDragging
+            ? IM_COL32(96, 165, 250, 255)
+            : (isHovered ? IM_COL32(120, 130, 150, 255) : IM_COL32(70, 78, 92, 255));
+
+        ImDrawList* drawList = ImGui::GetWindowDrawList();
+        drawList->AddRectFilled(slotMin, slotMax, fillColor, 6.f);
+        drawList->AddRect(slotMin, slotMax, borderColor, 6.f, 0, isMaterialDragging ? 2.5f : 1.5f);
+
+        static EffectMaterialPreviewRenderer materialSlotPreview{ 64 };
+        materialSlotPreview.Render_Material(data.material);
+        ID3D11ShaderResourceView* previewSrv = materialSlotPreview.Get_SRV();
+        const ImVec2 thumbnailMin{ slotMin.x + 7.f, slotMin.y + 7.f };
+        const ImVec2 thumbnailMax{ thumbnailMin.x + 40.f, thumbnailMin.y + 40.f };
+        if (previewSrv != nullptr)
+        {
+            const ImTextureID textureId = static_cast<ImTextureID>(reinterpret_cast<intptr_t>(previewSrv));
+            drawList->AddImage(textureId, thumbnailMin, thumbnailMax);
+        }
+        else
+        {
+            drawList->AddRectFilled(thumbnailMin, thumbnailMax, IM_COL32(18, 20, 24, 255), 4.f);
+            drawList->AddText(ImVec2(thumbnailMin.x + 8.f, thumbnailMin.y + 12.f), IM_COL32(150, 160, 176, 255), "MAT");
+        }
+        drawList->AddRect(thumbnailMin, thumbnailMax, IM_COL32(85, 96, 116, 255), 4.f);
+
+        const string displayName = data.material.sourcePresetName.empty()
+            ? data.material.definitionName
+            : data.material.sourcePresetName;
+        const ImVec2 textPos{ slotMin.x + 57.f, slotMin.y + 18.f };
+        drawList->AddText(textPos, IM_COL32(235, 238, 245, 255), displayName.c_str());
+
+        if (isHovered)
+        {
+            ImGui::SetTooltip(
+                "Content Browser의 .effectmaterial.json을 여기에 드롭하면 현재 embedded instance로 복사합니다.\nMain: %s\nNoise: %s\n%s / %s / SubUV %ux%u",
+                data.material.mainTextureId.c_str(),
+                data.material.noiseTextureId.empty() ? "(none)" : data.material.noiseTextureId.c_str(),
+                data.material.blendMode.c_str(),
+                data.material.opacitySource.c_str(),
+                data.material.subUvRows,
+                data.material.subUvCols
+            );
+        }
+
+        ImGui::SameLine();
+        ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2{ 0.5f, 0.5f });
+        if (ImGui::Button(ICON_FA_FOLDER_OPEN "##PickMaterial", ImVec2{ browseButtonWidth, slotHeight }))
+        {
+            wstring pickedFilePath{};
+            if (Try_PickMaterialPresetDialog(pickedFilePath))
+                changed = Apply_PresetFileToRequired(pickedFilePath.c_str(), data);
+        }
+        ImGui::PopStyleVar();
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
+            ImGui::SetTooltip("머티리얼 원본 파일 선택");
+
+        return changed;
     }
 }
 
@@ -153,27 +343,9 @@ bool RequiredModuleDetail::Draw(AuthoringEmitter& emitter, const AuthoringModule
     {
         if (drawContext.Begin_PropertyTable("RequiredMaterial"))
         {
-            ImGui::PushID("MaterialDefinition");
+            ImGui::PushID("MaterialDropSlot");
             DetailProperty::Draw_PropertyLabel("머티리얼");
-            ImGui::TextUnformatted(data.material.definitionName.c_str());
-            DetailProperty::Draw_ResetButton(false);
-            ImGui::PopID();
-
-            ImGui::PushID("MaterialTexture");
-            DetailProperty::Draw_PropertyLabel("텍스처");
-            ImGui::TextUnformatted(data.material.mainTextureId.c_str());
-            DetailProperty::Draw_ResetButton(false);
-            ImGui::PopID();
-
-            ImGui::PushID("MaterialSummary");
-            DetailProperty::Draw_PropertyLabel("Blend / Opacity");
-            ImGui::Text("%s / %s", data.material.blendMode.c_str(), data.material.opacitySource.c_str());
-            DetailProperty::Draw_ResetButton(false);
-            ImGui::PopID();
-
-            ImGui::PushID("MaterialSubUV");
-            DetailProperty::Draw_PropertyLabel("SubUV");
-            ImGui::Text("%u x %u", data.material.subUvRows, data.material.subUvCols);
+            changed |= Internal::Draw_MaterialDropSlot(data);
             DetailProperty::Draw_ResetButton(false);
             ImGui::PopID();
 
@@ -188,35 +360,6 @@ bool RequiredModuleDetail::Draw(AuthoringEmitter& emitter, const AuthoringModule
                 Internal::Open_PresetBrowserWindow(emitter.id, module.id);
             if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
                 ImGui::SetTooltip("원본 머티리얼을 확인");
-            ImGui::SameLine();
-
-            EffectMaterialInstanceData selectedPresetMaterial{};
-            string selectedPresetName{};
-            const bool hasSelectedPreset =
-                Internal::Try_GetSelectedPresetMaterial(selectedPresetMaterial, selectedPresetName);
-
-            ImGui::BeginDisabled(!hasSelectedPreset);
-            if (ImGui::Button("선택 원본 장착"))
-            {
-                data.material = selectedPresetMaterial;
-                changed = true;
-            }
-            ImGui::EndDisabled();
-
-            if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort | ImGuiHoveredFlags_AllowWhenDisabled))
-            {
-                if (hasSelectedPreset)
-                {
-                    ImGui::SetTooltip(
-                        "선택된 원본 preset '%s'을 현재 Required embedded instance로 복사합니다. 파일은 저장하지 않습니다.",
-                        selectedPresetName.c_str()
-                    );
-                }
-                else
-                    ImGui::SetTooltip("Effect Material 창에서 원본 preset을 먼저 선택하세요.");
-            }
-
-            DetailProperty::Draw_ResetButton(false);
             ImGui::PopID();
 
             drawContext.End_PropertyTable();
