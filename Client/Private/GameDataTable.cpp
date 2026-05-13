@@ -201,15 +201,15 @@ HRESULT GameDataTable::Load_SkillActionData(const wstring& jsonRootPath)
             payload.bonusChargeOnCritical = item.value("bonus charge on critical", 0);
 
             const string damageType = item.value("damage type", "PHYSICAL");
-            if (damageType == "LIGHTNING")
+            if (damageType == "lightning")
                 payload.damageType = DamageType::LIGHTNING;
             else
                 payload.damageType = DamageType::PHYSICAL;
 
             const string damageLevel = item.value("damage level", "NORMAL");
-            if (damageLevel == "LOW") payload.damageLevel = DamageLevel::LOW;
-            else if (damageLevel == "HIGH") payload.damageLevel = DamageLevel::HIGH;
-            else if (damageLevel == "EXTREME") payload.damageLevel = DamageLevel::EXTREME;
+            if (damageLevel == "low") payload.damageLevel = DamageLevel::LOW;
+            else if (damageLevel == "high") payload.damageLevel = DamageLevel::HIGH;
+            else if (damageLevel == "extreme") payload.damageLevel = DamageLevel::EXTREME;
             else payload.damageLevel = DamageLevel::NORMAL;
 
             action.skillActionPayLoad = payload;

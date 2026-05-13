@@ -37,7 +37,7 @@ public:
         DamageType  damageType = DamageType::PHYSICAL; //공격 타입
         DamageLevel damageLevel; // 공격 레벨 (세기)
         TargetScope targetScope;
-       // uint32      bonusChargeOnCritical; // 치명타시 보너스 충전 횟수
+        uint32      bonusChargeOnCritical; // 치명타시 보너스 충전 횟수
     };
 
     struct ShatterAction
