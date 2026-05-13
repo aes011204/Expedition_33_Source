@@ -52,6 +52,7 @@ void Hair_Player::Update(float timeDelta)
     {
         Update_LeaderPoseMatrices();
     }
+
     Update_CombinedWorldMatrix(_transformCom->Get_WorldMatrix());
 }
 
