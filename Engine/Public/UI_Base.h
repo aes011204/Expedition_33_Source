@@ -16,6 +16,8 @@ public:
         int32 sortOrder{ 0 };
         vector<UI_AnimationClip> animationClips = {};
         vector<UI_KeyframeAnimationAsset> keyframeAnimationAssets = {};
+
+        UI_RenderGroup renderGroup { UI_RenderGroup::Foreground };
     };
 
 public:
@@ -45,12 +47,16 @@ public:
     virtual void Set_Color(const Vec4& color);
     virtual Vec4 Get_Color() const;
 
+    UI_RenderGroup Get_RenderGroup() const { return _renderGroup; }
+
 protected:
     Unique<UI_Transform> _transform{};
     Weak<UI_Base> _parent{};
     UI_AnimationPlayer _animationPlayer{};
     bool _isOpen{ false };
     int32 _sortOrder{ 0 };
+
+    UI_RenderGroup _renderGroup { UI_RenderGroup::Foreground };
 
 public:
     virtual Shared<UI_Base> Clone(void* Arg) = 0;

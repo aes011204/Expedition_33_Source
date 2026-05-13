@@ -153,8 +153,7 @@ void EditorInstance::Pause()
     if (EDITOR_RUNTIME_STATE::Play != _runtimeState)
         return;
 
-    if (!GAME->Is_ActiveCameraType(ObjectType::FreeCamera))
-        GAME->SwitchTo_NextCamera();
+    Activate_FreeCamera();
 
     GAME->Set_FreeCameraInputEnabled(false);
     GAME->Unlock_Mouse();

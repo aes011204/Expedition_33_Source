@@ -338,6 +338,9 @@
     <ClInclude Include="..\Public\Player_Jump.h">
       <Filter>02.GameObject\Player\PlayerParts\Hair</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\Player_WorldAction.h">
+      <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -515,6 +518,9 @@
     </ClCompile>
     <ClCompile Include="..\Private\Player_Maelle.cpp">
       <Filter>02.GameObject\Player</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Player_WorldAction.cpp">
+      <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

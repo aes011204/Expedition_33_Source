@@ -107,6 +107,7 @@ void ModelCom::Set_Animation(uint32 animIndex, bool isLoop)
     _currentAnimIndex = animIndex;
     _isAnimLoop = isLoop;
     _isBlending = false;
+    _isFinished = false;
     _animations[_currentAnimIndex]->Reset();
 }
 
@@ -120,6 +121,7 @@ void ModelCom::Set_Animation(uint32 animIndex, float blendDuration, bool isLoop)
     _isBlending = true;
     _blendDuration = blendDuration;
     _blendElapsedTime = 0.f;
+    _isFinished = false;
     _animations[_nextAnimIndex]->Reset();
 }
 

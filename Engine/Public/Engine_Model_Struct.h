@@ -99,6 +99,13 @@ using RootMotionFrame = struct tagRootMotionFrame
     Vec3 position{ 0.f, 0.f, 0.f };
 };
 
+using ModelCollisionMesh = struct tagModelCollisionMesh
+{
+    string          name{};
+    vector<Vec3>    positions;
+    vector<uint32>  indices;
+};
+
 /** Assimp aiTextureType Summary (0 ~ 27) */
 //  0: NONE							- 텍스처 없음 (더미 수치)
 //  1: DIFFUSE						- 기본 색상 (고전 방식 알베도)

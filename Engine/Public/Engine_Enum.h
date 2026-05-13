@@ -8,6 +8,13 @@ namespace Engine
 
     enum class RenderGroup { Priority, Shadow, NonBlend, NonLight, Blend, UI, END };
 
+    enum class UI_RenderGroup
+    {
+        // UI Render 순서. 필요하다면 추후에 더 확장
+        Background, // 플레이어보다 뒤에 그려질거
+        Foreground, // 플레이어 앞에
+    };
+
     enum class State { Right, Up, Look, Position, END };
 
     enum class D3DTS { View, Proj, END };
@@ -36,6 +43,7 @@ namespace Engine
 
         FreeCamera,
         TargetCamera,
+        PreviewCamera,
 
         Terrain,
         Sky,
@@ -109,6 +117,7 @@ namespace Engine
         VtxCube,
         BillboardParticle,
         UI,
+        VtxInstanceMesh,
 
         END
     };

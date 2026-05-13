@@ -95,7 +95,7 @@ void UI_Manager::Update(float timeDelta)
     }
 }
 
-HRESULT UI_Manager::Render()
+HRESULT UI_Manager::Render(UI_RenderGroup renderGroup)
 {
     for (const auto& entry : _uiList)
     {
@@ -105,6 +105,9 @@ HRESULT UI_Manager::Render()
             continue;
 
         if (!ui->Is_EffectivelyOpen())
+            continue;
+
+        if (ui->Get_RenderGroup() != renderGroup)
             continue;
 
         if (FAILED(ui->Render()))

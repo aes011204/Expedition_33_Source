@@ -177,8 +177,13 @@ const Material::TextureSlot* Material::Find_TextureSlot(MaterialTextureSlot slot
     const auto& slots = _materials[slotIndex];
     if (textureIndex >= slots.size())
         return nullptr;
-
     return &slots[textureIndex];
+}
+
+void Material::Set_RenderState(const MaterialRenderState& renderState)
+{
+    _renderState = renderState;
+    _passDirty = true;
 }
 
 void Material::Set_CB(const MaterialCB& cb)

@@ -59,7 +59,7 @@ public:
     uint32                      Get_PassIndex();
 
     void Set_TemplateId(MaterialShaderTemplate templateId) { _templateId = templateId; }
-    void Set_RenderState(const MaterialRenderState& renderState) { _renderState = renderState; }
+    void Set_RenderState(const MaterialRenderState& renderState);
     void Set_CB(const MaterialCB& cb);
     void Set_ShaderType(ShaderType shaderType);
 
