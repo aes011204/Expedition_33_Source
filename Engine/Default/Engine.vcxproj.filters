@@ -208,6 +208,9 @@
     <Filter Include="01.Utility\04.Component\VIBuffer\Instance\Particle w. ComputeShader">
       <UniqueIdentifier>{238dde8a-837b-49b6-9623-31af69115dcd}</UniqueIdentifier>
     </Filter>
+    <Filter Include="01.Utility\04.Component\Model\NewFilter1">
+      <UniqueIdentifier>{674e308c-e066-439e-9767-3b9408f411b5}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
