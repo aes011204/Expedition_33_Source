@@ -60,15 +60,21 @@ void Player::BeginPlay()
 void Player::Priority_Update(float timeDelta)
 {
     __super::Priority_Update(timeDelta);
+
+       // 업데이트 순서 조정
+    _playerControllerCom->Update_InputState();
+    _PlayerStateMachineCom->Update_CurrentState(timeDelta);
+    _playerControllerCom->Update_Movement(timeDelta);
+    _PlayerStateMachineCom->LateUpdate_CurrentState(timeDelta);
+
+    _currentState = _PlayerStateMachineCom->Get_CurrentPlayerState();
 }
 
 void Player::Update(float timeDelta)
 {
     __super::Update(timeDelta);
 
-    _playerControllerCom->Update_Controller(timeDelta);
-    _PlayerStateMachineCom->Update_StateMachine(timeDelta);
-    _currentState = _PlayerStateMachineCom->Get_CurrentPlayerState();
+ 
 }
 
 void Player::Late_Update(float timeDelta)
@@ -80,6 +86,13 @@ void Player::Late_Update(float timeDelta)
         _colliderCom->Update_Collider(_transformCom->Get_WorldMatrix());
         GAME->Add_Collider(_colliderCom);
     }
+
+    //culling
+    _cullingAABB.Center = _transformCom->Get_Position();
+
+    // Adjustments may be necessary to suit the player
+    _cullingAABB.Extents = Vec3(1.f, 2.f, 1.f);
+    Set_Visible(GAME->IsVisible(_cullingAABB));
 }
 
 HRESULT Player::Render()

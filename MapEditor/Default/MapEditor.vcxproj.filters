@@ -293,5 +293,8 @@
     <FxCompile Include="..\..\Client\Bin\ShaderFiles\Shader_VtxMeshInstance.hlsl">
       <Filter>95. ShaderFiles</Filter>
     </FxCompile>
+    <FxCompile Include="..\..\Client\Bin\ShaderFiles\Shader_VtxMeshInstanceExact.hlsl">
+      <Filter>95. ShaderFiles</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

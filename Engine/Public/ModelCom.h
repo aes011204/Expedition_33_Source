@@ -98,7 +98,7 @@ public: /* AnimNotify */
     float   Get_CurrentAnimationTimeSec() const;
 
     bool    Is_AnimationPaused() const { return _isAnimationPaused; }
-    void    Set_AnimationPaused(bool paused) { _isAnimationPaused = paused; }
+    void    Set_AnimationPaused(bool paused);
 
     void    Set_CurrentAnimationTimeSec(float timeSec);
     void    Refresh_CurrentAnimationPose();
@@ -149,15 +149,19 @@ public: /* 머리 붙이기 */
 
     void Update_LeaderPoseMatrices();
 
-public: /* PhysX 충돌 */
+    public: /* PhysX 충돌 */
     // static collision 생성용 CPU Mesh 데이터
     const vector<ModelCollisionMesh>& Get_CollisionMeshes() const { return _collisionMeshes; }
 
 private:
-    Matrix Convert_LeaderPoseMatrix(const Matrix& leaderMatrix) const;
-    Matrix Build_LeaderPoseMatrix(uint32 boneIndex, vector<uint8>& visited);
+    // bone pose 변경으로 Matrix를 다시 만들어야하는지?
+    void    Mark_BoneMatricesDirty() { _boneMatricesDirty = true; }
+    // dirty 가 마크됐을 때 재생성 진행. leaderPose 여기서 갱신 X
+    HRESULT Ensure_MeshBoneMatrices();
 
 private:
+    Matrix Convert_LeaderPoseMatrix(const Matrix& leaderMatrix) const;
+    Matrix Build_LeaderPoseMatrix(uint32 boneIndex, vector<uint8>& visited);
 
 private:
     ModelType					        _type = { ModelType::END };
@@ -214,6 +218,12 @@ private: /* 머리 붙이기 */
 
     vector<int32>       _leaderPoseBoneMap;           // follower bone index => leader bone index
     vector<Matrix>      _leaderPoseCombinedMatrices;  // follower 기준으로 최종 행렬
+
+    // 프레임마다 계산되지 않게 캐싱
+    vector<Matrix>      _combinedBoneMatrixCache;
+    vector<vector<Matrix>> _meshBoneMatrixCaches;
+    bool                _boneMatricesDirty = true;
+    bool                _leaderPoseMatricesValid = false;
 
 private: /* PhysX 충돌 */
     vector<ModelCollisionMesh> _collisionMeshes;

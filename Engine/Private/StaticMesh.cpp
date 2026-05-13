@@ -76,6 +76,13 @@ HRESULT StaticMesh::Initialize(void* arg)
     return VIBuffer::Initialize(arg);
 }
 
+HRESULT StaticMesh::Build_MeshBoneMatrices(const vector<Matrix>& combinedMatrices,
+    vector<Matrix>& outBoneMatrices) const
+{
+    outBoneMatrices.clear();
+    return S_OK;
+}
+
 HRESULT StaticMesh::Bind_BoneMatrices(class ShaderCom* shader, const char* constantName, const vector<Shared<class Bone>>& bones)
 {
     Matrix finalMat = Matrix::Identity * _preTransformMatrix;

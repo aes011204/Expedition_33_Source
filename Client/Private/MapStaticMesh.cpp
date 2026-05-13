@@ -64,15 +64,15 @@ void MapStaticMesh::Update(float timeDelta)
 
 void MapStaticMesh::Late_Update(float timeDelta)
 {
-//    Vec3 localMin{}, localMax{};
-//    if (_model->Try_Get_LocalBounds(localMin, localMax))
-//    {
-//        BoundingBox localBox;
-//        BoundingBox::CreateFromPoints(localBox, XMLoadFloat3(&localMin), XMLoadFloat3(&localMax));
-//
-//        BoundingBox worldBox{};
-//        localBox.Transform(worldBox, _model->Get_PreLocalTransformMatrix() * _transformCom->Get_WorldMatrix());
-//
+    Vec3 localMin{}, localMax{};
+    if (_model->Try_Get_LocalBounds(localMin, localMax))
+    {
+        BoundingBox localBox;
+        BoundingBox::CreateFromPoints(localBox, XMLoadFloat3(&localMin), XMLoadFloat3(&localMax));
+
+        BoundingBox worldBox{};
+        localBox.Transform(worldBox, _model->Get_PreLocalTransformMatrix() * _transformCom->Get_WorldMatrix());
+
 //#ifdef _DEBUG
 //        DebugBoxDesc dbgDesc{};
 //        dbgDesc.center = worldBox.Center;
@@ -80,12 +80,12 @@ void MapStaticMesh::Late_Update(float timeDelta)
 //        dbgDesc.style.color = Colors::Black;
 //        GAME->Draw_DebugBox(dbgDesc);
 //#endif
-//
-//        if (!GAME->IsVisible(worldBox))
-//        {
-//            return;
-//        }
-//    }
+
+        if (!GAME->IsVisible(worldBox))
+        {
+            return;
+        }
+    }
 
     GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
 }
