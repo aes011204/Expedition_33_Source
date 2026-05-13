@@ -86,6 +86,14 @@ HRESULT Player::Render()
     return S_OK;
 }
 
+void Player::Update_StatusPreview(float timeDelta)
+{
+    Try_BeginPlay();
+
+    ContainerObject::Update(timeDelta);
+    ContainerObject::Late_Update(timeDelta);
+}
+
 HRESULT Player::Ready_Components()
 {
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_Input"), _inputCom), E_FAIL);

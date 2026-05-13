@@ -37,6 +37,7 @@ private:
 
 	string  Detect_AssetType(const wstring& filePath) const;
 	bool    Should_RegisterAsset(const fs::path& path) const;
+	bool    Should_RegisterJsonAsset(const fs::path& path) const;
 
 	void    Rebuild_PathIndex();
     void    Deduplicate_Assets_ByPath(const string& preferGuid = "");

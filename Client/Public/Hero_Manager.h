@@ -23,7 +23,11 @@ public:
     };
 
 public:
-    HRESULT Initialize_Hero(uint32 levelIndex, const wstring& layerTag);
+    HRESULT Initialize_Hero(
+        uint32 levelIndex,
+        const wstring& layerTag,
+        const Vec3& startPos = Vec3::Zero);
+
     void    Update_HeroManager(float timeDelta);
 
     // 현재 플레이중인 Hero
@@ -31,6 +35,10 @@ public:
 
     void    Set_TargetCamera(const Shared<TargetCamera>& camera);
     void    Clear_Party();
+
+    // 스테이터스 찍을 때 Front로 들어간 구스타브 포커싱되게
+    Shared<Player> Get_FrontHero() const;
+    vector<Shared<Player>> Get_HeroesInPartyOrder() const { return _heroes; }
 
 private:
     void    Switch_NextHero();

@@ -34,6 +34,10 @@ public:
 	void    Late_Update(float timeDelta) override;
 	HRESULT Render() override;
 
+    // 스테이터스 찍을 때, 게임 전체는 멈추는데
+    // UI 창 안에서 프리뷰 플레이어들은 업데이트가 돌아야 애니메이션이 재생됨
+    void    Update_StatusPreview(float timeDelta);
+
 protected:
 	HRESULT Ready_Components();
 	HRESULT Ready_PartObjects();

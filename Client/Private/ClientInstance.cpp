@@ -90,9 +90,9 @@ uint32 ClientInstance::Get_NextExp(uint32 level) const
     return _gameDataTable->Get_NextExp(level);
 }
 
-HRESULT ClientInstance::Initialize_Hero(uint32 levelIndex, const wstring& layerTag)
+HRESULT ClientInstance::Initialize_Hero(uint32 levelIndex, const wstring& layerTag, const Vec3& startPos)
 {
-    return _heroManager->Initialize_Hero(levelIndex, layerTag);
+    return _heroManager->Initialize_Hero(levelIndex, layerTag, startPos);
 }
 
 void ClientInstance::Update_HeroManager(float timeDelta)
@@ -113,6 +113,16 @@ void ClientInstance::Set_TargetCamera(const Shared<TargetCamera>& camera)
 void ClientInstance::Clear_Party()
 {
     return _heroManager->Clear_Party();
+}
+
+Shared<Player> ClientInstance::Get_FrontHero() const
+{
+    return _heroManager->Get_FrontHero();
+}
+
+vector<Shared<Player>> ClientInstance::Get_HeroesInPartyOrder() const
+{
+    return _heroManager->Get_HeroesInPartyOrder();
 }
 
 HRESULT ClientInstance::Initialize_GameplayUI(uint32 levelIndex)
