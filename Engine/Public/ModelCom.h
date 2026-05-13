@@ -25,6 +25,7 @@ public:
     size_t Get_NumBones() const { return _bones.size(); }
     size_t Get_NumAnimations() const { return _animations.size(); }
     const Matrix& Get_PreLocalTransformMatrix() const { return _preLocalTransformMatrix; }
+    const vector<Shared<Mesh>>& Get_Meshes() const { return _meshes; };
 
     uint32 Get_MeshMaterialIndex(uint32 meshIndex) const;
     Shared<Material> Get_Material(uint32 materialIndex) const;
@@ -32,6 +33,22 @@ public:
     const Material::TextureSlot* Find_MaterialSlot(uint32 meshIndex, std::initializer_list<MaterialTextureSlot> materialSlots, uint32 textureIndex = 0) const;
     const wstring& Get_SourceModelPath() const { return _sourceModelPath; }
     ModelType Get_ModelType() const { return _type; }
+
+public:
+    const vector<MaterialBinding>& Get_MaterialBindings() const { return _materialBindings; }
+    vector<MaterialBinding>& Get_MaterialBindings() { return _materialBindings; }
+
+    void Set_BaseBundleKey(uint32 materialIndex, const string& bundleKey);
+    void Set_InstanceOverride(uint32 materialIndex, const MaterialInstanceOverride& overrideData);
+    void Clear_InstanceOverride(uint32 materialIndex);
+
+    void Apply_BaseMaterialFromBundle_AllSlots();
+    void Apply_EffectiveMaterial(uint32 materialIndex);
+
+public:
+    // MaterialBuilder가 prefab/json에서 binding을 채울 때 사용한다.
+    // (material slot 수에 맞춰 _materialBindings를 준비하고 기본 baseBundleKey를 설정)
+    void Ensure_MaterialBindings();
 
 public:
     bool  Is_Skeletal() const { return _isSkeletal; } 
@@ -137,7 +154,6 @@ private:
     Matrix Build_LeaderPoseMatrix(uint32 boneIndex, vector<uint8>& visited);
 
 private:
-    void Apply_MaterialOverrides(const json& data);
 
 private:
 	ModelType					        _type = { ModelType::END };
@@ -176,6 +192,9 @@ private: /* For Root Motion */
 
 private: /* guid */
     wstring                             _sourceModelPath = {};
+
+private:
+    vector<MaterialBinding> _materialBindings{};
 
 private: /* notify */
     bool                                _isAnimationPaused = false;

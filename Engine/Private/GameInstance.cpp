@@ -26,6 +26,7 @@
 #include "ColliderCom.h"
 #include "Culling_Manager.h"
 #include "ThreadPool.h"
+#include "Helper_String.h"
 
 #ifdef _DEBUG
 #include "Print_Manager.h"
@@ -154,43 +155,161 @@ void GameInstance::Update_Engine(float timeDelta)
 
 void GameInstance::Update_Engine(float timeDelta, const function<void(float)>& clientUpdate)
 {
+#ifdef _DEBUG
+    const auto updateBegin = chrono::steady_clock::now();
+    double debugMgrMs = 0.0;
+    double inputMgrMs = 0.0;
+    double printMgrMs = 0.0;
+    double clientMs = 0.0;
+    double levelMs = 0.0;
+    double priorityObjMs = 0.0;
+    double pipelineMs = 0.0;
+    double objMs = 0.0;
+    double physxBeginMs = 0.0;
+    double collClearMs = 0.0;
+    double lateObjMs = 0.0;
+    double physxUpdateMs = 0.0;
+    double physxGatherMs = 0.0;
+    double collFromPhysxMs = 0.0;
+    double cameraMs = 0.0;
+    double uiMs = 0.0;
+
+    const auto debugMgrBegin = chrono::steady_clock::now();
+#endif
     _debugManager->Update(timeDelta);
+#ifdef _DEBUG
+    debugMgrMs = chrono::duration<double, milli>(chrono::steady_clock::now() - debugMgrBegin).count();
+    const auto inputMgrBegin = chrono::steady_clock::now();
+#endif
     _inputManager->Update(timeDelta);
 #ifdef _DEBUG
+    inputMgrMs = chrono::duration<double, milli>(chrono::steady_clock::now() - inputMgrBegin).count();
+    const auto printMgrBegin = chrono::steady_clock::now();
     _printManager->Update(timeDelta);
+    printMgrMs = chrono::duration<double, milli>(chrono::steady_clock::now() - printMgrBegin).count();
 #endif
 
     // 입력 갱신 직후, 레벨/오브젝트/UI 업데이트 전에 클라이언트쪽 런타임 갱신을 위해
     if (clientUpdate)
     {
+#ifdef _DEBUG
+        const auto clientBegin = chrono::steady_clock::now();
+#endif
         clientUpdate(timeDelta);
+#ifdef _DEBUG
+        clientMs = chrono::duration<double, milli>(chrono::steady_clock::now() - clientBegin).count();
+#endif
     }
 
+#ifdef _DEBUG
+    const auto levelBegin = chrono::steady_clock::now();
+#endif
     _levelManager->Update(timeDelta);
+#ifdef _DEBUG
+    levelMs = chrono::duration<double, milli>(chrono::steady_clock::now() - levelBegin).count();
+#endif
 
     // UI 키면서 게임 멈출 때 Update 안돌릴 애들
     if (!_isGameplayPaused)
     {
+#ifdef _DEBUG
+        const auto priorityObjBegin = chrono::steady_clock::now();
+#endif
         _objectManager->Priority_Update(timeDelta);
+#ifdef _DEBUG
+        priorityObjMs = chrono::duration<double, milli>(chrono::steady_clock::now() - priorityObjBegin).count();
+
+        const auto pipelineBegin = chrono::steady_clock::now();
+#endif
 
         _pipeLine->Update();
+#ifdef _DEBUG
+        pipelineMs = chrono::duration<double, milli>(chrono::steady_clock::now() - pipelineBegin).count();
+
+        const auto objBegin = chrono::steady_clock::now();
+#endif
 
         _objectManager->Update(timeDelta);
+#ifdef _DEBUG
+        objMs = chrono::duration<double, milli>(chrono::steady_clock::now() - objBegin).count();
+
+        const auto physxBegin = chrono::steady_clock::now();
+#endif
 
         _physxManager->Begin_Frame();
+#ifdef _DEBUG
+        physxBeginMs = chrono::duration<double, milli>(chrono::steady_clock::now() - physxBegin).count();
+
+        const auto collClearBegin = chrono::steady_clock::now();
+#endif
         _collisionManager->Clear_Colliders();
+#ifdef _DEBUG
+        collClearMs = chrono::duration<double, milli>(chrono::steady_clock::now() - collClearBegin).count();
+
+        const auto lateObjBegin = chrono::steady_clock::now();
+#endif
         _objectManager->Late_Update(timeDelta);
+#ifdef _DEBUG
+        lateObjMs = chrono::duration<double, milli>(chrono::steady_clock::now() - lateObjBegin).count();
+
+        const auto physxUpdateBegin = chrono::steady_clock::now();
+#endif
 
         _physxManager->Update(timeDelta);
+#ifdef _DEBUG
+        physxUpdateMs = chrono::duration<double, milli>(chrono::steady_clock::now() - physxUpdateBegin).count();
+#endif
 
+#ifdef _DEBUG
+        const auto physxGatherBegin = chrono::steady_clock::now();
+#endif
         vector<PhysXPairEvent> events;
         _physxManager->Gather_FrameEvents(events);
+#ifdef _DEBUG
+        physxGatherMs = chrono::duration<double, milli>(chrono::steady_clock::now() - physxGatherBegin).count();
+
+        const auto collFromPhysxBegin = chrono::steady_clock::now();
+#endif
         _collisionManager->Update_FromPhysX(events);
+#ifdef _DEBUG
+        collFromPhysxMs = chrono::duration<double, milli>(chrono::steady_clock::now() - collFromPhysxBegin).count();
+
+        const auto cameraBegin = chrono::steady_clock::now();
+#endif
 
         _cameraManager->Update(timeDelta);
+#ifdef _DEBUG
+        cameraMs = chrono::duration<double, milli>(chrono::steady_clock::now() - cameraBegin).count();
+#endif
     }
     
+#ifdef _DEBUG
+    const auto uiBegin = chrono::steady_clock::now();
+#endif
     _uiManager->Update(timeDelta);
+#ifdef _DEBUG
+    uiMs = chrono::duration<double, milli>(chrono::steady_clock::now() - uiBegin).count();
+
+    const double updateMs = chrono::duration<double, milli>(chrono::steady_clock::now() - updateBegin).count();
+    Accumulate_UpdatePerf(
+        updateMs,
+        debugMgrMs,
+        inputMgrMs,
+        printMgrMs,
+        clientMs,
+        levelMs,
+        priorityObjMs,
+        pipelineMs,
+        objMs,
+        physxBeginMs,
+        collClearMs,
+        lateObjMs,
+        physxUpdateMs,
+        physxGatherMs,
+        collFromPhysxMs,
+        cameraMs,
+        uiMs);
+#endif
 }
 
 HRESULT GameInstance::Draw()
@@ -237,6 +356,112 @@ HRESULT GameInstance::Draw_RendererOnly()
 }
 
 #ifdef _DEBUG
+
+void GameInstance::Accumulate_UpdatePerf(
+    const double updateMs,
+    const double debugMgrMs,
+    const double inputMgrMs,
+    const double printMgrMs,
+    const double clientMs,
+    const double levelMs,
+    const double priorityObjMs,
+    const double pipelineMs,
+    const double objMs,
+    const double physxBeginMs,
+    const double collClearMs,
+    const double lateObjMs,
+    const double physxUpdateMs,
+    const double physxGatherMs,
+    const double collFromPhysxMs,
+    const double cameraMs,
+    const double uiMs)
+{
+    LogUtils::Accumulate_PassPerf(_updatePerfWindow.update, updateMs);
+    LogUtils::Accumulate_PassPerf(_updatePerfWindow.debugMgr, debugMgrMs);
+    LogUtils::Accumulate_PassPerf(_updatePerfWindow.inputMgr, inputMgrMs);
+    LogUtils::Accumulate_PassPerf(_updatePerfWindow.printMgr, printMgrMs);
+    LogUtils::Accumulate_PassPerf(_updatePerfWindow.client, clientMs);
+    LogUtils::Accumulate_PassPerf(_updatePerfWindow.level, levelMs);
+    LogUtils::Accumulate_PassPerf(_updatePerfWindow.priorityObj, priorityObjMs);
+    LogUtils::Accumulate_PassPerf(_updatePerfWindow.pipeline, pipelineMs);
+    LogUtils::Accumulate_PassPerf(_updatePerfWindow.obj, objMs);
+    LogUtils::Accumulate_PassPerf(_updatePerfWindow.physxBegin, physxBeginMs);
+    LogUtils::Accumulate_PassPerf(_updatePerfWindow.collClear, collClearMs);
+    LogUtils::Accumulate_PassPerf(_updatePerfWindow.lateObj, lateObjMs);
+    LogUtils::Accumulate_PassPerf(_updatePerfWindow.physxUpdate, physxUpdateMs);
+    LogUtils::Accumulate_PassPerf(_updatePerfWindow.physxGather, physxGatherMs);
+    LogUtils::Accumulate_PassPerf(_updatePerfWindow.collFromPhysx, collFromPhysxMs);
+    LogUtils::Accumulate_PassPerf(_updatePerfWindow.camera, cameraMs);
+    LogUtils::Accumulate_PassPerf(_updatePerfWindow.ui, uiMs);
+}
+
+bool GameInstance::Try_ConsumeUpdatePerfSummary(const float windowSec, UpdatePerfSummary& outSummary)
+{
+    outSummary = {};
+
+    if (windowSec <= 0.f || 0 == _updatePerfWindow.update.sampleCount)
+        return false;
+
+    outSummary.valid = true;
+    outSummary.updateFrameCount = static_cast<uint32>(_updatePerfWindow.update.sampleCount);
+
+    const double frameCount = static_cast<double>(_updatePerfWindow.update.sampleCount);
+
+    outSummary.updateAvgMs = static_cast<float>(LogUtils::Safe_Divide(_updatePerfWindow.update.accumulatedMs, frameCount));
+    outSummary.updateMaxMs = static_cast<float>(_updatePerfWindow.update.maxMs);
+
+    outSummary.debugMgrAvgMs = static_cast<float>(LogUtils::Safe_Divide(_updatePerfWindow.debugMgr.accumulatedMs, frameCount));
+    outSummary.debugMgrMaxMs = static_cast<float>(_updatePerfWindow.debugMgr.maxMs);
+
+    outSummary.inputMgrAvgMs = static_cast<float>(LogUtils::Safe_Divide(_updatePerfWindow.inputMgr.accumulatedMs, frameCount));
+    outSummary.inputMgrMaxMs = static_cast<float>(_updatePerfWindow.inputMgr.maxMs);
+
+    outSummary.printMgrAvgMs = static_cast<float>(LogUtils::Safe_Divide(_updatePerfWindow.printMgr.accumulatedMs, frameCount));
+    outSummary.printMgrMaxMs = static_cast<float>(_updatePerfWindow.printMgr.maxMs);
+
+    outSummary.clientAvgMs = static_cast<float>(LogUtils::Safe_Divide(_updatePerfWindow.client.accumulatedMs, frameCount));
+    outSummary.clientMaxMs = static_cast<float>(_updatePerfWindow.client.maxMs);
+
+    outSummary.levelAvgMs = static_cast<float>(LogUtils::Safe_Divide(_updatePerfWindow.level.accumulatedMs, frameCount));
+    outSummary.levelMaxMs = static_cast<float>(_updatePerfWindow.level.maxMs);
+
+    outSummary.priorityObjAvgMs = static_cast<float>(LogUtils::Safe_Divide(_updatePerfWindow.priorityObj.accumulatedMs, frameCount));
+    outSummary.priorityObjMaxMs = static_cast<float>(_updatePerfWindow.priorityObj.maxMs);
+
+    outSummary.pipelineAvgMs = static_cast<float>(LogUtils::Safe_Divide(_updatePerfWindow.pipeline.accumulatedMs, frameCount));
+    outSummary.pipelineMaxMs = static_cast<float>(_updatePerfWindow.pipeline.maxMs);
+
+    outSummary.objAvgMs = static_cast<float>(LogUtils::Safe_Divide(_updatePerfWindow.obj.accumulatedMs, frameCount));
+    outSummary.objMaxMs = static_cast<float>(_updatePerfWindow.obj.maxMs);
+
+    outSummary.physxBeginAvgMs = static_cast<float>(LogUtils::Safe_Divide(_updatePerfWindow.physxBegin.accumulatedMs, frameCount));
+    outSummary.physxBeginMaxMs = static_cast<float>(_updatePerfWindow.physxBegin.maxMs);
+
+    outSummary.collClearAvgMs = static_cast<float>(LogUtils::Safe_Divide(_updatePerfWindow.collClear.accumulatedMs, frameCount));
+    outSummary.collClearMaxMs = static_cast<float>(_updatePerfWindow.collClear.maxMs);
+
+    outSummary.lateObjAvgMs = static_cast<float>(LogUtils::Safe_Divide(_updatePerfWindow.lateObj.accumulatedMs, frameCount));
+    outSummary.lateObjMaxMs = static_cast<float>(_updatePerfWindow.lateObj.maxMs);
+
+    outSummary.physxUpdateAvgMs = static_cast<float>(LogUtils::Safe_Divide(_updatePerfWindow.physxUpdate.accumulatedMs, frameCount));
+    outSummary.physxUpdateMaxMs = static_cast<float>(_updatePerfWindow.physxUpdate.maxMs);
+
+    outSummary.physxGatherAvgMs = static_cast<float>(LogUtils::Safe_Divide(_updatePerfWindow.physxGather.accumulatedMs, frameCount));
+    outSummary.physxGatherMaxMs = static_cast<float>(_updatePerfWindow.physxGather.maxMs);
+
+    outSummary.collFromPhysxAvgMs = static_cast<float>(LogUtils::Safe_Divide(_updatePerfWindow.collFromPhysx.accumulatedMs, frameCount));
+    outSummary.collFromPhysxMaxMs = static_cast<float>(_updatePerfWindow.collFromPhysx.maxMs);
+
+    outSummary.cameraAvgMs = static_cast<float>(LogUtils::Safe_Divide(_updatePerfWindow.camera.accumulatedMs, frameCount));
+    outSummary.cameraMaxMs = static_cast<float>(_updatePerfWindow.camera.maxMs);
+
+    outSummary.uiAvgMs = static_cast<float>(LogUtils::Safe_Divide(_updatePerfWindow.ui.accumulatedMs, frameCount));
+    outSummary.uiMaxMs = static_cast<float>(_updatePerfWindow.ui.maxMs);
+
+    LogUtils::Reset_UpdatePerfWindow(_updatePerfWindow);
+    return true;
+}
+
 void GameInstance::Try_FlushRuntimePerfLog()
 {
     const auto now = chrono::steady_clock::now();
@@ -260,22 +485,46 @@ void GameInstance::Try_FlushRuntimePerfLog()
         nullptr != _renderer &&
         _renderer->Try_ConsumePerfSummary(windowSec, runtimeSummary.render);
 
+    const bool hasUpdateSummary =
+        Try_ConsumeUpdatePerfSummary(windowSec, runtimeSummary.update);
+
     const bool hasCollisionSummary =
         nullptr != _collisionManager &&
         _collisionManager->Try_ConsumePerfSummary(windowSec, runtimeSummary.collision);
 
-    if (!hasRenderSummary && !hasCollisionSummary)
+    if (!hasRenderSummary && !hasUpdateSummary && !hasCollisionSummary)
     {
         _runtimePerfWindowStartTime = now;
         _hasRuntimePerfWindowStartTime = true;
         return;
     }
 
+    runtimeSummary.approxFps = hasUpdateSummary
+        ? static_cast<float>(LogUtils::Safe_Divide(static_cast<double>(runtimeSummary.update.updateFrameCount), static_cast<double>(windowSec)))
+        : 0.f;
+
     Log_FileOnly(
         spdlog::source_loc{ __FILE__, __LINE__, SPDLOG_FUNCTION },
         spdlog::level::trace,
         fmt::format(
             "[RuntimePerfDetail] render_ms(avg={:.2f} max={:.2f}) "
+            "update_ms(avg={:.2f} max={:.2f}) fps~{:.1f} "
+            "debugmgr_ms(avg={:.2f} max={:.2f}) "
+            "input_ms(avg={:.2f} max={:.2f}) "
+            "print_ms(avg={:.2f} max={:.2f}) "
+            "client_ms(avg={:.2f} max={:.2f}) "
+            "level_ms(avg={:.2f} max={:.2f}) "
+            "priorityobj_ms(avg={:.2f} max={:.2f}) "
+            "pipeline_ms(avg={:.2f} max={:.2f}) "
+            "obj_ms(avg={:.2f} max={:.2f}) "
+            "physxbegin_ms(avg={:.2f} max={:.2f}) "
+            "collclear_ms(avg={:.2f} max={:.2f}) "
+            "lateobj_ms(avg={:.2f} max={:.2f}) "
+            "physxupdate_ms(avg={:.2f} max={:.2f}) "
+            "physxgather_ms(avg={:.2f} max={:.2f}) "
+            "collfromphysx_ms(avg={:.2f} max={:.2f}) "
+            "camera_ms(avg={:.2f} max={:.2f}) "
+            "uiupdate_ms(avg={:.2f} max={:.2f}) "
             "priority_ms(avg={:.2f} max={:.2f}) "
             "shadow_ms(avg={:.2f} max={:.2f}) "
             "nonblend_ms(avg={:.2f} max={:.2f}) "
@@ -289,6 +538,58 @@ void GameInstance::Try_FlushRuntimePerfLog()
 
             runtimeSummary.render.renderAvgMs,
             runtimeSummary.render.renderMaxMs,
+
+            runtimeSummary.update.updateAvgMs,
+            runtimeSummary.update.updateMaxMs,
+            runtimeSummary.approxFps,
+
+            runtimeSummary.update.debugMgrAvgMs,
+            runtimeSummary.update.debugMgrMaxMs,
+
+            runtimeSummary.update.inputMgrAvgMs,
+            runtimeSummary.update.inputMgrMaxMs,
+
+            runtimeSummary.update.printMgrAvgMs,
+            runtimeSummary.update.printMgrMaxMs,
+
+            runtimeSummary.update.clientAvgMs,
+            runtimeSummary.update.clientMaxMs,
+
+            runtimeSummary.update.levelAvgMs,
+            runtimeSummary.update.levelMaxMs,
+
+            runtimeSummary.update.priorityObjAvgMs,
+            runtimeSummary.update.priorityObjMaxMs,
+
+            runtimeSummary.update.pipelineAvgMs,
+            runtimeSummary.update.pipelineMaxMs,
+
+            runtimeSummary.update.objAvgMs,
+            runtimeSummary.update.objMaxMs,
+
+            runtimeSummary.update.physxBeginAvgMs,
+            runtimeSummary.update.physxBeginMaxMs,
+
+            runtimeSummary.update.collClearAvgMs,
+            runtimeSummary.update.collClearMaxMs,
+
+            runtimeSummary.update.lateObjAvgMs,
+            runtimeSummary.update.lateObjMaxMs,
+
+            runtimeSummary.update.physxUpdateAvgMs,
+            runtimeSummary.update.physxUpdateMaxMs,
+
+            runtimeSummary.update.physxGatherAvgMs,
+            runtimeSummary.update.physxGatherMaxMs,
+
+            runtimeSummary.update.collFromPhysxAvgMs,
+            runtimeSummary.update.collFromPhysxMaxMs,
+
+            runtimeSummary.update.cameraAvgMs,
+            runtimeSummary.update.cameraMaxMs,
+
+            runtimeSummary.update.uiAvgMs,
+            runtimeSummary.update.uiMaxMs,
 
             runtimeSummary.render.priorityAvgMs,
             runtimeSummary.render.priorityMaxMs,
