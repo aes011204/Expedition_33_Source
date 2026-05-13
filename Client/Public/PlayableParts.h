@@ -27,6 +27,7 @@ public:
     const Matrix* Get_SocketBoneMatrixPtr(const string& boneName) const;
     const Matrix* Get_SocketBoneMatrixPtr(uint32 boneIndex) const;
     void Set_Animation(uint32 animIndex, float blendDuration, bool isLoop = false) const;
+    void Set_Animation(uint32 animIndex, bool isLoop) const;
     uint32 Get_AnimationIndex() const;
     float Get_AnimationProgress() const;
     bool Is_AnimationFinished() const;

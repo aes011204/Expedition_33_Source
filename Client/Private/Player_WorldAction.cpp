@@ -2,6 +2,7 @@
 #include "Player_WorldAction.h"
 
 #include "Body_Player.h"
+#include "PlayerControllerCom.h"
 #include "PlayerStateMachineCom.h"
 
 Player_WorldAction::Player_WorldAction(const Shared<Player>& owner)
@@ -18,6 +19,9 @@ using plAnim = Body_Player::PlayerAnimation;
 
 bool Player_WorldAction::EnterInvoke()
 {
+    auto state = _stateCom->Get_CurrentPlayerState();
+    if (state == PlayerState::WorldAction) return false;
+
     _bodyPlayer->Set_Animation(ETOI(plAnim::Pl_Explo), 0.2f, false);
 
     return true;
@@ -25,9 +29,15 @@ bool Player_WorldAction::EnterInvoke()
 
 void Player_WorldAction::Update(float timeDelta)
 {
-    bool isFinished = _bodyPlayer->Is_AnimationFinished();
+    PlayerControllerCom::RigidControl rigidControl{};
+    rigidControl.rigidMovement = true;
+    rigidControl.rigidJump = true;
+    _controllerCom->Set_RigidControl(rigidControl);
 
-    if (isFinished)
+    bool isFinished = _bodyPlayer->Is_AnimationFinished();
+    float curProgress = _bodyPlayer->Get_AnimationProgress();
+
+    if (curProgress >= 0.9f)
     {
         if (Has_MoveInput())
         {
