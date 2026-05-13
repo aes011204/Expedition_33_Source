@@ -1,6 +1,15 @@
 ﻿#pragma once
+namespace Engine
+{
+    class Character;
+}
+
 namespace Client
 {
+    enum class Buffs;
+    struct Skill_Data;
+    enum class EAttackType;
+    class CombatStatCom;
     // =============================
     // 상태 / 컨텍스트
     // =============================
@@ -285,15 +294,15 @@ namespace Client
         Any
     };
 
-    //런타임 전투 스탯 조회 타입
-    enum class ERuntimeBattleStatType
-    {
-        Invalid,
-        CurrentHP,
-        CurrentAP,
-        CurrentHPPercentage,
-        CurrentAPPercentage
-    };
+    ////런타임 전투 스탯 조회 타입
+    //enum class ERuntimeBattleStatType
+    //{
+    //    Invalid,
+    //    CurrentHP,
+    //    CurrentAP,
+    //    CurrentHPPercentage,
+    //    CurrentAPPercentage
+    //};
 
     //숫자 비교/검색 타입
     enum class ENumericValueQuery
@@ -363,126 +372,174 @@ namespace Client
         Almighty
     };
 
-    ////포텔 메커닉에서 스킬 타입 분류
-    //enum class EForetellSkillType
-    //{
-    //    Other,
-    //    Cards,
-    //    Scythe
-    //};
-
-    ////포텔 메커닉 충전 타입
-    //enum class EForetellChargeType
-    //{
-    //    Invalid,
-    //    Sun,
-    //    Moon,
-    //    Twilight
-    //};
-
-    ////포텔 카드 타입 분류
-    //enum class EForetellCardType
-    //{
-    //    Invalid,
-    //    Death,
-    //    Justice,
-    //    Tower,
-    //    Fool,
-    //    Chariot,
-    //    Empress
-    //};
-
-
     //------------------------------------------
 
-    struct FCommonCharacterStats
-    {
-        double BurnPercentage;
-        double RegularDamageReductionMultiplier;
-        double FreeAimDamageReductionMultiplier;
-        int ShieldPointsAtSpawn;
-        double ReceivedSkillDamageMultiplier;
-        double ReceivedFreeAimDamageMultiplier;
-    };
-    struct FEnemyScaling
-    {
-        double HP;
-        double PhysicalAttack;
-        double PhysicalDefense;
-        double MagicalAttack;
-        double MagicalDefense;
-        double Mastery;
-        double Accuracy;
-        double Speed;
-        double CriticalChance;
-        double Chroma;
-        double Experience;
-    };
-    struct FEnemyStats
-    {
-        double MaxHP;
-        double MaxAP;
-        double PhysicalAttack;
-        double MagicalAttack;
-        double Accuracy;
-        double PhysicalDefense;
-        double MagicalDefense;
-        double Speed;
-        double CriticalRate;
-        double Mastery;
-    };
-
+    
+ 
+ 
     struct FEnemyPortraitData
     {
-        //UTexture2D* TimelinePortrait;
+        //Texture2D* TimelinePortrait;
         double PortraitOffset;
     };
 
-    //struct FLootEntry
-    //{
-    //    FDataTableRowHandle Item;   // 예: DT_jRPG_Items_Composite : Lanceram
-    //    int Quantity;               // 1
-    //    double LootPercentageChance;// 100.0
-    //    int LootContextLevelOffset; // 0
-    //};
-    //
-    //struct FEnemyRow
-    //{
-    //    // 기본 식별
-    //    string EnemyId;                  // SM_Lancelier
-    //    string DisplayName;              // Lancelier
-    //    int Level;                     // 3
-    //
-    //    // 스폰/분류
-    //    //SoftClassPtr EnemyActorClass;  // BP_EnemyBattle_Lancelier_C
-    //    bool IsBoss;                   // false
-    //    //UObject* EnemyArchetype;       // BP_DataAsset_Archetype_Regular
-    //    //UDataTable* EnemyArchetypeDT;  // DT_EnemyArchetype_Regular
-    //
-    //    // 수치
-    //    FEnemyScaling Scaling;
-    //    FEnemyStats Stats;
-    //
-    //    // 보상
-    //    TArray<FLootEntry> PossibleLoot;
-    //    Name ShapeshiftCaptureLootItem; // LancelierFoot
-    //    double LootChanceMultiplier;    // 1.0
-    //
-    //    // UI/전투 보정
-    //    FEnemyPortraitData PortraitData;
-    //    FCommonCharacterStats CommonCharacterStats;
-    //    //FEnemyBattleAudioProfile BattleAudioProfile;
-    //
-    //    // 기타 전투 옵션
-    //    TArray<FEnemyDataRow> MinionsToPreload;
-    //    int BreakBarHPPercent;      // 120
-    //    int BreakBarStunDuration;   // 1
-    //    bool IsFlying;              // false
-    //
-    //    // 속성/문법
-    //    TMap<EAttackType, EElementalAffinity> InitialElementalAffinities;
-    //    string GenderTag;      // Neuter
-    //};
+    struct Item_Data
+    {
+        
+    };
+
+    //-------------------------------------
+    enum class EEnemyClass
+    {
+        Invalid,
+        Normal,
+        Elite,
+        Boss
+    };
+
+    enum class EAttackType
+    {
+        None,
+        Fire,
+        Ice,
+        Lightning,
+        Dark,
+        Light
+    };
+
+    enum class EElementalAffinity
+    {
+        Normal,
+        Weak,
+        Resist,
+        Immune,
+        Absorb
+    };
+
+    struct  FLootData
+    {
+        Item_Data Item;   // 예: DT_jRPG_Items_Composite : Lanceram
+        int Quantity;               // 1
+        double LootPercentageChance;// 100.0
+        int LootContextLevelOffset; // 0
+    };
+   
+    struct FCommonCharacterStats
+    {
+        double BurnPercentage;//Burn 데미지 계산 배율(최대 HP의)
+        double RegularDamageReductionMultiplier;//일반 공격 피해 감소 배율
+        double FreeAimDamageReductionMultiplier;//(약점사격) 피해 감소
+        int ShieldPointsAtSpawn;//전투 시작 시 기본 보호막
+        double ReceivedSkillDamageMultiplier;//스킬 데미지 받는 배율
+        double ReceivedFreeAimDamageMultiplier; //자유조준 피해 배율
+    };
 
 
+    struct FElementalAffinity
+    {
+        EAttackType        attackType = EAttackType::None;
+        EElementalAffinity affinity = EElementalAffinity::Normal;
+    };
+
+    struct BattleChar
+    {
+        Shared<Character> actor;
+        Shared<CombatStatCom> statCom;
+    };
+
+    struct Action
+    {
+        BattleChar _curChar = {};
+        uint32  target = {};
+
+        EBattleContext type = {};
+
+        Item_Data   _selected_ItemKey = {};
+        Skill_Data   _selected_SkillKey = {};
+
+    };
+    struct TurnEntry
+    {
+        BattleChar hero;
+        float nextTime;
+    };
+
+    struct DamageContext
+    {
+        BattleChar attacker;
+        BattleChar target;
+
+        float baseDamage;
+
+        EDamageReason damageType;
+        EAttackType element;
+
+        float finalMultiplier = 1.0f;
+        float flatBonus = 0.0f;
+
+        bool canCrit = true;
+        bool ignoreDefense = false;
+    };
+
+
+    enum class BuffType { beforeTurn, changeStat, dot, SLogic };
+    enum class Buffs
+    {
+        //버프
+
+        // 상태이상
+        // 
+        //turn
+        None,
+
+        Burn,
+
+        Freeze,
+        Stun,
+        Charm,
+        Rage,
+
+        //changeStat
+        Powerful,
+        Shell,
+        Mark,
+        Blight,
+        Berserk,
+        Powerless,
+        Shield,
+        Defenceless,
+
+
+        Slow,
+        Rush,
+
+
+
+        Exhausted,
+        Bound,
+        Silence,
+        Dizzy,
+        Cursed,
+        Inverted,
+
+        // 디버프
+
+    };
+    //------------------------------------
+    struct Skill_Data
+    {
+        string skillName;            // "FireSlash"
+        string scriptClassName;      // "FireSlashScript"
+
+
+        int32 apCost = 0;
+        ECharacterTeamSelector targetingType;
+
+        // ⭐ 속성
+        EAttackType element;
+
+        // ⭐ 상태이상 (선택)
+        Buffs ailmentType = Buffs::None;
+        float ailmentChance = 0.f;
+    };
 }

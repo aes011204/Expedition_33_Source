@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "Base.h"
 #include "Battle_Enum.h"
+
 NS_BEGIN(Engine)
 
     class Character;
@@ -10,28 +11,17 @@ NS_END
 
 NS_BEGIN(Client)
 
+class CombatStatCom;
+class BuffSystem;
+class BattleEffectResolver;
 
-class BattleStateMachine;
+    class BattleStateMachine;
 class BattleController :
     public Base
 {
 
 public:
-    struct Action
-    {
-        EBattleContext type={};
-        Weak<Character> _curChar = {};
-        //ActonType _CurActionType = {};
-        // Item_Data   _selected_Item
-        // Skill_Data   _selected_Skill
-        uint32  target = {};
-    };
-    struct TurnEntry
-    {
-        Weak<class Character> hero;
-        float nextTime;
-    };
-
+ 
 public:
     HRESULT Inintialize();
     void Update(float timeDelta);
@@ -41,7 +31,7 @@ public:
     void Run_EnemyTurn();
 
 
-    void  OnEnterBattleField(uint32 FieldID, bool IsFirstHero, vector<string>& protoTag);
+    void  OnEnterBattleField(uint32 FieldID, bool IsFirstHero, vector<string>& PlayerProtoTag, vector<string>& MonsterProtoTag);
     EBattleEndResult OnExitBattleField(EBattleEndResult result);
 
     void Set_BattleFSM();
@@ -54,7 +44,7 @@ public:
 
 
 
-    void Create_BattleChar(vector<string>& protoTag);
+    void Create_BattleChar(vector<string>& PlayerprotoTag, vector<string>& MonsterprotoTag);
     void Build_InitialTurnQueue(bool IsFirstHero);
     void SetCharInitPos();
 
@@ -64,7 +54,7 @@ public:
     uint32 Get_EnemiesNum() { return _enemies.size(); }
     uint32 Get_HeroesNum() { return _heroes.size(); }
 private:
-    Weak<Character> _currentTurnActor = {};
+    BattleChar _currentTurnActor = {};
     Action _turnAction={};
     bool isBattleActive = { false };
     int currentTurnIndex = {};
@@ -72,12 +62,9 @@ private:
 
 
 private:
-    void Execute_BaseAttack(const Shared<Character>& actor, const Action& turnAction);
-    void Execute_Skill(const Shared<Character>& actor, const Action& turnAction);
-    void Execute_Item(const Shared<Character>& actor, const Action& turnAction);
-
-
-
+    void Execute_BaseAttack(const BattleChar actor, const Action& turnAction);
+    void Execute_Skill(const BattleChar actor, const Action& turnAction);
+    void Execute_Item(const BattleChar actor, const Action& turnAction);
 
 public:
     struct Compare
@@ -94,9 +81,13 @@ public:
 private:
     priority_queue<TurnEntry, vector<TurnEntry>, Compare> _turnQueue;
     float _battleTime = {};
-    vector<Shared<Character>> _heroes;
-    vector<Shared<Character>> _enemies;
+    vector<BattleChar> _heroes;
+    vector<BattleChar> _enemies;
+
+
     Shared< BattleStateMachine> _battleFSM;
+    Shared< BuffSystem> _buffSystem;
+    Shared< BattleEffectResolver> _battleEffectResolver;
 };
 
 

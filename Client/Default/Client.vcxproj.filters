@@ -154,6 +154,9 @@
     <Filter Include="02.GameObject\InstancedMeshActor">
       <UniqueIdentifier>{2e753ff9-c664-4b59-b631-8362dc321ba5}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Ailment">
+      <UniqueIdentifier>{17b1ad35-1166-4e14-a636-7434629b73c3}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -237,7 +240,9 @@
     <ClInclude Include="..\Public\MapLoader.h">
       <Filter>02.GameObject\Map\MapLoader</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\Spawn_Prefab.h" />
+    <ClInclude Include="..\Public\Spawn_Prefab.h">
+      <Filter>96. Manager</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\Head_Player.h">
       <Filter>02.GameObject\Player\PlayerParts\Head</Filter>
     </ClInclude>
@@ -247,7 +252,9 @@
     <ClInclude Include="..\Public\PlayableParts.h">
       <Filter>02.GameObject\Player\PlayerParts</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\UI_RuntimeLoader.h" />
+    <ClInclude Include="..\Public\UI_RuntimeLoader.h">
+      <Filter>96. Manager</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\Client_Constants.h">
       <Filter>99.Defines</Filter>
     </ClInclude>
@@ -310,8 +317,8 @@
     <ClInclude Include="..\Public\Player_Jump.h">
       <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
     </ClInclude>
-    <ClInclude Include="..\public\UltimateTargeting.h" />
-    <Filter>BattleState</Filter>
+    <ClInclude Include="..\public\UltimateTargeting.h">
+      <Filter>BattleState</Filter>
     </ClInclude>
     <ClInclude Include="..\public\AttackTargeting.h">
       <Filter>BattleState</Filter>
@@ -346,9 +353,15 @@
     <ClInclude Include="..\public\BattleController.h">
       <Filter>BattleState\BattleController</Filter>
     </ClInclude>
-    <ClInclude Include="Battle_Enum.h" />
-    <ClInclude Include="..\public\UtilitySystem.h" />
-    <ClInclude Include="..\public\BuffInstance.h" />
+    <ClInclude Include="Battle_Enum.h">
+      <Filter>99.Defines</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\UtilitySystem.h">
+      <Filter>96. Manager</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\BuffInstance.h">
+      <Filter>96. Manager</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\Cinematic_Player.h">
       <Filter>02.GameObject\Camera\Cinematic</Filter>
     </ClInclude>
@@ -364,8 +377,12 @@
     <ClInclude Include="..\Public\CinematicSequencerAdapter.h">
       <Filter>02.GameObject\Camera\Cinematic</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\GameDataTable.h" />
-    <ClInclude Include="..\Public\SkillTreeCom.h" />
+    <ClInclude Include="..\Public\GameDataTable.h">
+      <Filter>96. Manager</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\SkillTreeCom.h">
+      <Filter>03. Component</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\PointParticlePreview.h">
       <Filter>02.GameObject\Effect\PointParticle</Filter>
     </ClInclude>
@@ -375,9 +392,22 @@
     <ClInclude Include="..\Public\InstancedMeshActor.h">
       <Filter>02.GameObject\InstancedMeshActor</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\Hero_Manager.h" />
-    <ClInclude Include="..\Public\ComputePointParticlePreview.h" />
-    <ClInclude Include="..\Public\GameplayUI.h" />
+    <ClInclude Include="..\Public\Hero_Manager.h">
+      <Filter>96. Manager</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\GameplayUI.h">
+      <Filter>02.GameObject\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\PlayerStatCom.h" />
+    <ClInclude Include="..\public\MonsterStatCom.h" />
+    <ClInclude Include="..\public\Buff.h">
+      <Filter>Ailment</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\BuffSystem.h" />
+    <ClInclude Include="..\public\BattleEffectResolver.h" />
+    <ClInclude Include="..\public\SkillScript.h" />
+    <ClInclude Include="..\public\DamageSystem.h" />
+    <ClInclude Include="Base_Attack.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -452,7 +482,9 @@
     <ClCompile Include="..\Private\MapLoader.cpp">
       <Filter>02.GameObject\Map\MapLoader</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\Spawn_Prefab.cpp" />
+    <ClCompile Include="..\Private\Spawn_Prefab.cpp">
+      <Filter>96. Manager</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\Head_Player.cpp">
       <Filter>02.GameObject\Player\PlayerParts\Head</Filter>
     </ClCompile>
@@ -522,7 +554,9 @@
     <ClCompile Include="..\Private\Player_Jump.cpp">
       <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
     </ClCompile>
-    <ClCompile Include="..\private\UltimateTargeting.cpp" />
+    <ClCompile Include="..\private\UltimateTargeting.cpp">
+      <Filter>BattleState</Filter>
+    </ClCompile>
     <ClCompile Include="..\private\AttackTargeting.cpp">
       <Filter>BattleState</Filter>
     </ClCompile>
@@ -556,8 +590,12 @@
     <ClCompile Include="..\private\BattleController.cpp">
       <Filter>BattleState\BattleController</Filter>
     </ClCompile>
-    <ClCompile Include="..\private\UtilitySystem.cpp" />
-    <ClCompile Include="..\private\BuffInstance.cpp" />
+    <ClCompile Include="..\private\UtilitySystem.cpp">
+      <Filter>96. Manager</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\BuffInstance.cpp">
+      <Filter>96. Manager</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\CameraPresetIO.cpp">
       <Filter>02.GameObject\Camera</Filter>
     </ClCompile>
@@ -570,8 +608,12 @@
     <ClCompile Include="..\Private\CinematicSequencerAdapter.cpp">
       <Filter>02.GameObject\Camera\Cinematic</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\GameDataTable.cpp" />
-    <ClCompile Include="..\Private\SkillTreeCom.cpp" />
+    <ClCompile Include="..\Private\GameDataTable.cpp">
+      <Filter>96. Manager</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\SkillTreeCom.cpp">
+      <Filter>03. Component</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\PointParticlePreview.cpp">
       <Filter>02.GameObject\Effect\PointParticle</Filter>
     </ClCompile>
@@ -581,9 +623,22 @@
     <ClCompile Include="..\Private\InstancedMeshActor.cpp">
       <Filter>02.GameObject\InstancedMeshActor</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\Hero_Manager.cpp" />
-    <ClCompile Include="..\Private\ComputePointParticlePreview.cpp" />
-    <ClCompile Include="..\Private\GameplayUI.cpp" />
+    <ClCompile Include="..\Private\Hero_Manager.cpp">
+      <Filter>96. Manager</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\GameplayUI.cpp">
+      <Filter>02.GameObject\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\PlayerStatCom.cpp" />
+    <ClCompile Include="..\private\MonsterStatCom.cpp" />
+    <ClCompile Include="..\public\Ailment.cpp">
+      <Filter>Ailment</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\BuffSystem.cpp" />
+    <ClCompile Include="..\private\BattleEffectResolver.cpp" />
+    <ClCompile Include="..\private\SkillScript.cpp" />
+    <ClCompile Include="..\private\DamageSystem.cpp" />
+    <ClCompile Include="Base_Attack.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">

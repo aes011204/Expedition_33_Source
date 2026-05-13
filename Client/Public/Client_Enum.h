@@ -45,5 +45,15 @@ namespace Client
         END
     };
 
+
+    enum class ERuntimeBattleStatType
+    {
+        
+        CurrentHP,
+        CurrentAP,
+        CurrentHPPercentage,
+        CurrentAPPercentage,
+        Invalid
+    };
 }
 

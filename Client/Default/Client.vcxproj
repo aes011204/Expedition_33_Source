@@ -155,6 +155,8 @@
     </FxCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\public\Buff.h" />
+    <ClInclude Include="..\public\BuffSystem.h" />
     <ClInclude Include="..\Public\AN_Test.h" />
     <ClInclude Include="..\Public\ANS_Test.h" />
     <ClInclude Include="..\public\AttackTargeting.h">
@@ -163,11 +165,12 @@
     <ClInclude Include="..\public\BattleController.h">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
     </ClInclude>
+    <ClInclude Include="..\public\BattleEffectResolver.h" />
     <ClInclude Include="..\public\BattleStateMachine.h">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
     </ClInclude>
     <ClInclude Include="..\public\Battle_State.h">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
     </ClInclude>
     <ClInclude Include="..\Public\BStateMachine.h">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
@@ -201,6 +204,7 @@
     <ClInclude Include="..\Public\Client_Struct.h" />
     <ClInclude Include="..\Public\CombatStatCom.h" />
     <ClInclude Include="..\Public\ComputePointParticlePreview.h" />
+    <ClInclude Include="..\public\DamageSystem.h" />
     <ClInclude Include="..\Public\GameDataTable.h" />
     <ClInclude Include="..\Public\GameplayUI.h" />
     <ClInclude Include="..\Public\Hair_Player.h" />
@@ -215,6 +219,7 @@
     <ClInclude Include="..\Public\Level_Stage01.h" />
     <ClInclude Include="..\Public\MapLoader.h" />
     <ClInclude Include="..\Public\MapStaticMesh.h" />
+    <ClInclude Include="..\public\MonsterStatCom.h" />
     <ClInclude Include="..\public\Monster_Part.h" />
     <ClInclude Include="..\public\Mon_AIController.h" />
     <ClInclude Include="..\public\Mon_BehaviorTree.h" />
@@ -223,6 +228,8 @@
     <ClInclude Include="..\Public\PersistentObjectManager.h" />
     <ClInclude Include="..\Public\PlayableParts.h" />
     <ClInclude Include="..\Public\PlayerControllerCom.h" />
+    <ClInclude Include="..\public\PlayerStatCom.h" />
+    <ClInclude Include="..\public\SkillScript.h" />
     <ClInclude Include="..\Public\SkillTreeCom.h" />
     <ClInclude Include="..\Public\Player_Idle.h" />
     <ClInclude Include="..\Public\Player_Jump.h" />
@@ -237,9 +244,12 @@
     <ClInclude Include="..\Public\StateMachineCom.h" />
     <ClInclude Include="..\Public\TargetCamera.h" />
     <ClInclude Include="..\Public\UI_RuntimeLoader.h" />
-    <ClInclude Include="..\public\UltimateTargeting.h" />
+    <ClInclude Include="..\public\UltimateTargeting.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </ClInclude>
     <ClInclude Include="..\public\UtilitySystem.h" />
     <ClInclude Include="Battle_Enum.h" />
+    <ClInclude Include="Base_Attack.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="..\public\BackGround.h" />
     <ClInclude Include="..\public\Body_Player.h" />
@@ -259,6 +269,7 @@
     <ClInclude Include="..\Public\Weapon.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\private\BuffSystem.cpp" />
     <ClCompile Include="..\Private\AN_Test.cpp" />
     <ClCompile Include="..\Private\ANS_Test.cpp" />
     <ClCompile Include="..\private\AttackTargeting.cpp">
@@ -267,11 +278,12 @@
     <ClCompile Include="..\private\BattleController.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
     </ClCompile>
+    <ClCompile Include="..\private\BattleEffectResolver.cpp" />
     <ClCompile Include="..\private\BattleStateMachine.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="..\private\Battle_State.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="..\Private\BStateMachine.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
@@ -300,6 +312,7 @@
     <ClCompile Include="..\Private\Cinematic_SequenceIO.cpp" />
     <ClCompile Include="..\Private\CombatStatCom.cpp" />
     <ClCompile Include="..\Private\ComputePointParticlePreview.cpp" />
+    <ClCompile Include="..\private\DamageSystem.cpp" />
     <ClCompile Include="..\Private\GameDataTable.cpp" />
     <ClCompile Include="..\Private\GameplayUI.cpp" />
     <ClCompile Include="..\Private\Hair_Player.cpp" />
@@ -314,6 +327,7 @@
     <ClCompile Include="..\Private\Level_Stage01.cpp" />
     <ClCompile Include="..\Private\MapLoader.cpp" />
     <ClCompile Include="..\Private\MapStaticMesh.cpp" />
+    <ClCompile Include="..\private\MonsterStatCom.cpp" />
     <ClCompile Include="..\private\Monster_Part.cpp" />
     <ClCompile Include="..\private\Mon_AIController.cpp" />
     <ClCompile Include="..\private\Mon_BehaviorTree.cpp" />
@@ -322,12 +336,14 @@
     <ClCompile Include="..\Private\PersistentObjectManager.cpp" />
     <ClCompile Include="..\Private\PlayableParts.cpp" />
     <ClCompile Include="..\Private\PlayerControllerCom.cpp" />
+    <ClCompile Include="..\private\PlayerStatCom.cpp" />
     <ClCompile Include="..\Private\Player_Idle.cpp" />
     <ClCompile Include="..\Private\Player_Jump.cpp" />
     <ClCompile Include="..\Private\Player_Move.cpp" />
     <ClCompile Include="..\Private\Player_State.cpp" />
     <ClCompile Include="..\Private\PlayerStateMachineCom.cpp" />
     <ClCompile Include="..\Private\SimpleMath.cpp" />
+    <ClCompile Include="..\private\SkillScript.cpp" />
     <ClCompile Include="..\private\SkillTargeting.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
     </ClCompile>
@@ -337,8 +353,12 @@
     <ClCompile Include="..\Private\StateMachineCom.cpp" />
     <ClCompile Include="..\Private\TargetCamera.cpp" />
     <ClCompile Include="..\Private\UI_RuntimeLoader.cpp" />
-    <ClCompile Include="..\private\UltimateTargeting.cpp" />
+    <ClCompile Include="..\private\UltimateTargeting.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="..\private\UtilitySystem.cpp" />
+    <ClCompile Include="..\public\Ailment.cpp" />
+    <ClCompile Include="Base_Attack.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
