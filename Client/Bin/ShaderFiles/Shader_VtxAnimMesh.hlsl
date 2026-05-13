@@ -190,3 +190,4 @@ technique11 DefaultTechnique
     PASS_RS_DS_BS_VP(MaskedTwoSidedPass, RS_CullNone, DSS_Default, BS_Default, VS_Main,     PS_Mask)        // 3
     PASS_RS_DS_BS_VP(ShadowPass,         RS_Default,  DSS_Default, BS_Default, VS_Shadow,   PS_Shadow)      // 4
 }   
+

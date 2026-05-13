@@ -35,6 +35,7 @@
 #include <atomic>
 #include <mutex>
 #include <queue>
+#include <system_error>
 
 #pragma warning(disable : 4251 4275)
 

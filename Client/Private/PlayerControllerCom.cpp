@@ -10,7 +10,7 @@ IMPLEMENT_REFLECTION(PlayerControllerCom)
     info.properties.clear();
 
     PROPERTY_BOOL("Use Controll Yaw", _bUseControllerRotationYaw);
-    PROPERTY_FLOAT("Test 값", _testRelfectionValue, 0.f, 3.f, 0.05f);
+    PROPERTY_FLOAT("Test 값", _testRefectionValue, 0.f, 3.f, 0.05f);
 
     return true;
 }
@@ -77,6 +77,9 @@ void PlayerControllerCom::Update_Controller(float timeDelta)
     }
 
     _currentInput.isWalkDown = _isWalkToggled;
+
+    Check_RigidInput();
+
 	_movementCom->Apply_Input(_currentInput);
 	_movementCom->Update_Movement(timeDelta);
 }
@@ -91,9 +94,30 @@ bool PlayerControllerCom::Is_WalkToggled() const
     return _isWalkToggled;
 }
 
+bool PlayerControllerCom::Is_Grounded() const
+{
+    return _movementCom->Is_Grounded();
+}
+
 const MovementCom::MovementInput& PlayerControllerCom::Get_MovementInput() const
 {
     return _currentInput;
+}
+
+void PlayerControllerCom::Check_RigidInput()
+{
+    if (_rigidControl.rigidMovement)
+    {
+        _currentInput.moveX = 0.f;
+        _currentInput.moveZ = 0.f;
+    }
+
+    if (_rigidControl.rigidJump)
+    {
+        _currentInput.isJumpDown = false;
+    }
+
+    _rigidControl = {};
 }
 
 Shared<PlayerControllerCom> PlayerControllerCom::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

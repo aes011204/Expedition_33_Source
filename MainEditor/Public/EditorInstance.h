@@ -99,6 +99,7 @@ public: /* For.Viewport */
     ID3D11ShaderResourceView* Get_SharedViewportSRV() const;
     void                      Capture_BackBuffer_ToViewport();
     void                      Invalidate_BackBufferCache();
+    void                      EndImGuiFrameIfBegun();
     ComPtr<Device>            Get_Device() const { return _device; }
     ComPtr<Context>           Get_Context() const { return _context; }
 

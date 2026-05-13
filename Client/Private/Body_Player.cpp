@@ -40,7 +40,14 @@ void Body_Player::Priority_Update(float fTimeDelta)
 
 void Body_Player::Update(float fTimeDelta)
 {
-    _modelCom->Play_Animation(fTimeDelta);
+    if (Has_LeaderPoseComponent())
+    {
+        Update_LeaderPoseMatrices();
+    }
+    else
+    {
+        _modelCom->Play_Animation(fTimeDelta);
+    }
 
     Update_CombinedWorldMatrix(_transformCom->Get_WorldMatrix());
 }

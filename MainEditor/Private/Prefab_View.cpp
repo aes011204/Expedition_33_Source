@@ -10,9 +10,11 @@
 #include "Inspector.h"
 #include "Helper_String.h"
 #include "Animation_View.h"
+#include "ColliderCom.h"
 #include "ModelCom.h"
 #include "RenderTarget.h"
 #include "imgui_internal.h"
+#include "AnimState_View.h"
 
 Prefab_View::Prefab_View()
     : Editor_Window(L"Prefab")
@@ -106,7 +108,12 @@ void Prefab_View::Pre_Render()
     }
 
     GAME->Draw_RendererOnly();
+
+    if (_showPrefabCollider)
+        Draw_PreviewColliders(_previewObject);
+
     Draw_PreviewGrid();
+
     GAME->Set_Lights(savedLightDescs);
     GAME->Set_PlayerInputBlocked(wasPlayerInputBlocked);
 
@@ -208,6 +215,9 @@ void Prefab_View::Render()
 
     if (_pendingOpenAnimationView)
         Open_PendingAnimationView();
+
+    if (_pendingOpenAnimStateView)
+        Open_PendingAnimStateView();
 }
 
 bool Prefab_View::CanSave() const
@@ -308,9 +318,11 @@ void Prefab_View::Close_Prefab()
     _applyDefaultWindowLayout = false;
     _openAnimationViewWithPrefab = false;
     _pendingOpenAnimationView = false;
+    _pendingOpenAnimStateView = false;
     _dockId = 0;
     _pendingDockId = 0;
     _pendingAnimationDockId = 0;
+    _pendingAnimStateDockId = 0;
     _focusPrefabFrames = 0;
 
     _selectionType = SelectionType::None;
@@ -387,7 +399,9 @@ void Prefab_View::Prepare_AnimationViewSiblingDock()
     _dockId = dockId;
     _pendingDockId = dockId;
     _pendingAnimationDockId = dockId;
+    _pendingAnimStateDockId = dockId;
     _pendingOpenAnimationView = true;
+    _pendingOpenAnimStateView = true;
     _focusPrefabFrames = 10;
     _applyDefaultWindowLayout = false;
 }
@@ -413,6 +427,33 @@ void Prefab_View::Open_PendingAnimationView()
     }
 
     animationView->Open_FromModelComponent(modelCom, preferredAnimation, _pendingAnimationDockId, false);
+}
+
+void Prefab_View::Open_PendingAnimStateView()
+{
+    _pendingOpenAnimStateView = false;
+
+    Shared<ModelCom> modelCom = Find_FirstModelComponent();
+    if (modelCom == nullptr)
+        return;
+
+    Shared<Editor_Window> window = EDITOR->Get_Window(L"AnimState");
+    Shared<AnimState_View> animStateView = dynamic_pointer_cast<AnimState_View>(window);
+    if (animStateView == nullptr)
+        return;
+
+    string preferredAnimation{};
+    if (modelCom->Get_NumAnimations() > 0)
+    {
+        if (const char* animationName = modelCom->Get_AnimationName(0))
+            preferredAnimation = animationName;
+    }
+
+    animStateView->Open_FromModelComponent(
+        modelCom,
+        preferredAnimation,
+        _pendingAnimStateDockId,
+        false);
 }
 
 void Prefab_View::Draw_Header()
@@ -824,7 +865,11 @@ bool Prefab_View::Is_AnimationViewFocused()
 {
     Shared<Editor_Window> animationWindow = EDITOR->Get_Window(L"Animation");
     Shared<Animation_View> animationView = dynamic_pointer_cast<Animation_View>(animationWindow);
-    return animationView != nullptr && animationView->Is_Open() && animationView->Is_Focused();
+    if (animationView != nullptr && animationView->Is_Open() && animationView->Is_Focused())
+        return true;
+
+    Shared<Editor_Window> animStateWindow = EDITOR->Get_Window(L"AnimState");
+    return animStateWindow != nullptr && animStateWindow->Is_Open() && animStateWindow->Is_Focused();
 }
 
 void Prefab_View::Ensure_PreviewRenderTarget(uint32 width, uint32 height)
@@ -928,6 +973,40 @@ void Prefab_View::Lock_PreviewObjectToOrigin()
         return;
 
     previewTransform->Set_WorldPosition(Vec3::Zero);
+}
+
+void Prefab_View::Draw_PreviewColliders(const Shared<GameObject>& gameObject) const
+{
+#ifdef _DEBUG
+    if (gameObject == nullptr)
+        return;
+
+    Shared<TransformCom> transformCom = gameObject->Get_Transform();
+
+    gameObject->Visit_Components([&](const wstring&, const Shared<Component>& component)
+    {
+        Shared<ColliderCom> colliderCom = dynamic_pointer_cast<ColliderCom>(component);
+        if (colliderCom == nullptr)
+            return;
+
+        if (transformCom != nullptr)
+            colliderCom->Update_Collider(transformCom->Get_WorldMatrix());
+
+        colliderCom->Render_Debug();
+    });
+
+    Shared<ContainerObject> container = dynamic_pointer_cast<ContainerObject>(gameObject);
+    if (container == nullptr)
+        return;
+
+    for (const auto& [partTag, partObject] : container->Get_PartObjects())
+    {
+        UNREFERENCED_PARAMETER(partTag);
+        Draw_PreviewColliders(partObject);
+    }
+#else
+    UNREFERENCED_PARAMETER(gameObject);
+#endif
 }
 
 void Prefab_View::Draw_PreviewGrid() const

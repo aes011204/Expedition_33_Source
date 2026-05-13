@@ -1,5 +1,6 @@
 ﻿#include "MapStaticMesh.h"
 #include "GameInstance.h"
+#include "Collision_Define.h"
 
 IMPLEMENT_REFLECTION(MapStaticMesh)
 {
@@ -43,6 +44,13 @@ HRESULT MapStaticMesh::Initialize(void* arg)
     _transformCom->Set_RotationQuaternion(pDesc->rotation);
     _transformCom->Set_Scale(pDesc->scale);
 
+    // MapStaticMesh는 움직이지않는 맵 collision으로 취급이라 초기에 한번만 등록
+    if (_model)
+    {
+        _physxStaticHandle = GAME->Register_PhysXStaticModel(
+            *_model, _transformCom->Get_WorldMatrix(), Collision_Preset::Enviroment);
+    }
+
     return S_OK;
 }
 
@@ -56,28 +64,28 @@ void MapStaticMesh::Update(float timeDelta)
 
 void MapStaticMesh::Late_Update(float timeDelta)
 {
-    Vec3 localMin{}, localMax{};
-    if (_model->Try_Get_LocalBounds(localMin, localMax))
-    {
-        BoundingBox localBox;
-        BoundingBox::CreateFromPoints(localBox, XMLoadFloat3(&localMin), XMLoadFloat3(&localMax));
-
-        BoundingBox worldBox{};
-        localBox.Transform(worldBox, _model->Get_PreLocalTransformMatrix() * _transformCom->Get_WorldMatrix());
-
-#ifdef _DEBUG
-        DebugBoxDesc dbgDesc{};
-        dbgDesc.center = worldBox.Center;
-        dbgDesc.extents = worldBox.Extents;
-        dbgDesc.style.color = Colors::Black;
-        GAME->Draw_DebugBox(dbgDesc);
-#endif
-
-        if (!GAME->IsVisible(worldBox))
-        {
-            return;
-        }
-    }
+//    Vec3 localMin{}, localMax{};
+//    if (_model->Try_Get_LocalBounds(localMin, localMax))
+//    {
+//        BoundingBox localBox;
+//        BoundingBox::CreateFromPoints(localBox, XMLoadFloat3(&localMin), XMLoadFloat3(&localMax));
+//
+//        BoundingBox worldBox{};
+//        localBox.Transform(worldBox, _model->Get_PreLocalTransformMatrix() * _transformCom->Get_WorldMatrix());
+//
+//#ifdef _DEBUG
+//        DebugBoxDesc dbgDesc{};
+//        dbgDesc.center = worldBox.Center;
+//        dbgDesc.extents = worldBox.Extents;
+//        dbgDesc.style.color = Colors::Black;
+//        GAME->Draw_DebugBox(dbgDesc);
+//#endif
+//
+//        if (!GAME->IsVisible(worldBox))
+//        {
+//            return;
+//        }
+//    }
 
     GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
 }
@@ -174,5 +182,11 @@ Shared<GameObject> MapStaticMesh::Clone(void* arg)
 
 void MapStaticMesh::Free()
 {
+    if (_physxStaticHandle.Is_Valid())
+    {
+        GAME->Unregister_PhysXStaticActor(_physxStaticHandle);
+        _physxStaticHandle = {};
+    }
+
     __super::Free();
 }

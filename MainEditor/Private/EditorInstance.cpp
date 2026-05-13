@@ -153,8 +153,7 @@ void EditorInstance::Pause()
     if (EDITOR_RUNTIME_STATE::Play != _runtimeState)
         return;
 
-    if (!GAME->Is_ActiveCameraType(ObjectType::FreeCamera))
-        GAME->SwitchTo_NextCamera();
+    Activate_FreeCamera();
 
     GAME->Set_FreeCameraInputEnabled(false);
     GAME->Unlock_Mouse();
@@ -568,6 +567,12 @@ void EditorInstance::Invalidate_BackBufferCache()
     _cachedBackBufferTexture.Reset();
     _cachedBackBufferWidth = 0;
     _cachedBackBufferHeight = 0;
+}
+
+void EditorInstance::EndImGuiFrameIfBegun()
+{
+    if (_imguiManager)
+        _imguiManager->EndFrameIfBegun();
 }
 
 ID3D11Texture2D* EditorInstance::Get_CachedBackBufferTexture()

@@ -28,6 +28,7 @@ private:
 
     void Toggle_Window(const wstring& windowName);
     void Toggle_WindowPair(const wstring& firstWindowName, const wstring& secondWindowName);
+    void Toggle_FocusMode();
 
     void Render_ExitButton(float toolbarHeight);
     void Request_Exit();
@@ -38,7 +39,9 @@ private:
 
 private:
     /* 창 이름을 키로 보관하는 에디터 뷰 목록. */
-	map<wstring, Shared<Editor_Window>> _windows = {}; 
+    map<wstring, Shared<Editor_Window>> _windows = {}; 
+    map<wstring, bool> _focusModeWindowStates = {};
+    bool _isFocusMode = false;
 
 public:
 	static Unique<Editor_Manager> Create();

@@ -42,6 +42,14 @@ void PlayableParts::Set_Animation(uint32 animIndex, float blendDuration, bool is
     _modelCom->Set_Animation(animIndex, blendDuration, isLoop);
 }
 
+void PlayableParts::Set_Animation(uint32 animIndex, bool isLoop) const
+{
+    if (nullptr == _modelCom) return;
+
+    _modelCom->Set_Animation(animIndex, isLoop);
+}
+
+
 uint32 PlayableParts::Get_AnimationIndex() const
 {
     if (nullptr == _modelCom) return UINT_MAX;
@@ -119,9 +127,8 @@ HRESULT PlayableParts::Render()
 
     for (uint32 i = 0; i < iNumMeshes; i++)
     {
-        const Shared<Material> material = _modelCom->Get_Material(i);
-        if (material == nullptr)
-            continue;
+        const uint32 materialIndex = _modelCom->Get_MeshMaterialIndex(i);
+        const Shared<Material> material = _modelCom->Get_Material(materialIndex);
 
         if (FAILED(_shaderCom->Bind_MaterialTextures(*material)))
             continue;
