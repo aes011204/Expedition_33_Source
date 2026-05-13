@@ -1,6 +1,7 @@
 // 모델 인스턴싱을 위한 셰이더
 
 #include "Engine_Shader_Defines.hlsli"
+#include "Engine_Shader_RenderState.hlsl"
 
 float4x4 g_ViewMatrix, g_ProjMatrix;
 float4x4 g_PreTransformMatrix;

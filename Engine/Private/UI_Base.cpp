@@ -7,6 +7,7 @@ UI_Base::UI_Base()
 UI_Base::UI_Base(const UI_Base& Prototype)
     : _isOpen{ false }
     , _sortOrder{ Prototype._sortOrder }
+    , _renderGroup{Prototype._renderGroup }
 {
     Set_Name(Prototype.Get_Name());
 
@@ -31,6 +32,7 @@ HRESULT UI_Base::Initialize(void* Arg)
 
     _sortOrder = Desc.sortOrder;
     _isOpen = Desc.isOpenOnCreate;
+    _renderGroup = Desc.renderGroup;
 
     _transform = UI_Transform::Create(&Desc.transformDesc);
     CHECK_NULL(_transform, E_FAIL);

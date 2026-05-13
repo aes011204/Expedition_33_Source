@@ -43,13 +43,13 @@ float   g_fShadowIntensity = 0.4f;
 //==================================================
 // CAMERA
 //==================================================
-vector  g_vCamPosition;
-float   g_fFar = 0.f;
+vector  g_CamPosition;
+float   g_Far = 0.f;
 
 float4 Reconstruct_WorldPos(float2 vTexcoord)
 {
     vector vDepthDesc = g_DepthTexture.Sample(LinearWrapSampler, vTexcoord);
-    float fViewZ = vDepthDesc.y * g_fFar;
+    float fViewZ = vDepthDesc.y * g_Far;
 
     float4 vWorldPos;
 
@@ -134,7 +134,7 @@ PS_OUT_LIGHT PS_MAIN_DIRECTIONAL(PS_IN In)
 {
     PS_OUT_LIGHT Out;
 
-    vector vDepthDesc = g_DepthTexture.Sample(LinearSampler, In.vTexcoord);
+    vector vDepthDesc = g_DepthTexture.Sample(LinearWrapSampler, In.vTexcoord);
     if (vDepthDesc.y == 0.f)
         discard;
     
@@ -145,7 +145,7 @@ PS_OUT_LIGHT PS_MAIN_DIRECTIONAL(PS_IN In)
     // Light
     float4 vReflect = reflect(normalize(g_vLightDir), vNormal);
     float4 vWorldPos = Reconstruct_WorldPos(In.vTexcoord);
-    float4 vLook = vWorldPos - g_vCamPosition;
+    float4 vLook = vWorldPos - g_CamPosition;
 
     float fSpecular = pow(max(dot(normalize(vLook) * -1.f, normalize(vReflect)), 0.f), 50.f);
 
@@ -222,11 +222,11 @@ PS_OUT_BACKBUFFER PS_MAIN_COMBINED_SIMPLE(PS_IN In)
 {
     PS_OUT_BACKBUFFER Out;
 
-    vector vDiffuse = g_DiffuseTexture.Sample(LinearSampler, In.vTexcoord);
+    vector vDiffuse = g_DiffuseTexture.Sample(LinearWrapSampler, In.vTexcoord);
     if (vDiffuse.a == 0.f)
         discard;
-    vector vShade = g_ShadeTexture.Sample(LinearSampler, In.vTexcoord);
-    vector vSpecular = g_SpecularTexture.Sample(LinearSampler, In.vTexcoord);
+    vector vShade = g_ShadeTexture.Sample(LinearWrapSampler, In.vTexcoord);
+    vector vSpecular = g_SpecularTexture.Sample(LinearWrapSampler, In.vTexcoord);
 
     Out.vColor = vDiffuse * vShade + vSpecular;
     return Out;

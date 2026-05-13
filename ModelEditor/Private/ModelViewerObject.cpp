@@ -184,7 +184,7 @@ HRESULT ModelViewerObject::Bind_ShaderResources()
     if (FAILED(target->Bind_Matrix("g_ProjMatrix", GAME->Get_Transform(D3DTS::Proj))))
 		return E_FAIL;
 
-    if (FAILED(GAME->Bind_CamPosition(target.get(), "g_vCamPosition")))
+    if (FAILED(GAME->Bind_CamPosition(target.get(), "g_CamPosition")))
         return E_FAIL;
 
     const LIGHT_DESC* pLightDesc = GAME->Get_LightDesc(0);

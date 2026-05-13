@@ -245,19 +245,10 @@ HRESULT Animation_PreviewObject::Bind_ShaderResources()
 
     Shared<ShaderCom> target = _modelCom->Is_Skeletal() ? _animShaderCom : _staticShaderCom;
 
-    if (FAILED(_transformCom->Bind_ShaderResource(target.get(), "g_WorldMatrix")))
+    if (FAILED(target->Bind_ObjectCB(_transformCom->Get_WorldMatrix())))
         return E_FAIL;
 
-    if (FAILED(target->Bind_Matrix("g_ViewMatrix", GAME->Get_Transform(D3DTS::View))))
-        return E_FAIL;
-
-    if (FAILED(target->Bind_Matrix("g_ProjMatrix", GAME->Get_Transform(D3DTS::Proj))))
-        return E_FAIL;
-
-    if (FAILED(GAME->Bind_CameraFar(target, "g_fFar")))
-        return E_FAIL;
-
-    if (FAILED(GAME->Bind_CamPosition(target.get(), "g_vCamPosition")))
+    if (FAILED(GAME->Bind_CameraCB(target)))
         return E_FAIL;
 
     const LIGHT_DESC* lightDesc = GAME->Get_LightDesc(0);

@@ -39,37 +39,59 @@ namespace ModelEditor
 
 	string ModelConverter::Sanitize_FileName(string name)
 	{
-        std::string result = name;
+		string result = name;
 
-        size_t pos = result.find("UE5");
-        if (pos != std::string::npos)
-        {
-            size_t cutPos = pos + 3; 
+		// 1. Tech Junk Tokens (Exact matches only)
+		static const unordered_set<string> junkSet = {
+			"ALS", "UE5", "RETAKE", "UNREAL", "TAKE", "DEFAULT", "PLACEHOLDER", "SK",
+			"LF", "RF", "N", "F", "B", "L", "R", "W", "S", "E", "WORLD"
+		};
 
-            while (cutPos < result.length() && (result[cutPos] == '_' || result[cutPos] == ' ' ||
-                result[cutPos] == '|'))
-            {
-                cutPos++;
-            }
+		// 2. Tokenize by various delimiters
+		vector<string> tokens;
+		string current;
+		auto processToken = [&](string t) {
+			if (t.empty()) return;
+			string upper = t;
+			for (char& c : upper) c = toupper(c);
+			if (junkSet.find(upper) == junkSet.end())
+				tokens.push_back(t);
+		};
 
-            result = result.substr(cutPos);
-        }
+		for (char c : result)
+		{
+			// Delimiters that separate words
+			if (c == '_' || c == '|' || c == ' ' || c == '-' || c == ':' || c == '*' || c == '?' || c == '\"' || c == '<' || c == '>' || c == '/')
+			{
+				processToken(current);
+				current.clear();
+			}
+			else
+			{
+				current += c;
+			}
+		}
+		processToken(current);
 
-        string forbidden = "\\/:*?\"<>|";
-        for (char& c : result)
-        {
-            if (forbidden.find(c) != string::npos)
-            {
-                c = '_';
-            }
-        }
+		// 3. Rejoin tokens with single underscore and basic deduplication
+		string finalResult;
+		for (size_t i = 0; i < tokens.size(); ++i)
+		{
+			// Simple consecutive duplicate prevention (e.g., Maelle_Maelle -> Maelle)
+			if (i > 0 && tokens[i] == tokens[i - 1])
+				continue;
 
-        if (result.empty())
-        {
-            result = "DefaultAnimName";
-        }
+			if (!finalResult.empty())
+				finalResult += "_";
+			finalResult += tokens[i];
+		}
 
-        return result;
+		if (finalResult.empty())
+		{
+			finalResult = "DefaultAnimName";
+		}
+
+		return finalResult;
 	}
 
 	ModelConverter::ModelConverter() : EditorBlock{}
@@ -97,7 +119,8 @@ namespace ModelEditor
 					  aiProcess_Triangulate |
 					  aiProcess_CalcTangentSpace |
 					  aiProcess_GenSmoothNormals |
-                      aiProcess_LimitBoneWeights;
+                      aiProcess_LimitBoneWeights |
+                       aiProcess_JoinIdenticalVertices;
 
 		strcpy_s(_pathBuffer, Engine::String::ToString(ResourcePath).c_str());
 		_resourcePath = ResourcePath;
@@ -343,11 +366,6 @@ namespace ModelEditor
         };
 
         RecursiveBuild(RecursiveBuild, _aiScene->mRootNode, -1);
-
-        if (_bones.size() > 0)
-        {
-            _isSkeletal = true;
-        }
 
 		ReadMeshes(_aiScene);
 		ReadMaterial(_aiScene);
@@ -952,10 +970,39 @@ namespace ModelEditor
                 out.write(str.c_str(), len);
         };
 
+        string cleanModelName = Sanitize_FileName(modelName);
+
 		for (uint32 i = 0; i < _animHeaders.size(); ++i)
 		{
 			string animClipName = Sanitize_FileName(string(_animHeaders[i].name));
-			string fullFileName = modelName + "_" + animClipName;
+			string fullFileName;
+
+			string charBaseName = cleanModelName;
+			if (charBaseName.length() >= 4 && charBaseName.substr(charBaseName.length() - 4) == "Body")
+			{
+				charBaseName = charBaseName.substr(0, charBaseName.length() - 4);
+			}
+
+            if (animClipName.find(cleanModelName) == 0)
+            {
+                animClipName.erase(0, cleanModelName.length());
+                if (!animClipName.empty() && animClipName[0] == '_')
+                    animClipName.erase(0, 1);
+            }
+            if (animClipName.empty()) animClipName = "DefaultAnimName";
+
+			if (animClipName == "DefaultAnimName")
+			{
+				fullFileName = cleanModelName;
+			}
+			else if (animClipName.find(charBaseName) == 0 || animClipName.find(cleanModelName) == 0)
+			{
+				fullFileName = animClipName;
+			}
+			else
+			{
+				fullFileName = cleanModelName + "_" + animClipName;
+			}
 
 			wstring animPath = animDir + ToWString(fullFileName) + L".anim";
 			ofstream out(animPath, ios::binary);
@@ -965,7 +1012,7 @@ namespace ModelEditor
 				continue;
 			}
 
-			WriteString(out, _animHeaders[i].name);
+			WriteString(out, fullFileName);
 			out.write(BYTE(&_animHeaders[i].duration), sizeof(double) * 2);
 			out.write(BYTE(&_animHeaders[i].numChannels), sizeof(uint32));
 			out.write(BYTE(&_animHeaders[i].rootTotalTranslation), sizeof(Vec3));

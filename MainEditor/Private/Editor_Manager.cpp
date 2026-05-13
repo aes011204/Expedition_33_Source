@@ -18,6 +18,7 @@
 #include <shellapi.h>
 #include "Prefab_View.h"
 #include "Animation_View.h"
+#include "AnimState_View.h"
 
 namespace fs = std::filesystem;
 
@@ -43,6 +44,7 @@ HRESULT Editor_Manager::Initialize()
     Add_Window(Level_Tool::Create());
 
     Add_Window(Material_View::Create());
+    Add_Window(AnimState_View::Create());
 
     return S_OK;
 }
@@ -71,10 +73,10 @@ void Editor_Manager::Render()
 {
     Render_DockSpace();
 
-    for (auto& Pair : _windows)
+    for (auto& [name, window] : _windows)
     {
-        if (nullptr != Pair.second)
-            Pair.second->Render();
+        if (window && window->Is_Open())
+            window->Render();
     }
 }
 
@@ -272,10 +274,10 @@ void Editor_Manager::Handle_Shortcuts()
         }
     }
 
-    // Ctrl + Space : Console, Context Browser 내리기
+    // Ctrl + Space : Scene/Game/Profile 집중 모드
     if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Space, false))
     {
-        Toggle_WindowPair(L"Console", L"Content Browser");
+        Toggle_FocusMode();
         return;
     }
 
@@ -293,7 +295,13 @@ void Editor_Manager::Handle_Shortcuts()
     // F8 : 자유 카메라 전환
     if (ImGui::IsKeyPressed(ImGuiKey_F8, false))
     {
+        //if (GAME->Is_ActiveCameraType(ObjectType::FreeCamera))
+        //    EDITOR->Activate_TargetCamera();
+        //else
+        //    EDITOR->Activate_FreeCamera();
+
         GAME->SwitchTo_NextCamera();
+
         return;
     }
 
@@ -373,7 +381,7 @@ void Editor_Manager::Render_ShortcutHelp()
             DrawShortcutRow("Shift +", "배속 증가");
             DrawShortcutRow("Shift -", "배속 감소");
             DrawShortcutRow("Alt + Enter", "Fullscreen Toggle");
-            DrawShortcutRow("Ctrl + Space", "Console + Content Browser");
+            DrawShortcutRow("Ctrl + Space", "Focus Scene/Game/Profile");
 
             DrawShortcutRow("오브젝트 더블클릭", "오브젝트한테 이동");
             DrawShortcutRow("오브젝트 복사", "오브젝트 선택 후 Ctrl C + V");
@@ -411,6 +419,43 @@ void Editor_Manager::Toggle_WindowPair(const wstring& firstWindowName, const wst
 
     firstWindow->Set_Open(shouldOpen);
     secondWindow->Set_Open(shouldOpen);
+}
+
+void Editor_Manager::Toggle_FocusMode()
+{
+    if (_isFocusMode)
+    {
+        for (auto& [name, window] : _windows)
+        {
+            if (nullptr == window)
+                continue;
+
+            const auto iter = _focusModeWindowStates.find(name);
+            if (iter != _focusModeWindowStates.end())
+                window->Set_Open(iter->second);
+        }
+
+        _focusModeWindowStates.clear();
+        _isFocusMode = false;
+        return;
+    }
+
+    _focusModeWindowStates.clear();
+
+    for (auto& [name, window] : _windows)
+    {
+        if (nullptr == window)
+            continue;
+
+        _focusModeWindowStates[name] = window->Is_Open();
+
+        if (name == L"Scene" || name == L"Game" || name == L"Profile")
+            continue;
+
+        window->Set_Open(false);
+    }
+
+    _isFocusMode = true;
 }
 
 void Editor_Manager::Render_ExitButton(float toolbarHeight)

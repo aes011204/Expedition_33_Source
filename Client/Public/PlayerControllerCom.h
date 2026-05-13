@@ -17,6 +17,13 @@ class PlayerControllerCom : public Component
     GENERATED_COMPONENT(PlayerControllerCom)
 
 public:
+    struct RigidControl
+    {
+        bool rigidMovement{ false };
+        bool rigidJump{ false };
+    };
+
+public:
     PlayerControllerCom(const ComPtr<Device>& device, const ComPtr<Context>& context);
     PlayerControllerCom(const PlayerControllerCom& Prototype);
     virtual ~PlayerControllerCom() override = default;
@@ -27,10 +34,14 @@ public:
     void    BeginPlay() override;
 
     void    Update_Controller(float timeDelta);
+    void    Update_InputState();
+    void    Update_Movement(float timeDelta);
 
 public:
     bool    Has_MoveInput() const;
     bool    Is_WalkToggled() const;
+    bool    Is_Grounded() const;
+
     const MovementCom::MovementInput& Get_MovementInput() const;
     bool    Get_UseControlYaw() const { return _bUseControllerRotationYaw; }
     void    Set_UseControlYaw(bool check) { _bUseControllerRotationYaw = check; }
@@ -38,6 +49,13 @@ public:
     // 입력을 받을 수 있는지. 조작중인 메인 플레이어만 입력 들어오게
     void    Set_ControlEnabled(bool enabled) { _controlEnabled = enabled; }
     bool    Is_ControlEnabled() const { return _controlEnabled; }
+
+public:
+    const RigidControl& Get_RigidControl() const { return _rigidControl; }
+    void Set_RigidControl(const RigidControl& rigidControl) { _rigidControl = rigidControl; }
+
+private:
+    void Check_RigidInput();
 
 private:
     // Owner가 어차피 weak라 순환참조 걱정없어서 Shared 사용
@@ -47,13 +65,16 @@ private:
 private:
     // 카메라 회전값에 따라서 플레이에 Yaw를 회전시킬 것인지?
     // 일단 33원정대 스타일에서는 필요없을거같음.
-    bool                 _isWalkToggled{ false };
+    
+
     bool                 _bUseControllerRotationYaw = true;
-    float                _testRelfectionValue = 1.f;
+    float                _testRefectionValue = 1.f;
 
     bool                 _controlEnabled = true;
 
-    MovementCom::MovementInput _currentInput{};
+    MovementCom::MovementInput  _currentInput{};
+    RigidControl                _rigidControl{};
+    bool                        _isWalkToggled;
 
 public:
     static Shared<PlayerControllerCom> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

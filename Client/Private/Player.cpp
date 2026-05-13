@@ -15,52 +15,39 @@
 #include "Player_Idle.h"
 #include "Player_Jump.h"
 #include "Player_Move.h"
-
-IMPLEMENT_REFLECTION(Player)
-{
-    auto& info = GetStaticReflectionInfo();
-    info.properties.clear();
-
-    info.displayName = "Player";
-    info.category = "Character";
-
-    PROPERTY_ENUM("PlayerState",_currentState, PlayerState);
-
-    return true;
-}
+#include "Create_Class.h"
 
 Player::Player(const ComPtr<Device>& device, const ComPtr<Context>& context)
-	: Character { device, context }
+    : Character{ device, context }
 {
 }
 
 Player::Player(const Player& prototype)
-	: Character{ prototype }
+    : Character{ prototype }
 {
-
 }
 
 HRESULT Player::Initialize_Prototype()
 {
-	return S_OK;
+    return S_OK;
 }
 
 HRESULT Player::Initialize(void* arg)
 {
-	Character::ContainerObjectDesc desc{};
-	desc.speedPerSec = 20.f;
-	desc.degreePerSec = 180.f;
+    Character::ContainerObjectDesc desc{};
+    desc.speedPerSec = 20.f;
+    desc.degreePerSec = 180.f;
 
-	if (FAILED(__super::Initialize(&desc)))
-		return E_FAIL;
+    if (FAILED(__super::Initialize(&desc)))
+        return E_FAIL;
 
-	if (FAILED(Ready_Components()))
-		return E_FAIL;
+    if (FAILED(Ready_Components()))
+        return E_FAIL;
 
-	if (FAILED(Ready_PartObjects()))
-		return E_FAIL;
+    if (FAILED(Ready_PartObjects()))
+        return E_FAIL;
 
-	return S_OK;
+    return S_OK;
 }
 
 void Player::BeginPlay()
@@ -72,33 +59,53 @@ void Player::BeginPlay()
 
 void Player::Priority_Update(float timeDelta)
 {
-	__super::Priority_Update(timeDelta);
+    __super::Priority_Update(timeDelta);
+
+       // 업데이트 순서 조정
+    _playerControllerCom->Update_InputState();
+    _PlayerStateMachineCom->Update_CurrentState(timeDelta);
+    _playerControllerCom->Update_Movement(timeDelta);
+    _PlayerStateMachineCom->LateUpdate_CurrentState(timeDelta);
+
+    _currentState = _PlayerStateMachineCom->Get_CurrentPlayerState();
 }
 
 void Player::Update(float timeDelta)
 {
-	__super::Update(timeDelta);
+    __super::Update(timeDelta);
 
-    _playerControllerCom->Update_Controller(timeDelta);
-    _PlayerStateMachineCom->Update_StateMachine(timeDelta);
-    _currentState = _PlayerStateMachineCom->Get_CurrentPlayerState();
+ 
 }
 
 void Player::Late_Update(float timeDelta)
 {
-	__super::Late_Update(timeDelta);
+    __super::Late_Update(timeDelta);
 
     if (_colliderCom)
     {
         _colliderCom->Update_Collider(_transformCom->Get_WorldMatrix());
         GAME->Add_Collider(_colliderCom);
     }
+
+    //culling
+    _cullingAABB.Center = _transformCom->Get_Position();
+
+    // Adjustments may be necessary to suit the player
+    _cullingAABB.Extents = Vec3(1.f, 2.f, 1.f);
+    Set_Visible(GAME->IsVisible(_cullingAABB));
 }
 
 HRESULT Player::Render()
 {
+    return S_OK;
+}
 
-	return S_OK;
+void Player::Update_StatusPreview(float timeDelta)
+{
+    Try_BeginPlay();
+
+    ContainerObject::Update(timeDelta);
+    ContainerObject::Late_Update(timeDelta);
 }
 
 HRESULT Player::Ready_Components()
@@ -109,23 +116,21 @@ HRESULT Player::Ready_Components()
     moveDesc.walkSpeed = 9.f;
     moveDesc.runSpeed = 10.f;
     moveDesc.turnSpeedDegree = 360.f;
-    moveDesc.jumpVelocity = 8.f;
+    moveDesc.jumpVelocity = 20.f;
     moveDesc.gravity = -20.f;
+    moveDesc.skinWidth = 0.03f;
+    moveDesc.groundSnapUp = 0.35f;
+    moveDesc.groundSnapDown = 0.65f;
+    moveDesc.walkableNormalY = 0.65f;
     moveDesc.groundY = 0.f;
 
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_Movement"), _movementCom, &moveDesc), E_FAIL);
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_PlayerController"), _playerControllerCom), E_FAIL);
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_PlayerStateMachine"), _PlayerStateMachineCom), E_FAIL);
-    if (auto stateMachine = Get_Component<PlayerStateMachineCom>())
-    {
-        stateMachine->Add_State(PlayerState::Idle, Player_Idle::Create(GetSharedPtr<Player>()));
-        stateMachine->Add_State(PlayerState::Move, Player_Move::Create(GetSharedPtr<Player>()));
-        stateMachine->Add_State(PlayerState::Jump, Player_Jump::Create(GetSharedPtr<Player>()));
-    }
+    
     CHECK_FAILED(Ready_Collider(), E_FAIL);
 
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_CombatStat"), _combatStatCom), E_FAIL);
-
 
     return S_OK;
 }
@@ -135,14 +140,16 @@ HRESULT Player::Ready_PartObjects()
     Body_Player::BODY_PLAYER_DESC playableDesc{};
     playableDesc.parentMatrix = &_transformCom->Get_WorldMatrix();
     playableDesc.modelType = ModelType::Anim;
-    playableDesc.modelTag = L"Model_LuneBody";
+    playableDesc.modelTag = Get_BodyModelTag();;
 
     //> MainBody Setting
-    if (FAILED(__super::Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Body_Player"),
-        TEXT("Part_Body"), &playableDesc)))
+    if (FAILED(
+        __super::Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Body_Player"),
+            TEXT("Part_Body"), &playableDesc)
+    ))
         return E_FAIL;
 
-    Body_Player* mainBody = dynamic_cast<Body_Player*>(_partObjects[TEXT("Part_Body")].get());
+    const Body_Player* mainBody = dynamic_cast<Body_Player*>(_partObjects[TEXT("Part_Body")].get());
     if (nullptr == mainBody)
         return E_FAIL;
 
@@ -151,40 +158,44 @@ HRESULT Player::Ready_PartObjects()
     Head_Player::HEAD_PLAYER_DESC headPartDesc{};
     headPartDesc.parentMatrix = playableDesc.parentMatrix;
     headPartDesc.modelType = ModelType::Anim;
-    headPartDesc.modelTag = L"Model_LuneHead";
+    headPartDesc.modelTag = Get_HeadModelTag();
     //headPartDesc.socketMatrixPointer = mainBody->Get_SocketBoneMatrixPtr("Metahuman_Head");
     headPartDesc.socketMatrixPointer = nullptr;
 
-    if (FAILED(__super::Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Head_Player"),
-        TEXT("Part_Head"), &headPartDesc)))
+    if (FAILED(
+        __super::Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Head_Player"),
+            TEXT("Part_Head"), &headPartDesc)
+    ))
         return E_FAIL;
 
-    Head_Player* head = dynamic_cast<Head_Player*>(_partObjects[TEXT("Part_Head")].get());
+    const Head_Player* head = dynamic_cast<Head_Player*>(_partObjects[TEXT("Part_Head")].get());
     if (nullptr == head)
         return E_FAIL;
 
+    // 머리붙이기
     head->Set_LeaderPoseComponent(mainBody);
 
     //>> Hair Part
     Hair_Player::HAIR_PLAYER_DESC hairPartDesc{};
     hairPartDesc.parentMatrix = playableDesc.parentMatrix;
     hairPartDesc.modelType = ModelType::Anim;
-    hairPartDesc.modelTag = L"Model_LuneHair";
+    hairPartDesc.modelTag = Get_HairModelTag();
     hairPartDesc.socketMatrixPointer = head->Get_SocketBoneMatrixPtr("head");
 
-    if (FAILED(__super::Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Hair_Player"),
-        TEXT("Part_Hair"), &hairPartDesc)))
+    if (FAILED(
+        __super::Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Hair_Player"),
+            TEXT("Part_Hair"), &hairPartDesc)
+    ))
         return E_FAIL;
 
-
-	return S_OK;
+    return S_OK;
 }
 
 HRESULT Player::Ready_Collider()
 {
     Bounding_OBB::BoundingOBBDesc obbDesc{};
-    obbDesc.center = Vec3(0.f, 0.5f, 0.f);
-    obbDesc.extents = Vec3(0.5f, 0.6f, 0.5f);
+    obbDesc.center = Vec3(0.f, 0.75f, 0.f);
+    obbDesc.extents = Vec3(0.35f, 0.75f, 0.35f);
 
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), L"Com_Collider_OBB", _colliderCom, &obbDesc), E_FAIL);
     _colliderCom->Set_CollisionPreset(Collision_Preset::Player_Body);
@@ -195,34 +206,29 @@ HRESULT Player::Ready_Collider()
 
 Shared<Player> Player::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
-	auto instance = make_shared<Player>(device, context);
+    auto instance = make_shared<Player>(device, context);
 
-	if (FAILED(instance->Initialize_Prototype()))
-	{
-		MSG_BOX("Failed to Created : Player");
-		return nullptr;
-	}
-	return instance;
+    if (FAILED(instance->Initialize_Prototype()))
+    {
+        MSG_BOX("Failed to Created : Player");
+        return nullptr;
+    }
+    return instance;
 }
-
 
 Shared<GameObject> Player::Clone(void* arg)
 {
-	auto instance = make_shared<Player>(*this);
+    auto instance = make_shared<Player>(*this);
 
-	if (FAILED(instance->Initialize(arg)))
-	{
-		MSG_BOX("Failed to Cloned : Player");
-		return nullptr;
-	}
-	return instance;
+    if (FAILED(instance->Initialize(arg)))
+    {
+        MSG_BOX("Failed to Cloned : Player");
+        return nullptr;
+    }
+    return instance;
 }
 
 void Player::Free()
 {
-	__super::Free();
-
+    __super::Free();
 }
-
-
-

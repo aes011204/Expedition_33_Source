@@ -6,8 +6,6 @@
 
 NS_BEGIN(Engine)
 class RenderTarget;
-class ShaderCom;
-class VIBuffer_Rect;
 NS_END
 
 NS_BEGIN(MapEditor)
@@ -19,6 +17,7 @@ class PanelViewport;
 class MEModelManager;
 class MEPickingSystem;
 class MEDebugRenderer;
+class MEBridgeCamera;
 
 class MapEditorApp final : public Base
 {
@@ -40,12 +39,9 @@ private:
     Unique<MEManager> _manager;
 
     Shared<MECamera> _camera;
+    Shared<MEBridgeCamera> _bridgeCamera;
     Shared<RenderTarget> _rt;
     Shared<PanelViewport> _viewport;
-
-    Shared<ShaderCom> _meshShader;
-    Shared<ShaderCom> _deferredShader;
-    Shared<VIBuffer_Rect> _rectBuffer;
 
     Unique<MEModelManager> _modelManager;
 
@@ -63,8 +59,6 @@ private:
     void UpdateRenderHandles();
     void DoSpawnAt(const string& modelPath);
     void RebuildOctreeIfDirty();
-    void RenderStaticMeshes();
-    void RenderInstancedMeshes();
 
 public:
     static Unique<MapEditorApp> Create();

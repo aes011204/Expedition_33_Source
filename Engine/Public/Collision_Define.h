@@ -67,7 +67,6 @@ inline CollisionResponse Get_Collision_Response(uint32 selfOverlapMask, uint32 s
     return CollisionResponse::Ignore;
 }
 
-
 // 둘 중 하나라도 Ignore -> Ignore
 // Ignore가 아니고 둘 중 하나라도 Overlap이면 Overlap,
 // 둘 다 Block이면 최종적으로 Block 판정이 되도록

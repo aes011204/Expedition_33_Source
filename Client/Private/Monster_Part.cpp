@@ -47,6 +47,12 @@ void Monster_Part::Update(float timeDelta)
 
 void Monster_Part::Late_Update(float timeDelta)
 {
+    // culling
+    if (!Get_Owner() || !Get_Owner()->Is_Visible())
+    {
+        return;
+    }
+
     GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
     GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
 }
@@ -70,9 +76,10 @@ HRESULT Monster_Part::Render()
         if (FAILED(_shader->Bind_CBufferData(material->Get_CB())))
             return E_FAIL;
 
-        _model->Bind_BoneMatrices(_shader.get(), "g_BoneMatrices", i);
+        if (_model->Get_NumAnimations() != 0)
+            CHECK_FAILED(_model->Bind_BoneMatrices(_shader.get(), "g_BoneMatrices", i), E_FAIL);
 
-        const uint32 passIndex = material->Get_PassIndex();
+        const uint32 passIndex = Decide_PassIndex(material);
         if (FAILED(_shader->Begin(passIndex)))
             return E_FAIL;
 
@@ -84,13 +91,10 @@ HRESULT Monster_Part::Render()
 
 HRESULT Monster_Part::Render_Shadow()
 {
-    if (FAILED(_shader->Bind_Matrix("g_WorldMatrix", &_combinedWorldMatrix)))
+    if (FAILED(_shader->Bind_ObjectCB(_combinedWorldMatrix)))
         return E_FAIL;
 
-    if (FAILED(GAME->Bind_ShadowMatrices(_shader, "g_ViewMatrix", "g_ProjMatrix")))
-        return E_FAIL;
-
-    if (FAILED(GAME->Bind_ShadowLightDesc(_shader, "g_fLightFar")))
+    if (FAILED(GAME->Bind_ShadowCB(_shader)))
         return E_FAIL;
 
     const uint32 numMeshes = static_cast<uint32>(_model->Get_NumMeshes());
@@ -100,8 +104,11 @@ HRESULT Monster_Part::Render_Shadow()
         if (_model->Is_Skeletal())
             _model->Bind_BoneMatrices(_shader.get(), "g_BoneMatrices", i);
 
-        if (FAILED(_shader->Begin(1)))
-            return E_FAIL;
+        //const uint32 shadowPass =
+        //    _model->Is_Skeletal() ? static_cast<uint32>(VtxAnimMeshPass::Shadow) : 1u;
+        //
+        //if (FAILED(_shader->Begin(shadowPass)))
+        //    return E_FAIL;
 
         _model->Render(i);
     }
@@ -161,19 +168,18 @@ HRESULT Monster_Part::Ready_Components(const MONSTER_PART_DESC& desc)
 
 HRESULT Monster_Part::Bind_ShaderResources()
 {
-    if (FAILED(_shader->Bind_Matrix("g_WorldMatrix", &_combinedWorldMatrix)))
+    if (FAILED(_shader->Bind_ObjectCB(_combinedWorldMatrix)))
         return E_FAIL;
 
-    if (FAILED(GAME->Bind_TransformMatrix(D3DTS::View, _shader.get(), "g_ViewMatrix")))
-        return E_FAIL;
-
-    if (FAILED(GAME->Bind_TransformMatrix(D3DTS::Proj, _shader.get(), "g_ProjMatrix")))
-        return E_FAIL;
-
-    if (FAILED(GAME->Bind_CameraFar(_shader, "g_fFar")))
+    if (FAILED(GAME->Bind_CameraCB(_shader)))
         return E_FAIL;
 
     return S_OK;
+}
+
+uint32 Monster_Part::Decide_PassIndex(Shared<Material> mat)
+{
+    return mat->Get_PassIndex();
 }
 
 void Monster_Part::Free()

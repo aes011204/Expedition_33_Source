@@ -64,6 +64,9 @@ public:
     HRESULT Initialize_Prototype() override;
     HRESULT Initialize(void* arg) override;
 
+    json To_Json() const override;
+    void From_Json(const json& data) override;
+
 public:
     const CombatStatDesc& Get_StatInfo() const { return _statDesc; }
 

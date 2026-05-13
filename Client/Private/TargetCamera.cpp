@@ -87,10 +87,10 @@ void TargetCamera::Priority_Update(float timeDelta)
         Change_State(CAMERA_STATE::NORMAL);
     }
 
-    if(GAME->KeyDown(KEY_TYPE::CTRL))
+    /*if(GAME->KeyDown(KEY_TYPE::CTRL))
     {
         Change_State(CAMERA_STATE::BATTLE_ENTER);
-    }
+    }*/
 
 }
 

@@ -42,13 +42,15 @@ public:
 public:
     enum class PlayerAnimation
     {
-        Pl_Jump = 0,
-        Pl_Idle_0,
-        Pl_SprintStart,
-        Pl_SprintCycle,
-        Pl_Run,
+        Pl_Idle = 0,
         Pl_Walk,
-        Pl_Idle_1,
+        Pl_Run,
+        Pl_Sprint,
+        Pl_JumpWalk,
+        Pl_JumpRun,
+        Pl_Fall,
+        Pl_Land,
+        Pl_Explo
     };
 };
 

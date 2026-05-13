@@ -43,29 +43,25 @@ void FreeCamera::Priority_Update(float timeDelta)
 {
     __super::Priority_Update(timeDelta);
 
-    if(!GAME->Is_ActiveCamera(GetSharedPtr<Camera>()))
+    if (!GAME->Is_ActiveCamera(GetSharedPtr<Camera>()))
         return;
 
-    bool canControl = GAME->Is_FreeCameraInputEnabled() && GAME->KeyPress(KEY_TYPE::RBUTTON);
+    const bool canControl = GAME->Is_FreeCameraInputEnabled() && GAME->KeyPress(KEY_TYPE::RBUTTON);
 
-    float wheelDelta = GAME->Get_MouseWheel();
+    const float wheelDelta = GAME->Get_MouseWheel();
 
-    if(canControl)
+    if (canControl)
     {
-        if(GAME->KeyPress(KEY_TYPE::CTRL) && wheelDelta != 0.f)
+        if (GAME->KeyPress(KEY_TYPE::CTRL) && wheelDelta != 0.f)
         {
             _moveSpeed = static_cast<int>(_transformCom->Get_SpeedPerSec());
 
-            int step = 2;
+            const int step = 2;
 
-            if(wheelDelta > 0.f)
-            {
+            if (wheelDelta > 0.f)
                 _moveSpeed += step;
-            }
             else
-            {
                 _moveSpeed -= step;
-            }
 
             _moveSpeed = clamp(_moveSpeed, 0, 100);
 
@@ -97,8 +93,8 @@ void FreeCamera::Priority_Update(float timeDelta)
         _yaw += mouseDelta.x * _mouseSensor;
         _pitch += mouseDelta.y * _mouseSensor;
 
-        if (0.f != mouseDelta.x || 0.f != mouseDelta.y )
-                 _transformCom->Set_RotationEuler(Vec3(_pitch, _yaw, 0.f));
+        if (0.f != mouseDelta.x || 0.f != mouseDelta.y)
+            _transformCom->Set_RotationEuler(Vec3(_pitch, _yaw, 0.f));
     }
     __super::Update_TransformMatrices();
     GAME->UpdateFrustum(*GAME->Get_Transform(D3DTS::View), *GAME->Get_Transform(D3DTS::Proj));

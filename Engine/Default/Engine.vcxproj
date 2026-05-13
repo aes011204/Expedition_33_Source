@@ -223,14 +223,17 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClInclude Include="..\Public\Engine_Model_Struct.h" />
     <ClInclude Include="..\Public\Event_Struct.h" />
     <ClInclude Include="..\Public\Helper_Math.h" />
+    <ClInclude Include="..\Public\Helper_LogRateLimit.h" />
     <ClInclude Include="..\Public\ICommand.h" />
     <ClInclude Include="..\Public\Log_Manager.h" />
     <ClInclude Include="..\Public\Helper_String.h" />
+    <ClInclude Include="..\Public\Log_Define.h" />
     <ClInclude Include="..\Public\Material_Define.h" />
     <ClInclude Include="..\Public\Material_Types.h" />
     <ClInclude Include="..\Public\MovementCom.h" />
     <ClInclude Include="..\public\Parallel.h" />
     <ClInclude Include="..\Public\PhysX_Filter.h" />
+    <ClInclude Include="..\Public\PhysX_Handle.h" />
     <ClInclude Include="..\Public\PhysX_Types.h" />
     <ClInclude Include="..\Public\Picking.h" />
     <ClInclude Include="..\Public\Print_Manager.h" />
@@ -242,6 +245,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClInclude Include="..\Public\Reflection_Types.h" />
     <ClInclude Include="..\Public\RenderTarget.h" />
     <ClInclude Include="..\Public\ShaderPassFinder.h" />
+    <ClInclude Include="..\Public\Shader_CBuffer_Define.h" />
     <ClInclude Include="..\Public\Shadow.h" />
     <ClInclude Include="..\Public\Target_Manager.h" />
     <ClInclude Include="..\Public\RegistorFactory.h" />
@@ -292,6 +296,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClInclude Include="..\public\Light.h" />
     <ClInclude Include="..\public\Light_Manager.h" />
     <ClInclude Include="..\public\Material.h" />
+    <ClInclude Include="..\public\MaterialBuilder.h" />
     <ClInclude Include="..\public\Mesh.h" />
     <ClInclude Include="..\public\ModelCom.h" />
     <ClInclude Include="..\public\Object_Manager.h" />
@@ -397,6 +402,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClCompile Include="..\private\Light.cpp" />
     <ClCompile Include="..\private\Light_Manager.cpp" />
     <ClCompile Include="..\private\Material.cpp" />
+    <ClCompile Include="..\private\MaterialBuilder.cpp" />
     <ClCompile Include="..\private\Mesh.cpp" />
     <ClCompile Include="..\private\ModelCom.cpp" />
     <ClCompile Include="..\private\Object_Manager.cpp" />

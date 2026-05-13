@@ -5,6 +5,7 @@
 NS_BEGIN(Engine)
 
 class TransformCom;
+class ColliderCom;
 
 class ENGINE_DLL MovementCom : public Component
 {
@@ -36,11 +37,15 @@ public:
         float sprintSpeed = 10.f;
         float turnSpeedDegree = 180.f;
 
-        float jumpVelocity = 8.f;
+        float jumpVelocity = 40.f;
 
         float gravity = -20.f;
 
-        // 아직 groundY 추적이 안되니까 임시로 0으로 세팅
+        float skinWidth = 0.03f;
+        float groundSnapUp = 0.35f;
+        float groundSnapDown = 0.55f;
+        float walkableNormalY = 0.65f;
+
         float groundY = 0.f;
     };
 
@@ -99,6 +104,14 @@ private:
     bool Resolve_CameraRelativeMoveDirection(Vec3& outWorldDir) const;
 
 private:
+    void Move_WithCollision(const Vec3& displacement);
+    void Move_Horizontal(const Vec3& displacement);
+    void Move_Vertical(const Vec3& displacement);
+    bool Sweep_Move(const Vec3& displacement, bool passWalkableGround);
+    void Resolve_Ground_WithSnap();
+    bool Is_WalkableGround(const Vec3& normal) const;
+
+private:
     MoveDesc         _moveDesc{};
     MovementInput    _input{};
 
@@ -108,6 +121,8 @@ private:
 
     bool _isGrounded = true;
     bool _isJumping = false;
+
+    Shared<ColliderCom> _colliderCom;
 
 public:
     static Shared<MovementCom> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

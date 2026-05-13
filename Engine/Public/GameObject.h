@@ -40,8 +40,11 @@ public:
         return emptyInfo;
     }
 
-    virtual json To_Json() const;
-    virtual void From_Json(const json& data);
+    virtual json    To_Json() const;
+    virtual void    From_Json(const json& data);
+
+    void            Set_SourcePrefabName(const string& prefabName) { _sourcePrefabName = prefabName; }
+    const string&   Get_SourcePrefabName() const { return _sourcePrefabName; }
 
 public:
     virtual void    OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other) {}
@@ -56,6 +59,9 @@ public:
     void Set_Owner(Shared<GameObject> owner) { _owner = owner; }
 
     virtual ObjectType Get_ObjectType() const { return ObjectType::None; }
+
+    bool Is_Visible() const { return _isVisible; }
+    void Set_Visible(bool visible) { _isVisible = visible; }
 
 public:
     // 일반적으로 컴포넌트 가져올 때 = Get_Component<ShaderCom>(); 이런느낌
@@ -142,12 +148,15 @@ protected:
 
     ObjectType              _objectType = ObjectType::None;
 
+    string  _sourcePrefabName = {};
+
 protected:
     map<const wstring, Shared<Component>> _components;
 
 protected:
     Weak<GameObject> _owner;
     bool _hasBegunPlay = false;
+    bool _isVisible = true;
 
 public:
     virtual Shared<GameObject> Clone(void* arg) = 0;

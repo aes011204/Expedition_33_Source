@@ -1,5 +1,7 @@
 ﻿#pragma once
 
+#pragma region INCLUDE
+
 #include "Base.h"
 #include "Input_Manager.h"
 #include "Prototype_Manager.h"
@@ -7,12 +9,16 @@
 #include "Debug_Types.h"
 #include <string_view>
 #include <utility>
+
+#include "Log_Define.h"
 #ifdef _DEBUG
 #include "Print_Manager.h"
 #endif
 
-NS_BEGIN(Engine)
+#pragma endregion
 
+#pragma region FD
+NS_BEGIN(Engine)
 class Graphic_Device;
 class Timer_Manager;
 class Level_Manager;
@@ -41,6 +47,15 @@ class Shadow;
 class Picking;
 class Culling_Manager;
 class ThreadPool;
+NS_END
+#pragma endregion
+
+NS_BEGIN(Engine)
+
+enum class Collision_Preset;
+
+struct PhysXStaticActorHandle;
+struct PhysXQueryHit;
 
 class ENGINE_DLL GameInstance final : public Base
 {
@@ -147,7 +162,9 @@ public: /* For.Object_Manager */
         uint32 layerLevelIndex,
         const wstring& layerTag,
         const Shared<GameObject>& gameObject);
+
     bool    Remove_GameObject(uint32 levelIndex, const Shared<GameObject>& gameObject);
+    HRESULT Clear_LevelObjects(uint32 levelIndex);
 
     // Layer_Player의 첫번째 오브젝트 찾기
     Shared<GameObject> Find_FirstObject(uint32 levelIndex, const wstring& layerTag);
@@ -160,6 +177,8 @@ public: /* For.Object_Manager */
         const function<void(const wstring& layerTag, const Shared<GameObject>& gameObject)>& visitor) const;
 
     uint64 Get_CurrentLevelObjectRevision() const;
+
+    
 
 public: /* For.Renderer */
     void Add_RenderGroup(RenderGroup renderGroup, Shared<GameObject> gameObject);
@@ -175,6 +194,8 @@ public: /* For.PipeLine */
     const Vec4*   Get_CamPosition() const;
 
     void Set_Transform(D3DTS transformState, FXMMATRIX& transformStateMatrix);
+
+    HRESULT Bind_CameraCB(Shared<ShaderCom> shader) const;
 
 public: /* For.Input_Manager */
 	bool KeyPress(KEY_TYPE eKey) const;
@@ -236,6 +257,10 @@ public: /* For.Asset_Manager */
 
     // 에디터/로더가 "GUID 없으면 생성" 흐름을 쓸 수 있게 하기 -> 프리펩이나 그런거 새로 만들 때
     string Ensure_AssetGUID(const wstring& filePath, const string& type = "") const;
+
+public: /* For.Asset_Manager (access) */
+    const Asset_Manager* Get_AssetManager() const { return _assetManager.get(); }
+    Asset_Manager*       Get_AssetManager() { return _assetManager.get(); }
 
 public: /* For.Camera_Manager */
     HRESULT Add_Camera(Shared<Camera> camera) const;
@@ -302,10 +327,12 @@ public : /* For.Target_Manager */
 public: /* For.Shadow */
     HRESULT                 Bind_ShadowMatrices(Shared<ShaderCom> shader, const char* viewName, const char* projName);
     HRESULT                 Bind_ShadowLightDesc(Shared<ShaderCom> shader, const char* lightFarName, const char* biasName = nullptr, const char* intensityName = nullptr);
+    HRESULT                 Bind_ShadowCB(Shared<ShaderCom> shader);
 
     HRESULT                 Update_ShadowLight(const ShadowLightDesc& desc);
     const ShadowLightDesc*  Get_ShadowLightDesc() const;
     const Matrix*           Get_ShadowTransformMatrix(D3DTS eType) const;
+
 
 
 public: /* For.Collision_Manager */
@@ -315,6 +342,26 @@ public: /* For.Collision_Manager */
 public: // For. PhysX_Manager
     PxPhysics*  Get_PhysXPhysics() const;
     PxScene*    Get_PhysXScene() const;
+
+    PhysXStaticActorHandle Register_PhysXStaticModel(
+        const ModelCom& model,
+        const Matrix& worldMatrix,
+        Collision_Preset preset);
+
+    void Unregister_PhysXStaticActor(PhysXStaticActorHandle handle);
+
+    bool Sweep_Collider(
+        ColliderCom* collider,
+        const Matrix& worldMatrix,
+        const Vec3& direction,
+        float distance,
+        PhysXQueryHit& outHit) const;
+
+    bool Probe_Ground(
+        ColliderCom* collider,
+        const Matrix& worldMatrix,
+        float probeDistance,
+        PhysXQueryHit& outHit) const;
 
 public: // For. Culling_Manager 
     void UpdateFrustum(const Matrix& view, const Matrix& proj);
@@ -368,6 +415,7 @@ public: /* For.Json / Prefab Saved & Load */
     HRESULT                 Save_GameObjectJson(const fs::path& path, const Shared<GameObject>& gameObject);
     json                    Load_JsonFile(const fs::path& path) const;
     HRESULT                 Load_GameObjectJson(const fs::path& path, const Shared<GameObject>& gameObject) const;
+    Shared<GameObject>      Instantiate_GameObjectJson(const json& root);
     Shared<GameObject>      Instantiate_GameObjectJson(const fs::path& path);
     HRESULT                 Create_PrefabAsset(const fs::path& path, const string& staticClass, const string& prefabName);
 
@@ -432,6 +480,29 @@ private: //## 디버그 성능 평가용
     chrono::steady_clock::time_point _runtimePerfWindowStartTime{};
     bool _hasRuntimePerfWindowStartTime{ false };
 
+private:
+    UpdatePerfWindow _updatePerfWindow{};
+
+    void Accumulate_UpdatePerf(
+        double updateMs,
+        double debugMgrMs,
+        double inputMgrMs,
+        double printMgrMs,
+        double clientMs,
+        double levelMs,
+        double priorityObjMs,
+        double pipelineMs,
+        double objMs,
+        double physxBeginMs,
+        double collClearMs,
+        double lateObjMs,
+        double physxUpdateMs,
+        double physxGatherMs,
+        double collFromPhysxMs,
+        double cameraMs,
+        double uiMs);
+
+    bool Try_ConsumeUpdatePerfSummary(float windowSec, UpdatePerfSummary& outSummary);
     void Try_FlushRuntimePerfLog();
 #endif
 

@@ -1,6 +1,9 @@
 ﻿#pragma once
 
+#include <MaterialCB_OverrideFields.inl>
+
 #include "Material_Types.h"
+#include "Shader_CBuffer_Define.h"
 
 NS_BEGIN(Engine)
 
@@ -12,39 +15,6 @@ struct MaterialRenderState
     bool twoSided = false;                                      // 양면 렌더링
     bool alphaClip = false;
     float opacityMaskClipValue = 0.3333f;
-};
-
-struct alignas(16) MaterialCB
-{
-    static constexpr ConstantBuffer CBType = ConstantBuffer::Material;
-
-    Vec4 baseColorTint{ 1.f, 1.f, 1.f, 1.f };
-    Vec4 emissiveColor{ 1.f, 1.f, 1.f, 1.f };
-
-    // MI json의 Scalars.Value_Glow 계열
-    float emissiveIntensity{ 0.f };
-
-    // MI json의 Scalars.Glow_Mask_Mult 계열
-    float emissiveMaskMul{ 1.f };
-
-    // MI json의 Normal/Bump Multiplier 또는 NormalIntensity 계열
-    float normalStrength{ 1.f };
-
-    // 셰이더에서 clip 기준으로 사용
-    float opacityMaskClipValue{ 0.3333f };
-
-    // ORM 보정값
-    float aoScale{ 1.f };           // ORM.r = AO
-    float roughnessScale{ 1.f };    // ORM.g = Roughness
-    float metalnessScale{ 1.f };    // ORM.b = Metalness
-    float _pad0{ 0.f };
-
-    Vec2 uvScale{ 1.f, 1.f };
-    Vec2 uvOffset{ 0.f, 0.f };
-    float uvRotation{ 0.f };
-
-    uint32 materialMask{ 0 };
-    float _pad1[2]{};
 };
 
 // 저장/에셋/데이터 단계에서의 텍스처 슬롯 정보
@@ -98,6 +68,60 @@ struct MaterialDesc
 
     vector<MaterialTextureDesc> textures{};
 };
+
+// 모델 컴포넌트에서만 사용되는 구조체인데 헤더가 길어져서 여기로 뺌
+struct TextureOverride
+{
+    bool enabled = false;
+    wstring path{};
+};
+
+struct MaterialInstanceOverride
+{
+    bool overrideRenderStateEnabled = false;
+
+    MaterialRenderState renderState{};
+
+    struct MaterialCBOverrideMask
+    {
+#define MODEL_COM_CB_MASK_FIELD(_key, _member, _kind) bool _member = false;
+        MATERIAL_CB_OVERRIDE_FIELDS(MODEL_COM_CB_MASK_FIELD)
+#undef MODEL_COM_CB_MASK_FIELD
+
+            bool Any() const
+        {
+            bool any = false;
+#define MODEL_COM_CB_MASK_ANY(_key, _member, _kind) any = any || _member;
+            MATERIAL_CB_OVERRIDE_FIELDS(MODEL_COM_CB_MASK_ANY)
+#undef MODEL_COM_CB_MASK_ANY
+                return any;
+        }
+
+        void Clear()
+        {
+#define MODEL_COM_CB_MASK_CLEAR(_key, _member, _kind) _member = false;
+            MATERIAL_CB_OVERRIDE_FIELDS(MODEL_COM_CB_MASK_CLEAR)
+#undef MODEL_COM_CB_MASK_CLEAR
+        }
+    };
+
+    MaterialCBOverrideMask cbMask{};
+    MaterialCB cb{};
+
+    TextureOverride baseColor{};
+    TextureOverride normal{};
+    TextureOverride orm{};
+    TextureOverride emissive{};
+    TextureOverride opacityMask{};
+};
+
+// 추출한 모델 컴포넌트가 가진 메쉬 정보(인덱스)와 동일하게 materialIndex 별로 ModelCom::_materialBindings에 들어간다. 
+struct MaterialBinding
+{
+    string baseBundleKey{};                 // .material.json 이름
+    MaterialInstanceOverride instance{};    // 이 오브젝트만 덮어쓸 값
+};
+
 
 
 // ==========================================================================

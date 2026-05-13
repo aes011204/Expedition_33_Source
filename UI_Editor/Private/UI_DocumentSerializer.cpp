@@ -5,7 +5,7 @@ namespace UIEditor
 {
     namespace
     {
-        constexpr int32 kCurrentUIJsonVersion = 3;
+        constexpr int32 kCurrentUIJsonVersion = 4;
         constexpr const char* kDefaultCanvasName = "MainCanvas";
         constexpr const char* kDefaultFontPath = "../Bin/Resources/Fonts/33_MainKR_Font.spritefont";
 
@@ -91,6 +91,28 @@ namespace UIEditor
             }
 
             return false;
+        }
+
+        const char* Get_RenderGroupName(UI_RenderGroup renderGroup)
+        {
+            switch (renderGroup)
+            {
+            case UI_RenderGroup::Background:
+                return "Background";
+            case UI_RenderGroup::Foreground:
+            default:
+                return "Foreground";
+            }
+        }
+
+        UI_RenderGroup Parse_RenderGroup(const string& renderGroupName)
+        {
+            const string renderGroup = String::ToLowerCopy(renderGroupName);
+
+            if ("background" == renderGroup)
+                return UI_RenderGroup::Background;
+
+            return UI_RenderGroup::Foreground;
         }
 
         string Make_DefaultObjectName(UI_ObjectType objectType)
@@ -350,6 +372,7 @@ namespace UIEditor
             object.scale = ImVec2(1.f, 1.f);
             object.rotationRadians = 0.f;
             object.sortOrder = 0;
+            object.renderGroup = UI_RenderGroup::Foreground;
             object.color = ImVec4(1.f, 1.f, 1.f, 1.f);
 
             if (objectType == UI_ObjectType::Text)
@@ -477,7 +500,11 @@ namespace UIEditor
         item["scale"] = Vec2_ToJson(object.scale);
         item["rotation"] = object.rotationRadians;
         item["sortOrder"] = object.sortOrder;
+        if (object.renderGroup != UI_RenderGroup::Foreground)
+            item["renderLayer"] = Get_RenderGroupName(object.renderGroup);
         item["color"] = Color_ToJson(object.color);
+        item["visible"] = object.visible;
+        item["locked"] = object.locked;
 
         if (object.type == UI_ObjectType::Image)
         {
@@ -551,7 +578,10 @@ namespace UIEditor
         object.scale = Read_Vec2(item, "scale", ImVec2(1.f, 1.f));
         object.rotationRadians = Read_Float(item, "rotation", 0.f);
         object.sortOrder = Read_Int(item, "sortOrder", 0);
+        object.renderGroup = Parse_RenderGroup(Read_String(item, "renderLayer", "Foreground"));
         object.color = Read_Color(item, "color", ImVec4(1.f, 1.f, 1.f, 1.f));
+        object.visible = Read_Bool(item, "visible", true);
+        object.locked = Read_Bool(item, "locked", false);
 
         object.size.x = max(1.f, object.size.x);
         object.size.y = max(1.f, object.size.y);

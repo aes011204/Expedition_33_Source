@@ -130,6 +130,12 @@ void MainEditorApp::Late_Update(float timeDelta)
 
 HRESULT MainEditorApp::Render()
 {
+    auto fail = [&]() -> HRESULT
+    {
+        EDITOR->EndImGuiFrameIfBegun();
+        return E_FAIL;
+    };
+
     {
         Profile_View::Scope profileScope("Game::Render");
 
@@ -141,18 +147,29 @@ HRESULT MainEditorApp::Render()
             : Vec4(0.f, 0.f, 1.f, 1.f);
 
         if (FAILED(GAME->Clear_Buffers(clearColor)))
-            return E_FAIL;
+            return fail();
 
         if (FAILED(GAME->Draw()))
-            return E_FAIL;
+            return fail();
     }
 
     {
-        Profile_View::Scope profileScope("Editor::Render");
-
+        Profile_View::Scope profileScope("Editor::CaptureViewport");
         EDITOR->Capture_BackBuffer_ToViewport();
-        GAME->Bind_BackBuffer();
-        EDITOR->Render_Editor();
+    }
+
+    {
+        Profile_View::Scope profileScope("Editor::RenderUI");
+
+        {
+            Profile_View::Scope bindScope("Editor::BindBackBuffer");
+            GAME->Bind_BackBuffer();
+        }
+
+        {
+            Profile_View::Scope renderScope("Editor::Render_Editor");
+            EDITOR->Render_Editor();
+        }
 
         GAME->Bind_BackBuffer();
     }
@@ -160,7 +177,7 @@ HRESULT MainEditorApp::Render()
     {
         Profile_View::Scope profileScope("Engine::Present");
         if (FAILED(GAME->Present()))
-            return E_FAIL;
+            return fail();
     }
 
     return S_OK;

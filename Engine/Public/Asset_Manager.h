@@ -3,12 +3,14 @@
 
 NS_BEGIN(Engine)
 
+class MaterialBuilder;
+
 class ENGINE_DLL Asset_Manager final : public Base
 {
 private:
 	Asset_Manager();
 public:
-	virtual ~Asset_Manager() = default;
+	~Asset_Manager() override;
 
 public:
 	HRESULT Initialize(const wstring& resourceRoot);
@@ -22,6 +24,10 @@ public:
 	void    Scan_And_Register(const wstring& directory);
 	void    Refresh_Cache();
     uint32  Clear_OrphanMeta(const wstring& directory);
+
+public: /* MaterialBuilder */
+    const MaterialBuilder* Get_MaterialBuilder() const { return _materialBuilder.get(); }
+    MaterialBuilder*       Get_MaterialBuilder() { return _materialBuilder.get(); }
 
 private:
 	void Load_Registry();
@@ -37,6 +43,7 @@ private:
 
 	string  Detect_AssetType(const wstring& filePath) const;
 	bool    Should_RegisterAsset(const fs::path& path) const;
+	bool    Should_RegisterJsonAsset(const fs::path& path) const;
 
 	void    Rebuild_PathIndex();
     void    Deduplicate_Assets_ByPath(const string& preferGuid = "");
@@ -58,6 +65,8 @@ private:
 	umap<wstring, string>               _pathToGuid = {};
 
     vector<string> _ignoreFolders = { ".git", ".vs", "Fonts", "Data/Assets" };
+
+    Unique<MaterialBuilder> _materialBuilder{};
 
 public:
 	static Unique<Asset_Manager> Create(const wstring& resourceRoot);

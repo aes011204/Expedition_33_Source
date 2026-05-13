@@ -57,7 +57,32 @@ HRESULT CombatStatCom::Initialize(void* arg)
 }
 
 
-void CombatStatCom::ApplyDamage(float damage)
+void CombatStatCom::ApplyDamage(float damage)\
+{
+    Recalculate_Stats();
+
+    _hp = _maxHp;
+
+    Update_StatInfo();
+        
+    return S_OK;
+}
+
+json CombatStatCom::To_Json() const
+{
+    return Component::To_Json();
+}
+
+void CombatStatCom::From_Json(const json& data)
+{
+    Component::From_Json(data);
+
+    Recalculate_Stats();
+    _hp = min(_hp, _maxHp);
+    Update_StatInfo();
+}
+
+bool CombatStatCom::Add_Stat(StatType type, int32 value)
 {
     _runtimeStat.CurHp -= damage;
 

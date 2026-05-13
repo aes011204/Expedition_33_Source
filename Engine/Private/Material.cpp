@@ -101,6 +101,7 @@ HRESULT Material::Override_TextureSlot(MaterialTextureSlot slot, uint32 slotInde
 
         textureSlot.slot = slot;
         textureSlot.textureIndex = slotIndex;
+        textureSlot.isOverride = true;
         textureSlot.resolvedPath.clear();
         textureSlot.shaderResourceView.Reset();
 
@@ -132,6 +133,7 @@ HRESULT Material::Override_TextureSlot(MaterialTextureSlot slot, uint32 slotInde
     TextureSlot& textureSlot = _materials[materialSlotIndex][slotIndex];
     textureSlot.slot = slot;
     textureSlot.textureIndex = slotIndex;
+    textureSlot.isOverride = true;
     textureSlot.resolvedPath = resolvedPath.lexically_normal().wstring();
     textureSlot.shaderResourceView.Reset();
     textureSlot.shaderResourceView.Attach(srv);
@@ -175,8 +177,13 @@ const Material::TextureSlot* Material::Find_TextureSlot(MaterialTextureSlot slot
     const auto& slots = _materials[slotIndex];
     if (textureIndex >= slots.size())
         return nullptr;
-
     return &slots[textureIndex];
+}
+
+void Material::Set_RenderState(const MaterialRenderState& renderState)
+{
+    _renderState = renderState;
+    _passDirty = true;
 }
 
 void Material::Set_CB(const MaterialCB& cb)

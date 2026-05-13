@@ -33,6 +33,9 @@ namespace UIEditor
         static Shared<UI_Viewport_View> Create(UI_Editor_Manager& editorManager);
 
     private:
+        void Cancel_InteractionState(bool commitTransaction);
+
+    private:
         UI_Editor_Manager& _editorManager;
         ObjectId _draggingObjectId = 0;
         vector<ObjectId> _draggingObjectIds = {};
@@ -50,6 +53,7 @@ namespace UIEditor
         ImVec2 _boxSelectCurrentCanvasPos = ImVec2(0.f, 0.f);
         float _zoomFactor = 1.f;
         float _gridSize = 16.f;
+        bool _previewMode = false;
         bool _showGrid = true;
         bool _snapEnabled = false;
     };

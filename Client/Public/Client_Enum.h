@@ -6,7 +6,9 @@ namespace Client
     {
         Idle, 
         Move,
-        Jump,       // Drop도 간단하게 같이 처리 해야하는가?
+        Jump,
+        WorldAction, 
+
         Attack, 
 
         Climb,

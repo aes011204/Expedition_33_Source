@@ -83,7 +83,7 @@ HRESULT Weapon::Render()
         if (FAILED(_shader->Bind_CBufferData(material->Get_CB())))
             return E_FAIL;
 
-        _model->Bind_BoneMatrices(_shader.get(), "g_BoneMatrices", i);
+        CHECK_FAILED(_model->Bind_BoneMatrices(_shader.get(), "g_BoneMatrices", i), E_FAIL);
 
         const uint32 passIndex = material->Get_PassIndex();
         if (FAILED(_shader->Begin(passIndex)))
@@ -97,13 +97,10 @@ HRESULT Weapon::Render()
 
 HRESULT Weapon::Render_Shadow()
 {
-    if (FAILED(_shader->Bind_Matrix("g_WorldMatrix", &_combinedWorldMatrix)))
+    if (FAILED(_shader->Bind_ObjectCB(_combinedWorldMatrix)))
         return E_FAIL;
 
-    if (FAILED(GAME->Bind_ShadowMatrices(_shader, "g_ViewMatrix", "g_ProjMatrix")))
-        return E_FAIL;
-
-    if (FAILED(GAME->Bind_ShadowLightDesc(_shader, "g_fLightFar")))
+    if (FAILED(GAME->Bind_ShadowCB(_shader)))
         return E_FAIL;
 
     const uint32 iNumMeshes = static_cast<uint32>(_model->Get_NumMeshes());
@@ -112,11 +109,12 @@ HRESULT Weapon::Render_Shadow()
     {
         _model->Bind_Material(_shader.get(), "g_DiffuseTexture", i, MaterialTextureSlot::BaseColor);
 
-        if (FAILED(_shader->Begin(1)))
-            return E_FAIL;
+        //if (FAILED(_shader->Begin(1)))
+        //    return E_FAIL;
 
         _model->Render(i);
     }
+
     return S_OK;
 }
 
@@ -136,18 +134,11 @@ HRESULT Weapon::Bind_ShaderResources()
 {
 	/*if (FAILED(_transformCom->Bind_ShaderResource(_shader, "g_WorldMatrix")))
 		return E_FAIL;*/
-	if (FAILED(_shader->Bind_Matrix("g_WorldMatrix", &_combinedWorldMatrix)))
+	if (FAILED(_shader->Bind_ObjectCB(_combinedWorldMatrix)))
 		return E_FAIL;
 
-	if (FAILED(GAME->Bind_TransformMatrix(D3DTS::View, _shader.get(), "g_ViewMatrix")))
-		return E_FAIL;
-
-	if (FAILED(GAME->Bind_TransformMatrix(D3DTS::Proj, _shader.get(), "g_ProjMatrix")))
-		return E_FAIL;
-
-    if (FAILED(GAME->Bind_CameraFar(_shader, "g_fFar")))
+	if (FAILED(GAME->Bind_CameraCB(_shader)))
         return E_FAIL;
-
 
 	return S_OK;
 }

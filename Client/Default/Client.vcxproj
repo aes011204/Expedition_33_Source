@@ -230,6 +230,11 @@
     <ClInclude Include="..\Public\PlayerControllerCom.h" />
     <ClInclude Include="..\public\PlayerStatCom.h" />
     <ClInclude Include="..\public\SkillScript.h" />
+    <ClInclude Include="..\Public\Player_Gustave.h" />
+    <ClInclude Include="..\Public\Player_Lune.h" />
+    <ClInclude Include="..\Public\Player_Maelle.h" />
+    <ClInclude Include="..\Public\PreviewCamera.h" />
+    <ClInclude Include="..\Public\Player_WorldAction.h" />
     <ClInclude Include="..\Public\SkillTreeCom.h" />
     <ClInclude Include="..\Public\Player_Idle.h" />
     <ClInclude Include="..\Public\Player_Jump.h" />
@@ -239,10 +244,12 @@
     <ClInclude Include="..\public\SkillTargeting.h">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
     </ClInclude>
+    <ClInclude Include="..\Public\Create_Class.h" />
     <ClInclude Include="..\Public\Spawn_Prefab.h" />
     <ClInclude Include="..\Public\State.h" />
     <ClInclude Include="..\Public\StateMachineCom.h" />
     <ClInclude Include="..\Public\TargetCamera.h" />
+    <ClInclude Include="..\Public\CharacterStatus_Panel.h" />
     <ClInclude Include="..\Public\UI_RuntimeLoader.h" />
     <ClInclude Include="..\public\UltimateTargeting.h">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
@@ -337,21 +344,28 @@
     <ClCompile Include="..\Private\PlayableParts.cpp" />
     <ClCompile Include="..\Private\PlayerControllerCom.cpp" />
     <ClCompile Include="..\private\PlayerStatCom.cpp" />
+    <ClCompile Include="..\Private\Player_Gustave.cpp" />
     <ClCompile Include="..\Private\Player_Idle.cpp" />
     <ClCompile Include="..\Private\Player_Jump.cpp" />
+    <ClCompile Include="..\Private\Player_Lune.cpp" />
+    <ClCompile Include="..\Private\Player_Maelle.cpp" />
     <ClCompile Include="..\Private\Player_Move.cpp" />
     <ClCompile Include="..\Private\Player_State.cpp" />
     <ClCompile Include="..\Private\PlayerStateMachineCom.cpp" />
+    <ClCompile Include="..\Private\PreviewCamera.cpp" />
+    <ClCompile Include="..\Private\Player_WorldAction.cpp" />
     <ClCompile Include="..\Private\SimpleMath.cpp" />
     <ClCompile Include="..\private\SkillScript.cpp" />
     <ClCompile Include="..\private\SkillTargeting.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="..\Private\SkillTreeCom.cpp" />
+    <ClCompile Include="..\Private\Create_Class.cpp" />
     <ClCompile Include="..\Private\Spawn_Prefab.cpp" />
     <ClCompile Include="..\Private\State.cpp" />
     <ClCompile Include="..\Private\StateMachineCom.cpp" />
     <ClCompile Include="..\Private\TargetCamera.cpp" />
+    <ClCompile Include="..\Private\CharacterStatus_Panel.cpp" />
     <ClCompile Include="..\Private\UI_RuntimeLoader.cpp" />
     <ClCompile Include="..\private\UltimateTargeting.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
@@ -385,11 +399,13 @@
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_Deferred.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_BillboardParticle.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectSprite.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_UI.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxCube.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMesh.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMeshInstance.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMeshInstanceExact.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxNorTex.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxTex.hlsl" />
   </ItemGroup>

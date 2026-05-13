@@ -6,81 +6,65 @@
 #include "ModelCom.h"
 
 Body_Player::Body_Player(const ComPtr<Device>& device, const ComPtr<Context>& context)
-	: PlayableParts { device, context }
+    : PlayableParts{ device, context }
 {
 }
 
 Body_Player::Body_Player(const Body_Player& prototype)
-	: PlayableParts { prototype }
+    : PlayableParts{ prototype }
 {
 }
 
 HRESULT Body_Player::Initialize_Prototype()
 {
-	return S_OK;
+    return S_OK;
 }
 
 HRESULT Body_Player::Initialize(void* arg)
 {
-	if (FAILED(PlayableParts::Initialize(arg)))
-	{
+    if (FAILED(PlayableParts::Initialize(arg)))
+    {
         MSG_BOX("[Body_Player] : Failed to Initialize");
         return E_FAIL;
-	}
-		
+    }
+
     _rootBoneIndex = _modelCom->Get_BoneIndex("root");
     _modelCom->Set_LocalRootNode(_rootBoneIndex);
 
-	return S_OK;
+    return S_OK;
 }
 
 void Body_Player::Priority_Update(float fTimeDelta)
 {
-
 }
 
 void Body_Player::Update(float fTimeDelta)
 {
-    _modelCom->Play_Animation(fTimeDelta);
+    if (Has_LeaderPoseComponent())
+    {
+        Update_LeaderPoseMatrices();
+    }
+    else
+    {
+        _modelCom->Play_Animation(fTimeDelta);
+    }
 
-	Update_CombinedWorldMatrix(_transformCom->Get_WorldMatrix());
+    Update_CombinedWorldMatrix(_transformCom->Get_WorldMatrix());
 }
 
 void Body_Player::Late_Update(float fTimeDelta)
 {
-	GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
-	GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
+    __super::Late_Update(fTimeDelta);
 }
 
 HRESULT Body_Player::Render()
 {
-	return PlayableParts::Render();
+    return PlayableParts::Render();
 }
 
 HRESULT Body_Player::Render_Shadow()
 {
-    if (FAILED(_shaderCom->Bind_Matrix("g_WorldMatrix", &_combinedWorldMatrix)))
-        return E_FAIL;
-
-    if (FAILED(GAME->Bind_ShadowMatrices(_shaderCom, "g_ViewMatrix", "g_ProjMatrix")))
-        return E_FAIL;
-
-    if (FAILED(GAME->Bind_ShadowLightDesc(_shaderCom, "g_fLightFar")))
-        return E_FAIL;
-
-    const uint32 iNumMeshes = static_cast<uint32>(_modelCom->Get_NumMeshes());
-
-    for (uint32 i = 0; i < iNumMeshes; i++)
-    {
-        _modelCom->Bind_BoneMatrices(_shaderCom.get(), "g_BoneMatrices", i);
-
-        if (FAILED(_shaderCom->Begin(1)))
-            return E_FAIL;
-
-        _modelCom->Render(i);
-    }
-
-    return S_OK;
+    return PlayableParts::Render_Shadow();
 }
 
 Shared<Body_Player> Body_Player::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -111,10 +95,5 @@ Shared<GameObject> Body_Player::Clone(void* arg)
 
 void Body_Player::Free()
 {
-	__super::Free();
-
-
+    __super::Free();
 }
-
-
-

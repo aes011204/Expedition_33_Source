@@ -47,11 +47,14 @@ public: /* For.GameData Table */
     uint32  Get_NextExp(uint32 level) const;
 
 public: /* For.Hero Manager */
-    HRESULT        Initialize_Hero(uint32 levelIndex, const wstring& layerTag);
+    HRESULT        Initialize_Hero(uint32 levelIndex, const wstring& layerTag, const Vec3& startPos = Vec3::Zero);
     void           Update_HeroManager(float timeDelta);
     Shared<Player> Get_ActiveHero() const;
     void           Set_TargetCamera(const Shared<TargetCamera>& camera);
     void           Clear_Party();
+
+    Shared<Player> Get_FrontHero() const;
+    vector<Shared<Player>> Get_HeroesInPartyOrder() const;
 
 public: /* For.Gameplay UI */
     HRESULT Initialize_GameplayUI(uint32 levelIndex);

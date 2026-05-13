@@ -1,0 +1,118 @@
+﻿#pragma once
+
+#include "Base.h"
+#include "Client_Defines.h"
+
+NS_BEGIN(Engine)
+class UI_Base;
+class UI_Text;
+class Camera;
+NS_END
+
+NS_BEGIN(Client)
+
+class Player;
+class PreviewCamera;
+
+// UI_Panel 렌더 객체가 아니라,
+// UI_CharacterStatus.json으로 생성된 패널 트리를 제어하는 컨트롤러.
+class CharacterStatus_Panel final : public Base
+{
+public:
+    CharacterStatus_Panel() = default;
+    ~CharacterStatus_Panel() override = default;
+
+public:
+    HRESULT Initialize(uint32 levelIndex);
+    void    Update(float timeDelta);
+
+    void    Open();
+    void    Close();
+    void    Toggle();
+
+    bool    Is_Open() const { return _isOpen; }
+
+private:
+    HRESULT Load_UI(uint32 levelIndex);
+    HRESULT Bind_UI();
+
+    void    Refresh_CombatStats();
+
+    Shared<UI_Base> Find_UI(const umap<wstring, Shared<UI_Base>>& uiByName, const wstring& name) const;
+
+    template<typename T>
+    Shared<T> Find_TypedUI(
+        const umap<wstring, Shared<UI_Base>>& uiByName, const wstring& name) const
+    {
+        Shared<UI_Base> ui = Find_UI(uiByName, name);
+        if (ui == nullptr)
+            return nullptr;
+
+        Shared<T> typedUI = dynamic_pointer_cast<T>(ui);
+        if (typedUI == nullptr)
+            LOG_WARN("CharacterStatusPanel ui type mismatch: {}", String::ToString(name));
+
+        return typedUI;
+    }
+
+    static void Set_IntText(const Shared<UI_Text>& text, int32 value);
+    static void Set_UIntText(const Shared<UI_Text>& text, uint32 value);
+    static void Set_PercentText(const Shared<UI_Text>& text, float value);
+    static void Set_HpText(const Shared<UI_Text>& text, float hp, float maxHp);
+
+private:
+    HRESULT Spawn_StatusPreviewHeroes();
+    void    Clear_StatusPreviewHeroes();
+
+    void    Update_StatusPreviewHeroes(float timeDelta);
+    void    Layout_StatusPreviewHeroes();
+
+    HRESULT Ready_StatusPreviewCamera();
+    void    Activate_StatusPreviewCamera();
+    void    Restore_PreviousCamera();
+
+private:
+    struct StatusPreviewHero
+    {
+        Shared<Player> player{};
+
+        // 
+    };
+
+    vector<StatusPreviewHero> _previewHeroes{};
+    wstring _previewLayerTag = L"Layer_CharacterStatusPreview";
+
+private:
+    uint32 _levelIndex = 0;
+    bool _isOpen = false;
+
+    umap<wstring, Shared<UI_Base>> _uiByName{};
+
+    // 원래 게임 카메라로 돌아가기 위한 저장용
+    Shared<Camera>          _previousCamera{};      
+    Shared<PreviewCamera>   _statusPreviewCamera{};
+
+    // UI
+    Shared<UI_Base> _root{};
+
+    Shared<UI_Text> _levelText{};
+    Shared<UI_Text> _statPointText{};
+
+    Shared<UI_Text> _vitalityText{};
+    Shared<UI_Text> _mightText{};
+    Shared<UI_Text> _agilityText{};
+    Shared<UI_Text> _defenseStatText{};
+    Shared<UI_Text> _luckText{};
+
+    Shared<UI_Text> _hpText{};
+    Shared<UI_Text> _attackText{};
+    Shared<UI_Text> _speedText{};
+    Shared<UI_Text> _defenseValueText{};
+    Shared<UI_Text> _criticalRateText{};
+
+public:
+    static Unique<CharacterStatus_Panel> Create(uint32 levelIndex);
+    void Free() override;
+};
+
+NS_END

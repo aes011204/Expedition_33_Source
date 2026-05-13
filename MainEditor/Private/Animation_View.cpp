@@ -1846,7 +1846,11 @@ bool Animation_View::Is_PrefabViewFocused()
 {
     Shared<Editor_Window> prefabWindow = EDITOR->Get_Window(L"Prefab");
     Shared<Prefab_View> prefabView = dynamic_pointer_cast<Prefab_View>(prefabWindow);
-    return prefabView != nullptr && prefabView->Is_Open() && prefabView->Is_Focused();
+    if (prefabView != nullptr && prefabView->Is_Open() && prefabView->Is_Focused())
+        return true;
+
+    Shared<Editor_Window> animStateWindow = EDITOR->Get_Window(L"AnimState");
+    return animStateWindow != nullptr && animStateWindow->Is_Open() && animStateWindow->Is_Focused();
 }
 
 Editor_Camera_Free::EDITOR_CAMERA_DESC Animation_View::Build_PreviewCameraDesc(const Shared<GameObject>& gameObject)

@@ -18,6 +18,11 @@ public:
     HRESULT Initialize_Prototype(const ModelMeshData& meshData, const Matrix& preTransformMatrix);
     HRESULT Initialize(void* arg) override;
 
+    HRESULT Build_MeshBoneMatrices(const vector<Matrix>& combinedMatrices,
+        vector<Matrix>& outBoneMatrices) const override;
+
+    uint32 Get_NumBoneRefs() const override { return _numBones; }
+
 
 private:
     uint32              _numBones{};

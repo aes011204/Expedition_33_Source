@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "Base.h"
+#include "Log_Define.h"
 
 NS_BEGIN(Engine)
 
@@ -18,10 +19,11 @@ public:
 
 public:
 	HRESULT Initialize();
-	void Add_RenderGroup(RenderGroup renderGroup, const Shared<GameObject>& gameObject);
-	void Draw();
-    void Sync_ViewportDependentState(uint32 width, uint32 height);
-    uint32 Get_RenderCall() const;
+	void    Add_RenderGroup(RenderGroup renderGroup, const Shared<GameObject>& gameObject);
+	void    Draw();
+    void    Sync_ViewportDependentState(uint32 width, uint32 height);
+    uint32  Get_RenderCall() const;
+
 
 #ifdef _DEBUG
 public:
@@ -41,6 +43,8 @@ private:
 
     HRESULT Ready_RenderTargets();
     void Change_ViewportDesc(uint32 width, uint32 height);
+
+    HRESULT Bind_DeferredCB() const;
 
 private:
 	ComPtr<Device>  _device;

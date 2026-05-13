@@ -5,6 +5,7 @@
 #include <tchar.h>
 
 #include "Client_Defines.h"
+#include "EditorInstance.h"
 #include "GameInstance.h"
 #include "MainEditorApp.h"
 #include "Profile_View.h"
@@ -83,7 +84,12 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE, _In_ LPWSTR,
                 mainApp->Update(dt);
 
                 mainApp->Late_Update(dt);
-                mainApp->Render();
+                if (FAILED(mainApp->Render()))
+                {
+#ifdef _DEBUG
+                    LOG_WARN("[MainEditor] MainEditorApp::Render failed.");
+#endif
+                }
             }
 
             const auto currentFrameTime = MainEditor::Profile_View::clock::now();
@@ -249,7 +255,15 @@ static LRESULT CALLBACK MainEditor_WndProc(HWND hWnd, UINT message, WPARAM wPara
             const uint32 height = HIWORD(lParam);
 
             if (width > 0 && height > 0)
-                GAME->Resize_BackBuffer(width, height);
+            {
+                EDITOR->Invalidate_BackBufferCache();
+
+                const HRESULT hr = GAME->Resize_BackBuffer(width, height);
+#ifdef _DEBUG
+                if (FAILED(hr))
+                    LOG_WARN("[MainEditor][WM_SIZE] Resize_BackBuffer failed. hr=0x{:08X} w={} h={}", static_cast<uint32>(hr), width, height);
+#endif
+            }
         }
         return 0;
 

@@ -199,7 +199,7 @@ HRESULT RenderTarget::Render_Debug(Shared<VIBuffer_Rect> viBuffer, Shared<Shader
     CHECK_NULL(viBuffer, E_FAIL);
     CHECK_NULL(shader, E_FAIL);
 
-    shader->Bind_Matrix("g_WorldMatrix", &_debugWorldMatrix);
+    shader->Bind_ObjectCB(_debugWorldMatrix);
     shader->Bind_SRV("g_Texture", _srv.Get());
     shader->Begin(0);
 

@@ -13,7 +13,8 @@ public:
 public:
     HRESULT Initialize(HWND hWnd, const ComPtr<Device>& device, const ComPtr<Context>& context);
     void    Update(float timeDelta);
-    void    Render();
+    void    Render(bool renderPlatformWindows = true);
+    void    EndFrameIfBegun();
 
 private:
     void    ShutDown();
@@ -22,6 +23,7 @@ private:
 
 private:
     bool _initialized = false;
+    bool _frameBegun = false;
 
 public:
     static Unique<ImGui_Manager> Create(HWND hWnd, const ComPtr<Device>& device, const ComPtr<Context>& context);
