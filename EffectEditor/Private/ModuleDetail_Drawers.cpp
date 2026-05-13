@@ -1,24 +1,54 @@
 ﻿#include "ModuleDetail_Drawers.h"
 
 #include "EffectEditorInstance.h"
+#include "EffectMaterial_View.h"
 #include "EffectMaterialInstance_View.h"
 
 NS_BEGIN(EffectEditor)
 
 namespace Internal
 {
+    Shared<EffectMaterial_View> Get_MaterialView()
+    {
+        if (nullptr == EDITOR)
+            return nullptr;
+
+        const Shared<Editor_Window> materialWindow = EDITOR->Get_Window(L"Effect Material");
+        return dynamic_pointer_cast<EffectMaterial_View>(materialWindow);
+    }
+
     void Open_MaterialInstanceWindow(uint32 emitterId, uint32 moduleId)
     {
-        if (EDITOR == nullptr)
+        if (nullptr == EDITOR)
             return;
 
         const Shared<Editor_Window> materialInstanceWindow = EDITOR->Get_Window(L"Effect Material Instance");
         const Shared<EffectMaterialInstance_View> materialInstanceView =
             dynamic_pointer_cast<EffectMaterialInstance_View>(materialInstanceWindow);
-        if (materialInstanceView == nullptr)
+        if (nullptr == materialInstanceView)
             return;
 
         materialInstanceView->Open_Instance(emitterId, moduleId);
+    }
+
+    void Open_PresetBrowserWindow(uint32 emitterId, uint32 moduleId)
+    {
+        const Shared<EffectMaterial_View> materialView = Get_MaterialView();
+        if (nullptr == materialView)
+            return;
+
+        materialView->Open_PresetBrowser();
+    }
+
+    bool Try_GetSelectedPresetMaterial(EffectMaterialInstanceData& outMaterial, string& outFileName)
+    {
+        const Shared<EffectMaterial_View> materialView = Get_MaterialView();
+        if (materialView == nullptr || !materialView->Has_SelectedPreset())
+            return false;
+
+        outMaterial = materialView->Get_SelectedPresetMaterial();
+        outFileName = materialView->Get_SelectedMaterialFileName();
+        return true;
     }
 }
 
@@ -114,7 +144,7 @@ bool ModuleDetailDrawContext::Draw_Vec3Property(const char* label, Vec3& value, 
     return DetailProperty::Draw_Vec3Property(label, value, defaultValue, speed);
 }
 
-bool RequiredModuleDetail::Draw(AuthoringEmitter& emitter, AuthoringModule& module, RequiredModuleData& data, ModuleDetailDrawContext& drawContext)
+bool RequiredModuleDetail::Draw(AuthoringEmitter& emitter, const AuthoringModule& module, RequiredModuleData& data, ModuleDetailDrawContext& drawContext)
 {
     const RequiredModuleData defaultData{};
     bool changed = false;
@@ -136,17 +166,56 @@ bool RequiredModuleDetail::Draw(AuthoringEmitter& emitter, AuthoringModule& modu
             ImGui::PopID();
 
             ImGui::PushID("MaterialSummary");
-            DetailProperty::Draw_PropertyLabel("요약");
+            DetailProperty::Draw_PropertyLabel("Blend / Opacity");
             ImGui::Text("%s / %s", data.material.blendMode.c_str(), data.material.opacitySource.c_str());
             DetailProperty::Draw_ResetButton(false);
             ImGui::PopID();
 
+            ImGui::PushID("MaterialSubUV");
+            DetailProperty::Draw_PropertyLabel("SubUV");
+            ImGui::Text("%u x %u", data.material.subUvRows, data.material.subUvCols);
+            DetailProperty::Draw_ResetButton(false);
+            ImGui::PopID();
+
             ImGui::PushID("MaterialEdit");
-            DetailProperty::Draw_PropertyLabel("편집");
-            if (ImGui::Button("Edit Instance"))
+            DetailProperty::Draw_PropertyLabel("작업");
+            if (ImGui::Button("인스턴스 편집"))
                 Internal::Open_MaterialInstanceWindow(emitter.id, module.id);
             if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
-                ImGui::SetTooltip("embedded material instance 편집");
+                ImGui::SetTooltip("현재 머티리얼 인스턴스 편집");
+            ImGui::SameLine();
+            if (ImGui::Button("원본 보기"))
+                Internal::Open_PresetBrowserWindow(emitter.id, module.id);
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
+                ImGui::SetTooltip("원본 머티리얼을 확인");
+            ImGui::SameLine();
+
+            EffectMaterialInstanceData selectedPresetMaterial{};
+            string selectedPresetName{};
+            const bool hasSelectedPreset =
+                Internal::Try_GetSelectedPresetMaterial(selectedPresetMaterial, selectedPresetName);
+
+            ImGui::BeginDisabled(!hasSelectedPreset);
+            if (ImGui::Button("선택 원본 장착"))
+            {
+                data.material = selectedPresetMaterial;
+                changed = true;
+            }
+            ImGui::EndDisabled();
+
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort | ImGuiHoveredFlags_AllowWhenDisabled))
+            {
+                if (hasSelectedPreset)
+                {
+                    ImGui::SetTooltip(
+                        "선택된 원본 preset '%s'을 현재 Required embedded instance로 복사합니다. 파일은 저장하지 않습니다.",
+                        selectedPresetName.c_str()
+                    );
+                }
+                else
+                    ImGui::SetTooltip("Effect Material 창에서 원본 preset을 먼저 선택하세요.");
+            }
+
             DetailProperty::Draw_ResetButton(false);
             ImGui::PopID();
 

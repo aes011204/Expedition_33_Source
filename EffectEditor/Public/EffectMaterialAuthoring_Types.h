@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 NS_BEGIN(EffectEditor)
 
@@ -7,7 +7,7 @@ struct EffectMaterialInstanceData
     // Definition에서 만든 embedded 사본이 실제 편집/저장할 값이다.
     string definitionName{ "SpriteSymbolTranslucent" };
 
-    string mainTextureId{ "Texture_Snow" };
+    string mainTextureId{ "Texture_Effect_DefaultTexture" };
     string noiseTextureId{};
 
     Color tint{ 1.f, 1.f, 1.f, 1.f };

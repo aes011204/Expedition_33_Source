@@ -42,7 +42,7 @@ class RequiredModuleDetail
 public:
     bool Draw(
         AuthoringEmitter& emitter,
-        AuthoringModule& module,
+        const AuthoringModule& module,
         RequiredModuleData& data,
         ModuleDetailDrawContext& drawContext);
 };

@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Editor_Window.h"
 #include "EffectAuthoring_Types.h"
@@ -28,7 +28,6 @@ private: //## Helpers
     bool Resolve_Target(Shared<Emitter_View>& outEmitterView, AuthoringEmitter*& outEmitter, RequiredModuleData*& outRequiredData) const;
     bool Draw_InstanceProperties(EffectMaterialInstanceData& material);
     void Apply_MaterialChanged(const Shared<Emitter_View>& emitterView, AuthoringEmitter& emitter, const RequiredModuleData& requiredData);
-    void Open_DefinitionWindow(const string& definitionName);
 
 public:
     static Shared<EffectMaterialInstance_View> Create();

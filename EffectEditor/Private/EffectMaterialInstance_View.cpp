@@ -1,7 +1,6 @@
-#include "EffectMaterialInstance_View.h"
+﻿#include "EffectMaterialInstance_View.h"
 
 #include "EffectEditorInstance.h"
-#include "EffectMaterial_View.h"
 #include "Emitter_View.h"
 #include "Helper_DetailProperty.h"
 
@@ -29,26 +28,16 @@ void EffectMaterialInstance_View::Render()
         AuthoringEmitter* emitter{ nullptr };
         RequiredModuleData* requiredData{ nullptr };
         if (!Resolve_Target(emitterView, emitter, requiredData))
-        {
             ImGui::TextDisabled("Material instance target is not selected.");
-        }
         else
         {
-            ImGui::TextUnformatted("Embedded Effect Material Instance");
+            ImGui::TextUnformatted("Embedded Effect Material Instance (Preset Copy)");
+            ImGui::TextDisabled("Source preset GUID is not stored in this instance.");
+
+            ImGui::TextDisabled("Definition: %s", requiredData->material.definitionName.c_str());
             ImGui::Separator();
 
-            if (ImGui::Button("Open Definition"))
-                Open_DefinitionWindow(requiredData->material.definitionName);
-
-            ImGui::SameLine();
-            ImGui::TextDisabled("%s", requiredData->material.definitionName.c_str());
-
             bool changed = false;
-            if (ImGui::Button("Reset to Definition Defaults"))
-            {
-                requiredData->material = Resolve_EffectMaterialDefinition(requiredData->material.definitionName).defaultInstance;
-                changed = true;
-            }
 
             changed |= Draw_InstanceProperties(requiredData->material);
             if (changed)
@@ -154,19 +143,6 @@ void EffectMaterialInstance_View::Apply_MaterialChanged(
         emitterView->MarkDirty();
 
     MarkDirty();
-}
-
-void EffectMaterialInstance_View::Open_DefinitionWindow(const string& definitionName)
-{
-    if (EDITOR == nullptr)
-        return;
-
-    const Shared<Editor_Window> materialWindow = EDITOR->Get_Window(L"Effect Material");
-    const Shared<EffectMaterial_View> materialView = dynamic_pointer_cast<EffectMaterial_View>(materialWindow);
-    if (materialView == nullptr)
-        return;
-
-    materialView->Open_Definition(definitionName);
 }
 
 Shared<EffectMaterialInstance_View> EffectMaterialInstance_View::Create()

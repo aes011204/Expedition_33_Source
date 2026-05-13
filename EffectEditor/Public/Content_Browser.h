@@ -46,7 +46,7 @@ private: //## Types
 
 private: //## Static Values
     static constexpr const wchar_t* kContentBrowserSettingsPath =
-        L"../../Client/Bin/Resources/Data/json/EditorSettings/ContentBrowser.json";
+        L"../../../Client/Bin/Resources/Data/json/EditorSettings/ContentBrowser.json";
 
 private: //## Data
     FFolderNode _rootFolder{};
@@ -81,10 +81,12 @@ private: //## Helpers
 
     void Draw_FolderTile(FFolderNode& folder);
     void Open_Folder(FFolderNode* folder);
+    void Open_File(const FFileEntry& fileEntry);
     void Draw_FolderContextMenu(const FFolderNode& folder, const string& popupId);
     void Draw_FileContextMenu(const wstring& filePath, const string& popupId);
     Shared<Texture> Get_FileThumbnail(const FFileEntry& fileEntry);
     static bool Is_ThumbnailFileExtension(const filesystem::path& filePath);
+    static bool Is_EffectMaterialPresetFile(const filesystem::path& filePath);
 
     void Save_Settings() const;
     void Load_Settings();

@@ -3,6 +3,7 @@
 #include <fstream>
 #include <shellapi.h>
 #include "EffectEditorInstance.h"
+#include "EffectMaterial_View.h"
 #include "GameInstance.h"
 #include "Helper_String.h"
 #include "Texture.h"
@@ -425,6 +426,9 @@ void Content_Browser::Draw_AssetView()
         if (ImGui::IsItemClicked(ImGuiMouseButton_Left))
             _selectedFilePath = fileEntry.filePath;
 
+        if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+            Open_File(fileEntry);
+
         Draw_FileContextMenu(fileEntry.filePath, "FileItemContext");
 
         ImGui::TextWrapped("%s", pureName.c_str());
@@ -487,6 +491,33 @@ void Content_Browser::Open_Folder(FFolderNode* folder)
         Record_FolderHistory(folder->fullPath);
 
     Save_Settings();
+}
+
+void Content_Browser::Open_File(const FFileEntry& fileEntry)
+{
+    if (EDITOR == nullptr)
+        return;
+
+    const fs::path filePath = fileEntry.filePath;
+    if (!Is_EffectMaterialPresetFile(filePath))
+        return;
+
+    string assetType = {};
+    if (!fileEntry.guid.empty())
+    {
+        if (const AssetMeta* assetMeta = GAME->Find_AssetByGUID(fileEntry.guid))
+            assetType = assetMeta->type;
+    }
+
+    if (!assetType.empty() && assetType != "EffectMaterial")
+        return;
+
+    const Shared<Editor_Window> materialWindow = EDITOR->Get_Window(L"Effect Material");
+    const Shared<EffectMaterial_View> materialView = dynamic_pointer_cast<EffectMaterial_View>(materialWindow);
+    if (materialView == nullptr)
+        return;
+
+    materialView->Open_Preset(fileEntry.filePath);
 }
 
 void Content_Browser::Draw_FolderContextMenu(const FFolderNode& folder, const string& popupId)
@@ -588,6 +619,11 @@ bool Content_Browser::Is_ThumbnailFileExtension(const filesystem::path& filePath
            extension == ".jpeg" ||
            extension == ".bmp" ||
            extension == ".dds";
+}
+
+bool Content_Browser::Is_EffectMaterialPresetFile(const filesystem::path& filePath)
+{
+    return String::ToLowerCopy(filePath.generic_string()).ends_with(".effectmaterial.json");
 }
 
 void Content_Browser::Save_Settings() const

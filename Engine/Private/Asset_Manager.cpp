@@ -452,6 +452,12 @@ string Asset_Manager::Detect_AssetType(const wstring& filePath) const
         if (0 == relativePath.find("materials/"))
             return "Material";
 
+        if (0 == relativePath.find("effects/assets/"))
+            return "Effect";
+
+        if (0 == relativePath.find("effects/materials/"))
+            return "EffectMaterial";
+
         return "Json";
     }
 
@@ -557,7 +563,9 @@ bool Asset_Manager::Should_RegisterJsonAsset(const fs::path& path) const
         0 == relativePath.find("data/json/camerapreset/") ||
         0 == relativePath.find("data/json/cinematics/") ||
         0 == relativePath.find("data/json/prefabs/") ||
-        0 == relativePath.find("materials/");
+        0 == relativePath.find("materials/") ||
+        0 == relativePath.find("effects/assets/") ||
+        0 == relativePath.find("effects/materials/");
 }
 
 wstring Asset_Manager::Build_MetaPath(const wstring& assetPath)

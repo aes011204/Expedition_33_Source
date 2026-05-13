@@ -310,7 +310,7 @@ struct AuthoringEmitter
     string rendererType{ "Sprite" };
     string resourceSummary{};
     string materialName{ "SpriteSymbolTranslucent" };
-    string textureId{ "Texture_Snow" };
+    string textureId{ "Texture_Effect_DefaultTexture" };
     bool enabled{ true };
     bool previewDirty{ true };
     vector<AuthoringModule> modules{};
