@@ -338,7 +338,9 @@
     <ClInclude Include="..\Public\Player_Lune.h">
       <Filter>02.GameObject\Player</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\PreviewCamera.h" />
+    <ClInclude Include="..\Public\Player_WorldAction.h">
+      <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -517,7 +519,9 @@
     <ClCompile Include="..\Private\Player_Maelle.cpp">
       <Filter>02.GameObject\Player</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\PreviewCamera.cpp" />
+    <ClCompile Include="..\Private\Player_WorldAction.cpp">
+      <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">

@@ -1,6 +1,10 @@
 ﻿#include "pch.h"
 #include "Player_Jump.h"
 
+#include "Body_Player.h"
+#include "PlayerControllerCom.h"
+#include "PlayerStateMachineCom.h"
+
 Player_Jump::Player_Jump(const Shared<Player>& owner)
     : Player_State{ owner } {}
 
@@ -9,14 +13,57 @@ HRESULT Player_Jump::Initialize()
     return Player_State::Initialize();
 }
 
+using plAnim = Body_Player::PlayerAnimation;
+
 bool Player_Jump::EnterInvoke()
 {
-    return Player_State::EnterInvoke();
+    uint32 animIndex = _bodyPlayer->Get_AnimationIndex();
+
+    if (animIndex == ETOI(plAnim::Pl_Run) || animIndex == ETOI(plAnim::Pl_Sprint))
+    {
+        _bodyPlayer->Set_Animation(ETOI(plAnim::Pl_JumpRun), 0.2f, false);
+    }
+    else
+    {
+        _bodyPlayer->Set_Animation(ETOI(plAnim::Pl_JumpWalk), 0.2f, false);
+    }
+
+    return true;
 }
 
 void Player_Jump::Update(float timeDelta)
 {
-    
+    uint32 animIndex = _bodyPlayer->Get_AnimationIndex();
+    float curProgress = _bodyPlayer->Get_AnimationProgress();
+    bool isFinished = _bodyPlayer->Is_AnimationFinished();
+    bool isGrounded = _controllerCom->Is_Grounded();
+
+    if (!isGrounded)
+    {
+        if (isFinished)
+        {
+            if (animIndex == ETOI(plAnim::Pl_JumpWalk) || animIndex == ETOI(plAnim::Pl_JumpRun))
+            {
+                _bodyPlayer->Set_Animation(ETOI(plAnim::Pl_Fall), 0.2f, true);
+            }
+        }
+    }
+    else
+    {
+        if (animIndex != ETOI(plAnim::Pl_Land))
+        {
+            _bodyPlayer->Set_Animation(ETOI(plAnim::Pl_Land), 0.2f, false);
+            return;
+        }
+
+        if (animIndex == ETOI(plAnim::Pl_Land) && curProgress >= 0.6f)
+        {
+            if (Has_MoveInput())
+                _stateCom->Change_State(PlayerState::Move);
+            else
+                _stateCom->Change_State(PlayerState::Idle);
+        }
+    }
 }
 
 void Player_Jump::LateUpdate(float timeDelta)
