@@ -47,6 +47,12 @@ void Monster_Part::Update(float timeDelta)
 
 void Monster_Part::Late_Update(float timeDelta)
 {
+    // culling
+    if (!Get_Owner() || !Get_Owner()->Is_Visible())
+    {
+        return;
+    }
+
     GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
     GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
 }

@@ -59,6 +59,8 @@ private:
     Shared<ColliderCom>             _colliderCom;
     Shared<CombatStatCom>           _combatStatCom;
 
+    BoundingBox                     _cullingAABB{};
+
 public:
 	static Shared<Player> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
 	virtual Shared<GameObject> Clone(void* arg) override;

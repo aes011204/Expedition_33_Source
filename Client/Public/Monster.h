@@ -47,6 +47,9 @@ protected:
 
     Shared<ColliderCom>     _collider;
     int32 _rootindex = {};
+
+    BoundingBox _cullingAABB{};
+
 protected:
 	HRESULT Ready_Components();
     HRESULT Ready_PartObjects();
