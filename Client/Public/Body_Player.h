@@ -11,7 +11,6 @@ NS_BEGIN(Client)
 class Body_Player final : public PlayableParts
 {
     GENERATED_GAMEOBJECT(Body_Player, ObjectType::PartObject)
-
 public:
 	typedef struct tagBodyPlayerDesc final : public PlayableParts::PLAYABLE_PART_DESC
 	{

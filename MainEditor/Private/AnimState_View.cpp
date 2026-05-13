@@ -1,4 +1,4 @@
-﻿#include "pch.h"
+#include "pch.h"
 #include "AnimState_View.h"
 #include "Animation_NameUtils.h"
 #include "ContainerObject.h"
@@ -14,6 +14,20 @@ AnimState_View::AnimState_View()
     : Editor_Window(L"AnimState")
 {
     Set_Open(false);
+}
+
+bool AnimState_View::CanSave() const
+{
+	// 에디터의 전역 Save 기능(Ctrl+S 등)이 호출될 수 있는지 여부
+	return strlen(_mappingSaveLoadBuffer) > 0 && !_stateNames.empty();
+}
+
+void AnimState_View::Save()
+{
+	if (CanSave())
+	{
+		Save_Mapping(_mappingSaveLoadBuffer);
+	}
 }
 
 void AnimState_View::Update(float timeDelta)
@@ -138,22 +152,67 @@ void AnimState_View::Render()
         Draw_Header();
         ImGui::Separator();
 
-        if (ImGui::BeginTable("AnimStateViewLayout", 2, ImGuiTableFlags_Resizable | ImGuiTableFlags_BordersInnerV))
+        const float availableHeight = ImGui::GetContentRegionAvail().y;
+        const float minTopHeight = 240.f;
+        const float maxTopHeight = max(minTopHeight, availableHeight - 200.f);
+        _topSectionHeight = std::clamp(_topSectionHeight, minTopHeight, maxTopHeight);
+
+        if (ImGui::BeginChild("AnimStateTopSection", ImVec2(0.f, _topSectionHeight), false))
         {
-            ImGui::TableSetupColumn("AnimationList", ImGuiTableColumnFlags_WidthFixed, 320.f);
-            ImGui::TableSetupColumn("Preview", ImGuiTableColumnFlags_WidthStretch);
-            ImGui::TableNextRow();
+            if (ImGui::BeginTable("AnimStateViewLayout", 3, ImGuiTableFlags_Resizable | ImGuiTableFlags_BordersInnerV))
+            {
+                ImGui::TableSetupColumn("AnimationList", ImGuiTableColumnFlags_WidthFixed, 320.f);
+                ImGui::TableSetupColumn("Preview", ImGuiTableColumnFlags_WidthStretch);
+                ImGui::TableSetupColumn("EnumSetting", ImGuiTableColumnFlags_WidthFixed, 220.f);
+                ImGui::TableNextRow();
 
-            ImGui::TableSetColumnIndex(0);
-            Draw_AnimationSelector();
+                ImGui::TableSetColumnIndex(0);
+                Draw_AnimationSelector();
 
-            ImGui::TableSetColumnIndex(1);
-            Draw_PreviewPanel();
+                ImGui::TableSetColumnIndex(1);
+                Draw_PreviewPanel();
 
-            ImGui::EndTable();
+                ImGui::TableSetColumnIndex(2);
+                Draw_EnumSettingPanel();
+
+                ImGui::EndTable();
+            }
         }
+        ImGui::EndChild();
+
+        // Splitter
+        const ImVec2 splitterPos = ImGui::GetCursorScreenPos();
+        ImGui::InvisibleButton("AnimStateTopBottomSplitter", ImVec2(-FLT_MIN, 6.f));
+        if (ImGui::IsItemActive())
+            _topSectionHeight = std::clamp(
+                _topSectionHeight + ImGui::GetIO().MouseDelta.y,
+                minTopHeight, maxTopHeight);
+
+        const bool splitterHovered = ImGui::IsItemHovered() || ImGui::IsItemActive();
+        ImGui::GetWindowDrawList()->AddRectFilled(
+            splitterPos,
+            ImVec2(splitterPos.x + ImGui::GetContentRegionAvail().x, splitterPos.y + 6.f),
+            splitterHovered ? IM_COL32(110, 110, 118, 255) : IM_COL32(72, 72, 78, 255),
+            2.f);
 
         Draw_PlaybackToolbar();
+
+        if (!_stateNames.empty())
+        {
+            ImGui::Separator();
+			
+            // 왼쪽 테이블 자식 윈도우
+            ImGui::BeginChild("AnimStateMappingTablePanel", ImVec2(ImGui::GetContentRegionAvail().x - 260.f, 0.f), false);
+            Draw_MappingTable();
+            ImGui::EndChild();
+
+            ImGui::SameLine();
+
+            // 오른쪽 Save/Load 자식 윈도우
+            ImGui::BeginChild("AnimStateSaveLoadPanel", ImVec2(250.f, 0.f), true);
+            Draw_MappingSaveLoadPanel();
+            ImGui::EndChild();
+        }
     }
 
     Set_Open(isOpen);
@@ -174,6 +233,7 @@ void AnimState_View::Open_FromModelComponent(
     _pendingDockId = preferredDockId;
     _requestFocusOnOpen = focusOnOpen;
 
+    Refresh_AnimmapFiles();
     Refresh_AnimationList();
 
     if (!preferredAnimationName.empty())
@@ -273,11 +333,6 @@ void AnimState_View::Draw_Header()
     const AnimationEntry* currentEntry = Find_AnimationEntryByAnyName(_availableAnimations, _currentAnimationName);
     const char* previewName = currentEntry ? currentEntry->displayName.c_str() : "(select animation)";
 
-    if (ImGui::Button("Save"))
-    {
-    }
-
-    ImGui::SameLine();
     ImGui::Text("Model");
     ImGui::SameLine();
     ImGui::TextDisabled("%s", _modelGuid.empty() ? "(none)" : _modelGuid.c_str());
@@ -322,6 +377,16 @@ void AnimState_View::Draw_AnimationSelector()
         {
             _currentAnimationName = entry.displayName;
             Sync_PreviewAnimationSelection();
+        }
+
+        if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_None))
+        {
+            ImGui::SetDragDropPayload(
+                "ANIMSTATE_CLIP",
+                entry.name.c_str(),
+                entry.name.size() + 1);
+            ImGui::Text("Assign: %s", entry.displayName.c_str());
+            ImGui::EndDragDropSource();
         }
 
         if (isSelected)
@@ -564,6 +629,331 @@ void AnimState_View::Sync_PreviewAnimationSelection(bool keepCurrentTime)
     playbackModel->Refresh_CurrentAnimationPose();
 }
 
+void AnimState_View::Draw_EnumSettingPanel()
+{
+	ImGui::BeginChild("EnumSettingPanel", ImVec2(0.f, 0.f), true);
+	ImGui::Text("Enum Setting");
+	ImGui::Separator();
+
+	// 검색 입력
+	ImGui::SetNextItemWidth(-1.f);
+	ImGui::InputText("##EnumSearch", _enumSearchBuffer, sizeof(_enumSearchBuffer));
+
+	const string searchStr = _enumSearchBuffer;
+
+	vector<EnumSearchResult> results;
+
+	if (!searchStr.empty())
+	{
+		Search_EnumProperties(searchStr, results);
+	}
+	else
+	{
+		GAME->Visit_GlobalEnums([&](const Engine::TypeRegistry::GlobalEnumInfo& info) {
+			EnumSearchResult result;
+			result.ownerClassName = "GlobalEnum";
+			result.propertyDisplayName = info.displayName;
+			result.enumNames = info.enumNames;
+			result.enumValues = info.enumValues;
+			results.push_back(std::move(result));
+		});
+	}
+
+	ImGui::Separator();
+
+	if (results.empty())
+	{
+		ImGui::TextDisabled(searchStr.empty() ? "No Global Enums registered." : "No matching enum found.");
+	}
+	else
+	{
+		ImGui::TextDisabled("Found %d:", static_cast<int32>(results.size()));
+
+		for (const auto &result : results)
+		{
+			// "ClassName::PropertyName" 형태로 표시
+			const string label = result.ownerClassName + "::" + result.propertyDisplayName;
+			const bool isCurrent = (_enumTypeName == label);
+
+			if (isCurrent)
+				ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.4f, 0.8f, 1.f, 1.f));
+
+			if (ImGui::Selectable(label.c_str(), isCurrent))
+			{
+				Apply_EnumFromProperty(label, result.enumNames, result.enumValues);
+			}
+
+			if (isCurrent)
+				ImGui::PopStyleColor();
+
+			if (ImGui::IsItemHovered())
+			{
+				ImGui::BeginTooltip();
+				for (size_t i = 0; i < result.enumNames.size(); ++i)
+				{
+					ImGui::Text("%d: %s", result.enumValues[i], result.enumNames[i].c_str());
+				}
+				ImGui::EndTooltip();
+			}
+		}
+	}
+
+	ImGui::Separator();
+
+	// 현재 바인딩 정보
+	if (!_enumTypeName.empty())
+	{
+		ImGui::Text("Bound:");
+		ImGui::SameLine();
+		ImGui::TextColored(
+			ImVec4(0.4f, 0.8f, 1.f, 1.f),
+			"%s", _enumTypeName.c_str());
+		ImGui::TextDisabled("%d states", static_cast<int32>(_stateNames.size()));
+	}
+	else
+	{
+		ImGui::TextColored(
+			ImVec4(1.f, 0.6f, 0.2f, 1.f),
+			"No Enum bound.");
+	}
+
+	ImGui::EndChild();
+}
+
+void AnimState_View::Draw_MappingTable()
+{
+    if (!ImGui::BeginTable("AnimStateMappingTable", 3,
+        ImGuiTableFlags_Borders |
+        ImGuiTableFlags_RowBg |
+        ImGuiTableFlags_Resizable |
+        ImGuiTableFlags_ScrollY,
+        ImVec2(0.f, 0.f)))
+    {
+        return;
+    }
+    ImGui::TableSetupColumn("Index", ImGuiTableColumnFlags_WidthFixed, 50.f);
+    ImGui::TableSetupColumn("State", ImGuiTableColumnFlags_WidthFixed, 160.f);
+    ImGui::TableSetupColumn("Animation", ImGuiTableColumnFlags_WidthStretch);
+    ImGui::TableHeadersRow();
+    for (size_t i = 0; i < _stateNames.size(); ++i)
+    {
+        const string& stateName = _stateNames[i];
+        const int32 stateIndex = _stateIndices[i];
+        string& mappedAnim = _animationMapping[stateName];
+        ImGui::TableNextRow();
+        ImGui::PushID(static_cast<int32>(i));
+        // ── Index ──
+        ImGui::TableSetColumnIndex(0);
+        ImGui::Text("%d", stateIndex);
+        // ── State Name ──
+        ImGui::TableSetColumnIndex(1);
+        ImGui::TextUnformatted(stateName.c_str());
+        // ── Animation (InputText + DropTarget) ──
+        ImGui::TableSetColumnIndex(2);
+        char buffer[256] = "";
+        strncpy_s(buffer, mappedAnim.c_str(), _TRUNCATE);
+        // X 버튼 공간 확보
+        const float clearBtnWidth = mappedAnim.empty() ? 0.f : 24.f;
+        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - clearBtnWidth);
+        if (ImGui::InputText("##Anim", buffer, sizeof(buffer)))
+        {
+            mappedAnim = buffer;
+        }
+        
+        if (ImGui::BeginDragDropTarget())
+        {
+            if (const ImGuiPayload* payload =
+                ImGui::AcceptDragDropPayload("ANIMSTATE_CLIP"))
+            {
+                const char* droppedName =
+                    static_cast<const char*>(payload->Data);
+                mappedAnim = droppedName;
+            }
+            ImGui::EndDragDropTarget();
+        }
+        // X 버튼 (매핑 해제)
+        if (!mappedAnim.empty())
+        {
+            ImGui::SameLine(0.f, 2.f);
+            if (ImGui::SmallButton("X"))
+            {
+                mappedAnim.clear();
+            }
+        }
+        ImGui::PopID();
+    }
+    ImGui::EndTable();
+}
+
+void AnimState_View::Save_Mapping(const string& fileName)
+{
+    if (fileName.empty() || _sourceModelPath.empty())
+        return;
+    fs::path rootPath = GAME->Get_AssetRoot();
+    fs::path modelDir = rootPath / fs::path(_sourceModelPath).parent_path();
+    fs::path savePath = modelDir / (fileName + ".animmap.json");
+    
+	json root;
+    root["EnumType"] = _enumTypeName;
+    root["ModelGuid"] = _modelGuid;
+    json mappings = json::array();
+    for (size_t i = 0; i < _stateNames.size(); ++i)
+    {
+        const auto it = _animationMapping.find(_stateNames[i]);
+        if (it == _animationMapping.end() || it->second.empty())
+            continue;
+        json entry;
+        entry["Index"] = _stateIndices[i];
+        entry["State"] = _stateNames[i];
+        entry["Anim"] = it->second;
+        mappings.push_back(entry);
+    }
+    root["Mappings"] = mappings;
+    std::ofstream file(savePath);
+    if (file.is_open())
+        file << std::setw(4) << root << std::endl;
+        
+    Refresh_AnimmapFiles();
+}
+
+void AnimState_View::Refresh_AnimmapFiles()
+{
+    _availableAnimmapFiles.clear();
+    _selectedAnimmapFileIndex = -1;
+
+    if (_sourceModelPath.empty())
+        return;
+
+    fs::path rootPath = GAME->Get_AssetRoot();
+    fs::path modelDir = rootPath / fs::path(_sourceModelPath).parent_path();
+
+    if (!fs::exists(modelDir))
+        return;
+
+    for (const auto& entry : fs::directory_iterator(modelDir))
+    {
+        if (entry.is_regular_file())
+        {
+            string filename = entry.path().filename().string();
+            if (filename.find(".animmap.json") != string::npos)
+            {
+                size_t extPos = filename.find(".animmap.json");
+                _availableAnimmapFiles.push_back(filename.substr(0, extPos));
+            }
+        }
+    }
+}
+
+void AnimState_View::Draw_MappingSaveLoadPanel()
+{
+	ImGui::Text("Save Mapping");
+	ImGui::Separator();
+
+	ImGui::SetNextItemWidth(-1.f);
+	ImGui::InputText("##MappingSaveFile", _mappingSaveLoadBuffer, sizeof(_mappingSaveLoadBuffer));
+
+	if (ImGui::Button("Save##Mapping", ImVec2(-1.f, 0.f)))
+	{
+		Save();
+	}
+
+	ImGui::Spacing();
+	ImGui::Spacing();
+
+	ImGui::Text("Load Mapping");
+	ImGui::Separator();
+
+	ImGui::SetNextItemWidth(-1.f);
+	const char* previewValue = "Select...";
+	if (_selectedAnimmapFileIndex >= 0 && _selectedAnimmapFileIndex < (int32)_availableAnimmapFiles.size())
+		previewValue = _availableAnimmapFiles[_selectedAnimmapFileIndex].c_str();
+
+	if (ImGui::BeginCombo("##MappingLoadList", previewValue))
+	{
+		for (int32 i = 0; i < (int32)_availableAnimmapFiles.size(); ++i)
+		{
+			const bool isSelected = (_selectedAnimmapFileIndex == i);
+			if (ImGui::Selectable(_availableAnimmapFiles[i].c_str(), isSelected))
+			{
+				_selectedAnimmapFileIndex = i;
+				// 옵션: 선택 즉시 _mappingSaveLoadBuffer도 동기화
+				strncpy_s(_mappingSaveLoadBuffer, _availableAnimmapFiles[i].c_str(), _TRUNCATE);
+			}
+			if (isSelected)
+			{
+				ImGui::SetItemDefaultFocus();
+			}
+		}
+		ImGui::EndCombo();
+	}
+
+	if (ImGui::Button("Load##Mapping", ImVec2(-1.f, 0.f)))
+	{
+		if (_selectedAnimmapFileIndex >= 0 && _selectedAnimmapFileIndex < (int32)_availableAnimmapFiles.size())
+		{
+			Load_Mapping(_availableAnimmapFiles[_selectedAnimmapFileIndex]);
+		}
+	}
+
+	ImGui::Spacing();
+	if (ImGui::Button("Refresh Files", ImVec2(-1.f, 0.f)))
+	{
+		Refresh_AnimmapFiles();
+	}
+}
+
+void AnimState_View::Load_Mapping(const string& fileName)
+{
+    if (fileName.empty() || _sourceModelPath.empty())
+        return;
+    fs::path rootPath = GAME->Get_AssetRoot();
+    fs::path modelDir = rootPath / fs::path(_sourceModelPath).parent_path();
+    fs::path loadPath = modelDir / (fileName + ".animmap.json");
+    if (!fs::exists(loadPath))
+        return;
+    std::ifstream file(loadPath);
+    if (!file.is_open())
+        return;
+    json root;
+    file >> root;
+    
+	_animationMapping.clear();
+
+	// 세이브에 저장된 EnumType이 있다면 자동 로드 (이름 기반 검색)
+	if (root.contains("EnumType"))
+	{
+		string savedEnumType = root["EnumType"].get<string>();
+		
+		vector<EnumSearchResult> results;
+		Search_EnumProperties(savedEnumType, results);
+		for (const auto& result : results)
+		{
+			const string label = result.ownerClassName + "::" + result.propertyDisplayName;
+			if (label == savedEnumType)
+			{
+				// 찾았다면 자동 바인딩
+				Apply_EnumFromProperty(label, result.enumNames, result.enumValues);
+				break;
+			}
+		}
+	}
+
+    if (!root.contains("Mappings"))
+        return;
+
+	// 기존에 State enum 구조가 바뀌었을 수 있으므로
+	// 현재 로드된 _stateNames에 존재하는 것만 맵핑하고, 없으면 날려버림
+    for (const auto& entry : root["Mappings"])
+    {
+        string stateName = entry["State"].get<string>();
+        string animName = entry["Anim"].get<string>();
+        
+		auto it = std::find(_stateNames.begin(), _stateNames.end(), stateName);
+        if (it != _stateNames.end())
+            _animationMapping[stateName] = animName;
+    }
+}
+
 void AnimState_View::Draw_PreviewGrid() const
 {
     if (!_showPreviewGrid)
@@ -694,6 +1084,97 @@ void AnimState_View::Apply_PreviewCameraTransform(const Shared<Editor_Camera_Fre
 
     cameraTransform->Set_WorldPosition(Vec3(-1.35f, 2.25f, 6.2f));
     cameraTransform->LookAt(Vec3(-1.6f, -1.2f, -2.3f));
+}
+
+void AnimState_View::Search_EnumProperties(const string &searchStr, vector<EnumSearchResult> &outResults) const
+{
+	outResults.clear();
+
+	string searchLower = searchStr;
+	std::transform(searchLower.begin(), searchLower.end(), searchLower.begin(), ::tolower);
+
+	// 1. 모든 등록된 GameObject 타입의 Reflection 정보를 순회
+	GAME->Visit_GameObjectTypes([&](const Engine::TypeRegistry::GameObjectTypeInfo &typeInfo)
+	{
+		if (typeInfo.reflectionInfo == nullptr)
+			return;
+
+		for (const auto &prop : typeInfo.reflectionInfo->properties)
+		{
+			if (prop.type != Engine::PropertyType::Enum)
+				continue;
+
+			if (prop.enumNames.empty())
+				continue;
+
+			// displayName 또는 name으로 검색
+			string propNameLower = prop.displayName;
+			std::transform(propNameLower.begin(), propNameLower.end(), propNameLower.begin(), ::tolower);
+
+			string propMemberLower = prop.name;
+			std::transform(propMemberLower.begin(), propMemberLower.end(), propMemberLower.begin(), ::tolower);
+
+			if (propNameLower.find(searchLower) != string::npos ||
+				propMemberLower.find(searchLower) != string::npos)
+			{
+				EnumSearchResult result;
+				result.ownerClassName = typeInfo.className;
+				result.propertyDisplayName = prop.displayName;
+				result.enumNames = prop.enumNames;
+				result.enumValues = prop.enumValues;
+				outResults.push_back(std::move(result));
+			}
+		}
+	});
+
+	// 2. 엔진에 전역으로 등록된 Global Enum 순회
+	GAME->Visit_GlobalEnums([&](const Engine::TypeRegistry::GlobalEnumInfo &info)
+	{
+		if (info.enumNames.empty())
+			return;
+
+		string enumNameLower = info.displayName;
+		std::transform(enumNameLower.begin(), enumNameLower.end(), enumNameLower.begin(), ::tolower);
+
+		if (enumNameLower.find(searchLower) != string::npos)
+		{
+			EnumSearchResult result;
+			result.ownerClassName = "GlobalEnum";
+			result.propertyDisplayName = info.displayName;
+			result.enumNames = info.enumNames;
+			result.enumValues = info.enumValues;
+			outResults.push_back(std::move(result));
+		}
+	});
+}
+
+void AnimState_View::Apply_EnumFromProperty(
+	const string &enumDisplayName,
+	const vector<string> &names,
+	const vector<int> &values)
+{
+	_enumTypeName = enumDisplayName;
+	_stateNames.clear();
+	_stateIndices.clear();
+	_animationMapping.clear();
+
+	for (size_t i = 0; i < names.size(); ++i)
+	{
+		_stateNames.push_back(names[i]);
+		_stateIndices.push_back(i < values.size() ? values[i] : static_cast<int>(i));
+	}
+
+	// 매핑 파일 이름이 비어있다면, 현재 Enum 이름을 기반으로 기본값을 채워줌
+	if (strlen(_mappingSaveLoadBuffer) == 0)
+	{
+		string defaultName = enumDisplayName;
+		size_t pos = defaultName.rfind("::");
+		if (pos != string::npos)
+		{
+			defaultName = defaultName.substr(pos + 2);
+		}
+		strncpy_s(_mappingSaveLoadBuffer, defaultName.c_str(), _TRUNCATE);
+	}
 }
 
 Shared<AnimState_View> AnimState_View::Create()
