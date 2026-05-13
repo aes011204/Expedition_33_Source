@@ -18,7 +18,6 @@ public:
     void Render() override;
 
 public: //## Behavior::Selection
-    void Open_Definition(const string& definitionName);
     void Open_PresetBrowser();
     void Open_Preset(const wstring& filePath);
 
@@ -30,16 +29,7 @@ public: //## Accessor::Preset
     // UI 안내용 원본 파일명이다. 저장 identity로 사용하지 않는다.
     string Get_SelectedMaterialFileName() const;
 
-private: //## Types
-    enum class ViewMode : uint8
-    {
-        Definition,
-        Preset,
-    };
-
 private: //## Data
-    ViewMode _viewMode{ ViewMode::Definition };
-    string _definitionName{ "SpriteSymbolTranslucent" };
     vector<wstring> _presetPaths{};
     wstring _selectedPresetPath{};
     string _selectedPresetGuid{};
@@ -49,8 +39,6 @@ private: //## Data
     Unique<EffectMaterialPreviewRenderer> _previewRenderer{};
 
 private: //## Helpers
-    const EffectMaterialDefinitionData& Get_CurrentDefinition() const;
-    void Render_DefinitionInfo(const EffectMaterialDefinitionData& definition);
     void Render_PresetInfo();
     void Render_PresetPreview();
     void Render_MaterialInstanceTable(const char* tableId, const EffectMaterialInstanceData& material) const;

@@ -207,4 +207,3 @@ void Detail_View::Free()
 }
 
 NS_END
-

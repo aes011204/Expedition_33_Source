@@ -3,6 +3,7 @@
 #include <shobjidl.h>
 
 #include "EffectEditorInstance.h"
+#include "Helper_ReadPreset.h"
 #include "EffectMaterialPreviewRenderer.h"
 #include "EffectMaterial_View.h"
 #include "EffectMaterialInstance_View.h"
@@ -13,6 +14,7 @@ namespace Internal
 {
     constexpr const char* kEffectMaterialPayloadType = "CONTENT_BROWSER_EFFECT_MATERIAL";
     constexpr const wchar_t* kMaterialDialogDefaultFolder = L"../../../Client/Bin/Resources/Effects/Materials";
+    constexpr float kMaterialFloatEpsilon = 0.0001f;
 
     fs::path Normalize_MaterialDialogPath(const fs::path& filePath)
     {
@@ -34,6 +36,69 @@ namespace Internal
         }
 
         return filePath.lexically_normal();
+    }
+
+    static bool NearlyEqual(float lhs, float rhs)
+    {
+        return abs(lhs - rhs) <= kMaterialFloatEpsilon;
+    }
+
+    static bool Is_SameColor(const Color& lhs, const Color& rhs)
+    {
+        return
+            NearlyEqual(lhs.x, rhs.x) &&
+            NearlyEqual(lhs.y, rhs.y) &&
+            NearlyEqual(lhs.z, rhs.z) &&
+            NearlyEqual(lhs.w, rhs.w);
+    }
+
+    static bool Is_SameMaterial(const EffectMaterialInstanceData& lhs, const EffectMaterialInstanceData& rhs)
+    {
+        return
+            lhs.mainTextureId == rhs.mainTextureId &&
+            lhs.noiseTextureId == rhs.noiseTextureId &&
+            Is_SameColor(lhs.tint, rhs.tint) &&
+            NearlyEqual(lhs.intensity, rhs.intensity) &&
+            NearlyEqual(lhs.opacityPower, rhs.opacityPower) &&
+            NearlyEqual(lhs.noiseStrength, rhs.noiseStrength) &&
+            lhs.blendMode == rhs.blendMode &&
+            lhs.opacitySource == rhs.opacitySource &&
+            lhs.subUvRows == rhs.subUvRows &&
+            lhs.subUvCols == rhs.subUvCols;
+    }
+
+    static string Try_ResolvePresetNameFromMaterial(const EffectMaterialInstanceData& material)
+    {
+        const fs::path presetFolder = Normalize_MaterialDialogPath(kMaterialDialogDefaultFolder);
+        if (!fs::exists(presetFolder) || !fs::is_directory(presetFolder))
+            return {};
+
+        for (const auto& entry : fs::directory_iterator(presetFolder))
+        {
+            if (!entry.is_regular_file())
+                continue;
+
+            const fs::path presetPath = entry.path();
+            if (!String::ToLowerCopy(presetPath.generic_string()).ends_with(".effectmaterial.json"))
+                continue;
+
+            EffectMaterialInstanceData presetMaterial{};
+            if (!ReadPreset::Read(presetPath, presetMaterial))
+                continue;
+
+            if (Is_SameMaterial(material, presetMaterial))
+                return presetMaterial.sourcePresetName;
+        }
+
+        return {};
+    }
+
+    static const string& Resolve_MaterialDisplayName(RequiredModuleData& data)
+    {
+        if (data.material.sourcePresetName.empty())
+            data.material.sourcePresetName = Try_ResolvePresetNameFromMaterial(data.material);
+
+        return data.material.sourcePresetName;
     }
 
     bool Try_PickMaterialPresetDialog(wstring& outFilePath)
@@ -168,7 +233,8 @@ namespace Internal
         {
             if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(
                 kEffectMaterialPayloadType,
-                ImGuiDragDropFlags_AcceptBeforeDelivery))
+                ImGuiDragDropFlags_AcceptBeforeDelivery
+            ))
             {
                 if (payload->IsDelivery())
                     changed = Apply_PresetFileToRequired(static_cast<const wchar_t*>(payload->Data), data);
@@ -180,11 +246,11 @@ namespace Internal
         const bool isHovered = ImGui::IsItemHovered();
         const ImVec2 slotMax{ slotMin.x + slotWidth, slotMin.y + slotHeight };
         const ImU32 fillColor = isMaterialDragging
-            ? IM_COL32(42, 56, 78, 255)
-            : IM_COL32(30, 34, 42, 255);
+                                ? IM_COL32(42, 56, 78, 255)
+                                : IM_COL32(30, 34, 42, 255);
         const ImU32 borderColor = isMaterialDragging
-            ? IM_COL32(96, 165, 250, 255)
-            : (isHovered ? IM_COL32(120, 130, 150, 255) : IM_COL32(70, 78, 92, 255));
+                                  ? IM_COL32(96, 165, 250, 255)
+                                  : isHovered ? IM_COL32(120, 130, 150, 255) : IM_COL32(70, 78, 92, 255);
 
         ImDrawList* drawList = ImGui::GetWindowDrawList();
         drawList->AddRectFilled(slotMin, slotMax, fillColor, 6.f);
@@ -207,9 +273,8 @@ namespace Internal
         }
         drawList->AddRect(thumbnailMin, thumbnailMax, IM_COL32(85, 96, 116, 255), 4.f);
 
-        const string displayName = data.material.sourcePresetName.empty()
-            ? data.material.definitionName
-            : data.material.sourcePresetName;
+        const string& resolvedName = Internal::Resolve_MaterialDisplayName(data);
+        const string displayName = resolvedName.empty() ? "(preset copy)" : resolvedName;
         const ImVec2 textPos{ slotMin.x + 57.f, slotMin.y + 18.f };
         drawList->AddText(textPos, IM_COL32(235, 238, 245, 255), displayName.c_str());
 
@@ -228,13 +293,14 @@ namespace Internal
 
         ImGui::SameLine();
         ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2{ 0.5f, 0.5f });
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2{ 0.f, 0.f });
         if (ImGui::Button(ICON_FA_FOLDER_OPEN "##PickMaterial", ImVec2{ browseButtonWidth, slotHeight }))
         {
             wstring pickedFilePath{};
             if (Try_PickMaterialPresetDialog(pickedFilePath))
                 changed = Apply_PresetFileToRequired(pickedFilePath.c_str(), data);
         }
-        ImGui::PopStyleVar();
+        ImGui::PopStyleVar(2);
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
             ImGui::SetTooltip("머티리얼 원본 파일 선택");
 
@@ -351,13 +417,20 @@ bool RequiredModuleDetail::Draw(AuthoringEmitter& emitter, const AuthoringModule
 
             ImGui::PushID("MaterialEdit");
             DetailProperty::Draw_PropertyLabel("작업");
-            if (ImGui::Button("인스턴스 편집"))
+
+            const float spacing = ImGui::GetStyle().ItemSpacing.x;
+            const float availableWidth = ImGui::GetContentRegionAvail().x;
+            const float editButtonWidth = (availableWidth - spacing) * 0.5f;
+            const float sourceButtonWidth = (availableWidth - spacing) * 0.5f;
+
+            if (ImGui::Button("인스턴스 편집", ImVec2{ editButtonWidth, 24.f }))
                 Internal::Open_MaterialInstanceWindow(emitter.id, module.id);
-            if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
-                ImGui::SetTooltip("현재 머티리얼 인스턴스 편집");
+
             ImGui::SameLine();
-            if (ImGui::Button("원본 보기"))
+
+            if (ImGui::Button("원본 보기", ImVec2{ sourceButtonWidth, 24.f }))
                 Internal::Open_PresetBrowserWindow(emitter.id, module.id);
+
             if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
                 ImGui::SetTooltip("원본 머티리얼을 확인");
             ImGui::PopID();
@@ -430,7 +503,6 @@ bool RequiredModuleDetail::Draw(AuthoringEmitter& emitter, const AuthoringModule
     {
         emitter.rendererType = data.rendererType;
         emitter.textureId = data.material.mainTextureId;
-        emitter.materialName = data.material.definitionName;
         emitter.resourceSummary = data.material.mainTextureId;
     }
 

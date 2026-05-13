@@ -4,6 +4,7 @@
 #include <shobjidl.h>
 
 #include "EffectEditorInstance.h"
+#include "EffectMaterialPreviewRenderer.h"
 #include "Emitter_View.h"
 #include "GameInstance.h"
 #include "Helper_DetailProperty.h"
@@ -28,10 +29,14 @@ namespace Internal
 
     wstring ToLowerCopy(wstring value)
     {
-        ranges::transform(value, value.begin(), [](wchar_t character)
-        {
-            return static_cast<wchar_t>(::towlower(character));
-        });
+        ranges::transform(
+            value,
+            value.begin(),
+            [](wchar_t character)
+            {
+                return static_cast<wchar_t>(::towlower(character));
+            }
+        );
         return value;
     }
 
@@ -104,7 +109,14 @@ namespace Internal
             return false;
         }
 
-        ifstream file{ fs::path(kTextureTablePath) };
+        const fs::path textureTablePath = Resolve_EditorPath(kTextureTablePath);
+        if (textureTablePath.empty())
+        {
+            outError = "Failed to resolve DT_Texture.json path.";
+            return false;
+        }
+
+        ifstream file{ textureTablePath };
         if (!file.is_open())
         {
             outError = "Failed to open DT_Texture.json.";
@@ -300,7 +312,8 @@ namespace Internal
         {
             if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(
                 kEffectTexturePayloadType,
-                ImGuiDragDropFlags_AcceptBeforeDelivery))
+                ImGuiDragDropFlags_AcceptBeforeDelivery
+            ))
             {
                 if (payload->IsDelivery())
                     changed = Try_AssignTextureFromFile(static_cast<const wchar_t*>(payload->Data), value);
@@ -312,11 +325,11 @@ namespace Internal
         const ImVec2 slotMax = ImGui::GetItemRectMax();
         const bool isHovered = ImGui::IsItemHovered();
         const ImU32 fillColor = isHovered || isTextureDragging
-            ? IM_COL32(34, 42, 58, 255)
-            : IM_COL32(22, 25, 32, 255);
+                                ? IM_COL32(34, 42, 58, 255)
+                                : IM_COL32(22, 25, 32, 255);
         const ImU32 borderColor = isHovered || isTextureDragging
-            ? IM_COL32(116, 156, 235, 255)
-            : IM_COL32(78, 88, 108, 255);
+                                  ? IM_COL32(116, 156, 235, 255)
+                                  : IM_COL32(78, 88, 108, 255);
 
         ImDrawList* drawList = ImGui::GetWindowDrawList();
         drawList->AddRectFilled(slotMin, slotMax, fillColor, 4.f);
@@ -336,13 +349,14 @@ namespace Internal
 
         ImGui::SameLine();
         ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2{ 0.5f, 0.5f });
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2{ 0.f, 0.f });
         if (ImGui::Button(ICON_FA_FOLDER_OPEN "##PickTexture", ImVec2{ browseButtonWidth, slotSize.y }))
         {
             wstring pickedFilePath{};
             if (Try_PickTextureFileDialog(pickedFilePath))
                 changed = Try_AssignTextureFromFile(pickedFilePath, value);
         }
-        ImGui::PopStyleVar();
+        ImGui::PopStyleVar(2);
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
             ImGui::SetTooltip("텍스처 파일 선택");
 
@@ -374,8 +388,11 @@ namespace Internal
 
 EffectMaterialInstance_View::EffectMaterialInstance_View()
     : Editor_Window{ L"Effect Material Instance", ICON_FA_PALETTE }
+    , _previewRenderer{ make_unique<EffectMaterialPreviewRenderer>() }
 {
 }
+
+EffectMaterialInstance_View::~EffectMaterialInstance_View() = default;
 
 void EffectMaterialInstance_View::Render()
 {
@@ -399,13 +416,53 @@ void EffectMaterialInstance_View::Render()
         {
             ImGui::TextUnformatted("Embedded Effect Material Instance (Preset Copy)");
             ImGui::TextDisabled("Source preset GUID is not stored in this instance.");
-
-            ImGui::TextDisabled("Definition: %s", requiredData->material.definitionName.c_str());
             ImGui::Separator();
 
             bool changed = false;
+            const float contentWidth = ImGui::GetContentRegionAvail().x;
+            const bool useSideBySideLayout = contentWidth >= 760.f;
 
-            changed |= Draw_InstanceProperties(requiredData->material);
+            if (useSideBySideLayout)
+            {
+                const float spacing = ImGui::GetStyle().ItemSpacing.x;
+                const float previewPaneWidth = clamp(contentWidth * 0.42f, 360.f, 560.f);
+
+                ImGui::BeginChild("EffectMaterialInstancePreviewPane", ImVec2(previewPaneWidth, 0.f), false);
+                {
+                    if (_previewRenderer != nullptr)
+                    {
+                        _previewRenderer->Draw_Viewport(
+                            "EffectMaterialInstancePreview",
+                            requiredData->material,
+                            "현재 인스턴스 프리뷰"
+                        );
+                    }
+                }
+                ImGui::EndChild();
+
+                ImGui::SameLine(0.f, spacing);
+
+                ImGui::BeginChild("EffectMaterialInstancePropertyPane", ImVec2(0.f, 0.f), false);
+                {
+                    changed |= Draw_InstanceProperties(requiredData->material);
+                }
+                ImGui::EndChild();
+            }
+            else
+            {
+                if (_previewRenderer != nullptr)
+                {
+                    _previewRenderer->Draw_Viewport(
+                        "EffectMaterialInstancePreview",
+                        requiredData->material,
+                        "현재 인스턴스 프리뷰"
+                    );
+                    ImGui::Separator();
+                }
+
+                changed |= Draw_InstanceProperties(requiredData->material);
+            }
+
             if (changed)
                 Apply_MaterialChanged(emitterView, *emitter, *requiredData);
         }
@@ -413,6 +470,20 @@ void EffectMaterialInstance_View::Render()
 
     Set_Open(isOpen);
     ImGui::End();
+}
+
+void EffectMaterialInstance_View::Pre_Render()
+{
+    if (!Is_Open() || _previewRenderer == nullptr)
+        return;
+
+    Shared<Emitter_View> emitterView{};
+    AuthoringEmitter* emitter{ nullptr };
+    RequiredModuleData* requiredData{ nullptr };
+    if (!Resolve_Target(emitterView, emitter, requiredData))
+        return;
+
+    _previewRenderer->Render_Material(requiredData->material);
 }
 
 void EffectMaterialInstance_View::Open_Instance(uint32 emitterId, uint32 moduleId)
@@ -453,14 +524,13 @@ bool EffectMaterialInstance_View::Resolve_Target(
 
 bool EffectMaterialInstance_View::Draw_InstanceProperties(EffectMaterialInstanceData& material)
 {
-    const EffectMaterialInstanceData defaultData = Resolve_EffectMaterialDefinition(material.definitionName).defaultInstance;
+    const EffectMaterialInstanceData defaultData{};
     bool changed = false;
 
     if (ImGui::CollapsingHeader("Texture", ImGuiTreeNodeFlags_DefaultOpen))
     {
         if (DetailProperty::Begin_PropertyTable("EffectMaterialInstanceTexture"))
         {
-            changed |= DetailProperty::Draw_StringProperty("Definition", material.definitionName, defaultData.definitionName);
             changed |= Internal::Draw_TextureProperty("Main Texture", material.mainTextureId, defaultData.mainTextureId);
             changed |= Internal::Draw_TextureProperty("Noise Texture", material.noiseTextureId, defaultData.noiseTextureId);
             DetailProperty::End_PropertyTable();
@@ -505,7 +575,6 @@ void EffectMaterialInstance_View::Apply_MaterialChanged(
     emitter.previewDirty = true;
     emitter.rendererType = requiredData.rendererType;
     emitter.textureId = requiredData.material.mainTextureId;
-    emitter.materialName = requiredData.material.definitionName;
     emitter.resourceSummary = requiredData.material.mainTextureId;
 
     if (emitterView)

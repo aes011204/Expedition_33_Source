@@ -22,17 +22,16 @@ public:
     {
         PointParticleDrawMode drawMode{ PointParticleDrawMode::Direct }; // 이 preview clone의 draw 제출 방식.
 
-        string textureId{ "Texture_Snow" };               // Required.textureId에서 내려온 main particle texture id.
-        string materialName{ "SpriteSymbolTranslucent" }; // sprite preview에서 사용할 임시 material preset 이름.
-        string blendMode{ "AlphaBlend" };                 // preview shader/render path가 해석할 blend mode 단서.
-        string opacitySource{ "Alpha" };                  // texture에서 opacity를 뽑을 채널/방식.
-        Vec4 tint{ 1.f, 1.f, 1.f, 1.f };                  // texture sample에 곱할 material tint.
-        float intensity{ 1.f };                           // sprite 색상 밝기/발광감을 조절하는 preview 계수.
-        float opacityPower{ 1.f };                        // opacity를 선명하게 만들기 위한 preview sharpening 계수.
-        string noiseTextureId{};                          // 선택 noise texture runtime id. 비어 있으면 사용하지 않는다.
-        float noiseStrength{ 0.f };                       // noise가 opacity/color modulation에 끼치는 preview 강도.
-        uint32 subUvRows{ 1 };                            // flipbook grid 기록용 row 수.
-        uint32 subUvCols{ 1 };                            // flipbook grid 기록용 column 수.
+        string textureId{ "Texture_Snow" }; // Required.textureId에서 내려온 main particle texture id.
+        string blendMode{ "AlphaBlend" };   // preview shader/render path가 해석할 blend mode 단서.
+        string opacitySource{ "Alpha" };    // texture에서 opacity를 뽑을 채널/방식.
+        Vec4 tint{ 1.f, 1.f, 1.f, 1.f };    // texture sample에 곱할 material tint.
+        float intensity{ 1.f };             // sprite 색상 밝기/발광감을 조절하는 preview 계수.
+        float opacityPower{ 1.f };          // opacity를 선명하게 만들기 위한 preview sharpening 계수.
+        string noiseTextureId{};            // 선택 noise texture runtime id. 비어 있으면 사용하지 않는다.
+        float noiseStrength{ 0.f };         // noise가 opacity/color modulation에 끼치는 preview 강도.
+        uint32 subUvRows{ 1 };              // flipbook grid 기록용 row 수.
+        uint32 subUvCols{ 1 };              // flipbook grid 기록용 column 수.
 
         Vec3 center{ 0.f, 2.f, 0.f };             // 이 preview clone의 스폰 중심.
         uint32 instanceCount{ 64 };               // 이 preview clone이 생성할 particle 수.

@@ -309,7 +309,6 @@ struct AuthoringEmitter
     string name{};
     string rendererType{ "Sprite" };
     string resourceSummary{};
-    string materialName{ "SpriteSymbolTranslucent" };
     string textureId{ "Texture_Effect_DefaultTexture" };
     bool enabled{ true };
     bool previewDirty{ true };

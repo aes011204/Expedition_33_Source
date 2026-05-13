@@ -122,7 +122,6 @@ AuthoringEmitter Emitter_View::Make_DefaultSpriteEmitter()
     if (const auto* requiredData = get_if<RequiredModuleData>(&requiredModule.data))
     {
         emitter.rendererType = requiredData->rendererType;
-        emitter.materialName = requiredData->material.definitionName;
         emitter.textureId = requiredData->material.mainTextureId;
         emitter.resourceSummary = requiredData->material.mainTextureId;
     }
@@ -416,7 +415,6 @@ void Emitter_View::Reset_ModuleData(size_t emitterIndex, size_t moduleIndex)
         module.data = data;
         emitter.rendererType = data.rendererType;
         emitter.textureId = data.material.mainTextureId;
-        emitter.materialName = data.material.definitionName;
         emitter.resourceSummary = data.material.mainTextureId;
         break;
     }

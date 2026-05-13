@@ -82,6 +82,12 @@
     <ClCompile Include="..\Private\Helper_DetailProperty.cpp">
       <Filter>99. Defines\Helper</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\Helper_ReadPreset.cpp">
+      <Filter>99. Defines\Helper</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Helper_EffectCamera.cpp">
+      <Filter>99. Defines\Helper</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -187,6 +193,12 @@
       <Filter>01. View\Detail View\Detail Drawer</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Helper_DetailProperty.h">
+      <Filter>99. Defines\Helper</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Helper_ReadPreset.h">
+      <Filter>99. Defines\Helper</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Helper_EffectCamera.h">
       <Filter>99. Defines\Helper</Filter>
     </ClInclude>
   </ItemGroup>

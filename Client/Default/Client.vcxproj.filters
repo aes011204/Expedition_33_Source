@@ -564,6 +564,9 @@
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectSprite.hlsl">
       <Filter>97.ShaderFiles\Effect</Filter>
     </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMaterialPreview.hlsl">
+      <Filter>97.ShaderFiles\Effect</Filter>
+    </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMeshInstanceExact.hlsl">
       <Filter>97.ShaderFiles</Filter>
     </FxCompile>

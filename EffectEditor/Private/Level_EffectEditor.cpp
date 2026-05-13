@@ -114,9 +114,6 @@ namespace Internal
             if (!material.mainTextureId.empty())
                 desc.textureId = material.mainTextureId;
 
-            if (!material.definitionName.empty())
-                desc.materialName = material.definitionName;
-
             if (!material.blendMode.empty())
                 desc.blendMode = material.blendMode;
 
@@ -309,7 +306,7 @@ HRESULT Level_EffectEditor::Ready_Layer_Camera(const wstring& layerTag)
     cameraDesc.fovy = XMConvertToRadians(60.f);
     cameraDesc.nearPlane = 0.1f;
     cameraDesc.farPlane = 500.f;
-    cameraDesc.mouseSensor = 0.05f;
+    cameraDesc.mouseSensor = 0.065f;
     cameraDesc.yaw = 0.f;
     cameraDesc.pitch = 0.f;
     cameraDesc.pivot = Vec3(0.f, 0.f, 0.f);

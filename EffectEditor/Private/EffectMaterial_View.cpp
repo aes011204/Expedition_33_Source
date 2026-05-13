@@ -1,6 +1,7 @@
 ﻿#include "EffectMaterial_View.h"
 
 #include <fstream>
+#include "Helper_ReadPreset.h"
 #include "EffectMaterialPreviewRenderer.h"
 #include "GameInstance.h"
 #include "Helper_String.h"
@@ -9,70 +10,51 @@ NS_BEGIN(EffectEditor)
 
 namespace Internal
 {
-    string Read_String(const json& root, const char* key, const string& defaultValue)
-    {
-        const auto iter = root.find(key);
-        if (iter == root.end() || !iter->is_string())
-            return defaultValue;
+    constexpr const wchar_t* kPreviewFallbackTextureId = L"Texture_Effect_DefaultTexture";
 
-        return iter->get<string>();
+    bool Is_SupportedBlendMode(const string& blendMode)
+    {
+        return
+            blendMode == "AlphaBlend" ||
+            blendMode == "alphaBlend" ||
+            blendMode == "alphablend" ||
+            blendMode == "Additive" ||
+            blendMode == "additive";
     }
 
-    float Read_Float(const json& root, const char* key, float defaultValue)
+    bool Is_SupportedOpacitySource(const string& opacitySource)
     {
-        const auto iter = root.find(key);
-        if (iter == root.end() || !iter->is_number())
-            return defaultValue;
-
-        return iter->get<float>();
+        return
+            opacitySource == "Alpha" ||
+            opacitySource == "alpha" ||
+            opacitySource == "Red" ||
+            opacitySource == "red" ||
+            opacitySource == "Luminance" ||
+            opacitySource == "luminance";
     }
 
-    uint32 Read_Uint(const json& root, const char* key, uint32 defaultValue)
-    {
-        const auto iter = root.find(key);
-        if (iter == root.end() || !iter->is_number_unsigned())
-            return defaultValue;
-
-        return iter->get<uint32>();
-    }
-
-    Color Read_Color(const json& root, const char* key, const Color& defaultValue)
+    bool Should_WarnInvalidSubUv(const json& root, const char* key)
     {
         const auto iter = root.find(key);
         if (iter == root.end())
-            return defaultValue;
+            return false;
 
-        if (iter->is_object())
-        {
-            return Color(
-                iter->value("r", defaultValue.x),
-                iter->value("g", defaultValue.y),
-                iter->value("b", defaultValue.z),
-                iter->value("a", defaultValue.w)
-            );
-        }
+        if (!iter->is_number_unsigned())
+            return true;
 
-        if (iter->is_array() && iter->size() >= 4)
-        {
-            return Color(
-                iter->at(0).is_number() ? iter->at(0).get<float>() : defaultValue.x,
-                iter->at(1).is_number() ? iter->at(1).get<float>() : defaultValue.y,
-                iter->at(2).is_number() ? iter->at(2).get<float>() : defaultValue.z,
-                iter->at(3).is_number() ? iter->at(3).get<float>() : defaultValue.w
-            );
-        }
-
-        return defaultValue;
+        return iter->get<uint32>() == 0;
     }
 
-    string Resolve_PresetDisplayName(const wstring& filePath)
+    bool Can_ResolvePreviewFallbackTexture()
     {
-        string fileName = String::ToString(fs::path(filePath).filename().wstring());
-        constexpr const char* suffix = ".effectmaterial.json";
-        if (fileName.ends_with(suffix))
-            fileName.erase(fileName.size() - strlen(suffix));
+        if (GAME == nullptr)
+            return false;
 
-        return fileName;
+        return GAME->Clone_Prototype(
+            Prototype::Comopnent,
+            ETOI(LevelType::GamePlay),
+            kPreviewFallbackTextureId
+        ) != nullptr;
     }
 }
 
@@ -89,7 +71,7 @@ void EffectMaterial_View::Pre_Render()
     if (!Is_Open())
         return;
 
-    if (_viewMode != ViewMode::Preset || _selectedPresetPath.empty() || _previewRenderer == nullptr)
+    if (_selectedPresetPath.empty() || _previewRenderer == nullptr)
         return;
 
     _previewRenderer->Render_Material(_selectedPresetMaterial);
@@ -107,28 +89,15 @@ void EffectMaterial_View::Render()
     {
         _isFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
         _isHovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_RootAndChildWindows);
-
-        if (_viewMode == ViewMode::Preset)
-            Render_PresetInfo();
-        else
-            Render_DefinitionInfo(Get_CurrentDefinition());
+        Render_PresetInfo();
     }
 
     Set_Open(isOpen);
     ImGui::End();
 }
 
-void EffectMaterial_View::Open_Definition(const string& definitionName)
-{
-    _viewMode = ViewMode::Definition;
-    _definitionName = definitionName;
-    _statusMessage.clear();
-    Set_Open(true);
-}
-
 void EffectMaterial_View::Open_PresetBrowser()
 {
-    _viewMode = ViewMode::Preset;
     _statusMessage.clear();
     Refresh_PresetList();
 
@@ -140,7 +109,6 @@ void EffectMaterial_View::Open_PresetBrowser()
 
 void EffectMaterial_View::Open_Preset(const wstring& filePath)
 {
-    _viewMode = ViewMode::Preset;
     _statusMessage.clear();
     Refresh_PresetList();
     Load_PresetFile(filePath);
@@ -165,49 +133,6 @@ string EffectMaterial_View::Get_SelectedMaterialFileName() const
     return String::ToString(fs::path(_selectedPresetPath).filename().wstring());
 }
 
-const EffectMaterialDefinitionData& EffectMaterial_View::Get_CurrentDefinition() const
-{
-    return Resolve_EffectMaterialDefinition(_definitionName);
-}
-
-void EffectMaterial_View::Render_DefinitionInfo(const EffectMaterialDefinitionData& definition)
-{
-    ImGui::TextUnformatted("Effect Material Definition");
-    ImGui::Separator();
-
-    if (ImGui::BeginTable("EffectMaterialDefinitionInfo", 2, ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoSavedSettings))
-    {
-        ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthStretch, 0.35f);
-        ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch, 0.65f);
-
-        ImGui::TableNextRow();
-        ImGui::TableSetColumnIndex(0);
-        ImGui::TextDisabled("Definition");
-        ImGui::TableSetColumnIndex(1);
-        ImGui::TextUnformatted(definition.name.c_str());
-
-        ImGui::TableNextRow();
-        ImGui::TableSetColumnIndex(0);
-        ImGui::TextDisabled("Renderer Family");
-        ImGui::TableSetColumnIndex(1);
-        ImGui::TextUnformatted(definition.rendererFamily.c_str());
-
-        ImGui::TableNextRow();
-        ImGui::TableSetColumnIndex(0);
-        ImGui::TextDisabled("Default Texture");
-        ImGui::TableSetColumnIndex(1);
-        ImGui::TextUnformatted(definition.defaultInstance.mainTextureId.c_str());
-
-        ImGui::TableNextRow();
-        ImGui::TableSetColumnIndex(0);
-        ImGui::TextDisabled("Blend / Opacity");
-        ImGui::TableSetColumnIndex(1);
-        ImGui::Text("%s / %s", definition.defaultInstance.blendMode.c_str(), definition.defaultInstance.opacitySource.c_str());
-
-        ImGui::EndTable();
-    }
-}
-
 void EffectMaterial_View::Render_PresetInfo()
 {
     ImGui::TextUnformatted("원본 머티리얼");
@@ -215,7 +140,10 @@ void EffectMaterial_View::Render_PresetInfo()
 
     if (_selectedPresetPath.empty())
     {
-        ImGui::TextDisabled("선택된 원본 preset이 없습니다.");
+        if (!_statusMessage.empty())
+            ImGui::TextDisabled("%s", _statusMessage.c_str());
+        else
+            ImGui::TextDisabled("선택된 원본 preset이 없습니다.");
         return;
     }
 
@@ -283,62 +211,14 @@ void EffectMaterial_View::Render_PresetInfo()
 
 void EffectMaterial_View::Render_PresetPreview()
 {
-    ImGui::TextUnformatted("Plane Preview");
+    if (_previewRenderer == nullptr)
+        return;
 
-    const float previewHeight = max(280.f, ImGui::GetContentRegionAvail().y);
-    ImGui::BeginChild("EffectMaterialOriginalPreview", ImVec2(0.f, previewHeight), true, ImGuiWindowFlags_NoScrollbar);
-    {
-        ImVec2 canvasSize = ImGui::GetContentRegionAvail();
-        canvasSize.x = max(1.f, canvasSize.x);
-        canvasSize.y = max(1.f, canvasSize.y);
-
-        const ImVec2 canvasMin = ImGui::GetCursorScreenPos();
-        const ImVec2 canvasMax = ImVec2(canvasMin.x + canvasSize.x, canvasMin.y + canvasSize.y);
-        ImDrawList* drawList = ImGui::GetWindowDrawList();
-
-        drawList->AddRectFilled(canvasMin, canvasMax, IM_COL32(10, 12, 16, 255));
-        drawList->AddRect(canvasMin, canvasMax, IM_COL32(70, 78, 92, 255));
-
-        ImGui::InvisibleButton("EffectMaterialPreviewCanvas", canvasSize);
-        const bool isHovered = ImGui::IsItemHovered();
-
-        ID3D11ShaderResourceView* previewSrv =
-            _previewRenderer == nullptr ? nullptr : _previewRenderer->Get_SRV();
-
-        if (previewSrv != nullptr)
-        {
-            const float imageSize = min(canvasSize.x, canvasSize.y);
-            const ImVec2 imageMin = ImVec2(
-                canvasMin.x + (canvasSize.x - imageSize) * 0.5f,
-                canvasMin.y + (canvasSize.y - imageSize) * 0.5f
-            );
-            const ImVec2 imageMax = ImVec2(imageMin.x + imageSize, imageMin.y + imageSize);
-            const ImTextureID textureId = static_cast<ImTextureID>(reinterpret_cast<intptr_t>(previewSrv));
-            drawList->AddImage(textureId, imageMin, imageMax);
-        }
-        else
-        {
-            const char* message = "Preview render target is not ready.";
-            if (_previewRenderer != nullptr && !_previewRenderer->Get_StatusMessage().empty())
-                message = _previewRenderer->Get_StatusMessage().c_str();
-
-            drawList->AddText(
-                ImVec2(canvasMin.x + 12.f, canvasMin.y + 12.f),
-                IM_COL32(214, 220, 230, 255),
-                message
-            );
-        }
-
-        drawList->AddText(
-            ImVec2(canvasMin.x + 12.f, canvasMax.y - 24.f),
-            IM_COL32(180, 190, 205, 255),
-            "LMB drag: orbit / Wheel: zoom"
-        );
-
-        if (_previewRenderer != nullptr)
-            _previewRenderer->Handle_ViewportInput(isHovered);
-    }
-    ImGui::EndChild();
+    _previewRenderer->Draw_Viewport(
+        "EffectMaterialOriginalPreview",
+        _selectedPresetMaterial,
+        "원본 프리뷰"
+    );
 }
 
 void EffectMaterial_View::Render_MaterialInstanceTable(const char* tableId, const EffectMaterialInstanceData& material) const
@@ -358,7 +238,6 @@ void EffectMaterial_View::Render_MaterialInstanceTable(const char* tableId, cons
         ImGui::TextUnformatted(value.c_str());
     };
 
-    drawRow("Definition", material.definitionName);
     drawRow("Main Texture", material.mainTextureId);
     drawRow("Noise Texture", material.noiseTextureId.empty() ? string{} : material.noiseTextureId);
 
@@ -421,6 +300,7 @@ bool EffectMaterial_View::Load_PresetFile(const wstring& filePath)
     if (!fs::exists(filePath))
     {
         _statusMessage = "Preset file does not exist.";
+        LOG_ERROR("EffectMaterial preset load failed: file does not exist. path='{}'", String::ToString(filePath));
         return false;
     }
 
@@ -428,6 +308,7 @@ bool EffectMaterial_View::Load_PresetFile(const wstring& filePath)
     if (!file.is_open())
     {
         _statusMessage = "Failed to open preset file.";
+        LOG_ERROR("EffectMaterial preset load failed: open failed. path='{}'", String::ToString(filePath));
         return false;
     }
 
@@ -439,23 +320,57 @@ bool EffectMaterial_View::Load_PresetFile(const wstring& filePath)
     catch (...)
     {
         _statusMessage = "Failed to parse preset json.";
+        LOG_ERROR("EffectMaterial preset load failed: json parse failed. path='{}'", String::ToString(filePath));
         return false;
     }
 
-    const EffectMaterialInstanceData defaultMaterial = Resolve_EffectMaterialDefinition("SpriteSymbolTranslucent").defaultInstance;
-    EffectMaterialInstanceData material = defaultMaterial;
-    material.definitionName = Internal::Read_String(root, "definitionName", defaultMaterial.definitionName);
-    material.sourcePresetName = Internal::Resolve_PresetDisplayName(filePath);
-    material.mainTextureId = Internal::Read_String(root, "mainTextureId", defaultMaterial.mainTextureId);
-    material.noiseTextureId = Internal::Read_String(root, "noiseTextureId", defaultMaterial.noiseTextureId);
-    material.tint = Internal::Read_Color(root, "tint", defaultMaterial.tint);
-    material.intensity = Internal::Read_Float(root, "intensity", defaultMaterial.intensity);
-    material.opacityPower = Internal::Read_Float(root, "opacityPower", defaultMaterial.opacityPower);
-    material.noiseStrength = Internal::Read_Float(root, "noiseStrength", defaultMaterial.noiseStrength);
-    material.blendMode = Internal::Read_String(root, "blendMode", defaultMaterial.blendMode);
-    material.opacitySource = Internal::Read_String(root, "opacitySource", defaultMaterial.opacitySource);
-    material.subUvRows = max(1u, Internal::Read_Uint(root, "subUvRows", defaultMaterial.subUvRows));
-    material.subUvCols = max(1u, Internal::Read_Uint(root, "subUvCols", defaultMaterial.subUvCols));
+    EffectMaterialInstanceData material{};
+    if (!ReadPreset::Read(filePath, material))
+    {
+        _statusMessage = "Failed to read preset material.";
+        LOG_ERROR("EffectMaterial preset load failed: material read failed. path='{}'", String::ToString(filePath));
+        return false;
+    }
+    const bool warnSubUvRows = Internal::Should_WarnInvalidSubUv(root, "subUvRows");
+    const bool warnSubUvCols = Internal::Should_WarnInvalidSubUv(root, "subUvCols");
+
+    const string presetPath = String::ToString(filePath);
+    if (warnSubUvRows)
+        LOG_WARN("EffectMaterial preset corrected invalid subUvRows to 1. path='{}'", presetPath);
+    if (warnSubUvCols)
+        LOG_WARN("EffectMaterial preset corrected invalid subUvCols to 1. path='{}'", presetPath);
+
+    if (!Internal::Is_SupportedBlendMode(material.blendMode))
+    {
+        _statusMessage = "Unsupported blendMode in preset.";
+        LOG_ERROR(
+            "EffectMaterial preset load failed: unsupported blendMode='{}'. path='{}'",
+            material.blendMode,
+            presetPath
+        );
+        return false;
+    }
+
+    if (!Internal::Is_SupportedOpacitySource(material.opacitySource))
+    {
+        _statusMessage = "Unsupported opacitySource in preset.";
+        LOG_ERROR(
+            "EffectMaterial preset load failed: unsupported opacitySource='{}'. path='{}'",
+            material.opacitySource,
+            presetPath
+        );
+        return false;
+    }
+
+    if (material.mainTextureId.empty() && !Internal::Can_ResolvePreviewFallbackTexture())
+    {
+        _statusMessage = "Main texture is missing and preview fallback texture is unavailable.";
+        LOG_ERROR(
+            "EffectMaterial preset load failed: mainTextureId is empty and preview fallback texture is unavailable. path='{}'",
+            presetPath
+        );
+        return false;
+    }
 
     _selectedPresetPath = filePath;
     _selectedPresetMaterial = material;
