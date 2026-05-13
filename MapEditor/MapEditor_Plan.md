@@ -375,7 +375,11 @@ MEModelManager                            — 모델 로드/캐싱 전담
 5. **`CmdDeleteObject::Undo` 수정** ✅
    - `_objects` 원래 인덱스 복원 유지 + 타입 벡터에도 push
 
-6. **Deferred 셰이더 배경 버그 수정** ✅ (`Shader_Deferred.hlsl`)
+6. **`Culling_Manager::BuildOctree` Extents 버그 수정** ✅ (`Engine/Private/Culling_Manager.cpp`)
+   - `_octreeRoot->bounds.Extents = (minPt - maxPt) * 0.5f` → `(maxPt - minPt) * 0.5f` 로 수정
+   - 음수 Extents 로 인해 `BoundingFrustum::Intersects` 가 항상 DISJOINT 반환 → `QueryVisible` 이 항상 빈 배열 반환하는 문제 해결
+
+7. **Deferred 셰이더 배경 버그 수정** ✅ (`Shader_Deferred.hlsl`)
    - `PS_MAIN_DIRECTIONAL` / `PS_MAIN_POINT` — `vDepthDesc.y == 0.f` 시 `discard` 추가 (배경 픽셀 라이팅 차단)
    - `PS_MAIN_COMBINED_SIMPLE` — `vDiffuse.a == 0.f` 시 `discard` 추가 (배경 출력 차단)
 
@@ -422,19 +426,23 @@ MEModelManager                            — 모델 로드/캐싱 전담
 - ✅ `EditorObject` 인스턴싱 파라미터 필드 추가
   - `_instancedModelPath` / `_instancedAreaWidth` / `_instancedAreaDepth` / `_instancedDensity` / `_instancedSeed`
   - `_instancedRenderHandle` / `_instancedParamsDirty`
-- ✅ `MEInstancedMeshActor` (`MapEditor/Public·Private/`)
-  - `Ready_Components()` 내부에서 `Shader_VtxMeshInstance.hlsl` 직접 생성
+- ✅ `MEInstancedMeshActor` (`MapEditor/Public·Private/`) — `GameObject` 상속, 엔진 디퍼드 파이프라인 연동
+  - `GameObject` 상속 (`_device` / `_context` 제거, 엔진 멤버 재사용)
+  - `Initialize` / `Clone` — 엔진 프로토타입 패턴 준수
+  - `Ready_Components()` — `Add_Component(0, "Shader_VtxMeshInstance", _shader)` 로 셰이더 클론
+  - `Late_Update` — `GAME->Add_RenderGroup(NonBlend, ...)` 으로 엔진 렌더 큐 등록
   - `UpdateInstances(modelPath, centerPos, areaWidth, areaDepth, density, seed)`
   - `GenerateInstances` — `mt19937(seed)` 기반 재현 가능 배치, `Math::RandNum` 활용
   - `CreateInstanceBuffer` — DYNAMIC VB, count 초과 시 재생성
-  - `Render(float cameraFar)` — `g_PreTransformMatrix` 바인딩, 텍스처 유무 pass 0/1 분기
+  - `Render()` — `g_PreTransformMatrix` 바인딩, 텍스처 유무 pass 0/1 분기
+- ✅ `MapEditorApp::Initialize` — 엔진 프로토타입 2종 등록
+  - `Shader_VtxMeshInstance` 셰이더 프로토타입 (`Client/Bin/ShaderFiles/Shader_VtxMeshInstance.hlsl` 사용, MapEditor 복사본 삭제)
+  - `MEInstancedMeshActor` GameObject 프로토타입 (`GAME->Add_Prototype`)
+- ✅ `MapEditorApp::UpdateRenderHandles` — `Clone_Prototype(GameObject, "MEInstancedMeshActor")` 로 instanced actor 생성 (직접 Create 방식 제거)
+- ✅ `MapEditorApp` Render 루프 — static mesh 루프와 instanced mesh 루프 분리, `GAME->Draw_RendererOnly()` 로 통합 렌더
 - ✅ `SceneContext` 확장 — `_instancedMeshes` 벡터, Add/Remove/ClearScene/SaveToFile/LoadFromFile 연동
-- ✅ `MapEditorApp` 확장
-  - `UpdateRenderHandles` — StaticMesh(`_dirtyRenderHandles`)와 InstancedMesh(`_instancedParamsDirty`) 분리 처리
-  - `RenderInstancedMeshes()` — MRT_GameObjects 블록 내 렌더
 - ✅ `PanelInspector::DrawTypeParams` — InstancedMesh 섹션 (ModelPath 파일명 입력, 자동 경로 조립, Area/Density/Seed 편집)
-- ✅ `Shader_VtxMeshInstance.hlsl` MapEditor 복사본 (`MapEditor/Bin/ShaderFiles/`)
-  - `g_PreTransformMatrix` 적용, `PS_MAIN_NOTEXTURE` pass 1 추가
+- ✅ `Shader_VtxMeshInstance.hlsl` (`Client/Bin/ShaderFiles/`) — G-buffer 출력, `g_PreTransformMatrix` 적용, `PS_MAIN_NOTEXTURE` pass 1, MapEditor/Bin 복사본 삭제
 
 **미구현**
 - ⬜ **Phase B — Client 맵 로드 연동**

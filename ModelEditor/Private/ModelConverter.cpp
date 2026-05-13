@@ -119,7 +119,8 @@ namespace ModelEditor
 					  aiProcess_Triangulate |
 					  aiProcess_CalcTangentSpace |
 					  aiProcess_GenSmoothNormals |
-                      aiProcess_LimitBoneWeights;
+                      aiProcess_LimitBoneWeights |
+                       aiProcess_JoinIdenticalVertices;
 
 		strcpy_s(_pathBuffer, Engine::String::ToString(ResourcePath).c_str());
 		_resourcePath = ResourcePath;
@@ -365,11 +366,6 @@ namespace ModelEditor
         };
 
         RecursiveBuild(RecursiveBuild, _aiScene->mRootNode, -1);
-
-        if (_bones.size() > 0)
-        {
-            _isSkeletal = true;
-        }
 
 		ReadMeshes(_aiScene);
 		ReadMaterial(_aiScene);

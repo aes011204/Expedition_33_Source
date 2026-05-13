@@ -19,18 +19,15 @@ ORIGIN_DIR = "../Client/Bin/Resources/Map/OriginJson"
 SAVE_DIR   = "../Client/Bin/Resources/Map/SaveJson"
 
 
-# ── UE → DX 좌표 변환 (MEUe5Importer 동일 로직) ──────────────────────────
+# ── UE → DX 좌표 변환 ──────────────────────────────────────────────────────
 
 def convert_translation(x, y, z, factor):
-    # UE cm → 엔진 단위(/100), Y↔Z 스왑, 스케일 보정
     return [x / 100.0 * factor, z / 100.0 * factor, y / 100.0 * factor]
 
 def convert_scale(x, y, z, factor):
-    # Y↔Z 스왑 + factor 균등 적용 (위치와 동일 배율)
     return [x * factor, z * factor, y * factor]
 
 def euler_to_quat(pitch_deg, yaw_deg, roll_deg):
-    # UE Pitch/Yaw/Roll → DX Quat (MEUe5Importer::ParseSingle 동일)
     p = math.radians(-pitch_deg)
     y = math.radians(-yaw_deg)
     r = math.radians(roll_deg)
@@ -39,21 +36,15 @@ def euler_to_quat(pitch_deg, yaw_deg, roll_deg):
     cy, sy = math.cos(y * 0.5), math.sin(y * 0.5)
     cr, sr = math.cos(r * 0.5), math.sin(r * 0.5)
 
-    # qp = AxisAngle(Right,  p)  → (sp, 0, 0, cp)
-    # qy = AxisAngle(Up,     y)  → (0, sy, 0, cy)
-    # qr = AxisAngle(Forward,r)  → (0, 0, sr, cr)
-    # result = qr * qp * qy
     qpx, qpy, qpz, qpw = sp, 0.0, 0.0, cp
     qyx, qyy, qyz, qyw = 0.0, sy,  0.0, cy
     qrx, qry, qrz, qrw = 0.0, 0.0, sr,  cr
 
-    # qr * qp
     ax = qrw*qpx + qrx*qpw + qry*qpz - qrz*qpy
     ay = qrw*qpy - qrx*qpz + qry*qpw + qrz*qpx
     az = qrw*qpz + qrx*qpy - qry*qpx + qrz*qpw
     aw = qrw*qpw - qrx*qpx - qry*qpy - qrz*qpz
 
-    # (qr*qp) * qy
     rx = aw*qyx + ax*qyw + ay*qyz - az*qyy
     ry = aw*qyy - ax*qyz + ay*qyw + az*qyx
     rz = aw*qyz + ax*qyy - ay*qyx + az*qyw
@@ -62,7 +53,6 @@ def euler_to_quat(pitch_deg, yaw_deg, roll_deg):
     return [rx, ry, rz, rw]
 
 def convert_quat(qx, qy, qz, qw):
-    # MEUe5Importer::ConvertRotation: (X, Z, Y, -W)
     return [qx, qz, qy, -qw]
 
 def extract_mesh_name(object_path: str) -> str:
@@ -100,7 +90,15 @@ def parse_single(comp: dict, global_index: int, factor: float) -> dict | None:
         "ModelPath": f"{name}.model",
     }
 
-def parse_instanced(comp: dict, instance_index: int, global_index: int, factor: float) -> dict | None:
+def get_mesh_name(comp: dict) -> str | None:
+    sm = comp.get("Properties", {}).get("StaticMesh")
+    if not sm:
+        return None
+    return extract_mesh_name(sm["ObjectPath"])
+
+def parse_instance(comp: dict, instance_index: int, factor: float) -> dict | None:
+    """PerInstanceSMData 단일 항목을 인스턴스 트랜스폼으로 변환합니다.
+    Translation은 이미 월드 좌표 — TranslatedInstanceSpaceOrigin은 경계 캐시이므로 더하지 않습니다."""
     instances = comp.get("PerInstanceSMData", [])
     if instance_index >= len(instances):
         return None
@@ -112,21 +110,10 @@ def parse_instanced(comp: dict, instance_index: int, global_index: int, factor: 
     tr  = td["Translation"]
     sc  = td["Scale3D"]
 
-    pos   = convert_translation(tr["X"], tr["Y"], tr["Z"], factor)
-    quat  = convert_quat(rot["X"], rot["Y"], rot["Z"], rot["W"])
-    scale = convert_scale(sc["X"], sc["Y"], sc["Z"], factor)
-
-    props = comp.get("Properties", {})
-    if "StaticMesh" not in props:
-        return None
-
-    name = extract_mesh_name(props["StaticMesh"]["ObjectPath"])
     return {
-        "Id": f"{name}_{global_index}",
-        "Position": pos,
-        "Rotation": quat,
-        "Scale": scale,
-        "ModelPath": f"{name}.model",
+        "Position": convert_translation(tr["X"], tr["Y"], tr["Z"], factor),
+        "Rotation": convert_quat(rot["X"], rot["Y"], rot["Z"], rot["W"]),
+        "Scale":    convert_scale(sc["X"], sc["Y"], sc["Z"], factor),
     }
 
 
@@ -145,7 +132,17 @@ def convert(origin_path: str, save_path: str, factor: float, model_folder: str =
         model_folder = map_name
 
     static_meshes = []
+    instanced_map = {}  # mesh_name → {"Id":..., "ModelPath":..., "Instances":[...]}
     global_index = 0
+
+    def add_instanced(mesh_name: str, inst: dict):
+        if mesh_name not in instanced_map:
+            instanced_map[mesh_name] = {
+                "Id": mesh_name,
+                "ModelPath": f"{mesh_name}.model",
+                "Instances": [],
+            }
+        instanced_map[mesh_name]["Instances"].append(inst)
 
     # ── 메인 JSON 처리 ──
     for comp in root:
@@ -158,18 +155,22 @@ def convert(origin_path: str, save_path: str, factor: float, model_folder: str =
                 global_index += 1
 
         elif comp_type == "InstancedStaticMeshComponent":
-            instances = comp.get("PerInstanceSMData", [])
-            for i in range(len(instances)):
-                obj = parse_instanced(comp, i, global_index, factor)
-                if obj:
-                    static_meshes.append(obj)
-                    global_index += 1
+            mesh_name = get_mesh_name(comp)
+            if not mesh_name:
+                continue
+            for i in range(len(comp.get("PerInstanceSMData", []))):
+                inst = parse_instance(comp, i, factor)
+                if inst:
+                    add_instanced(mesh_name, inst)
 
-    main_count = len(static_meshes)
+    main_static_count    = len(static_meshes)
+    main_instanced_count = sum(len(v["Instances"]) for v in instanced_map.values())
 
     # ── _Generated_ 폴더 처리 ──
-    origin_dir = os.path.dirname(origin_path)
+    origin_dir    = os.path.dirname(origin_path)
     generated_dir = os.path.join(origin_dir, map_name, "_Generated_")
+    gen_static_count    = 0
+    gen_instanced_count = 0
 
     if os.path.isdir(generated_dir):
         gen_files = sorted(glob.glob(os.path.join(generated_dir, "*.json")))
@@ -179,25 +180,42 @@ def convert(origin_path: str, save_path: str, factor: float, model_folder: str =
             if not isinstance(gen_root, list):
                 continue
             for comp in gen_root:
-                if comp.get("Type") != "StaticMeshComponent":
-                    continue
-                outer = comp.get("Outer", {})
-                outer_name = outer.get("ObjectName", "") if isinstance(outer, dict) else ""
-                if "StaticMeshActor'" not in outer_name:
-                    continue
-                obj = parse_single(comp, global_index, factor)
-                if obj:
-                    static_meshes.append(obj)
-                    global_index += 1
-        print(f"  Generated 파일: {len(gen_files)}개 처리 (+{len(static_meshes) - main_count}개 메시)")
+                ctype = comp.get("Type", "")
+
+                if ctype == "StaticMeshComponent":
+                    outer = comp.get("Outer", {})
+                    outer_name = outer.get("ObjectName", "") if isinstance(outer, dict) else ""
+                    if "StaticMeshActor'" not in outer_name:
+                        continue
+                    obj = parse_single(comp, global_index, factor)
+                    if obj:
+                        static_meshes.append(obj)
+                        global_index += 1
+                        gen_static_count += 1
+
+                elif ctype == "FoliageInstancedStaticMeshComponent":
+                    mesh_name = get_mesh_name(comp)
+                    if not mesh_name:
+                        continue
+                    for i in range(len(comp.get("PerInstanceSMData", []))):
+                        inst = parse_instance(comp, i, factor)
+                        if inst:
+                            add_instanced(mesh_name, inst)
+                            gen_instanced_count += 1
+
+        print(f"  Generated 파일: {len(gen_files)}개 처리")
+        print(f"  Generated StaticMesh +{gen_static_count}개, FoliageInstanced +{gen_instanced_count}개")
     else:
         print("  Generated 폴더 없음, 메인 JSON만 처리")
+
+    instanced_meshes = list(instanced_map.values())
 
     output = {
         "MapData": {
             "MapName": map_name,
             "ModelFolder": model_folder,
             "StaticMeshes": static_meshes,
+            "InstancedMeshes": instanced_meshes,
             "SpawnPoints": [],
             "EncounterZones": [],
             "TriggerVolumes": [],
@@ -211,7 +229,9 @@ def convert(origin_path: str, save_path: str, factor: float, model_folder: str =
     with open(save_path, "w", encoding="utf-8") as f:
         json.dump(output, f, indent=4, ensure_ascii=False)
 
-    print(f"완료: 총 {len(static_meshes)}개 메시 변환 (메인 {main_count}개 + Generated {len(static_meshes) - main_count}개)")
+    total_instanced = sum(len(v["Instances"]) for v in instanced_meshes)
+    print(f"완료: StaticMesh {len(static_meshes)}개 (메인 {main_static_count} + Generated {gen_static_count})")
+    print(f"     InstancedMesh {len(instanced_meshes)}종, 총 인스턴스 {total_instanced}개 (메인 {main_instanced_count} + Generated {gen_instanced_count})")
     print(f"  입력: {origin_path}")
     print(f"  출력: {save_path}")
     print(f"  스케일: x{factor}")
@@ -225,9 +245,9 @@ def main():
     parser.add_argument("--folder", type=str, default="", help="모델 폴더 이름 (기본값: JSON 파일 이름과 동일)")
     args = parser.parse_args()
 
-    script_dir   = os.path.dirname(os.path.abspath(__file__))
-    origin_path  = os.path.join(script_dir, ORIGIN_DIR, args.filename)
-    save_path    = os.path.join(script_dir, SAVE_DIR, args.filename)
+    script_dir  = os.path.dirname(os.path.abspath(__file__))
+    origin_path = os.path.join(script_dir, ORIGIN_DIR, args.filename)
+    save_path   = os.path.join(script_dir, SAVE_DIR, args.filename)
 
     if not os.path.exists(origin_path):
         print(f"오류: 파일을 찾을 수 없습니다 → {origin_path}")

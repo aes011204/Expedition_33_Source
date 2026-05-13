@@ -86,6 +86,13 @@ void Player::Late_Update(float timeDelta)
         _colliderCom->Update_Collider(_transformCom->Get_WorldMatrix());
         GAME->Add_Collider(_colliderCom);
     }
+
+    //culling
+    _cullingAABB.Center = _transformCom->Get_Position();
+
+    // Adjustments may be necessary to suit the player
+    _cullingAABB.Extents = Vec3(1.f, 2.f, 1.f);
+    Set_Visible(GAME->IsVisible(_cullingAABB));
 }
 
 HRESULT Player::Render()

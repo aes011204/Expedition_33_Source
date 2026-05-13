@@ -93,6 +93,13 @@ namespace MapEditor
         float rotate = 15.f;
         float scale = 0.1f;
     };
+
+    struct InstanceTransform
+    {
+        Vec3 _position;
+        Vec4 _rotation;
+        Vec3 _scale;
+    };
 };
 
 using namespace MapEditor;

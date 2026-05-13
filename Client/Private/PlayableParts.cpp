@@ -109,7 +109,13 @@ void PlayableParts::Update(float timeDelta)
 
 void PlayableParts::Late_Update(float timeDelta)
 {
-    
+    if (!Get_Owner() || !Get_Owner()->Is_Visible())
+    {
+        return;
+    }
+
+    GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
+    GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
 }
 
 HRESULT PlayableParts::Render()

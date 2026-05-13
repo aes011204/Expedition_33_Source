@@ -44,10 +44,7 @@ struct EditorObject
     bool _isInstanced = false;
 
     wstring _instancedModelPath = {};
-    float _instancedAreaWidth = 10.f;
-    float _instancedAreaDepth = 10.f;
-    float _instancedDensity = 1.f;
-    uint32 _instancedSeed = {};
+    vector<InstanceTransform> _instancedTransforms;
 
     Shared<MEInstancedMeshActor> _instancedRenderHandle;
     bool _instancedParamsDirty = true;

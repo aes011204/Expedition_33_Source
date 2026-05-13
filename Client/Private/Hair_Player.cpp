@@ -54,8 +54,7 @@ void Hair_Player::Update(float timeDelta)
 
 void Hair_Player::Late_Update(float timeDelta)
 {
-    GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
-    GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
+    __super::Late_Update(timeDelta);
 }
 
 HRESULT Hair_Player::Render()
