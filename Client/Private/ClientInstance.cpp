@@ -140,6 +140,11 @@ Shared<Player> ClientInstance::Get_FrontHero() const
     return _heroManager->Get_FrontHero();
 }
 
+Shared<Player> ClientInstance::Find_Hero(HeroId heroId) const
+{
+    return _heroManager->Find_Hero(heroId);
+}
+
 HRESULT ClientInstance::Initialize_GameplayUI(uint32 levelIndex)
 {
     Clear_GameplayUI();

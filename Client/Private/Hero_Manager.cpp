@@ -4,6 +4,7 @@
 #include "GameInstance.h"
 #include "Player.h"
 #include "PlayerControllerCom.h"
+#include "PlayerStateMachineCom.h"
 #include "Spawn_Prefab.h"
 #include "TargetCamera.h"
 #include "TransformCom.h"
@@ -56,11 +57,14 @@ void Hero_Manager::Update_HeroManager(float timeDelta)
     if (_heroes.empty())
         return;
 
+    auto state = Get_ActiveHero()->Get_Component<PlayerStateMachineCom>();
+    CHECK_NULL(state);
+
     if (GAME->KeyDown(KEY_TYPE::T))
     {
-        LOG_DEBUG("Hero Change Apply");
-
-        //auto  Get_ActiveHero()->
+        // 점프 도중에는 막기
+        if (state->Get_CurrentPlayerState() == PlayerState::Jump)
+            return;
 
         Switch_NextHero();
     }
@@ -127,6 +131,17 @@ Shared<Player> Hero_Manager::Get_FrontHero() const
         return nullptr;
 
     return _heroes.front().hero;
+}
+
+Shared<Player> Hero_Manager::Find_Hero(HeroId heroId) const
+{
+    for (const auto& entry : _heroes)
+    {
+        if (entry.heroId == heroId)
+            return entry.hero;
+    }
+
+    return nullptr;
 }
 
 void Hero_Manager::Switch_NextHero()
