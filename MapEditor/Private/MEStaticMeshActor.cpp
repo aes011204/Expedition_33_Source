@@ -69,17 +69,9 @@ HRESULT MEStaticMeshActor::RenderID(const Matrix& worldMatrix, uint32 id)
     const uint32 iNumMeshes = static_cast<uint32>(_model->Get_NumMeshes());
     for (uint32 i = 0; i < iNumMeshes; i++)
     {
-        const Shared<Material> material = _model->Get_Material(i);
-        if (material == nullptr)
-            continue;
+        // for picking
 
-        if (FAILED(_shader->Bind_MaterialTextures(*material)))
-            continue;
-
-        if (FAILED(_shader->Bind_CBufferData(material->Get_CB())))
-            return E_FAIL;
-
-        if (FAILED(_shader->Begin(2)))
+        if (FAILED(_shader->Begin(6)))
             return E_FAIL;
 
         _model->Render(i);

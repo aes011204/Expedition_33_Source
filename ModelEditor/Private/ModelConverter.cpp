@@ -115,7 +115,7 @@ namespace ModelEditor
 	{
 		Clear_Converter();
 		LOG_INFO("ModelConverter Called");
-		importFlags = aiProcess_ConvertToLeftHanded |
+		_importFlags = aiProcess_ConvertToLeftHanded |
 					  aiProcess_Triangulate |
 					  aiProcess_CalcTangentSpace |
 					  aiProcess_GenSmoothNormals |
@@ -302,7 +302,7 @@ namespace ModelEditor
 		Clear_Converter();
 		
 		string utf8FilePath = Engine::String::ToString(fbxFilePath);
-		_aiScene = _importer.ReadFile(utf8FilePath, importFlags);
+		_aiScene = _importer.ReadFile(utf8FilePath, _importFlags);
 
 		if (nullptr == _aiScene || _aiScene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !_aiScene->mRootNode)
 		{
@@ -366,6 +366,18 @@ namespace ModelEditor
         };
 
         RecursiveBuild(RecursiveBuild, _aiScene->mRootNode, -1);
+
+        //uint32 totalNodeCount = static_cast<uint32>(_bones.size());
+        //uint32 boneCount = static_cast<uint32>(tempOffsetMap.size());
+        //if (totalNodeCount > 0 && (totalNodeCount - boneCount) == 0)
+        //{
+        //    _isSkeletal = false;
+        //}
+
+        //if (_isSkeletal)
+        //{
+        //    _importFlags |= aiProcess_PreTransformVertices | aiProcess_GlobalScale;
+        //}
 
 		ReadMeshes(_aiScene);
 		ReadMaterial(_aiScene);

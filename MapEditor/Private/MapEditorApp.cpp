@@ -79,7 +79,7 @@ HRESULT MapEditorApp::Initialize()
         L"../../../Client/Bin/ShaderFiles/Shader_VtxMeshInstanceExact.hlsl",
         VtxMeshInstanceExactLayout::Elements, VtxMeshInstanceExactLayout::numElements, ShaderType::VtxInstanceMeshExact);
     CHECK_NULL(instanceShader, E_FAIL);
-    CHECK_FAILED(GAME->Add_Prototype(0, L"Shader_VtxMeshInstance", instanceShader), E_FAIL);
+    CHECK_FAILED(GAME->Add_Prototype(0, L"Shader_VtxMeshInstanceExact", instanceShader), E_FAIL);
 
     CHECK_FAILED(GAME->Add_Prototype(0, L"MEInstancedMeshActor",
         MEInstancedMeshActor::Create(_device, _context)), E_FAIL);
@@ -180,14 +180,14 @@ HRESULT MapEditorApp::Render()
     CHECK_FAILED(GAME->Clear_Buffers(Vec4(0.1f, 0.1f, 0.1f, 1.f)), E_FAIL);
     CHECK_FAILED(GAME->Draw_RendererOnly(), E_FAIL);
 
+    _debugRenderer->Draw(_scene);
+    GAME->Render_DebugDepth();
+    GAME->Render_DebugOverlay();
+
     _imguiManager->Capture_BackBuffer_ToViewport();
     _viewport->Set_SceneSRV(_imguiManager->Get_SharedViewportSRV());
 
     _rt->Begin();
-    _debugRenderer->Draw(_scene);
-
-    GAME->Render_DebugDepth();
-    GAME->Render_DebugOverlay();
     GAME->Bind_BackBuffer();
 
     _manager->Render();
@@ -339,6 +339,7 @@ HRESULT MapEditorApp::Ready_Light()
     obj->_lightDiffuse = Vec4(1.f, 1.f, 1.f, 1.f);
     obj->_lightAmbient = Vec4(0.4f, 0.4f, 0.4f, 1.f);
     obj->_lightSpecular = Vec4(1.f, 1.f, 1.f, 1.f);
+    obj->_isDefaultLight = true;
     _scene.Add(obj);
     return S_OK;
 }

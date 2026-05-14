@@ -78,11 +78,12 @@ HRESULT MEInstancedMeshActor::Bind_ShaderResources()
     if (FAILED(GAME->Bind_TransformMatrix(D3DTS::Proj, _shader.get(), "g_ProjMatrix")))
         return E_FAIL;
 
-    if (FAILED(_shader->Bind_RawValue("g_Far", &_cameraFar, sizeof(float))))
-        return E_FAIL;
+    //if (FAILED(_shader->Bind_RawValue("g_Far", &_cameraFar, sizeof(float))))
+    //    return E_FAIL;
 
-    Matrix preTransform = _model->Get_PreLocalTransformMatrix();
-    if (FAILED(_shader->Bind_Matrix("g_PreTransformMatrix", &preTransform)))
+    //Matrix preTransform = _model->Get_PreLocalTransformMatrix();
+    Matrix identity = Matrix::Identity;
+    if (FAILED(_shader->Bind_Matrix("g_PreTransformMatrix", &identity)))
         return E_FAIL;
 
     return S_OK;
@@ -179,7 +180,7 @@ HRESULT MEInstancedMeshActor::UpdateInstances(const wstring& modelPath, const ve
 
 HRESULT MEInstancedMeshActor::Ready_Components()
 {
-    if (FAILED(Add_Component(0, TEXT("Shader_VtxMeshInstance"), _shader)))
+    if (FAILED(Add_Component(0, TEXT("Shader_VtxMeshInstanceExact"), _shader)))
     {
         return E_FAIL;
     }
