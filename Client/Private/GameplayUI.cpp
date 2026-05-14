@@ -1,12 +1,13 @@
 ﻿#include "GameplayUI.h"
 #include "GameInstance.h"
 #include "CharacterStatus_Panel.h"
+#include "SkillTree_Panel.h"
 
 HRESULT GameplayUI::Initialize(uint32 levelIndex)
 {
     _characterStatusPanel = CharacterStatus_Panel::Create(levelIndex);
     //TODO 스킬 트리 패널 만들기
-
+    _skillTreePanel = SkillTree_Panel::Create(levelIndex);
     CHECK_NULL(_characterStatusPanel, E_FAIL);
 
     return S_OK;
@@ -19,6 +20,12 @@ void GameplayUI::Update(float timeDelta)
 
      if (_characterStatusPanel)
         _characterStatusPanel->Update(timeDelta);
+
+    if(GAME->KeyDown(KEY_TYPE::F3) && _skillTreePanel)
+        _skillTreePanel->Toggle();
+
+    if(_skillTreePanel)
+        _skillTreePanel->Update(timeDelta);
 }
 
 Unique<GameplayUI> GameplayUI::Create(uint32 levelIndex)
@@ -47,6 +54,7 @@ void GameplayUI::Free()
     };
 
     Release_Panel(_characterStatusPanel);
+    Release_Panel(_skillTreePanel);
 
     Base::Free();
 }

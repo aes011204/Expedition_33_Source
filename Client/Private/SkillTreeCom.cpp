@@ -87,18 +87,25 @@ bool SkillTreeCom::HasEnoughSkillPoint(const string& skillId)
 
 bool SkillTreeCom::HasRequiredSkill(const string& skillId)
 {
-    auto skillTreeDesc = CLIENT->Get_SkillTreeDesc(skillId);
+    auto requirementDesc = CLIENT->Get_SkillTreeRequirementData();
 
-    if (!skillTreeDesc)
+    if (!requirementDesc)
         return false;
 
-    if (skillTreeDesc->requiredSkillId.empty())
-        return true;
+    auto iter = requirementDesc->find(skillId);
 
-    auto iter = find(_unlockedSkillId.begin(), _unlockedSkillId.end(), skillTreeDesc->requiredSkillId);
-
-    if(iter == _unlockedSkillId.end())
+    if(iter == requirementDesc->end()) //선행 조건이 없으면 조건 만족한 것으로 봄
         return false;
+
+   const auto& requirementSkills = iter->second;
+
+    for( auto requirement : requirementSkills)
+    {
+        auto unlockedSkillIter = find(_unlockedSkillId.begin(), _unlockedSkillId.end(), requirement);
+
+        if(unlockedSkillIter == _unlockedSkillId.end())
+            return true;
+    }
 
     return true;
 }

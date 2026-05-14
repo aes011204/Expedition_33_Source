@@ -25,6 +25,8 @@ HRESULT GameDataTable::Load_All()
 
     CHECK_FAILED(Load_SkillTreeData(jsonRootPath), E_FAIL);
 
+    CHECK_FAILED(Load_SkillTreeRequirementData(jsonRootPath), E_FAIL);
+
     _isLoaded = true;
 
     return S_OK;
@@ -230,7 +232,7 @@ HRESULT GameDataTable::Load_SkillActionData(const wstring& jsonRootPath)
         else if (actionType == "ShatterAction")
         {
             ShatterAction payload{};
-            payload.fullChargeOnShatter = item.value("full charge on shatter", false);
+            payload.fullChargeOnShatter = item.value("full charge on shatter", 0) != 0;
             action.skillActionPayLoad = payload;
         }
         else if (actionType == "ApplyMarkAction")
@@ -278,7 +280,7 @@ HRESULT GameDataTable::Load_SkillTreeData(const wstring& jsonRootPath)
     }
     catch (const std::exception& e)
     {
-        LOG_ERROR("[GameDataTable] failed to parse exp table: {} ({})",
+        LOG_ERROR("[GameDataTable] failed to parse skill tree table: {} ({})",
           String::ToString(tablePath.wstring()), e.what());
         return E_FAIL;
     }
@@ -296,16 +298,62 @@ HRESULT GameDataTable::Load_SkillTreeData(const wstring& jsonRootPath)
         if(skillId == "")
             continue;
 
-        _skillTreeData[skillId].requiredSkillId = item.value("required skill id", "");
-
-        if(_skillTreeData[skillId].requiredSkillId == "")
-            continue;
-
+       // _skillTreeData[skillId].requiredSkillId = item.value("required skill id", "");
+       //
+       // if(_skillTreeData[skillId].requiredSkillId == "")
+       //     continue;
+       //
         _skillTreeData[skillId].unlockCost = item.value("unlock cost", 0);
     }
 
     LOG_INFO("[GameDataTable] loaded skill tree table: count = {}", _skillTreeData.size() > 0? _skillTreeData.size() -1 : 0);
     return S_OK;
+}
+
+HRESULT GameDataTable::Load_SkillTreeRequirementData(const wstring& jsonRootPath)
+{
+    const fs::path tablePath = fs::path(jsonRootPath) / L"DT_SkillTreeRequirement.json";
+
+    json root = {};
+
+    try
+    {
+        ifstream file(tablePath);
+        if (!file.is_open())
+        {
+            LOG_ERROR("[GameDataTable] failed to open skill tree requirement table: {}", String::ToString(tablePath.wstring()));
+            return E_FAIL;
+        }
+
+        file >> root;
+    }
+    catch (const std::exception& e)
+    {
+        LOG_ERROR("[GameDataTable] failed to parse  skill tree requirement table: {} ({})",
+          String::ToString(tablePath.wstring()), e.what());
+        return E_FAIL;
+    }
+
+    if(!root.contains("DT_SkillTreeRequirement") || !root["DT_SkillTreeRequirement"].is_array())
+    {
+        LOG_ERROR("[GameDataTable] DT_SkillTreeRequirement array not found: {}", String::ToString(tablePath.wstring()));
+        return E_FAIL;
+    }
+
+    for(const json& item : root["DT_SkillTreeRequirement"])
+    {
+        const string skillId = item.value("skill id", "");
+
+        if(skillId == "")
+            continue;
+
+        const string requiredSkill = item.value("required skill id", "");
+        _requirementSkills[skillId].push_back(requiredSkill);
+    }
+
+    LOG_INFO("[GameDataTable] loaded skill tree requirement table: count = {}", _requirementSkills.size() > 0? _requirementSkills.size() -1 : 0);
+    return S_OK;
+
 }
 
 wstring GameDataTable::Get_DefaultJsonRootPath() const
@@ -333,6 +381,11 @@ GameDataTable::SkillTreeDesc* GameDataTable::Get_SkillTreeDesc(const string& ski
         return nullptr;
 
     return &iter->second;
+}
+
+const umap<string, vector<string>>* GameDataTable::Get_SkillTreeRequirementData()
+{
+    return  &_requirementSkills;
 }
 
 Unique<GameDataTable> GameDataTable::Create()

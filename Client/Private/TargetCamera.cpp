@@ -285,6 +285,11 @@ void TargetCamera::Change_State(CAMERA_STATE state)
     }
 }
 
+void TargetCamera::Change_Target()
+{
+
+}
+
 bool TargetCamera::Try_GetFlatMoveBasis(Vec3& outForward, Vec3& outRight) const
 {
     const float finalYaw = _yaw + _currentSettings.yawOffset;

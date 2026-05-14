@@ -90,7 +90,7 @@ public:
 
     struct SkillTreeDesc
     {
-        string      requiredSkillId; //해금시 필요한 선행 스킬
+       // string      requiredSkillId; //해금시 필요한 선행 스킬
         uint32      unlockCost; //해금시 필요한 스킬 포인트
     };
 
@@ -106,12 +106,14 @@ public:
 public:
     uint32 Get_NextExp(uint32 level) const;
     SkillTreeDesc*   Get_SkillTreeDesc(const string& skillName);
+    const umap<string, vector<string>>*    Get_SkillTreeRequirementData();
 
 private:
     HRESULT Load_ExpLevel(const wstring& jsonRootPath);
     HRESULT Load_SkillData(const wstring& jsonRootPath);
     HRESULT Load_SkillActionData(const wstring& jsonRootPath);
     HRESULT Load_SkillTreeData(const wstring& jsonRootPath);
+    HRESULT Load_SkillTreeRequirementData(const wstring& jsonRootPath);
 
 private:
     wstring         Get_DefaultJsonRootPath() const;
@@ -123,6 +125,7 @@ private:
     bool                        _isLoaded = false;
     map<string, SkillDesc>      _skillData;
     map<string, SkillTreeDesc>  _skillTreeData;
+    umap<string, vector<string>> _requirementSkills;
 
 public:
     static Unique<GameDataTable> Create();

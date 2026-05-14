@@ -8,6 +8,7 @@ float4x4 g_WorldMatrix, g_ViewMatrix, g_ProjMatrix;
 Texture2D g_Texture;
 Texture2D g_MaskTexture;
 
+bool g_IsOverlay;
 float4 g_Color = float4(1.f, 1.f, 1.f, 1.f);
 
 
@@ -53,6 +54,11 @@ PS_OUT PS_NORMAL(PS_IN In)
 
     Out.vColor = g_Texture.Sample(LinearClampSampler, In.vTexcoord) * g_Color;
 
+    if(g_IsOverlay)
+    {
+        Out.vColor = 1 - Out.vColor;
+    }
+        
     return Out;
 }
 

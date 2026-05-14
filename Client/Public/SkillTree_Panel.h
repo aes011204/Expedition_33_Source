@@ -23,6 +23,14 @@ public:
         Shared<UI_Text>   costText;
     };
 
+    struct SkillTreeViewState
+    {
+        Shared<UI_Base>                root;
+        Shared<SkillTreeCom>           skillTreeCom;
+        vector<SkillNodeUI>            skillNodes;
+        umap<wstring, Shared<UI_Base>> tooltips;
+    };
+
 public:
     SkillTree_Panel();
     virtual ~SkillTree_Panel();
@@ -41,7 +49,6 @@ private:
     HRESULT     Load_UI(uint32 levelIndex);
     HRESULT     Load_UI_ToolTips(uint32 levelIndex);
     HRESULT     Bind_Lune_SkillNode_UI();
-    //activehero를 여기서 바꿔줘야하나?
 
     Shared<UI_Base> Find_UI(const umap<wstring, Shared<UI_Base>>& uiByName, const wstring& name) const;
 
@@ -61,14 +68,29 @@ private:
     }
 
 private:
+    HRESULT Spawn_StatusPreviewHeroes();
+    void    Clear_StatusPreviewHeroes();
+
+    void    Update_StatusPreviewHeroes(float timeDelta);
+    void    Layout_StatusPreviewHeroes();
+
+    HRESULT Ready_StatusPreviewCamera();
+    void    Activate_StatusPreviewCamera();
+    void    Restore_PreviousCamera();
+
+private:
     Shared<SkillTreeCom>                     _skillTreeCom;
     uint32                                   _levelIndex = 0;
     bool                                     _isOpen = false;
-    umap<wstring, Shared<UI_Base>>           _uiByName;
+    umap<wstring, Shared<UI_Base>>           _luneSkillTree;
+    umap<wstring, Shared<UI_Base>>           _luneSkillTooltips;
     umap<wstring, vector<Shared<UI_Base>>>   _childrenByParentName;
     vector<SkillNodeUI>                      _skillNodes;
     Shared<UI_Base>                          _root;
-    umap<string, Shared<UI_Base>>            _tooltips;
+    Vec2                                     _baseSize;
+    Vec2                                     _hoveredSize;
+    umap<string,SkillTreeViewState>          _viewByPlayerId;
+    SkillTreeViewState*                      _currentView;
 
 public:
     static Unique<SkillTree_Panel> Create(uint32 levelIndex);

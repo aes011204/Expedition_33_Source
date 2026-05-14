@@ -93,7 +93,12 @@ uint32 ClientInstance::Get_NextExp(uint32 level) const
 GameDataTable::SkillTreeDesc* ClientInstance::Get_SkillTreeDesc(const string& skillName)
 {
     return _gameDataTable->Get_SkillTreeDesc(skillName);
-} 
+}
+
+const umap<string, vector<string>>*  ClientInstance::Get_SkillTreeRequirementData()
+{
+    return _gameDataTable->Get_SkillTreeRequirementData();
+}
 
 HRESULT ClientInstance::Initialize_Hero(uint32 levelIndex, const wstring& layerTag, const Vec3& startPos)
 {
