@@ -1467,12 +1467,14 @@ HRESULT ModelCom::Ready_Model(const char* modelPath)
             }
 
             _meshes.push_back(SkeletalMesh::Create(_device, _context, meshData, _preLocalTransformMatrix));
+            _type = ModelType::Anim;
         }
         else
         {
             meshData.boneIndices = nullptr;
             meshData.offsetMatrices = nullptr;
             _meshes.push_back(StaticMesh::Create(_device, _context, meshData, _preLocalTransformMatrix));
+            _type = ModelType::NonAnim;
         }
     }
 

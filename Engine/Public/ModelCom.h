@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "AnimNotify_Types.h"
 #include "Component.h"
@@ -20,6 +20,7 @@ public:
     ~ModelCom() override = default;
 
 public:
+    ModelType Get_ModelType() const { return _type; }
     uint32 Get_MaxTextureType() const { return _maxTextureType; }
     size_t Get_NumMeshes() const { return _meshes.size(); }
     size_t Get_NumMaterials() const { return _materials.size(); }
@@ -33,7 +34,6 @@ public:
 
     const Material::TextureSlot* Find_MaterialSlot(uint32 meshIndex, std::initializer_list<MaterialTextureSlot> materialSlots, uint32 textureIndex = 0) const;
     const wstring& Get_SourceModelPath() const { return _sourceModelPath; }
-    ModelType Get_ModelType() const { return _type; }
 
 public:
     const vector<MaterialBinding>& Get_MaterialBindings() const { return _materialBindings; }
