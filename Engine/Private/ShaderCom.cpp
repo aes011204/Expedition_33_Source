@@ -283,10 +283,13 @@ ID3DX11EffectShaderResourceVariable* ShaderCom::Get_ShaderResourceVariable(const
     return srVariable;
 }
 
-HRESULT ShaderCom::Bind_MaterialTextures(const Material& material)
+HRESULT ShaderCom::Bind_MaterialTextures(Material& material)
 {
     if (_materialTextures == nullptr)
         return E_FAIL;
+
+    // PassIndex 계산을 위해 현재 적용 중인 ShaderType을 Material에 동기화한다
+    material.Set_ShaderType(Get_Type());
 
     ID3D11ShaderResourceView* srvs[ETOI(MaterialTextureSlot::END)]{};
 

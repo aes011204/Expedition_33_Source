@@ -9,8 +9,7 @@
 #include "Animation.h"
 #include "SkeletalMesh.h"
 #include "StaticMesh.h"
-#include <limits>
-#include <algorithm>
+#include "ComputeStructuredBuffer.h"
 
 #include "AnimNotify_Parser.h"
 #include "AnimNotify.h"
@@ -48,7 +47,11 @@ ModelCom::ModelCom(const ModelCom& prototype)
 
     _combinedBoneMatrixCache.resize(_numBones, Matrix::Identity);
     _meshBoneMatrixCaches.resize(_meshes.size());
+    _meshBoneMatrixBuffers.resize(_meshes.size());
     _boneMatricesDirty = true;
+
+    Mark_BoneMatricesDirty();
+
     _leaderPoseMatricesValid = false;
 }
 
@@ -208,6 +211,47 @@ const Matrix* ModelCom::Get_BoneMatrixPtr(uint32 boneIndex) const
     return _bones[boneIndex]->Get_CombinedTransformationMatrixPtr();
 }
 
+int32 ModelCom::Get_BoneParentIndex(uint32 boneIndex) const
+{
+    if (boneIndex >= _bones.size() || _bones[boneIndex] == nullptr)
+        return -1;
+
+    return _bones[boneIndex]->Get_ParentIndex();
+}
+
+const Matrix& ModelCom::Get_BoneLocalMatrix(uint32 boneIndex) const
+{
+    static const Matrix identity = Matrix::Identity;
+
+    if (boneIndex >= _bones.size() || _bones[boneIndex] == nullptr)
+        return identity;
+
+    return _bones[boneIndex]->Get_TransformationMatrix();
+}
+
+void ModelCom::Set_BoneLocalMatrix(uint32 boneIndex, const Matrix& localMatrix)
+{
+    if (boneIndex >= _bones.size() || _bones[boneIndex] == nullptr)
+        return;
+
+    _bones[boneIndex]->Update_TransformationMatrix(localMatrix);
+    Mark_BoneMatricesDirty();
+}
+
+void ModelCom::Rebuild_BoneCombinedMatrices()
+{
+    if (!_isSkeletal || _numBones == 0)
+        return;
+
+    for (uint32 i = 0; i < _numBones; ++i)
+    {
+        if (_bones[i] != nullptr)
+            _bones[i]->Update_CombinedTransformationMatrix(_bones, _preLocalTransformMatrix);
+    }
+
+    Mark_BoneMatricesDirty();
+}
+
 const RootMotionFrame& ModelCom::Get_RootTransformVelocity(float scaleOffset)
 {
     _rootFrameVelocity.position = scaleOffset * _rootOriginalFrameVelocity.position;
@@ -348,6 +392,7 @@ void ModelCom::Apply_EffectiveMaterial(uint32 materialIndex)
 
                     material->Set_RenderState(base.renderState);
                     material->Set_CB(base.cb);
+                    material->Set_ForcedPassIndex(base.forcePassIndex);
 
                     if (base.baseColorOverride) (void)material->Override_TextureSlot(MaterialTextureSlot::BaseColor, 0, base.baseColorPath);
                     if (base.normalOverride) (void)material->Override_TextureSlot(MaterialTextureSlot::Normal, 0, base.normalPath);
@@ -385,6 +430,8 @@ void ModelCom::Apply_EffectiveMaterial(uint32 materialIndex)
     Apply_TextureOverride(material.get(), MaterialTextureSlot::ORM, inst.orm);
     Apply_TextureOverride(material.get(), MaterialTextureSlot::Emissive, inst.emissive);
     Apply_TextureOverride(material.get(), MaterialTextureSlot::OpacityMask, inst.opacityMask);
+    Apply_TextureOverride(material.get(), MaterialTextureSlot::HairDepth, inst.hairDepth);
+    Apply_TextureOverride(material.get(), MaterialTextureSlot::HairID, inst.hairID);
 }
 
 json ModelCom::To_Json() const
@@ -414,7 +461,14 @@ json ModelCom::To_Json() const
 
         const MaterialInstanceOverride& inst = binding.instance;
         const bool hasAnyTextureOverride =
-            inst.baseColor.enabled || inst.normal.enabled || inst.orm.enabled || inst.emissive.enabled || inst.opacityMask.enabled;
+            inst.baseColor.enabled
+            || inst.normal.enabled
+            || inst.orm.enabled
+            || inst.emissive.enabled
+            || inst.opacityMask.enabled
+            || inst.hairDepth.enabled       // Hair 전용 추가
+            || inst.hairID.enabled;
+
         const bool hasInstanceOverride =
             inst.overrideRenderStateEnabled || inst.cbMask.Any() || hasAnyTextureOverride;
 
@@ -510,6 +564,9 @@ json ModelCom::To_Json() const
             writeTextureOverride("orm", inst.orm);
             writeTextureOverride("emissive", inst.emissive);
             writeTextureOverride("opacity_mask", inst.opacityMask);
+
+            writeTextureOverride("hair_depth", inst.hairDepth);
+            writeTextureOverride("hair_id", inst.hairID);
 
             entry["instance_override"] = instJson;
         }
@@ -757,19 +814,17 @@ HRESULT ModelCom::Bind_BoneMatrices(ShaderCom* shader, const char* constantName,
             return E_FAIL;
     }
 
-    CHECK_FAILED(Ensure_MeshBoneMatrices(), E_FAIL);
+    CHECK_FAILED(Ensure_MeshBoneMatrixBuffers(), E_FAIL);
 
-    if (meshIndex >= _meshBoneMatrixCaches.size())
+    if (meshIndex >= _meshBoneMatrixBuffers.size())
         return E_FAIL;
 
-    const vector<Matrix>& meshBoneMatrices = _meshBoneMatrixCaches[meshIndex];
-    if (meshBoneMatrices.empty())
+    const Shared<ComputeStructuredBuffer>& meshBoneMatrixBuffer = _meshBoneMatrixBuffers[meshIndex];
+
+    if (meshBoneMatrixBuffer == nullptr)
         return S_OK;
 
-    return shader->Bind_Matrices(
-        constantName,
-        meshBoneMatrices.data(),
-        static_cast<uint32>(meshBoneMatrices.size()));
+    return shader->Bind_SRV(constantName, meshBoneMatrixBuffer->Get_SRV());
 }
 
 bool ModelCom::Try_Get_LocalBounds(Vec3& outMin, Vec3& outMax) const
@@ -1109,6 +1164,12 @@ void ModelCom::Update_LeaderPoseMatrices()
     Mark_BoneMatricesDirty();
 }
 
+void ModelCom::Mark_BoneMatricesDirty()
+{
+    _boneMatricesDirty = true;
+    _boneMatrixBuffersDirty = true;
+}
+
 HRESULT ModelCom::Ensure_MeshBoneMatrices()
 {
     if (!_isSkeletal || _numBones == 0)
@@ -1196,6 +1257,53 @@ Matrix ModelCom::Build_LeaderPoseMatrix(uint32 boneIndex, vector<uint8>& visited
     }
 
     return _leaderPoseCombinedMatrices[boneIndex];
+}
+
+HRESULT ModelCom::Ensure_MeshBoneMatrixBuffers()
+{
+    // CPU 쪽 mesh별 bone matrices cache가 최신인지 먼저 보장
+    CHECK_FAILED(Ensure_MeshBoneMatrices(), E_FAIL);
+
+    // GPU buffer가 이미 최신이면 이번 draw에서는 다시 업로드하지 않는다.
+    if (!_boneMatrixBuffersDirty)
+        return S_OK;
+
+    // mesh 개수와 GPU buffer cache 개수를 맞춘다.
+    if (_meshBoneMatrixBuffers.size() != _meshBoneMatrixCaches.size())
+        _meshBoneMatrixBuffers.resize(_meshBoneMatrixCaches.size());
+
+    for (uint32 meshIndex = 0; meshIndex < _meshBoneMatrixCaches.size(); ++meshIndex)
+    {
+        const vector<Matrix>& meshBoneMatrices = _meshBoneMatrixCaches[meshIndex];
+        if (meshBoneMatrices.empty())
+            continue;
+
+        const uint32 matrixCount = static_cast<uint32>(meshBoneMatrices.size());
+
+        // buffer가 없거나 현재 mesh의 bone matrix 개수를 담기 부족하면 새로 만든다.
+        if (_meshBoneMatrixBuffers[meshIndex] == nullptr ||
+            _meshBoneMatrixBuffers[meshIndex]->Get_ElementCount() < matrixCount)
+        {
+            _meshBoneMatrixBuffers[meshIndex] = ComputeStructuredBuffer::Create(
+                _device, _context, sizeof(Matrix), matrixCount, meshBoneMatrices.data());
+
+            if (_meshBoneMatrixBuffers[meshIndex] == nullptr)
+                return E_FAIL;
+        }
+        else
+        {
+            // 기존 buffer가 충분하면 데이터만 갱신한다.
+            CHECK_FAILED(
+                _meshBoneMatrixBuffers[meshIndex]->Update_Data(
+                    meshBoneMatrices.data(),
+                    matrixCount),
+                E_FAIL);
+        }
+    }
+
+    // 모든 mesh GPU bone matrix buffer가 최신 상태임
+    _boneMatrixBuffersDirty = false;
+    return S_OK;
 }
 
 HRESULT ModelCom::Ready_Model(const char* modelPath)
@@ -1390,6 +1498,7 @@ HRESULT ModelCom::Ready_Model(const char* modelPath)
 
     _combinedBoneMatrixCache.resize(_numBones, Matrix::Identity);
     _meshBoneMatrixCaches.resize(_meshes.size());
+    _meshBoneMatrixBuffers.resize(_meshes.size());
     Mark_BoneMatricesDirty();
     _leaderPoseMatricesValid = false;
 
@@ -1507,7 +1616,9 @@ void ModelCom::Reset_ModelData()
 
     _combinedBoneMatrixCache.clear();
     _meshBoneMatrixCaches.clear();
+    _meshBoneMatrixBuffers.clear();
     _boneMatricesDirty = true;
+    _boneMatrixBuffersDirty = true;
     _leaderPoseMatricesValid = false;
 
     Invalidate_AnimNotifyAsset();
@@ -1557,6 +1668,10 @@ Shared<Component> ModelCom::Clone(void* arg)
 void ModelCom::Free()
 {
     __super::Free();
+
+    _meshBoneMatrixBuffers.clear();
+    _meshBoneMatrixCaches.clear();
+    _combinedBoneMatrixCache.clear();
 
     _stateAnimIndices.clear();
     _animations.clear();

@@ -50,7 +50,7 @@ private:
     bool Build_MaterialInstances();
 
     // 선택된 GameObject의 ModelCom에 텍스처를 Override_TextureSlot로 적용한다.
-    void Apply_ToSelectedModel();
+    void Apply_ToSelectedModel(int onlyMaterialIndex = -1);
 
     // .material.json 번들을 읽어 현재 편집 상태로 로드한다.
     bool Load_BundleFile(const wstring& bundlePath);
@@ -119,6 +119,13 @@ private:
     // Selected ModelCom UI
     bool _showSelectedModelMeshMap = true;
     int  _selectedModelMaterialIndex = 0;
+
+    // Mappings UI (Selected ModelCom이 없어도 1개 슬롯만 보이게)
+    int  _mappingMaterialIndexFilter = 0;
+
+    // Live apply
+    bool _liveApplyEnabled = true;
+    bool _liveApplyDirty = false;
 
 public:
     static Shared<Material_View> Create();

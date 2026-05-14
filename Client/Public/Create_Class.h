@@ -12,6 +12,8 @@ NS_END
 
 NS_BEGIN(Client)
 
+class SkillScript;
+
 class Create_Class final
 {
 public:
@@ -112,17 +114,50 @@ public:
         InstanceDesc _desc{};
     };
 
+    class SkillScriptBuilder
+    {
+    public:
+        explicit SkillScriptBuilder(const string& staticClass);
+
+    public:
+        Shared<SkillScript> Create() const;
+
+    private:
+        InstanceDesc _desc{};
+    };
+
+    template<typename T>
+    class TypedSkillScriptBuilder
+    {
+    public:
+        explicit TypedSkillScriptBuilder(const string& staticClass)
+            : _builder(staticClass)
+        {
+        }
+
+    public:
+        Shared<T> Create() const
+        {
+            return dynamic_pointer_cast<T>(_builder.Create());
+        }
+
+    private:
+        SkillScriptBuilder _builder;
+    };
+
 public:
     // GameObject
-    static ActorBuilder         Actor(const string& staticClass) { return ActorBuilder(staticClass); }
+    static ActorBuilder         Actor(const string& staticClass)        { return ActorBuilder(staticClass); }
     // Component
-    static ComponentBuilder     Component(const string& staticClass) { return ComponentBuilder(staticClass); }
+    static ComponentBuilder     Component(const string& staticClass)    { return ComponentBuilder(staticClass); }
     // BTNode
-    static BTNodeBuilder        BTNode(const string& staticClass) { return BTNodeBuilder(staticClass); }
+    static BTNodeBuilder        BTNode(const string& staticClass)       { return BTNodeBuilder(staticClass); }
     // Notify
-    static NotifyBuilder        Notify(const string& staticClass) { return NotifyBuilder(staticClass); }
+    static NotifyBuilder        Notify(const string& staticClass)       { return NotifyBuilder(staticClass); }
     // NotifyState
-    static NotifyStateBuilder   NotifyState(const string& staticClass) { return NotifyStateBuilder(staticClass); }
+    static NotifyStateBuilder   NotifyState(const string& staticClass)  { return NotifyStateBuilder(staticClass); }
+    // Skill Scipt
+    static SkillScriptBuilder   SkillScript(const string& staticClass)  { return SkillScriptBuilder(staticClass); }
 
     template<typename T>
     static ActorBuilder Actor()
@@ -152,6 +187,12 @@ public:
     static NotifyStateBuilder NotifyState()
     {
         return NotifyStateBuilder(T::StaticClassNameA());
+    }
+
+    template<typename T>
+    static TypedSkillScriptBuilder<T> SkillScript()
+    {
+        return TypedSkillScriptBuilder<T>(T::StaticClassNameA());
     }
 
     static Shared<GameObject> SpawnActor(

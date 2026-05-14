@@ -327,3 +327,15 @@ public:                                                                         
         prop.blackboardValueType = Engine::BlackboardValueType::Int;               \
         info.properties.push_back(std::move(prop));                                \
     }
+
+#define GENERATED_SKILLSCRIPT(ClassName)                                      \
+public:                                                                       \
+    static const char* StaticClassNameA() { return #ClassName; }              \
+private:                                                                      \
+    inline static const bool _auto_register_skill_script_ =                   \
+        Client::SkillScript::Register_SkillScriptType(                        \
+            #ClassName,                                                       \
+            []() -> Shared<Client::SkillScript>                               \
+            {                                                                 \
+                return static_pointer_cast<Client::SkillScript>(make_shared<ClassName>()); \
+            });

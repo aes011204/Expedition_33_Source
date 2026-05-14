@@ -6,10 +6,18 @@
 #include "Engine_Shader_Utils.hlsl"
 #include "Engine_Shader_ConstantBuffer.hlsl"
 
-cbuffer BoneTransform : register(b1)
+//cbuffer BoneTransform : register(b1)
+//{
+//    matrix g_BoneMatrices[950];
+//}
+
+// 추후 compute shader 기반 animation/skinning 확장을 위해 bone matrices를 SRV로 받는다.
+struct BoneMatrixElement
 {
-    matrix g_BoneMatrices[950];
-}
+    row_major float4x4 BoneMatrix;
+};
+
+StructuredBuffer<BoneMatrixElement> g_BoneMatricesBuffer;
 
 //==================================================
 // VS
@@ -44,10 +52,16 @@ VS_OUT VS_Main(VS_IN In)
 
     float fWeightW = 1.f - (In.vBlendWeight.x + In.vBlendWeight.y + In.vBlendWeight.z);
 
-    float4x4 BoneMatrix = g_BoneMatrices[In.vBlendIndex.x] * In.vBlendWeight.x +
-        g_BoneMatrices[In.vBlendIndex.y] * In.vBlendWeight.y +
-        g_BoneMatrices[In.vBlendIndex.z] * In.vBlendWeight.z +
-        g_BoneMatrices[In.vBlendIndex.w] * fWeightW;
+    //float4x4 BoneMatrix = g_BoneMatrices[In.vBlendIndex.x] * In.vBlendWeight.x +
+    //    g_BoneMatrices[In.vBlendIndex.y] * In.vBlendWeight.y +
+    //    g_BoneMatrices[In.vBlendIndex.z] * In.vBlendWeight.z +
+    //    g_BoneMatrices[In.vBlendIndex.w] * fWeightW;
+
+    float4x4 BoneMatrix =
+        g_BoneMatricesBuffer[In.vBlendIndex.x].BoneMatrix * In.vBlendWeight.x +
+        g_BoneMatricesBuffer[In.vBlendIndex.y].BoneMatrix * In.vBlendWeight.y +
+        g_BoneMatricesBuffer[In.vBlendIndex.z].BoneMatrix * In.vBlendWeight.z +
+        g_BoneMatricesBuffer[In.vBlendIndex.w].BoneMatrix * fWeightW;
 
     vector vPosition = mul(float4(In.vPosition, 1.f), BoneMatrix);
     vector vNormal = mul(float4(In.vNormal, 0.f), BoneMatrix);
@@ -76,10 +90,16 @@ VS_OUT VS_Shadow(VS_IN In)
 
     float fWeightW = 1.f - (In.vBlendWeight.x + In.vBlendWeight.y + In.vBlendWeight.z);
 
-    float4x4 BoneMatrix = g_BoneMatrices[In.vBlendIndex.x] * In.vBlendWeight.x +
-        g_BoneMatrices[In.vBlendIndex.y] * In.vBlendWeight.y +
-        g_BoneMatrices[In.vBlendIndex.z] * In.vBlendWeight.z +
-        g_BoneMatrices[In.vBlendIndex.w] * fWeightW;
+    //float4x4 BoneMatrix = g_BoneMatrices[In.vBlendIndex.x] * In.vBlendWeight.x +
+    //    g_BoneMatrices[In.vBlendIndex.y] * In.vBlendWeight.y +
+    //    g_BoneMatrices[In.vBlendIndex.z] * In.vBlendWeight.z +
+    //    g_BoneMatrices[In.vBlendIndex.w] * fWeightW;
+
+    float4x4 BoneMatrix =
+        g_BoneMatricesBuffer[In.vBlendIndex.x].BoneMatrix * In.vBlendWeight.x +
+        g_BoneMatricesBuffer[In.vBlendIndex.y].BoneMatrix * In.vBlendWeight.y +
+        g_BoneMatricesBuffer[In.vBlendIndex.z].BoneMatrix * In.vBlendWeight.z +
+        g_BoneMatricesBuffer[In.vBlendIndex.w].BoneMatrix * fWeightW;
 
     vector vPosition = mul(float4(In.vPosition, 1.f), BoneMatrix);
     vector vNormal = mul(float4(In.vNormal, 0.f), BoneMatrix);
@@ -133,9 +153,10 @@ PS_OUT PS_Opaque(PS_IN In)
 
     float3 orm = SampleOrm(finalUV);
 
-    // emissive 는 이후에 별도 RTV로 분리해야 한다. 일단은 텍스처 잘 들어오는지 확
-    float3 emissive = SampleEmissive(finalUV);
-    baseColor.rgb = baseColor.rgb * orm.r + emissive;
+    // emissive 는 이후에 별도 RTV로 분리해야 한다. 일단은 텍스처 잘 들어오는지 확d인용도
+    // omr.r 이 0인 경우 까맣게 보이니까 일단 들어오는 거 확인했고 얘도 별도 RTV
+    float3 emissive = float3(0.f, 0.f, 0.f); //SampleEmissive(finalUV);
+    baseColor.rgb = baseColor.rgb; // * orm.r + emissive;
 
     Out.vDiffuse = baseColor;
     Out.vNormal = float4(EncodeNormal(worldNormal), 1.f);
@@ -150,6 +171,31 @@ PS_OUT PS_Mask(PS_IN In)
 
     float2 finalUV = ApplyUVTransform(In.vTexcoord);
 
+    // Hair material path : HairDepth 또는 HairID 텍스처가 꽂힌 material이면 Hair 전용 계산 사용
+    const bool isHairMaterial = HasMaterialTexture(MATERIAL_SLOT_HAIR_DEPTH) || HasMaterialTexture(MATERIAL_SLOT_HAIR_ID);
+
+    if (isHairMaterial)
+    {
+        HairMaterialSample hair = SampleHairMaterial(finalUV);
+
+        if (hair.opacity < g_OpacityMaskClipValue)
+            discard;
+
+        float3 worldNormal = ComputeWorldNormal(
+            In.vNormal.xyz,
+            In.vTangent,
+            In.vBinormal,
+            finalUV
+        );
+
+        Out.vDiffuse = float4(hair.baseColor, 1.f);
+        Out.vNormal = float4(EncodeNormal(worldNormal), 1.f);
+        Out.vDepth = float4(In.vProjPos.z / In.vProjPos.w, In.vProjPos.w / g_Far, 0.f, 1.f);
+
+        return Out;
+    }
+
+    // Hair material이 없는 기존 material들은 기존 유지
     float4 baseColor = SampleBaseColor(finalUV);
 
     float mask = GetOpacityMaskForMasked(finalUV, baseColor);
@@ -159,8 +205,10 @@ PS_OUT PS_Mask(PS_IN In)
     float3 worldNormal = ComputeWorldNormal(In.vNormal.xyz, In.vTangent, In.vBinormal, finalUV);
 
     float3 orm = SampleOrm(finalUV);
-    float3 emissive = SampleEmissive(finalUV);
-    baseColor.rgb = baseColor.rgb * orm.r + emissive;
+    // emissive 는 이후에 별도 RTV로 분리해야 한다. 일단은 텍스처 잘 들어오는지 확d인용도
+    // omr.r 이 0인 경우 까맣게 보이니까 일단 들어오는 거 확인했고 얘도 별도 RTV
+    float3 emissive = float3(0.f, 0.f, 0.f); //SampleEmissive(finalUV);
+    baseColor.rgb = baseColor.rgb; // * orm.r + emissive;
 
     Out.vDiffuse = baseColor;
     Out.vNormal = float4(EncodeNormal(worldNormal), 1.f);

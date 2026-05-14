@@ -10,6 +10,7 @@ class Mesh;
 class Material;
 class Bone;
 class Animation;
+class ComputeStructuredBuffer;
 
 class ENGINE_DLL ModelCom final : public Component
 {
@@ -51,11 +52,18 @@ public:
     void Ensure_MaterialBindings();
 
 public:
-    bool  Is_Skeletal() const { return _isSkeletal; } 
+    bool  Is_Skeletal() const { return _isSkeletal; }
 	int32 Get_BoneIndex(const string& boneName) const;
     const string& Get_BoneName(uint32 boneIndex) const;
     const Matrix* Get_BoneMatrixPtr(const char* boneName) const;
     const Matrix* Get_BoneMatrixPtr(uint32 boneIndex) const;
+
+    int32 Get_BoneParentIndex(uint32 boneIndex) const;
+    const Matrix& Get_BoneLocalMatrix(uint32 boneIndex) const;
+    void Set_BoneLocalMatrix(uint32 boneIndex, const Matrix& localMatrix);
+
+    // 모든 bone의 Combined Matrix를 parent 순서대로 다시 계산
+    void Rebuild_BoneCombinedMatrices();
 
 public:
     float Get_FrameSpeed() const { return _frameSpeed; }
@@ -168,13 +176,15 @@ public:
 
 private:
     // bone pose 변경으로 Matrix를 다시 만들어야하는지?
-    void    Mark_BoneMatricesDirty() { _boneMatricesDirty = true; }
+    void    Mark_BoneMatricesDirty();
     // dirty 가 마크됐을 때 재생성 진행. leaderPose 여기서 갱신 X
     HRESULT Ensure_MeshBoneMatrices();
 
 private:
     Matrix Convert_LeaderPoseMatrix(const Matrix& leaderMatrix) const;
     Matrix Build_LeaderPoseMatrix(uint32 boneIndex, vector<uint8>& visited);
+
+    HRESULT Ensure_MeshBoneMatrixBuffers();
 
 private:
     ModelType					        _type = { ModelType::END };
@@ -211,7 +221,7 @@ private: /* For Animation Control */
 
 private: /* For Root Motion */
     bool                                _isRootMotion{ false };
-    int32                               _rootNodeIndex{ -1 }; // -1 일때는 최상위 노드 기준으로 
+    int32                               _rootNodeIndex{ -1 }; // -1 일때는 최상위 노드 기준으로
     RootMotionFrame                     _rootOriginalFrameVelocity{};
     RootMotionFrame                     _rootFrameVelocity{};
 
@@ -224,10 +234,10 @@ private:
 private: /* notify */
     bool                                _isAnimationPaused = false;
 
-    bool _isAnimNotifyAssetLoaded = false;
-    bool _isAnimNotifyExecutionEnabled = true;
+    bool                    _isAnimNotifyAssetLoaded = false;
+    bool                    _isAnimNotifyExecutionEnabled = true;
 
-    AnimNotifyAsset _animNotifyAsset{};
+    AnimNotifyAsset         _animNotifyAsset{};
     vector<ActiveAnimNotifyState> _activeNotifyStates{};
 
 private: /* 머리 붙이기 */
@@ -237,17 +247,20 @@ private: /* 머리 붙이기 */
     vector<Matrix>      _leaderPoseCombinedMatrices;  // follower 기준으로 최종 행렬
 
     // 프레임마다 계산되지 않게 캐싱
-    vector<Matrix>      _combinedBoneMatrixCache;
-    vector<vector<Matrix>> _meshBoneMatrixCaches;
-    bool                _boneMatricesDirty = true;
-    bool                _leaderPoseMatricesValid = false;
+    vector<Matrix>          _combinedBoneMatrixCache;
+    vector<vector<Matrix>>  _meshBoneMatrixCaches;
+    bool                    _boneMatricesDirty = true;
+    bool                    _leaderPoseMatricesValid = false;
 
 private: /* PhysX 충돌 */
     vector<ModelCollisionMesh> _collisionMeshes;
 
+private: /* Compute Shader */
+    vector<Shared<ComputeStructuredBuffer>> _meshBoneMatrixBuffers;
+    bool    _boneMatrixBuffersDirty = true;
+
 private: // Model Custom Animation Mapping
     wstring             _animEnumType{};
-
 
 private:
     HRESULT Ready_Model(const char* modelPath);

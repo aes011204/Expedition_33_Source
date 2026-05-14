@@ -63,6 +63,10 @@ struct MaterialInstanceData
 
     Engine::MaterialShaderTemplate templateId = Engine::MaterialShaderTemplate::OpaquePBR;
     Engine::MaterialRenderState renderState{};
+    // ModelCom instance override에서 renderState를 덮어쓸지 여부
+    bool renderStateOverrideEnabled = false;
+    // -1이면 자동, 0 이상이면 해당 pass를 강제한다.
+    int forcedPassIndex = -1;
     Engine::MaterialCB cb{};
 
     // instance 편집 시 "필드별 override" 기준. (legacy 없음)

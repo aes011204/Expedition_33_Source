@@ -157,7 +157,7 @@ HRESULT PlayableParts::Render()
         if (FAILED(_shaderCom->Bind_CBufferData(material->Get_CB())))
             return E_FAIL;
 
-        CHECK_FAILED(_modelCom->Bind_BoneMatrices(_shaderCom.get(), "g_BoneMatrices", i), E_FAIL);
+        CHECK_FAILED(_modelCom->Bind_BoneMatrices(_shaderCom.get(), "g_BoneMatricesBuffer", i), E_FAIL);
 
         const uint32 passIndex = material->Get_PassIndex();
         if (FAILED(_shaderCom->Begin(passIndex)))
@@ -179,8 +179,9 @@ HRESULT PlayableParts::Render_Shadow()
 
     const uint32 numMeshes = static_cast<uint32>(_modelCom->Get_NumMeshes());
 
-    for (uint32 i = 0; i < numMeshes; i++) {
-        _modelCom->Bind_BoneMatrices(_shaderCom.get(), "g_BoneMatrices", i);
+    for (uint32 i = 0; i < numMeshes; i++)
+    {
+        CHECK_FAILED(_modelCom->Bind_BoneMatrices(_shaderCom.get(), "g_BoneMatricesBuffer", i), E_FAIL);
 
         //if (FAILED(_shaderCom->Begin(static_cast<uint32>(VtxAnimMeshPass::Shadow))))
         //    return E_FAIL;
