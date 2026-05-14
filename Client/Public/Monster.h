@@ -15,7 +15,9 @@ NS_END
 
 NS_BEGIN(Client)
 
-struct Action;
+class MonsterStatCom;
+
+    struct Action;
 
     class Mon_Lancleier_Weapon;
 
@@ -50,7 +52,7 @@ protected:
     Shared<Mon_Lancleier_Weapon> _weapon = {};
 
     Shared<AIController> _aiCtrl = { nullptr };
-
+    Shared<MonsterStatCom> _combatStat;
     Shared<ColliderCom>     _collider;
     int32 _rootindex = {};
 

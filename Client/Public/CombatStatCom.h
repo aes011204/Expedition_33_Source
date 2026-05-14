@@ -10,7 +10,7 @@ class Buff;
 
     class CombatStatCom : public Component
 {
-    GENERATED_COMPONENT(CombatStatCom)
+        //GENERATED_COMPONENT(CombatStatCom)
 
 public:
     // 초기 세팅 값
@@ -23,7 +23,7 @@ public:
         uint32 exp = 0;
         uint32 chroma = 0.f;
 
-        float maxHp = 0.f;
+        float maxHp = 100.f;
         uint32 maxAp = 0.f;
         float physicalAttack = 0.f;
         float physicalDefense = 0.f;
@@ -67,17 +67,19 @@ public:
     json To_Json() const override;
     void From_Json(const json& data) override;
 
-public:
-    const CombatStatDesc& Get_StatInfo() const { return _statDesc; }
 
-    RuntimeCombatStat& Get_RuntimeStat() { return _runtimeStat; }
+
+public:
+    virtual  CombatStatDesc& Get_StatInfo() = 0;;
+
+    virtual  RuntimeCombatStat& Get_RuntimeStat() = 0;
 
     //void ApplyDamage(float damage);
     //void Heal(float amount);
 
-    bool IsDead() const;
+    bool IsDead() ;
 
-    int32 Get_CurrentShield() const{return _runtimeStat.CurShield;}
+    int32 Get_CurrentShield() {return Get_RuntimeStat().CurShield; }
     void Add_Shield(int32 value);
     void Remove_Shield(int32 value);
 
@@ -88,16 +90,16 @@ public:
 
     bool Is_Player() { return _isPlayer; }
 
-    EAliveStatus Get_AliveStatus() { return _runtimeStat.CurAliveState; };
-    void Set_AliveStatus(EAliveStatus Alive) { _runtimeStat.CurAliveState = Alive; }
+    EAliveStatus Get_AliveStatus() { return Get_RuntimeStat().CurAliveState; };
+    void Set_AliveStatus(EAliveStatus Alive) { Get_RuntimeStat().CurAliveState = Alive; }
 
-    float Get_Speed() { return _runtimeStat.CurSpeed; };
-    void Set_Speed(float speed) { _runtimeStat.CurSpeed = speed; }
+    float Get_Speed() { return Get_RuntimeStat().CurSpeed; };
+    void Set_Speed(float speed) { Get_RuntimeStat().CurSpeed = speed; }
     PlayerCharactorType Get_PlayerType() { return _playerType; }
 protected:
-    CombatStatDesc _statDesc;
+  /*  CombatStatDesc _statDesc;
 
-    RuntimeCombatStat _runtimeStat;
+    RuntimeCombatStat _runtimeStat;*/
 
     vector<Shared<Buff>> _buff;// 상태이상
 
@@ -105,8 +107,8 @@ protected:
     bool _isPlayer = { false };
     PlayerCharactorType _playerType = PlayerCharactorType::None;
 public:
-    static Shared<CombatStatCom> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
-    Shared<Component> Clone(void* arg) override;
+    //    static Shared<CombatStatCom> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
+   virtual  Shared<Component> Clone(void* arg)=0 ;
     void Free() override;
     
 };

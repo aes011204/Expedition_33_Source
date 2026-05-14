@@ -61,8 +61,8 @@ void ClientInstance::Update_Client(float timeDelta)
     if (_gamePlayUI)
         _gamePlayUI->Update(timeDelta);
 
-   // if (_battleController)
-   //     _battleController->Update(timeDelta);
+    if (_battleController)
+        _battleController->Update(timeDelta);
 }
 
 HRESULT ClientInstance::Ready_StaticResources()
@@ -152,6 +152,12 @@ void ClientInstance::Clear_GameplayUI()
     }
 
     GAME->Set_GameplayPaused(false);
+}
+
+void ClientInstance::OnEnterBattleField(uint32 FieldID, bool IsFirstHero, vector<string>& PlayerProtoTag,
+    vector<string>& MonsterProtoTag)
+{
+    _battleController->OnEnterBattleField(FieldID, IsFirstHero, PlayerProtoTag, MonsterProtoTag);
 }
 
 Shared<GameObject> ClientInstance::Find_Player(uint32 levelIndex)

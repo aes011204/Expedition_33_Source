@@ -8,7 +8,7 @@
 #include "PlayerControllerCom.h"
 #include "Bounding_OBB.h"
 #include "ColliderCom.h"
-#include "CombatStatCom.h"
+#include "PlayerStatCom.h"
 #include "PlayableParts.h"
 #include "PlayerStateMachineCom.h"
 #include "Body_Player.h"
@@ -133,7 +133,7 @@ HRESULT Player::Ready_Components()
     
     CHECK_FAILED(Ready_Collider(), E_FAIL);
 
-    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_CombatStat"), _combatStatCom), E_FAIL);
+    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_PlayerStat"), _combatStatCom), E_FAIL);
 
     return S_OK;
 }

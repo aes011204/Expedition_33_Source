@@ -61,6 +61,9 @@ public: /* For.Hero Manager */
 public: /* For.Gameplay UI */
     HRESULT Initialize_GameplayUI(uint32 levelIndex);
     void    Clear_GameplayUI();
+public: /* For.Battle_Controller */
+    void OnEnterBattleField(uint32 FieldID, bool IsFirstHero, vector<string>& PlayerProtoTag, vector<string>& MonsterProtoTag);
+
 
 private:
 	HRESULT Ready_ResourceLoader();
@@ -82,7 +85,7 @@ private:
     Unique<PersistentObjectManager> _persistentObjectManager;
     Unique<Hero_Manager>    _heroManager;
 
-    Unique<BattleController>    _battleController;
+    Shared<BattleController>    _battleController;
 
 public:
 	void Free() override;

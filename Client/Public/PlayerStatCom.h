@@ -67,8 +67,12 @@ public:
     HRESULT Initialize(void* arg) override;
 
 public:
-    const PlayerCombatStatDesc& Get_PlayerDesc() const{return _playerDesc;}
 
+    virtual  CombatStatDesc& Get_StatInfo() { return _playerDesc; };
+    virtual  RuntimeCombatStat& Get_RuntimeStat() { return _PRuntimeStat; };
+
+
+    const PlayerCombatStatDesc& Get_PlayerDesc() const{return _playerDesc;}
     PRuntimeCombatStat& Get_PlayerRuntimeStat(){return _PRuntimeStat;}
     bool    Add_Stat(StatType type, int32 value = 1);
     bool    Reset_Stat();

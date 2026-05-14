@@ -34,7 +34,7 @@ EAPChangeReason BattleController::FinishBattle()
 
 
 
-HRESULT BattleController::Inintialize()
+HRESULT BattleController::Initialize()
 {
     Set_BattleFSM();
 
@@ -46,23 +46,7 @@ void BattleController::Update(float timeDelta)
 {
 
 	// 테스트
-	if (_flag == false)
-	{
-		vector<string> _heroes;
-		_heroes.push_back("Player_Lune");
-		_heroes.push_back("Player_Maelle");
-		_heroes.push_back("Player_Gustave");
 
-		vector<string> _monster;
-        _monster.push_back("Monster123123");
-        _monster.push_back("Monster123123");
-        _monster.push_back("Monster123123");
-
-
-
-		OnEnterBattleField(1,true,  _heroes, _monster);
-		_flag = true;
-	}
 
     
        if (_heroes.empty() == true || _enemies.empty() == true)
@@ -78,7 +62,7 @@ void BattleController::Update(float timeDelta)
 }
 void BattleController::Run_EnemyTurn()
 {
-    LOG_DEBUG("Run_EnemyTurn: actor=%s",
+    LOG_DEBUG("Run_EnemyTurn: actor={}",
         Get_TurnAction()._curChar.actor ? String::ToString(Get_TurnAction()._curChar.actor->Get_Name()).c_str() : "null");
 
     dynamic_pointer_cast<Monster>(Get_TurnAction()._curChar.actor)->Decide_Action(Get_TurnAction(), Get_Heroes());
@@ -108,7 +92,10 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
 {
     // 도망치기
     // 실패
-    // 성공 
+    // 성공
+
+    _heroes.clear();
+    _enemies.clear();
     return result;
 }
 
@@ -118,7 +105,7 @@ void BattleController::ExecuteAction(Action turnAction)
     if (!BattleChar.actor)
         return;
 
-    LOG_DEBUG("ExecuteAction: actor=%s, type=%d",
+    LOG_DEBUG("ExecuteAction: actor={}, type={}",
         turnAction._curChar.actor ? String::ToString(turnAction._curChar.actor->Get_Name()).c_str() : "null",
         static_cast<int>(turnAction.type));
 
@@ -158,9 +145,9 @@ void BattleController::EndTurn()
             DeadEnemy++;
     }
 
-    LOG_DEBUG("EndTurn: actor=%s",
+    LOG_DEBUG("EndTurn: actor={}",
         _currentTurnActor.actor ? String::ToString(_currentTurnActor.actor->Get_Name()).c_str() : "null");
-    LOG_DEBUG("EndTurn: deadPlayer=%u, deadEnemy=%u", DeadPlayer, DeadEnemy);
+    LOG_DEBUG("EndTurn: deadPlayer={}, deadEnemy={}", DeadPlayer, DeadEnemy);
 
     if (DeadEnemy == _enemies.size())
         OnExitBattleField(EBattleEndResult::Victory);
@@ -198,7 +185,7 @@ void BattleController::StartTurn()
     _battleTime = _turnQueue.top().nextTime;
     _turnQueue.pop();
 
-    LOG_DEBUG("StartTurn: next actor=%s, isPlayer=%d",
+    LOG_DEBUG("StartTurn: next actor={}, isPlayer={}",
         _currentTurnActor.actor ? String::ToString(_currentTurnActor.actor->Get_Name()).c_str() : "null",
         _currentTurnActor.statCom ? _currentTurnActor.statCom->Is_Player() : 0);
 
@@ -322,6 +309,7 @@ void BattleController::SetCharInitPos()
     /*INFO = FiledMgr->GetFiledInfo(FieldID)
     INFO.
     */
+    Vec3 startPos = Vec3(225.f, -4020.5f, -1.24f);
 
     Vec3 EPos[3] = { {0.f,0.f,0.f},{10.f,0.f,0.f},{20.f,0.f,0.f} };
     Vec3 PPos[3] = { {0.f,20.f,0.f},{10.f,20.f,0.f},{20.f,20.f,0.f} };
@@ -333,7 +321,7 @@ void BattleController::SetCharInitPos()
         if (!hero.actor)
             continue;
 
-        hero.actor->Get_Transform()->Set_Position(
+        hero.actor->Get_Transform()->Set_Position(startPos+
             PPos[i]);
     }
 
@@ -343,7 +331,7 @@ void BattleController::SetCharInitPos()
         if (!enemy.actor)
             continue;
 
-        enemy.actor->Get_Transform()->Set_Position(
+        enemy.actor->Get_Transform()->Set_Position(startPos+
             EPos[i]);
     }
 
@@ -352,7 +340,7 @@ void BattleController::SetCharInitPos()
 void BattleController::Execute_BaseAttack(const BattleChar actor, const Action& turnAction)
 {
     //기본스킬도 특이하기때문에 스킬로
-    LOG_DEBUG("Execute_BaseAttack: actor=%s, target=%s, script=%s",
+    LOG_DEBUG("Execute_BaseAttack: actor={}, target={}, script={}",
         actor.actor ? String::ToString(actor.actor->Get_Name()).c_str() : "null",
         turnAction.target.actor ? String::ToString(turnAction.target.actor->Get_Name()).c_str() : "null",
         turnAction._selected_SkillKey.scriptClassName.c_str());
@@ -382,7 +370,7 @@ void BattleController::Execute_BaseAttack(const BattleChar actor, const Action& 
 
 void BattleController::Execute_Skill(const BattleChar actor, const Action& turnAction)
 {
-    LOG_DEBUG("Execute_Skill: actor=%s, target=%s, script=%s",
+    LOG_DEBUG("Execute_Skill: actor={}, target={}, script={}",
         actor.actor ? String::ToString(actor.actor->Get_Name()).c_str() : "null",
         turnAction.target.actor ? String::ToString(turnAction.target.actor->Get_Name()).c_str() : "null",
         turnAction._selected_SkillKey.scriptClassName.c_str());
@@ -428,9 +416,18 @@ void BattleController::Set_BattleFSM()
 
     //_battleFSM->Change_State(BattleTurnState::ChooseAction);
 }
-Unique<BattleController> BattleController::Create()
+Shared<BattleController> BattleController::Create()
 {
-	return make_unique<BattleController>();
+   
+    Shared<BattleController> instance = make_shared<BattleController>();
+
+    if (FAILED(instance->Initialize()))
+    {
+        MSG_BOX("Failed to Created : BattleController");
+        return nullptr;
+    }
+
+    return instance;
 
 }
 

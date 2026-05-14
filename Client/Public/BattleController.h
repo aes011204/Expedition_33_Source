@@ -24,7 +24,7 @@ public:
     BattleController();
     virtual ~BattleController();
 public:
-    HRESULT Inintialize();
+    HRESULT Initialize();
     void Update(float timeDelta);
 
 
@@ -96,7 +96,7 @@ private:
     Shared< BattleEffectResolver> _battleEffectResolver;
 
 public:
-    static Unique<BattleController> Create();
+    static Shared<BattleController> Create();
     void Free() override;
 
 public:
