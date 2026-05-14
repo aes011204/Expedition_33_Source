@@ -39,17 +39,21 @@ public:
 	virtual void Free() override;
 
 public:
-    enum class PlayerAnimation
+    enum class PlayerWorldAnimation
     {
-        Pl_Idle = 0,
-        Pl_Walk,
-        Pl_Run,
-        Pl_Sprint,
+        Pl_Idle_0, Pl_Idle_1, Pl_Idle_2, Pl_Idle_3, Pl_Idle_4,
+
+        Pl_PreWalk, Pl_Walk, Pl_EndWalk,
+        Pl_PreRun, Pl_Run, Pl_EndRun,
+
+        Pl_PreSprint, Pl_Sprint, Pl_EndSprint,
+
         Pl_JumpWalk,
         Pl_JumpRun,
         Pl_Fall,
         Pl_Land,
-        Pl_Explo
+
+        Pl_Explo,
     };
 };
 

@@ -5,7 +5,7 @@
 #include "Player.h"
 #include "ModelCom.h"
 
-REGISTER_GLOBAL_ENUM(Client::Body_Player::PlayerAnimation, "PlayerAnimation")
+REGISTER_GLOBAL_ENUM(Client::Body_Player::PlayerWorldAnimation, "PlayerAnimation")
 
 Body_Player::Body_Player(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : PlayableParts{ device, context }

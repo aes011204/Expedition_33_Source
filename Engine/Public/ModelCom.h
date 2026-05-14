@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "AnimNotify_Types.h"
 #include "Component.h"
@@ -58,9 +58,14 @@ public:
     const Matrix* Get_BoneMatrixPtr(uint32 boneIndex) const;
 
 public:
+    float Get_FrameSpeed() const { return _frameSpeed; }
+    void Set_FrameSpeed(float speed) { _frameSpeed = speed; }
     bool Is_AnimationFinished() const { return _isFinished; }
     void Set_Animation(uint32 animIndex, bool isLoop = false);
     void Set_Animation(uint32 animIndex, float blendDuration, bool isLoop = false);
+
+    void Set_AnimationByState(uint32 stateIndex, bool isLoop = false);
+    void Set_AnimationByState(uint32 stateIndex, float blendDuration, bool isLoop = false);
     const char* Get_AnimationName(uint32 animationIndex) const;
 
 public:
@@ -93,6 +98,7 @@ public: /* Guid */
 public: /* AnimNotify */
     uint32  Get_CurrentAnimationIndex() const { return _currentAnimIndex; }
     uint32  Get_AnimationIndex() const;
+    uint32  Get_AnimationStateIndex() const;
 
     float   Get_CurrentAnimationDurationSec() const;
     float   Get_CurrentAnimationTimeSec() const;
@@ -142,6 +148,9 @@ private:
         const string& animationName,
         int32 stateIndex);
 
+public:
+    bool Ensure_AnimStateAssetLoaded();
+
 public: /* 머리 붙이기 */
     void Set_LeaderPoseComponent(const ModelCom* leaderModel);
     void Clear_LeaderPoseComponent();
@@ -149,9 +158,13 @@ public: /* 머리 붙이기 */
 
     void Update_LeaderPoseMatrices();
 
-    public: /* PhysX 충돌 */
+public: /* PhysX 충돌 */
     // static collision 생성용 CPU Mesh 데이터
     const vector<ModelCollisionMesh>& Get_CollisionMeshes() const { return _collisionMeshes; }
+
+public:
+    void Set_AnimEnumType(const wstring& enumType) { _animEnumType = enumType; Ensure_AnimStateAssetLoaded(); }
+    const wstring& Get_AnimEnumType() const { return _animEnumType; }
 
 private:
     // bone pose 변경으로 Matrix를 다시 만들어야하는지?
@@ -182,6 +195,7 @@ private:
     vector<Shared<Material>>	        _materials;
     vector<Shared<Bone>>		        _bones;
     vector<Shared<Animation>>	        _animations;
+    vector<uint32>                      _stateAnimIndices;
 
 private: /* For Animation Control */
     bool                                _isFinished{ false };
@@ -189,6 +203,9 @@ private: /* For Animation Control */
     bool                                _isBlending{ false };
     uint32						        _currentAnimIndex{ 0 };
     uint32                              _nextAnimIndex{ 0 };
+    uint32                              _currentAnimStateIndex{ UINT32_MAX };
+    uint32                              _nextAnimStateIndex{ UINT32_MAX };
+    float                               _frameSpeed{ 1.f };
     float                               _blendDuration{ 0.f };
     float                               _blendElapsedTime{ 0.f };
 
@@ -227,6 +244,10 @@ private: /* 머리 붙이기 */
 
 private: /* PhysX 충돌 */
     vector<ModelCollisionMesh> _collisionMeshes;
+
+private: // Model Custom Animation Mapping
+    wstring             _animEnumType{};
+
 
 private:
     HRESULT Ready_Model(const char* modelPath);

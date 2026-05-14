@@ -40,7 +40,7 @@ void Player_Move::Update(float timeDelta)
         return;
     }
 
-    using plAnim = Body_Player::PlayerAnimation;
+    using plAnim = Body_Player::PlayerWorldAnimation;
     if (input.isRunPressed)
     {
         if (animIndex != ETOI(plAnim::Pl_Sprint))

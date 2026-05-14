@@ -13,7 +13,7 @@ HRESULT Player_Jump::Initialize()
     return Player_State::Initialize();
 }
 
-using plAnim = Body_Player::PlayerAnimation;
+using plAnim = Body_Player::PlayerWorldAnimation;
 
 bool Player_Jump::EnterInvoke()
 {

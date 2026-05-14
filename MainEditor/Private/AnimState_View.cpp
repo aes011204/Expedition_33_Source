@@ -82,6 +82,7 @@ void AnimState_View::Pre_Render()
 
     GAME->Set_Transform(D3DTS::View, const_cast<Matrix&>(previewView));
     GAME->Set_Transform(D3DTS::Proj, const_cast<Matrix&>(previewProj));
+    GAME->UpdateFrustum(previewView, previewProj);
 
     vector<LIGHT_DESC> previewLightDescs{};
 
@@ -802,10 +803,22 @@ void AnimState_View::Save_Mapping(const string& fileName)
         const auto it = _animationMapping.find(_stateNames[i]);
         if (it == _animationMapping.end() || it->second.empty())
             continue;
+
         json entry;
         entry["Index"] = _stateIndices[i];
         entry["State"] = _stateNames[i];
-        entry["Anim"] = it->second;
+
+        string mappedName = it->second;
+        const AnimationEntry* animEntry = Find_AnimationEntryByAnyName(_availableAnimations, mappedName);
+        if (animEntry && !animEntry->playbackName.empty())
+        {
+            entry["Anim"] = animEntry->playbackName;
+        }
+        else
+        {
+            entry["Anim"] = mappedName;
+        }
+
         mappings.push_back(entry);
     }
     root["Mappings"] = mappings;
