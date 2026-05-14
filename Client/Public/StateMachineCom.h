@@ -23,10 +23,10 @@ public:
 public:
     HRESULT Add_State(const wstring& stateName, Shared<State> state);
     HRESULT Remove_State(const wstring& stateName);
-    bool Change_State(const wstring& stateName);
+    bool    Change_State(const wstring& stateName);
 
 public:
-    Shared<State> Get_CurrentState() const { return _currentState; }
+    Shared<State>  Get_CurrentState() const { return _currentState; }
     const wstring& Get_CurrentStateName() const { return _currentStateName; }
 
 protected:

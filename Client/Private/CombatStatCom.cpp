@@ -202,6 +202,17 @@ uint32 CombatStatCom::Get_NextExp(uint32 level) const
     return CLIENT->Get_NextExp(level);
 }
 
+bool CombatStatCom::Spend_SkillPoint(uint32 cost)
+{
+    if(_skillPoint < cost)
+        _skillPoint = false;
+
+    _skillPoint -= cost;
+    Update_StatInfo();
+
+    return true;
+}
+
 int32* CombatStatCom::Find_StatValue(StatType type)
 {
     switch (type)

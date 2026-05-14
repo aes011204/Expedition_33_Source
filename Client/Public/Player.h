@@ -12,7 +12,9 @@ NS_END
 
 NS_BEGIN(Client)
 
-class InputCom;
+class SkillTreeCom;
+
+    class InputCom;
 class PlayerControllerCom;
 class CombatStatCom;
 class PlayerStateMachineCom;
@@ -58,6 +60,7 @@ private:
     Shared<PlayerStateMachineCom>   _PlayerStateMachineCom;
     Shared<ColliderCom>             _colliderCom;
     Shared<CombatStatCom>           _combatStatCom;
+    Shared<SkillTreeCom>            _skillTreeCom;
 
 public:
 	static Shared<Player> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

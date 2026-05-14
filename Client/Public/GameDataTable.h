@@ -105,6 +105,7 @@ public:
 
 public:
     uint32 Get_NextExp(uint32 level) const;
+    SkillTreeDesc*   Get_SkillTreeDesc(const string& skillName);
 
 private:
     HRESULT Load_ExpLevel(const wstring& jsonRootPath);
@@ -113,8 +114,8 @@ private:
     HRESULT Load_SkillTreeData(const wstring& jsonRootPath);
 
 private:
-    wstring Get_DefaultJsonRootPath() const;
-    uint32  Get_FallbackNextExp(uint32 level) const;
+    wstring         Get_DefaultJsonRootPath() const;
+    uint32          Get_FallbackNextExp(uint32 level) const;
 
 private:
     // index == level. 0번은 사용하지 않는다.

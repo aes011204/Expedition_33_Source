@@ -325,6 +325,16 @@ uint32 GameDataTable::Get_FallbackNextExp(uint32 level) const
     return max(1u, level) * 100u;
 }
 
+GameDataTable::SkillTreeDesc* GameDataTable::Get_SkillTreeDesc(const string& skillName)
+{
+    auto iter = _skillTreeData.find(skillName);
+
+    if(iter == _skillTreeData.end())
+        return nullptr;
+
+    return &iter->second;
+}
+
 Unique<GameDataTable> GameDataTable::Create()
 {
     auto instance = make_unique<GameDataTable>();

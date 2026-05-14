@@ -77,6 +77,8 @@ public:
     uint32  Get_SkillPoint() const  { return _skillPoint; }
     uint32  Get_RespecCount() const { return _respecCount; }
 
+    bool    Spend_SkillPoint(uint32 cost);
+
 private:
     int32*  Find_StatValue(StatType type);
     array<int32*, static_cast<size_t>(StatType::END)> Get_StatValues();

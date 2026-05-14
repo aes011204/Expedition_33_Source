@@ -1,6 +1,6 @@
 ﻿#pragma once
-
 #include "Base.h"
+#include "GameDataTable.h"
 
 NS_BEGIN(Engine)
 class GameInstance;
@@ -10,11 +10,9 @@ NS_BEGIN(Client)
 
 class Player;
 class TargetCamera;
-
 class ResourceLoader;
 class GameplayUI;
 class PersistentObjectManager;
-class GameDataTable;
 class Hero_Manager;
 
 class ClientInstance : public Base
@@ -44,7 +42,8 @@ public: /* 플레이어 찾기 -> 일단 임시 */
     Shared<GameObject> Find_Player(uint32 levelIndex);
 
 public: /* For.GameData Table */
-    uint32  Get_NextExp(uint32 level) const;
+    uint32        Get_NextExp(uint32 level) const;
+    GameDataTable::SkillTreeDesc* Get_SkillTreeDesc(const string& skillName);
 
 public: /* For.Hero Manager */
     HRESULT        Initialize_Hero(uint32 levelIndex, const wstring& layerTag, const Vec3& startPos = Vec3::Zero);
@@ -53,7 +52,7 @@ public: /* For.Hero Manager */
     void           Set_TargetCamera(const Shared<TargetCamera>& camera);
     void           Clear_Party();
 
-    Shared<Player> Get_FrontHero() const;
+    Shared<Player>         Get_FrontHero() const;
     vector<Shared<Player>> Get_HeroesInPartyOrder() const;
 
 public: /* For.Gameplay UI */
