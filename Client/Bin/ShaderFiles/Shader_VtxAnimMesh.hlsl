@@ -180,24 +180,23 @@ PS_OUT PS_Mask(PS_IN In)
         if (hair.opacity < g_OpacityMaskClipValue)
             discard;
 
-        float3 worldNormal = ComputeWorldNormal(
-            In.Normal.xyz,
-            In.Tangent,
-            In.Binormal,
-            finalUV
-        );
+        float3 worldNormal = ComputeWorldNormal(In.Normal.xyz, In.Tangent, In.Binormal, finalUV);
 
         Out.Diffuse = float4(hair.baseColor, 1.f);
         Out.Normal = float4(EncodeNormal(worldNormal), 1.f);
         Out.Depth = float4(In.ProjPos.z / In.ProjPos.w, In.ProjPos.w / g_Far, 0.f, 1.f);
 
+        float3 orm = SampleOrm(finalUV);
+        Out.Material = float4(orm.xyz, 1.f);
+
+        float3 emissive = SampleEmissive(finalUV);
+        Out.Emissive = float4(emissive.xyz, 1.f);
+
         return Out;
     }
 
     // Eye material path.
-    const bool isEyeMaterial =
-        HasMaterialTexture(MATERIAL_SLOT_IRIS_HEIGHT) ||
-        HasMaterialTexture(MATERIAL_SLOT_IRIS_MASK);
+    const bool isEyeMaterial = HasMaterialTexture(MATERIAL_SLOT_IRIS_HEIGHT) || HasMaterialTexture(MATERIAL_SLOT_IRIS_MASK);
 
     if (isEyeMaterial)
     {
@@ -206,16 +205,14 @@ PS_OUT PS_Mask(PS_IN In)
         if (eye.opacity < g_OpacityMaskClipValue)
             discard;
 
-        float3 worldNormal = ComputeWorldNormal(
-            In.vNormal.xyz,
-            In.vTangent,
-            In.vBinormal,
-            finalUV
-        );
+        float3 worldNormal = ComputeWorldNormal(In.Normal.xyz, In.Tangent, In.Binormal, finalUV);
 
-        Out.vDiffuse = float4(eye.baseColor, 1.f);
-        Out.vNormal = float4(EncodeNormal(worldNormal), 1.f);
-        Out.vDepth = float4(In.vProjPos.z / In.vProjPos.w, In.vProjPos.w / g_Far, 0.f, 1.f);
+        Out.Diffuse = float4(eye.baseColor, 1.f);
+        Out.Normal = float4(EncodeNormal(worldNormal), 1.f);
+        Out.Depth = float4(In.ProjPos.z / In.ProjPos.w, In.ProjPos.w / g_Far, 0.f, 1.f);
+
+        float3 emissive = SampleEmissive(finalUV);
+        Out.Emissive = float4(emissive.xyz, 1.f);
 
         return Out;
     }
@@ -239,7 +236,7 @@ PS_OUT PS_Mask(PS_IN In)
 
     float3 emissive = SampleEmissive(finalUV);
     Out.Emissive = float4(emissive.xyz, 1.f);
-
+    
     return Out;
 }
 
