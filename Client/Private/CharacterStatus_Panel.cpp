@@ -3,6 +3,7 @@
 #include "CombatStatCom.h"
 #include "GameInstance.h"
 #include "Player.h"
+#include "PlayerStatCom.h"
 #include "Spawn_Prefab.h"
 #include "UI_Base.h"
 #include "UI_RuntimeLoader.h"
@@ -112,25 +113,25 @@ void CharacterStatus_Panel::Refresh_CombatStats()
     Shared<Player> player = CLIENT->Get_FrontHero();
     CHECK_NULL(player);
 
-    Shared<CombatStatCom> combatStat = player->Get_Component<CombatStatCom>();
+    Shared<PlayerStatCom> combatStat = player->Get_Component<PlayerStatCom>();
     CHECK_NULL(combatStat);
 
-    const CombatStatCom::CombatStatInfo& statInfo = combatStat->Get_StatInfo();
+    const PlayerStatCom::PRuntimeCombatStat& statInfo = combatStat->Get_PlayerRuntimeStat();
 
-    Set_UIntText(_levelText, statInfo.level);
-    Set_UIntText(_statPointText, statInfo.statPoint);
+    Set_UIntText(_levelText, statInfo.CurLevel);
+    Set_UIntText(_statPointText, statInfo.CurStatPoint);
 
-    Set_IntText(_vitalityText, statInfo.vitality);
-    Set_IntText(_mightText, statInfo.might);
-    Set_IntText(_agilityText, statInfo.agility);
-    Set_IntText(_defenseStatText, statInfo.defense);
-    Set_IntText(_luckText, statInfo.luck);
+    Set_IntText(_vitalityText, statInfo.CurVitality);
+    Set_IntText(_mightText, statInfo.CurMight);
+    Set_IntText(_agilityText, statInfo.CurAgility);
+    Set_IntText(_defenseStatText, statInfo.CurDefense);
+    Set_IntText(_luckText, statInfo.CurLuck);
     
-    Set_HpText(_hpText, statInfo.hp, statInfo.maxHp);
-    Set_IntText(_attackText, static_cast<int32>(statInfo.attack));
-    Set_IntText(_speedText, static_cast<int32>(statInfo.speed));
-    Set_IntText(_defenseValueText, static_cast<int32>(statInfo.defenseValue));
-    Set_PercentText(_criticalRateText, statInfo.criticalRate);
+    Set_HpText(_hpText, statInfo.CurHp, statInfo.CurMaxHp);
+    Set_IntText(_attackText, static_cast<int32>(statInfo.CurPhysicalAttack));
+    Set_IntText(_speedText, static_cast<int32>(statInfo.CurSpeed));
+    Set_IntText(_defenseValueText, static_cast<int32>(statInfo.CurPhysicalDefense));
+    Set_PercentText(_criticalRateText, statInfo.CurCriticalRate);
 }
 
 Shared<UI_Base> CharacterStatus_Panel::Find_UI(const umap<wstring, Shared<UI_Base>>& uiByName, const wstring& name) const

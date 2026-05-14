@@ -47,6 +47,8 @@ HRESULT Player::Initialize(void* arg)
     if (FAILED(Ready_PartObjects()))
         return E_FAIL;
 
+
+
     return S_OK;
 }
 

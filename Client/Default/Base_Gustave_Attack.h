@@ -1,0 +1,26 @@
+﻿#pragma once
+#include "SkillScript.h"
+
+
+NS_BEGIN(Client)
+class Base_Gustave_Attack :
+    public SkillScript
+{
+public:
+    Base_Gustave_Attack();
+    virtual ~Base_Gustave_Attack() = default;
+public:
+    virtual void Execute(const Skill_Data& skill,
+        const BattleChar& attacker,
+        const BattleChar& target);
+
+private:
+	uint32 charging = {};
+public:
+    static Shared<Base_Gustave_Attack> Create();
+    //Shared<Component> Clone(void* arg) override;
+    void Free() override;
+
+};
+
+NS_END
