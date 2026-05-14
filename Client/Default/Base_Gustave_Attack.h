@@ -1,11 +1,12 @@
 ﻿#pragma once
 #include "SkillScript.h"
 
-
 NS_BEGIN(Client)
 class Base_Gustave_Attack :
     public SkillScript
 {
+     GENERATED_SKILLSCRIPT(Base_Gustave_Attack)
+
 public:
     Base_Gustave_Attack();
     virtual ~Base_Gustave_Attack() = default;

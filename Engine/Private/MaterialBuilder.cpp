@@ -435,6 +435,9 @@ bool MaterialBuilder::Try_ApplyMaterialBindingsFromJson(ModelCom& model, const j
         parseTextureOverride("emissive", inst.emissive);
         parseTextureOverride("opacity_mask", inst.opacityMask);
 
+        parseTextureOverride("hair_depth", inst.hairDepth);
+        parseTextureOverride("hair_id", inst.hairID);
+
         anyApplied = true;
     }
 
@@ -467,11 +470,13 @@ bool MaterialBuilder::Try_ApplyModelMaterialOverridesFromJson(ModelCom& model, c
         if (overrideData["slot"].is_string())
         {
             const string slotName = overrideData["slot"].get<string>();
-            if (slotName == "BaseColor") slot = MaterialTextureSlot::BaseColor;
-            else if (slotName == "Normal") slot = MaterialTextureSlot::Normal;
-            else if (slotName == "Emissive") slot = MaterialTextureSlot::Emissive;
+            if (slotName == "BaseColor")        slot = MaterialTextureSlot::BaseColor;
+            else if (slotName == "Normal")      slot = MaterialTextureSlot::Normal;
+            else if (slotName == "Emissive")    slot = MaterialTextureSlot::Emissive;
             else if (slotName == "OpacityMask") slot = MaterialTextureSlot::OpacityMask;
-            else if (slotName == "ORM") slot = MaterialTextureSlot::ORM;
+            else if (slotName == "ORM")         slot = MaterialTextureSlot::ORM;
+            else if (slotName == "HairDepth")   slot = MaterialTextureSlot::HairDepth;
+            else if (slotName == "HairID")      slot = MaterialTextureSlot::HairID;
         }
 
         if (slot == MaterialTextureSlot::END)
@@ -503,6 +508,8 @@ bool MaterialBuilder::Try_ApplyModelMaterialOverridesFromJson(ModelCom& model, c
         else if (slot == MaterialTextureSlot::ORM) target = &inst.orm;
         else if (slot == MaterialTextureSlot::Emissive) target = &inst.emissive;
         else if (slot == MaterialTextureSlot::OpacityMask) target = &inst.opacityMask;
+        else if (slot == MaterialTextureSlot::HairDepth) target = &inst.hairDepth;
+        else if (slot == MaterialTextureSlot::HairID) target = &inst.hairID;
 
         if (target == nullptr)
             continue;
