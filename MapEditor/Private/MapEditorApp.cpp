@@ -70,11 +70,6 @@ HRESULT MapEditorApp::Initialize()
             L"../../../Client/Bin/ShaderFiles/Shader_VtxMesh.hlsl",
             VTXMESH::Elements, VTXMESH::numElements, ShaderType::VtxMesh)), E_FAIL);
 
-    //CHECK_FAILED(GAME->Add_Prototype(0, L"Shader_VtxMeshInstance",
-    //    ShaderCom::Create(_device, _context,
-    //        L"../../../Client/Bin/ShaderFiles/Shader_VtxMeshInstanceExact.hlsl",
-    //        VtxMeshInstanceExactLayout::Elements, VtxMeshInstanceExactLayout::numElements, ShaderType::VtxInstanceMesh)), E_FAIL);
-
     auto instanceShader = ShaderCom::Create(_device, _context,
         L"../../../Client/Bin/ShaderFiles/Shader_VtxMeshInstanceExact.hlsl",
         VtxMeshInstanceExactLayout::Elements, VtxMeshInstanceExactLayout::numElements, ShaderType::VtxInstanceMeshExact);
