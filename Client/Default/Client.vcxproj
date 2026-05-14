@@ -206,6 +206,7 @@
     <ClInclude Include="..\Public\Player_State.h" />
     <ClInclude Include="..\Public\PlayerStateMachineCom.h" />
     <ClInclude Include="..\public\SkillTree_Panel.h" />
+    <ClInclude Include="..\Public\Create_Class.h" />
     <ClInclude Include="..\Public\Spawn_Prefab.h" />
     <ClInclude Include="..\Public\State.h" />
     <ClInclude Include="..\Public\StateMachineCom.h" />
@@ -278,6 +279,7 @@
     <ClCompile Include="..\Private\SimpleMath.cpp" />
     <ClCompile Include="..\Private\SkillTreeCom.cpp" />
     <ClCompile Include="..\private\SkillTree_Panel.cpp" />
+    <ClCompile Include="..\Private\Create_Class.cpp" />
     <ClCompile Include="..\Private\Spawn_Prefab.cpp" />
     <ClCompile Include="..\Private\State.cpp" />
     <ClCompile Include="..\Private\StateMachineCom.cpp" />
@@ -316,6 +318,7 @@
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxCube.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMesh.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMeshInstance.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMeshInstanceExact.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxNorTex.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxTex.hlsl" />
   </ItemGroup>

@@ -32,11 +32,20 @@ HRESULT StateMachineCom::Initialize(void* arg)
 
 void StateMachineCom::Update_StateMachine(float timeDelta)
 {
+    Update_CurrentState(timeDelta);
+    LateUpdate_CurrentState(timeDelta);
+}
+
+void StateMachineCom::Update_CurrentState(float timeDelta)
+{
     if (_currentState != nullptr)
-    {
         _currentState->Update(timeDelta);
+}
+
+void StateMachineCom::LateUpdate_CurrentState(float timeDelta)
+{
+    if (_currentState != nullptr)
         _currentState->LateUpdate(timeDelta);
-    }
 }
 
 HRESULT StateMachineCom::Add_State(const wstring& stateName, Shared<State> state)

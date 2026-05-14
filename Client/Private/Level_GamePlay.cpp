@@ -14,43 +14,6 @@
 #include "UI_Text.h"
 #include "UI_Transform.h"
 
-namespace
-{
-constexpr int32 TEST_HP_STEP = 50;
-constexpr int32 TEST_EXP_STEP = 25;
-
-wstring Make_TestStatText(int32 value, int32 maxValue)
-{
-    return to_wstring(value) + L"    /    " + to_wstring(maxValue);
-}
-
-Shared<UI_Base> Find_NamedBaseUI(const unordered_map<wstring, Shared<UI_Base>>& uiByName, const wstring& name)
-{
-    const auto iter = uiByName.find(name);
-    if (iter == uiByName.end() || nullptr == iter->second)
-    {
-        LOG_WARN("Test Missing Object: {}", String::ToString(name));
-        return nullptr;
-    }
-
-    return iter->second;
-}
-
-template <typename T>
-Shared<T> Find_NamedUI(const unordered_map<wstring, Shared<UI_Base>>& uiByName, const wstring& name)
-{
-    const Shared<UI_Base> ui = Find_NamedBaseUI(uiByName, name);
-    if (nullptr == ui)
-        return nullptr;
-
-    Shared<T> typedUI = dynamic_pointer_cast<T>(ui);
-    if (nullptr == typedUI)
-        LOG_WARN("Test Type Mismatch: {}", String::ToString(name));
-
-    return typedUI;
-}
-}
-
 Level_GamePlay::Level_GamePlay(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Level{ device, context }
 {
@@ -67,6 +30,9 @@ HRESULT Level_GamePlay::Initialize()
     if (FAILED(Ready_Layer_BackGround(TEXT("Layer_BackGround"))))
         return E_FAIL;
 
+    if(FAILED(Ready_Layer_MapStaticMesh(L"Layer_MapStaticMesh")))
+        return E_FAIL;
+
     if (FAILED(Ready_Layer_Player(TEXT("Layer_Player"))))
         return E_FAIL;
 
@@ -76,7 +42,6 @@ HRESULT Level_GamePlay::Initialize()
     if (FAILED(Ready_Layer_Monster(TEXT("Layer_Monster"))))
         return E_FAIL;
 
-    //CHECK_FAILED(Ready_Layer_MapStaticMesh(L"Layer_MapStaticMesh"), E_FAIL);
 
     return S_OK;
 }
@@ -113,9 +78,9 @@ HRESULT Level_GamePlay::Ready_Lights()
     LIGHT_DESC LightDesc{};
 
     LightDesc.type = LightType::Directional;
-    LightDesc.direction = XMFLOAT4(1.f, -1.f, 1.f, 0.f);
+    LightDesc.direction = XMFLOAT4(1.f, -1.f, -1.f, 0.f);
     LightDesc.diffuse = XMFLOAT4(1.f, 1.f, 1.f, 1.f);
-    LightDesc.ambient = XMFLOAT4(0.3f, 0.3f, 0.3f, 1.f);
+    LightDesc.ambient = XMFLOAT4(0.4f, 0.4f, 0.4f, 1.f);
     LightDesc.specular = XMFLOAT4(1.f, 1.f, 1.f, 1.f);
 
     if (FAILED(GAME->Add_Light(LightDesc)))
@@ -198,16 +163,19 @@ HRESULT Level_GamePlay::Ready_Layer_Camera(const wstring& strLayerTag)
 HRESULT Level_GamePlay::Ready_Layer_BackGround(const wstring& strLayerTag)
 {
     if (FAILED(
-        GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Terrain"),
-            ETOI(LevelType::GamePlay), strLayerTag)
-    ))
+        GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Sky_GamePlay"),
+            ETOI(LevelType::GamePlay), strLayerTag)))
         return E_FAIL;
 
-    if (FAILED(
-        GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Sky_GamePlay"),
-            ETOI(LevelType::GamePlay), strLayerTag)
-    ))
-        return E_FAIL;
+    return S_OK;
+}
+
+HRESULT Level_GamePlay::Ready_Layer_MapStaticMesh(const wstring& strLayerTag)
+{
+    CHECK_FAILED(MapLoader::Load(
+        _device, _context,
+        Constants::Map::SmallLevel_SimonArea_Remake_Path,
+        ETOI(LevelType::MapTest), strLayerTag), E_FAIL);
 
     return S_OK;
 }
@@ -232,16 +200,7 @@ HRESULT Level_GamePlay::Ready_Layer_Monster(const wstring& strLayerTag)
 
 HRESULT Level_GamePlay::Ready_Layer_Player(const wstring& strLayerTag)
 {
-    /*auto player = Spawn_Prefab::Prefab("TestPlayer")
-        .AtLevel(ETOI(LevelType::GamePlay))
-        .InLayer(strLayerTag)
-        .Spawn();
-
-    auto tr = player->Get_Transform();
-    if (tr)
-        tr->Set_Position(Vec3(10.f, 5.f, 10.f));*/
-
-    const Vec3 startPos = Vec3(-10.f, 0.f, 10.f);
+    Vec3 startPos = Vec3(205.f, -4020.5f, -1.24f);
     CHECK_FAILED(CLIENT->Initialize_Hero(ETOI(LevelType::GamePlay), strLayerTag, startPos), E_FAIL);
 
     return S_OK;

@@ -70,10 +70,16 @@ HRESULT MapEditorApp::Initialize()
             L"../../../Client/Bin/ShaderFiles/Shader_VtxMesh.hlsl",
             VTXMESH::Elements, VTXMESH::numElements, ShaderType::VtxMesh)), E_FAIL);
 
-    CHECK_FAILED(GAME->Add_Prototype(0, L"Shader_VtxMeshInstance",
-        ShaderCom::Create(_device, _context,
-            L"../../../Client/Bin/ShaderFiles/Shader_VtxMeshInstance.hlsl",
-            VtxMeshInstanceLayout::Elements, VtxMeshInstanceLayout::numElements, ShaderType::VtxInstanceMesh)), E_FAIL);
+    //CHECK_FAILED(GAME->Add_Prototype(0, L"Shader_VtxMeshInstance",
+    //    ShaderCom::Create(_device, _context,
+    //        L"../../../Client/Bin/ShaderFiles/Shader_VtxMeshInstanceExact.hlsl",
+    //        VtxMeshInstanceExactLayout::Elements, VtxMeshInstanceExactLayout::numElements, ShaderType::VtxInstanceMesh)), E_FAIL);
+
+    auto instanceShader = ShaderCom::Create(_device, _context,
+        L"../../../Client/Bin/ShaderFiles/Shader_VtxMeshInstanceExact.hlsl",
+        VtxMeshInstanceExactLayout::Elements, VtxMeshInstanceExactLayout::numElements, ShaderType::VtxInstanceMeshExact);
+    CHECK_NULL(instanceShader, E_FAIL);
+    CHECK_FAILED(GAME->Add_Prototype(0, L"Shader_VtxMeshInstance", instanceShader), E_FAIL);
 
     CHECK_FAILED(GAME->Add_Prototype(0, L"MEInstancedMeshActor",
         MEInstancedMeshActor::Create(_device, _context)), E_FAIL);
@@ -221,36 +227,30 @@ void MapEditorApp::UpdateRenderHandles()
             obj->_renderHandle = actor;
             _scene._octreeDirty = true;
         }
-
-        for (auto& obj : _scene._instancedMeshes)
+    }
+    for (auto& obj : _scene._instancedMeshes)
+    {
+        if (!obj->_instancedParamsDirty)
         {
-            if (!obj->_instancedParamsDirty)
+            continue;
+        }
+
+        obj->_instancedParamsDirty = false;
+
+        if (!obj->_instancedRenderHandle)
+        {
+            obj->_instancedRenderHandle = static_pointer_cast<MEInstancedMeshActor>(
+                GAME->Clone_Prototype(Prototype::GameObject, 0, L"MEInstancedMeshActor", nullptr));
+            if (!obj->_instancedRenderHandle)
             {
                 continue;
             }
+        }
 
-            obj->_instancedParamsDirty = false;
-
-            if (!obj->_instancedRenderHandle)
-            {
-                obj->_instancedRenderHandle = static_pointer_cast<MEInstancedMeshActor>(
-                    GAME->Clone_Prototype(Prototype::GameObject, 0, L"MEInstancedMeshActor", nullptr));
-                if (!obj->_instancedRenderHandle)
-                {
-                    continue;
-                }
-            }
-
-            if (!obj->_instancedModelPath.empty())
-            {
-                obj->_instancedRenderHandle->UpdateInstances(
-                    obj->_instancedModelPath,
-                    obj->_position,
-                    obj->_instancedAreaWidth,
-                    obj->_instancedAreaDepth,
-                    obj->_instancedDensity,
-                    obj->_instancedSeed);
-            }
+        if (!obj->_instancedModelPath.empty())
+        {
+            obj->_instancedRenderHandle->UpdateInstances(
+                obj->_instancedModelPath, obj->_instancedTransforms);
         }
     }
 }

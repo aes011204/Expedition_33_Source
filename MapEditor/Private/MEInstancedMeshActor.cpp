@@ -61,7 +61,7 @@ HRESULT MEInstancedMeshActor::Render()
             return E_FAIL;
         }
 
-        if (FAILED(_model->RenderInstanced(i, _instanceVB.Get(), sizeof(MESHINSTANCEDATA), _instanceCount)))
+        if (FAILED(_model->RenderInstanced(i, _instanceVB.Get(), sizeof(Matrix), _instanceCount)))
         {
             return E_FAIL;
         }
@@ -88,9 +88,9 @@ HRESULT MEInstancedMeshActor::Bind_ShaderResources()
     return S_OK;
 }
 
-HRESULT MEInstancedMeshActor::CreateInstanceBuffer(const vector<MESHINSTANCEDATA>& instances)
+HRESULT MEInstancedMeshActor::CreateInstanceBuffer(const vector<Matrix>& matrices)
 {
-    const uint32 count = static_cast<uint32>(instances.size());
+    const uint32 count = static_cast<uint32>(matrices.size());
 
     if (count == 0)
     {
@@ -103,7 +103,7 @@ HRESULT MEInstancedMeshActor::CreateInstanceBuffer(const vector<MESHINSTANCEDATA
         _instanceCapacity = count;
 
         D3D11_BUFFER_DESC bd{};
-        bd.ByteWidth = sizeof(MESHINSTANCEDATA) * _instanceCapacity;
+        bd.ByteWidth = sizeof(Matrix) * _instanceCapacity;
         bd.Usage = D3D11_USAGE_DYNAMIC;
         bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
         bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
@@ -121,7 +121,7 @@ HRESULT MEInstancedMeshActor::CreateInstanceBuffer(const vector<MESHINSTANCEDATA
         return E_FAIL;
     }
 
-    memcpy(mapped.pData, instances.data(), sizeof(MESHINSTANCEDATA) * count);
+    memcpy(mapped.pData, matrices.data(), sizeof(Matrix) * count);
     _context->Unmap(_instanceVB.Get(), 0);
 
     _instanceCount = count;
@@ -151,13 +151,11 @@ void MEInstancedMeshActor::GenerateInstances(const Vec3& centerPos, float areaWi
     }
 }
 
-HRESULT MEInstancedMeshActor::UpdateInstances(const wstring& modelPath, const Vec3& centerPos, float areaWidth, float areaDepth, float density, uint32 seed)
+HRESULT MEInstancedMeshActor::UpdateInstances(const wstring& modelPath, const vector<InstanceTransform>& transforms)
 {
     if (_loadedModelPath != modelPath)
     {
-        _model = ModelCom::Create(_device, _context, ModelType::NonAnim,
-            String::ToString(modelPath).c_str(), Matrix::CreateScale(0.01f));
-
+        _model = ModelCom::Create(_device, _context, ModelType::NonAnim, String::ToString(modelPath).c_str(), Matrix::CreateScale(0.01f));
         if (!_model)
         {
             return E_FAIL;
@@ -165,10 +163,18 @@ HRESULT MEInstancedMeshActor::UpdateInstances(const wstring& modelPath, const Ve
         _loadedModelPath = modelPath;
     }
 
-    vector<MESHINSTANCEDATA> instances;
-    GenerateInstances(centerPos, areaWidth, areaDepth, density, seed, instances);
+    vector<Matrix> matrices;
+    matrices.reserve(transforms.size());
 
-    return CreateInstanceBuffer(instances);
+    for (auto& t : transforms)
+    {
+        Matrix world = Matrix::CreateScale(t._scale)
+            * Matrix::CreateFromQuaternion(Quat(t._rotation.x, t._rotation.y, t._rotation.z, t._rotation.w))
+            * Matrix::CreateTranslation(t._position);
+        matrices.push_back(world);
+    }
+
+    return CreateInstanceBuffer(matrices);
 }
 
 HRESULT MEInstancedMeshActor::Ready_Components()

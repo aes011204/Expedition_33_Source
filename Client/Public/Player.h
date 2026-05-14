@@ -62,6 +62,8 @@ private:
     Shared<CombatStatCom>           _combatStatCom;
     Shared<SkillTreeCom>            _skillTreeCom;
 
+    BoundingBox                     _cullingAABB{};
+
 public:
 	static Shared<Player> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
 	virtual Shared<GameObject> Clone(void* arg) override;

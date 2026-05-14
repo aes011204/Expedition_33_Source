@@ -5,6 +5,10 @@
 #include "Material_BundleTypes.h"
 #include "Editor_Defines.h"
 
+NS_BEGIN(Engine)
+class ModelCom;
+NS_END
+
 NS_BEGIN(MainEditor)
 
 class Material_View final : public Editor_Window
@@ -31,7 +35,9 @@ private:
     enum class CreateMode : uint8
     {
         CreateWithJson, // json 기반 자동 생성
-        CreateMaterial, // 수동 생성
+        EditWithBundle, // .material.json 번들 편집
+        EditWithModelCom, // 선택된 ModelCom 기반 편집
+        CreateMaterial, // (legacy) 수동 생성
     };
 
 private:
@@ -44,7 +50,12 @@ private:
     bool Build_MaterialInstances();
 
     // 선택된 GameObject의 ModelCom에 텍스처를 Override_TextureSlot로 적용한다.
-    void Apply_ToSelectedModel();
+    void Apply_ToSelectedModel(int onlyMaterialIndex = -1);
+
+    // .material.json 번들을 읽어 현재 편집 상태로 로드한다.
+    bool Load_BundleFile(const wstring& bundlePath);
+    // 선택된 ModelCom에서 현재 머테리얼 상태를 편집 상태로 가져온다.
+    bool Load_FromSelectedModelCom();
 
     // 파일 대화창
     static bool Try_PickFolderDialog(const wstring& title, wstring& outFolderPath);
@@ -56,7 +67,16 @@ private:
     void Draw_ModeSelector();
     void Draw_Settings();
     void Draw_CreateWithJson();
+    void Draw_EditWithBundle();
+    void Draw_EditWithModelCom();
     void Draw_CreateMaterial();
+
+    // 선택된 오브젝트의 ModelCom을 기준으로,
+    // - Mesh -> MaterialIndex 관계를 보여주고
+    // - 편집 대상 materialIndex를 하나 고른다.
+    // return: 필터링에 사용할 materialIndex, 선택 실패면 -1
+    int Draw_SelectedModelSection(Shared<Engine::ModelCom>& outSelectedModel);
+    void Draw_MappingsEditorUI(int selectedMaterialIndexFilter, const Shared<Engine::ModelCom>& selectedModel);
 
 private:
     CreateMode _mode = CreateMode::CreateWithJson;
@@ -70,6 +90,7 @@ private:
     wstring _bundleOutputPath = L"../../../Client/Bin/Resources/Materials/MaterialBundle.material.json";
 
     wstring _selectedJsonPath{};
+    wstring _selectedBundlePath{};
 
     MappingInputKind _selectedInputKind = MappingInputKind::Skeletal;
 
@@ -94,6 +115,17 @@ private:
 
     // 현재 UI에서 보고 있는 mapping 묶음이다. source + sourceFile 기준으로 좁혀서 보여준다
     int _activeMappingGroup = 0;
+
+    // Selected ModelCom UI
+    bool _showSelectedModelMeshMap = true;
+    int  _selectedModelMaterialIndex = 0;
+
+    // Mappings UI (Selected ModelCom이 없어도 1개 슬롯만 보이게)
+    int  _mappingMaterialIndexFilter = 0;
+
+    // Live apply
+    bool _liveApplyEnabled = true;
+    bool _liveApplyDirty = false;
 
 public:
     static Shared<Material_View> Create();

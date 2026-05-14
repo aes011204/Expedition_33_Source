@@ -10,9 +10,14 @@
 #include "ContainerObject.h"
 #include "PartObject.h"
 #include "ModelCom.h"
+#include "Asset_Manager.h"
+#include "MaterialBuilder.h"
+#include "Mesh.h"
 #include "Material.h"
 
 #include <algorithm>
+#include <climits>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <system_error>
@@ -51,9 +56,11 @@ namespace
 
     using TexturePreviewCache = std::unordered_map<wstring, ComPtr<ID3D11ShaderResourceView>>;
     using TextureSearchCache = std::unordered_map<string, string>;
+    using TextureCandidateCache = std::unordered_map<wstring, vector<fs::path>>;
 
     TexturePreviewCache g_MaterialViewTexturePreviewCache{};
     TextureSearchCache g_MaterialViewTextureSearchCache{};
+    TextureCandidateCache g_MaterialViewTextureCandidateCache{};
 
     string To_DisplayTexturePath(const wstring& resolvedPath)
     {
@@ -172,6 +179,14 @@ void Material_View::Draw_ModeSelector()
         _mode = CreateMode::CreateWithJson;
 
     ImGui::SameLine();
+    if (ImGui::Button("Edit With material.json"))
+        _mode = CreateMode::EditWithBundle;
+
+    ImGui::SameLine();
+    if (ImGui::Button("Edit With ModelCom"))
+        _mode = CreateMode::EditWithModelCom;
+
+    ImGui::SameLine();
     if (ImGui::Button("Create Material"))
         _mode = CreateMode::CreateMaterial;
 }
@@ -196,6 +211,8 @@ void Material_View::Draw_Settings()
     syncToBufOnce(texRootBuf, sizeof(texRootBuf), _textureSearchRoot);
     syncToBufOnce(bundleDirBuf, sizeof(bundleDirBuf), _bundleOutputDir);
     syncToBufOnce(bundleNameBuf, sizeof(bundleNameBuf), _bundleOutputName);
+
+    ImGui::Checkbox("Live Apply", &_liveApplyEnabled);
 
     ImGui::TextDisabled("Texture Root");
     ImGui::SameLine(120.f);
@@ -339,6 +356,8 @@ void Material_View::Draw_CreateWithJson()
         // 여기서는 아직 MI를 읽지 않는다. 우선 어떤 파일이 어떤 머테리얼을 참조하는지 목록만 만든다
         if (!_selectedJsonPath.empty())
         {
+            _mappingMaterialIndexFilter = 0;
+            _liveApplyDirty = false;
             switch (_selectedInputKind)
             {
             case MappingInputKind::Skeletal:
@@ -384,8 +403,186 @@ void Material_View::Draw_CreateWithJson()
         _manualInstanceKinds.clear();
         _heuristics.clear();
         _activeMappingGroup = 0;
+        _mappingMaterialIndexFilter = 0;
+        _liveApplyDirty = false;
     }
 
+    // 선택된 모델 기준으로 materialIndex를 골라서, 아래 편집 UI를 그 슬롯만 보이게 필터링한다.
+    Shared<Engine::ModelCom> selectedModel = nullptr;
+    int selectedMaterialIndexFilter = Draw_SelectedModelSection(selectedModel);
+    if (selectedMaterialIndexFilter < 0)
+        selectedMaterialIndexFilter = _mappingMaterialIndexFilter;
+    Draw_MappingsEditorUI(selectedMaterialIndexFilter, selectedModel);
+}
+
+void Material_View::Draw_EditWithBundle()
+{
+    // 이미 저장된 .material.json(번들)을 불러와서 편집한다.
+    ImGui::SeparatorText("Input");
+
+    if (ImGui::Button("Choose material.json"))
+    {
+        wstring picked{};
+        fs::path defaultFolder(_bundleOutputDir);
+        if (Try_PickJsonFileDialog(L"Select material.json", defaultFolder.wstring(), picked))
+            _selectedBundlePath = picked;
+    }
+
+    ImGui::SameLine();
+    {
+        const fs::path p(_selectedBundlePath);
+        const string label = _selectedBundlePath.empty() ? "<None>" : String::ToString(p.filename().wstring());
+        ImGui::TextDisabled("%s", label.c_str());
+    }
+
+    if (ImGui::Button("Load"))
+    {
+        if (!_selectedBundlePath.empty())
+            (void)Load_BundleFile(_selectedBundlePath);
+    }
+
+    ImGui::SameLine();
+    if (ImGui::Button("Save Bundle"))
+        (void)Save_BundleFile(_bundleOutputPath);
+
+    ImGui::SameLine();
+    if (ImGui::Button("Apply To Selected ModelCom"))
+        Apply_ToSelectedModel();
+
+    ImGui::SameLine();
+    if (ImGui::Button("Clear Bundle"))
+    {
+        _materialMappings.clear();
+        _materialInstances.clear();
+        _manualInstances.clear();
+        _manualInstanceKinds.clear();
+        _heuristics.clear();
+        _activeMappingGroup = 0;
+        _mappingMaterialIndexFilter = 0;
+        _liveApplyDirty = false;
+    }
+
+    Shared<Engine::ModelCom> selectedModel = nullptr;
+    int selectedMaterialIndexFilter = Draw_SelectedModelSection(selectedModel);
+    if (selectedMaterialIndexFilter < 0)
+        selectedMaterialIndexFilter = _mappingMaterialIndexFilter;
+    Draw_MappingsEditorUI(selectedMaterialIndexFilter, selectedModel);
+}
+
+void Material_View::Draw_EditWithModelCom()
+{
+    // 선택된 ModelCom의 Runtime Material 상태(CB/텍스처)를 편집 상태로 가져온다.
+    ImGui::SeparatorText("Input");
+
+    if (ImGui::Button("Load From Selected ModelCom"))
+        (void)Load_FromSelectedModelCom();
+
+    ImGui::SameLine();
+    if (ImGui::Button("Save Bundle"))
+        (void)Save_BundleFile(_bundleOutputPath);
+
+    ImGui::SameLine();
+    if (ImGui::Button("Apply To Selected ModelCom"))
+        Apply_ToSelectedModel();
+
+    ImGui::SameLine();
+    if (ImGui::Button("Clear Bundle"))
+    {
+        _materialMappings.clear();
+        _materialInstances.clear();
+        _manualInstances.clear();
+        _manualInstanceKinds.clear();
+        _heuristics.clear();
+        _activeMappingGroup = 0;
+        _mappingMaterialIndexFilter = 0;
+        _liveApplyDirty = false;
+    }
+
+    Shared<Engine::ModelCom> selectedModel = nullptr;
+    int selectedMaterialIndexFilter = Draw_SelectedModelSection(selectedModel);
+    if (selectedMaterialIndexFilter < 0)
+        selectedMaterialIndexFilter = _mappingMaterialIndexFilter;
+    Draw_MappingsEditorUI(selectedMaterialIndexFilter, selectedModel);
+}
+
+int Material_View::Draw_SelectedModelSection(Shared<Engine::ModelCom>& outSelectedModel)
+{
+    ImGui::SeparatorText("Selected ModelCom");
+
+    outSelectedModel = nullptr;
+    const Editor_Context* context = EDITOR->Get_EditorContext();
+    if (context != nullptr)
+    {
+        const Shared<GameObject> selectedObject = context->Get_Selection().selectedObject;
+        if (selectedObject != nullptr)
+            outSelectedModel = selectedObject->Get_Component<ModelCom>();
+    }
+
+    int selectedMaterialIndexFilter = -1;
+    if (outSelectedModel == nullptr)
+    {
+        ImGui::TextDisabled("Select a GameObject that has ModelCom.");
+        return -1;
+    }
+
+    if (ImGui::CollapsingHeader("Mesh -> Material Slot", &_showSelectedModelMeshMap, ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        const auto& meshes = outSelectedModel->Get_Meshes();
+        for (uint32 i = 0; i < static_cast<uint32>(meshes.size()); ++i)
+        {
+            const Shared<Mesh>& mesh = meshes[i];
+            if (mesh == nullptr)
+                continue;
+
+            const uint32 matIndex = mesh->Get_MaterialIndex();
+            const Shared<Material> mat = outSelectedModel->Get_Material(matIndex);
+            const char* matName = (mat != nullptr) ? mat->Get_MaterialName().c_str() : "<null>";
+
+            ImGui::BulletText("Mesh[%u] %s  ->  Material[%u] : %s",
+                i,
+                mesh->Get_Name().c_str(),
+                matIndex,
+                matName);
+        }
+    }
+
+    const uint32 numMaterials = static_cast<uint32>(outSelectedModel->Get_NumMaterials());
+    if (numMaterials == 0)
+    {
+        ImGui::TextDisabled("ModelCom has no materials.");
+        return -1;
+    }
+
+    if (_selectedModelMaterialIndex < 0 || _selectedModelMaterialIndex >= static_cast<int>(numMaterials))
+        _selectedModelMaterialIndex = 0;
+
+    selectedMaterialIndexFilter = _selectedModelMaterialIndex;
+    _mappingMaterialIndexFilter = _selectedModelMaterialIndex;
+
+    const Shared<Material> currentMaterial = outSelectedModel->Get_Material(static_cast<uint32>(_selectedModelMaterialIndex));
+    const string preview = "[" + to_string(_selectedModelMaterialIndex) + "] " +
+        (currentMaterial ? currentMaterial->Get_MaterialName() : string("<null>"));
+
+    if (ImGui::BeginCombo("Material Slot", preview.c_str()))
+    {
+        for (uint32 i = 0; i < numMaterials; ++i)
+        {
+            const Shared<Material> mat = outSelectedModel->Get_Material(i);
+            const string label = "[" + to_string(i) + "] " + (mat ? mat->Get_MaterialName() : string("<null>"));
+            const bool isSelected = (static_cast<int>(i) == _selectedModelMaterialIndex);
+            if (ImGui::Selectable(label.c_str(), isSelected))
+                _selectedModelMaterialIndex = static_cast<int>(i);
+            if (isSelected)
+                ImGui::SetItemDefaultFocus();
+        }
+        ImGui::EndCombo();
+    }
+
+    return selectedMaterialIndexFilter;
+}
+
+void Material_View::Draw_MappingsEditorUI(int selectedMaterialIndexFilter, const Shared<Engine::ModelCom>& selectedModel)
+{
     // SK_LUNE_UE5.json(Mapping Src) 파일이 참조하는 M, MI_*.json 파일을 읽어 실제 머테리얼로 파싱할 데이터들 보여주는 곳.
     ImGui::SeparatorText("Mappings");
     if (_materialMappings.empty())
@@ -499,6 +696,51 @@ void Material_View::Draw_CreateWithJson()
         return a->slotName < b->slotName;
     });
 
+    int effectiveMaterialIndexFilter = selectedMaterialIndexFilter;
+    if (effectiveMaterialIndexFilter < 0)
+        effectiveMaterialIndexFilter = _mappingMaterialIndexFilter;
+    else
+        _mappingMaterialIndexFilter = effectiveMaterialIndexFilter;
+
+    {
+        vector<uint32> materialIndices{};
+        materialIndices.reserve(activeMappings.size());
+        for (const MaterialMapping* m : activeMappings)
+        {
+            if (m->source == MaterialSourceKind::FX)
+                continue;
+            materialIndices.push_back(m->materialIndex);
+        }
+
+        sort(materialIndices.begin(), materialIndices.end());
+        materialIndices.erase(unique(materialIndices.begin(), materialIndices.end()), materialIndices.end());
+
+        if (!materialIndices.empty())
+        {
+            const string preview = "MaterialIndex " + to_string(_mappingMaterialIndexFilter);
+            if (ImGui::BeginCombo("Material Slot Filter", preview.c_str()))
+            {
+                for (uint32 idx : materialIndices)
+                {
+                    const bool isSelected = (static_cast<int>(idx) == _mappingMaterialIndexFilter);
+                    const string label = to_string(idx);
+                    if (ImGui::Selectable(label.c_str(), isSelected))
+                    {
+                        _mappingMaterialIndexFilter = static_cast<int>(idx);
+                        effectiveMaterialIndexFilter = _mappingMaterialIndexFilter;
+                        if (selectedModel != nullptr)
+                            _selectedModelMaterialIndex = _mappingMaterialIndexFilter;
+                    }
+                    if (isSelected)
+                        ImGui::SetItemDefaultFocus();
+                }
+                ImGui::EndCombo();
+            }
+        }
+    }
+
+    bool anyChanged = false;
+
     auto getOrMakeInstance = [&](MaterialMapping& mapping) -> MaterialInstanceData*
     {
         // MI는 Build 결과를 그대로 쓰고, M이나 Unknown은 수동 편집용 인스턴스를 만든다
@@ -530,8 +772,9 @@ void Material_View::Draw_CreateWithJson()
         return &it->second;
     };
 
-    auto drawTemplatePicker = [&](MaterialInstanceData& inst) -> void
+    auto drawTemplatePicker = [&](MaterialInstanceData& inst) -> bool
     {
+        bool changed = false;
         int current = static_cast<int>(inst.templateId);
         const char* preview = "Unknown";
         for (const MaterialTemplateDesc& desc : kTemplateTable)
@@ -549,16 +792,21 @@ void Material_View::Draw_CreateWithJson()
             {
                 const bool selected = (desc.id == inst.templateId);
                 if (ImGui::Selectable(desc.name, selected))
+                {
                     inst.templateId = desc.id;
+                    changed = true;
+                }
                 if (selected)
                     ImGui::SetItemDefaultFocus();
             }
             ImGui::EndCombo();
         }
+        return changed;
     };
 
-    auto drawBlendModePicker = [&](Engine::MaterialRenderState& state) -> void
+    auto drawBlendModePicker = [&](Engine::MaterialRenderState& state) -> bool
     {
+        bool changed = false;
         const char* preview = (state.blendMode == Engine::MaterialBlendMode::Opaque) ? "Opaque" :
             (state.blendMode == Engine::MaterialBlendMode::Masked) ? "Masked" :
             (state.blendMode == Engine::MaterialBlendMode::Translucent) ? "Translucent" : "Unknown";
@@ -570,21 +818,29 @@ void Material_View::Draw_CreateWithJson()
             {
                 const bool selected = (static_cast<int>(state.blendMode) == i);
                 if (ImGui::Selectable(labels[i], selected))
+                {
                     state.blendMode = static_cast<Engine::MaterialBlendMode>(i);
+                    changed = true;
+                }
                 if (selected)
                     ImGui::SetItemDefaultFocus();
             }
             ImGui::EndCombo();
         }
+        return changed;
     };
 
-    auto drawSlotEditor = [&](const char* label, bool& overrideFlag, wstring& slotPath) -> void
+    auto drawSlotEditor = [&](const char* label, bool& overrideFlag, wstring& slotPath) -> bool
     {
         // 슬롯별 UI는 Model_Inspector에서 하던 방식과 거의 같다
+        bool changed = false;
+        ImGui::SetNextItemOpen(true, ImGuiCond_Once);
         if (!ImGui::TreeNode(label))
-            return;
+            return false;
 
+        bool beforeEnabled = overrideFlag;
         ImGui::Checkbox("Enabled", &overrideFlag);
+        changed = changed || (beforeEnabled != overrideFlag);
 
         ImGui::TextDisabled("Path");
         ImGui::SameLine(120.f);
@@ -604,8 +860,7 @@ void Material_View::Draw_CreateWithJson()
             }
         }
 
-        const vector<fs::path> textureCandidates = Collect_TextureCandidates(slotPath);
-        if (!textureCandidates.empty())
+        if (!slotPath.empty())
         {
             ImGui::TextDisabled("Texture");
             ImGui::SameLine(120.f);
@@ -613,6 +868,21 @@ void Material_View::Draw_CreateWithJson()
             const string currentFileName = slotPath.empty() ? "-" : String::ToString(fs::path(slotPath).filename().wstring());
             if (ImGui::BeginCombo("##TexturePicker", currentFileName.c_str()))
             {
+                const fs::path directory = fs::path(slotPath).parent_path();
+                vector<fs::path> textureCandidates{};
+                if (!directory.empty() && fs::exists(directory))
+                {
+                    const wstring dirKey = directory.lexically_normal().wstring();
+                    const auto cached = g_MaterialViewTextureCandidateCache.find(dirKey);
+                    if (cached != g_MaterialViewTextureCandidateCache.end())
+                        textureCandidates = cached->second;
+                    else
+                    {
+                        textureCandidates = Collect_TextureCandidates(slotPath);
+                        g_MaterialViewTextureCandidateCache[dirKey] = textureCandidates;
+                    }
+                }
+
                 const string pickerKey = string(label) + "_" + currentFileName;
                 string& searchText = g_MaterialViewTextureSearchCache[pickerKey];
                 char searchBuffer[256]{};
@@ -655,6 +925,7 @@ void Material_View::Draw_CreateWithJson()
                     {
                         slotPath = candidatePath.wstring();
                         overrideFlag = true;
+                        changed = true;
                     }
 
                     if (isSelected)
@@ -676,6 +947,7 @@ void Material_View::Draw_CreateWithJson()
             {
                 slotPath = picked;
                 overrideFlag = true;
+                changed = true;
             }
         }
 
@@ -684,14 +956,25 @@ void Material_View::Draw_CreateWithJson()
         {
             slotPath.clear();
             overrideFlag = true;
+            changed = true;
         }
 
         ImGui::TreePop();
+        return changed;
     };
 
     for (MaterialMapping* mPtr : activeMappings)
     {
         MaterialMapping& m = *mPtr;
+
+        // 선택된 ModelCom 기반으로 slot을 고른 경우, 해당 materialIndex만 보여준다.
+        if (effectiveMaterialIndexFilter >= 0 &&
+            m.source != MaterialSourceKind::FX &&
+            static_cast<int>(m.materialIndex) != effectiveMaterialIndexFilter)
+        {
+            continue;
+        }
+
         ImGui::PushID(mPtr);
 
         string header{};
@@ -713,15 +996,40 @@ void Material_View::Draw_CreateWithJson()
             int idx = static_cast<int>(m.materialIndex);
             ImGui::SetNextItemWidth(120.f);
             if (ImGui::DragInt("##MaterialIndex", &idx, 0.25f, 0, 4096))
+            {
                 m.materialIndex = static_cast<uint32>((std::max)(0, idx));
+                anyChanged = true;
+            }
 
             ImGui::SameLine();
             if (ImGui::Button("Reset##MaterialIndex"))
+            {
                 m.materialIndex = m.originalMaterialIndex;
+                anyChanged = true;
+            }
 
             ImGui::TextDisabled("Slot");
             ImGui::SameLine(120.f);
-            ImGui::TextUnformatted(m.slotName.c_str());
+            if (_mode == CreateMode::CreateMaterial)
+            {
+                char slotBuf[256]{};
+                strncpy_s(slotBuf, m.slotName.c_str(), _TRUNCATE);
+
+                ImGui::SetNextItemWidth(-FLT_MIN);
+                if (ImGui::InputText("##SlotName", slotBuf, sizeof(slotBuf)))
+                {
+                    const string newName = slotBuf;
+                    if (m.slotName != newName)
+                    {
+                        m.slotName = newName;
+                        anyChanged = true;
+                    }
+                }
+            }
+            else
+            {
+                ImGui::TextUnformatted(m.slotName.c_str());
+            }
         }
 
         ImGui::SeparatorText("Ref");
@@ -747,6 +1055,7 @@ void Material_View::Draw_CreateWithJson()
             {
                 m.material.kind = newKind;
                 refChanged = true;
+                anyChanged = true;
             }
 
             char assetBuf[256]{};
@@ -779,6 +1088,7 @@ void Material_View::Draw_CreateWithJson()
 
                     m.material.assetName = newName;
                     refChanged = true;
+                    anyChanged = true;
                 }
             }
 
@@ -799,44 +1109,296 @@ void Material_View::Draw_CreateWithJson()
         }
 
         ImGui::SeparatorText("Textures");
-        drawSlotEditor("BaseColor", inst->baseColorOverride, inst->baseColorPath);
-        drawSlotEditor("Normal", inst->normalOverride, inst->normalPath);
-        drawSlotEditor("ORM", inst->ormOverride, inst->ormPath);
-        drawSlotEditor("Emissive", inst->emissiveOverride, inst->emissivePath);
-        drawSlotEditor("OpacityMask", inst->opacityMaskOverride, inst->opacityMaskPath);
+        anyChanged = anyChanged || drawSlotEditor("BaseColor", inst->baseColorOverride, inst->baseColorPath);
+        anyChanged = anyChanged || drawSlotEditor("Normal", inst->normalOverride, inst->normalPath);
+        anyChanged = anyChanged || drawSlotEditor("ORM", inst->ormOverride, inst->ormPath);
+        anyChanged = anyChanged || drawSlotEditor("Emissive", inst->emissiveOverride, inst->emissivePath);
+        anyChanged = anyChanged || drawSlotEditor("OpacityMask", inst->opacityMaskOverride, inst->opacityMaskPath);
 
         ImGui::SeparatorText("Parameters");
-        drawTemplatePicker(*inst);
+        anyChanged = anyChanged || drawTemplatePicker(*inst);
 
-        ImGui::Checkbox("TwoSided", &inst->renderState.twoSided);
-        drawBlendModePicker(inst->renderState);
-        ImGui::DragFloat("Clip", &inst->renderState.opacityMaskClipValue, 0.001f, 0.f, 1.f);
+        {
+            bool before = inst->renderState.twoSided;
+            ImGui::Checkbox("TwoSided", &inst->renderState.twoSided);
+            anyChanged = anyChanged || (before != inst->renderState.twoSided);
+        }
 
-        float baseTint[4] = { inst->cb.baseColorTint.x, inst->cb.baseColorTint.y, inst->cb.baseColorTint.z, inst->cb.baseColorTint.w };
-        if (ImGui::InputFloat4("BaseTint", baseTint))
-            inst->cb.baseColorTint = Engine::Vec4(baseTint[0], baseTint[1], baseTint[2], baseTint[3]);
+        anyChanged = anyChanged || drawBlendModePicker(inst->renderState);
 
-        float emiColor[4] = { inst->cb.emissiveColor.x, inst->cb.emissiveColor.y, inst->cb.emissiveColor.z, inst->cb.emissiveColor.w };
-        if (ImGui::InputFloat4("EmissiveColor", emiColor))
-            inst->cb.emissiveColor = Engine::Vec4(emiColor[0], emiColor[1], emiColor[2], emiColor[3]);
+        if (ImGui::DragFloat("Clip", &inst->renderState.opacityMaskClipValue, 0.001f, 0.f, 1.f))
+            anyChanged = true;
 
-        ImGui::DragFloat("EmissiveIntensity", &inst->cb.emissiveIntensity, 0.01f, 0.f, 100.f);
-        ImGui::DragFloat("EmissiveMaskMul", &inst->cb.emissiveMaskMul, 0.01f, 0.f, 100.f);
-        ImGui::DragFloat("NormalStrength", &inst->cb.normalStrength, 0.01f, 0.f, 10.f);
-        ImGui::DragFloat("OpacityClipCB", &inst->cb.opacityMaskClipValue, 0.001f, 0.f, 1.f);
-        ImGui::DragFloat("RoughnessScale", &inst->cb.roughnessScale, 0.01f, 0.f, 10.f);
-        ImGui::DragFloat("MetalnessScale", &inst->cb.metalnessScale, 0.01f, 0.f, 10.f);
-        ImGui::DragFloat("AoScale", &inst->cb.aoScale, 0.01f, 0.f, 10.f);
+        Engine::MaterialCB baseCb{};
+        bool hasBaseCb = false;
+        if (_mode == CreateMode::EditWithModelCom && selectedModel != nullptr)
+        {
+            const Engine::Asset_Manager* am = GAME->Get_AssetManager();
+            const Engine::MaterialBuilder* builder = am ? am->Get_MaterialBuilder() : nullptr;
+            if (builder != nullptr)
+            {
+                const auto& bindings = selectedModel->Get_MaterialBindings();
+                if (m.materialIndex < bindings.size())
+                {
+                    const string& bundleKey = bindings[m.materialIndex].baseBundleKey;
+                    hasBaseCb = builder->Try_GetBaseCBForMaterial(bundleKey, m.materialIndex, baseCb);
+                }
+            }
+        }
 
-        float uvScale[2] = { inst->cb.uvScale.x, inst->cb.uvScale.y };
-        if (ImGui::InputFloat2("UV Scale", uvScale))
-            inst->cb.uvScale = Engine::Vec2(uvScale[0], uvScale[1]);
+        if (_mode == CreateMode::EditWithModelCom)
+        {
+            if (ImGui::Button("Clear Instance Overrides (slot)"))
+            {
+                inst->cbMask.Clear();
+                inst->baseColorOverride = false;
+                inst->normalOverride = false;
+                inst->ormOverride = false;
+                inst->emissiveOverride = false;
+                inst->opacityMaskOverride = false;
+                anyChanged = true;
+            }
+        }
 
-        float uvOffset[2] = { inst->cb.uvOffset.x, inst->cb.uvOffset.y };
-        if (ImGui::InputFloat2("UV Offset", uvOffset))
-            inst->cb.uvOffset = Engine::Vec2(uvOffset[0], uvOffset[1]);
+        auto drawOverrideCheckbox = [&](const char* label, bool& enabled, const char* basePreview) -> bool
+        {
+            bool before = enabled;
+            ImGui::Checkbox(label, &enabled);
+            if (basePreview != nullptr)
+            {
+                ImGui::SameLine();
+                ImGui::TextDisabled("%s", basePreview);
+            }
+            return (before != enabled);
+        };
+
+        {
+            const char* basePreview = nullptr;
+            string preview{};
+            if (hasBaseCb)
+            {
+                preview = "Base: " +
+                    to_string(baseCb.baseColorTint.x) + ", " +
+                    to_string(baseCb.baseColorTint.y) + ", " +
+                    to_string(baseCb.baseColorTint.z) + ", " +
+                    to_string(baseCb.baseColorTint.w);
+                basePreview = preview.c_str();
+            }
+            const bool toggled = drawOverrideCheckbox("Override BaseTint", inst->cbMask.baseColorTint, basePreview);
+            anyChanged = anyChanged || toggled;
+            if (toggled && inst->cbMask.baseColorTint && hasBaseCb)
+                inst->cb.baseColorTint = baseCb.baseColorTint;
+
+            ImGui::BeginDisabled(!inst->cbMask.baseColorTint);
+            float baseTint[4] = { inst->cb.baseColorTint.x, inst->cb.baseColorTint.y, inst->cb.baseColorTint.z, inst->cb.baseColorTint.w };
+            if (ImGui::InputFloat4("BaseTint", baseTint))
+            {
+                inst->cb.baseColorTint = Engine::Vec4(baseTint[0], baseTint[1], baseTint[2], baseTint[3]);
+                anyChanged = true;
+            }
+            ImGui::EndDisabled();
+        }
+
+        {
+            const char* basePreview = nullptr;
+            string preview{};
+            if (hasBaseCb)
+            {
+                preview = "Base: " +
+                    to_string(baseCb.emissiveColor.x) + ", " +
+                    to_string(baseCb.emissiveColor.y) + ", " +
+                    to_string(baseCb.emissiveColor.z) + ", " +
+                    to_string(baseCb.emissiveColor.w);
+                basePreview = preview.c_str();
+            }
+            const bool toggled = drawOverrideCheckbox("Override EmissiveColor", inst->cbMask.emissiveColor, basePreview);
+            anyChanged = anyChanged || toggled;
+            if (toggled && inst->cbMask.emissiveColor && hasBaseCb)
+                inst->cb.emissiveColor = baseCb.emissiveColor;
+
+            ImGui::BeginDisabled(!inst->cbMask.emissiveColor);
+            float emiColor[4] = { inst->cb.emissiveColor.x, inst->cb.emissiveColor.y, inst->cb.emissiveColor.z, inst->cb.emissiveColor.w };
+            if (ImGui::InputFloat4("EmissiveColor", emiColor))
+            {
+                inst->cb.emissiveColor = Engine::Vec4(emiColor[0], emiColor[1], emiColor[2], emiColor[3]);
+                anyChanged = true;
+            }
+            ImGui::EndDisabled();
+        }
+
+        {
+            string preview{};
+            const char* basePreview = nullptr;
+            if (hasBaseCb) { preview = "Base: " + to_string(baseCb.emissiveIntensity); basePreview = preview.c_str(); }
+            const bool toggled = drawOverrideCheckbox("Override EmissiveIntensity", inst->cbMask.emissiveIntensity, basePreview);
+            anyChanged = anyChanged || toggled;
+            if (toggled && inst->cbMask.emissiveIntensity && hasBaseCb) inst->cb.emissiveIntensity = baseCb.emissiveIntensity;
+            ImGui::BeginDisabled(!inst->cbMask.emissiveIntensity);
+            if (ImGui::DragFloat("EmissiveIntensity", &inst->cb.emissiveIntensity, 0.01f, 0.f, 100.f))
+                anyChanged = true;
+            ImGui::EndDisabled();
+        }
+
+        {
+            string preview{};
+            const char* basePreview = nullptr;
+            if (hasBaseCb) { preview = "Base: " + to_string(baseCb.emissiveMaskMul); basePreview = preview.c_str(); }
+            const bool toggled = drawOverrideCheckbox("Override EmissiveMaskMul", inst->cbMask.emissiveMaskMul, basePreview);
+            anyChanged = anyChanged || toggled;
+            if (toggled && inst->cbMask.emissiveMaskMul && hasBaseCb) inst->cb.emissiveMaskMul = baseCb.emissiveMaskMul;
+            ImGui::BeginDisabled(!inst->cbMask.emissiveMaskMul);
+            if (ImGui::DragFloat("EmissiveMaskMul", &inst->cb.emissiveMaskMul, 0.01f, 0.f, 100.f))
+                anyChanged = true;
+            ImGui::EndDisabled();
+        }
+
+        {
+            string preview{};
+            const char* basePreview = nullptr;
+            if (hasBaseCb) { preview = "Base: " + to_string(baseCb.normalStrength); basePreview = preview.c_str(); }
+            const bool toggled = drawOverrideCheckbox("Override NormalStrength", inst->cbMask.normalStrength, basePreview);
+            anyChanged = anyChanged || toggled;
+            if (toggled && inst->cbMask.normalStrength && hasBaseCb) inst->cb.normalStrength = baseCb.normalStrength;
+            ImGui::BeginDisabled(!inst->cbMask.normalStrength);
+            if (ImGui::DragFloat("NormalStrength", &inst->cb.normalStrength, 0.01f, 0.f, 10.f))
+                anyChanged = true;
+            ImGui::EndDisabled();
+        }
+
+        {
+            string preview{};
+            const char* basePreview = nullptr;
+            if (hasBaseCb) { preview = "Base: " + to_string(baseCb.opacityMaskClipValue); basePreview = preview.c_str(); }
+            const bool toggled = drawOverrideCheckbox("Override OpacityClipCB", inst->cbMask.opacityMaskClipValue, basePreview);
+            anyChanged = anyChanged || toggled;
+            if (toggled && inst->cbMask.opacityMaskClipValue && hasBaseCb) inst->cb.opacityMaskClipValue = baseCb.opacityMaskClipValue;
+            ImGui::BeginDisabled(!inst->cbMask.opacityMaskClipValue);
+            if (ImGui::DragFloat("OpacityClipCB", &inst->cb.opacityMaskClipValue, 0.001f, 0.f, 1.f))
+                anyChanged = true;
+            ImGui::EndDisabled();
+        }
+
+        {
+            string preview{};
+            const char* basePreview = nullptr;
+            if (hasBaseCb) { preview = "Base: " + to_string(baseCb.roughnessScale); basePreview = preview.c_str(); }
+            const bool toggled = drawOverrideCheckbox("Override RoughnessScale", inst->cbMask.roughnessScale, basePreview);
+            anyChanged = anyChanged || toggled;
+            if (toggled && inst->cbMask.roughnessScale && hasBaseCb) inst->cb.roughnessScale = baseCb.roughnessScale;
+            ImGui::BeginDisabled(!inst->cbMask.roughnessScale);
+            if (ImGui::DragFloat("RoughnessScale", &inst->cb.roughnessScale, 0.01f, 0.f, 10.f))
+                anyChanged = true;
+            ImGui::EndDisabled();
+        }
+
+        {
+            string preview{};
+            const char* basePreview = nullptr;
+            if (hasBaseCb) { preview = "Base: " + to_string(baseCb.metalnessScale); basePreview = preview.c_str(); }
+            const bool toggled = drawOverrideCheckbox("Override MetalnessScale", inst->cbMask.metalnessScale, basePreview);
+            anyChanged = anyChanged || toggled;
+            if (toggled && inst->cbMask.metalnessScale && hasBaseCb) inst->cb.metalnessScale = baseCb.metalnessScale;
+            ImGui::BeginDisabled(!inst->cbMask.metalnessScale);
+            if (ImGui::DragFloat("MetalnessScale", &inst->cb.metalnessScale, 0.01f, 0.f, 10.f))
+                anyChanged = true;
+            ImGui::EndDisabled();
+        }
+
+        {
+            string preview{};
+            const char* basePreview = nullptr;
+            if (hasBaseCb) { preview = "Base: " + to_string(baseCb.aoScale); basePreview = preview.c_str(); }
+            const bool toggled = drawOverrideCheckbox("Override AoScale", inst->cbMask.aoScale, basePreview);
+            anyChanged = anyChanged || toggled;
+            if (toggled && inst->cbMask.aoScale && hasBaseCb) inst->cb.aoScale = baseCb.aoScale;
+            ImGui::BeginDisabled(!inst->cbMask.aoScale);
+            if (ImGui::DragFloat("AoScale", &inst->cb.aoScale, 0.01f, 0.f, 10.f))
+                anyChanged = true;
+            ImGui::EndDisabled();
+        }
+
+        {
+            string preview{};
+            const char* basePreview = nullptr;
+            if (hasBaseCb)
+            {
+                preview = "Base: " + to_string(baseCb.uvScale.x) + ", " + to_string(baseCb.uvScale.y);
+                basePreview = preview.c_str();
+            }
+            const bool toggled = drawOverrideCheckbox("Override UV Scale", inst->cbMask.uvScale, basePreview);
+            anyChanged = anyChanged || toggled;
+            if (toggled && inst->cbMask.uvScale && hasBaseCb) inst->cb.uvScale = baseCb.uvScale;
+            ImGui::BeginDisabled(!inst->cbMask.uvScale);
+            float uvScale[2] = { inst->cb.uvScale.x, inst->cb.uvScale.y };
+            if (ImGui::InputFloat2("UV Scale", uvScale))
+            {
+                inst->cb.uvScale = Engine::Vec2(uvScale[0], uvScale[1]);
+                anyChanged = true;
+            }
+            ImGui::EndDisabled();
+        }
+
+        {
+            string preview{};
+            const char* basePreview = nullptr;
+            if (hasBaseCb)
+            {
+                preview = "Base: " + to_string(baseCb.uvOffset.x) + ", " + to_string(baseCb.uvOffset.y);
+                basePreview = preview.c_str();
+            }
+            const bool toggled = drawOverrideCheckbox("Override UV Offset", inst->cbMask.uvOffset, basePreview);
+            anyChanged = anyChanged || toggled;
+            if (toggled && inst->cbMask.uvOffset && hasBaseCb) inst->cb.uvOffset = baseCb.uvOffset;
+            ImGui::BeginDisabled(!inst->cbMask.uvOffset);
+            float uvOffset[2] = { inst->cb.uvOffset.x, inst->cb.uvOffset.y };
+            if (ImGui::InputFloat2("UV Offset", uvOffset))
+            {
+                inst->cb.uvOffset = Engine::Vec2(uvOffset[0], uvOffset[1]);
+                anyChanged = true;
+            }
+            ImGui::EndDisabled();
+        }
+
+        {
+            string preview{};
+            const char* basePreview = nullptr;
+            if (hasBaseCb) { preview = "Base: " + to_string(baseCb.uvRotation); basePreview = preview.c_str(); }
+            const bool toggled = drawOverrideCheckbox("Override UV Rotation", inst->cbMask.uvRotation, basePreview);
+            anyChanged = anyChanged || toggled;
+            if (toggled && inst->cbMask.uvRotation && hasBaseCb) inst->cb.uvRotation = baseCb.uvRotation;
+            ImGui::BeginDisabled(!inst->cbMask.uvRotation);
+            if (ImGui::DragFloat("UV Rotation", &inst->cb.uvRotation, 0.001f, -100.f, 100.f))
+                anyChanged = true;
+            ImGui::EndDisabled();
+        }
+
+        {
+            string preview{};
+            const char* basePreview = nullptr;
+            if (hasBaseCb) { preview = "Base: " + to_string(baseCb.materialMask); basePreview = preview.c_str(); }
+            const bool toggled = drawOverrideCheckbox("Override MaterialMask", inst->cbMask.materialMask, basePreview);
+            anyChanged = anyChanged || toggled;
+            if (toggled && inst->cbMask.materialMask && hasBaseCb) inst->cb.materialMask = baseCb.materialMask;
+            ImGui::BeginDisabled(!inst->cbMask.materialMask);
+            int mask = static_cast<int>(inst->cb.materialMask);
+            if (ImGui::InputInt("MaterialMask", &mask))
+            {
+                inst->cb.materialMask = static_cast<uint32>(std::max(0, mask));
+                anyChanged = true;
+            }
+            ImGui::EndDisabled();
+        }
 
         ImGui::PopID();
+    }
+
+    if (anyChanged)
+        _liveApplyDirty = true;
+
+    if (_liveApplyEnabled && _liveApplyDirty && selectedModel != nullptr && effectiveMaterialIndexFilter >= 0)
+    {
+        Apply_ToSelectedModel(effectiveMaterialIndexFilter);
+        _liveApplyDirty = false;
     }
 
     ImGui::SeparatorText("Heuristics");
@@ -852,8 +1414,191 @@ void Material_View::Draw_CreateWithJson()
 
 void Material_View::Draw_CreateMaterial()
 {
-    ImGui::TextDisabled("Create Material is not available yet.");
-    ImGui::TextDisabled("Use Create With Json for now.");
+    ImGui::SeparatorText("Manual Mappings");
+
+    auto clearAll = [&]() -> void
+    {
+        _materialMappings.clear();
+        _materialInstances.clear();
+        _manualInstances.clear();
+        _manualInstanceKinds.clear();
+        _heuristics.clear();
+        _activeMappingGroup = 0;
+        _mappingMaterialIndexFilter = 0;
+        _liveApplyDirty = false;
+    };
+
+    auto computeNextManualIndex = [&]() -> uint32
+    {
+        uint32 maxIndex = 0;
+        bool hasAny = false;
+        for (const MaterialMapping& m : _materialMappings)
+        {
+            if (m.source == MaterialSourceKind::FX)
+                continue;
+            if (m.sourceFile != "Manual")
+                continue;
+
+            maxIndex = hasAny ? (std::max)(maxIndex, m.materialIndex) : m.materialIndex;
+            hasAny = true;
+        }
+        return hasAny ? (maxIndex + 1) : 0;
+    };
+
+    auto addManualSlot = [&](uint32 newIndex) -> void
+    {
+        MaterialMapping m{};
+        m.source = MaterialSourceKind::SK;
+        m.sourceFile = "Manual";
+        m.materialIndex = newIndex;
+        m.originalMaterialIndex = newIndex;
+        m.slotName = "Slot_" + to_string(newIndex);
+
+        m.material.kind = MaterialRefKind::M;
+        m.material.assetName = "Manual_" + to_string(newIndex);
+
+        _materialMappings.push_back(move(m));
+        _mappingMaterialIndexFilter = static_cast<int>(newIndex);
+    };
+
+    if (ImGui::Button("New Manual Mapping"))
+    {
+        clearAll();
+        addManualSlot(0);
+    }
+
+    ImGui::SameLine();
+    if (ImGui::Button("Add Slot"))
+    {
+        if (!_materialMappings.empty())
+        {
+            bool hasNonManual = false;
+            for (const MaterialMapping& m : _materialMappings)
+            {
+                if (m.source == MaterialSourceKind::FX)
+                    continue;
+                if (m.sourceFile != "Manual")
+                {
+                    hasNonManual = true;
+                    break;
+                }
+            }
+
+            if (hasNonManual)
+                clearAll();
+        }
+        else
+        {
+            clearAll();
+        }
+
+        const uint32 newIndex = computeNextManualIndex();
+        addManualSlot(newIndex);
+    }
+
+    ImGui::SameLine();
+    if (ImGui::Button("Remove Current Slot"))
+    {
+        const int targetIndex = _mappingMaterialIndexFilter;
+        string removedAssetName{};
+
+        for (auto it = _materialMappings.begin(); it != _materialMappings.end(); ++it)
+        {
+            if (it->source == MaterialSourceKind::FX)
+                continue;
+            if (it->sourceFile != "Manual")
+                continue;
+            if (static_cast<int>(it->materialIndex) != targetIndex)
+                continue;
+
+            removedAssetName = it->material.assetName;
+            _materialMappings.erase(it);
+            break;
+        }
+
+        if (!removedAssetName.empty())
+        {
+            bool stillUsed = false;
+            for (const MaterialMapping& m : _materialMappings)
+            {
+                if (m.source == MaterialSourceKind::FX)
+                    continue;
+                if (m.material.assetName == removedAssetName)
+                {
+                    stillUsed = true;
+                    break;
+                }
+            }
+
+            if (!stillUsed)
+            {
+                _manualInstances.erase(removedAssetName);
+                _manualInstanceKinds.erase(removedAssetName);
+            }
+        }
+
+        // 최소 1개는 유지
+        bool hasAnyManual = false;
+        for (const MaterialMapping& m : _materialMappings)
+        {
+            if (m.source == MaterialSourceKind::FX)
+                continue;
+            if (m.sourceFile == "Manual")
+            {
+                hasAnyManual = true;
+                break;
+            }
+        }
+
+        if (!hasAnyManual)
+        {
+            clearAll();
+            addManualSlot(0);
+        }
+        else
+        {
+            // 삭제 후 필터를 남아있는 index로 이동
+            int nearest = -1;
+            int bestDelta = INT_MAX;
+            for (const MaterialMapping& m : _materialMappings)
+            {
+                if (m.source == MaterialSourceKind::FX)
+                    continue;
+                if (m.sourceFile != "Manual")
+                    continue;
+
+                const int idx = static_cast<int>(m.materialIndex);
+                const int delta = abs(idx - targetIndex);
+                if (delta < bestDelta)
+                {
+                    bestDelta = delta;
+                    nearest = idx;
+                }
+            }
+            _mappingMaterialIndexFilter = (nearest >= 0) ? nearest : 0;
+        }
+
+        _liveApplyDirty = false;
+    }
+
+    ImGui::SeparatorText("Actions");
+    if (ImGui::Button("Save Bundle"))
+        (void)Save_BundleFile(_bundleOutputPath);
+
+    ImGui::SameLine();
+    if (ImGui::Button("Apply To Selected ModelCom"))
+        Apply_ToSelectedModel(_mappingMaterialIndexFilter);
+
+    ImGui::SameLine();
+    if (ImGui::Button("Clear Bundle"))
+        clearAll();
+
+    // 선택된 모델 기준으로 materialIndex를 골라서, 아래 편집 UI를 그 슬롯만 보이게 필터링한다.
+    Shared<Engine::ModelCom> selectedModel = nullptr;
+    int selectedMaterialIndexFilter = Draw_SelectedModelSection(selectedModel);
+    if (selectedMaterialIndexFilter < 0)
+        selectedMaterialIndexFilter = _mappingMaterialIndexFilter;
+    Draw_MappingsEditorUI(selectedMaterialIndexFilter, selectedModel);
 }
 
 void Material_View::Render()
@@ -873,6 +1618,10 @@ void Material_View::Render()
 
         if (_mode == CreateMode::CreateWithJson)
             Draw_CreateWithJson();
+        else if (_mode == CreateMode::EditWithBundle)
+            Draw_EditWithBundle();
+        else if (_mode == CreateMode::EditWithModelCom)
+            Draw_EditWithModelCom();
         else
             Draw_CreateMaterial();
     }
@@ -911,7 +1660,7 @@ bool Material_View::Build_MaterialInstances()
 }
 
 
-void Material_View::Apply_ToSelectedModel()
+void Material_View::Apply_ToSelectedModel(int onlyMaterialIndex)
 {
     // 선택된 오브젝트의 ModelCom의 materialIndex별로 텍스처 슬롯을 Override 한다.
     const Editor_Context* context = EDITOR->Get_EditorContext();
@@ -938,6 +1687,9 @@ void Material_View::Apply_ToSelectedModel()
             if (m.source == MaterialSourceKind::FX)
                 continue;
 
+            if (onlyMaterialIndex >= 0 && static_cast<int>(m.materialIndex) != onlyMaterialIndex)
+                continue;
+
             const MaterialInstanceData* instPtr = nullptr;
             if (m.material.kind == MaterialRefKind::MI)
             {
@@ -956,6 +1708,43 @@ void Material_View::Apply_ToSelectedModel()
                 continue;
 
             const MaterialInstanceData& inst = *instPtr;
+
+            // =================================================== NOTE ============================================================
+            // Edit With ModelCom 모드에서는 "오브젝트별(instance)"만 저장/적용한다.
+            // 즉, runtime Material을 직접 덮어쓰는 게 아니라 ModelCom의 instance override를 갱신하고,
+            // base(bundle) + instance를 합성 적용한다.
+            // =====================================================================================================================
+            if (_mode == CreateMode::EditWithModelCom)
+            {
+                Engine::MaterialInstanceOverride ov{};
+                ov.overrideRenderStateEnabled = true;
+                ov.renderState = inst.renderState;
+                ov.cb = inst.cb;
+                ov.cbMask.baseColorTint = inst.cbMask.baseColorTint;
+                ov.cbMask.emissiveColor = inst.cbMask.emissiveColor;
+                ov.cbMask.emissiveIntensity = inst.cbMask.emissiveIntensity;
+                ov.cbMask.emissiveMaskMul = inst.cbMask.emissiveMaskMul;
+                ov.cbMask.normalStrength = inst.cbMask.normalStrength;
+                ov.cbMask.opacityMaskClipValue = inst.cbMask.opacityMaskClipValue;
+                ov.cbMask.aoScale = inst.cbMask.aoScale;
+                ov.cbMask.roughnessScale = inst.cbMask.roughnessScale;
+                ov.cbMask.metalnessScale = inst.cbMask.metalnessScale;
+                ov.cbMask.uvScale = inst.cbMask.uvScale;
+                ov.cbMask.uvOffset = inst.cbMask.uvOffset;
+                ov.cbMask.uvRotation = inst.cbMask.uvRotation;
+                ov.cbMask.materialMask = inst.cbMask.materialMask;
+
+                if (inst.baseColorOverride) { ov.baseColor.enabled = true; ov.baseColor.path = inst.baseColorPath; }
+                if (inst.normalOverride) { ov.normal.enabled = true; ov.normal.path = inst.normalPath; }
+                if (inst.ormOverride) { ov.orm.enabled = true; ov.orm.path = inst.ormPath; }
+                if (inst.emissiveOverride) { ov.emissive.enabled = true; ov.emissive.path = inst.emissivePath; }
+                if (inst.opacityMaskOverride) { ov.opacityMask.enabled = true; ov.opacityMask.path = inst.opacityMaskPath; }
+
+                model->Set_InstanceOverride(m.materialIndex, ov);
+                model->Apply_EffectiveMaterial(m.materialIndex);
+                continue;
+            }
+
             const Shared<Material> material = model->Get_Material(m.materialIndex);
             if (material == nullptr)
                 continue;
@@ -974,10 +1763,10 @@ void Material_View::Apply_ToSelectedModel()
             if (inst.emissiveOverride)
                 material->Override_TextureSlot(MaterialTextureSlot::Emissive, 0, inst.emissivePath);
 
-             // 빈 문자열 전달 필수!!!!!!! 
-             if (inst.opacityMaskOverride)
+            // 빈 문자열 전달 필수!!!!!!!
+            if (inst.opacityMaskOverride)
                 material->Override_TextureSlot(MaterialTextureSlot::OpacityMask, 0, inst.opacityMaskPath);
-             else
+            else
                 material->Override_TextureSlot(MaterialTextureSlot::OpacityMask, 0, L"");
 
 #ifdef _DEBUG
@@ -1183,6 +1972,286 @@ bool Material_View::Try_PickJsonFileDialog(const wstring& title, const wstring& 
         CoUninitialize();
 
     return !outFilePath.empty();
+}
+
+bool Material_View::Load_BundleFile(const wstring& bundlePath)
+{
+    // 저장된 .material.json(번들)을 읽어서
+    // - _materialMappings / _materialInstances / _manualInstances
+    // 를 편집 가능한 상태로 복원한다.
+    fs::path p(bundlePath);
+    if (p.empty())
+        return false;
+
+    if (p.is_relative())
+        p = fs::absolute(p);
+    p = p.lexically_normal();
+
+    if (!fs::exists(p) || !fs::is_regular_file(p))
+        return false;
+
+    json root{};
+    try
+    {
+        ifstream ifs(p);
+        if (!ifs.is_open())
+            return false;
+        ifs >> root;
+    }
+    catch (...)
+    {
+        return false;
+    }
+
+    if (!root.is_object())
+        return false;
+
+    _materialMappings.clear();
+    _materialInstances.clear();
+    _manualInstances.clear();
+    _manualInstanceKinds.clear();
+    _heuristics.clear();
+    _activeMappingGroup = 0;
+
+    if (root.contains("heuristics") && root["heuristics"].is_array())
+    {
+        for (const json& jn : root["heuristics"])
+        {
+            if (!jn.is_object())
+                continue;
+            HeuristicNote note{};
+            note.kind = jn.value("kind", string{});
+            note.detail = jn.value("detail", string{});
+            _heuristics.push_back(move(note));
+        }
+    }
+
+    auto parseRefKind = [](const string& s) -> MaterialRefKind
+    {
+        if (s == "MI") return MaterialRefKind::MI;
+        if (s == "M") return MaterialRefKind::M;
+        return MaterialRefKind::Unknown;
+    };
+
+    const fs::path resourceRoot = p.has_parent_path() ? p.parent_path().parent_path() : fs::path{};
+
+    auto relToAbsUnderResourceRoot = [&](const string& rel) -> wstring
+    {
+        if (rel.empty())
+            return {};
+
+        fs::path rp(rel);
+        if (rp.is_absolute())
+            return rp.lexically_normal().wstring();
+
+        if (!resourceRoot.empty())
+            return (resourceRoot / rp).lexically_normal().wstring();
+
+        return rp.lexically_normal().wstring();
+    };
+
+    if (root.contains("instances") && root["instances"].is_array())
+    {
+        for (const json& ji : root["instances"])
+        {
+            if (!ji.is_object())
+                continue;
+
+            MaterialInstanceData inst{};
+            inst.assetName = ji.value("assetName", string{});
+            if (inst.assetName.empty())
+                continue;
+
+            inst.templateId = static_cast<Engine::MaterialShaderTemplate>(ji.value("template", static_cast<uint32>(inst.templateId)));
+
+            if (ji.contains("renderState") && ji["renderState"].is_object())
+            {
+                const json& rs = ji["renderState"];
+                inst.renderState.twoSided = rs.value("twoSided", inst.renderState.twoSided);
+                inst.renderState.blendMode = static_cast<Engine::MaterialBlendMode>(rs.value("blendMode", static_cast<uint32>(inst.renderState.blendMode)));
+                inst.renderState.opacityMaskClipValue = rs.value("opacityMaskClipValue", inst.renderState.opacityMaskClipValue);
+            }
+
+            if (ji.contains("overrides") && ji["overrides"].is_object())
+            {
+                const json& jov = ji["overrides"];
+                inst.baseColorOverride = jov.value("baseColor", inst.baseColorOverride);
+                inst.normalOverride = jov.value("normal", inst.normalOverride);
+                inst.ormOverride = jov.value("orm", inst.ormOverride);
+                inst.emissiveOverride = jov.value("emissive", inst.emissiveOverride);
+                inst.opacityMaskOverride = jov.value("opacityMask", inst.opacityMaskOverride);
+            }
+
+            if (ji.contains("textures") && ji["textures"].is_object())
+            {
+                const json& jt = ji["textures"];
+                inst.baseColorPath = relToAbsUnderResourceRoot(jt.value("baseColor", string{}));
+                inst.normalPath = relToAbsUnderResourceRoot(jt.value("normal", string{}));
+                inst.ormPath = relToAbsUnderResourceRoot(jt.value("orm", string{}));
+                inst.emissivePath = relToAbsUnderResourceRoot(jt.value("emissive", string{}));
+                inst.opacityMaskPath = relToAbsUnderResourceRoot(jt.value("opacityMask", string{}));
+            }
+
+            if (ji.contains("cb") && ji["cb"].is_object())
+            {
+                const json& jcb = ji["cb"];
+                if (jcb.contains("baseColorTint") && jcb["baseColorTint"].is_array() && jcb["baseColorTint"].size() >= 4)
+                    inst.cb.baseColorTint = Engine::Vec4(jcb["baseColorTint"][0], jcb["baseColorTint"][1], jcb["baseColorTint"][2], jcb["baseColorTint"][3]);
+                if (jcb.contains("emissiveColor") && jcb["emissiveColor"].is_array() && jcb["emissiveColor"].size() >= 4)
+                    inst.cb.emissiveColor = Engine::Vec4(jcb["emissiveColor"][0], jcb["emissiveColor"][1], jcb["emissiveColor"][2], jcb["emissiveColor"][3]);
+
+                inst.cb.emissiveIntensity = jcb.value("emissiveIntensity", inst.cb.emissiveIntensity);
+                inst.cb.emissiveMaskMul = jcb.value("emissiveMaskMul", inst.cb.emissiveMaskMul);
+                inst.cb.normalStrength = jcb.value("normalStrength", inst.cb.normalStrength);
+                inst.cb.opacityMaskClipValue = jcb.value("opacityMaskClipValue", inst.cb.opacityMaskClipValue);
+                inst.cb.roughnessScale = jcb.value("roughnessScale", inst.cb.roughnessScale);
+                inst.cb.metalnessScale = jcb.value("metalnessScale", inst.cb.metalnessScale);
+                inst.cb.aoScale = jcb.value("aoScale", inst.cb.aoScale);
+
+                if (jcb.contains("uvScale") && jcb["uvScale"].is_array() && jcb["uvScale"].size() >= 2)
+                    inst.cb.uvScale = Engine::Vec2(jcb["uvScale"][0], jcb["uvScale"][1]);
+                if (jcb.contains("uvOffset") && jcb["uvOffset"].is_array() && jcb["uvOffset"].size() >= 2)
+                    inst.cb.uvOffset = Engine::Vec2(jcb["uvOffset"][0], jcb["uvOffset"][1]);
+            }
+
+            const MaterialRefKind kind = parseRefKind(ji.value("refKind", string{}));
+            if (kind == MaterialRefKind::MI)
+            {
+                _materialInstances.emplace(inst.assetName, move(inst));
+            }
+            else
+            {
+                _manualInstanceKinds[inst.assetName] = kind;
+                _manualInstances.emplace(inst.assetName, move(inst));
+            }
+        }
+    }
+
+    if (root.contains("mappings") && root["mappings"].is_array())
+    {
+        for (const json& jm : root["mappings"])
+        {
+            if (!jm.is_object())
+                continue;
+
+            MaterialMapping m{};
+            m.source = MaterialSourceKind::SK;
+            m.sourceFile = p.filename().string();
+            m.materialIndex = jm.value("materialIndex", 0u);
+            m.originalMaterialIndex = m.materialIndex;
+            m.slotName = jm.value("slotName", string{});
+
+            if (jm.contains("ref") && jm["ref"].is_object())
+            {
+                const json& jref = jm["ref"];
+                m.material.assetName = jref.value("assetName", string{});
+                const string kindStr = jref.value("kind", string{});
+                m.material.kind = (kindStr == "MI") ? MaterialRefKind::MI : (kindStr == "M") ? MaterialRefKind::M : MaterialRefKind::Unknown;
+                m.material.objectName = jref.value("objectName", string{});
+                m.material.objectPath = jref.value("objectPath", string{});
+            }
+
+            _materialMappings.push_back(move(m));
+        }
+    }
+
+    _selectedBundlePath = p.wstring();
+    _bundleOutputPath = _selectedBundlePath;
+
+    // 번들 파일 안 경로들은 Resources 루트 기준 상대 경로라서, texture root는 저장 위치 기준으로 세팅해두는 게 편하다.
+    if (p.has_parent_path())
+    {
+        _textureSearchRoot = resourceRoot.wstring() + L"\\Models";
+        _textureIndexDirty = true;
+    }
+
+    return true;
+}
+
+bool Material_View::Load_FromSelectedModelCom()
+{
+    // 선택된 ModelCom의 Runtime Material 상태를 읽어서 편집 상태로 만든다.
+    // 목표:
+    // - 런타임에서 조정된 CB 값(색/강도/UV 등)을 그대로 가져오기
+    // - SRV가 있는 슬롯은 resolvedPath를 경로로 노출하기
+    const Editor_Context* context = EDITOR->Get_EditorContext();
+    if (context == nullptr)
+        return false;
+
+    const Shared<GameObject> selectedObject = context->Get_Selection().selectedObject;
+    if (selectedObject == nullptr)
+        return false;
+
+    const Shared<ModelCom> model = selectedObject->Get_Component<ModelCom>();
+    if (model == nullptr)
+        return false;
+
+    _materialMappings.clear();
+    _materialInstances.clear();
+    _manualInstances.clear();
+    _manualInstanceKinds.clear();
+    _heuristics.clear();
+    _activeMappingGroup = 0;
+
+    const uint32 numMaterials = static_cast<uint32>(model->Get_NumMaterials());
+    for (uint32 materialIndex = 0; materialIndex < numMaterials; ++materialIndex)
+    {
+        const Shared<Material> mat = model->Get_Material(materialIndex);
+        if (mat == nullptr)
+            continue;
+
+        const string assetName = mat->Get_MaterialName().empty()
+            ? ("Material_" + to_string(materialIndex))
+            : mat->Get_MaterialName();
+
+        MaterialMapping mapping{};
+        mapping.source = MaterialSourceKind::SK;
+        mapping.sourceFile = "SelectedModelCom";
+        mapping.materialIndex = materialIndex;
+        mapping.originalMaterialIndex = materialIndex;
+        mapping.slotName = "Runtime";
+        mapping.material.assetName = assetName;
+        mapping.material.kind = MaterialRefKind::Unknown;
+        _materialMappings.push_back(mapping);
+
+        MaterialInstanceData inst{};
+        inst.assetName = assetName;
+        inst.templateId = mat->Get_TemplateId();
+        inst.renderState = mat->Get_RenderState();
+        inst.cb = mat->Get_CB();
+
+        // Edit With ModelCom은 "현재 런타임 상태를 인스턴스 편집 시작점"으로 쓰는 모드라
+        // 기본으로 모든 CB 필드를 override 대상으로 켠다. (사용자가 체크를 끄면 base를 따르게 된다)
+#define EDITOR_DEFAULT_CB_MASK_ON(_key, _member, _kind) inst.cbMask._member = true;
+        MATERIAL_CB_OVERRIDE_FIELDS(EDITOR_DEFAULT_CB_MASK_ON)
+#undef EDITOR_DEFAULT_CB_MASK_ON
+
+        auto slotToPath = [&](MaterialTextureSlot slot, wstring& outPath, bool& outOverride) -> void
+        {
+            const Material::TextureSlot* s = mat->Find_TextureSlot(slot, 0);
+            if (s != nullptr && s->shaderResourceView != nullptr)
+            {
+                outPath = s->resolvedPath;
+                outOverride = true;
+            }
+            else
+            {
+                outPath.clear();
+                outOverride = false;
+            }
+        };
+
+        slotToPath(MaterialTextureSlot::BaseColor, inst.baseColorPath, inst.baseColorOverride);
+        slotToPath(MaterialTextureSlot::Normal, inst.normalPath, inst.normalOverride);
+        slotToPath(MaterialTextureSlot::ORM, inst.ormPath, inst.ormOverride);
+        slotToPath(MaterialTextureSlot::Emissive, inst.emissivePath, inst.emissiveOverride);
+        slotToPath(MaterialTextureSlot::OpacityMask, inst.opacityMaskPath, inst.opacityMaskOverride);
+
+        _manualInstances.emplace(assetName, move(inst));
+        _manualInstanceKinds[assetName] = MaterialRefKind::Unknown;
+    }
+
+    return !_materialMappings.empty();
 }
 
 bool Material_View::Try_PickTextureFileDialog(const wstring& title, const wstring& defaultFolder, wstring& outFilePath)

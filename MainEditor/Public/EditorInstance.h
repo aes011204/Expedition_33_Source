@@ -99,6 +99,7 @@ public: /* For.Viewport */
     ID3D11ShaderResourceView* Get_SharedViewportSRV() const;
     void                      Capture_BackBuffer_ToViewport();
     void                      Invalidate_BackBufferCache();
+    void                      EndImGuiFrameIfBegun();
     ComPtr<Device>            Get_Device() const { return _device; }
     ComPtr<Context>           Get_Context() const { return _context; }
 
@@ -130,6 +131,15 @@ private:
     ID3D11Texture2D* Get_CachedBackBufferTexture();
 
 private: /* 저장 */
+    struct CameraPoseSnapshot
+    {
+        bool isValid = false;
+        Vec3 position = Vec3::Zero;
+        Vec3 rotation = Vec3::Zero;
+        float yaw = 0.f;
+        float pitch = 0.f;
+    };
+
     struct EditorWorldObjectSnapshot
     {
         wstring layerTag = {};
@@ -139,6 +149,8 @@ private: /* 저장 */
 
     void Capture_PlayStartSnapshot();
     void Restore_PlayStartSnapshot();
+    bool Capture_ActiveCameraPose(CameraPoseSnapshot& outPose) const;
+    bool Apply_CameraPoseToCameraType(ObjectType objectType, const CameraPoseSnapshot& pose) const;
     bool Is_SnapshotExcludedObject(const Shared<GameObject>& gameObject) const;
     vector<EditorWorldObjectSnapshot> Capture_CurrentLevelObjects(int32* outSelectedIndex = nullptr) const;
     HRESULT Restore_CurrentLevelObjects(const vector<EditorWorldObjectSnapshot>& snapshots, int32 selectedIndex);
@@ -179,6 +191,7 @@ private: /* Runtime Data */
 
     vector<EditorWorldObjectSnapshot> _playStartWorldSnapshot = {};
     int32 _playStartSelectedObjectIndex = -1;
+    CameraPoseSnapshot _playStartCameraPose = {};
 
     bool _hasPendingWindowFocus = false;
     EDITOR_VIEWPORT_TARGET _pendingWindowFocus = EDITOR_VIEWPORT_TARGET::Game;
