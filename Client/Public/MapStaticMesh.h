@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "Client_Defines.h"
 #include "GameObject.h"
+#include "PhysX_Handle.h"
 
 NS_BEGIN(Engine)
 class ShaderCom;
@@ -37,8 +38,10 @@ public:
     virtual HRESULT Render() override;
 
 private:
-    Shared<ShaderCom> _shader;
-    Shared<ModelCom> _model;
+    Shared<ShaderCom>   _shader;
+    Shared<ModelCom>    _model;
+
+    PhysXStaticActorHandle _physxStaticHandle{};
 
 private:
     HRESULT Ready_Components(const wstring& modelPath, Shared<ModelCom> sharedModel);

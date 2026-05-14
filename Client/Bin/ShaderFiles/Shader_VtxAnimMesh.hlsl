@@ -6,10 +6,18 @@
 #include "Engine_Shader_Utils.hlsl"
 #include "Engine_Shader_ConstantBuffer.hlsl"
 
-cbuffer BoneTransform : register(b1)
+//cbuffer BoneTransform : register(b1)
+//{
+//    matrix g_BoneMatrices[950];
+//}
+
+// 추후 compute shader 기반 animation/skinning 확장을 위해 bone matrices를 SRV로 받는다.
+struct BoneMatrixElement
 {
-    matrix g_BoneMatrices[950];
-}
+    row_major float4x4 BoneMatrix;
+};
+
+StructuredBuffer<BoneMatrixElement> g_BoneMatricesBuffer;
 
 //==================================================
 // VS
@@ -44,10 +52,16 @@ VS_OUT VS_Main(VS_IN In)
 
     float fWeightW = 1.f - (In.vBlendWeight.x + In.vBlendWeight.y + In.vBlendWeight.z);
 
-    float4x4 BoneMatrix = g_BoneMatrices[In.vBlendIndex.x] * In.vBlendWeight.x +
-        g_BoneMatrices[In.vBlendIndex.y] * In.vBlendWeight.y +
-        g_BoneMatrices[In.vBlendIndex.z] * In.vBlendWeight.z +
-        g_BoneMatrices[In.vBlendIndex.w] * fWeightW;
+    //float4x4 BoneMatrix = g_BoneMatrices[In.vBlendIndex.x] * In.vBlendWeight.x +
+    //    g_BoneMatrices[In.vBlendIndex.y] * In.vBlendWeight.y +
+    //    g_BoneMatrices[In.vBlendIndex.z] * In.vBlendWeight.z +
+    //    g_BoneMatrices[In.vBlendIndex.w] * fWeightW;
+
+    float4x4 BoneMatrix =
+        g_BoneMatricesBuffer[In.vBlendIndex.x].BoneMatrix * In.vBlendWeight.x +
+        g_BoneMatricesBuffer[In.vBlendIndex.y].BoneMatrix * In.vBlendWeight.y +
+        g_BoneMatricesBuffer[In.vBlendIndex.z].BoneMatrix * In.vBlendWeight.z +
+        g_BoneMatricesBuffer[In.vBlendIndex.w].BoneMatrix * fWeightW;
 
     vector vPosition = mul(float4(In.vPosition, 1.f), BoneMatrix);
     vector vNormal = mul(float4(In.vNormal, 0.f), BoneMatrix);
@@ -76,10 +90,16 @@ VS_OUT VS_Shadow(VS_IN In)
 
     float fWeightW = 1.f - (In.vBlendWeight.x + In.vBlendWeight.y + In.vBlendWeight.z);
 
-    float4x4 BoneMatrix = g_BoneMatrices[In.vBlendIndex.x] * In.vBlendWeight.x +
-        g_BoneMatrices[In.vBlendIndex.y] * In.vBlendWeight.y +
-        g_BoneMatrices[In.vBlendIndex.z] * In.vBlendWeight.z +
-        g_BoneMatrices[In.vBlendIndex.w] * fWeightW;
+    //float4x4 BoneMatrix = g_BoneMatrices[In.vBlendIndex.x] * In.vBlendWeight.x +
+    //    g_BoneMatrices[In.vBlendIndex.y] * In.vBlendWeight.y +
+    //    g_BoneMatrices[In.vBlendIndex.z] * In.vBlendWeight.z +
+    //    g_BoneMatrices[In.vBlendIndex.w] * fWeightW;
+
+    float4x4 BoneMatrix =
+        g_BoneMatricesBuffer[In.vBlendIndex.x].BoneMatrix * In.vBlendWeight.x +
+        g_BoneMatricesBuffer[In.vBlendIndex.y].BoneMatrix * In.vBlendWeight.y +
+        g_BoneMatricesBuffer[In.vBlendIndex.z].BoneMatrix * In.vBlendWeight.z +
+        g_BoneMatricesBuffer[In.vBlendIndex.w].BoneMatrix * fWeightW;
 
     vector vPosition = mul(float4(In.vPosition, 1.f), BoneMatrix);
     vector vNormal = mul(float4(In.vNormal, 0.f), BoneMatrix);

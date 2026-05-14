@@ -44,17 +44,24 @@ private:
     void Draw_InspectorPanel();
     void Draw_GameObjectTree(const Shared<GameObject>& gameObject, const wstring& objectKey);
     void Draw_ComponentEntries(const Shared<GameObject>& gameObject, const wstring& objectKey);
+
     Shared<GameObject> Find_GameObjectByKey(const Shared<GameObject>& rootObject, const wstring& objectKey) const;
 
 private:
     void Ensure_PreviewRenderTarget(uint32 width, uint32 height);
     void Ensure_PreviewGridResources();
+
     void Reset_PreviewCameraPose();
     void Lock_PreviewObjectToOrigin();
+
+    void Draw_PreviewColliders(const Shared<GameObject>& gameObject) const;
     void Draw_PreviewGrid() const;
+
     Shared<ModelCom> Find_FirstModelComponent() const;
     void Prepare_AnimationViewSiblingDock();
+
     void Open_PendingAnimationView();
+    void Open_PendingAnimStateView();
 
 private:
     static Editor_Camera_Free::EDITOR_CAMERA_DESC Build_PreviewCameraDesc(const Shared<GameObject>& gameObject);
@@ -81,8 +88,13 @@ private:
     bool                _isPreviewActive = false;
     bool                _applyDefaultWindowLayout = false;
     bool                _openAnimationViewWithPrefab = false;
+
     bool                _pendingOpenAnimationView = false;
     uint32              _dockId = 0;
+
+    bool                _pendingOpenAnimStateView = false;
+    uint32              _pendingAnimStateDockId = 0;
+
     uint32              _pendingDockId = 0;
     uint32              _pendingAnimationDockId = 0;
     int32               _focusPrefabFrames = 0;
