@@ -26,7 +26,7 @@ public:
     HRESULT Bind_Matrices(const char* constantName, const XMFLOAT4X4* matrices, uint32 numMatrices);
     HRESULT Bind_RawValue(const char* constantName, const void* data, uint32 length);
 
-    HRESULT Bind_MaterialTextures(const Material& material);
+    HRESULT Bind_MaterialTextures(Material& material);
     HRESULT Bind_ObjectCB(const Matrix& worldMatrix);
 
     ShaderType  Get_Type() const { return _type; }
