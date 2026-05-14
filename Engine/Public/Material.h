@@ -62,6 +62,7 @@ public:
     void Set_RenderState(const MaterialRenderState& renderState);
     void Set_CB(const MaterialCB& cb);
     void Set_ShaderType(ShaderType shaderType);
+    void Set_ForcedPassIndex(int32 forcedPassIndex);
 
 private:
 	std::wstring    Find_TextureFile(const std::filesystem::path& searchRoot, const std::string& fileName);
@@ -82,6 +83,9 @@ private:
     ShaderType                      _shaderType = ShaderType::VtxTex;
     uint32                          _passIndex = 0;
     bool                            _passDirty = true;
+
+    // -1이면 자동, 0 이상이면 해당 인덱스로 강제한다.
+    int32                           _forcedPassIndex = -1;
 
 public:
 	static Shared<Material> Create(const ComPtr<Device>& device, const ComPtr<Context>& context, const char* modelPath, const ModelMaterialData& materialData, const vector<ModelTextureSlot>& slots, uint32 maxTextureTypeSize);

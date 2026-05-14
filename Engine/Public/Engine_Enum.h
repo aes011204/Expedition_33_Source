@@ -120,7 +120,6 @@ namespace Engine
         VtxInstanceMesh,
         VtxInstanceMeshExact,
 
-
         END
     };
 

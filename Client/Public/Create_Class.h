@@ -114,15 +114,15 @@ public:
 
 public:
     // GameObject
-    static ActorBuilder         Actor(const string& staticClass) { return ActorBuilder(staticClass); }
+    static ActorBuilder         Actor(const string& staticClass)        { return ActorBuilder(staticClass); }
     // Component
-    static ComponentBuilder     Component(const string& staticClass) { return ComponentBuilder(staticClass); }
+    static ComponentBuilder     Component(const string& staticClass)    { return ComponentBuilder(staticClass); }
     // BTNode
-    static BTNodeBuilder        BTNode(const string& staticClass) { return BTNodeBuilder(staticClass); }
+    static BTNodeBuilder        BTNode(const string& staticClass)       { return BTNodeBuilder(staticClass); }
     // Notify
-    static NotifyBuilder        Notify(const string& staticClass) { return NotifyBuilder(staticClass); }
+    static NotifyBuilder        Notify(const string& staticClass)       { return NotifyBuilder(staticClass); }
     // NotifyState
-    static NotifyStateBuilder   NotifyState(const string& staticClass) { return NotifyStateBuilder(staticClass); }
+    static NotifyStateBuilder   NotifyState(const string& staticClass)  { return NotifyStateBuilder(staticClass); }
 
     template<typename T>
     static ActorBuilder Actor()
