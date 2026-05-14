@@ -44,7 +44,7 @@ namespace ModelEditor
 		// 1. Tech Junk Tokens (Exact matches only)
 		static const unordered_set<string> junkSet = {
 			"ALS", "UE5", "RETAKE", "UNREAL", "TAKE", "DEFAULT", "PLACEHOLDER", "SK",
-			"LF", "RF", "N", "F", "B", "L", "R", "W", "S", "E", "WORLD"
+			"LF", "RF", "N", "F", "B", "L", "R", "W", "S", "E"
 		};
 
 		// 2. Tokenize by various delimiters
@@ -999,37 +999,22 @@ namespace ModelEditor
 
 		for (uint32 i = 0; i < _animHeaders.size(); ++i)
 		{
-			string animClipName = Sanitize_FileName(string(_animHeaders[i].name));
-			string fullFileName;
-
-			string charBaseName = cleanModelName;
-			if (charBaseName.length() >= 4 && charBaseName.substr(charBaseName.length() - 4) == "Body")
-			{
-				charBaseName = charBaseName.substr(0, charBaseName.length() - 4);
-			}
-
-            if (animClipName.find(cleanModelName) == 0)
+            string finalFileName = Sanitize_FileName(modelName);
+            // 2. 애니메이션이 여러 개일 경우에만 뒤에 인덱스(_0, _1...)를 붙임
+            if (_animHeaders.size() > 1)
             {
-                animClipName.erase(0, cleanModelName.length());
-                if (!animClipName.empty() && animClipName[0] == '_')
-                    animClipName.erase(0, 1);
+                finalFileName += "_" + to_string(i);
             }
-            if (animClipName.empty()) animClipName = "DefaultAnimName";
+            // 3. 최종 경로 생성 (String::ToWString 사용 여부 확인 필요)
+            wstring animPath = animDir + Engine::String::ToWString(finalFileName) + L".anim";
+            // 4. 파일 출력 시작
+            ofstream out(animPath, ios::binary);
+            if (!out.is_open())
+            {
+                LOG_ERROR("Failed to create anim file: {}", finalFileName);
+                continue;
+            }
 
-			if (animClipName == "DefaultAnimName")
-			{
-				fullFileName = cleanModelName;
-			}
-			else if (animClipName.find(charBaseName) == 0 || animClipName.find(cleanModelName) == 0)
-			{
-				fullFileName = animClipName;
-			}
-			else
-			{
-				fullFileName = cleanModelName + "_" + animClipName;
-			}
-
-			wstring animPath = animDir + ToWString(fullFileName) + L".anim";
 			ofstream out(animPath, ios::binary);
 			if (!out.is_open())
 			{
