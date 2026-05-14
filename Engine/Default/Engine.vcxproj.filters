@@ -163,6 +163,18 @@
     <Filter Include="01.Utility\10. RenderTarget">
       <UniqueIdentifier>{8ed846ad-914e-45f5-b74f-2294a7811fd7}</UniqueIdentifier>
     </Filter>
+    <Filter Include="01.Utility\11. UI">
+      <UniqueIdentifier>{4a9a17e0-79c7-4ac9-bd67-5958a4fe7f4c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="01.Utility\11. UI\Manager">
+      <UniqueIdentifier>{92efef2a-8af2-49c8-9c5e-20a0dc026663}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="01.Utility\11. UI\Transform">
+      <UniqueIdentifier>{c519a35c-3ac7-42a0-b8af-9d0c6476ddf7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="01.Utility\11. UI\Object">
+      <UniqueIdentifier>{38159774-480e-4a79-9ae1-f6750b8212ba}</UniqueIdentifier>
+    </Filter>
     <Filter Include="02.ShaderFiles">
       <UniqueIdentifier>{af861585-44c5-423f-af13-c10c00f3a82a}</UniqueIdentifier>
     </Filter>
@@ -232,11 +244,6 @@
     <ClInclude Include="..\Public\PhysX_Filter.h" />
     <ClInclude Include="..\Public\PhysX_Types.h" />
     <ClInclude Include="..\Public\Picking.h" />
-    <ClInclude Include="..\public\UI_Base.h" />
-    <ClInclude Include="..\public\UI_Image.h" />
-    <ClInclude Include="..\public\UI_Manager.h" />
-    <ClInclude Include="..\public\UI_Text.h" />
-    <ClInclude Include="..\public\UI_Transform.h" />
     <ClInclude Include="..\Public\Engine_Constants.h">
       <Filter>99. Defines</Filter>
     </ClInclude>
@@ -794,11 +801,6 @@
     </ClCompile>
     <ClCompile Include="..\Private\PhysX_Filter.cpp" />
     <ClCompile Include="..\Private\Picking.cpp" />
-    <ClCompile Include="..\private\UI_Base.cpp" />
-    <ClCompile Include="..\private\UI_Image.cpp" />
-    <ClCompile Include="..\private\UI_Manager.cpp" />
-    <ClCompile Include="..\private\UI_Text.cpp" />
-    <ClCompile Include="..\private\UI_Transform.cpp" />
     <ClCompile Include="..\private\AStar.cpp" />
     <ClCompile Include="..\private\UI_Base.cpp">
       <Filter>01.Utility\11. UI</Filter>
@@ -838,6 +840,9 @@
     </ClCompile>
     <ClCompile Include="..\Private\VIBufferCom_ComputePointParticle.cpp">
       <Filter>01.Utility\04.Component\VIBuffer\Instance\Particle w. ComputeShader</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_Animation.cpp">
+      <Filter>01.Utility\11. UI</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\UI_Animation.cpp" />
     <ClCompile Include="..\private\UI_Button.cpp" />
