@@ -367,6 +367,13 @@ namespace ModelEditor
 
         RecursiveBuild(RecursiveBuild, _aiScene->mRootNode, -1);
 
+        uint32 totalNodeCount = static_cast<uint32>(_bones.size());
+        uint32 boneCount = static_cast<uint32>(tempOffsetMap.size());
+        if (totalNodeCount > 0 && (totalNodeCount - boneCount) == 0)
+        {
+            _isSkeletal = false;
+        }
+
 		ReadMeshes(_aiScene);
 		ReadMaterial(_aiScene);
 		ReadAnimations(_aiScene);

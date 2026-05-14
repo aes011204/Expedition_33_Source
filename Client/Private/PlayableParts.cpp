@@ -1,4 +1,4 @@
-﻿#include "pch.h"
+#include "pch.h"
 #include "PlayableParts.h"
 #include "ModelCom.h"
 #include "ShaderCom.h"
@@ -49,12 +49,33 @@ void PlayableParts::Set_Animation(uint32 animIndex, bool isLoop) const
     _modelCom->Set_Animation(animIndex, isLoop);
 }
 
+void PlayableParts::Set_AnimationByState(uint32 stateIndex, float blendDuration, bool isLoop) const
+{
+    if (nullptr == _modelCom) return;
+
+    _modelCom->Set_AnimationByState(stateIndex, blendDuration, isLoop);
+}
+
+void PlayableParts::Set_AnimationByState(uint32 stateIndex, bool isLoop) const
+{
+    if (nullptr == _modelCom) return;
+
+    _modelCom->Set_AnimationByState(stateIndex, isLoop);
+}
+
 
 uint32 PlayableParts::Get_AnimationIndex() const
 {
     if (nullptr == _modelCom) return UINT_MAX;
 
     return _modelCom->Get_AnimationIndex();
+}
+
+uint32 PlayableParts::Get_AnimationStateIndex() const
+{
+    if (nullptr == _modelCom) return UINT_MAX;
+
+    return _modelCom->Get_AnimationStateIndex();
 }
 
 float PlayableParts::Get_AnimationProgress() const
@@ -198,16 +219,6 @@ void PlayableParts::Update_LeaderPoseMatrices() const
 void PlayableParts::Update_CombinedWorldMatrix(const Matrix& childMatrix)
 {
     Matrix socketMatrix = (nullptr != _socketMatrix) ? *_socketMatrix : Matrix::Identity;
-
-    //Vector3 right = socketMatrix.Right();
-    //Vector3 up = socketMatrix.Up();
-    //Vector3 forward = socketMatrix.Backward();
-    //right.Normalize();
-    //up.Normalize();
-    //forward.Normalize();
-    //socketMatrix.Right(right);
-    //socketMatrix.Up(up);
-    //socketMatrix.Backward(forward);
 
     const Matrix& parentMatrix = (nullptr != _parentMatrix) ? *_parentMatrix : Matrix::Identity;
     const Matrix childWorld = childMatrix;

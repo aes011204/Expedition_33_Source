@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "Base.h"
 #include "Reflection_Types.h"
@@ -63,29 +63,39 @@ public:
         ClassReflectionInfo* reflectionInfo = nullptr;
     };
 
-    struct AnimNotifyStateTypeInfo
-    {
-        string className = {};
-        AnimNotifyStateCreateFn createFn = {};
-        ClassReflectionInfo* reflectionInfo = nullptr;
-    };
+	struct AnimNotifyStateTypeInfo
+	{
+		string className = {};
+		AnimNotifyStateCreateFn createFn = {};
+		ClassReflectionInfo* reflectionInfo = nullptr;
+	};
+
+	struct GlobalEnumInfo
+	{
+		string displayName = {};
+		vector<string> enumNames = {};
+		vector<int> enumValues = {};
+	};
 
 public:
     HRESULT Register_ComponentType(const ComponentTypeInfo& info);
     HRESULT Register_GameObjectType(const GameObjectTypeInfo& info);
     HRESULT Register_BTNodeType(const BTNodeTypeInfo& info);
     HRESULT Register_AnimNotifyType(const AnimNotifyTypeInfo& info);
-    HRESULT Register_AnimNotifyStateType(const AnimNotifyStateTypeInfo& info);
+	HRESULT Register_AnimNotifyStateType(const AnimNotifyStateTypeInfo& info);
+	HRESULT Register_GlobalEnum(const GlobalEnumInfo& info);
 
     const ComponentTypeInfo*        Find_ComponentType(const string& className) const;
     const GameObjectTypeInfo*       Find_GameObjectType(const string& className) const;
     const BTNodeTypeInfo*           Find_BTNodeType(const string& className) const;
     const AnimNotifyTypeInfo*       Find_AnimNotifyType(const string& className) const;
     const AnimNotifyStateTypeInfo*  Find_AnimNotifyStateType(const string& className) const;
+	const GlobalEnumInfo*		    Find_GlobalEnum(const string& displayName) const;
 
     void Visit_GameObjectTypes(const function<void(const GameObjectTypeInfo&)>& visitor) const;
     void Visit_AnimNotifyTypes(const function<void(const AnimNotifyTypeInfo&)>& visitor) const;
     void Visit_AnimNotifyStateTypes(const function<void(const AnimNotifyStateTypeInfo&)>& visitor) const;
+    void Visit_GlobalEnums(const function<void(const GlobalEnumInfo&)>& visitor) const;
 
     Shared<Component> Create_Component(
         const string& className,
@@ -116,6 +126,7 @@ private:
 
     map<string, AnimNotifyTypeInfo>         _animNotifyTypes{};
     map<string, AnimNotifyStateTypeInfo>    _animNotifyStateTypes{};
+    map<string, GlobalEnumInfo>             _globalEnums{};
 };
 
 NS_END

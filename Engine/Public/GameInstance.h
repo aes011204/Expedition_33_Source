@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #pragma region INCLUDE
 
@@ -293,6 +293,7 @@ public: /* For.TypeRegistry */
     void Visit_GameObjectTypes(const function<void(const TypeRegistry::GameObjectTypeInfo&)>& visitor) const;
     void Visit_AnimNotifyTypes(const function<void(const TypeRegistry::AnimNotifyTypeInfo&)>& visitor) const;
     void Visit_AnimNotifyStateTypes(const function<void(const TypeRegistry::AnimNotifyStateTypeInfo&)>& visitor) const;
+	void Visit_GlobalEnums(const function<void(const TypeRegistry::GlobalEnumInfo&)>& visitor) const;
 
     Shared<Component>       Create_ComponentPrototype(const string& className) const;
     Shared<GameObject>      Create_GameObjectPrototype(const string& className) const;
