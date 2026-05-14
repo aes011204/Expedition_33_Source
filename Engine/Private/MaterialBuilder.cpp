@@ -261,6 +261,8 @@ bool MaterialBuilder::Try_LoadBundleAsset(const fs::path& bundlePath, BundleAsse
             if (ji.contains("renderState"))
                 (void)Try_ParseRenderState(ji["renderState"], inst.renderState);
 
+            inst.forcePassIndex = ji.value("forcePassIndex", inst.forcePassIndex);
+
             // 셰이더 CB 값도 저장된 값만 덮어쓴다.
             if (ji.contains("cb"))
                 (void)Try_ParseCB(ji["cb"], inst.cb);

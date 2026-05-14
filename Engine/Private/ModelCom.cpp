@@ -343,6 +343,7 @@ void ModelCom::Apply_EffectiveMaterial(uint32 materialIndex)
 
                     material->Set_RenderState(base.renderState);
                     material->Set_CB(base.cb);
+                    material->Set_ForcedPassIndex(base.forcePassIndex);
 
                     if (base.baseColorOverride) (void)material->Override_TextureSlot(MaterialTextureSlot::BaseColor, 0, base.baseColorPath);
                     if (base.normalOverride) (void)material->Override_TextureSlot(MaterialTextureSlot::Normal, 0, base.normalPath);

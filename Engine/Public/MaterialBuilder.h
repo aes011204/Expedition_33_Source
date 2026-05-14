@@ -51,6 +51,8 @@ private:
         MaterialRenderState renderState{};
         MaterialCB cb{};
 
+        int32 forcePassIndex = -1;
+
         bool baseColorOverride = false;
         bool normalOverride = false;
         bool ormOverride = false;

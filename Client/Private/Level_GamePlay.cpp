@@ -200,33 +200,11 @@ HRESULT Level_GamePlay::Ready_Layer_Monster(const wstring& strLayerTag)
 
 HRESULT Level_GamePlay::Ready_Layer_Player(const wstring& strLayerTag)
 {
-    Vec3 startPos = Vec3(205.f, -4020.5f, -1.24f);
+    Vec3 startPos = Vec3(205.f, 6.5f, -1.24f);
     CHECK_FAILED(CLIENT->Initialize_Hero(ETOI(LevelType::GamePlay), strLayerTag, startPos), E_FAIL);
 
     return S_OK;
 }
-
-void Level_GamePlay::ReSize_TestGauge(const Shared<UI_Base>& gauge, const Vec2& originalSize, int32 value, int32 maxValue)
-{
-    if (nullptr == gauge || nullptr == gauge->Get_Transform())
-        return;
-
-    const float ratio = maxValue > 0
-                        ? std::clamp(static_cast<float>(value) / static_cast<float>(maxValue), 0.f, 1.f)
-                        : 0.f;
-
-    Vec2 gaugeSize = originalSize;
-    gaugeSize.x = originalSize.x * ratio;
-    gauge->Get_Transform()->Set_Size(gaugeSize);
-}
-
-//HRESULT Level_GamePlay::Ready_Layer_MapStaticMesh(const wstring& strLayerTag)
-//{
-//    CHECK_FAILED(MapLoader::Load(_device, _context, Constants::Map::SmallLevel_SimonArea_Remake_Path,
-//        ETOI(LevelType::GamePlay), strLayerTag), E_FAIL);
-//
-//    return S_OK;
-//}
 
 Shared<Level_GamePlay> Level_GamePlay::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
