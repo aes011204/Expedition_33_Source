@@ -201,7 +201,7 @@ void Material::Set_ShaderType(ShaderType shaderType)
 // 메쉬의 머테리얼 별로 pass를 세분화할 때 사용한다.
 uint32 Material::Get_PassIndex()
 {
-    if (_passDirty)
+    //if (_passDirty)
         Refresh_PassIndex();
 
     return _passIndex;
