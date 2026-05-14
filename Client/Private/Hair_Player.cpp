@@ -32,6 +32,18 @@ HRESULT Hair_Player::Initialize(void* arg)
 
     _transformCom->Set_Position(hairOffset);
 
+    // Hair Physics
+    {
+        _hairPhysicsDesc.bonePrefix = "Strand_";
+        _hairPhysicsDesc.stiffness = 0.05f;
+        _hairPhysicsDesc.damping = 0.1f;
+        _hairPhysicsDesc.radius = 3.f;
+        _hairPhysicsDesc.windScale = 0.35f;
+        _hairPhysicsDesc.gravity = Vec3(0.f, -2.5f, 0.f);
+        _hairPhysicsDesc.teleportDistance = 300.f;
+        _hairPhysicsDesc.solverIterations = 3;
+    }
+
 
     return S_OK;
 }
@@ -48,8 +60,19 @@ void Hair_Player::Priority_Update(float timeDelta)
 
 void Hair_Player::Update(float timeDelta)
 {
+    if (_modelCom == nullptr)
+        return;
 
     Update_CombinedWorldMatrix(_transformCom->Get_WorldMatrix());
+
+    if (!_hairPhysicsReady)
+    {
+        _hairPhysics.Initialize(_modelCom.get(), _hairPhysicsDesc);
+        _hairPhysicsReady = _hairPhysics.Is_Built();
+    }
+
+    if (_hairPhysicsReady)
+        _hairPhysics.Simulate(_modelCom.get(), timeDelta, _combinedWorldMatrix);
 }
 
 void Hair_Player::Late_Update(float timeDelta)

@@ -162,6 +162,47 @@ const Matrix* ModelCom::Get_BoneMatrixPtr(uint32 boneIndex) const
     return _bones[boneIndex]->Get_CombinedTransformationMatrixPtr();
 }
 
+int32 ModelCom::Get_BoneParentIndex(uint32 boneIndex) const
+{
+    if (boneIndex >= _bones.size() || _bones[boneIndex] == nullptr)
+        return -1;
+
+    return _bones[boneIndex]->Get_ParentIndex();
+}
+
+const Matrix& ModelCom::Get_BoneLocalMatrix(uint32 boneIndex) const
+{
+    static const Matrix identity = Matrix::Identity;
+
+    if (boneIndex >= _bones.size() || _bones[boneIndex] == nullptr)
+        return identity;
+
+    return _bones[boneIndex]->Get_TransformationMatrix();
+}
+
+void ModelCom::Set_BoneLocalMatrix(uint32 boneIndex, const Matrix& localMatrix)
+{
+    if (boneIndex >= _bones.size() || _bones[boneIndex] == nullptr)
+        return;
+
+    _bones[boneIndex]->Update_TransformationMatrix(localMatrix);
+    Mark_BoneMatricesDirty();
+}
+
+void ModelCom::Rebuild_BoneCombinedMatrices()
+{
+    if (!_isSkeletal || _numBones == 0)
+        return;
+
+    for (uint32 i = 0; i < _numBones; ++i)
+    {
+        if (_bones[i] != nullptr)
+            _bones[i]->Update_CombinedTransformationMatrix(_bones, _preLocalTransformMatrix);
+    }
+
+    Mark_BoneMatricesDirty();
+}
+
 const RootMotionFrame& ModelCom::Get_RootTransformVelocity(float scaleOffset)
 {
     _rootFrameVelocity.position = scaleOffset * _rootOriginalFrameVelocity.position;

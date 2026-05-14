@@ -177,6 +177,7 @@
     <ClInclude Include="..\Public\ComputePointParticlePreview.h" />
     <ClInclude Include="..\Public\GameDataTable.h" />
     <ClInclude Include="..\Public\GameplayUI.h" />
+    <ClInclude Include="..\Public\HairChainPhysics.h" />
     <ClInclude Include="..\Public\Hair_Player.h" />
     <ClInclude Include="..\Public\Head_Player.h" />
     <ClInclude Include="..\Public\Hero_Manager.h" />
@@ -248,6 +249,7 @@
     <ClCompile Include="..\Private\ComputePointParticlePreview.cpp" />
     <ClCompile Include="..\Private\GameDataTable.cpp" />
     <ClCompile Include="..\Private\GameplayUI.cpp" />
+    <ClCompile Include="..\Private\HairChainPhysics.cpp" />
     <ClCompile Include="..\Private\Hair_Player.cpp" />
     <ClCompile Include="..\Private\Head_Player.cpp" />
     <ClCompile Include="..\Private\Hero_Manager.cpp" />

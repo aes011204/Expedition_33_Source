@@ -58,6 +58,13 @@ public:
     const Matrix* Get_BoneMatrixPtr(const char* boneName) const;
     const Matrix* Get_BoneMatrixPtr(uint32 boneIndex) const;
 
+    int32 Get_BoneParentIndex(uint32 boneIndex) const;
+    const Matrix& Get_BoneLocalMatrix(uint32 boneIndex) const;
+    void Set_BoneLocalMatrix(uint32 boneIndex, const Matrix& localMatrix);
+
+    // 모든 bone의 Combined Matrix를 parent 순서대로 다시 계산
+    void Rebuild_BoneCombinedMatrices(); 
+
 public:
     bool Is_AnimationFinished() const { return _isFinished; }
     void Set_Animation(uint32 animIndex, bool isLoop = false);
