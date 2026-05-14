@@ -1,4 +1,4 @@
-﻿#include "TypeRegistry.h"
+#include "TypeRegistry.h"
 
 HRESULT TypeRegistry::Register_ComponentType(const ComponentTypeInfo& info)
 {
@@ -97,7 +97,19 @@ HRESULT TypeRegistry::Register_AnimNotifyStateType(const AnimNotifyStateTypeInfo
         info.reflectionInfo->type = RegisteredType::AnimNotifyState;
     }
 
-    return S_OK;
+	return S_OK;
+}
+
+HRESULT TypeRegistry::Register_GlobalEnum(const GlobalEnumInfo& info)
+{
+	if (info.displayName.empty())
+		return E_FAIL;
+
+	if (_globalEnums.contains(info.displayName))
+		return E_FAIL;
+
+	_globalEnums.emplace(info.displayName, info);
+	return S_OK;
 }
 
 const TypeRegistry::ComponentTypeInfo* TypeRegistry::Find_ComponentType(const string& className) const
@@ -135,8 +147,17 @@ void TypeRegistry::Visit_AnimNotifyStateTypes(const function<void(const AnimNoti
     if (!visitor)
         return;
 
-    for (const auto& [_, info] : _animNotifyStateTypes)
-        visitor(info);
+	for (const auto& [_, info] : _animNotifyStateTypes)
+		visitor(info);
+}
+
+void TypeRegistry::Visit_GlobalEnums(const function<void(const GlobalEnumInfo&)>& visitor) const
+{
+	if (!visitor)
+		return;
+
+	for (const auto& [_, info] : _globalEnums)
+		visitor(info);
 }
 
 const TypeRegistry::BTNodeTypeInfo* TypeRegistry::Find_BTNodeType(const string& className) const
@@ -154,7 +175,13 @@ const TypeRegistry::AnimNotifyTypeInfo* TypeRegistry::Find_AnimNotifyType(const 
 const TypeRegistry::AnimNotifyStateTypeInfo* TypeRegistry::Find_AnimNotifyStateType(const string& className) const
 {
     auto iter = _animNotifyStateTypes.find(className);
-    return (iter == _animNotifyStateTypes.end()) ? nullptr : &iter->second;
+	return (iter == _animNotifyStateTypes.end()) ? nullptr : &iter->second;
+}
+
+const TypeRegistry::GlobalEnumInfo* TypeRegistry::Find_GlobalEnum(const string& displayName) const
+{
+	auto iter = _globalEnums.find(displayName);
+	return (iter == _globalEnums.end()) ? nullptr : &iter->second;
 }
 
 Shared<Component> TypeRegistry::Create_Component(
@@ -211,8 +238,9 @@ void TypeRegistry::Free()
     _componentTypes.clear();
     _gameObjectTypes.clear();
     _btNodeTypes.clear();
-    _animNotifyTypes.clear();
-    _animNotifyStateTypes.clear();
+	_animNotifyTypes.clear();
+	_animNotifyStateTypes.clear();
+	_globalEnums.clear();
 
     Base::Free();
 }

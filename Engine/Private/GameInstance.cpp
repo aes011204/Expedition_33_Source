@@ -1,4 +1,4 @@
-﻿#pragma region INCLUDE
+#pragma region INCLUDE
 #include "GameInstance.h"
 #include "Asset_Manager.h"
 #include "Camera_Manager.h"
@@ -1228,6 +1228,12 @@ void GameInstance::Visit_AnimNotifyStateTypes(
     const function<void(const TypeRegistry::AnimNotifyStateTypeInfo&)>& visitor) const
 {
     return _typeRegistry->Visit_AnimNotifyStateTypes(visitor);
+}
+
+void GameInstance::Visit_GlobalEnums(const function<void(const TypeRegistry::GlobalEnumInfo&)>& visitor) const
+{
+	CHECK_NULL(_typeRegistry);
+	_typeRegistry->Visit_GlobalEnums(visitor);
 }
 
 Shared<Component> GameInstance::Create_ComponentPrototype(const string& className) const
