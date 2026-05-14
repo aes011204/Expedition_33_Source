@@ -2,7 +2,21 @@
 
 namespace Client
 {
-    // 일단 Lune 전용 기본값으로 시작
+    class Player;
+
+    struct HeroPartyEntry
+    {
+        HeroId  heroId = HeroId::Gustave;
+        Shared<Player> hero;
+    };
+
+    struct HeroSpawnDesc
+    {
+        HeroId heroId = HeroId::Gustave;
+        const char* prefabName;
+    };
+
+    // Player Hair Physics
     struct HairChainPhysicsDesc
     {
         HairPhysicsProfile profile = HairPhysicsProfile::Lune;

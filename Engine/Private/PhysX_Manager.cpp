@@ -293,6 +293,10 @@ void PhysX_Manager::onContact(const PxContactPairHeader& pairHeader, const PxCon
     for (PxU32 i = 0; i < nbPairs; ++i)
     {
         const PxContactPair& pair = pairs[i];
+
+        if (pair.shapes[0] == nullptr || pair.shapes[i] == nullptr)
+            continue;
+
         const PxPairFlags events = pair.events;
 
         const bool began = events.isSet(PxPairFlag::eNOTIFY_TOUCH_FOUND);
@@ -302,21 +306,17 @@ void PhysX_Manager::onContact(const PxContactPairHeader& pairHeader, const PxCon
         if (!began && !staying && !ended)
             continue;
 
-        Push_PairEvent(
-            colliderA,
-            colliderB,
-            CollisionResponse::Block,
-            began,
-            staying,
-            ended);
+        const PxFilterData filterDataA = pair.shapes[0]->getSimulationFilterData();
+        const PxFilterData filterDataB = pair.shapes[1]->getSimulationFilterData();
 
-        Push_PairEvent(
-            colliderB,
-            colliderA,
-            CollisionResponse::Block,
-            began,
-            staying,
-            ended);
+        const CollisionResponse response =
+            Calculate_PhysXResponse(filterDataA, filterDataB);
+
+        if (response == CollisionResponse::Ignore)
+            continue;
+
+        Push_PairEvent(colliderA, colliderB, CollisionResponse::Block, began, staying, ended);
+        Push_PairEvent(colliderB, colliderA, CollisionResponse::Block, began, staying, ended);
     }
 }
 

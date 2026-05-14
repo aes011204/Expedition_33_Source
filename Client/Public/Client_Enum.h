@@ -72,5 +72,23 @@ namespace Client
         Maelle,
         Gustave,
     };
+
+    enum class HeroPartySlot : uint8
+    {
+        Slot_0,
+        Slot_1,
+        Slot_2,
+
+        END
+    };
+
+    enum class HeroId : uint8
+    {
+        Gustave,
+        Lune,
+        Maelle,
+
+        END
+    };
 }
 

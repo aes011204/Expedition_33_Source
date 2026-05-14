@@ -1,5 +1,4 @@
 ﻿#include "Player.h"
-
 #include "Base_Gustave_Attack.h"
 #include "Weapon.h"
 #include "GameInstance.h"
@@ -68,8 +67,6 @@ void Player::Priority_Update(float timeDelta)
     _PlayerStateMachineCom->Update_CurrentState(timeDelta);
     _playerControllerCom->Update_Movement(timeDelta);
     _PlayerStateMachineCom->LateUpdate_CurrentState(timeDelta);
-
-    _currentState = _PlayerStateMachineCom->Get_CurrentPlayerState();
 }
 
 void Player::Update(float timeDelta)

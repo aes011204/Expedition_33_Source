@@ -57,8 +57,6 @@ protected:
     virtual const wchar_t* Get_HairModelTag() const { return L"Model_LuneHair"; }
 
 private:
-    PlayerState                     _currentState;
-
     Shared<MovementCom>             _movementCom;
     Shared<InputCom>                _inputCom;
     Shared<PlayerControllerCom>     _playerControllerCom;

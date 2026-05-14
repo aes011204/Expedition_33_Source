@@ -10,6 +10,21 @@
 #include "UI_Text.h"
 #include "PreviewCamera.h"
 
+static const char* Get_HeroPrefabName(HeroId heroId)
+{
+    switch (heroId)
+    {
+    case HeroId::Gustave:
+        return "Player_Gustave";
+    case HeroId::Lune:
+        return "Player_Lune";
+    case HeroId::Maelle:
+        return "Player_Maelle";
+    default:
+        return "";
+    }
+}
+
 HRESULT CharacterStatus_Panel::Initialize(uint32 levelIndex)
 {
     _levelIndex = levelIndex;
@@ -177,27 +192,22 @@ HRESULT CharacterStatus_Panel::Spawn_StatusPreviewHeroes()
     // 기존에 있다면 삭제
     Clear_StatusPreviewHeroes();
 
-    const vector<Shared<Player>> sourceHeroes = CLIENT->Get_HeroesInPartyOrder();
-    if (sourceHeroes.empty())
+    const vector<HeroPartyEntry>& partyEntries = CLIENT->Get_HeroEntries();
+    if (partyEntries.empty())
         return S_OK;
 
-    static const string fallbackPrefabs[] =
-    {
-        "Player_Lune",
-        "Player_Maelle",
-        "Player_Gustave",
-    };
-
-    const uint32 count = min<uint32>(3, static_cast<uint32>(sourceHeroes.size()));
+    const uint32 count = min<uint32>(3, static_cast<uint32>(partyEntries.size()));
 
     _previewHeroes.reserve(count);
 
     for (uint32 i = 0; i < count; ++i)
     {
-        string prefabName = sourceHeroes[i] ? sourceHeroes[i]->Get_SourcePrefabName() : string{};
+        const HeroPartyEntry& entry = partyEntries[i];
+
+        string prefabName = entry.hero ? entry.hero->Get_SourcePrefabName() : string{};
 
         if (prefabName.empty())
-            prefabName = fallbackPrefabs[i];
+            prefabName = Get_HeroPrefabName(entry.heroId);
 
         auto object = Spawn_Prefab::Prefab(prefabName)
             .AtLevel(_levelIndex)
@@ -242,16 +252,16 @@ void CharacterStatus_Panel::Layout_StatusPreviewHeroes()
     // 프리뷰 플레이어 초기 위치 세팅
     static const Vec3 positions[] =
     {
-        Vec3(-1.4f, 0.f, 0.f),
+        Vec3(-1.1f, 0.f, -0.1f),
         Vec3(0.0f,  0.f, 0.f),
-        Vec3(1.4f,  0.f, 0.f),
+        Vec3(1.1f,  0.f, -0.1f),
     };
 
     static const Vec3 rotations[] =
     {
+        Vec3(0.f, 0.f, -0.1f),
         Vec3(0.f, 0.f, 0.f),
-        Vec3(0.f, 0.f, 0.f),
-        Vec3(0.f, 0.f, 0.f),
+        Vec3(0.f, 0.f, -0.1f),
     };
 
     const uint32 count = min<uint32>(
