@@ -17,7 +17,8 @@
 #include "AnimState_Parser.h"
 
 ModelCom::ModelCom(const ComPtr<Device>& device, const ComPtr<Context>& context)
-    : Component{ device, context } {
+    : Component{ device, context }
+{
 }
 
 ModelCom::ModelCom(const ModelCom& prototype)
