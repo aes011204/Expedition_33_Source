@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "Reflection_Types.h"
 #include "RegistorFactory.h"
@@ -9,6 +9,21 @@
 #define WIDEN(x) WIDEN2(x)
 #define WSTRINGIZE(x) WIDEN(STRINGIZE(x))
 #define EXPAND(x) x
+
+#define _REGISTER_GLOBAL_ENUM_IMPL(EnumType, DisplayName, Line) \
+    namespace { \
+        const bool g_auto_register_global_enum_##Line = []() { \
+            std::vector<std::string> names; \
+            std::vector<int> values; \
+            for (const auto& [val, name] : magic_enum::enum_entries<EnumType>()) { \
+                names.push_back(std::string(name)); \
+                values.push_back(static_cast<int>(val)); \
+            } \
+            return Engine::Register_GlobalEnum_Pending(DisplayName, names, values); \
+        }(); \
+    }
+
+#define REGISTER_GLOBAL_ENUM(EnumType, DisplayName) _REGISTER_GLOBAL_ENUM_IMPL(EnumType, DisplayName, __LINE__)
 
 #define GENERATED_BASE_TYPE_BODY(ClassName)                                        \
 public:                                                                            \
@@ -312,3 +327,15 @@ public:                                                                         
         prop.blackboardValueType = Engine::BlackboardValueType::Int;               \
         info.properties.push_back(std::move(prop));                                \
     }
+
+#define GENERATED_SKILLSCRIPT(ClassName)                                      \
+public:                                                                       \
+    static const char* StaticClassNameA() { return #ClassName; }              \
+private:                                                                      \
+    inline static const bool _auto_register_skill_script_ =                   \
+        Client::SkillScript::Register_SkillScriptType(                        \
+            #ClassName,                                                       \
+            []() -> Shared<Client::SkillScript>                               \
+            {                                                                 \
+                return static_pointer_cast<Client::SkillScript>(make_shared<ClassName>()); \
+            });

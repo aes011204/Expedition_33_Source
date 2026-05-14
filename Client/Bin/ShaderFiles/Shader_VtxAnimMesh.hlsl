@@ -170,6 +170,31 @@ PS_OUT PS_Mask(PS_IN In)
 
     float2 finalUV = ApplyUVTransform(In.Texcoord);
 
+    // Hair material path : HairDepth 또는 HairID 텍스처가 꽂힌 material이면 Hair 전용 계산 사용
+    const bool isHairMaterial = HasMaterialTexture(MATERIAL_SLOT_HAIR_DEPTH) || HasMaterialTexture(MATERIAL_SLOT_HAIR_ID);
+
+    if (isHairMaterial)
+    {
+        HairMaterialSample hair = SampleHairMaterial(finalUV);
+
+        if (hair.opacity < g_OpacityMaskClipValue)
+            discard;
+
+        float3 worldNormal = ComputeWorldNormal(
+            In.vNormal.xyz,
+            In.vTangent,
+            In.vBinormal,
+            finalUV
+        );
+
+        Out.vDiffuse = float4(hair.baseColor, 1.f);
+        Out.vNormal = float4(EncodeNormal(worldNormal), 1.f);
+        Out.vDepth = float4(In.vProjPos.z / In.vProjPos.w, In.vProjPos.w / g_Far, 0.f, 1.f);
+
+        return Out;
+    }
+
+    // Hair material이 없는 기존 material들은 기존 유지
     float4 baseColor = SampleBaseColor(finalUV);
 
     float mask = GetOpacityMaskForMasked(finalUV, baseColor);

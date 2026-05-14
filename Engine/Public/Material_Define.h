@@ -113,6 +113,9 @@ struct MaterialInstanceOverride
     TextureOverride orm{};
     TextureOverride emissive{};
     TextureOverride opacityMask{};
+
+    TextureOverride hairDepth{};
+    TextureOverride hairID{};
 };
 
 // 추출한 모델 컴포넌트가 가진 메쉬 정보(인덱스)와 동일하게 materialIndex 별로 ModelCom::_materialBindings에 들어간다. 

@@ -4,8 +4,9 @@
 NS_BEGIN(Client)
 class Base_Mon_Attack :
     public SkillScript
-
 {
+    GENERATED_SKILLSCRIPT(Base_Mon_Attack)
+
 public:
     Base_Mon_Attack();
     virtual ~Base_Mon_Attack() = default;
