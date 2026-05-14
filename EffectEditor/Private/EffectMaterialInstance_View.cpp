@@ -384,6 +384,57 @@ namespace Internal
         ImGui::PopID();
         return changed;
     }
+
+    bool Equals_IgnoreCase(const string& lhs, const char* rhs)
+    {
+        return ToLowerCopy(lhs) == ToLowerCopy(rhs);
+    }
+
+    bool Draw_StringComboProperty(const char* label, string& value, const string& defaultValue, const char* const* options, size_t optionCount)
+    {
+        ImGui::PushID(label);
+        DetailProperty::Draw_PropertyLabel(label);
+
+        const char* preview = value.empty() ? "(none)" : value.c_str();
+        for (size_t i = 0; i < optionCount; ++i)
+        {
+            if (Equals_IgnoreCase(value, options[i]))
+            {
+                preview = options[i];
+                break;
+            }
+        }
+
+        bool changed = false;
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        if (ImGui::BeginCombo("##Value", preview))
+        {
+            for (size_t i = 0; i < optionCount; ++i)
+            {
+                const bool selected = Equals_IgnoreCase(value, options[i]);
+                if (ImGui::Selectable(options[i], selected))
+                {
+                    value = options[i];
+                    changed = true;
+                }
+
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+
+        const bool resetClicked = DetailProperty::Draw_ResetButton(value != defaultValue);
+        if (resetClicked)
+        {
+            value = defaultValue;
+            changed = true;
+        }
+
+        ImGui::PopID();
+        return changed;
+    }
 }
 
 EffectMaterialInstance_View::EffectMaterialInstance_View()
@@ -570,8 +621,23 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(EffectMaterialInstance
     {
         if (DetailProperty::Begin_PropertyTable("EffectMaterialInstanceOptions"))
         {
-            changed |= DetailProperty::Draw_StringProperty("Blend Mode", material.blendMode, defaultData.blendMode);
-            changed |= DetailProperty::Draw_StringProperty("Opacity Source", material.opacitySource, defaultData.opacitySource);
+            constexpr const char* blendModeOptions[]{ "AlphaBlend", "Additive" };
+            constexpr const char* opacitySourceOptions[]{ "Alpha", "Red", "Luminance" };
+
+            changed |= Internal::Draw_StringComboProperty(
+                "Blend Mode",
+                material.blendMode,
+                defaultData.blendMode,
+                blendModeOptions,
+                sizeof(blendModeOptions) / sizeof(blendModeOptions[0])
+            );
+            changed |= Internal::Draw_StringComboProperty(
+                "Opacity Source",
+                material.opacitySource,
+                defaultData.opacitySource,
+                opacitySourceOptions,
+                sizeof(opacitySourceOptions) / sizeof(opacitySourceOptions[0])
+            );
             changed |= DetailProperty::Draw_UintProperty("SubUV Rows", material.subUvRows, defaultData.subUvRows);
             changed |= DetailProperty::Draw_UintProperty("SubUV Cols", material.subUvCols, defaultData.subUvCols);
             DetailProperty::End_PropertyTable();
@@ -630,6 +696,7 @@ void EffectMaterialInstance_View::Commit_PendingAuthoringEdit(const Shared<Emitt
 
     Emitter_View::AuthoringSnapshot afterSnapshot = emitterView->Capture_AuthoringSnapshot();
     afterSnapshot.selectedEmitterIndex = _pendingAuthoringSnapshot.selectedEmitterIndex;
+    afterSnapshot.selectedTypeData = _pendingAuthoringSnapshot.selectedTypeData;
     afterSnapshot.selectedModuleIndex = _pendingAuthoringSnapshot.selectedModuleIndex;
     emitterView->Execute_AuthoringSnapshotCommand(
         _pendingAuthoringSnapshot,

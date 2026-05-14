@@ -20,6 +20,7 @@ HRESULT Emitter_View::Initialize()
     _emitters.clear();
     _emitters.push_back(Make_DefaultSpriteEmitter());
     _selectedEmitterIndex = 0;
+    _selectedTypeData = false;
     _selectedModuleIndex.reset();
 
     if (EDITOR != nullptr && EDITOR->Get_EditorContext() != nullptr)
@@ -112,6 +113,7 @@ Emitter_View::AuthoringSnapshot Emitter_View::Capture_AuthoringSnapshot() const
     snapshot.particleSystemData = _particleSystemData;
     snapshot.emitters = _emitters;
     snapshot.selectedEmitterIndex = _selectedEmitterIndex;
+    snapshot.selectedTypeData = _selectedTypeData;
     snapshot.selectedModuleIndex = _selectedModuleIndex;
     snapshot.nextAuthoringId = _nextAuthoringId;
     return snapshot;
@@ -122,6 +124,7 @@ void Emitter_View::Restore_AuthoringSnapshot(const AuthoringSnapshot& snapshot)
     _particleSystemData = snapshot.particleSystemData;
     _emitters = snapshot.emitters;
     _selectedEmitterIndex = snapshot.selectedEmitterIndex;
+    _selectedTypeData = snapshot.selectedTypeData;
     _selectedModuleIndex = snapshot.selectedModuleIndex;
     _nextAuthoringId = snapshot.nextAuthoringId;
 
@@ -307,6 +310,7 @@ AuthoringModule Emitter_View::Make_ColorOverLifeModule()
 void Emitter_View::Clear_Selection()
 {
     _selectedEmitterIndex.reset();
+    _selectedTypeData = false;
     _selectedModuleIndex.reset();
 
     if (EDITOR != nullptr && EDITOR->Get_EditorContext() != nullptr)
@@ -322,10 +326,27 @@ void Emitter_View::Select_Emitter(size_t emitterIndex)
     }
 
     _selectedEmitterIndex = emitterIndex;
+    _selectedTypeData = false;
     _selectedModuleIndex.reset();
 
     if (EDITOR != nullptr && EDITOR->Get_EditorContext() != nullptr)
         EDITOR->Get_EditorContext()->Set_SelectEffectEmitter(_emitters[emitterIndex].id);
+}
+
+void Emitter_View::Select_TypeData(size_t emitterIndex)
+{
+    if (emitterIndex >= _emitters.size() || _emitters[emitterIndex].typeData == AuthoringEmitterTypeData::None)
+    {
+        Clear_Selection();
+        return;
+    }
+
+    _selectedEmitterIndex = emitterIndex;
+    _selectedTypeData = true;
+    _selectedModuleIndex.reset();
+
+    if (EDITOR != nullptr && EDITOR->Get_EditorContext() != nullptr)
+        EDITOR->Get_EditorContext()->Set_SelectEffectTypeData(_emitters[emitterIndex].id);
 }
 
 void Emitter_View::Insert_NewEmitter(size_t insertIndex)
@@ -366,6 +387,61 @@ void Emitter_View::Delete_Emitter(size_t emitterIndex)
         Select_Emitter(nextIndex);
     }
 
+    MarkDirty();
+}
+
+void Emitter_View::Set_GpuSpriteTypeData(size_t emitterIndex)
+{
+    if (emitterIndex >= _emitters.size())
+        return;
+
+    AuthoringEmitter& emitter = _emitters[emitterIndex];
+    if (emitter.typeData == AuthoringEmitterTypeData::GpuSprite)
+        return;
+
+    emitter.typeData = AuthoringEmitterTypeData::GpuSprite;
+    emitter.previewDirty = true;
+    Select_TypeData(emitterIndex);
+    MarkDirty();
+}
+
+void Emitter_View::Reset_TypeData(size_t emitterIndex)
+{
+    if (emitterIndex >= _emitters.size())
+        return;
+
+    AuthoringEmitter& emitter = _emitters[emitterIndex];
+    if (emitter.typeData == AuthoringEmitterTypeData::None)
+        return;
+
+    switch (emitter.typeData)
+    {
+    case AuthoringEmitterTypeData::GpuSprite:
+        emitter.gpuSpriteTypeData = GpuSpriteTypeData{};
+        break;
+    case AuthoringEmitterTypeData::None:
+    default:
+        return;
+    }
+
+    emitter.previewDirty = true;
+    Select_TypeData(emitterIndex);
+    MarkDirty();
+}
+
+void Emitter_View::Delete_TypeData(size_t emitterIndex)
+{
+    if (emitterIndex >= _emitters.size())
+        return;
+
+    AuthoringEmitter& emitter = _emitters[emitterIndex];
+    if (emitter.typeData == AuthoringEmitterTypeData::None)
+        return;
+
+    emitter.typeData = AuthoringEmitterTypeData::None;
+    emitter.gpuSpriteTypeData = GpuSpriteTypeData{};
+    emitter.previewDirty = true;
+    Select_Emitter(emitterIndex);
     MarkDirty();
 }
 
@@ -437,6 +513,7 @@ void Emitter_View::Select_Module(size_t emitterIndex, size_t moduleIndex)
     }
 
     _selectedEmitterIndex = emitterIndex;
+    _selectedTypeData = false;
     _selectedModuleIndex = moduleIndex;
 
     if (EDITOR != nullptr && EDITOR->Get_EditorContext() != nullptr)
@@ -457,7 +534,7 @@ void Emitter_View::Delete_Module(size_t emitterIndex, size_t moduleIndex)
         return;
 
     const bool isSelectedEmitter = _selectedEmitterIndex.has_value() && _selectedEmitterIndex.value() == emitterIndex;
-    const bool isSelectedModule = isSelectedEmitter && _selectedModuleIndex.has_value();
+    const bool isSelectedModule = isSelectedEmitter && !_selectedTypeData && _selectedModuleIndex.has_value();
     const bool isDeletingSelectedModule = isSelectedModule && _selectedModuleIndex.value() == moduleIndex;
 
     emitter.modules.erase(emitter.modules.begin() + static_cast<ptrdiff_t>(moduleIndex));
@@ -569,17 +646,23 @@ void Emitter_View::Clamp_Selection()
     if (_emitters.empty())
     {
         _selectedEmitterIndex.reset();
+        _selectedTypeData = false;
         _selectedModuleIndex.reset();
         return;
     }
 
     if (!_selectedEmitterIndex.has_value())
     {
+        _selectedTypeData = false;
         _selectedModuleIndex.reset();
         return;
     }
 
     _selectedEmitterIndex = min(_selectedEmitterIndex.value(), _emitters.size() - 1);
+
+    const AuthoringEmitter& emitter = _emitters[_selectedEmitterIndex.value()];
+    if (_selectedTypeData && emitter.typeData == AuthoringEmitterTypeData::None)
+        _selectedTypeData = false;
 
     const auto& modules = _emitters[_selectedEmitterIndex.value()].modules;
     if (_selectedModuleIndex.has_value() && _selectedModuleIndex.value() >= modules.size())
@@ -628,6 +711,12 @@ void Emitter_View::Sync_SelectionContext()
     }
 
     const AuthoringEmitter& emitter = _emitters[_selectedEmitterIndex.value()];
+    if (_selectedTypeData && emitter.typeData != AuthoringEmitterTypeData::None)
+    {
+        EDITOR->Get_EditorContext()->Set_SelectEffectTypeData(emitter.id);
+        return;
+    }
+
     if (_selectedModuleIndex.has_value() && _selectedModuleIndex.value() < emitter.modules.size())
     {
         EDITOR->Get_EditorContext()->Set_SelectEffectModule(
@@ -692,11 +781,56 @@ void Emitter_View::Draw_EmitterContextMenu(size_t emitterIndex)
         ImGui::BeginDisabled();
         ImGui::MenuItem("새 애님 트레일 데이터");
         ImGui::MenuItem("새 빔 데이터");
-        ImGui::MenuItem("새 GPU 스프라이트");
+        ImGui::EndDisabled();
+
+        const bool canSetGpuSprite = _emitters[emitterIndex].typeData != AuthoringEmitterTypeData::GpuSprite;
+        if (!canSetGpuSprite)
+            ImGui::BeginDisabled();
+
+        if (ImGui::MenuItem("새 GPU 스프라이트"))
+        {
+            Execute_AuthoringEdit(
+                "Set GPU Sprite TypeData",
+                [this, emitterIndex]()
+                {
+                    Set_GpuSpriteTypeData(emitterIndex);
+                }
+            );
+        }
+
+        if (!canSetGpuSprite)
+            ImGui::EndDisabled();
+
+        ImGui::BeginDisabled();
         ImGui::MenuItem("새 메시 데이터");
         ImGui::MenuItem("새 리본 데이터");
         ImGui::EndDisabled();
         ImGui::EndMenu();
+    }
+}
+
+void Emitter_View::Draw_TypeDataContextMenu(size_t emitterIndex)
+{
+    if (ImGui::MenuItem("모듈 값 초기화"))
+    {
+        Execute_AuthoringEdit(
+            "Reset TypeData",
+            [this, emitterIndex]()
+            {
+                Reset_TypeData(emitterIndex);
+            }
+        );
+    }
+
+    if (ImGui::MenuItem("모듈 삭제"))
+    {
+        Execute_AuthoringEdit(
+            "Delete TypeData",
+            [this, emitterIndex]()
+            {
+                Delete_TypeData(emitterIndex);
+            }
+        );
     }
 }
 
@@ -783,10 +917,13 @@ void Emitter_View::Draw_EmitterColumn(size_t emitterIndex, AuthoringEmitter& emi
     constexpr float headerPaddingX = 10.f;
     constexpr float headerPaddingY = 12.f;
 
-    const bool isSelected = _selectedEmitterIndex.has_value() && _selectedEmitterIndex.value() == emitterIndex;
+    const bool isSelected =
+        _selectedEmitterIndex.has_value() &&
+        _selectedEmitterIndex.value() == emitterIndex &&
+        !_selectedTypeData;
     const ImVec4 accentColor = To_ImVec4(kEmitterAccentColor);
-    const ImVec4 headerColor = isSelected ? accentColor : To_ImVec4(Color{ 0.36f, 0.36f, 0.36f, 1.0f });
-    const ImVec4 textColor = isSelected ? To_ImVec4(Color{ 0.05f, 0.05f, 0.05f, 1.0f }) : ImGui::GetStyleColorVec4(ImGuiCol_Text);
+    const ImVec4 headerColor = isSelected ? accentColor : To_ImVec4(kEmitterHeaderColor);
+    const ImVec4 textColor = isSelected ? To_ImVec4(kEmitterSelectedTextColor) : ImGui::GetStyleColorVec4(ImGuiCol_Text);
 
     ImGui::BeginGroup();
     const ImVec2 columnMin = ImGui::GetCursorScreenPos();
@@ -822,7 +959,7 @@ void Emitter_View::Draw_EmitterColumn(size_t emitterIndex, AuthoringEmitter& emi
     }
     ImGui::PopStyleColor(3);
 
-    const ImVec2 afterHeaderCursor = ImGui::GetCursorPos();
+    const ImVec2 moduleStackCursor = ImVec2(headerCursor.x, headerCursor.y + kEmitterHeaderHeight);
     ImGui::SetCursorPos(ImVec2(headerCursor.x + headerPaddingX, headerCursor.y + headerPaddingY));
     ImGui::PushStyleColor(ImGuiCol_Text, textColor);
     ImGui::PushTextWrapPos(headerCursor.x + kEmitterColumnWidth - headerPaddingX);
@@ -847,18 +984,10 @@ void Emitter_View::Draw_EmitterColumn(size_t emitterIndex, AuthoringEmitter& emi
     }
     ImGui::PopID();
 
-    ImGui::SetCursorPos(afterHeaderCursor);
-
-    ImGui::InvisibleButton("##EmitterTypeDataSlot", ImVec2(kEmitterColumnWidth, kEmitterTypeDataReserveHeight));
-    if (ImGui::IsItemClicked(ImGuiMouseButton_Right))
-        Select_Emitter(emitterIndex);
-    if (ImGui::BeginPopupContextItem("##EmitterTypeDataPopup"))
-    {
-        Draw_EmitterContextMenu(emitterIndex);
-        ImGui::EndPopup();
-    }
+    ImGui::SetCursorPos(moduleStackCursor);
 
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(ImGui::GetStyle().ItemSpacing.x, 0.f));
+    Draw_TypeDataRow(emitterIndex, emitter);
     for (size_t moduleIndex = 0; moduleIndex < emitter.modules.size(); ++moduleIndex)
     {
         ImGui::PushID(static_cast<int>(moduleIndex));
@@ -871,6 +1000,8 @@ void Emitter_View::Draw_EmitterColumn(size_t emitterIndex, AuthoringEmitter& emi
     if (reservedTailHeight > 0.f)
     {
         ImGui::InvisibleButton("##EmitterReservedTail", ImVec2(kEmitterColumnWidth, reservedTailHeight));
+        if (ImGui::IsItemClicked(ImGuiMouseButton_Left))
+            Select_Emitter(emitterIndex);
         if (ImGui::IsItemClicked(ImGuiMouseButton_Right))
             Select_Emitter(emitterIndex);
         if (ImGui::BeginPopupContextItem("##EmitterReservedTailPopup"))
@@ -881,6 +1012,55 @@ void Emitter_View::Draw_EmitterColumn(size_t emitterIndex, AuthoringEmitter& emi
     }
 
     ImGui::EndGroup();
+}
+
+void Emitter_View::Draw_TypeDataRow(size_t emitterIndex, AuthoringEmitter& emitter)
+{
+    constexpr float rowPaddingX = 10.f;
+
+    if (emitter.typeData != AuthoringEmitterTypeData::GpuSprite)
+    {
+        ImGui::InvisibleButton("##EmitterTypeDataSlot", ImVec2(kEmitterColumnWidth, kEmitterTypeDataReserveHeight));
+        if (ImGui::IsItemClicked(ImGuiMouseButton_Right))
+            Select_Emitter(emitterIndex);
+        if (ImGui::BeginPopupContextItem("##EmitterTypeDataPopup"))
+        {
+            Draw_EmitterContextMenu(emitterIndex);
+            ImGui::EndPopup();
+        }
+        return;
+    }
+
+    const bool isSelected =
+        _selectedEmitterIndex.has_value() &&
+        _selectedEmitterIndex.value() == emitterIndex &&
+        _selectedTypeData;
+    const ImVec4 rowColor = isSelected ? To_ImVec4(kEmitterAccentColor) : To_ImVec4(kEmitterTypeDataRowColor);
+    const ImVec4 textColor = isSelected ? To_ImVec4(kEmitterSelectedTextColor) : ImGui::GetStyleColorVec4(ImGuiCol_Text);
+
+    const ImVec2 rowCursor = ImGui::GetCursorPos();
+    ImGui::PushStyleColor(ImGuiCol_Button, rowColor);
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, rowColor);
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, rowColor);
+    ImGui::PushStyleColor(ImGuiCol_Text, textColor);
+    ImGui::Button("##EmitterTypeDataRow", ImVec2(kEmitterColumnWidth, kEmitterTypeDataReserveHeight));
+    if (ImGui::IsItemClicked(ImGuiMouseButton_Left) || ImGui::IsItemClicked(ImGuiMouseButton_Right))
+        Select_TypeData(emitterIndex);
+    ImGui::PopStyleColor(4);
+
+    if (ImGui::BeginPopupContextItem("##EmitterTypeDataRowPopup"))
+    {
+        Draw_TypeDataContextMenu(emitterIndex);
+        ImGui::EndPopup();
+    }
+
+    const ImVec2 afterRowCursor = ImGui::GetCursorPos();
+    const float textOffsetY = (kEmitterTypeDataReserveHeight - ImGui::GetTextLineHeight()) * 0.5f;
+    ImGui::SetCursorPos(ImVec2(rowCursor.x + rowPaddingX, rowCursor.y + textOffsetY));
+    ImGui::PushStyleColor(ImGuiCol_Text, textColor);
+    ImGui::TextUnformatted("GPU 스프라이트");
+    ImGui::PopStyleColor();
+    ImGui::SetCursorPos(afterRowCursor);
 }
 
 void Emitter_View::Draw_ModuleRow(size_t emitterIndex, size_t moduleIndex, AuthoringModule& module)
@@ -899,18 +1079,18 @@ void Emitter_View::Draw_ModuleRow(size_t emitterIndex, size_t moduleIndex, Autho
     const ImVec4 accentColor = To_ImVec4(kEmitterAccentColor);
     const ImVec4 categoryColor = To_ImVec4(
         isRequiredRow
-        ? Color{ 0.78f, 0.75f, 0.34f, 1.0f }
+        ? kEmitterRequiredRowColor
         : isSpawnRow
-          ? Color{ 0.78f, 0.36f, 0.38f, 1.0f }
-          : Color{ 0.18f, 0.19f, 0.24f, 1.0f }
+          ? kEmitterSpawnRowColor
+          : kEmitterCommonModuleRowColor
     );
-    const ImVec4 disabledColor = To_ImVec4(Color{ 0.16f, 0.16f, 0.17f, 1.0f });
+    const ImVec4 disabledColor = To_ImVec4(kEmitterModuleDisabledRowColor);
     const bool usesCategoryColor = isRequiredRow || isSpawnRow;
     const ImVec4 rowColor = isSelected ? accentColor : categoryColor;
     const ImVec4 textColor = isSelected
-                             ? To_ImVec4(Color{ 0.05f, 0.05f, 0.05f, 1.0f })
+                             ? To_ImVec4(kEmitterSelectedTextColor)
                              : usesCategoryColor
-                               ? To_ImVec4(Color{ 0.08f, 0.08f, 0.08f, 1.0f })
+                               ? To_ImVec4(kEmitterCategoryTextColor)
                                : ImGui::GetStyleColorVec4(ImGuiCol_Text);
 
     const ImVec2 rowCursor = ImGui::GetCursorPos();

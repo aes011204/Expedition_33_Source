@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include <variant>
 #include "EffectMaterialAuthoring_Types.h"
+#include "Particle_Types.h"
 
 NS_BEGIN(EffectEditor)
 
@@ -19,7 +20,14 @@ enum class EffectAuthoringSelectionKind : uint8
 {
     None,
     Emitter,
+    TypeData,
     Module,
+};
+
+enum class AuthoringEmitterTypeData : uint8
+{
+    None,
+    GpuSprite,
 };
 
 enum class EmitterScreenAlignment : uint8
@@ -210,6 +218,13 @@ struct ParticleSystemAuthoringData
     bool autoDeactivate{ true };
 };
 
+struct GpuSpriteTypeData
+{
+    PointParticleDrawMode previewDrawMode{ PointParticleDrawMode::Direct };
+    float cameraMotionBlurAmount{ 0.f };
+    bool clearExistingParticlesOnInit{ false };
+};
+
 struct RequiredModuleData
 {
     string rendererType{ "Sprite" };
@@ -307,6 +322,8 @@ struct AuthoringEmitter
 {
     uint32 id{};
     string name{};
+    AuthoringEmitterTypeData typeData{ AuthoringEmitterTypeData::None };
+    GpuSpriteTypeData gpuSpriteTypeData{};
     string rendererType{ "Sprite" };
     string resourceSummary{};
     string textureId{ "Texture_Effect_DefaultTexture" };

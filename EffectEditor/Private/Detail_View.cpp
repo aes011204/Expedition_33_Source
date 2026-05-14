@@ -1,10 +1,60 @@
-#include "Detail_View.h"
+﻿#include "Detail_View.h"
 
 #include "Editor_Context.h"
 #include "EffectEditorInstance.h"
 #include "Helper_DetailProperty.h"
 
 NS_BEGIN(EffectEditor)
+
+namespace Internal
+{
+    bool Draw_PreviewDrawModeProperty(
+        const char* label,
+        PointParticleDrawMode& value,
+        PointParticleDrawMode defaultValue)
+    {
+        constexpr PointParticleDrawMode modes[] =
+        {
+            PointParticleDrawMode::Direct,
+            PointParticleDrawMode::DrawInstancedIndirect,
+            PointParticleDrawMode::DrawIndexedInstancedIndirect,
+        };
+
+        ImGui::PushID(label);
+        DetailProperty::Draw_PropertyLabel(label);
+        ImGui::SetNextItemWidth(-FLT_MIN);
+
+        bool changed = false;
+        const string preview = string(magic_enum::enum_name(value));
+        if (ImGui::BeginCombo("##Value", preview.c_str()))
+        {
+            for (const PointParticleDrawMode mode : modes)
+            {
+                const bool selected = value == mode;
+                const string modeLabel = string(magic_enum::enum_name(mode));
+                if (ImGui::Selectable(modeLabel.c_str(), selected) && value != mode)
+                {
+                    value = mode;
+                    changed = true;
+                }
+
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+
+        if (DetailProperty::Draw_ResetButton(value != defaultValue))
+        {
+            value = defaultValue;
+            changed = true;
+        }
+
+        ImGui::PopID();
+        return changed;
+    }
+}
 
 Detail_View::Detail_View()
     : Editor_Window{ L"Detail", ICON_FA_PEN_TO_SQUARE }
@@ -79,6 +129,12 @@ void Detail_View::Render_EffectAuthoringDetail()
         return;
     }
 
+    if (selection.kind == EffectAuthoringSelectionKind::TypeData)
+    {
+        Render_TypeDataDetail(emitterView, selection, *emitter);
+        return;
+    }
+
     AuthoringModule* module = emitterView->Find_Module(selection.emitterId, selection.moduleId);
     if (nullptr == module)
     {
@@ -143,6 +199,51 @@ void Detail_View::Render_EmitterDetail(
 
     if (changed)
         Begin_PendingAuthoringEdit(emitterView, selection, beforeSnapshot, "Edit Emitter Detail");
+
+    Mark_Changed(emitter, changed);
+    Commit_PendingAuthoringEditIfIdle(emitterView);
+}
+
+void Detail_View::Render_TypeDataDetail(
+    const Shared<Emitter_View>& emitterView,
+    const EffectAuthoringSelection& selection,
+    AuthoringEmitter& emitter)
+{
+    ImGui::TextUnformatted("GPU 스프라이트");
+    ImGui::Separator();
+
+    if (emitter.typeData != AuthoringEmitterTypeData::GpuSprite)
+    {
+        ImGui::TextDisabled("Selected emitter does not have GPU Sprite TypeData.");
+        return;
+    }
+
+    const Emitter_View::AuthoringSnapshot beforeSnapshot = emitterView->Capture_AuthoringSnapshot();
+    const GpuSpriteTypeData defaultData{};
+    bool changed = false;
+
+    if (ImGui::CollapsingHeader("파티클 모듈 타입 데이터 GPU", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        if (DetailProperty::Begin_PropertyTable("GpuSpriteTypeData"))
+        {
+            changed |= Internal::Draw_PreviewDrawModeProperty(
+                "Preview Draw Mode",
+                emitter.gpuSpriteTypeData.previewDrawMode,
+                defaultData.previewDrawMode);
+            changed |= DetailProperty::Draw_FloatProperty(
+                "카메라 모션 블러 양",
+                emitter.gpuSpriteTypeData.cameraMotionBlurAmount,
+                defaultData.cameraMotionBlurAmount);
+            changed |= DetailProperty::Draw_BoolProperty(
+                "초기화 시 기존 파티클 지우기",
+                emitter.gpuSpriteTypeData.clearExistingParticlesOnInit,
+                defaultData.clearExistingParticlesOnInit);
+            DetailProperty::End_PropertyTable();
+        }
+    }
+
+    if (changed)
+        Begin_PendingAuthoringEdit(emitterView, selection, beforeSnapshot, "Edit GPU Sprite TypeData Detail");
 
     Mark_Changed(emitter, changed);
     Commit_PendingAuthoringEditIfIdle(emitterView);
@@ -268,6 +369,7 @@ void Detail_View::Commit_PendingAuthoringEdit(const Shared<Emitter_View>& emitte
 
     Emitter_View::AuthoringSnapshot afterSnapshot = emitterView->Capture_AuthoringSnapshot();
     afterSnapshot.selectedEmitterIndex = _pendingAuthoringSnapshot.selectedEmitterIndex;
+    afterSnapshot.selectedTypeData = _pendingAuthoringSnapshot.selectedTypeData;
     afterSnapshot.selectedModuleIndex = _pendingAuthoringSnapshot.selectedModuleIndex;
     emitterView->Execute_AuthoringSnapshotCommand(
         _pendingAuthoringSnapshot,

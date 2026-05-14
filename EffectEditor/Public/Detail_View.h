@@ -21,6 +21,7 @@ private: //## Helper::EffectAuthoring
     void Render_EffectAuthoringDetail();
     void Render_ParticleSystemDetail(const Shared<Emitter_View>& emitterView, const EffectAuthoringSelection& selection, ParticleSystemAuthoringData& data);
     void Render_EmitterDetail(const Shared<Emitter_View>& emitterView, const EffectAuthoringSelection& selection, AuthoringEmitter& emitter);
+    void Render_TypeDataDetail(const Shared<Emitter_View>& emitterView, const EffectAuthoringSelection& selection, AuthoringEmitter& emitter);
     void Render_ModuleDetail(const Shared<Emitter_View>& emitterView, const EffectAuthoringSelection& selection, AuthoringEmitter& emitter, AuthoringModule& module);
 
     void Mark_Changed(AuthoringEmitter& emitter, bool changed);

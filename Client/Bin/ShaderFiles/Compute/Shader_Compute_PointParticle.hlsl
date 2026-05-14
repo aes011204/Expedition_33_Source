@@ -19,6 +19,11 @@ cbuffer ComputePointParticleParams : register(b0)
     uint g_DrawMode;
     float g_Padding;
     float4 g_Center;
+    float4 g_ScaleLifeTime; // x/y: scale range, z/w: lifetime range
+    float4 g_StartColorMin;
+    float4 g_StartColorMax;
+    float4 g_EndColorMin;
+    float4 g_EndColorMax;
 };
 
 RWStructuredBuffer<ParticleInstanceVertex> OutputData : register(u0);
@@ -60,7 +65,10 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
 
     const float ratio = ((float)index + 0.5f) / max(g_InstanceCount, 1.0f);
     const float angle = ratio * 6.2831853f + g_ElapsedTime;
-    const float scale = 0.18f + frac(ratio * 7.0f) * 0.12f;
+    const float scaleRatio = frac(ratio * 7.0f);
+    const float colorRatio = frac(ratio * 11.0f);
+    const float scale = lerp(g_ScaleLifeTime.x, g_ScaleLifeTime.y, scaleRatio);
+    const float lifeMax = lerp(g_ScaleLifeTime.z, g_ScaleLifeTime.w, frac(ratio * 5.0f));
     const float radius = 1.2f + frac(ratio * 5.0f) * 1.0f;
 
     ParticleInstanceVertex instance;
@@ -68,9 +76,9 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
     instance.up = float4(0.0f, scale, 0.0f, 0.0f);
     instance.look = float4(0.0f, 0.0f, scale, 0.0f);
     instance.translation = float4(g_Center.x + cos(angle) * radius, g_Center.y + sin(angle * 1.7f) * 0.5f, g_Center.z + sin(angle) * radius, 1.0f);
-    instance.lifeTime = float2(2.0f, frac(g_ElapsedTime + ratio));
-    instance.startColor = float4(1.0f, 1.0f, 1.0f, 1.0f);
-    instance.endColor = float4(1.0f, 1.0f, 1.0f, 1.0f);
+    instance.lifeTime = float2(max(lifeMax, 0.0001f), frac(g_ElapsedTime + ratio) * max(lifeMax, 0.0001f));
+    instance.startColor = lerp(g_StartColorMin, g_StartColorMax, colorRatio);
+    instance.endColor = lerp(g_EndColorMin, g_EndColorMax, colorRatio);
 
     OutputData[index] = instance;
 }

@@ -380,15 +380,24 @@ bool EffectMaterialPreviewRenderer::Create_Mesh(
 HRESULT EffectMaterialPreviewRenderer::Render_PreviewMesh(const EffectMaterialInstanceData& material) const
 {
     const float aspect = static_cast<float>(_previewTextureWidth) / static_cast<float>(max(1u, _previewTextureHeight));
+    constexpr float nearPlane = 0.1f;
+    constexpr float farPlane = 100.f;
     const EffectPreviewOrbitCameraFrame cameraFrame = Helper_EffectCamera::Build_Frame(
         _cameraState,
         aspect,
         XMConvertToRadians(35.f),
-        0.1f,
-        100.f
+        nearPlane,
+        farPlane
     );
     const Matrix worldMatrix = XMMatrixIdentity();
-    const Vec4 spriteParams = Vec4(
+    CameraCB cameraCB{};
+    cameraCB.viewMatrix = cameraFrame.view;
+    cameraCB.projMatrix = cameraFrame.proj;
+    cameraCB.viewInverseMatrix = XMMatrixInverse(nullptr, cameraFrame.view);
+    cameraCB.projInverseMatrix = XMMatrixInverse(nullptr, cameraFrame.proj);
+    cameraCB.cameraPosition = Vec4(cameraFrame.eye.x, cameraFrame.eye.y, cameraFrame.eye.z, 1.f);
+    cameraCB.farPlane = farPlane;
+    const Vec4 effectMaterialPreviewParams = Vec4(
         material.intensity,
         max(material.opacityPower, 0.0001f),
         material.noiseStrength,
@@ -396,9 +405,8 @@ HRESULT EffectMaterialPreviewRenderer::Render_PreviewMesh(const EffectMaterialIn
     );
     const int opacitySource = Internal::Resolve_OpacitySourceIndex(material.opacitySource);
 
-    CHECK_FAILED(_shader->Bind_Matrix("g_WorldMatrix", &worldMatrix), E_FAIL);
-    CHECK_FAILED(_shader->Bind_Matrix("g_ViewMatrix", &cameraFrame.view), E_FAIL);
-    CHECK_FAILED(_shader->Bind_Matrix("g_ProjMatrix", &cameraFrame.proj), E_FAIL);
+    CHECK_FAILED(_shader->Bind_ObjectCB(worldMatrix), E_FAIL);
+    CHECK_FAILED(_shader->Bind_CBufferData(cameraCB), E_FAIL);
     CHECK_FAILED(_texture->Bind_ShaderResourceView(_shader.get(), "g_Texture", 0), E_FAIL);
 
     if (_noiseTexture != nullptr)
@@ -410,10 +418,10 @@ HRESULT EffectMaterialPreviewRenderer::Render_PreviewMesh(const EffectMaterialIn
         CHECK_FAILED(_shader->Bind_SRV("g_NoiseTexture", nullptr), E_FAIL);
     }
 
-    CHECK_FAILED(_shader->Bind_RawValue("g_vTint", &material.tint, sizeof(material.tint)), E_FAIL);
-    CHECK_FAILED(_shader->Bind_RawValue("g_vEffectMaterialPreviewParams", &spriteParams, sizeof(spriteParams)), E_FAIL);
-    CHECK_FAILED(_shader->Bind_RawValue("g_iOpacitySource", &opacitySource, sizeof(opacitySource)), E_FAIL);
-    CHECK_FAILED(_shader->Begin(Resolve_BlendPassIndex(material.blendMode)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_Tint", &material.tint, sizeof(material.tint)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectMaterialPreviewParams", &effectMaterialPreviewParams, sizeof(effectMaterialPreviewParams)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_OpacitySource", &opacitySource, sizeof(opacitySource)), E_FAIL);
+    CHECK_FAILED(_shader->Begin(Resolve_BlendPassIndex(material.blendMode, _meshMode)), E_FAIL);
 
     const PreviewMeshResource& mesh =
         _meshMode == EffectMaterialPreviewMeshMode::Sphere ? _sphereMesh : _planeMesh;
@@ -640,12 +648,16 @@ void EffectMaterialPreviewRenderer::Draw_MeshModeControls()
     ImGui::PopID();
 }
 
-uint32 EffectMaterialPreviewRenderer::Resolve_BlendPassIndex(const string& blendMode) const
+uint32 EffectMaterialPreviewRenderer::Resolve_BlendPassIndex(
+    const string& blendMode,
+    EffectMaterialPreviewMeshMode meshMode) const
 {
-    if (blendMode == "Additive" || blendMode == "additive")
-        return 1;
+    const bool isAdditive = blendMode == "Additive" || blendMode == "additive";
 
-    return 0;
+    if (meshMode == EffectMaterialPreviewMeshMode::Sphere)
+        return isAdditive ? 3 : 2;
+
+    return isAdditive ? 1 : 0;
 }
 
 NS_END

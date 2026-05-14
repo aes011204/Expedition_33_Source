@@ -47,8 +47,6 @@ Content_Browser::Content_Browser()
         _resourceRoot = fs::path(assetRoot);
 
     Load_Icons();
-    Refresh_Resources();
-    Load_Settings();
 }
 
 Content_Browser::~Content_Browser()
@@ -84,8 +82,12 @@ void Content_Browser::Render()
                 _resourceRoot = fs::path(assetRoot);
         }
 
-        if (_rootFolder.fullPath.empty() && !_resourceRoot.empty() && fs::exists(_resourceRoot))
+        if (_needsInitialRefresh && _rootFolder.fullPath.empty() && !_resourceRoot.empty() && fs::exists(_resourceRoot))
+        {
             Refresh_Resources();
+            Load_Settings();
+            _needsInitialRefresh = false;
+        }
 
         Handle_SideButtonEvent();
         Handle_ThumbnailZoom();

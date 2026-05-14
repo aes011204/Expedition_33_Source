@@ -314,10 +314,10 @@
     </ClInclude>
     <ClInclude Include="..\Public\GameDataTable.h" />
     <ClInclude Include="..\Public\SkillTreeCom.h" />
-    <ClInclude Include="..\Public\PointParticlePreview.h">
+    <ClInclude Include="..\Public\PointParticleEffect.h">
       <Filter>02.GameObject\Effect\PointParticle</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\ComputePointParticlePreview.h">
+    <ClInclude Include="..\Public\ComputePointParticleEffect.h">
       <Filter>02.GameObject\Effect\ComputePointParticle</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\InstancedMeshActor.h">
@@ -500,10 +500,10 @@
     </ClCompile>
     <ClCompile Include="..\Private\GameDataTable.cpp" />
     <ClCompile Include="..\Private\SkillTreeCom.cpp" />
-    <ClCompile Include="..\Private\PointParticlePreview.cpp">
+    <ClCompile Include="..\Private\PointParticleEffect.cpp">
       <Filter>02.GameObject\Effect\PointParticle</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\ComputePointParticlePreview.cpp">
+    <ClCompile Include="..\Private\ComputePointParticleEffect.cpp">
       <Filter>02.GameObject\Effect\ComputePointParticle</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\InstancedMeshActor.cpp">

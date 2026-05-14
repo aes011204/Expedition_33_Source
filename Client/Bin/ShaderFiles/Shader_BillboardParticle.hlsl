@@ -7,7 +7,7 @@ cbuffer cbCamera : register(b1)
 {
     float4x4 g_ViewMatrix;
     float4x4 g_ProjMatrix;
-    float4 g_vBillboardTarget;
+    float4 g_BillboardTarget;
 };
 
 Texture2D g_Texture : register(t0);
@@ -66,7 +66,7 @@ struct GS_OUT
 void GS_MAIN(point GS_IN In[1], inout TriangleStream<GS_OUT> OutStream)
 {
     const float3 vParticlePosition = In[0].vWorldPosition.xyz;
-    float3 vLook = g_vBillboardTarget.xyz - vParticlePosition;
+    float3 vLook = g_BillboardTarget.xyz - vParticlePosition;
 
     if (length(vLook) < 0.0001f)
         vLook = float3(0.f, 0.f, 1.f);

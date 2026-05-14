@@ -11,6 +11,11 @@ struct ComputePointParticleParams
     uint32 drawMode{};
     float padding{};
     Vec4 center{};
+    Vec4 scaleLifeTime{}; // x/y: scale range, z/w: lifetime range.
+    Vec4 startColorMin{};
+    Vec4 startColorMax{};
+    Vec4 endColorMin{};
+    Vec4 endColorMax{};
 };
 
 VIBufferCom_ComputePointParticle::VIBufferCom_ComputePointParticle(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -269,7 +274,12 @@ HRESULT VIBufferCom_ComputePointParticle::Update_ConstantBuffer()
         .elapsedTime = _elapsedTime,
         .instanceCount = static_cast<float>(_instanceCount),
         .drawMode = ETOI(_desc.drawMode),
-        .center = Vec4{ _desc.center.x, _desc.center.y, _desc.center.z, 1.f }
+        .center = Vec4{ _desc.center.x, _desc.center.y, _desc.center.z, 1.f },
+        .scaleLifeTime = Vec4{ _desc.scale.x, _desc.scale.y, _desc.lifeTime.x, _desc.lifeTime.y },
+        .startColorMin = _desc.startColorMin,
+        .startColorMax = _desc.startColorMax,
+        .endColorMin = _desc.endColorMin,
+        .endColorMax = _desc.endColorMax
     };
 
     _context->UpdateSubresource(_computeConstantBuffer.Get(), 0, nullptr, &params, 0, 0);

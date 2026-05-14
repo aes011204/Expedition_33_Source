@@ -1,10 +1,11 @@
 ﻿#include "Level_EffectEditor.h"
 
+#include "ComputePointParticleEffect.h"
 #include "EffectEditorCamera.h"
 #include "EffectEditorInstance.h"
 #include "Emitter_View.h"
 #include "GameInstance.h"
-#include "PointParticlePreview.h"
+#include "PointParticleEffect.h"
 
 NS_BEGIN(EffectEditor)
 
@@ -101,102 +102,6 @@ namespace Internal
 
         return Clamp_PreviewColor(fallbackValue);
     }
-
-    PointParticlePreview::PointParticlePreviewDesc Build_PointParticlePreviewDesc(const AuthoringEmitter& emitter)
-    {
-        PointParticlePreview::PointParticlePreviewDesc desc{};
-        desc.drawMode = PointParticleDrawMode::Direct;
-
-        if (const auto* required = Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
-        {
-            const EffectMaterialInstanceData& material = required->material;
-
-            if (!material.mainTextureId.empty())
-                desc.textureId = material.mainTextureId;
-
-            if (!material.blendMode.empty())
-                desc.blendMode = material.blendMode;
-
-            if (!material.opacitySource.empty())
-                desc.opacitySource = material.opacitySource;
-
-            desc.tint = material.tint; //RGBA
-            desc.intensity = material.intensity;
-            desc.opacityPower = material.opacityPower;
-
-            if (!material.noiseTextureId.empty())
-                desc.noiseTextureId = material.noiseTextureId;
-
-            desc.noiseStrength = material.noiseStrength;
-            desc.subUvRows = max(1u, material.subUvRows);
-            desc.subUvCols = max(1u, material.subUvCols);
-            desc.center = required->emitterOrigin;
-            desc.loop = required->loopCount == 0;
-        }
-
-        if (const auto* spawn = Find_ModuleData<SpawnModuleData>(emitter, AuthoringModuleType::Spawn))
-            desc.instanceCount = max(1u, spawn->maxParticleCount);
-
-        if (const auto* initialSize = Find_ModuleData<InitialSizeModuleData>(emitter, AuthoringModuleType::InitialSize))
-        {
-            const Vec2 minScale = Evaluate_Vector2DistributionMin(initialSize->size, desc.scale);
-            const Vec2 maxScale = Evaluate_Vector2DistributionMax(initialSize->size, desc.scale);
-            desc.scale = Vec2{ min(minScale.x, maxScale.x), max(minScale.y, maxScale.y) };
-        }
-
-        if (const auto* initialVelocity = Find_ModuleData<InitialVelocityModuleData>(emitter, AuthoringModuleType::InitialVelocity))
-        {
-            desc.pivot = initialVelocity->radialPivot;
-            desc.speed = Vec2{
-                Evaluate_FloatDistributionMin(initialVelocity->speed, desc.speed.x),
-                Evaluate_FloatDistributionMax(initialVelocity->speed, desc.speed.y)
-            };
-        }
-        else
-            desc.pivot = desc.center;
-
-        if (const auto* lifetime = Find_ModuleData<LifetimeModuleData>(emitter, AuthoringModuleType::Lifetime))
-        {
-            desc.lifeTime = Vec2{
-                Evaluate_FloatDistributionMin(lifetime->lifeTime, desc.lifeTime.x),
-                Evaluate_FloatDistributionMax(lifetime->lifeTime, desc.lifeTime.y)
-            };
-        }
-
-        if (const auto* initialColor = Find_ModuleData<InitialColorModuleData>(emitter, AuthoringModuleType::InitialColor))
-        {
-            const Color minColor = Evaluate_ColorDistributionMin(
-                initialColor->color,
-                Color{ desc.startColorMin.x, desc.startColorMin.y, desc.startColorMin.z, desc.startColorMin.w }
-            );
-            const Color maxColor = Evaluate_ColorDistributionMax(
-                initialColor->color,
-                Color{ desc.startColorMax.x, desc.startColorMax.y, desc.startColorMax.z, desc.startColorMax.w }
-            );
-
-            desc.startColorMin = Vec4{ minColor.R(), minColor.G(), minColor.B(), minColor.A() };
-            desc.startColorMax = Vec4{ maxColor.R(), maxColor.G(), maxColor.B(), maxColor.A() };
-            desc.endColorMin = desc.startColorMin;
-            desc.endColorMax = desc.startColorMax;
-        }
-
-        if (const auto* colorOverLife = Find_ModuleData<ColorOverLifeModuleData>(emitter, AuthoringModuleType::ColorOverLife))
-        {
-            const Color minEndColor = Evaluate_ColorDistributionMin(
-                colorOverLife->colorOverLife,
-                Color{ desc.endColorMin.x, desc.endColorMin.y, desc.endColorMin.z, desc.endColorMin.w }
-            );
-            const Color maxEndColor = Evaluate_ColorDistributionMax(
-                colorOverLife->colorOverLife,
-                Color{ desc.endColorMax.x, desc.endColorMax.y, desc.endColorMax.z, desc.endColorMax.w }
-            );
-
-            desc.endColorMin = Vec4{ minEndColor.R(), minEndColor.G(), minEndColor.B(), minEndColor.A() };
-            desc.endColorMax = Vec4{ maxEndColor.R(), maxEndColor.G(), maxEndColor.B(), maxEndColor.A() };
-        }
-
-        return desc;
-    }
 }
 
 Level_EffectEditor::Level_EffectEditor(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -250,16 +155,41 @@ HRESULT Level_EffectEditor::Restart_PreviewFromAuthoring()
         if (!emitter.enabled)
             continue;
 
-        PointParticlePreview::PointParticlePreviewDesc previewDesc = Internal::Build_PointParticlePreviewDesc(emitter);
+        const bool useComputeEffect = emitter.typeData == AuthoringEmitterTypeData::GpuSprite;
+        PointParticleEffect::PointParticleEffectDesc pointEffectDesc{};
+        ComputePointParticleEffect::ComputePointParticleEffectDesc computeEffectDesc{};
+        void* previewDesc = nullptr;
+        const wchar_t* previewPrototypeTag = nullptr;
+
+        if (useComputeEffect)
+        {
+            computeEffectDesc = Build_ComputePointParticleEffectDesc(emitter);
+            previewDesc = &computeEffectDesc;
+            previewPrototypeTag = L"GameObject_Effect_ComputePointParticleEffect";
+        }
+        else
+        {
+            pointEffectDesc = Build_PointParticleEffectDesc(emitter);
+            previewDesc = &pointEffectDesc;
+            previewPrototypeTag = L"GameObject_Effect_PointParticleEffect";
+        }
+
+        LOG_INFO(
+            "EffectEditor preview restart: emitter='{}', typeData={}, previewPrototype='{}'",
+            emitter.name,
+            magic_enum::enum_name(emitter.typeData),
+            String::ToString(previewPrototypeTag)
+        );
+
         Shared<GameObject> previewObject{};
         if (FAILED(
             GAME->Add_GameObject(
                 ETOI(LevelType::GamePlay),
-                L"GameObject_PointParticlePreview",
+                previewPrototypeTag,
                 ETOI(LevelType::GamePlay),
                 kPreviewLayerTag,
                 previewObject,
-                &previewDesc
+                previewDesc
             )
         ))
         {
@@ -279,6 +209,186 @@ HRESULT Level_EffectEditor::Restart_PreviewFromAuthoring()
         emitterView->Clear_PreviewDirty(emitterId);
 
     return S_OK;
+}
+
+PointParticleEffect::PointParticleEffectDesc Level_EffectEditor::Build_PointParticleEffectDesc(const AuthoringEmitter& emitter) const
+{
+    PointParticleEffect::PointParticleEffectDesc desc{};
+    desc.drawMode = PointParticleDrawMode::Direct;
+
+    if (const auto* required = Internal::Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
+    {
+        const EffectMaterialInstanceData& material = required->material;
+
+        if (!material.mainTextureId.empty())
+            desc.textureId = material.mainTextureId;
+
+        if (!material.blendMode.empty())
+            desc.blendMode = material.blendMode;
+
+        if (!material.opacitySource.empty())
+            desc.opacitySource = material.opacitySource;
+
+        desc.tint = material.tint; //RGBA
+        desc.intensity = material.intensity;
+        desc.opacityPower = material.opacityPower;
+
+        if (!material.noiseTextureId.empty())
+            desc.noiseTextureId = material.noiseTextureId;
+
+        desc.noiseStrength = material.noiseStrength;
+        desc.subUvRows = max(1u, material.subUvRows);
+        desc.subUvCols = max(1u, material.subUvCols);
+        desc.center = required->emitterOrigin;
+        desc.loop = required->loopCount == 0;
+    }
+
+    if (const auto* spawn = Internal::Find_ModuleData<SpawnModuleData>(emitter, AuthoringModuleType::Spawn))
+        desc.instanceCount = max(1u, spawn->maxParticleCount);
+
+    if (const auto* initialSize = Internal::Find_ModuleData<InitialSizeModuleData>(emitter, AuthoringModuleType::InitialSize))
+    {
+        const Vec2 minScale = Internal::Evaluate_Vector2DistributionMin(initialSize->size, desc.scale);
+        const Vec2 maxScale = Internal::Evaluate_Vector2DistributionMax(initialSize->size, desc.scale);
+        desc.scale = Vec2{ min(minScale.x, maxScale.x), max(minScale.y, maxScale.y) };
+    }
+
+    if (const auto* initialVelocity = Internal::Find_ModuleData<InitialVelocityModuleData>(emitter, AuthoringModuleType::InitialVelocity))
+    {
+        desc.pivot = initialVelocity->radialPivot;
+        desc.speed = Vec2{
+            Internal::Evaluate_FloatDistributionMin(initialVelocity->speed, desc.speed.x),
+            Internal::Evaluate_FloatDistributionMax(initialVelocity->speed, desc.speed.y)
+        };
+    }
+    else
+        desc.pivot = desc.center;
+
+    if (const auto* lifetime = Internal::Find_ModuleData<LifetimeModuleData>(emitter, AuthoringModuleType::Lifetime))
+    {
+        desc.lifeTime = Vec2{
+            Internal::Evaluate_FloatDistributionMin(lifetime->lifeTime, desc.lifeTime.x),
+            Internal::Evaluate_FloatDistributionMax(lifetime->lifeTime, desc.lifeTime.y)
+        };
+    }
+
+    if (const auto* initialColor = Internal::Find_ModuleData<InitialColorModuleData>(emitter, AuthoringModuleType::InitialColor))
+    {
+        const Color minColor = Internal::Evaluate_ColorDistributionMin(
+            initialColor->color,
+            Color{ desc.startColorMin.x, desc.startColorMin.y, desc.startColorMin.z, desc.startColorMin.w }
+        );
+        const Color maxColor = Internal::Evaluate_ColorDistributionMax(
+            initialColor->color,
+            Color{ desc.startColorMax.x, desc.startColorMax.y, desc.startColorMax.z, desc.startColorMax.w }
+        );
+
+        desc.startColorMin = Vec4{ minColor.R(), minColor.G(), minColor.B(), minColor.A() };
+        desc.startColorMax = Vec4{ maxColor.R(), maxColor.G(), maxColor.B(), maxColor.A() };
+        desc.endColorMin = desc.startColorMin;
+        desc.endColorMax = desc.startColorMax;
+    }
+
+    if (const auto* colorOverLife = Internal::Find_ModuleData<ColorOverLifeModuleData>(emitter, AuthoringModuleType::ColorOverLife))
+    {
+        const Color minEndColor = Internal::Evaluate_ColorDistributionMin(
+            colorOverLife->colorOverLife,
+            Color{ desc.endColorMin.x, desc.endColorMin.y, desc.endColorMin.z, desc.endColorMin.w }
+        );
+        const Color maxEndColor = Internal::Evaluate_ColorDistributionMax(
+            colorOverLife->colorOverLife,
+            Color{ desc.endColorMax.x, desc.endColorMax.y, desc.endColorMax.z, desc.endColorMax.w }
+        );
+
+        desc.endColorMin = Vec4{ minEndColor.R(), minEndColor.G(), minEndColor.B(), minEndColor.A() };
+        desc.endColorMax = Vec4{ maxEndColor.R(), maxEndColor.G(), maxEndColor.B(), maxEndColor.A() };
+    }
+
+    return desc;
+}
+
+ComputePointParticleEffect::ComputePointParticleEffectDesc Level_EffectEditor::Build_ComputePointParticleEffectDesc(const AuthoringEmitter& emitter) const
+{
+    ComputePointParticleEffect::ComputePointParticleEffectDesc desc{};
+    desc.drawMode = emitter.gpuSpriteTypeData.previewDrawMode;
+
+    if (const auto* required = Internal::Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
+    {
+        const EffectMaterialInstanceData& material = required->material;
+
+        if (!material.mainTextureId.empty())
+            desc.textureId = material.mainTextureId;
+
+        if (!material.blendMode.empty())
+            desc.blendMode = material.blendMode;
+
+        if (!material.opacitySource.empty())
+            desc.opacitySource = material.opacitySource;
+
+        desc.tint = material.tint;
+        desc.intensity = material.intensity;
+        desc.opacityPower = material.opacityPower;
+
+        if (!material.noiseTextureId.empty())
+            desc.noiseTextureId = material.noiseTextureId;
+
+        desc.noiseStrength = material.noiseStrength;
+        desc.subUvRows = max(1u, material.subUvRows);
+        desc.subUvCols = max(1u, material.subUvCols);
+        desc.center = required->emitterOrigin;
+    }
+
+    if (const auto* spawn = Internal::Find_ModuleData<SpawnModuleData>(emitter, AuthoringModuleType::Spawn))
+        desc.instanceCount = max(1u, spawn->maxParticleCount);
+
+    if (const auto* initialSize = Internal::Find_ModuleData<InitialSizeModuleData>(emitter, AuthoringModuleType::InitialSize))
+    {
+        const Vec2 minScale = Internal::Evaluate_Vector2DistributionMin(initialSize->size, desc.scale);
+        const Vec2 maxScale = Internal::Evaluate_Vector2DistributionMax(initialSize->size, desc.scale);
+        desc.scale = Vec2{ min(minScale.x, maxScale.x), max(minScale.y, maxScale.y) };
+    }
+
+    if (const auto* lifetime = Internal::Find_ModuleData<LifetimeModuleData>(emitter, AuthoringModuleType::Lifetime))
+    {
+        desc.lifeTime = Vec2{
+            Internal::Evaluate_FloatDistributionMin(lifetime->lifeTime, desc.lifeTime.x),
+            Internal::Evaluate_FloatDistributionMax(lifetime->lifeTime, desc.lifeTime.y)
+        };
+    }
+
+    if (const auto* initialColor = Internal::Find_ModuleData<InitialColorModuleData>(emitter, AuthoringModuleType::InitialColor))
+    {
+        const Color minColor = Internal::Evaluate_ColorDistributionMin(
+            initialColor->color,
+            Color{ desc.startColorMin.x, desc.startColorMin.y, desc.startColorMin.z, desc.startColorMin.w }
+        );
+        const Color maxColor = Internal::Evaluate_ColorDistributionMax(
+            initialColor->color,
+            Color{ desc.startColorMax.x, desc.startColorMax.y, desc.startColorMax.z, desc.startColorMax.w }
+        );
+
+        desc.startColorMin = Vec4{ minColor.R(), minColor.G(), minColor.B(), minColor.A() };
+        desc.startColorMax = Vec4{ maxColor.R(), maxColor.G(), maxColor.B(), maxColor.A() };
+        desc.endColorMin = desc.startColorMin;
+        desc.endColorMax = desc.startColorMax;
+    }
+
+    if (const auto* colorOverLife = Internal::Find_ModuleData<ColorOverLifeModuleData>(emitter, AuthoringModuleType::ColorOverLife))
+    {
+        const Color minEndColor = Internal::Evaluate_ColorDistributionMin(
+            colorOverLife->colorOverLife,
+            Color{ desc.endColorMin.x, desc.endColorMin.y, desc.endColorMin.z, desc.endColorMin.w }
+        );
+        const Color maxEndColor = Internal::Evaluate_ColorDistributionMax(
+            colorOverLife->colorOverLife,
+            Color{ desc.endColorMax.x, desc.endColorMax.y, desc.endColorMax.z, desc.endColorMax.w }
+        );
+
+        desc.endColorMin = Vec4{ minEndColor.R(), minEndColor.G(), minEndColor.B(), minEndColor.A() };
+        desc.endColorMax = Vec4{ maxEndColor.R(), maxEndColor.G(), maxEndColor.B(), maxEndColor.A() };
+    }
+
+    return desc;
 }
 
 HRESULT Level_EffectEditor::Ready_Lights()

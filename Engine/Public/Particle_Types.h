@@ -69,7 +69,11 @@ struct PointParticleDesc : public InstanceSpawnDesc
 struct ComputePointParticleDesc : public InstanceSpawnDesc
 {
     Vec2 lifeTime{};                                                 // compute shader가 누적 시간을 계산할 때 사용할 생존 시간 범위.
-    Vec2 radius{};                                                   // 화면 확인용 원형 이동 반경 범위.
+    Vec4 startColorMin{ 1.f, 1.f, 1.f, 1.f };                        // GPU Sprite preview 시작 색상/알파 하한.
+    Vec4 startColorMax{ 1.f, 1.f, 1.f, 1.f };                        // GPU Sprite preview 시작 색상/알파 상한.
+    Vec4 endColorMin{ 1.f, 1.f, 1.f, 1.f };                          // GPU Sprite preview 종료 색상/알파 하한.
+    Vec4 endColorMax{ 1.f, 1.f, 1.f, 1.f };                          // GPU Sprite preview 종료 색상/알파 상한.
+    Vec2 radius{};                                                   // 화면 확인용 원형 이동 반경 범위. authoring 의미로 승격하지 않는다.
     PointParticleDrawMode drawMode{ PointParticleDrawMode::Direct }; // compute particle 검증 경로의 draw 제출 방식.
     uint32 computeShaderLevelIndex{};                                // compute shader prototype이 등록된 level index. Engine은 Client의 LevelType을 알지 않는다.
     wstring computeShaderPrototypeTag{};                             // instance payload를 갱신할 compute shader component prototype tag.

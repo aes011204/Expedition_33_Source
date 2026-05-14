@@ -68,6 +68,7 @@ private: //## Data
     vector<wstring> _folderHistory{};
     int _folderHistoryIndex{ -1 };
     bool _suppressHistoryRecord{ false };
+    bool _needsInitialRefresh{ true };
 
     wstring _selectedFilePath{};
 

@@ -13,6 +13,7 @@ public:
         ParticleSystemAuthoringData particleSystemData{};
         vector<AuthoringEmitter> emitters{};
         optional<size_t> selectedEmitterIndex{};
+        bool selectedTypeData{ false };
         optional<size_t> selectedModuleIndex{};
         uint32 nextAuthoringId{ 1 };
     };
@@ -64,10 +65,18 @@ private:
     inline static const Color kEmitterAccentColor{ 1.0f, 0.55f, 0.20f, 1.0f };
     inline static const Color kEmitterColumnBackgroundColor{ 0.06f, 0.065f, 0.08f, 1.0f };
     inline static const Color kEmitterDividerColor{ 0.015f, 0.018f, 0.025f, 1.0f };
+    inline static const Color kEmitterHeaderColor{ 0.36f, 0.36f, 0.36f, 1.0f };
+    inline static const Color kEmitterSelectedTextColor{ 0.05f, 0.05f, 0.05f, 1.0f };
+    inline static const Color kEmitterCategoryTextColor{ 0.08f, 0.08f, 0.08f, 1.0f };
+    inline static const Color kEmitterTypeDataRowColor{ 0.06f, 0.065f, 0.08f, 1.0f };
+    inline static const Color kEmitterRequiredRowColor{ 0.9f, 0.35f, 0.35f, 1.0f };
+    inline static const Color kEmitterSpawnRowColor{ 0.75f, 0.75f, 0.3f, 1.0f };
+    inline static const Color kEmitterCommonModuleRowColor{ 0.18f, 0.19f, 0.24f, 1.0f };
+    inline static const Color kEmitterModuleDisabledRowColor{ 0.16f, 0.16f, 0.17f, 1.0f };
 
     static constexpr float kEmitterColumnWidth{ 270.f };
     static constexpr float kEmitterHeaderHeight{ 90.f };
-    static constexpr float kEmitterTypeDataReserveHeight{ 18.f };
+    static constexpr float kEmitterTypeDataReserveHeight{ 28.f };
     static constexpr float kEmitterDividerWidth{ 1.f };
 
 private: //## Data
@@ -76,6 +85,8 @@ private: //## Data
     vector<AuthoringEmitter> _emitters{};
     // 현재 선택된 emitter index다. 값이 없으면 emitter 선택이 해제된 상태다.
     optional<size_t> _selectedEmitterIndex{};
+    // 현재 선택 대상이 emitter-level TypeData row인지 나타낸다.
+    bool _selectedTypeData{ false };
     // 현재 선택된 emitter 내부의 module index다. 값이 없으면 emitter header만 선택된 상태다.
     optional<size_t> _selectedModuleIndex{};
     // 저장용 id가 아니라 editor 세션 안에서 emitter/module을 구분하기 위한 임시 id 발급값이다.
@@ -101,9 +112,13 @@ private: //## Helpers
     AuthoringModule Make_ColorOverLifeModule();
     void Clear_Selection();
     void Select_Emitter(size_t emitterIndex);
+    void Select_TypeData(size_t emitterIndex);
     void Insert_NewEmitter(size_t insertIndex);
     void Duplicate_Emitter(size_t emitterIndex);
     void Delete_Emitter(size_t emitterIndex);
+    void Set_GpuSpriteTypeData(size_t emitterIndex);
+    void Reset_TypeData(size_t emitterIndex);
+    void Delete_TypeData(size_t emitterIndex);
     void Queue_EmitterAction(PendingEmitterAction action, size_t emitterIndex);
     void Process_PendingEmitterAction();
     void Select_Module(size_t emitterIndex, size_t moduleIndex);
@@ -122,10 +137,12 @@ private: //## Helpers
     // hover tooltip은 설명 dump가 아니라 경고성 사유만 노출하는 채널로 유지한다.
     string Build_ModuleWarningTooltip(const AuthoringEmitter& emitter, const AuthoringModule& module) const;
     void Draw_EmitterContextMenu(size_t emitterIndex);
+    void Draw_TypeDataContextMenu(size_t emitterIndex);
     void Draw_ModuleContextMenu(size_t emitterIndex, size_t moduleIndex, const AuthoringModule& module);
 
     void Draw_EmitterBoard();
     void Draw_EmitterColumn(size_t emitterIndex, AuthoringEmitter& emitter, float columnHeight);
+    void Draw_TypeDataRow(size_t emitterIndex, AuthoringEmitter& emitter);
     void Draw_ModuleRow(size_t emitterIndex, size_t moduleIndex, AuthoringModule& module);
 
 public:

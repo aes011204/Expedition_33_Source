@@ -1,6 +1,9 @@
 ﻿#pragma once
 
+#include "ComputePointParticleEffect.h"
+#include "EffectAuthoring_Types.h"
 #include "Level.h"
+#include "PointParticleEffect.h"
 
 NS_BEGIN(Engine)
 class GameObject;
@@ -30,6 +33,10 @@ private:
     vector<Shared<GameObject>> _previewObjects{};
 
 private:
+    // authoring emitter를 CPU preview runtime desc로 변환한다.
+    PointParticleEffect::PointParticleEffectDesc Build_PointParticleEffectDesc(const AuthoringEmitter& emitter) const;
+    // authoring emitter를 GPU preview runtime desc로 변환한다.
+    ComputePointParticleEffect::ComputePointParticleEffectDesc Build_ComputePointParticleEffectDesc(const AuthoringEmitter& emitter) const;
     // preview에 필요한 최소 directional light만 준비한다.
     HRESULT Ready_Lights();
     // EffectEditor preview용 orbit camera를 만들고 active camera로 지정한다.
