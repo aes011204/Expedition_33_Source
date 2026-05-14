@@ -15,10 +15,12 @@ vector g_vMtrlAmbient = vector(0.3f, 0.3f, 0.3f, 1.f);
 vector g_vMtrlSpecular = vector(1.f, 1.f, 1.f, 1.f);
 vector g_CamPosition;
 
-cbuffer BoneTransforms : register(b1)
+struct BoneMatrixElement
 {
-    matrix g_BoneMatrices[950];
+    row_major float4x4 BoneMatrix;
 };
+
+StructuredBuffer<BoneMatrixElement> g_BoneMatricesBuffer;
 
 struct VS_IN
 {
@@ -45,10 +47,13 @@ VS_OUT VS_MAIN(VS_IN In)
 
     float4x4 matWV, matWVP;
 
-    matrix BoneMatrix = g_BoneMatrices[In.vBlendIndex.x] * In.vBlendWeight.x +
-        g_BoneMatrices[In.vBlendIndex.y] * In.vBlendWeight.y +
-        g_BoneMatrices[In.vBlendIndex.z] * In.vBlendWeight.z +
-        g_BoneMatrices[In.vBlendIndex.w] * In.vBlendWeight.w;
+    float fWeightW = 1.f - (In.vBlendWeight.x + In.vBlendWeight.y + In.vBlendWeight.z);
+
+    float4x4 BoneMatrix =
+        g_BoneMatricesBuffer[In.vBlendIndex.x].BoneMatrix * In.vBlendWeight.x +
+        g_BoneMatricesBuffer[In.vBlendIndex.y].BoneMatrix * In.vBlendWeight.y +
+        g_BoneMatricesBuffer[In.vBlendIndex.z].BoneMatrix * In.vBlendWeight.z +
+        g_BoneMatricesBuffer[In.vBlendIndex.w].BoneMatrix * fWeightW;
 
     vector vPosition = mul(float4(In.vPosition, 1.f), BoneMatrix);
     vector vNormal = mul(float4(In.vNormal, 0.f), BoneMatrix);

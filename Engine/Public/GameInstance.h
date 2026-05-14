@@ -357,6 +357,14 @@ public: // For. PhysX_Manager
         float distance,
         PhysXQueryHit& outHit) const;
 
+    bool Sweep_Sphere(
+        const Vec3& origin,
+        const Vec3& direction,
+        float distance,
+        float radius,
+        Collision_Preset queryPreset,
+        PhysXQueryHit& outHit) const;
+
     bool Probe_Ground(
         ColliderCom* collider,
         const Matrix& worldMatrix,
