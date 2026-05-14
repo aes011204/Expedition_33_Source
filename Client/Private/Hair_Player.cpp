@@ -70,9 +70,9 @@ void Hair_Player::Update(float timeDelta)
         _hairPhysics.Initialize(_modelCom.get(), _hairPhysicsDesc);
         _hairPhysicsReady = _hairPhysics.Is_Built();
     }
-
-    if (_hairPhysicsReady)
-        _hairPhysics.Simulate(_modelCom.get(), timeDelta, _combinedWorldMatrix);
+         
+    // if (_hairPhysicsReady)                       
+        //_hairPhysics.Simulate(_modelCom.get(), timeDelta, _combinedWorldMatrix);
 }
 
 void Hair_Player::Late_Update(float timeDelta)
