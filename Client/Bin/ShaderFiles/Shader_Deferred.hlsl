@@ -238,6 +238,8 @@ technique11 DefaultTechnique
     PASS_RS_DS_BS_VP(Debug,         RS_Default, DSS_Default,    BS_Default, VS_MAIN,    PS_MAIN_DEBUG)          // 0
     PASS_RS_DS_BS_VP(Directional,   RS_Default, DSS_None,       BS_Blend,   VS_MAIN,    PS_MAIN_DIRECTIONAL)    // 1
     PASS_RS_DS_BS_VP(Point,         RS_Default, DSS_None,       BS_Blend,   VS_MAIN,    PS_MAIN_POINT)          // 2
-    PASS_RS_DS_BS_VP(Combined,      RS_Default, DSS_None,       BS_Default, VS_MAIN,    PS_MAIN_COMBINED)       // 3
+    //PASS_RS_DS_BS_VP(Combined,      RS_Default, DSS_None,       BS_Default, VS_MAIN,    PS_MAIN_COMBINED)       // 3
+    // 지금은 그림자 없어서 -> GamePlay에서 y축으로 일정 값 넘어서 내려가면 그림자처리돼서 어두워서 안보임
+    PASS_RS_DS_BS_VP(Combined, RS_Default, DSS_None, BS_Default, VS_MAIN, PS_MAIN_COMBINED_SIMPLE) // 3
     PASS_RS_DS_BS_VP(CombinedSimple, RS_Default, DSS_None, BS_Default, VS_MAIN, PS_MAIN_COMBINED_SIMPLE)        // 4
 }

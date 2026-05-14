@@ -38,10 +38,17 @@ public:
     // UI 창 안에서 프리뷰 플레이어들은 업데이트가 돌아야 애니메이션이 재생됨
     void    Update_StatusPreview(float timeDelta);
 
+    Vec3    Get_MovementVelocity() const;
+
 protected:
 	HRESULT Ready_Components();
 	HRESULT Ready_PartObjects();
     HRESULT Ready_Collider();
+
+    virtual HairChainPhysicsDesc Get_HairChainPhysicsDesc() const
+    {
+        return HairChainPhysicsDesc{};
+    }
 
 protected:
     // 캐릭터별 파츠

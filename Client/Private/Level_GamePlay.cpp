@@ -3,7 +3,6 @@
 #include "ClientInstance.h"
 #include "PointParticlePreview.h"
 #include "Spawn_Prefab.h"
-//#include "MapLoader.h"
 #include "TargetCamera.h"
 #include "MapLoader.h"
 #include "Spawn_Prefab.h"
@@ -192,7 +191,7 @@ HRESULT Level_GamePlay::Ready_Layer_Monster(const wstring& strLayerTag)
     Vec3 startPos = Vec3(225.f, -4020.5f, -1.24f);
 
 
-
+     
     const Shared<GameObject> monster = Client::Spawn_Prefab::Spawn(
         "Monster123123",
         ETOI(LevelType::GamePlay),

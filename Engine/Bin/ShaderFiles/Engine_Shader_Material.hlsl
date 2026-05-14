@@ -150,4 +150,54 @@ HairMaterialSample SampleHairMaterial(float2 uv)
     return Out;
 }
 
+struct EyeMaterialSample
+{
+    float3  baseColor;
+    float   opacity;
+};
+
+EyeMaterialSample SampleEyeMaterial(float2 uv)
+{
+    EyeMaterialSample Out;
+
+    // Eye 텍스처가 8비트짜리여서, rgb 그대로 쓰면 R 채널만 살아서 빨간색이 된다.
+    float irisHeight = 0.5f;
+    if (HasMaterialTexture(MATERIAL_SLOT_IRIS_HEIGHT))
+    {
+        irisHeight = g_MaterialTextures[MATERIAL_SLOT_IRIS_HEIGHT].Sample(LinearWrapSampler, uv).r;
+    }
+
+    float3 irisMask = float3(1.f, 1.f, 1.f);
+    if (HasMaterialTexture(MATERIAL_SLOT_IRIS_MASK))
+    {
+        irisMask = g_MaterialTextures[MATERIAL_SLOT_IRIS_MASK].Sample(LinearWrapSampler, uv).rgb;
+    }
+
+    // 홍채 색
+    float3 irisTint = g_BaseColorTint.rgb;
+    if (irisTint.r > 0.99f && irisTint.g > 0.99f && irisTint.b > 0.99f)
+    {
+        irisTint = float3(0.18f, 0.09f, 0.055f);
+    }
+
+    float fiber = saturate(irisHeight);
+    float irisArea = saturate(irisMask.r);
+
+    float pupilDark = smoothstep(0.02f, 0.22f, fiber);
+
+    float3 irisColor = irisTint * lerp(0.35f, 1.35f, fiber);
+    irisColor *= lerp(0.55f, 1.0f, irisArea);
+    irisColor *= pupilDark;
+
+    float3 scleraColor = float3(0.035f, 0.032f, 0.03f);
+
+    // irisMask.r 기준으로 iris/sclera를 섞는다.
+    Out.baseColor = lerp(scleraColor, irisColor, irisArea);
+
+    Out.opacity = 1.f;
+
+    return Out;
+}
+
+
 #endif

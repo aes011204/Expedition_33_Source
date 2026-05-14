@@ -17,6 +17,7 @@ class Hair_Player final : public PlayableParts
 public:
     typedef struct tagHairPlayerDesc final : public PlayableParts::PLAYABLE_PART_DESC
     {
+        HairChainPhysicsDesc    hairPhysicsDesc{};
     } HAIR_PLAYER_DESC;
 
 public:

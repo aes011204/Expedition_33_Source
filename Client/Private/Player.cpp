@@ -48,18 +48,6 @@ HRESULT Player::Initialize(void* arg)
 
     if (FAILED(Ready_PartObjects()))
         return E_FAIL;
-    
-    auto script = Create_Class::SkillScript<Base_Gustave_Attack>().Create();
-    //auto script = Create_Class::SkillScript("Base_Gustave_Attack").Create(); -> Skill Script
-
-    if (script == nullptr)
-    {
-        LOG_ERROR("Base_Gustave_Attack Create Failed");
-    }
-    else
-    {
-        LOG_ERROR("Base_Gustave_Attack Create Success");
-    }
 
     return S_OK;
 }
@@ -120,6 +108,14 @@ void Player::Update_StatusPreview(float timeDelta)
 
     ContainerObject::Update(timeDelta);
     ContainerObject::Late_Update(timeDelta);
+}
+
+Vec3 Player::Get_MovementVelocity() const
+{
+    if (_movementCom == nullptr)
+        return Vec3::Zero;
+
+    return _movementCom->Get_Velocity();
 }
 
 HRESULT Player::Ready_Components()
@@ -194,6 +190,7 @@ HRESULT Player::Ready_PartObjects()
     hairPartDesc.parentMatrix = playableDesc.parentMatrix;
     hairPartDesc.modelType = ModelType::Anim;
     hairPartDesc.modelTag = Get_HairModelTag();
+    hairPartDesc.hairPhysicsDesc = Get_HairChainPhysicsDesc();
     hairPartDesc.socketMatrixPointer = head->Get_SocketBoneMatrixPtr("head");
 
     if (FAILED(
