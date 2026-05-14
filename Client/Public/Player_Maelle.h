@@ -15,6 +15,8 @@ public:
 	virtual ~Player_Maelle() override = default;
 
 protected:
+    HairChainPhysicsDesc Get_HairChainPhysicsDesc() const override;
+
     const wchar_t* Get_BodyModelTag() const override { return L"Model_MaelleBody"; }
     const wchar_t* Get_HeadModelTag() const override { return L"Model_MaelleHead"; }
     const wchar_t* Get_HairModelTag() const override { return L"Model_MaelleHair"; }

@@ -27,6 +27,32 @@ Player_Lune::Player_Lune(const Player_Lune& prototype)
 
 }
 
+HairChainPhysicsDesc Player_Lune::Get_HairChainPhysicsDesc() const
+{
+    HairChainPhysicsDesc desc{};
+
+    desc.profile = HairPhysicsProfile::Lune;
+    desc.bonePrefix = "Strand_";
+
+    // Lune: 긴 뒷머리 + 앞머리 체인이 많아서 현재 기준값.
+    desc.stiffness = 0.04f;
+    desc.damping = 0.42f;
+    desc.windScale = 0.08f;
+    desc.gravity = Vec3(0.f, -0.45f, 0.f);
+
+    desc.movementInertiaScale = 0.12f;
+    desc.maxMovementInertia = 1.6f;
+    desc.maxMovementOffset = 0.035f;
+
+    desc.poseRestoreStrength = 0.18f;
+    desc.maxBendAngleDegree = 28.f;
+
+    desc.teleportDistance = 300.f;
+    desc.solverIterations = 2;
+
+    return desc;
+}
+
 Shared<Player_Lune> Player_Lune::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
 	auto instance = make_shared<Player_Lune>(device, context);

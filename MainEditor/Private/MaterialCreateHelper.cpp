@@ -181,6 +181,16 @@ namespace
                 {
                     textures["PM_SpecularMasks"] = objectPath;
                 }
+                else if (parameterNameLower == "irisheight" ||
+                    parameterNameLower == "t_iris_a_h")
+                {
+                    textures["IrisHeight"] = objectPath;
+                }
+                else if (parameterNameLower == "irismasks" ||
+                    parameterNameLower == "t_iris_a_m")
+                {
+                    textures["IrisMask"] = objectPath;
+                }
                 else if (parameterNameLower.find("base") != string::npos ||
                     parameterNameLower.find("diffuse") != string::npos ||
                     parameterNameLower.find("color") != string::npos)
@@ -1156,6 +1166,46 @@ bool MaterialCreateHelper::Build_MaterialInstances(
             inOutHeuristics.push_back(move(note));
         }
 
+        usedKey.clear();
+        const string hairDepthU = Pick_TextureUAssetPath(textures, { "Depth", "HairDepth" }, &usedKey);
+        if (!hairDepthU.empty() && usedKey != "Depth")
+        {
+            HeuristicNote note{};
+            note.kind = "tex_key";
+            note.detail = assetName + " HairDepth " + usedKey;
+            inOutHeuristics.push_back(move(note));
+        }
+
+        usedKey.clear();
+        const string hairIDU = Pick_TextureUAssetPath(textures, { "Unique_Hair_Value", "HairID", "ID" }, &usedKey);
+        if (!hairIDU.empty() && usedKey != "Unique_Hair_Value")
+        {
+            HeuristicNote note{};
+            note.kind = "tex_key";
+            note.detail = assetName + " HairID " + usedKey;
+            inOutHeuristics.push_back(move(note));
+        }
+
+        usedKey.clear();
+        const string irisHeightU = Pick_TextureUAssetPath(textures, { "IrisHeight", "T_Iris_A_H" }, &usedKey);
+        if (!irisHeightU.empty() && usedKey != "IrisHeight")
+        {
+            HeuristicNote note{};
+            note.kind = "tex_key";
+            note.detail = assetName + " IrisHeight " + usedKey;
+            inOutHeuristics.push_back(move(note));
+        }
+
+        usedKey.clear();
+        const string irisMaskU = Pick_TextureUAssetPath(textures, { "IrisMask", "T_Iris_A_M" }, &usedKey);
+        if (!irisMaskU.empty() && usedKey != "IrisMask")
+        {
+            HeuristicNote note{};
+            note.kind = "tex_key";
+            note.detail = assetName + " IrisMask " + usedKey;
+            inOutHeuristics.push_back(move(note));
+        }
+
         // uasset 경로 문자열을 실제 이미지 파일 경로로 바꾼다
         // 텍스처 루트가 맞아야 여기서 제대로 resolve 된다
         inst.baseColorPath = Resolve_TextureFileByUAsset(baseColorU);
@@ -1163,6 +1213,10 @@ bool MaterialCreateHelper::Build_MaterialInstances(
         inst.ormPath = Resolve_TextureFileByUAsset(ormU);
         inst.emissivePath = Resolve_TextureFileByUAsset(emissiveU);
         inst.opacityMaskPath = Resolve_TextureFileByUAsset(opacityMaskU);
+        inst.hairDepthPath = Resolve_TextureFileByUAsset(hairDepthU);
+        inst.hairIDPath = Resolve_TextureFileByUAsset(hairIDU);
+        inst.irisHeightPath = Resolve_TextureFileByUAsset(irisHeightU);
+        inst.irisMaskPath = Resolve_TextureFileByUAsset(irisMaskU);
 
         // 여기 단계에서는 resolve된 슬롯만 덮어쓰는 쪽이 안전하다
         // 경로가 비어있는 건 미해결이거나 해당 슬롯이 없을 수 있어서, 기본은 false로 둔다
@@ -1171,6 +1225,10 @@ bool MaterialCreateHelper::Build_MaterialInstances(
         inst.ormOverride = !inst.ormPath.empty();
         inst.emissiveOverride = !inst.emissivePath.empty();
         inst.opacityMaskOverride = !inst.opacityMaskPath.empty();
+        inst.hairDepthOverride = !inst.hairDepthPath.empty();
+        inst.hairIDOverride = !inst.hairIDPath.empty();
+        inst.irisHeightOverride = !inst.irisHeightPath.empty();
+        inst.irisMaskOverride = !inst.irisMaskPath.empty();
 
         // 누락 원인을 한 번에 보기 좋게 요약하기 위해 카운트를 쌓는다
         recordMissingBase("BC", baseColorU, inst.baseColorPath);
@@ -1178,6 +1236,10 @@ bool MaterialCreateHelper::Build_MaterialInstances(
         recordMissingBase("ORM", ormU, inst.ormPath);
         recordMissingBase("E", emissiveU, inst.emissivePath);
         recordMissingBase("OpacityMask", opacityMaskU, inst.opacityMaskPath);
+        recordMissingBase("HairDepth", hairDepthU, inst.hairDepthPath);
+        recordMissingBase("HairID", hairIDU, inst.hairIDPath);
+        recordMissingBase("IrisHeight", irisHeightU, inst.irisHeightPath);
+        recordMissingBase("IrisMask", irisMaskU, inst.irisMaskPath);
 
         // 렌더 상태는 Parameters.Properties.BasePropertyOverrides 아래에 많이 몰려있다
         // 없는 경우도 있으니 기본값 유지에 가깝게 처리한다

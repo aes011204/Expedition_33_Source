@@ -15,6 +15,8 @@ public:
 	virtual ~Player_Gustave() override = default;
 
 protected:
+    HairChainPhysicsDesc Get_HairChainPhysicsDesc() const override;
+
     const wchar_t* Get_BodyModelTag() const override { return L"Model_GustaveBody"; }
     const wchar_t* Get_HeadModelTag() const override { return L"Model_GustaveHead"; }
     const wchar_t* Get_HairModelTag() const override { return L"Model_GustaveHair"; }

@@ -65,5 +65,12 @@ namespace Client
         Maelle,
         None,
     };
+
+    enum class HairPhysicsProfile
+    {
+        Lune,
+        Maelle,
+        Gustave,
+    };
 }
 

@@ -24,24 +24,24 @@ StructuredBuffer<BoneMatrixElement> g_BoneMatricesBuffer;
 //==================================================
 struct VS_IN
 {
-    float3  vPosition : POSITION;
-    float3  vNormal : NORMAL;
-    float3  vTangent : TANGENT;
-    float3  vBinormal : BINORMAL;
-    float2  vTexcoord : TEXCOORD0;
-    uint4   vBlendIndex : BLENDINDEX;
-    float4  vBlendWeight : BLENDWEIGHT;
+    float3 vPosition : POSITION;
+    float3 vNormal : NORMAL;
+    float3 vTangent : TANGENT;
+    float3 vBinormal : BINORMAL;
+    float2 vTexcoord : TEXCOORD0;
+    uint4 vBlendIndex : BLENDINDEX;
+    float4 vBlendWeight : BLENDWEIGHT;
 };
 
 struct VS_OUT
 {
-    float4  vPosition : SV_POSITION;
-    float4  vNormal : NORMAL;
-    float3  vTangent : TANGENT;
-    float3  vBinormal : BINORMAL;
-    float2  vTexcoord : TEXCOORD0;
-    float4  vWorldPos : TEXCOORD1;
-    float4  vProjPos : TEXCOORD2;
+    float4 vPosition : SV_POSITION;
+    float4 vNormal : NORMAL;
+    float3 vTangent : TANGENT;
+    float3 vBinormal : BINORMAL;
+    float2 vTexcoord : TEXCOORD0;
+    float4 vWorldPos : TEXCOORD1;
+    float4 vProjPos : TEXCOORD2;
 };
 
 VS_OUT VS_Main(VS_IN In)
@@ -195,7 +195,34 @@ PS_OUT PS_Mask(PS_IN In)
         return Out;
     }
 
-    // Hair material이 없는 기존 material들은 기존 유지
+    // Eye material path.
+    const bool isEyeMaterial =
+        HasMaterialTexture(MATERIAL_SLOT_IRIS_HEIGHT) ||
+        HasMaterialTexture(MATERIAL_SLOT_IRIS_MASK);
+
+    if (isEyeMaterial)
+    {
+        EyeMaterialSample eye = SampleEyeMaterial(finalUV);
+
+        if (eye.opacity < g_OpacityMaskClipValue)
+            discard;
+
+        float3 worldNormal = ComputeWorldNormal(
+            In.vNormal.xyz,
+            In.vTangent,
+            In.vBinormal,
+            finalUV
+        );
+
+        Out.vDiffuse = float4(eye.baseColor, 1.f);
+        Out.vNormal = float4(EncodeNormal(worldNormal), 1.f);
+        Out.vDepth = float4(In.vProjPos.z / In.vProjPos.w, In.vProjPos.w / g_Far, 0.f, 1.f);
+
+        return Out;
+    }
+
+    // Hair, Eye material이 없는 기존 material들은 기존 유지
+    // 일단 Pass로 분리할지는 생각
     float4 baseColor = SampleBaseColor(finalUV);
 
     float mask = GetOpacityMaskForMasked(finalUV, baseColor);
@@ -232,10 +259,10 @@ PS_OUT_SHADOW PS_Shadow(PS_IN In)
 
 technique11 DefaultTechnique
 {
-    PASS_RS_DS_BS_VP(OpaquePass,         RS_Default,  DSS_Default, BS_Default, VS_Main,     PS_Opaque)      // 0
-    PASS_RS_DS_BS_VP(MaskedPass,         RS_Default,  DSS_Default, BS_Default, VS_Main,     PS_Mask)        // 1
-    PASS_RS_DS_BS_VP(OpaqueTwoSidedPass, RS_CullNone, DSS_Default, BS_Default, VS_Main,     PS_Opaque)      // 2
-    PASS_RS_DS_BS_VP(MaskedTwoSidedPass, RS_CullNone, DSS_Default, BS_Default, VS_Main,     PS_Mask)        // 3
-    PASS_RS_DS_BS_VP(ShadowPass,         RS_Default,  DSS_Default, BS_Default, VS_Shadow,   PS_Shadow)      // 4
-}   
+    PASS_RS_DS_BS_VP(OpaquePass, RS_Default, DSS_Default, BS_Default, VS_Main, PS_Opaque) // 0
+    PASS_RS_DS_BS_VP(MaskedPass, RS_Default, DSS_Default, BS_Default, VS_Main, PS_Mask) // 1
+    PASS_RS_DS_BS_VP(OpaqueTwoSidedPass, RS_CullNone, DSS_Default, BS_Default, VS_Main, PS_Opaque) // 2
+    PASS_RS_DS_BS_VP(MaskedTwoSidedPass, RS_CullNone, DSS_Default, BS_Default, VS_Main, PS_Mask) // 3
+    PASS_RS_DS_BS_VP(ShadowPass, RS_Default, DSS_Default, BS_Default, VS_Shadow, PS_Shadow) // 4
+}
 

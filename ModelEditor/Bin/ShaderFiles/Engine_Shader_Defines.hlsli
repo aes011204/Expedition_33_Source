@@ -11,7 +11,9 @@
 // ORM          = 4
 // HairDepth    = 5
 // HairID       = 6
-// END          = 7
+// IrisHeight   = 7
+// IrisMask     = 8
+// END          = 9
 
 // Material Texture Slot
 #define MATERIAL_SLOT_BASECOLOR      0
@@ -21,7 +23,9 @@
 #define MATERIAL_SLOT_ORM            4
 #define MATERIAL_SLOT_HAIR_DEPTH     5 
 #define MATERIAL_SLOT_HAIR_ID        6 
-#define MATERIAL_SLOT_END            7
+#define MATERIAL_SLOT_IRIS_HEIGHT    7
+#define MATERIAL_SLOT_IRIS_MASK      8
+#define MATERIAL_SLOT_END            9
 
 // Material Flags
 #define MATERIAL_FLAG_BASECOLOR      (1u << MATERIAL_SLOT_BASECOLOR)
@@ -31,5 +35,7 @@
 #define MATERIAL_FLAG_ORM            (1u << MATERIAL_SLOT_ORM)
 #define MATERIAL_FLAG_HAIR_DEPTH     (1u << MATERIAL_SLOT_HAIR_DEPTH)
 #define MATERIAL_FLAG_HAIR_ID        (1u << MATERIAL_SLOT_HAIR_ID)
+#define MATERIAL_FLAG_IRIS_HEIGHT    (1u << MATERIAL_SLOT_IRIS_HEIGHT)
+#define MATERIAL_FLAG_IRIS_MASK      (1u << MATERIAL_SLOT_IRIS_MASK)
 
 #endif
