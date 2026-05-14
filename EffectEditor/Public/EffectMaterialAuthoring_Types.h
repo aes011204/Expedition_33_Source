@@ -4,7 +4,7 @@ NS_BEGIN(EffectEditor)
 
 struct EffectMaterialInstanceData
 {
-    // 원본 preset 파일명 표시용 값이다. live reference나 저장 identity로 사용하지 않는다.
+    // 원본 material preset 파일명 표시용 값이다. live reference나 저장 identity로 사용하지 않는다.
     string sourcePresetName{};
 
     string mainTextureId{ "Texture_Effect_DefaultTexture" };

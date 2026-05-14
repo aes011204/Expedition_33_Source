@@ -143,7 +143,7 @@ void EffectMaterial_View::Render_PresetInfo()
         if (!_statusMessage.empty())
             ImGui::TextDisabled("%s", _statusMessage.c_str());
         else
-            ImGui::TextDisabled("선택된 원본 preset이 없습니다.");
+            ImGui::TextDisabled("선택된 원본 머티리얼이 없습니다.");
         return;
     }
 
@@ -163,7 +163,7 @@ void EffectMaterial_View::Render_PresetInfo()
 
     ImGui::BeginChild("EffectMaterialPresetDetail", ImVec2(0.f, 0.f), false);
     {
-        ImGui::TextDisabled("Read-only original preset. Required slot에서 장착합니다.");
+        ImGui::TextDisabled("읽기 전용 원본 머티리얼입니다. Required slot에 복사해 사용합니다.");
 
         if (!_statusMessage.empty())
             ImGui::TextDisabled("%s", _statusMessage.c_str());
@@ -178,7 +178,7 @@ void EffectMaterial_View::Render_PresetInfo()
 
             ImGui::TableNextRow();
             ImGui::TableSetColumnIndex(0);
-            ImGui::TextDisabled("원본 파일");
+            ImGui::TextDisabled("원본 머티리얼 파일");
             ImGui::TableSetColumnIndex(1);
             ImGui::TextUnformatted(fileName.c_str());
 
@@ -217,7 +217,7 @@ void EffectMaterial_View::Render_PresetPreview()
     _previewRenderer->Draw_Viewport(
         "EffectMaterialOriginalPreview",
         _selectedPresetMaterial,
-        "원본 프리뷰"
+        "원본 머티리얼 프리뷰"
     );
 }
 
@@ -299,16 +299,16 @@ bool EffectMaterial_View::Load_PresetFile(const wstring& filePath)
 
     if (!fs::exists(filePath))
     {
-        _statusMessage = "Preset file does not exist.";
-        LOG_ERROR("EffectMaterial preset load failed: file does not exist. path='{}'", String::ToString(filePath));
+        _statusMessage = "Material file does not exist.";
+        LOG_ERROR("EffectMaterial material preset load failed: file does not exist. path='{}'", String::ToString(filePath));
         return false;
     }
 
     ifstream file(filePath);
     if (!file.is_open())
     {
-        _statusMessage = "Failed to open preset file.";
-        LOG_ERROR("EffectMaterial preset load failed: open failed. path='{}'", String::ToString(filePath));
+        _statusMessage = "Failed to open material file.";
+        LOG_ERROR("EffectMaterial material preset load failed: open failed. path='{}'", String::ToString(filePath));
         return false;
     }
 
@@ -319,16 +319,16 @@ bool EffectMaterial_View::Load_PresetFile(const wstring& filePath)
     }
     catch (...)
     {
-        _statusMessage = "Failed to parse preset json.";
-        LOG_ERROR("EffectMaterial preset load failed: json parse failed. path='{}'", String::ToString(filePath));
+        _statusMessage = "Failed to parse material json.";
+        LOG_ERROR("EffectMaterial material preset load failed: json parse failed. path='{}'", String::ToString(filePath));
         return false;
     }
 
     EffectMaterialInstanceData material{};
     if (!ReadPreset::Read(filePath, material))
     {
-        _statusMessage = "Failed to read preset material.";
-        LOG_ERROR("EffectMaterial preset load failed: material read failed. path='{}'", String::ToString(filePath));
+        _statusMessage = "Failed to read material preset.";
+        LOG_ERROR("EffectMaterial material preset load failed: material read failed. path='{}'", String::ToString(filePath));
         return false;
     }
     const bool warnSubUvRows = Internal::Should_WarnInvalidSubUv(root, "subUvRows");
@@ -336,15 +336,15 @@ bool EffectMaterial_View::Load_PresetFile(const wstring& filePath)
 
     const string presetPath = String::ToString(filePath);
     if (warnSubUvRows)
-        LOG_WARN("EffectMaterial preset corrected invalid subUvRows to 1. path='{}'", presetPath);
+        LOG_WARN("EffectMaterial material preset corrected invalid subUvRows to 1. path='{}'", presetPath);
     if (warnSubUvCols)
-        LOG_WARN("EffectMaterial preset corrected invalid subUvCols to 1. path='{}'", presetPath);
+        LOG_WARN("EffectMaterial material preset corrected invalid subUvCols to 1. path='{}'", presetPath);
 
     if (!Internal::Is_SupportedBlendMode(material.blendMode))
     {
-        _statusMessage = "Unsupported blendMode in preset.";
+        _statusMessage = "Unsupported blendMode in material preset.";
         LOG_ERROR(
-            "EffectMaterial preset load failed: unsupported blendMode='{}'. path='{}'",
+            "EffectMaterial material preset load failed: unsupported blendMode='{}'. path='{}'",
             material.blendMode,
             presetPath
         );
@@ -353,9 +353,9 @@ bool EffectMaterial_View::Load_PresetFile(const wstring& filePath)
 
     if (!Internal::Is_SupportedOpacitySource(material.opacitySource))
     {
-        _statusMessage = "Unsupported opacitySource in preset.";
+        _statusMessage = "Unsupported opacitySource in material preset.";
         LOG_ERROR(
-            "EffectMaterial preset load failed: unsupported opacitySource='{}'. path='{}'",
+            "EffectMaterial material preset load failed: unsupported opacitySource='{}'. path='{}'",
             material.opacitySource,
             presetPath
         );
@@ -366,7 +366,7 @@ bool EffectMaterial_View::Load_PresetFile(const wstring& filePath)
     {
         _statusMessage = "Main texture is missing and preview fallback texture is unavailable.";
         LOG_ERROR(
-            "EffectMaterial preset load failed: mainTextureId is empty and preview fallback texture is unavailable. path='{}'",
+            "EffectMaterial material preset load failed: mainTextureId is empty and preview fallback texture is unavailable. path='{}'",
             presetPath
         );
         return false;

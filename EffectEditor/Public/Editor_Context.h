@@ -31,9 +31,9 @@ public:
     uint32 Get_EffectSelectionRevision() const { return _effectSelectionRevision; }
 
 private:
-    EditorSelection _selection;
-    EffectAuthoringSelection _effectSelection;
-    EditorFocusRequest _focusRequest;
+    EditorSelection _selection{};
+    EffectAuthoringSelection _effectSelection{};
+    EditorFocusRequest _focusRequest{};
     uint32 _selectionRevision{ 0 };
     uint32 _effectSelectionRevision{ 0 };
 

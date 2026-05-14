@@ -274,14 +274,14 @@ namespace Internal
         drawList->AddRect(thumbnailMin, thumbnailMax, IM_COL32(85, 96, 116, 255), 4.f);
 
         const string& resolvedName = Internal::Resolve_MaterialDisplayName(data);
-        const string displayName = resolvedName.empty() ? "(preset copy)" : resolvedName;
+        const string displayName = resolvedName.empty() ? "(material copy)" : resolvedName;
         const ImVec2 textPos{ slotMin.x + 57.f, slotMin.y + 18.f };
         drawList->AddText(textPos, IM_COL32(235, 238, 245, 255), displayName.c_str());
 
         if (isHovered)
         {
             ImGui::SetTooltip(
-                "Content Browser의 .effectmaterial.json을 여기에 드롭하면 현재 embedded instance로 복사합니다.\nMain: %s\nNoise: %s\n%s / %s / SubUV %ux%u",
+                "Content Browser의 .effectmaterial.json 머티리얼 파일을 여기에 드롭하면 현재 embedded material instance로 복사합니다.\nMain: %s\nNoise: %s\n%s / %s / SubUV %ux%u",
                 data.material.mainTextureId.c_str(),
                 data.material.noiseTextureId.empty() ? "(none)" : data.material.noiseTextureId.c_str(),
                 data.material.blendMode.c_str(),

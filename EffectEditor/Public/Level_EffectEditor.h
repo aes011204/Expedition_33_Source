@@ -20,10 +20,11 @@ public:
     HRESULT Render() override;
 
 public:
+    // 현재 authoring emitter 데이터를 다시 읽어 preview runtime object를 전부 재생성한다.
     HRESULT Restart_PreviewFromAuthoring();
 
 private:
-    static constexpr const wchar_t* kPreviewLayerTag = L"Layer_Preview";
+    static constexpr const wchar_t* kPreviewLayerTag{ L"Layer_Preview" };
 
 private:
     vector<Shared<GameObject>> _previewObjects{};

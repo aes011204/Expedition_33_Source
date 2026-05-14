@@ -22,11 +22,11 @@ public: //## Behavior::Selection
     void Open_Preset(const wstring& filePath);
 
 public: //## Accessor::Preset
-    // Required material slot이 현재 원본 viewer에서 선택된 preset을 장착할 때 사용한다.
+    // Required material slot이 현재 원본 viewer에서 선택된 material preset 값을 장착할 때 사용한다.
     bool Has_SelectedPreset() const;
-    // 원본 preset 값을 embedded instance로 복사하기 위한 read-only 접근자다.
+    // 원본 material preset 값을 embedded material instance로 복사하기 위한 read-only 접근자다.
     const EffectMaterialInstanceData& Get_SelectedPresetMaterial() const;
-    // UI 안내용 원본 파일명이다. 저장 identity로 사용하지 않는다.
+    // UI 안내용 원본 material preset 파일명이다. 저장 identity로 사용하지 않는다.
     string Get_SelectedMaterialFileName() const;
 
 private: //## Data

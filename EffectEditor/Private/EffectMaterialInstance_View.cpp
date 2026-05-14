@@ -414,8 +414,8 @@ void EffectMaterialInstance_View::Render()
             ImGui::TextDisabled("Material instance target is not selected.");
         else
         {
-            ImGui::TextUnformatted("Embedded Effect Material Instance (Preset Copy)");
-            ImGui::TextDisabled("Source preset GUID is not stored in this instance.");
+            ImGui::TextUnformatted("Embedded Effect Material Instance (Material Copy)");
+            ImGui::TextDisabled("Source material GUID is not stored in this instance.");
             ImGui::Separator();
 
             bool changed = false;

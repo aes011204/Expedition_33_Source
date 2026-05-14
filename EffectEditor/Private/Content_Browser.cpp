@@ -98,7 +98,7 @@ void Content_Browser::Render()
                 {
                     const string searchLower = Internal::ToLowerCopy(_searchBuffer);
 
-                    FFolderNode* firstMatch = Get_FirstMatchingFolder(_rootFolder, searchLower);
+                    FolderNode* firstMatch = Get_FirstMatchingFolder(_rootFolder, searchLower);
                     if (firstMatch && _currentFolder != firstMatch)
                     {
                         _currentFolder = firstMatch;
@@ -203,7 +203,7 @@ void Content_Browser::Refresh_Resources()
 
     if (!savedPath.empty())
     {
-        FFolderNode* found = Find_FolderNode(_rootFolder, savedPath);
+        FolderNode* found = Find_FolderNode(_rootFolder, savedPath);
         _currentFolder = found ? found : &_rootFolder;
     }
     else
@@ -225,7 +225,7 @@ void Content_Browser::Refresh_CurrentFolder()
         if (entry.is_directory() || entry.path().extension() == L".meta")
             continue;
 
-        FFileEntry fileEntry{};
+        FileEntry fileEntry{};
         fileEntry.filePath = entry.path().wstring();
         fileEntry.guid = GAME->Find_AssetGUID(fileEntry.filePath);
         _currentFolder->files.emplace_back(fileEntry);
@@ -234,7 +234,7 @@ void Content_Browser::Refresh_CurrentFolder()
 
 void Content_Browser::Load_Icons()
 {
-    _iconFiles.assign(static_cast<size_t>(EIconType::End), nullptr);
+    _iconFiles.assign(static_cast<size_t>(IconType::End), nullptr);
 
     fs::path iconRoot = _resourceRoot;
     if (iconRoot.empty())
@@ -261,17 +261,17 @@ void Content_Browser::Load_Icons()
         return Texture::Create(EDITOR->Get_Device(), EDITOR->Get_Context(), filePath.c_str(), 1);
     };
 
-    _iconFiles[static_cast<size_t>(EIconType::Folder)] = load_texture(L"Folder_Icon.png");
+    _iconFiles[static_cast<size_t>(IconType::Folder)] = load_texture(L"Folder_Icon.png");
 
     const Shared<Texture> dataTableIcon = load_texture(L"DataTable.png");
-    _iconFiles[static_cast<size_t>(EIconType::Csv)] = dataTableIcon;
-    _iconFiles[static_cast<size_t>(EIconType::Xlsx)] = dataTableIcon;
+    _iconFiles[static_cast<size_t>(IconType::Csv)] = dataTableIcon;
+    _iconFiles[static_cast<size_t>(IconType::Xlsx)] = dataTableIcon;
 
-    _iconFiles[static_cast<size_t>(EIconType::Json)] = load_texture(L"JSON.png");
-    _iconFiles[static_cast<size_t>(EIconType::Python)] = load_texture(L"Python.png");
+    _iconFiles[static_cast<size_t>(IconType::Json)] = load_texture(L"JSON.png");
+    _iconFiles[static_cast<size_t>(IconType::Python)] = load_texture(L"Python.png");
 }
 
-void Content_Browser::Scan_Folder(const wstring& path, FFolderNode& node)
+void Content_Browser::Scan_Folder(const wstring& path, FolderNode& node)
 {
     node.fullPath = path;
     node.name = fs::path(path).filename().wstring();
@@ -282,13 +282,13 @@ void Content_Browser::Scan_Folder(const wstring& path, FFolderNode& node)
     {
         if (entry.is_directory())
         {
-            FFolderNode child{};
+            FolderNode child{};
             Scan_Folder(entry.path().wstring(), child);
             node.subFolders.emplace_back(move(child));
         }
         else if (entry.path().extension() != L".meta")
         {
-            FFileEntry fileEntry{};
+            FileEntry fileEntry{};
             fileEntry.filePath = entry.path().wstring();
             fileEntry.guid = GAME->Find_AssetGUID(fileEntry.filePath);
             node.files.emplace_back(move(fileEntry));
@@ -296,7 +296,7 @@ void Content_Browser::Scan_Folder(const wstring& path, FFolderNode& node)
     }
 }
 
-void Content_Browser::Draw_FolderTree(FFolderNode& node)
+void Content_Browser::Draw_FolderTree(FolderNode& node)
 {
     if (strlen(_searchBuffer) > 0 && _currentFolder != &node)
     {
@@ -328,7 +328,7 @@ void Content_Browser::Draw_FolderTree(FFolderNode& node)
     const bool isClicked = ImGui::IsItemClicked();
     ImGui::SameLine();
 
-    if (const ImTextureID iconId = Get_IconTextureId(EIconType::Folder))
+    if (const ImTextureID iconId = Get_IconTextureId(IconType::Folder))
     {
         ImGui::Image(iconId, ImVec2(16.f, 16.f));
         ImGui::SameLine(0.f, 6.f);
@@ -487,11 +487,11 @@ void Content_Browser::Draw_AssetView()
     ImGui::Columns(1);
 }
 
-void Content_Browser::Draw_FolderTile(FFolderNode& folder)
+void Content_Browser::Draw_FolderTile(FolderNode& folder)
 {
     ImGui::PushID(String::ToString(folder.fullPath).c_str());
 
-    const ImTextureID iconId = Get_IconTextureId(EIconType::Folder);
+    const ImTextureID iconId = Get_IconTextureId(IconType::Folder);
     if (iconId)
         ImGui::Image(iconId, ImVec2(_thumbnailSize, _thumbnailSize));
     else
@@ -522,7 +522,7 @@ void Content_Browser::Draw_FolderTile(FFolderNode& folder)
     ImGui::NextColumn();
 }
 
-void Content_Browser::Open_Folder(FFolderNode* folder)
+void Content_Browser::Open_Folder(FolderNode* folder)
 {
     if (!folder)
         return;
@@ -538,7 +538,7 @@ void Content_Browser::Open_Folder(FFolderNode* folder)
     Save_Settings();
 }
 
-void Content_Browser::Open_File(const FFileEntry& fileEntry)
+void Content_Browser::Open_File(const FileEntry& fileEntry)
 {
     if (EDITOR == nullptr)
         return;
@@ -565,7 +565,7 @@ void Content_Browser::Open_File(const FFileEntry& fileEntry)
     materialView->Open_Preset(fileEntry.filePath);
 }
 
-void Content_Browser::Draw_FolderContextMenu(const FFolderNode& folder, const string& popupId)
+void Content_Browser::Draw_FolderContextMenu(const FolderNode& folder, const string& popupId)
 {
     if (!ImGui::BeginPopupContextItem(popupId.c_str()))
         return;
@@ -610,7 +610,7 @@ void Content_Browser::Draw_FileContextMenu(const wstring& filePath, const string
     ImGui::EndPopup();
 }
 
-Shared<Texture> Content_Browser::Get_FileThumbnail(const FFileEntry& fileEntry)
+Shared<Texture> Content_Browser::Get_FileThumbnail(const FileEntry& fileEntry)
 {
     if (fileEntry.filePath.empty())
         return nullptr;
@@ -701,7 +701,7 @@ void Content_Browser::Load_Settings()
         return;
 
     const wstring lastPath = String::ToWString(settings["lastPath"].get<string>());
-    FFolderNode* found = Find_FolderNode(_rootFolder, lastPath);
+    FolderNode* found = Find_FolderNode(_rootFolder, lastPath);
     if (!found)
         return;
 
@@ -709,14 +709,14 @@ void Content_Browser::Load_Settings()
     Expand_PathTo(lastPath);
 }
 
-Content_Browser::FFolderNode* Content_Browser::Find_FolderNode(FFolderNode& node, const wstring& path)
+Content_Browser::FolderNode* Content_Browser::Find_FolderNode(FolderNode& node, const wstring& path)
 {
     if (node.fullPath == path)
         return &node;
 
     for (auto& child : node.subFolders)
     {
-        FFolderNode* found = Find_FolderNode(child, path);
+        FolderNode* found = Find_FolderNode(child, path);
         if (found)
             return found;
     }
@@ -740,7 +740,7 @@ void Content_Browser::Expand_PathTo(const wstring& targetPath)
     _expandedFolders.insert(root.wstring());
 }
 
-bool Content_Browser::IsFolderMatchingSearch(const FFolderNode& node, const string& searchStr)
+bool Content_Browser::IsFolderMatchingSearch(const FolderNode& node, const string& searchStr)
 {
     const string nameLower = Internal::ToLowerCopy(String::ToString(node.name));
     if (nameLower.find(searchStr) != string::npos)
@@ -755,7 +755,7 @@ bool Content_Browser::IsFolderMatchingSearch(const FFolderNode& node, const stri
     return false;
 }
 
-Content_Browser::FFolderNode* Content_Browser::Get_FirstMatchingFolder(FFolderNode& node, const string& searchStr)
+Content_Browser::FolderNode* Content_Browser::Get_FirstMatchingFolder(FolderNode& node, const string& searchStr)
 {
     const string nameLower = Internal::ToLowerCopy(String::ToString(node.name));
     if (nameLower.find(searchStr) != string::npos)
@@ -763,7 +763,7 @@ Content_Browser::FFolderNode* Content_Browser::Get_FirstMatchingFolder(FFolderNo
 
     for (auto& child : node.subFolders)
     {
-        FFolderNode* found = Get_FirstMatchingFolder(child, searchStr);
+        FolderNode* found = Get_FirstMatchingFolder(child, searchStr);
         if (found)
             return found;
     }
@@ -771,23 +771,23 @@ Content_Browser::FFolderNode* Content_Browser::Get_FirstMatchingFolder(FFolderNo
     return nullptr;
 }
 
-Content_Browser::EIconType Content_Browser::Resolve_IconType(const filesystem::path& filePath) const
+Content_Browser::IconType Content_Browser::Resolve_IconType(const filesystem::path& filePath) const
 {
     const string extension = Internal::ToLowerCopy(String::ToString(filePath.extension().wstring()));
 
     if (extension == ".csv")
-        return EIconType::Csv;
+        return IconType::Csv;
     if (extension == ".json")
-        return EIconType::Json;
+        return IconType::Json;
     if (extension == ".py")
-        return EIconType::Python;
+        return IconType::Python;
     if (extension == ".xlsx")
-        return EIconType::Xlsx;
+        return IconType::Xlsx;
 
-    return EIconType::Json;
+    return IconType::Json;
 }
 
-ImTextureID Content_Browser::Get_IconTextureId(EIconType iconType) const
+ImTextureID Content_Browser::Get_IconTextureId(IconType iconType) const
 {
     const size_t iconIndex = static_cast<size_t>(iconType);
     if (iconIndex >= _iconFiles.size())
@@ -828,7 +828,7 @@ void Content_Browser::Go_BackFolder()
 
     --_folderHistoryIndex;
 
-    FFolderNode* target = Find_FolderNode(_rootFolder, _folderHistory[_folderHistoryIndex]);
+    FolderNode* target = Find_FolderNode(_rootFolder, _folderHistory[_folderHistoryIndex]);
     if (!target)
         return;
 
@@ -844,7 +844,7 @@ void Content_Browser::Go_ForwardFolder()
 
     ++_folderHistoryIndex;
 
-    FFolderNode* target = Find_FolderNode(_rootFolder, _folderHistory[_folderHistoryIndex]);
+    FolderNode* target = Find_FolderNode(_rootFolder, _folderHistory[_folderHistoryIndex]);
     if (!target)
         return;
 

@@ -81,6 +81,7 @@ bool Read(const fs::path& filePath, EffectMaterialInstanceData& outMaterial)
 
     const EffectMaterialInstanceData defaultMaterial{};
     EffectMaterialInstanceData material = defaultMaterial;
+
     material.sourcePresetName = ResolveDisplayName(filePath);
     material.mainTextureId = read_string("mainTextureId", defaultMaterial.mainTextureId);
     material.noiseTextureId = read_string("noiseTextureId", defaultMaterial.noiseTextureId);
@@ -92,6 +93,7 @@ bool Read(const fs::path& filePath, EffectMaterialInstanceData& outMaterial)
     material.opacitySource = read_string("opacitySource", defaultMaterial.opacitySource);
     material.subUvRows = max(1u, read_uint("subUvRows", defaultMaterial.subUvRows));
     material.subUvCols = max(1u, read_uint("subUvCols", defaultMaterial.subUvCols));
+
     outMaterial = material;
     return true;
 }

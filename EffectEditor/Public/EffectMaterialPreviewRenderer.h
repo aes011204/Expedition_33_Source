@@ -24,7 +24,9 @@ public:
     ~EffectMaterialPreviewRenderer();
 
 public:
+    // 머티리얼 instance 값을 현재 preview render target에 반영할 때 호출한다.
     void Render_Material(const EffectMaterialInstanceData& material);
+    // ImGui viewport와 입력을 함께 관리하는 원본 머티리얼 preview 패널 진입점이다.
     void Draw_Viewport(const char* id, const EffectMaterialInstanceData& material, const char* label);
     ID3D11ShaderResourceView* Get_SRV() const;
     const string& Get_StatusMessage() const;
@@ -70,7 +72,7 @@ private: //## Data
     bool _isViewportDragging{ false };
     bool _hasPendingHome{ false };
 
-private: //## Helpers
+private: //## Helper::Resource
     bool Ready_RenderTarget();
     bool Ready_Shader();
     bool Ready_Texture(const string& textureId);
@@ -79,15 +81,25 @@ private: //## Helpers
     bool Ready_PlaneMesh();
     bool Ready_SphereMesh();
     bool Create_Mesh(const vector<PreviewVertex>& vertices, const vector<uint32>& indices, PreviewMeshResource& mesh);
+
+private: //## Helper::Render
     HRESULT Render_PreviewMesh(const EffectMaterialInstanceData& material) const;
     HRESULT Render_Mesh(const PreviewMeshResource& mesh) const;
     void Resize_RenderTarget(uint32 width, uint32 height);
+
+private: //## Helper::ViewportInput
+    // preview canvas hover/drag/wheel 입력을 orbit camera 상태로 변환한다.
     void Handle_ViewportInput(bool isHovered, const ImVec2& canvasMin, const ImVec2& canvasMax);
     void Begin_ViewportDrag(const ImVec2& canvasMin, const ImVec2& canvasMax);
     void End_ViewportDrag();
+
+private: //## Helper::Camera
+    // 즉시 reset하지 않고 home 시점으로 부드럽게 복귀를 예약한다.
     void Start_HomeTransition();
     void Update_HomeTransition(float timeDelta);
     void Reset_View();
+
+private: //## Helper::Overlay
     void Draw_ViewportTextOverlay(const ImVec2& canvasMin, const ImVec2& canvasMax, const char* label);
     void Draw_MeshModeControls();
     uint32 Resolve_BlendPassIndex(const string& blendMode) const;

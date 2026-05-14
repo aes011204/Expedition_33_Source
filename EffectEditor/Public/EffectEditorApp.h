@@ -30,8 +30,8 @@ private:
     static constexpr uint32 kComputeInstancingSmokeThreadCount{ 8 };  // instance payload smoke shader의 numthreads.x 값.
 
 private:
-    ComPtr<Device> _device;
-    ComPtr<Context> _context;
+    ComPtr<Device> _device{};
+    ComPtr<Context> _context{};
 
 private:
     HRESULT Ready_Fonts();

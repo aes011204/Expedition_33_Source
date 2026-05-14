@@ -34,8 +34,8 @@ public:
     void ClearDirty() { _isDirty = false; }
 
 protected:
-    wstring _window;
-    string _imguiWindowName;
+    wstring _window{};
+    string _imguiWindowName{};
 
     bool _isOpen{ true };
     bool _isFocused{ false };

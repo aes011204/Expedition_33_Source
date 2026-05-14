@@ -9,7 +9,6 @@ NS_BEGIN(EffectEditor)
 class Detail_View final : public Editor_Window
 {
 public:
-    // 선택된 오브젝트와 effect authoring 속성을 보여줄 인스펙터 창을 생성한다.
     Detail_View();
     ~Detail_View() override;
 
@@ -26,7 +25,7 @@ private: //## Helper::EffectAuthoring
     void Mark_Changed(AuthoringEmitter& emitter, bool changed);
     static RequiredModuleData* Find_RequiredModuleData(AuthoringEmitter& emitter);
 
-private:
+private: //## Data::ModuleDetail
     RequiredModuleDetail _requiredModuleDetail{};
     SpawnModuleDetail _spawnModuleDetail{};
     LifetimeModuleDetail _lifetimeModuleDetail{};
