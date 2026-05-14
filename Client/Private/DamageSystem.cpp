@@ -20,12 +20,13 @@ void DamageSystem::ApplyDamage(float damage, const BattleChar& target)
 {
    
     auto& runtimeStat = target.statCom->Get_RuntimeStat();
-    if (runtimeStat.CurHp < 0)
+    if (runtimeStat.CurHp > 0)
     {
         runtimeStat.CurHp -= damage;
     }
     else
     {
         runtimeStat.CurHp = 0;
+        runtimeStat.CurAliveState = EAliveStatus::Dead;
     }
 }

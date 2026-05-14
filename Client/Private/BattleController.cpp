@@ -40,6 +40,8 @@ void BattleController::Update(float timeDelta)
 }
 void BattleController::Run_EnemyTurn()
 {
+
+
 }
 
 void BattleController::OnEnterBattleField(uint32 FieldID, bool IsFirstHero, vector<string>& PlayerProtoTag,vector<string>& MonsterProtoTag)
@@ -293,12 +295,14 @@ void BattleController::Execute_BaseAttack(const BattleChar actor, const Action& 
 {
     //기본스킬도 특이하기때문에 스킬로
     const Skill_Data& skill = turnAction._selected_SkillKey;
-    /*   auto script = Create_Class::
-           skill.scriptClassName);*/
+       auto script = Create_Class::
+           skill.scriptClassName);
 
     auto target = turnAction.target;
 
-    //script->Execute(skill, actor, target);
+    script->Execute(skill, actor, target);
+
+
 
 }
 

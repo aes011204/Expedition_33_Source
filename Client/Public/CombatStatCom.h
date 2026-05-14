@@ -52,7 +52,7 @@ public:
 
         float CurSpeed = 0.f;
 
-        EAliveStatus CurAliveState = EAliveStatus::Invalid;
+        EAliveStatus CurAliveState = EAliveStatus::Alive;
     };
 
 public:
