@@ -1133,6 +1133,14 @@ void Material_View::Draw_MappingsEditorUI(int selectedMaterialIndexFilter, const
         ImGui::SeparatorText("Parameters");
         anyChanged = anyChanged || drawTemplatePicker(*inst);
 
+        {
+            int before = inst->forcedPassIndex;
+            ImGui::SetNextItemWidth(120.f);
+            if (ImGui::DragInt("Force Pass (-1=Auto)", &inst->forcedPassIndex, 0.25f, -1, 4096))
+                anyChanged = true;
+            anyChanged = anyChanged || (before != inst->forcedPassIndex);
+        }
+
         if (_mode == CreateMode::EditWithModelCom)
         {
             bool before = inst->renderStateOverrideEnabled;
@@ -2099,6 +2107,8 @@ bool Material_View::Load_BundleFile(const wstring& bundlePath)
                 inst.renderState.opacityMaskClipValue = rs.value("opacityMaskClipValue", inst.renderState.opacityMaskClipValue);
             }
 
+            inst.forcedPassIndex = ji.value("forcePassIndex", inst.forcedPassIndex);
+
             if (ji.contains("overrides") && ji["overrides"].is_object())
             {
                 const json& jov = ji["overrides"];
@@ -2526,6 +2536,7 @@ bool Material_View::Save_BundleFile(const wstring& outputPath) const
             ji["assetName"] = inst.assetName;
             ji["template"] = static_cast<uint32>(inst.templateId);
             ji["refKind"] = kindToStr(kind);
+            ji["forcePassIndex"] = inst.forcedPassIndex;
 
             json jstate{};
             jstate["twoSided"] = inst.renderState.twoSided;
