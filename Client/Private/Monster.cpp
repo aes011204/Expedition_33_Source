@@ -215,6 +215,24 @@ HRESULT Monster::Ready_Collider()
     return S_OK;
 }
 
+void Monster::Decide_Action(Action& curturnAction, vector<BattleChar>& heroes)
+{
+
+        Skill_Data skill = {}; skill.scriptClassName = "Base_Gustave_Attack";
+        skill.apCost = 0; skill.targetingType = ECharacterTeamSelector::Invalid;
+ 
+   
+    curturnAction.target = heroes[0];
+    curturnAction._selected_SkillKey = skill;
+        curturnAction.type = EBattleContext::BaseAttack;
+
+    LOG_DEBUG("Monster::Decide_Action: target=%s, script=%s, type=%d",
+        curturnAction.target.actor ? String::ToString(curturnAction.target.actor->Get_Name()).c_str() : "null",
+        curturnAction._selected_SkillKey.scriptClassName.c_str(),
+        static_cast<int>(curturnAction.type));
+
+}
+
 Shared<Monster> Monster::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
     auto instance = make_shared<Monster>(device, context);

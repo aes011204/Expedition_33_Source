@@ -21,7 +21,8 @@ class BattleController :
 {
 
 public:
- 
+    BattleController();
+    virtual ~BattleController();
 public:
     HRESULT Inintialize();
     void Update(float timeDelta);
@@ -54,19 +55,23 @@ public:
     uint32 Get_EnemiesNum() { return _enemies.size(); }
     uint32 Get_HeroesNum() { return _heroes.size(); }
     vector<BattleChar>& Get_Enemies() { return _enemies; }
+    vector<BattleChar>& Get_Heroes() { return _heroes; }
 private:
     BattleChar _currentTurnActor = {};
     Action _turnAction={};
     bool isBattleActive = { false };
     int currentTurnIndex = {};
      
-
+    bool _flag = { false };
 
 private:
     void Execute_BaseAttack(const BattleChar actor, const Action& turnAction);
     void Execute_Skill(const BattleChar actor, const Action& turnAction);
     void Execute_Item(const BattleChar actor, const Action& turnAction);
 
+
+    bool _battleEnded = {};
+    bool _pendingNextTurn = {};
 public:
     struct Compare
     {
@@ -89,6 +94,13 @@ private:
     Shared< BattleStateMachine> _battleFSM;
     Shared< BuffSystem> _buffSystem;
     Shared< BattleEffectResolver> _battleEffectResolver;
+
+public:
+    static Unique<BattleController> Create();
+    void Free() override;
+
+public:
+
 };
 
 

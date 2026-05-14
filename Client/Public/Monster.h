@@ -1,5 +1,9 @@
 ﻿#pragma once
 
+#include <iosfwd>
+#include <vector>
+
+#include "Battle_Enum.h"
 #include "Client_Defines.h"
 #include "Character.h"
 
@@ -11,7 +15,9 @@ NS_END
 
 NS_BEGIN(Client)
 
-class Mon_Lancleier_Weapon;
+struct Action;
+
+    class Mon_Lancleier_Weapon;
 
     class Mon_Lancleier_Body;
 
@@ -66,6 +72,10 @@ public:
     void Set_CurrentAction(MonsterAction action) { _currentAction = action; }
     MonsterAction Get_CurrentAction() const { return _currentAction; }
 
+
+
+    public:
+        void Decide_Action(Action& curturnAction, vector<BattleChar>& heroes);
 public:
 	static Shared<Monster> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
 	virtual Shared<GameObject> Clone(void* arg) override;

@@ -8,7 +8,9 @@ NS_END
 
 NS_BEGIN(Client)
 
-class Player;
+class BattleController;
+
+    class Player;
 class TargetCamera;
 
 class ResourceLoader;
@@ -79,6 +81,8 @@ private:
     Unique<GameplayUI>      _gamePlayUI;
     Unique<PersistentObjectManager> _persistentObjectManager;
     Unique<Hero_Manager>    _heroManager;
+
+    Unique<BattleController>    _battleController;
 
 public:
 	void Free() override;
