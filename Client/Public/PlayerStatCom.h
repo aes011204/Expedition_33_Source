@@ -37,15 +37,15 @@ public:
         int32 CurVitality = 0;
         int32 CurMight = 0;
         int32 CurAgility = 0;
-        int32 CurDefense = 0;
+        int32 CurDefense = 0; // 표시용
         int32 CurLuck = 0;
 
         uint32 CurLevel = 1;
         uint32 CurExp = 0;
-        uint32 CurChroma = 0.f;
+        uint32 CurChroma = 0;
 
         float CurMaxHp = 0.f;
-        uint32 CurMaxAp = 0.f;
+        uint32 CurMaxAp = 0;
         float CurPhysicalAttack = 0.f;
         float CurPhysicalDefense = 0.f;
 
@@ -76,6 +76,16 @@ public:
     uint32  Get_NextExp(uint32 level) const;
     void Add_Exp(uint32 value);
 
+
+
+/// <test>
+    Skill_Data Get_Basic_Skill()
+    {
+        Skill_Data skill = {}; skill.scriptClassName = "Base_Gustave_Attack";
+        skill.apCost = 0; skill.targetingType = ECharacterTeamSelector::Invalid;
+        return skill;
+    };
+/// </test>
 private:
     int32* Find_StatValue(StatType type);
     array<int32*, static_cast<size_t>(StatType::END)> Get_StatValues();

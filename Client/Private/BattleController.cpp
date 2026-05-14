@@ -10,6 +10,7 @@
 #include "ChooseSkill.h"
 #include "ChooseUltimate.h"
 #include "CombatStatCom.h"
+#include "Create_Class.h"
 #include "ItemTargeting.h"
 #include "SkillTargeting.h"
 #include "Spawn_Prefab.h"
@@ -62,7 +63,7 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
     // 도망치기
     // 실패
     // 성공 
-
+    return result;
 }
 
 void BattleController::ExecuteAction(Action turnAction)
@@ -290,17 +291,26 @@ void BattleController::SetCharInitPos()
 
 void BattleController::Execute_BaseAttack(const BattleChar actor, const Action& turnAction)
 {
+    //기본스킬도 특이하기때문에 스킬로
+    const Skill_Data& skill = turnAction._selected_SkillKey;
+    /*   auto script = Create_Class::
+           skill.scriptClassName);*/
+
+    auto target = turnAction.target;
+
+    //script->Execute(skill, actor, target);
+
 }
 
 void BattleController::Execute_Skill(const BattleChar actor, const Action& turnAction)
 {
     const Skill_Data& skill = turnAction._selected_SkillKey;
-    auto script = Create_Class::
-        skill.scriptClassName);
+ /*   auto script = Create_Class::
+        skill.scriptClassName);*/
 
     auto target = turnAction.target;
 
-    script->Execute(skill, actor, target);
+    //script->Execute(skill, actor, target);
 }
 
 void BattleController::Execute_Item(const BattleChar actor, const Action& turnAction)

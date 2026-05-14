@@ -57,5 +57,13 @@ namespace Client
         CurrentAPPercentage,
         Invalid
     };
+
+    enum class PlayerCharactorType
+    {
+        Gustave,
+        Lune,
+        Maelle,
+        None,
+    };
 }
 

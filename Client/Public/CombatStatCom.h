@@ -70,10 +70,10 @@ public:
 public:
     const CombatStatDesc& Get_StatInfo() const { return _statDesc; }
 
-    RuntimeCombatStat& Get_RuntimeStat() {return _runtimeStat;}
+    RuntimeCombatStat& Get_RuntimeStat() { return _runtimeStat; }
 
-    void ApplyDamage(float damage);
-    void Heal(float amount);
+    //void ApplyDamage(float damage);
+    //void Heal(float amount);
 
     bool IsDead() const;
 
@@ -93,7 +93,7 @@ public:
 
     float Get_Speed() { return _runtimeStat.CurSpeed; };
     void Set_Speed(float speed) { _runtimeStat.CurSpeed = speed; }
-
+    PlayerCharactorType Get_PlayerType() { return _playerType; }
 protected:
     CombatStatDesc _statDesc;
 
@@ -103,6 +103,7 @@ protected:
 
 
     bool _isPlayer = { false };
+    PlayerCharactorType _playerType = PlayerCharactorType::None;
 public:
     static Shared<CombatStatCom> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
     Shared<Component> Clone(void* arg) override;

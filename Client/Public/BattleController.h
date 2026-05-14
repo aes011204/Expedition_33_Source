@@ -53,6 +53,7 @@ public:
     Action& Get_TurnAction() { return _turnAction; }
     uint32 Get_EnemiesNum() { return _enemies.size(); }
     uint32 Get_HeroesNum() { return _heroes.size(); }
+    vector<BattleChar>& Get_Enemies() { return _enemies; }
 private:
     BattleChar _currentTurnActor = {};
     Action _turnAction={};

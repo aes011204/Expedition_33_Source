@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <Filter Include="98.Default">
@@ -156,8 +156,12 @@
     </Filter>
     <Filter Include="Ailment">
       <UniqueIdentifier>{17b1ad35-1166-4e14-a636-7434629b73c3}</UniqueIdentifier>
+    </Filter>
     <Filter Include="97.ShaderFiles\Effect">
       <UniqueIdentifier>{eabf24e1-fc6a-403f-a7d5-20fff06e772b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Skill">
+      <UniqueIdentifier>{08ca65e3-4c52-440c-a6ee-2cdc0dbb87ff}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -397,16 +401,11 @@
     <ClInclude Include="..\Public\GameplayUI.h">
       <Filter>02.GameObject\UI</Filter>
     </ClInclude>
-    <ClInclude Include="..\public\PlayerStatCom.h" />
-    <ClInclude Include="..\public\MonsterStatCom.h" />
     <ClInclude Include="..\public\Buff.h">
       <Filter>Ailment</Filter>
     </ClInclude>
     <ClInclude Include="..\public\BuffSystem.h" />
-    <ClInclude Include="..\public\BattleEffectResolver.h" />
-    <ClInclude Include="..\public\SkillScript.h" />
     <ClInclude Include="..\public\DamageSystem.h" />
-    <ClInclude Include="Base_Attack.h" />
     <ClInclude Include="..\Public\Hero_Manager.h" />
     <ClInclude Include="..\Public\GameplayUI.h" />
     <ClInclude Include="..\Public\CharacterStatus_Panel.h" />
@@ -427,6 +426,21 @@
     </ClInclude>
     <ClInclude Include="..\Public\PreviewCamera.h" />
     <ClInclude Include="..\Public\Create_Class.h" />
+    <ClInclude Include="..\public\PlayerStatCom.h">
+      <Filter>03. Component\CombatStat</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\MonsterStatCom.h">
+      <Filter>03. Component\CombatStat</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\SkillScript.h">
+      <Filter>Skill</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\Base_Mon_Attack.h">
+      <Filter>Skill</Filter>
+    </ClInclude>
+    <ClInclude Include="Base_Gustave_Attack.h">
+      <Filter>Skill</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -645,16 +659,11 @@
     <ClCompile Include="..\Private\GameplayUI.cpp">
       <Filter>02.GameObject\UI</Filter>
     </ClCompile>
-    <ClCompile Include="..\private\PlayerStatCom.cpp" />
-    <ClCompile Include="..\private\MonsterStatCom.cpp" />
     <ClCompile Include="..\public\Ailment.cpp">
       <Filter>Ailment</Filter>
     </ClCompile>
     <ClCompile Include="..\private\BuffSystem.cpp" />
-    <ClCompile Include="..\private\BattleEffectResolver.cpp" />
-    <ClCompile Include="..\private\SkillScript.cpp" />
     <ClCompile Include="..\private\DamageSystem.cpp" />
-    <ClCompile Include="Base_Attack.cpp" />
     <ClCompile Include="..\Private\Hero_Manager.cpp" />
     <ClCompile Include="..\Private\GameplayUI.cpp" />
     <ClCompile Include="..\Private\CharacterStatus_Panel.cpp" />
@@ -672,6 +681,21 @@
     </ClCompile>
     <ClCompile Include="..\Private\PreviewCamera.cpp" />
     <ClCompile Include="..\Private\Create_Class.cpp" />
+    <ClCompile Include="..\private\MonsterStatCom.cpp">
+      <Filter>03. Component\CombatStat</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\PlayerStatCom.cpp">
+      <Filter>03. Component\CombatStat</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\SkillScript.cpp">
+      <Filter>Skill</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\Base_Mon_Attack.cpp">
+      <Filter>Skill</Filter>
+    </ClCompile>
+    <ClCompile Include="Base_Gustave_Attack.cpp">
+      <Filter>Skill</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">

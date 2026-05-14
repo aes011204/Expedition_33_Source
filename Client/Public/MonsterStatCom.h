@@ -45,7 +45,7 @@ public:
         const MonsterCombatStatDesc& Get_MonsterDesc() const{return _monsterDesc;}
         const MRuntimeCombatStat& Get_MonsterRuntimeStat() const{return _MRuntimeStat;}
         MRuntimeCombatStat& Get_MonsterRuntimeStat(){return _MRuntimeStat;}
-        const vector<Shared<Buff>>& Get_Ailments() const{return _ailments;}
+        const vector<Shared<Buff>>& Get_Buffs() const{return _buff;}
 
 
         bool IsBreak() const{return _MRuntimeStat.isBreak;}

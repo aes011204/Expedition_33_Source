@@ -44,6 +44,7 @@ HRESULT PlayerStatCom::Initialize(void* arg)
     CHECK_FAILED(CombatStatCom::Initialize(arg), E_FAIL);
 
     PlayerCombatStatDesc desc{};
+    _PRuntimeStat = {};
 
     if (arg != nullptr)
     {
@@ -68,12 +69,31 @@ HRESULT PlayerStatCom::Initialize(void* arg)
     _PRuntimeStat.CurExp = _statDesc.exp;
     _PRuntimeStat.CurChroma = _statDesc.chroma;
 
+    _PRuntimeStat.CurMaxHp = _statDesc.maxHp;
+    _PRuntimeStat.CurMaxAp = _statDesc.maxAp;
+   
+    _PRuntimeStat.CurAccuracy = _statDesc.accuracy;
+    _PRuntimeStat.CurMastery = _statDesc.mastery;
+    _PRuntimeStat.CurCriticalRate = _statDesc.criticalRate;
+    _PRuntimeStat.CurCriticalChance = _statDesc.criticalRate;
 
+    //_PRuntimeStat.CurShield = _runtimeStat.CurShield;
+
+
+    /*  float CurHp = {};
+        uint32 CurShield = {};
+        uint32 CurAp = {};
+
+        float physicalAttack = 0.f;
+        float physicalDefense = 0.f;
+
+        float CurSpeed = 0.f;
+        이거 뺴고 다 */
 
     Recalculate_Stats();
 
-    _PRuntimeStat.CurHp = _runtimeStat.CurHp;
-    _PRuntimeStat.CurAp = _runtimeStat.CurAp;
+   // _PRuntimeStat.CurHp = _runtimeStat.CurHp;
+   // _PRuntimeStat.CurAp = _runtimeStat.CurAp;
 
     Update_StatInfo();
 

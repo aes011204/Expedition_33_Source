@@ -9,11 +9,13 @@ BStateMachine::BStateMachine():Base()
 
 HRESULT BStateMachine::Initialize_Prototype()
 {
+    return S_OK;
+
 }
 
 HRESULT BStateMachine::Initialize(void* arg)
 {
-  
+    return S_OK;
 }
 
 void BStateMachine::Update_StateMachine(float timeDelta)

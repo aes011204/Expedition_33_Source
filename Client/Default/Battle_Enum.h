@@ -447,40 +447,6 @@ namespace Client
         Shared<CombatStatCom> statCom;
     };
 
-    struct Action
-    {
-        BattleChar _curChar = {};
-        uint32  target = {};
-
-        EBattleContext type = {};
-
-        Item_Data   _selected_ItemKey = {};
-        Skill_Data   _selected_SkillKey = {};
-
-    };
-    struct TurnEntry
-    {
-        BattleChar hero;
-        float nextTime;
-    };
-
-    struct DamageContext
-    {
-        BattleChar attacker;
-        BattleChar target;
-
-        float baseDamage;
-
-        EDamageReason damageType;
-        EAttackType element;
-
-        float finalMultiplier = 1.0f;
-        float flatBonus = 0.0f;
-
-        bool canCrit = true;
-        bool ignoreDefense = false;
-    };
-
 
     enum class BuffType { beforeTurn, changeStat, dot, SLogic };
     enum class Buffs
@@ -525,21 +491,58 @@ namespace Client
         // 디버프
 
     };
-    //------------------------------------
     struct Skill_Data
     {
-        string skillName;            // "FireSlash"
-        string scriptClassName;      // "FireSlashScript"
+        string skillName={""};            // "FireSlash"
+        string scriptClassName={""};      // "FireSlashScript"
 
 
         int32 apCost = 0;
-        ECharacterTeamSelector targetingType;
+        ECharacterTeamSelector targetingType={};
 
         // ⭐ 속성
-        EAttackType element;
+        EAttackType element={};
 
         // ⭐ 상태이상 (선택)
         Buffs ailmentType = Buffs::None;
         float ailmentChance = 0.f;
     };
+    struct Action
+    {
+        BattleChar _curChar = {};
+        BattleChar  target = {};
+
+        EBattleContext type = {};
+
+        Item_Data   _selected_ItemKey = {};
+        Skill_Data   _selected_SkillKey = {};
+
+    };
+    struct TurnEntry
+    {
+        BattleChar hero;
+        float nextTime;
+    };
+
+    struct DamageContext
+    {
+        BattleChar attacker;
+        BattleChar target;
+
+        float baseDamage;
+
+        EDamageReason damageType;
+        EAttackType element;
+
+        float finalMultiplier = 1.0f;
+        float flatBonus = 0.0f;
+
+        bool canCrit = true;
+        bool ignoreDefense = false;
+    };
+
+
+   
+    //------------------------------------
+   
 }

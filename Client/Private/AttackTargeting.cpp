@@ -6,6 +6,7 @@
 #include "BattleController.h"
 #include "BattleStateMachine.h"
 #include "Battle_Enum.h"
+#include "PlayerStatCom.h"
 
 NS_BEGIN(Client)
 
@@ -45,7 +46,9 @@ void AttackTargeting::Update(float timeDelta)
 
     if (GAME->KeyDown(KEY_TYPE::KEY_1))
     {
-        owner->Get_TurnAction().target = TargetIndex;
+        owner->Get_TurnAction().target = owner->Get_Enemies()[TargetIndex];
+        owner->Get_TurnAction()._selected_SkillKey =dynamic_pointer_cast <PlayerStatCom>(owner->Get_TurnAction()._curChar.statCom)->Get_Basic_Skill();
+
         owner->ExecuteAction(owner->Get_TurnAction());
      
         return;

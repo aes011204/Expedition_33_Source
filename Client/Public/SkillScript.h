@@ -14,7 +14,7 @@ public:
         const BattleChar& attacker,
         const BattleChar& target) = 0;
 public:
-    static Shared<SkillScript> Create();
+    //static Shared<SkillScript> Create();
     //Shared<Component> Clone(void* arg) override;
     void Free() override;
 

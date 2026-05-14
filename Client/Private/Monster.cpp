@@ -55,13 +55,6 @@ HRESULT Monster::Initialize(void* arg)
 
     //_currentAction = MonsterAction::Idle;
 
-    _transformCom->Set_Position(
-        Vec3(
-            10.f,
-            0.f,
-            10.f
-        )
-    );
 
     //_model->Set_Animation(5, true);
 

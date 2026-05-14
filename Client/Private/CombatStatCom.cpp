@@ -1,4 +1,7 @@
 ﻿#include "CombatStatCom.h"
+
+#include <GameObject.h>
+
 #include "ClientInstance.h"
 
 IMPLEMENT_REFLECTION(CombatStatCom)
@@ -31,6 +34,9 @@ CombatStatCom::CombatStatCom(const CombatStatCom& Prototype)
 
 HRESULT CombatStatCom::Initialize_Prototype()
 {
+
+
+
     return Component::Initialize_Prototype();
 }
 
@@ -51,22 +57,34 @@ HRESULT CombatStatCom::Initialize(void* arg)
     _runtimeStat.CurHp = _statDesc.maxHp;
     _runtimeStat.CurAp = _statDesc.maxAp;
     _runtimeStat.CurShield = _statDesc.commonCharacterStats.ShieldPointsAtSpawn;
+    _runtimeStat.physicalAttack = _statDesc.physicalAttack;
+    _runtimeStat.physicalDefense = _statDesc.physicalDefense;
 
+
+    //if (Get_Owner()->Get_Name() == L"Player_Gustave")
+    //    _playerType = PlayerCharactorType::Gustave;
+    //else if (Get_Owner()->Get_Name() == L"Player_Lune")
+    //    _playerType = PlayerCharactorType::Lune;
+    //else if (Get_Owner()->Get_Name() == L"Player_Maelle")
+    //    _playerType = PlayerCharactorType::Maelle;
+
+
+ 
 
     return S_OK;
 }
 
 
-void CombatStatCom::ApplyDamage(float damage)\
-{
-    Recalculate_Stats();
-
-    _hp = _maxHp;
-
-    Update_StatInfo();
-        
-    return S_OK;
-}
+//void CombatStatCom::ApplyDamage(float damage)
+//{
+//    Recalculate_Stats();
+//
+//    _hp = _maxHp;
+//
+//    Update_StatInfo();
+//  
+//    _runtimeStat.CurHp -= damage;
+//}
 
 json CombatStatCom::To_Json() const
 {
@@ -77,30 +95,27 @@ void CombatStatCom::From_Json(const json& data)
 {
     Component::From_Json(data);
 
-    Recalculate_Stats();
-    _hp = min(_hp, _maxHp);
-    Update_StatInfo();
 }
 
-bool CombatStatCom::Add_Stat(StatType type, int32 value)
-{
-    _runtimeStat.CurHp -= damage;
+//bool CombatStatCom::Add_Stat(StatType type, int32 value)
+//{
+//    _runtimeStat.CurHp -= damage;
+//
+//    if (_runtimeStat.CurHp < 0.f)
+//    {
+//        _runtimeStat.CurHp = 0.f;
+//    }
+//}
 
-    if (_runtimeStat.CurHp < 0.f)
-    {
-        _runtimeStat.CurHp = 0.f;
-    }
-}
-
-void CombatStatCom::Heal(float amount)
-{
-    _runtimeStat.CurHp += amount;
-
-    if (_runtimeStat.CurHp > _statDesc.maxHp)
-    {
-        _runtimeStat.CurHp = _statDesc.maxHp;
-    }
-}
+//void CombatStatCom::Heal(float amount)
+//{
+//    _runtimeStat.CurHp += amount;
+//
+//    if (_runtimeStat.CurHp > _statDesc.maxHp)
+//    {
+//        _runtimeStat.CurHp = _statDesc.maxHp;
+//    }
+//}
 
 bool CombatStatCom::IsDead() const
 {

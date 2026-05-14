@@ -219,17 +219,25 @@ HRESULT Level_GamePlay::Ready_Layer_MapStaticMesh(const wstring& strLayerTag)
 
 HRESULT Level_GamePlay::Ready_Layer_Monster(const wstring& strLayerTag)
 {
-    if (FAILED(
+   /* if (FAILED(
         GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Monster"),
             ETOI(LevelType::GamePlay), strLayerTag)
     ))
-        return E_FAIL;
+        return E_FAIL;*/
+
+
+    Vec3 startPos = Vec3(225.f, -4020.5f, -1.24f);
+
+
 
     const Shared<GameObject> monster = Client::Spawn_Prefab::Spawn(
         "Monster123123",
         ETOI(LevelType::GamePlay),
         strLayerTag
     );
+    monster->Get_Transform()->Set_Position(startPos);
+
+
 
     CHECK_NULL(monster, E_FAIL);
     return S_OK;
