@@ -48,18 +48,7 @@ HRESULT Player::Initialize(void* arg)
 
     if (FAILED(Ready_PartObjects()))
         return E_FAIL;
-    
-    auto script = Create_Class::SkillScript<Base_Gustave_Attack>().Create();
-    //auto script = Create_Class::SkillScript("Base_Gustave_Attack").Create(); -> Skill Script
-
-    if (script == nullptr)
-    {
-        LOG_ERROR("Base_Gustave_Attack Create Failed");
-    }
-    else
-    {
-        LOG_ERROR("Base_Gustave_Attack Create Success");
-    }
+   
 
     return S_OK;
 }

@@ -15,6 +15,7 @@
 #include "SkillTargeting.h"
 #include "Spawn_Prefab.h"
 #include "UltimateTargeting.h"
+#include "SkillScript.h"
 
 HRESULT BattleController::Inintialize()
 {
@@ -294,13 +295,24 @@ void BattleController::SetCharInitPos()
 void BattleController::Execute_BaseAttack(const BattleChar actor, const Action& turnAction)
 {
     //기본스킬도 특이하기때문에 스킬로
-    const Skill_Data& skill = turnAction._selected_SkillKey;
-       auto script = Create_Class::
-           skill.scriptClassName);
+
+
+   // auto script = Create_Class::SkillScript<Base_Gustave_Attack>().Create();
+    auto script = Create_Class::SkillScript(turnAction._selected_SkillKey.scriptClassName).Create();
+
+    if (script == nullptr)
+    {
+        LOG_ERROR("Base_Gustave_Attack Create Failed");
+    }
+    else
+    {
+        LOG_ERROR("Base_Gustave_Attack Create Success");
+    }
+\
 
     auto target = turnAction.target;
 
-    script->Execute(skill, actor, target);
+    script->Execute(turnAction._selected_SkillKey, actor, target);
 
 
 
