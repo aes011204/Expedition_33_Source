@@ -181,6 +181,7 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\Private\Action_Command.cpp" />
     <ClCompile Include="..\Private\CommandHistory.cpp" />
     <ClCompile Include="..\Private\Console_View.cpp" />
     <ClCompile Include="..\Private\CurveEditor_View.cpp" />
@@ -214,6 +215,7 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     <ClCompile Include="..\Private\Profile_View.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\Public\Action_Command.h" />
     <ClInclude Include="..\Public\CommandHistory.h" />
     <ClInclude Include="..\Public\Console_View.h" />
     <ClInclude Include="..\Public\CurveEditor_View.h" />

@@ -2,7 +2,6 @@
 
 #include "Editor_Context.h"
 #include "EffectEditorInstance.h"
-#include "Emitter_View.h"
 #include "Helper_DetailProperty.h"
 
 NS_BEGIN(EffectEditor)
@@ -58,40 +57,48 @@ void Detail_View::Render_EffectAuthoringDetail()
         return;
     }
 
+    Commit_PendingAuthoringEditOnTargetChange(emitterView, selection);
+
     if (selection.kind == EffectAuthoringSelectionKind::None)
     {
-        Render_ParticleSystemDetail(emitterView->Get_ParticleSystemData());
+        Render_ParticleSystemDetail(emitterView, selection, emitterView->Get_ParticleSystemData());
         return;
     }
 
     AuthoringEmitter* emitter = emitterView->Find_Emitter(selection.emitterId);
     if (nullptr == emitter)
     {
+        Commit_PendingAuthoringEdit(emitterView);
         ImGui::TextDisabled("Selected emitter is not available.");
         return;
     }
 
     if (selection.kind == EffectAuthoringSelectionKind::Emitter)
     {
-        Render_EmitterDetail(*emitter);
+        Render_EmitterDetail(emitterView, selection, *emitter);
         return;
     }
 
     AuthoringModule* module = emitterView->Find_Module(selection.emitterId, selection.moduleId);
     if (nullptr == module)
     {
+        Commit_PendingAuthoringEdit(emitterView);
         ImGui::TextDisabled("Selected module is not available.");
         return;
     }
 
-    Render_ModuleDetail(*emitter, *module);
+    Render_ModuleDetail(emitterView, selection, *emitter, *module);
 }
 
-void Detail_View::Render_ParticleSystemDetail(ParticleSystemAuthoringData& data)
+void Detail_View::Render_ParticleSystemDetail(
+    const Shared<Emitter_View>& emitterView,
+    const EffectAuthoringSelection& selection,
+    ParticleSystemAuthoringData& data)
 {
     ImGui::TextUnformatted("파티클 시스템");
     ImGui::Separator();
 
+    const Emitter_View::AuthoringSnapshot beforeSnapshot = emitterView->Capture_AuthoringSnapshot();
     const ParticleSystemAuthoringData defaultData{};
     bool changed = false;
     if (DetailProperty::Begin_PropertyTable("ParticleSystem"))
@@ -100,14 +107,23 @@ void Detail_View::Render_ParticleSystemDetail(ParticleSystemAuthoringData& data)
         DetailProperty::End_PropertyTable();
     }
     if (changed)
+    {
+        Begin_PendingAuthoringEdit(emitterView, selection, beforeSnapshot, "Edit Particle System Detail");
         MarkDirty();
+    }
+
+    Commit_PendingAuthoringEditIfIdle(emitterView);
 }
 
-void Detail_View::Render_EmitterDetail(AuthoringEmitter& emitter)
+void Detail_View::Render_EmitterDetail(
+    const Shared<Emitter_View>& emitterView,
+    const EffectAuthoringSelection& selection,
+    AuthoringEmitter& emitter)
 {
     ImGui::TextUnformatted("파티클");
     ImGui::Separator();
 
+    const Emitter_View::AuthoringSnapshot beforeSnapshot = emitterView->Capture_AuthoringSnapshot();
     const AuthoringEmitter defaultData{};
     const RequiredModuleData* requiredData = Find_RequiredModuleData(emitter);
     bool changed = false;
@@ -125,14 +141,23 @@ void Detail_View::Render_EmitterDetail(AuthoringEmitter& emitter)
         DetailProperty::End_PropertyTable();
     }
 
+    if (changed)
+        Begin_PendingAuthoringEdit(emitterView, selection, beforeSnapshot, "Edit Emitter Detail");
+
     Mark_Changed(emitter, changed);
+    Commit_PendingAuthoringEditIfIdle(emitterView);
 }
 
-void Detail_View::Render_ModuleDetail(AuthoringEmitter& emitter, AuthoringModule& module)
+void Detail_View::Render_ModuleDetail(
+    const Shared<Emitter_View>& emitterView,
+    const EffectAuthoringSelection& selection,
+    AuthoringEmitter& emitter,
+    AuthoringModule& module)
 {
     ImGui::TextUnformatted(String::ToString(module.displayName).c_str());
     ImGui::Separator();
 
+    const Emitter_View::AuthoringSnapshot beforeSnapshot = emitterView->Capture_AuthoringSnapshot();
     ModuleDetailDrawContext context{};
     bool changed = false;
 
@@ -171,7 +196,11 @@ void Detail_View::Render_ModuleDetail(AuthoringEmitter& emitter, AuthoringModule
         break;
     }
 
+    if (changed)
+        Begin_PendingAuthoringEdit(emitterView, selection, beforeSnapshot, "Edit Module Detail");
+
     Mark_Changed(emitter, changed);
+    Commit_PendingAuthoringEditIfIdle(emitterView);
 }
 
 void Detail_View::Mark_Changed(AuthoringEmitter& emitter, bool changed)
@@ -194,6 +223,70 @@ RequiredModuleData* Detail_View::Find_RequiredModuleData(AuthoringEmitter& emitt
     }
 
     return nullptr;
+}
+
+void Detail_View::Commit_PendingAuthoringEditOnTargetChange(
+    const Shared<Emitter_View>& emitterView,
+    const EffectAuthoringSelection& selection)
+{
+    if (!_hasPendingAuthoringEdit || Is_SameSelection(_pendingAuthoringSelection, selection))
+        return;
+
+    Commit_PendingAuthoringEdit(emitterView);
+}
+
+void Detail_View::Begin_PendingAuthoringEdit(
+    const Shared<Emitter_View>& emitterView,
+    const EffectAuthoringSelection& selection,
+    const Emitter_View::AuthoringSnapshot& beforeSnapshot,
+    const string& description)
+{
+    if (emitterView == nullptr)
+        return;
+
+    if (!_hasPendingAuthoringEdit)
+    {
+        _hasPendingAuthoringEdit = true;
+        _pendingAuthoringSelection = selection;
+        _pendingAuthoringSnapshot = beforeSnapshot;
+        _pendingAuthoringDescription = description;
+    }
+}
+
+void Detail_View::Commit_PendingAuthoringEditIfIdle(const Shared<Emitter_View>& emitterView)
+{
+    if (!_hasPendingAuthoringEdit || ImGui::IsAnyItemActive())
+        return;
+
+    Commit_PendingAuthoringEdit(emitterView);
+}
+
+void Detail_View::Commit_PendingAuthoringEdit(const Shared<Emitter_View>& emitterView)
+{
+    if (!_hasPendingAuthoringEdit || emitterView == nullptr)
+        return;
+
+    Emitter_View::AuthoringSnapshot afterSnapshot = emitterView->Capture_AuthoringSnapshot();
+    afterSnapshot.selectedEmitterIndex = _pendingAuthoringSnapshot.selectedEmitterIndex;
+    afterSnapshot.selectedModuleIndex = _pendingAuthoringSnapshot.selectedModuleIndex;
+    emitterView->Execute_AuthoringSnapshotCommand(
+        _pendingAuthoringSnapshot,
+        afterSnapshot,
+        _pendingAuthoringDescription
+    );
+
+    _hasPendingAuthoringEdit = false;
+    _pendingAuthoringSelection = {};
+    _pendingAuthoringSnapshot = {};
+    _pendingAuthoringDescription.clear();
+}
+
+bool Detail_View::Is_SameSelection(const EffectAuthoringSelection& lhs, const EffectAuthoringSelection& rhs)
+{
+    return
+        lhs.kind == rhs.kind &&
+        lhs.emitterId == rhs.emitterId &&
+        lhs.moduleId == rhs.moduleId;
 }
 
 Shared<Detail_View> Detail_View::Create()

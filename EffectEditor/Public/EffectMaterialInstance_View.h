@@ -1,11 +1,11 @@
 ﻿#pragma once
 
 #include "Editor_Window.h"
+#include "Emitter_View.h"
 #include "EffectAuthoring_Types.h"
 
 NS_BEGIN(EffectEditor)
 
-class Emitter_View;
 class EffectMaterial_View;
 class EffectMaterialPreviewRenderer;
 
@@ -31,6 +31,19 @@ private: //## Helpers
     bool Resolve_Target(Shared<Emitter_View>& outEmitterView, AuthoringEmitter*& outEmitter, RequiredModuleData*& outRequiredData) const;
     bool Draw_InstanceProperties(EffectMaterialInstanceData& material);
     void Apply_MaterialChanged(const Shared<Emitter_View>& emitterView, AuthoringEmitter& emitter, const RequiredModuleData& requiredData);
+    void Begin_PendingAuthoringEdit(
+        const Shared<Emitter_View>& emitterView,
+        const EffectAuthoringSelection& selection,
+        const Emitter_View::AuthoringSnapshot& beforeSnapshot,
+        const string& description);
+    void Commit_PendingAuthoringEditIfIdle(const Shared<Emitter_View>& emitterView);
+    void Commit_PendingAuthoringEdit(const Shared<Emitter_View>& emitterView);
+
+private: //## Data::AuthoringHistory
+    bool _hasPendingAuthoringEdit{ false };
+    EffectAuthoringSelection _pendingAuthoringSelection{};
+    Emitter_View::AuthoringSnapshot _pendingAuthoringSnapshot{};
+    string _pendingAuthoringDescription{};
 
 public:
     static Shared<EffectMaterialInstance_View> Create();

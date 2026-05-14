@@ -411,7 +411,10 @@ void EffectMaterialInstance_View::Render()
         AuthoringEmitter* emitter{ nullptr };
         RequiredModuleData* requiredData{ nullptr };
         if (!Resolve_Target(emitterView, emitter, requiredData))
+        {
+            Commit_PendingAuthoringEdit(emitterView);
             ImGui::TextDisabled("Material instance target is not selected.");
+        }
         else
         {
             ImGui::TextUnformatted("Embedded Effect Material Instance (Material Copy)");
@@ -421,6 +424,12 @@ void EffectMaterialInstance_View::Render()
             bool changed = false;
             const float contentWidth = ImGui::GetContentRegionAvail().x;
             const bool useSideBySideLayout = contentWidth >= 760.f;
+            const EffectAuthoringSelection selection{
+                EffectAuthoringSelectionKind::Module,
+                _targetEmitterId,
+                _targetModuleId
+            };
+            const Emitter_View::AuthoringSnapshot beforeSnapshot = emitterView->Capture_AuthoringSnapshot();
 
             if (useSideBySideLayout)
             {
@@ -464,7 +473,12 @@ void EffectMaterialInstance_View::Render()
             }
 
             if (changed)
+            {
                 Apply_MaterialChanged(emitterView, *emitter, *requiredData);
+                Begin_PendingAuthoringEdit(emitterView, selection, beforeSnapshot, "Edit Material Instance");
+            }
+
+            Commit_PendingAuthoringEditIfIdle(emitterView);
         }
     }
 
@@ -581,6 +595,52 @@ void EffectMaterialInstance_View::Apply_MaterialChanged(
         emitterView->MarkDirty();
 
     MarkDirty();
+}
+
+void EffectMaterialInstance_View::Begin_PendingAuthoringEdit(
+    const Shared<Emitter_View>& emitterView,
+    const EffectAuthoringSelection& selection,
+    const Emitter_View::AuthoringSnapshot& beforeSnapshot,
+    const string& description)
+{
+    if (emitterView == nullptr)
+        return;
+
+    if (!_hasPendingAuthoringEdit)
+    {
+        _hasPendingAuthoringEdit = true;
+        _pendingAuthoringSelection = selection;
+        _pendingAuthoringSnapshot = beforeSnapshot;
+        _pendingAuthoringDescription = description;
+    }
+}
+
+void EffectMaterialInstance_View::Commit_PendingAuthoringEditIfIdle(const Shared<Emitter_View>& emitterView)
+{
+    if (!_hasPendingAuthoringEdit || ImGui::IsAnyItemActive())
+        return;
+
+    Commit_PendingAuthoringEdit(emitterView);
+}
+
+void EffectMaterialInstance_View::Commit_PendingAuthoringEdit(const Shared<Emitter_View>& emitterView)
+{
+    if (!_hasPendingAuthoringEdit || emitterView == nullptr)
+        return;
+
+    Emitter_View::AuthoringSnapshot afterSnapshot = emitterView->Capture_AuthoringSnapshot();
+    afterSnapshot.selectedEmitterIndex = _pendingAuthoringSnapshot.selectedEmitterIndex;
+    afterSnapshot.selectedModuleIndex = _pendingAuthoringSnapshot.selectedModuleIndex;
+    emitterView->Execute_AuthoringSnapshotCommand(
+        _pendingAuthoringSnapshot,
+        afterSnapshot,
+        _pendingAuthoringDescription
+    );
+
+    _hasPendingAuthoringEdit = false;
+    _pendingAuthoringSelection = {};
+    _pendingAuthoringSnapshot = {};
+    _pendingAuthoringDescription.clear();
 }
 
 Shared<EffectMaterialInstance_View> EffectMaterialInstance_View::Create()

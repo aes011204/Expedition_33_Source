@@ -4,6 +4,9 @@
     <ClCompile Include="pch.cpp">
       <Filter>98. Default</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\Action_Command.cpp">
+      <Filter>01. Manager\03. Command History</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\CommandHistory.cpp">
       <Filter>01. Manager\03. Command History</Filter>
     </ClCompile>
@@ -92,6 +95,9 @@
   <ItemGroup>
     <ClInclude Include="pch.h">
       <Filter>98. Default</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Action_Command.h">
+      <Filter>01. Manager\03. Command History</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\CommandHistory.h">
       <Filter>01. Manager\03. Command History</Filter>

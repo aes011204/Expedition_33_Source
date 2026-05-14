@@ -8,6 +8,16 @@ NS_BEGIN(EffectEditor)
 class Emitter_View final : public Editor_Window
 {
 public:
+    struct AuthoringSnapshot
+    {
+        ParticleSystemAuthoringData particleSystemData{};
+        vector<AuthoringEmitter> emitters{};
+        optional<size_t> selectedEmitterIndex{};
+        optional<size_t> selectedModuleIndex{};
+        uint32 nextAuthoringId{ 1 };
+    };
+
+public:
     Emitter_View();
     ~Emitter_View() override = default;
 
@@ -24,6 +34,14 @@ public: //## Accessor::Authoring
     AuthoringEmitter* Get_SelectedOrFirstEmitter();
     void Clear_PreviewDirty(uint32 emitterId);
     bool Has_PreviewDirtyEmitter() const;
+
+public: //## Behavior::AuthoringHistory
+    AuthoringSnapshot Capture_AuthoringSnapshot() const;
+    void Restore_AuthoringSnapshot(const AuthoringSnapshot& snapshot);
+    void Execute_AuthoringSnapshotCommand(
+        const AuthoringSnapshot& beforeSnapshot,
+        const AuthoringSnapshot& afterSnapshot,
+        const string& description);
 
 private:
     enum class PendingEmitterAction
@@ -96,6 +114,11 @@ private: //## Helpers
     // 현재 선택 index가 emitter 목록 범위를 벗어나지 않도록 보정한다.
     // TODO : 삭제/이동 단계에서 호출 예정
     void Clamp_Selection();
+    void Sync_EmitterMirror(AuthoringEmitter& emitter);
+    void Sync_AllEmitterMirrors();
+    void Mark_AllPreviewDirty();
+    void Sync_SelectionContext();
+    void Execute_AuthoringEdit(const string& description, const function<void()>& edit);
     // hover tooltip은 설명 dump가 아니라 경고성 사유만 노출하는 채널로 유지한다.
     string Build_ModuleWarningTooltip(const AuthoringEmitter& emitter, const AuthoringModule& module) const;
     void Draw_EmitterContextMenu(size_t emitterIndex);

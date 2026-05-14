@@ -1,5 +1,6 @@
 ﻿#include "Emitter_View.h"
 
+#include "Action_Command.h"
 #include "Editor_Context.h"
 #include "EffectEditorInstance.h"
 #include "Helper_ImGui.h"
@@ -103,6 +104,55 @@ bool Emitter_View::Has_PreviewDirtyEmitter() const
     }
 
     return false;
+}
+
+Emitter_View::AuthoringSnapshot Emitter_View::Capture_AuthoringSnapshot() const
+{
+    AuthoringSnapshot snapshot{};
+    snapshot.particleSystemData = _particleSystemData;
+    snapshot.emitters = _emitters;
+    snapshot.selectedEmitterIndex = _selectedEmitterIndex;
+    snapshot.selectedModuleIndex = _selectedModuleIndex;
+    snapshot.nextAuthoringId = _nextAuthoringId;
+    return snapshot;
+}
+
+void Emitter_View::Restore_AuthoringSnapshot(const AuthoringSnapshot& snapshot)
+{
+    _particleSystemData = snapshot.particleSystemData;
+    _emitters = snapshot.emitters;
+    _selectedEmitterIndex = snapshot.selectedEmitterIndex;
+    _selectedModuleIndex = snapshot.selectedModuleIndex;
+    _nextAuthoringId = snapshot.nextAuthoringId;
+
+    Sync_AllEmitterMirrors();
+    Mark_AllPreviewDirty();
+    Clamp_Selection();
+    Sync_SelectionContext();
+    MarkDirty();
+}
+
+void Emitter_View::Execute_AuthoringSnapshotCommand(
+    const AuthoringSnapshot& beforeSnapshot,
+    const AuthoringSnapshot& afterSnapshot,
+    const string& description)
+{
+    if (EDITOR == nullptr)
+        return;
+
+    EDITOR->Execute_Command(
+        Action_Command::Create(
+            [this, beforeSnapshot]()
+            {
+                Restore_AuthoringSnapshot(beforeSnapshot);
+            },
+            [this, afterSnapshot]()
+            {
+                Restore_AuthoringSnapshot(afterSnapshot);
+            },
+            description
+        )
+    );
 }
 
 uint32 Emitter_View::Issue_AuthoringId()
@@ -334,16 +384,40 @@ void Emitter_View::Process_PendingEmitterAction()
     switch (_pendingEmitterAction)
     {
     case PendingEmitterAction::Duplicate:
-        Duplicate_Emitter(emitterIndex);
+        Execute_AuthoringEdit(
+            "Duplicate Emitter",
+            [this, emitterIndex]()
+            {
+                Duplicate_Emitter(emitterIndex);
+            }
+        );
         break;
     case PendingEmitterAction::Delete:
-        Delete_Emitter(emitterIndex);
+        Execute_AuthoringEdit(
+            "Delete Emitter",
+            [this, emitterIndex]()
+            {
+                Delete_Emitter(emitterIndex);
+            }
+        );
         break;
     case PendingEmitterAction::InsertBefore:
-        Insert_NewEmitter(emitterIndex);
+        Execute_AuthoringEdit(
+            "Insert Emitter",
+            [this, emitterIndex]()
+            {
+                Insert_NewEmitter(emitterIndex);
+            }
+        );
         break;
     case PendingEmitterAction::InsertAfter:
-        Insert_NewEmitter(emitterIndex + 1);
+        Execute_AuthoringEdit(
+            "Insert Emitter",
+            [this, emitterIndex]()
+            {
+                Insert_NewEmitter(emitterIndex + 1);
+            }
+        );
         break;
     case PendingEmitterAction::None:
     default:
@@ -463,10 +537,22 @@ void Emitter_View::Process_PendingModuleAction()
     switch (_pendingModuleAction)
     {
     case PendingModuleAction::Delete:
-        Delete_Module(emitterIndex, moduleIndex);
+        Execute_AuthoringEdit(
+            "Delete Module",
+            [this, emitterIndex, moduleIndex]()
+            {
+                Delete_Module(emitterIndex, moduleIndex);
+            }
+        );
         break;
     case PendingModuleAction::ResetData:
-        Reset_ModuleData(emitterIndex, moduleIndex);
+        Execute_AuthoringEdit(
+            "Reset Module Data",
+            [this, emitterIndex, moduleIndex]()
+            {
+                Reset_ModuleData(emitterIndex, moduleIndex);
+            }
+        );
         break;
     case PendingModuleAction::None:
     default:
@@ -498,6 +584,71 @@ void Emitter_View::Clamp_Selection()
     const auto& modules = _emitters[_selectedEmitterIndex.value()].modules;
     if (_selectedModuleIndex.has_value() && _selectedModuleIndex.value() >= modules.size())
         _selectedModuleIndex.reset();
+}
+
+void Emitter_View::Sync_EmitterMirror(AuthoringEmitter& emitter)
+{
+    for (AuthoringModule& module : emitter.modules)
+    {
+        if (module.type != AuthoringModuleType::Required)
+            continue;
+
+        const RequiredModuleData* requiredData = get_if<RequiredModuleData>(&module.data);
+        if (requiredData == nullptr)
+            return;
+
+        emitter.rendererType = requiredData->rendererType;
+        emitter.textureId = requiredData->material.mainTextureId;
+        emitter.resourceSummary = requiredData->material.mainTextureId;
+        return;
+    }
+}
+
+void Emitter_View::Sync_AllEmitterMirrors()
+{
+    for (AuthoringEmitter& emitter : _emitters)
+        Sync_EmitterMirror(emitter);
+}
+
+void Emitter_View::Mark_AllPreviewDirty()
+{
+    for (AuthoringEmitter& emitter : _emitters)
+        emitter.previewDirty = true;
+}
+
+void Emitter_View::Sync_SelectionContext()
+{
+    if (EDITOR == nullptr || EDITOR->Get_EditorContext() == nullptr)
+        return;
+
+    if (!_selectedEmitterIndex.has_value() || _selectedEmitterIndex.value() >= _emitters.size())
+    {
+        EDITOR->Get_EditorContext()->Clear_EffectSelection();
+        return;
+    }
+
+    const AuthoringEmitter& emitter = _emitters[_selectedEmitterIndex.value()];
+    if (_selectedModuleIndex.has_value() && _selectedModuleIndex.value() < emitter.modules.size())
+    {
+        EDITOR->Get_EditorContext()->Set_SelectEffectModule(
+            emitter.id,
+            emitter.modules[_selectedModuleIndex.value()].id
+        );
+        return;
+    }
+
+    EDITOR->Get_EditorContext()->Set_SelectEffectEmitter(emitter.id);
+}
+
+void Emitter_View::Execute_AuthoringEdit(const string& description, const function<void()>& edit)
+{
+    if (!edit)
+        return;
+
+    const AuthoringSnapshot beforeSnapshot = Capture_AuthoringSnapshot();
+    edit();
+    const AuthoringSnapshot afterSnapshot = Capture_AuthoringSnapshot();
+    Execute_AuthoringSnapshotCommand(beforeSnapshot, afterSnapshot, description);
 }
 
 string Emitter_View::Build_ModuleWarningTooltip(const AuthoringEmitter& emitter, const AuthoringModule& module) const
@@ -608,7 +759,15 @@ void Emitter_View::Draw_EmitterBoard()
         if (ImGui::BeginPopup("##EmitterBoardBlankPopup"))
         {
             if (ImGui::Selectable("새 이미터"))
-                Insert_NewEmitter(_emitters.size());
+            {
+                Execute_AuthoringEdit(
+                    "Insert Emitter",
+                    [this]()
+                    {
+                        Insert_NewEmitter(_emitters.size());
+                    }
+                );
+            }
 
             ImGui::EndPopup();
         }
@@ -678,10 +837,13 @@ void Emitter_View::Draw_EmitterColumn(size_t emitterIndex, AuthoringEmitter& emi
         )
     );
     ImGui::PushID("EmitterEnabled");
+    const AuthoringSnapshot beforeEmitterEnabledSnapshot = Capture_AuthoringSnapshot();
     if (ImGui::Checkbox("##Enabled", &emitter.enabled))
     {
         emitter.previewDirty = true;
         MarkDirty();
+        const AuthoringSnapshot afterSnapshot = Capture_AuthoringSnapshot();
+        Execute_AuthoringSnapshotCommand(beforeEmitterEnabledSnapshot, afterSnapshot, "Toggle Emitter Enabled");
     }
     ImGui::PopID();
 
@@ -789,10 +951,13 @@ void Emitter_View::Draw_ModuleRow(size_t emitterIndex, size_t moduleIndex, Autho
             )
         );
         ImGui::PushID("ModuleEnabled");
+        const AuthoringSnapshot beforeModuleEnabledSnapshot = Capture_AuthoringSnapshot();
         if (ImGui::Checkbox("##Enabled", &module.enabled))
         {
             _emitters[emitterIndex].previewDirty = true;
             MarkDirty();
+            const AuthoringSnapshot afterSnapshot = Capture_AuthoringSnapshot();
+            Execute_AuthoringSnapshotCommand(beforeModuleEnabledSnapshot, afterSnapshot, "Toggle Module Enabled");
         }
         ImGui::PopID();
     }
