@@ -14,6 +14,7 @@
 #include "AnimNotify_Parser.h"
 #include "AnimNotify.h"
 #include "AnimNotifyState.h"
+#include "AnimState_Parser.h"
 
 ModelCom::ModelCom(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Component{ device, context } {
@@ -107,7 +108,6 @@ const string& ModelCom::Get_BoneName(uint32 boneIndex) const
     return _bones[boneIndex]->Get_BoneName();
 }
 
-// TODO : 기존 애니메이션이면 progress 초기화 하고 정리, 그게 아니라면 바로 다음 애니메이션 초기로 세팅
 void ModelCom::Set_Animation(uint32 animIndex, bool isLoop)
 {
     if (animIndex >= _animations.size()) return;
@@ -121,11 +121,60 @@ void ModelCom::Set_Animation(uint32 animIndex, bool isLoop)
     Mark_BoneMatricesDirty();
 }
 
-// TODO : BlendSetting으로 보간 애니메이션 세팅 이미
+void ModelCom::Set_AnimationByState(uint32 stateIndex, bool isLoop)
+{
+    uint32 animIndex = stateIndex;
+
+    if (!_stateAnimIndices.empty() && stateIndex < _stateAnimIndices.size())
+    {
+        if (_stateAnimIndices[stateIndex] != UINT32_MAX)
+        {
+            animIndex = _stateAnimIndices[stateIndex];
+        }
+    }
+
+    if (animIndex >= _animations.size()) return;
+
+    _currentAnimStateIndex = stateIndex;
+    _currentAnimIndex = animIndex;
+    _isAnimLoop = isLoop;
+    _isBlending = false;
+    _isFinished = false;
+    _animations[_currentAnimIndex]->Reset();
+
+    Mark_BoneMatricesDirty();
+}
+
 void ModelCom::Set_Animation(uint32 animIndex, float blendDuration, bool isLoop)
 {
     if (animIndex >= _animations.size()) return;
 
+    _nextAnimIndex = animIndex;
+    _isAnimLoop = isLoop;
+    _isBlending = true;
+    _blendDuration = blendDuration;
+    _blendElapsedTime = 0.f;
+    _isFinished = false;
+    _animations[_nextAnimIndex]->Reset();
+
+    Mark_BoneMatricesDirty();
+}
+
+void ModelCom::Set_AnimationByState(uint32 stateIndex, float blendDuration, bool isLoop)
+{
+    uint32 animIndex = stateIndex;
+
+    if (!_stateAnimIndices.empty() && stateIndex < _stateAnimIndices.size())
+    {
+        if (_stateAnimIndices[stateIndex] != UINT32_MAX)
+        {
+            animIndex = _stateAnimIndices[stateIndex];
+        }
+    }
+
+    if (animIndex >= _animations.size()) return;
+
+    _nextAnimStateIndex = stateIndex;
     _nextAnimIndex = animIndex;
     _isAnimLoop = isLoop;
     _isBlending = true;
@@ -607,6 +656,8 @@ void ModelCom::From_Json(const json& data)
     }
 
     Apply_BaseMaterialFromBundle_AllSlots();
+
+    Ensure_AnimStateAssetLoaded(); // 애니메이션은 Prefab기반 로드 싱크를 여기다 맞춤
 }
 
 HRESULT ModelCom::Reload_ModelFromGuid(const string& guid, ModelType modelType)
@@ -657,6 +708,8 @@ HRESULT ModelCom::RenderInstanced(uint32 meshIndex, Buffer* instanceVB, uint32 i
 
 bool ModelCom::Play_Animation(float timeDelta)
 {
+    float adjustedTimeDelta = timeDelta * _frameSpeed;
+
     if (!_isSkeletal || _animations.empty()) return false;
 
     if (_isAnimationPaused)
@@ -671,19 +724,20 @@ bool ModelCom::Play_Animation(float timeDelta)
 
     if (_isBlending)
     {
-        _blendElapsedTime += timeDelta;
+        _blendElapsedTime += adjustedTimeDelta;
         float ratio = _blendElapsedTime / _blendDuration;
 
         if (ratio >= 1.f)
         {
             _isBlending = false;
             _currentAnimIndex = _nextAnimIndex;
-            _isFinished = _animations[_currentAnimIndex]->Update_TransformationMatrices(timeDelta, _bones, _isAnimLoop, rootIndex);
+            _currentAnimStateIndex = _nextAnimStateIndex;
+            _isFinished = _animations[_currentAnimIndex]->Update_TransformationMatrices(adjustedTimeDelta, _bones, _isAnimLoop, rootIndex);
             _rootOriginalFrameVelocity = rootIndex >= 0 ? _animations[_currentAnimIndex]->Get_TransformVelocity(rootIndex) : RootMotionFrame{};
         }
         else
         {
-            _animations[_currentAnimIndex]->Blend_TransformMatrix(timeDelta, _animations[_nextAnimIndex], ratio, _bones, _isAnimLoop, rootIndex);
+            _animations[_currentAnimIndex]->Blend_TransformMatrix(adjustedTimeDelta, _animations[_nextAnimIndex], ratio, _bones, _isAnimLoop, rootIndex);
 
             if (rootIndex >= 0)
             {
@@ -696,7 +750,7 @@ bool ModelCom::Play_Animation(float timeDelta)
     }
     else
     {
-        _isFinished = _animations[_currentAnimIndex]->Update_TransformationMatrices(timeDelta, _bones, _isAnimLoop, rootIndex);
+        _isFinished = _animations[_currentAnimIndex]->Update_TransformationMatrices(adjustedTimeDelta, _bones, _isAnimLoop, rootIndex);
         _rootOriginalFrameVelocity = (rootIndex >= 0) ? _animations[_currentAnimIndex]->Get_TransformVelocity(rootIndex) : RootMotionFrame{};
     }
 
@@ -729,7 +783,7 @@ bool ModelCom::Play_Animation(float timeDelta)
             context.animationName = Get_AnimationName(_currentAnimIndex) ? Get_AnimationName(_currentAnimIndex) : "";
             context.previousTimeSec = previousTimeSec;
             context.currentTimeSec = currentTimeSec;
-            context.deltaTime = timeDelta;
+            context.deltaTime = adjustedTimeDelta;
             context.isLooping = _isAnimLoop;
             context.wrapped = wrapped;
             context.isPreview = !_isAnimNotifyExecutionEnabled;
@@ -805,6 +859,15 @@ wstring ModelCom::Normalize_ModelAssetPath(const char* modelFilePath)
 
 uint32 ModelCom::Get_AnimationIndex() const
 {
+    return _isBlending ? _nextAnimIndex : _currentAnimIndex;
+}
+
+uint32 ModelCom::Get_AnimationStateIndex() const
+{
+    uint32 activeState = _isBlending ? _nextAnimStateIndex : _currentAnimStateIndex;
+    if (activeState != UINT32_MAX)
+        return activeState;
+
     return _isBlending ? _nextAnimIndex : _currentAnimIndex;
 }
 
@@ -1414,12 +1477,14 @@ HRESULT ModelCom::Ready_Model(const char* modelPath)
             }
 
             _meshes.push_back(SkeletalMesh::Create(_device, _context, meshData, _preLocalTransformMatrix));
+            _type = ModelType::Anim;
         }
         else
         {
             meshData.boneIndices = nullptr;
             meshData.offsetMatrices = nullptr;
             _meshes.push_back(StaticMesh::Create(_device, _context, meshData, _preLocalTransformMatrix));
+            _type = ModelType::NonAnim;
         }
     }
 
@@ -1517,7 +1582,14 @@ HRESULT ModelCom::Ready_Animation(const char* modelPath)
 
     _numAnimations = trueAnimIndex;
 
+    Ensure_AnimStateAssetLoaded();
+
     return S_OK;
+}
+
+bool ModelCom::Ensure_AnimStateAssetLoaded()
+{
+    return AnimState_Parser::Load_StateAnimations(_sourceModelPath, _animations, _stateAnimIndices, &_animEnumType);
 }
 
 void ModelCom::Reset_ModelData()
@@ -1538,6 +1610,7 @@ void ModelCom::Reset_ModelData()
     _materials.clear();
     _bones.clear();
     _animations.clear();
+    _stateAnimIndices.clear();
     _collisionMeshes.clear();
 
     _isFinished = false;
@@ -1612,6 +1685,7 @@ void ModelCom::Free()
     _meshBoneMatrixCaches.clear();
     _combinedBoneMatrixCache.clear();
 
+    _stateAnimIndices.clear();
     _animations.clear();
     _materials.clear();
     _meshes.clear();

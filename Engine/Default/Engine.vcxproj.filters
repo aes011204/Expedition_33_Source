@@ -202,9 +202,6 @@
     <Filter Include="01.Utility\04.Component\VIBuffer\Instance\Particle">
       <UniqueIdentifier>{9c62bf2c-8203-4b3e-aebd-5eae6afe0067}</UniqueIdentifier>
     </Filter>
-    <Filter Include="94. AnimNotify">
-      <UniqueIdentifier>{8d36ebf8-1177-47c8-b0a9-b7afaf900cf2}</UniqueIdentifier>
-    </Filter>
     <Filter Include="01.Utility\04.Component\ComputeShader">
       <UniqueIdentifier>{aadf4bbf-8e12-4ef8-a651-aae3aefb3b12}</UniqueIdentifier>
     </Filter>
@@ -219,6 +216,15 @@
     </Filter>
     <Filter Include="01.Utility\04.Component\VIBuffer\Instance\Particle w. ComputeShader">
       <UniqueIdentifier>{238dde8a-837b-49b6-9623-31af69115dcd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="01.Utility\04.Component\Model\Animation\Notify">
+      <UniqueIdentifier>{fce9dc96-971f-4474-91c4-b3b02d047db2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="01.Utility\04.Component\Model\Animation\StateMap">
+      <UniqueIdentifier>{44e17beb-e112-4514-bb7d-c406e0f9253f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="94. AnimationParseUtil">
+      <UniqueIdentifier>{8d36ebf8-1177-47c8-b0a9-b7afaf900cf2}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -279,8 +285,6 @@
     <ClInclude Include="..\Public\ComputeStructuredBuffer.h">
       <Filter>01.Utility\04.Component\ComputeShader\ComputeStructuredBuffer</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\AnimNotify.h" />
-    <ClInclude Include="..\Public\AnimNotifyState.h" />
     <ClInclude Include="..\Public\ThreadPool.h" />
     <ClInclude Include="..\Public\VIBuffer_MeshInstance.h">
       <Filter>01.Utility\04.Component\VIBuffer\Instance\Mesh</Filter>
@@ -297,6 +301,16 @@
     <ClInclude Include="..\public\UI_Button.h" />
     <ClInclude Include="..\public\UI_Panel.h" />
     <ClInclude Include="..\Public\Shader_CBuffer_Define.h" />
+    <ClInclude Include="..\Public\Log_Define.h" />
+    <ClInclude Include="..\Public\PhysX_Handle.h" />
+    <ClInclude Include="..\public\MaterialBuilder.h" />
+    <ClInclude Include="..\Public\AnimNotifyState.h">
+      <Filter>01.Utility\04.Component\Model\Animation\Notify</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\AnimNotify.h">
+      <Filter>01.Utility\04.Component\Model\Animation\Notify</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\AnimState_Parser.h" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\public\Base.h">
@@ -561,10 +575,10 @@
       <Filter>97. Manager</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\AnimNotify_Types.h">
-      <Filter>94. AnimNotify</Filter>
+      <Filter>94. AnimationParseUtil</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\AnimNotify_Parser.h">
-      <Filter>94. AnimNotify</Filter>
+      <Filter>94. AnimationParseUtil</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -797,7 +811,7 @@
       <Filter>97. Manager</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\AnimNotify_Parser.cpp">
-      <Filter>94. AnimNotify</Filter>
+      <Filter>94. AnimationParseUtil</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\PhysX_Filter.cpp" />
     <ClCompile Include="..\Private\Picking.cpp" />
@@ -829,8 +843,6 @@
     <ClCompile Include="..\Private\ComputeStructuredBuffer.cpp">
       <Filter>01.Utility\04.Component\ComputeShader\ComputeStructuredBuffer</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\AnimNotify.cpp" />
-    <ClCompile Include="..\Private\AnimNotifyState.cpp" />
     <ClCompile Include="..\Private\ThreadPool.cpp" />
     <ClCompile Include="..\Private\VIBuffer_MeshInstance.cpp">
       <Filter>01.Utility\04.Component\VIBuffer\Instance\Mesh</Filter>
@@ -849,6 +861,14 @@
     <ClCompile Include="..\private\UI_Panel.cpp" />
     <ClCompile Include="..\private\UI_Button.cpp" />
     <ClCompile Include="..\private\UI_Panel.cpp" />
+    <ClCompile Include="..\private\MaterialBuilder.cpp" />
+    <ClCompile Include="..\Private\AnimNotify.cpp">
+      <Filter>01.Utility\04.Component\Model\Animation\Notify</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\AnimNotifyState.cpp">
+      <Filter>01.Utility\04.Component\Model\Animation\Notify</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\AnimState_Parser.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Bin\ShaderFiles\Engine_Shader_Defines.hlsli">

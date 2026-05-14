@@ -1,4 +1,4 @@
-﻿#include "RegistorFactory.h"
+#include "RegistorFactory.h"
 #include "TypeRegistry.h"
 
 namespace Engine
@@ -27,11 +27,17 @@ namespace Engine
         return infos;
     }
 
-    vector<AnimNotifyStateRegistorInfo>& Get_PendingAnimNotifyStateTypeInfos()
-    {
-        static vector<AnimNotifyStateRegistorInfo> infos{};
-        return infos;
-    }
+	vector<AnimNotifyStateRegistorInfo>& Get_PendingAnimNotifyStateTypeInfos()
+	{
+		static vector<AnimNotifyStateRegistorInfo> infos{};
+		return infos;
+	}
+
+	vector<TypeRegistry::GlobalEnumInfo>& Get_PendingGlobalEnumInfos()
+	{
+		static vector<TypeRegistry::GlobalEnumInfo> infos{};
+		return infos;
+	}
 
     bool Register_ComponentType_Pending(const char* className, const ComponentCreateFn& createFn, ClassReflectionInfo* reflectionInfo)
     {
@@ -66,11 +72,25 @@ namespace Engine
         return true;
     }
 
-    bool Register_AnimNotifyStateType_Pending(const char* className, const AnimNotifyStateCreateFn& createFn, ClassReflectionInfo* reflectionInfo)
-    {
-        Get_PendingAnimNotifyStateTypeInfos().push_back({ className, createFn, reflectionInfo });
-        return true;
-    }
+	bool Register_AnimNotifyStateType_Pending(const char* className, const AnimNotifyStateCreateFn& createFn, ClassReflectionInfo* reflectionInfo)
+	{
+		Get_PendingAnimNotifyStateTypeInfos().push_back({ className, createFn, reflectionInfo });
+		return true;
+	}
+
+	bool Register_GlobalEnum_Pending(const char* displayName, const std::vector<std::string>& enumNames, const std::vector<int>& enumValues)
+	{
+		if (nullptr == displayName)
+			return false;
+
+		TypeRegistry::GlobalEnumInfo info;
+		info.displayName = displayName;
+		info.enumNames = enumNames;
+		info.enumValues = enumValues;
+
+		Get_PendingGlobalEnumInfos().push_back(std::move(info));
+		return true;
+	}
 
     HRESULT Flush_PendingTypeRegistrations(TypeRegistry& registry)
     {
@@ -120,17 +140,23 @@ namespace Engine
                 return E_FAIL;
         }
 
-        for (const auto& info : Get_PendingAnimNotifyStateTypeInfos())
-        {
-            TypeRegistry::AnimNotifyStateTypeInfo typeInfo{};
-            typeInfo.className = info.className;
-            typeInfo.createFn = info.createFn;
-            typeInfo.reflectionInfo = info.reflectionInfo;
+		for (const auto& info : Get_PendingAnimNotifyStateTypeInfos())
+		{
+			TypeRegistry::AnimNotifyStateTypeInfo typeInfo{};
+			typeInfo.className = info.className;
+			typeInfo.createFn = info.createFn;
+			typeInfo.reflectionInfo = info.reflectionInfo;
 
-            if (FAILED(registry.Register_AnimNotifyStateType(typeInfo)))
-                return E_FAIL;
-        }
+			if (FAILED(registry.Register_AnimNotifyStateType(typeInfo)))
+				return E_FAIL;
+		}
 
-        return S_OK;
+		for (const auto& info : Get_PendingGlobalEnumInfos())
+		{
+			if (FAILED(registry.Register_GlobalEnum(info)))
+				return E_FAIL;
+		}
+
+		return S_OK;
     }
 }

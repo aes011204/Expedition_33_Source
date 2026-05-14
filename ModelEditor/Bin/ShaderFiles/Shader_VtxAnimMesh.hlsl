@@ -2,8 +2,8 @@
 #include "Engine_Shader_RenderState.hlsl"
 #include "Engine_Shader_Samplers.hlsl"
 #include "Engine_Shader_Passes.hlsl"
+#include "Engine_Shader_ConstantBuffer.hlsl"
 
-float4x4 g_WorldMatrix, g_ViewMatrix, g_ProjMatrix;
 
 vector g_vLightDir;
 vector g_vLightDiffuse;
@@ -13,12 +13,12 @@ vector g_vLightSpecular;
 Texture2D g_DiffuseTexture;
 vector g_vMtrlAmbient = vector(0.3f, 0.3f, 0.3f, 1.f);
 vector g_vMtrlSpecular = vector(1.f, 1.f, 1.f, 1.f);
-vector g_CamPosition;
 
 struct BoneMatrixElement
 {
     row_major float4x4 BoneMatrix;
 };
+StructuredBuffer<BoneMatrixElement> g_BoneMatrices;
 
 StructuredBuffer<BoneMatrixElement> g_BoneMatricesBuffer;
 
@@ -63,7 +63,6 @@ VS_OUT VS_MAIN(VS_IN In)
 
     Out.vPosition = mul(vPosition, matWVP);
     Out.vNormal = normalize(mul(vNormal, g_WorldMatrix));
-
     Out.vTexcoord = In.vTexcoord;
     Out.vWorldPos = mul(vPosition, g_WorldMatrix);
 
@@ -108,5 +107,5 @@ PS_OUT PS_MAIN(PS_IN In)
 
 technique11 DefaultTechnique
 {
-    PASS_RS_DS_BS_VP(DefaultPass, RS_Default, DSS_Default, BS_Default, VS_MAIN, PS_MAIN)
+    PASS_RS_DS_BS_VP(DefaultPass, RS_CullNone, DSS_Default, BS_Default, VS_MAIN, PS_MAIN)
 }

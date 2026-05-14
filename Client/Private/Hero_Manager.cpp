@@ -372,23 +372,23 @@ void Hero_Manager::Update_FollowerAnimation(const Shared<Player>& follower, floa
     if (body == nullptr)
         return;
 
-    using Anim = Body_Player::PlayerAnimation;
+    using Anim = Body_Player::PlayerWorldAnimation;
 
     if (moveDistance <= 0.001f)
     {
-        const uint32 current = body->Get_AnimationIndex();
+        const uint32 current = body->Get_AnimationStateIndex();
 
         if (current != ETOI(Anim::Pl_Walk) &&
-            current != ETOI(Anim::Pl_Idle))
+            current != ETOI(Anim::Pl_Idle_0))
         {
-            body->Set_Animation(ETOI(Anim::Pl_Walk), 0.1f, true);
+            body->Set_AnimationByState(ETOI(Anim::Pl_Walk), 0.1f, true);
         }
 
         return;
     }
 
-    if (body->Get_AnimationIndex() != ETOI(Anim::Pl_Run))
-        body->Set_Animation(ETOI(Anim::Pl_Run), 0.1f, true);
+    if (body->Get_AnimationStateIndex() != ETOI(Anim::Pl_Run))
+        body->Set_AnimationByState(ETOI(Anim::Pl_Run), 0.1f, true);
 }
 
 void Hero_Manager::Refresh_TargetCamera() const
