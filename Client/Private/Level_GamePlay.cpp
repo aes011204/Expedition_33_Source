@@ -115,9 +115,9 @@ HRESULT Level_GamePlay::Ready_Lights()
     LIGHT_DESC LightDesc{};
 
     LightDesc.type = LightType::Directional;
-    LightDesc.direction = XMFLOAT4(1.f, -1.f, 1.f, 0.f);
+    LightDesc.direction = XMFLOAT4(1.f, -1.f, -1.f, 0.f);
     LightDesc.diffuse = XMFLOAT4(1.f, 1.f, 1.f, 1.f);
-    LightDesc.ambient = XMFLOAT4(0.3f, 0.3f, 0.3f, 1.f);
+    LightDesc.ambient = XMFLOAT4(0.4f, 0.4f, 0.4f, 1.f);
     LightDesc.specular = XMFLOAT4(1.f, 1.f, 1.f, 1.f);
 
     if (FAILED(GAME->Add_Light(LightDesc)))

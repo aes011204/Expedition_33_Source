@@ -16,6 +16,8 @@
 #include "Material.h"
 
 #include <algorithm>
+#include <climits>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <system_error>
@@ -54,9 +56,11 @@ namespace
 
     using TexturePreviewCache = std::unordered_map<wstring, ComPtr<ID3D11ShaderResourceView>>;
     using TextureSearchCache = std::unordered_map<string, string>;
+    using TextureCandidateCache = std::unordered_map<wstring, vector<fs::path>>;
 
     TexturePreviewCache g_MaterialViewTexturePreviewCache{};
     TextureSearchCache g_MaterialViewTextureSearchCache{};
+    TextureCandidateCache g_MaterialViewTextureCandidateCache{};
 
     string To_DisplayTexturePath(const wstring& resolvedPath)
     {
@@ -208,6 +212,8 @@ void Material_View::Draw_Settings()
     syncToBufOnce(bundleDirBuf, sizeof(bundleDirBuf), _bundleOutputDir);
     syncToBufOnce(bundleNameBuf, sizeof(bundleNameBuf), _bundleOutputName);
 
+    ImGui::Checkbox("Live Apply", &_liveApplyEnabled);
+
     ImGui::TextDisabled("Texture Root");
     ImGui::SameLine(120.f);
     ImGui::SetNextItemWidth(-100.f);
@@ -350,6 +356,8 @@ void Material_View::Draw_CreateWithJson()
         // 여기서는 아직 MI를 읽지 않는다. 우선 어떤 파일이 어떤 머테리얼을 참조하는지 목록만 만든다
         if (!_selectedJsonPath.empty())
         {
+            _mappingMaterialIndexFilter = 0;
+            _liveApplyDirty = false;
             switch (_selectedInputKind)
             {
             case MappingInputKind::Skeletal:
@@ -395,11 +403,15 @@ void Material_View::Draw_CreateWithJson()
         _manualInstanceKinds.clear();
         _heuristics.clear();
         _activeMappingGroup = 0;
+        _mappingMaterialIndexFilter = 0;
+        _liveApplyDirty = false;
     }
 
     // 선택된 모델 기준으로 materialIndex를 골라서, 아래 편집 UI를 그 슬롯만 보이게 필터링한다.
     Shared<Engine::ModelCom> selectedModel = nullptr;
-    const int selectedMaterialIndexFilter = Draw_SelectedModelSection(selectedModel);
+    int selectedMaterialIndexFilter = Draw_SelectedModelSection(selectedModel);
+    if (selectedMaterialIndexFilter < 0)
+        selectedMaterialIndexFilter = _mappingMaterialIndexFilter;
     Draw_MappingsEditorUI(selectedMaterialIndexFilter, selectedModel);
 }
 
@@ -446,10 +458,14 @@ void Material_View::Draw_EditWithBundle()
         _manualInstanceKinds.clear();
         _heuristics.clear();
         _activeMappingGroup = 0;
+        _mappingMaterialIndexFilter = 0;
+        _liveApplyDirty = false;
     }
 
     Shared<Engine::ModelCom> selectedModel = nullptr;
-    const int selectedMaterialIndexFilter = Draw_SelectedModelSection(selectedModel);
+    int selectedMaterialIndexFilter = Draw_SelectedModelSection(selectedModel);
+    if (selectedMaterialIndexFilter < 0)
+        selectedMaterialIndexFilter = _mappingMaterialIndexFilter;
     Draw_MappingsEditorUI(selectedMaterialIndexFilter, selectedModel);
 }
 
@@ -478,10 +494,14 @@ void Material_View::Draw_EditWithModelCom()
         _manualInstanceKinds.clear();
         _heuristics.clear();
         _activeMappingGroup = 0;
+        _mappingMaterialIndexFilter = 0;
+        _liveApplyDirty = false;
     }
 
     Shared<Engine::ModelCom> selectedModel = nullptr;
-    const int selectedMaterialIndexFilter = Draw_SelectedModelSection(selectedModel);
+    int selectedMaterialIndexFilter = Draw_SelectedModelSection(selectedModel);
+    if (selectedMaterialIndexFilter < 0)
+        selectedMaterialIndexFilter = _mappingMaterialIndexFilter;
     Draw_MappingsEditorUI(selectedMaterialIndexFilter, selectedModel);
 }
 
@@ -537,6 +557,7 @@ int Material_View::Draw_SelectedModelSection(Shared<Engine::ModelCom>& outSelect
         _selectedModelMaterialIndex = 0;
 
     selectedMaterialIndexFilter = _selectedModelMaterialIndex;
+    _mappingMaterialIndexFilter = _selectedModelMaterialIndex;
 
     const Shared<Material> currentMaterial = outSelectedModel->Get_Material(static_cast<uint32>(_selectedModelMaterialIndex));
     const string preview = "[" + to_string(_selectedModelMaterialIndex) + "] " +
@@ -675,6 +696,51 @@ void Material_View::Draw_MappingsEditorUI(int selectedMaterialIndexFilter, const
         return a->slotName < b->slotName;
     });
 
+    int effectiveMaterialIndexFilter = selectedMaterialIndexFilter;
+    if (effectiveMaterialIndexFilter < 0)
+        effectiveMaterialIndexFilter = _mappingMaterialIndexFilter;
+    else
+        _mappingMaterialIndexFilter = effectiveMaterialIndexFilter;
+
+    {
+        vector<uint32> materialIndices{};
+        materialIndices.reserve(activeMappings.size());
+        for (const MaterialMapping* m : activeMappings)
+        {
+            if (m->source == MaterialSourceKind::FX)
+                continue;
+            materialIndices.push_back(m->materialIndex);
+        }
+
+        sort(materialIndices.begin(), materialIndices.end());
+        materialIndices.erase(unique(materialIndices.begin(), materialIndices.end()), materialIndices.end());
+
+        if (!materialIndices.empty())
+        {
+            const string preview = "MaterialIndex " + to_string(_mappingMaterialIndexFilter);
+            if (ImGui::BeginCombo("Material Slot Filter", preview.c_str()))
+            {
+                for (uint32 idx : materialIndices)
+                {
+                    const bool isSelected = (static_cast<int>(idx) == _mappingMaterialIndexFilter);
+                    const string label = to_string(idx);
+                    if (ImGui::Selectable(label.c_str(), isSelected))
+                    {
+                        _mappingMaterialIndexFilter = static_cast<int>(idx);
+                        effectiveMaterialIndexFilter = _mappingMaterialIndexFilter;
+                        if (selectedModel != nullptr)
+                            _selectedModelMaterialIndex = _mappingMaterialIndexFilter;
+                    }
+                    if (isSelected)
+                        ImGui::SetItemDefaultFocus();
+                }
+                ImGui::EndCombo();
+            }
+        }
+    }
+
+    bool anyChanged = false;
+
     auto getOrMakeInstance = [&](MaterialMapping& mapping) -> MaterialInstanceData*
     {
         // MI는 Build 결과를 그대로 쓰고, M이나 Unknown은 수동 편집용 인스턴스를 만든다
@@ -706,8 +772,9 @@ void Material_View::Draw_MappingsEditorUI(int selectedMaterialIndexFilter, const
         return &it->second;
     };
 
-    auto drawTemplatePicker = [&](MaterialInstanceData& inst) -> void
+    auto drawTemplatePicker = [&](MaterialInstanceData& inst) -> bool
     {
+        bool changed = false;
         int current = static_cast<int>(inst.templateId);
         const char* preview = "Unknown";
         for (const MaterialTemplateDesc& desc : kTemplateTable)
@@ -725,16 +792,21 @@ void Material_View::Draw_MappingsEditorUI(int selectedMaterialIndexFilter, const
             {
                 const bool selected = (desc.id == inst.templateId);
                 if (ImGui::Selectable(desc.name, selected))
+                {
                     inst.templateId = desc.id;
+                    changed = true;
+                }
                 if (selected)
                     ImGui::SetItemDefaultFocus();
             }
             ImGui::EndCombo();
         }
+        return changed;
     };
 
-    auto drawBlendModePicker = [&](Engine::MaterialRenderState& state) -> void
+    auto drawBlendModePicker = [&](Engine::MaterialRenderState& state) -> bool
     {
+        bool changed = false;
         const char* preview = (state.blendMode == Engine::MaterialBlendMode::Opaque) ? "Opaque" :
             (state.blendMode == Engine::MaterialBlendMode::Masked) ? "Masked" :
             (state.blendMode == Engine::MaterialBlendMode::Translucent) ? "Translucent" : "Unknown";
@@ -746,21 +818,29 @@ void Material_View::Draw_MappingsEditorUI(int selectedMaterialIndexFilter, const
             {
                 const bool selected = (static_cast<int>(state.blendMode) == i);
                 if (ImGui::Selectable(labels[i], selected))
+                {
                     state.blendMode = static_cast<Engine::MaterialBlendMode>(i);
+                    changed = true;
+                }
                 if (selected)
                     ImGui::SetItemDefaultFocus();
             }
             ImGui::EndCombo();
         }
+        return changed;
     };
 
-    auto drawSlotEditor = [&](const char* label, bool& overrideFlag, wstring& slotPath) -> void
+    auto drawSlotEditor = [&](const char* label, bool& overrideFlag, wstring& slotPath) -> bool
     {
         // 슬롯별 UI는 Model_Inspector에서 하던 방식과 거의 같다
+        bool changed = false;
+        ImGui::SetNextItemOpen(true, ImGuiCond_Once);
         if (!ImGui::TreeNode(label))
-            return;
+            return false;
 
+        bool beforeEnabled = overrideFlag;
         ImGui::Checkbox("Enabled", &overrideFlag);
+        changed = changed || (beforeEnabled != overrideFlag);
 
         ImGui::TextDisabled("Path");
         ImGui::SameLine(120.f);
@@ -780,8 +860,7 @@ void Material_View::Draw_MappingsEditorUI(int selectedMaterialIndexFilter, const
             }
         }
 
-        const vector<fs::path> textureCandidates = Collect_TextureCandidates(slotPath);
-        if (!textureCandidates.empty())
+        if (!slotPath.empty())
         {
             ImGui::TextDisabled("Texture");
             ImGui::SameLine(120.f);
@@ -789,6 +868,21 @@ void Material_View::Draw_MappingsEditorUI(int selectedMaterialIndexFilter, const
             const string currentFileName = slotPath.empty() ? "-" : String::ToString(fs::path(slotPath).filename().wstring());
             if (ImGui::BeginCombo("##TexturePicker", currentFileName.c_str()))
             {
+                const fs::path directory = fs::path(slotPath).parent_path();
+                vector<fs::path> textureCandidates{};
+                if (!directory.empty() && fs::exists(directory))
+                {
+                    const wstring dirKey = directory.lexically_normal().wstring();
+                    const auto cached = g_MaterialViewTextureCandidateCache.find(dirKey);
+                    if (cached != g_MaterialViewTextureCandidateCache.end())
+                        textureCandidates = cached->second;
+                    else
+                    {
+                        textureCandidates = Collect_TextureCandidates(slotPath);
+                        g_MaterialViewTextureCandidateCache[dirKey] = textureCandidates;
+                    }
+                }
+
                 const string pickerKey = string(label) + "_" + currentFileName;
                 string& searchText = g_MaterialViewTextureSearchCache[pickerKey];
                 char searchBuffer[256]{};
@@ -831,6 +925,7 @@ void Material_View::Draw_MappingsEditorUI(int selectedMaterialIndexFilter, const
                     {
                         slotPath = candidatePath.wstring();
                         overrideFlag = true;
+                        changed = true;
                     }
 
                     if (isSelected)
@@ -852,6 +947,7 @@ void Material_View::Draw_MappingsEditorUI(int selectedMaterialIndexFilter, const
             {
                 slotPath = picked;
                 overrideFlag = true;
+                changed = true;
             }
         }
 
@@ -860,9 +956,11 @@ void Material_View::Draw_MappingsEditorUI(int selectedMaterialIndexFilter, const
         {
             slotPath.clear();
             overrideFlag = true;
+            changed = true;
         }
 
         ImGui::TreePop();
+        return changed;
     };
 
     for (MaterialMapping* mPtr : activeMappings)
@@ -870,9 +968,9 @@ void Material_View::Draw_MappingsEditorUI(int selectedMaterialIndexFilter, const
         MaterialMapping& m = *mPtr;
 
         // 선택된 ModelCom 기반으로 slot을 고른 경우, 해당 materialIndex만 보여준다.
-        if (selectedMaterialIndexFilter >= 0 &&
+        if (effectiveMaterialIndexFilter >= 0 &&
             m.source != MaterialSourceKind::FX &&
-            static_cast<int>(m.materialIndex) != selectedMaterialIndexFilter)
+            static_cast<int>(m.materialIndex) != effectiveMaterialIndexFilter)
         {
             continue;
         }
@@ -898,15 +996,40 @@ void Material_View::Draw_MappingsEditorUI(int selectedMaterialIndexFilter, const
             int idx = static_cast<int>(m.materialIndex);
             ImGui::SetNextItemWidth(120.f);
             if (ImGui::DragInt("##MaterialIndex", &idx, 0.25f, 0, 4096))
+            {
                 m.materialIndex = static_cast<uint32>((std::max)(0, idx));
+                anyChanged = true;
+            }
 
             ImGui::SameLine();
             if (ImGui::Button("Reset##MaterialIndex"))
+            {
                 m.materialIndex = m.originalMaterialIndex;
+                anyChanged = true;
+            }
 
             ImGui::TextDisabled("Slot");
             ImGui::SameLine(120.f);
-            ImGui::TextUnformatted(m.slotName.c_str());
+            if (_mode == CreateMode::CreateMaterial)
+            {
+                char slotBuf[256]{};
+                strncpy_s(slotBuf, m.slotName.c_str(), _TRUNCATE);
+
+                ImGui::SetNextItemWidth(-FLT_MIN);
+                if (ImGui::InputText("##SlotName", slotBuf, sizeof(slotBuf)))
+                {
+                    const string newName = slotBuf;
+                    if (m.slotName != newName)
+                    {
+                        m.slotName = newName;
+                        anyChanged = true;
+                    }
+                }
+            }
+            else
+            {
+                ImGui::TextUnformatted(m.slotName.c_str());
+            }
         }
 
         ImGui::SeparatorText("Ref");
@@ -932,6 +1055,7 @@ void Material_View::Draw_MappingsEditorUI(int selectedMaterialIndexFilter, const
             {
                 m.material.kind = newKind;
                 refChanged = true;
+                anyChanged = true;
             }
 
             char assetBuf[256]{};
@@ -964,6 +1088,7 @@ void Material_View::Draw_MappingsEditorUI(int selectedMaterialIndexFilter, const
 
                     m.material.assetName = newName;
                     refChanged = true;
+                    anyChanged = true;
                 }
             }
 
@@ -984,18 +1109,25 @@ void Material_View::Draw_MappingsEditorUI(int selectedMaterialIndexFilter, const
         }
 
         ImGui::SeparatorText("Textures");
-        drawSlotEditor("BaseColor", inst->baseColorOverride, inst->baseColorPath);
-        drawSlotEditor("Normal", inst->normalOverride, inst->normalPath);
-        drawSlotEditor("ORM", inst->ormOverride, inst->ormPath);
-        drawSlotEditor("Emissive", inst->emissiveOverride, inst->emissivePath);
-        drawSlotEditor("OpacityMask", inst->opacityMaskOverride, inst->opacityMaskPath);
+        anyChanged = anyChanged || drawSlotEditor("BaseColor", inst->baseColorOverride, inst->baseColorPath);
+        anyChanged = anyChanged || drawSlotEditor("Normal", inst->normalOverride, inst->normalPath);
+        anyChanged = anyChanged || drawSlotEditor("ORM", inst->ormOverride, inst->ormPath);
+        anyChanged = anyChanged || drawSlotEditor("Emissive", inst->emissiveOverride, inst->emissivePath);
+        anyChanged = anyChanged || drawSlotEditor("OpacityMask", inst->opacityMaskOverride, inst->opacityMaskPath);
 
         ImGui::SeparatorText("Parameters");
-        drawTemplatePicker(*inst);
+        anyChanged = anyChanged || drawTemplatePicker(*inst);
 
-        ImGui::Checkbox("TwoSided", &inst->renderState.twoSided);
-        drawBlendModePicker(inst->renderState);
-        ImGui::DragFloat("Clip", &inst->renderState.opacityMaskClipValue, 0.001f, 0.f, 1.f);
+        {
+            bool before = inst->renderState.twoSided;
+            ImGui::Checkbox("TwoSided", &inst->renderState.twoSided);
+            anyChanged = anyChanged || (before != inst->renderState.twoSided);
+        }
+
+        anyChanged = anyChanged || drawBlendModePicker(inst->renderState);
+
+        if (ImGui::DragFloat("Clip", &inst->renderState.opacityMaskClipValue, 0.001f, 0.f, 1.f))
+            anyChanged = true;
 
         Engine::MaterialCB baseCb{};
         bool hasBaseCb = false;
@@ -1024,6 +1156,7 @@ void Material_View::Draw_MappingsEditorUI(int selectedMaterialIndexFilter, const
                 inst->ormOverride = false;
                 inst->emissiveOverride = false;
                 inst->opacityMaskOverride = false;
+                anyChanged = true;
             }
         }
 
@@ -1052,13 +1185,17 @@ void Material_View::Draw_MappingsEditorUI(int selectedMaterialIndexFilter, const
                 basePreview = preview.c_str();
             }
             const bool toggled = drawOverrideCheckbox("Override BaseTint", inst->cbMask.baseColorTint, basePreview);
+            anyChanged = anyChanged || toggled;
             if (toggled && inst->cbMask.baseColorTint && hasBaseCb)
                 inst->cb.baseColorTint = baseCb.baseColorTint;
 
             ImGui::BeginDisabled(!inst->cbMask.baseColorTint);
             float baseTint[4] = { inst->cb.baseColorTint.x, inst->cb.baseColorTint.y, inst->cb.baseColorTint.z, inst->cb.baseColorTint.w };
             if (ImGui::InputFloat4("BaseTint", baseTint))
+            {
                 inst->cb.baseColorTint = Engine::Vec4(baseTint[0], baseTint[1], baseTint[2], baseTint[3]);
+                anyChanged = true;
+            }
             ImGui::EndDisabled();
         }
 
@@ -1075,13 +1212,17 @@ void Material_View::Draw_MappingsEditorUI(int selectedMaterialIndexFilter, const
                 basePreview = preview.c_str();
             }
             const bool toggled = drawOverrideCheckbox("Override EmissiveColor", inst->cbMask.emissiveColor, basePreview);
+            anyChanged = anyChanged || toggled;
             if (toggled && inst->cbMask.emissiveColor && hasBaseCb)
                 inst->cb.emissiveColor = baseCb.emissiveColor;
 
             ImGui::BeginDisabled(!inst->cbMask.emissiveColor);
             float emiColor[4] = { inst->cb.emissiveColor.x, inst->cb.emissiveColor.y, inst->cb.emissiveColor.z, inst->cb.emissiveColor.w };
             if (ImGui::InputFloat4("EmissiveColor", emiColor))
+            {
                 inst->cb.emissiveColor = Engine::Vec4(emiColor[0], emiColor[1], emiColor[2], emiColor[3]);
+                anyChanged = true;
+            }
             ImGui::EndDisabled();
         }
 
@@ -1090,9 +1231,11 @@ void Material_View::Draw_MappingsEditorUI(int selectedMaterialIndexFilter, const
             const char* basePreview = nullptr;
             if (hasBaseCb) { preview = "Base: " + to_string(baseCb.emissiveIntensity); basePreview = preview.c_str(); }
             const bool toggled = drawOverrideCheckbox("Override EmissiveIntensity", inst->cbMask.emissiveIntensity, basePreview);
+            anyChanged = anyChanged || toggled;
             if (toggled && inst->cbMask.emissiveIntensity && hasBaseCb) inst->cb.emissiveIntensity = baseCb.emissiveIntensity;
             ImGui::BeginDisabled(!inst->cbMask.emissiveIntensity);
-            ImGui::DragFloat("EmissiveIntensity", &inst->cb.emissiveIntensity, 0.01f, 0.f, 100.f);
+            if (ImGui::DragFloat("EmissiveIntensity", &inst->cb.emissiveIntensity, 0.01f, 0.f, 100.f))
+                anyChanged = true;
             ImGui::EndDisabled();
         }
 
@@ -1101,9 +1244,11 @@ void Material_View::Draw_MappingsEditorUI(int selectedMaterialIndexFilter, const
             const char* basePreview = nullptr;
             if (hasBaseCb) { preview = "Base: " + to_string(baseCb.emissiveMaskMul); basePreview = preview.c_str(); }
             const bool toggled = drawOverrideCheckbox("Override EmissiveMaskMul", inst->cbMask.emissiveMaskMul, basePreview);
+            anyChanged = anyChanged || toggled;
             if (toggled && inst->cbMask.emissiveMaskMul && hasBaseCb) inst->cb.emissiveMaskMul = baseCb.emissiveMaskMul;
             ImGui::BeginDisabled(!inst->cbMask.emissiveMaskMul);
-            ImGui::DragFloat("EmissiveMaskMul", &inst->cb.emissiveMaskMul, 0.01f, 0.f, 100.f);
+            if (ImGui::DragFloat("EmissiveMaskMul", &inst->cb.emissiveMaskMul, 0.01f, 0.f, 100.f))
+                anyChanged = true;
             ImGui::EndDisabled();
         }
 
@@ -1112,9 +1257,11 @@ void Material_View::Draw_MappingsEditorUI(int selectedMaterialIndexFilter, const
             const char* basePreview = nullptr;
             if (hasBaseCb) { preview = "Base: " + to_string(baseCb.normalStrength); basePreview = preview.c_str(); }
             const bool toggled = drawOverrideCheckbox("Override NormalStrength", inst->cbMask.normalStrength, basePreview);
+            anyChanged = anyChanged || toggled;
             if (toggled && inst->cbMask.normalStrength && hasBaseCb) inst->cb.normalStrength = baseCb.normalStrength;
             ImGui::BeginDisabled(!inst->cbMask.normalStrength);
-            ImGui::DragFloat("NormalStrength", &inst->cb.normalStrength, 0.01f, 0.f, 10.f);
+            if (ImGui::DragFloat("NormalStrength", &inst->cb.normalStrength, 0.01f, 0.f, 10.f))
+                anyChanged = true;
             ImGui::EndDisabled();
         }
 
@@ -1123,9 +1270,11 @@ void Material_View::Draw_MappingsEditorUI(int selectedMaterialIndexFilter, const
             const char* basePreview = nullptr;
             if (hasBaseCb) { preview = "Base: " + to_string(baseCb.opacityMaskClipValue); basePreview = preview.c_str(); }
             const bool toggled = drawOverrideCheckbox("Override OpacityClipCB", inst->cbMask.opacityMaskClipValue, basePreview);
+            anyChanged = anyChanged || toggled;
             if (toggled && inst->cbMask.opacityMaskClipValue && hasBaseCb) inst->cb.opacityMaskClipValue = baseCb.opacityMaskClipValue;
             ImGui::BeginDisabled(!inst->cbMask.opacityMaskClipValue);
-            ImGui::DragFloat("OpacityClipCB", &inst->cb.opacityMaskClipValue, 0.001f, 0.f, 1.f);
+            if (ImGui::DragFloat("OpacityClipCB", &inst->cb.opacityMaskClipValue, 0.001f, 0.f, 1.f))
+                anyChanged = true;
             ImGui::EndDisabled();
         }
 
@@ -1134,9 +1283,11 @@ void Material_View::Draw_MappingsEditorUI(int selectedMaterialIndexFilter, const
             const char* basePreview = nullptr;
             if (hasBaseCb) { preview = "Base: " + to_string(baseCb.roughnessScale); basePreview = preview.c_str(); }
             const bool toggled = drawOverrideCheckbox("Override RoughnessScale", inst->cbMask.roughnessScale, basePreview);
+            anyChanged = anyChanged || toggled;
             if (toggled && inst->cbMask.roughnessScale && hasBaseCb) inst->cb.roughnessScale = baseCb.roughnessScale;
             ImGui::BeginDisabled(!inst->cbMask.roughnessScale);
-            ImGui::DragFloat("RoughnessScale", &inst->cb.roughnessScale, 0.01f, 0.f, 10.f);
+            if (ImGui::DragFloat("RoughnessScale", &inst->cb.roughnessScale, 0.01f, 0.f, 10.f))
+                anyChanged = true;
             ImGui::EndDisabled();
         }
 
@@ -1145,9 +1296,11 @@ void Material_View::Draw_MappingsEditorUI(int selectedMaterialIndexFilter, const
             const char* basePreview = nullptr;
             if (hasBaseCb) { preview = "Base: " + to_string(baseCb.metalnessScale); basePreview = preview.c_str(); }
             const bool toggled = drawOverrideCheckbox("Override MetalnessScale", inst->cbMask.metalnessScale, basePreview);
+            anyChanged = anyChanged || toggled;
             if (toggled && inst->cbMask.metalnessScale && hasBaseCb) inst->cb.metalnessScale = baseCb.metalnessScale;
             ImGui::BeginDisabled(!inst->cbMask.metalnessScale);
-            ImGui::DragFloat("MetalnessScale", &inst->cb.metalnessScale, 0.01f, 0.f, 10.f);
+            if (ImGui::DragFloat("MetalnessScale", &inst->cb.metalnessScale, 0.01f, 0.f, 10.f))
+                anyChanged = true;
             ImGui::EndDisabled();
         }
 
@@ -1156,9 +1309,11 @@ void Material_View::Draw_MappingsEditorUI(int selectedMaterialIndexFilter, const
             const char* basePreview = nullptr;
             if (hasBaseCb) { preview = "Base: " + to_string(baseCb.aoScale); basePreview = preview.c_str(); }
             const bool toggled = drawOverrideCheckbox("Override AoScale", inst->cbMask.aoScale, basePreview);
+            anyChanged = anyChanged || toggled;
             if (toggled && inst->cbMask.aoScale && hasBaseCb) inst->cb.aoScale = baseCb.aoScale;
             ImGui::BeginDisabled(!inst->cbMask.aoScale);
-            ImGui::DragFloat("AoScale", &inst->cb.aoScale, 0.01f, 0.f, 10.f);
+            if (ImGui::DragFloat("AoScale", &inst->cb.aoScale, 0.01f, 0.f, 10.f))
+                anyChanged = true;
             ImGui::EndDisabled();
         }
 
@@ -1171,11 +1326,15 @@ void Material_View::Draw_MappingsEditorUI(int selectedMaterialIndexFilter, const
                 basePreview = preview.c_str();
             }
             const bool toggled = drawOverrideCheckbox("Override UV Scale", inst->cbMask.uvScale, basePreview);
+            anyChanged = anyChanged || toggled;
             if (toggled && inst->cbMask.uvScale && hasBaseCb) inst->cb.uvScale = baseCb.uvScale;
             ImGui::BeginDisabled(!inst->cbMask.uvScale);
             float uvScale[2] = { inst->cb.uvScale.x, inst->cb.uvScale.y };
             if (ImGui::InputFloat2("UV Scale", uvScale))
+            {
                 inst->cb.uvScale = Engine::Vec2(uvScale[0], uvScale[1]);
+                anyChanged = true;
+            }
             ImGui::EndDisabled();
         }
 
@@ -1188,11 +1347,15 @@ void Material_View::Draw_MappingsEditorUI(int selectedMaterialIndexFilter, const
                 basePreview = preview.c_str();
             }
             const bool toggled = drawOverrideCheckbox("Override UV Offset", inst->cbMask.uvOffset, basePreview);
+            anyChanged = anyChanged || toggled;
             if (toggled && inst->cbMask.uvOffset && hasBaseCb) inst->cb.uvOffset = baseCb.uvOffset;
             ImGui::BeginDisabled(!inst->cbMask.uvOffset);
             float uvOffset[2] = { inst->cb.uvOffset.x, inst->cb.uvOffset.y };
             if (ImGui::InputFloat2("UV Offset", uvOffset))
+            {
                 inst->cb.uvOffset = Engine::Vec2(uvOffset[0], uvOffset[1]);
+                anyChanged = true;
+            }
             ImGui::EndDisabled();
         }
 
@@ -1201,9 +1364,11 @@ void Material_View::Draw_MappingsEditorUI(int selectedMaterialIndexFilter, const
             const char* basePreview = nullptr;
             if (hasBaseCb) { preview = "Base: " + to_string(baseCb.uvRotation); basePreview = preview.c_str(); }
             const bool toggled = drawOverrideCheckbox("Override UV Rotation", inst->cbMask.uvRotation, basePreview);
+            anyChanged = anyChanged || toggled;
             if (toggled && inst->cbMask.uvRotation && hasBaseCb) inst->cb.uvRotation = baseCb.uvRotation;
             ImGui::BeginDisabled(!inst->cbMask.uvRotation);
-            ImGui::DragFloat("UV Rotation", &inst->cb.uvRotation, 0.001f, -100.f, 100.f);
+            if (ImGui::DragFloat("UV Rotation", &inst->cb.uvRotation, 0.001f, -100.f, 100.f))
+                anyChanged = true;
             ImGui::EndDisabled();
         }
 
@@ -1212,15 +1377,28 @@ void Material_View::Draw_MappingsEditorUI(int selectedMaterialIndexFilter, const
             const char* basePreview = nullptr;
             if (hasBaseCb) { preview = "Base: " + to_string(baseCb.materialMask); basePreview = preview.c_str(); }
             const bool toggled = drawOverrideCheckbox("Override MaterialMask", inst->cbMask.materialMask, basePreview);
+            anyChanged = anyChanged || toggled;
             if (toggled && inst->cbMask.materialMask && hasBaseCb) inst->cb.materialMask = baseCb.materialMask;
             ImGui::BeginDisabled(!inst->cbMask.materialMask);
             int mask = static_cast<int>(inst->cb.materialMask);
             if (ImGui::InputInt("MaterialMask", &mask))
+            {
                 inst->cb.materialMask = static_cast<uint32>(std::max(0, mask));
+                anyChanged = true;
+            }
             ImGui::EndDisabled();
         }
 
         ImGui::PopID();
+    }
+
+    if (anyChanged)
+        _liveApplyDirty = true;
+
+    if (_liveApplyEnabled && _liveApplyDirty && selectedModel != nullptr && effectiveMaterialIndexFilter >= 0)
+    {
+        Apply_ToSelectedModel(effectiveMaterialIndexFilter);
+        _liveApplyDirty = false;
     }
 
     ImGui::SeparatorText("Heuristics");
@@ -1236,8 +1414,191 @@ void Material_View::Draw_MappingsEditorUI(int selectedMaterialIndexFilter, const
 
 void Material_View::Draw_CreateMaterial()
 {
-    ImGui::TextDisabled("Create Material is not available yet.");
-    ImGui::TextDisabled("Use Create With Json for now.");
+    ImGui::SeparatorText("Manual Mappings");
+
+    auto clearAll = [&]() -> void
+    {
+        _materialMappings.clear();
+        _materialInstances.clear();
+        _manualInstances.clear();
+        _manualInstanceKinds.clear();
+        _heuristics.clear();
+        _activeMappingGroup = 0;
+        _mappingMaterialIndexFilter = 0;
+        _liveApplyDirty = false;
+    };
+
+    auto computeNextManualIndex = [&]() -> uint32
+    {
+        uint32 maxIndex = 0;
+        bool hasAny = false;
+        for (const MaterialMapping& m : _materialMappings)
+        {
+            if (m.source == MaterialSourceKind::FX)
+                continue;
+            if (m.sourceFile != "Manual")
+                continue;
+
+            maxIndex = hasAny ? (std::max)(maxIndex, m.materialIndex) : m.materialIndex;
+            hasAny = true;
+        }
+        return hasAny ? (maxIndex + 1) : 0;
+    };
+
+    auto addManualSlot = [&](uint32 newIndex) -> void
+    {
+        MaterialMapping m{};
+        m.source = MaterialSourceKind::SK;
+        m.sourceFile = "Manual";
+        m.materialIndex = newIndex;
+        m.originalMaterialIndex = newIndex;
+        m.slotName = "Slot_" + to_string(newIndex);
+
+        m.material.kind = MaterialRefKind::M;
+        m.material.assetName = "Manual_" + to_string(newIndex);
+
+        _materialMappings.push_back(move(m));
+        _mappingMaterialIndexFilter = static_cast<int>(newIndex);
+    };
+
+    if (ImGui::Button("New Manual Mapping"))
+    {
+        clearAll();
+        addManualSlot(0);
+    }
+
+    ImGui::SameLine();
+    if (ImGui::Button("Add Slot"))
+    {
+        if (!_materialMappings.empty())
+        {
+            bool hasNonManual = false;
+            for (const MaterialMapping& m : _materialMappings)
+            {
+                if (m.source == MaterialSourceKind::FX)
+                    continue;
+                if (m.sourceFile != "Manual")
+                {
+                    hasNonManual = true;
+                    break;
+                }
+            }
+
+            if (hasNonManual)
+                clearAll();
+        }
+        else
+        {
+            clearAll();
+        }
+
+        const uint32 newIndex = computeNextManualIndex();
+        addManualSlot(newIndex);
+    }
+
+    ImGui::SameLine();
+    if (ImGui::Button("Remove Current Slot"))
+    {
+        const int targetIndex = _mappingMaterialIndexFilter;
+        string removedAssetName{};
+
+        for (auto it = _materialMappings.begin(); it != _materialMappings.end(); ++it)
+        {
+            if (it->source == MaterialSourceKind::FX)
+                continue;
+            if (it->sourceFile != "Manual")
+                continue;
+            if (static_cast<int>(it->materialIndex) != targetIndex)
+                continue;
+
+            removedAssetName = it->material.assetName;
+            _materialMappings.erase(it);
+            break;
+        }
+
+        if (!removedAssetName.empty())
+        {
+            bool stillUsed = false;
+            for (const MaterialMapping& m : _materialMappings)
+            {
+                if (m.source == MaterialSourceKind::FX)
+                    continue;
+                if (m.material.assetName == removedAssetName)
+                {
+                    stillUsed = true;
+                    break;
+                }
+            }
+
+            if (!stillUsed)
+            {
+                _manualInstances.erase(removedAssetName);
+                _manualInstanceKinds.erase(removedAssetName);
+            }
+        }
+
+        // 최소 1개는 유지
+        bool hasAnyManual = false;
+        for (const MaterialMapping& m : _materialMappings)
+        {
+            if (m.source == MaterialSourceKind::FX)
+                continue;
+            if (m.sourceFile == "Manual")
+            {
+                hasAnyManual = true;
+                break;
+            }
+        }
+
+        if (!hasAnyManual)
+        {
+            clearAll();
+            addManualSlot(0);
+        }
+        else
+        {
+            // 삭제 후 필터를 남아있는 index로 이동
+            int nearest = -1;
+            int bestDelta = INT_MAX;
+            for (const MaterialMapping& m : _materialMappings)
+            {
+                if (m.source == MaterialSourceKind::FX)
+                    continue;
+                if (m.sourceFile != "Manual")
+                    continue;
+
+                const int idx = static_cast<int>(m.materialIndex);
+                const int delta = abs(idx - targetIndex);
+                if (delta < bestDelta)
+                {
+                    bestDelta = delta;
+                    nearest = idx;
+                }
+            }
+            _mappingMaterialIndexFilter = (nearest >= 0) ? nearest : 0;
+        }
+
+        _liveApplyDirty = false;
+    }
+
+    ImGui::SeparatorText("Actions");
+    if (ImGui::Button("Save Bundle"))
+        (void)Save_BundleFile(_bundleOutputPath);
+
+    ImGui::SameLine();
+    if (ImGui::Button("Apply To Selected ModelCom"))
+        Apply_ToSelectedModel(_mappingMaterialIndexFilter);
+
+    ImGui::SameLine();
+    if (ImGui::Button("Clear Bundle"))
+        clearAll();
+
+    // 선택된 모델 기준으로 materialIndex를 골라서, 아래 편집 UI를 그 슬롯만 보이게 필터링한다.
+    Shared<Engine::ModelCom> selectedModel = nullptr;
+    int selectedMaterialIndexFilter = Draw_SelectedModelSection(selectedModel);
+    if (selectedMaterialIndexFilter < 0)
+        selectedMaterialIndexFilter = _mappingMaterialIndexFilter;
+    Draw_MappingsEditorUI(selectedMaterialIndexFilter, selectedModel);
 }
 
 void Material_View::Render()
@@ -1299,7 +1660,7 @@ bool Material_View::Build_MaterialInstances()
 }
 
 
-void Material_View::Apply_ToSelectedModel()
+void Material_View::Apply_ToSelectedModel(int onlyMaterialIndex)
 {
     // 선택된 오브젝트의 ModelCom의 materialIndex별로 텍스처 슬롯을 Override 한다.
     const Editor_Context* context = EDITOR->Get_EditorContext();
@@ -1324,6 +1685,9 @@ void Material_View::Apply_ToSelectedModel()
         for (const MaterialMapping& m : _materialMappings)
         {
             if (m.source == MaterialSourceKind::FX)
+                continue;
+
+            if (onlyMaterialIndex >= 0 && static_cast<int>(m.materialIndex) != onlyMaterialIndex)
                 continue;
 
             const MaterialInstanceData* instPtr = nullptr;
