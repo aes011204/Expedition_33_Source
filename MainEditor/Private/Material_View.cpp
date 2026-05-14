@@ -16,6 +16,8 @@
 #include "Material.h"
 
 #include <algorithm>
+#include <climits>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <system_error>
@@ -1008,7 +1010,26 @@ void Material_View::Draw_MappingsEditorUI(int selectedMaterialIndexFilter, const
 
             ImGui::TextDisabled("Slot");
             ImGui::SameLine(120.f);
-            ImGui::TextUnformatted(m.slotName.c_str());
+            if (_mode == CreateMode::CreateMaterial)
+            {
+                char slotBuf[256]{};
+                strncpy_s(slotBuf, m.slotName.c_str(), _TRUNCATE);
+
+                ImGui::SetNextItemWidth(-FLT_MIN);
+                if (ImGui::InputText("##SlotName", slotBuf, sizeof(slotBuf)))
+                {
+                    const string newName = slotBuf;
+                    if (m.slotName != newName)
+                    {
+                        m.slotName = newName;
+                        anyChanged = true;
+                    }
+                }
+            }
+            else
+            {
+                ImGui::TextUnformatted(m.slotName.c_str());
+            }
         }
 
         ImGui::SeparatorText("Ref");
@@ -1393,8 +1414,191 @@ void Material_View::Draw_MappingsEditorUI(int selectedMaterialIndexFilter, const
 
 void Material_View::Draw_CreateMaterial()
 {
-    ImGui::TextDisabled("Create Material is not available yet.");
-    ImGui::TextDisabled("Use Create With Json for now.");
+    ImGui::SeparatorText("Manual Mappings");
+
+    auto clearAll = [&]() -> void
+    {
+        _materialMappings.clear();
+        _materialInstances.clear();
+        _manualInstances.clear();
+        _manualInstanceKinds.clear();
+        _heuristics.clear();
+        _activeMappingGroup = 0;
+        _mappingMaterialIndexFilter = 0;
+        _liveApplyDirty = false;
+    };
+
+    auto computeNextManualIndex = [&]() -> uint32
+    {
+        uint32 maxIndex = 0;
+        bool hasAny = false;
+        for (const MaterialMapping& m : _materialMappings)
+        {
+            if (m.source == MaterialSourceKind::FX)
+                continue;
+            if (m.sourceFile != "Manual")
+                continue;
+
+            maxIndex = hasAny ? (std::max)(maxIndex, m.materialIndex) : m.materialIndex;
+            hasAny = true;
+        }
+        return hasAny ? (maxIndex + 1) : 0;
+    };
+
+    auto addManualSlot = [&](uint32 newIndex) -> void
+    {
+        MaterialMapping m{};
+        m.source = MaterialSourceKind::SK;
+        m.sourceFile = "Manual";
+        m.materialIndex = newIndex;
+        m.originalMaterialIndex = newIndex;
+        m.slotName = "Slot_" + to_string(newIndex);
+
+        m.material.kind = MaterialRefKind::M;
+        m.material.assetName = "Manual_" + to_string(newIndex);
+
+        _materialMappings.push_back(move(m));
+        _mappingMaterialIndexFilter = static_cast<int>(newIndex);
+    };
+
+    if (ImGui::Button("New Manual Mapping"))
+    {
+        clearAll();
+        addManualSlot(0);
+    }
+
+    ImGui::SameLine();
+    if (ImGui::Button("Add Slot"))
+    {
+        if (!_materialMappings.empty())
+        {
+            bool hasNonManual = false;
+            for (const MaterialMapping& m : _materialMappings)
+            {
+                if (m.source == MaterialSourceKind::FX)
+                    continue;
+                if (m.sourceFile != "Manual")
+                {
+                    hasNonManual = true;
+                    break;
+                }
+            }
+
+            if (hasNonManual)
+                clearAll();
+        }
+        else
+        {
+            clearAll();
+        }
+
+        const uint32 newIndex = computeNextManualIndex();
+        addManualSlot(newIndex);
+    }
+
+    ImGui::SameLine();
+    if (ImGui::Button("Remove Current Slot"))
+    {
+        const int targetIndex = _mappingMaterialIndexFilter;
+        string removedAssetName{};
+
+        for (auto it = _materialMappings.begin(); it != _materialMappings.end(); ++it)
+        {
+            if (it->source == MaterialSourceKind::FX)
+                continue;
+            if (it->sourceFile != "Manual")
+                continue;
+            if (static_cast<int>(it->materialIndex) != targetIndex)
+                continue;
+
+            removedAssetName = it->material.assetName;
+            _materialMappings.erase(it);
+            break;
+        }
+
+        if (!removedAssetName.empty())
+        {
+            bool stillUsed = false;
+            for (const MaterialMapping& m : _materialMappings)
+            {
+                if (m.source == MaterialSourceKind::FX)
+                    continue;
+                if (m.material.assetName == removedAssetName)
+                {
+                    stillUsed = true;
+                    break;
+                }
+            }
+
+            if (!stillUsed)
+            {
+                _manualInstances.erase(removedAssetName);
+                _manualInstanceKinds.erase(removedAssetName);
+            }
+        }
+
+        // 최소 1개는 유지
+        bool hasAnyManual = false;
+        for (const MaterialMapping& m : _materialMappings)
+        {
+            if (m.source == MaterialSourceKind::FX)
+                continue;
+            if (m.sourceFile == "Manual")
+            {
+                hasAnyManual = true;
+                break;
+            }
+        }
+
+        if (!hasAnyManual)
+        {
+            clearAll();
+            addManualSlot(0);
+        }
+        else
+        {
+            // 삭제 후 필터를 남아있는 index로 이동
+            int nearest = -1;
+            int bestDelta = INT_MAX;
+            for (const MaterialMapping& m : _materialMappings)
+            {
+                if (m.source == MaterialSourceKind::FX)
+                    continue;
+                if (m.sourceFile != "Manual")
+                    continue;
+
+                const int idx = static_cast<int>(m.materialIndex);
+                const int delta = abs(idx - targetIndex);
+                if (delta < bestDelta)
+                {
+                    bestDelta = delta;
+                    nearest = idx;
+                }
+            }
+            _mappingMaterialIndexFilter = (nearest >= 0) ? nearest : 0;
+        }
+
+        _liveApplyDirty = false;
+    }
+
+    ImGui::SeparatorText("Actions");
+    if (ImGui::Button("Save Bundle"))
+        (void)Save_BundleFile(_bundleOutputPath);
+
+    ImGui::SameLine();
+    if (ImGui::Button("Apply To Selected ModelCom"))
+        Apply_ToSelectedModel(_mappingMaterialIndexFilter);
+
+    ImGui::SameLine();
+    if (ImGui::Button("Clear Bundle"))
+        clearAll();
+
+    // 선택된 모델 기준으로 materialIndex를 골라서, 아래 편집 UI를 그 슬롯만 보이게 필터링한다.
+    Shared<Engine::ModelCom> selectedModel = nullptr;
+    int selectedMaterialIndexFilter = Draw_SelectedModelSection(selectedModel);
+    if (selectedMaterialIndexFilter < 0)
+        selectedMaterialIndexFilter = _mappingMaterialIndexFilter;
+    Draw_MappingsEditorUI(selectedMaterialIndexFilter, selectedModel);
 }
 
 void Material_View::Render()
