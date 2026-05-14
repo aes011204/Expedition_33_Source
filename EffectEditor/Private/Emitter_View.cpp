@@ -145,11 +145,11 @@ void Emitter_View::Execute_AuthoringSnapshotCommand(
 
     EDITOR->Execute_Command(
         Action_Command::Create(
-            [this, beforeSnapshot]()
+            [this, beforeSnapshot]
             {
                 Restore_AuthoringSnapshot(beforeSnapshot);
             },
-            [this, afterSnapshot]()
+            [this, afterSnapshot]
             {
                 Restore_AuthoringSnapshot(afterSnapshot);
             },
@@ -307,6 +307,115 @@ AuthoringModule Emitter_View::Make_ColorOverLifeModule()
     return module;
 }
 
+AuthoringModule Emitter_View::Make_SubUVFrameOverLifeModule()
+{
+    AuthoringModule module{};
+    module.id = Issue_AuthoringId();
+    module.type = AuthoringModuleType::SubUVFrameOverLife;
+    module.key = "SubUV Frame Over Life";
+    module.displayName = L"서브 이미지 인덱스";
+    module.summary = L"수명 진행률 기준 frame 선택";
+    module.enabled = true;
+    module.movable = true;
+    module.removable = true;
+    module.data = SubUVFrameOverLifeModuleData{};
+    return module;
+}
+
+AuthoringModule Emitter_View::Make_SizeByLifeModule()
+{
+    AuthoringModule module{};
+    module.id = Issue_AuthoringId();
+    module.type = AuthoringModuleType::SizeByLife;
+    module.key = "Size By Life";
+    module.displayName = L"수명에 따른 크기";
+    module.summary = L"수명 진행률 기준 크기 배율";
+    module.enabled = true;
+    module.movable = true;
+    module.removable = true;
+    module.data = SizeByLifeModuleData{};
+    return module;
+}
+
+bool Emitter_View::Has_ModuleType(const AuthoringEmitter& emitter, AuthoringModuleType type) const
+{
+    for (const AuthoringModule& module : emitter.modules)
+    {
+        if (module.type == type)
+            return true;
+    }
+
+    return false;
+}
+
+bool Emitter_View::Can_AddModuleType(const AuthoringEmitter& emitter, AuthoringModuleType type) const
+{
+    switch (type)
+    {
+    case AuthoringModuleType::Required:
+    case AuthoringModuleType::Spawn:
+        return false;
+
+    case AuthoringModuleType::Lifetime:
+    case AuthoringModuleType::InitialSize:
+    case AuthoringModuleType::InitialVelocity:
+    case AuthoringModuleType::InitialColor:
+    case AuthoringModuleType::ColorOverLife:
+    case AuthoringModuleType::SubUVFrameOverLife:
+    case AuthoringModuleType::SizeByLife:
+        return !Has_ModuleType(emitter, type);
+
+    default:
+        return false;
+    }
+}
+
+void Emitter_View::Add_Module(size_t emitterIndex, AuthoringModuleType type)
+{
+    if (emitterIndex >= _emitters.size())
+        return;
+
+    AuthoringEmitter& emitter = _emitters[emitterIndex];
+    if (!Can_AddModuleType(emitter, type))
+        return;
+
+    AuthoringModule module{};
+    switch (type)
+    {
+    case AuthoringModuleType::Lifetime:
+        module = Make_LifetimeModule();
+        break;
+    case AuthoringModuleType::InitialSize:
+        module = Make_InitialSizeModule();
+        break;
+    case AuthoringModuleType::InitialVelocity:
+        module = Make_InitialVelocityModule();
+        break;
+    case AuthoringModuleType::InitialColor:
+        module = Make_InitialColorModule();
+        break;
+    case AuthoringModuleType::ColorOverLife:
+        module = Make_ColorOverLifeModule();
+        break;
+    case AuthoringModuleType::SubUVFrameOverLife:
+        module = Make_SubUVFrameOverLifeModule();
+        break;
+    case AuthoringModuleType::SizeByLife:
+        module = Make_SizeByLifeModule();
+        break;
+    default:
+        return;
+    }
+
+    emitter.modules.push_back(std::move(module));
+    emitter.previewDirty = true;
+    _selectedEmitterIndex = emitterIndex;
+    _selectedTypeData = false;
+    _selectedModuleIndex = emitter.modules.size() - 1;
+    Sync_SelectionContext();
+    MarkDirty();
+}
+
 void Emitter_View::Clear_Selection()
 {
     _selectedEmitterIndex.reset();
@@ -462,7 +571,7 @@ void Emitter_View::Process_PendingEmitterAction()
     case PendingEmitterAction::Duplicate:
         Execute_AuthoringEdit(
             "Duplicate Emitter",
-            [this, emitterIndex]()
+            [this, emitterIndex]
             {
                 Duplicate_Emitter(emitterIndex);
             }
@@ -471,7 +580,7 @@ void Emitter_View::Process_PendingEmitterAction()
     case PendingEmitterAction::Delete:
         Execute_AuthoringEdit(
             "Delete Emitter",
-            [this, emitterIndex]()
+            [this, emitterIndex]
             {
                 Delete_Emitter(emitterIndex);
             }
@@ -480,7 +589,7 @@ void Emitter_View::Process_PendingEmitterAction()
     case PendingEmitterAction::InsertBefore:
         Execute_AuthoringEdit(
             "Insert Emitter",
-            [this, emitterIndex]()
+            [this, emitterIndex]
             {
                 Insert_NewEmitter(emitterIndex);
             }
@@ -489,7 +598,7 @@ void Emitter_View::Process_PendingEmitterAction()
     case PendingEmitterAction::InsertAfter:
         Execute_AuthoringEdit(
             "Insert Emitter",
-            [this, emitterIndex]()
+            [this, emitterIndex]
             {
                 Insert_NewEmitter(emitterIndex + 1);
             }
@@ -569,24 +678,39 @@ void Emitter_View::Reset_ModuleData(size_t emitterIndex, size_t moduleIndex)
         emitter.resourceSummary = data.material.mainTextureId;
         break;
     }
+
     case AuthoringModuleType::Spawn:
         module.data = SpawnModuleData{};
         break;
+
     case AuthoringModuleType::Lifetime:
         module.data = LifetimeModuleData{};
         break;
+
     case AuthoringModuleType::InitialSize:
         module.data = InitialSizeModuleData{};
         break;
+
     case AuthoringModuleType::InitialVelocity:
         module.data = InitialVelocityModuleData{};
         break;
+
     case AuthoringModuleType::InitialColor:
         module.data = InitialColorModuleData{};
         break;
+
     case AuthoringModuleType::ColorOverLife:
         module.data = ColorOverLifeModuleData{};
         break;
+
+    case AuthoringModuleType::SubUVFrameOverLife:
+        module.data = SubUVFrameOverLifeModuleData{};
+        break;
+
+    case AuthoringModuleType::SizeByLife:
+        module.data = SizeByLifeModuleData{};
+        break;
+
     default:
         return;
     }
@@ -616,7 +740,7 @@ void Emitter_View::Process_PendingModuleAction()
     case PendingModuleAction::Delete:
         Execute_AuthoringEdit(
             "Delete Module",
-            [this, emitterIndex, moduleIndex]()
+            [this, emitterIndex, moduleIndex]
             {
                 Delete_Module(emitterIndex, moduleIndex);
             }
@@ -625,7 +749,7 @@ void Emitter_View::Process_PendingModuleAction()
     case PendingModuleAction::ResetData:
         Execute_AuthoringEdit(
             "Reset Module Data",
-            [this, emitterIndex, moduleIndex]()
+            [this, emitterIndex, moduleIndex]
             {
                 Reset_ModuleData(emitterIndex, moduleIndex);
             }
@@ -671,7 +795,7 @@ void Emitter_View::Clamp_Selection()
 
 void Emitter_View::Sync_EmitterMirror(AuthoringEmitter& emitter)
 {
-    for (AuthoringModule& module : emitter.modules)
+    for (const AuthoringModule& module : emitter.modules)
     {
         if (module.type != AuthoringModuleType::Required)
             continue;
@@ -791,7 +915,7 @@ void Emitter_View::Draw_EmitterContextMenu(size_t emitterIndex)
         {
             Execute_AuthoringEdit(
                 "Set GPU Sprite TypeData",
-                [this, emitterIndex]()
+                [this, emitterIndex]
                 {
                     Set_GpuSpriteTypeData(emitterIndex);
                 }
@@ -807,6 +931,12 @@ void Emitter_View::Draw_EmitterContextMenu(size_t emitterIndex)
         ImGui::EndDisabled();
         ImGui::EndMenu();
     }
+
+    if (ImGui::BeginMenu("모듈"))
+    {
+        // TODO : + 모듈 추가 버튼 -> 팝업
+        ImGui::EndMenu();
+    }
 }
 
 void Emitter_View::Draw_TypeDataContextMenu(size_t emitterIndex)
@@ -815,7 +945,7 @@ void Emitter_View::Draw_TypeDataContextMenu(size_t emitterIndex)
     {
         Execute_AuthoringEdit(
             "Reset TypeData",
-            [this, emitterIndex]()
+            [this, emitterIndex]
             {
                 Reset_TypeData(emitterIndex);
             }
@@ -826,7 +956,7 @@ void Emitter_View::Draw_TypeDataContextMenu(size_t emitterIndex)
     {
         Execute_AuthoringEdit(
             "Delete TypeData",
-            [this, emitterIndex]()
+            [this, emitterIndex]
             {
                 Delete_TypeData(emitterIndex);
             }
@@ -896,7 +1026,7 @@ void Emitter_View::Draw_EmitterBoard()
             {
                 Execute_AuthoringEdit(
                     "Insert Emitter",
-                    [this]()
+                    [this]
                     {
                         Insert_NewEmitter(_emitters.size());
                     }
@@ -1014,7 +1144,7 @@ void Emitter_View::Draw_EmitterColumn(size_t emitterIndex, AuthoringEmitter& emi
     ImGui::EndGroup();
 }
 
-void Emitter_View::Draw_TypeDataRow(size_t emitterIndex, AuthoringEmitter& emitter)
+void Emitter_View::Draw_TypeDataRow(size_t emitterIndex, const AuthoringEmitter& emitter)
 {
     constexpr float rowPaddingX = 10.f;
 

@@ -102,6 +102,11 @@ namespace Internal
 
         return Clamp_PreviewColor(fallbackValue);
     }
+
+    uint32 Resolve_SubUVFrameCount(const RequiredModuleData& required)
+    {
+        return max(1u, max(1u, required.material.subUVRows) * max(1u, required.material.subUVCols));
+    }
 }
 
 Level_EffectEditor::Level_EffectEditor(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -237,8 +242,8 @@ PointParticleEffect::PointParticleEffectDesc Level_EffectEditor::Build_PointPart
             desc.noiseTextureId = material.noiseTextureId;
 
         desc.noiseStrength = material.noiseStrength;
-        desc.subUvRows = max(1u, material.subUvRows);
-        desc.subUvCols = max(1u, material.subUvCols);
+        desc.subUVRows = max(1u, material.subUVRows);
+        desc.subUVCols = max(1u, material.subUVCols);
         desc.center = required->emitterOrigin;
         desc.loop = required->loopCount == 0;
     }
@@ -304,6 +309,34 @@ PointParticleEffect::PointParticleEffectDesc Level_EffectEditor::Build_PointPart
         desc.endColorMax = Vec4{ maxEndColor.R(), maxEndColor.G(), maxEndColor.B(), maxEndColor.A() };
     }
 
+    if (const auto* subUvFrameOverLife = Internal::Find_ModuleData<SubUVFrameOverLifeModuleData>(emitter, AuthoringModuleType::SubUVFrameOverLife))
+    {
+        desc.subUVFrameOverLife.enabled = true;
+        desc.subUVFrameOverLife.startFrame = subUvFrameOverLife->startFrame;
+        desc.subUVFrameOverLife.endFrame = subUvFrameOverLife->endFrame;
+        desc.subUVFrameOverLife.loop = subUvFrameOverLife->loop;
+
+        if (const auto* required = Internal::Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
+        {
+            const uint32 frameCount = Internal::Resolve_SubUVFrameCount(*required);
+            const uint32 lastFrame = frameCount > 0 ? frameCount - 1 : 0;
+            desc.subUVFrameOverLife.startFrame = min(desc.subUVFrameOverLife.startFrame, lastFrame);
+            desc.subUVFrameOverLife.endFrame = min(desc.subUVFrameOverLife.endFrame, lastFrame);
+
+            if (0 == subUvFrameOverLife->startFrame && 0 == subUvFrameOverLife->endFrame && frameCount > 1)
+                desc.subUVFrameOverLife.endFrame = lastFrame;
+        }
+    }
+
+    if (const auto* sizeByLife = Internal::Find_ModuleData<SizeByLifeModuleData>(emitter, AuthoringModuleType::SizeByLife))
+    {
+        desc.sizeByLife.enabled = true;
+        desc.sizeByLife.multiplyXStart = sizeByLife->multiplyXStart;
+        desc.sizeByLife.multiplyXEnd = sizeByLife->multiplyXEnd;
+        desc.sizeByLife.multiplyYStart = sizeByLife->multiplyYStart;
+        desc.sizeByLife.multiplyYEnd = sizeByLife->multiplyYEnd;
+    }
+
     return desc;
 }
 
@@ -333,8 +366,8 @@ ComputePointParticleEffect::ComputePointParticleEffectDesc Level_EffectEditor::B
             desc.noiseTextureId = material.noiseTextureId;
 
         desc.noiseStrength = material.noiseStrength;
-        desc.subUvRows = max(1u, material.subUvRows);
-        desc.subUvCols = max(1u, material.subUvCols);
+        desc.subUVRows = max(1u, material.subUVRows);
+        desc.subUVCols = max(1u, material.subUVCols);
         desc.center = required->emitterOrigin;
     }
 

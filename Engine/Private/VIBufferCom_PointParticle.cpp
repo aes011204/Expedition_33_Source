@@ -106,6 +106,7 @@ void VIBufferCom_PointParticle::Drop(float timeDelta)
         // 위에서 아래로 단순히 내리는 효과
         instance.translation.y -= _speeds[i] * timeDelta;
         instance.lifeTime.y += timeDelta;
+        Update_InstanceOverLifePayload(i);
 
         if (_desc.loop && Is_Expired(instance))
             instance = _baselinePayload[i];
@@ -139,6 +140,7 @@ void VIBufferCom_PointParticle::Spread(float timeDelta)
 
         instance.translation = Vec4{ translation.x, translation.y, translation.z, 1.f };
         instance.lifeTime.y += timeDelta;
+        Update_InstanceOverLifePayload(i);
 
         if (_desc.loop && Is_Expired(instance))
             instance = _baselinePayload[i];
@@ -207,6 +209,7 @@ HRESULT VIBufferCom_PointParticle::Ready_InstanceSeedData()
         instance.lifeTime = Vec2{ lifeTime, 0.f };
         instance.startColor = startColor;
         instance.endColor = endColor;
+        instance.subUVRect = Evaluate_SubUVRect(0.f);
 
         // baseline은 loop reset 기준이고, runtime은 매 프레임 GPU에 업로드될 clone 전용 payload다.
         _baselinePayload.push_back(instance);
@@ -310,7 +313,7 @@ float VIBufferCom_PointParticle::Pick_RandomFloat(float minValue, float maxValue
     if (minValue > maxValue)
         swap(minValue, maxValue);
 
-    // TODO : 랜덤 임시
+    // TODO : 랜덤 임시. 나중에 필히 엔진 헬퍼 기능으로 교체할 것
     static thread_local mt19937 randomEngine{ random_device{}() };
     uniform_real_distribution<float> distribution{ minValue, maxValue };
     return distribution(randomEngine);
@@ -319,6 +322,82 @@ float VIBufferCom_PointParticle::Pick_RandomFloat(float minValue, float maxValue
 bool VIBufferCom_PointParticle::Is_Expired(const ParticleInstanceVertex& instance)
 {
     return instance.lifeTime.y >= instance.lifeTime.x;
+}
+
+float VIBufferCom_PointParticle::Evaluate_LifeProgress(const ParticleInstanceVertex& instance) const
+{
+    const float lifeMax = max(instance.lifeTime.x, 0.0001f);
+    return clamp(instance.lifeTime.y / lifeMax, 0.f, 1.f);
+}
+
+Vec2 VIBufferCom_PointParticle::Evaluate_SizeMultiplier(float lifeProgress) const
+{
+    if (!_desc.sizeByLife.enabled)
+        return Vec2{ 1.f, 1.f };
+
+    return Vec2{
+        lerp(_desc.sizeByLife.multiplyXStart, _desc.sizeByLife.multiplyXEnd, lifeProgress),
+        lerp(_desc.sizeByLife.multiplyYStart, _desc.sizeByLife.multiplyYEnd, lifeProgress)
+    };
+}
+
+Vec4 VIBufferCom_PointParticle::Evaluate_SubUVRect(float lifeProgress) const
+{
+    const uint32 rows = max(1u, _desc.subUVRows);
+    const uint32 cols = max(1u, _desc.subUVCols);
+    const uint32 frameCount = max(1u, rows * cols);
+
+    uint32 frameIndex = 0;
+    if (_desc.subUvFrameOverLife.enabled)
+    {
+        const uint32 lastFrame = frameCount - 1;
+        const uint32 startFrame = min(_desc.subUvFrameOverLife.startFrame, lastFrame);
+        uint32 endFrame = min(_desc.subUvFrameOverLife.endFrame, lastFrame);
+
+        if (0 == _desc.subUvFrameOverLife.startFrame && 0 == _desc.subUvFrameOverLife.endFrame && frameCount > 1)
+            endFrame = lastFrame;
+
+        if (endFrame < startFrame)
+            endFrame = startFrame;
+
+        const uint32 span = endFrame - startFrame;
+        frameIndex = startFrame + static_cast<uint32>(roundf(static_cast<float>(span) * lifeProgress));
+    }
+
+    frameIndex = min(frameIndex, frameCount - 1);
+
+    const uint32 row = frameIndex / cols;
+    const uint32 col = frameIndex % cols;
+    const float invCols = 1.f / static_cast<float>(cols);
+    const float invRows = 1.f / static_cast<float>(rows);
+
+    const float u0 = static_cast<float>(col) * invCols;
+    const float v0 = static_cast<float>(row) * invRows;
+    const float u1 = u0 + invCols;
+    const float v1 = v0 + invRows;
+    return Vec4{ u0, v0, u1, v1 };
+}
+
+void VIBufferCom_PointParticle::Update_InstanceOverLifePayload(uint32 index)
+{
+    if (index >= _runtimePayload.size() || index >= _baselinePayload.size())
+        return;
+
+    ParticleInstanceVertex& instance = _runtimePayload[index];
+    const ParticleInstanceVertex& baseline = _baselinePayload[index];
+    const float lifeProgress = Evaluate_LifeProgress(instance);
+    const Vec2 sizeMultiplier = Evaluate_SizeMultiplier(lifeProgress);
+
+    // SizeByLife를 현재 값에 누적 곱하지 않도록, spawn 시점 baseline 크기를 다시 꺼낸다.
+    const Vec3 baseRight{ baseline.right.x, baseline.right.y, baseline.right.z };
+    const Vec3 baseUp{ baseline.up.x, baseline.up.y, baseline.up.z };
+    const float baseWidth = baseRight.Length();
+    const float baseHeight = baseUp.Length();
+
+    instance.right = Vec4{ baseWidth * sizeMultiplier.x, 0.f, 0.f, 0.f };
+    instance.up = Vec4{ 0.f, baseHeight * sizeMultiplier.y, 0.f, 0.f };
+    instance.look = baseline.look;
+    instance.subUVRect = Evaluate_SubUVRect(lifeProgress);
 }
 
 Shared<VIBufferCom_PointParticle> VIBufferCom_PointParticle::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

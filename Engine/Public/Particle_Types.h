@@ -22,12 +22,13 @@ struct ParticleInstanceVertex
     Vec2 lifeTime{};                       // x: 최대 생존 시간, y: 누적 생존 시간.
     Vec4 startColor{ 1.f, 1.f, 1.f, 1.f }; // particle 생성 시점의 색상/알파.
     Vec4 endColor{ 1.f, 1.f, 1.f, 1.f };   // particle 수명 종료 시점의 색상/알파.
+    Vec4 subUVRect{ 0.f, 0.f, 1.f, 1.f };  // x/y는 uv 시작점, z/w는 uv 끝점이다.
 };
 
 // Particle shader가 사용하는 vertex + instance input layout.
 struct ParticleInstanceLayout
 {
-    static constexpr uint32 numElements = 8;
+    static constexpr uint32 numElements = 9;
 
     // WORLD 0~3은 semantic name WORLD + semantic index 0~3으로 표현한다.
     static constexpr D3D11_INPUT_ELEMENT_DESC Elements[] = {
@@ -39,7 +40,27 @@ struct ParticleInstanceLayout
         { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 1, 64, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
         { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 72, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
         { "COLOR", 1, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 88, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+        { "TEXCOORD", 1, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 104, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
     };
+};
+
+// SubUVFrameOverLife 모듈의 최소 preview runtime desc다.
+struct PointParticleSubUVFrameOverLifeDesc
+{
+    bool enabled{ false };  // SubUV frame over life 모듈이 실제로 켜져 있는지 나타낸다.
+    uint32 startFrame{ 0 }; // 수명 시작 시 사용할 atlas frame index다.
+    uint32 endFrame{ 0 };   // 수명 종료 시 도달할 atlas frame index다.
+    bool loop{ false };     // v1에서는 frame 진행 규칙을 future-safe하게 유지하기 위한 최소 플래그다.
+};
+
+// SizeByLife 모듈의 최소 preview runtime desc다.
+struct PointParticleSizeByLifeDesc
+{
+    bool enabled{ false };       // Size By Life 모듈이 실제로 켜져 있는지 나타낸다.
+    float multiplyXStart{ 1.f }; // 수명 시작 시 X축에 곱할 배율이다.
+    float multiplyXEnd{ 1.f };   // 수명 종료 시 X축에 곱할 배율이다.
+    float multiplyYStart{ 1.f }; // 수명 시작 시 Y축에 곱할 배율이다.
+    float multiplyYEnd{ 1.f };   // 수명 종료 시 Y축에 곱할 배율이다.
 };
 
 // 인스턴스 생성에 공통으로 필요한 spawn 규칙.
@@ -61,6 +82,10 @@ struct PointParticleDesc : public InstanceSpawnDesc
     Vec4 startColorMax{ 1.f, 1.f, 1.f, 1.f };                        // Initial Color에서 샘플링할 시작 색상 상한.
     Vec4 endColorMin{ 1.f, 1.f, 1.f, 1.f };                          // Color Over Life에서 샘플링할 종료 색상 하한.
     Vec4 endColorMax{ 1.f, 1.f, 1.f, 1.f };                          // Color Over Life에서 샘플링할 종료 색상 상한.
+    uint32 subUVRows{ 1 };                                           // atlas row 수다.
+    uint32 subUVCols{ 1 };                                           // atlas column 수다.
+    PointParticleSubUVFrameOverLifeDesc subUvFrameOverLife{};        // 수명 진행률 기준 frame 선택 규칙이다.
+    PointParticleSizeByLifeDesc sizeByLife{};                        // 수명 진행률 기준 크기 배율 규칙이다.
     bool loop{};                                                     // true면 생존 시간이 끝난 인스턴스를 재생성한다.
     PointParticleDrawMode drawMode{ PointParticleDrawMode::Direct }; // Stage2 indirect draw 검증용 제출 방식.
 };

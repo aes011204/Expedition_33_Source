@@ -14,23 +14,10 @@ struct ModuleDetailDrawContext
     bool Draw_FloatProperty(const char* label, float& value, float defaultValue, float speed = 0.01f);
     bool Draw_ColorProperty(const char* label, Color& value, const Color& defaultValue);
     bool Draw_FloatDistributionGroup(const char* label, FloatDistributionData& value, const FloatDistributionData& defaultValue, float speed = 0.01f);
-    bool Draw_Vector2DistributionGroup(
-        const char* label,
-        Vector2DistributionData& value,
-        const Vector2DistributionData& defaultValue,
-        float speed = 0.01f);
-    bool Draw_Vector3DistributionGroup(
-        const char* label,
-        Vector3DistributionData& value,
-        const Vector3DistributionData& defaultValue,
-        float speed = 0.01f);
-    bool Draw_ColorDistributionGroup(
-        const char* label,
-        ColorDistributionData& value,
-        const ColorDistributionData& defaultValue);
-    bool Draw_BurstListProperty(
-        vector<SpawnModuleData::ParticleBurstData>& burstList,
-        const vector<SpawnModuleData::ParticleBurstData>& defaultValue);
+    bool Draw_Vector2DistributionGroup(const char* label, Vector2DistributionData& value, const Vector2DistributionData& defaultValue, float speed = 0.01f);
+    bool Draw_Vector3DistributionGroup(const char* label, Vector3DistributionData& value, const Vector3DistributionData& defaultValue, float speed = 0.01f);
+    bool Draw_ColorDistributionGroup(const char* label, ColorDistributionData& value, const ColorDistributionData& defaultValue);
+    bool Draw_BurstListProperty(vector<SpawnModuleData::ParticleBurstData>& burstList, const vector<SpawnModuleData::ParticleBurstData>& defaultValue);
     bool Draw_ScreenAlignmentProperty(const char* label, EmitterScreenAlignment& value, EmitterScreenAlignment defaultValue);
     bool Draw_SortModeProperty(const char* label, EmitterSortMode& value, EmitterSortMode defaultValue);
     bool Draw_UintProperty(const char* label, uint32& value, uint32 defaultValue);
@@ -104,6 +91,26 @@ public:
         AuthoringEmitter& emitter,
         AuthoringModule& module,
         ColorOverLifeModuleData& data,
+        ModuleDetailDrawContext& drawContext);
+};
+
+class SubUVFrameOverLifeModuleDetail
+{
+public:
+    bool Draw(
+        const AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        SubUVFrameOverLifeModuleData& data,
+        ModuleDetailDrawContext& drawContext);
+};
+
+class SizeByLifeModuleDetail
+{
+public:
+    bool Draw(
+        AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        SizeByLifeModuleData& data,
         ModuleDetailDrawContext& drawContext);
 };
 

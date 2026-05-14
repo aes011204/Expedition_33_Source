@@ -14,6 +14,8 @@ enum class AuthoringModuleType : uint8
     InitialVelocity,
     InitialColor,
     ColorOverLife,
+    SubUVFrameOverLife,
+    SizeByLife,
 };
 
 enum class EffectAuthoringSelectionKind : uint8
@@ -296,6 +298,21 @@ struct ColorOverLifeModuleData
     ColorDistributionData colorOverLife{ ColorDistributionData::Make_Constant(Color{ 1.f, 1.f, 1.f, 1.f }) };
 };
 
+struct SubUVFrameOverLifeModuleData
+{
+    uint32 startFrame{ 0 };
+    uint32 endFrame{ 0 };
+    bool loop{ false };
+};
+
+struct SizeByLifeModuleData
+{
+    float multiplyXStart{ 1.f };
+    float multiplyXEnd{ 1.f };
+    float multiplyYStart{ 1.f };
+    float multiplyYEnd{ 1.f };
+};
+
 using AuthoringModuleData = std::variant<
     RequiredModuleData,
     SpawnModuleData,
@@ -303,7 +320,9 @@ using AuthoringModuleData = std::variant<
     InitialSizeModuleData,
     InitialVelocityModuleData,
     InitialColorModuleData,
-    ColorOverLifeModuleData>;
+    ColorOverLifeModuleData,
+    SubUVFrameOverLifeModuleData,
+    SizeByLifeModuleData>;
 
 struct AuthoringModule
 {

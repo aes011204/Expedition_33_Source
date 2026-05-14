@@ -110,6 +110,13 @@ private: //## Helpers
     AuthoringModule Make_InitialVelocityModule();
     AuthoringModule Make_InitialColorModule();
     AuthoringModule Make_ColorOverLifeModule();
+    AuthoringModule Make_SubUVFrameOverLifeModule();
+    AuthoringModule Make_SizeByLifeModule();
+
+    bool Has_ModuleType(const AuthoringEmitter& emitter, AuthoringModuleType type) const;    // 이미터가 특정 모듈 타입을 이미 가지고 있는지 확인한다.
+    bool Can_AddModuleType(const AuthoringEmitter& emitter, AuthoringModuleType type) const; // 중복 정책 기준으로 새 모듈 추가 가능 여부를 판단한다.
+    void Add_Module(size_t emitterIndex, AuthoringModuleType type);                          // 선택 이미터에 새 optional 모듈을 추가하고 선택 상태를 갱신한다.
+
     void Clear_Selection();
     void Select_Emitter(size_t emitterIndex);
     void Select_TypeData(size_t emitterIndex);
@@ -142,7 +149,7 @@ private: //## Helpers
 
     void Draw_EmitterBoard();
     void Draw_EmitterColumn(size_t emitterIndex, AuthoringEmitter& emitter, float columnHeight);
-    void Draw_TypeDataRow(size_t emitterIndex, AuthoringEmitter& emitter);
+    void Draw_TypeDataRow(size_t emitterIndex, const AuthoringEmitter& emitter);
     void Draw_ModuleRow(size_t emitterIndex, size_t moduleIndex, AuthoringModule& module);
 
 public:

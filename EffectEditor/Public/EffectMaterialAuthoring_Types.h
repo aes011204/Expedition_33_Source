@@ -18,8 +18,8 @@ struct EffectMaterialInstanceData
 
     string blendMode{ "AlphaBlend" };
     string opacitySource{ "Alpha" };
-    uint32 subUvRows{ 1 };
-    uint32 subUvCols{ 1 };
+    uint32 subUVRows{ 1 };
+    uint32 subUVCols{ 1 };
 };
 
 NS_END

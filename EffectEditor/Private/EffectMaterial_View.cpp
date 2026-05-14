@@ -272,7 +272,7 @@ void EffectMaterial_View::Render_MaterialInstanceTable(const char* tableId, cons
     ImGui::TableSetColumnIndex(0);
     ImGui::TextDisabled("SubUV");
     ImGui::TableSetColumnIndex(1);
-    ImGui::Text("%u x %u", material.subUvRows, material.subUvCols);
+    ImGui::Text("%u x %u", material.subUVRows, material.subUVCols);
 
     ImGui::EndTable();
 }
@@ -331,14 +331,14 @@ bool EffectMaterial_View::Load_PresetFile(const wstring& filePath)
         LOG_ERROR("EffectMaterial material preset load failed: material read failed. path='{}'", String::ToString(filePath));
         return false;
     }
-    const bool warnSubUvRows = Internal::Should_WarnInvalidSubUv(root, "subUvRows");
-    const bool warnSubUvCols = Internal::Should_WarnInvalidSubUv(root, "subUvCols");
+    const bool warnSubUVRows = Internal::Should_WarnInvalidSubUv(root, "subUVRows");
+    const bool warnSubUVCols = Internal::Should_WarnInvalidSubUv(root, "subUVCols");
 
     const string presetPath = String::ToString(filePath);
-    if (warnSubUvRows)
-        LOG_WARN("EffectMaterial material preset corrected invalid subUvRows to 1. path='{}'", presetPath);
-    if (warnSubUvCols)
-        LOG_WARN("EffectMaterial material preset corrected invalid subUvCols to 1. path='{}'", presetPath);
+    if (warnSubUVRows)
+        LOG_WARN("EffectMaterial material preset corrected invalid subUVRows to 1. path='{}'", presetPath);
+    if (warnSubUVCols)
+        LOG_WARN("EffectMaterial material preset corrected invalid subUVCols to 1. path='{}'", presetPath);
 
     if (!Internal::Is_SupportedBlendMode(material.blendMode))
     {

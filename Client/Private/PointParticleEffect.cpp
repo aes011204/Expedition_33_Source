@@ -1,4 +1,4 @@
-#include "PointParticleEffect.h"
+﻿#include "PointParticleEffect.h"
 #include "GameInstance.h"
 #include "ShaderCom.h"
 #include "Texture.h"
@@ -220,6 +220,10 @@ PointParticleDesc PointParticleEffect::Make_PointParticleDesc() const
     desc.startColorMax = _desc.startColorMax;
     desc.endColorMin = _desc.endColorMin;
     desc.endColorMax = _desc.endColorMax;
+    desc.subUVRows = max(1u, _desc.subUVRows);
+    desc.subUVCols = max(1u, _desc.subUVCols);
+    desc.subUvFrameOverLife = _desc.subUVFrameOverLife;
+    desc.sizeByLife = _desc.sizeByLife;
     desc.loop = _desc.loop;
     desc.drawMode = _desc.drawMode;
     return desc;

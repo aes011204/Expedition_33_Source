@@ -10,6 +10,7 @@ struct ParticleInstanceVertex
     float2 lifeTime;
     float4 startColor;
     float4 endColor;
+    float4 subUVRect;
 };
 
 cbuffer ComputePointParticleParams : register(b0)
@@ -79,6 +80,7 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
     instance.lifeTime = float2(max(lifeMax, 0.0001f), frac(g_ElapsedTime + ratio) * max(lifeMax, 0.0001f));
     instance.startColor = lerp(g_StartColorMin, g_StartColorMax, colorRatio);
     instance.endColor = lerp(g_EndColorMin, g_EndColorMax, colorRatio);
+    instance.subUVRect = float4(0.0f, 0.0f, 1.0f, 1.0f);
 
     OutputData[index] = instance;
 }

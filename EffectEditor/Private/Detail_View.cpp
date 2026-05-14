@@ -229,15 +229,18 @@ void Detail_View::Render_TypeDataDetail(
             changed |= Internal::Draw_PreviewDrawModeProperty(
                 "Preview Draw Mode",
                 emitter.gpuSpriteTypeData.previewDrawMode,
-                defaultData.previewDrawMode);
+                defaultData.previewDrawMode
+            );
             changed |= DetailProperty::Draw_FloatProperty(
                 "카메라 모션 블러 양",
                 emitter.gpuSpriteTypeData.cameraMotionBlurAmount,
-                defaultData.cameraMotionBlurAmount);
+                defaultData.cameraMotionBlurAmount
+            );
             changed |= DetailProperty::Draw_BoolProperty(
                 "초기화 시 기존 파티클 지우기",
                 emitter.gpuSpriteTypeData.clearExistingParticlesOnInit,
-                defaultData.clearExistingParticlesOnInit);
+                defaultData.clearExistingParticlesOnInit
+            );
             DetailProperty::End_PropertyTable();
         }
     }
@@ -268,30 +271,47 @@ void Detail_View::Render_ModuleDetail(
         if (auto* data = get_if<RequiredModuleData>(&module.data))
             changed = _requiredModuleDetail.Draw(emitter, module, *data, context);
         break;
+
     case AuthoringModuleType::Spawn:
         if (auto* data = get_if<SpawnModuleData>(&module.data))
             changed = _spawnModuleDetail.Draw(emitter, module, *data, context);
         break;
+
     case AuthoringModuleType::Lifetime:
         if (auto* data = get_if<LifetimeModuleData>(&module.data))
             changed = _lifetimeModuleDetail.Draw(emitter, module, *data, context);
         break;
+
     case AuthoringModuleType::InitialSize:
         if (auto* data = get_if<InitialSizeModuleData>(&module.data))
             changed = _initialSizeModuleDetail.Draw(emitter, module, *data, context);
         break;
+
     case AuthoringModuleType::InitialVelocity:
         if (auto* data = get_if<InitialVelocityModuleData>(&module.data))
             changed = _initialVelocityModuleDetail.Draw(emitter, module, *data, context);
         break;
+
     case AuthoringModuleType::InitialColor:
         if (auto* data = get_if<InitialColorModuleData>(&module.data))
             changed = _initialColorModuleDetail.Draw(emitter, module, *data, context);
         break;
+
     case AuthoringModuleType::ColorOverLife:
         if (auto* data = get_if<ColorOverLifeModuleData>(&module.data))
             changed = _colorOverLifeModuleDetail.Draw(emitter, module, *data, context);
         break;
+
+    case AuthoringModuleType::SubUVFrameOverLife:
+        if (auto* data = get_if<SubUVFrameOverLifeModuleData>(&module.data))
+            changed = _subUvFrameOverLifeModuleDetail.Draw(emitter, module, *data, context);
+        break;
+
+    case AuthoringModuleType::SizeByLife:
+        if (auto* data = get_if<SizeByLifeModuleData>(&module.data))
+            changed = _sizeByLifeModuleDetail.Draw(emitter, module, *data, context);
+        break;
+
     default:
         ImGui::TextDisabled("Unsupported module type.");
         break;

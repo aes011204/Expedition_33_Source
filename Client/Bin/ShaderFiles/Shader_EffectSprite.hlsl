@@ -28,6 +28,7 @@ struct VS_IN
     float2 lifeTime : TEXCOORD0;
     float4 startColor : COLOR0;
     float4 endColor : COLOR1;
+    float4 subUVRect : TEXCOORD1;
 };
 
 struct VS_OUT
@@ -37,6 +38,7 @@ struct VS_OUT
     float2 lifeTime : TEXCOORD1;
     float4 startColor : COLOR0;
     float4 endColor : COLOR1;
+    float4 subUVRect : TEXCOORD2;
 };
 
 VS_OUT VS_MAIN(VS_IN In)
@@ -49,6 +51,7 @@ VS_OUT VS_MAIN(VS_IN In)
     Out.lifeTime = In.lifeTime;
     Out.startColor = In.startColor;
     Out.endColor = In.endColor;
+    Out.subUVRect = In.subUVRect;
 
     return Out;
 }
@@ -60,6 +63,7 @@ struct GS_IN
     float2 lifeTime : TEXCOORD1;
     float4 startColor : COLOR0;
     float4 endColor : COLOR1;
+    float4 subUVRect : TEXCOORD2;
 };
 
 struct GS_OUT
@@ -69,6 +73,7 @@ struct GS_OUT
     float2 lifeTime : TEXCOORD1;
     float4 startColor : COLOR0;
     float4 endColor : COLOR1;
+    float4 subUVRect : TEXCOORD2;
 };
 
 [maxvertexcount(4)]
@@ -101,24 +106,28 @@ void GS_MAIN(point GS_IN In[1], inout TriangleStream<GS_OUT> OutStream)
     Out[0].lifeTime = In[0].lifeTime;
     Out[0].startColor = In[0].startColor;
     Out[0].endColor = In[0].endColor;
+    Out[0].subUVRect = In[0].subUVRect;
 
     Out[1].position = mul(float4(particlePosition + rightDir + upDir, 1.f), ViewProjMatrix);
     Out[1].texCoord = float2(1.f, 0.f);
     Out[1].lifeTime = In[0].lifeTime;
     Out[1].startColor = In[0].startColor;
     Out[1].endColor = In[0].endColor;
+    Out[1].subUVRect = In[0].subUVRect;
 
     Out[2].position = mul(float4(particlePosition - rightDir - upDir, 1.f), ViewProjMatrix);
     Out[2].texCoord = float2(0.f, 1.f);
     Out[2].lifeTime = In[0].lifeTime;
     Out[2].startColor = In[0].startColor;
     Out[2].endColor = In[0].endColor;
+    Out[2].subUVRect = In[0].subUVRect;
 
     Out[3].position = mul(float4(particlePosition + rightDir - upDir, 1.f), ViewProjMatrix);
     Out[3].texCoord = float2(1.f, 1.f);
     Out[3].lifeTime = In[0].lifeTime;
     Out[3].startColor = In[0].startColor;
     Out[3].endColor = In[0].endColor;
+    Out[3].subUVRect = In[0].subUVRect;
 
     OutStream.Append(Out[0]);
     OutStream.Append(Out[1]);
@@ -133,6 +142,7 @@ struct PS_IN
     float2 lifeTime : TEXCOORD1;
     float4 startColor : COLOR0;
     float4 endColor : COLOR1;
+    float4 subUVRect : TEXCOORD2;
 };
 
 struct PS_OUT
@@ -146,9 +156,9 @@ PS_OUT PS_MAIN(PS_IN In)
 
     const float lifeMax = max(In.lifeTime.x, 0.0001f);
     const float lifeProgress = saturate(In.lifeTime.y / lifeMax);
-    const float lifeAlphaFade = saturate(1.f - lifeProgress);
     const float4 particleColor = lerp(In.startColor, In.endColor, lifeProgress);
-    const float4 symbol = g_Texture.Sample(LinearClampSampler, In.texCoord);
+    const float2 sampleUV = lerp(In.subUVRect.xy, In.subUVRect.zw, In.texCoord);
+    const float4 symbol = g_Texture.Sample(LinearClampSampler, sampleUV);
     const float opacityPower = max(g_EffectSpriteParams.y, 0.0001f);
     float selectedOpacity = symbol.a;
     float noiseFactor = 1.f;
@@ -160,13 +170,13 @@ PS_OUT PS_MAIN(PS_IN In)
 
     if (0 != g_EffectSpriteParams.w && g_EffectSpriteParams.z > 0.f)
     {
-        const float noise = g_NoiseTexture.Sample(LinearClampSampler, In.texCoord).r;
+        const float noise = g_NoiseTexture.Sample(LinearClampSampler, sampleUV).r;
         noiseFactor = lerp(1.f, noise, saturate(g_EffectSpriteParams.z));
     }
 
     const float opacity = pow(saturate(selectedOpacity), opacityPower);
     Out.color.rgb = symbol.rgb * particleColor.rgb * g_Tint.rgb * g_EffectSpriteParams.x * noiseFactor;
-    Out.color.a = opacity * particleColor.a * g_Tint.a * lifeAlphaFade;
+    Out.color.a = opacity * particleColor.a * g_Tint.a;
 
     if (Out.color.a < 0.01f)
         discard;

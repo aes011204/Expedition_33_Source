@@ -638,8 +638,8 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(EffectMaterialInstance
                 opacitySourceOptions,
                 sizeof(opacitySourceOptions) / sizeof(opacitySourceOptions[0])
             );
-            changed |= DetailProperty::Draw_UintProperty("SubUV Rows", material.subUvRows, defaultData.subUvRows);
-            changed |= DetailProperty::Draw_UintProperty("SubUV Cols", material.subUvCols, defaultData.subUvCols);
+            changed |= DetailProperty::Draw_UintProperty("SubUV Rows", material.subUVRows, defaultData.subUVRows);
+            changed |= DetailProperty::Draw_UintProperty("SubUV Cols", material.subUVCols, defaultData.subUVCols);
             DetailProperty::End_PropertyTable();
         }
     }

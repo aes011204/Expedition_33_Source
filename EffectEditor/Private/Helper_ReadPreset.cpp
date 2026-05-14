@@ -91,8 +91,8 @@ bool Read(const fs::path& filePath, EffectMaterialInstanceData& outMaterial)
     material.noiseStrength = read_float("noiseStrength", defaultMaterial.noiseStrength);
     material.blendMode = read_string("blendMode", defaultMaterial.blendMode);
     material.opacitySource = read_string("opacitySource", defaultMaterial.opacitySource);
-    material.subUvRows = max(1u, read_uint("subUvRows", defaultMaterial.subUvRows));
-    material.subUvCols = max(1u, read_uint("subUvCols", defaultMaterial.subUvCols));
+    material.subUVRows = max(1u, read_uint("subUVRows", defaultMaterial.subUVRows));
+    material.subUVCols = max(1u, read_uint("subUVCols", defaultMaterial.subUVCols));
 
     outMaterial = material;
     return true;

@@ -28,8 +28,8 @@ public:
         float opacityPower{ 1.f };                           // opacity를 선명하게 만들기 위한 effect sharpening 계수.
         string noiseTextureId{};                             // 선택 noise texture runtime id. 비어 있으면 사용하지 않는다.
         float noiseStrength{ 0.f };                          // noise가 opacity/color modulation에 끼치는 effect 강도.
-        uint32 subUvRows{ 1 };                               // flipbook grid 기록용 row 수. Phase6에서는 sampling에 쓰지 않는다.
-        uint32 subUvCols{ 1 };                               // flipbook grid 기록용 column 수. Phase6에서는 sampling에 쓰지 않는다.
+        uint32 subUVRows{ 1 };                               // flipbook grid 기록용 row 수. Phase6에서는 sampling에 쓰지 않는다.
+        uint32 subUVCols{ 1 };                               // flipbook grid 기록용 column 수. Phase6에서는 sampling에 쓰지 않는다.
 
         Vec3 center{ 0.f, 2.f, 0.f };             // 이 effect clone의 스폰 중심.
         uint32 instanceCount{ 96 };               // 이 effect clone이 생성할 particle 수.

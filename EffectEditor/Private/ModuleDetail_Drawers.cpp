@@ -63,8 +63,8 @@ namespace Internal
             NearlyEqual(lhs.noiseStrength, rhs.noiseStrength) &&
             lhs.blendMode == rhs.blendMode &&
             lhs.opacitySource == rhs.opacitySource &&
-            lhs.subUvRows == rhs.subUvRows &&
-            lhs.subUvCols == rhs.subUvCols;
+            lhs.subUVRows == rhs.subUVRows &&
+            lhs.subUVCols == rhs.subUVCols;
     }
 
     static string Try_ResolvePresetNameFromMaterial(const EffectMaterialInstanceData& material)
@@ -106,13 +106,13 @@ namespace Internal
         outFilePath.clear();
 
         const HRESULT initHr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
-        const bool shouldUninit = SUCCEEDED(initHr);
+        const bool shouldUnInit = SUCCEEDED(initHr);
 
         IFileOpenDialog* dialog = nullptr;
         HRESULT hr = CoCreateInstance(CLSID_FileOpenDialog, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&dialog));
         if (FAILED(hr) || dialog == nullptr)
         {
-            if (shouldUninit)
+            if (shouldUnInit)
                 CoUninitialize();
             return false;
         }
@@ -139,7 +139,8 @@ namespace Internal
             { L"Effect Materials", L"*.effectmaterial.json" },
             { L"All", L"*.*" },
         };
-        dialog->SetFileTypes(static_cast<UINT>(std::size(filters)), filters);
+
+        dialog->SetFileTypes(std::size(filters), filters);
 
         hr = dialog->Show(nullptr);
         if (SUCCEEDED(hr))
@@ -159,7 +160,7 @@ namespace Internal
 
         dialog->Release();
 
-        if (shouldUninit)
+        if (shouldUnInit)
             CoUninitialize();
 
         return !outFilePath.empty();
@@ -286,8 +287,8 @@ namespace Internal
                 data.material.noiseTextureId.empty() ? "(none)" : data.material.noiseTextureId.c_str(),
                 data.material.blendMode.c_str(),
                 data.material.opacitySource.c_str(),
-                data.material.subUvRows,
-                data.material.subUvCols
+                data.material.subUVRows,
+                data.material.subUVCols
             );
         }
 
@@ -305,6 +306,25 @@ namespace Internal
             ImGui::SetTooltip("머티리얼 원본 파일 선택");
 
         return changed;
+    }
+
+    static uint32 Resolve_SubUvFrameCount(const AuthoringEmitter& emitter)
+    {
+        for (const AuthoringModule& module : emitter.modules)
+        {
+            if (module.type != AuthoringModuleType::Required)
+                continue;
+
+            const RequiredModuleData* requiredData = get_if<RequiredModuleData>(&module.data);
+            if (requiredData == nullptr)
+                return 1;
+
+            const uint32 rows = max(1u, requiredData->material.subUVRows);
+            const uint32 cols = max(1u, requiredData->material.subUVCols);
+            return max(1u, rows * cols);
+        }
+
+        return 1;
     }
 }
 
@@ -609,6 +629,60 @@ bool ColorOverLifeModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, ColorO
 
     if (ImGui::CollapsingHeader("수명에 따른 색상", ImGuiTreeNodeFlags_DefaultOpen))
         changed |= drawContext.Draw_ColorDistributionGroup("색상", data.colorOverLife, defaultData.colorOverLife);
+
+    return changed;
+}
+
+bool SubUVFrameOverLifeModuleDetail::Draw(
+    const AuthoringEmitter& emitter,
+    AuthoringModule&,
+    SubUVFrameOverLifeModuleData& data,
+    ModuleDetailDrawContext& drawContext)
+{
+    const SubUVFrameOverLifeModuleData defaultData{};
+    bool changed = false;
+
+    if (ImGui::CollapsingHeader("수명에 따른 SubUV 프레임", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        if (drawContext.Begin_PropertyTable("SubUVFrameOverLife"))
+        {
+            changed |= drawContext.Draw_UintProperty("시작 프레임", data.startFrame, defaultData.startFrame);
+            changed |= drawContext.Draw_UintProperty("종료 프레임", data.endFrame, defaultData.endFrame);
+            changed |= drawContext.Draw_BoolProperty("루프", data.loop, defaultData.loop);
+            drawContext.End_PropertyTable();
+        }
+
+        const uint32 frameCount = Internal::Resolve_SubUvFrameCount(emitter);
+        const uint32 lastFrame = frameCount > 0 ? frameCount - 1 : 0;
+        data.startFrame = min(data.startFrame, lastFrame);
+        data.endFrame = min(data.endFrame, lastFrame);
+
+        ImGui::TextDisabled("현재 atlas frame 수: %u", frameCount);
+    }
+
+    return changed;
+}
+
+bool SizeByLifeModuleDetail::Draw(
+    AuthoringEmitter&,
+    AuthoringModule&,
+    SizeByLifeModuleData& data,
+    ModuleDetailDrawContext& drawContext)
+{
+    const SizeByLifeModuleData defaultData{};
+    bool changed = false;
+
+    if (ImGui::CollapsingHeader("수명에 따른 크기", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        if (drawContext.Begin_PropertyTable("SizeByLife"))
+        {
+            changed |= drawContext.Draw_FloatProperty("X 시작 배율", data.multiplyXStart, defaultData.multiplyXStart);
+            changed |= drawContext.Draw_FloatProperty("X 종료 배율", data.multiplyXEnd, defaultData.multiplyXEnd);
+            changed |= drawContext.Draw_FloatProperty("Y 시작 배율", data.multiplyYStart, defaultData.multiplyYStart);
+            changed |= drawContext.Draw_FloatProperty("Y 종료 배율", data.multiplyYEnd, defaultData.multiplyYEnd);
+            drawContext.End_PropertyTable();
+        }
+    }
 
     return changed;
 }

@@ -19,7 +19,7 @@ public:
     HRESULT Render() override;
 
 public: //## Behavior::ParticleUpdate
-    // TODO : 이 함수들은 임시로 여기에 두되, 최종적으로는 각 파티클 이펙트 형태마다 동작을 관리하는 것이 더 좋아보임
+    // TODO : 이 함수들은 임시로 여기에 두되, 최종적으로는 각 파티클 이펙트 형태마다 모듈로 동작을 관리하는 것이 더 좋아보임
     void Drop(float timeDelta);   // clone runtime payload를 아래 방향으로 갱신한다.
     void Spread(float timeDelta); // clone runtime payload를 pivot 기준 바깥 방향으로 갱신한다.
 
@@ -67,7 +67,11 @@ private: //## Helper::Seed
     static float Pick_RandomFloat(float minValue, float maxValue); // 초기 instance seed 생성용 범위 난수를 세팅한다.
 
 private: //## Helper::Runtime
-    static bool Is_Expired(const ParticleInstanceVertex& instance); // lifetime 종료 여부를 판단한다.
+    static bool Is_Expired(const ParticleInstanceVertex& instance);            // lifetime 종료 여부를 판단한다.
+    float Evaluate_LifeProgress(const ParticleInstanceVertex& instance) const; // 현재 인스턴스의 normalized lifeProgress를 계산한다.
+    Vec2 Evaluate_SizeMultiplier(float lifeProgress) const;                    // lifeProgress 기준 SizeByLife 배율을 계산한다.
+    Vec4 Evaluate_SubUVRect(float lifeProgress) const;                         // lifeProgress 기준으로 현재 atlas uv rect를 계산한다.
+    void Update_InstanceOverLifePayload(uint32 index);                         // 현재 lifeProgress 결과를 runtime payload에 다시 반영한다.
 
 public:
     static Shared<VIBufferCom_PointParticle> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
