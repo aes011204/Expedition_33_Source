@@ -7,7 +7,7 @@
 #include "PlayerControllerCom.h"
 #include "Bounding_OBB.h"
 #include "ColliderCom.h"
-#include "CombatStatCom.h"
+#include "PlayerStatCom.h"
 #include "PlayableParts.h"
 #include "PlayerStateMachineCom.h"
 #include "Body_Player.h"

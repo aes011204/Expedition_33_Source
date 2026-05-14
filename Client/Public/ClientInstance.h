@@ -66,6 +66,8 @@ public: /* For.Hero Manager */
     // 맨 앞 플레이어. Get_Active와 역할이 거의 동일
     Shared<Player>  Get_FrontHero() const;
 
+    Shared<Player> Find_Hero(HeroId heroId) const;
+
 public: /* For.Gameplay UI */
     HRESULT Initialize_GameplayUI(uint32 levelIndex);
     void    Clear_GameplayUI();

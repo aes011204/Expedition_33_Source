@@ -1015,14 +1015,7 @@ namespace ModelEditor
                 continue;
             }
 
-			ofstream out(animPath, ios::binary);
-			if (!out.is_open())
-			{
-				LOG_ERROR("Failed to create anim file: {}", fullFileName);
-				continue;
-			}
-
-			WriteString(out, fullFileName);
+			WriteString(out, finalFileName);
 			out.write(BYTE(&_animHeaders[i].duration), sizeof(double) * 2);
 			out.write(BYTE(&_animHeaders[i].numChannels), sizeof(uint32));
 			out.write(BYTE(&_animHeaders[i].rootTotalTranslation), sizeof(Vec3));
@@ -1039,7 +1032,7 @@ namespace ModelEditor
 			}
 
 			out.close();
-			LOG_INFO("Export Anim Clip: {}", fullFileName);
+			LOG_INFO("Export Anim Clip: {}", finalFileName);
 		}
 
 		return S_OK;

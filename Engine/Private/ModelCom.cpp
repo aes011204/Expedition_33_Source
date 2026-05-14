@@ -38,6 +38,8 @@ ModelCom::ModelCom(const ModelCom& prototype)
     , _sourceModelPath{ prototype._sourceModelPath }
     , _isAnimationPaused{ prototype._isAnimationPaused }
     , _collisionMeshes{ prototype._collisionMeshes }
+    , _stateAnimIndices{ prototype._stateAnimIndices }
+    , _animEnumType{ prototype._animEnumType }
 {
     for (auto& prototypeAnim : prototype._animations)
         _animations.push_back(prototypeAnim->Clone());

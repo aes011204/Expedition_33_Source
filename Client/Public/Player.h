@@ -66,7 +66,6 @@ private:
     Shared<ColliderCom>             _colliderCom;
     Shared<CombatStatCom>           _combatStatCom;
     Shared<SkillTreeCom>            _skillTreeCom;
-
     BoundingBox                     _cullingAABB{};
 
 public:
