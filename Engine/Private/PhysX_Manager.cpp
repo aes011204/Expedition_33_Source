@@ -96,6 +96,52 @@ namespace
         PxActor* _selfActor = nullptr;
         PxFilterData _selfFilterData{};
     };
+
+    class Preset_QueryFilterCallback final : public PxQueryFilterCallback
+    {
+    public:
+        explicit Preset_QueryFilterCallback(const PxFilterData& selfFilterData)
+            : _selfFilterData(selfFilterData)
+        {
+        }
+
+        PxQueryHitType::Enum preFilter(
+            const PxFilterData& filterData,
+            const PxShape* shape,
+            const PxRigidActor* actor,
+            PxHitFlags& queryFlags) override
+        {
+            UNREFERENCED_PARAMETER(filterData);
+            UNREFERENCED_PARAMETER(shape);
+            UNREFERENCED_PARAMETER(actor);
+            UNREFERENCED_PARAMETER(queryFlags);
+
+            const CollisionResponse response =
+                Calculate_PhysXResponse(_selfFilterData, shape->getQueryFilterData());
+
+            if (response != CollisionResponse::Block)
+                return PxQueryHitType::eNONE;
+
+            return PxQueryHitType::eBLOCK;
+        }
+
+        PxQueryHitType::Enum postFilter(
+            const PxFilterData& filterData,
+            const PxQueryHit& hit,
+            const PxShape* shape,
+            const PxRigidActor* actor) override
+        {
+            UNREFERENCED_PARAMETER(filterData);
+            UNREFERENCED_PARAMETER(hit);
+            UNREFERENCED_PARAMETER(shape);
+            UNREFERENCED_PARAMETER(actor);
+
+            return PxQueryHitType::eBLOCK;
+        }
+
+    private:
+        PxFilterData _selfFilterData{};
+    };
 }
 
 PhysX_Manager::PhysX_Manager()
@@ -247,6 +293,10 @@ void PhysX_Manager::onContact(const PxContactPairHeader& pairHeader, const PxCon
     for (PxU32 i = 0; i < nbPairs; ++i)
     {
         const PxContactPair& pair = pairs[i];
+
+        if (pair.shapes[0] == nullptr || pair.shapes[i] == nullptr)
+            continue;
+
         const PxPairFlags events = pair.events;
 
         const bool began = events.isSet(PxPairFlag::eNOTIFY_TOUCH_FOUND);
@@ -256,21 +306,17 @@ void PhysX_Manager::onContact(const PxContactPairHeader& pairHeader, const PxCon
         if (!began && !staying && !ended)
             continue;
 
-        Push_PairEvent(
-            colliderA,
-            colliderB,
-            CollisionResponse::Block,
-            began,
-            staying,
-            ended);
+        const PxFilterData filterDataA = pair.shapes[0]->getSimulationFilterData();
+        const PxFilterData filterDataB = pair.shapes[1]->getSimulationFilterData();
 
-        Push_PairEvent(
-            colliderB,
-            colliderA,
-            CollisionResponse::Block,
-            began,
-            staying,
-            ended);
+        const CollisionResponse response =
+            Calculate_PhysXResponse(filterDataA, filterDataB);
+
+        if (response == CollisionResponse::Ignore)
+            continue;
+
+        Push_PairEvent(colliderA, colliderB, CollisionResponse::Block, began, staying, ended);
+        Push_PairEvent(colliderB, colliderA, CollisionResponse::Block, began, staying, ended);
     }
 }
 
@@ -285,7 +331,7 @@ PhysXStaticActorHandle PhysX_Manager::Register_StaticModel(const ModelCom& model
 
     vector<PxTriangleMesh*> triangleMeshes = Build_OrGetTriangleMeshes(model);
     if (triangleMeshes.empty())
-         return emptyHandle;
+        return emptyHandle;
 
     PxRigidStatic* actor = _physics->createRigidStatic(To_PxTransform(worldMatrix));
     if (actor == nullptr)
@@ -390,6 +436,59 @@ void PhysX_Manager::Push_PairEvent(Shared<ColliderCom> self, Shared<ColliderCom>
     _frameEvents.push_back(event);
 }
 
+bool PhysX_Manager::Sweep_Sphere(const Vec3& origin, const Vec3& direction, float distance, float radius,
+    Collision_Preset queryPreset, PhysXQueryHit& outHit) const
+{
+    outHit = {};
+
+    CHECK_NULL(_scene, false);
+
+    if (distance <= 0.f || radius <= 0.f)
+        return false;
+
+    if (direction.LengthSquared() <= 0.f)
+        return false;
+
+    // 정규화해서 사용
+    Vec3 unitDir = direction;
+    unitDir.Normalize();
+
+    const Collision_Preset_Data& presetData = Get_PresetData(queryPreset);
+    const PxFilterData selfFilterData = Build_FilterData(
+        presetData.channel, presetData.overlapMask, presetData.blockMask);
+
+    Preset_QueryFilterCallback filterCallback(selfFilterData);
+
+    PxQueryFilterData queryFilterData;
+    queryFilterData.flags =
+        PxQueryFlag::eSTATIC |
+        PxQueryFlag::eDYNAMIC |
+        PxQueryFlag::ePREFILTER;
+
+    PxSweepBuffer hitBuffer;
+    const bool hit = _scene->sweep(
+        PxSphereGeometry(radius),
+        PxTransform(PxVec3(origin.x, origin.y, origin.z)),
+        PxVec3(unitDir.x, unitDir.y, unitDir.z),
+        distance,
+        hitBuffer,
+        PxHitFlag::eDEFAULT,
+        queryFilterData,
+        &filterCallback);
+
+    if (!hit || !hitBuffer.hasBlock)
+        return false;
+
+    const PxSweepHit& block = hitBuffer.block;
+
+    outHit.hit = true;
+    outHit.distance = block.distance;
+    outHit.position = Vec3(block.position.x, block.position.y, block.position.z);
+    outHit.normal = Vec3(block.normal.x, block.normal.y, block.normal.z);
+
+    return true;
+}
+
 bool PhysX_Manager::Sweep_Collider(ColliderCom* collider, const Matrix& worldMatrix, const Vec3& direction,
     float distance, PhysXQueryHit& outHit) const
 {
@@ -492,7 +591,7 @@ vector<PxTriangleMesh*> PhysX_Manager::Build_OrGetTriangleMeshes(const ModelCom&
 
 PxTriangleMesh* PhysX_Manager::Create_TriangleMesh(const ModelCollisionMesh& meshData, const Matrix& preTransformMatrix)
 {
-     if (_physics == nullptr)
+    if (_physics == nullptr)
         return nullptr;
 
     if (meshData.positions.empty() || meshData.indices.size() < 3)

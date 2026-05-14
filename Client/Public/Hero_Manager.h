@@ -30,15 +30,25 @@ public:
 
     void    Update_HeroManager(float timeDelta);
 
-    // 현재 플레이중인 Hero
-    Shared<Player> Get_ActiveHero() const;
+
 
     void    Set_TargetCamera(const Shared<TargetCamera>& camera);
     void    Clear_Party();
 
+    // 셋 다 가져오기
+    const vector<HeroPartyEntry>& Get_HeroEntries() const;
+
+    Shared<Player> Get_Hero(HeroPartySlot slot) const;
+    HeroId Get_HeroId(HeroPartySlot slot) const;
+
+    // 현재 플레이중인 Hero
+    HeroPartySlot Get_ActiveHeroSlot() const;
+    Shared<Player> Get_ActiveHero() const;
+
     // 스테이터스 찍을 때 Front로 들어간 구스타브 포커싱되게
     Shared<Player> Get_FrontHero() const;
-    vector<Shared<Player>> Get_HeroesInPartyOrder() const { return _heroes; }
+
+    Shared<Player> Find_Hero(HeroId heroId) const;
 
 private:
     void    Switch_NextHero();
@@ -67,12 +77,13 @@ private:
     void    Refresh_TargetCamera() const;
 
 private:
-    vector<Shared<Player>> _heroes;
-    deque<TrailPoint>   _activeTrail;
+    vector<HeroPartyEntry>  _heroes;
+    uint32                  _activeIndex = 0;
 
-    Weak<TargetCamera> _targetCamera;
+    deque<TrailPoint>       _activeTrail;
 
-    uint32 _activeIndex = 0;
+    Weak<TargetCamera>      _targetCamera;
+
     uint32 _levelIndex = 0;
     wstring _layerTag;
 
