@@ -44,7 +44,7 @@ namespace ModelEditor
 		// 1. Tech Junk Tokens (Exact matches only)
 		static const unordered_set<string> junkSet = {
 			"ALS", "UE5", "RETAKE", "UNREAL", "TAKE", "DEFAULT", "PLACEHOLDER", "SK",
-			"LF", "RF", "N", "F", "B", "L", "R", "W", "S", "E", "WORLD"
+			"LF", "RF", "N", "F", "B", "L", "R", "W", "S", "E"
 		};
 
 		// 2. Tokenize by various delimiters
@@ -301,17 +301,41 @@ namespace ModelEditor
 	{
 		Clear_Converter();
 		
-		string utf8FilePath = Engine::String::ToString(fbxFilePath);
-		_aiScene = _importer.ReadFile(utf8FilePath, _importFlags);
-
-		if (nullptr == _aiScene || _aiScene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !_aiScene->mRootNode)
-		{
-			LOG_ERROR("Assimp Error: {} \n", _importer.GetErrorString());
-			return E_FAIL;
-		}
-
-		string modelName = Get_FileNameWithoutExtension(fbxFilePath);
+        string utf8FilePath = Engine::String::ToString(fbxFilePath);
+        
+        const aiScene* probeScene = _importer.ReadFile(utf8FilePath,
+            aiProcess_Triangulate | aiProcess_ConvertToLeftHanded);
+        if (nullptr == probeScene || probeScene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !probeScene->mRootNode)
+        {
+            LOG_ERROR("Assimp Error: {} \n", _importer.GetErrorString());
+            return E_FAIL;
+        }
+        
         bool hasMeshBones = false;
+        for (uint32 i = 0; i < probeScene->mNumMeshes; ++i)
+        {
+            if (probeScene->mMeshes[i]->mNumBones > 0)
+            {
+                hasMeshBones = true;
+                break;
+            }
+        }
+        _isSkeletal = hasMeshBones || probeScene->mNumAnimations > 0;
+        
+        if (false == _isSkeletal)
+        {
+            _importFlags |= aiProcess_PreTransformVertices;
+        }
+        
+        _importer.FreeScene();
+        _aiScene = _importer.ReadFile(utf8FilePath, _importFlags);
+        if (nullptr == _aiScene || _aiScene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !_aiScene->mRootNode)
+        {
+            LOG_ERROR("Assimp Error: {} \n", _importer.GetErrorString());
+            return E_FAIL;
+        }
+        string modelName = Get_FileNameWithoutExtension(fbxFilePath);
+
         for (uint32 i = 0; i < _aiScene->mNumMeshes; ++i)
         {
             if (_aiScene->mMeshes[i]->mNumBones > 0)
@@ -367,17 +391,12 @@ namespace ModelEditor
 
         RecursiveBuild(RecursiveBuild, _aiScene->mRootNode, -1);
 
-        //uint32 totalNodeCount = static_cast<uint32>(_bones.size());
-        //uint32 boneCount = static_cast<uint32>(tempOffsetMap.size());
-        //if (totalNodeCount > 0 && (totalNodeCount - boneCount) == 0)
-        //{
-        //    _isSkeletal = false;
-        //}
-
-        //if (_isSkeletal)
-        //{
-        //    _importFlags |= aiProcess_PreTransformVertices | aiProcess_GlobalScale;
-        //}
+        uint32 totalNodeCount = static_cast<uint32>(_bones.size());
+        uint32 boneCount = static_cast<uint32>(tempOffsetMap.size());
+        if (totalNodeCount > 0 && (totalNodeCount - boneCount) == 0)
+        {
+            _isSkeletal = false;
+        }
 
 		ReadMeshes(_aiScene);
 		ReadMaterial(_aiScene);
@@ -649,19 +668,13 @@ namespace ModelEditor
                         }
                     }
 
-                    // 4. 만약 boneRefs에 등록되지 않은 뼈대라면 배열 끝에 새로 추가합니다.
                     if (!bFoundInRefs)
                     {
                         boneRefs.push_back(defaultBoneIndex);
                         offsets.push_back(defaultOffset);
                         safeRefIndex = static_cast<uint32>(boneRefs.size() - 1);
                     }
-                    // =========================================================================
-
-
-                    // =========================================================================
-                    // 정점 웨이트 정규화 및 안전 인덱스 매핑 적용
-                    // =========================================================================
+                    
                     for (auto& vertex : vertices)
                     {
                         float weightSum = vertex.blendWeight.x + vertex.blendWeight.y + vertex.blendWeight.z + vertex.blendWeight.w;
@@ -986,37 +999,22 @@ namespace ModelEditor
 
 		for (uint32 i = 0; i < _animHeaders.size(); ++i)
 		{
-			string animClipName = Sanitize_FileName(string(_animHeaders[i].name));
-			string fullFileName;
-
-			string charBaseName = cleanModelName;
-			if (charBaseName.length() >= 4 && charBaseName.substr(charBaseName.length() - 4) == "Body")
-			{
-				charBaseName = charBaseName.substr(0, charBaseName.length() - 4);
-			}
-
-            if (animClipName.find(cleanModelName) == 0)
+            string finalFileName = Sanitize_FileName(modelName);
+            // 2. 애니메이션이 여러 개일 경우에만 뒤에 인덱스(_0, _1...)를 붙임
+            if (_animHeaders.size() > 1)
             {
-                animClipName.erase(0, cleanModelName.length());
-                if (!animClipName.empty() && animClipName[0] == '_')
-                    animClipName.erase(0, 1);
+                finalFileName += "_" + to_string(i);
             }
-            if (animClipName.empty()) animClipName = "DefaultAnimName";
+            // 3. 최종 경로 생성 (String::ToWString 사용 여부 확인 필요)
+            wstring animPath = animDir + Engine::String::ToWString(finalFileName) + L".anim";
+            // 4. 파일 출력 시작
+            ofstream out(animPath, ios::binary);
+            if (!out.is_open())
+            {
+                LOG_ERROR("Failed to create anim file: {}", finalFileName);
+                continue;
+            }
 
-			if (animClipName == "DefaultAnimName")
-			{
-				fullFileName = cleanModelName;
-			}
-			else if (animClipName.find(charBaseName) == 0 || animClipName.find(cleanModelName) == 0)
-			{
-				fullFileName = animClipName;
-			}
-			else
-			{
-				fullFileName = cleanModelName + "_" + animClipName;
-			}
-
-			wstring animPath = animDir + ToWString(fullFileName) + L".anim";
 			ofstream out(animPath, ios::binary);
 			if (!out.is_open())
 			{
@@ -1114,10 +1112,10 @@ namespace ModelEditor
 	Matrix ModelConverter::Convert_Matrix(const aiMatrix4x4& aiMat) const
 	{
 		Matrix mat;
-		mat._11 = aiMat.a1; mat._12 = aiMat.b1; mat._13 = aiMat.c1; mat._14 = aiMat.d1;
-		mat._21 = aiMat.a2; mat._22 = aiMat.b2; mat._23 = aiMat.c2; mat._24 = aiMat.d2;
-		mat._31 = aiMat.a3; mat._32 = aiMat.b3; mat._33 = aiMat.c3; mat._34 = aiMat.d3;
-		mat._41 = aiMat.a4; mat._42 = aiMat.b4; mat._43 = aiMat.c4; mat._44 = aiMat.d4;
+        mat._11 = aiMat.a1; mat._21 = aiMat.b1; mat._31 = aiMat.c1; mat._41 = aiMat.d1;
+        mat._12 = aiMat.a2; mat._22 = aiMat.b2; mat._32 = aiMat.c2; mat._42 = aiMat.d2;
+        mat._13 = aiMat.a3; mat._23 = aiMat.b3; mat._33 = aiMat.c3; mat._43 = aiMat.d3;
+        mat._14 = aiMat.a4; mat._24 = aiMat.b4; mat._34 = aiMat.c4; mat._44 = aiMat.d4;
 
 		return mat;
 	}
