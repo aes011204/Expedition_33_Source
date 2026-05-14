@@ -28,6 +28,7 @@ public:
         Shared<UI_Base>                root;
         Shared<SkillTreeCom>           skillTreeCom;
         vector<SkillNodeUI>            skillNodes;
+        umap<wstring, Shared<UI_Base>> uiByName;
         umap<wstring, Shared<UI_Base>> tooltips;
     };
 
@@ -46,9 +47,9 @@ public:
     bool   Is_Open() const { return _isOpen;}
 
 private:
-    HRESULT     Load_UI(uint32 levelIndex);
-    HRESULT     Load_UI_ToolTips(uint32 levelIndex);
-    HRESULT     Bind_Lune_SkillNode_UI();
+    HRESULT     Load_UI(HeroId heroId, uint32 levelIndex,  const wstring& playerName, const wstring& jsonPath,const wstring& rootName, const wstring& prototypeTagPrefix,SkillTreeViewState& outView);
+    HRESULT     Load_UI_ToolTips(const wstring& prototypeTagPrefix, uint32 levelIndex, SkillTreeViewState& outView);
+    HRESULT     Bind_SkillNode_UI(const wstring& playerName, SkillTreeViewState& outView);
 
     Shared<UI_Base> Find_UI(const umap<wstring, Shared<UI_Base>>& uiByName, const wstring& name) const;
 
@@ -66,6 +67,8 @@ private:
 
         return typedUI;
     }
+private:
+    void    Change_ToNextViewState(HeroId next);
 
 private:
     HRESULT Spawn_StatusPreviewHeroes();
@@ -89,8 +92,9 @@ private:
     Shared<UI_Base>                          _root;
     Vec2                                     _baseSize;
     Vec2                                     _hoveredSize;
-    umap<string,SkillTreeViewState>          _viewByPlayerId;
+    umap<HeroId,SkillTreeViewState>          _viewByPlayerId;
     SkillTreeViewState*                      _currentView;
+    uint32                                   _currentHeroIndex;
 
 public:
     static Unique<SkillTree_Panel> Create(uint32 levelIndex);

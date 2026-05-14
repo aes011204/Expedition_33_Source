@@ -20,15 +20,20 @@ SkillTree_Panel::~SkillTree_Panel()
 
 HRESULT SkillTree_Panel::Initialize(uint32 levelIndex)
 {
+    SkillTreeViewState luneView, gustaveView, maelleView {};
+
     _levelIndex = levelIndex;
-    CHECK_FAILED(Load_UI(levelIndex), E_FAIL);;
+    CHECK_FAILED(Load_UI(HeroId::Lune, levelIndex, L"Lune", Constants::UI::UI_Lune_SkillTree_Path, L"Panel_Lune_SkillTree", L"Lune", luneView), E_FAIL);;
+   // CHECK_FAILED(Load_UI(HeroId::Gustave, levelIndex, L"Gustave", Constants::UI::UI_Lune_SkillTree_Path, L"Panel_Gustave_SkillTree", L"Gustave", gustaveView), E_FAIL);;
+   // CHECK_FAILED(Load_UI(HeroId::Maelle, levelIndex, L"Maelle", Constants::UI::UI_Lune_SkillTree_Path, L"Panel_Maelle_SkillTree", L"Maelle", maelleView), E_FAIL);;
+
+    _viewByPlayerId.emplace(HeroId::Lune, luneView);
+    //_viewByPlayerId.emplace(HeroId::Gustave, gustaveView);
+    //_viewByPlayerId.emplace(HeroId::Maelle, maelleView);
 
     Close();
 
-    //TODO 선택된 플레이어로 바꿔야 함! 이건 다른 거 같음
-    _skillTreeCom = CLIENT->Find_Player(GAME->Current_LevelIndex())->Get_Component<SkillTreeCom>();
-//    _baseSize = _skillNodes.front().image->Get_Transform()->Get_Size();
-//    _hoveredSize = _baseSize * 1.2f;
+    _currentView = &_viewByPlayerId[HeroId::Lune];
     return S_OK;
 }
 
@@ -146,95 +151,33 @@ void SkillTree_Panel::Toggle()
         Open();
 }
 
-HRESULT SkillTree_Panel::Load_UI(uint32 levelIndex)
+HRESULT SkillTree_Panel::Load_UI(HeroId heroId, uint32 levelIndex, const wstring& playerName, const wstring& jsonPath, const wstring& rootName, const wstring& prototypeTagPrefix,SkillTreeViewState& outView)
 {
-    //Lune
     SkillTreeViewState viewState{};
 
     UI_RuntimeLoader::UI_LoadDesc desc {};
     desc.levelIndex = levelIndex;
-    desc.jsonPath = Constants::UI::UI_Lune_SkillTree_Path;
-    desc.prototypeTagPrefix = L"Lune_SkillTree";
-    desc.outUIByName = &_luneSkillTree;
-    desc.outChildrenByParentName = &_childrenByParentName;
+    desc.jsonPath = jsonPath;
+    desc.prototypeTagPrefix = prototypeTagPrefix;
+    desc.outUIByName = &outView.uiByName;
 
     CHECK_FAILED(UI_RuntimeLoader::Load_Document(desc), E_FAIL);
 
-    _root = Find_UI(_luneSkillTree, L"Panel_Lune_SkillTree");
-    CHECK_NULL(_root, E_FAIL);
+    outView.root = Find_UI(outView.uiByName, rootName);
 
-    viewState.root = _root;
+    Load_UI_ToolTips(prototypeTagPrefix, levelIndex, outView);
+    Bind_SkillNode_UI(playerName, outView);
 
-    CHECK_FAILED(Bind_Lune_SkillNode_UI(),E_FAIL);
-
-    viewState.skillNodes = _skillNodes;
-    viewState.skillTreeCom = CLIENT->Find_Player(levelIndex)->Get_Component<SkillTreeCom>();
-
-    CHECK_FAILED(Load_UI_ToolTips(levelIndex), E_FAIL);
-
-    viewState.tooltips = _luneSkillTooltips;
-
-    _viewByPlayerId.emplace("Player_Lune", viewState);
-
-    return S_OK;
+    outView.skillTreeCom = CLIENT->Find_Hero(heroId);
 }
 
-HRESULT SkillTree_Panel::Load_UI_ToolTips(uint32 levelIndex)
+HRESULT SkillTree_Panel::Load_UI_ToolTips(const wstring& prototypeTagPrefix, uint32 levelIndex, SkillTreeViewState& outView)
 {
-    //namespace fs = std::filesystem;
-    //
-    //const fs::path tooltipDir = fs::path(L"../../../Client/Bin/Resources") / Constants::UI::UI_SkillTooltip_Dir;
-    //
-    //if (!fs::exists(tooltipDir) || !fs::is_directory(tooltipDir))
-    //{
-    //    LOG_ERROR("Skill tooltip directory not found: {}", String::ToString(tooltipDir.wstring()));
-    //    return E_FAIL;
-    //}
-    //
-    //constexpr wchar_t tooltipFilePrefix[] = L"UI_SkillTooltip_";
-    //const size_t prefixLength = wcslen(tooltipFilePrefix);
-    //
-    //for (const auto& entry : fs::directory_iterator(tooltipDir))
-    //{
-    //    if (!entry.is_regular_file())
-    //        continue;
-    //
-    //    const fs::path filePath = entry.path();
-    //    if (filePath.extension() != L".json")
-    //        continue;
-    //
-    //    const wstring stem = filePath.stem().wstring();
-    //    if (stem.rfind(tooltipFilePrefix, 0) != 0)
-    //        continue;
-    //
-    //    const string skillId = String::ToString(stem.substr(prefixLength));
-    //
-    //    umap<wstring, Shared<UI_Base>> tooltipUiByName;
-    //    umap<wstring, vector<Shared<UI_Base>>> tooltipChildrenByParentName;
-    //
-    //    UI_RuntimeLoader::UI_LoadDesc desc{};
-    //    desc.levelIndex = levelIndex;
-    //    desc.jsonPath = filePath.wstring();
-    //    desc.prototypeTagPrefix = L"Tooltip_" + String::ToWString(skillId);
-    //    desc.outUIByName = &tooltipUiByName;
-    //    desc.outChildrenByParentName = &tooltipChildrenByParentName;
-    //
-    //    CHECK_FAILED(UI_RuntimeLoader::Load_Document(desc), E_FAIL);
-    //
-    //    Shared<UI_Base> tooltipRoot = Find_UI(tooltipUiByName, L"Panel_SkillTooltip");
-    //    CHECK_NULL(tooltipRoot, E_FAIL);
-    //
-    //    tooltipRoot->Close();
-    //    _tooltips.emplace(skillId, tooltipRoot);
-    //}
-    //
-    //return S_OK;
-
     UI_RuntimeLoader::UI_LoadDesc desc {};
     desc.levelIndex = levelIndex;
     desc.jsonPath = Constants::UI::UI_Lune_SkillTooltips_Dir;
     desc.prototypeTagPrefix = L"Lune_SkillTooltips";
-    desc.outUIByName = &_luneSkillTooltips;
+    desc.outUIByName = &outView.tooltips;
     desc.outChildrenByParentName = &_childrenByParentName;
 
     CHECK_FAILED(UI_RuntimeLoader::Load_Document(desc), E_FAIL);
@@ -242,13 +185,13 @@ HRESULT SkillTree_Panel::Load_UI_ToolTips(uint32 levelIndex)
     return S_OK;
 }
 
-HRESULT SkillTree_Panel::Bind_Lune_SkillNode_UI()
+HRESULT SkillTree_Panel::Bind_SkillNode_UI(const wstring& playerName, SkillTreeViewState& outView)
 {
-    const wstring buttonPrefix = L"Button_Skill_Lune";
-    const wstring imagePrefix = L"Image_Skill_Lune";
-    const wstring textPrefix = L"Text_Skill_Lune";
+    const wstring buttonPrefix = L"Button_Skill_" + playerName;
+    const wstring imagePrefix = L"Image_Skill_" + playerName;
+    const wstring textPrefix = L"Text_Skill" + playerName;
 
-    for(const auto& [name, ui] : _luneSkillTree)
+    for(const auto& [name, ui] : outView.uiByName)
     {
         Shared<UI_Button> button = dynamic_pointer_cast<UI_Button>(ui);
 
@@ -263,8 +206,8 @@ HRESULT SkillTree_Panel::Bind_Lune_SkillNode_UI()
         const wstring imageId = imagePrefix + skillIdW;
         const wstring textId = textPrefix + skillIdW;
 
-        Shared<UI_Image> icon = dynamic_pointer_cast<UI_Image>(Find_UI(_luneSkillTree, imageId));
-        Shared<UI_Text> costText = dynamic_pointer_cast<UI_Text>(Find_UI(_luneSkillTree, textId));
+        Shared<UI_Image> icon = dynamic_pointer_cast<UI_Image>(Find_UI(outView.uiByName, imageId));
+        Shared<UI_Text> costText = dynamic_pointer_cast<UI_Text>(Find_UI(outView.uiByName, textId));
 
         SkillNodeUI node{};
         node.skillId = skillId;
@@ -272,7 +215,7 @@ HRESULT SkillTree_Panel::Bind_Lune_SkillNode_UI()
         node.image = icon;
         node.costText = costText;
 
-        _skillNodes.push_back(node);
+        outView.skillNodes.push_back(node);
     }
     return S_OK;
 }
@@ -284,6 +227,18 @@ Shared<UI_Base> SkillTree_Panel::Find_UI(const umap<wstring, Shared<UI_Base>>& u
         return nullptr;
 
     return iter->second;
+}
+
+void SkillTree_Panel::Change_ToNextViewState(HeroId next)
+{
+    uint32 nextIndex = _currentHeroIndex + 1;
+
+    if(nextIndex >= static_cast<uint32>(HeroId::END))
+        nextIndex = 0;
+
+    HeroId nextHeroId = static_cast<HeroId>(nextIndex);
+
+    _currentView = &_viewByPlayerId[nextHeroId];
 }
 
 HRESULT SkillTree_Panel::Spawn_StatusPreviewHeroes()
