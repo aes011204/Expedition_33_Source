@@ -339,6 +339,8 @@ void ModelCom::Apply_EffectiveMaterial(uint32 materialIndex)
     Apply_TextureOverride(material.get(), MaterialTextureSlot::ORM, inst.orm);
     Apply_TextureOverride(material.get(), MaterialTextureSlot::Emissive, inst.emissive);
     Apply_TextureOverride(material.get(), MaterialTextureSlot::OpacityMask, inst.opacityMask);
+    Apply_TextureOverride(material.get(), MaterialTextureSlot::HairDepth, inst.hairDepth);
+    Apply_TextureOverride(material.get(), MaterialTextureSlot::HairID, inst.hairID);
 }
 
 json ModelCom::To_Json() const
@@ -368,7 +370,14 @@ json ModelCom::To_Json() const
 
         const MaterialInstanceOverride& inst = binding.instance;
         const bool hasAnyTextureOverride =
-            inst.baseColor.enabled || inst.normal.enabled || inst.orm.enabled || inst.emissive.enabled || inst.opacityMask.enabled;
+            inst.baseColor.enabled
+            || inst.normal.enabled
+            || inst.orm.enabled
+            || inst.emissive.enabled
+            || inst.opacityMask.enabled
+            || inst.hairDepth.enabled       // Hair 전용 추가
+            || inst.hairID.enabled;
+
         const bool hasInstanceOverride =
             inst.overrideRenderStateEnabled || inst.cbMask.Any() || hasAnyTextureOverride;
 
@@ -464,6 +473,9 @@ json ModelCom::To_Json() const
             writeTextureOverride("orm", inst.orm);
             writeTextureOverride("emissive", inst.emissive);
             writeTextureOverride("opacity_mask", inst.opacityMask);
+
+            writeTextureOverride("hair_depth", inst.hairDepth);
+            writeTextureOverride("hair_id", inst.hairID);
 
             entry["instance_override"] = instJson;
         }
