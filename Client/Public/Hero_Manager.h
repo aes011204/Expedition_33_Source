@@ -48,6 +48,8 @@ public:
     // 스테이터스 찍을 때 Front로 들어간 구스타브 포커싱되게
     Shared<Player> Get_FrontHero() const;
 
+    Shared<Player> Find_Hero(HeroId heroId) const;
+
 private:
     void    Switch_NextHero();
     void    Snap_AllHeroesToFormation(

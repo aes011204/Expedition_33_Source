@@ -62,7 +62,7 @@ private:
     Shared<PlayerControllerCom>     _playerControllerCom;
     Shared<PlayerStateMachineCom>   _PlayerStateMachineCom;
     Shared<ColliderCom>             _colliderCom;
-    Shared<CombatStatCom>           _combatStatCom;
+    Shared<CombatStatCom>        _combatStatCom;
 
     BoundingBox                     _cullingAABB{};
 
