@@ -75,16 +75,24 @@ float3 ComputeWorldNormal(float3 normalW, float3 tangentW, float3 binormalW, flo
 
 float3 SampleOrm(float2 uv)
 {
-    float3 orm = float3(1.f, 1.f, 1.f);
+    float ao = 1.f;         // AO 는 가리지 않고
+    float roughness = 1.f;  // Rougness 는 거칠게
+    float metalness = 0.f;  // Metalness는 비금속
 
     if (HasMaterialTexture(MATERIAL_SLOT_ORM))
-        orm = g_MaterialTextures[MATERIAL_SLOT_ORM].Sample(LinearWrapSampler, uv).rgb;
+    {
+        float3 orm = g_MaterialTextures[MATERIAL_SLOT_ORM].Sample(LinearWrapSampler, uv).rgb;
 
-    orm.r *= g_AoScale;         // O
-    orm.g *= g_RoughnessScale;  // R
-    orm.b *= g_MetalnessScale;  // M
+        ao = orm.r;
+        roughness = orm.g;
+        metalness = orm.b;
+    }
 
-    return orm;
+    ao *= g_AoScale;                // O
+    roughness *= g_RoughnessScale;  // R
+    metalness *= g_MetalnessScale;  // M
+
+    return float3(ao, roughness, metalness);
 }
 
 float3 SampleEmissive(float2 uv)

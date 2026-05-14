@@ -49,9 +49,6 @@
     <ClCompile Include="..\Private\ImGui_Manager.cpp">
       <Filter>01. Manager</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\SimpleMath.cpp">
-      <Filter>99. Defines</Filter>
-    </ClCompile>
     <ClCompile Include="..\private\Camera_Tool.cpp" />
     <ClCompile Include="..\Private\CommandHistory.cpp">
       <Filter>97. Utils</Filter>
@@ -75,9 +72,6 @@
     <ClCompile Include="..\Private\Transform_Inspector.cpp" />
     <ClCompile Include="..\Private\Inspector_Factory.cpp" />
     <ClCompile Include="..\private\BT_View.cpp">
-      <Filter>01. View</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\BT_Inspector.cpp">
       <Filter>01. View</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\Prefab_View.cpp" />
@@ -108,6 +102,12 @@
     <ClCompile Include="..\private\BT_View.cpp" />
     <ClCompile Include="..\Private\Level_Tool.cpp" />
     <ClCompile Include="..\Private\Collider_Inspector.cpp" />
+    <ClCompile Include="..\Private\AnimMapperAdapter.cpp" />
+    <ClCompile Include="..\Private\AnimState_View.cpp" />
+    <ClCompile Include="..\private\Cinematic_Tool.cpp" />
+    <ClCompile Include="PostProcess_View.cpp">
+      <Filter>01. View</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -200,9 +200,6 @@
     <ClInclude Include="..\public\BT_VIew.h">
       <Filter>01. View</Filter>
     </ClInclude>
-    <ClInclude Include="..\public\BT_Inspector.h">
-      <Filter>01. View</Filter>
-    </ClInclude>
     <ClInclude Include="..\Public\Prefab_View.h" />
     <ClInclude Include="..\Public\Model_Inspector.h" />
     <ClInclude Include="..\public\AIController_Inspector.h" />
@@ -211,6 +208,14 @@
     <ClInclude Include="..\Public\Collider_Inspector.h" />
     <ClInclude Include="..\Public\Animation_NameUtils.h">
       <Filter>97. Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Animation_View.h" />
+    <ClInclude Include="..\Public\AnimMapperAdapter.h" />
+    <ClInclude Include="..\Public\AnimSequencerAdapter.h" />
+    <ClInclude Include="..\Public\AnimState_View.h" />
+    <ClInclude Include="..\Public\Console_View.h" />
+    <ClInclude Include="PostProcess_View.h">
+      <Filter>01. View</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
