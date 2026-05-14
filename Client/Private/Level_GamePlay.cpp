@@ -14,43 +14,6 @@
 #include "UI_Text.h"
 #include "UI_Transform.h"
 
-namespace
-{
-constexpr int32 TEST_HP_STEP = 50;
-constexpr int32 TEST_EXP_STEP = 25;
-
-wstring Make_TestStatText(int32 value, int32 maxValue)
-{
-    return to_wstring(value) + L"    /    " + to_wstring(maxValue);
-}
-
-Shared<UI_Base> Find_NamedBaseUI(const unordered_map<wstring, Shared<UI_Base>>& uiByName, const wstring& name)
-{
-    const auto iter = uiByName.find(name);
-    if (iter == uiByName.end() || nullptr == iter->second)
-    {
-        LOG_WARN("Test Missing Object: {}", String::ToString(name));
-        return nullptr;
-    }
-
-    return iter->second;
-}
-
-template <typename T>
-Shared<T> Find_NamedUI(const unordered_map<wstring, Shared<UI_Base>>& uiByName, const wstring& name)
-{
-    const Shared<UI_Base> ui = Find_NamedBaseUI(uiByName, name);
-    if (nullptr == ui)
-        return nullptr;
-
-    Shared<T> typedUI = dynamic_pointer_cast<T>(ui);
-    if (nullptr == typedUI)
-        LOG_WARN("Test Type Mismatch: {}", String::ToString(name));
-
-    return typedUI;
-}
-}
-
 Level_GamePlay::Level_GamePlay(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Level{ device, context }
 {
