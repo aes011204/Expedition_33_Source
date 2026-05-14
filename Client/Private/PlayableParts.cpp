@@ -1,4 +1,4 @@
-﻿#include "pch.h"
+#include "pch.h"
 #include "PlayableParts.h"
 #include "ModelCom.h"
 #include "ShaderCom.h"
@@ -49,12 +49,33 @@ void PlayableParts::Set_Animation(uint32 animIndex, bool isLoop) const
     _modelCom->Set_Animation(animIndex, isLoop);
 }
 
+void PlayableParts::Set_AnimationByState(uint32 stateIndex, float blendDuration, bool isLoop) const
+{
+    if (nullptr == _modelCom) return;
+
+    _modelCom->Set_AnimationByState(stateIndex, blendDuration, isLoop);
+}
+
+void PlayableParts::Set_AnimationByState(uint32 stateIndex, bool isLoop) const
+{
+    if (nullptr == _modelCom) return;
+
+    _modelCom->Set_AnimationByState(stateIndex, isLoop);
+}
+
 
 uint32 PlayableParts::Get_AnimationIndex() const
 {
     if (nullptr == _modelCom) return UINT_MAX;
 
     return _modelCom->Get_AnimationIndex();
+}
+
+uint32 PlayableParts::Get_AnimationStateIndex() const
+{
+    if (nullptr == _modelCom) return UINT_MAX;
+
+    return _modelCom->Get_AnimationStateIndex();
 }
 
 float PlayableParts::Get_AnimationProgress() const
@@ -136,7 +157,7 @@ HRESULT PlayableParts::Render()
         if (FAILED(_shaderCom->Bind_CBufferData(material->Get_CB())))
             return E_FAIL;
 
-        CHECK_FAILED(_modelCom->Bind_BoneMatrices(_shaderCom.get(), "g_BoneMatrices", i), E_FAIL);
+        CHECK_FAILED(_modelCom->Bind_BoneMatrices(_shaderCom.get(), "g_BoneMatricesBuffer", i), E_FAIL);
 
         const uint32 passIndex = material->Get_PassIndex();
         if (FAILED(_shaderCom->Begin(passIndex)))
@@ -158,8 +179,9 @@ HRESULT PlayableParts::Render_Shadow()
 
     const uint32 numMeshes = static_cast<uint32>(_modelCom->Get_NumMeshes());
 
-    for (uint32 i = 0; i < numMeshes; i++) {
-        _modelCom->Bind_BoneMatrices(_shaderCom.get(), "g_BoneMatrices", i);
+    for (uint32 i = 0; i < numMeshes; i++)
+    {
+        CHECK_FAILED(_modelCom->Bind_BoneMatrices(_shaderCom.get(), "g_BoneMatricesBuffer", i), E_FAIL);
 
         //if (FAILED(_shaderCom->Begin(static_cast<uint32>(VtxAnimMeshPass::Shadow))))
         //    return E_FAIL;
@@ -197,16 +219,6 @@ void PlayableParts::Update_LeaderPoseMatrices() const
 void PlayableParts::Update_CombinedWorldMatrix(const Matrix& childMatrix)
 {
     Matrix socketMatrix = (nullptr != _socketMatrix) ? *_socketMatrix : Matrix::Identity;
-
-    //Vector3 right = socketMatrix.Right();
-    //Vector3 up = socketMatrix.Up();
-    //Vector3 forward = socketMatrix.Backward();
-    //right.Normalize();
-    //up.Normalize();
-    //forward.Normalize();
-    //socketMatrix.Right(right);
-    //socketMatrix.Up(up);
-    //socketMatrix.Backward(forward);
 
     const Matrix& parentMatrix = (nullptr != _parentMatrix) ? *_parentMatrix : Matrix::Identity;
     const Matrix childWorld = childMatrix;

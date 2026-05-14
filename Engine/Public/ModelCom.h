@@ -10,6 +10,7 @@ class Mesh;
 class Material;
 class Bone;
 class Animation;
+class ComputeStructuredBuffer;
 
 class ENGINE_DLL ModelCom final : public Component
 {
@@ -19,6 +20,7 @@ public:
     ~ModelCom() override = default;
 
 public:
+    ModelType Get_ModelType() const { return _type; }
     uint32 Get_MaxTextureType() const { return _maxTextureType; }
     size_t Get_NumMeshes() const { return _meshes.size(); }
     size_t Get_NumMaterials() const { return _materials.size(); }
@@ -32,7 +34,6 @@ public:
 
     const Material::TextureSlot* Find_MaterialSlot(uint32 meshIndex, std::initializer_list<MaterialTextureSlot> materialSlots, uint32 textureIndex = 0) const;
     const wstring& Get_SourceModelPath() const { return _sourceModelPath; }
-    ModelType Get_ModelType() const { return _type; }
 
 public:
     const vector<MaterialBinding>& Get_MaterialBindings() const { return _materialBindings; }
@@ -51,16 +52,28 @@ public:
     void Ensure_MaterialBindings();
 
 public:
-    bool  Is_Skeletal() const { return _isSkeletal; } 
+    bool  Is_Skeletal() const { return _isSkeletal; }
 	int32 Get_BoneIndex(const string& boneName) const;
     const string& Get_BoneName(uint32 boneIndex) const;
     const Matrix* Get_BoneMatrixPtr(const char* boneName) const;
     const Matrix* Get_BoneMatrixPtr(uint32 boneIndex) const;
 
+    int32 Get_BoneParentIndex(uint32 boneIndex) const;
+    const Matrix& Get_BoneLocalMatrix(uint32 boneIndex) const;
+    void Set_BoneLocalMatrix(uint32 boneIndex, const Matrix& localMatrix);
+
+    // 모든 bone의 Combined Matrix를 parent 순서대로 다시 계산
+    void Rebuild_BoneCombinedMatrices();
+
 public:
+    float Get_FrameSpeed() const { return _frameSpeed; }
+    void Set_FrameSpeed(float speed) { _frameSpeed = speed; }
     bool Is_AnimationFinished() const { return _isFinished; }
     void Set_Animation(uint32 animIndex, bool isLoop = false);
     void Set_Animation(uint32 animIndex, float blendDuration, bool isLoop = false);
+
+    void Set_AnimationByState(uint32 stateIndex, bool isLoop = false);
+    void Set_AnimationByState(uint32 stateIndex, float blendDuration, bool isLoop = false);
     const char* Get_AnimationName(uint32 animationIndex) const;
 
 public:
@@ -93,6 +106,7 @@ public: /* Guid */
 public: /* AnimNotify */
     uint32  Get_CurrentAnimationIndex() const { return _currentAnimIndex; }
     uint32  Get_AnimationIndex() const;
+    uint32  Get_AnimationStateIndex() const;
 
     float   Get_CurrentAnimationDurationSec() const;
     float   Get_CurrentAnimationTimeSec() const;
@@ -142,6 +156,9 @@ private:
         const string& animationName,
         int32 stateIndex);
 
+public:
+    bool Ensure_AnimStateAssetLoaded();
+
 public: /* 머리 붙이기 */
     void Set_LeaderPoseComponent(const ModelCom* leaderModel);
     void Clear_LeaderPoseComponent();
@@ -149,19 +166,25 @@ public: /* 머리 붙이기 */
 
     void Update_LeaderPoseMatrices();
 
-    public: /* PhysX 충돌 */
+public: /* PhysX 충돌 */
     // static collision 생성용 CPU Mesh 데이터
     const vector<ModelCollisionMesh>& Get_CollisionMeshes() const { return _collisionMeshes; }
 
+public:
+    void Set_AnimEnumType(const wstring& enumType) { _animEnumType = enumType; Ensure_AnimStateAssetLoaded(); }
+    const wstring& Get_AnimEnumType() const { return _animEnumType; }
+
 private:
     // bone pose 변경으로 Matrix를 다시 만들어야하는지?
-    void    Mark_BoneMatricesDirty() { _boneMatricesDirty = true; }
+    void    Mark_BoneMatricesDirty();
     // dirty 가 마크됐을 때 재생성 진행. leaderPose 여기서 갱신 X
     HRESULT Ensure_MeshBoneMatrices();
 
 private:
     Matrix Convert_LeaderPoseMatrix(const Matrix& leaderMatrix) const;
     Matrix Build_LeaderPoseMatrix(uint32 boneIndex, vector<uint8>& visited);
+
+    HRESULT Ensure_MeshBoneMatrixBuffers();
 
 private:
     ModelType					        _type = { ModelType::END };
@@ -182,6 +205,7 @@ private:
     vector<Shared<Material>>	        _materials;
     vector<Shared<Bone>>		        _bones;
     vector<Shared<Animation>>	        _animations;
+    vector<uint32>                      _stateAnimIndices;
 
 private: /* For Animation Control */
     bool                                _isFinished{ false };
@@ -189,12 +213,15 @@ private: /* For Animation Control */
     bool                                _isBlending{ false };
     uint32						        _currentAnimIndex{ 0 };
     uint32                              _nextAnimIndex{ 0 };
+    uint32                              _currentAnimStateIndex{ UINT32_MAX };
+    uint32                              _nextAnimStateIndex{ UINT32_MAX };
+    float                               _frameSpeed{ 1.f };
     float                               _blendDuration{ 0.f };
     float                               _blendElapsedTime{ 0.f };
 
 private: /* For Root Motion */
     bool                                _isRootMotion{ false };
-    int32                               _rootNodeIndex{ -1 }; // -1 일때는 최상위 노드 기준으로 
+    int32                               _rootNodeIndex{ -1 }; // -1 일때는 최상위 노드 기준으로
     RootMotionFrame                     _rootOriginalFrameVelocity{};
     RootMotionFrame                     _rootFrameVelocity{};
 
@@ -207,10 +234,10 @@ private:
 private: /* notify */
     bool                                _isAnimationPaused = false;
 
-    bool _isAnimNotifyAssetLoaded = false;
-    bool _isAnimNotifyExecutionEnabled = true;
+    bool                    _isAnimNotifyAssetLoaded = false;
+    bool                    _isAnimNotifyExecutionEnabled = true;
 
-    AnimNotifyAsset _animNotifyAsset{};
+    AnimNotifyAsset         _animNotifyAsset{};
     vector<ActiveAnimNotifyState> _activeNotifyStates{};
 
 private: /* 머리 붙이기 */
@@ -220,13 +247,20 @@ private: /* 머리 붙이기 */
     vector<Matrix>      _leaderPoseCombinedMatrices;  // follower 기준으로 최종 행렬
 
     // 프레임마다 계산되지 않게 캐싱
-    vector<Matrix>      _combinedBoneMatrixCache;
-    vector<vector<Matrix>> _meshBoneMatrixCaches;
-    bool                _boneMatricesDirty = true;
-    bool                _leaderPoseMatricesValid = false;
+    vector<Matrix>          _combinedBoneMatrixCache;
+    vector<vector<Matrix>>  _meshBoneMatrixCaches;
+    bool                    _boneMatricesDirty = true;
+    bool                    _leaderPoseMatricesValid = false;
 
 private: /* PhysX 충돌 */
     vector<ModelCollisionMesh> _collisionMeshes;
+
+private: /* Compute Shader */
+    vector<Shared<ComputeStructuredBuffer>> _meshBoneMatrixBuffers;
+    bool    _boneMatrixBuffersDirty = true;
+
+private: // Model Custom Animation Mapping
+    wstring             _animEnumType{};
 
 private:
     HRESULT Ready_Model(const char* modelPath);

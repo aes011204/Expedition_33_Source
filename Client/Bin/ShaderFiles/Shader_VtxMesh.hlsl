@@ -112,9 +112,10 @@ PS_OUT PS_Opaque(PS_IN In)
 
     float3 orm = SampleOrm(finalUV);
 
-    // emissive 는 이후에 별도 RTV로 분리해야 한다. 일단은 텍스처 잘 들어오는지 확인만
-    float3 emissive = SampleEmissive(finalUV);
-    baseColor.rgb = baseColor.rgb * orm.r + emissive;
+    // emissive 는 이후에 별도 RTV로 분리해야 한다. 일단은 텍스처 잘 들어오는지 확d인용도
+    // omr.r 이 0인 경우 까맣게 보이니까 일단 들어오는 거 확인했고 얘도 별도 RTV
+    float3 emissive = float3(0.f, 0.f, 0.f); //SampleEmissive(finalUV);
+    baseColor.rgb = baseColor.rgb; // * orm.r + emissive;
 
     Out.vDiffuse = baseColor;
     Out.vNormal = float4(EncodeNormal(worldNormal), 1.f);
@@ -139,9 +140,10 @@ PS_OUT PS_Mask(PS_IN In)
 
     float3 orm = SampleOrm(finalUV);
 
-    // emissive 는 이후에 별도 RTV로 분리해야 한다. 일단은 텍스처 잘 들어오는지 확인만
-    float3 emissive = SampleEmissive(finalUV);
-    baseColor.rgb = baseColor.rgb * orm.r + emissive;
+    // emissive 는 이후에 별도 RTV로 분리해야 한다. 일단은 텍스처 잘 들어오는지 확d인용도
+    // omr.r 이 0인 경우 까맣게 보이니까 일단 들어오는 거 확인했고 얘도 별도 RTV
+    float3 emissive = float3(0.f, 0.f, 0.f); //SampleEmissive(finalUV);
+    baseColor.rgb = baseColor.rgb; // * orm.r + emissive;
 
     Out.vDiffuse = baseColor;
     Out.vNormal = float4(EncodeNormal(worldNormal), 1.f);

@@ -1,6 +1,7 @@
 ﻿#include "Monster.h"
 #include "GameInstance.h"
 #include "AIController.h"
+#include "Battle_Enum.h"
 #include "ModelCom.h"
 #include "Material_Types.h"
 #include "ShaderCom.h"
@@ -54,13 +55,6 @@ HRESULT Monster::Initialize(void* arg)
 
     //_currentAction = MonsterAction::Idle;
 
-    _transformCom->Set_Position(
-        Vec3(
-            10.f,
-            0.f,
-            10.f
-        )
-    );
 
     //_model->Set_Animation(5, true);
 
@@ -147,6 +141,15 @@ void Monster::Late_Update(float fTimeDelta)
     // GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<Character>());
     // GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<Character>());
 }
+
+//Action Monster::Decide_BattleAction()
+//{
+//    Action action{};
+//    action._curChar = static_pointer_cast<Character>(shared_from_this());
+//    action.type = EBattleContext::BaseAttack;
+//    action.target = 0;
+//    return action;
+//}
 
 HRESULT Monster::Render()
 {

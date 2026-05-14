@@ -198,11 +198,26 @@ void Material::Set_ShaderType(ShaderType shaderType)
     _passDirty = true;
 }
 
+void Material::Set_ForcedPassIndex(int32 forcedPassIndex)
+{
+    if (_forcedPassIndex == forcedPassIndex)
+        return;
+
+    _forcedPassIndex = forcedPassIndex;
+
+    // 강제 패스를 해제하면 다음 Get_PassIndex()에서 정상 계산되도록 한다.
+    if (_forcedPassIndex < 0)
+        _passDirty = true;
+}
+
 // 메쉬의 머테리얼 별로 pass를 세분화할 때 사용한다.
 uint32 Material::Get_PassIndex()
 {
-    if (_passDirty)
-        Refresh_PassIndex();
+    if (_forcedPassIndex >= 0)
+        return static_cast<uint32>(_forcedPassIndex);
+
+    //if (_passDirty)
+    Refresh_PassIndex();
 
     return _passIndex;
 }

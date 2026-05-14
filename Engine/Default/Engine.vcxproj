@@ -192,6 +192,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClInclude Include="..\Public\AnimNotifyState.h" />
     <ClInclude Include="..\Public\AnimNotify_Parser.h" />
     <ClInclude Include="..\Public\AnimNotify_Types.h" />
+    <ClInclude Include="..\Public\AnimState_Parser.h" />
     <ClInclude Include="..\public\AStar.h">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
     </ClInclude>
@@ -322,6 +323,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClCompile Include="..\Private\AnimNotify.cpp" />
     <ClCompile Include="..\Private\AnimNotifyState.cpp" />
     <ClCompile Include="..\Private\AnimNotify_Parser.cpp" />
+    <ClCompile Include="..\Private\AnimState_Parser.cpp" />
     <ClCompile Include="..\private\AStar.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
     </ClCompile>
