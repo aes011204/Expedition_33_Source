@@ -181,15 +181,15 @@ PS_OUT PS_Mask(PS_IN In)
             discard;
 
         float3 worldNormal = ComputeWorldNormal(
-            In.vNormal.xyz,
-            In.vTangent,
-            In.vBinormal,
+            In.Normal.xyz,
+            In.Tangent,
+            In.Binormal,
             finalUV
         );
 
-        Out.vDiffuse = float4(hair.baseColor, 1.f);
-        Out.vNormal = float4(EncodeNormal(worldNormal), 1.f);
-        Out.vDepth = float4(In.vProjPos.z / In.vProjPos.w, In.vProjPos.w / g_Far, 0.f, 1.f);
+        Out.Diffuse = float4(hair.baseColor, 1.f);
+        Out.Normal = float4(EncodeNormal(worldNormal), 1.f);
+        Out.Depth = float4(In.ProjPos.z / In.ProjPos.w, In.ProjPos.w / g_Far, 0.f, 1.f);
 
         return Out;
     }
