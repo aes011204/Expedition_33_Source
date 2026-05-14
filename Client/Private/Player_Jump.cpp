@@ -13,19 +13,19 @@ HRESULT Player_Jump::Initialize()
     return Player_State::Initialize();
 }
 
-using plAnim = Body_Player::PlayerAnimation;
+using plAnim = Body_Player::PlayerWorldAnimation;
 
 bool Player_Jump::EnterInvoke()
 {
-    uint32 animIndex = _bodyPlayer->Get_AnimationIndex();
+    uint32 animIndex = _bodyPlayer->Get_AnimationStateIndex();
 
     if (animIndex == ETOI(plAnim::Pl_Run) || animIndex == ETOI(plAnim::Pl_Sprint))
     {
-        _bodyPlayer->Set_Animation(ETOI(plAnim::Pl_JumpRun), 0.2f, false);
+        _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_JumpRun), 0.2f, false);
     }
     else
     {
-        _bodyPlayer->Set_Animation(ETOI(plAnim::Pl_JumpWalk), 0.2f, false);
+        _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_JumpWalk), 0.2f, false);
     }
 
     return true;
@@ -33,7 +33,7 @@ bool Player_Jump::EnterInvoke()
 
 void Player_Jump::Update(float timeDelta)
 {
-    uint32 animIndex = _bodyPlayer->Get_AnimationIndex();
+    uint32 animIndex = _bodyPlayer->Get_AnimationStateIndex();
     float curProgress = _bodyPlayer->Get_AnimationProgress();
     bool isFinished = _bodyPlayer->Is_AnimationFinished();
     bool isGrounded = _controllerCom->Is_Grounded();
@@ -44,7 +44,7 @@ void Player_Jump::Update(float timeDelta)
         {
             if (animIndex == ETOI(plAnim::Pl_JumpWalk) || animIndex == ETOI(plAnim::Pl_JumpRun))
             {
-                _bodyPlayer->Set_Animation(ETOI(plAnim::Pl_Fall), 0.2f, true);
+                _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_Fall), 0.2f, true);
             }
         }
     }
@@ -52,7 +52,7 @@ void Player_Jump::Update(float timeDelta)
     {
         if (animIndex != ETOI(plAnim::Pl_Land))
         {
-            _bodyPlayer->Set_Animation(ETOI(plAnim::Pl_Land), 0.2f, false);
+            _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_Land), 0.2f, false);
             return;
         }
 

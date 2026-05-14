@@ -1,4 +1,5 @@
 ﻿#include "Player.h"
+#include "Base_Gustave_Attack.h"
 #include "Weapon.h"
 #include "GameInstance.h"
 #include "InputCom.h"
@@ -66,8 +67,6 @@ void Player::Priority_Update(float timeDelta)
     _PlayerStateMachineCom->Update_CurrentState(timeDelta);
     _playerControllerCom->Update_Movement(timeDelta);
     _PlayerStateMachineCom->LateUpdate_CurrentState(timeDelta);
-
-    _currentState = _PlayerStateMachineCom->Get_CurrentPlayerState();
 }
 
 void Player::Update(float timeDelta)
@@ -106,6 +105,14 @@ void Player::Update_StatusPreview(float timeDelta)
 
     ContainerObject::Update(timeDelta);
     ContainerObject::Late_Update(timeDelta);
+}
+
+Vec3 Player::Get_MovementVelocity() const
+{
+    if (_movementCom == nullptr)
+        return Vec3::Zero;
+
+    return _movementCom->Get_Velocity();
 }
 
 HRESULT Player::Ready_Components()
@@ -181,6 +188,7 @@ HRESULT Player::Ready_PartObjects()
     hairPartDesc.parentMatrix = playableDesc.parentMatrix;
     hairPartDesc.modelType = ModelType::Anim;
     hairPartDesc.modelTag = Get_HairModelTag();
+    hairPartDesc.hairPhysicsDesc = Get_HairChainPhysicsDesc();
     hairPartDesc.socketMatrixPointer = head->Get_SocketBoneMatrixPtr("head");
 
     if (FAILED(

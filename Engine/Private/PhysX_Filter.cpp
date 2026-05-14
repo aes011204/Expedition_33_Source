@@ -43,11 +43,16 @@ PxFilterFlags Engine::CustomFilterShader(PxFilterObjectAttributes attributes0, P
 
     if (response == CollisionResponse::Overlap)
     {
-        pairFlags = PxPairFlag::eTRIGGER_DEFAULT;
+        pairFlags = PxPairFlag::eDETECT_DISCRETE_CONTACT |
+                    PxPairFlag::eNOTIFY_TOUCH_FOUND |
+                    PxPairFlag::eNOTIFY_TOUCH_PERSISTS |
+                    PxPairFlag::eNOTIFY_TOUCH_LOST;
+
         return PxFilterFlag::eDEFAULT;
     }
 
     pairFlags =
+        PxPairFlag::eSOLVE_CONTACT |
         PxPairFlag::eDETECT_DISCRETE_CONTACT |
         PxPairFlag::eNOTIFY_TOUCH_FOUND |
         PxPairFlag::eNOTIFY_TOUCH_PERSISTS |

@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "Editor_Window.h"
 #include "Editor_Camera_Free.h"
@@ -22,6 +22,9 @@ public:
     void Pre_Render() override;
     void Render() override;
 
+	bool CanSave() const override;
+	void Save() override;
+
 public:
     void Open_FromModelComponent(
         const Shared<ModelCom>& modelCom,
@@ -30,6 +33,9 @@ public:
         bool focusOnOpen = true);
 
     bool Is_CompanionPreviewFocused();
+
+public:
+
 
 private:
     struct AnimationEntry
@@ -57,6 +63,26 @@ private:
     void Draw_PreviewGrid() const;
 
     void Sync_PreviewAnimationSelection(bool keepCurrentTime = false);
+
+private:
+	void Apply_EnumFromProperty(const string &enumDisplayName, const vector<string> &names, const vector<int> &values);
+
+	// Reflection 기반 Enum 검색 결과
+	struct EnumSearchResult
+	{
+		string ownerClassName{};
+		string propertyDisplayName{};
+		vector<string> enumNames{};
+		vector<int> enumValues{};
+	};
+	void Search_EnumProperties(const string &searchStr, vector<EnumSearchResult> &outResults) const;
+
+	void Draw_EnumSettingPanel();
+	void Draw_MappingTable();
+	void Draw_MappingSaveLoadPanel();
+	void Save_Mapping(const string &fileName);
+	void Load_Mapping(const string &fileName);
+    void Refresh_AnimmapFiles();
 
 private:
     static string Make_AnimationComboLabel(const AnimationEntry& entry);
@@ -89,6 +115,18 @@ private:
 
     uint32 _previewWidth = 640;
     uint32 _previewHeight = 360;
+
+private:
+    string _enumTypeName{};
+    vector<string> _stateNames{};
+    vector<int32> _stateIndices{};
+    map<string, string> _animationMapping{};
+	char _mappingSaveLoadBuffer[MAX_PATH] = "";
+	char _enumSearchBuffer[128] = "";
+	float _topSectionHeight = 400.f;
+
+    vector<string> _availableAnimmapFiles{};
+    int32 _selectedAnimmapFileIndex = -1;
 
 public:
     static Shared<AnimState_View> Create();

@@ -63,6 +63,10 @@ struct MaterialInstanceData
 
     Engine::MaterialShaderTemplate templateId = Engine::MaterialShaderTemplate::OpaquePBR;
     Engine::MaterialRenderState renderState{};
+    // ModelCom instance override에서 renderState를 덮어쓸지 여부
+    bool renderStateOverrideEnabled = false;
+    // -1이면 자동, 0 이상이면 해당 pass를 강제한다.
+    int forcedPassIndex = -1;
     Engine::MaterialCB cb{};
 
     // instance 편집 시 "필드별 override" 기준. (legacy 없음)
@@ -98,12 +102,20 @@ struct MaterialInstanceData
     bool ormOverride = false;
     bool emissiveOverride = false;
     bool opacityMaskOverride = false;
+    bool hairDepthOverride = false;
+    bool hairIDOverride = false;
+    bool irisHeightOverride = false;
+    bool irisMaskOverride = false;
 
     wstring baseColorPath{};
     wstring normalPath{};
     wstring ormPath{};
     wstring emissivePath{};
     wstring opacityMaskPath{};
+    wstring hairDepthPath{};
+    wstring hairIDPath{};
+    wstring irisHeightPath{};
+    wstring irisMaskPath{};
 };
 
 // 파싱/추론 과정에서 남기는 에디터용 메모

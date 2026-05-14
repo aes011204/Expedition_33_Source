@@ -15,7 +15,7 @@ HRESULT Player_Idle::Initialize()
     return Player_State::Initialize();
 }
 
-using pl = Body_Player::PlayerAnimation;
+using pl = Body_Player::PlayerWorldAnimation;
 
 bool Player_Idle::EnterInvoke()
 {
@@ -68,15 +68,15 @@ void Player_Idle::Set_IdleAnimation() const
 {
     if (_isFirstState)
     {
-        _bodyPlayer->Set_Animation(ETOI(pl::Pl_Idle), 0.1f, true);
+        _bodyPlayer->Set_AnimationByState(ETOI(pl::Pl_Idle_0), 0.1f, true);
         return;
     }
 
     auto state = _stateCom->Get_CurrentPlayerState();
     if (state == PlayerState::WorldAction)
-        _bodyPlayer->Set_Animation(ETOI(pl::Pl_Idle), 0.25f, true);
+        _bodyPlayer->Set_AnimationByState(ETOI(pl::Pl_Idle_0), 0.25f, true);
     else
-        _bodyPlayer->Set_Animation(ETOI(pl::Pl_Idle), 0.2f, true);
+        _bodyPlayer->Set_AnimationByState(ETOI(pl::Pl_Idle_0), 0.2f, true);
 }
 
 Shared<Player_Idle> Player_Idle::Create(const Shared<Player>& owner)

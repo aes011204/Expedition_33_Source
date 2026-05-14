@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "Reflection_Types.h"
 
@@ -111,6 +111,7 @@ namespace Engine
 
     ENGINE_DLL bool Register_AnimNotifyType_Pending(const char* className, const AnimNotifyCreateFn& createFn, ClassReflectionInfo* reflectionInfo);
     ENGINE_DLL bool Register_AnimNotifyStateType_Pending(const char* className, const AnimNotifyStateCreateFn& createFn, ClassReflectionInfo* reflectionInfo);
+	ENGINE_DLL bool Register_GlobalEnum_Pending(const char* displayName, const std::vector<std::string>& enumNames, const std::vector<int>& enumValues);
 
     ENGINE_DLL HRESULT Flush_PendingTypeRegistrations(TypeRegistry& registry);
 }

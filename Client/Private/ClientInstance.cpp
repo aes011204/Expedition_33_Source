@@ -115,6 +115,26 @@ Shared<Player> ClientInstance::Get_ActiveHero() const
     return _heroManager->Get_ActiveHero();
 }
 
+const vector<HeroPartyEntry>& ClientInstance::Get_HeroEntries() const
+{
+    return _heroManager->Get_HeroEntries();
+}
+
+Shared<Player> ClientInstance::Get_Hero(HeroPartySlot slot) const
+{
+    return _heroManager->Get_Hero(slot);
+}
+
+HeroId ClientInstance::Get_HeroId(HeroPartySlot slot) const
+{
+    return _heroManager->Get_HeroId(slot);
+}
+
+HeroPartySlot ClientInstance::Get_ActiveHeroSlot() const
+{
+    return _heroManager->Get_ActiveHeroSlot();
+}
+
 void ClientInstance::Set_TargetCamera(const Shared<TargetCamera>& camera)
 {
     return _heroManager->Set_TargetCamera(camera);
@@ -128,11 +148,6 @@ void ClientInstance::Clear_Party()
 Shared<Player> ClientInstance::Get_FrontHero() const
 {
     return _heroManager->Get_FrontHero();
-}
-
-vector<Shared<Player>> ClientInstance::Get_HeroesInPartyOrder() const
-{
-    return _heroManager->Get_HeroesInPartyOrder();
 }
 
 HRESULT ClientInstance::Initialize_GameplayUI(uint32 levelIndex)

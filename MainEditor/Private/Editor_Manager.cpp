@@ -295,7 +295,13 @@ void Editor_Manager::Handle_Shortcuts()
     // F8 : 자유 카메라 전환
     if (ImGui::IsKeyPressed(ImGuiKey_F8, false))
     {
-        GAME->SwitchTo_NextCamera();
+        if (GAME->Is_ActiveCameraType(ObjectType::FreeCamera))
+            EDITOR->Activate_TargetCamera();
+        else
+            EDITOR->Activate_FreeCamera();
+
+        //GAME->SwitchTo_NextCamera();
+
         return;
     }
 

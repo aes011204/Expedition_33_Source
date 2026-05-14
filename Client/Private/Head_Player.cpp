@@ -64,7 +64,8 @@ HRESULT Head_Player::Render()
     const uint32 numMeshes = static_cast<uint32>(_modelCom->Get_NumMeshes());
     for (uint32 i = 0; i < numMeshes; ++i)
     {
-        const Shared<Material> material = _modelCom->Get_Material(i);
+        const uint32 materialIndex = _modelCom->Get_MeshMaterialIndex(i);
+        const Shared<Material> material = _modelCom->Get_Material(materialIndex);
         if (material == nullptr)
             continue;
 

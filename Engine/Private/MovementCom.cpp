@@ -5,14 +5,27 @@
 #include "ColliderCom.h"
 #include "PhysX_Types.h"
 
-
 IMPLEMENT_REFLECTION(MovementCom)
 {
     auto& info = GetStaticReflectionInfo();
     info.properties.clear();
 
-    PROPERTY_VEC3("뭐라고할건지", _velocity, 10.f);
+    PROPERTY_FLOAT("Walk Speed", _moveDesc.walkSpeed, 0.f, 30.f, 0.1f);
+    PROPERTY_FLOAT("Run Speed", _moveDesc.runSpeed, 0.f, 30.f, 0.1f);
+    PROPERTY_FLOAT("Sprint Speed", _moveDesc.sprintSpeed, 0.f, 30.f, 0.1f);
+    PROPERTY_FLOAT("Turn Speed Degree", _moveDesc.turnSpeedDegree, 0.f, 720.f, 1.f);
 
+    PROPERTY_FLOAT("Jump Velocity", _moveDesc.jumpVelocity, 0.f, 100.f, 0.1f);
+    PROPERTY_FLOAT("Gravity", _moveDesc.gravity, -100.f, 0.f, 0.1f);
+
+    PROPERTY_FLOAT("Skin Width", _moveDesc.skinWidth, 0.f, 1.f, 0.01f);
+    PROPERTY_FLOAT("Ground Snap Up", _moveDesc.groundSnapUp, 0.f, 2.f, 0.01f);
+    PROPERTY_FLOAT("Ground Snap Down", _moveDesc.groundSnapDown, 0.f, 2.f, 0.01f);
+    PROPERTY_FLOAT("Walkable Normal Y", _moveDesc.walkableNormalY, 0.f, 1.f, 0.01f);
+
+    PROPERTY_FLOAT("Ground Y", _moveDesc.groundY, -100.f, 100.f, 0.1f);
+
+    PROPERTY_VEC3("Velocity", _velocity, 10.f);
 
     return true;
 }

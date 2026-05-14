@@ -33,6 +33,13 @@ public:
         float        pivotHeight;
 
         bool         allowMouseRotation = true;
+
+        /* Camera Collision Test */
+        bool         doCollisionTest = true;
+        float        collisionProbeRadius = 0.2f;
+        float        collisionSkin = 0.03f;
+
+
     }TARGETCAMERA_DESC;
 
 public:
@@ -58,6 +65,9 @@ private:
     void Update_NormalState(float timeDelta);
     void Update_AimState(float timeDelta);
     void Update_BattleEnterState(float timeDelta);
+
+    /* Camera Collision Test */
+    Vec3 Resolve_Collision(const Vec3& sweepStart, const Vec3& desiredPos, float timeDelta);
 
 public:
     void Change_State(CAMERA_STATE state);
@@ -127,11 +137,17 @@ private:
                        
     float              _pivotHeight;
 
-    Vec3                _smoothedTargetPos;
+    Vec3               _smoothedTargetPos;
     Vec3               _prevTargetPos;
     CAMERA_STATE       _currentState;
 
     //float               _speed = 5.f;
+
+    // Camera Collision Test
+    float _collisionDistance = -1.f;     // 현재 보간중인 카메라 거리
+    float _collisionPullSpeed = 16.f;    // 벽에 막혀서 카메라 당길 때
+    float _collisionReturnSpeed = 3.5f;  // 벽이 없어져 원래 거리로 돌아갈 때
+    float _collisionDeadZone = 0.04f;    // sweep 거리의 작은 흔들림 무시 범위
 
 public:
     static Shared<TargetCamera> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
