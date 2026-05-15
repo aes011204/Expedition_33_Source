@@ -42,8 +42,12 @@ public:
     bool Is_AssetManagerReady() const;
     bool Is_Dirty() const;
     bool Request_Close();
-    ID3D11ShaderResourceView* Get_TexturePreviewSRV(const string& textureGuid);
-    ID3D11ShaderResourceView* Get_MaskedTexturePreviewSRV(const string& textureGuid, const string& maskTextureGuid);
+    ID3D11ShaderResourceView* Get_TexturePreviewSRV(const string& textureGuid, const string& texturePath = "");
+    ID3D11ShaderResourceView* Get_MaskedTexturePreviewSRV(
+        const string& textureGuid,
+        const string& texturePath,
+        const string& maskTextureGuid,
+        const string& maskTexturePath);
     bool New_Document();
     void Create_UIObject(UI_ObjectType objectType);
     bool Create_UIObjectsFromPrefab(const UI_PrefabAsset& prefab);

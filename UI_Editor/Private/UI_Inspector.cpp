@@ -184,7 +184,7 @@ namespace UIEditor
 
         ImGui::TextUnformatted(label);
 
-        ID3D11ShaderResourceView* previewSRV = _editorManager.Get_TexturePreviewSRV(textureGuid);
+        ID3D11ShaderResourceView* previewSRV = _editorManager.Get_TexturePreviewSRV(textureGuid, texturePath);
         if (nullptr != previewSRV)
         {
             ImGui::Image(To_ImTextureID(previewSRV), ImVec2(64.f, 64.f));
@@ -278,7 +278,8 @@ namespace UIEditor
                     {
                         ImGui::PushID(assetMeta.guid.c_str());
 
-                        ID3D11ShaderResourceView* rowSRV = _editorManager.Get_TexturePreviewSRV(assetMeta.guid);
+                        const string assetTexturePath = Make_ClientRuntimeResourcePath(assetMeta);
+                        ID3D11ShaderResourceView* rowSRV = _editorManager.Get_TexturePreviewSRV(assetMeta.guid, assetTexturePath);
                         if (nullptr != rowSRV)
                         {
                             ImGui::Image(To_ImTextureID(rowSRV), ImVec2(48.f, 48.f));
@@ -306,7 +307,7 @@ namespace UIEditor
                             ImGui::CloseCurrentPopup();
                         }
 
-                        ImGui::TextDisabled("%s", Make_ClientRuntimeResourcePath(assetMeta).c_str());
+                        ImGui::TextDisabled("%s", assetTexturePath.c_str());
                         ImGui::EndGroup();
                         ImGui::Separator();
                         ImGui::PopID();
