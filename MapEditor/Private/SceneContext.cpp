@@ -121,6 +121,7 @@ void SceneContext::SaveToFile(const string& filePath)
                 inst["Scale"] = { t._scale.x, t._scale.y, t._scale.z };
                 instances.push_back(inst);
             }
+            e["ModelPath"] = String::ToString(modelFile);
             e["Instances"] = instances;
             instancedMeshes.push_back(e);
             break;

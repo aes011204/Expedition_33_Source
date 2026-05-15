@@ -54,9 +54,21 @@ HRESULT MEInstancedMeshActor::Render()
     const uint32 numMeshes = static_cast<uint32>(_model->Get_NumMeshes());
     for (uint32 i = 0; i < numMeshes; ++i)
     {
-        bool hasTexture = SUCCEEDED(_model->Bind_Material(_shader.get(), "g_Texture", i, MaterialTextureSlot::BaseColor));
-
-        if (FAILED(_shader->Begin(hasTexture ? 0 : 1)))
+        const Shared<Material> material = _model->Get_Material(i);
+        int32 passIndex = 2; // NoTexture fallback
+        if (material != nullptr)
+        {
+            if (FAILED(_shader->Bind_MaterialTextures(*material)))
+            {
+                continue;
+            }
+            if (FAILED(_shader->Bind_CBufferData(material->Get_CB())))
+            {
+                return E_FAIL;
+            }
+            passIndex = static_cast<int32>(material->Get_PassIndex());
+        }
+        if (FAILED(_shader->Begin(passIndex)))
         {
             return E_FAIL;
         }
