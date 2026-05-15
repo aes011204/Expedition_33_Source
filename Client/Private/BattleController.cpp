@@ -333,7 +333,7 @@ void BattleController::SetCharInitPos()
     Vec3 startPos = Vec3(225.f, -4020.5f, -1.24f);
 
     Vec3 EPos[3] = { {0.f,0.f,0.f},{10.f,0.f,0.f},{20.f,0.f,0.f} };
-    Vec3 PPos[3] = { {0.f,20.f,0.f},{10.f,20.f,0.f},{20.f,20.f,0.f} };
+    Vec3 PPos[3] = { {0.f,20.f,-100.f},{10.f,20.f,-100.f},{20.f,20.f,-100.f} };
 
     // 임시
     for (size_t i = 0; i < _heroes.size(); ++i)
@@ -426,8 +426,8 @@ void BattleController::Execute_BaseAttack(const BattleChar actor, const Action& 
         turnAction._selected_SkillKey.scriptClassName.c_str());
 
     auto vec_anim = turnAction._selected_SkillKey.animationKey;
-    if (vec_anim.size() == 0)
-        return;
+   // if (vec_anim.size() == 0)
+   //     return;
 
 
     //vec_anim
@@ -504,8 +504,8 @@ void BattleController::OnActionEndNotify(Shared<GameObject> notifyOwner)
     // 다음 애니 실행
     string key = action._selected_SkillKey.animationKey[action._selected_SkillKey._curAnimIndex];
     action._curChar.ModelCom->Set_Animation(key, false, 1.5f);
-
-
+    
+    
 
 }
 void BattleController::Set_BattleFSM()

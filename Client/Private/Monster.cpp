@@ -229,9 +229,7 @@ HRESULT Monster::Ready_Collider()
 void Monster::Decide_Action(Action& curturnAction, const vector<BattleChar>& heroes)
 {
 
-        Skill_Data skill = {}; skill.scriptClassName = "Base_Gustave_Attack";
-        skill.apCost = 0; skill.targetingType = ECharacterTeamSelector::Invalid;
- 
+    Skill_Data skill = Get_Component<MonsterStatCom>()->Get_Basic_Skill();
    
     curturnAction.target = heroes[0];
     curturnAction._selected_SkillKey = skill;

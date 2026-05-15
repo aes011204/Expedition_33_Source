@@ -67,7 +67,21 @@ private:
     MRuntimeCombatStat _MRuntimeStat;
 
 
+public:
 
+    /// <test>
+    Skill_Data Get_Basic_Skill()
+    {
+        Skill_Data skill = {}; skill.scriptClassName = "Base_Gustave_Attack";
+        skill.apCost = 0; skill.targetingType = ECharacterTeamSelector::Invalid;
+        skill.animationKey.push_back("Lancelier_Walk");
+        skill.animationKey.push_back("Lancelier_Dash_Out");
+        skill.animationKey.push_back("Lancelier_Skill_1");
+      
+
+        return skill;
+    };
+    /// </test>
 
 public:
     static Shared<MonsterStatCom> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
