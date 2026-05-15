@@ -87,18 +87,21 @@ cbuffer MaterialBuffer
 
 cbuffer PostProcessBuffer
 {
-    float g_PP_Exposure;            //  0 ~  3
-    float g_PP_InvWhitePoint;       //  4 ~  7
-    float g_PP_Gamma;               //  8 ~ 11
-    float g_PP_Padding0;            // 12 ~ 15
+    float g_PP_Exposure;        //  0 ~  3
+    float g_PP_InvWhitePoint;   //  4 ~  7
+    float g_PP_Gamma;           //  8 ~ 11
+    float g_PP_BloomRadius;     // 12 ~ 15
 
-    float g_PP_BloomThreshold;      // 16 ~ 19
-    float g_PP_BloomIntensity;      // 20 ~ 23
-    float g_PP_BloomSoftKnee;       // 24 ~ 27
-    float g_PP_Padding1;            // 28 ~ 31
+    float g_PP_BloomThreshold;  // 16 ~ 19
+    float g_PP_BloomIntensity;  // 20 ~ 23
+    float g_PP_BloomSoftKnee;   // 24 ~ 27
+    float g_PP_BloomClamp;      // 28 ~ 31
 
-    uint g_PP_FeatureMask;          // 32 ~ 35
-    float3 g_PP_Padding2;           // 36 ~ 47
-}; // 48 bytes
+    float g_PP_BloomScatter;    // 32 ~ 35
+    uint g_PP_ToneMapMode;      // 36 ~ 39
+    float2 g_PP_BloomTexelSize; // 40 ~ 47
 
+    uint g_PP_FeatureMask;      // 48 ~ 51
+    float3 g_PP_Padding2;       // 52 ~ 63
+}; // 64 bytes
 #endif

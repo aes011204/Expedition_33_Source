@@ -65,10 +65,16 @@ namespace Engine
         Point,
         CombinedHDR,
     };
+
     enum class PostProcessPass : uint8
     {
         Debug,
-        ToneMapping, 
+        BloomExtract,
+        BloomBlurH,
+        BloomBlurV,
+        ToneMapping,
+
+        END
     };
 
     enum class CollisionShape : uint8_t

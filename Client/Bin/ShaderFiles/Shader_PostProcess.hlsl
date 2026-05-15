@@ -6,11 +6,6 @@
 #include "Engine_Shader_PostProcess.hlsl"
 
 //==================================================
-// TEXTURE
-//==================================================
-Texture2D g_HDRTexture;
-
-//==================================================
 // VS
 //==================================================
 struct VS_IN
@@ -67,6 +62,47 @@ PS_OUT_COLOR PS_Debug(PS_IN In)
     return Out;
 }
 
+PS_OUT_BACKBUFFER PS_BloomExtract(PS_IN In)
+{
+    PS_OUT_BACKBUFFER Out;
+
+    float3 color = g_HDRTexture.Sample(LinearClampSampler, In.Texcoord).rgb;
+
+    // 컬러 -> 밝기
+    float luminant = dot(color, REC_709);
+
+    // soft knee 기반 가중치
+    float threshold = max(0.f, g_PP_BloomThreshold);
+    float knee = max(g_PP_BloomSoftKnee, EPSILON);
+
+    // 임계값 이하 부드러운 경계로 잘라내기
+    float x = luminant - threshold;
+    float soft = saturate(x / knee);
+    float bloomWeight = max(x, 0.f) * soft;
+
+    float3 bloomColor = color * bloomWeight * g_PP_BloomIntensity;
+    bloomColor = min(bloomColor, g_PP_BloomClamp);
+
+    Out.Color = float4(bloomColor, 1.f);
+    return Out;
+}
+
+PS_OUT_COLOR PS_BloomBlur_H(PS_IN In)
+{
+    PS_OUT_COLOR Out;
+
+    Out.Color = float4(SampleGaussianBlur_5tap(In.Texcoord, HORIZONTAL), 1.f);
+    return Out;
+}
+
+PS_OUT_COLOR PS_BloomBlur_V(PS_IN In)
+{
+    PS_OUT_COLOR Out;
+
+    Out.Color = float4(SampleGaussianBlur_5tap(In.Texcoord, VERTICAL), 1.f);
+    return Out;
+}
+
 PS_OUT_BACKBUFFER PS_ToneMapping(PS_IN In)
 {
     PS_OUT_BACKBUFFER Out;
@@ -96,9 +132,9 @@ PS_OUT_BACKBUFFER PS_ToneMapping(PS_IN In)
 
 technique11 DefaultTechnique
 {
-    PASS_RS_DS_BS_VP(HDRDebug,      RS_Default, DSS_None,   BS_Default, VS_MAIN,    PS_ToneMapping)
-    // PASS_RS_DS_BS_VP(BloomExtract, RS_Default, DSS_None, BS_Default, VS_MAIN, PS_MAIN_BLOOM_EXTRACT)
-    // PASS_RS_DS_BS_VP(BloomBlurH, RS_Default, DSS_None, BS_Default, VS_MAIN, PS_MAIN_BLOOM_BLUR_H)
-    // PASS_RS_DS_BS_VP(BloomBlurV, RS_Default, DSS_None, BS_Default, VS_MAIN, PS_MAIN_BLOOM_BLUR_V)
-    PASS_RS_DS_BS_VP(ToneMapping,   RS_Default, DSS_None,   BS_Default, VS_MAIN,    PS_ToneMapping)
+    PASS_RS_DS_BS_VP(HDRDebug,      RS_Default, DSS_None,   BS_Default, VS_MAIN,    PS_ToneMapping)             // 0
+    PASS_RS_DS_BS_VP(BloomExtract,  RS_Default, DSS_None,   BS_Default, VS_MAIN,    PS_BloomExtract)            // 1
+    PASS_RS_DS_BS_VP(BloomBlurH,    RS_Default, DSS_None,   BS_Default, VS_MAIN,    PS_BloomBlur_H)             // 2
+    PASS_RS_DS_BS_VP(BloomBlurV,    RS_Default, DSS_None,   BS_Default, VS_MAIN,    PS_BloomBlur_V)             // 3
+    PASS_RS_DS_BS_VP(ToneMapping,   RS_Default, DSS_None,   BS_Default, VS_MAIN,    PS_ToneMapping)             // 4
 }

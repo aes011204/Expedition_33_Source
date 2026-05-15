@@ -18,6 +18,8 @@ namespace RT
     inline constexpr const wchar_t* LightDepth = L"Target_LightDepth";
 
     inline constexpr const wchar_t* HDRColor = L"Target_HDRColor";
+    inline constexpr const wchar_t* BloomExtract = L"Target_BloomExtract";
+    inline constexpr const wchar_t* BloomBlur = L"Target_Blur";
 }
 
 namespace MRT
@@ -26,6 +28,8 @@ namespace MRT
     inline constexpr const wchar_t* LightAcc = L"MRT_LightAcc";
     inline constexpr const wchar_t* ShadowObjects = L"MRT_ShadowObjects";
     inline constexpr const wchar_t* HDR = L"MRT_HDRColor";
+    inline constexpr const wchar_t* BloomExtract = L"MRT_BloomExtract";
+    inline constexpr const wchar_t* BloomBlur = L"MRT_BloomBlur";
 }
 
 NS_END

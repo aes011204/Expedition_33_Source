@@ -16,6 +16,7 @@ HRESULT Renderer::Initialize()
 {
     CHECK_FAILED(Ready_RenderTargets(), E_FAIL);
     _ppPipeline = PostProcessPipeline::Create(_device, _context);
+    CHECK_NULL(_ppPipeline, E_FAIL);
 
 	return S_OK;
 }
@@ -238,7 +239,7 @@ void Renderer::Render_CombinedHDR()
         return;
 
     bool postProcess = false;
-    if (!_ppPipeline || Has_Flag(_ppPipeline->Get_PostProcessFeatures(), PostProcessFeature::All))
+    if (_ppPipeline && _ppPipeline->Has_PostProcessFeature(PostProcessFeature::HDR))
     {
         if(FAILED(GAME->Begin_MRT(MRT::HDR)))
             return;
@@ -292,14 +293,16 @@ void Renderer::Render_PostProcess()
 {
     if (!_postprocessShader || !_viBuffer)
         return;
-
     if (!_ppPipeline || _ppPipeline->Get_PostProcessFeatures() == PostProcessFeature::None)
+        return;
+    if (!_ppPipeline->Has_PostProcessFeature(PostProcessFeature::HDR))
         return;
 
     // Transform
     if (FAILED(_postprocessShader->Bind_ObjectCB(_pipelineWorldMatrix)))
         return;
 
+    // PostProcess Params
     if (FAILED(_postprocessShader->Bind_CBufferData(_ppPipeline->Get_PostProcessParams())))
         return;
 
@@ -307,11 +310,52 @@ void Renderer::Render_PostProcess()
     if (FAILED(Bind_TransformCB(_postprocessShader)))
         return;
 
-    if (FAILED(GAME->Bind_RT_ShaderResource(_postprocessShader, "g_HDRTexture", RT::HDRColor)))
+    // IASet... 
+    if (FAILED(_viBuffer->Bind_Resources()))
         return;
 
+    const bool useBloom = _ppPipeline->Has_PostProcessFeature(PostProcessFeature::Bloom);
+
+    if (useBloom)
+    {
+        // HDR -> Bloom 추출
+        ENDMRT_RETURN_IF_FAILED(GAME->Begin_MRT(MRT::BloomExtract));
+        ENDMRT_RETURN_IF_FAILED(GAME->Bind_RT_ShaderResource(_postprocessShader, "g_HDRTexture", RT::HDRColor));
+        ENDMRT_RETURN_IF_FAILED(_postprocessShader->Begin(ETOI(PostProcessPass::BloomExtract)));
+        ENDMRT_RETURN_IF_FAILED(_viBuffer->Render());
+
+        if (FAILED(GAME->End_MRT()))
+            return;
+
+        Add_RenderCall();
+
+        // Bloom Blur_H
+        ENDMRT_RETURN_IF_FAILED(GAME->Begin_MRT(MRT::BloomBlur));
+        ENDMRT_RETURN_IF_FAILED(GAME->Bind_RT_ShaderResource(_postprocessShader, "g_BloomTexture", RT::BloomExtract));
+        ENDMRT_RETURN_IF_FAILED(_postprocessShader->Begin(ETOI(PostProcessPass::BloomBlurH)));
+        ENDMRT_RETURN_IF_FAILED(_viBuffer->Render());
+
+        if (FAILED(GAME->End_MRT()))
+            return;
+
+        Add_RenderCall();
+
+        // 다시 BackBuffer RTV 바인딩 된 상태
+        // Bloom Blur_V
+        if (FAILED(GAME->Bind_RT_ShaderResource(_postprocessShader, "g_BloomTexture", RT::BloomBlur)))
+            return;
+        if (FAILED(_postprocessShader->Begin(ETOI(PostProcessPass::BloomBlurV))))
+            return;
+        if (FAILED(_viBuffer->Render()))
+            return;
+
+        Add_RenderCall();
+    }
+
     // Light 기록
-    if (FAILED(_viBuffer->Bind_Resources()))
+    if (FAILED(GAME->Bind_RT_ShaderResource(_postprocessShader, "g_HDRTexture", RT::HDRColor)))
+        return;
+    if (FAILED(GAME->Bind_RT_ShaderResource(_postprocessShader, "g_BloomTexture", RT::BloomBlur)))
         return;
     if (FAILED(_postprocessShader->Begin(ETOI(PostProcessPass::ToneMapping))))
         return;
@@ -383,7 +427,13 @@ HRESULT Renderer::Ready_RenderTargets()
         width * static_cast<uint32>(_shadowScale), height * static_cast<uint32>(_shadowScale),
         DXGI_FORMAT_R32G32B32A32_FLOAT, Color(1.f, 1.f, 1.f, 1.f), !resizeWithViewport, useDSV), E_FAIL);
 
-    // MRT_HDR
+
+    // MRT_PostProcess
+    CHECK_FAILED(GAME->Add_RenderTarget(RT::BloomExtract,
+        width, height, DXGI_FORMAT_R16G16B16A16_FLOAT, Color(0.f, 0.f, 0.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
+    CHECK_FAILED(GAME->Add_RenderTarget(RT::BloomBlur,
+        width, height, DXGI_FORMAT_R16G16B16A16_FLOAT, Color(0.f, 0.f, 0.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
+
     CHECK_FAILED(GAME->Add_RenderTarget(RT::HDRColor,
         width, height, DXGI_FORMAT_R16G16B16A16_FLOAT, Color(0.f, 0.f, 0.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
 
@@ -401,7 +451,12 @@ HRESULT Renderer::Ready_RenderTargets()
 
     CHECK_FAILED(GAME->Add_MRT(MRT::ShadowObjects, RT::LightDepth), E_FAIL);
 
+    // PostProcess
     CHECK_FAILED(GAME->Add_MRT(MRT::HDR, RT::HDRColor), E_FAIL);
+
+    CHECK_FAILED(GAME->Add_MRT(MRT::BloomExtract, RT::BloomExtract), E_FAIL);
+
+    CHECK_FAILED(GAME->Add_MRT(MRT::BloomBlur, RT::BloomBlur), E_FAIL);
 
     // deferred shader, rect buffer 생성
     _viBuffer = VIBuffer_Rect::Create(_device, _context);

@@ -39,6 +39,7 @@
 #define MATERIAL_FLAG_IRIS_MASK      (1u << MATERIAL_SLOT_IRIS_MASK)
 
 // PostProcess Feature Flags
+// PostProcess Feature Flags
 #define POSTPROCESS_FLAG_HDR         (1u << 0)
 #define POSTPROCESS_FLAG_TONEMAP     (1u << 1)
 #define POSTPROCESS_FLAG_EXPOSURE    (1u << 2)
