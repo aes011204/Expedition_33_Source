@@ -324,7 +324,7 @@ namespace ModelEditor
         
         uint32 finalFlags = _importFlags;
         if (false == _isSkeletal)
-            finalFlags |= aiProcess_PreTransformVertices;
+            finalFlags |= aiProcess_PreTransformVertices | aiProcess_GlobalScale;
             
         _importer.FreeScene(); // 필수: 이전 probeScene 캐시를 날려야 새 플래그가 적용됨
         _aiScene = _importer.ReadFile(utf8FilePath, finalFlags);
