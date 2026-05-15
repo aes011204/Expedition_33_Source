@@ -28,7 +28,6 @@ HRESULT Head_Player::Initialize(void* arg)
         return S_OK;
 	}
 
-    //_offsetMatrix = Matrix::CreateRotationX(XMConvertToRadians(-90.f)) * Matrix::CreateTranslation(0.f, 0.f, -10.f);
     _offsetMatrix = Matrix::Identity;
 
 	return S_OK;
@@ -54,8 +53,7 @@ void Head_Player::Update(float timeDelta)
 
 void Head_Player::Late_Update(float timeDelta)
 {
-	GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
-	GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
+    __super::Late_Update(timeDelta);
 }
 
 HRESULT Head_Player::Render()
@@ -66,7 +64,8 @@ HRESULT Head_Player::Render()
     const uint32 numMeshes = static_cast<uint32>(_modelCom->Get_NumMeshes());
     for (uint32 i = 0; i < numMeshes; ++i)
     {
-        const Shared<Material> material = _modelCom->Get_Material(i);
+        const uint32 materialIndex = _modelCom->Get_MeshMaterialIndex(i);
+        const Shared<Material> material = _modelCom->Get_Material(materialIndex);
         if (material == nullptr)
             continue;
 
@@ -76,7 +75,7 @@ HRESULT Head_Player::Render()
         if (FAILED(_shaderCom->Bind_CBufferData(material->Get_CB())))
             return E_FAIL;
 
-        _modelCom->Bind_BoneMatrices(_shaderCom.get(), "g_BoneMatrices", i);
+        CHECK_FAILED(_modelCom->Bind_BoneMatrices(_shaderCom.get(), "g_BoneMatricesBuffer", i), E_FAIL);
 
         const uint32 passIndex = material->Get_PassIndex();
         if (FAILED(_shaderCom->Begin(passIndex)))

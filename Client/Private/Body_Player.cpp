@@ -5,6 +5,8 @@
 #include "Player.h"
 #include "ModelCom.h"
 
+REGISTER_GLOBAL_ENUM(Client::Body_Player::PlayerWorldAnimation, "PlayerAnimation")
+
 Body_Player::Body_Player(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : PlayableParts{ device, context }
 {
@@ -13,6 +15,7 @@ Body_Player::Body_Player(const ComPtr<Device>& device, const ComPtr<Context>& co
 Body_Player::Body_Player(const Body_Player& prototype)
     : PlayableParts{ prototype }
 {
+
 }
 
 HRESULT Body_Player::Initialize_Prototype()
@@ -40,15 +43,21 @@ void Body_Player::Priority_Update(float fTimeDelta)
 
 void Body_Player::Update(float fTimeDelta)
 {
-    _modelCom->Play_Animation(fTimeDelta);
+    if (Has_LeaderPoseComponent())
+    {
+        Update_LeaderPoseMatrices();
+    }
+    else
+    {
+        _modelCom->Play_Animation(fTimeDelta);
+    }
 
     Update_CombinedWorldMatrix(_transformCom->Get_WorldMatrix());
 }
 
 void Body_Player::Late_Update(float fTimeDelta)
 {
-    GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
-    GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
+    __super::Late_Update(fTimeDelta);
 }
 
 HRESULT Body_Player::Render()

@@ -432,6 +432,30 @@ PxTransform ColliderCom::Build_PXTransform(const Matrix& worldMatrix) const
     );
 }
 
+PxTransform ColliderCom::Build_PxLocalPose(const Matrix& worldMatrix) const
+{
+    Matrix temp = worldMatrix;
+
+    Vec3 scale;
+    Quat rotation;
+    Vec3 translation;
+    temp.Decompose(scale, rotation, translation);
+
+    const Vec3 scaledCenter(
+        _shapeDesc.center.x * scale.x,
+        _shapeDesc.center.y * scale.y,
+        _shapeDesc.center.z * scale.z);
+
+    const Quat localRotation = Quat::CreateFromYawPitchRoll(
+        _shapeDesc.radians.y,
+        _shapeDesc.radians.x,
+        _shapeDesc.radians.z);
+
+    return PxTransform(
+        PxVec3(scaledCenter.x, scaledCenter.y, scaledCenter.z),
+        PxQuat(localRotation.x, localRotation.y, localRotation.z, localRotation.w));
+}
+
 void ColliderCom::Apply_PhysX_FilterData()
 {
     if (_pxShape == nullptr)
@@ -445,7 +469,7 @@ void ColliderCom::Apply_PhysX_FilterData()
 
 PxTransform ColliderCom::Build_QueryTransform(const Matrix& worldMatrix) const
 {
-    return Build_PXTransform(worldMatrix);
+    return Build_PXTransform(worldMatrix) * Build_PxLocalPose(worldMatrix);
 }
 
 PxGeometryHolder ColliderCom::Build_QueryGeometry(const Matrix& worldMatrix) const
@@ -507,6 +531,8 @@ void ColliderCom::Update_PhysXGeometry(const Matrix& worldMatrix)
 
     if (_pxShape == nullptr)
         return;
+
+    _pxShape->setLocalPose(Build_PxLocalPose(worldMatrix));
 
     Vec3 scale;
     Quat rotation;

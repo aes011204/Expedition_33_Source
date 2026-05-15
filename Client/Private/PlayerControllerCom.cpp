@@ -10,7 +10,7 @@ IMPLEMENT_REFLECTION(PlayerControllerCom)
     info.properties.clear();
 
     PROPERTY_BOOL("Use Controll Yaw", _bUseControllerRotationYaw);
-    PROPERTY_FLOAT("Test 값", _testRelfectionValue, 0.f, 3.f, 0.05f);
+    PROPERTY_FLOAT("Test 값", _testRefectionValue, 0.f, 3.f, 0.05f);
 
     return true;
 }
@@ -53,8 +53,37 @@ void PlayerControllerCom::BeginPlay()
 
 void PlayerControllerCom::Update_Controller(float timeDelta)
 {
+    Update_InputState();
+    Update_Movement(timeDelta);
+}
+
+void PlayerControllerCom::Update_InputState()
+{
     _currentInput = {};
 
+	if (GAME->Is_PlayerInputBlocked())
+	{
+		return;
+	}
+
+    if (!_controlEnabled)
+    {
+        return;
+    }
+
+	_inputCom->Update_Input();
+    _currentInput = _inputCom->Get_MovementInput();
+
+    if (_currentInput.isWalkDown)
+    {
+        _isWalkToggled = !_isWalkToggled;
+    }
+
+    _currentInput.isWalkDown = _isWalkToggled;
+}
+
+void PlayerControllerCom::Update_Movement(float timeDelta)
+{
 	if (GAME->Is_PlayerInputBlocked())
 	{
 		_movementCom->Apply_Input({});
@@ -68,15 +97,8 @@ void PlayerControllerCom::Update_Controller(float timeDelta)
         return;
     }
 
-	_inputCom->Update_Input();
-    _currentInput = _inputCom->Get_MovementInput();
+    Check_RigidInput();
 
-    if (_currentInput.isWalkDown)
-    {
-        _isWalkToggled = !_isWalkToggled;
-    }
-
-    _currentInput.isWalkDown = _isWalkToggled;
 	_movementCom->Apply_Input(_currentInput);
 	_movementCom->Update_Movement(timeDelta);
 }
@@ -91,9 +113,30 @@ bool PlayerControllerCom::Is_WalkToggled() const
     return _isWalkToggled;
 }
 
+bool PlayerControllerCom::Is_Grounded() const
+{
+    return _movementCom->Is_Grounded();
+}
+
 const MovementCom::MovementInput& PlayerControllerCom::Get_MovementInput() const
 {
     return _currentInput;
+}
+
+void PlayerControllerCom::Check_RigidInput()
+{
+    if (_rigidControl.rigidMovement)
+    {
+        _currentInput.moveX = 0.f;
+        _currentInput.moveZ = 0.f;
+    }
+
+    if (_rigidControl.rigidJump)
+    {
+        _currentInput.isJumpDown = false;
+    }
+
+    _rigidControl = {};
 }
 
 Shared<PlayerControllerCom> PlayerControllerCom::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

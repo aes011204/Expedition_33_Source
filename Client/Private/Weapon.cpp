@@ -73,7 +73,8 @@ HRESULT Weapon::Render()
 
     for (uint32 i = 0; i < iNumMeshes; i++)
     {
-        const Shared<Material> material = _model->Get_Material(i);
+        const uint32 materialIndex = _model->Get_MeshMaterialIndex(i);
+        const Shared<Material> material = _model->Get_Material(materialIndex);
         if (material == nullptr)
             continue;
 
@@ -83,7 +84,7 @@ HRESULT Weapon::Render()
         if (FAILED(_shader->Bind_CBufferData(material->Get_CB())))
             return E_FAIL;
 
-        _model->Bind_BoneMatrices(_shader.get(), "g_BoneMatrices", i);
+        CHECK_FAILED(_model->Bind_BoneMatrices(_shader.get(), "g_BoneMatricesBuffer", i), E_FAIL);
 
         const uint32 passIndex = material->Get_PassIndex();
         if (FAILED(_shader->Begin(passIndex)))

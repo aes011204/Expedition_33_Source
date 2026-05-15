@@ -17,10 +17,19 @@ public:
 public:
     uint32 Get_MaterialIndex() const { return _materialIndex; }
     HRESULT RenderInstanced(Buffer* instanceVB, uint32 instanceStride, uint32 instanceCount);
+    const string& Get_Name() { return _name;  }
+    uint32 Get_MaterialIndex() { return _materialIndex;  }
 
 public:
     virtual HRESULT Bind_BoneMatrices(ShaderCom* shader, const char* constantName, const vector<Shared<Bone>>& bones) PURE;
     virtual HRESULT Bind_BoneMatrices(ShaderCom* shader, const char* constantName, const vector<Matrix>& combinedMatrices) PURE;
+
+    // combined bone matrix 목록을 기준으로 이 mesh가 참조하는 bone matrix 배열 생성
+    virtual HRESULT Build_MeshBoneMatrices(
+        const vector<Matrix>& combinedMatrices,
+        vector<Matrix>& outBoneMatrices) const PURE;
+
+    virtual uint32 Get_NumBoneRefs() const { return 0; }
 
 protected:
     string	_name;

@@ -1,5 +1,6 @@
 ﻿#include "MapStaticMesh.h"
 #include "GameInstance.h"
+#include "Collision_Define.h"
 
 IMPLEMENT_REFLECTION(MapStaticMesh)
 {
@@ -43,6 +44,13 @@ HRESULT MapStaticMesh::Initialize(void* arg)
     _transformCom->Set_RotationQuaternion(pDesc->rotation);
     _transformCom->Set_Scale(pDesc->scale);
 
+    // MapStaticMesh는 움직이지않는 맵 collision으로 취급이라 초기에 한번만 등록
+    if (_model)
+    {
+        _physxStaticHandle = GAME->Register_PhysXStaticModel(
+            *_model, _transformCom->Get_WorldMatrix(), Collision_Preset::Enviroment);
+    }
+
     return S_OK;
 }
 
@@ -65,13 +73,13 @@ void MapStaticMesh::Late_Update(float timeDelta)
         BoundingBox worldBox{};
         localBox.Transform(worldBox, _model->Get_PreLocalTransformMatrix() * _transformCom->Get_WorldMatrix());
 
-#ifdef _DEBUG
-        DebugBoxDesc dbgDesc{};
-        dbgDesc.center = worldBox.Center;
-        dbgDesc.extents = worldBox.Extents;
-        dbgDesc.style.color = Colors::Black;
-        GAME->Draw_DebugBox(dbgDesc);
-#endif
+//#ifdef _DEBUG
+//        DebugBoxDesc dbgDesc{};
+//        dbgDesc.center = worldBox.Center;
+//        dbgDesc.extents = worldBox.Extents;
+//        dbgDesc.style.color = Colors::Black;
+//        GAME->Draw_DebugBox(dbgDesc);
+//#endif
 
         if (!GAME->IsVisible(worldBox))
         {
@@ -89,16 +97,25 @@ HRESULT MapStaticMesh::Render()
         return E_FAIL;
     }
 
-    const uint32 iNumMeshes = static_cast<uint32>(_model->Get_NumMeshes());
 
+    const uint32 iNumMeshes = static_cast<uint32>(_model->Get_NumMeshes());
     for (uint32 i = 0; i < iNumMeshes; i++)
     {
-        const uint32 pass = SUCCEEDED(_model->Bind_Material(_shader.get(), "g_DiffuseTexture", i, MaterialTextureSlot::BaseColor)) ? 0 : 2;
+        const uint32 materialIndex = _model->Get_MeshMaterialIndex(i);
+        const Shared<Material> material = _model->Get_Material(materialIndex);
+        if (material == nullptr)
+            continue;
 
-        if (FAILED(_shader->Begin(pass)))
-        {
+        if (FAILED(_shader->Bind_MaterialTextures(*material)))
+            continue;
+
+        if (FAILED(_shader->Bind_CBufferData(material->Get_CB())))
             return E_FAIL;
-        }
+
+        // TODO 패스 수정 필요
+        const uint32 passIndex = 2;
+        if (FAILED(_shader->Begin(passIndex)))
+            return E_FAIL;
 
         _model->Render(i);
     }
@@ -166,5 +183,11 @@ Shared<GameObject> MapStaticMesh::Clone(void* arg)
 
 void MapStaticMesh::Free()
 {
+    if (_physxStaticHandle.Is_Valid())
+    {
+        GAME->Unregister_PhysXStaticActor(_physxStaticHandle);
+        _physxStaticHandle = {};
+    }
+
     __super::Free();
 }

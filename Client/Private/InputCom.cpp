@@ -6,9 +6,9 @@ InputCom::InputCom(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
 }
 
-InputCom::InputCom(const InputCom& Prototype)
-    : Component{Prototype}
-    , _movementInput(Prototype._movementInput)
+InputCom::InputCom(const InputCom& prototype)
+    : Component{prototype}
+    , _movementInput(prototype._movementInput)
 {
 }
 

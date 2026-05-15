@@ -1,6 +1,7 @@
 ﻿#include "Monster.h"
 #include "GameInstance.h"
 #include "AIController.h"
+#include "Battle_Enum.h"
 #include "ModelCom.h"
 #include "Material_Types.h"
 #include "ShaderCom.h"
@@ -9,6 +10,7 @@
 #include "ClientInstance.h"
 #include "BlackBoard.h"
 #include "Mon_Lancleier_Body.h"
+#include "MonsterStatCom.h"
 #include "Mon_Lancleier_Weapon.h"
 
 IMPLEMENT_REFLECTION(Monster)
@@ -54,13 +56,6 @@ HRESULT Monster::Initialize(void* arg)
 
     //_currentAction = MonsterAction::Idle;
 
-    _transformCom->Set_Position(
-        Vec3(
-            10.f,
-            0.f,
-            10.f
-        )
-    );
 
     //_model->Set_Animation(5, true);
 
@@ -124,6 +119,9 @@ void Monster::Update(float timeDelta)
     // Quat a;
     // Vec3 vevec;
     // ax.Decompose(vec3, a, vevec);
+
+    _combatStat->Update(timeDelta);
+
     __super::Update(timeDelta);
 }
 
@@ -134,11 +132,28 @@ void Monster::Late_Update(float fTimeDelta)
         _collider->Update_Collider(_transformCom->Get_WorldMatrix());
         GAME->Add_Collider(_collider);
     }
+
+    // culling
+    _cullingAABB.Center = _transformCom->Get_Position();
+
+    //// Adjustments may be necessary to suit the player
+    _cullingAABB.Extents = Vec3(1.f, 2.f, 1.f);
+    Set_Visible(GAME->IsVisible(_cullingAABB));
+
     __super::Late_Update(fTimeDelta);
 
     // GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<Character>());
     // GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<Character>());
 }
+
+//Action Monster::Decide_BattleAction()
+//{
+//    Action action{};
+//    action._curChar = static_pointer_cast<Character>(shared_from_this());
+//    action.type = EBattleContext::BaseAttack;
+//    action.target = 0;
+//    return action;
+//}
 
 HRESULT Monster::Render()
 {
@@ -156,6 +171,10 @@ HRESULT Monster::Ready_Components()
         return E_FAIL;
 
     _aiCtrl->Set_Owner(static_pointer_cast<Monster>(shared_from_this()));
+
+    if (FAILED(__super::Add_Component(ETOI(LevelType::Static), TEXT("Com_MonsterStat"), _combatStat)))
+        return E_FAIL;
+
 
     CHECK_FAILED(Ready_Collider(), E_FAIL);
     CHECK_FAILED(Ready_PartObjects(), E_FAIL);
@@ -202,6 +221,24 @@ HRESULT Monster::Ready_Collider()
     _collider->Set_IsActive(true);
 
     return S_OK;
+}
+
+void Monster::Decide_Action(Action& curturnAction, const vector<BattleChar>& heroes)
+{
+
+        Skill_Data skill = {}; skill.scriptClassName = "Base_Gustave_Attack";
+        skill.apCost = 0; skill.targetingType = ECharacterTeamSelector::Invalid;
+ 
+   
+    curturnAction.target = heroes[0];
+    curturnAction._selected_SkillKey = skill;
+        curturnAction.type = EBattleContext::BaseAttack;
+
+    LOG_DEBUG("Monster::Decide_Action: target={}, script={}, type={}",
+        curturnAction.target.actor ? String::ToString(curturnAction.target.actor->Get_Name()).c_str() : "null",
+        curturnAction._selected_SkillKey.scriptClassName.c_str(),
+        static_cast<int>(curturnAction.type));
+
 }
 
 Shared<Monster> Monster::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

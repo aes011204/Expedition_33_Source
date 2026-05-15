@@ -2,6 +2,8 @@
 #include "CameraPresetIO.h"
 #include "ClientInstance.h"
 #include "GameInstance.h"
+#include "Collision_Define.h"
+#include "PhysX_Types.h"
 
 TargetCamera::TargetCamera(const ComPtr<Device>& device, const ComPtr<Context>& context) :  Camera {device, context}
 {
@@ -87,10 +89,10 @@ void TargetCamera::Priority_Update(float timeDelta)
         Change_State(CAMERA_STATE::NORMAL);
     }
 
-    if(GAME->KeyDown(KEY_TYPE::CTRL))
+    /*if(GAME->KeyDown(KEY_TYPE::CTRL))
     {
         Change_State(CAMERA_STATE::BATTLE_ENTER);
-    }
+    }*/
 
 }
 
@@ -220,8 +222,9 @@ void TargetCamera::Update_FromCurrentSettings(float timeDelta)
     Vec3 desiredPos = framingPos + orbitOffset + Vec3::Up * _currentSettings.heightOffset + rightDir * _currentSettings.sideOffset;
     Vec3 lookTarget = framingPos + Vec3::Up * _currentSettings.lookHeight;
 
-    Vec3 newPos = desiredPos;
-    
+    const Vec3 collisionStart = lookTarget;
+    Vec3 newPos = Resolve_Collision(collisionStart, desiredPos, timeDelta);
+
     _transformCom->Set_WorldPosition(newPos);
     _transformCom->LookAt(lookTarget);
     _transformCom->Add_LocalRotation(Quat::CreateFromAxisAngle(Vec3::Forward, _currentSettings.rollOffset));
@@ -257,6 +260,55 @@ void TargetCamera::Update_BattleEnterState(float timeDelta)
     }
 
     Update_FromCurrentSettings(timeDelta);
+}
+
+Vec3 TargetCamera::Resolve_Collision(const Vec3& sweepStart, const Vec3& desiredPos, float timeDelta)
+{
+    if (!_currentSettings.doCollisionTest)
+        return desiredPos;
+
+    // 카메라가 있어야할 뒤쪽 위치 - 플레이어 / 타겟 pivot
+    Vec3 sweep = desiredPos - sweepStart;
+    const float desiredDistance = sweep.Length();
+
+    if (desiredDistance <= 0.0001f)
+        return desiredPos;
+
+    sweep /= desiredDistance;
+
+    float targetDistance = desiredDistance;
+
+    // 카메라 기준점에서 목표 위치까지 sphere sweep을 쏴서 벽/지형 가림 여부 확인
+    PhysXQueryHit hit{};
+
+    // 막혔는지 판단
+    const bool blocked = GAME->Sweep_Sphere(
+        sweepStart, sweep, desiredDistance, _currentSettings.collisionProbeRadius, Collision_Preset::Camera, hit);
+
+    if (blocked)
+    {
+        targetDistance = max(0.f, hit.distance - _currentSettings.collisionSkin);
+    }
+
+    if (_collisionDistance < 0.f)
+    {
+        _collisionDistance = targetDistance;
+    }
+
+    const float distanceDelta = targetDistance - _collisionDistance;
+    if (fabsf(distanceDelta) <= _collisionDeadZone)
+        return sweepStart + sweep * _collisionDistance;
+
+    const bool shouldPullIn = distanceDelta < 0.f;
+    const float lerpSpeed = shouldPullIn ? _collisionPullSpeed : _collisionReturnSpeed;
+
+    _collisionDistance = Math::Lerp_Damp(
+        _collisionDistance,
+        targetDistance,
+        lerpSpeed,
+        timeDelta);
+
+    return sweepStart + sweep * _collisionDistance;
 }
 
 void TargetCamera::Change_State(CAMERA_STATE state)

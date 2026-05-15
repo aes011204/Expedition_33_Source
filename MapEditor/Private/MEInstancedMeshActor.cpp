@@ -2,10 +2,24 @@
 #include "GameInstance.h"
 #include "Helper_Math.h"
 
-HRESULT MEInstancedMeshActor::Initialize(ComPtr<Device>  device, ComPtr<Context> context)
+
+MEInstancedMeshActor::MEInstancedMeshActor(const ComPtr<Device>& device, const ComPtr<Context>& context)
+    : GameObject{ device, context }
 {
-    _device = device;
-    _context = context;
+}
+
+MEInstancedMeshActor::MEInstancedMeshActor(const MEInstancedMeshActor& prototype)
+    : GameObject{ prototype }
+{
+}
+
+HRESULT MEInstancedMeshActor::Initialize(void* arg)
+{
+
+    if (FAILED(__super::Initialize(arg)))
+    {
+        return E_FAIL;
+    }
 
     if (FAILED(Ready_Components()))
     {
@@ -15,28 +29,24 @@ HRESULT MEInstancedMeshActor::Initialize(ComPtr<Device>  device, ComPtr<Context>
     return S_OK;
 }
 
-HRESULT MEInstancedMeshActor::Render(float cameraFar)
+void MEInstancedMeshActor::Late_Update(float timeDelta)
+{
+    if (_instanceCount == 0)
+    {
+        return;
+    }
+
+    GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
+}
+
+HRESULT MEInstancedMeshActor::Render()
 {
     if (_instanceCount == 0 || !_model || !_shader)
     {
         return S_OK;
     }
 
-    Matrix preTransform = _model->Get_PreLocalTransformMatrix();
-
-    if (FAILED(GAME->Bind_TransformMatrix(D3DTS::View, _shader.get(), "g_ViewMatrix")))
-    {
-        return E_FAIL;
-    }
-    if (FAILED(GAME->Bind_TransformMatrix(D3DTS::Proj, _shader.get(), "g_ProjMatrix")))
-    {
-        return E_FAIL;
-    }
-    if (FAILED(_shader->Bind_RawValue("g_fFar", &cameraFar, sizeof(float))))
-    {
-        return E_FAIL;
-    }
-    if (FAILED(_shader->Bind_Matrix("g_PreTransformMatrix", &preTransform)))
+    if (FAILED(Bind_ShaderResources()))
     {
         return E_FAIL;
     }
@@ -51,7 +61,7 @@ HRESULT MEInstancedMeshActor::Render(float cameraFar)
             return E_FAIL;
         }
 
-        if (FAILED(_model->RenderInstanced(i, _instanceVB.Get(), sizeof(MESHINSTANCEDATA), _instanceCount)))
+        if (FAILED(_model->RenderInstanced(i, _instanceVB.Get(), sizeof(Matrix), _instanceCount)))
         {
             return E_FAIL;
         }
@@ -60,9 +70,27 @@ HRESULT MEInstancedMeshActor::Render(float cameraFar)
     return S_OK;
 }
 
-HRESULT MEInstancedMeshActor::CreateInstanceBuffer(const vector<MESHINSTANCEDATA>& instances)
+HRESULT MEInstancedMeshActor::Bind_ShaderResources()
 {
-    const uint32 count = static_cast<uint32>(instances.size());
+    if (FAILED(GAME->Bind_TransformMatrix(D3DTS::View, _shader.get(), "g_ViewMatrix")))
+        return E_FAIL;
+
+    if (FAILED(GAME->Bind_TransformMatrix(D3DTS::Proj, _shader.get(), "g_ProjMatrix")))
+        return E_FAIL;
+
+    if (FAILED(_shader->Bind_RawValue("g_Far", &_cameraFar, sizeof(float))))
+        return E_FAIL;
+
+    Matrix preTransform = _model->Get_PreLocalTransformMatrix();
+    if (FAILED(_shader->Bind_Matrix("g_PreTransformMatrix", &preTransform)))
+        return E_FAIL;
+
+    return S_OK;
+}
+
+HRESULT MEInstancedMeshActor::CreateInstanceBuffer(const vector<Matrix>& matrices)
+{
+    const uint32 count = static_cast<uint32>(matrices.size());
 
     if (count == 0)
     {
@@ -75,7 +103,7 @@ HRESULT MEInstancedMeshActor::CreateInstanceBuffer(const vector<MESHINSTANCEDATA
         _instanceCapacity = count;
 
         D3D11_BUFFER_DESC bd{};
-        bd.ByteWidth = sizeof(MESHINSTANCEDATA) * _instanceCapacity;
+        bd.ByteWidth = sizeof(Matrix) * _instanceCapacity;
         bd.Usage = D3D11_USAGE_DYNAMIC;
         bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
         bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
@@ -93,7 +121,7 @@ HRESULT MEInstancedMeshActor::CreateInstanceBuffer(const vector<MESHINSTANCEDATA
         return E_FAIL;
     }
 
-    memcpy(mapped.pData, instances.data(), sizeof(MESHINSTANCEDATA) * count);
+    memcpy(mapped.pData, matrices.data(), sizeof(Matrix) * count);
     _context->Unmap(_instanceVB.Get(), 0);
 
     _instanceCount = count;
@@ -123,13 +151,11 @@ void MEInstancedMeshActor::GenerateInstances(const Vec3& centerPos, float areaWi
     }
 }
 
-HRESULT MEInstancedMeshActor::UpdateInstances(const wstring& modelPath, const Vec3& centerPos, float areaWidth, float areaDepth, float density, uint32 seed)
+HRESULT MEInstancedMeshActor::UpdateInstances(const wstring& modelPath, const vector<InstanceTransform>& transforms)
 {
     if (_loadedModelPath != modelPath)
     {
-        _model = ModelCom::Create(_device, _context, ModelType::NonAnim,
-            String::ToString(modelPath).c_str(), Matrix::CreateScale(0.01f));
-
+        _model = ModelCom::Create(_device, _context, ModelType::NonAnim, String::ToString(modelPath).c_str(), Matrix::CreateScale(0.01f));
         if (!_model)
         {
             return E_FAIL;
@@ -137,19 +163,23 @@ HRESULT MEInstancedMeshActor::UpdateInstances(const wstring& modelPath, const Ve
         _loadedModelPath = modelPath;
     }
 
-    vector<MESHINSTANCEDATA> instances;
-    GenerateInstances(centerPos, areaWidth, areaDepth, density, seed, instances);
+    vector<Matrix> matrices;
+    matrices.reserve(transforms.size());
 
-    return CreateInstanceBuffer(instances);
+    for (auto& t : transforms)
+    {
+        Matrix world = Matrix::CreateScale(t._scale)
+            * Matrix::CreateFromQuaternion(Quat(t._rotation.x, t._rotation.y, t._rotation.z, t._rotation.w))
+            * Matrix::CreateTranslation(t._position);
+        matrices.push_back(world);
+    }
+
+    return CreateInstanceBuffer(matrices);
 }
 
 HRESULT MEInstancedMeshActor::Ready_Components()
 {
-    _shader = ShaderCom::Create(_device, _context,
-        L"../ShaderFiles/Shader_VtxMeshInstance.hlsl",
-        VtxMeshInstanceLayout::Elements, VtxMeshInstanceLayout::numElements, ShaderType::VtxMesh);
-
-    if (!_shader)
+    if (FAILED(Add_Component(0, TEXT("Shader_VtxMeshInstance"), _shader)))
     {
         return E_FAIL;
     }
@@ -159,10 +189,27 @@ HRESULT MEInstancedMeshActor::Ready_Components()
 
 Shared<MEInstancedMeshActor> MEInstancedMeshActor::Create(ComPtr<Device> device, ComPtr<Context> context)
 {
-    auto inst = make_shared<MEInstancedMeshActor>();
-    if (FAILED(inst->Initialize(device, context)))
+    auto instance = make_shared<MEInstancedMeshActor>(device, context);
+    if (FAILED(instance->Initialize_Prototype()))
     {
         return nullptr;
     }
-    return inst;
+
+    return instance;
+}
+
+Shared<GameObject> MEInstancedMeshActor::Clone(void* arg)
+{
+    auto instance = make_shared<MEInstancedMeshActor>(*this);
+    if (FAILED(instance->Initialize(arg)))
+    {
+        return nullptr;
+    }
+
+    return instance;
+}
+
+void MEInstancedMeshActor::Free()
+{
+    GameObject::Free();
 }

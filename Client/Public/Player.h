@@ -12,9 +12,11 @@ NS_END
 
 NS_BEGIN(Client)
 
-class InputCom;
+
+class PlayerStatCom;
+    class InputCom;
 class PlayerControllerCom;
-class CombatStatCom;
+
 class PlayerStateMachineCom;
 
 class Player : public Character
@@ -34,10 +36,21 @@ public:
 	void    Late_Update(float timeDelta) override;
 	HRESULT Render() override;
 
+    // 스테이터스 찍을 때, 게임 전체는 멈추는데
+    // UI 창 안에서 프리뷰 플레이어들은 업데이트가 돌아야 애니메이션이 재생됨
+    void    Update_StatusPreview(float timeDelta);
+
+    Vec3    Get_MovementVelocity() const;
+
 protected:
 	HRESULT Ready_Components();
 	HRESULT Ready_PartObjects();
     HRESULT Ready_Collider();
+
+    virtual HairChainPhysicsDesc Get_HairChainPhysicsDesc() const
+    {
+        return HairChainPhysicsDesc{};
+    }
 
 protected:
     // 캐릭터별 파츠
@@ -46,14 +59,14 @@ protected:
     virtual const wchar_t* Get_HairModelTag() const { return L"Model_LuneHair"; }
 
 private:
-    PlayerState                     _currentState;
-
     Shared<MovementCom>             _movementCom;
     Shared<InputCom>                _inputCom;
     Shared<PlayerControllerCom>     _playerControllerCom;
     Shared<PlayerStateMachineCom>   _PlayerStateMachineCom;
     Shared<ColliderCom>             _colliderCom;
-    Shared<CombatStatCom>           _combatStatCom;
+    Shared<PlayerStatCom>           _combatStatCom;
+
+    BoundingBox                     _cullingAABB{};
 
 public:
 	static Shared<Player> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

@@ -83,6 +83,8 @@ public:
 private:
     // DirectX Matirx 를 PhysX PxTransform으로 변환한다.
     PxTransform                 Build_PXTransform(const Matrix& worldMatrix) const;
+    // DirectXCollision debug shape와 PhysX query shape의 local offset을 맞춘다.
+    PxTransform                 Build_PxLocalPose(const Matrix& worldMatrix) const;
     // _shapeDesc를 PxBoxGeomtry 또는 PxSpheregemetry 로 바꾼다.
     PxGeometryHolder            Build_PxGeometry() const;
     void                        Update_PhysXGeometry(const Matrix& worldMatrix);

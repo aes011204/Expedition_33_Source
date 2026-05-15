@@ -11,20 +11,22 @@ class InputCom : public Component
 
 public:
     explicit InputCom(const ComPtr<Device>& device, const ComPtr<Context>& context);
-    explicit InputCom(const InputCom& Prototype);
+    explicit InputCom(const InputCom& prototype);
     virtual ~InputCom() override;
 
 public:
     HRESULT Initialize_Prototype() override;
     HRESULT Initialize(void* arg) override;
 
+public:
     void    Update_Input();
 
-    const MovementCom::MovementInput& Get_MovementInput() const { return _movementInput; }
-    bool    Has_MoveInput() const;     // 입력이 들어왔는지
+public:
+    const MovementCom::MovementInput&   Get_MovementInput() const { return _movementInput; }
+    bool                                Has_MoveInput() const;     
 
 private:
-    MovementCom::MovementInput _movementInput{};
+    MovementCom::MovementInput  _movementInput{};
 
 public:
     static Shared<InputCom> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

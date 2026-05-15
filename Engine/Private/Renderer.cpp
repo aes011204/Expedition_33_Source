@@ -195,6 +195,8 @@ void Renderer::Render_Lights()
         GAME->Bind_RT_ShaderResource(_deferredShader, "g_NormalTexture", L"Target_Normal"));
     ENDMRT_RETURN_IF_FAILED(
         GAME->Bind_RT_ShaderResource(_deferredShader, "g_DepthTexture", L"Target_Depth"));
+    ENDMRT_RETURN_IF_FAILED(
+        GAME->Bind_RT_ShaderResource(_deferredShader, "g_MaterialTexture", L"Target_Material"));
 
     // Light 기록
     ENDMRT_RETURN_IF_FAILED(
@@ -250,6 +252,8 @@ void Renderer::Render_Combined()
         return;
     if (FAILED(GAME->Bind_RT_ShaderResource(_deferredShader, "g_LightDepthTexture", L"Target_LightDepth")))
         return;
+    if (FAILED(GAME->Bind_RT_ShaderResource(_deferredShader, "g_EmissiveTexture", L"Target_Emissive")))
+        return;
 
     // Light 기록
     if (FAILED(_viBuffer->Bind_Resources()))
@@ -258,6 +262,7 @@ void Renderer::Render_Combined()
         return;
     if (FAILED(_viBuffer->Render()))
         return;
+
     Add_RenderCall();
 }
 
@@ -310,6 +315,12 @@ HRESULT Renderer::Ready_RenderTargets()
     CHECK_FAILED(GAME->Add_RenderTarget(L"Target_Depth",
         width, height, DXGI_FORMAT_R32G32B32A32_FLOAT, Color(0, 0, 0, 0), resizeWithViewport, !useDSV), E_FAIL);
 
+    CHECK_FAILED(GAME->Add_RenderTarget(L"Target_Material",
+        width, height, DXGI_FORMAT_R8G8B8A8_UNORM, Color(0, 0, 0, 0), resizeWithViewport, !useDSV), E_FAIL);
+
+    CHECK_FAILED(GAME->Add_RenderTarget(L"Target_Emissive",
+        width, height, DXGI_FORMAT_R16G16B16A16_FLOAT, Color(0, 0, 0, 0), resizeWithViewport, !useDSV), E_FAIL);
+
     // MRT_LightAcc
     CHECK_FAILED(GAME->Add_RenderTarget(L"Target_Shade",
         width, height, DXGI_FORMAT_R16G16B16A16_UNORM, Color(0, 0, 0, 0), resizeWithViewport, !useDSV), E_FAIL);
@@ -325,12 +336,14 @@ HRESULT Renderer::Ready_RenderTargets()
     //CHECK_FAILED(Ready_ShadowDSV(), E_FAIL);
 
     // Create MRT
-    CHECK_FAILED(GAME->Add_MRT(L"MRT_GameObjects", L"Target_Diffuse"), E_FAIL); // SV_TARGET0
-    CHECK_FAILED(GAME->Add_MRT(L"MRT_GameObjects", L"Target_Normal"), E_FAIL);  // SV_TARGET1
-    CHECK_FAILED(GAME->Add_MRT(L"MRT_GameObjects", L"Target_Depth"), E_FAIL);   // SV_TARGET2
+    CHECK_FAILED(GAME->Add_MRT(L"MRT_GameObjects", L"Target_Diffuse"), E_FAIL);     // SV_TARGET0
+    CHECK_FAILED(GAME->Add_MRT(L"MRT_GameObjects", L"Target_Normal"), E_FAIL);      // SV_TARGET1
+    CHECK_FAILED(GAME->Add_MRT(L"MRT_GameObjects", L"Target_Depth"), E_FAIL);       // SV_TARGET2
+    CHECK_FAILED(GAME->Add_MRT(L"MRT_GameObjects", L"Target_Material"), E_FAIL);    // SV_TARGET3
+    CHECK_FAILED(GAME->Add_MRT(L"MRT_GameObjects", L"Target_Emissive"), E_FAIL);    // SV_TARGET4
 
-    CHECK_FAILED(GAME->Add_MRT(L"MRT_LightAcc", L"Target_Shade"), E_FAIL);      // SV_TARGET0
-    CHECK_FAILED(GAME->Add_MRT(L"MRT_LightAcc", L"Target_Specular"), E_FAIL);   // SV_TARGET1
+    CHECK_FAILED(GAME->Add_MRT(L"MRT_LightAcc", L"Target_Shade"), E_FAIL);          // SV_TARGET0
+    CHECK_FAILED(GAME->Add_MRT(L"MRT_LightAcc", L"Target_Specular"), E_FAIL);       // SV_TARGET1
 
     CHECK_FAILED(GAME->Add_MRT(L"MRT_ShadowObjects", L"Target_LightDepth"), E_FAIL);
 

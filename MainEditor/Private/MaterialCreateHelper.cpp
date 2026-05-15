@@ -5,6 +5,7 @@
 
 NS_BEGIN(MainEditor)
 
+#pragma region UTILS
 namespace
 {
     string To_Lower(string value)
@@ -79,7 +80,229 @@ namespace
 
         return value;
     }
+
+    bool Try_ReadJsonFloat(const json& obj, const char* key, float& out)
+    {
+        if (!obj.is_object() || key == nullptr)
+            return false;
+
+        auto it = obj.find(key);
+        if (it == obj.end())
+            return false;
+
+        if (!it->is_number_float() && !it->is_number_integer() && !it->is_number_unsigned())
+            return false;
+
+        out = it->get<float>();
+        return true;
+    }
+
+    int Resolve_BlendModeIntFromString(const string& blendMode)
+    {
+        if (blendMode.find("Masked") != string::npos)
+            return 1;
+
+        if (blendMode.find("Translucent") != string::npos)
+            return 2;
+
+        return 0;
+    }
+
+    bool Convert_UnrealExportMaterialJsonToSummaryJson(const json& sourceRoot, json& outSummaryRoot)
+    {
+        const json* item = nullptr;
+
+        if (sourceRoot.is_array())
+        {
+            if (sourceRoot.empty() || !sourceRoot[0].is_object())
+                return false;
+
+            item = &sourceRoot[0];
+        }
+        else if (sourceRoot.is_object())
+        {
+            item = &sourceRoot;
+        }
+        else
+        {
+            return false;
+        }
+
+        if (item == nullptr || !item->is_object())
+            return false;
+
+        const json& properties = item->value("Properties", json::object());
+
+        outSummaryRoot = json::object();
+        outSummaryRoot["Textures"] = json::object();
+        outSummaryRoot["Parameters"] = json::object();
+        outSummaryRoot["Parameters"]["BlendMode"] = 0;
+        outSummaryRoot["Parameters"]["ShadingModel"] = 0;
+        outSummaryRoot["Parameters"]["Colors"] = json::object();
+        outSummaryRoot["Parameters"]["Scalars"] = json::object();
+        outSummaryRoot["Parameters"]["Switches"] = json::object();
+        outSummaryRoot["Parameters"]["Properties"] = json::object();
+
+        json& textures = outSummaryRoot["Textures"];
+        json& parameters = outSummaryRoot["Parameters"];
+        json& colors = parameters["Colors"];
+        json& scalars = parameters["Scalars"];
+        json& switches = parameters["Switches"];
+        json& parameterProperties = parameters["Properties"];
+
+        const json& textureParams = properties.value("TextureParameterValues", json::array());
+        if (textureParams.is_array())
+        {
+            for (const json& textureParam : textureParams)
+            {
+                if (!textureParam.is_object())
+                    continue;
+
+                const json& parameterInfo = textureParam.value("ParameterInfo", json::object());
+                const string parameterName = parameterInfo.value("Name", string{});
+                if (parameterName.empty())
+                    continue;
+
+                const json& parameterValue = textureParam.value("ParameterValue", json::object());
+                const string objectPath = parameterValue.value("ObjectPath", string{});
+                const string objectName = parameterValue.value("ObjectName", string{});
+
+                if (objectPath.empty())
+                    continue;
+
+                const string assetName = Extract_AssetNameFromObjectName(objectName);
+                textures[parameterName] = objectPath;
+
+                if (!assetName.empty())
+                    textures[assetName] = objectPath;
+
+                const string parameterNameLower = To_Lower(parameterName);
+                if (parameterNameLower == "texture")
+                {
+                    textures["PM_SpecularMasks"] = objectPath;
+                }
+                else if (parameterNameLower == "irisheight" ||
+                    parameterNameLower == "t_iris_a_h")
+                {
+                    textures["IrisHeight"] = objectPath;
+                }
+                else if (parameterNameLower == "irismasks" ||
+                    parameterNameLower == "t_iris_a_m")
+                {
+                    textures["IrisMask"] = objectPath;
+                }
+                else if (parameterNameLower.find("base") != string::npos ||
+                    parameterNameLower.find("diffuse") != string::npos ||
+                    parameterNameLower.find("color") != string::npos)
+                {
+                    textures["PM_Diffuse"] = objectPath;
+                }
+                else if (parameterNameLower.find("normal") != string::npos)
+                {
+                    textures["PM_Normals"] = objectPath;
+                }
+                else if (parameterNameLower.find("orm") != string::npos ||
+                    parameterNameLower.find("roughness") != string::npos ||
+                    parameterNameLower.find("metal") != string::npos ||
+                    parameterNameLower.find("specular") != string::npos)
+                {
+                    textures["PM_SpecularMasks"] = objectPath;
+                }
+                else if (parameterNameLower.find("emissive") != string::npos ||
+                    parameterNameLower.find("glow") != string::npos)
+                {
+                    textures["Glow_Map"] = objectPath;
+                }
+                else if (parameterNameLower.find("opacity") != string::npos ||
+                    parameterNameLower.find("mask") != string::npos ||
+                    parameterNameLower.find("coverage") != string::npos)
+                {
+                    textures["Opacity Mask Map"] = objectPath;
+                }
+            }
+        }
+
+        const json& scalarParams = properties.value("ScalarParameterValues", json::array());
+        if (scalarParams.is_array())
+        {
+            for (const json& scalarParam : scalarParams)
+            {
+                if (!scalarParam.is_object())
+                    continue;
+
+                const json& parameterInfo = scalarParam.value("ParameterInfo", json::object());
+                const string parameterName = parameterInfo.value("Name", string{});
+                if (parameterName.empty())
+                    continue;
+
+                float value = 0.f;
+                if (Try_ReadJsonFloat(scalarParam, "ParameterValue", value))
+                    scalars[parameterName] = value;
+            }
+        }
+
+        const json& vectorParams = properties.value("VectorParameterValues", json::array());
+        if (vectorParams.is_array())
+        {
+            for (const json& vectorParam : vectorParams)
+            {
+                if (!vectorParam.is_object())
+                    continue;
+
+                const json& parameterInfo = vectorParam.value("ParameterInfo", json::object());
+                const string parameterName = parameterInfo.value("Name", string{});
+                if (parameterName.empty())
+                    continue;
+
+                const json& parameterValue = vectorParam.value("ParameterValue", json::object());
+                if (parameterValue.is_object())
+                    colors[parameterName] = parameterValue;
+            }
+        }
+
+        const json& staticSwitchParams = properties.value("StaticParameters", json::object()).value("StaticSwitchParameters", json::array());
+        if (staticSwitchParams.is_array())
+        {
+            for (const json& switchParam : staticSwitchParams)
+            {
+                if (!switchParam.is_object())
+                    continue;
+
+                const json& parameterInfo = switchParam.value("ParameterInfo", json::object());
+                const string parameterName = parameterInfo.value("Name", string{});
+                if (parameterName.empty())
+                    continue;
+
+                auto itValue = switchParam.find("Value");
+                if (itValue != switchParam.end() && itValue->is_boolean())
+                    switches[parameterName] = itValue->get<bool>();
+            }
+        }
+
+        const json& basePropertyOverrides = properties.value("BasePropertyOverrides", json::object());
+        if (basePropertyOverrides.is_object())
+        {
+            parameterProperties["BasePropertyOverrides"] = basePropertyOverrides;
+
+            string blendMode{};
+            if (Try_ReadString(basePropertyOverrides, "BlendMode", blendMode))
+                parameters["BlendMode"] = Resolve_BlendModeIntFromString(blendMode);
+        }
+
+        if (properties.contains("bIncludedInBaseGame"))
+            parameterProperties["bIncludedInBaseGame"] = properties["bIncludedInBaseGame"];
+
+        parameters["HasTopDiffuse"] = textures.contains("PM_Diffuse") || textures.contains("Base Color Map") || textures.contains("Color_MAIN") || textures.contains("Texture");
+        parameters["HasTopNormals"] = textures.contains("PM_Normals") || textures.contains("Normal Map") || textures.contains("Normal_MAIN");
+        parameters["HasTopSpecularMasks"] = textures.contains("PM_SpecularMasks") || textures.contains("ORM Map");
+        parameters["HasTopEmissive"] = textures.contains("Glow_Map") || textures.contains("PM_Emissive");
+        parameters["IsTranslucent"] = parameters.value("BlendMode", 0) == 2;
+        parameters["IsNull"] = false;
+
+        return true;
+    }
 }
+#pragma endregion
 
 MaterialCreateHelper::MaterialCreateHelper(
     const wstring& miRoot,
@@ -855,10 +1078,11 @@ bool MaterialCreateHelper::Build_MaterialInstances(
 
     for (const MaterialMapping& mapping : mappings)
     {
-        // M은 따로 MI로 만들어서 덮어쓰지 않는다
-        // 지금은 MI만 대상으로 최종 데이터를 만든다
-        if (mapping.material.kind != MaterialRefKind::MI)
+        if (mapping.material.kind != MaterialRefKind::MI &&
+            mapping.material.kind != MaterialRefKind::M)
+        {
             continue;
+        }
 
         const string assetName = mapping.material.assetName;
         if (assetName.empty())
@@ -871,22 +1095,35 @@ bool MaterialCreateHelper::Build_MaterialInstances(
         json miRoot{};
         if (!Load_MiJsonByName(assetName, miRoot, &inOutHeuristics))
         {
-            // MI json이 없다면 여기서는 더 할 수 있는 게 없다
             missingMiJsonCounts[assetName] += 1;
+            continue;
+        }
+
+        json normalizedRoot{};
+
+        if (miRoot.is_object() && miRoot.contains("Textures"))
+        {
+            normalizedRoot = miRoot;
+        }
+        else if (!Convert_UnrealExportMaterialJsonToSummaryJson(miRoot, normalizedRoot))
+        {
+            HeuristicNote note{};
+            note.kind = "material_json";
+            note.detail = assetName + " unsupported json root type=" + miRoot.type_name();
+            inOutHeuristics.push_back(move(note));
             continue;
         }
 
         MaterialInstanceData inst{};
         inst.assetName = assetName;
 
-        const json& textures = miRoot.value("Textures", json::object());
-        const json& parameters = miRoot.value("Parameters", json::object());
+        const json& textures = normalizedRoot.value("Textures", json::object());
+        const json& parameters = normalizedRoot.value("Parameters", json::object());
 
         // 텍스처는 key 후보가 여러 개라서 우선순위로 하나를 고른다
         // 첫 번째가 아닌 다른 키를 썼으면 휴리스틱 노트로 남긴다
         string usedKey{};
-        const string baseColorU = Pick_TextureUAssetPath(textures, { "Base Color Map", "PM_Diffuse", "Color_MAIN" }, &usedKey);
-        if (!baseColorU.empty() && usedKey != "Base Color Map")
+        const string baseColorU = Pick_TextureUAssetPath(textures, { "Base Color Map", "PM_Diffuse", "Color_MAIN", "Texture" }, &usedKey);        if (!baseColorU.empty() && usedKey != "Base Color Map")
         {
             HeuristicNote note{};
             note.kind = "tex_key";
@@ -919,13 +1156,53 @@ bool MaterialCreateHelper::Build_MaterialInstances(
         usedKey.clear();
         const string opacityMaskU = Pick_TextureUAssetPath(
             textures,
-            { "Opacity Mask Map", "OpacityMask", "Opacity Mask", "Opacity_Map", "Mask_Tiling_Normal" },
+            { "Opacity Mask Map", "OpacityMask", "Opacity Mask", "Opacity_Map", "Mask_Tiling_Normal", "Texture" },
             &usedKey);
         if (!opacityMaskU.empty() && usedKey != "Opacity Mask Map")
         {
             HeuristicNote note{};
             note.kind = "tex_key";
             note.detail = assetName + " OpacityMask " + usedKey;
+            inOutHeuristics.push_back(move(note));
+        }
+
+        usedKey.clear();
+        const string hairDepthU = Pick_TextureUAssetPath(textures, { "Depth", "HairDepth" }, &usedKey);
+        if (!hairDepthU.empty() && usedKey != "Depth")
+        {
+            HeuristicNote note{};
+            note.kind = "tex_key";
+            note.detail = assetName + " HairDepth " + usedKey;
+            inOutHeuristics.push_back(move(note));
+        }
+
+        usedKey.clear();
+        const string hairIDU = Pick_TextureUAssetPath(textures, { "Unique_Hair_Value", "HairID", "ID" }, &usedKey);
+        if (!hairIDU.empty() && usedKey != "Unique_Hair_Value")
+        {
+            HeuristicNote note{};
+            note.kind = "tex_key";
+            note.detail = assetName + " HairID " + usedKey;
+            inOutHeuristics.push_back(move(note));
+        }
+
+        usedKey.clear();
+        const string irisHeightU = Pick_TextureUAssetPath(textures, { "IrisHeight", "T_Iris_A_H" }, &usedKey);
+        if (!irisHeightU.empty() && usedKey != "IrisHeight")
+        {
+            HeuristicNote note{};
+            note.kind = "tex_key";
+            note.detail = assetName + " IrisHeight " + usedKey;
+            inOutHeuristics.push_back(move(note));
+        }
+
+        usedKey.clear();
+        const string irisMaskU = Pick_TextureUAssetPath(textures, { "IrisMask", "T_Iris_A_M" }, &usedKey);
+        if (!irisMaskU.empty() && usedKey != "IrisMask")
+        {
+            HeuristicNote note{};
+            note.kind = "tex_key";
+            note.detail = assetName + " IrisMask " + usedKey;
             inOutHeuristics.push_back(move(note));
         }
 
@@ -936,6 +1213,10 @@ bool MaterialCreateHelper::Build_MaterialInstances(
         inst.ormPath = Resolve_TextureFileByUAsset(ormU);
         inst.emissivePath = Resolve_TextureFileByUAsset(emissiveU);
         inst.opacityMaskPath = Resolve_TextureFileByUAsset(opacityMaskU);
+        inst.hairDepthPath = Resolve_TextureFileByUAsset(hairDepthU);
+        inst.hairIDPath = Resolve_TextureFileByUAsset(hairIDU);
+        inst.irisHeightPath = Resolve_TextureFileByUAsset(irisHeightU);
+        inst.irisMaskPath = Resolve_TextureFileByUAsset(irisMaskU);
 
         // 여기 단계에서는 resolve된 슬롯만 덮어쓰는 쪽이 안전하다
         // 경로가 비어있는 건 미해결이거나 해당 슬롯이 없을 수 있어서, 기본은 false로 둔다
@@ -944,6 +1225,10 @@ bool MaterialCreateHelper::Build_MaterialInstances(
         inst.ormOverride = !inst.ormPath.empty();
         inst.emissiveOverride = !inst.emissivePath.empty();
         inst.opacityMaskOverride = !inst.opacityMaskPath.empty();
+        inst.hairDepthOverride = !inst.hairDepthPath.empty();
+        inst.hairIDOverride = !inst.hairIDPath.empty();
+        inst.irisHeightOverride = !inst.irisHeightPath.empty();
+        inst.irisMaskOverride = !inst.irisMaskPath.empty();
 
         // 누락 원인을 한 번에 보기 좋게 요약하기 위해 카운트를 쌓는다
         recordMissingBase("BC", baseColorU, inst.baseColorPath);
@@ -951,6 +1236,10 @@ bool MaterialCreateHelper::Build_MaterialInstances(
         recordMissingBase("ORM", ormU, inst.ormPath);
         recordMissingBase("E", emissiveU, inst.emissivePath);
         recordMissingBase("OpacityMask", opacityMaskU, inst.opacityMaskPath);
+        recordMissingBase("HairDepth", hairDepthU, inst.hairDepthPath);
+        recordMissingBase("HairID", hairIDU, inst.hairIDPath);
+        recordMissingBase("IrisHeight", irisHeightU, inst.irisHeightPath);
+        recordMissingBase("IrisMask", irisMaskU, inst.irisMaskPath);
 
         // 렌더 상태는 Parameters.Properties.BasePropertyOverrides 아래에 많이 몰려있다
         // 없는 경우도 있으니 기본값 유지에 가깝게 처리한다

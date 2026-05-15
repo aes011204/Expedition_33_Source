@@ -1,5 +1,7 @@
 ﻿#include "ModelCom.h"
 #include "GameInstance.h"
+#include "Asset_Manager.h"
+#include "MaterialBuilder.h"
 #include "Mesh.h"
 #include "Bone.h"
 #include "ShaderCom.h"
@@ -7,52 +9,16 @@
 #include "Animation.h"
 #include "SkeletalMesh.h"
 #include "StaticMesh.h"
-#include <limits>
+#include "ComputeStructuredBuffer.h"
 
 #include "AnimNotify_Parser.h"
 #include "AnimNotify.h"
 #include "AnimNotifyState.h"
-
-namespace
-{
-    const char* To_MaterialTextureSlotString(MaterialTextureSlot slot)
-    {
-        switch (slot)
-        {
-        case MaterialTextureSlot::BaseColor: return "BaseColor";
-        case MaterialTextureSlot::Normal: return "Normal";
-        case MaterialTextureSlot::Emissive: return "Emissive";
-        case MaterialTextureSlot::OpacityMask: return "OpacityMask";
-        case MaterialTextureSlot::ORM: return "ORM";
-        default: return "END";
-        }
-    }
-
-    MaterialTextureSlot Parse_MaterialTextureSlot(const json& value)
-    {
-        if (value.is_number_unsigned())
-        {
-            const uint32 slotIndex = value.get<uint32>();
-            if (slotIndex < ETOI(MaterialTextureSlot::END))
-                return static_cast<MaterialTextureSlot>(slotIndex);
-        }
-
-        if (!value.is_string())
-            return MaterialTextureSlot::END;
-
-        const string slotName = value.get<string>();
-        if (slotName == "BaseColor") return MaterialTextureSlot::BaseColor;
-        if (slotName == "Normal") return MaterialTextureSlot::Normal;
-        if (slotName == "Emissive") return MaterialTextureSlot::Emissive;
-        if (slotName == "OpacityMask") return MaterialTextureSlot::OpacityMask;
-        if (slotName == "ORM") return MaterialTextureSlot::ORM;
-
-        return MaterialTextureSlot::END;
-    }
-}
+#include "AnimState_Parser.h"
 
 ModelCom::ModelCom(const ComPtr<Device>& device, const ComPtr<Context>& context)
-    : Component{ device, context } {
+    : Component{ device, context }
+{
 }
 
 ModelCom::ModelCom(const ModelCom& prototype)
@@ -72,6 +38,9 @@ ModelCom::ModelCom(const ModelCom& prototype)
     , _materials{ prototype._materials }
     , _sourceModelPath{ prototype._sourceModelPath }
     , _isAnimationPaused{ prototype._isAnimationPaused }
+    , _collisionMeshes{ prototype._collisionMeshes }
+    , _stateAnimIndices{ prototype._stateAnimIndices }
+    , _animEnumType{ prototype._animEnumType }
 {
     for (auto& prototypeAnim : prototype._animations)
         _animations.push_back(prototypeAnim->Clone());
@@ -79,6 +48,14 @@ ModelCom::ModelCom(const ModelCom& prototype)
     for (auto& prototypeBone : prototype._bones)
         _bones.push_back(prototypeBone->Clone());
 
+    _combinedBoneMatrixCache.resize(_numBones, Matrix::Identity);
+    _meshBoneMatrixCaches.resize(_meshes.size());
+    _meshBoneMatrixBuffers.resize(_meshes.size());
+    _boneMatricesDirty = true;
+
+    Mark_BoneMatricesDirty();
+
+    _leaderPoseMatricesValid = false;
 }
 
 uint32 ModelCom::Get_MeshMaterialIndex(uint32 meshIndex) const
@@ -134,7 +111,6 @@ const string& ModelCom::Get_BoneName(uint32 boneIndex) const
     return _bones[boneIndex]->Get_BoneName();
 }
 
-// TODO : 기존 애니메이션이면 progress 초기화 하고 정리, 그게 아니라면 바로 다음 애니메이션 초기로 세팅
 void ModelCom::Set_Animation(uint32 animIndex, bool isLoop)
 {
     if (animIndex >= _animations.size()) return;
@@ -142,10 +118,36 @@ void ModelCom::Set_Animation(uint32 animIndex, bool isLoop)
     _currentAnimIndex = animIndex;
     _isAnimLoop = isLoop;
     _isBlending = false;
+    _isFinished = false;
     _animations[_currentAnimIndex]->Reset();
+
+    Mark_BoneMatricesDirty();
 }
 
-// TODO : BlendSetting으로 보간 애니메이션 세팅 이미
+void ModelCom::Set_AnimationByState(uint32 stateIndex, bool isLoop)
+{
+    uint32 animIndex = stateIndex;
+
+    if (!_stateAnimIndices.empty() && stateIndex < _stateAnimIndices.size())
+    {
+        if (_stateAnimIndices[stateIndex] != UINT32_MAX)
+        {
+            animIndex = _stateAnimIndices[stateIndex];
+        }
+    }
+
+    if (animIndex >= _animations.size()) return;
+
+    _currentAnimStateIndex = stateIndex;
+    _currentAnimIndex = animIndex;
+    _isAnimLoop = isLoop;
+    _isBlending = false;
+    _isFinished = false;
+    _animations[_currentAnimIndex]->Reset();
+
+    Mark_BoneMatricesDirty();
+}
+
 void ModelCom::Set_Animation(uint32 animIndex, float blendDuration, bool isLoop)
 {
     if (animIndex >= _animations.size()) return;
@@ -155,7 +157,36 @@ void ModelCom::Set_Animation(uint32 animIndex, float blendDuration, bool isLoop)
     _isBlending = true;
     _blendDuration = blendDuration;
     _blendElapsedTime = 0.f;
+    _isFinished = false;
     _animations[_nextAnimIndex]->Reset();
+
+    Mark_BoneMatricesDirty();
+}
+
+void ModelCom::Set_AnimationByState(uint32 stateIndex, float blendDuration, bool isLoop)
+{
+    uint32 animIndex = stateIndex;
+
+    if (!_stateAnimIndices.empty() && stateIndex < _stateAnimIndices.size())
+    {
+        if (_stateAnimIndices[stateIndex] != UINT32_MAX)
+        {
+            animIndex = _stateAnimIndices[stateIndex];
+        }
+    }
+
+    if (animIndex >= _animations.size()) return;
+
+    _nextAnimStateIndex = stateIndex;
+    _nextAnimIndex = animIndex;
+    _isAnimLoop = isLoop;
+    _isBlending = true;
+    _blendDuration = blendDuration;
+    _blendElapsedTime = 0.f;
+    _isFinished = false;
+    _animations[_nextAnimIndex]->Reset();
+
+    Mark_BoneMatricesDirty();
 }
 
 const char* ModelCom::Get_AnimationName(uint32 animationIndex) const
@@ -183,6 +214,47 @@ const Matrix* ModelCom::Get_BoneMatrixPtr(uint32 boneIndex) const
     return _bones[boneIndex]->Get_CombinedTransformationMatrixPtr();
 }
 
+int32 ModelCom::Get_BoneParentIndex(uint32 boneIndex) const
+{
+    if (boneIndex >= _bones.size() || _bones[boneIndex] == nullptr)
+        return -1;
+
+    return _bones[boneIndex]->Get_ParentIndex();
+}
+
+const Matrix& ModelCom::Get_BoneLocalMatrix(uint32 boneIndex) const
+{
+    static const Matrix identity = Matrix::Identity;
+
+    if (boneIndex >= _bones.size() || _bones[boneIndex] == nullptr)
+        return identity;
+
+    return _bones[boneIndex]->Get_TransformationMatrix();
+}
+
+void ModelCom::Set_BoneLocalMatrix(uint32 boneIndex, const Matrix& localMatrix)
+{
+    if (boneIndex >= _bones.size() || _bones[boneIndex] == nullptr)
+        return;
+
+    _bones[boneIndex]->Update_TransformationMatrix(localMatrix);
+    Mark_BoneMatricesDirty();
+}
+
+void ModelCom::Rebuild_BoneCombinedMatrices()
+{
+    if (!_isSkeletal || _numBones == 0)
+        return;
+
+    for (uint32 i = 0; i < _numBones; ++i)
+    {
+        if (_bones[i] != nullptr)
+            _bones[i]->Update_CombinedTransformationMatrix(_bones, _preLocalTransformMatrix);
+    }
+
+    Mark_BoneMatricesDirty();
+}
+
 const RootMotionFrame& ModelCom::Get_RootTransformVelocity(float scaleOffset)
 {
     _rootFrameVelocity.position = scaleOffset * _rootOriginalFrameVelocity.position;
@@ -206,6 +278,9 @@ HRESULT ModelCom::Initialize_Prototype(ModelType type, const char* modelFilePath
         return E_FAIL;
     }
 
+    Ensure_MaterialBindings();
+    Apply_BaseMaterialFromBundle_AllSlots();
+
     if (FAILED(Ready_Animation(sourcePathUtf8.c_str())))
     {
         LOG_ERROR("Failed to Load Model Animation Path {}", sourcePathUtf8);
@@ -218,6 +293,154 @@ HRESULT ModelCom::Initialize_Prototype(ModelType type, const char* modelFilePath
 HRESULT ModelCom::Initialize(void* arg)
 {
     return S_OK;
+}
+
+void ModelCom::Ensure_MaterialBindings()
+{
+    const size_t desired = _materials.size();
+    if (_materialBindings.size() == desired)
+        return;
+
+    _materialBindings.resize(desired);
+
+    const string defaultKey = String::ToLowerCopy(String::ToString(fs::path(_sourceModelPath).stem().wstring()));
+    for (size_t i = 0; i < _materialBindings.size(); ++i)
+    {
+        if (_materialBindings[i].baseBundleKey.empty())
+            _materialBindings[i].baseBundleKey = defaultKey;
+    }
+}
+
+void ModelCom::Set_BaseBundleKey(uint32 materialIndex, const string& bundleKey)
+{
+    Ensure_MaterialBindings();
+    if (materialIndex >= _materialBindings.size())
+        return;
+
+    _materialBindings[materialIndex].baseBundleKey = String::ToLowerCopy(bundleKey);
+}
+
+void ModelCom::Set_InstanceOverride(uint32 materialIndex, const MaterialInstanceOverride& overrideData)
+{
+    Ensure_MaterialBindings();
+    if (materialIndex >= _materialBindings.size())
+        return;
+
+    _materialBindings[materialIndex].instance = overrideData;
+}
+
+void ModelCom::Clear_InstanceOverride(uint32 materialIndex)
+{
+    Ensure_MaterialBindings();
+    if (materialIndex >= _materialBindings.size())
+        return;
+
+    _materialBindings[materialIndex].instance = MaterialInstanceOverride{};
+}
+
+static void Apply_TextureOverride(Engine::Material* material, Engine::MaterialTextureSlot slot, const Engine::TextureOverride& ov)
+{
+    if (material == nullptr || !ov.enabled)
+        return;
+    (void)material->Override_TextureSlot(slot, 0, ov.path);
+}
+
+void ModelCom::Apply_BaseMaterialFromBundle_AllSlots()
+{
+    Ensure_MaterialBindings();
+
+    Asset_Manager* assetManager = GAME->Get_AssetManager();
+    if (assetManager == nullptr)
+        return;
+
+    MaterialBuilder* builder = assetManager->Get_MaterialBuilder();
+    if (builder == nullptr)
+        return;
+
+    for (uint32 i = 0; i < static_cast<uint32>(_materials.size()); ++i)
+        Apply_EffectiveMaterial(i);
+}
+
+void ModelCom::Apply_EffectiveMaterial(uint32 materialIndex)
+{
+    Ensure_MaterialBindings();
+    if (materialIndex >= _materials.size() || materialIndex >= _materialBindings.size())
+        return;
+
+    const Shared<Material> material = _materials[materialIndex];
+    if (material == nullptr)
+        return;
+
+    Asset_Manager* assetManager = GAME->Get_AssetManager();
+    if (assetManager == nullptr)
+        return;
+
+    MaterialBuilder* builder = assetManager->Get_MaterialBuilder();
+    if (builder == nullptr)
+        return;
+
+    const MaterialBinding& binding = _materialBindings[materialIndex];
+    if (!binding.baseBundleKey.empty())
+    {
+        const MaterialBuilder::BundleAsset* bundle = builder->GetOrLoadBundle(binding.baseBundleKey);
+        if (bundle != nullptr)
+        {
+            const auto itName = bundle->materialIndexToAssetName.find(materialIndex);
+            if (itName != bundle->materialIndexToAssetName.end())
+            {
+                const auto itInst = bundle->instancesByAssetName.find(itName->second);
+                if (itInst != bundle->instancesByAssetName.end())
+                {
+                    const auto& base = itInst->second;
+
+                    material->Set_RenderState(base.renderState);
+                    material->Set_CB(base.cb);
+                    material->Set_ForcedPassIndex(base.forcePassIndex);
+
+                    if (base.baseColorOverride) (void)material->Override_TextureSlot(MaterialTextureSlot::BaseColor, 0, base.baseColorPath);
+                    if (base.normalOverride) (void)material->Override_TextureSlot(MaterialTextureSlot::Normal, 0, base.normalPath);
+                    if (base.ormOverride) (void)material->Override_TextureSlot(MaterialTextureSlot::ORM, 0, base.ormPath);
+                    if (base.emissiveOverride) (void)material->Override_TextureSlot(MaterialTextureSlot::Emissive, 0, base.emissivePath);
+                    if (base.hairDepthOverride) (void)material->Override_TextureSlot(MaterialTextureSlot::HairDepth, 0, base.hairDepthPath);
+                    if (base.hairIDOverride) (void)material->Override_TextureSlot(MaterialTextureSlot::HairID, 0, base.hairIDPath);
+                    if (base.irisHeightOverride) (void)material->Override_TextureSlot(MaterialTextureSlot::IrisHeight, 0, base.irisHeightPath);
+                    if (base.irisMaskOverride) (void)material->Override_TextureSlot(MaterialTextureSlot::IrisMask, 0, base.irisMaskPath);
+
+                    // opacity mask는 "없으면 지우기"가 현행 에디터 Apply 정책이라 동일하게 맞춘다(스테일 슬롯 방지).
+                    if (base.opacityMaskOverride)
+                        (void)material->Override_TextureSlot(MaterialTextureSlot::OpacityMask, 0, base.opacityMaskPath);
+                    else
+                        (void)material->Override_TextureSlot(MaterialTextureSlot::OpacityMask, 0, L"");
+                }
+            }
+        }
+    }
+
+    const MaterialInstanceOverride& inst = binding.instance;
+    if (inst.overrideRenderStateEnabled)
+        material->Set_RenderState(inst.renderState);
+
+    if (inst.cbMask.Any())
+    {
+        MaterialCB effective = material->Get_CB();
+
+#define MODEL_COM_APPLY_CB_FIELD(_key, _member, _kind) \
+        if (inst.cbMask._member) effective._member = inst.cb._member;
+        MATERIAL_CB_OVERRIDE_FIELDS(MODEL_COM_APPLY_CB_FIELD)
+#undef MODEL_COM_APPLY_CB_FIELD
+
+        material->Set_CB(effective);
+    }
+
+    Apply_TextureOverride(material.get(), MaterialTextureSlot::BaseColor, inst.baseColor);
+    Apply_TextureOverride(material.get(), MaterialTextureSlot::Normal, inst.normal);
+    Apply_TextureOverride(material.get(), MaterialTextureSlot::ORM, inst.orm);
+    Apply_TextureOverride(material.get(), MaterialTextureSlot::Emissive, inst.emissive);
+    Apply_TextureOverride(material.get(), MaterialTextureSlot::OpacityMask, inst.opacityMask);
+    Apply_TextureOverride(material.get(), MaterialTextureSlot::HairDepth, inst.hairDepth);
+    Apply_TextureOverride(material.get(), MaterialTextureSlot::HairID, inst.hairID);
+    Apply_TextureOverride(material.get(), MaterialTextureSlot::IrisHeight, inst.irisHeight);
+    Apply_TextureOverride(material.get(), MaterialTextureSlot::IrisMask, inst.irisMask);
 }
 
 json ModelCom::To_Json() const
@@ -233,44 +456,139 @@ json ModelCom::To_Json() const
 
     root["model_type"] = To_ModelTypeString(_type);
 
-    json materialOverrides = json::array();
-    for (uint32 materialIndex = 0; materialIndex < _materials.size(); ++materialIndex)
+    // NOTE:
+    // 기존 `material_overrides`는 Runtime Material의 isOverride 플래그 기반이라,
+    // 번들(base) 적용 시 "자산 값"까지 override로 저장되는 문제가 생길 수 있다.
+    // 따라서 v2부터는 `material_bindings`(base+instance)만 저장한다.
+    const string defaultKey = String::ToLowerCopy(String::ToString(fs::path(_sourceModelPath).stem().wstring()));
+
+    json materialBindings = json::array();
+    const uint32 numBindings = static_cast<uint32>(std::min(_materials.size(), _materialBindings.size()));
+    for (uint32 materialIndex = 0; materialIndex < numBindings; ++materialIndex)
     {
-        const Shared<Material>& material = _materials[materialIndex];
-        if (material == nullptr)
+        const MaterialBinding& binding = _materialBindings[materialIndex];
+
+        const MaterialInstanceOverride& inst = binding.instance;
+        const bool hasAnyTextureOverride =
+            inst.baseColor.enabled
+            || inst.normal.enabled
+            || inst.orm.enabled
+            || inst.emissive.enabled
+            || inst.opacityMask.enabled
+            || inst.hairDepth.enabled       // Hair 전용 추가
+            || inst.hairID.enabled
+            || inst.irisHeight.enabled
+            || inst.irisMask.enabled;
+
+        const bool hasInstanceOverride =
+            inst.overrideRenderStateEnabled || inst.cbMask.Any() || hasAnyTextureOverride;
+
+        const string baseKey = String::ToLowerCopy(binding.baseBundleKey);
+        const bool hasBaseKey = !baseKey.empty() && baseKey != defaultKey;
+
+        if (!hasBaseKey && !hasInstanceOverride)
             continue;
 
-        const vector<vector<Material::TextureSlot>>& textureSlots = material->Get_TextureSlots();
-        for (uint32 typeIndex = 0; typeIndex < textureSlots.size(); ++typeIndex)
+        json entry{};
+        entry["material_index"] = materialIndex;
+        if (hasBaseKey)
+            entry["base_bundle_key"] = baseKey;
+
+        if (hasInstanceOverride)
         {
-            const vector<Material::TextureSlot>& slots = textureSlots[typeIndex];
-            for (uint32 slotIndex = 0; slotIndex < slots.size(); ++slotIndex)
+            json instJson{};
+            instJson["override_render_state_enabled"] = inst.overrideRenderStateEnabled;
+
+            if (inst.overrideRenderStateEnabled)
             {
-                const Material::TextureSlot& slot = slots[slotIndex];
-                if (!slot.isOverride)
-                    continue;
+                json rs{};
+                rs["twoSided"] = inst.renderState.twoSided;
+                rs["blendMode"] = static_cast<uint32>(inst.renderState.blendMode);
+                rs["opacityMaskClipValue"] = inst.renderState.opacityMaskClipValue;
+                rs["alphaClip"] = inst.renderState.alphaClip;
+                instJson["render_state"] = rs;
+            }
 
-                json overrideData{};
-                overrideData["material_index"] = materialIndex;
-                overrideData["slot"] = To_MaterialTextureSlotString(slot.slot);
-                overrideData["texture_index"] = slot.textureIndex;
+            if (inst.cbMask.Any())
+            {
+                json jmask = json::object();
 
-                if (!slot.resolvedPath.empty())
+#define MODEL_COM_WRITE_CB_MASK(_key, _member, _kind) \
+                if (inst.cbMask._member) jmask[_key] = true;
+                MATERIAL_CB_OVERRIDE_FIELDS(MODEL_COM_WRITE_CB_MASK)
+#undef MODEL_COM_WRITE_CB_MASK
+
+                instJson["cb_overrides"] = jmask;
+
+                json cb{};
+
+                if (inst.cbMask.baseColorTint)
+                    cb["baseColorTint"] = { inst.cb.baseColorTint.x, inst.cb.baseColorTint.y, inst.cb.baseColorTint.z, inst.cb.baseColorTint.w };
+                if (inst.cbMask.emissiveColor)
+                    cb["emissiveColor"] = { inst.cb.emissiveColor.x, inst.cb.emissiveColor.y, inst.cb.emissiveColor.z, inst.cb.emissiveColor.w };
+
+                if (inst.cbMask.emissiveIntensity) cb["emissiveIntensity"] = inst.cb.emissiveIntensity;
+                if (inst.cbMask.emissiveMaskMul) cb["emissiveMaskMul"] = inst.cb.emissiveMaskMul;
+                if (inst.cbMask.normalStrength) cb["normalStrength"] = inst.cb.normalStrength;
+                if (inst.cbMask.opacityMaskClipValue) cb["opacityMaskClipValue"] = inst.cb.opacityMaskClipValue;
+                if (inst.cbMask.roughnessScale) cb["roughnessScale"] = inst.cb.roughnessScale;
+                if (inst.cbMask.metalnessScale) cb["metalnessScale"] = inst.cb.metalnessScale;
+                if (inst.cbMask.aoScale) cb["aoScale"] = inst.cb.aoScale;
+
+                if (inst.cbMask.uvScale) cb["uvScale"] = { inst.cb.uvScale.x, inst.cb.uvScale.y };
+                if (inst.cbMask.uvOffset) cb["uvOffset"] = { inst.cb.uvOffset.x, inst.cb.uvOffset.y };
+                if (inst.cbMask.uvRotation) cb["uvRotation"] = inst.cb.uvRotation;
+                if (inst.cbMask.materialMask) cb["materialMask"] = inst.cb.materialMask;
+
+                instJson["cb"] = cb;
+            }
+
+            auto writeTextureOverride = [&](const char* name, const TextureOverride& ov) -> void
+            {
+                if (!ov.enabled)
+                    return;
+
+                json tex{};
+                tex["enabled"] = true;
+
+                if (!ov.path.empty())
                 {
-                    const string textureGuid = GAME->Ensure_AssetGUID(slot.resolvedPath, "Texture");
+                    const string textureGuid = GAME->Ensure_AssetGUID(ov.path, "Texture");
                     if (!textureGuid.empty())
-                        overrideData["texture_guid"] = textureGuid;
+                        tex["texture_guid"] = textureGuid;
                     else
-                        overrideData["texture_path"] = String::ToString(slot.resolvedPath);
+                        tex["texture_path"] = String::ToString(ov.path);
+                }
+                else
+                {
+                    // enabled + empty path = clear slot
+                    tex["texture_path"] = string{};
                 }
 
-                materialOverrides.push_back(overrideData);
-            }
+                if (!instJson.contains("textures"))
+                    instJson["textures"] = json::object();
+                instJson["textures"][name] = tex;
+            };
+
+            writeTextureOverride("base_color", inst.baseColor);
+            writeTextureOverride("normal", inst.normal);
+            writeTextureOverride("orm", inst.orm);
+            writeTextureOverride("emissive", inst.emissive);
+            writeTextureOverride("opacity_mask", inst.opacityMask);
+
+            writeTextureOverride("hair_depth", inst.hairDepth);
+            writeTextureOverride("hair_id", inst.hairID);
+            writeTextureOverride("iris_height", inst.irisHeight);
+            writeTextureOverride("iris_mask", inst.irisMask);
+
+            entry["instance_override"] = instJson;
         }
+
+        materialBindings.push_back(entry);
     }
 
-    if (!materialOverrides.empty())
-        root["material_overrides"] = materialOverrides;
+    if (!materialBindings.empty())
+        root["material_bindings"] = materialBindings;
 
     return root;
 }
@@ -281,14 +599,30 @@ void ModelCom::From_Json(const json& data)
 
     if (!data.contains("model_guid") || !data["model_guid"].is_string())
     {
-        Apply_MaterialOverrides(data);
+        Asset_Manager* assetManager = GAME->Get_AssetManager();
+        MaterialBuilder* builder = assetManager ? assetManager->Get_MaterialBuilder() : nullptr;
+        if (builder != nullptr)
+        {
+            builder->Try_ApplyMaterialBindingsFromJson(*this, data);
+            builder->Try_ApplyModelMaterialOverridesFromJson(*this, data);
+        }
+
+        Apply_BaseMaterialFromBundle_AllSlots();
         return;
     }
 
     const string modelGuid = data["model_guid"].get<string>();
     if (modelGuid.empty())
     {
-        Apply_MaterialOverrides(data);
+        Asset_Manager* assetManager = GAME->Get_AssetManager();
+        MaterialBuilder* builder = assetManager ? assetManager->Get_MaterialBuilder() : nullptr;
+        if (builder != nullptr)
+        {
+            builder->Try_ApplyMaterialBindingsFromJson(*this, data);
+            builder->Try_ApplyModelMaterialOverridesFromJson(*this, data);
+        }
+
+        Apply_BaseMaterialFromBundle_AllSlots();
         return;
     }
 
@@ -301,63 +635,32 @@ void ModelCom::From_Json(const json& data)
 
     if (modelGuid == currentGuid && modelType == _type)
     {
-        Apply_MaterialOverrides(data);
+        Asset_Manager* assetManager = GAME->Get_AssetManager();
+        MaterialBuilder* builder = assetManager ? assetManager->Get_MaterialBuilder() : nullptr;
+        if (builder != nullptr)
+        {
+            builder->Try_ApplyMaterialBindingsFromJson(*this, data);
+            builder->Try_ApplyModelMaterialOverridesFromJson(*this, data);
+        }
+
+        Apply_BaseMaterialFromBundle_AllSlots();
         return;
     }
 
     if (FAILED(Reload_ModelFromGuid(modelGuid, modelType)))
         LOG_WARN("ModelCom::From_Json - failed to reload model. guid={}", modelGuid);
 
-    Apply_MaterialOverrides(data);
-}
-
-void ModelCom::Apply_MaterialOverrides(const json& data)
-{
-    if (!data.contains("material_overrides") || !data["material_overrides"].is_array())
-        return;
-
-    for (const json& overrideData : data["material_overrides"])
+    Asset_Manager* assetManager = GAME->Get_AssetManager();
+    MaterialBuilder* builder = assetManager ? assetManager->Get_MaterialBuilder() : nullptr;
+    if (builder != nullptr)
     {
-        const uint32 materialIndex = overrideData.value("material_index", UINT32_MAX);
-        if (materialIndex >= _materials.size() || _materials[materialIndex] == nullptr)
-            continue;
-
-        if (!overrideData.contains("slot"))
-            continue;
-
-        const MaterialTextureSlot slot = Parse_MaterialTextureSlot(overrideData["slot"]);
-        if (slot == MaterialTextureSlot::END)
-            continue;
-
-        const uint32 textureIndex = overrideData.value("texture_index", 0u);
-        wstring texturePath{};
-        bool hasTexturePath = false;
-
-        const string textureGuid = overrideData.value("texture_guid", string{});
-        if (!textureGuid.empty())
-        {
-            texturePath = GAME->Resolve_AssetPath(textureGuid);
-            if (texturePath.empty())
-                continue;
-
-            hasTexturePath = true;
-        }
-
-        if (texturePath.empty())
-        {
-            const string rawPath = overrideData.value("texture_path", string{});
-            if (!rawPath.empty())
-            {
-                texturePath = String::ToWString(rawPath);
-                hasTexturePath = true;
-            }
-        }
-
-        if (!hasTexturePath)
-            continue;
-
-        _materials[materialIndex]->Override_TextureSlot(slot, textureIndex, texturePath);
+        builder->Try_ApplyMaterialBindingsFromJson(*this, data);
+        builder->Try_ApplyModelMaterialOverridesFromJson(*this, data);
     }
+
+    Apply_BaseMaterialFromBundle_AllSlots();
+
+    Ensure_AnimStateAssetLoaded(); // 애니메이션은 Prefab기반 로드 싱크를 여기다 맞춤
 }
 
 HRESULT ModelCom::Reload_ModelFromGuid(const string& guid, ModelType modelType)
@@ -408,6 +711,8 @@ HRESULT ModelCom::RenderInstanced(uint32 meshIndex, Buffer* instanceVB, uint32 i
 
 bool ModelCom::Play_Animation(float timeDelta)
 {
+    float adjustedTimeDelta = timeDelta * _frameSpeed;
+
     if (!_isSkeletal || _animations.empty()) return false;
 
     if (_isAnimationPaused)
@@ -422,19 +727,20 @@ bool ModelCom::Play_Animation(float timeDelta)
 
     if (_isBlending)
     {
-        _blendElapsedTime += timeDelta;
+        _blendElapsedTime += adjustedTimeDelta;
         float ratio = _blendElapsedTime / _blendDuration;
 
         if (ratio >= 1.f)
         {
             _isBlending = false;
             _currentAnimIndex = _nextAnimIndex;
-            _isFinished = _animations[_currentAnimIndex]->Update_TransformationMatrices(timeDelta, _bones, _isAnimLoop, rootIndex);
+            _currentAnimStateIndex = _nextAnimStateIndex;
+            _isFinished = _animations[_currentAnimIndex]->Update_TransformationMatrices(adjustedTimeDelta, _bones, _isAnimLoop, rootIndex);
             _rootOriginalFrameVelocity = rootIndex >= 0 ? _animations[_currentAnimIndex]->Get_TransformVelocity(rootIndex) : RootMotionFrame{};
         }
         else
         {
-            _animations[_currentAnimIndex]->Blend_TransformMatrix(timeDelta, _animations[_nextAnimIndex], ratio, _bones, _isAnimLoop, rootIndex);
+            _animations[_currentAnimIndex]->Blend_TransformMatrix(adjustedTimeDelta, _animations[_nextAnimIndex], ratio, _bones, _isAnimLoop, rootIndex);
 
             if (rootIndex >= 0)
             {
@@ -447,7 +753,7 @@ bool ModelCom::Play_Animation(float timeDelta)
     }
     else
     {
-        _isFinished = _animations[_currentAnimIndex]->Update_TransformationMatrices(timeDelta, _bones, _isAnimLoop, rootIndex);
+        _isFinished = _animations[_currentAnimIndex]->Update_TransformationMatrices(adjustedTimeDelta, _bones, _isAnimLoop, rootIndex);
         _rootOriginalFrameVelocity = (rootIndex >= 0) ? _animations[_currentAnimIndex]->Get_TransformVelocity(rootIndex) : RootMotionFrame{};
     }
 
@@ -464,6 +770,8 @@ bool ModelCom::Play_Animation(float timeDelta)
         _bones[i]->Update_CombinedTransformationMatrix(_bones, _preLocalTransformMatrix);
     }
 
+    Mark_BoneMatricesDirty();
+
     const float currentTimeSec = Get_CurrentAnimationTimeSec();
     const bool wrapped = (_isAnimLoop && currentTimeSec < previousTimeSec);
 
@@ -478,7 +786,7 @@ bool ModelCom::Play_Animation(float timeDelta)
             context.animationName = Get_AnimationName(_currentAnimIndex) ? Get_AnimationName(_currentAnimIndex) : "";
             context.previousTimeSec = previousTimeSec;
             context.currentTimeSec = currentTimeSec;
-            context.deltaTime = timeDelta;
+            context.deltaTime = adjustedTimeDelta;
             context.isLooping = _isAnimLoop;
             context.wrapped = wrapped;
             context.isPreview = !_isAnimNotifyExecutionEnabled;
@@ -501,19 +809,35 @@ HRESULT ModelCom::Bind_Material(ShaderCom* shader, const char* constantName, uin
 
 HRESULT ModelCom::Bind_BoneMatrices(ShaderCom* shader, const char* constantName, uint32 meshIndex)
 {
-    if (_numBones == 0)
+    if (shader == nullptr || constantName == nullptr)
+        return E_FAIL;
+
+    if (!_isSkeletal || _numBones == 0)
         return S_OK;
 
-    if (!_leaderPoseCombinedMatrices.empty())
+    if (meshIndex >= _meshes.size())
+        return E_FAIL;
+
+    if (_leaderPoseModel != nullptr)
     {
-        Update_LeaderPoseMatrices();
-        return _meshes[meshIndex]->Bind_BoneMatrices(
-            shader,
-            constantName,
-            _leaderPoseCombinedMatrices);
+        if (!_leaderPoseMatricesValid)
+            Update_LeaderPoseMatrices();
+
+        if (_leaderPoseCombinedMatrices.empty())
+            return E_FAIL;
     }
 
-    return _meshes[meshIndex]->Bind_BoneMatrices(shader, constantName, _bones);
+    CHECK_FAILED(Ensure_MeshBoneMatrixBuffers(), E_FAIL);
+
+    if (meshIndex >= _meshBoneMatrixBuffers.size())
+        return E_FAIL;
+
+    const Shared<ComputeStructuredBuffer>& meshBoneMatrixBuffer = _meshBoneMatrixBuffers[meshIndex];
+
+    if (meshBoneMatrixBuffer == nullptr)
+        return S_OK;
+
+    return shader->Bind_SRV(constantName, meshBoneMatrixBuffer->Get_SRV());
 }
 
 bool ModelCom::Try_Get_LocalBounds(Vec3& outMin, Vec3& outMax) const
@@ -541,6 +865,15 @@ uint32 ModelCom::Get_AnimationIndex() const
     return _isBlending ? _nextAnimIndex : _currentAnimIndex;
 }
 
+uint32 ModelCom::Get_AnimationStateIndex() const
+{
+    uint32 activeState = _isBlending ? _nextAnimStateIndex : _currentAnimStateIndex;
+    if (activeState != UINT32_MAX)
+        return activeState;
+
+    return _isBlending ? _nextAnimIndex : _currentAnimIndex;
+}
+
 float ModelCom::Get_CurrentAnimationDurationSec() const
 {
     if (_currentAnimIndex >= _animations.size())
@@ -557,12 +890,20 @@ float ModelCom::Get_CurrentAnimationTimeSec() const
     return _animations[_currentAnimIndex]->Get_CurrentTimeSec();
 }
 
+void ModelCom::Set_AnimationPaused(bool paused)
+{
+    _isAnimationPaused = paused;
+    Mark_BoneMatricesDirty();
+}
+
 void ModelCom::Set_CurrentAnimationTimeSec(float timeSec)
 {
     if (_currentAnimIndex >= _animations.size())
         return;
 
     _animations[_currentAnimIndex]->Set_CurrentTimeSec(timeSec);
+
+    Mark_BoneMatricesDirty();
 }
 
 void ModelCom::Refresh_CurrentAnimationPose()
@@ -577,6 +918,8 @@ void ModelCom::Refresh_CurrentAnimationPose()
 
     for (uint32 i = 0; i < _numBones; ++i)
         _bones[i]->Update_CombinedTransformationMatrix(_bones, _preLocalTransformMatrix);
+
+    Mark_BoneMatricesDirty();
 }
 
 bool ModelCom::Ensure_AnimNotifyAssetLoaded()
@@ -804,6 +1147,7 @@ void ModelCom::Set_LeaderPoseComponent(const ModelCom* leaderModel)
             _leaderPoseModel->Get_BoneIndex(_bones[i]->Get_BoneName());
     }
 
+    _leaderPoseMatricesValid = false;
     Update_LeaderPoseMatrices();
 }
 
@@ -812,6 +1156,9 @@ void ModelCom::Clear_LeaderPoseComponent()
     _leaderPoseModel = nullptr;
     _leaderPoseBoneMap.clear();
     _leaderPoseCombinedMatrices.clear();
+
+    _leaderPoseMatricesValid = false;
+    Mark_BoneMatricesDirty();
 }
 
 void ModelCom::Update_LeaderPoseMatrices()
@@ -825,14 +1172,66 @@ void ModelCom::Update_LeaderPoseMatrices()
     {
         Build_LeaderPoseMatrix(i, visited);
     }
+
+    _leaderPoseMatricesValid = true;
+    Mark_BoneMatricesDirty();
+}
+
+void ModelCom::Mark_BoneMatricesDirty()
+{
+    _boneMatricesDirty = true;
+    _boneMatrixBuffersDirty = true;
+}
+
+HRESULT ModelCom::Ensure_MeshBoneMatrices()
+{
+    if (!_isSkeletal || _numBones == 0)
+        return S_OK;
+
+    if (!_boneMatricesDirty)
+        return S_OK;
+
+    if (_meshBoneMatrixCaches.size() != _meshes.size())
+        _meshBoneMatrixCaches.resize(_meshes.size());
+
+    const vector<Matrix>* sourceMatrices = nullptr;
+    if (_leaderPoseModel != nullptr)
+    {
+        sourceMatrices = &_leaderPoseCombinedMatrices;
+    }
+    else
+    {
+        _combinedBoneMatrixCache.resize(_numBones);
+
+        for (uint32 i = 0; i < _numBones; ++i)
+        {
+            const Matrix* combined = _bones[i]->Get_CombinedTransformationMatrixPtr();
+            _combinedBoneMatrixCache[i] = combined ? *combined : Matrix::Identity;
+        }
+
+        sourceMatrices = &_combinedBoneMatrixCache;
+    }
+
+    if (sourceMatrices == nullptr || sourceMatrices->empty())
+        return E_FAIL;
+
+    for (uint32 meshIndex = 0; meshIndex < _meshes.size(); ++meshIndex)
+    {
+        const Shared<Mesh>& mesh = _meshes[meshIndex];
+        if (mesh == nullptr)
+            return E_FAIL;
+
+        CHECK_FAILED(
+            mesh->Build_MeshBoneMatrices(*sourceMatrices, _meshBoneMatrixCaches[meshIndex]),
+            E_FAIL);
+    }
+
+    _boneMatricesDirty = false;
+    return S_OK;
 }
 
 Matrix ModelCom::Convert_LeaderPoseMatrix(const Matrix& leaderMatrix) const
 {
-    /*Matrix leaderPrevInverse = _leaderPoseModel->Get_PreLocalTransformMatrix();
-    leaderPrevInverse.Invert();
-
-    return leaderMatrix * leaderPrevInverse * _preLocalTransformMatrix;*/
     return leaderMatrix;
 }
 
@@ -873,6 +1272,53 @@ Matrix ModelCom::Build_LeaderPoseMatrix(uint32 boneIndex, vector<uint8>& visited
     return _leaderPoseCombinedMatrices[boneIndex];
 }
 
+HRESULT ModelCom::Ensure_MeshBoneMatrixBuffers()
+{
+    // CPU 쪽 mesh별 bone matrices cache가 최신인지 먼저 보장
+    CHECK_FAILED(Ensure_MeshBoneMatrices(), E_FAIL);
+
+    // GPU buffer가 이미 최신이면 이번 draw에서는 다시 업로드하지 않는다.
+    if (!_boneMatrixBuffersDirty)
+        return S_OK;
+
+    // mesh 개수와 GPU buffer cache 개수를 맞춘다.
+    if (_meshBoneMatrixBuffers.size() != _meshBoneMatrixCaches.size())
+        _meshBoneMatrixBuffers.resize(_meshBoneMatrixCaches.size());
+
+    for (uint32 meshIndex = 0; meshIndex < _meshBoneMatrixCaches.size(); ++meshIndex)
+    {
+        const vector<Matrix>& meshBoneMatrices = _meshBoneMatrixCaches[meshIndex];
+        if (meshBoneMatrices.empty())
+            continue;
+
+        const uint32 matrixCount = static_cast<uint32>(meshBoneMatrices.size());
+
+        // buffer가 없거나 현재 mesh의 bone matrix 개수를 담기 부족하면 새로 만든다.
+        if (_meshBoneMatrixBuffers[meshIndex] == nullptr ||
+            _meshBoneMatrixBuffers[meshIndex]->Get_ElementCount() < matrixCount)
+        {
+            _meshBoneMatrixBuffers[meshIndex] = ComputeStructuredBuffer::Create(
+                _device, _context, sizeof(Matrix), matrixCount, meshBoneMatrices.data());
+
+            if (_meshBoneMatrixBuffers[meshIndex] == nullptr)
+                return E_FAIL;
+        }
+        else
+        {
+            // 기존 buffer가 충분하면 데이터만 갱신한다.
+            CHECK_FAILED(
+                _meshBoneMatrixBuffers[meshIndex]->Update_Data(
+                    meshBoneMatrices.data(),
+                    matrixCount),
+                E_FAIL);
+        }
+    }
+
+    // 모든 mesh GPU bone matrix buffer가 최신 상태임
+    _boneMatrixBuffersDirty = false;
+    return S_OK;
+}
+
 HRESULT ModelCom::Ready_Model(const char* modelPath)
 {
     std::string resolvedPath(modelPath);
@@ -881,6 +1327,14 @@ HRESULT ModelCom::Ready_Model(const char* modelPath)
         if (extPos != std::string::npos)
             resolvedPath = resolvedPath.substr(0, extPos) + ".model";
     }
+
+    // 모델 guid
+    const string modelGuid = GAME->Ensure_AssetGUID(String::ToWString(resolvedPath), "Model");
+    const AssetMeta* modelAssetMeta = modelGuid.empty()
+        ? nullptr
+        : GAME->Find_AssetByGUID(modelGuid);
+    UNREFERENCED_PARAMETER(modelAssetMeta);
+
     std::ifstream stream(resolvedPath, ::ios_base::binary);
 
     //std::ifstream stream(modelPath, std::ios::binary);
@@ -985,6 +1439,25 @@ HRESULT ModelCom::Ready_Model(const char* modelPath)
         stream.read(reinterpret_cast<char*>(idxBuffer.data()), sizeof(uint32) * meshData.numIndices);
         meshData.indices = idxBuffer.data();
 
+        // StaticMesh용 PhysX collision CPU 데이터 보관
+        if (!_isSkeletal && meshData.numVertices > 0 && meshData.numIndices >= 3)
+        {
+            VTXMESH* vertices = reinterpret_cast<VTXMESH*>(vtxBuffer.data());
+
+            ModelCollisionMesh collisionMesh{};
+            collisionMesh.name = meshData.name;
+            collisionMesh.positions.reserve(meshData.numVertices);
+            collisionMesh.indices.reserve(meshData.numIndices);
+
+            for (uint32 vertexIndex = 0; vertexIndex < meshData.numVertices; ++vertexIndex)
+                collisionMesh.positions.push_back(vertices[vertexIndex].position);
+
+            for (uint32 index : idxBuffer)
+                collisionMesh.indices.push_back(index);
+
+            _collisionMeshes.push_back(std::move(collisionMesh));
+        }
+
         vector<uint32> boneRefs;
         vector<Matrix> offsets;
 
@@ -1007,12 +1480,14 @@ HRESULT ModelCom::Ready_Model(const char* modelPath)
             }
 
             _meshes.push_back(SkeletalMesh::Create(_device, _context, meshData, _preLocalTransformMatrix));
+            _type = ModelType::Anim;
         }
         else
         {
             meshData.boneIndices = nullptr;
             meshData.offsetMatrices = nullptr;
             _meshes.push_back(StaticMesh::Create(_device, _context, meshData, _preLocalTransformMatrix));
+            _type = ModelType::NonAnim;
         }
     }
 
@@ -1036,6 +1511,12 @@ HRESULT ModelCom::Ready_Model(const char* modelPath)
         }
     }
 
+    _combinedBoneMatrixCache.resize(_numBones, Matrix::Identity);
+    _meshBoneMatrixCaches.resize(_meshes.size());
+    _meshBoneMatrixBuffers.resize(_meshes.size());
+    Mark_BoneMatricesDirty();
+    _leaderPoseMatricesValid = false;
+
     _hasLocalBounds = hasBounds;
     if (hasBounds)
     {
@@ -1046,6 +1527,7 @@ HRESULT ModelCom::Ready_Model(const char* modelPath)
     stream.close();
     return S_OK;
 }
+
 
 HRESULT ModelCom::Ready_Animation(const char* modelPath)
 {
@@ -1103,7 +1585,14 @@ HRESULT ModelCom::Ready_Animation(const char* modelPath)
 
     _numAnimations = trueAnimIndex;
 
+    Ensure_AnimStateAssetLoaded();
+
     return S_OK;
+}
+
+bool ModelCom::Ensure_AnimStateAssetLoaded()
+{
+    return AnimState_Parser::Load_StateAnimations(_sourceModelPath, _animations, _stateAnimIndices, &_animEnumType);
 }
 
 void ModelCom::Reset_ModelData()
@@ -1124,6 +1613,8 @@ void ModelCom::Reset_ModelData()
     _materials.clear();
     _bones.clear();
     _animations.clear();
+    _stateAnimIndices.clear();
+    _collisionMeshes.clear();
 
     _isFinished = false;
     _isAnimLoop = false;
@@ -1137,6 +1628,13 @@ void ModelCom::Reset_ModelData()
     _rootNodeIndex = -1;
     _rootOriginalFrameVelocity = {};
     _rootFrameVelocity = {};
+
+    _combinedBoneMatrixCache.clear();
+    _meshBoneMatrixCaches.clear();
+    _meshBoneMatrixBuffers.clear();
+    _boneMatricesDirty = true;
+    _boneMatrixBuffersDirty = true;
+    _leaderPoseMatricesValid = false;
 
     Invalidate_AnimNotifyAsset();
     Clear_LeaderPoseComponent();
@@ -1186,6 +1684,11 @@ void ModelCom::Free()
 {
     __super::Free();
 
+    _meshBoneMatrixBuffers.clear();
+    _meshBoneMatrixCaches.clear();
+    _combinedBoneMatrixCache.clear();
+
+    _stateAnimIndices.clear();
     _animations.clear();
     _materials.clear();
     _meshes.clear();

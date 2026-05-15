@@ -1,0 +1,105 @@
+﻿#include "MonsterStatCom.h"
+#include "GameInstance.h"
+
+IMPLEMENT_REFLECTION(MonsterStatCom)
+{
+    auto& info = GetStaticReflectionInfo();
+
+    info.className = "MonsterStatCom";
+    info.displayName = "Monster Stat Com";
+
+    PROPERTY_FLOAT("HP", _MRuntimeStat.CurHp, 0.f, 9999.f, 1.f);
+    PROPERTY_FLOAT("AP", _MRuntimeStat.CurAp, 0.f, 9.f, 1.f);
+
+    return true;
+}
+
+MonsterStatCom::MonsterStatCom(
+    const ComPtr<Device>& device,
+    const ComPtr<Context>& context)
+    : CombatStatCom(device, context)
+{
+}
+
+MonsterStatCom::MonsterStatCom(
+    const MonsterStatCom& Prototype)
+    : CombatStatCom(Prototype)
+    , _monsterDesc(Prototype._monsterDesc)
+    , _MRuntimeStat(Prototype._MRuntimeStat)
+{
+}
+
+HRESULT MonsterStatCom::Initialize_Prototype()
+{
+    return CombatStatCom::Initialize_Prototype();
+}
+
+HRESULT MonsterStatCom::Initialize(void* arg)
+{
+    CHECK_FAILED(CombatStatCom::Initialize(arg), E_FAIL);
+
+    MonsterCombatStatDesc desc{};
+
+    if (arg != nullptr)
+    {
+        desc = *static_cast<MonsterCombatStatDesc*>(arg);
+    }
+    _monsterDesc = desc;
+
+    {
+        _MRuntimeStat.CurHp = _monsterDesc.maxHp;
+        _MRuntimeStat.CurAp = _monsterDesc.maxAp;
+        _MRuntimeStat.CurShield = _monsterDesc.commonCharacterStats.ShieldPointsAtSpawn;
+        _MRuntimeStat.physicalAttack = _monsterDesc.physicalAttack;
+        _MRuntimeStat.physicalDefense = _monsterDesc.physicalDefense;
+        _MRuntimeStat.CurSpeed = _monsterDesc.speed;
+    }
+
+
+
+
+    _isPlayer = false;
+
+    return S_OK;
+}
+
+void MonsterStatCom::Update(float timeDelta)
+{
+    // 테스트
+    GAME->Print(L"몬스터 체력 : {}", _MRuntimeStat.CurHp, duration(0.f), color(Vec4(1.f, 1.f, 0.f, 1.f)));
+
+}
+
+Shared<MonsterStatCom> MonsterStatCom::Create(
+    const ComPtr<Device>& device,
+    const ComPtr<Context>& context)
+{
+    auto instance =
+        make_shared<MonsterStatCom>(device, context);
+
+    if (FAILED(instance->Initialize_Prototype()))
+    {
+        LOG_ERROR("Failed to Create : MonsterStatCom");
+        return nullptr;
+    }
+
+    return instance;
+}
+
+Shared<Component> MonsterStatCom::Clone(void* arg)
+{
+    auto clone = make_shared<MonsterStatCom>(*this);
+
+    if (FAILED(clone->Initialize(arg)))
+    {
+        MSG_BOX("Failed to Clone : MonsterStatCom");
+        return nullptr;
+    }
+
+    return clone;
+}
+
+void MonsterStatCom::Free()
+{
+    CombatStatCom::Free();
+}

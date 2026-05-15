@@ -99,12 +99,19 @@ void SceneContext::SaveToFile(const string& filePath)
             wstring modelFile = obj->_instancedModelPath;
             const wstring prefix = L"../../../Client/Bin/Resources/Map/" + _modelFolder + L"/";
             if (modelFile.substr(0, prefix.size()) == prefix)
+            {
                 modelFile = modelFile.substr(prefix.size());
-            e["ModelPath"] = String::ToString(modelFile);
-            e["AreaWidth"] = obj->_instancedAreaWidth;
-            e["AreaDepth"] = obj->_instancedAreaDepth;
-            e["Density"] = obj->_instancedDensity;
-            e["Seed"] = obj->_instancedSeed;
+            }
+            json instances = json::array();
+            for (auto& t : obj->_instancedTransforms)
+            {
+                json inst;
+                inst["Position"] = { t._position.x, t._position.y, t._position.z };
+                inst["Rotation"] = { t._rotation.x, t._rotation.y, t._rotation.z, t._rotation.w };
+                inst["Scale"] = { t._scale.x, t._scale.y, t._scale.z };
+                instances.push_back(inst);
+            }
+            e["Instances"] = instances;
             instancedMeshes.push_back(e);
             break;
         }
@@ -327,11 +334,27 @@ void SceneContext::LoadFromFile(const string& filePath)
                     + String::ToWString(modelPathStr);
             }
 
-            obj->_instancedAreaWidth = e.value("AreaWidth", 10.f);
-            obj->_instancedAreaDepth = e.value("AreaDepth", 10.f);
-            obj->_instancedDensity = e.value("Density", 1.f);
-            obj->_instancedSeed = e.value("Seed", 0u);
-            LoadTransform(e, *obj);
+            if (e.contains("Instances"))
+            {
+                for (auto& inst : e["Instances"])
+                {
+                    InstanceTransform t{};
+                    auto p = inst["Position"];
+                    t._position = { p[0], p[1], p[2] };
+
+                    auto r = inst["Rotation"];
+                    t._rotation = { r[0], r[1], r[2], r[3] };
+
+                    auto s = inst["Scale"];
+                    t._scale = { s[0], s[1], s[2] };
+                    obj->_instancedTransforms.push_back(t);
+                }
+            }
+
+            if (e.contains("Position"))
+            {
+                LoadTransform(e, *obj);
+            }
             Add(obj);
         }
     }
@@ -470,10 +493,6 @@ Shared<EditorObject> SceneContext::SpawnFromPrefab(const string& prefabPath, con
                 + _modelFolder + L"/"
                 + String::ToWString(modelPathStr);
         }
-        obj->_instancedAreaWidth = j.value("AreaWidth", 10.f);
-        obj->_instancedAreaDepth = j.value("AreaDepth", 10.f);
-        obj->_instancedDensity = j.value("Density", 1.f);
-        obj->_instancedSeed = j.value("Seed", 0u);
         break;
     }
 

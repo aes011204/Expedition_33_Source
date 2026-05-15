@@ -192,6 +192,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClInclude Include="..\Public\AnimNotifyState.h" />
     <ClInclude Include="..\Public\AnimNotify_Parser.h" />
     <ClInclude Include="..\Public\AnimNotify_Types.h" />
+    <ClInclude Include="..\Public\AnimState_Parser.h" />
     <ClInclude Include="..\public\AStar.h">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
     </ClInclude>
@@ -227,11 +228,13 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClInclude Include="..\Public\ICommand.h" />
     <ClInclude Include="..\Public\Log_Manager.h" />
     <ClInclude Include="..\Public\Helper_String.h" />
+    <ClInclude Include="..\Public\Log_Define.h" />
     <ClInclude Include="..\Public\Material_Define.h" />
     <ClInclude Include="..\Public\Material_Types.h" />
     <ClInclude Include="..\Public\MovementCom.h" />
     <ClInclude Include="..\public\Parallel.h" />
     <ClInclude Include="..\Public\PhysX_Filter.h" />
+    <ClInclude Include="..\Public\PhysX_Handle.h" />
     <ClInclude Include="..\Public\PhysX_Types.h" />
     <ClInclude Include="..\Public\Picking.h" />
     <ClInclude Include="..\Public\Print_Manager.h" />
@@ -294,6 +297,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClInclude Include="..\public\Light.h" />
     <ClInclude Include="..\public\Light_Manager.h" />
     <ClInclude Include="..\public\Material.h" />
+    <ClInclude Include="..\public\MaterialBuilder.h" />
     <ClInclude Include="..\public\Mesh.h" />
     <ClInclude Include="..\public\ModelCom.h" />
     <ClInclude Include="..\public\Object_Manager.h" />
@@ -319,6 +323,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClCompile Include="..\Private\AnimNotify.cpp" />
     <ClCompile Include="..\Private\AnimNotifyState.cpp" />
     <ClCompile Include="..\Private\AnimNotify_Parser.cpp" />
+    <ClCompile Include="..\Private\AnimState_Parser.cpp" />
     <ClCompile Include="..\private\AStar.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
     </ClCompile>
@@ -399,6 +404,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClCompile Include="..\private\Light.cpp" />
     <ClCompile Include="..\private\Light_Manager.cpp" />
     <ClCompile Include="..\private\Material.cpp" />
+    <ClCompile Include="..\private\MaterialBuilder.cpp" />
     <ClCompile Include="..\private\Mesh.cpp" />
     <ClCompile Include="..\private\ModelCom.cpp" />
     <ClCompile Include="..\private\Object_Manager.cpp" />

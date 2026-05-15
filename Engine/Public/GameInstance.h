@@ -1,4 +1,6 @@
-﻿#pragma once
+#pragma once
+
+#pragma region INCLUDE
 
 #include "Base.h"
 #include "Input_Manager.h"
@@ -7,12 +9,16 @@
 #include "Debug_Types.h"
 #include <string_view>
 #include <utility>
+
+#include "Log_Define.h"
 #ifdef _DEBUG
 #include "Print_Manager.h"
 #endif
 
-NS_BEGIN(Engine)
+#pragma endregion
 
+#pragma region FD
+NS_BEGIN(Engine)
 class Graphic_Device;
 class Timer_Manager;
 class Level_Manager;
@@ -41,6 +47,15 @@ class Shadow;
 class Picking;
 class Culling_Manager;
 class ThreadPool;
+NS_END
+#pragma endregion
+
+NS_BEGIN(Engine)
+
+enum class Collision_Preset;
+
+struct PhysXStaticActorHandle;
+struct PhysXQueryHit;
 
 class ENGINE_DLL GameInstance final : public Base
 {
@@ -243,6 +258,10 @@ public: /* For.Asset_Manager */
     // 에디터/로더가 "GUID 없으면 생성" 흐름을 쓸 수 있게 하기 -> 프리펩이나 그런거 새로 만들 때
     string Ensure_AssetGUID(const wstring& filePath, const string& type = "") const;
 
+public: /* For.Asset_Manager (access) */
+    const Asset_Manager* Get_AssetManager() const { return _assetManager.get(); }
+    Asset_Manager*       Get_AssetManager() { return _assetManager.get(); }
+
 public: /* For.Camera_Manager */
     HRESULT Add_Camera(Shared<Camera> camera) const;
     bool    Is_ActiveCamera(Shared<Camera> camera);
@@ -274,6 +293,7 @@ public: /* For.TypeRegistry */
     void Visit_GameObjectTypes(const function<void(const TypeRegistry::GameObjectTypeInfo&)>& visitor) const;
     void Visit_AnimNotifyTypes(const function<void(const TypeRegistry::AnimNotifyTypeInfo&)>& visitor) const;
     void Visit_AnimNotifyStateTypes(const function<void(const TypeRegistry::AnimNotifyStateTypeInfo&)>& visitor) const;
+	void Visit_GlobalEnums(const function<void(const TypeRegistry::GlobalEnumInfo&)>& visitor) const;
 
     Shared<Component>       Create_ComponentPrototype(const string& className) const;
     Shared<GameObject>      Create_GameObjectPrototype(const string& className) const;
@@ -323,6 +343,34 @@ public: /* For.Collision_Manager */
 public: // For. PhysX_Manager
     PxPhysics*  Get_PhysXPhysics() const;
     PxScene*    Get_PhysXScene() const;
+
+    PhysXStaticActorHandle Register_PhysXStaticModel(
+        const ModelCom& model,
+        const Matrix& worldMatrix,
+        Collision_Preset preset);
+
+    void Unregister_PhysXStaticActor(PhysXStaticActorHandle handle);
+
+    bool Sweep_Collider(
+        ColliderCom* collider,
+        const Matrix& worldMatrix,
+        const Vec3& direction,
+        float distance,
+        PhysXQueryHit& outHit) const;
+
+    bool Sweep_Sphere(
+        const Vec3& origin,
+        const Vec3& direction,
+        float distance,
+        float radius,
+        Collision_Preset queryPreset,
+        PhysXQueryHit& outHit) const;
+
+    bool Probe_Ground(
+        ColliderCom* collider,
+        const Matrix& worldMatrix,
+        float probeDistance,
+        PhysXQueryHit& outHit) const;
 
 public: // For. Culling_Manager 
     void UpdateFrustum(const Matrix& view, const Matrix& proj);
@@ -441,6 +489,29 @@ private: //## 디버그 성능 평가용
     chrono::steady_clock::time_point _runtimePerfWindowStartTime{};
     bool _hasRuntimePerfWindowStartTime{ false };
 
+private:
+    UpdatePerfWindow _updatePerfWindow{};
+
+    void Accumulate_UpdatePerf(
+        double updateMs,
+        double debugMgrMs,
+        double inputMgrMs,
+        double printMgrMs,
+        double clientMs,
+        double levelMs,
+        double priorityObjMs,
+        double pipelineMs,
+        double objMs,
+        double physxBeginMs,
+        double collClearMs,
+        double lateObjMs,
+        double physxUpdateMs,
+        double physxGatherMs,
+        double collFromPhysxMs,
+        double cameraMs,
+        double uiMs);
+
+    bool Try_ConsumeUpdatePerfSummary(float windowSec, UpdatePerfSummary& outSummary);
     void Try_FlushRuntimePerfLog();
 #endif
 

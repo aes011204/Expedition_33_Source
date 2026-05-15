@@ -58,6 +58,16 @@ namespace UIEditor
                 changed |= ImGui::DragFloat2("Scale", &selectedObject->scale.x, 0.01f, 0.01f, 10.f, "%.2f");
                 changed |= ImGui::DragFloat("Rotation", &selectedObject->rotationRadians, 0.01f, -6.283f, 6.283f, "%.3f");
                 changed |= ImGui::DragInt("Sort Order", &selectedObject->sortOrder, 1.f);
+
+                const char* renderGroupItems[] = { "Background", "Foreground" };
+                int32 currentRenderGroup = static_cast<int32>(selectedObject->renderGroup);
+                currentRenderGroup = min(max(currentRenderGroup, 0), static_cast<int32>(size(renderGroupItems)) - 1);
+                if (ImGui::Combo("Render Group", &currentRenderGroup, renderGroupItems, static_cast<int32>(size(renderGroupItems))))
+                {
+                    selectedObject->renderGroup = static_cast<UI_RenderGroup>(currentRenderGroup);
+                    changed = true;
+                }
+
                 changed |= ImGui::ColorEdit4("Color", &selectedObject->color.x);
 
                 selectedObject->size.x = max(1.f, selectedObject->size.x);

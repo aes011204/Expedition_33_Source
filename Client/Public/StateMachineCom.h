@@ -19,6 +19,8 @@ public:
 
 public:
     void Update_StateMachine(float timeDelta);
+    void Update_CurrentState(float timeDelta);
+    void LateUpdate_CurrentState(float timeDelta);
     
 public:
     HRESULT Add_State(const wstring& stateName, Shared<State> state);

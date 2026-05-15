@@ -26,12 +26,18 @@ public:
     HRESULT Bind_Matrices(const char* constantName, const XMFLOAT4X4* matrices, uint32 numMatrices);
     HRESULT Bind_RawValue(const char* constantName, const void* data, uint32 length);
 
-    HRESULT Bind_MaterialTextures(const Material& material);
+    HRESULT Bind_MaterialTextures(Material& material);
     HRESULT Bind_ObjectCB(const Matrix& worldMatrix);
 
     ShaderType  Get_Type() const { return _type; }
+
 private :
     HRESULT Update_CBuffer(ConstantBuffer cbType, const void* pData, size_t size);
+
+private:
+    ID3DX11EffectVariable*               Get_EffectVariable(const char* constantName);
+    ID3DX11EffectMatrixVariable*         Get_MatrixVariable(const char* constantName);
+    ID3DX11EffectShaderResourceVariable* Get_ShaderResourceVariable(const char* constantName);
 
 public:
     template<typename Desc>
@@ -47,8 +53,8 @@ private:
     ComPtr<ID3DX11Effect> _effect = {};
     uint32 _numPasses = 0;
 
-    vector<ComPtr<ID3D11InputLayout>> _inputLayouts;
-    ShaderType                          _type;
+    vector<ComPtr<ID3D11InputLayout>>               _inputLayouts;
+    ShaderType                                      _type;
 
     // 핸들
     ComPtr<ID3DX11EffectConstantBuffer>             _CB[ETOI(ConstantBuffer::END)]{};
@@ -56,6 +62,12 @@ private:
 
     // GPU 주소
     ComPtr<ID3D11Buffer>                            _allocatedCB[ETOI(ConstantBuffer::END)]{};
+
+    
+private: // Effect 캐싱
+    umap<string, ID3DX11EffectVariable*>            _effectVariableCache;
+    umap<string, ID3DX11EffectMatrixVariable*>      _matrixVariableCache;
+    umap<string, ID3DX11EffectShaderResourceVariable*> _shaderResourceVariableCache;
 
 public:
     static Shared<ShaderCom> Create(

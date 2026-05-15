@@ -4,11 +4,19 @@
 #include "GameInstance.h"
 #include "Player.h"
 #include "PlayerControllerCom.h"
+#include "PlayerStateMachineCom.h"
 #include "Spawn_Prefab.h"
 #include "TargetCamera.h"
 #include "TransformCom.h"
 
-HRESULT Hero_Manager::Initialize_Hero(uint32 levelIndex, const wstring& layerTag)
+static const HeroSpawnDesc heroSpawnDescs[] =
+{
+    { HeroId::Gustave, "Player_Gustave" },
+    { HeroId::Lune,    "Player_Lune" },
+    { HeroId::Maelle,  "Player_Maelle" },
+};
+
+HRESULT Hero_Manager::Initialize_Hero(uint32 levelIndex, const wstring& layerTag, const Vec3& startPos)
 {
     Clear_Party();
 
@@ -16,19 +24,11 @@ HRESULT Hero_Manager::Initialize_Hero(uint32 levelIndex, const wstring& layerTag
     _layerTag = layerTag;
     _activeIndex = 0;
 
-    const Vec3 startPos(10.f, 5.f, 10.f);
-
-    const string heroPrefabNames[] =
-    {
-        "Player_Lune",
-        "Player_Maelle",
-        "Player_Gustave",
-    };
-
-
     for (uint32 i = 0; i < 3; ++i)
     {
-        auto object = Spawn_Prefab::Prefab(heroPrefabNames[i])
+        const HeroSpawnDesc& desc = heroSpawnDescs[i];
+
+        auto object = Spawn_Prefab::Prefab(desc.prefabName)
             .AtLevel(levelIndex)
             .InLayer(layerTag)
             .Spawn();
@@ -40,7 +40,7 @@ HRESULT Hero_Manager::Initialize_Hero(uint32 levelIndex, const wstring& layerTag
         pos.z -= static_cast<float>(i) * 1.5f;
 
         hero->Get_Transform()->Set_WorldPosition(pos);
-        _heroes.push_back(hero);
+        _heroes.push_back(HeroPartyEntry { desc.heroId, hero });
     }
 
     Apply_ControlRoles();
@@ -57,9 +57,14 @@ void Hero_Manager::Update_HeroManager(float timeDelta)
     if (_heroes.empty())
         return;
 
+    auto state = Get_ActiveHero()->Get_Component<PlayerStateMachineCom>();
+    CHECK_NULL(state);
+
     if (GAME->KeyDown(KEY_TYPE::T))
     {
-        LOG_DEBUG("Hero Change Apply");
+        // 점프 도중에는 막기
+        if (state->Get_CurrentPlayerState() == PlayerState::Jump)
+            return;
 
         Switch_NextHero();
     }
@@ -73,7 +78,7 @@ Shared<Player> Hero_Manager::Get_ActiveHero() const
     if (_heroes.empty() || _activeIndex >= _heroes.size())
         return nullptr;
 
-    return _heroes[_activeIndex];
+    return _heroes[_activeIndex].hero;
 }
 
 void Hero_Manager::Set_TargetCamera(const Shared<TargetCamera>& camera)
@@ -88,6 +93,55 @@ void Hero_Manager::Clear_Party()
     _activeTrail.clear();
     _activeIndex = 0;
     _recordTimer = 0.f;
+}
+
+const vector<HeroPartyEntry>& Hero_Manager::Get_HeroEntries() const
+{
+    return _heroes;
+}
+
+Shared<Player> Hero_Manager::Get_Hero(HeroPartySlot slot) const
+{
+    const uint32 index = ETOI(slot);
+
+    if (index >= _heroes.size())
+        return nullptr;
+
+    return _heroes[index].hero;
+}
+
+HeroId Hero_Manager::Get_HeroId(HeroPartySlot slot) const
+{
+    const uint32 index = ETOI(slot);
+
+    if (index >= _heroes.size())
+        return HeroId::END;
+
+    return _heroes[index].heroId;
+}
+
+HeroPartySlot Hero_Manager::Get_ActiveHeroSlot() const
+{
+    return static_cast<HeroPartySlot>(_activeIndex);
+}
+
+Shared<Player> Hero_Manager::Get_FrontHero() const
+{
+    if (_heroes.empty())
+        return nullptr;
+
+    return _heroes.front().hero;
+}
+
+Shared<Player> Hero_Manager::Find_Hero(HeroId heroId) const
+{
+    for (const auto& entry : _heroes)
+    {
+        if (entry.heroId == heroId)
+            return entry.hero;
+    }
+
+    return nullptr;
 }
 
 void Hero_Manager::Switch_NextHero()
@@ -144,7 +198,7 @@ void Hero_Manager::Snap_AllHeroesToFormation(const Vec3& anchorPos, const Vec3& 
 
     for (uint32 i = 0; i < _heroes.size(); ++i)
     {
-        auto hero = _heroes[i];
+        auto hero = _heroes[i].hero;
         if (hero == nullptr || hero->Get_Transform() == nullptr)
             continue;
 
@@ -181,7 +235,7 @@ void Hero_Manager::Apply_ControlRoles()
 {
     for (uint32 i = 0; i < _heroes.size(); ++i)
     {
-        auto hero = _heroes[i];
+        auto hero = _heroes[i].hero;
         if (!hero)
             continue;
 
@@ -257,7 +311,7 @@ void Hero_Manager::Update_Followers(float timeDelta)
         const Vec3 targetPos =
             trailPoint.position - forward * backDistance + right * sideOffset;
 
-        Move_FollowerTo(_heroes[i], targetPos, timeDelta);
+        Move_FollowerTo(_heroes[i].hero, targetPos, timeDelta);
 
         ++followerSlot;
     }
@@ -333,23 +387,23 @@ void Hero_Manager::Update_FollowerAnimation(const Shared<Player>& follower, floa
     if (body == nullptr)
         return;
 
-    using Anim = Body_Player::PlayerAnimation;
+    using Anim = Body_Player::PlayerWorldAnimation;
 
     if (moveDistance <= 0.001f)
     {
-        const uint32 current = body->Get_AnimationIndex();
+        const uint32 current = body->Get_AnimationStateIndex();
 
-        if (current != ETOI(Anim::Pl_Idle_0) &&
-            current != ETOI(Anim::Pl_Idle_1))
+        if (current != ETOI(Anim::Pl_Walk) &&
+            current != ETOI(Anim::Pl_Idle_0))
         {
-            body->Set_Animation(ETOI(Anim::Pl_Idle_0), 0.1f, true);
+            body->Set_AnimationByState(ETOI(Anim::Pl_Walk), 0.1f, true);
         }
 
         return;
     }
 
-    if (body->Get_AnimationIndex() != ETOI(Anim::Pl_Run))
-        body->Set_Animation(ETOI(Anim::Pl_Run), 0.1f, true);
+    if (body->Get_AnimationStateIndex() != ETOI(Anim::Pl_Run))
+        body->Set_AnimationByState(ETOI(Anim::Pl_Run), 0.1f, true);
 }
 
 void Hero_Manager::Refresh_TargetCamera() const

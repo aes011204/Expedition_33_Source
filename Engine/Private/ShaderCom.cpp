@@ -96,7 +96,7 @@ HRESULT ShaderCom::Initialize_Prototype(const wchar_t* shaderFilePath, const D3D
     _CB[ETOI(ConstantBuffer::Light)] =
         _effect->GetConstantBufferByName(ShaderCB::Light.data());
 
-    _materialTextures = _effect->GetVariableByName("g_MaterialTextures")->AsShaderResource();
+    _materialTextures = Get_ShaderResourceVariable("g_MaterialTextures");
 
     _type = shader;
 
@@ -121,88 +121,63 @@ HRESULT ShaderCom::Begin(uint32 passIndex)
 
 HRESULT ShaderCom::Bind_SRV(const char* constantName, ID3D11ShaderResourceView* srv)
 {
-    ID3DX11EffectVariable* variable = _effect->GetVariableByName(constantName);
-    if (nullptr == variable)
-    {
-        MSG_BOX("Failed to throw value to shader");
+    ID3DX11EffectShaderResourceVariable* srVariable = Get_ShaderResourceVariable(constantName);
+    if (srVariable == nullptr)
         return E_FAIL;
-    }
-
-    ID3DX11EffectShaderResourceVariable* srVariable = variable->AsShaderResource();
-    if (nullptr == srVariable)
-    {
-        MSG_BOX("ShaderCom types do not match");
-        return E_FAIL;
-    }
 
     return srVariable->SetResource(srv);
 }
 
 HRESULT ShaderCom::Bind_SRVs(const char* constantName, ID3D11ShaderResourceView** ppSRVs, uint32 numSRVs)
 {
-    ID3DX11EffectVariable* variable = _effect->GetVariableByName(constantName);
-    if (nullptr == variable)
-    {
-        MSG_BOX("Failed to throw value to shader");
-        return E_FAIL;
-    }
+     if (numSRVs == 0)
+        return S_OK;
 
-    ID3DX11EffectShaderResourceVariable* srVariable = variable->AsShaderResource();
-    if (nullptr == srVariable)
-    {
-        MSG_BOX("ShaderCom types do not match");
+    if (ppSRVs == nullptr)
+        return E_INVALIDARG;
+
+    ID3DX11EffectShaderResourceVariable* srVariable = Get_ShaderResourceVariable(constantName);
+    if (srVariable == nullptr)
         return E_FAIL;
-    }
 
     return srVariable->SetResourceArray(ppSRVs, 0, numSRVs);
 }
 
 HRESULT ShaderCom::Bind_Matrix(const char* constantName, const XMFLOAT4X4* matrix)
 {
-    ID3DX11EffectVariable* variable = _effect->GetVariableByName(constantName);
-    if (nullptr == variable)
-    {
-        MSG_BOX("Failed to throw value to shader");
-        return E_FAIL;
-    }
+    if (matrix == nullptr)
+        return E_INVALIDARG;
 
-    ID3DX11EffectMatrixVariable* matrixVariable = variable->AsMatrix();
-    if (nullptr == matrixVariable)
-    {
-        MSG_BOX("ShaderCom types do not match");
+    ID3DX11EffectMatrixVariable* matrixVariable = Get_MatrixVariable(constantName);
+    if (matrixVariable == nullptr)
         return E_FAIL;
-    }
 
     return matrixVariable->SetMatrix(reinterpret_cast<const float*>(matrix));
 }
 
 HRESULT ShaderCom::Bind_Matrices(const char* constantName, const XMFLOAT4X4* matrices, uint32 numMatrices)
 {
-    ID3DX11EffectVariable* variable = _effect->GetVariableByName(constantName);
-    if (nullptr == variable)
-    {
-        MSG_BOX("Failed to throw value to shader");
-        return E_FAIL;
-    }
+    if (matrices == nullptr || numMatrices == 0)
+        return E_INVALIDARG;
 
-    ID3DX11EffectMatrixVariable* matrixVariable = variable->AsMatrix();
-    if (nullptr == matrixVariable)
-    {
-        MSG_BOX("ShaderCom types do not match");
+    ID3DX11EffectMatrixVariable* matrixVariable = Get_MatrixVariable(constantName);
+    if (matrixVariable == nullptr)
         return E_FAIL;
-    }
 
-    return matrixVariable->SetMatrixArray(reinterpret_cast<const float*>(matrices), 0, numMatrices);
+    return matrixVariable->SetMatrixArray(
+        reinterpret_cast<const float*>(matrices),
+        0,
+        numMatrices);
 }
 
 HRESULT ShaderCom::Bind_RawValue(const char* constantName, const void* data, uint32 length)
 {
-    ID3DX11EffectVariable* variable = _effect->GetVariableByName(constantName);
-    if (nullptr == variable)
-    {
-        MSG_BOX("Failed to throw value to shader");
+    if (data == nullptr || length == 0)
+        return E_INVALIDARG;
+
+    ID3DX11EffectVariable* variable = Get_EffectVariable(constantName);
+    if (variable == nullptr)
         return E_FAIL;
-    }
 
     return variable->SetRawValue(data, 0, length);
 }
@@ -243,10 +218,78 @@ HRESULT ShaderCom::Update_CBuffer(ConstantBuffer cbType, const void* pData, size
     return _CB[cbIndex]->SetConstantBuffer(_allocatedCB[cbIndex].Get());
 }
 
-HRESULT ShaderCom::Bind_MaterialTextures(const Material& material)
+ID3DX11EffectVariable* ShaderCom::Get_EffectVariable(const char* constantName)
+{
+    if (constantName == nullptr)
+        return nullptr;
+
+    const string key = constantName;
+
+    auto iter = _effectVariableCache.find(key);
+    if (iter != _effectVariableCache.end())
+        return iter->second;
+
+    ID3DX11EffectVariable* variable = _effect->GetVariableByName(constantName);
+    if (variable == nullptr || !variable->IsValid())
+        return nullptr;
+
+    _effectVariableCache.emplace(key, variable);
+    return variable;
+}   
+
+ID3DX11EffectMatrixVariable* ShaderCom::Get_MatrixVariable(const char* constantName)
+{
+    if (constantName == nullptr)
+        return nullptr;
+
+    const string key = constantName;
+
+    auto iter = _matrixVariableCache.find(key);
+    if (iter != _matrixVariableCache.end())
+        return iter->second;
+
+    ID3DX11EffectVariable* variable = Get_EffectVariable(constantName);
+    if (variable == nullptr)
+        return nullptr;
+
+    ID3DX11EffectMatrixVariable* matrixVariable = variable->AsMatrix();
+    if (matrixVariable == nullptr || !matrixVariable->IsValid())
+        return nullptr;
+
+    _matrixVariableCache.emplace(key, matrixVariable);
+    return matrixVariable;
+}
+
+ID3DX11EffectShaderResourceVariable* ShaderCom::Get_ShaderResourceVariable(const char* constantName)
+{
+    if (constantName == nullptr)
+        return nullptr;
+
+    const string key = constantName;
+
+    auto iter = _shaderResourceVariableCache.find(key);
+    if (iter != _shaderResourceVariableCache.end())
+        return iter->second;
+
+    ID3DX11EffectVariable* variable = Get_EffectVariable(constantName);
+    if (variable == nullptr)
+        return nullptr;
+
+    ID3DX11EffectShaderResourceVariable* srVariable = variable->AsShaderResource();
+    if (srVariable == nullptr || !srVariable->IsValid())
+        return nullptr;
+
+    _shaderResourceVariableCache.emplace(key, srVariable);
+    return srVariable;
+}
+
+HRESULT ShaderCom::Bind_MaterialTextures(Material& material)
 {
     if (_materialTextures == nullptr)
         return E_FAIL;
+
+    // PassIndex 계산을 위해 현재 적용 중인 ShaderType을 Material에 동기화한다
+    material.Set_ShaderType(Get_Type());
 
     ID3D11ShaderResourceView* srvs[ETOI(MaterialTextureSlot::END)]{};
 
@@ -305,6 +348,10 @@ Shared<Component> ShaderCom::Clone(void* arg)
 void ShaderCom::Free()
 {
     __super::Free();
+
+    _effectVariableCache.clear();
+    _matrixVariableCache.clear();
+    _shaderResourceVariableCache.clear();
 
     _inputLayouts.clear();
     _effect.Reset();

@@ -7,6 +7,7 @@
 #include <filesystem>
 #include "EditorInstance.h"
 #include "Animation_View.h"
+#include "Editor_Context.h"
 #include "Editor_Window.h"
 #include "Prefab_View.h"
 
@@ -40,6 +41,28 @@ void ModelCom_Inspector::Draw_Inspector(const Shared<Component>& component)
     ImGui::TextDisabled("Model GUID");
     ImGui::SameLine(120.f);
     ImGui::TextWrapped("%s", modelGuid.empty() ? "(none)" : modelGuid.c_str());
+
+    ImGui::SeparatorText("Shader Types");
+    
+    const auto& context = EDITOR->Selected_Object();
+
+    if (context)
+    {
+        auto shader = context->Get_Component<ShaderCom>();
+        if (shader)
+        {
+            ShaderType shaderType = shader->Get_Type();
+            const auto shaderTypeName = magic_enum::enum_name(shaderType);
+
+            ImGui::TextDisabled("ShaderType");
+            ImGui::SameLine(120.f);
+
+            if (!shaderTypeName.empty())
+                ImGui::Text("%s", string(shaderTypeName).c_str());
+            else
+                ImGui::Text("Unknown(%d)", static_cast<int32>(shaderType));
+        }
+    }
 
     Draw_AnimationSection(model);
 
@@ -90,6 +113,16 @@ void ModelCom_Inspector::Draw_Inspector(const Shared<Component>& component)
             ImGui::PopID();
             continue;
         }
+
+       const uint32 currentPass = material->Get_PassIndex();
+
+        ImGui::TextDisabled("Current Pass");
+        ImGui::SameLine(120.f);
+
+        if (currentPass >= 0)
+            ImGui::Text("%d", currentPass);
+        else
+            ImGui::TextDisabled("(none)");
 
         const vector<vector<Material::TextureSlot>>& allSlots = material->Get_TextureSlots();
 
@@ -663,6 +696,8 @@ const char* ModelCom_Inspector::Get_TextureTypeLabel(uint32 typeIndex)
     case MaterialTextureSlot::ORM: return "ORM";
     case MaterialTextureSlot::Emissive: return "Emissive";
     case MaterialTextureSlot::OpacityMask: return "OpacityMask";
+    case MaterialTextureSlot::HairDepth: return "HairDepth";
+    case MaterialTextureSlot::HairID: return "HairID";
     default: return "Unknown";
     }
 }

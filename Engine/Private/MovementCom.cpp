@@ -2,15 +2,30 @@
 #include "GameObject.h"
 #include "TransformCom.h"
 #include "Camera.h"
-
+#include "ColliderCom.h"
+#include "PhysX_Types.h"
 
 IMPLEMENT_REFLECTION(MovementCom)
 {
     auto& info = GetStaticReflectionInfo();
     info.properties.clear();
 
-    PROPERTY_VEC3("뭐라고할건지", _velocity, 10.f);
+    PROPERTY_FLOAT("Walk Speed", _moveDesc.walkSpeed, 0.f, 30.f, 0.1f);
+    PROPERTY_FLOAT("Run Speed", _moveDesc.runSpeed, 0.f, 30.f, 0.1f);
+    PROPERTY_FLOAT("Sprint Speed", _moveDesc.sprintSpeed, 0.f, 30.f, 0.1f);
+    PROPERTY_FLOAT("Turn Speed Degree", _moveDesc.turnSpeedDegree, 0.f, 720.f, 1.f);
 
+    PROPERTY_FLOAT("Jump Velocity", _moveDesc.jumpVelocity, 0.f, 100.f, 0.1f);
+    PROPERTY_FLOAT("Gravity", _moveDesc.gravity, -100.f, 0.f, 0.1f);
+
+    PROPERTY_FLOAT("Skin Width", _moveDesc.skinWidth, 0.f, 1.f, 0.01f);
+    PROPERTY_FLOAT("Ground Snap Up", _moveDesc.groundSnapUp, 0.f, 2.f, 0.01f);
+    PROPERTY_FLOAT("Ground Snap Down", _moveDesc.groundSnapDown, 0.f, 2.f, 0.01f);
+    PROPERTY_FLOAT("Walkable Normal Y", _moveDesc.walkableNormalY, 0.f, 1.f, 0.01f);
+
+    PROPERTY_FLOAT("Ground Y", _moveDesc.groundY, -100.f, 100.f, 0.1f);
+
+    PROPERTY_VEC3("Velocity", _velocity, 10.f);
 
     return true;
 }
@@ -63,6 +78,7 @@ void MovementCom::BeginPlay()
     _transformCom = owner->Get_Transform();
     CHECK_NULL(_transformCom);
 
+    _colliderCom = owner->Get_Component<ColliderCom>();
 }
 
 void MovementCom::Update_Movement(float timeDelta)
@@ -73,7 +89,7 @@ void MovementCom::Update_Movement(float timeDelta)
     Start_Jump();
 
     Apply_Velocity(timeDelta);
-    Resolve_Ground();
+    Resolve_Ground_WithSnap();
 }
 
 bool MovementCom::Is_Moving() const
@@ -202,9 +218,17 @@ void MovementCom::Apply_Velocity(float timeDelta)
     Update_HorizontalVelocity();
     Update_VerticalVelocity(timeDelta);
 
-    Vec3 position = _transformCom->Get_WorldPosition();
-    position += _velocity * timeDelta;
-    _transformCom->Set_WorldPosition(position);
+    const Vec3 displacement = _velocity * timeDelta;
+
+    if (_colliderCom == nullptr || _colliderCom->Get_PxShape() == nullptr)
+    {
+        Vec3 position = _transformCom->Get_WorldPosition();
+        position += displacement;
+        _transformCom->Set_WorldPosition(position);
+        return;
+    }
+
+    Move_WithCollision(displacement);
 }
 
 void MovementCom::Resolve_Ground()
@@ -271,6 +295,134 @@ bool MovementCom::Resolve_CameraRelativeMoveDirection(Vec3& outWorldDir) const
 
     outWorldDir.Normalize();
     return true;
+}
+
+void MovementCom::Move_WithCollision(const Vec3& displacement)
+{
+    Move_Vertical(Vec3(0.f, displacement.y, 0.f));
+    Move_Horizontal(Vec3(displacement.x, 0.f, displacement.z));
+}
+
+void MovementCom::Move_Horizontal(const Vec3& displacement)
+{
+    Sweep_Move(displacement, true);
+}
+
+void MovementCom::Move_Vertical(const Vec3& displacement)
+{
+    Sweep_Move(displacement, false);
+}
+
+bool MovementCom::Sweep_Move(const Vec3& displacement, bool passWalkableGround)
+{
+    if (displacement.LengthSquared() <= 0.f)
+        return false;
+
+    Vec3 direction = displacement;
+    const float distance = direction.Length();
+    if (distance <= 0.f)
+        return false;
+
+    direction /= distance;
+
+    PhysXQueryHit hit{};
+    const bool blocked = GAME->Sweep_Collider(
+        _colliderCom.get(),
+        _transformCom->Get_WorldMatrix(),
+        direction,
+        distance,
+        hit);
+
+    if (!blocked)
+    {
+        Vec3 position = _transformCom->Get_WorldPosition();
+        position += displacement;
+        _transformCom->Set_WorldPosition(position);
+        return false;
+    }
+
+    if (passWalkableGround && Is_WalkableGround(hit.normal))
+    {
+        Vec3 position = _transformCom->Get_WorldPosition();
+        position += displacement;
+        _transformCom->Set_WorldPosition(position);
+        return true;
+    }
+
+    const float moveDistance = max(0.f, hit.distance - _moveDesc.skinWidth);
+    if (moveDistance > 0.f)
+    {
+        Vec3 position = _transformCom->Get_WorldPosition();
+        position += direction * moveDistance;
+        _transformCom->Set_WorldPosition(position);
+    }
+
+    if (direction.y < 0.f && Is_WalkableGround(hit.normal))
+    {
+        _velocity.y = 0.f;
+        _isGrounded = true;
+        _isJumping = false;
+    }
+    else if (direction.y > 0.f)
+    {
+        _velocity.y = min(0.f, _velocity.y);
+    }
+
+    return true;
+}
+
+void MovementCom::Resolve_Ground_WithSnap()
+{
+    if (_colliderCom == nullptr || _colliderCom->Get_PxShape() == nullptr)
+    {
+        Resolve_Ground();
+        return;
+    }
+
+    if (_velocity.y > 0.f)
+        return;
+
+    Matrix probeWorldMatrix = _transformCom->Get_WorldMatrix();
+    probeWorldMatrix.Translation(
+        probeWorldMatrix.Translation() + Vec3(0.f, _moveDesc.groundSnapUp, 0.f));
+
+    PhysXQueryHit hit{};
+    const float probeDistance = _moveDesc.groundSnapUp + _moveDesc.groundSnapDown;
+    const bool hasGround = GAME->Probe_Ground(
+        _colliderCom.get(),
+        probeWorldMatrix,
+        probeDistance,
+        hit);
+
+    if (!hasGround || !Is_WalkableGround(hit.normal))
+    {
+        _isGrounded = false;
+        return;
+    }
+
+    const float targetDeltaY = _moveDesc.groundSnapUp - max(0.f, hit.distance - _moveDesc.skinWidth);
+    if (targetDeltaY > _moveDesc.groundSnapUp + 0.001f ||
+        targetDeltaY < -_moveDesc.groundSnapDown - 0.001f)
+    {
+        _isGrounded = false;
+        return;
+    }
+
+    if (fabsf(targetDeltaY) > 0.0001f)
+    {
+        Vec3 position = _transformCom->Get_WorldPosition();
+        position.y += targetDeltaY;
+        _transformCom->Set_WorldPosition(position);
+    }
+
+    _velocity.y = 0.f;
+    _isGrounded = true;
+    _isJumping = false;
+}
+
+bool MovementCom::Is_WalkableGround(const Vec3& normal) const
+{
+    return normal.y >= _moveDesc.walkableNormalY;
 }
 
 Shared<MovementCom> MovementCom::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

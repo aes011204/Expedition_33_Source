@@ -18,24 +18,20 @@ public:
 	virtual ~Level_GamePlay() = default;
 
 public:
-	virtual HRESULT Initialize() override;
-    virtual void    BeginPlay() override;
-	virtual void    Update(float fTimeDelta) override;
-	virtual HRESULT Render() override;
+	HRESULT Initialize() override;
+    void    BeginPlay() override;
+	void    Update(float fTimeDelta) override;
+	HRESULT Render() override;
 private:
 	HRESULT Ready_Lights();
     HRESULT Ready_Layer_UI(const wstring& strLayerTag);
 	HRESULT Ready_Layer_Camera(const wstring& strLayerTag);
 	HRESULT Ready_Layer_BackGround(const wstring& strLayerTag);
+
+    HRESULT Ready_Layer_MapStaticMesh(const wstring& strLayerTag);
+
 	HRESULT Ready_Layer_Monster(const wstring& strLayerTag);
 	HRESULT Ready_Layer_Player(const wstring& strLayerTag);
-    //HRESULT Ready_Layer_MapStaticMesh(const wstring& strLayerTag);
-
-private:
-    HRESULT Bind_TestUI();
-    void    Update_Input_TestUI();
-    void    Update_TestUI();
-    void    ReSize_TestGauge(const Shared<UI_Base>& gauge, const Vec2& originalSize, int32 value, int32 maxValue);
 
 private:
     unordered_map<wstring, Shared<UI_Base>> _uiByName{};

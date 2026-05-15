@@ -47,6 +47,12 @@ void Monster_Part::Update(float timeDelta)
 
 void Monster_Part::Late_Update(float timeDelta)
 {
+    // culling
+    if (!Get_Owner() || !Get_Owner()->Is_Visible())
+    {
+        return;
+    }
+
     GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
     GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
 }
@@ -60,7 +66,8 @@ HRESULT Monster_Part::Render()
 
     for (uint32 i = 0; i < iNumMeshes; i++)
     {
-        const Shared<Material> material = _model->Get_Material(i);
+        const uint32 materialIndex = _model->Get_MeshMaterialIndex(i);
+        const Shared<Material> material = _model->Get_Material(materialIndex);
         if (material == nullptr)
             continue;
 
@@ -70,9 +77,10 @@ HRESULT Monster_Part::Render()
         if (FAILED(_shader->Bind_CBufferData(material->Get_CB())))
             return E_FAIL;
 
-        _model->Bind_BoneMatrices(_shader.get(), "g_BoneMatrices", i);
+        if (_model->Get_NumAnimations() != 0)
+            CHECK_FAILED_ONCE(_model->Bind_BoneMatrices(_shader.get(), "g_BoneMatricesBuffer", i), E_FAIL);
 
-        const uint32 passIndex = material->Get_PassIndex();
+        const uint32 passIndex = Decide_PassIndex(material);
         if (FAILED(_shader->Begin(passIndex)))
             return E_FAIL;
 
@@ -95,7 +103,7 @@ HRESULT Monster_Part::Render_Shadow()
     for (uint32 i = 0; i < numMeshes; ++i)
     {
         if (_model->Is_Skeletal())
-            _model->Bind_BoneMatrices(_shader.get(), "g_BoneMatrices", i);
+            CHECK_FAILED(_model->Bind_BoneMatrices(_shader.get(), "g_BoneMatricesBuffer", i), E_FAIL);
 
         //const uint32 shadowPass =
         //    _model->Is_Skeletal() ? static_cast<uint32>(VtxAnimMeshPass::Shadow) : 1u;
@@ -168,6 +176,11 @@ HRESULT Monster_Part::Bind_ShaderResources()
         return E_FAIL;
 
     return S_OK;
+}
+
+uint32 Monster_Part::Decide_PassIndex(Shared<Material> mat)
+{
+    return mat->Get_PassIndex();
 }
 
 void Monster_Part::Free()

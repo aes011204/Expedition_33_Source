@@ -1,5 +1,6 @@
 ﻿#include "EditorInstance.h"
 
+#include "Camera.h"
 #include "RenderTarget.h"
 #include "Editor_Manager.h"
 #include "GameInstance.h"
@@ -135,12 +136,17 @@ void EditorInstance::Render_Editor()
 
 void EditorInstance::Play()
 {
-    if (_runtimeState == EDITOR_RUNTIME_STATE::Edit)
+    const bool isStartingFromEdit = _runtimeState == EDITOR_RUNTIME_STATE::Edit;
+
+    if (isStartingFromEdit)
         Capture_PlayStartSnapshot();
 
     _runtimeState = EDITOR_RUNTIME_STATE::Play;
     Sync_ViewportWindowState();
     Activate_TargetCamera();
+
+    if (isStartingFromEdit)
+        Capture_ActiveCameraPose(_playStartCameraPose);
 
     GAME->Set_FreeCameraInputEnabled(false);
     GAME->Unlock_Mouse();
@@ -153,8 +159,7 @@ void EditorInstance::Pause()
     if (EDITOR_RUNTIME_STATE::Play != _runtimeState)
         return;
 
-    if (!GAME->Is_ActiveCameraType(ObjectType::FreeCamera))
-        GAME->SwitchTo_NextCamera();
+    Activate_FreeCamera();
 
     GAME->Set_FreeCameraInputEnabled(false);
     GAME->Unlock_Mouse();
@@ -176,6 +181,7 @@ void EditorInstance::Stop()
     Sync_ViewportWindowState();
 
     Activate_FreeCamera();
+    Apply_CameraPoseToCameraType(ObjectType::FreeCamera, _playStartCameraPose);
 
     GAME->Set_FreeCameraInputEnabled(false);
     GAME->Unlock_Mouse();
@@ -466,7 +472,57 @@ void EditorInstance::Activate_TargetCamera()
 
 void EditorInstance::Activate_FreeCamera()
 {
+    CameraPoseSnapshot activeCameraPose{};
+    const bool hasActiveCameraPose = Capture_ActiveCameraPose(activeCameraPose);
+
     GAME->Activate_CameraByType(ObjectType::FreeCamera);
+
+    if (hasActiveCameraPose)
+        Apply_CameraPoseToCameraType(ObjectType::FreeCamera, activeCameraPose);
+}
+
+bool EditorInstance::Capture_ActiveCameraPose(CameraPoseSnapshot& outPose) const
+{
+    Shared<Camera> camera = GAME->Get_ActiveCamera();
+    if (camera == nullptr)
+        return false;
+
+    Shared<TransformCom> transform = camera->Get_Transform();
+    if (transform == nullptr)
+        return false;
+
+    outPose.isValid = true;
+    outPose.position = transform->Get_WorldPosition();
+    outPose.rotation = transform->Get_WorldRotationEuler();
+    outPose.yaw = camera->Get_Yaw();
+    outPose.pitch = camera->Get_Pitch();
+    return true;
+}
+
+bool EditorInstance::Apply_CameraPoseToCameraType(ObjectType objectType, const CameraPoseSnapshot& pose) const
+{
+    if (!pose.isValid)
+        return false;
+
+    const int cameraCount = GAME->Get_CameraCount();
+    for (int cameraIndex = 0; cameraIndex < cameraCount; ++cameraIndex)
+    {
+        Shared<Camera> camera = GAME->Get_Camera(cameraIndex);
+        if (camera == nullptr || camera->Get_ObjectType() != objectType)
+            continue;
+
+        Shared<TransformCom> transform = camera->Get_Transform();
+        if (transform == nullptr)
+            return false;
+
+        transform->Set_WorldPosition(pose.position);
+        transform->Set_WorldRotationEuler(pose.rotation);
+        camera->Set_Yaw(pose.yaw);
+        camera->Set_Pitch(pose.pitch);
+        return true;
+    }
+
+    return false;
 }
 
 void EditorInstance::Request_ViewportSize(EDITOR_VIEWPORT_TARGET targetType, uint32 width, uint32 height)
@@ -568,6 +624,12 @@ void EditorInstance::Invalidate_BackBufferCache()
     _cachedBackBufferTexture.Reset();
     _cachedBackBufferWidth = 0;
     _cachedBackBufferHeight = 0;
+}
+
+void EditorInstance::EndImGuiFrameIfBegun()
+{
+    if (_imguiManager)
+        _imguiManager->EndFrameIfBegun();
 }
 
 ID3D11Texture2D* EditorInstance::Get_CachedBackBufferTexture()

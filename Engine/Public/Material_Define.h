@@ -1,5 +1,7 @@
 ﻿#pragma once
 
+#include <MaterialCB_OverrideFields.inl>
+
 #include "Material_Types.h"
 #include "Shader_CBuffer_Define.h"
 
@@ -66,6 +68,65 @@ struct MaterialDesc
 
     vector<MaterialTextureDesc> textures{};
 };
+
+// 모델 컴포넌트에서만 사용되는 구조체인데 헤더가 길어져서 여기로 뺌
+struct TextureOverride
+{
+    bool enabled = false;
+    wstring path{};
+};
+
+struct MaterialInstanceOverride
+{
+    bool overrideRenderStateEnabled = false;
+
+    MaterialRenderState renderState{};
+
+    struct MaterialCBOverrideMask
+    {
+#define MODEL_COM_CB_MASK_FIELD(_key, _member, _kind) bool _member = false;
+        MATERIAL_CB_OVERRIDE_FIELDS(MODEL_COM_CB_MASK_FIELD)
+#undef MODEL_COM_CB_MASK_FIELD
+
+            bool Any() const
+        {
+            bool any = false;
+#define MODEL_COM_CB_MASK_ANY(_key, _member, _kind) any = any || _member;
+            MATERIAL_CB_OVERRIDE_FIELDS(MODEL_COM_CB_MASK_ANY)
+#undef MODEL_COM_CB_MASK_ANY
+                return any;
+        }
+
+        void Clear()
+        {
+#define MODEL_COM_CB_MASK_CLEAR(_key, _member, _kind) _member = false;
+            MATERIAL_CB_OVERRIDE_FIELDS(MODEL_COM_CB_MASK_CLEAR)
+#undef MODEL_COM_CB_MASK_CLEAR
+        }
+    };
+
+    MaterialCBOverrideMask cbMask{};
+    MaterialCB cb{};
+
+    TextureOverride baseColor{};
+    TextureOverride normal{};
+    TextureOverride orm{};
+    TextureOverride emissive{};
+    TextureOverride opacityMask{};
+
+    TextureOverride hairDepth{};
+    TextureOverride hairID{};
+    TextureOverride irisHeight{};
+    TextureOverride irisMask{};
+};
+
+// 추출한 모델 컴포넌트가 가진 메쉬 정보(인덱스)와 동일하게 materialIndex 별로 ModelCom::_materialBindings에 들어간다. 
+struct MaterialBinding
+{
+    string baseBundleKey{};                 // .material.json 이름
+    MaterialInstanceOverride instance{};    // 이 오브젝트만 덮어쓸 값
+};
+
 
 
 // ==========================================================================

@@ -6,6 +6,7 @@
 NS_BEGIN(Engine)
 
 class ColliderCom;
+class ModelCom;
 
 class PhysX_Manager final
     : public Base
@@ -39,11 +40,27 @@ public: /* PxSimulationEventCallback */
     void onTrigger(PxTriggerPair* pairs, PxU32 count) override;
     void onContact(const PxContactPairHeader& pairHeader, const PxContactPair* pairs, PxU32 nbPairs) override;
 
+public:
+    // Static Mesh 물리충돌
+    PhysXStaticActorHandle Register_StaticModel(
+        const ModelCom& model, const Matrix& worldMatrix, Collision_Preset preset);
+
+    void Unregister_StaticActor(PhysXStaticActorHandle handle);
+
 private:
     Shared<ColliderCom> Find_Collider(PxActor* actor) const;
 
     void Push_PairEvent(Shared<ColliderCom> self, Shared<ColliderCom> other,
 						CollisionResponse response, bool began, bool staying, bool ended);
+
+public: /* Camera Collision Test */
+    bool Sweep_Sphere(
+            const Vec3& origin,             // 구체 sweep 시작 위치
+            const Vec3& direction,          // 이동 방향
+            float distance,                 // 얼마나 멀리?
+            float radius,                   // 구체 반지름, 카메라 probe 크기
+            Collision_Preset queryPreset,   // 충돌 규칙
+            PhysXQueryHit& outHit) const;   // 충돌 결과
 
 public:
 	// 현재 충돌체 모양을 가져와서 주어진 방향으로, 주어진 거리만큼 query를 날려서
@@ -54,6 +71,13 @@ public:
 	// 현재 캐릭터 발 밑으로 짧게 아래 방향 query를 날리고 바닥이 있는지 판별용
 	bool Probe_Ground(ColliderCom* collider, const Matrix& worldMatrix,
 		                float probeDistance, PhysXQueryHit& outHit) const;
+
+private:
+    // ModelCom이 보관한 CPU collision mesh들을 PhysX triangle mesh로 변환 -> 같은 모델일 경우 재사용
+    vector<PxTriangleMesh*> Build_OrGetTriangleMeshes(const ModelCom& model);
+
+    // ModelCollisionMesh 하나를 PhysX PxTriangleMesh로 cooking 진행
+    PxTriangleMesh* Create_TriangleMesh(const ModelCollisionMesh& meshData, const Matrix& preTransformMatrix);
 
 private:
     PxDefaultAllocator          _allocator;
@@ -71,6 +95,17 @@ private:
 #ifdef _DEBUG
     PxPvd* _pvd = {};
 #endif
+
+private: // Static Mesh 물리충돌
+    uint64 _nextStaticActorId = 1;
+
+    // MapStaticMesh 하나당 PxRigidStatic 하나를 가진다.
+    umap<uint64, PxRigidStatic*> _staticActors;
+
+    // 같은 모델은 triangle mesh cooking 결과를 재사용
+    umap<wstring, vector<PxTriangleMesh*>> _triangleMeshCache;
+
+    PxMaterial* _defaultStaticMaterial = nullptr;
 
 public:
     static Unique<PhysX_Manager> Create();
