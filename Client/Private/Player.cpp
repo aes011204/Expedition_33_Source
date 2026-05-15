@@ -17,6 +17,7 @@
 #include "Player_Jump.h"
 #include "Player_Move.h"
 #include "Create_Class.h"
+#include "SkillTreeCom.h"
 
 Player::Player(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Character{ device, context }
@@ -138,7 +139,7 @@ HRESULT Player::Ready_Components()
     CHECK_FAILED(Ready_Collider(), E_FAIL);
 
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_CombatStat"), _combatStatCom), E_FAIL);
-//    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_SkillTree"), _skillTreeCom), E_FAIL);
+    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_SkillTree"), _skillTreeCom), E_FAIL);
 
     return S_OK;
 }

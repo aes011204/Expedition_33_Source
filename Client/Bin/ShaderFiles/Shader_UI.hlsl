@@ -54,11 +54,17 @@ PS_OUT PS_NORMAL(PS_IN In)
 
     Out.vColor = g_Texture.Sample(LinearClampSampler, In.vTexcoord) * g_Color;
 
+    float4 finalColor = Out.vColor;
+
     if(g_IsOverlay)
     {
-        Out.vColor = 1 - Out.vColor;
+        float3 invertedRgb = 1.f - Out.vColor.rgb;
+
+        finalColor.rgb = lerp(Out.vColor.rbg, invertedRgb, Out.vColor.a);
     }
-        
+
+    Out.vColor = finalColor;
+
     return Out;
 }
 

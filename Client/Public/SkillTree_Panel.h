@@ -20,6 +20,8 @@ public:
         string            skillId;
         Shared<UI_Button> button;
         Shared<UI_Image>  image;
+        Shared<UI_Base>   unlockedPopup;
+        Shared<UI_Base>   lockedPopup;
         Shared<UI_Text>   costText;
     };
 
@@ -29,7 +31,9 @@ public:
         Shared<SkillTreeCom>           skillTreeCom;
         vector<SkillNodeUI>            skillNodes;
         umap<wstring, Shared<UI_Base>> uiByName;
+        umap<wstring, Shared<UI_Base>> tooltipsByName;
         umap<wstring, Shared<UI_Base>> tooltips;
+
     };
 
 public:
@@ -47,10 +51,9 @@ public:
     bool   Is_Open() const { return _isOpen;}
 
 private:
-    HRESULT     Load_UI(HeroId heroId, uint32 levelIndex,  const wstring& playerName, const wstring& jsonPath,const wstring& rootName, const wstring& prototypeTagPrefix,SkillTreeViewState& outView);
-    HRESULT     Load_UI_ToolTips(const wstring& prototypeTagPrefix, uint32 levelIndex, SkillTreeViewState& outView);
+    HRESULT     Load_UI(HeroId heroId, uint32 levelIndex,  const wstring& playerName, const wstring& skillTreeJsonPath, const wstring& toolTipJsonPath, const wstring& rootName, const wstring& prototypeTagPrefix,SkillTreeViewState& outView);
+    HRESULT     Load_UI_ToolTips(const wstring& prototypeTagPrefix, const wstring& toolTipJsonPath, uint32 levelIndex, SkillTreeViewState& outView);
     HRESULT     Bind_SkillNode_UI(const wstring& playerName, SkillTreeViewState& outView);
-
     Shared<UI_Base> Find_UI(const umap<wstring, Shared<UI_Base>>& uiByName, const wstring& name) const;
 
     template<typename T>

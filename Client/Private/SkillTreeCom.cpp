@@ -1,9 +1,8 @@
 ﻿#include "SkillTreeCom.h"
-
 #include <GameObject.h>
-
 #include "ClientInstance.h"
 #include "CombatStatCom.h"
+#include "PlayerStatCom.h"
 
 SkillTreeCom::SkillTreeCom(const ComPtr<Device>& device, const ComPtr<Context>& context) : Component {device, context}
 {
@@ -38,12 +37,14 @@ void SkillTreeCom::TryUnlock(const string& skillId)
     if(!owner)
         return;
 
-    auto combatStat = owner->Get_Component<CombatStatCom>();
+    auto playerStatCom = owner->Get_Component<PlayerStatCom>();
 
-    if(!combatStat)
+    if(!playerStatCom)
         return;
 
-    if (combatStat->Spend_SkillPoint(skillTreeDesc->unlockCost))
+    //TODO 플레이어 skillpoint 깎는거
+
+    if (playerStatCom->Get_PlayerDesc().skillPoint - skillTreeDesc->unlockCost)
         return;
 
     _unlockedSkillId.push_back(skillId);
@@ -60,11 +61,13 @@ bool SkillTreeCom::CanUnlock(const string& skillId)
     if (!owner)
         return false;
 
-    Shared<CombatStatCom> combatStat = owner->Get_Component<CombatStatCom>();
-    if (!combatStat)
+    Shared<PlayerStatCom> playerStatCom = owner->Get_Component<PlayerStatCom>();
+
+    if (!playerStatCom)
         return false;
 
-    return combatStat->Get_SkillPoint() >= skillTreeDesc->unlockCost;
+
+    return playerStatCom->Get_PlayerDesc().skillPoint >= skillTreeDesc->unlockCost;
 }
 
 bool SkillTreeCom::HasEnoughSkillPoint(const string& skillId)
@@ -78,11 +81,12 @@ bool SkillTreeCom::HasEnoughSkillPoint(const string& skillId)
     if (!owner)
         return false;
 
-    Shared<CombatStatCom> combatStat = owner->Get_Component<CombatStatCom>();
-    if (!combatStat)
+    Shared<PlayerStatCom> playerStatCom = owner->Get_Component<PlayerStatCom>();
+
+    if (!playerStatCom)
         return false;
 
-    return  skillTreeDesc->unlockCost <= combatStat->Get_SkillPoint();
+    return  skillTreeDesc->unlockCost <=playerStatCom->Get_PlayerDesc().skillPoint;
 }
 
 bool SkillTreeCom::HasRequiredSkill(const string& skillId)
