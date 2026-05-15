@@ -1,6 +1,9 @@
 ﻿#pragma once
+
 #include "Base.h"
+#include "Delegate.h"
 #include "Battle_Enum.h"
+
 
 NS_BEGIN(Engine)
 class Character;
@@ -15,7 +18,6 @@ class BattleStateMachine;
 
 class BattleController : public Base
 {
-
 public:
     BattleController();
     virtual ~BattleController();
@@ -46,13 +48,17 @@ public:
     void SetCharInitPos();
 
 public:
-    Shared< BattleStateMachine>  Get_BattleFSM() { return _battleFSM; };
+    Shared<BattleStateMachine>  Get_BattleFSM() { return _battleFSM; };
     Action& Get_TurnAction() { return _turnAction; }
     //uint32 Get_EnemiesNum() { return _enemies.size(); }
     //uint32 Get_HeroesNum() { return _heroes.size(); }
 
     vector<BattleChar> Get_AliveEnemies();
     vector<BattleChar> Get_AliveHeroes();
+
+public:
+    void Handle_EditorStopRuntime();
+    HRESULT Ready_Delegates();
 
 private:
     BattleChar _currentTurnActor = {};
@@ -92,6 +98,8 @@ private:
     Shared< BattleStateMachine> _battleFSM;
     Shared< BuffSystem> _buffSystem;
     Shared< BattleEffectResolver> _battleEffectResolver;
+
+    FDelegateHandle _editorStopHandle = {};
 
 public:
     static Shared<BattleController> Create();

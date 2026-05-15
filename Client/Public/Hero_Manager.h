@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "Base.h"
+#include "Delegate.h"
 
 NS_BEGIN(Client)
 
@@ -61,6 +62,10 @@ public:
 
     const HeroSpawnDesc* Find_HeroSpawnDesc(HeroId heroId);
 
+    // Idle 상태로 되돌리기 : 전환 후, 게임 종료
+    void    Reset_AllHeroesToIdle();
+    void    Handle_EditorStopRuntime();
+
 private:
     void    Switch_NextHero();
     void    Snap_AllHeroesToFormation(
@@ -89,8 +94,8 @@ private:
 
     void    Refresh_TargetCamera() const;
 
-    // Idle 상태로 되돌리기 : 전환 후, 게임 종료
-    void    Reset_AllHeroesToIdle();
+private:
+    HRESULT Ready_Delegates();
 
 private:
     vector<HeroPartyEntry>  _heroes;
@@ -122,6 +127,8 @@ private:
     float _sprintFollowReleaseDistance = 1.2f;   // sprint 해제는 더 가까워졌을 때만
     float _sprintFollowMinHoldTime = 0.25f;      // sprint에 들어가면 최소 이 시간은 유지
     float _teleportReseatDistance  = 10.f;
+
+    FDelegateHandle _editorStopHandle = {};
 
 public:
     static Unique<Hero_Manager> Create();

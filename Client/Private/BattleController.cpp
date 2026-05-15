@@ -24,12 +24,12 @@ BattleController::BattleController()
 
 BattleController::~BattleController()
 {
-	Free();
+    Free();
 }
 
 EAPChangeReason BattleController::FinishBattle()
 {
-	return EAPChangeReason::Parry;
+    return EAPChangeReason::Parry;
 }
 
 
@@ -38,17 +38,18 @@ HRESULT BattleController::Initialize()
 {
     Set_BattleFSM();
 
+
     return S_OK;
 
 }
 
 void BattleController::Update(float timeDelta)
 {
-    if(_battleEnded == true)
+    if (_battleEnded == true)
     {
         return;
     }
-	
+
     if (_pendingNextTurn)
     {
         _pendingNextTurn = false;
@@ -56,14 +57,14 @@ void BattleController::Update(float timeDelta)
         return;
     }
 
-    
-       if (_heroes.empty() == true || _enemies.empty() == true)
-            return;
-       // 적턴 인지 플레이어 턴인지에 따라
-        if (_currentTurnActor.statCom->Is_Player())
-        {
-            _battleFSM->Update_StateMachine(timeDelta);
-        }
+
+    if (_heroes.empty() == true || _enemies.empty() == true)
+        return;
+    // 적턴 인지 플레이어 턴인지에 따라
+    if (_currentTurnActor.statCom->Is_Player())
+    {
+        _battleFSM->Update_StateMachine(timeDelta);
+    }
 
 
 
@@ -77,7 +78,7 @@ void BattleController::Run_EnemyTurn()
 
     Execute_Skill(_currentTurnActor, Get_TurnAction());
 
-   
+
 }
 
 void BattleController::OnEnterBattleField(uint32 FieldID, bool IsFirstHero, const vector<HeroId>& heroIds,
@@ -140,7 +141,7 @@ void BattleController::EndTurn()
     // 끝났다면 끝
     uint32 DeadPlayer = {};
     uint32 DeadEnemy = {};
-    for(int i = 0 ; i < _heroes.size(); i++)
+    for (int i = 0; i < _heroes.size(); i++)
     {
         if (_heroes[i].statCom->Get_AliveStatus() == EAliveStatus::Dead)
             DeadPlayer++;
@@ -175,23 +176,23 @@ void BattleController::EndTurn()
 
     auto actor = _currentTurnActor;
     // 죽은애들은 큐에 다시 안들어가게
-    if(actor.statCom->Get_AliveStatus() != EAliveStatus::Dead)
+    if (actor.statCom->Get_AliveStatus() != EAliveStatus::Dead)
     {
-        
-    TurnEntry entry{};
-    entry.hero = actor;
 
-    entry.nextTime =
-        _battleTime + (100.f / max(actor.statCom->Get_Speed(), 1.f));
+        TurnEntry entry{};
+        entry.hero = actor;
 
-    _turnQueue.push(entry);
+        entry.nextTime =
+            _battleTime + (100.f / max(actor.statCom->Get_Speed(), 1.f));
+
+        _turnQueue.push(entry);
     }
 
 
 
     _pendingNextTurn = true;
 
-    
+
 
 }
 
@@ -233,8 +234,8 @@ void BattleController::Create_BattleChar(const vector<HeroId>& heroIds, vector<s
 {
     for (HeroId heroId : heroIds)
     {
-       const HeroSpawnDesc* spawnDesc = CLIENT->Find_HeroSpawnDesc(heroId);
-       if (spawnDesc == nullptr)
+        const HeroSpawnDesc* spawnDesc = CLIENT->Find_HeroSpawnDesc(heroId);
+        if (spawnDesc == nullptr)
             continue;
 
         Shared<GameObject> character = Spawn_Prefab::Spawn(
@@ -269,12 +270,12 @@ void BattleController::Create_BattleChar(const vector<HeroId>& heroIds, vector<s
 void BattleController::Build_InitialTurnQueue(bool IsFirstHero)
 {
 
-    float heroOffset ={};
+    float heroOffset = {};
     float monsterOffset = {};
     // 첨 초기화
     _battleTime = 0;
 
-    while(!_turnQueue.empty())
+    while (!_turnQueue.empty())
     {
         _turnQueue.pop();
     }
@@ -291,26 +292,26 @@ void BattleController::Build_InitialTurnQueue(bool IsFirstHero)
     }
 
 
-       for(auto& hero :_heroes)
-       {
-           if(!hero.actor)
-               continue;
+    for (auto& hero : _heroes)
+    {
+        if (!hero.actor)
+            continue;
 
-           TurnEntry entry = {};
-           entry.nextTime = (100.f / max(hero.statCom->Get_Speed(), 1.f))+heroOffset;
-           entry.hero = hero;
-           _turnQueue.push(entry);
-       }
-       for (auto& enemy : _enemies)
-       {
-           if (!enemy.actor)
-               continue;
+        TurnEntry entry = {};
+        entry.nextTime = (100.f / max(hero.statCom->Get_Speed(), 1.f)) + heroOffset;
+        entry.hero = hero;
+        _turnQueue.push(entry);
+    }
+    for (auto& enemy : _enemies)
+    {
+        if (!enemy.actor)
+            continue;
 
-           TurnEntry entry = {};
-           entry.nextTime = (100.f / max(enemy.statCom->Get_Speed(), 1.f))+monsterOffset;
-           entry.hero = enemy;
-           _turnQueue.push(entry);
-       }
+        TurnEntry entry = {};
+        entry.nextTime = (100.f / max(enemy.statCom->Get_Speed(), 1.f)) + monsterOffset;
+        entry.hero = enemy;
+        _turnQueue.push(entry);
+    }
 
 
 }
@@ -333,7 +334,7 @@ void BattleController::SetCharInitPos()
         if (!hero.actor)
             continue;
 
-        hero.actor->Get_Transform()->Set_Position(startPos+
+        hero.actor->Get_Transform()->Set_Position(startPos +
             PPos[i]);
     }
 
@@ -343,7 +344,7 @@ void BattleController::SetCharInitPos()
         if (!enemy.actor)
             continue;
 
-        enemy.actor->Get_Transform()->Set_Position(startPos+
+        enemy.actor->Get_Transform()->Set_Position(startPos +
             EPos[i]);
     }
 
@@ -353,9 +354,9 @@ vector<BattleChar> BattleController::Get_AliveEnemies()
 {
 
     vector<BattleChar> alive;
-    for(int i = 0; i < _enemies.size();i++)
+    for (int i = 0; i < _enemies.size(); i++)
     {
-        if(_enemies[i].statCom->Get_CurAliveState()== EAliveStatus::Alive)
+        if (_enemies[i].statCom->Get_CurAliveState() == EAliveStatus::Alive)
         {
             alive.push_back(_enemies[i]);
         }
@@ -366,7 +367,7 @@ vector<BattleChar> BattleController::Get_AliveEnemies()
 vector<BattleChar> BattleController::Get_AliveHeroes()
 {
     vector<BattleChar> alive;
-    for (int i = 0; i <_heroes.size(); i++)
+    for (int i = 0; i < _heroes.size(); i++)
     {
         if (_heroes[i].statCom->Get_CurAliveState() == EAliveStatus::Alive)
         {
@@ -374,6 +375,38 @@ vector<BattleChar> BattleController::Get_AliveHeroes()
         }
     }
     return  alive;
+}
+
+void BattleController::Handle_EditorStopRuntime()
+{
+    _turnAction = {};
+    _currentTurnActor = {};
+    _pendingNextTurn = false;
+    _battleEnded = false;
+    isBattleActive = false;
+    currentTurnIndex = 0;
+    _battleTime = 0.f;
+    _flag = false;
+
+    while (!_turnQueue.empty())
+        _turnQueue.pop();
+
+    _heroes.clear();
+    _enemies.clear();
+
+    if (_battleFSM)
+        _battleFSM->Change_State(BattleTurnState::ChooseAction);
+}
+
+HRESULT BattleController::Ready_Delegates()
+{
+    _editorStopHandle = GAME->Get_DelegateHub().OnEditorStopRuntime.Add(
+        [this]()
+        {
+            Handle_EditorStopRuntime();
+        });
+
+    return S_OK;
 }
 
 void BattleController::Execute_BaseAttack(const BattleChar actor, const Action& turnAction)
@@ -385,7 +418,7 @@ void BattleController::Execute_BaseAttack(const BattleChar actor, const Action& 
         turnAction._selected_SkillKey.scriptClassName.c_str());
 
 
-   // auto script = Create_Class::SkillScript<Base_Gustave_Attack>().Create();
+    // auto script = Create_Class::SkillScript<Base_Gustave_Attack>().Create();
     auto script = Create_Class::SkillScript(turnAction._selected_SkillKey.scriptClassName).Create();
 
     if (script == nullptr)
@@ -396,9 +429,9 @@ void BattleController::Execute_BaseAttack(const BattleChar actor, const Action& 
     {
         LOG_ERROR("Base_Gustave_Attack Create Success");
     }
-\
+    \
 
-    auto target = turnAction.target;
+        auto target = turnAction.target;
 
     script->Execute(turnAction._selected_SkillKey, actor, target);
     LOG_DEBUG("Execute_BaseAttack: script finished");
@@ -457,12 +490,18 @@ void BattleController::Set_BattleFSM()
 }
 Shared<BattleController> BattleController::Create()
 {
-   
+
     Shared<BattleController> instance = make_shared<BattleController>();
 
     if (FAILED(instance->Initialize()))
     {
         MSG_BOX("Failed to Created : BattleController");
+        return nullptr;
+    }
+
+    if (FAILED(instance->Ready_Delegates()))
+    {
+        instance->Free();
         return nullptr;
     }
 
@@ -472,5 +511,11 @@ Shared<BattleController> BattleController::Create()
 
 void BattleController::Free()
 {
-	Base::Free();
+    if (_editorStopHandle.IsValid())
+    {
+        GAME->Get_DelegateHub().OnEditorStopRuntime.Remove(_editorStopHandle);
+        _editorStopHandle.Reset();
+    }
+
+    Base::Free();
 }

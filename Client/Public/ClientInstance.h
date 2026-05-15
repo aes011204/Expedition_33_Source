@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "Base.h"
+#include "Delegate.h"
 
 NS_BEGIN(Engine)
 class GameInstance;
@@ -68,9 +69,11 @@ public: /* For.Hero Manager */
     // 맨 앞 플레이어. Get_Active와 역할이 거의 동일
     Shared<Player>  Get_FrontHero() const;
 
-    Shared<Player> Find_Hero(HeroId heroId) const;
+    Shared<Player>  Find_Hero(HeroId heroId) const;
 
     const HeroSpawnDesc* Find_HeroSpawnDesc(HeroId heroId);
+
+    void Reset_AllHeroesToIdle();
 
 public: /* For.Gameplay UI */
     HRESULT Initialize_GameplayUI(uint32 levelIndex);
@@ -82,7 +85,6 @@ public: /* For.Battle_Controller */
         bool IsFirstHero,
         const vector<HeroId>& heroIds,
         vector<string>& MonsterProtoTag);
-
 
 private:
 	HRESULT Ready_ResourceLoader();
@@ -97,12 +99,12 @@ private:
 	bool _isInitialized = false;
 
 private:
-    Shared<ResourceLoader>  _resourceLoader;
-    Unique<GameDataTable>   _gameDataTable;
+    Shared<ResourceLoader>      _resourceLoader;
+    Unique<GameDataTable>       _gameDataTable;
 
-    Unique<GameplayUI>      _gamePlayUI;
+    Unique<GameplayUI>          _gamePlayUI;
     Unique<PersistentObjectManager> _persistentObjectManager;
-    Unique<Hero_Manager>    _heroManager;
+    Unique<Hero_Manager>        _heroManager;
 
     Shared<BattleController>    _battleController;
 

@@ -561,6 +561,17 @@ void Hero_Manager::Refresh_TargetCamera() const
     camera->SetTargetTransform(active->Get_Transform());
 }
 
+HRESULT Hero_Manager::Ready_Delegates()
+{
+    _editorStopHandle = GAME->Get_DelegateHub().OnEditorStopRuntime.Add(
+        [this]()
+        {
+           Handle_EditorStopRuntime(); 
+        });
+
+    return S_OK;
+}
+
 void Hero_Manager::Reset_AllHeroesToIdle()
 {
     for (auto& entry : _heroes)
@@ -587,15 +598,31 @@ void Hero_Manager::Reset_AllHeroesToIdle()
     }
 }
 
+void Hero_Manager::Handle_EditorStopRuntime()
+{
+    Reset_AllHeroesToIdle();
+}
+
 Unique<Hero_Manager> Hero_Manager::Create()
 {
     auto instance = make_unique<Hero_Manager>();
-    //instance->Initialize_Hero();
+
+    if (FAILED(instance->Ready_Delegates()))
+    {
+        instance->Free();
+        return nullptr;
+    }
 
     return instance;
 }
 
 void Hero_Manager::Free()
 {
+    if (_editorStopHandle.IsValid())
+    {
+        GAME->Get_DelegateHub().OnEditorStopRuntime.Remove(_editorStopHandle);
+        _editorStopHandle.Reset();
+    }
+
     Base::Free();
 }

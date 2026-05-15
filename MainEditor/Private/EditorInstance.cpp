@@ -148,6 +148,8 @@ void EditorInstance::Play()
     if (isStartingFromEdit)
         Capture_ActiveCameraPose(_playStartCameraPose);
 
+    GAME->Get_DelegateHub().OnEditorPlayRuntime.Broadcast();
+
     GAME->Set_FreeCameraInputEnabled(false);
     GAME->Unlock_Mouse();
 
@@ -160,6 +162,8 @@ void EditorInstance::Pause()
         return;
 
     Activate_FreeCamera();
+
+    GAME->Get_DelegateHub().OnEditorPauseRuntime.Broadcast();
 
     GAME->Set_FreeCameraInputEnabled(false);
     GAME->Unlock_Mouse();
@@ -174,6 +178,7 @@ void EditorInstance::Stop()
     if (_runtimeState == EDITOR_RUNTIME_STATE::Play ||
         _runtimeState == EDITOR_RUNTIME_STATE::Pause)
     {
+        GAME->Get_DelegateHub().OnEditorStopRuntime.Broadcast();
         Restore_PlayStartSnapshot();
     }
 
@@ -197,6 +202,8 @@ void EditorInstance::Resume()
     _runtimeState = EDITOR_RUNTIME_STATE::Play;
     Sync_ViewportWindowState();
     Activate_TargetCamera();
+
+    GAME->Get_DelegateHub().OnEditorResumeRuntime.Broadcast();
 
     GAME->Set_FreeCameraInputEnabled(false);
     GAME->Unlock_Mouse();
