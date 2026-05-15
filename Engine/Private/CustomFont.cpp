@@ -1,8 +1,9 @@
 ﻿#include "CustomFont.h"
 
-CustomFont::CustomFont(const ComPtr<Device>& device, const ComPtr<Context>& context)
+CustomFont::CustomFont(const ComPtr<Device>& device, const ComPtr<Context>& context, float scaleCorrection)
     : _device{ device }
     , _context{ context }
+    , _scaleCorrection{ max(0.0001f, scaleCorrection) }
 {
 }
 
@@ -22,7 +23,7 @@ Vec2 CustomFont::Measure(const wchar_t* text) const
     XMFLOAT2 measuredSize{};
     XMStoreFloat2(&measuredSize, _spriteFont->MeasureString(text));
 
-    return Vec2(measuredSize.x, measuredSize.y);
+    return Vec2(measuredSize.x * _scaleCorrection, measuredSize.y * _scaleCorrection);
 }
 
 void CustomFont::Draw(
@@ -45,23 +46,30 @@ void CustomFont::Draw(
         nullptr,
         XMMatrixIdentity());
 
+    const float correctedScale = scale * _scaleCorrection;
+    const Vec2 correctedPivot(pivot.x / _scaleCorrection, pivot.y / _scaleCorrection);
+
     _spriteFont->DrawString(
         _spriteBatch.get(),
         text,
         position,
         color,
         rotationRadians,
-        pivot,
-        scale,
+        correctedPivot,
+        correctedScale,
         SpriteEffects_None,
         0.f);
 
     _spriteBatch->End();
 }
 
-Shared<CustomFont> CustomFont::Create(const ComPtr<Device>& device, const ComPtr<Context>& context, const wchar_t* fontFilePath)
+Shared<CustomFont> CustomFont::Create(
+    const ComPtr<Device>& device,
+    const ComPtr<Context>& context,
+    const wchar_t* fontFilePath,
+    float scaleCorrection)
 {
-    auto instance = make_shared<CustomFont>(device, context);
+    auto instance = make_shared<CustomFont>(device, context, scaleCorrection);
 
     if (FAILED(instance->Initialize(fontFilePath)))
     {

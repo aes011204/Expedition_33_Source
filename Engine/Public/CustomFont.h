@@ -7,7 +7,7 @@ NS_BEGIN(Engine)
 class CustomFont final : public Base
 {
 public:
-    CustomFont(const ComPtr<Device>& device, const ComPtr<Context>& context);
+    CustomFont(const ComPtr<Device>& device, const ComPtr<Context>& context, float scaleCorrection = 1.f);
     ~CustomFont() override = default;
 
 public:
@@ -27,9 +27,14 @@ private:
 
     Unique<SpriteBatch> _spriteBatch = { nullptr };
     Unique<SpriteFont>  _spriteFont = { nullptr };
+    float _scaleCorrection = 1.f;
 
 public:
-    static Shared<CustomFont> Create(const ComPtr<Device>& device, const ComPtr<Context>& context, const wchar_t* fontFilePath);
+    static Shared<CustomFont> Create(
+        const ComPtr<Device>& device,
+        const ComPtr<Context>& context,
+        const wchar_t* fontFilePath,
+        float scaleCorrection = 1.f);
     void Free() override;
 };
 
