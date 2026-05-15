@@ -16,34 +16,7 @@ namespace Client
         End
     };
 
-    enum class BattleTurnState
-    {
-        ChooseSkill,      // 스킬 선택 UI 표시
-        AttackTargeting,  // 타겟 선택 (기본 공격용)
-        ChooseItem,       // 아이템 선택 UI 표시
-        ChooseAction,     // 행동 선택 UI 표시 (공격/스킬/아이템/방어)
-        SkillTargeting,   // 타겟 선택 (스킬용)
-        ItemTargeting,    // 타겟 선택 (아이템용)
-        UltimateTargeting,// 타겟 선택 (궁극기용)
-        ChooseUltimate,   // 궁극기 선택 UI 표시
-    };
-    enum class BattleContext
-    {
-        Skill,
-        Defend,
-        Dodge,
-        Parry,
-        TurnStart,
-        BaseAttack,
-        ConsumableItem,
-        GotHit,
-        Died,
-        Revived,
-        Counter,
-        BattleStart,
-        Heal,
-    };
-
+   
     enum class StatType
     {
         Vitality,   // 활력
@@ -74,5 +47,48 @@ namespace Client
         END
     };
 
+
+    enum class ERuntimeBattleStatType
+    {
+        
+        CurrentHP,
+        CurrentAP,
+        CurrentHPPercentage,
+        CurrentAPPercentage,
+        Invalid
+    };
+
+    enum class PlayerCharactorType
+    {
+        Gustave,
+        Lune,
+        Maelle,
+        None,
+    };
+
+    enum class HairPhysicsProfile
+    {
+        Lune,
+        Maelle,
+        Gustave,
+    };
+
+    enum class HeroPartySlot : uint8
+    {
+        Slot_0,
+        Slot_1,
+        Slot_2,
+
+        END
+    };
+
+    enum class HeroId : uint8
+    {
+        Gustave,
+        Lune,
+        Maelle,
+
+        END
+    };
 }
 

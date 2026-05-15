@@ -83,6 +83,7 @@ void Animation_View::Pre_Render()
 
     GAME->Set_Transform(D3DTS::View, const_cast<Matrix&>(previewView));
     GAME->Set_Transform(D3DTS::Proj, const_cast<Matrix&>(previewProj));
+    GAME->UpdateFrustum(previewView, previewProj);
 
     vector<LIGHT_DESC> previewLightDescs{};
     previewLightDescs.reserve(2);

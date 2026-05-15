@@ -3,11 +3,27 @@
 #include "CombatStatCom.h"
 #include "GameInstance.h"
 #include "Player.h"
+#include "PlayerStatCom.h"
 #include "Spawn_Prefab.h"
 #include "UI_Base.h"
 #include "UI_RuntimeLoader.h"
 #include "UI_Text.h"
 #include "PreviewCamera.h"
+
+static const char* Get_HeroPrefabName(HeroId heroId)
+{
+    switch (heroId)
+    {
+    case HeroId::Gustave:
+        return "Player_Gustave";
+    case HeroId::Lune:
+        return "Player_Lune";
+    case HeroId::Maelle:
+        return "Player_Maelle";
+    default:
+        return "";
+    }
+}
 
 HRESULT CharacterStatus_Panel::Initialize(uint32 levelIndex)
 {
@@ -112,25 +128,25 @@ void CharacterStatus_Panel::Refresh_CombatStats()
     Shared<Player> player = CLIENT->Get_FrontHero();
     CHECK_NULL(player);
 
-    Shared<CombatStatCom> combatStat = player->Get_Component<CombatStatCom>();
+    Shared<PlayerStatCom> combatStat = player->Get_Component<PlayerStatCom>();
     CHECK_NULL(combatStat);
 
-    const CombatStatCom::CombatStatInfo& statInfo = combatStat->Get_StatInfo();
+    const PlayerStatCom::PRuntimeCombatStat& statInfo = combatStat->Get_PlayerRuntimeStat();
 
-    Set_UIntText(_levelText, statInfo.level);
-    Set_UIntText(_statPointText, statInfo.statPoint);
+    Set_UIntText(_levelText, statInfo.CurLevel);
+    Set_UIntText(_statPointText, statInfo.CurStatPoint);
 
-    Set_IntText(_vitalityText, statInfo.vitality);
-    Set_IntText(_mightText, statInfo.might);
-    Set_IntText(_agilityText, statInfo.agility);
-    Set_IntText(_defenseStatText, statInfo.defense);
-    Set_IntText(_luckText, statInfo.luck);
+    Set_IntText(_vitalityText, statInfo.CurVitality);
+    Set_IntText(_mightText, statInfo.CurMight);
+    Set_IntText(_agilityText, statInfo.CurAgility);
+    Set_IntText(_defenseStatText, statInfo.CurDefense);
+    Set_IntText(_luckText, statInfo.CurLuck);
     
-    Set_HpText(_hpText, statInfo.hp, statInfo.maxHp);
-    Set_IntText(_attackText, static_cast<int32>(statInfo.attack));
-    Set_IntText(_speedText, static_cast<int32>(statInfo.speed));
-    Set_IntText(_defenseValueText, static_cast<int32>(statInfo.defenseValue));
-    Set_PercentText(_criticalRateText, statInfo.criticalRate);
+    Set_HpText(_hpText, statInfo.CurHp, statInfo.CurMaxHp);
+    Set_IntText(_attackText, static_cast<int32>(statInfo.CurPhysicalAttack));
+    Set_IntText(_speedText, static_cast<int32>(statInfo.CurSpeed));
+    Set_IntText(_defenseValueText, static_cast<int32>(statInfo.CurPhysicalDefense));
+    Set_PercentText(_criticalRateText, statInfo.CurCriticalRate);
 }
 
 Shared<UI_Base> CharacterStatus_Panel::Find_UI(const umap<wstring, Shared<UI_Base>>& uiByName, const wstring& name) const
@@ -176,27 +192,22 @@ HRESULT CharacterStatus_Panel::Spawn_StatusPreviewHeroes()
     // 기존에 있다면 삭제
     Clear_StatusPreviewHeroes();
 
-    const vector<Shared<Player>> sourceHeroes = CLIENT->Get_HeroesInPartyOrder();
-    if (sourceHeroes.empty())
+    const vector<HeroPartyEntry>& partyEntries = CLIENT->Get_HeroEntries();
+    if (partyEntries.empty())
         return S_OK;
 
-    static const string fallbackPrefabs[] =
-    {
-        "Player_Lune",
-        "Player_Maelle",
-        "Player_Gustave",
-    };
-
-    const uint32 count = min<uint32>(3, static_cast<uint32>(sourceHeroes.size()));
+    const uint32 count = min<uint32>(3, static_cast<uint32>(partyEntries.size()));
 
     _previewHeroes.reserve(count);
 
     for (uint32 i = 0; i < count; ++i)
     {
-        string prefabName = sourceHeroes[i] ? sourceHeroes[i]->Get_SourcePrefabName() : string{};
+        const HeroPartyEntry& entry = partyEntries[i];
+
+        string prefabName = entry.hero ? entry.hero->Get_SourcePrefabName() : string{};
 
         if (prefabName.empty())
-            prefabName = fallbackPrefabs[i];
+            prefabName = Get_HeroPrefabName(entry.heroId);
 
         auto object = Spawn_Prefab::Prefab(prefabName)
             .AtLevel(_levelIndex)
@@ -241,16 +252,16 @@ void CharacterStatus_Panel::Layout_StatusPreviewHeroes()
     // 프리뷰 플레이어 초기 위치 세팅
     static const Vec3 positions[] =
     {
-        Vec3(-1.4f, 0.f, 0.f),
+        Vec3(-1.1f, 0.f, -0.1f),
         Vec3(0.0f,  0.f, 0.f),
-        Vec3(1.4f,  0.f, 0.f),
+        Vec3(1.1f,  0.f, -0.1f),
     };
 
     static const Vec3 rotations[] =
     {
+        Vec3(0.f, 0.f, -0.1f),
         Vec3(0.f, 0.f, 0.f),
-        Vec3(0.f, 0.f, 0.f),
-        Vec3(0.f, 0.f, 0.f),
+        Vec3(0.f, 0.f, -0.1f),
     };
 
     const uint32 count = min<uint32>(

@@ -29,6 +29,12 @@ enum class MaterialTextureSlot : uint8
     OpacityMask,
     ORM,
 
+    HairDepth,
+    HairID,
+
+    IrisHeight,
+    IrisMask,
+
     END
 };
 

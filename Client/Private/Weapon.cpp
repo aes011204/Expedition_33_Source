@@ -73,7 +73,8 @@ HRESULT Weapon::Render()
 
     for (uint32 i = 0; i < iNumMeshes; i++)
     {
-        const Shared<Material> material = _model->Get_Material(i);
+        const uint32 materialIndex = _model->Get_MeshMaterialIndex(i);
+        const Shared<Material> material = _model->Get_Material(materialIndex);
         if (material == nullptr)
             continue;
 

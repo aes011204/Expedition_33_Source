@@ -34,19 +34,26 @@ void PanelInspector::Render()
 
         auto& obj = _ctx->_selected;
 
-        if (ImGui::Button("Focus"))  _camera->FocusOn(obj->_position);
-        ImGui::SameLine();
-        if (ImGui::Button("Delete"))
+        if (ImGui::Button("Focus"))
         {
-            auto it = find(_ctx->_objects.begin(), _ctx->_objects.end(), _ctx->_selected);
-            if (it != _ctx->_objects.end())
+            _camera->FocusOn(obj->_position);
+        }
+
+        if (!obj->_isDefaultLight)
+        {
+            ImGui::SameLine();
+            if (ImGui::Button("Delete"))
             {
-                int index = static_cast<int>(distance(_ctx->_objects.begin(), it));
-                _ctx->PushCommand(CmdDeleteObject::Create(_ctx->_selected, index));
+                auto it = find(_ctx->_objects.begin(), _ctx->_objects.end(), _ctx->_selected);
+                if (it != _ctx->_objects.end())
+                {
+                    int index = static_cast<int>(distance(_ctx->_objects.begin(), it));
+                    _ctx->PushCommand(CmdDeleteObject::Create(_ctx->_selected, index));
+                }
+                ImGui::End();
+                SetOpen(open);
+                return;
             }
-            ImGui::End();
-            SetOpen(open);
-            return;
         }
 
         DrawTransform(obj);
@@ -244,9 +251,18 @@ void PanelInspector::DrawTypeParams(Shared<EditorObject>& obj)
         if (ImGui::CollapsingHeader("Light", ImGuiTreeNodeFlags_DefaultOpen))
         {
             int ltIdx = (obj->_lightType == LightType::Point) ? 1 : 0;
-            if (ImGui::Combo("Type", &ltIdx, _lights, 2))
+            if (obj->_isDefaultLight)
             {
-                obj->_lightType = (ltIdx == 1) ? LightType::Point : LightType::Directional;
+                ImGui::BeginDisabled();
+                ImGui::Combo("Type", &ltIdx, _lights, 2);
+                ImGui::EndDisabled();
+            }
+            else
+            {
+                const char* pointOnly[] = { "Point" };
+                int ptIdx = 0;
+                ImGui::Combo("Type", &ptIdx, pointOnly, 1);
+                obj->_lightType = LightType::Point;
             }
 
             float diffuse[4] = { obj->_lightDiffuse.x,  obj->_lightDiffuse.y,  obj->_lightDiffuse.z,  obj->_lightDiffuse.w };
@@ -309,6 +325,17 @@ void PanelInspector::DrawTypeParams(Shared<EditorObject>& obj)
 
             int instanceCount = static_cast<int>(obj->_instancedTransforms.size());
             ImGui::LabelText("Instance Count", "%d", instanceCount);
+
+            if (!obj->_instancedTransforms.empty())
+            {
+                const auto& t = obj->_instancedTransforms[0];
+                ImGui::TextDisabled("Instance[0] Pos: (%.2f, %.2f, %.2f)", t._position.x, t._position.y, t._position.z);
+
+                if (ImGui::Button("Focus Instance[0]"))
+                {
+                    _camera->FocusOn(t._position);
+                }
+            }
         }
         break;
 

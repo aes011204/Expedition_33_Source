@@ -63,7 +63,7 @@ private:
 	string                              _selectedFbxPath;
 
 private:
-	uint32                              importFlags{ 0 };
+	uint32                              _importFlags{ 0 };
 	Assimp::Importer                    _importer;
 	const aiScene*                      _aiScene{ nullptr };
 	bool                                _isSkeletal{ false };

@@ -1,4 +1,4 @@
-﻿#pragma region INCLUDE
+#pragma region INCLUDE
 #include "GameInstance.h"
 #include "Asset_Manager.h"
 #include "Camera_Manager.h"
@@ -1230,6 +1230,12 @@ void GameInstance::Visit_AnimNotifyStateTypes(
     return _typeRegistry->Visit_AnimNotifyStateTypes(visitor);
 }
 
+void GameInstance::Visit_GlobalEnums(const function<void(const TypeRegistry::GlobalEnumInfo&)>& visitor) const
+{
+	CHECK_NULL(_typeRegistry);
+	_typeRegistry->Visit_GlobalEnums(visitor);
+}
+
 Shared<Component> GameInstance::Create_ComponentPrototype(const string& className) const
 {
     return _typeRegistry->Create_Component(className, _graphicDevice->Get_Device(), _graphicDevice->Get_Context());
@@ -1355,8 +1361,15 @@ bool GameInstance::Sweep_Collider(ColliderCom* collider, const Matrix& worldMatr
     return _physxManager->Sweep_Collider(collider, worldMatrix, direction, distance, outHit);
 }
 
+bool GameInstance::Sweep_Sphere(const Vec3& origin, const Vec3& direction, float distance, float radius,
+    Collision_Preset queryPreset, PhysXQueryHit& outHit) const
+{
+    CHECK_NULL(_physxManager, false);
+    return _physxManager->Sweep_Sphere(origin, direction, distance, radius, queryPreset, outHit);
+}
+
 bool GameInstance::Probe_Ground(ColliderCom* collider, const Matrix& worldMatrix, float probeDistance,
-    PhysXQueryHit& outHit) const
+                                PhysXQueryHit& outHit) const
 {
     CHECK_NULL(_physxManager, false);
     return _physxManager->Probe_Ground(collider, worldMatrix, probeDistance, outHit);

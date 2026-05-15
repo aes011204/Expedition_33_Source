@@ -24,7 +24,11 @@ HRESULT ModelViewerObject::Initialize(void* arg)
 	if (FAILED(Ready_Components()))
 		return E_FAIL;
 
-	return S_OK;
+    wstring defaultPath = TEXT("../../Bin/ShaderFiles/Default_Material.png");
+    if (FAILED(DirectX::CreateWICTextureFromFile(_device.Get(), defaultPath.c_str(), nullptr, _defaultTextureSRV.GetAddressOf())))
+    {
+        LOG_WARN("Failed to load default texture from: ShaderFiles/Default_Material.png");
+    }
 }
 
 void ModelViewerObject::Priority_Update(float timeDelta)
@@ -57,16 +61,23 @@ HRESULT ModelViewerObject::Render()
 	if (FAILED(Bind_ShaderResources()))
 		return E_FAIL;
 
-	uint32 numMeshes = _modelCom->Get_NumMeshes();
+	uint32 numMeshes = static_cast<uint32>(_modelCom->Get_NumMeshes());
     if (_modelCom->Is_Skeletal())
     {
         for (uint32 i = 0; i < numMeshes; ++i)
         {
-            _modelCom->Bind_Material(_animShaderCom.get(), "g_DiffuseTexture", i, MaterialTextureSlot::BaseColor);
+            if (FAILED(_modelCom->Bind_Material(_animShaderCom.get(), "g_DiffuseTexture", i, MaterialTextureSlot::BaseColor)))
+            {
+                // 실패했다면(텍스처가 없다면) 디폴트 텍스처를 강제로 바인딩!
+                if (_defaultTextureSRV != nullptr)
+                {
+                    _animShaderCom->Bind_SRV("g_DiffuseTexture", _defaultTextureSRV.Get());
+                }
+            }
 
             if (_modelCom->Is_Skeletal())
             {
-                _modelCom->Bind_BoneMatrices(_animShaderCom.get(), "g_BoneMatrices", i);
+                _modelCom->Bind_BoneMatrices(_animShaderCom.get(), "g_BoneMatricesBuffer", i);
             }
 
             _animShaderCom->Begin(0);
@@ -77,11 +88,18 @@ HRESULT ModelViewerObject::Render()
     {
         for (uint32 i = 0; i < numMeshes; ++i)
         {
-            _modelCom->Bind_Material(_staticShaderCom.get(), "g_DiffuseTexture", i, MaterialTextureSlot::BaseColor);
+            if (FAILED(_modelCom->Bind_Material(_staticShaderCom.get(), "g_DiffuseTexture", i, MaterialTextureSlot::BaseColor)))
+            {
+                
+                if (_defaultTextureSRV != nullptr)
+                {
+                    _staticShaderCom->Bind_SRV("g_DiffuseTexture", _defaultTextureSRV.Get());
+                }
+            }
 
             if (_modelCom->Is_Skeletal())
             {
-                _modelCom->Bind_BoneMatrices(_staticShaderCom.get(), "g_BoneMatrices", i);
+                _modelCom->Bind_BoneMatrices(_staticShaderCom.get(), "g_BoneMatricesBuffer", i);
             }
 
             _staticShaderCom->Begin(0);
@@ -136,7 +154,7 @@ void ModelViewerObject::Play_Animation(uint32 animIndex, float blendDuration, bo
 
 uint32 ModelViewerObject::Get_NumAnimations() const
 {
-    return _modelCom->Get_NumAnimations();
+    return static_cast<uint32>(_modelCom->Get_NumAnimations());
 }
 
 const char* ModelViewerObject::Get_AnimationName(uint32 animIndex)

@@ -8,6 +8,7 @@
 #include "GameObject.h"
 #include "Reflection_JsonUtil.h"
 #include "TransformCom.h"
+#include "SkillScript.h"
 
 namespace
 {
@@ -167,6 +168,19 @@ Create_Class::NotifyStateBuilder& Create_Class::NotifyStateBuilder::Property(con
 Shared<Engine::AnimNotifyState> Create_Class::NotifyStateBuilder::Create() const
 {
     return Create_Class::Create_NotifyStateImplementation(_desc);
+}
+
+Create_Class::SkillScriptBuilder::SkillScriptBuilder(const string& staticClass)
+{
+    _desc.staticClass = staticClass;
+}
+
+Shared<SkillScript> Create_Class::SkillScriptBuilder::Create() const
+{
+    if (_desc.staticClass.empty())
+        return nullptr;
+
+    return Client::SkillScript::Create_SkillScriptByClass(_desc.staticClass);
 }
 
 Shared<Engine::GameObject> Create_Class::SpawnActor(
@@ -329,3 +343,4 @@ Shared<Engine::AnimNotifyState> Create_Class::Create_NotifyStateImplementation(c
 
     return notifyState;
 }
+

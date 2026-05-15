@@ -15,14 +15,14 @@ HRESULT Player_WorldAction::Initialize()
     return Player_State::Initialize();
 }
 
-using plAnim = Body_Player::PlayerAnimation;
+using plAnim = Body_Player::PlayerWorldAnimation;
 
 bool Player_WorldAction::EnterInvoke()
 {
     auto state = _stateCom->Get_CurrentPlayerState();
     if (state == PlayerState::WorldAction) return false;
 
-    _bodyPlayer->Set_Animation(ETOI(plAnim::Pl_Explo), 0.2f, false);
+    _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_Explo), 0.2f, false);
 
     return true;
 }

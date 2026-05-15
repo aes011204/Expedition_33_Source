@@ -261,6 +261,8 @@ bool MaterialBuilder::Try_LoadBundleAsset(const fs::path& bundlePath, BundleAsse
             if (ji.contains("renderState"))
                 (void)Try_ParseRenderState(ji["renderState"], inst.renderState);
 
+            inst.forcePassIndex = ji.value("forcePassIndex", inst.forcePassIndex);
+
             // 셰이더 CB 값도 저장된 값만 덮어쓴다.
             if (ji.contains("cb"))
                 (void)Try_ParseCB(ji["cb"], inst.cb);
@@ -275,6 +277,10 @@ bool MaterialBuilder::Try_LoadBundleAsset(const fs::path& bundlePath, BundleAsse
                 inst.ormOverride = jov.value("orm", inst.ormOverride);
                 inst.emissiveOverride = jov.value("emissive", inst.emissiveOverride);
                 inst.opacityMaskOverride = jov.value("opacityMask", inst.opacityMaskOverride);
+                inst.hairDepthOverride = jov.value("hairDepth", inst.hairDepthOverride);
+                inst.hairIDOverride = jov.value("hairID", inst.hairIDOverride);
+                inst.irisHeightOverride = jov.value("irisHeight", inst.irisHeightOverride);
+                inst.irisMaskOverride = jov.value("irisMask", inst.irisMaskOverride);
             }
 
             // 상대 경로로 저장 된 번들의 텍스쳐 경로를 런타임 접근을 위한 절대로 변경
@@ -286,6 +292,10 @@ bool MaterialBuilder::Try_LoadBundleAsset(const fs::path& bundlePath, BundleAsse
                 inst.ormPath = To_AbsoluteTexturePath(resourceRoot, jtex.value("orm", string{})).wstring();
                 inst.emissivePath = To_AbsoluteTexturePath(resourceRoot, jtex.value("emissive", string{})).wstring();
                 inst.opacityMaskPath = To_AbsoluteTexturePath(resourceRoot, jtex.value("opacityMask", string{})).wstring();
+                inst.hairDepthPath = To_AbsoluteTexturePath(resourceRoot, jtex.value("hairDepth", string{})).wstring();
+                inst.hairIDPath = To_AbsoluteTexturePath(resourceRoot, jtex.value("hairID", string{})).wstring();
+                inst.irisHeightPath = To_AbsoluteTexturePath(resourceRoot, jtex.value("irisHeight", string{})).wstring();
+                inst.irisMaskPath = To_AbsoluteTexturePath(resourceRoot, jtex.value("irisMask", string{})).wstring();
             }
 
             outAsset.instancesByAssetName.emplace(assetName, std::move(inst));
@@ -433,6 +443,11 @@ bool MaterialBuilder::Try_ApplyMaterialBindingsFromJson(ModelCom& model, const j
         parseTextureOverride("emissive", inst.emissive);
         parseTextureOverride("opacity_mask", inst.opacityMask);
 
+        parseTextureOverride("hair_depth", inst.hairDepth);
+        parseTextureOverride("hair_id", inst.hairID);
+        parseTextureOverride("iris_height", inst.irisHeight);
+        parseTextureOverride("iris_mask", inst.irisMask);
+
         anyApplied = true;
     }
 
@@ -465,11 +480,15 @@ bool MaterialBuilder::Try_ApplyModelMaterialOverridesFromJson(ModelCom& model, c
         if (overrideData["slot"].is_string())
         {
             const string slotName = overrideData["slot"].get<string>();
-            if (slotName == "BaseColor") slot = MaterialTextureSlot::BaseColor;
-            else if (slotName == "Normal") slot = MaterialTextureSlot::Normal;
-            else if (slotName == "Emissive") slot = MaterialTextureSlot::Emissive;
+            if (slotName == "BaseColor")        slot = MaterialTextureSlot::BaseColor;
+            else if (slotName == "Normal")      slot = MaterialTextureSlot::Normal;
+            else if (slotName == "Emissive")    slot = MaterialTextureSlot::Emissive;
             else if (slotName == "OpacityMask") slot = MaterialTextureSlot::OpacityMask;
-            else if (slotName == "ORM") slot = MaterialTextureSlot::ORM;
+            else if (slotName == "ORM")         slot = MaterialTextureSlot::ORM;
+            else if (slotName == "HairDepth")   slot = MaterialTextureSlot::HairDepth;
+            else if (slotName == "HairID")      slot = MaterialTextureSlot::HairID;
+            else if (slotName == "IrisHeight")  slot = MaterialTextureSlot::IrisHeight;
+            else if (slotName == "IrisMask")    slot = MaterialTextureSlot::IrisMask;
         }
 
         if (slot == MaterialTextureSlot::END)
@@ -501,6 +520,10 @@ bool MaterialBuilder::Try_ApplyModelMaterialOverridesFromJson(ModelCom& model, c
         else if (slot == MaterialTextureSlot::ORM) target = &inst.orm;
         else if (slot == MaterialTextureSlot::Emissive) target = &inst.emissive;
         else if (slot == MaterialTextureSlot::OpacityMask) target = &inst.opacityMask;
+        else if (slot == MaterialTextureSlot::HairDepth) target = &inst.hairDepth;
+        else if (slot == MaterialTextureSlot::HairID) target = &inst.hairID;
+        else if (slot == MaterialTextureSlot::IrisHeight) target = &inst.irisHeight;
+        else if (slot == MaterialTextureSlot::IrisMask) target = &inst.irisMask;
 
         if (target == nullptr)
             continue;

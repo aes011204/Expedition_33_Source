@@ -44,7 +44,7 @@ namespace ModelEditor
 		// 1. Tech Junk Tokens (Exact matches only)
 		static const unordered_set<string> junkSet = {
 			"ALS", "UE5", "RETAKE", "UNREAL", "TAKE", "DEFAULT", "PLACEHOLDER", "SK",
-			"LF", "RF", "N", "F", "B", "L", "R", "W", "S", "E", "WORLD"
+			"LF", "RF", "N", "F", "B", "L", "R", "W", "S", "E"
 		};
 
 		// 2. Tokenize by various delimiters
@@ -113,14 +113,14 @@ namespace ModelEditor
 
 	HRESULT ModelConverter::Initialize()
 	{
-		Clear_Converter();
-		LOG_INFO("ModelConverter Called");
-		importFlags = aiProcess_ConvertToLeftHanded |
-					  aiProcess_Triangulate |
-					  aiProcess_CalcTangentSpace |
-					  aiProcess_GenSmoothNormals |
-                      aiProcess_LimitBoneWeights |
-                       aiProcess_JoinIdenticalVertices;
+	        Clear_Converter();
+	        LOG_INFO("ModelConverter Called");
+	        _importFlags = aiProcess_ConvertToLeftHanded |
+	                                  aiProcess_Triangulate |
+	                                  aiProcess_CalcTangentSpace |
+	                                  aiProcess_GenSmoothNormals |
+	                                  aiProcess_LimitBoneWeights |
+	                                  aiProcess_JoinIdenticalVertices;
 
 		strcpy_s(_pathBuffer, Engine::String::ToString(ResourcePath).c_str());
 		_resourcePath = ResourcePath;
@@ -301,17 +301,40 @@ namespace ModelEditor
 	{
 		Clear_Converter();
 		
-		string utf8FilePath = Engine::String::ToString(fbxFilePath);
-		_aiScene = _importer.ReadFile(utf8FilePath, importFlags);
-
-		if (nullptr == _aiScene || _aiScene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !_aiScene->mRootNode)
-		{
-			LOG_ERROR("Assimp Error: {} \n", _importer.GetErrorString());
-			return E_FAIL;
-		}
-
-		string modelName = Get_FileNameWithoutExtension(fbxFilePath);
+        string utf8FilePath = Engine::String::ToString(fbxFilePath);
+        
+        const aiScene* probeScene = _importer.ReadFile(utf8FilePath,
+            aiProcess_Triangulate | aiProcess_ConvertToLeftHanded);
+        if (nullptr == probeScene || probeScene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !probeScene->mRootNode)
+        {
+            LOG_ERROR("Assimp Error: {} \n", _importer.GetErrorString());
+            return E_FAIL;
+        }
+        
         bool hasMeshBones = false;
+        for (uint32 i = 0; i < probeScene->mNumMeshes; ++i)
+        {
+            if (probeScene->mMeshes[i]->mNumBones > 0)
+            {
+                hasMeshBones = true;
+                break;
+            }
+        }
+        _isSkeletal = hasMeshBones || probeScene->mNumAnimations > 0;
+        
+        uint32 finalFlags = _importFlags;
+        if (false == _isSkeletal)
+            finalFlags |= aiProcess_PreTransformVertices;
+            
+        _importer.FreeScene(); // 필수: 이전 probeScene 캐시를 날려야 새 플래그가 적용됨
+        _aiScene = _importer.ReadFile(utf8FilePath, finalFlags);
+        if (nullptr == _aiScene || _aiScene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !_aiScene->mRootNode)
+        {
+            LOG_ERROR("Assimp Error: {} \n", _importer.GetErrorString());
+            return E_FAIL;
+        }
+        string modelName = Get_FileNameWithoutExtension(fbxFilePath);
+
         for (uint32 i = 0; i < _aiScene->mNumMeshes; ++i)
         {
             if (_aiScene->mMeshes[i]->mNumBones > 0)
@@ -366,6 +389,13 @@ namespace ModelEditor
         };
 
         RecursiveBuild(RecursiveBuild, _aiScene->mRootNode, -1);
+
+        uint32 totalNodeCount = static_cast<uint32>(_bones.size());
+        uint32 boneCount = static_cast<uint32>(tempOffsetMap.size());
+        if (totalNodeCount > 0 && (totalNodeCount - boneCount) == 0)
+        {
+            _isSkeletal = false;
+        }
 
 		ReadMeshes(_aiScene);
 		ReadMaterial(_aiScene);
@@ -637,19 +667,13 @@ namespace ModelEditor
                         }
                     }
 
-                    // 4. 만약 boneRefs에 등록되지 않은 뼈대라면 배열 끝에 새로 추가합니다.
                     if (!bFoundInRefs)
                     {
                         boneRefs.push_back(defaultBoneIndex);
                         offsets.push_back(defaultOffset);
                         safeRefIndex = static_cast<uint32>(boneRefs.size() - 1);
                     }
-                    // =========================================================================
-
-
-                    // =========================================================================
-                    // 정점 웨이트 정규화 및 안전 인덱스 매핑 적용
-                    // =========================================================================
+                    
                     for (auto& vertex : vertices)
                     {
                         float weightSum = vertex.blendWeight.x + vertex.blendWeight.y + vertex.blendWeight.z + vertex.blendWeight.w;
@@ -974,45 +998,58 @@ namespace ModelEditor
 
 		for (uint32 i = 0; i < _animHeaders.size(); ++i)
 		{
-			string animClipName = Sanitize_FileName(string(_animHeaders[i].name));
-			string fullFileName;
+            string finalFileName = cleanModelName;
 
-			string charBaseName = cleanModelName;
-			if (charBaseName.length() >= 4 && charBaseName.substr(charBaseName.length() - 4) == "Body")
-			{
-				charBaseName = charBaseName.substr(0, charBaseName.length() - 4);
-			}
-
-            if (animClipName.find(cleanModelName) == 0)
-            {
-                animClipName.erase(0, cleanModelName.length());
-                if (!animClipName.empty() && animClipName[0] == '_')
-                    animClipName.erase(0, 1);
+            // 내부 애니메이션 이름 추출 및 정제 (예: "Armature|Dash_Out" -> "Dash_Out")
+            string internalAnimName = _animHeaders[i].name;
+            size_t pipePos = internalAnimName.find_last_of('|');
+            if (pipePos != string::npos) {
+                internalAnimName = internalAnimName.substr(pipePos + 1);
             }
-            if (animClipName.empty()) animClipName = "DefaultAnimName";
+            
+            string sanitizedInternal = Sanitize_FileName(internalAnimName);
 
-			if (animClipName == "DefaultAnimName")
-			{
-				fullFileName = cleanModelName;
-			}
-			else if (animClipName.find(charBaseName) == 0 || animClipName.find(cleanModelName) == 0)
-			{
-				fullFileName = animClipName;
-			}
-			else
-			{
-				fullFileName = cleanModelName + "_" + animClipName;
-			}
+            // 애니메이션이 여러 개일 경우에 내부 이름 결합
+            if (_animHeaders.size() > 1)
+            {
+                if (sanitizedInternal != "DefaultAnimName" && !sanitizedInternal.empty())
+                {
+                    // 모델 이름과 내부 이름이 중복되지 않게 처리 (예: Lancelier_Dash_Out 안에 Lancelier 가 이미 있는 경우 대비)
+                    if (sanitizedInternal.find(cleanModelName) == string::npos && cleanModelName.find(sanitizedInternal) == string::npos)
+                    {
+                        finalFileName += "_" + sanitizedInternal;
+                    }
+                    else
+                    {
+                        finalFileName = sanitizedInternal;
+                    }
+                }
+                else
+                {
+                    finalFileName += "_" + to_string(i);
+                }
+            }
+            else
+            {
+                // 단일 애니메이션의 경우에도 내부 이름이 더 구체적이라면 사용하는 것을 고려 (옵션)
+                // 하지만 FBX 파일명을 기본으로 하는 기존 로직을 유지하면서,
+                // 혹시라도 파일명이 "Lancelier"이고 내부 이름이 "Dash_Out"일 때 결합하고 싶다면 여기서도 처리할 수 있습니다.
+                // 여기서는 기존 로직대로 단일 애니메이션은 FBX 파일명(cleanModelName)을 우선시합니다.
+            }
 
-			wstring animPath = animDir + ToWString(fullFileName) + L".anim";
-			ofstream out(animPath, ios::binary);
-			if (!out.is_open())
-			{
-				LOG_ERROR("Failed to create anim file: {}", fullFileName);
-				continue;
-			}
+            wstring animPath = animDir + Engine::String::ToWString(finalFileName) + L".anim";
+            
+            ofstream out(animPath, ios::binary);
+            if (!out.is_open())
+            {
+                LOG_ERROR("Failed to create anim file: {}", finalFileName);
+                continue;
+            }
 
-			WriteString(out, fullFileName);
+            // 파일 내부에 저장되는 이름 갱신 (ModelCom 에서 이름으로 찾을 수 있게)
+            _animHeaders[i].name = finalFileName;
+
+			WriteString(out, finalFileName);
 			out.write(BYTE(&_animHeaders[i].duration), sizeof(double) * 2);
 			out.write(BYTE(&_animHeaders[i].numChannels), sizeof(uint32));
 			out.write(BYTE(&_animHeaders[i].rootTotalTranslation), sizeof(Vec3));
@@ -1029,7 +1066,7 @@ namespace ModelEditor
 			}
 
 			out.close();
-			LOG_INFO("Export Anim Clip: {}", fullFileName);
+			LOG_INFO("Export Anim Clip: {}", finalFileName);
 		}
 
 		return S_OK;
@@ -1101,13 +1138,12 @@ namespace ModelEditor
 
 	Matrix ModelConverter::Convert_Matrix(const aiMatrix4x4& aiMat) const
 	{
-		Matrix mat;
-		mat._11 = aiMat.a1; mat._12 = aiMat.b1; mat._13 = aiMat.c1; mat._14 = aiMat.d1;
-		mat._21 = aiMat.a2; mat._22 = aiMat.b2; mat._23 = aiMat.c2; mat._24 = aiMat.d2;
-		mat._31 = aiMat.a3; mat._32 = aiMat.b3; mat._33 = aiMat.c3; mat._34 = aiMat.d3;
-		mat._41 = aiMat.a4; mat._42 = aiMat.b4; mat._43 = aiMat.c4; mat._44 = aiMat.d4;
-
-		return mat;
+        return Matrix(
+            aiMat.a1, aiMat.b1, aiMat.c1, aiMat.d1,
+            aiMat.a2, aiMat.b2, aiMat.c2, aiMat.d2,
+            aiMat.a3, aiMat.b3, aiMat.c3, aiMat.d3,
+            aiMat.a4, aiMat.b4, aiMat.c4, aiMat.d4
+        );
 	}
 
 	void ModelConverter::Clear_Converter()

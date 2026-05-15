@@ -175,20 +175,35 @@ void Material_View::Pre_Render()
 
 void Material_View::Draw_ModeSelector()
 {
-    if (ImGui::Button("Create With Json"))
-        _mode = CreateMode::CreateWithJson;
+    ImGui::SeparatorText("[ Material View Mode ]");
 
-    ImGui::SameLine();
-    if (ImGui::Button("Edit With material.json"))
-        _mode = CreateMode::EditWithBundle;
+    const char* preview =
+        (_mode == CreateMode::CreateWithJson) ? "Create With Json" :
+        (_mode == CreateMode::EditWithBundle) ? "Edit With material.json" :
+        (_mode == CreateMode::EditWithModelCom) ? "Edit With ModelCom" :
+        (_mode == CreateMode::CreateMaterial) ? "Create Material" : "Unknown";
 
-    ImGui::SameLine();
-    if (ImGui::Button("Edit With ModelCom"))
-        _mode = CreateMode::EditWithModelCom;
+    if (ImGui::BeginCombo("##MaterialViewMode", preview))
+    {
+        struct ModeEntry { CreateMode mode; const char* label; };
+        const ModeEntry entries[] = {
+            { CreateMode::CreateWithJson, "Create With Json" },
+            { CreateMode::EditWithBundle, "Edit With material.json" },
+            { CreateMode::EditWithModelCom, "Edit With ModelCom" },
+            { CreateMode::CreateMaterial, "Create Material" },
+        };
 
-    ImGui::SameLine();
-    if (ImGui::Button("Create Material"))
-        _mode = CreateMode::CreateMaterial;
+        for (const ModeEntry& e : entries)
+        {
+            const bool selected = (_mode == e.mode);
+            if (ImGui::Selectable(e.label, selected))
+                _mode = e.mode;
+            if (selected)
+                ImGui::SetItemDefaultFocus();
+        }
+
+        ImGui::EndCombo();
+    }
 }
 
 void Material_View::Draw_Settings()
@@ -834,6 +849,7 @@ void Material_View::Draw_MappingsEditorUI(int selectedMaterialIndexFilter, const
     {
         // 슬롯별 UI는 Model_Inspector에서 하던 방식과 거의 같다
         bool changed = false;
+        const string idSuffix = string("##") + label;
         ImGui::SetNextItemOpen(true, ImGuiCond_Once);
         if (!ImGui::TreeNode(label))
             return false;
@@ -866,7 +882,8 @@ void Material_View::Draw_MappingsEditorUI(int selectedMaterialIndexFilter, const
             ImGui::SameLine(120.f);
 
             const string currentFileName = slotPath.empty() ? "-" : String::ToString(fs::path(slotPath).filename().wstring());
-            if (ImGui::BeginCombo("##TexturePicker", currentFileName.c_str()))
+            const string texturePickerId = string("##TexturePicker") + idSuffix;
+            if (ImGui::BeginCombo(texturePickerId.c_str(), currentFileName.c_str()))
             {
                 const fs::path directory = fs::path(slotPath).parent_path();
                 vector<fs::path> textureCandidates{};
@@ -889,7 +906,8 @@ void Material_View::Draw_MappingsEditorUI(int selectedMaterialIndexFilter, const
                 strncpy_s(searchBuffer, searchText.c_str(), _TRUNCATE);
 
                 ImGui::SetNextItemWidth(-FLT_MIN);
-                if (ImGui::InputTextWithHint("##TextureSearch", "Search texture...", searchBuffer, sizeof(searchBuffer)))
+                const string textureSearchId = string("##TextureSearch") + idSuffix;
+                if (ImGui::InputTextWithHint(textureSearchId.c_str(), "Search texture...", searchBuffer, sizeof(searchBuffer)))
                     searchText = searchBuffer;
 
                 ImGui::Separator();
@@ -940,7 +958,8 @@ void Material_View::Draw_MappingsEditorUI(int selectedMaterialIndexFilter, const
 
         ImGui::TextDisabled("Browse");
         ImGui::SameLine(120.f);
-        if (ImGui::Button("Browse##Slot"))
+        const string browseId = string("Browse") + idSuffix;
+        if (ImGui::Button(browseId.c_str()))
         {
             wstring picked{};
             if (Try_PickTextureFileDialog(L"Select Texture", _textureSearchRoot, picked))
@@ -952,7 +971,8 @@ void Material_View::Draw_MappingsEditorUI(int selectedMaterialIndexFilter, const
         }
 
         ImGui::SameLine();
-        if (ImGui::Button("Clear##Slot"))
+        const string clearId = string("Clear") + idSuffix;
+        if (ImGui::Button(clearId.c_str()))
         {
             slotPath.clear();
             overrideFlag = true;
@@ -1114,10 +1134,31 @@ void Material_View::Draw_MappingsEditorUI(int selectedMaterialIndexFilter, const
         anyChanged = anyChanged || drawSlotEditor("ORM", inst->ormOverride, inst->ormPath);
         anyChanged = anyChanged || drawSlotEditor("Emissive", inst->emissiveOverride, inst->emissivePath);
         anyChanged = anyChanged || drawSlotEditor("OpacityMask", inst->opacityMaskOverride, inst->opacityMaskPath);
+        anyChanged = anyChanged || drawSlotEditor("HairDepth", inst->hairDepthOverride, inst->hairDepthPath);
+        anyChanged = anyChanged || drawSlotEditor("HairID", inst->hairIDOverride, inst->hairIDPath);
+        anyChanged = anyChanged || drawSlotEditor("IrisHeight", inst->irisHeightOverride, inst->irisHeightPath);
+        anyChanged = anyChanged || drawSlotEditor("IrisMask", inst->irisMaskOverride, inst->irisMaskPath);
 
         ImGui::SeparatorText("Parameters");
         anyChanged = anyChanged || drawTemplatePicker(*inst);
 
+        {
+            int before = inst->forcedPassIndex;
+            ImGui::SetNextItemWidth(120.f);
+            if (ImGui::DragInt("Force Pass (-1=Auto)", &inst->forcedPassIndex, 0.25f, -1, 4096))
+                anyChanged = true;
+            anyChanged = anyChanged || (before != inst->forcedPassIndex);
+        }
+
+        if (_mode == CreateMode::EditWithModelCom)
+        {
+            bool before = inst->renderStateOverrideEnabled;
+            ImGui::Checkbox("Override RenderState", &inst->renderStateOverrideEnabled);
+            anyChanged = anyChanged || (before != inst->renderStateOverrideEnabled);
+        }
+
+        const bool disableRenderState = (_mode == CreateMode::EditWithModelCom && !inst->renderStateOverrideEnabled);
+        ImGui::BeginDisabled(disableRenderState);
         {
             bool before = inst->renderState.twoSided;
             ImGui::Checkbox("TwoSided", &inst->renderState.twoSided);
@@ -1128,6 +1169,7 @@ void Material_View::Draw_MappingsEditorUI(int selectedMaterialIndexFilter, const
 
         if (ImGui::DragFloat("Clip", &inst->renderState.opacityMaskClipValue, 0.001f, 0.f, 1.f))
             anyChanged = true;
+        ImGui::EndDisabled();
 
         Engine::MaterialCB baseCb{};
         bool hasBaseCb = false;
@@ -1151,11 +1193,16 @@ void Material_View::Draw_MappingsEditorUI(int selectedMaterialIndexFilter, const
             if (ImGui::Button("Clear Instance Overrides (slot)"))
             {
                 inst->cbMask.Clear();
+                inst->renderStateOverrideEnabled = false;
                 inst->baseColorOverride = false;
                 inst->normalOverride = false;
                 inst->ormOverride = false;
                 inst->emissiveOverride = false;
                 inst->opacityMaskOverride = false;
+                inst->hairDepthOverride = false;
+                inst->hairIDOverride = false;
+                inst->irisHeightOverride = false;
+                inst->irisMaskOverride = false;
                 anyChanged = true;
             }
         }
@@ -1191,7 +1238,7 @@ void Material_View::Draw_MappingsEditorUI(int selectedMaterialIndexFilter, const
 
             ImGui::BeginDisabled(!inst->cbMask.baseColorTint);
             float baseTint[4] = { inst->cb.baseColorTint.x, inst->cb.baseColorTint.y, inst->cb.baseColorTint.z, inst->cb.baseColorTint.w };
-            if (ImGui::InputFloat4("BaseTint", baseTint))
+            if (ImGui::ColorEdit4("BaseTint", baseTint))
             {
                 inst->cb.baseColorTint = Engine::Vec4(baseTint[0], baseTint[1], baseTint[2], baseTint[3]);
                 anyChanged = true;
@@ -1218,7 +1265,7 @@ void Material_View::Draw_MappingsEditorUI(int selectedMaterialIndexFilter, const
 
             ImGui::BeginDisabled(!inst->cbMask.emissiveColor);
             float emiColor[4] = { inst->cb.emissiveColor.x, inst->cb.emissiveColor.y, inst->cb.emissiveColor.z, inst->cb.emissiveColor.w };
-            if (ImGui::InputFloat4("EmissiveColor", emiColor))
+            if (ImGui::ColorEdit4("EmissiveColor", emiColor))
             {
                 inst->cb.emissiveColor = Engine::Vec4(emiColor[0], emiColor[1], emiColor[2], emiColor[3]);
                 anyChanged = true;
@@ -1717,8 +1764,9 @@ void Material_View::Apply_ToSelectedModel(int onlyMaterialIndex)
             if (_mode == CreateMode::EditWithModelCom)
             {
                 Engine::MaterialInstanceOverride ov{};
-                ov.overrideRenderStateEnabled = true;
-                ov.renderState = inst.renderState;
+                ov.overrideRenderStateEnabled = inst.renderStateOverrideEnabled;
+                if (ov.overrideRenderStateEnabled)
+                    ov.renderState = inst.renderState;
                 ov.cb = inst.cb;
                 ov.cbMask.baseColorTint = inst.cbMask.baseColorTint;
                 ov.cbMask.emissiveColor = inst.cbMask.emissiveColor;
@@ -1739,6 +1787,10 @@ void Material_View::Apply_ToSelectedModel(int onlyMaterialIndex)
                 if (inst.ormOverride) { ov.orm.enabled = true; ov.orm.path = inst.ormPath; }
                 if (inst.emissiveOverride) { ov.emissive.enabled = true; ov.emissive.path = inst.emissivePath; }
                 if (inst.opacityMaskOverride) { ov.opacityMask.enabled = true; ov.opacityMask.path = inst.opacityMaskPath; }
+                if (inst.hairDepthOverride) { ov.hairDepth.enabled = true; ov.hairDepth.path = inst.hairDepthPath; }
+                if (inst.hairIDOverride) { ov.hairID.enabled = true; ov.hairID.path = inst.hairIDPath; }
+                if (inst.irisHeightOverride) { ov.irisHeight.enabled = true; ov.irisHeight.path = inst.irisHeightPath; }
+                if (inst.irisMaskOverride) { ov.irisMask.enabled = true; ov.irisMask.path = inst.irisMaskPath; }
 
                 model->Set_InstanceOverride(m.materialIndex, ov);
                 model->Apply_EffectiveMaterial(m.materialIndex);
@@ -1768,6 +1820,14 @@ void Material_View::Apply_ToSelectedModel(int onlyMaterialIndex)
                 material->Override_TextureSlot(MaterialTextureSlot::OpacityMask, 0, inst.opacityMaskPath);
             else
                 material->Override_TextureSlot(MaterialTextureSlot::OpacityMask, 0, L"");
+            if (inst.hairDepthOverride)
+                material->Override_TextureSlot(MaterialTextureSlot::HairDepth, 0, inst.hairDepthPath);
+            if (inst.hairIDOverride)
+                material->Override_TextureSlot(MaterialTextureSlot::HairID, 0, inst.hairIDPath);
+            if (inst.irisHeightOverride)
+                material->Override_TextureSlot(MaterialTextureSlot::IrisHeight, 0, inst.irisHeightPath);
+            if (inst.irisMaskOverride)
+                material->Override_TextureSlot(MaterialTextureSlot::IrisMask, 0, inst.irisMaskPath);
 
 #ifdef _DEBUG
             {
@@ -2072,6 +2132,8 @@ bool Material_View::Load_BundleFile(const wstring& bundlePath)
                 inst.renderState.opacityMaskClipValue = rs.value("opacityMaskClipValue", inst.renderState.opacityMaskClipValue);
             }
 
+            inst.forcedPassIndex = ji.value("forcePassIndex", inst.forcedPassIndex);
+
             if (ji.contains("overrides") && ji["overrides"].is_object())
             {
                 const json& jov = ji["overrides"];
@@ -2080,6 +2142,10 @@ bool Material_View::Load_BundleFile(const wstring& bundlePath)
                 inst.ormOverride = jov.value("orm", inst.ormOverride);
                 inst.emissiveOverride = jov.value("emissive", inst.emissiveOverride);
                 inst.opacityMaskOverride = jov.value("opacityMask", inst.opacityMaskOverride);
+                inst.hairDepthOverride = jov.value("hairDepth", inst.hairDepthOverride);
+                inst.hairIDOverride = jov.value("hairID", inst.hairIDOverride);
+                inst.irisHeightOverride = jov.value("irisHeight", inst.irisHeightOverride);
+                inst.irisMaskOverride = jov.value("irisMask", inst.irisMaskOverride);
             }
 
             if (ji.contains("textures") && ji["textures"].is_object())
@@ -2090,6 +2156,10 @@ bool Material_View::Load_BundleFile(const wstring& bundlePath)
                 inst.ormPath = relToAbsUnderResourceRoot(jt.value("orm", string{}));
                 inst.emissivePath = relToAbsUnderResourceRoot(jt.value("emissive", string{}));
                 inst.opacityMaskPath = relToAbsUnderResourceRoot(jt.value("opacityMask", string{}));
+                inst.hairDepthPath = relToAbsUnderResourceRoot(jt.value("hairDepth", string{}));
+                inst.hairIDPath = relToAbsUnderResourceRoot(jt.value("hairID", string{}));
+                inst.irisHeightPath = relToAbsUnderResourceRoot(jt.value("irisHeight", string{}));
+                inst.irisMaskPath = relToAbsUnderResourceRoot(jt.value("irisMask", string{}));
             }
 
             if (ji.contains("cb") && ji["cb"].is_object())
@@ -2194,6 +2264,7 @@ bool Material_View::Load_FromSelectedModelCom()
     _activeMappingGroup = 0;
 
     const uint32 numMaterials = static_cast<uint32>(model->Get_NumMaterials());
+    const auto& bindings = model->Get_MaterialBindings();
     for (uint32 materialIndex = 0; materialIndex < numMaterials; ++materialIndex)
     {
         const Shared<Material> mat = model->Get_Material(materialIndex);
@@ -2220,19 +2291,41 @@ bool Material_View::Load_FromSelectedModelCom()
         inst.renderState = mat->Get_RenderState();
         inst.cb = mat->Get_CB();
 
-        // Edit With ModelCom은 "현재 런타임 상태를 인스턴스 편집 시작점"으로 쓰는 모드라
-        // 기본으로 모든 CB 필드를 override 대상으로 켠다. (사용자가 체크를 끄면 base를 따르게 된다)
-#define EDITOR_DEFAULT_CB_MASK_ON(_key, _member, _kind) inst.cbMask._member = true;
-        MATERIAL_CB_OVERRIDE_FIELDS(EDITOR_DEFAULT_CB_MASK_ON)
-#undef EDITOR_DEFAULT_CB_MASK_ON
+        // override 체크는 "런타임 SRV 유무"가 아니라 ModelCom instance override를 기준으로 한다.
+        // (베이스 텍스처가 존재하기만 해도 전부 override로 켜지는 문제 방지)
+        const Engine::MaterialBinding* binding = (materialIndex < bindings.size()) ? &bindings[materialIndex] : nullptr;
+        const Engine::MaterialInstanceOverride* instOv = (binding != nullptr) ? &binding->instance : nullptr;
 
-        auto slotToPath = [&](MaterialTextureSlot slot, wstring& outPath, bool& outOverride) -> void
+        if (instOv != nullptr)
         {
+            inst.renderStateOverrideEnabled = instOv->overrideRenderStateEnabled;
+
+            // cb mask 복사
+#define EDITOR_COPY_CB_MASK(_key, _member, _kind) inst.cbMask._member = instOv->cbMask._member;
+            MATERIAL_CB_OVERRIDE_FIELDS(EDITOR_COPY_CB_MASK)
+#undef EDITOR_COPY_CB_MASK
+        }
+        else
+        {
+            inst.renderStateOverrideEnabled = false;
+            inst.cbMask.Clear();
+        }
+
+        auto slotToPath = [&](MaterialTextureSlot slot, wstring& outPath, bool& outOverride, const Engine::TextureOverride* ov) -> void
+        {
+            if (ov != nullptr && ov->enabled)
+            {
+                outPath = ov->path;
+                outOverride = true;
+                return;
+            }
+
             const Material::TextureSlot* s = mat->Find_TextureSlot(slot, 0);
             if (s != nullptr && s->shaderResourceView != nullptr)
             {
+                // 표시용: base/resolved path는 보여주되 override는 켜지지 않는다.
                 outPath = s->resolvedPath;
-                outOverride = true;
+                outOverride = false;
             }
             else
             {
@@ -2241,11 +2334,25 @@ bool Material_View::Load_FromSelectedModelCom()
             }
         };
 
-        slotToPath(MaterialTextureSlot::BaseColor, inst.baseColorPath, inst.baseColorOverride);
-        slotToPath(MaterialTextureSlot::Normal, inst.normalPath, inst.normalOverride);
-        slotToPath(MaterialTextureSlot::ORM, inst.ormPath, inst.ormOverride);
-        slotToPath(MaterialTextureSlot::Emissive, inst.emissivePath, inst.emissiveOverride);
-        slotToPath(MaterialTextureSlot::OpacityMask, inst.opacityMaskPath, inst.opacityMaskOverride);
+        const Engine::TextureOverride* ovBaseColor = (instOv != nullptr) ? &instOv->baseColor : nullptr;
+        const Engine::TextureOverride* ovNormal = (instOv != nullptr) ? &instOv->normal : nullptr;
+        const Engine::TextureOverride* ovOrm = (instOv != nullptr) ? &instOv->orm : nullptr;
+        const Engine::TextureOverride* ovEmissive = (instOv != nullptr) ? &instOv->emissive : nullptr;
+        const Engine::TextureOverride* ovOpacityMask = (instOv != nullptr) ? &instOv->opacityMask : nullptr;
+        const Engine::TextureOverride* ovHairDepth = (instOv != nullptr) ? &instOv->hairDepth : nullptr;
+        const Engine::TextureOverride* ovHairID = (instOv != nullptr) ? &instOv->hairID : nullptr;
+        const Engine::TextureOverride* ovIrisHeight = (instOv != nullptr) ? &instOv->irisHeight : nullptr;
+        const Engine::TextureOverride* ovIrisMask = (instOv != nullptr) ? &instOv->irisMask : nullptr;
+
+        slotToPath(MaterialTextureSlot::BaseColor, inst.baseColorPath, inst.baseColorOverride, ovBaseColor);
+        slotToPath(MaterialTextureSlot::Normal, inst.normalPath, inst.normalOverride, ovNormal);
+        slotToPath(MaterialTextureSlot::ORM, inst.ormPath, inst.ormOverride, ovOrm);
+        slotToPath(MaterialTextureSlot::Emissive, inst.emissivePath, inst.emissiveOverride, ovEmissive);
+        slotToPath(MaterialTextureSlot::OpacityMask, inst.opacityMaskPath, inst.opacityMaskOverride, ovOpacityMask);
+        slotToPath(MaterialTextureSlot::HairDepth, inst.hairDepthPath, inst.hairDepthOverride, ovHairDepth);
+        slotToPath(MaterialTextureSlot::HairID, inst.hairIDPath, inst.hairIDOverride, ovHairID);
+        slotToPath(MaterialTextureSlot::IrisHeight, inst.irisHeightPath, inst.irisHeightOverride, ovIrisHeight);
+        slotToPath(MaterialTextureSlot::IrisMask, inst.irisMaskPath, inst.irisMaskOverride, ovIrisMask);
 
         _manualInstances.emplace(assetName, move(inst));
         _manualInstanceKinds[assetName] = MaterialRefKind::Unknown;
@@ -2470,6 +2577,7 @@ bool Material_View::Save_BundleFile(const wstring& outputPath) const
             ji["assetName"] = inst.assetName;
             ji["template"] = static_cast<uint32>(inst.templateId);
             ji["refKind"] = kindToStr(kind);
+            ji["forcePassIndex"] = inst.forcedPassIndex;
 
             json jstate{};
             jstate["twoSided"] = inst.renderState.twoSided;
@@ -2483,6 +2591,10 @@ bool Material_View::Save_BundleFile(const wstring& outputPath) const
             jtex["orm"] = toRelativeUnderResourceRoot(inst.ormPath);
             jtex["emissive"] = toRelativeUnderResourceRoot(inst.emissivePath);
             jtex["opacityMask"] = toRelativeUnderResourceRoot(inst.opacityMaskPath);
+            jtex["hairDepth"] = toRelativeUnderResourceRoot(inst.hairDepthPath);
+            jtex["hairID"] = toRelativeUnderResourceRoot(inst.hairIDPath);
+            jtex["irisHeight"] = toRelativeUnderResourceRoot(inst.irisHeightPath);
+            jtex["irisMask"] = toRelativeUnderResourceRoot(inst.irisMaskPath);
             ji["textures"] = move(jtex);
 
             json jov{};
@@ -2491,6 +2603,10 @@ bool Material_View::Save_BundleFile(const wstring& outputPath) const
             jov["orm"] = inst.ormOverride;
             jov["emissive"] = inst.emissiveOverride;
             jov["opacityMask"] = inst.opacityMaskOverride;
+            jov["hairDepth"] = inst.hairDepthOverride;
+            jov["hairID"] = inst.hairIDOverride;
+            jov["irisHeight"] = inst.irisHeightOverride;
+            jov["irisMask"] = inst.irisMaskOverride;
             ji["overrides"] = move(jov);
 
             json jcb{};

@@ -1,5 +1,7 @@
 ﻿#pragma once
+
 #include "PlayableParts.h"
+#include "HairChainPhysics.h"
 
 NS_BEGIN(Engine)
 class ShaderCom;
@@ -15,6 +17,7 @@ class Hair_Player final : public PlayableParts
 public:
     typedef struct tagHairPlayerDesc final : public PlayableParts::PLAYABLE_PART_DESC
     {
+        HairChainPhysicsDesc    hairPhysicsDesc{};
     } HAIR_PLAYER_DESC;
 
 public:
@@ -34,6 +37,10 @@ public:
 
 private:
     Matrix _offsetMatrix{};
+
+    HairChainPhysics        _hairPhysics{};
+    HairChainPhysicsDesc    _hairPhysicsDesc{};
+    bool                    _hairPhysicsReady = false;
 
 public:
     static Shared<Hair_Player> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

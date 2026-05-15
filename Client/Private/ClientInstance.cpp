@@ -1,5 +1,7 @@
 ﻿#include "pch.h"
 #include "ClientInstance.h"
+
+#include "BattleController.h"
 #include "BT_Node_Bootstrap.h"
 #include "ComputePointParticleEffect.h"
 #include "GameDataTable.h"
@@ -43,6 +45,9 @@ HRESULT ClientInstance::Initialize_Client(const ComPtr<Device>& device, const Co
     _heroManager = Hero_Manager::Create();
     CHECK_NULL(_heroManager, E_FAIL);
 
+    _battleController = BattleController::Create();
+    CHECK_NULL(_battleController, E_FAIL);
+
 	_isInitialized = true;
 
 	return S_OK;
@@ -55,6 +60,9 @@ void ClientInstance::Update_Client(float timeDelta)
 
     if (_gamePlayUI)
         _gamePlayUI->Update(timeDelta);
+
+    if (_battleController)
+        _battleController->Update(timeDelta);
 }
 
 HRESULT ClientInstance::Ready_StaticResources()
@@ -105,6 +113,26 @@ Shared<Player> ClientInstance::Get_ActiveHero() const
     return _heroManager->Get_ActiveHero();
 }
 
+const vector<HeroPartyEntry>& ClientInstance::Get_HeroEntries() const
+{
+    return _heroManager->Get_HeroEntries();
+}
+
+Shared<Player> ClientInstance::Get_Hero(HeroPartySlot slot) const
+{
+    return _heroManager->Get_Hero(slot);
+}
+
+HeroId ClientInstance::Get_HeroId(HeroPartySlot slot) const
+{
+    return _heroManager->Get_HeroId(slot);
+}
+
+HeroPartySlot ClientInstance::Get_ActiveHeroSlot() const
+{
+    return _heroManager->Get_ActiveHeroSlot();
+}
+
 void ClientInstance::Set_TargetCamera(const Shared<TargetCamera>& camera)
 {
     return _heroManager->Set_TargetCamera(camera);
@@ -120,9 +148,9 @@ Shared<Player> ClientInstance::Get_FrontHero() const
     return _heroManager->Get_FrontHero();
 }
 
-vector<Shared<Player>> ClientInstance::Get_HeroesInPartyOrder() const
+Shared<Player> ClientInstance::Find_Hero(HeroId heroId) const
 {
-    return _heroManager->Get_HeroesInPartyOrder();
+    return _heroManager->Find_Hero(heroId);
 }
 
 HRESULT ClientInstance::Initialize_GameplayUI(uint32 levelIndex)
@@ -144,6 +172,12 @@ void ClientInstance::Clear_GameplayUI()
     }
 
     GAME->Set_GameplayPaused(false);
+}
+
+void ClientInstance::OnEnterBattleField(uint32 FieldID, bool IsFirstHero, vector<string>& PlayerProtoTag,
+    vector<string>& MonsterProtoTag)
+{
+    _battleController->OnEnterBattleField(FieldID, IsFirstHero, PlayerProtoTag, MonsterProtoTag);
 }
 
 Shared<GameObject> ClientInstance::Find_Player(uint32 levelIndex)
@@ -204,6 +238,7 @@ void ClientInstance::Release_Client()
     ReleaseManager(_persistentObjectManager);
     ReleaseManager(_resourceLoader);
     ReleaseManager(_heroManager);
+    ReleaseManager(_battleController);
     ReleaseManager(_gamePlayUI);
 
     _context.Reset();

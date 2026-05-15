@@ -51,17 +51,27 @@ private:
         MaterialRenderState renderState{};
         MaterialCB cb{};
 
+        int32 forcePassIndex = -1;
+
         bool baseColorOverride = false;
         bool normalOverride = false;
         bool ormOverride = false;
         bool emissiveOverride = false;
         bool opacityMaskOverride = false;
+        bool hairDepthOverride = false;
+        bool hairIDOverride = false;
+        bool irisHeightOverride = false;
+        bool irisMaskOverride = false;
 
         wstring baseColorPath{};
         wstring normalPath{};
         wstring ormPath{};
         wstring emissivePath{};
         wstring opacityMaskPath{};
+        wstring hairDepthPath{};
+        wstring hairIDPath{};
+        wstring irisHeightPath{};
+        wstring irisMaskPath{};
     };
 
 public:

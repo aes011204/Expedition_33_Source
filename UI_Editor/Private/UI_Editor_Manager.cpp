@@ -210,14 +210,18 @@ namespace UIEditor
         return Confirm_SaveIfDirty(L"close UI Editor");
     }
 
-    ID3D11ShaderResourceView* UI_Editor_Manager::Get_TexturePreviewSRV(const string& textureGuid)
+    ID3D11ShaderResourceView* UI_Editor_Manager::Get_TexturePreviewSRV(const string& textureGuid, const string& texturePath)
     {
-        return _previewService.Get_TexturePreviewSRV(textureGuid);
+        return _previewService.Get_TexturePreviewSRV(textureGuid, texturePath);
     }
 
-    ID3D11ShaderResourceView* UI_Editor_Manager::Get_MaskedTexturePreviewSRV(const string& textureGuid, const string& maskTextureGuid)
+    ID3D11ShaderResourceView* UI_Editor_Manager::Get_MaskedTexturePreviewSRV(
+        const string& textureGuid,
+        const string& texturePath,
+        const string& maskTextureGuid,
+        const string& maskTexturePath)
     {
-        return _previewService.Get_MaskedTexturePreviewSRV(textureGuid, maskTextureGuid);
+        return _previewService.Get_MaskedTexturePreviewSRV(textureGuid, texturePath, maskTextureGuid, maskTexturePath);
     }
 
     void UI_Editor_Manager::Render_DockSpace()

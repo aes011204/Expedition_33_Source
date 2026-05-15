@@ -1,6 +1,37 @@
 ﻿#include "Font_Manager.h"
 #include "CustomFont.h"
 
+namespace
+{
+    float Resolve_FontScaleCorrection(const wchar_t* fontFilePath)
+    {
+        if (nullptr == fontFilePath || L'\0' == *fontFilePath)
+            return 1.f;
+
+        const string fileName = String::ToLowerCopy(
+            String::ToString(fs::path(fontFilePath).filename().wstring()));
+
+        if (fileName == "33_mainkr_font.spritefont")
+        {
+            return 24.f / 56.f;
+        }
+
+        if (fileName == "33_subkr_font.spritefont")
+        {
+            return 24.f / 60.f;
+        }
+
+        if (fileName == "33_mainen_font.spritefont"  ||
+            fileName == "33_mainnum_font.spritefont" ||
+            fileName == "33_subnum_font.spritefont")
+        {
+            return 24.f / 96.f;
+        }
+
+        return 1.f;
+    }
+}
+
 Font_Manager::Font_Manager(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : _device { device }
     , _context{ context }
@@ -20,7 +51,11 @@ HRESULT Font_Manager::Add_Font(const wstring& fontTag, const wchar_t* fontFilePa
         return S_OK;
     }
 
-    Shared<CustomFont> font = CustomFont::Create(_device.Get(), _context.Get(), fontFilePath);
+    Shared<CustomFont> font = CustomFont::Create(
+        _device.Get(),
+        _context.Get(),
+        fontFilePath,
+        Resolve_FontScaleCorrection(fontFilePath));
     if (nullptr == font)
         return E_FAIL;
 
