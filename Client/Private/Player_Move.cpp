@@ -19,34 +19,33 @@ bool Player_Move::EnterInvoke()
 
 void Player_Move::Update(float timeDelta)
 {
-    auto& input = Get_MovementInput();
     uint32 animIndex = _bodyPlayer->Get_AnimationStateIndex();
 
-    if (!Has_MoveInput())
+    if (IsEnterIdle())
     {
         _stateCom->Change_State(PlayerState::Idle);
         return;
     }
 
-    if (input.isJumpDown)
+    if (IsEnterJump())
     {
         _stateCom->Change_State(PlayerState::Jump);
         return;
     }
 
-    if (input.isSuddenAttack)
+    if (IsEnterWorldAction())
     {
         _stateCom->Change_State(PlayerState::WorldAction);
         return;
     }
 
     using plAnim = Body_Player::PlayerWorldAnimation;
-    if (input.isRunPressed)
+    if (IsSprintMove())
     {
         if (animIndex != ETOI(plAnim::Pl_Sprint))
             _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_Sprint), 0.2f, true);
     }
-    else if (Is_WalkToggled())
+    else if (IsWalkMove())
     {
         if (animIndex != ETOI(plAnim::Pl_Walk))
             _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_Walk), 0.2f, true);
@@ -55,7 +54,6 @@ void Player_Move::Update(float timeDelta)
     {
         if (animIndex != ETOI(plAnim::Pl_Run))
         {
-            LOG_INFO("{}", ETOI(plAnim::Pl_Run));
             _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_Run), 0.2f, true);
         }
     }

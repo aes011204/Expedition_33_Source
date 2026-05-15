@@ -70,11 +70,18 @@ public: /* For.Hero Manager */
 
     Shared<Player> Find_Hero(HeroId heroId) const;
 
+    const HeroSpawnDesc* Find_HeroSpawnDesc(HeroId heroId);
+
 public: /* For.Gameplay UI */
     HRESULT Initialize_GameplayUI(uint32 levelIndex);
     void    Clear_GameplayUI();
+
 public: /* For.Battle_Controller */
-    void OnEnterBattleField(uint32 FieldID, bool IsFirstHero, vector<string>& PlayerProtoTag, vector<string>& MonsterProtoTag);
+    void OnEnterBattleField(
+        uint32 FieldID,
+        bool IsFirstHero,
+        const vector<HeroId>& heroIds,
+        vector<string>& MonsterProtoTag);
 
 
 private:

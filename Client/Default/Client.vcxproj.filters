@@ -109,27 +109,6 @@
     <Filter Include="02.GameObject\Player">
       <UniqueIdentifier>{826c9a1d-2b0d-4d3d-84b4-0191a69e558c}</UniqueIdentifier>
     </Filter>
-    <Filter Include="02.GameObject\Player\PlayerParts">
-      <UniqueIdentifier>{e5a6e35f-4a37-4b1e-8e68-5f77821102f5}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="02.GameObject\Player\PlayerParts\Body">
-      <UniqueIdentifier>{a87f8bd0-138d-4a43-9e74-6c6581ad6c18}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="02.GameObject\Player\PlayerParts\Head">
-      <UniqueIdentifier>{78d35043-f9f8-47d9-8223-12103a0eabfe}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="02.GameObject\Player\PlayerParts\Hair">
-      <UniqueIdentifier>{19fc3d93-3bc3-41e1-a720-cc9265767183}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="02.GameObject\Player\PlayerParts\Weapon">
-      <UniqueIdentifier>{292bac37-111c-402f-87d5-1f785fd312bc}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="02.GameObject\Player\PlayerStateMachine">
-      <UniqueIdentifier>{06824f3a-44ed-4909-b292-0b395d0620f4}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="02.GameObject\Player\PlayerStateMachine\State">
-      <UniqueIdentifier>{2ff895e8-c801-4ce1-8657-6b74912325b5}</UniqueIdentifier>
-    </Filter>
     <Filter Include="BehavoirTree\NewFilter1">
       <UniqueIdentifier>{292bb4f3-1a9f-4b3b-aef8-1d9d3507d618}</UniqueIdentifier>
     </Filter>
@@ -162,6 +141,48 @@
     </Filter>
     <Filter Include="Skill">
       <UniqueIdentifier>{08ca65e3-4c52-440c-a6ee-2cdc0dbb87ff}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="95. AnimNotify">
+      <UniqueIdentifier>{cadd6d73-0a01-4514-a6fc-dcad628fd6db}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="95. AnimNotify\00. Notifies">
+      <UniqueIdentifier>{2b19be15-9893-49c4-8c08-188428f286dd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="95. AnimNotify\01. NotifyStates">
+      <UniqueIdentifier>{f68f40cb-5936-4153-9c79-d9d484be995b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="95. BattleSystem">
+      <UniqueIdentifier>{9d04b6da-b2c3-441a-82a4-7a3c78a99092}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="04. GamePlayUI">
+      <UniqueIdentifier>{27d05649-8f0c-48bb-982c-79b7a497dbeb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02.GameObject\Player\00. PlayerParts">
+      <UniqueIdentifier>{e5a6e35f-4a37-4b1e-8e68-5f77821102f5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02.GameObject\Player\00. PlayerParts\Body">
+      <UniqueIdentifier>{a87f8bd0-138d-4a43-9e74-6c6581ad6c18}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02.GameObject\Player\00. PlayerParts\Head">
+      <UniqueIdentifier>{78d35043-f9f8-47d9-8223-12103a0eabfe}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02.GameObject\Player\00. PlayerParts\Hair">
+      <UniqueIdentifier>{19fc3d93-3bc3-41e1-a720-cc9265767183}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02.GameObject\Player\00. PlayerParts\Weapon">
+      <UniqueIdentifier>{292bac37-111c-402f-87d5-1f785fd312bc}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02.GameObject\Player\01. PlayerStateMachine">
+      <UniqueIdentifier>{06824f3a-44ed-4909-b292-0b395d0620f4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02.GameObject\Player\01. PlayerStateMachine\State">
+      <UniqueIdentifier>{2ff895e8-c801-4ce1-8657-6b74912325b5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02.GameObject\Player\03. Battle">
+      <UniqueIdentifier>{615d33a3-d63e-49a0-a857-a1e7ddf5bce0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02.GameObject\Player\02. World">
+      <UniqueIdentifier>{9bf41fa3-e5b3-4483-a420-4ed70f5c1ca1}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -213,14 +234,11 @@
     <ClInclude Include="..\Public\Monster.h">
       <Filter>02.GameObject\Monster</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\Player.h">
-      <Filter>02.GameObject\Player</Filter>
-    </ClInclude>
     <ClInclude Include="..\public\Body_Player.h">
-      <Filter>02.GameObject\Player\PlayerParts\Body</Filter>
+      <Filter>02.GameObject\Player\00. PlayerParts\Body</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Weapon.h">
-      <Filter>02.GameObject\Player\PlayerParts\Weapon</Filter>
+      <Filter>02.GameObject\Player\00. PlayerParts\Weapon</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Sky.h">
       <Filter>02.GameObject\Sky</Filter>
@@ -243,17 +261,14 @@
     <ClInclude Include="..\Public\MapLoader.h">
       <Filter>02.GameObject\Map\MapLoader</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\Spawn_Prefab.h">
-      <Filter>96. Manager</Filter>
-    </ClInclude>
     <ClInclude Include="..\Public\Head_Player.h">
-      <Filter>02.GameObject\Player\PlayerParts\Head</Filter>
+      <Filter>02.GameObject\Player\00. PlayerParts\Head</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Hair_Player.h">
-      <Filter>02.GameObject\Player\PlayerParts\Hair</Filter>
+      <Filter>02.GameObject\Player\00. PlayerParts\Hair</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\PlayableParts.h">
-      <Filter>02.GameObject\Player\PlayerParts</Filter>
+      <Filter>02.GameObject\Player\00. PlayerParts</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\UI_RuntimeLoader.h">
       <Filter>96. Manager</Filter>
@@ -297,8 +312,6 @@
     <ClInclude Include="..\public\Monster_Part.h">
       <Filter>02.GameObject\Monster</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\AN_Test.h" />
-    <ClInclude Include="..\Public\ANS_Test.h" />
     <ClInclude Include="..\Public\State.h">
       <Filter>03. Component\StateMachine\State</Filter>
     </ClInclude>
@@ -306,19 +319,19 @@
       <Filter>03. Component\StateMachine</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\PlayerStateMachineCom.h">
-      <Filter>02.GameObject\Player\PlayerStateMachine</Filter>
+      <Filter>02.GameObject\Player\01. PlayerStateMachine</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Player_State.h">
-      <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
+      <Filter>02.GameObject\Player\01. PlayerStateMachine\State</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Player_Idle.h">
-      <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
+      <Filter>02.GameObject\Player\01. PlayerStateMachine\State</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Player_Move.h">
-      <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
+      <Filter>02.GameObject\Player\01. PlayerStateMachine\State</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Player_Jump.h">
-      <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
+      <Filter>02.GameObject\Player\01. PlayerStateMachine\State</Filter>
     </ClInclude>
     <ClInclude Include="..\public\UltimateTargeting.h">
       <Filter>BattleState</Filter>
@@ -395,37 +408,18 @@
     <ClInclude Include="..\Public\InstancedMeshActor.h">
       <Filter>02.GameObject\InstancedMeshActor</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\Hero_Manager.h">
-      <Filter>96. Manager</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\GameplayUI.h">
-      <Filter>02.GameObject\UI</Filter>
-    </ClInclude>
     <ClInclude Include="..\public\Buff.h">
       <Filter>Ailment</Filter>
     </ClInclude>
-    <ClInclude Include="..\public\BuffSystem.h" />
-    <ClInclude Include="..\public\DamageSystem.h" />
     <ClInclude Include="..\Public\Hero_Manager.h" />
     <ClInclude Include="..\Public\GameplayUI.h" />
-    <ClInclude Include="..\Public\CharacterStatus_Panel.h" />
-    <ClInclude Include="..\Public\Player_Maelle.h">
-      <Filter>02.GameObject\Player</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\Player_Gustave.h">
-      <Filter>02.GameObject\Player</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\Player_Lune.h">
-      <Filter>02.GameObject\Player</Filter>
-    </ClInclude>
     <ClInclude Include="..\Public\Player_Jump.h">
       <Filter>02.GameObject\Player\PlayerParts\Hair</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Player_WorldAction.h">
-      <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
+      <Filter>02.GameObject\Player\01. PlayerStateMachine\State</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\PreviewCamera.h" />
-    <ClInclude Include="..\Public\Create_Class.h" />
     <ClInclude Include="..\public\PlayerStatCom.h">
       <Filter>03. Component\CombatStat</Filter>
     </ClInclude>
@@ -441,6 +435,59 @@
     <ClInclude Include="Base_Gustave_Attack.h">
       <Filter>Skill</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\HairChainPhysics.h" />
+    <ClInclude Include="..\Public\AN_Test.h">
+      <Filter>95. AnimNotify</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\ANS_Test.h">
+      <Filter>95. AnimNotify</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Spawn_Prefab.h">
+      <Filter>99.Defines\Helper</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Create_Class.h">
+      <Filter>99.Defines\Helper</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\DamageSystem.h">
+      <Filter>95. BattleSystem</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\BuffSystem.h">
+      <Filter>95. BattleSystem</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Hero_Manager.h">
+      <Filter>96. Manager</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\GameplayUI.h">
+      <Filter>04. GamePlayUI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\CharacterStatus_Panel.h">
+      <Filter>04. GamePlayUI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Battle_Lune.h">
+      <Filter>02.GameObject\Player\03. Battle</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Player_BattleBase.h">
+      <Filter>02.GameObject\Player\03. Battle</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Player.h">
+      <Filter>02.GameObject\Player\02. World</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Player_Gustave.h">
+      <Filter>02.GameObject\Player\02. World</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Player_Lune.h">
+      <Filter>02.GameObject\Player\02. World</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Player_Maelle.h">
+      <Filter>02.GameObject\Player\02. World</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Battle_Maelle.h">
+      <Filter>02.GameObject\Player\03. Battle</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Battle_Gustave.h">
+      <Filter>02.GameObject\Player\03. Battle</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\AN_Test2.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -476,14 +523,11 @@
     <ClCompile Include="..\Private\Monster.cpp">
       <Filter>02.GameObject\Monster</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\Player.cpp">
-      <Filter>02.GameObject\Player</Filter>
-    </ClCompile>
     <ClCompile Include="..\private\Body_Player.cpp">
-      <Filter>02.GameObject\Player\PlayerParts\Body</Filter>
+      <Filter>02.GameObject\Player\00. PlayerParts\Body</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\Weapon.cpp">
-      <Filter>02.GameObject\Player\PlayerParts\Weapon</Filter>
+      <Filter>02.GameObject\Player\00. PlayerParts\Weapon</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\Sky.cpp">
       <Filter>02.GameObject\Sky</Filter>
@@ -512,17 +556,14 @@
     <ClCompile Include="..\Private\MapLoader.cpp">
       <Filter>02.GameObject\Map\MapLoader</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\Spawn_Prefab.cpp">
-      <Filter>96. Manager</Filter>
-    </ClCompile>
     <ClCompile Include="..\Private\Head_Player.cpp">
-      <Filter>02.GameObject\Player\PlayerParts\Head</Filter>
+      <Filter>02.GameObject\Player\00. PlayerParts\Head</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\Hair_Player.cpp">
-      <Filter>02.GameObject\Player\PlayerParts\Hair</Filter>
+      <Filter>02.GameObject\Player\00. PlayerParts\Hair</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\PlayableParts.cpp">
-      <Filter>02.GameObject\Player\PlayerParts</Filter>
+      <Filter>02.GameObject\Player\00. PlayerParts</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\UI_RuntimeLoader.cpp" />
     <ClCompile Include="..\Private\Level_MapTest.cpp">
@@ -561,8 +602,6 @@
     <ClCompile Include="..\private\Monster_Part.cpp">
       <Filter>02.GameObject\Monster</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\AN_Test.cpp" />
-    <ClCompile Include="..\Private\ANS_Test.cpp" />
     <ClCompile Include="..\Private\State.cpp">
       <Filter>03. Component\StateMachine\State</Filter>
     </ClCompile>
@@ -570,19 +609,19 @@
       <Filter>03. Component\StateMachine</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\PlayerStateMachineCom.cpp">
-      <Filter>02.GameObject\Player\PlayerStateMachine</Filter>
+      <Filter>02.GameObject\Player\01. PlayerStateMachine</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\Player_State.cpp">
-      <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
+      <Filter>02.GameObject\Player\01. PlayerStateMachine\State</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\Player_Idle.cpp">
-      <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
+      <Filter>02.GameObject\Player\01. PlayerStateMachine\State</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\Player_Move.cpp">
-      <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
+      <Filter>02.GameObject\Player\01. PlayerStateMachine\State</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\Player_Jump.cpp">
-      <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
+      <Filter>02.GameObject\Player\01. PlayerStateMachine\State</Filter>
     </ClCompile>
     <ClCompile Include="..\private\UltimateTargeting.cpp">
       <Filter>BattleState</Filter>
@@ -653,34 +692,15 @@
     <ClCompile Include="..\Private\InstancedMeshActor.cpp">
       <Filter>02.GameObject\InstancedMeshActor</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\Hero_Manager.cpp">
-      <Filter>96. Manager</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\GameplayUI.cpp">
-      <Filter>02.GameObject\UI</Filter>
-    </ClCompile>
     <ClCompile Include="..\public\Ailment.cpp">
       <Filter>Ailment</Filter>
     </ClCompile>
-    <ClCompile Include="..\private\BuffSystem.cpp" />
-    <ClCompile Include="..\private\DamageSystem.cpp" />
     <ClCompile Include="..\Private\Hero_Manager.cpp" />
     <ClCompile Include="..\Private\GameplayUI.cpp" />
-    <ClCompile Include="..\Private\CharacterStatus_Panel.cpp" />
-    <ClCompile Include="..\Private\Player_Lune.cpp">
-      <Filter>02.GameObject\Player</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\Player_Gustave.cpp">
-      <Filter>02.GameObject\Player</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\Player_Maelle.cpp">
-      <Filter>02.GameObject\Player</Filter>
-    </ClCompile>
     <ClCompile Include="..\Private\Player_WorldAction.cpp">
-      <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
+      <Filter>02.GameObject\Player\01. PlayerStateMachine\State</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\PreviewCamera.cpp" />
-    <ClCompile Include="..\Private\Create_Class.cpp" />
     <ClCompile Include="..\private\MonsterStatCom.cpp">
       <Filter>03. Component\CombatStat</Filter>
     </ClCompile>
@@ -696,6 +716,59 @@
     <ClCompile Include="Base_Gustave_Attack.cpp">
       <Filter>Skill</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\HairChainPhysics.cpp" />
+    <ClCompile Include="..\Private\AN_Test.cpp">
+      <Filter>95. AnimNotify</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\ANS_Test.cpp">
+      <Filter>95. AnimNotify</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Spawn_Prefab.cpp">
+      <Filter>99.Defines\Helper</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Create_Class.cpp">
+      <Filter>99.Defines\Helper</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\DamageSystem.cpp">
+      <Filter>95. BattleSystem</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\BuffSystem.cpp">
+      <Filter>95. BattleSystem</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Hero_Manager.cpp">
+      <Filter>96. Manager</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\GameplayUI.cpp">
+      <Filter>04. GamePlayUI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\CharacterStatus_Panel.cpp">
+      <Filter>04. GamePlayUI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Battle_Lune.cpp">
+      <Filter>02.GameObject\Player\03. Battle</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Player_BattleBase.cpp">
+      <Filter>02.GameObject\Player\03. Battle</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Player.cpp">
+      <Filter>02.GameObject\Player\02. World</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Player_Gustave.cpp">
+      <Filter>02.GameObject\Player\02. World</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Player_Lune.cpp">
+      <Filter>02.GameObject\Player\02. World</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Player_Maelle.cpp">
+      <Filter>02.GameObject\Player\02. World</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Battle_Maelle.cpp">
+      <Filter>02.GameObject\Player\03. Battle</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Battle_Gustave.cpp">
+      <Filter>02.GameObject\Player\03. Battle</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\AN_Test2.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">

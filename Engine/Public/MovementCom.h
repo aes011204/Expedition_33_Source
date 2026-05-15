@@ -7,6 +7,8 @@ NS_BEGIN(Engine)
 class TransformCom;
 class ColliderCom;
 
+struct PhysXQueryHit;
+
 class ENGINE_DLL MovementCom : public Component
 {
     GENERATED_COMPONENT(MovementCom)
@@ -36,6 +38,7 @@ public:
         float runSpeed = 7.f;
         float sprintSpeed = 10.f;
         float turnSpeedDegree = 180.f;
+        float turnResponse = 12.f;
 
         float jumpVelocity = 40.f;
 
@@ -47,6 +50,13 @@ public:
         float walkableNormalY = 0.65f;
 
         float groundY = 0.f;
+    };
+
+    struct FollowMoveCommand
+    {
+        bool enabled = false;
+        Vec3 worldDir = Vec3::Zero;
+        bool sprintFollow = false;   // 거리 벌어져서 sprint로 전환?
     };
 
 public:
@@ -91,6 +101,9 @@ public:
     Vec3 Get_Velocity() { return _velocity; }
     void Set_Velocity(const Vec3& velocity) { _velocity = velocity; }
 
+    void Set_FollowMoveCommand(const FollowMoveCommand& command) { _followMove = command; }
+    void Clear_FollowMoveCommand() { _followMove = {}; }
+
 private:
     void Start_Jump();
 
@@ -101,23 +114,32 @@ private:
 
     void Resolve_Ground();
 
+    bool Resolve_MoveDirection(Vec3& outWorldDir) const;
     bool Resolve_CameraRelativeMoveDirection(Vec3& outWorldDir) const;
 
 private:
     void Move_WithCollision(const Vec3& displacement);
     void Move_Horizontal(const Vec3& displacement);
     void Move_Vertical(const Vec3& displacement);
-    bool Sweep_Move(const Vec3& displacement, bool passWalkableGround);
+
+    bool Sweep_Move(
+        const Vec3& displacement,
+        bool passWalkableGround,
+        PhysXQueryHit* outHit = nullptr,
+        float* outMovedDistance = nullptr);
+
     void Resolve_Ground_WithSnap();
     bool Is_WalkableGround(const Vec3& normal) const;
 
 private:
     MoveDesc         _moveDesc{};
     MovementInput    _input{};
+    FollowMoveCommand _followMove{};
 
     Shared<TransformCom> _transformCom;
 
     Vec3 _velocity = Vec3::Zero;
+    float _currentTurnSpeedDegree = 0.f;
 
     bool _isGrounded = true;
     bool _isJumping = false;

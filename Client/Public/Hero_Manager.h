@@ -22,6 +22,15 @@ public:
         Vec3 forward{};
     };
 
+    struct FollowerRuntime
+    {
+        Vec3    desiredTargetPos = Vec3::Zero; // follower 목표 위치
+        float   lastMoveDistance = 0.f;        // 목표까지 남은 거리
+
+        bool    sprintFollow = false;          // 추격 이동 여부
+        float   sprintFollowHoldTime = 0.f;    // Sprint 유지 시간. Run으로 바로 안바뀌게
+    };
+
 public:
     HRESULT Initialize_Hero(
         uint32 levelIndex,
@@ -50,6 +59,8 @@ public:
 
     Shared<Player> Find_Hero(HeroId heroId) const;
 
+    const HeroSpawnDesc* Find_HeroSpawnDesc(HeroId heroId);
+
 private:
     void    Switch_NextHero();
     void    Snap_AllHeroesToFormation(
@@ -57,6 +68,11 @@ private:
                 const Vec3& anchorRot,
                 Vec3 anchorForward,
                 Vec3 anchorRight);
+
+    Vec3    Resolve_SnapPosition(
+                const Shared<Player>& hero,
+                const Vec3& fromPos,
+                const Vec3& desiredPos) const;
 
     void    Apply_ControlRoles();
 
@@ -67,14 +83,14 @@ private:
 
     void    Move_FollowerTo(
                 const Shared<Player>& follower,
+                uint32 followerIndex,
                 const Vec3& targetPos,
                 float timeDelta);
 
-    void    Update_FollowerAnimation(
-                const Shared<Player>& follower,
-                float moveDistance);
-
     void    Refresh_TargetCamera() const;
+
+    // Idle 상태로 되돌리기 : 전환 후, 게임 종료
+    void    Reset_AllHeroesToIdle();
 
 private:
     vector<HeroPartyEntry>  _heroes;
@@ -88,19 +104,24 @@ private:
     wstring _layerTag;
 
     float _recordTimer = 0.f;
-    float _recordInterval = 0.05f;
+    float _recordInterval = 0.02f;
 
     // follower 1은 조금 전 위치, follower 2는 더 이전 위치
-    float _followerDelayA = 0.70f;
-    float _followerDelayB = 1.20f;
+    float _followerDelayA = 0.20f;
+    float _followerDelayB = 0.35f;
 
     float _followerSideOffset = 1.4f;
 
     float _followStopDistance = 0.25f;
-    float _followerMoveSpeed = 8.f; // MovementCom에서 입력값 받아오는거로 바꾸긴 해야함
 
     float _snapBackDistanceA = 2.0f;
     float _snapBackDistanceB = 3.0f;
+
+    array<FollowerRuntime, 3> _followerRuntime{};
+    float _sprintFollowDistance = 2.5f;
+    float _sprintFollowReleaseDistance = 1.2f;   // sprint 해제는 더 가까워졌을 때만
+    float _sprintFollowMinHoldTime = 0.25f;      // sprint에 들어가면 최소 이 시간은 유지
+    float _teleportReseatDistance  = 10.f;
 
 public:
     static Unique<Hero_Manager> Create();

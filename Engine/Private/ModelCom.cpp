@@ -999,6 +999,8 @@ void ModelCom::Stop_AllNotifyStates(bool executeEndCheck)
                 active.notifyState->On_End(context);
         }
     }
+
+    _activeNotifyStates.clear();
 }
 
 void ModelCom::Stop_NotifyStates_ExceptAnimation(const string& keepAnimationName, bool executeEndCheck)
@@ -1084,10 +1086,16 @@ void ModelCom::Update_AnimNotifyStates(const AnimNotifyData& animationData, cons
             }
             else
             {
+                const float previousActiveTimeSec = _activeNotifyStates[activeIndex].lastTimeSec;
                 _activeNotifyStates[activeIndex].lastTimeSec = context.currentTimeSec;
 
-                if (executeNotifies)
+                if (executeNotifies &&
+                    (context.wrapped ||
+                     context.deltaTime > 0.f ||
+                     previousActiveTimeSec != context.currentTimeSec))
+                {
                     _activeNotifyStates[activeIndex].notifyState->On_Tick(context);
+                }
             }
         }
         else if (activeIndex != -1)

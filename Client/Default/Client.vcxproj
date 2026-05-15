@@ -155,7 +155,11 @@
     </FxCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\Public\AN_Test2.h" />
     <ClInclude Include="..\public\Base_Mon_Attack.h" />
+    <ClInclude Include="..\Public\Battle_Gustave.h" />
+    <ClInclude Include="..\Public\Battle_Lune.h" />
+    <ClInclude Include="..\Public\Battle_Maelle.h" />
     <ClInclude Include="..\public\Buff.h" />
     <ClInclude Include="..\public\BuffSystem.h" />
     <ClInclude Include="..\Public\AN_Test.h" />
@@ -240,6 +244,7 @@
     <ClInclude Include="..\Public\PlayableParts.h" />
     <ClInclude Include="..\Public\PlayerControllerCom.h" />
     <ClInclude Include="..\public\PlayerStatCom.h" />
+    <ClInclude Include="..\Public\Player_BattleBase.h" />
     <ClInclude Include="..\public\SkillScript.h" />
     <ClInclude Include="..\Public\Player_Gustave.h" />
     <ClInclude Include="..\Public\Player_Lune.h" />
@@ -289,7 +294,11 @@
     <ClInclude Include="..\Public\Weapon.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\Private\AN_Test2.cpp" />
     <ClCompile Include="..\private\Base_Mon_Attack.cpp" />
+    <ClCompile Include="..\Private\Battle_Gustave.cpp" />
+    <ClCompile Include="..\Private\Battle_Lune.cpp" />
+    <ClCompile Include="..\Private\Battle_Maelle.cpp" />
     <ClCompile Include="..\private\BuffSystem.cpp" />
     <ClCompile Include="..\Private\AN_Test.cpp" />
     <ClCompile Include="..\Private\ANS_Test.cpp" />
@@ -368,6 +377,7 @@
     <ClCompile Include="..\Private\PlayableParts.cpp" />
     <ClCompile Include="..\Private\PlayerControllerCom.cpp" />
     <ClCompile Include="..\private\PlayerStatCom.cpp" />
+    <ClCompile Include="..\Private\Player_BattleBase.cpp" />
     <ClCompile Include="..\Private\Player_Gustave.cpp" />
     <ClCompile Include="..\Private\Player_Idle.cpp" />
     <ClCompile Include="..\Private\Player_Jump.cpp" />

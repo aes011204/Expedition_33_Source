@@ -71,6 +71,49 @@ const MovementCom::MovementInput& Player_State::Get_MovementInput() const
     return _controllerCom->Get_MovementInput();
 }
 
+bool Player_State::Has_LocomotionIntent() const
+{
+    return _controllerCom->Has_LocomotionIntent();
+}
+
+bool Player_State::IsSprintMove() const
+{
+     return _controllerCom->Should_SprintMove();
+}
+
+bool Player_State::IsWalkMove() const
+{
+    return _controllerCom->Should_WalkMove();
+}
+
+bool Player_State::Is_MovementBlocked() const
+{
+    return _controllerCom->Is_MovementBlocked();
+}
+
+bool Player_State::IsEnterWorldAction() const
+{
+    const auto& input = Get_MovementInput();
+
+    return input.isSuddenAttack && _controllerCom->Allows_ActionInput();
+}
+
+bool Player_State::IsEnterJump() const
+{
+    const auto& input = Get_MovementInput();
+
+    return input.isJumpDown && _controllerCom->Allows_ActionInput();
+}
+
+bool Player_State::IsEnterMove() const
+{
+    return Has_LocomotionIntent() && !Is_MovementBlocked();
+}
+
+bool Player_State::IsEnterIdle() const
+{
+    return !Has_LocomotionIntent() || Is_MovementBlocked();
+}
 
 void Player_State::Free()
 {
