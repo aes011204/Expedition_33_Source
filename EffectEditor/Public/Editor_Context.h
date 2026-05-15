@@ -22,6 +22,7 @@ public:
     void Set_SelectObject(const Shared<GameObject>& gameObject);
     void Clear_Selection();
     void Set_SelectEffectEmitter(uint32 emitterId);
+    void Set_SelectEffectTypeData(uint32 emitterId);
     void Set_SelectEffectModule(uint32 emitterId, uint32 moduleId);
     void Clear_EffectSelection();
     void Request_FocusObject(const Shared<GameObject>& gameObject);
@@ -31,9 +32,9 @@ public:
     uint32 Get_EffectSelectionRevision() const { return _effectSelectionRevision; }
 
 private:
-    EditorSelection _selection;
-    EffectAuthoringSelection _effectSelection;
-    EditorFocusRequest _focusRequest;
+    EditorSelection _selection{};
+    EffectAuthoringSelection _effectSelection{};
+    EditorFocusRequest _focusRequest{};
     uint32 _selectionRevision{ 0 };
     uint32 _effectSelectionRevision{ 0 };
 

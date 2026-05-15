@@ -119,7 +119,7 @@ private:
     bool _openCreatePrefabPopup = false;
 
     static constexpr const wchar_t* CONTENT_BROWSER_SETTINGS_PATH =
-        L"../../Client/Bin/Resources/Data/json/EditorSettings/ContentBrowser.json";
+        L"../../../Client/Bin/Resources/Data/json/EditorSettings/ContentBrowser.json";
 
 public:
     static Shared<Content_Browser> Create();

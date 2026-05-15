@@ -1,5 +1,7 @@
 ﻿#pragma once
 
+#include "ComputePointParticleEffect.h"
+#include "EffectAuthoring_Types.h"
 #include "Level.h"
 
 NS_BEGIN(Engine)
@@ -20,15 +22,18 @@ public:
     HRESULT Render() override;
 
 public:
+    // 현재 authoring emitter 데이터를 다시 읽어 preview runtime object를 전부 재생성한다.
     HRESULT Restart_PreviewFromAuthoring();
 
 private:
-    static constexpr const wchar_t* kPreviewLayerTag = L"Layer_Preview";
+    static constexpr const wchar_t* kPreviewLayerTag{ L"Layer_Preview" };
 
 private:
     vector<Shared<GameObject>> _previewObjects{};
 
 private:
+    // authoring emitter를 compute sprite preview runtime desc로 변환한다.
+    ComputePointParticleEffect::ComputePointParticleEffectDesc Build_ComputePointParticleEffectDesc(const AuthoringEmitter& emitter) const;
     // preview에 필요한 최소 directional light만 준비한다.
     HRESULT Ready_Lights();
     // EffectEditor preview용 orbit camera를 만들고 active camera로 지정한다.

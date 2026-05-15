@@ -4,6 +4,9 @@
     <ClCompile Include="pch.cpp">
       <Filter>98. Default</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\Action_Command.cpp">
+      <Filter>01. Manager\03. Command History</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\CommandHistory.cpp">
       <Filter>01. Manager\03. Command History</Filter>
     </ClCompile>
@@ -61,6 +64,15 @@
     <ClCompile Include="..\Private\EffectEditorInstance.cpp">
       <Filter>01. Manager\00. Effect Editor Instance</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\EffectMaterial_View.cpp">
+      <Filter>01. View\Effect Material View</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\EffectMaterialPreviewRenderer.cpp">
+      <Filter>01. View\Effect Material View</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\EffectMaterialInstance_View.cpp">
+      <Filter>01. View\Effect Material View</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\Profile_View.cpp">
       <Filter>01. View\Profile View</Filter>
     </ClCompile>
@@ -68,15 +80,24 @@
       <Filter>03. Level</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\ModuleDetail_Drawers.cpp">
-      <Filter>01. View\Detail View\Detail Drawer</Filter>
+      <Filter>01. View\Detail View\Drawers</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\Helper_DetailProperty.cpp">
+    <ClCompile Include="..\Private\Helper_ReadPreset.cpp">
       <Filter>99. Defines\Helper</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Helper_EffectCamera.cpp">
+      <Filter>99. Defines\Helper</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\DetailPropertyContext.cpp">
+      <Filter>01. View\Detail View\Property Context</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
       <Filter>98. Default</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Action_Command.h">
+      <Filter>01. Manager\03. Command History</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\CommandHistory.h">
       <Filter>01. Manager\03. Command History</Filter>
@@ -156,6 +177,18 @@
     <ClInclude Include="..\Public\EffectAuthoring_Types.h">
       <Filter>99. Defines\Types</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\EffectMaterialAuthoring_Types.h">
+      <Filter>99. Defines\Types</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\EffectMaterial_View.h">
+      <Filter>01. View\Effect Material View</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\EffectMaterialPreviewRenderer.h">
+      <Filter>01. View\Effect Material View</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\EffectMaterialInstance_View.h">
+      <Filter>01. View\Effect Material View</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\Helper_ImGui.h">
       <Filter>99. Defines\Helper</Filter>
     </ClInclude>
@@ -163,10 +196,16 @@
       <Filter>99. Defines\Helper</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\ModuleDetail_Drawers.h">
-      <Filter>01. View\Detail View\Detail Drawer</Filter>
+      <Filter>01. View\Detail View\Drawers</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\Helper_DetailProperty.h">
+    <ClInclude Include="..\Public\Helper_ReadPreset.h">
       <Filter>99. Defines\Helper</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Helper_EffectCamera.h">
+      <Filter>99. Defines\Helper</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\DetailPropertyContext.h">
+      <Filter>01. View\Detail View\Property Context</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -178,6 +217,9 @@
     </Filter>
     <Filter Include="01. View\Curve Editor View">
       <UniqueIdentifier>{3219b55f-d9b4-495e-9bd5-7eeaeac6ae15}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="01. View\Effect Material View">
+      <UniqueIdentifier>{30fa983f-cb74-4d4b-8ce3-d3553eac628d}</UniqueIdentifier>
     </Filter>
     <Filter Include="01. View\Emitter View">
       <UniqueIdentifier>{37d38b16-ebfc-4358-ace7-2ff7f458a3f3}</UniqueIdentifier>
@@ -239,7 +281,10 @@
     <Filter Include="99. Defines\Types">
       <UniqueIdentifier>{e5f70fcb-abed-4d3c-8bc3-3eaa1084905f}</UniqueIdentifier>
     </Filter>
-    <Filter Include="01. View\Detail View\Detail Drawer">
+    <Filter Include="01. View\Detail View\Property Context">
+      <UniqueIdentifier>{2a390d17-18e5-48e5-b0f0-defd9af66051}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="01. View\Detail View\Drawers">
       <UniqueIdentifier>{89aacff8-7bb2-41de-832f-51ed470948d4}</UniqueIdentifier>
     </Filter>
   </ItemGroup>

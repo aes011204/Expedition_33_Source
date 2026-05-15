@@ -8,7 +8,7 @@
 
 NS_BEGIN(EffectEditor)
 
-Profile_View* Profile_View::s_active = nullptr;
+Profile_View* Profile_View::activeView = nullptr;
 
 struct Profile_View::ProfilerRuntime
 {
@@ -83,13 +83,13 @@ Profile_View::Profile_View()
 {
     _runtime = make_unique<ProfilerRuntime>();
     _prevFrame = clock::now();
-    s_active = this;
+    activeView = this;
 }
 
 Profile_View::~Profile_View()
 {
-    if (s_active == this)
-        s_active = nullptr;
+    if (activeView == this)
+        activeView = nullptr;
 }
 
 void Profile_View::Render()
@@ -120,21 +120,21 @@ void Profile_View::Render()
 
 void Profile_View::Frame_Begin()
 {
-    if (nullptr == s_active || nullptr == s_active->_runtime)
+    if (nullptr == activeView || nullptr == activeView->_runtime)
         return;
 
-    auto& runtime = *s_active->_runtime;
+    auto& runtime = *activeView->_runtime;
     runtime.frameIndex++;
-    runtime.avgWindow = max(1, s_active->_avgWindow);
-    runtime.capture = s_active->_capture;
+    runtime.avgWindow = max(1, activeView->_avgWindow);
+    runtime.capture = activeView->_capture;
 }
 
 void Profile_View::Frame_End()
 {
-    if (nullptr == s_active || nullptr == s_active->_runtime)
+    if (nullptr == activeView || nullptr == activeView->_runtime)
         return;
 
-    auto& runtime = *s_active->_runtime;
+    auto& runtime = *activeView->_runtime;
     const clock::time_point now = clock::now();
 
     double frameMs = 0.0;
@@ -142,16 +142,16 @@ void Profile_View::Frame_End()
     {
         frameMs = runtime.externalFrameMs;
         runtime.externalFrameTime = false;
-        s_active->_prevFrame = now;
+        activeView->_prevFrame = now;
     }
     else
     {
-        frameMs = chrono::duration<double, milli>(now - s_active->_prevFrame).count();
-        s_active->_prevFrame = now;
+        frameMs = chrono::duration<double, milli>(now - activeView->_prevFrame).count();
+        activeView->_prevFrame = now;
     }
 
-    s_active->_frameMsLast = frameMs;
-    s_active->_fpsLast = frameMs > 0.0001 ? 1000.0 / frameMs : 0.0;
+    activeView->_frameMsLast = frameMs;
+    activeView->_fpsLast = frameMs > 0.0001 ? 1000.0 / frameMs : 0.0;
 
     runtime.frameWindow.push_back(frameMs);
     runtime.frameWindowSum += frameMs;
@@ -162,20 +162,20 @@ void Profile_View::Frame_End()
         runtime.frameWindow.pop_front();
     }
 
-    s_active->_frameMsAvg = runtime.frameWindow.empty()
-                            ? 0.0
-                            : runtime.frameWindowSum / static_cast<double>(runtime.frameWindow.size());
-    s_active->_fpsAvg = s_active->_frameMsAvg > 0.0001 ? 1000.0 / s_active->_frameMsAvg : 0.0;
+    activeView->_frameMsAvg = runtime.frameWindow.empty()
+                              ? 0.0
+                              : runtime.frameWindowSum / static_cast<double>(runtime.frameWindow.size());
+    activeView->_fpsAvg = activeView->_frameMsAvg > 0.0001 ? 1000.0 / activeView->_frameMsAvg : 0.0;
 
-    s_active->Prune_Dead_Scopes();
+    activeView->Prune_Dead_Scopes();
 }
 
 void Profile_View::Begin_Scope(const char* scopeName)
 {
-    if (nullptr == s_active || nullptr == s_active->_runtime)
+    if (nullptr == activeView || nullptr == activeView->_runtime)
         return;
 
-    auto& runtime = *s_active->_runtime;
+    auto& runtime = *activeView->_runtime;
 
     if (!runtime.capture)
         return;
@@ -188,10 +188,10 @@ void Profile_View::Begin_Scope(const char* scopeName)
 
 void Profile_View::End_Scope()
 {
-    if (nullptr == s_active || nullptr == s_active->_runtime)
+    if (nullptr == activeView || nullptr == activeView->_runtime)
         return;
 
-    auto& runtime = *s_active->_runtime;
+    auto& runtime = *activeView->_runtime;
 
     if (!runtime.capture || runtime.scopeStack.empty())
         return;
@@ -239,20 +239,20 @@ void Profile_View::End_Scope()
 
 void Profile_View::Set_Frame_Time_External(double frameMs)
 {
-    if (nullptr == s_active || nullptr == s_active->_runtime)
+    if (nullptr == activeView || nullptr == activeView->_runtime)
         return;
 
-    auto& runtime = *s_active->_runtime;
+    auto& runtime = *activeView->_runtime;
     runtime.externalFrameTime = true;
     runtime.externalFrameMs = frameMs;
 }
 
 void Profile_View::Set_RenderCallCount_External(uint32 renderCallCount)
 {
-    if (nullptr == s_active)
+    if (nullptr == activeView)
         return;
 
-    s_active->_renderCallCount = renderCallCount;
+    activeView->_renderCallCount = renderCallCount;
 }
 
 void Profile_View::Draw_Toolbar()
