@@ -1361,8 +1361,15 @@ bool GameInstance::Sweep_Collider(ColliderCom* collider, const Matrix& worldMatr
     return _physxManager->Sweep_Collider(collider, worldMatrix, direction, distance, outHit);
 }
 
+bool GameInstance::Sweep_Sphere(const Vec3& origin, const Vec3& direction, float distance, float radius,
+    Collision_Preset queryPreset, PhysXQueryHit& outHit) const
+{
+    CHECK_NULL(_physxManager, false);
+    return _physxManager->Sweep_Sphere(origin, direction, distance, radius, queryPreset, outHit);
+}
+
 bool GameInstance::Probe_Ground(ColliderCom* collider, const Matrix& worldMatrix, float probeDistance,
-    PhysXQueryHit& outHit) const
+                                PhysXQueryHit& outHit) const
 {
     CHECK_NULL(_physxManager, false);
     return _physxManager->Probe_Ground(collider, worldMatrix, probeDistance, outHit);

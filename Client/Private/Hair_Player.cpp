@@ -25,25 +25,18 @@ HRESULT Hair_Player::Initialize(void* arg)
         return S_OK;
     }
 
+    if (const HAIR_PLAYER_DESC* desc = static_cast<const HAIR_PLAYER_DESC*>(arg))
+    {
+        // Player_Lune / Maelle / Gustave에서 넘긴 hair physics 값을 실제 파츠에 저장
+        _hairPhysicsDesc = desc->hairPhysicsDesc;
+    }
+
     _offsetMatrix = Matrix::Identity;
 
     //Vec3 hairOffset = Vec3(17.61f, 0.0f, -2.765f);
     Vec3 hairOffset = Vec3(17.61f, -2.765f, 0.f);
 
     _transformCom->Set_Position(hairOffset);
-
-    // Hair Physics
-    {
-        _hairPhysicsDesc.bonePrefix = "Strand_";
-        _hairPhysicsDesc.stiffness = 0.05f;
-        _hairPhysicsDesc.damping = 0.1f;
-        _hairPhysicsDesc.radius = 3.f;
-        _hairPhysicsDesc.windScale = 0.35f;
-        _hairPhysicsDesc.gravity = Vec3(0.f, -2.5f, 0.f);
-        _hairPhysicsDesc.teleportDistance = 300.f;
-        _hairPhysicsDesc.solverIterations = 3;
-    }
-
 
     return S_OK;
 }
@@ -71,8 +64,15 @@ void Hair_Player::Update(float timeDelta)
         _hairPhysicsReady = _hairPhysics.Is_Built();
     }
          
-    // if (_hairPhysicsReady)                       
-        //_hairPhysics.Simulate(_modelCom.get(), timeDelta, _combinedWorldMatrix);
+    Vec3 ownerVelocity = Vec3::Zero;
+    if (const Shared<GameObject> owner = Get_Owner())
+    {
+        if (const Player* player = dynamic_cast<const Player*>(owner.get()))
+            ownerVelocity = player->Get_MovementVelocity();
+    }
+
+    if (_hairPhysicsReady)
+        _hairPhysics.Simulate(_modelCom.get(), timeDelta, _combinedWorldMatrix, ownerVelocity);
 }
 
 void Hair_Player::Late_Update(float timeDelta)

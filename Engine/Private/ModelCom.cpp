@@ -17,7 +17,8 @@
 #include "AnimState_Parser.h"
 
 ModelCom::ModelCom(const ComPtr<Device>& device, const ComPtr<Context>& context)
-    : Component{ device, context } {
+    : Component{ device, context }
+{
 }
 
 ModelCom::ModelCom(const ModelCom& prototype)
@@ -38,6 +39,8 @@ ModelCom::ModelCom(const ModelCom& prototype)
     , _sourceModelPath{ prototype._sourceModelPath }
     , _isAnimationPaused{ prototype._isAnimationPaused }
     , _collisionMeshes{ prototype._collisionMeshes }
+    , _stateAnimIndices{ prototype._stateAnimIndices }
+    , _animEnumType{ prototype._animEnumType }
 {
     for (auto& prototypeAnim : prototype._animations)
         _animations.push_back(prototypeAnim->Clone());
@@ -398,6 +401,10 @@ void ModelCom::Apply_EffectiveMaterial(uint32 materialIndex)
                     if (base.normalOverride) (void)material->Override_TextureSlot(MaterialTextureSlot::Normal, 0, base.normalPath);
                     if (base.ormOverride) (void)material->Override_TextureSlot(MaterialTextureSlot::ORM, 0, base.ormPath);
                     if (base.emissiveOverride) (void)material->Override_TextureSlot(MaterialTextureSlot::Emissive, 0, base.emissivePath);
+                    if (base.hairDepthOverride) (void)material->Override_TextureSlot(MaterialTextureSlot::HairDepth, 0, base.hairDepthPath);
+                    if (base.hairIDOverride) (void)material->Override_TextureSlot(MaterialTextureSlot::HairID, 0, base.hairIDPath);
+                    if (base.irisHeightOverride) (void)material->Override_TextureSlot(MaterialTextureSlot::IrisHeight, 0, base.irisHeightPath);
+                    if (base.irisMaskOverride) (void)material->Override_TextureSlot(MaterialTextureSlot::IrisMask, 0, base.irisMaskPath);
 
                     // opacity mask는 "없으면 지우기"가 현행 에디터 Apply 정책이라 동일하게 맞춘다(스테일 슬롯 방지).
                     if (base.opacityMaskOverride)
@@ -432,6 +439,8 @@ void ModelCom::Apply_EffectiveMaterial(uint32 materialIndex)
     Apply_TextureOverride(material.get(), MaterialTextureSlot::OpacityMask, inst.opacityMask);
     Apply_TextureOverride(material.get(), MaterialTextureSlot::HairDepth, inst.hairDepth);
     Apply_TextureOverride(material.get(), MaterialTextureSlot::HairID, inst.hairID);
+    Apply_TextureOverride(material.get(), MaterialTextureSlot::IrisHeight, inst.irisHeight);
+    Apply_TextureOverride(material.get(), MaterialTextureSlot::IrisMask, inst.irisMask);
 }
 
 json ModelCom::To_Json() const
@@ -467,7 +476,9 @@ json ModelCom::To_Json() const
             || inst.emissive.enabled
             || inst.opacityMask.enabled
             || inst.hairDepth.enabled       // Hair 전용 추가
-            || inst.hairID.enabled;
+            || inst.hairID.enabled
+            || inst.irisHeight.enabled
+            || inst.irisMask.enabled;
 
         const bool hasInstanceOverride =
             inst.overrideRenderStateEnabled || inst.cbMask.Any() || hasAnyTextureOverride;
@@ -567,6 +578,8 @@ json ModelCom::To_Json() const
 
             writeTextureOverride("hair_depth", inst.hairDepth);
             writeTextureOverride("hair_id", inst.hairID);
+            writeTextureOverride("iris_height", inst.irisHeight);
+            writeTextureOverride("iris_mask", inst.irisMask);
 
             entry["instance_override"] = instJson;
         }

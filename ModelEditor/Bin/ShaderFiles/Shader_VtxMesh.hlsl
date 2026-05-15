@@ -90,5 +90,5 @@ PS_OUT PS_MAIN(PS_IN In)
 
 technique11 DefaultTechnique
 {
-    PASS_RS_DS_BS_VP(DefaultPass, RS_Default, DSS_Default, BS_Default, VS_MAIN, PS_MAIN) // 0
+    PASS_RS_DS_BS_VP(DefaultPass, RS_CullNone, DSS_Default, BS_Default, VS_MAIN, PS_MAIN)
 }

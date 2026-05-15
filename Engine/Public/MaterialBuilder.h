@@ -58,12 +58,20 @@ private:
         bool ormOverride = false;
         bool emissiveOverride = false;
         bool opacityMaskOverride = false;
+        bool hairDepthOverride = false;
+        bool hairIDOverride = false;
+        bool irisHeightOverride = false;
+        bool irisMaskOverride = false;
 
         wstring baseColorPath{};
         wstring normalPath{};
         wstring ormPath{};
         wstring emissivePath{};
         wstring opacityMaskPath{};
+        wstring hairDepthPath{};
+        wstring hairIDPath{};
+        wstring irisHeightPath{};
+        wstring irisMaskPath{};
     };
 
 public:

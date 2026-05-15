@@ -102,12 +102,20 @@ struct MaterialInstanceData
     bool ormOverride = false;
     bool emissiveOverride = false;
     bool opacityMaskOverride = false;
+    bool hairDepthOverride = false;
+    bool hairIDOverride = false;
+    bool irisHeightOverride = false;
+    bool irisMaskOverride = false;
 
     wstring baseColorPath{};
     wstring normalPath{};
     wstring ormPath{};
     wstring emissivePath{};
     wstring opacityMaskPath{};
+    wstring hairDepthPath{};
+    wstring hairIDPath{};
+    wstring irisHeightPath{};
+    wstring irisMaskPath{};
 };
 
 // 파싱/추론 과정에서 남기는 에디터용 메모

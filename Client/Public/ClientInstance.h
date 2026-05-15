@@ -51,12 +51,24 @@ public: /* For.GameData Table */
 public: /* For.Hero Manager */
     HRESULT        Initialize_Hero(uint32 levelIndex, const wstring& layerTag, const Vec3& startPos = Vec3::Zero);
     void           Update_HeroManager(float timeDelta);
-    Shared<Player> Get_ActiveHero() const;
     void           Set_TargetCamera(const Shared<TargetCamera>& camera);
     void           Clear_Party();
 
-    Shared<Player> Get_FrontHero() const;
-    vector<Shared<Player>> Get_HeroesInPartyOrder() const;
+    // 컨트롤중인 플레이어
+    Shared<Player>  Get_ActiveHero() const;
+    HeroPartySlot   Get_ActiveHeroSlot() const;
+
+    // 플레이어 전부 가져오기
+    const vector<HeroPartyEntry>& Get_HeroEntries() const;
+
+    // 특정 슬롯 반환
+    Shared<Player>  Get_Hero(HeroPartySlot slot) const;
+    HeroId          Get_HeroId(HeroPartySlot slot) const;
+
+    // 맨 앞 플레이어. Get_Active와 역할이 거의 동일
+    Shared<Player>  Get_FrontHero() const;
+
+    Shared<Player> Find_Hero(HeroId heroId) const;
 
 public: /* For.Gameplay UI */
     HRESULT Initialize_GameplayUI(uint32 levelIndex);
