@@ -6,6 +6,8 @@
 #include "Detail_View.h"
 #include "Editor_Window.h"
 #include "EffectEditorInstance.h"
+#include "EffectMaterial_View.h"
+#include "EffectMaterialInstance_View.h"
 #include "Emitter_View.h"
 #include "GameInstance.h"
 #include "Hierarchy_View.h"
@@ -34,6 +36,16 @@ HRESULT EffectEditor_Manager::Initialize()
     Add_Window(Content_Browser::Create());
     Add_Window(Detail_View::Create());
     Add_Window(CurveEditor_View::Create());
+    const Shared<EffectMaterial_View> effectMaterialView = EffectMaterial_View::Create();
+    if (effectMaterialView)
+        effectMaterialView->Set_Open(false);
+    Add_Window(effectMaterialView);
+
+    const Shared<EffectMaterialInstance_View> effectMaterialInstanceView = EffectMaterialInstance_View::Create();
+    if (effectMaterialInstanceView)
+        effectMaterialInstanceView->Set_Open(false);
+    Add_Window(effectMaterialInstanceView);
+
     Add_Window(Console_View::Create());
     Add_Window(Profile_View::Create());
 

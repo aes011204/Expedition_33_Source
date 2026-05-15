@@ -1,6 +1,8 @@
 ﻿#include "pch.h"
 #include "EffectEditorApp.h"
 
+#include <chrono>
+
 #include "ClientInstance.h"
 #include "ComputeShaderCom.h"
 #include "ComputeStructuredBuffer.h"
@@ -12,6 +14,59 @@
 #include "ResourceLoader.h"
 
 NS_BEGIN(EffectEditor)
+
+namespace Internal
+{
+    bool Starts_With(const wstring& value, const wchar_t* prefix)
+    {
+        const size_t prefixLength = wcslen(prefix);
+        return value.size() >= prefixLength && 0 == value.compare(0, prefixLength, prefix);
+    }
+
+    bool Is_EffectEditorStaticLevelAllowed(const wstring& prototypeTag)
+    {
+        return prototypeTag == L"VIBuffer_Rect" || prototypeTag == L"VIBuffer_Cube";
+    }
+
+    bool Is_EffectEditorStaticLoadJobAllowed(const FLoadJob& loadJob)
+    {
+        switch (loadJob.eType)
+        {
+        case ELoadJobType::Shader:
+        case ELoadJobType::ComputeShader:
+            return true;
+
+        case ELoadJobType::Component:
+            return Starts_With(loadJob.strPrototypeTag, L"Com_Effect_");
+
+        case ELoadJobType::Model:
+            return Starts_With(loadJob.strPrototypeTag, L"Model_Effect_");
+
+        case ELoadJobType::GameObject:
+            return Starts_With(loadJob.strPrototypeTag, L"GameObject_Effect_");
+
+        case ELoadJobType::StaticLevel:
+            return Is_EffectEditorStaticLevelAllowed(loadJob.strPrototypeTag);
+
+        case ELoadJobType::TextureCreate:
+            return Starts_With(loadJob.strPrototypeTag, L"Texture_Effect_");
+
+        default:
+            return false;
+        }
+    }
+
+    void Log_EffectEditorStaticLoadSummary(size_t totalCount, size_t includedCount, size_t excludedCount, size_t failedCount)
+    {
+        LOG_INFO(
+            "[EffectEditorStaticFilter] total={}, included={}, excluded={}, failed={}",
+            static_cast<uint32>(totalCount),
+            static_cast<uint32>(includedCount),
+            static_cast<uint32>(excludedCount),
+            static_cast<uint32>(failedCount)
+        );
+    }
+}
 
 EffectEditorApp::EffectEditorApp()
 {
@@ -44,17 +99,39 @@ HRESULT EffectEditorApp::Initialize()
     engineDesc.viewportHeight = viewportHeight;
     engineDesc.projectName = "EffectEditor";
 
-    CHECK_FAILED(GAME->Initialize_Engine(engineDesc, _device, _context), E_FAIL);
-    CHECK_FAILED(GAME->Initialize_AssetManager(assetRootPath.wstring()), E_FAIL);
-    CHECK_FAILED(CLIENT->Initialize_Client(_device, _context), E_FAIL);
-    CHECK_FAILED(Ready_Fonts(), E_FAIL);
-    CHECK_FAILED(Ready_Prototype_For_Static_Level(), E_FAIL);
-    CHECK_FAILED(CLIENT->Ready_LevelResources(LevelType::GamePlay), E_FAIL);
-    CHECK_FAILED(Ready_PreviewLevel(), E_FAIL);
+    const auto startupStartTime = chrono::steady_clock::now();
+
+    long long initializeEngineMs = 0;
+    long long initializeAssetManagerMs = 0;
+    long long initializeClientMs = 0;
+    long long readyFontsMs = 0;
+    long long readyStaticResourcesMs = 0;
+    long long readyGamePlayResourcesMs = 0;
+    long long readyPreviewLevelMs = 0;
+    long long computeShaderSmokeMs = 0;
+    long long computeInstancingSmokeMs = 0;
+    long long initializeEditorMs = 0;
+
+    const auto runStartupStep = [](long long& elapsedMs, const auto& step) -> HRESULT
+    {
+        const auto startTime = chrono::steady_clock::now();
+        const HRESULT hr = step();
+        elapsedMs = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - startTime).count();
+
+        return hr;
+    };
+
+    CHECK_FAILED(runStartupStep(initializeEngineMs, [&]{ return GAME->Initialize_Engine(engineDesc, _device, _context); }), E_FAIL);
+    CHECK_FAILED(runStartupStep(initializeAssetManagerMs, [&]{ return GAME->Initialize_AssetManager(assetRootPath.wstring()); }), E_FAIL);
+    CHECK_FAILED(runStartupStep(initializeClientMs, [&]{ return CLIENT->Initialize_Client(_device, _context); }), E_FAIL);
+    CHECK_FAILED(runStartupStep(readyFontsMs, [&]{ return Ready_Fonts(); }), E_FAIL);
+    CHECK_FAILED(runStartupStep(readyStaticResourcesMs, [&]{ return Ready_Prototype_For_Static_Level(); }), E_FAIL);
+    CHECK_FAILED(runStartupStep(readyGamePlayResourcesMs, [&]{ return CLIENT->Ready_LevelResources(LevelType::GamePlay); }), E_FAIL);
+    CHECK_FAILED(runStartupStep(readyPreviewLevelMs, [&]{ return Ready_PreviewLevel(); }), E_FAIL);
 
 #ifdef _DEBUG
-    CHECK_FAILED(Run_ComputeShaderSmokeTest(), E_FAIL);
-    CHECK_FAILED(Run_ComputeInstancingSmokeTest(), E_FAIL);
+    CHECK_FAILED(runStartupStep(computeShaderSmokeMs, [&]{ return Run_ComputeShaderSmokeTest(); }), E_FAIL);
+    CHECK_FAILED(runStartupStep(computeInstancingSmokeMs, [&]{ return Run_ComputeInstancingSmokeTest(); }), E_FAIL);
 #endif
 
     EffectEditorDesc editorDesc{};
@@ -63,8 +140,24 @@ HRESULT EffectEditorApp::Initialize()
     editorDesc.viewportWidth = viewportWidth;
     editorDesc.viewportHeight = viewportHeight;
 
-    CHECK_FAILED(EDITOR->Initialize_Editor(editorDesc, _device, _context), E_FAIL);
+    CHECK_FAILED(runStartupStep(initializeEditorMs, [&]{ return EDITOR->Initialize_Editor(editorDesc, _device, _context); }), E_FAIL);
     EDITOR->Request_RestartPreview();
+
+    const auto totalStartupMs = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - startupStartTime).count();
+    LOG_INFO(
+        "EffectEditor startup summary. total={}ms engine={}ms assetManager={}ms client={}ms fonts={}ms staticResources={}ms gameplayResources={}ms previewLevel={}ms computeSmoke={}ms instancingSmoke={}ms editor={}ms",
+        totalStartupMs,
+        initializeEngineMs,
+        initializeAssetManagerMs,
+        initializeClientMs,
+        readyFontsMs,
+        readyStaticResourcesMs,
+        readyGamePlayResourcesMs,
+        readyPreviewLevelMs,
+        computeShaderSmokeMs,
+        computeInstancingSmokeMs,
+        initializeEditorMs
+    );
 
     return S_OK;
 }
@@ -158,7 +251,43 @@ HRESULT EffectEditorApp::Ready_Fonts()
 
 HRESULT EffectEditorApp::Ready_Prototype_For_Static_Level()
 {
-    return CLIENT->Ready_StaticResources();
+    const Shared<ResourceLoader> resourceLoader = CLIENT->Get_ResourceLoader();
+    CHECK_NULL(resourceLoader, E_FAIL);
+
+    vector<FLoadJob> loadJobs;
+    CHECK_FAILED(resourceLoader->Build_LevelJobs(LevelType::Static, loadJobs), E_FAIL);
+
+    size_t includedCount = 0;
+    size_t excludedCount = 0;
+    size_t failedCount = 0;
+
+    for (const FLoadJob& loadJob : loadJobs)
+    {
+        const bool included = Internal::Is_EffectEditorStaticLoadJobAllowed(loadJob);
+
+        if (!included)
+        {
+            ++excludedCount;
+            continue;
+        }
+
+        ++includedCount;
+
+        if (FAILED(resourceLoader->Register_LoadJob(loadJob)))
+        {
+            ++failedCount;
+            LOG_WARN(
+                "[EffectEditorStaticFilter] register failed. type={}, tag={}",
+                string(magic_enum::enum_name(loadJob.eType)),
+                String::ToString(loadJob.strPrototypeTag)
+            );
+            continue;
+        }
+    }
+
+    Internal::Log_EffectEditorStaticLoadSummary(loadJobs.size(), includedCount, excludedCount, failedCount);
+
+    return S_OK;
 }
 
 HRESULT EffectEditorApp::Ready_PreviewLevel()
@@ -316,7 +445,7 @@ HRESULT EffectEditorApp::Run_ComputeInstancingSmokeTest()
     return S_OK;
 }
 
-bool EffectEditorApp::Validate_ComputeInstancePayload(const Engine::ParticleInstanceVertex* resultData) const
+bool EffectEditorApp::Validate_ComputeInstancePayload(const ParticleInstanceVertex* resultData) const
 {
     if (nullptr == resultData)
         return false;
@@ -326,16 +455,38 @@ bool EffectEditorApp::Validate_ComputeInstancePayload(const Engine::ParticleInst
         const float index = static_cast<float>(i);
         const ParticleInstanceVertex& instance = resultData[i];
 
-        if (instance.right.x != 1.f || instance.right.y != 0.f || instance.right.z != 0.f || instance.right.w != 0.f)
+        if (instance.right.x != 1.f ||
+            instance.right.y != 0.f ||
+            instance.right.z != 0.f ||
+            instance.right.w != 0.f)
             return false;
-        if (instance.up.x != 0.f || instance.up.y != 1.f || instance.up.z != 0.f || instance.up.w != 0.f)
+
+        if (instance.up.x != 0.f ||
+            instance.up.y != 1.f ||
+            instance.up.z != 0.f ||
+            instance.up.w != 0.f)
             return false;
-        if (instance.look.x != 0.f || instance.look.y != 0.f || instance.look.z != 1.f || instance.look.w != 0.f)
+
+        if (instance.look.x != 0.f ||
+            instance.look.y != 0.f ||
+            instance.look.z != 1.f ||
+            instance.look.w != 0.f)
             return false;
-        if (instance.translation.x != index || instance.translation.y != index * 0.5f || instance.translation.z != 0.f || instance.translation.w !=
-            1.f)
+
+        if (instance.translation.x != index ||
+            instance.translation.y != index * 0.5f ||
+            instance.translation.z != 0.f ||
+            instance.translation.w != 1.f)
             return false;
-        if (instance.lifeTime.x != 2.f || instance.lifeTime.y != index * 0.25f)
+
+        if (instance.lifeTime.x != 2.f ||
+            instance.lifeTime.y != index * 0.25f)
+            return false;
+
+        if (instance.subUVRect.x != 0.f ||
+            instance.subUVRect.y != 0.f ||
+            instance.subUVRect.z != 1.f ||
+            instance.subUVRect.w != 1.f)
             return false;
     }
 

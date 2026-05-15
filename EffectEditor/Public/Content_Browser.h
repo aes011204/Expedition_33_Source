@@ -19,7 +19,7 @@ public:
     void Render() override;
 
 private: //## Types
-    enum class EIconType
+    enum class IconType
     {
         Folder,
         Csv,
@@ -29,28 +29,29 @@ private: //## Types
         End
     };
 
-    struct FFileEntry
+    struct FileEntry
     {
         wstring filePath{};
         string guid{};
     };
 
-    struct FFolderNode
+    struct FolderNode
     {
         wstring name{};
         wstring fullPath{};
 
-        vector<FFolderNode> subFolders{};
-        vector<FFileEntry> files{};
+        vector<FolderNode> subFolders{};
+        vector<FileEntry> files{};
     };
 
 private: //## Static Values
-    static constexpr const wchar_t* kContentBrowserSettingsPath =
-        L"../../Client/Bin/Resources/Data/json/EditorSettings/ContentBrowser.json";
+    static constexpr const wchar_t* kContentBrowserSettingsPath{
+        L"../../../Client/Bin/Resources/Data/json/EditorSettings/ContentBrowser.json"
+    };
 
 private: //## Data
-    FFolderNode _rootFolder{};
-    FFolderNode* _currentFolder{ nullptr };
+    FolderNode _rootFolder{};
+    FolderNode* _currentFolder{ nullptr };
 
     filesystem::path _resourceRoot{};
 
@@ -67,35 +68,43 @@ private: //## Data
     vector<wstring> _folderHistory{};
     int _folderHistoryIndex{ -1 };
     bool _suppressHistoryRecord{ false };
+    bool _needsInitialRefresh{ true };
 
     wstring _selectedFilePath{};
 
-private: //## Helpers
+private: //## Helper::Refresh
     void Refresh_Resources();
     void Refresh_CurrentFolder();
     void Load_Icons();
 
-    void Scan_Folder(const wstring& path, FFolderNode& node);
-    void Draw_FolderTree(FFolderNode& node);
+private: //## Helper::Scan
+    void Scan_Folder(const wstring& path, FolderNode& node);
+
+private: //## Helper::View
+    void Draw_FolderTree(FolderNode& node);
     void Draw_AssetView();
-
-    void Draw_FolderTile(FFolderNode& folder);
-    void Open_Folder(FFolderNode* folder);
-    void Draw_FolderContextMenu(const FFolderNode& folder, const string& popupId);
+    void Draw_FolderTile(FolderNode& folder);
+    void Open_Folder(FolderNode* folder);
+    void Open_File(const FileEntry& fileEntry);
+    void Draw_FolderContextMenu(const FolderNode& folder, const string& popupId);
     void Draw_FileContextMenu(const wstring& filePath, const string& popupId);
-    Shared<Texture> Get_FileThumbnail(const FFileEntry& fileEntry);
-    static bool Is_ThumbnailFileExtension(const filesystem::path& filePath);
 
+private: //## Helper::ThumbnailIcon
+    Shared<Texture> Get_FileThumbnail(const FileEntry& fileEntry);
+    static bool Is_ThumbnailFileExtension(const filesystem::path& filePath);
+    static bool Is_EffectMaterialPresetFile(const filesystem::path& filePath);
+
+private: //## Helper::SettingsSearch
     void Save_Settings() const;
     void Load_Settings();
-
-    FFolderNode* Find_FolderNode(FFolderNode& node, const wstring& path);
+    FolderNode* Find_FolderNode(FolderNode& node, const wstring& path);
     void Expand_PathTo(const wstring& targetPath);
-    static bool IsFolderMatchingSearch(const FFolderNode& node, const string& searchStr);
-    FFolderNode* Get_FirstMatchingFolder(FFolderNode& node, const string& searchStr);
-    EIconType Resolve_IconType(const filesystem::path& filePath) const;
-    ImTextureID Get_IconTextureId(EIconType iconType) const;
+    static bool IsFolderMatchingSearch(const FolderNode& node, const string& searchStr);
+    FolderNode* Get_FirstMatchingFolder(FolderNode& node, const string& searchStr);
+    IconType Resolve_IconType(const filesystem::path& filePath) const;
+    ImTextureID Get_IconTextureId(IconType iconType) const;
 
+private: //## Helper::NavigationHistory
     void Record_FolderHistory(const wstring& path);
     bool Can_GoBack() const;
     bool Can_GoForward() const;

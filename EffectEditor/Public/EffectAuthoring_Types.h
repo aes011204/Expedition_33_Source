@@ -1,5 +1,7 @@
 ﻿#pragma once
 #include <variant>
+#include "EffectMaterialAuthoring_Types.h"
+#include "Particle_Types.h"
 
 NS_BEGIN(EffectEditor)
 
@@ -12,12 +14,15 @@ enum class AuthoringModuleType : uint8
     InitialVelocity,
     InitialColor,
     ColorOverLife,
+    SubUVFrameOverLife,
+    SizeByLife,
 };
 
 enum class EffectAuthoringSelectionKind : uint8
 {
     None,
     Emitter,
+    TypeData,
     Module,
 };
 
@@ -61,8 +66,41 @@ enum class DistributionMode : uint8
 // 현재 authoring payload가 실제로 보유하는 분포 모드만 true로 둔다.
 constexpr bool Is_DistributionModeEditable(DistributionMode mode)
 {
-    return mode == DistributionMode::Constant || mode == DistributionMode::Uniform;
+    return mode == DistributionMode::Constant ||
+           mode == DistributionMode::Uniform ||
+           mode == DistributionMode::ConstantCurve;
 }
+
+// 분포 플로트에서의 보간 모드 설정이다.
+enum class FloatCurveInterpolationMode : uint8
+{
+    Linear,           // key 사이를 직선으로 잇는 기본 모드다.
+    Constant,         // 다음 key 전까지 값을 유지하는 계단형 모드다.
+    CurveAuto,        // 후속 지원 예정인 자동 tangent curve 모드다.
+    CurveUser,        // 후속 지원 예정인 수동 tangent curve 모드다.
+    CurveBreak,       // 후속 지원 예정인 좌우 tangent 분리 모드다.
+    CurveAutoClamped, // v1에서 실제 지원할 안전한 자동 curve 모드다.
+};
+
+// 분포 플로트 상수 커브의 필요 값들이다.
+struct FloatCurveKeyData
+{
+    float time{ 0.f };                                                                    // 0..1 공통축에서 이 key의 위치다.
+    float value{ 0.f };                                                                   // 이 key 시점의 출력값이다.
+    float arriveTangent{ 0.f };                                                           // key로 들어오는 곡선 기울기다.
+    float leaveTangent{ 0.f };                                                            // key에서 나가는 곡선 기울기다.
+    FloatCurveInterpolationMode interpolationMode{ FloatCurveInterpolationMode::Linear }; // 이 key 이후 구간의 보간 방식을 결정한다.
+};
+
+// 분포 플로트 상수 커브의 보간 key 목록을 보관한다.
+struct ConstantCurveFloatDistributionData
+{
+    // 분포 플로트 상수 커브의 authoring key 목록이다.
+    vector<FloatCurveKeyData> keys{
+        FloatCurveKeyData{ 0.f, 0.f, 0.f, 0.f, FloatCurveInterpolationMode::Linear },
+        FloatCurveKeyData{ 1.f, 0.f, 0.f, 0.f, FloatCurveInterpolationMode::Linear }
+    };
+};
 
 struct ConstantFloatDistributionData
 {
@@ -77,7 +115,10 @@ struct UniformFloatDistributionData
 
 struct FloatDistributionData
 {
-    using Payload = variant<ConstantFloatDistributionData, UniformFloatDistributionData>;
+    using Payload = variant<
+        ConstantFloatDistributionData,
+        UniformFloatDistributionData,
+        ConstantCurveFloatDistributionData>;
 
     DistributionMode mode{ DistributionMode::Constant };
     Payload payload{ ConstantFloatDistributionData{} };
@@ -95,6 +136,19 @@ struct FloatDistributionData
         FloatDistributionData data{};
         data.mode = DistributionMode::Uniform;
         data.payload = UniformFloatDistributionData{ minValue, maxValue };
+        return data;
+    }
+
+    static FloatDistributionData Make_ConstantCurve(float value)
+    {
+        FloatDistributionData data{};
+        data.mode = DistributionMode::ConstantCurve;
+        data.payload = ConstantCurveFloatDistributionData{
+            {
+                FloatCurveKeyData{ 0.f, value, 0.f, 0.f, FloatCurveInterpolationMode::Linear },
+                FloatCurveKeyData{ 1.f, value, 0.f, 0.f, FloatCurveInterpolationMode::Linear }
+            }
+        };
         return data;
     }
 };
@@ -212,18 +266,7 @@ struct ParticleSystemAuthoringData
 struct RequiredModuleData
 {
     string rendererType{ "Sprite" };
-    string materialName{ "SpriteSymbolTranslucent" };
-    string textureId{ "Texture_Snow" };
-
-    string blendMode{ "AlphaBlend" };
-    string opacitySource{ "Alpha" };
-    Color tint{ 1.f, 1.f, 1.f, 1.f };
-    float intensity{ 1.f };
-    float opacityPower{ 1.f };
-    string noiseTextureId{};
-    float noiseStrength{ 0.f };
-    uint32 subUvRows{ 1 };
-    uint32 subUvCols{ 1 };
+    EffectMaterialInstanceData material{};
 
     Vec3 emitterOrigin{ 0.f, 0.f, 0.f };
     Vec3 emitterRotationDegrees{ 0.f, 0.f, 0.f };
@@ -232,6 +275,8 @@ struct RequiredModuleData
     float maxCameraBlendDistance{ 0.f };
     bool useLocalSpace{ false };
     EmitterSortMode sortMode{ EmitterSortMode::None };
+    float cameraMotionBlurAmount{ 0.f };
+    bool clearExistingParticlesOnInit{ false };
     // Cascade: Emitter Loops. 0 means infinite looping.
     uint32 loopCount{ 0 };
     float duration{ 1.f };
@@ -291,6 +336,21 @@ struct ColorOverLifeModuleData
     ColorDistributionData colorOverLife{ ColorDistributionData::Make_Constant(Color{ 1.f, 1.f, 1.f, 1.f }) };
 };
 
+struct SubUVFrameOverLifeModuleData
+{
+    uint32 startFrame{ 0 };
+    uint32 endFrame{ 0 };
+    bool loop{ false };
+};
+
+struct SizeByLifeModuleData
+{
+    float multiplyXStart{ 1.f };
+    float multiplyXEnd{ 1.f };
+    float multiplyYStart{ 1.f };
+    float multiplyYEnd{ 1.f };
+};
+
 using AuthoringModuleData = std::variant<
     RequiredModuleData,
     SpawnModuleData,
@@ -298,7 +358,9 @@ using AuthoringModuleData = std::variant<
     InitialSizeModuleData,
     InitialVelocityModuleData,
     InitialColorModuleData,
-    ColorOverLifeModuleData>;
+    ColorOverLifeModuleData,
+    SubUVFrameOverLifeModuleData,
+    SizeByLifeModuleData>;
 
 struct AuthoringModule
 {
@@ -319,8 +381,7 @@ struct AuthoringEmitter
     string name{};
     string rendererType{ "Sprite" };
     string resourceSummary{};
-    string materialName{ "SpriteSymbolTranslucent" };
-    string textureId{ "Texture_Snow" };
+    string textureId{ "Texture_Effect_DefaultTexture" };
     bool enabled{ true };
     bool previewDirty{ true };
     vector<AuthoringModule> modules{};
