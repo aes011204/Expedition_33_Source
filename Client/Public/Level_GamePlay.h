@@ -34,13 +34,6 @@ private:
 	HRESULT Ready_Layer_Player(const wstring& strLayerTag);
 
 private:
-    // UI 로드 방법에 대한 테스트 코드임.
-    HRESULT Bind_TestUI();
-    void    Update_Input_TestUI();
-    void    Update_TestUI();
-    void    ReSize_TestGauge(const Shared<UI_Base>& gauge, const Vec2& originalSize, int32 value, int32 maxValue);
-
-private:
     unordered_map<wstring, Shared<UI_Base>> _uiByName{};
 
     Shared<UI_Text>   _hpText{};

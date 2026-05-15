@@ -77,7 +77,7 @@ HRESULT ModelViewerObject::Render()
 
             if (_modelCom->Is_Skeletal())
             {
-                _modelCom->Bind_BoneMatrices(_animShaderCom.get(), "g_BoneMatrices", i);
+                _modelCom->Bind_BoneMatrices(_animShaderCom.get(), "g_BoneMatricesBuffer", i);
             }
 
             _animShaderCom->Begin(0);
@@ -99,7 +99,7 @@ HRESULT ModelViewerObject::Render()
 
             if (_modelCom->Is_Skeletal())
             {
-                _modelCom->Bind_BoneMatrices(_staticShaderCom.get(), "g_BoneMatrices", i);
+                _modelCom->Bind_BoneMatrices(_staticShaderCom.get(), "g_BoneMatricesBuffer", i);
             }
 
             _staticShaderCom->Begin(0);

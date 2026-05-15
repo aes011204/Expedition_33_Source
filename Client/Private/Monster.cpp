@@ -10,6 +10,7 @@
 #include "ClientInstance.h"
 #include "BlackBoard.h"
 #include "Mon_Lancleier_Body.h"
+#include "MonsterStatCom.h"
 #include "Mon_Lancleier_Weapon.h"
 
 IMPLEMENT_REFLECTION(Monster)
@@ -118,6 +119,9 @@ void Monster::Update(float timeDelta)
     // Quat a;
     // Vec3 vevec;
     // ax.Decompose(vec3, a, vevec);
+
+    _combatStat->Update(timeDelta);
+
     __super::Update(timeDelta);
 }
 
@@ -168,6 +172,10 @@ HRESULT Monster::Ready_Components()
 
     _aiCtrl->Set_Owner(static_pointer_cast<Monster>(shared_from_this()));
 
+    if (FAILED(__super::Add_Component(ETOI(LevelType::Static), TEXT("Com_MonsterStat"), _combatStat)))
+        return E_FAIL;
+
+
     CHECK_FAILED(Ready_Collider(), E_FAIL);
     CHECK_FAILED(Ready_PartObjects(), E_FAIL);
 
@@ -213,6 +221,24 @@ HRESULT Monster::Ready_Collider()
     _collider->Set_IsActive(true);
 
     return S_OK;
+}
+
+void Monster::Decide_Action(Action& curturnAction, const vector<BattleChar>& heroes)
+{
+
+        Skill_Data skill = {}; skill.scriptClassName = "Base_Gustave_Attack";
+        skill.apCost = 0; skill.targetingType = ECharacterTeamSelector::Invalid;
+ 
+   
+    curturnAction.target = heroes[0];
+    curturnAction._selected_SkillKey = skill;
+        curturnAction.type = EBattleContext::BaseAttack;
+
+    LOG_DEBUG("Monster::Decide_Action: target={}, script={}, type={}",
+        curturnAction.target.actor ? String::ToString(curturnAction.target.actor->Get_Name()).c_str() : "null",
+        curturnAction._selected_SkillKey.scriptClassName.c_str(),
+        static_cast<int>(curturnAction.type));
+
 }
 
 Shared<Monster> Monster::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

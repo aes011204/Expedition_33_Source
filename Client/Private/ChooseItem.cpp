@@ -24,19 +24,23 @@ void ChooseItem::Begin_Play()
 
 bool ChooseItem::EnterInvoke()
 {
+    LOG_DEBUG("ChooseItem::EnterInvoke");
     return Battle_State::EnterInvoke();
 }
 
 void ChooseItem::Update(float timeDelta)
 {
+    Battle_State::Update(timeDelta);
 }
 
 void ChooseItem::LateUpdate(float timeDelta)
 {
+    Battle_State::LateUpdate(timeDelta);
 }
 
 void ChooseItem::ExitInvoke()
 {
+    LOG_DEBUG("ChooseItem::ExitInvoke");
     Battle_State::ExitInvoke();
 }
 

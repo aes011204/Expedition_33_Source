@@ -25,18 +25,18 @@ vector g_vBrushPosition = vector(70.f, 0.f, 20.f, 1.f);
 //==================================================
 struct VS_IN
 {
-    float3 vPosition : POSITION;
-    float3 vNormal : NORMAL;
-    float2 vTexcoord : TEXCOORD0;    
+    float3 Position : POSITION;
+    float3 Normal   : NORMAL;
+    float2 Texcoord : TEXCOORD0;    
 };
 
 struct VS_OUT
 {
-    float4 vPosition : SV_POSITION;
-    float4 vNormal : NORMAL;
-    float2 vTexcoord : TEXCOORD0;
-    float4 vWorldPos : TEXCOORD1;
-    float4 vProjPos : TEXCOORD2;
+    float4 Position : SV_POSITION;
+    float4 Normal   : NORMAL;
+    float2 Texcoord : TEXCOORD0;
+    float4 WorldPos : TEXCOORD1;
+    float4 ProjPos  : TEXCOORD2;
 
 };
 
@@ -52,11 +52,11 @@ VS_OUT VS_Default(VS_IN In)
     matWV = mul(g_WorldMatrix, g_ViewMatrix);
     matWVP = mul(matWV, g_ProjMatrix);
     
-    Out.vPosition = mul(float4(In.vPosition, 1.f), matWVP); 
-    Out.vNormal = normalize(mul(float4(In.vNormal, 0.f), g_WorldMatrix));
-    Out.vTexcoord = In.vTexcoord;
-    Out.vWorldPos = mul(float4(In.vPosition, 1.f), g_WorldMatrix);
-    Out.vProjPos = Out.vPosition;
+    Out.Position = mul(float4(In.Position, 1.f), matWVP); 
+    Out.Normal = normalize(mul(float4(In.Normal, 0.f), g_WorldMatrix));
+    Out.Texcoord = In.Texcoord;
+    Out.WorldPos = mul(float4(In.Position, 1.f), g_WorldMatrix);
+    Out.ProjPos = Out.Position;
 
     return Out;
 }
@@ -66,27 +66,27 @@ VS_OUT VS_Default(VS_IN In)
 //==================================================
 struct PS_IN
 {
-    float4 vPosition : SV_POSITION;
-    float4 vNormal : NORMAL;
-    float2 vTexcoord : TEXCOORD0;    
-    float4 vWorldPos : TEXCOORD1;
-    float4 vProjPos : TEXCOORD2;
+    float4 Position : SV_POSITION;
+    float4 Normal   : NORMAL;
+    float2 Texcoord : TEXCOORD0;    
+    float4 WorldPos : TEXCOORD1;
+    float4 ProjPos  : TEXCOORD2;
 };
 
 struct PS_OUT
 {
-    vector vDiffuse : SV_TARGET0;
-    vector vNormal : SV_TARGET1;
-    vector vDepth : SV_TARGET2;
+    vector Diffuse  : SV_TARGET0;
+    vector Normal   : SV_TARGET1;
+    vector Depth    : SV_TARGET2;
 };
 
 PS_OUT PS_Default(PS_IN In)
 {
     PS_OUT Out;
-    vector vMtrlDiffuse = g_DiffuseTexture.Sample(LinearWrapSampler, In.vTexcoord * 30.f);
-    Out.vDiffuse = vector(vMtrlDiffuse.rgb, 1.f);
-    Out.vNormal = vector(In.vNormal.xyz * 0.5f + 0.5f, 1.f);
-    Out.vDepth = vector(In.vProjPos.z / In.vProjPos.w, In.vProjPos.w / g_Far, 0.f, 1.f);
+    vector mtrlDiffuse = g_DiffuseTexture.Sample(LinearWrapSampler, In.Texcoord * 30.f);
+    Out.Diffuse = vector(mtrlDiffuse.rgb, 1.f);
+    Out.Normal = vector(In.Normal.xyz * 0.5f + 0.5f, 1.f);
+    Out.Depth = vector(In.ProjPos.z / In.ProjPos.w, In.ProjPos.w / g_Far, 0.f, 1.f);
     
     return Out;
 }

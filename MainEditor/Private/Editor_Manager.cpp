@@ -19,6 +19,7 @@
 #include "Prefab_View.h"
 #include "Animation_View.h"
 #include "AnimState_View.h"
+#include "PostProcess_View.h"
 
 namespace fs = std::filesystem;
 
@@ -45,6 +46,7 @@ HRESULT Editor_Manager::Initialize()
 
     Add_Window(Material_View::Create());
     Add_Window(AnimState_View::Create());
+    Add_Window(PostProcess_View::Create());
 
     return S_OK;
 }
@@ -295,12 +297,12 @@ void Editor_Manager::Handle_Shortcuts()
     // F8 : 자유 카메라 전환
     if (ImGui::IsKeyPressed(ImGuiKey_F8, false))
     {
-        //if (GAME->Is_ActiveCameraType(ObjectType::FreeCamera))
-        //    EDITOR->Activate_TargetCamera();
-        //else
-        //    EDITOR->Activate_FreeCamera();
+        if (GAME->Is_ActiveCameraType(ObjectType::FreeCamera))
+            EDITOR->Activate_TargetCamera();
+        else
+            EDITOR->Activate_FreeCamera();
 
-        GAME->SwitchTo_NextCamera();
+        //GAME->SwitchTo_NextCamera();
 
         return;
     }

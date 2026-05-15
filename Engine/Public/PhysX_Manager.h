@@ -53,6 +53,15 @@ private:
     void Push_PairEvent(Shared<ColliderCom> self, Shared<ColliderCom> other,
 						CollisionResponse response, bool began, bool staying, bool ended);
 
+public: /* Camera Collision Test */
+    bool Sweep_Sphere(
+            const Vec3& origin,             // 구체 sweep 시작 위치
+            const Vec3& direction,          // 이동 방향
+            float distance,                 // 얼마나 멀리?
+            float radius,                   // 구체 반지름, 카메라 probe 크기
+            Collision_Preset queryPreset,   // 충돌 규칙
+            PhysXQueryHit& outHit) const;   // 충돌 결과
+
 public:
 	// 현재 충돌체 모양을 가져와서 주어진 방향으로, 주어진 거리만큼 query를 날려서
 	// 맞았는지, 얼마나 갔는지, 어디에 맞았는지 결과를 채워줌

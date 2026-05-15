@@ -22,8 +22,12 @@ namespace UIEditor
         void Clear_RuntimeCaches();
         void Render_FontPreviews();
 
-        ID3D11ShaderResourceView* Get_TexturePreviewSRV(const string& textureGuid);
-        ID3D11ShaderResourceView* Get_MaskedTexturePreviewSRV(const string& textureGuid, const string& maskTextureGuid);
+        ID3D11ShaderResourceView* Get_TexturePreviewSRV(const string& textureGuid, const string& texturePath = "");
+        ID3D11ShaderResourceView* Get_MaskedTexturePreviewSRV(
+            const string& textureGuid,
+            const string& texturePath,
+            const string& maskTextureGuid,
+            const string& maskTexturePath);
 
         bool Queue_FontPreview(
             const string& fontGuid,
@@ -54,6 +58,7 @@ namespace UIEditor
 
     private:
         SpriteFont* Get_FontPreview(const string& fontGuid, const string& fontPath);
+        ID3D11ShaderResourceView* Load_TexturePreview(const string& cacheKey, const wstring& texturePath);
         bool Ensure_ImagePreviewRenderer();
         ID3D11ShaderResourceView* Create_MaskedTexturePreviewSRV(
             const string& cacheKey,
@@ -65,7 +70,7 @@ namespace UIEditor
         ComPtr<Context> _context = nullptr;
         bool _assetManagerReady = false;
         unordered_map<string, ComPtr<ID3D11ShaderResourceView>> _textureThumbCache = {};
-        unordered_set<string> _textureNoThumbGuids = {};
+        unordered_set<string> _texturePreviewFailedKeys = {};
         unordered_map<string, ComPtr<ID3D11ShaderResourceView>> _maskedTexturePreviewCache = {};
         unordered_set<string> _maskedTexturePreviewFailedKeys = {};
         Shared<ShaderCom> _imagePreviewShader = nullptr;

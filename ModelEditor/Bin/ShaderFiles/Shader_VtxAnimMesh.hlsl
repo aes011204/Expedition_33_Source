@@ -20,6 +20,8 @@ struct BoneMatrixElement
 };
 StructuredBuffer<BoneMatrixElement> g_BoneMatrices;
 
+StructuredBuffer<BoneMatrixElement> g_BoneMatricesBuffer;
+
 struct VS_IN
 {
     float3 vPosition : POSITION;
@@ -44,11 +46,14 @@ VS_OUT VS_MAIN(VS_IN In)
     VS_OUT Out;
 
     float4x4 matWV, matWVP;
-    matrix BoneMatrix = 
-        g_BoneMatrices[In.vBlendIndex.x].BoneMatrix * In.vBlendWeight.x +
-        g_BoneMatrices[In.vBlendIndex.y].BoneMatrix * In.vBlendWeight.y +
-        g_BoneMatrices[In.vBlendIndex.z].BoneMatrix * In.vBlendWeight.z +
-        g_BoneMatrices[In.vBlendIndex.w].BoneMatrix * In.vBlendWeight.w;
+
+    float fWeightW = 1.f - (In.vBlendWeight.x + In.vBlendWeight.y + In.vBlendWeight.z);
+
+    float4x4 BoneMatrix =
+        g_BoneMatricesBuffer[In.vBlendIndex.x].BoneMatrix * In.vBlendWeight.x +
+        g_BoneMatricesBuffer[In.vBlendIndex.y].BoneMatrix * In.vBlendWeight.y +
+        g_BoneMatricesBuffer[In.vBlendIndex.z].BoneMatrix * In.vBlendWeight.z +
+        g_BoneMatricesBuffer[In.vBlendIndex.w].BoneMatrix * fWeightW;
 
     vector vPosition = mul(float4(In.vPosition, 1.f), BoneMatrix);
     vector vNormal = mul(float4(In.vNormal, 0.f), BoneMatrix);

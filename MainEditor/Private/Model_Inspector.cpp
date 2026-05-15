@@ -696,6 +696,8 @@ const char* ModelCom_Inspector::Get_TextureTypeLabel(uint32 typeIndex)
     case MaterialTextureSlot::ORM: return "ORM";
     case MaterialTextureSlot::Emissive: return "Emissive";
     case MaterialTextureSlot::OpacityMask: return "OpacityMask";
+    case MaterialTextureSlot::HairDepth: return "HairDepth";
+    case MaterialTextureSlot::HairID: return "HairID";
     default: return "Unknown";
     }
 }

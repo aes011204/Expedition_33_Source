@@ -3,7 +3,6 @@
 #include "ClientInstance.h"
 #include "PointParticlePreview.h"
 #include "Spawn_Prefab.h"
-//#include "MapLoader.h"
 #include "TargetCamera.h"
 #include "MapLoader.h"
 #include "Spawn_Prefab.h"
@@ -62,6 +61,26 @@ void Level_GamePlay::Update(float fTimeDelta)
 
      GAME->Print(L"현재 FPS : {}", fps, duration(0.f), color(Vec4(1.f, 1.f, 0.f, 1.f)));
 #endif
+
+     //테스트
+     if (GAME->KeyDown(KEY_TYPE::KEY_0))
+     {
+         vector<string> _heroes;
+         _heroes.push_back("Player_Lune");
+         _heroes.push_back("Player_Maelle");
+         _heroes.push_back("Player_Gustave");
+
+         vector<string> _monster;
+         _monster.push_back("Monster123123");
+         _monster.push_back("Monster123123");
+         _monster.push_back("Monster123123");
+
+         CLIENT->OnEnterBattleField(1, true, _heroes, _monster);
+       
+     }
+
+
+
 }
 
 HRESULT Level_GamePlay::Render()
@@ -192,12 +211,12 @@ HRESULT Level_GamePlay::Ready_Layer_Monster(const wstring& strLayerTag)
     Vec3 startPos = Vec3(225.f, -4020.5f, -1.24f);
 
 
-
+     
     const Shared<GameObject> monster = Client::Spawn_Prefab::Spawn(
         "Monster123123",
         ETOI(LevelType::GamePlay),
-        strLayerTag
-    );
+        strLayerTag);
+
     monster->Get_Transform()->Set_Position(startPos);
 
 
