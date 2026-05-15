@@ -4,7 +4,7 @@
 
 NS_BEGIN(Engine)
 
-class ENGINE_DLL VIBufferCom_PointParticle final : public VIBufferCom_Instance
+class [[deprecated("Use VIBufferCom_ComputePointParticle for compute sprite particles.")]] ENGINE_DLL VIBufferCom_PointParticle final : public VIBufferCom_Instance
 {
     GENERATED_COMPONENT(VIBufferCom_PointParticle);
 

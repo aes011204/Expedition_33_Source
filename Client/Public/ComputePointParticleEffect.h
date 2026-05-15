@@ -18,7 +18,7 @@ class ComputePointParticleEffect final : public GameObject
 public:
     struct ComputePointParticleEffectDesc : public GameObject::GAMEOBJECT_DESC
     {
-        PointParticleDrawMode drawMode{ PointParticleDrawMode::Direct }; // GPU Sprite effect의 draw 제출 방식.
+        PointParticleDrawMode drawMode{ PointParticleDrawMode::DrawIndexedInstancedIndirect }; // compute sprite effect의 정식 draw 제출 방식.
 
         string textureId{ "Texture_Effect_DefaultTexture" }; // Required.material에서 내려온 main particle texture id.
         string blendMode{ "AlphaBlend" };                    // effect material bridge 기록값. 현재 pass 선택은 바꾸지 않는다.
@@ -28,8 +28,10 @@ public:
         float opacityPower{ 1.f };                           // opacity를 선명하게 만들기 위한 effect sharpening 계수.
         string noiseTextureId{};                             // 선택 noise texture runtime id. 비어 있으면 사용하지 않는다.
         float noiseStrength{ 0.f };                          // noise가 opacity/color modulation에 끼치는 effect 강도.
-        uint32 subUVRows{ 1 };                               // flipbook grid 기록용 row 수. Phase6에서는 sampling에 쓰지 않는다.
-        uint32 subUVCols{ 1 };                               // flipbook grid 기록용 column 수. Phase6에서는 sampling에 쓰지 않는다.
+        uint32 subUVRows{ 1 };                               // flipbook grid row 수.
+        uint32 subUVCols{ 1 };                               // flipbook grid column 수.
+        PointParticleSubUVFrameOverLifeDesc subUVFrameOverLife{}; // 수명 진행률 기준 SubUV frame 선택 규칙이다.
+        PointParticleSizeByLifeDesc sizeByLife{};            // 수명 진행률 기준 크기 배율 규칙이다.
 
         Vec3 center{ 0.f, 2.f, 0.f };             // 이 effect clone의 스폰 중심.
         uint32 instanceCount{ 96 };               // 이 effect clone이 생성할 particle 수.
@@ -62,7 +64,7 @@ private: //## Static Values
 
 private: //## Data::Components
     Shared<ShaderCom> _shader{};                          // EffectSprite material effect shader.
-    Shared<Texture> _texture{};                           // GPU Sprite effect main texture.
+    Shared<Texture> _texture{};                           // compute sprite effect main texture.
     Shared<Texture> _noiseTexture{};                      // 선택 noise texture. 없으면 material noise를 비활성화한다.
     Shared<VIBufferCom_ComputePointParticle> _viBuffer{}; // compute output을 instance draw로 제출하는 검증 버퍼.
 
@@ -72,8 +74,8 @@ private: //## Data::Desc
 
 private: //## Helper::Setup
     HRESULT Ready_Components();                                              // effect에 필요한 shader/texture/compute buffer component를 준비한다.
-    HRESULT Ready_TextureComponent(string& outResolvedTextureId);            // GPU Sprite main texture를 준비하고 fallback 결과를 기록한다.
-    HRESULT Ready_ShaderComponent();                                         // GPU Sprite effect가 사용할 EffectSprite shader를 준비한다.
+    HRESULT Ready_TextureComponent(string& outResolvedTextureId);            // compute sprite main texture를 준비하고 fallback 결과를 기록한다.
+    HRESULT Ready_ShaderComponent();                                         // compute sprite effect가 사용할 EffectSprite shader를 준비한다.
     HRESULT Ready_NoiseTextureComponent(const string& outResolvedTextureId); // 선택 noise texture를 준비하고 없으면 noise path를 비활성화한다.
 
 private: //## Helper::Render
@@ -82,7 +84,7 @@ private: //## Helper::Render
     int Resolve_OpacitySourceIndex() const; // authoring opacitySource 문자열을 shader selector 값으로 변환한다.
 
 private: //## Helper::Desc
-    ComputePointParticleDesc Make_ComputePointParticleDesc() const; // GPU Sprite effect용 compute particle 규칙을 만든다.
+    ComputePointParticleDesc Make_ComputePointParticleDesc() const; // compute sprite effect용 particle 규칙을 만든다.
 
 public:
     static Shared<ComputePointParticleEffect> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

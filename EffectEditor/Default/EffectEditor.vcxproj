@@ -210,7 +210,7 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     <ClCompile Include="..\Private\Hierarchy_View.cpp" />
     <ClCompile Include="..\Private\Content_Browser.cpp" />
     <ClCompile Include="..\Private\Detail_View.cpp" />
-    <ClCompile Include="..\Private\Helper_DetailProperty.cpp" />
+    <ClCompile Include="..\Private\DetailPropertyContext.cpp" />
     <ClCompile Include="..\Private\ModuleDetail_Drawers.cpp" />
     <ClCompile Include="..\Private\Profile_View.cpp" />
   </ItemGroup>
@@ -233,7 +233,7 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     <ClInclude Include="..\Public\EffectEditor_Macro.h" />
     <ClInclude Include="..\Public\EffectEditor_Struct.h" />
     <ClInclude Include="..\Public\Helper_Distribution.h" />
-    <ClInclude Include="..\Public\Helper_DetailProperty.h" />
+    <ClInclude Include="..\Public\DetailPropertyContext.h" />
     <ClInclude Include="..\Public\Helper_ImGui.h" />
     <ClInclude Include="..\Public\EffectEditorInstance.h" />
     <ClInclude Include="..\Public\ImGui_Manager.h" />

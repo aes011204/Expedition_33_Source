@@ -3,6 +3,7 @@
 #include "Editor_Window.h"
 #include "Emitter_View.h"
 #include "EffectAuthoring_Types.h"
+#include "DetailPropertyContext.h"
 #include "ModuleDetail_Drawers.h"
 
 NS_BEGIN(EffectEditor)
@@ -56,6 +57,7 @@ private: //## Helper::EffectAuthoring
     static bool Is_SameSelection(const EffectAuthoringSelection& lhs, const EffectAuthoringSelection& rhs);
 
 private: //## Data::ModuleDetail
+    DetailPropertyContext _detailPropertyContext{};
     // module data 자체가 아니라 module type별 detail row UI를 그리는 drawer 상태다.
     RequiredModuleDetail _requiredModuleDetail{};
     SpawnModuleDetail _spawnModuleDetail{};

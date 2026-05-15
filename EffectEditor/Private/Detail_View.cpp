@@ -2,59 +2,9 @@
 
 #include "Editor_Context.h"
 #include "EffectEditorInstance.h"
-#include "Helper_DetailProperty.h"
+#include "DetailPropertyContext.h"
 
 NS_BEGIN(EffectEditor)
-
-namespace Internal
-{
-    bool Draw_PreviewDrawModeProperty(
-        const char* label,
-        PointParticleDrawMode& value,
-        PointParticleDrawMode defaultValue)
-    {
-        constexpr PointParticleDrawMode modes[] =
-        {
-            PointParticleDrawMode::Direct,
-            PointParticleDrawMode::DrawInstancedIndirect,
-            PointParticleDrawMode::DrawIndexedInstancedIndirect,
-        };
-
-        ImGui::PushID(label);
-        DetailProperty::Draw_PropertyLabel(label);
-        ImGui::SetNextItemWidth(-FLT_MIN);
-
-        bool changed = false;
-        const string preview = string(magic_enum::enum_name(value));
-        if (ImGui::BeginCombo("##Value", preview.c_str()))
-        {
-            for (const PointParticleDrawMode mode : modes)
-            {
-                const bool selected = value == mode;
-                const string modeLabel = string(magic_enum::enum_name(mode));
-                if (ImGui::Selectable(modeLabel.c_str(), selected) && value != mode)
-                {
-                    value = mode;
-                    changed = true;
-                }
-
-                if (selected)
-                    ImGui::SetItemDefaultFocus();
-            }
-
-            ImGui::EndCombo();
-        }
-
-        if (DetailProperty::Draw_ResetButton(value != defaultValue))
-        {
-            value = defaultValue;
-            changed = true;
-        }
-
-        ImGui::PopID();
-        return changed;
-    }
-}
 
 Detail_View::Detail_View()
     : Editor_Window{ L"Detail", ICON_FA_PEN_TO_SQUARE }
@@ -157,10 +107,10 @@ void Detail_View::Render_ParticleSystemDetail(
     const Emitter_View::AuthoringSnapshot beforeSnapshot = emitterView->Capture_AuthoringSnapshot();
     const ParticleSystemAuthoringData defaultData{};
     bool changed = false;
-    if (DetailProperty::Begin_PropertyTable("ParticleSystem"))
+    if (_detailPropertyContext.Begin_PropertyTable("ParticleSystem"))
     {
-        changed |= DetailProperty::Draw_BoolProperty("자동 비활성화", data.autoDeactivate, defaultData.autoDeactivate);
-        DetailProperty::End_PropertyTable();
+        changed |= _detailPropertyContext.Draw_BoolProperty("자동 비활성화", data.autoDeactivate, defaultData.autoDeactivate);
+        _detailPropertyContext.End_PropertyTable();
     }
     if (changed)
     {
@@ -184,17 +134,17 @@ void Detail_View::Render_EmitterDetail(
     const RequiredModuleData* requiredData = Find_RequiredModuleData(emitter);
     bool changed = false;
 
-    if (DetailProperty::Begin_PropertyTable("Emitter"))
+    if (_detailPropertyContext.Begin_PropertyTable("Emitter"))
     {
-        changed |= DetailProperty::Draw_StringProperty("이미터 이름", emitter.name, defaultData.name);
+        changed |= _detailPropertyContext.Draw_StringProperty("이미터 이름", emitter.name, defaultData.name);
 
         ImGui::PushID("RendererType");
-        DetailProperty::Draw_PropertyLabel("렌더러 타입");
+        _detailPropertyContext.Draw_PropertyLabel("렌더러 타입");
         ImGui::TextDisabled("%s", requiredData != nullptr ? requiredData->rendererType.c_str() : emitter.rendererType.c_str());
-        DetailProperty::Draw_ResetButton(false);
+        _detailPropertyContext.Draw_ResetButton(false);
         ImGui::PopID();
 
-        DetailProperty::End_PropertyTable();
+        _detailPropertyContext.End_PropertyTable();
     }
 
     if (changed)
@@ -209,46 +159,11 @@ void Detail_View::Render_TypeDataDetail(
     const EffectAuthoringSelection& selection,
     AuthoringEmitter& emitter)
 {
-    ImGui::TextUnformatted("GPU 스프라이트");
+    ImGui::TextUnformatted("타입 데이터");
     ImGui::Separator();
+    ImGui::TextDisabled("장착된 타입 데이터가 없습니다.");
 
-    if (emitter.typeData != AuthoringEmitterTypeData::GpuSprite)
-    {
-        ImGui::TextDisabled("Selected emitter does not have GPU Sprite TypeData.");
-        return;
-    }
-
-    const Emitter_View::AuthoringSnapshot beforeSnapshot = emitterView->Capture_AuthoringSnapshot();
-    const GpuSpriteTypeData defaultData{};
-    bool changed = false;
-
-    if (ImGui::CollapsingHeader("파티클 모듈 타입 데이터 GPU", ImGuiTreeNodeFlags_DefaultOpen))
-    {
-        if (DetailProperty::Begin_PropertyTable("GpuSpriteTypeData"))
-        {
-            changed |= Internal::Draw_PreviewDrawModeProperty(
-                "Preview Draw Mode",
-                emitter.gpuSpriteTypeData.previewDrawMode,
-                defaultData.previewDrawMode
-            );
-            changed |= DetailProperty::Draw_FloatProperty(
-                "카메라 모션 블러 양",
-                emitter.gpuSpriteTypeData.cameraMotionBlurAmount,
-                defaultData.cameraMotionBlurAmount
-            );
-            changed |= DetailProperty::Draw_BoolProperty(
-                "초기화 시 기존 파티클 지우기",
-                emitter.gpuSpriteTypeData.clearExistingParticlesOnInit,
-                defaultData.clearExistingParticlesOnInit
-            );
-            DetailProperty::End_PropertyTable();
-        }
-    }
-
-    if (changed)
-        Begin_PendingAuthoringEdit(emitterView, selection, beforeSnapshot, "Edit GPU Sprite TypeData Detail");
-
-    Mark_Changed(emitter, changed);
+    Mark_Changed(emitter, false);
     Commit_PendingAuthoringEditIfIdle(emitterView);
 }
 
@@ -262,54 +177,53 @@ void Detail_View::Render_ModuleDetail(
     ImGui::Separator();
 
     const Emitter_View::AuthoringSnapshot beforeSnapshot = emitterView->Capture_AuthoringSnapshot();
-    ModuleDetailDrawContext context{};
     bool changed = false;
 
     switch (module.type)
     {
     case AuthoringModuleType::Required:
         if (auto* data = get_if<RequiredModuleData>(&module.data))
-            changed = _requiredModuleDetail.Draw(emitter, module, *data, context);
+            changed = _requiredModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
         break;
 
     case AuthoringModuleType::Spawn:
         if (auto* data = get_if<SpawnModuleData>(&module.data))
-            changed = _spawnModuleDetail.Draw(emitter, module, *data, context);
+            changed = _spawnModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
         break;
 
     case AuthoringModuleType::Lifetime:
         if (auto* data = get_if<LifetimeModuleData>(&module.data))
-            changed = _lifetimeModuleDetail.Draw(emitter, module, *data, context);
+            changed = _lifetimeModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
         break;
 
     case AuthoringModuleType::InitialSize:
         if (auto* data = get_if<InitialSizeModuleData>(&module.data))
-            changed = _initialSizeModuleDetail.Draw(emitter, module, *data, context);
+            changed = _initialSizeModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
         break;
 
     case AuthoringModuleType::InitialVelocity:
         if (auto* data = get_if<InitialVelocityModuleData>(&module.data))
-            changed = _initialVelocityModuleDetail.Draw(emitter, module, *data, context);
+            changed = _initialVelocityModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
         break;
 
     case AuthoringModuleType::InitialColor:
         if (auto* data = get_if<InitialColorModuleData>(&module.data))
-            changed = _initialColorModuleDetail.Draw(emitter, module, *data, context);
+            changed = _initialColorModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
         break;
 
     case AuthoringModuleType::ColorOverLife:
         if (auto* data = get_if<ColorOverLifeModuleData>(&module.data))
-            changed = _colorOverLifeModuleDetail.Draw(emitter, module, *data, context);
+            changed = _colorOverLifeModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
         break;
 
     case AuthoringModuleType::SubUVFrameOverLife:
         if (auto* data = get_if<SubUVFrameOverLifeModuleData>(&module.data))
-            changed = _subUvFrameOverLifeModuleDetail.Draw(emitter, module, *data, context);
+            changed = _subUvFrameOverLifeModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
         break;
 
     case AuthoringModuleType::SizeByLife:
         if (auto* data = get_if<SizeByLifeModuleData>(&module.data))
-            changed = _sizeByLifeModuleDetail.Draw(emitter, module, *data, context);
+            changed = _sizeByLifeModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
         break;
 
     default:

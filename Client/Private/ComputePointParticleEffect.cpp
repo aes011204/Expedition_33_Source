@@ -193,8 +193,12 @@ ComputePointParticleDesc ComputePointParticleEffect::Make_ComputePointParticleDe
     desc.startColorMax = _desc.startColorMax;
     desc.endColorMin = _desc.endColorMin;
     desc.endColorMax = _desc.endColorMax;
+    desc.subUVRows = max(1u, _desc.subUVRows);
+    desc.subUVCols = max(1u, _desc.subUVCols);
+    desc.subUvFrameOverLife = _desc.subUVFrameOverLife;
+    desc.sizeByLife = _desc.sizeByLife;
     desc.radius = Vec2{ 1.2f, 2.2f };
-    desc.drawMode = _desc.drawMode;
+    desc.drawMode = PointParticleDrawMode::DrawIndexedInstancedIndirect;
     desc.computeShaderLevelIndex = ETOI(LevelType::Static);
     desc.computeShaderPrototypeTag = L"ComputeShader_PointParticle";
 

@@ -23,7 +23,7 @@ public:
     HRESULT Render();
 
 private:
-    inline static const Vec4 kDefaultClearColor{ 0.13f, 0.13f, 0.13f, 1.0f };
+    inline static const Vec4 kDefaultClearColor{ 0.18f, 0.18f, 0.18f, 1.f };
     static constexpr uint32 kComputeSmokeElementCount{ 4 };           // compute smoke test에서 검증할 float4 개수.
     static constexpr uint32 kComputeSmokeThreadCount{ 4 };            // smoke shader의 numthreads.x 값.
     static constexpr uint32 kComputeInstancingSmokeElementCount{ 8 }; // instance payload copy smoke에서 검증할 instance 개수.

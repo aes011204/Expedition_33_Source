@@ -7,7 +7,7 @@
 #include "EffectMaterialPreviewRenderer.h"
 #include "Emitter_View.h"
 #include "GameInstance.h"
-#include "Helper_DetailProperty.h"
+#include "DetailPropertyContext.h"
 #include "Helper_String.h"
 #include "Texture.h"
 
@@ -363,17 +363,17 @@ namespace Internal
         return changed;
     }
 
-    bool Draw_TextureProperty(const char* label, string& value, const string& defaultValue)
+    bool Draw_TextureProperty(DetailPropertyContext& detailContext, const char* label, string& value, const string& defaultValue)
     {
         ImGui::PushID(label);
-        DetailProperty::Draw_PropertyLabel(label);
+        detailContext.Draw_PropertyLabel(label);
 
         constexpr ImVec2 thumbnailSize{ 44.f, 44.f };
         Draw_TextureThumbnail(value, thumbnailSize);
         ImGui::SameLine();
         bool changed = Draw_TextureSlotBody(value);
 
-        const bool resetClicked = DetailProperty::Draw_ResetButton(value != defaultValue);
+        const bool resetClicked = detailContext.Draw_ResetButton(value != defaultValue);
         if (resetClicked)
         {
             value = defaultValue;
@@ -390,10 +390,16 @@ namespace Internal
         return ToLowerCopy(lhs) == ToLowerCopy(rhs);
     }
 
-    bool Draw_StringComboProperty(const char* label, string& value, const string& defaultValue, const char* const* options, size_t optionCount)
+    bool Draw_StringComboProperty(
+        DetailPropertyContext& detailContext,
+        const char* label,
+        string& value,
+        const string& defaultValue,
+        const char* const* options,
+        size_t optionCount)
     {
         ImGui::PushID(label);
-        DetailProperty::Draw_PropertyLabel(label);
+        detailContext.Draw_PropertyLabel(label);
 
         const char* preview = value.empty() ? "(none)" : value.c_str();
         for (size_t i = 0; i < optionCount; ++i)
@@ -425,7 +431,7 @@ namespace Internal
             ImGui::EndCombo();
         }
 
-        const bool resetClicked = DetailProperty::Draw_ResetButton(value != defaultValue);
+        const bool resetClicked = detailContext.Draw_ResetButton(value != defaultValue);
         if (resetClicked)
         {
             value = defaultValue;
@@ -594,11 +600,11 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(EffectMaterialInstance
 
     if (ImGui::CollapsingHeader("Texture", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        if (DetailProperty::Begin_PropertyTable("EffectMaterialInstanceTexture"))
+        if (_detailPropertyContext.Begin_PropertyTable("EffectMaterialInstanceTexture"))
         {
-            changed |= Internal::Draw_TextureProperty("Main Texture", material.mainTextureId, defaultData.mainTextureId);
-            changed |= Internal::Draw_TextureProperty("Noise Texture", material.noiseTextureId, defaultData.noiseTextureId);
-            DetailProperty::End_PropertyTable();
+            changed |= Internal::Draw_TextureProperty(_detailPropertyContext, "Main Texture", material.mainTextureId, defaultData.mainTextureId);
+            changed |= Internal::Draw_TextureProperty(_detailPropertyContext, "Noise Texture", material.noiseTextureId, defaultData.noiseTextureId);
+            _detailPropertyContext.End_PropertyTable();
         }
 
         if (!Internal::textureAssignStatus.empty())
@@ -607,24 +613,25 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(EffectMaterialInstance
 
     if (ImGui::CollapsingHeader("Color / Scalar", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        if (DetailProperty::Begin_PropertyTable("EffectMaterialInstanceColorScalar"))
+        if (_detailPropertyContext.Begin_PropertyTable("EffectMaterialInstanceColorScalar"))
         {
-            changed |= DetailProperty::Draw_ColorProperty("Tint", material.tint, defaultData.tint);
-            changed |= DetailProperty::Draw_FloatProperty("Intensity", material.intensity, defaultData.intensity);
-            changed |= DetailProperty::Draw_FloatProperty("Opacity Power", material.opacityPower, defaultData.opacityPower);
-            changed |= DetailProperty::Draw_FloatProperty("Noise Strength", material.noiseStrength, defaultData.noiseStrength);
-            DetailProperty::End_PropertyTable();
+            changed |= _detailPropertyContext.Draw_ColorProperty("Tint", material.tint, defaultData.tint);
+            changed |= _detailPropertyContext.Draw_FloatProperty("Intensity", material.intensity, defaultData.intensity);
+            changed |= _detailPropertyContext.Draw_FloatProperty("Opacity Power", material.opacityPower, defaultData.opacityPower);
+            changed |= _detailPropertyContext.Draw_FloatProperty("Noise Strength", material.noiseStrength, defaultData.noiseStrength);
+            _detailPropertyContext.End_PropertyTable();
         }
     }
 
     if (ImGui::CollapsingHeader("Options", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        if (DetailProperty::Begin_PropertyTable("EffectMaterialInstanceOptions"))
+        if (_detailPropertyContext.Begin_PropertyTable("EffectMaterialInstanceOptions"))
         {
             constexpr const char* blendModeOptions[]{ "AlphaBlend", "Additive" };
             constexpr const char* opacitySourceOptions[]{ "Alpha", "Red", "Luminance" };
 
             changed |= Internal::Draw_StringComboProperty(
+                _detailPropertyContext,
                 "Blend Mode",
                 material.blendMode,
                 defaultData.blendMode,
@@ -632,15 +639,16 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(EffectMaterialInstance
                 sizeof(blendModeOptions) / sizeof(blendModeOptions[0])
             );
             changed |= Internal::Draw_StringComboProperty(
+                _detailPropertyContext,
                 "Opacity Source",
                 material.opacitySource,
                 defaultData.opacitySource,
                 opacitySourceOptions,
                 sizeof(opacitySourceOptions) / sizeof(opacitySourceOptions[0])
             );
-            changed |= DetailProperty::Draw_UintProperty("SubUV Rows", material.subUVRows, defaultData.subUVRows);
-            changed |= DetailProperty::Draw_UintProperty("SubUV Cols", material.subUVCols, defaultData.subUVCols);
-            DetailProperty::End_PropertyTable();
+            changed |= _detailPropertyContext.Draw_UintProperty("SubUV Rows", material.subUVRows, defaultData.subUVRows);
+            changed |= _detailPropertyContext.Draw_UintProperty("SubUV Cols", material.subUVCols, defaultData.subUVCols);
+            _detailPropertyContext.End_PropertyTable();
         }
     }
 

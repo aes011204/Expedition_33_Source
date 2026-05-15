@@ -12,13 +12,12 @@ NS_END
 
 NS_BEGIN(Client)
 
-class PointParticleEffect final : public GameObject
+class [[deprecated("절.대.컴.퓨.트.셰.이.더.를.사.용.해 | Use ComputePointParticleEffect for compute sprite particles.")]] PointParticleEffect final : public GameObject
 {
     GENERATED_GAMEOBJECT(PointParticleEffect, ObjectType::Effect)
 
 public:
-    // TODO : 케스케이드에 대해 필요한 기능을 전부 이 안에 넣어야 하는게 불편한데, 좋은 개선책이 있을까?
-    struct PointParticleEffectDesc : public GameObject::GAMEOBJECT_DESC
+    struct [[deprecated("Use ComputePointParticleEffectDesc for compute sprite particles.")]] PointParticleEffectDesc : public GameObject::GAMEOBJECT_DESC
     {
         PointParticleDrawMode drawMode{ PointParticleDrawMode::Direct }; // 이 effect clone의 draw 제출 방식.
 

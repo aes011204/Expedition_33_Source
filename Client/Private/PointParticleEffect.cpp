@@ -1,4 +1,7 @@
-﻿#include "PointParticleEffect.h"
+﻿#pragma warning(push)
+#pragma warning(disable: 4996)
+
+#include "PointParticleEffect.h"
 #include "GameInstance.h"
 #include "ShaderCom.h"
 #include "Texture.h"
@@ -259,3 +262,5 @@ Shared<GameObject> PointParticleEffect::Clone(void* arg)
 void PointParticleEffect::Free()
 {
 }
+
+#pragma warning(pop)

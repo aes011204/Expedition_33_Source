@@ -4,6 +4,7 @@
 #include "Editor_Context.h"
 #include "EffectEditorInstance.h"
 #include "Helper_ImGui.h"
+#include "Helper_String.h"
 
 NS_BEGIN(EffectEditor)
 
@@ -41,7 +42,11 @@ void Emitter_View::Render()
         _isFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
         _isHovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_RootAndChildWindows);
 
+        if (_modulePickerEmitterIndex.has_value() && _modulePickerEmitterIndex.value() >= _emitters.size())
+            Close_ModulePicker();
+
         Draw_EmitterBoard();
+        Draw_ModulePickerPopup();
     }
 
     Set_Open(isOpen);
@@ -121,6 +126,7 @@ Emitter_View::AuthoringSnapshot Emitter_View::Capture_AuthoringSnapshot() const
 
 void Emitter_View::Restore_AuthoringSnapshot(const AuthoringSnapshot& snapshot)
 {
+    Close_ModulePicker();
     _particleSystemData = snapshot.particleSystemData;
     _emitters = snapshot.emitters;
     _selectedEmitterIndex = snapshot.selectedEmitterIndex;
@@ -300,7 +306,7 @@ AuthoringModule Emitter_View::Make_ColorOverLifeModule()
     module.key = "Color Over Life";
     module.displayName = L"수명에 따른 색상";
     module.summary = L"수명 진행률 기준 색 변화";
-    module.enabled = false;
+    module.enabled = true;
     module.movable = true;
     module.removable = true;
     module.data = ColorOverLifeModuleData{};
@@ -444,7 +450,7 @@ void Emitter_View::Select_Emitter(size_t emitterIndex)
 
 void Emitter_View::Select_TypeData(size_t emitterIndex)
 {
-    if (emitterIndex >= _emitters.size() || _emitters[emitterIndex].typeData == AuthoringEmitterTypeData::None)
+    if (emitterIndex >= _emitters.size())
     {
         Clear_Selection();
         return;
@@ -460,6 +466,7 @@ void Emitter_View::Select_TypeData(size_t emitterIndex)
 
 void Emitter_View::Insert_NewEmitter(size_t insertIndex)
 {
+    Close_ModulePicker();
     const size_t clampedIndex = min(insertIndex, _emitters.size());
     _emitters.insert(_emitters.begin() + static_cast<ptrdiff_t>(clampedIndex), Make_DefaultSpriteEmitter());
     Select_Emitter(clampedIndex);
@@ -471,6 +478,7 @@ void Emitter_View::Duplicate_Emitter(size_t emitterIndex)
     if (emitterIndex >= _emitters.size())
         return;
 
+    Close_ModulePicker();
     const size_t insertIndex = emitterIndex + 1;
     _emitters.insert(
         _emitters.begin() + static_cast<ptrdiff_t>(insertIndex),
@@ -485,6 +493,7 @@ void Emitter_View::Delete_Emitter(size_t emitterIndex)
     if (emitterIndex >= _emitters.size())
         return;
 
+    Close_ModulePicker();
     _emitters.erase(_emitters.begin() + static_cast<ptrdiff_t>(emitterIndex));
     Clamp_Selection();
 
@@ -496,61 +505,6 @@ void Emitter_View::Delete_Emitter(size_t emitterIndex)
         Select_Emitter(nextIndex);
     }
 
-    MarkDirty();
-}
-
-void Emitter_View::Set_GpuSpriteTypeData(size_t emitterIndex)
-{
-    if (emitterIndex >= _emitters.size())
-        return;
-
-    AuthoringEmitter& emitter = _emitters[emitterIndex];
-    if (emitter.typeData == AuthoringEmitterTypeData::GpuSprite)
-        return;
-
-    emitter.typeData = AuthoringEmitterTypeData::GpuSprite;
-    emitter.previewDirty = true;
-    Select_TypeData(emitterIndex);
-    MarkDirty();
-}
-
-void Emitter_View::Reset_TypeData(size_t emitterIndex)
-{
-    if (emitterIndex >= _emitters.size())
-        return;
-
-    AuthoringEmitter& emitter = _emitters[emitterIndex];
-    if (emitter.typeData == AuthoringEmitterTypeData::None)
-        return;
-
-    switch (emitter.typeData)
-    {
-    case AuthoringEmitterTypeData::GpuSprite:
-        emitter.gpuSpriteTypeData = GpuSpriteTypeData{};
-        break;
-    case AuthoringEmitterTypeData::None:
-    default:
-        return;
-    }
-
-    emitter.previewDirty = true;
-    Select_TypeData(emitterIndex);
-    MarkDirty();
-}
-
-void Emitter_View::Delete_TypeData(size_t emitterIndex)
-{
-    if (emitterIndex >= _emitters.size())
-        return;
-
-    AuthoringEmitter& emitter = _emitters[emitterIndex];
-    if (emitter.typeData == AuthoringEmitterTypeData::None)
-        return;
-
-    emitter.typeData = AuthoringEmitterTypeData::None;
-    emitter.gpuSpriteTypeData = GpuSpriteTypeData{};
-    emitter.previewDirty = true;
-    Select_Emitter(emitterIndex);
     MarkDirty();
 }
 
@@ -643,7 +597,7 @@ void Emitter_View::Delete_Module(size_t emitterIndex, size_t moduleIndex)
         return;
 
     const bool isSelectedEmitter = _selectedEmitterIndex.has_value() && _selectedEmitterIndex.value() == emitterIndex;
-    const bool isSelectedModule = isSelectedEmitter && !_selectedTypeData && _selectedModuleIndex.has_value();
+    const bool isSelectedModule = isSelectedEmitter && _selectedModuleIndex.has_value();
     const bool isDeletingSelectedModule = isSelectedModule && _selectedModuleIndex.value() == moduleIndex;
 
     emitter.modules.erase(emitter.modules.begin() + static_cast<ptrdiff_t>(moduleIndex));
@@ -765,6 +719,241 @@ void Emitter_View::Process_PendingModuleAction()
     _pendingModuleIndex.reset();
 }
 
+vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(const AuthoringEmitter& emitter) const
+{
+    const auto makeEntry = [&](
+        optional<AuthoringModuleType> moduleType,
+        const wchar_t* displayName,
+        bool implemented,
+        bool compatible,
+        bool canAdd,
+        string disabledReason)
+    {
+        ModulePickerEntry entry{};
+        entry.moduleType = moduleType;
+        entry.displayName = displayName;
+        entry.disabledReason = std::move(disabledReason);
+        entry.implemented = implemented;
+        entry.compatible = compatible;
+        entry.canAdd = canAdd;
+
+        if (canAdd)
+            entry.stateText = "추가 가능";
+        else if (implemented && !compatible)
+            entry.stateText = "현재 emitter와 비호환";
+        else if (implemented)
+            entry.stateText = "이미 장착됨";
+        else if (!compatible)
+            entry.stateText = "현재 emitter와 비호환";
+        else
+            entry.stateText = "미구현";
+
+        return entry;
+    };
+
+    vector<ModulePickerEntry> entries{};
+    entries.push_back(
+        makeEntry(
+            AuthoringModuleType::Lifetime,
+            L"수명",
+            true,
+            true,
+            Can_AddModuleType(emitter, AuthoringModuleType::Lifetime),
+            "이미 장착됨"
+        )
+    );
+    entries.push_back(
+        makeEntry(
+            AuthoringModuleType::InitialSize,
+            L"초기 크기",
+            true,
+            true,
+            Can_AddModuleType(emitter, AuthoringModuleType::InitialSize),
+            "이미 장착됨"
+        )
+    );
+    entries.push_back(
+        makeEntry(
+            AuthoringModuleType::InitialVelocity,
+            L"초기 속도",
+            true,
+            true,
+            Can_AddModuleType(emitter, AuthoringModuleType::InitialVelocity),
+            "이미 장착됨"
+        )
+    );
+    entries.push_back(
+        makeEntry(
+            AuthoringModuleType::InitialColor,
+            L"초기 컬러",
+            true,
+            true,
+            Can_AddModuleType(emitter, AuthoringModuleType::InitialColor),
+            "이미 장착됨"
+        )
+    );
+    entries.push_back(
+        makeEntry(
+            AuthoringModuleType::ColorOverLife,
+            L"수명에 따른 색상",
+            true,
+            true,
+            Can_AddModuleType(emitter, AuthoringModuleType::ColorOverLife),
+            "이미 장착됨"
+        )
+    );
+    entries.push_back(
+        makeEntry(
+            AuthoringModuleType::SubUVFrameOverLife,
+            L"서브 이미지 인덱스",
+            true,
+            true,
+            Can_AddModuleType(emitter, AuthoringModuleType::SubUVFrameOverLife),
+            "이미 장착됨"
+        )
+    );
+    entries.push_back(
+        makeEntry(
+            AuthoringModuleType::SizeByLife,
+            L"수명에 따른 크기",
+            true,
+            true,
+            Can_AddModuleType(emitter, AuthoringModuleType::SizeByLife),
+            "이미 장착됨"
+        )
+    );
+
+    entries.push_back(makeEntry({}, L"가속도", false, true, false, "미구현"));
+    entries.push_back(makeEntry({}, L"회전 속도", false, true, false, "미구현"));
+
+    std::sort(
+        entries.begin(),
+        entries.end(),
+        [](const ModulePickerEntry& lhs, const ModulePickerEntry& rhs)
+        {
+            return String::ToString(lhs.displayName) < String::ToString(rhs.displayName);
+        }
+    );
+
+    return entries;
+}
+
+void Emitter_View::Open_ModulePicker(size_t emitterIndex)
+{
+    if (emitterIndex >= _emitters.size())
+        return;
+
+    _modulePickerEmitterIndex = emitterIndex;
+    _modulePickerPendingOpen = true;
+    _modulePickerSearchBuffer[0] = '\0';
+}
+
+void Emitter_View::Close_ModulePicker()
+{
+    _modulePickerEmitterIndex.reset();
+    _modulePickerPendingOpen = false;
+    _modulePickerSearchBuffer[0] = '\0';
+}
+
+void Emitter_View::Draw_ModulePickerPopup()
+{
+    constexpr const char* modalPopupId = "새 모듈##ModuleAddPopup";
+
+    if (_modulePickerPendingOpen)
+    {
+        ImGui::OpenPopup(modalPopupId);
+        _modulePickerPendingOpen = false;
+    }
+
+    const ImGuiViewport* viewport = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(viewport->GetCenter(), ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+    ImGui::SetNextWindowSize(ImVec2(kModulePickerModalWidth, kModulePickerModalHeight), ImGuiCond_Appearing);
+
+    const bool isPopupOpen = ImGui::IsPopupOpen(modalPopupId);
+    bool isModalOpen = true;
+    if (!ImGui::BeginPopupModal(modalPopupId, &isModalOpen))
+    {
+        if (!isPopupOpen)
+            Close_ModulePicker();
+        return;
+    }
+
+    if (!_modulePickerEmitterIndex.has_value() || _modulePickerEmitterIndex.value() >= _emitters.size())
+    {
+        ImGui::EndPopup();
+        Close_ModulePicker();
+        return;
+    }
+
+    const AuthoringEmitter& emitter = _emitters[_modulePickerEmitterIndex.value()];
+    const string searchLower = String::ToLowerCopy(string(_modulePickerSearchBuffer));
+    const vector<ModulePickerEntry> entries = Build_ModulePickerEntries(emitter);
+
+    ImGui::SetNextItemWidth(-1.f);
+    ImGui::InputTextWithHint("##ModulePickerSearch", "모듈 검색", _modulePickerSearchBuffer, IM_ARRAYSIZE(_modulePickerSearchBuffer));
+    ImGui::Spacing();
+
+    if (ImGui::BeginChild("##ModulePickerList", ImVec2(0.f, 0.f), true))
+    {
+        if (ImGui::BeginTable("##ModulePickerTable", 2, ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_RowBg))
+        {
+            ImGui::TableSetupColumn("Module", ImGuiTableColumnFlags_WidthStretch, kModulePickerNameColumnStretch);
+            ImGui::TableSetupColumn("State", ImGuiTableColumnFlags_WidthStretch, kModulePickerStateColumnStretch);
+
+            for (const ModulePickerEntry& entry : entries)
+            {
+                const string displayName = String::ToString(entry.displayName);
+                if (!searchLower.empty() &&
+                    String::ToLowerCopy(displayName).find(searchLower) == string::npos)
+                    continue;
+
+                ImGui::TableNextRow();
+                ImGui::TableSetColumnIndex(0);
+
+                if (!entry.canAdd)
+                    ImGui::BeginDisabled();
+
+                const bool picked = ImGui::Selectable(displayName.c_str(), false, ImGuiSelectableFlags_SpanAllColumns);
+
+                if (!entry.canAdd)
+                    ImGui::EndDisabled();
+
+                ImGui::TableSetColumnIndex(1);
+                ImGui::TextDisabled("%s", entry.canAdd ? entry.stateText.c_str() : entry.disabledReason.c_str());
+
+                if (!picked || !entry.canAdd || !entry.moduleType.has_value())
+                    continue;
+
+                const size_t emitterIndex = _modulePickerEmitterIndex.value();
+                const AuthoringModuleType moduleType = entry.moduleType.value();
+                Execute_AuthoringEdit(
+                    "Add Module",
+                    [this, emitterIndex, moduleType]
+                    {
+                        Add_Module(emitterIndex, moduleType);
+                    }
+                );
+
+                ImGui::CloseCurrentPopup();
+                Close_ModulePicker();
+                break;
+            }
+
+            ImGui::EndTable();
+        }
+
+        ImGui::EndChild();
+    }
+
+    ImGui::EndPopup();
+
+    if (!isModalOpen)
+    {
+        ImGui::CloseCurrentPopup();
+        Close_ModulePicker();
+    }
+}
+
 void Emitter_View::Clamp_Selection()
 {
     if (_emitters.empty())
@@ -784,12 +973,11 @@ void Emitter_View::Clamp_Selection()
 
     _selectedEmitterIndex = min(_selectedEmitterIndex.value(), _emitters.size() - 1);
 
-    const AuthoringEmitter& emitter = _emitters[_selectedEmitterIndex.value()];
-    if (_selectedTypeData && emitter.typeData == AuthoringEmitterTypeData::None)
-        _selectedTypeData = false;
-
     const auto& modules = _emitters[_selectedEmitterIndex.value()].modules;
     if (_selectedModuleIndex.has_value() && _selectedModuleIndex.value() >= modules.size())
+        _selectedModuleIndex.reset();
+
+    if (_selectedTypeData)
         _selectedModuleIndex.reset();
 }
 
@@ -835,7 +1023,8 @@ void Emitter_View::Sync_SelectionContext()
     }
 
     const AuthoringEmitter& emitter = _emitters[_selectedEmitterIndex.value()];
-    if (_selectedTypeData && emitter.typeData != AuthoringEmitterTypeData::None)
+
+    if (_selectedTypeData)
     {
         EDITOR->Get_EditorContext()->Set_SelectEffectTypeData(emitter.id);
         return;
@@ -872,7 +1061,7 @@ string Emitter_View::Build_ModuleWarningTooltip(const AuthoringEmitter& emitter,
     if (!module.enabled && module.type != AuthoringModuleType::Required)
         return "비활성화된 모듈입니다.";
 
-    // TypeData/module compatibility 경고는 후속 단계에서 이 경로에 추가한다.
+    // 모듈 간 compatibility 경고는 후속 단계에서 이 경로에 추가한다.
     return {};
 }
 
@@ -902,66 +1091,24 @@ void Emitter_View::Draw_EmitterContextMenu(size_t emitterIndex)
 
     if (ImGui::BeginMenu("타입 데이터"))
     {
-        ImGui::BeginDisabled();
-        ImGui::MenuItem("새 애님 트레일 데이터");
-        ImGui::MenuItem("새 빔 데이터");
-        ImGui::EndDisabled();
-
-        const bool canSetGpuSprite = _emitters[emitterIndex].typeData != AuthoringEmitterTypeData::GpuSprite;
-        if (!canSetGpuSprite)
-            ImGui::BeginDisabled();
-
-        if (ImGui::MenuItem("새 GPU 스프라이트"))
-        {
-            Execute_AuthoringEdit(
-                "Set GPU Sprite TypeData",
-                [this, emitterIndex]
-                {
-                    Set_GpuSpriteTypeData(emitterIndex);
-                }
-            );
-        }
-
-        if (!canSetGpuSprite)
-            ImGui::EndDisabled();
-
-        ImGui::BeginDisabled();
-        ImGui::MenuItem("새 메시 데이터");
-        ImGui::MenuItem("새 리본 데이터");
-        ImGui::EndDisabled();
+        Draw_TypeDataContextMenu();
         ImGui::EndMenu();
     }
 
     if (ImGui::BeginMenu("모듈"))
     {
-        // TODO : + 모듈 추가 버튼 -> 팝업
+        if (ImGui::MenuItem("새 모듈"))
+            Open_ModulePicker(emitterIndex);
+
         ImGui::EndMenu();
     }
 }
 
-void Emitter_View::Draw_TypeDataContextMenu(size_t emitterIndex)
+void Emitter_View::Draw_TypeDataContextMenu()
 {
-    if (ImGui::MenuItem("모듈 값 초기화"))
-    {
-        Execute_AuthoringEdit(
-            "Reset TypeData",
-            [this, emitterIndex]
-            {
-                Reset_TypeData(emitterIndex);
-            }
-        );
-    }
-
-    if (ImGui::MenuItem("모듈 삭제"))
-    {
-        Execute_AuthoringEdit(
-            "Delete TypeData",
-            [this, emitterIndex]
-            {
-                Delete_TypeData(emitterIndex);
-            }
-        );
-    }
+    ImGui::BeginDisabled();
+    ImGui::MenuItem("추가 가능한 타입 데이터 없음");
+    ImGui::EndDisabled();
 }
 
 void Emitter_View::Draw_ModuleContextMenu(size_t emitterIndex, size_t moduleIndex, const AuthoringModule& module)
@@ -1049,8 +1196,7 @@ void Emitter_View::Draw_EmitterColumn(size_t emitterIndex, AuthoringEmitter& emi
 
     const bool isSelected =
         _selectedEmitterIndex.has_value() &&
-        _selectedEmitterIndex.value() == emitterIndex &&
-        !_selectedTypeData;
+        _selectedEmitterIndex.value() == emitterIndex;
     const ImVec4 accentColor = To_ImVec4(kEmitterAccentColor);
     const ImVec4 headerColor = isSelected ? accentColor : To_ImVec4(kEmitterHeaderColor);
     const ImVec4 textColor = isSelected ? To_ImVec4(kEmitterSelectedTextColor) : ImGui::GetStyleColorVec4(ImGuiCol_Text);
@@ -1117,7 +1263,7 @@ void Emitter_View::Draw_EmitterColumn(size_t emitterIndex, AuthoringEmitter& emi
     ImGui::SetCursorPos(moduleStackCursor);
 
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(ImGui::GetStyle().ItemSpacing.x, 0.f));
-    Draw_TypeDataRow(emitterIndex, emitter);
+    Draw_TypeDataRow(emitterIndex);
     for (size_t moduleIndex = 0; moduleIndex < emitter.modules.size(); ++moduleIndex)
     {
         ImGui::PushID(static_cast<int>(moduleIndex));
@@ -1144,51 +1290,44 @@ void Emitter_View::Draw_EmitterColumn(size_t emitterIndex, AuthoringEmitter& emi
     ImGui::EndGroup();
 }
 
-void Emitter_View::Draw_TypeDataRow(size_t emitterIndex, const AuthoringEmitter& emitter)
+void Emitter_View::Draw_TypeDataRow(size_t emitterIndex)
 {
     constexpr float rowPaddingX = 10.f;
-
-    if (emitter.typeData != AuthoringEmitterTypeData::GpuSprite)
-    {
-        ImGui::InvisibleButton("##EmitterTypeDataSlot", ImVec2(kEmitterColumnWidth, kEmitterTypeDataReserveHeight));
-        if (ImGui::IsItemClicked(ImGuiMouseButton_Right))
-            Select_Emitter(emitterIndex);
-        if (ImGui::BeginPopupContextItem("##EmitterTypeDataPopup"))
-        {
-            Draw_EmitterContextMenu(emitterIndex);
-            ImGui::EndPopup();
-        }
-        return;
-    }
 
     const bool isSelected =
         _selectedEmitterIndex.has_value() &&
         _selectedEmitterIndex.value() == emitterIndex &&
         _selectedTypeData;
-    const ImVec4 rowColor = isSelected ? To_ImVec4(kEmitterAccentColor) : To_ImVec4(kEmitterTypeDataRowColor);
-    const ImVec4 textColor = isSelected ? To_ImVec4(kEmitterSelectedTextColor) : ImGui::GetStyleColorVec4(ImGuiCol_Text);
+    const ImVec4 accentColor = To_ImVec4(kEmitterAccentColor);
+    const ImVec4 rowColor = isSelected ? accentColor : To_ImVec4(kEmitterTypeDataRowColor);
+    const ImVec4 textColor = isSelected
+                             ? To_ImVec4(kEmitterSelectedTextColor)
+                             : ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled);
 
     const ImVec2 rowCursor = ImGui::GetCursorPos();
     ImGui::PushStyleColor(ImGuiCol_Button, rowColor);
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, rowColor);
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, rowColor);
     ImGui::PushStyleColor(ImGuiCol_Text, textColor);
-    ImGui::Button("##EmitterTypeDataRow", ImVec2(kEmitterColumnWidth, kEmitterTypeDataReserveHeight));
+    ImGui::SetNextItemAllowOverlap();
+    ImGui::Button("##TypeDataRow", ImVec2(kEmitterColumnWidth, kEmitterTypeDataRowHeight));
     if (ImGui::IsItemClicked(ImGuiMouseButton_Left) || ImGui::IsItemClicked(ImGuiMouseButton_Right))
         Select_TypeData(emitterIndex);
     ImGui::PopStyleColor(4);
 
-    if (ImGui::BeginPopupContextItem("##EmitterTypeDataRowPopup"))
+    if (ImGui::BeginPopupContextItem("##TypeDataRowPopup"))
     {
-        Draw_TypeDataContextMenu(emitterIndex);
+        Draw_TypeDataContextMenu();
         ImGui::EndPopup();
     }
 
     const ImVec2 afterRowCursor = ImGui::GetCursorPos();
-    const float textOffsetY = (kEmitterTypeDataReserveHeight - ImGui::GetTextLineHeight()) * 0.5f;
+    const float textOffsetY = (kEmitterTypeDataRowHeight - ImGui::GetTextLineHeight()) * 0.5f;
     ImGui::SetCursorPos(ImVec2(rowCursor.x + rowPaddingX, rowCursor.y + textOffsetY));
     ImGui::PushStyleColor(ImGuiCol_Text, textColor);
-    ImGui::TextUnformatted("GPU 스프라이트");
+    ImGui::TextUnformatted("타입 데이터");
+    ImGui::SameLine();
+    ImGui::TextDisabled("(미장착)");
     ImGui::PopStyleColor();
     ImGui::SetCursorPos(afterRowCursor);
 }

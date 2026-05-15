@@ -3,6 +3,8 @@
 #include "Engine_Shader_RenderState.hlsl"
 #include "Engine_Shader_Samplers.hlsl"
 
+// Deprecated: CPU point-particle fallback shader. New sprite particles use the compute sprite path with Shader_EffectSprite.
+
 cbuffer cbCamera : register(b1)
 {
     float4x4 g_ViewMatrix;

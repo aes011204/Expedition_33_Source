@@ -80,16 +80,16 @@
       <Filter>03. Level</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\ModuleDetail_Drawers.cpp">
-      <Filter>01. View\Detail View\Detail Drawer</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\Helper_DetailProperty.cpp">
-      <Filter>99. Defines\Helper</Filter>
+      <Filter>01. View\Detail View\Drawers</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\Helper_ReadPreset.cpp">
       <Filter>99. Defines\Helper</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\Helper_EffectCamera.cpp">
       <Filter>99. Defines\Helper</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\DetailPropertyContext.cpp">
+      <Filter>01. View\Detail View\Property Context</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -196,16 +196,16 @@
       <Filter>99. Defines\Helper</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\ModuleDetail_Drawers.h">
-      <Filter>01. View\Detail View\Detail Drawer</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\Helper_DetailProperty.h">
-      <Filter>99. Defines\Helper</Filter>
+      <Filter>01. View\Detail View\Drawers</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Helper_ReadPreset.h">
       <Filter>99. Defines\Helper</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Helper_EffectCamera.h">
       <Filter>99. Defines\Helper</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\DetailPropertyContext.h">
+      <Filter>01. View\Detail View\Property Context</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -281,7 +281,10 @@
     <Filter Include="99. Defines\Types">
       <UniqueIdentifier>{e5f70fcb-abed-4d3c-8bc3-3eaa1084905f}</UniqueIdentifier>
     </Filter>
-    <Filter Include="01. View\Detail View\Detail Drawer">
+    <Filter Include="01. View\Detail View\Property Context">
+      <UniqueIdentifier>{2a390d17-18e5-48e5-b0f0-defd9af66051}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="01. View\Detail View\Drawers">
       <UniqueIdentifier>{89aacff8-7bb2-41de-832f-51ed470948d4}</UniqueIdentifier>
     </Filter>
   </ItemGroup>

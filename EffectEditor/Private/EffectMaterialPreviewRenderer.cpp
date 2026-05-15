@@ -163,7 +163,7 @@ bool EffectMaterialPreviewRenderer::Ready_RenderTarget()
         _previewTextureWidth,
         _previewTextureHeight,
         DXGI_FORMAT_R8G8B8A8_UNORM,
-        Vec4{ 0.03f, 0.035f, 0.045f, 1.f },
+        Vec4{ 0.18f, 0.18f, 0.18f, 1.f },
         true
     );
 

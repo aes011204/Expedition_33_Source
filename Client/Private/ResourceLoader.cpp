@@ -11,7 +11,6 @@
 #include "GameObject.h"
 #include "ModelCom.h"
 #include "Particle_Types.h"
-#include "PointParticleEffect.h"
 #include "ShaderCom.h"
 #include "TargetCamera.h"
 #include "Texture.h"

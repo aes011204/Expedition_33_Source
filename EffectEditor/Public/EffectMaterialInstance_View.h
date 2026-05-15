@@ -3,6 +3,7 @@
 #include "Editor_Window.h"
 #include "Emitter_View.h"
 #include "EffectAuthoring_Types.h"
+#include "DetailPropertyContext.h"
 
 NS_BEGIN(EffectEditor)
 
@@ -25,6 +26,7 @@ public: //## Behavior::Selection
 private: //## Data
     uint32 _targetEmitterId{ 0 };
     uint32 _targetModuleId{ 0 };
+    DetailPropertyContext _detailPropertyContext{};
     Unique<EffectMaterialPreviewRenderer> _previewRenderer{};
 
 private: //## Helpers

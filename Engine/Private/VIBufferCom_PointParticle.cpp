@@ -1,4 +1,7 @@
-﻿#include "VIBufferCom_PointParticle.h"
+﻿#pragma warning(push)
+#pragma warning(disable: 4996)
+
+#include "VIBufferCom_PointParticle.h"
 
 VIBufferCom_PointParticle::VIBufferCom_PointParticle(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : VIBufferCom_Instance{ device, context }
@@ -432,3 +435,5 @@ void VIBufferCom_PointParticle::Free()
     _indirectArgsBuffer.Reset();
     __super::Free();
 }
+
+#pragma warning(pop)

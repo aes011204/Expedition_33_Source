@@ -72,8 +72,8 @@ struct InstanceSpawnDesc
     Vec2 scale{};           // 랜덤 스케일 범위.
 };
 
-// point particle clone 생성과 runtime 갱신에 필요한 desc.
-struct PointParticleDesc : public InstanceSpawnDesc
+// Deprecated: CPU particle backend는 legacy fallback으로만 유지한다. 신규 Sprite runtime은 ComputePointParticleDesc를 사용한다.
+struct [[deprecated("Use compute sprite particle path instead.")]] PointParticleDesc : public InstanceSpawnDesc
 {
     Vec3 pivot{};                                                    // 퍼짐 기준점.
     Vec2 speed{};                                                    // 랜덤 속도 범위.
@@ -90,18 +90,24 @@ struct PointParticleDesc : public InstanceSpawnDesc
     PointParticleDrawMode drawMode{ PointParticleDrawMode::Direct }; // Stage2 indirect draw 검증용 제출 방식.
 };
 
-// compute shader가 instance payload를 갱신하는 point particle 검증용 desc.
+// compute shader가 instance payload를 갱신하는 compute-first sprite particle desc.
 struct ComputePointParticleDesc : public InstanceSpawnDesc
 {
-    Vec2 lifeTime{};                                                 // compute shader가 누적 시간을 계산할 때 사용할 생존 시간 범위.
-    Vec4 startColorMin{ 1.f, 1.f, 1.f, 1.f };                        // GPU Sprite preview 시작 색상/알파 하한.
-    Vec4 startColorMax{ 1.f, 1.f, 1.f, 1.f };                        // GPU Sprite preview 시작 색상/알파 상한.
-    Vec4 endColorMin{ 1.f, 1.f, 1.f, 1.f };                          // GPU Sprite preview 종료 색상/알파 하한.
-    Vec4 endColorMax{ 1.f, 1.f, 1.f, 1.f };                          // GPU Sprite preview 종료 색상/알파 상한.
-    Vec2 radius{};                                                   // 화면 확인용 원형 이동 반경 범위. authoring 의미로 승격하지 않는다.
-    PointParticleDrawMode drawMode{ PointParticleDrawMode::Direct }; // compute particle 검증 경로의 draw 제출 방식.
-    uint32 computeShaderLevelIndex{};                                // compute shader prototype이 등록된 level index. Engine은 Client의 LevelType을 알지 않는다.
-    wstring computeShaderPrototypeTag{};                             // instance payload를 갱신할 compute shader component prototype tag.
+    Vec2 lifeTime{};                                          // compute shader가 누적 시간을 계산할 때 사용할 생존 시간 범위.
+    Vec4 startColorMin{ 1.f, 1.f, 1.f, 1.f };                 // compute sprite preview 시작 색상/알파 하한.
+    Vec4 startColorMax{ 1.f, 1.f, 1.f, 1.f };                 // compute sprite preview 시작 색상/알파 상한.
+    Vec4 endColorMin{ 1.f, 1.f, 1.f, 1.f };                   // compute sprite preview 종료 색상/알파 하한.
+    Vec4 endColorMax{ 1.f, 1.f, 1.f, 1.f };                   // compute sprite preview 종료 색상/알파 상한.
+    Vec2 radius{};                                            // 화면 확인용 원형 이동 반경 범위. authoring 의미로 승격하지 않는다.
+    uint32 subUVRows{ 1 };                                    // atlas row 수다.
+    uint32 subUVCols{ 1 };                                    // atlas column 수다.
+    PointParticleSubUVFrameOverLifeDesc subUvFrameOverLife{}; // 수명 진행률 기준 frame 선택 규칙이다.
+    PointParticleSizeByLifeDesc sizeByLife{};                 // 수명 진행률 기준 크기 배율 규칙이다.
+    PointParticleDrawMode drawMode{                           // compute particle 경로의 정식 draw 제출 방식.
+        PointParticleDrawMode::DrawIndexedInstancedIndirect
+    };
+    uint32 computeShaderLevelIndex{};    // compute shader prototype이 등록된 level index. Engine은 Client의 LevelType을 알지 않는다.
+    wstring computeShaderPrototypeTag{}; // instance payload를 갱신할 compute shader component prototype tag.
 };
 
 NS_END

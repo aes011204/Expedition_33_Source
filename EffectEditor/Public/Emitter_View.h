@@ -61,7 +61,18 @@ private:
         ResetData
     };
 
-private:
+    struct ModulePickerEntry
+    {
+        optional<AuthoringModuleType> moduleType{};
+        wstring displayName{};
+        string stateText{};
+        string disabledReason{};
+        bool implemented{ false };
+        bool compatible{ true };
+        bool canAdd{ false };
+    };
+
+private: //## Static Values
     inline static const Color kEmitterAccentColor{ 1.0f, 0.55f, 0.20f, 1.0f };
     inline static const Color kEmitterColumnBackgroundColor{ 0.06f, 0.065f, 0.08f, 1.0f };
     inline static const Color kEmitterDividerColor{ 0.015f, 0.018f, 0.025f, 1.0f };
@@ -76,8 +87,13 @@ private:
 
     static constexpr float kEmitterColumnWidth{ 270.f };
     static constexpr float kEmitterHeaderHeight{ 90.f };
-    static constexpr float kEmitterTypeDataReserveHeight{ 28.f };
+    static constexpr float kEmitterTypeDataRowHeight{ 28.f };
     static constexpr float kEmitterDividerWidth{ 1.f };
+
+    static constexpr float kModulePickerModalWidth{ 700.f };
+    static constexpr float kModulePickerModalHeight{ 460.f };
+    static constexpr float kModulePickerNameColumnStretch{ 0.5f };
+    static constexpr float kModulePickerStateColumnStretch{ 1.f - kModulePickerNameColumnStretch };
 
 private: //## Data
     ParticleSystemAuthoringData _particleSystemData{};
@@ -85,7 +101,7 @@ private: //## Data
     vector<AuthoringEmitter> _emitters{};
     // 현재 선택된 emitter index다. 값이 없으면 emitter 선택이 해제된 상태다.
     optional<size_t> _selectedEmitterIndex{};
-    // 현재 선택 대상이 emitter-level TypeData row인지 나타낸다.
+    // 현재 선택 대상이 emitter-level TypeData 슬롯인지 나타낸다.
     bool _selectedTypeData{ false };
     // 현재 선택된 emitter 내부의 module index다. 값이 없으면 emitter header만 선택된 상태다.
     optional<size_t> _selectedModuleIndex{};
@@ -96,6 +112,9 @@ private: //## Data
     PendingModuleAction _pendingModuleAction{ PendingModuleAction::None };
     optional<size_t> _pendingModuleEmitterIndex{};
     optional<size_t> _pendingModuleIndex{};
+    optional<size_t> _modulePickerEmitterIndex{};
+    bool _modulePickerPendingOpen{ false };
+    char _modulePickerSearchBuffer[128]{};
 
 private: //## Helpers
     // 새 emitter/module에 부여할 editor-local id를 발급한다.
@@ -123,9 +142,6 @@ private: //## Helpers
     void Insert_NewEmitter(size_t insertIndex);
     void Duplicate_Emitter(size_t emitterIndex);
     void Delete_Emitter(size_t emitterIndex);
-    void Set_GpuSpriteTypeData(size_t emitterIndex);
-    void Reset_TypeData(size_t emitterIndex);
-    void Delete_TypeData(size_t emitterIndex);
     void Queue_EmitterAction(PendingEmitterAction action, size_t emitterIndex);
     void Process_PendingEmitterAction();
     void Select_Module(size_t emitterIndex, size_t moduleIndex);
@@ -133,6 +149,10 @@ private: //## Helpers
     void Reset_ModuleData(size_t emitterIndex, size_t moduleIndex);
     void Queue_ModuleAction(PendingModuleAction action, size_t emitterIndex, size_t moduleIndex);
     void Process_PendingModuleAction();
+    vector<ModulePickerEntry> Build_ModulePickerEntries(const AuthoringEmitter& emitter) const;
+    void Open_ModulePicker(size_t emitterIndex);
+    void Close_ModulePicker();
+    void Draw_ModulePickerPopup();
     // 현재 선택 index가 emitter 목록 범위를 벗어나지 않도록 보정한다.
     // TODO : 삭제/이동 단계에서 호출 예정
     void Clamp_Selection();
@@ -144,12 +164,12 @@ private: //## Helpers
     // hover tooltip은 설명 dump가 아니라 경고성 사유만 노출하는 채널로 유지한다.
     string Build_ModuleWarningTooltip(const AuthoringEmitter& emitter, const AuthoringModule& module) const;
     void Draw_EmitterContextMenu(size_t emitterIndex);
-    void Draw_TypeDataContextMenu(size_t emitterIndex);
+    void Draw_TypeDataContextMenu();
     void Draw_ModuleContextMenu(size_t emitterIndex, size_t moduleIndex, const AuthoringModule& module);
 
     void Draw_EmitterBoard();
     void Draw_EmitterColumn(size_t emitterIndex, AuthoringEmitter& emitter, float columnHeight);
-    void Draw_TypeDataRow(size_t emitterIndex, const AuthoringEmitter& emitter);
+    void Draw_TypeDataRow(size_t emitterIndex);
     void Draw_ModuleRow(size_t emitterIndex, size_t moduleIndex, AuthoringModule& module);
 
 public:

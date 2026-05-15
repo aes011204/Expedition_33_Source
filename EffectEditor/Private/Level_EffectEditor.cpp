@@ -5,7 +5,6 @@
 #include "EffectEditorInstance.h"
 #include "Emitter_View.h"
 #include "GameInstance.h"
-#include "PointParticleEffect.h"
 
 NS_BEGIN(EffectEditor)
 
@@ -28,6 +27,60 @@ namespace Internal
         return nullptr;
     }
 
+    float Evaluate_FloatCurveSegmentLinear(const FloatCurveKeyData& leftKey, const FloatCurveKeyData& rightKey, float x)
+    {
+        const float width = max(0.0001f, rightKey.time - leftKey.time);
+        const float t = clamp((x - leftKey.time) / width, 0.f, 1.f);
+        return lerp(leftKey.value, rightKey.value, t);
+    }
+
+    float Evaluate_FloatCurveSegmentAutoClamped(const FloatCurveKeyData& leftKey, const FloatCurveKeyData& rightKey, float x)
+    {
+        const float width = max(0.0001f, rightKey.time - leftKey.time);
+        const float t = clamp((x - leftKey.time) / width, 0.f, 1.f);
+        const float m0 = leftKey.leaveTangent * width;
+        const float m1 = rightKey.arriveTangent * width;
+        const float t2 = t * t;
+        const float t3 = t2 * t;
+        return (2.f * t3 - 3.f * t2 + 1.f) * leftKey.value +
+               (t3 - 2.f * t2 + t) * m0 +
+               (-2.f * t3 + 3.f * t2) * rightKey.value +
+               (t3 - t2) * m1;
+    }
+
+    float Evaluate_FloatConstantCurve(const ConstantCurveFloatDistributionData& curve, float x, float fallbackValue)
+    {
+        if (curve.keys.empty())
+            return fallbackValue;
+
+        if (curve.keys.size() == 1)
+            return curve.keys.front().value;
+
+        const float clampedX = clamp(x, 0.f, 1.f);
+        for (size_t index = 1; index < curve.keys.size(); ++index)
+        {
+            const FloatCurveKeyData& leftKey = curve.keys[index - 1];
+            const FloatCurveKeyData& rightKey = curve.keys[index];
+            if (clampedX > rightKey.time)
+                continue;
+
+            switch (leftKey.interpolationMode)
+            {
+            case FloatCurveInterpolationMode::Constant:
+                return leftKey.value;
+
+            case FloatCurveInterpolationMode::CurveAutoClamped:
+                return Evaluate_FloatCurveSegmentAutoClamped(leftKey, rightKey, clampedX);
+
+            case FloatCurveInterpolationMode::Linear:
+            default:
+                return Evaluate_FloatCurveSegmentLinear(leftKey, rightKey, clampedX);
+            }
+        }
+
+        return curve.keys.back().value;
+    }
+
     float Evaluate_FloatDistributionMin(const FloatDistributionData& data, float fallbackValue)
     {
         if (const auto* constant = get_if<ConstantFloatDistributionData>(&data.payload))
@@ -35,6 +88,9 @@ namespace Internal
 
         if (const auto* uniform = get_if<UniformFloatDistributionData>(&data.payload))
             return uniform->minValue;
+
+        if (const auto* curve = get_if<ConstantCurveFloatDistributionData>(&data.payload))
+            return Evaluate_FloatConstantCurve(*curve, 0.f, fallbackValue);
 
         return fallbackValue;
     }
@@ -46,6 +102,9 @@ namespace Internal
 
         if (const auto* uniform = get_if<UniformFloatDistributionData>(&data.payload))
             return uniform->maxValue;
+
+        if (const auto* curve = get_if<ConstantCurveFloatDistributionData>(&data.payload))
+            return Evaluate_FloatConstantCurve(*curve, 1.f, fallbackValue);
 
         return fallbackValue;
     }
@@ -160,29 +219,13 @@ HRESULT Level_EffectEditor::Restart_PreviewFromAuthoring()
         if (!emitter.enabled)
             continue;
 
-        const bool useComputeEffect = emitter.typeData == AuthoringEmitterTypeData::GpuSprite;
-        PointParticleEffect::PointParticleEffectDesc pointEffectDesc{};
-        ComputePointParticleEffect::ComputePointParticleEffectDesc computeEffectDesc{};
-        void* previewDesc = nullptr;
-        const wchar_t* previewPrototypeTag = nullptr;
-
-        if (useComputeEffect)
-        {
-            computeEffectDesc = Build_ComputePointParticleEffectDesc(emitter);
-            previewDesc = &computeEffectDesc;
-            previewPrototypeTag = L"GameObject_Effect_ComputePointParticleEffect";
-        }
-        else
-        {
-            pointEffectDesc = Build_PointParticleEffectDesc(emitter);
-            previewDesc = &pointEffectDesc;
-            previewPrototypeTag = L"GameObject_Effect_PointParticleEffect";
-        }
+        ComputePointParticleEffect::ComputePointParticleEffectDesc computeEffectDesc = Build_ComputePointParticleEffectDesc(emitter);
+        void* previewDesc = &computeEffectDesc;
+        const wchar_t* previewPrototypeTag = L"GameObject_Effect_ComputePointParticleEffect";
 
         LOG_INFO(
-            "EffectEditor preview restart: emitter='{}', typeData={}, previewPrototype='{}'",
+            "EffectEditor preview restart: emitter='{}', backend=ComputeSprite, previewPrototype='{}'",
             emitter.name,
-            magic_enum::enum_name(emitter.typeData),
             String::ToString(previewPrototypeTag)
         );
 
@@ -216,134 +259,10 @@ HRESULT Level_EffectEditor::Restart_PreviewFromAuthoring()
     return S_OK;
 }
 
-PointParticleEffect::PointParticleEffectDesc Level_EffectEditor::Build_PointParticleEffectDesc(const AuthoringEmitter& emitter) const
-{
-    PointParticleEffect::PointParticleEffectDesc desc{};
-    desc.drawMode = PointParticleDrawMode::Direct;
-
-    if (const auto* required = Internal::Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
-    {
-        const EffectMaterialInstanceData& material = required->material;
-
-        if (!material.mainTextureId.empty())
-            desc.textureId = material.mainTextureId;
-
-        if (!material.blendMode.empty())
-            desc.blendMode = material.blendMode;
-
-        if (!material.opacitySource.empty())
-            desc.opacitySource = material.opacitySource;
-
-        desc.tint = material.tint; //RGBA
-        desc.intensity = material.intensity;
-        desc.opacityPower = material.opacityPower;
-
-        if (!material.noiseTextureId.empty())
-            desc.noiseTextureId = material.noiseTextureId;
-
-        desc.noiseStrength = material.noiseStrength;
-        desc.subUVRows = max(1u, material.subUVRows);
-        desc.subUVCols = max(1u, material.subUVCols);
-        desc.center = required->emitterOrigin;
-        desc.loop = required->loopCount == 0;
-    }
-
-    if (const auto* spawn = Internal::Find_ModuleData<SpawnModuleData>(emitter, AuthoringModuleType::Spawn))
-        desc.instanceCount = max(1u, spawn->maxParticleCount);
-
-    if (const auto* initialSize = Internal::Find_ModuleData<InitialSizeModuleData>(emitter, AuthoringModuleType::InitialSize))
-    {
-        const Vec2 minScale = Internal::Evaluate_Vector2DistributionMin(initialSize->size, desc.scale);
-        const Vec2 maxScale = Internal::Evaluate_Vector2DistributionMax(initialSize->size, desc.scale);
-        desc.scale = Vec2{ min(minScale.x, maxScale.x), max(minScale.y, maxScale.y) };
-    }
-
-    if (const auto* initialVelocity = Internal::Find_ModuleData<InitialVelocityModuleData>(emitter, AuthoringModuleType::InitialVelocity))
-    {
-        desc.pivot = initialVelocity->radialPivot;
-        desc.speed = Vec2{
-            Internal::Evaluate_FloatDistributionMin(initialVelocity->speed, desc.speed.x),
-            Internal::Evaluate_FloatDistributionMax(initialVelocity->speed, desc.speed.y)
-        };
-    }
-    else
-        desc.pivot = desc.center;
-
-    if (const auto* lifetime = Internal::Find_ModuleData<LifetimeModuleData>(emitter, AuthoringModuleType::Lifetime))
-    {
-        desc.lifeTime = Vec2{
-            Internal::Evaluate_FloatDistributionMin(lifetime->lifeTime, desc.lifeTime.x),
-            Internal::Evaluate_FloatDistributionMax(lifetime->lifeTime, desc.lifeTime.y)
-        };
-    }
-
-    if (const auto* initialColor = Internal::Find_ModuleData<InitialColorModuleData>(emitter, AuthoringModuleType::InitialColor))
-    {
-        const Color minColor = Internal::Evaluate_ColorDistributionMin(
-            initialColor->color,
-            Color{ desc.startColorMin.x, desc.startColorMin.y, desc.startColorMin.z, desc.startColorMin.w }
-        );
-        const Color maxColor = Internal::Evaluate_ColorDistributionMax(
-            initialColor->color,
-            Color{ desc.startColorMax.x, desc.startColorMax.y, desc.startColorMax.z, desc.startColorMax.w }
-        );
-
-        desc.startColorMin = Vec4{ minColor.R(), minColor.G(), minColor.B(), minColor.A() };
-        desc.startColorMax = Vec4{ maxColor.R(), maxColor.G(), maxColor.B(), maxColor.A() };
-        desc.endColorMin = desc.startColorMin;
-        desc.endColorMax = desc.startColorMax;
-    }
-
-    if (const auto* colorOverLife = Internal::Find_ModuleData<ColorOverLifeModuleData>(emitter, AuthoringModuleType::ColorOverLife))
-    {
-        const Color minEndColor = Internal::Evaluate_ColorDistributionMin(
-            colorOverLife->colorOverLife,
-            Color{ desc.endColorMin.x, desc.endColorMin.y, desc.endColorMin.z, desc.endColorMin.w }
-        );
-        const Color maxEndColor = Internal::Evaluate_ColorDistributionMax(
-            colorOverLife->colorOverLife,
-            Color{ desc.endColorMax.x, desc.endColorMax.y, desc.endColorMax.z, desc.endColorMax.w }
-        );
-
-        desc.endColorMin = Vec4{ minEndColor.R(), minEndColor.G(), minEndColor.B(), minEndColor.A() };
-        desc.endColorMax = Vec4{ maxEndColor.R(), maxEndColor.G(), maxEndColor.B(), maxEndColor.A() };
-    }
-
-    if (const auto* subUvFrameOverLife = Internal::Find_ModuleData<SubUVFrameOverLifeModuleData>(emitter, AuthoringModuleType::SubUVFrameOverLife))
-    {
-        desc.subUVFrameOverLife.enabled = true;
-        desc.subUVFrameOverLife.startFrame = subUvFrameOverLife->startFrame;
-        desc.subUVFrameOverLife.endFrame = subUvFrameOverLife->endFrame;
-        desc.subUVFrameOverLife.loop = subUvFrameOverLife->loop;
-
-        if (const auto* required = Internal::Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
-        {
-            const uint32 frameCount = Internal::Resolve_SubUVFrameCount(*required);
-            const uint32 lastFrame = frameCount > 0 ? frameCount - 1 : 0;
-            desc.subUVFrameOverLife.startFrame = min(desc.subUVFrameOverLife.startFrame, lastFrame);
-            desc.subUVFrameOverLife.endFrame = min(desc.subUVFrameOverLife.endFrame, lastFrame);
-
-            if (0 == subUvFrameOverLife->startFrame && 0 == subUvFrameOverLife->endFrame && frameCount > 1)
-                desc.subUVFrameOverLife.endFrame = lastFrame;
-        }
-    }
-
-    if (const auto* sizeByLife = Internal::Find_ModuleData<SizeByLifeModuleData>(emitter, AuthoringModuleType::SizeByLife))
-    {
-        desc.sizeByLife.enabled = true;
-        desc.sizeByLife.multiplyXStart = sizeByLife->multiplyXStart;
-        desc.sizeByLife.multiplyXEnd = sizeByLife->multiplyXEnd;
-        desc.sizeByLife.multiplyYStart = sizeByLife->multiplyYStart;
-        desc.sizeByLife.multiplyYEnd = sizeByLife->multiplyYEnd;
-    }
-
-    return desc;
-}
-
 ComputePointParticleEffect::ComputePointParticleEffectDesc Level_EffectEditor::Build_ComputePointParticleEffectDesc(const AuthoringEmitter& emitter) const
 {
     ComputePointParticleEffect::ComputePointParticleEffectDesc desc{};
-    desc.drawMode = emitter.gpuSpriteTypeData.previewDrawMode;
+    desc.drawMode = PointParticleDrawMode::DrawIndexedInstancedIndirect;
 
     if (const auto* required = Internal::Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
     {
@@ -419,6 +338,34 @@ ComputePointParticleEffect::ComputePointParticleEffectDesc Level_EffectEditor::B
 
         desc.endColorMin = Vec4{ minEndColor.R(), minEndColor.G(), minEndColor.B(), minEndColor.A() };
         desc.endColorMax = Vec4{ maxEndColor.R(), maxEndColor.G(), maxEndColor.B(), maxEndColor.A() };
+    }
+
+    if (const auto* subUvFrameOverLife = Internal::Find_ModuleData<SubUVFrameOverLifeModuleData>(emitter, AuthoringModuleType::SubUVFrameOverLife))
+    {
+        desc.subUVFrameOverLife.enabled = true;
+        desc.subUVFrameOverLife.startFrame = subUvFrameOverLife->startFrame;
+        desc.subUVFrameOverLife.endFrame = subUvFrameOverLife->endFrame;
+        desc.subUVFrameOverLife.loop = subUvFrameOverLife->loop;
+
+        if (const auto* required = Internal::Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
+        {
+            const uint32 frameCount = Internal::Resolve_SubUVFrameCount(*required);
+            const uint32 lastFrame = frameCount > 0 ? frameCount - 1 : 0;
+            desc.subUVFrameOverLife.startFrame = min(desc.subUVFrameOverLife.startFrame, lastFrame);
+            desc.subUVFrameOverLife.endFrame = min(desc.subUVFrameOverLife.endFrame, lastFrame);
+
+            if (0 == subUvFrameOverLife->startFrame && 0 == subUvFrameOverLife->endFrame && frameCount > 1)
+                desc.subUVFrameOverLife.endFrame = lastFrame;
+        }
+    }
+
+    if (const auto* sizeByLife = Internal::Find_ModuleData<SizeByLifeModuleData>(emitter, AuthoringModuleType::SizeByLife))
+    {
+        desc.sizeByLife.enabled = true;
+        desc.sizeByLife.multiplyXStart = sizeByLife->multiplyXStart;
+        desc.sizeByLife.multiplyXEnd = sizeByLife->multiplyXEnd;
+        desc.sizeByLife.multiplyYStart = sizeByLife->multiplyYStart;
+        desc.sizeByLife.multiplyYEnd = sizeByLife->multiplyYEnd;
     }
 
     return desc;
