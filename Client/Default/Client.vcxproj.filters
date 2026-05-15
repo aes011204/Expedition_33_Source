@@ -489,8 +489,15 @@
     </ClInclude>
     <ClInclude Include="..\Public\AN_Test2.h" />
     <ClInclude Include="..\public\AN_Battle_EndAnim.h" />
-    <ClInclude Include="..\public\ANS_QTE.h" />
-    <ClInclude Include="..\public\ANS_Parry.h" />
+    <ClInclude Include="..\public\ANS_Dodge.h">
+      <Filter>95. AnimNotify</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\ANS_Parry.h">
+      <Filter>95. AnimNotify</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\ANS_QTE.h">
+      <Filter>95. AnimNotify</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -773,8 +780,15 @@
     </ClCompile>
     <ClCompile Include="..\Private\AN_Test2.cpp" />
     <ClCompile Include="..\private\AN_Battle_EndAnim.cpp" />
-    <ClCompile Include="..\public\ANS_QTE.cpp" />
-    <ClCompile Include="..\private\ANS_Parry.cpp" />
+    <ClCompile Include="..\private\ANS_Dodge.cpp">
+      <Filter>95. AnimNotify</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\ANS_Parry.cpp">
+      <Filter>95. AnimNotify</Filter>
+    </ClCompile>
+    <ClCompile Include="..\public\ANS_QTE.cpp">
+      <Filter>95. AnimNotify</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">

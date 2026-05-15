@@ -73,6 +73,7 @@ private:
     void Execute_BaseAttack(const BattleChar actor, const Action& turnAction);
     void Execute_Skill(const BattleChar actor, const Action& turnAction);
     void Execute_Item(const BattleChar actor, const Action& turnAction);
+    void OnActionEndNotify(Shared<GameObject> notifyOwner);
 
 
     bool _battleEnded = {};

@@ -483,7 +483,31 @@ void BattleController::Execute_Item(const BattleChar actor, const Action& turnAc
 {
 }
 
+void BattleController::OnActionEndNotify(Shared<GameObject> notifyOwner)
+{
+    auto& action = Get_TurnAction();
+    
+    // 다음 애니로 이동
+    action._selected_SkillKey._curAnimIndex++;
+    
+    
+    if (action._selected_SkillKey._curAnimIndex >= action._selected_SkillKey.animationKey.size())
+    {
+        // 끝났으면 Idle
+        string key = action._selected_SkillKey.IdleAnimationKey;
+        action._curChar.ModelCom->Set_Animation(key, false, 1.5f);
+    
+        EndTurn();
+        return;
+    }
+    
+    // 다음 애니 실행
+    string key = action._selected_SkillKey.animationKey[action._selected_SkillKey._curAnimIndex];
+    action._curChar.ModelCom->Set_Animation(key, false, 1.5f);
 
+
+
+}
 void BattleController::Set_BattleFSM()
 {
     _battleFSM = BattleStateMachine::Create();

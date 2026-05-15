@@ -1,4 +1,5 @@
 ﻿#include "ANS_Parry.h"
+#include "GameInstance.h"
 
 
 IMPLEMENT_REFLECTION(ANS_Parry)
@@ -17,6 +18,13 @@ void ANS_Parry::On_Begin(const AnimNotifyContext& context)
 
 void ANS_Parry::On_Tick(const AnimNotifyContext& context)
 {
+    LOG_INFO({ "PARRY TIME" });
+
+    if(GAME->KeyDown(KEY_TYPE::E))
+    {
+        LOG_ERROR({ " SUCCESS  PARRY" });
+
+    }
 }
 
 void ANS_Parry::On_End(const AnimNotifyContext& context)
