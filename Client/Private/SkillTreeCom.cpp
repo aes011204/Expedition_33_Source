@@ -12,6 +12,16 @@ SkillTreeCom::~SkillTreeCom()
 {
 }
 
+HRESULT SkillTreeCom::Initialize(void* arg)
+{
+    CHECK_FAILED(__super::Initialize(arg), E_FAIL)
+
+    _unlockedSkillId.push_back("Immolation");
+    _unlockedSkillId.push_back("Rebirth");
+
+    return S_OK;
+}
+
 bool SkillTreeCom::IsUnlocked(const string& skillId)
 {
     auto iter = find(_unlockedSkillId.begin(), _unlockedSkillId.end(), skillId);
@@ -65,7 +75,6 @@ bool SkillTreeCom::CanUnlock(const string& skillId)
 
     if (!playerStatCom)
         return false;
-
 
     return playerStatCom->Get_PlayerDesc().skillPoint >= skillTreeDesc->unlockCost;
 }

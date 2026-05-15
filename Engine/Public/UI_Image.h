@@ -33,12 +33,15 @@ public:
     void Set_Color(const Vec4& color) override { _color = color; }
     Vec4 Get_Color() const override { return _color; }
     void Set_OverlayEnabled(bool boolean) {_isOverlay = boolean;}
-
+    void Set_GrayScaleEnabled(bool boolean) {_useGrayScale = boolean;}
+    void Set_GrayAmount(float amount) {_grayAmount = amount;}
 private:
     HRESULT Ready_RenderResources();
 
 private:
     bool    _isOverlay = false;
+    bool    _useGrayScale = false;
+    float    _grayAmount;
     wstring _texturePath{};
     wstring _maskTexturePath{};
     Vec4 _color{ 1.f, 1.f, 1.f, 1.f };

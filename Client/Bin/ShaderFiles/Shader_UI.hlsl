@@ -9,6 +9,8 @@ Texture2D g_Texture;
 Texture2D g_MaskTexture;
 
 bool g_IsOverlay;
+bool g_UseGrayScale;
+float4 g_GrayAmount;
 float4 g_Color = float4(1.f, 1.f, 1.f, 1.f);
 
 
@@ -60,7 +62,16 @@ PS_OUT PS_NORMAL(PS_IN In)
     {
         float3 invertedRgb = 1.f - Out.vColor.rgb;
 
-        finalColor.rgb = lerp(Out.vColor.rbg, invertedRgb, Out.vColor.a);
+        finalColor.rgb = lerp(Out.vColor.rgb, invertedRgb, Out.vColor.a);
+    }
+
+    if(g_UseGrayScale)
+    {
+        float gray = dot(Out.vColor.rgb, float3(0.299f, 0.587f, 0.114f));
+        float3 grayColor = float3(gray, gray, gray);
+
+    //    finalColor.rgb = lerp(Out.vColor.rgb, grayColor, g_GrayAmount);
+        finalColor.rgb = grayColor * 0.6f;
     }
 
     Out.vColor = finalColor;

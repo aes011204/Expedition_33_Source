@@ -33,6 +33,8 @@ HRESULT SkillTree_Panel::Initialize(uint32 levelIndex)
 
     _currentView = &_viewByPlayerId[HeroId::Lune];
 
+    Set_SkillPoint();
+
     _baseSize = _currentView->skillNodes.front().image->Get_Transform()->Get_Scale();
     _hoveredSize = _baseSize * 1.2;
     Close();
@@ -42,10 +44,10 @@ HRESULT SkillTree_Panel::Initialize(uint32 levelIndex)
 
 void SkillTree_Panel::Update(float timeDelta)
 {
-    Vec4 lockedColor =  Vec4(0.25f, 0.25f, 0.25f, 1.0f);
-    Vec4 redFont = Vec4(1.f, 0.f,0.f,1.f);
-    Vec4 grayFont = Vec4(0.5f, 0.5f, 0.5f, 1.f);
-    Vec4 defaultImageColor = Vec4(1.f, 1.f, 1.f, 1.f);
+    Vec4 lockedColor = Vec4(0.62f, 0.62f, 0.62f, 1.0f);
+    Vec4 redFont = Vec4(186.f, 40.f, 40.f, 255.f);
+    Vec4 grayFont = Vec4(108.f, 108.f, 108.f, 255.f);
+    Vec4 yellowFont = Vec4(235.f, 207.f, 103.f, 255.f);
     Vec4 defaultFontColor = Vec4(1.f, 1.f, 1.f, 1.f);
 
     if(!_isOpen)
@@ -59,46 +61,62 @@ void SkillTree_Panel::Update(float timeDelta)
 
     for(auto& node : _currentView->skillNodes)
     {
+        
         if(node.image)
-        node.image->Set_Color(defaultImageColor);
+           node.image->Set_GrayScaleEnabled(false);
+            //node.image->Set_Color();
 
         if(node.costText)
-        node.costText->Set_Color(defaultFontColor);
+        {
+           node.costText->Close();
+           node.costText->Set_Color(grayFont);
+        }
 
         if(node.image)
         node.image->Get_Transform()->Set_Scale(_baseSize);
 
-        //모든 버튼 공통적으로 처리 되는 것
-        //기본 상태일 때
-        //1. 해금 불가능한 상태일 때
+        if(node.lockedPopup)
+        node.lockedPopup->Close();
+
+        if(node.unlockedPopup)
+        node.unlockedPopup->Close();
+
         const bool isUnlocked = _currentView->skillTreeCom->IsUnlocked(node.skillId);
         const bool canUnlock = !isUnlocked && _currentView->skillTreeCom->CanUnlock(node.skillId);
 
+        //해금이 되지 않았을 떄
         if(!isUnlocked)
         {
            // //이미지는 회색으로
             if(node.image)
-            node.image->Set_Color(lockedColor);
-           //글자는 빨간색으로 //선행 스킬은 만족했는데 돈만 부족한 상태일 때에는 빨간색으로
-           //node.costText->Set_Color(red);
+            {
+                node.image->Set_GrayScaleEnabled(true);
+                node.image->Set_GrayAmount(1);
+            }
+           //node.image->Set_Color(lockedColor);
+            //if(node.costText)
+            //node.costText->Set_Color(redFont);
            
             if(!_currentView->skillTreeCom->HasRequiredSkill(node.skillId))
             {
                 //잠겨있는 상태 & 선행스킬 없을 때
                 //TODO 회색으로 바꾸기
-
-               if(node.costText)
-               node.costText->Set_Color(grayFont);  
+                if(node.costText)
+                node.costText->Set_Color(grayFont);  
             }
-            else
+            else if(_currentView->skillTreeCom->HasRequiredSkill(node.skillId) && !canUnlock )
             {
-                //잠겨있는 상태인데 선행스킬은 있을 때
+                //잠겨있는 상태인데 선행스킬은 있는데 포인트가 부족할 때
                //TODO 빨간색으로 바꾸기
                 if(node.costText)
                 node.costText->Set_Color(redFont);
             }
-
-            //선행 스킬도 만족하고 돈도 있을 때 상태 복구
+            else if(_currentView->skillTreeCom->HasRequiredSkill(node.skillId) && canUnlock )
+            {
+                //잠겨 있는 상태인데 해금 가능한 상태일 때(선행스킬 + 포인트)
+                if(node.costText)
+                node.costText->Set_Color(yellowFont);
+            }
         }
 
         auto ui = _currentView->tooltips.find(String::ToWString(node.skillId));
@@ -114,6 +132,17 @@ void SkillTree_Panel::Update(float timeDelta)
             //툴팁 띄우기
             if(ui != _currentView->tooltips.end() && ui->second)
             ui->second->Open();
+
+            if(isUnlocked)
+            {
+                if(node.unlockedPopup)
+                node.unlockedPopup->Open();
+            }
+            else
+            {
+                if(node.lockedPopup)
+                node.lockedPopup->Open();
+            }
         }
 
         if(node.button->Is_Pressed())
@@ -230,7 +259,7 @@ HRESULT SkillTree_Panel::Bind_SkillNode_UI(const wstring& playerName, SkillTreeV
 {
     const wstring buttonPrefix = L"Button_Skill_" + playerName + L"_";
     const wstring imagePrefix = L"Image_Skill_" + playerName +  L"_";
-    const wstring textPrefix = L"Text_Skill" + playerName + L"_";
+    const wstring textPrefix = L"Text_Skill_" + playerName + L"_";
 
     for(const auto& [name, ui] : outView.uiByName)
     {
@@ -246,8 +275,8 @@ HRESULT SkillTree_Panel::Bind_SkillNode_UI(const wstring& playerName, SkillTreeV
         const string  skillId = String::ToString(skillIdW);
         const wstring imageId = imagePrefix + skillIdW;
         const wstring textId = textPrefix + skillIdW;
-        const wstring lockedPopupId = L"Panel_Skill_" + playerName + L"_" + skillIdW + L"_On";
-        const wstring unlockedPopupId =  L"Panel_Skill_" + playerName + L"_" + skillIdW + L"_Lock"; 
+        const wstring lockedPopupId = L"Panel_Skill_" + playerName + L"_" + skillIdW + L"_Lock";
+        const wstring unlockedPopupId =  L"Panel_Skill_" + playerName + L"_" + skillIdW + L"_On"; 
 
         Shared<UI_Image> icon = dynamic_pointer_cast<UI_Image>(Find_UI(outView.uiByName, imageId));
         Shared<UI_Text>  costText = dynamic_pointer_cast<UI_Text>(Find_UI(outView.uiByName, textId));
@@ -279,7 +308,6 @@ Shared<UI_Base> SkillTree_Panel::Find_UI(const umap<wstring, Shared<UI_Base>>& u
 void SkillTree_Panel::Set_SkillPoint()
 {
     //TODO 플레이어 바뀔 때마다 호출
-
 
     for (auto& node : _currentView->skillNodes)
     {
