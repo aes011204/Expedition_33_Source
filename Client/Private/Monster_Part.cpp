@@ -78,7 +78,7 @@ HRESULT Monster_Part::Render()
             return E_FAIL;
 
         if (_model->Get_NumAnimations() != 0)
-            CHECK_FAILED(_model->Bind_BoneMatrices(_shader.get(), "g_BoneMatricesBuffer", i), E_FAIL);
+            CHECK_FAILED_ONCE(_model->Bind_BoneMatrices(_shader.get(), "g_BoneMatricesBuffer", i), E_FAIL);
 
         const uint32 passIndex = Decide_PassIndex(material);
         if (FAILED(_shader->Begin(passIndex)))

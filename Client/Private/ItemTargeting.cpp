@@ -24,19 +24,23 @@ void ItemTargeting::Begin_Play()
 
 bool ItemTargeting::EnterInvoke()
 {
+    LOG_DEBUG("ItemTargeting::EnterInvoke");
     return Battle_State::EnterInvoke();
 }
 
 void ItemTargeting::Update(float timeDelta)
 {
+    Battle_State::Update(timeDelta);
 }
 
 void ItemTargeting::LateUpdate(float timeDelta)
 {
+    Battle_State::LateUpdate(timeDelta);
 }
 
 void ItemTargeting::ExitInvoke()
 {
+    LOG_DEBUG("ItemTargeting::ExitInvoke");
     Battle_State::ExitInvoke();
 }
 

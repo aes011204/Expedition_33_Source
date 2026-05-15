@@ -20,16 +20,18 @@ HRESULT Battle_State::Initialize()
     if (_owner.expired())
         return E_FAIL;
 
+    _battleFSM = _owner.lock()->Get_BattleFSM().get();
+
     return State::Initialize();
 }
 
 void Battle_State::Begin_Play()
 {
-    auto owner = _owner.lock();
-    if (!owner)
-        return;
+    //auto owner = _owner.lock();
+    //if (!owner)
+    //    return;
 
-    _battleFSM = owner->Get_BattleFSM().get();
+    //_battleFSM = owner->Get_BattleFSM().get();
 
     State::Begin_Play();
 }
