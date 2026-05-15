@@ -40,6 +40,7 @@ HRESULT BattleController::Initialize()
 {
     Set_BattleFSM();
 
+
     return S_OK;
 
 }
@@ -50,6 +51,7 @@ void BattleController::Update(float timeDelta)
     {
         return;
     }
+
     if (_pendingNextTurn)
     {
         _pendingNextTurn = false;
@@ -240,8 +242,8 @@ void BattleController::Create_BattleChar(const vector<HeroId>& heroIds, vector<s
 {
     for (HeroId heroId : heroIds)
     {
-       const HeroSpawnDesc* spawnDesc = CLIENT->Find_HeroSpawnDesc(heroId);
-       if (spawnDesc == nullptr)
+        const HeroSpawnDesc* spawnDesc = CLIENT->Find_HeroSpawnDesc(heroId);
+        if (spawnDesc == nullptr)
             continue;
 
         Shared<GameObject> character = Spawn_Prefab::Spawn(
@@ -383,6 +385,38 @@ vector<BattleChar> BattleController::Get_AliveHeroes()
     return  alive;
 }
 
+void BattleController::Handle_EditorStopRuntime()
+{
+    _turnAction = {};
+    _currentTurnActor = {};
+    _pendingNextTurn = false;
+    _battleEnded = false;
+    isBattleActive = false;
+    currentTurnIndex = 0;
+    _battleTime = 0.f;
+    _flag = false;
+
+    while (!_turnQueue.empty())
+        _turnQueue.pop();
+
+    _heroes.clear();
+    _enemies.clear();
+
+    if (_battleFSM)
+        _battleFSM->Change_State(BattleTurnState::ChooseAction);
+}
+
+HRESULT BattleController::Ready_Delegates()
+{
+    _editorStopHandle = GAME->Get_DelegateHub().OnEditorStopRuntime.Add(
+        [this]()
+        {
+            Handle_EditorStopRuntime();
+        });
+
+    return S_OK;
+}
+
 void BattleController::Execute_BaseAttack(const BattleChar actor, const Action& turnAction)
 {
     //기본스킬도 특이하기때문에 스킬로
@@ -477,11 +511,23 @@ Shared<BattleController> BattleController::Create()
         return nullptr;
     }
 
+    if (FAILED(instance->Ready_Delegates()))
+    {
+        instance->Free();
+        return nullptr;
+    }
+
     return instance;
 
 }
 
 void BattleController::Free()
 {
+    if (_editorStopHandle.IsValid())
+    {
+        GAME->Get_DelegateHub().OnEditorStopRuntime.Remove(_editorStopHandle);
+        _editorStopHandle.Reset();
+    }
+
     Base::Free();
 }

@@ -1,7 +1,7 @@
 ﻿#include "pch.h"
 #include "ClientInstance.h"
-
 #include "BattleController.h"
+#include "GameObject.h"
 #include "BT_Node_Bootstrap.h"
 #include "ComputePointParticlePreview.h"
 #include "GameDataTable.h"
@@ -158,6 +158,11 @@ const HeroSpawnDesc* ClientInstance::Find_HeroSpawnDesc(HeroId heroId)
     return _heroManager->Find_HeroSpawnDesc(heroId);
 }
 
+void ClientInstance::Reset_AllHeroesToIdle()
+{
+    return _heroManager->Reset_AllHeroesToIdle();
+}
+
 HRESULT ClientInstance::Initialize_GameplayUI(uint32 levelIndex)
 {
     Clear_GameplayUI();
@@ -248,6 +253,7 @@ void ClientInstance::Release_Client()
 
     _context.Reset();
     _device.Reset();
+
     _isStaticResourcesLoaded.store(false);
     _isStaticObjectsSpawned = false;
     _isInitialized = false;

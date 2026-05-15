@@ -57,6 +57,26 @@ HRESULT AIController::Initialize(void* arg)
 
     return S_OK;
 }
+
+void AIController::BeginPlay()
+{
+    Component::BeginPlay();
+
+    if (!_editorStopHandle.IsValid())
+    {
+        _editorStopHandle = GAME->Get_DelegateHub().OnEditorStopRuntime.Add(
+            [this]()
+            {
+                On_EditorStopRuntime();
+            });
+    }
+}
+
+void AIController::On_EditorStopRuntime()
+{
+    Stop_Move();
+}
+
 void AIController::Update(float timeDelta)
 {
 
@@ -162,7 +182,14 @@ Shared<Component> AIController::Clone(void* arg)
 }
 void AIController::Free()
 {
+    if (_editorStopHandle.IsValid())
+    {
+        GAME->Get_DelegateHub().OnEditorStopRuntime.Remove(_editorStopHandle);
+        _editorStopHandle.Reset();
+    }
+
     __super::Free();
+
 }
 Shared<BehaviorTree> AIController::Instantiate_BehaviorTreeJson(const fs::path& path)
 {
