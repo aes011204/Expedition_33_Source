@@ -41,6 +41,7 @@ ModelCom::ModelCom(const ModelCom& prototype)
     , _collisionMeshes{ prototype._collisionMeshes }
     , _stateAnimIndices{ prototype._stateAnimIndices }
     , _animEnumType{ prototype._animEnumType }
+    , _mappedAnimIndices{ prototype._mappedAnimIndices }
 {
     for (auto& prototypeAnim : prototype._animations)
         _animations.push_back(prototypeAnim->Clone());
@@ -161,6 +162,28 @@ void ModelCom::Set_Animation(uint32 animIndex, float blendDuration, bool isLoop)
     _animations[_nextAnimIndex]->Reset();
 
     Mark_BoneMatricesDirty();
+}
+
+void ModelCom::Set_Animation(const string& animName, bool isLoop)
+{
+    if (_mappedAnimIndices.contains(animName))
+    {
+        LOG_WARN("Failed to find animation by name: {}", animName);
+        return;
+    }
+
+    Set_Animation(_mappedAnimIndices[animName], isLoop);
+}
+
+void ModelCom::Set_Animation(const string& animName, float blendDuration, bool isLoop)
+{
+    if (_mappedAnimIndices.contains(animName))
+    {
+        LOG_WARN("Failed to find animation by name: {}", animName);
+        return;
+    }
+
+    Set_Animation(_mappedAnimIndices[animName], blendDuration, isLoop);
 }
 
 void ModelCom::Set_AnimationByState(uint32 stateIndex, float blendDuration, bool isLoop)
@@ -1650,6 +1673,9 @@ HRESULT ModelCom::Ready_Animation(const char* modelPath)
                 channels[i].keyframes = keyframeSets[i].data();
             }
 
+            string animName = entry.path().stem().string();
+            _mappedAnimIndices[animName] = trueAnimIndex;
+
             _animations.push_back(Animation::Create(animData, channels));
             stream.close();
             ++trueAnimIndex;
@@ -1687,6 +1713,7 @@ void ModelCom::Reset_ModelData()
     _bones.clear();
     _animations.clear();
     _stateAnimIndices.clear();
+    _mappedAnimIndices.clear();
     _collisionMeshes.clear();
 
     _isFinished = false;
@@ -1761,6 +1788,7 @@ void ModelCom::Free()
     _meshBoneMatrixCaches.clear();
     _combinedBoneMatrixCache.clear();
 
+    _mappedAnimIndices.clear();
     _stateAnimIndices.clear();
     _animations.clear();
     _materials.clear();
