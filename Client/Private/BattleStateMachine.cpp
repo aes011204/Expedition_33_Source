@@ -3,6 +3,36 @@
 
 #include "State.h"
 
+namespace
+{
+    const char* BattleTurnStateClassName(Client::BattleTurnState state)
+    {
+        switch (state)
+        {
+        case Client::BattleTurnState::None:
+            return "None";
+        case Client::BattleTurnState::ChooseSkill:
+            return "ChooseSkill";
+        case Client::BattleTurnState::AttackTargeting:
+            return "AttackTargeting";
+        case Client::BattleTurnState::ChooseItem:
+            return "ChooseItem";
+        case Client::BattleTurnState::ChooseAction:
+            return "ChooseAction";
+        case Client::BattleTurnState::SkillTargeting:
+            return "SkillTargeting";
+        case Client::BattleTurnState::ItemTargeting:
+            return "ItemTargeting";
+        case Client::BattleTurnState::UltimateTargeting:
+            return "UltimateTargeting";
+        case Client::BattleTurnState::ChooseUltimate:
+            return "ChooseUltimate";
+        default:
+            return "UnknownBattleState";
+        }
+    }
+}
+
 BattleStateMachine::BattleStateMachine()
     :BStateMachine()
 {
@@ -35,12 +65,27 @@ HRESULT BattleStateMachine::Add_State(BattleTurnState playerState, const Shared<
 {
     const wstring& str = String::ToWString(magic_enum::enum_name(playerState).data());
 
+    LOG_DEBUG("BattleStateMachine::Add_State: class={} ({}), ptr={}",
+        BattleTurnStateClassName(playerState),
+        static_cast<int>(playerState),
+        static_cast<const void*>(state.get()));
+
+
     return BStateMachine::Add_State(str, state);
 }
 
 bool BattleStateMachine::Change_State(BattleTurnState playerState)
 {
+    const auto prevState = _currentState
+        ? Get_CurrentPlayerState()
+        : BattleTurnState::None;
     const wstring& str = String::ToWString(magic_enum::enum_name(playerState).data());
+
+    LOG_DEBUG("BattleStateMachine::Change_State: {} ({}) -> {} ({})",
+        BattleTurnStateClassName(prevState),
+        static_cast<int>(prevState),
+        BattleTurnStateClassName(playerState),
+        static_cast<int>(playerState));
 
     return BStateMachine::Change_State(str);
 }

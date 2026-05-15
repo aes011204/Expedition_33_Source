@@ -48,6 +48,7 @@ HRESULT Player::Initialize(void* arg)
 
     if (FAILED(Ready_PartObjects()))
         return E_FAIL;
+   
 
     return S_OK;
 }
@@ -138,8 +139,8 @@ HRESULT Player::Ready_Components()
     
     CHECK_FAILED(Ready_Collider(), E_FAIL);
 
-    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_CombatStat"), _combatStatCom), E_FAIL);
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_SkillTree"), _skillTreeCom), E_FAIL);
+    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_PlayerStat"), _combatStatCom), E_FAIL);
 
     return S_OK;
 }

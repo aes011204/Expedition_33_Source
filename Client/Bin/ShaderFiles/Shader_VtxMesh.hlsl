@@ -13,22 +13,22 @@ uint g_iObjectID;
 //==================================================
 struct VS_IN
 {
-    float3 vPosition : POSITION;
-    float3 vNormal : NORMAL;
-    float3 vTangent : TANGENT;
-    float3 vBinormal : BINORMAL;
-    float2 vTexcoord : TEXCOORD0;
+    float3 Position : POSITION;
+    float3 Normal   : NORMAL;
+    float3 Tangent  : TANGENT;
+    float3 Binormal : BINORMAL;
+    float2 Texcoord : TEXCOORD0;
 };
 
 struct VS_OUT
 {
-    float4 vPosition : SV_POSITION;
-    float4 vNormal : NORMAL;
-    float3 vTangent : TANGENT;
-    float3 vBinormal : BINORMAL;
-    float2 vTexcoord : TEXCOORD0;
-    float4 vWorldPos : TEXCOORD1;
-    float4 vProjPos : TEXCOORD2;
+    float4 Position : SV_POSITION;
+    float4 Normal   : NORMAL;
+    float3 Tangent  : TANGENT;
+    float3 Binormal : BINORMAL;
+    float2 Texcoord : TEXCOORD0;
+    float4 WorldPos : TEXCOORD1;
+    float4 ProjPos  : TEXCOORD2;
 };
 
 VS_OUT VS_Default(VS_IN In)
@@ -40,15 +40,15 @@ VS_OUT VS_Default(VS_IN In)
     matWV = mul(g_WorldMatrix, g_ViewMatrix);
     matWVP = mul(matWV, g_ProjMatrix);
 
-    Out.vPosition = mul(float4(In.vPosition, 1.f), matWVP);
-    Out.vNormal = float4(normalize(mul(float4(In.vNormal, 0.f), g_WorldMatrix)).xyz, 0.f);
+    Out.Position = mul(float4(In.Position, 1.f), matWVP);
+    Out.Normal = float4(normalize(mul(float4(In.Normal, 0.f), g_WorldMatrix)).xyz, 0.f);
 
-    Out.vTangent = normalize(mul(float4(In.vTangent, 0.f), g_WorldMatrix)).xyz;
-    Out.vBinormal = normalize(mul(float4(In.vBinormal, 0.f), g_WorldMatrix)).xyz;
+    Out.Tangent = normalize(mul(float4(In.Tangent, 0.f), g_WorldMatrix)).xyz;
+    Out.Binormal = normalize(mul(float4(In.Binormal, 0.f), g_WorldMatrix)).xyz;
 
-    Out.vTexcoord = In.vTexcoord;
-    Out.vWorldPos = mul(float4(In.vPosition, 1.f), g_WorldMatrix);
-    Out.vProjPos = Out.vPosition;
+    Out.Texcoord = In.Texcoord;
+    Out.WorldPos = mul(float4(In.Position, 1.f), g_WorldMatrix);
+    Out.ProjPos = Out.Position;
 
     return Out;
 }
@@ -62,64 +62,65 @@ VS_OUT VS_Shadow(VS_IN In)
     matWV = mul(g_WorldMatrix, g_LightViewMatrix);
     matWVP = mul(matWV, g_LightProjMatrix);
 
-    Out.vPosition = mul(float4(In.vPosition, 1.f), matWVP);
-    Out.vNormal = normalize(mul(float4(In.vNormal, 0.f), g_WorldMatrix));
+    Out.Position = mul(float4(In.Position, 1.f), matWVP);
+    Out.Normal = normalize(mul(float4(In.Normal, 0.f), g_WorldMatrix));
 
-    Out.vTexcoord = In.vTexcoord;
-    Out.vWorldPos = mul(float4(In.vPosition, 1.f), g_WorldMatrix);
-    Out.vProjPos = Out.vPosition;
+    Out.Texcoord = In.Texcoord;
+    Out.WorldPos = mul(float4(In.Position, 1.f), g_WorldMatrix);
+    Out.ProjPos = Out.Position;
 
     return Out;
 }
 
 struct PS_IN
 {
-    float4 vPosition : SV_POSITION;
-    float4 vNormal : NORMAL;
-    float3 vTangent : TANGENT;
-    float3 vBinormal : BINORMAL;
-    float2 vTexcoord : TEXCOORD0;
-    float4 vWorldPos : TEXCOORD1;
-    float4 vProjPos : TEXCOORD2;
+    float4 Position : SV_POSITION;
+    float4 Normal   : NORMAL;
+    float3 Tangent  : TANGENT;
+    float3 Binormal : BINORMAL;
+    float2 Texcoord : TEXCOORD0;
+    float4 WorldPos : TEXCOORD1;
+    float4 ProjPos  : TEXCOORD2;
 };
 
 struct PS_OUT
 {
-    vector vDiffuse : SV_TARGET0;
-    vector vNormal : SV_TARGET1;
-    vector vDepth : SV_TARGET2;
+    vector Diffuse  : SV_TARGET0;   // BaseColor
+    vector Normal   : SV_TARGET1;   // Normal
+    vector Depth    : SV_TARGET2;   // Depth
+    vector Material : SV_TARGET3;   // AO, Roughness, Metalness
+    vector Emissive  : SV_TARGET4;   // HDR Emissive
 };
 
 struct PS_OUT_ID
 {
-    vector vColor : SV_TARGET0;
+    vector Color : SV_TARGET0;
 };
 
 struct PS_OUT_SHADOW
 {
-    vector vLightDepth : SV_TARGET0;
+    vector LightDepth : SV_TARGET0;
 };
 
 PS_OUT PS_Opaque(PS_IN In)
 {
     PS_OUT Out;
 
-    float2 finalUV = ApplyUVTransform(In.vTexcoord);
+    float2 finalUV = ApplyUVTransform(In.Texcoord);
 
     float4 baseColor = SampleBaseColor(finalUV);
 
-    float3 worldNormal = ComputeWorldNormal(In.vNormal.xyz, In.vTangent, In.vBinormal, finalUV);
+    float3 worldNormal = ComputeWorldNormal(In.Normal.xyz, In.Tangent, In.Binormal, finalUV);
+
+    Out.Diffuse = baseColor;
+    Out.Normal = float4(EncodeNormal(worldNormal), 1.f);
+    Out.Depth = float4(In.ProjPos.z / In.ProjPos.w, In.ProjPos.w / g_Far, 0.f, 1.f);
 
     float3 orm = SampleOrm(finalUV);
+    Out.Material = float4(orm.xyz, 1.f);
 
-    // emissive 는 이후에 별도 RTV로 분리해야 한다. 일단은 텍스처 잘 들어오는지 확d인용도
-    // omr.r 이 0인 경우 까맣게 보이니까 일단 들어오는 거 확인했고 얘도 별도 RTV
-    float3 emissive = float3(0.f, 0.f, 0.f); //SampleEmissive(finalUV);
-    baseColor.rgb = baseColor.rgb; // * orm.r + emissive;
-
-    Out.vDiffuse = baseColor;
-    Out.vNormal = float4(EncodeNormal(worldNormal), 1.f);
-    Out.vDepth = float4(In.vProjPos.z / In.vProjPos.w, In.vProjPos.w / g_Far, 0.f, 1.f);
+    float3 emissive = SampleEmissive(finalUV);
+    Out.Emissive = float4(emissive.xyz, 1.f);
 
     return Out;
 }
@@ -128,7 +129,7 @@ PS_OUT PS_Mask(PS_IN In)
 {
     PS_OUT Out;
 
-    float2 finalUV = ApplyUVTransform(In.vTexcoord);
+    float2 finalUV = ApplyUVTransform(In.Texcoord);
 
     float4 baseColor = SampleBaseColor(finalUV);
 
@@ -136,18 +137,17 @@ PS_OUT PS_Mask(PS_IN In)
     if (mask < g_OpacityMaskClipValue)
         discard;
 
-    float3 worldNormal = ComputeWorldNormal(In.vNormal.xyz, In.vTangent, In.vBinormal, finalUV);
+    float3 worldNormal = ComputeWorldNormal(In.Normal.xyz, In.Tangent, In.Binormal, finalUV);
+
+    Out.Diffuse = baseColor;
+    Out.Normal = float4(EncodeNormal(worldNormal), 1.f);
+    Out.Depth = float4(In.ProjPos.z / In.ProjPos.w, In.ProjPos.w / g_Far, 0.f, 1.f);
 
     float3 orm = SampleOrm(finalUV);
+    Out.Material = float4(orm.xyz, 1.f);
 
-    // emissive 는 이후에 별도 RTV로 분리해야 한다. 일단은 텍스처 잘 들어오는지 확d인용도
-    // omr.r 이 0인 경우 까맣게 보이니까 일단 들어오는 거 확인했고 얘도 별도 RTV
-    float3 emissive = float3(0.f, 0.f, 0.f); //SampleEmissive(finalUV);
-    baseColor.rgb = baseColor.rgb; // * orm.r + emissive;
-
-    Out.vDiffuse = baseColor;
-    Out.vNormal = float4(EncodeNormal(worldNormal), 1.f);
-    Out.vDepth = float4(In.vProjPos.z / In.vProjPos.w, In.vProjPos.w / g_Far, 0.f, 1.f);
+    float3 emissive = SampleEmissive(finalUV);
+    Out.Emissive = float4(emissive.xyz, 1.f);
 
     return Out;
 }
@@ -156,7 +156,7 @@ PS_OUT_SHADOW PS_Shadow(PS_IN In)
 {
     PS_OUT_SHADOW Out;
 
-    Out.vLightDepth = vector(In.vProjPos.z / In.vProjPos.w, In.vProjPos.w / g_LightFar, 0.f, 1.f);
+    Out.LightDepth = vector(In.ProjPos.z / In.ProjPos.w, In.ProjPos.w / g_LightFar, 0.f, 1.f);
 
     return Out;
 }
@@ -165,9 +165,9 @@ PS_OUT PS_NoTexture(PS_IN In)
 {
     PS_OUT Out;
 
-    Out.vDiffuse = vector(0.8f, 0.8f, 0.8f, 1.f);
-    Out.vNormal = vector(In.vNormal.xyz * 0.5f + 0.5f, 1.f);
-    Out.vDepth = vector(In.vPosition.z, In.vPosition.w / g_Far, 0.f, 0.f);
+    Out.Diffuse = vector(0.8f, 0.8f, 0.8f, 1.f);
+    Out.Normal = vector(In.Normal.xyz * 0.5f + 0.5f, 1.f);
+    Out.Depth = vector(In.Position.z, In.Position.w / g_Far, 0.f, 0.f);
 
     return Out;
 }
@@ -176,10 +176,10 @@ PS_OUT_ID PS_ID(PS_IN In)
 {
     PS_OUT_ID Out;
 
-    Out.vColor.r = float(g_iObjectID & 0xFF) / 255.f;
-    Out.vColor.g = float((g_iObjectID >> 8) & 0xFF) / 255.f;
-    Out.vColor.b = float((g_iObjectID >> 16) & 0xFF) / 255.f;
-    Out.vColor.a = 1.f;
+    Out.Color.r = float(g_iObjectID & 0xFF) / 255.f;
+    Out.Color.g = float((g_iObjectID >> 8) & 0xFF) / 255.f;
+    Out.Color.b = float((g_iObjectID >> 16) & 0xFF) / 255.f;
+    Out.Color.a = 1.f;
 
     return Out;
 }

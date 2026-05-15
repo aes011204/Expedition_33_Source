@@ -21,9 +21,10 @@ class BattleController :
 {
 
 public:
- 
+    BattleController();
+    virtual ~BattleController();
 public:
-    HRESULT Inintialize();
+    HRESULT Initialize();
     void Update(float timeDelta);
 
 
@@ -51,22 +52,27 @@ public:
 public:
     Shared< BattleStateMachine>  Get_BattleFSM() { return _battleFSM; };
     Action& Get_TurnAction() { return _turnAction; }
-    uint32 Get_EnemiesNum() { return _enemies.size(); }
-    uint32 Get_HeroesNum() { return _heroes.size(); }
-    vector<BattleChar>& Get_Enemies() { return _enemies; }
+    //uint32 Get_EnemiesNum() { return _enemies.size(); }
+    //uint32 Get_HeroesNum() { return _heroes.size(); }
+
+    vector<BattleChar> Get_AliveEnemies();
+    vector<BattleChar> Get_AliveHeroes();
 private:
     BattleChar _currentTurnActor = {};
     Action _turnAction={};
     bool isBattleActive = { false };
     int currentTurnIndex = {};
      
-
+    bool _flag = { false };
 
 private:
     void Execute_BaseAttack(const BattleChar actor, const Action& turnAction);
     void Execute_Skill(const BattleChar actor, const Action& turnAction);
     void Execute_Item(const BattleChar actor, const Action& turnAction);
 
+
+    bool _battleEnded = {};
+    bool _pendingNextTurn = {};
 public:
     struct Compare
     {
@@ -89,6 +95,13 @@ private:
     Shared< BattleStateMachine> _battleFSM;
     Shared< BuffSystem> _buffSystem;
     Shared< BattleEffectResolver> _battleEffectResolver;
+
+public:
+    static Shared<BattleController> Create();
+    void Free() override;
+
+public:
+
 };
 
 

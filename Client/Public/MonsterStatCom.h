@@ -6,14 +6,14 @@ NS_BEGIN(Client)
 
 class Buff;
 
-    class MonsterStatCom :
+class MonsterStatCom :
     public CombatStatCom
 {
     GENERATED_COMPONENT(MonsterStatCom)
 public:
 
     // 초기 세팅 값
-    struct MonsterCombatStatDesc: CombatStatCom::CombatStatDesc
+    struct MonsterCombatStatDesc : CombatStatCom::CombatStatDesc
     {
         bool isBoss = false;
         bool isAir = false;
@@ -23,7 +23,7 @@ public:
         float breakBarHPPercent = 120.f;
         float breakBarStunDuration = 1.f;
 
-        vector<FElementalAffinity> initialElementalAffinities={};
+        vector<FElementalAffinity> initialElementalAffinities = {};
         vector<FLootData> possibleLoot = {};
 
 
@@ -33,7 +33,7 @@ public:
     // 변경된 실제 Stat 정보
     struct MRuntimeCombatStat : CombatStatCom::RuntimeCombatStat
     {
-        bool isBreak = {false};
+        bool isBreak = { false };
     };
 
 public:
@@ -41,15 +41,24 @@ public:
     MonsterStatCom(const MonsterStatCom& Prototype);
     virtual ~MonsterStatCom() = default;
 
-    public:
-        const MonsterCombatStatDesc& Get_MonsterDesc() const{return _monsterDesc;}
-        const MRuntimeCombatStat& Get_MonsterRuntimeStat() const{return _MRuntimeStat;}
-        MRuntimeCombatStat& Get_MonsterRuntimeStat(){return _MRuntimeStat;}
-        const vector<Shared<Buff>>& Get_Buffs() const{return _buff;}
+public:
+    HRESULT Initialize_Prototype() override;
+    HRESULT Initialize(void* arg) override;
+
+    void Update(float timeDelta);
 
 
-        bool IsBreak() const{return _MRuntimeStat.isBreak;}
-        void SetBreak(bool value){ _MRuntimeStat.isBreak = value;}
+public:
+    virtual  CombatStatDesc& Get_StatInfo() { return _monsterDesc; };
+    virtual  RuntimeCombatStat& Get_RuntimeStat() { return _MRuntimeStat; };
+    const MonsterCombatStatDesc& Get_MonsterDesc() const { return _monsterDesc; }
+    const MRuntimeCombatStat& Get_MonsterRuntimeStat() const { return _MRuntimeStat; }
+    MRuntimeCombatStat& Get_MonsterRuntimeStat() { return _MRuntimeStat; }
+    const vector<Shared<Buff>>& Get_Buffs() const { return _buff; }
+
+
+    bool IsBreak() const { return _MRuntimeStat.isBreak; }
+    void SetBreak(bool value) { _MRuntimeStat.isBreak = value; }
 
 private:
 
@@ -58,9 +67,7 @@ private:
     MRuntimeCombatStat _MRuntimeStat;
 
 
-public:
-    HRESULT Initialize_Prototype() override;
-    HRESULT Initialize(void* arg) override;
+
 
 public:
     static Shared<MonsterStatCom> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
