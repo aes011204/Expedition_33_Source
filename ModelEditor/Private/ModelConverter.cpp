@@ -77,6 +77,10 @@ namespace ModelEditor
 		string finalResult;
 		for (size_t i = 0; i < tokens.size(); ++i)
 		{
+			// 맨 앞의 문자열이 뒤에 또 존재하면 삭제 (예: Lancleier_Lancleier_Dash_Out -> Lancleier_Dash_Out)
+			if (i > 0 && tokens[i] == tokens[0])
+				continue;
+
 			// Simple consecutive duplicate prevention (e.g., Maelle_Maelle -> Maelle)
 			if (i > 0 && tokens[i] == tokens[i - 1])
 				continue;
@@ -152,6 +156,7 @@ namespace ModelEditor
 		ImGui::Separator();
 
 		ImGui::Checkbox("Generate Debug JSON Logs", &_exportJsonLog);
+		ImGui::Checkbox("Apply Global Scale (Static Only)", &_applyGlobalScale);
 		ImGui::Separator();
 
 		if (ImGui::Button("Scan FBX Files", ImVec2(150, 30)))
@@ -323,8 +328,10 @@ namespace ModelEditor
         _isSkeletal = hasMeshBones || probeScene->mNumAnimations > 0;
         
         uint32 finalFlags = _importFlags;
-        if (false == _isSkeletal)
+        if (false == _applyGlobalScale && false == _isSkeletal)
+        {
             finalFlags |= aiProcess_PreTransformVertices | aiProcess_GlobalScale;
+        }
             
         _importer.FreeScene(); // 필수: 이전 probeScene 캐시를 날려야 새 플래그가 적용됨
         _aiScene = _importer.ReadFile(utf8FilePath, finalFlags);

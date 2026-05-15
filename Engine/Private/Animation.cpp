@@ -1,5 +1,4 @@
 ﻿#include "Animation.h"
-
 #include "Channel.h"
 #include "Bone.h"
 #include <cmath>
@@ -67,6 +66,24 @@ void Animation::Evaluate_CurrentPose(const vector<Shared<Bone>>& bones, int32 ro
     {
         _channels[i]->Update_TransformationMatrix(_currentKeyFrameIndices[i], _currentTrackPosition, _duration, bones, rootNodeIndex, isLoop);
     }
+}
+
+float Animation::Get_Progress() const
+{
+    if (_duration <= 0.f)
+        return 0.f;
+
+    return clamp(_currentTrackPosition / _duration, 0.f, 1.f);
+}
+
+void Animation::Set_StartFrame(float startFrame)
+{
+    _currentTrackPosition = clamp(startFrame, 0.f, _duration);
+
+    fill(_currentKeyFrameIndices.begin(), _currentKeyFrameIndices.end(), 0);
+
+    for (auto& channel : _channels)
+        channel->ResetVelocityState();
 }
 
 void Animation::Set_Progress(float progress)
