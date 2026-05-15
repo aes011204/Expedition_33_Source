@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #pragma region INCLUDE
 
@@ -221,6 +221,9 @@ public: /* For.Input_Manager */
     void Set_InputBlocked(bool isBlocked);
     // 마우스 위치 반환
     const POINT& Get_MousePosition() const;
+    const POINT& Get_RawMousePosition() const;
+    void Set_MousePositionOverride(const POINT& mousePosition);
+    void Clear_MousePositionOverride();
 
 public: /* For.Light_Manager */
     const LIGHT_DESC* Get_LightDesc(uint32 index);

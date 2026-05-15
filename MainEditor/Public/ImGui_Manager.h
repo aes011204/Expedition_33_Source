@@ -25,6 +25,7 @@ private:
     bool _initialized = false;
     bool _frameBegun = false;
 
+
 public:
     static Unique<ImGui_Manager> Create(HWND hWnd, const ComPtr<Device>& device, const ComPtr<Context>& context);
     void Free() override;

@@ -935,6 +935,11 @@ void EditorInstance::Apply_RuntimeInputPolicy()
     //    Activate_FreeCamera();
     //}
 
+    if (_runtimeState != EDITOR_RUNTIME_STATE::Play || !gameView || !gameView->Is_Open())
+    {
+        GAME->Clear_MousePositionOverride();
+    }
+
     const bool sceneInteractive =
         sceneView && sceneView->Is_Open() &&
         (sceneView->Is_Focused() || sceneView->Is_Hovered());
