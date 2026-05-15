@@ -98,9 +98,9 @@ void CombatStatCom::From_Json(const json& data)
 //    }
 //}
 
-bool CombatStatCom::IsDead() 
+EAliveStatus CombatStatCom::Get_CurAliveState()
 {
-    return Get_RuntimeStat().CurHp <= 0.f;
+    return Get_RuntimeStat().CurAliveState;
 }
 
 //void CombatStatCom::Add_Ailment(

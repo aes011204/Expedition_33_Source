@@ -223,7 +223,7 @@ HRESULT Monster::Ready_Collider()
     return S_OK;
 }
 
-void Monster::Decide_Action(Action& curturnAction, vector<BattleChar>& heroes)
+void Monster::Decide_Action(Action& curturnAction, const vector<BattleChar>& heroes)
 {
 
         Skill_Data skill = {}; skill.scriptClassName = "Base_Gustave_Attack";

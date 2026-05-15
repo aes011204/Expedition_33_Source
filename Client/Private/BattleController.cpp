@@ -44,9 +44,17 @@ HRESULT BattleController::Initialize()
 
 void BattleController::Update(float timeDelta)
 {
-
-	// 테스트
-
+    if(_battleEnded == true)
+    {
+        return;
+    }
+	
+    if (_pendingNextTurn)
+    {
+        _pendingNextTurn = false;
+        StartTurn();
+        return;
+    }
 
     
        if (_heroes.empty() == true || _enemies.empty() == true)
@@ -65,7 +73,7 @@ void BattleController::Run_EnemyTurn()
     LOG_DEBUG("Run_EnemyTurn: actor={}",
         Get_TurnAction()._curChar.actor ? String::ToString(Get_TurnAction()._curChar.actor->Get_Name()).c_str() : "null");
 
-    dynamic_pointer_cast<Monster>(Get_TurnAction()._curChar.actor)->Decide_Action(Get_TurnAction(), Get_Heroes());
+    dynamic_pointer_cast<Monster>(Get_TurnAction()._curChar.actor)->Decide_Action(Get_TurnAction(), Get_AliveHeroes());
 
     Execute_Skill(_currentTurnActor, Get_TurnAction());
 
@@ -137,7 +145,10 @@ void BattleController::EndTurn()
             DeadPlayer++;
     }
     if (DeadPlayer == _heroes.size())
+    {
         OnExitBattleField(EBattleEndResult::Defeat);
+        _battleEnded = true;
+    }
 
     for (int i = 0; i < _enemies.size(); i++)
     {
@@ -150,7 +161,10 @@ void BattleController::EndTurn()
     LOG_DEBUG("EndTurn: deadPlayer={}, deadEnemy={}", DeadPlayer, DeadEnemy);
 
     if (DeadEnemy == _enemies.size())
+    {
         OnExitBattleField(EBattleEndResult::Victory);
+        _battleEnded = true;
+    }
 
 
     // 상태 이상 엔드
@@ -174,8 +188,9 @@ void BattleController::EndTurn()
 
 
 
+    _pendingNextTurn = true;
 
-    StartTurn();
+    
 
 }
 
@@ -335,6 +350,33 @@ void BattleController::SetCharInitPos()
             EPos[i]);
     }
 
+}
+
+vector<BattleChar> BattleController::Get_AliveEnemies()
+{
+
+    vector<BattleChar> alive;
+    for(int i = 0; i < _enemies.size();i++)
+    {
+        if(_enemies[i].statCom->Get_CurAliveState()== EAliveStatus::Alive)
+        {
+            alive.push_back(_enemies[i]);
+        }
+    }
+    return  alive;
+}
+
+vector<BattleChar> BattleController::Get_AliveHeroes()
+{
+    vector<BattleChar> alive;
+    for (int i = 0; i <_heroes.size(); i++)
+    {
+        if (_heroes[i].statCom->Get_CurAliveState() == EAliveStatus::Alive)
+        {
+            alive.push_back(_heroes[i]);
+        }
+    }
+    return  alive;
 }
 
 void BattleController::Execute_BaseAttack(const BattleChar actor, const Action& turnAction)

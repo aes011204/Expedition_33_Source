@@ -77,7 +77,7 @@ public:
 
 
     public:
-        void Decide_Action(Action& curturnAction, vector<BattleChar>& heroes);
+        void Decide_Action(Action& curturnAction, const vector<BattleChar>& heroes);
 public:
 	static Shared<Monster> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
 	virtual Shared<GameObject> Clone(void* arg) override;

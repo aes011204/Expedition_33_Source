@@ -52,10 +52,11 @@ public:
 public:
     Shared< BattleStateMachine>  Get_BattleFSM() { return _battleFSM; };
     Action& Get_TurnAction() { return _turnAction; }
-    uint32 Get_EnemiesNum() { return _enemies.size(); }
-    uint32 Get_HeroesNum() { return _heroes.size(); }
-    vector<BattleChar>& Get_Enemies() { return _enemies; }
-    vector<BattleChar>& Get_Heroes() { return _heroes; }
+    //uint32 Get_EnemiesNum() { return _enemies.size(); }
+    //uint32 Get_HeroesNum() { return _heroes.size(); }
+
+    vector<BattleChar> Get_AliveEnemies();
+    vector<BattleChar> Get_AliveHeroes();
 private:
     BattleChar _currentTurnActor = {};
     Action _turnAction={};

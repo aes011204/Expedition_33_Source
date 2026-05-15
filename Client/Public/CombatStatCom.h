@@ -77,7 +77,7 @@ public:
     //void ApplyDamage(float damage);
     //void Heal(float amount);
 
-    bool IsDead() ;
+        EAliveStatus Get_CurAliveState() ;
 
     int32 Get_CurrentShield() {return Get_RuntimeStat().CurShield; }
     void Add_Shield(int32 value);
