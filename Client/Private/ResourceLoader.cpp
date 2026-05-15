@@ -539,7 +539,7 @@ ResourceLoader::FInputLayoutInfo ResourceLoader::Get_InputLayout(const string& s
         return { VtxMeshInstanceLayout::Elements, VtxMeshInstanceLayout::numElements, ShaderType::VtxInstanceMesh };
 
     // Mesh Instance (for real)
-    if ("VTXMESHINSTEXACT" == strName || "VtxMeshInstExact" == strName)
+    if ("VTXINSTMESHEXACT" == strName || "VtxInstMeshExact" == strName)
         return { VtxMeshInstanceExactLayout::Elements, VtxMeshInstanceExactLayout::numElements, ShaderType::VtxInstanceMeshExact };
 
     return { VTXTEX::Elements, VTXTEX::numElements, ShaderType::VtxTex };

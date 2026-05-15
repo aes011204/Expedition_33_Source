@@ -99,6 +99,8 @@ public:
     HRESULT Bind_BoneMatrices(class ShaderCom* shader, const char* constantName, uint32 meshIndex);
     bool Try_Get_LocalBounds(Vec3& outMin, Vec3& outMax) const;
 
+    // for map StaticMesh
+    void Apply_MaterialByAssetName(uint32 materialIndex, const string& bundleKey, const string& assetName);
 
 public: /* Guid */
     static wstring Normalize_ModelAssetPath(const char* modelFilePath);

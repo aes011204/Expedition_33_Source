@@ -104,18 +104,25 @@ HRESULT MapStaticMesh::Render()
         const uint32 materialIndex = _model->Get_MeshMaterialIndex(i);
         const Shared<Material> material = _model->Get_Material(materialIndex);
         if (material == nullptr)
+        {
             continue;
+        }
 
         if (FAILED(_shader->Bind_MaterialTextures(*material)))
+        {
             continue;
+        }
 
         if (FAILED(_shader->Bind_CBufferData(material->Get_CB())))
+        {
             return E_FAIL;
+        }
 
-        // TODO 패스 수정 필요
-        const uint32 passIndex = 2;
+        const uint32 passIndex = static_cast<uint32>(material->Get_PassIndex());
         if (FAILED(_shader->Begin(passIndex)))
+        {
             return E_FAIL;
+        }
 
         _model->Render(i);
     }
