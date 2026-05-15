@@ -22,6 +22,14 @@ public:
         Vec3 forward{};
     };
 
+    struct FollowerRuntime
+    {
+        Vec3    desiredTargetPos = Vec3::Zero; // follower 목표 위치
+        float   lastMoveDistance = 0.f;        // 목표까지 남은 거리
+        bool    catchUp = false;               // 추격 이동 여부
+        float   catchUpHoldTime = 0.f;         // Sprint 유지 시간. Run으로 바로 안바뀌게
+    };
+
 public:
     HRESULT Initialize_Hero(
         uint32 levelIndex,
@@ -67,12 +75,13 @@ private:
 
     void    Move_FollowerTo(
                 const Shared<Player>& follower,
+                uint32 followerIndex,
                 const Vec3& targetPos,
                 float timeDelta);
 
     void    Update_FollowerAnimation(
                 const Shared<Player>& follower,
-                float moveDistance);
+                float moveDistance, bool useSprint);
 
     void    Refresh_TargetCamera() const;
 
@@ -88,11 +97,11 @@ private:
     wstring _layerTag;
 
     float _recordTimer = 0.f;
-    float _recordInterval = 0.05f;
+    float _recordInterval = 0.02f;
 
     // follower 1은 조금 전 위치, follower 2는 더 이전 위치
-    float _followerDelayA = 0.70f;
-    float _followerDelayB = 1.20f;
+    float _followerDelayA = 0.20f;
+    float _followerDelayB = 0.35f;
 
     float _followerSideOffset = 1.4f;
 
@@ -101,6 +110,12 @@ private:
 
     float _snapBackDistanceA = 2.0f;
     float _snapBackDistanceB = 3.0f;
+
+    array<FollowerRuntime, 3> _followerRuntime{};
+    float _catchUpDistance = 2.5f;
+    float _catchUpReleaseDistance = 1.2f;   // sprint 해제는 더 가까워졌을 때만
+    float _catchUpMinHoldTime = 0.25f;      // sprint에 들어가면 최소 이 시간은 유지
+    float _teleportReseatDistance  = 6.f;
 
 public:
     static Unique<Hero_Manager> Create();

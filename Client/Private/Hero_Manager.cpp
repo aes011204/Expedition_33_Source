@@ -89,6 +89,19 @@ void Hero_Manager::Set_TargetCamera(const Shared<TargetCamera>& camera)
 
 void Hero_Manager::Clear_Party()
 {
+    for (auto& entry : _heroes)
+    {
+        if (!entry.hero)
+            continue;
+
+        auto movement = entry.hero->Get_Component<MovementCom>();
+        if (movement)
+        {
+            movement->Clear_FollowMoveCommand();
+            movement->Apply_Input({});
+        }
+    }
+
     _heroes.clear();
     _activeTrail.clear();
     _activeIndex = 0;
@@ -171,6 +184,23 @@ void Hero_Manager::Switch_NextHero()
     // 위치 바로 재배치 -> 근데 지금 셋다 Lune Model이라 티가안나서 로그로만 확인
     Snap_AllHeroesToFormation(anchorPos, anchorRot, anchorForward, anchorRight);
 
+    for (uint32 i = 0; i < _heroes.size(); ++i)
+    {
+        _followerRuntime[i] = {};
+
+        auto hero = _heroes[i].hero;
+        if (!hero)
+            continue;
+
+        auto movement = hero->Get_Component<MovementCom>();
+        if (movement)
+        {
+            movement->Clear_FollowMoveCommand();
+            movement->Apply_Input({});
+            movement->Stop_HorizontalMovement();
+        }
+    }
+
     _activeTrail.clear();
     _recordTimer = 0.f;
     Set_ActiveTrail(_recordInterval);
@@ -225,7 +255,7 @@ void Hero_Manager::Snap_AllHeroesToFormation(const Vec3& anchorPos, const Vec3& 
         tr->Set_WorldPosition(followerPos);
         tr->Set_WorldRotationEuler(anchorRot);
 
-        Update_FollowerAnimation(hero, 0.f);
+        Update_FollowerAnimation(hero, 0.f, false);
 
         ++followerSlot;
     }
@@ -243,8 +273,15 @@ void Hero_Manager::Apply_ControlRoles()
         if (!controller)
             continue;
 
-        bool checkIndex = i == _activeIndex;
-        controller->Set_ControlEnabled(checkIndex);
+        auto movement = hero->Get_Component<MovementCom>();
+        if (movement)
+        {
+            movement->Clear_FollowMoveCommand();
+            movement->Apply_Input({});
+        }
+
+        const bool isActive = (i == _activeIndex);
+        controller->Set_ControlEnabled(isActive);
     }
 }
 
@@ -311,7 +348,36 @@ void Hero_Manager::Update_Followers(float timeDelta)
         const Vec3 targetPos =
             trailPoint.position - forward * backDistance + right * sideOffset;
 
-        Move_FollowerTo(_heroes[i].hero, targetPos, timeDelta);
+        // Movement
+        auto& runtime = _followerRuntime[i];
+        runtime.desiredTargetPos = targetPos;
+
+        if (_heroes[i].hero && _heroes[i].hero->Get_Transform())
+        {
+            Vec3 delta = targetPos - _heroes[i].hero->Get_Transform()->Get_WorldPosition();
+            delta.y = 0.f;
+
+            runtime.lastMoveDistance = delta.Length();
+
+            if (!runtime.catchUp && runtime.lastMoveDistance >= _catchUpDistance)
+            {
+                runtime.catchUp = true;
+                runtime.catchUpHoldTime = _catchUpMinHoldTime;
+            }
+            else if (runtime.catchUp &&
+                runtime.catchUpHoldTime <= 0.f &&
+                runtime.lastMoveDistance <= _catchUpReleaseDistance)
+            {
+                runtime.catchUp = false;
+            }
+        }
+        else
+        {
+            runtime.lastMoveDistance = 0.f;
+            runtime.catchUp = false;
+        }
+
+        Move_FollowerTo(_heroes[i].hero, i, targetPos, timeDelta);
 
         ++followerSlot;
     }
@@ -341,41 +407,79 @@ Hero_Manager::TrailPoint Hero_Manager::Get_TrailPoint(float delaySeconds) const
     return _activeTrail[clampedIndex];
 }
 
-void Hero_Manager::Move_FollowerTo(const Shared<Player>& follower, const Vec3& targetPos, float timeDelta)
+void Hero_Manager::Move_FollowerTo(const Shared<Player>& follower, uint32 followerIndex, const Vec3& targetPos, float timeDelta)
 {
     if (follower == nullptr)
         return;
 
-    auto tr = follower->Get_Transform();
-    if (tr == nullptr)
-        return;
+    auto movement = follower->Get_Component<MovementCom>();
+    CHECK_NULL(movement);
 
-    Vec3 currentPos = tr->Get_WorldPosition();
-    Vec3 delta = targetPos - currentPos;
+    auto tr = follower->Get_Transform();
+    CHECK_NULL(tr);
+
+    Vec3 delta = targetPos - tr->Get_WorldPosition();
     delta.y = 0.f;
 
     const float distance = delta.Length();
 
+    if (distance >= _teleportReseatDistance)
+    {
+        Vec3 reseatPos = targetPos;
+        reseatPos.y = tr->Get_WorldPosition().y;
+        tr->Set_WorldPosition(reseatPos);
+
+        movement->Clear_FollowMoveCommand();
+        movement->Apply_Input({});
+        movement->Stop_HorizontalMovement();
+
+        Update_FollowerAnimation(follower, 0.f, false);
+        return;
+    }
+
     if (distance <= _followStopDistance)
     {
-        Update_FollowerAnimation(follower, 0.f);
+        movement->Clear_FollowMoveCommand();
+        movement->Apply_Input({});
+        movement->Update_Movement(timeDelta);
+
+        Update_FollowerAnimation(follower, 0.f, false);
+
         return;
     }
 
     delta.Normalize();
 
-    const float moveStep = min(distance, _followerMoveSpeed * timeDelta);
-    Vec3 nextPos = currentPos + delta * moveStep;
-    nextPos.y = targetPos.y;
-    tr->Set_WorldPosition(nextPos);
+    MovementCom::FollowMoveCommand cmd{};
+    cmd.enabled = true;
+    cmd.worldDir = delta;
+    cmd.catchUp = _followerRuntime[followerIndex].catchUp;
 
-    // 일단 이동방향 바라보게 임시용
-    tr->LookAt(nextPos + delta);
+    const Vec3 beforePos = tr->Get_WorldPosition();
 
-    Update_FollowerAnimation(follower, moveStep);
+    movement->Set_FollowMoveCommand(cmd);
+    movement->Apply_Input({});
+    movement->Update_Movement(timeDelta);
+
+    Vec3 actualMove = tr->Get_WorldPosition() - beforePos;
+    actualMove.y = 0.f;
+
+    const float actualMoveDistance = actualMove.Length();
+
+    if (actualMoveDistance <= 0.001f)
+    {
+        movement->Clear_FollowMoveCommand();
+        movement->Apply_Input({});
+        movement->Stop_HorizontalMovement();
+
+        Update_FollowerAnimation(follower, 0.f, false);
+        return;
+    }
+
+    Update_FollowerAnimation(follower, actualMoveDistance, cmd.catchUp);
 }
 
-void Hero_Manager::Update_FollowerAnimation(const Shared<Player>& follower, float moveDistance)
+void Hero_Manager::Update_FollowerAnimation(const Shared<Player>& follower, float moveDistance, bool useSprint)
 {
     if (follower == nullptr)
         return;
@@ -391,19 +495,19 @@ void Hero_Manager::Update_FollowerAnimation(const Shared<Player>& follower, floa
 
     if (moveDistance <= 0.001f)
     {
-        const uint32 current = body->Get_AnimationStateIndex();
-
-        if (current != ETOI(Anim::Pl_Walk) &&
-            current != ETOI(Anim::Pl_Idle_0))
+        if (moveDistance <= 0.001f)
         {
-            body->Set_AnimationByState(ETOI(Anim::Pl_Walk), 0.1f, true);
-        }
+            if (body->Get_AnimationStateIndex() != ETOI(Anim::Pl_Idle_0))
+                body->Set_AnimationByState(ETOI(Anim::Pl_Idle_0), 0.1f, true);
 
-        return;
+            return;
+        }
     }
 
-    if (body->Get_AnimationStateIndex() != ETOI(Anim::Pl_Run))
-        body->Set_AnimationByState(ETOI(Anim::Pl_Run), 0.1f, true);
+    const uint32 selectAnim = useSprint ? ETOI(Anim::Pl_Sprint) : ETOI(Anim::Pl_Run);
+
+    if (body->Get_AnimationStateIndex() != selectAnim)
+        body->Set_AnimationByState(selectAnim, 0.1f, true);
 }
 
 void Hero_Manager::Refresh_TargetCamera() const

@@ -49,6 +49,13 @@ public:
         float groundY = 0.f;
     };
 
+    struct FollowMoveCommand
+    {
+        bool enabled = false;
+        Vec3 worldDir = Vec3::Zero;
+        bool catchUp = false;       // 거리 벌어져서 sprint로 전환?
+    };
+
 public:
     MovementCom(const ComPtr<Device>& device, const ComPtr<Context>& context);
     MovementCom(const MovementCom& Prototype);
@@ -91,6 +98,9 @@ public:
     Vec3 Get_Velocity() { return _velocity; }
     void Set_Velocity(const Vec3& velocity) { _velocity = velocity; }
 
+    void Set_FollowMoveCommand(const FollowMoveCommand& command) { _followMove = command; }
+    void Clear_FollowMoveCommand() { _followMove = {}; }
+
 private:
     void Start_Jump();
 
@@ -101,6 +111,7 @@ private:
 
     void Resolve_Ground();
 
+    bool Resolve_MoveDirection(Vec3& outWorldDir) const;
     bool Resolve_CameraRelativeMoveDirection(Vec3& outWorldDir) const;
 
 private:
@@ -114,6 +125,7 @@ private:
 private:
     MoveDesc         _moveDesc{};
     MovementInput    _input{};
+    FollowMoveCommand _followMove{};
 
     Shared<TransformCom> _transformCom;
 

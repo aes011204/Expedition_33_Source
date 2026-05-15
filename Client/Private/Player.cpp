@@ -62,7 +62,11 @@ void Player::Priority_Update(float timeDelta)
 {
     __super::Priority_Update(timeDelta);
 
-       // 업데이트 순서 조정
+    // follower는 HeroManager가 이동/매니저를 관리해서 여기서 세팅 안되게
+     if (_playerControllerCom && !_playerControllerCom->Is_ControlEnabled())
+        return;
+
+    // 업데이트 순서 조정
     _playerControllerCom->Update_InputState();
     _PlayerStateMachineCom->Update_CurrentState(timeDelta);
     _playerControllerCom->Update_Movement(timeDelta);

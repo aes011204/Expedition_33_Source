@@ -74,7 +74,7 @@ private:
 
     MovementCom::MovementInput  _currentInput{};
     RigidControl                _rigidControl{};
-    bool                        _isWalkToggled;
+    bool                        _isWalkToggled = false;
 
 public:
     static Shared<PlayerControllerCom> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

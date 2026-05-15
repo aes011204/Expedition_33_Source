@@ -59,6 +59,8 @@ HRESULT MovementCom::Initialize(void* arg)
         _moveDesc = {};
 
     _input = {};
+    _followMove = {};
+
     _transformCom.reset();
     _velocity = Vec3::Zero;
 
@@ -94,6 +96,11 @@ void MovementCom::Update_Movement(float timeDelta)
 
 bool MovementCom::Is_Moving() const
 {
+    if (_followMove.enabled)
+    {
+        return _followMove.worldDir.LengthSquared() > 0.f;
+    }
+
     return _input.moveX != 0.f || _input.moveZ != 0.f;
 }
 
@@ -146,7 +153,7 @@ void MovementCom::Start_Jump()
 void MovementCom::Update_Rotation(float timeDelta)
 {
     Vec3 desiredDir = Vec3::Zero;
-    if (!Resolve_CameraRelativeMoveDirection(desiredDir))
+    if (!Resolve_MoveDirection(desiredDir))
         return;
 
     Vec3 forward = _transformCom->Get_WorldForward();
@@ -160,12 +167,12 @@ void MovementCom::Update_Rotation(float timeDelta)
     float dot = forward.Dot(desiredDir);
     dot = std::clamp(dot, -1.f, 1.f);
 
-    float angle = acosf(dot);
+    const float angle = acosf(dot);
     if (angle <= 0.0001f)
         return;
 
     Vec3 cross = forward.Cross(desiredDir);
-    float sign = (cross.y >= 0.f) ? 1.f : -1.f;
+    const float sign = (cross.y >= 0.f) ? 1.f : -1.f;
 
     const float maxStep = XMConvertToRadians(_moveDesc.turnSpeedDegree) * timeDelta;
     const float step = min(angle, maxStep);
@@ -177,15 +184,20 @@ void MovementCom::Update_Rotation(float timeDelta)
 void MovementCom::Update_HorizontalVelocity()
 {
     Vec3 desiredDir = Vec3::Zero;
-    if (!Resolve_CameraRelativeMoveDirection(desiredDir))
+    if (!Resolve_MoveDirection(desiredDir))
     {
         _velocity.x = 0.f;
         _velocity.z = 0.f;
         return;
     }
 
-    float moveSpeed{ 0.f };
-    if (_input.moveX != 0.f || _input.moveZ != 0.f)
+    float moveSpeed = 0.f;
+
+    if (_followMove.enabled)
+    {
+        moveSpeed = _followMove.catchUp  ? _moveDesc.sprintSpeed : _moveDesc.runSpeed;
+    }
+    else if (_input.moveX != 0.f || _input.moveZ != 0.f)
     {
         if (_input.isRunPressed)
         {
@@ -244,6 +256,25 @@ void MovementCom::Resolve_Ground()
     _velocity.y = 0.f;
     _isGrounded = true;
     _isJumping = false;
+}
+
+bool MovementCom::Resolve_MoveDirection(Vec3& outWorldDir) const
+{
+    outWorldDir = Vec3::Zero;
+
+    if (_followMove.enabled)
+    {
+        outWorldDir = _followMove.worldDir;
+        outWorldDir.y = 0.f;
+
+        if (outWorldDir.LengthSquared() <= 0.f)
+            return false;
+
+        outWorldDir.Normalize();
+        return true;
+    }
+
+    return Resolve_CameraRelativeMoveDirection(outWorldDir);
 }
 
 bool MovementCom::Resolve_CameraRelativeMoveDirection(Vec3& outWorldDir) const
