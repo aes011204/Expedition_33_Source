@@ -1,8 +1,10 @@
 ﻿#include "Emitter_View.h"
 
+#include "Action_Command.h"
 #include "Editor_Context.h"
 #include "EffectEditorInstance.h"
 #include "Helper_ImGui.h"
+#include "Helper_String.h"
 
 NS_BEGIN(EffectEditor)
 
@@ -19,6 +21,7 @@ HRESULT Emitter_View::Initialize()
     _emitters.clear();
     _emitters.push_back(Make_DefaultSpriteEmitter());
     _selectedEmitterIndex = 0;
+    _selectedTypeData = false;
     _selectedModuleIndex.reset();
 
     if (EDITOR != nullptr && EDITOR->Get_EditorContext() != nullptr)
@@ -39,7 +42,11 @@ void Emitter_View::Render()
         _isFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
         _isHovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_RootAndChildWindows);
 
+        if (_modulePickerEmitterIndex.has_value() && _modulePickerEmitterIndex.value() >= _emitters.size())
+            Close_ModulePicker();
+
         Draw_EmitterBoard();
+        Draw_ModulePickerPopup();
     }
 
     Set_Open(isOpen);
@@ -105,6 +112,58 @@ bool Emitter_View::Has_PreviewDirtyEmitter() const
     return false;
 }
 
+Emitter_View::AuthoringSnapshot Emitter_View::Capture_AuthoringSnapshot() const
+{
+    AuthoringSnapshot snapshot{};
+    snapshot.particleSystemData = _particleSystemData;
+    snapshot.emitters = _emitters;
+    snapshot.selectedEmitterIndex = _selectedEmitterIndex;
+    snapshot.selectedTypeData = _selectedTypeData;
+    snapshot.selectedModuleIndex = _selectedModuleIndex;
+    snapshot.nextAuthoringId = _nextAuthoringId;
+    return snapshot;
+}
+
+void Emitter_View::Restore_AuthoringSnapshot(const AuthoringSnapshot& snapshot)
+{
+    Close_ModulePicker();
+    _particleSystemData = snapshot.particleSystemData;
+    _emitters = snapshot.emitters;
+    _selectedEmitterIndex = snapshot.selectedEmitterIndex;
+    _selectedTypeData = snapshot.selectedTypeData;
+    _selectedModuleIndex = snapshot.selectedModuleIndex;
+    _nextAuthoringId = snapshot.nextAuthoringId;
+
+    Sync_AllEmitterMirrors();
+    Mark_AllPreviewDirty();
+    Clamp_Selection();
+    Sync_SelectionContext();
+    MarkDirty();
+}
+
+void Emitter_View::Execute_AuthoringSnapshotCommand(
+    const AuthoringSnapshot& beforeSnapshot,
+    const AuthoringSnapshot& afterSnapshot,
+    const string& description)
+{
+    if (EDITOR == nullptr)
+        return;
+
+    EDITOR->Execute_Command(
+        Action_Command::Create(
+            [this, beforeSnapshot]
+            {
+                Restore_AuthoringSnapshot(beforeSnapshot);
+            },
+            [this, afterSnapshot]
+            {
+                Restore_AuthoringSnapshot(afterSnapshot);
+            },
+            description
+        )
+    );
+}
+
 uint32 Emitter_View::Issue_AuthoringId()
 {
     return _nextAuthoringId++;
@@ -122,9 +181,8 @@ AuthoringEmitter Emitter_View::Make_DefaultSpriteEmitter()
     if (const auto* requiredData = get_if<RequiredModuleData>(&requiredModule.data))
     {
         emitter.rendererType = requiredData->rendererType;
-        emitter.materialName = requiredData->materialName;
-        emitter.textureId = requiredData->textureId;
-        emitter.resourceSummary = requiredData->textureId;
+        emitter.textureId = requiredData->material.mainTextureId;
+        emitter.resourceSummary = requiredData->material.mainTextureId;
     }
 
     emitter.modules.push_back(move(requiredModule));
@@ -248,16 +306,126 @@ AuthoringModule Emitter_View::Make_ColorOverLifeModule()
     module.key = "Color Over Life";
     module.displayName = L"수명에 따른 색상";
     module.summary = L"수명 진행률 기준 색 변화";
-    module.enabled = false;
+    module.enabled = true;
     module.movable = true;
     module.removable = true;
     module.data = ColorOverLifeModuleData{};
     return module;
 }
 
+AuthoringModule Emitter_View::Make_SubUVFrameOverLifeModule()
+{
+    AuthoringModule module{};
+    module.id = Issue_AuthoringId();
+    module.type = AuthoringModuleType::SubUVFrameOverLife;
+    module.key = "SubUV Frame Over Life";
+    module.displayName = L"서브 이미지 인덱스";
+    module.summary = L"수명 진행률 기준 frame 선택";
+    module.enabled = true;
+    module.movable = true;
+    module.removable = true;
+    module.data = SubUVFrameOverLifeModuleData{};
+    return module;
+}
+
+AuthoringModule Emitter_View::Make_SizeByLifeModule()
+{
+    AuthoringModule module{};
+    module.id = Issue_AuthoringId();
+    module.type = AuthoringModuleType::SizeByLife;
+    module.key = "Size By Life";
+    module.displayName = L"수명에 따른 크기";
+    module.summary = L"수명 진행률 기준 크기 배율";
+    module.enabled = true;
+    module.movable = true;
+    module.removable = true;
+    module.data = SizeByLifeModuleData{};
+    return module;
+}
+
+bool Emitter_View::Has_ModuleType(const AuthoringEmitter& emitter, AuthoringModuleType type) const
+{
+    for (const AuthoringModule& module : emitter.modules)
+    {
+        if (module.type == type)
+            return true;
+    }
+
+    return false;
+}
+
+bool Emitter_View::Can_AddModuleType(const AuthoringEmitter& emitter, AuthoringModuleType type) const
+{
+    switch (type)
+    {
+    case AuthoringModuleType::Required:
+    case AuthoringModuleType::Spawn:
+        return false;
+
+    case AuthoringModuleType::Lifetime:
+    case AuthoringModuleType::InitialSize:
+    case AuthoringModuleType::InitialVelocity:
+    case AuthoringModuleType::InitialColor:
+    case AuthoringModuleType::ColorOverLife:
+    case AuthoringModuleType::SubUVFrameOverLife:
+    case AuthoringModuleType::SizeByLife:
+        return !Has_ModuleType(emitter, type);
+
+    default:
+        return false;
+    }
+}
+
+void Emitter_View::Add_Module(size_t emitterIndex, AuthoringModuleType type)
+{
+    if (emitterIndex >= _emitters.size())
+        return;
+
+    AuthoringEmitter& emitter = _emitters[emitterIndex];
+    if (!Can_AddModuleType(emitter, type))
+        return;
+
+    AuthoringModule module{};
+    switch (type)
+    {
+    case AuthoringModuleType::Lifetime:
+        module = Make_LifetimeModule();
+        break;
+    case AuthoringModuleType::InitialSize:
+        module = Make_InitialSizeModule();
+        break;
+    case AuthoringModuleType::InitialVelocity:
+        module = Make_InitialVelocityModule();
+        break;
+    case AuthoringModuleType::InitialColor:
+        module = Make_InitialColorModule();
+        break;
+    case AuthoringModuleType::ColorOverLife:
+        module = Make_ColorOverLifeModule();
+        break;
+    case AuthoringModuleType::SubUVFrameOverLife:
+        module = Make_SubUVFrameOverLifeModule();
+        break;
+    case AuthoringModuleType::SizeByLife:
+        module = Make_SizeByLifeModule();
+        break;
+    default:
+        return;
+    }
+
+    emitter.modules.push_back(std::move(module));
+    emitter.previewDirty = true;
+    _selectedEmitterIndex = emitterIndex;
+    _selectedTypeData = false;
+    _selectedModuleIndex = emitter.modules.size() - 1;
+    Sync_SelectionContext();
+    MarkDirty();
+}
+
 void Emitter_View::Clear_Selection()
 {
     _selectedEmitterIndex.reset();
+    _selectedTypeData = false;
     _selectedModuleIndex.reset();
 
     if (EDITOR != nullptr && EDITOR->Get_EditorContext() != nullptr)
@@ -273,14 +441,32 @@ void Emitter_View::Select_Emitter(size_t emitterIndex)
     }
 
     _selectedEmitterIndex = emitterIndex;
+    _selectedTypeData = false;
     _selectedModuleIndex.reset();
 
     if (EDITOR != nullptr && EDITOR->Get_EditorContext() != nullptr)
         EDITOR->Get_EditorContext()->Set_SelectEffectEmitter(_emitters[emitterIndex].id);
 }
 
+void Emitter_View::Select_TypeData(size_t emitterIndex)
+{
+    if (emitterIndex >= _emitters.size())
+    {
+        Clear_Selection();
+        return;
+    }
+
+    _selectedEmitterIndex = emitterIndex;
+    _selectedTypeData = true;
+    _selectedModuleIndex.reset();
+
+    if (EDITOR != nullptr && EDITOR->Get_EditorContext() != nullptr)
+        EDITOR->Get_EditorContext()->Set_SelectEffectTypeData(_emitters[emitterIndex].id);
+}
+
 void Emitter_View::Insert_NewEmitter(size_t insertIndex)
 {
+    Close_ModulePicker();
     const size_t clampedIndex = min(insertIndex, _emitters.size());
     _emitters.insert(_emitters.begin() + static_cast<ptrdiff_t>(clampedIndex), Make_DefaultSpriteEmitter());
     Select_Emitter(clampedIndex);
@@ -292,6 +478,7 @@ void Emitter_View::Duplicate_Emitter(size_t emitterIndex)
     if (emitterIndex >= _emitters.size())
         return;
 
+    Close_ModulePicker();
     const size_t insertIndex = emitterIndex + 1;
     _emitters.insert(
         _emitters.begin() + static_cast<ptrdiff_t>(insertIndex),
@@ -306,6 +493,7 @@ void Emitter_View::Delete_Emitter(size_t emitterIndex)
     if (emitterIndex >= _emitters.size())
         return;
 
+    Close_ModulePicker();
     _emitters.erase(_emitters.begin() + static_cast<ptrdiff_t>(emitterIndex));
     Clamp_Selection();
 
@@ -335,16 +523,40 @@ void Emitter_View::Process_PendingEmitterAction()
     switch (_pendingEmitterAction)
     {
     case PendingEmitterAction::Duplicate:
-        Duplicate_Emitter(emitterIndex);
+        Execute_AuthoringEdit(
+            "Duplicate Emitter",
+            [this, emitterIndex]
+            {
+                Duplicate_Emitter(emitterIndex);
+            }
+        );
         break;
     case PendingEmitterAction::Delete:
-        Delete_Emitter(emitterIndex);
+        Execute_AuthoringEdit(
+            "Delete Emitter",
+            [this, emitterIndex]
+            {
+                Delete_Emitter(emitterIndex);
+            }
+        );
         break;
     case PendingEmitterAction::InsertBefore:
-        Insert_NewEmitter(emitterIndex);
+        Execute_AuthoringEdit(
+            "Insert Emitter",
+            [this, emitterIndex]
+            {
+                Insert_NewEmitter(emitterIndex);
+            }
+        );
         break;
     case PendingEmitterAction::InsertAfter:
-        Insert_NewEmitter(emitterIndex + 1);
+        Execute_AuthoringEdit(
+            "Insert Emitter",
+            [this, emitterIndex]
+            {
+                Insert_NewEmitter(emitterIndex + 1);
+            }
+        );
         break;
     case PendingEmitterAction::None:
     default:
@@ -364,6 +576,7 @@ void Emitter_View::Select_Module(size_t emitterIndex, size_t moduleIndex)
     }
 
     _selectedEmitterIndex = emitterIndex;
+    _selectedTypeData = false;
     _selectedModuleIndex = moduleIndex;
 
     if (EDITOR != nullptr && EDITOR->Get_EditorContext() != nullptr)
@@ -415,29 +628,43 @@ void Emitter_View::Reset_ModuleData(size_t emitterIndex, size_t moduleIndex)
         RequiredModuleData data{};
         module.data = data;
         emitter.rendererType = data.rendererType;
-        emitter.textureId = data.textureId;
-        emitter.materialName = data.materialName;
-        emitter.resourceSummary = data.textureId;
+        emitter.textureId = data.material.mainTextureId;
+        emitter.resourceSummary = data.material.mainTextureId;
         break;
     }
+
     case AuthoringModuleType::Spawn:
         module.data = SpawnModuleData{};
         break;
+
     case AuthoringModuleType::Lifetime:
         module.data = LifetimeModuleData{};
         break;
+
     case AuthoringModuleType::InitialSize:
         module.data = InitialSizeModuleData{};
         break;
+
     case AuthoringModuleType::InitialVelocity:
         module.data = InitialVelocityModuleData{};
         break;
+
     case AuthoringModuleType::InitialColor:
         module.data = InitialColorModuleData{};
         break;
+
     case AuthoringModuleType::ColorOverLife:
         module.data = ColorOverLifeModuleData{};
         break;
+
+    case AuthoringModuleType::SubUVFrameOverLife:
+        module.data = SubUVFrameOverLifeModuleData{};
+        break;
+
+    case AuthoringModuleType::SizeByLife:
+        module.data = SizeByLifeModuleData{};
+        break;
+
     default:
         return;
     }
@@ -465,10 +692,22 @@ void Emitter_View::Process_PendingModuleAction()
     switch (_pendingModuleAction)
     {
     case PendingModuleAction::Delete:
-        Delete_Module(emitterIndex, moduleIndex);
+        Execute_AuthoringEdit(
+            "Delete Module",
+            [this, emitterIndex, moduleIndex]
+            {
+                Delete_Module(emitterIndex, moduleIndex);
+            }
+        );
         break;
     case PendingModuleAction::ResetData:
-        Reset_ModuleData(emitterIndex, moduleIndex);
+        Execute_AuthoringEdit(
+            "Reset Module Data",
+            [this, emitterIndex, moduleIndex]
+            {
+                Reset_ModuleData(emitterIndex, moduleIndex);
+            }
+        );
         break;
     case PendingModuleAction::None:
     default:
@@ -480,17 +719,254 @@ void Emitter_View::Process_PendingModuleAction()
     _pendingModuleIndex.reset();
 }
 
+vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(const AuthoringEmitter& emitter) const
+{
+    const auto makeEntry = [&](
+        optional<AuthoringModuleType> moduleType,
+        const wchar_t* displayName,
+        bool implemented,
+        bool compatible,
+        bool canAdd,
+        string disabledReason)
+    {
+        ModulePickerEntry entry{};
+        entry.moduleType = moduleType;
+        entry.displayName = displayName;
+        entry.disabledReason = std::move(disabledReason);
+        entry.implemented = implemented;
+        entry.compatible = compatible;
+        entry.canAdd = canAdd;
+
+        if (canAdd)
+            entry.stateText = "추가 가능";
+        else if (implemented && !compatible)
+            entry.stateText = "현재 emitter와 비호환";
+        else if (implemented)
+            entry.stateText = "이미 장착됨";
+        else if (!compatible)
+            entry.stateText = "현재 emitter와 비호환";
+        else
+            entry.stateText = "미구현";
+
+        return entry;
+    };
+
+    vector<ModulePickerEntry> entries{};
+    entries.push_back(
+        makeEntry(
+            AuthoringModuleType::Lifetime,
+            L"수명",
+            true,
+            true,
+            Can_AddModuleType(emitter, AuthoringModuleType::Lifetime),
+            "이미 장착됨"
+        )
+    );
+    entries.push_back(
+        makeEntry(
+            AuthoringModuleType::InitialSize,
+            L"초기 크기",
+            true,
+            true,
+            Can_AddModuleType(emitter, AuthoringModuleType::InitialSize),
+            "이미 장착됨"
+        )
+    );
+    entries.push_back(
+        makeEntry(
+            AuthoringModuleType::InitialVelocity,
+            L"초기 속도",
+            true,
+            true,
+            Can_AddModuleType(emitter, AuthoringModuleType::InitialVelocity),
+            "이미 장착됨"
+        )
+    );
+    entries.push_back(
+        makeEntry(
+            AuthoringModuleType::InitialColor,
+            L"초기 컬러",
+            true,
+            true,
+            Can_AddModuleType(emitter, AuthoringModuleType::InitialColor),
+            "이미 장착됨"
+        )
+    );
+    entries.push_back(
+        makeEntry(
+            AuthoringModuleType::ColorOverLife,
+            L"수명에 따른 색상",
+            true,
+            true,
+            Can_AddModuleType(emitter, AuthoringModuleType::ColorOverLife),
+            "이미 장착됨"
+        )
+    );
+    entries.push_back(
+        makeEntry(
+            AuthoringModuleType::SubUVFrameOverLife,
+            L"서브 이미지 인덱스",
+            true,
+            true,
+            Can_AddModuleType(emitter, AuthoringModuleType::SubUVFrameOverLife),
+            "이미 장착됨"
+        )
+    );
+    entries.push_back(
+        makeEntry(
+            AuthoringModuleType::SizeByLife,
+            L"수명에 따른 크기",
+            true,
+            true,
+            Can_AddModuleType(emitter, AuthoringModuleType::SizeByLife),
+            "이미 장착됨"
+        )
+    );
+
+    entries.push_back(makeEntry({}, L"가속도", false, true, false, "미구현"));
+    entries.push_back(makeEntry({}, L"회전 속도", false, true, false, "미구현"));
+
+    std::sort(
+        entries.begin(),
+        entries.end(),
+        [](const ModulePickerEntry& lhs, const ModulePickerEntry& rhs)
+        {
+            return String::ToString(lhs.displayName) < String::ToString(rhs.displayName);
+        }
+    );
+
+    return entries;
+}
+
+void Emitter_View::Open_ModulePicker(size_t emitterIndex)
+{
+    if (emitterIndex >= _emitters.size())
+        return;
+
+    _modulePickerEmitterIndex = emitterIndex;
+    _modulePickerPendingOpen = true;
+    _modulePickerSearchBuffer[0] = '\0';
+}
+
+void Emitter_View::Close_ModulePicker()
+{
+    _modulePickerEmitterIndex.reset();
+    _modulePickerPendingOpen = false;
+    _modulePickerSearchBuffer[0] = '\0';
+}
+
+void Emitter_View::Draw_ModulePickerPopup()
+{
+    constexpr const char* modalPopupId = "새 모듈##ModuleAddPopup";
+
+    if (_modulePickerPendingOpen)
+    {
+        ImGui::OpenPopup(modalPopupId);
+        _modulePickerPendingOpen = false;
+    }
+
+    const ImGuiViewport* viewport = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(viewport->GetCenter(), ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+    ImGui::SetNextWindowSize(ImVec2(kModulePickerModalWidth, kModulePickerModalHeight), ImGuiCond_Appearing);
+
+    const bool isPopupOpen = ImGui::IsPopupOpen(modalPopupId);
+    bool isModalOpen = true;
+    if (!ImGui::BeginPopupModal(modalPopupId, &isModalOpen))
+    {
+        if (!isPopupOpen)
+            Close_ModulePicker();
+        return;
+    }
+
+    if (!_modulePickerEmitterIndex.has_value() || _modulePickerEmitterIndex.value() >= _emitters.size())
+    {
+        ImGui::EndPopup();
+        Close_ModulePicker();
+        return;
+    }
+
+    const AuthoringEmitter& emitter = _emitters[_modulePickerEmitterIndex.value()];
+    const string searchLower = String::ToLowerCopy(string(_modulePickerSearchBuffer));
+    const vector<ModulePickerEntry> entries = Build_ModulePickerEntries(emitter);
+
+    ImGui::SetNextItemWidth(-1.f);
+    ImGui::InputTextWithHint("##ModulePickerSearch", "모듈 검색", _modulePickerSearchBuffer, IM_ARRAYSIZE(_modulePickerSearchBuffer));
+    ImGui::Spacing();
+
+    if (ImGui::BeginChild("##ModulePickerList", ImVec2(0.f, 0.f), true))
+    {
+        if (ImGui::BeginTable("##ModulePickerTable", 2, ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_RowBg))
+        {
+            ImGui::TableSetupColumn("Module", ImGuiTableColumnFlags_WidthStretch, kModulePickerNameColumnStretch);
+            ImGui::TableSetupColumn("State", ImGuiTableColumnFlags_WidthStretch, kModulePickerStateColumnStretch);
+
+            for (const ModulePickerEntry& entry : entries)
+            {
+                const string displayName = String::ToString(entry.displayName);
+                if (!searchLower.empty() &&
+                    String::ToLowerCopy(displayName).find(searchLower) == string::npos)
+                    continue;
+
+                ImGui::TableNextRow();
+                ImGui::TableSetColumnIndex(0);
+
+                if (!entry.canAdd)
+                    ImGui::BeginDisabled();
+
+                const bool picked = ImGui::Selectable(displayName.c_str(), false, ImGuiSelectableFlags_SpanAllColumns);
+
+                if (!entry.canAdd)
+                    ImGui::EndDisabled();
+
+                ImGui::TableSetColumnIndex(1);
+                ImGui::TextDisabled("%s", entry.canAdd ? entry.stateText.c_str() : entry.disabledReason.c_str());
+
+                if (!picked || !entry.canAdd || !entry.moduleType.has_value())
+                    continue;
+
+                const size_t emitterIndex = _modulePickerEmitterIndex.value();
+                const AuthoringModuleType moduleType = entry.moduleType.value();
+                Execute_AuthoringEdit(
+                    "Add Module",
+                    [this, emitterIndex, moduleType]
+                    {
+                        Add_Module(emitterIndex, moduleType);
+                    }
+                );
+
+                ImGui::CloseCurrentPopup();
+                Close_ModulePicker();
+                break;
+            }
+
+            ImGui::EndTable();
+        }
+
+        ImGui::EndChild();
+    }
+
+    ImGui::EndPopup();
+
+    if (!isModalOpen)
+    {
+        ImGui::CloseCurrentPopup();
+        Close_ModulePicker();
+    }
+}
+
 void Emitter_View::Clamp_Selection()
 {
     if (_emitters.empty())
     {
         _selectedEmitterIndex.reset();
+        _selectedTypeData = false;
         _selectedModuleIndex.reset();
         return;
     }
 
     if (!_selectedEmitterIndex.has_value())
     {
+        _selectedTypeData = false;
         _selectedModuleIndex.reset();
         return;
     }
@@ -500,6 +976,81 @@ void Emitter_View::Clamp_Selection()
     const auto& modules = _emitters[_selectedEmitterIndex.value()].modules;
     if (_selectedModuleIndex.has_value() && _selectedModuleIndex.value() >= modules.size())
         _selectedModuleIndex.reset();
+
+    if (_selectedTypeData)
+        _selectedModuleIndex.reset();
+}
+
+void Emitter_View::Sync_EmitterMirror(AuthoringEmitter& emitter)
+{
+    for (const AuthoringModule& module : emitter.modules)
+    {
+        if (module.type != AuthoringModuleType::Required)
+            continue;
+
+        const RequiredModuleData* requiredData = get_if<RequiredModuleData>(&module.data);
+        if (requiredData == nullptr)
+            return;
+
+        emitter.rendererType = requiredData->rendererType;
+        emitter.textureId = requiredData->material.mainTextureId;
+        emitter.resourceSummary = requiredData->material.mainTextureId;
+        return;
+    }
+}
+
+void Emitter_View::Sync_AllEmitterMirrors()
+{
+    for (AuthoringEmitter& emitter : _emitters)
+        Sync_EmitterMirror(emitter);
+}
+
+void Emitter_View::Mark_AllPreviewDirty()
+{
+    for (AuthoringEmitter& emitter : _emitters)
+        emitter.previewDirty = true;
+}
+
+void Emitter_View::Sync_SelectionContext()
+{
+    if (EDITOR == nullptr || EDITOR->Get_EditorContext() == nullptr)
+        return;
+
+    if (!_selectedEmitterIndex.has_value() || _selectedEmitterIndex.value() >= _emitters.size())
+    {
+        EDITOR->Get_EditorContext()->Clear_EffectSelection();
+        return;
+    }
+
+    const AuthoringEmitter& emitter = _emitters[_selectedEmitterIndex.value()];
+
+    if (_selectedTypeData)
+    {
+        EDITOR->Get_EditorContext()->Set_SelectEffectTypeData(emitter.id);
+        return;
+    }
+
+    if (_selectedModuleIndex.has_value() && _selectedModuleIndex.value() < emitter.modules.size())
+    {
+        EDITOR->Get_EditorContext()->Set_SelectEffectModule(
+            emitter.id,
+            emitter.modules[_selectedModuleIndex.value()].id
+        );
+        return;
+    }
+
+    EDITOR->Get_EditorContext()->Set_SelectEffectEmitter(emitter.id);
+}
+
+void Emitter_View::Execute_AuthoringEdit(const string& description, const function<void()>& edit)
+{
+    if (!edit)
+        return;
+
+    const AuthoringSnapshot beforeSnapshot = Capture_AuthoringSnapshot();
+    edit();
+    const AuthoringSnapshot afterSnapshot = Capture_AuthoringSnapshot();
+    Execute_AuthoringSnapshotCommand(beforeSnapshot, afterSnapshot, description);
 }
 
 string Emitter_View::Build_ModuleWarningTooltip(const AuthoringEmitter& emitter, const AuthoringModule& module) const
@@ -510,7 +1061,7 @@ string Emitter_View::Build_ModuleWarningTooltip(const AuthoringEmitter& emitter,
     if (!module.enabled && module.type != AuthoringModuleType::Required)
         return "비활성화된 모듈입니다.";
 
-    // TypeData/module compatibility 경고는 후속 단계에서 이 경로에 추가한다.
+    // 모듈 간 compatibility 경고는 후속 단계에서 이 경로에 추가한다.
     return {};
 }
 
@@ -540,15 +1091,24 @@ void Emitter_View::Draw_EmitterContextMenu(size_t emitterIndex)
 
     if (ImGui::BeginMenu("타입 데이터"))
     {
-        ImGui::BeginDisabled();
-        ImGui::MenuItem("새 애님 트레일 데이터");
-        ImGui::MenuItem("새 빔 데이터");
-        ImGui::MenuItem("새 GPU 스프라이트");
-        ImGui::MenuItem("새 메시 데이터");
-        ImGui::MenuItem("새 리본 데이터");
-        ImGui::EndDisabled();
+        Draw_TypeDataContextMenu();
         ImGui::EndMenu();
     }
+
+    if (ImGui::BeginMenu("모듈"))
+    {
+        if (ImGui::MenuItem("새 모듈"))
+            Open_ModulePicker(emitterIndex);
+
+        ImGui::EndMenu();
+    }
+}
+
+void Emitter_View::Draw_TypeDataContextMenu()
+{
+    ImGui::BeginDisabled();
+    ImGui::MenuItem("추가 가능한 타입 데이터 없음");
+    ImGui::EndDisabled();
 }
 
 void Emitter_View::Draw_ModuleContextMenu(size_t emitterIndex, size_t moduleIndex, const AuthoringModule& module)
@@ -610,7 +1170,15 @@ void Emitter_View::Draw_EmitterBoard()
         if (ImGui::BeginPopup("##EmitterBoardBlankPopup"))
         {
             if (ImGui::Selectable("새 이미터"))
-                Insert_NewEmitter(_emitters.size());
+            {
+                Execute_AuthoringEdit(
+                    "Insert Emitter",
+                    [this]
+                    {
+                        Insert_NewEmitter(_emitters.size());
+                    }
+                );
+            }
 
             ImGui::EndPopup();
         }
@@ -626,10 +1194,12 @@ void Emitter_View::Draw_EmitterColumn(size_t emitterIndex, AuthoringEmitter& emi
     constexpr float headerPaddingX = 10.f;
     constexpr float headerPaddingY = 12.f;
 
-    const bool isSelected = _selectedEmitterIndex.has_value() && _selectedEmitterIndex.value() == emitterIndex;
+    const bool isSelected =
+        _selectedEmitterIndex.has_value() &&
+        _selectedEmitterIndex.value() == emitterIndex;
     const ImVec4 accentColor = To_ImVec4(kEmitterAccentColor);
-    const ImVec4 headerColor = isSelected ? accentColor : To_ImVec4(Color{ 0.36f, 0.36f, 0.36f, 1.0f });
-    const ImVec4 textColor = isSelected ? To_ImVec4(Color{ 0.05f, 0.05f, 0.05f, 1.0f }) : ImGui::GetStyleColorVec4(ImGuiCol_Text);
+    const ImVec4 headerColor = isSelected ? accentColor : To_ImVec4(kEmitterHeaderColor);
+    const ImVec4 textColor = isSelected ? To_ImVec4(kEmitterSelectedTextColor) : ImGui::GetStyleColorVec4(ImGuiCol_Text);
 
     ImGui::BeginGroup();
     const ImVec2 columnMin = ImGui::GetCursorScreenPos();
@@ -665,7 +1235,7 @@ void Emitter_View::Draw_EmitterColumn(size_t emitterIndex, AuthoringEmitter& emi
     }
     ImGui::PopStyleColor(3);
 
-    const ImVec2 afterHeaderCursor = ImGui::GetCursorPos();
+    const ImVec2 moduleStackCursor = ImVec2(headerCursor.x, headerCursor.y + kEmitterHeaderHeight);
     ImGui::SetCursorPos(ImVec2(headerCursor.x + headerPaddingX, headerCursor.y + headerPaddingY));
     ImGui::PushStyleColor(ImGuiCol_Text, textColor);
     ImGui::PushTextWrapPos(headerCursor.x + kEmitterColumnWidth - headerPaddingX);
@@ -680,25 +1250,20 @@ void Emitter_View::Draw_EmitterColumn(size_t emitterIndex, AuthoringEmitter& emi
         )
     );
     ImGui::PushID("EmitterEnabled");
+    const AuthoringSnapshot beforeEmitterEnabledSnapshot = Capture_AuthoringSnapshot();
     if (ImGui::Checkbox("##Enabled", &emitter.enabled))
     {
         emitter.previewDirty = true;
         MarkDirty();
+        const AuthoringSnapshot afterSnapshot = Capture_AuthoringSnapshot();
+        Execute_AuthoringSnapshotCommand(beforeEmitterEnabledSnapshot, afterSnapshot, "Toggle Emitter Enabled");
     }
     ImGui::PopID();
 
-    ImGui::SetCursorPos(afterHeaderCursor);
-
-    ImGui::InvisibleButton("##EmitterTypeDataSlot", ImVec2(kEmitterColumnWidth, kEmitterTypeDataReserveHeight));
-    if (ImGui::IsItemClicked(ImGuiMouseButton_Right))
-        Select_Emitter(emitterIndex);
-    if (ImGui::BeginPopupContextItem("##EmitterTypeDataPopup"))
-    {
-        Draw_EmitterContextMenu(emitterIndex);
-        ImGui::EndPopup();
-    }
+    ImGui::SetCursorPos(moduleStackCursor);
 
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(ImGui::GetStyle().ItemSpacing.x, 0.f));
+    Draw_TypeDataRow(emitterIndex);
     for (size_t moduleIndex = 0; moduleIndex < emitter.modules.size(); ++moduleIndex)
     {
         ImGui::PushID(static_cast<int>(moduleIndex));
@@ -711,6 +1276,8 @@ void Emitter_View::Draw_EmitterColumn(size_t emitterIndex, AuthoringEmitter& emi
     if (reservedTailHeight > 0.f)
     {
         ImGui::InvisibleButton("##EmitterReservedTail", ImVec2(kEmitterColumnWidth, reservedTailHeight));
+        if (ImGui::IsItemClicked(ImGuiMouseButton_Left))
+            Select_Emitter(emitterIndex);
         if (ImGui::IsItemClicked(ImGuiMouseButton_Right))
             Select_Emitter(emitterIndex);
         if (ImGui::BeginPopupContextItem("##EmitterReservedTailPopup"))
@@ -721,6 +1288,48 @@ void Emitter_View::Draw_EmitterColumn(size_t emitterIndex, AuthoringEmitter& emi
     }
 
     ImGui::EndGroup();
+}
+
+void Emitter_View::Draw_TypeDataRow(size_t emitterIndex)
+{
+    constexpr float rowPaddingX = 10.f;
+
+    const bool isSelected =
+        _selectedEmitterIndex.has_value() &&
+        _selectedEmitterIndex.value() == emitterIndex &&
+        _selectedTypeData;
+    const ImVec4 accentColor = To_ImVec4(kEmitterAccentColor);
+    const ImVec4 rowColor = isSelected ? accentColor : To_ImVec4(kEmitterTypeDataRowColor);
+    const ImVec4 textColor = isSelected
+                             ? To_ImVec4(kEmitterSelectedTextColor)
+                             : ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled);
+
+    const ImVec2 rowCursor = ImGui::GetCursorPos();
+    ImGui::PushStyleColor(ImGuiCol_Button, rowColor);
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, rowColor);
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, rowColor);
+    ImGui::PushStyleColor(ImGuiCol_Text, textColor);
+    ImGui::SetNextItemAllowOverlap();
+    ImGui::Button("##TypeDataRow", ImVec2(kEmitterColumnWidth, kEmitterTypeDataRowHeight));
+    if (ImGui::IsItemClicked(ImGuiMouseButton_Left) || ImGui::IsItemClicked(ImGuiMouseButton_Right))
+        Select_TypeData(emitterIndex);
+    ImGui::PopStyleColor(4);
+
+    if (ImGui::BeginPopupContextItem("##TypeDataRowPopup"))
+    {
+        Draw_TypeDataContextMenu();
+        ImGui::EndPopup();
+    }
+
+    const ImVec2 afterRowCursor = ImGui::GetCursorPos();
+    const float textOffsetY = (kEmitterTypeDataRowHeight - ImGui::GetTextLineHeight()) * 0.5f;
+    ImGui::SetCursorPos(ImVec2(rowCursor.x + rowPaddingX, rowCursor.y + textOffsetY));
+    ImGui::PushStyleColor(ImGuiCol_Text, textColor);
+    ImGui::TextUnformatted("타입 데이터");
+    ImGui::SameLine();
+    ImGui::TextDisabled("(미장착)");
+    ImGui::PopStyleColor();
+    ImGui::SetCursorPos(afterRowCursor);
 }
 
 void Emitter_View::Draw_ModuleRow(size_t emitterIndex, size_t moduleIndex, AuthoringModule& module)
@@ -739,18 +1348,18 @@ void Emitter_View::Draw_ModuleRow(size_t emitterIndex, size_t moduleIndex, Autho
     const ImVec4 accentColor = To_ImVec4(kEmitterAccentColor);
     const ImVec4 categoryColor = To_ImVec4(
         isRequiredRow
-        ? Color{ 0.78f, 0.75f, 0.34f, 1.0f }
+        ? kEmitterRequiredRowColor
         : isSpawnRow
-          ? Color{ 0.78f, 0.36f, 0.38f, 1.0f }
-          : Color{ 0.18f, 0.19f, 0.24f, 1.0f }
+          ? kEmitterSpawnRowColor
+          : kEmitterCommonModuleRowColor
     );
-    const ImVec4 disabledColor = To_ImVec4(Color{ 0.16f, 0.16f, 0.17f, 1.0f });
+    const ImVec4 disabledColor = To_ImVec4(kEmitterModuleDisabledRowColor);
     const bool usesCategoryColor = isRequiredRow || isSpawnRow;
     const ImVec4 rowColor = isSelected ? accentColor : categoryColor;
     const ImVec4 textColor = isSelected
-                             ? To_ImVec4(Color{ 0.05f, 0.05f, 0.05f, 1.0f })
+                             ? To_ImVec4(kEmitterSelectedTextColor)
                              : usesCategoryColor
-                               ? To_ImVec4(Color{ 0.08f, 0.08f, 0.08f, 1.0f })
+                               ? To_ImVec4(kEmitterCategoryTextColor)
                                : ImGui::GetStyleColorVec4(ImGuiCol_Text);
 
     const ImVec2 rowCursor = ImGui::GetCursorPos();
@@ -791,10 +1400,13 @@ void Emitter_View::Draw_ModuleRow(size_t emitterIndex, size_t moduleIndex, Autho
             )
         );
         ImGui::PushID("ModuleEnabled");
+        const AuthoringSnapshot beforeModuleEnabledSnapshot = Capture_AuthoringSnapshot();
         if (ImGui::Checkbox("##Enabled", &module.enabled))
         {
             _emitters[emitterIndex].previewDirty = true;
             MarkDirty();
+            const AuthoringSnapshot afterSnapshot = Capture_AuthoringSnapshot();
+            Execute_AuthoringSnapshotCommand(beforeModuleEnabledSnapshot, afterSnapshot, "Toggle Module Enabled");
         }
         ImGui::PopID();
     }

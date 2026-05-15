@@ -28,10 +28,9 @@ EffectEditorCamera::EffectEditorCamera(const ComPtr<Device>& device, const ComPt
 
 EffectEditorCamera::EffectEditorCamera(const EffectEditorCamera& prototype)
     : Camera{ prototype }
-    , _pivot{ prototype._pivot }
     , _targetPivot{ prototype._targetPivot }
     , _focusSpeed{ prototype._focusSpeed }
-    , _distance{ prototype._distance }
+    , _orbitState{ prototype._orbitState }
     , _homePivot{ prototype._homePivot }
     , _homeDistance{ prototype._homeDistance }
     , _homeYaw{ prototype._homeYaw }
@@ -57,15 +56,15 @@ HRESULT EffectEditorCamera::Initialize(void* arg)
     const auto desc = static_cast<EffectEditorCameraDesc*>(arg);
 
     _mouseSensor = desc->mouseSensor;
-    _pivot = desc->pivot;
-    _targetPivot = _pivot;
+    _orbitState.pivot = desc->pivot;
+    _orbitState.distance = desc->distance;
+    _targetPivot = _orbitState.pivot;
     _focusSpeed = max(0.1f, desc->focusSpeed);
-    _distance = desc->distance;
 
     CHECK_FAILED(__super::Initialize(arg), E_FAIL);
 
     const Vec3 eye = Vec3(desc->eye.x, desc->eye.y, desc->eye.z);
-    _homePivot = _pivot;
+    _homePivot = _orbitState.pivot;
     _homeDistance = max((eye - _homePivot).Length(), 0.1f);
 
     _transformCom->Set_WorldPosition(eye);
@@ -75,11 +74,12 @@ HRESULT EffectEditorCamera::Initialize(void* arg)
     _homePitch = rotationEuler.x;
     _homeYaw = rotationEuler.y;
 
-    if (_distance <= 0.01f)
+    if (_orbitState.distance <= 0.01f)
+        Helper_EffectCamera::Reset(_orbitState, _homePivot, _homeDistance, _homeYaw, _homePitch);
+    else
     {
-        _distance = _homeDistance;
-        _pitch = _homePitch;
-        _yaw = _homeYaw;
+        _orbitState.yawDegrees = _homeYaw;
+        _orbitState.pitchDegrees = _homePitch;
     }
 
     Update_CameraTransform();
@@ -108,30 +108,27 @@ void EffectEditorCamera::Priority_Update(float timeDelta)
 
     if (_hasPendingFocus)
     {
-        _pivot = Math::Lerp_Damp(_pivot, _targetPivot, _focusSpeed, cameraDelta);
-        if ((_targetPivot - _pivot).LengthSquared() <= 0.001f)
+        _orbitState.pivot = Math::Lerp_Damp(_orbitState.pivot, _targetPivot, _focusSpeed, cameraDelta);
+        if ((_targetPivot - _orbitState.pivot).LengthSquared() <= 0.001f)
         {
-            _pivot = _targetPivot;
+            _orbitState.pivot = _targetPivot;
             _hasPendingFocus = false;
         }
     }
 
     if (_hasPendingHome)
     {
-        _pivot = Math::Lerp_Damp(_pivot, _homePivot, _focusSpeed, cameraDelta);
-        _distance = Math::Lerp_Damp(_distance, _homeDistance, _focusSpeed, cameraDelta);
-        _yaw = Math::Lerp_Damp(_yaw, _homeYaw, _focusSpeed, cameraDelta);
-        _pitch = Math::Lerp_Damp(_pitch, _homePitch, _focusSpeed, cameraDelta);
+        _orbitState.pivot = Math::Lerp_Damp(_orbitState.pivot, _homePivot, _focusSpeed, cameraDelta);
+        _orbitState.distance = Math::Lerp_Damp(_orbitState.distance, _homeDistance, _focusSpeed, cameraDelta);
+        _orbitState.yawDegrees = Math::Lerp_Damp(_orbitState.yawDegrees, _homeYaw, _focusSpeed, cameraDelta);
+        _orbitState.pitchDegrees = Math::Lerp_Damp(_orbitState.pitchDegrees, _homePitch, _focusSpeed, cameraDelta);
 
-        if ((_homePivot - _pivot).LengthSquared() <= 0.001f &&
-            fabsf(_homeDistance - _distance) <= 0.01f &&
-            fabsf(_homeYaw - _yaw) <= 0.01f &&
-            fabsf(_homePitch - _pitch) <= 0.01f)
+        if ((_homePivot - _orbitState.pivot).LengthSquared() <= 0.001f &&
+            fabsf(_homeDistance - _orbitState.distance) <= 0.01f &&
+            fabsf(_homeYaw - _orbitState.yawDegrees) <= 0.01f &&
+            fabsf(_homePitch - _orbitState.pitchDegrees) <= 0.01f)
         {
-            _pivot = _homePivot;
-            _distance = _homeDistance;
-            _yaw = _homeYaw;
-            _pitch = _homePitch;
+            Helper_EffectCamera::Reset(_orbitState, _homePivot, _homeDistance, _homeYaw, _homePitch);
             _hasPendingHome = false;
         }
     }
@@ -166,8 +163,8 @@ void EffectEditorCamera::Priority_Update(float timeDelta)
         _hasPendingHome = false;
 
         const float wheelStep = wheelDelta / static_cast<float>(WHEEL_DELTA);
-        const float wheelDollyScale = max(0.1f, _distance * 0.1f);
-        _distance = clamp(_distance - wheelStep * wheelDollyScale, 0.5f, _far);
+        const float wheelDollyScale = max(0.1f, _orbitState.distance * 0.13f);
+        Helper_EffectCamera::Dolly(_orbitState, wheelStep, wheelDollyScale, 0.5f, _far);
 
         Update_CameraTransform();
         Update_TransformMatrices();
@@ -178,30 +175,28 @@ void EffectEditorCamera::Priority_Update(float timeDelta)
     {
         _hasPendingFocus = false;
         _hasPendingHome = false;
-        _targetPivot = _pivot;
+        _targetPivot = _orbitState.pivot;
 
         const Vec2 mouseDelta = GAME->Get_MouseDelta();
 
         if (panDragging)
         {
-            const float panScale = max(0.01f, _distance * 0.0025f);
-            const Vec3 panOffset =
-            (-_transformCom->Get_WorldRight() * mouseDelta.x +
-             _transformCom->Get_WorldUp() * mouseDelta.y) * panScale;
-
-            _pivot += panOffset;
-            _targetPivot = _pivot;
+            const float panScale = max(0.01f, _orbitState.distance * 0.0025f);
+            Helper_EffectCamera::Pan(
+                _orbitState,
+                mouseDelta,
+                _transformCom->Get_WorldRight(),
+                _transformCom->Get_WorldUp(),
+                panScale
+            );
+            _targetPivot = _orbitState.pivot;
         }
         else if (orbitDragging)
-        {
-            _yaw += mouseDelta.x * _mouseSensor;
-            _pitch += mouseDelta.y * _mouseSensor;
-            _pitch = clamp(_pitch, -89.f, 89.f);
-        }
+            Helper_EffectCamera::Orbit(_orbitState, mouseDelta, _mouseSensor);
         else if (dollyDragging)
         {
-            const float dollyScale = max(0.02f, _distance * 0.0035f);
-            _distance = clamp(_distance - mouseDelta.x * dollyScale, 0.5f, _far);
+            const float dollyScale = max(0.02f, _orbitState.distance * 0.0046f);
+            Helper_EffectCamera::Dolly(_orbitState, mouseDelta.x, dollyScale, 0.5f, _far);
         }
 
         Update_CameraTransform();
@@ -251,7 +246,11 @@ void EffectEditorCamera::Priority_Update(float timeDelta)
         _pitch += mouseDelta.y * _mouseSensor;
 
         if (0.f != mouseDelta.x || 0.f != mouseDelta.y)
+        {
             _transformCom->Set_RotationEuler(Vec3(_pitch, _yaw, 0.f));
+            _orbitState.yawDegrees = _yaw;
+            _orbitState.pitchDegrees = _pitch;
+        }
 
         Sync_PivotFromCurrentView();
         Update_TransformMatrices();
@@ -284,14 +283,14 @@ void EffectEditorCamera::Request_Focus(const Vec3& pivot)
 
 void EffectEditorCamera::Sync_PivotFromCurrentView()
 {
-    _distance = max(_distance, 0.1f);
+    _orbitState.distance = max(_orbitState.distance, 0.1f);
 
     const Vec3 worldForward = _transformCom->Get_WorldForward();
     if (worldForward.LengthSquared() <= 0.0001f)
         return;
 
-    _pivot = _transformCom->Get_WorldPosition() + worldForward * _distance;
-    _targetPivot = _pivot;
+    _orbitState.pivot = _transformCom->Get_WorldPosition() + worldForward * _orbitState.distance;
+    _targetPivot = _orbitState.pivot;
 }
 
 void EffectEditorCamera::Start_HomeTransition()
@@ -303,29 +302,20 @@ void EffectEditorCamera::Start_HomeTransition()
 
 void EffectEditorCamera::Update_CameraTransform()
 {
-    _distance = max(_distance, 0.1f);
+    _orbitState.distance = max(_orbitState.distance, 0.1f);
 
-    const float yawRad = XMConvertToRadians(_yaw);
-    const float pitchRad = XMConvertToRadians(_pitch);
+    const EffectPreviewOrbitCameraFrame frame = Helper_EffectCamera::Build_Frame(
+        _orbitState,
+        max(_aspect, 0.0001f),
+        _fovY,
+        _near,
+        _far
+    );
 
-    Vec3 backDir;
-    backDir.x = -sinf(yawRad);
-    backDir.y = 0.f;
-    backDir.z = -cosf(yawRad);
-    backDir.Normalize();
-
-    Vec3 rightDir;
-    rightDir.x = cosf(yawRad);
-    rightDir.y = 0.f;
-    rightDir.z = -sinf(yawRad);
-    rightDir.Normalize();
-
-    const Vec3 baseOffset = backDir * _distance;
-    const Matrix pitchRotation = XMMatrixRotationAxis(rightDir, pitchRad);
-    const Vec3 orbitOffset = XMVector3TransformNormal(baseOffset, pitchRotation);
-
-    _transformCom->Set_WorldPosition(_pivot + orbitOffset);
-    _transformCom->LookAt(_pivot);
+    _yaw = _orbitState.yawDegrees;
+    _pitch = _orbitState.pitchDegrees;
+    _transformCom->Set_WorldPosition(frame.eye);
+    _transformCom->LookAt(_orbitState.pivot);
 }
 
 Shared<EffectEditorCamera> EffectEditorCamera::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
