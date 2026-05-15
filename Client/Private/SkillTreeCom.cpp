@@ -16,6 +16,7 @@ HRESULT SkillTreeCom::Initialize(void* arg)
 {
     CHECK_FAILED(__super::Initialize(arg), E_FAIL)
 
+    //임시로 미리 가진 스킬 넣어놓기
     _unlockedSkillId.push_back("Immolation");
     _unlockedSkillId.push_back("Rebirth");
 
@@ -54,14 +55,15 @@ void SkillTreeCom::TryUnlock(const string& skillId)
 
     //TODO 플레이어 skillpoint 깎는거
 
-    if (playerStatCom->Get_PlayerDesc().skillPoint - skillTreeDesc->unlockCost)
-        return;
+    playerStatCom->Get_PlayerDesc().skillPoint - skillTreeDesc->unlockCost;
 
     _unlockedSkillId.push_back(skillId);
 }
 
 bool SkillTreeCom::CanUnlock(const string& skillId)
 {
+    //선행스킬도 만족하고 & 스킬 포인트도 있을 때
+
     auto skillTreeDesc = CLIENT->Get_SkillTreeDesc(skillId);
 
     if (!skillTreeDesc)
@@ -76,7 +78,7 @@ bool SkillTreeCom::CanUnlock(const string& skillId)
     if (!playerStatCom)
         return false;
 
-    return playerStatCom->Get_PlayerDesc().skillPoint >= skillTreeDesc->unlockCost;
+    return HasEnoughSkillPoint(skillId) && HasRequiredSkill(skillId) == 1;
 }
 
 bool SkillTreeCom::HasEnoughSkillPoint(const string& skillId)
@@ -116,11 +118,11 @@ bool SkillTreeCom::HasRequiredSkill(const string& skillId)
     {
         auto unlockedSkillIter = find(_unlockedSkillId.begin(), _unlockedSkillId.end(), requirement);
 
-        if(unlockedSkillIter == _unlockedSkillId.end())
+        if(unlockedSkillIter != _unlockedSkillId.end())
             return true;
     }
 
-    return true;
+    return false;
 }
 
 Shared<SkillTreeCom> SkillTreeCom::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

@@ -58,6 +58,15 @@ PS_OUT PS_NORMAL(PS_IN In)
 
     float4 finalColor = Out.vColor;
 
+    if(g_UseGrayScale)
+    {
+        float gray = dot(Out.vColor.rgb, float3(0.299f, 0.587f, 0.114f));
+        float3 grayColor = float3(gray, gray, gray);
+
+    //    finalColor.rgb = lerp(Out.vColor.rgb, grayColor, g_GrayAmount);
+        finalColor.rgb = grayColor * 0.5f;
+    }
+
     if(g_IsOverlay)
     {
         float3 invertedRgb = 1.f - Out.vColor.rgb;
@@ -65,14 +74,6 @@ PS_OUT PS_NORMAL(PS_IN In)
         finalColor.rgb = lerp(Out.vColor.rgb, invertedRgb, Out.vColor.a);
     }
 
-    if(g_UseGrayScale)
-    {
-        float gray = dot(Out.vColor.rgb, float3(0.299f, 0.587f, 0.114f));
-        float3 grayColor = float3(gray, gray, gray);
-
-    //    finalColor.rgb = lerp(Out.vColor.rgb, grayColor, g_GrayAmount);
-        finalColor.rgb = grayColor * 0.6f;
-    }
 
     Out.vColor = finalColor;
 

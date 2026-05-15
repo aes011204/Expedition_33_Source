@@ -27,7 +27,9 @@ public:
 
     struct SkillTreeViewState
     {
+        HeroId                         heroId;
         Shared<UI_Base>                root;
+        Shared<UI_Base>                characterSelectUI;
         Shared<SkillTreeCom>           skillTreeCom;
         vector<SkillNodeUI>            skillNodes;
         umap<wstring, Shared<UI_Base>> uiByName;
@@ -51,7 +53,8 @@ public:
     bool   Is_Open() const { return _isOpen;}
 
 private:
-    HRESULT     Load_UI(HeroId heroId, uint32 levelIndex,  const wstring& playerName, const wstring& skillTreeJsonPath, const wstring& toolTipJsonPath, const wstring& rootName, const wstring& prototypeTagPrefix,SkillTreeViewState& outView);
+    HRESULT     Load_Background_UI(uint32 levelIndex);
+    HRESULT     Load_UI(HeroId heroId, uint32 levelIndex,  const wstring& playerName, const wstring& skillTreeJsonPath, const wstring& toolTipJsonPath, const wstring& rootName, const wstring& prototypeTagPrefix, const wstring& characterSelectUI, SkillTreeViewState& outView);
     HRESULT     Load_UI_ToolTips(const wstring& prototypeTagPrefix, const wstring& toolTipJsonPath, uint32 levelIndex, SkillTreeViewState& outView);
     HRESULT     Bind_SkillNode_UI(const wstring& playerName, SkillTreeViewState& outView);
     Shared<UI_Base> Find_UI(const umap<wstring, Shared<UI_Base>>& uiByName, const wstring& name) const;
@@ -86,6 +89,19 @@ private:
     void    Restore_PreviousCamera();
 
 private:
+    struct StatusPreviewHero
+    {
+        Shared<Player> player{};
+
+        // 
+    };
+
+    vector<StatusPreviewHero>                _previewHeroes{};
+    wstring                                  _previewLayerTag = L"Layer_CharacterStatusPreview";
+    Shared<UI_Base>                          _skillpointUI;
+    int                                      _unlockProgress;
+    Shared<UI_Base>                          _backgroundUI;
+    umap<wstring, Shared<UI_Base>>           _backgroundUIs;
     Shared<SkillTreeCom>                     _skillTreeCom;
     uint32                                   _levelIndex = 0;
     bool                                     _isOpen = false;
