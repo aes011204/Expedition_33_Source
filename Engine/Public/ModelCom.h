@@ -68,14 +68,18 @@ public:
 public:
     float Get_FrameSpeed() const { return _frameSpeed; }
     void Set_FrameSpeed(float speed) { _frameSpeed = speed; }
-    bool Is_AnimationFinished() const { return _isFinished; }
-    void Set_Animation(uint32 animIndex, bool isLoop = false);
-    void Set_Animation(uint32 animIndex, float blendDuration, bool isLoop = false);
-    void Set_Animation(const string& animName, bool isLoop = false);
-    void Set_Animation(const string& animName, float blendDuration, bool isLoop = false);
 
-    void Set_AnimationByState(uint32 stateIndex, bool isLoop = false);
-    void Set_AnimationByState(uint32 stateIndex, float blendDuration, bool isLoop = false);
+    float Get_CurrentProgress() const;
+    float Get_CurrentFrame() const;
+
+    bool Is_AnimationFinished() const { return _isFinished; }
+    void Set_Animation(uint32 animIndex, bool isLoop = false, float startFrame = 0.f);
+    void Set_Animation(uint32 animIndex, float blendDuration, bool isLoop = false, float startFrame = 0.f);
+    void Set_Animation(const string& animName, bool isLoop = false, float startFrame = 0.f);
+    void Set_Animation(const string& animName, float blendDuration, bool isLoop = false, float startFrame = 0.f);
+
+    void Set_AnimationByState(uint32 stateIndex, bool isLoop = false, float startFrame = 0.f);
+    void Set_AnimationByState(uint32 stateIndex, float blendDuration, bool isLoop = false, float startFrame = 0.f);
     const char* Get_AnimationName(uint32 animationIndex) const;
 
 public:

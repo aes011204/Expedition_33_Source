@@ -152,6 +152,7 @@ namespace ModelEditor
 		ImGui::Separator();
 
 		ImGui::Checkbox("Generate Debug JSON Logs", &_exportJsonLog);
+		ImGui::Checkbox("Apply Global Scale (Static Only)", &_applyGlobalScale);
 		ImGui::Separator();
 
 		if (ImGui::Button("Scan FBX Files", ImVec2(150, 30)))
@@ -323,8 +324,10 @@ namespace ModelEditor
         _isSkeletal = hasMeshBones || probeScene->mNumAnimations > 0;
         
         uint32 finalFlags = _importFlags;
-        if (false == _isSkeletal)
+        if (false == _applyGlobalScale && false == _isSkeletal)
+        {
             finalFlags |= aiProcess_PreTransformVertices | aiProcess_GlobalScale;
+        }
             
         _importer.FreeScene(); // 필수: 이전 probeScene 캐시를 날려야 새 플래그가 적용됨
         _aiScene = _importer.ReadFile(utf8FilePath, finalFlags);
