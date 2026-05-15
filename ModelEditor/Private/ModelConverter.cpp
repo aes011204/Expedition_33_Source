@@ -77,6 +77,10 @@ namespace ModelEditor
 		string finalResult;
 		for (size_t i = 0; i < tokens.size(); ++i)
 		{
+			// 맨 앞의 문자열이 뒤에 또 존재하면 삭제 (예: Lancleier_Lancleier_Dash_Out -> Lancleier_Dash_Out)
+			if (i > 0 && tokens[i] == tokens[0])
+				continue;
+
 			// Simple consecutive duplicate prevention (e.g., Maelle_Maelle -> Maelle)
 			if (i > 0 && tokens[i] == tokens[i - 1])
 				continue;
