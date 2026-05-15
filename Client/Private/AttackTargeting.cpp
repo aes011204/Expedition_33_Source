@@ -31,11 +31,17 @@ void AttackTargeting::Begin_Play()
 
 bool AttackTargeting::EnterInvoke()
 {
+    LOG_DEBUG("AttackTargeting::EnterInvoke");
+
+    LOG_DEBUG("TARGETTING {}", TargetIndex);
+
     return Battle_State::EnterInvoke();
 }
 
 void AttackTargeting::Update(float timeDelta)
 {
+    Battle_State::Update(timeDelta);
+
     auto owner = Get_Owner();
     auto battleFSM = Get_BattleFSM();
 
@@ -44,10 +50,14 @@ void AttackTargeting::Update(float timeDelta)
     if (!owner || !battleFSM)
         return;
 
+
+
     if (GAME->KeyDown(KEY_TYPE::KEY_1))
     {
-        owner->Get_TurnAction().target = owner->Get_Enemies()[TargetIndex];
-        owner->Get_TurnAction()._selected_SkillKey =dynamic_pointer_cast <PlayerStatCom>(owner->Get_TurnAction()._curChar.statCom)->Get_Basic_Skill();
+        owner->Get_TurnAction().target = owner->Get_AliveEnemies()[TargetIndex];
+        owner->Get_TurnAction()._selected_SkillKey = dynamic_pointer_cast<PlayerStatCom>(owner->Get_TurnAction()._curChar.statCom)->Get_Basic_Skill();
+        LOG_DEBUG("AttackTargeting: confirm target index={}", TargetIndex);
+        LOG_DEBUG("AttackTargeting: selected skill={}", owner->Get_TurnAction()._selected_SkillKey.scriptClassName.c_str());
 
         owner->ExecuteAction(owner->Get_TurnAction());
      
@@ -56,7 +66,9 @@ void AttackTargeting::Update(float timeDelta)
 
     if (GAME->KeyDown(KEY_TYPE::KEY_2))
     {
-        TargetIndex = (TargetIndex+1 )% owner->Get_EnemiesNum();
+        TargetIndex = (TargetIndex+1 )% owner->Get_AliveEnemies().size();
+        LOG_DEBUG("TARGETTING {}", TargetIndex);
+
         // 임시 기본 공격은 무조건 적 공격 이라는 가정 / 동료 치료 불가
         return;
     }
@@ -65,10 +77,12 @@ void AttackTargeting::Update(float timeDelta)
 
 void AttackTargeting::LateUpdate(float timeDelta)
 {
+    Battle_State::LateUpdate(timeDelta);
 }
 
 void AttackTargeting::ExitInvoke()
 {
+    LOG_DEBUG("AttackTargeting::ExitInvoke");
     Battle_State::ExitInvoke();
 }
 

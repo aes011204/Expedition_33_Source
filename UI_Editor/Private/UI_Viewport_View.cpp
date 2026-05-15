@@ -389,13 +389,19 @@ namespace UIEditor
                 const float objectRounding = renderObject.type == UI_ObjectType::Button ? 4.f : 0.f;
                 ID3D11ShaderResourceView* previewSRV = nullptr;
 
-                if (renderObject.type == UI_ObjectType::Image && !renderObject.textureGuid.empty())
+                if (renderObject.type == UI_ObjectType::Image && (!renderObject.textureGuid.empty() || !renderObject.texturePath.empty()))
                 {
-                    if (!renderObject.maskTextureGuid.empty())
-                        previewSRV = _editorManager.Get_MaskedTexturePreviewSRV(renderObject.textureGuid, renderObject.maskTextureGuid);
+                    if (!renderObject.maskTextureGuid.empty() || !renderObject.maskTexturePath.empty())
+                    {
+                        previewSRV = _editorManager.Get_MaskedTexturePreviewSRV(
+                            renderObject.textureGuid,
+                            renderObject.texturePath,
+                            renderObject.maskTextureGuid,
+                            renderObject.maskTexturePath);
+                    }
 
                     if (nullptr == previewSRV)
-                        previewSRV = _editorManager.Get_TexturePreviewSRV(renderObject.textureGuid);
+                        previewSRV = _editorManager.Get_TexturePreviewSRV(renderObject.textureGuid, renderObject.texturePath);
                 }
 
                 const bool hasTextContent = renderObject.type == UI_ObjectType::Text && !renderObject.text.empty();

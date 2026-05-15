@@ -38,6 +38,9 @@ HRESULT MapEditorApp::Initialize()
 
     CHECK_FAILED(GAME->Initialize_Engine(desc, _device, _context), E_FAIL);
 
+    const fs::path assetRootPath(Get_ClientResourceRoot());
+    CHECK_FAILED(GAME->Initialize_AssetManager(assetRootPath.wstring()), E_FAIL);
+
     _imguiManager = MEImGuiManager::Create(g_hWnd, _device, _context);
     CHECK_NULL(_imguiManager, E_FAIL);
 
@@ -70,16 +73,11 @@ HRESULT MapEditorApp::Initialize()
             L"../../../Client/Bin/ShaderFiles/Shader_VtxMesh.hlsl",
             VTXMESH::Elements, VTXMESH::numElements, ShaderType::VtxMesh)), E_FAIL);
 
-    //CHECK_FAILED(GAME->Add_Prototype(0, L"Shader_VtxMeshInstance",
-    //    ShaderCom::Create(_device, _context,
-    //        L"../../../Client/Bin/ShaderFiles/Shader_VtxMeshInstanceExact.hlsl",
-    //        VtxMeshInstanceExactLayout::Elements, VtxMeshInstanceExactLayout::numElements, ShaderType::VtxInstanceMesh)), E_FAIL);
-
     auto instanceShader = ShaderCom::Create(_device, _context,
         L"../../../Client/Bin/ShaderFiles/Shader_VtxMeshInstanceExact.hlsl",
         VtxMeshInstanceExactLayout::Elements, VtxMeshInstanceExactLayout::numElements, ShaderType::VtxInstanceMeshExact);
     CHECK_NULL(instanceShader, E_FAIL);
-    CHECK_FAILED(GAME->Add_Prototype(0, L"Shader_VtxMeshInstance", instanceShader), E_FAIL);
+    CHECK_FAILED(GAME->Add_Prototype(0, L"Shader_VtxMeshInstanceExact", instanceShader), E_FAIL);
 
     CHECK_FAILED(GAME->Add_Prototype(0, L"MEInstancedMeshActor",
         MEInstancedMeshActor::Create(_device, _context)), E_FAIL);
@@ -180,14 +178,14 @@ HRESULT MapEditorApp::Render()
     CHECK_FAILED(GAME->Clear_Buffers(Vec4(0.1f, 0.1f, 0.1f, 1.f)), E_FAIL);
     CHECK_FAILED(GAME->Draw_RendererOnly(), E_FAIL);
 
+    _debugRenderer->Draw(_scene);
+    GAME->Render_DebugDepth();
+    GAME->Render_DebugOverlay();
+
     _imguiManager->Capture_BackBuffer_ToViewport();
     _viewport->Set_SceneSRV(_imguiManager->Get_SharedViewportSRV());
 
     _rt->Begin();
-    _debugRenderer->Draw(_scene);
-
-    GAME->Render_DebugDepth();
-    GAME->Render_DebugOverlay();
     GAME->Bind_BackBuffer();
 
     _manager->Render();
@@ -224,6 +222,67 @@ void MapEditorApp::UpdateRenderHandles()
                 continue;
 
             actor->Set_Model(model);
+
+            if (!_scene._modelFolder.empty())
+            {
+                string bundleKey = String::ToString(_scene._modelFolder);
+                transform(bundleKey.begin(), bundleKey.end(), bundleKey.begin(), ::tolower);
+
+                fs::path jsonPath = fs::path(obj->_modelPath).replace_extension(L".json");
+                ifstream ifs(jsonPath);
+                if (ifs.is_open())
+                {
+                    try
+                    {
+                        json modelJson = json::parse(ifs);
+                        for (auto& entry : modelJson)
+                        {
+                            if (entry.value("Type", "") != "StaticMesh")
+                            {
+                                continue;
+                            }
+
+                            if (!entry.contains("Properties") || !entry["Properties"].contains("StaticMaterials"))
+                            {
+                                break;
+                            }
+
+                            const auto& staticMats = entry["Properties"]["StaticMaterials"];
+                            for (uint32 i = 0; i < static_cast<uint32>(staticMats.size()); ++i)
+                            {
+                                const auto& mat = staticMats[i];
+                                if (!mat.contains("MaterialInterface"))
+                                {
+                                    continue;
+                                }
+
+                                const auto& mi = mat["MaterialInterface"];
+                                if (!mi.is_object())
+                                {
+                                    continue;
+                                }
+
+                                string objectPath = mi.value("ObjectPath", "");
+                                if (objectPath.empty())
+                                {
+                                    continue;
+                                }
+
+                                size_t dot = objectPath.find('.');
+                                string packagePath = (dot != string::npos) ? objectPath.substr(0, dot) : objectPath;
+                                size_t slash = packagePath.rfind('/');
+                                string miName = (slash != string::npos) ? packagePath.substr(slash + 1) : packagePath;
+
+
+                                model->Apply_MaterialByAssetName(i, bundleKey, miName);
+                            }
+                            break;
+                        }
+                    }
+                    catch (...) {}
+                }
+            }
+
             obj->_renderHandle = actor;
             _scene._octreeDirty = true;
         }
@@ -251,6 +310,67 @@ void MapEditorApp::UpdateRenderHandles()
         {
             obj->_instancedRenderHandle->UpdateInstances(
                 obj->_instancedModelPath, obj->_instancedTransforms);
+
+            if (!_scene._modelFolder.empty())
+            {
+                string bundleKey = String::ToString(_scene._modelFolder);
+                transform(bundleKey.begin(), bundleKey.end(), bundleKey.begin(), ::tolower);
+
+                auto model = obj->_instancedRenderHandle->GetModel();
+                if (model)
+                {
+                    fs::path jsonPath = fs::path(obj->_instancedModelPath).replace_extension(L".json");
+                    ifstream ifs(jsonPath);
+                    if (ifs.is_open())
+                    {
+                        try
+                        {
+                            json modelJson = json::parse(ifs);
+                            for (auto& entry : modelJson)
+                            {
+                                if (entry.value("Type", "") != "StaticMesh")
+                                {
+                                    continue;
+                                }
+                                if (!entry.contains("Properties") || !entry["Properties"].contains("StaticMaterials"))
+                                {
+                                    break;
+                                }
+
+                                const auto& staticMats = entry["Properties"]["StaticMaterials"];
+                                for (uint32 i = 0; i < static_cast<uint32>(staticMats.size()); ++i)
+                                {
+                                    const auto& mat = staticMats[i];
+                                    if (!mat.contains("MaterialInterface"))
+                                    {
+                                        continue;
+                                    }
+
+                                    const auto& mi = mat["MaterialInterface"];
+                                    if (!mi.is_object())
+                                    {
+                                        continue;
+                                    }
+
+                                    string objectPath = mi.value("ObjectPath", "");
+                                    if (objectPath.empty())
+                                    {
+                                        continue;
+                                    }
+
+                                    size_t dot = objectPath.find('.');
+                                    string packagePath = (dot != string::npos) ? objectPath.substr(0, dot) : objectPath;
+                                    size_t slash = packagePath.rfind('/');
+                                    string miName = (slash != string::npos) ? packagePath.substr(slash + 1) : packagePath;
+                                    model->Apply_MaterialByAssetName(i, bundleKey, miName);
+                                }
+                                break;
+                            }
+                        }
+                        catch (...) {}
+                    }
+                }
+            }
         }
     }
 }
@@ -339,8 +459,21 @@ HRESULT MapEditorApp::Ready_Light()
     obj->_lightDiffuse = Vec4(1.f, 1.f, 1.f, 1.f);
     obj->_lightAmbient = Vec4(0.4f, 0.4f, 0.4f, 1.f);
     obj->_lightSpecular = Vec4(1.f, 1.f, 1.f, 1.f);
+    obj->_isDefaultLight = true;
     _scene.Add(obj);
     return S_OK;
+}
+
+wstring MapEditorApp::Get_ClientResourceRoot() const
+{
+    wchar_t modulePath[MAX_PATH] = {};
+    if (0 == GetModuleFileNameW(nullptr, modulePath, MAX_PATH))
+    {
+        return {};
+    }
+
+    const fs::path runtimeRoot = fs::path(modulePath).parent_path();
+    return fs::absolute(runtimeRoot / L"../../../Client/Bin/Resources/").lexically_normal().wstring();
 }
 
 Unique<MapEditorApp> MapEditorApp::Create()

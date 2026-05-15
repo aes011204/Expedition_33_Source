@@ -12,19 +12,49 @@
 #include "CombatStatCom.h"
 #include "Create_Class.h"
 #include "ItemTargeting.h"
+#include "Monster.h"
 #include "SkillTargeting.h"
 #include "Spawn_Prefab.h"
 #include "UltimateTargeting.h"
+#include "SkillScript.h"
 
-HRESULT BattleController::Inintialize()
+BattleController::BattleController()
+{
+}
+
+BattleController::~BattleController()
+{
+	Free();
+}
+
+EAPChangeReason BattleController::FinishBattle()
+{
+	return EAPChangeReason::Parry;
+}
+
+
+
+HRESULT BattleController::Initialize()
 {
     Set_BattleFSM();
+
     return S_OK;
 
 }
 
 void BattleController::Update(float timeDelta)
 {
+    if(_battleEnded == true)
+    {
+        return;
+    }
+	
+    if (_pendingNextTurn)
+    {
+        _pendingNextTurn = false;
+        StartTurn();
+        return;
+    }
 
     
        if (_heroes.empty() == true || _enemies.empty() == true)
@@ -40,6 +70,14 @@ void BattleController::Update(float timeDelta)
 }
 void BattleController::Run_EnemyTurn()
 {
+    LOG_DEBUG("Run_EnemyTurn: actor={}",
+        Get_TurnAction()._curChar.actor ? String::ToString(Get_TurnAction()._curChar.actor->Get_Name()).c_str() : "null");
+
+    dynamic_pointer_cast<Monster>(Get_TurnAction()._curChar.actor)->Decide_Action(Get_TurnAction(), Get_AliveHeroes());
+
+    Execute_Skill(_currentTurnActor, Get_TurnAction());
+
+   
 }
 
 void BattleController::OnEnterBattleField(uint32 FieldID, bool IsFirstHero, vector<string>& PlayerProtoTag,vector<string>& MonsterProtoTag)
@@ -62,7 +100,10 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
 {
     // 도망치기
     // 실패
-    // 성공 
+    // 성공
+
+    _heroes.clear();
+    _enemies.clear();
     return result;
 }
 
@@ -71,6 +112,11 @@ void BattleController::ExecuteAction(Action turnAction)
     auto BattleChar = turnAction._curChar;
     if (!BattleChar.actor)
         return;
+
+    LOG_DEBUG("ExecuteAction: actor={}, type={}",
+        turnAction._curChar.actor ? String::ToString(turnAction._curChar.actor->Get_Name()).c_str() : "null",
+        static_cast<int>(turnAction.type));
+
     // 일반 공격도 스킬로 들어감 구분만 BaseAttack
     switch (turnAction.type)
     {
@@ -99,15 +145,26 @@ void BattleController::EndTurn()
             DeadPlayer++;
     }
     if (DeadPlayer == _heroes.size())
+    {
         OnExitBattleField(EBattleEndResult::Defeat);
+        _battleEnded = true;
+    }
 
     for (int i = 0; i < _enemies.size(); i++)
     {
         if (_enemies[i].statCom->Get_AliveStatus() == EAliveStatus::Dead)
             DeadEnemy++;
     }
+
+    LOG_DEBUG("EndTurn: actor={}",
+        _currentTurnActor.actor ? String::ToString(_currentTurnActor.actor->Get_Name()).c_str() : "null");
+    LOG_DEBUG("EndTurn: deadPlayer={}, deadEnemy={}", DeadPlayer, DeadEnemy);
+
     if (DeadEnemy == _enemies.size())
+    {
         OnExitBattleField(EBattleEndResult::Victory);
+        _battleEnded = true;
+    }
 
 
     // 상태 이상 엔드
@@ -131,18 +188,21 @@ void BattleController::EndTurn()
 
 
 
+    _pendingNextTurn = true;
 
-    StartTurn();
+    
 
 }
 
 void BattleController::StartTurn()
 {
-
-   
     _currentTurnActor = _turnQueue.top().hero;
     _battleTime = _turnQueue.top().nextTime;
     _turnQueue.pop();
+
+    LOG_DEBUG("StartTurn: next actor={}, isPlayer={}",
+        _currentTurnActor.actor ? String::ToString(_currentTurnActor.actor->Get_Name()).c_str() : "null",
+        _currentTurnActor.statCom ? _currentTurnActor.statCom->Is_Player() : 0);
 
 
     _turnAction = {};
@@ -156,10 +216,12 @@ void BattleController::StartTurn()
     // fsm
     if (actor.statCom->Is_Player())
     {
+        LOG_DEBUG("StartTurn: player turn -> FSM ChooseAction");
         _battleFSM->Change_State(BattleTurnState::ChooseAction);
     }
     else
     {
+        LOG_DEBUG("StartTurn: enemy turn -> Run_EnemyTurn");
         Run_EnemyTurn();
     }
 
@@ -168,7 +230,7 @@ void BattleController::StartTurn()
 
 void BattleController::Create_BattleChar(vector<string>& PlayerprotoTag, vector<string>& MonsterprotoTag)
 {
-
+    
 
     for (int i = 0; i < PlayerprotoTag.size(); i++)
     {
@@ -262,6 +324,7 @@ void BattleController::SetCharInitPos()
     /*INFO = FiledMgr->GetFiledInfo(FieldID)
     INFO.
     */
+    Vec3 startPos = Vec3(225.f, -4020.5f, -1.24f);
 
     Vec3 EPos[3] = { {0.f,0.f,0.f},{10.f,0.f,0.f},{20.f,0.f,0.f} };
     Vec3 PPos[3] = { {0.f,20.f,0.f},{10.f,20.f,0.f},{20.f,20.f,0.f} };
@@ -273,7 +336,7 @@ void BattleController::SetCharInitPos()
         if (!hero.actor)
             continue;
 
-        hero.actor->Get_Transform()->Set_Position(
+        hero.actor->Get_Transform()->Set_Position(startPos+
             PPos[i]);
     }
 
@@ -283,34 +346,95 @@ void BattleController::SetCharInitPos()
         if (!enemy.actor)
             continue;
 
-        enemy.actor->Get_Transform()->Set_Position(
+        enemy.actor->Get_Transform()->Set_Position(startPos+
             EPos[i]);
     }
 
 }
 
+vector<BattleChar> BattleController::Get_AliveEnemies()
+{
+
+    vector<BattleChar> alive;
+    for(int i = 0; i < _enemies.size();i++)
+    {
+        if(_enemies[i].statCom->Get_CurAliveState()== EAliveStatus::Alive)
+        {
+            alive.push_back(_enemies[i]);
+        }
+    }
+    return  alive;
+}
+
+vector<BattleChar> BattleController::Get_AliveHeroes()
+{
+    vector<BattleChar> alive;
+    for (int i = 0; i <_heroes.size(); i++)
+    {
+        if (_heroes[i].statCom->Get_CurAliveState() == EAliveStatus::Alive)
+        {
+            alive.push_back(_heroes[i]);
+        }
+    }
+    return  alive;
+}
+
 void BattleController::Execute_BaseAttack(const BattleChar actor, const Action& turnAction)
 {
     //기본스킬도 특이하기때문에 스킬로
-    const Skill_Data& skill = turnAction._selected_SkillKey;
-    /*   auto script = Create_Class::
-           skill.scriptClassName);*/
+    LOG_DEBUG("Execute_BaseAttack: actor={}, target={}, script={}",
+        actor.actor ? String::ToString(actor.actor->Get_Name()).c_str() : "null",
+        turnAction.target.actor ? String::ToString(turnAction.target.actor->Get_Name()).c_str() : "null",
+        turnAction._selected_SkillKey.scriptClassName.c_str());
+
+
+   // auto script = Create_Class::SkillScript<Base_Gustave_Attack>().Create();
+    auto script = Create_Class::SkillScript(turnAction._selected_SkillKey.scriptClassName).Create();
+
+    if (script == nullptr)
+    {
+        LOG_ERROR("Base_Gustave_Attack Create Failed");
+    }
+    else
+    {
+        LOG_ERROR("Base_Gustave_Attack Create Success");
+    }
+\
 
     auto target = turnAction.target;
 
-    //script->Execute(skill, actor, target);
+    script->Execute(turnAction._selected_SkillKey, actor, target);
+    LOG_DEBUG("Execute_BaseAttack: script finished");
+
+    EndTurn();// 일단 애니메이션등이 다 끝나고 끝내야 하는데 일단 테스트
 
 }
 
 void BattleController::Execute_Skill(const BattleChar actor, const Action& turnAction)
 {
-    const Skill_Data& skill = turnAction._selected_SkillKey;
- /*   auto script = Create_Class::
-        skill.scriptClassName);*/
+    LOG_DEBUG("Execute_Skill: actor={}, target={}, script={}",
+        actor.actor ? String::ToString(actor.actor->Get_Name()).c_str() : "null",
+        turnAction.target.actor ? String::ToString(turnAction.target.actor->Get_Name()).c_str() : "null",
+        turnAction._selected_SkillKey.scriptClassName.c_str());
 
-    auto target = turnAction.target;
+    auto script = Create_Class::SkillScript(turnAction._selected_SkillKey.scriptClassName).Create();
 
-    //script->Execute(skill, actor, target);
+    if (script == nullptr)
+    {
+        LOG_ERROR("Base_Gustave_Attack Create Failed");
+    }
+    else
+    {
+        LOG_ERROR("Base_Gustave_Attack Create Success");
+    }
+    \
+
+        auto target = turnAction.target;
+
+    script->Execute(turnAction._selected_SkillKey, actor, target);
+
+    EndTurn();// 일단 애니메이션등이 다 끝나고 끝내야 하는데 일단 테스트
+
 }
 
 void BattleController::Execute_Item(const BattleChar actor, const Action& turnAction)
@@ -333,4 +457,23 @@ void BattleController::Set_BattleFSM()
 
 
     //_battleFSM->Change_State(BattleTurnState::ChooseAction);
+}
+Shared<BattleController> BattleController::Create()
+{
+   
+    Shared<BattleController> instance = make_shared<BattleController>();
+
+    if (FAILED(instance->Initialize()))
+    {
+        MSG_BOX("Failed to Created : BattleController");
+        return nullptr;
+    }
+
+    return instance;
+
+}
+
+void BattleController::Free()
+{
+	Base::Free();
 }

@@ -24,19 +24,23 @@ void ChooseUltimate::Begin_Play()
 
 bool ChooseUltimate::EnterInvoke()
 {
+    LOG_DEBUG("ChooseUltimate::EnterInvoke");
     return Battle_State::EnterInvoke();
 }
 
 void ChooseUltimate::Update(float timeDelta)
 {
+    Battle_State::Update(timeDelta);
 }
 
 void ChooseUltimate::LateUpdate(float timeDelta)
 {
+    Battle_State::LateUpdate(timeDelta);
 }
 
 void ChooseUltimate::ExitInvoke()
 {
+    LOG_DEBUG("ChooseUltimate::ExitInvoke");
     Battle_State::ExitInvoke();
 }
 

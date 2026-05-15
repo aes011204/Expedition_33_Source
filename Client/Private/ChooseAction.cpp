@@ -30,19 +30,25 @@ void ChooseAction::Begin_Play()
 
 bool ChooseAction::EnterInvoke()
 {
+    LOG_DEBUG("ChooseAction::EnterInvoke");
+
+    LOG_DEBUG("PRESS 1 : AttackTargeting // PRESS 2 : ChooseSkill // PRESS 3 : ChooseItem // PRESS 4 : ChooseUltimate");
+
     return Battle_State::EnterInvoke();
 }
 
 void ChooseAction::Update(float timeDelta)
 {
+    Battle_State::Update(timeDelta);
+
     auto owner = Get_Owner();
     auto battleFSM = Get_BattleFSM();
 
     if (!owner || !battleFSM)
         return;
-
     if (GAME->KeyDown(KEY_TYPE::KEY_1))
     {
+        LOG_DEBUG("ChooseAction::Update: KEY_1 -> BaseAttack -> AttackTargeting");
         owner->Get_TurnAction().type = EBattleContext::BaseAttack;
         battleFSM->Change_State(BattleTurnState::AttackTargeting);
         return;
@@ -50,6 +56,7 @@ void ChooseAction::Update(float timeDelta)
 
     if (GAME->KeyDown(KEY_TYPE::KEY_2))
     {
+        LOG_DEBUG("ChooseAction::Update: KEY_2 -> Skill -> ChooseSkill");
         owner->Get_TurnAction().type = EBattleContext::Skill;
         battleFSM->Change_State(BattleTurnState::ChooseSkill);
         return;
@@ -57,6 +64,7 @@ void ChooseAction::Update(float timeDelta)
 
     if (GAME->KeyDown(KEY_TYPE::KEY_3))
     {
+        LOG_DEBUG("ChooseAction::Update: KEY_3 -> ConsumableItem -> ChooseItem");
         owner->Get_TurnAction().type = EBattleContext::ConsumableItem;
         battleFSM->Change_State(BattleTurnState::ChooseItem);
         return;
@@ -64,6 +72,7 @@ void ChooseAction::Update(float timeDelta)
 
     if (GAME->KeyDown(KEY_TYPE::KEY_4))
     {
+        LOG_DEBUG("ChooseAction::Update: KEY_4 -> Skill -> ChooseUltimate");
         owner->Get_TurnAction().type = EBattleContext::Skill;
         battleFSM->Change_State(BattleTurnState::ChooseUltimate);
         return;
@@ -72,10 +81,12 @@ void ChooseAction::Update(float timeDelta)
 
 void ChooseAction::LateUpdate(float timeDelta)
 {
+    Battle_State::LateUpdate(timeDelta);
 }
 
 void ChooseAction::ExitInvoke()
 {
+    LOG_DEBUG("ChooseAction::ExitInvoke");
     Battle_State::ExitInvoke();
 }
 

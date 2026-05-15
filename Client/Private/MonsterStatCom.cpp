@@ -1,5 +1,5 @@
-﻿
-#include "MonsterStatCom.h"
+﻿#include "MonsterStatCom.h"
+#include "GameInstance.h"
 
 IMPLEMENT_REFLECTION(MonsterStatCom)
 {
@@ -7,6 +7,9 @@ IMPLEMENT_REFLECTION(MonsterStatCom)
 
     info.className = "MonsterStatCom";
     info.displayName = "Monster Stat Com";
+
+    PROPERTY_FLOAT("HP", _MRuntimeStat.CurHp, 0.f, 9999.f, 1.f);
+    PROPERTY_FLOAT("AP", _MRuntimeStat.CurAp, 0.f, 9.f, 1.f);
 
     return true;
 }
@@ -35,7 +38,6 @@ HRESULT MonsterStatCom::Initialize(void* arg)
 {
     CHECK_FAILED(CombatStatCom::Initialize(arg), E_FAIL);
 
-
     MonsterCombatStatDesc desc{};
 
     if (arg != nullptr)
@@ -44,6 +46,16 @@ HRESULT MonsterStatCom::Initialize(void* arg)
     }
     _monsterDesc = desc;
 
+    {
+        _MRuntimeStat.CurHp = _monsterDesc.maxHp;
+        _MRuntimeStat.CurAp = _monsterDesc.maxAp;
+        _MRuntimeStat.CurShield = _monsterDesc.commonCharacterStats.ShieldPointsAtSpawn;
+        _MRuntimeStat.physicalAttack = _monsterDesc.physicalAttack;
+        _MRuntimeStat.physicalDefense = _monsterDesc.physicalDefense;
+        _MRuntimeStat.CurSpeed = _monsterDesc.speed;
+    }
+
+
 
 
     _isPlayer = false;
@@ -51,6 +63,12 @@ HRESULT MonsterStatCom::Initialize(void* arg)
     return S_OK;
 }
 
+void MonsterStatCom::Update(float timeDelta)
+{
+    // 테스트
+    GAME->Print(L"몬스터 체력 : {}", _MRuntimeStat.CurHp, duration(0.f), color(Vec4(1.f, 1.f, 0.f, 1.f)));
+
+}
 
 Shared<MonsterStatCom> MonsterStatCom::Create(
     const ComPtr<Device>& device,
