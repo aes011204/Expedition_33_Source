@@ -2,12 +2,15 @@
 
 #include "Base.h"
 #include "Log_Define.h"
+#include "Renderer_Define.h"
 
 NS_BEGIN(Engine)
 
 class ShaderCom;
 class VIBuffer_Rect;
 class GameObject;
+class PostProcessPipeline;
+class LightPipeline;
 
 class Renderer final : public Base
 {
@@ -24,6 +27,15 @@ public:
     void    Sync_ViewportDependentState(uint32 width, uint32 height);
     uint32  Get_RenderCall() const;
 
+    const Shared<PostProcessPipeline>   Get_PostProcessPipeline() const
+    {
+        return _ppPipeline;
+    }
+    Shared<PostProcessPipeline>    Get_PostProcessPipeline()
+    {
+        return _ppPipeline;
+    }
+
 
 #ifdef _DEBUG
 public:
@@ -39,16 +51,18 @@ private:
 	void Render_Blend();
 	void Render_UI();
 
-    void Render_Combined();
+    void Render_CombinedHDR();
+    void Render_PostProcess();
 
     HRESULT Ready_RenderTargets();
     void Change_ViewportDesc(uint32 width, uint32 height);
 
-    HRESULT Bind_DeferredCB() const;
+    HRESULT Bind_TransformCB(Shared<ShaderCom> shader) const;
 
 private:
-	ComPtr<Device>  _device;
-	ComPtr<Context> _context;
+	ComPtr<Device>                  _device;
+	ComPtr<Context>                 _context;
+    Shared<PostProcessPipeline>     _ppPipeline;
 
     /* Layer가 소유하는 GameObject를 렌더 프레임 동안만 참조하기 위한 약한 참조 목록. */
 	list<Weak<GameObject>>		_renderGroups[ETOI(RenderGroup::END)];
@@ -56,6 +70,7 @@ private:
     // shadow
     D3D11_VIEWPORT                  _shadowViewport = {};
 
+    Shared<ShaderCom>               _postprocessShader;
     Shared<ShaderCom>               _deferredShader;
     Shared<VIBuffer_Rect>           _viBuffer;
 
@@ -63,9 +78,9 @@ private:
     bool                            _shadowEnabled = false;
     uint32                          _shadowMapSize = 0;
 
-    Matrix                          _deferredWorldMatrix;
-    Matrix                          _deferredViewMatrix;
-    Matrix                          _deferredProjMatrix;
+    Matrix                          _pipelineWorldMatrix;
+    Matrix                          _PipelineViewMatrix;
+    Matrix                          _pipelineProjMatrix;
     uint32                          iDrawCall = 0;
     
 #ifdef _DEBUG
@@ -85,7 +100,8 @@ private:
         PerfCounter nonBlend{};
         PerfCounter nonLight{};
         PerfCounter lights{};
-        PerfCounter combined{};
+        PerfCounter combinedHDR{};
+        PerfCounter postProcess{};
         PerfCounter blend{};
         PerfCounter ui{};
         PerfCounter debug{};
@@ -102,7 +118,8 @@ private:
         double shadowMs,
         double nonBlendMs,
         double lightsMs,
-        double combinedMs,
+        double combinedHDRMs,
+        double postprocessMs,
         double nonLightMs,
         double blendMs,
         double uiMs,

@@ -24,8 +24,11 @@ struct RenderPerfSummary
     float lightsAvgMs{};
     float lightsMaxMs{};
 
-    float combinedAvgMs{};
-    float combinedMaxMs{};
+    float combinedHDRAvgMs{};
+    float combinedHDRMaxMs{};
+
+    float postprocessAvgMs{};
+    float postprocessMaxMs{};
 
     float nonLightAvgMs{};
     float nonLightMaxMs{};

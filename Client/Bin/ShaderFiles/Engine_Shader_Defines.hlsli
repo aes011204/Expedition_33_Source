@@ -38,4 +38,11 @@
 #define MATERIAL_FLAG_IRIS_HEIGHT    (1u << MATERIAL_SLOT_IRIS_HEIGHT)
 #define MATERIAL_FLAG_IRIS_MASK      (1u << MATERIAL_SLOT_IRIS_MASK)
 
+// PostProcess Feature Flags
+#define POSTPROCESS_FLAG_HDR         (1u << 0)
+#define POSTPROCESS_FLAG_TONEMAP     (1u << 1)
+#define POSTPROCESS_FLAG_EXPOSURE    (1u << 2)
+#define POSTPROCESS_FLAG_BLOOM       (1u << 3) // 아직 미사용
+#define POSTPROCESS_FLAG_GAMMA       (1u << 4)
+
 #endif

@@ -119,6 +119,32 @@ struct alignas(16) LightCB
     float _pad0[3]{};
 };
 
+/* ------------------------------------------ */
+/*           PostProcess CBuffer              */
+/* ------------------------------------------ */
+struct alignas(16) PostProcessCB
+{
+    static constexpr ConstantBuffer CBType = ConstantBuffer::PostProcess;
+
+    float exposure = 1.f;
+    float invWhitePoint = 1.f;
+    float gamma = 2.2f;
+    float _pad0 = 0.f;
+
+    float bloomThreshold = 1.f;
+    float bloomIntensity = 0.5f;
+    float bloomSoftKnee = 0.5f;
+    float _pad1 = 0.f;
+
+    uint32 featureMask = 0;
+    float _pad2[3]{};
+};
+
+static_assert(sizeof(PostProcessCB) % 16 == 0);
+
+
+
+
 // 패딩이 제대로 됐나 마지막 확인용
 static_assert(sizeof(MaterialCB) % 16 == 0);
 static_assert(sizeof(CameraCB) % 16 == 0);
@@ -126,6 +152,7 @@ static_assert(sizeof(ObjectCB) % 16 == 0);
 static_assert(sizeof(ShadowCB) % 16 == 0);
 static_assert(sizeof(DeferredCB) % 16 == 0);
 static_assert(sizeof(LightCB) % 16 == 0);
+static_assert(sizeof(PostProcessCB) % 16 == 0);
 
 NS_END
 

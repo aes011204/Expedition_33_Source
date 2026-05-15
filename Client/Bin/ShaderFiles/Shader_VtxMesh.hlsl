@@ -169,6 +169,9 @@ PS_OUT PS_NoTexture(PS_IN In)
     Out.Normal = vector(In.Normal.xyz * 0.5f + 0.5f, 1.f);
     Out.Depth = vector(In.Position.z, In.Position.w / g_Far, 0.f, 0.f);
 
+    float3 orm = SampleOrm(In.Texcoord);
+    Out.Material = float4(orm.xyz, 1.f);
+
     return Out;
 }
 

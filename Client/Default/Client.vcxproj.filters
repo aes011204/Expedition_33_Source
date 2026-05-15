@@ -441,6 +441,7 @@
     <ClInclude Include="Base_Gustave_Attack.h">
       <Filter>Skill</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\HairChainPhysics.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -696,6 +697,7 @@
     <ClCompile Include="Base_Gustave_Attack.cpp">
       <Filter>Skill</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\HairChainPhysics.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">
@@ -735,6 +737,9 @@
       <Filter>97.ShaderFiles\Effect</Filter>
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMeshInstanceExact.hlsl">
+      <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_PostProcess.hlsl">
       <Filter>97.ShaderFiles</Filter>
     </FxCompile>
   </ItemGroup>

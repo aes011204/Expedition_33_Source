@@ -226,6 +226,12 @@
     <Filter Include="94. AnimationParseUtil">
       <UniqueIdentifier>{8d36ebf8-1177-47c8-b0a9-b7afaf900cf2}</UniqueIdentifier>
     </Filter>
+    <Filter Include="01.Utility\05.Renderer\Pipeline">
+      <UniqueIdentifier>{71e38be7-8389-446e-913a-20f513e2e2e0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="01.Utility\98. Utils">
+      <UniqueIdentifier>{5af6e8f5-3bbb-4f93-9f9d-73f0f92f2b37}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -311,6 +317,12 @@
       <Filter>01.Utility\04.Component\Model\Animation\Notify</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\AnimState_Parser.h" />
+    <ClInclude Include="..\Public\Renderer_Define.h">
+      <Filter>01.Utility\05.Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\EnumFlags.h">
+      <Filter>01.Utility\98. Utils</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\public\Base.h">
@@ -869,6 +881,9 @@
       <Filter>01.Utility\04.Component\Model\Animation\Notify</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\AnimState_Parser.cpp" />
+    <ClCompile Include="..\Private\PostProcessPipeline.cpp">
+      <Filter>01.Utility\05.Renderer\Pipeline</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Bin\ShaderFiles\Engine_Shader_Defines.hlsli">
@@ -890,6 +905,12 @@
       <Filter>02.ShaderFiles</Filter>
     </None>
     <None Include="..\Bin\ShaderFiles\Engine_Shader_Utils.hlsl">
+      <Filter>02.ShaderFiles</Filter>
+    </None>
+    <None Include="..\Public\PostProcessPipeline.h">
+      <Filter>01.Utility\05.Renderer\Pipeline</Filter>
+    </None>
+    <None Include="..\Bin\ShaderFiles\Engine_Shader_PostProcess.hlsl">
       <Filter>02.ShaderFiles</Filter>
     </None>
   </ItemGroup>

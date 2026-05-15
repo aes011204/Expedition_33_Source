@@ -2,6 +2,7 @@
 #include "Camera.h"
 #include "GameInstance.h"
 #include "GameObject.h"
+#include "PostProcessPipeline.h"
 #include "ShaderCom.h"
 #include "VIBuffer_Rect.h"
 
@@ -14,6 +15,7 @@ Renderer::Renderer(const ComPtr<Device>& device, const ComPtr<Context>& context)
 HRESULT Renderer::Initialize()
 {
     CHECK_FAILED(Ready_RenderTargets(), E_FAIL);
+    _ppPipeline = PostProcessPipeline::Create(_device, _context);
 
 	return S_OK;
 }
@@ -40,7 +42,8 @@ void Renderer::Draw()
     double shadowMs = 0.0;
     double nonBlendMs = 0.0;
     double lightsMs = 0.0;
-    double combinedMs = 0.0;
+    double combinedHDRMs = 0.0;
+    double postProcessMs = 0.0;
     double nonlightMs = 0.0;
     double blendMs = 0.0;
     double uiMs = 0.0;
@@ -71,12 +74,18 @@ void Renderer::Draw()
     Render_Lights();
 #ifdef _DEBUG
     lightsMs = chrono::duration<double, milli>(chrono::steady_clock::now() - lightsBegin).count();
-    const auto combinedBegin = chrono::steady_clock::now();
+    const auto combinedHDRBegin = chrono::steady_clock::now();
 #endif
     
-    Render_Combined();
+    Render_CombinedHDR();
 #ifdef _DEBUG
-    combinedMs = chrono::duration<double, milli>(chrono::steady_clock::now() - combinedBegin).count();
+    combinedHDRMs = chrono::duration<double, milli>(chrono::steady_clock::now() - combinedHDRBegin).count();
+    const auto postProcesBegin = chrono::steady_clock::now();
+#endif
+
+    Render_PostProcess();
+#ifdef _DEBUG
+    postProcessMs = chrono::duration<double, milli>(chrono::steady_clock::now() - postProcesBegin).count();
     const auto nonlightBegin = chrono::steady_clock::now();
 #endif
 
@@ -103,7 +112,7 @@ void Renderer::Draw()
 
     debugMs = chrono::duration<double, milli>(chrono::steady_clock::now() - debugBegin).count();
     const auto renderMs = chrono::duration<double, milli>(chrono::steady_clock::now() - renderBegin).count();
-    Accumulate_RenderPerf(renderMs, priorityMs, shadowMs, nonBlendMs, lightsMs, combinedMs, nonlightMs, blendMs, uiMs, debugMs);
+    Accumulate_RenderPerf(renderMs, priorityMs, shadowMs, nonBlendMs, lightsMs, combinedHDRMs, postProcessMs,nonlightMs, blendMs, uiMs, debugMs);
 #endif
 }
 
@@ -124,7 +133,7 @@ void Renderer::Render_Priority()
 
 void Renderer::Render_Shadow()
 {
-    if (FAILED(GAME->Begin_MRT(L"MRT_ShadowObjects", true)))
+    if (FAILED(GAME->Begin_MRT(MRT::ShadowObjects, true)))
         return;
 
     const uint32 originWidth = GAME->Get_ViewportWidth();
@@ -155,7 +164,7 @@ void Renderer::Render_Shadow()
 void Renderer::Render_NonBlend()
 {
     // Diffuse + Normal
-    CHECK_FAILED(GAME->Begin_MRT(L"MRT_GameObjects"));
+    CHECK_FAILED(GAME->Begin_MRT(MRT::GameObjects));
 
     // TODO 필요 시 정렬
 	for (auto& renderObject : _renderGroups[ETOI(RenderGroup::NonBlend)])
@@ -179,24 +188,23 @@ void Renderer::Render_Lights()
     if (!_deferredShader || !_viBuffer)
         return;
 
-    if (FAILED(GAME->Begin_MRT(L"MRT_LightAcc")))
+    if (FAILED(GAME->Begin_MRT(MRT::LightAcc)))
         return;
 
     // Transform
     ENDMRT_RETURN_IF_FAILED(
-        _deferredShader->Bind_ObjectCB(_deferredWorldMatrix));
+        _deferredShader->Bind_ObjectCB(_pipelineWorldMatrix));
 
     // depth -> World 위치 복원
-    ENDMRT_RETURN_IF_FAILED(
-        Bind_DeferredCB());
+    ENDMRT_RETURN_IF_FAILED(Bind_TransformCB(_deferredShader));
 
     // 명암 연산을 위한 SRV
     ENDMRT_RETURN_IF_FAILED(
-        GAME->Bind_RT_ShaderResource(_deferredShader, "g_NormalTexture", L"Target_Normal"));
+        GAME->Bind_RT_ShaderResource(_deferredShader, "g_NormalTexture", RT::Normal));
     ENDMRT_RETURN_IF_FAILED(
-        GAME->Bind_RT_ShaderResource(_deferredShader, "g_DepthTexture", L"Target_Depth"));
+        GAME->Bind_RT_ShaderResource(_deferredShader, "g_DepthTexture", RT::Depth));
     ENDMRT_RETURN_IF_FAILED(
-        GAME->Bind_RT_ShaderResource(_deferredShader, "g_MaterialTexture", L"Target_Material"));
+        GAME->Bind_RT_ShaderResource(_deferredShader, "g_MaterialTexture", RT::Material));
 
     // Light 기록
     ENDMRT_RETURN_IF_FAILED(
@@ -224,17 +232,25 @@ void Renderer::Render_NonLight()
     _renderGroups[ETOI(RenderGroup::NonLight)].clear();
 }
 
-void Renderer::Render_Combined()
+void Renderer::Render_CombinedHDR()
 {
     if (!_deferredShader || !_viBuffer)
         return;
 
+    bool postProcess = false;
+    if (!_ppPipeline || Has_Flag(_ppPipeline->Get_PostProcessFeatures(), PostProcessFeature::All))
+    {
+        if(FAILED(GAME->Begin_MRT(MRT::HDR)))
+            return;
+        postProcess = true;
+    }
+
     // Transform
-    if (FAILED(_deferredShader->Bind_ObjectCB(_deferredWorldMatrix)))
+    if (FAILED(_deferredShader->Bind_ObjectCB(_pipelineWorldMatrix)))
         return;
 
     // depth -> World 위치 복원 용도
-    if (FAILED(Bind_DeferredCB()))
+    if (FAILED(Bind_TransformCB(_deferredShader)))
         return;
 
     // 그림자
@@ -242,23 +258,62 @@ void Renderer::Render_Combined()
         return;
 
     // SRV 바인딩
-    if (FAILED(GAME->Bind_RT_ShaderResource(_deferredShader, "g_DiffuseTexture", L"Target_Diffuse")))
+    if (FAILED(GAME->Bind_RT_ShaderResource(_deferredShader, "g_DiffuseTexture", RT::Diffuse)))
         return;
-    if (FAILED(GAME->Bind_RT_ShaderResource(_deferredShader, "g_ShadeTexture", L"Target_Shade")))
+    if (FAILED(GAME->Bind_RT_ShaderResource(_deferredShader, "g_ShadeTexture", RT::Shade)))
         return;
-    if (FAILED(GAME->Bind_RT_ShaderResource(_deferredShader, "g_SpecularTexture", L"Target_Specular")))
+    if (FAILED(GAME->Bind_RT_ShaderResource(_deferredShader, "g_SpecularTexture", RT::Specular)))
         return;
-    if (FAILED(GAME->Bind_RT_ShaderResource(_deferredShader, "g_DepthTexture", L"Target_Depth")))
+    if (FAILED(GAME->Bind_RT_ShaderResource(_deferredShader, "g_DepthTexture", RT::Depth)))
         return;
-    if (FAILED(GAME->Bind_RT_ShaderResource(_deferredShader, "g_LightDepthTexture", L"Target_LightDepth")))
+    if (FAILED(GAME->Bind_RT_ShaderResource(_deferredShader, "g_LightDepthTexture", RT::LightDepth)))
         return;
-    if (FAILED(GAME->Bind_RT_ShaderResource(_deferredShader, "g_EmissiveTexture", L"Target_Emissive")))
+    if (FAILED(GAME->Bind_RT_ShaderResource(_deferredShader, "g_EmissiveTexture", RT::Emissive)))
         return;
 
     // Light 기록
     if (FAILED(_viBuffer->Bind_Resources()))
         return;
-    if (FAILED(_deferredShader->Begin(ETOI(DeferredPass::Combined))))
+    if (FAILED(_deferredShader->Begin(ETOI(DeferredPass::CombinedHDR))))
+        return;
+    if (FAILED(_viBuffer->Render()))
+        return;
+
+    if (postProcess)
+    {
+        if (FAILED(GAME->End_MRT()))
+            return;
+    }
+
+    Add_RenderCall();
+}
+
+void Renderer::Render_PostProcess()
+{
+    if (!_postprocessShader || !_viBuffer)
+        return;
+
+    if (!_ppPipeline || _ppPipeline->Get_PostProcessFeatures() == PostProcessFeature::None)
+        return;
+
+    // Transform
+    if (FAILED(_postprocessShader->Bind_ObjectCB(_pipelineWorldMatrix)))
+        return;
+
+    if (FAILED(_postprocessShader->Bind_CBufferData(_ppPipeline->Get_PostProcessParams())))
+        return;
+
+    // depth -> World 위치 복원 용도
+    if (FAILED(Bind_TransformCB(_postprocessShader)))
+        return;
+
+    if (FAILED(GAME->Bind_RT_ShaderResource(_postprocessShader, "g_HDRTexture", RT::HDRColor)))
+        return;
+
+    // Light 기록
+    if (FAILED(_viBuffer->Bind_Resources()))
+        return;
+    if (FAILED(_postprocessShader->Begin(ETOI(PostProcessPass::ToneMapping))))
         return;
     if (FAILED(_viBuffer->Render()))
         return;
@@ -306,54 +361,59 @@ HRESULT Renderer::Ready_RenderTargets()
     const bool useDSV = true;
 
     // MRT_GameObjects
-    CHECK_FAILED(GAME->Add_RenderTarget(L"Target_Diffuse",
+    CHECK_FAILED(GAME->Add_RenderTarget(RT::Diffuse,
         width, height, DXGI_FORMAT_R8G8B8A8_UNORM, Color(0, 0, 0, 0), resizeWithViewport, !useDSV), E_FAIL);
-
-    CHECK_FAILED(GAME->Add_RenderTarget(L"Target_Normal",
+    CHECK_FAILED(GAME->Add_RenderTarget(RT::Normal,
         width, height, DXGI_FORMAT_R16G16B16A16_UNORM, Color(0, 0, 0, 0), resizeWithViewport, !useDSV), E_FAIL);
-
-    CHECK_FAILED(GAME->Add_RenderTarget(L"Target_Depth",
+    CHECK_FAILED(GAME->Add_RenderTarget(RT::Depth,
         width, height, DXGI_FORMAT_R32G32B32A32_FLOAT, Color(0, 0, 0, 0), resizeWithViewport, !useDSV), E_FAIL);
-
-    CHECK_FAILED(GAME->Add_RenderTarget(L"Target_Material",
+    CHECK_FAILED(GAME->Add_RenderTarget(RT::Material,
         width, height, DXGI_FORMAT_R8G8B8A8_UNORM, Color(0, 0, 0, 0), resizeWithViewport, !useDSV), E_FAIL);
-
-    CHECK_FAILED(GAME->Add_RenderTarget(L"Target_Emissive",
+    CHECK_FAILED(GAME->Add_RenderTarget(RT::Emissive,
         width, height, DXGI_FORMAT_R16G16B16A16_FLOAT, Color(0, 0, 0, 0), resizeWithViewport, !useDSV), E_FAIL);
 
     // MRT_LightAcc
-    CHECK_FAILED(GAME->Add_RenderTarget(L"Target_Shade",
+    CHECK_FAILED(GAME->Add_RenderTarget(RT::Shade,
         width, height, DXGI_FORMAT_R16G16B16A16_UNORM, Color(0, 0, 0, 0), resizeWithViewport, !useDSV), E_FAIL);
-
-    CHECK_FAILED(GAME->Add_RenderTarget(L"Target_Specular",
+    CHECK_FAILED(GAME->Add_RenderTarget(RT::Specular,
         width, height, DXGI_FORMAT_R16G16B16A16_UNORM, Color(0, 0, 0, 0), resizeWithViewport, !useDSV), E_FAIL);
 
     // MRT_ShadowObjects
-    CHECK_FAILED(GAME->Add_RenderTarget(L"Target_LightDepth",
+    CHECK_FAILED(GAME->Add_RenderTarget(RT::LightDepth,
         width * static_cast<uint32>(_shadowScale), height * static_cast<uint32>(_shadowScale),
         DXGI_FORMAT_R32G32B32A32_FLOAT, Color(1.f, 1.f, 1.f, 1.f), !resizeWithViewport, useDSV), E_FAIL);
+
+    // MRT_HDR
+    CHECK_FAILED(GAME->Add_RenderTarget(RT::HDRColor,
+        width, height, DXGI_FORMAT_R16G16B16A16_FLOAT, Color(0.f, 0.f, 0.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
 
     //CHECK_FAILED(Ready_ShadowDSV(), E_FAIL);
 
     // Create MRT
-    CHECK_FAILED(GAME->Add_MRT(L"MRT_GameObjects", L"Target_Diffuse"), E_FAIL);     // SV_TARGET0
-    CHECK_FAILED(GAME->Add_MRT(L"MRT_GameObjects", L"Target_Normal"), E_FAIL);      // SV_TARGET1
-    CHECK_FAILED(GAME->Add_MRT(L"MRT_GameObjects", L"Target_Depth"), E_FAIL);       // SV_TARGET2
-    CHECK_FAILED(GAME->Add_MRT(L"MRT_GameObjects", L"Target_Material"), E_FAIL);    // SV_TARGET3
-    CHECK_FAILED(GAME->Add_MRT(L"MRT_GameObjects", L"Target_Emissive"), E_FAIL);    // SV_TARGET4
+    CHECK_FAILED(GAME->Add_MRT(MRT::GameObjects, RT::Diffuse), E_FAIL);		// SV_TARGET0
+    CHECK_FAILED(GAME->Add_MRT(MRT::GameObjects, RT::Normal), E_FAIL);		// SV_TARGET1
+    CHECK_FAILED(GAME->Add_MRT(MRT::GameObjects, RT::Depth), E_FAIL);		// SV_TARGET2
+    CHECK_FAILED(GAME->Add_MRT(MRT::GameObjects, RT::Material), E_FAIL);	// SV_TARGET3
+    CHECK_FAILED(GAME->Add_MRT(MRT::GameObjects, RT::Emissive), E_FAIL);	// SV_TARGET4
 
-    CHECK_FAILED(GAME->Add_MRT(L"MRT_LightAcc", L"Target_Shade"), E_FAIL);          // SV_TARGET0
-    CHECK_FAILED(GAME->Add_MRT(L"MRT_LightAcc", L"Target_Specular"), E_FAIL);       // SV_TARGET1
+    CHECK_FAILED(GAME->Add_MRT(MRT::LightAcc, RT::Shade), E_FAIL);			// SV_TARGET0
+    CHECK_FAILED(GAME->Add_MRT(MRT::LightAcc, RT::Specular), E_FAIL);		// SV_TARGET1
 
-    CHECK_FAILED(GAME->Add_MRT(L"MRT_ShadowObjects", L"Target_LightDepth"), E_FAIL);
+    CHECK_FAILED(GAME->Add_MRT(MRT::ShadowObjects, RT::LightDepth), E_FAIL);
+
+    CHECK_FAILED(GAME->Add_MRT(MRT::HDR, RT::HDRColor), E_FAIL);
 
     // deferred shader, rect buffer 생성
     _viBuffer = VIBuffer_Rect::Create(_device, _context);
     CHECK_NULL(_viBuffer, E_FAIL);
 
     _deferredShader = ShaderCom::Create(_device, _context,
-        L"../../../Client/Bin/ShaderFiles/Shader_Deferred.hlsl", VTXTEX::Elements, VTXTEX::numElements, ShaderType::VtxTex);
+        L"../../../Client/Bin/ShaderFiles/Shader_Deferred.hlsl", VTXTEX::Elements, VTXTEX::numElements, ShaderType::Deferred);
     CHECK_NULL(_deferredShader, E_FAIL);
+
+    _postprocessShader = ShaderCom::Create(_device, _context,
+        L"../../../Client/Bin/ShaderFiles/Shader_PostProcess.hlsl", VTXTEX::Elements, VTXTEX::numElements, ShaderType::PostProcess);
+    CHECK_NULL(_postprocessShader, E_FAIL);
 
     Sync_ViewportDependentState(width, height);
 
@@ -370,9 +430,9 @@ void Renderer::Sync_ViewportDependentState(uint32 width, uint32 height)
     width = max(1u, width);
     height = max(1u, height);
 
-    _deferredWorldMatrix = Matrix::CreateScale(static_cast<float>(width), static_cast<float>(height), 1.f);
-    _deferredViewMatrix = Matrix::Identity;
-    _deferredProjMatrix = XMMatrixOrthographicLH(static_cast<float>(width), static_cast<float>(height), 0.f, 1.f);
+    _pipelineWorldMatrix = Matrix::CreateScale(static_cast<float>(width), static_cast<float>(height), 1.f);
+    _PipelineViewMatrix = Matrix::Identity;
+    _pipelineProjMatrix = XMMatrixOrthographicLH(static_cast<float>(width), static_cast<float>(height), 0.f, 1.f);
 
     Change_ViewportDesc(width, height);
 }
@@ -392,14 +452,7 @@ void Renderer::Change_ViewportDesc(uint32 width, uint32 height)
     _context->RSSetViewports(1, &ViewportDesc);
 }
 
-#ifdef _DEBUG
-
-uint32 Renderer::Get_RenderCall() const
-{
-    return iDrawCall;
-}
-
-HRESULT Renderer::Bind_DeferredCB() const
+HRESULT Renderer::Bind_TransformCB(Shared<ShaderCom> shader) const
 {
     CHECK_NULL(_deferredShader, E_FAIL);
 
@@ -408,8 +461,8 @@ HRESULT Renderer::Bind_DeferredCB() const
         return E_FAIL;
 
     DeferredCB deferredCB{};
-    deferredCB.screenViewMatrix = _deferredViewMatrix;
-    deferredCB.screenProjMatrix = _deferredProjMatrix;
+    deferredCB.screenViewMatrix = _PipelineViewMatrix;
+    deferredCB.screenProjMatrix = _pipelineProjMatrix;
 
     deferredCB.viewInverseMatrix = *GAME->Get_Transform_Inverse(D3DTS::View);
     deferredCB.projInverseMatrix = *GAME->Get_Transform_Inverse(D3DTS::Proj);
@@ -417,7 +470,14 @@ HRESULT Renderer::Bind_DeferredCB() const
     deferredCB.cameraPosition = *GAME->Get_CamPosition();
     deferredCB.farPlane = activeCamera->Get_Far();
 
-    return _deferredShader->Bind_CBufferData(deferredCB);
+    return shader->Bind_CBufferData(deferredCB);
+}
+
+#ifdef _DEBUG
+
+uint32 Renderer::Get_RenderCall() const
+{
+    return iDrawCall;
 }
 
 void Renderer::Reset_RenderCall()
@@ -460,9 +520,9 @@ bool Renderer::Try_ConsumePerfSummary(const float windowSec, RenderPerfSummary& 
         Safe_Divide(_renderPerfWindow.lights.accumulatedMs, static_cast<double>(_renderPerfWindow.lights.sampleCount)));
     outSummary.lightsMaxMs = static_cast<float>(_renderPerfWindow.lights.maxMs);
 
-    outSummary.combinedAvgMs = static_cast<float>(
-        Safe_Divide(_renderPerfWindow.combined.accumulatedMs, static_cast<double>(_renderPerfWindow.combined.sampleCount)));
-    outSummary.combinedMaxMs = static_cast<float>(_renderPerfWindow.combined.maxMs);
+    outSummary.combinedHDRAvgMs = static_cast<float>(
+        Safe_Divide(_renderPerfWindow.combinedHDR.accumulatedMs, static_cast<double>(_renderPerfWindow.combinedHDR.sampleCount)));
+    outSummary.combinedHDRMaxMs = static_cast<float>(_renderPerfWindow.combinedHDR.maxMs);
 
     outSummary.nonLightAvgMs = static_cast<float>(
         Safe_Divide(_renderPerfWindow.nonLight.accumulatedMs, static_cast<double>(_renderPerfWindow.nonLight.sampleCount)));
@@ -490,7 +550,8 @@ void Renderer::Accumulate_RenderPerf(
     const double shadowMs,
     const double nonBlendMs,
     const double lightsMs,
-    const double combinedMs,
+    const double combinedHDRMs,
+    const double postprocessMs,
     const double nonLightMs,
     const double blendMs,
     const double uiMs,
@@ -501,7 +562,8 @@ void Renderer::Accumulate_RenderPerf(
     Accumulate_PassPerf(_renderPerfWindow.shadow, shadowMs);
     Accumulate_PassPerf(_renderPerfWindow.nonBlend, nonBlendMs);
     Accumulate_PassPerf(_renderPerfWindow.lights, lightsMs);
-    Accumulate_PassPerf(_renderPerfWindow.combined, combinedMs);
+    Accumulate_PassPerf(_renderPerfWindow.combinedHDR, combinedHDRMs);
+    Accumulate_PassPerf(_renderPerfWindow.postProcess, postprocessMs);
     Accumulate_PassPerf(_renderPerfWindow.nonLight, nonLightMs);
     Accumulate_PassPerf(_renderPerfWindow.blend, blendMs);
     Accumulate_PassPerf(_renderPerfWindow.ui, uiMs);
@@ -575,10 +637,10 @@ void Renderer::Render_Debug()
         const uint32 width = GAME->Get_ViewportWidth();
         const uint32 height = GAME->Get_ViewportHeight();
 
-        _deferredViewMatrix = Matrix::Identity;
-        _deferredProjMatrix = XMMatrixOrthographicLH(static_cast<float>(width), static_cast<float>(height), 0.f, 1.f);
+        _PipelineViewMatrix = Matrix::Identity;
+        _pipelineProjMatrix = XMMatrixOrthographicLH(static_cast<float>(width), static_cast<float>(height), 0.f, 1.f);
 
-        CHECK_FAILED(Bind_DeferredCB());
+        CHECK_FAILED(Bind_TransformCB(_deferredShader));
     }
 
     CHECK_FAILED(GAME->Render_RT_Debug(_viBuffer, _deferredShader));

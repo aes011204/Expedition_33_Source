@@ -1,4 +1,4 @@
-#pragma region INCLUDE
+﻿#pragma region INCLUDE
 #include "GameInstance.h"
 #include "Asset_Manager.h"
 #include "Camera_Manager.h"
@@ -532,7 +532,8 @@ void GameInstance::Try_FlushRuntimePerfLog()
             "shadow_ms(avg={:.2f} max={:.2f}) "
             "nonblend_ms(avg={:.2f} max={:.2f}) "
             "lights_ms(avg={:.2f} max={:.2f}) "
-            "combined_ms(avg={:.2f} max={:.2f}) "
+            "combinedHDR_ms(avg={:.2f} max={:.2f}) "
+            "postprocess_ms (avg={:.2f} max={:.2f}) "
             "nonlight_ms(avg={:.2f} max={:.2f}) "
             "blend_ms(avg={:.2f} max={:.2f}) "
             "ui_ms(avg={:.2f} max={:.2f}) "
@@ -606,8 +607,11 @@ void GameInstance::Try_FlushRuntimePerfLog()
             runtimeSummary.render.lightsAvgMs,
             runtimeSummary.render.lightsMaxMs,
 
-            runtimeSummary.render.combinedAvgMs,
-            runtimeSummary.render.combinedMaxMs,
+            runtimeSummary.render.combinedHDRAvgMs,
+            runtimeSummary.render.combinedHDRMaxMs,
+
+            runtimeSummary.render.postprocessAvgMs,
+            runtimeSummary.render.postprocessMaxMs,
 
             runtimeSummary.render.nonLightAvgMs,
             runtimeSummary.render.nonLightMaxMs,
@@ -895,6 +899,16 @@ uint32 GameInstance::Get_RenderCall() const
 {
     CHECK_NULL(_renderer, 0);
     return _renderer->Get_RenderCall();
+}
+
+const Shared<PostProcessPipeline> GameInstance::Get_PostProcessPipeline() const
+{
+    return _renderer->Get_PostProcessPipeline();
+}
+
+Shared<PostProcessPipeline> GameInstance::Get_PostProcessPipeline()
+{
+    return _renderer->Get_PostProcessPipeline();
 }
 
 HRESULT GameInstance::Bind_CamPosition(ShaderCom* shader, const char* constantName)

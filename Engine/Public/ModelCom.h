@@ -62,7 +62,7 @@ public:
     const Matrix& Get_BoneLocalMatrix(uint32 boneIndex) const;
     void Set_BoneLocalMatrix(uint32 boneIndex, const Matrix& localMatrix);
 
-    // 모든 bone의 Combined Matrix를 parent 순서대로 다시 계산
+    // 모든 bone의 CombinedHDR Matrix를 parent 순서대로 다시 계산
     void Rebuild_BoneCombinedMatrices();
 
 public:
