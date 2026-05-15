@@ -83,6 +83,7 @@ public: /* For.Battle_Controller */
         const vector<HeroId>& heroIds,
         vector<string>& MonsterProtoTag);
 
+    Shared<BattleController>    Get_BattleController() { return _battleController; };
 
 private:
 	HRESULT Ready_ResourceLoader();

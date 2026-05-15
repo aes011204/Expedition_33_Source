@@ -13,6 +13,9 @@
 #include "MonsterStatCom.h"
 #include "Mon_Lancleier_Weapon.h"
 
+REGISTER_GLOBAL_ENUM(Client::Monster::LancelierAnim, "LancelierAnim")
+
+
 IMPLEMENT_REFLECTION(Monster)
 {
     auto& info = GetStaticReflectionInfo();

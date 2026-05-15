@@ -85,6 +85,8 @@ void BattleController::Run_EnemyTurn()
 void BattleController::OnEnterBattleField(uint32 FieldID, bool IsFirstHero, const vector<HeroId>& heroIds,
     vector<string>& MonsterProtoTag)
 {
+    isBattleActive = true;
+
     // 현제 케릭 아이디 , 적 아이디로 전투 용 객체 생성
     Create_BattleChar(heroIds, MonsterProtoTag);
 
@@ -101,6 +103,9 @@ void BattleController::OnEnterBattleField(uint32 FieldID, bool IsFirstHero, cons
 
 EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
 {
+    isBattleActive = false;
+
+
     // 도망치기
     // 실패
     // 성공
@@ -391,7 +396,7 @@ void BattleController::Execute_BaseAttack(const BattleChar actor, const Action& 
         return;
 
 
-    vec_anim
+    //vec_anim
 
 
     //auto script = Create_Class::SkillScript(turnAction._selected_SkillKey.scriptClassName).Create();
@@ -430,7 +435,7 @@ void BattleController::Execute_Skill(const BattleChar actor, const Action& turnA
     {
         LOG_ERROR("Base_Gustave_Attack Create Success");
     }
-    \
+ 
 
         auto target = turnAction.target;
 

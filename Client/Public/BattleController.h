@@ -54,6 +54,7 @@ public:
     vector<BattleChar> Get_AliveEnemies();
     vector<BattleChar> Get_AliveHeroes();
 
+    bool Is_BattleStarted() { return isBattleActive; }
 private:
     BattleChar _currentTurnActor = {};
     Action _turnAction={};

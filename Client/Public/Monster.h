@@ -28,6 +28,16 @@ class MonsterStatCom;
 {
     GENERATED_GAMEOBJECT(Monster, ObjectType::Monster)
 public:
+    enum class LancelierAnim
+    {
+        Skill_1,
+        Skill_2,
+        Skill_2_Hollow,
+        Walk,
+        Idle,
+
+    };
+
     enum class MonsterAction
     {
         Idle,
