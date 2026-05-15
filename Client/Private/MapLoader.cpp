@@ -19,6 +19,71 @@ HRESULT MapLoader::Load(const ComPtr<Device>& device, const ComPtr<Context>& con
     unordered_map<string, Shared<ModelCom>> modelCache;
     string modelFolder = mapData.value("ModelFolder", string{});
 
+    auto ApplyMaterials = [&](Shared<ModelCom>& model, const string& modelFullPath)
+        {
+            if (modelFolder.empty())
+            {
+                return;
+            }
+
+            string bundleKey = modelFolder;
+            transform(bundleKey.begin(), bundleKey.end(), bundleKey.begin(), ::tolower);
+
+            fs::path jsonPath = fs::path(modelFullPath).replace_extension(".json");
+            ifstream jfs(jsonPath);
+            if (!jfs.is_open())
+            {
+                return;
+            }
+
+            try
+            {
+                json modelJson = json::parse(jfs);
+                for (auto& entry : modelJson)
+                {
+                    if (entry.value("Type", "") != "StaticMesh")
+                    {
+                        continue;
+                    }
+
+                    if (!entry.contains("Properties") || !entry["Properties"].contains("StaticMaterials"))
+                    {
+                        break;
+                    }
+
+                    const auto& staticMats = entry["Properties"]["StaticMaterials"];
+                    for (uint32 i = 0; i < static_cast<uint32>(staticMats.size()); ++i)
+                    {
+                        const auto& mat = staticMats[i];
+                        if (!mat.contains("MaterialInterface"))
+                        {
+                            continue;
+                        }
+
+                        const auto& mi = mat["MaterialInterface"];
+                        if (!mi.is_object())
+                        {
+                            continue;
+                        }
+
+                        string objectPath = mi.value("ObjectPath", "");
+                        if (objectPath.empty())
+                        {
+                            continue;
+                        }
+
+                        size_t dot = objectPath.find('.');
+                        string packagePath = (dot != string::npos) ? objectPath.substr(0, dot) : objectPath;
+                        size_t slash = packagePath.rfind('/');
+                        string miName = (slash != string::npos) ? packagePath.substr(slash + 1) : packagePath;
+                        model->Apply_MaterialByAssetName(i, bundleKey, miName);
+                    }
+                    break;
+                }
+            }
+            catch (...) {}
+        };
+
     for (auto& e : mapData["StaticMeshes"])
     {
         string modelPathStr = e.value("ModelPath", string{});
@@ -40,6 +105,7 @@ HRESULT MapLoader::Load(const ComPtr<Device>& device, const ComPtr<Context>& con
             if (!model)
                 continue;
             modelCache[modelPathStr] = model;
+            ApplyMaterials(model, fullPathA);
             desc.model = model;
         }
 
@@ -90,6 +156,7 @@ HRESULT MapLoader::Load(const ComPtr<Device>& device, const ComPtr<Context>& con
                 }
 
                 instancedModelCache[modelPathStr] = model;
+                ApplyMaterials(model, fullPathA);
                 desc.model = model;
             }
 
