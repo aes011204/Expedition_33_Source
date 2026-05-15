@@ -42,7 +42,7 @@ void CharacterStatus_Panel::Update(float timeDelta)
     if (!_isOpen)
         return;
 
-    Refresh_CombatStats();
+    Handle_SelectionInput();
     Update_StatusPreviewHeroes(timeDelta);
 }
 
@@ -53,10 +53,15 @@ void CharacterStatus_Panel::Open()
     if (_root)
         _root->Open();
 
-    Refresh_CombatStats();
+    // CharacterStatus는 열 때마다, Hero Manager에서 Active Hero 기준으로 시작
+    _selectedHeroIndex = static_cast<uint32>(CLIENT->Get_ActiveHeroSlot());
+
     CHECK_FAILED(Spawn_StatusPreviewHeroes());
     CHECK_FAILED(Ready_StatusPreviewCamera());
 
+    Layout_StatusPreviewHeroes();
+    Refresh_CombatStats();
+    Refresh_CharacterSelectUI();
     Activate_StatusPreviewCamera();
 
     // 마우스 잠금
@@ -84,6 +89,47 @@ void CharacterStatus_Panel::Toggle()
         Close();
     else
         Open();
+}
+
+void CharacterStatus_Panel::Handle_SelectionInput()
+{
+    const vector<HeroPartyEntry>& partyEntries = CLIENT->Get_HeroEntries();
+    if (partyEntries.empty())
+        return;
+
+    const uint32 heroCount = static_cast<uint32>(partyEntries.size());
+    uint32 previousIndex = _selectedHeroIndex;
+
+    if (GAME->KeyDown(KEY_TYPE::Q))
+    {
+        _selectedHeroIndex = (_selectedHeroIndex + heroCount - 1) % heroCount;
+    }
+    if (GAME->KeyDown(KEY_TYPE::E))
+    {
+        _selectedHeroIndex = (_selectedHeroIndex + 1) % heroCount;
+    }
+
+    if (previousIndex != _selectedHeroIndex)
+    {
+        // TODO : 카메라 담당 -> Update Camera
+        Refresh_CombatStats();
+        Refresh_CharacterSelectUI();
+    }
+}
+
+uint32 CharacterStatus_Panel::Get_WrappedPartyIndex(int32 index) const
+{
+    const vector<HeroPartyEntry>& partyEntries = CLIENT->Get_HeroEntries();
+    const int32 heroCount = static_cast<int32>(partyEntries.size());
+
+    if (heroCount <= 0)
+        return 0;
+
+    int32 wrappedIndex = index % heroCount;
+    if (wrappedIndex < 0)
+        wrappedIndex += heroCount;
+
+    return static_cast<uint32>(wrappedIndex);
 }
 
 HRESULT CharacterStatus_Panel::Load_UI(uint32 levelIndex)
@@ -119,20 +165,36 @@ HRESULT CharacterStatus_Panel::Bind_UI()
     _defenseValueText = Find_TypedUI<UI_Text>(_uiByName, L"Text_CurrentStatDefense");
     _criticalRateText = Find_TypedUI<UI_Text>(_uiByName, L"Text_CurrentStatCriticalPercent");
 
+    _selectButton01 = Find_UI(_uiByName, L"Button_CharacterSelect_01");
+    _selectButton02 = Find_UI(_uiByName, L"Button_CharacterSelect_02");
+    _selectButton03 = Find_UI(_uiByName, L"Button_CharacterSelect_03");
+
+    _selectFrame01 = Find_UI(_uiByName, L"Image_CharacterSelectButton_01");
+    _selectFrame02 = Find_UI(_uiByName, L"Image_CharacterSelectButton_02");
+    _selectFrame03 = Find_UI(_uiByName, L"Image_CharacterSelectButton_03");
+
+    _selectPortrait01 = Find_UI(_uiByName, L"Image_Lune");
+    _selectPortrait02 = Find_UI(_uiByName, L"Image_Gustave");
+    _selectPortrait03 = Find_UI(_uiByName, L"Image_Maelle");
+
+    _selectIndicator01 = Find_UI(_uiByName, L"Image_PartyIndicator_01");
+    _selectIndicator02 = Find_UI(_uiByName, L"Image_PartyIndicator_02");
+    _selectIndicator03 = Find_UI(_uiByName, L"Image_PartyIndicator_03");
 
     return S_OK;
 }
 
 void CharacterStatus_Panel::Refresh_CombatStats()
 {
-    Shared<Player> player = CLIENT->Get_FrontHero();
+    Shared<Player> player = CLIENT->Get_Hero(static_cast<HeroPartySlot>(_selectedHeroIndex));
     CHECK_NULL(player);
 
-    Shared<PlayerStatCom> combatStat = player->Get_Component<PlayerStatCom>();
-    CHECK_NULL(combatStat);
+    Shared<PlayerStatCom> playerStat = player->Get_Component<PlayerStatCom>();
+    CHECK_NULL(playerStat);
 
-    const PlayerStatCom::PRuntimeCombatStat& statInfo = combatStat->Get_PlayerRuntimeStat();
+    const PlayerStatCom::PRuntimeCombatStat& statInfo = playerStat->Get_PlayerRuntimeStat();
 
+    // 현재 선택된 가운데 hero 기준으로 표시
     Set_UIntText(_levelText, statInfo.CurLevel);
     Set_UIntText(_statPointText, statInfo.CurStatPoint);
 
@@ -147,6 +209,51 @@ void CharacterStatus_Panel::Refresh_CombatStats()
     Set_IntText(_speedText, static_cast<int32>(statInfo.CurSpeed));
     Set_IntText(_defenseValueText, static_cast<int32>(statInfo.CurPhysicalDefense));
     Set_PercentText(_criticalRateText, statInfo.CurCriticalRate);
+
+}
+
+void CharacterStatus_Panel::Refresh_CharacterSelectUI()
+{
+    static const Vec2 kSelectedScale = Vec2(1.4f, 1.4f);
+    static const Vec2 kNormalScale = Vec2(1.f, 1.f);
+
+    Shared<UI_Base> buttons[3] =
+    {
+        _selectButton01, _selectButton02, _selectButton03,
+    };
+
+    Shared<UI_Base> frames[3] =
+    {
+        _selectFrame01, _selectFrame02, _selectFrame03,
+    };
+
+    Shared<UI_Base> portraits[3] =
+    {
+        _selectPortrait01, _selectPortrait02, _selectPortrait03,
+    };
+
+    Shared<UI_Base> indicators[3] =
+    {
+        _selectIndicator01, _selectIndicator02, _selectIndicator03,
+    };
+
+    for (uint32 i = 0; i < 3; i++)
+    {
+        const bool isSelected = (i == _selectedHeroIndex);
+        const Vec2 targetScale = isSelected ? kSelectedScale : kNormalScale;
+
+        if (buttons[i] && buttons[i]->Get_Transform())
+            buttons[i]->Get_Transform()->Set_Scale(targetScale);
+
+        if (frames[i] && frames[i]->Get_Transform())
+            frames[i]->Get_Transform()->Set_Scale(targetScale);
+
+        if (portraits[i] && portraits[i]->Get_Transform())
+            portraits[i]->Get_Transform()->Set_Scale(targetScale);
+
+        if (indicators[i] && indicators[i]->Get_Transform())
+            indicators[i]->Get_Transform()->Set_Scale(targetScale);
+    }
 }
 
 Shared<UI_Base> CharacterStatus_Panel::Find_UI(const umap<wstring, Shared<UI_Base>>& uiByName, const wstring& name) const
@@ -264,34 +371,21 @@ void CharacterStatus_Panel::Layout_StatusPreviewHeroes()
         Vec3(0.f, 0.f, -0.1f),
     };
 
-    const uint32 count = min<uint32>(
-        static_cast<uint32>(_previewHeroes.size()), 3);
+    // 선택된 hero 가운데 배치, 양 옆은 순환 인덱스
+    const uint32 leftIndex   = Get_WrappedPartyIndex(static_cast<int32>(_selectedHeroIndex) - 1);
+    const uint32 centerIndex = _selectedHeroIndex;
+    const uint32 rightIndex  = Get_WrappedPartyIndex(static_cast<int32>(_selectedHeroIndex) + 1);
 
-	LOG_DEBUG("[CharacterStatus] Layout preview count: {}", count);
+    const uint32 orderedIndices[3] = { leftIndex, centerIndex, rightIndex };
 
-    for (uint32 i = 0; i < count; ++i)
+    for (uint32 i = 0; i < 3; ++i)
     {
-        Shared<Player> player = _previewHeroes[i].player;
+        Shared<Player> player = _previewHeroes[orderedIndices[i]].player;
         if (player == nullptr || player->Get_Transform() == nullptr)
             continue;
 
         player->Get_Transform()->Set_WorldPosition(positions[i]);
         player->Get_Transform()->Set_WorldRotationEuler(rotations[i]);
-
-		const Vec3 appliedPos = player->Get_Transform()->Get_WorldPosition();
-        const Vec3 appliedRot = player->Get_Transform()->Get_WorldRotationEuler();
-
-        LOG_DEBUG(
-            "[CharacterStatus] Preview[{}] name={} prefab={} pos=({}, {}, {}) rot=({}, {}, {})",
-            i,
-            String::ToString(player->Get_Name()),
-            player->Get_SourcePrefabName(),
-            appliedPos.x,
-            appliedPos.y,
-            appliedPos.z,
-            appliedRot.x,
-            appliedRot.y,
-            appliedRot.z);
     }
 }
 

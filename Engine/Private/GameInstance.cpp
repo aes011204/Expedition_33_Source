@@ -1,4 +1,4 @@
-#pragma region INCLUDE
+﻿#pragma region INCLUDE
 #include "GameInstance.h"
 #include "Asset_Manager.h"
 #include "Camera_Manager.h"
@@ -356,6 +356,31 @@ HRESULT GameInstance::Draw_RendererOnly()
     _renderer->Draw();
 
     return S_OK;
+}
+
+HRESULT GameInstance::Draw_Preview()
+{
+    _renderer->Draw_Preview();
+
+    return S_OK;
+}
+
+void GameInstance::Backup_RenderGroup()
+{
+    if (_renderer)
+        _renderer->Backup_RenderGroups();
+}
+
+void GameInstance::Restore_RenderGroup()
+{
+    if (_renderer)
+        _renderer->Restore_RenderGroups();
+}
+
+void GameInstance::Set_PreviewDeferredCombine(bool enable)
+{
+    if (_renderer)
+        _renderer->Set_PreviewDeferredCombine(enable);
 }
 
 #ifdef _DEBUG

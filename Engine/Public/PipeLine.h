@@ -30,6 +30,10 @@ public:
 public:
 	void Set_Transform(D3DTS transformState, FXMMATRIX transformStateMatrix) {
 		XMStoreFloat4x4(&_transformStateMatrices[ETOI(transformState)], transformStateMatrix);
+
+		XMStoreFloat4x4(
+			&_transformStateInverseMatrices[ETOI(transformState)],
+			XMMatrixInverse(nullptr, transformStateMatrix));
 	}
 
 public:
