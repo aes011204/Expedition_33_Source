@@ -1,6 +1,7 @@
 ﻿#include "MEStaticMeshActor.h"
 #include "GameInstance.h"
 #include "Material_Types.h"
+#include "ShaderPassFinder.h"
 
 MEStaticMeshActor::MEStaticMeshActor(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : GameObject(device, context)
@@ -41,14 +42,23 @@ HRESULT MEStaticMeshActor::Render()
     for (uint32 i = 0; i < iNumMeshes; i++)
     {
         const Shared<Material> material = _model->Get_Material(i);
+        int32 passIndex = 2; // NoTexture fallback
         if (material != nullptr)
         {
-            _shader->Bind_MaterialTextures(*material);
-            _shader->Bind_CBufferData(material->Get_CB());
+            if (FAILED(_shader->Bind_MaterialTextures(*material)))
+            {
+                continue;
+            }
+            if (FAILED(_shader->Bind_CBufferData(material->Get_CB())))
+            {
+                return E_FAIL;
+            }
+            passIndex = static_cast<int32>(material->Get_PassIndex());
         }
-
-        if (FAILED(_shader->Begin(2)))
+        if (FAILED(_shader->Begin(passIndex)))
+        {
             return E_FAIL;
+        }
 
         _model->Render(i);
     }
@@ -69,17 +79,9 @@ HRESULT MEStaticMeshActor::RenderID(const Matrix& worldMatrix, uint32 id)
     const uint32 iNumMeshes = static_cast<uint32>(_model->Get_NumMeshes());
     for (uint32 i = 0; i < iNumMeshes; i++)
     {
-        const Shared<Material> material = _model->Get_Material(i);
-        if (material == nullptr)
-            continue;
+        // for picking
 
-        if (FAILED(_shader->Bind_MaterialTextures(*material)))
-            continue;
-
-        if (FAILED(_shader->Bind_CBufferData(material->Get_CB())))
-            return E_FAIL;
-
-        if (FAILED(_shader->Begin(2)))
+        if (FAILED(_shader->Begin(6)))
             return E_FAIL;
 
         _model->Render(i);

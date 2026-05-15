@@ -60,6 +60,8 @@ private:
     void DoSpawnAt(const string& modelPath);
     void RebuildOctreeIfDirty();
 
+    wstring Get_ClientResourceRoot() const;
+
 public:
     static Unique<MapEditorApp> Create();
     virtual void Free() override;

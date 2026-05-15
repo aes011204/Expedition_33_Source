@@ -41,6 +41,7 @@ ModelCom::ModelCom(const ModelCom& prototype)
     , _collisionMeshes{ prototype._collisionMeshes }
     , _stateAnimIndices{ prototype._stateAnimIndices }
     , _animEnumType{ prototype._animEnumType }
+    , _mappedAnimIndices{ prototype._mappedAnimIndices }
 {
     for (auto& prototypeAnim : prototype._animations)
         _animations.push_back(prototypeAnim->Clone());
@@ -161,6 +162,28 @@ void ModelCom::Set_Animation(uint32 animIndex, float blendDuration, bool isLoop)
     _animations[_nextAnimIndex]->Reset();
 
     Mark_BoneMatricesDirty();
+}
+
+void ModelCom::Set_Animation(const string& animName, bool isLoop)
+{
+    if (_mappedAnimIndices.contains(animName))
+    {
+        LOG_WARN("Failed to find animation by name: {}", animName);
+        return;
+    }
+
+    Set_Animation(_mappedAnimIndices[animName], isLoop);
+}
+
+void ModelCom::Set_Animation(const string& animName, float blendDuration, bool isLoop)
+{
+    if (_mappedAnimIndices.contains(animName))
+    {
+        LOG_WARN("Failed to find animation by name: {}", animName);
+        return;
+    }
+
+    Set_Animation(_mappedAnimIndices[animName], blendDuration, isLoop);
 }
 
 void ModelCom::Set_AnimationByState(uint32 stateIndex, float blendDuration, bool isLoop)
@@ -848,6 +871,79 @@ bool ModelCom::Try_Get_LocalBounds(Vec3& outMin, Vec3& outMax) const
     outMin = _localBoundsMin;
     outMax = _localBoundsMax;
     return true;
+}
+
+void ModelCom::Apply_MaterialByAssetName(uint32 materialIndex, const string& bundleKey, const string& assetName)
+{
+    if (materialIndex >= _materials.size())
+    {
+        return;
+    }
+
+    const Shared<Material> material = _materials[materialIndex];
+    if (!material)
+    {
+        return;
+    }
+
+    Asset_Manager* assetManager = GAME->Get_AssetManager();
+    if (!assetManager)
+    {
+        return;
+    }
+
+    MaterialBuilder* builder = assetManager->Get_MaterialBuilder();
+    if (!builder)
+    {
+        return;
+    }
+
+    const MaterialBuilder::BundleAsset* bundle = builder->GetOrLoadBundle(bundleKey);
+    if (!bundle)
+    {
+        return;
+    }
+
+    auto it = bundle->instancesByAssetName.find(assetName);
+    if (it == bundle->instancesByAssetName.end())
+    {
+        return;
+    }
+
+    const auto& base = it->second;
+    material->Set_RenderState(base.renderState);
+    material->Set_CB(base.cb);
+    material->Set_ForcedPassIndex(base.forcePassIndex);
+
+    if (base.baseColorOverride)
+    {
+        material->Override_TextureSlot(MaterialTextureSlot::BaseColor, 0, base.baseColorPath);
+    }
+
+    if (base.normalOverride)
+    {
+        material->Override_TextureSlot(MaterialTextureSlot::Normal, 0, base.normalPath);
+    }
+
+    if (base.ormOverride)
+    {
+        material->Override_TextureSlot(MaterialTextureSlot::ORM, 0, base.ormPath);
+    }
+
+    if (base.emissiveOverride)
+    {
+        material->Override_TextureSlot(MaterialTextureSlot::Emissive, 0, base.emissivePath);
+    }
+
+    if (base.opacityMaskOverride)
+    {
+        material->Override_TextureSlot(MaterialTextureSlot::OpacityMask, 0, base.opacityMaskPath);
+    }
+
+    else
+    {
+        material->Override_TextureSlot(MaterialTextureSlot::OpacityMask, 0, L"");
+    }
 }
 
 wstring ModelCom::Normalize_ModelAssetPath(const char* modelFilePath)
@@ -1585,6 +1681,9 @@ HRESULT ModelCom::Ready_Animation(const char* modelPath)
                 channels[i].keyframes = keyframeSets[i].data();
             }
 
+            string animName = entry.path().stem().string();
+            _mappedAnimIndices[animName] = trueAnimIndex;
+
             _animations.push_back(Animation::Create(animData, channels));
             stream.close();
             ++trueAnimIndex;
@@ -1622,6 +1721,7 @@ void ModelCom::Reset_ModelData()
     _bones.clear();
     _animations.clear();
     _stateAnimIndices.clear();
+    _mappedAnimIndices.clear();
     _collisionMeshes.clear();
 
     _isFinished = false;
@@ -1696,6 +1796,7 @@ void ModelCom::Free()
     _meshBoneMatrixCaches.clear();
     _combinedBoneMatrixCache.clear();
 
+    _mappedAnimIndices.clear();
     _stateAnimIndices.clear();
     _animations.clear();
     _materials.clear();

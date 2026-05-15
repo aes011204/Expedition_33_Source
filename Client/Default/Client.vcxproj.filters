@@ -183,6 +183,8 @@
     </Filter>
     <Filter Include="02.GameObject\Player\02. World">
       <UniqueIdentifier>{9bf41fa3-e5b3-4483-a420-4ed70f5c1ca1}</UniqueIdentifier>
+    <Filter Include="02.GameObject\Map\MapInstancedMesh">
+      <UniqueIdentifier>{48582af2-9fa3-4baf-bee3-b247fe81d3f0}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -497,6 +499,8 @@
     </ClInclude>
     <ClInclude Include="..\public\ANS_QTE.h">
       <Filter>95. AnimNotify</Filter>
+    <ClInclude Include="..\Public\MapInstancedMesh.h">
+      <Filter>02.GameObject\Map\MapInstancedMesh</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -788,6 +792,8 @@
     </ClCompile>
     <ClCompile Include="..\public\ANS_QTE.cpp">
       <Filter>95. AnimNotify</Filter>
+    <ClCompile Include="..\Private\MapInstancedMesh.cpp">
+      <Filter>02.GameObject\Map\MapInstancedMesh</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

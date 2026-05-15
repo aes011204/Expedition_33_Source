@@ -17,6 +17,8 @@ public:
     virtual ~MEInstancedMeshActor() = default;
 
 public:
+    Shared<ModelCom> GetModel() const { return _model; }
+
     void Set_CameraFar(float camfar) { _cameraFar = camfar; }
 
 public:

@@ -71,6 +71,8 @@ public:
     bool Is_AnimationFinished() const { return _isFinished; }
     void Set_Animation(uint32 animIndex, bool isLoop = false);
     void Set_Animation(uint32 animIndex, float blendDuration, bool isLoop = false);
+    void Set_Animation(const string& animName, bool isLoop = false);
+    void Set_Animation(const string& animName, float blendDuration, bool isLoop = false);
 
     void Set_AnimationByState(uint32 stateIndex, bool isLoop = false);
     void Set_AnimationByState(uint32 stateIndex, float blendDuration, bool isLoop = false);
@@ -99,6 +101,8 @@ public:
     HRESULT Bind_BoneMatrices(class ShaderCom* shader, const char* constantName, uint32 meshIndex);
     bool Try_Get_LocalBounds(Vec3& outMin, Vec3& outMax) const;
 
+    // for map StaticMesh
+    void Apply_MaterialByAssetName(uint32 materialIndex, const string& bundleKey, const string& assetName);
 
 public: /* Guid */
     static wstring Normalize_ModelAssetPath(const char* modelFilePath);
@@ -206,6 +210,7 @@ private:
     vector<Shared<Bone>>		        _bones;
     vector<Shared<Animation>>	        _animations;
     vector<uint32>                      _stateAnimIndices;
+    unordered_map<string, uint32>       _mappedAnimIndices;
 
 private: /* For Animation Control */
     bool                                _isFinished{ false };
@@ -229,16 +234,16 @@ private: /* guid */
     wstring                             _sourceModelPath = {};
 
 private:
-    vector<MaterialBinding> _materialBindings{};
+    vector<MaterialBinding>             _materialBindings{};
 
 private: /* notify */
     bool                                _isAnimationPaused = false;
 
-    bool                    _isAnimNotifyAssetLoaded = false;
-    bool                    _isAnimNotifyExecutionEnabled = true;
+    bool                                _isAnimNotifyAssetLoaded = false;
+    bool                                _isAnimNotifyExecutionEnabled = true;
 
-    AnimNotifyAsset         _animNotifyAsset{};
-    vector<ActiveAnimNotifyState> _activeNotifyStates{};
+    AnimNotifyAsset                     _animNotifyAsset{};
+    vector<ActiveAnimNotifyState>       _activeNotifyStates{};
 
 private: /* 머리 붙이기 */
     const ModelCom* _leaderPoseModel = nullptr;

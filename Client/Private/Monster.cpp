@@ -140,7 +140,7 @@ void Monster::Late_Update(float fTimeDelta)
     _cullingAABB.Center = _transformCom->Get_Position();
 
     //// Adjustments may be necessary to suit the player
-    _cullingAABB.Extents = Vec3(1.f, 2.f, 1.f);
+    _cullingAABB.Extents = Vec3(1.5f, 4.f, 1.5f);
     Set_Visible(GAME->IsVisible(_cullingAABB));
 
     __super::Late_Update(fTimeDelta);
