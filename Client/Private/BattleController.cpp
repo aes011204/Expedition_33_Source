@@ -15,6 +15,7 @@
 #include "ItemTargeting.h"
 #include "Monster.h"
 #include "Player.h"
+#include "Player_BattleBase.h"
 #include "SkillTargeting.h"
 #include "Spawn_Prefab.h"
 #include "UltimateTargeting.h"
@@ -79,7 +80,7 @@ void BattleController::Run_EnemyTurn()
 
     dynamic_pointer_cast<Monster>(Get_TurnAction()._curChar.actor)->Decide_Action(Get_TurnAction(), Get_AliveHeroes());
 
-    Execute_Skill(_currentTurnActor, Get_TurnAction());
+    ExecuteAction( Get_TurnAction());
 
 
 }
@@ -253,9 +254,16 @@ void BattleController::Create_BattleChar(const vector<HeroId>& heroIds, vector<s
 
         CHECK_NULL(character);
 
+        auto  ply = dynamic_pointer_cast<Player_BattleBase>(character);
+
         BattleChar battleChar{};
-        battleChar.actor = dynamic_pointer_cast<Character>(character);
+        battleChar.actor = ply;
         battleChar.statCom = character->Get_Component<CombatStatCom>();
+ 
+        auto body = dynamic_cast<Body_Player*>(
+            ply->Get_PartObject(TEXT("Part_Body")));
+        battleChar.ModelCom = body->Get_Component<ModelCom>();
+
         _heroes.push_back(battleChar);
     }
 
@@ -266,11 +274,17 @@ void BattleController::Create_BattleChar(const vector<HeroId>& heroIds, vector<s
             GAME->Current_LevelIndex(),
             L"BattleLayer");
 
-        CHECK_NULL(character, );
+        CHECK_NULL(character);
 
+        auto  ply = dynamic_pointer_cast<Monster>(character);
         BattleChar battleChar{};
-        battleChar.actor = dynamic_pointer_cast<Character>(character);
+        battleChar.actor = ply;
         battleChar.statCom = character->Get_Component<CombatStatCom>();
+
+        auto body = dynamic_cast<Mon_Lancelier_Body*>(
+            ply->Get_PartObject(TEXT("Part_Body")));
+        battleChar.ModelCom = body->Get_Component<ModelCom>();
+
         _enemies.push_back(battleChar);
     }
 }
@@ -333,7 +347,7 @@ void BattleController::SetCharInitPos()
     Vec3 startPos = Vec3(225.f, -4020.5f, -1.24f);
 
     Vec3 EPos[3] = { {0.f,0.f,0.f},{10.f,0.f,0.f},{20.f,0.f,0.f} };
-    Vec3 PPos[3] = { {0.f,20.f,-100.f},{10.f,20.f,-100.f},{20.f,20.f,-100.f} };
+    Vec3 PPos[3] = { {0.f,0.f,10.f},{10.f,0.f,10.f},{20.f,0.f,10.f} };
 
     // 임시
     for (size_t i = 0; i < _heroes.size(); ++i)
@@ -426,10 +440,10 @@ void BattleController::Execute_BaseAttack(const BattleChar actor, const Action& 
         turnAction._selected_SkillKey.scriptClassName.c_str());
 
     auto vec_anim = turnAction._selected_SkillKey.animationKey;
-   // if (vec_anim.size() == 0)
-   //     return;
+    if (vec_anim.size() == 0)
+        return;
 
-
+    turnAction._curChar.ModelCom->Set_Animation(vec_anim[0], false, 1.5f);
     //vec_anim
 
 
@@ -483,7 +497,7 @@ void BattleController::Execute_Item(const BattleChar actor, const Action& turnAc
 {
 }
 
-void BattleController::OnActionEndNotify(Shared<GameObject> notifyOwner)
+void BattleController::OnActionEndNotify()
 {
     auto& action = Get_TurnAction();
     

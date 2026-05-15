@@ -243,8 +243,8 @@
     <ClInclude Include="..\public\Monster_Part.h" />
     <ClInclude Include="..\public\Mon_AIController.h" />
     <ClInclude Include="..\public\Mon_BehaviorTree.h" />
-    <ClInclude Include="..\public\Mon_Lancleier_Body.h" />
-    <ClInclude Include="..\public\Mon_Lancleier_Weapon.h" />
+    <ClInclude Include="..\public\Mon_Lancelier_Body.h" />
+    <ClInclude Include="..\public\Mon_Lancelier_Weapon.h" />
     <ClInclude Include="..\Public\PersistentObjectManager.h" />
     <ClInclude Include="..\Public\PlayableParts.h" />
     <ClInclude Include="..\Public\PlayerControllerCom.h" />
@@ -380,8 +380,8 @@
     <ClCompile Include="..\private\Monster_Part.cpp" />
     <ClCompile Include="..\private\Mon_AIController.cpp" />
     <ClCompile Include="..\private\Mon_BehaviorTree.cpp" />
-    <ClCompile Include="..\private\Mon_Lancleier_Body.cpp" />
-    <ClCompile Include="..\private\Mon_Lancleier_Weapon.cpp" />
+    <ClCompile Include="..\private\Mon_Lancelier_Body.cpp" />
+    <ClCompile Include="..\private\Mon_Lancelier_Weapon.cpp" />
     <ClCompile Include="..\Private\PersistentObjectManager.cpp" />
     <ClCompile Include="..\Private\PlayableParts.cpp" />
     <ClCompile Include="..\Private\PlayerControllerCom.cpp" />

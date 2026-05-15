@@ -74,9 +74,9 @@ public:
     {
         Skill_Data skill = {}; skill.scriptClassName = "Base_Gustave_Attack";
         skill.apCost = 0; skill.targetingType = ECharacterTeamSelector::Invalid;
-        skill.animationKey.push_back("Lancelier_Walk");
-        skill.animationKey.push_back("Lancelier_Dash_Out");
-        skill.animationKey.push_back("Lancelier_Skill_1");
+        skill.animationKey.push_back("Lancelier_Lancelier_Walk");
+        skill.animationKey.push_back("Lancelier_Lancelier_Dash_Out");
+        skill.animationKey.push_back("Lancelier_Lancelier_Skill_1");
       
 
         return skill;

@@ -124,6 +124,10 @@ bool AIController::Is_Finished()
 
 void AIController::Request_Move(Vec3& target)
 {
+    auto owner = Get_Owner();
+    if (!owner || !_PF)
+        return;
+
     Vec3 pos = Get_Owner()->Get_Transform()->Get_Position();
     _PF->Request_Move(pos,target);
 
@@ -132,6 +136,10 @@ void AIController::Request_Move(Vec3& target)
 
 void AIController::Stop_Move()
 {
+    auto owner = Get_Owner();
+    if (!owner || !_PF)
+        return;
+
     Vec3 pos = Get_Owner()->Get_Transform()->Get_Position();
     _PF->Stop_Move(pos);
     _isMoving = false;

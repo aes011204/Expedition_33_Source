@@ -6,7 +6,7 @@
 #include "Battle_Enum.h"
 #include "Client_Defines.h"
 #include "Character.h"
-#include "Mon_Lancleier_Body.h"
+#include "Mon_Lancelier_Body.h"
 
 NS_BEGIN(Engine)
     class ShaderCom;
@@ -20,9 +20,9 @@ class MonsterStatCom;
 
     struct Action;
 
-    class Mon_Lancleier_Weapon;
+    class Mon_Lancelier_Weapon;
 
-    class Mon_Lancleier_Body;
+    class Mon_Lancelier_Body;
 
     class Monster final : public Character
 {
@@ -61,8 +61,8 @@ public:
     public:
 
 protected:
-    Shared<Mon_Lancleier_Body> _body = {};
-    Shared<Mon_Lancleier_Weapon> _weapon = {};
+    Shared<Mon_Lancelier_Body> _body = {};
+    Shared<Mon_Lancelier_Weapon> _weapon = {};
 
     Shared<AIController> _aiCtrl = { nullptr };
     Shared<MonsterStatCom> _combatStat;

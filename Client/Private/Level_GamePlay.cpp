@@ -76,7 +76,7 @@ void Level_GamePlay::Update(float fTimeDelta)
          _monster.push_back("Monster123123");
          _monster.push_back("Monster123123");
 
-         CLIENT->OnEnterBattleField(1, true, heroes, _monster);
+         CLIENT->OnEnterBattleField(1, false, heroes, _monster);
      }
 
 
