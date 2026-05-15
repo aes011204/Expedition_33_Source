@@ -5,6 +5,7 @@
 
 #include "AttackTargeting.h"
 #include "BattleStateMachine.h"
+#include "Body_Player.h"
 #include "ChooseAction.h"
 #include "ChooseItem.h"
 #include "ChooseSkill.h"
@@ -13,6 +14,7 @@
 #include "Create_Class.h"
 #include "ItemTargeting.h"
 #include "Monster.h"
+#include "Player.h"
 #include "SkillTargeting.h"
 #include "Spawn_Prefab.h"
 #include "UltimateTargeting.h"
@@ -24,12 +26,12 @@ BattleController::BattleController()
 
 BattleController::~BattleController()
 {
-	Free();
+    Free();
 }
 
 EAPChangeReason BattleController::FinishBattle()
 {
-	return EAPChangeReason::Parry;
+    return EAPChangeReason::Parry;
 }
 
 
@@ -44,11 +46,10 @@ HRESULT BattleController::Initialize()
 
 void BattleController::Update(float timeDelta)
 {
-    if(_battleEnded == true)
+    if (_battleEnded == true)
     {
         return;
     }
-	
     if (_pendingNextTurn)
     {
         _pendingNextTurn = false;
@@ -56,14 +57,15 @@ void BattleController::Update(float timeDelta)
         return;
     }
 
-    
-       if (_heroes.empty() == true || _enemies.empty() == true)
-            return;
-       // 적턴 인지 플레이어 턴인지에 따라
-        if (_currentTurnActor.statCom->Is_Player())
-        {
-            _battleFSM->Update_StateMachine(timeDelta);
-        }
+    // 일단 지금은 배틀이랑 구분 안되어 있음 애니메이션 일단 돌리고 있음
+
+    if (_heroes.empty() == true || _enemies.empty() == true)
+        return;
+    // 적턴 인지 플레이어 턴인지에 따라
+    if (_currentTurnActor.statCom->Is_Player())
+    {
+        _battleFSM->Update_StateMachine(timeDelta);
+    }
 
 
 
@@ -77,10 +79,10 @@ void BattleController::Run_EnemyTurn()
 
     Execute_Skill(_currentTurnActor, Get_TurnAction());
 
-   
+
 }
 
-void BattleController::OnEnterBattleField(uint32 FieldID, bool IsFirstHero, vector<string>& PlayerProtoTag,vector<string>& MonsterProtoTag)
+void BattleController::OnEnterBattleField(uint32 FieldID, bool IsFirstHero, vector<string>& PlayerProtoTag, vector<string>& MonsterProtoTag)
 {
     // 현제 케릭 아이디 , 적 아이디로 전투 용 객체 생성
     Create_BattleChar(PlayerProtoTag, MonsterProtoTag);
@@ -139,7 +141,7 @@ void BattleController::EndTurn()
     // 끝났다면 끝
     uint32 DeadPlayer = {};
     uint32 DeadEnemy = {};
-    for(int i = 0 ; i < _heroes.size(); i++)
+    for (int i = 0; i < _heroes.size(); i++)
     {
         if (_heroes[i].statCom->Get_AliveStatus() == EAliveStatus::Dead)
             DeadPlayer++;
@@ -174,23 +176,23 @@ void BattleController::EndTurn()
 
     auto actor = _currentTurnActor;
     // 죽은애들은 큐에 다시 안들어가게
-    if(actor.statCom->Get_AliveStatus() != EAliveStatus::Dead)
+    if (actor.statCom->Get_AliveStatus() != EAliveStatus::Dead)
     {
-        
-    TurnEntry entry{};
-    entry.hero = actor;
 
-    entry.nextTime =
-        _battleTime + (100.f / max(actor.statCom->Get_Speed(), 1.f));
+        TurnEntry entry{};
+        entry.hero = actor;
 
-    _turnQueue.push(entry);
+        entry.nextTime =
+            _battleTime + (100.f / max(actor.statCom->Get_Speed(), 1.f));
+
+        _turnQueue.push(entry);
     }
 
 
 
     _pendingNextTurn = true;
 
-    
+
 
 }
 
@@ -230,7 +232,7 @@ void BattleController::StartTurn()
 
 void BattleController::Create_BattleChar(vector<string>& PlayerprotoTag, vector<string>& MonsterprotoTag)
 {
-    
+
 
     for (int i = 0; i < PlayerprotoTag.size(); i++)
     {
@@ -243,11 +245,17 @@ void BattleController::Create_BattleChar(vector<string>& PlayerprotoTag, vector<
         if (charater == nullptr)
             LOG_WARN({ "Failed to Create BattleChar" });
 
+        auto  ply = dynamic_pointer_cast<Player>(charater);
         BattleChar battle_char = {};
         battle_char.statCom = charater->Get_Component<CombatStatCom>();
-        battle_char.actor = dynamic_pointer_cast<Character>(charater);
-    
-            _heroes.push_back(battle_char);
+        battle_char.actor = ply;
+
+
+        auto body = dynamic_cast<Body_Player*>(
+            ply->Get_PartObject(TEXT("Part_Body")));
+        battle_char.ModelCom = body->Get_Component<ModelCom>();
+
+        _heroes.push_back(battle_char);
     };
 
     for (int i = 0; i < MonsterprotoTag.size(); i++)
@@ -261,23 +269,28 @@ void BattleController::Create_BattleChar(vector<string>& PlayerprotoTag, vector<
         if (charater == nullptr)
             LOG_WARN({ "Failed to Create BattleChar" });
 
+        auto  Mon = dynamic_pointer_cast<Monster>(charater);
         BattleChar battle_char = {};
         battle_char.statCom = charater->Get_Component<CombatStatCom>();
-        battle_char.actor = dynamic_pointer_cast<Character>(charater);
+        battle_char.actor = Mon;
 
-            _enemies.push_back(battle_char);
+        auto body = dynamic_cast<Body_Player*>(
+            Mon->Get_PartObject(TEXT("Part_Body")));
+        battle_char.ModelCom = Mon->Get_Component<ModelCom>();
+
+        _enemies.push_back(battle_char);
     };
 }
 
 void BattleController::Build_InitialTurnQueue(bool IsFirstHero)
 {
 
-    float heroOffset ={};
+    float heroOffset = {};
     float monsterOffset = {};
     // 첨 초기화
     _battleTime = 0;
 
-    while(!_turnQueue.empty())
+    while (!_turnQueue.empty())
     {
         _turnQueue.pop();
     }
@@ -294,26 +307,26 @@ void BattleController::Build_InitialTurnQueue(bool IsFirstHero)
     }
 
 
-       for(auto& hero :_heroes)
-       {
-           if(!hero.actor)
-               continue;
+    for (auto& hero : _heroes)
+    {
+        if (!hero.actor)
+            continue;
 
-           TurnEntry entry = {};
-           entry.nextTime = (100.f / max(hero.statCom->Get_Speed(), 1.f))+heroOffset;
-           entry.hero = hero;
-           _turnQueue.push(entry);
-       }
-       for (auto& enemy : _enemies)
-       {
-           if (!enemy.actor)
-               continue;
+        TurnEntry entry = {};
+        entry.nextTime = (100.f / max(hero.statCom->Get_Speed(), 1.f)) + heroOffset;
+        entry.hero = hero;
+        _turnQueue.push(entry);
+    }
+    for (auto& enemy : _enemies)
+    {
+        if (!enemy.actor)
+            continue;
 
-           TurnEntry entry = {};
-           entry.nextTime = (100.f / max(enemy.statCom->Get_Speed(), 1.f))+monsterOffset;
-           entry.hero = enemy;
-           _turnQueue.push(entry);
-       }
+        TurnEntry entry = {};
+        entry.nextTime = (100.f / max(enemy.statCom->Get_Speed(), 1.f)) + monsterOffset;
+        entry.hero = enemy;
+        _turnQueue.push(entry);
+    }
 
 
 }
@@ -336,7 +349,7 @@ void BattleController::SetCharInitPos()
         if (!hero.actor)
             continue;
 
-        hero.actor->Get_Transform()->Set_Position(startPos+
+        hero.actor->Get_Transform()->Set_Position(startPos +
             PPos[i]);
     }
 
@@ -346,7 +359,7 @@ void BattleController::SetCharInitPos()
         if (!enemy.actor)
             continue;
 
-        enemy.actor->Get_Transform()->Set_Position(startPos+
+        enemy.actor->Get_Transform()->Set_Position(startPos +
             EPos[i]);
     }
 
@@ -356,9 +369,9 @@ vector<BattleChar> BattleController::Get_AliveEnemies()
 {
 
     vector<BattleChar> alive;
-    for(int i = 0; i < _enemies.size();i++)
+    for (int i = 0; i < _enemies.size(); i++)
     {
-        if(_enemies[i].statCom->Get_CurAliveState()== EAliveStatus::Alive)
+        if (_enemies[i].statCom->Get_CurAliveState() == EAliveStatus::Alive)
         {
             alive.push_back(_enemies[i]);
         }
@@ -369,7 +382,7 @@ vector<BattleChar> BattleController::Get_AliveEnemies()
 vector<BattleChar> BattleController::Get_AliveHeroes()
 {
     vector<BattleChar> alive;
-    for (int i = 0; i <_heroes.size(); i++)
+    for (int i = 0; i < _heroes.size(); i++)
     {
         if (_heroes[i].statCom->Get_CurAliveState() == EAliveStatus::Alive)
         {
@@ -387,26 +400,30 @@ void BattleController::Execute_BaseAttack(const BattleChar actor, const Action& 
         turnAction.target.actor ? String::ToString(turnAction.target.actor->Get_Name()).c_str() : "null",
         turnAction._selected_SkillKey.scriptClassName.c_str());
 
+    auto vec_anim = turnAction._selected_SkillKey.animationKey;
+    if (vec_anim.size() == 0)
+        return;
 
-   // auto script = Create_Class::SkillScript<Base_Gustave_Attack>().Create();
-    auto script = Create_Class::SkillScript(turnAction._selected_SkillKey.scriptClassName).Create();
 
-    if (script == nullptr)
-    {
-        LOG_ERROR("Base_Gustave_Attack Create Failed");
-    }
-    else
-    {
-        LOG_ERROR("Base_Gustave_Attack Create Success");
-    }
-\
+    vec_anim
 
-    auto target = turnAction.target;
 
-    script->Execute(turnAction._selected_SkillKey, actor, target);
-    LOG_DEBUG("Execute_BaseAttack: script finished");
-
-    EndTurn();// 일단 애니메이션등이 다 끝나고 끝내야 하는데 일단 테스트
+    //auto script = Create_Class::SkillScript(turnAction._selected_SkillKey.scriptClassName).Create();
+    //if (script == nullptr)
+    //{
+    //    LOG_ERROR("skill Create Failed");
+    //}
+    //else
+    //{
+    //    LOG_ERROR("skill Create Success");
+    //}
+    //
+    //auto target = turnAction.target;
+    //
+    //script->Execute(turnAction._selected_SkillKey, actor, target);
+    //LOG_DEBUG("Execute_BaseAttack: script finished");
+    //
+    //EndTurn();// 일단 애니메이션등이 다 끝나고 끝내야 하는데 일단 테스트
 
 }
 
@@ -460,7 +477,7 @@ void BattleController::Set_BattleFSM()
 }
 Shared<BattleController> BattleController::Create()
 {
-   
+
     Shared<BattleController> instance = make_shared<BattleController>();
 
     if (FAILED(instance->Initialize()))
@@ -475,5 +492,5 @@ Shared<BattleController> BattleController::Create()
 
 void BattleController::Free()
 {
-	Base::Free();
+    Base::Free();
 }

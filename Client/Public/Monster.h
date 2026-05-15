@@ -6,9 +6,10 @@
 #include "Battle_Enum.h"
 #include "Client_Defines.h"
 #include "Character.h"
+#include "Mon_Lancleier_Body.h"
 
 NS_BEGIN(Engine)
-class ShaderCom;
+    class ShaderCom;
 class ModelCom;
 class AIController;
 NS_END
@@ -46,6 +47,8 @@ public:
 	virtual void    Late_Update(float timeDelta) override;
 	virtual HRESULT Render() override;
     virtual HRESULT Render_Shadow() override;
+
+    public:
 
 protected:
     Shared<Mon_Lancleier_Body> _body = {};

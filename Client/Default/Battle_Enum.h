@@ -1,6 +1,7 @@
 ﻿#pragma once
 namespace Engine
 {
+    class ModelCom;
     class Character;
 }
 
@@ -445,6 +446,7 @@ namespace Client
     {
         Shared<Character> actor;
         Shared<CombatStatCom> statCom;
+        Shared<ModelCom> ModelCom;
     };
 
 
@@ -495,7 +497,8 @@ namespace Client
     {
         string skillName={""};            // "FireSlash"
         string scriptClassName={""};      // "FireSlashScript"
-
+        vector<string> animationKey;
+        string IdleAnimationKey;
 
         int32 apCost = 0;
         ECharacterTeamSelector targetingType={};
