@@ -10,6 +10,7 @@
 #include "UI_Image.h"
 #include "UI_RuntimeLoader.h" 
 #include "UI_Text.h"
+#include "PreviewCamera.h"
 
 static const char* Get_HeroPrefabName(HeroId heroId)
 {
@@ -62,133 +63,8 @@ HRESULT SkillTree_Panel::Initialize(uint32 levelIndex)
 
 void SkillTree_Panel::Update(float timeDelta)
 {
-    Vec4 redFont = Vec4(186.f / 255.f, 40.f / 255.f, 40.f / 255.f, 1.f);
-    Vec4 grayFont = Vec4(170.f / 255.f, 170.f / 255.f, 170.f / 255.f, 1.f);
-    Vec4 yellowFont = Vec4(235.f / 255.f, 207.f / 255.f, 103.f / 255.f, 1.f);
-
-    if(!_isOpen)
-        return;
-
-    for(auto& [skillId, tooltip] : _currentView->tooltips)
-    {
-        if(tooltip)
-            tooltip->Close();
-    }
-
-   
-    for(auto& node : _currentView->skillNodes)
-    {
-        if(node.image)
-           node.image->Set_GrayScaleEnabled(false);
-
-        if(node.costText)
-        {
-           node.costText->Close();
-           node.costText->Set_Color(grayFont);
-        }
-
-        if(node.image)
-        node.image->Get_Transform()->Set_Scale(_baseSize);
-
-        if(node.lockedPopup)
-        node.lockedPopup->Close();
-
-        if(node.unlockedPopup)
-        node.unlockedPopup->Close();
-
-        const bool isUnlocked = _currentView->skillTreeCom->IsUnlocked(node.skillId);
-        const bool canUnlock = !isUnlocked && _currentView->skillTreeCom->CanUnlock(node.skillId);
-
-        if(node.button->Is_Pressed())
-        {
-            // 클릭했을 때 모든 버튼 오버레이 처리
-            if(node.image)
-                node.image->Set_OverlayEnabled(true);
-        }
-        else
-        {
-            if(node.image)
-                node.image->Set_OverlayEnabled(false);
-        }
-
-        //해금이 되지 않았을 떄
-        if(!isUnlocked)
-        {
-           // //이미지는 회색으로
-            if(node.image)
-            {
-                node.image->Set_GrayScaleEnabled(true);
-                node.image->Set_GrayAmount(1);
-            }
-
-            if(!_currentView->skillTreeCom->HasRequiredSkill(node.skillId))
-            {
-                //잠겨있는 상태 & 선행스킬 없을 때
-                //TODO 회색으로 바꾸기
-                if(node.costText)
-                {
-                    node.costText->Open();
-                    node.costText->Set_Color(grayFont);  
-                }
-            }
-            else if(_currentView->skillTreeCom->HasRequiredSkill(node.skillId) && !_currentView->skillTreeCom->HasEnoughSkillPoint(node.skillId) )
-            {
-                //잠겨있는 상태인데 선행스킬은 있는데 포인트가 부족할 때
-               //TODO 빨간색으로 바꾸기
-                if(node.costText)
-                {
-                    node.costText->Open();
-                    node.costText->Set_Color(redFont);
-                }
-            }
-            else if(canUnlock)
-            {
-                //잠겨 있는 상태인데 해금 가능한 상태일 때(선행스킬 + 포인트)
-                if(node.costText)
-                {
-                    node.costText->Open();
-                    node.costText->Set_Color(yellowFont);
-                }
-            }
-        }
-
-        auto ui = _currentView->tooltips.find(String::ToWString(node.skillId));
-
-        //hover일때
-        //TODO 이건 anchor 생기면 다시 보정
-        //공통적으로 약간 커짐 && 툴팁 띄우기
-        if(node.button->Is_Hovered())
-        {
-            if(node.image)
-            node.image->Get_Transform()->Set_Scale(_hoveredSize);
-
-            //툴팁 띄우기
-            if(ui != _currentView->tooltips.end() && ui->second)
-            ui->second->Open();
-
-            if(isUnlocked)
-            {
-                if(node.unlockedPopup)
-                node.unlockedPopup->Open();
-            }
-            else
-            {
-                if(node.costText)
-                node.costText->Open();
-
-                if(node.lockedPopup)
-                node.lockedPopup->Open();
-
-                if(canUnlock)
-                {
-                    if(GAME->KeyDown(KEY_TYPE::F))
-                    {
-                        _currentView->skillTreeCom->TryUnlock(node.skillId);
-                    }
-                }
-            }
-        }
-    }
+   Update_UI();
+   Update_StatusPreviewHeroes(timeDelta);
 }
 
 void SkillTree_Panel::Open()
@@ -215,6 +91,12 @@ void SkillTree_Panel::Open()
     for(auto tooltip : _currentView->tooltips)
         tooltip.second->Close();
 
+
+    CHECK_FAILED(Spawn_StatusPreviewHeroes());
+    CHECK_FAILED(Ready_StatusPreviewCamera());
+
+    Activate_StatusPreviewCamera();
+
     // 마우스 잠금
     GAME->Unlock_Mouse();
     GAME->Set_GameplayPaused(true);
@@ -234,6 +116,9 @@ void SkillTree_Panel::Close()
 
     for(auto tooltip : _currentView->tooltips)
         tooltip.second->Close();
+
+    Restore_PreviousCamera();
+    Clear_StatusPreviewHeroes();
 
     GAME->Set_GameplayPaused(false);
     GAME->Lock_Mouse();
@@ -258,7 +143,7 @@ HRESULT SkillTree_Panel::Load_Background_UI(uint32 levelIndex)
     CHECK_FAILED(UI_RuntimeLoader::Load_Document(desc), E_FAIL);
 
     _backgroundUI = Find_UI(_backgroundUIs,L"Panel_SkillTree");
-    _skillpointUI = Find_UI(_backgroundUIs,L"Text_SkillPoint");
+    _skillpointUI = Find_UI(_backgroundUIs,L"Text_CurrentSkillPoint");
 
     CHECK_NULL(_backgroundUI, E_FAIL);
 
@@ -340,11 +225,13 @@ HRESULT SkillTree_Panel::Bind_SkillNode_UI(const wstring& playerName, SkillTreeV
         const wstring textId = textPrefix + skillIdW + L"_Cost";
         const wstring lockedPopupId = L"Panel_Skill_" + playerName + L"_" + skillIdW + L"_Lock";
         const wstring unlockedPopupId =  L"Panel_Skill_" + playerName + L"_" + skillIdW + L"_On"; 
+        const wstring canUnlockPopupId =  L"Panel_Skill_" + playerName + L"_" + skillIdW + L"_CanUnlock";
 
         Shared<UI_Image> icon = dynamic_pointer_cast<UI_Image>(Find_UI(outView.uiByName, imageId));
         Shared<UI_Text>  costText = dynamic_pointer_cast<UI_Text>(Find_UI(outView.uiByName, textId));
         Shared<UI_Base>  lockedPopup = dynamic_pointer_cast<UI_Base>(Find_UI(outView.uiByName, lockedPopupId));
         Shared<UI_Base>  unlockedPopup = dynamic_pointer_cast<UI_Base>(Find_UI(outView.uiByName, unlockedPopupId));
+        Shared<UI_Base>  canUnlockPopup = dynamic_pointer_cast<UI_Base>(Find_UI(outView.uiByName, canUnlockPopupId));
 
         SkillNodeUI node{};
         node.skillId = skillId;
@@ -352,6 +239,7 @@ HRESULT SkillTree_Panel::Bind_SkillNode_UI(const wstring& playerName, SkillTreeV
         node.image = icon;
         node.lockedPopup = lockedPopup;
         node.unlockedPopup = unlockedPopup;
+        node.canUnlockPopup = canUnlockPopup;
         node.costText = costText;
 
         outView.skillNodes.push_back(node);
@@ -376,6 +264,9 @@ void SkillTree_Panel::Set_SkillPoint()
     {
         const auto desc = CLIENT->Get_SkillTreeDesc(node.skillId);
 
+        if(!desc)
+           continue;
+
         if(node.costText)
         node.costText->Set_Text(to_wstring(desc->unlockCost));
     }
@@ -388,8 +279,147 @@ void SkillTree_Panel::Set_SkillPoint()
 
     CHECK_NULL(playerStatCom);
 
-    dynamic_pointer_cast<UI_Text>(_skillpointUI)->Set_Text(to_wstring(playerStatCom->Get_PlayerDesc().skillPoint));
+    dynamic_pointer_cast<UI_Text>(_skillpointUI)->Set_Text(to_wstring(playerStatCom->Get_PlayerRuntimeStat().CurSkillPoint));
 
+}
+
+void SkillTree_Panel::Update_UI()
+{
+     Vec4 redFont = Vec4(186.f / 255.f, 40.f / 255.f, 40.f / 255.f, 1.f);
+    Vec4 grayFont = Vec4(170.f / 255.f, 170.f / 255.f, 170.f / 255.f, 1.f);
+    Vec4 yellowFont = Vec4(235.f / 255.f, 207.f / 255.f, 103.f / 255.f, 1.f);
+
+    if(!_isOpen)
+        return;
+
+    for(auto& [skillId, tooltip] : _currentView->tooltips)
+    {
+        if(tooltip)
+            tooltip->Close();
+    }
+
+   
+    for(auto& node : _currentView->skillNodes)
+    {
+        if(node.image)
+           node.image->Set_GrayScaleEnabled(false);
+
+        if(node.costText)
+        {
+           node.costText->Close();
+           node.costText->Set_Color(grayFont);
+        }
+
+        if(node.image)
+        node.image->Get_Transform()->Set_Scale(_baseSize);
+
+        if(node.canUnlockPopup)
+        node.canUnlockPopup ->Close();
+
+        if(node.lockedPopup)
+        node.lockedPopup->Close();
+
+        if(node.unlockedPopup)
+        node.unlockedPopup->Close();
+
+        const bool isUnlocked = _currentView->skillTreeCom->IsUnlocked(node.skillId);
+        const bool canUnlock = !isUnlocked && _currentView->skillTreeCom->CanUnlock(node.skillId);
+
+        if(node.button->Is_Pressed())
+        {
+            // 클릭했을 때 모든 버튼 오버레이 처리
+            if(node.image)
+                node.image->Set_OverlayEnabled(true);
+        }
+        else
+        {
+            if(node.image)
+                node.image->Set_OverlayEnabled(false);
+        }
+
+        //해금이 되지 않았을 떄
+        if(!isUnlocked)
+        {
+           // //이미지는 회색으로
+            if(node.image)
+            {
+                node.image->Set_GrayScaleEnabled(true);
+                node.image->Set_GrayAmount(1);
+            }
+
+            if(!_currentView->skillTreeCom->HasRequiredSkill(node.skillId))
+            {
+                //잠겨있는 상태 & 선행스킬 없을 때
+                //TODO 회색으로 바꾸기
+                if(node.costText)
+                {
+                    node.costText->Open();
+                    node.costText->Set_Color(grayFont);  
+                }
+            }
+            else if(_currentView->skillTreeCom->HasRequiredSkill(node.skillId) && !_currentView->skillTreeCom->HasEnoughSkillPoint(node.skillId) )
+            {
+                //잠겨있는 상태인데 선행스킬은 있는데 포인트가 부족할 때
+               //TODO 빨간색으로 바꾸기
+                if(node.costText)
+                {
+                    node.costText->Open();
+                    node.costText->Set_Color(redFont);
+                }
+            }
+            else if(canUnlock)
+            {
+                //잠겨 있는 상태인데 해금 가능한 상태일 때(선행스킬 + 포인트)
+                if(node.costText)
+                {
+                    node.costText->Open();
+                    node.costText->Set_Color(yellowFont);
+                }
+            }
+        }
+
+        auto ui = _currentView->tooltips.find(String::ToWString(node.skillId));
+
+        //hover일때
+        //TODO 이건 anchor 생기면 다시 보정
+        //공통적으로 약간 커짐 && 툴팁 띄우기
+        if(node.button->Is_Hovered())
+        {
+            if(node.image)
+            node.image->Get_Transform()->Set_Scale(_hoveredSize);
+ 
+            if(ui != _currentView->tooltips.end() && ui->second)
+            ui->second->Open();
+
+            if(isUnlocked)
+            {
+                if(node.unlockedPopup)
+                node.unlockedPopup->Open();
+            }
+            else
+            {
+                if(node.costText)
+                node.costText->Open();
+
+                if(canUnlock)
+                {
+                    if(node.canUnlockPopup)
+                        node.canUnlockPopup->Open();
+
+                    if(GAME->KeyDown(KEY_TYPE::F))
+                    {
+                        _currentView->skillTreeCom->TryUnlock(node.skillId);
+                        Set_SkillPoint();
+                    }
+                }
+                else
+                {
+                    if(node.lockedPopup)
+                        node.lockedPopup->Open();
+                }
+            }
+        }
+    }
 }
 
 void SkillTree_Panel::Change_ToNextViewState(HeroId next)
@@ -406,7 +436,6 @@ void SkillTree_Panel::Change_ToNextViewState(HeroId next)
 
 HRESULT SkillTree_Panel::Spawn_StatusPreviewHeroes()
 {
-    // 기존에 있다면 삭제
     Clear_StatusPreviewHeroes();
    
     const vector<HeroPartyEntry>& partyEntries = CLIENT->Get_HeroEntries();
@@ -467,7 +496,7 @@ void SkillTree_Panel::Layout_StatusPreviewHeroes()
 {
     static const Vec3 positions[] =
         {
-            Vec3(-1.1f, 0.f, 0.1f),
+            Vec3(-1.1f, 0.f, -0.1f),
             Vec3(0.0f,  0.f, 0.f),
             Vec3(1.1f,  0.f, -0.1f)
         };
@@ -511,44 +540,55 @@ void SkillTree_Panel::Layout_StatusPreviewHeroes()
 }
 
 HRESULT SkillTree_Panel::Ready_StatusPreviewCamera()
-{//
- //   if (_statusPreviewCamera)
- //       return S_OK;
- //
- //   PreviewCamera::Preview_CameraDesc desc{};
- //   desc.eye = Vec4(0.f, 1.45f, 6.f, 1.f);
- //   desc.at = Vec4(0.f, 1.05f, 0.f, 1.f);
- //   desc.fovy = XMConvertToRadians(30.f);
- //   desc.nearPlane = 0.1f;
- //   desc.farPlane = 100.f;
- //   desc.mouseSensor = 0.f;
- //   desc.mouseSensitivity = 0.f;
- //
- //   Shared<GameObject> cameraObject = nullptr;
- //
- //   CHECK_FAILED(
- //       GAME->Add_GameObject(
- //           ETOI(LevelType::Static),
- //           TEXT("GameObject_PreviewCamera"),
- //           _levelIndex,
- //           _previewLayerTag,
- //           cameraObject,
- //           &desc),
- //       E_FAIL);
- //
- //   _statusPreviewCamera = dynamic_pointer_cast<PreviewCamera>(cameraObject);
- //   CHECK_NULL(_statusPreviewCamera, E_FAIL);
- //
- //   _statusPreviewCamera->Try_BeginPlay();
- //
+{
+    if (_previewCamera)
+        return S_OK;
+   
+    PreviewCamera::Preview_CameraDesc desc{};
+    desc.eye = Vec4(0.f, 1.45f, 6.f, 1.f);
+    desc.at = Vec4(0.f, 1.05f, 0.f, 1.f);
+    desc.fovy = XMConvertToRadians(30.f);
+    desc.nearPlane = 0.1f;
+    desc.farPlane = 100.f;
+    desc.mouseSensor = 0.f;
+    desc.mouseSensitivity = 0.f;
+   
+    Shared<GameObject> cameraObject = nullptr;
+   
+    CHECK_FAILED(
+        GAME->Add_GameObject(
+            ETOI(LevelType::Static),
+            TEXT("GameObject_PreviewCamera"),
+            _levelIndex,
+            _previewLayerTag,
+            cameraObject,
+            &desc),
+        E_FAIL);
+   
+    _previewCamera = dynamic_pointer_cast<PreviewCamera>(cameraObject);
+    CHECK_NULL(_previewCamera, E_FAIL);
+   
+    _previewCamera->Try_BeginPlay();
+   
     return S_OK;
 }
 void SkillTree_Panel::Activate_StatusPreviewCamera()
 {
+    if(_previewCamera == nullptr)
+        return;
+
+    _previousCamera = GAME->Get_ActiveCamera();
+
+    GAME->Change_ActiveCamera(_previewCamera);
+    _previewCamera->Apply_View();
 }
 
 void SkillTree_Panel::Restore_PreviousCamera()
 {
+    if (_previousCamera)
+        GAME->Change_ActiveCamera(_previousCamera);
+
+    _previousCamera.reset();
 }
 
 Unique<SkillTree_Panel> SkillTree_Panel::Create(uint32 levelIndex)

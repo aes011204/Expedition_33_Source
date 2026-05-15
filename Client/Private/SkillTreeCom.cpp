@@ -18,7 +18,8 @@ HRESULT SkillTreeCom::Initialize(void* arg)
 
     //임시로 미리 가진 스킬 넣어놓기
     _unlockedSkillId.push_back("Immolation");
-    _unlockedSkillId.push_back("Rebirth");
+    _unlockedSkillId.push_back("HealingLight");
+    _unlockedSkillId.push_back("IceGust");
 
     return S_OK;
 }
@@ -53,11 +54,12 @@ void SkillTreeCom::TryUnlock(const string& skillId)
     if(!playerStatCom)
         return;
 
-    //TODO 플레이어 skillpoint 깎는거
-
-    playerStatCom->Get_PlayerDesc().skillPoint - skillTreeDesc->unlockCost;
-
-    _unlockedSkillId.push_back(skillId);
+    if(CanUnlock(skillId))
+    {
+        auto & runtimeStat = playerStatCom->Get_PlayerRuntimeStat();
+        runtimeStat.CurSkillPoint -= skillTreeDesc->unlockCost;
+        _unlockedSkillId.push_back(skillId);
+    }
 }
 
 bool SkillTreeCom::CanUnlock(const string& skillId)
@@ -97,7 +99,7 @@ bool SkillTreeCom::HasEnoughSkillPoint(const string& skillId)
     if (!playerStatCom)
         return false;
 
-    return  skillTreeDesc->unlockCost <=playerStatCom->Get_PlayerDesc().skillPoint;
+    return  skillTreeDesc->unlockCost <=playerStatCom->Get_PlayerRuntimeStat().CurSkillPoint;
 }
 
 bool SkillTreeCom::HasRequiredSkill(const string& skillId)

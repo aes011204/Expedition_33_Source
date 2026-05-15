@@ -11,7 +11,9 @@ class Camera;
 NS_END
 
 NS_BEGIN(Client)
-class SkillTreeCom;
+
+class PreviewCamera;
+    class SkillTreeCom;
 class SkillTree_Panel final : public Base
 {
 public:
@@ -22,6 +24,7 @@ public:
         Shared<UI_Image>  image;
         Shared<UI_Base>   unlockedPopup;
         Shared<UI_Base>   lockedPopup;
+        Shared<UI_Base>   canUnlockPopup;
         Shared<UI_Text>   costText;
     };
 
@@ -59,6 +62,7 @@ private:
     HRESULT     Bind_SkillNode_UI(const wstring& playerName, SkillTreeViewState& outView);
     Shared<UI_Base> Find_UI(const umap<wstring, Shared<UI_Base>>& uiByName, const wstring& name) const;
     void        Set_SkillPoint();
+    void        Update_UI();
 
     template<typename T>
     Shared<T> Find_TypedUI(
@@ -98,6 +102,9 @@ private:
 
     vector<StatusPreviewHero>                _previewHeroes{};
     wstring                                  _previewLayerTag = L"Layer_CharacterStatusPreview";
+    Shared<Camera>                           _previousCamera{};
+    Shared<PreviewCamera>                    _previewCamera{};
+
     Shared<UI_Base>                          _skillpointUI;
     int                                      _unlockProgress;
     Shared<UI_Base>                          _backgroundUI;
