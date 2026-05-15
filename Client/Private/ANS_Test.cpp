@@ -15,11 +15,15 @@ void ANS_Test::On_Begin(const AnimNotifyContext& context)
     if (!context.owner || !context.model)
         return;
 
-    LOG_WARN("ANS_Test Begin");
+    LOG_DEBUG("ANS_Test Begin");
 }
 
 void ANS_Test::On_Tick(const AnimNotifyContext& context)
 {
+    if (!context.owner || !context.model)
+        return;
+
+    LOG_DEBUG("ANS_Test Tick");
 }
 
 void ANS_Test::On_End(const AnimNotifyContext& context)
@@ -27,5 +31,5 @@ void ANS_Test::On_End(const AnimNotifyContext& context)
     if (!context.owner || !context.model)
         return;
 
-    LOG_WARN("ANS_Test End");
+    LOG_DEBUG("ANS_Test End");
 }

@@ -3,6 +3,7 @@
 #include "TransformCom.h"
 #include "Camera.h"
 #include "ColliderCom.h"
+#include "Helper_Math.h"
 #include "PhysX_Types.h"
 
 IMPLEMENT_REFLECTION(MovementCom)
@@ -14,16 +15,10 @@ IMPLEMENT_REFLECTION(MovementCom)
     PROPERTY_FLOAT("Run Speed", _moveDesc.runSpeed, 0.f, 30.f, 0.1f);
     PROPERTY_FLOAT("Sprint Speed", _moveDesc.sprintSpeed, 0.f, 30.f, 0.1f);
     PROPERTY_FLOAT("Turn Speed Degree", _moveDesc.turnSpeedDegree, 0.f, 720.f, 1.f);
+    PROPERTY_FLOAT("Turn Response", _moveDesc.turnResponse, 0.f, 30.f, 0.1f);
 
     PROPERTY_FLOAT("Jump Velocity", _moveDesc.jumpVelocity, 0.f, 100.f, 0.1f);
     PROPERTY_FLOAT("Gravity", _moveDesc.gravity, -100.f, 0.f, 0.1f);
-
-    PROPERTY_FLOAT("Skin Width", _moveDesc.skinWidth, 0.f, 1.f, 0.01f);
-    PROPERTY_FLOAT("Ground Snap Up", _moveDesc.groundSnapUp, 0.f, 2.f, 0.01f);
-    PROPERTY_FLOAT("Ground Snap Down", _moveDesc.groundSnapDown, 0.f, 2.f, 0.01f);
-    PROPERTY_FLOAT("Walkable Normal Y", _moveDesc.walkableNormalY, 0.f, 1.f, 0.01f);
-
-    PROPERTY_FLOAT("Ground Y", _moveDesc.groundY, -100.f, 100.f, 0.1f);
 
     PROPERTY_VEC3("Velocity", _velocity, 10.f);
 
@@ -41,6 +36,7 @@ MovementCom::MovementCom(const MovementCom& Prototype)
     , _input{ Prototype._input }
     , _transformCom{ nullptr }
     , _velocity{ Prototype._velocity }
+    , _currentTurnSpeedDegree{ 0.f }
     , _isGrounded{ Prototype._isGrounded }
     , _isJumping{ Prototype._isJumping }
 {
@@ -63,8 +59,9 @@ HRESULT MovementCom::Initialize(void* arg)
 
     _transformCom.reset();
     _velocity = Vec3::Zero;
+    _currentTurnSpeedDegree = 0.f;
 
-    _isGrounded = false;
+    _isGrounded = true;
     _isJumping = false;
 
     return S_OK;
@@ -97,9 +94,7 @@ void MovementCom::Update_Movement(float timeDelta)
 bool MovementCom::Is_Moving() const
 {
     if (_followMove.enabled)
-    {
         return _followMove.worldDir.LengthSquared() > 0.f;
-    }
 
     return _input.moveX != 0.f || _input.moveZ != 0.f;
 }
@@ -154,7 +149,10 @@ void MovementCom::Update_Rotation(float timeDelta)
 {
     Vec3 desiredDir = Vec3::Zero;
     if (!Resolve_MoveDirection(desiredDir))
+    {
+        _currentTurnSpeedDegree = Engine::Math::Lerp_Damp(_currentTurnSpeedDegree, 0.f, _moveDesc.turnResponse, timeDelta);
         return;
+    }
 
     Vec3 forward = _transformCom->Get_WorldForward();
     forward.y = 0.f;
@@ -169,12 +167,23 @@ void MovementCom::Update_Rotation(float timeDelta)
 
     const float angle = acosf(dot);
     if (angle <= 0.0001f)
+    {
+        _currentTurnSpeedDegree = Engine::Math::Lerp_Damp(_currentTurnSpeedDegree, 0.f, _moveDesc.turnResponse, timeDelta);
         return;
+    }
 
     Vec3 cross = forward.Cross(desiredDir);
     const float sign = (cross.y >= 0.f) ? 1.f : -1.f;
 
-    const float maxStep = XMConvertToRadians(_moveDesc.turnSpeedDegree) * timeDelta;
+    const float angleRatio = std::clamp(angle / XMConvertToRadians(90.f), 0.f, 1.f);
+    const float targetTurnSpeedDegree = _moveDesc.turnSpeedDegree * std::lerp(0.25f, 1.f, angleRatio);
+    _currentTurnSpeedDegree = Engine::Math::Lerp_Damp(
+        _currentTurnSpeedDegree,
+        targetTurnSpeedDegree,
+        _moveDesc.turnResponse,
+        timeDelta);
+
+    const float maxStep = XMConvertToRadians(_currentTurnSpeedDegree) * timeDelta;
     const float step = min(angle, maxStep);
 
     Quat deltaRotation = Quat::CreateFromAxisAngle(Vec3::Up, step * sign);
@@ -195,7 +204,7 @@ void MovementCom::Update_HorizontalVelocity()
 
     if (_followMove.enabled)
     {
-        moveSpeed = _followMove.catchUp  ? _moveDesc.sprintSpeed : _moveDesc.runSpeed;
+        moveSpeed = _followMove.sprintFollow  ? _moveDesc.sprintSpeed : _moveDesc.runSpeed;
     }
     else if (_input.moveX != 0.f || _input.moveZ != 0.f)
     {
@@ -336,7 +345,56 @@ void MovementCom::Move_WithCollision(const Vec3& displacement)
 
 void MovementCom::Move_Horizontal(const Vec3& displacement)
 {
-    Sweep_Move(displacement, true);
+    if (displacement.LengthSquared() <= 0.f)
+        return;
+
+    PhysXQueryHit hit{};
+    float movedDistance = 0.f;
+
+    // 수평 이동은 벽에 닿으면 우선 충돌 직전까지만 전진한다.
+    const bool blocked = Sweep_Move(displacement, false, &hit, &movedDistance);
+    if (!blocked)
+        return;
+
+    Vec3 moveDir = displacement;
+    const float totalDistance = moveDir.Length();
+    if (totalDistance <= 0.f)
+        return;
+
+    moveDir /= totalDistance;
+
+    const float remainDistance = max(0.f, totalDistance - movedDistance);
+    if (remainDistance <= 0.0001f)
+        return;
+
+    Vec3 remain = moveDir * remainDistance;
+
+    // 남은 이동량에서 벽 법선 방향 성분을 제거해서 벽면을 따라 미끄러지게 만든다.
+    Vec3 slide = remain - hit.normal * remain.Dot(hit.normal);
+    slide.y = 0.f;
+
+    const float intoWall = slide.Dot(hit.normal);
+    if (intoWall < 0.f)
+    {
+        slide -= hit.normal * intoWall;
+    }
+
+    if (slide.LengthSquared() <= 0.0001f)
+        return;
+
+    Vec3 pushOut = hit.normal;
+    pushOut.y = 0.f;
+
+    if (pushOut.LengthSquared() > 0.f)
+    {
+        pushOut.Normalize();
+
+        Vec3 position = _transformCom->Get_WorldPosition();
+        position += pushOut * (_moveDesc.skinWidth + 0.001f);
+        _transformCom->Set_WorldPosition(position);
+    }
+
+    Sweep_Move(slide, false);
 }
 
 void MovementCom::Move_Vertical(const Vec3& displacement)
@@ -344,8 +402,15 @@ void MovementCom::Move_Vertical(const Vec3& displacement)
     Sweep_Move(displacement, false);
 }
 
-bool MovementCom::Sweep_Move(const Vec3& displacement, bool passWalkableGround)
+bool MovementCom::Sweep_Move(const Vec3& displacement, bool passWalkableGround, PhysXQueryHit* outHit,
+    float* outMovedDistance)
 {
+     if (outHit)
+        *outHit = {};
+
+    if (outMovedDistance)
+        *outMovedDistance = 0.f;
+
     if (displacement.LengthSquared() <= 0.f)
         return false;
 
@@ -369,6 +434,10 @@ bool MovementCom::Sweep_Move(const Vec3& displacement, bool passWalkableGround)
         Vec3 position = _transformCom->Get_WorldPosition();
         position += displacement;
         _transformCom->Set_WorldPosition(position);
+
+        if (outMovedDistance)
+            *outMovedDistance = distance; // 끝까지 전진했으면 전체 거리만큼 이동
+
         return false;
     }
 
@@ -377,6 +446,13 @@ bool MovementCom::Sweep_Move(const Vec3& displacement, bool passWalkableGround)
         Vec3 position = _transformCom->Get_WorldPosition();
         position += displacement;
         _transformCom->Set_WorldPosition(position);
+
+        if (outHit)
+            *outHit = hit;
+
+        if (outMovedDistance)
+            *outMovedDistance = distance;
+
         return true;
     }
 
@@ -387,6 +463,12 @@ bool MovementCom::Sweep_Move(const Vec3& displacement, bool passWalkableGround)
         position += direction * moveDistance;
         _transformCom->Set_WorldPosition(position);
     }
+
+    if (outHit)
+        *outHit = hit; // 벽 법선을 Move_Horizontal에서 slide 계산에 쓴다.
+
+    if (outMovedDistance)
+        *outMovedDistance = moveDistance; // 충돌 전 실제 전진 거리만 넘긴다.
 
     if (direction.y < 0.f && Is_WalkableGround(hit.normal))
     {
@@ -413,16 +495,28 @@ void MovementCom::Resolve_Ground_WithSnap()
     if (_velocity.y > 0.f)
         return;
 
-    Matrix probeWorldMatrix = _transformCom->Get_WorldMatrix();
-    probeWorldMatrix.Translation(
-        probeWorldMatrix.Translation() + Vec3(0.f, _moveDesc.groundSnapUp, 0.f));
+    const ColliderShapeDesc& shapeDesc = _colliderCom->Get_ShapeDesc();
+
+    const Vec3 feetCenter =
+        _transformCom->Get_WorldPosition() +
+        Vec3(0.f, shapeDesc.center.y - shapeDesc.extents.y, 0.f);
+
+    // 몸통 전체가 아니라 발밑 작은 구체로만 바닥을 찾는다.
+    const float footProbeRadius =
+        max(0.05f, min(shapeDesc.extents.x, shapeDesc.extents.z) - _moveDesc.skinWidth);
+
+    const Vec3 probeOrigin =
+        feetCenter + Vec3(0.f, _moveDesc.groundSnapUp + footProbeRadius, 0.f);
 
     PhysXQueryHit hit{};
-    const float probeDistance = _moveDesc.groundSnapUp + _moveDesc.groundSnapDown;
-    const bool hasGround = GAME->Probe_Ground(
-        _colliderCom.get(),
-        probeWorldMatrix,
+    const float probeDistance =
+        _moveDesc.groundSnapUp + _moveDesc.groundSnapDown + footProbeRadius;
+    const bool hasGround = GAME->Sweep_Sphere(
+        probeOrigin,
+        Vec3(0.f, -1.f, 0.f),
         probeDistance,
+        footProbeRadius,
+        Collision_Preset::Player_Body,
         hit);
 
     if (!hasGround || !Is_WalkableGround(hit.normal))
@@ -431,7 +525,8 @@ void MovementCom::Resolve_Ground_WithSnap()
         return;
     }
 
-    const float targetDeltaY = _moveDesc.groundSnapUp - max(0.f, hit.distance - _moveDesc.skinWidth);
+    const float targetDeltaY =
+        (_moveDesc.groundSnapUp + footProbeRadius) - max(0.f, hit.distance - _moveDesc.skinWidth);
     if (targetDeltaY > _moveDesc.groundSnapUp + 0.001f ||
         targetDeltaY < -_moveDesc.groundSnapDown - 0.001f)
     {

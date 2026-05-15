@@ -13,7 +13,8 @@ namespace Client
     struct HeroSpawnDesc
     {
         HeroId heroId = HeroId::Gustave;
-        const char* prefabName;
+        const char* worldPrefabName = "";
+        const char* battlePrefabName = "";
     };
 
     // Player Hair Physics

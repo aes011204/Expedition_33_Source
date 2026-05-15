@@ -2,7 +2,7 @@
 
 #include "BuffSystem.h"
 #include "Character.h"
-
+#include "ClientInstance.h"
 #include "AttackTargeting.h"
 #include "BattleStateMachine.h"
 #include "ChooseAction.h"
@@ -80,10 +80,11 @@ void BattleController::Run_EnemyTurn()
    
 }
 
-void BattleController::OnEnterBattleField(uint32 FieldID, bool IsFirstHero, vector<string>& PlayerProtoTag,vector<string>& MonsterProtoTag)
+void BattleController::OnEnterBattleField(uint32 FieldID, bool IsFirstHero, const vector<HeroId>& heroIds,
+    vector<string>& MonsterProtoTag)
 {
     // 현제 케릭 아이디 , 적 아이디로 전투 용 객체 생성
-    Create_BattleChar(PlayerProtoTag, MonsterProtoTag);
+    Create_BattleChar(heroIds, MonsterProtoTag);
 
     // 초기 플레이 순서 지정
     Build_InitialTurnQueue(IsFirstHero);
@@ -228,45 +229,41 @@ void BattleController::StartTurn()
 
 }
 
-void BattleController::Create_BattleChar(vector<string>& PlayerprotoTag, vector<string>& MonsterprotoTag)
+void BattleController::Create_BattleChar(const vector<HeroId>& heroIds, vector<string>& MonsterprotoTag)
 {
-    
-
-    for (int i = 0; i < PlayerprotoTag.size(); i++)
+    for (HeroId heroId : heroIds)
     {
+       const HeroSpawnDesc* spawnDesc = CLIENT->Find_HeroSpawnDesc(heroId);
+       if (spawnDesc == nullptr)
+            continue;
 
-        Shared<GameObject> charater = Client::Spawn_Prefab::Spawn(
-            PlayerprotoTag[i],
+        Shared<GameObject> character = Spawn_Prefab::Spawn(
+            spawnDesc->battlePrefabName,
             GAME->Current_LevelIndex(),
             L"BattleLayer");
 
-        if (charater == nullptr)
-            LOG_WARN({ "Failed to Create BattleChar" });
+        CHECK_NULL(character);
 
-        BattleChar battle_char = {};
-        battle_char.statCom = charater->Get_Component<CombatStatCom>();
-        battle_char.actor = dynamic_pointer_cast<Character>(charater);
-    
-            _heroes.push_back(battle_char);
-    };
+        BattleChar battleChar{};
+        battleChar.actor = dynamic_pointer_cast<Character>(character);
+        battleChar.statCom = character->Get_Component<CombatStatCom>();
+        _heroes.push_back(battleChar);
+    }
 
-    for (int i = 0; i < MonsterprotoTag.size(); i++)
+    for (int i = 0; i < MonsterprotoTag.size(); ++i)
     {
-
-        Shared<GameObject> charater = Client::Spawn_Prefab::Spawn(
+        Shared<GameObject> character = Spawn_Prefab::Spawn(
             MonsterprotoTag[i],
             GAME->Current_LevelIndex(),
             L"BattleLayer");
 
-        if (charater == nullptr)
-            LOG_WARN({ "Failed to Create BattleChar" });
+        CHECK_NULL(character, );
 
-        BattleChar battle_char = {};
-        battle_char.statCom = charater->Get_Component<CombatStatCom>();
-        battle_char.actor = dynamic_pointer_cast<Character>(charater);
-
-            _enemies.push_back(battle_char);
-    };
+        BattleChar battleChar{};
+        battleChar.actor = dynamic_pointer_cast<Character>(character);
+        battleChar.statCom = character->Get_Component<CombatStatCom>();
+        _enemies.push_back(battleChar);
+    }
 }
 
 void BattleController::Build_InitialTurnQueue(bool IsFirstHero)

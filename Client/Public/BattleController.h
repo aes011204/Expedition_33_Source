@@ -3,21 +3,17 @@
 #include "Battle_Enum.h"
 
 NS_BEGIN(Engine)
-
-    class Character;
-
+class Character;
 NS_END
-
 
 NS_BEGIN(Client)
 
 class CombatStatCom;
 class BuffSystem;
 class BattleEffectResolver;
+class BattleStateMachine;
 
-    class BattleStateMachine;
-class BattleController :
-    public Base
+class BattleController : public Base
 {
 
 public:
@@ -27,12 +23,14 @@ public:
     HRESULT Initialize();
     void Update(float timeDelta);
 
-
-
     void Run_EnemyTurn();
 
+    void  OnEnterBattleField(
+        uint32 FieldID,
+        bool IsFirstHero,
+        const vector<HeroId>& heroIds,
+        vector<string>& MonsterProtoTag);
 
-    void  OnEnterBattleField(uint32 FieldID, bool IsFirstHero, vector<string>& PlayerProtoTag, vector<string>& MonsterProtoTag);
     EBattleEndResult OnExitBattleField(EBattleEndResult result);
 
     void Set_BattleFSM();
@@ -43,9 +41,7 @@ public:
 
     EAPChangeReason FinishBattle();
 
-
-
-    void Create_BattleChar(vector<string>& PlayerprotoTag, vector<string>& MonsterprotoTag);
+    void Create_BattleChar(const vector<HeroId>& heroIds, vector<string>& MonsterprotoTag);
     void Build_InitialTurnQueue(bool IsFirstHero);
     void SetCharInitPos();
 
@@ -57,6 +53,7 @@ public:
 
     vector<BattleChar> Get_AliveEnemies();
     vector<BattleChar> Get_AliveHeroes();
+
 private:
     BattleChar _currentTurnActor = {};
     Action _turnAction={};

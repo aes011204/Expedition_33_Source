@@ -153,6 +153,11 @@ Shared<Player> ClientInstance::Find_Hero(HeroId heroId) const
     return _heroManager->Find_Hero(heroId);
 }
 
+const HeroSpawnDesc* ClientInstance::Find_HeroSpawnDesc(HeroId heroId)
+{
+    return _heroManager->Find_HeroSpawnDesc(heroId);
+}
+
 HRESULT ClientInstance::Initialize_GameplayUI(uint32 levelIndex)
 {
     Clear_GameplayUI();
@@ -174,10 +179,10 @@ void ClientInstance::Clear_GameplayUI()
     GAME->Set_GameplayPaused(false);
 }
 
-void ClientInstance::OnEnterBattleField(uint32 FieldID, bool IsFirstHero, vector<string>& PlayerProtoTag,
+void ClientInstance::OnEnterBattleField(uint32 FieldID, bool IsFirstHero, const vector<HeroId>& heroIds,
     vector<string>& MonsterProtoTag)
 {
-    _battleController->OnEnterBattleField(FieldID, IsFirstHero, PlayerProtoTag, MonsterProtoTag);
+    return _battleController->OnEnterBattleField(FieldID, IsFirstHero, heroIds, MonsterProtoTag);
 }
 
 Shared<GameObject> ClientInstance::Find_Player(uint32 levelIndex)

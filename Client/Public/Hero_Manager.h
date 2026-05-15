@@ -26,8 +26,9 @@ public:
     {
         Vec3    desiredTargetPos = Vec3::Zero; // follower 목표 위치
         float   lastMoveDistance = 0.f;        // 목표까지 남은 거리
-        bool    catchUp = false;               // 추격 이동 여부
-        float   catchUpHoldTime = 0.f;         // Sprint 유지 시간. Run으로 바로 안바뀌게
+
+        bool    sprintFollow = false;          // 추격 이동 여부
+        float   sprintFollowHoldTime = 0.f;    // Sprint 유지 시간. Run으로 바로 안바뀌게
     };
 
 public:
@@ -58,6 +59,8 @@ public:
 
     Shared<Player> Find_Hero(HeroId heroId) const;
 
+    const HeroSpawnDesc* Find_HeroSpawnDesc(HeroId heroId);
+
 private:
     void    Switch_NextHero();
     void    Snap_AllHeroesToFormation(
@@ -65,6 +68,11 @@ private:
                 const Vec3& anchorRot,
                 Vec3 anchorForward,
                 Vec3 anchorRight);
+
+    Vec3    Resolve_SnapPosition(
+                const Shared<Player>& hero,
+                const Vec3& fromPos,
+                const Vec3& desiredPos) const;
 
     void    Apply_ControlRoles();
 
@@ -79,11 +87,10 @@ private:
                 const Vec3& targetPos,
                 float timeDelta);
 
-    void    Update_FollowerAnimation(
-                const Shared<Player>& follower,
-                float moveDistance, bool useSprint);
-
     void    Refresh_TargetCamera() const;
+
+    // Idle 상태로 되돌리기 : 전환 후, 게임 종료
+    void    Reset_AllHeroesToIdle();
 
 private:
     vector<HeroPartyEntry>  _heroes;
@@ -106,16 +113,15 @@ private:
     float _followerSideOffset = 1.4f;
 
     float _followStopDistance = 0.25f;
-    float _followerMoveSpeed = 8.f; // MovementCom에서 입력값 받아오는거로 바꾸긴 해야함
 
     float _snapBackDistanceA = 2.0f;
     float _snapBackDistanceB = 3.0f;
 
     array<FollowerRuntime, 3> _followerRuntime{};
-    float _catchUpDistance = 2.5f;
-    float _catchUpReleaseDistance = 1.2f;   // sprint 해제는 더 가까워졌을 때만
-    float _catchUpMinHoldTime = 0.25f;      // sprint에 들어가면 최소 이 시간은 유지
-    float _teleportReseatDistance  = 6.f;
+    float _sprintFollowDistance = 2.5f;
+    float _sprintFollowReleaseDistance = 1.2f;   // sprint 해제는 더 가까워졌을 때만
+    float _sprintFollowMinHoldTime = 0.25f;      // sprint에 들어가면 최소 이 시간은 유지
+    float _teleportReseatDistance  = 10.f;
 
 public:
     static Unique<Hero_Manager> Create();
