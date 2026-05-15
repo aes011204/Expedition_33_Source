@@ -42,7 +42,7 @@ HRESULT SkillTree_Panel::Initialize(uint32 levelIndex)
 
 void SkillTree_Panel::Update(float timeDelta)
 {
-    Vec4 lockedColor =  Vec4(0.35f, 0.35f, 0.35f, 1.0f);
+    Vec4 lockedColor =  Vec4(0.25f, 0.25f, 0.25f, 1.0f);
     Vec4 redFont = Vec4(1.f, 0.f,0.f,1.f);
     Vec4 grayFont = Vec4(0.5f, 0.5f, 0.5f, 1.f);
     Vec4 defaultImageColor = Vec4(1.f, 1.f, 1.f, 1.f);
@@ -76,11 +76,11 @@ void SkillTree_Panel::Update(float timeDelta)
 
         if(!isUnlocked)
         {
-          // // //이미지는 회색으로
-          //  if(node.image)
-          //  node.image->Set_Color(lockedColor);
-           // //글자는 빨간색으로 //선행 스킬은 만족했는데 돈만 부족한 상태일 때에는 빨간색으로
-           // node.costText->Set_Color(red);
+           // //이미지는 회색으로
+            if(node.image)
+            node.image->Set_Color(lockedColor);
+           //글자는 빨간색으로 //선행 스킬은 만족했는데 돈만 부족한 상태일 때에는 빨간색으로
+           //node.costText->Set_Color(red);
            
             if(!_currentView->skillTreeCom->HasRequiredSkill(node.skillId))
             {
@@ -274,6 +274,20 @@ Shared<UI_Base> SkillTree_Panel::Find_UI(const umap<wstring, Shared<UI_Base>>& u
         return nullptr;
 
     return iter->second;
+}
+
+void SkillTree_Panel::Set_SkillPoint()
+{
+    //TODO 플레이어 바뀔 때마다 호출
+
+
+    for (auto& node : _currentView->skillNodes)
+    {
+        const auto desc = CLIENT->Get_SkillTreeDesc(node.skillId);
+
+        if(node.costText)
+        node.costText->Set_Text(to_wstring(desc->unlockCost));
+    }
 }
 
 void SkillTree_Panel::Change_ToNextViewState(HeroId next)

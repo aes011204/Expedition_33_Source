@@ -55,6 +55,7 @@ private:
     HRESULT     Load_UI_ToolTips(const wstring& prototypeTagPrefix, const wstring& toolTipJsonPath, uint32 levelIndex, SkillTreeViewState& outView);
     HRESULT     Bind_SkillNode_UI(const wstring& playerName, SkillTreeViewState& outView);
     Shared<UI_Base> Find_UI(const umap<wstring, Shared<UI_Base>>& uiByName, const wstring& name) const;
+    void        Set_SkillPoint();
 
     template<typename T>
     Shared<T> Find_TypedUI(
@@ -88,11 +89,7 @@ private:
     Shared<SkillTreeCom>                     _skillTreeCom;
     uint32                                   _levelIndex = 0;
     bool                                     _isOpen = false;
-    umap<wstring, Shared<UI_Base>>           _luneSkillTree;
-    umap<wstring, Shared<UI_Base>>           _luneSkillTooltips;
     umap<wstring, vector<Shared<UI_Base>>>   _childrenByParentName;
-    vector<SkillNodeUI>                      _skillNodes;
-    Shared<UI_Base>                          _root;
     Vec2                                     _baseSize;
     Vec2                                     _hoveredSize;
     umap<HeroId,SkillTreeViewState>          _viewByPlayerId;
