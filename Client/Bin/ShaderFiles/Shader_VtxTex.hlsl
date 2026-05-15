@@ -8,14 +8,14 @@ Texture2D g_Texture;
 
 struct VS_IN
 {
-    float3 vPosition : POSITION;
-    float2 vTexcoord : TEXCOORD0;    
+    float3 Position : POSITION;
+    float2 Texcoord : TEXCOORD0;    
 };
 
 struct VS_OUT
 {
-    float4 vPosition : SV_POSITION;
-    float2 vTexcoord : TEXCOORD0;
+    float4 Position : SV_POSITION;
+    float2 Texcoord : TEXCOORD0;
 };
 
 VS_OUT VS_Default(VS_IN In)
@@ -27,29 +27,29 @@ VS_OUT VS_Default(VS_IN In)
     matWV = mul(g_WorldMatrix, g_ViewMatrix);
     matWVP = mul(matWV, g_ProjMatrix);
     
-    Out.vPosition = mul(float4(In.vPosition, 1.f), matWVP); 
-    Out.vTexcoord = In.vTexcoord;
+    Out.Position = mul(float4(In.Position, 1.f), matWVP); 
+    Out.Texcoord = In.Texcoord;
     
     return Out;
 }
 
 struct PS_IN
 {
-    float4 vPosition : SV_POSITION;
-    float2 vTexcoord : TEXCOORD0;    
+    float4 Position : SV_POSITION;
+    float2 Texcoord : TEXCOORD0;    
 };
 
 struct PS_OUT
 {
-    vector vColor : SV_TARGET0;
+    vector Color : SV_TARGET0;
 };
 
 PS_OUT PS_Default(PS_IN In)
 {
     PS_OUT Out;
     
-    Out.vColor = g_Texture.Sample(LinearSampler, In.vTexcoord);
-    Out.vColor.gb = Out.vColor.r;
+    Out.Color = g_Texture.Sample(LinearSampler, In.Texcoord);
+    Out.Color.gb = Out.Color.r;
     
     return Out;
 

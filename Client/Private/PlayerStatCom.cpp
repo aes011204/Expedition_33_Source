@@ -19,6 +19,9 @@ IMPLEMENT_REFLECTION(PlayerStatCom)
     PROPERTY_INT("Defense", _PRuntimeStat.CurDefense, 0.f, 99.f, 1.f);
     PROPERTY_INT("Luck", _PRuntimeStat.CurLuck, 0.f, 99.f, 1.f);
 
+    PROPERTY_FLOAT("HP", _PRuntimeStat.CurHp, 0.f, 9999.f, 1.f);
+    PROPERTY_FLOAT("AP", _PRuntimeStat.CurAp, 0.f, 9.f, 1.f);
+
     return true;
 }
 
@@ -65,18 +68,26 @@ HRESULT PlayerStatCom::Initialize(void* arg)
     _PRuntimeStat.CurDefense = _playerDesc.defense;
     _PRuntimeStat.CurLuck = _playerDesc.luck;
 
-    _PRuntimeStat.CurLevel = _statDesc.level;
-    _PRuntimeStat.CurExp = _statDesc.exp;
-    _PRuntimeStat.CurChroma = _statDesc.chroma;
+    _PRuntimeStat.CurLevel = _playerDesc.level;
+    _PRuntimeStat.CurExp = _playerDesc.exp;
+    _PRuntimeStat.CurChroma = _playerDesc.chroma;
 
-    _PRuntimeStat.CurMaxHp = _statDesc.maxHp;
-    _PRuntimeStat.CurMaxAp = _statDesc.maxAp;
+    _PRuntimeStat.CurMaxHp = _playerDesc.maxHp;
+    _PRuntimeStat.CurMaxAp = _playerDesc.maxAp;
    
-    _PRuntimeStat.CurAccuracy = _statDesc.accuracy;
-    _PRuntimeStat.CurMastery = _statDesc.mastery;
-    _PRuntimeStat.CurCriticalRate = _statDesc.criticalRate;
-    _PRuntimeStat.CurCriticalChance = _statDesc.criticalRate;
+    _PRuntimeStat.CurAccuracy = _playerDesc.accuracy;
+    _PRuntimeStat.CurMastery = _playerDesc.mastery;
+    _PRuntimeStat.CurCriticalRate = _playerDesc.criticalRate;
+    _PRuntimeStat.CurCriticalChance = _playerDesc.criticalRate;
 
+
+    {
+        _PRuntimeStat.CurHp = _playerDesc.maxHp;
+        _PRuntimeStat.CurAp = _playerDesc.maxAp;
+        _PRuntimeStat.CurShield = _playerDesc.commonCharacterStats.ShieldPointsAtSpawn;
+        _PRuntimeStat.physicalAttack = _playerDesc.physicalAttack;
+        _PRuntimeStat.physicalDefense = _playerDesc.physicalDefense;
+    }
     //_PRuntimeStat.CurShield = _runtimeStat.CurShield;
 
 
@@ -114,14 +125,14 @@ bool PlayerStatCom::Add_Stat(StatType type, int32 value)
     if (stat == nullptr)
         return false;
 
-    const float hpRate = (_statDesc.maxHp > 0.f) ? (_runtimeStat.CurHp / _statDesc.maxHp) : 1.f;
+    const float hpRate = (_playerDesc.maxHp > 0.f) ? (_PRuntimeStat.CurHp / _playerDesc.maxHp) : 1.f;
 
     *stat += value;
     _PRuntimeStat.CurStatPoint -= static_cast<uint32>(value);
 
     Recalculate_Stats();
-    _runtimeStat.CurHp = _statDesc.maxHp * hpRate;
-    _PRuntimeStat.CurHp = _runtimeStat.CurHp;
+    _PRuntimeStat.CurHp = _playerDesc.maxHp * hpRate;
+    _PRuntimeStat.CurHp = _PRuntimeStat.CurHp;
     Update_StatInfo();
 
     return true;
@@ -144,8 +155,8 @@ bool PlayerStatCom::Reset_Stat()
     --_PRuntimeStat.CurRespecCount;
 
     Recalculate_Stats();
-    _runtimeStat.CurHp = min(_runtimeStat.CurHp, _statDesc.maxHp);
-    _PRuntimeStat.CurHp = _runtimeStat.CurHp;
+    _PRuntimeStat.CurHp = min(_PRuntimeStat.CurHp, _playerDesc.maxHp);
+    _PRuntimeStat.CurHp = _PRuntimeStat.CurHp;
     Update_StatInfo();
 
     return true;
@@ -162,36 +173,36 @@ uint32 PlayerStatCom::Get_NextExp(uint32 level) const
 void PlayerStatCom::Add_Exp(uint32 value)
 {
     // 만렙
-    if (_statDesc.level >= 99)
+    if (_playerDesc.level >= 99)
     {
-        _statDesc.exp = 0;
+        _playerDesc.exp = 0;
         Update_StatInfo();
         return;
     }
 
-    _statDesc.exp += value;
+    _playerDesc.exp += value;
 
-    while (_statDesc.level < 99)
+    while (_playerDesc.level < 99)
     {
-        const uint32 nextExp = Get_NextExp(_statDesc.level);
-        if (_statDesc.exp < nextExp)
+        const uint32 nextExp = Get_NextExp(_playerDesc.level);
+        if (_playerDesc.exp < nextExp)
             break;
 
-        _statDesc.exp -= nextExp;
-        ++_statDesc.level;
+        _playerDesc.exp -= nextExp;
+        ++_playerDesc.level;
         ++_PRuntimeStat.CurStatPoint;
         ++_PRuntimeStat.CurSkillPoint;
     }
 
-    if (_statDesc.level >= 99)
-        _statDesc.exp = 0;
+    if (_playerDesc.level >= 99)
+        _playerDesc.exp = 0;
 
-    const float hpRate = (_statDesc.maxHp > 0.f) ? (_runtimeStat.CurHp / _statDesc.maxHp) : 1.f;
+    const float hpRate = (_playerDesc.maxHp > 0.f) ? (_PRuntimeStat.CurHp / _playerDesc .maxHp) : 1.f;
 
     Recalculate_Stats();
 
-    _runtimeStat.CurHp = _statDesc.maxHp * hpRate;
-    _PRuntimeStat.CurHp = _runtimeStat.CurHp;
+    _PRuntimeStat.CurHp = _playerDesc.maxHp * hpRate;
+    //_PRuntimeStat.CurHp = _PRuntimeStat.CurHp;
 
     Update_StatInfo();
 
@@ -217,36 +228,36 @@ array<int32*, static_cast<size_t>(StatType::END)> PlayerStatCom::Get_StatValues(
 void PlayerStatCom::Recalculate_Stats()
 {
     // 33 원정대 데이터 공식 일단 유지해서 해봄
-    _statDesc.maxHp = 100.f + static_cast<float>(_PRuntimeStat.CurVitality) * 10.f;
-    _statDesc.physicalAttack = 10.f + static_cast<float>(_PRuntimeStat.CurMight) * 2.f;
-    _statDesc.physicalDefense = static_cast<float>(_PRuntimeStat.CurDefense) * 2.f;
-    _statDesc.speed = 100.f + static_cast<float>(_PRuntimeStat.CurAgility) * 2.f;
-    _statDesc.criticalRate = min(100.f, static_cast<float>(_PRuntimeStat.CurLuck) * 0.5f);
+    _playerDesc.maxHp = 100.f + static_cast<float>(_PRuntimeStat.CurVitality) * 10.f;
+    _playerDesc.physicalAttack = 10.f + static_cast<float>(_PRuntimeStat.CurMight) * 2.f;
+    _playerDesc.physicalDefense = static_cast<float>(_PRuntimeStat.CurDefense) * 2.f;
+    _playerDesc.speed = 100.f + static_cast<float>(_PRuntimeStat.CurAgility) * 2.f;
+    _playerDesc.criticalRate = min(100.f, static_cast<float>(_PRuntimeStat.CurLuck) * 0.5f);
 
     // 최대 체력이 줄어든 경우 현재 체력이 최대 체력을 넘지 않게 보정
-    _runtimeStat.CurHp = min(_runtimeStat.CurHp, _statDesc.maxHp);
+    _PRuntimeStat.CurHp = min(_PRuntimeStat.CurHp, _playerDesc.maxHp);
 }
 
 void PlayerStatCom::Update_StatInfo()
 {
-    _PRuntimeStat.CurLevel = _statDesc.level;
-    _PRuntimeStat.CurExp = _statDesc.exp;
-    _PRuntimeStat.CurChroma = _statDesc.chroma;
-    _PRuntimeStat.nextExp = Get_NextExp(_statDesc.level);
+    _PRuntimeStat.CurLevel = _playerDesc.level;
+    _PRuntimeStat.CurExp = _playerDesc.exp;
+    _PRuntimeStat.CurChroma = _playerDesc.chroma;
+    _PRuntimeStat.nextExp = Get_NextExp(_playerDesc.level);
 
-    _PRuntimeStat.CurMaxHp = _statDesc.maxHp;
-    _PRuntimeStat.CurMaxAp = _statDesc.maxAp;
-    _PRuntimeStat.CurPhysicalAttack = _statDesc.physicalAttack;
-    _PRuntimeStat.CurPhysicalDefense = _statDesc.physicalDefense;
-    _PRuntimeStat.CurAccuracy = _statDesc.accuracy;
-    _PRuntimeStat.CurSpeed = _statDesc.speed;
-    _PRuntimeStat.CurCriticalRate = _statDesc.criticalRate;
-    _PRuntimeStat.CurMastery = _statDesc.mastery;
-    _PRuntimeStat.CurCriticalChance = _statDesc.criticalChance;
+    _PRuntimeStat.CurMaxHp = _playerDesc.maxHp;
+    _PRuntimeStat.CurMaxAp = _playerDesc.maxAp;
+    _PRuntimeStat.CurPhysicalAttack = _playerDesc.physicalAttack;
+    _PRuntimeStat.CurPhysicalDefense = _playerDesc.physicalDefense;
+    _PRuntimeStat.CurAccuracy = _playerDesc.accuracy;
+    _PRuntimeStat.CurSpeed = _playerDesc.speed;
+    _PRuntimeStat.CurCriticalRate = _playerDesc.criticalRate;
+    _PRuntimeStat.CurMastery = _playerDesc.mastery;
+    _PRuntimeStat.CurCriticalChance = _playerDesc.criticalChance;
 
-    _PRuntimeStat.CurHp = _runtimeStat.CurHp;
-    _PRuntimeStat.CurAp = _runtimeStat.CurAp;
-    _PRuntimeStat.CurShield = _runtimeStat.CurShield;
+    _PRuntimeStat.CurHp = _PRuntimeStat.CurHp;
+    _PRuntimeStat.CurAp = _PRuntimeStat.CurAp;
+    _PRuntimeStat.CurShield = _PRuntimeStat.CurShield;
 }
 
 Shared<PlayerStatCom> PlayerStatCom::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

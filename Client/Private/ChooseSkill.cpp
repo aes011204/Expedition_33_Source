@@ -24,19 +24,23 @@ void ChooseSkill::Begin_Play()
 
 bool ChooseSkill::EnterInvoke()
 {
+    LOG_DEBUG("ChooseSkill::EnterInvoke");
     return Battle_State::EnterInvoke();
 }
 
 void ChooseSkill::Update(float timeDelta)
 {
+    Battle_State::Update(timeDelta);
 }
 
 void ChooseSkill::LateUpdate(float timeDelta)
 {
+    Battle_State::LateUpdate(timeDelta);
 }
 
 void ChooseSkill::ExitInvoke()
 {
+    LOG_DEBUG("ChooseSkill::ExitInvoke");
     Battle_State::ExitInvoke();
 }
 
