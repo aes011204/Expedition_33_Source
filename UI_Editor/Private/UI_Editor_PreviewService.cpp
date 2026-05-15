@@ -105,6 +105,38 @@ namespace UIEditor
             return textureGuid + "|" + maskTextureGuid;
         }
 
+        string Make_TexturePreviewGuidKey(const string& textureGuid)
+        {
+            if (textureGuid.empty())
+                return {};
+
+            return "guid:" + textureGuid;
+        }
+
+        string Make_TexturePreviewPathKey(const wstring& texturePath)
+        {
+            if (texturePath.empty())
+                return {};
+
+            wstring normalizedPath;
+            try
+            {
+                normalizedPath = fs::path(texturePath).lexically_normal().wstring();
+            }
+            catch (...)
+            {
+                normalizedPath = texturePath;
+            }
+
+            replace(normalizedPath.begin(), normalizedPath.end(), L'\\', L'/');
+            transform(normalizedPath.begin(), normalizedPath.end(), normalizedPath.begin(), [](wchar_t character)
+                {
+                    return static_cast<wchar_t>(towlower(character));
+                });
+
+            return "path:" + String::ToString(normalizedPath);
+        }
+
         float Resolve_FontPreviewScaleCorrectionFromPath(const wstring& fontFilePath)
         {
             if (fontFilePath.empty())
@@ -370,7 +402,7 @@ namespace UIEditor
     void UI_Editor_PreviewService::Clear_RuntimeCaches()
     {
         _textureThumbCache.clear();
-        _textureNoThumbGuids.clear();
+        _texturePreviewFailedKeys.clear();
         _maskedTexturePreviewCache.clear();
         _maskedTexturePreviewFailedKeys.clear();
         _fontPreviewCache.clear();
@@ -449,44 +481,55 @@ namespace UIEditor
         }
     }
 
-    ID3D11ShaderResourceView* UI_Editor_PreviewService::Get_TexturePreviewSRV(const string& textureGuid)
+    ID3D11ShaderResourceView* UI_Editor_PreviewService::Get_TexturePreviewSRV(const string& textureGuid, const string& texturePath)
     {
-        if (!_assetManagerReady || textureGuid.empty() || nullptr == _device || nullptr == _context)
+        if (nullptr == _device || nullptr == _context)
             return nullptr;
 
-        const auto cachedIter = _textureThumbCache.find(textureGuid);
-        if (cachedIter != _textureThumbCache.end())
-            return cachedIter->second.Get();
-
-        if (_textureNoThumbGuids.find(textureGuid) != _textureNoThumbGuids.end())
-            return nullptr;
-
-        const wstring texturePath = GAME->Resolve_AssetPath(textureGuid);
-        if (texturePath.empty())
+        if (_assetManagerReady && !textureGuid.empty())
         {
-            _textureNoThumbGuids.insert(textureGuid);
-            return nullptr;
+            const string guidCacheKey = Make_TexturePreviewGuidKey(textureGuid);
+            const wstring guidTexturePath = GAME->Resolve_AssetPath(textureGuid);
+
+            if (!guidTexturePath.empty())
+            {
+                if (ID3D11ShaderResourceView* guidSRV = Load_TexturePreview(guidCacheKey, guidTexturePath))
+                    return guidSRV;
+            }
+            else if (!guidCacheKey.empty())
+            {
+                _texturePreviewFailedKeys.insert(guidCacheKey);
+            }
         }
 
-        Shared<Texture> texture = Texture::Create(_device, _context, texturePath.c_str(), 1);
-        if (nullptr == texture || texture->Get_SRVs().empty() || nullptr == texture->Get_SRVs().front().Get())
+        if (!texturePath.empty())
         {
-            _textureNoThumbGuids.insert(textureGuid);
-            return nullptr;
+            const wstring resolvedTexturePath = Resolve_ClientRuntimeResourcePath(texturePath);
+            const string pathCacheKey = Make_TexturePreviewPathKey(resolvedTexturePath);
+
+            if (ID3D11ShaderResourceView* pathSRV = Load_TexturePreview(pathCacheKey, resolvedTexturePath))
+                return pathSRV;
         }
 
-        _textureThumbCache.emplace(textureGuid, texture->Get_SRVs().front());
-        return _textureThumbCache[textureGuid].Get();
+        return nullptr;
     }
 
     ID3D11ShaderResourceView* UI_Editor_PreviewService::Get_MaskedTexturePreviewSRV(
         const string& textureGuid,
-        const string& maskTextureGuid)
+        const string& texturePath,
+        const string& maskTextureGuid,
+        const string& maskTexturePath)
     {
-        if (!_assetManagerReady || textureGuid.empty() || maskTextureGuid.empty() || nullptr == _device || nullptr == _context)
+        if (nullptr == _device || nullptr == _context)
             return nullptr;
 
-        const string cacheKey = Make_MaskedTexturePreviewKey(textureGuid, maskTextureGuid);
+        if ((textureGuid.empty() && texturePath.empty()) || (maskTextureGuid.empty() && maskTexturePath.empty()))
+            return nullptr;
+
+        const string cacheKey = Make_MaskedTexturePreviewKey(
+            Make_TexturePreviewGuidKey(textureGuid) + "|" + Make_TexturePreviewPathKey(Resolve_ClientRuntimeResourcePath(texturePath)),
+            Make_TexturePreviewGuidKey(maskTextureGuid) + "|" + Make_TexturePreviewPathKey(Resolve_ClientRuntimeResourcePath(maskTexturePath)));
+
         const auto cachedIter = _maskedTexturePreviewCache.find(cacheKey);
         if (cachedIter != _maskedTexturePreviewCache.end())
             return cachedIter->second.Get();
@@ -494,8 +537,8 @@ namespace UIEditor
         if (_maskedTexturePreviewFailedKeys.find(cacheKey) != _maskedTexturePreviewFailedKeys.end())
             return nullptr;
 
-        ID3D11ShaderResourceView* textureSRV = Get_TexturePreviewSRV(textureGuid);
-        ID3D11ShaderResourceView* maskSRV = Get_TexturePreviewSRV(maskTextureGuid);
+        ID3D11ShaderResourceView* textureSRV = Get_TexturePreviewSRV(textureGuid, texturePath);
+        ID3D11ShaderResourceView* maskSRV = Get_TexturePreviewSRV(maskTextureGuid, maskTexturePath);
         if (nullptr == textureSRV || nullptr == maskSRV)
         {
             _maskedTexturePreviewFailedKeys.insert(cacheKey);
@@ -503,6 +546,35 @@ namespace UIEditor
         }
 
         return Create_MaskedTexturePreviewSRV(cacheKey, textureSRV, maskSRV);
+    }
+
+    ID3D11ShaderResourceView* UI_Editor_PreviewService::Load_TexturePreview(const string& cacheKey, const wstring& texturePath)
+    {
+        if (cacheKey.empty() || texturePath.empty())
+            return nullptr;
+
+        const auto cachedIter = _textureThumbCache.find(cacheKey);
+        if (cachedIter != _textureThumbCache.end())
+            return cachedIter->second.Get();
+
+        if (_texturePreviewFailedKeys.find(cacheKey) != _texturePreviewFailedKeys.end())
+            return nullptr;
+
+        if (!fs::exists(texturePath))
+        {
+            _texturePreviewFailedKeys.insert(cacheKey);
+            return nullptr;
+        }
+
+        Shared<Texture> texture = Texture::Create(_device, _context, texturePath.c_str(), 1);
+        if (nullptr == texture || texture->Get_SRVs().empty() || nullptr == texture->Get_SRVs().front().Get())
+        {
+            _texturePreviewFailedKeys.insert(cacheKey);
+            return nullptr;
+        }
+
+        _textureThumbCache.emplace(cacheKey, texture->Get_SRVs().front());
+        return _textureThumbCache[cacheKey].Get();
     }
 
     bool UI_Editor_PreviewService::Queue_FontPreview(
