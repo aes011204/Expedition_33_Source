@@ -116,11 +116,6 @@ Vec3 Player::Get_MovementVelocity() const
     return _movementCom->Get_Velocity();
 }
 
-void Player::Notify_Test()
-{
-    int a = 10;
-}
-
 HRESULT Player::Ready_Components()
 {
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_Input"), _inputCom), E_FAIL);

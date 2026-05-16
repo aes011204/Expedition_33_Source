@@ -42,8 +42,6 @@ public:
 
     Vec3    Get_MovementVelocity() const;
 
-    void    Notify_Test();
-
 protected:
 	HRESULT Ready_Components();
 	HRESULT Ready_PartObjects();

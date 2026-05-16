@@ -13,9 +13,6 @@
 #include "MonsterStatCom.h"
 #include "Mon_Lancelier_Weapon.h"
 
-REGISTER_GLOBAL_ENUM(Client::Monster::LancelierAnim, "LancelierAnim")
-
-
 IMPLEMENT_REFLECTION(Monster)
 {
     auto& info = GetStaticReflectionInfo();
@@ -166,6 +163,11 @@ HRESULT Monster::Render()
 HRESULT Monster::Render_Shadow()
 {
     return S_OK;
+}
+
+void Monster::OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other)
+{
+    Character::OnBeginOverlap(self, other);
 }
 
 HRESULT Monster::Ready_Components()
