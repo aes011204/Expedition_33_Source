@@ -343,6 +343,7 @@ void ModelCom::Ensure_MaterialBindings()
     _materialBindings.resize(desired);
 
     const string defaultKey = String::ToLowerCopy(String::ToString(fs::path(_sourceModelPath).stem().wstring()));
+
     for (size_t i = 0; i < _materialBindings.size(); ++i)
     {
         if (_materialBindings[i].baseBundleKey.empty())
@@ -429,6 +430,7 @@ void ModelCom::Apply_EffectiveMaterial(uint32 materialIndex)
             {
                 const auto itInst = bundle->instancesByAssetName.find(itName->second);
                 if (itInst != bundle->instancesByAssetName.end())
+
                 {
                     const auto& base = itInst->second;
 
