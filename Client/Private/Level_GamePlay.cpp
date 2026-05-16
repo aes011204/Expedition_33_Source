@@ -31,6 +31,9 @@ HRESULT Level_GamePlay::Initialize()
     if (FAILED(Ready_Layer_BackGround(TEXT("Layer_BackGround"))))
         return E_FAIL;
 
+    if(FAILED(Ready_Layer_MapStaticMesh(L"Layer_MapStaticMesh")))
+        return E_FAIL;
+
 	if (FAILED(Ready_Layer_Camera(TEXT("Layer_Camera"))))
 		return E_FAIL;
 
@@ -180,7 +183,7 @@ HRESULT Level_GamePlay::Ready_Layer_BackGround(const wstring& strLayerTag)
     if (FAILED(
         GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Sky_GamePlay"),
             ETOI(LevelType::GamePlay), strLayerTag)))
-        return E_FAIL;
+                return E_FAIL;
 
     return S_OK;
 }
