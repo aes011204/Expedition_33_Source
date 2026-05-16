@@ -5,9 +5,9 @@
 
 NS_BEGIN(Client)
 
-class Mon_Lancleier_Weapon final : public Monster_Part
+class Mon_Lancelier_Weapon final : public Monster_Part
 {
-    GENERATED_GAMEOBJECT(Mon_Lancleier_Weapon, ObjectType::Weapon)
+    GENERATED_GAMEOBJECT(Mon_Lancelier_Weapon, ObjectType::Weapon)
 
 public:
     struct  WEAPON_DESC :  Monster_Part::MONSTER_PART_DESC
@@ -16,9 +16,9 @@ public:
     };
 
 public:
-    Mon_Lancleier_Weapon(const ComPtr<Device>& device, const ComPtr<Context>& context);
-    Mon_Lancleier_Weapon(const Mon_Lancleier_Weapon& prototype);
-    virtual ~Mon_Lancleier_Weapon() override = default;
+    Mon_Lancelier_Weapon(const ComPtr<Device>& device, const ComPtr<Context>& context);
+    Mon_Lancelier_Weapon(const Mon_Lancelier_Weapon& prototype);
+    virtual ~Mon_Lancelier_Weapon() override = default;
 
 public:
     virtual HRESULT Initialize_Prototype() override;
@@ -35,7 +35,7 @@ private :
 private:
     const Matrix* _socketMatrix = nullptr;
 public:
-    static Shared<Mon_Lancleier_Weapon> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
+    static Shared<Mon_Lancelier_Weapon> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
     virtual Shared<GameObject> Clone(void* arg) override;
     virtual void Free() override;
 };

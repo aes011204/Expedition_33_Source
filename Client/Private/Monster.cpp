@@ -9,9 +9,12 @@
 #include "ColliderCom.h"
 #include "ClientInstance.h"
 #include "BlackBoard.h"
-#include "Mon_Lancleier_Body.h"
+#include "Mon_Lancelier_Body.h"
 #include "MonsterStatCom.h"
-#include "Mon_Lancleier_Weapon.h"
+#include "Mon_Lancelier_Weapon.h"
+
+REGISTER_GLOBAL_ENUM(Client::Monster::LancelierAnim, "LancelierAnim")
+
 
 IMPLEMENT_REFLECTION(Monster)
 {
@@ -184,26 +187,26 @@ HRESULT Monster::Ready_Components()
 
 HRESULT Monster::Ready_PartObjects()
 {
-    Mon_Lancleier_Body::BODY_DESC bodyDesc{};
+    Mon_Lancelier_Body::BODY_DESC bodyDesc{};
     bodyDesc.parentMatrix = &_transformCom->Get_WorldMatrix();
     bodyDesc.modelType = ModelType::Anim;
-    bodyDesc.modelTag = L"Model_Lancleier";
+    bodyDesc.modelTag = L"Model_Lancelier";
 
-    CHECK_FAILED(Add_PartObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Lancleier_Body"), TEXT("Part_Body"), &bodyDesc), E_FAIL);
+    CHECK_FAILED(Add_PartObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Lancelier_Body"), TEXT("Part_Body"), &bodyDesc), E_FAIL);
 
-    _body = dynamic_pointer_cast<Mon_Lancleier_Body>(_partObjects[TEXT("Part_Body")]);
+    _body = dynamic_pointer_cast<Mon_Lancelier_Body>(_partObjects[TEXT("Part_Body")]);
     if (nullptr == _body)
         return E_FAIL;
 
-    Mon_Lancleier_Weapon::WEAPON_DESC weaponDesc{};
+    Mon_Lancelier_Weapon::WEAPON_DESC weaponDesc{};
     weaponDesc.parentMatrix = &_transformCom->Get_WorldMatrix();
     weaponDesc.modelType = ModelType::NonAnim;
-    weaponDesc.modelTag = L"Model_Lancleier_Weapon";
+    weaponDesc.modelTag = L"Model_Lancelier_Weapon";
     weaponDesc.socketMatrix = _body->Get_SocketBoneMatrixPtr("Weapon_R");
 
-    CHECK_FAILED(Add_PartObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Lancleier_Weapon"), TEXT("Part_Weapon"), &weaponDesc), E_FAIL);
+    CHECK_FAILED(Add_PartObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Lancelier_Weapon"), TEXT("Part_Weapon"), &weaponDesc), E_FAIL);
 
-    _weapon = dynamic_pointer_cast<Mon_Lancleier_Weapon>(_partObjects[TEXT("Part_Weapon")]);
+    _weapon = dynamic_pointer_cast<Mon_Lancelier_Weapon>(_partObjects[TEXT("Part_Weapon")]);
     if (nullptr == _weapon)
         return E_FAIL;
 
@@ -226,9 +229,7 @@ HRESULT Monster::Ready_Collider()
 void Monster::Decide_Action(Action& curturnAction, const vector<BattleChar>& heroes)
 {
 
-        Skill_Data skill = {}; skill.scriptClassName = "Base_Gustave_Attack";
-        skill.apCost = 0; skill.targetingType = ECharacterTeamSelector::Invalid;
- 
+    Skill_Data skill = Get_Component<MonsterStatCom>()->Get_Basic_Skill();
    
     curturnAction.target = heroes[0];
     curturnAction._selected_SkillKey = skill;

@@ -1,21 +1,21 @@
-#pragma once
+﻿#pragma once
 
 #include "Client_Defines.h"
 #include "Monster_Part.h"
 
 NS_BEGIN(Client)
 
-class Mon_Lancleier_Body final : public Monster_Part
+class Mon_Lancelier_Body final : public Monster_Part
 {
-    GENERATED_GAMEOBJECT(Mon_Lancleier_Body, ObjectType::PartObject)
+    GENERATED_GAMEOBJECT(Mon_Lancelier_Body, ObjectType::PartObject)
 
 public:
     using BODY_DESC = Monster_Part::MONSTER_PART_DESC;
 
 public:
-    Mon_Lancleier_Body(const ComPtr<Device>& device, const ComPtr<Context>& context);
-    Mon_Lancleier_Body(const Mon_Lancleier_Body& prototype);
-    virtual ~Mon_Lancleier_Body() override = default;
+    Mon_Lancelier_Body(const ComPtr<Device>& device, const ComPtr<Context>& context);
+    Mon_Lancelier_Body(const Mon_Lancelier_Body& prototype);
+    virtual ~Mon_Lancelier_Body() override = default;
 
 public:
     virtual HRESULT Initialize_Prototype() override;
@@ -37,7 +37,7 @@ private:
     int32 _rootIndex = -1;
 
 public:
-    static Shared<Mon_Lancleier_Body> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
+    static Shared<Mon_Lancelier_Body> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
     virtual Shared<GameObject> Clone(void* arg) override;
     virtual void Free() override;
 };

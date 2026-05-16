@@ -86,7 +86,7 @@ float3 ComputeWorldNormal(float3 normalW, float3 tangentW, float3 binormalW, flo
 
 float3 SampleOrm(float2 uv)
 {
-    float3 orm = float3(1.f, 1.f, 1.f);
+    float3 orm = float3(1.f, 1.f, 0.f);
 
     if (HasMaterialTexture(MATERIAL_SLOT_ORM))
         orm = g_MaterialTextures[MATERIAL_SLOT_ORM].Sample(LinearWrapSampler, uv).rgb;
