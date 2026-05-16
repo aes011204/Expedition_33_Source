@@ -27,6 +27,23 @@ bool HasPostProcessFeature(uint feature)
 //==================================================
 // SAMPLE FUNCTIONS
 //==================================================
+float3 SampleGaussianDownsample_4tap(float2 uv)
+{
+    float2 texel = max(g_PP_BloomTexelSize, float2(EPSILON, EPSILON));
+    float2 offset = texel * 1.5f;
+
+    const float w0 = 0.25f;
+    const float w1 = 0.25f;
+    const float w2 = 0.25f;
+    const float w3 = 0.25f;
+
+    float3 c0 = g_BloomTexture.Sample(LinearClampSampler, uv + float2(-offset.x, -offset.y)).rgb;
+    float3 c1 = g_BloomTexture.Sample(LinearClampSampler, uv + float2(offset.x, -offset.y)).rgb;
+    float3 c2 = g_BloomTexture.Sample(LinearClampSampler, uv + float2(-offset.x, offset.y)).rgb;
+    float3 c3 = g_BloomTexture.Sample(LinearClampSampler, uv + float2(offset.x, offset.y)).rgb;
+
+    return c0 * w0 + c1 * w1 + c2 * w2 + c3 * w3;
+}
 
 float3 SampleGaussianBlur_5tap(float2 uv, float2 dir)
 {

@@ -48,17 +48,6 @@ float4 SampleBaseColor(float2 uv)
     baseColor.rgb *= g_BaseColorTint.rgb;
     baseColor.a *= g_BaseColorTint.a;
     return baseColor;
-
-    // // map StaticMesh
-    // float4 baseColor = float4(1, 1, 1, 1);
-    // if (HasMaterialTexture(MATERIAL_SLOT_BASECOLOR))
-    // {
-    //     baseColor = g_MaterialTextures[MATERIAL_SLOT_BASECOLOR].Sample(LinearWrapSampler, uv);
-    // }
-    // 
-    // clip(baseColor.a - 0.34f);
-    // baseColor.rgb *= g_BaseColorTint.rgb;
-    // return baseColor;
 }
 
 float GetOpacityMaskForMasked(float2 uv, float4 baseColor)

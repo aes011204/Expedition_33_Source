@@ -310,7 +310,7 @@ public : /* For.Target_Manager */
     HRESULT Add_RenderTarget(const wstring& targetTag, uint32 sizeX, uint32 sizeY, DXGI_FORMAT pixelFormat, const Color& clearColor, bool resizeWithViewport = true, bool useDSV = false);
     HRESULT Add_MRT(const wstring& mrtTag, const wstring& targetTag);
 
-    HRESULT Begin_MRT(const wstring& mrtTag, bool useDSV = false);
+    HRESULT Begin_MRT(const wstring& mrtTag, bool useDSV = false, bool clearRTV = true);
     HRESULT End_MRT();
     HRESULT Resize_MRTs(uint32 width, uint32 height);
     HRESULT Bind_RT_ShaderResource(Shared<ShaderCom> shader, const char* constantName, const wstring& targetTag);

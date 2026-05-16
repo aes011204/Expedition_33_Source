@@ -32,4 +32,10 @@ namespace MRT
     inline constexpr const wchar_t* BloomBlur = L"MRT_BloomBlur";
 }
 
+
+static constexpr bool UseDSV = true;
+static constexpr bool NotUseDSV = false;
+static constexpr bool ClearRTV = true;
+static constexpr bool NotClearRTV = false;
+
 NS_END

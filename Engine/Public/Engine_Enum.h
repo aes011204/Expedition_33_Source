@@ -70,6 +70,7 @@ namespace Engine
     {
         Debug,
         BloomExtract,
+        BloomDownsample,
         BloomBlurH,
         BloomBlurV,
         ToneMapping,

@@ -1286,9 +1286,9 @@ HRESULT GameInstance::Add_MRT(const wstring& mrtTag, const wstring& targetTag)
     return _targetManager->Add_MRT(mrtTag, targetTag);
 }
 
-HRESULT GameInstance::Begin_MRT(const wstring& mrtTag, bool useDSV)
+HRESULT GameInstance::Begin_MRT(const wstring& mrtTag, bool useDSV, bool clearRTV)
 {
-    return _targetManager->Begin_MRT(mrtTag, useDSV);
+    return _targetManager->Begin_MRT(mrtTag, useDSV, clearRTV);
 }
 
 HRESULT GameInstance::End_MRT()

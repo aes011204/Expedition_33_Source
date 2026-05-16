@@ -119,6 +119,8 @@ void Renderer::Draw()
 
 void Renderer::Render_Priority()
 {
+    ENDMRT_RETURN_IF_FAILED(GAME->Begin_MRT(MRT::HDR, NotUseDSV, ClearRTV));
+
     for (auto& renderObject : _renderGroups[ETOI(RenderGroup::Priority)])
     {
         Shared<GameObject> gameObject = renderObject.lock();
@@ -130,11 +132,13 @@ void Renderer::Render_Priority()
     }
 
     _renderGroups[ETOI(RenderGroup::Priority)].clear();
+
+    GAME->End_MRT();
 }
 
 void Renderer::Render_Shadow()
 {
-    if (FAILED(GAME->Begin_MRT(MRT::ShadowObjects, true)))
+    if (FAILED(GAME->Begin_MRT(MRT::ShadowObjects, UseDSV, ClearRTV)))
         return;
 
     const uint32 originWidth = GAME->Get_ViewportWidth();
@@ -165,7 +169,7 @@ void Renderer::Render_Shadow()
 void Renderer::Render_NonBlend()
 {
     // Diffuse + Normal
-    CHECK_FAILED(GAME->Begin_MRT(MRT::GameObjects));
+    CHECK_FAILED(GAME->Begin_MRT(MRT::GameObjects, NotUseDSV, ClearRTV));
 
     // TODO 필요 시 정렬
 	for (auto& renderObject : _renderGroups[ETOI(RenderGroup::NonBlend)])
@@ -189,7 +193,7 @@ void Renderer::Render_Lights()
     if (!_deferredShader || !_viBuffer)
         return;
 
-    if (FAILED(GAME->Begin_MRT(MRT::LightAcc)))
+    if (FAILED(GAME->Begin_MRT(MRT::LightAcc, NotUseDSV, ClearRTV)))
         return;
 
     // Transform
@@ -241,7 +245,7 @@ void Renderer::Render_CombinedHDR()
     bool postProcess = false;
     if (_ppPipeline && _ppPipeline->Has_PostProcessFeature(PostProcessFeature::HDR))
     {
-        if(FAILED(GAME->Begin_MRT(MRT::HDR)))
+        if(FAILED(GAME->Begin_MRT(MRT::HDR, NotUseDSV, NotClearRTV)))
             return;
         postProcess = true;
     }
@@ -304,7 +308,8 @@ void Renderer::Render_PostProcess()
 
     // PostProcess Params
     auto& params = _ppPipeline->Get_PostProcessParams();
-    params.bloomTexelSize = Vec2{ 1.f / GAME->Get_ViewportWidth(), 1.f / GAME->Get_ViewportHeight() };
+    const Vec2 baseTexelSize = Vec2{ 1.f / GAME->Get_ViewportWidth(), 1.f / GAME->Get_ViewportHeight() };
+    params.bloomTexelSize = baseTexelSize;
     if (FAILED(_postprocessShader->Bind_CBufferData(_ppPipeline->Get_PostProcessParams())))
         return;
 
@@ -316,12 +321,12 @@ void Renderer::Render_PostProcess()
     if (FAILED(_viBuffer->Bind_Resources()))
         return;
 
+    // 핑퐁 구조
     const bool useBloom = _ppPipeline->Has_PostProcessFeature(PostProcessFeature::Bloom);
-
     if (useBloom)
     {
         // HDR -> Bloom 추출
-        ENDMRT_RETURN_IF_FAILED(GAME->Begin_MRT(MRT::BloomExtract));
+        ENDMRT_RETURN_IF_FAILED(GAME->Begin_MRT(MRT::BloomExtract, NotUseDSV, ClearRTV));
         ENDMRT_RETURN_IF_FAILED(GAME->Bind_RT_ShaderResource(_postprocessShader, "g_HDRTexture", RT::HDRColor));
         ENDMRT_RETURN_IF_FAILED(_postprocessShader->Begin(ETOI(PostProcessPass::BloomExtract)));
         ENDMRT_RETURN_IF_FAILED(_viBuffer->Render());
@@ -331,10 +336,10 @@ void Renderer::Render_PostProcess()
 
         Add_RenderCall();
 
-        // Bloom Blur_H
-        ENDMRT_RETURN_IF_FAILED(GAME->Begin_MRT(MRT::BloomBlur));
+        // Bloom Downsample : BloomExtract -> BloomBlur
+        ENDMRT_RETURN_IF_FAILED(GAME->Begin_MRT(MRT::BloomBlur, NotUseDSV, ClearRTV));
         ENDMRT_RETURN_IF_FAILED(GAME->Bind_RT_ShaderResource(_postprocessShader, "g_BloomTexture", RT::BloomExtract));
-        ENDMRT_RETURN_IF_FAILED(_postprocessShader->Begin(ETOI(PostProcessPass::BloomBlurH)));
+        ENDMRT_RETURN_IF_FAILED(_postprocessShader->Begin(ETOI(PostProcessPass::BloomDownsample)));
         ENDMRT_RETURN_IF_FAILED(_viBuffer->Render());
 
         if (FAILED(GAME->End_MRT()))
@@ -342,9 +347,23 @@ void Renderer::Render_PostProcess()
 
         Add_RenderCall();
 
-        // Bloom Blur_V
-        ENDMRT_RETURN_IF_FAILED(GAME->Begin_MRT(MRT::BloomExtract));
+        // 텍셀 사이즈를 키워서 다운샘플링 효과를 낸다.
+        params.bloomTexelSize = Vec2{ baseTexelSize.x * 2.f, baseTexelSize.y * 2.f };
+        ENDMRT_RETURN_IF_FAILED(_postprocessShader->Bind_CBufferData(_ppPipeline->Get_PostProcessParams()));
+
+        // Bloom Blur_H : BloomBlur -> BloomExtract
+        ENDMRT_RETURN_IF_FAILED(GAME->Begin_MRT(MRT::BloomExtract, NotUseDSV, ClearRTV));
         ENDMRT_RETURN_IF_FAILED(GAME->Bind_RT_ShaderResource(_postprocessShader, "g_BloomTexture", RT::BloomBlur));
+        ENDMRT_RETURN_IF_FAILED(_postprocessShader->Begin(ETOI(PostProcessPass::BloomBlurH)));
+        ENDMRT_RETURN_IF_FAILED(_viBuffer->Render());
+        if (FAILED(GAME->End_MRT()))
+            return;
+
+        Add_RenderCall();
+
+        // Bloom Blur_V : BloomExtract -> BloomBlur
+        ENDMRT_RETURN_IF_FAILED(GAME->Begin_MRT(MRT::BloomBlur, NotUseDSV, ClearRTV));
+        ENDMRT_RETURN_IF_FAILED(GAME->Bind_RT_ShaderResource(_postprocessShader, "g_BloomTexture", RT::BloomExtract));
         ENDMRT_RETURN_IF_FAILED(_postprocessShader->Begin(ETOI(PostProcessPass::BloomBlurV)));
         ENDMRT_RETURN_IF_FAILED(_viBuffer->Render());
         if (FAILED(GAME->End_MRT()))
@@ -354,9 +373,13 @@ void Renderer::Render_PostProcess()
     }
 
     // Light 기록
+    params.bloomTexelSize = baseTexelSize;
+    if (FAILED(_postprocessShader->Bind_CBufferData(_ppPipeline->Get_PostProcessParams())))
+        return;
+
     if (FAILED(GAME->Bind_RT_ShaderResource(_postprocessShader, "g_HDRTexture", RT::HDRColor)))
         return;
-    if (FAILED(GAME->Bind_RT_ShaderResource(_postprocessShader, "g_BloomTexture", RT::BloomExtract)))
+    if (FAILED(GAME->Bind_RT_ShaderResource(_postprocessShader, "g_BloomTexture", RT::BloomBlur)))
         return;
     if (FAILED(_postprocessShader->Begin(ETOI(PostProcessPass::ToneMapping))))
         return;
