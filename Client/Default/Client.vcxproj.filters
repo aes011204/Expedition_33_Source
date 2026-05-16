@@ -34,9 +34,6 @@
     <Filter Include="02.GameObject\UI">
       <UniqueIdentifier>{22fad0de-cf88-40d1-b428-3585935d5be9}</UniqueIdentifier>
     </Filter>
-    <Filter Include="02.GameObject\UI\00.BackGround">
-      <UniqueIdentifier>{d023afea-ff0b-417c-9db0-25eb798973f2}</UniqueIdentifier>
-    </Filter>
     <Filter Include="02.GameObject\Terrain">
       <UniqueIdentifier>{ff40d1f3-aed2-48f4-a50b-289c5997d487}</UniqueIdentifier>
     </Filter>
@@ -229,7 +226,7 @@
       <Filter>01.Levels\Loading\Loader</Filter>
     </ClInclude>
     <ClInclude Include="..\public\BackGround.h">
-      <Filter>02.GameObject\UI\00.BackGround</Filter>
+      <Filter>02.GameObject\UI\BackGround</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Terrain.h">
       <Filter>02.GameObject\Terrain</Filter>
@@ -409,10 +406,6 @@
     <ClInclude Include="..\public\DamageSystem.h" />
     <ClInclude Include="..\Public\Hero_Manager.h" />
     <ClInclude Include="..\Public\GameplayUI.h" />
-    <ClInclude Include="..\Public\CharacterStatus_Panel.h" />
-    <ClInclude Include="..\Public\Player_Jump.h">
-      <Filter>02.GameObject\Player\PlayerParts\Hair</Filter>
-    </ClInclude>
     <ClInclude Include="..\Public\Player_WorldAction.h">
       <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
     </ClInclude>
@@ -442,14 +435,6 @@
     <ClInclude Include="..\public\SkillTree_Panel.h">
       <Filter>02.GameObject\UI\SkillTree_Panel</Filter>
     </ClInclude>
-    <ClInclude Include="..\public\ANS_Dodge.h" />
-    <ClInclude Include="..\public\ANS_Parry.h" />
-    <ClInclude Include="..\public\ANS_QTE.h" />
-    <ClInclude Include="..\public\AN_Battle_EndAnim.h" />
-    <ClInclude Include="..\Public\AN_Test2.h" />
-    <ClInclude Include="..\public\Mon_Lancelier_Body.h" />
-    <ClInclude Include="..\public\Mon_Lancelier_Weapon.h" />
-    <ClInclude Include="..\public\SkillTree_Panel.h" />
     <ClInclude Include="..\Public\Monster_BattleBase.h" />
     <ClInclude Include="..\Public\Character_WorldBase.h" />
     <ClInclude Include="..\Public\Character_BattleBase.h" />
@@ -510,7 +495,6 @@
     <ClInclude Include="..\Public\ANS_Test.h">
       <Filter>AnimNotify</Filter>
     </ClInclude>
-    <ClInclude Include="..\public\BT_Set_Target.h" />
     <ClInclude Include="..\public\BT_Attack.h">
       <Filter>BehavoirTree\world</Filter>
     </ClInclude>
@@ -523,8 +507,15 @@
     <ClInclude Include="..\public\BT_RotateToTarget.h">
       <Filter>BehavoirTree\world</Filter>
     </ClInclude>
-    <ClInclude Include="..\public\BT_SetSkill.h" />
-    <ClInclude Include="..\public\BT_FinishDecision.h" />
+    <ClInclude Include="..\public\BT_FinishDecision.h">
+      <Filter>BehavoirTree\battle</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\BT_Set_Target.h">
+      <Filter>BehavoirTree\battle</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\BT_SetSkill.h">
+      <Filter>BehavoirTree\battle</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -546,7 +537,7 @@
       <Filter>01.Levels\Loading\Loader</Filter>
     </ClCompile>
     <ClCompile Include="..\private\BackGround.cpp">
-      <Filter>02.GameObject\UI\00.BackGround</Filter>
+      <Filter>02.GameObject\UI\BackGround</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\Terrain.cpp">
       <Filter>02.GameObject\Terrain</Filter>
@@ -724,7 +715,6 @@
     <ClCompile Include="..\private\DamageSystem.cpp" />
     <ClCompile Include="..\Private\Hero_Manager.cpp" />
     <ClCompile Include="..\Private\GameplayUI.cpp" />
-    <ClCompile Include="..\Private\CharacterStatus_Panel.cpp" />
     <ClCompile Include="..\Private\Player_WorldAction.cpp">
       <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
     </ClCompile>
@@ -751,14 +741,6 @@
     </ClCompile>
     <ClCompile Include="..\private\Mon_Lancelier_Body.cpp" />
     <ClCompile Include="..\private\Mon_Lancelier_Weapon.cpp" />
-    <ClCompile Include="..\private\ANS_Dodge.cpp" />
-    <ClCompile Include="..\private\ANS_Parry.cpp" />
-    <ClCompile Include="..\private\AN_Battle_EndAnim.cpp" />
-    <ClCompile Include="..\Private\AN_Test2.cpp" />
-    <ClCompile Include="..\private\Mon_Lancelier_Body.cpp" />
-    <ClCompile Include="..\private\Mon_Lancelier_Weapon.cpp" />
-    <ClCompile Include="..\private\SkillTree_Panel.cpp" />
-    <ClCompile Include="..\public\ANS_QTE.cpp" />
     <ClCompile Include="..\Private\Monster_BattleBase.cpp" />
     <ClCompile Include="..\Private\Character_WorldBase.cpp" />
     <ClCompile Include="..\Private\Character_BattleBase.cpp" />
@@ -821,7 +803,6 @@
     <ClCompile Include="..\Private\ANS_Test.cpp">
       <Filter>AnimNotify</Filter>
     </ClCompile>
-    <ClCompile Include="..\private\BT_Set_Target.cpp" />
     <ClCompile Include="..\private\BT_Attack.cpp">
       <Filter>BehavoirTree\world</Filter>
     </ClCompile>
@@ -834,8 +815,15 @@
     <ClCompile Include="..\Private\BT_RotateToTarget.cpp">
       <Filter>BehavoirTree\world</Filter>
     </ClCompile>
-    <ClCompile Include="..\private\BT_SetSkill.cpp" />
-    <ClCompile Include="..\private\BT_FinishDecision.cpp" />
+    <ClCompile Include="..\private\BT_FinishDecision.cpp">
+      <Filter>BehavoirTree\battle</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\BT_Set_Target.cpp">
+      <Filter>BehavoirTree\battle</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\BT_SetSkill.cpp">
+      <Filter>BehavoirTree\battle</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">

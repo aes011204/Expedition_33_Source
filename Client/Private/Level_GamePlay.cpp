@@ -74,7 +74,7 @@ void Level_GamePlay::Update(float fTimeDelta)
          battleMonster.push_back(Constants::Prefab::MB_Lancelier); // 테스트 3마리 스폰도 같은 상수를 재사용한다.
          battleMonster.push_back(Constants::Prefab::MB_Lancelier); // 문자열 변경 누락으로 인한 스폰 실패를 막는다.
 
-         CLIENT->OnEnterBattleField(1, true, heroes, battleMonster);
+         CLIENT->OnEnterBattleField(1, false, heroes, battleMonster);
      }
 
 }

@@ -1,4 +1,4 @@
-#include "Monster_BattleBase.h"
+﻿#include "Monster_BattleBase.h"
 #include "ClientInstance.h"
 
 #include "AIController.h"
@@ -76,6 +76,9 @@ void Monster_BattleBase::Decide_Action_BTOnly(Action& curturnAction, const vecto
 
     const Shared<BlackBoard> bb = _aiCtrl->Get_BlackBoard();
     CHECK_NULL(bb);
+
+
+        
 
     bb->Set_Value("Heroes", heroes);
     bb->Set_Value("DecisionComplete", false);

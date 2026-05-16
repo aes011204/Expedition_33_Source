@@ -287,6 +287,9 @@ void BattleController::Create_BattleChar(const vector<HeroId>& heroIds, vector<s
         battleChar.ModelCom = body ? body->Get_Component<ModelCom>() : nullptr; // body part에 붙은 실제 ModelCom를 사용한다.
 
         _heroes.push_back(battleChar);
+
+
+       // battleChar.ModelCom->Set_RootMotionEnabled(false);
     }
 
     for (int i = 0; i < battleMonsterPrefabNames.size(); ++i)
@@ -308,6 +311,9 @@ void BattleController::Create_BattleChar(const vector<HeroId>& heroIds, vector<s
         battleChar.ModelCom = body ? body->Get_Component<ModelCom>() : nullptr; // 몬스터 종류와 무관하게 Part_Body의 ModelCom를 사용한다.
 
         _enemies.push_back(battleChar);
+
+      // battleChar.ModelCom->Set_RootMotionEnabled(false);
+
     }
 }
 
@@ -480,7 +486,7 @@ void BattleController::Execute_BaseAttack(const BattleChar actor, const Action& 
         return;
     }
 
-    //turnAction._curChar.ModelCom->Set_Animation(vec_anim[0], false, 1.5f);
+    turnAction._curChar.ModelCom->Set_Animation(vec_anim[0], false, 1.5f);
     //vec_anim
 
     //auto script = Create_Class::SkillScript(turnAction._selected_SkillKey.scriptClassName).Create();
@@ -510,18 +516,25 @@ void BattleController::Execute_Skill(const BattleChar actor, const Action& turnA
         turnAction._selected_SkillKey.scriptClassName.c_str()
     );
 
-    const auto script = Create_Class::SkillScript(turnAction._selected_SkillKey.scriptClassName).Create();
+    const auto vec_anim = turnAction._selected_SkillKey.animationKey;
+    if (vec_anim.size() == 0)
+        return;
 
-    if (script == nullptr)
-        LOG_ERROR("Base_Gustave_Attack Create Failed");
-    else
-        LOG_ERROR("Base_Gustave_Attack Create Success");
+    if (actor.ModelCom == nullptr)
+    {
+        LOG_ERROR("Execute_BaseAttack: actor.ModelCom is null");
+        EndTurn();
+        return;
+    }
 
-    const auto target = turnAction.target;
+    if (vec_anim.empty())
+    {
+        LOG_ERROR("Execute_BaseAttack: no animationKey");
+        EndTurn();
+        return;
+    }
 
-    script->Execute(turnAction._selected_SkillKey, actor, target);
-
-    EndTurn(); // 일단 애니메이션등이 다 끝나고 끝내야 하는데 일단 테스트
+    turnAction._curChar.ModelCom->Set_Animation(vec_anim[0], false, 1.5f);
 }
 
 void BattleController::Execute_Item(const BattleChar actor, const Action& turnAction)
