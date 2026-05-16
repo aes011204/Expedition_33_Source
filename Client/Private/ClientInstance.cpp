@@ -1,7 +1,9 @@
 ﻿#include "pch.h"
 #include "ClientInstance.h"
+#include "BattleController.h"
+#include "GameObject.h"
 #include "BT_Node_Bootstrap.h"
-#include "ComputePointParticlePreview.h"
+#include "ComputePointParticleEffect.h"
 #include "GameDataTable.h"
 #include "GameInstance.h"
 #include "PersistentObjectManager.h"
@@ -43,6 +45,9 @@ HRESULT ClientInstance::Initialize_Client(const ComPtr<Device>& device, const Co
     _heroManager = Hero_Manager::Create();
     CHECK_NULL(_heroManager, E_FAIL);
 
+    _battleController = BattleController::Create();
+    CHECK_NULL(_battleController, E_FAIL);
+
 	_isInitialized = true;
 
 	return S_OK;
@@ -55,6 +60,9 @@ void ClientInstance::Update_Client(float timeDelta)
 
     if (_gamePlayUI)
         _gamePlayUI->Update(timeDelta);
+
+    if (_battleController)
+        _battleController->Update(timeDelta);
 }
 
 HRESULT ClientInstance::Ready_StaticResources()
@@ -145,6 +153,16 @@ Shared<Player> ClientInstance::Find_Hero(HeroId heroId) const
     return _heroManager->Find_Hero(heroId);
 }
 
+const HeroSpawnDesc* ClientInstance::Find_HeroSpawnDesc(HeroId heroId)
+{
+    return _heroManager->Find_HeroSpawnDesc(heroId);
+}
+
+void ClientInstance::Reset_AllHeroesToIdle()
+{
+    return _heroManager->Reset_AllHeroesToIdle();
+}
+
 HRESULT ClientInstance::Initialize_GameplayUI(uint32 levelIndex)
 {
     Clear_GameplayUI();
@@ -164,6 +182,12 @@ void ClientInstance::Clear_GameplayUI()
     }
 
     GAME->Set_GameplayPaused(false);
+}
+
+void ClientInstance::OnEnterBattleField(uint32 FieldID, bool IsFirstHero, const vector<HeroId>& heroIds,
+    vector<string>& MonsterProtoTag)
+{
+    return _battleController->OnEnterBattleField(FieldID, IsFirstHero, heroIds, MonsterProtoTag);
 }
 
 Shared<GameObject> ClientInstance::Find_Player(uint32 levelIndex)
@@ -224,10 +248,12 @@ void ClientInstance::Release_Client()
     ReleaseManager(_persistentObjectManager);
     ReleaseManager(_resourceLoader);
     ReleaseManager(_heroManager);
+    ReleaseManager(_battleController);
     ReleaseManager(_gamePlayUI);
 
     _context.Reset();
     _device.Reset();
+
     _isStaticResourcesLoaded.store(false);
     _isStaticObjectsSpawned = false;
     _isInitialized = false;

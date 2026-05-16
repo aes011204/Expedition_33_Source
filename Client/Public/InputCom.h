@@ -21,6 +21,8 @@ public:
 public:
     void    Update_Input();
 
+    void    NotifyTest();
+
 public:
     const MovementCom::MovementInput&   Get_MovementInput() const { return _movementInput; }
     bool                                Has_MoveInput() const;     

@@ -24,19 +24,23 @@ void SkillTargeting::Begin_Play()
 
 bool SkillTargeting::EnterInvoke()
 {
+    LOG_DEBUG("SkillTargeting::EnterInvoke");
     return Battle_State::EnterInvoke();
 }
 
 void SkillTargeting::Update(float timeDelta)
 {
+    Battle_State::Update(timeDelta);
 }
 
 void SkillTargeting::LateUpdate(float timeDelta)
 {
+    Battle_State::LateUpdate(timeDelta);
 }
 
 void SkillTargeting::ExitInvoke()
 {
+    LOG_DEBUG("SkillTargeting::ExitInvoke");
     Battle_State::ExitInvoke();
 }
 

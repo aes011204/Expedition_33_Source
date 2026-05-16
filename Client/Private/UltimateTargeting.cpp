@@ -24,19 +24,23 @@ void UltimateTargeting::Begin_Play()
 
 bool UltimateTargeting::EnterInvoke()
 {
+    LOG_DEBUG("UltimateTargeting::EnterInvoke");
     return Battle_State::EnterInvoke();
 }
 
 void UltimateTargeting::Update(float timeDelta)
 {
+    Battle_State::Update(timeDelta);
 }
 
 void UltimateTargeting::LateUpdate(float timeDelta)
 {
+    Battle_State::LateUpdate(timeDelta);
 }
 
 void UltimateTargeting::ExitInvoke()
 {
+    LOG_DEBUG("UltimateTargeting::ExitInvoke");
     Battle_State::ExitInvoke();
 }
 

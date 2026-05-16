@@ -30,19 +30,19 @@ void Player_Idle::Update(float timeDelta)
     bool isFinished = _bodyPlayer->Is_AnimationFinished();
     auto& input = Get_MovementInput();
 
-    if (input.isSuddenAttack)
+    if (IsEnterWorldAction())
     {
         _stateCom->Change_State(PlayerState::WorldAction);
         return;
     }
 
-    if (input.isJumpDown)
+    if (IsEnterJump())
     {
         _stateCom->Change_State(PlayerState::Jump);
         return;
     }
 
-    if (Has_MoveInput())
+    if (IsEnterMove())
     {
         _stateCom->Change_State(PlayerState::Move);
         return;

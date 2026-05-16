@@ -1,37 +1,38 @@
 ﻿#pragma once
+
 #include "Base.h"
+#include "Delegate.h"
 #include "Battle_Enum.h"
 
+
 NS_BEGIN(Engine)
-
-    class Character;
-
+class Character;
 NS_END
-
 
 NS_BEGIN(Client)
 
 class CombatStatCom;
 class BuffSystem;
 class BattleEffectResolver;
+class BattleStateMachine;
 
-    class BattleStateMachine;
-class BattleController :
-    public Base
+class BattleController : public Base
 {
-
 public:
- 
+    BattleController();
+    virtual ~BattleController();
 public:
-    HRESULT Inintialize();
+    HRESULT Initialize();
     void Update(float timeDelta);
-
-
 
     void Run_EnemyTurn();
 
+    void  OnEnterBattleField(
+        uint32 FieldID,
+        bool IsFirstHero,
+        const vector<HeroId>& heroIds,
+        vector<string>& MonsterProtoTag);
 
-    void  OnEnterBattleField(uint32 FieldID, bool IsFirstHero, vector<string>& PlayerProtoTag, vector<string>& MonsterProtoTag);
     EBattleEndResult OnExitBattleField(EBattleEndResult result);
 
     void Set_BattleFSM();
@@ -42,31 +43,41 @@ public:
 
     EAPChangeReason FinishBattle();
 
-
-
-    void Create_BattleChar(vector<string>& PlayerprotoTag, vector<string>& MonsterprotoTag);
+    void Create_BattleChar(const vector<HeroId>& heroIds, vector<string>& MonsterprotoTag);
     void Build_InitialTurnQueue(bool IsFirstHero);
     void SetCharInitPos();
 
 public:
-    Shared< BattleStateMachine>  Get_BattleFSM() { return _battleFSM; };
+    Shared<BattleStateMachine>  Get_BattleFSM() { return _battleFSM; };
     Action& Get_TurnAction() { return _turnAction; }
-    uint32 Get_EnemiesNum() { return _enemies.size(); }
-    uint32 Get_HeroesNum() { return _heroes.size(); }
-    vector<BattleChar>& Get_Enemies() { return _enemies; }
+    //uint32 Get_EnemiesNum() { return _enemies.size(); }
+    //uint32 Get_HeroesNum() { return _heroes.size(); }
+
+    vector<BattleChar> Get_AliveEnemies();
+    vector<BattleChar> Get_AliveHeroes();
+
+    bool Is_BattleStarted() { return isBattleActive; }
+public:
+    void Handle_EditorStopRuntime();
+    HRESULT Ready_Delegates();
+    void OnActionEndNotify();
+
 private:
     BattleChar _currentTurnActor = {};
     Action _turnAction={};
     bool isBattleActive = { false };
     int currentTurnIndex = {};
      
-
+    bool _flag = { false };
 
 private:
     void Execute_BaseAttack(const BattleChar actor, const Action& turnAction);
     void Execute_Skill(const BattleChar actor, const Action& turnAction);
     void Execute_Item(const BattleChar actor, const Action& turnAction);
 
+
+    bool _battleEnded = {};
+    bool _pendingNextTurn = {};
 public:
     struct Compare
     {
@@ -89,6 +100,15 @@ private:
     Shared< BattleStateMachine> _battleFSM;
     Shared< BuffSystem> _buffSystem;
     Shared< BattleEffectResolver> _battleEffectResolver;
+
+    FDelegateHandle _editorStopHandle = {};
+
+public:
+    static Shared<BattleController> Create();
+    void Free() override;
+
+public:
+
 };
 
 

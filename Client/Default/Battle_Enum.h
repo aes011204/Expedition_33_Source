@@ -1,6 +1,7 @@
 ﻿#pragma once
 namespace Engine
 {
+    class ModelCom;
     class Character;
 }
 
@@ -445,6 +446,7 @@ namespace Client
     {
         Shared<Character> actor;
         Shared<CombatStatCom> statCom;
+        Shared<ModelCom> ModelCom;
     };
 
 
@@ -491,19 +493,24 @@ namespace Client
         // 디버프
 
     };
+
+
     struct Skill_Data
     {
         string skillName={""};            // "FireSlash"
         string scriptClassName={""};      // "FireSlashScript"
-
+        vector<string> animationKey;
+        string IdleAnimationKey;
 
         int32 apCost = 0;
         ECharacterTeamSelector targetingType={};
 
-        // ⭐ 속성
+        uint32 _curAnimIndex = {};
+
+        //
         EAttackType element={};
 
-        // ⭐ 상태이상 (선택)
+        // 
         Buffs ailmentType = Buffs::None;
         float ailmentChance = 0.f;
     };

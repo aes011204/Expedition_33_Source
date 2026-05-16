@@ -55,7 +55,7 @@ private: //## Types
     };
 
 private: //## Static Values
-    static Profile_View* s_active;
+    static Profile_View* activeView;
 
 private: //## Data
     Unique<ProfilerRuntime> _runtime{ nullptr };

@@ -172,6 +172,9 @@ PS_OUT PS_NoTexture(PS_IN In)
     float3 orm = SampleOrm(In.Texcoord);
     Out.Material = float4(orm.xyz, 1.f);
 
+    float3 emissive = SampleEmissive(In.Texcoord);
+    Out.Emissive = float4(emissive.xyz, 1.f);
+
     return Out;
 }
 

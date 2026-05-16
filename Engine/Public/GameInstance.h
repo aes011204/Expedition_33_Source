@@ -9,6 +9,7 @@
 #include "Debug_Types.h"
 #include <string_view>
 #include <utility>
+#include "DelegateHub.h"
 
 #include "Log_Define.h"
 #ifdef _DEBUG
@@ -439,6 +440,10 @@ public: /* For.Thread Pool */
     bool                    Enqueue_ThreadJob(function<void()> job);
     size_t                  Get_PendingThreadJobCount() const;
 
+public: /* For.Delegate Hub */
+    DelegateHub& Get_DelegateHub() { return _delegateHub; }
+    const DelegateHub& Get_DelegateHub() const { return _delegateHub; }
+
 private:
     Unique<Log_Manager>         _logManager{};
     Unique<Graphic_Device>      _graphicDevice{};
@@ -484,6 +489,8 @@ private:
 
     // Free 카메라용 time
     float   _freeCameraTimeDelta = 0.f;
+
+    DelegateHub _delegateHub = {};
 
 #ifdef _DEBUG
 private: //## 디버그 성능 평가용

@@ -1,7 +1,6 @@
 ﻿#include "Level_GamePlay.h"
 #include "GameInstance.h"
 #include "ClientInstance.h"
-#include "PointParticlePreview.h"
 #include "Spawn_Prefab.h"
 #include "TargetCamera.h"
 #include "MapLoader.h"
@@ -61,6 +60,26 @@ void Level_GamePlay::Update(float fTimeDelta)
 
      GAME->Print(L"현재 FPS : {}", fps, duration(0.f), color(Vec4(1.f, 1.f, 0.f, 1.f)));
 #endif
+
+     //테스트
+     if (GAME->KeyDown(KEY_TYPE::KEY_0))
+     {
+         vector<HeroId> heroes =
+         {
+             HeroId::Lune,
+             HeroId::Maelle,
+             HeroId::Gustave,
+         };
+
+         vector<string> _monster;
+         _monster.push_back("Monster123123");
+         _monster.push_back("Monster123123");
+         _monster.push_back("Monster123123");
+
+         CLIENT->OnEnterBattleField(1, false, heroes, _monster);
+     }
+
+
 }
 
 HRESULT Level_GamePlay::Render()
@@ -174,7 +193,7 @@ HRESULT Level_GamePlay::Ready_Layer_MapStaticMesh(const wstring& strLayerTag)
     CHECK_FAILED(MapLoader::Load(
         _device, _context,
         Constants::Map::SmallLevel_SimonArea_Remake_Path,
-        ETOI(LevelType::MapTest), strLayerTag), E_FAIL);
+        ETOI(LevelType::GamePlay), strLayerTag), E_FAIL);
 
     return S_OK;
 }
@@ -195,8 +214,8 @@ HRESULT Level_GamePlay::Ready_Layer_Monster(const wstring& strLayerTag)
     const Shared<GameObject> monster = Client::Spawn_Prefab::Spawn(
         "Monster123123",
         ETOI(LevelType::GamePlay),
-        strLayerTag
-    );
+        strLayerTag);
+
     monster->Get_Transform()->Set_Position(startPos);
 
 
@@ -228,16 +247,6 @@ Shared<Level_GamePlay> Level_GamePlay::Create(const ComPtr<Device>& device, cons
 void Level_GamePlay::Free()
 {
     CLIENT->Clear_GameplayUI();
-
-    _removeExpButton.reset();
-    _addExpButton.reset();
-    _removeHpButton.reset();
-    _addHpButton.reset();
-    _expGauge.reset();
-    _hpGauge.reset();
-    _expText.reset();
-    _hpText.reset();
-    _uiByName.clear();
 
     __super::Free();
 }

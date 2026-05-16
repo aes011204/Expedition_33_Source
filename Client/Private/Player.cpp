@@ -47,6 +47,7 @@ HRESULT Player::Initialize(void* arg)
 
     if (FAILED(Ready_PartObjects()))
         return E_FAIL;
+   
 
     return S_OK;
 }
@@ -62,7 +63,7 @@ void Player::Priority_Update(float timeDelta)
 {
     __super::Priority_Update(timeDelta);
 
-       // 업데이트 순서 조정
+    // follower도 StateMachine/Controller를 타야 Idle/Run/Sprint 전환과 PhysX 이동이 처리된다.
     _playerControllerCom->Update_InputState();
     _PlayerStateMachineCom->Update_CurrentState(timeDelta);
     _playerControllerCom->Update_Movement(timeDelta);
@@ -115,14 +116,20 @@ Vec3 Player::Get_MovementVelocity() const
     return _movementCom->Get_Velocity();
 }
 
+void Player::Notify_Test()
+{
+    int a = 10;
+}
+
 HRESULT Player::Ready_Components()
 {
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_Input"), _inputCom), E_FAIL);
-
+       
     MovementCom::MoveDesc moveDesc{};
     moveDesc.walkSpeed = 9.f;
     moveDesc.runSpeed = 10.f;
-    moveDesc.turnSpeedDegree = 360.f;
+    moveDesc.turnSpeedDegree = 720.f;
+    moveDesc.turnResponse = 10.f;
     moveDesc.jumpVelocity = 20.f;
     moveDesc.gravity = -20.f;
     moveDesc.skinWidth = 0.03f;
@@ -137,7 +144,7 @@ HRESULT Player::Ready_Components()
     
     CHECK_FAILED(Ready_Collider(), E_FAIL);
 
-    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_CombatStat"), _combatStatCom), E_FAIL);
+    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_PlayerStat"), _combatStatCom), E_FAIL);
 
     return S_OK;
 }

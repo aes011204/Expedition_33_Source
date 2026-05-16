@@ -323,6 +323,7 @@
     <ClInclude Include="..\Public\EnumFlags.h">
       <Filter>01.Utility\98. Utils</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\DelegateHub.h" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\public\Base.h">
@@ -884,6 +885,7 @@
     <ClCompile Include="..\Private\PostProcessPipeline.cpp">
       <Filter>01.Utility\05.Renderer\Pipeline</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\DelegateHub.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Bin\ShaderFiles\Engine_Shader_Defines.hlsli">

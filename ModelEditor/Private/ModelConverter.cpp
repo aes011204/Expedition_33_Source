@@ -77,6 +77,10 @@ namespace ModelEditor
 		string finalResult;
 		for (size_t i = 0; i < tokens.size(); ++i)
 		{
+			// 맨 앞의 문자열이 뒤에 또 존재하면 삭제 (예: Lancleier_Lancleier_Dash_Out -> Lancleier_Dash_Out)
+			if (i > 0 && tokens[i] == tokens[0])
+				continue;
+
 			// Simple consecutive duplicate prevention (e.g., Maelle_Maelle -> Maelle)
 			if (i > 0 && tokens[i] == tokens[i - 1])
 				continue;
@@ -113,14 +117,14 @@ namespace ModelEditor
 
 	HRESULT ModelConverter::Initialize()
 	{
-		Clear_Converter();
-		LOG_INFO("ModelConverter Called");
-		_importFlags = aiProcess_ConvertToLeftHanded |
-					  aiProcess_Triangulate |
-					  aiProcess_CalcTangentSpace |
-					  aiProcess_GenSmoothNormals |
-                      aiProcess_LimitBoneWeights |
-                       aiProcess_JoinIdenticalVertices;
+	        Clear_Converter();
+	        LOG_INFO("ModelConverter Called");
+	        _importFlags = aiProcess_ConvertToLeftHanded |
+	                                  aiProcess_Triangulate |
+	                                  aiProcess_CalcTangentSpace |
+	                                  aiProcess_GenSmoothNormals |
+	                                  aiProcess_LimitBoneWeights |
+	                                  aiProcess_JoinIdenticalVertices;
 
 		strcpy_s(_pathBuffer, Engine::String::ToString(ResourcePath).c_str());
 		_resourcePath = ResourcePath;
@@ -152,6 +156,7 @@ namespace ModelEditor
 		ImGui::Separator();
 
 		ImGui::Checkbox("Generate Debug JSON Logs", &_exportJsonLog);
+		ImGui::Checkbox("Apply Global Scale (Static Only)", &_applyGlobalScale);
 		ImGui::Separator();
 
 		if (ImGui::Button("Scan FBX Files", ImVec2(150, 30)))
@@ -322,13 +327,14 @@ namespace ModelEditor
         }
         _isSkeletal = hasMeshBones || probeScene->mNumAnimations > 0;
         
-        if (false == _isSkeletal)
+        uint32 finalFlags = _importFlags;
+        if (false == _applyGlobalScale && false == _isSkeletal)
         {
-            _importFlags |= aiProcess_PreTransformVertices;
+            finalFlags |= aiProcess_PreTransformVertices | aiProcess_GlobalScale;
         }
-        
-        _importer.FreeScene();
-        _aiScene = _importer.ReadFile(utf8FilePath, _importFlags);
+            
+        _importer.FreeScene(); // 필수: 이전 probeScene 캐시를 날려야 새 플래그가 적용됨
+        _aiScene = _importer.ReadFile(utf8FilePath, finalFlags);
         if (nullptr == _aiScene || _aiScene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !_aiScene->mRootNode)
         {
             LOG_ERROR("Assimp Error: {} \n", _importer.GetErrorString());
@@ -999,21 +1005,56 @@ namespace ModelEditor
 
 		for (uint32 i = 0; i < _animHeaders.size(); ++i)
 		{
-            string finalFileName = Sanitize_FileName(modelName);
-            // 2. 애니메이션이 여러 개일 경우에만 뒤에 인덱스(_0, _1...)를 붙임
+            string finalFileName = cleanModelName;
+
+            // 내부 애니메이션 이름 추출 및 정제 (예: "Armature|Dash_Out" -> "Dash_Out")
+            string internalAnimName = _animHeaders[i].name;
+            size_t pipePos = internalAnimName.find_last_of('|');
+            if (pipePos != string::npos) {
+                internalAnimName = internalAnimName.substr(pipePos + 1);
+            }
+            
+            string sanitizedInternal = Sanitize_FileName(internalAnimName);
+
+            // 애니메이션이 여러 개일 경우에 내부 이름 결합
             if (_animHeaders.size() > 1)
             {
-                finalFileName += "_" + to_string(i);
+                if (sanitizedInternal != "DefaultAnimName" && !sanitizedInternal.empty())
+                {
+                    // 모델 이름과 내부 이름이 중복되지 않게 처리 (예: Lancelier_Dash_Out 안에 Lancelier 가 이미 있는 경우 대비)
+                    if (sanitizedInternal.find(cleanModelName) == string::npos && cleanModelName.find(sanitizedInternal) == string::npos)
+                    {
+                        finalFileName += "_" + sanitizedInternal;
+                    }
+                    else
+                    {
+                        finalFileName = sanitizedInternal;
+                    }
+                }
+                else
+                {
+                    finalFileName += "_" + to_string(i);
+                }
             }
-            // 3. 최종 경로 생성 (String::ToWString 사용 여부 확인 필요)
+            else
+            {
+                // 단일 애니메이션의 경우에도 내부 이름이 더 구체적이라면 사용하는 것을 고려 (옵션)
+                // 하지만 FBX 파일명을 기본으로 하는 기존 로직을 유지하면서,
+                // 혹시라도 파일명이 "Lancelier"이고 내부 이름이 "Dash_Out"일 때 결합하고 싶다면 여기서도 처리할 수 있습니다.
+                // 여기서는 기존 로직대로 단일 애니메이션은 FBX 파일명(cleanModelName)을 우선시합니다.
+            }
+
             wstring animPath = animDir + Engine::String::ToWString(finalFileName) + L".anim";
-            // 4. 파일 출력 시작
+            
             ofstream out(animPath, ios::binary);
             if (!out.is_open())
             {
                 LOG_ERROR("Failed to create anim file: {}", finalFileName);
                 continue;
             }
+
+            // 파일 내부에 저장되는 이름 갱신 (ModelCom 에서 이름으로 찾을 수 있게)
+            _animHeaders[i].name = finalFileName;
 
 			WriteString(out, finalFileName);
 			out.write(BYTE(&_animHeaders[i].duration), sizeof(double) * 2);
@@ -1104,13 +1145,12 @@ namespace ModelEditor
 
 	Matrix ModelConverter::Convert_Matrix(const aiMatrix4x4& aiMat) const
 	{
-		Matrix mat;
-        mat._11 = aiMat.a1; mat._21 = aiMat.b1; mat._31 = aiMat.c1; mat._41 = aiMat.d1;
-        mat._12 = aiMat.a2; mat._22 = aiMat.b2; mat._32 = aiMat.c2; mat._42 = aiMat.d2;
-        mat._13 = aiMat.a3; mat._23 = aiMat.b3; mat._33 = aiMat.c3; mat._43 = aiMat.d3;
-        mat._14 = aiMat.a4; mat._24 = aiMat.b4; mat._34 = aiMat.c4; mat._44 = aiMat.d4;
-
-		return mat;
+        return Matrix(
+            aiMat.a1, aiMat.b1, aiMat.c1, aiMat.d1,
+            aiMat.a2, aiMat.b2, aiMat.c2, aiMat.d2,
+            aiMat.a3, aiMat.b3, aiMat.c3, aiMat.d3,
+            aiMat.a4, aiMat.b4, aiMat.c4, aiMat.d4
+        );
 	}
 
 	void ModelConverter::Clear_Converter()

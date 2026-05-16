@@ -23,6 +23,15 @@ public:
         bool rigidJump{ false };
     };
 
+    struct FollowControl
+    {
+        bool enabled = false;       // follower 제어 모드인지
+        bool hasMoveIntent = false;
+        bool sprintFollow  = false; // 너무 멀어져 sprint 추격 중인지
+        bool blocked = false;       // 직전 이동 시 실제로 못 움직였는지
+        Vec3 worldDir = Vec3::Zero; // follower가 이동해야 할 월드 방향
+    };
+
 public:
     PlayerControllerCom(const ComPtr<Device>& device, const ComPtr<Context>& context);
     PlayerControllerCom(const PlayerControllerCom& Prototype);
@@ -54,6 +63,20 @@ public:
     const RigidControl& Get_RigidControl() const { return _rigidControl; }
     void Set_RigidControl(const RigidControl& rigidControl) { _rigidControl = rigidControl; }
 
+public: /* Follower */ 
+    void Set_FollowControl(const FollowControl& followControl) { _followControl = followControl; }
+    void Clear_FollowControl() { _followControl = {}; }
+
+    bool Is_FollowControlled() const { return _followControl.enabled; }
+    bool Has_LocomotionIntent() const;
+    bool Should_SprintMove() const;
+    bool Should_WalkMove() const;
+    bool Is_MovementBlocked() const;
+
+    // 점프/월드 액션 같은 직접 입력 허용 여부, follower에는 막히게
+    bool Allows_ActionInput() const; 
+
+
 private:
     void Check_RigidInput();
 
@@ -65,8 +88,6 @@ private:
 private:
     // 카메라 회전값에 따라서 플레이에 Yaw를 회전시킬 것인지?
     // 일단 33원정대 스타일에서는 필요없을거같음.
-    
-
     bool                 _bUseControllerRotationYaw = true;
     float                _testRefectionValue = 1.f;
 
@@ -74,7 +95,9 @@ private:
 
     MovementCom::MovementInput  _currentInput{};
     RigidControl                _rigidControl{};
-    bool                        _isWalkToggled;
+    bool                        _isWalkToggled = false;
+
+    FollowControl               _followControl{};
 
 public:
     static Shared<PlayerControllerCom> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

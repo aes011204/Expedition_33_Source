@@ -9,8 +9,12 @@
 #include "ColliderCom.h"
 #include "ClientInstance.h"
 #include "BlackBoard.h"
-#include "Mon_Lancleier_Body.h"
-#include "Mon_Lancleier_Weapon.h"
+#include "Mon_Lancelier_Body.h"
+#include "MonsterStatCom.h"
+#include "Mon_Lancelier_Weapon.h"
+
+REGISTER_GLOBAL_ENUM(Client::Monster::LancelierAnim, "LancelierAnim")
+
 
 IMPLEMENT_REFLECTION(Monster)
 {
@@ -118,6 +122,9 @@ void Monster::Update(float timeDelta)
     // Quat a;
     // Vec3 vevec;
     // ax.Decompose(vec3, a, vevec);
+
+    _combatStat->Update(timeDelta);
+
     __super::Update(timeDelta);
 }
 
@@ -133,7 +140,7 @@ void Monster::Late_Update(float fTimeDelta)
     _cullingAABB.Center = _transformCom->Get_Position();
 
     //// Adjustments may be necessary to suit the player
-    _cullingAABB.Extents = Vec3(1.f, 2.f, 1.f);
+    _cullingAABB.Extents = Vec3(1.5f, 4.f, 1.5f);
     Set_Visible(GAME->IsVisible(_cullingAABB));
 
     __super::Late_Update(fTimeDelta);
@@ -168,6 +175,10 @@ HRESULT Monster::Ready_Components()
 
     _aiCtrl->Set_Owner(static_pointer_cast<Monster>(shared_from_this()));
 
+    if (FAILED(__super::Add_Component(ETOI(LevelType::Static), TEXT("Com_MonsterStat"), _combatStat)))
+        return E_FAIL;
+
+
     CHECK_FAILED(Ready_Collider(), E_FAIL);
     CHECK_FAILED(Ready_PartObjects(), E_FAIL);
 
@@ -176,26 +187,26 @@ HRESULT Monster::Ready_Components()
 
 HRESULT Monster::Ready_PartObjects()
 {
-    Mon_Lancleier_Body::BODY_DESC bodyDesc{};
+    Mon_Lancelier_Body::BODY_DESC bodyDesc{};
     bodyDesc.parentMatrix = &_transformCom->Get_WorldMatrix();
     bodyDesc.modelType = ModelType::Anim;
-    bodyDesc.modelTag = L"Model_Lancleier";
+    bodyDesc.modelTag = L"Model_Lancelier";
 
-    CHECK_FAILED(Add_PartObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Lancleier_Body"), TEXT("Part_Body"), &bodyDesc), E_FAIL);
+    CHECK_FAILED(Add_PartObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Lancelier_Body"), TEXT("Part_Body"), &bodyDesc), E_FAIL);
 
-    _body = dynamic_pointer_cast<Mon_Lancleier_Body>(_partObjects[TEXT("Part_Body")]);
+    _body = dynamic_pointer_cast<Mon_Lancelier_Body>(_partObjects[TEXT("Part_Body")]);
     if (nullptr == _body)
         return E_FAIL;
 
-    Mon_Lancleier_Weapon::WEAPON_DESC weaponDesc{};
+    Mon_Lancelier_Weapon::WEAPON_DESC weaponDesc{};
     weaponDesc.parentMatrix = &_transformCom->Get_WorldMatrix();
     weaponDesc.modelType = ModelType::NonAnim;
-    weaponDesc.modelTag = L"Model_Lancleier_Weapon";
+    weaponDesc.modelTag = L"Model_Lancelier_Weapon";
     weaponDesc.socketMatrix = _body->Get_SocketBoneMatrixPtr("Weapon_R");
 
-    CHECK_FAILED(Add_PartObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Lancleier_Weapon"), TEXT("Part_Weapon"), &weaponDesc), E_FAIL);
+    CHECK_FAILED(Add_PartObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Lancelier_Weapon"), TEXT("Part_Weapon"), &weaponDesc), E_FAIL);
 
-    _weapon = dynamic_pointer_cast<Mon_Lancleier_Weapon>(_partObjects[TEXT("Part_Weapon")]);
+    _weapon = dynamic_pointer_cast<Mon_Lancelier_Weapon>(_partObjects[TEXT("Part_Weapon")]);
     if (nullptr == _weapon)
         return E_FAIL;
 
@@ -213,6 +224,22 @@ HRESULT Monster::Ready_Collider()
     _collider->Set_IsActive(true);
 
     return S_OK;
+}
+
+void Monster::Decide_Action(Action& curturnAction, const vector<BattleChar>& heroes)
+{
+
+    Skill_Data skill = Get_Component<MonsterStatCom>()->Get_Basic_Skill();
+   
+    curturnAction.target = heroes[0];
+    curturnAction._selected_SkillKey = skill;
+        curturnAction.type = EBattleContext::BaseAttack;
+
+    LOG_DEBUG("Monster::Decide_Action: target={}, script={}, type={}",
+        curturnAction.target.actor ? String::ToString(curturnAction.target.actor->Get_Name()).c_str() : "null",
+        curturnAction._selected_SkillKey.scriptClassName.c_str(),
+        static_cast<int>(curturnAction.type));
+
 }
 
 Shared<Monster> Monster::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

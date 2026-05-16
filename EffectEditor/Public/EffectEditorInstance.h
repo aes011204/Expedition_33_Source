@@ -107,17 +107,22 @@ public: //## Behavior::CameraControl
     bool Is_PreviewCameraActive() const;
 
 public: //## Behavior::InputPolicy
+    // scene viewport가 preview camera 입력을 받아도 되는지와 overlay 차단 상태를 함께 반영한다.
     void Set_SceneViewportInputState(bool canInteract, bool blocked);
+    // game viewport가 runtime 입력을 받을 수 있는 상태만 반영한다.
     void Set_GameViewportInputState(bool canInteract);
     void Set_PreviewCameraLockScreenRect(const RECT& lockRectScreen);
     void Clear_PreviewCameraLockScreenRect();
     void Begin_PreviewCameraDrag();
     void End_PreviewCameraDrag();
 
+    // 현재 scene/game viewport 상태를 보고 editor/runtime 입력 정책을 한 번에 동기화한다.
     void Apply_RuntimeInputPolicy();
 
 public: //## Behavior::Viewport
+    // Scene_View가 공유 preview SRV를 그리기 전에 target 크기를 맞출 때 사용한다.
     Shared<RenderTarget> Prepare_SharedViewportRenderTarget(uint32 width, uint32 height);
+    // runtime back buffer 결과를 editor 공유 viewport target으로 복사한다.
     void Capture_BackBuffer_ToViewport();
 
     void Request_PreviewViewportSize(uint32 width, uint32 height);
@@ -125,14 +130,15 @@ public: //## Behavior::Viewport
     void Enable_AutoPreviewViewport();
     void Enable_ManualPreviewViewport();
     void Set_ManualPreviewViewportSize(uint32 width, uint32 height);
+    // queued viewport 요청과 현재 모드를 맞춰 preview target 적용 상태를 동기화한다.
     void Sync_PreviewViewportMode();
 
 private: //## Static Values
-    static constexpr uint32 kDefaultPreviewViewportWidth = 900;
-    static constexpr uint32 kDefaultPreviewViewportHeight = 900;
-    static constexpr int kSceneGridDivisions = 40;
-    static constexpr float kSceneGridHalfExtent = 30.f;
-    static constexpr float kSceneGridHeight = 0.f;
+    static constexpr uint32 kDefaultPreviewViewportWidth{ 900 };
+    static constexpr uint32 kDefaultPreviewViewportHeight{ 900 };
+    static constexpr int kSceneGridDivisions{ 40 };
+    static constexpr float kSceneGridHalfExtent{ 30.f };
+    static constexpr float kSceneGridHeight{ 0.f };
 
 private: //## Data::Core
     ComPtr<Device> _device{};

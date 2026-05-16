@@ -218,6 +218,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClInclude Include="..\Public\DebugDraw.h" />
     <ClInclude Include="..\Public\Decorator.h" />
     <ClInclude Include="..\Public\Delegate.h" />
+    <ClInclude Include="..\Public\DelegateHub.h" />
     <ClInclude Include="..\Public\Engine_Constants.h" />
     <ClInclude Include="..\Public\EnumFlags.h" />
     <ClInclude Include="..\Public\Event_Bus.h" />
@@ -349,6 +350,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClCompile Include="..\PRivate\Debug_Manager.cpp" />
     <ClCompile Include="..\Private\DebugDraw.cpp" />
     <ClCompile Include="..\Private\Decorator.cpp" />
+    <ClCompile Include="..\Private\DelegateHub.cpp" />
     <ClCompile Include="..\Private\Event_Manager.cpp" />
     <ClCompile Include="..\Private\ICommand.cpp" />
     <ClCompile Include="..\Private\Log_Manager.cpp" />
