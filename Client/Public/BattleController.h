@@ -29,6 +29,7 @@ public:
 
     void Run_EnemyTurn();
 
+    // 진입 시 데이터만 기록 -> 실제 전환은 슬로우모션 끝난 후 Complete_BattleFiled 함수
     void  OnEnterBattleField(
         uint32 FieldID,
         bool IsFirstHero,
@@ -59,6 +60,7 @@ public:
     vector<BattleChar> Get_AliveHeroes();
 
     bool Is_BattleStarted() { return _isBattleActive; }
+    bool Is_BattleEntering() const { return _isBattleEntering; } // 배틀 진입 시작
 
 public:
     void Handle_EditorStopRuntime();
@@ -70,10 +72,15 @@ private:
     void    Activate_BattleTurnCamera();
     void    Restore_WorldCamera();
 
+    void    Complete_BattleField();          // 2초 슬로우모션이 끝난 뒤 실제 PB/MB 생성과 턴 시작을 처리한다.
+    void    Clear_BattleEnterPending();   // 전투 진입 대기 데이터만 정리
+
 private:
     BattleChar _currentTurnActor = {};
     Action _turnAction={};
     bool _isBattleActive = { false };
+    bool _isBattleEntering = { false };
+
     int currentTurnIndex = {};
      
     bool _flag = { false };
@@ -113,7 +120,19 @@ private:
 
 private:
     Shared<BattleTurnCamera> _battleTurnCamera;
-    Shared<Camera> _worldCameraBeforeBattle;    // 전투 시작 전 카메라 저장
+    Shared<Camera> _worldCamera;    // 전투 시작 전 카메라 저장
+
+   
+private:  // 슬로우 처리
+    float _battleEnterElapsed = 0.f;
+    float _battleEnterDuration = 2.f;
+    float _battleEnterWorldTimeScale = 0.25f;
+    float _resetWorldTime = 1.f;
+
+    uint32  _pendingBattleFieldID = 0;
+    bool    _pendingBattleIsFirstHero = false;
+    vector<HeroId> _pendingBattleHeroIds = {};
+    vector<string> _pendingBattleMonsterPrefabNames = {};
 
 public:
     static Shared<BattleController> Create();

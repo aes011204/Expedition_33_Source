@@ -34,6 +34,9 @@
     <Filter Include="02.GameObject\UI">
       <UniqueIdentifier>{22fad0de-cf88-40d1-b428-3585935d5be9}</UniqueIdentifier>
     </Filter>
+    <Filter Include="02.GameObject\UI\00.BackGround">
+      <UniqueIdentifier>{d023afea-ff0b-417c-9db0-25eb798973f2}</UniqueIdentifier>
+    </Filter>
     <Filter Include="02.GameObject\Terrain">
       <UniqueIdentifier>{ff40d1f3-aed2-48f4-a50b-289c5997d487}</UniqueIdentifier>
     </Filter>
@@ -163,15 +166,6 @@
     <Filter Include="02.GameObject\Map\MapInstancedMesh">
       <UniqueIdentifier>{48582af2-9fa3-4baf-bee3-b247fe81d3f0}</UniqueIdentifier>
     </Filter>
-    <Filter Include="02.GameObject\UI\BackGround">
-      <UniqueIdentifier>{d023afea-ff0b-417c-9db0-25eb798973f2}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="02.GameObject\UI\SkillTree_Panel">
-      <UniqueIdentifier>{a1312345-3547-423a-8f4a-75a5083c4e41}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="02.GameObject\UI\CharacterStatus_Panel">
-      <UniqueIdentifier>{ee7b5bd8-e9bc-4acd-91ee-92cc1ca9e59b}</UniqueIdentifier>
-    </Filter>
     <Filter Include="02.GameObject\Player\00. World">
       <UniqueIdentifier>{99061e95-9355-4714-95af-917916e25c88}</UniqueIdentifier>
     </Filter>
@@ -183,6 +177,12 @@
     </Filter>
     <Filter Include="02.GameObject\Monster\01. Battle">
       <UniqueIdentifier>{67722be3-2fa7-4894-aada-eddadce9c2e6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02.GameObject\UI\SkillTree_Panel">
+      <UniqueIdentifier>{a1312345-3547-423a-8f4a-75a5083c4e41}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02.GameObject\UI\CharacterStatus_Panel">
+      <UniqueIdentifier>{ee7b5bd8-e9bc-4acd-91ee-92cc1ca9e59b}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -220,7 +220,7 @@
       <Filter>01.Levels\Loading\Loader</Filter>
     </ClInclude>
     <ClInclude Include="..\public\BackGround.h">
-      <Filter>02.GameObject\UI\BackGround</Filter>
+      <Filter>02.GameObject\UI\00.BackGround</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Terrain.h">
       <Filter>02.GameObject\Terrain</Filter>
@@ -424,6 +424,9 @@
     <ClInclude Include="..\Public\Player_Lune.h">
       <Filter>02.GameObject\Player</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\CharacterStatus_Panel.h">
+      <Filter>02.GameObject\UI\CharacterStatus_Panel</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\Player_WorldAction.h">
       <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
     </ClInclude>
@@ -458,10 +461,6 @@
     <ClInclude Include="..\Public\Battle_Maelle.h" />
     <ClInclude Include="..\public\Mon_Lancelier_Body.h" />
     <ClInclude Include="..\public\Mon_Lancelier_Weapon.h" />
-    <ClInclude Include="..\Public\Player_BattleBase.h" />
-    <ClInclude Include="..\Public\CharacterStatus_Panel.h">
-      <Filter>02.GameObject\UI\CharacterStatus_Panel</Filter>
-    </ClInclude>
     <ClInclude Include="..\public\SkillTree_Panel.h">
       <Filter>02.GameObject\UI\SkillTree_Panel</Filter>
     </ClInclude>
@@ -521,7 +520,7 @@
       <Filter>01.Levels\Loading\Loader</Filter>
     </ClCompile>
     <ClCompile Include="..\private\BackGround.cpp">
-      <Filter>02.GameObject\UI\BackGround</Filter>
+      <Filter>02.GameObject\UI\00.BackGround</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\Terrain.cpp">
       <Filter>02.GameObject\Terrain</Filter>
@@ -720,6 +719,9 @@
     <ClCompile Include="..\Private\Player_Maelle.cpp">
       <Filter>02.GameObject\Player</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\CharacterStatus_Panel.cpp">
+      <Filter>02.GameObject\UI\CharacterStatus_Panel</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\Player_WorldAction.cpp">
       <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
     </ClCompile>
@@ -754,9 +756,6 @@
     <ClCompile Include="..\private\Mon_Lancelier_Body.cpp" />
     <ClCompile Include="..\private\Mon_Lancelier_Weapon.cpp" />
     <ClCompile Include="..\public\ANS_QTE.cpp" />
-    <ClCompile Include="..\Private\CharacterStatus_Panel.cpp">
-      <Filter>02.GameObject\UI\CharacterStatus_Panel</Filter>
-    </ClCompile>
     <ClCompile Include="..\private\SkillTree_Panel.cpp">
       <Filter>02.GameObject\UI\SkillTree_Panel</Filter>
     </ClCompile>

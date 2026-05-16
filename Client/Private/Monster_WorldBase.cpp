@@ -79,13 +79,14 @@ void Monster_WorldBase::OnBeginOverlap(Shared<ColliderCom> self, Shared<Collider
     if (_isBattleStart)
         return;
 
-     if (CLIENT->Is_BattleActive())
+    // 이미 전투 중이거나, 충돌 후 2초 슬로우모션 진입 중이면
+    if (CLIENT->Is_BattleActive() || CLIENT->Is_BattleEntering())
         return;
 
     _isBattleStart = true;
 
-    if (_colliderCom)
-        _colliderCom->Set_IsActive(false);
+    if (self)
+        self->Set_IsActive(false);
 
     // Player는 3명 고정 스폰, 몬스터는 자식 객체에서 Set_BattleMonster 함수로 지정
     vector<HeroId> heroes =
@@ -97,12 +98,6 @@ void Monster_WorldBase::OnBeginOverlap(Shared<ColliderCom> self, Shared<Collider
 
     vector<string> battleMonsterPrefabNames;
     Set_BattleMonsterPrefabNames(battleMonsterPrefabNames);
-
-    if (battleMonsterPrefabNames.empty())
-    {
-        LOG_ERROR("Monster_WorldBase::OnBeginOverlap - battleMonsterPrefabNames is empty");
-        return;
-    }
 
     CLIENT->OnEnterBattleField(1, true, heroes, battleMonsterPrefabNames);
 }

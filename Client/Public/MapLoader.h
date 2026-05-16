@@ -23,13 +23,15 @@ public:
         string modelFolder = {};
         vector<json> staticMeshes = {};
         vector<json> instancedMeshes = {};
+        vector<string> preloadModelPaths = {};
 
+        size_t nextPreloadModelIndex = 0;
         size_t nextStaticMeshIndex = 0;
         size_t nextInstancedMeshIndex = 0;
 
-        unordered_map<string, Shared<ModelCom>> staticModelCache = {};
-        unordered_map<string, Shared<ModelCom>> instancedModelCache = {};
+        unordered_map<string, Shared<ModelCom>> preloadedModelCache = {};
 
+        bool preloadModelsDone = false;
         bool staticMeshesDone = false;
         bool instancedMeshesDone = false;
     };
