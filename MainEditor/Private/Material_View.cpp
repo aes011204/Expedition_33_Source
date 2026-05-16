@@ -2110,6 +2110,26 @@ bool Material_View::Load_BundleFile(const wstring& bundlePath)
         return rp.lexically_normal().wstring();
     };
 
+    auto readTexturePathFromJson = [&](const json& textureValue) -> wstring
+    {
+        if (textureValue.is_string())
+            return relToAbsUnderResourceRoot(textureValue.get<string>());
+
+        if (!textureValue.is_object())
+            return {};
+
+        const string textureGuid = textureValue.value("texture_guid", string{});
+        if (!textureGuid.empty())
+        {
+            const wstring resolvedByGuid = GAME->Resolve_AssetPath(textureGuid);
+            if (!resolvedByGuid.empty())
+                return resolvedByGuid;
+        }
+
+        const string fallbackPath = textureValue.value("texture_path", string{});
+        return relToAbsUnderResourceRoot(fallbackPath);
+    };
+
     if (root.contains("instances") && root["instances"].is_array())
     {
         for (const json& ji : root["instances"])
@@ -2151,15 +2171,15 @@ bool Material_View::Load_BundleFile(const wstring& bundlePath)
             if (ji.contains("textures") && ji["textures"].is_object())
             {
                 const json& jt = ji["textures"];
-                inst.baseColorPath = relToAbsUnderResourceRoot(jt.value("baseColor", string{}));
-                inst.normalPath = relToAbsUnderResourceRoot(jt.value("normal", string{}));
-                inst.ormPath = relToAbsUnderResourceRoot(jt.value("orm", string{}));
-                inst.emissivePath = relToAbsUnderResourceRoot(jt.value("emissive", string{}));
-                inst.opacityMaskPath = relToAbsUnderResourceRoot(jt.value("opacityMask", string{}));
-                inst.hairDepthPath = relToAbsUnderResourceRoot(jt.value("hairDepth", string{}));
-                inst.hairIDPath = relToAbsUnderResourceRoot(jt.value("hairID", string{}));
-                inst.irisHeightPath = relToAbsUnderResourceRoot(jt.value("irisHeight", string{}));
-                inst.irisMaskPath = relToAbsUnderResourceRoot(jt.value("irisMask", string{}));
+                if (jt.contains("baseColor")) inst.baseColorPath = readTexturePathFromJson(jt["baseColor"]);
+                if (jt.contains("normal")) inst.normalPath = readTexturePathFromJson(jt["normal"]);
+                if (jt.contains("orm")) inst.ormPath = readTexturePathFromJson(jt["orm"]);
+                if (jt.contains("emissive")) inst.emissivePath = readTexturePathFromJson(jt["emissive"]);
+                if (jt.contains("opacityMask")) inst.opacityMaskPath = readTexturePathFromJson(jt["opacityMask"]);
+                if (jt.contains("hairDepth")) inst.hairDepthPath = readTexturePathFromJson(jt["hairDepth"]);
+                if (jt.contains("hairID")) inst.hairIDPath = readTexturePathFromJson(jt["hairID"]);
+                if (jt.contains("irisHeight")) inst.irisHeightPath = readTexturePathFromJson(jt["irisHeight"]);
+                if (jt.contains("irisMask")) inst.irisMaskPath = readTexturePathFromJson(jt["irisMask"]);
             }
 
             if (ji.contains("cb") && ji["cb"].is_object())
@@ -2492,6 +2512,33 @@ bool Material_View::Save_BundleFile(const wstring& outputPath) const
             return {};
         };
 
+        auto writeTextureRef = [&](const wstring& p) -> json
+        {
+            if (p.empty())
+                return "";
+
+            const string textureGuid = GAME->Ensure_AssetGUID(p, "Texture");
+            if (!textureGuid.empty())
+            {
+                json ref{};
+                ref["texture_guid"] = textureGuid;
+
+                const string relFallback = toRelativeUnderResourceRoot(p);
+                if (!relFallback.empty())
+                    ref["texture_path"] = relFallback;
+
+                return ref;
+            }
+
+            const string relFallback = toRelativeUnderResourceRoot(p);
+            if (relFallback.empty())
+                return "";
+
+            json ref{};
+            ref["texture_path"] = relFallback;
+            return ref;
+        };
+
         json out{};
         // textureRoot는 에디터가 어디서 텍스처를 찾아왔는지 정도만 남긴다
         out["textureRoot"] = toRelativeUnderResourceRoot(_textureSearchRoot);
@@ -2586,15 +2633,15 @@ bool Material_View::Save_BundleFile(const wstring& outputPath) const
             ji["renderState"] = move(jstate);
 
             json jtex{};
-            jtex["baseColor"] = toRelativeUnderResourceRoot(inst.baseColorPath);
-            jtex["normal"] = toRelativeUnderResourceRoot(inst.normalPath);
-            jtex["orm"] = toRelativeUnderResourceRoot(inst.ormPath);
-            jtex["emissive"] = toRelativeUnderResourceRoot(inst.emissivePath);
-            jtex["opacityMask"] = toRelativeUnderResourceRoot(inst.opacityMaskPath);
-            jtex["hairDepth"] = toRelativeUnderResourceRoot(inst.hairDepthPath);
-            jtex["hairID"] = toRelativeUnderResourceRoot(inst.hairIDPath);
-            jtex["irisHeight"] = toRelativeUnderResourceRoot(inst.irisHeightPath);
-            jtex["irisMask"] = toRelativeUnderResourceRoot(inst.irisMaskPath);
+            jtex["baseColor"] = writeTextureRef(inst.baseColorPath);
+            jtex["normal"] = writeTextureRef(inst.normalPath);
+            jtex["orm"] = writeTextureRef(inst.ormPath);
+            jtex["emissive"] = writeTextureRef(inst.emissivePath);
+            jtex["opacityMask"] = writeTextureRef(inst.opacityMaskPath);
+            jtex["hairDepth"] = writeTextureRef(inst.hairDepthPath);
+            jtex["hairID"] = writeTextureRef(inst.hairIDPath);
+            jtex["irisHeight"] = writeTextureRef(inst.irisHeightPath);
+            jtex["irisMask"] = writeTextureRef(inst.irisMaskPath);
             ji["textures"] = move(jtex);
 
             json jov{};
