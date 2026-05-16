@@ -105,6 +105,81 @@ namespace UIEditor
             return textureGuid + "|" + maskTextureGuid;
         }
 
+        string Make_TexturePreviewGuidKey(const string& textureGuid)
+        {
+            if (textureGuid.empty())
+                return {};
+
+            return "guid:" + textureGuid;
+        }
+
+        string Make_TexturePreviewPathKey(const wstring& texturePath)
+        {
+            if (texturePath.empty())
+                return {};
+
+            wstring normalizedPath;
+            try
+            {
+                normalizedPath = fs::path(texturePath).lexically_normal().wstring();
+            }
+            catch (...)
+            {
+                normalizedPath = texturePath;
+            }
+
+            replace(normalizedPath.begin(), normalizedPath.end(), L'\\', L'/');
+            transform(normalizedPath.begin(), normalizedPath.end(), normalizedPath.begin(), [](wchar_t character)
+                {
+                    return static_cast<wchar_t>(towlower(character));
+                });
+
+            return "path:" + String::ToString(normalizedPath);
+        }
+
+        float Resolve_FontPreviewScaleCorrectionFromPath(const wstring& fontFilePath)
+        {
+            if (fontFilePath.empty())
+                return 1.f;
+
+            const string fileName = String::ToLowerCopy(
+                String::ToString(fs::path(fontFilePath).filename().wstring()));
+
+            if (fileName == "33_mainkr_font.spritefont")
+            {
+                return 24.f / 56.f;
+            }
+
+            if (fileName == "33_subkr_font.spritefont")
+            {
+                return 24.f / 60.f;
+            }
+
+            if (fileName == "33_mainen_font.spritefont" ||
+                fileName == "33_mainnum_font.spritefont" ||
+                fileName == "33_subnum_font.spritefont")
+            {
+                return 24.f / 96.f;
+            }
+
+            return 1.f;
+        }
+
+        float Resolve_FontPreviewScaleCorrection(const string& fontGuid, const string& fontPath)
+        {
+            if (!fontGuid.empty())
+            {
+                const wstring guidFontPath = GAME->Resolve_AssetPath(fontGuid);
+                if (!guidFontPath.empty())
+                    return Resolve_FontPreviewScaleCorrectionFromPath(guidFontPath);
+            }
+
+            if (!fontPath.empty())
+                return Resolve_FontPreviewScaleCorrectionFromPath(Resolve_ClientRuntimeResourcePath(fontPath));
+
+            return 1.f;
+        }
+
         vector<wstring> Split_FontPreviewLines(const wstring& text)
         {
             vector<wstring> lines;
@@ -327,7 +402,7 @@ namespace UIEditor
     void UI_Editor_PreviewService::Clear_RuntimeCaches()
     {
         _textureThumbCache.clear();
-        _textureNoThumbGuids.clear();
+        _texturePreviewFailedKeys.clear();
         _maskedTexturePreviewCache.clear();
         _maskedTexturePreviewFailedKeys.clear();
         _fontPreviewCache.clear();
@@ -406,44 +481,55 @@ namespace UIEditor
         }
     }
 
-    ID3D11ShaderResourceView* UI_Editor_PreviewService::Get_TexturePreviewSRV(const string& textureGuid)
+    ID3D11ShaderResourceView* UI_Editor_PreviewService::Get_TexturePreviewSRV(const string& textureGuid, const string& texturePath)
     {
-        if (!_assetManagerReady || textureGuid.empty() || nullptr == _device || nullptr == _context)
+        if (nullptr == _device || nullptr == _context)
             return nullptr;
 
-        const auto cachedIter = _textureThumbCache.find(textureGuid);
-        if (cachedIter != _textureThumbCache.end())
-            return cachedIter->second.Get();
-
-        if (_textureNoThumbGuids.find(textureGuid) != _textureNoThumbGuids.end())
-            return nullptr;
-
-        const wstring texturePath = GAME->Resolve_AssetPath(textureGuid);
-        if (texturePath.empty())
+        if (_assetManagerReady && !textureGuid.empty())
         {
-            _textureNoThumbGuids.insert(textureGuid);
-            return nullptr;
+            const string guidCacheKey = Make_TexturePreviewGuidKey(textureGuid);
+            const wstring guidTexturePath = GAME->Resolve_AssetPath(textureGuid);
+
+            if (!guidTexturePath.empty())
+            {
+                if (ID3D11ShaderResourceView* guidSRV = Load_TexturePreview(guidCacheKey, guidTexturePath))
+                    return guidSRV;
+            }
+            else if (!guidCacheKey.empty())
+            {
+                _texturePreviewFailedKeys.insert(guidCacheKey);
+            }
         }
 
-        Shared<Texture> texture = Texture::Create(_device, _context, texturePath.c_str(), 1);
-        if (nullptr == texture || texture->Get_SRVs().empty() || nullptr == texture->Get_SRVs().front().Get())
+        if (!texturePath.empty())
         {
-            _textureNoThumbGuids.insert(textureGuid);
-            return nullptr;
+            const wstring resolvedTexturePath = Resolve_ClientRuntimeResourcePath(texturePath);
+            const string pathCacheKey = Make_TexturePreviewPathKey(resolvedTexturePath);
+
+            if (ID3D11ShaderResourceView* pathSRV = Load_TexturePreview(pathCacheKey, resolvedTexturePath))
+                return pathSRV;
         }
 
-        _textureThumbCache.emplace(textureGuid, texture->Get_SRVs().front());
-        return _textureThumbCache[textureGuid].Get();
+        return nullptr;
     }
 
     ID3D11ShaderResourceView* UI_Editor_PreviewService::Get_MaskedTexturePreviewSRV(
         const string& textureGuid,
-        const string& maskTextureGuid)
+        const string& texturePath,
+        const string& maskTextureGuid,
+        const string& maskTexturePath)
     {
-        if (!_assetManagerReady || textureGuid.empty() || maskTextureGuid.empty() || nullptr == _device || nullptr == _context)
+        if (nullptr == _device || nullptr == _context)
             return nullptr;
 
-        const string cacheKey = Make_MaskedTexturePreviewKey(textureGuid, maskTextureGuid);
+        if ((textureGuid.empty() && texturePath.empty()) || (maskTextureGuid.empty() && maskTexturePath.empty()))
+            return nullptr;
+
+        const string cacheKey = Make_MaskedTexturePreviewKey(
+            Make_TexturePreviewGuidKey(textureGuid) + "|" + Make_TexturePreviewPathKey(Resolve_ClientRuntimeResourcePath(texturePath)),
+            Make_TexturePreviewGuidKey(maskTextureGuid) + "|" + Make_TexturePreviewPathKey(Resolve_ClientRuntimeResourcePath(maskTexturePath)));
+
         const auto cachedIter = _maskedTexturePreviewCache.find(cacheKey);
         if (cachedIter != _maskedTexturePreviewCache.end())
             return cachedIter->second.Get();
@@ -451,8 +537,8 @@ namespace UIEditor
         if (_maskedTexturePreviewFailedKeys.find(cacheKey) != _maskedTexturePreviewFailedKeys.end())
             return nullptr;
 
-        ID3D11ShaderResourceView* textureSRV = Get_TexturePreviewSRV(textureGuid);
-        ID3D11ShaderResourceView* maskSRV = Get_TexturePreviewSRV(maskTextureGuid);
+        ID3D11ShaderResourceView* textureSRV = Get_TexturePreviewSRV(textureGuid, texturePath);
+        ID3D11ShaderResourceView* maskSRV = Get_TexturePreviewSRV(maskTextureGuid, maskTexturePath);
         if (nullptr == textureSRV || nullptr == maskSRV)
         {
             _maskedTexturePreviewFailedKeys.insert(cacheKey);
@@ -460,6 +546,35 @@ namespace UIEditor
         }
 
         return Create_MaskedTexturePreviewSRV(cacheKey, textureSRV, maskSRV);
+    }
+
+    ID3D11ShaderResourceView* UI_Editor_PreviewService::Load_TexturePreview(const string& cacheKey, const wstring& texturePath)
+    {
+        if (cacheKey.empty() || texturePath.empty())
+            return nullptr;
+
+        const auto cachedIter = _textureThumbCache.find(cacheKey);
+        if (cachedIter != _textureThumbCache.end())
+            return cachedIter->second.Get();
+
+        if (_texturePreviewFailedKeys.find(cacheKey) != _texturePreviewFailedKeys.end())
+            return nullptr;
+
+        if (!fs::exists(texturePath))
+        {
+            _texturePreviewFailedKeys.insert(cacheKey);
+            return nullptr;
+        }
+
+        Shared<Texture> texture = Texture::Create(_device, _context, texturePath.c_str(), 1);
+        if (nullptr == texture || texture->Get_SRVs().empty() || nullptr == texture->Get_SRVs().front().Get())
+        {
+            _texturePreviewFailedKeys.insert(cacheKey);
+            return nullptr;
+        }
+
+        _textureThumbCache.emplace(cacheKey, texture->Get_SRVs().front());
+        return _textureThumbCache[cacheKey].Get();
     }
 
     bool UI_Editor_PreviewService::Queue_FontPreview(
@@ -484,11 +599,12 @@ namespace UIEditor
             return false;
 
         const float safeScale = max(0.0001f, scale);
+        const float drawScale = safeScale * Resolve_FontPreviewScaleCorrection(fontGuid, fontPath);
         const float boxWidth = max(1.f, boxMax.x - boxMin.x);
         const vector<wstring> lines = textWrap
-            ? Wrap_FontPreviewLines(*font, safeText, boxWidth, safeScale)
+            ? Wrap_FontPreviewLines(*font, safeText, boxWidth, drawScale)
             : Split_FontPreviewLines(safeText);
-        const float lineHeight = Measure_FontPreviewLineHeight(*font, safeScale);
+        const float lineHeight = Measure_FontPreviewLineHeight(*font, drawScale);
         const Vec2 boxCenter(
             boxMin.x + max(0.f, boxMax.x - boxMin.x) * 0.5f,
             boxMin.y + max(0.f, boxMax.y - boxMin.y) * 0.5f);
@@ -499,7 +615,7 @@ namespace UIEditor
         {
             if (!line.empty())
             {
-                const float lineWidth = Measure_FontPreviewWidth(*font, line, safeScale);
+                const float lineWidth = Measure_FontPreviewWidth(*font, line, drawScale);
                 const float textX = Resolve_FontPreviewLineX(boxMin.x, boxMax.x, lineWidth, textAlign);
 
                 FontPreviewCommand command = {};
@@ -509,8 +625,8 @@ namespace UIEditor
                 command.position = boxCenter;
                 command.color = color;
                 command.rotationRadians = rotationRadians;
-                command.pivot = Vec2((boxCenter.x - textX) / safeScale, (boxCenter.y - textY) / safeScale);
-                command.scale = safeScale;
+                command.pivot = Vec2((boxCenter.x - textX) / drawScale, (boxCenter.y - textY) / drawScale);
+                command.scale = drawScale;
                 command.clipRect = clipRect;
                 _fontPreviewCommands.push_back(command);
                 queuedAny = true;

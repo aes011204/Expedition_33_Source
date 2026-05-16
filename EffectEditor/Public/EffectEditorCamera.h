@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "Camera.h"
+#include "Helper_EffectCamera.h"
 
 NS_BEGIN(EffectEditor)
 
@@ -30,16 +31,15 @@ public:
 
 public: //## Behavior::CameraControl
     void Request_Focus(const Vec3& pivot);
-    const Vec3& Get_Pivot() const { return _pivot; }
+    const Vec3& Get_Pivot() const { return _orbitState.pivot; }
 
 private: //## Data::Focus
-    Vec3 _pivot{ Vec3::Zero };
     Vec3 _targetPivot{ Vec3::Zero };
     float _focusSpeed{ 10.f };
     bool _hasPendingFocus{ false };
 
 private: //## Data::Orbit
-    float _distance{ 8.f };
+    EffectPreviewOrbitCameraState _orbitState{};
 
 private: //## Data::Home
     Vec3 _homePivot{ Vec3::Zero };

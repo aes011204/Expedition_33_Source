@@ -49,6 +49,8 @@ struct EditorObject
     Shared<MEInstancedMeshActor> _instancedRenderHandle;
     bool _instancedParamsDirty = true;
 
+    bool _isDefaultLight = false;
+
     void UpdateWorldMatrix()
     {
         _worldMatrix = Matrix::CreateScale(_scale) * Matrix::CreateFromQuaternion(_rotation) * Matrix::CreateTranslation(_position);

@@ -216,7 +216,7 @@
     <ClInclude Include="..\Public\Client_Macro.h" />
     <ClInclude Include="..\Public\Client_Struct.h" />
     <ClInclude Include="..\Public\CombatStatCom.h" />
-    <ClInclude Include="..\Public\ComputePointParticlePreview.h" />
+    <ClInclude Include="..\Public\ComputePointParticleEffect.h" />
     <ClInclude Include="..\public\DamageSystem.h" />
     <ClInclude Include="..\Public\GameDataTable.h" />
     <ClInclude Include="..\Public\GameplayUI.h" />
@@ -232,6 +232,7 @@
     <ClInclude Include="..\Public\InstancedMeshActor.h" />
     <ClInclude Include="..\Public\Level_MapTest.h" />
     <ClInclude Include="..\Public\Level_Stage01.h" />
+    <ClInclude Include="..\Public\MapInstancedMesh.h" />
     <ClInclude Include="..\Public\MapLoader.h" />
     <ClInclude Include="..\Public\MapStaticMesh.h" />
     <ClInclude Include="..\public\MonsterStatCom.h" />
@@ -287,7 +288,7 @@
     <ClInclude Include="..\public\Loader.h" />
     <ClInclude Include="..\Public\Monster.h" />
     <ClInclude Include="..\Public\Player.h" />
-    <ClInclude Include="..\Public\PointParticlePreview.h" />
+    <ClInclude Include="..\Public\PointParticleEffect.h" />
     <ClInclude Include="..\Public\ResourceLoader.h" />
     <ClInclude Include="..\Public\Sky.h" />
     <ClInclude Include="..\Public\Terrain.h" />
@@ -349,7 +350,7 @@
     <ClCompile Include="..\Private\Cinematic_Player.cpp" />
     <ClCompile Include="..\Private\Cinematic_SequenceIO.cpp" />
     <ClCompile Include="..\Private\CombatStatCom.cpp" />
-    <ClCompile Include="..\Private\ComputePointParticlePreview.cpp" />
+    <ClCompile Include="..\Private\ComputePointParticleEffect.cpp" />
     <ClCompile Include="..\private\DamageSystem.cpp" />
     <ClCompile Include="..\Private\GameDataTable.cpp" />
     <ClCompile Include="..\Private\GameplayUI.cpp" />
@@ -365,6 +366,7 @@
     <ClCompile Include="..\Private\InstancedMeshActor.cpp" />
     <ClCompile Include="..\Private\Level_MapTest.cpp" />
     <ClCompile Include="..\Private\Level_Stage01.cpp" />
+    <ClCompile Include="..\Private\MapInstancedMesh.cpp" />
     <ClCompile Include="..\Private\MapLoader.cpp" />
     <ClCompile Include="..\Private\MapStaticMesh.cpp" />
     <ClCompile Include="..\private\MonsterStatCom.cpp" />
@@ -422,7 +424,7 @@
     <ClCompile Include="..\private\Loader.cpp" />
     <ClCompile Include="..\Private\Monster.cpp" />
     <ClCompile Include="..\Private\Player.cpp" />
-    <ClCompile Include="..\Private\PointParticlePreview.cpp" />
+    <ClCompile Include="..\Private\PointParticleEffect.cpp" />
     <ClCompile Include="..\Private\ResourceLoader.cpp" />
     <ClCompile Include="..\Private\Sky.cpp" />
     <ClCompile Include="..\Private\Terrain.cpp" />

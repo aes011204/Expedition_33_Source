@@ -37,9 +37,9 @@ public: //## Behavior::Binding
 
 private: //## Constant::D3DSlot
     // Direct3D 11이 정의한 CS resource binding slot 한계값.
-    static constexpr uint32 srvSlotCount{ D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT };
-    static constexpr uint32 uavSlotCount{ D3D11_PS_CS_UAV_REGISTER_COUNT };
-    static constexpr uint32 constantBufferSlotCount{ D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT };
+    static constexpr uint32 kSrvSlotCount{ D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT };
+    static constexpr uint32 kUavSlotCount{ D3D11_PS_CS_UAV_REGISTER_COUNT };
+    static constexpr uint32 kConstantBufferSlotCount{ D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT };
 
 private: //## Data::Shader
     ComPtr<ComputeShader> _computeShader{}; // prototype이 공유하는 실제 compute shader 객체.

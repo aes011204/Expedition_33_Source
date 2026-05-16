@@ -14,28 +14,31 @@ public:
     void Update(float timeDelta) override;
     void Render() override;
 
-private:
+private: //## Data::Viewport
     ImVec2 _viewportSize{};
     ImVec2 _viewportMin{};
     ImVec2 _viewportMax{};
 
+private: //## Data::Gizmo
     ImGuizmo::OPERATION _gizmoOperation{ ImGuizmo::TRANSLATE };
     ImGuizmo::MODE _gizmoMode{ ImGuizmo::LOCAL };
 
+private: //## Data::Toolbar
     int _pendingPreviewViewportWidth{ 0 };
     int _pendingPreviewViewportHeight{ 0 };
     bool _isViewportHovered{ false };
     bool _isViewportToolbarPinned{ false };
     bool _isViewportToolbarInteracting{ false };
 
-private:
+private: //## Helper::Overlay
     void Handle_GizmoShortcut();
     void Render_CameraAxisOverlay();
     void Render_ViewportToolbarOverlay();
     void Render_GizmoOverlay();
     void Render_PreviewViewportOverlay();
-    void Sync_PreviewViewportInput();
 
+private: //## Helper::Viewport
+    void Sync_PreviewViewportInput();
     void Render_ViewportCanvas();
     void Handle_FocusRequest();
     void Render_SelectedObjectGizmo();

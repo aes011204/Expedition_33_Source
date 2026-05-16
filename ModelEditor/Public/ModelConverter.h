@@ -58,7 +58,7 @@ private:
 	wstring                             _resourcePath{};
 	
 	bool                                _exportJsonLog{ false };
-
+	bool                                _applyGlobalScale{ true };
 	vector<std::filesystem::path>       _cachedFbxPaths;
 	string                              _selectedFbxPath;
 

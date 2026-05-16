@@ -100,15 +100,18 @@ void PanelHierarchy::Render()
                         StartRename(i, obj);
                     }
 
-                    if (ImGui::MenuItem("복제"))
+                    if (!obj->_isDefaultLight)
                     {
-                        toDuplicate = obj;
-                    }
+                        if (ImGui::MenuItem("복제"))
+                        {
+                            toDuplicate = obj;
+                        }
 
-                    ImGui::Separator();
-                    if (ImGui::MenuItem("삭제"))
-                    {
-                        toDelete = obj;
+                        ImGui::Separator();
+                        if (ImGui::MenuItem("삭제"))
+                        {
+                            toDelete = obj;
+                        }
                     }
 
                     ImGui::EndPopup();

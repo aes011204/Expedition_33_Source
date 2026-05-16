@@ -3,7 +3,7 @@
 #include "BattleController.h"
 #include "GameObject.h"
 #include "BT_Node_Bootstrap.h"
-#include "ComputePointParticlePreview.h"
+#include "ComputePointParticleEffect.h"
 #include "GameDataTable.h"
 #include "GameInstance.h"
 #include "PersistentObjectManager.h"
