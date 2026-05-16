@@ -1,7 +1,7 @@
 ﻿#include "pch.h"
 #include "PlayerStateMachineCom.h"
 
-#include "Player.h"
+#include "Player_WorldBase.h"
 #include "Player_Idle.h"
 #include "Player_Jump.h"
 #include "Player_Move.h"
@@ -40,10 +40,10 @@ void PlayerStateMachineCom::BeginPlay()
 {
     if (_owner.expired()) return;
 
-    CHECK_FAILED(Add_State(PlayerState::Idle, Player_Idle::Create(static_pointer_cast<Player>(_owner.lock()))));
-    CHECK_FAILED(Add_State(PlayerState::Move, Player_Move::Create(static_pointer_cast<Player>(_owner.lock()))));
-    CHECK_FAILED(Add_State(PlayerState::Jump, Player_Jump::Create(static_pointer_cast<Player>(_owner.lock()))));
-    CHECK_FAILED(Add_State(PlayerState::WorldAction, Player_WorldAction::Create(static_pointer_cast<Player>(_owner.lock()))));
+    CHECK_FAILED(Add_State(PlayerState::Idle, Player_Idle::Create(static_pointer_cast<Player_WorldBase>(_owner.lock()))));
+    CHECK_FAILED(Add_State(PlayerState::Move, Player_Move::Create(static_pointer_cast<Player_WorldBase>(_owner.lock()))));
+    CHECK_FAILED(Add_State(PlayerState::Jump, Player_Jump::Create(static_pointer_cast<Player_WorldBase>(_owner.lock()))));
+    CHECK_FAILED(Add_State(PlayerState::WorldAction, Player_WorldAction::Create(static_pointer_cast<Player_WorldBase>(_owner.lock()))));
 
     for (auto& [stateTag, state]: _states)
     {

@@ -7,6 +7,7 @@
 
 NS_BEGIN(Engine)
 class Character;
+class Camera;
 NS_END
 
 NS_BEGIN(Client)
@@ -15,6 +16,7 @@ class CombatStatCom;
 class BuffSystem;
 class BattleEffectResolver;
 class BattleStateMachine;
+class BattleTurnCamera;
 
 class BattleController : public Base
 {
@@ -31,19 +33,19 @@ public:
         uint32 FieldID,
         bool IsFirstHero,
         const vector<HeroId>& heroIds,
-        vector<string>& MonsterProtoTag);
+        vector<string>& battleMonsterPrefabNames);
 
     EBattleEndResult OnExitBattleField(EBattleEndResult result);
 
     void Set_BattleFSM();
-    void  ExecuteAction(Action turnAction); //실제로 선택한 행동을 실행하는 함수
+    void ExecuteAction(Action turnAction); //실제로 선택한 행동을 실행하는 함수
 
     void EndTurn();
     void StartTurn();
 
     EAPChangeReason FinishBattle();
 
-    void Create_BattleChar(const vector<HeroId>& heroIds, vector<string>& MonsterprotoTag);
+    void Create_BattleChar(const vector<HeroId>& heroIds, vector<string>& battleMonsterPrefabNames);
     void Build_InitialTurnQueue(bool IsFirstHero);
     void SetCharInitPos();
 
@@ -56,16 +58,22 @@ public:
     vector<BattleChar> Get_AliveEnemies();
     vector<BattleChar> Get_AliveHeroes();
 
-    bool Is_BattleStarted() { return isBattleActive; }
+    bool Is_BattleStarted() { return _isBattleActive; }
+
 public:
     void Handle_EditorStopRuntime();
     HRESULT Ready_Delegates();
     void OnActionEndNotify();
 
 private:
+    HRESULT Ready_BattleTurnCamera();
+    void    Activate_BattleTurnCamera();
+    void    Restore_WorldCamera();
+
+private:
     BattleChar _currentTurnActor = {};
     Action _turnAction={};
-    bool isBattleActive = { false };
+    bool _isBattleActive = { false };
     int currentTurnIndex = {};
      
     bool _flag = { false };
@@ -102,6 +110,10 @@ private:
     Shared< BattleEffectResolver> _battleEffectResolver;
 
     FDelegateHandle _editorStopHandle = {};
+
+private:
+    Shared<BattleTurnCamera> _battleTurnCamera;
+    Shared<Camera> _worldCameraBeforeBattle;    // 전투 시작 전 카메라 저장
 
 public:
     static Shared<BattleController> Create();

@@ -75,6 +75,12 @@ public:
 
     HRESULT Draw();
     HRESULT Draw_RendererOnly(); // 에디터용
+    HRESULT Draw_Preview(); // 에디터 프리뷰용
+    void    Backup_RenderGroup();
+    void    Restore_RenderGroup();
+    // 프리뷰 창에서만 shadow 없는 pass 사용
+    void    Set_PreviewDeferredCombine(bool enable);
+
     void    Clear_Resources(uint32 levelIndex);
 
     float   Random(float min, float max);

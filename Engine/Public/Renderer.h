@@ -21,9 +21,13 @@ public:
 	HRESULT Initialize();
 	void    Add_RenderGroup(RenderGroup renderGroup, const Shared<GameObject>& gameObject);
 	void    Draw();
+    void    Draw_Preview();
+    void    Backup_RenderGroups();
+    void    Restore_RenderGroups();
     void    Sync_ViewportDependentState(uint32 width, uint32 height);
     uint32  Get_RenderCall() const;
 
+    void    Set_PreviewDeferredCombine(bool enable) { _usePreviewDeferredCombine = enable; }
 
 #ifdef _DEBUG
 public:
@@ -52,6 +56,8 @@ private:
 
     /* Layer가 소유하는 GameObject를 렌더 프레임 동안만 참조하기 위한 약한 참조 목록. */
 	list<Weak<GameObject>>		_renderGroups[ETOI(RenderGroup::END)];
+    list<Weak<GameObject>>      _renderGroupBackup[ETOI(RenderGroup::END)];
+    bool                        _hasRenderGroupBackup = false;
 
     // shadow
     D3D11_VIEWPORT                  _shadowViewport = {};
@@ -67,6 +73,8 @@ private:
     Matrix                          _deferredViewMatrix;
     Matrix                          _deferredProjMatrix;
     uint32                          iDrawCall = 0;
+
+    bool                            _usePreviewDeferredCombine = false;
     
 #ifdef _DEBUG
 private:

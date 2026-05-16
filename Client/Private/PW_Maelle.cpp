@@ -1,33 +1,33 @@
-﻿#include "Player_Maelle.h"
+﻿#include "PW_Maelle.h"
 #include "GameInstance.h"
 #include "Bounding_OBB.h"
 #include "ColliderCom.h"
 #include "PlayableParts.h"
 
-IMPLEMENT_REFLECTION(Player_Maelle)
+IMPLEMENT_REFLECTION(PW_Maelle)
 {
     auto& info = GetStaticReflectionInfo();
     info.properties.clear();
 
-    info.displayName = "Player_Maelle";
+    info.displayName = "PW_Maelle";
     info.category = "Character";
     
 
     return true;
 }
 
-Player_Maelle::Player_Maelle(const ComPtr<Device>& device, const ComPtr<Context>& context)
-	: Player { device, context }
+PW_Maelle::PW_Maelle(const ComPtr<Device>& device, const ComPtr<Context>& context)
+	: Player_WorldBase { device, context }
 {
 }
 
-Player_Maelle::Player_Maelle(const Player_Maelle& prototype)
-	: Player{ prototype }
+PW_Maelle::PW_Maelle(const PW_Maelle& prototype)
+	: Player_WorldBase{ prototype }
 {
 
 }
 
-HairChainPhysicsDesc Player_Maelle::Get_HairChainPhysicsDesc() const
+HairChainPhysicsDesc PW_Maelle::Get_HairChainPhysicsDesc() const
 {
     HairChainPhysicsDesc desc{};
 
@@ -53,31 +53,31 @@ HairChainPhysicsDesc Player_Maelle::Get_HairChainPhysicsDesc() const
     return desc;
 }
 
-Shared<Player_Maelle> Player_Maelle::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
+Shared<PW_Maelle> PW_Maelle::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
-	auto instance = make_shared<Player_Maelle>(device, context);
+	auto instance = make_shared<PW_Maelle>(device, context);
 
 	if (FAILED(instance->Initialize_Prototype()))
 	{
-		MSG_BOX("Failed to Created : Player_Maelle");
+		MSG_BOX("Failed to Created : PW_Maelle");
 		return nullptr;
 	}
 	return instance;
 }
 
-Shared<GameObject> Player_Maelle::Clone(void* arg)
+Shared<GameObject> PW_Maelle::Clone(void* arg)
 {
-	auto instance = make_shared<Player_Maelle>(*this);
+	auto instance = make_shared<PW_Maelle>(*this);
 
 	if (FAILED(instance->Initialize(arg)))
 	{
-		MSG_BOX("Failed to Cloned : Player_Maelle");
+		MSG_BOX("Failed to Cloned : PW_Maelle");
 		return nullptr;
 	}
 	return instance;
 }
 
-void Player_Maelle::Free()
+void PW_Maelle::Free()
 {
 	__super::Free();
 

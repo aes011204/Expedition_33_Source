@@ -42,11 +42,11 @@ HRESULT CombatStatCom::Initialize(void* arg)
     //_runtimeStat.physicalDefense = _statDesc.physicalDefense;
 
 
-    //if (Get_Owner()->Get_Name() == L"Player_Gustave")
+    //if (Get_Owner()->Get_Name() == L"PW_Gustave")
     //    _playerType = PlayerCharactorType::Gustave;
-    //else if (Get_Owner()->Get_Name() == L"Player_Lune")
+    //else if (Get_Owner()->Get_Name() == L"PW_Lune")
     //    _playerType = PlayerCharactorType::Lune;
-    //else if (Get_Owner()->Get_Name() == L"Player_Maelle")
+    //else if (Get_Owner()->Get_Name() == L"PW_Maelle")
     //    _playerType = PlayerCharactorType::Maelle;
 
 

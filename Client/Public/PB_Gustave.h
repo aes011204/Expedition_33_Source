@@ -4,14 +4,14 @@
 
 NS_BEGIN(Client)
 
-class Battle_Gustave final : public Player_BattleBase
+class PB_Gustave final : public Player_BattleBase
 {
-    GENERATED_GAMEOBJECT(Battle_Gustave, ObjectType::Player)
+    GENERATED_GAMEOBJECT(PB_Gustave, ObjectType::Player)
 
 public:
-    Battle_Gustave(const ComPtr<Device>& device, const ComPtr<Context>& context);
-    Battle_Gustave(const Battle_Gustave& prototype);
-    virtual ~Battle_Gustave() override = default;
+    PB_Gustave(const ComPtr<Device>& device, const ComPtr<Context>& context);
+    PB_Gustave(const PB_Gustave& prototype);
+    virtual ~PB_Gustave() override = default;
 
 protected:
     HairChainPhysicsDesc Get_HairChainPhysicsDesc() const override;
@@ -21,7 +21,7 @@ protected:
     const wchar_t* Get_HairModelTag() const override { return L"Model_GustaveHair"; }
 
 public:
-    static Shared<Battle_Gustave> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
+    static Shared<PB_Gustave> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
     Shared<GameObject> Clone(void* arg) override;
     void Free() override;
 };

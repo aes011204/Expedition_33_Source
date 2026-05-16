@@ -3,7 +3,7 @@
 #include "GameInstance.h"
 #include "Material.h"
 #include "Material_Types.h"
-#include "Player.h"
+#include "Player_WorldBase.h"
 #include "ModelCom.h"
 
 Hair_Player::Hair_Player(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -27,7 +27,7 @@ HRESULT Hair_Player::Initialize(void* arg)
 
     if (const HAIR_PLAYER_DESC* desc = static_cast<const HAIR_PLAYER_DESC*>(arg))
     {
-        // Player_Lune / Maelle / Gustave에서 넘긴 hair physics 값을 실제 파츠에 저장
+        // PW_* 캐릭터에서 넘긴 hair physics 값을 실제 파츠에 저장
         _hairPhysicsDesc = desc->hairPhysicsDesc;
     }
 
@@ -67,7 +67,7 @@ void Hair_Player::Update(float timeDelta)
     Vec3 ownerVelocity = Vec3::Zero;
     if (const Shared<GameObject> owner = Get_Owner())
     {
-        if (const Player* player = dynamic_cast<const Player*>(owner.get()))
+        if (const Player_WorldBase* player = dynamic_cast<const Player_WorldBase*>(owner.get()))
             ownerVelocity = player->Get_MovementVelocity();
     }
 

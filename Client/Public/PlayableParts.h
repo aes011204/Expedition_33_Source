@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "PartObject.h"
 
 NS_BEGIN(Engine)
@@ -34,6 +34,8 @@ public:
     uint32 Get_AnimationStateIndex() const;
     float Get_AnimationProgress() const;
     bool Is_AnimationFinished() const;
+
+    Shared<ModelCom> Get_Model() const { return _modelCom; }
 
 public:
     virtual HRESULT Initialize_Prototype() override;
