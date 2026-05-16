@@ -40,7 +40,7 @@ void Level_Loading::Update(float fTimeDelta)
 {
     CHECK_NULL(_loader);
 
-    CHECK_FAILED(_loader->Process_PendingLoadJobs(4));
+    CHECK_FAILED(_loader->Process_PendingLoadJobs(8));
 
 #ifdef _DEBUG
     // 퍼센트 디버깅용
