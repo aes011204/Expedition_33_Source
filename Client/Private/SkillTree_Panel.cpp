@@ -43,12 +43,12 @@ HRESULT SkillTree_Panel::Initialize(uint32 levelIndex)
 
     CHECK_FAILED(Load_Background_UI(levelIndex), E_FAIL)
     CHECK_FAILED(Load_UI(HeroId::Lune, levelIndex, L"Lune", Constants::UI::UI_Lune_SkillTree_Path, Constants::UI::UI_Lune_SkillTooltips_Dir, L"Panel_Lune_SkillTree", L"Lune", L"Panel_CharacterSelect_01", luneView), E_FAIL);;
-   // CHECK_FAILED(Load_UI(HeroId::Gustave, levelIndex, L"Gustave", Constants::UI::UI_Lune_SkillTree_Path, L"Panel_Gustave_SkillTree", L"Gustave", gustaveView), E_FAIL);;
-   // CHECK_FAILED(Load_UI(HeroId::Maelle, levelIndex, L"Maelle", Constants::UI::UI_Lune_SkillTree_Path, L"Panel_Maelle_SkillTree", L"Maelle", maelleView), E_FAIL);;
+    CHECK_FAILED(Load_UI(HeroId::Gustave, levelIndex, L"Gustave", Constants::UI::UI_Gustave_SkillTree_Path, Constants::UI::UI_Gustave_SkillTooltips_Dir, L"Panel_Gustave_SkillTree", L"Gustave", L"Panel_CharacterSelect_02", gustaveView), E_FAIL);
+    CHECK_FAILED(Load_UI(HeroId::Maelle, levelIndex, L"Maelle", Constants::UI::UI_Maelle_SkillTree_Path, Constants::UI::UI_Maelle_SkillTooltips_Dir, L"Panel_Maelle_SkillTree", L"Maelle", L"Panel_CharacterSelect_03", maelleView), E_FAIL);
 
     _viewByPlayerId.emplace(HeroId::Lune, move(luneView));
-    //_viewByPlayerId.emplace(HeroId::Gustave, gustaveView);
-    //_viewByPlayerId.emplace(HeroId::Maelle, maelleView);
+    _viewByPlayerId.emplace(HeroId::Gustave, gustaveView);
+    _viewByPlayerId.emplace(HeroId::Maelle, maelleView);
 
     _currentView = &_viewByPlayerId[HeroId::Lune];
 
@@ -167,7 +167,7 @@ HRESULT SkillTree_Panel::Load_UI(HeroId heroId, uint32 levelIndex, const wstring
 
     outView.root = Find_UI(outView.uiByName, rootName);
 
-    Load_UI_ToolTips(prototypeTagPrefix,toolTipJsonPath, levelIndex, outView);
+    Load_UI_ToolTips(prototypeTagPrefix,toolTipJsonPath, levelIndex, playerName, outView);
     Bind_SkillNode_UI(playerName, outView);
 
     auto hero = CLIENT->Find_Hero(heroId);
@@ -181,7 +181,7 @@ HRESULT SkillTree_Panel::Load_UI(HeroId heroId, uint32 levelIndex, const wstring
     return S_OK;
 }
 
-HRESULT SkillTree_Panel::Load_UI_ToolTips(const wstring& prototypeTagPrefix, const wstring& toolTipJsonPath, uint32 levelIndex, SkillTreeViewState& outView)
+HRESULT SkillTree_Panel::Load_UI_ToolTips(const wstring& prototypeTagPrefix, const wstring& toolTipJsonPath, uint32 levelIndex, const wstring& playerName, SkillTreeViewState& outView)
 {
     UI_RuntimeLoader::UI_LoadDesc desc {};
     desc.levelIndex = levelIndex;
@@ -194,10 +194,11 @@ HRESULT SkillTree_Panel::Load_UI_ToolTips(const wstring& prototypeTagPrefix, con
 
     for(const auto& [name, ui] : outView.tooltipsByName)
     {
-        if(name.rfind(L"Panel_SkillTooltip_Lune", 0) != 0)
+        if(name.rfind(L"Panel_SkillTooltip_" + playerName, 0) != 0)
             continue;
 
-        const wstring skillId = name.substr(wcslen(L"Panel_SkillTooltip_Lune_"));
+        const wstring  prefix =  L"Panel_SkillTooltip_"+ playerName + L"_";
+        const wstring skillId = name.substr(wcslen(prefix.c_str()));
         outView.tooltips.emplace(skillId, ui);
     }
     return S_OK;
