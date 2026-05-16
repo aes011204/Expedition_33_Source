@@ -41,6 +41,22 @@ protected:
     Shared<PlayerStatCom>   _combatStatCom;
     Shared<ColliderCom>     _colliderCom;
 
+public:
+    enum class PlayerBattleState
+    {
+        
+    };
+
+    enum class PlayerBattleAnimation
+    {
+        Base_Idle,
+
+        Battle_Station,
+
+        Dash_In,
+        Dash_Out,
+
+    };
 };
 
 NS_END
