@@ -1,4 +1,4 @@
-#include "UI_Button.h"
+﻿#include "UI_Button.h"
 
 #include "GameInstance.h"
 
@@ -18,6 +18,9 @@ HRESULT UI_Button::Initialize_Prototype()
 
 HRESULT UI_Button::Initialize(void* arg)
 {
+
+   // _baseScale = _transform->Get_Scale();
+
     return __super::Initialize(arg);
 }
 
@@ -48,6 +51,16 @@ void UI_Button::Update(float timeDelta)
 
     if (!GAME->KeyDown(KEY_TYPE::LBUTTON) && !GAME->KeyPress(KEY_TYPE::LBUTTON))
         _isPressed = false;
+
+   // if(_enableHoveredAnim && _isHovered)
+   // {
+   //     Math::Lerp_Damp(_baseScale, _targetScale, 1, timeDelta); 
+   // }
+   //
+   // if(_enableHoveredAnim && !_isHovered)
+   // {
+   //     Math::Lerp_Damp(_targetScale, _baseScale, 1, timeDelta);
+   // }
 }
 
 Vec4 UI_Button::Resolve_RenderColor() const

@@ -39,6 +39,53 @@ static ViewportImageRect Compute_AspectFitRect(const ImVec2& canvasMin, const Im
         ImVec2(imageMin.x + imageWidth, imageMin.y + imageHeight)
     };
 }
+
+
+    static bool Is_PointInRect(const ImVec2& point, const ImVec2& min, const ImVec2& max)
+{
+    return
+        point.x >= min.x &&
+        point.x <= max.x &&
+        point.y >= min.y &&
+        point.y <= max.y;
+}
+
+static POINT Make_InvalidMousePosition()
+{
+    POINT mousePosition{};
+    mousePosition.x = -100000;
+    mousePosition.y = -100000;
+    return mousePosition;
+}
+
+static void Sync_GameMousePositionOverride(const ViewportImageRect& imageRect)
+{
+    const ImVec2 mousePos = ImGui::GetIO().MousePos;
+
+    const float imageWidth = imageRect.imageMax.x - imageRect.imageMin.x;
+    const float imageHeight = imageRect.imageMax.y - imageRect.imageMin.y;
+
+    if (imageWidth <= 0.f || imageHeight <= 0.f)
+    {
+        GAME->Set_MousePositionOverride(Make_InvalidMousePosition());
+        return;
+    }
+
+    if (!Is_PointInRect(mousePos, imageRect.imageMin, imageRect.imageMax))
+    {
+        GAME->Set_MousePositionOverride(Make_InvalidMousePosition());
+        return;
+    }
+
+    const float normalizedX = (mousePos.x - imageRect.imageMin.x) / imageWidth;
+    const float normalizedY = (mousePos.y - imageRect.imageMin.y) / imageHeight;
+
+    POINT gameMousePosition{};
+    gameMousePosition.x = static_cast<LONG>(normalizedX * static_cast<float>(GAME->Get_ViewportWidth()));
+    gameMousePosition.y = static_cast<LONG>(normalizedY * static_cast<float>(GAME->Get_ViewportHeight()));
+
+    GAME->Set_MousePositionOverride(gameMousePosition);
+}
 }
 
 Game_View::Game_View()
@@ -96,6 +143,7 @@ void Game_View::Render()
                 Internal::Compute_AspectFitRect(canvasMin, viewportSize, aspect);
 
             drawList->AddImage(textureId, imageRect.imageMin, imageRect.imageMax);
+            Internal::Sync_GameMousePositionOverride(imageRect);
         }
         else
         {

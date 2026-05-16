@@ -262,6 +262,7 @@
     <ClInclude Include="..\Public\Player_Move.h" />
     <ClInclude Include="..\Public\Player_State.h" />
     <ClInclude Include="..\Public\PlayerStateMachineCom.h" />
+    <ClInclude Include="..\public\SkillTree_Panel.h" />
     <ClInclude Include="..\public\SkillTargeting.h">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
@@ -404,6 +405,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="..\Private\SkillTreeCom.cpp" />
+    <ClCompile Include="..\private\SkillTree_Panel.cpp" />
     <ClCompile Include="..\Private\Create_Class.cpp" />
     <ClCompile Include="..\Private\Spawn_Prefab.cpp" />
     <ClCompile Include="..\Private\State.cpp" />
