@@ -172,6 +172,15 @@
     <Filter Include="02.GameObject\Effect\Emitter Registration">
       <UniqueIdentifier>{cd4fc20f-ded7-47fd-8545-9286732fe833}</UniqueIdentifier>
     </Filter>
+    <Filter Include="02.GameObject\UI\BackGround">
+      <UniqueIdentifier>{d023afea-ff0b-417c-9db0-25eb798973f2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02.GameObject\UI\SkillTree_Panel">
+      <UniqueIdentifier>{a1312345-3547-423a-8f4a-75a5083c4e41}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02.GameObject\UI\CharacterStatus_Panel">
+      <UniqueIdentifier>{ee7b5bd8-e9bc-4acd-91ee-92cc1ca9e59b}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -208,7 +217,7 @@
       <Filter>01.Levels\Loading\Loader</Filter>
     </ClInclude>
     <ClInclude Include="..\public\BackGround.h">
-      <Filter>02.GameObject\UI\00.BackGround</Filter>
+      <Filter>02.GameObject\UI\BackGround</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Terrain.h">
       <Filter>02.GameObject\Terrain</Filter>
@@ -411,7 +420,6 @@
     <ClInclude Include="..\public\DamageSystem.h" />
     <ClInclude Include="..\Public\Hero_Manager.h" />
     <ClInclude Include="..\Public\GameplayUI.h" />
-    <ClInclude Include="..\Public\CharacterStatus_Panel.h" />
     <ClInclude Include="..\Public\Player_Maelle.h">
       <Filter>02.GameObject\Player</Filter>
     </ClInclude>
@@ -462,6 +470,12 @@
     <ClInclude Include="..\Public\EffectEmitterRegistration.h">
       <Filter>02.GameObject\Effect\Emitter Registration</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\CharacterStatus_Panel.h">
+      <Filter>02.GameObject\UI\CharacterStatus_Panel</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\SkillTree_Panel.h">
+      <Filter>02.GameObject\UI\SkillTree_Panel</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -483,7 +497,7 @@
       <Filter>01.Levels\Loading\Loader</Filter>
     </ClCompile>
     <ClCompile Include="..\private\BackGround.cpp">
-      <Filter>02.GameObject\UI\00.BackGround</Filter>
+      <Filter>02.GameObject\UI\BackGround</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\Terrain.cpp">
       <Filter>02.GameObject\Terrain</Filter>
@@ -681,7 +695,6 @@
     <ClCompile Include="..\private\DamageSystem.cpp" />
     <ClCompile Include="..\Private\Hero_Manager.cpp" />
     <ClCompile Include="..\Private\GameplayUI.cpp" />
-    <ClCompile Include="..\Private\CharacterStatus_Panel.cpp" />
     <ClCompile Include="..\Private\Player_Lune.cpp">
       <Filter>02.GameObject\Player</Filter>
     </ClCompile>
@@ -726,8 +739,15 @@
     <ClCompile Include="..\private\Mon_Lancelier_Weapon.cpp" />
     <ClCompile Include="..\Private\Player_BattleBase.cpp" />
     <ClCompile Include="..\public\ANS_QTE.cpp" />
+    </ClCompile>
     <ClCompile Include="..\Private\EffectEmitterRegistration.cpp">
       <Filter>02.GameObject\Effect\Emitter Registration</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\CharacterStatus_Panel.cpp">
+      <Filter>02.GameObject\UI\CharacterStatus_Panel</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\SkillTree_Panel.cpp">
+      <Filter>02.GameObject\UI\SkillTree_Panel</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

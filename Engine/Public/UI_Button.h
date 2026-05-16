@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "UI_Panel.h"
 
@@ -22,6 +22,7 @@ public:
     void Update(float timeDelta) override;
 
 public:
+   // void Enable_HoveredAnim(Vec2 targetScale) {_enableHoveredAnim = true; _targetScale = targetScale; }
     bool Is_Hovered() const { return _isHovered; }
     bool Is_Pressed() const { return _isPressed; }
     bool Was_Clicked() const { return _wasClicked; }
@@ -34,9 +35,12 @@ private:
     static Vec4 Scale_RGB(const Vec4& color, float scale);
 
 private:
-    bool _isHovered{ false };
-    bool _isPressed{ false };
-    bool _wasClicked{ false };
+    bool _isHovered { false };
+    bool _enableHoveredAnim {false};
+    bool _isPressed { false };
+    bool _wasClicked { false };
+  //  Vec2 _baseScale {};
+   // Vec2 _targetScale {};
 
 public:
     static Shared<UI_Button> Create();

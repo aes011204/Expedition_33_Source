@@ -15,9 +15,6 @@ void FreeCamera::BeginPlay()
 {
     Camera::BeginPlay();
     GAME->Add_Camera(GetSharedPtr<Camera>());
-
-    // 이거 여기에서 호출하면, GameLauncher에서도, Free Camera로 시작돼서, Target Camera 쪽으로 변경합니다
-    //GAME->Change_ActiveCamera(GetSharedPtr<Camera>());
 }
 
 HRESULT FreeCamera::Initialize_Prototype()
