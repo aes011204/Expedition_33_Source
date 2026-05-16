@@ -12,11 +12,10 @@ NS_END
 
 NS_BEGIN(Client)
 
-
+class SkillTreeCom;
 class PlayerStatCom;
-    class InputCom;
+class InputCom;
 class PlayerControllerCom;
-
 class PlayerStateMachineCom;
 
 class Player : public Character
@@ -42,6 +41,8 @@ public:
 
     Vec3    Get_MovementVelocity() const;
 
+    void    Notify_Test();
+
 protected:
 	HRESULT Ready_Components();
 	HRESULT Ready_PartObjects();
@@ -64,6 +65,7 @@ private:
     Shared<PlayerControllerCom>     _playerControllerCom;
     Shared<PlayerStateMachineCom>   _PlayerStateMachineCom;
     Shared<ColliderCom>             _colliderCom;
+    Shared<SkillTreeCom>            _skillTreeCom;
     Shared<PlayerStatCom>           _combatStatCom;
 
     BoundingBox                     _cullingAABB{};

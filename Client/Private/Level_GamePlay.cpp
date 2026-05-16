@@ -22,6 +22,9 @@ HRESULT Level_GamePlay::Initialize()
     if (FAILED(Ready_Lights()))
         return E_FAIL;
 
+    if (FAILED(Ready_Layer_Player(TEXT("Layer_Player"))))
+        return E_FAIL;
+
     if (FAILED(Ready_Layer_UI(TEXT("Layer_UI"))))
         return E_FAIL;
 
@@ -29,9 +32,6 @@ HRESULT Level_GamePlay::Initialize()
         return E_FAIL;
 
     if(FAILED(Ready_Layer_MapStaticMesh(L"Layer_MapStaticMesh")))
-        return E_FAIL;
-
-    if (FAILED(Ready_Layer_Player(TEXT("Layer_Player"))))
         return E_FAIL;
 
 	if (FAILED(Ready_Layer_Camera(TEXT("Layer_Camera"))))
@@ -64,20 +64,20 @@ void Level_GamePlay::Update(float fTimeDelta)
      //테스트
      if (GAME->KeyDown(KEY_TYPE::KEY_0))
      {
-         vector<string> _heroes;
-         _heroes.push_back("Player_Lune");
-         _heroes.push_back("Player_Maelle");
-         _heroes.push_back("Player_Gustave");
+         vector<HeroId> heroes =
+         {
+             HeroId::Lune,
+             HeroId::Maelle,
+             HeroId::Gustave,
+         };
 
          vector<string> _monster;
          _monster.push_back("Monster123123");
          _monster.push_back("Monster123123");
          _monster.push_back("Monster123123");
 
-         CLIENT->OnEnterBattleField(1, true, _heroes, _monster);
-       
+         CLIENT->OnEnterBattleField(1, false, heroes, _monster);
      }
-
 
 
 }
@@ -183,7 +183,7 @@ HRESULT Level_GamePlay::Ready_Layer_BackGround(const wstring& strLayerTag)
     if (FAILED(
         GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Sky_GamePlay"),
             ETOI(LevelType::GamePlay), strLayerTag)))
-        return E_FAIL;
+                return E_FAIL;
 
     return S_OK;
 }
@@ -193,7 +193,7 @@ HRESULT Level_GamePlay::Ready_Layer_MapStaticMesh(const wstring& strLayerTag)
     CHECK_FAILED(MapLoader::Load(
         _device, _context,
         Constants::Map::SmallLevel_SimonArea_Remake_Path,
-        ETOI(LevelType::MapTest), strLayerTag), E_FAIL);
+        ETOI(LevelType::GamePlay), strLayerTag), E_FAIL);
 
     return S_OK;
 }
@@ -247,16 +247,6 @@ Shared<Level_GamePlay> Level_GamePlay::Create(const ComPtr<Device>& device, cons
 void Level_GamePlay::Free()
 {
     CLIENT->Clear_GameplayUI();
-
-    _removeExpButton.reset();
-    _addExpButton.reset();
-    _removeHpButton.reset();
-    _addHpButton.reset();
-    _expGauge.reset();
-    _hpGauge.reset();
-    _expText.reset();
-    _hpText.reset();
-    _uiByName.clear();
 
     __super::Free();
 }

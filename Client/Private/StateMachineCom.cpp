@@ -1,8 +1,6 @@
 ﻿#include "pch.h"
 #include "StateMachineCom.h"
-
 #include "State.h"
-
 
 NS_BEGIN(Client)
 

@@ -1,8 +1,11 @@
 ﻿#pragma once
+
 #include "Component.h"
+#include "Delegate.h"
+
 NS_BEGIN(Engine)
 
-class ENGINE_DLL AIController :
+    class ENGINE_DLL AIController :
     public Component
 {
 
@@ -15,8 +18,12 @@ public:
 public:
     HRESULT Initialize_Prototype() override;
     HRESULT Initialize(void* arg) override;
+    void BeginPlay() override;
     void Update(float timeDelta);
+
 public:
+    void On_EditorStopRuntime();
+
 public:
     const string& Get_BehaviorTreeAssetPath() const { return _behaviorTreeAssetPath; }
     void Set_BehaviorTreeAssetPath(const string& path) { _behaviorTreeAssetPath = path; }
@@ -45,6 +52,7 @@ protected:
     Vec3 _testPos = {};
 
     bool _isMoving = {};
+    FDelegateHandle _editorStopHandle = {};
 
     static Shared<AIController> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
     virtual Shared<Component> Clone(void* arg) ;

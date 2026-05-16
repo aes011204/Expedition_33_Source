@@ -127,6 +127,15 @@ HRESULT UI_Image::Render()
     if (FAILED(_shader->Bind_RawValue("g_Color", &_color, sizeof(Vec4))))
         return E_FAIL;
 
+    if (FAILED(_shader->Bind_RawValue("g_UseGrayScale", &_useGrayScale, sizeof(bool))))
+        return E_FAIL;
+
+    if (FAILED(_shader->Bind_RawValue("g_GrayAmount", &_grayAmount, sizeof(float))))
+        return E_FAIL;
+
+    if (FAILED(_shader->Bind_RawValue("g_IsOverlay", &_isOverlay, sizeof(bool))))
+        return E_FAIL;
+
     if (FAILED(_shader->Bind_SRV("g_Texture", _srv.Get())))
         return E_FAIL;
 
