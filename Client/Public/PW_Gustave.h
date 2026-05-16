@@ -1,18 +1,18 @@
 ﻿#pragma once
 
 #include "Client_Defines.h"
-#include "Player.h"
+#include "Player_WorldBase.h"
 
 NS_BEGIN(Client)
 
-class Player_Gustave final : public Player
+class PW_Gustave final : public Player_WorldBase
 {
-    GENERATED_GAMEOBJECT(Player_Gustave, ObjectType::Player)
+    GENERATED_GAMEOBJECT(PW_Gustave, ObjectType::Player)
 
 public:
-	Player_Gustave(const ComPtr<Device>& device, const ComPtr<Context>& context);
-	Player_Gustave(const Player_Gustave& prototype);
-	virtual ~Player_Gustave() override = default;
+	PW_Gustave(const ComPtr<Device>& device, const ComPtr<Context>& context);
+	PW_Gustave(const PW_Gustave& prototype);
+	virtual ~PW_Gustave() override = default;
 
 protected:
     HairChainPhysicsDesc Get_HairChainPhysicsDesc() const override;
@@ -22,7 +22,7 @@ protected:
     const wchar_t* Get_HairModelTag() const override { return L"Model_GustaveHair"; }
 
 public:
-	static Shared<Player_Gustave> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
+	static Shared<PW_Gustave> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
 	virtual Shared<GameObject> Clone(void* arg) override;
 	virtual void Free() override;
 

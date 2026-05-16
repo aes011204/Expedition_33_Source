@@ -11,7 +11,7 @@ NS_END
 
 NS_BEGIN(Client)
 
-class Player;
+class Player_WorldBase;
 class PreviewCamera;
 
 // UI_Panel 렌더 객체가 아니라,
@@ -78,7 +78,7 @@ private:
 private:
     struct StatusPreviewHero
     {
-        Shared<Player> player{};
+        Shared<Player_WorldBase> player{};
 
         // 
     };

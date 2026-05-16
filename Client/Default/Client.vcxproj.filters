@@ -166,6 +166,18 @@
     <Filter Include="02.GameObject\Map\MapInstancedMesh">
       <UniqueIdentifier>{48582af2-9fa3-4baf-bee3-b247fe81d3f0}</UniqueIdentifier>
     </Filter>
+    <Filter Include="02.GameObject\Player\00. World">
+      <UniqueIdentifier>{99061e95-9355-4714-95af-917916e25c88}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02.GameObject\Player\01. Battle">
+      <UniqueIdentifier>{b00fcbdf-e7b2-4049-8099-5dc51d091eaf}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02.GameObject\Monster\00. World">
+      <UniqueIdentifier>{14b8ce05-46e3-414b-b28d-006c9a56b6a8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02.GameObject\Monster\01. Battle">
+      <UniqueIdentifier>{67722be3-2fa7-4894-aada-eddadce9c2e6}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -212,12 +224,6 @@
     </ClInclude>
     <ClInclude Include="..\Public\TargetCamera.h">
       <Filter>02.GameObject\Camera\Target</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\Monster.h">
-      <Filter>02.GameObject\Monster</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\Player.h">
-      <Filter>02.GameObject\Player</Filter>
     </ClInclude>
     <ClInclude Include="..\public\Body_Player.h">
       <Filter>02.GameObject\Player\PlayerParts\Body</Filter>
@@ -290,12 +296,6 @@
     </ClInclude>
     <ClInclude Include="..\public\Mon_BehaviorTree.h">
       <Filter>BehavoirTree</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\Mon_Lancleier_Body.h">
-      <Filter>02.GameObject\Monster</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\Mon_Lancleier_Weapon.h">
-      <Filter>02.GameObject\Monster</Filter>
     </ClInclude>
     <ClInclude Include="..\public\Monster_Part.h">
       <Filter>02.GameObject\Monster</Filter>
@@ -412,15 +412,6 @@
     <ClInclude Include="..\Public\Hero_Manager.h" />
     <ClInclude Include="..\Public\GameplayUI.h" />
     <ClInclude Include="..\Public\CharacterStatus_Panel.h" />
-    <ClInclude Include="..\Public\Player_Maelle.h">
-      <Filter>02.GameObject\Player</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\Player_Gustave.h">
-      <Filter>02.GameObject\Player</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\Player_Lune.h">
-      <Filter>02.GameObject\Player</Filter>
-    </ClInclude>
     <ClInclude Include="..\Public\Player_Jump.h">
       <Filter>02.GameObject\Player\PlayerParts\Hair</Filter>
     </ClInclude>
@@ -448,6 +439,49 @@
     <ClInclude Include="..\Public\MapInstancedMesh.h">
       <Filter>02.GameObject\Map\MapInstancedMesh</Filter>
     </ClInclude>
+    <ClInclude Include="..\public\ANS_Dodge.h" />
+    <ClInclude Include="..\public\ANS_Parry.h" />
+    <ClInclude Include="..\public\ANS_QTE.h" />
+    <ClInclude Include="..\public\AN_Battle_EndAnim.h" />
+    <ClInclude Include="..\Public\AN_Test2.h" />
+    <ClInclude Include="..\public\Mon_Lancelier_Body.h" />
+    <ClInclude Include="..\public\Mon_Lancelier_Weapon.h" />
+    <ClInclude Include="..\public\SkillTree_Panel.h" />
+    <ClInclude Include="..\Public\Monster_BattleBase.h" />
+    <ClInclude Include="..\Public\Character_WorldBase.h" />
+    <ClInclude Include="..\Public\Character_BattleBase.h" />
+    <ClInclude Include="..\Public\Monster_WorldBase.h" />
+    <ClInclude Include="..\Public\PB_Gustave.h">
+      <Filter>02.GameObject\Player\01. Battle</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\PB_Lune.h">
+      <Filter>02.GameObject\Player\01. Battle</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Player_WorldBase.h">
+      <Filter>02.GameObject\Player\00. World</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\PW_Gustave.h">
+      <Filter>02.GameObject\Player\00. World</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\PW_Lune.h">
+      <Filter>02.GameObject\Player\00. World</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\PW_Maelle.h">
+      <Filter>02.GameObject\Player\00. World</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\PB_Maelle.h">
+      <Filter>02.GameObject\Player\01. Battle</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Player_BattleBase.h">
+      <Filter>02.GameObject\Player\01. Battle</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\MB_Lancelier.h">
+      <Filter>02.GameObject\Monster\01. Battle</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\MW_Lancelier.h">
+      <Filter>02.GameObject\Monster\00. World</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\BattleTurnCamera.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -479,12 +513,6 @@
     </ClCompile>
     <ClCompile Include="..\Private\TargetCamera.cpp">
       <Filter>02.GameObject\Camera\Target</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\Monster.cpp">
-      <Filter>02.GameObject\Monster</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\Player.cpp">
-      <Filter>02.GameObject\Player</Filter>
     </ClCompile>
     <ClCompile Include="..\private\Body_Player.cpp">
       <Filter>02.GameObject\Player\PlayerParts\Body</Filter>
@@ -558,12 +586,6 @@
     </ClCompile>
     <ClCompile Include="..\private\Mon_BehaviorTree.cpp">
       <Filter>BehavoirTree</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\Mon_Lancleier_Body.cpp">
-      <Filter>02.GameObject\Monster</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\Mon_Lancleier_Weapon.cpp">
-      <Filter>02.GameObject\Monster</Filter>
     </ClCompile>
     <ClCompile Include="..\private\Monster_Part.cpp">
       <Filter>02.GameObject\Monster</Filter>
@@ -674,15 +696,6 @@
     <ClCompile Include="..\Private\Hero_Manager.cpp" />
     <ClCompile Include="..\Private\GameplayUI.cpp" />
     <ClCompile Include="..\Private\CharacterStatus_Panel.cpp" />
-    <ClCompile Include="..\Private\Player_Lune.cpp">
-      <Filter>02.GameObject\Player</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\Player_Gustave.cpp">
-      <Filter>02.GameObject\Player</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\Player_Maelle.cpp">
-      <Filter>02.GameObject\Player</Filter>
-    </ClCompile>
     <ClCompile Include="..\Private\Player_WorldAction.cpp">
       <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
     </ClCompile>
@@ -707,6 +720,49 @@
     <ClCompile Include="..\Private\MapInstancedMesh.cpp">
       <Filter>02.GameObject\Map\MapInstancedMesh</Filter>
     </ClCompile>
+    <ClCompile Include="..\private\ANS_Dodge.cpp" />
+    <ClCompile Include="..\private\ANS_Parry.cpp" />
+    <ClCompile Include="..\private\AN_Battle_EndAnim.cpp" />
+    <ClCompile Include="..\Private\AN_Test2.cpp" />
+    <ClCompile Include="..\private\Mon_Lancelier_Body.cpp" />
+    <ClCompile Include="..\private\Mon_Lancelier_Weapon.cpp" />
+    <ClCompile Include="..\private\SkillTree_Panel.cpp" />
+    <ClCompile Include="..\public\ANS_QTE.cpp" />
+    <ClCompile Include="..\Private\Monster_BattleBase.cpp" />
+    <ClCompile Include="..\Private\Character_WorldBase.cpp" />
+    <ClCompile Include="..\Private\Character_BattleBase.cpp" />
+    <ClCompile Include="..\Private\Monster_WorldBase.cpp" />
+    <ClCompile Include="..\Private\PB_Gustave.cpp">
+      <Filter>02.GameObject\Player\01. Battle</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\PB_Lune.cpp">
+      <Filter>02.GameObject\Player\01. Battle</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\PB_Maelle.cpp">
+      <Filter>02.GameObject\Player\01. Battle</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Player_WorldBase.cpp">
+      <Filter>02.GameObject\Player\00. World</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\PW_Gustave.cpp">
+      <Filter>02.GameObject\Player\00. World</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\PW_Lune.cpp">
+      <Filter>02.GameObject\Player\00. World</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\PW_Maelle.cpp">
+      <Filter>02.GameObject\Player\00. World</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Player_BattleBase.cpp">
+      <Filter>02.GameObject\Player\01. Battle</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\MB_Lancelier.cpp">
+      <Filter>02.GameObject\Monster\01. Battle</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\MW_Lancelier.cpp">
+      <Filter>02.GameObject\Monster\00. World</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\BattleTurnCamera.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">
@@ -746,9 +802,6 @@
       <Filter>97.ShaderFiles\Effect</Filter>
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMeshInstanceExact.hlsl">
-      <Filter>97.ShaderFiles</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_PostProcess.hlsl">
       <Filter>97.ShaderFiles</Filter>
     </FxCompile>
   </ItemGroup>

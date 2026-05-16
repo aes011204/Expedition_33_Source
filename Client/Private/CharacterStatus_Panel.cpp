@@ -1,8 +1,9 @@
 ﻿#include "CharacterStatus_Panel.h"
 #include "ClientInstance.h"
+#include "Client_Constants.h"
 #include "CombatStatCom.h"
 #include "GameInstance.h"
-#include "Player.h"
+#include "Player_WorldBase.h"
 #include "PlayerStatCom.h"
 #include "Spawn_Prefab.h"
 #include "UI_Base.h"
@@ -15,11 +16,11 @@ static const char* Get_HeroPrefabName(HeroId heroId)
     switch (heroId)
     {
     case HeroId::Gustave:
-        return "Player_Gustave";
+        return Constants::Prefab::PW_Gustave; // 월드 프리팹 이름은 공용 상수로 맞춘다.
     case HeroId::Lune:
-        return "Player_Lune";
+        return Constants::Prefab::PW_Lune; // UI 미리보기 스폰도 실제 prefab 파일명과 같은 값을 사용한다.
     case HeroId::Maelle:
-        return "Player_Maelle";
+        return Constants::Prefab::PW_Maelle; // 이름 변경 시 호출부 문자열이 흩어지지 않게 한다.
     default:
         return "";
     }
@@ -186,7 +187,7 @@ HRESULT CharacterStatus_Panel::Bind_UI()
 
 void CharacterStatus_Panel::Refresh_CombatStats()
 {
-    Shared<Player> player = CLIENT->Get_Hero(static_cast<HeroPartySlot>(_selectedHeroIndex));
+    Shared<Player_WorldBase> player = CLIENT->Get_Hero(static_cast<HeroPartySlot>(_selectedHeroIndex));
     CHECK_NULL(player);
 
     Shared<PlayerStatCom> playerStat = player->Get_Component<PlayerStatCom>();
@@ -321,7 +322,7 @@ HRESULT CharacterStatus_Panel::Spawn_StatusPreviewHeroes()
             .InLayer(_previewLayerTag)
             .Spawn();
 
-        auto previewPlayer = dynamic_pointer_cast<Player>(object);
+        auto previewPlayer = dynamic_pointer_cast<Player_WorldBase>(object);
         CHECK_NULL(previewPlayer, E_FAIL);
 
         _previewHeroes.push_back(StatusPreviewHero{ previewPlayer });
@@ -380,7 +381,7 @@ void CharacterStatus_Panel::Layout_StatusPreviewHeroes()
 
     for (uint32 i = 0; i < 3; ++i)
     {
-        Shared<Player> player = _previewHeroes[orderedIndices[i]].player;
+        Shared<Player_WorldBase> player = _previewHeroes[orderedIndices[i]].player;
         if (player == nullptr || player->Get_Transform() == nullptr)
             continue;
 

@@ -226,10 +226,13 @@ void PhysX_Manager::Register_OrSync_Collider(Shared<ColliderCom> collider, const
         PxRigidActor* actor = collider->Get_PxActor();
         CHECK_NULL(actor);
 
+        collider->Sync_InitialPose_ToPhysX(worldMatrix);
+
         _scene->addActor(*actor);
         _actorColliderMap[actor] = collider;
 
         collider->Set_PhysXRegistered(true);
+        return;
     }
 
     collider->Sync_ToPhysX(worldMatrix);
@@ -294,7 +297,7 @@ void PhysX_Manager::onContact(const PxContactPairHeader& pairHeader, const PxCon
     {
         const PxContactPair& pair = pairs[i];
 
-        if (pair.shapes[0] == nullptr || pair.shapes[i] == nullptr)
+        if (pair.shapes[0] == nullptr || pair.shapes[1] == nullptr)
             continue;
 
         const PxPairFlags events = pair.events;
@@ -315,8 +318,9 @@ void PhysX_Manager::onContact(const PxContactPairHeader& pairHeader, const PxCon
         if (response == CollisionResponse::Ignore)
             continue;
 
-        Push_PairEvent(colliderA, colliderB, CollisionResponse::Block, began, staying, ended);
-        Push_PairEvent(colliderB, colliderA, CollisionResponse::Block, began, staying, ended);
+        // 필터 결과가 Overlap이면 OnBeginOverlap 경로로 전달되어야 한다.
+        Push_PairEvent(colliderA, colliderB, response, began, staying, ended);
+        Push_PairEvent(colliderB, colliderA, response, began, staying, ended);
     }
 }
 

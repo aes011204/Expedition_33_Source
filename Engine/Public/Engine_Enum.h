@@ -44,6 +44,7 @@ namespace Engine
         FreeCamera,
         TargetCamera,
         PreviewCamera,
+        BattleTurnCamera,
 
         Terrain,
         Sky,

@@ -1,33 +1,33 @@
-﻿#include "Player_Lune.h"
+﻿#include "PW_Lune.h"
 #include "GameInstance.h"
 #include "Bounding_OBB.h"
 #include "ColliderCom.h"
 #include "PlayableParts.h"
 
-IMPLEMENT_REFLECTION(Player_Lune)
+IMPLEMENT_REFLECTION(PW_Lune)
 {
     auto& info = GetStaticReflectionInfo();
     info.properties.clear();
 
-    info.displayName = "Player_Lune";
+    info.displayName = "PW_Lune";
     info.category = "Character";
     
 
     return true;
 }
 
-Player_Lune::Player_Lune(const ComPtr<Device>& device, const ComPtr<Context>& context)
-	: Player { device, context }
+PW_Lune::PW_Lune(const ComPtr<Device>& device, const ComPtr<Context>& context)
+	: Player_WorldBase { device, context }
 {
 }
 
-Player_Lune::Player_Lune(const Player_Lune& prototype)
-	: Player{ prototype }
+PW_Lune::PW_Lune(const PW_Lune& prototype)
+	: Player_WorldBase{ prototype }
 {
 
 }
 
-HairChainPhysicsDesc Player_Lune::Get_HairChainPhysicsDesc() const
+HairChainPhysicsDesc PW_Lune::Get_HairChainPhysicsDesc() const
 {
     HairChainPhysicsDesc desc{};
 
@@ -53,31 +53,31 @@ HairChainPhysicsDesc Player_Lune::Get_HairChainPhysicsDesc() const
     return desc;
 }
 
-Shared<Player_Lune> Player_Lune::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
+Shared<PW_Lune> PW_Lune::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
-	auto instance = make_shared<Player_Lune>(device, context);
+	auto instance = make_shared<PW_Lune>(device, context);
 
 	if (FAILED(instance->Initialize_Prototype()))
 	{
-		MSG_BOX("Failed to Created : Player_Lune");
+		MSG_BOX("Failed to Created : PW_Lune");
 		return nullptr;
 	}
 	return instance;
 }
 
-Shared<GameObject> Player_Lune::Clone(void* arg)
+Shared<GameObject> PW_Lune::Clone(void* arg)
 {
-	auto instance = make_shared<Player_Lune>(*this);
+	auto instance = make_shared<PW_Lune>(*this);
 
 	if (FAILED(instance->Initialize(arg)))
 	{
-		MSG_BOX("Failed to Cloned : Player_Lune");
+		MSG_BOX("Failed to Cloned : PW_Lune");
 		return nullptr;
 	}
 	return instance;
 }
 
-void Player_Lune::Free()
+void PW_Lune::Free()
 {
 	__super::Free();
 

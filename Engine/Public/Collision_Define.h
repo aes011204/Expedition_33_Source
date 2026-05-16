@@ -30,8 +30,8 @@ enum class Collision_Preset
 {
     Custom,     // 직접 세팅
 
-    Player, Player_Body, Player_Attack,
-    Monster, Monster_Body, Monster_Attack,
+    Player, Player_Body, Player_WorldBody, Player_Attack,
+    Monster, Monster_Body, Monster_WorldBody, Monster_Attack,
 
     Weapon,
     Projectile, // 투사체
@@ -122,6 +122,11 @@ static const Collision_Preset_Data g_CollisionPresets[ETOI(
 
     /* blockMask   */ ETOI(Collision_Channel::Enviroment)
     },
+
+    { Collision_Channel::Player_Body,
+    /* overlapMask */ ETOI(Collision_Channel::Monster_Body),
+    /* blockMask   */ ETOI(Collision_Channel::Enviroment)
+    },
     
     { Collision_Channel::Player_Attack,
     /* overlapMask */ ETOI(Collision_Channel::Monster) |
@@ -143,6 +148,11 @@ static const Collision_Preset_Data g_CollisionPresets[ETOI(
                       ETOI(Collision_Channel::Projectile) |
                       ETOI(Collision_Channel::Player_Target) |
                       ETOI(Collision_Channel::Player_Body),
+    /* blockMask   */ ETOI(Collision_Channel::Enviroment)
+    },
+
+    { Collision_Channel::Monster_Body,
+    /* overlapMask */ ETOI(Collision_Channel::Player_Body),
     /* blockMask   */ ETOI(Collision_Channel::Enviroment)
     },
     
