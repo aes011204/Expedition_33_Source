@@ -104,9 +104,7 @@ private:
     wstring                                  _previewLayerTag = L"Layer_CharacterStatusPreview";
     Shared<Camera>                           _previousCamera{};
     Shared<PreviewCamera>                    _previewCamera{};
-
     Shared<UI_Base>                          _skillpointUI;
-    int                                      _unlockProgress;
     Shared<UI_Base>                          _backgroundUI;
     umap<wstring, Shared<UI_Base>>           _backgroundUIs;
     Shared<SkillTreeCom>                     _skillTreeCom;
