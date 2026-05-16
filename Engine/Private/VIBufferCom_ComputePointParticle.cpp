@@ -142,6 +142,11 @@ void VIBufferCom_ComputePointParticle::Dispatch_Compute(float timeDelta)
     CHECK_FAILED(Copy_OutputToIndirectArgs());
 }
 
+void VIBufferCom_ComputePointParticle::Set_Center(const Vec3& center)
+{
+    _desc.center = center;
+}
+
 HRESULT VIBufferCom_ComputePointParticle::Ready_VertexBuffer()
 {
     const D3D11_BUFFER_DESC vertexBufferDesc = {

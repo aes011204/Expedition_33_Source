@@ -1,8 +1,8 @@
 ﻿#include "Level_EffectEditor.h"
 
-#include "ComputePointParticleEffect.h"
 #include "EffectEditorCamera.h"
 #include "EffectEditorInstance.h"
+#include "EffectInstance.h"
 #include "Emitter_View.h"
 #include "GameInstance.h"
 
@@ -212,56 +212,67 @@ HRESULT Level_EffectEditor::Restart_PreviewFromAuthoring()
         return E_FAIL;
     }
 
+    const Shared<const EffectDefinition> previewDefinition =
+        Build_PreviewEffectDefinition(emitterView->Get_Emitters());
+    CHECK_NULL(previewDefinition, E_FAIL);
+
+    EffectInstanceDesc previewDesc{};
+    previewDesc.definition = previewDefinition;
+
+    const Shared<EffectInstance> previewPrototype = EffectInstance::Create(_device, _context);
+    CHECK_NULL(previewPrototype, E_FAIL);
+
+    const Shared<GameObject> previewObject = previewPrototype->Clone(&previewDesc);
+    CHECK_NULL(previewObject, E_FAIL);
+
+    CHECK_FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), kPreviewLayerTag, previewObject), E_FAIL);
+
     vector<Shared<GameObject>> restartedPreviewObjects{};
-    vector<uint32> restartedEmitterIds{};
-    for (const AuthoringEmitter& emitter : emitterView->Get_Emitters())
-    {
-        if (!emitter.enabled)
-            continue;
-
-        ComputePointParticleEffect::ComputePointParticleEffectDesc computeEffectDesc = Build_ComputePointParticleEffectDesc(emitter);
-        void* previewDesc = &computeEffectDesc;
-        const wchar_t* previewPrototypeTag = L"GameObject_Effect_ComputePointParticleEffect";
-
-        LOG_INFO(
-            "EffectEditor preview restart: emitter='{}', backend=ComputeSprite, previewPrototype='{}'",
-            emitter.name,
-            String::ToString(previewPrototypeTag)
-        );
-
-        Shared<GameObject> previewObject{};
-        if (FAILED(
-            GAME->Add_GameObject(
-                ETOI(LevelType::GamePlay),
-                previewPrototypeTag,
-                ETOI(LevelType::GamePlay),
-                kPreviewLayerTag,
-                previewObject,
-                previewDesc
-            )
-        ))
-        {
-            for (Shared<GameObject>& createdPreviewObject : restartedPreviewObjects)
-                GAME->Remove_GameObject(ETOI(LevelType::GamePlay), createdPreviewObject);
-
-            return E_FAIL;
-        }
-
-        restartedPreviewObjects.push_back(previewObject);
-        restartedEmitterIds.push_back(emitter.id);
-    }
+    restartedPreviewObjects.push_back(previewObject);
 
     _previewObjects = move(restartedPreviewObjects);
 
-    for (const uint32 emitterId : restartedEmitterIds)
-        emitterView->Clear_PreviewDirty(emitterId);
+    for (const AuthoringEmitter& emitter : emitterView->Get_Emitters())
+    {
+        if (emitter.enabled)
+            emitterView->Clear_PreviewDirty(emitter.id);
+    }
 
     return S_OK;
 }
 
-ComputePointParticleEffect::ComputePointParticleEffectDesc Level_EffectEditor::Build_ComputePointParticleEffectDesc(const AuthoringEmitter& emitter) const
+Shared<const EffectDefinition> Level_EffectEditor::Build_PreviewEffectDefinition(const vector<AuthoringEmitter>& emitters) const
 {
-    ComputePointParticleEffect::ComputePointParticleEffectDesc desc{};
+    auto definition = make_shared<EffectDefinition>();
+    definition->name = "EffectEditorPreview";
+
+    for (const AuthoringEmitter& emitter : emitters)
+    {
+        if (!emitter.enabled)
+            continue;
+
+        const string rendererTypeLower = String::ToLowerCopy(emitter.rendererType);
+        if (rendererTypeLower != "sprite")
+        {
+            LOG_INFO("EffectEditor preview skip: emitter='{}', rendererType='{}'", emitter.name, emitter.rendererType);
+            continue;
+        }
+
+        definition->emitters.push_back(Build_PreviewEmitterDefinition(emitter));
+    }
+
+    return definition;
+}
+
+EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const AuthoringEmitter& emitter) const
+{
+    EffectEmitterDefinition definition{};
+    definition.id = emitter.id;
+    definition.name = emitter.name;
+    definition.kind = EffectEmitterKind::ComputeSprite;
+    definition.enabled = emitter.enabled;
+
+    ComputeSpriteEmitterDesc desc{};
     desc.drawMode = PointParticleDrawMode::DrawIndexedInstancedIndirect;
 
     if (const auto* required = Internal::Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
@@ -287,88 +298,14 @@ ComputePointParticleEffect::ComputePointParticleEffectDesc Level_EffectEditor::B
         desc.noiseStrength = material.noiseStrength;
         desc.subUVRows = max(1u, material.subUVRows);
         desc.subUVCols = max(1u, material.subUVCols);
-        desc.center = required->emitterOrigin;
+
+        definition.localPosition = required->emitterOrigin;
+        definition.localRotationDegrees = required->emitterRotationDegrees;
+        definition.useLocalSpace = required->useLocalSpace;
     }
 
-    if (const auto* spawn = Internal::Find_ModuleData<SpawnModuleData>(emitter, AuthoringModuleType::Spawn))
-        desc.instanceCount = max(1u, spawn->maxParticleCount);
-
-    if (const auto* initialSize = Internal::Find_ModuleData<InitialSizeModuleData>(emitter, AuthoringModuleType::InitialSize))
-    {
-        const Vec2 minScale = Internal::Evaluate_Vector2DistributionMin(initialSize->size, desc.scale);
-        const Vec2 maxScale = Internal::Evaluate_Vector2DistributionMax(initialSize->size, desc.scale);
-        desc.scale = Vec2{ min(minScale.x, maxScale.x), max(minScale.y, maxScale.y) };
-    }
-
-    if (const auto* lifetime = Internal::Find_ModuleData<LifetimeModuleData>(emitter, AuthoringModuleType::Lifetime))
-    {
-        desc.lifeTime = Vec2{
-            Internal::Evaluate_FloatDistributionMin(lifetime->lifeTime, desc.lifeTime.x),
-            Internal::Evaluate_FloatDistributionMax(lifetime->lifeTime, desc.lifeTime.y)
-        };
-    }
-
-    if (const auto* initialColor = Internal::Find_ModuleData<InitialColorModuleData>(emitter, AuthoringModuleType::InitialColor))
-    {
-        const Color minColor = Internal::Evaluate_ColorDistributionMin(
-            initialColor->color,
-            Color{ desc.startColorMin.x, desc.startColorMin.y, desc.startColorMin.z, desc.startColorMin.w }
-        );
-        const Color maxColor = Internal::Evaluate_ColorDistributionMax(
-            initialColor->color,
-            Color{ desc.startColorMax.x, desc.startColorMax.y, desc.startColorMax.z, desc.startColorMax.w }
-        );
-
-        desc.startColorMin = Vec4{ minColor.R(), minColor.G(), minColor.B(), minColor.A() };
-        desc.startColorMax = Vec4{ maxColor.R(), maxColor.G(), maxColor.B(), maxColor.A() };
-        desc.endColorMin = desc.startColorMin;
-        desc.endColorMax = desc.startColorMax;
-    }
-
-    if (const auto* colorOverLife = Internal::Find_ModuleData<ColorOverLifeModuleData>(emitter, AuthoringModuleType::ColorOverLife))
-    {
-        const Color minEndColor = Internal::Evaluate_ColorDistributionMin(
-            colorOverLife->colorOverLife,
-            Color{ desc.endColorMin.x, desc.endColorMin.y, desc.endColorMin.z, desc.endColorMin.w }
-        );
-        const Color maxEndColor = Internal::Evaluate_ColorDistributionMax(
-            colorOverLife->colorOverLife,
-            Color{ desc.endColorMax.x, desc.endColorMax.y, desc.endColorMax.z, desc.endColorMax.w }
-        );
-
-        desc.endColorMin = Vec4{ minEndColor.R(), minEndColor.G(), minEndColor.B(), minEndColor.A() };
-        desc.endColorMax = Vec4{ maxEndColor.R(), maxEndColor.G(), maxEndColor.B(), maxEndColor.A() };
-    }
-
-    if (const auto* subUvFrameOverLife = Internal::Find_ModuleData<SubUVFrameOverLifeModuleData>(emitter, AuthoringModuleType::SubUVFrameOverLife))
-    {
-        desc.subUVFrameOverLife.enabled = true;
-        desc.subUVFrameOverLife.startFrame = subUvFrameOverLife->startFrame;
-        desc.subUVFrameOverLife.endFrame = subUvFrameOverLife->endFrame;
-        desc.subUVFrameOverLife.loop = subUvFrameOverLife->loop;
-
-        if (const auto* required = Internal::Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
-        {
-            const uint32 frameCount = Internal::Resolve_SubUVFrameCount(*required);
-            const uint32 lastFrame = frameCount > 0 ? frameCount - 1 : 0;
-            desc.subUVFrameOverLife.startFrame = min(desc.subUVFrameOverLife.startFrame, lastFrame);
-            desc.subUVFrameOverLife.endFrame = min(desc.subUVFrameOverLife.endFrame, lastFrame);
-
-            if (0 == subUvFrameOverLife->startFrame && 0 == subUvFrameOverLife->endFrame && frameCount > 1)
-                desc.subUVFrameOverLife.endFrame = lastFrame;
-        }
-    }
-
-    if (const auto* sizeByLife = Internal::Find_ModuleData<SizeByLifeModuleData>(emitter, AuthoringModuleType::SizeByLife))
-    {
-        desc.sizeByLife.enabled = true;
-        desc.sizeByLife.multiplyXStart = sizeByLife->multiplyXStart;
-        desc.sizeByLife.multiplyXEnd = sizeByLife->multiplyXEnd;
-        desc.sizeByLife.multiplyYStart = sizeByLife->multiplyYStart;
-        desc.sizeByLife.multiplyYEnd = sizeByLife->multiplyYEnd;
-    }
-
-    return desc;
+    definition.concreteDesc = desc;
+    return definition;
 }
 
 HRESULT Level_EffectEditor::Ready_Lights()

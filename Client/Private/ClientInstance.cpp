@@ -1,19 +1,17 @@
 ﻿#include "pch.h"
 #include "ClientInstance.h"
 #include "BattleController.h"
-#include "GameObject.h"
 #include "BT_Node_Bootstrap.h"
-#include "ComputePointParticleEffect.h"
+#include "ComputeSpriteEmitter.h"
+#include "EffectEmitterRegistration.h"
 #include "GameDataTable.h"
 #include "GameInstance.h"
+#include "GameObject.h"
+#include "GameplayUI.h"
+#include "Hero_Manager.h"
 #include "PersistentObjectManager.h"
 #include "Player.h"
 #include "ResourceLoader.h"
-#include "BT_Node_Bootstrap.h"
-#include "GameDataTable.h"
-#include "GameplayUI.h"
-#include "PersistentObjectManager.h"
-#include "Hero_Manager.h"
 
 IMPLEMENT_SINGLETON(ClientInstance)
 
@@ -32,6 +30,9 @@ HRESULT ClientInstance::Initialize_Client(const ComPtr<Device>& device, const Co
     // 프로토타입 등록
     if (FAILED(Ready_ResourceLoader()))
         return E_FAIL;
+
+    // Effect emitter 등록
+    Register_ClientEffectEmitters();
 
     // 게임 플레이 데이터
     if (FAILED(Ready_GameDataTables()))
