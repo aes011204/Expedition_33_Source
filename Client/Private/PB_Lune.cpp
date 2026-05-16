@@ -1,25 +1,25 @@
-﻿#include "Battle_Lune.h"
+﻿#include "PB_Lune.h"
 
-IMPLEMENT_REFLECTION(Battle_Lune)
+IMPLEMENT_REFLECTION(PB_Lune)
 {
     auto& info = GetStaticReflectionInfo();
     info.properties.clear();
-    info.displayName = "Battle_Lune";
+    info.displayName = "PB_Lune";
     info.category = "Character";
     return true;
 }
 
-Battle_Lune::Battle_Lune(const ComPtr<Device>& device, const ComPtr<Context>& context)
+PB_Lune::PB_Lune(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Player_BattleBase(device, context)
 {
 }
 
-Battle_Lune::Battle_Lune(const Battle_Lune& prototype)
+PB_Lune::PB_Lune(const PB_Lune& prototype)
     : Player_BattleBase(prototype)
 {
 }
 
-HairChainPhysicsDesc Battle_Lune::Get_HairChainPhysicsDesc() const
+HairChainPhysicsDesc PB_Lune::Get_HairChainPhysicsDesc() const
 {
     HairChainPhysicsDesc desc{};
     desc.profile = HairPhysicsProfile::Lune;
@@ -39,33 +39,33 @@ HairChainPhysicsDesc Battle_Lune::Get_HairChainPhysicsDesc() const
     return desc;
 }
 
-Shared<Battle_Lune> Battle_Lune::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
+Shared<PB_Lune> PB_Lune::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
-    auto instance = make_shared<Battle_Lune>(device, context);
+    auto instance = make_shared<PB_Lune>(device, context);
 
     if (FAILED(instance->Initialize_Prototype()))
     {
-        LOG_ERROR("Failed to Created : Battle_Lune");
+        LOG_ERROR("Failed to Created : PB_Lune");
         return nullptr;
     }
 
     return instance;
 }
 
-Shared<GameObject> Battle_Lune::Clone(void* arg)
+Shared<GameObject> PB_Lune::Clone(void* arg)
 {
-    auto clone = make_shared<Battle_Lune>(*this);
+    auto clone = make_shared<PB_Lune>(*this);
 
     if (FAILED(clone->Initialize(arg)))
     {
-        MSG_BOX("Failed to Cloned : Battle_Lune");
+        MSG_BOX("Failed to Cloned : PB_Lune");
         return nullptr;
     }
 
     return clone;
 }
 
-void Battle_Lune::Free()
+void PB_Lune::Free()
 {
     Player_BattleBase::Free();
 }

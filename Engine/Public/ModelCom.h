@@ -216,6 +216,14 @@ private:
     vector<uint32>                      _stateAnimIndices;
     unordered_map<string, uint32>       _mappedAnimIndices;
 
+    struct AppliedMaterialAsset
+    {
+        string bundleKey{};
+        string assetName{};
+    };
+
+    vector<AppliedMaterialAsset>        _appliedMaterialAssets;
+
 private: /* For Animation Control */
     bool                                _isFinished{ false };
     bool						        _isAnimLoop{ false };

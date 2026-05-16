@@ -5,7 +5,7 @@
 
 NS_BEGIN(Client)
 
-class Player;
+class Player_WorldBase;
 class TargetCamera;
 class Body_Player;
 
@@ -48,17 +48,17 @@ public:
     // 셋 다 가져오기
     const vector<HeroPartyEntry>& Get_HeroEntries() const;
 
-    Shared<Player> Get_Hero(HeroPartySlot slot) const;
+    Shared<Player_WorldBase> Get_Hero(HeroPartySlot slot) const;
     HeroId Get_HeroId(HeroPartySlot slot) const;
 
     // 현재 플레이중인 Hero
     HeroPartySlot Get_ActiveHeroSlot() const;
-    Shared<Player> Get_ActiveHero() const;
+    Shared<Player_WorldBase> Get_ActiveHero() const;
 
     // 스테이터스 찍을 때 Front로 들어간 구스타브 포커싱되게
-    Shared<Player> Get_FrontHero() const;
+    Shared<Player_WorldBase> Get_FrontHero() const;
 
-    Shared<Player> Find_Hero(HeroId heroId) const;
+    Shared<Player_WorldBase> Find_Hero(HeroId heroId) const;
 
     const HeroSpawnDesc* Find_HeroSpawnDesc(HeroId heroId);
 
@@ -75,7 +75,7 @@ private:
                 Vec3 anchorRight);
 
     Vec3    Resolve_SnapPosition(
-                const Shared<Player>& hero,
+                const Shared<Player_WorldBase>& hero,
                 const Vec3& fromPos,
                 const Vec3& desiredPos) const;
 
@@ -87,7 +87,7 @@ private:
     TrailPoint    Get_TrailPoint(float delaySeconds) const;
 
     void    Move_FollowerTo(
-                const Shared<Player>& follower,
+                const Shared<Player_WorldBase>& follower,
                 uint32 followerIndex,
                 const Vec3& targetPos,
                 float timeDelta);

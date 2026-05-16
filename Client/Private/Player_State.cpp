@@ -5,10 +5,10 @@
 #include "PlayerControllerCom.h"
 #include "PlayerStateMachineCom.h"
 
-#include "Player.h"
+#include "Player_WorldBase.h"
 #include "Body_Player.h"
 
-Player_State::Player_State(const Shared<Player>& owner)
+Player_State::Player_State(const Shared<Player_WorldBase>& owner)
     : State{}
 {
     _owner = owner;
@@ -27,11 +27,11 @@ void Player_State::Begin_Play()
 
     _controllerCom = _owner.lock()->Get_Component<PlayerControllerCom>().get();
     if (nullptr == _controllerCom)
-        MSG_BOX("[PLAYER STATE] : Failed to Begin Player State");
+        MSG_BOX("[PLAYER STATE] : Failed to Begin Player_WorldBase State");
 
     _stateCom = _owner.lock()->Get_Component<PlayerStateMachineCom>().get();
     if (nullptr == _stateCom)
-        MSG_BOX("[PLAYER STATE] : Failed to Begin Player State");
+        MSG_BOX("[PLAYER STATE] : Failed to Begin Player_WorldBase State");
 
     _bodyPlayer = static_cast<Body_Player*>(_owner.lock()->Get_PartObject(L"Part_Body"));
 }

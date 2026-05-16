@@ -9,18 +9,23 @@ IMPLEMENT_REFLECTION(PlayerStatCom)
     info.className = "PlayerCombatStat";
     info.displayName = "PlayerCombat Stat";
 
-    PROPERTY_INT("Stat Point", _PRuntimeStat.CurStatPoint, 0.f, 999.f, 1.f);
-    PROPERTY_INT("Skill Point", _PRuntimeStat.CurSkillPoint, 0.f, 999.f, 1.f);
-    PROPERTY_INT("Respec Count", _PRuntimeStat.CurRespecCount, 0.f, 99.f, 1.f);
+     // 캐릭터별 초기 세팅값을 프리팹에서 직접 주기 위해
+    PROPERTY_INT("Level", _playerDesc.level, 1.f, 99.f, 1.f);
+    PROPERTY_INT("Exp", _playerDesc.exp, 0.f, 999999.f, 1.f);
 
-    PROPERTY_INT("Vitality", _PRuntimeStat.CurVitality, 0.f, 99.f, 1.f);
-    PROPERTY_INT("Might", _PRuntimeStat.CurMight, 0.f, 99.f, 1.f);
-    PROPERTY_INT("Agility", _PRuntimeStat.CurAgility, 0.f, 99.f, 1.f);
-    PROPERTY_INT("Defense", _PRuntimeStat.CurDefense, 0.f, 99.f, 1.f);
-    PROPERTY_INT("Luck", _PRuntimeStat.CurLuck, 0.f, 99.f, 1.f);
+    PROPERTY_INT("Stat Point", _playerDesc.statPoint, 0.f, 999.f, 1.f);
+    PROPERTY_INT("Skill Point", _playerDesc.skillPoint, 0.f, 999.f, 1.f);
+    PROPERTY_INT("Respec Count", _playerDesc.respecCount, 0.f, 99.f, 1.f);
 
-    PROPERTY_FLOAT("HP", _PRuntimeStat.CurHp, 0.f, 9999.f, 1.f);
-    PROPERTY_FLOAT("AP", _PRuntimeStat.CurAp, 0.f, 9.f, 1.f);
+    PROPERTY_INT("Vitality", _playerDesc.vitality, 0.f, 99.f, 1.f);
+    PROPERTY_INT("Might", _playerDesc.might, 0.f, 99.f, 1.f);
+    PROPERTY_INT("Agility", _playerDesc.agility, 0.f, 99.f, 1.f);
+    PROPERTY_INT("Defense", _playerDesc.defense, 0.f, 99.f, 1.f);
+    PROPERTY_INT("Luck", _playerDesc.luck, 0.f, 99.f, 1.f);
+
+    // 필요하면 테스트용으로 기본 전투값도 프리팹에서 분리 가능
+    PROPERTY_FLOAT("Base Max HP", _playerDesc.maxHp, 0.f, 9999.f, 1.f);
+    PROPERTY_INT("Base Max AP", _playerDesc.maxAp, 0.f, 99.f, 1.f);
 
     return true;
 }
@@ -58,6 +63,7 @@ HRESULT PlayerStatCom::Initialize(void* arg)
         _playerDesc = desc;
     }
 
+    // desc -> runtime 초기 반영
     _PRuntimeStat.CurStatPoint = _playerDesc.statPoint;
     _PRuntimeStat.CurSkillPoint = _playerDesc.skillPoint;
     _PRuntimeStat.CurRespecCount = _playerDesc.respecCount;
@@ -74,43 +80,39 @@ HRESULT PlayerStatCom::Initialize(void* arg)
 
     _PRuntimeStat.CurMaxHp = _playerDesc.maxHp;
     _PRuntimeStat.CurMaxAp = _playerDesc.maxAp;
-   
-    _PRuntimeStat.CurAccuracy = _playerDesc.accuracy;
-    _PRuntimeStat.CurMastery = _playerDesc.mastery;
-    _PRuntimeStat.CurCriticalRate = _playerDesc.criticalRate;
-    _PRuntimeStat.CurCriticalChance = _playerDesc.criticalRate;
 
-
-    {
-        _PRuntimeStat.CurHp = _playerDesc.maxHp;
-        _PRuntimeStat.CurAp = _playerDesc.maxAp;
-        _PRuntimeStat.CurShield = _playerDesc.commonCharacterStats.ShieldPointsAtSpawn;
-        _PRuntimeStat.physicalAttack = _playerDesc.physicalAttack;
-        _PRuntimeStat.physicalDefense = _playerDesc.physicalDefense;
-    }
-    //_PRuntimeStat.CurShield = _runtimeStat.CurShield;
-
-
-    /*  float CurHp = {};
-        uint32 CurShield = {};
-        uint32 CurAp = {};
-
-        float physicalAttack = 0.f;
-        float physicalDefense = 0.f;
-
-        float CurSpeed = 0.f;
-        이거 뺴고 다 */
-
-    Recalculate_Stats();
-
-   // _PRuntimeStat.CurHp = _runtimeStat.CurHp;
-   // _PRuntimeStat.CurAp = _runtimeStat.CurAp;
-
-    Update_StatInfo();
+    Recalculate_Stats(); // 활력/무력/민첩/방어/행운으로 재계산
+    Update_StatInfo();   // UI가 읽는 CurMaxHp, CurAttack, CurSpeed 값 갱신용
 
     _isPlayer = true;
 
     return S_OK;
+}
+
+void PlayerStatCom::From_Json(const json& data)
+{
+    CombatStatCom::From_Json(data);
+
+    _PRuntimeStat.CurStatPoint = _playerDesc.statPoint;
+    _PRuntimeStat.CurSkillPoint = _playerDesc.skillPoint;
+    _PRuntimeStat.CurRespecCount = _playerDesc.respecCount;
+
+    _PRuntimeStat.CurVitality = _playerDesc.vitality;
+    _PRuntimeStat.CurMight = _playerDesc.might;
+    _PRuntimeStat.CurAgility = _playerDesc.agility;
+    _PRuntimeStat.CurDefense = _playerDesc.defense;
+    _PRuntimeStat.CurLuck = _playerDesc.luck;
+
+    _PRuntimeStat.CurLevel = _playerDesc.level;
+    _PRuntimeStat.CurExp = _playerDesc.exp;
+    _PRuntimeStat.CurChroma = _playerDesc.chroma;
+
+    _PRuntimeStat.CurHp = _playerDesc.maxHp; // 테스트는 캐릭터별 풀피 상태로 통일
+    _PRuntimeStat.CurAp = _playerDesc.maxAp;
+    _PRuntimeStat.CurShield = _playerDesc.commonCharacterStats.ShieldPointsAtSpawn;
+
+    Recalculate_Stats(); // desc 기준 파생 스탯 확정
+    Update_StatInfo();   // CharacterStatus가 읽는 값 최종 반영
 }
 
 bool PlayerStatCom::Add_Stat(StatType type, int32 value)

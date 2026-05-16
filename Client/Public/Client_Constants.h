@@ -23,3 +23,17 @@ namespace Client::Constants::Charcter
 {
     inline constexpr int32 scaleOffset = 10000;
 }
+
+namespace Client::Constants::Prefab
+{
+    inline constexpr char PW_Gustave[]  = "PW_Gustave";
+    inline constexpr char PW_Lune[]     = "PW_Lune";
+    inline constexpr char PW_Maelle[]   = "PW_Maelle";
+
+    inline constexpr char PB_Gustave[]  = "PB_Gustave";
+    inline constexpr char PB_Lune[]     = "PB_Lune";
+    inline constexpr char PB_Maelle[]   = "PB_Maelle";
+
+    inline constexpr char MW_Lancelier[] = "MW_Lancelier";
+    inline constexpr char MB_Lancelier[] = "MB_Lancelier";
+}

@@ -26,6 +26,9 @@ void Prefab_View::Update(float timeDelta)
 {
     Editor_Window::Update(timeDelta);
 
+    if (EDITOR->IsPlaying())
+        return;
+
     if (Is_AnimationViewFocused())
         return;
 
@@ -36,6 +39,9 @@ void Prefab_View::Update(float timeDelta)
 void Prefab_View::Pre_Render()
 {
     if (!Is_Open())
+        return;
+
+    if (EDITOR->IsPlaying())
         return;
 
     if (Is_AnimationViewFocused())
@@ -58,6 +64,7 @@ void Prefab_View::Pre_Render()
 
     const Matrix savedView = *GAME->Get_Transform(D3DTS::View);
     const Matrix savedProj = *GAME->Get_Transform(D3DTS::Proj);
+
     vector<LIGHT_DESC> savedLightDescs{};
     GAME->Get_LightDescs(savedLightDescs);
     const bool wasPlayerInputBlocked = GAME->Is_PlayerInputBlocked();
@@ -99,6 +106,7 @@ void Prefab_View::Pre_Render()
 
     _previewObject->Priority_Update(dt);
     _previewObject->Update(dt);
+    GAME->Backup_RenderGroup();
     _previewObject->Late_Update(dt);
     Lock_PreviewObjectToOrigin();
 
@@ -108,7 +116,8 @@ void Prefab_View::Pre_Render()
         _requestResetPreviewCamera = false;
     }
 
-    GAME->Draw_RendererOnly();
+    GAME->Draw_Preview();
+    GAME->Restore_RenderGroup();
 
     if (_showPrefabCollider)
         Draw_PreviewColliders(_previewObject);

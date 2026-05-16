@@ -4,7 +4,10 @@
 
 NS_BEGIN(Engine)
 
-class ENGINE_DLL Character : public ContainerObject
+class ModelCom;
+class PartObject;
+
+class ENGINE_DLL Character abstract : public ContainerObject
 {
 public:
     Character(const ComPtr<Device>& device, const ComPtr<Context>& context);
@@ -17,6 +20,7 @@ public:
     void    BeginPlay() override;
 
 public:
+    void Free() override;
 
 };
 

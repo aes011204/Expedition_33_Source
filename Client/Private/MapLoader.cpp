@@ -2,8 +2,10 @@
 #include "GameInstance.h"
 #include "MapStaticMesh.h"
 #include "MapInstancedMesh.h"
+#include "ModelCom.h"
 
-HRESULT MapLoader::Load(const ComPtr<Device>& device, const ComPtr<Context>& context, const wstring& filePath, uint32 levelIndex, const wstring& layerTag)
+HRESULT MapLoader::Begin_LoadSession(const ComPtr<Device>& device, const ComPtr<Context>& context,
+    const wstring& filePath, uint32 levelIndex, const wstring& layerTag, LoadSession& outSession)
 {
     string pathA = String::ToString(filePath);
     ifstream ifs(pathA);
@@ -13,178 +15,348 @@ HRESULT MapLoader::Load(const ComPtr<Device>& device, const ComPtr<Context>& con
     json root = json::parse(ifs);
     const json& mapData = root["MapData"];
 
-    if (!mapData.contains("StaticMeshes"))
-        return S_OK;
+    outSession = {};
+    outSession.device = device;
+    outSession.context = context;
+    outSession.levelIndex = levelIndex;
+    outSession.layerTag = layerTag;
+    outSession.modelFolder = mapData.value("ModelFolder", string{});
 
-    unordered_map<string, Shared<ModelCom>> modelCache;
-    string modelFolder = mapData.value("ModelFolder", string{});
-
-    auto ApplyMaterials = [&](Shared<ModelCom>& model, const string& modelFullPath)
-        {
-            if (modelFolder.empty())
-            {
-                return;
-            }
-
-            string bundleKey = modelFolder;
-            transform(bundleKey.begin(), bundleKey.end(), bundleKey.begin(), ::tolower);
-
-            fs::path jsonPath = fs::path(modelFullPath).replace_extension(".json");
-            ifstream jfs(jsonPath);
-            if (!jfs.is_open())
-            {
-                return;
-            }
-
-            try
-            {
-                json modelJson = json::parse(jfs);
-                for (auto& entry : modelJson)
-                {
-                    if (entry.value("Type", "") != "StaticMesh")
-                    {
-                        continue;
-                    }
-
-                    if (!entry.contains("Properties") || !entry["Properties"].contains("StaticMaterials"))
-                    {
-                        break;
-                    }
-
-                    const auto& staticMats = entry["Properties"]["StaticMaterials"];
-                    for (uint32 i = 0; i < static_cast<uint32>(staticMats.size()); ++i)
-                    {
-                        const auto& mat = staticMats[i];
-                        if (!mat.contains("MaterialInterface"))
-                        {
-                            continue;
-                        }
-
-                        const auto& mi = mat["MaterialInterface"];
-                        if (!mi.is_object())
-                        {
-                            continue;
-                        }
-
-                        string objectPath = mi.value("ObjectPath", "");
-                        if (objectPath.empty())
-                        {
-                            continue;
-                        }
-
-                        size_t dot = objectPath.find('.');
-                        string packagePath = (dot != string::npos) ? objectPath.substr(0, dot) : objectPath;
-                        size_t slash = packagePath.rfind('/');
-                        string miName = (slash != string::npos) ? packagePath.substr(slash + 1) : packagePath;
-                        model->Apply_MaterialByAssetName(i, bundleKey, miName);
-                    }
-                    break;
-                }
-            }
-            catch (...) {}
-        };
-
-    for (auto& e : mapData["StaticMeshes"])
+    if (mapData.contains("StaticMeshes"))
     {
-        string modelPathStr = e.value("ModelPath", string{});
-        if (modelPathStr.empty())
-            continue;
-
-        MapStaticMesh::MAPSTATICMESH_DESC desc{};
-
-        auto it = modelCache.find(modelPathStr);
-        if (it != modelCache.end())
+        for (const json& item : mapData["StaticMeshes"])
         {
-            desc.model = it->second;
-        }
-        else
-        {
-            string fullPathA = "../../../Client/Bin/Resources/Map/" + modelFolder + "/" + modelPathStr;
-            wstring fullPathW = String::ToWString(fullPathA);
-            auto model = ModelCom::Create(device, context, ModelType::NonAnim, fullPathA.c_str(), Matrix::CreateScale(0.01f));
-            if (!model)
-                continue;
-            modelCache[modelPathStr] = model;
-            ApplyMaterials(model, fullPathA);
-            desc.model = model;
-        }
+            outSession.staticMeshes.push_back(item);
 
-        desc.modelPath = {};
-
-        auto& pos = e["Position"];
-        desc.position = Vec3(pos[0], pos[1], pos[2]);
-
-        auto& rot = e["Rotation"];
-        desc.rotation = Quat(rot[0], rot[1], rot[2], rot[3]);
-
-        auto& scl = e["Scale"];
-        desc.scale = Vec3(scl[0], scl[1], scl[2]);
-
-        if (FAILED(GAME->Add_GameObject(ETOI(LevelType::Static), TEXT("GameObject_MapStaticMesh"),
-            levelIndex, layerTag, &desc)))
-        {
-            continue;
+            const string modelPath = item.value("ModelPath", string{});
+            if (!modelPath.empty() &&
+                find(outSession.preloadModelPaths.begin(), outSession.preloadModelPaths.end(), modelPath) == outSession.preloadModelPaths.end())
+            {
+                outSession.preloadModelPaths.push_back(modelPath);
+            }
         }
     }
 
     if (mapData.contains("InstancedMeshes"))
     {
-        unordered_map<string, Shared<ModelCom>> instancedModelCache;
-
-        for (auto& e : mapData["InstancedMeshes"])
+        for (const json& item : mapData["InstancedMeshes"])
         {
-            string modelPathStr = e.value("ModelPath", string{});
-            if (modelPathStr.empty())
+            outSession.instancedMeshes.push_back(item);
+
+            const string modelPath = item.value("ModelPath", string{});
+            if (!modelPath.empty() &&
+                find(outSession.preloadModelPaths.begin(), outSession.preloadModelPaths.end(), modelPath) == outSession.preloadModelPaths.end())
             {
-                continue;
+                outSession.preloadModelPaths.push_back(modelPath);
             }
-
-            MapInstancedMesh::MAPINSTANCEDMESH_DESC desc{};
-
-            auto it = instancedModelCache.find(modelPathStr);
-            if (it != instancedModelCache.end())
-            {
-                desc.model = it->second;
-            }
-            else
-            {
-                string fullPathA = "../../../Client/Bin/Resources/Map/" + modelFolder + "/" + modelPathStr;
-                auto model = ModelCom::Create(device, context, ModelType::NonAnim, fullPathA.c_str(), Matrix::CreateScale(0.01f));
-                if (!model)
-                {
-                    continue;
-                }
-
-                instancedModelCache[modelPathStr] = model;
-                ApplyMaterials(model, fullPathA);
-                desc.model = model;
-            }
-
-            if (e.contains("Instances"))
-            {
-                for (auto& inst : e["Instances"])
-                {
-                    InstanceTransform t{};
-                    auto& p = inst["Position"];
-                    t._position = { p[0], p[1], p[2] };
-                    auto& r = inst["Rotation"];
-                    t._rotation = { r[0], r[1], r[2], r[3] };
-                    auto& s = inst["Scale"];
-                    t._scale = { s[0], s[1], s[2] };
-                    desc.transforms.push_back(t);
-                }
-            }
-
-            if (desc.transforms.empty())
-            {
-                continue;
-            }
-
-            GAME->Add_GameObject(ETOI(LevelType::Static), TEXT("GameObject_MapInstancedMesh"),
-                levelIndex, layerTag, &desc);
         }
     }
 
+    outSession.preloadModelsDone = outSession.preloadModelPaths.empty();
+    outSession.staticMeshesDone = outSession.staticMeshes.empty();
+    outSession.instancedMeshesDone = outSession.instancedMeshes.empty();
+
+    return S_OK;
+}
+
+HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPerFrame,
+    chrono::milliseconds maxTimePerFrame, bool& outFinished)
+{
+    outFinished = false;
+
+    const auto begin = chrono::steady_clock::now();
+    size_t processedCount = 0;
+
+    auto IsBudgetExceeded = [&]() -> bool
+        {
+            if (processedCount >= maxMeshesPerFrame)
+                return true;
+
+            if (processedCount > 0 &&
+                maxTimePerFrame.count() > 0 &&
+                chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - begin) >= maxTimePerFrame)
+                return true;
+
+            return false;
+        };
+
+    while (!session.preloadModelsDone)
+    {
+        if (IsBudgetExceeded())
+            return S_OK;
+
+        if (session.nextPreloadModelIndex >= session.preloadModelPaths.size())
+        {
+            session.preloadModelsDone = true;
+            break;
+        }
+
+        const string modelPathStr = session.preloadModelPaths[session.nextPreloadModelIndex++];
+        if (modelPathStr.empty() ||
+            session.preloadedModelCache.find(modelPathStr) != session.preloadedModelCache.end())
+        {
+            continue;
+        }
+
+        string fullPathA = "../../../Client/Bin/Resources/Map/" + session.modelFolder + "/" + modelPathStr;
+
+        auto model = ModelCom::Create(
+            session.device,
+            session.context,
+            ModelType::NonAnim,
+            fullPathA.c_str(),
+            Matrix::CreateScale(0.01f));
+
+        if (!model)
+            continue;
+
+        ApplyMaterials(model, session.modelFolder, fullPathA);
+        session.preloadedModelCache[modelPathStr] = model;
+
+        ++processedCount;
+    }
+
+    while (!session.staticMeshesDone)
+    {
+        if (IsBudgetExceeded())
+            return S_OK;
+
+        if (session.nextStaticMeshIndex >= session.staticMeshes.size())
+        {
+            session.staticMeshesDone = true;
+            break;
+        }
+
+        const json& e = session.staticMeshes[session.nextStaticMeshIndex++];
+        const string modelPathStr = e.value("ModelPath", string{});
+        if (modelPathStr.empty())
+            continue;
+
+        MapStaticMesh::MAPSTATICMESH_DESC desc{};
+
+        auto it = session.preloadedModelCache.find(modelPathStr);
+        if (it != session.preloadedModelCache.end())
+        {
+            desc.model = it->second;
+        }
+        else
+        {
+            string fullPathA = "../../../Client/Bin/Resources/Map/" + session.modelFolder + "/" + modelPathStr;
+
+            auto model = ModelCom::Create(
+                session.device,
+                session.context,
+                ModelType::NonAnim,
+                fullPathA.c_str(),
+                Matrix::CreateScale(0.01f));
+
+            if (!model)
+                continue;
+
+            ApplyMaterials(model, session.modelFolder, fullPathA);
+            session.preloadedModelCache[modelPathStr] = model;
+            desc.model = model;
+        }
+
+        desc.modelPath = {};
+
+        const auto& pos = e["Position"];
+        desc.position = Vec3(
+            pos[0].get<float>(),
+            pos[1].get<float>(),
+            pos[2].get<float>());
+
+        const auto& rot = e["Rotation"];
+        desc.rotation = Quat(
+            rot[0].get<float>(),
+            rot[1].get<float>(),
+            rot[2].get<float>(),
+            rot[3].get<float>());
+
+        const auto& scl = e["Scale"];
+        desc.scale = Vec3(
+            scl[0].get<float>(),
+            scl[1].get<float>(),
+            scl[2].get<float>());
+
+        if (FAILED(GAME->Add_GameObject(
+            ETOI(LevelType::Static),
+            TEXT("GameObject_MapStaticMesh"),
+            session.levelIndex,
+            session.layerTag,
+            &desc)))
+        {
+            continue;
+        }
+
+        ++processedCount;
+    }
+
+    while (!session.instancedMeshesDone)
+    {
+        if (IsBudgetExceeded())
+            return S_OK;
+
+        if (session.nextInstancedMeshIndex >= session.instancedMeshes.size())
+        {
+            session.instancedMeshesDone = true;
+            break;
+        }
+
+        const json& e = session.instancedMeshes[session.nextInstancedMeshIndex++];
+        const string modelPathStr = e.value("ModelPath", string{});
+        if (modelPathStr.empty())
+            continue;
+
+        MapInstancedMesh::MAPINSTANCEDMESH_DESC desc{};
+
+        auto it = session.preloadedModelCache.find(modelPathStr);
+        if (it != session.preloadedModelCache.end())
+        {
+            desc.model = it->second;
+        }
+        else
+        {
+            string fullPathA = "../../../Client/Bin/Resources/Map/" + session.modelFolder + "/" + modelPathStr;
+
+            auto model = ModelCom::Create(
+                session.device,
+                session.context,
+                ModelType::NonAnim,
+                fullPathA.c_str(),
+                Matrix::CreateScale(0.01f));
+
+            if (!model)
+                continue;
+
+            ApplyMaterials(model, session.modelFolder, fullPathA);
+            session.preloadedModelCache[modelPathStr] = model;
+            desc.model = model;
+        }
+
+        if (e.contains("Instances"))
+        {
+            for (const auto& inst : e["Instances"])
+            {
+                InstanceTransform t{};
+
+                const auto& p = inst["Position"];
+                t._position = Vec3(
+                    p[0].get<float>(),
+                    p[1].get<float>(),
+                    p[2].get<float>());
+
+                const auto& r = inst["Rotation"];
+                t._rotation = Vec4(
+                    r[0].get<float>(),
+                    r[1].get<float>(),
+                    r[2].get<float>(),
+                    r[3].get<float>());
+
+                const auto& s = inst["Scale"];
+                t._scale = Vec3(
+                    s[0].get<float>(),
+                    s[1].get<float>(),
+                    s[2].get<float>());
+
+                desc.transforms.push_back(t);
+            }
+        }
+
+        if (desc.transforms.empty())
+            continue;
+
+        GAME->Add_GameObject(
+            ETOI(LevelType::Static),
+            TEXT("GameObject_MapInstancedMesh"),
+            session.levelIndex,
+            session.layerTag,
+            &desc);
+
+        ++processedCount;
+    }
+
+    outFinished = session.preloadModelsDone && session.staticMeshesDone && session.instancedMeshesDone;
+    return S_OK;
+}
+
+void MapLoader::ApplyMaterials(Shared<ModelCom>& model, const string& modelFolder, const string& modelFullPath)
+{
+    if (model == nullptr)
+        return;
+
+    if (modelFolder.empty())
+        return;
+
+    string bundleKey = modelFolder;
+    transform(bundleKey.begin(), bundleKey.end(), bundleKey.begin(), ::tolower);
+
+    fs::path jsonPath = fs::path(modelFullPath).replace_extension(".json");
+    ifstream jfs(jsonPath);
+    if (!jfs.is_open())
+        return;
+
+    try
+    {
+        json modelJson = json::parse(jfs);
+
+        for (auto& entry : modelJson)
+        {
+            if (entry.value("Type", "") != "StaticMesh")
+                continue;
+
+            if (!entry.contains("Properties") ||
+                !entry["Properties"].contains("StaticMaterials"))
+            {
+                break;
+            }
+
+            const auto& staticMats = entry["Properties"]["StaticMaterials"];
+
+            for (uint32 i = 0; i < static_cast<uint32>(staticMats.size()); ++i)
+            {
+                const auto& mat = staticMats[i];
+                if (!mat.contains("MaterialInterface"))
+                    continue;
+
+                const auto& mi = mat["MaterialInterface"];
+                if (!mi.is_object())
+                    continue;
+
+                string objectPath = mi.value("ObjectPath", "");
+                if (objectPath.empty())
+                    continue;
+
+                size_t dot = objectPath.find('.');
+                string packagePath = (dot != string::npos)
+                    ? objectPath.substr(0, dot)
+                    : objectPath;
+
+                size_t slash = packagePath.rfind('/');
+                string miName = (slash != string::npos)
+                    ? packagePath.substr(slash + 1)
+                    : packagePath;
+
+                model->Apply_MaterialByAssetName(i, bundleKey, miName);
+            }
+
+            break;
+        }
+    }
+    catch (...)
+    {
+    }
+
+}
+
+HRESULT MapLoader::Load(const ComPtr<Device>& device, const ComPtr<Context>& context, const wstring& filePath, uint32 levelIndex, const wstring& layerTag)
+{
+    LoadSession session{};
+    CHECK_FAILED(Begin_LoadSession(device, context, filePath, levelIndex, layerTag, session), E_FAIL);
+
+    bool finished = false;
+    while (!finished)
+        CHECK_FAILED(Process_LoadSession(session, SIZE_MAX, chrono::milliseconds(0), finished), E_FAIL);
 
     return S_OK;
 }

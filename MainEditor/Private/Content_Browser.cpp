@@ -6,6 +6,7 @@
 #include "GameInstance.h"
 #include "Helper_String.h"
 #include "Texture.h"
+#include "BT_VIew.h"
 #include "Prefab_View.h"
 
 #include <fstream>
@@ -590,7 +591,18 @@ void Content_Browser::Draw_AssetView()
         // 더블클릭으로 프리펩 열기 / TODO : Behavior Tree 도 추가하기
         if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
         {
-            if (path.extension() == L".json" && fileName.ends_with(prefabSuffix))
+            // BT_*.json 은 Prefab_View가 아니라 BT_View에서 바로 연다.
+            if (path.extension() == L".json" && fileName.starts_with("BT_"))
+            {
+                Shared<Editor_Window> btWindowBase = EDITOR->Get_Window(L"BT View");
+                Shared<BT_View> btView = dynamic_pointer_cast<BT_View>(btWindowBase);
+
+                if (btView)
+                {
+                    btView->Open_BTAsset(path.string());
+                }
+            }
+            else if (path.extension() == L".json" && fileName.ends_with(prefabSuffix))
             {
                 Shared<Editor_Window> prefabWindowBase = EDITOR->Get_Window(L"Prefab");
                 Shared<Prefab_View> prefabView = dynamic_pointer_cast<Prefab_View>(prefabWindowBase);

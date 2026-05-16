@@ -158,6 +158,9 @@ void GameInstance::Update_Engine(float timeDelta)
 
 void GameInstance::Update_Engine(float timeDelta, const function<void(float)>& clientUpdate)
 {
+    _unscaledTimeDelta = timeDelta; // 배속 전
+    _worldTimeDelta = timeDelta * _worldTimeScale;
+
 #ifdef _DEBUG
     const auto updateBegin = chrono::steady_clock::now();
     double debugMgrMs = 0.0;
@@ -198,7 +201,7 @@ void GameInstance::Update_Engine(float timeDelta, const function<void(float)>& c
 #ifdef _DEBUG
         const auto clientBegin = chrono::steady_clock::now();
 #endif
-        clientUpdate(timeDelta);
+        clientUpdate(_worldTimeDelta);
 #ifdef _DEBUG
         clientMs = chrono::duration<double, milli>(chrono::steady_clock::now() - clientBegin).count();
 #endif
@@ -207,7 +210,7 @@ void GameInstance::Update_Engine(float timeDelta, const function<void(float)>& c
 #ifdef _DEBUG
     const auto levelBegin = chrono::steady_clock::now();
 #endif
-    _levelManager->Update(timeDelta);
+    _levelManager->Update(_worldTimeDelta);
 #ifdef _DEBUG
     levelMs = chrono::duration<double, milli>(chrono::steady_clock::now() - levelBegin).count();
 #endif
@@ -218,7 +221,7 @@ void GameInstance::Update_Engine(float timeDelta, const function<void(float)>& c
 #ifdef _DEBUG
         const auto priorityObjBegin = chrono::steady_clock::now();
 #endif
-        _objectManager->Priority_Update(timeDelta);
+        _objectManager->Priority_Update(_worldTimeDelta);
 #ifdef _DEBUG
         priorityObjMs = chrono::duration<double, milli>(chrono::steady_clock::now() - priorityObjBegin).count();
 
@@ -232,7 +235,7 @@ void GameInstance::Update_Engine(float timeDelta, const function<void(float)>& c
         const auto objBegin = chrono::steady_clock::now();
 #endif
 
-        _objectManager->Update(timeDelta);
+        _objectManager->Update(_worldTimeDelta);
 #ifdef _DEBUG
         objMs = chrono::duration<double, milli>(chrono::steady_clock::now() - objBegin).count();
 
@@ -251,14 +254,14 @@ void GameInstance::Update_Engine(float timeDelta, const function<void(float)>& c
 
         const auto lateObjBegin = chrono::steady_clock::now();
 #endif
-        _objectManager->Late_Update(timeDelta);
+        _objectManager->Late_Update(_worldTimeDelta);
 #ifdef _DEBUG
         lateObjMs = chrono::duration<double, milli>(chrono::steady_clock::now() - lateObjBegin).count();
 
         const auto physxUpdateBegin = chrono::steady_clock::now();
 #endif
 
-        _physxManager->Update(timeDelta);
+        _physxManager->Update(_worldTimeDelta);
 #ifdef _DEBUG
         physxUpdateMs = chrono::duration<double, milli>(chrono::steady_clock::now() - physxUpdateBegin).count();
 #endif
@@ -280,7 +283,7 @@ void GameInstance::Update_Engine(float timeDelta, const function<void(float)>& c
         const auto cameraBegin = chrono::steady_clock::now();
 #endif
 
-        _cameraManager->Update(timeDelta);
+        _cameraManager->Update(_worldTimeDelta);
 #ifdef _DEBUG
         cameraMs = chrono::duration<double, milli>(chrono::steady_clock::now() - cameraBegin).count();
 #endif
@@ -356,6 +359,31 @@ HRESULT GameInstance::Draw_RendererOnly()
     _renderer->Draw();
 
     return S_OK;
+}
+
+HRESULT GameInstance::Draw_Preview()
+{
+    _renderer->Draw_Preview();
+
+    return S_OK;
+}
+
+void GameInstance::Backup_RenderGroup()
+{
+    if (_renderer)
+        _renderer->Backup_RenderGroups();
+}
+
+void GameInstance::Restore_RenderGroup()
+{
+    if (_renderer)
+        _renderer->Restore_RenderGroups();
+}
+
+void GameInstance::Set_PreviewDeferredCombine(bool enable)
+{
+    if (_renderer)
+        _renderer->Set_PreviewDeferredCombine(enable);
 }
 
 #ifdef _DEBUG
@@ -657,6 +685,11 @@ float GameInstance::Random(float min, float max)
     return min + static_cast<float>(rand()) / RAND_MAX * (max - min);
 }
 
+void GameInstance::Set_WorldTimeScale(float timeScale)
+{
+    _worldTimeScale = ::clamp(timeScale, 0.f, 8.f);
+}
+
 void GameInstance::Log_FileOnly(const spdlog::source_loc& sourceLoc, spdlog::level::level_enum level, const string& message) const
 {
     CHECK_NULL(_logManager);
@@ -939,7 +972,8 @@ HRESULT GameInstance::Bind_CameraCB(Shared<ShaderCom> shader) const
     CHECK_NULL(_cameraManager, E_FAIL);
 
     Shared<Camera> activeCamera = _cameraManager->Get_ActiveCamera();
-    CHECK_NULL(activeCamera, E_FAIL);
+    if (activeCamera == nullptr)
+        return E_FAIL;
 
     return _pipeLine->Bind_CameraCB(shader.get(), activeCamera->Get_Far());
 }

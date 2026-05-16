@@ -1,6 +1,6 @@
 ﻿#pragma once
 
-#include "Character.h"
+#include "Character_BattleBase.h"
 
 NS_BEGIN(Engine)
 class ColliderCom;
@@ -13,7 +13,7 @@ class Body_Player;
 class Head_Player;
 class Hair_Player;
 
-class Player_BattleBase : public Character
+class Player_BattleBase : public Character_BattleBase
 {
 public:
     Player_BattleBase(const ComPtr<Device>& device, const ComPtr<Context>& context);
@@ -30,16 +30,15 @@ public:
 protected:
     HRESULT Ready_Components();
     HRESULT Ready_PartObjects();
-    HRESULT Ready_Collider();
 
     virtual HairChainPhysicsDesc Get_HairChainPhysicsDesc() const { return {}; }
+
     virtual const wchar_t* Get_BodyModelTag() const = 0;
     virtual const wchar_t* Get_HeadModelTag() const = 0;
     virtual const wchar_t* Get_HairModelTag() const = 0;
 
 protected:
     Shared<PlayerStatCom>   _combatStatCom;
-    Shared<ColliderCom>     _colliderCom;
 
 public:
     enum class PlayerBattleState
