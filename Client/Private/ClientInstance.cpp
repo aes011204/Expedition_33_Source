@@ -210,6 +210,11 @@ bool ClientInstance::Is_BattleActive() const
     return _battleController && _battleController->Is_BattleStarted();
 }
 
+bool ClientInstance::Is_BattleEntering() const
+{
+    return _battleController && _battleController->Is_BattleEntering();
+}
+
 Shared<GameObject> ClientInstance::Find_Player(uint32 levelIndex)
 {
     if (_heroManager)

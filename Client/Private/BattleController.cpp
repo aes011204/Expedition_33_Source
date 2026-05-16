@@ -47,6 +47,20 @@ HRESULT BattleController::Initialize()
 
 void BattleController::Update(float timeDelta)
 {
+    if (_isBattleEntering)
+    {
+        // 슬로우 모션 지속시간은 월드 배속 안받은 Unscaled Time 가져오기
+        _battleEnterElapsed += GAME->Get_UnscaledTimeDelta();
+
+        if (_battleEnterElapsed >= _battleEnterDuration)
+        {
+            GAME->Set_WorldTimeScale(_resetWorldTime);
+            Complete_BattleField();
+        }
+
+        return;
+    }
+
     if (_battleEnded == true)
         return;
 
@@ -85,49 +99,34 @@ void BattleController::Run_EnemyTurn()
 void BattleController::OnEnterBattleField(uint32 FieldID, bool IsFirstHero, const vector<HeroId>& heroIds,
     vector<string>& battleMonsterPrefabNames)
 {
-	if (_isBattleActive)
+    if (_isBattleActive || _isBattleEntering)
         return;
 
-    _isBattleActive = true;
+    _isBattleEntering = true;
+    _battleEnterElapsed = 0.f;
     _battleEnded = false;
     _pendingNextTurn = false;
 
+    // 2초 뒤 실제 배틀 생성 데이터 추가
+    _pendingBattleFieldID = FieldID;
+    _pendingBattleIsFirstHero = IsFirstHero;
+    _pendingBattleHeroIds = heroIds;
+    _pendingBattleMonsterPrefabNames = battleMonsterPrefabNames;
+
 	// 월드 캐릭터 입력 막기
 	GAME->Set_PlayerInputBlocked(true);
-	_worldCameraBeforeBattle = GAME->Get_ActiveCamera();
-
-    // 현제 케릭 아이디 , 적 아이디로 전투 용 객체 생성
-    Create_BattleChar(heroIds, battleMonsterPrefabNames);
-
-    // 초기 플레이 순서 지정
-    Build_InitialTurnQueue(IsFirstHero);
-
-    // 들어온 캐릭터들의 위치 셋팅
-    // FieldID로 
-    SetCharInitPos();
-
-	if (FAILED(Ready_BattleTurnCamera()))
-	{
-		LOG_ERROR("Create Failed : Battle Camera");
-
-		Restore_WorldCamera();
-		_isBattleActive = false;
-		_battleEnded = true;
-
-		_heroes.clear();
-		_enemies.clear();
-		return;
-	}
-
-    Activate_BattleTurnCamera();
-
-    // 턴 시작
-    StartTurn();
+	_worldCamera = GAME->Get_ActiveCamera();
+    _resetWorldTime = GAME->Get_WorldTimeScale(); // 전투 진입 슬로우모션이 끝나면 기존 월드 배속으로 복구한다.
+    GAME->Set_WorldTimeScale(_battleEnterWorldTimeScale);
 }
 
 EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
 {
     _isBattleActive = false;
+    _isBattleEntering = false;
+
+    // 전투 종료 시 슬로우모션 값이 남지 않도록 복구
+    GAME->Set_WorldTimeScale(_resetWorldTime);
 
 	Restore_WorldCamera(); // 카메라 복구
 
@@ -137,6 +136,9 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
 
     _heroes.clear();
     _enemies.clear();
+
+    Clear_BattleEnterPending();
+
     return result;
 }
 
@@ -410,11 +412,15 @@ vector<BattleChar> BattleController::Get_AliveHeroes()
 
 void BattleController::Handle_EditorStopRuntime()
 {
+    GAME->Set_WorldTimeScale(1.f);
+    GAME->Set_PlayerInputBlocked(false);
+
     _turnAction = {};
     _currentTurnActor = {};
     _pendingNextTurn = false;
     _battleEnded = false;
     _isBattleActive = false;
+    _isBattleEntering = false;
     currentTurnIndex = 0;
     _battleTime = 0.f;
     _flag = false;
@@ -426,6 +432,9 @@ void BattleController::Handle_EditorStopRuntime()
 
     _heroes.clear();
     _enemies.clear();
+
+    Clear_BattleEnterPending();
+    Restore_WorldCamera();
 
     if (_battleFSM)
         _battleFSM->Change_State(BattleTurnState::ChooseAction);
@@ -580,11 +589,69 @@ void BattleController::Activate_BattleTurnCamera()
 
 void BattleController::Restore_WorldCamera()
 {
-	if (_worldCameraBeforeBattle)
-        GAME->Change_ActiveCamera(_worldCameraBeforeBattle);
+	if (_worldCamera)
+        GAME->Change_ActiveCamera(_worldCamera);
 
     GAME->Set_PlayerInputBlocked(false);
-    _worldCameraBeforeBattle.reset();
+    _worldCamera.reset();
+}
+
+void BattleController::Complete_BattleField()
+{
+    if (_isBattleActive)
+    {
+        Clear_BattleEnterPending();
+        return;
+    }
+
+    _isBattleActive = true;
+    _isBattleEntering = false;
+    _battleEnded = false;
+    _pendingNextTurn = false;
+
+    // 카메라 저장
+    _worldCamera = GAME->Get_ActiveCamera();
+
+    // 현제 케릭 아이디 , 적 아이디로 전투 용 객체 생성
+    Create_BattleChar(_pendingBattleHeroIds, _pendingBattleMonsterPrefabNames);
+
+    // 초기 플레이 순서 지정
+    Build_InitialTurnQueue(_pendingBattleIsFirstHero);
+
+    // 들어온 캐릭터들의 위치 셋팅
+    // FieldID로 
+    SetCharInitPos();
+
+	if (FAILED(Ready_BattleTurnCamera()))
+	{
+		LOG_ERROR("Create Failed : Battle Camera");
+
+		Restore_WorldCamera();
+		_isBattleActive = false;
+		_battleEnded = true;
+
+		_heroes.clear();
+		_enemies.clear();
+        Clear_BattleEnterPending();
+		return;
+	}
+
+    Activate_BattleTurnCamera();
+    Clear_BattleEnterPending();
+
+    // 턴 시작
+    StartTurn();
+}
+
+void BattleController::Clear_BattleEnterPending()
+{
+    _isBattleEntering = false;
+    _battleEnterElapsed = 0.f;
+
+    _pendingBattleFieldID = 0;
+    _pendingBattleIsFirstHero = false;
+    _pendingBattleHeroIds.clear();
+    _pendingBattleMonsterPrefabNames.clear();
 }
 
 void BattleController::Set_BattleFSM()

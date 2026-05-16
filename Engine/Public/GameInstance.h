@@ -92,6 +92,11 @@ public:
     void    Set_GameplayPaused(bool paused) { _isGameplayPaused = paused; }
     bool    Is_GameplayPaused() const { return _isGameplayPaused; }
 
+    void    Set_WorldTimeScale(float timeScale);
+    float   Get_WorldTimeScale() const { return _worldTimeScale; }
+    float   Get_UnscaledTimeDelta() const { return _unscaledTimeDelta; }
+    float   Get_WorldTimeDelta() const { return _worldTimeDelta; }
+
 public: /* For.Log_Manager */
     void    Log_FileOnly(const spdlog::source_loc& sourceLoc, spdlog::level::level_enum level, const string& message) const;
     void    Visit_ConsoleLogs(const function<void(const ConsoleLogEntry& logEntry)>& visitor) const;
@@ -492,6 +497,10 @@ private:
     bool    _isFreeCameraInputEnabled = false;
 
     bool    _isGameplayPaused = false;
+
+    float   _worldTimeScale = 1.f;
+    float   _unscaledTimeDelta = 0.f;
+    float   _worldTimeDelta = 0.f;
 
     // Free 카메라용 time
     float   _freeCameraTimeDelta = 0.f;

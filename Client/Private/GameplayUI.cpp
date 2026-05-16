@@ -6,7 +6,8 @@
 HRESULT GameplayUI::Initialize(uint32 levelIndex)
 {
     _characterStatusPanel = CharacterStatus_Panel::Create(levelIndex);
-    //TODO 스킬 트리 패널 만들기
+    CHECK_NULL(_characterStatusPanel, E_FAIL);
+
     _skillTreePanel = SkillTree_Panel::Create(levelIndex);
     CHECK_NULL(_characterStatusPanel, E_FAIL);
 

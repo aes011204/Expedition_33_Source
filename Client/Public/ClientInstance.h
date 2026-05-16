@@ -90,6 +90,7 @@ public: /* For.Battle_Controller */
     Shared<BattleController>    Get_BattleController() { return _battleController; };
 
     bool Is_BattleActive() const;
+    bool Is_BattleEntering() const;
 
 private:
 	HRESULT Ready_ResourceLoader();

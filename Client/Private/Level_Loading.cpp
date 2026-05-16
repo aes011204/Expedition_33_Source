@@ -54,9 +54,9 @@ void Level_Loading::Update(float fTimeDelta)
             chrono::steady_clock::now() - _loadingStartTime);
 
         LOG_DEBUG(
-            "[Level_Loading::Update] progress={:.2f}%%, totalLoadingTime={}ms",
+            "[Level_Loading::Update] progress={:.2f}%%, totalLoadingTime={:.1f}seconds",
             progress * 100.f,
-            elapsed.count());
+            static_cast<float>(elapsed.count()) / 1000.f);
 
         _printedLoadCompleteLog = true;
     }
