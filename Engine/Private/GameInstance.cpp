@@ -1039,6 +1039,21 @@ const POINT& GameInstance::Get_MousePosition() const
     return _inputManager->Get_MousePosition();
 }
 
+const POINT& GameInstance::Get_RawMousePosition() const
+{
+    return _inputManager->Get_RawMousePosition();
+}
+
+void GameInstance::Set_MousePositionOverride(const POINT& mousePosition)
+{
+    return _inputManager->Set_MousePositionOverride(mousePosition);
+}
+
+void GameInstance::Clear_MousePositionOverride()
+{
+    return _inputManager->Clear_MousePositionOverride();
+}
+
 const LIGHT_DESC* GameInstance::Get_LightDesc(uint32 index)
 {
     return _lightManager->Get_LightDesc(index);

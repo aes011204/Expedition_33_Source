@@ -12,11 +12,10 @@ NS_END
 
 NS_BEGIN(Client)
 
-
+class SkillTreeCom;
 class PlayerStatCom;
-    class InputCom;
+class InputCom;
 class PlayerControllerCom;
-
 class PlayerStateMachineCom;
 
 class Player : public Character
@@ -64,6 +63,7 @@ private:
     Shared<PlayerControllerCom>     _playerControllerCom;
     Shared<PlayerStateMachineCom>   _PlayerStateMachineCom;
     Shared<ColliderCom>             _colliderCom;
+    Shared<SkillTreeCom>            _skillTreeCom;
     Shared<PlayerStatCom>           _combatStatCom;
 
     BoundingBox                     _cullingAABB{};

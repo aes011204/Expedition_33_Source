@@ -6,8 +6,11 @@ namespace Client::Constants::UI
     inline constexpr wchar_t UI_Json_Path[] = L"UI/UI_Json/Json_SaveLoad_Test.json";
     inline constexpr wchar_t Loading_UI_Json_Path[] = L"UI/UI_Json/UI_LoadingScean.json";
     inline constexpr wchar_t Loading_UI_Animation_Dir[] = L"UI/UI_Animations";
-
     inline constexpr wchar_t UI_CharacterStatus_Path[] = L"UI/UI_Json/UI_CharacterStatus.json";
+
+    inline constexpr wchar_t UI_SkillTree_BG_Path[] = L"UI/UI_Json/UI_SkillTree_Test.json";
+    inline constexpr wchar_t UI_Lune_SkillTree_Path[] = L"UI/UI_Json/UI_Lune_SkillTree.json";
+    inline constexpr wchar_t UI_Lune_SkillTooltips_Dir[] = L"UI/UI_Json/UI_SkillTooltip_Lune.json";
 }
 
 namespace Client::Constants::Map
