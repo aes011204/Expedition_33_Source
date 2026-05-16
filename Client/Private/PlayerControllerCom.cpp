@@ -62,14 +62,10 @@ void PlayerControllerCom::Update_InputState()
     _currentInput = {};
 
 	if (GAME->Is_PlayerInputBlocked())
-	{
 		return;
-	}
 
     if (!_controlEnabled)
-    {
-        return;
-    }
+        return; // follower는 키보드 입력 X
 
 	_inputCom->Update_Input();
     _currentInput = _inputCom->Get_MovementInput();
@@ -90,21 +86,62 @@ void PlayerControllerCom::Update_Movement(float timeDelta)
 		return;
 	}
 
+    if (_followControl.enabled)
+    {
+        if (!_followControl.hasMoveIntent || _followControl.worldDir.LengthSquared() <= 0.f)
+        {
+            _movementCom->Clear_FollowMoveCommand();
+            _movementCom->Apply_Input({});
+            _movementCom->Stop_HorizontalMovement();
+
+            _movementCom->Update_Movement(timeDelta);
+
+            _followControl.blocked = false; // 이동 의도가 없으면 blocked도 해제
+            return;
+        }
+
+        MovementCom::FollowMoveCommand command{};
+        command.enabled = true;
+        command.worldDir = _followControl.worldDir;
+        command.sprintFollow = _followControl.sprintFollow; // 실제 속도는 Movement에서 전환
+
+        auto owner = Get_Owner();
+        auto transform = owner ? owner->Get_Transform() : nullptr;
+        const Vec3 beforePos = transform ? transform->Get_WorldPosition() : Vec3::Zero;
+
+        _movementCom->Set_FollowMoveCommand(command);
+        _movementCom->Apply_Input({}); // follower는 jump/input을 받지 않음
+        _movementCom->Update_Movement(timeDelta);
+
+        if (transform)
+        {
+            Vec3 actualMove = transform->Get_WorldPosition() - beforePos;
+            actualMove.y = 0.f;
+
+            _followControl.blocked = actualMove.Length() <= 0.001f;
+        }
+
+        return;
+    }
+
     if (!_controlEnabled)
     {
-        // 위치 이동은 Hero Manager에서 직접 처리
         _movementCom->Apply_Input({});
         return;
     }
 
     Check_RigidInput();
 
-	_movementCom->Apply_Input(_currentInput);
-	_movementCom->Update_Movement(timeDelta);
+    _movementCom->Clear_FollowMoveCommand(); // active hero는 follow command를 쓰지 않는다.
+    _movementCom->Apply_Input(_currentInput);
+    _movementCom->Update_Movement(timeDelta);
 }
 
 bool PlayerControllerCom::Has_MoveInput() const
 {
+    if (_followControl.enabled)
+        return _followControl.hasMoveIntent;
+
     return _currentInput.moveX != 0.f || _currentInput.moveZ != 0.f;
 }
 
@@ -121,6 +158,40 @@ bool PlayerControllerCom::Is_Grounded() const
 const MovementCom::MovementInput& PlayerControllerCom::Get_MovementInput() const
 {
     return _currentInput;
+}
+
+bool PlayerControllerCom::Has_LocomotionIntent() const
+{
+    if (_followControl.enabled)
+        return _followControl.hasMoveIntent;
+
+    return _currentInput.moveX != 0.f || _currentInput.moveZ != 0.f;
+}
+
+bool PlayerControllerCom::Should_SprintMove() const
+{
+    if (_followControl.enabled)
+        return _followControl.sprintFollow; // follower sprint는 거리 기반 sprintFollow만 따른다.
+
+    return _currentInput.isRunPressed;
+}
+
+bool PlayerControllerCom::Should_WalkMove() const
+{
+    if (_followControl.enabled)
+        return false;
+
+    return _isWalkToggled;
+}
+
+bool PlayerControllerCom::Is_MovementBlocked() const
+{
+    return _followControl.enabled && _followControl.blocked;
+}
+
+bool PlayerControllerCom::Allows_ActionInput() const
+{
+    return !_followControl.enabled;
 }
 
 void PlayerControllerCom::Check_RigidInput()

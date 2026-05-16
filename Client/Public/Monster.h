@@ -6,9 +6,10 @@
 #include "Battle_Enum.h"
 #include "Client_Defines.h"
 #include "Character.h"
+#include "Mon_Lancelier_Body.h"
 
 NS_BEGIN(Engine)
-class ShaderCom;
+    class ShaderCom;
 class ModelCom;
 class AIController;
 NS_END
@@ -19,14 +20,24 @@ class MonsterStatCom;
 
     struct Action;
 
-    class Mon_Lancleier_Weapon;
+    class Mon_Lancelier_Weapon;
 
-    class Mon_Lancleier_Body;
+    class Mon_Lancelier_Body;
 
     class Monster final : public Character
 {
     GENERATED_GAMEOBJECT(Monster, ObjectType::Monster)
 public:
+    enum class LancelierAnim
+    {
+        Skill_1,
+        Skill_2,
+        Skill_2_Hollow,
+        Walk,
+        Idle,
+
+    };
+
     enum class MonsterAction
     {
         Idle,
@@ -47,9 +58,11 @@ public:
 	virtual HRESULT Render() override;
     virtual HRESULT Render_Shadow() override;
 
+    public:
+
 protected:
-    Shared<Mon_Lancleier_Body> _body = {};
-    Shared<Mon_Lancleier_Weapon> _weapon = {};
+    Shared<Mon_Lancelier_Body> _body = {};
+    Shared<Mon_Lancelier_Weapon> _weapon = {};
 
     Shared<AIController> _aiCtrl = { nullptr };
     Shared<MonsterStatCom> _combatStat;
