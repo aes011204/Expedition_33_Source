@@ -52,8 +52,32 @@ def euler_to_quat(pitch_deg, yaw_deg, roll_deg):
 
     return [rx, ry, rz, rw]
 
-def convert_quat(qx, qy, qz, qw):
-    return [qx, qz, qy, -qw]
+def ue_quat_to_euler(qx, qy, qz, qw):
+    """UE5 FQuat::Rotator() — UE 쿼터니언 → UE Euler(Pitch, Yaw, Roll) 도(degree)"""
+    singularity = qz * qx - qw * qy
+    yaw_y = 2.0 * (qw * qz + qx * qy)
+    yaw_x = 1.0 - 2.0 * (qy * qy + qz * qz)
+    pitch = math.degrees(math.asin(max(-1.0, min(1.0, 2.0 * singularity))))
+    yaw   = math.degrees(math.atan2(yaw_y, yaw_x))
+    roll_y = 2.0 * (qw * qx + qy * qz)
+    roll_x = 1.0 - 2.0 * (qx * qx + qy * qy)
+    roll  = math.degrees(math.atan2(roll_y, roll_x))
+    return pitch, yaw, roll
+
+def get_actor_world_offset(data: list, actor_outer_name: str) -> tuple:
+    for comp in data:
+        outer = comp.get("Outer", {})
+        if not isinstance(outer, dict):
+            continue
+        if actor_outer_name not in outer.get("ObjectName", ""):
+            continue
+        name = comp.get("Name", "")
+        if not (name.startswith("RootComponent") or name.startswith("DefaultSceneRoot")):
+            continue
+        loc = comp.get("Properties", {}).get("RelativeLocation")
+        if loc:
+            return (loc["X"], loc["Y"], loc["Z"])
+    return (0.0, 0.0, 0.0)
 
 def extract_mesh_name(object_path: str) -> str:
     filename = object_path.rsplit("/", 1)[-1]
@@ -110,9 +134,10 @@ def parse_instance(comp: dict, instance_index: int, factor: float) -> dict | Non
     tr  = td["Translation"]
     sc  = td["Scale3D"]
 
+    pitch, yaw, roll = ue_quat_to_euler(rot["X"], rot["Y"], rot["Z"], rot["W"])
     return {
         "Position": convert_translation(tr["X"], tr["Y"], tr["Z"], factor),
-        "Rotation": convert_quat(rot["X"], rot["Y"], rot["Z"], rot["W"]),
+        "Rotation": euler_to_quat(pitch, yaw, roll),
         "Scale":    convert_scale(sc["X"], sc["Y"], sc["Z"], factor),
     }
 
@@ -158,9 +183,15 @@ def convert(origin_path: str, save_path: str, factor: float, model_folder: str =
             mesh_name = get_mesh_name(comp)
             if not mesh_name:
                 continue
+            actor_outer = comp.get("Outer", {}).get("ObjectName", "")
+            ue_offset = get_actor_world_offset(root, actor_outer)
+            dx_offset = convert_translation(ue_offset[0], ue_offset[1], ue_offset[2], factor)
             for i in range(len(comp.get("PerInstanceSMData", []))):
                 inst = parse_instance(comp, i, factor)
                 if inst:
+                    inst["Position"][0] += dx_offset[0]
+                    inst["Position"][1] += dx_offset[1]
+                    inst["Position"][2] += dx_offset[2]
                     add_instanced(mesh_name, inst)
 
     main_static_count    = len(static_meshes)
@@ -197,9 +228,15 @@ def convert(origin_path: str, save_path: str, factor: float, model_folder: str =
                     mesh_name = get_mesh_name(comp)
                     if not mesh_name:
                         continue
+                    actor_outer = comp.get("Outer", {}).get("ObjectName", "")
+                    ue_offset = get_actor_world_offset(gen_root, actor_outer)
+                    dx_offset = convert_translation(ue_offset[0], ue_offset[1], ue_offset[2], factor)
                     for i in range(len(comp.get("PerInstanceSMData", []))):
                         inst = parse_instance(comp, i, factor)
                         if inst:
+                            inst["Position"][0] += dx_offset[0]
+                            inst["Position"][1] += dx_offset[1]
+                            inst["Position"][2] += dx_offset[2]
                             add_instanced(mesh_name, inst)
                             gen_instanced_count += 1
 

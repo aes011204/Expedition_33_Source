@@ -7,15 +7,15 @@ cbuffer cbCamera : register(b1)
 {
     float4x4 g_ViewMatrix;
     float4x4 g_ProjMatrix;
-    float4 g_vBillboardTarget;
+    float4 g_BillboardTarget;
 };
 
 cbuffer cbEffectSpriteMaterial : register(b2)
 {
-    float4 g_vTint = { 1.f, 1.f, 1.f, 1.f };
-    float4 g_vEffectSpriteParams = { 1.f, 1.f, 0.f, 0.f }; // x: intensity, y: opacityPower, z: noiseStrength, w: useNoise
-    int g_iOpacitySource = 0;
-    float3 g_vEffectSpritePadding;
+    float4 g_Tint = { 1.f, 1.f, 1.f, 1.f };
+    float4 g_EffectSpriteParams = { 1.f, 1.f, 0.f, 0.f }; // x: intensity, y: opacityPower, z: noiseStrength, w: useNoise
+    int g_OpacitySource = 0;
+    float3 g_EffectSpritePadding;
 };
 
 Texture2D g_Texture : register(t0);
@@ -23,102 +23,111 @@ Texture2D g_NoiseTexture : register(t1);
 
 struct VS_IN
 {
-    float3 vPosition : POSITION;
+    float3 position : POSITION;
     row_major float4x4 InstanceMatrix : WORLD;
-    float2 vLifeTime : TEXCOORD0;
-    float4 vStartColor : COLOR0;
-    float4 vEndColor : COLOR1;
+    float2 lifeTime : TEXCOORD0;
+    float4 startColor : COLOR0;
+    float4 endColor : COLOR1;
+    float4 subUVRect : TEXCOORD1;
 };
 
 struct VS_OUT
 {
-    float4 vWorldPosition : POSITION;
-    float2 vSize : TEXCOORD0;
-    float2 vLifeTime : TEXCOORD1;
-    float4 vStartColor : COLOR0;
-    float4 vEndColor : COLOR1;
+    float4 worldPosition : POSITION;
+    float2 size : TEXCOORD0;
+    float2 lifeTime : TEXCOORD1;
+    float4 startColor : COLOR0;
+    float4 endColor : COLOR1;
+    float4 subUVRect : TEXCOORD2;
 };
 
 VS_OUT VS_MAIN(VS_IN In)
 {
     VS_OUT Out = (VS_OUT)0;
 
-    const float4 vWorldPosition = mul(float4(In.vPosition, 1.f), In.InstanceMatrix);
-    Out.vWorldPosition = vWorldPosition;
-    Out.vSize = float2(length(In.InstanceMatrix[0].xyz), length(In.InstanceMatrix[1].xyz));
-    Out.vLifeTime = In.vLifeTime;
-    Out.vStartColor = In.vStartColor;
-    Out.vEndColor = In.vEndColor;
+    const float4 worldPosition = mul(float4(In.position, 1.f), In.InstanceMatrix);
+    Out.worldPosition = worldPosition;
+    Out.size = float2(length(In.InstanceMatrix[0].xyz), length(In.InstanceMatrix[1].xyz));
+    Out.lifeTime = In.lifeTime;
+    Out.startColor = In.startColor;
+    Out.endColor = In.endColor;
+    Out.subUVRect = In.subUVRect;
 
     return Out;
 }
 
 struct GS_IN
 {
-    float4 vWorldPosition : POSITION;
-    float2 vSize : TEXCOORD0;
-    float2 vLifeTime : TEXCOORD1;
-    float4 vStartColor : COLOR0;
-    float4 vEndColor : COLOR1;
+    float4 worldPosition : POSITION;
+    float2 size : TEXCOORD0;
+    float2 lifeTime : TEXCOORD1;
+    float4 startColor : COLOR0;
+    float4 endColor : COLOR1;
+    float4 subUVRect : TEXCOORD2;
 };
 
 struct GS_OUT
 {
-    float4 vPosition : SV_POSITION;
-    float2 vTexCoord : TEXCOORD0;
-    float2 vLifeTime : TEXCOORD1;
-    float4 vStartColor : COLOR0;
-    float4 vEndColor : COLOR1;
+    float4 position : SV_POSITION;
+    float2 texCoord : TEXCOORD0;
+    float2 lifeTime : TEXCOORD1;
+    float4 startColor : COLOR0;
+    float4 endColor : COLOR1;
+    float4 subUVRect : TEXCOORD2;
 };
 
 [maxvertexcount(4)]
 void GS_MAIN(point GS_IN In[1], inout TriangleStream<GS_OUT> OutStream)
 {
-    const float3 vParticlePosition = In[0].vWorldPosition.xyz;
-    float3 vLook = g_vBillboardTarget.xyz - vParticlePosition;
+    const float3 particlePosition = In[0].worldPosition.xyz;
+    float3 lookDir = g_BillboardTarget.xyz - particlePosition;
 
-    if (length(vLook) < 0.0001f)
-        vLook = float3(0.f, 0.f, 1.f);
+    if (length(lookDir) < 0.0001f)
+        lookDir = float3(0.f, 0.f, 1.f);
     else
-        vLook = normalize(vLook);
+        lookDir = normalize(lookDir);
 
-    float3 vWorldUp = float3(0.f, 1.f, 0.f);
-    float3 vRight = cross(vWorldUp, vLook);
+    float3 worldUp = float3(0.f, 1.f, 0.f);
+    float3 rightDir = cross(worldUp, lookDir);
 
-    if (length(vRight) < 0.0001f)
-        vRight = cross(float3(0.f, 0.f, 1.f), vLook);
+    if (length(rightDir) < 0.0001f)
+        rightDir = cross(float3(0.f, 0.f, 1.f), lookDir);
 
-    vRight = normalize(vRight);
-    float3 vUp = normalize(cross(vLook, vRight));
-    vRight *= In[0].vSize.x * 0.5f;
-    vUp *= In[0].vSize.y * 0.5f;
+    rightDir = normalize(rightDir);
+    float3 upDir = normalize(cross(lookDir, rightDir));
+    rightDir *= In[0].size.x * 0.5f;
+    upDir *= In[0].size.y * 0.5f;
 
     const matrix ViewProjMatrix = mul(g_ViewMatrix, g_ProjMatrix);
     GS_OUT Out[4];
 
-    Out[0].vPosition = mul(float4(vParticlePosition - vRight + vUp, 1.f), ViewProjMatrix);
-    Out[0].vTexCoord = float2(0.f, 0.f);
-    Out[0].vLifeTime = In[0].vLifeTime;
-    Out[0].vStartColor = In[0].vStartColor;
-    Out[0].vEndColor = In[0].vEndColor;
+    Out[0].position = mul(float4(particlePosition - rightDir + upDir, 1.f), ViewProjMatrix);
+    Out[0].texCoord = float2(0.f, 0.f);
+    Out[0].lifeTime = In[0].lifeTime;
+    Out[0].startColor = In[0].startColor;
+    Out[0].endColor = In[0].endColor;
+    Out[0].subUVRect = In[0].subUVRect;
 
-    Out[1].vPosition = mul(float4(vParticlePosition + vRight + vUp, 1.f), ViewProjMatrix);
-    Out[1].vTexCoord = float2(1.f, 0.f);
-    Out[1].vLifeTime = In[0].vLifeTime;
-    Out[1].vStartColor = In[0].vStartColor;
-    Out[1].vEndColor = In[0].vEndColor;
+    Out[1].position = mul(float4(particlePosition + rightDir + upDir, 1.f), ViewProjMatrix);
+    Out[1].texCoord = float2(1.f, 0.f);
+    Out[1].lifeTime = In[0].lifeTime;
+    Out[1].startColor = In[0].startColor;
+    Out[1].endColor = In[0].endColor;
+    Out[1].subUVRect = In[0].subUVRect;
 
-    Out[2].vPosition = mul(float4(vParticlePosition - vRight - vUp, 1.f), ViewProjMatrix);
-    Out[2].vTexCoord = float2(0.f, 1.f);
-    Out[2].vLifeTime = In[0].vLifeTime;
-    Out[2].vStartColor = In[0].vStartColor;
-    Out[2].vEndColor = In[0].vEndColor;
+    Out[2].position = mul(float4(particlePosition - rightDir - upDir, 1.f), ViewProjMatrix);
+    Out[2].texCoord = float2(0.f, 1.f);
+    Out[2].lifeTime = In[0].lifeTime;
+    Out[2].startColor = In[0].startColor;
+    Out[2].endColor = In[0].endColor;
+    Out[2].subUVRect = In[0].subUVRect;
 
-    Out[3].vPosition = mul(float4(vParticlePosition + vRight - vUp, 1.f), ViewProjMatrix);
-    Out[3].vTexCoord = float2(1.f, 1.f);
-    Out[3].vLifeTime = In[0].vLifeTime;
-    Out[3].vStartColor = In[0].vStartColor;
-    Out[3].vEndColor = In[0].vEndColor;
+    Out[3].position = mul(float4(particlePosition + rightDir - upDir, 1.f), ViewProjMatrix);
+    Out[3].texCoord = float2(1.f, 1.f);
+    Out[3].lifeTime = In[0].lifeTime;
+    Out[3].startColor = In[0].startColor;
+    Out[3].endColor = In[0].endColor;
+    Out[3].subUVRect = In[0].subUVRect;
 
     OutStream.Append(Out[0]);
     OutStream.Append(Out[1]);
@@ -128,47 +137,48 @@ void GS_MAIN(point GS_IN In[1], inout TriangleStream<GS_OUT> OutStream)
 
 struct PS_IN
 {
-    float4 vPosition : SV_POSITION;
-    float2 vTexCoord : TEXCOORD0;
-    float2 vLifeTime : TEXCOORD1;
-    float4 vStartColor : COLOR0;
-    float4 vEndColor : COLOR1;
+    float4 position : SV_POSITION;
+    float2 texCoord : TEXCOORD0;
+    float2 lifeTime : TEXCOORD1;
+    float4 startColor : COLOR0;
+    float4 endColor : COLOR1;
+    float4 subUVRect : TEXCOORD2;
 };
 
 struct PS_OUT
 {
-    float4 vColor : SV_TARGET0;
+    float4 color : SV_TARGET0;
 };
 
 PS_OUT PS_MAIN(PS_IN In)
 {
     PS_OUT Out = (PS_OUT)0;
 
-    const float fLifeMax = max(In.vLifeTime.x, 0.0001f);
-    const float fLifeProgress = saturate(In.vLifeTime.y / fLifeMax);
-    const float fLifeAlphaFade = saturate(1.f - fLifeProgress);
-    const float4 vParticleColor = lerp(In.vStartColor, In.vEndColor, fLifeProgress);
-    const float4 vSymbol = g_Texture.Sample(LinearClampSampler, In.vTexCoord);
-    const float fOpacityPower = max(g_vEffectSpriteParams.y, 0.0001f);
-    float fSelectedOpacity = vSymbol.a;
-    float fNoiseFactor = 1.f;
+    const float lifeMax = max(In.lifeTime.x, 0.0001f);
+    const float lifeProgress = saturate(In.lifeTime.y / lifeMax);
+    const float4 particleColor = lerp(In.startColor, In.endColor, lifeProgress);
+    const float2 sampleUV = lerp(In.subUVRect.xy, In.subUVRect.zw, In.texCoord);
+    const float4 symbol = g_Texture.Sample(LinearClampSampler, sampleUV);
+    const float opacityPower = max(g_EffectSpriteParams.y, 0.0001f);
+    float selectedOpacity = symbol.a;
+    float noiseFactor = 1.f;
 
-    if (1 == g_iOpacitySource)
-        fSelectedOpacity = vSymbol.r;
-    else if (2 == g_iOpacitySource)
-        fSelectedOpacity = dot(vSymbol.rgb, float3(0.299f, 0.587f, 0.114f));
+    if (1 == g_OpacitySource)
+        selectedOpacity = symbol.r;
+    else if (2 == g_OpacitySource)
+        selectedOpacity = dot(symbol.rgb, float3(0.299f, 0.587f, 0.114f));
 
-    if (0 != g_vEffectSpriteParams.w && g_vEffectSpriteParams.z > 0.f)
+    if (0 != g_EffectSpriteParams.w && g_EffectSpriteParams.z > 0.f)
     {
-        const float fNoise = g_NoiseTexture.Sample(LinearClampSampler, In.vTexCoord).r;
-        fNoiseFactor = lerp(1.f, fNoise, saturate(g_vEffectSpriteParams.z));
+        const float noise = g_NoiseTexture.Sample(LinearClampSampler, sampleUV).r;
+        noiseFactor = lerp(1.f, noise, saturate(g_EffectSpriteParams.z));
     }
 
-    const float fOpacity = pow(saturate(fSelectedOpacity), fOpacityPower);
-    Out.vColor.rgb = vSymbol.rgb * vParticleColor.rgb * g_vTint.rgb * g_vEffectSpriteParams.x * fNoiseFactor;
-    Out.vColor.a = fOpacity * vParticleColor.a * g_vTint.a * fLifeAlphaFade;
+    const float opacity = pow(saturate(selectedOpacity), opacityPower);
+    Out.color.rgb = symbol.rgb * particleColor.rgb * g_Tint.rgb * g_EffectSpriteParams.x * noiseFactor;
+    Out.color.a = opacity * particleColor.a * g_Tint.a;
 
-    if (Out.vColor.a < 0.01f)
+    if (Out.color.a < 0.01f)
         discard;
 
     return Out;

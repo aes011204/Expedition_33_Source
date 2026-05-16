@@ -41,6 +41,7 @@ ModelCom::ModelCom(const ModelCom& prototype)
     , _collisionMeshes{ prototype._collisionMeshes }
     , _stateAnimIndices{ prototype._stateAnimIndices }
     , _animEnumType{ prototype._animEnumType }
+    , _mappedAnimIndices{ prototype._mappedAnimIndices }
 {
     for (auto& prototypeAnim : prototype._animations)
         _animations.push_back(prototypeAnim->Clone());
@@ -111,7 +112,7 @@ const string& ModelCom::Get_BoneName(uint32 boneIndex) const
     return _bones[boneIndex]->Get_BoneName();
 }
 
-void ModelCom::Set_Animation(uint32 animIndex, bool isLoop)
+void ModelCom::Set_Animation(uint32 animIndex, bool isLoop, float startFrame)
 {
     if (animIndex >= _animations.size()) return;
 
@@ -119,12 +120,12 @@ void ModelCom::Set_Animation(uint32 animIndex, bool isLoop)
     _isAnimLoop = isLoop;
     _isBlending = false;
     _isFinished = false;
-    _animations[_currentAnimIndex]->Reset();
+    _animations[_currentAnimIndex]->Set_StartFrame(startFrame);
 
     Mark_BoneMatricesDirty();
 }
 
-void ModelCom::Set_AnimationByState(uint32 stateIndex, bool isLoop)
+void ModelCom::Set_AnimationByState(uint32 stateIndex, bool isLoop, float startFrame)
 {
     uint32 animIndex = stateIndex;
 
@@ -143,12 +144,12 @@ void ModelCom::Set_AnimationByState(uint32 stateIndex, bool isLoop)
     _isAnimLoop = isLoop;
     _isBlending = false;
     _isFinished = false;
-    _animations[_currentAnimIndex]->Reset();
+    _animations[_currentAnimIndex]->Set_StartFrame(startFrame);
 
     Mark_BoneMatricesDirty();
 }
 
-void ModelCom::Set_Animation(uint32 animIndex, float blendDuration, bool isLoop)
+void ModelCom::Set_Animation(uint32 animIndex, float blendDuration, bool isLoop, float startFrame)
 {
     if (animIndex >= _animations.size()) return;
 
@@ -158,12 +159,34 @@ void ModelCom::Set_Animation(uint32 animIndex, float blendDuration, bool isLoop)
     _blendDuration = blendDuration;
     _blendElapsedTime = 0.f;
     _isFinished = false;
-    _animations[_nextAnimIndex]->Reset();
+    _animations[_nextAnimIndex]->Set_StartFrame(startFrame);
 
     Mark_BoneMatricesDirty();
 }
 
-void ModelCom::Set_AnimationByState(uint32 stateIndex, float blendDuration, bool isLoop)
+void ModelCom::Set_Animation(const string& animName, bool isLoop, float startFrame)
+{
+    if (_mappedAnimIndices.contains(animName))
+    {
+        LOG_WARN("Failed to find animation by name: {}", animName);
+        return;
+    }
+
+    Set_Animation(_mappedAnimIndices[animName], isLoop, startFrame);
+}
+
+void ModelCom::Set_Animation(const string& animName, float blendDuration, bool isLoop, float startFrame)
+{
+    if (_mappedAnimIndices.contains(animName))
+    {
+        LOG_WARN("Failed to find animation by name: {}", animName);
+        return;
+    }
+
+    Set_Animation(_mappedAnimIndices[animName], blendDuration, isLoop, startFrame);
+}
+
+void ModelCom::Set_AnimationByState(uint32 stateIndex, float blendDuration, bool isLoop, float startFrame)
 {
     uint32 animIndex = stateIndex;
 
@@ -184,7 +207,7 @@ void ModelCom::Set_AnimationByState(uint32 stateIndex, float blendDuration, bool
     _blendDuration = blendDuration;
     _blendElapsedTime = 0.f;
     _isFinished = false;
-    _animations[_nextAnimIndex]->Reset();
+    _animations[_nextAnimIndex]->Set_StartFrame(startFrame);
 
     Mark_BoneMatricesDirty();
 }
@@ -253,6 +276,22 @@ void ModelCom::Rebuild_BoneCombinedMatrices()
     }
 
     Mark_BoneMatricesDirty();
+}
+
+float ModelCom::Get_CurrentProgress() const
+{
+    if (_animations.empty() || _currentAnimIndex >= _animations.size())
+        return 0.f;
+
+    return _animations[_currentAnimIndex]->Get_Progress();
+}
+
+float ModelCom::Get_CurrentFrame() const
+{
+    if (_animations.empty() || _currentAnimIndex >= _animations.size())
+        return 0.f;
+
+    return _animations[_currentAnimIndex]->Get_Progress() * _animations[_currentAnimIndex]->Get_Duration();
 }
 
 const RootMotionFrame& ModelCom::Get_RootTransformVelocity(float scaleOffset)
@@ -848,6 +887,79 @@ bool ModelCom::Try_Get_LocalBounds(Vec3& outMin, Vec3& outMax) const
     outMin = _localBoundsMin;
     outMax = _localBoundsMax;
     return true;
+}
+
+void ModelCom::Apply_MaterialByAssetName(uint32 materialIndex, const string& bundleKey, const string& assetName)
+{
+    if (materialIndex >= _materials.size())
+    {
+        return;
+    }
+
+    const Shared<Material> material = _materials[materialIndex];
+    if (!material)
+    {
+        return;
+    }
+
+    Asset_Manager* assetManager = GAME->Get_AssetManager();
+    if (!assetManager)
+    {
+        return;
+    }
+
+    MaterialBuilder* builder = assetManager->Get_MaterialBuilder();
+    if (!builder)
+    {
+        return;
+    }
+
+    const MaterialBuilder::BundleAsset* bundle = builder->GetOrLoadBundle(bundleKey);
+    if (!bundle)
+    {
+        return;
+    }
+
+    auto it = bundle->instancesByAssetName.find(assetName);
+    if (it == bundle->instancesByAssetName.end())
+    {
+        return;
+    }
+
+    const auto& base = it->second;
+    material->Set_RenderState(base.renderState);
+    material->Set_CB(base.cb);
+    material->Set_ForcedPassIndex(base.forcePassIndex);
+
+    if (base.baseColorOverride)
+    {
+        material->Override_TextureSlot(MaterialTextureSlot::BaseColor, 0, base.baseColorPath);
+    }
+
+    if (base.normalOverride)
+    {
+        material->Override_TextureSlot(MaterialTextureSlot::Normal, 0, base.normalPath);
+    }
+
+    if (base.ormOverride)
+    {
+        material->Override_TextureSlot(MaterialTextureSlot::ORM, 0, base.ormPath);
+    }
+
+    if (base.emissiveOverride)
+    {
+        material->Override_TextureSlot(MaterialTextureSlot::Emissive, 0, base.emissivePath);
+    }
+
+    if (base.opacityMaskOverride)
+    {
+        material->Override_TextureSlot(MaterialTextureSlot::OpacityMask, 0, base.opacityMaskPath);
+    }
+
+    else
+    {
+        material->Override_TextureSlot(MaterialTextureSlot::OpacityMask, 0, L"");
+    }
 }
 
 wstring ModelCom::Normalize_ModelAssetPath(const char* modelFilePath)
@@ -1577,6 +1689,9 @@ HRESULT ModelCom::Ready_Animation(const char* modelPath)
                 channels[i].keyframes = keyframeSets[i].data();
             }
 
+            string animName = entry.path().stem().string();
+            _mappedAnimIndices[animName] = trueAnimIndex;
+
             _animations.push_back(Animation::Create(animData, channels));
             stream.close();
             ++trueAnimIndex;
@@ -1614,6 +1729,7 @@ void ModelCom::Reset_ModelData()
     _bones.clear();
     _animations.clear();
     _stateAnimIndices.clear();
+    _mappedAnimIndices.clear();
     _collisionMeshes.clear();
 
     _isFinished = false;
@@ -1688,6 +1804,7 @@ void ModelCom::Free()
     _meshBoneMatrixCaches.clear();
     _combinedBoneMatrixCache.clear();
 
+    _mappedAnimIndices.clear();
     _stateAnimIndices.clear();
     _animations.clear();
     _materials.clear();

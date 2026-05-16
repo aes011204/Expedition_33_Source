@@ -22,8 +22,10 @@ public:
     void    Set_CurrentTimeSec(float timeSec);
     void    Evaluate_CurrentPose(const vector<Shared<Bone>>& bones, int32 rootNodeIndex, bool isLoop);
 
-	float   Get_Progress() const { return (_duration > 0.f) ? _currentTrackPosition / _duration : 0.f; }
+    float   Get_Progress() const;
 	void    Set_Progress(float progress);
+
+    void    Set_StartFrame(float startFrame);
 	void    Reset();
 
 	const RootMotionFrame& Get_TransformVelocity(int32 rootNodeIndex) const;
