@@ -1168,7 +1168,11 @@ void Material_View::Draw_MappingsEditorUI(int selectedMaterialIndexFilter, const
         anyChanged = anyChanged || drawBlendModePicker(inst->renderState);
 
         if (ImGui::DragFloat("Clip", &inst->renderState.opacityMaskClipValue, 0.001f, 0.f, 1.f))
+        {
+            inst->cb.opacityMaskClipValue = inst->renderState.opacityMaskClipValue;
+            inst->cbMask.opacityMaskClipValue = true;
             anyChanged = true;
+        }
         ImGui::EndDisabled();
 
         Engine::MaterialCB baseCb{};
@@ -1321,7 +1325,10 @@ void Material_View::Draw_MappingsEditorUI(int selectedMaterialIndexFilter, const
             if (toggled && inst->cbMask.opacityMaskClipValue && hasBaseCb) inst->cb.opacityMaskClipValue = baseCb.opacityMaskClipValue;
             ImGui::BeginDisabled(!inst->cbMask.opacityMaskClipValue);
             if (ImGui::DragFloat("OpacityClipCB", &inst->cb.opacityMaskClipValue, 0.001f, 0.f, 1.f))
+            {
+                inst->renderState.opacityMaskClipValue = inst->cb.opacityMaskClipValue;
                 anyChanged = true;
+            }
             ImGui::EndDisabled();
         }
 

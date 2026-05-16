@@ -25,15 +25,34 @@ HRESULT MapLoader::Begin_LoadSession(const ComPtr<Device>& device, const ComPtr<
     if (mapData.contains("StaticMeshes"))
     {
         for (const json& item : mapData["StaticMeshes"])
+        {
             outSession.staticMeshes.push_back(item);
+
+            const string modelPath = item.value("ModelPath", string{});
+            if (!modelPath.empty() &&
+                find(outSession.preloadModelPaths.begin(), outSession.preloadModelPaths.end(), modelPath) == outSession.preloadModelPaths.end())
+            {
+                outSession.preloadModelPaths.push_back(modelPath);
+            }
+        }
     }
 
     if (mapData.contains("InstancedMeshes"))
     {
         for (const json& item : mapData["InstancedMeshes"])
+        {
             outSession.instancedMeshes.push_back(item);
+
+            const string modelPath = item.value("ModelPath", string{});
+            if (!modelPath.empty() &&
+                find(outSession.preloadModelPaths.begin(), outSession.preloadModelPaths.end(), modelPath) == outSession.preloadModelPaths.end())
+            {
+                outSession.preloadModelPaths.push_back(modelPath);
+            }
+        }
     }
 
+    outSession.preloadModelsDone = outSession.preloadModelPaths.empty();
     outSession.staticMeshesDone = outSession.staticMeshes.empty();
     outSession.instancedMeshesDone = outSession.instancedMeshes.empty();
 
@@ -61,6 +80,42 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
             return false;
         };
 
+    while (!session.preloadModelsDone)
+    {
+        if (IsBudgetExceeded())
+            return S_OK;
+
+        if (session.nextPreloadModelIndex >= session.preloadModelPaths.size())
+        {
+            session.preloadModelsDone = true;
+            break;
+        }
+
+        const string modelPathStr = session.preloadModelPaths[session.nextPreloadModelIndex++];
+        if (modelPathStr.empty() ||
+            session.preloadedModelCache.find(modelPathStr) != session.preloadedModelCache.end())
+        {
+            continue;
+        }
+
+        string fullPathA = "../../../Client/Bin/Resources/Map/" + session.modelFolder + "/" + modelPathStr;
+
+        auto model = ModelCom::Create(
+            session.device,
+            session.context,
+            ModelType::NonAnim,
+            fullPathA.c_str(),
+            Matrix::CreateScale(0.01f));
+
+        if (!model)
+            continue;
+
+        ApplyMaterials(model, session.modelFolder, fullPathA);
+        session.preloadedModelCache[modelPathStr] = model;
+
+        ++processedCount;
+    }
+
     while (!session.staticMeshesDone)
     {
         if (IsBudgetExceeded())
@@ -79,8 +134,8 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
 
         MapStaticMesh::MAPSTATICMESH_DESC desc{};
 
-        auto it = session.staticModelCache.find(modelPathStr);
-        if (it != session.staticModelCache.end())
+        auto it = session.preloadedModelCache.find(modelPathStr);
+        if (it != session.preloadedModelCache.end())
         {
             desc.model = it->second;
         }
@@ -98,8 +153,8 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
             if (!model)
                 continue;
 
-            session.staticModelCache[modelPathStr] = model;
             ApplyMaterials(model, session.modelFolder, fullPathA);
+            session.preloadedModelCache[modelPathStr] = model;
             desc.model = model;
         }
 
@@ -155,8 +210,8 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
 
         MapInstancedMesh::MAPINSTANCEDMESH_DESC desc{};
 
-        auto it = session.instancedModelCache.find(modelPathStr);
-        if (it != session.instancedModelCache.end())
+        auto it = session.preloadedModelCache.find(modelPathStr);
+        if (it != session.preloadedModelCache.end())
         {
             desc.model = it->second;
         }
@@ -174,8 +229,8 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
             if (!model)
                 continue;
 
-            session.instancedModelCache[modelPathStr] = model;
             ApplyMaterials(model, session.modelFolder, fullPathA);
+            session.preloadedModelCache[modelPathStr] = model;
             desc.model = model;
         }
 
@@ -221,7 +276,7 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
         ++processedCount;
     }
 
-    outFinished = session.staticMeshesDone && session.instancedMeshesDone;
+    outFinished = session.preloadModelsDone && session.staticMeshesDone && session.instancedMeshesDone;
     return S_OK;
 }
 
