@@ -14,8 +14,6 @@ Mon_Lancelier_Weapon::Mon_Lancelier_Weapon(const Mon_Lancelier_Weapon& prototype
 
 HRESULT Mon_Lancelier_Weapon::Initialize_Prototype()
 {
-
-
     return Monster_Part::Initialize_Prototype();
 }
 
@@ -27,10 +25,10 @@ HRESULT Mon_Lancelier_Weapon::Initialize(void* arg)
 
     _socketMatrix = desc->socketMatrix;
 
-    if(FAILED(Monster_Part::Initialize(desc)))
-    {
+    _offsetMatrix = Matrix::CreateRotationX(XMConvertToRadians(-90.f));
+
+    if (FAILED(Monster_Part::Initialize(desc)))
         return E_FAIL;
-    }
 
     return S_OK;
 }
@@ -42,7 +40,7 @@ void Mon_Lancelier_Weapon::Priority_Update(float timeDelta)
 
 void Mon_Lancelier_Weapon::Update(float timeDelta)
 {
-    Update_CombinedWorldMatrix(_transformCom->Get_WorldMatrix() * (  *_socketMatrix));
+    Update_CombinedWorldMatrix(_offsetMatrix * _transformCom->Get_WorldMatrix() * *_socketMatrix);
 }
 
 void Mon_Lancelier_Weapon::Late_Update(float timeDelta)

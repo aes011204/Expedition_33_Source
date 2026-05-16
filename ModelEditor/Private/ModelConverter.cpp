@@ -328,7 +328,7 @@ namespace ModelEditor
         _isSkeletal = hasMeshBones || probeScene->mNumAnimations > 0;
         
         uint32 finalFlags = _importFlags;
-        if (false == _applyGlobalScale && false == _isSkeletal)
+        if (true == _applyGlobalScale && false == _isSkeletal)
         {
             finalFlags |= aiProcess_PreTransformVertices | aiProcess_GlobalScale;
         }

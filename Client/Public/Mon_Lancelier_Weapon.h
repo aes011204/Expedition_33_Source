@@ -34,6 +34,8 @@ private :
 
 private:
     const Matrix* _socketMatrix = nullptr;
+    Matrix _offsetMatrix = {};
+
 public:
     static Shared<Mon_Lancelier_Weapon> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
     virtual Shared<GameObject> Clone(void* arg) override;

@@ -9,7 +9,7 @@
 #include "Mon_Lancelier_Body.h"
 
 NS_BEGIN(Engine)
-    class ShaderCom;
+class ShaderCom;
 class ModelCom;
 class AIController;
 NS_END
@@ -17,14 +17,11 @@ NS_END
 NS_BEGIN(Client)
 
 class MonsterStatCom;
+struct Action;
+class Mon_Lancelier_Weapon;
+class Mon_Lancelier_Body;
 
-    struct Action;
-
-    class Mon_Lancelier_Weapon;
-
-    class Mon_Lancelier_Body;
-
-    class Monster final : public Character
+class Monster final : public Character
 {
     GENERATED_GAMEOBJECT(Monster, ObjectType::Monster)
 public:
@@ -35,7 +32,6 @@ public:
         Skill_2_Hollow,
         Walk,
         Idle,
-
     };
 
     enum class MonsterAction
@@ -44,57 +40,51 @@ public:
         Move,
         Attack
     };
-public:
-	Monster(const ComPtr<Device>& device, const ComPtr<Context>& context);
-	Monster(const Monster& prototype);
-	virtual ~Monster() = default;
 
 public:
-	virtual HRESULT Initialize_Prototype() override;
-	virtual HRESULT Initialize(void* arg) override;
-	virtual void    Priority_Update(float timeDelta) override;
-	virtual void    Update(float timeDelta) override;
-	virtual void    Late_Update(float timeDelta) override;
-	virtual HRESULT Render() override;
-    virtual HRESULT Render_Shadow() override;
+    Monster(const ComPtr<Device>& device, const ComPtr<Context>& context);
+    Monster(const Monster& prototype);
+    ~Monster() override = default;
 
-    public:
+public:
+    HRESULT Initialize_Prototype() override;
+    HRESULT Initialize(void* arg) override;
+    void Priority_Update(float timeDelta) override;
+    void Update(float timeDelta) override;
+    void Late_Update(float timeDelta) override;
+    HRESULT Render() override;
+    HRESULT Render_Shadow() override;
 
+public:
 protected:
     Shared<Mon_Lancelier_Body> _body = {};
     Shared<Mon_Lancelier_Weapon> _weapon = {};
 
     Shared<AIController> _aiCtrl = { nullptr };
     Shared<MonsterStatCom> _combatStat;
-    Shared<ColliderCom>     _collider;
-    int32 _rootindex = {};
-
+    Shared<ColliderCom> _collider;
     BoundingBox _cullingAABB{};
 
-protected:
-	HRESULT Ready_Components();
-    HRESULT Ready_PartObjects();
-    HRESULT Bind_ShaderResources();
+    int32 _rootindex = {};
 
+protected:
+    HRESULT Ready_Components();
+    HRESULT Ready_PartObjects();
     HRESULT Ready_Collider();
+
+public:
+    void Set_CurrentAction(MonsterAction action) { _currentAction = action; }
+    MonsterAction Get_CurrentAction() const { return _currentAction; }
+    void Decide_Action(Action& curturnAction, const vector<BattleChar>& heroes);
 
 private:
     MonsterAction _currentAction = MonsterAction::Idle;
     MonsterAction _previousAction = MonsterAction::Idle;
 
-
 public:
-    void Set_CurrentAction(MonsterAction action) { _currentAction = action; }
-    MonsterAction Get_CurrentAction() const { return _currentAction; }
-
-
-
-    public:
-        void Decide_Action(Action& curturnAction, const vector<BattleChar>& heroes);
-public:
-	static Shared<Monster> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
-	virtual Shared<GameObject> Clone(void* arg) override;
-	virtual void Free() override;
+    static Shared<Monster> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
+    Shared<GameObject> Clone(void* arg) override;
+    void Free() override;
 };
 
 NS_END
