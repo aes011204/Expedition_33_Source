@@ -441,6 +441,7 @@
     <ClInclude Include="Base_Gustave_Attack.h">
       <Filter>Skill</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\HairChainPhysics.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -524,7 +525,6 @@
     <ClCompile Include="..\Private\PlayableParts.cpp">
       <Filter>02.GameObject\Player\PlayerParts</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\UI_RuntimeLoader.cpp" />
     <ClCompile Include="..\Private\Level_MapTest.cpp">
       <Filter>01.Levels\MapTest</Filter>
     </ClCompile>
@@ -695,6 +695,10 @@
     </ClCompile>
     <ClCompile Include="Base_Gustave_Attack.cpp">
       <Filter>Skill</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\HairChainPhysics.cpp" />
+    <ClCompile Include="..\Private\UI_RuntimeLoader.cpp">
+      <Filter>96. Manager</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
