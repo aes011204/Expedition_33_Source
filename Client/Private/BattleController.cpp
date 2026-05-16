@@ -479,9 +479,9 @@ void BattleController::OnActionEndNotify()
     auto& action = Get_TurnAction();
 
     // 다음 애니로 이동
-    action._selected_SkillKey._curAnimIndex++;
+    action._curAnimIndex++;
 
-    if (action._selected_SkillKey._curAnimIndex >= action._selected_SkillKey.animationKey.size())
+    if (action._curAnimIndex >= action._selected_SkillKey.animationKey.size())
     {
         // 끝났으면 Idle
         const string key = action._selected_SkillKey.IdleAnimationKey;
@@ -492,7 +492,7 @@ void BattleController::OnActionEndNotify()
     }
 
     // 다음 애니 실행
-    const string key = action._selected_SkillKey.animationKey[action._selected_SkillKey._curAnimIndex];
+    const string key = action._selected_SkillKey.animationKey[action._curAnimIndex];
     action._curChar.ModelCom->Set_Animation(key, false, 1.5f);
 }
 

@@ -15,7 +15,6 @@
 
 REGISTER_GLOBAL_ENUM(Client::Monster::LancelierAnim, "LancelierAnim")
 
-
 IMPLEMENT_REFLECTION(Monster)
 {
     auto& info = GetStaticReflectionInfo();
@@ -58,7 +57,6 @@ HRESULT Monster::Initialize(void* arg)
     //));
 
     //_currentAction = MonsterAction::Idle;
-
 
     //_model->Set_Animation(5, true);
 
@@ -178,7 +176,6 @@ HRESULT Monster::Ready_Components()
     if (FAILED(__super::Add_Component(ETOI(LevelType::Static), TEXT("Com_MonsterStat"), _combatStat)))
         return E_FAIL;
 
-
     CHECK_FAILED(Ready_Collider(), E_FAIL);
     CHECK_FAILED(Ready_PartObjects(), E_FAIL);
 
@@ -226,20 +223,57 @@ HRESULT Monster::Ready_Collider()
     return S_OK;
 }
 
+void Monster::ActionFromDecision(Action& curturnAction, const BattleDecision decision, const vector<BattleChar>& heroes)
+{
+    auto stat = Get_Component<MonsterStatCom>();
+    if (stat == nullptr)
+        return;
+
+    const auto& skillIds = stat->Get_SkillKey();
+
+    if (decision.targetIndex < 0 || decision.targetIndex >= static_cast<int>(heroes.size()))
+        return;
+
+    if (decision.skillIndex < 0 || decision.skillIndex >= static_cast<int>(skillIds.size()))
+        return;
+
+    const string& skillId = skillIds[decision.skillIndex];
+    const Skill_Data* skill = CLIENT->Get_Skill(skillId);
+    if (skill == nullptr)
+        return;
+
+    curturnAction.target = heroes[decision.targetIndex];
+    curturnAction._selected_SkillKey = *skill;
+    curturnAction.type = decision.actionType;
+    curturnAction._curAnimIndex = 0;
+}
+
+void Monster::Decide_Action_BTOnly(Action& curturnAction, const vector<BattleChar>& heroes)
+{
+    if (heroes.empty())
+        return;
+
+    const BattleDecision decision = Run_BattleBT(heroes);
+
+    ActionFromDecision(curturnAction, decision, heroes);
+}
+
 void Monster::Decide_Action(Action& curturnAction, const vector<BattleChar>& heroes)
 {
+    if (heroes.empty())
+        return;
+    BattleAIPolicy policy = Build_CurrentPolicy();
+    const BattleDecision decision = EvaluateBestAction(policy, heroes);
 
-    Skill_Data skill = Get_Component<MonsterStatCom>()->Get_Basic_Skill();
-   
-    curturnAction.target = heroes[0];
-    curturnAction._selected_SkillKey = skill;
-        curturnAction.type = EBattleContext::BaseAttack;
+    ActionFromDecision(curturnAction, decision, heroes);
 
-    LOG_DEBUG("Monster::Decide_Action: target={}, script={}, type={}",
+
+    LOG_DEBUG(
+        "Monster::Decide_Action: target={}, script={}, type={}",
         curturnAction.target.actor ? String::ToString(curturnAction.target.actor->Get_Name()).c_str() : "null",
         curturnAction._selected_SkillKey.scriptClassName.c_str(),
-        static_cast<int>(curturnAction.type));
-
+        static_cast<int>(curturnAction.type)
+    );
 }
 
 Shared<Monster> Monster::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

@@ -359,9 +359,6 @@
     <ClInclude Include="..\public\BattleController.h">
       <Filter>BattleState\BattleController</Filter>
     </ClInclude>
-    <ClInclude Include="Battle_Enum.h">
-      <Filter>99.Defines</Filter>
-    </ClInclude>
     <ClInclude Include="..\public\UtilitySystem.h">
       <Filter>96. Manager</Filter>
     </ClInclude>
@@ -464,6 +461,7 @@
     <ClInclude Include="..\public\SkillTree_Panel.h">
       <Filter>02.GameObject\UI\SkillTree_Panel</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\Battle_Enum.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">

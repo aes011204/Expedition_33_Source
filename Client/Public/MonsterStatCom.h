@@ -6,12 +6,10 @@ NS_BEGIN(Client)
 
 class Buff;
 
-class MonsterStatCom :
-    public CombatStatCom
+class MonsterStatCom : public CombatStatCom
 {
     GENERATED_COMPONENT(MonsterStatCom)
 public:
-
     // 초기 세팅 값
     struct MonsterCombatStatDesc : CombatStatCom::CombatStatDesc
     {
@@ -26,7 +24,7 @@ public:
         vector<FElementalAffinity> initialElementalAffinities = {};
         vector<FLootData> possibleLoot = {};
 
-
+        vector<string> _skillKeys;
     };
 
     // UI, 전투 데미지 계산, 디버그 출력이 읽는 값
@@ -39,7 +37,7 @@ public:
 public:
     MonsterStatCom(const ComPtr<Device>& device, const ComPtr<Context>& context);
     MonsterStatCom(const MonsterStatCom& Prototype);
-    virtual ~MonsterStatCom() = default;
+    ~MonsterStatCom() override = default;
 
 public:
     HRESULT Initialize_Prototype() override;
@@ -47,47 +45,27 @@ public:
 
     void Update(float timeDelta);
 
-
 public:
-    virtual  CombatStatDesc& Get_StatInfo() { return _monsterDesc; };
-    virtual  RuntimeCombatStat& Get_RuntimeStat() { return _MRuntimeStat; };
+    CombatStatDesc& Get_StatInfo() override { return _monsterDesc; };
+    RuntimeCombatStat& Get_RuntimeStat() override { return _MRuntimeStat; };
     const MonsterCombatStatDesc& Get_MonsterDesc() const { return _monsterDesc; }
     const MRuntimeCombatStat& Get_MonsterRuntimeStat() const { return _MRuntimeStat; }
     MRuntimeCombatStat& Get_MonsterRuntimeStat() { return _MRuntimeStat; }
     const vector<Shared<Buff>>& Get_Buffs() const { return _buff; }
 
-
     bool IsBreak() const { return _MRuntimeStat.isBreak; }
     void SetBreak(bool value) { _MRuntimeStat.isBreak = value; }
 
+    vector<string> Get_SkillKey() { return _skillKeys; }
+
 private:
-
     MonsterCombatStatDesc _monsterDesc;
-
     MRuntimeCombatStat _MRuntimeStat;
-
-
-public:
-
-    /// <test>
-    Skill_Data Get_Basic_Skill()
-    {
-        Skill_Data skill = {}; skill.scriptClassName = "Base_Gustave_Attack";
-        skill.apCost = 0; skill.targetingType = ECharacterTeamSelector::Invalid;
-        skill.animationKey.push_back("Lancelier_Lancelier_Walk");
-        skill.animationKey.push_back("Lancelier_Lancelier_Dash_Out");
-        skill.animationKey.push_back("Lancelier_Lancelier_Skill_1");
-      
-
-        return skill;
-    };
-    /// </test>
-
+    vector<string> _skillKeys;
 public:
     static Shared<MonsterStatCom> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
     Shared<Component> Clone(void* arg) override;
     void Free() override;
-
 };
 
 NS_END

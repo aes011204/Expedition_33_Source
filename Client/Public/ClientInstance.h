@@ -48,6 +48,7 @@ public: /* For.GameData Table */
     uint32        Get_NextExp(uint32 level) const;
     GameDataTable::SkillTreeDesc* Get_SkillTreeDesc(const string& skillName);
     const umap<string, vector<string>>* Get_SkillTreeRequirementData();
+    const Skill_Data* Get_Skill(const string& skillId);
 
 public: /* For.Hero Manager */
     HRESULT        Initialize_Hero(uint32 levelIndex, const wstring& layerTag, const Vec3& startPos = Vec3::Zero);

@@ -40,7 +40,26 @@ public:
         Move,
         Attack
     };
+    struct BattleDecision
+    {
+        int skillIndex = -1;
+        int targetIndex = -1;
+        EBattleContext actionType = EBattleContext::Invalid;
+        float score = -FLT_MAX;
+    };
+    struct BattleAIPolicy
+    {
+        bool allowBaseAttack = true;
+        bool allowSkill = true;
+        bool allowDefend = true;
 
+        float baseAttackBias = 0.f;
+        float skillBias = 0.f;
+        float defendBias = 0.f;
+
+        vector<string> forbiddenSkillIds = {};
+        vector<string> preferredSkillIds = {};
+    };
 public:
     Monster(const ComPtr<Device>& device, const ComPtr<Context>& context);
     Monster(const Monster& prototype);
@@ -71,7 +90,9 @@ protected:
     HRESULT Ready_Components();
     HRESULT Ready_PartObjects();
     HRESULT Ready_Collider();
+    void Decide_Action_BTOnly(Action& curturnAction, const vector<BattleChar>& heroes);
 
+    void ActionFromDecision(Action& curturnAction, const BattleDecision decision,const vector<BattleChar>& heroes);
 public:
     void Set_CurrentAction(MonsterAction action) { _currentAction = action; }
     MonsterAction Get_CurrentAction() const { return _currentAction; }

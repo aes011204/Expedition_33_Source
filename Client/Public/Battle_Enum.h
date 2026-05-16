@@ -497,21 +497,17 @@ namespace Client
 
     struct Skill_Data
     {
-        string skillName={""};            // "FireSlash"
+        string skillKey = {""};            // "FireSlash"
         string scriptClassName={""};      // "FireSlashScript"
         vector<string> animationKey;
         string IdleAnimationKey;
 
         int32 apCost = 0;
         ECharacterTeamSelector targetingType={};
-
-        uint32 _curAnimIndex = {};
-
         //
         EAttackType element={};
-
         // 
-        Buffs ailmentType = Buffs::None;
+        Buffs buff = Buffs::None;
         float ailmentChance = 0.f;
     };
     struct Action
@@ -523,6 +519,8 @@ namespace Client
 
         Item_Data   _selected_ItemKey = {};
         Skill_Data   _selected_SkillKey = {};
+
+        uint32 _curAnimIndex = {};
 
     };
     struct TurnEntry

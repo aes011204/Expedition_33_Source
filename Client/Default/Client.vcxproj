@@ -161,6 +161,7 @@
     <ClInclude Include="..\public\AN_Battle_EndAnim.h" />
     <ClInclude Include="..\Public\AN_Test2.h" />
     <ClInclude Include="..\public\Base_Mon_Attack.h" />
+    <ClInclude Include="..\Public\Battle_Enum.h" />
     <ClInclude Include="..\Public\Battle_Gustave.h" />
     <ClInclude Include="..\Public\Battle_Lune.h" />
     <ClInclude Include="..\Public\Battle_Maelle.h" />
@@ -279,7 +280,6 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
     </ClInclude>
     <ClInclude Include="..\public\UtilitySystem.h" />
-    <ClInclude Include="Battle_Enum.h" />
     <ClInclude Include="Base_Gustave_Attack.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="..\public\BackGround.h" />
