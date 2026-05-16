@@ -71,25 +71,27 @@ void SkillTree_Panel::Open()
 {
     _isOpen = true;
 
+    //바뀌지 않는 배경 UI
     if(_backgroundUI)
         _backgroundUI->Open();
 
+    //선택된 캐릭터 ui 확대
     _currentView->characterSelectUI->Get_Transform()->Set_Scale(_hoveredSize);
 
     if(_currentView->root)
         _currentView->root->Open();
 
-    for (auto& node : _currentView->skillNodes)
-    {
-        if (node.unlockedPopup)
-            node.unlockedPopup->Close();
-
-        if (node.lockedPopup)
-            node.lockedPopup->Close();
-    }
-
-    for(auto tooltip : _currentView->tooltips)
-        tooltip.second->Close();
+   // for (auto& node : _currentView->skillNodes)
+   // {
+   //     if (node.unlockedPopup)
+   //         node.unlockedPopup->Close();
+   //
+   //     if (node.lockedPopup)
+   //         node.lockedPopup->Close();
+   // }
+   //
+   // for(auto tooltip : _currentView->tooltips)
+   //     tooltip.second->Close();
 
 
     CHECK_FAILED(Spawn_StatusPreviewHeroes());
@@ -111,11 +113,29 @@ void SkillTree_Panel::Close()
 
     _currentView->characterSelectUI->Get_Transform()->Set_Scale(_baseSize);
 
-    if(_currentView->root)
-        _currentView->root->Close();
+    //전체 닫기
 
-    for(auto tooltip : _currentView->tooltips)
-        tooltip.second->Close();
+    for(auto i = 0 ; i < static_cast<int>(HeroId::END) ; i++)
+    {
+        _viewByPlayerId[static_cast<HeroId>(i)].root->Close();
+
+       for(auto tooltip : _viewByPlayerId[static_cast<HeroId>(i)].tooltips)
+       {
+           tooltip.second->Close();
+       }
+
+        for(auto node :_viewByPlayerId[static_cast<HeroId>(i)].skillNodes)
+        {
+            if(node.unlockedPopup)
+            node.unlockedPopup;
+
+            if(node.canUnlockPopup)
+            node.canUnlockPopup;
+
+            if(node.lockedPopup)
+            node.lockedPopup;
+        }
+    }
 
     Restore_PreviousCamera();
     Clear_StatusPreviewHeroes();
