@@ -199,7 +199,8 @@ ComputePointParticleDesc ComputeSpriteEmitter::Make_ComputePointParticleDesc() c
     desc.subUVCols = max(1u, _desc.subUVCols);
     desc.subUvFrameOverLife = _desc.subUVFrameOverLife;
     desc.sizeByLife = _desc.sizeByLife;
-    desc.radius = Vec2{ 1.2f, 2.2f };
+    desc.motion = _desc.motion;
+    desc.rotation = _desc.rotation;
     desc.drawMode = PointParticleDrawMode::DrawIndexedInstancedIndirect;
     desc.computeShaderLevelIndex = ETOI(LevelType::Static);
     desc.computeShaderPrototypeTag = L"ComputeShader_PointParticle";

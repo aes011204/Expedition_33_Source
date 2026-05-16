@@ -30,7 +30,7 @@ public: //## Accessor::Preset
     string Get_SelectedMaterialFileName() const;
 
 private: //## Data
-    vector<wstring> _presetPaths{};
+    vector<string> _presetGuids{};
     wstring _selectedPresetPath{};
     string _selectedPresetGuid{};
     string _selectedPresetType{};
@@ -43,6 +43,7 @@ private: //## Helpers
     void Render_PresetPreview();
     void Render_MaterialInstanceTable(const char* tableId, const EffectMaterialInstanceData& material) const;
     void Refresh_PresetList();
+    bool Load_PresetGuid(const string& guid);
     bool Load_PresetFile(const wstring& filePath);
 
 public:

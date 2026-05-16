@@ -739,7 +739,6 @@
     <ClCompile Include="..\private\Mon_Lancelier_Weapon.cpp" />
     <ClCompile Include="..\Private\Player_BattleBase.cpp" />
     <ClCompile Include="..\public\ANS_QTE.cpp" />
-    </ClCompile>
     <ClCompile Include="..\Private\EffectEmitterRegistration.cpp">
       <Filter>02.GameObject\Effect\Emitter Registration</Filter>
     </ClCompile>

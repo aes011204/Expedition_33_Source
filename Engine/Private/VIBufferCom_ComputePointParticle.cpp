@@ -11,14 +11,22 @@ struct ComputePointParticleParams
     uint32 drawMode{};
     float padding{};
     Vec4 center{};
+    Vec4 spawnRange{};    // xyz: spawn range, w: unused.
     Vec4 scaleLifeTime{}; // x/y: scale range, z/w: lifetime range.
     Vec4 startColorMin{};
     Vec4 startColorMax{};
     Vec4 endColorMin{};
     Vec4 endColorMax{};
-    Vec4 subUVParams{};        // x/y: rows/cols, z/w: unused.
-    Vec4 subUVFrameParams{};   // x/y: start/end frame, z: loop, w: enabled.
-    Vec4 sizeByLifeParams{};   // x/y: width start/end, z/w: height start/end.
+    Vec4 subUVParams{};         // x/y: rows/cols, z/w: unused.
+    Vec4 subUVFrameParams{};    // x/y: start/end frame, z: loop, w: enabled.
+    Vec4 sizeByLifeParams{};    // x/y: width start/end, z/w: height start/end.
+    Vec4 motionRadialPivot{};   // xyz: radial pivot, w: motion enabled.
+    Vec4 motionSpeedDrag{};     // x/y: speed min/max, z/w: drag min/max.
+    Vec4 accelerationMin{};     // xyz: acceleration min, w: unused.
+    Vec4 accelerationMax{};     // xyz: acceleration max, w: unused.
+    Vec4 velocityScaleByLife{}; // x/y: scale start/end, z/w: unused.
+    Vec4 rotationInitialRate{}; // x/y: initial rotation min/max, z/w: rate min/max.
+    Vec4 rotationByLife{};      // x/y: rotation start/end, z/w: rate scale start/end.
 };
 
 VIBufferCom_ComputePointParticle::VIBufferCom_ComputePointParticle(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -283,6 +291,7 @@ HRESULT VIBufferCom_ComputePointParticle::Update_ConstantBuffer()
         .instanceCount = static_cast<float>(_instanceCount),
         .drawMode = ETOI(_desc.drawMode),
         .center = Vec4{ _desc.center.x, _desc.center.y, _desc.center.z, 1.f },
+        .spawnRange = Vec4{ _desc.range.x, _desc.range.y, _desc.range.z, 0.f },
         .scaleLifeTime = Vec4{ _desc.scale.x, _desc.scale.y, _desc.lifeTime.x, _desc.lifeTime.y },
         .startColorMin = _desc.startColorMin,
         .startColorMax = _desc.startColorMax,
@@ -305,6 +314,43 @@ HRESULT VIBufferCom_ComputePointParticle::Update_ConstantBuffer()
             _desc.sizeByLife.multiplyXEnd,
             _desc.sizeByLife.multiplyYStart,
             _desc.sizeByLife.multiplyYEnd
+        },
+        .motionRadialPivot = Vec4{
+            _desc.motion.radialPivot.x,
+            _desc.motion.radialPivot.y,
+            _desc.motion.radialPivot.z,
+            _desc.motion.enabled ? 1.f : 0.f
+        },
+        .motionSpeedDrag = Vec4{
+            _desc.motion.initialSpeed.x,
+            _desc.motion.initialSpeed.y,
+            _desc.motion.drag.x,
+            _desc.motion.drag.y
+        },
+        .accelerationMin = Vec4{
+            _desc.motion.accelerationMin.x,
+            _desc.motion.accelerationMin.y,
+            _desc.motion.accelerationMin.z,
+            0.f
+        },
+        .accelerationMax = Vec4{
+            _desc.motion.accelerationMax.x,
+            _desc.motion.accelerationMax.y,
+            _desc.motion.accelerationMax.z,
+            0.f
+        },
+        .velocityScaleByLife = Vec4{ _desc.motion.velocityScaleByLife.x, _desc.motion.velocityScaleByLife.y, 0.f, 0.f },
+        .rotationInitialRate = Vec4{
+            _desc.rotation.initialRotationDegrees.x,
+            _desc.rotation.initialRotationDegrees.y,
+            _desc.rotation.initialRotationRateDegrees.x,
+            _desc.rotation.initialRotationRateDegrees.y
+        },
+        .rotationByLife = Vec4{
+            _desc.rotation.rotationOverLifeDegrees.x,
+            _desc.rotation.rotationOverLifeDegrees.y,
+            _desc.rotation.rotationRateScaleByLife.x,
+            _desc.rotation.rotationRateScaleByLife.y
         }
     };
 

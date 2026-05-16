@@ -10,6 +10,8 @@ NS_BEGIN(EffectEditor)
 
 namespace Internal
 {
+    //## Module Lookup
+
     template <typename TData>
     const TData* Find_ModuleData(const AuthoringEmitter& emitter, AuthoringModuleType type)
     {
@@ -26,6 +28,24 @@ namespace Internal
 
         return nullptr;
     }
+
+    //## Preview Policy
+
+    Color Clamp_PreviewColor(Color value)
+    {
+        value.R(clamp(value.R(), 0.f, 1.f));
+        value.G(clamp(value.G(), 0.f, 1.f));
+        value.B(clamp(value.B(), 0.f, 1.f));
+        value.A(clamp(value.A(), 0.f, 1.f));
+        return value;
+    }
+
+    uint32 Resolve_SubUVFrameCount(const RequiredModuleData& required)
+    {
+        return max(1u, max(1u, required.material.subUVRows) * max(1u, required.material.subUVCols));
+    }
+
+    //## Float Curve Eval
 
     float Evaluate_FloatCurveSegmentLinear(const FloatCurveKeyData& leftKey, const FloatCurveKeyData& rightKey, float x)
     {
@@ -81,6 +101,8 @@ namespace Internal
         return curve.keys.back().value;
     }
 
+    //## Distribution Eval
+
     float Evaluate_FloatDistributionMin(const FloatDistributionData& data, float fallbackValue)
     {
         if (const auto* constant = get_if<ConstantFloatDistributionData>(&data.payload))
@@ -131,13 +153,26 @@ namespace Internal
         return fallbackValue;
     }
 
-    Color Clamp_PreviewColor(Color value)
+    Vec3 Evaluate_Vector3DistributionMin(const Vector3DistributionData& data, const Vec3& fallbackValue)
     {
-        value.R(clamp(value.R(), 0.f, 1.f));
-        value.G(clamp(value.G(), 0.f, 1.f));
-        value.B(clamp(value.B(), 0.f, 1.f));
-        value.A(clamp(value.A(), 0.f, 1.f));
-        return value;
+        if (const auto* constant = get_if<ConstantVector3DistributionData>(&data.payload))
+            return constant->value;
+
+        if (const auto* uniform = get_if<UniformVector3DistributionData>(&data.payload))
+            return uniform->minValue;
+
+        return fallbackValue;
+    }
+
+    Vec3 Evaluate_Vector3DistributionMax(const Vector3DistributionData& data, const Vec3& fallbackValue)
+    {
+        if (const auto* constant = get_if<ConstantVector3DistributionData>(&data.payload))
+            return constant->value;
+
+        if (const auto* uniform = get_if<UniformVector3DistributionData>(&data.payload))
+            return uniform->maxValue;
+
+        return fallbackValue;
     }
 
     Color Evaluate_ColorDistributionMin(const ColorDistributionData& data, const Color& fallbackValue)
@@ -160,11 +195,6 @@ namespace Internal
             return Clamp_PreviewColor(uniform->maxValue);
 
         return Clamp_PreviewColor(fallbackValue);
-    }
-
-    uint32 Resolve_SubUVFrameCount(const RequiredModuleData& required)
-    {
-        return max(1u, max(1u, required.material.subUVRows) * max(1u, required.material.subUVCols));
     }
 }
 
@@ -302,6 +332,169 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
         definition.localPosition = required->emitterOrigin;
         definition.localRotationDegrees = required->emitterRotationDegrees;
         definition.useLocalSpace = required->useLocalSpace;
+    }
+
+    if (const auto* spawn = Internal::Find_ModuleData<SpawnModuleData>(emitter, AuthoringModuleType::Spawn))
+        desc.instanceCount = max(1u, spawn->maxParticleCount);
+
+    if (const auto* initialSize = Internal::Find_ModuleData<InitialSizeModuleData>(emitter, AuthoringModuleType::InitialSize))
+    {
+        const Vec2 minScale = Internal::Evaluate_Vector2DistributionMin(initialSize->size, desc.scale);
+        const Vec2 maxScale = Internal::Evaluate_Vector2DistributionMax(initialSize->size, desc.scale);
+        desc.scale = Vec2{ min(minScale.x, maxScale.x), max(minScale.y, maxScale.y) };
+    }
+
+    if (const auto* lifetime = Internal::Find_ModuleData<LifetimeModuleData>(emitter, AuthoringModuleType::Lifetime))
+    {
+        desc.lifeTime = Vec2{
+            Internal::Evaluate_FloatDistributionMin(lifetime->lifeTime, desc.lifeTime.x),
+            Internal::Evaluate_FloatDistributionMax(lifetime->lifeTime, desc.lifeTime.y)
+        };
+    }
+
+    if (const auto* initialColor = Internal::Find_ModuleData<InitialColorModuleData>(emitter, AuthoringModuleType::InitialColor))
+    {
+        const Color minColor = Internal::Evaluate_ColorDistributionMin(
+            initialColor->color,
+            Color{ desc.startColorMin.x, desc.startColorMin.y, desc.startColorMin.z, desc.startColorMin.w }
+        );
+        const Color maxColor = Internal::Evaluate_ColorDistributionMax(
+            initialColor->color,
+            Color{ desc.startColorMax.x, desc.startColorMax.y, desc.startColorMax.z, desc.startColorMax.w }
+        );
+        const float minAlpha = clamp(
+            Internal::Evaluate_FloatDistributionMin(initialColor->alpha, desc.startColorMin.w),
+            0.f,
+            1.f
+        );
+        const float maxAlpha = clamp(
+            Internal::Evaluate_FloatDistributionMax(initialColor->alpha, desc.startColorMax.w),
+            0.f,
+            1.f
+        );
+
+        desc.startColorMin = Vec4{ minColor.R(), minColor.G(), minColor.B(), minAlpha };
+        desc.startColorMax = Vec4{ maxColor.R(), maxColor.G(), maxColor.B(), maxAlpha };
+        desc.endColorMin = desc.startColorMin;
+        desc.endColorMax = desc.startColorMax;
+    }
+
+    if (const auto* colorOverLife = Internal::Find_ModuleData<ColorOverLifeModuleData>(emitter, AuthoringModuleType::ColorOverLife))
+    {
+        const Color minEndColor = Internal::Evaluate_ColorDistributionMin(
+            colorOverLife->colorOverLife,
+            Color{ desc.endColorMin.x, desc.endColorMin.y, desc.endColorMin.z, desc.endColorMin.w }
+        );
+        const Color maxEndColor = Internal::Evaluate_ColorDistributionMax(
+            colorOverLife->colorOverLife,
+            Color{ desc.endColorMax.x, desc.endColorMax.y, desc.endColorMax.z, desc.endColorMax.w }
+        );
+        const float minEndAlpha = clamp(
+            Internal::Evaluate_FloatDistributionMin(colorOverLife->alphaOverLife, desc.endColorMin.w),
+            0.f,
+            1.f
+        );
+        const float maxEndAlpha = clamp(
+            Internal::Evaluate_FloatDistributionMax(colorOverLife->alphaOverLife, desc.endColorMax.w),
+            0.f,
+            1.f
+        );
+
+        desc.endColorMin = Vec4{ minEndColor.R(), minEndColor.G(), minEndColor.B(), minEndAlpha };
+        desc.endColorMax = Vec4{ maxEndColor.R(), maxEndColor.G(), maxEndColor.B(), maxEndAlpha };
+    }
+
+    if (const auto* subUvFrameOverLife = Internal::Find_ModuleData<SubUVFrameOverLifeModuleData>(emitter, AuthoringModuleType::SubUVFrameOverLife))
+    {
+        desc.subUVFrameOverLife.enabled = true;
+        desc.subUVFrameOverLife.startFrame = subUvFrameOverLife->startFrame;
+        desc.subUVFrameOverLife.endFrame = subUvFrameOverLife->endFrame;
+        desc.subUVFrameOverLife.loop = subUvFrameOverLife->loop;
+
+        if (const auto* required = Internal::Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
+        {
+            const uint32 frameCount = Internal::Resolve_SubUVFrameCount(*required);
+            const uint32 lastFrame = frameCount > 0 ? frameCount - 1 : 0;
+            desc.subUVFrameOverLife.startFrame = min(desc.subUVFrameOverLife.startFrame, lastFrame);
+            desc.subUVFrameOverLife.endFrame = min(desc.subUVFrameOverLife.endFrame, lastFrame);
+
+            if (0 == subUvFrameOverLife->startFrame && 0 == subUvFrameOverLife->endFrame && frameCount > 1)
+                desc.subUVFrameOverLife.endFrame = lastFrame;
+        }
+    }
+
+    if (const auto* sizeByLife = Internal::Find_ModuleData<SizeByLifeModuleData>(emitter, AuthoringModuleType::SizeByLife))
+    {
+        desc.sizeByLife.enabled = true;
+        desc.sizeByLife.multiplyXStart = sizeByLife->multiplyXStart;
+        desc.sizeByLife.multiplyXEnd = sizeByLife->multiplyXEnd;
+        desc.sizeByLife.multiplyYStart = sizeByLife->multiplyYStart;
+        desc.sizeByLife.multiplyYEnd = sizeByLife->multiplyYEnd;
+    }
+
+    if (const auto* initialVelocity = Internal::Find_ModuleData<InitialVelocityModuleData>(emitter, AuthoringModuleType::InitialVelocity))
+    {
+        desc.motion.enabled = true;
+        desc.motion.radialPivot = initialVelocity->radialPivot;
+        desc.motion.initialSpeed = Vec2{
+            Internal::Evaluate_FloatDistributionMin(initialVelocity->speed, desc.motion.initialSpeed.x),
+            Internal::Evaluate_FloatDistributionMax(initialVelocity->speed, desc.motion.initialSpeed.y)
+        };
+    }
+
+    if (const auto* acceleration = Internal::Find_ModuleData<AccelerationModuleData>(emitter, AuthoringModuleType::Acceleration))
+    {
+        desc.motion.enabled = true;
+        desc.motion.accelerationMin = Internal::Evaluate_Vector3DistributionMin(acceleration->acceleration, desc.motion.accelerationMin);
+        desc.motion.accelerationMax = Internal::Evaluate_Vector3DistributionMax(acceleration->acceleration, desc.motion.accelerationMax);
+    }
+
+    if (const auto* drag = Internal::Find_ModuleData<DragModuleData>(emitter, AuthoringModuleType::Drag))
+    {
+        desc.motion.enabled = true;
+        desc.motion.drag = Vec2{
+            max(0.f, Internal::Evaluate_FloatDistributionMin(drag->drag, desc.motion.drag.x)),
+            max(0.f, Internal::Evaluate_FloatDistributionMax(drag->drag, desc.motion.drag.y))
+        };
+    }
+
+    if (const auto* velocityOverLife = Internal::Find_ModuleData<VelocityOverLifeModuleData>(emitter, AuthoringModuleType::VelocityOverLife))
+    {
+        desc.motion.enabled = true;
+        desc.motion.velocityScaleByLife = Vec2{ velocityOverLife->scaleStart, velocityOverLife->scaleEnd };
+    }
+
+    if (const auto* initialRotation = Internal::Find_ModuleData<InitialRotationModuleData>(emitter, AuthoringModuleType::InitialRotation))
+    {
+        desc.rotation.enabled = true;
+        desc.rotation.initialRotationDegrees = Vec2{
+            Internal::Evaluate_FloatDistributionMin(initialRotation->rotationDegrees, desc.rotation.initialRotationDegrees.x),
+            Internal::Evaluate_FloatDistributionMax(initialRotation->rotationDegrees, desc.rotation.initialRotationDegrees.y)
+        };
+    }
+
+    if (const auto* rotationOverLife = Internal::Find_ModuleData<RotationOverLifeModuleData>(emitter, AuthoringModuleType::RotationOverLife))
+    {
+        desc.rotation.enabled = true;
+        desc.rotation.rotationOverLifeDegrees = Vec2{ rotationOverLife->rotationStartDegrees, rotationOverLife->rotationEndDegrees };
+    }
+
+    if (const auto* initialRotationRate = Internal::Find_ModuleData<InitialRotationRateModuleData>(emitter, AuthoringModuleType::InitialRotationRate))
+    {
+        desc.rotation.enabled = true;
+        desc.rotation.initialRotationRateDegrees = Vec2{
+            Internal::Evaluate_FloatDistributionMin(initialRotationRate->rotationRateDegrees, desc.rotation.initialRotationRateDegrees.x),
+            Internal::Evaluate_FloatDistributionMax(initialRotationRate->rotationRateDegrees, desc.rotation.initialRotationRateDegrees.y)
+        };
+    }
+
+    if (const auto* rotationRateScaleByLife = Internal::Find_ModuleData<RotationRateScaleByLifeModuleData>(
+        emitter,
+        AuthoringModuleType::RotationRateScaleByLife
+    ))
+    {
+        desc.rotation.enabled = true;
+        desc.rotation.rotationRateScaleByLife = Vec2{ rotationRateScaleByLife->scaleStart, rotationRateScaleByLife->scaleEnd };
     }
 
     definition.concreteDesc = desc;

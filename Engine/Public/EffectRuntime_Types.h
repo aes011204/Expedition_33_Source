@@ -29,6 +29,8 @@ struct ComputeSpriteEmitterDesc : public GameObject::GAMEOBJECT_DESC
     uint32 subUVCols{ 1 };                                    // flipbook column 수다.
     PointParticleSubUVFrameOverLifeDesc subUVFrameOverLife{}; // 수명 진행률 기준 SubUV frame 규칙이다.
     PointParticleSizeByLifeDesc sizeByLife{};                 // 수명 진행률 기준 크기 배율 규칙이다.
+    PointParticleMotionDesc motion{};                         // motion authoring module을 compute payload로 압축한 규칙이다.
+    PointParticleRotationDesc rotation{};                     // rotation authoring module을 compute payload로 압축한 규칙이다.
 
     Vec3 center{ 0.f, 0.f, 0.f };             // concrete emitter 내부 fallback/초기 center다. root transform이 있으면 후속 sync가 덮어쓴다.
     uint32 instanceCount{ 96 };               // 생성할 particle 수다.

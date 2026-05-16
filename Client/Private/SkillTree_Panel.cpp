@@ -55,7 +55,7 @@ HRESULT SkillTree_Panel::Initialize(uint32 levelIndex)
     Set_SkillPoint();
 
     _baseSize = _currentView->skillNodes.front().image->Get_Transform()->Get_Scale();
-    _hoveredSize = _baseSize * 1.2;
+    _hoveredSize = _baseSize * 1.2f;
     Close();
 
     return S_OK;
