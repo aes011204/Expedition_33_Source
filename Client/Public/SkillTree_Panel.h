@@ -95,7 +95,7 @@ private:
 private:
     struct StatusPreviewHero
     {
-        Shared<Player> player{};
+        Shared<Player_WorldBase> player{};
 
         // 
     };

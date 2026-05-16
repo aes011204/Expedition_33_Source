@@ -416,6 +416,17 @@ void ColliderCom::Sync_ToPhysX(const Matrix& worldMatrix)
     }
 }
 
+void ColliderCom::Sync_InitialPose_ToPhysX(const Matrix& worldMatrix)
+{
+    if (_pxActor == nullptr)
+        return;
+
+    Update_PhysXGeometry(worldMatrix);
+
+    const PxTransform pxTransform = Build_PXTransform(worldMatrix);
+    _pxActor->setGlobalPose(pxTransform);
+}
+
 PxTransform ColliderCom::Build_PXTransform(const Matrix& worldMatrix) const
 {
     Matrix temp = worldMatrix;

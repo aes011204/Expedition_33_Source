@@ -6,7 +6,7 @@ NS_BEGIN(Client)
 class Player_Jump final : public Player_State
 {
 public:
-    Player_Jump(const Shared<Player>& owner);
+    Player_Jump(const Shared<Player_WorldBase>& owner);
     ~Player_Jump() override = default;
 
 public:
@@ -18,7 +18,7 @@ public:
     void ExitInvoke() override;
 
 public:
-    static Shared<Player_Jump> Create(const Shared<Player>& owner);
+    static Shared<Player_Jump> Create(const Shared<Player_WorldBase>& owner);
     virtual void Free() override;
 
 };

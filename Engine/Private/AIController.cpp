@@ -12,7 +12,7 @@
 
 namespace Client
 {
-    class Monster;
+    class MW_Lancelier;
 }
 
 IMPLEMENT_REFLECTION(AIController)

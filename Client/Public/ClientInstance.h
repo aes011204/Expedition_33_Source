@@ -11,7 +11,7 @@ NS_BEGIN(Client)
 
 class BattleController;
 
-    class Player;
+    class Player_WorldBase;
 class TargetCamera;
 class ResourceLoader;
 class GameplayUI;
@@ -56,20 +56,20 @@ public: /* For.Hero Manager */
     void           Clear_Party();
 
     // 컨트롤중인 플레이어
-    Shared<Player>  Get_ActiveHero() const;
+    Shared<Player_WorldBase>  Get_ActiveHero() const;
     HeroPartySlot   Get_ActiveHeroSlot() const;
 
     // 플레이어 전부 가져오기
     const vector<HeroPartyEntry>& Get_HeroEntries() const;
 
     // 특정 슬롯 반환
-    Shared<Player>  Get_Hero(HeroPartySlot slot) const;
+    Shared<Player_WorldBase>  Get_Hero(HeroPartySlot slot) const;
     HeroId          Get_HeroId(HeroPartySlot slot) const;
 
     // 맨 앞 플레이어. Get_Active와 역할이 거의 동일
-    Shared<Player>  Get_FrontHero() const;
+    Shared<Player_WorldBase>  Get_FrontHero() const;
 
-    Shared<Player>  Find_Hero(HeroId heroId) const;
+    Shared<Player_WorldBase>  Find_Hero(HeroId heroId) const;
 
     const HeroSpawnDesc* Find_HeroSpawnDesc(HeroId heroId);
 
@@ -87,6 +87,8 @@ public: /* For.Battle_Controller */
         vector<string>& MonsterProtoTag);
 
     Shared<BattleController>    Get_BattleController() { return _battleController; };
+
+    bool Is_BattleActive() const;
 
 private:
 	HRESULT Ready_ResourceLoader();

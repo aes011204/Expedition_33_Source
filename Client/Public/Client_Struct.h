@@ -2,12 +2,12 @@
 
 namespace Client
 {
-    class Player;
+    class Player_WorldBase;
 
     struct HeroPartyEntry
     {
         HeroId  heroId = HeroId::Gustave;
-        Shared<Player> hero;
+        Shared<Player_WorldBase> hero;
     };
 
     struct HeroSpawnDesc
@@ -17,7 +17,7 @@ namespace Client
         const char* battlePrefabName = "";
     };
 
-    // Player Hair Physics
+    // Player_WorldBase Hair Physics
     struct HairChainPhysicsDesc
     {
         HairPhysicsProfile profile = HairPhysicsProfile::Lune;

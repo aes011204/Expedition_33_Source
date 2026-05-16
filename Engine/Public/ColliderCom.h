@@ -70,6 +70,7 @@ public: /* PhysX */
 public:
     // 피직스 월드에 들어갈 실제 충돌 객체를 만들기
     HRESULT                     Build_PhysXActor(PxPhysics* physics);
+    void                        Sync_InitialPose_ToPhysX(const Matrix& worldMatrix);
     // 매 프레임 게임 Transform 값을 피직스쪽 actor 위치/회전에 복사해서 맞춰주기
     void                        Sync_ToPhysX(const Matrix& worldMatrix);
     // 현재 preset 정보를 shape의 filter data로 넣는다.

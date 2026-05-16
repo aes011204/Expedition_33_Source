@@ -7,7 +7,7 @@
 #include "GameDataTable.h"
 #include "GameInstance.h"
 #include "PersistentObjectManager.h"
-#include "Player.h"
+#include "Player_WorldBase.h"
 #include "ResourceLoader.h"
 #include "BT_Node_Bootstrap.h"
 #include "GameDataTable.h"
@@ -118,7 +118,7 @@ void ClientInstance::Update_HeroManager(float timeDelta)
     return _heroManager->Update_HeroManager(timeDelta);
 }
 
-Shared<Player> ClientInstance::Get_ActiveHero() const
+Shared<Player_WorldBase> ClientInstance::Get_ActiveHero() const
 {
     return _heroManager->Get_ActiveHero();
 }
@@ -128,7 +128,7 @@ const vector<HeroPartyEntry>& ClientInstance::Get_HeroEntries() const
     return _heroManager->Get_HeroEntries();
 }
 
-Shared<Player> ClientInstance::Get_Hero(HeroPartySlot slot) const
+Shared<Player_WorldBase> ClientInstance::Get_Hero(HeroPartySlot slot) const
 {
     return _heroManager->Get_Hero(slot);
 }
@@ -153,12 +153,12 @@ void ClientInstance::Clear_Party()
     return _heroManager->Clear_Party();
 }
 
-Shared<Player> ClientInstance::Get_FrontHero() const
+Shared<Player_WorldBase> ClientInstance::Get_FrontHero() const
 {
     return _heroManager->Get_FrontHero();
 }
 
-Shared<Player> ClientInstance::Find_Hero(HeroId heroId) const
+Shared<Player_WorldBase> ClientInstance::Find_Hero(HeroId heroId) const
 {
     return _heroManager->Find_Hero(heroId);
 }
@@ -198,6 +198,11 @@ void ClientInstance::OnEnterBattleField(uint32 FieldID, bool IsFirstHero, const 
     vector<string>& MonsterProtoTag)
 {
     return _battleController->OnEnterBattleField(FieldID, IsFirstHero, heroIds, MonsterProtoTag);
+}
+
+bool ClientInstance::Is_BattleActive() const
+{
+    return _battleController && _battleController->Is_BattleStarted();
 }
 
 Shared<GameObject> ClientInstance::Find_Player(uint32 levelIndex)

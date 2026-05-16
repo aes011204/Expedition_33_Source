@@ -5,11 +5,30 @@
 #include "BackGround.h"
 #include "Terrain.h"
 #include "FreeCamera.h"
-#include "Monster.h"
-#include "Player.h"
+#include "MW_Lancelier.h"
+#include "Player_WorldBase.h"
 #include "Body_Player.h"
 #include "Weapon.h"
 #include "Sky.h"
+
+// 레벨 추가되면 여기에 추가로 세팅해줘야함
+auto Loader::Find_MapLoadDesc() const -> const LevelMapLoadDesc*
+{
+    static const LevelMapLoadDesc mapLoadDescs[] =
+    {
+        { LevelType::GamePlay, Constants::Map::SmallLevel_SimonArea_Remake_Path, L"Layer_MapStaticMesh" },
+        { LevelType::MapTest,  Constants::Map::SmallLevel_SimonArea_Remake_Path, L"Layer_MapStatic" },
+        { LevelType::Stage01,  Constants::Map::SmallLevel_SimonArea_Remake_Path, L"Layer_MapStaticMesh" },
+    };
+
+    for (const LevelMapLoadDesc& desc : mapLoadDescs)
+    {
+        if (desc.level == _nextLevel)
+            return &desc;
+    }
+
+    return nullptr;
+}
 
 Loader::Loader(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : _device{ device }
@@ -98,15 +117,52 @@ HRESULT Loader::Loading()
     return hr;
 }
 
-HRESULT Loader::Process_PendingLoadJobs(size_t maxCommitPerFrame)
+HRESULT Loader::Process_PendingLoadJobs(
+    size_t maxCommitPerFrame,
+    size_t maxMainThreadCreatePerFrame,
+    chrono::milliseconds maxMainThreadCreateTime)
 {
     // 이미 완료됐거나, 실패한 상태면 더 처리할 작업이 없다.
     if (_isFinished.load() || _hasFailed.load())
         return S_OK;
 
-    CHECK_FAILED(Schedule_PendingCreateJobs(), E_FAIL);
+#ifdef _DEBUG
+    const auto processBegin = chrono::steady_clock::now();
+    const auto scheduleBegin = processBegin;
+#endif
+
+    CHECK_FAILED(Schedule_PendingCreateJobs(maxMainThreadCreatePerFrame, maxMainThreadCreateTime), E_FAIL);
+
+#ifdef _DEBUG
+    const auto commitBegin = chrono::steady_clock::now();
+#endif
+
     CHECK_FAILED(Commit_CompletedLoadJobs(maxCommitPerFrame), E_FAIL);
+
+#ifdef _DEBUG
+    const auto finishBegin = chrono::steady_clock::now();
+#endif
+
     CHECK_FAILED(Try_FinishLoading(), E_FAIL);
+
+#ifdef _DEBUG
+    const auto processEnd = chrono::steady_clock::now();
+    const auto scheduleMs = chrono::duration_cast<chrono::milliseconds>(commitBegin - scheduleBegin);
+    const auto commitMs = chrono::duration_cast<chrono::milliseconds>(finishBegin - commitBegin);
+    const auto finishMs = chrono::duration_cast<chrono::milliseconds>(processEnd - finishBegin);
+    const auto totalMs = chrono::duration_cast<chrono::milliseconds>(processEnd - processBegin);
+
+    if (totalMs.count() >= 8)
+    {
+        LOG_INFO(
+            "[Loader::Process_PendingLoadJobs] total={}, schedule={}, commit={}, finish={}, progress={:.2f}%%",
+            Format_Duration(totalMs),
+            Format_Duration(scheduleMs),
+            Format_Duration(commitMs),
+            Format_Duration(finishMs),
+            Get_Progress() * 100.f);
+    }
+#endif
 
     return S_OK;
 }
@@ -341,7 +397,7 @@ string Loader::Format_Duration(chrono::milliseconds duration)
     return oss.str();
 }
 
-HRESULT Loader::Schedule_PendingCreateJobs()
+HRESULT Loader::Schedule_PendingCreateJobs(size_t maxMainThreadCreatePerFrame, chrono::milliseconds maxMainThreadCreateTime)
 {
     vector<FLoadJob> jobsToSchedule;
 
@@ -355,6 +411,12 @@ HRESULT Loader::Schedule_PendingCreateJobs()
         _pendingJobs.clear();
     }
 
+    vector<FLoadJob> deferredJobs;
+    deferredJobs.reserve(jobsToSchedule.size());
+
+    size_t mainThreadCreateCount = 0;
+    const auto mainThreadCreateBegin = chrono::steady_clock::now();
+
     for (const FLoadJob& loadJob : jobsToSchedule)
     {
         // 이미 등록된 prototype이면 완료 처리만 한다.
@@ -366,6 +428,23 @@ HRESULT Loader::Schedule_PendingCreateJobs()
 
         if (!ResourceLoader::Can_CreatePrototypeOnWorker(loadJob))
         {
+            const auto mainThreadCreateElapsed = chrono::duration_cast<chrono::milliseconds>(
+                chrono::steady_clock::now() - mainThreadCreateBegin);
+
+            const bool countBudgetExceeded =
+                maxMainThreadCreatePerFrame == 0 ||
+                mainThreadCreateCount >= maxMainThreadCreatePerFrame;
+            const bool timeBudgetExceeded =
+                maxMainThreadCreateTime.count() > 0 &&
+                mainThreadCreateCount > 0 &&
+                mainThreadCreateElapsed >= maxMainThreadCreateTime;
+
+            if (countBudgetExceeded || timeBudgetExceeded)
+            {
+                deferredJobs.push_back(loadJob);
+                continue;
+            }
+
             const auto startTime = chrono::steady_clock::now();
 
             Shared<ResourceLoader> resourceLoader = ResourceLoader::Create(_device, _context);
@@ -378,6 +457,7 @@ HRESULT Loader::Schedule_PendingCreateJobs()
                 chrono::steady_clock::now() - startTime);
 
             CHECK_FAILED(Push_CompletedLoadJob(loadJob, prototype, hr, elapsed), E_FAIL);
+            ++mainThreadCreateCount;
             continue;
         }
 
@@ -429,6 +509,15 @@ HRESULT Loader::Schedule_PendingCreateJobs()
 
             return E_FAIL;
         }
+    }
+
+    if (!deferredJobs.empty())
+    {
+        lock_guard<mutex> lock(_pendingJobsMutex);
+        _pendingJobs.insert(
+            _pendingJobs.begin(),
+            make_move_iterator(deferredJobs.begin()),
+            make_move_iterator(deferredJobs.end()));
     }
 
     return S_OK;
@@ -541,12 +630,47 @@ HRESULT Loader::Try_FinishLoading()
         }
 
         CLIENT->Set_StaticResourcesLoaded(true);
+        _includedStaticJobs.store(false);
     }
+
+    CHECK_FAILED(Process_LevelMapLoad(2, chrono::milliseconds(4)), E_FAIL);
+
+    if (!_mapLoadFinished)
+        return S_OK;
 
     lstrcpy(_loadingText, TEXT("Loading completed."));
     _isFinished.store(true);
 
     Print_LoadJobSummary();
+
+    return S_OK;
+}
+
+HRESULT Loader::Process_LevelMapLoad(size_t maxMeshesPerFrame, chrono::milliseconds maxTimePerFrame)
+{
+    const LevelMapLoadDesc* desc = Find_MapLoadDesc();
+
+    if (desc == nullptr)
+    {
+        _mapLoadFinished = true;
+        return S_OK;
+    }
+
+    if (!_mapLoadStarted)
+    {
+        CHECK_FAILED(
+            MapLoader::Begin_LoadSession(_device, _context, desc->mapPath,
+                ETOI(desc->level), desc->layerTag, _mapLoadSession), E_FAIL);
+
+        _mapLoadStarted = true;
+    }
+
+    bool finished = false;
+    CHECK_FAILED(
+        MapLoader::Process_LoadSession(_mapLoadSession,
+            maxMeshesPerFrame, maxTimePerFrame, finished), E_FAIL);
+
+    _mapLoadFinished = finished;
 
     return S_OK;
 }

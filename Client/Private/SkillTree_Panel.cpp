@@ -2,7 +2,7 @@
 #include <filesystem>
 #include "Client_Constants.h"
 #include "ClientInstance.h"
-#include "Player.h"
+#include "Player_WorldBase.h"
 #include "PlayerStatCom.h"
 #include "SkillTreeCom.h"
 #include "Spawn_Prefab.h"
@@ -17,11 +17,11 @@ static const char* Get_HeroPrefabName(HeroId heroId)
     switch (heroId)
     {
     case HeroId::Gustave:
-        return "Player_Gustave";
+        return Constants::Prefab::PW_Gustave; // 월드 프리팹 이름은 공용 상수로 맞춘다.
     case HeroId::Lune:
-        return "Player_Lune";
+        return Constants::Prefab::PW_Lune; // 스킬트리 미리보기 스폰도 실제 prefab 파일명과 같은 값을 사용한다.
     case HeroId::Maelle:
-        return "Player_Maelle";
+        return Constants::Prefab::PW_Maelle; // 이름 변경 시 호출부 문자열이 흩어지지 않게 한다.
     default:
         return "";
     }
@@ -481,7 +481,7 @@ HRESULT SkillTree_Panel::Spawn_StatusPreviewHeroes()
             .InLayer(_previewLayerTag)
             .Spawn();
    
-        auto previewPlayer = dynamic_pointer_cast<Player>(object);
+        auto previewPlayer = dynamic_pointer_cast<Player_WorldBase>(object);
         CHECK_NULL(previewPlayer, E_FAIL);
    
         _previewHeroes.push_back(StatusPreviewHero{ previewPlayer });
@@ -531,32 +531,15 @@ void SkillTree_Panel::Layout_StatusPreviewHeroes()
 
     const uint32 count = min<uint32>(static_cast<uint32>(_previewHeroes.size()), 3);
     
-    LOG_DEBUG("[CharacterStatus] Layout preview count: {}", count);
-
     for(uint32 i =0; i < count; ++i)
     {
-        Shared<Player> player = _previewHeroes[i].player;
+        Shared<Player_WorldBase> player = _previewHeroes[i].player;
 
         if(player == nullptr || player->Get_Transform() == nullptr)
             continue;
 
         player->Get_Transform()->Set_WorldPosition(positions[i]);
         player->Get_Transform()->Set_WorldRotationEuler(rotations[i]);
-
-        const Vec3 appliedPos = player->Get_Transform()->Get_WorldPosition();
-        const Vec3 appliedRot = player->Get_Transform()->Get_WorldRotationEuler();
-
-        LOG_DEBUG(
-            "[CharacterStatus] Preview[{}] name={} prefab={} pos=({}, {}, {}) rot=({}, {}, {})",
-            i,
-            String::ToString(player->Get_Name()),
-            player->Get_SourcePrefabName(),
-            appliedPos.x,
-            appliedPos.y,
-            appliedPos.z,
-            appliedRot.x,
-            appliedRot.y,
-            appliedRot.z);
     }
 }
 

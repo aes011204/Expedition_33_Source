@@ -28,7 +28,6 @@ private:
 	HRESULT Ready_Layer_Camera(const wstring& strLayerTag);
 	HRESULT Ready_Layer_BackGround(const wstring& strLayerTag);
 	HRESULT Ready_Layer_Monster(const wstring& strLayerTag);
-    HRESULT Ready_Layer_MapStaticMesh(const wstring& strLayerTag);
 	HRESULT Ready_Layer_Player(const wstring& strLayerTag);
 
 public:

@@ -2,7 +2,7 @@
 #include "GameInstance.h"
 #include "Material_Types.h"
 
-#include "Player.h"
+#include "Player_WorldBase.h"
 
 Weapon::Weapon(const ComPtr<Device>& device, const ComPtr<Context>& context)
 	: PartObject { device, context }

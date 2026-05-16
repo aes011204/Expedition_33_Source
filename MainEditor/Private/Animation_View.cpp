@@ -123,6 +123,9 @@ void Animation_View::Update(float timeDelta)
 {
     Editor_Window::Update(timeDelta);
 
+    if (EDITOR->IsPlaying())
+        return;
+
     if (Is_PrefabViewFocused())
         return;
 
@@ -140,6 +143,9 @@ void Animation_View::Update(float timeDelta)
 void Animation_View::Pre_Render()
 {
     if (!Is_Open())
+        return;
+
+    if (EDITOR->IsPlaying())
         return;
 
     if (Is_PrefabViewFocused())
@@ -206,10 +212,12 @@ void Animation_View::Pre_Render()
         previewRenderObject->Update(dt);
     }
 
+    GAME->Backup_RenderGroup();
     previewRenderObject->Late_Update(dt);
     Lock_PreviewObjectToOrigin(previewRenderObject);
 
-    GAME->Draw_RendererOnly();
+    GAME->Draw_Preview();
+    GAME->Restore_RenderGroup();
     Ensure_PreviewGridResources();
     Draw_PreviewGrid();
     GAME->Set_Lights(savedLightDescs);

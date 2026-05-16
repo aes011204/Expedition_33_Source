@@ -1,25 +1,25 @@
-﻿#include "Battle_Gustave.h"
+﻿#include "PB_Gustave.h"
 
-IMPLEMENT_REFLECTION(Battle_Gustave)
+IMPLEMENT_REFLECTION(PB_Gustave)
 {
     auto& info = GetStaticReflectionInfo();
     info.properties.clear();
-    info.displayName = "Battle_Gustave";
+    info.displayName = "PB_Gustave";
     info.category = "Character";
     return true;
 }
 
-Battle_Gustave::Battle_Gustave(const ComPtr<Device>& device, const ComPtr<Context>& context)
+PB_Gustave::PB_Gustave(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Player_BattleBase(device, context)
 {
 }
 
-Battle_Gustave::Battle_Gustave(const Battle_Gustave& prototype)
+PB_Gustave::PB_Gustave(const PB_Gustave& prototype)
     : Player_BattleBase(prototype)
 {
 }
 
-HairChainPhysicsDesc Battle_Gustave::Get_HairChainPhysicsDesc() const
+HairChainPhysicsDesc PB_Gustave::Get_HairChainPhysicsDesc() const
 {
     HairChainPhysicsDesc desc{};
 
@@ -45,33 +45,33 @@ HairChainPhysicsDesc Battle_Gustave::Get_HairChainPhysicsDesc() const
     return desc;
 }
 
-Shared<Battle_Gustave> Battle_Gustave::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
+Shared<PB_Gustave> PB_Gustave::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
-    auto instance = make_shared<Battle_Gustave>(device, context);
+    auto instance = make_shared<PB_Gustave>(device, context);
 
     if (FAILED(instance->Initialize_Prototype()))
     {
-        LOG_ERROR("Failed to Created : Battle_Gustave");
+        LOG_ERROR("Failed to Created : PB_Gustave");
         return nullptr;
     }
 
     return instance;
 }
 
-Shared<GameObject> Battle_Gustave::Clone(void* arg)
+Shared<GameObject> PB_Gustave::Clone(void* arg)
 {
-    auto clone = make_shared<Battle_Gustave>(*this);
+    auto clone = make_shared<PB_Gustave>(*this);
 
     if (FAILED(clone->Initialize(arg)))
     {
-        MSG_BOX("Failed to Cloned : Battle_Gustave");
+        MSG_BOX("Failed to Cloned : PB_Gustave");
         return nullptr;
     }
 
     return clone;
 }
 
-void Battle_Gustave::Free()
+void PB_Gustave::Free()
 {
     Player_BattleBase::Free();
 }

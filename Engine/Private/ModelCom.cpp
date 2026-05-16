@@ -166,7 +166,7 @@ void ModelCom::Set_Animation(uint32 animIndex, float blendDuration, bool isLoop,
 
 void ModelCom::Set_Animation(const string& animName, bool isLoop, float startFrame)
 {
-    if (_mappedAnimIndices.contains(animName))
+    if (!_mappedAnimIndices.contains(animName))
     {
         LOG_WARN("Failed to find animation by name: {}", animName);
         return;
@@ -177,7 +177,7 @@ void ModelCom::Set_Animation(const string& animName, bool isLoop, float startFra
 
 void ModelCom::Set_Animation(const string& animName, float blendDuration, bool isLoop, float startFrame)
 {
-    if (_mappedAnimIndices.contains(animName))
+    if (!_mappedAnimIndices.contains(animName))
     {
         LOG_WARN("Failed to find animation by name: {}", animName);
         return;
