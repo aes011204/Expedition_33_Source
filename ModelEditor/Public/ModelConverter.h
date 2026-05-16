@@ -56,9 +56,9 @@ private:
 	HWND                                _hWnd{ nullptr };
 	char                                _pathBuffer[512]{};
 	wstring                             _resourcePath{};
-	
 	bool                                _exportJsonLog{ false };
-	bool                                _applyGlobalScale{ true };
+	bool                                _exportModelData{ true };
+	bool                                _applyStaticGlobalScale{ true };
 	vector<std::filesystem::path>       _cachedFbxPaths;
 	string                              _selectedFbxPath;
 
