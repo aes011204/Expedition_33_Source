@@ -21,6 +21,8 @@ public:
 private:
 	LevelType			    _nextLevel = { LevelType::END };
 	Shared<Loader>          _loader = nullptr;
+	chrono::steady_clock::time_point _loadingStartTime = {};
+	bool                    _printedLoadCompleteLog = false;
 
 private:
     HRESULT Ready_LoadingUIRenderResources();

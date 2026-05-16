@@ -11,7 +11,7 @@ NS_END
 
 NS_BEGIN(Client)
 
-class Player;
+class Player_WorldBase;
 class PreviewCamera;
 
 // UI_Panel 렌더 객체가 아니라,
@@ -32,11 +32,15 @@ public:
 
     bool    Is_Open() const { return _isOpen; }
 
+    void    Handle_SelectionInput();
+    uint32  Get_WrappedPartyIndex(int32 index) const;
+
 private:
     HRESULT Load_UI(uint32 levelIndex);
     HRESULT Bind_UI();
 
     void    Refresh_CombatStats();
+    void    Refresh_CharacterSelectUI(); // 선택된 캐릭터 슬롯만 크게 보이게
 
     Shared<UI_Base> Find_UI(const umap<wstring, Shared<UI_Base>>& uiByName, const wstring& name) const;
 
@@ -74,7 +78,7 @@ private:
 private:
     struct StatusPreviewHero
     {
-        Shared<Player> player{};
+        Shared<Player_WorldBase> player{};
 
         // 
     };
@@ -83,6 +87,8 @@ private:
     wstring _previewLayerTag = L"Layer_CharacterStatusPreview";
 
 private:
+    uint32 _selectedHeroIndex = 0;
+
     uint32 _levelIndex = 0;
     bool _isOpen = false;
 
@@ -109,6 +115,22 @@ private:
     Shared<UI_Text> _speedText{};
     Shared<UI_Text> _defenseValueText{};
     Shared<UI_Text> _criticalRateText{};
+
+    Shared<UI_Base> _selectButton01{};
+    Shared<UI_Base> _selectButton02{};
+    Shared<UI_Base> _selectButton03{};
+
+    Shared<UI_Base> _selectFrame01{};
+    Shared<UI_Base> _selectFrame02{};
+    Shared<UI_Base> _selectFrame03{};
+
+    Shared<UI_Base> _selectPortrait01{};
+    Shared<UI_Base> _selectPortrait02{};
+    Shared<UI_Base> _selectPortrait03{};
+
+    Shared<UI_Base> _selectIndicator01{};
+    Shared<UI_Base> _selectIndicator02{};
+    Shared<UI_Base> _selectIndicator03{};
 
 public:
     static Unique<CharacterStatus_Panel> Create(uint32 levelIndex);

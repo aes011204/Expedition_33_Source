@@ -8,27 +8,27 @@
 #include "PlayerStatCom.h"
 
 Player_BattleBase::Player_BattleBase(const ComPtr<Device>& device, const ComPtr<Context>& context)
-    : Character(device, context)
+    : Character_BattleBase(device, context)
 {
 }
 
 Player_BattleBase::Player_BattleBase(const Player_BattleBase& prototype)
-    : Character(prototype)
+    : Character_BattleBase(prototype)
 {
 }
 
 HRESULT Player_BattleBase::Initialize_Prototype()
 {
-    return Character::Initialize_Prototype();
+    return Character_BattleBase::Initialize_Prototype();
 }
 
 HRESULT Player_BattleBase::Initialize(void* arg)
 {
-    Character::ContainerObjectDesc desc{};
+    Character_BattleBase::ContainerObjectDesc desc{};
     desc.speedPerSec = 0.f;
     desc.degreePerSec = 0.f;
 
-    CHECK_FAILED(Character::Initialize(&desc), E_FAIL);
+    CHECK_FAILED(Character_BattleBase::Initialize(&desc), E_FAIL);
     CHECK_FAILED(Ready_Components(), E_FAIL);
     CHECK_FAILED(Ready_PartObjects(), E_FAIL);
 
@@ -37,23 +37,18 @@ HRESULT Player_BattleBase::Initialize(void* arg)
 
 void Player_BattleBase::BeginPlay()
 {
-    Character::BeginPlay();
+    Character_BattleBase::BeginPlay();
 }
 
 void Player_BattleBase::Update(float timeDelta)
 {
-    Character::Update(timeDelta);
+    Character_BattleBase::Update(timeDelta);
 }
 
 void Player_BattleBase::Late_Update(float timeDelta)
 {
-    Character::Late_Update(timeDelta);
-
-    if (_colliderCom)
-    {
-        _colliderCom->Update_Collider(_transformCom->Get_WorldMatrix());
-        GAME->Add_Collider(_colliderCom);
-    }
+    Character_BattleBase::Late_Update(timeDelta);
+    
 }
 
 HRESULT Player_BattleBase::Ready_PartObjects()
@@ -95,18 +90,11 @@ HRESULT Player_BattleBase::Ready_PartObjects()
 HRESULT Player_BattleBase::Ready_Components()
 {
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_PlayerStat"), _combatStatCom), E_FAIL);
-    CHECK_FAILED(Ready_Collider(), E_FAIL);
-    return S_OK;
-}
 
-HRESULT Player_BattleBase::Ready_Collider()
-{
     Bounding_OBB::BoundingOBBDesc obbDesc{};
     obbDesc.center = Vec3(0.f, 0.75f, 0.f);
     obbDesc.extents = Vec3(0.35f, 0.75f, 0.35f);
+    CHECK_FAILED(Ready_Collider(L"Com_Collider_OBB", &obbDesc, Collision_Preset::Player_Body), E_FAIL);
 
-    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), L"Com_Collider_OBB", _colliderCom, &obbDesc), E_FAIL);
-    _colliderCom->Set_CollisionPreset(Collision_Preset::Player_Body);
-    _colliderCom->Set_IsActive(true);
     return S_OK;
 }

@@ -4,7 +4,7 @@
 #include "Body_Player.h"
 #include "PlayerStateMachineCom.h"
 
-Player_Move::Player_Move(const Shared<Player>& owner)
+Player_Move::Player_Move(const Shared<Player_WorldBase>& owner)
     : Player_State{ owner } {}
 
 HRESULT Player_Move::Initialize()
@@ -69,7 +69,7 @@ void Player_Move::ExitInvoke()
     
 }
 
-Shared<Player_Move> Player_Move::Create(const Shared<Player>& owner)
+Shared<Player_Move> Player_Move::Create(const Shared<Player_WorldBase>& owner)
 {
     auto instance = make_shared<Player_Move>(owner);
 

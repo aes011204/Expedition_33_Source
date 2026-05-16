@@ -1,25 +1,25 @@
-﻿#include "Battle_Maelle.h"
+﻿#include "PB_Maelle.h"
 
-IMPLEMENT_REFLECTION(Battle_Maelle)
+IMPLEMENT_REFLECTION(PB_Maelle)
 {
     auto& info = GetStaticReflectionInfo();
     info.properties.clear();
-    info.displayName = "Battle_Maelle";
+    info.displayName = "PB_Maelle";
     info.category = "Character";
     return true;
 }
 
-Battle_Maelle::Battle_Maelle(const ComPtr<Device>& device, const ComPtr<Context>& context)
+PB_Maelle::PB_Maelle(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Player_BattleBase(device, context)
 {
 }
 
-Battle_Maelle::Battle_Maelle(const Battle_Maelle& prototype)
+PB_Maelle::PB_Maelle(const PB_Maelle& prototype)
     : Player_BattleBase(prototype)
 {
 }
 
-HairChainPhysicsDesc Battle_Maelle::Get_HairChainPhysicsDesc() const
+HairChainPhysicsDesc PB_Maelle::Get_HairChainPhysicsDesc() const
 {
     HairChainPhysicsDesc desc{};
 
@@ -45,33 +45,33 @@ HairChainPhysicsDesc Battle_Maelle::Get_HairChainPhysicsDesc() const
     return desc;
 }
 
-Shared<Battle_Maelle> Battle_Maelle::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
+Shared<PB_Maelle> PB_Maelle::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
-    auto instance = make_shared<Battle_Maelle>(device, context);
+    auto instance = make_shared<PB_Maelle>(device, context);
 
     if (FAILED(instance->Initialize_Prototype()))
     {
-        LOG_ERROR("Failed to Created : Battle_Maelle");
+        LOG_ERROR("Failed to Created : PB_Maelle");
         return nullptr;
     }
 
     return instance;
 }
 
-Shared<GameObject> Battle_Maelle::Clone(void* arg)
+Shared<GameObject> PB_Maelle::Clone(void* arg)
 {
-    auto clone = make_shared<Battle_Maelle>(*this);
+    auto clone = make_shared<PB_Maelle>(*this);
 
     if (FAILED(clone->Initialize(arg)))
     {
-        MSG_BOX("Failed to Cloned : Battle_Maelle");
+        MSG_BOX("Failed to Cloned : PB_Maelle");
         return nullptr;
     }
 
     return clone;
 }
 
-void Battle_Maelle::Free()
+void PB_Maelle::Free()
 {
     Player_BattleBase::Free();
 }

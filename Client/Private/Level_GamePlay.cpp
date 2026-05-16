@@ -1,6 +1,7 @@
 ﻿#include "Level_GamePlay.h"
 #include "GameInstance.h"
 #include "ClientInstance.h"
+#include "Client_Constants.h"
 #include "Spawn_Prefab.h"
 #include "TargetCamera.h"
 #include "MapLoader.h"
@@ -29,9 +30,6 @@ HRESULT Level_GamePlay::Initialize()
         return E_FAIL;
 
     if (FAILED(Ready_Layer_BackGround(TEXT("Layer_BackGround"))))
-        return E_FAIL;
-
-    if(FAILED(Ready_Layer_MapStaticMesh(L"Layer_MapStaticMesh")))
         return E_FAIL;
 
 	if (FAILED(Ready_Layer_Camera(TEXT("Layer_Camera"))))
@@ -71,14 +69,13 @@ void Level_GamePlay::Update(float fTimeDelta)
              HeroId::Gustave,
          };
 
-         vector<string> _monster;
-         _monster.push_back("Monster123123");
-         _monster.push_back("Monster123123");
-         _monster.push_back("Monster123123");
+         vector<string> battleMonster;
+         battleMonster.push_back(Constants::Prefab::MB_Lancelier); // 전투 몬스터 prefab 이름은 MB_* 상수로 통일한다.
+         battleMonster.push_back(Constants::Prefab::MB_Lancelier); // 테스트 3마리 스폰도 같은 상수를 재사용한다.
+         battleMonster.push_back(Constants::Prefab::MB_Lancelier); // 문자열 변경 누락으로 인한 스폰 실패를 막는다.
 
-         CLIENT->OnEnterBattleField(1, false, heroes, _monster);
+         CLIENT->OnEnterBattleField(1, true, heroes, battleMonster);
      }
-
 
 }
 
@@ -188,16 +185,6 @@ HRESULT Level_GamePlay::Ready_Layer_BackGround(const wstring& strLayerTag)
     return S_OK;
 }
 
-HRESULT Level_GamePlay::Ready_Layer_MapStaticMesh(const wstring& strLayerTag)
-{
-    CHECK_FAILED(MapLoader::Load(
-        _device, _context,
-        Constants::Map::SmallLevel_SimonArea_Remake_Path,
-        ETOI(LevelType::GamePlay), strLayerTag), E_FAIL);
-
-    return S_OK;
-}
-
 HRESULT Level_GamePlay::Ready_Layer_Monster(const wstring& strLayerTag)
 {
    /* if (FAILED(
@@ -212,15 +199,12 @@ HRESULT Level_GamePlay::Ready_Layer_Monster(const wstring& strLayerTag)
 
      
     const Shared<GameObject> monster = Client::Spawn_Prefab::Spawn(
-        "Monster123123",
+        Constants::Prefab::MW_Lancelier, // 월드 몬스터 prefab 이름은 MW_* 상수로 통일한다.
         ETOI(LevelType::GamePlay),
         strLayerTag);
 
-    monster->Get_Transform()->Set_Position(startPos);
-
-
-
     CHECK_NULL(monster, E_FAIL);
+    monster->Get_Transform()->Set_Position(startPos);
     return S_OK;
 }
 

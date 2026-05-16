@@ -1,33 +1,33 @@
-﻿#include "Player_Gustave.h"
+﻿#include "PW_Gustave.h"
 #include "GameInstance.h"
 #include "Bounding_OBB.h"
 #include "ColliderCom.h"
 #include "PlayableParts.h"
 
-IMPLEMENT_REFLECTION(Player_Gustave)
+IMPLEMENT_REFLECTION(PW_Gustave)
 {
     auto& info = GetStaticReflectionInfo();
     info.properties.clear();
 
-    info.displayName = "Player_Gustave";
+    info.displayName = "PW_Gustave";
     info.category = "Character";
     
 
     return true;
 }
 
-Player_Gustave::Player_Gustave(const ComPtr<Device>& device, const ComPtr<Context>& context)
-	: Player { device, context }
+PW_Gustave::PW_Gustave(const ComPtr<Device>& device, const ComPtr<Context>& context)
+	: Player_WorldBase { device, context }
 {
 }
 
-Player_Gustave::Player_Gustave(const Player_Gustave& prototype)
-	: Player{ prototype }
+PW_Gustave::PW_Gustave(const PW_Gustave& prototype)
+	: Player_WorldBase{ prototype }
 {
 
 }
 
-HairChainPhysicsDesc Player_Gustave::Get_HairChainPhysicsDesc() const
+HairChainPhysicsDesc PW_Gustave::Get_HairChainPhysicsDesc() const
 {
     HairChainPhysicsDesc desc{};
 
@@ -53,31 +53,31 @@ HairChainPhysicsDesc Player_Gustave::Get_HairChainPhysicsDesc() const
     return desc;
 }
 
-Shared<Player_Gustave> Player_Gustave::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
+Shared<PW_Gustave> PW_Gustave::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
-	auto instance = make_shared<Player_Gustave>(device, context);
+	auto instance = make_shared<PW_Gustave>(device, context);
 
 	if (FAILED(instance->Initialize_Prototype()))
 	{
-		MSG_BOX("Failed to Created : Player_Gustave");
+		MSG_BOX("Failed to Created : PW_Gustave");
 		return nullptr;
 	}
 	return instance;
 }
 
-Shared<GameObject> Player_Gustave::Clone(void* arg)
+Shared<GameObject> PW_Gustave::Clone(void* arg)
 {
-	auto instance = make_shared<Player_Gustave>(*this);
+	auto instance = make_shared<PW_Gustave>(*this);
 
 	if (FAILED(instance->Initialize(arg)))
 	{
-		MSG_BOX("Failed to Cloned : Player_Gustave");
+		MSG_BOX("Failed to Cloned : PW_Gustave");
 		return nullptr;
 	}
 	return instance;
 }
 
-void Player_Gustave::Free()
+void PW_Gustave::Free()
 {
 	__super::Free();
 

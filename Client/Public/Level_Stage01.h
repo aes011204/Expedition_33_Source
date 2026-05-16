@@ -19,7 +19,6 @@ public:
 
 private:
     HRESULT Ready_Lights();
-    HRESULT Ready_Layer_MapStaticMesh(const wstring& strLayerTag);
 
 public:
     static Shared<Level_Stage01> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
