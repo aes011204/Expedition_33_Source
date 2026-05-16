@@ -81,12 +81,6 @@ void Renderer::Draw()
     Render_CombinedHDR();
 #ifdef _DEBUG
     combinedHDRMs = chrono::duration<double, milli>(chrono::steady_clock::now() - combinedHDRBegin).count();
-    const auto postProcesBegin = chrono::steady_clock::now();
-#endif
-
-    Render_PostProcess();
-#ifdef _DEBUG
-    postProcessMs = chrono::duration<double, milli>(chrono::steady_clock::now() - postProcesBegin).count();
     const auto nonlightBegin = chrono::steady_clock::now();
 #endif
 
@@ -99,6 +93,12 @@ void Renderer::Draw()
     Render_Blend();
 #ifdef _DEBUG
     blendMs = chrono::duration<double, milli>(chrono::steady_clock::now() - blendBegin).count();
+    const auto postProcesBegin = chrono::steady_clock::now();
+#endif
+
+    Render_PostProcess();
+#ifdef _DEBUG
+    postProcessMs = chrono::duration<double, milli>(chrono::steady_clock::now() - postProcesBegin).count();
     const auto uiBegin = chrono::steady_clock::now();
 #endif
 
@@ -303,6 +303,8 @@ void Renderer::Render_PostProcess()
         return;
 
     // PostProcess Params
+    auto& params = _ppPipeline->Get_PostProcessParams();
+    params.bloomTexelSize = Vec2{ 1.f / GAME->Get_ViewportWidth(), 1.f / GAME->Get_ViewportHeight() };
     if (FAILED(_postprocessShader->Bind_CBufferData(_ppPipeline->Get_PostProcessParams())))
         return;
 
@@ -340,13 +342,12 @@ void Renderer::Render_PostProcess()
 
         Add_RenderCall();
 
-        // 다시 BackBuffer RTV 바인딩 된 상태
         // Bloom Blur_V
-        if (FAILED(GAME->Bind_RT_ShaderResource(_postprocessShader, "g_BloomTexture", RT::BloomBlur)))
-            return;
-        if (FAILED(_postprocessShader->Begin(ETOI(PostProcessPass::BloomBlurV))))
-            return;
-        if (FAILED(_viBuffer->Render()))
+        ENDMRT_RETURN_IF_FAILED(GAME->Begin_MRT(MRT::BloomExtract));
+        ENDMRT_RETURN_IF_FAILED(GAME->Bind_RT_ShaderResource(_postprocessShader, "g_BloomTexture", RT::BloomBlur));
+        ENDMRT_RETURN_IF_FAILED(_postprocessShader->Begin(ETOI(PostProcessPass::BloomBlurV)));
+        ENDMRT_RETURN_IF_FAILED(_viBuffer->Render());
+        if (FAILED(GAME->End_MRT()))
             return;
 
         Add_RenderCall();
@@ -355,7 +356,7 @@ void Renderer::Render_PostProcess()
     // Light 기록
     if (FAILED(GAME->Bind_RT_ShaderResource(_postprocessShader, "g_HDRTexture", RT::HDRColor)))
         return;
-    if (FAILED(GAME->Bind_RT_ShaderResource(_postprocessShader, "g_BloomTexture", RT::BloomBlur)))
+    if (FAILED(GAME->Bind_RT_ShaderResource(_postprocessShader, "g_BloomTexture", RT::BloomExtract)))
         return;
     if (FAILED(_postprocessShader->Begin(ETOI(PostProcessPass::ToneMapping))))
         return;
@@ -509,7 +510,7 @@ void Renderer::Change_ViewportDesc(uint32 width, uint32 height)
 
 HRESULT Renderer::Bind_TransformCB(Shared<ShaderCom> shader) const
 {
-    CHECK_NULL(_deferredShader, E_FAIL);
+    CHECK_NULL(shader, E_FAIL);
 
     Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
     if (activeCamera == nullptr)

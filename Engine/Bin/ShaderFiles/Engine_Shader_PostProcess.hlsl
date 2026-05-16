@@ -36,10 +36,12 @@ float3 SampleGaussianBlur_5tap(float2 uv, float2 dir)
     const float w1 = 0.316216f;
     const float w2 = 0.070270f;
 
-    float c = g_BloomTexture.Sample(LinearClampSampler, uv).rgb * w0;
+    float3 c = g_BloomTexture.Sample(LinearClampSampler, uv).rgb * w0;
+
     c += g_BloomTexture.Sample(LinearClampSampler, uv + texel * 1.f * dir).rgb * w1;
-    c += g_BloomTexture.Sample(LinearClampSampler, uv + texel * 1.f * dir).rgb * w2;
-    c += g_BloomTexture.Sample(LinearClampSampler, uv - texel * 2.f * dir).rgb * w1;
+    c += g_BloomTexture.Sample(LinearClampSampler, uv - texel * 1.f * dir).rgb * w1;
+
+    c += g_BloomTexture.Sample(LinearClampSampler, uv + texel * 2.f * dir).rgb * w2;
     c += g_BloomTexture.Sample(LinearClampSampler, uv - texel * 2.f * dir).rgb * w2;
 
     return min(c, g_PP_BloomClamp);

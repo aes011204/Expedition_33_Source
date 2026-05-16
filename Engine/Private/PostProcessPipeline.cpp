@@ -62,6 +62,7 @@ Shared<PostProcessPipeline> PostProcessPipeline::Create(ComPtr<Device> device, C
         PostProcessFeature::HDR |
         PostProcessFeature::Exposure |
         PostProcessFeature::ToneMapping |
+        PostProcessFeature::Bloom |
         PostProcessFeature::Gamma)))
     {
         MSG_BOX("Failed to Create : PostProcessPipeline");

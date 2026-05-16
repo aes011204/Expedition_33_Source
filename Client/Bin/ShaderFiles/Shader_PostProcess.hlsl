@@ -108,8 +108,9 @@ PS_OUT_BACKBUFFER PS_ToneMapping(PS_IN In)
     PS_OUT_BACKBUFFER Out;
 
     float4 hdr = g_HDRTexture.Sample(LinearClampSampler, In.Texcoord);
+    float4 bloom = g_BloomTexture.Sample(LinearClampSampler, In.Texcoord);
 
-    float3 color = hdr.rgb;
+    float3 color = hdr.rgb + bloom.rgb;
     // Exposure
     if (HasPostProcessFeature(POSTPROCESS_FLAG_EXPOSURE))
         color *= max(g_PP_Exposure, EPSILON);

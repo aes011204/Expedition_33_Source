@@ -7,7 +7,7 @@ NS_BEGIN(Engine)
 
 struct PostProcessCB;
 
-class PostProcessPipeline : public Base
+class ENGINE_DLL PostProcessPipeline : public Base
 {
 public:
     explicit PostProcessPipeline(ComPtr<Device> device, ComPtr<Context> context);
