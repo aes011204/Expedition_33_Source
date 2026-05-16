@@ -1,9 +1,9 @@
 ﻿#include "pch.h"
 #include "ClientInstance.h"
-
 #include "BattleController.h"
+#include "GameObject.h"
 #include "BT_Node_Bootstrap.h"
-#include "ComputePointParticlePreview.h"
+#include "ComputePointParticleEffect.h"
 #include "GameDataTable.h"
 #include "GameInstance.h"
 #include "PersistentObjectManager.h"
@@ -98,6 +98,16 @@ uint32 ClientInstance::Get_NextExp(uint32 level) const
     return _gameDataTable->Get_NextExp(level);
 }
 
+GameDataTable::SkillTreeDesc* ClientInstance::Get_SkillTreeDesc(const string& skillName)
+{
+    return _gameDataTable->Get_SkillTreeDesc(skillName);
+}
+
+const umap<string, vector<string>>*  ClientInstance::Get_SkillTreeRequirementData()
+{
+    return _gameDataTable->Get_SkillTreeRequirementData();
+}
+
 HRESULT ClientInstance::Initialize_Hero(uint32 levelIndex, const wstring& layerTag, const Vec3& startPos)
 {
     return _heroManager->Initialize_Hero(levelIndex, layerTag, startPos);
@@ -153,6 +163,16 @@ Shared<Player> ClientInstance::Find_Hero(HeroId heroId) const
     return _heroManager->Find_Hero(heroId);
 }
 
+const HeroSpawnDesc* ClientInstance::Find_HeroSpawnDesc(HeroId heroId)
+{
+    return _heroManager->Find_HeroSpawnDesc(heroId);
+}
+
+void ClientInstance::Reset_AllHeroesToIdle()
+{
+    return _heroManager->Reset_AllHeroesToIdle();
+}
+
 HRESULT ClientInstance::Initialize_GameplayUI(uint32 levelIndex)
 {
     Clear_GameplayUI();
@@ -174,10 +194,10 @@ void ClientInstance::Clear_GameplayUI()
     GAME->Set_GameplayPaused(false);
 }
 
-void ClientInstance::OnEnterBattleField(uint32 FieldID, bool IsFirstHero, vector<string>& PlayerProtoTag,
+void ClientInstance::OnEnterBattleField(uint32 FieldID, bool IsFirstHero, const vector<HeroId>& heroIds,
     vector<string>& MonsterProtoTag)
 {
-    _battleController->OnEnterBattleField(FieldID, IsFirstHero, PlayerProtoTag, MonsterProtoTag);
+    return _battleController->OnEnterBattleField(FieldID, IsFirstHero, heroIds, MonsterProtoTag);
 }
 
 Shared<GameObject> ClientInstance::Find_Player(uint32 levelIndex)
@@ -243,6 +263,7 @@ void ClientInstance::Release_Client()
 
     _context.Reset();
     _device.Reset();
+
     _isStaticResourcesLoaded.store(false);
     _isStaticObjectsSpawned = false;
     _isInitialized = false;

@@ -12,18 +12,18 @@ struct EffectEditorDesc
 
 struct EditorSelection
 {
-    Shared<GameObject> selectedObject;
+    Shared<GameObject> selectedObject{};
 };
 
 struct EditorFocusRequest
 {
-    Shared<GameObject> targetObject;
+    Shared<GameObject> targetObject{};
 };
 
-struct FNotification
+struct NotificationEntry
 {
-    string message;
-    NotifyType type;
+    string message{};
+    NotifyType type{ NotifyType::Info };
 
     float duration{ 3.f };
     float timer{ 0.f };

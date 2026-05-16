@@ -181,6 +181,7 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\Private\Action_Command.cpp" />
     <ClCompile Include="..\Private\CommandHistory.cpp" />
     <ClCompile Include="..\Private\Console_View.cpp" />
     <ClCompile Include="..\Private\CurveEditor_View.cpp" />
@@ -189,6 +190,11 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     <ClCompile Include="..\Private\EffectEditorCamera.cpp" />
     <ClCompile Include="..\Private\EffectEditorApp.cpp" />
     <ClCompile Include="..\Private\EffectEditorInstance.cpp" />
+    <ClCompile Include="..\Private\EffectMaterialPreviewRenderer.cpp" />
+    <ClCompile Include="..\Private\EffectMaterial_View.cpp" />
+    <ClCompile Include="..\Private\EffectMaterialInstance_View.cpp" />
+    <ClCompile Include="..\Private\Helper_ReadPreset.cpp" />
+    <ClCompile Include="..\Private\Helper_EffectCamera.cpp" />
     <ClCompile Include="..\Private\Level_EffectEditor.cpp" />
     <ClCompile Include="..\Private\SimpleMath.cpp" />
     <ClCompile Include="..\Private\ImGui_Manager.cpp" />
@@ -204,11 +210,12 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     <ClCompile Include="..\Private\Hierarchy_View.cpp" />
     <ClCompile Include="..\Private\Content_Browser.cpp" />
     <ClCompile Include="..\Private\Detail_View.cpp" />
-    <ClCompile Include="..\Private\Helper_DetailProperty.cpp" />
+    <ClCompile Include="..\Private\DetailPropertyContext.cpp" />
     <ClCompile Include="..\Private\ModuleDetail_Drawers.cpp" />
     <ClCompile Include="..\Private\Profile_View.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\Public\Action_Command.h" />
     <ClInclude Include="..\Public\CommandHistory.h" />
     <ClInclude Include="..\Public\Console_View.h" />
     <ClInclude Include="..\Public\CurveEditor_View.h" />
@@ -216,11 +223,17 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     <ClInclude Include="..\Public\Emitter_View.h" />
     <ClInclude Include="..\Public\EffectEditorCamera.h" />
     <ClInclude Include="..\Public\EffectAuthoring_Types.h" />
+    <ClInclude Include="..\Public\EffectMaterialAuthoring_Types.h" />
+    <ClInclude Include="..\Public\EffectMaterialPreviewRenderer.h" />
+    <ClInclude Include="..\Public\EffectMaterial_View.h" />
+    <ClInclude Include="..\Public\EffectMaterialInstance_View.h" />
+    <ClInclude Include="..\Public\Helper_ReadPreset.h" />
+    <ClInclude Include="..\Public\Helper_EffectCamera.h" />
     <ClInclude Include="..\Public\EffectEditor_Enum.h" />
     <ClInclude Include="..\Public\EffectEditor_Macro.h" />
     <ClInclude Include="..\Public\EffectEditor_Struct.h" />
     <ClInclude Include="..\Public\Helper_Distribution.h" />
-    <ClInclude Include="..\Public\Helper_DetailProperty.h" />
+    <ClInclude Include="..\Public\DetailPropertyContext.h" />
     <ClInclude Include="..\Public\Helper_ImGui.h" />
     <ClInclude Include="..\Public\EffectEditorInstance.h" />
     <ClInclude Include="..\Public\ImGui_Manager.h" />

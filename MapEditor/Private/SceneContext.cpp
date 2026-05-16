@@ -85,13 +85,23 @@ void SceneContext::SaveToFile(const string& filePath)
             break;
 
         case EObjectType::Light:
-            e["LightType"] = (obj->_lightType == LightType::Directional) ? "Directional" : "Point";
-            e["Direction"] = { obj->_lightDirection.x, obj->_lightDirection.y, obj->_lightDirection.z, obj->_lightDirection.w };
-            e["Range"] = obj->_lightRange;
-            e["Diffuse"] = { obj->_lightDiffuse.x,  obj->_lightDiffuse.y,  obj->_lightDiffuse.z,  obj->_lightDiffuse.w };
-            e["Ambient"] = { obj->_lightAmbient.x,  obj->_lightAmbient.y,  obj->_lightAmbient.z,  obj->_lightAmbient.w };
-            e["Specular"] = { obj->_lightSpecular.x, obj->_lightSpecular.y, obj->_lightSpecular.z, obj->_lightSpecular.w };
-            lights.push_back(e);
+            if (obj->_isDefaultLight)
+            {
+                map["DefaultLight"]["Direction"] = { obj->_lightDirection.x, obj->_lightDirection.y, obj->_lightDirection.z, obj->_lightDirection.w };
+                map["DefaultLight"]["Diffuse"] = { obj->_lightDiffuse.x,  obj->_lightDiffuse.y,  obj->_lightDiffuse.z,  obj->_lightDiffuse.w };
+                map["DefaultLight"]["Ambient"] = { obj->_lightAmbient.x,  obj->_lightAmbient.y,  obj->_lightAmbient.z,  obj->_lightAmbient.w };
+                map["DefaultLight"]["Specular"] = { obj->_lightSpecular.x, obj->_lightSpecular.y, obj->_lightSpecular.z, obj->_lightSpecular.w };
+            }
+            else
+            {
+                e["LightType"] = (obj->_lightType == LightType::Directional) ? "Directional" : "Point";
+                e["Direction"] = { obj->_lightDirection.x, obj->_lightDirection.y, obj->_lightDirection.z, obj->_lightDirection.w };
+                e["Range"] = obj->_lightRange;
+                e["Diffuse"] = { obj->_lightDiffuse.x,  obj->_lightDiffuse.y,  obj->_lightDiffuse.z,  obj->_lightDiffuse.w };
+                e["Ambient"] = { obj->_lightAmbient.x,  obj->_lightAmbient.y,  obj->_lightAmbient.z,  obj->_lightAmbient.w };
+                e["Specular"] = { obj->_lightSpecular.x, obj->_lightSpecular.y, obj->_lightSpecular.z, obj->_lightSpecular.w };
+                lights.push_back(e);
+            }
             break;
 
         case EObjectType::InstancedMesh:
@@ -111,6 +121,7 @@ void SceneContext::SaveToFile(const string& filePath)
                 inst["Scale"] = { t._scale.x, t._scale.y, t._scale.z };
                 instances.push_back(inst);
             }
+            e["ModelPath"] = String::ToString(modelFile);
             e["Instances"] = instances;
             instancedMeshes.push_back(e);
             break;
@@ -148,9 +159,9 @@ void SceneContext::LoadFromFile(const string& filePath)
     _mapName = String::ToWString(map["MapName"].get<string>());
     _modelFolder = String::ToWString(map.value("ModelFolder", string{}));
 
-    _objects.clear();
+    _objects.erase(remove_if(_objects.begin(), _objects.end(), [](const Shared<EditorObject>& o) { return !o->_isDefaultLight; }), _objects.end());
     _staticMeshes.clear();
-    _lights.clear();
+    _lights.erase(remove_if(_lights.begin(), _lights.end(), [](const Shared<EditorObject>& o) { return !o->_isDefaultLight; }), _lights.end());
     _instancedMeshes.clear();
 
     _dirtyRenderHandles = true;
@@ -318,6 +329,39 @@ void SceneContext::LoadFromFile(const string& filePath)
         }
     }
 
+    if (map.contains("DefaultLight"))
+    {
+        const json& dl = map["DefaultLight"];
+        auto it = find_if(_objects.begin(), _objects.end(), [](const Shared<EditorObject>& o) { return o->_isDefaultLight; });
+        if (it != _objects.end())
+        {
+            auto& obj = *it;
+            if (dl.contains("Direction"))
+            {
+                auto& d = dl["Direction"];
+                obj->_lightDirection = { d[0], d[1], d[2], d[3] };
+            }
+
+            if (dl.contains("Diffuse"))
+            {
+                auto& d = dl["Diffuse"];
+                obj->_lightDiffuse = { d[0], d[1], d[2], d[3] };
+            }
+
+            if (dl.contains("Ambient"))
+            {
+                auto& a = dl["Ambient"];
+                obj->_lightAmbient = { a[0], a[1], a[2], a[3] };
+            }
+
+            if (dl.contains("Specular"))
+            {
+                auto& s = dl["Specular"];
+                obj->_lightSpecular = { s[0], s[1], s[2], s[3] };
+            }
+        }
+    }
+
     if (map.contains("InstancedMeshes"))
     {
         for (auto& e : map["InstancedMeshes"])
@@ -413,6 +457,11 @@ Shared<EditorObject> SceneContext::SpawnFromPrefab(const string& prefabPath, con
     {
         string ltStr = j.value("LightType", "Directional");
         obj->_lightType = (ltStr == "Point") ? LightType::Point : LightType::Directional;
+
+        if (obj->_lightType == LightType::Directional)
+        {
+            return nullptr;
+        }
 
         if (j.contains("Direction"))
         {
@@ -580,7 +629,7 @@ void SceneContext::Add(Shared<EditorObject> obj)
 
 void SceneContext::Remove(const Shared<EditorObject>& obj)
 {
-    if (!obj)
+    if (!obj || obj->_isDefaultLight)
     {
         return;
     }
@@ -632,9 +681,9 @@ Shared<EditorObject> SceneContext::Duplicate(const Shared<EditorObject>& src)
 
 void SceneContext::ClearScene()
 {
-    _objects.clear();
+    _objects.erase(remove_if(_objects.begin(), _objects.end(), [](const Shared<EditorObject>& o) { return !o->_isDefaultLight; }), _objects.end());
     _staticMeshes.clear();
-    _lights.clear();
+    _lights.erase(remove_if(_lights.begin(), _lights.end(), [](const Shared<EditorObject>& o) { return !o->_isDefaultLight; }), _lights.end());
     _instancedMeshes.clear();
     _selected = nullptr;
     _undoStack.clear();

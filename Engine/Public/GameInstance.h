@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #pragma region INCLUDE
 
@@ -9,6 +9,7 @@
 #include "Debug_Types.h"
 #include <string_view>
 #include <utility>
+#include "DelegateHub.h"
 
 #include "Log_Define.h"
 #ifdef _DEBUG
@@ -221,6 +222,9 @@ public: /* For.Input_Manager */
     void Set_InputBlocked(bool isBlocked);
     // 마우스 위치 반환
     const POINT& Get_MousePosition() const;
+    const POINT& Get_RawMousePosition() const;
+    void Set_MousePositionOverride(const POINT& mousePosition);
+    void Clear_MousePositionOverride();
 
 public: /* For.Light_Manager */
     const LIGHT_DESC* Get_LightDesc(uint32 index);
@@ -436,6 +440,10 @@ public: /* For.Thread Pool */
     bool                    Enqueue_ThreadJob(function<void()> job);
     size_t                  Get_PendingThreadJobCount() const;
 
+public: /* For.Delegate Hub */
+    DelegateHub& Get_DelegateHub() { return _delegateHub; }
+    const DelegateHub& Get_DelegateHub() const { return _delegateHub; }
+
 private:
     Unique<Log_Manager>         _logManager{};
     Unique<Graphic_Device>      _graphicDevice{};
@@ -481,6 +489,8 @@ private:
 
     // Free 카메라용 time
     float   _freeCameraTimeDelta = 0.f;
+
+    DelegateHub _delegateHub = {};
 
 #ifdef _DEBUG
 private: //## 디버그 성능 평가용

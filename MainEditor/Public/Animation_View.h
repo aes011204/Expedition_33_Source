@@ -92,6 +92,7 @@ private:
 
     void Load_NotifyAsset();
     void Save_NotifyAsset();
+    void Refresh_OpenModelNotifyAssets() const;
 
     void Draw_Header();
     void Draw_AnimationSelector();

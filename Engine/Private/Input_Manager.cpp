@@ -124,6 +124,28 @@ bool Input_Manager::KeyUp(KEY_TYPE key) const
 	return KEY_STATE::UP == Get_State(key);
 }
 
+const POINT& Input_Manager::Get_MousePosition() const
+{
+    return _hasMousePositionOverride ? _mousePositionOverride : _mousePosition;
+}
+
+const POINT& Input_Manager::Get_RawMousePosition() const
+{
+    return _mousePosition;
+}
+
+void Input_Manager::Set_MousePositionOverride(const POINT& mousePosition)
+{
+    _mousePositionOverride = mousePosition;
+    _hasMousePositionOverride = true;
+}
+
+void Input_Manager::Clear_MousePositionOverride()
+{
+    _mousePositionOverride = {};
+    _hasMousePositionOverride = false;
+}
+
 float Input_Manager::Get_MouseWheel()
 {
     float mouseWheel =_mouseWheelDelta;

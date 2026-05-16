@@ -40,13 +40,24 @@ float2 ApplyUVTransform(float2 uv)
 //==================================================
 float4 SampleBaseColor(float2 uv)
 {
-    float4 baseColor = g_MaterialTextures[MATERIAL_SLOT_BASECOLOR].Sample(LinearWrapSampler, uv);
+    //float4 baseColor = g_MaterialTextures[MATERIAL_SLOT_BASECOLOR].Sample(LinearWrapSampler, uv);
 
-    if (baseColor.a < 0.34)
-        discard;
+    //if (baseColor.a < 0.34)
+    //    discard;
 
+    //baseColor.rgb *= g_BaseColorTint.rgb;
+    //baseColor.a *= g_BaseColorTint.a;
+    //return baseColor;
+
+    // map StaticMesh
+    float4 baseColor = float4(1, 1, 1, 1);
+    if (HasMaterialTexture(MATERIAL_SLOT_BASECOLOR))
+    {
+        baseColor = g_MaterialTextures[MATERIAL_SLOT_BASECOLOR].Sample(LinearWrapSampler, uv);
+    }
+
+    clip(baseColor.a - 0.34f);
     baseColor.rgb *= g_BaseColorTint.rgb;
-    baseColor.a *= g_BaseColorTint.a;
     return baseColor;
 }
 
@@ -75,7 +86,7 @@ float3 ComputeWorldNormal(float3 normalW, float3 tangentW, float3 binormalW, flo
 
 float3 SampleOrm(float2 uv)
 {
-    float3 orm = float3(1.f, 1.f, 1.f);
+    float3 orm = float3(1.f, 1.f, 0.f);
 
     if (HasMaterialTexture(MATERIAL_SLOT_ORM))
         orm = g_MaterialTextures[MATERIAL_SLOT_ORM].Sample(LinearWrapSampler, uv).rgb;

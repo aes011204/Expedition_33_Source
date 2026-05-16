@@ -77,9 +77,9 @@ HRESULT ComputeShaderCom::Initialize(void* arg)
 
 HRESULT ComputeShaderCom::Bind_SRV(uint32 slot, ShaderResourceView* srv)
 {
-    if (slot >= srvSlotCount)
+    if (slot >= kSrvSlotCount)
     {
-        LOG_WARN("ComputeShaderCom SRV slot out of range. slot={}, max={}", slot, srvSlotCount - 1);
+        LOG_WARN("ComputeShaderCom SRV slot out of range. slot={}, max={}", slot, kSrvSlotCount - 1);
         return E_FAIL;
     }
 
@@ -93,9 +93,9 @@ HRESULT ComputeShaderCom::Bind_SRV(uint32 slot, ShaderResourceView* srv)
 
 HRESULT ComputeShaderCom::Bind_UAV(uint32 slot, UnorderedAccessView* uav)
 {
-    if (slot >= uavSlotCount)
+    if (slot >= kUavSlotCount)
     {
-        LOG_WARN("ComputeShaderCom UAV slot out of range. slot={}, max={}", slot, uavSlotCount - 1);
+        LOG_WARN("ComputeShaderCom UAV slot out of range. slot={}, max={}", slot, kUavSlotCount - 1);
         return E_FAIL;
     }
 
@@ -109,9 +109,9 @@ HRESULT ComputeShaderCom::Bind_UAV(uint32 slot, UnorderedAccessView* uav)
 
 HRESULT ComputeShaderCom::Bind_ConstantBuffer(uint32 slot, Buffer* buffer)
 {
-    if (slot >= constantBufferSlotCount)
+    if (slot >= kConstantBufferSlotCount)
     {
-        LOG_WARN("ComputeShaderCom constant buffer slot out of range. slot={}, max={}", slot, constantBufferSlotCount - 1);
+        LOG_WARN("ComputeShaderCom constant buffer slot out of range. slot={}, max={}", slot, kConstantBufferSlotCount - 1);
         return E_FAIL;
     }
 
