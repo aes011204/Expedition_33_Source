@@ -110,7 +110,7 @@ const umap<string, vector<string>>*  ClientInstance::Get_SkillTreeRequirementDat
 
 const Skill_Data* ClientInstance::Get_Skill(const string& skillId)
 {
-    return _gameDataTable->GetSkill(skillId);
+    return _gameDataTable->Get_Skill(skillId);
 }
 
 HRESULT ClientInstance::Initialize_Hero(uint32 levelIndex, const wstring& layerTag, const Vec3& startPos)

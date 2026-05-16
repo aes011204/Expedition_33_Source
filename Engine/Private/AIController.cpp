@@ -101,6 +101,8 @@ void AIController::Update(float timeDelta)
     }
 
 }
+
+
 void AIController::From_Json(const json& data)
 {
 	__super::From_Json(data);
@@ -108,6 +110,17 @@ void AIController::From_Json(const json& data)
 	if (!_behaviorTreeAssetPath.empty())
 		Load_BehaviorTreeAsset();
 }
+
+void AIController::Run_BT_Once()
+{
+    
+        if (_BT == nullptr)
+            return;
+
+        _BT->Update(0.f);
+    
+}
+
 void AIController::Set_BehaviorTree(shared_ptr<BehaviorTree> tree)
 {
     _BT = tree;

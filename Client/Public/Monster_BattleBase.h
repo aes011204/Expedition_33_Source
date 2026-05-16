@@ -15,6 +15,27 @@ class MonsterStatCom;
 class Monster_BattleBase abstract : public Character_BattleBase
 {
 public:
+    struct BattleDecision
+    {
+        int skillIndex = -1;
+        int targetIndex = -1;
+        EBattleContext actionType = EBattleContext::Invalid;
+        float score = -FLT_MAX;
+    };
+    struct BattleAIPolicy
+    {
+        bool allowBaseAttack = true;
+        bool allowSkill = true;
+        bool allowDefend = true;
+
+        float baseAttackBias = 0.f;
+        float skillBias = 0.f;
+        float defendBias = 0.f;
+
+        vector<string> forbiddenSkillIds = {};
+        vector<string> preferredSkillIds = {};
+    };
+public:
     Monster_BattleBase(const ComPtr<Device>& device, const ComPtr<Context>& context);
     Monster_BattleBase(const Monster_BattleBase& prototype);
     virtual ~Monster_BattleBase() override = default;
@@ -25,11 +46,12 @@ public:
     void    Update(float timeDelta) override;
     void    Late_Update(float timeDelta) override;
 
-    virtual void Decide_Action(Action& curTurnAction, const vector<BattleChar>& heroes);
-
+    void Decide_Action(Action& curTurnAction, const vector<BattleChar>& heroes);
+    void Decide_Action_BTOnly(Action& curturnAction, const vector<BattleChar>& heroes);
+    
 protected:
     virtual HRESULT Ready_Components();
-
+    void ActionFromDecision(Action& curturnAction, const BattleDecision decision, const vector<BattleChar>& heroes);
 protected:
     Shared<AIController>            _aiCtrl;
     Shared<MonsterStatCom>          _combatStat;

@@ -1,4 +1,4 @@
-#include "MB_Lancelier.h"
+﻿#include "MB_Lancelier.h"
 
 #include "Mon_Lancelier_Body.h"
 #include "Mon_Lancelier_Weapon.h"
@@ -33,6 +33,8 @@ HRESULT MB_Lancelier::Initialize(void* arg)
 {
     CHECK_FAILED(Monster_BattleBase::Initialize(arg), E_FAIL);
     CHECK_FAILED(Ready_PartObjects(), E_FAIL);
+    
+    _body->Set_Animation(5, 0.3f, true);
 
     return S_OK;
 }
@@ -41,31 +43,31 @@ void MB_Lancelier::Update(float timeDelta)
 {
     Monster_BattleBase::Update(timeDelta);
 
-    if (_body && _currentAction != _previousAction)
-    {
-        switch (_currentAction)
-        {
-        case BattleAction::Idle:
-            _body->Set_Animation(5, 0.3f, true);
-            break;
-
-        case BattleAction::Attack:
-            _body->Set_Animation(11, 0.3f, false);
-            break;
-        }
-
-        _previousAction = _currentAction;
-    }
+    //if (_body && _currentAction != _previousAction)
+    //{
+    //    switch (_currentAction)
+    //    {
+    //    case BattleAction::Idle:
+    //        _body->Set_Animation(5, 0.3f, true);
+    //        break;
+    //
+    //    case BattleAction::Attack:
+    //        _body->Set_Animation(11, 0.3f, false);
+    //        break;
+    //    }
+    //
+    //    _previousAction = _currentAction;
+    //}
 
     if (_body)
         _body->Play_Animation(timeDelta);
 }
 
-void MB_Lancelier::Decide_Action(Action& curTurnAction, const vector<BattleChar>& heroes)
-{
-    Monster_BattleBase::Decide_Action(curTurnAction, heroes);
-    Set_CurrentAction(BattleAction::Attack); // Lancelier 전용 공격 애니메이션 상태로 전환한다.
-}
+//void MB_Lancelier::Decide_Action(Action& curTurnAction, const vector<BattleChar>& heroes)
+//{
+//    Monster_BattleBase::Decide_Action(curTurnAction, heroes);
+//    Set_CurrentAction(BattleAction::Attack); // Lancelier 전용 공격 애니메이션 상태로 전환한다.
+//}
 
 HRESULT MB_Lancelier::Ready_PartObjects()
 {

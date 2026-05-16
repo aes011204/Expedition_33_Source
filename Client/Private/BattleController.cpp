@@ -78,7 +78,7 @@ void BattleController::Run_EnemyTurn()
 
     CHECK_NULL(monster);
 
-    monster->Decide_Action(Get_TurnAction(), Get_AliveHeroes());
+    monster->Decide_Action_BTOnly(Get_TurnAction(), Get_AliveHeroes());
     ExecuteAction( Get_TurnAction());
 }
 

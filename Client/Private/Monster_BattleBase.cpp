@@ -1,6 +1,8 @@
-﻿#include "Monster_BattleBase.h"
+#include "Monster_BattleBase.h"
+#include "ClientInstance.h"
 
 #include "AIController.h"
+#include "BlackBoard.h"
 #include "Bounding_OBB.h"
 #include "ColliderCom.h"
 #include "GameInstance.h"
@@ -42,21 +44,77 @@ void Monster_BattleBase::Late_Update(float timeDelta)
     Character_BattleBase::Late_Update(timeDelta);
 }
 
-void Monster_BattleBase::Decide_Action(Action& curTurnAction, const vector<BattleChar>& heroes)
+void Monster_BattleBase::ActionFromDecision(Action& curturnAction, const BattleDecision decision, const vector<BattleChar>& heroes)
+{
+    auto stat = Get_Component<MonsterStatCom>();
+    if (stat == nullptr)
+        return;
+
+    const auto& skillIds = stat->Get_SkillKey();
+
+    if (decision.targetIndex < 0 || decision.targetIndex >= static_cast<int>(heroes.size()))
+        return;
+
+    if (decision.skillIndex < 0 || decision.skillIndex >= static_cast<int>(skillIds.size()))
+        return;
+
+    const string& skillId = skillIds[decision.skillIndex];
+    const Skill_Data* skill = CLIENT->Get_Skill(skillId);
+    if (skill == nullptr)
+        return;
+
+    curturnAction.target = heroes[decision.targetIndex];
+    curturnAction._selected_SkillKey = *skill;
+    curturnAction.type = decision.actionType;
+    curturnAction._curAnimIndex = 0;
+}
+
+void Monster_BattleBase::Decide_Action_BTOnly(Action& curturnAction, const vector<BattleChar>& heroes)
+{
+    if (heroes.empty() || _aiCtrl == nullptr)
+        return;
+
+    const Shared<BlackBoard> bb = _aiCtrl->Get_BlackBoard();
+    CHECK_NULL(bb);
+
+    bb->Set_Value("Heroes", heroes);
+    bb->Set_Value("DecisionComplete", false);
+    bb->Set_Value("TargetIndex", -1);
+    bb->Set_Value("SkillIndex", -1);
+    bb->Set_Value("ActionType", static_cast<int>(EBattleContext::Invalid));
+
+    _aiCtrl->Run_BT_Once();
+
+    BattleDecision decision = {};
+    if (bb->Has_Value("DecisionComplete") && bb->Get_Value<bool>("DecisionComplete"))
+    {
+        if (bb->Has_Value("TargetIndex"))
+            decision.targetIndex = bb->Get_Value<int>("TargetIndex");
+
+        if (bb->Has_Value("SkillIndex"))
+            decision.skillIndex = bb->Get_Value<int>("SkillIndex");
+
+        if (bb->Has_Value("ActionType"))
+            decision.actionType = static_cast<EBattleContext>(bb->Get_Value<int>("ActionType"));
+    }
+
+    ActionFromDecision(curturnAction, decision, heroes);
+}
+
+void Monster_BattleBase::Decide_Action(Action& curturnAction, const vector<BattleChar>& heroes)
 {
     if (heroes.empty())
         return;
 
-    Skill_Data skill = _combatStat->Get_Basic_Skill();
+    const BattleDecision decision = {};
+    ActionFromDecision(curturnAction, decision, heroes);
 
-    curTurnAction.target = heroes[0];
-    curTurnAction._selected_SkillKey = skill;
-    curTurnAction.type = EBattleContext::BaseAttack;
-
-    LOG_DEBUG("Monster_BattleBase::Decide_Action: target={}, script={}, type={}",
-        curTurnAction.target.actor ? String::ToString(curTurnAction.target.actor->Get_Name()).c_str() : "null",
-        curTurnAction._selected_SkillKey.scriptClassName.c_str(),
-        static_cast<int>(curTurnAction.type));
+    LOG_DEBUG(
+        "Monster::Decide_Action: target={}, script={}, type={}",
+        curturnAction.target.actor ? String::ToString(curturnAction.target.actor->Get_Name()).c_str() : "null",
+        curturnAction._selected_SkillKey.scriptClassName.c_str(),
+        static_cast<int>(curturnAction.type)
+    );
 }
 
 HRESULT Monster_BattleBase::Ready_Components()
