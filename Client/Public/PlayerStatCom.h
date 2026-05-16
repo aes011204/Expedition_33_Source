@@ -85,6 +85,8 @@ public:
     {
         Skill_Data skill = {}; skill.scriptClassName = "Base_Gustave_Attack";
         skill.apCost = 0; skill.targetingType = ECharacterTeamSelector::Invalid;
+
+
         return skill;
     };
 /// </test>

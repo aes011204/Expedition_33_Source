@@ -5,6 +5,7 @@
 #include "ClientInstance.h"
 #include "AttackTargeting.h"
 #include "BattleStateMachine.h"
+#include "Body_Player.h"
 #include "ChooseAction.h"
 #include "ChooseItem.h"
 #include "ChooseSkill.h"
@@ -13,6 +14,8 @@
 #include "Create_Class.h"
 #include "ItemTargeting.h"
 #include "Monster.h"
+#include "Player.h"
+#include "Player_BattleBase.h"
 #include "SkillTargeting.h"
 #include "Spawn_Prefab.h"
 #include "UltimateTargeting.h"
@@ -57,6 +60,7 @@ void BattleController::Update(float timeDelta)
         return;
     }
 
+    // 일단 지금은 배틀이랑 구분 안되어 있음 애니메이션 일단 돌리고 있음
 
     if (_heroes.empty() == true || _enemies.empty() == true)
         return;
@@ -76,7 +80,7 @@ void BattleController::Run_EnemyTurn()
 
     dynamic_pointer_cast<Monster>(Get_TurnAction()._curChar.actor)->Decide_Action(Get_TurnAction(), Get_AliveHeroes());
 
-    Execute_Skill(_currentTurnActor, Get_TurnAction());
+    ExecuteAction( Get_TurnAction());
 
 
 }
@@ -84,6 +88,8 @@ void BattleController::Run_EnemyTurn()
 void BattleController::OnEnterBattleField(uint32 FieldID, bool IsFirstHero, const vector<HeroId>& heroIds,
     vector<string>& MonsterProtoTag)
 {
+    isBattleActive = true;
+
     // 현제 케릭 아이디 , 적 아이디로 전투 용 객체 생성
     Create_BattleChar(heroIds, MonsterProtoTag);
 
@@ -100,6 +106,9 @@ void BattleController::OnEnterBattleField(uint32 FieldID, bool IsFirstHero, cons
 
 EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
 {
+    isBattleActive = false;
+
+
     // 도망치기
     // 실패
     // 성공
@@ -245,9 +254,16 @@ void BattleController::Create_BattleChar(const vector<HeroId>& heroIds, vector<s
 
         CHECK_NULL(character);
 
+        auto  ply = dynamic_pointer_cast<Player_BattleBase>(character);
+
         BattleChar battleChar{};
-        battleChar.actor = dynamic_pointer_cast<Character>(character);
+        battleChar.actor = ply;
         battleChar.statCom = character->Get_Component<CombatStatCom>();
+ 
+        auto body = dynamic_cast<Body_Player*>(
+            ply->Get_PartObject(TEXT("Part_Body")));
+        battleChar.ModelCom = body->Get_Component<ModelCom>();
+
         _heroes.push_back(battleChar);
     }
 
@@ -258,11 +274,17 @@ void BattleController::Create_BattleChar(const vector<HeroId>& heroIds, vector<s
             GAME->Current_LevelIndex(),
             L"BattleLayer");
 
-        CHECK_NULL(character, );
+        CHECK_NULL(character);
 
+        auto  ply = dynamic_pointer_cast<Monster>(character);
         BattleChar battleChar{};
-        battleChar.actor = dynamic_pointer_cast<Character>(character);
+        battleChar.actor = ply;
         battleChar.statCom = character->Get_Component<CombatStatCom>();
+
+        auto body = dynamic_cast<Mon_Lancelier_Body*>(
+            ply->Get_PartObject(TEXT("Part_Body")));
+        battleChar.ModelCom = body->Get_Component<ModelCom>();
+
         _enemies.push_back(battleChar);
     }
 }
@@ -325,7 +347,7 @@ void BattleController::SetCharInitPos()
     Vec3 startPos = Vec3(225.f, -4020.5f, -1.24f);
 
     Vec3 EPos[3] = { {0.f,0.f,0.f},{10.f,0.f,0.f},{20.f,0.f,0.f} };
-    Vec3 PPos[3] = { {0.f,20.f,0.f},{10.f,20.f,0.f},{20.f,20.f,0.f} };
+    Vec3 PPos[3] = { {0.f,0.f,10.f},{10.f,0.f,10.f},{20.f,0.f,10.f} };
 
     // 임시
     for (size_t i = 0; i < _heroes.size(); ++i)
@@ -417,26 +439,30 @@ void BattleController::Execute_BaseAttack(const BattleChar actor, const Action& 
         turnAction.target.actor ? String::ToString(turnAction.target.actor->Get_Name()).c_str() : "null",
         turnAction._selected_SkillKey.scriptClassName.c_str());
 
+    auto vec_anim = turnAction._selected_SkillKey.animationKey;
+    if (vec_anim.size() == 0)
+        return;
 
-    // auto script = Create_Class::SkillScript<Base_Gustave_Attack>().Create();
-    auto script = Create_Class::SkillScript(turnAction._selected_SkillKey.scriptClassName).Create();
+    turnAction._curChar.ModelCom->Set_Animation(vec_anim[0], false, 1.5f);
+    //vec_anim
 
-    if (script == nullptr)
-    {
-        LOG_ERROR("Base_Gustave_Attack Create Failed");
-    }
-    else
-    {
-        LOG_ERROR("Base_Gustave_Attack Create Success");
-    }
-    \
 
-        auto target = turnAction.target;
-
-    script->Execute(turnAction._selected_SkillKey, actor, target);
-    LOG_DEBUG("Execute_BaseAttack: script finished");
-
-    EndTurn();// 일단 애니메이션등이 다 끝나고 끝내야 하는데 일단 테스트
+    //auto script = Create_Class::SkillScript(turnAction._selected_SkillKey.scriptClassName).Create();
+    //if (script == nullptr)
+    //{
+    //    LOG_ERROR("skill Create Failed");
+    //}
+    //else
+    //{
+    //    LOG_ERROR("skill Create Success");
+    //}
+    //
+    //auto target = turnAction.target;
+    //
+    //script->Execute(turnAction._selected_SkillKey, actor, target);
+    //LOG_DEBUG("Execute_BaseAttack: script finished");
+    //
+    //EndTurn();// 일단 애니메이션등이 다 끝나고 끝내야 하는데 일단 테스트
 
 }
 
@@ -457,7 +483,7 @@ void BattleController::Execute_Skill(const BattleChar actor, const Action& turnA
     {
         LOG_ERROR("Base_Gustave_Attack Create Success");
     }
-    \
+ 
 
         auto target = turnAction.target;
 
@@ -471,7 +497,31 @@ void BattleController::Execute_Item(const BattleChar actor, const Action& turnAc
 {
 }
 
+void BattleController::OnActionEndNotify()
+{
+    auto& action = Get_TurnAction();
+    
+    // 다음 애니로 이동
+    action._selected_SkillKey._curAnimIndex++;
+    
+    
+    if (action._selected_SkillKey._curAnimIndex >= action._selected_SkillKey.animationKey.size())
+    {
+        // 끝났으면 Idle
+        string key = action._selected_SkillKey.IdleAnimationKey;
+        action._curChar.ModelCom->Set_Animation(key, false, 1.5f);
+    
+        EndTurn();
+        return;
+    }
+    
+    // 다음 애니 실행
+    string key = action._selected_SkillKey.animationKey[action._selected_SkillKey._curAnimIndex];
+    action._curChar.ModelCom->Set_Animation(key, false, 1.5f);
+    
+    
 
+}
 void BattleController::Set_BattleFSM()
 {
     _battleFSM = BattleStateMachine::Create();

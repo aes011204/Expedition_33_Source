@@ -56,9 +56,11 @@ public:
     vector<BattleChar> Get_AliveEnemies();
     vector<BattleChar> Get_AliveHeroes();
 
+    bool Is_BattleStarted() { return isBattleActive; }
 public:
     void Handle_EditorStopRuntime();
     HRESULT Ready_Delegates();
+    void OnActionEndNotify();
 
 private:
     BattleChar _currentTurnActor = {};
