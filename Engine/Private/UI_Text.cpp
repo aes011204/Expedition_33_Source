@@ -172,22 +172,25 @@ HRESULT UI_Text::Render()
     if (_fontTag.empty() || _text.empty())
         return S_OK;
 
-    const Vec2 position = Get_WorldPosition();
-    const Vec2& size = _transform->Get_Size();
-    const float textScale = max(0.01f, _transform->Get_Scale().x);
-    const float boxWidth = max(0.f, size.x * textScale);
-    const float boxHeight = max(0.f, size.y * textScale);
-    const Vec2 boxCenter(position.x + boxWidth * 0.5f, position.y + boxHeight * 0.5f);
+    const Vec2 localPosition = Get_ResolvedLocalPosition();
+    const Vec2 size = Get_ResolvedLocalSize();
+    const float localTextScale = max(0.01f, _transform->Get_Scale().x);
+    const float worldTextScale = max(0.01f, Get_WorldScale().x);
+    const float boxWidth = max(0.f, size.x * localTextScale);
+    const float boxHeight = max(0.f, size.y * localTextScale);
+    const Vec2 localBoxCenter(localPosition.x + boxWidth * 0.5f, localPosition.y + boxHeight * 0.5f);
+    const Vec2 boxCenter = Transform_LocalPointToWorld(localBoxCenter);
+    const float worldRotationRadians = Get_WorldRotationRadians();
 
     if (_textWrap)
     {
-        const vector<wstring> lines = Wrap_TextLines(_fontTag, _text, max(1.f, boxWidth), textScale);
-        const float lineHeight = max(1.f, GAME->Measure_Font(_fontTag, L"Mg").y * textScale);
+        const vector<wstring> lines = Wrap_TextLines(_fontTag, _text, max(1.f, boxWidth), localTextScale);
+        const float lineHeight = max(1.f, GAME->Measure_Font(_fontTag, L"Mg").y * localTextScale);
 
         for (size_t lineIndex = 0; lineIndex < lines.size(); ++lineIndex)
         {
             const wstring& line = lines[lineIndex];
-            const float textWidth = Measure_TextWidth(_fontTag, line, textScale);
+            const float textWidth = Measure_TextWidth(_fontTag, line, localTextScale);
 
             float offsetX = 0.f;
             if (TextAlign::Center == _textAlign)
@@ -195,26 +198,26 @@ HRESULT UI_Text::Render()
             else if (TextAlign::Right == _textAlign)
                 offsetX = boxWidth - textWidth;
 
-            const Vec2 alignedTopLeft(position.x + offsetX, position.y + static_cast<float>(lineIndex) * lineHeight);
+            const Vec2 alignedTopLeft(localPosition.x + offsetX, localPosition.y + static_cast<float>(lineIndex) * lineHeight);
             const Vec2 pivot(
-                (boxCenter.x - alignedTopLeft.x) / textScale,
-                (boxCenter.y - alignedTopLeft.y) / textScale);
+                (localBoxCenter.x - alignedTopLeft.x) / localTextScale,
+                (localBoxCenter.y - alignedTopLeft.y) / localTextScale);
 
             GAME->Draw_Font(
                 _fontTag,
                 line.c_str(),
                 boxCenter,
                 XMVectorSet(_color.x, _color.y, _color.z, _color.w),
-                _transform->Get_RotationRadians(),
+                worldRotationRadians,
                 pivot,
-                textScale);
+                worldTextScale);
         }
 
         return S_OK;
     }
 
     const Vec2 measuredSize = GAME->Measure_Font(_fontTag, _text.c_str());
-    const float textWidth = measuredSize.x * textScale;
+    const float textWidth = measuredSize.x * localTextScale;
 
     float offsetX = 0.f;
     if (TextAlign::Center == _textAlign)
@@ -222,19 +225,19 @@ HRESULT UI_Text::Render()
     else if (TextAlign::Right == _textAlign)
         offsetX = boxWidth - textWidth;
 
-    const Vec2 alignedTopLeft(position.x + offsetX, position.y);
+    const Vec2 alignedTopLeft(localPosition.x + offsetX, localPosition.y);
     const Vec2 pivot(
-        (boxCenter.x - alignedTopLeft.x) / textScale,
-        (boxCenter.y - alignedTopLeft.y) / textScale);
+        (localBoxCenter.x - alignedTopLeft.x) / localTextScale,
+        (localBoxCenter.y - alignedTopLeft.y) / localTextScale);
 
     GAME->Draw_Font(
         _fontTag,
         _text.c_str(),
         boxCenter,
         XMVectorSet(_color.x, _color.y, _color.z, _color.w),
-        _transform->Get_RotationRadians(),
+        worldRotationRadians,
         pivot,
-        textScale);
+        worldTextScale);
 
     return S_OK;
 }

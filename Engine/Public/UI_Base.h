@@ -41,7 +41,14 @@ public:
     int32 Get_SortOrder() const { return _sortOrder; }
 
     UI_Transform* Get_Transform() const { return _transform.get(); }
+    Vec2 Get_ParentAnchorReferenceSize() const;
+    Vec2 Get_ResolvedLocalPosition() const;
+    Vec2 Get_ResolvedLocalSize() const;
+    Vec2 Get_ScaledLocalCenter(const Vec2& localScale) const;
     Vec2 Get_WorldPosition() const;
+    Vec2 Transform_LocalPointToWorld(const Vec2& localPoint) const;
+    Vec2 Get_WorldScale() const;
+    float Get_WorldRotationRadians() const;
     void Set_Parent(const Shared<UI_Base>& parent);
     void Clear_Parent();
     virtual void Set_Color(const Vec4& color);

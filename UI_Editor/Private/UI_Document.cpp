@@ -2,6 +2,8 @@
 #include "UI_Document.h"
 #include "UI_DocumentSerializer.h"
 
+#include <cmath>
+
 namespace UIEditor
 {
     namespace
@@ -15,6 +17,56 @@ namespace UIEditor
                 return {};
 
             return String::ToString(fs::path(String::ToWString(fontPath)).stem().wstring());
+        }
+
+        ImVec2 Rotate_Point(const ImVec2& point, float rotationRadians)
+        {
+            const float cosAngle = cosf(rotationRadians);
+            const float sinAngle = sinf(rotationRadians);
+
+            return ImVec2(
+                point.x * cosAngle - point.y * sinAngle,
+                point.x * sinAngle + point.y * cosAngle);
+        }
+
+        float Get_ObjectTextScale(const UI_Object& object)
+        {
+            const float fontScale = max(4.f, object.fontSize) / 32.f;
+            return max(0.01f, object.scale.x * fontScale);
+        }
+
+        ImVec2 Get_ObjectLocalRuntimeSize(const UI_Object& object, const ImVec2& resolvedLocalSize)
+        {
+            if (object.type == UI_ObjectType::Text)
+            {
+                const float textScale = Get_ObjectTextScale(object);
+                return ImVec2(
+                    max(1.f, resolvedLocalSize.x * textScale),
+                    max(1.f, resolvedLocalSize.y * textScale));
+            }
+
+            return ImVec2(
+                max(1.f, resolvedLocalSize.x * object.scale.x),
+                max(1.f, resolvedLocalSize.y * object.scale.y));
+        }
+
+        ImVec2 Get_ObjectLocalRuntimeCenter(
+            const UI_Object& object,
+            const ImVec2& resolvedLocalPosition,
+            const ImVec2& resolvedLocalSize)
+        {
+            const float scaleX = object.type == UI_ObjectType::Text ? Get_ObjectTextScale(object) : object.scale.x;
+            const float scaleY = object.type == UI_ObjectType::Text ? Get_ObjectTextScale(object) : object.scale.y;
+            const ImVec2 pivotOffset = ImVec2(
+                resolvedLocalSize.x * object.pivot.x,
+                resolvedLocalSize.y * object.pivot.y);
+            const ImVec2 baseCenterOffset = ImVec2(
+                resolvedLocalSize.x * 0.5f,
+                resolvedLocalSize.y * 0.5f);
+
+            return ImVec2(
+                resolvedLocalPosition.x + pivotOffset.x + (baseCenterOffset.x - pivotOffset.x) * scaleX,
+                resolvedLocalPosition.y + pivotOffset.y + (baseCenterOffset.y - pivotOffset.y) * scaleY);
         }
     }
 
@@ -315,7 +367,7 @@ namespace UIEditor
         object->parentId = newParentId;
 
         if (keepWorldPosition)
-            object->position = ImVec2(oldWorldPosition.x - Get_WorldPosition(newParentId).x, oldWorldPosition.y - Get_WorldPosition(newParentId).y);
+            Set_WorldPosition(objectId, oldWorldPosition);
 
         return true;
     }
@@ -378,28 +430,174 @@ namespace UIEditor
         return false;
     }
 
+    ImVec2 UI_Document::Get_ParentAnchorReferenceSize(ObjectId objectId) const
+    {
+        const UI_Object* object = Find_Object(objectId);
+        if (nullptr == object || object->parentId == 0)
+            return _canvasSize;
+
+        return Get_ResolvedLocalSize(object->parentId);
+    }
+
+    ImVec2 UI_Document::Get_ResolvedLocalPosition(ObjectId objectId) const
+    {
+        const UI_Object* object = Find_Object(objectId);
+        if (nullptr == object)
+            return ImVec2(0.f, 0.f);
+
+        const ImVec2 parentReferenceSize = Get_ParentAnchorReferenceSize(objectId);
+        return ImVec2(
+            object->position.x + parentReferenceSize.x * object->anchorMin.x,
+            object->position.y + parentReferenceSize.y * object->anchorMin.y);
+    }
+
+    ImVec2 UI_Document::Get_ResolvedLocalSize(ObjectId objectId) const
+    {
+        const UI_Object* object = Find_Object(objectId);
+        if (nullptr == object)
+            return ImVec2(0.f, 0.f);
+
+        const ImVec2 parentReferenceSize = Get_ParentAnchorReferenceSize(objectId);
+        return ImVec2(
+            max(1.f, object->size.x + parentReferenceSize.x * max(0.f, object->anchorMax.x - object->anchorMin.x)),
+            max(1.f, object->size.y + parentReferenceSize.y * max(0.f, object->anchorMax.y - object->anchorMin.y)));
+    }
+
     ImVec2 UI_Document::Get_WorldPosition(ObjectId objectId) const
     {
-        ImVec2 worldPosition = ImVec2(0.f, 0.f);
+        return Transform_LocalPointToWorld(objectId, Get_ResolvedLocalPosition(objectId));
+    }
+
+    ImVec2 UI_Document::Transform_LocalPointToWorld(ObjectId objectId, const ImVec2& localPoint) const
+    {
+        ImVec2 worldPoint = localPoint;
         unordered_set<ObjectId> visitedIds;
 
         const UI_Object* currentObject = Find_Object(objectId);
-        while (nullptr != currentObject)
+        while (nullptr != currentObject && currentObject->parentId != 0)
         {
-            if (visitedIds.find(currentObject->id) != visitedIds.end())
+            const UI_Object* parentObject = Find_Object(currentObject->parentId);
+            if (nullptr == parentObject)
                 break;
 
-            visitedIds.insert(currentObject->id);
-            worldPosition.x += currentObject->position.x;
-            worldPosition.y += currentObject->position.y;
-
-            if (currentObject->parentId == 0)
+            if (!visitedIds.insert(parentObject->id).second)
                 break;
 
-            currentObject = Find_Object(currentObject->parentId);
+            const ImVec2 parentPosition = Get_ResolvedLocalPosition(parentObject->id);
+            const ImVec2 parentSize = Get_ResolvedLocalSize(parentObject->id);
+            const ImVec2 pivotOffset = ImVec2(
+                parentSize.x * parentObject->pivot.x,
+                parentSize.y * parentObject->pivot.y);
+            const ImVec2 scaledOffset = ImVec2(
+                (worldPoint.x - pivotOffset.x) * parentObject->scale.x,
+                (worldPoint.y - pivotOffset.y) * parentObject->scale.y);
+            const ImVec2 rotatedOffset = Rotate_Point(scaledOffset, parentObject->rotationRadians);
+
+            worldPoint = ImVec2(
+                parentPosition.x + pivotOffset.x + rotatedOffset.x,
+                parentPosition.y + pivotOffset.y + rotatedOffset.y);
+
+            currentObject = parentObject;
         }
 
-        return worldPosition;
+        return worldPoint;
+    }
+
+    ImVec2 UI_Document::Get_WorldCenter(ObjectId objectId) const
+    {
+        const UI_Object* object = Find_Object(objectId);
+        if (nullptr == object)
+            return ImVec2(0.f, 0.f);
+
+        const ImVec2 resolvedLocalPosition = Get_ResolvedLocalPosition(objectId);
+        const ImVec2 resolvedLocalSize = Get_ResolvedLocalSize(objectId);
+        const ImVec2 localCenter = Get_ObjectLocalRuntimeCenter(*object, resolvedLocalPosition, resolvedLocalSize);
+
+        return Transform_LocalPointToWorld(objectId, localCenter);
+    }
+
+    ImVec2 UI_Document::Get_WorldSize(ObjectId objectId) const
+    {
+        const UI_Object* object = Find_Object(objectId);
+        if (nullptr == object)
+            return ImVec2(0.f, 0.f);
+
+        const ImVec2 resolvedLocalSize = Get_ResolvedLocalSize(objectId);
+        if (object->type == UI_ObjectType::Text)
+        {
+            float textScale = Get_ObjectTextScale(*object);
+            unordered_set<ObjectId> visitedIds;
+            for (const UI_Object* parentObject = Find_Object(object->parentId);
+                nullptr != parentObject;
+                parentObject = parentObject->parentId == 0 ? nullptr : Find_Object(parentObject->parentId))
+            {
+                if (!visitedIds.insert(parentObject->id).second)
+                    break;
+
+                textScale *= parentObject->scale.x;
+            }
+
+            textScale = max(0.01f, textScale);
+            return ImVec2(
+                max(1.f, resolvedLocalSize.x * textScale),
+                max(1.f, resolvedLocalSize.y * textScale));
+        }
+
+        const ImVec2 worldScale = Get_WorldScale(objectId);
+        return ImVec2(
+            max(1.f, resolvedLocalSize.x * worldScale.x),
+            max(1.f, resolvedLocalSize.y * worldScale.y));
+    }
+
+    ImVec2 UI_Document::Get_WorldScale(ObjectId objectId) const
+    {
+        const UI_Object* currentObject = Find_Object(objectId);
+        if (nullptr == currentObject)
+            return ImVec2(1.f, 1.f);
+
+        ImVec2 worldScale = currentObject->scale;
+        unordered_set<ObjectId> visitedIds;
+
+        while (nullptr != currentObject && currentObject->parentId != 0)
+        {
+            const UI_Object* parentObject = Find_Object(currentObject->parentId);
+            if (nullptr == parentObject)
+                break;
+
+            if (!visitedIds.insert(parentObject->id).second)
+                break;
+
+            worldScale.x *= parentObject->scale.x;
+            worldScale.y *= parentObject->scale.y;
+            currentObject = parentObject;
+        }
+
+        return worldScale;
+    }
+
+    float UI_Document::Get_WorldRotationRadians(ObjectId objectId) const
+    {
+        const UI_Object* currentObject = Find_Object(objectId);
+        if (nullptr == currentObject)
+            return 0.f;
+
+        float worldRotationRadians = currentObject->rotationRadians;
+        unordered_set<ObjectId> visitedIds;
+
+        while (nullptr != currentObject && currentObject->parentId != 0)
+        {
+            const UI_Object* parentObject = Find_Object(currentObject->parentId);
+            if (nullptr == parentObject)
+                break;
+
+            if (!visitedIds.insert(parentObject->id).second)
+                break;
+
+            worldRotationRadians += parentObject->rotationRadians;
+            currentObject = parentObject;
+        }
+
+        return worldRotationRadians;
     }
 
     bool UI_Document::Set_WorldPosition(ObjectId objectId, const ImVec2& worldPosition)
@@ -408,8 +606,43 @@ namespace UIEditor
         if (nullptr == object)
             return false;
 
-        const ImVec2 parentWorldPosition = Get_WorldPosition(object->parentId);
-        object->position = ImVec2(worldPosition.x - parentWorldPosition.x, worldPosition.y - parentWorldPosition.y);
+        vector<const UI_Object*> parentChain;
+        unordered_set<ObjectId> visitedIds;
+        for (const UI_Object* parentObject = Find_Object(object->parentId);
+            nullptr != parentObject;
+            parentObject = parentObject->parentId == 0 ? nullptr : Find_Object(parentObject->parentId))
+        {
+            if (!visitedIds.insert(parentObject->id).second)
+                break;
+
+            parentChain.push_back(parentObject);
+        }
+
+        ImVec2 localPoint = worldPosition;
+        for (auto iter = parentChain.rbegin(); iter != parentChain.rend(); ++iter)
+        {
+            const UI_Object* parentObject = *iter;
+            const ImVec2 parentPosition = Get_ResolvedLocalPosition(parentObject->id);
+            const ImVec2 parentSize = Get_ResolvedLocalSize(parentObject->id);
+            const ImVec2 pivotOffset = ImVec2(
+                parentSize.x * parentObject->pivot.x,
+                parentSize.y * parentObject->pivot.y);
+            const ImVec2 translated = ImVec2(
+                localPoint.x - parentPosition.x - pivotOffset.x,
+                localPoint.y - parentPosition.y - pivotOffset.y);
+            const ImVec2 unrotated = Rotate_Point(translated, -parentObject->rotationRadians);
+            const float safeScaleX = fabsf(parentObject->scale.x) > 0.0001f ? parentObject->scale.x : 0.0001f;
+            const float safeScaleY = fabsf(parentObject->scale.y) > 0.0001f ? parentObject->scale.y : 0.0001f;
+
+            localPoint = ImVec2(
+                unrotated.x / safeScaleX + pivotOffset.x,
+                unrotated.y / safeScaleY + pivotOffset.y);
+        }
+
+        const ImVec2 parentReferenceSize = Get_ParentAnchorReferenceSize(objectId);
+        object->position = ImVec2(
+            localPoint.x - parentReferenceSize.x * object->anchorMin.x,
+            localPoint.y - parentReferenceSize.y * object->anchorMin.y);
         return true;
     }
 

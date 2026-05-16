@@ -397,6 +397,7 @@ namespace UIEditor
     void UI_Editor_PreviewService::Begin_Frame()
     {
         _fontPreviewCommands.clear();
+        _texturePreviewLoadCountThisFrame = 0;
     }
 
     void UI_Editor_PreviewService::Clear_RuntimeCaches()
@@ -560,11 +561,16 @@ namespace UIEditor
         if (_texturePreviewFailedKeys.find(cacheKey) != _texturePreviewFailedKeys.end())
             return nullptr;
 
+        if (!Can_LoadTexturePreviewThisFrame())
+            return nullptr;
+
         if (!fs::exists(texturePath))
         {
             _texturePreviewFailedKeys.insert(cacheKey);
             return nullptr;
         }
+
+        ++_texturePreviewLoadCountThisFrame;
 
         Shared<Texture> texture = Texture::Create(_device, _context, texturePath.c_str(), 1);
         if (nullptr == texture || texture->Get_SRVs().empty() || nullptr == texture->Get_SRVs().front().Get())
@@ -575,6 +581,12 @@ namespace UIEditor
 
         _textureThumbCache.emplace(cacheKey, texture->Get_SRVs().front());
         return _textureThumbCache[cacheKey].Get();
+    }
+
+    bool UI_Editor_PreviewService::Can_LoadTexturePreviewThisFrame()
+    {
+        constexpr int32 kMaxTexturePreviewLoadsPerFrame = 2;
+        return _texturePreviewLoadCountThisFrame < kMaxTexturePreviewLoadsPerFrame;
     }
 
     bool UI_Editor_PreviewService::Queue_FontPreview(

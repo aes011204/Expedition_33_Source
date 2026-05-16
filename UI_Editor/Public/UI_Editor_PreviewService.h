@@ -59,6 +59,7 @@ namespace UIEditor
     private:
         SpriteFont* Get_FontPreview(const string& fontGuid, const string& fontPath);
         ID3D11ShaderResourceView* Load_TexturePreview(const string& cacheKey, const wstring& texturePath);
+        bool Can_LoadTexturePreviewThisFrame();
         bool Ensure_ImagePreviewRenderer();
         ID3D11ShaderResourceView* Create_MaskedTexturePreviewSRV(
             const string& cacheKey,
@@ -69,6 +70,7 @@ namespace UIEditor
         ComPtr<Device> _device = nullptr;
         ComPtr<Context> _context = nullptr;
         bool _assetManagerReady = false;
+        int32 _texturePreviewLoadCountThisFrame = 0;
         unordered_map<string, ComPtr<ID3D11ShaderResourceView>> _textureThumbCache = {};
         unordered_set<string> _texturePreviewFailedKeys = {};
         unordered_map<string, ComPtr<ID3D11ShaderResourceView>> _maskedTexturePreviewCache = {};

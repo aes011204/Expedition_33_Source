@@ -24,7 +24,15 @@ namespace UIEditor
         bool Can_Parent(ObjectId objectId, ObjectId newParentId) const;
         bool Can_HaveChildren(ObjectId objectId) const;
         bool Is_Descendant(ObjectId ancestorId, ObjectId candidateDescendantId) const;
+        ImVec2 Get_ParentAnchorReferenceSize(ObjectId objectId) const;
+        ImVec2 Get_ResolvedLocalPosition(ObjectId objectId) const;
+        ImVec2 Get_ResolvedLocalSize(ObjectId objectId) const;
         ImVec2 Get_WorldPosition(ObjectId objectId) const;
+        ImVec2 Transform_LocalPointToWorld(ObjectId objectId, const ImVec2& localPoint) const;
+        ImVec2 Get_WorldCenter(ObjectId objectId) const;
+        ImVec2 Get_WorldSize(ObjectId objectId) const;
+        ImVec2 Get_WorldScale(ObjectId objectId) const;
+        float Get_WorldRotationRadians(ObjectId objectId) const;
         bool Set_WorldPosition(ObjectId objectId, const ImVec2& worldPosition);
         string Generate_UniqueName(const string& baseName, ObjectId ignoredObjectId = 0) const;
         string Generate_DuplicateName(const string& sourceName) const;

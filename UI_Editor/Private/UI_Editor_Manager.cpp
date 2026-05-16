@@ -404,47 +404,51 @@ namespace UIEditor
 
     void UI_Editor_Manager::Handle_Shortcuts()
     {
-        ImGuiIO& io = ImGui::GetIO();
-        if (io.WantTextInput)
+        const ImGuiIO& io = ImGui::GetIO();
+        if (io.WantTextInput ||
+            ImGui::IsAnyItemActive() ||
+            ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopup))
+        {
             return;
+        }
 
-        if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Z))
+        if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Z, false))
         {
             Undo();
             return;
         }
 
-        if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Y))
+        if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Y, false))
         {
             Redo();
             return;
         }
 
-        if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_C))
+        if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_C, false))
         {
             Copy_SelectedUIObjects();
             return;
         }
 
-        if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_V))
+        if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_V, false))
         {
             Paste_UIObjects();
             return;
         }
 
-        if (ImGui::IsKeyPressed(ImGuiKey_Delete))
+        if (ImGui::IsKeyPressed(ImGuiKey_Delete, false))
         {
             Delete_SelectedUIObject();
             return;
         }
 
-        if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_D))
+        if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_D, false))
         {
             Duplicate_SelectedUIObject();
             return;
         }
 
-        if (ImGui::IsKeyPressed(ImGuiKey_F2))
+        if (ImGui::IsKeyPressed(ImGuiKey_F2, false))
         {
             if (_selectedObjectId == 0)
                 Request_RenameCanvas();
@@ -711,7 +715,10 @@ namespace UIEditor
         }
 
         if (_selectedObjectId != nextSelectedObjectId)
+        {
+            Commit_EditTransactionIfChanged();
             _animationPreviewService.Stop();
+        }
 
         _selectedObjectIds = move(normalizedObjectIds);
         _selectedObjectId = nextSelectedObjectId;
@@ -1137,16 +1144,26 @@ namespace UIEditor
         if (!_historyService.Is_EditTransactionOpen())
             Push_UndoSnapshot();
 
+        const ImVec2 worldScale = _document.Get_WorldScale(objectId);
+        const ImVec2 parentReferenceSize = _document.Get_ParentAnchorReferenceSize(objectId);
+        const float anchorWidth = parentReferenceSize.x * max(0.f, object->anchorMax.x - object->anchorMin.x);
+        const float anchorHeight = parentReferenceSize.y * max(0.f, object->anchorMax.y - object->anchorMin.y);
+
         if (object->type == UI_ObjectType::Text)
         {
-            const float safeTextScale = Get_UITextRuntimeScale(*object);
-            object->size = ImVec2(max(1.f, worldSize.x) / safeTextScale, max(1.f, worldSize.y) / safeTextScale);
+            const float fontScale = max(4.f, object->fontSize) / 32.f;
+            const float safeTextScale = max(0.01f, worldScale.x * fontScale);
+            object->size = ImVec2(
+                max(1.f, max(1.f, worldSize.x) / safeTextScale - anchorWidth),
+                max(1.f, max(1.f, worldSize.y) / safeTextScale - anchorHeight));
         }
         else
         {
-            const float safeScaleX = max(0.01f, object->scale.x);
-            const float safeScaleY = max(0.01f, object->scale.y);
-            object->size = ImVec2(max(1.f, worldSize.x) / safeScaleX, max(1.f, worldSize.y) / safeScaleY);
+            const float safeScaleX = fabsf(worldScale.x) > 0.0001f ? worldScale.x : 0.0001f;
+            const float safeScaleY = fabsf(worldScale.y) > 0.0001f ? worldScale.y : 0.0001f;
+            object->size = ImVec2(
+                max(1.f, max(1.f, worldSize.x) / safeScaleX - anchorWidth),
+                max(1.f, max(1.f, worldSize.y) / safeScaleY - anchorHeight));
         }
 
         if (!_document.Set_WorldPosition(objectId, worldPosition))
@@ -1158,7 +1175,11 @@ namespace UIEditor
 
     ImVec2 UI_Editor_Manager::Get_UIObjectWorldPosition(ObjectId objectId) const
     {
-        return _document.Get_WorldPosition(objectId);
+        const ImVec2 worldCenter = _document.Get_WorldCenter(objectId);
+        const ImVec2 worldSize = _document.Get_WorldSize(objectId);
+        return ImVec2(
+            worldCenter.x - worldSize.x * 0.5f,
+            worldCenter.y - worldSize.y * 0.5f);
     }
 
     bool UI_Editor_Manager::Align_SelectedObjects(UI_AlignmentCommand command)
@@ -1206,8 +1227,11 @@ namespace UIEditor
 
             ObjectRect rect = {};
             rect.id = objectId;
-            rect.worldPosition = _document.Get_WorldPosition(objectId);
-            rect.size = Get_UIObjectRuntimeSize(*object);
+            const ImVec2 worldCenter = _document.Get_WorldCenter(objectId);
+            rect.size = _document.Get_WorldSize(objectId);
+            rect.worldPosition = ImVec2(
+                worldCenter.x - rect.size.x * 0.5f,
+                worldCenter.y - rect.size.y * 0.5f);
             rect.center = ImVec2(
                 rect.worldPosition.x + rect.size.x * 0.5f,
                 rect.worldPosition.y + rect.size.y * 0.5f);

@@ -5,7 +5,7 @@ namespace UIEditor
 {
     namespace
     {
-        constexpr int32 kCurrentUIJsonVersion = 4;
+        constexpr int32 kCurrentUIJsonVersion = 5;
         constexpr const char* kDefaultCanvasName = "MainCanvas";
         constexpr const char* kDefaultFontPath = "../Bin/Resources/Fonts/33_MainKR_Font.spritefont";
 
@@ -236,6 +236,15 @@ namespace UIEditor
                 ColorFloatToByte(value.z),
                 ColorFloatToByte(value.w)
             });
+        }
+
+        float Read_RotationRadians(const json& item)
+        {
+            const auto radiansIter = item.find("rotationRadians");
+            if (radiansIter != item.end() && radiansIter->is_number())
+                return radiansIter->get<float>();
+
+            return Read_Float(item, "rotation", 0.f);
         }
 
         json AnimationTrack_ToJson(const UI_AnimationTrack& track)
@@ -498,6 +507,9 @@ namespace UIEditor
         item["position"] = Vec2_ToJson(object.position);
         item["size"] = Vec2_ToJson(object.size);
         item["scale"] = Vec2_ToJson(object.scale);
+        item["pivot"] = Vec2_ToJson(object.pivot);
+        item["anchorMin"] = Vec2_ToJson(object.anchorMin);
+        item["anchorMax"] = Vec2_ToJson(object.anchorMax);
         item["rotation"] = object.rotationRadians;
         item["sortOrder"] = object.sortOrder;
         if (object.renderGroup != UI_RenderGroup::Foreground)
@@ -576,7 +588,10 @@ namespace UIEditor
         object.position = Read_Vec2(item, "position", ImVec2(0.f, 0.f));
         object.size = Read_Vec2(item, "size", ImVec2(100.f, 100.f));
         object.scale = Read_Vec2(item, "scale", ImVec2(1.f, 1.f));
-        object.rotationRadians = Read_Float(item, "rotation", 0.f);
+        object.pivot = Read_Vec2(item, "pivot", ImVec2(0.5f, 0.5f));
+        object.anchorMin = Read_Vec2(item, "anchorMin", ImVec2(0.f, 0.f));
+        object.anchorMax = Read_Vec2(item, "anchorMax", ImVec2(0.f, 0.f));
+        object.rotationRadians = Read_RotationRadians(item);
         object.sortOrder = Read_Int(item, "sortOrder", 0);
         object.renderGroup = Parse_RenderGroup(Read_String(item, "renderLayer", "Foreground"));
         object.color = Read_Color(item, "color", ImVec4(1.f, 1.f, 1.f, 1.f));

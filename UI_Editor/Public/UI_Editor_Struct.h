@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Engine_Define.h"
 #include "UI_Editor_ImGuiInclude.h"
@@ -27,6 +27,9 @@ struct UI_Object
     ImVec2 position = ImVec2(0.f, 0.f);
     ImVec2 size = ImVec2(100.f, 100.f);
     ImVec2 scale = ImVec2(1.f, 1.f);
+    ImVec2 pivot = ImVec2(0.5f, 0.5f);
+    ImVec2 anchorMin = ImVec2(0.f, 0.f);
+    ImVec2 anchorMax = ImVec2(0.f, 0.f);
     float rotationRadians = 0.f;
     ImVec4 color = ImVec4(1.f, 1.f, 1.f, 1.f);
     bool isOpenOnCreate = true;
