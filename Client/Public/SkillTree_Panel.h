@@ -49,20 +49,20 @@ public:
     HRESULT Initialize(uint32 levelIndex);
     void    Update(float timeDelta);
 
-    void   Open();
-    void   Close();
-    void   Toggle();
+    void    Open();
+    void    Close();
+    void    Toggle();
 
-    bool   Is_Open() const { return _isOpen;}
+    bool    Is_Open() const { return _isOpen;}
 
 private:
-    HRESULT     Load_Background_UI(uint32 levelIndex);
-    HRESULT     Load_UI(HeroId heroId, uint32 levelIndex,  const wstring& playerName, const wstring& skillTreeJsonPath, const wstring& toolTipJsonPath, const wstring& rootName, const wstring& prototypeTagPrefix, const wstring& characterSelectUI, SkillTreeViewState& outView);
-    HRESULT     Load_UI_ToolTips(const wstring& prototypeTagPrefix, const wstring& toolTipJsonPath, uint32 levelIndex, SkillTreeViewState& outView);
-    HRESULT     Bind_SkillNode_UI(const wstring& playerName, SkillTreeViewState& outView);
+    HRESULT         Load_Background_UI(uint32 levelIndex);
+    HRESULT         Load_UI(HeroId heroId, uint32 levelIndex,  const wstring& playerName, const wstring& skillTreeJsonPath, const wstring& toolTipJsonPath, const wstring& rootName, const wstring& prototypeTagPrefix, const wstring& characterSelectUI, SkillTreeViewState& outView);
+    HRESULT         Load_UI_ToolTips(const wstring& prototypeTagPrefix, const wstring& toolTipJsonPath, uint32 levelIndex, const wstring& playerName, SkillTreeViewState& outView);
+    HRESULT         Bind_SkillNode_UI(const wstring& playerName, SkillTreeViewState& outView);
     Shared<UI_Base> Find_UI(const umap<wstring, Shared<UI_Base>>& uiByName, const wstring& name) const;
-    void        Set_SkillPoint();
-    void        Update_UI();
+    void            Set_SkillPoint();
+    void            Update_UI();
 
     template<typename T>
     Shared<T> Find_TypedUI(

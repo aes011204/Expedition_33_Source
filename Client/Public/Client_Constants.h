@@ -10,7 +10,12 @@ namespace Client::Constants::UI
 
     inline constexpr wchar_t UI_SkillTree_BG_Path[] = L"UI/UI_Json/UI_SkillTree_Test.json";
     inline constexpr wchar_t UI_Lune_SkillTree_Path[] = L"UI/UI_Json/UI_Lune_SkillTree.json";
+    inline constexpr wchar_t UI_Gustave_SkillTree_Path[] = L"UI/UI_Json/UI_Gustave_SkillTree.json";
+    inline constexpr wchar_t UI_Maelle_SkillTree_Path[] = L"UI/UI_Json/UI_Maelle_SkillTree.json";
     inline constexpr wchar_t UI_Lune_SkillTooltips_Dir[] = L"UI/UI_Json/UI_SkillTooltip_Lune.json";
+    inline constexpr wchar_t UI_Gustave_SkillTooltips_Dir[] = L"UI/UI_Json/UI_SkillTooltip_Gustave.json";
+    inline constexpr wchar_t UI_Maelle_SkillTooltips_Dir[] = L"UI/UI_Json/UI_SkillTooltip_Maelle.json";
+
 }
 
 namespace Client::Constants::Map
