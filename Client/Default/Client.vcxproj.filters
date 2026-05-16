@@ -424,7 +424,6 @@
     <ClInclude Include="..\Public\Player_Lune.h">
       <Filter>02.GameObject\Player</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\CharacterStatus_Panel.h" />
     <ClInclude Include="..\Public\Player_WorldAction.h">
       <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
     </ClInclude>
@@ -721,7 +720,6 @@
     <ClCompile Include="..\Private\Player_Maelle.cpp">
       <Filter>02.GameObject\Player</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\CharacterStatus_Panel.cpp" />
     <ClCompile Include="..\Private\Player_WorldAction.cpp">
       <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
     </ClCompile>
@@ -755,7 +753,6 @@
     <ClCompile Include="..\Private\Battle_Maelle.cpp" />
     <ClCompile Include="..\private\Mon_Lancelier_Body.cpp" />
     <ClCompile Include="..\private\Mon_Lancelier_Weapon.cpp" />
-    <ClCompile Include="..\Private\Player_BattleBase.cpp" />
     <ClCompile Include="..\public\ANS_QTE.cpp" />
     <ClCompile Include="..\Private\CharacterStatus_Panel.cpp">
       <Filter>02.GameObject\UI\CharacterStatus_Panel</Filter>

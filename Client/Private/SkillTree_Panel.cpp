@@ -11,6 +11,7 @@
 #include "UI_RuntimeLoader.h" 
 #include "UI_Text.h"
 #include "PreviewCamera.h"
+#include "UI_Base.h"
 
 static const char* Get_HeroPrefabName(HeroId heroId)
 {
@@ -63,6 +64,10 @@ HRESULT SkillTree_Panel::Initialize(uint32 levelIndex)
 
 void SkillTree_Panel::Update(float timeDelta)
 {
+    if(!_isOpen)
+        return;
+
+   Handle_SelectionInput();
    Update_UI();
    Update_StatusPreviewHeroes(timeDelta);
 }
@@ -78,8 +83,6 @@ void SkillTree_Panel::Open()
     //선택된 캐릭터 ui 확대
     _currentView->characterSelectUI->Get_Transform()->Set_Scale(_hoveredSize);
 
-    if(_currentView->root)
-        _currentView->root->Open();
 
    // for (auto& node : _currentView->skillNodes)
    // {
@@ -127,13 +130,19 @@ void SkillTree_Panel::Close()
         for(auto node :_viewByPlayerId[static_cast<HeroId>(i)].skillNodes)
         {
             if(node.unlockedPopup)
-            node.unlockedPopup;
+            node.unlockedPopup->Close();
 
             if(node.canUnlockPopup)
-            node.canUnlockPopup;
+            node.canUnlockPopup->Close();
 
             if(node.lockedPopup)
-            node.lockedPopup;
+            node.lockedPopup->Close();
+        }
+
+        for(auto node :_viewByPlayerId[static_cast<HeroId>(i)].lockedNodes)
+        {
+            if(node.lockedPopup)
+                node.lockedPopup->Close();
         }
     }
 
@@ -150,6 +159,33 @@ void SkillTree_Panel::Toggle()
         Close();
     else
         Open();
+}
+
+void SkillTree_Panel::Handle_SelectionInput()
+{
+    const vector<HeroPartyEntry>& partyEntries = CLIENT->Get_HeroEntries();
+
+    if(partyEntries.empty())
+        return;
+
+    const uint32 heroCount = static_cast<uint32>(partyEntries.size());
+    uint32 previousIndex = _selectedHeroIndex;
+
+    if(GAME->KeyDown(KEY_TYPE::Q))
+    {
+        _selectedHeroIndex = (_selectedHeroIndex + heroCount - 1) % heroCount;
+    }
+
+    if(GAME->KeyDown(KEY_TYPE::E))
+    {
+        _selectedHeroIndex = (_selectedHeroIndex + 1) % heroCount;
+    }
+
+    if(previousIndex != _selectedHeroIndex)
+    {
+        Refresh_CharacterSelectUI();
+        Change_ToSelectedViewState();
+    }
 }
 
 HRESULT SkillTree_Panel::Load_Background_UI(uint32 levelIndex)
@@ -189,6 +225,9 @@ HRESULT SkillTree_Panel::Load_UI(HeroId heroId, uint32 levelIndex, const wstring
 
     Load_UI_ToolTips(prototypeTagPrefix,toolTipJsonPath, levelIndex, playerName, outView);
     Bind_SkillNode_UI(playerName, outView);
+
+    if(heroId != HeroId::Lune)
+    Bind_LockNode_UI(playerName, outView);
 
     auto hero = CLIENT->Find_Hero(heroId);
 
@@ -268,6 +307,40 @@ HRESULT SkillTree_Panel::Bind_SkillNode_UI(const wstring& playerName, SkillTreeV
     return S_OK;
 }
 
+HRESULT SkillTree_Panel::Bind_LockNode_UI(const wstring& playerName,SkillTreeViewState& outView)
+{
+    const wstring buttonPrefix = L"Button_" + playerName + L"_Locked_";
+    
+    for(const auto& [name, ui] : outView.uiByName)
+    {
+        if(!name.starts_with(buttonPrefix))
+            continue;
+
+        Shared<UI_Button> button = dynamic_pointer_cast<UI_Button>(ui);
+        if(button == nullptr)
+            continue;
+
+        const wstring nodeNameW = name.substr(buttonPrefix.size());
+        const wstring panelId = L"Panel_" + playerName + L"_Locked_" + nodeNameW;
+        const wstring imageId = L"Image_" + playerName + L"_Locked_" + nodeNameW + L"_Icon";
+        const string  nodeName = String::ToString(nodeNameW);
+
+        Shared<UI_Image>  image = dynamic_pointer_cast<UI_Image>(Find_UI(outView.uiByName, imageId));
+        Shared<UI_Base>   lockedPopup = Find_UI(outView.uiByName, panelId);
+
+        LockNodeUI node {};
+        node.button = button;
+        node.image = image;
+        node.lockedPopup = lockedPopup;
+        node.name = nodeName;
+
+        outView.lockedNodes.push_back(node);
+    }
+
+    return S_OK;
+}
+
+
 Shared<UI_Base> SkillTree_Panel::Find_UI(const umap<wstring, Shared<UI_Base>>& uiByName, const wstring& name) const
 {
     const auto iter = uiByName.find(name);
@@ -313,13 +386,42 @@ void SkillTree_Panel::Update_UI()
     if(!_isOpen)
         return;
 
-    for(auto& [skillId, tooltip] : _currentView->tooltips)
+    for(auto i = 0 ; i < static_cast<int>(HeroId::END) ; i++)
     {
-        if(tooltip)
-            tooltip->Close();
+        _viewByPlayerId[static_cast<HeroId>(i)].root->Close();
+
+        for(auto tooltip : _viewByPlayerId[static_cast<HeroId>(i)].tooltips)
+        {
+            tooltip.second->Close();
+        }
+
+        for(auto node :_viewByPlayerId[static_cast<HeroId>(i)].skillNodes)
+        {
+            if(node.unlockedPopup)
+                node.unlockedPopup->Close();
+
+            if(node.canUnlockPopup)
+                node.canUnlockPopup->Close();
+
+            if(node.lockedPopup)
+                node.lockedPopup->Close();
+        }
     }
 
-   
+    if(_currentView->root)
+        _currentView->root->Open();
+
+   // for(auto& [skillId, tooltip] : _currentView->tooltips)
+   // {
+   //     if(tooltip)
+   //         tooltip->Close();
+   // }
+
+    for( auto node :_currentView->lockedNodes)
+    {
+        node.lockedPopup->Close();    
+    }
+
     for(auto& node : _currentView->skillNodes)
     {
         if(node.image)
@@ -443,16 +545,30 @@ void SkillTree_Panel::Update_UI()
     }
 }
 
-void SkillTree_Panel::Change_ToNextViewState(HeroId next)
+void SkillTree_Panel::Refresh_CharacterSelectUI()
 {
-    uint32 nextIndex = _currentHeroIndex + 1;
+    static const Vec2 selectedScale = Vec2(1.4f, 1.4f);
+    static const Vec2 norrmalScale = Vec2(1.f, 1.f);
 
-    if(nextIndex >= static_cast<uint32>(HeroId::END))
-        nextIndex = 0;
+    for(auto i = 0 ; i < static_cast<int>(HeroId::END) ; i++)
+    {
+        const auto& selectedUI = _viewByPlayerId[static_cast<HeroId>(i)].characterSelectUI;
+        const bool isSelected = (i == _selectedHeroIndex);
+        const Vec2 targetScale = isSelected ? selectedScale : norrmalScale;
 
-    HeroId nextHeroId = static_cast<HeroId>(nextIndex);
+        if(selectedUI->Get_Transform() != nullptr)
+        {
+            selectedUI->Get_Transform()->Set_Scale(targetScale);
+        }
+    }
+}
 
-    _currentView = &_viewByPlayerId[nextHeroId];
+void SkillTree_Panel::Change_ToSelectedViewState()
+{
+    if(_currentView->root)
+        _currentView->root->Close();
+
+    _currentView = &_viewByPlayerId[static_cast<HeroId>(_selectedHeroIndex)];
 }
 
 HRESULT SkillTree_Panel::Spawn_StatusPreviewHeroes()

@@ -28,6 +28,14 @@ public:
         Shared<UI_Text>   costText;
     };
 
+    struct LockNodeUI
+    {
+        string              name;
+        Shared<UI_Button>   button;
+        Shared<UI_Image>    image;
+        Shared<UI_Base>    lockedPopup;    
+    };
+
     struct SkillTreeViewState
     {
         HeroId                         heroId;
@@ -35,6 +43,7 @@ public:
         Shared<UI_Base>                characterSelectUI;
         Shared<SkillTreeCom>           skillTreeCom;
         vector<SkillNodeUI>            skillNodes;
+        vector<LockNodeUI>             lockedNodes;
         umap<wstring, Shared<UI_Base>> uiByName;
         umap<wstring, Shared<UI_Base>> tooltipsByName;
         umap<wstring, Shared<UI_Base>> tooltips;
@@ -55,14 +64,19 @@ public:
 
     bool    Is_Open() const { return _isOpen;}
 
+    void    Handle_SelectionInput();
+
 private:
     HRESULT         Load_Background_UI(uint32 levelIndex);
     HRESULT         Load_UI(HeroId heroId, uint32 levelIndex,  const wstring& playerName, const wstring& skillTreeJsonPath, const wstring& toolTipJsonPath, const wstring& rootName, const wstring& prototypeTagPrefix, const wstring& characterSelectUI, SkillTreeViewState& outView);
     HRESULT         Load_UI_ToolTips(const wstring& prototypeTagPrefix, const wstring& toolTipJsonPath, uint32 levelIndex, const wstring& playerName, SkillTreeViewState& outView);
     HRESULT         Bind_SkillNode_UI(const wstring& playerName, SkillTreeViewState& outView);
+    HRESULT         Bind_LockNode_UI(const wstring& playerName,SkillTreeViewState& outView);
     Shared<UI_Base> Find_UI(const umap<wstring, Shared<UI_Base>>& uiByName, const wstring& name) const;
     void            Set_SkillPoint();
     void            Update_UI();
+
+    void            Refresh_CharacterSelectUI();
 
     template<typename T>
     Shared<T> Find_TypedUI(
@@ -79,7 +93,7 @@ private:
         return typedUI;
     }
 private:
-    void    Change_ToNextViewState(HeroId next);
+    void    Change_ToSelectedViewState();
 
 private:
     HRESULT Spawn_StatusPreviewHeroes();
@@ -100,6 +114,9 @@ private:
         // 
     };
 
+    uint32                                   _selectedHeroIndex = 0;
+    bool                                     _isOpen = false;
+
     vector<StatusPreviewHero>                _previewHeroes{};
     wstring                                  _previewLayerTag = L"Layer_CharacterStatusPreview";
     Shared<Camera>                           _previousCamera{};
@@ -109,13 +126,11 @@ private:
     umap<wstring, Shared<UI_Base>>           _backgroundUIs;
     Shared<SkillTreeCom>                     _skillTreeCom;
     uint32                                   _levelIndex = 0;
-    bool                                     _isOpen = false;
     umap<wstring, vector<Shared<UI_Base>>>   _childrenByParentName;
     Vec2                                     _baseSize;
     Vec2                                     _hoveredSize;
     umap<HeroId,SkillTreeViewState>          _viewByPlayerId;
     SkillTreeViewState*                      _currentView;
-    uint32                                   _currentHeroIndex;
 
 public:
     static Unique<SkillTree_Panel> Create(uint32 levelIndex);
