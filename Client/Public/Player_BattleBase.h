@@ -41,11 +41,6 @@ protected:
     Shared<PlayerStatCom>   _combatStatCom;
 
 public:
-    enum class PlayerBattleState
-    {
-        
-    };
-
     enum class PlayerBattleAnimation
     {
         Base_Idle,
