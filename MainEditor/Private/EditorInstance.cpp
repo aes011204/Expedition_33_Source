@@ -550,6 +550,7 @@ Shared<RenderTarget> EditorInstance::Prepare_SharedViewportRenderTarget(uint32 w
     if (nullptr == _sharedViewportRenderTarget)
     {
         _sharedViewportRenderTarget = RenderTarget::Create(
+            L"RenderTarget",
             _device,
             _context,
             width,

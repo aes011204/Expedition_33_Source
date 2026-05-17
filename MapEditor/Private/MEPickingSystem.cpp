@@ -10,7 +10,7 @@ HRESULT MEPickingSystem::Initialize(ComPtr<Device> device, ComPtr<Context> conte
     _device = device;
     _context = context;
 
-    _idRT = RenderTarget::Create(_device, _context, w, h, DXGI_FORMAT_R8G8B8A8_UNORM, Vec4(0.f, 0.f, 0.f, 1.f), true);
+    _idRT = RenderTarget::Create(L"RenderTarget", _device, _context, w, h, DXGI_FORMAT_R8G8B8A8_UNORM, Vec4(0.f, 0.f, 0.f, 1.f), true);
     CHECK_NULL(_idRT, E_FAIL);
 
     D3D11_TEXTURE2D_DESC stagingDesc{};
