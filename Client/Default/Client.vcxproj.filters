@@ -516,6 +516,7 @@
     <ClInclude Include="..\public\BT_SetSkill.h">
       <Filter>BehavoirTree\battle</Filter>
     </ClInclude>
+    <ClInclude Include="..\public\BattleActionExecutor.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -824,6 +825,7 @@
     <ClCompile Include="..\private\BT_SetSkill.cpp">
       <Filter>BehavoirTree\battle</Filter>
     </ClCompile>
+    <ClCompile Include="..\private\BattleActionExecutor.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">

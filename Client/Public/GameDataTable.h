@@ -106,6 +106,7 @@ public:
     void Clear();
 
     const Skill_Data* Get_Skill(const string& skillId);
+    HRESULT Load_SkillPhaseData(const wstring& jsonRootPath);
 public:
     uint32 Get_NextExp(uint32 level) const;
     SkillTreeDesc*   Get_SkillTreeDesc(const string& skillName);

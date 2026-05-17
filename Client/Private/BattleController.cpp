@@ -23,6 +23,7 @@
 #include "BattleTurnCamera.h"
 #include "Camera.h"
 #include "TargetCamera.h"
+#include "BattleActionExecutor.h"
 
 BattleController::BattleController()
 {
@@ -42,6 +43,9 @@ HRESULT BattleController::Initialize()
 {
     Set_BattleFSM();
 
+
+    _battleActionExe = BattleActionExecutor::Create();
+
     return S_OK;
 }
 
@@ -57,6 +61,8 @@ void BattleController::Update(float timeDelta)
             GAME->Set_WorldTimeScale(_resetWorldTime);
             Complete_BattleField();
         }
+        else
+        _battleActionExe->Update(timeDelta, _turnAction);
 
         return;
     }
@@ -468,9 +474,7 @@ void BattleController::Execute_BaseAttack(const BattleChar actor, const Action& 
         turnAction._selected_SkillKey.scriptClassName.c_str()
     );
 
-    const auto vec_anim = turnAction._selected_SkillKey.animationKey;
-    if (vec_anim.size() == 0)
-        return;
+    auto& action = Get_TurnAction();
 
     if (actor.ModelCom == nullptr)
     {
@@ -478,33 +482,17 @@ void BattleController::Execute_BaseAttack(const BattleChar actor, const Action& 
         EndTurn();
         return;
     }
-
-    if (vec_anim.empty())
+    if (action._selected_SkillKey.AnimPhases.empty())
     {
         LOG_ERROR("Execute_BaseAttack: no animationKey");
         EndTurn();
         return;
     }
 
-    turnAction._curChar.ModelCom->Set_Animation(vec_anim[0], false, 1.5f);
-    //vec_anim
+    action.originPos = action._curChar.actor->Get_Transform()->Get_Position();
+    action._curAnimIndex = 0;
 
-    //auto script = Create_Class::SkillScript(turnAction._selected_SkillKey.scriptClassName).Create();
-    //if (script == nullptr)
-    //{
-    //    LOG_ERROR("skill Create Failed");
-    //}
-    //else
-    //{
-    //    LOG_ERROR("skill Create Success");
-    //}
-    //
-    //auto target = turnAction.target;
-    //
-    //script->Execute(turnAction._selected_SkillKey, actor, target);
-    //LOG_DEBUG("Execute_BaseAttack: script finished");
-    //
-    //EndTurn();// 일단 애니메이션등이 다 끝나고 끝내야 하는데 일단 테스트
+    _battleActionExe->BeginAction(action);
 }
 
 void BattleController::Execute_Skill(const BattleChar actor, const Action& turnAction)
@@ -516,9 +504,7 @@ void BattleController::Execute_Skill(const BattleChar actor, const Action& turnA
         turnAction._selected_SkillKey.scriptClassName.c_str()
     );
 
-    const auto vec_anim = turnAction._selected_SkillKey.animationKey;
-    if (vec_anim.size() == 0)
-        return;
+    auto& action = Get_TurnAction();
 
     if (actor.ModelCom == nullptr)
     {
@@ -526,15 +512,17 @@ void BattleController::Execute_Skill(const BattleChar actor, const Action& turnA
         EndTurn();
         return;
     }
-
-    if (vec_anim.empty())
+    if (action._selected_SkillKey.AnimPhases.empty())
     {
         LOG_ERROR("Execute_BaseAttack: no animationKey");
         EndTurn();
         return;
     }
 
-    turnAction._curChar.ModelCom->Set_Animation(vec_anim[0], false, 1.5f);
+   action.originPos = action._curChar.actor->Get_Transform()->Get_Position();
+    action._curAnimIndex = 0;
+
+    _battleActionExe->BeginAction(action);
 }
 
 void BattleController::Execute_Item(const BattleChar actor, const Action& turnAction)
@@ -544,23 +532,10 @@ void BattleController::Execute_Item(const BattleChar actor, const Action& turnAc
 void BattleController::OnActionEndNotify()
 {
     auto& action = Get_TurnAction();
+    _battleActionExe->OnActionEndNotify(action);
 
-    // 다음 애니로 이동
-    action._curAnimIndex++;
-
-    if (action._curAnimIndex >= action._selected_SkillKey.animationKey.size())
-    {
-        // 끝났으면 Idle
-        const string key = action._selected_SkillKey.IdleAnimationKey;
-        action._curChar.ModelCom->Set_Animation(key, false, 1.5f);
-
+    if (_battleActionExe->IsFinished())
         EndTurn();
-        return;
-    }
-
-    // 다음 애니 실행
-    const string key = action._selected_SkillKey.animationKey[action._curAnimIndex];
-    action._curChar.ModelCom->Set_Animation(key, false, 1.5f);
 }
 
 HRESULT BattleController::Ready_BattleTurnCamera()

@@ -55,8 +55,8 @@ HRESULT MonsterStatCom::Initialize(void* arg)
         _MRuntimeStat.CurSpeed = _monsterDesc.speed;
     }
 
-    _skillKeys.push_back("Skill_Slow");
-    _skillKeys.push_back("Skill_Fast");
+    _skillKeys.push_back("Lancelier_Slow");
+    _skillKeys.push_back("Lancelier_Fast");
 
 
 

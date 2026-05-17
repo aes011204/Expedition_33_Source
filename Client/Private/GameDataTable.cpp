@@ -21,6 +21,7 @@ HRESULT GameDataTable::Load_All()
     CHECK_FAILED(Load_ExpLevel(jsonRootPath), E_FAIL);
 
     CHECK_FAILED(Load_SkillData(jsonRootPath), E_FAIL);
+    CHECK_FAILED(Load_SkillPhaseData(jsonRootPath), E_FAIL);
     
     // CHECK_FAILED(Load_SkillActionData(jsonRootPath), E_FAIL);
 
@@ -157,13 +158,13 @@ HRESULT GameDataTable::Load_SkillData(const wstring& jsonRootPath)
             .value_or(Buffs::None);
         skill.ailmentChance = item.value("BuffChance", 0.f);
         skill.IdleAnimationKey = item.value("IdleAnimationKey", "");
-        skill.animationKey = Split_String(item.value("animationKey", ""), '|');
+      //  skill.animationKey = Split_String(item.value("animationKey", ""), '|');
 
         const size_t index = _skillDefs.size();
         _skillDefs.push_back(skill);
         _skillIndexById[skillId] = index;
     }
-
+  
     LOG_INFO("[GameDataTable] loaded skill table: count = {}", _skillDefs.size() > 0? _skillDefs.size() - 1 : 0);
     return S_OK;
 }
@@ -179,6 +180,85 @@ const Skill_Data* GameDataTable::Get_Skill(const string& skillId)
         return nullptr;
 
     return &_skillDefs[index];
+}
+
+HRESULT GameDataTable::Load_SkillPhaseData(const wstring& jsonRootPath)
+{
+    const fs::path tablePath = fs::path(jsonRootPath) / L"DT_SkillAction.json";
+
+    json root = {};
+
+    try
+    {
+        ifstream file(tablePath);
+        if (!file.is_open())
+        {
+            LOG_ERROR("[GameDataTable] failed to open skill phase table: {}", String::ToString(tablePath.wstring()));
+            return E_FAIL;
+        }
+
+        file >> root;
+    }
+    catch (const std::exception& e)
+    {
+        LOG_ERROR("[GameDataTable] failed to parse skill phase table: {} ({})",
+            String::ToString(tablePath.wstring()), e.what());
+        return E_FAIL;
+    }
+
+    if (!root.contains("DT_SkillAction") || !root["DT_SkillAction"].is_array())
+    {
+        LOG_ERROR("[GameDataTable] DT_SkillAction array not found: {}", String::ToString(tablePath.wstring()));
+        return E_FAIL;
+    }
+
+    for (const json& item : root["DT_SkillAction"])
+    {
+        const string skillKey = item.value("skillKey", "");
+        if (skillKey.empty())
+            continue;
+
+        BattleActionPhase phase{};
+        phase.phaseIndex = item.value("phaseIndex", 0);
+        phase.animationKey = item.value("animationKey", "");
+
+        phase.movementPolicy =
+            magic_enum::enum_cast<BattleMovementPolicy>(item.value("movementPolicy", "None"))
+            .value_or(BattleMovementPolicy::None);
+
+        phase.targetAnchor =
+            magic_enum::enum_cast<BattleTargetAnchor>(item.value("targetAnchor", "None"))
+            .value_or(BattleTargetAnchor::None);
+
+        phase.useDistance = item.value("useDistance", false);
+        phase.faceTarget = item.value("faceTarget", true);
+        phase.offsetDistance = item.value("offsetDistance", 0.f);
+
+        auto it = _skillIndexById.find(skillKey);
+        if (it == _skillIndexById.end())
+        {
+            LOG_WARN("[GameDataTable] phase references unknown skillKey: {}", skillKey);
+            continue;
+        }
+
+        const size_t skillIndex = it->second;
+        if (skillIndex >= _skillDefs.size())
+            continue;
+
+        _skillDefs[skillIndex].AnimPhases.push_back(phase);
+    }
+
+    for (Skill_Data& skill : _skillDefs)
+    {
+        sort(skill.AnimPhases.begin(), skill.AnimPhases.end(),
+            [](const BattleActionPhase& a, const BattleActionPhase& b)
+            {
+                return a.phaseIndex < b.phaseIndex;
+            });
+    }
+
+    LOG_INFO("[GameDataTable] loaded skill phase table");
+    return S_OK;
 }
 
 HRESULT GameDataTable::Load_SkillActionData(const wstring& jsonRootPath)

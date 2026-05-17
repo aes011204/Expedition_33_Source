@@ -71,7 +71,9 @@ void MB_Lancelier::Update(float timeDelta)
        // _transformCom->Set_SpeedPerSec(rootVelocity.position.z * Constants::Charcter::scaleOffset);
      
         Vec3 pos = _transformCom->Get_Position();
-        _transformCom->Set_Position(pos+(rootVelocity.position * 100));
+        _transformCom->Set_Position(pos+(rootVelocity.position * 100)); // 현제 fps을 곱해야 하나??
+
+        //LOG_INFO("positionZ :{}", rootVelocity.position.z);
     }
 }
 
