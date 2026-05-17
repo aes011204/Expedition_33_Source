@@ -303,6 +303,29 @@ const RootMotionFrame& ModelCom::Get_RootTransformVelocity(float scaleOffset)
     return _rootFrameVelocity;
 }
 
+float ModelCom::Get_RootMotionTranslationRatio() const
+{
+    if (_animations.empty() || _rootNodeIndex == -1)
+        return 0.f;
+
+    // 블렌딩 중이면 다음 애니메이션(실질적으로 재생 중인 타겟)의 진행도를 가져옴
+    uint32 activeAnimIndex = _isBlending ? _nextAnimIndex : _currentAnimIndex;
+    
+    if (activeAnimIndex >= _animations.size())
+        return 0.f;
+
+    const auto& curAnim = _animations[activeAnimIndex];
+    float totalDist = curAnim->Get_RootTranslation(_rootNodeIndex).Length();
+
+    if (totalDist <= 0.001f)
+        return 0.f;
+
+    Vec3 currentTranslation = curAnim->Get_CurrentRootTranslation(_rootNodeIndex);
+    float currentDist = currentTranslation.Length();
+
+    return clamp(currentDist / totalDist, 0.f, 1.f);
+}
+
 HRESULT ModelCom::Initialize_Prototype(ModelType type, const char* modelFilePath, const Matrix& preLocalTransformMatrix)
 {
     _type = type;

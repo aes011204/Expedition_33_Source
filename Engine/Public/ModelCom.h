@@ -87,6 +87,7 @@ public:
     void Set_LocalRootNode(int32 nodeIndex) { _rootNodeIndex = nodeIndex; _isRootMotion = true; }
     const RootMotionFrame& Get_RootTransformVelocity() const { return _rootOriginalFrameVelocity; }
     const RootMotionFrame& Get_RootTransformVelocity(float scaleOffset);
+    float Get_RootMotionTranslationRatio() const;
 
 public:
     HRESULT Initialize_Prototype(ModelType type, const char* modelFilePath, const Matrix& preLocalTransformMatrix);
@@ -296,3 +297,20 @@ NS_END
 
 
 
+/*
+  // 1. 필요한 정보들
+ float targetDistance = 10.f; // 내가 이번 애니메이션 동안 가야 할 총 목표 거리
+ Vec3 targetDirection = Vec3(0, 0, 1); // 가야 할 방향 (정규화된 벡터)
+
+ // 2. 비율 계산
+ float currentRatio = _modelCom->Get_RootMotionTranslationRatio();
+ float deltaRatio = currentRatio - _previousRatio; // 저번 프레임의 비율을 멤버 변수로 저장해둬야 함
+ _previousRatio = currentRatio;
+
+ // 3. 이번 프레임의 실제 이동량 계산
+ float moveAmountThisFrame = targetDistance * deltaRatio;
+
+ // 4. 캐릭터 이동 적용 (Transform이나 PhysX 컨트롤러에 적용)
+ Vec3 deltaPosition = targetDirection * moveAmountThisFrame;
+ _transformCom->Add_Position(deltaPosition);
+ */
