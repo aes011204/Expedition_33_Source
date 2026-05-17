@@ -445,5 +445,13 @@ Shared<GameObject> MEInstancedMeshActor::Clone(void* arg)
 
 void MEInstancedMeshActor::Free()
 {
+    _visibleUAV.Reset();
+    _visibleVB.Reset();
+    _cullCB.Reset();
+    _countStaging.Reset();
+    _instanceSrcBuffer.reset();
+    _sphereBuffer.reset();
+    _cullShader.reset();
+
     GameObject::Free();
 }

@@ -24,26 +24,6 @@ HRESULT MapLoader::Begin_LoadSession(const ComPtr<Device>& device, const ComPtr<
 
     if (mapData.contains("StaticMeshes"))
     {
-
-        // string modelPathStr = e.value("ModelPath", string{});
-        // if (modelPathStr.empty())
-        // {
-        //     continue;
-        // }
-
-        // fs::path modelPathFs(modelPathStr);
-        // if (modelPathFs.has_parent_path())
-        // {
-        //     modelPathStr = modelPathFs.filename().string();
-        // }
-
-        // string fullPathA = "../../../Client/Bin/Resources/Map/" + modelFolder + "/" + modelPathStr;
-
-        // MapStaticMesh::MAPSTATICMESH_DESC desc{};
-
-        // auto it = modelCache.find(modelPathStr);
-        // if (it != modelCache.end())
-
         for (const json& item : mapData["StaticMeshes"])
         {
             outSession.staticMeshes.push_back(item);
@@ -69,58 +49,6 @@ HRESULT MapLoader::Begin_LoadSession(const ComPtr<Device>& device, const ComPtr<
             {
                 outSession.preloadModelPaths.push_back(modelPath);
             }
-
-            // fs::path modelPathFs(modelPathStr);
-            // if (modelPathFs.has_parent_path())
-            // {
-            //     modelPathStr = modelPathFs.filename().string();
-            // }
-
-            // string fullPathA = "../../../Client/Bin/Resources/Map/" + modelFolder + "/" + modelPathStr;
-
-            // MapInstancedMesh::MAPINSTANCEDMESH_DESC desc{};
-
-            // auto it = instancedModelCache.find(modelPathStr);
-            // if (it != instancedModelCache.end())
-            // {
-            //     desc.model = it->second;
-            // }
-            // else
-            // {
-            //     string fullPathA = "../../../Client/Bin/Resources/Map/" + modelFolder + "/" + modelPathStr;
-            //     auto model = ModelCom::Create(device, context, ModelType::NonAnim, fullPathA.c_str(), Matrix::CreateScale(0.01f));
-            //     if (!model)
-            //     {
-            //         continue;
-            //     }
-
-            //     instancedModelCache[modelPathStr] = model;
-            //     ApplyMaterials(model, fullPathA);
-            //     desc.model = model;
-            // }
-
-            // if (e.contains("Instances"))
-            // {
-            //     for (auto& inst : e["Instances"])
-            //     {
-            //         InstanceTransform t{};
-            //         auto& p = inst["Position"];
-            //         t._position = { p[0], p[1], p[2] };
-            //         auto& r = inst["Rotation"];
-            //         t._rotation = { r[0], r[1], r[2], r[3] };
-            //         auto& s = inst["Scale"];
-            //         t._scale = { s[0], s[1], s[2] };
-            //         desc.transforms.push_back(t);
-            //     }
-            // }
-
-            // if (desc.transforms.empty())
-            // {
-            //     continue;
-            // }
-
-            // GAME->Add_GameObject(ETOI(LevelType::Static), TEXT("GameObject_MapInstancedMesh"),
-            //     levelIndex, layerTag, &desc);
         }
     }
 

@@ -66,7 +66,7 @@ private:
 
     HRESULT CreateCullBuffers(const vector<Matrix>& matrices, const vector<InstanceTransform>& transforms);
     void DispatchCull();
-    static array<Vec4, 6> ExtractFrustumPlanes(const Matrix& viewProj);
+    static array<Vec4, 6> ExtractFrustumPlanes(const Matrix& vp);
 
 public:
     static Shared<MapInstancedMesh> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
