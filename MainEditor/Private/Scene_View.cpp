@@ -516,6 +516,31 @@ void Scene_View::Render_ViewportCanvas()
         _viewportMin = imageRect.imageMin;
         _viewportMax = imageRect.imageMax;
 
+        // add for mouse picking
+        if (!ImGuizmo::IsOver() && !ImGuizmo::IsUsing() && _isHovered)
+        {
+            if (ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+            {
+                const ImVec2 mousePos = ImGui::GetIO().MousePos;
+
+                if (EDITOR->IsPlaying())
+                {
+                    // Play 중 — 피킹 없음
+                }
+                else if (EDITOR->IsPaused())
+                {
+                    // Pause 중 — 피킹 허용
+                    EDITOR->Request_Pick(mousePos, _viewportMin, _viewportMax);
+                }
+                else
+                {
+                    // Edit 모드 — 피킹 허용
+                    EDITOR->Request_Pick(mousePos, _viewportMin, _viewportMax);
+                }
+            }
+        }
+        //
+
         // fix isPrefabDragging -> (isPrefabDragging || isModelDragging)
         if ((isPrefabDragging || isModelDragging) && !isMouseOverOverlay && ImGui::BeginDragDropTarget())
         {
