@@ -12,6 +12,7 @@ class LogWindow;
 class ModelConverter;
 class ModelInspector;
 class ModelSceneWindow;
+class ModelTestPanel;
 class ModelViewerObject;
 
 class ModelImGui_Manager final 
@@ -59,6 +60,7 @@ private:
     Shared<ModelConverter>      _modelConverter;
     Shared<ModelInspector>      _modelInspector;
     Shared<ModelSceneWindow>    _modelSceneWindow;
+    Shared<ModelTestPanel>      _modelTestPanel;
 
 public:
 	static Unique<ModelImGui_Manager> Create(HWND hWnd, const ComPtr<Device>& device, const ComPtr<Context>& context);

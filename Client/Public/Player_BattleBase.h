@@ -40,6 +40,15 @@ protected:
 protected:
     Shared<PlayerStatCom>   _combatStatCom;
 
+public:
+    enum class PlayerBattleAnimation
+    {
+        Base_Idle,
+        Battle_Station,
+        Dash_In,
+        Dash_Out,
+
+    };
 };
 
 NS_END

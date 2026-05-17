@@ -30,6 +30,8 @@ public:
 
 	const RootMotionFrame& Get_TransformVelocity(int32 rootNodeIndex) const;
     const string& Get_AnimationName() const { return _animationName; }
+    Vec3 Get_RootTranslation(int32 rootNodeIndex) const;
+    Vec3 Get_CurrentRootTranslation(int32 rootNodeIndex) const;
 
 public:
 	HRESULT Initialize(const ModelAnimationData& animData, const vector<ModelChannelData>& channels);
