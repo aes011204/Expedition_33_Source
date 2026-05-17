@@ -355,15 +355,27 @@ public: /* For.Shadow */
     HRESULT                 Bind_ShadowMatrices(Shared<ShaderCom> shader, const char* viewName, const char* projName);
     HRESULT                 Bind_ShadowLightDesc(Shared<ShaderCom> shader, const char* lightFarName, const char* biasName = nullptr, const char* intensityName = nullptr);
     HRESULT                 Bind_ShadowCB(Shared<ShaderCom> shader);
+    HRESULT                 Bind_StaticShadowCB(Shared<ShaderCom> shader);
 
     HRESULT                 Update_ShadowLight(const ShadowLightDesc& desc);
     const ShadowLightDesc*  Get_ShadowLightDesc() const;
     const Matrix*           Get_ShadowTransformMatrix(D3DTS eType) const;
 
+    // 카메라가 플레이어 따라다니면서 그림자 위치 조절
     HRESULT Update_ShadowFromCameraFrustum(
         const ShadowLightDesc& desc,
         const Shared<Camera>& camera,
         const Vec3& lightDir);
+
+    // Static Shadow 크기 구하기
+    HRESULT Update_StaticShadowFromBounds(
+        const ShadowLightDesc& desc,
+        const BoundingBox& bounds,
+        const Vec3& lightDir);
+
+
+    void Register_StaticShadowCaster(Shared<GameObject> gameObject);
+    void Mark_StaticShadowDirty();
 
 public: /* For.Collision_Manager */
     void                    Add_Collider(Shared<ColliderCom> collider);
@@ -372,6 +384,7 @@ public: /* For.Collision_Manager */
 public: // For. PhysX_Manager
     PxPhysics*  Get_PhysXPhysics() const;
     PxScene*    Get_PhysXScene() const;
+    PhysX_Manager* Get_PhysXManager() const { return _physxManager.get(); }
 
     PhysXStaticActorHandle Register_PhysXStaticModel(
         const ModelCom& model,

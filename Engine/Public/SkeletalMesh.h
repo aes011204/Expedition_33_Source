@@ -31,6 +31,8 @@ private:
     vector<Matrix>	    _offsetMatrices;
     Matrix              _boneMatrices[maxBoneCount];
 
+    vector<VTXANIMMESH> _sourceVertices;
+
 public:
     static Shared<SkeletalMesh> Create(const ComPtr<Device>& device, const ComPtr<Context>& context, const ModelMeshData& meshData, const Matrix& preTransformMatrix);
     Shared<Component> Clone(void* arg) override;

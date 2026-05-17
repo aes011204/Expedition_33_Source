@@ -68,7 +68,7 @@ void Player_WorldBase::Update(float timeDelta)
 {
     __super::Update(timeDelta);
 
- 
+    
 }
 
 void Player_WorldBase::Late_Update(float timeDelta)
@@ -110,11 +110,21 @@ HRESULT Player_WorldBase::Ready_Components()
     moveDesc.turnResponse = 10.f;
     moveDesc.jumpVelocity = 20.f;
     moveDesc.gravity = -20.f;
-    moveDesc.skinWidth = 0.03f;
-    moveDesc.groundSnapUp = 0.35f;
-    moveDesc.groundSnapDown = 0.65f;
-    moveDesc.walkableNormalY = 0.65f;
-    moveDesc.groundY = 0.f;
+
+    moveDesc.backend = MovementCom::MoveBackend::PhysXCCT; // 플레이어는 CCT로 테스트
+
+    moveDesc.sweep.skinWidth = 0.03f;
+    moveDesc.sweep.groundSnapUp = 0.35f;
+    moveDesc.sweep.groundSnapDown = 0.65f;
+    moveDesc.sweep.walkableNormalY = 0.65f;
+    moveDesc.sweep.groundY = 0.f;
+
+    moveDesc.cct.radius = 0.32f;
+    moveDesc.cct.height = 1.50f;
+    moveDesc.cct.stepOffset = 0.35f;
+    moveDesc.cct.contactOffset = 0.03f;
+    moveDesc.cct.slopeLimitDeg = 49.f;
+    moveDesc.cct.groundLerpSpeed = 15.f;
 
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_Movement"), _movementCom, &moveDesc), E_FAIL);
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_PlayerController"), _playerControllerCom), E_FAIL);

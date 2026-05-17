@@ -36,6 +36,9 @@ public:
     virtual void Update(float timeDelta) override;
     virtual void Late_Update(float timeDelta) override;
     virtual HRESULT Render() override;
+    HRESULT Render_Shadow() override;
+
+    virtual bool Try_Get_ShadowWorldBounds(BoundingBox& outWorldBounds) const override;
 
 private:
     Shared<ShaderCom>   _shader;

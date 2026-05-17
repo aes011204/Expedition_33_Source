@@ -32,6 +32,9 @@ public:
     virtual HRESULT Render();
     virtual HRESULT Render_Shadow() { return S_OK; }
 
+    // Static Shadow 캐싱할 때 이 오브젝트가 차지하는 월드 Bounds 넘겨주기
+    virtual bool Try_Get_ShadowWorldBounds(BoundingBox& outWorldBounds) const { return false;}
+
     HRESULT         Try_BeginPlay();
 
     virtual ClassReflectionInfo& Get_ReflectionInfo()
@@ -62,6 +65,13 @@ public:
 
     bool Is_Visible() const { return _isVisible; }
     void Set_Visible(bool visible) { _isVisible = visible; }
+
+public: /* 그림자 */
+    void Set_ShadowCasterType(ShadowCasterType type) { _shadowCasterType = type; }
+    ShadowCasterType Get_ShadowCasterType() const { return _shadowCasterType; }
+
+    bool Casts_DynamicShadow() const { return _shadowCasterType == ShadowCasterType::Dynamic; }
+    bool Casts_StaticShadow() const { return _shadowCasterType == ShadowCasterType::Static; }
 
 public:
     // 일반적으로 컴포넌트 가져올 때 = Get_Component<ShaderCom>(); 이런느낌
@@ -147,8 +157,9 @@ protected:
     Shared<TransformCom>    _transformCom = { nullptr };
 
     ObjectType              _objectType = ObjectType::None;
+    ShadowCasterType        _shadowCasterType = ShadowCasterType::None;
 
-    string  _sourcePrefabName = {};
+    string                  _sourcePrefabName = {};
 
 protected:
     map<const wstring, Shared<Component>> _components;

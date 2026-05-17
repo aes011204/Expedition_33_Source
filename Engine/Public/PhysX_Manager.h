@@ -17,8 +17,9 @@ public:
     ~PhysX_Manager() override;
 
 public:
-    PxPhysics*  Get_Physics() const { return _physics; }
-    PxScene*    Get_Scene() const { return _scene; }
+    PxPhysics*              Get_Physics() const { return _physics; }
+    PxScene*                Get_Scene() const { return _scene; }
+    PxControllerManager*    Get_Controller() const {return _controllerManager; }
 
 public:
     HRESULT     Initialize();
@@ -30,6 +31,12 @@ public:
     // 아직 actor가 없으면 만들고 scene에 추가, 있으면 위치만 맞추기
     void Register_OrSync_Collider(Shared<ColliderCom> collider, const Matrix& worldMatrix);
     void Gather_FrameEvents(vector<PhysXPairEvent>& outEvents);
+
+    PxController* Create_CapsuleController(
+        const CharacterControllerDesc& desc,
+        const Vec3& initialFootPosition);
+
+    void Release_Controller(PxController* controller);
 
 public: /* PxSimulationEventCallback */
     void onConstraintBreak(PxConstraintInfo* constraints, PxU32 count) override {}
@@ -87,6 +94,7 @@ private:
     PxPhysics*                  _physics = {};
     PxScene*                    _scene = {};
     PxDefaultCpuDispatcher*     _dispatcher = {};
+    PxControllerManager*        _controllerManager = {};
 
 private:
     vector<PhysXPairEvent>              _frameEvents;

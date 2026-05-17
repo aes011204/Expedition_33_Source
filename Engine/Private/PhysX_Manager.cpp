@@ -211,6 +211,9 @@ HRESULT PhysX_Manager::Initialize()
     _scene = _physics->createScene(sceneDesc);
     CHECK_NULL(_scene, E_FAIL);
 
+	_controllerManager = PxCreateControllerManager(*_scene);
+    CHECK_NULL(_controllerManager, E_FAIL);
+
     return S_OK;
 }
 
@@ -259,6 +262,41 @@ void PhysX_Manager::Register_OrSync_Collider(Shared<ColliderCom> collider, const
 void PhysX_Manager::Gather_FrameEvents(vector<PhysXPairEvent>& outEvents)
 {
     outEvents = _frameEvents;
+}
+
+PxController* PhysX_Manager::Create_CapsuleController(const CharacterControllerDesc& desc,
+    const Vec3& initialFootPosition)
+{
+	CHECK_NULL(_controllerManager, nullptr);
+    CHECK_NULL(_defaultStaticMaterial, nullptr);
+
+    const float cylinderHeight = max(0.01f, desc.height - (desc.radius * 2.f));
+    // PxControllerDesc.position은 발 위치가 아니라 캡슐 중심 위치를 기대한다.
+    const float centerYOffset = desc.contactOffset + desc.radius + (cylinderHeight * 0.5f);
+
+    PxCapsuleControllerDesc controllerDesc{};
+    controllerDesc.material = _defaultStaticMaterial;
+    controllerDesc.radius = desc.radius;
+    controllerDesc.height = cylinderHeight; // PhysX는 반구 제외한 실린더 높이 사용
+    controllerDesc.stepOffset = desc.stepOffset;
+    controllerDesc.contactOffset = desc.contactOffset;
+    controllerDesc.slopeLimit = cosf(XMConvertToRadians(desc.slopeLimitDeg));
+    controllerDesc.position = PxExtendedVec3(
+        initialFootPosition.x,
+        initialFootPosition.y + centerYOffset,
+        initialFootPosition.z);
+    controllerDesc.upDirection = PxVec3(0.f, 1.f, 0.f);
+
+    if (!controllerDesc.isValid())
+        return nullptr;
+
+    return _controllerManager->createController(controllerDesc);
+}
+
+void PhysX_Manager::Release_Controller(PxController* controller)
+{
+	if (controller != nullptr)
+        controller->release();
 }
 
 void PhysX_Manager::onTrigger(PxTriggerPair* pairs, PxU32 count)
@@ -725,29 +763,20 @@ void PhysX_Manager::Free()
     }
     _triangleMeshCache.clear();
 
-    if (_defaultStaticMaterial)
-    {
-        _defaultStaticMaterial->release();
-        _defaultStaticMaterial = nullptr;
-    }
+	auto ReleaseManager = [](auto& manager)
+	{
+        if (manager != nullptr)
+        {
+            manager->release();
+			manager = nullptr;
+        }  
+	};
 
-    if (_scene)
-    {
-        _scene->release();
-        _scene = nullptr;
-    }
-
-    if (_dispatcher)
-    {
-        _dispatcher->release();
-        _dispatcher = nullptr;
-    }
-
-    if (_physics)
-    {
-        _physics->release();
-        _physics = nullptr;
-    }
+	ReleaseManager(_defaultStaticMaterial);
+	ReleaseManager(_controllerManager);
+	ReleaseManager(_scene);
+	ReleaseManager(_dispatcher);
+	ReleaseManager(_physics);
 
 #ifdef _DEBUG
     if (_pvd)

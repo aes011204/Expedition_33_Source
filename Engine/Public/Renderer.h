@@ -46,9 +46,14 @@ public:
     bool Try_ConsumePerfSummary(float windowSec, RenderPerfSummary& outSummary);
 #endif
 
+public:
+    void Register_StaticShadowCaster(const Shared<GameObject>& gameObject);
+    void Mark_StaticShadowDirty();
+
 private:
 	void Render_Priority();
     void Render_Shadow();
+
 	void Render_NonBlend();
     void Render_Lights();
     void Render_NonLight();
@@ -63,8 +68,12 @@ private:
 
     HRESULT Bind_TransformCB(Shared<ShaderCom> shader) const;
 
-    // 카메라가 플레이어 위치 추적
-    void Update_DynamicShadowCamera();
+private: /* 그림자 */
+    void Update_DynamicShadowCamera();  // 카메라가 플레이어 위치 추적
+    void Render_StaticShadowOnce();     // Static Shadow는 한번만
+    void Render_DynamicShadow();        // 기존 Render Shadow 로직 이동
+    bool Build_StaticShadowBounds(BoundingBox& outBounds) const;
+    void Update_StaticShadowCamera(const BoundingBox& bounds);
 
 private:
 	ComPtr<Device>                  _device;
@@ -95,8 +104,16 @@ private:
     bool                            _usePreviewDeferredCombine = false;
 
 private:
-    uint32 _shadowMapWidth = 4096;
-    uint32 _shadowMapHeight = 4096;
+    list<Weak<GameObject>>          _staticShadowCasters;
+    bool                            _staticShadowDirty = true;
+    bool                            _staticShadowReady = false;
+
+    uint32                          _shadowMapWidth = 4096;
+    uint32                          _shadowMapHeight = 4096;
+
+    uint32                          _staticShadowMapWidth = 4096;
+    uint32                          _staticShadowMapHeight = 4096;
+
 
 #ifdef _DEBUG
 private:

@@ -2,6 +2,12 @@
 #include "ShaderCom.h"
 #include "ShaderPassFinder.h"
 
+namespace
+{
+    mutex g_TextureSrvCacheMutex;
+    unordered_map<wstring, ComPtr<ID3D11ShaderResourceView>> g_TextureSrvCache;
+}
+
 Material::Material(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : _device{ device }, _context{ context } {}
 
@@ -326,14 +332,11 @@ HRESULT Material::Create_TextureSRV(const fs::path& texturePath, ID3D11ShaderRes
 
     const wstring cacheKey = loadPath.lexically_normal().wstring();
 
-    static mutex textureSrvCacheMutex;
-    static unordered_map<wstring, ComPtr<ID3D11ShaderResourceView>> textureSrvCache;
-
     {
-        lock_guard<mutex> lock(textureSrvCacheMutex);
+        lock_guard<mutex> lock(g_TextureSrvCacheMutex);
 
-        auto it = textureSrvCache.find(cacheKey);
-        if (it != textureSrvCache.end() && it->second != nullptr)
+        auto it = g_TextureSrvCache.find(cacheKey);
+        if (it != g_TextureSrvCache.end() && it->second != nullptr)
         {
             return it->second.CopyTo(outSrv);
         }
@@ -367,13 +370,13 @@ HRESULT Material::Create_TextureSRV(const fs::path& texturePath, ID3D11ShaderRes
     }
 
     {
-        lock_guard<mutex> lock(textureSrvCacheMutex);
+        lock_guard<mutex> lock(g_TextureSrvCacheMutex);
 
-        auto it = textureSrvCache.find(cacheKey);
-        if (it != textureSrvCache.end() && it->second != nullptr)
+        auto it = g_TextureSrvCache.find(cacheKey);
+        if (it != g_TextureSrvCache.end() && it->second != nullptr)
             return it->second.CopyTo(outSrv);
 
-        textureSrvCache.emplace(cacheKey, createdSrv);
+        g_TextureSrvCache.emplace(cacheKey, createdSrv);
     }
 
     return createdSrv.CopyTo(outSrv);
@@ -407,4 +410,10 @@ void Material::Free()
     __super::Free();
 
     _materials.clear();
+}
+
+void Material::Clear_TextureSRVCache()
+{
+    lock_guard<mutex> lock(g_TextureSrvCacheMutex);
+    g_TextureSrvCache.clear();
 }

@@ -175,12 +175,19 @@ void Inspector::Draw_PrimaryShadowLightInspector()
         ImGui::TextDisabled("Near / Far");
         ImGui::SameLine(InspectorLabelWidth);
         ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
-        float nearFar[2] = { shadowDesc.zn, shadowDesc.zf };
-        if (ImGui::DragFloat2("##ShadowNearFar", nearFar, 0.1f, 0.001f, 10000.f))
+        if (shadowDesc.followCameraFrustum)
         {
-            shadowDesc.zn = nearFar[0];
-            shadowDesc.zf = nearFar[1];
-            shadowChanged = true;
+            ImGui::Text("%.3f / %.3f", shadowDesc.zn, shadowDesc.zf);
+        }
+        else
+        {
+            float nearFar[2] = { shadowDesc.zn, shadowDesc.zf };
+            if (ImGui::DragFloat2("##ShadowNearFar", nearFar, 0.1f, 0.001f, 10000.f))
+            {
+                shadowDesc.zn = max(0.001f, nearFar[0]);
+                shadowDesc.zf = max(shadowDesc.zn + 0.001f, nearFar[1]);
+                shadowChanged = true;
+            }
         }
 
         ImGui::AlignTextToFramePadding();

@@ -354,6 +354,8 @@
     <ClInclude Include="..\Public\EffectEmitterFactory.h">
       <Filter>01.Utility\03.GameObjects\Effect\Emitter Factory</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\Debug_Profile.h" />
+    <ClInclude Include="..\Public\PhysicsCharacterController.h" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\public\Base.h">
@@ -925,6 +927,8 @@
     <ClCompile Include="..\Private\EffectEmitterFactory.cpp">
       <Filter>01.Utility\03.GameObjects\Effect\Emitter Factory</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\Debug_Profile.cpp" />
+    <ClCompile Include="..\Private\PhysicsCharacterController.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Bin\ShaderFiles\Engine_Shader_Defines.hlsli">

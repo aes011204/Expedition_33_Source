@@ -27,6 +27,7 @@
 #include "Culling_Manager.h"
 #include "ThreadPool.h"
 #include "Helper_String.h"
+#include "Material.h"
 
 #include "Collision_Define.h"
 #include "PhysX_Types.h"
@@ -1769,6 +1770,8 @@ void GameInstance::Release_Engine()
     ReleaseManager(_picking);
     ReleaseManager(_timerManager);
 
+    Material::Clear_TextureSRVCache();
+
     _context.Reset();
     _device.Reset();
 
@@ -1827,6 +1830,12 @@ HRESULT GameInstance::Bind_ShadowCB(Shared<ShaderCom> shader)
     return _shadow->Bind_ShadowCB(shader);
 }
 
+HRESULT GameInstance::Bind_StaticShadowCB(Shared<ShaderCom> shader)
+{
+    CHECK_NULL(_shadow, E_FAIL);
+    return _shadow->Bind_StaticShadowCB(shader);
+}
+
 HRESULT GameInstance::Update_ShadowLight(const ShadowLightDesc& desc)
 {
     return _shadow->Update_ShadowLight(desc);
@@ -1853,6 +1862,22 @@ HRESULT GameInstance::Update_ShadowFromCameraFrustum(const ShadowLightDesc& desc
     const Vec3& lightDir)
 {
     return _shadow->Update_FromCameraFrustum(desc, camera, lightDir);
+}
+
+HRESULT GameInstance::Update_StaticShadowFromBounds(const ShadowLightDesc& desc, const BoundingBox& bounds,
+    const Vec3& lightDir)
+{
+    return _shadow->Update_StaticShadowFromBounds(desc, bounds, lightDir);
+}
+
+void GameInstance::Register_StaticShadowCaster(Shared<GameObject> gameObject)
+{
+    return _renderer->Register_StaticShadowCaster(gameObject);
+}
+
+void GameInstance::Mark_StaticShadowDirty()
+{
+    return _renderer->Mark_StaticShadowDirty();
 }
 
 void GameInstance::Free()

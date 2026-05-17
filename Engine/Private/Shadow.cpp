@@ -8,6 +8,12 @@ HRESULT Shadow::Update_ShadowLight(const ShadowLightDesc& desc)
 {
     _desc = desc;
 
+    // Camera frustum 기반 shadow는 Render_Shadow 직전에 Update_FromCameraFrustum()에서
+    // orthographic view/proj를 다시 계산한다. 여기서 perspective matrix를 만들면
+    // light-space zn/zf가 음수일 때 XMMatrixPerspectiveFovLH assert가 발생할 수 있다.
+    if (_desc.followCameraFrustum)
+        return S_OK;
+
     _viewMatrix = XMMatrixLookAtLH(desc.eye, desc.at, Vec3::Up);
     _projMatrix = XMMatrixPerspectiveFovLH(desc.fovy, desc.aspect, desc.zn, desc.zf);
 
@@ -21,14 +27,12 @@ HRESULT Shadow::Update_FromCameraFrustum(const ShadowLightDesc& desc, const Shar
 
     _desc = desc;
 
-    // Directional light는 위치보다 방향이 중요하다. 0벡터면 view matrix를 만들 수 없으니 기본 방향을 쓴다.
     Vec3 dir = lightDir;
     if (dir.LengthSquared() < 0.0001f)
         dir = Vec3(1.f, -1.f, -1.f);
 
     dir.Normalize();
 
-    // 메인 카메라 frustum의 near/far 평면 크기를 구하기 위한 기본 카메라 값들.
     const float aspect = /* x / y */
         static_cast<float>(GAME->Get_ViewportWidth()) /
         static_cast<float>(max(1u, GAME->Get_ViewportHeight()));
@@ -36,13 +40,13 @@ HRESULT Shadow::Update_FromCameraFrustum(const ShadowLightDesc& desc, const Shar
     const float fovY = camera->Get_FovY();
     const float tanHalfFovY = tanf(fovY * 0.5f);
 
-    // 카메라 전체 far까지 찍으면 shadow map 밀도가 낮아지므로 가까운 구간만 단일 shadow로 커버한다.
+    // 카메라 전체 far까지 찍으면 그림자의 품질이 나빠지기 때문에 가까운 구간만 단일 shadow로 커버한다.
     const float nearZ = max(desc.focusNear, camera->Get_Near());
     const float farZ = max(nearZ + 1.f, min(desc.focusFar, camera->Get_Far()));
 
     const Matrix cameraWorld = camera->Get_Transform()->Get_WorldMatrix();
 
-    // 카메라 로컬 frustum 8개 코너를 월드 좌표로 변환한다.
+    // 카메라 로컬 frustum 8개 코너를 월드 좌표로 변환한다 -> 수업때 했던 Frustum과 비슷
     Vec3 corners[8]{};
     uint32 index = 0;
     const float depthList[2] = { nearZ, farZ };
@@ -80,7 +84,7 @@ HRESULT Shadow::Update_FromCameraFrustum(const ShadowLightDesc& desc, const Shar
     for (const Vec3& corner : corners)
         radius = max(radius, (corner - center).Length());
 
-    // 빛 방향의 반대쪽에서 frustum 중심을 바라보는 shadow camera를 만든다.
+    // 빛 방향의 반대쪽에서 frustum 중심을 바라보는 shadow camera 생성
     const Vec3 eye = center - dir * (radius + desc.lightDistancePadding);
 
     Vec3 up = Vec3::Up;
@@ -126,12 +130,9 @@ HRESULT Shadow::Update_FromCameraFrustum(const ShadowLightDesc& desc, const Shar
 
     // Directional shadow는 perspective보다 orthographic projection으로 필요한 영역만 평행 투영한다.
     _projMatrix = XMMatrixOrthographicOffCenterLH(
-        minLS.x,
-        maxLS.x,
-        minLS.y,
-        maxLS.y,
-        minLS.z,
-        maxLS.z
+        minLS.x, maxLS.x,
+        minLS.y, maxLS.y,
+        minLS.z, maxLS.z
     );
 
     // Inspector/debug 표시와 shader 상수 갱신용으로 이번 프레임 계산 결과를 보관한다.
@@ -139,6 +140,68 @@ HRESULT Shadow::Update_FromCameraFrustum(const ShadowLightDesc& desc, const Shar
     _desc.at = center;
     _desc.zn = minLS.z;
     _desc.zf = maxLS.z;
+
+    return S_OK;
+}
+
+HRESULT Shadow::Update_StaticShadowFromBounds(const ShadowLightDesc& desc, const BoundingBox& bounds,
+    const Vec3& lightDir)
+{
+    Vec3 dir = lightDir;
+    if (dir.LengthSquared() < 0.0001f)
+        dir = Vec3(1.f, -1.f, -1.f);
+
+    dir.Normalize();
+
+    Vec3 corners[8]{};
+    bounds.GetCorners(corners);
+
+    Vec3 center = Vec3::Zero;
+    for (const Vec3& corner : corners)
+        center += corner;
+    center /= 8.f;
+
+    float radius = 0.f;
+    for (const Vec3& corner : corners)
+        radius = max(radius, (corner - center).Length());
+
+    const Vec3 eye = center - dir * (radius + desc.lightDistancePadding);
+
+    Vec3 up = Vec3::Up;
+    if (fabsf(dir.Dot(up)) > 0.95f)
+        up = Vec3::Forward;
+
+    _staticViewMatrix = XMMatrixLookAtLH(eye, center, up);
+
+    Vec3 minLS(FLT_MAX, FLT_MAX, FLT_MAX);
+    Vec3 maxLS(-FLT_MAX, -FLT_MAX, -FLT_MAX);
+
+    for (const Vec3& corner : corners)
+    {
+        const Vec3 lightSpace = Vec3::Transform(corner, _staticViewMatrix);
+        minLS = Vec3::Min(minLS, lightSpace);
+        maxLS = Vec3::Max(maxLS, lightSpace);
+    }
+
+    minLS.x -= desc.xyPadding;
+    maxLS.x += desc.xyPadding;
+    minLS.y -= desc.xyPadding;
+    maxLS.y += desc.xyPadding;
+    minLS.z -= desc.zPadding;
+    maxLS.z += desc.zPadding;
+
+    if (maxLS.z <= minLS.z)
+        maxLS.z = minLS.z + 1.f;
+
+    _staticProjMatrix = XMMatrixOrthographicOffCenterLH(
+        minLS.x,
+        maxLS.x,
+        minLS.y,
+        maxLS.y,
+        minLS.z,
+        maxLS.z);
+
+    _staticShadowEnabled = true;
 
     return S_OK;
 }
@@ -157,11 +220,37 @@ HRESULT Shadow::Bind_ShadowCB(Shared<ShaderCom> shader)
     CHECK_NULL(shader, E_FAIL);
 
     ShadowCB shadowCB{};
+
     shadowCB.lightViewMatrix = _viewMatrix;
     shadowCB.lightProjMatrix = _projMatrix;
+
+    shadowCB.staticLightViewMatrix = _staticViewMatrix;
+    shadowCB.staticLightProjMatrix = _staticProjMatrix;
+
     shadowCB.lightFar = _desc.zf;
     shadowCB.bias = _desc.bias;
     shadowCB.intensity = _desc.intensity;
+    shadowCB.staticShadowEnabled = _staticShadowEnabled ? 1.f : 0.f;
+
+    return shader->Bind_CBufferData(shadowCB);
+}
+
+HRESULT Shadow::Bind_StaticShadowCB(Shared<ShaderCom> shader)
+{
+    CHECK_NULL(shader, E_FAIL);
+
+    ShadowCB shadowCB{};
+
+    shadowCB.lightViewMatrix = _staticViewMatrix;
+    shadowCB.lightProjMatrix = _staticProjMatrix;
+
+    shadowCB.staticLightViewMatrix = _staticViewMatrix;
+    shadowCB.staticLightProjMatrix = _staticProjMatrix;
+
+    shadowCB.lightFar = _desc.zf;
+    shadowCB.bias = _desc.bias;
+    shadowCB.intensity = _desc.intensity;
+    shadowCB.staticShadowEnabled = _staticShadowEnabled ? 1.f : 0.f;
 
     return shader->Bind_CBufferData(shadowCB);
 }

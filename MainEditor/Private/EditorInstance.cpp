@@ -12,6 +12,8 @@
 #include "Notification_Manager.h"
 #include "Helper_String.h"
 #include "Profile_View.h"
+#include "Material_View.h"
+#include "Model_Inspector.h"
 #include <fstream>
 
 IMPLEMENT_SINGLETON(EditorInstance)
@@ -79,6 +81,9 @@ void EditorInstance::Release_Editor()
 
     Release_Manager(_imguiManager);
     Release_Manager(_inspectorFactory);
+
+    Material_View::Clear_TexturePreviewCache();
+    ModelCom_Inspector::Clear_TexturePreviewCache();
 
     _notificationManager.reset();
     _commandHistory.reset();

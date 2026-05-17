@@ -76,10 +76,13 @@ struct alignas(16) ShadowCB
     Matrix  lightViewMatrix;
     Matrix  lightProjMatrix;
 
+    Matrix  staticLightViewMatrix;
+    Matrix  staticLightProjMatrix;
+
     float   lightFar = 0.f;
     float   bias = 0.f;
     float   intensity = 0.f;
-    float   _pad0 = 0.f;
+    float   staticShadowEnabled = 0.f;
 };
 
 /* ------------------------------------------ */

@@ -241,6 +241,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClInclude Include="..\Public\Material_Types.h" />
     <ClInclude Include="..\Public\MovementCom.h" />
     <ClInclude Include="..\public\Parallel.h" />
+    <ClInclude Include="..\Public\PhysicsCharacterController.h" />
     <ClInclude Include="..\Public\PhysX_Filter.h" />
     <ClInclude Include="..\Public\PhysX_Handle.h" />
     <ClInclude Include="..\Public\PhysX_Types.h" />
@@ -367,6 +368,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClCompile Include="..\Private\MovementCom.cpp" />
     <ClCompile Include="..\private\Parallel.cpp" />
     <ClCompile Include="..\Private\PathFollower.cpp" />
+    <ClCompile Include="..\Private\PhysicsCharacterController.cpp" />
     <ClCompile Include="..\Private\PhysX_Filter.cpp" />
     <ClCompile Include="..\Private\PhysX_Manager.cpp" />
     <ClCompile Include="..\Private\Picking.cpp" />

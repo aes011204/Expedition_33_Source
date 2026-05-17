@@ -35,10 +35,14 @@ HRESULT MapStaticMesh::Initialize(void* arg)
 
     auto pDesc = static_cast<MAPSTATICMESH_DESC*>(arg);
 
+    Set_ShadowCasterType(ShadowCasterType::Static);
+
     if (FAILED(Ready_Components(pDesc->modelPath, pDesc->model)))
     {
         return E_FAIL;
     }
+
+    GAME->Register_StaticShadowCaster(GetSharedPtr<GameObject>());
 
     _transformCom->Set_Position(pDesc->position);
     _transformCom->Set_RotationQuaternion(pDesc->rotation);
@@ -128,6 +132,49 @@ HRESULT MapStaticMesh::Render()
     }
 
     return S_OK;
+}
+
+HRESULT MapStaticMesh::Render_Shadow()
+{
+    if (_shader == nullptr || _model == nullptr)
+        return S_OK;
+
+    if (FAILED(_shader->Bind_ObjectCB(_transformCom->Get_WorldMatrix())))
+        return E_FAIL;
+
+    if (FAILED(GAME->Bind_StaticShadowCB(_shader)))
+        return E_FAIL;
+
+    const uint32 numMeshes = static_cast<uint32>(_model->Get_NumMeshes());
+
+    for (uint32 i = 0; i < numMeshes; ++i)
+    {
+        if (FAILED(_shader->Begin(1)))
+            return E_FAIL;
+
+        _model->Render(i);
+    }
+
+    return S_OK;
+}
+
+bool MapStaticMesh::Try_Get_ShadowWorldBounds(BoundingBox& outWorldBounds) const
+{
+    if (_model == nullptr || _transformCom == nullptr)
+        return false;
+
+    Vec3 localMin{}, localMax{};
+    if (!_model->Try_Get_LocalBounds(localMin, localMax))
+        return false;
+
+    BoundingBox localBox{};
+    BoundingBox::CreateFromPoints(localBox, XMLoadFloat3(&localMin), XMLoadFloat3(&localMax));
+
+    localBox.Transform(
+        outWorldBounds,
+        _model->Get_PreLocalTransformMatrix() * _transformCom->Get_WorldMatrix());
+
+    return true;
 }
 
 HRESULT MapStaticMesh::Ready_Components(const wstring& modelPath, Shared<ModelCom> sharedModel)

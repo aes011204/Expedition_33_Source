@@ -26,13 +26,16 @@ cbuffer ObjectBuffer
 
 cbuffer ShadowBuffer
 {
-    row_major float4x4 g_LightViewMatrix; // 64
-    row_major float4x4 g_LightProjMatrix; // 128
+    row_major float4x4 g_LightViewMatrix;
+    row_major float4x4 g_LightProjMatrix;
 
-    float g_LightFar;           // 132
-    float g_Bias;               // 136
-    float g_ShadowIntensity;    // 140
-    float g_ShadowPadding0;     // 144
+    row_major float4x4 g_StaticLightViewMatrix;
+    row_major float4x4 g_StaticLightProjMatrix;
+
+    float g_LightFar;           
+    float g_Bias;               
+    float g_ShadowIntensity;    
+    float g_StaticShadowEnabled;
 };
 
 cbuffer DeferredBuffer

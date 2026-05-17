@@ -103,6 +103,8 @@ HRESULT PlayableParts::Initialize(void* arg)
         return S_OK;
     }
 
+    Set_ShadowCasterType(ShadowCasterType::Dynamic);
+
     if (auto playableDesc = static_cast<PLAYABLE_PART_DESC*>(arg))
     {
         _offsetMatrix = Matrix::Identity;
@@ -136,7 +138,9 @@ void PlayableParts::Late_Update(float timeDelta)
     }
 
     GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
-    GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
+
+    if (Casts_DynamicShadow())
+        GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
 }
 
 HRESULT PlayableParts::Render()

@@ -31,7 +31,7 @@ HRESULT Monster_Part::Initialize(void* arg)
     if (desc == nullptr)
         return E_FAIL;
 
-
+    Set_ShadowCasterType(ShadowCasterType::Dynamic);
 
     return Ready_Components(*desc);
 }
@@ -54,7 +54,9 @@ void Monster_Part::Late_Update(float timeDelta)
     }
 
     GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
-    GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
+
+    if (Casts_DynamicShadow())
+        GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
 }
 
 HRESULT Monster_Part::Render()
