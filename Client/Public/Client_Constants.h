@@ -15,6 +15,9 @@ namespace Client::Constants::UI
     inline constexpr wchar_t UI_Lune_SkillTooltips_Dir[] = L"UI/UI_Json/UI_SkillTooltip_Lune.json";
     inline constexpr wchar_t UI_Gustave_SkillTooltips_Dir[] = L"UI/UI_Json/UI_SkillTooltip_Gustave.json";
     inline constexpr wchar_t UI_Maelle_SkillTooltips_Dir[] = L"UI/UI_Json/UI_SkillTooltip_Maelle.json";
+    inline constexpr wchar_t UI_Lune_CharacterSheet_Dir[] = L"UI/UI_Json/UI_CharacterSheet_Lune.json";
+    inline constexpr wchar_t UI_Gustave_CharacterSheet_Dir[] = L"UI/UI_Json/UI_CharacterSheet_Gustave.json";
+    inline constexpr wchar_t UI_Maelle_CharacterSheet_Dir[] = L"UI/UI_Json/UI_CharacterSheet_Maelle.json";
 
 }
 

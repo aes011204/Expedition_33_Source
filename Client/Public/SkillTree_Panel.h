@@ -45,8 +45,31 @@ public:
         vector<SkillNodeUI>            skillNodes;
         vector<LockNodeUI>             lockedNodes;
         umap<wstring, Shared<UI_Base>> uiByName;
+        Shared<UI_Base>                characterSheet;
+        umap<wstring, Shared<UI_Base>> characterSheetUIs;
         umap<wstring, Shared<UI_Base>> tooltipsByName;
         umap<wstring, Shared<UI_Base>> tooltips;
+
+              
+        Shared<UI_Text>                levelText{};
+
+        Shared<UI_Text>                vitalityText{};
+        Shared<UI_Text>                mightText{};
+        Shared<UI_Text>                agilityText{};
+        Shared<UI_Text>                defenseStatText{};
+        Shared<UI_Text>                luckText{};
+
+        Shared<UI_Text>                curExpText{};
+        Shared<UI_Text>                maxExpText{};
+
+        Shared<UI_Text>                curHpText{};
+        Shared<UI_Text>                maxHpText{};
+
+        Shared<UI_Text>                hpText{};
+        Shared<UI_Text>                attackText{};
+        Shared<UI_Text>                speedText{};
+        Shared<UI_Text>                defenseValueText{};
+        Shared<UI_Text>                criticalRateText{};
 
     };
 
@@ -68,15 +91,23 @@ public:
 
 private:
     HRESULT         Load_Background_UI(uint32 levelIndex);
-    HRESULT         Load_UI(HeroId heroId, uint32 levelIndex,  const wstring& playerName, const wstring& skillTreeJsonPath, const wstring& toolTipJsonPath, const wstring& rootName, const wstring& prototypeTagPrefix, const wstring& characterSelectUI, SkillTreeViewState& outView);
+    HRESULT         Load_UI(HeroId heroId, uint32 levelIndex,  const wstring& playerName, const wstring& skillTreeJsonPath, const wstring& toolTipJsonPath, const wstring& rootName, const wstring& prototypeTagPrefix, const wstring& characterSelectUI,  const wstring& characterJsonPath, SkillTreeViewState& outView);
+    HRESULT         Load_CharacterSheet(uint32 levelIndex,const wstring& jsonPath, const wstring& playerName, SkillTreeViewState& outView);
     HRESULT         Load_UI_ToolTips(const wstring& prototypeTagPrefix, const wstring& toolTipJsonPath, uint32 levelIndex, const wstring& playerName, SkillTreeViewState& outView);
     HRESULT         Bind_SkillNode_UI(const wstring& playerName, SkillTreeViewState& outView);
     HRESULT         Bind_LockNode_UI(const wstring& playerName,SkillTreeViewState& outView);
+    HRESULT         Bind_Status_UI();
     Shared<UI_Base> Find_UI(const umap<wstring, Shared<UI_Base>>& uiByName, const wstring& name) const;
     void            Set_SkillPoint();
     void            Update_UI();
 
     void            Refresh_CharacterSelectUI();
+    void            Refresh_CombatStats();
+
+    static void     Set_IntText(const Shared<UI_Text>& text, int32 value);
+    static void     Set_UIntText(const Shared<UI_Text>& text, uint32 value);
+    static void     Set_PercentText(const Shared<UI_Text>& text, float value);
+    static void     Set_HpText(const Shared<UI_Text>& text, float hp);
 
     template<typename T>
     Shared<T> Find_TypedUI(
@@ -114,7 +145,7 @@ private:
         // 
     };
 
-    uint32                                   _selectedHeroIndex = 0;
+    uint32                                   _selectedHeroIndex = static_cast<int>(HeroId::Lune);
     bool                                     _isOpen = false;
 
     vector<StatusPreviewHero>                _previewHeroes{};
@@ -132,8 +163,15 @@ private:
     umap<HeroId,SkillTreeViewState>          _viewByPlayerId;
     SkillTreeViewState*                      _currentView;
 
+
+
+
 public:
     static Unique<SkillTree_Panel> Create(uint32 levelIndex);
     auto Free() -> void override;
 };
+
+
+
+
 NS_END

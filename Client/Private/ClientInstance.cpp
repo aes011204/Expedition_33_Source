@@ -14,6 +14,7 @@
 #include "GameplayUI.h"
 #include "PersistentObjectManager.h"
 #include "Hero_Manager.h"
+#include "PreviewShotTable.h"
 
 IMPLEMENT_SINGLETON(ClientInstance)
 
@@ -47,6 +48,9 @@ HRESULT ClientInstance::Initialize_Client(const ComPtr<Device>& device, const Co
 
     _battleController = BattleController::Create();
     CHECK_NULL(_battleController, E_FAIL);
+
+    _previewShotTable = PreviewShotTable::Create();
+    CHECK_NULL(_previewShotTable, E_FAIL);
 
 	_isInitialized = true;
 
@@ -106,6 +110,11 @@ GameDataTable::SkillTreeDesc* ClientInstance::Get_SkillTreeDesc(const string& sk
 const umap<string, vector<string>>*  ClientInstance::Get_SkillTreeRequirementData()
 {
     return _gameDataTable->Get_SkillTreeRequirementData();
+}
+
+PreviewShotTable::PreviewShotPreset ClientInstance::Get_Preset(HeroId hero, PreviewShotTable::PreviewShotPanel panel)
+{
+    return _previewShotTable->Get(hero, panel);
 }
 
 HRESULT ClientInstance::Initialize_Hero(uint32 levelIndex, const wstring& layerTag, const Vec3& startPos)

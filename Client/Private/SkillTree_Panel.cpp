@@ -43,16 +43,17 @@ HRESULT SkillTree_Panel::Initialize(uint32 levelIndex)
     _levelIndex = levelIndex;
 
     CHECK_FAILED(Load_Background_UI(levelIndex), E_FAIL)
-    CHECK_FAILED(Load_UI(HeroId::Lune, levelIndex, L"Lune", Constants::UI::UI_Lune_SkillTree_Path, Constants::UI::UI_Lune_SkillTooltips_Dir, L"Panel_Lune_SkillTree", L"Lune", L"Panel_CharacterSelect_01", luneView), E_FAIL);;
-    CHECK_FAILED(Load_UI(HeroId::Gustave, levelIndex, L"Gustave", Constants::UI::UI_Gustave_SkillTree_Path, Constants::UI::UI_Gustave_SkillTooltips_Dir, L"Panel_Gustave_SkillTree", L"Gustave", L"Panel_CharacterSelect_02", gustaveView), E_FAIL);
-    CHECK_FAILED(Load_UI(HeroId::Maelle, levelIndex, L"Maelle", Constants::UI::UI_Maelle_SkillTree_Path, Constants::UI::UI_Maelle_SkillTooltips_Dir, L"Panel_Maelle_SkillTree", L"Maelle", L"Panel_CharacterSelect_03", maelleView), E_FAIL);
+    CHECK_FAILED(Load_UI(HeroId::Lune, levelIndex, L"Lune", Constants::UI::UI_Lune_SkillTree_Path, Constants::UI::UI_Lune_SkillTooltips_Dir, L"Panel_Lune_SkillTree", L"Lune", L"Panel_CharacterSelect_01",Constants::UI::UI_Lune_CharacterSheet_Dir, luneView), E_FAIL);;
+    CHECK_FAILED(Load_UI(HeroId::Gustave, levelIndex, L"Gustave", Constants::UI::UI_Gustave_SkillTree_Path, Constants::UI::UI_Gustave_SkillTooltips_Dir, L"Panel_Gustave_SkillTree", L"Gustave", L"Panel_CharacterSelect_02",Constants::UI::UI_Gustave_CharacterSheet_Dir, gustaveView), E_FAIL);
+    CHECK_FAILED(Load_UI(HeroId::Maelle, levelIndex, L"Maelle", Constants::UI::UI_Maelle_SkillTree_Path, Constants::UI::UI_Maelle_SkillTooltips_Dir, L"Panel_Maelle_SkillTree", L"Maelle", L"Panel_CharacterSelect_03", Constants::UI::UI_Maelle_CharacterSheet_Dir,maelleView), E_FAIL);
 
-    _viewByPlayerId.emplace(HeroId::Lune, move(luneView));
+    _viewByPlayerId.emplace(HeroId::Lune, luneView);
     _viewByPlayerId.emplace(HeroId::Gustave, gustaveView);
     _viewByPlayerId.emplace(HeroId::Maelle, maelleView);
 
     _currentView = &_viewByPlayerId[HeroId::Lune];
 
+    Bind_Status_UI();
     Set_SkillPoint();
 
     _baseSize = _currentView->skillNodes.front().image->Get_Transform()->Get_Scale();
@@ -83,20 +84,6 @@ void SkillTree_Panel::Open()
     //선택된 캐릭터 ui 확대
     _currentView->characterSelectUI->Get_Transform()->Set_Scale(_hoveredSize);
 
-
-   // for (auto& node : _currentView->skillNodes)
-   // {
-   //     if (node.unlockedPopup)
-   //         node.unlockedPopup->Close();
-   //
-   //     if (node.lockedPopup)
-   //         node.lockedPopup->Close();
-   // }
-   //
-   // for(auto tooltip : _currentView->tooltips)
-   //     tooltip.second->Close();
-
-
     CHECK_FAILED(Spawn_StatusPreviewHeroes());
     CHECK_FAILED(Ready_StatusPreviewCamera());
 
@@ -115,8 +102,6 @@ void SkillTree_Panel::Close()
         _backgroundUI->Close();
 
     _currentView->characterSelectUI->Get_Transform()->Set_Scale(_baseSize);
-
-    //전체 닫기
 
     for(auto i = 0 ; i < static_cast<int>(HeroId::END) ; i++)
     {
@@ -144,6 +129,11 @@ void SkillTree_Panel::Close()
             if(node.lockedPopup)
                 node.lockedPopup->Close();
         }
+
+        
+        _viewByPlayerId[static_cast<HeroId>(i)].characterSheet->Close();
+       
+
     }
 
     Restore_PreviousCamera();
@@ -185,6 +175,8 @@ void SkillTree_Panel::Handle_SelectionInput()
     {
         Refresh_CharacterSelectUI();
         Change_ToSelectedViewState();
+        Set_SkillPoint();
+        Refresh_CombatStats();
     }
 }
 
@@ -206,7 +198,7 @@ HRESULT SkillTree_Panel::Load_Background_UI(uint32 levelIndex)
     return S_OK;
 }
 
-HRESULT SkillTree_Panel::Load_UI(HeroId heroId, uint32 levelIndex, const wstring& playerName,const wstring& skillTreeJsonPath, const wstring& toolTipJsonPath, const wstring& rootName, const wstring& prototypeTagPrefix,const wstring& characterSelectUI, SkillTreeViewState& outView)
+HRESULT SkillTree_Panel::Load_UI(HeroId heroId, uint32 levelIndex, const wstring& playerName,const wstring& skillTreeJsonPath, const wstring& toolTipJsonPath, const wstring& rootName, const wstring& prototypeTagPrefix,const wstring& characterSelectUI, const wstring& characterJsonPath, SkillTreeViewState& outView)
 {
     SkillTreeViewState viewState{};
 
@@ -224,6 +216,7 @@ HRESULT SkillTree_Panel::Load_UI(HeroId heroId, uint32 levelIndex, const wstring
     outView.root = Find_UI(outView.uiByName, rootName);
 
     Load_UI_ToolTips(prototypeTagPrefix,toolTipJsonPath, levelIndex, playerName, outView);
+    Load_CharacterSheet(levelIndex,characterJsonPath, playerName, outView);
     Bind_SkillNode_UI(playerName, outView);
 
     if(heroId != HeroId::Lune)
@@ -240,14 +233,25 @@ HRESULT SkillTree_Panel::Load_UI(HeroId heroId, uint32 levelIndex, const wstring
     return S_OK;
 }
 
+HRESULT SkillTree_Panel::Load_CharacterSheet(uint32 levelIndex,const wstring& jsonPath, const wstring& playerName, SkillTreeViewState& outView)
+{
+    UI_RuntimeLoader::UI_LoadDesc desc {};
+    desc.levelIndex = levelIndex;
+    desc.jsonPath = jsonPath;
+    desc.prototypeTagPrefix = L"CharacterSheet_" + playerName;
+    desc.outUIByName = &outView.characterSheetUIs;
+    CHECK_FAILED(UI_RuntimeLoader::Load_Document(desc), E_FAIL);
+    outView.characterSheet = Find_UI(outView.characterSheetUIs,L"Panel_CharacterSheet");
+}
+
 HRESULT SkillTree_Panel::Load_UI_ToolTips(const wstring& prototypeTagPrefix, const wstring& toolTipJsonPath, uint32 levelIndex, const wstring& playerName, SkillTreeViewState& outView)
 {
     UI_RuntimeLoader::UI_LoadDesc desc {};
     desc.levelIndex = levelIndex;
     desc.jsonPath = toolTipJsonPath;
     desc.prototypeTagPrefix = prototypeTagPrefix + L"Tooltip";
+    desc.outUINamePrefixFilter = L"Panel_SkillTooltip_" + playerName + L"_";
     desc.outUIByName = &outView.tooltipsByName;
-    desc.outChildrenByParentName = &_childrenByParentName;
 
     CHECK_FAILED(UI_RuntimeLoader::Load_Document(desc), E_FAIL);
 
@@ -322,7 +326,7 @@ HRESULT SkillTree_Panel::Bind_LockNode_UI(const wstring& playerName,SkillTreeVie
 
         const wstring nodeNameW = name.substr(buttonPrefix.size());
         const wstring panelId = L"Panel_" + playerName + L"_Locked_" + nodeNameW;
-        const wstring imageId = L"Image_" + playerName + L"_Locked_" + nodeNameW + L"_Icon";
+        const wstring imageId = L"Image_" + playerName + L"_Locked_" + nodeNameW + L"_Mask";
         const string  nodeName = String::ToString(nodeNameW);
 
         Shared<UI_Image>  image = dynamic_pointer_cast<UI_Image>(Find_UI(outView.uiByName, imageId));
@@ -335,6 +339,32 @@ HRESULT SkillTree_Panel::Bind_LockNode_UI(const wstring& playerName,SkillTreeVie
         node.name = nodeName;
 
         outView.lockedNodes.push_back(node);
+    }
+    return S_OK;
+}
+
+HRESULT SkillTree_Panel::Bind_Status_UI()
+{
+    //한 번만 처음 세팅하는거니까 플레이어 3명 한번에 해야함
+    for(auto i = 0 ; i < static_cast<int>(HeroId::END) ; i++)
+    {
+        _viewByPlayerId[static_cast<HeroId>(i)].levelText = Find_TypedUI<UI_Text>(_viewByPlayerId[static_cast<HeroId>(i)].characterSheetUIs, L"Text_CurrentLevel");
+        _viewByPlayerId[static_cast<HeroId>(i)].vitalityText = Find_TypedUI<UI_Text>(_viewByPlayerId[static_cast<HeroId>(i)].characterSheetUIs, L"Text_CurrentVitality");
+        _viewByPlayerId[static_cast<HeroId>(i)].mightText= Find_TypedUI<UI_Text>(_viewByPlayerId[static_cast<HeroId>(i)].characterSheetUIs, L"Text_CurrentMight");
+        _viewByPlayerId[static_cast<HeroId>(i)].agilityText = Find_TypedUI<UI_Text>(_viewByPlayerId[static_cast<HeroId>(i)].characterSheetUIs, L"Text_CurrentAgility");
+        _viewByPlayerId[static_cast<HeroId>(i)].defenseStatText = Find_TypedUI<UI_Text>(_viewByPlayerId[static_cast<HeroId>(i)].characterSheetUIs, L"Text_CurrentDefense");
+        _viewByPlayerId[static_cast<HeroId>(i)].luckText = Find_TypedUI<UI_Text>(_viewByPlayerId[static_cast<HeroId>(i)].characterSheetUIs, L"Text_CurrentLuck");
+
+        _viewByPlayerId[static_cast<HeroId>(i)].curExpText= Find_TypedUI<UI_Text>(_viewByPlayerId[static_cast<HeroId>(i)].characterSheetUIs, L"Text_Character_Current_EXP");
+        _viewByPlayerId[static_cast<HeroId>(i)].maxExpText = Find_TypedUI<UI_Text>(_viewByPlayerId[static_cast<HeroId>(i)].characterSheetUIs, L"Text_Character_Max_EXP");
+        _viewByPlayerId[static_cast<HeroId>(i)].curHpText = Find_TypedUI<UI_Text>(_viewByPlayerId[static_cast<HeroId>(i)].characterSheetUIs, L"Text_Character_Current_HP");
+        _viewByPlayerId[static_cast<HeroId>(i)].maxHpText = Find_TypedUI<UI_Text>(_viewByPlayerId[static_cast<HeroId>(i)].characterSheetUIs, L"Text_Character_Max_HP");
+
+        _viewByPlayerId[static_cast<HeroId>(i)].hpText = Find_TypedUI<UI_Text>(_viewByPlayerId[static_cast<HeroId>(i)].characterSheetUIs, L"Text_CurrentStatHP");
+        _viewByPlayerId[static_cast<HeroId>(i)].attackText = Find_TypedUI<UI_Text>(_viewByPlayerId[static_cast<HeroId>(i)].characterSheetUIs, L"Text_CurrentStatAttack");
+        _viewByPlayerId[static_cast<HeroId>(i)].speedText = Find_TypedUI<UI_Text>(_viewByPlayerId[static_cast<HeroId>(i)].characterSheetUIs, L"Text_CurrentStatSpeed");
+        _viewByPlayerId[static_cast<HeroId>(i)].defenseValueText = Find_TypedUI<UI_Text>(_viewByPlayerId[static_cast<HeroId>(i)].characterSheetUIs, L"Text_CurrentStatDefense");
+        _viewByPlayerId[static_cast<HeroId>(i)].criticalRateText = Find_TypedUI<UI_Text>(_viewByPlayerId[static_cast<HeroId>(i)].characterSheetUIs, L"Text_CurrentStatCriticalPercent");
     }
 
     return S_OK;
@@ -352,8 +382,6 @@ Shared<UI_Base> SkillTree_Panel::Find_UI(const umap<wstring, Shared<UI_Base>>& u
 
 void SkillTree_Panel::Set_SkillPoint()
 {
-    //TODO 플레이어 바뀔 때마다 호출
-
     for (auto& node : _currentView->skillNodes)
     {
         const auto desc = CLIENT->Get_SkillTreeDesc(node.skillId);
@@ -374,8 +402,8 @@ void SkillTree_Panel::Set_SkillPoint()
     CHECK_NULL(playerStatCom);
 
     dynamic_pointer_cast<UI_Text>(_skillpointUI)->Set_Text(to_wstring(playerStatCom->Get_PlayerRuntimeStat().CurSkillPoint));
-
 }
+
 
 void SkillTree_Panel::Update_UI()
 {
@@ -385,6 +413,9 @@ void SkillTree_Panel::Update_UI()
 
     if(!_isOpen)
         return;
+
+    if(_currentView->characterSheet && !_currentView->characterSheet->Is_Open())
+        _currentView->characterSheet->Open();
 
     for(auto i = 0 ; i < static_cast<int>(HeroId::END) ; i++)
     {
@@ -408,18 +439,16 @@ void SkillTree_Panel::Update_UI()
         }
     }
 
-    if(_currentView->root)
+    if(_currentView->root && !_currentView->root->Is_Open())
         _currentView->root->Open();
-
-   // for(auto& [skillId, tooltip] : _currentView->tooltips)
-   // {
-   //     if(tooltip)
-   //         tooltip->Close();
-   // }
 
     for( auto node :_currentView->lockedNodes)
     {
-        node.lockedPopup->Close();    
+        if(node.lockedPopup)
+            node.lockedPopup->Close();    
+
+        if(node.image)
+            node.image->Get_Transform()->Set_Scale(_baseSize);
     }
 
     for(auto& node : _currentView->skillNodes)
@@ -446,11 +475,14 @@ void SkillTree_Panel::Update_UI()
         node.unlockedPopup->Close();
 
         const bool isUnlocked = _currentView->skillTreeCom->IsUnlocked(node.skillId);
+
+
         const bool canUnlock = !isUnlocked && _currentView->skillTreeCom->CanUnlock(node.skillId);
 
         if(node.button->Is_Pressed())
         {
             // 클릭했을 때 모든 버튼 오버레이 처리
+
             if(node.image)
                 node.image->Set_OverlayEnabled(true);
         }
@@ -464,6 +496,10 @@ void SkillTree_Panel::Update_UI()
         if(!isUnlocked)
         {
            // //이미지는 회색으로
+
+            if(node.skillId=="Mezzoforte")
+                int a = 10;
+
             if(node.image)
             {
                 node.image->Set_GrayScaleEnabled(true);
@@ -543,6 +579,29 @@ void SkillTree_Panel::Update_UI()
             }
         }
     }
+
+    for(auto lockNode : _currentView->lockedNodes)
+    {
+        if(lockNode.button->Is_Pressed())
+        {
+            if(lockNode.image)
+                lockNode.image->Set_OverlayEnabled(true);
+        }
+        else
+        {
+            if(lockNode.image)
+              lockNode.image->Set_OverlayEnabled(false);
+        }
+
+        if(lockNode.button->Is_Hovered())
+        {
+            if(lockNode.image)
+                lockNode.image->Get_Transform()->Set_Scale(_hoveredSize);
+            
+             if(lockNode.lockedPopup)
+                 lockNode.lockedPopup->Open();
+        }
+    }
 }
 
 void SkillTree_Panel::Refresh_CharacterSelectUI()
@@ -563,10 +622,73 @@ void SkillTree_Panel::Refresh_CharacterSelectUI()
     }
 }
 
+void SkillTree_Panel::Refresh_CombatStats()
+{
+    Shared<Player_WorldBase> player = CLIENT->Get_Hero(static_cast<HeroPartySlot>(_selectedHeroIndex));
+    CHECK_NULL(player);
+
+    Shared<PlayerStatCom> playerStat = player->Get_Component<PlayerStatCom>();
+    CHECK_NULL(playerStat);
+
+    const PlayerStatCom:: PRuntimeCombatStat& statInfo = playerStat->Get_PlayerRuntimeStat();
+
+    Set_UIntText(_currentView->levelText, statInfo.CurLevel);
+
+    Set_IntText(_currentView->vitalityText, statInfo.CurVitality);
+    Set_IntText(_currentView->mightText, statInfo.CurMight);
+    Set_IntText(_currentView->agilityText, statInfo.CurAgility);
+    Set_IntText(_currentView->defenseStatText, statInfo.CurDefense);
+    Set_IntText(_currentView->luckText, statInfo.CurLuck);
+
+    Set_IntText(_currentView->curExpText, statInfo.CurExp);
+    Set_IntText(_currentView->maxExpText, statInfo.CurMaxExp);
+    Set_IntText(_currentView->curHpText, statInfo.CurHp);
+    Set_IntText(_currentView->maxHpText, statInfo.CurMaxHp);
+
+    Set_HpText(_currentView->hpText, statInfo.CurHp);
+    Set_IntText(_currentView->attackText, static_cast<int32>(statInfo.CurPhysicalAttack));
+    Set_IntText(_currentView->speedText, static_cast<int32>(statInfo.CurSpeed));
+    Set_IntText(_currentView->defenseValueText, static_cast<int32>(statInfo.CurPhysicalDefense));
+    Set_PercentText(_currentView->criticalRateText, statInfo.CurCriticalRate);
+}
+
+void SkillTree_Panel::Set_IntText(const Shared<UI_Text>& text, int32 value)
+{
+    if(text)
+        text->Set_Text(to_wstring(value));
+}
+
+void SkillTree_Panel::Set_UIntText(const Shared<UI_Text>& text, uint32 value)
+{
+    if(text)
+        text->Set_Text(to_wstring(value));
+}
+
+void SkillTree_Panel::Set_PercentText(const Shared<UI_Text>& text, float value)
+{
+    if(text)
+    {
+        const int32 criticalRate = static_cast<int32>(value);
+        text->Set_Text(to_wstring(criticalRate));
+    }
+}
+
+void SkillTree_Panel::Set_HpText(const Shared<UI_Text>& text, float hp)
+{
+    if(text)
+    {
+        const int32 hpValue = static_cast<int32>(hp);
+        text->Set_Text(to_wstring(hpValue));
+    }
+}
+
 void SkillTree_Panel::Change_ToSelectedViewState()
 {
     if(_currentView->root)
         _currentView->root->Close();
+
+    if(_currentView->characterSheet)
+        _currentView->characterSheet->Close();
 
     _currentView = &_viewByPlayerId[static_cast<HeroId>(_selectedHeroIndex)];
 }
@@ -727,5 +849,8 @@ Unique<SkillTree_Panel> SkillTree_Panel::Create(uint32 levelIndex)
 
 void SkillTree_Panel::Free()
 {
+    Restore_PreviousCamera();
+    Clear_StatusPreviewHeroes();
+
     __super::Free();
 }

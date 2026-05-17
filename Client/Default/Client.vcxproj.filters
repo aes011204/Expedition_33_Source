@@ -415,15 +415,6 @@
     </ClInclude>
     <ClInclude Include="..\public\BuffSystem.h" />
     <ClInclude Include="..\public\DamageSystem.h" />
-    <ClInclude Include="..\Public\Player_Maelle.h">
-      <Filter>02.GameObject\Player</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\Player_Gustave.h">
-      <Filter>02.GameObject\Player</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\Player_Lune.h">
-      <Filter>02.GameObject\Player</Filter>
-    </ClInclude>
     <ClInclude Include="..\Public\CharacterStatus_Panel.h">
       <Filter>02.GameObject\UI\CharacterStatus_Panel</Filter>
     </ClInclude>
@@ -456,9 +447,6 @@
     <ClInclude Include="..\public\ANS_QTE.h" />
     <ClInclude Include="..\public\AN_Battle_EndAnim.h" />
     <ClInclude Include="..\Public\AN_Test2.h" />
-    <ClInclude Include="..\Public\Battle_Gustave.h" />
-    <ClInclude Include="..\Public\Battle_Lune.h" />
-    <ClInclude Include="..\Public\Battle_Maelle.h" />
     <ClInclude Include="..\public\Mon_Lancelier_Body.h" />
     <ClInclude Include="..\public\Mon_Lancelier_Weapon.h" />
     <ClInclude Include="..\public\SkillTree_Panel.h">
@@ -499,6 +487,9 @@
       <Filter>02.GameObject\Monster\00. World</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\BattleTurnCamera.h" />
+    <ClInclude Include="..\public\PreviewShotTable.h">
+      <Filter>96. Manager</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -710,15 +701,6 @@
     </ClCompile>
     <ClCompile Include="..\private\BuffSystem.cpp" />
     <ClCompile Include="..\private\DamageSystem.cpp" />
-    <ClCompile Include="..\Private\Player_Lune.cpp">
-      <Filter>02.GameObject\Player</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\Player_Gustave.cpp">
-      <Filter>02.GameObject\Player</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\Player_Maelle.cpp">
-      <Filter>02.GameObject\Player</Filter>
-    </ClCompile>
     <ClCompile Include="..\Private\CharacterStatus_Panel.cpp">
       <Filter>02.GameObject\UI\CharacterStatus_Panel</Filter>
     </ClCompile>
@@ -750,9 +732,6 @@
     <ClCompile Include="..\private\ANS_Parry.cpp" />
     <ClCompile Include="..\private\AN_Battle_EndAnim.cpp" />
     <ClCompile Include="..\Private\AN_Test2.cpp" />
-    <ClCompile Include="..\Private\Battle_Gustave.cpp" />
-    <ClCompile Include="..\Private\Battle_Lune.cpp" />
-    <ClCompile Include="..\Private\Battle_Maelle.cpp" />
     <ClCompile Include="..\private\Mon_Lancelier_Body.cpp" />
     <ClCompile Include="..\private\Mon_Lancelier_Weapon.cpp" />
     <ClCompile Include="..\public\ANS_QTE.cpp" />
@@ -794,6 +773,9 @@
       <Filter>02.GameObject\Monster\00. World</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\BattleTurnCamera.cpp" />
+    <ClCompile Include="..\private\PreviewShotTable.cpp">
+      <Filter>96. Manager</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">

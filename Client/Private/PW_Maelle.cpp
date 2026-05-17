@@ -3,6 +3,7 @@
 #include "Bounding_OBB.h"
 #include "ColliderCom.h"
 #include "PlayableParts.h"
+#include "SkillTreeCom.h"
 
 IMPLEMENT_REFLECTION(PW_Maelle)
 {
@@ -25,6 +26,19 @@ PW_Maelle::PW_Maelle(const PW_Maelle& prototype)
 	: Player_WorldBase{ prototype }
 {
 
+}
+
+HRESULT PW_Maelle::Initialize(void* arg)
+{
+    CHECK_FAILED(__super::Initialize(arg), E_FAIL)
+
+    auto skilltreeCom = Get_Component<SkillTreeCom>();
+
+    skilltreeCom->TryUnlock("OffensiveSwitch");
+    skilltreeCom->TryUnlock("Assault");
+    skilltreeCom->TryUnlock("Spark");
+
+    return S_OK;
 }
 
 HairChainPhysicsDesc PW_Maelle::Get_HairChainPhysicsDesc() const

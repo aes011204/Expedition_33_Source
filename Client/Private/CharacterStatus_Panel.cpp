@@ -45,6 +45,9 @@ void CharacterStatus_Panel::Update(float timeDelta)
 
     Handle_SelectionInput();
     Update_StatusPreviewHeroes(timeDelta);
+
+    if(_statusPreviewCamera)
+        _statusPreviewCamera->Update(timeDelta);
 }
 
 void CharacterStatus_Panel::Open()
@@ -115,6 +118,7 @@ void CharacterStatus_Panel::Handle_SelectionInput()
         // TODO : 카메라 담당 -> Update Camera
         Refresh_CombatStats();
         Refresh_CharacterSelectUI();
+        Layout_StatusPreviewHeroes();
     }
 }
 
@@ -373,18 +377,46 @@ void CharacterStatus_Panel::Layout_StatusPreviewHeroes()
     };
 
     // 선택된 hero 가운데 배치, 양 옆은 순환 인덱스
-    const uint32 leftIndex   = Get_WrappedPartyIndex(static_cast<int32>(_selectedHeroIndex) - 1);
-    const uint32 centerIndex = _selectedHeroIndex;
-    const uint32 rightIndex  = Get_WrappedPartyIndex(static_cast<int32>(_selectedHeroIndex) + 1);
+  //  const uint32 leftIndex   = Get_WrappedPartyIndex(static_cast<int32>(_selectedHeroIndex) - 1);
+  //  const uint32 centerIndex = _selectedHeroIndex;
+  //  const uint32 rightIndex  = Get_WrappedPartyIndex(static_cast<int32>(_selectedHeroIndex) + 1);
+  //
+  //  if(_statusPreviewCamera)
+  //  _statusPreviewCamera->Set_TargetTransform(_previewHeroes[_selectedHeroIndex].player->Get_Transform());
+  //
+  // const uint32 orderedIndices[3] = { leftIndex, centerIndex, rightIndex };
+  // 
+  // for (uint32 i = 0; i < 3; ++i)
+  // {
+  //     Shared<Player_WorldBase> player = _previewHeroes[orderedIndices[i]].player;
+  //     if (player == nullptr || player->Get_Transform() == nullptr)
+  //         continue;
+  // 
+  //     player->Get_Transform()->Set_WorldPosition(positions[i]);
+  //     player->Get_Transform()->Set_WorldRotationEuler(rotations[i]);
+  // }
 
-    const uint32 orderedIndices[3] = { leftIndex, centerIndex, rightIndex };
+    static constexpr HeroId characterStatusOrder[] =
+    {
+        HeroId::Lune,
+        HeroId::Gustave,
+        HeroId::Maelle,
 
+    };
+
+    if(_statusPreviewCamera)
+    {
+        _statusPreviewCamera->Set_TargetTransform(_previewHeroes[static_cast<int>(characterStatusOrder[_selectedHeroIndex])].player->Get_Transform());
+        auto preset = CLIENT->Get_Preset(static_cast<HeroId>(static_cast<int>(characterStatusOrder[_selectedHeroIndex])), PreviewShotTable::PreviewShotPanel::CharacterStatus);
+        _statusPreviewCamera->Set_Preset(preset);
+    }
+    
     for (uint32 i = 0; i < 3; ++i)
     {
-        Shared<Player_WorldBase> player = _previewHeroes[orderedIndices[i]].player;
+        Shared<Player_WorldBase> player = _previewHeroes[static_cast<int>(characterStatusOrder[i])].player;
         if (player == nullptr || player->Get_Transform() == nullptr)
             continue;
-
+ 
         player->Get_Transform()->Set_WorldPosition(positions[i]);
         player->Get_Transform()->Set_WorldRotationEuler(rotations[i]);
     }
@@ -396,13 +428,16 @@ HRESULT CharacterStatus_Panel::Ready_StatusPreviewCamera()
         return S_OK;
 
     PreviewCamera::Preview_CameraDesc desc{};
-    desc.eye = Vec4(0.f, 1.45f, 6.f, 1.f);
+    desc.eye = Vec4(0.f, 1.45f, 16.f, 1.f);
     desc.at = Vec4(0.f, 1.05f, 0.f, 1.f);
     desc.fovy = XMConvertToRadians(30.f);
     desc.nearPlane = 0.1f;
     desc.farPlane = 100.f;
     desc.mouseSensor = 0.f;
     desc.mouseSensitivity = 0.f;
+    desc.lookOffset = Vec3(0.f, 2.f, 0.f);
+    desc.distance = 5.f;
+    desc.followSpeed = 3.f;
 
     Shared<GameObject> cameraObject = nullptr;
 

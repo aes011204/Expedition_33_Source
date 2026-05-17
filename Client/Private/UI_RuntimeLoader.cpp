@@ -1130,11 +1130,18 @@ HRESULT UI_RuntimeLoader::Load_Document(const UI_LoadDesc& desc)
 
             if (nullptr != desc.outUIByName)
             {
-                auto [nameIter, inserted] = desc.outUIByName->emplace(objectName, spawnedUI);
-                if (!inserted)
+                const bool passesNameFilter =
+                    desc.outUINamePrefixFilter.empty() ||
+                    objectName.rfind(desc.outUINamePrefixFilter, 0) == 0;
+
+                if (passesNameFilter)
                 {
-                    LOG_WARN("UI RuntimeLoader duplicated name replaced in output map: {}", object.name);
-                    nameIter->second = spawnedUI;
+                    auto [nameIter, inserted] = desc.outUIByName->emplace(objectName, spawnedUI);
+                    if (!inserted)
+                    {
+                        LOG_WARN("UI RuntimeLoader duplicated name replaced in output map: {}", object.name);
+                        nameIter->second = spawnedUI;
+                    }
                 }
             }
         }
