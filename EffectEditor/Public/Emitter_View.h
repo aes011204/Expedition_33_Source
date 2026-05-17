@@ -127,6 +127,13 @@ private: //## Helpers
     AuthoringModule Make_LifetimeModule();
     AuthoringModule Make_InitialSizeModule();
     AuthoringModule Make_InitialVelocityModule();
+    AuthoringModule Make_AccelerationModule();
+    AuthoringModule Make_DragModule();
+    AuthoringModule Make_VelocityOverLifeModule();
+    AuthoringModule Make_InitialRotationModule();
+    AuthoringModule Make_RotationOverLifeModule();
+    AuthoringModule Make_InitialRotationRateModule();
+    AuthoringModule Make_RotationRateScaleByLifeModule();
     AuthoringModule Make_InitialColorModule();
     AuthoringModule Make_ColorOverLifeModule();
     AuthoringModule Make_SubUVFrameOverLifeModule();

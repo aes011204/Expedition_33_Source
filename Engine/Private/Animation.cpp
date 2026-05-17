@@ -25,7 +25,7 @@ HRESULT Animation::Initialize(const ModelAnimationData& animData, const vector<M
 	_tickPerSecond = static_cast<float>(animData.ticksPerSecond);
 	_numChannels = animData.numChannels;
 	_currentKeyFrameIndices.resize(_numChannels, 0);
-
+    
 	for (uint32 i = 0; i < _numChannels; ++i)
 	{
 		auto channel = Channel::Create(channels[i]);
@@ -111,6 +111,38 @@ const RootMotionFrame& Animation::Get_TransformVelocity(int32 rootNodeIndex) con
 	}
 
 	return emptyFrame;
+}
+
+Vec3 Animation::Get_RootTranslation(int32 rootNodeIndex) const
+{
+    if (rootNodeIndex < 0) return Vec3::Zero;
+
+    for (uint32 i = 0; i < _numChannels; ++i)
+    {
+        if (_channels[i]->Get_BoneIndex() == rootNodeIndex)
+        {
+            return _channels[i]->Get_TotalTranslation();
+        }
+    }
+    return Vec3::Zero;
+}
+
+Vec3 Animation::Get_CurrentRootTranslation(int32 rootNodeIndex) const
+{
+    if (rootNodeIndex < 0) return Vec3::Zero;
+
+    for (uint32 i = 0; i < _numChannels; ++i)
+    {
+        if (_channels[i]->Get_BoneIndex() == rootNodeIndex)
+        {
+            RootMotionFrame currentTransform{};
+            uint32 keyIndex = _currentKeyFrameIndices[i];
+
+            _channels[i]->Get_ChannelTransform(_currentTrackPosition, keyIndex, _duration, false, currentTransform);
+            return currentTransform.position - _channels[i]->Get_FirstFramePosition();
+        }
+    }
+    return Vec3::Zero;
 }
 
 bool Animation::Update_TransformationMatrices(float timeDelta, const vector<Shared<Bone>>& bones, bool isLoop, int32 rootNodeIndex)

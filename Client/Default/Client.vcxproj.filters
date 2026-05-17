@@ -139,12 +139,6 @@
     <Filter Include="02.GameObject\Camera\Cinematic">
       <UniqueIdentifier>{9da3a249-fde0-4202-8400-e101dd8261f9}</UniqueIdentifier>
     </Filter>
-    <Filter Include="02.GameObject\Effect\PointParticle">
-      <UniqueIdentifier>{eed9e460-dd4d-43e8-ab48-b224711cbd67}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="02.GameObject\Effect\ComputePointParticle">
-      <UniqueIdentifier>{ceac3f7c-9e53-4638-aa47-729e8f089b5d}</UniqueIdentifier>
-    </Filter>
     <Filter Include="02.GameObject\InstancedMeshActor">
       <UniqueIdentifier>{2e753ff9-c664-4b59-b631-8362dc321ba5}</UniqueIdentifier>
     </Filter>
@@ -168,6 +162,21 @@
     </Filter>
     <Filter Include="02.GameObject\UI\CharacterStatus_Panel">
       <UniqueIdentifier>{ee7b5bd8-e9bc-4acd-91ee-92cc1ca9e59b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02.GameObject\Effect\Emitters">
+      <UniqueIdentifier>{8bae37aa-aacf-470c-ac67-0f3a2cc238c7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02.GameObject\Effect\Emitters\ComputePointParticle">
+      <UniqueIdentifier>{ceac3f7c-9e53-4638-aa47-729e8f089b5d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02.GameObject\Effect\Emitters\PointParticle %28deprecated%29">
+      <UniqueIdentifier>{eed9e460-dd4d-43e8-ab48-b224711cbd67}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02.GameObject\Effect\Emitter Registration">
+      <UniqueIdentifier>{cd4fc20f-ded7-47fd-8545-9286732fe833}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02.GameObject\UI\BackGround">
+      <UniqueIdentifier>{d023afea-ff0b-417c-9db0-25eb798973f2}</UniqueIdentifier>
     </Filter>
     <Filter Include="02.GameObject\Player\00. World">
       <UniqueIdentifier>{99061e95-9355-4714-95af-917916e25c88}</UniqueIdentifier>
@@ -385,10 +394,10 @@
       <Filter>03. Component</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\PointParticleEffect.h">
-      <Filter>02.GameObject\Effect\PointParticle</Filter>
+      <Filter>02.GameObject\Effect\Emitters\PointParticle %28deprecated%29</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\ComputePointParticleEffect.h">
-      <Filter>02.GameObject\Effect\ComputePointParticle</Filter>
+    <ClInclude Include="..\Public\ComputeSpriteEmitter.h">
+      <Filter>02.GameObject\Effect\Emitters\ComputePointParticle</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\InstancedMeshActor.h">
       <Filter>02.GameObject\InstancedMeshActor</Filter>
@@ -435,6 +444,14 @@
     <ClInclude Include="..\public\SkillTree_Panel.h">
       <Filter>02.GameObject\UI\SkillTree_Panel</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\Player_BattleBase.h" />
+    <ClInclude Include="..\Public\EffectEmitterRegistration.h">
+      <Filter>02.GameObject\Effect\Emitter Registration</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\CharacterStatus_Panel.h">
+      <Filter>02.GameObject\UI\CharacterStatus_Panel</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\SkillTree_Panel.h" />
     <ClInclude Include="..\Public\Monster_BattleBase.h" />
     <ClInclude Include="..\Public\Character_WorldBase.h" />
     <ClInclude Include="..\Public\Character_BattleBase.h" />
@@ -695,10 +712,10 @@
       <Filter>03. Component</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\PointParticleEffect.cpp">
-      <Filter>02.GameObject\Effect\PointParticle</Filter>
+      <Filter>02.GameObject\Effect\Emitters\PointParticle %28deprecated%29</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\ComputePointParticleEffect.cpp">
-      <Filter>02.GameObject\Effect\ComputePointParticle</Filter>
+    <ClCompile Include="..\Private\ComputeSpriteEmitter.cpp">
+      <Filter>02.GameObject\Effect\Emitters\ComputePointParticle</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\InstancedMeshActor.cpp">
       <Filter>02.GameObject\InstancedMeshActor</Filter>
@@ -742,6 +759,14 @@
     </ClCompile>
     <ClCompile Include="..\private\Mon_Lancelier_Body.cpp" />
     <ClCompile Include="..\private\Mon_Lancelier_Weapon.cpp" />
+    <ClCompile Include="..\private\SkillTree_Panel.cpp" />
+    <ClCompile Include="..\public\ANS_QTE.cpp" />
+    <ClCompile Include="..\Private\EffectEmitterRegistration.cpp">
+      <Filter>02.GameObject\Effect\Emitter Registration</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\CharacterStatus_Panel.cpp">
+      <Filter>02.GameObject\UI\CharacterStatus_Panel</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\Monster_BattleBase.cpp" />
     <ClCompile Include="..\Private\Character_WorldBase.cpp" />
     <ClCompile Include="..\Private\Character_BattleBase.cpp" />

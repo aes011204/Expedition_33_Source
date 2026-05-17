@@ -3,10 +3,67 @@
 #include "Action_Command.h"
 #include "Editor_Context.h"
 #include "EffectEditorInstance.h"
+#include "GameInstance.h"
 #include "Helper_ImGui.h"
+#include "Helper_ReadPreset.h"
 #include "Helper_String.h"
 
 NS_BEGIN(EffectEditor)
+
+namespace Internal
+{
+    constexpr const wchar_t* kDefaultEffectMaterialFileName = L"M_DefaultMaterial.effectmaterial.json";
+    constexpr const char* kDefaultEffectMaterialName = "M_DefaultMaterial";
+    constexpr const char* kDefaultEffectMaterialTextureId = "Texture_Effect_DefaultTexture";
+
+    fs::path Resolve_DefaultEffectMaterialPath()
+    {
+        if (GAME == nullptr)
+            return {};
+
+        const vector<AssetMeta> materialAssets = GAME->Get_AssetsByType("EffectMaterial");
+        for (const AssetMeta& assetMeta : materialAssets)
+        {
+            if (assetMeta.fullPath.empty())
+                continue;
+
+            if (fs::path(assetMeta.fullPath).filename() == kDefaultEffectMaterialFileName)
+                return assetMeta.fullPath;
+        }
+
+        const wstring assetRoot = GAME->Get_AssetRoot();
+        if (assetRoot.empty())
+            return {};
+
+        const fs::path candidatePath =
+            fs::path(assetRoot) / L"Effects" / L"Materials" / kDefaultEffectMaterialFileName;
+        if (!fs::exists(candidatePath))
+            return {};
+
+        const string materialGuid = GAME->Ensure_AssetGUID(candidatePath.wstring(), "EffectMaterial");
+        if (!materialGuid.empty())
+        {
+            const wstring resolvedPath = GAME->Resolve_AssetPath(materialGuid);
+            if (!resolvedPath.empty())
+                return resolvedPath;
+        }
+
+        return candidatePath;
+    }
+
+    RequiredModuleData Make_DefaultRequiredModuleData()
+    {
+        RequiredModuleData data{};
+        const fs::path materialPath = Resolve_DefaultEffectMaterialPath();
+        if (materialPath.empty() || !ReadPreset::Read(materialPath, data.material))
+        {
+            data.material.sourcePresetName = kDefaultEffectMaterialName;
+            data.material.mainTextureId = kDefaultEffectMaterialTextureId;
+        }
+
+        return data;
+    }
+}
 
 Emitter_View::Emitter_View()
     : Editor_Window{ L"Emitter", ICON_FA_FIRE }
@@ -219,7 +276,7 @@ AuthoringModule Emitter_View::Make_RequiredModule()
     module.enabled = true;
     module.movable = false;
     module.removable = false;
-    module.data = RequiredModuleData{};
+    module.data = Internal::Make_DefaultRequiredModuleData();
     return module;
 }
 
@@ -280,6 +337,111 @@ AuthoringModule Emitter_View::Make_InitialVelocityModule()
     module.movable = true;
     module.removable = true;
     module.data = InitialVelocityModuleData{};
+    return module;
+}
+
+AuthoringModule Emitter_View::Make_AccelerationModule()
+{
+    AuthoringModule module{};
+    module.id = Issue_AuthoringId();
+    module.type = AuthoringModuleType::Acceleration;
+    module.key = "Acceleration";
+    module.displayName = L"가속";
+    module.summary = L"시간에 따라 더해지는 속도";
+    module.enabled = true;
+    module.movable = true;
+    module.removable = true;
+    module.data = AccelerationModuleData{};
+    return module;
+}
+
+AuthoringModule Emitter_View::Make_DragModule()
+{
+    AuthoringModule module{};
+    module.id = Issue_AuthoringId();
+    module.type = AuthoringModuleType::Drag;
+    module.key = "Drag";
+    module.displayName = L"드래그";
+    module.summary = L"속도 감쇠";
+    module.enabled = true;
+    module.movable = true;
+    module.removable = true;
+    module.data = DragModuleData{};
+    return module;
+}
+
+AuthoringModule Emitter_View::Make_VelocityOverLifeModule()
+{
+    AuthoringModule module{};
+    module.id = Issue_AuthoringId();
+    module.type = AuthoringModuleType::VelocityOverLife;
+    module.key = "Velocity Over Life";
+    module.displayName = L"수명에 따른 속도";
+    module.summary = L"수명 진행률 기준 속도 배율";
+    module.enabled = true;
+    module.movable = true;
+    module.removable = true;
+    module.data = VelocityOverLifeModuleData{};
+    return module;
+}
+
+AuthoringModule Emitter_View::Make_InitialRotationModule()
+{
+    AuthoringModule module{};
+    module.id = Issue_AuthoringId();
+    module.type = AuthoringModuleType::InitialRotation;
+    module.key = "Initial Rotation";
+    module.displayName = L"초기 회전";
+    module.summary = L"생성 시점 회전각";
+    module.enabled = true;
+    module.movable = true;
+    module.removable = true;
+    module.data = InitialRotationModuleData{};
+    return module;
+}
+
+AuthoringModule Emitter_View::Make_RotationOverLifeModule()
+{
+    AuthoringModule module{};
+    module.id = Issue_AuthoringId();
+    module.type = AuthoringModuleType::RotationOverLife;
+    module.key = "Rotation Over Life";
+    module.displayName = L"수명에 따른 회전";
+    module.summary = L"수명 진행률 기준 추가 회전";
+    module.enabled = true;
+    module.movable = true;
+    module.removable = true;
+    module.data = RotationOverLifeModuleData{};
+    return module;
+}
+
+AuthoringModule Emitter_View::Make_InitialRotationRateModule()
+{
+    AuthoringModule module{};
+    module.id = Issue_AuthoringId();
+    module.type = AuthoringModuleType::InitialRotationRate;
+    module.key = "Initial Rotation Rate";
+    module.displayName = L"초기 회전 속도";
+    module.summary = L"초당 회전 속도";
+    module.enabled = true;
+    module.movable = true;
+    module.removable = true;
+    module.data = InitialRotationRateModuleData{};
+    return module;
+}
+
+AuthoringModule Emitter_View::Make_RotationRateScaleByLifeModule()
+{
+    AuthoringModule module{};
+    module.id = Issue_AuthoringId();
+    module.type = AuthoringModuleType::RotationRateScaleByLife;
+    module.key = "Rotation Rate Scale By Life";
+    module.displayName = L"수명에 따른 회전 속도";
+    module.summary = L"수명 진행률 기준 회전 속도 배율";
+    module.enabled = true;
+    module.movable = true;
+    module.removable = true;
+    module.data = RotationRateScaleByLifeModuleData{};
     return module;
 }
 
@@ -365,6 +527,13 @@ bool Emitter_View::Can_AddModuleType(const AuthoringEmitter& emitter, AuthoringM
     case AuthoringModuleType::Lifetime:
     case AuthoringModuleType::InitialSize:
     case AuthoringModuleType::InitialVelocity:
+    case AuthoringModuleType::Acceleration:
+    case AuthoringModuleType::Drag:
+    case AuthoringModuleType::VelocityOverLife:
+    case AuthoringModuleType::InitialRotation:
+    case AuthoringModuleType::RotationOverLife:
+    case AuthoringModuleType::InitialRotationRate:
+    case AuthoringModuleType::RotationRateScaleByLife:
     case AuthoringModuleType::InitialColor:
     case AuthoringModuleType::ColorOverLife:
     case AuthoringModuleType::SubUVFrameOverLife:
@@ -396,6 +565,27 @@ void Emitter_View::Add_Module(size_t emitterIndex, AuthoringModuleType type)
         break;
     case AuthoringModuleType::InitialVelocity:
         module = Make_InitialVelocityModule();
+        break;
+    case AuthoringModuleType::Acceleration:
+        module = Make_AccelerationModule();
+        break;
+    case AuthoringModuleType::Drag:
+        module = Make_DragModule();
+        break;
+    case AuthoringModuleType::VelocityOverLife:
+        module = Make_VelocityOverLifeModule();
+        break;
+    case AuthoringModuleType::InitialRotation:
+        module = Make_InitialRotationModule();
+        break;
+    case AuthoringModuleType::RotationOverLife:
+        module = Make_RotationOverLifeModule();
+        break;
+    case AuthoringModuleType::InitialRotationRate:
+        module = Make_InitialRotationRateModule();
+        break;
+    case AuthoringModuleType::RotationRateScaleByLife:
+        module = Make_RotationRateScaleByLifeModule();
         break;
     case AuthoringModuleType::InitialColor:
         module = Make_InitialColorModule();
@@ -625,7 +815,7 @@ void Emitter_View::Reset_ModuleData(size_t emitterIndex, size_t moduleIndex)
     {
     case AuthoringModuleType::Required:
     {
-        RequiredModuleData data{};
+        RequiredModuleData data = Internal::Make_DefaultRequiredModuleData();
         module.data = data;
         emitter.rendererType = data.rendererType;
         emitter.textureId = data.material.mainTextureId;
@@ -647,6 +837,34 @@ void Emitter_View::Reset_ModuleData(size_t emitterIndex, size_t moduleIndex)
 
     case AuthoringModuleType::InitialVelocity:
         module.data = InitialVelocityModuleData{};
+        break;
+
+    case AuthoringModuleType::Acceleration:
+        module.data = AccelerationModuleData{};
+        break;
+
+    case AuthoringModuleType::Drag:
+        module.data = DragModuleData{};
+        break;
+
+    case AuthoringModuleType::VelocityOverLife:
+        module.data = VelocityOverLifeModuleData{};
+        break;
+
+    case AuthoringModuleType::InitialRotation:
+        module.data = InitialRotationModuleData{};
+        break;
+
+    case AuthoringModuleType::RotationOverLife:
+        module.data = RotationOverLifeModuleData{};
+        break;
+
+    case AuthoringModuleType::InitialRotationRate:
+        module.data = InitialRotationRateModuleData{};
+        break;
+
+    case AuthoringModuleType::RotationRateScaleByLife:
+        module.data = RotationRateScaleByLifeModuleData{};
         break;
 
     case AuthoringModuleType::InitialColor:
@@ -784,6 +1002,76 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
     );
     entries.push_back(
         makeEntry(
+            AuthoringModuleType::Acceleration,
+            L"가속",
+            true,
+            true,
+            Can_AddModuleType(emitter, AuthoringModuleType::Acceleration),
+            "이미 장착됨"
+        )
+    );
+    entries.push_back(
+        makeEntry(
+            AuthoringModuleType::Drag,
+            L"드래그",
+            true,
+            true,
+            Can_AddModuleType(emitter, AuthoringModuleType::Drag),
+            "이미 장착됨"
+        )
+    );
+    entries.push_back(
+        makeEntry(
+            AuthoringModuleType::VelocityOverLife,
+            L"수명에 따른 속도",
+            true,
+            true,
+            Can_AddModuleType(emitter, AuthoringModuleType::VelocityOverLife),
+            "이미 장착됨"
+        )
+    );
+    entries.push_back(
+        makeEntry(
+            AuthoringModuleType::InitialRotation,
+            L"초기 회전",
+            true,
+            true,
+            Can_AddModuleType(emitter, AuthoringModuleType::InitialRotation),
+            "이미 장착됨"
+        )
+    );
+    entries.push_back(
+        makeEntry(
+            AuthoringModuleType::RotationOverLife,
+            L"수명에 따른 회전",
+            true,
+            true,
+            Can_AddModuleType(emitter, AuthoringModuleType::RotationOverLife),
+            "이미 장착됨"
+        )
+    );
+    entries.push_back(
+        makeEntry(
+            AuthoringModuleType::InitialRotationRate,
+            L"초기 회전 속도",
+            true,
+            true,
+            Can_AddModuleType(emitter, AuthoringModuleType::InitialRotationRate),
+            "이미 장착됨"
+        )
+    );
+    entries.push_back(
+        makeEntry(
+            AuthoringModuleType::RotationRateScaleByLife,
+            L"수명에 따른 회전 속도",
+            true,
+            true,
+            Can_AddModuleType(emitter, AuthoringModuleType::RotationRateScaleByLife),
+            "이미 장착됨"
+        )
+    );
+    entries.push_back(
+        makeEntry(
             AuthoringModuleType::InitialColor,
             L"초기 컬러",
             true,
@@ -822,9 +1110,6 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
             "이미 장착됨"
         )
     );
-
-    entries.push_back(makeEntry({}, L"가속도", false, true, false, "미구현"));
-    entries.push_back(makeEntry({}, L"회전 속도", false, true, false, "미구현"));
 
     std::sort(
         entries.begin(),

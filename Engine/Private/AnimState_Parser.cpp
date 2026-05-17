@@ -3,87 +3,159 @@
 #include "GameInstance.h"
 #include "Animation.h"
 
-bool AnimState_Parser::Load_StateAnimations(
-	const wstring& sourceModelPath,
+bool AnimState_Parser::Load_StateAnimations_FromFile(
+	const wstring& animMapPath,
 	const vector<Shared<Animation>>& originalAnimations,
 	OUT vector<uint32>& outStateAnimIndices,
 	OUT wstring* outFoundEnumType)
 {
 	outStateAnimIndices.clear();
-	if (sourceModelPath.empty()) return false;
 
-	fs::path modelFilePath(sourceModelPath);
-	fs::path modelDir = modelFilePath.parent_path();
-
-	if (!fs::exists(modelDir)) return false;
-
-	for (const auto& entry : fs::directory_iterator(modelDir))
+	if (animMapPath.empty() || !fs::exists(animMapPath))
 	{
-		if (!entry.is_regular_file()) continue;
-		if (entry.path().filename().string().find(".animmap.json") == string::npos) continue;
+		return false;
+	}
 
-		std::ifstream file(entry.path());
-		if (!file.is_open()) continue;
+	std::ifstream file(animMapPath);
+	if (!file.is_open())
+	{
+		return false;
+	}
 
-		json root;
-		try { file >> root; }
-		catch (...) { continue; }
+	json root;
+	try
+	{
+		file >> root;
+	}
+	catch (...)
+	{
+		return false;
+	}
 
-		if (!root.contains("Mappings")) continue;
+	if (!root.contains("Mappings") || !root["Mappings"].is_array())
+	{
+		return false;
+	}
 
-		if (root.contains("EnumType") && outFoundEnumType)
-		{
-			string enumStr = root["EnumType"].get<string>();
-			*outFoundEnumType = wstring(enumStr.begin(), enumStr.end());
-		}
+	if (root.contains("EnumType") && outFoundEnumType)
+	{
+		string enumStr = root["EnumType"].get<string>();
+		*outFoundEnumType = String::ToWString(enumStr);
+	}
 
-		uint32 maxIndex = 0;
-		for (const auto& mapping : root["Mappings"])
+	uint32 maxIndex = 0;
+	for (const auto& mapping : root["Mappings"])
+	{
+		if (mapping.contains("Index"))
 		{
 			uint32 idx = mapping["Index"].get<uint32>();
 			if (idx > maxIndex) maxIndex = idx;
 		}
+	}
+	outStateAnimIndices.resize(maxIndex + 1, UINT32_MAX);
+// 6. 상태별 애니메이션 매칭
+uint32 mappedCount = 0;
+for (const auto& mapping : root["Mappings"])
+{
+	if (!mapping.contains("Index") || !mapping.contains("Anim"))
+		continue;
 
-		outStateAnimIndices.resize(maxIndex + 1, UINT32_MAX);
+	uint32 stateIdx = mapping["Index"].get<uint32>();
+	string targetAnimName = mapping["Anim"].get<string>();
 
-		for (const auto& mapping : root["Mappings"])
+	bool found = false;
+	for (uint32 i = 0; i < (uint32)originalAnimations.size(); ++i)
+	{
+		string availableName = originalAnimations[i]->Get_AnimationName();
+		if (availableName == targetAnimName)
 		{
-			uint32 stateIdx = mapping["Index"].get<uint32>();
-			string animName = mapping["Anim"].get<string>();
+			outStateAnimIndices[stateIdx] = i;
+			mappedCount++;
+			found = true;
+			break;
+		}
+	}
 
-			for (uint32 i = 0; i < originalAnimations.size(); ++i)
+	if (!found)
+	{
+		string availableNamesStr = "";
+		for (const auto& anim : originalAnimations) 
+			availableNamesStr += anim->Get_AnimationName() + ", ";
+
+		LOG_WARN("AnimState_Parser - Match Failed: JSON Name [{}], Model Anims: [{}]", 
+			targetAnimName, availableNamesStr);
+	}
+}
+
+	string fileName = fs::path(animMapPath).filename().string();
+	string enumTypeStr = root.contains("EnumType") ? root["EnumType"].get<string>() : "None";
+
+	LOG_INFO("AnimState Mapping Loaded : File [{}], EnumType [{}], Mapped [{}/{}] states.",
+		fileName, enumTypeStr, mappedCount, outStateAnimIndices.size());
+
+	return true;
+}
+
+bool AnimState_Parser::Load_StateAnimations(
+	const wstring& sourceModelPath,
+	const vector<Shared<Animation>>& originalAnimations,
+	OUT vector<uint32>& outStateAnimIndices,
+	OUT wstring* outFoundEnumType,
+	const string& targetPrefabGuid)
+{
+	if (sourceModelPath.empty()) return false;
+
+	fs::path modelDir = fs::path(sourceModelPath).parent_path();
+	if (!fs::exists(modelDir)) return false;
+
+	fs::path bestMatch = "";
+
+	for (const auto& entry : fs::directory_iterator(modelDir))
+	{
+		if (!entry.is_regular_file()) continue;
+		string filename = entry.path().filename().string();
+		if (filename.find(".animmap.json") == string::npos) continue;
+
+		// 1. 타겟 GUID가 주어졌다면 파일 내부를 까서 확인
+		if (!targetPrefabGuid.empty())
+		{
+			std::ifstream file(entry.path());
+			if (file.is_open())
 			{
-				if (strcmp(originalAnimations[i]->Get_AnimationName().c_str(), animName.c_str()) == 0)
-				{
-					outStateAnimIndices[stateIdx] = i;
-					break;
-				}
+				json data;
+				try 
+				{ 
+					file >> data; 
+					if (data.value("PrefabGuid", "") == targetPrefabGuid)
+					{
+						bestMatch = entry.path();
+						break; // 정확한 매칭을 찾았으므로 즉시 종료
+					}
+				} 
+				catch (...) {}
 			}
 		}
 
-		// 로깅
-		uint32 validMappingCount = 0;
-		for (uint32 idx : outStateAnimIndices) { if (idx != UINT32_MAX) validMappingCount++; }
-
-		string enumTypeStr = root.contains("EnumType") ? root["EnumType"].get<string>() : "Unknown";
-		string modelName = modelFilePath.stem().string();
-
-		LOG_INFO("AnimState Mapping Auto-Loaded : Model [{}], EnumType [{}], Mapped [{}] states.",
-			modelName, enumTypeStr, validMappingCount);
-
-		for (uint32 stateIdx = 0; stateIdx < outStateAnimIndices.size(); ++stateIdx)
+		// 2. 일치하는 것을 아직 못 찾았다면 첫 번째 발견된 파일을 저장 (Fallback)
+		if (bestMatch.empty())
 		{
-			if (outStateAnimIndices[stateIdx] != UINT32_MAX)
-			{
-				LOG_INFO("  - State [{}] -> AnimIndex [{}] ({})",
-					stateIdx,
-					outStateAnimIndices[stateIdx],
-					originalAnimations[outStateAnimIndices[stateIdx]]->Get_AnimationName().c_str());
-			}
+			bestMatch = entry.path();
 		}
+	}
 
-		return true;
+	if (!bestMatch.empty())
+	{
+		return Load_StateAnimations_FromFile(bestMatch.wstring(), originalAnimations, outStateAnimIndices, outFoundEnumType);
 	}
 
 	return false;
+}
+
+string AnimState_Parser::Get_PrefabGuid(const string& prefabName)
+{
+	if (prefabName.empty())
+		return "";
+
+	string prefabPath = "data/json/prefabs/" + prefabName + ".prefab.json";
+	return GAME->Find_AssetGUID(String::ToWString(prefabPath));
 }

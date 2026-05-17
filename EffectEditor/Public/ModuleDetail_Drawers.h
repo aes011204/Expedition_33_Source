@@ -55,6 +55,76 @@ public:
         DetailPropertyContext& detailContext);
 };
 
+class AccelerationModuleDetail
+{
+public:
+    bool Draw(
+        AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        AccelerationModuleData& data,
+        DetailPropertyContext& detailContext);
+};
+
+class DragModuleDetail
+{
+public:
+    bool Draw(
+        AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        DragModuleData& data,
+        DetailPropertyContext& detailContext);
+};
+
+class VelocityOverLifeModuleDetail
+{
+public:
+    bool Draw(
+        AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        VelocityOverLifeModuleData& data,
+        DetailPropertyContext& detailContext);
+};
+
+class InitialRotationModuleDetail
+{
+public:
+    bool Draw(
+        AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        InitialRotationModuleData& data,
+        DetailPropertyContext& detailContext);
+};
+
+class RotationOverLifeModuleDetail
+{
+public:
+    bool Draw(
+        AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        RotationOverLifeModuleData& data,
+        DetailPropertyContext& detailContext);
+};
+
+class InitialRotationRateModuleDetail
+{
+public:
+    bool Draw(
+        AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        InitialRotationRateModuleData& data,
+        DetailPropertyContext& detailContext);
+};
+
+class RotationRateScaleByLifeModuleDetail
+{
+public:
+    bool Draw(
+        AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        RotationRateScaleByLifeModuleData& data,
+        DetailPropertyContext& detailContext);
+};
+
 class InitialColorModuleDetail
 {
 public:

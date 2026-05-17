@@ -44,7 +44,8 @@ namespace ModelEditor
 		// 1. Tech Junk Tokens (Exact matches only)
 		static const unordered_set<string> junkSet = {
 			"ALS", "UE5", "RETAKE", "UNREAL", "TAKE", "DEFAULT", "PLACEHOLDER", "SK",
-			"LF", "RF", "N", "F", "B", "L", "R", "W", "S", "E"
+			"LF", "RF", "N", "F", "B", "L", "R", "W", "S", "E",
+            "AM", "PACK", "MCIDLESPACK", "RETARGETED"
 		};
 
 		// 2. Tokenize by various delimiters
@@ -156,7 +157,12 @@ namespace ModelEditor
 		ImGui::Separator();
 
 		ImGui::Checkbox("Generate Debug JSON Logs", &_exportJsonLog);
-		ImGui::Checkbox("Apply Global Scale (Static Only)", &_applyGlobalScale);
+        ImGui::Separator();
+        ImGui::Checkbox("Export Model Data", &_exportModelData);
+        ImGui::Separator();
+        ImGui::Checkbox("Export Reversed Animation (Backward)", &_exportReversedAnimation);
+        ImGui::Separator();
+		ImGui::Checkbox("Apply Global Scale (Static Only)", &_applyStaticGlobalScale);
 		ImGui::Separator();
 
 		if (ImGui::Button("Scan FBX Files", ImVec2(150, 30)))
@@ -328,7 +334,7 @@ namespace ModelEditor
         _isSkeletal = hasMeshBones || probeScene->mNumAnimations > 0;
         
         uint32 finalFlags = _importFlags;
-        if (true == _applyGlobalScale && false == _isSkeletal)
+        if (false == _applyStaticGlobalScale && false == _isSkeletal)
         {
             finalFlags |= aiProcess_PreTransformVertices | aiProcess_GlobalScale;
         }
@@ -404,15 +410,17 @@ namespace ModelEditor
             _isSkeletal = false;
         }
 
-		ReadMeshes(_aiScene);
-		ReadMaterial(_aiScene);
 		ReadAnimations(_aiScene);
 		Ensure_DirectoryExists(outputDir);
 
-		if (FAILED(Export_ModelData(_aiScene, outputDir, modelName)))
+		if (_exportModelData)
 		{
-			return E_FAIL;
+			if (FAILED(Export_ModelData(_aiScene, outputDir, modelName)))
+			{
+				return E_FAIL;
+			}
 		}
+
 		if (FAILED(Export_AnimationData(_aiScene, outputDir, modelName)))
 		{
 			return E_FAIL;
@@ -1036,15 +1044,12 @@ namespace ModelEditor
                     finalFileName += "_" + to_string(i);
                 }
             }
-            else
-            {
-                // 단일 애니메이션의 경우에도 내부 이름이 더 구체적이라면 사용하는 것을 고려 (옵션)
-                // 하지만 FBX 파일명을 기본으로 하는 기존 로직을 유지하면서,
-                // 혹시라도 파일명이 "Lancelier"이고 내부 이름이 "Dash_Out"일 때 결합하고 싶다면 여기서도 처리할 수 있습니다.
-                // 여기서는 기존 로직대로 단일 애니메이션은 FBX 파일명(cleanModelName)을 우선시합니다.
-            }
 
-            wstring animPath = animDir + Engine::String::ToWString(finalFileName) + L".anim";
+            if (_exportReversedAnimation)
+            {
+                finalFileName += "_Reversed";
+            }
+            wstring animPath = animDir + ToWString(finalFileName) + L".anim";
             
             ofstream out(animPath, ios::binary);
             if (!out.is_open())
@@ -1059,8 +1064,18 @@ namespace ModelEditor
 			WriteString(out, finalFileName);
 			out.write(BYTE(&_animHeaders[i].duration), sizeof(double) * 2);
 			out.write(BYTE(&_animHeaders[i].numChannels), sizeof(uint32));
-			out.write(BYTE(&_animHeaders[i].rootTotalTranslation), sizeof(Vec3));
-			out.write(BYTE(&_animHeaders[i].rootTotalRotation), sizeof(Vec4));
+
+            Vec3 rootTranslation = _animHeaders[i].rootTotalTranslation;
+            Vec4 rootRotation = _animHeaders[i].rootTotalRotation;
+
+            if (_exportReversedAnimation)
+            {
+                rootTranslation = Vec3{ -rootTranslation.x, -rootTranslation.y, -rootTranslation.z };
+                rootRotation = Vec4{ -rootRotation.x, -rootRotation.y, -rootRotation.z, rootRotation.w };
+            }
+
+			out.write(BYTE(&rootTranslation), sizeof(Vec3));
+			out.write(BYTE(&rootRotation), sizeof(Vec4));
 
 			uint32 numChannels = _animHeaders[i].numChannels;
 			for (uint32 j = 0; j < numChannels; ++j)
@@ -1069,7 +1084,24 @@ namespace ModelEditor
 				out.write(BYTE(&_channelHeaders[i][j].boneIndex), sizeof(int32));
 				out.write(BYTE(&_channelHeaders[i][j].numKeyframes), sizeof(uint32));
 				
-				out.write(BYTE(_keyframes[i][j].data()), _channelHeaders[i][j].numKeyframes * sizeof(KEYFRAME));
+                if (_exportReversedAnimation) // 채널 역전 구성
+                {
+                    vector<KEYFRAME> reverseKeys = _keyframes[i][j];
+                    float duration = static_cast<float>(_animHeaders[i].duration);
+
+                    ranges::reverse(reverseKeys);
+
+                    for (auto& key : reverseKeys)
+                    {
+                        key.trackPosition = duration - key.trackPosition;
+                    }
+
+                    out.write(BYTE(reverseKeys.data()), _channelHeaders[i][j].numKeyframes * sizeof(KEYFRAME));
+                }
+                else
+                {
+                    out.write(BYTE(_keyframes[i][j].data()), _channelHeaders[i][j].numKeyframes * sizeof(KEYFRAME));
+                }
 			}
 
 			out.close();
