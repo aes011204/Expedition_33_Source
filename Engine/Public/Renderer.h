@@ -90,7 +90,7 @@ private:
     uint32                          iDrawCall = 0;
 
     bool                            _usePreviewDeferredCombine = false;
-    
+    bool                            _useRTVDump = false;
 #ifdef _DEBUG
 private:
     struct PerfCounter
@@ -135,6 +135,7 @@ private:
     static void Accumulate_PassPerf(PerfCounter& counter, double passMs);
     static void Reset_RenderPerfWindow(RenderPerfWindow& window);
     static double Safe_Divide(double numerator, double denominator);
+    void DumpCurrentOMState(const wchar_t* stageTag) const;
 
 #endif
 
@@ -155,18 +156,6 @@ private :
 
 #endif
 };
-
-#pragma region RENDERER MACRO
-#define ENDMRT_RETURN_IF_FAILED(expr)       \
-    do                                      \
-    {                                       \
-        if (FAILED(expr))                   \
-        {                                   \
-            GAME->End_MRT();                \
-            return;                         \
-        }                                   \
-    } while (false)
-#pragma endregion
 
 NS_END
 

@@ -38,4 +38,57 @@ static constexpr bool NotUseDSV = false;
 static constexpr bool ClearRTV = true;
 static constexpr bool NotClearRTV = false;
 
+#pragma region RENDERER MACRO
+#define ENDMRT_RETURN_IF_FAILED(expr)       \
+    do                                      \
+    {                                       \
+        if (FAILED(expr))                   \
+        {                                   \
+            GAME->End_MRT();                \
+            return;                         \
+        }                                   \
+    } while (false)
+
+#define RETURN_LOG_IF_FAILED(expr, message)         \
+    do                                              \
+    {                                               \
+        if (FAILED(expr))                           \
+        {                                           \
+            DEBUG_LOG_FAIL(message);                \
+            return;                                 \
+        }                                           \
+    } while (false)
+
+
+#ifdef _DEBUG
+#define DEBUG_LOG_FAIL(message) logFail(message)
+#else
+#define DEBUG_LOG_FAIL(message) ((void)0)
+#endif
+
+#define ENDMRT_RETURN_LOG_IF_FAILED(expr, message)  \
+    do                                              \
+    {                                               \
+        if (FAILED(expr))                           \
+        {                                           \
+            DEBUG_LOG_FAIL(message);                \
+            GAME->End_MRT();                        \
+            return;                                 \
+        }                                           \
+    } while (false)
+
+
+#define COMBINEDHDR_RETURN_LOG_IF_FAILED(expr, message)    \
+    do                                                      \
+    {                                                       \
+        if (FAILED(expr))                                   \
+        {                                                   \
+            DEBUG_LOG_FAIL(message);                        \
+            if (postProcess)                                \
+                GAME->End_MRT();                            \
+            return;                                         \
+        }                                                   \
+    } while (false)
+#pragma endregion
+
 NS_END

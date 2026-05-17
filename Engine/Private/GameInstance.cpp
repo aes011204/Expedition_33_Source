@@ -325,7 +325,7 @@ HRESULT GameInstance::Draw()
 
     _renderer->Draw();
 
-    //_levelManager->Render();
+    _levelManager->Render();
 
     //CHECK_FAILED(Update_Picking(), E_FAIL);
 

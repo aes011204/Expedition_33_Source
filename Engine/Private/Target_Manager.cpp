@@ -13,7 +13,7 @@ HRESULT Target_Manager::Add_RenderTarget(const wstring& targetTag, uint32 sizeX,
     if (Find_RenderTarget(targetTag))
         return E_FAIL;
 
-    auto target = RenderTarget::Create(_device, _context, sizeX, sizeY, pixelFormat, clearColor, useDSV);
+    auto target = RenderTarget::Create(targetTag, _device, _context, sizeX, sizeY, pixelFormat, clearColor, useDSV);
 
     if (target == nullptr)
         return E_FAIL;
@@ -334,7 +334,6 @@ void Target_Manager::Free()
 }
 
 #ifdef _DEBUG
-
 HRESULT Target_Manager::Initialize_Debug(float totalSizeX, float totalSizeY)
 {
     return Resize_DrawArea(totalSizeX, totalSizeY);

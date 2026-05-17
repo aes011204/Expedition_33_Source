@@ -6,6 +6,58 @@
 #include "ShaderCom.h"
 #include "VIBuffer_Rect.h"
 
+#pragma region DEBUG
+#ifdef _DEBUG
+namespace
+{
+    wstring PtrToWString(const void* ptr)
+    {
+        wchar_t buffer[32] = {};
+        swprintf_s(buffer, L"0x%p", ptr);
+        return buffer;
+    }
+
+    bool Try_GetObjectName(ID3D11DeviceChild* child, wstring& outName)
+    {
+        if (nullptr == child)
+            return false;
+
+        wchar_t nameW[256] = {};
+        UINT sizeW = sizeof(nameW);
+        if (SUCCEEDED(child->GetPrivateData(WKPDID_D3DDebugObjectNameW, &sizeW, nameW)) &&
+            sizeW > sizeof(wchar_t) && nameW[0] != L'\0')
+        {
+            outName = nameW;
+            return true;
+        }
+
+        char nameA[256] = {};
+        UINT sizeA = sizeof(nameA);
+        if (SUCCEEDED(child->GetPrivateData(WKPDID_D3DDebugObjectName, &sizeA, nameA)) &&
+            sizeA > 0 && nameA[0] != '\0')
+        {
+            int length = MultiByteToWideChar(CP_UTF8, 0, nameA, -1, nullptr, 0);
+            if (length <= 0)
+                length = MultiByteToWideChar(CP_ACP, 0, nameA, -1, nullptr, 0);
+
+            if (length > 1)
+            {
+                vector<wchar_t> wideBuffer(static_cast<size_t>(length), L'\0');
+                if (MultiByteToWideChar(CP_UTF8, 0, nameA, -1, wideBuffer.data(), length) <= 0)
+                {
+                    MultiByteToWideChar(CP_ACP, 0, nameA, -1, wideBuffer.data(), length);
+                }
+                outName.assign(wideBuffer.data());
+                return true;
+            }
+        }
+
+        return false;
+    }
+}
+#endif
+#pragma endregion
+
 Renderer::Renderer(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : _device{ device }
     , _context{ context }
@@ -33,11 +85,16 @@ void Renderer::Add_RenderGroup(RenderGroup renderGroup, const Shared<GameObject>
 
 void Renderer::Draw()
 {
+    // ===========================================================================================
+    // 렌더 패스 추가하고 싶은데 _DEBUG 이런 거 때문에 넘 복잡하다 싶으면 제게 말해주세요~
+    // ===========================================================================================
     Change_ViewportDesc(GAME->Get_ViewportWidth(), GAME->Get_ViewportHeight());
 
 #ifdef _DEBUG
+    DumpCurrentOMState(L"Renderer::Draw:Begin");
     Reset_RenderCall();
 
+#pragma region DEBUG_VAR
     const auto renderBegin = chrono::steady_clock::now();
     double priorityMs = 0.0;
     double shadowMs = 0.0;
@@ -51,59 +108,93 @@ void Renderer::Draw()
     double debugMs = 0.0;
 
     const auto priorityBegin = chrono::steady_clock::now();
-#endif
+#pragma endregion
 
+    DumpCurrentOMState(L"Render_Priority:Before");
+#endif
+    // ========================================= //
     Render_Priority();
+    // ========================================= //
 #ifdef _DEBUG
+    DumpCurrentOMState(L"Render_Priority:After");
     priorityMs = chrono::duration<double, milli>(chrono::steady_clock::now() - priorityBegin).count();
     const auto shadowBegin = chrono::steady_clock::now();
+    DumpCurrentOMState(L"Render_Shadow:Before");
 #endif
 
-//    Render_Shadow();
+    // ========================================= //
+    // Render_Shadow();
+    // ========================================= //
     _renderGroups[ETOI(RenderGroup::Shadow)].clear(); // 이거 Render Shadow 키면 없애야함
 #ifdef _DEBUG
     shadowMs = chrono::duration<double, milli>(chrono::steady_clock::now() - shadowBegin).count();
     const auto nonBlendBegin = chrono::steady_clock::now();
+    DumpCurrentOMState(L"Render_NonBlend:Before");
 #endif
 
+    // ========================================= //
     Render_NonBlend();
+    // ========================================= //
 #ifdef _DEBUG
+    DumpCurrentOMState(L"Render_NonBlend:After");
     nonBlendMs = chrono::duration<double, milli>(chrono::steady_clock::now() - nonBlendBegin).count();
     const auto lightsBegin = chrono::steady_clock::now();
+    DumpCurrentOMState(L"Render_Lights:Before");
 #endif
 
+    // ========================================= //
     Render_Lights();
+    // ========================================= //
 #ifdef _DEBUG
+    DumpCurrentOMState(L"Render_Lights:After");
     lightsMs = chrono::duration<double, milli>(chrono::steady_clock::now() - lightsBegin).count();
     const auto combinedHDRBegin = chrono::steady_clock::now();
+    DumpCurrentOMState(L"Render_CombinedHDR:Before");
 #endif
-    
+
     Render_CombinedHDR();
 #ifdef _DEBUG
+    DumpCurrentOMState(L"Render_CombinedHDR:After");
     combinedHDRMs = chrono::duration<double, milli>(chrono::steady_clock::now() - combinedHDRBegin).count();
     const auto nonlightBegin = chrono::steady_clock::now();
+    DumpCurrentOMState(L"Render_NonLight:Before");
 #endif
 
+    // ========================================= //
     Render_NonLight();
+    // ========================================= //
 #ifdef _DEBUG
+    DumpCurrentOMState(L"Render_NonLight:After");
     nonlightMs = chrono::duration<double, milli>(chrono::steady_clock::now() - nonlightBegin).count();
     const auto blendBegin = chrono::steady_clock::now();
+    DumpCurrentOMState(L"Render_Blend:Before");
 #endif
 
+    // ========================================= //
     Render_Blend();
+    // ========================================= //
 #ifdef _DEBUG
+    DumpCurrentOMState(L"Render_Blend:After");
     blendMs = chrono::duration<double, milli>(chrono::steady_clock::now() - blendBegin).count();
     const auto postProcesBegin = chrono::steady_clock::now();
+    DumpCurrentOMState(L"Render_PostProcess:Before");
 #endif
 
+    // ========================================= //
     Render_PostProcess();
+    // ========================================= //
 #ifdef _DEBUG
+    DumpCurrentOMState(L"Render_PostProcess:After");
     postProcessMs = chrono::duration<double, milli>(chrono::steady_clock::now() - postProcesBegin).count();
     const auto uiBegin = chrono::steady_clock::now();
+    DumpCurrentOMState(L"Render_UI:Before");
 #endif
 
+    // ========================================= //
     Render_UI();
+    // ========================================= //
 #ifdef _DEBUG
+    DumpCurrentOMState(L"Render_UI:After");
     uiMs = chrono::duration<double, milli>(chrono::steady_clock::now() - uiBegin).count();
     const auto debugBegin = chrono::steady_clock::now();
 #endif
@@ -249,7 +340,6 @@ void Renderer::Render_NonBlend()
     CHECK_FAILED(GAME->End_MRT());
 }
 
-
 void Renderer::Render_Lights()
 {
     if (!_deferredShader || !_viBuffer)
@@ -284,6 +374,87 @@ void Renderer::Render_Lights()
         return;
 }
 
+void Renderer::Render_CombinedHDR()
+{
+#ifdef _DEBUG
+    const auto logFail = [this](const wchar_t* stage) { DumpCurrentOMState(stage); };
+#endif
+
+    if (!_deferredShader || !_viBuffer)
+        return;
+
+    bool postProcess = false;
+    if (_ppPipeline && _ppPipeline->Has_PostProcessFeature(PostProcessFeature::HDR))
+    {
+        if (FAILED(GAME->Begin_MRT(MRT::HDR, NotUseDSV, NotClearRTV)))
+            return;
+
+        postProcess = true;
+    }
+
+    // Transform
+    COMBINEDHDR_RETURN_LOG_IF_FAILED(
+        _deferredShader->Bind_ObjectCB(_pipelineWorldMatrix),
+        L"Render_CombinedHDR:FAIL Bind_ObjectCB");
+
+    // depth -> World 위치 복원 용도
+    COMBINEDHDR_RETURN_LOG_IF_FAILED(
+        Bind_TransformCB(_deferredShader),
+        L"Render_CombinedHDR:FAIL Bind_TransformCB");
+
+    // 그림자
+    COMBINEDHDR_RETURN_LOG_IF_FAILED(
+        GAME->Bind_ShadowCB(_deferredShader),
+        L"Render_CombinedHDR:FAIL Bind_ShadowCB");
+
+    // SRV 바인딩
+    COMBINEDHDR_RETURN_LOG_IF_FAILED(
+        GAME->Bind_RT_ShaderResource(_deferredShader, "g_DiffuseTexture", RT::Diffuse),
+        L"Render_CombinedHDR:FAIL Bind_RT_ShaderResource(g_DiffuseTexture)");
+
+    COMBINEDHDR_RETURN_LOG_IF_FAILED(
+        GAME->Bind_RT_ShaderResource(_deferredShader, "g_ShadeTexture", RT::Shade),
+        L"Render_CombinedHDR:FAIL Bind_RT_ShaderResource(g_ShadeTexture)");
+
+    COMBINEDHDR_RETURN_LOG_IF_FAILED(
+        GAME->Bind_RT_ShaderResource(_deferredShader, "g_SpecularTexture", RT::Specular),
+        L"Render_CombinedHDR:FAIL Bind_RT_ShaderResource(g_SpecularTexture)");
+
+    COMBINEDHDR_RETURN_LOG_IF_FAILED(
+        GAME->Bind_RT_ShaderResource(_deferredShader, "g_DepthTexture", RT::Depth),
+        L"Render_CombinedHDR:FAIL Bind_RT_ShaderResource(g_DepthTexture)");
+
+    COMBINEDHDR_RETURN_LOG_IF_FAILED(
+        GAME->Bind_RT_ShaderResource(_deferredShader, "g_LightDepthTexture", RT::LightDepth),
+        L"Render_CombinedHDR:FAIL Bind_RT_ShaderResource(g_LightDepthTexture)");
+
+    COMBINEDHDR_RETURN_LOG_IF_FAILED(
+        GAME->Bind_RT_ShaderResource(_deferredShader, "g_EmissiveTexture", RT::Emissive),
+        L"Render_CombinedHDR:FAIL Bind_RT_ShaderResource(g_EmissiveTexture)");
+
+    // Light 기록
+    COMBINEDHDR_RETURN_LOG_IF_FAILED(
+        _viBuffer->Bind_Resources(),
+        L"Render_CombinedHDR:FAIL Bind_Resources");
+
+    COMBINEDHDR_RETURN_LOG_IF_FAILED(
+        _deferredShader->Begin(ETOI(DeferredPass::CombinedHDR)),
+        L"Render_CombinedHDR:FAIL ShaderBegin(CombinedHDR)");
+
+    COMBINEDHDR_RETURN_LOG_IF_FAILED(
+        _viBuffer->Render(),
+        L"Render_CombinedHDR:FAIL RenderRect");
+
+    if (postProcess)
+    {
+        COMBINEDHDR_RETURN_LOG_IF_FAILED(
+            GAME->End_MRT(),
+            L"Render_CombinedHDR:FAIL End_MRT(HDR)");
+    }
+
+    Add_RenderCall();
+}
+
 void Renderer::Render_NonLight()
 {
     for (auto& renderObject : _renderGroups[ETOI(RenderGroup::NonLight)])
@@ -298,163 +469,6 @@ void Renderer::Render_NonLight()
 
     _renderGroups[ETOI(RenderGroup::NonLight)].clear();
 }
-
-void Renderer::Render_CombinedHDR()
-{
-    if (!_deferredShader || !_viBuffer)
-        return;
-
-    bool postProcess = false;
-    if (_ppPipeline && _ppPipeline->Has_PostProcessFeature(PostProcessFeature::HDR))
-    {
-        if(FAILED(GAME->Begin_MRT(MRT::HDR, NotUseDSV, NotClearRTV)))
-            return;
-        postProcess = true;
-    }
-
-    // Transform
-    if (FAILED(_deferredShader->Bind_ObjectCB(_pipelineWorldMatrix)))
-        return;
-
-    // depth -> World 위치 복원 용도
-    if (FAILED(Bind_TransformCB(_deferredShader)))
-        return;
-
-    // 그림자
-    if (FAILED(GAME->Bind_ShadowCB(_deferredShader)))
-        return;
-
-    // SRV 바인딩
-    if (FAILED(GAME->Bind_RT_ShaderResource(_deferredShader, "g_DiffuseTexture", RT::Diffuse)))
-        return;
-    if (FAILED(GAME->Bind_RT_ShaderResource(_deferredShader, "g_ShadeTexture", RT::Shade)))
-        return;
-    if (FAILED(GAME->Bind_RT_ShaderResource(_deferredShader, "g_SpecularTexture", RT::Specular)))
-        return;
-    if (FAILED(GAME->Bind_RT_ShaderResource(_deferredShader, "g_DepthTexture", RT::Depth)))
-        return;
-    if (FAILED(GAME->Bind_RT_ShaderResource(_deferredShader, "g_LightDepthTexture", RT::LightDepth)))
-        return;
-    if (FAILED(GAME->Bind_RT_ShaderResource(_deferredShader, "g_EmissiveTexture", RT::Emissive)))
-        return;
-
-    // Light 기록
-    if (FAILED(_viBuffer->Bind_Resources()))
-        return;
-    if (FAILED(_deferredShader->Begin(ETOI(DeferredPass::CombinedHDR))))
-        return;
-    if (FAILED(_viBuffer->Render()))
-        return;
-
-    if (postProcess)
-    {
-        if (FAILED(GAME->End_MRT()))
-            return;
-    }
-
-    Add_RenderCall();
-}
-
-void Renderer::Render_PostProcess()
-{
-    if (!_postprocessShader || !_viBuffer)
-        return;
-    if (!_ppPipeline || _ppPipeline->Get_PostProcessFeatures() == PostProcessFeature::None)
-        return;
-    if (!_ppPipeline->Has_PostProcessFeature(PostProcessFeature::HDR))
-        return;
-
-    // Transform
-    if (FAILED(_postprocessShader->Bind_ObjectCB(_pipelineWorldMatrix)))
-        return;
-
-    // PostProcess Params
-    auto& params = _ppPipeline->Get_PostProcessParams();
-    const Vec2 baseTexelSize = Vec2{ 1.f / GAME->Get_ViewportWidth(), 1.f / GAME->Get_ViewportHeight() };
-    params.bloomTexelSize = baseTexelSize;
-    if (FAILED(_postprocessShader->Bind_CBufferData(_ppPipeline->Get_PostProcessParams())))
-        return;
-
-    // depth -> World 위치 복원 용도
-    if (FAILED(Bind_TransformCB(_postprocessShader)))
-        return;
-
-    // IASet... 
-    if (FAILED(_viBuffer->Bind_Resources()))
-        return;
-
-    // 핑퐁 구조
-    const bool useBloom = _ppPipeline->Has_PostProcessFeature(PostProcessFeature::Bloom);
-    if (useBloom)
-    {
-        // HDR -> Bloom 추출
-        ENDMRT_RETURN_IF_FAILED(GAME->Begin_MRT(MRT::BloomExtract, NotUseDSV, ClearRTV));
-        ENDMRT_RETURN_IF_FAILED(GAME->Bind_RT_ShaderResource(_postprocessShader, "g_HDRTexture", RT::HDRColor));
-        ENDMRT_RETURN_IF_FAILED(_postprocessShader->Begin(ETOI(PostProcessPass::BloomExtract)));
-        ENDMRT_RETURN_IF_FAILED(_viBuffer->Render());
-
-        if (FAILED(GAME->End_MRT()))
-            return;
-
-        Add_RenderCall();
-
-        // Bloom Downsample : BloomExtract -> BloomBlur
-        ENDMRT_RETURN_IF_FAILED(GAME->Begin_MRT(MRT::BloomBlur, NotUseDSV, ClearRTV));
-        ENDMRT_RETURN_IF_FAILED(GAME->Bind_RT_ShaderResource(_postprocessShader, "g_BloomTexture", RT::BloomExtract));
-        ENDMRT_RETURN_IF_FAILED(_postprocessShader->Begin(ETOI(PostProcessPass::BloomDownsample)));
-        ENDMRT_RETURN_IF_FAILED(_viBuffer->Render());
-
-        if (FAILED(GAME->End_MRT()))
-            return;
-
-        Add_RenderCall();
-
-        // 텍셀 사이즈를 키워서 다운샘플링 효과를 낸다.
-        params.bloomTexelSize = Vec2{ baseTexelSize.x * 2.f, baseTexelSize.y * 2.f };
-        ENDMRT_RETURN_IF_FAILED(_postprocessShader->Bind_CBufferData(_ppPipeline->Get_PostProcessParams()));
-
-        // Bloom Blur_H : BloomBlur -> BloomExtract
-        ENDMRT_RETURN_IF_FAILED(GAME->Begin_MRT(MRT::BloomExtract, NotUseDSV, ClearRTV));
-        ENDMRT_RETURN_IF_FAILED(GAME->Bind_RT_ShaderResource(_postprocessShader, "g_BloomTexture", RT::BloomBlur));
-        ENDMRT_RETURN_IF_FAILED(_postprocessShader->Begin(ETOI(PostProcessPass::BloomBlurH)));
-        ENDMRT_RETURN_IF_FAILED(_viBuffer->Render());
-        if (FAILED(GAME->End_MRT()))
-            return;
-
-        Add_RenderCall();
-
-        // Bloom Blur_V : BloomExtract -> BloomBlur
-        ENDMRT_RETURN_IF_FAILED(GAME->Begin_MRT(MRT::BloomBlur, NotUseDSV, ClearRTV));
-        ENDMRT_RETURN_IF_FAILED(GAME->Bind_RT_ShaderResource(_postprocessShader, "g_BloomTexture", RT::BloomExtract));
-        ENDMRT_RETURN_IF_FAILED(_postprocessShader->Begin(ETOI(PostProcessPass::BloomBlurV)));
-        ENDMRT_RETURN_IF_FAILED(_viBuffer->Render());
-        if (FAILED(GAME->End_MRT()))
-            return;
-
-        Add_RenderCall();
-    }
-
-    // Light 기록
-    params.bloomTexelSize = baseTexelSize;
-    if (FAILED(_postprocessShader->Bind_CBufferData(_ppPipeline->Get_PostProcessParams())))
-        return;
-
-    if (FAILED(GAME->Bind_RT_ShaderResource(_postprocessShader, "g_HDRTexture", RT::HDRColor)))
-        return;
-    if (FAILED(GAME->Bind_RT_ShaderResource(_postprocessShader, "g_BloomTexture", RT::BloomBlur)))
-        return;
-    if (FAILED(_postprocessShader->Begin(ETOI(PostProcessPass::ToneMapping))))
-
-    const uint32 passIndex = _usePreviewDeferredCombine
-        ? ETOI(DeferredPass::CombinedPreview) 
-        : ETOI(DeferredPass::CombinedHDR);       // 일반 runtime/gameplay는 기존 shadow combine 유지
-
-    if (FAILED(_viBuffer->Render()))
-        return;
-
-    Add_RenderCall();
-}
-
 
 void Renderer::Render_Blend()
 {
@@ -471,6 +485,197 @@ void Renderer::Render_Blend()
     _renderGroups[ETOI(RenderGroup::Blend)].clear();
 }
 
+void Renderer::Render_PostProcess()
+{
+#ifdef _DEBUG
+    const auto logFail = [this](const wchar_t* stage)
+        {
+            DumpCurrentOMState(stage);
+        };
+#endif
+
+    if (!_postprocessShader || !_viBuffer)
+    {
+#ifdef _DEBUG
+        logFail(L"Render_PostProcess:FAIL MissingShaderOrBuffer");
+#endif
+        return;
+    }
+
+    if (!_ppPipeline || _ppPipeline->Get_PostProcessFeatures() == PostProcessFeature::None)
+    {
+#ifdef _DEBUG
+        logFail(L"Render_PostProcess:FAIL PostProcessFeatureNone");
+#endif
+        return;
+    }
+
+    if (!_ppPipeline->Has_PostProcessFeature(PostProcessFeature::HDR))
+    {
+#ifdef _DEBUG
+        logFail(L"Render_PostProcess:FAIL HDRDisabled");
+#endif
+        return;
+    }
+
+    // Transform
+    RETURN_LOG_IF_FAILED(
+        _postprocessShader->Bind_ObjectCB(_pipelineWorldMatrix),
+        L"Render_PostProcess:FAIL Bind_ObjectCB");
+
+    // PostProcess Params
+    auto& params = _ppPipeline->Get_PostProcessParams();
+    const Vec2 baseTexelSize = Vec2{ 1.f / GAME->Get_ViewportWidth(), 1.f / GAME->Get_ViewportHeight() };
+
+    params.bloomTexelSize = baseTexelSize;
+
+    RETURN_LOG_IF_FAILED(
+        _postprocessShader->Bind_CBufferData(_ppPipeline->Get_PostProcessParams()),
+        L"Render_PostProcess:FAIL Bind_CBufferData(Base)");
+
+    // depth -> World 위치 복원 용도
+    RETURN_LOG_IF_FAILED(
+        Bind_TransformCB(_postprocessShader),
+        L"Render_PostProcess:FAIL Bind_TransformCB");
+
+    // IASet...
+    RETURN_LOG_IF_FAILED(
+        _viBuffer->Bind_Resources(),
+        L"Render_PostProcess:FAIL Bind_Resources");
+
+    // 핑퐁 구조
+    const bool useBloom = _ppPipeline->Has_PostProcessFeature(PostProcessFeature::Bloom);
+    if (useBloom)
+    {
+        // HDR -> Bloom 추출
+        RETURN_LOG_IF_FAILED(
+            GAME->Begin_MRT(MRT::BloomExtract, NotUseDSV, ClearRTV),
+            L"Render_PostProcess:FAIL Begin_MRT(BloomExtract)");
+
+        ENDMRT_RETURN_LOG_IF_FAILED(
+            GAME->Bind_RT_ShaderResource(_postprocessShader, "g_HDRTexture", RT::HDRColor),
+            L"Render_PostProcess:FAIL Bind_RT_ShaderResource(g_HDRTexture)");
+
+        ENDMRT_RETURN_LOG_IF_FAILED(
+            _postprocessShader->Begin(ETOI(PostProcessPass::BloomExtract)),
+            L"Render_PostProcess:FAIL ShaderBegin(BloomExtract)");
+
+        ENDMRT_RETURN_LOG_IF_FAILED(
+            _viBuffer->Render(),
+            L"Render_PostProcess:FAIL RenderRect(BloomExtract)");
+
+        RETURN_LOG_IF_FAILED(
+            GAME->End_MRT(),
+            L"Render_PostProcess:FAIL End_MRT(BloomExtract)");
+
+        Add_RenderCall();
+
+        // Bloom Downsample : BloomExtract -> BloomBlur
+        RETURN_LOG_IF_FAILED(
+            GAME->Begin_MRT(MRT::BloomBlur, NotUseDSV, ClearRTV),
+            L"Render_PostProcess:FAIL Begin_MRT(BloomBlur-Downsample)");
+
+        ENDMRT_RETURN_LOG_IF_FAILED(
+            GAME->Bind_RT_ShaderResource(_postprocessShader, "g_BloomTexture", RT::BloomExtract),
+            L"Render_PostProcess:FAIL Bind_RT_ShaderResource(g_BloomTexture:Extract)");
+
+        ENDMRT_RETURN_LOG_IF_FAILED(
+            _postprocessShader->Begin(ETOI(PostProcessPass::BloomDownsample)),
+            L"Render_PostProcess:FAIL ShaderBegin(BloomDownsample)");
+
+        ENDMRT_RETURN_LOG_IF_FAILED(
+            _viBuffer->Render(),
+            L"Render_PostProcess:FAIL RenderRect(BloomDownsample)");
+
+        RETURN_LOG_IF_FAILED(
+            GAME->End_MRT(),
+            L"Render_PostProcess:FAIL End_MRT(BloomBlur-Downsample)");
+
+        Add_RenderCall();
+
+        // 텍셀 사이즈를 키워서 다운샘플링 효과를 낸다.
+        params.bloomTexelSize = Vec2{ baseTexelSize.x * 2.f, baseTexelSize.y * 2.f };
+
+        RETURN_LOG_IF_FAILED(
+            _postprocessShader->Bind_CBufferData(_ppPipeline->Get_PostProcessParams()),
+            L"Render_PostProcess:FAIL Bind_CBufferData(DownsampleTexel)");
+
+        // Bloom Blur_H : BloomBlur -> BloomExtract
+        RETURN_LOG_IF_FAILED(
+            GAME->Begin_MRT(MRT::BloomExtract, NotUseDSV, ClearRTV),
+            L"Render_PostProcess:FAIL Begin_MRT(BloomExtract-BlurH)");
+
+        ENDMRT_RETURN_LOG_IF_FAILED(
+            GAME->Bind_RT_ShaderResource(_postprocessShader, "g_BloomTexture", RT::BloomBlur),
+            L"Render_PostProcess:FAIL Bind_RT_ShaderResource(g_BloomTexture:BlurSrc)");
+
+        ENDMRT_RETURN_LOG_IF_FAILED(
+            _postprocessShader->Begin(ETOI(PostProcessPass::BloomBlurH)),
+            L"Render_PostProcess:FAIL ShaderBegin(BloomBlurH)");
+
+        ENDMRT_RETURN_LOG_IF_FAILED(
+            _viBuffer->Render(),
+            L"Render_PostProcess:FAIL RenderRect(BloomBlurH)");
+
+        RETURN_LOG_IF_FAILED(
+            GAME->End_MRT(),
+            L"Render_PostProcess:FAIL End_MRT(BloomExtract-BlurH)");
+
+        Add_RenderCall();
+
+        // Bloom Blur_V : BloomExtract -> BloomBlur
+        RETURN_LOG_IF_FAILED(
+            GAME->Begin_MRT(MRT::BloomBlur, NotUseDSV, ClearRTV),
+            L"Render_PostProcess:FAIL Begin_MRT(BloomBlur-BlurV)");
+
+        ENDMRT_RETURN_LOG_IF_FAILED(
+            GAME->Bind_RT_ShaderResource(_postprocessShader, "g_BloomTexture", RT::BloomExtract),
+            L"Render_PostProcess:FAIL Bind_RT_ShaderResource(g_BloomTexture:ExtractForV)");
+
+        ENDMRT_RETURN_LOG_IF_FAILED(
+            _postprocessShader->Begin(ETOI(PostProcessPass::BloomBlurV)),
+            L"Render_PostProcess:FAIL ShaderBegin(BloomBlurV)");
+
+        ENDMRT_RETURN_LOG_IF_FAILED(
+            _viBuffer->Render(),
+            L"Render_PostProcess:FAIL RenderRect(BloomBlurV)");
+
+        RETURN_LOG_IF_FAILED(
+            GAME->End_MRT(),
+            L"Render_PostProcess:FAIL End_MRT(BloomBlur-BlurV)");
+
+        Add_RenderCall();
+    }
+
+    // Light 기록
+    params.bloomTexelSize = baseTexelSize;
+
+    RETURN_LOG_IF_FAILED(
+        _postprocessShader->Bind_CBufferData(_ppPipeline->Get_PostProcessParams()),
+        L"Render_PostProcess:FAIL Bind_CBufferData(ToneMap)");
+
+    RETURN_LOG_IF_FAILED(
+        GAME->Bind_RT_ShaderResource(_postprocessShader, "g_HDRTexture", RT::HDRColor),
+        L"Render_PostProcess:FAIL Bind_RT_ShaderResource(g_HDRTexture-ToneMap)");
+
+    RETURN_LOG_IF_FAILED(
+        GAME->Bind_RT_ShaderResource(_postprocessShader, "g_BloomTexture", RT::BloomBlur),
+        L"Render_PostProcess:FAIL Bind_RT_ShaderResource(g_BloomTexture-ToneMap)");
+
+    RETURN_LOG_IF_FAILED(
+        _postprocessShader->Begin(ETOI(PostProcessPass::ToneMapping)),
+        L"Render_PostProcess:FAIL ShaderBegin(ToneMapping)");
+
+    const uint32 passIndex = _usePreviewDeferredCombine
+        ? ETOI(DeferredPass::CombinedPreview)
+        : ETOI(DeferredPass::CombinedHDR);       // 일반 runtime/gameplay는 기존 shadow combine 유지
+
+    RETURN_LOG_IF_FAILED(
+        _viBuffer->Render(),
+        L"Render_PostProcess:FAIL RenderRect(ToneMapping)");
+
+    Add_RenderCall();
+}
 void Renderer::Render_UI()
 {
     for (auto& renderObject : _renderGroups[ETOI(RenderGroup::UI)])
@@ -633,6 +838,48 @@ void Renderer::Reset_RenderCall()
 void Renderer::Add_RenderCall(uint32 count)
 {
     iDrawCall += count;
+}
+
+void Renderer::DumpCurrentOMState(const wchar_t* stageTag) const
+{
+    return; // 컴파일러가 무시할 거임
+    if (false == _useRTVDump || nullptr == _context)
+        return;
+
+    ComPtr<ID3D11RenderTargetView> currentRTV;
+    ComPtr<ID3D11DepthStencilView> currentDSV;
+    _context->OMGetRenderTargets(1, currentRTV.GetAddressOf(), currentDSV.GetAddressOf());
+
+    wstring rtvLabel = L"nullptr";
+    if (currentRTV)
+    {
+        wstring rtvName;
+        if (Try_GetObjectName(currentRTV.Get(), rtvName))
+            rtvLabel = rtvName;
+        else
+            rtvLabel = PtrToWString(currentRTV.Get());
+    }
+
+    wstring dsvLabel = L"nullptr";
+    if (currentDSV)
+    {
+        wstring dsvName;
+        if (Try_GetObjectName(currentDSV.Get(), dsvName))
+            dsvLabel = dsvName;
+        else
+            dsvLabel = PtrToWString(currentDSV.Get());
+    }
+
+    const wchar_t* safeStageTag = stageTag ? stageTag : L"UnknownStage";
+    wstring message = L"[OM][Stage=";
+    message += safeStageTag;
+    message += L"] RTV=";
+    message += rtvLabel;
+    message += L" DSV=";
+    message += dsvLabel;
+    message += L"\n";
+
+    OutputDebugStringW(message.c_str());
 }
 
 bool Renderer::Try_ConsumePerfSummary(const float windowSec, RenderPerfSummary& outSummary)
@@ -799,4 +1046,10 @@ void Renderer::Render_Debug()
 
 #ifdef ENDMRT_RETURN_IF_FAILED
 #undef ENDMRT_RETURN_IF_FAILED
+#endif
+#ifdef ENDMRT_RETURN_LOG_IF_FAILED
+#undef ENDMRT_RETURN_LOG_IF_FAILED
+#endif
+#ifdef COMBINEDHDR_RETURN_LOG_IF_FAILED
+#undef COMBINEDHDR_RETURN_LOG_IF_FAILED
 #endif
