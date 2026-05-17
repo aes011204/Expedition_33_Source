@@ -6,8 +6,7 @@ NS_BEGIN(Client)
 
 class Buff;
 
-class MonsterStatCom :
-    public CombatStatCom
+class MonsterStatCom : public CombatStatCom
 {
     GENERATED_COMPONENT(MonsterStatCom)
 public:
@@ -73,10 +72,13 @@ public:
     Skill_Data Get_Basic_Skill()
     {
         Skill_Data skill = {}; skill.scriptClassName = "Base_Gustave_Attack";
-        skill.apCost = 0; skill.targetingType = ECharacterTeamSelector::Invalid;
+        skill.apCost = 0;
+        skill.targetingType = ECharacterTeamSelector::Invalid;
+
         skill.animationKey.push_back("Lancelier_Lancelier_Walk");
         skill.animationKey.push_back("Lancelier_Lancelier_Dash_Out");
         skill.animationKey.push_back("Lancelier_Lancelier_Skill_1");
+        skill.IdleAnimationKey = "Lancelier_Idle"; // action 종료 후 복귀
       
 
         return skill;

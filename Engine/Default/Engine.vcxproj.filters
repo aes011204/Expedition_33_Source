@@ -226,6 +226,21 @@
     <Filter Include="94. AnimationParseUtil">
       <UniqueIdentifier>{8d36ebf8-1177-47c8-b0a9-b7afaf900cf2}</UniqueIdentifier>
     </Filter>
+    <Filter Include="99. Defines\Types">
+      <UniqueIdentifier>{ececf57a-fb01-4dc5-a1cf-4302713635d0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="01.Utility\03.GameObjects\Effect">
+      <UniqueIdentifier>{4e1b3705-2188-459c-9421-422b399f2b1c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="01.Utility\03.GameObjects\Effect\Emitter">
+      <UniqueIdentifier>{739eb7e8-5c55-4b41-8910-7d91c059beca}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="01.Utility\03.GameObjects\Effect\Effect Instance">
+      <UniqueIdentifier>{8917458c-913e-4026-af1e-f58f46d27102}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="01.Utility\03.GameObjects\Effect\Emitter Factory">
+      <UniqueIdentifier>{a0839e91-4815-48bb-bdfd-d8d38f18f0aa}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -311,7 +326,26 @@
       <Filter>01.Utility\04.Component\Model\Animation\Notify</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\AnimState_Parser.h" />
+
+    <ClInclude Include="..\Public\InstanceCullParams.h">
+      <Filter>99. Defines</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\DelegateHub.h" />
+    <ClInclude Include="..\Public\EffectMaterial_Types.h">
+      <Filter>99. Defines\Types</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\EffectRuntime_Types.h">
+      <Filter>99. Defines\Types</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\EffectEmitter.h">
+      <Filter>01.Utility\03.GameObjects\Effect\Emitter</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\EffectInstance.h">
+      <Filter>01.Utility\03.GameObjects\Effect\Effect Instance</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\EffectEmitterFactory.h">
+      <Filter>01.Utility\03.GameObjects\Effect\Emitter Factory</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\public\Base.h">
@@ -871,6 +905,15 @@
     </ClCompile>
     <ClCompile Include="..\Private\AnimState_Parser.cpp" />
     <ClCompile Include="..\Private\DelegateHub.cpp" />
+    <ClCompile Include="..\Private\EffectEmitter.cpp">
+      <Filter>01.Utility\03.GameObjects\Effect\Emitter</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\EffectInstance.cpp">
+      <Filter>01.Utility\03.GameObjects\Effect\Effect Instance</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\EffectEmitterFactory.cpp">
+      <Filter>01.Utility\03.GameObjects\Effect\Emitter Factory</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Bin\ShaderFiles\Engine_Shader_Defines.hlsli">

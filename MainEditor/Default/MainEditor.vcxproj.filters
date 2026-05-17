@@ -1,4 +1,4 @@
-<?xml version='1.0' encoding='utf-8'?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="4.0">
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -49,9 +49,6 @@
     <ClCompile Include="..\Private\ImGui_Manager.cpp">
       <Filter>01. Manager</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\SimpleMath.cpp">
-      <Filter>99. Defines</Filter>
-    </ClCompile>
     <ClCompile Include="..\Private\CommandHistory.cpp">
       <Filter>97. Utils</Filter>
     </ClCompile>
@@ -73,10 +70,9 @@
     <ClCompile Include="..\private\BT_View.cpp">
       <Filter>01. View</Filter>
     </ClCompile>
-    <ClCompile Include="..\private\BT_Inspector.cpp">
+    <ClCompile Include="..\Private\Prefab_View.cpp">
       <Filter>01. View</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\Prefab_View.cpp"><Filter>01. View</Filter></ClCompile>
     <ClCompile Include="..\Private\Component_Inspector.cpp">
       <Filter>02. Inspector</Filter>
     </ClCompile>
@@ -95,14 +91,31 @@
     <ClCompile Include="..\Private\Transform_Inspector.cpp">
       <Filter>02. Inspector</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\AnimSequencerAdapter.cpp"><Filter>01. View</Filter></ClCompile>
+    <ClCompile Include="..\Private\AnimSequencerAdapter.cpp">
+      <Filter>01. View</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\ImSequencer.cpp">
       <Filter>01. View</Filter>
     </ClCompile>
-    <ClCompile Include="..\private\AIController_Inspector.cpp"><Filter>02. Inspector</Filter></ClCompile>
-    <ClCompile Include="..\Private\Level_Tool.cpp"><Filter>01. View</Filter></ClCompile>
-    <ClCompile Include="..\Private\Collider_Inspector.cpp"><Filter>02. Inspector</Filter></ClCompile>
-  <ClCompile Include="..\Private\AnimState_View.cpp"><Filter>01. View</Filter><Filter>01. View</Filter></ClCompile></ItemGroup>
+    <ClCompile Include="..\private\AIController_Inspector.cpp">
+      <Filter>02. Inspector</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Level_Tool.cpp">
+      <Filter>01. View</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Collider_Inspector.cpp">
+      <Filter>02. Inspector</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\AnimState_View.cpp">
+      <Filter>01. View</Filter>
+      <Filter>01. View</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\Cinematic_Tool.cpp" />
+    <ClCompile Include="PostProcess_View.cpp" />
+    <ClCompile Include="..\Private\EditorPickingSystem.cpp">
+      <Filter>03. System\PickingSystem</Filter>
+    </ClCompile>
+  </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
       <Filter>98. Default</Filter>
@@ -188,24 +201,48 @@
     <ClInclude Include="..\public\Camera_Tool.h">
       <Filter>01. View</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\Component_Inspector.h"><Filter>02. Inspector</Filter></ClInclude>
-    <ClInclude Include="..\Public\Transform_Inspector.h"><Filter>02. Inspector</Filter></ClInclude>
-    <ClInclude Include="..\Public\Inspector_Factory.h"><Filter>02. Inspector</Filter></ClInclude>
+    <ClInclude Include="..\Public\Component_Inspector.h">
+      <Filter>02. Inspector</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Transform_Inspector.h">
+      <Filter>02. Inspector</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Inspector_Factory.h">
+      <Filter>02. Inspector</Filter>
+    </ClInclude>
     <ClInclude Include="..\public\BT_VIew.h">
       <Filter>01. View</Filter>
     </ClInclude>
-    <ClInclude Include="..\public\BT_Inspector.h">
+    <ClInclude Include="..\Public\Prefab_View.h">
       <Filter>01. View</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\Prefab_View.h"><Filter>01. View</Filter></ClInclude>
-    <ClInclude Include="..\Public\Model_Inspector.h"><Filter>02. Inspector</Filter></ClInclude>
-    <ClInclude Include="..\public\AIController_Inspector.h"><Filter>02. Inspector</Filter></ClInclude>
-    <ClInclude Include="..\Public\Level_Tool.h"><Filter>01. View</Filter></ClInclude>
-    <ClInclude Include="..\Public\Collider_Inspector.h"><Filter>02. Inspector</Filter></ClInclude>
+    <ClInclude Include="..\Public\Model_Inspector.h">
+      <Filter>02. Inspector</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\AIController_Inspector.h">
+      <Filter>02. Inspector</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Level_Tool.h">
+      <Filter>01. View</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Collider_Inspector.h">
+      <Filter>02. Inspector</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\Animation_NameUtils.h">
       <Filter>97. Utils</Filter>
     </ClInclude>
-  <ClInclude Include="..\Public\AnimState_View.h"><Filter>01. View</Filter><Filter>01. View</Filter></ClInclude></ItemGroup>
+    <ClInclude Include="..\Public\AnimState_View.h">
+      <Filter>01. View</Filter>
+      <Filter>01. View</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Animation_View.h" />
+    <ClInclude Include="..\Public\AnimSequencerAdapter.h" />
+    <ClInclude Include="..\Public\Console_View.h" />
+    <ClInclude Include="PostProcess_View.h" />
+    <ClInclude Include="..\Public\EditorPickingSystem.h">
+      <Filter>03. System\PickingSystem</Filter>
+    </ClInclude>
+  </ItemGroup>
   <ItemGroup>
     <Filter Include="00. Main">
       <UniqueIdentifier>{84cdd704-ecd6-4bff-a119-ee58777ca467}</UniqueIdentifier>
@@ -227,6 +264,12 @@
     </Filter>
     <Filter Include="97. Utils">
       <UniqueIdentifier>{5057f8f1-7bf5-4b0e-8c70-0a1894725747}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="03. System">
+      <UniqueIdentifier>{bcc6b61a-d906-4795-8a1f-6fe9eb03ea7f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="03. System\PickingSystem">
+      <UniqueIdentifier>{2013d582-5c36-4183-b467-256517649e33}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

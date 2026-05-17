@@ -10,7 +10,6 @@ Level_Stage01::Level_Stage01(const ComPtr<Device>& device, const ComPtr<Context>
 HRESULT Level_Stage01::Initialize()
 {
     CHECK_FAILED(Ready_Lights(), E_FAIL);
-    CHECK_FAILED(Ready_Layer_MapStaticMesh(L"Layer_MapStaticMesh"), E_FAIL);
 
     return S_OK;
 }
@@ -41,15 +40,6 @@ HRESULT Level_Stage01::Ready_Lights()
     {
         return E_FAIL;
     }
-
-    return S_OK;
-}
-
-HRESULT Level_Stage01::Ready_Layer_MapStaticMesh(const wstring& strLayerTag)
-{
-    CHECK_FAILED(MapLoader::Load(_device, _context,
-        Constants::Map::SmallLevel_SimonArea_Remake_Path,
-        ETOI(LevelType::Stage01), strLayerTag), E_FAIL);
 
     return S_OK;
 }

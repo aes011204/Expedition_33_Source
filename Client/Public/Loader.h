@@ -2,6 +2,7 @@
 
 #include "Client_Defines.h"
 #include "Base.h"
+#include "MapLoader.h"
 #include "ResourceLoader.h"
 
 NS_BEGIN(Engine)
@@ -12,6 +13,14 @@ NS_BEGIN(Client)
 
 class Loader final : public Base
 {
+private:
+    struct LevelMapLoadDesc
+    {
+        LevelType level = LevelType::END;
+        const wchar_t* mapPath = nullptr;
+        const wchar_t* layerTag = nullptr;
+    };
+
 public:
     Loader(const ComPtr<Device>& device, const ComPtr<Context>& context);
     virtual ~Loader() = default;
@@ -22,7 +31,10 @@ public:
     // - worker thread 진입점이 호출하는 실제 작업 함수
     HRESULT Loading();
 
-    HRESULT Process_PendingLoadJobs(size_t maxCommitPerFrame);
+    HRESULT Process_PendingLoadJobs(
+        size_t maxCommitPerFrame,
+        size_t maxMainThreadCreatePerFrame = 2,
+        chrono::milliseconds maxMainThreadCreateTime = chrono::milliseconds(3));
 
     bool isFinished() { return _isFinished.load(); }
     bool Has_Failed() const { return _hasFailed.load(); }
@@ -59,7 +71,7 @@ private:
 private:
     static string Format_Duration(chrono::milliseconds duration);
 
-    HRESULT Schedule_PendingCreateJobs();
+    HRESULT Schedule_PendingCreateJobs(size_t maxMainThreadCreatePerFrame, chrono::milliseconds maxMainThreadCreateTime);
     HRESULT Push_CompletedLoadJob(
         const FLoadJob& loadJob,
         const Shared<Base>& prototype,
@@ -68,6 +80,11 @@ private:
 
     HRESULT Commit_CompletedLoadJobs(size_t maxCommitPerFrame);
     HRESULT Try_FinishLoading();
+
+private: /* 맵 로딩 */
+    HRESULT         Process_LevelMapLoad(size_t maxMeshesPerFrame, chrono::milliseconds maxTimePerFrame);
+
+    const LevelMapLoadDesc* Find_MapLoadDesc() const;
 
 private:
     struct LoadJobStats
@@ -121,6 +138,11 @@ private:
 
     // 현재 스레드풀에서 prototype 생성중인 job 수
     atomic<size_t>      _activeCreateJobCount = 0;
+
+private: /* 맵 로딩 */
+    bool _mapLoadStarted = false;
+    bool _mapLoadFinished = false;
+    MapLoader::LoadSession _mapLoadSession{};
 
 public:
     static Shared<Loader> Create(const ComPtr<Device>& device, const ComPtr<Context>& context, LevelType eNextLevelID);

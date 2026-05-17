@@ -91,6 +91,40 @@ namespace Internal
         return {};
     }
 
+    static wstring Try_ResolvePresetPathFromMaterial(const EffectMaterialInstanceData& material)
+    {
+        const fs::path presetFolder = Normalize_MaterialDialogPath(kMaterialDialogDefaultFolder);
+        if (!fs::exists(presetFolder) || !fs::is_directory(presetFolder))
+            return {};
+
+        if (!material.sourcePresetName.empty())
+        {
+            const fs::path candidatePath =
+                presetFolder / (String::ToWString(material.sourcePresetName) + L".effectmaterial.json");
+            if (fs::exists(candidatePath) && fs::is_regular_file(candidatePath))
+                return candidatePath.wstring();
+        }
+
+        for (const auto& entry : fs::directory_iterator(presetFolder))
+        {
+            if (!entry.is_regular_file())
+                continue;
+
+            const fs::path presetPath = entry.path();
+            if (!String::ToLowerCopy(presetPath.generic_string()).ends_with(".effectmaterial.json"))
+                continue;
+
+            EffectMaterialInstanceData presetMaterial{};
+            if (!ReadPreset::Read(presetPath, presetMaterial))
+                continue;
+
+            if (Is_SameMaterial(material, presetMaterial))
+                return presetPath.wstring();
+        }
+
+        return {};
+    }
+
     static const string& Resolve_MaterialDisplayName(RequiredModuleData& data)
     {
         if (data.material.sourcePresetName.empty())
@@ -187,11 +221,18 @@ namespace Internal
         materialInstanceView->Open_Instance(emitterId, moduleId);
     }
 
-    void Open_PresetBrowserWindow(uint32 emitterId, uint32 moduleId)
+    void Open_PresetBrowserWindow(const RequiredModuleData& data)
     {
         const Shared<EffectMaterial_View> materialView = Get_MaterialView();
         if (nullptr == materialView)
             return;
+
+        const wstring presetPath = Try_ResolvePresetPathFromMaterial(data.material);
+        if (!presetPath.empty())
+        {
+            materialView->Open_Preset(presetPath);
+            return;
+        }
 
         materialView->Open_PresetBrowser();
     }
@@ -355,7 +396,7 @@ bool RequiredModuleDetail::Draw(AuthoringEmitter& emitter, const AuthoringModule
             ImGui::SameLine();
 
             if (ImGui::Button("원본 보기", ImVec2{ sourceButtonWidth, 24.f }))
-                Internal::Open_PresetBrowserWindow(emitter.id, module.id);
+                Internal::Open_PresetBrowserWindow(data);
 
             if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
                 ImGui::SetTooltip("원본 머티리얼을 확인");
@@ -529,13 +570,114 @@ bool InitialVelocityModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, Init
     return changed;
 }
 
+bool AccelerationModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, AccelerationModuleData& data, DetailPropertyContext& detailContext)
+{
+    const AccelerationModuleData defaultData{};
+    bool changed = false;
+
+    if (ImGui::CollapsingHeader("가속", ImGuiTreeNodeFlags_DefaultOpen))
+        changed |= detailContext.Draw_Vector3DistributionGroup("가속", data.acceleration, defaultData.acceleration);
+
+    return changed;
+}
+
+bool DragModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, DragModuleData& data, DetailPropertyContext& detailContext)
+{
+    const DragModuleData defaultData{};
+    bool changed = false;
+
+    if (ImGui::CollapsingHeader("드래그", ImGuiTreeNodeFlags_DefaultOpen))
+        changed |= detailContext.Draw_FloatDistributionGroup("드래그", data.drag, defaultData.drag);
+
+    return changed;
+}
+
+bool VelocityOverLifeModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, VelocityOverLifeModuleData& data, DetailPropertyContext& detailContext)
+{
+    const VelocityOverLifeModuleData defaultData{};
+    bool changed = false;
+
+    if (ImGui::CollapsingHeader("수명에 따른 속도", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        if (detailContext.Begin_PropertyTable("VelocityOverLife"))
+        {
+            changed |= detailContext.Draw_FloatProperty("시작 배율", data.scaleStart, defaultData.scaleStart);
+            changed |= detailContext.Draw_FloatProperty("종료 배율", data.scaleEnd, defaultData.scaleEnd);
+            detailContext.End_PropertyTable();
+        }
+    }
+
+    return changed;
+}
+
+bool InitialRotationModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, InitialRotationModuleData& data, DetailPropertyContext& detailContext)
+{
+    const InitialRotationModuleData defaultData{};
+    bool changed = false;
+
+    if (ImGui::CollapsingHeader("초기 회전", ImGuiTreeNodeFlags_DefaultOpen))
+        changed |= detailContext.Draw_FloatDistributionGroup("회전각", data.rotationDegrees, defaultData.rotationDegrees);
+
+    return changed;
+}
+
+bool RotationOverLifeModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, RotationOverLifeModuleData& data, DetailPropertyContext& detailContext)
+{
+    const RotationOverLifeModuleData defaultData{};
+    bool changed = false;
+
+    if (ImGui::CollapsingHeader("수명에 따른 회전", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        if (detailContext.Begin_PropertyTable("RotationOverLife"))
+        {
+            changed |= detailContext.Draw_FloatProperty("시작 회전각", data.rotationStartDegrees, defaultData.rotationStartDegrees);
+            changed |= detailContext.Draw_FloatProperty("종료 회전각", data.rotationEndDegrees, defaultData.rotationEndDegrees);
+            detailContext.End_PropertyTable();
+        }
+    }
+
+    return changed;
+}
+
+bool InitialRotationRateModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, InitialRotationRateModuleData& data, DetailPropertyContext& detailContext)
+{
+    const InitialRotationRateModuleData defaultData{};
+    bool changed = false;
+
+    if (ImGui::CollapsingHeader("초기 회전 속도", ImGuiTreeNodeFlags_DefaultOpen))
+        changed |= detailContext.Draw_FloatDistributionGroup("회전 속도", data.rotationRateDegrees, defaultData.rotationRateDegrees);
+
+    return changed;
+}
+
+bool RotationRateScaleByLifeModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, RotationRateScaleByLifeModuleData& data, DetailPropertyContext& detailContext)
+{
+    const RotationRateScaleByLifeModuleData defaultData{};
+    bool changed = false;
+
+    if (ImGui::CollapsingHeader("수명에 따른 회전 속도", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        if (detailContext.Begin_PropertyTable("RotationRateScaleByLife"))
+        {
+            changed |= detailContext.Draw_FloatProperty("시작 배율", data.scaleStart, defaultData.scaleStart);
+            changed |= detailContext.Draw_FloatProperty("종료 배율", data.scaleEnd, defaultData.scaleEnd);
+            detailContext.End_PropertyTable();
+        }
+    }
+
+    return changed;
+}
+
 bool InitialColorModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, InitialColorModuleData& data, DetailPropertyContext& detailContext)
 {
     const InitialColorModuleData defaultData{};
     bool changed = false;
 
     if (ImGui::CollapsingHeader("초기 컬러", ImGuiTreeNodeFlags_DefaultOpen))
-        changed |= detailContext.Draw_ColorDistributionGroup("컬러", data.color, defaultData.color);
+    {
+        changed |= detailContext.Draw_ColorRgbDistributionGroup("색상(RGB)", data.color, defaultData.color);
+        changed |= detailContext.Draw_FloatDistributionGroup("알파", data.alpha, defaultData.alpha);
+    }
 
     return changed;
 }
@@ -546,7 +688,10 @@ bool ColorOverLifeModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, ColorO
     bool changed = false;
 
     if (ImGui::CollapsingHeader("수명에 따른 색상", ImGuiTreeNodeFlags_DefaultOpen))
-        changed |= detailContext.Draw_ColorDistributionGroup("색상", data.colorOverLife, defaultData.colorOverLife);
+    {
+        changed |= detailContext.Draw_ColorRgbDistributionGroup("색상(RGB)", data.colorOverLife, defaultData.colorOverLife);
+        changed |= detailContext.Draw_FloatDistributionGroup("알파", data.alphaOverLife, defaultData.alphaOverLife);
+    }
 
     return changed;
 }

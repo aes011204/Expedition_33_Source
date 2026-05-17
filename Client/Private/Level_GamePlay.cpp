@@ -1,10 +1,10 @@
 ﻿#include "Level_GamePlay.h"
 #include "GameInstance.h"
 #include "ClientInstance.h"
+#include "Client_Constants.h"
 #include "Spawn_Prefab.h"
 #include "TargetCamera.h"
 #include "MapLoader.h"
-#include "Spawn_Prefab.h"
 #include "UI_Base.h"
 #include "UI_Button.h"
 #include "UI_Image.h"
@@ -31,9 +31,6 @@ HRESULT Level_GamePlay::Initialize()
     if (FAILED(Ready_Layer_BackGround(TEXT("Layer_BackGround"))))
         return E_FAIL;
 
-    if(FAILED(Ready_Layer_MapStaticMesh(L"Layer_MapStaticMesh")))
-        return E_FAIL;
-
 	if (FAILED(Ready_Layer_Camera(TEXT("Layer_Camera"))))
 		return E_FAIL;
 
@@ -56,7 +53,7 @@ void Level_GamePlay::Update(float fTimeDelta)
     // 테스트
 #ifdef _DEBUG
     const int32 fps = (fTimeDelta > 0.f)
-            ? static_cast<int32>(1.f / fTimeDelta) : 0.f;
+            ? static_cast<int32>(1.f / fTimeDelta) : 0;
 
      GAME->Print(L"현재 FPS : {}", fps, duration(0.f), color(Vec4(1.f, 1.f, 0.f, 1.f)));
 #endif
@@ -71,14 +68,13 @@ void Level_GamePlay::Update(float fTimeDelta)
              HeroId::Gustave,
          };
 
-         vector<string> _monster;
-         _monster.push_back("Monster123123");
-         _monster.push_back("Monster123123");
-         _monster.push_back("Monster123123");
+         vector<string> battleMonster;
+         battleMonster.push_back(Constants::Prefab::MB_Lancelier); // 전투 몬스터 prefab 이름은 MB_* 상수로 통일한다.
+         battleMonster.push_back(Constants::Prefab::MB_Lancelier); // 테스트 3마리 스폰도 같은 상수를 재사용한다.
+         battleMonster.push_back(Constants::Prefab::MB_Lancelier); // 문자열 변경 누락으로 인한 스폰 실패를 막는다.
 
-         CLIENT->OnEnterBattleField(1, false, heroes, _monster);
+         CLIENT->OnEnterBattleField(1, true, heroes, battleMonster);
      }
-
 
 }
 
@@ -123,12 +119,12 @@ HRESULT Level_GamePlay::Ready_Lights()
 
 HRESULT Level_GamePlay::Ready_Layer_UI(const wstring& strLayerTag)
 {
-    /*UI_RuntimeLoader::UI_LoadDesc desc{};
-    desc.levelIndex = ETOI(LevelType::GamePlay);
-    desc.jsonPath = Constants::UI::UI_Json_Path;
-    desc.outUIByName = &_uiByName;
+    //UI_RuntimeLoader::UI_LoadDesc desc{};
+    //desc.levelIndex = ETOI(LevelType::GamePlay);
+    //desc.jsonPath = Constants::UI::UI_Json_Path;
+    //desc.outUIByName = &_uiByName;
 
-    CHECK_FAILED(UI_RuntimeLoader::Load_Document(desc), E_FAIL);*/
+    //CHECK_FAILED(UI_RuntimeLoader::Load_Document(desc), E_FAIL);
     CHECK_FAILED(CLIENT->Initialize_GameplayUI(ETOI(LevelType::GamePlay)), E_FAIL);
      
     return S_OK;
@@ -188,45 +184,32 @@ HRESULT Level_GamePlay::Ready_Layer_BackGround(const wstring& strLayerTag)
     return S_OK;
 }
 
-HRESULT Level_GamePlay::Ready_Layer_MapStaticMesh(const wstring& strLayerTag)
-{
-    CHECK_FAILED(MapLoader::Load(
-        _device, _context,
-        Constants::Map::SmallLevel_SimonArea_Remake_Path,
-        ETOI(LevelType::GamePlay), strLayerTag), E_FAIL);
-
-    return S_OK;
-}
-
 HRESULT Level_GamePlay::Ready_Layer_Monster(const wstring& strLayerTag)
 {
-   /* if (FAILED(
-        GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Monster"),
-            ETOI(LevelType::GamePlay), strLayerTag)
-    ))
-        return E_FAIL;*/
+    //if (FAILED(
+    //    GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Monster"),
+    //        ETOI(LevelType::GamePlay), strLayerTag)
+    //))
+    //    return E_FAIL;
 
 
-    Vec3 startPos = Vec3(225.f, -4020.5f, -1.24f);
+    Vec3 startPos = Vec3(20.f, 2.f, 20.f);
 
 
      
     const Shared<GameObject> monster = Client::Spawn_Prefab::Spawn(
-        "Monster123123",
+        Constants::Prefab::MW_Lancelier, // 월드 몬스터 prefab 이름은 MW_* 상수로 통일한다.
         ETOI(LevelType::GamePlay),
         strLayerTag);
 
-    monster->Get_Transform()->Set_Position(startPos);
-
-
-
     CHECK_NULL(monster, E_FAIL);
+    monster->Get_Transform()->Set_Position(startPos);
     return S_OK;
 }
 
 HRESULT Level_GamePlay::Ready_Layer_Player(const wstring& strLayerTag)
 {
-    Vec3 startPos = Vec3(205.f, -4020.5f, -1.24f);
+    Vec3 startPos = Vec3(82.f, 5.f, 0.f);
     CHECK_FAILED(CLIENT->Initialize_Hero(ETOI(LevelType::GamePlay), strLayerTag, startPos), E_FAIL);
 
     return S_OK;

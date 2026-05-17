@@ -15,6 +15,7 @@
 #include "AnimNotify.h"
 #include "AnimNotifyState.h"
 #include "AnimState_Parser.h"
+#include "GameObject.h"
 
 ModelCom::ModelCom(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Component{ device, context }
@@ -166,7 +167,7 @@ void ModelCom::Set_Animation(uint32 animIndex, float blendDuration, bool isLoop,
 
 void ModelCom::Set_Animation(const string& animName, bool isLoop, float startFrame)
 {
-    if (_mappedAnimIndices.contains(animName))
+    if (!_mappedAnimIndices.contains(animName))
     {
         LOG_WARN("Failed to find animation by name: {}", animName);
         return;
@@ -177,7 +178,7 @@ void ModelCom::Set_Animation(const string& animName, bool isLoop, float startFra
 
 void ModelCom::Set_Animation(const string& animName, float blendDuration, bool isLoop, float startFrame)
 {
-    if (_mappedAnimIndices.contains(animName))
+    if (!_mappedAnimIndices.contains(animName))
     {
         LOG_WARN("Failed to find animation by name: {}", animName);
         return;
@@ -302,6 +303,29 @@ const RootMotionFrame& ModelCom::Get_RootTransformVelocity(float scaleOffset)
     return _rootFrameVelocity;
 }
 
+float ModelCom::Get_RootMotionTranslationRatio() const
+{
+    if (_animations.empty() || _rootNodeIndex == -1)
+        return 0.f;
+
+    // 블렌딩 중이면 다음 애니메이션(실질적으로 재생 중인 타겟)의 진행도를 가져옴
+    uint32 activeAnimIndex = _isBlending ? _nextAnimIndex : _currentAnimIndex;
+    
+    if (activeAnimIndex >= _animations.size())
+        return 0.f;
+
+    const auto& curAnim = _animations[activeAnimIndex];
+    float totalDist = curAnim->Get_RootTranslation(_rootNodeIndex).Length();
+
+    if (totalDist <= 0.001f)
+        return 0.f;
+
+    Vec3 currentTranslation = curAnim->Get_CurrentRootTranslation(_rootNodeIndex);
+    float currentDist = currentTranslation.Length();
+
+    return clamp(currentDist / totalDist, 0.f, 1.f);
+}
+
 HRESULT ModelCom::Initialize_Prototype(ModelType type, const char* modelFilePath, const Matrix& preLocalTransformMatrix)
 {
     _type = type;
@@ -318,7 +342,6 @@ HRESULT ModelCom::Initialize_Prototype(ModelType type, const char* modelFilePath
     }
 
     Ensure_MaterialBindings();
-    Apply_BaseMaterialFromBundle_AllSlots();
 
     if (FAILED(Ready_Animation(sourcePathUtf8.c_str())))
     {
@@ -683,6 +706,7 @@ void ModelCom::From_Json(const json& data)
         }
 
         Apply_BaseMaterialFromBundle_AllSlots();
+        Ensure_AnimStateAssetLoaded(modelGuid);
         return;
     }
 
@@ -699,7 +723,7 @@ void ModelCom::From_Json(const json& data)
 
     Apply_BaseMaterialFromBundle_AllSlots();
 
-    Ensure_AnimStateAssetLoaded(); // 애니메이션은 Prefab기반 로드 싱크를 여기다 맞춤
+    Ensure_AnimStateAssetLoaded(modelGuid); // 애니메이션은 Prefab기반 로드 싱크를 여기다 맞춤
 }
 
 HRESULT ModelCom::Reload_ModelFromGuid(const string& guid, ModelType modelType)
@@ -896,6 +920,22 @@ void ModelCom::Apply_MaterialByAssetName(uint32 materialIndex, const string& bun
         return;
     }
 
+    if (_appliedMaterialAssets.size() < _materials.size())
+        _appliedMaterialAssets.resize(_materials.size());
+
+    const string normalizedBundleKey = String::ToLowerCopy(bundleKey);
+
+    {
+        AppliedMaterialAsset& applied = _appliedMaterialAssets[materialIndex];
+
+        if (applied.bundleKey == normalizedBundleKey &&
+            applied.assetName == assetName)
+        {
+            // 같은 모델 슬롯에 같은 material instance를 다시 꽂는 경우는 전체 override 비용을 스킵
+            return;
+        }
+    }
+
     const Shared<Material> material = _materials[materialIndex];
     if (!material)
     {
@@ -914,7 +954,7 @@ void ModelCom::Apply_MaterialByAssetName(uint32 materialIndex, const string& bun
         return;
     }
 
-    const MaterialBuilder::BundleAsset* bundle = builder->GetOrLoadBundle(bundleKey);
+    const MaterialBuilder::BundleAsset* bundle = builder->GetOrLoadBundle(normalizedBundleKey);
     if (!bundle)
     {
         return;
@@ -960,6 +1000,11 @@ void ModelCom::Apply_MaterialByAssetName(uint32 materialIndex, const string& bun
     {
         material->Override_TextureSlot(MaterialTextureSlot::OpacityMask, 0, L"");
     }
+
+    // 실제 적용이 끝난 뒤에만 기록해서 실패/미존재 material은 다음 호출에서 다시 시도 가능하게 둔다.
+    AppliedMaterialAsset& applied = _appliedMaterialAssets[materialIndex];
+    applied.bundleKey = normalizedBundleKey;
+    applied.assetName = assetName;
 }
 
 wstring ModelCom::Normalize_ModelAssetPath(const char* modelFilePath)
@@ -1681,6 +1726,11 @@ HRESULT ModelCom::Ready_Animation(const char* modelPath)
             stream.read(reinterpret_cast<char*>(&animData.rootTotalTranslation), sizeof(Vec3));
             stream.read(reinterpret_cast<char*>(&animData.rootTotalRotation), sizeof(Vec4));
 
+            {   // 파일명 기반으로 작동하게
+                string stemName = entry.path().stem().string();
+                animData.name = stemName;
+            }
+
             vector<ModelChannelData> channels(animData.numChannels);
             vector<vector<KEYFRAME>> keyframeSets(animData.numChannels);
 
@@ -1708,14 +1758,28 @@ HRESULT ModelCom::Ready_Animation(const char* modelPath)
 
     _numAnimations = trueAnimIndex;
 
-    Ensure_AnimStateAssetLoaded();
-
     return S_OK;
 }
 
-bool ModelCom::Ensure_AnimStateAssetLoaded()
+bool ModelCom::Ensure_AnimStateAssetLoaded(const string& sourceObjectGUID)
 {
-    return AnimState_Parser::Load_StateAnimations(_sourceModelPath, _animations, _stateAnimIndices, &_animEnumType);
+    if (!sourceObjectGUID.empty())
+    {
+        wstring resolvedPath = GAME->Resolve_AssetPath(sourceObjectGUID);
+        if (!resolvedPath.empty())
+        {
+            return AnimState_Parser::Load_StateAnimations_FromFile(
+                resolvedPath, _animations, _stateAnimIndices, &_animEnumType);
+        }
+    }
+
+    string targetPrefabGuid = "";
+    if (Get_Owner())
+    {
+        targetPrefabGuid = AnimState_Parser::Get_PrefabGuid(Get_Owner()->Get_SourcePrefabName());
+    }
+
+    return AnimState_Parser::Load_StateAnimations(_sourceModelPath, _animations, _stateAnimIndices, &_animEnumType, targetPrefabGuid);
 }
 
 void ModelCom::Reset_ModelData()

@@ -63,6 +63,28 @@ struct PointParticleSizeByLifeDesc
     float multiplyYEnd{ 1.f };   // 수명 종료 시 Y축에 곱할 배율이다.
 };
 
+// motion 계열 모듈을 compute particle update가 바로 소비할 수 있게 압축한 payload다.
+struct PointParticleMotionDesc
+{
+    bool enabled{ false };                 // motion 계열 모듈이 하나라도 preview에 연결되었는지 나타낸다.
+    Vec3 radialPivot{ 0.f, 0.f, 0.f };     // InitialVelocity의 방사 방향 기준점이다.
+    Vec2 initialSpeed{ 0.f, 0.f };         // InitialVelocity speed 분포의 min/max다.
+    Vec3 accelerationMin{ 0.f, 0.f, 0.f }; // Acceleration 분포의 하한이다.
+    Vec3 accelerationMax{ 0.f, 0.f, 0.f }; // Acceleration 분포의 상한이다.
+    Vec2 drag{ 0.f, 0.f };                 // Drag 분포의 min/max 감쇠값이다.
+    Vec2 velocityScaleByLife{ 1.f, 1.f };  // VelocityOverLife의 시작/종료 배율이다.
+};
+
+// rotation 계열 모듈을 compute particle update가 바로 소비할 수 있게 압축한 payload다.
+struct PointParticleRotationDesc
+{
+    bool enabled{ false };                       // rotation 계열 모듈이 하나라도 preview에 연결되었는지 나타낸다.
+    Vec2 initialRotationDegrees{ 0.f, 0.f };     // InitialRotation 분포의 min/max 각도다.
+    Vec2 rotationOverLifeDegrees{ 0.f, 0.f };    // RotationOverLife의 시작/종료 추가 각도다.
+    Vec2 initialRotationRateDegrees{ 0.f, 0.f }; // InitialRotationRate 분포의 min/max 초당 각도다.
+    Vec2 rotationRateScaleByLife{ 1.f, 1.f };    // RotationRateScaleByLife의 시작/종료 배율이다.
+};
+
 // 인스턴스 생성에 공통으로 필요한 spawn 규칙.
 struct InstanceSpawnDesc
 {
@@ -103,6 +125,8 @@ struct ComputePointParticleDesc : public InstanceSpawnDesc
     uint32 subUVCols{ 1 };                                    // atlas column 수다.
     PointParticleSubUVFrameOverLifeDesc subUvFrameOverLife{}; // 수명 진행률 기준 frame 선택 규칙이다.
     PointParticleSizeByLifeDesc sizeByLife{};                 // 수명 진행률 기준 크기 배율 규칙이다.
+    PointParticleMotionDesc motion{};                         // motion 모듈들이 만든 compute update 규칙이다.
+    PointParticleRotationDesc rotation{};                     // rotation 모듈들이 만든 sprite 회전 규칙이다.
     PointParticleDrawMode drawMode{                           // compute particle 경로의 정식 draw 제출 방식.
         PointParticleDrawMode::DrawIndexedInstancedIndirect
     };

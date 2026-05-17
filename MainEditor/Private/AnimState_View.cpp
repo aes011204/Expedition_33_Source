@@ -34,6 +34,9 @@ void AnimState_View::Update(float timeDelta)
 {
     Editor_Window::Update(timeDelta);
 
+    if (EDITOR->IsPlaying())
+        return;
+
     if (Is_CompanionPreviewFocused())
         return;
 
@@ -44,6 +47,9 @@ void AnimState_View::Update(float timeDelta)
 void AnimState_View::Pre_Render()
 {
     if (!Is_Open())
+        return;
+
+    if (EDITOR->IsPlaying())
         return;
 
     if (Is_CompanionPreviewFocused())
@@ -108,9 +114,11 @@ void AnimState_View::Pre_Render()
     const float dt = ImGui::GetIO().DeltaTime;
     previewRenderObject->Priority_Update(dt);
     previewRenderObject->Update(dt);
+    GAME->Backup_RenderGroup();
     previewRenderObject->Late_Update(dt);
 
-    GAME->Draw_RendererOnly();
+    GAME->Draw_Preview();
+    GAME->Restore_RenderGroup();
 
     Ensure_PreviewGridResources();
     Draw_PreviewGrid();
@@ -822,6 +830,21 @@ void AnimState_View::Save_Mapping(const string& fileName)
         mappings.push_back(entry);
     }
     root["Mappings"] = mappings;
+
+    if (_liveModelCom != nullptr && _liveModelCom->Get_Owner() != nullptr)
+    {
+        string prefabName = _liveModelCom->Get_Owner()->Get_SourcePrefabName();
+        if (!prefabName.empty())
+        {
+            string prefabPath = "data/json/prefabs/" + prefabName + ".prefab.json";
+            string prefabGuid = GAME->Find_AssetGUID(String::ToWString(prefabPath));
+            if (!prefabGuid.empty())
+            {
+                root["PrefabGuid"] = prefabGuid;
+            }
+        }
+    }
+
     std::ofstream file(savePath);
     if (file.is_open())
         file << std::setw(4) << root << std::endl;

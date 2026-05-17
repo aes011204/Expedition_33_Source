@@ -2,7 +2,7 @@
 #include "GameInstance.h"
 #include "Material.h"
 #include "Material_Types.h"
-#include "Player.h"
+#include "Player_WorldBase.h"
 #include "ModelCom.h"
 
 Head_Player::Head_Player(const ComPtr<Device>& device, const ComPtr<Context>& context)

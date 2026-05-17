@@ -1,0 +1,45 @@
+﻿#include "EffectEmitterRegistration.h"
+
+#include "EffectEmitterFactory.h"
+#include "ComputeSpriteEmitter.h"
+#include "GameInstance.h"
+
+NS_BEGIN(Client)
+
+namespace Internal
+{
+    Shared<EffectEmitter> Create_ClientEffectEmitter(const EffectEmitterDefinition& emitterDefinition)
+    {
+        switch (emitterDefinition.kind)
+        {
+        case EffectEmitterKind::ComputeSprite:
+        {
+            const auto* desc = get_if<ComputeSpriteEmitterDesc>(&emitterDefinition.concreteDesc);
+            if (nullptr == desc)
+                return nullptr;
+
+            ComputeSpriteEmitterDesc concreteDesc = *desc;
+            const Shared<GameObject> clonedObject = dynamic_pointer_cast<GameObject>(
+                GAME->Clone_Prototype(
+                    Prototype::GameObject,
+                    ETOI(LevelType::GamePlay),
+                    L"GameObject_Effect_ComputeSpriteEmitter",
+                    &concreteDesc
+                )
+            );
+
+            return dynamic_pointer_cast<EffectEmitter>(clonedObject);
+        }
+
+        default:
+            return nullptr;
+        }
+    }
+}
+
+void Register_ClientEffectEmitters()
+{
+    EffectEmitterFactory::Register_CreateEmitterFn(&Internal::Create_ClientEffectEmitter);
+}
+
+NS_END

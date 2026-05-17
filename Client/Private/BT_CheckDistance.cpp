@@ -61,6 +61,8 @@ bool BT_CheckDistance::Check_Condition()
         return _distance < dist && dist < _distance2;
 
     }
+
+    return false;
 }
 
 BNode::NODE_STATE BT_CheckDistance::Update(float deltaTime)

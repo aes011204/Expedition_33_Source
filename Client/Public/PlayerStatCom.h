@@ -65,12 +65,11 @@ public:
 public:
     HRESULT Initialize_Prototype() override;
     HRESULT Initialize(void* arg) override;
+    void    From_Json(const json& data) override;
 
 public:
-
     virtual  CombatStatDesc& Get_StatInfo() { return _playerDesc; };
     virtual  RuntimeCombatStat& Get_RuntimeStat() { return _PRuntimeStat; };
-
 
     const PlayerCombatStatDesc& Get_PlayerDesc() const{return _playerDesc;}
     PRuntimeCombatStat& Get_PlayerRuntimeStat(){return _PRuntimeStat;}
@@ -79,7 +78,6 @@ public:
 
     uint32  Get_NextExp(uint32 level) const;
     void Add_Exp(uint32 value);
-
 
 
 /// <test>

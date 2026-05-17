@@ -16,10 +16,25 @@ namespace Client::Constants::UI
 namespace Client::Constants::Map
 {
     inline constexpr wchar_t SmallLevel_SimonArea_Remake_Path[] = L"../../../Client/Bin/Resources/Map/SaveJson/SmallLevel_SimonArea.json";
+    inline constexpr wchar_t TestMap_Path[] = L"../../../Client/Bin/Resources/Map/SaveJson/TestMap.json";
     inline constexpr wchar_t SaveJson_Dir[] = L"../../../Client/Bin/Resources/Map/SaveJson/";
 }
 
 namespace Client::Constants::Charcter
 {
     inline constexpr int32 scaleOffset = 10000;
+}
+
+namespace Client::Constants::Prefab
+{
+    inline constexpr char PW_Gustave[]  = "PW_Gustave";
+    inline constexpr char PW_Lune[]     = "PW_Lune";
+    inline constexpr char PW_Maelle[]   = "PW_Maelle";
+
+    inline constexpr char PB_Gustave[]  = "PB_Gustave";
+    inline constexpr char PB_Lune[]     = "PB_Lune";
+    inline constexpr char PB_Maelle[]   = "PB_Maelle";
+
+    inline constexpr char MW_Lancelier[] = "MW_Lancelier";
+    inline constexpr char MB_Lancelier[] = "MB_Lancelier";
 }
