@@ -63,6 +63,33 @@ namespace UIEditor
             return min(max(frame, asset.startFrame), asset.endFrame);
         };
 
+        auto hitTestKey = [&](const ImVec2& screenPos, int32& outTrackIndex, int32& outKeyIndex) -> bool
+        {
+            outTrackIndex = -1;
+            outKeyIndex = -1;
+
+            if (screenPos.y < origin.y + kRulerHeight)
+                return false;
+
+            const int32 trackIndex = static_cast<int32>((screenPos.y - origin.y - kRulerHeight) / kTrackRowHeight);
+            if (trackIndex < 0 || trackIndex >= static_cast<int32>(asset.tracks.size()))
+                return false;
+
+            const UI_AnimationKeyframeTrack& track = asset.tracks[trackIndex];
+            for (int32 keyIndex = 0; keyIndex < static_cast<int32>(track.keys.size()); ++keyIndex)
+            {
+                const float keyX = frameToX(track.keys[keyIndex].frame);
+                if (fabsf(screenPos.x - keyX) <= 7.f)
+                {
+                    outTrackIndex = trackIndex;
+                    outKeyIndex = keyIndex;
+                    return true;
+                }
+            }
+
+            return false;
+        };
+
         const int32 majorStep = frameCount > 240 ? 30 : (frameCount > 120 ? 20 : 10);
         for (int32 frame = asset.startFrame; frame <= asset.endFrame; ++frame)
         {
@@ -120,6 +147,9 @@ namespace UIEditor
         {
             result.clicked = true;
             result.frame = xToFrame(mousePos.x);
+            _draggingKey = false;
+            _dragTrackIndex = -1;
+            _dragKeyIndex = -1;
 
             if (mousePos.y >= origin.y + kRulerHeight)
             {
@@ -130,18 +160,64 @@ namespace UIEditor
 
             if (result.trackIndex >= 0)
             {
-                const UI_AnimationKeyframeTrack& track = asset.tracks[result.trackIndex];
-                for (int32 keyIndex = 0; keyIndex < static_cast<int32>(track.keys.size()); ++keyIndex)
+                int32 hitTrackIndex = -1;
+                int32 hitKeyIndex = -1;
+                if (hitTestKey(mousePos, hitTrackIndex, hitKeyIndex))
                 {
-                    const float keyX = frameToX(track.keys[keyIndex].frame);
-                    if (fabsf(mousePos.x - keyX) <= 7.f)
+                    result.hitKey = true;
+                    result.trackIndex = hitTrackIndex;
+                    result.keyIndex = hitKeyIndex;
+                    result.frame = asset.tracks[hitTrackIndex].keys[hitKeyIndex].frame;
+
+                    _draggingKey = true;
+                    _dragTrackIndex = hitTrackIndex;
+                    _dragKeyIndex = hitKeyIndex;
+                }
+            }
+        }
+
+        if (_draggingKey)
+        {
+            if (ImGui::IsMouseDown(ImGuiMouseButton_Left))
+            {
+                const bool useSelectedKey = selectedTrackIndex == _dragTrackIndex && selectedKeyIndex >= 0;
+                const int32 targetTrackIndex = useSelectedKey ? selectedTrackIndex : _dragTrackIndex;
+                const int32 targetKeyIndex = useSelectedKey ? selectedKeyIndex : _dragKeyIndex;
+                const int32 targetFrame = xToFrame(mousePos.x);
+
+                if (targetTrackIndex >= 0 &&
+                    targetTrackIndex < static_cast<int32>(asset.tracks.size()) &&
+                    targetKeyIndex >= 0 &&
+                    targetKeyIndex < static_cast<int32>(asset.tracks[targetTrackIndex].keys.size()))
+                {
+                    const int32 currentKeyFrame = asset.tracks[targetTrackIndex].keys[targetKeyIndex].frame;
+                    const float rowMinY = origin.y + kRulerHeight + static_cast<float>(targetTrackIndex) * kTrackRowHeight;
+                    const float y = rowMinY + kTrackRowHeight * 0.5f;
+                    const float x = frameToX(targetFrame);
+                    drawList->AddRect(
+                        ImVec2(x - 7.f, y - 10.f),
+                        ImVec2(x + 7.f, y + 10.f),
+                        IM_COL32(255, 230, 0, 220),
+                        2.f,
+                        0,
+                        2.f);
+
+                    if (targetFrame != currentKeyFrame)
                     {
+                        result.clicked = true;
                         result.hitKey = true;
-                        result.keyIndex = keyIndex;
-                        result.frame = track.keys[keyIndex].frame;
-                        break;
+                        result.draggedKey = true;
+                        result.trackIndex = targetTrackIndex;
+                        result.keyIndex = targetKeyIndex;
+                        result.frame = targetFrame;
                     }
                 }
+            }
+            else
+            {
+                _draggingKey = false;
+                _dragTrackIndex = -1;
+                _dragKeyIndex = -1;
             }
         }
 

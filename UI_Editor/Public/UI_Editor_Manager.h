@@ -70,6 +70,8 @@ public:
     bool Set_ObjectLocked(ObjectId objectId, bool locked);
     bool Set_UIObjectWorldPosition(ObjectId objectId, const ImVec2& worldPosition);
     bool Set_UIObjectWorldRect(ObjectId objectId, const ImVec2& worldPosition, const ImVec2& worldSize);
+    bool Set_UIObjectPivotKeepWorldRect(ObjectId objectId, const ImVec2& pivot);
+    bool Set_UIObjectAnchorsKeepWorldRect(ObjectId objectId, const ImVec2& anchorMin, const ImVec2& anchorMax);
     ImVec2 Get_UIObjectWorldPosition(ObjectId objectId) const;
     bool Align_SelectedObjects(UI_AlignmentCommand command);
     bool Undo();
@@ -88,6 +90,7 @@ public:
         const Vec2& boxMax,
         const Vec4& color,
         float rotationRadians,
+        const Vec2& pivot,
         UI_TextAlign textAlign,
         float scale,
         bool textWrap,

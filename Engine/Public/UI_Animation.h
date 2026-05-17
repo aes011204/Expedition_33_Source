@@ -59,12 +59,14 @@ struct UI_KeyframeAnimationKey
 {
     int32 frame = 0;
     float value = 0.f;
+    UI_AnimationEasing easing = UI_AnimationEasing::Linear;
 };
 
 struct UI_KeyframeAnimationTrack
 {
     UI_KeyframeAnimationTrackType type = UI_KeyframeAnimationTrackType::PositionX;
     bool enabled = true;
+    UI_AnimationEasing easing = UI_AnimationEasing::Linear;
     vector<UI_KeyframeAnimationKey> keys = {};
 };
 

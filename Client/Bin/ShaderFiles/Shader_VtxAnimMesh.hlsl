@@ -194,6 +194,24 @@ PS_OUT PS_Mask(PS_IN In)
     return Out;
 }
 
+// for character picking
+uint g_iObjectID;
+struct PS_OUT_ID
+{
+    vector Color : SV_Target0;
+};
+
+PS_OUT_ID PS_ID(PS_IN In)
+{
+    PS_OUT_ID Out;
+    Out.Color.r = float(g_iObjectID & 0xFF) / 255.f;
+    Out.Color.g = float((g_iObjectID >> 8) & 0xFF) / 255.f;
+    Out.Color.b = float((g_iObjectID >> 16) & 0xFF) / 255.f;
+    Out.Color.a = 1.f;
+    return Out;
+}
+//
+
 struct PS_OUT_SHADOW
 {
     vector LightDepth : SV_TARGET0;
@@ -273,5 +291,6 @@ technique11 DefaultTechnique
     PASS_RS_DS_BS_VP(ShadowPass,            RS_Default,     DSS_Default, BS_Default, VS_Shadow, PS_Shadow)          // 4
     PASS_RS_DS_BS_VP(CharacterEye,          RS_Default,     DSS_Default, BS_Default, VS_Main, PS_CharacterEye)      // 5
     PASS_RS_DS_BS_VP(CharacterHair,         RS_CullNone,    DSS_Default, BS_Default, VS_Main, PS_CharacterHair)     // 6
+    PASS_RS_DS_BS_VP(IDPass,                RS_Default,     DSS_Default, BS_Default, VS_Main, PS_ID)                // 7
 }
 

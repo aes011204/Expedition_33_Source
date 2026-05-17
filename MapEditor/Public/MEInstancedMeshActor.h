@@ -5,6 +5,8 @@
 NS_BEGIN(Engine)
 class ModelCom;
 class ShaderCom;
+class ComputeShaderCom;
+class ComputeStructuredBuffer;
 NS_END
 
 NS_BEGIN(MapEditor)
@@ -25,6 +27,7 @@ public:
     virtual HRESULT Initialize(void* arg) override;
     virtual void Late_Update(float timeDelta) override;
     virtual HRESULT Render() override;
+    virtual HRESULT RenderPickingID(uint32 id) override;
 
 private:
     Shared<ModelCom> _model;
@@ -36,11 +39,24 @@ private:
 
     wstring _loadedModelPath = {};
 
+    Shared<ComputeShaderCom> _cullShader;
+    Shared<ComputeStructuredBuffer> _instanceSrcBuffer;
+    Shared<ComputeStructuredBuffer> _sphereBuffer;
+    ComPtr<Buffer> _visibleVB;
+    ComPtr<UnorderedAccessView> _visibleUAV;
+    ComPtr<Buffer> _cullCB;
+    ComPtr<Buffer> _countStaging;
+    uint32 _visibleCount = {};
+
 private:
     HRESULT CreateInstanceBuffer(const vector<Matrix>& matrices);
     void GenerateInstances(const Vec3& centerPos, float areaWidth, float areaDepth, float density, uint32 seed, vector<MESHINSTANCEDATA>& outInstances);
     HRESULT Ready_Components();
     HRESULT Bind_ShaderResources();
+
+    HRESULT CreateCullBuffers(const vector<Matrix>& matrices, const vector<InstanceTransform>& transforms);
+    void DispatchCull();
+    static array<Vec4, 6> ExtractFrustumPlanes(const Matrix& vp);
 
 public:
     HRESULT UpdateInstances(const wstring& modelPath, const vector<InstanceTransform>& transforms);

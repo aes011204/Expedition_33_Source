@@ -1,6 +1,21 @@
 ﻿#include "UI_Button.h"
 
+#include <cmath>
+
 #include "GameInstance.h"
+
+namespace
+{
+    Vec2 Rotate_Point(const Vec2& point, float rotationRadians)
+    {
+        const float cosAngle = cosf(rotationRadians);
+        const float sinAngle = sinf(rotationRadians);
+
+        return Vec2(
+            point.x * cosAngle - point.y * sinAngle,
+            point.x * sinAngle + point.y * cosAngle);
+    }
+}
 
 UI_Button::UI_Button()
 {
@@ -81,24 +96,25 @@ bool UI_Button::Hit_TestMouse() const
         return false;
 
     const POINT& mousePosition = GAME->Get_MousePosition();
-    const Vec2 worldPosition = Get_WorldPosition();
-    const Vec2& size = transform->Get_Size();
-    const Vec2& scale = transform->Get_Scale();
+    const Vec2 size = Get_ResolvedLocalSize();
+    const Vec2& localScale = transform->Get_Scale();
+    const Vec2 worldScale = Get_WorldScale();
 
-    const float width = size.x * scale.x;
-    const float height = size.y * scale.y;
+    const float width = size.x * worldScale.x;
+    const float height = size.y * worldScale.y;
 
     if (width <= 0.f || height <= 0.f)
         return false;
 
-    const float mouseX = static_cast<float>(mousePosition.x);
-    const float mouseY = static_cast<float>(mousePosition.y);
+    const Vec2 center = Transform_LocalPointToWorld(Get_ScaledLocalCenter(localScale));
+    const Vec2 mouseOffset(
+        static_cast<float>(mousePosition.x) - center.x,
+        static_cast<float>(mousePosition.y) - center.y);
+    const Vec2 localMouseOffset = Rotate_Point(mouseOffset, -Get_WorldRotationRadians());
 
     return
-        mouseX >= worldPosition.x &&
-        mouseX <= worldPosition.x + width &&
-        mouseY >= worldPosition.y &&
-        mouseY <= worldPosition.y + height;
+        fabsf(localMouseOffset.x) <= width * 0.5f &&
+        fabsf(localMouseOffset.y) <= height * 0.5f;
 }
 
 Vec4 UI_Button::Scale_RGB(const Vec4& color, float scale)

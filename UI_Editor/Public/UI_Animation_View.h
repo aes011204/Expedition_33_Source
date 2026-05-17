@@ -22,6 +22,7 @@ namespace UIEditor
         void Render_TargetSection();
         void Render_PlaybackSection();
         void Render_TimelineSection();
+        void Render_PresetPanel();
         void Render_TrackPanel();
         void Render_KeyPanel();
 
@@ -29,6 +30,7 @@ namespace UIEditor
         void Set_CurrentFrame(int32 frame);
         void Refresh_StaticPreview();
         void Handle_TimelineClick(const UI_AnimationTimelineClickResult& clickResult);
+        void Handle_Shortcuts();
 
     public:
         static Shared<UI_Animation_View> Create(UI_Editor_Manager& editorManager);
@@ -38,5 +40,8 @@ namespace UIEditor
         UI_AnimationAssetService _assetService = {};
         UI_AnimationTimelineView _timelineView = {};
         char _targetNameBuffer[128] = {};
+        int32 _presetDurationFrames = 18;
+        float _presetDistance = 48.f;
+        float _presetScaleAmount = 1.08f;
     };
 }

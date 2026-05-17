@@ -4,6 +4,7 @@
 #include "RenderTarget.h"
 #include "GameInstance.h"
 #include "MEStaticMeshActor.h"
+#include "MEInstancedMeshActor.h"
 
 HRESULT MEPickingSystem::Initialize(ComPtr<Device> device, ComPtr<Context> context, uint32 w, uint32 h)
 {
@@ -27,21 +28,36 @@ HRESULT MEPickingSystem::Initialize(ComPtr<Device> device, ComPtr<Context> conte
     return S_OK;
 }
 
-uint32 MEPickingSystem::SampleID(const vector<Shared<EditorObject>>& objects, const ImVec2& mousePos, const ImVec2& vpPos, const ImVec2& vpSize, const RenderTarget& rt)
+uint32 MEPickingSystem::SampleID(const SceneContext& scene, const ImVec2& mousePos, const ImVec2& vpPos, const ImVec2& vpSize, const RenderTarget& rt)
 {
     EnsureSize(rt.Get_Width(), rt.Get_Height());
 
     CHECK_FAILED(_idRT->Begin(), 0);
 
-    for (uint32 i = 0; i < static_cast<uint32>(objects.size()); ++i)
+    const uint32 staticCount = static_cast<uint32>(scene._staticMeshes.size());
+    for (uint32 i = 0; i < staticCount; ++i)
     {
-        auto& obj = objects[i];
+        auto& obj = scene._staticMeshes[i];
         if (!obj->_renderHandle)
         {
             continue;
         }
+
         obj->_renderHandle->RenderID(obj->_worldMatrix, i + 1);
     }
+
+    const uint32 instancedCount = static_cast<uint32>(scene._instancedMeshes.size());
+    for (uint32 i = 0; i < instancedCount; ++i)
+    {
+        auto& obj = scene._instancedMeshes[i];
+        if (!obj->_instancedRenderHandle)
+        {
+            continue;
+        }
+
+        obj->_instancedRenderHandle->RenderPickingID(staticCount + i + 1);
+    }
+
     GAME->Bind_BackBuffer();
 
     const uint32 w = rt.Get_Width();
@@ -57,12 +73,13 @@ uint32 MEPickingSystem::SampleID(const vector<Shared<EditorObject>>& objects, co
     if (SUCCEEDED(_context->Map(_idStagingTex.Get(), 0, D3D11_MAP_READ, 0, &mapped)))
     {
         const uint8* p = static_cast<const uint8*>(mapped.pData);
-        id = p[0] | (p[1] << 8 | p[2] << 16);
+        id = p[0] | (p[1] << 8) | (p[2] << 16);
         _context->Unmap(_idStagingTex.Get(), 0);
     }
 
     return id;
 }
+
 
 void MEPickingSystem::EnsureSize(uint32 w, uint32 h)
 {
@@ -79,17 +96,27 @@ void MEPickingSystem::DoPickAt(SceneContext& scene, const ImVec2& mousePos, cons
         return;
     }
 
-    uint32 id = SampleID(scene._staticMeshes, mousePos, vpPos, vpSize, rt);
+    uint32 id = SampleID(scene, mousePos, vpPos, vpSize, rt);
+    const uint32 staticCount = static_cast<uint32>(scene._staticMeshes.size());
 
     if (id == 0)
     {
         scene._selected = nullptr;
     }
-    else if (id - 1 < static_cast<uint32>(scene._staticMeshes.size()))
+    else if (id <= staticCount)
     {
         scene._selected = scene._staticMeshes[id - 1];
     }
+    else if (id - staticCount - 1 < static_cast<uint32>(scene._instancedMeshes.size()))
+    {
+        scene._selected = scene._instancedMeshes[id - staticCount - 1];
+    }
+    else
+    {
+        scene._selected = nullptr;
+    }
 }
+
 
 void MEPickingSystem::SetCursorAt(SceneContext& scene, const MECamera& camera, const ImVec2& mousePos, const ImVec2& vpPos, const ImVec2& vpSize, const RenderTarget& rt)
 {
@@ -98,19 +125,21 @@ void MEPickingSystem::SetCursorAt(SceneContext& scene, const MECamera& camera, c
         return;
     }
 
-    uint32 id = SampleID(scene._staticMeshes, mousePos, vpPos, vpSize, rt);
+    uint32 id = SampleID(scene, mousePos, vpPos, vpSize, rt);
+    const uint32 staticCount = static_cast<uint32>(scene._staticMeshes.size());
 
     const float ndcX = ((mousePos.x - vpPos.x) / vpSize.x) * 2.f - 1.f;
     const float ndcY = -((mousePos.y - vpPos.y) / vpSize.y) * 2.f + 1.f;
     const Matrix& proj = camera.GetProj();
     const Matrix invView = camera.GetView().Invert();
+
     Vec3 rayOrigin(invView._41, invView._42, invView._43);
     Vec3 rayDir = Vec3::TransformNormal(Vec3(ndcX / proj._11, ndcY / proj._22, 1.f), invView);
     rayDir.Normalize();
 
-    if (id > 0 && id - 1 < static_cast<uint32>(scene._staticMeshes.size()))
+    if (id > 0 && id <= staticCount)
     {
-        auto& obj = scene._staticMeshes[static_cast<vector<Shared<EditorObject>, allocator<Shared<EditorObject>>>::size_type>(id) - 1];
+        auto& obj = scene._staticMeshes[id - 1];
         Vec3 localMin, localMax;
         if (obj->_renderHandle && obj->_renderHandle->GetModel()->Try_Get_LocalBounds(localMin, localMax))
         {
@@ -140,6 +169,7 @@ void MEPickingSystem::SetCursorAt(SceneContext& scene, const MECamera& camera, c
 
     scene._cursorVisible = true;
 }
+
 
 Unique<MEPickingSystem> MEPickingSystem::Create(ComPtr<Device> device, ComPtr<Context> context, uint32 w, uint32 h)
 {

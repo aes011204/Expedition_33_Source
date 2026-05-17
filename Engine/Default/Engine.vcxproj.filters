@@ -337,6 +337,9 @@
     </ClInclude>
     <ClInclude Include="..\Public\EnumFlags.h">
       <Filter>01.Utility\98. Utils</Filter>
+  </ClInclude>
+    <ClInclude Include="..\Public\InstanceCullParams.h">
+      <Filter>99. Defines</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\DelegateHub.h" />
     <ClInclude Include="..\Public\EffectMaterial_Types.h">

@@ -226,6 +226,7 @@ if exist "$(SolutionDir)Client\Bin\$(Configuration)\assimp-vc143-mtd.dll" xcopy 
     <ClInclude Include="..\Public\ModelEditorApp.h" />
     <ClInclude Include="..\Public\ModelInspector.h" />
     <ClInclude Include="..\Public\ModelSceneWindow.h" />
+    <ClInclude Include="..\Public\ModelTestPanel.h" />
     <ClInclude Include="..\Public\ModelViewerObject.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="ModelEditor.h" />
@@ -244,6 +245,7 @@ if exist "$(SolutionDir)Client\Bin\$(Configuration)\assimp-vc143-mtd.dll" xcopy 
     <ClCompile Include="..\Private\ModelEditorApp.cpp" />
     <ClCompile Include="..\Private\ModelInspector.cpp" />
     <ClCompile Include="..\Private\ModelSceneWindow.cpp" />
+    <ClCompile Include="..\Private\ModelTestPanel.cpp" />
     <ClCompile Include="..\Private\ModelViewerObject.cpp" />
     <ClCompile Include="..\Private\SimpleMath.cpp" />
     <ClCompile Include="ModelEditor.cpp" />
