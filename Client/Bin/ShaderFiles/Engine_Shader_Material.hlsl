@@ -154,6 +154,8 @@ struct EyeMaterialSample
 {
     float3  baseColor;
     float   opacity;
+    float   irisArea;
+    float   pupilMask;
 };
 
 EyeMaterialSample SampleEyeMaterial(float2 uv)
@@ -167,15 +169,23 @@ EyeMaterialSample SampleEyeMaterial(float2 uv)
     }
 
     const bool hasIrisHeightTex = HasMaterialTexture(MATERIAL_SLOT_IRIS_HEIGHT);
+    const bool hasIrisMaskTex = HasMaterialTexture(MATERIAL_SLOT_IRIS_MASK);
 
     float irisHeight = 0.5f;
     if (hasIrisHeightTex)
         irisHeight = g_MaterialTextures[MATERIAL_SLOT_IRIS_HEIGHT].Sample(LinearWrapSampler, uv).r;
 
-    // Iris 영역은 UV 기준 원형으로 고정한다.
-    // (Iris_M 텍스처는 채널 packed 성격이 있어 영역 마스크로 쓰면 중심 점만 남는 문제가 발생)
+    float3 irisMaskTex = float3(0.5f, 0.5f, 0.5f);
+    if (hasIrisMaskTex)
+        irisMaskTex = g_MaterialTextures[MATERIAL_SLOT_IRIS_MASK].Sample(LinearWrapSampler, uv).rgb;
+
+    // Iris 텍스처 중앙을 원점으로 한다. (0.5 , 0.5) -> (0, 0)
     float2 eyeUV = uv * 2.f - 1.f;
+
+    // 원점으로부터의 거리. 홍채 원형 영역 계산
     float radial = length(eyeUV);
+
+    // 홍채 마스크
     float irisArea = 1.f - smoothstep(0.20f, 0.46f, radial);
     irisArea = saturate(irisArea);
 
@@ -189,17 +199,48 @@ EyeMaterialSample SampleEyeMaterial(float2 uv)
         irisTint = float3(0.30f, 0.22f, 0.14f);
     }
 
+    // 홍채 섬유 무늬, 밝기, 색 변화 강도
     float fiber = saturate(irisHeight);
+    // Height 텍스처의 0~1 차이를 디테일로 직접 쓰기 위해 대비를 올린다.
+    float heightDetail = saturate((fiber - 0.5f) * 2.4f + 0.5f);
     float limbal = smoothstep(0.28f, 0.46f, radial);
+    float limbalRing = smoothstep(0.28f, 0.40f, radial) * (1.f - smoothstep(0.40f, 0.50f, radial));
+
+    // 중앙의 검은 동공 영역
     float pupilMask = 1.f - smoothstep(0.06f, 0.13f, radial);
+    float angle = atan2(eyeUV.y, eyeUV.x);
+
+    // 홍채의 단색 느낌을 줄이기 위한 방사형 결(iris striation)
+    // 과한 나선형 느낌을 줄이고, 섬유질에 가까운 방사형 결로 정리
+    float radialBandA = sin(angle * 12.f + radial * 12.f + fiber * 1.5f);
+    float radialBandB = sin(angle * 18.f + radial * 20.f + fiber * 2.0f);
+    float proceduralDetail = saturate(0.5f + 0.22f * radialBandA + 0.16f * radialBandB);
+    proceduralDetail = lerp(0.90f, 1.12f, proceduralDetail);
+
+    // Iris_M은 영역 마스크가 아니라 홍채 디테일 모듈레이터로 사용한다.
+    // 채널의 결 무늬를 최대한 살리기 위해 G 채널을 중심으로, R/B를 보조로 섞고 대비를 강화한다.
+    float irisMaskBase = saturate(irisMaskTex.g * 1.10f + irisMaskTex.r * 0.18f + irisMaskTex.b * 0.08f);
+    float irisMaskContrast = saturate((irisMaskBase - 0.5f) * 1.9f + 0.5f);
+    float irisMaskDetail = lerp(0.72f, 1.36f, irisMaskContrast);
+
+    // 최종 디테일은 Height를 주로, Mask를 보조로 사용한다.
+    float heightDrivenDetail = lerp(0.68f, 1.42f, heightDetail);
+    float irisDetail = heightDrivenDetail * lerp(0.90f, 1.10f, irisMaskContrast);
+    irisDetail *= lerp(0.92f, 1.08f, proceduralDetail);
 
     float3 scleraColor = saturate(baseColorTex * 1.02f);
-    float3 irisBaseColor = lerp(float3(0.10f, 0.08f, 0.06f), irisTint, lerp(0.35f, 0.95f, fiber));
-    irisBaseColor *= lerp(1.0f, 0.55f, limbal); // 홍채 바깥 고리 살짝 어둡게
+    float3 irisBaseColor = lerp(float3(0.10f, 0.08f, 0.06f), irisTint, lerp(0.30f, 0.98f, fiber));
+    irisBaseColor *= irisDetail * irisMaskDetail;
+    irisBaseColor *= lerp(1.0f, 0.68f, limbal); // 홍채 외곽으로 갈수록 기본적으로 어둡게
     float3 irisColor = irisBaseColor;
     // 중심 동공은 반드시 어둡게 고정한다.
     irisColor = lerp(irisColor, float3(0.015f, 0.015f, 0.02f), pupilMask);
-    irisColor *= lerp(0.82f, 1.0f, irisArea);
+    // 경계 띠는 검은자보다 옅어지지 않도록 별도 고리로 강하게 눌러준다.
+    irisColor *= lerp(1.0f, 0.42f, limbalRing);
+    // 중앙~중간 영역을 살짝 밝게 보정해 "회색 띠" 느낌을 줄인다.
+    float innerLift = 1.f - smoothstep(0.10f, 0.36f, radial);
+    irisColor *= lerp(0.90f, 1.08f, innerLift);
+    irisColor *= lerp(0.88f, 1.0f, irisArea);
 
     // 홍채-흰자 전이를 더 급하게 만들어 탁한 중간톤 띠를 줄인다.
     float irisBlend = smoothstep(0.32f, 0.88f, irisArea);
@@ -209,6 +250,8 @@ EyeMaterialSample SampleEyeMaterial(float2 uv)
     Out.baseColor = saturate(Out.baseColor);
 
     Out.opacity = 1.f;
+    Out.irisArea = irisBlend;
+    Out.pupilMask = pupilMask;
 
     return Out;
 }

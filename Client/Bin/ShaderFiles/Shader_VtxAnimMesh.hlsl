@@ -224,6 +224,12 @@ PS_OUT PS_CharacterEye(PS_IN In)
     Out.Normal = float4(EncodeNormal(worldNormal), 1.f);
     Out.Depth = float4(In.ProjPos.z / In.ProjPos.w, In.ProjPos.w / g_Far, 0.f, 1.f);
     float3 orm = SampleOrm(finalUV);
+    // Eye 전용 ORM 보정: iris는 roughness를 낮춰 입체 하이라이트를 살리고,
+    // pupil은 거의 무광에 가깝게 유지한다.
+    float eyeRoughness = lerp(0.20f, 0.06f, eye.irisArea);
+    eyeRoughness = lerp(eyeRoughness, 0.03f, eye.pupilMask);
+    orm.g = min(orm.g, eyeRoughness);
+    orm.b = min(orm.b, 0.02f); // 눈에서 금속감 방지
     Out.Material = float4(orm.xyz, 1.f);
 
     float3 emissive = SampleEmissive(finalUV);
