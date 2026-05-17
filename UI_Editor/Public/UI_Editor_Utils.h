@@ -24,7 +24,6 @@ namespace UIEditor
     ImTextureID To_ImTextureID(ID3D11ShaderResourceView* srv);
     float Get_UITextRuntimeScale(const UI_Object& object);
     ImVec2 Get_UIObjectRuntimeSize(const UI_Object& object);
-    ImVec2 Clamp_ObjectPosition(const UI_Object& object, const ImVec2& canvasSize, const ImVec2& position);
     bool Build_ScreenClipRect(const ImVec2& minPosition, const ImVec2& maxPosition, D3D11_RECT& outRect);
     wstring Build_SafeSpriteFontText(const SpriteFont& font, const wstring& text);
 

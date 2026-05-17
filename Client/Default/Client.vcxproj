@@ -224,8 +224,9 @@
     <ClInclude Include="..\Public\Client_Macro.h" />
     <ClInclude Include="..\Public\Client_Struct.h" />
     <ClInclude Include="..\Public\CombatStatCom.h" />
-    <ClInclude Include="..\Public\ComputePointParticleEffect.h" />
+    <ClInclude Include="..\Public\ComputeSpriteEmitter.h" />
     <ClInclude Include="..\public\DamageSystem.h" />
+    <ClInclude Include="..\Public\EffectEmitterRegistration.h" />
     <ClInclude Include="..\Public\GameDataTable.h" />
     <ClInclude Include="..\Public\GameplayUI.h" />
     <ClInclude Include="..\Public\HairChainPhysics.h" />
@@ -369,8 +370,9 @@
     <ClCompile Include="..\Private\Cinematic_Player.cpp" />
     <ClCompile Include="..\Private\Cinematic_SequenceIO.cpp" />
     <ClCompile Include="..\Private\CombatStatCom.cpp" />
-    <ClCompile Include="..\Private\ComputePointParticleEffect.cpp" />
+    <ClCompile Include="..\Private\ComputeSpriteEmitter.cpp" />
     <ClCompile Include="..\private\DamageSystem.cpp" />
+    <ClCompile Include="..\Private\EffectEmitterRegistration.cpp" />
     <ClCompile Include="..\Private\GameDataTable.cpp" />
     <ClCompile Include="..\Private\GameplayUI.cpp" />
     <ClCompile Include="..\Private\HairChainPhysics.cpp" />
@@ -455,6 +457,7 @@
     <ClCompile Include="..\Private\Weapon.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_InstanceCull.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_PointParticle.hlsl">
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">CS_Main</EntryPointName>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>

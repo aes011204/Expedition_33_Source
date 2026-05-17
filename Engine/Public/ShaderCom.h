@@ -62,7 +62,6 @@ private:
 
     // GPU 주소
     ComPtr<ID3D11Buffer>                            _allocatedCB[ETOI(ConstantBuffer::END)]{};
-
     
 private: // Effect 캐싱
     umap<string, ID3DX11EffectVariable*>            _effectVariableCache;

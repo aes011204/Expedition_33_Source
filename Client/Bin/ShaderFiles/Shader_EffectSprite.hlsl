@@ -39,6 +39,7 @@ struct VS_OUT
     float4 startColor : COLOR0;
     float4 endColor : COLOR1;
     float4 subUVRect : TEXCOORD2;
+    float rotationRadians : TEXCOORD3;
 };
 
 VS_OUT VS_MAIN(VS_IN In)
@@ -52,6 +53,7 @@ VS_OUT VS_MAIN(VS_IN In)
     Out.startColor = In.startColor;
     Out.endColor = In.endColor;
     Out.subUVRect = In.subUVRect;
+    Out.rotationRadians = atan2(In.InstanceMatrix[0].y, In.InstanceMatrix[0].x);
 
     return Out;
 }
@@ -64,6 +66,7 @@ struct GS_IN
     float4 startColor : COLOR0;
     float4 endColor : COLOR1;
     float4 subUVRect : TEXCOORD2;
+    float rotationRadians : TEXCOORD3;
 };
 
 struct GS_OUT
@@ -95,6 +98,12 @@ void GS_MAIN(point GS_IN In[1], inout TriangleStream<GS_OUT> OutStream)
 
     rightDir = normalize(rightDir);
     float3 upDir = normalize(cross(lookDir, rightDir));
+    const float rotationCos = cos(In[0].rotationRadians);
+    const float rotationSin = sin(In[0].rotationRadians);
+    const float3 billboardRight = rightDir;
+    const float3 billboardUp = upDir;
+    rightDir = billboardRight * rotationCos + billboardUp * rotationSin;
+    upDir = -billboardRight * rotationSin + billboardUp * rotationCos;
     rightDir *= In[0].size.x * 0.5f;
     upDir *= In[0].size.y * 0.5f;
 

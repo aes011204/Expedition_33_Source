@@ -54,6 +54,7 @@ namespace Engine
         PartObject,
         Projectile,
         Effect,
+        EffectEmitter,
         Trigger,
         UI,
     };

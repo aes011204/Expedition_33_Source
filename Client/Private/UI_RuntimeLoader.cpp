@@ -33,6 +33,9 @@ namespace
         Vec2 worldPosition{ 0.f, 0.f };
         Vec2 size{ 100.f, 100.f };
         Vec2 scale{ 1.f, 1.f };
+        Vec2 pivot{ 0.5f, 0.5f };
+        Vec2 anchorMin{ 0.f, 0.f };
+        Vec2 anchorMax{ 0.f, 0.f };
         float rotationRadians = 0.f;
         Vec4 color{ 1.f, 1.f, 1.f, 1.f };
         int32 sortOrder = 0;
@@ -204,6 +207,15 @@ namespace
         return UI_Text::TextAlign::Left;
     }
 
+    float Read_RotationRadians(const json& item)
+    {
+        const auto radiansIter = item.find("rotationRadians");
+        if (radiansIter != item.end() && radiansIter->is_number())
+            return radiansIter->get<float>();
+
+        return Read_Float(item, "rotation", 0.f);
+    }
+
     bool Try_ReadAnimationTrack(const json& item, UI_AnimationTrack& outTrack)
     {
         if (!item.is_object())
@@ -370,6 +382,12 @@ namespace
         UI_KeyframeAnimationKey key{};
         key.frame = Read_Int(item, "frame", 0);
         key.value = Read_Float(item, "value", 0.f);
+        key.easing = outKey.easing;
+
+        UI_AnimationEasing easing = key.easing;
+        const string easingName = Read_String(item, "easing", "");
+        if (!easingName.empty() && Try_ParseUIAnimationEasing(easingName, easing))
+            key.easing = easing;
 
         outKey = key;
         return true;
@@ -392,12 +410,17 @@ namespace
         track.type = trackType;
         track.enabled = Read_Bool(item, "enabled", true);
 
+        UI_AnimationEasing easing = UI_AnimationEasing::Linear;
+        if (Try_ParseUIAnimationEasing(Read_String(item, "easing", "Linear"), easing))
+            track.easing = easing;
+
         const auto keysIter = item.find("keys");
         if (keysIter != item.end() && keysIter->is_array())
         {
             for (const json& keyItem : *keysIter)
             {
                 UI_KeyframeAnimationKey key{};
+                key.easing = track.easing;
                 if (Try_ReadKeyframeAnimationKey(keyItem, key))
                     track.keys.push_back(key);
             }
@@ -667,7 +690,10 @@ namespace
         object.position = Read_Vec2(item, "position", Vec2(0.f, 0.f));
         object.size = Read_Vec2(item, "size", Vec2(100.f, 100.f));
         object.scale = Read_Vec2(item, "scale", Vec2(1.f, 1.f));
-        object.rotationRadians = Read_Float(item, "rotation", Read_Float(item, "rotationRadians", 0.f));
+        object.pivot = Read_Vec2(item, "pivot", Vec2(0.5f, 0.5f));
+        object.anchorMin = Read_Vec2(item, "anchorMin", Vec2(0.f, 0.f));
+        object.anchorMax = Read_Vec2(item, "anchorMax", Vec2(0.f, 0.f));
+        object.rotationRadians = Read_RotationRadians(item);
         object.color = Read_Color(item, "color", Vec4(1.f, 1.f, 1.f, 1.f));
         object.sortOrder = Read_Int(item, "sortOrder", 0);
         object.renderGroup = Parse_RenderLayer(Read_String(item, "renderLayer", "Foreground"));
@@ -842,6 +868,9 @@ namespace
         desc.transformDesc.size = object.size;
         desc.transformDesc.scale = object.scale;
         desc.transformDesc.rotationRadians = object.rotationRadians;
+        desc.transformDesc.pivot = object.pivot;
+        desc.transformDesc.anchorMin = object.anchorMin;
+        desc.transformDesc.anchorMax = object.anchorMax;
         desc.sortOrder = object.sortOrder;
         desc.isOpenOnCreate = true;
         desc.animationClips = object.animationClips;
@@ -895,6 +924,9 @@ namespace
         desc.transformDesc.position = object.position;
         desc.transformDesc.size = object.size;
         desc.transformDesc.scale = scale;
+        desc.transformDesc.pivot = object.pivot;
+        desc.transformDesc.anchorMin = object.anchorMin;
+        desc.transformDesc.anchorMax = object.anchorMax;
         desc.transformDesc.rotationRadians = object.rotationRadians;
         desc.sortOrder = object.sortOrder;
         desc.isOpenOnCreate = true;
@@ -925,6 +957,9 @@ namespace
         desc.transformDesc.position = object.position;
         desc.transformDesc.size = object.size;
         desc.transformDesc.scale = object.scale;
+        desc.transformDesc.pivot = object.pivot;
+        desc.transformDesc.anchorMin = object.anchorMin;
+        desc.transformDesc.anchorMax = object.anchorMax;
         desc.transformDesc.rotationRadians = object.rotationRadians;
         desc.sortOrder = object.sortOrder;
         desc.isOpenOnCreate = true;
@@ -955,6 +990,9 @@ namespace
         desc.transformDesc.position = object.position;
         desc.transformDesc.size = object.size;
         desc.transformDesc.scale = object.scale;
+        desc.transformDesc.pivot = object.pivot;
+        desc.transformDesc.anchorMin = object.anchorMin;
+        desc.transformDesc.anchorMax = object.anchorMax;
         desc.transformDesc.rotationRadians = object.rotationRadians;
         desc.sortOrder = object.sortOrder;
         desc.isOpenOnCreate = true;

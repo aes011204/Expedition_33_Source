@@ -64,6 +64,13 @@ private: //## Data::ModuleDetail
     LifetimeModuleDetail _lifetimeModuleDetail{};
     InitialSizeModuleDetail _initialSizeModuleDetail{};
     InitialVelocityModuleDetail _initialVelocityModuleDetail{};
+    AccelerationModuleDetail _accelerationModuleDetail{};
+    DragModuleDetail _dragModuleDetail{};
+    VelocityOverLifeModuleDetail _velocityOverLifeModuleDetail{};
+    InitialRotationModuleDetail _initialRotationModuleDetail{};
+    RotationOverLifeModuleDetail _rotationOverLifeModuleDetail{};
+    InitialRotationRateModuleDetail _initialRotationRateModuleDetail{};
+    RotationRateScaleByLifeModuleDetail _rotationRateScaleByLifeModuleDetail{};
     InitialColorModuleDetail _initialColorModuleDetail{};
     ColorOverLifeModuleDetail _colorOverLifeModuleDetail{};
     SubUVFrameOverLifeModuleDetail _subUvFrameOverLifeModuleDetail{}; // SubUV frame 진행 규칙 drawer다.

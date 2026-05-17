@@ -5,7 +5,6 @@
 #include "Spawn_Prefab.h"
 #include "TargetCamera.h"
 #include "MapLoader.h"
-#include "Spawn_Prefab.h"
 #include "UI_Base.h"
 #include "UI_Button.h"
 #include "UI_Image.h"
@@ -54,7 +53,7 @@ void Level_GamePlay::Update(float fTimeDelta)
     // 테스트
 #ifdef _DEBUG
     const int32 fps = (fTimeDelta > 0.f)
-            ? static_cast<int32>(1.f / fTimeDelta) : 0.f;
+            ? static_cast<int32>(1.f / fTimeDelta) : 0;
 
      GAME->Print(L"현재 FPS : {}", fps, duration(0.f), color(Vec4(1.f, 1.f, 0.f, 1.f)));
 #endif
@@ -120,12 +119,12 @@ HRESULT Level_GamePlay::Ready_Lights()
 
 HRESULT Level_GamePlay::Ready_Layer_UI(const wstring& strLayerTag)
 {
-    /*UI_RuntimeLoader::UI_LoadDesc desc{};
-    desc.levelIndex = ETOI(LevelType::GamePlay);
-    desc.jsonPath = Constants::UI::UI_Json_Path;
-    desc.outUIByName = &_uiByName;
+    //UI_RuntimeLoader::UI_LoadDesc desc{};
+    //desc.levelIndex = ETOI(LevelType::GamePlay);
+    //desc.jsonPath = Constants::UI::UI_Json_Path;
+    //desc.outUIByName = &_uiByName;
 
-    CHECK_FAILED(UI_RuntimeLoader::Load_Document(desc), E_FAIL);*/
+    //CHECK_FAILED(UI_RuntimeLoader::Load_Document(desc), E_FAIL);
     CHECK_FAILED(CLIENT->Initialize_GameplayUI(ETOI(LevelType::GamePlay)), E_FAIL);
      
     return S_OK;
@@ -187,14 +186,14 @@ HRESULT Level_GamePlay::Ready_Layer_BackGround(const wstring& strLayerTag)
 
 HRESULT Level_GamePlay::Ready_Layer_Monster(const wstring& strLayerTag)
 {
-   /* if (FAILED(
-        GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Monster"),
-            ETOI(LevelType::GamePlay), strLayerTag)
-    ))
-        return E_FAIL;*/
+    //if (FAILED(
+    //    GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Monster"),
+    //        ETOI(LevelType::GamePlay), strLayerTag)
+    //))
+    //    return E_FAIL;
 
 
-    Vec3 startPos = Vec3(225.f, -4020.5f, -1.24f);
+    Vec3 startPos = Vec3(20.f, 2.f, 20.f);
 
 
      
@@ -210,7 +209,7 @@ HRESULT Level_GamePlay::Ready_Layer_Monster(const wstring& strLayerTag)
 
 HRESULT Level_GamePlay::Ready_Layer_Player(const wstring& strLayerTag)
 {
-    Vec3 startPos = Vec3(205.f, -4020.5f, -1.24f);
+    Vec3 startPos = Vec3(82.f, 5.f, 0.f);
     CHECK_FAILED(CLIENT->Initialize_Hero(ETOI(LevelType::GamePlay), strLayerTag, startPos), E_FAIL);
 
     return S_OK;

@@ -1,45 +1,45 @@
-﻿#include "ComputePointParticleEffect.h"
+﻿#include "ComputeSpriteEmitter.h"
 
 #include "GameInstance.h"
 #include "ShaderCom.h"
 #include "Texture.h"
 #include "VIBufferCom_ComputePointParticle.h"
 
-IMPLEMENT_REFLECTION(ComputePointParticleEffect)
+IMPLEMENT_REFLECTION(ComputeSpriteEmitter)
 {
     auto& info = GetStaticReflectionInfo();
     info.properties.clear();
 
-    info.displayName = "ComputePointParticleEffect";
-    info.category = "Effect";
+    info.displayName = "ComputeSpriteEmitter";
+    info.category = "EffectEmitter";
 
     return true;
 }
 
-ComputePointParticleEffect::ComputePointParticleEffect(const ComPtr<Device>& device, const ComPtr<Context>& context)
-    : GameObject{ device, context }
+ComputeSpriteEmitter::ComputeSpriteEmitter(const ComPtr<Device>& device, const ComPtr<Context>& context)
+    : EffectEmitter{ device, context }
 {
 }
 
-ComputePointParticleEffect::ComputePointParticleEffect(const ComputePointParticleEffect& prototype)
-    : GameObject{ prototype }
+ComputeSpriteEmitter::ComputeSpriteEmitter(const ComputeSpriteEmitter& prototype)
+    : EffectEmitter{ prototype }
 {
 }
 
-ComputePointParticleEffect::~ComputePointParticleEffect()
+ComputeSpriteEmitter::~ComputeSpriteEmitter()
 {
     Free();
 }
 
-HRESULT ComputePointParticleEffect::Initialize_Prototype()
+HRESULT ComputeSpriteEmitter::Initialize_Prototype()
 {
     return S_OK;
 }
 
-HRESULT ComputePointParticleEffect::Initialize(void* arg)
+HRESULT ComputeSpriteEmitter::Initialize(void* arg)
 {
     if (nullptr != arg)
-        _desc = *static_cast<ComputePointParticleEffectDesc*>(arg);
+        _desc = *static_cast<ComputeSpriteEmitterDesc*>(arg);
 
     CHECK_FAILED(__super::Initialize(&_desc), E_FAIL);
     CHECK_FAILED(Ready_Components(), E_FAIL);
@@ -47,18 +47,20 @@ HRESULT ComputePointParticleEffect::Initialize(void* arg)
     return S_OK;
 }
 
-void ComputePointParticleEffect::Update(float timeDelta)
+void ComputeSpriteEmitter::Update(float timeDelta)
 {
+    Sync_FromEffectOwner();
+
     if (nullptr != _viBuffer)
         _viBuffer->Dispatch_Compute(timeDelta);
 }
 
-void ComputePointParticleEffect::Late_Update(float timeDelta)
+void ComputeSpriteEmitter::Late_Update(float timeDelta)
 {
     GAME->Add_RenderGroup(RenderGroup::Blend, GetSharedPtr<GameObject>());
 }
 
-HRESULT ComputePointParticleEffect::Render()
+HRESULT ComputeSpriteEmitter::Render()
 {
     CHECK_FAILED_ONCE(Bind_ShaderResources(), E_FAIL);
     CHECK_FAILED_ONCE(_shader->Begin(0), E_FAIL);
@@ -68,7 +70,7 @@ HRESULT ComputePointParticleEffect::Render()
     return S_OK;
 }
 
-HRESULT ComputePointParticleEffect::Ready_Components()
+HRESULT ComputeSpriteEmitter::Ready_Components()
 {
     string resolvedTextureId{};
     CHECK_FAILED(Ready_TextureComponent(resolvedTextureId), E_FAIL);
@@ -79,7 +81,7 @@ HRESULT ComputePointParticleEffect::Ready_Components()
     CHECK_FAILED(__super::Add_Component(ETOI(LevelType::Static), TEXT("Com_Effect_ComputePointParticleBuffer"), _viBuffer, &desc), E_FAIL);
 
     LOG_INFO(
-        "ComputePointParticleEffect ready: shaderId='{}', textureId='{}', noiseTextureId='{}', opacitySource='{}', noiseStrength={}",
+        "ComputeSpriteEmitter ready: shaderId='{}', textureId='{}', noiseTextureId='{}', opacitySource='{}', noiseStrength={}",
         kEffectSpriteShaderId,
         _desc.textureId,
         _desc.noiseTextureId,
@@ -90,7 +92,7 @@ HRESULT ComputePointParticleEffect::Ready_Components()
     return S_OK;
 }
 
-HRESULT ComputePointParticleEffect::Ready_TextureComponent(string& outResolvedTextureId)
+HRESULT ComputeSpriteEmitter::Ready_TextureComponent(string& outResolvedTextureId)
 {
     const string requestedTextureId =
         !_desc.textureId.empty() ? _desc.textureId : string{ kFallbackTextureId };
@@ -99,7 +101,7 @@ HRESULT ComputePointParticleEffect::Ready_TextureComponent(string& outResolvedTe
     {
         if (requestedTextureId == kFallbackTextureId)
         {
-            LOG_WARN("ComputePointParticleEffect failed to resolve fallback textureId='{}'.", kFallbackTextureId);
+            LOG_WARN("ComputeSpriteEmitter failed to resolve fallback textureId='{}'.", kFallbackTextureId);
             return E_FAIL;
         }
 
@@ -113,14 +115,14 @@ HRESULT ComputePointParticleEffect::Ready_TextureComponent(string& outResolvedTe
     return S_OK;
 }
 
-HRESULT ComputePointParticleEffect::Ready_ShaderComponent()
+HRESULT ComputeSpriteEmitter::Ready_ShaderComponent()
 {
     CHECK_FAILED(__super::Add_Component(ETOI(LevelType::Static), String::ToWString(kEffectSpriteShaderId), _shader), E_FAIL);
     _opacitySourceIndex = Resolve_OpacitySourceIndex();
     return S_OK;
 }
 
-HRESULT ComputePointParticleEffect::Ready_NoiseTextureComponent(const string& outResolvedTextureId)
+HRESULT ComputeSpriteEmitter::Ready_NoiseTextureComponent(const string& outResolvedTextureId)
 {
     if (_desc.noiseTextureId.empty())
         return S_OK;
@@ -137,7 +139,7 @@ HRESULT ComputePointParticleEffect::Ready_NoiseTextureComponent(const string& ou
     return S_OK;
 }
 
-HRESULT ComputePointParticleEffect::Bind_ShaderResources()
+HRESULT ComputeSpriteEmitter::Bind_ShaderResources()
 {
     CHECK_FAILED_ONCE(GAME->Bind_TransformMatrix(D3DTS::View, _shader.get(), "g_ViewMatrix"), E_FAIL);
     CHECK_FAILED_ONCE(GAME->Bind_TransformMatrix(D3DTS::Proj, _shader.get(), "g_ProjMatrix"), E_FAIL);
@@ -148,7 +150,7 @@ HRESULT ComputePointParticleEffect::Bind_ShaderResources()
     return S_OK;
 }
 
-HRESULT ComputePointParticleEffect::Bind_MaterialResources()
+HRESULT ComputeSpriteEmitter::Bind_MaterialResources()
 {
     if (nullptr != _noiseTexture)
         CHECK_FAILED_ONCE(_noiseTexture->Bind_ShaderResourceView(_shader.get(), "g_NoiseTexture", 0), E_FAIL);
@@ -167,7 +169,7 @@ HRESULT ComputePointParticleEffect::Bind_MaterialResources()
     return S_OK;
 }
 
-int ComputePointParticleEffect::Resolve_OpacitySourceIndex() const
+int ComputeSpriteEmitter::Resolve_OpacitySourceIndex() const
 {
     if (_desc.opacitySource == "Alpha" || _desc.opacitySource == "alpha")
         return kOpacitySourceAlpha;
@@ -181,7 +183,7 @@ int ComputePointParticleEffect::Resolve_OpacitySourceIndex() const
     return kOpacitySourceAlpha;
 }
 
-ComputePointParticleDesc ComputePointParticleEffect::Make_ComputePointParticleDesc() const
+ComputePointParticleDesc ComputeSpriteEmitter::Make_ComputePointParticleDesc() const
 {
     ComputePointParticleDesc desc{};
     desc.instanceCount = max(1u, _desc.instanceCount);
@@ -197,7 +199,8 @@ ComputePointParticleDesc ComputePointParticleEffect::Make_ComputePointParticleDe
     desc.subUVCols = max(1u, _desc.subUVCols);
     desc.subUvFrameOverLife = _desc.subUVFrameOverLife;
     desc.sizeByLife = _desc.sizeByLife;
-    desc.radius = Vec2{ 1.2f, 2.2f };
+    desc.motion = _desc.motion;
+    desc.rotation = _desc.rotation;
     desc.drawMode = PointParticleDrawMode::DrawIndexedInstancedIndirect;
     desc.computeShaderLevelIndex = ETOI(LevelType::Static);
     desc.computeShaderPrototypeTag = L"ComputeShader_PointParticle";
@@ -205,33 +208,46 @@ ComputePointParticleDesc ComputePointParticleEffect::Make_ComputePointParticleDe
     return desc;
 }
 
-Shared<ComputePointParticleEffect> ComputePointParticleEffect::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
+void ComputeSpriteEmitter::Sync_WorldCenterToComputeBuffer()
 {
-    auto instance = make_shared<ComputePointParticleEffect>(device, context);
+    CHECK_NULL_THROTTLED(_transformCom, 120);
+    CHECK_NULL_THROTTLED(_viBuffer, 120);
+
+    _viBuffer->Set_Center(_transformCom->Get_WorldPosition());
+}
+
+void ComputeSpriteEmitter::On_EffectTransformSynced()
+{
+    Sync_WorldCenterToComputeBuffer();
+}
+
+Shared<ComputeSpriteEmitter> ComputeSpriteEmitter::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
+{
+    auto instance = make_shared<ComputeSpriteEmitter>(device, context);
 
     if (FAILED(instance->Initialize_Prototype()))
     {
-        LOG_CRITICAL("Failed to Create : ComputePointParticleEffect");
+        LOG_CRITICAL("Failed to Create : ComputeSpriteEmitter");
         return nullptr;
     }
 
     return instance;
 }
 
-Shared<GameObject> ComputePointParticleEffect::Clone(void* arg)
+Shared<GameObject> ComputeSpriteEmitter::Clone(void* arg)
 {
-    auto instance = make_shared<ComputePointParticleEffect>(*this);
+    auto instance = make_shared<ComputeSpriteEmitter>(*this);
 
     if (FAILED(instance->Initialize(arg)))
     {
-        LOG_CRITICAL("Failed to Clone : ComputePointParticleEffect");
-        MSG_BOX("Failed to Clone : ComputePointParticleEffect");
+        LOG_CRITICAL("Failed to Clone : ComputeSpriteEmitter");
+        MSG_BOX("Failed to Clone : ComputeSpriteEmitter");
         return nullptr;
     }
 
     return instance;
 }
 
-void ComputePointParticleEffect::Free()
+void ComputeSpriteEmitter::Free()
 {
 }

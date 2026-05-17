@@ -55,6 +55,7 @@ namespace UIEditor
         float _gridSize = 16.f;
         bool _previewMode = false;
         bool _showGrid = true;
+        bool _showAnchors = false;
         bool _snapEnabled = false;
     };
 }
