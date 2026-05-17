@@ -214,6 +214,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClInclude Include="..\Public\ComputeStructuredBuffer.h" />
     <ClInclude Include="..\Public\Culling_Manager.h" />
     <ClInclude Include="..\Public\Debug_Manager.h" />
+    <ClInclude Include="..\Public\Debug_Profile.h" />
     <ClInclude Include="..\Public\Debug_Types.h" />
     <ClInclude Include="..\Public\DebugDraw.h" />
     <ClInclude Include="..\Public\Decorator.h" />
@@ -345,6 +346,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClCompile Include="..\Private\ComputeStructuredBuffer.cpp" />
     <ClCompile Include="..\Private\Culling_Manager.cpp" />
     <ClCompile Include="..\PRivate\Debug_Manager.cpp" />
+    <ClCompile Include="..\Private\Debug_Profile.cpp" />
     <ClCompile Include="..\Private\DebugDraw.cpp" />
     <ClCompile Include="..\Private\Decorator.cpp" />
     <ClCompile Include="..\Private\DelegateHub.cpp" />

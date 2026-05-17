@@ -22,6 +22,7 @@ public:
         vector<Matrix>& outBoneMatrices) const override;
 
     uint32 Get_NumBoneRefs() const override { return _numBones; }
+    const vector<uint32>& Get_BoneIndices() const override { return _boneIndices; }
 
 
 private:

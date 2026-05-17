@@ -4,6 +4,7 @@
 #include "Material_Types.h"
 #include "Player_WorldBase.h"
 #include "ModelCom.h"
+#include "Debug_Profile.h"
 
 Head_Player::Head_Player(const ComPtr<Device>& device, const ComPtr<Context>& context)
 	: PlayableParts{ device, context }
@@ -39,8 +40,11 @@ void Head_Player::Priority_Update(float fTimeDelta)
 
 void Head_Player::Update(float timeDelta)
 {
+    Debug_Profile::Scope updateScope("Player::Head::Update");
+
     if (Has_LeaderPoseComponent())
     {
+        Debug_Profile::Scope profileScope("Player::Head::LeaderPose");
         Update_LeaderPoseMatrices();
     }
     else
@@ -58,6 +62,8 @@ void Head_Player::Late_Update(float timeDelta)
 
 HRESULT Head_Player::Render()
 {
+    Debug_Profile::Scope profileScope("Player::Head::Render");
+
     if (FAILED(Bind_ShaderResources()))
         return E_FAIL;
 

@@ -159,6 +159,20 @@ void GameInstance::Update_Engine(float timeDelta)
 void GameInstance::Update_Engine(float timeDelta, const function<void(float)>& clientUpdate)
 {
     _unscaledTimeDelta = timeDelta; // 배속 전
+
+    if (_isWorldTimeSlowActive)
+    {
+        _worldTimeSlowElapsed += timeDelta;
+
+        if (_worldTimeSlowElapsed >= _worldTimeSlowDuration)
+        {
+            _worldTimeScale = _worldTimeScaleBeforeSlow;
+            _isWorldTimeSlowActive = false;
+            _worldTimeSlowElapsed = 0.f;
+            _worldTimeSlowDuration = 0.f;
+        }
+    }
+
     _worldTimeDelta = timeDelta * _worldTimeScale;
 
 #ifdef _DEBUG
@@ -687,7 +701,38 @@ float GameInstance::Random(float min, float max)
 
 void GameInstance::Set_WorldTimeScale(float timeScale)
 {
+    _isWorldTimeSlowActive = false;
+    _worldTimeSlowElapsed = 0.f;
+    _worldTimeSlowDuration = 0.f;
     _worldTimeScale = ::clamp(timeScale, 0.f, 8.f);
+}
+
+void GameInstance::Slow_WorldTime(float timeScale, float duration)
+{
+    if (duration <= 0.f)
+    {
+        Set_WorldTimeScale(timeScale);
+        return;
+    }
+
+    if (!_isWorldTimeSlowActive)
+        _worldTimeScaleBeforeSlow = _worldTimeScale;
+
+    _isWorldTimeSlowActive = true;
+    _worldTimeSlowElapsed = 0.f;
+    _worldTimeSlowDuration = duration;
+    _worldTimeScale = ::clamp(timeScale, 0.f, 8.f);
+}
+
+void GameInstance::Stop_WorldTimeSlow()
+{
+    if (!_isWorldTimeSlowActive)
+        return;
+
+    _worldTimeScale = _worldTimeScaleBeforeSlow;
+    _isWorldTimeSlowActive = false;
+    _worldTimeSlowElapsed = 0.f;
+    _worldTimeSlowDuration = 0.f;
 }
 
 void GameInstance::Log_FileOnly(const spdlog::source_loc& sourceLoc, spdlog::level::level_enum level, const string& message) const

@@ -194,7 +194,7 @@ HRESULT Level_GamePlay::Ready_Layer_Monster(const wstring& strLayerTag)
         return E_FAIL;*/
 
 
-    Vec3 startPos = Vec3(225.f, -4020.5f, -1.24f);
+    Vec3 startPos = Vec3(66.f, 5.47f, -1.94f);
 
 
      

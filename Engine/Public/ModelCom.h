@@ -191,6 +191,9 @@ private:
 private:
     Matrix Convert_LeaderPoseMatrix(const Matrix& leaderMatrix) const;
     Matrix Build_LeaderPoseMatrix(uint32 boneIndex, vector<uint8>& visited);
+    void Build_LeaderPoseRequiredBones();
+    void Add_LeaderPoseRequiredBone(uint32 boneIndex);
+    void Mark_LeaderPoseRequiredBone(uint32 boneIndex, vector<uint8>& requiredFlags);
 
     HRESULT Ensure_MeshBoneMatrixBuffers();
 
@@ -262,6 +265,8 @@ private: /* 머리 붙이기 */
 
     vector<int32>       _leaderPoseBoneMap;           // follower bone index => leader bone index
     vector<Matrix>      _leaderPoseCombinedMatrices;  // follower 기준으로 최종 행렬
+
+    vector<uint32>      _leaderPoseRequiredBones;
 
     // 프레임마다 계산되지 않게 캐싱
     vector<Matrix>          _combinedBoneMatrixCache;

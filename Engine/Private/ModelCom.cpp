@@ -10,6 +10,7 @@
 #include "SkeletalMesh.h"
 #include "StaticMesh.h"
 #include "ComputeStructuredBuffer.h"
+#include "Debug_Profile.h"
 
 #include "AnimNotify_Parser.h"
 #include "AnimNotify.h"
@@ -231,8 +232,19 @@ const Matrix* ModelCom::Get_BoneMatrixPtr(const char* boneName) const
 
 const Matrix* ModelCom::Get_BoneMatrixPtr(uint32 boneIndex) const
 {
-    if (!_leaderPoseCombinedMatrices.empty())
+    if (boneIndex >= _numBones)
+        return nullptr;
+
+    if (_leaderPoseModel != nullptr && !_leaderPoseCombinedMatrices.empty())
+    {
+        ModelCom* mutableThis = const_cast<ModelCom*>(this);
+        mutableThis->Add_LeaderPoseRequiredBone(boneIndex);
+
+        vector<uint8> visited(_numBones, 0);
+        mutableThis->Build_LeaderPoseMatrix(boneIndex, visited);
+
         return &_leaderPoseCombinedMatrices[boneIndex];
+    }
 
     return _bones[boneIndex]->Get_CombinedTransformationMatrixPtr();
 }
@@ -847,6 +859,8 @@ HRESULT ModelCom::Bind_Material(ShaderCom* shader, const char* constantName, uin
 
 HRESULT ModelCom::Bind_BoneMatrices(ShaderCom* shader, const char* constantName, uint32 meshIndex)
 {
+    Debug_Profile::Scope profileScope("AnimMesh::BindBoneMatrices");
+
     if (shader == nullptr || constantName == nullptr)
         return E_FAIL;
 
@@ -1274,6 +1288,7 @@ void ModelCom::Set_LeaderPoseComponent(const ModelCom* leaderModel)
     _leaderPoseModel = leaderModel;
     _leaderPoseBoneMap.clear();
     _leaderPoseCombinedMatrices.clear();
+    _leaderPoseRequiredBones.clear();
 
     if (nullptr == _leaderPoseModel || !_isSkeletal || !_leaderPoseModel->Is_Skeletal())
         return;
@@ -1287,6 +1302,8 @@ void ModelCom::Set_LeaderPoseComponent(const ModelCom* leaderModel)
             _leaderPoseModel->Get_BoneIndex(_bones[i]->Get_BoneName());
     }
 
+    Build_LeaderPoseRequiredBones();
+
     _leaderPoseMatricesValid = false;
     Update_LeaderPoseMatrices();
 }
@@ -1296,6 +1313,7 @@ void ModelCom::Clear_LeaderPoseComponent()
     _leaderPoseModel = nullptr;
     _leaderPoseBoneMap.clear();
     _leaderPoseCombinedMatrices.clear();
+    _leaderPoseRequiredBones.clear();
 
     _leaderPoseMatricesValid = false;
     Mark_BoneMatricesDirty();
@@ -1303,18 +1321,77 @@ void ModelCom::Clear_LeaderPoseComponent()
 
 void ModelCom::Update_LeaderPoseMatrices()
 {
+    Debug_Profile::Scope profileScope("AnimMesh::UpdateLeaderPose");
+
     if (nullptr == _leaderPoseModel || _leaderPoseBoneMap.empty())
         return;
 
     vector<uint8> visited(_numBones, 0);
 
-    for (uint32 i = 0; i < _numBones; ++i)
+    if (_leaderPoseRequiredBones.empty())
+        Build_LeaderPoseRequiredBones();
+
+    for (uint32 boneIndex : _leaderPoseRequiredBones)
     {
-        Build_LeaderPoseMatrix(i, visited);
+        Build_LeaderPoseMatrix(boneIndex, visited);
     }
 
     _leaderPoseMatricesValid = true;
     Mark_BoneMatricesDirty();
+}
+
+void ModelCom::Build_LeaderPoseRequiredBones()
+{
+    _leaderPoseRequiredBones.clear();
+
+    if (!_isSkeletal || _numBones == 0)
+        return;
+
+    vector<uint8> requiredFlags(_numBones, 0);
+
+    for (const Shared<Mesh>& mesh : _meshes)
+    {
+        if (mesh == nullptr)
+            continue;
+
+        const vector<uint32>& boneIndices = mesh->Get_BoneIndices();
+        for (uint32 boneIndex : boneIndices)
+            Mark_LeaderPoseRequiredBone(boneIndex, requiredFlags);
+    }
+}
+
+void ModelCom::Add_LeaderPoseRequiredBone(uint32 boneIndex)
+{
+    if (boneIndex >= _numBones)
+        return;
+
+    vector<uint8> requiredFlags(_numBones, 0);
+    for (uint32 requiredBoneIndex : _leaderPoseRequiredBones)
+    {
+        if (requiredBoneIndex < _numBones)
+            requiredFlags[requiredBoneIndex] = 1;
+    }
+
+    Mark_LeaderPoseRequiredBone(boneIndex, requiredFlags);
+}
+
+void ModelCom::Mark_LeaderPoseRequiredBone(uint32 boneIndex, vector<uint8>& requiredFlags)
+{
+    if (boneIndex >= _numBones)
+        return;
+
+    if (requiredFlags.size() != _numBones)
+        requiredFlags.assign(_numBones, 0);
+
+    if (requiredFlags[boneIndex])
+        return;
+
+    requiredFlags[boneIndex] = 1;
+    _leaderPoseRequiredBones.push_back(boneIndex);
+
+    const int32 parentIndex = _bones[boneIndex]->Get_ParentIndex();
+    if (parentIndex >= 0)
+        Mark_LeaderPoseRequiredBone(static_cast<uint32>(parentIndex), requiredFlags);
 }
 
 void ModelCom::Mark_BoneMatricesDirty()
@@ -1325,6 +1402,8 @@ void ModelCom::Mark_BoneMatricesDirty()
 
 HRESULT ModelCom::Ensure_MeshBoneMatrices()
 {
+    Debug_Profile::Scope profileScope("AnimMesh::EnsureMeshBoneMatrices");
+
     if (!_isSkeletal || _numBones == 0)
         return S_OK;
 
@@ -1414,6 +1493,8 @@ Matrix ModelCom::Build_LeaderPoseMatrix(uint32 boneIndex, vector<uint8>& visited
 
 HRESULT ModelCom::Ensure_MeshBoneMatrixBuffers()
 {
+    Debug_Profile::Scope profileScope("AnimMesh::EnsureMeshBoneMatrixBuffers");
+
     // CPU 쪽 mesh별 bone matrices cache가 최신인지 먼저 보장
     CHECK_FAILED(Ensure_MeshBoneMatrices(), E_FAIL);
 
@@ -1427,6 +1508,8 @@ HRESULT ModelCom::Ensure_MeshBoneMatrixBuffers()
 
     for (uint32 meshIndex = 0; meshIndex < _meshBoneMatrixCaches.size(); ++meshIndex)
     {
+        Debug_Profile::Scope uploadScope("AnimMesh::UploadBoneBuffer");
+
         const vector<Matrix>& meshBoneMatrices = _meshBoneMatrixCaches[meshIndex];
         if (meshBoneMatrices.empty())
             continue;

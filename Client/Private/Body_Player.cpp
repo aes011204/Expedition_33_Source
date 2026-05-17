@@ -4,6 +4,7 @@
 #include "Material_Types.h"
 #include "Player_WorldBase.h"
 #include "ModelCom.h"
+#include "Debug_Profile.h"
 
 REGISTER_GLOBAL_ENUM(Client::Body_Player::PlayerWorldAnimation, "PlayerAnimation")
 
@@ -43,6 +44,8 @@ void Body_Player::Priority_Update(float fTimeDelta)
 
 void Body_Player::Update(float fTimeDelta)
 {
+    Debug_Profile::Scope profileScope("Player::Body::Update");
+
     if (Has_LeaderPoseComponent())
     {
         Update_LeaderPoseMatrices();
@@ -62,6 +65,8 @@ void Body_Player::Late_Update(float fTimeDelta)
 
 HRESULT Body_Player::Render()
 {
+    Debug_Profile::Scope profileScope("Player::Body::Render");
+
     return PlayableParts::Render();
 }
 

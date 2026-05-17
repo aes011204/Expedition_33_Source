@@ -105,11 +105,11 @@ HRESULT Monster_Part::Render_Shadow()
         if (_model->Is_Skeletal())
             CHECK_FAILED(_model->Bind_BoneMatrices(_shader.get(), "g_BoneMatricesBuffer", i), E_FAIL);
 
-        //const uint32 shadowPass =
-        //    _model->Is_Skeletal() ? static_cast<uint32>(VtxAnimMeshPass::Shadow) : 1u;
-        //
-        //if (FAILED(_shader->Begin(shadowPass)))
-        //    return E_FAIL;
+        const uint32 shadowPass =
+            _model->Is_Skeletal() ? static_cast<uint32>(VtxAnimMeshPass::Shadow) : 1u;
+        
+        if (FAILED(_shader->Begin(shadowPass)))
+            return E_FAIL;
 
         _model->Render(i);
     }

@@ -30,6 +30,12 @@ HRESULT Mesh::RenderInstanced(Buffer* instanceVB, uint32 instanceStride, uint32 
     return S_OK;
 }
 
+const vector<uint32>& Mesh::Get_BoneIndices() const
+{
+    static const vector<uint32> empty;
+    return empty;
+}
+
 void Mesh::Free()
 {
     VIBuffer::Free();

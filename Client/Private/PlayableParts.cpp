@@ -183,8 +183,8 @@ HRESULT PlayableParts::Render_Shadow()
     {
         CHECK_FAILED(_modelCom->Bind_BoneMatrices(_shaderCom.get(), "g_BoneMatricesBuffer", i), E_FAIL);
 
-        //if (FAILED(_shaderCom->Begin(static_cast<uint32>(VtxAnimMeshPass::Shadow))))
-        //    return E_FAIL;
+        if (FAILED(_shaderCom->Begin(static_cast<uint32>(VtxAnimMeshPass::Shadow))))
+            return E_FAIL;
 
         _modelCom->Render(i);
     }

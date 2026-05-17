@@ -26,6 +26,7 @@ bool Layer::Remove_GameObject(const Shared<GameObject>& gameObject)
     if (iter == _gameObjects.end())
         return false;
 
+    (*iter)->Free();
     _gameObjects.erase(iter);
     return true;
 }

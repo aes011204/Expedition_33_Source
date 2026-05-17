@@ -31,6 +31,8 @@ public:
 
     virtual uint32 Get_NumBoneRefs() const { return 0; }
 
+    virtual const vector<uint32>& Get_BoneIndices() const;
+
 protected:
     string	_name;
     uint32	_materialIndex = {};

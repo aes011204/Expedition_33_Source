@@ -60,6 +60,7 @@ private:
     void Draw_Memory();
     void Reset_Stats();
     void Prune_Dead_Scopes();
+    void Record_Scope_Sample(const string& scopeName, double elapsedMs);
     Process_Memory Get_Process_Memory() const;
 
 private:

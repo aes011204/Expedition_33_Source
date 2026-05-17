@@ -92,7 +92,11 @@ public:
     void    Set_GameplayPaused(bool paused) { _isGameplayPaused = paused; }
     bool    Is_GameplayPaused() const { return _isGameplayPaused; }
 
+    // 월드 시간 조절
     void    Set_WorldTimeScale(float timeScale);
+    void    Slow_WorldTime(float timeScale, float duration);
+    void    Stop_WorldTimeSlow();
+
     float   Get_WorldTimeScale() const { return _worldTimeScale; }
     float   Get_UnscaledTimeDelta() const { return _unscaledTimeDelta; }
     float   Get_WorldTimeDelta() const { return _worldTimeDelta; }
@@ -501,6 +505,10 @@ private:
     float   _worldTimeScale = 1.f;
     float   _unscaledTimeDelta = 0.f;
     float   _worldTimeDelta = 0.f;
+    bool    _isWorldTimeSlowActive = false;
+    float   _worldTimeSlowElapsed = 0.f;
+    float   _worldTimeSlowDuration = 0.f;
+    float   _worldTimeScaleBeforeSlow = 1.f;
 
     // Free 카메라용 time
     float   _freeCameraTimeDelta = 0.f;

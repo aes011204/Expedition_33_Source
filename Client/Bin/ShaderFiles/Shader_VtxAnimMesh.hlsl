@@ -90,11 +90,6 @@ VS_OUT VS_Shadow(VS_IN In)
 
     float fWeightW = 1.f - (In.BlendWeight.x + In.BlendWeight.y + In.BlendWeight.z);
 
-    //float4x4 BoneMatrix = g_BoneMatrices[In.vBlendIndex.x] * In.vBlendWeight.x +
-    //    g_BoneMatrices[In.vBlendIndex.y] * In.vBlendWeight.y +
-    //    g_BoneMatrices[In.vBlendIndex.z] * In.vBlendWeight.z +
-    //    g_BoneMatrices[In.vBlendIndex.w] * fWeightW;
-
     float4x4 BoneMatrix =
         g_BoneMatricesBuffer[In.BlendIndex.x].BoneMatrix * In.BlendWeight.x +
         g_BoneMatricesBuffer[In.BlendIndex.y].BoneMatrix * In.BlendWeight.y +

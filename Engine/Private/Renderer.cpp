@@ -55,8 +55,7 @@ void Renderer::Draw()
     const auto shadowBegin = chrono::steady_clock::now();
 #endif
 
-//    Render_Shadow();
-    _renderGroups[ETOI(RenderGroup::Shadow)].clear(); // 이거 Render Shadow 키면 없애야함
+    Render_Shadow();
 #ifdef _DEBUG
     shadowMs = chrono::duration<double, milli>(chrono::steady_clock::now() - shadowBegin).count();
     const auto nonBlendBegin = chrono::steady_clock::now();
