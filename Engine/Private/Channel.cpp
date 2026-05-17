@@ -1,4 +1,4 @@
-#include "Channel.h"
+﻿#include "Channel.h"
 
 #include "Bone.h"
 
@@ -81,6 +81,18 @@ void Channel::ResetVelocityState()
 {
 	_isFirstUpdate = true;
 	_prevTrackPosition = -1.f;
+}
+
+Vec3 Channel::Get_TotalTranslation() const
+{
+    if (_keyFrames.size() < 2) return Vec3::Zero;
+
+    return _keyFrames.back().translation - _keyFrames.front().translation;
+}
+
+Vec3 Channel::Get_FirstFramePosition() const
+{
+    return _keyFrames.empty() ? Vec3::Zero : _keyFrames.front().translation;
 }
 
 void Channel::Update_TransformationMatrix(uint32& currentKeyFrameIndex, float currentTrackPosition, float duration, const vector<Shared<Bone>>& bones, int32 rootNodeIndex, bool isLoop)

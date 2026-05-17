@@ -39,6 +39,7 @@ public:
     HRESULT Render_Shadow() override;
 
     virtual bool Try_Get_ShadowWorldBounds(BoundingBox& outWorldBounds) const override;
+    virtual HRESULT RenderPickingID(uint32 id) override;
 
 private:
     Shared<ShaderCom>   _shader;

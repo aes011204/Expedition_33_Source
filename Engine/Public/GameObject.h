@@ -31,6 +31,7 @@ public:
     virtual void    Late_Update(float timeDelta);
     virtual HRESULT Render();
     virtual HRESULT Render_Shadow() { return S_OK; }
+    virtual HRESULT RenderPickingID(uint32 id) { return S_OK; }
 
     // Static Shadow 캐싱할 때 이 오브젝트가 차지하는 월드 Bounds 넘겨주기
     virtual bool Try_Get_ShadowWorldBounds(BoundingBox& outWorldBounds) const { return false;}

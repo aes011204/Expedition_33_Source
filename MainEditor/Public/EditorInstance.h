@@ -19,6 +19,7 @@ class CommandHistory;
 class Notification_Manager;
 class Inspector_Factory;
 class Component_Inspector;
+class EditorPickingSystem;
 
 class EditorInstance final : public Base
 {
@@ -116,6 +117,11 @@ public: /* For.Viewport */
 
     void                     Apply_RuntimeInputPolicy();
 
+public: // for pickingSystem
+    void DoPickAt(const ImVec2& mousePos, const ImVec2& vpMin, const ImVec2& vpMax);
+    void Request_Pick(const ImVec2& mousePos, const ImVec2& vpMin, const ImVec2& vpMax);
+    void Flush_PendingPick();
+
 private:
     void Focus_GameView();
     void Focus_SceneView();
@@ -147,6 +153,15 @@ private: /* 저장 */
         Weak<GameObject> originalObject = {};
     };
 
+    struct PendingPickRequest
+    {
+        bool pending = false;
+        ImVec2 mousePos = {};
+        ImVec2 vpMin = {};
+        ImVec2 vpMax = {};
+    };
+    PendingPickRequest _pendingPick = {};
+
     void Capture_PlayStartSnapshot();
     void Restore_PlayStartSnapshot();
     bool Capture_ActiveCameraPose(CameraPoseSnapshot& outPose) const;
@@ -167,6 +182,7 @@ private: /* Manager */
     Unique<Inspector_Factory>    _inspectorFactory = {};
     Unique<CommandHistory>       _commandHistory = {};
     Unique<Notification_Manager> _notificationManager = {};
+    Unique<EditorPickingSystem> _pickingSystem = {};
 
 private: /* Viewport Data */
     Shared<RenderTarget> _sharedViewportRenderTarget = nullptr;

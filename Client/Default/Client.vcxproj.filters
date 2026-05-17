@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <Filter Include="98.Default">
@@ -145,12 +145,6 @@
     <Filter Include="02.GameObject\Camera\Cinematic">
       <UniqueIdentifier>{9da3a249-fde0-4202-8400-e101dd8261f9}</UniqueIdentifier>
     </Filter>
-    <Filter Include="02.GameObject\Effect\PointParticle">
-      <UniqueIdentifier>{eed9e460-dd4d-43e8-ab48-b224711cbd67}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="02.GameObject\Effect\ComputePointParticle">
-      <UniqueIdentifier>{ceac3f7c-9e53-4638-aa47-729e8f089b5d}</UniqueIdentifier>
-    </Filter>
     <Filter Include="02.GameObject\InstancedMeshActor">
       <UniqueIdentifier>{2e753ff9-c664-4b59-b631-8362dc321ba5}</UniqueIdentifier>
     </Filter>
@@ -162,9 +156,6 @@
     </Filter>
     <Filter Include="Skill">
       <UniqueIdentifier>{08ca65e3-4c52-440c-a6ee-2cdc0dbb87ff}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="02.GameObject\Map\MapInstancedMesh">
-      <UniqueIdentifier>{48582af2-9fa3-4baf-bee3-b247fe81d3f0}</UniqueIdentifier>
     </Filter>
     <Filter Include="02.GameObject\Effect\Emitters">
       <UniqueIdentifier>{8bae37aa-aacf-470c-ac67-0f3a2cc238c7}</UniqueIdentifier>
@@ -192,6 +183,9 @@
     </Filter>
     <Filter Include="02.GameObject\Monster\01. Battle">
       <UniqueIdentifier>{67722be3-2fa7-4894-aada-eddadce9c2e6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02.GameObject\Map\MapInstancedMesh">
+      <UniqueIdentifier>{48582af2-9fa3-4baf-bee3-b247fe81d3f0}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -832,10 +826,7 @@
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMeshInstanceExact.hlsl">
       <Filter>97.ShaderFiles</Filter>
     </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_PostProcess.hlsl">
-      <Filter>97.ShaderFiles</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_Compute_AnimMeshSkinning.hlsl">
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_InstanceCull.hlsl">
       <Filter>97.ShaderFiles\Compute</Filter>
     </FxCompile>
   </ItemGroup>

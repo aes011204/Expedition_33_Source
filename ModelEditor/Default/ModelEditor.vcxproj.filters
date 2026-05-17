@@ -96,6 +96,9 @@
     <ClInclude Include="..\Public\ModelSceneWindow.h">
       <Filter>00. EditorBlock\ModelWindow</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\ModelTestPanel.h">
+      <Filter>00. EditorBlock</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -136,6 +139,9 @@
     </ClCompile>
     <ClCompile Include="..\Private\ModelSceneWindow.cpp">
       <Filter>00. EditorBlock\ModelWindow</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\ModelTestPanel.cpp">
+      <Filter>00. EditorBlock</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
