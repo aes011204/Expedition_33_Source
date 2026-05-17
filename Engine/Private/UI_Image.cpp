@@ -89,23 +89,23 @@ HRESULT UI_Image::Render()
     if (nullptr == _shader || nullptr == _viBuffer)
         return S_OK;
 
-    const Vec2 position = Get_WorldPosition();
-    const Vec2& size     = _transform->Get_Size();
-    const Vec2& scale    = _transform->Get_Scale();
+    const Vec2 size = Get_ResolvedLocalSize();
+    const Vec2& localScale = _transform->Get_Scale();
+    const Vec2 worldScale = Get_WorldScale();
 
-    const float width = size.x * scale.x;
-    const float height = size.y * scale.y;
+    const float width = size.x * worldScale.x;
+    const float height = size.y * worldScale.y;
 
     if (width <= 0.f || height <= 0.f)
         return S_OK;
 
     const float viewportWidth = static_cast<float>(max(1u, GAME->Get_ViewportWidth()));
     const float viewportHeight = static_cast<float>(max(1u, GAME->Get_ViewportHeight()));
-    const Vec2 center(position.x + width * 0.5f, position.y + height * 0.5f);
+    const Vec2 center = Transform_LocalPointToWorld(Get_ScaledLocalCenter(localScale));
 
     Matrix worldMatrix =
         Matrix::CreateScale(width, height, 1.f) *
-        Matrix::CreateRotationZ(-_transform->Get_RotationRadians()) *
+        Matrix::CreateRotationZ(-Get_WorldRotationRadians()) *
         Matrix::CreateTranslation(
             center.x - viewportWidth * 0.5f,
             -center.y + viewportHeight * 0.5f,

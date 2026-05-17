@@ -103,6 +103,9 @@ namespace UIEditor
         _selectedTrackIndex = -1;
         _selectedKeyIndex = -1;
         _pendingTrackType = UI_AnimationKeyframeTrackType::PositionX;
+        _hasCopiedKey = false;
+        _copiedKeyTrackType = UI_AnimationKeyframeTrackType::PositionX;
+        _copiedKey = {};
     }
 
     bool UI_AnimationAssetService::Save_Asset(bool forceSaveAs)
@@ -141,6 +144,9 @@ namespace UIEditor
         _assetDirty = false;
         _selectedTrackIndex = _asset.tracks.empty() ? -1 : 0;
         _selectedKeyIndex = -1;
+        _hasCopiedKey = false;
+        _copiedKeyTrackType = UI_AnimationKeyframeTrackType::PositionX;
+        _copiedKey = {};
         Clamp_Asset();
         _currentFrame = _asset.startFrame;
         return true;
@@ -306,14 +312,12 @@ namespace UIEditor
 
     bool UI_AnimationAssetService::Add_Track(UI_AnimationKeyframeTrackType trackType)
     {
-        for (int32 index = 0; index < static_cast<int32>(_asset.tracks.size()); ++index)
+        const int32 existingTrackIndex = Find_TrackIndex(trackType);
+        if (existingTrackIndex >= 0)
         {
-            if (_asset.tracks[index].type == trackType)
-            {
-                _selectedTrackIndex = index;
-                _selectedKeyIndex = -1;
-                return false;
-            }
+            _selectedTrackIndex = existingTrackIndex;
+            _selectedKeyIndex = -1;
+            return false;
         }
 
         UI_AnimationKeyframeTrack track = {};
@@ -341,39 +345,199 @@ namespace UIEditor
 
     bool UI_AnimationAssetService::Add_KeyToSelectedTrack(const UI_Document& document)
     {
-        UI_AnimationKeyframeTrack* track = Get_SelectedTrack();
-        if (nullptr == track)
+        if (nullptr == Get_SelectedTrack())
             return false;
 
-        const float value = Clamp_AnimationKeyframeTrackValue(track->type, Get_TargetCurrentValue(document, track->type));
-        for (int32 index = 0; index < static_cast<int32>(track->keys.size()); ++index)
+        return Upsert_CurrentValueKey(document, _selectedTrackIndex, true);
+    }
+
+    bool UI_AnimationAssetService::Add_CurrentValueKeyToTrack(const UI_Document& document, UI_AnimationKeyframeTrackType trackType)
+    {
+        const int32 trackIndex = Ensure_Track(trackType);
+        if (trackIndex < 0)
+            return false;
+
+        return Upsert_CurrentValueKey(document, trackIndex, true);
+    }
+
+    bool UI_AnimationAssetService::Add_CurrentValueKeysToTransformTracks(const UI_Document& document)
+    {
+        const UI_AnimationKeyframeTrackType trackTypes[] = {
+            UI_AnimationKeyframeTrackType::PositionX,
+            UI_AnimationKeyframeTrackType::PositionY,
+            UI_AnimationKeyframeTrackType::ScaleX,
+            UI_AnimationKeyframeTrackType::ScaleY,
+            UI_AnimationKeyframeTrackType::Rotation,
+            UI_AnimationKeyframeTrackType::Alpha,
+        };
+
+        const int32 previousTrackIndex = _selectedTrackIndex;
+        int32 fallbackTrackIndex = -1;
+        bool changed = false;
+
+        for (UI_AnimationKeyframeTrackType trackType : trackTypes)
         {
-            if (track->keys[index].frame == _currentFrame)
-            {
-                track->keys[index].value = value;
-                _selectedKeyIndex = index;
-                Mark_AssetDirty();
-                return true;
-            }
+            const int32 trackIndex = Ensure_Track(trackType);
+            if (trackIndex < 0)
+                continue;
+
+            if (fallbackTrackIndex < 0)
+                fallbackTrackIndex = trackIndex;
+
+            changed |= Upsert_CurrentValueKey(document, trackIndex, false);
         }
 
-        UI_AnimationKeyframe key = {};
-        key.frame = _currentFrame;
-        key.value = value;
-        track->keys.push_back(key);
-        Sort_TrackKeys(*track);
+        int32 preferredTrackIndex = previousTrackIndex;
+        if (preferredTrackIndex < 0 || preferredTrackIndex >= static_cast<int32>(_asset.tracks.size()))
+            preferredTrackIndex = fallbackTrackIndex;
 
-        for (int32 index = 0; index < static_cast<int32>(track->keys.size()); ++index)
+        if (preferredTrackIndex >= 0 && preferredTrackIndex < static_cast<int32>(_asset.tracks.size()))
         {
-            if (track->keys[index].frame == _currentFrame)
-            {
-                _selectedKeyIndex = index;
-                break;
-            }
+            _selectedTrackIndex = preferredTrackIndex;
+            _selectedKeyIndex = Find_KeyIndexAtFrame(_asset.tracks[preferredTrackIndex], _currentFrame);
         }
 
-        Mark_AssetDirty();
+        return changed;
+    }
+
+    bool UI_AnimationAssetService::Apply_Preset(const UI_Document& document, UI_AnimationPresetType presetType, int32 durationFrames, float distance, float scaleAmount)
+    {
+        const UI_Object* targetObject = document.Find_Object(_asset.targetObjectId);
+        if (nullptr == targetObject)
+            return false;
+
+        const int32 startFrame = _currentFrame;
+        const int32 safeDuration = max(1, durationFrames);
+        const int32 endFrame = startFrame + safeDuration;
+        const int32 midFrame = startFrame + max(1, static_cast<int32>(roundf(static_cast<float>(safeDuration) * 0.6f)));
+        const float safeDistance = max(1.f, distance);
+        const float safeScaleAmount = max(0.01f, scaleAmount);
+        const float baseX = targetObject->position.x;
+        const float baseY = targetObject->position.y;
+        const float baseScaleX = max(0.01f, targetObject->scale.x);
+        const float baseScaleY = max(0.01f, targetObject->scale.y);
+        const float baseRotation = targetObject->rotationRadians;
+        const float baseAlpha = min(max(targetObject->color.w, 0.f), 1.f);
+
+        _asset.endFrame = max(_asset.endFrame, endFrame);
+
+        bool changed = false;
+        auto key = [&](UI_AnimationKeyframeTrackType trackType, int32 frame, float value, UI_AnimationEasing easing)
+        {
+            changed |= Upsert_KeyValue(trackType, frame, value, easing, false);
+        };
+
+        switch (presetType)
+        {
+        case UI_AnimationPresetType::FadeIn:
+            key(UI_AnimationKeyframeTrackType::Alpha, startFrame, 0.f, UI_AnimationEasing::EaseOut);
+            key(UI_AnimationKeyframeTrackType::Alpha, endFrame, baseAlpha, UI_AnimationEasing::EaseOut);
+            break;
+        case UI_AnimationPresetType::FadeOut:
+            key(UI_AnimationKeyframeTrackType::Alpha, startFrame, baseAlpha, UI_AnimationEasing::EaseIn);
+            key(UI_AnimationKeyframeTrackType::Alpha, endFrame, 0.f, UI_AnimationEasing::EaseIn);
+            break;
+        case UI_AnimationPresetType::SlideInUp:
+            key(UI_AnimationKeyframeTrackType::PositionY, startFrame, baseY + safeDistance, UI_AnimationEasing::EaseOut);
+            key(UI_AnimationKeyframeTrackType::PositionY, endFrame, baseY, UI_AnimationEasing::EaseOut);
+            key(UI_AnimationKeyframeTrackType::Alpha, startFrame, 0.f, UI_AnimationEasing::EaseOut);
+            key(UI_AnimationKeyframeTrackType::Alpha, endFrame, baseAlpha, UI_AnimationEasing::EaseOut);
+            break;
+        case UI_AnimationPresetType::SlideInDown:
+            key(UI_AnimationKeyframeTrackType::PositionY, startFrame, baseY - safeDistance, UI_AnimationEasing::EaseOut);
+            key(UI_AnimationKeyframeTrackType::PositionY, endFrame, baseY, UI_AnimationEasing::EaseOut);
+            key(UI_AnimationKeyframeTrackType::Alpha, startFrame, 0.f, UI_AnimationEasing::EaseOut);
+            key(UI_AnimationKeyframeTrackType::Alpha, endFrame, baseAlpha, UI_AnimationEasing::EaseOut);
+            break;
+        case UI_AnimationPresetType::SlideInLeft:
+            key(UI_AnimationKeyframeTrackType::PositionX, startFrame, baseX - safeDistance, UI_AnimationEasing::EaseOut);
+            key(UI_AnimationKeyframeTrackType::PositionX, endFrame, baseX, UI_AnimationEasing::EaseOut);
+            key(UI_AnimationKeyframeTrackType::Alpha, startFrame, 0.f, UI_AnimationEasing::EaseOut);
+            key(UI_AnimationKeyframeTrackType::Alpha, endFrame, baseAlpha, UI_AnimationEasing::EaseOut);
+            break;
+        case UI_AnimationPresetType::SlideInRight:
+            key(UI_AnimationKeyframeTrackType::PositionX, startFrame, baseX + safeDistance, UI_AnimationEasing::EaseOut);
+            key(UI_AnimationKeyframeTrackType::PositionX, endFrame, baseX, UI_AnimationEasing::EaseOut);
+            key(UI_AnimationKeyframeTrackType::Alpha, startFrame, 0.f, UI_AnimationEasing::EaseOut);
+            key(UI_AnimationKeyframeTrackType::Alpha, endFrame, baseAlpha, UI_AnimationEasing::EaseOut);
+            break;
+        case UI_AnimationPresetType::PopIn:
+            key(UI_AnimationKeyframeTrackType::ScaleX, startFrame, baseScaleX * 0.86f, UI_AnimationEasing::EaseOut);
+            key(UI_AnimationKeyframeTrackType::ScaleY, startFrame, baseScaleY * 0.86f, UI_AnimationEasing::EaseOut);
+            key(UI_AnimationKeyframeTrackType::ScaleX, midFrame, baseScaleX * safeScaleAmount, UI_AnimationEasing::EaseOut);
+            key(UI_AnimationKeyframeTrackType::ScaleY, midFrame, baseScaleY * safeScaleAmount, UI_AnimationEasing::EaseOut);
+            key(UI_AnimationKeyframeTrackType::ScaleX, endFrame, baseScaleX, UI_AnimationEasing::EaseInOut);
+            key(UI_AnimationKeyframeTrackType::ScaleY, endFrame, baseScaleY, UI_AnimationEasing::EaseInOut);
+            key(UI_AnimationKeyframeTrackType::Alpha, startFrame, 0.f, UI_AnimationEasing::EaseOut);
+            key(UI_AnimationKeyframeTrackType::Alpha, endFrame, baseAlpha, UI_AnimationEasing::EaseOut);
+            break;
+        case UI_AnimationPresetType::TooltipAppear:
+            key(UI_AnimationKeyframeTrackType::PositionY, startFrame, baseY + safeDistance * 0.35f, UI_AnimationEasing::EaseOut);
+            key(UI_AnimationKeyframeTrackType::PositionY, endFrame, baseY, UI_AnimationEasing::EaseOut);
+            key(UI_AnimationKeyframeTrackType::ScaleX, startFrame, baseScaleX * 0.96f, UI_AnimationEasing::EaseOut);
+            key(UI_AnimationKeyframeTrackType::ScaleY, startFrame, baseScaleY * 0.96f, UI_AnimationEasing::EaseOut);
+            key(UI_AnimationKeyframeTrackType::ScaleX, endFrame, baseScaleX, UI_AnimationEasing::EaseOut);
+            key(UI_AnimationKeyframeTrackType::ScaleY, endFrame, baseScaleY, UI_AnimationEasing::EaseOut);
+            key(UI_AnimationKeyframeTrackType::Alpha, startFrame, 0.f, UI_AnimationEasing::EaseOut);
+            key(UI_AnimationKeyframeTrackType::Alpha, endFrame, baseAlpha, UI_AnimationEasing::EaseOut);
+            break;
+        case UI_AnimationPresetType::ButtonHoverPulse:
+            key(UI_AnimationKeyframeTrackType::ScaleX, startFrame, baseScaleX, UI_AnimationEasing::EaseOut);
+            key(UI_AnimationKeyframeTrackType::ScaleY, startFrame, baseScaleY, UI_AnimationEasing::EaseOut);
+            key(UI_AnimationKeyframeTrackType::ScaleX, midFrame, baseScaleX * 1.04f, UI_AnimationEasing::EaseOut);
+            key(UI_AnimationKeyframeTrackType::ScaleY, midFrame, baseScaleY * 1.04f, UI_AnimationEasing::EaseOut);
+            key(UI_AnimationKeyframeTrackType::ScaleX, endFrame, baseScaleX, UI_AnimationEasing::EaseInOut);
+            key(UI_AnimationKeyframeTrackType::ScaleY, endFrame, baseScaleY, UI_AnimationEasing::EaseInOut);
+            break;
+        case UI_AnimationPresetType::ButtonPressPop:
+            key(UI_AnimationKeyframeTrackType::ScaleX, startFrame, baseScaleX, UI_AnimationEasing::EaseOut);
+            key(UI_AnimationKeyframeTrackType::ScaleY, startFrame, baseScaleY, UI_AnimationEasing::EaseOut);
+            key(UI_AnimationKeyframeTrackType::ScaleX, midFrame, baseScaleX * 0.94f, UI_AnimationEasing::EaseOut);
+            key(UI_AnimationKeyframeTrackType::ScaleY, midFrame, baseScaleY * 0.94f, UI_AnimationEasing::EaseOut);
+            key(UI_AnimationKeyframeTrackType::ScaleX, endFrame, baseScaleX, UI_AnimationEasing::EaseInOut);
+            key(UI_AnimationKeyframeTrackType::ScaleY, endFrame, baseScaleY, UI_AnimationEasing::EaseInOut);
+            break;
+        case UI_AnimationPresetType::SkillNodeReveal:
+            key(UI_AnimationKeyframeTrackType::ScaleX, startFrame, baseScaleX * 0.75f, UI_AnimationEasing::EaseOut);
+            key(UI_AnimationKeyframeTrackType::ScaleY, startFrame, baseScaleY * 0.75f, UI_AnimationEasing::EaseOut);
+            key(UI_AnimationKeyframeTrackType::ScaleX, midFrame, baseScaleX * safeScaleAmount, UI_AnimationEasing::EaseOut);
+            key(UI_AnimationKeyframeTrackType::ScaleY, midFrame, baseScaleY * safeScaleAmount, UI_AnimationEasing::EaseOut);
+            key(UI_AnimationKeyframeTrackType::ScaleX, endFrame, baseScaleX, UI_AnimationEasing::EaseInOut);
+            key(UI_AnimationKeyframeTrackType::ScaleY, endFrame, baseScaleY, UI_AnimationEasing::EaseInOut);
+            key(UI_AnimationKeyframeTrackType::Rotation, startFrame, baseRotation - 0.08f, UI_AnimationEasing::EaseOut);
+            key(UI_AnimationKeyframeTrackType::Rotation, endFrame, baseRotation, UI_AnimationEasing::EaseOut);
+            key(UI_AnimationKeyframeTrackType::Alpha, startFrame, 0.f, UI_AnimationEasing::EaseOut);
+            key(UI_AnimationKeyframeTrackType::Alpha, endFrame, baseAlpha, UI_AnimationEasing::EaseOut);
+            break;
+        default:
+            return false;
+        }
+
+        if (changed)
+            Mark_AssetDirty();
+
+        return changed;
+    }
+
+    bool UI_AnimationAssetService::Copy_SelectedKey()
+    {
+        UI_AnimationKeyframeTrack* track = Get_SelectedTrack();
+        UI_AnimationKeyframe* key = Get_SelectedKey();
+        if (nullptr == track || nullptr == key)
+            return false;
+
+        _copiedKeyTrackType = track->type;
+        _copiedKey = *key;
+        _hasCopiedKey = true;
         return true;
+    }
+
+    bool UI_AnimationAssetService::Paste_CopiedKey()
+    {
+        if (!_hasCopiedKey)
+            return false;
+
+        return Upsert_KeyValue(_copiedKeyTrackType, _currentFrame, _copiedKey.value, _copiedKey.easing, true);
     }
 
     bool UI_AnimationAssetService::Delete_SelectedKey()
@@ -445,6 +609,34 @@ namespace UIEditor
             return false;
 
         selectedKey->value = Clamp_AnimationKeyframeTrackValue(editableTrack->type, value);
+        Mark_AssetDirty();
+        return true;
+    }
+
+    bool UI_AnimationAssetService::Set_SelectedTrackEasing(UI_AnimationEasing easing, bool applyToKeys)
+    {
+        UI_AnimationKeyframeTrack* editableTrack = Get_SelectedTrack();
+        if (nullptr == editableTrack)
+            return false;
+
+        editableTrack->easing = easing;
+        if (applyToKeys)
+        {
+            for (UI_AnimationKeyframe& key : editableTrack->keys)
+                key.easing = easing;
+        }
+
+        Mark_AssetDirty();
+        return true;
+    }
+
+    bool UI_AnimationAssetService::Set_SelectedKeyEasing(UI_AnimationEasing easing)
+    {
+        UI_AnimationKeyframe* selectedKey = Get_SelectedKey();
+        if (nullptr == selectedKey)
+            return false;
+
+        selectedKey->easing = easing;
         Mark_AssetDirty();
         return true;
     }
@@ -569,6 +761,141 @@ namespace UIEditor
 
         path.replace_extension(L".uianim.json");
         filePath = path.wstring();
+    }
+
+    int32 UI_AnimationAssetService::Find_TrackIndex(UI_AnimationKeyframeTrackType trackType) const
+    {
+        for (int32 index = 0; index < static_cast<int32>(_asset.tracks.size()); ++index)
+        {
+            if (_asset.tracks[index].type == trackType)
+                return index;
+        }
+
+        return -1;
+    }
+
+    int32 UI_AnimationAssetService::Find_KeyIndexAtFrame(const UI_AnimationKeyframeTrack& track, int32 frame) const
+    {
+        for (int32 index = 0; index < static_cast<int32>(track.keys.size()); ++index)
+        {
+            if (track.keys[index].frame == frame)
+                return index;
+        }
+
+        return -1;
+    }
+
+    int32 UI_AnimationAssetService::Ensure_Track(UI_AnimationKeyframeTrackType trackType)
+    {
+        const int32 existingTrackIndex = Find_TrackIndex(trackType);
+        if (existingTrackIndex >= 0)
+            return existingTrackIndex;
+
+        UI_AnimationKeyframeTrack track = {};
+        track.type = trackType;
+        track.enabled = true;
+        _asset.tracks.push_back(track);
+        Mark_AssetDirty();
+        return static_cast<int32>(_asset.tracks.size()) - 1;
+    }
+
+    bool UI_AnimationAssetService::Upsert_CurrentValueKey(const UI_Document& document, int32 trackIndex, bool selectKey)
+    {
+        if (trackIndex < 0 || trackIndex >= static_cast<int32>(_asset.tracks.size()))
+            return false;
+
+        UI_AnimationKeyframeTrack& track = _asset.tracks[trackIndex];
+        const float value = Clamp_AnimationKeyframeTrackValue(track.type, Get_TargetCurrentValue(document, track.type));
+        for (int32 index = 0; index < static_cast<int32>(track.keys.size()); ++index)
+        {
+            if (track.keys[index].frame == _currentFrame)
+            {
+                track.keys[index].value = value;
+                if (selectKey)
+                {
+                    _selectedTrackIndex = trackIndex;
+                    _selectedKeyIndex = index;
+                }
+                Mark_AssetDirty();
+                return true;
+            }
+        }
+
+        UI_AnimationKeyframe key = {};
+        key.frame = _currentFrame;
+        key.value = value;
+        key.easing = track.easing;
+        track.keys.push_back(key);
+
+        const int32 previousSelectedTrackIndex = _selectedTrackIndex;
+        const int32 previousSelectedKeyIndex = _selectedKeyIndex;
+        Sort_TrackKeys(track);
+
+        if (selectKey)
+        {
+            _selectedTrackIndex = trackIndex;
+            _selectedKeyIndex = Find_KeyIndexAtFrame(track, _currentFrame);
+        }
+        else
+        {
+            _selectedTrackIndex = previousSelectedTrackIndex;
+            _selectedKeyIndex = previousSelectedKeyIndex;
+        }
+
+        Mark_AssetDirty();
+        return true;
+    }
+
+    bool UI_AnimationAssetService::Upsert_KeyValue(UI_AnimationKeyframeTrackType trackType, int32 frame, float value, UI_AnimationEasing easing, bool selectKey)
+    {
+        const int32 trackIndex = Ensure_Track(trackType);
+        if (trackIndex < 0 || trackIndex >= static_cast<int32>(_asset.tracks.size()))
+            return false;
+
+        UI_AnimationKeyframeTrack& track = _asset.tracks[trackIndex];
+        track.easing = easing;
+
+        const int32 targetFrame = min(max(frame, _asset.startFrame), _asset.endFrame);
+        const float targetValue = Clamp_AnimationKeyframeTrackValue(track.type, value);
+        for (int32 index = 0; index < static_cast<int32>(track.keys.size()); ++index)
+        {
+            if (track.keys[index].frame == targetFrame)
+            {
+                track.keys[index].value = targetValue;
+                track.keys[index].easing = easing;
+                if (selectKey)
+                {
+                    _selectedTrackIndex = trackIndex;
+                    _selectedKeyIndex = index;
+                }
+                Mark_AssetDirty();
+                return true;
+            }
+        }
+
+        UI_AnimationKeyframe key = {};
+        key.frame = targetFrame;
+        key.value = targetValue;
+        key.easing = easing;
+        track.keys.push_back(key);
+
+        const int32 previousSelectedTrackIndex = _selectedTrackIndex;
+        const int32 previousSelectedKeyIndex = _selectedKeyIndex;
+        Sort_TrackKeys(track);
+
+        if (selectKey)
+        {
+            _selectedTrackIndex = trackIndex;
+            _selectedKeyIndex = Find_KeyIndexAtFrame(track, targetFrame);
+        }
+        else
+        {
+            _selectedTrackIndex = previousSelectedTrackIndex;
+            _selectedKeyIndex = previousSelectedKeyIndex;
+        }
+
+        Mark_AssetDirty();
+        return true;
     }
 
     void UI_AnimationAssetService::Sort_TrackKeys(UI_AnimationKeyframeTrack& track)

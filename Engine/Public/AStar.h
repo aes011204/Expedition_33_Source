@@ -14,25 +14,26 @@ struct ANode
     int parent; // 어디서 왔는지
 };
 
-class AStar : public Base
+class AStar :
+    public Base
 {
 public:
     AStar();
-    ~AStar() override;
+    virtual ~AStar();
 public:
     vector<Vec3> FindPath(Vec3 start, Vec3 end);
 private:
     vector<Vec3> Recalculate(unordered_map<int, ANode>& allNode, int goal);
 
-    struct Compare
-    {
-        bool operator()(const ANode& a, const ANode& b)
-        {
+    struct Compare {
+        bool operator() (const ANode& a, const ANode& b) {
             return a.f > b.f;
         }
     };
+    
 
 public:
+
 };
 
 NS_END

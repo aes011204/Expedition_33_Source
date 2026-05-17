@@ -130,6 +130,41 @@ HRESULT MapStaticMesh::Render()
     return S_OK;
 }
 
+HRESULT MapStaticMesh::RenderPickingID(uint32 id)
+{
+    if (!_model || !_shader)
+    {
+        return S_OK;
+    }
+
+    if (FAILED(_shader->Bind_ObjectCB(_transformCom->Get_WorldMatrix())))
+    {
+        return E_FAIL;
+    }
+
+    if (FAILED(GAME->Bind_CameraCB(_shader)))
+    {
+        return E_FAIL;
+    }
+
+    if (FAILED(_shader->Bind_RawValue("g_iObjectID", &id, sizeof(uint32))))
+    {
+        return E_FAIL;
+    }
+
+    const uint32 numMeshes = static_cast<uint32>(_model->Get_NumMeshes());
+    for (uint32 i = 0; i < numMeshes; ++i)
+    {
+        if (FAILED(_shader->Begin(6)))
+        {
+            return E_FAIL;
+        }
+        _model->Render(i);
+    }
+
+    return S_OK;
+}
+
 HRESULT MapStaticMesh::Ready_Components(const wstring& modelPath, Shared<ModelCom> sharedModel)
 {
     if (FAILED(__super::Add_Component(ETOI(LevelType::Static), TEXT("Shader_VtxMesh"), _shader)))

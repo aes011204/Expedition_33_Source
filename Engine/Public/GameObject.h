@@ -31,6 +31,7 @@ public:
     virtual void    Late_Update(float timeDelta);
     virtual HRESULT Render();
     virtual HRESULT Render_Shadow() { return S_OK; }
+    virtual HRESULT RenderPickingID(uint32 id) { return S_OK; }
 
     HRESULT         Try_BeginPlay();
 

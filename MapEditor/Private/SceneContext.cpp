@@ -32,9 +32,13 @@ void SceneContext::SaveToFile(const string& filePath)
         {
             wstring modelFile = obj->_modelPath;
             const wstring prefix = L"../../../Client/Bin/Resources/Map/" + _modelFolder + L"/";
-            if (modelFile.substr(0, prefix.size()) == prefix)
+            if (modelFile.size() >= prefix.size() && modelFile.substr(0, prefix.size()) == prefix)
             {
                 modelFile = modelFile.substr(prefix.size());
+            }
+            else
+            {
+                modelFile = fs::path(modelFile).filename().wstring();
             }
             e["ModelPath"] = String::ToString(modelFile);
             e["Scale"] = { obj->_scale.x, obj->_scale.y, obj->_scale.z };
@@ -108,9 +112,13 @@ void SceneContext::SaveToFile(const string& filePath)
         {
             wstring modelFile = obj->_instancedModelPath;
             const wstring prefix = L"../../../Client/Bin/Resources/Map/" + _modelFolder + L"/";
-            if (modelFile.substr(0, prefix.size()) == prefix)
+            if (modelFile.size() >= prefix.size() && modelFile.substr(0, prefix.size()) == prefix)
             {
                 modelFile = modelFile.substr(prefix.size());
+            }
+            else
+            {
+                modelFile = fs::path(modelFile).filename().wstring();
             }
             json instances = json::array();
             for (auto& t : obj->_instancedTransforms)

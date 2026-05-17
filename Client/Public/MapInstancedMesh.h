@@ -5,6 +5,8 @@
 NS_BEGIN(Engine)
 class ShaderCom;
 class ModelCom;
+class ComputeShaderCom;
+class ComputeStructuredBuffer;
 NS_END
 
 NS_BEGIN(Client)
@@ -40,6 +42,7 @@ public:
     virtual void Update(float timeDelta) override;
     virtual void Late_Update(float timeDelta) override;
     virtual HRESULT Render() override;
+    virtual HRESULT RenderPickingID(uint32 id) override;
 
 private:
     Shared<ShaderCom> _shader;
@@ -48,10 +51,23 @@ private:
     uint32 _instanceCount = {};
     uint32 _instanceCapacity = {};
 
+    Shared<ComputeShaderCom> _cullShader;
+    Shared<ComputeStructuredBuffer> _instanceSrcBuffer;
+    Shared<ComputeStructuredBuffer> _sphereBuffer;
+    ComPtr<Buffer> _visibleVB;
+    ComPtr<UnorderedAccessView> _visibleUAV;
+    ComPtr<Buffer> _cullCB;
+    ComPtr<Buffer> _countStaging;
+    uint32 _visibleCount = {};
+
 private:
     HRESULT Ready_Components(const wstring& modelPath, Shared<ModelCom> sharedModel);
     HRESULT CreateInstanceBuffer(const vector<Matrix>& matrices);
     HRESULT Bind_ShaderResources();
+
+    HRESULT CreateCullBuffers(const vector<Matrix>& matrices, const vector<InstanceTransform>& transforms);
+    void DispatchCull();
+    static array<Vec4, 6> ExtractFrustumPlanes(const Matrix& vp);
 
 public:
     static Shared<MapInstancedMesh> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

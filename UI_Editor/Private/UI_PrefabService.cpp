@@ -6,7 +6,7 @@ namespace UIEditor
 {
     namespace
     {
-        constexpr int32 kCurrentPrefabVersion = 1;
+        constexpr int32 kCurrentPrefabVersion = 2;
         constexpr wchar_t kPrefabExtension[] = L".uiprefab.json";
         constexpr const char* kDefaultPrefabName = "UIPrefab";
 
