@@ -44,6 +44,13 @@ struct VS_OUT
     float4  ProjPos     : TEXCOORD2;
 };
 
+struct VS_SHADOW_OUT
+{
+    float4 Position     : SV_POSITION;
+    float2 Texcoord     : TEXCOORD0;
+    float4 ProjPos      : TEXCOORD1;
+};
+
 VS_OUT VS_Main(VS_IN In)
 {
     VS_OUT Out;
