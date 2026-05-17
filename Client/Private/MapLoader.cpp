@@ -88,7 +88,17 @@ HRESULT MapLoader::Load(const ComPtr<Device>& device, const ComPtr<Context>& con
     {
         string modelPathStr = e.value("ModelPath", string{});
         if (modelPathStr.empty())
+        {
             continue;
+        }
+
+        fs::path modelPathFs(modelPathStr);
+        if (modelPathFs.has_parent_path())
+        {
+            modelPathStr = modelPathFs.filename().string();
+        }
+
+        string fullPathA = "../../../Client/Bin/Resources/Map/" + modelFolder + "/" + modelPathStr;
 
         MapStaticMesh::MAPSTATICMESH_DESC desc{};
 
@@ -138,6 +148,14 @@ HRESULT MapLoader::Load(const ComPtr<Device>& device, const ComPtr<Context>& con
             {
                 continue;
             }
+
+            fs::path modelPathFs(modelPathStr);
+            if (modelPathFs.has_parent_path())
+            {
+                modelPathStr = modelPathFs.filename().string();
+            }
+
+            string fullPathA = "../../../Client/Bin/Resources/Map/" + modelFolder + "/" + modelPathStr;
 
             MapInstancedMesh::MAPINSTANCEDMESH_DESC desc{};
 

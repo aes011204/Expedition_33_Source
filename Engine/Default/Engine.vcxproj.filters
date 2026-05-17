@@ -311,6 +311,9 @@
       <Filter>01.Utility\04.Component\Model\Animation\Notify</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\AnimState_Parser.h" />
+    <ClInclude Include="..\Public\InstanceCullParams.h">
+      <Filter>99. Defines</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\public\Base.h">

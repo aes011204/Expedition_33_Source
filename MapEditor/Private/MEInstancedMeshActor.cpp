@@ -1,6 +1,9 @@
 ﻿#include "MEInstancedMeshActor.h"
 #include "GameInstance.h"
 #include "Helper_Math.h"
+#include "ComputeShaderCom.h"
+#include "ComputeStructuredBuffer.h"
+#include "InstanceCullParams.h"
 
 
 MEInstancedMeshActor::MEInstancedMeshActor(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -26,6 +29,10 @@ HRESULT MEInstancedMeshActor::Initialize(void* arg)
         return E_FAIL;
     }
 
+    _cullShader = ComputeShaderCom::Create(_device, _context,
+        L"../../../Client/Bin/ShaderFiles/Compute/Shader_Compute_InstanceCull.hlsl",
+        "CS_Main");
+
     return S_OK;
 }
 
@@ -42,6 +49,21 @@ void MEInstancedMeshActor::Late_Update(float timeDelta)
 HRESULT MEInstancedMeshActor::Render()
 {
     if (_instanceCount == 0 || !_model || !_shader)
+    {
+        return S_OK;
+    }
+
+    Buffer* renderVB = _instanceVB.Get();
+    uint32 renderCount = _instanceCount;
+
+    if (_cullShader && _instanceSrcBuffer && _sphereBuffer && _visibleVB)
+    {
+        DispatchCull();
+        renderVB = _visibleVB.Get();
+        renderCount = _visibleCount;
+    }
+
+    if (renderCount == 0)
     {
         return S_OK;
     }
@@ -73,7 +95,7 @@ HRESULT MEInstancedMeshActor::Render()
             return E_FAIL;
         }
 
-        if (FAILED(_model->RenderInstanced(i, _instanceVB.Get(), sizeof(Matrix), _instanceCount)))
+        if (FAILED(_model->RenderInstanced(i, renderVB, sizeof(Matrix), renderCount)))
         {
             return E_FAIL;
         }
@@ -85,20 +107,213 @@ HRESULT MEInstancedMeshActor::Render()
 HRESULT MEInstancedMeshActor::Bind_ShaderResources()
 {
     if (FAILED(GAME->Bind_TransformMatrix(D3DTS::View, _shader.get(), "g_ViewMatrix")))
+    {
         return E_FAIL;
+    }
 
     if (FAILED(GAME->Bind_TransformMatrix(D3DTS::Proj, _shader.get(), "g_ProjMatrix")))
+    {
         return E_FAIL;
+    }
 
-    //if (FAILED(_shader->Bind_RawValue("g_Far", &_cameraFar, sizeof(float))))
-    //    return E_FAIL;
-
-    //Matrix preTransform = _model->Get_PreLocalTransformMatrix();
     Matrix identity = Matrix::Identity;
     if (FAILED(_shader->Bind_Matrix("g_PreTransformMatrix", &identity)))
+    {
         return E_FAIL;
+    }
 
     return S_OK;
+}
+
+HRESULT MEInstancedMeshActor::CreateCullBuffers(const vector<Matrix>& matrices, const vector<InstanceTransform>& transforms)
+{
+    const uint32 count = static_cast<uint32>(matrices.size());
+    if (count == 0 || _cullShader)
+    {
+        return S_OK;
+    }
+
+    _instanceSrcBuffer = ComputeStructuredBuffer::Create(_device, _context, sizeof(Matrix), count, matrices.data());
+    if (!_instanceSrcBuffer)
+    {
+        return E_FAIL;
+    }
+
+    Vec3 localMin{}, localMax{};
+    const bool hasBounds = _model && _model->Try_Get_LocalBounds(localMin, localMax);
+    const Matrix preTransform = _model ? _model->Get_PreLocalTransformMatrix() : Matrix::Identity;
+
+    vector<Vec4> spheres;
+    spheres.reserve(count);
+
+    for (uint32 i = 0; i < count; ++i)
+    {
+        if (hasBounds)
+        {
+            BoundingBox localBox;
+            BoundingBox::CreateFromPoints(localBox,
+                XMVectorSet(localMin.x, localMin.y, localMin.z, 0.f),
+                XMVectorSet(localMax.x, localMax.y, localMax.z, 0.f));
+
+            BoundingBox worldBox;
+            localBox.Transform(worldBox, preTransform * matrices[i]);
+
+            BoundingSphere sphere;
+            BoundingSphere::CreateFromBoundingBox(sphere, worldBox);
+            spheres.push_back({ sphere.Center.x, sphere.Center.y, sphere.Center.z, sphere.Radius });
+        }
+        else
+        {
+            spheres.push_back({ matrices[i].m[3][0], matrices[i].m[3][1], matrices[i].m[3][2], 50.f });
+        }
+    }
+
+    _sphereBuffer = ComputeStructuredBuffer::Create(_device, _context, sizeof(Vec4), count, spheres.data());
+    if (_sphereBuffer)
+    {
+        return E_FAIL;
+    }
+
+    {
+        D3D11_BUFFER_DESC bd{};
+        bd.ByteWidth = sizeof(Matrix) * count;
+        bd.Usage = D3D11_USAGE_DEFAULT;
+        bd.BindFlags = D3D11_BIND_VERTEX_BUFFER | D3D11_BIND_UNORDERED_ACCESS;
+        bd.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+        bd.StructureByteStride = sizeof(Matrix);
+
+        _visibleVB.Reset();
+        if (FAILED(_device->CreateBuffer(&bd, nullptr, _visibleVB.GetAddressOf())))
+        {
+            return E_FAIL;
+        }
+
+        D3D11_UNORDERED_ACCESS_VIEW_DESC uavd{};
+        uavd.Format = DXGI_FORMAT_UNKNOWN;
+        uavd.ViewDimension = D3D11_UAV_DIMENSION_BUFFER;
+        uavd.Buffer.NumElements = count;
+        uavd.Buffer.Flags = D3D11_BUFFER_UAV_FLAG_APPEND;
+
+        _visibleUAV.Reset();
+        if (FAILED(_device->CreateUnorderedAccessView(_visibleVB.Get(), &uavd, _visibleUAV.GetAddressOf())))
+        {
+            return E_FAIL;
+        }
+    }
+
+    {
+        D3D11_BUFFER_DESC bd{};
+        bd.ByteWidth = sizeof(CullParams);
+        bd.Usage = D3D11_USAGE_DYNAMIC;
+        bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+
+        _cullCB.Reset();
+        if (FAILED(_device->CreateBuffer(&bd, nullptr, _cullCB.GetAddressOf())))
+        {
+            return E_FAIL;
+        }
+    }
+
+    {
+        D3D11_BUFFER_DESC bd{};
+        bd.ByteWidth = sizeof(uint32);
+        bd.Usage = D3D11_USAGE_STAGING;
+        bd.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+
+        _countStaging.Reset();
+        if (FAILED(_device->CreateBuffer(&bd, nullptr, _countStaging.GetAddressOf())))
+        {
+            return E_FAIL;
+        }
+    }
+
+    return S_OK;
+}
+
+void MEInstancedMeshActor::DispatchCull()
+{
+    const Matrix* view = GAME->Get_Transform(D3DTS::View);
+    const Matrix* proj = GAME->Get_Transform(D3DTS::Proj);
+    if (!view || !proj)
+    {
+        return;
+    }
+
+    Matrix vp = (*view) * (*proj);
+    auto planes = ExactFrustumPlanes(vp);
+
+    CullParams params{};
+    for (int i = 0; i < 6; ++i)
+    {
+        params.planes[i] = planes[i];
+    }
+    params.totalCount = _instanceCount;
+
+    D3D11_MAPPED_SUBRESOURCE mapped{};
+    if (FAILED(_context->Map(_cullCB.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped)))
+    {
+        return;
+    }
+    memcpy(mapped.pData, &params, sizeof(CullParams));
+    _context->Unmap(_cullCB.Get(), 0);
+
+    uint32 initCount = {};
+    _context->CSSetUnorderedAccessViews(0, 1, _visibleUAV.GetAddressOf(), &initCount);
+
+    _cullShader->Bind_SRV(0, _instanceSrcBuffer->Get_SRV());
+    _cullShader->Bind_SRV(1, _sphereBuffer->Get_SRV());
+    _cullShader->Bind_ConstantBuffer(0, _cullCB.Get());
+
+    const uint32 groups = (_instanceCount + 63) / 64;
+    _cullShader->Dispatch(groups, 1, 1);
+
+    ID3D11UnorderedAccessView* nullUAV = {};
+    _context->CSSetUnorderedAccessViews(0, 1, &nullUAV, nullptr);
+
+    _context->CopyStructureCount(_countStaging.Get(), 0, _visibleUAV.Get());
+
+    D3D11_MAPPED_SUBRESOURCE countMapped{};
+    if (SUCCEEDED(_context->Map(_countStaging.Get(), 0, D3D11_MAP_READ, 0, &countMapped)))
+    {
+        _visibleCount = *static_cast<uint32*>(countMapped.pData);
+        _context->Unmap(_countStaging.Get(), 0);
+    }
+    else
+    {
+        _visibleCount = 0;
+    }
+}
+
+array<Vec4, 6> MEInstancedMeshActor::ExactFrustumPlanes(const Matrix& vp)
+{
+    array<Vec4, 6> p;
+
+    // Left
+    p[0] = { vp.m[0][0] + vp.m[0][3], vp.m[1][0] + vp.m[1][3], vp.m[2][0] + vp.m[2][3], vp.m[3][0] + vp.m[3][3] };
+    // Right
+    p[1] = { vp.m[0][3] - vp.m[0][0], vp.m[1][3] - vp.m[1][0], vp.m[2][3] - vp.m[2][0], vp.m[3][3] - vp.m[3][0] };
+    // Bottom
+    p[2] = { vp.m[0][1] + vp.m[0][3], vp.m[1][1] + vp.m[1][3], vp.m[2][1] + vp.m[2][3], vp.m[3][1] + vp.m[3][3] };
+    // Top
+    p[3] = { vp.m[0][3] - vp.m[0][1], vp.m[1][3] - vp.m[1][1], vp.m[2][3] - vp.m[2][1], vp.m[3][3] - vp.m[3][1] };
+    // Near
+    p[4] = { vp.m[0][2], vp.m[1][2], vp.m[2][2], vp.m[3][2] };
+    // Far
+    p[5] = { vp.m[0][3] - vp.m[0][2], vp.m[1][3] - vp.m[1][2], vp.m[2][3] - vp.m[2][2], vp.m[3][3] - vp.m[3][2] };
+
+    for (auto& plane : p)
+    {
+        float len = sqrtf(plane.x * plane.x + plane.y * plane.y + plane.z * plane.z);
+        if (len > 1e-6f)
+        {
+            plane.x /= len;
+            plane.y /= len;
+            plane.z /= len;
+            plane.w /= len;
+        }
+    }
+
+    return p;
 }
 
 HRESULT MEInstancedMeshActor::CreateInstanceBuffer(const vector<Matrix>& matrices)
@@ -187,7 +402,13 @@ HRESULT MEInstancedMeshActor::UpdateInstances(const wstring& modelPath, const ve
         matrices.push_back(world);
     }
 
-    return CreateInstanceBuffer(matrices);
+    if (FAILED(CreateInstanceBuffer(matrices)))
+    {
+        return E_FAIL;
+    }
+
+    CreateCullBuffers(matrices, transforms);
+    return S_OK;
 }
 
 HRESULT MEInstancedMeshActor::Ready_Components()

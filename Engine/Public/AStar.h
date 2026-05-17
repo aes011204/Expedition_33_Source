@@ -27,7 +27,7 @@ private:
 
     struct Compare {
         bool operator() (const ANode& a, const ANode& b) {
-            a.f > b.f;
+            return a.f > b.f;
         }
     };
 

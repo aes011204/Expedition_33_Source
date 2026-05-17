@@ -5,7 +5,6 @@
 #include "Spawn_Prefab.h"
 #include "TargetCamera.h"
 #include "MapLoader.h"
-#include "Spawn_Prefab.h"
 #include "UI_Base.h"
 #include "UI_Button.h"
 #include "UI_Image.h"
@@ -57,7 +56,7 @@ void Level_GamePlay::Update(float fTimeDelta)
     // 테스트
 #ifdef _DEBUG
     const int32 fps = (fTimeDelta > 0.f)
-            ? static_cast<int32>(1.f / fTimeDelta) : 0.f;
+            ? static_cast<int32>(1.f / fTimeDelta) : 0;
 
      GAME->Print(L"현재 FPS : {}", fps, duration(0.f), color(Vec4(1.f, 1.f, 0.f, 1.f)));
 #endif
@@ -193,8 +192,8 @@ HRESULT Level_GamePlay::Ready_Layer_MapStaticMesh(const wstring& strLayerTag)
 {
     CHECK_FAILED(MapLoader::Load(
         _device, _context,
-        Constants::Map::SmallLevel_SimonArea_Remake_Path,
-        ETOI(LevelType::MapTest), strLayerTag), E_FAIL);
+        Constants::Map::TestMap_Path,
+        ETOI(LevelType::GamePlay), strLayerTag), E_FAIL);
 
     return S_OK;
 }
@@ -208,7 +207,7 @@ HRESULT Level_GamePlay::Ready_Layer_Monster(const wstring& strLayerTag)
         return E_FAIL;*/
 
 
-    Vec3 startPos = Vec3(225.f, -4020.5f, -1.24f);
+    Vec3 startPos = Vec3(20.f, 2.f, 20.f);
 
 
      
@@ -227,7 +226,7 @@ HRESULT Level_GamePlay::Ready_Layer_Monster(const wstring& strLayerTag)
 
 HRESULT Level_GamePlay::Ready_Layer_Player(const wstring& strLayerTag)
 {
-    Vec3 startPos = Vec3(205.f, -4020.5f, -1.24f);
+    Vec3 startPos = Vec3(0.f, 2.f, 0.f);
     CHECK_FAILED(CLIENT->Initialize_Hero(ETOI(LevelType::GamePlay), strLayerTag, startPos), E_FAIL);
 
     return S_OK;
