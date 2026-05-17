@@ -201,6 +201,16 @@ void Detail_View::Render_ModuleDetail(
             changed = _initialSizeModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
         break;
 
+    case AuthoringModuleType::InitialLocation:
+        if (auto* data = get_if<InitialLocationModuleData>(&module.data))
+            changed = _initialLocationModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
+        break;
+
+    case AuthoringModuleType::SphereLocation:
+        if (auto* data = get_if<SphereLocationModuleData>(&module.data))
+            changed = _sphereLocationModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
+        break;
+
     case AuthoringModuleType::InitialVelocity:
         if (auto* data = get_if<InitialVelocityModuleData>(&module.data))
             changed = _initialVelocityModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);

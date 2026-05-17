@@ -245,6 +245,7 @@ AuthoringEmitter Emitter_View::Make_DefaultSpriteEmitter()
     emitter.modules.push_back(move(requiredModule));
     emitter.modules.push_back(Make_SpawnModule());
     emitter.modules.push_back(Make_LifetimeModule());
+    emitter.modules.push_back(Make_InitialLocationModule());
     emitter.modules.push_back(Make_InitialSizeModule());
     emitter.modules.push_back(Make_InitialVelocityModule());
     emitter.modules.push_back(Make_InitialColorModule());
@@ -307,6 +308,36 @@ AuthoringModule Emitter_View::Make_LifetimeModule()
     module.movable = true;
     module.removable = true;
     module.data = LifetimeModuleData{};
+    return module;
+}
+
+AuthoringModule Emitter_View::Make_InitialLocationModule()
+{
+    AuthoringModule module{};
+    module.id = Issue_AuthoringId();
+    module.type = AuthoringModuleType::InitialLocation;
+    module.key = "Initial Location";
+    module.displayName = L"초기 위치";
+    module.summary = L"생성 시점 위치 분포";
+    module.enabled = true;
+    module.movable = true;
+    module.removable = true;
+    module.data = InitialLocationModuleData{};
+    return module;
+}
+
+AuthoringModule Emitter_View::Make_SphereLocationModule()
+{
+    AuthoringModule module{};
+    module.id = Issue_AuthoringId();
+    module.type = AuthoringModuleType::SphereLocation;
+    module.key = "Sphere Location";
+    module.displayName = L"구 위치";
+    module.summary = L"구 표면/부피 생성 위치";
+    module.enabled = true;
+    module.movable = true;
+    module.removable = true;
+    module.data = SphereLocationModuleData{};
     return module;
 }
 
@@ -525,6 +556,8 @@ bool Emitter_View::Can_AddModuleType(const AuthoringEmitter& emitter, AuthoringM
         return false;
 
     case AuthoringModuleType::Lifetime:
+    case AuthoringModuleType::InitialLocation:
+    case AuthoringModuleType::SphereLocation:
     case AuthoringModuleType::InitialSize:
     case AuthoringModuleType::InitialVelocity:
     case AuthoringModuleType::Acceleration:
@@ -559,6 +592,12 @@ void Emitter_View::Add_Module(size_t emitterIndex, AuthoringModuleType type)
     {
     case AuthoringModuleType::Lifetime:
         module = Make_LifetimeModule();
+        break;
+    case AuthoringModuleType::InitialLocation:
+        module = Make_InitialLocationModule();
+        break;
+    case AuthoringModuleType::SphereLocation:
+        module = Make_SphereLocationModule();
         break;
     case AuthoringModuleType::InitialSize:
         module = Make_InitialSizeModule();
@@ -831,6 +870,14 @@ void Emitter_View::Reset_ModuleData(size_t emitterIndex, size_t moduleIndex)
         module.data = LifetimeModuleData{};
         break;
 
+    case AuthoringModuleType::InitialLocation:
+        module.data = InitialLocationModuleData{};
+        break;
+
+    case AuthoringModuleType::SphereLocation:
+        module.data = SphereLocationModuleData{};
+        break;
+
     case AuthoringModuleType::InitialSize:
         module.data = InitialSizeModuleData{};
         break;
@@ -987,6 +1034,26 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
             true,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::InitialSize),
+            "이미 장착됨"
+        )
+    );
+    entries.push_back(
+        makeEntry(
+            AuthoringModuleType::InitialLocation,
+            L"초기 위치",
+            true,
+            true,
+            Can_AddModuleType(emitter, AuthoringModuleType::InitialLocation),
+            "이미 장착됨"
+        )
+    );
+    entries.push_back(
+        makeEntry(
+            AuthoringModuleType::SphereLocation,
+            L"구 위치",
+            true,
+            true,
+            Can_AddModuleType(emitter, AuthoringModuleType::SphereLocation),
             "이미 장착됨"
         )
     );

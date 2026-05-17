@@ -19,7 +19,7 @@ struct ParticleLifecycleState
     float lifeAge;
     float lifeMax;
     uint respawnSeed;
-    uint padding;
+    uint active;
 };
 
 cbuffer ComputePointParticleParams : register(b0)
@@ -28,11 +28,19 @@ cbuffer ComputePointParticleParams : register(b0)
     float g_DeltaTime;
     float g_InstanceCount;
     uint g_DrawMode;
+    uint g_SpawnRequest;
+    uint g_MaxActiveCount;
+    uint g_MaxDrawCount;
+    uint g_KillActiveParticles;
     float4 g_Center;
     float4 g_SpawnRange;
-    float4 g_SizeMin;               // x/y: width/height min
-    float4 g_SizeMax;               // x/y: width/height max
-    float4 g_LifeTimeParams;        // x/y: lifetime min/max
+    float4 g_InitialLocationMin;         // xyz: InitialLocation min offset, w: enabled
+    float4 g_InitialLocationMax;         // xyz: InitialLocation max offset
+    float4 g_SphereLocationOffsetRadius; // xyz: sphere center offset, w: radius
+    float4 g_SphereLocationParams;       // x: enabled, y: mode(0 volume, 1 surface)
+    float4 g_SizeMin;                    // x/y: width/height min
+    float4 g_SizeMax;                    // x/y: width/height max
+    float4 g_LifeTimeParams;             // x/y: lifetime min/max
     float4 g_StartColorMin;
     float4 g_StartColorMax;
     float4 g_EndColorMin;
@@ -76,6 +84,22 @@ float3 SampleRange3(float3 minValue, float3 maxValue, uint seed)
     );
 }
 
+float3 SampleSphereLocationOffset(uint seed)
+{
+    const float radius = max(0.0f, g_SphereLocationOffsetRadius.w);
+    const float twoPi = 6.28318530718f;
+    const float z = Hash01(seed + 1301u) * 2.0f - 1.0f;
+    const float angle = Hash01(seed + 1409u) * twoPi;
+    const float xy = sqrt(max(0.0f, 1.0f - z * z));
+    const float3 direction = float3(cos(angle) * xy, sin(angle) * xy, z);
+    const float distanceScale = (uint)g_SphereLocationParams.y == 1u
+                                ? 1.0f
+                                : pow(Hash01(seed + 1511u), 1.0f / 3.0f);
+    const float enabled = g_SphereLocationParams.x != 0.0f && radius > 0.0001f ? 1.0f : 0.0f;
+
+    return (g_SphereLocationOffsetRadius.xyz + direction * radius * distanceScale) * enabled;
+}
+
 // 선형 start/end life 배율을 현재 lifeProgress까지 누적 이동/회전에 쓸 (적분) 평균 배율로 바꾼다.
 float IntegrateLifeScale(float scaleStart, float scaleEnd, float lifeProgress)
 {
@@ -105,37 +129,63 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
 {
     const uint index = dispatchThreadId.x;
     const uint maxInstanceCount = (uint)g_InstanceCount;
-
-    if (index == 0 && g_DrawMode != 0)
-    {
-        ComputeIndirectArgs args;
-        args.value0 = 1u;
-        args.instanceCount = maxInstanceCount;
-        args.value2 = 0u;
-        args.value3 = 0;
-        args.startInstanceLocation = 0u;
-
-        ArgsData[0] = args;
-    }
+    const uint maxActiveCount = min(maxInstanceCount, max(1u, g_MaxActiveCount));
+    const uint maxDrawCount = min(maxInstanceCount, max(1u, g_MaxDrawCount));
 
     if (index >= (uint)g_InstanceCount)
         return;
+
+    ParticleLifecycleState lifecycle = LifecycleState[index];
+
+    if (g_KillActiveParticles != 0u)
+    {
+        lifecycle.lifeAge = 0.0f;
+        lifecycle.active = 0u;
+        LifecycleState[index] = lifecycle;
+        return;
+    }
+
+    if (index >= maxActiveCount)
+    {
+        lifecycle.active = 0u;
+        LifecycleState[index] = lifecycle;
+        return;
+    }
+
+    lifecycle.lifeMax = max(lifecycle.lifeMax, 0.0001f);
+
+    if (lifecycle.active != 0u)
+    {
+        lifecycle.lifeAge += max(0.0f, g_DeltaTime);
+        if (lifecycle.lifeAge >= lifecycle.lifeMax)
+            lifecycle.active = 0u;
+    }
+
+    if (lifecycle.active == 0u && g_SpawnRequest > 0u)
+    {
+        uint spawnCandidate = 0u;
+        InterlockedAdd(ArgsData[0].value2, 1u, spawnCandidate);
+
+        if (spawnCandidate < g_SpawnRequest)
+        {
+            lifecycle.respawnSeed += 4093u;
+            lifecycle.lifeMax = SampleLifeMax(lifecycle.respawnSeed);
+            lifecycle.lifeAge = 0.0f;
+            lifecycle.active = 1u;
+        }
+    }
+
+    if (lifecycle.active == 0u)
+    {
+        lifecycle.lifeAge = 0.0f;
+        LifecycleState[index] = lifecycle;
+        return;
+    }
 
     const float ratio = ((float)index + 0.5f) / max(1.0f, g_InstanceCount);
     const float scaleRatio = frac(ratio * 7.0f);
     const float colorRatio = frac(ratio * 11.0f);
     const float2 baseSize = lerp(g_SizeMin.xy, g_SizeMax.xy, scaleRatio);
-
-    ParticleLifecycleState lifecycle = LifecycleState[index];
-    lifecycle.lifeMax = max(lifecycle.lifeMax, 0.0001f);
-    lifecycle.lifeAge += max(0.0f, g_DeltaTime);
-
-    if (lifecycle.lifeAge >= lifecycle.lifeMax)
-    {
-        lifecycle.respawnSeed += 4093u;
-        lifecycle.lifeMax = SampleLifeMax(lifecycle.respawnSeed);
-        lifecycle.lifeAge = 0.0f;
-    }
 
     const float lifeMax = max(lifecycle.lifeMax, 0.0001f);
     const float lifeAge = max(0.0f, lifecycle.lifeAge);
@@ -148,7 +198,13 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
     // 뒤의 +101u, +211u 같은 offset은 X/Y/Z나 속성별 샘플이 서로 같은 패턴을 공유하지 않게 분리하기 위한 값이다.
     const uint seed = lifecycle.respawnSeed;
 
-    const float3 spawnOffset = (float3(Hash01(seed), Hash01(seed + 101u), Hash01(seed + 211u)) * 2.0f - 1.0f) * g_SpawnRange.xyz * 0.5f;
+    const float3 locationRandom = float3(Hash01(seed), Hash01(seed + 101u), Hash01(seed + 211u));
+    const float3 fallbackSpawnOffset = (locationRandom * 2.0f - 1.0f) * g_SpawnRange.xyz * 0.5f;
+    const float3 initialLocationOffset = lerp(g_InitialLocationMin.xyz, g_InitialLocationMax.xyz, locationRandom);
+    const float3 baseLocationOffset = g_InitialLocationMin.w != 0.0f
+                                      ? initialLocationOffset
+                                      : g_SphereLocationParams.x != 0.0f ? float3(0.0f, 0.0f, 0.0f) : fallbackSpawnOffset;
+    const float3 spawnOffset = baseLocationOffset + SampleSphereLocationOffset(seed);
     const float3 spawnPosition = g_Center.xyz + spawnOffset;
     const float3 pivotPosition = g_Center.xyz + g_MotionRadialPivot.xyz;
     float3 velocityDirection = spawnPosition - pivotPosition;
@@ -191,9 +247,7 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
         const uint rangeCount = span + 1u;
 
         if ((uint)g_SubUVParams.z == 0u)
-        {
             frameIndex = startFrame;
-        }
         else if ((uint)g_SubUVParams.z == 1u)
         {
             const uint frameOffset = min(
@@ -239,6 +293,14 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
     instance.endColor = lerp(g_EndColorMin, g_EndColorMax, colorRatio);
     instance.subUVRect = float4(u0, v0, u0 + invCols, v0 + invRows);
 
-    OutputData[index] = instance;
+    if (index >= maxDrawCount)
+    {
+        LifecycleState[index] = lifecycle;
+        return;
+    }
+
+    uint drawIndex = 0u;
+    InterlockedAdd(ArgsData[0].instanceCount, 1u, drawIndex);
+    OutputData[drawIndex] = instance;
     LifecycleState[index] = lifecycle;
 }

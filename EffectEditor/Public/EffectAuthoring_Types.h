@@ -10,6 +10,8 @@ enum class AuthoringModuleType : uint8
     Required,
     Spawn,
     Lifetime,
+    InitialLocation,
+    SphereLocation,
     InitialSize,
     InitialVelocity,
     Acceleration,
@@ -322,6 +324,26 @@ struct LifetimeModuleData
     FloatDistributionData lifeTime{ FloatDistributionData::Make_Uniform(1.f, 2.f) };
 };
 
+struct InitialLocationModuleData
+{
+    Vector3DistributionData location{
+        Vector3DistributionData::Make_Uniform(Vec3{ -0.5f, -0.5f, -0.5f }, Vec3{ 0.5f, 0.5f, 0.5f })
+    };
+};
+
+enum class SphereLocationSpawnMode : uint8
+{
+    Volume,
+    Surface,
+};
+
+struct SphereLocationModuleData
+{
+    Vec3 offset{ 0.f, 0.f, 0.f };
+    float radius{ 1.f };
+    SphereLocationSpawnMode spawnMode{ SphereLocationSpawnMode::Volume };
+};
+
 struct InitialSizeModuleData
 {
     Vector2DistributionData size{ Vector2DistributionData::Make_Constant(Vec2{ 0.15f, 0.35f }) };
@@ -407,6 +429,8 @@ using AuthoringModuleData = std::variant<
     RequiredModuleData,
     SpawnModuleData,
     LifetimeModuleData,
+    InitialLocationModuleData,
+    SphereLocationModuleData,
     InitialSizeModuleData,
     InitialVelocityModuleData,
     AccelerationModuleData,

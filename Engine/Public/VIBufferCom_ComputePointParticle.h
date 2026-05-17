@@ -23,8 +23,8 @@ public:
     HRESULT Render() override;
 
 public: //## Behavior::ComputeUpdate
-    void Dispatch_Compute(float timeDelta); // compute shader로 instance payload를 갱신하고 instance VB로 복사한다.
-    void Set_Center(const Vec3& center);    // emitter/world transform 변화가 compute spawn center에 반영되도록 갱신한다.
+    void Dispatch_Compute(float timeDelta, uint32 spawnRequest, bool killActiveParticles); // spawn/kill 요청을 반영한 뒤 instance payload를 갱신한다.
+    void Set_Center(const Vec3& center);                                             // emitter/world transform 변화가 compute spawn center에 반영되도록 갱신한다.
 
 private: //## Static::ComputeSmoke
     static constexpr uint32 kThreadCountX{ 64 };     // compute shader의 numthreads.x와 맞춘 dispatch 단위.
@@ -47,7 +47,7 @@ private: //## Types::IndirectDraw
         float lifeAge{};
         float lifeMax{};
         uint32 respawnSeed{};
-        uint32 padding{};
+        uint32 active{};
     };
 
 private: //## Data::ParticleDesc
@@ -60,6 +60,8 @@ private: //## Data::Compute
     Shared<ComputeStructuredBuffer> _lifecycleState{};    // particle별 age/lifetime을 유지하는 compute-only state buffer.
     float _elapsedTime{};                                 // shader에 전달할 누적 시간.
     float _deltaTime{};                                   // 이번 dispatch의 frame delta time.
+    uint32 _spawnRequest{};                               // 이번 dispatch에서 inactive slot을 활성화할 요청 수.
+    uint32 _killActiveParticles{};                         // 이번 dispatch에서 active particle을 모두 죽일지 나타낸다.
 
 private: //## Data::GPU
     D3D11_BUFFER_DESC _instanceBufferDesc{}; // compute output 복사 대상 instance VB 생성 설정.
@@ -83,6 +85,7 @@ private: //## Helper::Setup
 
 private: //## Helper::Runtime
     HRESULT Update_ConstantBuffer();     // 누적 시간과 instance count를 compute shader에 전달한다.
+    HRESULT Reset_IndirectArgs();        // compute dispatch 전에 active/activation counters를 0으로 초기화한다.
     HRESULT Copy_OutputToInstanceVB();   // compute output buffer를 instance VB로 복사한다.
     HRESULT Copy_OutputToIndirectArgs(); // compute args source를 indirect args destination으로 복사한다.
     ParticleLifecycleState Make_InitialLifecycleState(uint32 index) const; // 시작 시점의 particle별 수명 상태를 만든다.

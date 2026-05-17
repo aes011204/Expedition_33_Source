@@ -67,6 +67,19 @@ namespace Internal
         }
     }
 
+    PointParticleSphereLocationMode Resolve_PointParticleSphereLocationMode(SphereLocationSpawnMode mode)
+    {
+        switch (mode)
+        {
+        case SphereLocationSpawnMode::Surface:
+            return PointParticleSphereLocationMode::Surface;
+
+        case SphereLocationSpawnMode::Volume:
+        default:
+            return PointParticleSphereLocationMode::Volume;
+        }
+    }
+
     //## Float Curve Eval
 
     float Evaluate_FloatCurveSegmentLinear(const FloatCurveKeyData& leftKey, const FloatCurveKeyData& rightKey, float x)
@@ -400,6 +413,14 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
         desc.subUVRows = max(1u, material.subUVRows);
         desc.subUVCols = max(1u, material.subUVCols);
         desc.screenAlignment = Internal::Resolve_EffectSpriteScreenAlignment(required->screenAlignment);
+        desc.duration = max(0.0001f, required->duration);
+        desc.loopCount = required->loopCount;
+        desc.delay = max(0.f, required->delay);
+        desc.delayFirstLoopOnly = required->delayFirstLoopOnly;
+        desc.killOnDeactivate = required->killOnDeactivate;
+        desc.killOnCompleted = required->killOnCompleted;
+        desc.useMaxDrawCount = required->useMaxDrawCount;
+        desc.maxDrawCount = max(1u, required->maxDrawCount);
 
         definition.localPosition = required->emitterOrigin;
         definition.localRotationDegrees = required->emitterRotationDegrees;
@@ -407,7 +428,25 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
     }
 
     if (const auto* spawn = Internal::Find_ModuleData<SpawnModuleData>(emitter, AuthoringModuleType::Spawn))
+    {
         desc.instanceCount = max(1u, spawn->maxParticleCount);
+        desc.spawn.processSpawnRate = spawn->processSpawnRate;
+        desc.spawn.spawnRate = max(0.f, Internal::Evaluate_FloatDistributionMax(spawn->spawnRate, desc.spawn.spawnRate));
+        desc.spawn.spawnRateScale = max(0.f, Internal::Evaluate_FloatDistributionMax(spawn->spawnRateScale, desc.spawn.spawnRateScale));
+        desc.spawn.processBurstList = spawn->processBurstList;
+        desc.spawn.burstScale = max(0.f, Internal::Evaluate_FloatDistributionMax(spawn->burstScale, desc.spawn.burstScale));
+        desc.spawn.maxActiveCount = desc.instanceCount;
+        desc.spawn.bursts.clear();
+        desc.spawn.bursts.reserve(spawn->burstList.size());
+
+        for (const SpawnModuleData::ParticleBurstData& burst : spawn->burstList)
+        {
+            desc.spawn.bursts.push_back(PointParticleBurstDesc{
+                .time = max(0.f, burst.time),
+                .count = burst.count
+            });
+        }
+    }
 
     if (const auto* initialSize = Internal::Find_ModuleData<InitialSizeModuleData>(emitter, AuthoringModuleType::InitialSize))
     {
@@ -415,6 +454,31 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
         const Vec2 maxSize = Internal::Evaluate_Vector2DistributionMax(initialSize->size, desc.sizeMax);
         desc.sizeMin = Vec2{ min(minSize.x, maxSize.x), min(minSize.y, maxSize.y) };
         desc.sizeMax = Vec2{ max(minSize.x, maxSize.x), max(minSize.y, maxSize.y) };
+    }
+
+    if (const auto* initialLocation = Internal::Find_ModuleData<InitialLocationModuleData>(emitter, AuthoringModuleType::InitialLocation))
+    {
+        const Vec3 minOffset = Internal::Evaluate_Vector3DistributionMin(initialLocation->location, desc.initialLocation.minOffset);
+        const Vec3 maxOffset = Internal::Evaluate_Vector3DistributionMax(initialLocation->location, desc.initialLocation.maxOffset);
+        desc.initialLocation.enabled = true;
+        desc.initialLocation.minOffset = Vec3{
+            min(minOffset.x, maxOffset.x),
+            min(minOffset.y, maxOffset.y),
+            min(minOffset.z, maxOffset.z)
+        };
+        desc.initialLocation.maxOffset = Vec3{
+            max(minOffset.x, maxOffset.x),
+            max(minOffset.y, maxOffset.y),
+            max(minOffset.z, maxOffset.z)
+        };
+    }
+
+    if (const auto* sphereLocation = Internal::Find_ModuleData<SphereLocationModuleData>(emitter, AuthoringModuleType::SphereLocation))
+    {
+        desc.sphereLocation.enabled = true;
+        desc.sphereLocation.offset = sphereLocation->offset;
+        desc.sphereLocation.radius = max(0.f, sphereLocation->radius);
+        desc.sphereLocation.mode = Internal::Resolve_PointParticleSphereLocationMode(sphereLocation->spawnMode);
     }
 
     if (const auto* lifetime = Internal::Find_ModuleData<LifetimeModuleData>(emitter, AuthoringModuleType::Lifetime))

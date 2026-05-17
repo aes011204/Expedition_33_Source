@@ -40,12 +40,24 @@ struct ComputeSpriteEmitterDesc : public GameObject::GAMEOBJECT_DESC
     PointParticleSizeByLifeDesc sizeByLife{};                 // 수명 진행률 기준 크기 배율 규칙이다.
     PointParticleMotionDesc motion{};                         // motion authoring module을 compute payload로 압축한 규칙이다.
     PointParticleRotationDesc rotation{};                     // rotation authoring module을 compute payload로 압축한 규칙이다.
+    PointParticleSpawnDesc spawn{};                           // Spawn 모듈이 만든 연속/버스트 생성 규칙이다.
+    PointParticleInitialLocationDesc initialLocation{};        // InitialLocation 모듈이 만든 시작 위치 offset 분포다.
+    PointParticleSphereLocationDesc sphereLocation{};          // SphereLocation 모듈이 만든 시작 위치 구형 offset 분포다.
+    float duration{ 1.f };                                     // emitter 한 loop가 재생되는 시간이다.
+    uint32 loopCount{ 0 };                                     // 0은 무한 반복, 1 이상은 지정 횟수 재생이다.
+    float delay{ 0.f };                                        // loop 시작 전 spawn/draw를 막는 지연 시간이다.
+    bool delayFirstLoopOnly{ false };                          // true면 첫 loop에만 delay를 적용한다.
+    bool killOnDeactivate{ false };                            // 외부 deactivate 계약이 생기면 active particle을 즉시 죽일지 나타낸다.
+    bool killOnCompleted{ false };                             // 마지막 loop 완료 시 active particle을 즉시 죽일지 나타낸다.
+    bool useMaxDrawCount{ true };                              // maxDrawCount를 draw 상한으로 적용할지 나타낸다.
+    uint32 maxDrawCount{ 500 };                                // 동시에 그릴 particle 수 상한이다. buffer capacity는 바꾸지 않는다.
     EffectSpriteScreenAlignment screenAlignment{
         EffectSpriteScreenAlignment::FacingCameraPosition
     }; // EffectSprite shader가 preview/runtime sprite 축을 고르는 기준이다.
 
     Vec3 center{ 0.f, 0.f, 0.f };             // concrete emitter 내부 fallback/초기 center다. root transform이 있으면 후속 sync가 덮어쓴다.
     uint32 instanceCount{ 96 };               // 생성할 particle 수다.
+    Vec3 spawnRange{ 1.f, 1.f, 1.f };         // Phase2 spawn shape 전까지 사용할 기본 box spawn 범위다.
     Vec2 sizeMin{ 0.12f, 0.12f };             // InitialSize의 가로/세로 크기 하한이다.
     Vec2 sizeMax{ 0.28f, 0.28f };             // InitialSize의 가로/세로 크기 상한이다.
     Vec2 lifeTime{ 1.f, 2.f };                // compute payload가 사용할 생존 시간 범위다.

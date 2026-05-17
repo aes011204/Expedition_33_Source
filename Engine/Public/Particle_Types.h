@@ -99,6 +99,49 @@ struct PointParticleRotationDesc
     Vec2 rotationRateScaleByLife{ 1.f, 1.f };    // RotationRateScaleByLife의 시작/종료 배율이다.
 };
 
+// Spawn 모듈의 burst 항목을 runtime emitter가 소비할 수 있게 압축한 payload다.
+struct PointParticleBurstDesc
+{
+    float time{ 0.f };   // emitter 시작 후 burst가 실행될 시간이다.
+    uint32 count{ 16u }; // 해당 시간에 추가로 활성화할 particle 수다.
+};
+
+// Spawn 모듈이 만든 연속/버스트 생성 규칙이다.
+struct PointParticleSpawnDesc
+{
+    bool processSpawnRate{ true };           // 연속 spawn rate를 적용할지 나타낸다.
+    float spawnRate{ 10.f };                 // 초당 생성할 particle 수다.
+    float spawnRateScale{ 1.f };             // spawn rate에 곱할 배율이다.
+    bool processBurstList{ true };           // burst 목록을 적용할지 나타낸다.
+    vector<PointParticleBurstDesc> bursts{}; // emitter time 기준 1회성 burst 목록이다.
+    float burstScale{ 1.f };                 // burst count에 곱할 배율이다.
+    uint32 maxActiveCount{ 64u };            // 동시에 살아 있을 수 있는 particle 상한이다.
+};
+
+// InitialLocation 모듈이 만든 생성 시점 위치 offset 분포다.
+struct PointParticleInitialLocationDesc
+{
+    bool enabled{ false };               // authoring InitialLocation 모듈이 preview/runtime에 연결되었는지 나타낸다.
+    Vec3 minOffset{ -0.5f, -0.5f, -0.5f }; // emitter center 기준 최소 시작 offset이다.
+    Vec3 maxOffset{ 0.5f, 0.5f, 0.5f };    // emitter center 기준 최대 시작 offset이다.
+};
+
+// SphereLocation 모듈이 구 내부/표면 중 어디에서 생성 위치를 샘플링할지 결정한다.
+enum class PointParticleSphereLocationMode : uint32
+{
+    Volume = 0,  // 구 내부 부피에서 샘플링한다.
+    Surface = 1, // 구 표면에서 샘플링한다.
+};
+
+// SphereLocation 모듈이 만든 생성 시점 구형 위치 offset 분포다.
+struct PointParticleSphereLocationDesc
+{
+    bool enabled{ false };                                             // authoring SphereLocation 모듈이 preview/runtime에 연결되었는지 나타낸다.
+    Vec3 offset{ 0.f, 0.f, 0.f };                                      // emitter center 기준 구 중심 offset이다.
+    float radius{ 1.f };                                               // 구 샘플링 반지름이다. 0 이하면 no-op으로 처리한다.
+    PointParticleSphereLocationMode mode{ PointParticleSphereLocationMode::Volume }; // 구 내부/표면 샘플링 정책이다.
+};
+
 // 인스턴스 생성에 공통으로 필요한 spawn 규칙.
 struct InstanceSpawnDesc
 {
@@ -143,6 +186,11 @@ struct ComputePointParticleDesc : public InstanceSpawnDesc
     PointParticleSizeByLifeDesc sizeByLife{};                 // 수명 진행률 기준 크기 배율 규칙이다.
     PointParticleMotionDesc motion{};                         // motion 모듈들이 만든 compute update 규칙이다.
     PointParticleRotationDesc rotation{};                     // rotation 모듈들이 만든 sprite 회전 규칙이다.
+    PointParticleSpawnDesc spawn{};                           // Spawn 모듈이 만든 활성화/버스트 생성 규칙이다.
+    PointParticleInitialLocationDesc initialLocation{};        // InitialLocation 모듈이 만든 시작 위치 offset 분포다.
+    PointParticleSphereLocationDesc sphereLocation{};          // SphereLocation 모듈이 만든 시작 위치 구형 offset 분포다.
+    bool useMaxDrawCount{ false };                             // true면 draw 제출 수만 별도로 제한한다.
+    uint32 maxDrawCount{ 0 };                                  // 0이면 instanceCount 기준으로 제한한다.
     PointParticleDrawMode drawMode{                           // compute particle 경로의 정식 draw 제출 방식.
         PointParticleDrawMode::DrawIndexedInstancedIndirect
     };

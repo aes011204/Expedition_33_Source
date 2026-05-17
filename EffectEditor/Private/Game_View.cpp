@@ -6,6 +6,7 @@
 
 NS_BEGIN(EffectEditor)
 
+/*
 namespace Internal
 {
     struct ViewportImageRect
@@ -108,5 +109,6 @@ Shared<Game_View> Game_View::Create()
 {
     return make_shared<Game_View>();
 }
+*/
 
 NS_END

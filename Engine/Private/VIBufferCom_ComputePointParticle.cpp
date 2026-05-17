@@ -10,8 +10,16 @@ struct ComputePointParticleParams
     float deltaTime{};
     float instanceCount{};
     uint32 drawMode{};
+    uint32 spawnRequest{};
+    uint32 maxActiveCount{};
+    uint32 maxDrawCount{};
+    uint32 killActiveParticles{};
     Vec4 center{};
     Vec4 spawnRange{};    // xyz: spawn range, w: unused.
+    Vec4 initialLocationMin{}; // xyz: InitialLocation min offset, w: enabled.
+    Vec4 initialLocationMax{}; // xyz: InitialLocation max offset, w: unused.
+    Vec4 sphereLocationOffsetRadius{}; // xyz: sphere center offset, w: radius.
+    Vec4 sphereLocationParams{};       // x: enabled, y: mode, z/w: unused.
     Vec4 sizeMin{};       // x/y: width/height min, z/w: unused.
     Vec4 sizeMax{};       // x/y: width/height max, z/w: unused.
     Vec4 lifeTime{};      // x/y: lifetime min/max, z/w: unused.
@@ -104,6 +112,7 @@ HRESULT VIBufferCom_ComputePointParticle::Initialize(void* arg)
         CHECK_FAILED(_computeShader->Bind_UAV(1, _computeArgsOutput->Get_UAV()), E_FAIL);
     CHECK_FAILED(_computeShader->Bind_UAV(2, _lifecycleState->Get_UAV()), E_FAIL);
     CHECK_FAILED(_computeShader->Bind_ConstantBuffer(0, _computeConstantBuffer.Get()), E_FAIL);
+    CHECK_FAILED(Reset_IndirectArgs(), E_FAIL);
     CHECK_FAILED(_computeShader->Dispatch((_instanceCount + kThreadCountX - 1) / kThreadCountX, 1, 1), E_FAIL);
     CHECK_FAILED(Copy_OutputToInstanceVB(), E_FAIL);
     CHECK_FAILED(Copy_OutputToIndirectArgs(), E_FAIL);
@@ -140,13 +149,15 @@ HRESULT VIBufferCom_ComputePointParticle::Render()
     }
 }
 
-void VIBufferCom_ComputePointParticle::Dispatch_Compute(float timeDelta)
+void VIBufferCom_ComputePointParticle::Dispatch_Compute(float timeDelta, uint32 spawnRequest, bool killActiveParticles)
 {
     if (nullptr == _computeShader || nullptr == _computeOutput || nullptr == _lifecycleState || nullptr == _instanceVB)
         return;
 
     _deltaTime = max(0.f, timeDelta);
     _elapsedTime += _deltaTime;
+    _spawnRequest = spawnRequest;
+    _killActiveParticles = killActiveParticles ? 1u : 0u;
 
     CHECK_FAILED(Update_ConstantBuffer());
     CHECK_FAILED(_computeShader->Bind_UAV(0, _computeOutput->Get_UAV()));
@@ -154,6 +165,7 @@ void VIBufferCom_ComputePointParticle::Dispatch_Compute(float timeDelta)
         CHECK_FAILED(_computeShader->Bind_UAV(1, _computeArgsOutput->Get_UAV()));
     CHECK_FAILED(_computeShader->Bind_UAV(2, _lifecycleState->Get_UAV()));
     CHECK_FAILED(_computeShader->Bind_ConstantBuffer(0, _computeConstantBuffer.Get()));
+    CHECK_FAILED(Reset_IndirectArgs());
     CHECK_FAILED(_computeShader->Dispatch((_instanceCount + kThreadCountX - 1) / kThreadCountX, 1, 1));
     CHECK_FAILED(Copy_OutputToInstanceVB());
     CHECK_FAILED(Copy_OutputToIndirectArgs());
@@ -265,9 +277,6 @@ HRESULT VIBufferCom_ComputePointParticle::Ready_IndexedDrawBuffer()
 
 HRESULT VIBufferCom_ComputePointParticle::Ready_IndirectArgsBuffers()
 {
-    if (PointParticleDrawMode::Direct == _desc.drawMode)
-        return S_OK;
-
     _computeArgsOutput = ComputeStructuredBuffer::Create(
         _device,
         _context,
@@ -320,8 +329,36 @@ HRESULT VIBufferCom_ComputePointParticle::Update_ConstantBuffer()
         .deltaTime = _deltaTime,
         .instanceCount = static_cast<float>(_instanceCount),
         .drawMode = ETOI(_desc.drawMode),
+        .spawnRequest = _spawnRequest,
+        .maxActiveCount = min(_instanceCount, max(1u, _desc.spawn.maxActiveCount)),
+        .maxDrawCount = _desc.useMaxDrawCount ? min(_instanceCount, max(1u, _desc.maxDrawCount)) : _instanceCount,
+        .killActiveParticles = _killActiveParticles,
         .center = Vec4{ _desc.center.x, _desc.center.y, _desc.center.z, 1.f },
         .spawnRange = Vec4{ _desc.range.x, _desc.range.y, _desc.range.z, 0.f },
+        .initialLocationMin = Vec4{
+            _desc.initialLocation.minOffset.x,
+            _desc.initialLocation.minOffset.y,
+            _desc.initialLocation.minOffset.z,
+            _desc.initialLocation.enabled ? 1.f : 0.f
+        },
+        .initialLocationMax = Vec4{
+            _desc.initialLocation.maxOffset.x,
+            _desc.initialLocation.maxOffset.y,
+            _desc.initialLocation.maxOffset.z,
+            0.f
+        },
+        .sphereLocationOffsetRadius = Vec4{
+            _desc.sphereLocation.offset.x,
+            _desc.sphereLocation.offset.y,
+            _desc.sphereLocation.offset.z,
+            max(0.f, _desc.sphereLocation.radius)
+        },
+        .sphereLocationParams = Vec4{
+            _desc.sphereLocation.enabled ? 1.f : 0.f,
+            static_cast<float>(ETOI(_desc.sphereLocation.mode)),
+            0.f,
+            0.f
+        },
         .sizeMin = Vec4{ _desc.sizeMin.x, _desc.sizeMin.y, 0.f, 0.f },
         .sizeMax = Vec4{ _desc.sizeMax.x, _desc.sizeMax.y, 0.f, 0.f },
         .lifeTime = Vec4{ _desc.lifeTime.x, _desc.lifeTime.y, 0.f, 0.f },
@@ -398,6 +435,22 @@ HRESULT VIBufferCom_ComputePointParticle::Update_ConstantBuffer()
     return S_OK;
 }
 
+HRESULT VIBufferCom_ComputePointParticle::Reset_IndirectArgs()
+{
+    if (nullptr == _computeArgsOutput)
+        return E_FAIL;
+
+    const ComputeIndirectArgs args{
+        .value0 = 1u,
+        .instanceCount = 0u,
+        .value2 = 0u,
+        .value3 = 0,
+        .startInstanceLocation = 0u
+    };
+
+    return _computeArgsOutput->Update_Data(&args, 1);
+}
+
 HRESULT VIBufferCom_ComputePointParticle::Copy_OutputToInstanceVB()
 {
     if (nullptr == _computeOutput || nullptr == _instanceVB)
@@ -432,10 +485,10 @@ VIBufferCom_ComputePointParticle::ParticleLifecycleState VIBufferCom_ComputePoin
     const float sampledLifeMax = lerp(lifeMin, lifeMax, ratio);
 
     return ParticleLifecycleState{
-        .lifeAge = sampledLifeMax * ratio,
+        .lifeAge = 0.f,
         .lifeMax = sampledLifeMax,
         .respawnSeed = index * 9781u + 1u,
-        .padding = 0u
+        .active = 0u
     };
 }
 

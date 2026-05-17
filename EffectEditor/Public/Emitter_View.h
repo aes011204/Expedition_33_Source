@@ -125,6 +125,8 @@ private: //## Helpers
     AuthoringModule Make_RequiredModule();
     AuthoringModule Make_SpawnModule();
     AuthoringModule Make_LifetimeModule();
+    AuthoringModule Make_InitialLocationModule();
+    AuthoringModule Make_SphereLocationModule();
     AuthoringModule Make_InitialSizeModule();
     AuthoringModule Make_InitialVelocityModule();
     AuthoringModule Make_AccelerationModule();

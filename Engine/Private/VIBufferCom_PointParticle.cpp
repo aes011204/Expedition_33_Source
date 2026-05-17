@@ -316,7 +316,6 @@ float VIBufferCom_PointParticle::Pick_RandomFloat(float minValue, float maxValue
     if (minValue > maxValue)
         swap(minValue, maxValue);
 
-    // TODO : 랜덤 임시. 나중에 필히 엔진 헬퍼 기능으로 교체할 것
     static thread_local mt19937 randomEngine{ random_device{}() };
     uniform_real_distribution<float> distribution{ minValue, maxValue };
     return distribution(randomEngine);

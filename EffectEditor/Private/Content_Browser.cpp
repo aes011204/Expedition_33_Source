@@ -502,9 +502,7 @@ void Content_Browser::Draw_AssetView()
                 }
             }
             else
-            {
                 ImGui::SetTooltip("%s", fileName.c_str());
-            }
         }
 
         ImGui::PopID();

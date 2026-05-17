@@ -52,10 +52,10 @@ namespace Internal
             return false;
 
         return GAME->Clone_Prototype(
-            Prototype::Comopnent,
-            ETOI(LevelType::GamePlay),
-            kPreviewFallbackTextureId
-        ) != nullptr;
+                   Prototype::Comopnent,
+                   ETOI(LevelType::GamePlay),
+                   kPreviewFallbackTextureId
+               ) != nullptr;
     }
 }
 

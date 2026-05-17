@@ -42,6 +42,8 @@ HRESULT ComputeSpriteEmitter::Initialize(void* arg)
         _desc = *static_cast<ComputeSpriteEmitterDesc*>(arg);
 
     CHECK_FAILED(__super::Initialize(&_desc), E_FAIL);
+    Reset_PlaybackRuntime();
+
     CHECK_FAILED(Ready_Components(), E_FAIL);
 
     return S_OK;
@@ -52,12 +54,20 @@ void ComputeSpriteEmitter::Update(float timeDelta)
     Sync_FromEffectOwner();
 
     if (nullptr != _viBuffer)
-        _viBuffer->Dispatch_Compute(timeDelta);
+    {
+        const PlaybackTick playbackTick = Advance_Playback(timeDelta);
+        _viBuffer->Dispatch_Compute(
+            playbackTick.computeDeltaTime,
+            playbackTick.spawnRequest,
+            playbackTick.killActiveParticles
+        );
+    }
 }
 
 void ComputeSpriteEmitter::Late_Update(float timeDelta)
 {
-    GAME->Add_RenderGroup(RenderGroup::Blend, GetSharedPtr<GameObject>());
+    if (Can_SubmitRender())
+        GAME->Add_RenderGroup(RenderGroup::Blend, GetSharedPtr<GameObject>());
 }
 
 HRESULT ComputeSpriteEmitter::Render()
@@ -194,7 +204,7 @@ ComputePointParticleDesc ComputeSpriteEmitter::Make_ComputePointParticleDesc() c
     ComputePointParticleDesc desc{};
     desc.instanceCount = max(1u, _desc.instanceCount);
     desc.center = _desc.center;
-    desc.range = Vec3{ 3.f, 1.f, 3.f };
+    desc.range = _desc.spawnRange;
     desc.sizeMin = _desc.sizeMin;
     desc.sizeMax = _desc.sizeMax;
     desc.lifeTime = _desc.lifeTime;
@@ -208,11 +218,181 @@ ComputePointParticleDesc ComputeSpriteEmitter::Make_ComputePointParticleDesc() c
     desc.sizeByLife = _desc.sizeByLife;
     desc.motion = _desc.motion;
     desc.rotation = _desc.rotation;
+    desc.spawn = _desc.spawn;
+    desc.initialLocation = _desc.initialLocation;
+    desc.sphereLocation = _desc.sphereLocation;
+    desc.spawn.maxActiveCount = min(max(1u, desc.spawn.maxActiveCount), desc.instanceCount);
+    desc.useMaxDrawCount = _desc.useMaxDrawCount;
+    desc.maxDrawCount = _desc.useMaxDrawCount ? min(desc.instanceCount, max(1u, _desc.maxDrawCount)) : desc.instanceCount;
     desc.drawMode = PointParticleDrawMode::DrawIndexedInstancedIndirect;
     desc.computeShaderLevelIndex = ETOI(LevelType::Static);
     desc.computeShaderPrototypeTag = L"ComputeShader_PointParticle";
 
     return desc;
+}
+
+uint32 ComputeSpriteEmitter::Consume_SpawnRequest(float timeDelta)
+{
+    const float safeDeltaTime = max(0.f, timeDelta);
+    const float previousTime = _emitterElapsedTime;
+    _emitterElapsedTime += safeDeltaTime;
+
+    uint32 spawnRequest = 0u;
+
+    if (_desc.spawn.processSpawnRate)
+    {
+        const float spawnRate = max(0.f, _desc.spawn.spawnRate * _desc.spawn.spawnRateScale);
+        _spawnAccumulator += spawnRate * safeDeltaTime;
+
+        const float wholeSpawn = floorf(_spawnAccumulator);
+        if (wholeSpawn > 0.f)
+        {
+            spawnRequest += static_cast<uint32>(wholeSpawn);
+            _spawnAccumulator -= wholeSpawn;
+        }
+    }
+
+    if (_desc.spawn.processBurstList)
+    {
+        if (_burstExecuted.size() != _desc.spawn.bursts.size())
+            _burstExecuted.assign(_desc.spawn.bursts.size(), false);
+
+        for (size_t index = 0; index < _desc.spawn.bursts.size(); ++index)
+        {
+            if (_burstExecuted[index])
+                continue;
+
+            const PointParticleBurstDesc& burst = _desc.spawn.bursts[index];
+            if (previousTime > burst.time || _emitterElapsedTime < burst.time)
+                continue;
+
+            const float scaledCount = static_cast<float>(burst.count) * max(0.f, _desc.spawn.burstScale);
+            spawnRequest += static_cast<uint32>(floorf(scaledCount));
+            _burstExecuted[index] = true;
+        }
+    }
+
+    return min(spawnRequest, max(1u, _desc.spawn.maxActiveCount));
+}
+
+void ComputeSpriteEmitter::Reset_PlaybackRuntime()
+{
+    _burstExecuted.assign(_desc.spawn.bursts.size(), false);
+    _emitterElapsedTime = 0.f;
+    _spawnAccumulator = 0.f;
+    _loopElapsedTime = 0.f;
+    _loopIndex = 0u;
+    _completedKillDispatched = false;
+    _playbackState = Resolve_CurrentLoopDelay() > 0.f ? PlaybackState::Delayed : PlaybackState::Playing;
+}
+
+ComputeSpriteEmitter::PlaybackTick ComputeSpriteEmitter::Advance_Playback(float timeDelta)
+{
+    PlaybackTick tick{};
+    const float safeDeltaTime = max(0.f, timeDelta);
+
+    if (PlaybackState::Completed == _playbackState)
+    {
+        tick.computeDeltaTime = _desc.killOnCompleted ? 0.f : safeDeltaTime;
+        if (_desc.killOnCompleted && !_completedKillDispatched)
+        {
+            tick.killActiveParticles = true;
+            _completedKillDispatched = true;
+        }
+        return tick;
+    }
+
+    float remainingTime = safeDeltaTime;
+    while (remainingTime > 0.f && PlaybackState::Completed != _playbackState)
+    {
+        const float delay = Resolve_CurrentLoopDelay();
+        if (_loopElapsedTime < delay)
+        {
+            _playbackState = PlaybackState::Delayed;
+            const float delayStep = min(remainingTime, delay - _loopElapsedTime);
+            _loopElapsedTime += delayStep;
+            remainingTime -= delayStep;
+
+            if (_loopElapsedTime < delay || remainingTime <= 0.f)
+                break;
+        }
+
+        _playbackState = PlaybackState::Playing;
+
+        const float duration = Resolve_Duration();
+        const float currentPlaybackTime = max(0.f, _loopElapsedTime - delay);
+        const float remainingPlaybackTime = max(0.f, duration - currentPlaybackTime);
+        const float playbackStep = min(remainingTime, remainingPlaybackTime);
+
+        if (playbackStep > 0.f)
+        {
+            tick.computeDeltaTime += playbackStep;
+            tick.spawnRequest += Consume_SpawnRequest(playbackStep);
+            _loopElapsedTime += playbackStep;
+            remainingTime -= playbackStep;
+        }
+
+        if (_loopElapsedTime - delay < duration)
+            break;
+
+        if (Has_NextLoop())
+        {
+            Start_NextLoop();
+            continue;
+        }
+
+        _playbackState = PlaybackState::Completed;
+        if (_desc.killOnCompleted && !_completedKillDispatched)
+        {
+            tick.killActiveParticles = true;
+            _completedKillDispatched = true;
+        }
+        break;
+    }
+
+    if (PlaybackState::Completed == _playbackState && !_desc.killOnCompleted)
+        tick.computeDeltaTime += remainingTime;
+
+    return tick;
+}
+
+void ComputeSpriteEmitter::Start_NextLoop()
+{
+    ++_loopIndex;
+    _loopElapsedTime = 0.f;
+    _emitterElapsedTime = 0.f;
+    _spawnAccumulator = 0.f;
+    _burstExecuted.assign(_desc.spawn.bursts.size(), false);
+    _playbackState = Resolve_CurrentLoopDelay() > 0.f ? PlaybackState::Delayed : PlaybackState::Playing;
+}
+
+float ComputeSpriteEmitter::Resolve_CurrentLoopDelay() const
+{
+    if (_desc.delayFirstLoopOnly && _loopIndex > 0u)
+        return 0.f;
+
+    return max(0.f, _desc.delay);
+}
+
+float ComputeSpriteEmitter::Resolve_Duration() const
+{
+    return max(0.0001f, _desc.duration);
+}
+
+bool ComputeSpriteEmitter::Has_NextLoop() const
+{
+    return _desc.loopCount == 0u || _loopIndex + 1u < _desc.loopCount;
+}
+
+bool ComputeSpriteEmitter::Can_SubmitRender() const
+{
+    if (PlaybackState::Delayed == _playbackState)
+        return false;
+
+    if (PlaybackState::Completed == _playbackState && _desc.killOnCompleted)
+        return false;
+
+    return nullptr != _viBuffer;
 }
 
 void ComputeSpriteEmitter::Sync_WorldCenterToComputeBuffer()

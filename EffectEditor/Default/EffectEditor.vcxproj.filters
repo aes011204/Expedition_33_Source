@@ -22,9 +22,6 @@
     <ClCompile Include="..\Private\Emitter_View.cpp">
       <Filter>01. View\Emitter View</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\EffectEditorCamera.cpp">
-      <Filter>03. Level</Filter>
-    </ClCompile>
     <ClCompile Include="..\Private\Editor_Window.cpp">
       <Filter>01. View</Filter>
     </ClCompile>
@@ -91,6 +88,9 @@
     <ClCompile Include="..\Private\DetailPropertyContext.cpp">
       <Filter>01. View\Detail View\Property Context</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\EffectEditorCamera.cpp">
+      <Filter>04. Camera</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -113,9 +113,6 @@
     </ClInclude>
     <ClInclude Include="..\Public\Emitter_View.h">
       <Filter>01. View\Emitter View</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\EffectEditorCamera.h">
-      <Filter>03. Level</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\EffectEditor_Define.h">
       <Filter>99. Defines</Filter>
@@ -207,6 +204,9 @@
     <ClInclude Include="..\Public\DetailPropertyContext.h">
       <Filter>01. View\Detail View\Property Context</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\EffectEditorCamera.h">
+      <Filter>04. Camera</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="00. Main">
@@ -286,6 +286,9 @@
     </Filter>
     <Filter Include="01. View\Detail View\Drawers">
       <UniqueIdentifier>{89aacff8-7bb2-41de-832f-51ed470948d4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="04. Camera">
+      <UniqueIdentifier>{60cec4ea-d4b0-4558-a156-9185d0c47f5c}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

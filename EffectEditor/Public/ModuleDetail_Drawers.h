@@ -45,6 +45,26 @@ public:
         DetailPropertyContext& detailContext);
 };
 
+class InitialLocationModuleDetail
+{
+public:
+    bool Draw(
+        AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        InitialLocationModuleData& data,
+        DetailPropertyContext& detailContext);
+};
+
+class SphereLocationModuleDetail
+{
+public:
+    bool Draw(
+        AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        SphereLocationModuleData& data,
+        DetailPropertyContext& detailContext);
+};
+
 class InitialVelocityModuleDetail
 {
 public:
