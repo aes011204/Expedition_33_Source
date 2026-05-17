@@ -41,6 +41,7 @@ HRESULT Light::Render(Shared<ShaderCom> shader, Shared<VIBuffer_Rect> viBuffer)
 
     LightCB lightCB{};
     lightCB.direction = _desc.direction;
+    lightCB.direction.Normalize();
     lightCB.position = _desc.position;
     lightCB.diffuse = _desc.diffuse;
     lightCB.ambient = _desc.ambient;

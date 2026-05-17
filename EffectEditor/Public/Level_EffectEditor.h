@@ -1,7 +1,7 @@
 ﻿#pragma once
 
-#include "ComputePointParticleEffect.h"
 #include "EffectAuthoring_Types.h"
+#include "EffectRuntime_Types.h"
 #include "Level.h"
 
 NS_BEGIN(Engine)
@@ -32,8 +32,10 @@ private:
     vector<Shared<GameObject>> _previewObjects{};
 
 private:
-    // authoring emitter를 compute sprite preview runtime desc로 변환한다.
-    ComputePointParticleEffect::ComputePointParticleEffectDesc Build_ComputePointParticleEffectDesc(const AuthoringEmitter& emitter) const;
+    // 현재 authoring emitters를 runtime preview용 EffectDefinition으로 묶는다.
+    Shared<const EffectDefinition> Build_PreviewEffectDefinition(const vector<AuthoringEmitter>& emitters) const;
+    // authoring emitter 1개를 runtime preview용 emitter definition으로 번역한다.
+    EffectEmitterDefinition Build_PreviewEmitterDefinition(const AuthoringEmitter& emitter) const;
     // preview에 필요한 최소 directional light만 준비한다.
     HRESULT Ready_Lights();
     // EffectEditor preview용 orbit camera를 만들고 active camera로 지정한다.

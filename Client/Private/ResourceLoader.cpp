@@ -4,7 +4,7 @@
 #include "Body_Player.h"
 #include "ColliderCom.h"
 #include "Component.h"
-#include "ComputePointParticleEffect.h"
+#include "ComputeSpriteEmitter.h"
 #include "ComputeShaderCom.h"
 #include "FreeCamera.h"
 #include "GameInstance.h"

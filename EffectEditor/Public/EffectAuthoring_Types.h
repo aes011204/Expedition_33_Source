@@ -12,6 +12,13 @@ enum class AuthoringModuleType : uint8
     Lifetime,
     InitialSize,
     InitialVelocity,
+    Acceleration,
+    Drag,
+    VelocityOverLife,
+    InitialRotation,
+    RotationOverLife,
+    InitialRotationRate,
+    RotationRateScaleByLife,
     InitialColor,
     ColorOverLife,
     SubUVFrameOverLife,
@@ -326,14 +333,56 @@ struct InitialVelocityModuleData
     FloatDistributionData speed{ FloatDistributionData::Make_Uniform(0.5f, 1.5f) };
 };
 
+struct AccelerationModuleData
+{
+    Vector3DistributionData acceleration{ Vector3DistributionData::Make_Constant(Vec3{ 0.f, 0.f, 0.f }) };
+};
+
+struct DragModuleData
+{
+    FloatDistributionData drag{ FloatDistributionData::Make_Constant(0.f) };
+};
+
+struct VelocityOverLifeModuleData
+{
+    float scaleStart{ 1.f };
+    float scaleEnd{ 1.f };
+};
+
+struct InitialRotationModuleData
+{
+    FloatDistributionData rotationDegrees{ FloatDistributionData::Make_Constant(0.f) };
+};
+
+struct RotationOverLifeModuleData
+{
+    float rotationStartDegrees{ 0.f };
+    float rotationEndDegrees{ 0.f };
+};
+
+struct InitialRotationRateModuleData
+{
+    FloatDistributionData rotationRateDegrees{ FloatDistributionData::Make_Constant(0.f) };
+};
+
+struct RotationRateScaleByLifeModuleData
+{
+    float scaleStart{ 1.f };
+    float scaleEnd{ 1.f };
+};
+
 struct InitialColorModuleData
 {
+    // 색상 RGB와 별도로 생성 시점 alpha를 편집하기 위한 축이다.
     ColorDistributionData color{ ColorDistributionData::Make_Constant(Color{ 1.f, 1.f, 1.f, 1.f }) };
+    FloatDistributionData alpha{ FloatDistributionData::Make_Constant(1.f) };
 };
 
 struct ColorOverLifeModuleData
 {
+    // 색상 변화와 독립적으로 fade in/out을 잡기 위한 수명 기준 alpha 축이다.
     ColorDistributionData colorOverLife{ ColorDistributionData::Make_Constant(Color{ 1.f, 1.f, 1.f, 1.f }) };
+    FloatDistributionData alphaOverLife{ FloatDistributionData::Make_Constant(1.f) };
 };
 
 struct SubUVFrameOverLifeModuleData
@@ -357,6 +406,13 @@ using AuthoringModuleData = std::variant<
     LifetimeModuleData,
     InitialSizeModuleData,
     InitialVelocityModuleData,
+    AccelerationModuleData,
+    DragModuleData,
+    VelocityOverLifeModuleData,
+    InitialRotationModuleData,
+    RotationOverLifeModuleData,
+    InitialRotationRateModuleData,
+    RotationRateScaleByLifeModuleData,
     InitialColorModuleData,
     ColorOverLifeModuleData,
     SubUVFrameOverLifeModuleData,

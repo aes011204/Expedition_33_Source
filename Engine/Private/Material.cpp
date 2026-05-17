@@ -225,8 +225,8 @@ uint32 Material::Get_PassIndex()
     if (_forcedPassIndex >= 0)
         return static_cast<uint32>(_forcedPassIndex);
 
-    //if (_passDirty)
-    Refresh_PassIndex();
+    if (_passDirty)
+        Refresh_PassIndex();
 
     return _passIndex;
 }
@@ -381,8 +381,12 @@ HRESULT Material::Create_TextureSRV(const fs::path& texturePath, ID3D11ShaderRes
 
 void Material::Refresh_PassIndex()
 {
-    _passIndex = ShaderPassFinder::Find_PassIndex(_shaderType, _renderState);
     _passDirty = false;
+
+    if (_forcedPassIndex > 0)
+        return;
+
+    _passIndex = ShaderPassFinder::Find_PassIndex(_shaderType, _renderState);
 }
 
 Shared<Material> Material::Create(const ComPtr<Device>& device, const ComPtr<Context>& context, const char* modelPath, const ModelMaterialData& materialData, const vector<ModelTextureSlot>& slots, uint32 maxTextureTypeSize)

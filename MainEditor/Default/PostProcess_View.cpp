@@ -1,4 +1,6 @@
 ﻿#include "PostProcess_View.h"
+#include "PostProcessPipeline.h"
+#include "GameInstance.h"
 
 PostProcess_View::PostProcess_View()
     : Editor_Window{ L"Post Process" }
@@ -13,8 +15,6 @@ HRESULT PostProcess_View::Initialize()
 void PostProcess_View::Update(float timeDelta)
 {
     Editor_Window::Update(timeDelta);
-
-    _previewTime += timeDelta;
 }
 
 void PostProcess_View::Pre_Render()
@@ -34,30 +34,46 @@ void PostProcess_View::Render()
 
     if (ImGui::Begin(windowName.c_str(), &isOpen, flags))
     {
+        Shared<PostProcessPipeline> pipeline = GAME->Get_PostProcessPipeline();
+
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(12.f, 12.f));
         ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 6.f);
         ImGui::PushStyleVar(ImGuiStyleVar_GrabRounding, 6.f);
         ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 8.f);
 
-        Draw_StatusBadge();
+        if (!pipeline)
+        {
+            ImGui::TextColored(ImVec4(0.95f, 0.35f, 0.35f, 1.f), "PostProcessPipeline is null");
+            ImGui::TextDisabled("Renderer/PostProcessPipeline initialization order check needed.");
+        }
+        else
+        {
+            bool dirty = false;
+            PostProcessCB& params = pipeline->Get_PostProcessParams();
 
-        ImGui::Spacing();
-        ImGui::Separator();
-        ImGui::Spacing();
+            Draw_StatusBadge();
 
-        Draw_HDRControl();
+            ImGui::Spacing();
+            ImGui::Separator();
+            ImGui::Spacing();
 
-        ImGui::Spacing();
-        ImGui::Separator();
-        ImGui::Spacing();
+            Draw_FeatureControl(pipeline, dirty);
 
-        Draw_ToneMappingControl();
+            ImGui::Spacing();
+            ImGui::Separator();
+            ImGui::Spacing();
 
-        ImGui::Spacing();
-        ImGui::Separator();
-        ImGui::Spacing();
+            Draw_ParameterControl(params, dirty);
 
-        Draw_Preview();
+            ImGui::Spacing();
+            ImGui::Separator();
+            ImGui::Spacing();
+
+            Draw_QuickAction(params, dirty);
+
+            if (dirty)
+                pipeline->Set_PostProcessParams(params);
+        }
 
         ImGui::PopStyleVar(4);
     }
@@ -71,199 +87,145 @@ void PostProcess_View::Draw_StatusBadge()
     ImGui::Text("HDR Post Process");
     ImGui::SameLine();
 
-    if (_setting.useHDR)
+    Shared<PostProcessPipeline> pipeline = GAME->Get_PostProcessPipeline();
+    if (pipeline && pipeline->Has_PostProcessFeature(PostProcessFeature::HDR))
         ImGui::TextColored(ImVec4(0.35f, 0.9f, 0.45f, 1.f), "ON");
     else
         ImGui::TextColored(ImVec4(0.9f, 0.35f, 0.35f, 1.f), "OFF");
 
-    ImGui::TextDisabled("Scene color, exposure, tone mapping, gamma preview");
+    ImGui::TextDisabled("Feature + parameter changes are reflected in real time");
 }
 
-void PostProcess_View::Draw_HDRControl()
+void PostProcess_View::Draw_FeatureControl(Shared<PostProcessPipeline> pipeline, bool& dirty)
 {
-    if (ImGui::BeginChild("##HDRControl", ImVec2(0.f, 120.f), true))
+    if (ImGui::BeginChild("##FeatureControl", ImVec2(0.f, 130.f), true))
     {
-        ImGui::Text("HDR");
+        ImGui::Text("Feature Flags");
 
-        // HDR 출력 사용 여부를 조절한다.
-        ImGui::Checkbox("Use HDR", &_setting.useHDR);
+        bool useHDR = pipeline->Has_PostProcessFeature(PostProcessFeature::HDR);
+        bool useToneMapping = pipeline->Has_PostProcessFeature(PostProcessFeature::ToneMapping);
+        bool useExposure = pipeline->Has_PostProcessFeature(PostProcessFeature::Exposure);
+        bool useBloom = pipeline->Has_PostProcessFeature(PostProcessFeature::Bloom);
+        bool useGamma = pipeline->Has_PostProcessFeature(PostProcessFeature::Gamma);
 
-        ImGui::BeginDisabled(!_setting.useHDR);
-
-        // 카메라 노출값처럼 최종 장면 밝기를 조절한다.
-        ImGui::DragFloat("Exposure", &_setting.exposure, 0.01f, 0.01f, 10.f, "%.2f");
-
-        if (ImGui::Button("Dark"))
-            _setting.exposure = 0.5f;
-
-        ImGui::SameLine();
-
-        if (ImGui::Button("Default"))
-            _setting.exposure = 1.f;
-
-        ImGui::SameLine();
-
-        if (ImGui::Button("Bright"))
-            _setting.exposure = 2.f;
-
-        ImGui::EndDisabled();
-    }
-
-    ImGui::EndChild();
-}
-
-void PostProcess_View::Draw_ToneMappingControl()
-{
-    if (ImGui::BeginChild("##ToneMappingControl", ImVec2(0.f, 145.f), true))
-    {
-        ImGui::Text("Tone Mapping");
-
-        // HDR 값을 화면 출력 범위로 변환할지 결정한다.
-        ImGui::Checkbox("Use Tone Mapping", &_setting.useToneMapping);
-
-        ImGui::BeginDisabled(!_setting.useHDR || !_setting.useToneMapping);
-
-        const char* toneMappingItems[] =
+        if (ImGui::Checkbox("HDR", &useHDR))
         {
-            "Reinhard",
-            "ACES",
-            "Linear"
-        };
-
-        // 톤 매핑 곡선을 선택한다.
-        ImGui::Combo("Type", &_setting.toneMappingType, toneMappingItems, IM_ARRAYSIZE(toneMappingItems));
-
-        // 최종 출력 감마값을 조절한다.
-        ImGui::DragFloat("Gamma", &_setting.gamma, 0.01f, 1.f, 3.f, "%.2f");
-
-        ImGui::EndDisabled();
-
-        ImGui::Checkbox("Show Preview", &_setting.showPreview);
-    }
-
-    ImGui::EndChild();
-}
-
-void PostProcess_View::Draw_Preview()
-{
-    if (!_setting.showPreview)
-        return;
-
-    if (ImGui::BeginChild("##HDRPreview", ImVec2(0.f, 210.f), true))
-    {
-        ImGui::Text("Preview");
-
-        const ImVec2 previewPos = ImGui::GetCursorScreenPos();
-        const float previewWidth = ImGui::GetContentRegionAvail().x;
-        const float previewHeight = 72.f;
-
-        ImDrawList* drawList = ImGui::GetWindowDrawList();
-
-        const int32 stepCount = 80;
-        const float stepWidth = previewWidth / static_cast<float>(stepCount);
-
-        for (int32 i = 0; i < stepCount; ++i)
+            pipeline->Set_PostProcessFeature(PostProcessFeature::HDR, useHDR);
+            dirty = true;
+        }
+        ImGui::SameLine();
+        if (ImGui::Checkbox("ToneMapping", &useToneMapping))
         {
-            const float t0 = static_cast<float>(i) / static_cast<float>(stepCount);
-            const float t1 = static_cast<float>(i + 1) / static_cast<float>(stepCount);
-
-            float hdrValue = t0 * 4.f;
-
-            if (_setting.useHDR)
-                hdrValue *= _setting.exposure;
-            else
-                hdrValue = Saturate01(hdrValue);
-
-            float mappedValue = hdrValue;
-
-            if (_setting.useHDR && _setting.useToneMapping)
-                mappedValue = Apply_ToneMapping(hdrValue);
-
-            mappedValue = Apply_Gamma(mappedValue);
-
-            const float r = Saturate01(mappedValue * 1.15f);
-            const float g = Saturate01(mappedValue * 0.92f);
-            const float b = Saturate01(mappedValue * 0.65f);
-
-            const ImU32 color = ImGui::ColorConvertFloat4ToU32(ImVec4(r, g, b, 1.f));
-
-            const ImVec2 p0 = ImVec2(previewPos.x + stepWidth * i, previewPos.y);
-            const ImVec2 p1 = ImVec2(previewPos.x + stepWidth * (i + 1), previewPos.y + previewHeight);
-
-            drawList->AddRectFilled(p0, p1, color);
+            pipeline->Set_PostProcessFeature(PostProcessFeature::ToneMapping, useToneMapping);
+            dirty = true;
+        }
+        ImGui::SameLine();
+        if (ImGui::Checkbox("Exposure", &useExposure))
+        {
+            pipeline->Set_PostProcessFeature(PostProcessFeature::Exposure, useExposure);
+            dirty = true;
         }
 
-        drawList->AddRect(previewPos, ImVec2(previewPos.x + previewWidth, previewPos.y + previewHeight), IM_COL32(255, 255, 255, 80), 6.f);
-
-        ImGui::Dummy(ImVec2(previewWidth, previewHeight + 8.f));
-
-        ImGui::TextDisabled("Before");
-        ImGui::SameLine(previewWidth - 38.f);
-        ImGui::TextDisabled("After");
-
-        ImGui::Spacing();
-
-        const float exposureRatio = Saturate01(_setting.exposure / 10.f);
-        const float gammaRatio = Saturate01((_setting.gamma - 1.f) / 2.f);
-
-        // 검사 화면에서 현재 값을 한눈에 보기 위해 막대 형태로 보여준다.
-        ImGui::ProgressBar(exposureRatio, ImVec2(-1.f, 0.f), "Exposure");
-        ImGui::ProgressBar(gammaRatio, ImVec2(-1.f, 0.f), "Gamma");
-
-        const char* typeName = "ACES";
-        if (_setting.toneMappingType == ETOI(ToneMappingType::Reinhard))
-            typeName = "Reinhard";
-        else if (_setting.toneMappingType == ETOI(ToneMappingType::Linear))
-            typeName = "Linear";
-
-        ImGui::Text("Current Type : %s", typeName);
+        if (ImGui::Checkbox("Bloom", &useBloom))
+        {
+            pipeline->Set_PostProcessFeature(PostProcessFeature::Bloom, useBloom);
+            dirty = true;
+        }
+        ImGui::SameLine();
+        if (ImGui::Checkbox("Gamma", &useGamma))
+        {
+            pipeline->Set_PostProcessFeature(PostProcessFeature::Gamma, useGamma);
+            dirty = true;
+        }
     }
 
     ImGui::EndChild();
 }
 
-float PostProcess_View::Apply_ToneMapping(float value) const
+void PostProcess_View::Draw_ParameterControl(PostProcessCB& params, bool& dirty)
 {
-    value = max(0.f, value);
-
-    if (_setting.toneMappingType == ETOI(ToneMappingType::Reinhard))
+    if (ImGui::BeginChild("##ParamControl", ImVec2(0.f, 260.f), true))
     {
-        return value / (value + 1.f);
+        ImGui::Text("PostProcess Params");
+
+        dirty |= ImGui::DragFloat("Exposure", &params.exposure, 0.01f, 0.f, 10.f, "%.2f");
+        dirty |= ImGui::DragFloat("InvWhitePoint", &params.invWhitePoint, 0.01f, 0.01f, 10.f, "%.2f");
+        dirty |= ImGui::DragFloat("Gamma", &params.gamma, 0.01f, 1.f, 3.f, "%.2f");
+        dirty |= ImGui::DragFloat("BloomRadius", &params.bloomRadius, 0.01f, 0.f, 10.f, "%.2f");
+
+        dirty |= ImGui::DragFloat("BloomThreshold", &params.bloomThreshold, 0.01f, 0.f, 10.f, "%.2f");
+        dirty |= ImGui::DragFloat("BloomIntensity", &params.bloomIntensity, 0.01f, 0.f, 5.f, "%.2f");
+        dirty |= ImGui::DragFloat("BloomSoftKnee", &params.bloomSoftKnee, 0.01f, 0.f, 1.f, "%.2f");
+        dirty |= ImGui::DragFloat("BloomClamp", &params.bloomClamp, 0.05f, 0.f, 50.f, "%.2f");
+        dirty |= ImGui::DragFloat("BloomScatter", &params.bloomScatter, 0.01f, 0.f, 1.f, "%.2f");
+
+        int toneMapMode = static_cast<int>(params.toneMapMode);
+        const char* toneMapItems[] = { "Reinhard", "ACES", "Linear" };
+        if (ImGui::Combo("ToneMapMode", &toneMapMode, toneMapItems, IM_ARRAYSIZE(toneMapItems)))
+        {
+            if (toneMapMode < 0)
+                toneMapMode = 0;
+            params.toneMapMode = static_cast<uint32>(toneMapMode);
+            dirty = true;
+        }
+
+        float texelSize[2] = { params.bloomTexelSize.x, params.bloomTexelSize.y };
+        if (ImGui::DragFloat2("BloomTexelSize", texelSize, 0.00001f, 0.f, 0.1f, "%.6f"))
+        {
+            params.bloomTexelSize.x = texelSize[0];
+            params.bloomTexelSize.y = texelSize[1];
+            dirty = true;
+        }
     }
 
-    if (_setting.toneMappingType == ETOI(ToneMappingType::ACES))
-    {
-        const float a = 2.51f;
-        const float b = 0.03f;
-        const float c = 2.43f;
-        const float d = 0.59f;
-        const float e = 0.14f;
+    ImGui::EndChild();
+}
 
-        return Saturate01((value * (a * value + b)) / (value * (c * value + d) + e));
+void PostProcess_View::Draw_QuickAction(PostProcessCB& params, bool& dirty)
+{
+    if (ImGui::BeginChild("##QuickAction", ImVec2(0.f, 70.f), true))
+    {
+        ImGui::Text("Quick Actions");
+
+        if (ImGui::Button("Reset Parameters"))
+        {
+            params = Make_DefaultParams();
+            dirty = true;
+        }
+
+        ImGui::SameLine();
+
+        if (ImGui::Button("Auto BloomTexel from Viewport"))
+        {
+            const float width = static_cast<float>(GAME->Get_ViewportWidth());
+            const float height = static_cast<float>(GAME->Get_ViewportHeight());
+
+            if (width > 0.f && height > 0.f)
+            {
+                params.bloomTexelSize = Vec2(1.f / width, 1.f / height);
+                dirty = true;
+            }
+        }
     }
 
-    return Saturate01(value);
+    ImGui::EndChild();
 }
 
-float PostProcess_View::Apply_Gamma(float value) const
+PostProcessCB PostProcess_View::Make_DefaultParams()
 {
-    value = Saturate01(value);
-
-    if (_setting.gamma <= 0.001f)
-        return value;
-
-    return powf(value, 1.f / _setting.gamma);
-}
-
-float PostProcess_View::Saturate01(float value) const
-{
-    if (value < 0.f)
-        return 0.f;
-
-    if (value > 1.f)
-        return 1.f;
-
-    return value;
+    PostProcessCB defaults{};
+    defaults.exposure = 1.f;
+    defaults.invWhitePoint = 1.f;
+    defaults.gamma = 2.2f;
+    defaults.bloomRadius = 1.f;
+    defaults.bloomThreshold = 1.f;
+    defaults.bloomIntensity = 0.5f;
+    defaults.bloomSoftKnee = 0.5f;
+    defaults.bloomClamp = 10.f;
+    defaults.bloomScatter = 0.7f;
+    defaults.toneMapMode = 0;
+    defaults.bloomTexelSize = Vec2(0.f, 0.f);
+    return defaults;
 }
 
 Shared<PostProcess_View> PostProcess_View::Create()

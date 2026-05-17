@@ -220,7 +220,13 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClInclude Include="..\Public\Decorator.h" />
     <ClInclude Include="..\Public\Delegate.h" />
     <ClInclude Include="..\Public\DelegateHub.h" />
+    <ClInclude Include="..\Public\EffectEmitter.h" />
+    <ClInclude Include="..\Public\EffectEmitterFactory.h" />
+    <ClInclude Include="..\Public\EffectInstance.h" />
+    <ClInclude Include="..\Public\EffectMaterial_Types.h" />
+    <ClInclude Include="..\Public\EffectRuntime_Types.h" />
     <ClInclude Include="..\Public\Engine_Constants.h" />
+    <ClInclude Include="..\Public\EnumFlags.h" />
     <ClInclude Include="..\Public\Event_Bus.h" />
     <ClInclude Include="..\Public\Event_Manager.h" />
     <ClInclude Include="..\Public\Engine_Model_Struct.h" />
@@ -239,6 +245,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClInclude Include="..\Public\PhysX_Handle.h" />
     <ClInclude Include="..\Public\PhysX_Types.h" />
     <ClInclude Include="..\Public\Picking.h" />
+    <None Include="..\Public\PostProcessPipeline.h" />
     <ClInclude Include="..\Public\Print_Manager.h" />
     <ClInclude Include="..\Public\PathFollower.h" />
     <ClInclude Include="..\Public\Reflection_JsonUtil.h" />
@@ -246,6 +253,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClInclude Include="..\Public\PhysX_Manager.h" />
     <ClInclude Include="..\Public\Particle_Types.h" />
     <ClInclude Include="..\Public\Reflection_Types.h" />
+    <ClInclude Include="..\Public\Renderer_Define.h" />
     <ClInclude Include="..\Public\RenderTarget.h" />
     <ClInclude Include="..\Public\ShaderPassFinder.h" />
     <ClInclude Include="..\Public\Shader_CBuffer_Define.h" />
@@ -350,6 +358,9 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClCompile Include="..\Private\DebugDraw.cpp" />
     <ClCompile Include="..\Private\Decorator.cpp" />
     <ClCompile Include="..\Private\DelegateHub.cpp" />
+    <ClCompile Include="..\Private\EffectEmitter.cpp" />
+    <ClCompile Include="..\Private\EffectEmitterFactory.cpp" />
+    <ClCompile Include="..\Private\EffectInstance.cpp" />
     <ClCompile Include="..\Private\Event_Manager.cpp" />
     <ClCompile Include="..\Private\ICommand.cpp" />
     <ClCompile Include="..\Private\Log_Manager.cpp" />
@@ -359,6 +370,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClCompile Include="..\Private\PhysX_Filter.cpp" />
     <ClCompile Include="..\Private\PhysX_Manager.cpp" />
     <ClCompile Include="..\Private\Picking.cpp" />
+    <ClCompile Include="..\Private\PostProcessPipeline.cpp" />
     <ClCompile Include="..\Private\Print_Manager.cpp" />
     <ClCompile Include="..\Private\RenderTarget.cpp" />
     <ClCompile Include="..\Private\Shadow.cpp" />
@@ -452,6 +464,11 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Bin\ShaderFiles\Engine_Shader_Defines.hlsli" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\Bin\ShaderFiles\Engine_Shader_PostProcess.hlsl">
+      <FileType>Document</FileType>
+    </None>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

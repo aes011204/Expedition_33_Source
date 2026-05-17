@@ -259,6 +259,7 @@ HRESULT GameDataTable::Load_SkillActionData(const wstring& jsonRootPath)
         iter->second.skillActions.push_back(move(action));
     }
 
+    return S_OK;
 }
 
 HRESULT GameDataTable::Load_SkillTreeData(const wstring& jsonRootPath)

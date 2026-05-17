@@ -354,6 +354,7 @@ void ModelCom::Ensure_MaterialBindings()
     _materialBindings.resize(desired);
 
     const string defaultKey = String::ToLowerCopy(String::ToString(fs::path(_sourceModelPath).stem().wstring()));
+
     for (size_t i = 0; i < _materialBindings.size(); ++i)
     {
         if (_materialBindings[i].baseBundleKey.empty())
@@ -440,6 +441,7 @@ void ModelCom::Apply_EffectiveMaterial(uint32 materialIndex)
             {
                 const auto itInst = bundle->instancesByAssetName.find(itName->second);
                 if (itInst != bundle->instancesByAssetName.end())
+
                 {
                     const auto& base = itInst->second;
 
@@ -1727,7 +1729,7 @@ HRESULT ModelCom::Ready_Model(const char* modelPath)
             _bones.push_back(Bone::Create(data));
         }
 
-        /* 바인드 포즈 초기화: 애니메이션 없이도 Combined 행렬이 유효하도록 1회 계산 */
+        /* 바인드 포즈 초기화: 애니메이션 없이도 CombinedHDR 행렬이 유효하도록 1회 계산 */
         for (uint32 i = 0; i < _numBones; ++i)
         {
             _bones[i]->Update_CombinedTransformationMatrix(_bones, _preLocalTransformMatrix);
