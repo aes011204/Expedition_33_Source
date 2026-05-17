@@ -18,9 +18,21 @@ namespace UIEditor
             "Alpha",
         };
 
+        const char* const kEasingNames[] = {
+            "Linear",
+            "EaseIn",
+            "EaseOut",
+            "EaseInOut",
+        };
+
         int32 Get_TrackTypeIndex(UI_AnimationKeyframeTrackType type)
         {
             return min(max(static_cast<int32>(type), 0), static_cast<int32>(size(kTrackTypeNames)) - 1);
+        }
+
+        int32 Get_EasingIndex(UI_AnimationEasing easing)
+        {
+            return min(max(static_cast<int32>(easing), 0), static_cast<int32>(size(kEasingNames)) - 1);
         }
 
         float Get_ValueDragSpeed(UI_AnimationKeyframeTrackType type)
@@ -56,6 +68,12 @@ namespace UIEditor
 
             return to_string(key.value);
         }
+
+        void Show_ItemTooltip(const char* text)
+        {
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("%s", text);
+        }
     }
 
     UI_Animation_View::UI_Animation_View(UI_Editor_Manager& editorManager)
@@ -77,6 +95,7 @@ namespace UIEditor
         {
             _isFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows);
             _isHovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows);
+            Handle_Shortcuts();
 
             _assetService.Clamp_Asset();
             _assetService.Resolve_TargetObject(_editorManager.Get_Document());
@@ -90,6 +109,8 @@ namespace UIEditor
             Render_TargetSection();
             ImGui::Separator();
             Render_PlaybackSection();
+            ImGui::Separator();
+            Render_PresetPanel();
             ImGui::Separator();
             Render_TimelineSection();
 
@@ -266,9 +287,64 @@ namespace UIEditor
         }
     }
 
+    void UI_Animation_View::Render_PresetPanel()
+    {
+        const UI_AnimationAsset& asset = _assetService.Get_Asset();
+        const bool hasTarget = asset.targetObjectId != 0;
+
+        ImGui::Text("Presets");
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(78.f);
+        ImGui::DragInt("Duration", &_presetDurationFrames, 1.f, 1, 240);
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(78.f);
+        ImGui::DragFloat("Distance", &_presetDistance, 1.f, 1.f, 400.f, "%.1f");
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(78.f);
+        ImGui::DragFloat("Scale", &_presetScaleAmount, 0.01f, 0.01f, 2.f, "%.2f");
+
+        _presetDurationFrames = min(max(_presetDurationFrames, 1), 240);
+        _presetDistance = max(1.f, _presetDistance);
+        _presetScaleAmount = max(0.01f, _presetScaleAmount);
+
+        auto presetButton = [&](const char* label, UI_AnimationPresetType presetType)
+        {
+            if (ImGui::Button(label) &&
+                _assetService.Apply_Preset(_editorManager.Get_Document(), presetType, _presetDurationFrames, _presetDistance, _presetScaleAmount))
+            {
+                Refresh_StaticPreview();
+            }
+        };
+
+        ImGui::BeginDisabled(!hasTarget);
+        presetButton("Fade In", UI_AnimationPresetType::FadeIn);
+        ImGui::SameLine();
+        presetButton("Fade Out", UI_AnimationPresetType::FadeOut);
+        ImGui::SameLine();
+        presetButton("Pop In", UI_AnimationPresetType::PopIn);
+        ImGui::SameLine();
+        presetButton("Tooltip Appear", UI_AnimationPresetType::TooltipAppear);
+        ImGui::SameLine();
+        presetButton("Skill Node Reveal", UI_AnimationPresetType::SkillNodeReveal);
+
+        presetButton("Slide In Up", UI_AnimationPresetType::SlideInUp);
+        ImGui::SameLine();
+        presetButton("Slide In Down", UI_AnimationPresetType::SlideInDown);
+        ImGui::SameLine();
+        presetButton("Slide In Left", UI_AnimationPresetType::SlideInLeft);
+        ImGui::SameLine();
+        presetButton("Slide In Right", UI_AnimationPresetType::SlideInRight);
+        ImGui::SameLine();
+        presetButton("Button Hover Pulse", UI_AnimationPresetType::ButtonHoverPulse);
+        ImGui::SameLine();
+        presetButton("Button Press Pop", UI_AnimationPresetType::ButtonPressPop);
+        ImGui::EndDisabled();
+    }
+
     void UI_Animation_View::Render_TrackPanel()
     {
         const UI_AnimationAsset& asset = _assetService.Get_Asset();
+        const bool hasTarget = asset.targetObjectId != 0;
 
         ImGui::Text("Tracks: %zu", asset.tracks.size());
         ImGui::Separator();
@@ -293,10 +369,41 @@ namespace UIEditor
         if (ImGui::Button("Add Track"))
             _assetService.Add_Track(_assetService.Get_PendingTrackType());
 
+        UI_AnimationKeyframeTrack* selectedTrack = _assetService.Get_SelectedTrack();
+        ImGui::BeginDisabled(nullptr == selectedTrack);
+        int32 trackEasingIndex = nullptr != selectedTrack ? Get_EasingIndex(selectedTrack->easing) : 0;
+        if (ImGui::Combo("Track Easing", &trackEasingIndex, kEasingNames, static_cast<int32>(size(kEasingNames))) &&
+            _assetService.Set_SelectedTrackEasing(static_cast<UI_AnimationEasing>(trackEasingIndex), true))
+        {
+            Refresh_StaticPreview();
+        }
+        Show_ItemTooltip("Applies the easing to every key on the selected track.");
+        ImGui::EndDisabled();
+
         ImGui::BeginDisabled(nullptr == _assetService.Get_SelectedTrack());
         if (ImGui::Button("Delete Track") && _assetService.Delete_SelectedTrack())
             Refresh_StaticPreview();
-        if (ImGui::Button("Add Key To Selected Track") && _assetService.Add_KeyToSelectedTrack(_editorManager.Get_Document()))
+        ImGui::EndDisabled();
+
+        ImGui::BeginDisabled(!hasTarget || nullptr == _assetService.Get_SelectedTrack());
+        if (ImGui::Button("Key Selected Track") && _assetService.Add_KeyToSelectedTrack(_editorManager.Get_Document()))
+            Refresh_StaticPreview();
+        ImGui::EndDisabled();
+        Show_ItemTooltip("Create or update one key from the bound UI at the current frame.");
+
+        ImGui::BeginDisabled(!hasTarget);
+        if (ImGui::Button("Key Transform Set") && _assetService.Add_CurrentValueKeysToTransformTracks(_editorManager.Get_Document()))
+            Refresh_StaticPreview();
+        ImGui::EndDisabled();
+        Show_ItemTooltip("Create or update Position, Scale, Rotation, and Alpha keys at the current frame.");
+
+        ImGui::BeginDisabled(nullptr == _assetService.Get_SelectedKey());
+        if (ImGui::Button("Copy Key"))
+            _assetService.Copy_SelectedKey();
+        ImGui::EndDisabled();
+
+        ImGui::BeginDisabled(!_assetService.Has_CopiedKey());
+        if (ImGui::Button("Paste Key") && _assetService.Paste_CopiedKey())
             Refresh_StaticPreview();
         ImGui::EndDisabled();
 
@@ -352,6 +459,14 @@ namespace UIEditor
         if (nullptr == selectedKey || nullptr == editableTrack)
             return;
 
+        int32 keyEasingIndex = Get_EasingIndex(selectedKey->easing);
+        if (ImGui::Combo("Key Easing", &keyEasingIndex, kEasingNames, static_cast<int32>(size(kEasingNames))) &&
+            _assetService.Set_SelectedKeyEasing(static_cast<UI_AnimationEasing>(keyEasingIndex)))
+        {
+            Refresh_StaticPreview();
+        }
+        Show_ItemTooltip("Controls interpolation from this key to the next key.");
+
         float value = editableTrack->type == UI_AnimationKeyframeTrackType::Rotation
             ? Radians_ToDegrees(selectedKey->value)
             : selectedKey->value;
@@ -363,6 +478,40 @@ namespace UIEditor
                 : value;
             if (_assetService.Set_SelectedKeyValue(nextValue))
                 Refresh_StaticPreview();
+        }
+    }
+
+    void UI_Animation_View::Handle_Shortcuts()
+    {
+        if (!_isFocused)
+            return;
+
+        const ImGuiIO& io = ImGui::GetIO();
+        if (io.WantTextInput ||
+            ImGui::IsAnyItemActive() ||
+            ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopup))
+        {
+            return;
+        }
+
+        if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_C, false))
+        {
+            _assetService.Copy_SelectedKey();
+            return;
+        }
+
+        if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_V, false))
+        {
+            if (_assetService.Paste_CopiedKey())
+                Refresh_StaticPreview();
+            return;
+        }
+
+        if (ImGui::IsKeyPressed(ImGuiKey_Delete, false) || ImGui::IsKeyPressed(ImGuiKey_Backspace, false))
+        {
+            if (_assetService.Delete_SelectedKey())
+                Refresh_StaticPreview();
+            return;
         }
     }
 
@@ -394,12 +543,24 @@ namespace UIEditor
         if (!clickResult.clicked)
             return;
 
+        bool selectedKey = false;
         if (clickResult.trackIndex >= 0)
         {
             if (clickResult.hitKey)
-                _assetService.Select_Key(clickResult.trackIndex, clickResult.keyIndex);
+                selectedKey = _assetService.Select_Key(clickResult.trackIndex, clickResult.keyIndex);
             else
                 _assetService.Select_Track(clickResult.trackIndex);
+        }
+
+        if (clickResult.draggedKey)
+        {
+            if (!selectedKey)
+                return;
+
+            int32 targetFrame = clickResult.frame;
+            if (_assetService.Set_SelectedKeyFrame(clickResult.frame, targetFrame))
+                Set_CurrentFrame(targetFrame);
+            return;
         }
 
         Set_CurrentFrame(clickResult.frame);

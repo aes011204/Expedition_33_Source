@@ -47,6 +47,7 @@ void UI_Editor_ImGuiManager::Update(float timeDelta)
     ImGui_ImplDX11_NewFrame();
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
+    Suppress_RepeatedPasteShortcut();
 }
 
 void UI_Editor_ImGuiManager::Render()
@@ -71,6 +72,21 @@ void UI_Editor_ImGuiManager::ShutDown()
 void UI_Editor_ImGuiManager::Apply_Style()
 {
     ImGui::StyleColorsDark();
+}
+
+void UI_Editor_ImGuiManager::Suppress_RepeatedPasteShortcut()
+{
+    ImGuiIO& io = ImGui::GetIO();
+    if (!io.KeyCtrl)
+        return;
+
+    ImGuiKeyData* pasteKeyData = ImGui::GetKeyData(ImGuiKey_V);
+    if (nullptr == pasteKeyData || !pasteKeyData->Down || pasteKeyData->DownDuration <= 0.f)
+        return;
+
+    const float repeatBlockDuration = max(0.f, io.KeyRepeatDelay * 0.5f);
+    pasteKeyData->DownDuration = min(pasteKeyData->DownDuration, repeatBlockDuration);
+    pasteKeyData->DownDurationPrev = min(pasteKeyData->DownDurationPrev, repeatBlockDuration);
 }
 
 Unique<UI_Editor_ImGuiManager> UI_Editor_ImGuiManager::Create(HWND hWnd, const ComPtr<Device>& device, const ComPtr<Context>& context)

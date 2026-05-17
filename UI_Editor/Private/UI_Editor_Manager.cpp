@@ -19,6 +19,26 @@ namespace UIEditor
             replace(normalizedPath.begin(), normalizedPath.end(), '\\', '/');
             return normalizedPath;
         }
+
+        float Clamp01(float value)
+        {
+            return min(max(value, 0.f), 1.f);
+        }
+
+        ImVec2 Clamp01(const ImVec2& value)
+        {
+            return ImVec2(Clamp01(value.x), Clamp01(value.y));
+        }
+
+        bool NearlyEqual(float lhs, float rhs)
+        {
+            return fabsf(lhs - rhs) <= 0.0001f;
+        }
+
+        bool NearlyEqual(const ImVec2& lhs, const ImVec2& rhs)
+        {
+            return NearlyEqual(lhs.x, rhs.x) && NearlyEqual(lhs.y, rhs.y);
+        }
     }
 
     HRESULT UI_Editor_Manager::Initialize(const ComPtr<Device>& device, const ComPtr<Context>& context, bool assetManagerReady)
@@ -404,47 +424,55 @@ namespace UIEditor
 
     void UI_Editor_Manager::Handle_Shortcuts()
     {
-        ImGuiIO& io = ImGui::GetIO();
-        if (io.WantTextInput)
+        const ImGuiIO& io = ImGui::GetIO();
+        if (io.WantTextInput ||
+            ImGui::IsAnyItemActive() ||
+            ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopup))
+        {
+            return;
+        }
+
+        const Shared<UI_Editor_Window> animationWindow = Find_Window(L"Animation");
+        if (nullptr != animationWindow && animationWindow->Is_Open() && animationWindow->Is_Focused())
             return;
 
-        if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Z))
+        if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Z, false))
         {
             Undo();
             return;
         }
 
-        if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Y))
+        if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Y, false))
         {
             Redo();
             return;
         }
 
-        if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_C))
+        if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_C, false))
         {
             Copy_SelectedUIObjects();
             return;
         }
 
-        if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_V))
+        if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_V, false))
         {
             Paste_UIObjects();
             return;
         }
 
-        if (ImGui::IsKeyPressed(ImGuiKey_Delete))
+        if (ImGui::IsKeyPressed(ImGuiKey_Delete, false))
         {
             Delete_SelectedUIObject();
             return;
         }
 
-        if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_D))
+        if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_D, false))
         {
             Duplicate_SelectedUIObject();
             return;
         }
 
-        if (ImGui::IsKeyPressed(ImGuiKey_F2))
+        if (ImGui::IsKeyPressed(ImGuiKey_F2, false))
         {
             if (_selectedObjectId == 0)
                 Request_RenameCanvas();
@@ -584,6 +612,7 @@ namespace UIEditor
         const Vec2& boxMax,
         const Vec4& color,
         float rotationRadians,
+        const Vec2& pivot,
         UI_TextAlign textAlign,
         float scale,
         bool textWrap,
@@ -597,6 +626,7 @@ namespace UIEditor
             boxMax,
             color,
             rotationRadians,
+            pivot,
             textAlign,
             scale,
             textWrap,
@@ -711,7 +741,10 @@ namespace UIEditor
         }
 
         if (_selectedObjectId != nextSelectedObjectId)
+        {
+            Commit_EditTransactionIfChanged();
             _animationPreviewService.Stop();
+        }
 
         _selectedObjectIds = move(normalizedObjectIds);
         _selectedObjectId = nextSelectedObjectId;
@@ -1130,26 +1163,60 @@ namespace UIEditor
         if (Is_ObjectEffectivelyLocked(objectId))
             return false;
 
-        UI_Object* object = _document.Find_Object(objectId);
-        if (nullptr == object)
+        if (nullptr == _document.Find_Object(objectId))
             return false;
 
         if (!_historyService.Is_EditTransactionOpen())
             Push_UndoSnapshot();
 
-        if (object->type == UI_ObjectType::Text)
-        {
-            const float safeTextScale = Get_UITextRuntimeScale(*object);
-            object->size = ImVec2(max(1.f, worldSize.x) / safeTextScale, max(1.f, worldSize.y) / safeTextScale);
-        }
-        else
-        {
-            const float safeScaleX = max(0.01f, object->scale.x);
-            const float safeScaleY = max(0.01f, object->scale.y);
-            object->size = ImVec2(max(1.f, worldSize.x) / safeScaleX, max(1.f, worldSize.y) / safeScaleY);
-        }
+        if (!_document.Set_WorldRect(objectId, worldPosition, worldSize))
+            return false;
 
-        if (!_document.Set_WorldPosition(objectId, worldPosition))
+        Mark_Dirty();
+        return true;
+    }
+
+    bool UI_Editor_Manager::Set_UIObjectPivotKeepWorldRect(ObjectId objectId, const ImVec2& pivot)
+    {
+        if (Is_ObjectEffectivelyLocked(objectId))
+            return false;
+
+        UI_Object* object = _document.Find_Object(objectId);
+        if (nullptr == object)
+            return false;
+
+        const ImVec2 clampedPivot = Clamp01(pivot);
+        if (NearlyEqual(object->pivot, clampedPivot))
+            return false;
+
+        if (!_historyService.Is_EditTransactionOpen())
+            Push_UndoSnapshot();
+
+        if (!_document.Set_PivotKeepWorldRect(objectId, clampedPivot))
+            return false;
+
+        Mark_Dirty();
+        return true;
+    }
+
+    bool UI_Editor_Manager::Set_UIObjectAnchorsKeepWorldRect(ObjectId objectId, const ImVec2& anchorMin, const ImVec2& anchorMax)
+    {
+        if (Is_ObjectEffectivelyLocked(objectId))
+            return false;
+
+        UI_Object* object = _document.Find_Object(objectId);
+        if (nullptr == object)
+            return false;
+
+        const ImVec2 clampedAnchorMin = Clamp01(anchorMin);
+        const ImVec2 clampedAnchorMax = Clamp01(anchorMax);
+        if (NearlyEqual(object->anchorMin, clampedAnchorMin) && NearlyEqual(object->anchorMax, clampedAnchorMax))
+            return false;
+
+        if (!_historyService.Is_EditTransactionOpen())
+            Push_UndoSnapshot();
+
+        if (!_document.Set_AnchorsKeepWorldRect(objectId, clampedAnchorMin, clampedAnchorMax))
             return false;
 
         Mark_Dirty();
@@ -1158,7 +1225,11 @@ namespace UIEditor
 
     ImVec2 UI_Editor_Manager::Get_UIObjectWorldPosition(ObjectId objectId) const
     {
-        return _document.Get_WorldPosition(objectId);
+        const ImVec2 worldCenter = _document.Get_WorldCenter(objectId);
+        const ImVec2 worldSize = _document.Get_WorldSize(objectId);
+        return ImVec2(
+            worldCenter.x - worldSize.x * 0.5f,
+            worldCenter.y - worldSize.y * 0.5f);
     }
 
     bool UI_Editor_Manager::Align_SelectedObjects(UI_AlignmentCommand command)
@@ -1206,8 +1277,11 @@ namespace UIEditor
 
             ObjectRect rect = {};
             rect.id = objectId;
-            rect.worldPosition = _document.Get_WorldPosition(objectId);
-            rect.size = Get_UIObjectRuntimeSize(*object);
+            const ImVec2 worldCenter = _document.Get_WorldCenter(objectId);
+            rect.size = _document.Get_WorldSize(objectId);
+            rect.worldPosition = ImVec2(
+                worldCenter.x - rect.size.x * 0.5f,
+                worldCenter.y - rect.size.y * 0.5f);
             rect.center = ImVec2(
                 rect.worldPosition.x + rect.size.x * 0.5f,
                 rect.worldPosition.y + rect.size.y * 0.5f);
@@ -1299,7 +1373,6 @@ namespace UIEditor
                 break;
             }
 
-            nextWorldPosition = Clamp_ObjectPosition(*object, _document.Get_CanvasSize(), nextWorldPosition);
             if (fabsf(nextWorldPosition.x - rect.worldPosition.x) <= 0.001f &&
                 fabsf(nextWorldPosition.y - rect.worldPosition.y) <= 0.001f)
             {
