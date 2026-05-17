@@ -1,4 +1,6 @@
 ﻿#include "PhysicsCharacterController.h"
+
+#include "Debug_Profile.h"
 #include "PhysX_Manager.h"
 #include "PhysX_Filter.h"
 #include "characterkinematic/PxController.h"
@@ -99,6 +101,8 @@ HRESULT PhysicsCharacterController::Initialize(
 
 CharacterControllerMoveResult PhysicsCharacterController::Move(const Vec3& displacement, float timeDelta)
 {
+    Debug_Profile::Scope profileScope("PhysX::CCT::Move");
+
     CharacterControllerMoveResult result{};
 
     CHECK_NULL(_controller, result);

@@ -161,7 +161,7 @@ HRESULT PlayableParts::Render()
         if (FAILED(_shaderCom->Bind_CBufferData(material->Get_CB())))
             return E_FAIL;
 
-        CHECK_FAILED(_modelCom->Bind_BoneMatrices(_shaderCom.get(), "g_BoneMatricesBuffer", i), E_FAIL);
+        CHECK_FAILED(_modelCom->Bind_PreparedBoneMatrices(_shaderCom.get(), "g_BoneMatricesBuffer", i), E_FAIL);
 
         const uint32 passIndex = material->Get_PassIndex();
         if (FAILED(_shaderCom->Begin(passIndex)))
@@ -185,7 +185,7 @@ HRESULT PlayableParts::Render_Shadow()
 
     for (uint32 i = 0; i < numMeshes; i++)
     {
-        CHECK_FAILED(_modelCom->Bind_BoneMatrices(_shaderCom.get(), "g_BoneMatricesBuffer", i), E_FAIL);
+        CHECK_FAILED(_modelCom->Bind_PreparedBoneMatrices(_shaderCom.get(), "g_BoneMatricesBuffer", i), E_FAIL);
 
         if (FAILED(_shaderCom->Begin(static_cast<uint32>(VtxAnimMeshPass::Shadow))))
             return E_FAIL;
@@ -216,8 +216,11 @@ bool PlayableParts::Has_LeaderPoseComponent() const
 
 void PlayableParts::Update_LeaderPoseMatrices() const
 {
-    if (_modelCom)
-        _modelCom->Update_LeaderPoseMatrices();
+    if (_modelCom == nullptr)
+        return;
+
+    _modelCom->Update_LeaderPoseMatrices();
+    CHECK_FAILED(_modelCom->Prepare_BoneMatrixBuffers());
 }
 
 void PlayableParts::Update_CombinedWorldMatrix(const Matrix& childMatrix)

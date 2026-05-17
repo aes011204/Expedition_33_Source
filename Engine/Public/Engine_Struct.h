@@ -92,4 +92,13 @@ struct ColliderShapeDesc
     float radius = 0.5f;
 
 };
+
+struct ComputeSkinningCBData
+{
+    uint32 vertexCount = 0;
+    uint32 pad0 = 0;
+    uint32 pad1 = 0;
+    uint32 pad2 = 0;
+};
+
 }

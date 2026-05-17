@@ -79,6 +79,8 @@ void Hair_Player::Update(float timeDelta)
         Debug_Profile::Scope physicsScope("Player::Hair::Physics");
         _hairPhysics.Simulate(_modelCom.get(), timeDelta, _combinedWorldMatrix, ownerVelocity);
     }
+
+    CHECK_FAILED(_modelCom->Prepare_BoneMatrixBuffers());
 }
 
 void Hair_Player::Late_Update(float timeDelta)

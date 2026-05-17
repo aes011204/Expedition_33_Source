@@ -16,6 +16,7 @@
 #include "AnimNotify.h"
 #include "AnimNotifyState.h"
 #include "AnimState_Parser.h"
+#include "ComputeShaderCom.h"
 
 ModelCom::ModelCom(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Component{ device, context }
@@ -53,6 +54,12 @@ ModelCom::ModelCom(const ModelCom& prototype)
     _combinedBoneMatrixCache.resize(_numBones, Matrix::Identity);
     _meshBoneMatrixCaches.resize(_meshes.size());
     _meshBoneMatrixBuffers.resize(_meshes.size());
+
+    _meshSourceVertexBuffers.resize(_meshes.size());
+    _meshComputedVertexBuffers.resize(_meshes.size());
+    _meshComputedDrawVertexBuffers.resize(_meshes.size());
+    _computeSkinningDirty = true;
+
     _boneMatricesDirty = true;
 
     Mark_BoneMatricesDirty();
@@ -863,35 +870,8 @@ HRESULT ModelCom::Bind_BoneMatrices(ShaderCom* shader, const char* constantName,
 {
     Debug_Profile::Scope profileScope("AnimMesh::BindBoneMatrices");
 
-    if (shader == nullptr || constantName == nullptr)
-        return E_FAIL;
-
-    if (!_isSkeletal || _numBones == 0)
-        return S_OK;
-
-    if (meshIndex >= _meshes.size())
-        return E_FAIL;
-
-    if (_leaderPoseModel != nullptr)
-    {
-        if (!_leaderPoseMatricesValid)
-            Update_LeaderPoseMatrices();
-
-        if (_leaderPoseCombinedMatrices.empty())
-            return E_FAIL;
-    }
-
-    CHECK_FAILED(Ensure_MeshBoneMatrixBuffers(), E_FAIL);
-
-    if (meshIndex >= _meshBoneMatrixBuffers.size())
-        return E_FAIL;
-
-    const Shared<ComputeStructuredBuffer>& meshBoneMatrixBuffer = _meshBoneMatrixBuffers[meshIndex];
-
-    if (meshBoneMatrixBuffer == nullptr)
-        return S_OK;
-
-    return shader->Bind_SRV(constantName, meshBoneMatrixBuffer->Get_SRV());
+    CHECK_FAILED(Prepare_BoneMatrixBuffers(), E_FAIL);
+    return Bind_PreparedBoneMatrices(shader, constantName, meshIndex);
 }
 
 bool ModelCom::Try_Get_LocalBounds(Vec3& outMin, Vec3& outMax) const
@@ -902,6 +882,72 @@ bool ModelCom::Try_Get_LocalBounds(Vec3& outMin, Vec3& outMax) const
     outMin = _localBoundsMin;
     outMax = _localBoundsMax;
     return true;
+}
+
+HRESULT ModelCom::Prepare_ComputeSkinning(ComputeShaderCom* computeShader)
+{
+    if (!_isSkeletal)
+        return S_OK;
+
+    if (computeShader == nullptr)
+        return E_FAIL;
+
+    CHECK_FAILED(Prepare_BoneMatrixBuffers(), E_FAIL);
+    CHECK_FAILED(Ensure_ComputeSkinningBuffers(), E_FAIL);
+    CHECK_FAILED(Ensure_ComputeSkinningConstantBuffer(), E_FAIL);
+
+    if (!_computeSkinningDirty)
+        return S_OK;
+
+    for (uint32 meshIndex = 0; meshIndex < _meshes.size(); ++meshIndex)
+    {
+        const Shared<ComputeStructuredBuffer>& sourceVertexBuffer = _meshSourceVertexBuffers[meshIndex];
+        const Shared<ComputeStructuredBuffer>& meshBoneMatrixBuffer = _meshBoneMatrixBuffers[meshIndex];
+        const Shared<ComputeStructuredBuffer>& computedVertexBuffer = _meshComputedVertexBuffers[meshIndex];
+
+        if (sourceVertexBuffer == nullptr || meshBoneMatrixBuffer == nullptr || computedVertexBuffer == nullptr)
+            continue;
+
+        const uint32 vertexCount = computedVertexBuffer->Get_ElementCount();
+        if (vertexCount == 0)
+            continue;
+
+        CHECK_FAILED(Update_ComputeSkinningConstantBuffer(vertexCount), E_FAIL);
+
+        CHECK_FAILED(computeShader->Bind_SRV(0, sourceVertexBuffer->Get_SRV()), E_FAIL);
+        CHECK_FAILED(computeShader->Bind_SRV(1, meshBoneMatrixBuffer->Get_SRV()), E_FAIL);
+        CHECK_FAILED(computeShader->Bind_UAV(0, computedVertexBuffer->Get_UAV()), E_FAIL);
+        CHECK_FAILED(computeShader->Bind_ConstantBuffer(0, _computeSkinningConstantBuffer.Get()), E_FAIL);
+
+        CHECK_FAILED(computeShader->Dispatch((vertexCount + 63) / 64, 1, 1), E_FAIL);
+
+        if (meshIndex >= _meshComputedDrawVertexBuffers.size() ||
+            _meshComputedDrawVertexBuffers[meshIndex] == nullptr)
+            return E_FAIL;
+
+        _context->CopyResource(
+            _meshComputedDrawVertexBuffers[meshIndex].Get(),
+            computedVertexBuffer->Get_Buffer());
+    }
+
+    _computeSkinningDirty = false;
+    return S_OK;
+}
+
+HRESULT ModelCom::Render_ComputeSkinned(uint32 meshIndex)
+{
+    if (meshIndex >= _meshes.size())
+        return E_FAIL;
+
+    if (meshIndex >= _meshComputedDrawVertexBuffers.size())
+        return E_FAIL;
+
+    if (_meshComputedDrawVertexBuffers[meshIndex] == nullptr)
+        return E_FAIL;
+
+    return _meshes[meshIndex]->Render_ComputeSkinned(
+        _meshComputedDrawVertexBuffers[meshIndex].Get(),
+        sizeof(VTXMESH));
 }
 
 void ModelCom::Apply_MaterialByAssetName(uint32 materialIndex, const string& bundleKey, const string& assetName)
@@ -996,6 +1042,48 @@ void ModelCom::Apply_MaterialByAssetName(uint32 materialIndex, const string& bun
     AppliedMaterialAsset& applied = _appliedMaterialAssets[materialIndex];
     applied.bundleKey = normalizedBundleKey;
     applied.assetName = assetName;
+}
+
+HRESULT ModelCom::Prepare_BoneMatrixBuffers()
+{
+    Debug_Profile::Scope profileScope("AnimMesh::PrepareBoneMatrixBuffers");
+
+    if (!_isSkeletal || _numBones == 0)
+        return S_OK;
+
+    if (_leaderPoseModel != nullptr)
+    {
+        if (!_leaderPoseMatricesValid)
+            Update_LeaderPoseMatrices();
+
+        if (_leaderPoseCombinedMatrices.empty())
+            return E_FAIL;
+    }
+
+    return Ensure_MeshBoneMatrixBuffers();
+}
+
+HRESULT ModelCom::Bind_PreparedBoneMatrices(ShaderCom* shader, const char* constantName, uint32 meshIndex)
+{
+    Debug_Profile::Scope profileScope("AnimMesh::BindPreparedBoneMatrices");
+
+    if (shader == nullptr || constantName == nullptr)
+        return E_FAIL;
+
+    if (!_isSkeletal || _numBones == 0)
+        return S_OK;
+
+    if (meshIndex >= _meshes.size())
+        return E_FAIL;
+
+    if (meshIndex >= _meshBoneMatrixBuffers.size())
+        return E_FAIL;
+
+    const Shared<ComputeStructuredBuffer>& meshBoneMatrixBuffer = _meshBoneMatrixBuffers[meshIndex];
+    if (meshBoneMatrixBuffer == nullptr)
+        return S_OK;
+
+    return shader->Bind_SRV(constantName, meshBoneMatrixBuffer->Get_SRV());
 }
 
 wstring ModelCom::Normalize_ModelAssetPath(const char* modelFilePath)
@@ -1400,6 +1488,7 @@ void ModelCom::Mark_BoneMatricesDirty()
 {
     _boneMatricesDirty = true;
     _boneMatrixBuffersDirty = true;
+    _computeSkinningDirty = true;
 }
 
 HRESULT ModelCom::Ensure_MeshBoneMatrices()
@@ -1448,6 +1537,112 @@ HRESULT ModelCom::Ensure_MeshBoneMatrices()
     }
 
     _boneMatricesDirty = false;
+    return S_OK;
+}
+
+HRESULT ModelCom::Ensure_ComputeSkinningBuffers()
+{
+    if (!_isSkeletal)
+        return S_OK;
+
+    if (_meshSourceVertexBuffers.size() != _meshes.size())
+        _meshSourceVertexBuffers.resize(_meshes.size());
+
+    if (_meshComputedVertexBuffers.size() != _meshes.size())
+        _meshComputedVertexBuffers.resize(_meshes.size());
+
+    if (_meshComputedDrawVertexBuffers.size() != _meshes.size())
+        _meshComputedDrawVertexBuffers.resize(_meshes.size());
+
+    for (uint32 meshIndex = 0; meshIndex < _meshes.size(); ++meshIndex)
+    {
+        const Shared<SkeletalMesh> skeletalMesh =
+            dynamic_pointer_cast<SkeletalMesh>(_meshes[meshIndex]);
+
+        if (skeletalMesh == nullptr)
+            continue;
+
+        const vector<VTXANIMMESH>& sourceVertices = skeletalMesh->Get_SourceVertices();
+        if (sourceVertices.empty())
+            continue;
+
+        if (_meshSourceVertexBuffers[meshIndex] == nullptr ||
+            _meshSourceVertexBuffers[meshIndex]->Get_ElementCount() != sourceVertices.size())
+        {
+            _meshSourceVertexBuffers[meshIndex] = ComputeStructuredBuffer::Create(
+                _device,
+                _context,
+                sizeof(VTXANIMMESH),
+                static_cast<uint32>(sourceVertices.size()),
+                sourceVertices.data()
+            );
+
+            if (_meshSourceVertexBuffers[meshIndex] == nullptr)
+                return E_FAIL;
+        }
+
+        if (_meshComputedVertexBuffers[meshIndex] == nullptr ||
+            _meshComputedVertexBuffers[meshIndex]->Get_ElementCount() != sourceVertices.size())
+        {
+            _meshComputedVertexBuffers[meshIndex] = ComputeStructuredBuffer::Create(
+                _device,
+                _context,
+                sizeof(VTXMESH),
+                static_cast<uint32>(sourceVertices.size())
+            );
+
+            if (_meshComputedVertexBuffers[meshIndex] == nullptr)
+                return E_FAIL;
+        }
+
+        if (_meshComputedDrawVertexBuffers[meshIndex] == nullptr)
+        {
+            D3D11_BUFFER_DESC drawVertexBufferDesc{};
+            drawVertexBufferDesc.ByteWidth = sizeof(VTXMESH) * static_cast<uint32>(sourceVertices.size());
+            drawVertexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
+            drawVertexBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+            drawVertexBufferDesc.CPUAccessFlags = 0;
+            drawVertexBufferDesc.MiscFlags = 0;
+            drawVertexBufferDesc.StructureByteStride = sizeof(VTXMESH);
+
+            CHECK_FAILED(
+                _device->CreateBuffer(
+                    &drawVertexBufferDesc,
+                    nullptr,
+                    _meshComputedDrawVertexBuffers[meshIndex].ReleaseAndGetAddressOf()),
+                E_FAIL);
+        }
+    }
+
+    return S_OK;
+}
+
+HRESULT ModelCom::Ensure_ComputeSkinningConstantBuffer()
+{
+    if (_computeSkinningConstantBuffer != nullptr)
+         return S_OK;
+
+    D3D11_BUFFER_DESC desc{};
+    desc.ByteWidth = sizeof(ComputeSkinningCBData);
+    desc.Usage = D3D11_USAGE_DEFAULT;
+    desc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+    desc.CPUAccessFlags = 0;
+    desc.MiscFlags = 0;
+    desc.StructureByteStride = 0;
+
+    CHECK_FAILED(_device->CreateBuffer(&desc, nullptr, _computeSkinningConstantBuffer.GetAddressOf()), E_FAIL);
+    return S_OK;
+}
+
+HRESULT ModelCom::Update_ComputeSkinningConstantBuffer(uint32 vertexCount)
+{
+    if (_computeSkinningConstantBuffer == nullptr)
+        return E_FAIL;
+
+    ComputeSkinningCBData cbData{};
+    cbData.vertexCount = vertexCount;
+
+    _context->UpdateSubresource(_computeSkinningConstantBuffer.Get(), 0, nullptr, &cbData, 0, 0);
     return S_OK;
 }
 
@@ -1739,6 +1934,12 @@ HRESULT ModelCom::Ready_Model(const char* modelPath)
     _combinedBoneMatrixCache.resize(_numBones, Matrix::Identity);
     _meshBoneMatrixCaches.resize(_meshes.size());
     _meshBoneMatrixBuffers.resize(_meshes.size());
+
+    _meshSourceVertexBuffers.resize(_meshes.size());
+    _meshComputedVertexBuffers.resize(_meshes.size());
+    _meshComputedDrawVertexBuffers.resize(_meshes.size());
+    _computeSkinningDirty = true;
+
     Mark_BoneMatricesDirty();
     _leaderPoseMatricesValid = false;
 
@@ -1861,6 +2062,13 @@ void ModelCom::Reset_ModelData()
     _combinedBoneMatrixCache.clear();
     _meshBoneMatrixCaches.clear();
     _meshBoneMatrixBuffers.clear();
+
+    _meshSourceVertexBuffers.clear();
+    _meshComputedVertexBuffers.clear();
+    _meshComputedDrawVertexBuffers.clear();
+    _computeSkinningConstantBuffer.Reset();
+    _computeSkinningDirty = true;
+
     _boneMatricesDirty = true;
     _boneMatrixBuffersDirty = true;
     _leaderPoseMatricesValid = false;

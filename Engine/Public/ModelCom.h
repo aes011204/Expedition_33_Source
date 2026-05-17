@@ -11,6 +11,7 @@ class Material;
 class Bone;
 class Animation;
 class ComputeStructuredBuffer;
+class ComputeShaderCom;
 
 class ENGINE_DLL ModelCom final : public Component
 {
@@ -105,8 +106,15 @@ public:
     HRESULT Bind_BoneMatrices(class ShaderCom* shader, const char* constantName, uint32 meshIndex);
     bool Try_Get_LocalBounds(Vec3& outMin, Vec3& outMax) const;
 
+    HRESULT Prepare_ComputeSkinning(ComputeShaderCom* computeShader); // body 전용 실험에서 호출
+    HRESULT Render_ComputeSkinned(uint32 meshIndex);                  // compute output VB로 draw
+
     // for map StaticMesh
     void Apply_MaterialByAssetName(uint32 materialIndex, const string& bundleKey, const string& assetName);
+
+    // bone matrix 준비 한번만 하도록
+    HRESULT Prepare_BoneMatrixBuffers();
+    HRESULT Bind_PreparedBoneMatrices(ShaderCom* shader, const char* constantName, uint32 meshIndex);
 
 public: /* Guid */
     static wstring Normalize_ModelAssetPath(const char* modelFilePath);
@@ -188,14 +196,19 @@ private:
     // dirty 가 마크됐을 때 재생성 진행. leaderPose 여기서 갱신 X
     HRESULT Ensure_MeshBoneMatrices();
 
+    HRESULT Ensure_ComputeSkinningBuffers();
+    HRESULT Ensure_ComputeSkinningConstantBuffer();
+    HRESULT Update_ComputeSkinningConstantBuffer(uint32 vertexCount);
+
 private:
-    Matrix Convert_LeaderPoseMatrix(const Matrix& leaderMatrix) const;
-    Matrix Build_LeaderPoseMatrix(uint32 boneIndex, vector<uint8>& visited);
-    void Build_LeaderPoseRequiredBones();
-    void Add_LeaderPoseRequiredBone(uint32 boneIndex);
-    void Mark_LeaderPoseRequiredBone(uint32 boneIndex, vector<uint8>& requiredFlags);
+    Matrix  Convert_LeaderPoseMatrix(const Matrix& leaderMatrix) const;
+    Matrix  Build_LeaderPoseMatrix(uint32 boneIndex, vector<uint8>& visited);
+    void    Build_LeaderPoseRequiredBones();
+    void    Add_LeaderPoseRequiredBone(uint32 boneIndex);
+    void    Mark_LeaderPoseRequiredBone(uint32 boneIndex, vector<uint8>& requiredFlags);
 
     HRESULT Ensure_MeshBoneMatrixBuffers();
+
 
 private:
     ModelType					        _type = { ModelType::END };
@@ -281,8 +294,16 @@ private: /* Compute Shader */
     vector<Shared<ComputeStructuredBuffer>> _meshBoneMatrixBuffers;
     bool    _boneMatrixBuffersDirty = true;
 
+    vector<Shared<ComputeStructuredBuffer>> _meshSourceVertexBuffers;   // VTXANIMMESH input
+    vector<Shared<ComputeStructuredBuffer>> _meshComputedVertexBuffers; // compute output structured buffer
+    vector<ComPtr<Buffer>> _meshComputedDrawVertexBuffers;              // 실제 draw에 사용할 vertex buffer
+    ComPtr<Buffer> _computeSkinningConstantBuffer{};
+    bool _computeSkinningDirty = true;
+
+
 private: // Model Custom Animation Mapping
     wstring             _animEnumType{};
+
 
 private:
     HRESULT Ready_Model(const char* modelPath);

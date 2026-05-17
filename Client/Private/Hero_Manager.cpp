@@ -365,15 +365,20 @@ void Hero_Manager::Apply_ControlRoles()
         if (!controller)
             continue;
 
+        const bool isActive = (i == _activeIndex);
+        controller->Set_ControlEnabled(isActive);
+
         auto movement = hero->Get_Component<MovementCom>();
         if (movement)
         {
             movement->Clear_FollowMoveCommand();
             movement->Apply_Input({});
-        }
 
-        const bool isActive = (i == _activeIndex);
-        controller->Set_ControlEnabled(isActive);
+            if (isActive)
+                movement->Set_MoveBackend(MovementCom::MoveBackend::PhysXCCT);
+            else
+                movement->Set_MoveBackend(MovementCom::MoveBackend::Sweep);
+        }
 
         if (isActive)
             controller->Clear_FollowControl();

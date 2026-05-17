@@ -6,6 +6,7 @@
 #include "ModelCom.h"
 #include "Debug_Profile.h"
 #include "ShaderPassFinder.h"
+#include "ComputeShaderCom.h"
 
 REGISTER_GLOBAL_ENUM(Client::Body_Player::PlayerWorldAnimation, "PlayerAnimation")
 
@@ -33,7 +34,7 @@ HRESULT Body_Player::Initialize(void* arg)
         return E_FAIL;
     }
 
-    _useComputeSkinning = false;
+    _useComputeSkinning = true;
 
     if (_useComputeSkinning)
     {
@@ -66,6 +67,7 @@ void Body_Player::Update(float fTimeDelta)
     {
         _modelCom->Play_Animation(fTimeDelta);
     }
+    CHECK_FAILED(_modelCom->Prepare_BoneMatrixBuffers());
 
     Update_CombinedWorldMatrix(_transformCom->Get_WorldMatrix());
 }
@@ -106,8 +108,6 @@ HRESULT Body_Player::Render()
         if (FAILED(_computeRenderShaderCom->Bind_CBufferData(material->Get_CB())))
             return E_FAIL;
 
-        // compute 결과는 VTXMESH layout으로 그리므로,
-        // pass index도 VtxMesh 규칙으로 다시 계산한다.
         const uint32 passIndex =
             ShaderPassFinder::Find_PassIndex(ShaderType::VtxMesh, material->Get_RenderState());
 

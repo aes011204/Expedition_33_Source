@@ -240,12 +240,6 @@
     <ClInclude Include="..\Public\TargetCamera.h">
       <Filter>02.GameObject\Camera\Target</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\Monster.h">
-      <Filter>02.GameObject\Monster</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\Player.h">
-      <Filter>02.GameObject\Player</Filter>
-    </ClInclude>
     <ClInclude Include="..\public\Body_Player.h">
       <Filter>02.GameObject\Player\PlayerParts\Body</Filter>
     </ClInclude>
@@ -317,12 +311,6 @@
     </ClInclude>
     <ClInclude Include="..\public\Mon_BehaviorTree.h">
       <Filter>BehavoirTree</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\Mon_Lancleier_Body.h">
-      <Filter>02.GameObject\Monster</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\Mon_Lancleier_Weapon.h">
-      <Filter>02.GameObject\Monster</Filter>
     </ClInclude>
     <ClInclude Include="..\public\Monster_Part.h">
       <Filter>02.GameObject\Monster</Filter>
@@ -416,12 +404,6 @@
     <ClInclude Include="..\Public\SkillTreeCom.h">
       <Filter>03. Component</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\PointParticlePreview.h">
-      <Filter>02.GameObject\Effect\PointParticle</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\ComputePointParticlePreview.h">
-      <Filter>02.GameObject\Effect\ComputePointParticle</Filter>
-    </ClInclude>
     <ClInclude Include="..\Public\PointParticleEffect.h">
       <Filter>02.GameObject\Effect\Emitters\PointParticle %28deprecated%29</Filter>
     </ClInclude>
@@ -445,15 +427,6 @@
     <ClInclude Include="..\Public\Hero_Manager.h" />
     <ClInclude Include="..\Public\GameplayUI.h" />
     <ClInclude Include="..\Public\CharacterStatus_Panel.h" />
-    <ClInclude Include="..\Public\Player_Maelle.h">
-      <Filter>02.GameObject\Player</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\Player_Gustave.h">
-      <Filter>02.GameObject\Player</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\Player_Lune.h">
-      <Filter>02.GameObject\Player</Filter>
-    </ClInclude>
     <ClInclude Include="..\Public\Player_Jump.h">
       <Filter>02.GameObject\Player\PlayerParts\Hair</Filter>
     </ClInclude>
@@ -563,12 +536,6 @@
     <ClCompile Include="..\Private\TargetCamera.cpp">
       <Filter>02.GameObject\Camera\Target</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\Monster.cpp">
-      <Filter>02.GameObject\Monster</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\Player.cpp">
-      <Filter>02.GameObject\Player</Filter>
-    </ClCompile>
     <ClCompile Include="..\private\Body_Player.cpp">
       <Filter>02.GameObject\Player\PlayerParts\Body</Filter>
     </ClCompile>
@@ -641,12 +608,6 @@
     </ClCompile>
     <ClCompile Include="..\private\Mon_BehaviorTree.cpp">
       <Filter>BehavoirTree</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\Mon_Lancleier_Body.cpp">
-      <Filter>02.GameObject\Monster</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\Mon_Lancleier_Weapon.cpp">
-      <Filter>02.GameObject\Monster</Filter>
     </ClCompile>
     <ClCompile Include="..\private\Monster_Part.cpp">
       <Filter>02.GameObject\Monster</Filter>
@@ -734,12 +695,6 @@
     <ClCompile Include="..\Private\SkillTreeCom.cpp">
       <Filter>03. Component</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\PointParticlePreview.cpp">
-      <Filter>02.GameObject\Effect\PointParticle</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\ComputePointParticlePreview.cpp">
-      <Filter>02.GameObject\Effect\ComputePointParticle</Filter>
-    </ClCompile>
     <ClCompile Include="..\Private\PointParticleEffect.cpp">
       <Filter>02.GameObject\Effect\Emitters\PointParticle %28deprecated%29</Filter>
     </ClCompile>
@@ -763,15 +718,6 @@
     <ClCompile Include="..\Private\Hero_Manager.cpp" />
     <ClCompile Include="..\Private\GameplayUI.cpp" />
     <ClCompile Include="..\Private\CharacterStatus_Panel.cpp" />
-    <ClCompile Include="..\Private\Player_Lune.cpp">
-      <Filter>02.GameObject\Player</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\Player_Gustave.cpp">
-      <Filter>02.GameObject\Player</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\Player_Maelle.cpp">
-      <Filter>02.GameObject\Player</Filter>
-    </ClCompile>
     <ClCompile Include="..\Private\Player_WorldAction.cpp">
       <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
     </ClCompile>
@@ -888,6 +834,9 @@
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_PostProcess.hlsl">
       <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_Compute_AnimMeshSkinning.hlsl">
+      <Filter>97.ShaderFiles\Compute</Filter>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>

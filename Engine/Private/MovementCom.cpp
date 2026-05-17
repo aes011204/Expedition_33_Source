@@ -3,6 +3,7 @@
 #include "TransformCom.h"
 #include "Camera.h"
 #include "ColliderCom.h"
+#include "Debug_Profile.h"
 #include "Helper_Math.h"
 #include "PhysicsCharacterController.h"
 #include "PhysX_Types.h"
@@ -89,6 +90,8 @@ void MovementCom::BeginPlay()
 
 void MovementCom::Update_Movement(float timeDelta)
 {
+    Debug_Profile::Scope profileScope("Movement::Update");
+
     CHECK_NULL(_transformCom);
 
     Update_Rotation(timeDelta);
@@ -99,6 +102,33 @@ void MovementCom::Update_Movement(float timeDelta)
     if (_moveDesc.backend == MoveBackend::Sweep || _characterController == nullptr)
         Resolve_Ground_WithSnap();
 
+}
+
+void MovementCom::Set_MoveBackend(MoveBackend backend)
+{
+    if (_moveDesc.backend == backend)
+    {
+        if (backend == MoveBackend::PhysXCCT && _characterController == nullptr && _transformCom != nullptr)
+        {
+            Create_CharacterController(); // active로 다시 올라왔는데 CCT가 없으면 복구
+        }
+
+        return;
+    }
+
+    if (backend == MoveBackend::Sweep)
+    {
+        Destroy_CharacterController(); // follower는 비싼 CCT를 들고 있지 않게 한다. -> 이건 테스트
+        _moveDesc.backend = MoveBackend::Sweep;
+        return;
+    }
+
+    _moveDesc.backend = MoveBackend::PhysXCCT;
+
+    if (_transformCom != nullptr && _characterController == nullptr)
+    {
+        Create_CharacterController(); // active hero가 됐을 때 현재 위치 기준으로 CCT 생성
+    }
 }
 
 bool MovementCom::Is_Moving() const
@@ -246,6 +276,8 @@ void MovementCom::Update_VerticalVelocity(float timeDelta)
 
 void MovementCom::Apply_Velocity(float timeDelta)
 {
+    Debug_Profile::Scope profileScope("Movement::ApplyVelocity");
+
     Update_HorizontalVelocity();
     Update_VerticalVelocity(timeDelta);
 
@@ -253,7 +285,9 @@ void MovementCom::Apply_Velocity(float timeDelta)
 
     if (_moveDesc.backend == MoveBackend::PhysXCCT && _characterController != nullptr)
     {
-        // 정지 + 접지 상태에서는 CCT query를 생략해서 idle 프레임 비용을 줄인다.
+        Debug_Profile::Scope cctScope("Movement::ApplyVelocity::CCT");
+
+        // 정지 상태에서는 일단 스킵
         if (_isGrounded && !_isJumping && displacement.LengthSquared() <= 0.000001f)
             return;
 
@@ -276,6 +310,8 @@ void MovementCom::Apply_Velocity(float timeDelta)
 
         return;
     }
+
+    Debug_Profile::Scope sweepScope("Movement::ApplyVelocity::Sweep");
 
     if (_colliderCom == nullptr || _colliderCom->Get_PxShape() == nullptr)
     {
@@ -608,6 +644,15 @@ void MovementCom::Create_CharacterController()
     }
 }
 
+void MovementCom::Destroy_CharacterController()
+{
+    if (_characterController == nullptr)
+        return;
+
+    _characterController->Free(); 
+    _characterController.reset();
+}
+
 Vec3 MovementCom::Get_CCTFootPosition_FromTransform() const
 {
     CHECK_NULL(_transformCom, Vec3::Zero);
@@ -663,5 +708,7 @@ Shared<Component> MovementCom::Clone(void* arg)
 
 void MovementCom::Free()
 {
+    Destroy_CharacterController();
+
     Component::Free();
 }

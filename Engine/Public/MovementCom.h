@@ -94,6 +94,9 @@ public:
 public:
     void Apply_Input(const MovementInput& input) { _input = input; }
 
+    MoveBackend Get_MoveBackend() const { return _moveDesc.backend; }
+    void Set_MoveBackend(MoveBackend backend);
+
     void Set_Transform(const Shared<TransformCom> transform)
     {
         _transformCom = transform;
@@ -153,6 +156,8 @@ private:
     bool Is_WalkableGround(const Vec3& normal) const;
 
     void Create_CharacterController();
+    void Destroy_CharacterController();
+
     Vec3 Get_CCTFootPosition_FromTransform() const; // 현재 위치 -> CCT 발 위치 환산
     void Sync_Transform_FromCCT(const Vec3& footPosition, float timeDelta, bool smoothGrounding); // CCT 결과 -> Transform
 
