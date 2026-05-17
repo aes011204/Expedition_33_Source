@@ -165,7 +165,7 @@ private:
         int32 stateIndex);
 
 public:
-    bool Ensure_AnimStateAssetLoaded();
+    bool Ensure_AnimStateAssetLoaded(const string& sourceObjectGUID);
 
 public: /* 머리 붙이기 */
     void Set_LeaderPoseComponent(const ModelCom* leaderModel);
@@ -179,7 +179,7 @@ public: /* PhysX 충돌 */
     const vector<ModelCollisionMesh>& Get_CollisionMeshes() const { return _collisionMeshes; }
 
 public:
-    void Set_AnimEnumType(const wstring& enumType) { _animEnumType = enumType; Ensure_AnimStateAssetLoaded(); }
+    void Set_AnimEnumType(const wstring& enumType) { _animEnumType = enumType; }
     const wstring& Get_AnimEnumType() const { return _animEnumType; }
 
 private:
