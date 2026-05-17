@@ -151,6 +151,8 @@ HRESULT MapStaticMesh::Render_Shadow()
     {
         if (FAILED(_shader->Begin(1)))
             return E_FAIL;
+    }
+}
 
 HRESULT MapStaticMesh::RenderPickingID(uint32 id)
 {

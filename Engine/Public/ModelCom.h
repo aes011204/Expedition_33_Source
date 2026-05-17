@@ -175,6 +175,8 @@ private:
 
 public:
     bool Ensure_AnimStateAssetLoaded(const string& sourceObjectGUID);
+    bool Refresh_AnimStateMappingFromOwnerContext();
+
 
 public: /* 머리 붙이기 */
     void Set_LeaderPoseComponent(const ModelCom* leaderModel);

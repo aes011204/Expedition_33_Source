@@ -5,6 +5,7 @@
 #include "PostProcessPipeline.h"
 #include "ShaderCom.h"
 #include "VIBuffer_Rect.h"
+#include "Debug_Profile.h"
 
 Renderer::Renderer(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : _device{ device }
@@ -629,6 +630,8 @@ void Renderer::Update_DynamicShadowCamera()
 
 void Renderer::Render_StaticShadowOnce()
 {
+    Debug_Profile::Scope profileScope("Render::StaticShadow");
+
     if (!_staticShadowDirty)
         return;
 
@@ -666,6 +669,8 @@ void Renderer::Render_StaticShadowOnce()
 
 void Renderer::Render_DynamicShadow()
 {
+    Debug_Profile::Scope profileScope("Render::DynamicShadow");
+
     Update_DynamicShadowCamera();
 
     if (FAILED(GAME->Begin_MRT(MRT::ShadowObjects, UseDSV, ClearRTV)))

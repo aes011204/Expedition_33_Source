@@ -47,6 +47,14 @@ void Player_WorldBase::BeginPlay()
 {
     Character_WorldBase::BeginPlay();
 
+    if (auto* body = dynamic_cast<Body_Player*>(Get_PartObject(L"Part_Body")))
+    {
+        if (Shared<ModelCom> model = body->Get_Model())
+        {
+            model->Refresh_AnimStateMappingFromOwnerContext();
+        }
+    }
+
     _PlayerStateMachineCom->Change_State(PlayerState::Idle);
 }
 

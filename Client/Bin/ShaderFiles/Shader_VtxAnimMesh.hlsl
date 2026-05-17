@@ -279,8 +279,8 @@ technique11 DefaultTechnique
     PASS_RS_DS_BS_VP(OpaqueTwoSidedPass,    RS_CullNone,    DSS_Default, BS_Default, VS_Main,   PS_Opaque)          // 2
     PASS_RS_DS_BS_VP(MaskedTwoSidedPass,    RS_CullNone,    DSS_Default, BS_Default, VS_Main,   PS_Mask)            // 3
     PASS_RS_DS_BS_VP(ShadowPass,            RS_Default,     DSS_Default, BS_Default, VS_Shadow, PS_Shadow)          // 4
-    PASS_RS_DS_BS_VP(CharacterEye,          RS_Default,     DSS_Default, BS_Default, VS_Main,   PS_CharacterEye)      // 5
-    PASS_RS_DS_BS_VP(CharacterHair,         RS_CullNone,    DSS_Default, BS_Default, VS_Main,   PS_CharacterHair)     // 6
-    PASS_RS_DS_BS_VP(IDPass,                RS_Default,     DSS_Default, BS_Default, VS_Main,   PS_ID)                                   // 7
+    PASS_RS_DS_BS_VP(CharacterEye,          RS_Default,     DSS_Default, BS_Default, VS_Main,   PS_CharacterEye)    // 5
+    PASS_RS_DS_BS_VP(CharacterHair,         RS_CullNone,    DSS_Default, BS_Default, VS_Main,   PS_CharacterHair)   // 6
+    PASS_RS_DS_BS_VP(IDPass,                RS_Default,     DSS_Default, BS_Default, VS_Main,   PS_ID)              // 7
 }
 

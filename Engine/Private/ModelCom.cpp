@@ -809,36 +809,40 @@ bool ModelCom::Play_Animation(float timeDelta)
 
     int32 rootIndex = _isRootMotion ? _rootNodeIndex : -1;
 
-    if (_isBlending)
     {
-        _blendElapsedTime += adjustedTimeDelta;
-        float ratio = _blendElapsedTime / _blendDuration;
+        Debug_Profile::Scope profileScope("AnimMesh::PlayAnimation::UpdateMatrices");
 
-        if (ratio >= 1.f)
+        if (_isBlending)
         {
-            _isBlending = false;
-            _currentAnimIndex = _nextAnimIndex;
-            _currentAnimStateIndex = _nextAnimStateIndex;
-            _isFinished = _animations[_currentAnimIndex]->Update_TransformationMatrices(adjustedTimeDelta, _bones, _isAnimLoop, rootIndex);
-            _rootOriginalFrameVelocity = rootIndex >= 0 ? _animations[_currentAnimIndex]->Get_TransformVelocity(rootIndex) : RootMotionFrame{};
+            _blendElapsedTime += adjustedTimeDelta;
+            float ratio = _blendElapsedTime / _blendDuration;
+
+            if (ratio >= 1.f)
+            {
+                _isBlending = false;
+                _currentAnimIndex = _nextAnimIndex;
+                _currentAnimStateIndex = _nextAnimStateIndex;
+                _isFinished = _animations[_currentAnimIndex]->Update_TransformationMatrices(adjustedTimeDelta, _bones, _isAnimLoop, rootIndex);
+                _rootOriginalFrameVelocity = rootIndex >= 0 ? _animations[_currentAnimIndex]->Get_TransformVelocity(rootIndex) : RootMotionFrame{};
+            }
+            else
+            {
+                _animations[_currentAnimIndex]->Blend_TransformMatrix(adjustedTimeDelta, _animations[_nextAnimIndex], ratio, _bones, _isAnimLoop, rootIndex);
+
+                if (rootIndex >= 0)
+                {
+                    const auto& curDelta = _animations[_currentAnimIndex]->Get_TransformVelocity(rootIndex);
+                    const auto& nextDelta = _animations[_nextAnimIndex]->Get_TransformVelocity(rootIndex);
+                    _rootOriginalFrameVelocity.position = Vector3::Lerp(curDelta.position, nextDelta.position, ratio);
+                    _rootOriginalFrameVelocity.rotation = Quaternion::Slerp(curDelta.rotation, nextDelta.rotation, ratio);
+                }
+            }
         }
         else
         {
-            _animations[_currentAnimIndex]->Blend_TransformMatrix(adjustedTimeDelta, _animations[_nextAnimIndex], ratio, _bones, _isAnimLoop, rootIndex);
-
-            if (rootIndex >= 0)
-            {
-                const auto& curDelta = _animations[_currentAnimIndex]->Get_TransformVelocity(rootIndex);
-                const auto& nextDelta = _animations[_nextAnimIndex]->Get_TransformVelocity(rootIndex);
-                _rootOriginalFrameVelocity.position = Vector3::Lerp(curDelta.position, nextDelta.position, ratio);
-                _rootOriginalFrameVelocity.rotation = Quaternion::Slerp(curDelta.rotation, nextDelta.rotation, ratio);
-            }
+            _isFinished = _animations[_currentAnimIndex]->Update_TransformationMatrices(adjustedTimeDelta, _bones, _isAnimLoop, rootIndex);
+            _rootOriginalFrameVelocity = (rootIndex >= 0) ? _animations[_currentAnimIndex]->Get_TransformVelocity(rootIndex) : RootMotionFrame{};
         }
-    }
-    else
-    {
-        _isFinished = _animations[_currentAnimIndex]->Update_TransformationMatrices(adjustedTimeDelta, _bones, _isAnimLoop, rootIndex);
-        _rootOriginalFrameVelocity = (rootIndex >= 0) ? _animations[_currentAnimIndex]->Get_TransformVelocity(rootIndex) : RootMotionFrame{};
     }
 
     if (rootIndex >= 0)
@@ -849,9 +853,13 @@ bool ModelCom::Play_Animation(float timeDelta)
         _rootOriginalFrameVelocity.position.y = temp;
     }
 
-    for (uint32 i = 0; i < _numBones; ++i)
     {
-        _bones[i]->Update_CombinedTransformationMatrix(_bones, _preLocalTransformMatrix);
+        Debug_Profile::Scope profileScope("AnimMesh::PlayAnimation::CombinedBones");
+
+        for (uint32 i = 0; i < _numBones; ++i)
+        {
+            _bones[i]->Update_CombinedTransformationMatrix(_bones, _preLocalTransformMatrix);
+        }
     }
 
     Mark_BoneMatricesDirty();
@@ -859,29 +867,37 @@ bool ModelCom::Play_Animation(float timeDelta)
     const float currentTimeSec = Get_CurrentAnimationTimeSec();
     const bool wrapped = (_isAnimLoop && currentTimeSec < previousTimeSec);
 
-    if (Ensure_AnimNotifyAssetLoaded())
     {
-        if (const AnimNotifyData* animationData = Find_CurrentNotifyAnimation())
-        {
-            AnimNotifyContext context{};
-            context.owner = Get_Owner().get();
-            context.model = this;
-            context.modelGuid = _animNotifyAsset.modelGuid;
-            context.animationName = Get_AnimationName(_currentAnimIndex) ? Get_AnimationName(_currentAnimIndex) : "";
-            context.previousTimeSec = previousTimeSec;
-            context.currentTimeSec = currentTimeSec;
-            context.deltaTime = adjustedTimeDelta;
-            context.isLooping = _isAnimLoop;
-            context.wrapped = wrapped;
-            context.isPreview = !_isAnimNotifyExecutionEnabled;
+        Debug_Profile::Scope profileScope("AnimMesh::PlayAnimation::Notify");
 
-            Update_AnimNotifies(*animationData, context, _isAnimNotifyExecutionEnabled);
-            Update_AnimNotifyStates(*animationData, context, _isAnimNotifyExecutionEnabled);
+        if (Ensure_AnimNotifyAssetLoaded())
+        {
+            if (const AnimNotifyData* animationData = Find_CurrentNotifyAnimation())
+            {
+                AnimNotifyContext context{};
+                context.owner = Get_Owner().get();
+                context.model = this;
+                context.modelGuid = _animNotifyAsset.modelGuid;
+                context.animationName = Get_AnimationName(_currentAnimIndex) ? Get_AnimationName(_currentAnimIndex) : "";
+                context.previousTimeSec = previousTimeSec;
+                context.currentTimeSec = currentTimeSec;
+                context.deltaTime = adjustedTimeDelta;
+                context.isLooping = _isAnimLoop;
+                context.wrapped = wrapped;
+                context.isPreview = !_isAnimNotifyExecutionEnabled;
+
+                Update_AnimNotifies(*animationData, context, _isAnimNotifyExecutionEnabled);
+                Update_AnimNotifyStates(*animationData, context, _isAnimNotifyExecutionEnabled);
+            }
         }
     }
 
-    if (_isFinished && !_isAnimLoop)
-        Stop_AllNotifyStates(_isAnimNotifyExecutionEnabled);
+    {
+        Debug_Profile::Scope profileScope("AnimMesh::PlayAnimation::StopNotifyStates");
+
+        if (_isFinished && !_isAnimLoop)
+            Stop_AllNotifyStates(_isAnimNotifyExecutionEnabled);
+    }
 
     return _isFinished;
 }
@@ -2062,10 +2078,24 @@ bool ModelCom::Ensure_AnimStateAssetLoaded(const string& sourceObjectGUID)
     string targetPrefabGuid = "";
     if (Get_Owner())
     {
-        targetPrefabGuid = AnimState_Parser::Get_PrefabGuid(Get_Owner()->Get_SourcePrefabName());
+        auto prefabContextOwner = Get_Owner();
+        if (auto containerOwner = prefabContextOwner->Get_Owner())
+        {
+            if (!containerOwner->Get_SourcePrefabName().empty())
+            {
+                prefabContextOwner = containerOwner;
+            }
+        }
+
+        targetPrefabGuid = AnimState_Parser::Get_PrefabGuid(prefabContextOwner->Get_SourcePrefabName());
     }
 
     return AnimState_Parser::Load_StateAnimations(_sourceModelPath, _animations, _stateAnimIndices, &_animEnumType, targetPrefabGuid);
+}
+
+bool ModelCom::Refresh_AnimStateMappingFromOwnerContext()
+{
+    return Ensure_AnimStateAssetLoaded("");
 }
 
 void ModelCom::Reset_ModelData()

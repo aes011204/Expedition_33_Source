@@ -11,6 +11,10 @@
 #include "Inspector_Factory.h"
 #include "Notification_Manager.h"
 #include "Helper_String.h"
+#include "Player_WorldBase.h"
+#include "Player_BattleBase.h"
+#include "Body_Player.h"
+#include "ModelCom.h"
 #include "Profile_View.h"
 #include "Material_View.h"
 #include "Model_Inspector.h"
@@ -23,6 +27,28 @@ namespace
 {
 constexpr uint32 kDefaultPreviewViewportWidth = 1600;
 constexpr uint32 kDefaultPreviewViewportHeight = 900;
+
+void Refresh_PlayerBodyAnimMapping(const Shared<GameObject>& gameObject)
+{
+    if (auto worldPlayer = dynamic_pointer_cast<Player_WorldBase>(gameObject))
+    {
+        if (auto* body = dynamic_cast<Body_Player*>(worldPlayer->Get_PartObject(L"Part_Body")))
+        {
+            if (Shared<ModelCom> model = body->Get_Model())
+                model->Refresh_AnimStateMappingFromOwnerContext();
+        }
+        return;
+    }
+
+    if (auto battlePlayer = dynamic_pointer_cast<Player_BattleBase>(gameObject))
+    {
+        if (auto* body = dynamic_cast<Body_Player*>(battlePlayer->Get_PartObject(L"Part_Body")))
+        {
+            if (Shared<ModelCom> model = body->Get_Model())
+                model->Refresh_AnimStateMappingFromOwnerContext();
+        }
+    }
+}
 }
 
 EditorInstance::EditorInstance()
@@ -439,6 +465,7 @@ void EditorInstance::Apply_SavedPrefabToCurrentLevel(const string& prefabName, c
 
             gameObject->From_Json(prefabRoot);
             gameObject->Set_SourcePrefabName(prefabName);
+            Refresh_PlayerBodyAnimMapping(gameObject);
 
             if (transform != nullptr)
             {
@@ -777,10 +804,12 @@ HRESULT EditorInstance::Restore_CurrentLevelObjects(const vector<EditorWorldObje
         if (gameObject != nullptr)
         {
             gameObject->From_Json(snapshot.objectJson);
+            Refresh_PlayerBodyAnimMapping(gameObject);
         }
         else
         {
             gameObject = GAME->Instantiate_GameObjectJson(snapshot.objectJson);
+            Refresh_PlayerBodyAnimMapping(gameObject);
         }
 
         if (gameObject == nullptr)
