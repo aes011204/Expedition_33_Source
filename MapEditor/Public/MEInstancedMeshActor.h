@@ -27,6 +27,7 @@ public:
     virtual HRESULT Initialize(void* arg) override;
     virtual void Late_Update(float timeDelta) override;
     virtual HRESULT Render() override;
+    virtual HRESULT RenderPickingID(uint32 id) override;
 
 private:
     Shared<ModelCom> _model;

@@ -42,6 +42,7 @@ public:
     virtual void Update(float timeDelta) override;
     virtual void Late_Update(float timeDelta) override;
     virtual HRESULT Render() override;
+    virtual HRESULT RenderPickingID(uint32 id) override;
 
 private:
     Shared<ShaderCom> _shader;

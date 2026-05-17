@@ -157,9 +157,6 @@
     <Filter Include="Skill">
       <UniqueIdentifier>{08ca65e3-4c52-440c-a6ee-2cdc0dbb87ff}</UniqueIdentifier>
     </Filter>
-    <Filter Include="02.GameObject\Map\MapInstancedMesh">
-      <UniqueIdentifier>{48582af2-9fa3-4baf-bee3-b247fe81d3f0}</UniqueIdentifier>
-    </Filter>
     <Filter Include="02.GameObject\Effect\Emitters">
       <UniqueIdentifier>{8bae37aa-aacf-470c-ac67-0f3a2cc238c7}</UniqueIdentifier>
     </Filter>
@@ -186,6 +183,9 @@
     </Filter>
     <Filter Include="02.GameObject\Monster\01. Battle">
       <UniqueIdentifier>{67722be3-2fa7-4894-aada-eddadce9c2e6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02.GameObject\Map\MapInstancedMesh">
+      <UniqueIdentifier>{48582af2-9fa3-4baf-bee3-b247fe81d3f0}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>

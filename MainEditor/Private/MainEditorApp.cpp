@@ -151,6 +151,9 @@ HRESULT MainEditorApp::Render()
 
         if (FAILED(GAME->Draw()))
             return fail();
+
+        // picking
+        EDITOR->Flush_PendingPick();
     }
 
     {

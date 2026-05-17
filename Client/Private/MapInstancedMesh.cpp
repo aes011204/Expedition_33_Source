@@ -57,9 +57,11 @@ HRESULT MapInstancedMesh::Initialize(void* arg)
         return E_FAIL;
     }
 
-    _cullShader = ComputeShaderCom::Create(_device, _context,
-        L"../../../Client/Bin/ShaderFiles/Compute/Shader_Compute_InstanceCull.hlsl",
-        "CS_Main");
+    if (FAILED(__super::Add_Component(ETOI(LevelType::Static),
+        TEXT("ComputeShader_InstanceCull"), _cullShader)))
+    {
+        return E_FAIL;
+    }
 
     CreateCullBuffers(matrices, pDesc->transforms);
 
@@ -145,6 +147,46 @@ HRESULT MapInstancedMesh::Render()
     return S_OK;
 }
 
+HRESULT MapInstancedMesh::RenderPickingID(uint32 id)
+{
+    if (_instanceCount == 0 || !_model || !_shader)
+    {
+        return S_OK;
+    }
+
+    if (FAILED(GAME->Bind_CameraCB(_shader)))
+    {
+        return E_FAIL;
+    }
+
+    Matrix identity = Matrix::Identity;
+    if (FAILED(_shader->Bind_Matrix("g_PreTransformMatrix", &identity)))
+    {
+        return E_FAIL;
+    }
+
+    if (FAILED(_shader->Bind_RawValue("g_iObjectID", &id, sizeof(uint32))))
+    {
+        return E_FAIL;
+    }
+
+    const uint32 numMeshes = static_cast<uint32>(_model->Get_NumMeshes());
+    for (uint32 i = 0; i < numMeshes; ++i)
+    {
+        if (FAILED(_shader->Begin(5)))
+        {
+            return E_FAIL;
+        }
+
+        if (FAILED(_model->RenderInstanced(i, _instanceVB.Get(), sizeof(Matrix), _instanceCount)))
+        {
+            return E_FAIL;
+        }
+    }
+
+    return S_OK;
+}
+
 HRESULT MapInstancedMesh::Ready_Components(const wstring& modelPath, Shared<ModelCom> sharedModel)
 {
     if (FAILED(__super::Add_Component(ETOI(LevelType::Static), TEXT("Shader_VtxMeshInstanceExact"), _shader)))
@@ -161,7 +203,9 @@ HRESULT MapInstancedMesh::Ready_Components(const wstring& modelPath, Shared<Mode
         string pathA = String::ToString(modelPath);
         _model = ModelCom::Create(_device, _context, ModelType::NonAnim, pathA.c_str(), Matrix::CreateScale(0.01f));
         if (!_model)
+        {
             return E_FAIL;
+        }
     }
 
     return S_OK;

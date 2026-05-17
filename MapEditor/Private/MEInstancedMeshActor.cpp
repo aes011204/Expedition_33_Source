@@ -104,6 +104,52 @@ HRESULT MEInstancedMeshActor::Render()
     return S_OK;
 }
 
+HRESULT MEInstancedMeshActor::RenderPickingID(uint32 id)
+{
+    if (_instanceCount == 0 || !_model || !_shader)
+    {
+        return S_OK;
+    }
+
+    if (FAILED(GAME->Bind_TransformMatrix(D3DTS::View, _shader.get(), "g_ViewMatrix")))
+    {
+        return E_FAIL;
+    }
+
+    if (FAILED(GAME->Bind_TransformMatrix(D3DTS::Proj, _shader.get(), "g_ProjMatrix")))
+    {
+        return E_FAIL;
+    }
+
+    Matrix identity = Matrix::Identity;
+    if (FAILED(_shader->Bind_Matrix("g_PreTransformMatrix", &identity)))
+    {
+        return E_FAIL;
+    }
+
+    if (FAILED(_shader->Bind_RawValue("g_iObjectID", &id, sizeof(uint32))))
+    {
+        return E_FAIL;
+    }
+
+    const uint32 numMeshes = static_cast<uint32>(_model->Get_NumMeshes());
+    for (uint32 i = 0; i < numMeshes; ++i)
+    {
+        if (FAILED(_shader->Begin(5)))
+        {
+            return E_FAIL;
+        }
+
+        if (FAILED(_model->RenderInstanced(i, _instanceVB.Get(), sizeof(Matrix), _instanceCount)))
+        {
+            return E_FAIL;
+        }
+    }
+
+    return S_OK;
+}
+
+
 HRESULT MEInstancedMeshActor::Bind_ShaderResources()
 {
     if (FAILED(GAME->Bind_TransformMatrix(D3DTS::View, _shader.get(), "g_ViewMatrix")))
@@ -128,7 +174,7 @@ HRESULT MEInstancedMeshActor::Bind_ShaderResources()
 HRESULT MEInstancedMeshActor::CreateCullBuffers(const vector<Matrix>& matrices, const vector<InstanceTransform>& transforms)
 {
     const uint32 count = static_cast<uint32>(matrices.size());
-    if (count == 0 || _cullShader)
+    if (count == 0 || !_cullShader)
     {
         return S_OK;
     }
@@ -169,7 +215,7 @@ HRESULT MEInstancedMeshActor::CreateCullBuffers(const vector<Matrix>& matrices, 
     }
 
     _sphereBuffer = ComputeStructuredBuffer::Create(_device, _context, sizeof(Vec4), count, spheres.data());
-    if (_sphereBuffer)
+    if (!_sphereBuffer)
     {
         return E_FAIL;
     }
@@ -205,6 +251,7 @@ HRESULT MEInstancedMeshActor::CreateCullBuffers(const vector<Matrix>& matrices, 
         D3D11_BUFFER_DESC bd{};
         bd.ByteWidth = sizeof(CullParams);
         bd.Usage = D3D11_USAGE_DYNAMIC;
+        bd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
         bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 
         _cullCB.Reset();
