@@ -1,0 +1,51 @@
+﻿#pragma once
+#include "GameObject.h"
+
+NS_BEGIN(Engine)
+
+// Effect root 아래에서 실제 simulation/render를 수행하는 하위 emitter runtime 공통 부모다.
+class ENGINE_DLL EffectEmitter abstract : public GameObject
+{
+public:
+    // effect root가 child emitter 생성 직후 주입하는 공통 runtime 상태다.
+    struct EffectEmitterRuntimeDesc
+    {
+        Shared<GameObject> effectOwner{};           // 이 emitter를 소유하는 effect root다.
+        uint32 emitterId{};                         // definition에서 내려온 emitter id다.
+        string emitterName{};                       // definition에서 내려온 emitter 이름이다.
+        Vec3 localPosition{ 0.f, 0.f, 0.f };        // root 기준 local 위치다.
+        Vec3 localRotationDegrees{ 0.f, 0.f, 0.f }; // root 기준 local 회전이다.
+        bool useLocalSpace{ false };                // true면 root transform을 따라간다.
+        bool enabled{ true };                       // root가 child를 활성 emitter로 볼지 여부다.
+    };
+
+public:
+    EffectEmitter(const ComPtr<Device>& device, const ComPtr<Context>& context);
+    EffectEmitter(const EffectEmitter& prototype);
+    ~EffectEmitter() override = default;
+
+public: //## Behavior::Attach
+    HRESULT Attach_ToEffect(const EffectEmitterRuntimeDesc& runtimeDesc); // root가 생성 직후 공통 runtime 상태를 주입한다.
+    void Sync_FromEffectOwner();                                          // root와 local/world 정책을 기준으로 emitter transform을 동기화한다.
+
+    bool Is_EmitterEnabled() const { return _enabled; }            // root fan-out 시 enabled gate로 사용한다.
+    uint32 Get_EmitterId() const { return _emitterId; }            // 디버그/추적용 emitter id 반환이다.
+    const string& Get_EmitterName() const { return _emitterName; } // 디버그/추적용 emitter 이름 반환이다.
+
+protected: //## Data::Runtime
+    Weak<GameObject> _effectOwner{};             // 이 emitter를 소유하는 effect root다.
+    uint32 _emitterId{};                         // definition 기반 emitter id다.
+    string _emitterName{};                       // definition 기반 emitter 이름이다.
+    Vec3 _localPosition{ 0.f, 0.f, 0.f };        // root 기준 local 위치다.
+    Vec3 _localRotationDegrees{ 0.f, 0.f, 0.f }; // root 기준 local 회전이다.
+    bool _useLocalSpace{ false };                // true면 root transform을 따라간다.
+    bool _enabled{ true };                       // root 수준 enabled 플래그다.
+
+protected: //## Hook
+    virtual void On_EffectTransformSynced() {}   // concrete emitter가 root sync 직후 내부 payload를 갱신할 때 override한다.
+
+public:
+    Shared<GameObject> Clone(void* arg) override = 0;
+};
+
+NS_END

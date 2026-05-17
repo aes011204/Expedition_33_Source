@@ -1,13 +1,11 @@
 ﻿#include "EffectEditorInstance.h"
 
-#include <directxtk/Effects.h>
-#include <directxtk/PrimitiveBatch.h>
-#include <directxtk/VertexTypes.h>
 #include "CommandHistory.h"
 #include "Editor_Context.h"
 #include "Editor_Window.h"
 #include "EffectEditorCamera.h"
 #include "EffectEditor_Manager.h"
+#include "EffectEmitterRegistration.h"
 #include "GameInstance.h"
 #include "ImGui_Manager.h"
 #include "Level_EffectEditor.h"
@@ -64,6 +62,9 @@ HRESULT EffectEditorInstance::Initialize_Editor(const EffectEditorDesc& editorDe
 
     _notificationManager = Notification_Manager::Create();
     CHECK_NULL(_notificationManager, E_FAIL);
+
+    // Effect emitter 등록
+    Register_ClientEffectEmitters();
 
     _runtimeState = EffectEditorRuntimeState::Edit;
     _runtimeTimeScale = 1.f;

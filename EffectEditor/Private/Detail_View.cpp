@@ -206,6 +206,41 @@ void Detail_View::Render_ModuleDetail(
             changed = _initialVelocityModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
         break;
 
+    case AuthoringModuleType::Acceleration:
+        if (auto* data = get_if<AccelerationModuleData>(&module.data))
+            changed = _accelerationModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
+        break;
+
+    case AuthoringModuleType::Drag:
+        if (auto* data = get_if<DragModuleData>(&module.data))
+            changed = _dragModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
+        break;
+
+    case AuthoringModuleType::VelocityOverLife:
+        if (auto* data = get_if<VelocityOverLifeModuleData>(&module.data))
+            changed = _velocityOverLifeModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
+        break;
+
+    case AuthoringModuleType::InitialRotation:
+        if (auto* data = get_if<InitialRotationModuleData>(&module.data))
+            changed = _initialRotationModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
+        break;
+
+    case AuthoringModuleType::RotationOverLife:
+        if (auto* data = get_if<RotationOverLifeModuleData>(&module.data))
+            changed = _rotationOverLifeModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
+        break;
+
+    case AuthoringModuleType::InitialRotationRate:
+        if (auto* data = get_if<InitialRotationRateModuleData>(&module.data))
+            changed = _initialRotationRateModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
+        break;
+
+    case AuthoringModuleType::RotationRateScaleByLife:
+        if (auto* data = get_if<RotationRateScaleByLifeModuleData>(&module.data))
+            changed = _rotationRateScaleByLifeModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
+        break;
+
     case AuthoringModuleType::InitialColor:
         if (auto* data = get_if<InitialColorModuleData>(&module.data))
             changed = _initialColorModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);

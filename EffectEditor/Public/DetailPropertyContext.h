@@ -24,6 +24,7 @@ public:
     bool Draw_Vector2DistributionGroup(const char* label, Vector2DistributionData& value, const Vector2DistributionData& defaultValue, float speed = 0.01f);
     bool Draw_Vector3DistributionGroup(const char* label, Vector3DistributionData& value, const Vector3DistributionData& defaultValue, float speed = 0.01f);
     bool Draw_ColorDistributionGroup(const char* label, ColorDistributionData& value, const ColorDistributionData& defaultValue);
+    bool Draw_ColorRgbDistributionGroup(const char* label, ColorDistributionData& value, const ColorDistributionData& defaultValue);
     bool Draw_BurstListProperty(vector<SpawnModuleData::ParticleBurstData>& burstList, const vector<SpawnModuleData::ParticleBurstData>& defaultValue);
     bool Draw_ScreenAlignmentProperty(const char* label, EmitterScreenAlignment& value, EmitterScreenAlignment defaultValue);
     bool Draw_SortModeProperty(const char* label, EmitterSortMode& value, EmitterSortMode defaultValue);
