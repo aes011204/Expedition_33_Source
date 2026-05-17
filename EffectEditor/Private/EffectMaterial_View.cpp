@@ -101,8 +101,8 @@ void EffectMaterial_View::Open_PresetBrowser()
     _statusMessage.clear();
     Refresh_PresetList();
 
-    if (_selectedPresetPath.empty() && !_presetPaths.empty())
-        Load_PresetFile(_presetPaths.front());
+    if (_selectedPresetPath.empty() && !_presetGuids.empty())
+        Load_PresetGuid(_presetGuids.front());
 
     Set_Open(true);
 }
@@ -279,14 +279,76 @@ void EffectMaterial_View::Render_MaterialInstanceTable(const char* tableId, cons
 
 void EffectMaterial_View::Refresh_PresetList()
 {
-    _presetPaths.clear();
+    _presetGuids.clear();
 
     if (GAME == nullptr)
         return;
 
     const vector<AssetMeta> presetAssets = GAME->Get_AssetsByType("EffectMaterial");
     for (const AssetMeta& assetMeta : presetAssets)
-        _presetPaths.push_back(assetMeta.fullPath);
+    {
+        if (assetMeta.guid.empty() || assetMeta.fullPath.empty())
+            continue;
+
+        _presetGuids.push_back(assetMeta.guid);
+    }
+}
+
+bool EffectMaterial_View::Load_PresetGuid(const string& guid)
+{
+    if (guid.empty())
+    {
+        _selectedPresetPath.clear();
+        _selectedPresetGuid.clear();
+        _selectedPresetType.clear();
+        _selectedPresetMaterial = EffectMaterialInstanceData{};
+        _statusMessage = "Material GUID is empty.";
+        return false;
+    }
+
+    if (GAME == nullptr)
+    {
+        _selectedPresetPath.clear();
+        _selectedPresetGuid.clear();
+        _selectedPresetType.clear();
+        _selectedPresetMaterial = EffectMaterialInstanceData{};
+        _statusMessage = "Asset manager is unavailable.";
+        return false;
+    }
+
+    const AssetMeta* assetMeta = GAME->Find_AssetByGUID(guid);
+    if (assetMeta == nullptr || assetMeta->fullPath.empty())
+    {
+        _selectedPresetPath.clear();
+        _selectedPresetGuid.clear();
+        _selectedPresetType.clear();
+        _selectedPresetMaterial = EffectMaterialInstanceData{};
+        _statusMessage = "Material GUID could not be resolved.";
+        LOG_ERROR("EffectMaterial material preset load failed: guid resolve failed. guid='{}'", guid);
+        return false;
+    }
+
+    if (!assetMeta->type.empty() && assetMeta->type != "EffectMaterial")
+    {
+        _selectedPresetPath.clear();
+        _selectedPresetGuid.clear();
+        _selectedPresetType.clear();
+        _selectedPresetMaterial = EffectMaterialInstanceData{};
+        _statusMessage = "Selected GUID is not an EffectMaterial.";
+        LOG_ERROR(
+            "EffectMaterial material preset load failed: guid type mismatch. guid='{}', type='{}'",
+            guid,
+            assetMeta->type
+        );
+        return false;
+    }
+
+    if (!Load_PresetFile(assetMeta->fullPath))
+        return false;
+
+    _selectedPresetGuid = guid;
+    _selectedPresetType = assetMeta->type.empty() ? "EffectMaterial" : assetMeta->type;
+    return true;
 }
 
 bool EffectMaterial_View::Load_PresetFile(const wstring& filePath)

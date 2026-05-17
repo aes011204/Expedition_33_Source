@@ -165,6 +165,36 @@ public:
         return changed;
     }
 
+    bool Draw_ColorRgbProperty(const char* label, Color& value, const Color& defaultValue)
+    {
+        ImGui::PushID(label);
+        Draw_PropertyLabel(label);
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        float rgb[3]{ value.R(), value.G(), value.B() };
+        bool changed = ImGui::ColorEdit3(
+            "##Value",
+            rgb,
+            ImGuiColorEditFlags_Float
+        );
+        if (changed)
+        {
+            value.R(clamp(rgb[0], 0.f, 1.f));
+            value.G(clamp(rgb[1], 0.f, 1.f));
+            value.B(clamp(rgb[2], 0.f, 1.f));
+        }
+        if (Draw_ResetButton(!Is_DefaultValue(value.R(), defaultValue.R()) ||
+                             !Is_DefaultValue(value.G(), defaultValue.G()) ||
+                             !Is_DefaultValue(value.B(), defaultValue.B())))
+        {
+            value.R(defaultValue.R());
+            value.G(defaultValue.G());
+            value.B(defaultValue.B());
+            changed = true;
+        }
+        ImGui::PopID();
+        return changed;
+    }
+
     bool Draw_UintProperty(const char* label, uint32& value, uint32 defaultValue)
     {
         ImGui::PushID(label);
@@ -536,6 +566,27 @@ public:
             if (_basicDrawer.Begin_PropertyTable("Distribution"))
             {
                 changed |= Draw_ColorDistributionProperty("분포 타입", value, defaultValue);
+                _basicDrawer.End_PropertyTable();
+            }
+
+            ImGui::TreePop();
+        }
+        ImGui::PopID();
+
+        return changed;
+    }
+
+    bool Draw_ColorRgbDistributionGroup(const char* label, ColorDistributionData& value, const ColorDistributionData& defaultValue)
+    {
+        bool changed = false;
+
+        ImGui::PushID(label);
+        const bool isOpen = ImGui::TreeNodeEx(label, ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth);
+        if (isOpen)
+        {
+            if (_basicDrawer.Begin_PropertyTable("Distribution"))
+            {
+                changed |= Draw_ColorRgbDistributionProperty("분포 타입", value, defaultValue);
                 _basicDrawer.End_PropertyTable();
             }
 
@@ -1169,6 +1220,89 @@ private:
         return changed;
     }
 
+    bool Draw_ColorRgbDistributionProperty(
+        const char* label,
+        ColorDistributionData& value,
+        const ColorDistributionData& defaultValue)
+    {
+        bool changed = false;
+
+        ImGui::PushID(label);
+        DistributionMode nextMode = value.mode;
+        ImGui::PushID("DistributionModeRow");
+        _basicDrawer.Draw_PropertyLabel(label);
+        bool modeChanged = false;
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        if (ImGui::BeginCombo("##Value", Get_DistributionModeLabel(DistributionValueKind::Color, nextMode)))
+        {
+            auto draw_selectable = [&](DistributionMode mode, bool enabled)
+            {
+                if (!enabled)
+                    ImGui::BeginDisabled();
+                const bool isSelected = nextMode == mode;
+                if (ImGui::Selectable(Get_DistributionModeLabel(DistributionValueKind::Color, mode), isSelected) && enabled)
+                {
+                    nextMode = mode;
+                    modeChanged = true;
+                }
+                if (isSelected)
+                    ImGui::SetItemDefaultFocus();
+                if (!enabled)
+                    ImGui::EndDisabled();
+            };
+
+            draw_selectable(DistributionMode::Constant, true);
+            draw_selectable(DistributionMode::Uniform, true);
+            draw_selectable(DistributionMode::ConstantCurve, false);
+            draw_selectable(DistributionMode::UniformCurve, false);
+            draw_selectable(DistributionMode::ParticleParameter, false);
+            ImGui::EndCombo();
+        }
+
+        const bool resetDistribution = _basicDrawer.Draw_ResetButton(!Is_DefaultValue(value, defaultValue));
+        if (resetDistribution)
+        {
+            value = defaultValue;
+            changed = true;
+        }
+        else if (modeChanged)
+        {
+            Transition_ColorDistributionMode(value, nextMode);
+            changed = true;
+        }
+        ImGui::PopID();
+
+        _basicDrawer.Push_RowTint(Get_DistributionPayloadRowTint());
+        switch (value.mode)
+        {
+        case DistributionMode::Constant:
+            if (auto* constant = get_if<ConstantColorDistributionData>(&value.payload))
+            {
+                const auto* defaultConstant = get_if<ConstantColorDistributionData>(&defaultValue.payload);
+                const Color defaultField = defaultConstant != nullptr ? defaultConstant->value : constant->value;
+                changed |= _basicDrawer.Draw_ColorRgbProperty("상수 RGB", constant->value, defaultField);
+            }
+            break;
+        case DistributionMode::Uniform:
+            if (auto* uniform = get_if<UniformColorDistributionData>(&value.payload))
+            {
+                const auto* defaultUniform = get_if<UniformColorDistributionData>(&defaultValue.payload);
+                const Color defaultMin = defaultUniform != nullptr ? defaultUniform->minValue : uniform->minValue;
+                const Color defaultMax = defaultUniform != nullptr ? defaultUniform->maxValue : uniform->maxValue;
+                changed |= _basicDrawer.Draw_ColorRgbProperty("최소 RGB", uniform->minValue, defaultMin);
+                changed |= _basicDrawer.Draw_ColorRgbProperty("최대 RGB", uniform->maxValue, defaultMax);
+                Normalize_ColorUniform(*uniform);
+            }
+            break;
+        default:
+            break;
+        }
+        _basicDrawer.Pop_RowTint();
+
+        ImGui::PopID();
+        return changed;
+    }
+
     static bool Is_DefaultValue(float value, float defaultValue) { return value == defaultValue; }
     static bool Is_DefaultValue(const Vec2& value, const Vec2& defaultValue) { return value.x == defaultValue.x && value.y == defaultValue.y; }
 
@@ -1508,6 +1642,11 @@ bool DetailPropertyContext::Draw_Vector3DistributionGroup(
 bool DetailPropertyContext::Draw_ColorDistributionGroup(const char* label, ColorDistributionData& value, const ColorDistributionData& defaultValue)
 {
     return _distributionDrawer->Draw_ColorDistributionGroup(label, value, defaultValue);
+}
+
+bool DetailPropertyContext::Draw_ColorRgbDistributionGroup(const char* label, ColorDistributionData& value, const ColorDistributionData& defaultValue)
+{
+    return _distributionDrawer->Draw_ColorRgbDistributionGroup(label, value, defaultValue);
 }
 
 bool DetailPropertyContext::Draw_BurstListProperty(
