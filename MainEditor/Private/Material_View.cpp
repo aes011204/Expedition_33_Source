@@ -1377,7 +1377,7 @@ void Material_View::Draw_MappingsEditorUI(int selectedMaterialIndexFilter, const
             if (toggled && inst->cbMask.uvScale && hasBaseCb) inst->cb.uvScale = baseCb.uvScale;
             ImGui::BeginDisabled(!inst->cbMask.uvScale);
             float uvScale[2] = { inst->cb.uvScale.x, inst->cb.uvScale.y };
-            if (ImGui::InputFloat2("UV Scale", uvScale))
+            if (ImGui::DragFloat2("UV Scale", uvScale))
             {
                 inst->cb.uvScale = Engine::Vec2(uvScale[0], uvScale[1]);
                 anyChanged = true;
@@ -1398,7 +1398,7 @@ void Material_View::Draw_MappingsEditorUI(int selectedMaterialIndexFilter, const
             if (toggled && inst->cbMask.uvOffset && hasBaseCb) inst->cb.uvOffset = baseCb.uvOffset;
             ImGui::BeginDisabled(!inst->cbMask.uvOffset);
             float uvOffset[2] = { inst->cb.uvOffset.x, inst->cb.uvOffset.y };
-            if (ImGui::InputFloat2("UV Offset", uvOffset))
+            if (ImGui::DragFloat2("UV Offset", uvOffset))
             {
                 inst->cb.uvOffset = Engine::Vec2(uvOffset[0], uvOffset[1]);
                 anyChanged = true;
