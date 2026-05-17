@@ -20,6 +20,7 @@ public:
 
 public:
 	HRESULT Initialize(const LIGHT_DESC& lightDesc);
+    HRESULT Update_Desc(const LIGHT_DESC& lightDesc);
     HRESULT Render(Shared<ShaderCom> shader, Shared<VIBuffer_Rect> viBuffer);
 
 private:

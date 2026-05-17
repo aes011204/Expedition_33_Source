@@ -1113,6 +1113,11 @@ const LIGHT_DESC* GameInstance::Get_LightDesc(uint32 index)
     return _lightManager->Get_LightDesc(index);
 }
 
+const LIGHT_DESC* GameInstance::Get_PrimaryShadowLightDesc() const
+{
+    return _lightManager->Get_PrimaryShadowLightDesc();
+}
+
 uint32 GameInstance::Get_LightCount() const
 {
     return _lightManager->Get_LightCount();
@@ -1121,6 +1126,11 @@ uint32 GameInstance::Get_LightCount() const
 HRESULT GameInstance::Add_Light(const LIGHT_DESC& lightDesc)
 {
     return _lightManager->Add_Light(lightDesc);
+}
+
+HRESULT GameInstance::Update_PrimaryShadowLightDesc(const LIGHT_DESC& lightDesc)
+{
+    return _lightManager->Update_PrimaryShadowLightDesc(lightDesc);
 }
 
 HRESULT GameInstance::Render_Lights(Shared<ShaderCom> shader, Shared<VIBuffer_Rect> viBuffer)

@@ -50,6 +50,9 @@ private:
 
     HRESULT Bind_DeferredCB() const;
 
+    // 카메라가 플레이어 위치 추적
+    void Update_DynamicShadowCamera();
+
 private:
 	ComPtr<Device>  _device;
 	ComPtr<Context> _context;
@@ -75,7 +78,11 @@ private:
     uint32                          iDrawCall = 0;
 
     bool                            _usePreviewDeferredCombine = false;
-    
+
+private:
+    uint32 _shadowMapWidth = 4096;
+    uint32 _shadowMapHeight = 4096;
+
 #ifdef _DEBUG
 private:
     struct PerfCounter

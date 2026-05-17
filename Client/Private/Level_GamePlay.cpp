@@ -93,10 +93,10 @@ HRESULT Level_GamePlay::Ready_Lights()
     LIGHT_DESC LightDesc{};
 
     LightDesc.type = LightType::Directional;
-    LightDesc.direction = XMFLOAT4(1.f, -1.f, -1.f, 0.f);
-    LightDesc.diffuse = XMFLOAT4(1.f, 1.f, 1.f, 1.f);
-    LightDesc.ambient = XMFLOAT4(0.4f, 0.4f, 0.4f, 1.f);
-    LightDesc.specular = XMFLOAT4(1.f, 1.f, 1.f, 1.f);
+    LightDesc.direction = Vec4(1.f, -1.f, -1.f, 0.f);
+    LightDesc.diffuse = Vec4(1.f, 1.f, 1.f, 1.f);
+    LightDesc.ambient = Vec4(0.4f, 0.4f, 0.4f, 1.f);
+    LightDesc.specular = Vec4(1.f, 1.f, 1.f, 1.f);
 
     if (FAILED(GAME->Add_Light(LightDesc)))
         return E_FAIL;
@@ -210,7 +210,7 @@ HRESULT Level_GamePlay::Ready_Layer_Monster(const wstring& strLayerTag)
 
 HRESULT Level_GamePlay::Ready_Layer_Player(const wstring& strLayerTag)
 {
-    Vec3 startPos = Vec3(205.f, -4020.5f, -1.24f);
+    Vec3 startPos = Vec3(82.f, 5.14f, -0.24f);
     CHECK_FAILED(CLIENT->Initialize_Hero(ETOI(LevelType::GamePlay), strLayerTag, startPos), E_FAIL);
 
     return S_OK;

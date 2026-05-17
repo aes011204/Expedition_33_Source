@@ -45,6 +45,7 @@ using ShadowLightDesc = struct tagShadowLightDesc
 {
     Vec3    eye;
     Vec3    at;
+
     float   fovy = DirectX::XMConvertToRadians(120.f); // rad
     float   aspect = 16.f / 9.f;
     float   zn = 0.1f;
@@ -52,6 +53,16 @@ using ShadowLightDesc = struct tagShadowLightDesc
 
     float   bias = 0.03f;
     float   intensity = 0.5f;
+
+    // Cascade Shadow 추가
+    bool followCameraFrustum = true;     // true면 메인 카메라 frustum 기준으로 shadow view/proj를 매 프레임 갱신한다.
+    float focusNear = 0.1f;              // shadow가 커버할 카메라 기준 시작 거리.
+    float focusFar = 80.f;               // 단일 shadow가 커버할 카메라 기준 끝 거리. 너무 크면 품질이 떨어진다.
+    float lightDistancePadding = 30.f;   // light view eye를 frustum center에서 얼마나 뒤로 뺄지.
+    float xyPadding = 4.f;               // frustum AABB 좌우/상하 여유.
+    float zPadding = 80.f;               // light space depth 여유.
+    uint32 shadowMapWidth = 4096;
+    uint32 shadowMapHeight = 4096;
 };
 
 using AssetMeta = struct tagAssetMeta

@@ -4,6 +4,7 @@
 #include "Component_Inspector.h"
 #include "Editor_Context.h"
 #include "EditorInstance.h"
+#include "GameInstance.h"
 #include "GameObject.h"
 #include "Helper_String.h"
 #include "Inspector_Factory.h"
@@ -30,6 +31,17 @@ void Inspector::Render()
         _isFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows);
 
         Shared<GameObject> selectedObject = EDITOR->Selected_Object();
+        if (_isPrimaryShadowLightTarget && selectedObject != nullptr)
+            _isPrimaryShadowLightTarget = false;
+
+        if (_isPrimaryShadowLightTarget)
+        {
+            Draw_PrimaryShadowLightInspector();
+            Set_Open(isOpen);
+            ImGui::End();
+            return;
+        }
+
         if (selectedObject == nullptr)
         {
             ImGui::TextUnformatted("No Selected");
@@ -45,6 +57,150 @@ void Inspector::Render()
 
     Set_Open(isOpen);
     ImGui::End();
+}
+
+void Inspector::Set_PrimaryShadowLightTarget(bool enabled)
+{
+    _isPrimaryShadowLightTarget = enabled;
+
+    if (enabled)
+        EDITOR->Clear_SelectedObject();
+}
+
+void Inspector::Draw_PrimaryShadowLightInspector()
+{
+    const LIGHT_DESC* sourceLight = GAME->Get_PrimaryShadowLightDesc();
+    if (sourceLight == nullptr && GAME->Get_LightCount() > 0)
+        sourceLight = GAME->Get_LightDesc(0);
+
+    const ShadowLightDesc* sourceShadow = GAME->Get_ShadowLightDesc();
+
+    ImGui::TextUnformatted("Name: Primary Shadow Light");
+    ImGui::Separator();
+
+    if (sourceLight == nullptr)
+    {
+        ImGui::TextDisabled("현재 레벨에 Light가 없음");
+        return;
+    }
+
+    if (sourceShadow == nullptr)
+    {
+        ImGui::TextDisabled("Shadow 시스템이 초기화되지 않음");
+        return;
+    }
+
+    LIGHT_DESC lightDesc = *sourceLight;
+    ShadowLightDesc shadowDesc = *sourceShadow;
+
+    bool lightChanged = false;
+    bool shadowChanged = false;
+
+    if (ImGui::CollapsingHeader("Directional Light", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextDisabled("Type");
+        ImGui::SameLine(InspectorLabelWidth);
+        ImGui::TextUnformatted(lightDesc.type == LightType::Directional ? "Directional" : "Non-Directional");
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextDisabled("Cast Shadow");
+        ImGui::SameLine(InspectorLabelWidth);
+        lightChanged |= ImGui::Checkbox("##CastShadow", &lightDesc.castShadow);
+
+        float direction[3] = { lightDesc.direction.x, lightDesc.direction.y, lightDesc.direction.z };
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextDisabled("Direction");
+        ImGui::SameLine(InspectorLabelWidth);
+        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+        if (ImGui::DragFloat3("##LightDirection", direction, 0.01f))
+        {
+            lightDesc.direction.x = direction[0];
+            lightDesc.direction.y = direction[1];
+            lightDesc.direction.z = direction[2];
+            lightChanged = true;
+        }
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextDisabled("Diffuse");
+        ImGui::SameLine(InspectorLabelWidth);
+        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+        lightChanged |= ImGui::ColorEdit4("##LightDiffuse", &lightDesc.diffuse.x, ImGuiColorEditFlags_Float | ImGuiColorEditFlags_AlphaBar);
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextDisabled("Ambient");
+        ImGui::SameLine(InspectorLabelWidth);
+        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+        lightChanged |= ImGui::ColorEdit4("##LightAmbient", &lightDesc.ambient.x, ImGuiColorEditFlags_Float | ImGuiColorEditFlags_AlphaBar);
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextDisabled("Specular");
+        ImGui::SameLine(InspectorLabelWidth);
+        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+        lightChanged |= ImGui::ColorEdit4("##LightSpecular", &lightDesc.specular.x, ImGuiColorEditFlags_Float | ImGuiColorEditFlags_AlphaBar);
+    }
+
+    if (ImGui::CollapsingHeader("Shadow", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextDisabled("Eye");
+        ImGui::SameLine(InspectorLabelWidth);
+        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+        shadowChanged |= ImGui::DragFloat3("##ShadowEye", &shadowDesc.eye.x, 0.1f);
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextDisabled("Target");
+        ImGui::SameLine(InspectorLabelWidth);
+        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+        shadowChanged |= ImGui::DragFloat3("##ShadowTarget", &shadowDesc.at.x, 0.1f);
+
+        float fovyDegree = DirectX::XMConvertToDegrees(shadowDesc.fovy);
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextDisabled("FOV Y");
+        ImGui::SameLine(InspectorLabelWidth);
+        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+        if (ImGui::DragFloat("##ShadowFovY", &fovyDegree, 0.1f, 1.f, 179.f, "%.2f deg"))
+        {
+            shadowDesc.fovy = DirectX::XMConvertToRadians(fovyDegree);
+            shadowChanged = true;
+        }
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextDisabled("Aspect");
+        ImGui::SameLine(InspectorLabelWidth);
+        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+        shadowChanged |= ImGui::DragFloat("##ShadowAspect", &shadowDesc.aspect, 0.01f, 0.1f, 10.f);
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextDisabled("Near / Far");
+        ImGui::SameLine(InspectorLabelWidth);
+        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+        float nearFar[2] = { shadowDesc.zn, shadowDesc.zf };
+        if (ImGui::DragFloat2("##ShadowNearFar", nearFar, 0.1f, 0.001f, 10000.f))
+        {
+            shadowDesc.zn = nearFar[0];
+            shadowDesc.zf = nearFar[1];
+            shadowChanged = true;
+        }
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextDisabled("Bias");
+        ImGui::SameLine(InspectorLabelWidth);
+        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+        shadowChanged |= ImGui::DragFloat("##ShadowBias", &shadowDesc.bias, 0.001f, 0.f, 1.f, "%.5f");
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextDisabled("Intensity");
+        ImGui::SameLine(InspectorLabelWidth);
+        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+        shadowChanged |= ImGui::DragFloat("##ShadowIntensity", &shadowDesc.intensity, 0.01f, 0.f, 1.f);
+    }
+
+    if (lightChanged)
+        GAME->Update_PrimaryShadowLightDesc(lightDesc);
+
+    if (shadowChanged)
+        GAME->Update_ShadowLight(shadowDesc);
 }
 
 bool Inspector::Draw_ComponentOverride(const Shared<Component>& component)

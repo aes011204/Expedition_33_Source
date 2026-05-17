@@ -243,8 +243,10 @@ public: /* For.Input_Manager */
 
 public: /* For.Light_Manager */
     const LIGHT_DESC* Get_LightDesc(uint32 index);
+    const LIGHT_DESC* Get_PrimaryShadowLightDesc() const;
     uint32  Get_LightCount() const;
     HRESULT Add_Light(const LIGHT_DESC& lightDesc);
+    HRESULT Update_PrimaryShadowLightDesc(const LIGHT_DESC& lightDesc);
     HRESULT Render_Lights(Shared<ShaderCom> shader, Shared<VIBuffer_Rect> viBuffer);
     void    Clear_Lights();
     void    Get_LightDescs(vector<LIGHT_DESC>& outLightDescs) const;

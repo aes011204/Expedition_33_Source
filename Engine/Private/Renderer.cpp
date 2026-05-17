@@ -185,6 +185,8 @@ void Renderer::Render_Priority()
 
 void Renderer::Render_Shadow()
 {
+    Update_DynamicShadowCamera();
+
     if (FAILED(GAME->Begin_MRT(L"MRT_ShadowObjects", true)))
         return;
 
@@ -485,6 +487,10 @@ HRESULT Renderer::Bind_DeferredCB() const
     deferredCB.farPlane = activeCamera->Get_Far();
 
     return _deferredShader->Bind_CBufferData(deferredCB);
+}
+
+void Renderer::Update_DynamicShadowCamera()
+{
 }
 
 void Renderer::Reset_RenderCall()
