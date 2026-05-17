@@ -119,8 +119,14 @@ HairMaterialSample SampleHairMaterial(float2 uv)
     float opacity = colorTex.a;
     if (HasMaterialTexture(MATERIAL_SLOT_OPACITY_MASK))
     {
-        opacity = g_MaterialTextures[MATERIAL_SLOT_OPACITY_MASK].Sample(LinearWrapSampler, uv).r;
+        float maskTex = g_MaterialTextures[MATERIAL_SLOT_OPACITY_MASK].Sample(LinearWrapSampler, uv).r;
+        // 헤어에서는 opacity mask를 우선한다. (알파 보조는 약하게만 사용)
+        opacity = lerp(maskTex, max(maskTex, colorTex.a), 0.15f);
     }
+
+    // 마스크 결을 살리기 위해 과한 채움 보정을 줄인다.
+    opacity = smoothstep(0.18f, 0.82f, saturate(opacity));
+    opacity = pow(opacity, 0.92f);
 
     // Depth
     // 일단은 PixelDepthOffset으로 쓰지않고, fake occlusion 값으로 사용
@@ -139,11 +145,13 @@ HairMaterialSample SampleHairMaterial(float2 uv)
     }
 
     // 간단한 Lune hair 테스트용 shading
-    float depthShade = lerp(0.82f, 1.08f, depth);
-    float idVaration = (id - 0.5f) * 0.18f;
+    float depthShade = lerp(0.90f, 1.03f, depth);
+    float idVaration = (id - 0.5f) * 0.07f;
 
     Out.baseColor = saturate(colorTex.rgb * g_BaseColorTint.rgb * depthShade + idVaration);
-    Out.opacity = opacity;
+    // depth/id 기반으로 미세 밀도 보정 (탈모처럼 비어 보이는 현상 완화)
+    float densityBoost = lerp(0.98f, 1.06f, depth) * lerp(0.99f, 1.03f, id);
+    Out.opacity = saturate(opacity * densityBoost);
     Out.depth = depth;
     Out.id = id;
 
