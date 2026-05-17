@@ -17,7 +17,7 @@ public:
     HRESULT Update_ShadowLight(const ShadowLightDesc& desc);
     HRESULT Update_FromCameraFrustum(
         const ShadowLightDesc& desc,
-        const Shared<Camera> camera,
+        const Shared<Camera>& camera,
         const Vec3& lightDir);
 
     HRESULT Bind_ShadowLightDesc(Shared<ShaderCom> shader, const char* lightFarName, const char* biasName, const char* intensityName);

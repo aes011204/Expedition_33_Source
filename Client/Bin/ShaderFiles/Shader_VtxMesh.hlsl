@@ -156,7 +156,7 @@ PS_OUT_SHADOW PS_Shadow(PS_IN In)
 {
     PS_OUT_SHADOW Out;
 
-    Out.LightDepth = vector(In.ProjPos.z / In.ProjPos.w, In.ProjPos.w / g_LightFar, 0.f, 1.f);
+    Out.LightDepth = vector(In.ProjPos.z / In.ProjPos.w, 0.f, 0.f, 1.f);
 
     return Out;
 }
@@ -193,7 +193,7 @@ PS_OUT_ID PS_ID(PS_IN In)
 technique11 DefaultTechnique
 {
     PASS_RS_DS_BS_VP(DefaultPass,         RS_Default,  DSS_Default, BS_Default, VS_Default, PS_Opaque)      // 0
-    PASS_RS_DS_BS_VP(ShadowPass,          RS_Default,  DSS_Default, BS_Default, VS_Default, PS_Shadow)      // 1
+    PASS_RS_DS_BS_VP(ShadowPass,          RS_Default,  DSS_Default, BS_Default, VS_Shadow,  PS_Shadow)      // 1
     PASS_RS_DS_BS_VP(NoTexturePass,       RS_Default,  DSS_Default, BS_Default, VS_Default, PS_NoTexture)   // 2
     PASS_RS_DS_BS_VP(MaskedPass,          RS_Default,  DSS_Default, BS_Default, VS_Default, PS_Mask)        // 3
     PASS_RS_DS_BS_VP(TwoSidedPass,        RS_CullNone, DSS_Default, BS_Default, VS_Default, PS_Opaque)      // 4

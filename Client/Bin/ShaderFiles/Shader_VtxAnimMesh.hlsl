@@ -198,7 +198,8 @@ PS_OUT_SHADOW PS_Shadow(VS_SHADOW_OUT In)
 {
     PS_OUT_SHADOW Out;
 
-    Out.LightDepth = vector(In.ProjPos.z / In.ProjPos.w, In.ProjPos.w / g_LightFar, 0.f, 1.f);
+    Out.LightDepth = vector(In.ProjPos.z / In.ProjPos.w, 0.f, 0.f, 1.f);
+
     return Out;
 }
 

@@ -97,23 +97,34 @@ HRESULT Level_GamePlay::Ready_Lights()
     LightDesc.diffuse = Vec4(1.f, 1.f, 1.f, 1.f);
     LightDesc.ambient = Vec4(0.4f, 0.4f, 0.4f, 1.f);
     LightDesc.specular = Vec4(1.f, 1.f, 1.f, 1.f);
+    LightDesc.castShadow = true;
 
     if (FAILED(GAME->Add_Light(LightDesc)))
         return E_FAIL;
 
-    ShadowLightDesc ShadowDesc{};
+    {
+        ShadowLightDesc ShadowDesc{};
 
-    ShadowDesc.eye = Vec3(-0.f, 10.f, -7.f);
-    ShadowDesc.at = Vec3(0.f, 0.f, 0.f);
-    ShadowDesc.fovy = DirectX::XMConvertToRadians(120.f);
-    ShadowDesc.aspect = 16.f / 9.f;
-    ShadowDesc.zn = 0.1f;
-    ShadowDesc.zf = 1000.f;
-    ShadowDesc.bias = 0.03f;
-    ShadowDesc.intensity = 0.4f;
+        ShadowDesc.eye = Vec3(0.f, 10.f, -7.f);
+        ShadowDesc.at = Vec3(0.f, 0.f, 0.f);
 
-    if (FAILED(GAME->Update_ShadowLight(ShadowDesc)))
-        return E_FAIL;
+        // Camera 따라다니게
+        ShadowDesc.followCameraFrustum = true;
+        ShadowDesc.focusNear = 0.1f;
+        ShadowDesc.focusFar = 40.f;
+        ShadowDesc.lightDistancePadding = 30.f;
+        ShadowDesc.xyPadding = 2.f;
+        ShadowDesc.zPadding = 40.f;
+
+        ShadowDesc.shadowMapWidth = 4096;
+        ShadowDesc.shadowMapHeight = 4096;
+
+        ShadowDesc.bias = 0.0002f;
+        ShadowDesc.intensity = 0.45f;
+
+        if (FAILED(GAME->Update_ShadowLight(ShadowDesc)))
+            return E_FAIL;
+    }
 
     return S_OK;
 }

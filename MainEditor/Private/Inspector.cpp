@@ -187,10 +187,10 @@ void Inspector::Draw_PrimaryShadowLightInspector()
         ImGui::TextDisabled("Bias");
         ImGui::SameLine(InspectorLabelWidth);
         ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
-        shadowChanged |= ImGui::DragFloat("##ShadowBias", &shadowDesc.bias, 0.001f, 0.f, 1.f, "%.5f");
+        shadowChanged |= ImGui::DragFloat("##ShadowBias", &shadowDesc.bias, 0.00005f, 0.f, 0.01f, "%.6f");
 
         ImGui::AlignTextToFramePadding();
-        ImGui::TextDisabled("Intensity");
+        ImGui::TextDisabled("Strength");
         ImGui::SameLine(InspectorLabelWidth);
         ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
         shadowChanged |= ImGui::DragFloat("##ShadowIntensity", &shadowDesc.intensity, 0.01f, 0.f, 1.f);

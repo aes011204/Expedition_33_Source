@@ -206,11 +206,9 @@ void Renderer::Render_Shadow()
 
     const uint32 originWidth = GAME->Get_ViewportWidth();
     const uint32 originHeight = GAME->Get_ViewportHeight();
-    const uint32 shadowWidth = static_cast<uint32>(originWidth * _shadowScale);
-    const uint32 shadowHeight = static_cast<uint32>(originHeight * _shadowScale);
 
     // 그림자용 사이즈로 변경
-    Change_ViewportDesc(shadowWidth, shadowHeight);
+    Change_ViewportDesc(_shadowMapWidth, _shadowMapHeight);
 
     for (auto& renderObject : _renderGroups[ETOI(RenderGroup::Shadow)])
     {
@@ -515,7 +513,7 @@ HRESULT Renderer::Ready_RenderTargets()
 
     // MRT_ShadowObjects
     CHECK_FAILED(GAME->Add_RenderTarget(RT::LightDepth,
-        width * static_cast<uint32>(_shadowScale), height * static_cast<uint32>(_shadowScale),
+        _shadowMapWidth, _shadowMapHeight,
         DXGI_FORMAT_R32G32B32A32_FLOAT, Color(1.f, 1.f, 1.f, 1.f), !resizeWithViewport, useDSV), E_FAIL);
 
 
@@ -619,15 +617,38 @@ HRESULT Renderer::Bind_TransformCB(Shared<ShaderCom> shader) const
     return shader->Bind_CBufferData(deferredCB);
 }
 
+void Renderer::Update_DynamicShadowCamera()
+{
+    const ShadowLightDesc* shadowDesc = GAME->Get_ShadowLightDesc();
+    if (shadowDesc == nullptr || shadowDesc->followCameraFrustum == false)
+        return;
+
+    Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
+    if (activeCamera == nullptr)
+        return;
+
+    const LIGHT_DESC* lightDesc = GAME->Get_PrimaryShadowLightDesc();
+    if (lightDesc == nullptr)
+        return;
+
+    ShadowLightDesc updatedDesc = *shadowDesc;
+    updatedDesc.shadowMapWidth = _shadowMapWidth;
+    updatedDesc.shadowMapHeight = _shadowMapHeight;
+
+    const Vec3 lightDir = Vec3(
+        lightDesc->direction.x,
+        lightDesc->direction.y,
+        lightDesc->direction.z
+    );
+
+    GAME->Update_ShadowFromCameraFrustum(updatedDesc, activeCamera, lightDir);
+}
+
 #ifdef _DEBUG
 
 uint32 Renderer::Get_RenderCall() const
 {
     return iDrawCall;
-}
-
-void Renderer::Update_DynamicShadowCamera()
-{
 }
 
 void Renderer::Reset_RenderCall()

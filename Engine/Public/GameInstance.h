@@ -255,6 +255,8 @@ public: /* For.Light_Manager */
     void    Get_LightDescs(vector<LIGHT_DESC>& outLightDescs) const;
     HRESULT Set_Lights(const vector<LIGHT_DESC>& lightDescs);
 
+
+
 public: /* For.Font_Manager */
     HRESULT Add_Font(const wstring& fontTag, const wchar_t* fontFilePath);
     Vec2 Measure_Font(const wstring& fontTag, const wchar_t* text);
@@ -358,7 +360,10 @@ public: /* For.Shadow */
     const ShadowLightDesc*  Get_ShadowLightDesc() const;
     const Matrix*           Get_ShadowTransformMatrix(D3DTS eType) const;
 
-
+    HRESULT Update_ShadowFromCameraFrustum(
+        const ShadowLightDesc& desc,
+        const Shared<Camera>& camera,
+        const Vec3& lightDir);
 
 public: /* For.Collision_Manager */
     void                    Add_Collider(Shared<ColliderCom> collider);

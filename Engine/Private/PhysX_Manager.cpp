@@ -3,6 +3,7 @@
 #include "PhysX_Filter.h"
 #include "ModelCom.h"
 #include "cooking/PxCooking.h"
+#include <cmath>
 
 namespace
 {
@@ -42,6 +43,23 @@ namespace
             presetData.channel,
             presetData.overlapMask,
             presetData.blockMask);
+    }
+
+    bool Is_Finite(const PxVec3& value)
+    {
+        return std::isfinite(value.x) && std::isfinite(value.y) && std::isfinite(value.z);
+    }
+
+    bool Is_ValidTriangle(const PxVec3& v0, const PxVec3& v1, const PxVec3& v2)
+    {
+        if (!Is_Finite(v0) || !Is_Finite(v1) || !Is_Finite(v2))
+            return false;
+
+        const PxVec3 edge0 = v1 - v0;
+        const PxVec3 edge1 = v2 - v0;
+        const PxVec3 normal = edge0.cross(edge1);
+
+        return normal.magnitudeSquared() > 1e-12f;
     }
 
     class Movement_QueryFilterCallback final : public PxQueryFilterCallback
@@ -604,23 +622,63 @@ PxTriangleMesh* PhysX_Manager::Create_TriangleMesh(const ModelCollisionMesh& mes
     if (meshData.indices.size() % 3 != 0)
         return nullptr;
 
-    vector<PxVec3> pxVertices;
-    pxVertices.reserve(meshData.positions.size());
+    vector<PxVec3> sourceVertices;
+    sourceVertices.reserve(meshData.positions.size());
 
     for (const Vec3& position : meshData.positions)
     {
         const Vec3 transformedPosition = Vec3::Transform(position, preTransformMatrix);
-        pxVertices.emplace_back(transformedPosition.x, transformedPosition.y, transformedPosition.z);
+        sourceVertices.emplace_back(transformedPosition.x, transformedPosition.y, transformedPosition.z);
     }
+
+    static constexpr PxU32 kInvalidIndex = 0xffffffffu;
+
+    vector<PxVec3> pxVertices;
+    pxVertices.reserve(sourceVertices.size());
+
+    vector<PxU32> remappedIndices(sourceVertices.size(), kInvalidIndex);
+    vector<PxU32> pxIndices;
+    pxIndices.reserve(meshData.indices.size());
+
+    for (size_t i = 0; i + 2 < meshData.indices.size(); i += 3)
+    {
+        const PxU32 i0 = static_cast<PxU32>(meshData.indices[i]);
+        const PxU32 i1 = static_cast<PxU32>(meshData.indices[i + 1]);
+        const PxU32 i2 = static_cast<PxU32>(meshData.indices[i + 2]);
+
+        if (i0 >= sourceVertices.size() || i1 >= sourceVertices.size() || i2 >= sourceVertices.size())
+            continue;
+
+        if (i0 == i1 || i1 == i2 || i2 == i0)
+            continue;
+
+        if (!Is_ValidTriangle(sourceVertices[i0], sourceVertices[i1], sourceVertices[i2]))
+            continue;
+
+        const PxU32 sourceTriangle[3] = { i0, i1, i2 };
+        for (PxU32 sourceIndex : sourceTriangle)
+        {
+            if (remappedIndices[sourceIndex] == kInvalidIndex)
+            {
+                remappedIndices[sourceIndex] = static_cast<PxU32>(pxVertices.size());
+                pxVertices.push_back(sourceVertices[sourceIndex]);
+            }
+
+            pxIndices.push_back(remappedIndices[sourceIndex]);
+        }
+    }
+
+    if (pxVertices.empty() || pxIndices.empty())
+        return nullptr;
 
     PxTriangleMeshDesc meshDesc{};
     meshDesc.points.count = static_cast<PxU32>(pxVertices.size());
     meshDesc.points.stride = sizeof(PxVec3);
     meshDesc.points.data = pxVertices.data();
 
-    meshDesc.triangles.count = static_cast<PxU32>(meshData.indices.size() / 3);
+    meshDesc.triangles.count = static_cast<PxU32>(pxIndices.size() / 3);
     meshDesc.triangles.stride = sizeof(PxU32) * 3;
-    meshDesc.triangles.data = meshData.indices.data();
+    meshDesc.triangles.data = pxIndices.data();
 
     PxCookingParams params(_physics->getTolerancesScale());
     params.midphaseDesc = PxMeshMidPhase::eBVH34;

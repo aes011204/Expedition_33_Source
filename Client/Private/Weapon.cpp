@@ -110,8 +110,8 @@ HRESULT Weapon::Render_Shadow()
     {
         _model->Bind_Material(_shader.get(), "g_DiffuseTexture", i, MaterialTextureSlot::BaseColor);
 
-        //if (FAILED(_shader->Begin(1)))
-        //    return E_FAIL;
+        if (FAILED(_shader->Begin(1)))
+            return E_FAIL;
 
         _model->Render(i);
     }

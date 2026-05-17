@@ -14,19 +14,21 @@ HRESULT Shadow::Update_ShadowLight(const ShadowLightDesc& desc)
     return S_OK;
 }
 
-HRESULT Shadow::Update_FromCameraFrustum(const ShadowLightDesc& desc, const Shared<Camera> camera, const Vec3& lightDir)
+HRESULT Shadow::Update_FromCameraFrustum(const ShadowLightDesc& desc, const Shared<Camera>& camera, const Vec3& lightDir)
 {
     if (camera == nullptr || camera->Get_Transform() == nullptr)
         return E_FAIL;
 
     _desc = desc;
 
+    // Directional light는 위치보다 방향이 중요하다. 0벡터면 view matrix를 만들 수 없으니 기본 방향을 쓴다.
     Vec3 dir = lightDir;
     if (dir.LengthSquared() < 0.0001f)
         dir = Vec3(1.f, -1.f, -1.f);
 
     dir.Normalize();
 
+    // 메인 카메라 frustum의 near/far 평면 크기를 구하기 위한 기본 카메라 값들.
     const float aspect = /* x / y */
         static_cast<float>(GAME->Get_ViewportWidth()) /
         static_cast<float>(max(1u, GAME->Get_ViewportHeight()));
@@ -34,11 +36,13 @@ HRESULT Shadow::Update_FromCameraFrustum(const ShadowLightDesc& desc, const Shar
     const float fovY = camera->Get_FovY();
     const float tanHalfFovY = tanf(fovY * 0.5f);
 
+    // 카메라 전체 far까지 찍으면 shadow map 밀도가 낮아지므로 가까운 구간만 단일 shadow로 커버한다.
     const float nearZ = max(desc.focusNear, camera->Get_Near());
     const float farZ = max(nearZ + 1.f, min(desc.focusFar, camera->Get_Far()));
 
     const Matrix cameraWorld = camera->Get_Transform()->Get_WorldMatrix();
 
+    // 카메라 로컬 frustum 8개 코너를 월드 좌표로 변환한다.
     Vec3 corners[8]{};
     uint32 index = 0;
     const float depthList[2] = { nearZ, farZ };
@@ -64,16 +68,19 @@ HRESULT Shadow::Update_FromCameraFrustum(const ShadowLightDesc& desc, const Shar
         }
     }
 
+    // frustum 조각의 중심을 shadow camera가 바라볼 target으로 사용한다.
     Vec3 center = Vec3::Zero;
     for (const Vec3& corner : corners)
         center += corner;
 
     center /= 8.f;
 
+    // 중심에서 가장 먼 코너까지의 거리. shadow eye를 충분히 뒤로 빼기 위한 기준이다.
     float radius = 0.f;
     for (const Vec3& corner : corners)
         radius = max(radius, (corner - center).Length());
 
+    // 빛 방향의 반대쪽에서 frustum 중심을 바라보는 shadow camera를 만든다.
     const Vec3 eye = center - dir * (radius + desc.lightDistancePadding);
 
     Vec3 up = Vec3::Up;
@@ -82,6 +89,7 @@ HRESULT Shadow::Update_FromCameraFrustum(const ShadowLightDesc& desc, const Shar
 
     _viewMatrix = XMMatrixLookAtLH(eye, center, up);
 
+    // 월드 frustum 코너들을 light space로 옮긴 뒤, 그 점들을 감싸는 AABB를 구한다.
     Vec3 minLS(FLT_MAX, FLT_MAX, FLT_MAX);
     Vec3 maxLS(-FLT_MAX, -FLT_MAX, -FLT_MAX);
 
@@ -92,6 +100,7 @@ HRESULT Shadow::Update_FromCameraFrustum(const ShadowLightDesc& desc, const Shar
         maxLS = Vec3::Max(maxLS, lightSpace);
     }
 
+    // 너무 딱 맞게 잡으면 캐릭터/카메라 미세 이동 때 그림자가 잘릴 수 있어 여유를 둔다.
     minLS.x -= desc.xyPadding;
     maxLS.x += desc.xyPadding;
     minLS.y -= desc.xyPadding;
@@ -99,13 +108,14 @@ HRESULT Shadow::Update_FromCameraFrustum(const ShadowLightDesc& desc, const Shar
     minLS.z -= desc.zPadding;
     maxLS.z += desc.zPadding;
 
+    // shadow map 한 픽셀이 light space에서 차지하는 크기.
     const float extentX = max(1.f, maxLS.x - minLS.x);
     const float extentY = max(1.f, maxLS.y - minLS.y);
 
     const float texelX = extentX / static_cast<float>(max(1u, desc.shadowMapWidth));
     const float texelY = extentY / static_cast<float>(max(1u, desc.shadowMapHeight));
 
-    // Shadow shimmering 완화용 texel snapping.
+    // Shadow shimmering 완화용 texel snapping. projection 영역을 shadow texel 단위에 맞춰 흔들림을 줄인다.
     minLS.x = floorf(minLS.x / texelX) * texelX;
     maxLS.x = ceilf(maxLS.x / texelX) * texelX;
     minLS.y = floorf(minLS.y / texelY) * texelY;
@@ -114,6 +124,7 @@ HRESULT Shadow::Update_FromCameraFrustum(const ShadowLightDesc& desc, const Shar
     if (maxLS.z <= minLS.z)
         maxLS.z = minLS.z + 1.f;
 
+    // Directional shadow는 perspective보다 orthographic projection으로 필요한 영역만 평행 투영한다.
     _projMatrix = XMMatrixOrthographicOffCenterLH(
         minLS.x,
         maxLS.x,
@@ -123,6 +134,7 @@ HRESULT Shadow::Update_FromCameraFrustum(const ShadowLightDesc& desc, const Shar
         maxLS.z
     );
 
+    // Inspector/debug 표시와 shader 상수 갱신용으로 이번 프레임 계산 결과를 보관한다.
     _desc.eye = eye;
     _desc.at = center;
     _desc.zn = minLS.z;

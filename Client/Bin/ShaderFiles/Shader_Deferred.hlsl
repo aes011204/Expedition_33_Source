@@ -204,13 +204,36 @@ PS_OUT_BACKBUFFER PS_CombinedHDR(PS_IN In)
     LightTexcoord.x = (ShadowPos.x / ShadowPos.w) * 0.5f + 0.5f;
     LightTexcoord.y = (ShadowPos.y / ShadowPos.w) * -0.5f + 0.5f;
 
-    float4 vLightDepthDesc = g_LightDepthTexture.Sample(LinearClampSampler, LightTexcoord);
-    float fOldLightZ = vLightDepthDesc.y * g_LightFar;
+    float fCurrentDepth = ShadowPos.z / ShadowPos.w;
 
-    if (all(LightTexcoord >= 0.f) && all(LightTexcoord <= 1.f))
+    if (ShadowPos.w > 0.f && all(LightTexcoord >= 0.f) && all(LightTexcoord <= 1.f))
     {
-        if (fOldLightZ + g_Bias < ShadowPos.w)
-            Out.Color.rgb *= g_ShadowIntensity;
+        uint shadowWidth;
+        uint shadowHeight;
+        g_LightDepthTexture.GetDimensions(shadowWidth, shadowHeight);
+
+        float2 vShadowTexel = 1.f / float2(max(1u, shadowWidth), max(1u, shadowHeight));
+        float fShadowAmount = 0.f;
+
+        [unroll]
+        for (int y = -1; y <= 1; ++y)
+        {
+            [unroll]
+            for (int x = -1; x <= 1; ++x)
+            {
+                float2 vSampleUV = LightTexcoord + float2(x, y) * vShadowTexel;
+                float fStoredDepth = g_LightDepthTexture.Sample(PointClampSampler, vSampleUV).x;
+                fShadowAmount += (fStoredDepth + g_Bias < fCurrentDepth) ? 1.f : 0.f;
+            }
+        }
+
+        fShadowAmount /= 9.f;
+
+        if (fShadowAmount > 0.f)
+        {
+            float fShadowBrightness = lerp(1.f, 0.45f, saturate(g_ShadowIntensity) * fShadowAmount);
+            Out.Color.rgb *= fShadowBrightness;
+        }
     }
 
     Out.Color.rgb += Emissive.rgb;

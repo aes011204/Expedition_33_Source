@@ -1777,7 +1777,6 @@ void GameInstance::Release_Engine()
 }
 
 #ifdef _DEBUG
-
 HRESULT GameInstance::Initialize_Debug(float sizeX, float sizeY)
 {
     return _targetManager->Initialize_Debug(sizeX, sizeY);
@@ -1807,6 +1806,8 @@ const map<wstring, bool>& GameInstance::Get_RTs() const
 {
     return _targetManager->Get_RTs();
 }
+
+#endif
 
 HRESULT GameInstance::Bind_ShadowMatrices(Shared<ShaderCom> shader, const char* viewName, const char* projName)
 {
@@ -1848,7 +1849,11 @@ const Matrix* GameInstance::Get_ShadowTransformMatrix(D3DTS eType) const
     return nullptr;
 }
 
-#endif
+HRESULT GameInstance::Update_ShadowFromCameraFrustum(const ShadowLightDesc& desc, const Shared<Camera>& camera,
+    const Vec3& lightDir)
+{
+    return _shadow->Update_FromCameraFrustum(desc, camera, lightDir);
+}
 
 void GameInstance::Free()
 {
