@@ -240,7 +240,7 @@ void MEInstancedMeshActor::DispatchCull()
     }
 
     Matrix vp = (*view) * (*proj);
-    auto planes = ExactFrustumPlanes(vp);
+    auto planes = ExtractFrustumPlanes(vp);
 
     CullParams params{};
     for (int i = 0; i < 6; ++i)
@@ -284,7 +284,7 @@ void MEInstancedMeshActor::DispatchCull()
     }
 }
 
-array<Vec4, 6> MEInstancedMeshActor::ExactFrustumPlanes(const Matrix& vp)
+array<Vec4, 6> MEInstancedMeshActor::ExtractFrustumPlanes(const Matrix& vp)
 {
     array<Vec4, 6> p;
 

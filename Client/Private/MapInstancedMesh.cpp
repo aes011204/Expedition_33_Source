@@ -1,5 +1,8 @@
 ﻿#include "MapInstancedMesh.h"
 #include "GameInstance.h"
+#include "ComputeShaderCom.h"
+#include "ComputeStructuredBuffer.h"
+#include "InstanceCullParams.h"
 
 IMPLEMENT_REFLECTION(MapInstancedMesh)
 {
@@ -53,6 +56,12 @@ HRESULT MapInstancedMesh::Initialize(void* arg)
     {
         return E_FAIL;
     }
+
+    _cullShader = ComputeShaderCom::Create(_device, _context,
+        L"../../../Client/Bin/ShaderFiles/Compute/Shader_Compute_InstanceCull.hlsl",
+        "CS_Main");
+
+    CreateCullBuffers(matrices, pDesc->transforms);
 
     return S_OK;
 }
@@ -184,6 +193,62 @@ HRESULT MapInstancedMesh::Bind_ShaderResources()
     }
 
     return S_OK;
+}
+
+HRESULT MapInstancedMesh::CreateCullBuffers(const vector<Matrix>& matrices, const vector<InstanceTransform>& transforms)
+{
+    const uint32 count = static_cast<uint32>(matrices.size());
+    if (count == 0 || !_cullShader)
+    {
+        return S_OK;
+    }
+
+    _instanceSrcBuffer = ComputeStructuredBuffer::Create(_device, _context, sizeof(Matrix), count, matrices.data());
+    if (!_instanceSrcBuffer)
+    {
+        return E_FAIL;
+    }
+
+    Vec3 localMin{}, localMax{};
+    const bool hasBounds = _model && _model->Try_Get_LocalBounds(localMin, localMax);
+    const Matrix preTransform = _model ? _model->Get_PreLocalTransformMatrix() : Matrix::Identity;
+
+    vector<Vec4> spheres;
+    spheres.reserve(count);
+
+    for (uint32 i = 0; i < count; ++i)
+    {
+        if (hasBounds)
+        {
+            BoundingBox localBox;
+            BoundingBox::CreateFromPoints(localBox,
+                XMVectorSet(localMin.x, localMin.y, localMin.z, 0.f),
+                XMVectorSet(localMax.x, localMax.y, localMax.z, 0.f));
+
+            BoundingBox worldBox;
+            localBox.Transform(worldBox, preTransform * matrices[i]);
+
+            BoundingSphere sphere;
+            BoundingSphere::CreateFromBoundingBox(sphere, worldBox);
+            spheres.push_back({ sphere.Center.x, sphere.Center.y, sphere.Center.z, sphere.Radius });
+        }
+        else
+        {
+            spheres.push_back({ matrices[i].m[3][0], matrices[i].m[3][1], matrices[i].m[3][2], 500.f });
+        }
+    }
+
+
+}
+
+void MapInstancedMesh::DispatchCull()
+{
+
+}
+
+array<Vec4, 6> MapInstancedMesh::ExtractFrustumPlanes(const Matrix& viewProj)
+{
+
 }
 
 Shared<MapInstancedMesh> MapInstancedMesh::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

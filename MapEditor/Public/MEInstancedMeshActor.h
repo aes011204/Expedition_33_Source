@@ -55,7 +55,7 @@ private:
 
     HRESULT CreateCullBuffers(const vector<Matrix>& matrices, const vector<InstanceTransform>& transforms);
     void DispatchCull();
-    static array<Vec4, 6> ExactFrustumPlanes(const Matrix& vp);
+    static array<Vec4, 6> ExtractFrustumPlanes(const Matrix& vp);
 
 public:
     HRESULT UpdateInstances(const wstring& modelPath, const vector<InstanceTransform>& transforms);
