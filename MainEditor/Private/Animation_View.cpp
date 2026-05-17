@@ -20,6 +20,98 @@
 #include "imgui_internal.h"
 #include "Notification_Manager.h"
 
+namespace
+{
+    string Resolve_NotifyAnimationKey(const Animation_View::AnimationEntry& entry)
+    {
+        if (!entry.playbackName.empty())
+            return entry.playbackName;
+
+        if (!entry.name.empty())
+            return entry.name;
+
+        return entry.displayName;
+    }
+
+    AnimNotifyData* Find_OrNormalize_NotifyAnimation(
+        AnimNotifyAsset& asset,
+        const Animation_View::AnimationEntry& entry)
+    {
+        const string runtimeKey = Resolve_NotifyAnimationKey(entry);
+
+        if (AnimNotifyData* animation = AnimNotify_Parser::Find_Animation(asset, runtimeKey))
+            return animation;
+
+        if (!entry.name.empty())
+        {
+            if (AnimNotifyData* animation = AnimNotify_Parser::Find_Animation(asset, entry.name))
+            {
+                animation->animationName = runtimeKey;
+                return animation;
+            }
+        }
+
+        if (!entry.displayName.empty())
+        {
+            if (AnimNotifyData* animation = AnimNotify_Parser::Find_Animation(asset, entry.displayName))
+            {
+                animation->animationName = runtimeKey;
+                return animation;
+            }
+        }
+
+        return &AnimNotify_Parser::Get_OrAddAnimation(asset, runtimeKey);
+    }
+
+    const AnimNotifyData* Find_NotifyAnimation(
+        const AnimNotifyAsset& asset,
+        const Animation_View::AnimationEntry& entry)
+    {
+        const string runtimeKey = Resolve_NotifyAnimationKey(entry);
+
+        if (const AnimNotifyData* animation = AnimNotify_Parser::Find_Animation(asset, runtimeKey))
+            return animation;
+
+        if (!entry.name.empty())
+        {
+            if (const AnimNotifyData* animation = AnimNotify_Parser::Find_Animation(asset, entry.name))
+                return animation;
+        }
+
+        if (!entry.displayName.empty())
+        {
+            if (const AnimNotifyData* animation = AnimNotify_Parser::Find_Animation(asset, entry.displayName))
+                return animation;
+        }
+
+        return nullptr;
+    }
+
+    void Invalidate_AnimNotifyAssetsForObject(
+        const Shared<GameObject>& gameObject,
+        const wstring& sourceModelPath)
+    {
+        if (gameObject == nullptr)
+            return;
+
+        if (const Shared<ModelCom> modelCom = gameObject->Get_Component<ModelCom>())
+        {
+            if (sourceModelPath.empty() || modelCom->Get_SourceModelPath() == sourceModelPath)
+                modelCom->Invalidate_AnimNotifyAsset();
+        }
+
+        Shared<ContainerObject> container = dynamic_pointer_cast<ContainerObject>(gameObject);
+        if (container == nullptr)
+            return;
+
+        for (const auto& [partTag, partObject] : container->Get_PartObjects())
+        {
+            UNREFERENCED_PARAMETER(partTag);
+            Invalidate_AnimNotifyAssetsForObject(partObject, sourceModelPath);
+        }
+    }
+}
+
 Animation_View::Animation_View()
     : Editor_Window(L"Animation")
 {
@@ -30,6 +122,9 @@ Animation_View::Animation_View()
 void Animation_View::Update(float timeDelta)
 {
     Editor_Window::Update(timeDelta);
+
+    if (EDITOR->IsPlaying())
+        return;
 
     if (Is_PrefabViewFocused())
         return;
@@ -48,6 +143,9 @@ void Animation_View::Update(float timeDelta)
 void Animation_View::Pre_Render()
 {
     if (!Is_Open())
+        return;
+
+    if (EDITOR->IsPlaying())
         return;
 
     if (Is_PrefabViewFocused())
@@ -114,10 +212,12 @@ void Animation_View::Pre_Render()
         previewRenderObject->Update(dt);
     }
 
+    GAME->Backup_RenderGroup();
     previewRenderObject->Late_Update(dt);
     Lock_PreviewObjectToOrigin(previewRenderObject);
 
-    GAME->Draw_RendererOnly();
+    GAME->Draw_Preview();
+    GAME->Restore_RenderGroup();
     Ensure_PreviewGridResources();
     Draw_PreviewGrid();
     GAME->Set_Lights(savedLightDescs);
@@ -533,8 +633,16 @@ void Animation_View::Load_NotifyAsset()
     if (_asset.modelGuid.empty())
         _asset.modelGuid = _modelGuid;
 
-    if (!_currentAnimationName.empty())
-        AnimNotify_Parser::Get_OrAddAnimation(_asset, _currentAnimationName);
+    if (_currentAnimationName.empty())
+        return;
+
+    if (const AnimationEntry* currentEntry = Find_AnimationEntryByAnyName(_availableAnimations, _currentAnimationName))
+    {
+        Find_OrNormalize_NotifyAnimation(_asset, *currentEntry);
+        return;
+    }
+
+    AnimNotify_Parser::Get_OrAddAnimation(_asset, _currentAnimationName);
 }
 
 void Animation_View::Save_NotifyAsset()
@@ -548,6 +656,7 @@ void Animation_View::Save_NotifyAsset()
     const fs::path filePath = AnimNotify_Parser::Get_ModelNotifyFilePath(_modelGuid);
     if (AnimNotify_Parser::Save_ToFile(filePath.wstring(), _asset))
     {
+        Refresh_OpenModelNotifyAssets();
         _isDirty = false;
         NOTIFY("애니메이션 노티파이 저장: {}", _currentAnimationName);
     }
@@ -555,6 +664,25 @@ void Animation_View::Save_NotifyAsset()
     {
         EDITOR->Get_Notification()->Add_Notification_With_Type(NotifyType::Warning, "애니메이션 노티파이 저장 실패: {}", _currentAnimationName);
     }
+}
+
+void Animation_View::Refresh_OpenModelNotifyAssets() const
+{
+    if (_liveModelCom != nullptr)
+        _liveModelCom->Invalidate_AnimNotifyAsset();
+
+    if (_previewModelCom != nullptr)
+        _previewModelCom->Invalidate_AnimNotifyAsset();
+
+    if (_sourceModelPath.empty())
+        return;
+
+    GAME->Visit_CurrentLevelObjects(
+        [&](const wstring& layerTag, const Shared<GameObject>& gameObject)
+        {
+            UNREFERENCED_PARAMETER(layerTag);
+            Invalidate_AnimNotifyAssetsForObject(gameObject, _sourceModelPath);
+        });
 }
 
 void Animation_View::Draw_Header()
@@ -613,7 +741,7 @@ void Animation_View::Draw_AnimationSelector()
         if (ImGui::Selectable(label.c_str(), isSelected))
         {
             _currentAnimationName = entry.displayName;
-            AnimNotify_Parser::Get_OrAddAnimation(_asset, _currentAnimationName);
+            Find_OrNormalize_NotifyAnimation(_asset, entry);
             _selectedNotifyId = -1;
             _selectedStateId = -1;
             _selectedNotifyTrackIndex = 0;
@@ -1238,7 +1366,18 @@ void Animation_View::Handle_ClipboardShortcuts()
         return;
 
     const ImGuiIO& io = ImGui::GetIO();
-    if (io.WantTextInput || !io.KeyCtrl)
+    if (io.WantTextInput)
+        return;
+
+    if (ImGui::IsKeyPressed(ImGuiKey_Delete, false))
+    {
+        if (_selectedNotifyId != -1)
+            Delete_SelectedNotify();
+        else if (_selectedStateId != -1)
+            Delete_SelectedState();
+    }
+
+    if (!io.KeyCtrl)
         return;
 
     if (ImGui::IsKeyPressed(ImGuiKey_C, false))
@@ -1560,7 +1699,12 @@ void Animation_View::Ensure_PreviewObject()
             _currentAnimationName = _availableAnimations.front().displayName;
 
         if (!_currentAnimationName.empty())
-            AnimNotify_Parser::Get_OrAddAnimation(_asset, _currentAnimationName);
+        {
+            if (const AnimationEntry* currentEntry = Find_AnimationEntryByAnyName(_availableAnimations, _currentAnimationName))
+                Find_OrNormalize_NotifyAnimation(_asset, *currentEntry);
+            else
+                AnimNotify_Parser::Get_OrAddAnimation(_asset, _currentAnimationName);
+        }
 
         Sync_PreviewAnimationSelection();
 
@@ -1956,10 +2100,7 @@ AnimNotifyData* Animation_View::Get_CurrentAnimation()
     if (currentEntry == nullptr)
         return nullptr;
 
-    if (AnimNotifyData* animation = AnimNotify_Parser::Find_Animation(_asset, currentEntry->name))
-        return animation;
-
-    return AnimNotify_Parser::Find_Animation(_asset, currentEntry->displayName);
+    return Find_OrNormalize_NotifyAnimation(_asset, *currentEntry);
 }
 
 const AnimNotifyData* Animation_View::Get_CurrentAnimation() const
@@ -1974,10 +2115,7 @@ const AnimNotifyData* Animation_View::Get_CurrentAnimation() const
     if (currentEntry == nullptr)
         return nullptr;
 
-    if (const AnimNotifyData* animation = AnimNotify_Parser::Find_Animation(_asset, currentEntry->name))
-        return animation;
-
-    return AnimNotify_Parser::Find_Animation(_asset, currentEntry->displayName);
+    return Find_NotifyAnimation(_asset, *currentEntry);
 }
 
 AnimNotifyEventEntry* Animation_View::Find_SelectedNotify()

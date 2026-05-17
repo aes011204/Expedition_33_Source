@@ -6,8 +6,11 @@ namespace Client::Constants::UI
     inline constexpr wchar_t UI_Json_Path[] = L"UI/UI_Json/Json_SaveLoad_Test.json";
     inline constexpr wchar_t Loading_UI_Json_Path[] = L"UI/UI_Json/UI_LoadingScean.json";
     inline constexpr wchar_t Loading_UI_Animation_Dir[] = L"UI/UI_Animations";
-
     inline constexpr wchar_t UI_CharacterStatus_Path[] = L"UI/UI_Json/UI_CharacterStatus.json";
+
+    inline constexpr wchar_t UI_SkillTree_BG_Path[] = L"UI/UI_Json/UI_SkillTree_Test.json";
+    inline constexpr wchar_t UI_Lune_SkillTree_Path[] = L"UI/UI_Json/UI_Lune_SkillTree.json";
+    inline constexpr wchar_t UI_Lune_SkillTooltips_Dir[] = L"UI/UI_Json/UI_SkillTooltip_Lune.json";
 }
 
 namespace Client::Constants::Map
@@ -20,4 +23,18 @@ namespace Client::Constants::Map
 namespace Client::Constants::Charcter
 {
     inline constexpr int32 scaleOffset = 10000;
+}
+
+namespace Client::Constants::Prefab
+{
+    inline constexpr char PW_Gustave[]  = "PW_Gustave";
+    inline constexpr char PW_Lune[]     = "PW_Lune";
+    inline constexpr char PW_Maelle[]   = "PW_Maelle";
+
+    inline constexpr char PB_Gustave[]  = "PB_Gustave";
+    inline constexpr char PB_Lune[]     = "PB_Lune";
+    inline constexpr char PB_Maelle[]   = "PB_Maelle";
+
+    inline constexpr char MW_Lancelier[] = "MW_Lancelier";
+    inline constexpr char MB_Lancelier[] = "MB_Lancelier";
 }

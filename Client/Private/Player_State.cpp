@@ -5,10 +5,10 @@
 #include "PlayerControllerCom.h"
 #include "PlayerStateMachineCom.h"
 
-#include "Player.h"
+#include "Player_WorldBase.h"
 #include "Body_Player.h"
 
-Player_State::Player_State(const Shared<Player>& owner)
+Player_State::Player_State(const Shared<Player_WorldBase>& owner)
     : State{}
 {
     _owner = owner;
@@ -27,11 +27,11 @@ void Player_State::Begin_Play()
 
     _controllerCom = _owner.lock()->Get_Component<PlayerControllerCom>().get();
     if (nullptr == _controllerCom)
-        MSG_BOX("[PLAYER STATE] : Failed to Begin Player State");
+        MSG_BOX("[PLAYER STATE] : Failed to Begin Player_WorldBase State");
 
     _stateCom = _owner.lock()->Get_Component<PlayerStateMachineCom>().get();
     if (nullptr == _stateCom)
-        MSG_BOX("[PLAYER STATE] : Failed to Begin Player State");
+        MSG_BOX("[PLAYER STATE] : Failed to Begin Player_WorldBase State");
 
     _bodyPlayer = static_cast<Body_Player*>(_owner.lock()->Get_PartObject(L"Part_Body"));
 }
@@ -71,6 +71,49 @@ const MovementCom::MovementInput& Player_State::Get_MovementInput() const
     return _controllerCom->Get_MovementInput();
 }
 
+bool Player_State::Has_LocomotionIntent() const
+{
+    return _controllerCom->Has_LocomotionIntent();
+}
+
+bool Player_State::IsSprintMove() const
+{
+     return _controllerCom->Should_SprintMove();
+}
+
+bool Player_State::IsWalkMove() const
+{
+    return _controllerCom->Should_WalkMove();
+}
+
+bool Player_State::Is_MovementBlocked() const
+{
+    return _controllerCom->Is_MovementBlocked();
+}
+
+bool Player_State::IsEnterWorldAction() const
+{
+    const auto& input = Get_MovementInput();
+
+    return input.isSuddenAttack && _controllerCom->Allows_ActionInput();
+}
+
+bool Player_State::IsEnterJump() const
+{
+    const auto& input = Get_MovementInput();
+
+    return input.isJumpDown && _controllerCom->Allows_ActionInput();
+}
+
+bool Player_State::IsEnterMove() const
+{
+    return Has_LocomotionIntent() && !Is_MovementBlocked();
+}
+
+bool Player_State::IsEnterIdle() const
+{
+    return !Has_LocomotionIntent() || Is_MovementBlocked();
+}
 
 void Player_State::Free()
 {

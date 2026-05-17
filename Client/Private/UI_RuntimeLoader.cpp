@@ -1097,6 +1097,9 @@ HRESULT UI_RuntimeLoader::Load_Document(const UI_LoadDesc& desc)
     if (nullptr != desc.outUIByName)
         desc.outUIByName->clear();
 
+    if (nullptr != desc.outChildrenByParentName)
+        desc.outChildrenByParentName->clear();
+
     json root{};
     if (!Load_JsonRoot(desc.jsonPath, root))
         return E_FAIL;
@@ -1141,6 +1144,42 @@ HRESULT UI_RuntimeLoader::Load_Document(const UI_LoadDesc& desc)
     }
 
     Link_ParentRelations(document, spawnedUIById);
+
+    if (nullptr != desc.outChildrenByParentName)
+    {
+        unordered_map<int32, const RuntimeUIObject*> objectsById;
+        objectsById.reserve(document.objects.size());
+
+        for (const RuntimeUIObject& object : document.objects)
+        {
+            if (object.id == 0)
+                continue;
+
+            objectsById.emplace(object.id, &object);
+        }
+
+        for (const RuntimeUIObject& object : document.objects)
+        {
+            if (object.parentId == 0)
+                continue;
+
+            const auto childIter = spawnedUIById.find(object.id);
+            if (childIter == spawnedUIById.end() || childIter->second == nullptr)
+                continue;
+
+            const auto parentObjectIter = objectsById.find(object.parentId);
+            if (parentObjectIter == objectsById.end() || parentObjectIter->second == nullptr)
+                continue;
+
+            const string& parentNameUtf8 = parentObjectIter->second->name;
+            if (parentNameUtf8.empty())
+                continue;
+
+            const wstring parentName = String::ToWString(parentNameUtf8);
+            desc.outChildrenByParentName->operator[](parentName).push_back(childIter->second);
+        }
+    }
+
 
     return S_OK;
 }

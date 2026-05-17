@@ -96,7 +96,7 @@ void Notification_Manager::Render()
 
 void Notification_Manager::Add_Internal(const string& message, NotifyType type)
 {
-    FNotification note;
+    NotificationEntry note;
     note.message = message;
     note.type = type;
     note.duration = 3.0f;

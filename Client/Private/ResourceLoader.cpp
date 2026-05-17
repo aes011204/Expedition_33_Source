@@ -4,14 +4,13 @@
 #include "Body_Player.h"
 #include "ColliderCom.h"
 #include "Component.h"
-#include "ComputePointParticlePreview.h"
+#include "ComputeSpriteEmitter.h"
 #include "ComputeShaderCom.h"
 #include "FreeCamera.h"
 #include "GameInstance.h"
 #include "GameObject.h"
 #include "ModelCom.h"
 #include "Particle_Types.h"
-#include "PointParticlePreview.h"
 #include "ShaderCom.h"
 #include "TargetCamera.h"
 #include "Texture.h"
@@ -460,6 +459,7 @@ HRESULT ResourceLoader::Build_StaticLevelJobs(const wstring& strTablePath, vecto
 HRESULT ResourceLoader::Build_LevelJobs(LevelType levelType, vector<FLoadJob>& outJobs, const wstring& strJsonRootPath)
 {
     outJobs.clear();
+    const auto start = chrono::steady_clock::now();
 
     const fs::path jsonRootPath = strJsonRootPath.empty()
         ? fs::path(Get_DefaultJsonRootPath())
@@ -468,25 +468,14 @@ HRESULT ResourceLoader::Build_LevelJobs(LevelType levelType, vector<FLoadJob>& o
     auto buildTable = [&](const wchar_t* fileName, auto buildFunc)
     {
         const wstring tablePath = (jsonRootPath / fileName).wstring();
-        const size_t beforeCount = outJobs.size();
 
-        const auto start = chrono::steady_clock::now();
         const HRESULT hr = (this->*buildFunc)(tablePath, outJobs);
-        const auto elapsed = chrono::duration_cast<chrono::milliseconds>(
-            chrono::steady_clock::now() - start);
 
         if (FAILED(hr))
         {
             Log_TableWarning("build failed", tablePath);
             return;
         }
-
-        const size_t addedCount = outJobs.size() - beforeCount;
-
-         LOG_ERROR("[ResourceLoader::Build_LevelJobs] table={}, addedJobs={}, elapsed={}",
-            Get_TableLabel(tablePath),
-            static_cast<int>(addedCount),
-            FormatDuration(elapsed));
     };
 
     buildTable(L"DT_Texture.json", &ResourceLoader::Build_TextureJobs);
@@ -509,9 +498,13 @@ HRESULT ResourceLoader::Build_LevelJobs(LevelType levelType, vector<FLoadJob>& o
 
     outJobs = std::move(filteredJobs);
 
-    LOG_ERROR("[ResourceLoader::Build_LevelJobs] level={}, jobCount={}",
+    const auto elapsed = chrono::duration_cast<chrono::milliseconds>(
+        chrono::steady_clock::now() - start);
+
+    LOG_INFO("Built level jobs. level={}, jobCount={}, elapsed={}",
         targetLevel,
-        static_cast<int>(outJobs.size()));
+        static_cast<int>(outJobs.size()),
+        FormatDuration(elapsed));
 
     return S_OK;
 }

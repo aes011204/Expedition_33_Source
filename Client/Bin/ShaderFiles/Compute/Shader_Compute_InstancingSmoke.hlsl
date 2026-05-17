@@ -10,6 +10,7 @@ struct ParticleInstanceVertex
     float2 lifeTime;
     float4 startColor;
     float4 endColor;
+    float4 subUVRect;
 };
 
 RWStructuredBuffer<ParticleInstanceVertex> OutputData : register(u0);
@@ -27,6 +28,7 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
     instance.lifeTime = float2(2.0f, (float)index * 0.25f);
     instance.startColor = float4(1.0f, 1.0f, 1.0f, 1.0f);
     instance.endColor = float4(1.0f, 1.0f, 1.0f, 1.0f);
+    instance.subUVRect = float4(0.0f, 0.0f, 1.0f, 1.0f);
 
     OutputData[index] = instance;
 }

@@ -78,7 +78,10 @@ public:
 	bool KeyDown(KEY_TYPE key) const;
 	bool KeyUp(KEY_TYPE key) const;
 
-	const POINT& Get_MousePosition() const { return _mousePosition; }
+	const POINT& Get_MousePosition() const;
+    const POINT& Get_RawMousePosition() const;
+    void Set_MousePositionOverride(const POINT& mousePosition);
+    void Clear_MousePositionOverride();
 
 	Vec2  Get_MouseDelta() const { return _mouseDelta; }
 	float Get_MouseWheel();
@@ -121,6 +124,9 @@ private:
 	bool _isEditorMouseLockSessionActive = false;
 	bool _hasMouseLockOverrideRect = false;
 	RECT _mouseLockOverrideRect = {};
+
+    POINT _mousePositionOverride = {};
+    bool _hasMousePositionOverride = false;
 
 public:
 	static Unique<Input_Manager> Create(HWND hWnd);

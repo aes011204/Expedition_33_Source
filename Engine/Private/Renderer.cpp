@@ -107,6 +107,68 @@ void Renderer::Draw()
 #endif
 }
 
+void Renderer::Draw_Preview()
+{
+#ifdef _DEBUG
+    Reset_RenderCall();
+#endif
+
+    Render_Priority();
+    _renderGroups[ETOI(RenderGroup::Shadow)].clear();
+
+    for (auto& renderObject : _renderGroups[ETOI(RenderGroup::NonBlend)])
+    {
+        Shared<GameObject> gameObject = renderObject.lock();
+        if (nullptr != gameObject)
+        {
+            gameObject->Render();
+            Add_RenderCall();
+        }
+    }
+
+    _renderGroups[ETOI(RenderGroup::NonBlend)].clear();
+
+    for (auto& renderObject : _renderGroups[ETOI(RenderGroup::NonLight)])
+    {
+        Shared<GameObject> gameObject = renderObject.lock();
+        if (nullptr != gameObject)
+        {
+            gameObject->Render();
+            Add_RenderCall();
+        }
+    }
+
+    _renderGroups[ETOI(RenderGroup::NonLight)].clear();
+
+    Render_Blend();
+    _renderGroups[ETOI(RenderGroup::UI)].clear();
+}
+
+void Renderer::Backup_RenderGroups()
+{
+    for (size_t i = 0; i < ETOI(RenderGroup::END); ++i)
+    {
+        _renderGroupBackup[i] = _renderGroups[i];
+        _renderGroups[i].clear();
+    }
+
+    _hasRenderGroupBackup = true;
+}
+
+void Renderer::Restore_RenderGroups()
+{
+    if (!_hasRenderGroupBackup)
+        return;
+
+    for (size_t i = 0; i < ETOI(RenderGroup::END); ++i)
+    {
+        _renderGroups[i] = _renderGroupBackup[i];
+        _renderGroupBackup[i].clear();
+    }
+
+    _hasRenderGroupBackup = false;
+}
+
 void Renderer::Render_Priority()
 {
     for (auto& renderObject : _renderGroups[ETOI(RenderGroup::Priority)])
@@ -258,8 +320,14 @@ void Renderer::Render_Combined()
     // Light 기록
     if (FAILED(_viBuffer->Bind_Resources()))
         return;
-    if (FAILED(_deferredShader->Begin(ETOI(DeferredPass::Combined))))
+
+    const uint32 passIndex = _usePreviewDeferredCombine
+        ? ETOI(DeferredPass::CombinedPreview) 
+        : ETOI(DeferredPass::Combined);       // 일반 runtime/gameplay는 기존 shadow combine 유지
+
+    if (FAILED(_deferredShader->Begin(passIndex)))
         return;
+
     if (FAILED(_viBuffer->Render()))
         return;
 
@@ -547,7 +615,10 @@ void Renderer::Free()
     __super::Free();
 
     for (size_t i = 0; i < ETOI(RenderGroup::END); i++)
+    {
         _renderGroups[i].clear();
+        _renderGroupBackup[i].clear();
+    }
 }
 
 #ifdef _DEBUG

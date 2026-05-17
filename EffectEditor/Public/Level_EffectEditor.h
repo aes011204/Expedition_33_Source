@@ -1,5 +1,7 @@
 ﻿#pragma once
 
+#include "EffectAuthoring_Types.h"
+#include "EffectRuntime_Types.h"
 #include "Level.h"
 
 NS_BEGIN(Engine)
@@ -20,15 +22,20 @@ public:
     HRESULT Render() override;
 
 public:
+    // 현재 authoring emitter 데이터를 다시 읽어 preview runtime object를 전부 재생성한다.
     HRESULT Restart_PreviewFromAuthoring();
 
 private:
-    static constexpr const wchar_t* kPreviewLayerTag = L"Layer_Preview";
+    static constexpr const wchar_t* kPreviewLayerTag{ L"Layer_Preview" };
 
 private:
     vector<Shared<GameObject>> _previewObjects{};
 
 private:
+    // 현재 authoring emitters를 runtime preview용 EffectDefinition으로 묶는다.
+    Shared<const EffectDefinition> Build_PreviewEffectDefinition(const vector<AuthoringEmitter>& emitters) const;
+    // authoring emitter 1개를 runtime preview용 emitter definition으로 번역한다.
+    EffectEmitterDefinition Build_PreviewEmitterDefinition(const AuthoringEmitter& emitter) const;
     // preview에 필요한 최소 directional light만 준비한다.
     HRESULT Ready_Lights();
     // EffectEditor preview용 orbit camera를 만들고 active camera로 지정한다.

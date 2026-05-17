@@ -65,12 +65,11 @@ public:
 public:
     HRESULT Initialize_Prototype() override;
     HRESULT Initialize(void* arg) override;
+    void    From_Json(const json& data) override;
 
 public:
-
     virtual  CombatStatDesc& Get_StatInfo() { return _playerDesc; };
     virtual  RuntimeCombatStat& Get_RuntimeStat() { return _PRuntimeStat; };
-
 
     const PlayerCombatStatDesc& Get_PlayerDesc() const{return _playerDesc;}
     PRuntimeCombatStat& Get_PlayerRuntimeStat(){return _PRuntimeStat;}
@@ -81,12 +80,13 @@ public:
     void Add_Exp(uint32 value);
 
 
-
 /// <test>
     Skill_Data Get_Basic_Skill()
     {
         Skill_Data skill = {}; skill.scriptClassName = "Base_Gustave_Attack";
         skill.apCost = 0; skill.targetingType = ECharacterTeamSelector::Invalid;
+
+
         return skill;
     };
 /// </test>

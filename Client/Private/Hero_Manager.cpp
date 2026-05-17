@@ -1,19 +1,23 @@
 ﻿#include "Hero_Manager.h"
-
 #include "Body_Player.h"
+#include "Client_Constants.h"
 #include "GameInstance.h"
-#include "Player.h"
+#include "ClientInstance.h"
+#include "Player_WorldBase.h"
 #include "PlayerControllerCom.h"
 #include "PlayerStateMachineCom.h"
 #include "Spawn_Prefab.h"
 #include "TargetCamera.h"
 #include "TransformCom.h"
+#include "ColliderCom.h"
+#include "PhysX_Types.h"
+#include "MovementCom.h"
 
 static const HeroSpawnDesc heroSpawnDescs[] =
 {
-    { HeroId::Gustave, "Player_Gustave" },
-    { HeroId::Lune,    "Player_Lune" },
-    { HeroId::Maelle,  "Player_Maelle" },
+    { HeroId::Gustave, Constants::Prefab::PW_Gustave, Constants::Prefab::PB_Gustave }, // 월드/배틀 prefab 이름을 한 곳에서 관리한다.
+    { HeroId::Lune,    Constants::Prefab::PW_Lune,    Constants::Prefab::PB_Lune    }, // Player/Battle 구 이름이 호출부에 남지 않게 한다.
+    { HeroId::Maelle,  Constants::Prefab::PW_Maelle,  Constants::Prefab::PB_Maelle  }, // 파일명 변경과 스폰 이름을 같은 상수로 묶는다.
 };
 
 HRESULT Hero_Manager::Initialize_Hero(uint32 levelIndex, const wstring& layerTag, const Vec3& startPos)
@@ -28,12 +32,12 @@ HRESULT Hero_Manager::Initialize_Hero(uint32 levelIndex, const wstring& layerTag
     {
         const HeroSpawnDesc& desc = heroSpawnDescs[i];
 
-        auto object = Spawn_Prefab::Prefab(desc.prefabName)
+        auto object = Spawn_Prefab::Prefab(desc.worldPrefabName)
             .AtLevel(levelIndex)
             .InLayer(layerTag)
             .Spawn();
 
-        auto hero = dynamic_pointer_cast<Player>(object);
+        auto hero = dynamic_pointer_cast<Player_WorldBase>(object);
         CHECK_NULL(hero, E_FAIL);
 
         Vec3 pos = startPos;
@@ -54,6 +58,9 @@ HRESULT Hero_Manager::Initialize_Hero(uint32 levelIndex, const wstring& layerTag
 
 void Hero_Manager::Update_HeroManager(float timeDelta)
 {
+    if (CLIENT->Is_BattleActive())
+        return; // 배틀 중에서는 월드 플레이어 입력 제한
+
     if (_heroes.empty())
         return;
 
@@ -73,7 +80,7 @@ void Hero_Manager::Update_HeroManager(float timeDelta)
     Update_Followers(timeDelta);
 }
 
-Shared<Player> Hero_Manager::Get_ActiveHero() const
+Shared<Player_WorldBase> Hero_Manager::Get_ActiveHero() const
 {
     if (_heroes.empty() || _activeIndex >= _heroes.size())
         return nullptr;
@@ -89,6 +96,21 @@ void Hero_Manager::Set_TargetCamera(const Shared<TargetCamera>& camera)
 
 void Hero_Manager::Clear_Party()
 {
+    Reset_AllHeroesToIdle();
+
+    for (auto& entry : _heroes)
+    {
+        if (!entry.hero)
+            continue;
+
+        auto movement = entry.hero->Get_Component<MovementCom>();
+        if (movement)
+        {
+            movement->Clear_FollowMoveCommand();
+            movement->Apply_Input({});
+        }
+    }
+
     _heroes.clear();
     _activeTrail.clear();
     _activeIndex = 0;
@@ -100,7 +122,7 @@ const vector<HeroPartyEntry>& Hero_Manager::Get_HeroEntries() const
     return _heroes;
 }
 
-Shared<Player> Hero_Manager::Get_Hero(HeroPartySlot slot) const
+Shared<Player_WorldBase> Hero_Manager::Get_Hero(HeroPartySlot slot) const
 {
     const uint32 index = ETOI(slot);
 
@@ -125,7 +147,7 @@ HeroPartySlot Hero_Manager::Get_ActiveHeroSlot() const
     return static_cast<HeroPartySlot>(_activeIndex);
 }
 
-Shared<Player> Hero_Manager::Get_FrontHero() const
+Shared<Player_WorldBase> Hero_Manager::Get_FrontHero() const
 {
     if (_heroes.empty())
         return nullptr;
@@ -133,12 +155,23 @@ Shared<Player> Hero_Manager::Get_FrontHero() const
     return _heroes.front().hero;
 }
 
-Shared<Player> Hero_Manager::Find_Hero(HeroId heroId) const
+Shared<Player_WorldBase> Hero_Manager::Find_Hero(HeroId heroId) const
 {
     for (const auto& entry : _heroes)
     {
         if (entry.heroId == heroId)
             return entry.hero;
+    }
+
+    return nullptr;
+}
+
+const HeroSpawnDesc* Hero_Manager::Find_HeroSpawnDesc(HeroId heroId)
+{
+     for (const HeroSpawnDesc& desc : heroSpawnDescs)
+    {
+        if (desc.heroId == heroId)
+            return &desc;
     }
 
     return nullptr;
@@ -168,8 +201,14 @@ void Hero_Manager::Switch_NextHero()
 
     Apply_ControlRoles();
 
-    // 위치 바로 재배치 -> 근데 지금 셋다 Lune Model이라 티가안나서 로그로만 확인
     Snap_AllHeroesToFormation(anchorPos, anchorRot, anchorForward, anchorRight);
+
+    for (uint32 i = 0; i < _heroes.size(); ++i)
+    {
+        _followerRuntime[i] = {};
+    }
+
+    Reset_AllHeroesToIdle(); // 전환 직후 모든 hero를 Idle 상태로 정리
 
     _activeTrail.clear();
     _recordTimer = 0.f;
@@ -221,14 +260,97 @@ void Hero_Manager::Snap_AllHeroesToFormation(const Vec3& anchorPos, const Vec3& 
         const Vec3 followerPos =
             anchorPos - anchorForward * backDistance + anchorRight * sideOffset;
 
+        // 전환 후 배치 전에 PhysX 벽 파고들기 바닥 높이 보정 후 배치
+        const Vec3 safeFollowerPos = Resolve_SnapPosition(
+                                        hero, tr->Get_WorldPosition(), followerPos);
+
         // follower도 목표 위치까지 걸어가는 게 아니라 즉시 배정
         tr->Set_WorldPosition(followerPos);
         tr->Set_WorldRotationEuler(anchorRot);
 
-        Update_FollowerAnimation(hero, 0.f);
+        auto controller = hero->Get_Component<PlayerControllerCom>();
+        if (controller)
+            controller->Clear_FollowControl();
 
         ++followerSlot;
     }
+}
+
+Vec3 Hero_Manager::Resolve_SnapPosition(const Shared<Player_WorldBase>& hero, const Vec3& fromPos, const Vec3& desiredPos) const
+{
+    if (hero == nullptr)
+        return desiredPos;
+
+    auto collider = hero->Get_Component<ColliderCom>();
+    if (collider == nullptr || collider->Get_PxShape() == nullptr)
+        return desiredPos;
+
+    auto movement = hero->Get_Component<MovementCom>();
+
+    float skinWidth = 0.03f;
+    float groundSnapUp = 0.35f;
+    float groundSnapDown = 0.65f;
+
+    if (movement)
+    {
+        const auto& moveDesc = movement->Get_MoveDesc();
+
+        skinWidth = moveDesc.skinWidth;         
+        groundSnapUp = moveDesc.groundSnapUp;       // 위에서부터 바닥 probe 시작
+        groundSnapDown = moveDesc.groundSnapDown;   // 아래로 탐색할 거리
+    }
+
+    Vec3 sweepTarget = desiredPos;
+    sweepTarget.y = fromPos.y;
+
+    Vec3 sweep = sweepTarget - fromPos;
+    const float sweepDistance = sweep.Length();
+
+    // 후보 위치 설정
+    Vec3 candidatePos = desiredPos;
+
+    if (sweepDistance > 0.0001f)
+    {
+        Vec3 sweepDir = sweep / sweepDistance;
+
+        Matrix sweepWorld = hero->Get_Transform()->Get_WorldMatrix();
+        sweepWorld.Translation(fromPos);
+
+        PhysXQueryHit hit{};
+        const bool blocked = GAME->Sweep_Collider(
+                collider.get(),
+                sweepWorld,
+                sweepDir,
+                sweepDistance,
+                hit);
+
+        if (blocked)
+        {
+            const float safeDistance = max(0.f, hit.distance - skinWidth);
+
+            candidatePos = fromPos + sweepDir * safeDistance; // 벽 앞까지만 밀어서 배치
+            candidatePos.y = desiredPos.y;
+        }
+    }
+
+    Matrix probeWorld = hero->Get_Transform()->Get_WorldMatrix();
+    // 후보 위치에서 아래 탐색
+    probeWorld.Translation(candidatePos + Vec3(0.f, groundSnapUp, 0.f));
+
+    PhysXQueryHit groundHit{};
+    const float probeDistance = groundSnapUp + groundSnapDown;
+
+    const bool hasGround = GAME->Probe_Ground(
+        collider.get(),
+        probeWorld,
+        probeDistance,
+        groundHit);
+
+    // 바닥 위로 높이 보정
+    if (hasGround)
+        candidatePos.y += groundSnapUp - max(0.f, groundHit.distance - skinWidth);
+
+    return candidatePos;
 }
 
 void Hero_Manager::Apply_ControlRoles()
@@ -243,8 +365,18 @@ void Hero_Manager::Apply_ControlRoles()
         if (!controller)
             continue;
 
-        bool checkIndex = i == _activeIndex;
-        controller->Set_ControlEnabled(checkIndex);
+        auto movement = hero->Get_Component<MovementCom>();
+        if (movement)
+        {
+            movement->Clear_FollowMoveCommand();
+            movement->Apply_Input({});
+        }
+
+        const bool isActive = (i == _activeIndex);
+        controller->Set_ControlEnabled(isActive);
+
+        if (isActive)
+            controller->Clear_FollowControl();
     }
 }
 
@@ -311,7 +443,40 @@ void Hero_Manager::Update_Followers(float timeDelta)
         const Vec3 targetPos =
             trailPoint.position - forward * backDistance + right * sideOffset;
 
-        Move_FollowerTo(_heroes[i].hero, targetPos, timeDelta);
+        // Movement
+        auto& runtime = _followerRuntime[i];
+        runtime.desiredTargetPos = targetPos;
+
+        if (_heroes[i].hero && _heroes[i].hero->Get_Transform())
+        {
+            Vec3 delta = targetPos - _heroes[i].hero->Get_Transform()->Get_WorldPosition();
+            delta.y = 0.f;
+
+            runtime.lastMoveDistance = delta.Length();
+
+            runtime.sprintFollowHoldTime = max(0.f, runtime.sprintFollowHoldTime - timeDelta);
+
+            if (!runtime.sprintFollow && runtime.lastMoveDistance >= _sprintFollowDistance)
+            {
+                runtime.sprintFollow = true;
+                runtime.sprintFollowHoldTime = _sprintFollowMinHoldTime;
+            }
+            else if (
+                runtime.sprintFollow &&
+                runtime.sprintFollowHoldTime <= 0.f &&
+                runtime.lastMoveDistance <= _sprintFollowReleaseDistance)
+            {
+                runtime.sprintFollow = false;
+            }
+        }
+        else
+        {
+            runtime.lastMoveDistance = 0.f;
+            runtime.sprintFollow = false;
+            runtime.sprintFollowHoldTime = 0.f;
+        }
+
+        Move_FollowerTo(_heroes[i].hero, i, targetPos, timeDelta);
 
         ++followerSlot;
     }
@@ -341,69 +506,53 @@ Hero_Manager::TrailPoint Hero_Manager::Get_TrailPoint(float delaySeconds) const
     return _activeTrail[clampedIndex];
 }
 
-void Hero_Manager::Move_FollowerTo(const Shared<Player>& follower, const Vec3& targetPos, float timeDelta)
+void Hero_Manager::Move_FollowerTo(const Shared<Player_WorldBase>& follower, uint32 followerIndex, const Vec3& targetPos, float timeDelta)
 {
     if (follower == nullptr)
         return;
 
-    auto tr = follower->Get_Transform();
-    if (tr == nullptr)
-        return;
+    auto controller = follower->Get_Component<PlayerControllerCom>();
+    CHECK_NULL(controller);
 
-    Vec3 currentPos = tr->Get_WorldPosition();
-    Vec3 delta = targetPos - currentPos;
+    auto movement = follower->Get_Component<MovementCom>();
+    CHECK_NULL(movement);
+
+    auto tr = follower->Get_Transform();
+    CHECK_NULL(tr);
+
+    Vec3 delta = targetPos - tr->Get_WorldPosition();
     delta.y = 0.f;
 
     const float distance = delta.Length();
 
-    if (distance <= _followStopDistance)
+    if (distance >= _teleportReseatDistance)
     {
-        Update_FollowerAnimation(follower, 0.f);
+        Vec3 reseatPos = targetPos;
+        reseatPos.y = tr->Get_WorldPosition().y;
+
+        tr->Set_WorldPosition(reseatPos); // 너무 멀어지면 재배치
+
+        movement->Clear_FollowMoveCommand();
+        movement->Apply_Input({});
+        movement->Stop_HorizontalMovement();
+
+        controller->Clear_FollowControl(); // 재배치 후, follower 상태 초기화
         return;
     }
 
-    delta.Normalize();
+    PlayerControllerCom::FollowControl follow{};
+    follow.enabled = true;
 
-    const float moveStep = min(distance, _followerMoveSpeed * timeDelta);
-    Vec3 nextPos = currentPos + delta * moveStep;
-    nextPos.y = targetPos.y;
-    tr->Set_WorldPosition(nextPos);
-
-    // 일단 이동방향 바라보게 임시용
-    tr->LookAt(nextPos + delta);
-
-    Update_FollowerAnimation(follower, moveStep);
-}
-
-void Hero_Manager::Update_FollowerAnimation(const Shared<Player>& follower, float moveDistance)
-{
-    if (follower == nullptr)
-        return;
-
-    // 애니메이션이 body 기준으로 재생돼서
-    auto body = dynamic_cast<Body_Player*>(
-        follower->Get_PartObject(TEXT("Part_Body")));
-
-    if (body == nullptr)
-        return;
-
-    using Anim = Body_Player::PlayerWorldAnimation;
-
-    if (moveDistance <= 0.001f)
+    if (distance > _followStopDistance)
     {
-        const uint32 current = body->Get_AnimationStateIndex();
+        delta.Normalize();
 
-        if (current != ETOI(Anim::Pl_Walk) &&
-            current != ETOI(Anim::Pl_Idle_0))
-        {
-            body->Set_AnimationByState(ETOI(Anim::Pl_Walk), 0.1f, true);
-        }
-
-        return;
+        follow.hasMoveIntent = true;
+        follow.worldDir = delta;
+        follow.sprintFollow = _followerRuntime[followerIndex].sprintFollow;
     }
 
-    if (body->Get_AnimationStateIndex() != ETOI(Anim::Pl_Run))
-        body->Set_AnimationByState(ETOI(Anim::Pl_Run), 0.1f, true);
+    controller->Set_FollowControl(follow);
 }
 
 void Hero_Manager::Refresh_TargetCamera() const
@@ -417,15 +566,68 @@ void Hero_Manager::Refresh_TargetCamera() const
     camera->SetTargetTransform(active->Get_Transform());
 }
 
+HRESULT Hero_Manager::Ready_Delegates()
+{
+    _editorStopHandle = GAME->Get_DelegateHub().OnEditorStopRuntime.Add(
+        [this]()
+        {
+           Handle_EditorStopRuntime(); 
+        });
+
+    return S_OK;
+}
+
+void Hero_Manager::Reset_AllHeroesToIdle()
+{
+    for (auto& entry : _heroes)
+    {
+        auto hero = entry.hero;
+        if (!hero)
+            continue;
+
+        auto controller = hero->Get_Component<PlayerControllerCom>();
+        if (controller)
+            controller->Clear_FollowControl();
+
+        auto movement = hero->Get_Component<MovementCom>();
+        if (movement)
+        {
+            movement->Clear_FollowMoveCommand(); 
+            movement->Apply_Input({});           
+            movement->Stop_HorizontalMovement(); 
+        }
+
+        auto state = hero->Get_Component<PlayerStateMachineCom>();
+        if (state)
+            state->Change_State(PlayerState::Idle); // 전환/종료 시 월드 기본 상태로 돌린다.
+    }
+}
+
+void Hero_Manager::Handle_EditorStopRuntime()
+{
+    Reset_AllHeroesToIdle();
+}
+
 Unique<Hero_Manager> Hero_Manager::Create()
 {
     auto instance = make_unique<Hero_Manager>();
-    //instance->Initialize_Hero();
+
+    if (FAILED(instance->Ready_Delegates()))
+    {
+        instance->Free();
+        return nullptr;
+    }
 
     return instance;
 }
 
 void Hero_Manager::Free()
 {
+    if (_editorStopHandle.IsValid())
+    {
+        GAME->Get_DelegateHub().OnEditorStopRuntime.Remove(_editorStopHandle);
+        _editorStopHandle.Reset();
+    }
+
     Base::Free();
 }

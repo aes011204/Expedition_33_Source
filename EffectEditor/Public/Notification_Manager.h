@@ -28,7 +28,7 @@ public:
     template <typename... Args>
     void Add_Notification_With_Type(NotifyType type, string_view format, Args&&... args)
     {
-        string finalMessage;
+        string finalMessage{};
         try
         {
             if constexpr (sizeof...(args) > 0)
@@ -45,7 +45,7 @@ public:
     }
 
 private:
-    list<FNotification> _notifications;
+    list<NotificationEntry> _notifications{};
 
 private:
     void Add_Internal(const string& message, NotifyType type = NotifyType::Info);

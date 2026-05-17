@@ -68,12 +68,18 @@ public:
 public:
     float Get_FrameSpeed() const { return _frameSpeed; }
     void Set_FrameSpeed(float speed) { _frameSpeed = speed; }
-    bool Is_AnimationFinished() const { return _isFinished; }
-    void Set_Animation(uint32 animIndex, bool isLoop = false);
-    void Set_Animation(uint32 animIndex, float blendDuration, bool isLoop = false);
 
-    void Set_AnimationByState(uint32 stateIndex, bool isLoop = false);
-    void Set_AnimationByState(uint32 stateIndex, float blendDuration, bool isLoop = false);
+    float Get_CurrentProgress() const;
+    float Get_CurrentFrame() const;
+
+    bool Is_AnimationFinished() const { return _isFinished; }
+    void Set_Animation(uint32 animIndex, bool isLoop = false, float startFrame = 0.f);
+    void Set_Animation(uint32 animIndex, float blendDuration, bool isLoop = false, float startFrame = 0.f);
+    void Set_Animation(const string& animName, bool isLoop = false, float startFrame = 0.f);
+    void Set_Animation(const string& animName, float blendDuration, bool isLoop = false, float startFrame = 0.f);
+
+    void Set_AnimationByState(uint32 stateIndex, bool isLoop = false, float startFrame = 0.f);
+    void Set_AnimationByState(uint32 stateIndex, float blendDuration, bool isLoop = false, float startFrame = 0.f);
     const char* Get_AnimationName(uint32 animationIndex) const;
 
 public:
@@ -208,6 +214,15 @@ private:
     vector<Shared<Bone>>		        _bones;
     vector<Shared<Animation>>	        _animations;
     vector<uint32>                      _stateAnimIndices;
+    unordered_map<string, uint32>       _mappedAnimIndices;
+
+    struct AppliedMaterialAsset
+    {
+        string bundleKey{};
+        string assetName{};
+    };
+
+    vector<AppliedMaterialAsset>        _appliedMaterialAssets;
 
 private: /* For Animation Control */
     bool                                _isFinished{ false };
@@ -231,16 +246,16 @@ private: /* guid */
     wstring                             _sourceModelPath = {};
 
 private:
-    vector<MaterialBinding> _materialBindings{};
+    vector<MaterialBinding>             _materialBindings{};
 
 private: /* notify */
     bool                                _isAnimationPaused = false;
 
-    bool                    _isAnimNotifyAssetLoaded = false;
-    bool                    _isAnimNotifyExecutionEnabled = true;
+    bool                                _isAnimNotifyAssetLoaded = false;
+    bool                                _isAnimNotifyExecutionEnabled = true;
 
-    AnimNotifyAsset         _animNotifyAsset{};
-    vector<ActiveAnimNotifyState> _activeNotifyStates{};
+    AnimNotifyAsset                     _animNotifyAsset{};
+    vector<ActiveAnimNotifyState>       _activeNotifyStates{};
 
 private: /* 머리 붙이기 */
     const ModelCom* _leaderPoseModel = nullptr;

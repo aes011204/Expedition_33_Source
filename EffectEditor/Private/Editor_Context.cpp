@@ -37,6 +37,18 @@ void Editor_Context::Set_SelectEffectEmitter(uint32 emitterId)
     ++_effectSelectionRevision;
 }
 
+void Editor_Context::Set_SelectEffectTypeData(uint32 emitterId)
+{
+    if (_effectSelection.kind == EffectAuthoringSelectionKind::TypeData &&
+        _effectSelection.emitterId == emitterId)
+        return;
+
+    _effectSelection.kind = EffectAuthoringSelectionKind::TypeData;
+    _effectSelection.emitterId = emitterId;
+    _effectSelection.moduleId = 0;
+    ++_effectSelectionRevision;
+}
+
 void Editor_Context::Set_SelectEffectModule(uint32 emitterId, uint32 moduleId)
 {
     if (_effectSelection.kind == EffectAuthoringSelectionKind::Module &&

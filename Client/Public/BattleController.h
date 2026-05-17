@@ -1,25 +1,25 @@
 ﻿#pragma once
+
 #include "Base.h"
+#include "Delegate.h"
 #include "Battle_Enum.h"
 
+
 NS_BEGIN(Engine)
-
-    class Character;
-
+class Character;
+class Camera;
 NS_END
-
 
 NS_BEGIN(Client)
 
 class CombatStatCom;
 class BuffSystem;
 class BattleEffectResolver;
+class BattleStateMachine;
+class BattleTurnCamera;
 
-    class BattleStateMachine;
-class BattleController :
-    public Base
+class BattleController : public Base
 {
-
 public:
     BattleController();
     virtual ~BattleController();
@@ -27,40 +27,60 @@ public:
     HRESULT Initialize();
     void Update(float timeDelta);
 
-
-
     void Run_EnemyTurn();
 
+    // 진입 시 데이터만 기록 -> 실제 전환은 슬로우모션 끝난 후 Complete_BattleFiled 함수
+    void  OnEnterBattleField(
+        uint32 FieldID,
+        bool IsFirstHero,
+        const vector<HeroId>& heroIds,
+        vector<string>& battleMonsterPrefabNames);
 
-    void  OnEnterBattleField(uint32 FieldID, bool IsFirstHero, vector<string>& PlayerProtoTag, vector<string>& MonsterProtoTag);
     EBattleEndResult OnExitBattleField(EBattleEndResult result);
 
     void Set_BattleFSM();
-    void  ExecuteAction(Action turnAction); //실제로 선택한 행동을 실행하는 함수
+    void ExecuteAction(Action turnAction); //실제로 선택한 행동을 실행하는 함수
 
     void EndTurn();
     void StartTurn();
 
     EAPChangeReason FinishBattle();
 
-
-
-    void Create_BattleChar(vector<string>& PlayerprotoTag, vector<string>& MonsterprotoTag);
+    void Create_BattleChar(const vector<HeroId>& heroIds, vector<string>& battleMonsterPrefabNames);
     void Build_InitialTurnQueue(bool IsFirstHero);
     void SetCharInitPos();
 
 public:
-    Shared< BattleStateMachine>  Get_BattleFSM() { return _battleFSM; };
+    Shared<BattleStateMachine>  Get_BattleFSM() { return _battleFSM; };
     Action& Get_TurnAction() { return _turnAction; }
     //uint32 Get_EnemiesNum() { return _enemies.size(); }
     //uint32 Get_HeroesNum() { return _heroes.size(); }
 
     vector<BattleChar> Get_AliveEnemies();
     vector<BattleChar> Get_AliveHeroes();
+
+    bool Is_BattleStarted() { return _isBattleActive; }
+    bool Is_BattleEntering() const { return _isBattleEntering; } // 배틀 진입 시작
+
+public:
+    void Handle_EditorStopRuntime();
+    HRESULT Ready_Delegates();
+    void OnActionEndNotify();
+
+private:
+    HRESULT Ready_BattleTurnCamera();
+    void    Activate_BattleTurnCamera();
+    void    Restore_WorldCamera();
+
+    void    Complete_BattleField();          // 2초 슬로우모션이 끝난 뒤 실제 PB/MB 생성과 턴 시작을 처리한다.
+    void    Clear_BattleEnterPending();   // 전투 진입 대기 데이터만 정리
+
 private:
     BattleChar _currentTurnActor = {};
     Action _turnAction={};
-    bool isBattleActive = { false };
+    bool _isBattleActive = { false };
+    bool _isBattleEntering = { false };
+
     int currentTurnIndex = {};
      
     bool _flag = { false };
@@ -95,6 +115,24 @@ private:
     Shared< BattleStateMachine> _battleFSM;
     Shared< BuffSystem> _buffSystem;
     Shared< BattleEffectResolver> _battleEffectResolver;
+
+    FDelegateHandle _editorStopHandle = {};
+
+private:
+    Shared<BattleTurnCamera> _battleTurnCamera;
+    Shared<Camera> _worldCamera;    // 전투 시작 전 카메라 저장
+
+   
+private:  // 슬로우 처리
+    float _battleEnterElapsed = 0.f;
+    float _battleEnterDuration = 2.f;
+    float _battleEnterWorldTimeScale = 0.25f;
+    float _resetWorldTime = 1.f;
+
+    uint32  _pendingBattleFieldID = 0;
+    bool    _pendingBattleIsFirstHero = false;
+    vector<HeroId> _pendingBattleHeroIds = {};
+    vector<string> _pendingBattleMonsterPrefabNames = {};
 
 public:
     static Shared<BattleController> Create();

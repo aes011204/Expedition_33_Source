@@ -5,7 +5,7 @@
 #include "PlayerControllerCom.h"
 #include "PlayerStateMachineCom.h"
 
-Player_Idle::Player_Idle(const Shared<Player>& owner)
+Player_Idle::Player_Idle(const Shared<Player_WorldBase>& owner)
     : Player_State{ owner }
 {
 }
@@ -30,19 +30,19 @@ void Player_Idle::Update(float timeDelta)
     bool isFinished = _bodyPlayer->Is_AnimationFinished();
     auto& input = Get_MovementInput();
 
-    if (input.isSuddenAttack)
+    if (IsEnterWorldAction())
     {
         _stateCom->Change_State(PlayerState::WorldAction);
         return;
     }
 
-    if (input.isJumpDown)
+    if (IsEnterJump())
     {
         _stateCom->Change_State(PlayerState::Jump);
         return;
     }
 
-    if (Has_MoveInput())
+    if (IsEnterMove())
     {
         _stateCom->Change_State(PlayerState::Move);
         return;
@@ -79,7 +79,7 @@ void Player_Idle::Set_IdleAnimation() const
         _bodyPlayer->Set_AnimationByState(ETOI(pl::Pl_Idle_0), 0.2f, true);
 }
 
-Shared<Player_Idle> Player_Idle::Create(const Shared<Player>& owner)
+Shared<Player_Idle> Player_Idle::Create(const Shared<Player_WorldBase>& owner)
 {
     auto instance = make_shared<Player_Idle>(owner);
 

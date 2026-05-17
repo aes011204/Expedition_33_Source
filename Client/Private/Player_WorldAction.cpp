@@ -5,7 +5,7 @@
 #include "PlayerControllerCom.h"
 #include "PlayerStateMachineCom.h"
 
-Player_WorldAction::Player_WorldAction(const Shared<Player>& owner)
+Player_WorldAction::Player_WorldAction(const Shared<Player_WorldBase>& owner)
     : Player_State{ owner }
 {
 }
@@ -61,7 +61,7 @@ void Player_WorldAction::ExitInvoke()
 }
 
 
-Shared<Player_WorldAction> Player_WorldAction::Create(const Shared<Player>& owner)
+Shared<Player_WorldAction> Player_WorldAction::Create(const Shared<Player_WorldBase>& owner)
 {
     auto instance = make_shared<Player_WorldAction>(owner);
 

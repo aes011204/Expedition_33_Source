@@ -1,50 +1,18 @@
 ﻿#pragma once
 
 #include "EffectAuthoring_Types.h"
-#include "Helper_DetailProperty.h"
+#include "DetailPropertyContext.h"
 
 NS_BEGIN(EffectEditor)
-
-struct ModuleDetailDrawContext
-{
-    bool Begin_PropertyTable(const char* id);
-    void End_PropertyTable();
-    bool Draw_StringProperty(const char* label, string& value, const string& defaultValue);
-    bool Draw_BoolProperty(const char* label, bool& value, bool defaultValue);
-    bool Draw_FloatProperty(const char* label, float& value, float defaultValue, float speed = 0.01f);
-    bool Draw_ColorProperty(const char* label, Color& value, const Color& defaultValue);
-    bool Draw_FloatDistributionGroup(const char* label, FloatDistributionData& value, const FloatDistributionData& defaultValue, float speed = 0.01f);
-    bool Draw_Vector2DistributionGroup(
-        const char* label,
-        Vector2DistributionData& value,
-        const Vector2DistributionData& defaultValue,
-        float speed = 0.01f);
-    bool Draw_Vector3DistributionGroup(
-        const char* label,
-        Vector3DistributionData& value,
-        const Vector3DistributionData& defaultValue,
-        float speed = 0.01f);
-    bool Draw_ColorDistributionGroup(
-        const char* label,
-        ColorDistributionData& value,
-        const ColorDistributionData& defaultValue);
-    bool Draw_BurstListProperty(
-        vector<SpawnModuleData::ParticleBurstData>& burstList,
-        const vector<SpawnModuleData::ParticleBurstData>& defaultValue);
-    bool Draw_ScreenAlignmentProperty(const char* label, EmitterScreenAlignment& value, EmitterScreenAlignment defaultValue);
-    bool Draw_SortModeProperty(const char* label, EmitterSortMode& value, EmitterSortMode defaultValue);
-    bool Draw_UintProperty(const char* label, uint32& value, uint32 defaultValue);
-    bool Draw_Vec3Property(const char* label, Vec3& value, const Vec3& defaultValue, float speed = 0.01f);
-};
 
 class RequiredModuleDetail
 {
 public:
     bool Draw(
         AuthoringEmitter& emitter,
-        AuthoringModule& module,
+        const AuthoringModule& module,
         RequiredModuleData& data,
-        ModuleDetailDrawContext& drawContext);
+        DetailPropertyContext& detailContext);
 };
 
 class SpawnModuleDetail
@@ -54,7 +22,7 @@ public:
         AuthoringEmitter& emitter,
         AuthoringModule& module,
         SpawnModuleData& data,
-        ModuleDetailDrawContext& drawContext);
+        DetailPropertyContext& detailContext);
 };
 
 class LifetimeModuleDetail
@@ -64,7 +32,7 @@ public:
         AuthoringEmitter& emitter,
         AuthoringModule& module,
         LifetimeModuleData& data,
-        ModuleDetailDrawContext& drawContext);
+        DetailPropertyContext& detailContext);
 };
 
 class InitialSizeModuleDetail
@@ -74,7 +42,7 @@ public:
         AuthoringEmitter& emitter,
         AuthoringModule& module,
         InitialSizeModuleData& data,
-        ModuleDetailDrawContext& drawContext);
+        DetailPropertyContext& detailContext);
 };
 
 class InitialVelocityModuleDetail
@@ -84,7 +52,77 @@ public:
         AuthoringEmitter& emitter,
         AuthoringModule& module,
         InitialVelocityModuleData& data,
-        ModuleDetailDrawContext& drawContext);
+        DetailPropertyContext& detailContext);
+};
+
+class AccelerationModuleDetail
+{
+public:
+    bool Draw(
+        AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        AccelerationModuleData& data,
+        DetailPropertyContext& detailContext);
+};
+
+class DragModuleDetail
+{
+public:
+    bool Draw(
+        AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        DragModuleData& data,
+        DetailPropertyContext& detailContext);
+};
+
+class VelocityOverLifeModuleDetail
+{
+public:
+    bool Draw(
+        AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        VelocityOverLifeModuleData& data,
+        DetailPropertyContext& detailContext);
+};
+
+class InitialRotationModuleDetail
+{
+public:
+    bool Draw(
+        AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        InitialRotationModuleData& data,
+        DetailPropertyContext& detailContext);
+};
+
+class RotationOverLifeModuleDetail
+{
+public:
+    bool Draw(
+        AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        RotationOverLifeModuleData& data,
+        DetailPropertyContext& detailContext);
+};
+
+class InitialRotationRateModuleDetail
+{
+public:
+    bool Draw(
+        AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        InitialRotationRateModuleData& data,
+        DetailPropertyContext& detailContext);
+};
+
+class RotationRateScaleByLifeModuleDetail
+{
+public:
+    bool Draw(
+        AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        RotationRateScaleByLifeModuleData& data,
+        DetailPropertyContext& detailContext);
 };
 
 class InitialColorModuleDetail
@@ -94,7 +132,7 @@ public:
         AuthoringEmitter& emitter,
         AuthoringModule& module,
         InitialColorModuleData& data,
-        ModuleDetailDrawContext& drawContext);
+        DetailPropertyContext& detailContext);
 };
 
 class ColorOverLifeModuleDetail
@@ -104,7 +142,27 @@ public:
         AuthoringEmitter& emitter,
         AuthoringModule& module,
         ColorOverLifeModuleData& data,
-        ModuleDetailDrawContext& drawContext);
+        DetailPropertyContext& detailContext);
+};
+
+class SubUVFrameOverLifeModuleDetail
+{
+public:
+    bool Draw(
+        const AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        SubUVFrameOverLifeModuleData& data,
+        DetailPropertyContext& detailContext);
+};
+
+class SizeByLifeModuleDetail
+{
+public:
+    bool Draw(
+        AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        SizeByLifeModuleData& data,
+        DetailPropertyContext& detailContext);
 };
 
 NS_END

@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #pragma region INCLUDE
 
@@ -9,6 +9,7 @@
 #include "Debug_Types.h"
 #include <string_view>
 #include <utility>
+#include "DelegateHub.h"
 
 #include "Log_Define.h"
 #ifdef _DEBUG
@@ -74,6 +75,12 @@ public:
 
     HRESULT Draw();
     HRESULT Draw_RendererOnly(); // 에디터용
+    HRESULT Draw_Preview(); // 에디터 프리뷰용
+    void    Backup_RenderGroup();
+    void    Restore_RenderGroup();
+    // 프리뷰 창에서만 shadow 없는 pass 사용
+    void    Set_PreviewDeferredCombine(bool enable);
+
     void    Clear_Resources(uint32 levelIndex);
 
     float   Random(float min, float max);
@@ -84,6 +91,11 @@ public:
 public:
     void    Set_GameplayPaused(bool paused) { _isGameplayPaused = paused; }
     bool    Is_GameplayPaused() const { return _isGameplayPaused; }
+
+    void    Set_WorldTimeScale(float timeScale);
+    float   Get_WorldTimeScale() const { return _worldTimeScale; }
+    float   Get_UnscaledTimeDelta() const { return _unscaledTimeDelta; }
+    float   Get_WorldTimeDelta() const { return _worldTimeDelta; }
 
 public: /* For.Log_Manager */
     void    Log_FileOnly(const spdlog::source_loc& sourceLoc, spdlog::level::level_enum level, const string& message) const;
@@ -221,6 +233,9 @@ public: /* For.Input_Manager */
     void Set_InputBlocked(bool isBlocked);
     // 마우스 위치 반환
     const POINT& Get_MousePosition() const;
+    const POINT& Get_RawMousePosition() const;
+    void Set_MousePositionOverride(const POINT& mousePosition);
+    void Clear_MousePositionOverride();
 
 public: /* For.Light_Manager */
     const LIGHT_DESC* Get_LightDesc(uint32 index);
@@ -436,6 +451,10 @@ public: /* For.Thread Pool */
     bool                    Enqueue_ThreadJob(function<void()> job);
     size_t                  Get_PendingThreadJobCount() const;
 
+public: /* For.Delegate Hub */
+    DelegateHub& Get_DelegateHub() { return _delegateHub; }
+    const DelegateHub& Get_DelegateHub() const { return _delegateHub; }
+
 private:
     Unique<Log_Manager>         _logManager{};
     Unique<Graphic_Device>      _graphicDevice{};
@@ -479,8 +498,14 @@ private:
 
     bool    _isGameplayPaused = false;
 
+    float   _worldTimeScale = 1.f;
+    float   _unscaledTimeDelta = 0.f;
+    float   _worldTimeDelta = 0.f;
+
     // Free 카메라용 time
     float   _freeCameraTimeDelta = 0.f;
+
+    DelegateHub _delegateHub = {};
 
 #ifdef _DEBUG
 private: //## 디버그 성능 평가용

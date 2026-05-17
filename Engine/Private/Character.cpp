@@ -28,3 +28,8 @@ void Character::BeginPlay()
 {
     ContainerObject::BeginPlay();
 }
+
+void Character::Free()
+{
+    ContainerObject::Free();
+}

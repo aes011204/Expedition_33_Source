@@ -1,7 +1,9 @@
 ﻿#pragma once
 
 #include "Editor_Window.h"
+#include "Emitter_View.h"
 #include "EffectAuthoring_Types.h"
+#include "DetailPropertyContext.h"
 #include "ModuleDetail_Drawers.h"
 
 NS_BEGIN(EffectEditor)
@@ -9,7 +11,6 @@ NS_BEGIN(EffectEditor)
 class Detail_View final : public Editor_Window
 {
 public:
-    // 선택된 오브젝트와 effect authoring 속성을 보여줄 인스펙터 창을 생성한다.
     Detail_View();
     ~Detail_View() override;
 
@@ -18,22 +19,70 @@ public:
     void Render() override;
 
 private: //## Helper::EffectAuthoring
+    // 현재 selection kind에 맞는 authoring detail UI를 분기해서 그린다.
     void Render_EffectAuthoringDetail();
-    void Render_ParticleSystemDetail(ParticleSystemAuthoringData& data);
-    void Render_EmitterDetail(AuthoringEmitter& emitter);
-    void Render_ModuleDetail(AuthoringEmitter& emitter, AuthoringModule& module);
+    void Render_ParticleSystemDetail(
+        const Shared<Emitter_View>& emitterView,
+        const EffectAuthoringSelection& selection,
+        ParticleSystemAuthoringData& data);
+    void Render_EmitterDetail(
+        const Shared<Emitter_View>& emitterView,
+        const EffectAuthoringSelection& selection,
+        AuthoringEmitter& emitter);
+    void Render_TypeDataDetail(
+        const Shared<Emitter_View>& emitterView,
+        const EffectAuthoringSelection& selection,
+        AuthoringEmitter& emitter);
+    void Render_ModuleDetail(
+        const Shared<Emitter_View>& emitterView,
+        const EffectAuthoringSelection& selection,
+        AuthoringEmitter& emitter,
+        AuthoringModule& module);
 
+    // emitter 편집 변경을 preview dirty와 detail window dirty 상태에 반영한다.
     void Mark_Changed(AuthoringEmitter& emitter, bool changed);
     static RequiredModuleData* Find_RequiredModuleData(AuthoringEmitter& emitter);
+    // 다른 selection으로 이동하기 전에 열려 있던 pending edit을 먼저 history command로 확정한다.
+    void Commit_PendingAuthoringEditOnTargetChange(const Shared<Emitter_View>& emitterView, const EffectAuthoringSelection& selection);
+    // 첫 변경 시점의 selection/before snapshot/description을 잡아 한 번의 authoring edit으로 묶기 시작한다.
+    void Begin_PendingAuthoringEdit(
+        const Shared<Emitter_View>& emitterView,
+        const EffectAuthoringSelection& selection,
+        const Emitter_View::AuthoringSnapshot& beforeSnapshot,
+        const string& description);
+    // 현재 ImGui item 입력이 끝난 idle 시점에만 pending edit을 commit한다.
+    void Commit_PendingAuthoringEditIfIdle(const Shared<Emitter_View>& emitterView);
+    // 저장해 둔 before/after snapshot으로 undo 가능한 authoring command를 만든다.
+    void Commit_PendingAuthoringEdit(const Shared<Emitter_View>& emitterView);
+    static bool Is_SameSelection(const EffectAuthoringSelection& lhs, const EffectAuthoringSelection& rhs);
 
-private:
+private: //## Data::ModuleDetail
+    DetailPropertyContext _detailPropertyContext{};
+    // module data 자체가 아니라 module type별 detail row UI를 그리는 drawer 상태다.
     RequiredModuleDetail _requiredModuleDetail{};
     SpawnModuleDetail _spawnModuleDetail{};
     LifetimeModuleDetail _lifetimeModuleDetail{};
     InitialSizeModuleDetail _initialSizeModuleDetail{};
     InitialVelocityModuleDetail _initialVelocityModuleDetail{};
+    AccelerationModuleDetail _accelerationModuleDetail{};
+    DragModuleDetail _dragModuleDetail{};
+    VelocityOverLifeModuleDetail _velocityOverLifeModuleDetail{};
+    InitialRotationModuleDetail _initialRotationModuleDetail{};
+    RotationOverLifeModuleDetail _rotationOverLifeModuleDetail{};
+    InitialRotationRateModuleDetail _initialRotationRateModuleDetail{};
+    RotationRateScaleByLifeModuleDetail _rotationRateScaleByLifeModuleDetail{};
     InitialColorModuleDetail _initialColorModuleDetail{};
     ColorOverLifeModuleDetail _colorOverLifeModuleDetail{};
+    SubUVFrameOverLifeModuleDetail _subUvFrameOverLifeModuleDetail{}; // SubUV frame 진행 규칙 drawer다.
+    SizeByLifeModuleDetail _sizeByLifeModuleDetail{};                 // life 기준 크기 배율 drawer다.
+
+private: //## Data::AuthoringHistory
+    // selection 전환이나 입력 종료 시점까지 하나의 authoring edit command를 지연 관리한다.
+    bool _hasPendingAuthoringEdit{ false };
+    EffectAuthoringSelection _pendingAuthoringSelection{};
+    // 편집 시작 전 authoring 상태 snapshot이다.
+    Emitter_View::AuthoringSnapshot _pendingAuthoringSnapshot{};
+    string _pendingAuthoringDescription{};
 
 public:
     static Shared<Detail_View> Create();

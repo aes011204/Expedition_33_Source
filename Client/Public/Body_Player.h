@@ -55,6 +55,11 @@ public:
 
         Pl_Explo,
     };
+
+    enum class PlayerBattleAnimation
+    {
+        
+    };
 };
 
 NS_END

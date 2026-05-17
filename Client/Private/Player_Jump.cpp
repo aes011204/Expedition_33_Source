@@ -5,7 +5,7 @@
 #include "PlayerControllerCom.h"
 #include "PlayerStateMachineCom.h"
 
-Player_Jump::Player_Jump(const Shared<Player>& owner)
+Player_Jump::Player_Jump(const Shared<Player_WorldBase>& owner)
     : Player_State{ owner } {}
 
 HRESULT Player_Jump::Initialize()
@@ -79,7 +79,7 @@ void Player_Jump::ExitInvoke()
     
 }
 
-Shared<Player_Jump> Player_Jump::Create(const Shared<Player>& owner)
+Shared<Player_Jump> Player_Jump::Create(const Shared<Player_WorldBase>& owner)
 {
     auto instance = make_shared<Player_Jump>(owner);
 

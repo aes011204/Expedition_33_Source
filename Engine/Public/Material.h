@@ -39,6 +39,7 @@ public:
 	HRESULT Initialize(const char* modelPath, const ModelMaterialData& materialData, const vector<ModelTextureSlot>& slots, uint32 maxTextureTypeSize);
 	HRESULT Bind_Material(class ShaderCom* shader, const char* constantName, MaterialTextureSlot slot, uint32 textureIndex = 0);
 	HRESULT Override_TextureSlot(MaterialTextureSlot slot, uint32 slotIndex, const wstring& texturePath);
+
     void    Update_MaterialState();
     const string& Get_MaterialName() const { return _materialName; }
     uint32 Get_MaxTextureTypeSize() const { return _maxTextureTypeSize; }
@@ -65,9 +66,12 @@ public:
     void Set_ForcedPassIndex(int32 forcedPassIndex);
 
 private:
-	std::wstring    Find_TextureFile(const std::filesystem::path& searchRoot, const std::string& fileName);
-	HRESULT         Create_TextureSRV(const std::filesystem::path& texturePath, ID3D11ShaderResourceView** outSrv);
+	std::wstring    Find_TextureFile(const fs::path& searchRoot, const string& fileName);
+    fs::path        Resolve_TextureLoadPath(const fs::path& texturePath) const;
+
+	HRESULT         Create_TextureSRV(const fs::path& texturePath, ID3D11ShaderResourceView** outSrv);
     void            Refresh_PassIndex();
+
 private:
     string                          _materialName;
 
