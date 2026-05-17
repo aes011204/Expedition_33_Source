@@ -19,6 +19,36 @@ namespace UIEditor
         {
             return degrees * kPi / 180.f;
         }
+
+        bool NearlyEqual(float lhs, float rhs)
+        {
+            return fabsf(lhs - rhs) <= 0.0001f;
+        }
+
+        bool NearlyEqual(const ImVec2& lhs, const ImVec2& rhs)
+        {
+            return NearlyEqual(lhs.x, rhs.x) && NearlyEqual(lhs.y, rhs.y);
+        }
+
+        bool Draw_PresetButton(const char* label, bool active, const char* tooltip)
+        {
+            if (active)
+            {
+                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.95f, 0.72f, 0.24f, 0.95f));
+                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.f, 0.82f, 0.34f, 1.f));
+                ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.88f, 0.62f, 0.18f, 1.f));
+            }
+
+            const bool clicked = ImGui::Button(label, ImVec2(34.f, 24.f));
+
+            if (active)
+                ImGui::PopStyleColor(3);
+
+            if (nullptr != tooltip && ImGui::IsItemHovered())
+                ImGui::SetTooltip("%s", tooltip);
+
+            return clicked;
+        }
     }
 
     UI_Inspector::UI_Inspector(UI_Editor_Manager& editorManager)
@@ -71,7 +101,7 @@ namespace UIEditor
                     ImGui::BeginDisabled(true);
 
                 changed |= ImGui::DragFloat2("Local Position", &selectedObject->position.x, 1.f);
-                changed |= ImGui::DragFloat2("Size", &selectedObject->size.x, 1.f, 1.f, 4096.f);
+                changed |= ImGui::DragFloat2("Size", &selectedObject->size.x, 1.f);
                 changed |= ImGui::DragFloat2("Scale", &selectedObject->scale.x, 0.01f, 0.01f, 10.f, "%.2f");
                 changed |= ImGui::DragFloat2("Pivot", &selectedObject->pivot.x, 0.01f, 0.f, 1.f, "%.3f");
                 changed |= ImGui::DragFloat2("Anchor Min", &selectedObject->anchorMin.x, 0.01f, 0.f, 1.f, "%.3f");
@@ -95,8 +125,6 @@ namespace UIEditor
 
                 changed |= ImGui::ColorEdit4("Color", &selectedObject->color.x);
 
-                selectedObject->size.x = max(1.f, selectedObject->size.x);
-                selectedObject->size.y = max(1.f, selectedObject->size.y);
                 selectedObject->scale.x = max(0.01f, selectedObject->scale.x);
                 selectedObject->scale.y = max(0.01f, selectedObject->scale.y);
                 selectedObject->pivot.x = min(max(selectedObject->pivot.x, 0.f), 1.f);
@@ -105,7 +133,13 @@ namespace UIEditor
                 selectedObject->anchorMin.y = min(max(selectedObject->anchorMin.y, 0.f), 1.f);
                 selectedObject->anchorMax.x = min(max(selectedObject->anchorMax.x, 0.f), 1.f);
                 selectedObject->anchorMax.y = min(max(selectedObject->anchorMax.y, 0.f), 1.f);
-                selectedObject->position = Clamp_ObjectPosition(*selectedObject, _editorManager.Get_Document().Get_CanvasSize(), selectedObject->position);
+                const ImVec2 parentReferenceSize = _editorManager.Get_Document().Get_ParentAnchorReferenceSize(selectedObject->id);
+                const float minSizeX = 1.f - parentReferenceSize.x * max(0.f, selectedObject->anchorMax.x - selectedObject->anchorMin.x);
+                const float minSizeY = 1.f - parentReferenceSize.y * max(0.f, selectedObject->anchorMax.y - selectedObject->anchorMin.y);
+                selectedObject->size.x = max(minSizeX, selectedObject->size.x);
+                selectedObject->size.y = max(minSizeY, selectedObject->size.y);
+
+                Render_LayoutPresets(*selectedObject);
 
                 if (selectedObject->type == UI_ObjectType::Image)
                 {
@@ -186,6 +220,90 @@ namespace UIEditor
 
         Set_Open(isOpen);
         ImGui::End();
+    }
+
+    void UI_Inspector::Render_LayoutPresets(UI_Object& object)
+    {
+        struct Preset
+        {
+            const char* label = "";
+            const char* tooltip = "";
+            ImVec2 value = ImVec2(0.f, 0.f);
+        };
+
+        const Preset presets[3][3] =
+        {
+            {
+                { "TL", "Set to (0, 0)", ImVec2(0.f, 0.f) },
+                { "T", "Set to (0.5, 0)", ImVec2(0.5f, 0.f) },
+                { "TR", "Set to (1, 0)", ImVec2(1.f, 0.f) },
+            },
+            {
+                { "L", "Set to (0, 0.5)", ImVec2(0.f, 0.5f) },
+                { "C", "Set to (0.5, 0.5)", ImVec2(0.5f, 0.5f) },
+                { "R", "Set to (1, 0.5)", ImVec2(1.f, 0.5f) },
+            },
+            {
+                { "BL", "Set to (0, 1)", ImVec2(0.f, 1.f) },
+                { "B", "Set to (0.5, 1)", ImVec2(0.5f, 1.f) },
+                { "BR", "Set to (1, 1)", ImVec2(1.f, 1.f) },
+            },
+        };
+
+        ImGui::Separator();
+        ImGui::TextUnformatted("Pivot Presets (Keep Rect)");
+        ImGui::PushID("PivotKeepRectPresets");
+        for (int32 row = 0; row < 3; ++row)
+        {
+            for (int32 column = 0; column < 3; ++column)
+            {
+                const Preset& preset = presets[row][column];
+                if (column > 0)
+                    ImGui::SameLine();
+
+                if (Draw_PresetButton(preset.label, NearlyEqual(object.pivot, preset.value), preset.tooltip))
+                    _editorManager.Set_UIObjectPivotKeepWorldRect(object.id, preset.value);
+            }
+        }
+        ImGui::PopID();
+
+        ImGui::TextUnformatted("Anchor Presets (Keep Rect)");
+        ImGui::PushID("AnchorKeepRectPresets");
+        for (int32 row = 0; row < 3; ++row)
+        {
+            for (int32 column = 0; column < 3; ++column)
+            {
+                const Preset& preset = presets[row][column];
+                if (column > 0)
+                    ImGui::SameLine();
+
+                const bool active = NearlyEqual(object.anchorMin, preset.value) && NearlyEqual(object.anchorMax, preset.value);
+                if (Draw_PresetButton(preset.label, active, preset.tooltip))
+                    _editorManager.Set_UIObjectAnchorsKeepWorldRect(object.id, preset.value, preset.value);
+            }
+        }
+        ImGui::PopID();
+
+        const float anchorCenterX = min(max((object.anchorMin.x + object.anchorMax.x) * 0.5f, 0.f), 1.f);
+        const float anchorCenterY = min(max((object.anchorMin.y + object.anchorMax.y) * 0.5f, 0.f), 1.f);
+        const ImVec2 horizontalMin = ImVec2(0.f, anchorCenterY);
+        const ImVec2 horizontalMax = ImVec2(1.f, anchorCenterY);
+        const ImVec2 verticalMin = ImVec2(anchorCenterX, 0.f);
+        const ImVec2 verticalMax = ImVec2(anchorCenterX, 1.f);
+        const ImVec2 fullMin = ImVec2(0.f, 0.f);
+        const ImVec2 fullMax = ImVec2(1.f, 1.f);
+
+        ImGui::TextUnformatted("Anchor Stretch (Keep Rect)");
+        ImGui::PushID("AnchorStretchKeepRect");
+        if (Draw_PresetButton("H", NearlyEqual(object.anchorMin, horizontalMin) && NearlyEqual(object.anchorMax, horizontalMax), "Stretch horizontally, keep current Y anchor"))
+            _editorManager.Set_UIObjectAnchorsKeepWorldRect(object.id, horizontalMin, horizontalMax);
+        ImGui::SameLine();
+        if (Draw_PresetButton("V", NearlyEqual(object.anchorMin, verticalMin) && NearlyEqual(object.anchorMax, verticalMax), "Stretch vertically, keep current X anchor"))
+            _editorManager.Set_UIObjectAnchorsKeepWorldRect(object.id, verticalMin, verticalMax);
+        ImGui::SameLine();
+        if (Draw_PresetButton("HV", NearlyEqual(object.anchorMin, fullMin) && NearlyEqual(object.anchorMax, fullMax), "Stretch both axes"))
+            _editorManager.Set_UIObjectAnchorsKeepWorldRect(object.id, fullMin, fullMax);
+        ImGui::PopID();
     }
 
     bool UI_Inspector::Render_TexturePicker(UI_Object& object)

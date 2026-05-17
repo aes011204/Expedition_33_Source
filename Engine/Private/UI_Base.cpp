@@ -22,7 +22,7 @@ namespace
         if (nullptr == parentTransform)
             return point;
 
-        const Vec2 parentPosition = parent.Get_ResolvedLocalPosition();
+        const Vec2 parentPivotPosition = parent.Get_ResolvedLocalPosition();
         const Vec2 parentSize = parent.Get_ResolvedLocalSize();
         const Vec2& parentScale = parentTransform->Get_Scale();
         const Vec2& parentPivot = parentTransform->Get_Pivot();
@@ -37,8 +37,8 @@ namespace
         const Vec2 rotatedOffset = Rotate_Point(scaledOffset, parentTransform->Get_RotationRadians());
 
         return Vec2(
-            parentPosition.x + pivotOffset.x + rotatedOffset.x,
-            parentPosition.y + pivotOffset.y + rotatedOffset.y);
+            parentPivotPosition.x + rotatedOffset.x,
+            parentPivotPosition.y + rotatedOffset.y);
     }
 }
 
@@ -161,7 +161,21 @@ Vec2 UI_Base::Get_WorldPosition() const
     if (nullptr == _transform)
         return Vec2(0.f, 0.f);
 
-    return Transform_LocalPointToWorld(Get_ResolvedLocalPosition());
+    const Vec2 localPosition = Get_ResolvedLocalPosition();
+    const Vec2 localSize = Get_ResolvedLocalSize();
+    const Vec2& pivot = _transform->Get_Pivot();
+    const Vec2& localScale = _transform->Get_Scale();
+    const Vec2 pivotOffset(
+        localSize.x * pivot.x,
+        localSize.y * pivot.y);
+    const Vec2 scaledTopLeftOffset(
+        -pivotOffset.x * localScale.x,
+        -pivotOffset.y * localScale.y);
+    const Vec2 rotatedTopLeftOffset = Rotate_Point(scaledTopLeftOffset, _transform->Get_RotationRadians());
+
+    return Transform_LocalPointToWorld(Vec2(
+        localPosition.x + rotatedTopLeftOffset.x,
+        localPosition.y + rotatedTopLeftOffset.y));
 }
 
 Vec2 UI_Base::Get_ParentAnchorReferenceSize() const
@@ -189,6 +203,20 @@ Vec2 UI_Base::Get_ResolvedLocalPosition() const
         position.y + parentReferenceSize.y * anchorMin.y);
 }
 
+Vec2 UI_Base::Get_ResolvedLocalTopLeft() const
+{
+    if (nullptr == _transform)
+        return Vec2(0.f, 0.f);
+
+    const Vec2 pivotPosition = Get_ResolvedLocalPosition();
+    const Vec2 localSize = Get_ResolvedLocalSize();
+    const Vec2& pivot = _transform->Get_Pivot();
+
+    return Vec2(
+        pivotPosition.x - localSize.x * pivot.x,
+        pivotPosition.y - localSize.y * pivot.y);
+}
+
 Vec2 UI_Base::Get_ResolvedLocalSize() const
 {
     if (nullptr == _transform)
@@ -212,16 +240,21 @@ Vec2 UI_Base::Get_ScaledLocalCenter(const Vec2& localScale) const
     const Vec2 localPosition = Get_ResolvedLocalPosition();
     const Vec2 localSize = Get_ResolvedLocalSize();
     const Vec2& pivot = _transform->Get_Pivot();
+    const float rotationRadians = _transform->Get_RotationRadians();
     const Vec2 pivotOffset(
         localSize.x * pivot.x,
         localSize.y * pivot.y);
     const Vec2 baseCenterOffset(
         localSize.x * 0.5f,
         localSize.y * 0.5f);
+    const Vec2 scaledCenterOffset(
+        (baseCenterOffset.x - pivotOffset.x) * localScale.x,
+        (baseCenterOffset.y - pivotOffset.y) * localScale.y);
+    const Vec2 rotatedCenterOffset = Rotate_Point(scaledCenterOffset, rotationRadians);
 
     return Vec2(
-        localPosition.x + pivotOffset.x + (baseCenterOffset.x - pivotOffset.x) * localScale.x,
-        localPosition.y + pivotOffset.y + (baseCenterOffset.y - pivotOffset.y) * localScale.y);
+        localPosition.x + rotatedCenterOffset.x,
+        localPosition.y + rotatedCenterOffset.y);
 }
 
 Vec2 UI_Base::Transform_LocalPointToWorld(const Vec2& localPoint) const

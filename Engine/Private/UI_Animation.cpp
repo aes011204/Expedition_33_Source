@@ -228,7 +228,7 @@ namespace
 
             const float frameRange = max(1.f, static_cast<float>(nextKey.frame - currentKey.frame));
             const float t = min(max((frame - static_cast<float>(currentKey.frame)) / frameRange, 0.f), 1.f);
-            return Lerp_Float(currentKey.value, nextKey.value, t);
+            return Lerp_Float(currentKey.value, nextKey.value, Evaluate_Easing(currentKey.easing, t));
         }
 
         return track.keys.back().value;

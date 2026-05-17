@@ -597,6 +597,7 @@ namespace UIEditor
         const Vec2& boxMax,
         const Vec4& color,
         float rotationRadians,
+        const Vec2& pivotPosition,
         UI_TextAlign textAlign,
         float scale,
         bool textWrap,
@@ -617,9 +618,6 @@ namespace UIEditor
             ? Wrap_FontPreviewLines(*font, safeText, boxWidth, drawScale)
             : Split_FontPreviewLines(safeText);
         const float lineHeight = Measure_FontPreviewLineHeight(*font, drawScale);
-        const Vec2 boxCenter(
-            boxMin.x + max(0.f, boxMax.x - boxMin.x) * 0.5f,
-            boxMin.y + max(0.f, boxMax.y - boxMin.y) * 0.5f);
         float textY = boxMin.y;
         bool queuedAny = false;
 
@@ -634,10 +632,10 @@ namespace UIEditor
                 command.fontGuid = fontGuid;
                 command.fontPath = fontPath;
                 command.text = line;
-                command.position = boxCenter;
+                command.position = pivotPosition;
                 command.color = color;
                 command.rotationRadians = rotationRadians;
-                command.pivot = Vec2((boxCenter.x - textX) / drawScale, (boxCenter.y - textY) / drawScale);
+                command.pivot = Vec2((pivotPosition.x - textX) / drawScale, (pivotPosition.y - textY) / drawScale);
                 command.scale = drawScale;
                 command.clipRect = clipRect;
                 _fontPreviewCommands.push_back(command);

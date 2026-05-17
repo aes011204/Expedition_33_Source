@@ -43,6 +43,7 @@ public:
     UI_Transform* Get_Transform() const { return _transform.get(); }
     Vec2 Get_ParentAnchorReferenceSize() const;
     Vec2 Get_ResolvedLocalPosition() const;
+    Vec2 Get_ResolvedLocalTopLeft() const;
     Vec2 Get_ResolvedLocalSize() const;
     Vec2 Get_ScaledLocalCenter(const Vec2& localScale) const;
     Vec2 Get_WorldPosition() const;

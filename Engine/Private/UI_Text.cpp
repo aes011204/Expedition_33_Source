@@ -172,14 +172,16 @@ HRESULT UI_Text::Render()
     if (_fontTag.empty() || _text.empty())
         return S_OK;
 
-    const Vec2 localPosition = Get_ResolvedLocalPosition();
+    const Vec2 localPivotPosition = Get_ResolvedLocalPosition();
     const Vec2 size = Get_ResolvedLocalSize();
+    const Vec2& objectPivot = _transform->Get_Pivot();
     const float localTextScale = max(0.01f, _transform->Get_Scale().x);
     const float worldTextScale = max(0.01f, Get_WorldScale().x);
     const float boxWidth = max(0.f, size.x * localTextScale);
-    const float boxHeight = max(0.f, size.y * localTextScale);
-    const Vec2 localBoxCenter(localPosition.x + boxWidth * 0.5f, localPosition.y + boxHeight * 0.5f);
-    const Vec2 boxCenter = Transform_LocalPointToWorld(localBoxCenter);
+    const Vec2 localBoxTopLeft(
+        localPivotPosition.x - size.x * objectPivot.x * localTextScale,
+        localPivotPosition.y - size.y * objectPivot.y * localTextScale);
+    const Vec2 pivotWorldPosition = Transform_LocalPointToWorld(localPivotPosition);
     const float worldRotationRadians = Get_WorldRotationRadians();
 
     if (_textWrap)
@@ -198,15 +200,15 @@ HRESULT UI_Text::Render()
             else if (TextAlign::Right == _textAlign)
                 offsetX = boxWidth - textWidth;
 
-            const Vec2 alignedTopLeft(localPosition.x + offsetX, localPosition.y + static_cast<float>(lineIndex) * lineHeight);
+            const Vec2 alignedTopLeft(localBoxTopLeft.x + offsetX, localBoxTopLeft.y + static_cast<float>(lineIndex) * lineHeight);
             const Vec2 pivot(
-                (localBoxCenter.x - alignedTopLeft.x) / localTextScale,
-                (localBoxCenter.y - alignedTopLeft.y) / localTextScale);
+                (localPivotPosition.x - alignedTopLeft.x) / localTextScale,
+                (localPivotPosition.y - alignedTopLeft.y) / localTextScale);
 
             GAME->Draw_Font(
                 _fontTag,
                 line.c_str(),
-                boxCenter,
+                pivotWorldPosition,
                 XMVectorSet(_color.x, _color.y, _color.z, _color.w),
                 worldRotationRadians,
                 pivot,
@@ -225,15 +227,15 @@ HRESULT UI_Text::Render()
     else if (TextAlign::Right == _textAlign)
         offsetX = boxWidth - textWidth;
 
-    const Vec2 alignedTopLeft(localPosition.x + offsetX, localPosition.y);
+    const Vec2 alignedTopLeft(localBoxTopLeft.x + offsetX, localBoxTopLeft.y);
     const Vec2 pivot(
-        (localBoxCenter.x - alignedTopLeft.x) / localTextScale,
-        (localBoxCenter.y - alignedTopLeft.y) / localTextScale);
+        (localPivotPosition.x - alignedTopLeft.x) / localTextScale,
+        (localPivotPosition.y - alignedTopLeft.y) / localTextScale);
 
     GAME->Draw_Font(
         _fontTag,
         _text.c_str(),
-        boxCenter,
+        pivotWorldPosition,
         XMVectorSet(_color.x, _color.y, _color.z, _color.w),
         worldRotationRadians,
         pivot,

@@ -598,8 +598,6 @@ namespace UIEditor
         object.visible = Read_Bool(item, "visible", true);
         object.locked = Read_Bool(item, "locked", false);
 
-        object.size.x = max(1.f, object.size.x);
-        object.size.y = max(1.f, object.size.y);
         object.scale.x = max(0.01f, object.scale.x);
         object.scale.y = max(0.01f, object.scale.y);
 

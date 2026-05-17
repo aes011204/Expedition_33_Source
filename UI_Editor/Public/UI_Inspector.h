@@ -17,6 +17,7 @@ namespace UIEditor
         void Render() override;
 
     private:
+        void Render_LayoutPresets(UI_Object& object);
         bool Render_TexturePicker(UI_Object& object);
         bool Render_FontPicker(UI_Object& object);
         bool Draw_UITextureSlotPicker(const char* label, const char* popupId, string& textureGuid, string& texturePath);

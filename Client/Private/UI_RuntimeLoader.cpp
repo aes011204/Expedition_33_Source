@@ -382,6 +382,12 @@ namespace
         UI_KeyframeAnimationKey key{};
         key.frame = Read_Int(item, "frame", 0);
         key.value = Read_Float(item, "value", 0.f);
+        key.easing = outKey.easing;
+
+        UI_AnimationEasing easing = key.easing;
+        const string easingName = Read_String(item, "easing", "");
+        if (!easingName.empty() && Try_ParseUIAnimationEasing(easingName, easing))
+            key.easing = easing;
 
         outKey = key;
         return true;
@@ -404,12 +410,17 @@ namespace
         track.type = trackType;
         track.enabled = Read_Bool(item, "enabled", true);
 
+        UI_AnimationEasing easing = UI_AnimationEasing::Linear;
+        if (Try_ParseUIAnimationEasing(Read_String(item, "easing", "Linear"), easing))
+            track.easing = easing;
+
         const auto keysIter = item.find("keys");
         if (keysIter != item.end() && keysIter->is_array())
         {
             for (const json& keyItem : *keysIter)
             {
                 UI_KeyframeAnimationKey key{};
+                key.easing = track.easing;
                 if (Try_ReadKeyframeAnimationKey(keyItem, key))
                     track.keys.push_back(key);
             }

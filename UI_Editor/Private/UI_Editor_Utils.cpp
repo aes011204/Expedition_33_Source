@@ -295,18 +295,6 @@ namespace UIEditor
             max(1.f, object.size.y * object.scale.y));
     }
 
-    ImVec2 Clamp_ObjectPosition(const UI_Object& object, const ImVec2& canvasSize, const ImVec2& position)
-    {
-        const ImVec2 objectSize = Get_UIObjectRuntimeSize(object);
-
-        const float maxX = max(0.f, canvasSize.x - objectSize.x);
-        const float maxY = max(0.f, canvasSize.y - objectSize.y);
-
-        return ImVec2(
-            min(max(position.x, 0.f), maxX),
-            min(max(position.y, 0.f), maxY));
-    }
-
     bool Build_ScreenClipRect(const ImVec2& minPosition, const ImVec2& maxPosition, D3D11_RECT& outRect)
     {
         const float left = max(0.f, minPosition.x);

@@ -19,6 +19,26 @@ namespace UIEditor
             replace(normalizedPath.begin(), normalizedPath.end(), '\\', '/');
             return normalizedPath;
         }
+
+        float Clamp01(float value)
+        {
+            return min(max(value, 0.f), 1.f);
+        }
+
+        ImVec2 Clamp01(const ImVec2& value)
+        {
+            return ImVec2(Clamp01(value.x), Clamp01(value.y));
+        }
+
+        bool NearlyEqual(float lhs, float rhs)
+        {
+            return fabsf(lhs - rhs) <= 0.0001f;
+        }
+
+        bool NearlyEqual(const ImVec2& lhs, const ImVec2& rhs)
+        {
+            return NearlyEqual(lhs.x, rhs.x) && NearlyEqual(lhs.y, rhs.y);
+        }
     }
 
     HRESULT UI_Editor_Manager::Initialize(const ComPtr<Device>& device, const ComPtr<Context>& context, bool assetManagerReady)
@@ -412,6 +432,10 @@ namespace UIEditor
             return;
         }
 
+        const Shared<UI_Editor_Window> animationWindow = Find_Window(L"Animation");
+        if (nullptr != animationWindow && animationWindow->Is_Open() && animationWindow->Is_Focused())
+            return;
+
         if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Z, false))
         {
             Undo();
@@ -588,6 +612,7 @@ namespace UIEditor
         const Vec2& boxMax,
         const Vec4& color,
         float rotationRadians,
+        const Vec2& pivot,
         UI_TextAlign textAlign,
         float scale,
         bool textWrap,
@@ -601,6 +626,7 @@ namespace UIEditor
             boxMax,
             color,
             rotationRadians,
+            pivot,
             textAlign,
             scale,
             textWrap,
@@ -1137,36 +1163,60 @@ namespace UIEditor
         if (Is_ObjectEffectivelyLocked(objectId))
             return false;
 
-        UI_Object* object = _document.Find_Object(objectId);
-        if (nullptr == object)
+        if (nullptr == _document.Find_Object(objectId))
             return false;
 
         if (!_historyService.Is_EditTransactionOpen())
             Push_UndoSnapshot();
 
-        const ImVec2 worldScale = _document.Get_WorldScale(objectId);
-        const ImVec2 parentReferenceSize = _document.Get_ParentAnchorReferenceSize(objectId);
-        const float anchorWidth = parentReferenceSize.x * max(0.f, object->anchorMax.x - object->anchorMin.x);
-        const float anchorHeight = parentReferenceSize.y * max(0.f, object->anchorMax.y - object->anchorMin.y);
+        if (!_document.Set_WorldRect(objectId, worldPosition, worldSize))
+            return false;
 
-        if (object->type == UI_ObjectType::Text)
-        {
-            const float fontScale = max(4.f, object->fontSize) / 32.f;
-            const float safeTextScale = max(0.01f, worldScale.x * fontScale);
-            object->size = ImVec2(
-                max(1.f, max(1.f, worldSize.x) / safeTextScale - anchorWidth),
-                max(1.f, max(1.f, worldSize.y) / safeTextScale - anchorHeight));
-        }
-        else
-        {
-            const float safeScaleX = fabsf(worldScale.x) > 0.0001f ? worldScale.x : 0.0001f;
-            const float safeScaleY = fabsf(worldScale.y) > 0.0001f ? worldScale.y : 0.0001f;
-            object->size = ImVec2(
-                max(1.f, max(1.f, worldSize.x) / safeScaleX - anchorWidth),
-                max(1.f, max(1.f, worldSize.y) / safeScaleY - anchorHeight));
-        }
+        Mark_Dirty();
+        return true;
+    }
 
-        if (!_document.Set_WorldPosition(objectId, worldPosition))
+    bool UI_Editor_Manager::Set_UIObjectPivotKeepWorldRect(ObjectId objectId, const ImVec2& pivot)
+    {
+        if (Is_ObjectEffectivelyLocked(objectId))
+            return false;
+
+        UI_Object* object = _document.Find_Object(objectId);
+        if (nullptr == object)
+            return false;
+
+        const ImVec2 clampedPivot = Clamp01(pivot);
+        if (NearlyEqual(object->pivot, clampedPivot))
+            return false;
+
+        if (!_historyService.Is_EditTransactionOpen())
+            Push_UndoSnapshot();
+
+        if (!_document.Set_PivotKeepWorldRect(objectId, clampedPivot))
+            return false;
+
+        Mark_Dirty();
+        return true;
+    }
+
+    bool UI_Editor_Manager::Set_UIObjectAnchorsKeepWorldRect(ObjectId objectId, const ImVec2& anchorMin, const ImVec2& anchorMax)
+    {
+        if (Is_ObjectEffectivelyLocked(objectId))
+            return false;
+
+        UI_Object* object = _document.Find_Object(objectId);
+        if (nullptr == object)
+            return false;
+
+        const ImVec2 clampedAnchorMin = Clamp01(anchorMin);
+        const ImVec2 clampedAnchorMax = Clamp01(anchorMax);
+        if (NearlyEqual(object->anchorMin, clampedAnchorMin) && NearlyEqual(object->anchorMax, clampedAnchorMax))
+            return false;
+
+        if (!_historyService.Is_EditTransactionOpen())
+            Push_UndoSnapshot();
+
+        if (!_document.Set_AnchorsKeepWorldRect(objectId, clampedAnchorMin, clampedAnchorMax))
             return false;
 
         Mark_Dirty();
@@ -1323,7 +1373,6 @@ namespace UIEditor
                 break;
             }
 
-            nextWorldPosition = Clamp_ObjectPosition(*object, _document.Get_CanvasSize(), nextWorldPosition);
             if (fabsf(nextWorldPosition.x - rect.worldPosition.x) <= 0.001f &&
                 fabsf(nextWorldPosition.y - rect.worldPosition.y) <= 0.001f)
             {

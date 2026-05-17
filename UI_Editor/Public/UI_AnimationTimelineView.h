@@ -8,6 +8,7 @@ namespace UIEditor
     {
         bool clicked = false;
         bool hitKey = false;
+        bool draggedKey = false;
         int32 frame = 0;
         int32 trackIndex = -1;
         int32 keyIndex = -1;
@@ -29,5 +30,10 @@ namespace UIEditor
 
         static float Get_TrackPanelWidth();
         static float Get_KeyPanelWidth();
+
+    private:
+        bool _draggingKey = false;
+        int32 _dragTrackIndex = -1;
+        int32 _dragKeyIndex = -1;
     };
 }

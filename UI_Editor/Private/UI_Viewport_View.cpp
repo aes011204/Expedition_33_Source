@@ -40,6 +40,14 @@ namespace UIEditor
             drawList->AddLine(quad[3], quad[0], color, thickness);
         }
 
+        void Draw_AnchorMarker(ImDrawList* drawList, const ImVec2& center, ImU32 fillColor, ImU32 outlineColor, float radius)
+        {
+            drawList->AddCircleFilled(center, radius, fillColor, 12);
+            drawList->AddCircle(center, radius, outlineColor, 12, 1.25f);
+            drawList->AddLine(ImVec2(center.x - radius - 2.f, center.y), ImVec2(center.x + radius + 2.f, center.y), outlineColor, 1.f);
+            drawList->AddLine(ImVec2(center.x, center.y - radius - 2.f), ImVec2(center.x, center.y + radius + 2.f), outlineColor, 1.f);
+        }
+
         bool Is_PointInsideRotatedRect(const ImVec2& point, const ImVec2& center, const ImVec2& size, float rotationRadians)
         {
             const float cosAngle = cosf(-rotationRadians);
@@ -82,6 +90,8 @@ namespace UIEditor
             ImGui::SameLine();
             ImGui::BeginDisabled(_previewMode);
             ImGui::Checkbox("Grid", &_showGrid);
+            ImGui::SameLine();
+            ImGui::Checkbox("Anchor", &_showAnchors);
             ImGui::SameLine();
             ImGui::Checkbox("Snap", &_snapEnabled);
             ImGui::SameLine();
@@ -377,6 +387,28 @@ namespace UIEditor
                 return resolvedPosition;
             };
 
+            auto getPreviewPivotOffset = [](const UI_Object& object, const ImVec2& resolvedSize) -> ImVec2
+            {
+                return ImVec2(
+                    resolvedSize.x * object.pivot.x,
+                    resolvedSize.y * object.pivot.y);
+            };
+
+            auto getPreviewLocalRuntimePointFromPivot = [](const UI_Object& object, const ImVec2& offsetFromPivot) -> ImVec2
+            {
+                const float scaleX = object.type == UI_ObjectType::Text ? Get_UITextRuntimeScale(object) : object.scale.x;
+                const float scaleY = object.type == UI_ObjectType::Text ? Get_UITextRuntimeScale(object) : object.scale.y;
+                const ImVec2 scaledOffset = ImVec2(
+                    offsetFromPivot.x * scaleX,
+                    offsetFromPivot.y * scaleY);
+                const float cosAngle = cosf(object.rotationRadians);
+                const float sinAngle = sinf(object.rotationRadians);
+
+                return ImVec2(
+                    scaledOffset.x * cosAngle - scaledOffset.y * sinAngle,
+                    scaledOffset.x * sinAngle + scaledOffset.y * cosAngle);
+            };
+
             function<ImVec2(ObjectId, unordered_set<ObjectId>&)> resolvePreviewWorldScale =
                 [&](ObjectId objectId, unordered_set<ObjectId>& resolvingIds) -> ImVec2
             {
@@ -431,6 +463,14 @@ namespace UIEditor
                 return resolvePreviewResolvedLocalPosition(objectId, resolvingIds);
             };
 
+            auto getPreviewParentReferenceSize = [&](const UI_Object& object) -> ImVec2
+            {
+                if (object.parentId == 0)
+                    return canvasSize;
+
+                return getPreviewResolvedLocalSize(object.parentId);
+            };
+
             auto transformPreviewLocalPointToWorld = [&](ObjectId objectId, const ImVec2& localPoint) -> ImVec2
             {
                 ImVec2 worldPoint = localPoint;
@@ -448,11 +488,9 @@ namespace UIEditor
                     const UI_Object previewParent = makePreviewObject(*parentObject);
                     unordered_set<ObjectId> positionResolvingIds;
                     unordered_set<ObjectId> sizeResolvingIds;
-                    const ImVec2 parentPosition = resolvePreviewResolvedLocalPosition(previewParent.id, positionResolvingIds);
+                    const ImVec2 parentPivotPosition = resolvePreviewResolvedLocalPosition(previewParent.id, positionResolvingIds);
                     const ImVec2 parentSize = resolvePreviewResolvedLocalSize(previewParent.id, sizeResolvingIds);
-                    const ImVec2 pivotOffset = ImVec2(
-                        parentSize.x * previewParent.pivot.x,
-                        parentSize.y * previewParent.pivot.y);
+                    const ImVec2 pivotOffset = getPreviewPivotOffset(previewParent, parentSize);
                     const ImVec2 scaledOffset = ImVec2(
                         (worldPoint.x - pivotOffset.x) * previewParent.scale.x,
                         (worldPoint.y - pivotOffset.y) * previewParent.scale.y);
@@ -461,8 +499,8 @@ namespace UIEditor
                         scaledOffset.x * sinf(previewParent.rotationRadians) + scaledOffset.y * cosf(previewParent.rotationRadians));
 
                     worldPoint = ImVec2(
-                        parentPosition.x + pivotOffset.x + rotatedOffset.x,
-                        parentPosition.y + pivotOffset.y + rotatedOffset.y);
+                        parentPivotPosition.x + rotatedOffset.x,
+                        parentPivotPosition.y + rotatedOffset.y);
                     currentObject = parentObject;
                 }
 
@@ -513,23 +551,25 @@ namespace UIEditor
                 const UI_Object previewObject = makePreviewObject(*object);
                 const ImVec2 resolvedLocalPosition = getPreviewResolvedLocalPosition(objectId);
                 const ImVec2 resolvedLocalSize = getPreviewResolvedLocalSize(objectId);
-                const float localScaleX = previewObject.type == UI_ObjectType::Text
-                    ? Get_UITextRuntimeScale(previewObject)
-                    : previewObject.scale.x;
-                const float localScaleY = previewObject.type == UI_ObjectType::Text
-                    ? Get_UITextRuntimeScale(previewObject)
-                    : previewObject.scale.y;
-                const ImVec2 pivotOffset = ImVec2(
-                    resolvedLocalSize.x * previewObject.pivot.x,
-                    resolvedLocalSize.y * previewObject.pivot.y);
+                const ImVec2 pivotOffset = getPreviewPivotOffset(previewObject, resolvedLocalSize);
                 const ImVec2 baseCenterOffset = ImVec2(
                     resolvedLocalSize.x * 0.5f,
                     resolvedLocalSize.y * 0.5f);
+                const ImVec2 centerOffset = getPreviewLocalRuntimePointFromPivot(
+                    previewObject,
+                    ImVec2(
+                        baseCenterOffset.x - pivotOffset.x,
+                        baseCenterOffset.y - pivotOffset.y));
                 const ImVec2 localCenter = ImVec2(
-                    resolvedLocalPosition.x + pivotOffset.x + (baseCenterOffset.x - pivotOffset.x) * localScaleX,
-                    resolvedLocalPosition.y + pivotOffset.y + (baseCenterOffset.y - pivotOffset.y) * localScaleY);
+                    resolvedLocalPosition.x + centerOffset.x,
+                    resolvedLocalPosition.y + centerOffset.y);
 
                 return transformPreviewLocalPointToWorld(objectId, localCenter);
+            };
+
+            auto getPreviewWorldPivot = [&](ObjectId objectId) -> ImVec2
+            {
+                return transformPreviewLocalPointToWorld(objectId, getPreviewResolvedLocalPosition(objectId));
             };
 
             bool hasSelectedObjectRect = false;
@@ -557,6 +597,7 @@ namespace UIEditor
 
                 const ImVec2 resolvedLocalSize = getPreviewResolvedLocalSize(object.id);
                 const ImVec2 objectWorldCenter = getPreviewWorldCenter(object.id);
+                const ImVec2 objectWorldPivot = getPreviewWorldPivot(object.id);
                 const ImVec2 objectSize = getPreviewWorldSize(object.id);
                 const ImVec2 objectWorldPosition = ImVec2(
                     objectWorldCenter.x - objectSize.x * 0.5f,
@@ -567,6 +608,7 @@ namespace UIEditor
                 const bool isSelected = _editorManager.Is_ObjectSelected(object.id);
                 const bool isPrimarySelected = (_editorManager.Get_SelectedObjectId() == object.id);
                 const bool isEffectivelyLocked = _editorManager.Is_ObjectEffectivelyLocked(object.id);
+                const bool shouldDrawAnchorOverlay = !_previewMode && _showAnchors && isSelected;
 
                 if (isPrimarySelected)
                 {
@@ -648,6 +690,39 @@ namespace UIEditor
                         Draw_QuadOutline(drawList, rotatedQuad, objectBorderColor, borderThickness);
                     else
                         drawList->AddRect(objectMin, objectMax, objectBorderColor, objectRounding, 0, borderThickness);
+
+                    if (shouldDrawAnchorOverlay)
+                    {
+                        const ImVec2 parentReferenceSize = getPreviewParentReferenceSize(renderObject);
+                        const ImVec2 anchorMinLocal = ImVec2(
+                            parentReferenceSize.x * renderObject.anchorMin.x,
+                            parentReferenceSize.y * renderObject.anchorMin.y);
+                        const ImVec2 anchorMaxLocal = ImVec2(
+                            parentReferenceSize.x * renderObject.anchorMax.x,
+                            parentReferenceSize.y * renderObject.anchorMax.y);
+                        const ImVec2 anchorMinWorld = transformPreviewLocalPointToWorld(object.id, anchorMinLocal);
+                        const ImVec2 anchorMaxWorld = transformPreviewLocalPointToWorld(object.id, anchorMaxLocal);
+                        const ImVec2 anchorMinScreen = ImVec2(
+                            canvasPos.x + anchorMinWorld.x * displayScale,
+                            canvasPos.y + anchorMinWorld.y * displayScale);
+                        const ImVec2 anchorMaxScreen = ImVec2(
+                            canvasPos.x + anchorMaxWorld.x * displayScale,
+                            canvasPos.y + anchorMaxWorld.y * displayScale);
+                        const bool isStretched =
+                            fabsf(renderObject.anchorMax.x - renderObject.anchorMin.x) > 0.0001f ||
+                            fabsf(renderObject.anchorMax.y - renderObject.anchorMin.y) > 0.0001f;
+                        const ImU32 anchorFillColor = isPrimarySelected ? IM_COL32(255, 40, 40, 255) : IM_COL32(255, 40, 40, 210);
+                        const ImU32 anchorOutlineColor = IM_COL32(255, 235, 235, 245);
+                        if (isStretched)
+                        {
+                            const ImVec2 anchorRectMin = ImVec2(min(anchorMinScreen.x, anchorMaxScreen.x), min(anchorMinScreen.y, anchorMaxScreen.y));
+                            const ImVec2 anchorRectMax = ImVec2(max(anchorMinScreen.x, anchorMaxScreen.x), max(anchorMinScreen.y, anchorMaxScreen.y));
+                            drawList->AddRectFilled(anchorRectMin, anchorRectMax, IM_COL32(255, 40, 40, 22), 0.f);
+                            drawList->AddRect(anchorRectMin, anchorRectMax, IM_COL32(255, 70, 70, 190), 0.f, 0, 1.25f);
+                            Draw_AnchorMarker(drawList, anchorMaxScreen, IM_COL32(255, 120, 120, 190), anchorOutlineColor, isPrimarySelected ? 4.5f : 3.5f);
+                        }
+                        Draw_AnchorMarker(drawList, anchorMinScreen, anchorFillColor, anchorOutlineColor, isPrimarySelected ? 5.5f : 4.5f);
+                    }
                 }
 
                 bool usesSpriteFontPreview = false;
@@ -656,14 +731,25 @@ namespace UIEditor
                     D3D11_RECT clipRect = {};
                     if (buildViewportClipRect(viewportMin, viewportMax, clipRect))
                     {
+                        const Vec2 fontPivotScreen(
+                            canvasPos.x + objectWorldPivot.x * displayScale,
+                            canvasPos.y + objectWorldPivot.y * displayScale);
+                        const Vec2 fontBoxSize(
+                            objectSize.x * displayScale,
+                            objectSize.y * displayScale);
+                        const Vec2 fontBoxMin(
+                            fontPivotScreen.x - fontBoxSize.x * renderObject.pivot.x,
+                            fontPivotScreen.y - fontBoxSize.y * renderObject.pivot.y);
+
                         usesSpriteFontPreview = _editorManager.Queue_FontPreview(
                             renderObject.fontGuid,
                             renderObject.fontPath,
                             String::ToWString(renderObject.text),
-                            Vec2(objectMin.x, objectMin.y),
-                            Vec2(objectMax.x, objectMax.y),
+                            fontBoxMin,
+                            Vec2(fontBoxMin.x + fontBoxSize.x, fontBoxMin.y + fontBoxSize.y),
                             Vec4(renderObject.color.x, renderObject.color.y, renderObject.color.z, renderObject.color.w),
                             objectWorldRotationRadians,
+                            fontPivotScreen,
                             renderObject.textAlign,
                             max(0.01f, objectSize.x / max(1.f, resolvedLocalSize.x)) * displayScale,
                             renderObject.textWrap,
@@ -881,11 +967,6 @@ namespace UIEditor
                             nextMax.y = nextMin.y + 1.f;
                     }
 
-                    nextMin.x = min(max(nextMin.x, 0.f), canvasSize.x - 1.f);
-                    nextMin.y = min(max(nextMin.y, 0.f), canvasSize.y - 1.f);
-                    nextMax.x = min(max(nextMax.x, nextMin.x + 1.f), canvasSize.x);
-                    nextMax.y = min(max(nextMax.y, nextMin.y + 1.f), canvasSize.y);
-
                     _editorManager.Set_UIObjectWorldRect(
                         _resizingObjectId,
                         nextMin,
@@ -916,11 +997,7 @@ namespace UIEditor
                     if (_snapEnabled)
                         nextWorldPosition = Snap_Position(nextWorldPosition, _gridSize);
 
-                    const ImVec2 draggingObjectSize = document.Get_WorldSize(draggingObjectId);
-                    const ImVec2 clampedWorldPosition = ImVec2(
-                        min(max(nextWorldPosition.x, 0.f), max(0.f, canvasSize.x - draggingObjectSize.x)),
-                        min(max(nextWorldPosition.y, 0.f), max(0.f, canvasSize.y - draggingObjectSize.y)));
-                    _editorManager.Set_UIObjectWorldPosition(draggingObjectId, clampedWorldPosition);
+                    _editorManager.Set_UIObjectWorldPosition(draggingObjectId, nextWorldPosition);
                 }
             }
 

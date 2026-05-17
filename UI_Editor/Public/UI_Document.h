@@ -26,6 +26,7 @@ namespace UIEditor
         bool Is_Descendant(ObjectId ancestorId, ObjectId candidateDescendantId) const;
         ImVec2 Get_ParentAnchorReferenceSize(ObjectId objectId) const;
         ImVec2 Get_ResolvedLocalPosition(ObjectId objectId) const;
+        ImVec2 Get_ResolvedLocalTopLeft(ObjectId objectId) const;
         ImVec2 Get_ResolvedLocalSize(ObjectId objectId) const;
         ImVec2 Get_WorldPosition(ObjectId objectId) const;
         ImVec2 Transform_LocalPointToWorld(ObjectId objectId, const ImVec2& localPoint) const;
@@ -34,6 +35,9 @@ namespace UIEditor
         ImVec2 Get_WorldScale(ObjectId objectId) const;
         float Get_WorldRotationRadians(ObjectId objectId) const;
         bool Set_WorldPosition(ObjectId objectId, const ImVec2& worldPosition);
+        bool Set_WorldRect(ObjectId objectId, const ImVec2& worldPosition, const ImVec2& worldSize);
+        bool Set_PivotKeepWorldRect(ObjectId objectId, const ImVec2& pivot);
+        bool Set_AnchorsKeepWorldRect(ObjectId objectId, const ImVec2& anchorMin, const ImVec2& anchorMax);
         string Generate_UniqueName(const string& baseName, ObjectId ignoredObjectId = 0) const;
         string Generate_DuplicateName(const string& sourceName) const;
         UI_Object* Find_Object(ObjectId objectId);
