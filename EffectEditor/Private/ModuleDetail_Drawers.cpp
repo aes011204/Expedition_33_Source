@@ -7,6 +7,7 @@
 #include "EffectMaterialPreviewRenderer.h"
 #include "EffectMaterial_View.h"
 #include "EffectMaterialInstance_View.h"
+#include "Helper_TextureFormat.h"
 
 NS_BEGIN(EffectEditor)
 
@@ -48,6 +49,106 @@ namespace Internal
             NearlyEqual(lhs.y, rhs.y) &&
             NearlyEqual(lhs.z, rhs.z) &&
             NearlyEqual(lhs.w, rhs.w);
+    }
+
+    static const char* Get_SubUVFramePlaybackModeLabel(SubUVFramePlaybackMode mode)
+    {
+        switch (mode)
+        {
+        case SubUVFramePlaybackMode::FixedFrame:
+            return "고정 프레임";
+        case SubUVFramePlaybackMode::LifeProgress:
+            return "수명 맞춤 재생";
+        case SubUVFramePlaybackMode::FramesPerSecond:
+            return "초당 프레임 재생";
+        case SubUVFramePlaybackMode::RandomFrame:
+            return "랜덤 프레임";
+        default:
+            return "고정 프레임";
+        }
+    }
+
+    static bool Draw_SubUVFramePlaybackModeProperty(
+        DetailPropertyContext& detailContext,
+        const char* label,
+        SubUVFramePlaybackMode& value,
+        SubUVFramePlaybackMode defaultValue)
+    {
+        bool changed = false;
+
+        ImGui::PushID(label);
+        detailContext.Draw_PropertyLabel(label);
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        if (ImGui::BeginCombo("##Value", Get_SubUVFramePlaybackModeLabel(value)))
+        {
+            const SubUVFramePlaybackMode candidates[] = {
+                SubUVFramePlaybackMode::FixedFrame,
+                SubUVFramePlaybackMode::LifeProgress,
+                SubUVFramePlaybackMode::FramesPerSecond,
+                SubUVFramePlaybackMode::RandomFrame,
+            };
+
+            for (const SubUVFramePlaybackMode candidate : candidates)
+            {
+                const bool isSelected = value == candidate;
+                if (ImGui::Selectable(Get_SubUVFramePlaybackModeLabel(candidate), isSelected))
+                {
+                    value = candidate;
+                    changed = true;
+                }
+
+                if (isSelected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+
+        if (detailContext.Draw_ResetButton(value != defaultValue))
+        {
+            value = defaultValue;
+            changed = true;
+        }
+        ImGui::PopID();
+
+        return changed;
+    }
+
+    static bool Normalize_SubUVFrameIndexDistribution(FloatDistributionData& data, uint32 lastFrame)
+    {
+        bool changed = false;
+        const float minFrame = 0.f;
+        const float maxFrame = static_cast<float>(lastFrame);
+
+        if (data.mode == DistributionMode::Uniform)
+        {
+            data = FloatDistributionData::Make_ConstantCurve(0.f);
+            return true;
+        }
+
+        if (auto* constant = get_if<ConstantFloatDistributionData>(&data.payload))
+        {
+            const float clampedValue = clamp(constant->value, minFrame, maxFrame);
+            if (!NearlyEqual(constant->value, clampedValue))
+            {
+                constant->value = clampedValue;
+                changed = true;
+            }
+        }
+        else if (auto* curve = get_if<ConstantCurveFloatDistributionData>(&data.payload))
+        {
+            for (FloatCurveKeyData& key : curve->keys)
+            {
+                const float clampedValue = clamp(key.value, minFrame, maxFrame);
+                if (!NearlyEqual(key.value, clampedValue))
+                {
+                    key.value = clampedValue;
+                    changed = true;
+                }
+            }
+        }
+
+        return changed;
     }
 
     static bool Is_SameMaterial(const EffectMaterialInstanceData& lhs, const EffectMaterialInstanceData& rhs)
@@ -315,15 +416,33 @@ namespace Internal
 
         const string& resolvedName = Internal::Resolve_MaterialDisplayName(data);
         const string displayName = resolvedName.empty() ? "(drop material here)" : resolvedName;
-        const ImVec2 textPos{ slotMin.x + 57.f, slotMin.y + 18.f };
-        drawList->AddText(textPos, IM_COL32(235, 238, 245, 255), displayName.c_str());
+        const string materialSummary = data.material.blendMode + " / " + data.material.opacitySource +
+            " / SubUV " + to_string(data.material.subUVRows) + "x" + to_string(data.material.subUVCols);
+        drawList->PushClipRect(
+            ImVec2(slotMin.x + 57.f, slotMin.y),
+            ImVec2(slotMax.x - 8.f, slotMax.y),
+            true
+        );
+        drawList->AddText(ImVec2(slotMin.x + 57.f, slotMin.y + 9.f), IM_COL32(235, 238, 245, 255), displayName.c_str());
+        drawList->AddText(
+            ImGui::GetFont(),
+            ImGui::GetFontSize() * 0.9f,
+            ImVec2(slotMin.x + 57.f, slotMin.y + 29.f),
+            IM_COL32(145, 154, 172, 255),
+            materialSummary.c_str()
+        );
+        drawList->PopClipRect();
 
         if (isHovered)
         {
+            const string mainTooltip = TextureFormat::MakeTextureTooltip(data.material.mainTextureId);
+            const string noiseTooltip = data.material.noiseTextureId.empty()
+                                            ? string{ "Id: (none)" }
+                                            : TextureFormat::MakeTextureTooltip(data.material.noiseTextureId);
             ImGui::SetTooltip(
-                "Content Browser의 .effectmaterial.json 머티리얼 파일을 여기에 드롭하면 현재 embedded material instance로 복사합니다.\nMain: %s\nNoise: %s\n%s / %s / SubUV %ux%u",
-                data.material.mainTextureId.c_str(),
-                data.material.noiseTextureId.empty() ? "(none)" : data.material.noiseTextureId.c_str(),
+                "Content Browser의 .effectmaterial.json 머티리얼 파일을 여기에 드롭하면 현재 embedded material instance로 복사합니다.\n\nMain Texture\n%s\n\nNoise Texture\n%s\n\n%s / %s / SubUV %ux%u",
+                mainTooltip.c_str(),
+                noiseTooltip.c_str(),
                 data.material.blendMode.c_str(),
                 data.material.opacitySource.c_str(),
                 data.material.subUVRows,
@@ -416,64 +535,54 @@ bool RequiredModuleDetail::Draw(AuthoringEmitter& emitter, const AuthoringModule
         }
     }
 
-    if (ImGui::CollapsingHeader("공간 / 정렬", ImGuiTreeNodeFlags_DefaultOpen))
+    if (ImGui::CollapsingHeader("공간 / 정렬 (일부 미구현)", ImGuiTreeNodeFlags_DefaultOpen))
     {
         if (detailContext.Begin_PropertyTable("RequiredSpaceSort"))
         {
             changed |= detailContext.Draw_ScreenAlignmentProperty("화면 정렬", data.screenAlignment, defaultData.screenAlignment);
-            changed |= detailContext.Draw_FloatProperty("카메라 블렌드 거리 최소", data.minCameraBlendDistance, defaultData.minCameraBlendDistance);
-            changed |= detailContext.Draw_FloatProperty("카메라 블렌드 거리 최대", data.maxCameraBlendDistance, defaultData.maxCameraBlendDistance);
             changed |= detailContext.Draw_BoolProperty("로컬 스페이스 사용", data.useLocalSpace, defaultData.useLocalSpace);
-            changed |= detailContext.Draw_SortModeProperty("정렬 모드", data.sortMode, defaultData.sortMode);
-            changed |= detailContext.Draw_FloatProperty("카메라 모션 블러 양", data.cameraMotionBlurAmount, defaultData.cameraMotionBlurAmount);
-            changed |= detailContext.Draw_BoolProperty("초기화 시 기존 파티클 지우기", data.clearExistingParticlesOnInit, defaultData.clearExistingParticlesOnInit);
+            changed |= detailContext.Draw_SortModeProperty("정렬 모드 (미구현)", data.sortMode, defaultData.sortMode);
+            changed |= detailContext.Draw_FloatProperty("카메라 모션 블러 양 (미구현)", data.cameraMotionBlurAmount, defaultData.cameraMotionBlurAmount);
+            changed |= detailContext.Draw_BoolProperty("초기화 시 기존 파티클 지우기 (미구현)", data.clearExistingParticlesOnInit, defaultData.clearExistingParticlesOnInit);
             detailContext.End_PropertyTable();
         }
+
+        detailContext.Draw_ScreenAlignmentImplementationNote(data.screenAlignment);
     }
 
-    if (ImGui::CollapsingHeader("시간", ImGuiTreeNodeFlags_DefaultOpen))
+    if (ImGui::CollapsingHeader("시간 (미구현)", ImGuiTreeNodeFlags_DefaultOpen))
     {
         if (detailContext.Begin_PropertyTable("RequiredTime"))
         {
-            changed |= detailContext.Draw_UintProperty("루프 횟수", data.loopCount, defaultData.loopCount);
-            changed |= detailContext.Draw_FloatProperty("지속 시간", data.duration, defaultData.duration);
-            changed |= detailContext.Draw_FloatProperty("지속 시간 최소값", data.durationLow, defaultData.durationLow);
-            changed |= detailContext.Draw_BoolProperty("지속 시간 범위 사용", data.useDurationRange, defaultData.useDurationRange);
-            changed |= detailContext.Draw_BoolProperty("루프마다 기간 재계산", data.recalculateDurationEachLoop, defaultData.recalculateDurationEachLoop);
-            changed |= detailContext.Draw_FloatProperty("딜레이", data.delay, defaultData.delay);
-            changed |= detailContext.Draw_FloatProperty("딜레이 최소값", data.delayLow, defaultData.delayLow);
-            changed |= detailContext.Draw_BoolProperty("딜레이 범위 사용", data.useDelayRange, defaultData.useDelayRange);
-            changed |= detailContext.Draw_BoolProperty("첫 루프만 딜레이", data.delayFirstLoopOnly, defaultData.delayFirstLoopOnly);
+            changed |= detailContext.Draw_UintProperty("루프 횟수 (미구현)", data.loopCount, defaultData.loopCount);
+            changed |= detailContext.Draw_FloatProperty("지속 시간 (미구현)", data.duration, defaultData.duration);
+            changed |= detailContext.Draw_FloatProperty("지속 시간 최소값 (미구현)", data.durationLow, defaultData.durationLow);
+            changed |= detailContext.Draw_BoolProperty("지속 시간 범위 사용 (미구현)", data.useDurationRange, defaultData.useDurationRange);
+            changed |= detailContext.Draw_BoolProperty("루프마다 기간 재계산 (미구현)", data.recalculateDurationEachLoop, defaultData.recalculateDurationEachLoop);
+            changed |= detailContext.Draw_FloatProperty("딜레이 (미구현)", data.delay, defaultData.delay);
+            changed |= detailContext.Draw_FloatProperty("딜레이 최소값 (미구현)", data.delayLow, defaultData.delayLow);
+            changed |= detailContext.Draw_BoolProperty("딜레이 범위 사용 (미구현)", data.useDelayRange, defaultData.useDelayRange);
+            changed |= detailContext.Draw_BoolProperty("첫 루프만 딜레이 (미구현)", data.delayFirstLoopOnly, defaultData.delayFirstLoopOnly);
             detailContext.End_PropertyTable();
         }
     }
 
-    if (ImGui::CollapsingHeader("서브 UV", ImGuiTreeNodeFlags_DefaultOpen))
-    {
-        if (detailContext.Begin_PropertyTable("RequiredSubUV"))
-        {
-            changed |= detailContext.Draw_UintProperty("서브 이미지 가로", data.material.subUVCols, defaultData.material.subUVCols);
-            changed |= detailContext.Draw_UintProperty("서브 이미지 세로", data.material.subUVRows, defaultData.material.subUVRows);
-            detailContext.End_PropertyTable();
-        }
-    }
-
-    if (ImGui::CollapsingHeader("종료 / 킬", ImGuiTreeNodeFlags_DefaultOpen))
+    if (ImGui::CollapsingHeader("종료 / 킬 (미구현)", ImGuiTreeNodeFlags_DefaultOpen))
     {
         if (detailContext.Begin_PropertyTable("RequiredKill"))
         {
-            changed |= detailContext.Draw_BoolProperty("비활성화 시 킬", data.killOnDeactivate, defaultData.killOnDeactivate);
-            changed |= detailContext.Draw_BoolProperty("완료 시 킬", data.killOnCompleted, defaultData.killOnCompleted);
+            changed |= detailContext.Draw_BoolProperty("비활성화 시 킬 (미구현)", data.killOnDeactivate, defaultData.killOnDeactivate);
+            changed |= detailContext.Draw_BoolProperty("완료 시 킬 (미구현)", data.killOnCompleted, defaultData.killOnCompleted);
             detailContext.End_PropertyTable();
         }
     }
 
-    if (ImGui::CollapsingHeader("렌더링 제한", ImGuiTreeNodeFlags_DefaultOpen))
+    if (ImGui::CollapsingHeader("렌더링 제한 (미구현)", ImGuiTreeNodeFlags_DefaultOpen))
     {
         if (detailContext.Begin_PropertyTable("RequiredRenderLimit"))
         {
-            changed |= detailContext.Draw_BoolProperty("최대 드로우 수 사용", data.useMaxDrawCount, defaultData.useMaxDrawCount);
-            changed |= detailContext.Draw_UintProperty("최대 드로우 수", data.maxDrawCount, defaultData.maxDrawCount);
+            changed |= detailContext.Draw_BoolProperty("최대 드로우 수 사용 (미구현)", data.useMaxDrawCount, defaultData.useMaxDrawCount);
+            changed |= detailContext.Draw_UintProperty("최대 드로우 수 (미구현)", data.maxDrawCount, defaultData.maxDrawCount);
             detailContext.End_PropertyTable();
         }
     }
@@ -493,27 +602,27 @@ bool SpawnModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, SpawnModuleDat
     const SpawnModuleData defaultData{};
     bool changed = false;
 
-    if (ImGui::CollapsingHeader("연속 스폰", ImGuiTreeNodeFlags_DefaultOpen))
+    if (ImGui::CollapsingHeader("연속 스폰 (미구현)", ImGuiTreeNodeFlags_DefaultOpen))
     {
         if (detailContext.Begin_PropertyTable("SpawnRate"))
         {
-            changed |= detailContext.Draw_BoolProperty("연속 스폰 사용", data.processSpawnRate, defaultData.processSpawnRate);
+            changed |= detailContext.Draw_BoolProperty("연속 스폰 사용 (미구현)", data.processSpawnRate, defaultData.processSpawnRate);
             detailContext.End_PropertyTable();
         }
 
-        changed |= detailContext.Draw_FloatDistributionGroup("초당 생성 수", data.spawnRate, defaultData.spawnRate);
-        changed |= detailContext.Draw_FloatDistributionGroup("스폰 속도 스케일", data.spawnRateScale, defaultData.spawnRateScale);
+        changed |= detailContext.Draw_FloatDistributionGroup("초당 생성 수 (미구현)", data.spawnRate, defaultData.spawnRate);
+        changed |= detailContext.Draw_FloatDistributionGroup("스폰 속도 스케일 (미구현)", data.spawnRateScale, defaultData.spawnRateScale);
     }
 
-    if (ImGui::CollapsingHeader("버스트", ImGuiTreeNodeFlags_DefaultOpen))
+    if (ImGui::CollapsingHeader("버스트 (미구현)", ImGuiTreeNodeFlags_DefaultOpen))
     {
         if (detailContext.Begin_PropertyTable("SpawnBurst"))
         {
-            changed |= detailContext.Draw_BoolProperty("버스트 사용", data.processBurstList, defaultData.processBurstList);
+            changed |= detailContext.Draw_BoolProperty("버스트 사용 (미구현)", data.processBurstList, defaultData.processBurstList);
             detailContext.End_PropertyTable();
         }
 
-        changed |= detailContext.Draw_FloatDistributionGroup("버스트 스케일", data.burstScale, defaultData.burstScale);
+        changed |= detailContext.Draw_FloatDistributionGroup("버스트 스케일 (미구현)", data.burstScale, defaultData.burstScale);
         changed |= detailContext.Draw_BurstListProperty(data.burstList, defaultData.burstList);
     }
 
@@ -705,13 +814,32 @@ bool SubUVFrameOverLifeModuleDetail::Draw(
     const SubUVFrameOverLifeModuleData defaultData{};
     bool changed = false;
 
-    if (ImGui::CollapsingHeader("수명에 따른 SubUV 프레임", ImGuiTreeNodeFlags_DefaultOpen))
+    if (ImGui::CollapsingHeader("서브UV 프레임 선택/재생", ImGuiTreeNodeFlags_DefaultOpen))
     {
         if (detailContext.Begin_PropertyTable("SubUVFrameOverLife"))
         {
-            changed |= detailContext.Draw_UintProperty("시작 프레임", data.startFrame, defaultData.startFrame);
-            changed |= detailContext.Draw_UintProperty("종료 프레임", data.endFrame, defaultData.endFrame);
-            changed |= detailContext.Draw_BoolProperty("루프", data.loop, defaultData.loop);
+            changed |= Internal::Draw_SubUVFramePlaybackModeProperty(
+                detailContext,
+                "재생 방식",
+                data.playbackMode,
+                defaultData.playbackMode
+            );
+
+            if (data.playbackMode == SubUVFramePlaybackMode::FixedFrame)
+            {
+                changed |= detailContext.Draw_UintProperty("프레임", data.startFrame, defaultData.startFrame);
+            }
+            else
+            {
+                changed |= detailContext.Draw_UintProperty("시작 프레임", data.startFrame, defaultData.startFrame);
+                changed |= detailContext.Draw_UintProperty("종료 프레임", data.endFrame, defaultData.endFrame);
+
+                if (data.playbackMode == SubUVFramePlaybackMode::FramesPerSecond)
+                {
+                    changed |= detailContext.Draw_BoolProperty("루프", data.loop, defaultData.loop);
+                    changed |= detailContext.Draw_FloatProperty("FPS", data.framesPerSecond, defaultData.framesPerSecond, 0.1f);
+                }
+            }
             detailContext.End_PropertyTable();
         }
 
@@ -719,6 +847,8 @@ bool SubUVFrameOverLifeModuleDetail::Draw(
         const uint32 lastFrame = frameCount > 0 ? frameCount - 1 : 0;
         data.startFrame = min(data.startFrame, lastFrame);
         data.endFrame = min(data.endFrame, lastFrame);
+        data.framesPerSecond = max(0.f, data.framesPerSecond);
+        changed |= Internal::Normalize_SubUVFrameIndexDistribution(data.frameIndex, lastFrame);
 
         ImGui::TextDisabled("현재 atlas frame 수: %u", frameCount);
     }

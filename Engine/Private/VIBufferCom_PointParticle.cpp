@@ -212,7 +212,7 @@ HRESULT VIBufferCom_PointParticle::Ready_InstanceSeedData()
         instance.lifeTime = Vec2{ lifeTime, 0.f };
         instance.startColor = startColor;
         instance.endColor = endColor;
-        instance.subUVRect = Evaluate_SubUVRect(0.f);
+        instance.subUVRect = Evaluate_SubUVRect(0.f, 0.f, i);
 
         // baseline은 loop reset 기준이고, runtime은 매 프레임 GPU에 업로드될 clone 전용 payload다.
         _baselinePayload.push_back(instance);
@@ -327,6 +327,16 @@ bool VIBufferCom_PointParticle::Is_Expired(const ParticleInstanceVertex& instanc
     return instance.lifeTime.y >= instance.lifeTime.x;
 }
 
+float VIBufferCom_PointParticle::Hash_Random01(uint32 seed)
+{
+    seed ^= 2747636419u;
+    seed *= 2654435769u;
+    seed ^= seed >> 16;
+    seed *= 2654435769u;
+    seed ^= seed >> 16;
+    return static_cast<float>(seed & 0x00FFFFFFu) / 16777215.f;
+}
+
 float VIBufferCom_PointParticle::Evaluate_LifeProgress(const ParticleInstanceVertex& instance) const
 {
     const float lifeMax = max(instance.lifeTime.x, 0.0001f);
@@ -344,7 +354,7 @@ Vec2 VIBufferCom_PointParticle::Evaluate_SizeMultiplier(float lifeProgress) cons
     };
 }
 
-Vec4 VIBufferCom_PointParticle::Evaluate_SubUVRect(float lifeProgress) const
+Vec4 VIBufferCom_PointParticle::Evaluate_SubUVRect(float lifeProgress, float lifeCurrent, uint32 particleIndex) const
 {
     const uint32 rows = max(1u, _desc.subUVRows);
     const uint32 cols = max(1u, _desc.subUVCols);
@@ -357,14 +367,41 @@ Vec4 VIBufferCom_PointParticle::Evaluate_SubUVRect(float lifeProgress) const
         const uint32 startFrame = min(_desc.subUvFrameOverLife.startFrame, lastFrame);
         uint32 endFrame = min(_desc.subUvFrameOverLife.endFrame, lastFrame);
 
-        if (0 == _desc.subUvFrameOverLife.startFrame && 0 == _desc.subUvFrameOverLife.endFrame && frameCount > 1)
-            endFrame = lastFrame;
-
         if (endFrame < startFrame)
             endFrame = startFrame;
 
         const uint32 span = endFrame - startFrame;
-        frameIndex = startFrame + static_cast<uint32>(roundf(static_cast<float>(span) * lifeProgress));
+        const uint32 rangeCount = span + 1;
+
+        if (_desc.subUvFrameOverLife.playbackMode == SubUVFramePlaybackMode::FixedFrame)
+        {
+            frameIndex = startFrame;
+        }
+        else if (_desc.subUvFrameOverLife.playbackMode == SubUVFramePlaybackMode::LifeProgress)
+        {
+            const uint32 frameOffset = min(
+                static_cast<uint32>(floorf(clamp(lifeProgress, 0.f, 1.f) * static_cast<float>(rangeCount))),
+                rangeCount - 1
+            );
+            frameIndex = startFrame + frameOffset;
+        }
+        else if (_desc.subUvFrameOverLife.playbackMode == SubUVFramePlaybackMode::FramesPerSecond)
+        {
+            const uint32 frameOffset = static_cast<uint32>(floorf(max(0.f, lifeCurrent) * max(0.f, _desc.subUvFrameOverLife.framesPerSecond)));
+            if (_desc.subUvFrameOverLife.loop && rangeCount > 0)
+                frameIndex = startFrame + frameOffset % rangeCount;
+            else
+                frameIndex = startFrame + min(frameOffset, span);
+        }
+        else if (_desc.subUvFrameOverLife.playbackMode == SubUVFramePlaybackMode::RandomFrame)
+        {
+            const uint32 seed = particleIndex * 9781u + 1u;
+            const uint32 frameOffset = min(
+                static_cast<uint32>(floorf(Hash_Random01(seed) * static_cast<float>(rangeCount))),
+                rangeCount - 1
+            );
+            frameIndex = startFrame + frameOffset;
+        }
     }
 
     frameIndex = min(frameIndex, frameCount - 1);
@@ -400,7 +437,7 @@ void VIBufferCom_PointParticle::Update_InstanceOverLifePayload(uint32 index)
     instance.right = Vec4{ baseWidth * sizeMultiplier.x, 0.f, 0.f, 0.f };
     instance.up = Vec4{ 0.f, baseHeight * sizeMultiplier.y, 0.f, 0.f };
     instance.look = baseline.look;
-    instance.subUVRect = Evaluate_SubUVRect(lifeProgress);
+    instance.subUVRect = Evaluate_SubUVRect(lifeProgress, instance.lifeTime.y, index);
 }
 
 Shared<VIBufferCom_PointParticle> VIBufferCom_PointParticle::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

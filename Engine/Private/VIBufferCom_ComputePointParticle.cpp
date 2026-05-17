@@ -7,18 +7,23 @@
 struct ComputePointParticleParams
 {
     float elapsedTime{};
+    float deltaTime{};
     float instanceCount{};
     uint32 drawMode{};
-    float padding{};
     Vec4 center{};
     Vec4 spawnRange{};    // xyz: spawn range, w: unused.
-    Vec4 scaleLifeTime{}; // x/y: scale range, z/w: lifetime range.
+    Vec4 sizeMin{};       // x/y: width/height min, z/w: unused.
+    Vec4 sizeMax{};       // x/y: width/height max, z/w: unused.
+    Vec4 lifeTime{};      // x/y: lifetime min/max, z/w: unused.
     Vec4 startColorMin{};
     Vec4 startColorMax{};
     Vec4 endColorMin{};
     Vec4 endColorMax{};
-    Vec4 subUVParams{};         // x/y: rows/cols, z/w: unused.
+    Vec4 subUVParams{};         // x/y: rows/cols, z: playback mode, w: frames per second.
     Vec4 subUVFrameParams{};    // x/y: start/end frame, z: loop, w: enabled.
+    Vec4 subUVFrameCurveTimes{};  // 후속 Curve Editor용 frame curve key times.
+    Vec4 subUVFrameCurveValues{}; // 후속 Curve Editor용 frame curve frame values.
+    Vec4 subUVFrameCurveParams{}; // x: key count, y/z/w: unused.
     Vec4 sizeByLifeParams{};    // x/y: width start/end, z/w: height start/end.
     Vec4 motionRadialPivot{};   // xyz: radial pivot, w: motion enabled.
     Vec4 motionSpeedDrag{};     // x/y: speed min/max, z/w: drag min/max.
@@ -87,6 +92,7 @@ HRESULT VIBufferCom_ComputePointParticle::Initialize(void* arg)
 
     CHECK_FAILED(Ready_ComputeShader(), E_FAIL);
     CHECK_FAILED(Ready_ComputeOutput(), E_FAIL);
+    CHECK_FAILED(Ready_LifecycleState(), E_FAIL);
     CHECK_FAILED(Ready_InstanceBuffer(), E_FAIL);
     CHECK_FAILED(Ready_IndexedDrawBuffer(), E_FAIL);
     CHECK_FAILED(Ready_IndirectArgsBuffers(), E_FAIL);
@@ -96,6 +102,7 @@ HRESULT VIBufferCom_ComputePointParticle::Initialize(void* arg)
     CHECK_FAILED(_computeShader->Bind_UAV(0, _computeOutput->Get_UAV()), E_FAIL);
     if (nullptr != _computeArgsOutput)
         CHECK_FAILED(_computeShader->Bind_UAV(1, _computeArgsOutput->Get_UAV()), E_FAIL);
+    CHECK_FAILED(_computeShader->Bind_UAV(2, _lifecycleState->Get_UAV()), E_FAIL);
     CHECK_FAILED(_computeShader->Bind_ConstantBuffer(0, _computeConstantBuffer.Get()), E_FAIL);
     CHECK_FAILED(_computeShader->Dispatch((_instanceCount + kThreadCountX - 1) / kThreadCountX, 1, 1), E_FAIL);
     CHECK_FAILED(Copy_OutputToInstanceVB(), E_FAIL);
@@ -135,15 +142,17 @@ HRESULT VIBufferCom_ComputePointParticle::Render()
 
 void VIBufferCom_ComputePointParticle::Dispatch_Compute(float timeDelta)
 {
-    if (nullptr == _computeShader || nullptr == _computeOutput || nullptr == _instanceVB)
+    if (nullptr == _computeShader || nullptr == _computeOutput || nullptr == _lifecycleState || nullptr == _instanceVB)
         return;
 
-    _elapsedTime += timeDelta;
+    _deltaTime = max(0.f, timeDelta);
+    _elapsedTime += _deltaTime;
 
     CHECK_FAILED(Update_ConstantBuffer());
     CHECK_FAILED(_computeShader->Bind_UAV(0, _computeOutput->Get_UAV()));
     if (nullptr != _computeArgsOutput)
         CHECK_FAILED(_computeShader->Bind_UAV(1, _computeArgsOutput->Get_UAV()));
+    CHECK_FAILED(_computeShader->Bind_UAV(2, _lifecycleState->Get_UAV()));
     CHECK_FAILED(_computeShader->Bind_ConstantBuffer(0, _computeConstantBuffer.Get()));
     CHECK_FAILED(_computeShader->Dispatch((_instanceCount + kThreadCountX - 1) / kThreadCountX, 1, 1));
     CHECK_FAILED(Copy_OutputToInstanceVB());
@@ -200,6 +209,26 @@ HRESULT VIBufferCom_ComputePointParticle::Ready_ComputeOutput()
         _instanceCount
     );
     CHECK_NULL(_computeOutput, E_FAIL);
+
+    return S_OK;
+}
+
+HRESULT VIBufferCom_ComputePointParticle::Ready_LifecycleState()
+{
+    vector<ParticleLifecycleState> states{};
+    states.reserve(_instanceCount);
+
+    for (uint32 index = 0; index < _instanceCount; ++index)
+        states.push_back(Make_InitialLifecycleState(index));
+
+    _lifecycleState = ComputeStructuredBuffer::Create(
+        _device,
+        _context,
+        sizeof(ParticleLifecycleState),
+        _instanceCount,
+        states.data()
+    );
+    CHECK_NULL(_lifecycleState, E_FAIL);
 
     return S_OK;
 }
@@ -288,11 +317,14 @@ HRESULT VIBufferCom_ComputePointParticle::Update_ConstantBuffer()
 
     const ComputePointParticleParams params = {
         .elapsedTime = _elapsedTime,
+        .deltaTime = _deltaTime,
         .instanceCount = static_cast<float>(_instanceCount),
         .drawMode = ETOI(_desc.drawMode),
         .center = Vec4{ _desc.center.x, _desc.center.y, _desc.center.z, 1.f },
         .spawnRange = Vec4{ _desc.range.x, _desc.range.y, _desc.range.z, 0.f },
-        .scaleLifeTime = Vec4{ _desc.scale.x, _desc.scale.y, _desc.lifeTime.x, _desc.lifeTime.y },
+        .sizeMin = Vec4{ _desc.sizeMin.x, _desc.sizeMin.y, 0.f, 0.f },
+        .sizeMax = Vec4{ _desc.sizeMax.x, _desc.sizeMax.y, 0.f, 0.f },
+        .lifeTime = Vec4{ _desc.lifeTime.x, _desc.lifeTime.y, 0.f, 0.f },
         .startColorMin = _desc.startColorMin,
         .startColorMax = _desc.startColorMax,
         .endColorMin = _desc.endColorMin,
@@ -300,14 +332,22 @@ HRESULT VIBufferCom_ComputePointParticle::Update_ConstantBuffer()
         .subUVParams = Vec4{
             static_cast<float>(max(1u, _desc.subUVRows)),
             static_cast<float>(max(1u, _desc.subUVCols)),
-            0.f,
-            0.f
+            static_cast<float>(ETOI(_desc.subUvFrameOverLife.playbackMode)),
+            max(0.f, _desc.subUvFrameOverLife.framesPerSecond)
         },
         .subUVFrameParams = Vec4{
             static_cast<float>(_desc.subUvFrameOverLife.startFrame),
             static_cast<float>(_desc.subUvFrameOverLife.endFrame),
             _desc.subUvFrameOverLife.loop ? 1.f : 0.f,
             _desc.subUvFrameOverLife.enabled ? 1.f : 0.f
+        },
+        .subUVFrameCurveTimes = _desc.subUvFrameOverLife.frameCurveTimes,
+        .subUVFrameCurveValues = _desc.subUvFrameOverLife.frameCurveValues,
+        .subUVFrameCurveParams = Vec4{
+            static_cast<float>(max(1u, min(4u, _desc.subUvFrameOverLife.frameCurveKeyCount))),
+            0.f,
+            0.f,
+            0.f
         },
         .sizeByLifeParams = Vec4{
             _desc.sizeByLife.multiplyXStart,
@@ -384,6 +424,21 @@ HRESULT VIBufferCom_ComputePointParticle::Copy_OutputToIndirectArgs()
     return S_OK;
 }
 
+VIBufferCom_ComputePointParticle::ParticleLifecycleState VIBufferCom_ComputePointParticle::Make_InitialLifecycleState(uint32 index) const
+{
+    const float ratio = (static_cast<float>(index) + 0.5f) / max(1.f, static_cast<float>(_instanceCount));
+    const float lifeMin = max(0.0001f, min(_desc.lifeTime.x, _desc.lifeTime.y));
+    const float lifeMax = max(lifeMin, max(_desc.lifeTime.x, _desc.lifeTime.y));
+    const float sampledLifeMax = lerp(lifeMin, lifeMax, ratio);
+
+    return ParticleLifecycleState{
+        .lifeAge = sampledLifeMax * ratio,
+        .lifeMax = sampledLifeMax,
+        .respawnSeed = index * 9781u + 1u,
+        .padding = 0u
+    };
+}
+
 #ifdef _DEBUG
 void VIBufferCom_ComputePointParticle::Debug_LogIndirectArgs()
 {
@@ -450,6 +505,7 @@ void VIBufferCom_ComputePointParticle::Free()
 #endif
     _indirectArgsBuffer.Reset();
     _computeConstantBuffer.Reset();
+    _lifecycleState.reset();
     _computeArgsOutput.reset();
     _computeOutput.reset();
     _computeShader.reset();

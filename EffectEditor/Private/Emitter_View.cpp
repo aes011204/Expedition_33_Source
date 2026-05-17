@@ -481,7 +481,7 @@ AuthoringModule Emitter_View::Make_SubUVFrameOverLifeModule()
     module.id = Issue_AuthoringId();
     module.type = AuthoringModuleType::SubUVFrameOverLife;
     module.key = "SubUV Frame Over Life";
-    module.displayName = L"서브 이미지 인덱스";
+    module.displayName = L"서브UV 프레임 선택/재생";
     module.summary = L"수명 진행률 기준 frame 선택";
     module.enabled = true;
     module.movable = true;
@@ -1093,7 +1093,7 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
     entries.push_back(
         makeEntry(
             AuthoringModuleType::SubUVFrameOverLife,
-            L"서브 이미지 인덱스",
+            L"서브UV 프레임 선택/재생",
             true,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::SubUVFrameOverLife),

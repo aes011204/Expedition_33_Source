@@ -41,6 +41,15 @@ private: //## Types::IndirectDraw
         uint32 startInstanceLocation{};
     };
 
+    // compute shader가 particle별 수명 상태를 프레임 사이에 유지하기 위한 최소 payload다.
+    struct ParticleLifecycleState
+    {
+        float lifeAge{};
+        float lifeMax{};
+        uint32 respawnSeed{};
+        uint32 padding{};
+    };
+
 private: //## Data::ParticleDesc
     ComputePointParticleDesc _desc{}; // clone 생성 시 전달받는 compute particle 검증 규칙 저장.
 
@@ -48,7 +57,9 @@ private: //## Data::Compute
     Shared<ComputeShaderCom> _computeShader{};            // instance payload를 쓰는 compute shader.
     Shared<ComputeStructuredBuffer> _computeOutput{};     // compute 결과를 보관하는 structured UAV buffer.
     Shared<ComputeStructuredBuffer> _computeArgsOutput{}; // compute가 작성하는 indirect args source buffer.
+    Shared<ComputeStructuredBuffer> _lifecycleState{};    // particle별 age/lifetime을 유지하는 compute-only state buffer.
     float _elapsedTime{};                                 // shader에 전달할 누적 시간.
+    float _deltaTime{};                                   // 이번 dispatch의 frame delta time.
 
 private: //## Data::GPU
     D3D11_BUFFER_DESC _instanceBufferDesc{}; // compute output 복사 대상 instance VB 생성 설정.
@@ -64,6 +75,7 @@ private: //## Helper::Setup
     HRESULT Ready_VertexBuffer();        // prototype 공용 point vertex 1개를 만든다.
     HRESULT Ready_ComputeShader();       // compute-only shader를 clone 전용 실행 컴포넌트로 준비한다.
     HRESULT Ready_ComputeOutput();       // ParticleInstanceVertex 배열을 쓰는 UAV buffer를 만든다.
+    HRESULT Ready_LifecycleState();      // particle별 persistent lifetime state buffer를 만든다.
     HRESULT Ready_InstanceBuffer();      // DrawInstanced가 소비할 default instance VB를 만든다.
     HRESULT Ready_IndexedDrawBuffer();   // indexed indirect 검증용 1-index buffer를 만든다.
     HRESULT Ready_IndirectArgsBuffers(); // compute args source와 draw args destination buffer를 준비한다.
@@ -73,6 +85,7 @@ private: //## Helper::Runtime
     HRESULT Update_ConstantBuffer();     // 누적 시간과 instance count를 compute shader에 전달한다.
     HRESULT Copy_OutputToInstanceVB();   // compute output buffer를 instance VB로 복사한다.
     HRESULT Copy_OutputToIndirectArgs(); // compute args source를 indirect args destination으로 복사한다.
+    ParticleLifecycleState Make_InitialLifecycleState(uint32 index) const; // 시작 시점의 particle별 수명 상태를 만든다.
 #ifdef _DEBUG
     void Debug_LogIndirectArgs(); // Debug 전용으로 compute-authored args 값을 제한적으로 확인한다.
 #endif

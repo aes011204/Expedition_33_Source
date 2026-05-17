@@ -387,9 +387,12 @@ struct ColorOverLifeModuleData
 
 struct SubUVFrameOverLifeModuleData
 {
+    FloatDistributionData frameIndex{ FloatDistributionData::Make_ConstantCurve(0.f) };
     uint32 startFrame{ 0 };
     uint32 endFrame{ 0 };
     bool loop{ false };
+    SubUVFramePlaybackMode playbackMode{ SubUVFramePlaybackMode::FixedFrame };
+    float framesPerSecond{ 12.f };
 };
 
 struct SizeByLifeModuleData

@@ -5,6 +5,7 @@
 #include "EffectMaterialPreviewRenderer.h"
 #include "GameInstance.h"
 #include "Helper_String.h"
+#include "Helper_TextureFormat.h"
 
 NS_BEGIN(EffectEditor)
 
@@ -238,8 +239,24 @@ void EffectMaterial_View::Render_MaterialInstanceTable(const char* tableId, cons
         ImGui::TextUnformatted(value.c_str());
     };
 
-    drawRow("Main Texture", material.mainTextureId);
-    drawRow("Noise Texture", material.noiseTextureId.empty() ? string{} : material.noiseTextureId);
+    const auto drawTextureRow = [](const char* label, const string& textureId)
+    {
+        ImGui::TableNextRow();
+        ImGui::TableSetColumnIndex(0);
+        ImGui::TextDisabled("%s", label);
+        ImGui::TableSetColumnIndex(1);
+
+        const string displayText = TextureFormat::FormatTextureId(textureId);
+        ImGui::TextUnformatted(displayText.c_str());
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
+        {
+            const string tooltip = TextureFormat::MakeTextureTooltip(textureId);
+            ImGui::SetTooltip("%s", tooltip.c_str());
+        }
+    };
+
+    drawTextureRow("Main Texture", material.mainTextureId);
+    drawTextureRow("Noise Texture", material.noiseTextureId);
 
     ImGui::TableNextRow();
     ImGui::TableSetColumnIndex(0);

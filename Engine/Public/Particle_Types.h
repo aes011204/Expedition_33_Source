@@ -12,6 +12,15 @@ enum class PointParticleDrawMode : uint8
     DrawIndexedInstancedIndirect // CPU가 작성한 args buffer로 DrawIndexedInstancedIndirect를 호출한다.
 };
 
+// SubUV frame 선택/재생 기본 방식을 결정한다.
+enum class SubUVFramePlaybackMode : uint8
+{
+    FixedFrame,
+    LifeProgress,
+    FramesPerSecond,
+    RandomFrame,
+};
+
 // GPU instance buffer에 저장되는 per-instance world/lifetime/color payload.
 struct ParticleInstanceVertex
 {
@@ -47,10 +56,15 @@ struct ParticleInstanceLayout
 // SubUVFrameOverLife 모듈의 최소 preview runtime desc다.
 struct PointParticleSubUVFrameOverLifeDesc
 {
-    bool enabled{ false };  // SubUV frame over life 모듈이 실제로 켜져 있는지 나타낸다.
-    uint32 startFrame{ 0 }; // 수명 시작 시 사용할 atlas frame index다.
-    uint32 endFrame{ 0 };   // 수명 종료 시 도달할 atlas frame index다.
-    bool loop{ false };     // v1에서는 frame 진행 규칙을 future-safe하게 유지하기 위한 최소 플래그다.
+    bool enabled{ false };                                                                 // SubUV frame over life 모듈이 실제로 켜져 있는지 나타낸다.
+    uint32 startFrame{ 0 };                                                                // FixedFrame에서는 선택 frame, 재생 모드에서는 시작 frame이다.
+    uint32 endFrame{ 0 };                                                                  // 재생 모드에서 종료 frame이다.
+    bool loop{ false };                                                                    // FPS 재생에서 frame range를 반복할지 나타낸다.
+    SubUVFramePlaybackMode playbackMode{ SubUVFramePlaybackMode::FixedFrame };             // 고정 선택, 수명 맞춤, FPS 재생, 랜덤 선택 중 하나를 결정한다.
+    float framesPerSecond{ 12.f };                                                         // FPS 재생 모드에서 초당 넘길 frame 수다.
+    uint32 frameCurveKeyCount{ 1 };                                                        // 후속 Curve Editor 이관 후보인 compact frame curve key 수다.
+    Vec4 frameCurveTimes{};                                                                // 후속 Curve Editor용 key time 0..1 값이다.
+    Vec4 frameCurveValues{};                                                               // 후속 Curve Editor용 frame index 값이다.
 };
 
 // SizeByLife 모듈의 최소 preview runtime desc다.
@@ -115,6 +129,8 @@ struct [[deprecated("Use compute sprite particle path instead.")]] PointParticle
 // compute shader가 instance payload를 갱신하는 compute-first sprite particle desc.
 struct ComputePointParticleDesc : public InstanceSpawnDesc
 {
+    Vec2 sizeMin{ 0.12f, 0.12f };                               // particle 기본 가로/세로 크기 하한이다.
+    Vec2 sizeMax{ 0.28f, 0.28f };                               // particle 기본 가로/세로 크기 상한이다.
     Vec2 lifeTime{};                                          // compute shader가 누적 시간을 계산할 때 사용할 생존 시간 범위.
     Vec4 startColorMin{ 1.f, 1.f, 1.f, 1.f };                 // compute sprite preview 시작 색상/알파 하한.
     Vec4 startColorMax{ 1.f, 1.f, 1.f, 1.f };                 // compute sprite preview 시작 색상/알파 상한.

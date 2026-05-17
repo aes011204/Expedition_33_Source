@@ -45,6 +45,28 @@ namespace Internal
         return max(1u, max(1u, required.material.subUVRows) * max(1u, required.material.subUVCols));
     }
 
+    EffectSpriteScreenAlignment Resolve_EffectSpriteScreenAlignment(EmitterScreenAlignment alignment)
+    {
+        switch (alignment)
+        {
+        case EmitterScreenAlignment::Rectangle:
+            return EffectSpriteScreenAlignment::Rectangle;
+
+        case EmitterScreenAlignment::Square:
+            return EffectSpriteScreenAlignment::Square;
+
+        case EmitterScreenAlignment::AwayFromCenter:
+            return EffectSpriteScreenAlignment::AwayFromCenter;
+
+        case EmitterScreenAlignment::FacingCameraPosition:
+        case EmitterScreenAlignment::Velocity:
+        case EmitterScreenAlignment::TypeSpecific:
+        case EmitterScreenAlignment::FacingCameraDistanceBlend:
+        default:
+            return EffectSpriteScreenAlignment::FacingCameraPosition;
+        }
+    }
+
     //## Float Curve Eval
 
     float Evaluate_FloatCurveSegmentLinear(const FloatCurveKeyData& leftKey, const FloatCurveKeyData& rightKey, float x)
@@ -129,6 +151,55 @@ namespace Internal
             return Evaluate_FloatConstantCurve(*curve, 1.f, fallbackValue);
 
         return fallbackValue;
+    }
+
+    static void Set_SubUVFrameCurveComponent(Vec4& values, uint32 index, float value)
+    {
+        switch (index)
+        {
+        case 0:
+            values.x = value;
+            break;
+        case 1:
+            values.y = value;
+            break;
+        case 2:
+            values.z = value;
+            break;
+        case 3:
+            values.w = value;
+            break;
+        default:
+            break;
+        }
+    }
+
+    void Fill_SubUVFrameCurvePayload(PointParticleSubUVFrameOverLifeDesc& desc, const FloatDistributionData& frameIndex)
+    {
+        desc.frameCurveKeyCount = 1;
+        desc.frameCurveTimes = Vec4{};
+        desc.frameCurveValues = Vec4{};
+
+        if (const auto* constant = get_if<ConstantFloatDistributionData>(&frameIndex.payload))
+        {
+            desc.frameCurveValues.x = constant->value;
+            return;
+        }
+
+        const auto* curve = get_if<ConstantCurveFloatDistributionData>(&frameIndex.payload);
+        if (nullptr == curve || curve->keys.empty())
+            return;
+
+        constexpr uint32 maxSubUVFrameCurveKeys{ 4 };
+        const uint32 keyCount = min(maxSubUVFrameCurveKeys, static_cast<uint32>(curve->keys.size()));
+        desc.frameCurveKeyCount = keyCount;
+
+        for (uint32 index = 0; index < keyCount; ++index)
+        {
+            const FloatCurveKeyData& key = curve->keys[index];
+            Set_SubUVFrameCurveComponent(desc.frameCurveTimes, index, clamp(key.time, 0.f, 1.f));
+            Set_SubUVFrameCurveComponent(desc.frameCurveValues, index, key.value);
+        }
     }
 
     Vec2 Evaluate_Vector2DistributionMin(const Vector2DistributionData& data, const Vec2& fallbackValue)
@@ -328,6 +399,7 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
         desc.noiseStrength = material.noiseStrength;
         desc.subUVRows = max(1u, material.subUVRows);
         desc.subUVCols = max(1u, material.subUVCols);
+        desc.screenAlignment = Internal::Resolve_EffectSpriteScreenAlignment(required->screenAlignment);
 
         definition.localPosition = required->emitterOrigin;
         definition.localRotationDegrees = required->emitterRotationDegrees;
@@ -339,9 +411,10 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
 
     if (const auto* initialSize = Internal::Find_ModuleData<InitialSizeModuleData>(emitter, AuthoringModuleType::InitialSize))
     {
-        const Vec2 minScale = Internal::Evaluate_Vector2DistributionMin(initialSize->size, desc.scale);
-        const Vec2 maxScale = Internal::Evaluate_Vector2DistributionMax(initialSize->size, desc.scale);
-        desc.scale = Vec2{ min(minScale.x, maxScale.x), max(minScale.y, maxScale.y) };
+        const Vec2 minSize = Internal::Evaluate_Vector2DistributionMin(initialSize->size, desc.sizeMin);
+        const Vec2 maxSize = Internal::Evaluate_Vector2DistributionMax(initialSize->size, desc.sizeMax);
+        desc.sizeMin = Vec2{ min(minSize.x, maxSize.x), min(minSize.y, maxSize.y) };
+        desc.sizeMax = Vec2{ max(minSize.x, maxSize.x), max(minSize.y, maxSize.y) };
     }
 
     if (const auto* lifetime = Internal::Find_ModuleData<LifetimeModuleData>(emitter, AuthoringModuleType::Lifetime))
@@ -410,6 +483,9 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
         desc.subUVFrameOverLife.startFrame = subUvFrameOverLife->startFrame;
         desc.subUVFrameOverLife.endFrame = subUvFrameOverLife->endFrame;
         desc.subUVFrameOverLife.loop = subUvFrameOverLife->loop;
+        desc.subUVFrameOverLife.playbackMode = subUvFrameOverLife->playbackMode;
+        desc.subUVFrameOverLife.framesPerSecond = max(0.f, subUvFrameOverLife->framesPerSecond);
+        Internal::Fill_SubUVFrameCurvePayload(desc.subUVFrameOverLife, subUvFrameOverLife->frameIndex);
 
         if (const auto* required = Internal::Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
         {

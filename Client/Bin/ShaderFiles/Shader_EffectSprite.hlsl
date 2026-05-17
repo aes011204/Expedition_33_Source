@@ -18,6 +18,13 @@ cbuffer cbEffectSpriteMaterial : register(b2)
     float3 g_EffectSpritePadding;
 };
 
+cbuffer cbEffectSpriteRuntime : register(b3)
+{
+    int g_ScreenAlignmentMode = 0;
+    float3 g_EffectSpriteRuntimePadding;
+    float4 g_EffectSpriteEmitterCenter = { 0.f, 0.f, 0.f, 1.f };
+};
+
 Texture2D g_Texture : register(t0);
 Texture2D g_NoiseTexture : register(t1);
 
@@ -79,33 +86,78 @@ struct GS_OUT
     float4 subUVRect : TEXCOORD2;
 };
 
-[maxvertexcount(4)]
-void GS_MAIN(point GS_IN In[1], inout TriangleStream<GS_OUT> OutStream)
+float3 ResolveFacingLookDirection(float3 particlePosition)
 {
-    const float3 particlePosition = In[0].worldPosition.xyz;
     float3 lookDir = g_BillboardTarget.xyz - particlePosition;
-
     if (length(lookDir) < 0.0001f)
-        lookDir = float3(0.f, 0.f, 1.f);
-    else
-        lookDir = normalize(lookDir);
+        return float3(0.f, 0.f, 1.f);
 
+    return normalize(lookDir);
+}
+
+float3 ResolveAwayFromCenterLookDirection(float3 particlePosition)
+{
+    float3 lookDir = particlePosition - g_EffectSpriteEmitterCenter.xyz;
+    if (length(lookDir) < 0.0001f)
+        return float3(0.f, 0.f, 1.f);
+
+    return normalize(lookDir);
+}
+
+void ResolveLookAlignedBasis(float3 lookDir, out float3 rightDir, out float3 upDir)
+{
     float3 worldUp = float3(0.f, 1.f, 0.f);
-    float3 rightDir = cross(worldUp, lookDir);
+    rightDir = cross(worldUp, lookDir);
 
     if (length(rightDir) < 0.0001f)
         rightDir = cross(float3(0.f, 0.f, 1.f), lookDir);
 
     rightDir = normalize(rightDir);
-    float3 upDir = normalize(cross(lookDir, rightDir));
+    upDir = normalize(cross(lookDir, rightDir));
+}
+
+void ResolveCameraPlaneBasis(out float3 rightDir, out float3 upDir)
+{
+    rightDir = normalize(float3(g_ViewMatrix[0].x, g_ViewMatrix[1].x, g_ViewMatrix[2].x));
+    upDir = normalize(float3(g_ViewMatrix[0].y, g_ViewMatrix[1].y, g_ViewMatrix[2].y));
+}
+
+[maxvertexcount(4)]
+void GS_MAIN(point GS_IN In[1], inout TriangleStream<GS_OUT> OutStream)
+{
+    const float3 particlePosition = In[0].worldPosition.xyz;
+    float3 rightDir = float3(1.f, 0.f, 0.f);
+    float3 upDir = float3(0.f, 1.f, 0.f);
+    if (g_ScreenAlignmentMode == 1 || g_ScreenAlignmentMode == 2)
+    {
+        ResolveCameraPlaneBasis(rightDir, upDir);
+    }
+    else if (g_ScreenAlignmentMode == 3)
+    {
+        const float3 lookDir = ResolveAwayFromCenterLookDirection(particlePosition);
+        ResolveLookAlignedBasis(lookDir, rightDir, upDir);
+    }
+    else
+    {
+        const float3 lookDir = ResolveFacingLookDirection(particlePosition);
+        ResolveLookAlignedBasis(lookDir, rightDir, upDir);
+    }
+
     const float rotationCos = cos(In[0].rotationRadians);
     const float rotationSin = sin(In[0].rotationRadians);
     const float3 billboardRight = rightDir;
     const float3 billboardUp = upDir;
     rightDir = billboardRight * rotationCos + billboardUp * rotationSin;
     upDir = -billboardRight * rotationSin + billboardUp * rotationCos;
-    rightDir *= In[0].size.x * 0.5f;
-    upDir *= In[0].size.y * 0.5f;
+    float2 spriteSize = In[0].size;
+    if (g_ScreenAlignmentMode == 2)
+    {
+        const float squareExtent = max(spriteSize.x, spriteSize.y);
+        spriteSize = float2(squareExtent, squareExtent);
+    }
+
+    rightDir *= spriteSize.x * 0.5f;
+    upDir *= spriteSize.y * 0.5f;
 
     const matrix ViewProjMatrix = mul(g_ViewMatrix, g_ProjMatrix);
     GS_OUT Out[4];

@@ -12,6 +12,15 @@ enum class EffectEmitterKind : uint8
     ComputeSprite, // compute-first sprite emitter runtime이다.
 };
 
+// EffectSprite shader가 어떤 기준으로 sprite facing 축을 고를지 결정한다.
+enum class EffectSpriteScreenAlignment : uint32
+{
+    FacingCameraPosition = 0, // particle 위치에서 camera position을 바라보는 기본 billboard다.
+    Rectangle = 1,            // 카메라 화면 평면 right/up을 따라가는 직사각형 billboard다.
+    Square = 2,               // 카메라 화면 평면 기준에서 더 큰 축으로 정사각형을 만든다.
+    AwayFromCenter = 3,       // emitter 중심에서 particle 바깥 방향을 바라보는 billboard다.
+};
+
 // compute sprite emitter가 실제 runtime consumer에게 넘길 최소 payload다.
 struct ComputeSpriteEmitterDesc : public GameObject::GAMEOBJECT_DESC
 {
@@ -31,10 +40,14 @@ struct ComputeSpriteEmitterDesc : public GameObject::GAMEOBJECT_DESC
     PointParticleSizeByLifeDesc sizeByLife{};                 // 수명 진행률 기준 크기 배율 규칙이다.
     PointParticleMotionDesc motion{};                         // motion authoring module을 compute payload로 압축한 규칙이다.
     PointParticleRotationDesc rotation{};                     // rotation authoring module을 compute payload로 압축한 규칙이다.
+    EffectSpriteScreenAlignment screenAlignment{
+        EffectSpriteScreenAlignment::FacingCameraPosition
+    }; // EffectSprite shader가 preview/runtime sprite 축을 고르는 기준이다.
 
     Vec3 center{ 0.f, 0.f, 0.f };             // concrete emitter 내부 fallback/초기 center다. root transform이 있으면 후속 sync가 덮어쓴다.
     uint32 instanceCount{ 96 };               // 생성할 particle 수다.
-    Vec2 scale{ 0.12f, 0.28f };               // compute payload가 사용할 랜덤 scale 범위다.
+    Vec2 sizeMin{ 0.12f, 0.12f };             // InitialSize의 가로/세로 크기 하한이다.
+    Vec2 sizeMax{ 0.28f, 0.28f };             // InitialSize의 가로/세로 크기 상한이다.
     Vec2 lifeTime{ 1.f, 2.f };                // compute payload가 사용할 생존 시간 범위다.
     Vec4 startColorMin{ 1.f, 1.f, 1.f, 1.f }; // Initial Color 하한이다.
     Vec4 startColorMax{ 1.f, 1.f, 1.f, 1.f }; // Initial Color 상한이다.

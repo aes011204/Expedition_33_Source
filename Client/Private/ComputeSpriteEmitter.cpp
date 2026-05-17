@@ -144,6 +144,12 @@ HRESULT ComputeSpriteEmitter::Bind_ShaderResources()
     CHECK_FAILED_ONCE(GAME->Bind_TransformMatrix(D3DTS::View, _shader.get(), "g_ViewMatrix"), E_FAIL);
     CHECK_FAILED_ONCE(GAME->Bind_TransformMatrix(D3DTS::Proj, _shader.get(), "g_ProjMatrix"), E_FAIL);
     CHECK_FAILED_ONCE(GAME->Bind_CamPosition(_shader.get(), "g_BillboardTarget"), E_FAIL);
+    const int screenAlignmentMode = static_cast<int>(_desc.screenAlignment);
+    const Vec4 emitterCenter = nullptr != _transformCom
+                                   ? Vec4{ _transformCom->Get_WorldPosition().x, _transformCom->Get_WorldPosition().y, _transformCom->Get_WorldPosition().z, 1.f }
+                                   : Vec4{ _desc.center.x, _desc.center.y, _desc.center.z, 1.f };
+    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_ScreenAlignmentMode", &screenAlignmentMode, sizeof(screenAlignmentMode)), E_FAIL);
+    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteEmitterCenter", &emitterCenter, sizeof(emitterCenter)), E_FAIL);
     CHECK_FAILED_ONCE(_texture->Bind_ShaderResourceView(_shader.get(), "g_Texture", 0), E_FAIL);
     CHECK_FAILED_ONCE(Bind_MaterialResources(), E_FAIL);
 
@@ -189,7 +195,8 @@ ComputePointParticleDesc ComputeSpriteEmitter::Make_ComputePointParticleDesc() c
     desc.instanceCount = max(1u, _desc.instanceCount);
     desc.center = _desc.center;
     desc.range = Vec3{ 3.f, 1.f, 3.f };
-    desc.scale = _desc.scale;
+    desc.sizeMin = _desc.sizeMin;
+    desc.sizeMax = _desc.sizeMax;
     desc.lifeTime = _desc.lifeTime;
     desc.startColorMin = _desc.startColorMin;
     desc.startColorMax = _desc.startColorMax;

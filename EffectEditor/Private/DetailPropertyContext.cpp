@@ -6,6 +6,90 @@
 
 NS_BEGIN(EffectEditor)
 
+namespace
+{
+    constexpr EmitterScreenAlignment kVisibleScreenAlignmentValues[] = {
+        EmitterScreenAlignment::FacingCameraPosition,
+        EmitterScreenAlignment::Rectangle,
+        EmitterScreenAlignment::Square,
+        EmitterScreenAlignment::AwayFromCenter,
+    };
+
+    constexpr const char* kVisibleScreenAlignmentLabels[] = {
+        "Facing Camera Position",
+        "Rectangle",
+        "Square",
+        "Away from Center",
+        // TODO : Velocity
+    };
+
+    static_assert(IM_ARRAYSIZE(kVisibleScreenAlignmentValues) == IM_ARRAYSIZE(kVisibleScreenAlignmentLabels));
+
+    int Find_ScreenAlignmentVisibleIndex(EmitterScreenAlignment value)
+    {
+        for (int index = 0; index < IM_ARRAYSIZE(kVisibleScreenAlignmentValues); ++index)
+        {
+            if (kVisibleScreenAlignmentValues[index] == value)
+                return index;
+        }
+
+        return -1;
+    }
+
+    const char* Get_ScreenAlignmentLabel(EmitterScreenAlignment value)
+    {
+        switch (value)
+        {
+        case EmitterScreenAlignment::Square:
+            return "Square";
+        case EmitterScreenAlignment::FacingCameraPosition:
+            return "Facing Camera Position";
+        case EmitterScreenAlignment::Rectangle:
+            return "Rectangle";
+        case EmitterScreenAlignment::Velocity:
+            return "Velocity";
+        case EmitterScreenAlignment::AwayFromCenter:
+            return "Away from Center";
+        case EmitterScreenAlignment::TypeSpecific:
+            return "Type Specific";
+        case EmitterScreenAlignment::FacingCameraDistanceBlend:
+            return "Facing Camera Distance Blend";
+        default:
+            return "Facing Camera Position";
+        }
+    }
+
+    const char* Get_ScreenAlignmentTooltip(EmitterScreenAlignment value)
+    {
+        switch (value)
+        {
+        case EmitterScreenAlignment::FacingCameraPosition:
+            return "파티클 위치에서 카메라 위치를 직접 바라보는 빌보드입니다.";
+
+        case EmitterScreenAlignment::Rectangle:
+            return "카메라 화면 평면에 맞춰 붙는 직사각형 빌보드입니다.";
+
+        case EmitterScreenAlignment::Square:
+            return "카메라 화면 평면 기준이며 더 큰 축으로 정사각형을 만드는 빌보드입니다.";
+
+        case EmitterScreenAlignment::AwayFromCenter:
+            return "이미터 중심에서 바깥 방향을 바라보는 빌보드입니다.";
+
+        default:
+            return "";
+        }
+    }
+
+    EmitterScreenAlignment Resolve_ScreenAlignmentFallback(EmitterScreenAlignment value)
+    {
+        const int visibleIndex = Find_ScreenAlignmentVisibleIndex(value);
+        if (visibleIndex >= 0)
+            return kVisibleScreenAlignmentValues[visibleIndex];
+
+        return EmitterScreenAlignment::FacingCameraPosition;
+    }
+}
+
 class DetailPropertyContext::BasicDetailPropertyDrawer
 {
 public:
@@ -182,9 +266,11 @@ public:
             value.G(clamp(rgb[1], 0.f, 1.f));
             value.B(clamp(rgb[2], 0.f, 1.f));
         }
-        if (Draw_ResetButton(!Is_DefaultValue(value.R(), defaultValue.R()) ||
-                             !Is_DefaultValue(value.G(), defaultValue.G()) ||
-                             !Is_DefaultValue(value.B(), defaultValue.B())))
+        if (Draw_ResetButton(
+            !Is_DefaultValue(value.R(), defaultValue.R()) ||
+            !Is_DefaultValue(value.G(), defaultValue.G()) ||
+            !Is_DefaultValue(value.B(), defaultValue.B())
+        ))
         {
             value.R(defaultValue.R());
             value.G(defaultValue.G());
@@ -249,7 +335,7 @@ public:
     {
         bool changed = false;
 
-        ImGui::TextUnformatted("버스트 목록");
+        ImGui::TextUnformatted("버스트 목록 (미구현)");
         ImGui::SameLine();
         if (ImGui::Button(ICON_FA_PLUS "##AddBurst"))
         {
@@ -324,24 +410,35 @@ public:
 
     bool Draw_ScreenAlignmentProperty(const char* label, EmitterScreenAlignment& value, EmitterScreenAlignment defaultValue)
     {
-        constexpr auto screenAlignmentValues = magic_enum::enum_values<EmitterScreenAlignment>();
-        int currentIndex = static_cast<int>(magic_enum::enum_index(value).value_or(0));
-
-        static constexpr const char* kScreenAlignmentLabels[] = {
-            "Square",
-            "Facing Camera Position",
-            "Rectangle",
-            "Velocity",
-            "Away from Center",
-            "Type Specific",
-            "Facing Camera Distance Blend",
-        };
-        static_assert(IM_ARRAYSIZE(kScreenAlignmentLabels) == magic_enum::enum_count<EmitterScreenAlignment>());
+        const EmitterScreenAlignment fallbackValue = Resolve_ScreenAlignmentFallback(value);
+        int currentIndex = Find_ScreenAlignmentVisibleIndex(fallbackValue);
+        if (currentIndex < 0)
+            currentIndex = 0;
 
         ImGui::PushID(label);
         Draw_PropertyLabel(label);
         ImGui::SetNextItemWidth(-FLT_MIN);
-        const bool changed = ImGui::Combo("##Value", &currentIndex, kScreenAlignmentLabels, IM_ARRAYSIZE(kScreenAlignmentLabels));
+        bool changed = false;
+        if (ImGui::BeginCombo("##Value", kVisibleScreenAlignmentLabels[currentIndex]))
+        {
+            for (int index = 0; index < IM_ARRAYSIZE(kVisibleScreenAlignmentValues); ++index)
+            {
+                const bool isSelected = currentIndex == index;
+                if (ImGui::Selectable(kVisibleScreenAlignmentLabels[index], isSelected))
+                {
+                    currentIndex = index;
+                    changed = true;
+                }
+
+                if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
+                    ImGui::SetTooltip("%s", Get_ScreenAlignmentTooltip(kVisibleScreenAlignmentValues[index]));
+
+                if (isSelected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
         const bool resetClicked = Draw_ResetButton(!Is_DefaultValue(value, defaultValue));
         ImGui::PopID();
 
@@ -354,12 +451,26 @@ public:
         if (!changed)
             return false;
 
-        if (currentIndex < 0 || currentIndex >= static_cast<int>(screenAlignmentValues.size()))
-            value = EmitterScreenAlignment::Square;
+        if (currentIndex < 0 || currentIndex >= IM_ARRAYSIZE(kVisibleScreenAlignmentValues))
+            value = EmitterScreenAlignment::FacingCameraPosition;
         else
-            value = screenAlignmentValues[currentIndex];
+            value = kVisibleScreenAlignmentValues[currentIndex];
 
         return true;
+    }
+
+    void Draw_ScreenAlignmentImplementationNote(EmitterScreenAlignment value) const
+    {
+        const int visibleIndex = Find_ScreenAlignmentVisibleIndex(value);
+        if (visibleIndex >= 0)
+        {
+            //ImGui::TextDisabled("Velocity / Type Specific / Facing Camera Distance Blend are not available in this step.");
+            return;
+        }
+
+        const char* currentLabel = Get_ScreenAlignmentLabel(value);
+        const char* fallbackLabel = Get_ScreenAlignmentLabel(Resolve_ScreenAlignmentFallback(value));
+        ImGui::TextDisabled("Current value '%s' is not implemented yet. Preview uses '%s'.", currentLabel, fallbackLabel);
     }
 
     bool Draw_SortModeProperty(const char* label, EmitterSortMode& value, EmitterSortMode defaultValue)
@@ -492,7 +603,12 @@ public:
     {
     }
 
-    bool Draw_FloatDistributionGroup(const char* label, FloatDistributionData& value, const FloatDistributionData& defaultValue, float speed = 0.01f)
+    bool Draw_FloatDistributionGroup(
+        const char* label,
+        FloatDistributionData& value,
+        const FloatDistributionData& defaultValue,
+        float speed = 0.01f,
+        bool allowUniform = true)
     {
         bool changed = false;
 
@@ -502,7 +618,7 @@ public:
         {
             if (_basicDrawer.Begin_PropertyTable("Distribution"))
             {
-                changed |= Draw_FloatDistributionProperty("분포 타입", value, defaultValue, speed);
+                changed |= Draw_FloatDistributionProperty("분포 타입", value, defaultValue, speed, allowUniform);
                 _basicDrawer.End_PropertyTable();
             }
 
@@ -871,7 +987,8 @@ private:
         const char* label,
         FloatDistributionData& value,
         const FloatDistributionData& defaultValue,
-        float speed = 0.01f)
+        float speed = 0.01f,
+        bool allowUniform = true)
     {
         bool changed = false;
 
@@ -903,7 +1020,7 @@ private:
             };
 
             draw_selectable(DistributionMode::Constant, true);
-            draw_selectable(DistributionMode::Uniform, true);
+            draw_selectable(DistributionMode::Uniform, allowUniform);
             draw_selectable(DistributionMode::ConstantCurve, true);
             draw_selectable(DistributionMode::UniformCurve, false);
             draw_selectable(DistributionMode::ParticleParameter, false);
@@ -1616,9 +1733,14 @@ bool DetailPropertyContext::Draw_ColorProperty(const char* label, Color& value, 
     return _basicDrawer->Draw_ColorProperty(label, value, defaultValue);
 }
 
-bool DetailPropertyContext::Draw_FloatDistributionGroup(const char* label, FloatDistributionData& value, const FloatDistributionData& defaultValue, float speed)
+bool DetailPropertyContext::Draw_FloatDistributionGroup(
+    const char* label,
+    FloatDistributionData& value,
+    const FloatDistributionData& defaultValue,
+    float speed,
+    bool allowUniform)
 {
-    return _distributionDrawer->Draw_FloatDistributionGroup(label, value, defaultValue, speed);
+    return _distributionDrawer->Draw_FloatDistributionGroup(label, value, defaultValue, speed, allowUniform);
 }
 
 bool DetailPropertyContext::Draw_Vector2DistributionGroup(
@@ -1659,6 +1781,11 @@ bool DetailPropertyContext::Draw_BurstListProperty(
 bool DetailPropertyContext::Draw_ScreenAlignmentProperty(const char* label, EmitterScreenAlignment& value, EmitterScreenAlignment defaultValue)
 {
     return _basicDrawer->Draw_ScreenAlignmentProperty(label, value, defaultValue);
+}
+
+void DetailPropertyContext::Draw_ScreenAlignmentImplementationNote(EmitterScreenAlignment value)
+{
+    _basicDrawer->Draw_ScreenAlignmentImplementationNote(value);
 }
 
 bool DetailPropertyContext::Draw_SortModeProperty(const char* label, EmitterSortMode& value, EmitterSortMode defaultValue)

@@ -6,6 +6,7 @@
 #include "EffectMaterial_View.h"
 #include "GameInstance.h"
 #include "Helper_String.h"
+#include "Helper_TextureFormat.h"
 #include "Texture.h"
 
 NS_BEGIN(EffectEditor)
@@ -478,9 +479,33 @@ void Content_Browser::Draw_AssetView()
 
         Draw_FileContextMenu(fileEntry.filePath, "FileItemContext");
 
-        ImGui::TextWrapped("%s", pureName.c_str());
+        const bool isTextureFile = Internal::Is_TexturePayloadFile(path);
+        const string displayName = isTextureFile ? fileName : pureName;
+        ImGui::TextWrapped("%s", displayName.c_str());
         if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("%s", fileName.c_str());
+        {
+            if (isTextureFile)
+            {
+                string textureId{};
+                if (TextureFormat::TryFindTextureIdByFilePath(path, textureId))
+                {
+                    const string tooltip =
+                        fileName +
+                        "\n" +
+                        TextureFormat::MakeTextureTooltip(textureId);
+                    ImGui::SetTooltip("%s", tooltip.c_str());
+                }
+                else
+                {
+                    const string tooltip = fileName + "\nId: (not registered in DT_Texture)";
+                    ImGui::SetTooltip("%s", tooltip.c_str());
+                }
+            }
+            else
+            {
+                ImGui::SetTooltip("%s", fileName.c_str());
+            }
+        }
 
         ImGui::PopID();
         ImGui::NextColumn();
