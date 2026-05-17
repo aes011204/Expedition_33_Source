@@ -386,6 +386,9 @@ bool MaterialBuilder::Try_ApplyMaterialBindingsFromJson(ModelCom& model, const j
 
         const json& instJson = item["instance_override"];
         MaterialInstanceOverride& inst = binding.instance;
+        inst.forcedPassIndex = static_cast<int32>(instJson.value("force_pass_index", inst.forcedPassIndex));
+        if (inst.forcedPassIndex < 0 && instJson.contains("forcePassIndex"))
+            inst.forcedPassIndex = static_cast<int32>(instJson.value("forcePassIndex", inst.forcedPassIndex));
 
         inst.overrideRenderStateEnabled =
             ParseBool(instJson.value("override_render_state_enabled", inst.overrideRenderStateEnabled), inst.overrideRenderStateEnabled);
