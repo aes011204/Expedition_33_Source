@@ -19,6 +19,7 @@ HRESULT ModelTestPanel::Initialize()
 
 void ModelTestPanel::Update(float timeDelta)
 {
+
 }
 
 void ModelTestPanel::Render()
