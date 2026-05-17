@@ -28,6 +28,7 @@ private:
 
 private:
     bool _isFinished = {false};
+    float _testPrevRatio = {};
 public:
     static Shared<BattleActionExecutor> Create();
     void Free() override;

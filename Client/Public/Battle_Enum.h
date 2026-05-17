@@ -556,7 +556,7 @@ enum class Buffs;
         Vec3 phaseStartPos = {};
         Vec3 phaseGoalPos = {};
         bool phaseReachedGoal = false;
-
+        float phasePrevRootRatio = 0.f;
     };
 
 //

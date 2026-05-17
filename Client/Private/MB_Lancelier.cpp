@@ -66,13 +66,13 @@ void MB_Lancelier::Update(float timeDelta)
     {
         _body->Play_Animation(timeDelta);
 
-        // Lancelier 월드 이동은 기존 Monster와 동일하게 body root motion 속도를 사용한다.
-        const auto rootVelocity = _body->Get_RootTransformVelocity();
-       // _transformCom->Set_SpeedPerSec(rootVelocity.position.z * Constants::Charcter::scaleOffset);
-     
-        Vec3 pos = _transformCom->Get_Position();
-        _transformCom->Set_Position(pos+(rootVelocity.position * 100)); // 현제 fps을 곱해야 하나??
-
+     //   // Lancelier 월드 이동은 기존 Monster와 동일하게 body root motion 속도를 사용한다.
+     //   const auto rootVelocity = _body->Get_RootTransformVelocity();
+     //  // _transformCom->Set_SpeedPerSec(rootVelocity.position.z * Constants::Charcter::scaleOffset);
+     //  
+     //   Vec3 pos = _transformCom->Get_Position();
+     //   _transformCom->Set_Position(pos+(rootVelocity.position /** 100*/)); // 현제 fps을 곱해야 하나??
+     //
         //LOG_INFO("positionZ :{}", rootVelocity.position.z);
     }
 }

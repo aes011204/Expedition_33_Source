@@ -61,8 +61,6 @@ void BattleController::Update(float timeDelta)
             GAME->Set_WorldTimeScale(_resetWorldTime);
             Complete_BattleField();
         }
-        else
-        _battleActionExe->Update(timeDelta, _turnAction);
 
         return;
     }
@@ -84,6 +82,13 @@ void BattleController::Update(float timeDelta)
     // 적턴 인지 플레이어 턴인지에 따라
     if (_currentTurnActor.statCom->Is_Player())
         _battleFSM->Update_StateMachine(timeDelta);
+
+    const bool hasRunningAction =
+        _turnAction._curChar.actor != nullptr &&
+        !_battleActionExe->IsFinished();
+
+    if (hasRunningAction)
+        _battleActionExe->Update(timeDelta, _turnAction);
 }
 
 void BattleController::Run_EnemyTurn()
