@@ -21,7 +21,8 @@ public:
         wstring animationDirectory{};
         wstring prototypeTagPrefix {};
 
-        unordered_map<wstring, Shared<UI_Base>>* outUIByName = nullptr;
+        umap<wstring, Shared<UI_Base>>* outUIByName = nullptr;
+        umap<wstring, vector<Shared<UI_Base>>>* outChildrenByParentName = nullptr;
     };
 
 public:

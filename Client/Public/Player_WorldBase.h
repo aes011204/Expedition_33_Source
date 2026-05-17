@@ -1,7 +1,7 @@
 ﻿#pragma once
 
 #include "Client_Defines.h"
-#include "Character.h"
+#include "Character_WorldBase.h"
 
 NS_BEGIN(Engine)
 class ShaderCom;
@@ -12,19 +12,18 @@ NS_END
 
 NS_BEGIN(Client)
 
-
+class SkillTreeCom;
 class PlayerStatCom;
-    class InputCom;
+class InputCom;
 class PlayerControllerCom;
-
 class PlayerStateMachineCom;
 
-class Player : public Character
+class Player_WorldBase : public Character_WorldBase
 {
 public:
-	Player(const ComPtr<Device>& device, const ComPtr<Context>& context);
-	Player(const Player& prototype);
-	virtual ~Player() override = default;
+	Player_WorldBase(const ComPtr<Device>& device, const ComPtr<Context>& context);
+	Player_WorldBase(const Player_WorldBase& prototype);
+	virtual ~Player_WorldBase() override = default;
 
 public:
 	HRESULT Initialize_Prototype() override;
@@ -42,12 +41,9 @@ public:
 
     Vec3    Get_MovementVelocity() const;
 
-    void    Notify_Test();
-
 protected:
-	HRESULT Ready_Components();
+    HRESULT Ready_Components();
 	HRESULT Ready_PartObjects();
-    HRESULT Ready_Collider();
 
     virtual HairChainPhysicsDesc Get_HairChainPhysicsDesc() const
     {
@@ -65,13 +61,12 @@ private:
     Shared<InputCom>                _inputCom;
     Shared<PlayerControllerCom>     _playerControllerCom;
     Shared<PlayerStateMachineCom>   _PlayerStateMachineCom;
-    Shared<ColliderCom>             _colliderCom;
+    Shared<SkillTreeCom>            _skillTreeCom;
     Shared<PlayerStatCom>           _combatStatCom;
 
-    BoundingBox                     _cullingAABB{};
 
 public:
-	static Shared<Player> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
+	static Shared<Player_WorldBase> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
 	virtual Shared<GameObject> Clone(void* arg) override;
 	virtual void Free() override;
 

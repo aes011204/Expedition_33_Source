@@ -38,10 +38,13 @@ HRESULT Material::Initialize(const char* modelPath, const ModelMaterialData& mat
 
             if (!wFoundPath.empty())
             {
-                texSlot.resolvedPath = wFoundPath;
+                // 원본 경로가 png/jpg여도 같은 이름의 dds가 있으면, 실제 로드는 dds로 진행
+                // resolvePath도 실제 로드한 경로로 저장해야 이후 동일 텍스처 비교/캐시 hit 기준이 맞는다.
+                const fs::path loadPath = Resolve_TextureLoadPath(fs::path(wFoundPath));
+                texSlot.resolvedPath = loadPath.lexically_normal().wstring();
 
                 ID3D11ShaderResourceView* srv = nullptr;
-                HRESULT hr = Create_TextureSRV(fs::path(wFoundPath), &srv);
+                HRESULT hr = Create_TextureSRV(loadPath, &srv);
 
                 if (SUCCEEDED(hr))
                     texSlot.shaderResourceView.Attach(srv);
@@ -109,15 +112,19 @@ HRESULT Material::Override_TextureSlot(MaterialTextureSlot slot, uint32 slotInde
         return S_OK;
     }
 
-    const fs::path resolvedPath(texturePath);
-    if (!fs::exists(resolvedPath) || !fs::is_regular_file(resolvedPath))
+    const fs::path requestedPath(texturePath);
+    if (!fs::exists(requestedPath) || !fs::is_regular_file(requestedPath))
         return E_FAIL;
+
+    // 원본 override 경로가 png/jpg여도 같은 이름의 dds가 있으면 실제 로드는 dds로 한다.
+    // 아래 비교/저장도 requestedPath가 아니라 loadPath 기준이어야 같은 텍스처 재적용 시 cache hit가 난다.
+    const fs::path loadPath = Resolve_TextureLoadPath(requestedPath);
+    const wstring normalized = loadPath.lexically_normal().wstring();
 
     // 동일 경로가 이미 적용되어 있고 SRV도 살아있으면 재로딩하지 않는다.
     // (Editor에서 Apply를 여러 번 눌렀을 때 매번 WIC/DDS 로드를 다시 하는 비용이 매우 크다)
     {
         TextureSlot& existingSlot = _materials[materialSlotIndex][slotIndex];
-        const wstring normalized = resolvedPath.lexically_normal().wstring();
         if (!existingSlot.resolvedPath.empty() &&
             existingSlot.resolvedPath == normalized &&
             existingSlot.shaderResourceView != nullptr)
@@ -127,14 +134,16 @@ HRESULT Material::Override_TextureSlot(MaterialTextureSlot slot, uint32 slotInde
     }
 
     ID3D11ShaderResourceView* srv = nullptr;
-    if (FAILED(Create_TextureSRV(resolvedPath, &srv)))
+    if (FAILED(Create_TextureSRV(loadPath, &srv)))
         return E_FAIL;
 
     TextureSlot& textureSlot = _materials[materialSlotIndex][slotIndex];
     textureSlot.slot = slot;
     textureSlot.textureIndex = slotIndex;
     textureSlot.isOverride = true;
-    textureSlot.resolvedPath = resolvedPath.lexically_normal().wstring();
+
+    // Inspector/debug에서도 “요청 경로”가 아니라 실제 SRV를 만든 경로를 보이게 저장한다.
+    textureSlot.resolvedPath = normalized;
     textureSlot.shaderResourceView.Reset();
     textureSlot.shaderResourceView.Attach(srv);
 
@@ -239,6 +248,71 @@ wstring Material::Find_TextureFile(const fs::path& searchRoot, const string& fil
     return L"";
 }
 
+fs::path Material::Resolve_TextureLoadPath(const fs::path& texturePath) const
+{
+    fs::path normalizedPath = texturePath.lexically_normal();
+
+    const string genericPath = normalizedPath.generic_string();
+    const string fileName = normalizedPath.filename().string();
+    const string lowerPath = String::ToLowerCopy(genericPath);
+    const string lowerFileName = String::ToLowerCopy(fileName);
+    const fs::path ext = normalizedPath.extension();
+
+    const bool isHairTexture =
+        lowerPath.find("hair") != string::npos ||
+        lowerFileName.find("hair") != string::npos;
+
+    const bool isEyelashOrEyebrowTexture =
+        lowerFileName.find("eyelash") != string::npos ||
+        lowerFileName.find("eyebrow") != string::npos;
+
+    if (isHairTexture || isEyelashOrEyebrowTexture)
+    {
+        if (ext == ".dds" || ext == ".DDS")
+        {
+            fs::path pngPath = normalizedPath;
+            pngPath.replace_extension(".png");
+
+            if (fs::exists(pngPath) && fs::is_regular_file(pngPath))
+            {
+                return pngPath.lexically_normal();
+            }
+
+            fs::path upperPngPath = normalizedPath;
+            upperPngPath.replace_extension(".PNG");
+
+            if (fs::exists(upperPngPath) && fs::is_regular_file(upperPngPath))
+            {
+                return upperPngPath.lexically_normal();
+            }
+        }
+
+        // 헤어 카드 계열은 DDS 밉/알파 coverage 변화로 멀리서 듬성듬성해질 수 있어 원본을 유지한다.
+        return normalizedPath;
+    }
+
+    if (ext == ".dds" || ext == ".DDS")
+        return normalizedPath;
+
+    fs::path ddsPath = normalizedPath;
+    ddsPath.replace_extension(".dds");
+
+    if (fs::exists(ddsPath) && fs::is_regular_file(ddsPath))
+    {
+        return ddsPath.lexically_normal();
+    }
+
+    fs::path upperDdsPath = normalizedPath;
+    upperDdsPath.replace_extension(".DDS");
+
+    if (fs::exists(upperDdsPath) && fs::is_regular_file(upperDdsPath))
+    {
+        return upperDdsPath.lexically_normal();
+    }
+
+    return normalizedPath;
+}
+
 HRESULT Material::Create_TextureSRV(const fs::path& texturePath, ID3D11ShaderResourceView** outSrv)
 {
     if (outSrv == nullptr)
@@ -246,11 +320,63 @@ HRESULT Material::Create_TextureSRV(const fs::path& texturePath, ID3D11ShaderRes
 
     *outSrv = nullptr;
 
-    const fs::path ext = texturePath.extension();
-    if (ext == ".dds" || ext == ".DDS")
-        return DirectX::CreateDDSTextureFromFile(_device.Get(), texturePath.c_str(), nullptr, outSrv);
+    const fs::path loadPath = Resolve_TextureLoadPath(texturePath);
+    if (!fs::exists(loadPath) || !fs::is_regular_file(loadPath))
+        return E_FAIL;
 
-    return DirectX::CreateWICTextureFromFile(_device.Get(), texturePath.c_str(), nullptr, outSrv);
+    const wstring cacheKey = loadPath.lexically_normal().wstring();
+
+    static mutex textureSrvCacheMutex;
+    static unordered_map<wstring, ComPtr<ID3D11ShaderResourceView>> textureSrvCache;
+
+    {
+        lock_guard<mutex> lock(textureSrvCacheMutex);
+
+        auto it = textureSrvCache.find(cacheKey);
+        if (it != textureSrvCache.end() && it->second != nullptr)
+        {
+            return it->second.CopyTo(outSrv);
+        }
+    }
+
+    ComPtr<ID3D11ShaderResourceView> createdSrv = nullptr;
+
+    const fs::path ext = loadPath.extension();
+    HRESULT hr = S_OK;
+
+    if (ext == ".dds" || ext == ".DDS")
+    {
+        hr = DirectX::CreateDDSTextureFromFile(
+            _device.Get(),
+            loadPath.c_str(),
+            nullptr,
+            createdSrv.GetAddressOf());
+    }
+    else
+    {
+        hr = DirectX::CreateWICTextureFromFile(
+            _device.Get(),
+            loadPath.c_str(),
+            nullptr,
+            createdSrv.GetAddressOf());
+    }
+
+    if (FAILED(hr))
+    {
+        return hr;
+    }
+
+    {
+        lock_guard<mutex> lock(textureSrvCacheMutex);
+
+        auto it = textureSrvCache.find(cacheKey);
+        if (it != textureSrvCache.end() && it->second != nullptr)
+            return it->second.CopyTo(outSrv);
+
+        textureSrvCache.emplace(cacheKey, createdSrv);
+    }
+
+    return createdSrv.CopyTo(outSrv);
 }
 
 void Material::Refresh_PassIndex()

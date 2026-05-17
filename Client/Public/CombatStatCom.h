@@ -21,10 +21,10 @@ public:
 
         uint32 level = 1;
         uint32 exp = 0;
-        uint32 chroma = 0.f;
+        uint32 chroma = 0;
 
         float maxHp = 100.f;
-        uint32 maxAp = 0.f;
+        uint32 maxAp = 0;
         float physicalAttack = 0.f;
         float physicalDefense = 0.f;
 

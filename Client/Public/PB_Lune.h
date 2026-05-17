@@ -4,14 +4,14 @@
 
 NS_BEGIN(Client)
 
-class Battle_Lune final : public Player_BattleBase
+class PB_Lune final : public Player_BattleBase
 {
-    GENERATED_GAMEOBJECT(Battle_Lune, ObjectType::Player)
+    GENERATED_GAMEOBJECT(PB_Lune, ObjectType::Player)
 
 public:
-    Battle_Lune(const ComPtr<Device>& device, const ComPtr<Context>& context);
-    Battle_Lune(const Battle_Lune& prototype);
-    virtual ~Battle_Lune() override = default;
+    PB_Lune(const ComPtr<Device>& device, const ComPtr<Context>& context);
+    PB_Lune(const PB_Lune& prototype);
+    virtual ~PB_Lune() override = default;
 
 protected:
     HairChainPhysicsDesc Get_HairChainPhysicsDesc() const override;
@@ -21,7 +21,7 @@ protected:
     const wchar_t* Get_HairModelTag() const override { return L"Model_LuneHair"; }
 
 public:
-    static Shared<Battle_Lune> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
+    static Shared<PB_Lune> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
     Shared<GameObject> Clone(void* arg) override;
     void Free() override;
 };

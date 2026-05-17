@@ -166,7 +166,7 @@ void ModelCom::Set_Animation(uint32 animIndex, float blendDuration, bool isLoop,
 
 void ModelCom::Set_Animation(const string& animName, bool isLoop, float startFrame)
 {
-    if (_mappedAnimIndices.contains(animName))
+    if (!_mappedAnimIndices.contains(animName))
     {
         LOG_WARN("Failed to find animation by name: {}", animName);
         return;
@@ -177,7 +177,7 @@ void ModelCom::Set_Animation(const string& animName, bool isLoop, float startFra
 
 void ModelCom::Set_Animation(const string& animName, float blendDuration, bool isLoop, float startFrame)
 {
-    if (_mappedAnimIndices.contains(animName))
+    if (!_mappedAnimIndices.contains(animName))
     {
         LOG_WARN("Failed to find animation by name: {}", animName);
         return;
@@ -318,7 +318,6 @@ HRESULT ModelCom::Initialize_Prototype(ModelType type, const char* modelFilePath
     }
 
     Ensure_MaterialBindings();
-    Apply_BaseMaterialFromBundle_AllSlots();
 
     if (FAILED(Ready_Animation(sourcePathUtf8.c_str())))
     {
@@ -898,6 +897,22 @@ void ModelCom::Apply_MaterialByAssetName(uint32 materialIndex, const string& bun
         return;
     }
 
+    if (_appliedMaterialAssets.size() < _materials.size())
+        _appliedMaterialAssets.resize(_materials.size());
+
+    const string normalizedBundleKey = String::ToLowerCopy(bundleKey);
+
+    {
+        AppliedMaterialAsset& applied = _appliedMaterialAssets[materialIndex];
+
+        if (applied.bundleKey == normalizedBundleKey &&
+            applied.assetName == assetName)
+        {
+            // 같은 모델 슬롯에 같은 material instance를 다시 꽂는 경우는 전체 override 비용을 스킵
+            return;
+        }
+    }
+
     const Shared<Material> material = _materials[materialIndex];
     if (!material)
     {
@@ -916,7 +931,7 @@ void ModelCom::Apply_MaterialByAssetName(uint32 materialIndex, const string& bun
         return;
     }
 
-    const MaterialBuilder::BundleAsset* bundle = builder->GetOrLoadBundle(bundleKey);
+    const MaterialBuilder::BundleAsset* bundle = builder->GetOrLoadBundle(normalizedBundleKey);
     if (!bundle)
     {
         return;
@@ -962,6 +977,11 @@ void ModelCom::Apply_MaterialByAssetName(uint32 materialIndex, const string& bun
     {
         material->Override_TextureSlot(MaterialTextureSlot::OpacityMask, 0, L"");
     }
+
+    // 실제 적용이 끝난 뒤에만 기록해서 실패/미존재 material은 다음 호출에서 다시 시도 가능하게 둔다.
+    AppliedMaterialAsset& applied = _appliedMaterialAssets[materialIndex];
+    applied.bundleKey = normalizedBundleKey;
+    applied.assetName = assetName;
 }
 
 wstring ModelCom::Normalize_ModelAssetPath(const char* modelFilePath)

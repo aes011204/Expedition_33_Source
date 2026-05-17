@@ -1,7 +1,9 @@
 ﻿#include "Hero_Manager.h"
 #include "Body_Player.h"
+#include "Client_Constants.h"
 #include "GameInstance.h"
-#include "Player.h"
+#include "ClientInstance.h"
+#include "Player_WorldBase.h"
 #include "PlayerControllerCom.h"
 #include "PlayerStateMachineCom.h"
 #include "Spawn_Prefab.h"
@@ -13,9 +15,9 @@
 
 static const HeroSpawnDesc heroSpawnDescs[] =
 {
-    { HeroId::Gustave, "Player_Gustave", "Battle_Gustave" },
-    { HeroId::Lune,    "Player_Lune",    "Battle_Lune"    },
-    { HeroId::Maelle,  "Player_Maelle",  "Battle_Maelle"  },
+    { HeroId::Gustave, Constants::Prefab::PW_Gustave, Constants::Prefab::PB_Gustave }, // 월드/배틀 prefab 이름을 한 곳에서 관리한다.
+    { HeroId::Lune,    Constants::Prefab::PW_Lune,    Constants::Prefab::PB_Lune    }, // Player/Battle 구 이름이 호출부에 남지 않게 한다.
+    { HeroId::Maelle,  Constants::Prefab::PW_Maelle,  Constants::Prefab::PB_Maelle  }, // 파일명 변경과 스폰 이름을 같은 상수로 묶는다.
 };
 
 HRESULT Hero_Manager::Initialize_Hero(uint32 levelIndex, const wstring& layerTag, const Vec3& startPos)
@@ -35,7 +37,7 @@ HRESULT Hero_Manager::Initialize_Hero(uint32 levelIndex, const wstring& layerTag
             .InLayer(layerTag)
             .Spawn();
 
-        auto hero = dynamic_pointer_cast<Player>(object);
+        auto hero = dynamic_pointer_cast<Player_WorldBase>(object);
         CHECK_NULL(hero, E_FAIL);
 
         Vec3 pos = startPos;
@@ -56,6 +58,9 @@ HRESULT Hero_Manager::Initialize_Hero(uint32 levelIndex, const wstring& layerTag
 
 void Hero_Manager::Update_HeroManager(float timeDelta)
 {
+    if (CLIENT->Is_BattleActive())
+        return; // 배틀 중에서는 월드 플레이어 입력 제한
+
     if (_heroes.empty())
         return;
 
@@ -75,7 +80,7 @@ void Hero_Manager::Update_HeroManager(float timeDelta)
     Update_Followers(timeDelta);
 }
 
-Shared<Player> Hero_Manager::Get_ActiveHero() const
+Shared<Player_WorldBase> Hero_Manager::Get_ActiveHero() const
 {
     if (_heroes.empty() || _activeIndex >= _heroes.size())
         return nullptr;
@@ -117,7 +122,7 @@ const vector<HeroPartyEntry>& Hero_Manager::Get_HeroEntries() const
     return _heroes;
 }
 
-Shared<Player> Hero_Manager::Get_Hero(HeroPartySlot slot) const
+Shared<Player_WorldBase> Hero_Manager::Get_Hero(HeroPartySlot slot) const
 {
     const uint32 index = ETOI(slot);
 
@@ -142,7 +147,7 @@ HeroPartySlot Hero_Manager::Get_ActiveHeroSlot() const
     return static_cast<HeroPartySlot>(_activeIndex);
 }
 
-Shared<Player> Hero_Manager::Get_FrontHero() const
+Shared<Player_WorldBase> Hero_Manager::Get_FrontHero() const
 {
     if (_heroes.empty())
         return nullptr;
@@ -150,7 +155,7 @@ Shared<Player> Hero_Manager::Get_FrontHero() const
     return _heroes.front().hero;
 }
 
-Shared<Player> Hero_Manager::Find_Hero(HeroId heroId) const
+Shared<Player_WorldBase> Hero_Manager::Find_Hero(HeroId heroId) const
 {
     for (const auto& entry : _heroes)
     {
@@ -271,7 +276,7 @@ void Hero_Manager::Snap_AllHeroesToFormation(const Vec3& anchorPos, const Vec3& 
     }
 }
 
-Vec3 Hero_Manager::Resolve_SnapPosition(const Shared<Player>& hero, const Vec3& fromPos, const Vec3& desiredPos) const
+Vec3 Hero_Manager::Resolve_SnapPosition(const Shared<Player_WorldBase>& hero, const Vec3& fromPos, const Vec3& desiredPos) const
 {
     if (hero == nullptr)
         return desiredPos;
@@ -501,7 +506,7 @@ Hero_Manager::TrailPoint Hero_Manager::Get_TrailPoint(float delaySeconds) const
     return _activeTrail[clampedIndex];
 }
 
-void Hero_Manager::Move_FollowerTo(const Shared<Player>& follower, uint32 followerIndex, const Vec3& targetPos, float timeDelta)
+void Hero_Manager::Move_FollowerTo(const Shared<Player_WorldBase>& follower, uint32 followerIndex, const Vec3& targetPos, float timeDelta)
 {
     if (follower == nullptr)
         return;

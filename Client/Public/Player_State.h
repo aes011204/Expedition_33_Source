@@ -4,7 +4,7 @@
 
 NS_BEGIN(Client)
 
-class Player;
+class Player_WorldBase;
 class Body_Player;
 
 class PlayerControllerCom;
@@ -14,7 +14,7 @@ class InputCom;
 class Player_State abstract : public State
 {
 public:
-    Player_State(const Shared<Player>& owner);
+    Player_State(const Shared<Player_WorldBase>& owner);
     ~Player_State() override = default;
 
 public:
@@ -43,7 +43,7 @@ protected:
     bool IsEnterIdle() const;       
 
 protected:
-    Weak<Player>            _owner{};
+    Weak<Player_WorldBase>            _owner{};
     PlayerControllerCom*    _controllerCom{ nullptr };
     PlayerStateMachineCom*  _stateCom{ nullptr };
     Body_Player*            _bodyPlayer{ nullptr };

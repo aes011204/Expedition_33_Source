@@ -6,7 +6,7 @@ NS_BEGIN(Client)
 class Player_Idle final : public Player_State
 {
 public:
-    Player_Idle(const Shared<Player>& owner);
+    Player_Idle(const Shared<Player_WorldBase>& owner);
     ~Player_Idle() override = default;
 
 public:
@@ -24,7 +24,7 @@ private:
     bool        _isFirstState{ true };
 
 public:
-    static Shared<Player_Idle> Create(const Shared<Player>& owner);
+    static Shared<Player_Idle> Create(const Shared<Player_WorldBase>& owner);
     virtual void Free() override;
 };
 

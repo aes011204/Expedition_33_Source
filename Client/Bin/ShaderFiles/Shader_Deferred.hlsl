@@ -234,13 +234,31 @@ PS_OUT_BACKBUFFER PS_MAIN_COMBINED_SIMPLE(PS_IN In)
     return Out;
 }
 
+PS_OUT_BACKBUFFER PS_MAIN_COMBINED_PREVIEW(PS_IN In)
+{
+    PS_OUT_BACKBUFFER Out;
+
+    vector Diffuse = g_DiffuseTexture.Sample(LinearWrapSampler, In.Texcoord);
+    if (Diffuse.a == 0.f)
+        discard;
+
+    vector Shade = g_ShadeTexture.Sample(LinearSampler, In.Texcoord);
+    vector Specular = g_SpecularTexture.Sample(LinearWrapSampler, In.Texcoord);
+    vector Emissive = g_EmissiveTexture.Sample(LinearWrapSampler, In.Texcoord);
+
+    Out.Color = Diffuse * Shade + Specular;     // 프리뷰는 direct/deferred lighting 결과만 사용
+    Out.Color.rgb += Emissive.rgb;              // emissive는 그대로 더하기
+    Out.Color.a = Diffuse.a;
+
+    return Out;
+}
+
 technique11 DefaultTechnique
 {
-    PASS_RS_DS_BS_VP(Debug,         RS_Default, DSS_Default,    BS_Default, VS_MAIN,    PS_MAIN_DEBUG)          // 0
-    PASS_RS_DS_BS_VP(Directional,   RS_Default, DSS_None,       BS_Blend,   VS_MAIN,    PS_MAIN_DIRECTIONAL)    // 1
-    PASS_RS_DS_BS_VP(Point,         RS_Default, DSS_None,       BS_Blend,   VS_MAIN,    PS_MAIN_POINT)          // 2
-    PASS_RS_DS_BS_VP(Combined,      RS_Default, DSS_None,       BS_Default, VS_MAIN,    PS_CombinedHDR)       // 3
-    // 지금은 그림자 없어서 -> GamePlay에서 y축으로 일정 값 넘어서 내려가면 그림자처리돼서 어두워서 안보임
-    //PASS_RS_DS_BS_VP(Combined, RS_Default, DSS_None, BS_Default, VS_MAIN, PS_MAIN_COMBINED_SIMPLE) // 3
-    PASS_RS_DS_BS_VP(CombinedSimple, RS_Default, DSS_None, BS_Default, VS_MAIN, PS_MAIN_COMBINED_SIMPLE)        // 4
+    PASS_RS_DS_BS_VP(Debug,             RS_Default, DSS_Default,    BS_Default, VS_MAIN,    PS_MAIN_DEBUG)              // 0
+    PASS_RS_DS_BS_VP(Directional,       RS_Default, DSS_None,       BS_Blend,   VS_MAIN,    PS_MAIN_DIRECTIONAL)        // 1
+    PASS_RS_DS_BS_VP(Point,             RS_Default, DSS_None,       BS_Blend,   VS_MAIN,    PS_MAIN_POINT)              // 2
+    PASS_RS_DS_BS_VP(Combined,          RS_Default, DSS_None,       BS_Default, VS_MAIN,    PS_MAIN_COMBINED)           // 3
+    PASS_RS_DS_BS_VP(CombinedSimple,    RS_Default, DSS_None,       BS_Default, VS_MAIN,    PS_MAIN_COMBINED_SIMPLE)    // 4
+    PASS_RS_DS_BS_VP(CombinedPreview,   RS_Default, DSS_None,       BS_Default, VS_MAIN,    PS_MAIN_COMBINED_PREVIEW)   // 5
 }

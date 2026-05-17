@@ -1,6 +1,6 @@
 ﻿#include "BT_Idle.h"
 #include "AIController.h"
-#include "Monster.h"
+#include "MW_Lancelier.h"
 
 BT_Idle::BT_Idle()
 {
@@ -13,8 +13,8 @@ BT_Idle::~BT_Idle()
 void BT_Idle::OnStart()
 {
     Get_Owner()->Stop_Move();
-    Shared<Monster> monster = dynamic_pointer_cast<Monster>(Get_Owner()->Get_Owner());
-    monster->Set_CurrentAction(Monster::MonsterAction::Idle);
+    Shared<MW_Lancelier> monster = dynamic_pointer_cast<MW_Lancelier>(Get_Owner()->Get_Owner());
+    monster->Set_CurrentAction(MW_Lancelier::MonsterAction::Idle);
 }
 
 BNode::NODE_STATE BT_Idle::Logic_Update(float deltaTime)
@@ -32,7 +32,7 @@ Shared<BT_Idle> BT_Idle::Create()
 
     /*if (FAILED(instance->Initialize_Prototype()))
     {
-        MSG_BOX("Failed to Created : Monster");
+        MSG_BOX("Failed to Created : MW_Lancelier");
         return nullptr;
     }*/
 

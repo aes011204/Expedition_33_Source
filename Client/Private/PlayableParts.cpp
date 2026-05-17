@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "PlayableParts.h"
 #include "ModelCom.h"
 #include "ShaderCom.h"
@@ -220,9 +220,19 @@ void PlayableParts::Update_CombinedWorldMatrix(const Matrix& childMatrix)
 {
     Matrix socketMatrix = (nullptr != _socketMatrix) ? *_socketMatrix : Matrix::Identity;
 
-    const Matrix& parentMatrix = (nullptr != _parentMatrix) ? *_parentMatrix : Matrix::Identity;
-    const Matrix childWorld = childMatrix;
-    const Matrix combinedWorld = _offsetMatrix * childWorld * socketMatrix * parentMatrix;
+    Matrix parentMatrix = Matrix::Identity;
+
+    if (const Shared<GameObject> owner = Get_Owner())
+    {
+        if (const Shared<TransformCom> ownerTransform = owner->Get_Transform())
+            parentMatrix = ownerTransform->Get_WorldMatrix(); // 최신 world 강제 확보
+    }
+    else if (nullptr != _parentMatrix)
+    {
+        parentMatrix = *_parentMatrix; // owner가 없는 특수 케이스만 fallback
+    }
+
+    const Matrix combinedWorld = _offsetMatrix * childMatrix * socketMatrix * parentMatrix;
     _combinedWorldMatrix = combinedWorld;
 }
 

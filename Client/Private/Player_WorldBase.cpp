@@ -1,7 +1,7 @@
-﻿#include "Player.h"
-#include "Base_Gustave_Attack.h"
+﻿#include "Player_WorldBase.h"
 #include "Weapon.h"
 #include "GameInstance.h"
+#include "ClientInstance.h"
 #include "InputCom.h"
 #include "MovementCom.h"
 #include "PlayerControllerCom.h"
@@ -13,54 +13,48 @@
 #include "Body_Player.h"
 #include "Hair_Player.h"
 #include "Head_Player.h"
-#include "Player_Idle.h"
-#include "Player_Jump.h"
-#include "Player_Move.h"
-#include "Create_Class.h"
+#include "SkillTreeCom.h"
 
-Player::Player(const ComPtr<Device>& device, const ComPtr<Context>& context)
-    : Character{ device, context }
+Player_WorldBase::Player_WorldBase(const ComPtr<Device>& device, const ComPtr<Context>& context)
+    : Character_WorldBase{ device, context }
 {
 }
 
-Player::Player(const Player& prototype)
-    : Character{ prototype }
+Player_WorldBase::Player_WorldBase(const Player_WorldBase& prototype)
+    : Character_WorldBase{ prototype }
 {
 }
 
-HRESULT Player::Initialize_Prototype()
+HRESULT Player_WorldBase::Initialize_Prototype()
 {
     return S_OK;
 }
 
-HRESULT Player::Initialize(void* arg)
+HRESULT Player_WorldBase::Initialize(void* arg)
 {
-    Character::ContainerObjectDesc desc{};
+    Character_WorldBase::ContainerObjectDesc desc{};
     desc.speedPerSec = 20.f;
     desc.degreePerSec = 180.f;
 
-    if (FAILED(__super::Initialize(&desc)))
-        return E_FAIL;
-
-    if (FAILED(Ready_Components()))
-        return E_FAIL;
-
-    if (FAILED(Ready_PartObjects()))
-        return E_FAIL;
-   
+    CHECK_FAILED(Character_WorldBase::Initialize(&desc), E_FAIL);
+    CHECK_FAILED(Ready_Components(), E_FAIL);
+    CHECK_FAILED(Ready_PartObjects(), E_FAIL);
 
     return S_OK;
 }
 
-void Player::BeginPlay()
+void Player_WorldBase::BeginPlay()
 {
-    Character::BeginPlay();
+    Character_WorldBase::BeginPlay();
 
     _PlayerStateMachineCom->Change_State(PlayerState::Idle);
 }
 
-void Player::Priority_Update(float timeDelta)
+void Player_WorldBase::Priority_Update(float timeDelta)
 {
+    if (CLIENT->Is_BattleActive())
+        return;
+
     __super::Priority_Update(timeDelta);
 
     // follower도 StateMachine/Controller를 타야 Idle/Run/Sprint 전환과 PhysX 이동이 처리된다.
@@ -70,37 +64,26 @@ void Player::Priority_Update(float timeDelta)
     _PlayerStateMachineCom->LateUpdate_CurrentState(timeDelta);
 }
 
-void Player::Update(float timeDelta)
+void Player_WorldBase::Update(float timeDelta)
 {
     __super::Update(timeDelta);
 
  
 }
 
-void Player::Late_Update(float timeDelta)
+void Player_WorldBase::Late_Update(float timeDelta)
 {
     __super::Late_Update(timeDelta);
 
-    if (_colliderCom)
-    {
-        _colliderCom->Update_Collider(_transformCom->Get_WorldMatrix());
-        GAME->Add_Collider(_colliderCom);
-    }
-
-    //culling
-    _cullingAABB.Center = _transformCom->Get_Position();
-
-    // Adjustments may be necessary to suit the player
-    _cullingAABB.Extents = Vec3(1.f, 2.f, 1.f);
-    Set_Visible(GAME->IsVisible(_cullingAABB));
+    Update_Culling(Vec3(1.f, 2.f, 1.f));
 }
 
-HRESULT Player::Render()
+HRESULT Player_WorldBase::Render()
 {
     return S_OK;
 }
 
-void Player::Update_StatusPreview(float timeDelta)
+void Player_WorldBase::Update_StatusPreview(float timeDelta)
 {
     Try_BeginPlay();
 
@@ -108,7 +91,7 @@ void Player::Update_StatusPreview(float timeDelta)
     ContainerObject::Late_Update(timeDelta);
 }
 
-Vec3 Player::Get_MovementVelocity() const
+Vec3 Player_WorldBase::Get_MovementVelocity() const
 {
     if (_movementCom == nullptr)
         return Vec3::Zero;
@@ -116,12 +99,7 @@ Vec3 Player::Get_MovementVelocity() const
     return _movementCom->Get_Velocity();
 }
 
-void Player::Notify_Test()
-{
-    int a = 10;
-}
-
-HRESULT Player::Ready_Components()
+HRESULT Player_WorldBase::Ready_Components()
 {
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_Input"), _inputCom), E_FAIL);
        
@@ -142,14 +120,19 @@ HRESULT Player::Ready_Components()
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_PlayerController"), _playerControllerCom), E_FAIL);
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_PlayerStateMachine"), _PlayerStateMachineCom), E_FAIL);
     
-    CHECK_FAILED(Ready_Collider(), E_FAIL);
+    Bounding_OBB::BoundingOBBDesc obbDesc{};
+    obbDesc.center = Vec3(0.f, 0.75f, 0.f);
+    obbDesc.extents = Vec3(0.35f, 0.75f, 0.35f);
 
+    CHECK_FAILED(Ready_Collider(L"Com_Collider_OBB", &obbDesc, Collision_Preset::Player_WorldBody), E_FAIL);
+
+    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_SkillTree"), _skillTreeCom), E_FAIL);
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_PlayerStat"), _combatStatCom), E_FAIL);
 
     return S_OK;
 }
 
-HRESULT Player::Ready_PartObjects()
+HRESULT Player_WorldBase::Ready_PartObjects()
 {
     Body_Player::BODY_PLAYER_DESC playableDesc{};
     playableDesc.parentMatrix = &_transformCom->Get_WorldMatrix();
@@ -206,44 +189,31 @@ HRESULT Player::Ready_PartObjects()
     return S_OK;
 }
 
-HRESULT Player::Ready_Collider()
+Shared<Player_WorldBase> Player_WorldBase::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
-    Bounding_OBB::BoundingOBBDesc obbDesc{};
-    obbDesc.center = Vec3(0.f, 0.75f, 0.f);
-    obbDesc.extents = Vec3(0.35f, 0.75f, 0.35f);
-
-    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), L"Com_Collider_OBB", _colliderCom, &obbDesc), E_FAIL);
-    _colliderCom->Set_CollisionPreset(Collision_Preset::Player_Body);
-    _colliderCom->Set_IsActive(true);
-
-    return S_OK;
-}
-
-Shared<Player> Player::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
-{
-    auto instance = make_shared<Player>(device, context);
+    auto instance = make_shared<Player_WorldBase>(device, context);
 
     if (FAILED(instance->Initialize_Prototype()))
     {
-        MSG_BOX("Failed to Created : Player");
+        MSG_BOX("Failed to Created : Player_WorldBase");
         return nullptr;
     }
     return instance;
 }
 
-Shared<GameObject> Player::Clone(void* arg)
+Shared<GameObject> Player_WorldBase::Clone(void* arg)
 {
-    auto instance = make_shared<Player>(*this);
+    auto instance = make_shared<Player_WorldBase>(*this);
 
     if (FAILED(instance->Initialize(arg)))
     {
-        MSG_BOX("Failed to Cloned : Player");
+        MSG_BOX("Failed to Cloned : Player_WorldBase");
         return nullptr;
     }
     return instance;
 }
 
-void Player::Free()
+void Player_WorldBase::Free()
 {
     __super::Free();
 }

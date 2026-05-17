@@ -71,6 +71,7 @@ private:
 
 public:
     void Change_State(CAMERA_STATE state);
+    void Change_Target();
     bool Try_GetFlatMoveBasis(Vec3& outForward, Vec3& outRight) const override;
 
 public:

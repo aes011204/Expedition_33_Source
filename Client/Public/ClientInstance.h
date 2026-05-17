@@ -1,6 +1,6 @@
 ﻿#pragma once
-
 #include "Base.h"
+#include "GameDataTable.h"
 #include "Delegate.h"
 
 NS_BEGIN(Engine)
@@ -11,13 +11,11 @@ NS_BEGIN(Client)
 
 class BattleController;
 
-    class Player;
+    class Player_WorldBase;
 class TargetCamera;
-
 class ResourceLoader;
 class GameplayUI;
 class PersistentObjectManager;
-class GameDataTable;
 class Hero_Manager;
 
 class ClientInstance : public Base
@@ -47,7 +45,9 @@ public: /* 플레이어 찾기 -> 일단 임시 */
     Shared<GameObject> Find_Player(uint32 levelIndex);
 
 public: /* For.GameData Table */
-    uint32  Get_NextExp(uint32 level) const;
+    uint32        Get_NextExp(uint32 level) const;
+    GameDataTable::SkillTreeDesc* Get_SkillTreeDesc(const string& skillName);
+    const umap<string, vector<string>>* Get_SkillTreeRequirementData();
 
 public: /* For.Hero Manager */
     HRESULT        Initialize_Hero(uint32 levelIndex, const wstring& layerTag, const Vec3& startPos = Vec3::Zero);
@@ -56,20 +56,20 @@ public: /* For.Hero Manager */
     void           Clear_Party();
 
     // 컨트롤중인 플레이어
-    Shared<Player>  Get_ActiveHero() const;
+    Shared<Player_WorldBase>  Get_ActiveHero() const;
     HeroPartySlot   Get_ActiveHeroSlot() const;
 
     // 플레이어 전부 가져오기
     const vector<HeroPartyEntry>& Get_HeroEntries() const;
 
     // 특정 슬롯 반환
-    Shared<Player>  Get_Hero(HeroPartySlot slot) const;
+    Shared<Player_WorldBase>  Get_Hero(HeroPartySlot slot) const;
     HeroId          Get_HeroId(HeroPartySlot slot) const;
 
     // 맨 앞 플레이어. Get_Active와 역할이 거의 동일
-    Shared<Player>  Get_FrontHero() const;
+    Shared<Player_WorldBase>  Get_FrontHero() const;
 
-    Shared<Player>  Find_Hero(HeroId heroId) const;
+    Shared<Player_WorldBase>  Find_Hero(HeroId heroId) const;
 
     const HeroSpawnDesc* Find_HeroSpawnDesc(HeroId heroId);
 
@@ -87,6 +87,9 @@ public: /* For.Battle_Controller */
         vector<string>& MonsterProtoTag);
 
     Shared<BattleController>    Get_BattleController() { return _battleController; };
+
+    bool Is_BattleActive() const;
+    bool Is_BattleEntering() const;
 
 private:
 	HRESULT Ready_ResourceLoader();
