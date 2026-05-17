@@ -11,6 +11,7 @@
 #include "ModelConverter.h"
 #include "ModelInspector.h"
 #include "ModelSceneWindow.h"
+#include "ModelTestPanel.h"
 #include "RenderTarget.h"
 
 
@@ -54,6 +55,9 @@ HRESULT ModelImGui_Manager::Initialize(HWND hWnd, const ComPtr<Device>& device, 
     if (nullptr == (_modelSceneWindow = ModelSceneWindow::Create()))
         LOG_ERROR("[Model Editor] : Failed to Create ModelSceneWindow!");
 
+    if (nullptr == (_modelTestPanel = ModelTestPanel::Create()))
+        LOG_ERROR("[Model Editor] : Failed to Create ModelTestPanel!");
+
 	return S_OK;
 }
 
@@ -86,6 +90,7 @@ void ModelImGui_Manager::Update(float timeDelta)
 				if (ImGui::MenuItem("Log Console")) { _logWindow->ToggleBlock(); }
                 if (ImGui::MenuItem("Model Converter")) { _modelConverter->ToggleBlock(); }
                 if (ImGui::MenuItem("Model Inspector")) { _modelInspector->ToggleBlock(); }
+                if (ImGui::MenuItem("Model Test Panel")) { _modelTestPanel->ToggleBlock(); }
 			    ImGui::EndMenu();
 			}
 			ImGui::EndMenuBar();
@@ -96,6 +101,7 @@ void ModelImGui_Manager::Update(float timeDelta)
     _logWindow->Update(timeDelta);
     _modelConverter->Update(timeDelta);
     _modelInspector->Update(timeDelta);
+    _modelTestPanel->Update(timeDelta);
 }
 
 void ModelImGui_Manager::Render()
@@ -103,6 +109,7 @@ void ModelImGui_Manager::Render()
     _logWindow->Render();
     _modelConverter->Render();
     _modelInspector->Render();
+    _modelTestPanel->Render();
     if (_modelSceneWindow) _modelSceneWindow->Render();
 
     ImGui::Render();
@@ -122,6 +129,7 @@ void ModelImGui_Manager::Free()
     _modelConverter.reset();
     _modelInspector.reset();
     _modelSceneWindow.reset();
+    _modelTestPanel.reset();
     _sharedViewportRenderTarget.reset();
 
 	if (ImGui::GetCurrentContext() != nullptr)

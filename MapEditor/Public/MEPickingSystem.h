@@ -27,7 +27,7 @@ private:
     ComPtr<ID3D11Texture2D> _idStagingTex;
 
 private:
-    uint32 SampleID(const vector<Shared<EditorObject>>& objects, const ImVec2& mousePos, const ImVec2& vpPos, const ImVec2& vpSize, const RenderTarget& rt);
+    uint32 SampleID(const SceneContext& scene, const ImVec2& mousePos, const ImVec2& vpPos, const ImVec2& vpSize, const RenderTarget& rt);
     void EnsureSize(uint32 w, uint32 h);
 
 public:

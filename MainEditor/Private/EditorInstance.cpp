@@ -12,6 +12,7 @@
 #include "Notification_Manager.h"
 #include "Helper_String.h"
 #include "Profile_View.h"
+#include "EditorPickingSystem.h"
 #include <fstream>
 
 IMPLEMENT_SINGLETON(EditorInstance)
@@ -53,6 +54,10 @@ HRESULT EditorInstance::Initialize_Editor(const EDITOR_DESC& EditorDesc, const C
     _inspectorFactory = Inspector_Factory::Create();
     CHECK_NULL(_inspectorFactory, E_FAIL);
 
+    _pickingSystem = EditorPickingSystem::Create(_device, _context,
+        max(1u, EditorDesc.iViewportWidth), max(1u, EditorDesc.iViewportHeight));
+    CHECK_NULL(_pickingSystem, E_FAIL);
+
     // 처음에는 Edit 모드로, 1배속으로 시작
     _runtimeState = EDITOR_RUNTIME_STATE::Edit;
     _runtimeTimeScale = 1.f;
@@ -75,6 +80,7 @@ void EditorInstance::Release_Editor()
         }
     };
 
+    _pickingSystem.reset();
     _sharedViewportRenderTarget.reset();
 
     Release_Manager(_imguiManager);
@@ -1009,6 +1015,36 @@ void EditorInstance::Apply_RuntimeInputPolicy()
         GAME->Unlock_Mouse();
 }
 
+void EditorInstance::DoPickAt(const ImVec2& mousePos, const ImVec2& vpMin, const ImVec2& vpMax)
+{
+    if (!_pickingSystem || IsPlaying())
+    {
+        return;
+    }
+
+    _pickingSystem->DoPickAt(mousePos, vpMin, vpMax);
+}
+
+void EditorInstance::Request_Pick(const ImVec2& mousePos, const ImVec2& vpMin, const ImVec2& vpMax)
+{
+    if (IsPlaying())
+    {
+        return;
+    }
+
+    _pendingPick = { true, mousePos, vpMin, vpMax };
+}
+
+void EditorInstance::Flush_PendingPick()
+{
+    if (!_pendingPick.pending || !_pickingSystem)
+    {
+        return;
+    }
+
+    _pendingPick.pending = false;
+    _pickingSystem->DoPickAt(_pendingPick.mousePos, _pendingPick.vpMin, _pendingPick.vpMax);
+}
 
 void EditorInstance::Request_FrameStep()
 {

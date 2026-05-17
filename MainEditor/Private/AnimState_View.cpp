@@ -830,6 +830,21 @@ void AnimState_View::Save_Mapping(const string& fileName)
         mappings.push_back(entry);
     }
     root["Mappings"] = mappings;
+
+    if (_liveModelCom != nullptr && _liveModelCom->Get_Owner() != nullptr)
+    {
+        string prefabName = _liveModelCom->Get_Owner()->Get_SourcePrefabName();
+        if (!prefabName.empty())
+        {
+            string prefabPath = "data/json/prefabs/" + prefabName + ".prefab.json";
+            string prefabGuid = GAME->Find_AssetGUID(String::ToWString(prefabPath));
+            if (!prefabGuid.empty())
+            {
+                root["PrefabGuid"] = prefabGuid;
+            }
+        }
+    }
+
     std::ofstream file(savePath);
     if (file.is_open())
         file << std::setw(4) << root << std::endl;

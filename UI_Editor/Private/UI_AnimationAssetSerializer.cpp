@@ -5,7 +5,7 @@ namespace UIEditor
 {
     namespace
     {
-        constexpr int32 kCurrentAnimationAssetJsonVersion = 1;
+        constexpr int32 kCurrentAnimationAssetJsonVersion = 2;
 
         string Read_String(const json& item, const char* key, const string& defaultValue)
         {
@@ -86,6 +86,7 @@ namespace UIEditor
             json item = json::object();
             item["frame"] = key.frame;
             item["value"] = key.value;
+            item["easing"] = Get_AnimationEasingName(key.easing);
             return item;
         }
 
@@ -94,6 +95,7 @@ namespace UIEditor
             json item = json::object();
             item["type"] = Get_AnimationKeyframeTrackTypeName(track.type);
             item["enabled"] = track.enabled;
+            item["easing"] = Get_AnimationEasingName(track.easing);
             item["keys"] = json::array();
 
             for (const UI_AnimationKeyframe& key : track.keys)
@@ -102,7 +104,7 @@ namespace UIEditor
             return item;
         }
 
-        bool Try_ReadKeyframe(const json& item, UI_AnimationKeyframe& outKeyframe)
+        bool Try_ReadKeyframe(const json& item, UI_AnimationEasing defaultEasing, UI_AnimationKeyframe& outKeyframe)
         {
             if (!item.is_object())
                 return false;
@@ -110,6 +112,11 @@ namespace UIEditor
             UI_AnimationKeyframe key = {};
             key.frame = Read_Int(item, "frame", 0);
             key.value = Read_Float(item, "value", 0.f);
+            key.easing = defaultEasing;
+
+            UI_AnimationEasing easing = defaultEasing;
+            if (Try_ParseAnimationEasing(Read_String(item, "easing", Get_AnimationEasingName(defaultEasing)), easing))
+                key.easing = easing;
 
             outKeyframe = key;
             return true;
@@ -128,13 +135,17 @@ namespace UIEditor
             track.type = trackType;
             track.enabled = Read_Bool(item, "enabled", true);
 
+            UI_AnimationEasing easing = UI_AnimationEasing::Linear;
+            if (Try_ParseAnimationEasing(Read_String(item, "easing", "Linear"), easing))
+                track.easing = easing;
+
             const auto keyIter = item.find("keys");
             if (keyIter != item.end() && keyIter->is_array())
             {
                 for (const json& keyItem : *keyIter)
                 {
                     UI_AnimationKeyframe key = {};
-                    if (Try_ReadKeyframe(keyItem, key))
+                    if (Try_ReadKeyframe(keyItem, track.easing, key))
                         track.keys.push_back(key);
                 }
             }

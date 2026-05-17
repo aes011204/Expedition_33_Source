@@ -26,6 +26,8 @@ public:
 	void Get_ChannelTransform(float trackPosition, uint32& keyFrameIndex, float duration, bool isLoop, RootMotionFrame& outTransform);
 	void Update_Velocity(const RootMotionFrame& curTransform, float trackPosition);
 	void ResetVelocityState();
+    Vec3 Get_TotalTranslation() const;
+    Vec3 Get_FirstFramePosition() const; 
 
 private:
 	vector<KEYFRAME>		_keyFrames;
