@@ -447,10 +447,7 @@ void Renderer::Render_PostProcess()
 
     const uint32 passIndex = _usePreviewDeferredCombine
         ? ETOI(DeferredPass::CombinedPreview) 
-        : ETOI(DeferredPass::Combined);       // 일반 runtime/gameplay는 기존 shadow combine 유지
-
-    if (FAILED(_deferredShader->Begin(passIndex)))
-        return;
+        : ETOI(DeferredPass::CombinedHDR);       // 일반 runtime/gameplay는 기존 shadow combine 유지
 
     if (FAILED(_viBuffer->Render()))
         return;

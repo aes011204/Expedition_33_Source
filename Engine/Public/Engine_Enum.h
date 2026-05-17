@@ -66,7 +66,7 @@ namespace Engine
         Directional,
         Point,
         CombinedHDR,
-        Combined,
+        CombinedSimple,
         CombinedPreview = 5, // Preview에서는 그림자 계산 X
     };
 
