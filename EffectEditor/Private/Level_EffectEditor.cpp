@@ -45,6 +45,69 @@ namespace Internal
         return max(1u, max(1u, required.material.subUVRows) * max(1u, required.material.subUVCols));
     }
 
+    EffectSpriteScreenAlignment Resolve_EffectSpriteScreenAlignment(EmitterScreenAlignment alignment)
+    {
+        switch (alignment)
+        {
+        case EmitterScreenAlignment::Rectangle:
+            return EffectSpriteScreenAlignment::Rectangle;
+
+        case EmitterScreenAlignment::Square:
+            return EffectSpriteScreenAlignment::Square;
+
+        case EmitterScreenAlignment::AwayFromCenter:
+            return EffectSpriteScreenAlignment::AwayFromCenter;
+
+        case EmitterScreenAlignment::Velocity:
+            return EffectSpriteScreenAlignment::Velocity;
+
+        case EmitterScreenAlignment::FacingCameraPosition:
+        case EmitterScreenAlignment::TypeSpecific:
+        case EmitterScreenAlignment::FacingCameraDistanceBlend:
+        default:
+            return EffectSpriteScreenAlignment::FacingCameraPosition;
+        }
+    }
+
+    EffectSpriteDirectionalAlignmentMode Resolve_EffectSpriteDirectionalAlignmentMode(EmitterDirectionalAlignmentMode mode)
+    {
+        switch (mode)
+        {
+        case EmitterDirectionalAlignmentMode::LookDirection:
+            return EffectSpriteDirectionalAlignmentMode::LookDirection;
+
+        case EmitterDirectionalAlignmentMode::TextureAxis:
+        default:
+            return EffectSpriteDirectionalAlignmentMode::TextureAxis;
+        }
+    }
+
+    EffectSpriteTextureAxis Resolve_EffectSpriteTextureAxis(EmitterSpriteTextureAxis axis)
+    {
+        switch (axis)
+        {
+        case EmitterSpriteTextureAxis::X:
+            return EffectSpriteTextureAxis::X;
+
+        case EmitterSpriteTextureAxis::Y:
+        default:
+            return EffectSpriteTextureAxis::Y;
+        }
+    }
+
+    PointParticleSphereLocationMode Resolve_PointParticleSphereLocationMode(SphereLocationSpawnMode mode)
+    {
+        switch (mode)
+        {
+        case SphereLocationSpawnMode::Surface:
+            return PointParticleSphereLocationMode::Surface;
+
+        case SphereLocationSpawnMode::Volume:
+        default:
+            return PointParticleSphereLocationMode::Volume;
+        }
+    }
+
     //## Float Curve Eval
 
     float Evaluate_FloatCurveSegmentLinear(const FloatCurveKeyData& leftKey, const FloatCurveKeyData& rightKey, float x)
@@ -129,6 +192,55 @@ namespace Internal
             return Evaluate_FloatConstantCurve(*curve, 1.f, fallbackValue);
 
         return fallbackValue;
+    }
+
+    static void Set_SubUVFrameCurveComponent(Vec4& values, uint32 index, float value)
+    {
+        switch (index)
+        {
+        case 0:
+            values.x = value;
+            break;
+        case 1:
+            values.y = value;
+            break;
+        case 2:
+            values.z = value;
+            break;
+        case 3:
+            values.w = value;
+            break;
+        default:
+            break;
+        }
+    }
+
+    void Fill_SubUVFrameCurvePayload(PointParticleSubUVFrameOverLifeDesc& desc, const FloatDistributionData& frameIndex)
+    {
+        desc.frameCurveKeyCount = 1;
+        desc.frameCurveTimes = Vec4{};
+        desc.frameCurveValues = Vec4{};
+
+        if (const auto* constant = get_if<ConstantFloatDistributionData>(&frameIndex.payload))
+        {
+            desc.frameCurveValues.x = constant->value;
+            return;
+        }
+
+        const auto* curve = get_if<ConstantCurveFloatDistributionData>(&frameIndex.payload);
+        if (nullptr == curve || curve->keys.empty())
+            return;
+
+        constexpr uint32 maxSubUVFrameCurveKeys{ 4 };
+        const uint32 keyCount = min(maxSubUVFrameCurveKeys, static_cast<uint32>(curve->keys.size()));
+        desc.frameCurveKeyCount = keyCount;
+
+        for (uint32 index = 0; index < keyCount; ++index)
+        {
+            const FloatCurveKeyData& key = curve->keys[index];
+            Set_SubUVFrameCurveComponent(desc.frameCurveTimes, index, clamp(key.time, 0.f, 1.f));
+            Set_SubUVFrameCurveComponent(desc.frameCurveValues, index, key.value);
+        }
     }
 
     Vec2 Evaluate_Vector2DistributionMin(const Vector2DistributionData& data, const Vec2& fallbackValue)
@@ -328,6 +440,18 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
         desc.noiseStrength = material.noiseStrength;
         desc.subUVRows = max(1u, material.subUVRows);
         desc.subUVCols = max(1u, material.subUVCols);
+        desc.screenAlignment = Internal::Resolve_EffectSpriteScreenAlignment(required->screenAlignment);
+        desc.directionalAlignmentMode = Internal::Resolve_EffectSpriteDirectionalAlignmentMode(required->directionalAlignmentMode);
+        desc.spriteTextureAxis = Internal::Resolve_EffectSpriteTextureAxis(required->spriteTextureAxis);
+        desc.spriteRollOffsetDegrees = required->spriteRollOffsetDegrees;
+        desc.duration = max(0.0001f, required->duration);
+        desc.loopCount = required->loopCount;
+        desc.delay = max(0.f, required->delay);
+        desc.delayFirstLoopOnly = required->delayFirstLoopOnly;
+        desc.killOnDeactivate = required->killOnDeactivate;
+        desc.killOnCompleted = required->killOnCompleted;
+        desc.useMaxDrawCount = required->useMaxDrawCount;
+        desc.maxDrawCount = max(1u, required->maxDrawCount);
 
         definition.localPosition = required->emitterOrigin;
         definition.localRotationDegrees = required->emitterRotationDegrees;
@@ -335,13 +459,59 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
     }
 
     if (const auto* spawn = Internal::Find_ModuleData<SpawnModuleData>(emitter, AuthoringModuleType::Spawn))
+    {
         desc.instanceCount = max(1u, spawn->maxParticleCount);
+        desc.spawn.processSpawnRate = spawn->processSpawnRate;
+        desc.spawn.spawnRate = max(0.f, Internal::Evaluate_FloatDistributionMax(spawn->spawnRate, desc.spawn.spawnRate));
+        desc.spawn.spawnRateScale = max(0.f, Internal::Evaluate_FloatDistributionMax(spawn->spawnRateScale, desc.spawn.spawnRateScale));
+        desc.spawn.processBurstList = spawn->processBurstList;
+        desc.spawn.burstScale = max(0.f, Internal::Evaluate_FloatDistributionMax(spawn->burstScale, desc.spawn.burstScale));
+        desc.spawn.maxActiveCount = desc.instanceCount;
+        desc.spawn.bursts.clear();
+        desc.spawn.bursts.reserve(spawn->burstList.size());
+
+        for (const SpawnModuleData::ParticleBurstData& burst : spawn->burstList)
+        {
+            desc.spawn.bursts.push_back(
+                PointParticleBurstDesc{
+                    .time = max(0.f, burst.time),
+                    .count = burst.count
+                }
+            );
+        }
+    }
 
     if (const auto* initialSize = Internal::Find_ModuleData<InitialSizeModuleData>(emitter, AuthoringModuleType::InitialSize))
     {
-        const Vec2 minScale = Internal::Evaluate_Vector2DistributionMin(initialSize->size, desc.scale);
-        const Vec2 maxScale = Internal::Evaluate_Vector2DistributionMax(initialSize->size, desc.scale);
-        desc.scale = Vec2{ min(minScale.x, maxScale.x), max(minScale.y, maxScale.y) };
+        const Vec2 minSize = Internal::Evaluate_Vector2DistributionMin(initialSize->size, desc.sizeMin);
+        const Vec2 maxSize = Internal::Evaluate_Vector2DistributionMax(initialSize->size, desc.sizeMax);
+        desc.sizeMin = Vec2{ min(minSize.x, maxSize.x), min(minSize.y, maxSize.y) };
+        desc.sizeMax = Vec2{ max(minSize.x, maxSize.x), max(minSize.y, maxSize.y) };
+    }
+
+    if (const auto* initialLocation = Internal::Find_ModuleData<InitialLocationModuleData>(emitter, AuthoringModuleType::InitialLocation))
+    {
+        const Vec3 minOffset = Internal::Evaluate_Vector3DistributionMin(initialLocation->location, desc.initialLocation.minOffset);
+        const Vec3 maxOffset = Internal::Evaluate_Vector3DistributionMax(initialLocation->location, desc.initialLocation.maxOffset);
+        desc.initialLocation.enabled = true;
+        desc.initialLocation.minOffset = Vec3{
+            min(minOffset.x, maxOffset.x),
+            min(minOffset.y, maxOffset.y),
+            min(minOffset.z, maxOffset.z)
+        };
+        desc.initialLocation.maxOffset = Vec3{
+            max(minOffset.x, maxOffset.x),
+            max(minOffset.y, maxOffset.y),
+            max(minOffset.z, maxOffset.z)
+        };
+    }
+
+    if (const auto* sphereLocation = Internal::Find_ModuleData<SphereLocationModuleData>(emitter, AuthoringModuleType::SphereLocation))
+    {
+        desc.sphereLocation.enabled = true;
+        desc.sphereLocation.offset = sphereLocation->offset;
+        desc.sphereLocation.radius = max(0.f, sphereLocation->radius);
+        desc.sphereLocation.mode = Internal::Resolve_PointParticleSphereLocationMode(sphereLocation->spawnMode);
     }
 
     if (const auto* lifetime = Internal::Find_ModuleData<LifetimeModuleData>(emitter, AuthoringModuleType::Lifetime))
@@ -410,6 +580,9 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
         desc.subUVFrameOverLife.startFrame = subUvFrameOverLife->startFrame;
         desc.subUVFrameOverLife.endFrame = subUvFrameOverLife->endFrame;
         desc.subUVFrameOverLife.loop = subUvFrameOverLife->loop;
+        desc.subUVFrameOverLife.playbackMode = subUvFrameOverLife->playbackMode;
+        desc.subUVFrameOverLife.framesPerSecond = max(0.f, subUvFrameOverLife->framesPerSecond);
+        Internal::Fill_SubUVFrameCurvePayload(desc.subUVFrameOverLife, subUvFrameOverLife->frameIndex);
 
         if (const auto* required = Internal::Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
         {
@@ -435,10 +608,26 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
     if (const auto* initialVelocity = Internal::Find_ModuleData<InitialVelocityModuleData>(emitter, AuthoringModuleType::InitialVelocity))
     {
         desc.motion.enabled = true;
-        desc.motion.radialPivot = initialVelocity->radialPivot;
-        desc.motion.initialSpeed = Vec2{
-            Internal::Evaluate_FloatDistributionMin(initialVelocity->speed, desc.motion.initialSpeed.x),
-            Internal::Evaluate_FloatDistributionMax(initialVelocity->speed, desc.motion.initialSpeed.y)
+        desc.motion.initialVelocityEnabled = true;
+        desc.motion.initialVelocityInWorldSpace = initialVelocity->inWorldSpace;
+        desc.motion.initialVelocityMin =
+            Internal::Evaluate_Vector3DistributionMin(initialVelocity->velocity, desc.motion.initialVelocityMin);
+        desc.motion.initialVelocityMax =
+            Internal::Evaluate_Vector3DistributionMax(initialVelocity->velocity, desc.motion.initialVelocityMax);
+    }
+
+    if (const auto* initialRadialVelocity = Internal::Find_ModuleData<InitialRadialVelocityModuleData>(
+        emitter,
+        AuthoringModuleType::InitialRadialVelocity
+    ))
+    {
+        desc.motion.enabled = true;
+        desc.motion.initialRadialVelocityEnabled = true;
+        desc.motion.initialRadialVelocityInWorldSpace = initialRadialVelocity->inWorldSpace;
+        desc.motion.radialPivot = initialRadialVelocity->radialPivot;
+        desc.motion.radialSpeed = Vec2{
+            Internal::Evaluate_FloatDistributionMin(initialRadialVelocity->speed, desc.motion.radialSpeed.x),
+            Internal::Evaluate_FloatDistributionMax(initialRadialVelocity->speed, desc.motion.radialSpeed.y)
         };
     }
 

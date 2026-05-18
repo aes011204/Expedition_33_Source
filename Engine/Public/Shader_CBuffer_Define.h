@@ -101,7 +101,8 @@ struct alignas(16) DeferredCB
     Vec4    cameraPosition;
 
     float   farPlane = 0.f;
-    float   _pad0[3]{};
+    Vec2    screenSize = { 1600.f, 900.f };
+    float   _pad0;
 };
 
 /* ------------------------------------------ */
@@ -147,6 +148,36 @@ struct alignas(16) PostProcessCB
     float _pad2[3]{};
 };
 
+/* ------------------------------------------ */
+/*                 SSAO CBuffer               */
+/* ------------------------------------------ */
+struct alignas(16) SSAOCB
+{
+    // SSAO 계산 품질/강도
+    float g_SSAORadius = 0.5f;
+    float g_SSAOBias = 0.025f;
+    float g_SSAOIntensity = 1.0f;
+    float g_SSAOPower = 1.2f;
+
+    // Blur / Bilateral Blur
+    float g_SSAOBlurRadius = 1.0f;
+    float g_SSAODepthSharpness = 100.0f;
+    float g_SSAONormalSharpness = 8.0f;
+    uint32 g_SSAOSampleCount = 16;
+
+    // 기능 On/Off
+    uint32 g_SSAOEnabled = 1;
+    uint32 g_SSAOHalfResEnabled = 0;
+    uint32 g_SSAOBilateralEnabled = 0;
+    uint32 g_SSAOTemporalEnabled = 0;
+
+    // Half-res / Upsampling / Temporal Denoising
+    float g_SSAOUpsampleDepthThreshold = 0.01f;
+    float g_SSAOTemporalBlendFactor = 0.9f;
+    float g_SSAOTemporalDepthReject = 0.02f;
+    float g_SSAOTemporalNormalReject = 0.9f;
+};
+
 // 패딩이 제대로 됐나 마지막 확인용
 static_assert(sizeof(MaterialCB) % 16 == 0);
 static_assert(sizeof(CameraCB) % 16 == 0);
@@ -155,6 +186,7 @@ static_assert(sizeof(ShadowCB) % 16 == 0);
 static_assert(sizeof(DeferredCB) % 16 == 0);
 static_assert(sizeof(LightCB) % 16 == 0);
 static_assert(sizeof(PostProcessCB) % 16 == 0);
+static_assert(sizeof(SSAOCB) % 16 == 0);
 
 NS_END
 

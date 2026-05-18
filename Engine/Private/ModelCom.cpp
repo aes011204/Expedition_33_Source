@@ -506,6 +506,9 @@ void ModelCom::Apply_EffectiveMaterial(uint32 materialIndex)
     }
 
     const MaterialInstanceOverride& inst = binding.instance;
+    if (inst.forcedPassIndex >= 0)
+        material->Set_ForcedPassIndex(inst.forcedPassIndex);
+
     if (inst.overrideRenderStateEnabled)
         material->Set_RenderState(inst.renderState);
 
@@ -570,7 +573,7 @@ json ModelCom::To_Json() const
             || inst.irisMask.enabled;
 
         const bool hasInstanceOverride =
-            inst.overrideRenderStateEnabled || inst.cbMask.Any() || hasAnyTextureOverride;
+            (inst.forcedPassIndex >= 0) || inst.overrideRenderStateEnabled || inst.cbMask.Any() || hasAnyTextureOverride;
 
         const string baseKey = String::ToLowerCopy(binding.baseBundleKey);
         const bool hasBaseKey = !baseKey.empty() && baseKey != defaultKey;
@@ -587,6 +590,8 @@ json ModelCom::To_Json() const
         {
             json instJson{};
             instJson["override_render_state_enabled"] = inst.overrideRenderStateEnabled;
+            if (inst.forcedPassIndex >= 0)
+                instJson["force_pass_index"] = inst.forcedPassIndex;
 
             if (inst.overrideRenderStateEnabled)
             {

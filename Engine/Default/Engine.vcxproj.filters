@@ -313,6 +313,12 @@
     <ClInclude Include="..\Public\AnimNotify.h">
       <Filter>01.Utility\04.Component\Model\Animation\Notify</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\Renderer_Define.h">
+      <Filter>01.Utility\05.Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\EnumFlags.h">
+      <Filter>01.Utility\98. Utils</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\InstanceCullParams.h">
       <Filter>99. Defines</Filter>
     </ClInclude>
@@ -938,9 +944,6 @@
     <ClCompile Include="..\Private\VIBufferCom_ComputePointParticle.cpp">
       <Filter>01.Utility\04.Component\VIBuffer\Instance\Particle w. ComputeShader</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\UI_Animation.cpp" />
-    <ClCompile Include="..\private\UI_Button.cpp" />
-    <ClCompile Include="..\private\UI_Panel.cpp" />
     <ClCompile Include="..\Private\AnimNotify.cpp">
       <Filter>01.Utility\04.Component\Model\Animation\Notify</Filter>
     </ClCompile>
@@ -1021,7 +1024,11 @@
     <None Include="..\Bin\ShaderFiles\Engine_Shader_PostProcess.hlsl">
       <Filter>02.ShaderFiles</Filter>
     </None>
+<<<<<<< HEAD
     <None Include="..\Bin\ShaderFiles\Engine_Shader_ComputeAnimTypes.hlsli">
+=======
+    <None Include="..\Bin\ShaderFiles\Engine_Shader_Deferred.hlsl">
+>>>>>>> dev
       <Filter>02.ShaderFiles</Filter>
     </None>
   </ItemGroup>

@@ -1,4 +1,4 @@
-#include <Windows.h>
+﻿#include <Windows.h>
 #include <objbase.h>
 
 #include <algorithm>
@@ -7,7 +7,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
-
+#include <cwctype>
 #include <nlohmann/json.hpp>
 
 namespace fs = std::filesystem;
@@ -74,11 +74,14 @@ namespace
         wide.erase(std::remove(wide.begin(), wide.end(), L'{'), wide.end());
         wide.erase(std::remove(wide.begin(), wide.end(), L'}'), wide.end());
 
-        std::string out(wide.begin(), wide.end());
-        std::transform(out.begin(), out.end(), out.begin(), [](unsigned char c)
-            {
-                return static_cast<char>(std::tolower(c));
-            });
+        std::string out;
+        out.reserve(wide.size());
+
+        for (wchar_t ch : wide)
+        {
+            out.push_back(static_cast<char>(std::towlower(ch)));
+        }
+
         return out;
     }
 
