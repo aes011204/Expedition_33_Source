@@ -711,6 +711,12 @@ HRESULT Renderer::Ready_RenderTargets()
     CHECK_FAILED(GAME->Add_RenderTarget(RT::Emissive,
         width, height, DXGI_FORMAT_R16G16B16A16_FLOAT, Color(0, 0, 0, 0), resizeWithViewport, !useDSV), E_FAIL);
 
+    // SSAO
+    CHECK_FAILED(GAME->Add_RenderTarget(RT::SSAO,
+        width, height, DXGI_FORMAT_R16_FLOAT, Color(1.f, 1.f, 1.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
+    CHECK_FAILED(GAME->Add_RenderTarget(RT::SSAOBlur,
+        width, height, DXGI_FORMAT_R16_FLOAT, Color(1.f, 1.f, 1.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
+
     // MRT_LightAcc
     CHECK_FAILED(GAME->Add_RenderTarget(RT::Shade,
         width, height, DXGI_FORMAT_R16G16B16A16_UNORM, Color(0, 0, 0, 0), resizeWithViewport, !useDSV), E_FAIL);
@@ -741,6 +747,10 @@ HRESULT Renderer::Ready_RenderTargets()
     CHECK_FAILED(GAME->Add_MRT(MRT::GameObjects, RT::Material), E_FAIL);	// SV_TARGET3
     CHECK_FAILED(GAME->Add_MRT(MRT::GameObjects, RT::Emissive), E_FAIL);	// SV_TARGET4
 
+    // SSAO
+
+
+    // Light
     CHECK_FAILED(GAME->Add_MRT(MRT::LightAcc, RT::Shade), E_FAIL);			// SV_TARGET0
     CHECK_FAILED(GAME->Add_MRT(MRT::LightAcc, RT::Specular), E_FAIL);		// SV_TARGET1
 

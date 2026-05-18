@@ -12,6 +12,9 @@ namespace RT
     inline constexpr const wchar_t* Material = L"Target_Material";
     inline constexpr const wchar_t* Emissive = L"Target_Emissive";
 
+    inline constexpr const wchar_t* SSAO = L"Target_SSAO";
+    inline constexpr const wchar_t* SSAOBlur = L"Target_SSAOBlur";
+
     inline constexpr const wchar_t* Shade = L"Target_Shade";
     inline constexpr const wchar_t* Specular = L"Target_Specular";
 
@@ -25,6 +28,8 @@ namespace RT
 namespace MRT
 {
     inline constexpr const wchar_t* GameObjects = L"MRT_GameObjects";
+    inline constexpr const wchar_t* SSAO = L"MRT_SSAO";
+    inline constexpr const wchar_t* SSAOBlur = L"MRT_SSAOBlur";
     inline constexpr const wchar_t* LightAcc = L"MRT_LightAcc";
     inline constexpr const wchar_t* ShadowObjects = L"MRT_ShadowObjects";
     inline constexpr const wchar_t* HDR = L"MRT_HDRColor";

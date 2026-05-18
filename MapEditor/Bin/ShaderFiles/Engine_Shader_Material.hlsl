@@ -80,9 +80,9 @@ float3 SampleOrm(float2 uv)
     if (HasMaterialTexture(MATERIAL_SLOT_ORM))
         orm = g_MaterialTextures[MATERIAL_SLOT_ORM].Sample(LinearWrapSampler, uv).rgb;
 
-    orm.r *= g_AoScale; // O
-    orm.g *= g_RoughnessScale; // R
-    orm.b *= g_MetalnessScale; // M
+    orm.r *= g_AoScale;         // O
+    orm.g *= g_RoughnessScale;  // R
+    orm.b *= g_MetalnessScale;  // M
 
     return orm;
 }
@@ -102,10 +102,10 @@ float3 SampleEmissive(float2 uv)
 
 struct HairMaterialSample
 {
-    float3 baseColor; // 최종 diffuse
-    float opacity; // 마스크
-    float depth; // hair card 내부 깊이/겹침 보정값
-    float id; // 가닥/영역별 variation 값
+    float3  baseColor;  // 최종 diffuse
+    float   opacity;    // 마스크
+    float   depth;      // hair card 내부 깊이/겹침 보정값
+    float   id;         // 가닥/영역별 variation 값
 };
 
 HairMaterialSample SampleHairMaterial(float2 uv)
