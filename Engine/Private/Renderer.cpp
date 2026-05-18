@@ -138,6 +138,14 @@ void Renderer::Draw()
 #ifdef _DEBUG
     DumpCurrentOMState(L"Render_NonBlend:After");
     nonBlendMs = chrono::duration<double, milli>(chrono::steady_clock::now() - nonBlendBegin).count();
+    DumpCurrentOMState(L"Render_SSAO:Before");
+#endif
+
+    // ========================================= //
+    Render_SSAO();
+    // ========================================= //
+#ifdef _DEBUG
+    DumpCurrentOMState(L"Render_SSAO:After");
     const auto lightsBegin = chrono::steady_clock::now();
     DumpCurrentOMState(L"Render_Lights:Before");
 #endif
@@ -316,6 +324,33 @@ void Renderer::Render_NonBlend()
     CHECK_FAILED(GAME->End_MRT());
 }
 
+void Renderer::Render_SSAO()
+{
+#ifdef _DEBUG
+    const auto logFail = [this](const wchar_t* stage) { DumpCurrentOMState(stage); };
+#endif
+    if (!_deferredShader || !_viBuffer)
+        return;
+
+    RETURN_LOG_IF_FAILED(
+        GAME->Begin_MRT(MRT::SSAO),
+        L"Render_CombinedHDR:FAIL Bind_ShadowCB");
+
+    ENDMRT_RETURN_IF_FAILED(
+        GAME->Bind_RT_ShaderResource(_deferredShader, "g_DepthTexture", RT::Depth));
+
+    ENDMRT_RETURN_IF_FAILED(
+        _viBuffer->Bind_Resources());
+
+    ENDMRT_RETURN_IF_FAILED(
+        GAME->Render_Lights(_deferredShader, _viBuffer));
+
+    if (FAILED(GAME->End_MRT()))
+        return;
+
+    Add_RenderCall();
+}
+
 void Renderer::Render_Lights()
 {
     if (!_deferredShader || !_viBuffer)
@@ -437,6 +472,14 @@ void Renderer::Render_CombinedHDR()
 
 void Renderer::Render_NonLight()
 {
+#ifdef _DEBUG
+    const auto logFail = [this](const wchar_t* stage) { DumpCurrentOMState(stage); };
+#endif
+
+    RETURN_LOG_IF_FAILED(
+        GAME->Begin_MRT(MRT::HDR, NotUseDSV, NotClearRTV),
+        L"Begin_MRT failed");
+
     for (auto& renderObject : _renderGroups[ETOI(RenderGroup::NonLight)])
     {
         Shared<GameObject> gameObject = renderObject.lock();
@@ -448,10 +491,20 @@ void Renderer::Render_NonLight()
     }
 
     _renderGroups[ETOI(RenderGroup::NonLight)].clear();
+
+    GAME->End_MRT();
 }
 
 void Renderer::Render_Blend()
 {
+#ifdef _DEBUG
+    const auto logFail = [this](const wchar_t* stage) { DumpCurrentOMState(stage); };
+#endif
+
+    RETURN_LOG_IF_FAILED(
+        GAME->Begin_MRT(MRT::HDR, NotUseDSV, NotClearRTV),
+        L"Begin_MRT failed");
+
     for (auto& renderObject : _renderGroups[ETOI(RenderGroup::Blend)])
     {
         Shared<GameObject> gameObject = renderObject.lock();
@@ -463,6 +516,8 @@ void Renderer::Render_Blend()
     }
 
     _renderGroups[ETOI(RenderGroup::Blend)].clear();
+
+    GAME->End_MRT();
 }
 
 void Renderer::Render_PostProcess()
@@ -475,28 +530,15 @@ void Renderer::Render_PostProcess()
 #endif
 
     if (!_postprocessShader || !_viBuffer)
-    {
-#ifdef _DEBUG
-        logFail(L"Render_PostProcess:FAIL MissingShaderOrBuffer");
-#endif
         return;
-    }
 
     if (!_ppPipeline || _ppPipeline->Get_PostProcessFeatures() == PostProcessFeature::None)
-    {
-#ifdef _DEBUG
-        logFail(L"Render_PostProcess:FAIL PostProcessFeatureNone");
-#endif
+
         return;
-    }
 
     if (!_ppPipeline->Has_PostProcessFeature(PostProcessFeature::HDR))
-    {
-#ifdef _DEBUG
-        logFail(L"Render_PostProcess:FAIL HDRDisabled");
-#endif
+
         return;
-    }
 
     // Transform
     RETURN_LOG_IF_FAILED(
@@ -732,7 +774,8 @@ HRESULT Renderer::Ready_RenderTargets()
     CHECK_FAILED(GAME->Add_MRT(MRT::GameObjects, RT::Emissive), E_FAIL);	// SV_TARGET4
 
     // SSAO
-
+    CHECK_FAILED(GAME->Add_MRT(MRT::SSAO, RT::SSAO), E_FAIL);
+    CHECK_FAILED(GAME->Add_MRT(MRT::SSAOBlur, RT::SSAOBlur), E_FAIL);
 
     // Light
     CHECK_FAILED(GAME->Add_MRT(MRT::LightAcc, RT::Shade), E_FAIL);			// SV_TARGET0

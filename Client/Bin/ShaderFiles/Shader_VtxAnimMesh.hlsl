@@ -135,7 +135,7 @@ struct PS_OUT
     vector Normal   : SV_TARGET1;   // Normal
     vector Depth    : SV_TARGET2;   // Depth
     vector Material : SV_TARGET3;   // AO, Roughness, Metalness
-    vector Emissive  : SV_TARGET4;   // HDR Emissive
+    vector Emissive  : SV_TARGET4;  // HDR Emissive
 };
 
 PS_OUT PS_Opaque(PS_IN In)
@@ -151,6 +151,8 @@ PS_OUT PS_Opaque(PS_IN In)
 
     Out.Diffuse = baseColor;
     Out.Normal = float4(EncodeNormal(worldNormal), 1.f);
+
+    // x = ndc depth(z 분할 후), y = view-space z(0 ~ 1 정규화)
     Out.Depth = float4(In.ProjPos.z / In.ProjPos.w, In.ProjPos.w / g_Far, 0.f, 1.f);
 
     float3 orm = SampleOrm(finalUV);
