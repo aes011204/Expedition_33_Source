@@ -55,6 +55,7 @@ private:
     void Render_Shadow();
 
 	void Render_NonBlend();
+    void Render_SSAO();
     void Render_Lights();
     void Render_NonLight();
 	void Render_Blend();
