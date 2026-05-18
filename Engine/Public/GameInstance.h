@@ -49,6 +49,7 @@ class Picking;
 class Culling_Manager;
 class ThreadPool;
 class PostProcessPipeline;
+struct StaticCollisionData;
 NS_END
 #pragma endregion
 
@@ -386,8 +387,8 @@ public: // For. PhysX_Manager
     PxScene*    Get_PhysXScene() const;
     PhysX_Manager* Get_PhysXManager() const { return _physxManager.get(); }
 
-    PhysXStaticActorHandle Register_PhysXStaticModel(
-        const ModelCom& model,
+    PhysXStaticActorHandle Register_PhysXStaticCollision(
+        const StaticCollisionData& collisionData,
         const Matrix& worldMatrix,
         Collision_Preset preset);
 
@@ -434,10 +435,8 @@ public: /* For.Debug_Manager */
 
     bool                    Is_DebugRenderEnabled() const;
 
-#ifdef _DEBUG
     HRESULT                 Render_DebugDepth();
     HRESULT                 Render_DebugOverlay();
-#endif
 
 public: /* For.Print */
     template<typename... Args>

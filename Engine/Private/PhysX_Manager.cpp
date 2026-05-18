@@ -1,9 +1,12 @@
 ﻿#include "PhysX_Manager.h"
 #include "ColliderCom.h"
+#include "Log_Define.h"
 #include "PhysX_Filter.h"
 #include "ModelCom.h"
 #include "cooking/PxCooking.h"
 #include <cmath>
+
+#include "StaticCollisionData.h"
 
 namespace
 {
@@ -214,7 +217,7 @@ HRESULT PhysX_Manager::Initialize()
 
 #ifdef _DEBUG
     _pvd = PxCreatePvd(*_foundation);
-    PxPvdTransport* transport = PxDefaultPvdSocketTransportCreate("127.0.0.1", 5425, 10);
+    PxPvdTransport* transport = PxDefaultPvdSocketTransportCreate("127.0.0.1", 5425, 0);
     _pvd->connect(*transport, PxPvdInstrumentationFlag::eALL);
 #endif
 
@@ -261,7 +264,10 @@ void PhysX_Manager::Update(float timeDelta)
         return;
     }
 
-    if (_scene->simulate(timeDelta))
+    static constexpr float kMaxPhysicsTimeDelta = 1.f / 15.f;
+    const float clampedTimeDelta = ::min(timeDelta, kMaxPhysicsTimeDelta);
+
+    if (_scene->simulate(clampedTimeDelta))
         _scene->fetchResults(true);
 }
 
@@ -417,10 +423,29 @@ void PhysX_Manager::onContact(const PxContactPairHeader& pairHeader, const PxCon
     }
 }
 
-PhysXStaticActorHandle PhysX_Manager::Register_StaticModel(
-    const ModelCom& model,
-    const Matrix& worldMatrix,
-    Collision_Preset preset)
+void PhysX_Manager::Unregister_StaticActor(PhysXStaticActorHandle handle)
+{
+    if (!handle.Is_Valid())
+        return;
+
+    auto iter = _staticActors.find(handle.id);
+    if (iter == _staticActors.end())
+        return;
+
+    PxRigidStatic* actor = iter->second;
+    _staticActors.erase(iter);
+
+    if (actor == nullptr)
+        return;
+
+    if (_scene)
+        _scene->removeActor(*actor);
+
+    actor->release();
+}
+
+PhysXStaticActorHandle PhysX_Manager::Register_StaticCollision(const StaticCollisionData& collisionData,
+    const Matrix& worldMatrix, Collision_Preset preset)
 {
     PhysXStaticActorHandle emptyHandle{};
 
@@ -428,19 +453,18 @@ PhysXStaticActorHandle PhysX_Manager::Register_StaticModel(
     CHECK_NULL(_scene, emptyHandle);
     CHECK_NULL(_defaultStaticMaterial, emptyHandle);
 
-    const vector<ModelCollisionProxy>& proxies = model.Get_CollisionProxies();
-    if (proxies.empty())
+    const bool hasPrimitive = !collisionData.primitiveProxies.empty();
+    const bool hasTriangles = !collisionData.triangleMeshes.empty();
+    if (!hasPrimitive && !hasTriangles)
         return emptyHandle;
 
-    const vector<PxConvexMesh*> convexMeshes = Build_OrGetConvexMeshes(model);
-    const vector<PxTriangleMesh*> triangleMeshes = Build_OrGetTriangleMeshes(model);
-    size_t convexMeshIndex = 0;
+    const vector<PxTriangleMesh*> triangleMeshes = Build_OrGetTriangleMeshes(collisionData);
     size_t triangleMeshIndex = 0;
 
     Vec3 preScale = Vec3::One;
     Quat preRotation = Quat::Identity;
     Vec3 preTranslation = Vec3::Zero;
-    Decompose_Matrix(model.Get_PreLocalTransformMatrix(), preScale, preRotation, preTranslation);
+    Decompose_Matrix(collisionData.preLocalTransform, preScale, preRotation, preTranslation);
 
     Vec3 worldScale = Vec3::One;
     Quat worldRotation = Quat::Identity;
@@ -454,7 +478,7 @@ PhysXStaticActorHandle PhysX_Manager::Register_StaticModel(
     const PxFilterData filterData = Build_PresetFilterData(preset);
     uint32 attachedShapeCount = 0;
 
-    for (const ModelCollisionProxy& proxy : proxies)
+    for (const ModelCollisionProxy& proxy : collisionData.primitiveProxies)
     {
         PxShape* shape = nullptr;
 
@@ -475,7 +499,7 @@ PhysXStaticActorHandle PhysX_Manager::Register_StaticModel(
             if (shape != nullptr)
             {
                 const PxTransform localPose =
-                    Build_PrimitiveLocalPose(proxy, model.Get_PreLocalTransformMatrix(), worldScale, preRotation);
+                    Build_PrimitiveLocalPose(proxy, collisionData.preLocalTransform, worldScale, preRotation);
                 shape->setLocalPose(localPose);
             }
             break;
@@ -495,7 +519,7 @@ PhysXStaticActorHandle PhysX_Manager::Register_StaticModel(
             if (shape != nullptr)
             {
                 const PxTransform localPose =
-                    Build_PrimitiveLocalPose(proxy, model.Get_PreLocalTransformMatrix(), worldScale, preRotation);
+                    Build_PrimitiveLocalPose(proxy, collisionData.preLocalTransform, worldScale, preRotation);
                 shape->setLocalPose(localPose);
             }
             break;
@@ -515,45 +539,43 @@ PhysXStaticActorHandle PhysX_Manager::Register_StaticModel(
             if (shape != nullptr)
             {
                 const PxTransform localPose =
-                    Build_PrimitiveLocalPose(proxy, model.Get_PreLocalTransformMatrix(), worldScale, preRotation);
+                    Build_PrimitiveLocalPose(proxy, collisionData.preLocalTransform, worldScale, preRotation);
                 shape->setLocalPose(localPose);
             }
             break;
         }
 
-        case ModelCollisionProxyType::Convex:
-        {
-            PxConvexMesh* convexMesh = nullptr;
-            if (convexMeshIndex < convexMeshes.size())
-                convexMesh = convexMeshes[convexMeshIndex++];
-
-            if (convexMesh != nullptr)
-            {
-                shape = _physics->createShape(
-                    PxConvexMeshGeometry(convexMesh, To_PxMeshScale(worldMatrix)),
-                    *_defaultStaticMaterial,
-                    true);
-            }
-            break;
-        }
-
-        case ModelCollisionProxyType::TriangleMesh:
         default:
-        {
-            PxTriangleMesh* triangleMesh = nullptr;
-            if (triangleMeshIndex < triangleMeshes.size())
-                triangleMesh = triangleMeshes[triangleMeshIndex++];
-
-            if (triangleMesh != nullptr)
-            {
-                shape = _physics->createShape(
-                    PxTriangleMeshGeometry(triangleMesh, To_PxMeshScale(worldMatrix)),
-                    *_defaultStaticMaterial,
-                    true);
-            }
             break;
         }
-        }
+
+        if (shape == nullptr)
+            continue;
+
+        shape->setFlag(PxShapeFlag::eSIMULATION_SHAPE, true);
+        shape->setFlag(PxShapeFlag::eTRIGGER_SHAPE, false);
+        shape->setSimulationFilterData(filterData);
+        shape->setQueryFilterData(filterData);
+
+        if (actor->attachShape(*shape))
+            ++attachedShapeCount;
+
+        shape->release();
+    }
+
+    for (const ModelCollisionMesh& mesh : collisionData.triangleMeshes)
+    {
+        if (triangleMeshIndex >= triangleMeshes.size())
+            break;
+
+        PxTriangleMesh* triangleMesh = triangleMeshes[triangleMeshIndex++];
+        if (triangleMesh == nullptr)
+            continue;
+
+        PxShape* shape = _physics->createShape(
+            PxTriangleMeshGeometry(triangleMesh, To_PxMeshScale(worldMatrix)),
+            *_defaultStaticMaterial,
+            true);
 
         if (shape == nullptr)
             continue;
@@ -583,75 +605,29 @@ PhysXStaticActorHandle PhysX_Manager::Register_StaticModel(
     return handle;
 }
 
-void PhysX_Manager::Unregister_StaticActor(PhysXStaticActorHandle handle)
+vector<PxTriangleMesh*> PhysX_Manager::Build_OrGetTriangleMeshes(const StaticCollisionData& collisionData)
 {
-    if (!handle.Is_Valid())
-        return;
+    const wstring key = collisionData.cacheKey;
 
-    auto iter = _staticActors.find(handle.id);
-    if (iter == _staticActors.end())
-        return;
-
-    PxRigidStatic* actor = iter->second;
-    _staticActors.erase(iter);
-
-    if (actor == nullptr)
-        return;
-
-    if (_scene)
-        _scene->removeActor(*actor);
-
-    actor->release();
-}
-
-vector<PxConvexMesh*> PhysX_Manager::Build_OrGetConvexMeshes(const ModelCom& model)
-{
-    const wstring key = model.Get_SourceModelPath();
-
-    auto iter = _convexMeshCache.find(key);
-    if (iter != _convexMeshCache.end())
+    auto iter = _triangleMeshCache.find(key);
+    if (iter != _triangleMeshCache.end())
         return iter->second;
 
-    vector<PxConvexMesh*> cookedMeshes;
+    vector<PxTriangleMesh*> cookedMeshes;
 
-    for (const ModelCollisionProxy& proxy : model.Get_CollisionProxies())
+    for (const ModelCollisionMesh& mesh : collisionData.triangleMeshes)
     {
-        if (proxy.type != ModelCollisionProxyType::Convex)
+        PxTriangleMesh* triangleMesh =
+            Create_TriangleMesh(mesh, collisionData.preLocalTransform);
+
+        if (triangleMesh == nullptr)
             continue;
 
-        PxConvexMesh* convexMesh = Create_ConvexMesh(proxy, model.Get_PreLocalTransformMatrix());
-        if (convexMesh == nullptr)
-            continue;
-
-        cookedMeshes.push_back(convexMesh);
+        cookedMeshes.push_back(triangleMesh);
     }
 
-    _convexMeshCache.emplace(key, cookedMeshes);
+    _triangleMeshCache.emplace(key, cookedMeshes);
     return cookedMeshes;
-}
-
-PxConvexMesh* PhysX_Manager::Create_ConvexMesh(const ModelCollisionProxy& proxy, const Matrix& preTransformMatrix)
-{
-    if (_physics == nullptr || proxy.positions.empty())
-        return nullptr;
-
-    vector<PxVec3> pxVertices;
-    pxVertices.reserve(proxy.positions.size());
-
-    for (const Vec3& position : proxy.positions)
-    {
-        const Vec3 transformed = Vec3::Transform(position, preTransformMatrix);
-        pxVertices.emplace_back(transformed.x, transformed.y, transformed.z);
-    }
-
-    PxConvexMeshDesc desc{};
-    desc.points.count = static_cast<PxU32>(pxVertices.size());
-    desc.points.stride = sizeof(PxVec3);
-    desc.points.data = pxVertices.data();
-    desc.flags = PxConvexFlag::eCOMPUTE_CONVEX;
-
-    PxCookingParams params(_physics->getTolerancesScale());
-    return PxCreateConvexMesh(params, desc, _physics->getPhysicsInsertionCallback());
 }
 
 Shared<ColliderCom> PhysX_Manager::Find_Collider(PxActor* actor) const
@@ -698,6 +674,10 @@ bool PhysX_Manager::Sweep_Sphere(const Vec3& origin, const Vec3& direction, floa
     if (direction.LengthSquared() <= 0.f)
         return false;
 
+#ifdef _DEBUG
+    const auto queryBegin = chrono::steady_clock::now();
+#endif
+
     // 정규화해서 사용
     Vec3 unitDir = direction;
     unitDir.Normalize();
@@ -724,6 +704,19 @@ bool PhysX_Manager::Sweep_Sphere(const Vec3& origin, const Vec3& direction, floa
         PxHitFlag::eDEFAULT,
         queryFilterData,
         &filterCallback);
+
+#ifdef _DEBUG
+    {
+        const double elapsedMs =
+            chrono::duration<double, milli>(chrono::steady_clock::now() - queryBegin).count();
+
+        const bool hasBlock = hit && hitBuffer.hasBlock;
+        const_cast<PhysX_Manager*>(this)->Accumulate_QueryPerf(
+            const_cast<PhysX_Manager*>(this)->_queryPerfWindow.sweepSphere,
+            hasBlock,
+            elapsedMs);
+    }
+#endif
 
     if (!hit || !hitBuffer.hasBlock)
         return false;
@@ -759,6 +752,10 @@ bool PhysX_Manager::Sweep_Collider(ColliderCom* collider, const Matrix& worldMat
     PxRigidActor* pxActor = collider->Get_PxActor();
     CHECK_NULL(pxActor, false);
 
+#ifdef _DEBUG
+    const auto queryBegin = chrono::steady_clock::now();
+#endif
+
     // 현재 collider shape를 query용 geometry로 다시 만ㄷ르기
     PxGeometryHolder geometryHolder = collider->Build_QueryGeometry(worldMatrix);
     PxTransform pose = collider->Build_QueryTransform(worldMatrix);
@@ -789,6 +786,19 @@ bool PhysX_Manager::Sweep_Collider(ColliderCom* collider, const Matrix& worldMat
         queryFilterData,
         &filterCallback);
 
+#ifdef _DEBUG
+    {
+        const double elapsedMs =
+            chrono::duration<double, milli>(chrono::steady_clock::now() - queryBegin).count();
+
+        const bool hasBlock = hit && hitBuffer.hasBlock;
+        const_cast<PhysX_Manager*>(this)->Accumulate_QueryPerf(
+            const_cast<PhysX_Manager*>(this)->_queryPerfWindow.sweepCollider,
+            hasBlock,
+            elapsedMs);
+    }
+#endif
+
     if (!hit || !hitBuffer.hasBlock)
         return false;
 
@@ -812,36 +822,101 @@ bool PhysX_Manager::Probe_Ground(ColliderCom* collider, const Matrix& worldMatri
         return false;
     }
 
-    return Sweep_Collider(collider, worldMatrix, Vec3(0.f, -1.f, 0.f), probeDistance, outHit);
-}
+#ifdef _DEBUG
+    const auto queryBegin = chrono::steady_clock::now();
+#endif
 
-vector<PxTriangleMesh*> PhysX_Manager::Build_OrGetTriangleMeshes(const ModelCom& model)
-{
-    const wstring key = model.Get_SourceModelPath();
+    const bool hit = Sweep_Collider(collider, worldMatrix, Vec3(0.f, -1.f, 0.f), probeDistance, outHit);
 
-    auto iter = _triangleMeshCache.find(key);
-    if (iter != _triangleMeshCache.end())
-        return iter->second;
-
-    vector<PxTriangleMesh*> cookedMeshes;
-
-    for (const ModelCollisionProxy& proxy : model.Get_CollisionProxies())
+#ifdef _DEBUG
     {
-        if (proxy.type != ModelCollisionProxyType::TriangleMesh)
-            continue;
+        const double elapsedMs =
+            chrono::duration<double, milli>(chrono::steady_clock::now() - queryBegin).count();
 
-        PxTriangleMesh* triangleMesh = Create_TriangleMesh(
-            ModelCollisionMesh{ proxy.name, proxy.positions, proxy.indices },
-            model.Get_PreLocalTransformMatrix());
-        if (triangleMesh == nullptr)
-            continue;
-
-        cookedMeshes.push_back(triangleMesh);
+        const_cast<PhysX_Manager*>(this)->Accumulate_QueryPerf(
+            const_cast<PhysX_Manager*>(this)->_queryPerfWindow.probeGround,
+            hit,
+            elapsedMs);
     }
+#endif
 
-    _triangleMeshCache.emplace(key, cookedMeshes);
-    return cookedMeshes;
+    return hit;
 }
+
+#ifdef _DEBUG
+bool PhysX_Manager::Try_ConsumeQueryPerfSummary(float windowSec, PhysXQueryPerfSummary& outSummary)
+{
+    outSummary = {};
+
+    const bool hasSamples =
+        _queryPerfWindow.cctMove.sampleCount > 0 ||
+        _queryPerfWindow.sweepCollider.sampleCount > 0 ||
+        _queryPerfWindow.sweepSphere.sampleCount > 0 ||
+        _queryPerfWindow.probeGround.sampleCount > 0;
+
+    if (windowSec <= 0.f || !hasSamples)
+        return false;
+
+    outSummary.valid = true;
+
+    outSummary.cctMovePerSec = static_cast<float>(
+        Safe_Divide(static_cast<double>(_queryPerfWindow.cctMove.sampleCount), static_cast<double>(windowSec)));
+    outSummary.sweepColliderPerSec = static_cast<float>(
+        Safe_Divide(static_cast<double>(_queryPerfWindow.sweepCollider.sampleCount), static_cast<double>(windowSec)));
+    outSummary.sweepSpherePerSec = static_cast<float>(
+        Safe_Divide(static_cast<double>(_queryPerfWindow.sweepSphere.sampleCount), static_cast<double>(windowSec)));
+    outSummary.probeGroundPerSec = static_cast<float>(
+        Safe_Divide(static_cast<double>(_queryPerfWindow.probeGround.sampleCount), static_cast<double>(windowSec)));
+
+    outSummary.cctMoveAvgMs = static_cast<float>(
+        Safe_Divide(_queryPerfWindow.cctMove.accumulatedMs, static_cast<double>(_queryPerfWindow.cctMove.sampleCount)));
+    outSummary.cctMoveMaxMs = static_cast<float>(_queryPerfWindow.cctMove.maxMs);
+
+    outSummary.sweepColliderAvgMs = static_cast<float>(
+        Safe_Divide(_queryPerfWindow.sweepCollider.accumulatedMs, static_cast<double>(_queryPerfWindow.sweepCollider.sampleCount)));
+    outSummary.sweepColliderMaxMs = static_cast<float>(_queryPerfWindow.sweepCollider.maxMs);
+
+    outSummary.sweepSphereAvgMs = static_cast<float>(
+        Safe_Divide(_queryPerfWindow.sweepSphere.accumulatedMs, static_cast<double>(_queryPerfWindow.sweepSphere.sampleCount)));
+    outSummary.sweepSphereMaxMs = static_cast<float>(_queryPerfWindow.sweepSphere.maxMs);
+
+    outSummary.probeGroundAvgMs = static_cast<float>(
+        Safe_Divide(_queryPerfWindow.probeGround.accumulatedMs, static_cast<double>(_queryPerfWindow.probeGround.sampleCount)));
+    outSummary.probeGroundMaxMs = static_cast<float>(_queryPerfWindow.probeGround.maxMs);
+
+    Reset_QueryPerfWindow(_queryPerfWindow);
+    return true;
+}
+
+void PhysX_Manager::Accumulate_QueryPerf(QueryPerfCounter& counter, bool hit, double elapsedMs)
+{
+    ++counter.sampleCount;
+
+    if (hit)
+        ++counter.hitCount;
+
+    counter.accumulatedMs += elapsedMs;
+    counter.maxMs = max(counter.maxMs, elapsedMs);
+}
+
+void PhysX_Manager::Reset_QueryPerfWindow(QueryPerfWindow& window)
+{
+    window = {};
+}
+
+double PhysX_Manager::Safe_Divide(const double numerator, const double denominator)
+{
+    if (denominator <= 0.0)
+        return 0.0;
+
+    return numerator / denominator;
+}
+
+void PhysX_Manager::Record_CCTMovePerf(bool hit, double elapsedMs)
+{
+    Accumulate_QueryPerf(_queryPerfWindow.cctMove, hit, elapsedMs);
+}
+#endif
 
 PxTriangleMesh* PhysX_Manager::Create_TriangleMesh(const ModelCollisionMesh& meshData, const Matrix& preTransformMatrix)
 {
@@ -956,18 +1031,6 @@ void PhysX_Manager::Free()
         }
     }
     _triangleMeshCache.clear();
-
-    for (auto& [path, meshes] : _convexMeshCache)
-    {
-        UNREFERENCED_PARAMETER(path);
-
-        for (PxConvexMesh* mesh : meshes)
-        {
-            if (mesh)
-                mesh->release();
-        }
-    }
-    _convexMeshCache.clear();
 
 	auto ReleaseManager = [](auto& manager)
 	{

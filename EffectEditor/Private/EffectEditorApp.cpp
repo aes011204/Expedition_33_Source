@@ -238,17 +238,52 @@ void EffectEditorApp::Late_Update(float)
 
 HRESULT EffectEditorApp::Render()
 {
+    // EFFECTEDITOR_BG_FALLBACK_TEMP: Draw 스코프 밖에서 복구할 수 있도록 사전 백업한다.
+    Shared<PostProcessPipeline> postProcessPipeline = GAME->Get_PostProcessPipeline();
+    PostProcessCB originalPostProcessParams{};
+    bool hasOriginalPostProcessParams = false;
+    if (postProcessPipeline != nullptr)
+    {
+        originalPostProcessParams = postProcessPipeline->Get_PostProcessParams();
+        hasOriginalPostProcessParams = true;
+    }
+
+    // EFFECTEDITOR_BG_FALLBACK_TEMP: EffectEditor에서 Play가 아닐 때를 Authoring 관측 모드로 보고 fallback을 임시 적용한다.
+    const bool useAuthoringBackgroundFallback = !EDITOR->IsPlaying();
+    if (hasOriginalPostProcessParams && useAuthoringBackgroundFallback)
+    {
+        PostProcessCB authoringPostProcessParams = originalPostProcessParams;
+        authoringPostProcessParams.useBackgroundFallback = 1;
+        // EFFECTEDITOR_BG_FALLBACK_TEMP: authoring fallback 가시성을 위해 임시 배경색을 0.3으로 올린다.
+        authoringPostProcessParams.backgroundFallbackColor = Vec4(0.3f, 0.3f, 0.3f, 1.f);
+        postProcessPipeline->Set_PostProcessParams(authoringPostProcessParams);
+    }
+
     {
         Profile_View::Scope profileScope("Game::Render");
 
         if (FAILED(GAME->Clear_Buffers(kDefaultClearColor)))
+        {
+            // EFFECTEDITOR_BG_FALLBACK_TEMP: 조기 반환 경로에서도 원복을 보장한다.
+            if (hasOriginalPostProcessParams)
+                postProcessPipeline->Set_PostProcessParams(originalPostProcessParams);
             return E_FAIL;
+        }
 
         const Internal::PostProcessFeatureScope postProcessFeatureScope{ EDITOR->Get_SceneViewMode() };
 
         if (FAILED(GAME->Draw()))
+        {
+            // EFFECTEDITOR_BG_FALLBACK_TEMP: 조기 반환 경로에서도 원복을 보장한다.
+            if (hasOriginalPostProcessParams)
+                postProcessPipeline->Set_PostProcessParams(originalPostProcessParams);
             return E_FAIL;
+        }
     }
+
+    // EFFECTEDITOR_BG_FALLBACK_TEMP: Draw 이후 postprocess 파라미터를 항상 원본으로 복구한다.
+    if (hasOriginalPostProcessParams)
+        postProcessPipeline->Set_PostProcessParams(originalPostProcessParams);
 
     {
         Profile_View::Scope profileScope("Editor::Render");

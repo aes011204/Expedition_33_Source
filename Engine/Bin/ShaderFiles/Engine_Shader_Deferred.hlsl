@@ -99,4 +99,43 @@ float SampleShadowAmount(Texture2D shadowTexture, float4 worldPos, float4x4 ligh
     return shadowAmount / 9.f;
 }
 
+static const float2 SSAODirections[8] = {
+    float2(1.f, 0.f), float2(-1.f, 0.f), float2(0.f, 1.f), float2(0.f, -1.f),
+    float2(1.f, 1.f), float2(-1.f, 1.f), float2(1.f, -1.f), float2(-1.f, -1.f)
+};
+
+float Get_ViewZ(float2 uv)
+{
+    float2 depth = g_DepthTexture.Sample(PointClampSampler, uv).xy;
+    return depth.y * g_DeferredFar;
+}
+
+float Compute_DepthSSAO(float2 uv)
+{
+    // 프레임 때문에 16 샘플로 가는데, 많이 어색하면 5x5 샘플로 갈거임. 이건 1.5베 더 비싸짐.
+    float centerViewZ = Get_ViewZ(uv);
+
+    if (centerViewZ <= 0.f)
+        return 1.f;
+
+    float occlusion = 0.f;
+
+    [unroll]
+    for (int i = 0; i < 16; ++i)
+    {
+        float2 sampleUV = uv + SSAODirections[i] * g_SSAORadius;
+        float sampleViewZ = Get_ViewZ(sampleUV);
+
+        if (sampleViewZ <= 0.f)
+            continue;
+
+        float depthDiff = centerViewZ - sampleViewZ;
+
+        float isOccluder = depthDiff > g_SSAOBias ? 1.f : 0.f;
+        float rangeWeight = saturate(1.f - abs(depthDiff) / g_SSAORadius);
+
+    }
+
+}
+
 #endif

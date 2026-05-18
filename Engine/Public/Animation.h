@@ -33,6 +33,9 @@ public:
     Vec3 Get_RootTranslation(int32 rootNodeIndex) const;
     Vec3 Get_CurrentRootTranslation(int32 rootNodeIndex) const;
 
+    const vector<Shared<Channel>>& Get_Channels() const { return _channels; }
+    float Get_TickPerSecond() const { return _tickPerSecond; }
+
 public:
 	HRESULT Initialize(const ModelAnimationData& animData, const vector<ModelChannelData>& channels);
 

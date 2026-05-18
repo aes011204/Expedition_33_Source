@@ -170,6 +170,10 @@ private:
 
     Vec3 _velocity = Vec3::Zero;
     float _currentTurnSpeedDegree = 0.f;
+    float _idleGroundProbeAccum = 0.f;
+#ifdef _DEBUG
+    float _idleGroundProbeDebugLogAccum = 0.f;
+#endif
 
     bool _isGrounded = true;
     bool _isJumping = false;
