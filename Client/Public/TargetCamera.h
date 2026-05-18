@@ -51,6 +51,7 @@ public:
     virtual HRESULT Initialize_Prototype() override;
     virtual HRESULT Initialize(void* arg) override;
     void            BeginPlay() override;
+    void            OnActivated() override;
     virtual void    Priority_Update(float timeDelta) override;
     virtual void    Update(float timeDelta) override;
     virtual void    Late_Update(float timeDelta) override;
@@ -60,7 +61,6 @@ private:
     void Interpolate_CurrentSettings(float timeDelta);
     bool Try_GetTargetTransform(Shared<TransformCom>& outTargetTransformCom) const;
     void Update_FromCurrentSettings(float timeDelta);
-
 private:
     void Update_NormalState(float timeDelta);
     void Update_AimState(float timeDelta);
@@ -73,6 +73,7 @@ public:
     void Change_State(CAMERA_STATE state);
     void Change_Target();
     bool Try_GetFlatMoveBasis(Vec3& outForward, Vec3& outRight) const override;
+    void Refresh_TargetTransform();
 
 public:
     //TODO imgui      desc 하나로 보여주는 걸로 바꾸기?

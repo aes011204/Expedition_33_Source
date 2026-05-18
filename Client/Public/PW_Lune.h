@@ -14,6 +14,9 @@ public:
 	PW_Lune(const PW_Lune& prototype);
 	virtual ~PW_Lune() override = default;
 
+public:
+    HRESULT Initialize(void* arg) override;
+
 protected:
     HairChainPhysicsDesc Get_HairChainPhysicsDesc() const override;
 

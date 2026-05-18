@@ -27,8 +27,12 @@ public:
 	virtual void    Update(float timeDelta);
 	virtual void    Late_Update(float timeDelta);
 	virtual HRESULT Render();
+    virtual void    OnActivated();
 
 public:
+    void Apply_View();
+
+    public:
     float Get_FovY() { return _fovY; }
     void  Set_FovY(float fovY) { _fovY = fovY;}
 
