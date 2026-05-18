@@ -272,6 +272,8 @@ HRESULT SkillTree_Panel::Load_CharacterSheet(uint32 levelIndex,const wstring& js
     desc.outUIByName = &outView.characterSheetUIs;
     CHECK_FAILED(UI_RuntimeLoader::Load_Document(desc), E_FAIL);
     outView.characterSheet = Find_UI(outView.characterSheetUIs,L"Panel_CharacterSheet");
+
+    return S_OK;
 }
 
 HRESULT SkillTree_Panel::Load_UI_ToolTips(const wstring& prototypeTagPrefix, const wstring& toolTipJsonPath, uint32 levelIndex, const wstring& playerName, SkillTreeViewState& outView)
@@ -673,8 +675,8 @@ void SkillTree_Panel::Refresh_CombatStats()
 
     Set_IntText(_currentView->curExpText, statInfo.CurExp);
     Set_IntText(_currentView->maxExpText, statInfo.CurMaxExp);
-    Set_IntText(_currentView->curHpText, statInfo.CurHp);
-    Set_IntText(_currentView->maxHpText, statInfo.CurMaxHp);
+    Set_IntText(_currentView->curHpText, static_cast<int32>(statInfo.CurHp));
+    Set_IntText(_currentView->maxHpText, static_cast<int32>(statInfo.CurMaxHp));
 
     Set_HpText(_currentView->hpText, statInfo.CurHp);
     Set_IntText(_currentView->attackText, static_cast<int32>(statInfo.CurPhysicalAttack));
