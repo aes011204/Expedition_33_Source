@@ -27,5 +27,4 @@ SamplerState LinearSampler
     Filter = MIN_MAG_MIP_LINEAR;
 };
 
-
 #endif
