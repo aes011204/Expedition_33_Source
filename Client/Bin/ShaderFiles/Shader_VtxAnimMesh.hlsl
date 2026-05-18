@@ -44,6 +44,13 @@ struct VS_OUT
     float4  ProjPos     : TEXCOORD2;
 };
 
+struct VS_SHADOW_OUT
+{
+    float4 Position     : SV_POSITION;
+    float2 Texcoord     : TEXCOORD0;
+    float4 ProjPos      : TEXCOORD1;
+};
+
 VS_OUT VS_Main(VS_IN In)
 {
     VS_OUT Out;
@@ -84,16 +91,11 @@ VS_OUT VS_Main(VS_IN In)
     return Out;
 }
 
-VS_OUT VS_Shadow(VS_IN In)
+VS_SHADOW_OUT VS_Shadow(VS_IN In)
 {
-    VS_OUT Out;
+    VS_SHADOW_OUT Out;
 
     float fWeightW = 1.f - (In.BlendWeight.x + In.BlendWeight.y + In.BlendWeight.z);
-
-    //float4x4 BoneMatrix = g_BoneMatrices[In.vBlendIndex.x] * In.vBlendWeight.x +
-    //    g_BoneMatrices[In.vBlendIndex.y] * In.vBlendWeight.y +
-    //    g_BoneMatrices[In.vBlendIndex.z] * In.vBlendWeight.z +
-    //    g_BoneMatrices[In.vBlendIndex.w] * fWeightW;
 
     float4x4 BoneMatrix =
         g_BoneMatricesBuffer[In.BlendIndex.x].BoneMatrix * In.BlendWeight.x +
@@ -102,19 +104,12 @@ VS_OUT VS_Shadow(VS_IN In)
         g_BoneMatricesBuffer[In.BlendIndex.w].BoneMatrix * fWeightW;
 
     vector Position = mul(float4(In.Position, 1.f), BoneMatrix);
-    vector Normal = mul(float4(In.Normal, 0.f), BoneMatrix);
-    vector Tangent = mul(float4(In.Tangent, 0.f), BoneMatrix);
-    vector Binormal = mul(float4(In.Binormal, 0.f), BoneMatrix);
 
     float4x4 matWV = mul(g_WorldMatrix, g_LightViewMatrix);
     float4x4 matWVP = mul(matWV, g_LightProjMatrix);
 
     Out.Position = mul(Position, matWVP);
-    Out.Normal = normalize(mul(Normal, g_WorldMatrix));
-    Out.Tangent = normalize(mul(Tangent, g_WorldMatrix));
-    Out.Binormal = normalize(mul(Binormal, g_WorldMatrix));
     Out.Texcoord = In.Texcoord;
-    Out.WorldPos = mul(Position, g_WorldMatrix);
     Out.ProjPos = Out.Position;
 
     return Out;
@@ -217,11 +212,12 @@ struct PS_OUT_SHADOW
     vector LightDepth : SV_TARGET0;
 };
 
-PS_OUT_SHADOW PS_Shadow(PS_IN In)
+PS_OUT_SHADOW PS_Shadow(VS_SHADOW_OUT In)
 {
     PS_OUT_SHADOW Out;
 
-    Out.LightDepth = vector(In.ProjPos.z / In.ProjPos.w, In.ProjPos.w / g_LightFar, 0.f, 1.f);
+    Out.LightDepth = vector(In.ProjPos.z / In.ProjPos.w, 0.f, 0.f, 1.f);
+
     return Out;
 }
 

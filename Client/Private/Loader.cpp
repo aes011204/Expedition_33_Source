@@ -152,15 +152,16 @@ HRESULT Loader::Process_PendingLoadJobs(
     const auto finishMs = chrono::duration_cast<chrono::milliseconds>(processEnd - finishBegin);
     const auto totalMs = chrono::duration_cast<chrono::milliseconds>(processEnd - processBegin);
 
-    if (totalMs.count() >= 8)
+    ++_loadProcessStats.count;
+    _loadProcessStats.totalDuration += totalMs;
+    _loadProcessStats.scheduleDuration += scheduleMs;
+    _loadProcessStats.commitDuration += commitMs;
+    _loadProcessStats.finishDuration += finishMs;
+
+    if (_isFinished.load() && !_printedLoadSummary)
     {
-        LOG_INFO(
-            "[Loader::Process_PendingLoadJobs] total={}, schedule={}, commit={}, finish={}, progress={:.2f}%%",
-            Format_Duration(totalMs),
-            Format_Duration(scheduleMs),
-            Format_Duration(commitMs),
-            Format_Duration(finishMs),
-            Get_Progress() * 100.f);
+        Print_LoadJobSummary();
+        _printedLoadSummary = true;
     }
 #endif
 
@@ -327,7 +328,17 @@ void Loader::Accumulate_LoadJobStats(ELoadJobType jobType, chrono::milliseconds 
 
 void Loader::Print_LoadJobSummary()
 {
-    LOG_INFO("[Loader::Print_LoadJobSummary] ---- LoadJob Summary Begin ----");
+#ifdef _DEBUG
+    LOG_DEBUG("[Loader::Summary] ---- LoadJob Summary Begin ----");
+
+    LOG_DEBUG(
+        "[Loader::Summary] processCount={}, total={}, schedule={}, commit={}, finish={}, progress={:.2f}%%",
+        static_cast<int>(_loadProcessStats.count),
+        Format_Duration(_loadProcessStats.totalDuration),
+        Format_Duration(_loadProcessStats.scheduleDuration),
+        Format_Duration(_loadProcessStats.commitDuration),
+        Format_Duration(_loadProcessStats.finishDuration),
+        Get_Progress() * 100.f);
 
     for (size_t i = 0; i < _loadJobStats.size(); ++i)
     {
@@ -338,14 +349,15 @@ void Loader::Print_LoadJobSummary()
         const ELoadJobType jobType = static_cast<ELoadJobType>(i);
         const string jobTypeName = string(magic_enum::enum_name(jobType));
 
-        LOG_INFO("[Loader::Print_LoadJobSummary] type={}, count={}, total={}",
+        LOG_DEBUG("[Loader::Summary] type={}, count={}, createTotal={}",
             jobTypeName,
             static_cast<int>(stats.count),
             Format_Duration(stats.totalDuration)
         );
     }
 
-    LOG_INFO("[Loader::Print_LoadJobSummary] ---- LoadJob Summary End ----");
+    LOG_DEBUG("[Loader::Summary] ---- LoadJob Summary End ----");
+#endif
 }
 
 string Loader::Format_Duration(chrono::milliseconds duration)
@@ -589,12 +601,6 @@ HRESULT Loader::Commit_CompletedLoadJobs(size_t maxCommitPerFrame)
 
         Accumulate_LoadJobStats(loadJob.eType, completedJob.elapsed);
 
-        LOG_INFO(
-            "[Loader::Commit_CompletedLoadJobs] Committed load job. tag={}, type={}, createElapsed={}",
-            String::ToString(loadJob.strPrototypeTag),
-            string(magic_enum::enum_name(loadJob.eType)),
-            Format_Duration(completedJob.elapsed));
-
         _completedJobCount.fetch_add(1);
     }
 
@@ -640,8 +646,6 @@ HRESULT Loader::Try_FinishLoading()
 
     lstrcpy(_loadingText, TEXT("Loading completed."));
     _isFinished.store(true);
-
-    Print_LoadJobSummary();
 
     return S_OK;
 }

@@ -2806,5 +2806,12 @@ void Material_View::Free()
     Editor_Window::Free();
 }
 
+void Material_View::Clear_TexturePreviewCache()
+{
+    g_MaterialViewTexturePreviewCache.clear();
+    g_MaterialViewTextureSearchCache.clear();
+    g_MaterialViewTextureCandidateCache.clear();
+}
+
 NS_END
 

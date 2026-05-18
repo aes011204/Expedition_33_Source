@@ -5,6 +5,7 @@
 #include "Material_Types.h"
 #include "Player_WorldBase.h"
 #include "ModelCom.h"
+#include "Debug_Profile.h"
 
 Hair_Player::Hair_Player(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : PlayableParts{ device, context } {}
@@ -53,6 +54,8 @@ void Hair_Player::Priority_Update(float timeDelta)
 
 void Hair_Player::Update(float timeDelta)
 {
+    Debug_Profile::Scope profileScope("Player::Hair::Update");
+
     if (_modelCom == nullptr)
         return;
 
@@ -72,7 +75,12 @@ void Hair_Player::Update(float timeDelta)
     }
 
     if (_hairPhysicsReady)
+    {
+        Debug_Profile::Scope physicsScope("Player::Hair::Physics");
         _hairPhysics.Simulate(_modelCom.get(), timeDelta, _combinedWorldMatrix, ownerVelocity);
+    }
+
+    CHECK_FAILED(_modelCom->Prepare_BoneMatrixBuffers());
 }
 
 void Hair_Player::Late_Update(float timeDelta)
@@ -82,6 +90,8 @@ void Hair_Player::Late_Update(float timeDelta)
 
 HRESULT Hair_Player::Render()
 {
+    Debug_Profile::Scope profileScope("Player::Hair::Render");
+
     return PlayableParts::Render();
 }
 

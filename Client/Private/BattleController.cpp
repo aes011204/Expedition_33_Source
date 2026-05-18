@@ -58,7 +58,6 @@ void BattleController::Update(float timeDelta)
 
         if (_battleEnterElapsed >= _battleEnterDuration)
         {
-            GAME->Set_WorldTimeScale(_resetWorldTime);
             Complete_BattleField();
         }
 
@@ -124,8 +123,7 @@ void BattleController::OnEnterBattleField(uint32 FieldID, bool IsFirstHero, cons
 	// 월드 캐릭터 입력 막기
 	GAME->Set_PlayerInputBlocked(true);
 	_worldCamera = GAME->Get_ActiveCamera();
-    _resetWorldTime = GAME->Get_WorldTimeScale(); // 전투 진입 슬로우모션이 끝나면 기존 월드 배속으로 복구한다.
-    GAME->Set_WorldTimeScale(_battleEnterWorldTimeScale);
+    GAME->Slow_WorldTime(_battleEnterWorldTimeScale, _battleEnterDuration);
 }
 
 EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
@@ -134,7 +132,7 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
     _isBattleEntering = false;
 
     // 전투 종료 시 슬로우모션 값이 남지 않도록 복구
-    GAME->Set_WorldTimeScale(_resetWorldTime);
+    GAME->Stop_WorldTimeSlow();
 
 	Restore_WorldCamera(); // 카메라 복구
 
@@ -434,6 +432,7 @@ vector<BattleChar> BattleController::Get_AliveHeroes()
 
 void BattleController::Handle_EditorStopRuntime()
 {
+    GAME->Stop_WorldTimeSlow();
     GAME->Set_WorldTimeScale(1.f);
     GAME->Set_PlayerInputBlocked(false);
 
@@ -452,6 +451,7 @@ void BattleController::Handle_EditorStopRuntime()
 
     _heroes.clear();
     _enemies.clear();
+    _battleTurnCamera.reset();
 
     Clear_BattleEnterPending();
     Restore_WorldCamera();

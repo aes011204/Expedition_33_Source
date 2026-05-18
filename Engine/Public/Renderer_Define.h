@@ -18,7 +18,8 @@ namespace RT
     inline constexpr const wchar_t* Shade = L"Target_Shade";
     inline constexpr const wchar_t* Specular = L"Target_Specular";
 
-    inline constexpr const wchar_t* LightDepth = L"Target_LightDepth";
+    inline constexpr const wchar_t* LightDepth = L"Target_LightDepth";              // Dynamic Shadow
+    inline constexpr const wchar_t* StaticLightDepth = L"Target_StaticLightDepth";  // Static Shadow
 
     inline constexpr const wchar_t* HDRColor = L"Target_HDRColor";
     inline constexpr const wchar_t* BloomExtract = L"Target_BloomExtract";
@@ -32,6 +33,7 @@ namespace MRT
     inline constexpr const wchar_t* SSAOBlur = L"MRT_SSAOBlur";
     inline constexpr const wchar_t* LightAcc = L"MRT_LightAcc";
     inline constexpr const wchar_t* ShadowObjects = L"MRT_ShadowObjects";
+    inline constexpr const wchar_t* StaticShadowObjects = L"MRT_StaticShadowObjects";
     inline constexpr const wchar_t* HDR = L"MRT_HDRColor";
     inline constexpr const wchar_t* BloomExtract = L"MRT_BloomExtract";
     inline constexpr const wchar_t* BloomBlur = L"MRT_BloomBlur";

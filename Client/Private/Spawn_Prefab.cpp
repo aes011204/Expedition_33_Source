@@ -3,9 +3,38 @@
 #include "GameInstance.h"
 #include "GameObject.h"
 #include "Helper_String.h"
+#include "Player_WorldBase.h"
+#include "Player_BattleBase.h"
+#include "Body_Player.h"
+#include "ModelCom.h"
 #include "TransformCom.h"
 
 namespace fs = std::filesystem;
+
+namespace
+{
+void Refresh_PlayerBodyAnimMapping(const Shared<GameObject>& gameObject)
+{
+    if (auto worldPlayer = dynamic_pointer_cast<Player_WorldBase>(gameObject))
+    {
+        if (auto* body = dynamic_cast<Body_Player*>(worldPlayer->Get_PartObject(L"Part_Body")))
+        {
+            if (Shared<ModelCom> model = body->Get_Model())
+                model->Refresh_AnimStateMappingFromOwnerContext();
+        }
+        return;
+    }
+
+    if (auto battlePlayer = dynamic_pointer_cast<Player_BattleBase>(gameObject))
+    {
+        if (auto* body = dynamic_cast<Body_Player*>(battlePlayer->Get_PartObject(L"Part_Body")))
+        {
+            if (Shared<ModelCom> model = body->Get_Model())
+                model->Refresh_AnimStateMappingFromOwnerContext();
+        }
+    }
+}
+}
 
 Spawn_Prefab::Builder::Builder(const string& prefabName)
 {
@@ -140,6 +169,7 @@ Shared<GameObject> Spawn_Prefab::Spawn_Implementation(const FSpawnDesc& desc)
     CHECK_NULL(gameObject, nullptr);
 
     gameObject->Set_SourcePrefabName(desc.prefabName);
+    Refresh_PlayerBodyAnimMapping(gameObject);
 
     Apply_Overrides(gameObject, desc.overrides);
 

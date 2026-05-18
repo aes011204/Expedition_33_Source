@@ -5,6 +5,7 @@
 #include "PostProcessPipeline.h"
 #include "ShaderCom.h"
 #include "VIBuffer_Rect.h"
+#include "Debug_Profile.h"
 
 #pragma region DEBUG
 #ifdef _DEBUG
@@ -123,9 +124,8 @@ void Renderer::Draw()
 #endif
 
     // ========================================= //
-    // Render_Shadow();
+     Render_Shadow();
     // ========================================= //
-    _renderGroups[ETOI(RenderGroup::Shadow)].clear(); // 이거 Render Shadow 키면 없애야함
 #ifdef _DEBUG
     shadowMs = chrono::duration<double, milli>(chrono::steady_clock::now() - shadowBegin).count();
     const auto nonBlendBegin = chrono::steady_clock::now();
@@ -291,32 +291,8 @@ void Renderer::Render_Priority()
 
 void Renderer::Render_Shadow()
 {
-    if (FAILED(GAME->Begin_MRT(MRT::ShadowObjects, UseDSV, ClearRTV)))
-        return;
-
-    const uint32 originWidth = GAME->Get_ViewportWidth();
-    const uint32 originHeight = GAME->Get_ViewportHeight();
-    const uint32 shadowWidth = static_cast<uint32>(originWidth * _shadowScale);
-    const uint32 shadowHeight = static_cast<uint32>(originHeight * _shadowScale);
-
-    // 그림자용 사이즈로 변경
-    Change_ViewportDesc(shadowWidth, shadowHeight);
-
-    for (auto& renderObject : _renderGroups[ETOI(RenderGroup::Shadow)])
-    {
-        Shared<GameObject> gameObject = renderObject.lock();
-        if (nullptr != gameObject)
-        {
-            gameObject->Render_Shadow();
-            Add_RenderCall();
-        }
-    }
-
-    _renderGroups[ETOI(RenderGroup::Shadow)].clear();
-
-    CHECK_FAILED(GAME->End_MRT());
-
-    Change_ViewportDesc(originWidth, originHeight);
+    Render_StaticShadowOnce();
+    Render_DynamicShadow();
 }
 
 void Renderer::Render_NonBlend()
@@ -431,6 +407,10 @@ void Renderer::Render_CombinedHDR()
     COMBINEDHDR_RETURN_LOG_IF_FAILED(
         GAME->Bind_RT_ShaderResource(_deferredShader, "g_EmissiveTexture", RT::Emissive),
         L"Render_CombinedHDR:FAIL Bind_RT_ShaderResource(g_EmissiveTexture)");
+
+    COMBINEDHDR_RETURN_LOG_IF_FAILED(
+        GAME->Bind_RT_ShaderResource(_deferredShader, "g_StaticLightDepthTexture", RT::StaticLightDepth),
+        L"Render_CombinedHDR:FAIL Bind_RT_ShaderResource(g_StaticLightDepthTexture)");
 
     // Light 기록
     COMBINEDHDR_RETURN_LOG_IF_FAILED(
@@ -725,7 +705,11 @@ HRESULT Renderer::Ready_RenderTargets()
 
     // MRT_ShadowObjects
     CHECK_FAILED(GAME->Add_RenderTarget(RT::LightDepth,
-        width * static_cast<uint32>(_shadowScale), height * static_cast<uint32>(_shadowScale),
+        _shadowMapWidth, _shadowMapHeight,
+        DXGI_FORMAT_R32G32B32A32_FLOAT, Color(1.f, 1.f, 1.f, 1.f), !resizeWithViewport, useDSV), E_FAIL);
+
+    CHECK_FAILED(GAME->Add_RenderTarget(RT::StaticLightDepth,
+        _staticShadowMapWidth, _staticShadowMapHeight,
         DXGI_FORMAT_R32G32B32A32_FLOAT, Color(1.f, 1.f, 1.f, 1.f), !resizeWithViewport, useDSV), E_FAIL);
 
 
@@ -755,6 +739,7 @@ HRESULT Renderer::Ready_RenderTargets()
     CHECK_FAILED(GAME->Add_MRT(MRT::LightAcc, RT::Specular), E_FAIL);		// SV_TARGET1
 
     CHECK_FAILED(GAME->Add_MRT(MRT::ShadowObjects, RT::LightDepth), E_FAIL);
+    CHECK_FAILED(GAME->Add_MRT(MRT::StaticShadowObjects, RT::StaticLightDepth), E_FAIL);
 
     // PostProcess
     CHECK_FAILED(GAME->Add_MRT(MRT::HDR, RT::HDRColor), E_FAIL);
@@ -831,6 +816,166 @@ HRESULT Renderer::Bind_TransformCB(Shared<ShaderCom> shader) const
     deferredCB.farPlane = activeCamera->Get_Far();
 
     return shader->Bind_CBufferData(deferredCB);
+}
+
+void Renderer::Update_DynamicShadowCamera()
+{
+    const ShadowLightDesc* shadowDesc = GAME->Get_ShadowLightDesc();
+    if (shadowDesc == nullptr || shadowDesc->followCameraFrustum == false)
+        return;
+
+    Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
+    if (activeCamera == nullptr)
+        return;
+
+    const LIGHT_DESC* lightDesc = GAME->Get_PrimaryShadowLightDesc();
+    if (lightDesc == nullptr)
+        return;
+
+    ShadowLightDesc updatedDesc = *shadowDesc;
+    updatedDesc.shadowMapWidth = _shadowMapWidth;
+    updatedDesc.shadowMapHeight = _shadowMapHeight;
+
+    const Vec3 lightDir = Vec3(
+        lightDesc->direction.x,
+        lightDesc->direction.y,
+        lightDesc->direction.z
+    );
+
+    GAME->Update_ShadowFromCameraFrustum(updatedDesc, activeCamera, lightDir);
+}
+
+void Renderer::Render_StaticShadowOnce()
+{
+    Debug_Profile::Scope profileScope("Render::StaticShadow");
+
+    if (!_staticShadowDirty)
+        return;
+
+    BoundingBox staticBounds{};
+    if (!Build_StaticShadowBounds(staticBounds))
+        return;
+
+    Update_StaticShadowCamera(staticBounds);
+
+    if (FAILED(GAME->Begin_MRT(MRT::StaticShadowObjects, UseDSV, ClearRTV)))
+        return;
+
+    const uint32 originWidth = GAME->Get_ViewportWidth();
+    const uint32 originHeight = GAME->Get_ViewportHeight();
+
+    Change_ViewportDesc(_staticShadowMapWidth, _staticShadowMapHeight);
+
+    for (const auto& weakObject : _staticShadowCasters)
+    {
+        Shared<GameObject> gameObject = weakObject.lock();
+        if (gameObject == nullptr || !gameObject->Casts_StaticShadow())
+            continue;
+
+        gameObject->Render_Shadow();
+        Add_RenderCall();
+    }
+
+    CHECK_FAILED(GAME->End_MRT());
+
+    Change_ViewportDesc(originWidth, originHeight);
+
+    _staticShadowDirty = false;
+    _staticShadowReady = true;
+}
+
+void Renderer::Render_DynamicShadow()
+{
+    Debug_Profile::Scope profileScope("Render::DynamicShadow");
+
+    Update_DynamicShadowCamera();
+
+    if (FAILED(GAME->Begin_MRT(MRT::ShadowObjects, UseDSV, ClearRTV)))
+        return;
+
+    const uint32 originWidth = GAME->Get_ViewportWidth();
+    const uint32 originHeight = GAME->Get_ViewportHeight();
+
+    Change_ViewportDesc(_shadowMapWidth, _shadowMapHeight);
+
+    for (auto& renderObject : _renderGroups[ETOI(RenderGroup::Shadow)])
+    {
+        Shared<GameObject> gameObject = renderObject.lock();
+        if (nullptr != gameObject)
+        {
+            gameObject->Render_Shadow();
+            Add_RenderCall();
+        }
+    }
+
+    _renderGroups[ETOI(RenderGroup::Shadow)].clear();
+
+    CHECK_FAILED(GAME->End_MRT());
+
+    Change_ViewportDesc(originWidth, originHeight);
+}
+
+bool Renderer::Build_StaticShadowBounds(BoundingBox& outBounds) const
+{
+    bool hasBounds = false;
+
+    for (const auto& weakObject : _staticShadowCasters)
+    {
+        Shared<GameObject> gameObject = weakObject.lock();
+        if (gameObject == nullptr || !gameObject->Casts_StaticShadow())
+            continue;
+
+        BoundingBox objectBounds{};
+        if (!gameObject->Try_Get_ShadowWorldBounds(objectBounds))
+            continue;
+
+        if (!hasBounds)
+        {
+            outBounds = objectBounds;
+            hasBounds = true;
+        }
+        else
+        {
+            BoundingBox::CreateMerged(outBounds, outBounds, objectBounds);
+        }
+    }
+
+    return hasBounds;
+}
+
+void Renderer::Update_StaticShadowCamera(const BoundingBox& bounds)
+{
+    const LIGHT_DESC* lightDesc = GAME->Get_PrimaryShadowLightDesc();
+    const ShadowLightDesc* shadowDesc = GAME->Get_ShadowLightDesc();
+    if (lightDesc == nullptr || shadowDesc == nullptr)
+        return;
+
+    Vec3 lightDir(
+        lightDesc->direction.x,
+        lightDesc->direction.y,
+        lightDesc->direction.z);
+
+    if (lightDir.LengthSquared() < 0.0001f)
+        lightDir = Vec3(1.f, -1.f, -1.f);
+
+    lightDir.Normalize();
+
+    GAME->Update_StaticShadowFromBounds(*shadowDesc, bounds, lightDir);
+}
+
+void Renderer::Register_StaticShadowCaster(const Shared<GameObject>& gameObject)
+{
+    if (gameObject == nullptr || !gameObject->Casts_StaticShadow()) // Static 인지 체크
+        return;
+
+    _staticShadowCasters.push_back(gameObject);
+
+    Mark_StaticShadowDirty();
+}
+
+void Renderer::Mark_StaticShadowDirty()
+{
+     _staticShadowDirty = true;
 }
 
 #ifdef _DEBUG

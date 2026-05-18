@@ -27,6 +27,7 @@
 #include "Culling_Manager.h"
 #include "ThreadPool.h"
 #include "Helper_String.h"
+#include "Material.h"
 
 #include "Collision_Define.h"
 #include "PhysX_Types.h"
@@ -159,6 +160,20 @@ void GameInstance::Update_Engine(float timeDelta)
 void GameInstance::Update_Engine(float timeDelta, const function<void(float)>& clientUpdate)
 {
     _unscaledTimeDelta = timeDelta; // 배속 전
+
+    if (_isWorldTimeSlowActive)
+    {
+        _worldTimeSlowElapsed += timeDelta;
+
+        if (_worldTimeSlowElapsed >= _worldTimeSlowDuration)
+        {
+            _worldTimeScale = _worldTimeScaleBeforeSlow;
+            _isWorldTimeSlowActive = false;
+            _worldTimeSlowElapsed = 0.f;
+            _worldTimeSlowDuration = 0.f;
+        }
+    }
+
     _worldTimeDelta = timeDelta * _worldTimeScale;
 
 #ifdef _DEBUG
@@ -691,7 +706,38 @@ float GameInstance::Random(float min, float max)
 
 void GameInstance::Set_WorldTimeScale(float timeScale)
 {
+    _isWorldTimeSlowActive = false;
+    _worldTimeSlowElapsed = 0.f;
+    _worldTimeSlowDuration = 0.f;
     _worldTimeScale = ::clamp(timeScale, 0.f, 8.f);
+}
+
+void GameInstance::Slow_WorldTime(float timeScale, float duration)
+{
+    if (duration <= 0.f)
+    {
+        Set_WorldTimeScale(timeScale);
+        return;
+    }
+
+    if (!_isWorldTimeSlowActive)
+        _worldTimeScaleBeforeSlow = _worldTimeScale;
+
+    _isWorldTimeSlowActive = true;
+    _worldTimeSlowElapsed = 0.f;
+    _worldTimeSlowDuration = duration;
+    _worldTimeScale = ::clamp(timeScale, 0.f, 8.f);
+}
+
+void GameInstance::Stop_WorldTimeSlow()
+{
+    if (!_isWorldTimeSlowActive)
+        return;
+
+    _worldTimeScale = _worldTimeScaleBeforeSlow;
+    _isWorldTimeSlowActive = false;
+    _worldTimeSlowElapsed = 0.f;
+    _worldTimeSlowDuration = 0.f;
 }
 
 void GameInstance::Log_FileOnly(const spdlog::source_loc& sourceLoc, spdlog::level::level_enum level, const string& message) const
@@ -1082,6 +1128,11 @@ const LIGHT_DESC* GameInstance::Get_LightDesc(uint32 index)
     return _lightManager->Get_LightDesc(index);
 }
 
+const LIGHT_DESC* GameInstance::Get_PrimaryShadowLightDesc() const
+{
+    return _lightManager->Get_PrimaryShadowLightDesc();
+}
+
 uint32 GameInstance::Get_LightCount() const
 {
     return _lightManager->Get_LightCount();
@@ -1090,6 +1141,11 @@ uint32 GameInstance::Get_LightCount() const
 HRESULT GameInstance::Add_Light(const LIGHT_DESC& lightDesc)
 {
     return _lightManager->Add_Light(lightDesc);
+}
+
+HRESULT GameInstance::Update_PrimaryShadowLightDesc(const LIGHT_DESC& lightDesc)
+{
+    return _lightManager->Update_PrimaryShadowLightDesc(lightDesc);
 }
 
 HRESULT GameInstance::Render_Lights(Shared<ShaderCom> shader, Shared<VIBuffer_Rect> viBuffer)
@@ -1714,6 +1770,8 @@ void GameInstance::Release_Engine()
     ReleaseManager(_picking);
     ReleaseManager(_timerManager);
 
+    Material::Clear_TextureSRVCache();
+
     _context.Reset();
     _device.Reset();
 
@@ -1722,7 +1780,6 @@ void GameInstance::Release_Engine()
 }
 
 #ifdef _DEBUG
-
 HRESULT GameInstance::Initialize_Debug(float sizeX, float sizeY)
 {
     return _targetManager->Initialize_Debug(sizeX, sizeY);
@@ -1753,6 +1810,8 @@ const map<wstring, bool>& GameInstance::Get_RTs() const
     return _targetManager->Get_RTs();
 }
 
+#endif
+
 HRESULT GameInstance::Bind_ShadowMatrices(Shared<ShaderCom> shader, const char* viewName, const char* projName)
 {
     CHECK_NULL(_shadow, E_FAIL);
@@ -1769,6 +1828,12 @@ HRESULT GameInstance::Bind_ShadowCB(Shared<ShaderCom> shader)
 {
     CHECK_NULL(_shadow, E_FAIL);
     return _shadow->Bind_ShadowCB(shader);
+}
+
+HRESULT GameInstance::Bind_StaticShadowCB(Shared<ShaderCom> shader)
+{
+    CHECK_NULL(_shadow, E_FAIL);
+    return _shadow->Bind_StaticShadowCB(shader);
 }
 
 HRESULT GameInstance::Update_ShadowLight(const ShadowLightDesc& desc)
@@ -1793,7 +1858,27 @@ const Matrix* GameInstance::Get_ShadowTransformMatrix(D3DTS eType) const
     return nullptr;
 }
 
-#endif
+HRESULT GameInstance::Update_ShadowFromCameraFrustum(const ShadowLightDesc& desc, const Shared<Camera>& camera,
+    const Vec3& lightDir)
+{
+    return _shadow->Update_FromCameraFrustum(desc, camera, lightDir);
+}
+
+HRESULT GameInstance::Update_StaticShadowFromBounds(const ShadowLightDesc& desc, const BoundingBox& bounds,
+    const Vec3& lightDir)
+{
+    return _shadow->Update_StaticShadowFromBounds(desc, bounds, lightDir);
+}
+
+void GameInstance::Register_StaticShadowCaster(Shared<GameObject> gameObject)
+{
+    return _renderer->Register_StaticShadowCaster(gameObject);
+}
+
+void GameInstance::Mark_StaticShadowDirty()
+{
+    return _renderer->Mark_StaticShadowDirty();
+}
 
 void GameInstance::Free()
 {

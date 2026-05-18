@@ -25,6 +25,10 @@ public:
     void Render() override;
 
 public:
+    void Set_PrimaryShadowLightTarget(bool enabled);
+    bool Is_PrimaryShadowLightTarget() const { return _isPrimaryShadowLightTarget; }
+
+public:
     static bool Draw_ComponentOverride(const Shared<Component>& component);
     static void Draw_ReflectionSection(const string& headerId, void* instance, const ClassReflectionInfo& info);
 
@@ -36,6 +40,8 @@ public:
 
 
 private:
+    void Draw_PrimaryShadowLightInspector();
+
     static void Draw_Components(const Shared<GameObject>& target);
     static void Draw_ObjectReflection(const Shared<GameObject>& target);
 
@@ -51,6 +57,7 @@ private:
 private:
     static constexpr float InspectorLabelWidth = 110.f;
     static const vector<Engine::BTBlackboardKeyView>* _btBlackboardKeys;
+    bool _isPrimaryShadowLightTarget = false;
 public:
     static Shared<Inspector> Create();
 };

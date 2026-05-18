@@ -2,6 +2,7 @@
 #include "Base.h"
 #include "Collision_Define.h"
 #include "PhysX_Types.h"
+#include "CollisionProxy_Types.h"
 
 NS_BEGIN(Engine)
 
@@ -17,8 +18,9 @@ public:
     ~PhysX_Manager() override;
 
 public:
-    PxPhysics*  Get_Physics() const { return _physics; }
-    PxScene*    Get_Scene() const { return _scene; }
+    PxPhysics*              Get_Physics() const { return _physics; }
+    PxScene*                Get_Scene() const { return _scene; }
+    PxControllerManager*    Get_Controller() const {return _controllerManager; }
 
 public:
     HRESULT     Initialize();
@@ -30,6 +32,12 @@ public:
     // 아직 actor가 없으면 만들고 scene에 추가, 있으면 위치만 맞추기
     void Register_OrSync_Collider(Shared<ColliderCom> collider, const Matrix& worldMatrix);
     void Gather_FrameEvents(vector<PhysXPairEvent>& outEvents);
+
+    PxController* Create_CapsuleController(
+        const CharacterControllerDesc& desc,
+        const Vec3& initialFootPosition);
+
+    void Release_Controller(PxController* controller);
 
 public: /* PxSimulationEventCallback */
     void onConstraintBreak(PxConstraintInfo* constraints, PxU32 count) override {}
@@ -46,6 +54,10 @@ public:
         const ModelCom& model, const Matrix& worldMatrix, Collision_Preset preset);
 
     void Unregister_StaticActor(PhysXStaticActorHandle handle);
+
+private:
+    vector<PxConvexMesh*> Build_OrGetConvexMeshes(const ModelCom& model);
+    PxConvexMesh* Create_ConvexMesh(const ModelCollisionProxy& proxy, const Matrix& preTransformMatrix);
 
 private:
     Shared<ColliderCom> Find_Collider(PxActor* actor) const;
@@ -87,6 +99,7 @@ private:
     PxPhysics*                  _physics = {};
     PxScene*                    _scene = {};
     PxDefaultCpuDispatcher*     _dispatcher = {};
+    PxControllerManager*        _controllerManager = {};
 
 private:
     vector<PhysXPairEvent>              _frameEvents;
@@ -104,6 +117,7 @@ private: // Static Mesh 물리충돌
 
     // 같은 모델은 triangle mesh cooking 결과를 재사용
     umap<wstring, vector<PxTriangleMesh*>> _triangleMeshCache;
+    umap<wstring, vector<PxConvexMesh*>> _convexMeshCache;
 
     PxMaterial* _defaultStaticMaterial = nullptr;
 

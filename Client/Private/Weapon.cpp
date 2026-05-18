@@ -32,6 +32,8 @@ HRESULT Weapon::Initialize(void* pArg)
 	if (FAILED(Ready_Components()))
 		return E_FAIL;
 
+    Set_ShadowCasterType(ShadowCasterType::Dynamic);
+
 	_transformCom->Set_Scale(Vec3(0.001f, 0.001f, 0.001f));
 	_transformCom->Rotate(Vec3::Up, 90.f);
 	_transformCom->Set_Position(Vec3(0.8f, 0.f, 0.f));
@@ -61,7 +63,9 @@ void Weapon::Update(float fTimeDelta)
 void Weapon::Late_Update(float fTimeDelta)
 {
 	GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
-	GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
+
+    if (Casts_DynamicShadow())
+	    GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
 }
 
 HRESULT Weapon::Render()
@@ -110,8 +114,8 @@ HRESULT Weapon::Render_Shadow()
     {
         _model->Bind_Material(_shader.get(), "g_DiffuseTexture", i, MaterialTextureSlot::BaseColor);
 
-        //if (FAILED(_shader->Begin(1)))
-        //    return E_FAIL;
+        if (FAILED(_shader->Begin(1)))
+            return E_FAIL;
 
         _model->Render(i);
     }

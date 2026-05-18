@@ -9,6 +9,13 @@ namespace Engine
 
     enum class RenderGroup { Priority, Shadow, NonBlend, NonLight, Blend, UI, END };
 
+    enum class ShadowCasterType : uint8
+    {
+        None,       // 그림자 X
+        Dynamic,    // 매 프레임 Shadow Pass
+        Static,     // Map Static Mesh 등
+    };
+
     enum class UI_RenderGroup
     {
         // UI Render 순서. 필요하다면 추후에 더 확장
