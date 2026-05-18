@@ -1220,15 +1220,25 @@ bool MaterialCreateHelper::Build_MaterialInstances(
 
         // 여기 단계에서는 resolve된 슬롯만 덮어쓰는 쪽이 안전하다
         // 경로가 비어있는 건 미해결이거나 해당 슬롯이 없을 수 있어서, 기본은 false로 둔다
-        inst.baseColorOverride = !inst.baseColorPath.empty();
-        inst.normalOverride = !inst.normalPath.empty();
-        inst.ormOverride = !inst.ormPath.empty();
-        inst.emissiveOverride = !inst.emissivePath.empty();
-        inst.opacityMaskOverride = !inst.opacityMaskPath.empty();
-        inst.hairDepthOverride = !inst.hairDepthPath.empty();
-        inst.hairIDOverride = !inst.hairIDPath.empty();
-        inst.irisHeightOverride = !inst.irisHeightPath.empty();
-        inst.irisMaskOverride = !inst.irisMaskPath.empty();
+        inst.baseSlotEnabledBaseColor = !inst.baseColorPath.empty();
+        inst.baseSlotEnabledNormal = !inst.normalPath.empty();
+        inst.baseSlotEnabledOrm = !inst.ormPath.empty();
+        inst.baseSlotEnabledEmissive = !inst.emissivePath.empty();
+        inst.baseSlotEnabledOpacityMask = !inst.opacityMaskPath.empty();
+        inst.baseSlotEnabledHairDepth = !inst.hairDepthPath.empty();
+        inst.baseSlotEnabledHairID = !inst.hairIDPath.empty();
+        inst.baseSlotEnabledIrisHeight = !inst.irisHeightPath.empty();
+        inst.baseSlotEnabledIrisMask = !inst.irisMaskPath.empty();
+
+        inst.instanceOverrideEnabledBaseColor = inst.baseSlotEnabledBaseColor;
+        inst.instanceOverrideEnabledNormal = inst.baseSlotEnabledNormal;
+        inst.instanceOverrideEnabledOrm = inst.baseSlotEnabledOrm;
+        inst.instanceOverrideEnabledEmissive = inst.baseSlotEnabledEmissive;
+        inst.instanceOverrideEnabledOpacityMask = inst.baseSlotEnabledOpacityMask;
+        inst.instanceOverrideEnabledHairDepth = inst.baseSlotEnabledHairDepth;
+        inst.instanceOverrideEnabledHairID = inst.baseSlotEnabledHairID;
+        inst.instanceOverrideEnabledIrisHeight = inst.baseSlotEnabledIrisHeight;
+        inst.instanceOverrideEnabledIrisMask = inst.baseSlotEnabledIrisMask;
 
         // 누락 원인을 한 번에 보기 좋게 요약하기 위해 카운트를 쌓는다
         recordMissingBase("BC", baseColorU, inst.baseColorPath);

@@ -26,13 +26,16 @@ cbuffer ObjectBuffer
 
 cbuffer ShadowBuffer
 {
-    row_major float4x4 g_LightViewMatrix; // 64
-    row_major float4x4 g_LightProjMatrix; // 128
+    row_major float4x4 g_LightViewMatrix;
+    row_major float4x4 g_LightProjMatrix;
 
-    float g_LightFar;           // 132
-    float g_Bias;               // 136
-    float g_ShadowIntensity;    // 140
-    float g_ShadowPadding0;     // 144
+    row_major float4x4 g_StaticLightViewMatrix;
+    row_major float4x4 g_StaticLightProjMatrix;
+
+    float g_LightFar;           
+    float g_Bias;               
+    float g_ShadowIntensity;    
+    float g_StaticShadowEnabled;
 };
 
 cbuffer DeferredBuffer
@@ -85,4 +88,23 @@ cbuffer MaterialBuffer
     float2 g_MaterialPadding1;      // 88 ~ 95
 }; // 96 bytes
 
+cbuffer PostProcessBuffer
+{
+    float g_PP_Exposure;        //  0 ~  3
+    float g_PP_InvWhitePoint;   //  4 ~  7
+    float g_PP_Gamma;           //  8 ~ 11
+    float g_PP_BloomRadius;     // 12 ~ 15
+
+    float g_PP_BloomThreshold;  // 16 ~ 19
+    float g_PP_BloomIntensity;  // 20 ~ 23
+    float g_PP_BloomSoftKnee;   // 24 ~ 27
+    float g_PP_BloomClamp;      // 28 ~ 31
+
+    float g_PP_BloomScatter;    // 32 ~ 35
+    uint g_PP_ToneMapMode;      // 36 ~ 39
+    float2 g_PP_BloomTexelSize; // 40 ~ 47
+
+    uint g_PP_FeatureMask;      // 48 ~ 51
+    float3 g_PP_Padding2;       // 52 ~ 63
+}; // 64 bytes
 #endif

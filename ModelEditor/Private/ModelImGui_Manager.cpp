@@ -183,6 +183,7 @@ Shared<::Engine::RenderTarget> ModelImGui_Manager::Prepare_SharedViewportRenderT
     if (nullptr == _sharedViewportRenderTarget)
     {
         _sharedViewportRenderTarget = RenderTarget::Create(
+            L"RenderTarget",
             _device,
             _context,
             width,

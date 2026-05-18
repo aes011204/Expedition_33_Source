@@ -534,6 +534,7 @@ Shared<RenderTarget> EffectEditorInstance::Prepare_SharedViewportRenderTarget(ui
     if (nullptr == _sharedViewportRenderTarget)
     {
         _sharedViewportRenderTarget = RenderTarget::Create(
+            L"RenderTarget",
             _device,
             _context,
             width,

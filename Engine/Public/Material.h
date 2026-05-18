@@ -58,7 +58,8 @@ public:
         return _cb;
     }
     uint32                      Get_PassIndex();
-
+    int32                       Get_ForcedPassIndex() const { return _forcedPassIndex; }
+    
     void Set_TemplateId(MaterialShaderTemplate templateId) { _templateId = templateId; }
     void Set_RenderState(const MaterialRenderState& renderState);
     void Set_CB(const MaterialCB& cb);
@@ -93,6 +94,7 @@ private:
 
 public:
 	static Shared<Material> Create(const ComPtr<Device>& device, const ComPtr<Context>& context, const char* modelPath, const ModelMaterialData& materialData, const vector<ModelTextureSlot>& slots, uint32 maxTextureTypeSize);
+    static void Clear_TextureSRVCache();
 	void Free() override;
 };
 

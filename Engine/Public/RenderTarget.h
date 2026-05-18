@@ -14,7 +14,7 @@ public:
 	~RenderTarget() override;
 
 public:
-    HRESULT Initialize(uint32 width, uint32 height, DXGI_FORMAT pixelFormat, const Vec4& clearColor, bool useDepthStencil = true);
+    HRESULT Initialize(const wstring& targetTag, uint32 width, uint32 height, DXGI_FORMAT pixelFormat, const Vec4& clearColor, bool useDepthStencil = true);
     HRESULT Resize(uint32 width, uint32 height, DXGI_FORMAT pixelFormat, const Vec4& clearColor, bool useDepthStencil = true);
     HRESULT Begin(bool clearRenderTarget = true, bool clearDepthStencil = true);
     HRESULT Bind_ShaderResource(ShaderCom* shader, const char* constantName);
@@ -38,13 +38,15 @@ private:
     void Release_TargetResources();
 
 private:
-    ComPtr<Device> _device = nullptr;
-    ComPtr<Context> _context = nullptr;
-    ComPtr<Texture2D> _texture = nullptr;
-    ComPtr<RenderTargetView> _rtv = nullptr;
-    ComPtr<ShaderResourceView> _srv = nullptr;
-    ComPtr<Texture2D> _depthStencilTexture = nullptr;
-    ComPtr<DepthStencilView> _dsv = nullptr;
+    wstring                     _targetTag = L"";
+                                
+    ComPtr<Device>              _device = nullptr;
+    ComPtr<Context>             _context = nullptr;
+    ComPtr<Texture2D>           _texture = nullptr;
+    ComPtr<RenderTargetView>    _rtv = nullptr;
+    ComPtr<ShaderResourceView>  _srv = nullptr;
+    ComPtr<Texture2D>           _depthStencilTexture = nullptr;
+    ComPtr<DepthStencilView>    _dsv = nullptr;
 
     uint32      _width = 0;
     uint32      _height = 0;
@@ -53,6 +55,7 @@ private:
 
 public:
     static Shared<RenderTarget> Create(
+        const wstring& targetTag,
         ComPtr<Device> device,
         ComPtr<Context> context,
         uint32 width,

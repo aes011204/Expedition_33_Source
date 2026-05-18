@@ -129,6 +129,7 @@ private:
 
 public:
     static Shared<Material_View> Create();
+    static void Clear_TexturePreviewCache();
     void Free() override;
 };
 

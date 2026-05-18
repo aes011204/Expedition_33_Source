@@ -17,6 +17,7 @@ public:
 public:
     uint32 Get_MaterialIndex() const { return _materialIndex; }
     HRESULT RenderInstanced(Buffer* instanceVB, uint32 instanceStride, uint32 instanceCount);
+    HRESULT Render_ComputeSkinned(Buffer* vertexBuffer, uint32 vertexStride);
     const string& Get_Name() { return _name;  }
     uint32 Get_MaterialIndex() { return _materialIndex;  }
 
@@ -30,6 +31,8 @@ public:
         vector<Matrix>& outBoneMatrices) const PURE;
 
     virtual uint32 Get_NumBoneRefs() const { return 0; }
+
+    virtual const vector<uint32>& Get_BoneIndices() const;
 
 protected:
     string	_name;

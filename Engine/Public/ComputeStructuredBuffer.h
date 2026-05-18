@@ -18,7 +18,11 @@ public:
 
 public:
     // structured buffer와 그 SRV/UAV를 함께 만든다.
-    HRESULT Initialize(uint32 elementSize, uint32 elementCount, const void* initialData = nullptr);
+    HRESULT Initialize(
+        uint32 elementSize,
+        uint32 elementCount,
+        const void* initialData = nullptr,
+        uint32 extraBindFlags = 0);
 
 public: //## Behavior::DataTransfer
     // buffer 앞쪽 elementCount개를 새 데이터로 갱신한다.
@@ -46,6 +50,7 @@ private: //## Data::Resource
 private: //## Data::Layout
     uint32 _elementSize{ 0 };  // D3D11 StructureByteStride와 동일한 값.
     uint32 _elementCount{ 0 }; // SRV/UAV NumElements와 동일한 값.
+    uint32 _extraBindFlags { 0 };
 
 private: //## Helper::Setup
     HRESULT Ready_Views(); // 현재 buffer desc 기준으로 SRV/UAV를 만든다.
@@ -56,7 +61,8 @@ public:
         const ComPtr<Context>& context,
         uint32 elementSize,
         uint32 elementCount,
-        const void* initialData = nullptr);
+        const void* initialData = nullptr,
+        uint32 extraBindFlags = 0);
     void Free() override;
 };
 

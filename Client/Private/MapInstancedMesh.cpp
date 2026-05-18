@@ -42,6 +42,8 @@ HRESULT MapInstancedMesh::Initialize(void* arg)
         return E_FAIL;
     }
 
+    Set_ShadowCasterType(ShadowCasterType::Static);
+
     vector<Matrix> matrices;
     matrices.reserve(pDesc->transforms.size());
     for (auto& t : pDesc->transforms)

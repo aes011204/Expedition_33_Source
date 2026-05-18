@@ -64,11 +64,7 @@ void AIController::BeginPlay()
 
     if (!_editorStopHandle.IsValid())
     {
-        _editorStopHandle = GAME->Get_DelegateHub().OnEditorStopRuntime.Add(
-            [this]()
-            {
-                On_EditorStopRuntime();
-            });
+        _editorStopHandle = GAME->Get_DelegateHub().OnEditorStopRuntime.Add(this, &AIController::On_EditorStopRuntime);
     }
 }
 

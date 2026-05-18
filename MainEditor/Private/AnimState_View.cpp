@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "AnimState_View.h"
 #include "Animation_NameUtils.h"
 #include "ContainerObject.h"
@@ -511,6 +511,7 @@ void AnimState_View::Ensure_PreviewRenderTarget(uint32 width, uint32 height)
     if (_previewRenderTarget == nullptr)
     {
         _previewRenderTarget = RenderTarget::Create(
+            L"RenderTarget",
             GAME->Get_Device(),
             GAME->Get_Context(),
             width,

@@ -93,6 +93,15 @@ private:
         chrono::milliseconds totalDuration{ 0 };
     };
 
+    struct LoadProcessStats
+    {
+        size_t count = 0;
+        chrono::milliseconds totalDuration{ 0 };
+        chrono::milliseconds scheduleDuration{ 0 };
+        chrono::milliseconds commitDuration{ 0 };
+        chrono::milliseconds finishDuration{ 0 };
+    };
+
     struct CompletedLoadJob
     {
         FLoadJob loadJob{};
@@ -117,6 +126,7 @@ private:
     atomic<bool>                _isFinished = false;
     atomic<bool>                _hasFailed = false;
     atomic<bool>                _includedStaticJobs = false;
+    bool                        _printedLoadSummary = false;
 
     wchar_t						_loadingText[MAX_PATH] = {};
 
@@ -129,6 +139,7 @@ private:
     atomic<size_t>      _completedJobCount = 0;
 
     array<LoadJobStats, static_cast<size_t>(ELoadJobType::Unknown) + 1> _loadJobStats = {};
+    LoadProcessStats _loadProcessStats = {};
 
 private:
     // worker thread에서 prototype 생성이 끝난 job들

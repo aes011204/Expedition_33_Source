@@ -4,6 +4,7 @@
 #include "GameObject.h"
 #include "Client_Defines.h"
 #include "ContainerObject.h"
+#include "Inspector.h"
 #include "PartObject.h"
 
 Hierarchy_View::Hierarchy_View()
@@ -145,6 +146,18 @@ bool Hierarchy_View::Pass_SearchFilter(const Shared<GameObject>& gameObject, uin
     return label.find(_searchFilter) != string::npos;
 }
 
+bool Hierarchy_View::Pass_LightingSearchFilter() const
+{
+    if (_searchFilter.empty())
+        return true;
+
+    return string("Lighting").find(_searchFilter) != string::npos ||
+        string("Light").find(_searchFilter) != string::npos ||
+        string("Directional Light").find(_searchFilter) != string::npos ||
+        string("Primary Shadow Light").find(_searchFilter) != string::npos ||
+        string("Shadow").find(_searchFilter) != string::npos;
+}
+
 uint32 Hierarchy_View::Get_TotalObjectCount() const
 {
     uint32 totalCount = 0;
@@ -187,9 +200,8 @@ void Hierarchy_View::Render()
         _isFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows);
         Handle_Shortcuts();
 
-        const Shared<GameObject> selectedObject = EDITOR->Selected_Object();
-
         Draw_SearchBar();
+        Draw_LightingNode();
 
         if (_groupedObjects.empty())
         {
@@ -280,11 +292,19 @@ void Hierarchy_View::Draw_NodeObject(const Shared<GameObject>& gameObject, uint3
 
     if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen())
     {
+        _isPrimaryShadowLightSelected = false;
+        if (Shared<Inspector> inspector = dynamic_pointer_cast<Inspector>(EDITOR->Get_Window(L"Inspector")))
+            inspector->Set_PrimaryShadowLightTarget(false);
+
         EDITOR->Select_Object(gameObject);
     }
 
     if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
     {
+        _isPrimaryShadowLightSelected = false;
+        if (Shared<Inspector> inspector = dynamic_pointer_cast<Inspector>(EDITOR->Get_Window(L"Inspector")))
+            inspector->Set_PrimaryShadowLightTarget(false);
+
         EDITOR->Select_Object(gameObject);
         EDITOR->Request_FocusObject(gameObject);
         EDITOR->Request_WindowFocus(EDITOR_VIEWPORT_TARGET::Scene);
@@ -312,11 +332,19 @@ void Hierarchy_View::Draw_NodeObject(const Shared<GameObject>& gameObject, uint3
 
             if (ImGui::IsItemClicked())
             {
+                _isPrimaryShadowLightSelected = false;
+                if (Shared<Inspector> inspector = dynamic_pointer_cast<Inspector>(EDITOR->Get_Window(L"Inspector")))
+                    inspector->Set_PrimaryShadowLightTarget(false);
+
                 EDITOR->Select_Object(partObject);
             }
 
             if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
             {
+                _isPrimaryShadowLightSelected = false;
+                if (Shared<Inspector> inspector = dynamic_pointer_cast<Inspector>(EDITOR->Get_Window(L"Inspector")))
+                    inspector->Set_PrimaryShadowLightTarget(false);
+
                 EDITOR->Select_Object(partObject);
                 EDITOR->Request_FocusObject(partObject);
                 EDITOR->Request_WindowFocus(EDITOR_VIEWPORT_TARGET::Scene);
@@ -328,6 +356,50 @@ void Hierarchy_View::Draw_NodeObject(const Shared<GameObject>& gameObject, uint3
     }
 
     ImGui::PopID();
+}
+
+void Hierarchy_View::Draw_LightingNode()
+{
+    if (!Pass_LightingSearchFilter())
+        return;
+
+    ImGuiTreeNodeFlags rootFlags = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth;
+    if (ImGui::TreeNodeEx(ICON_FA_SUN " Lighting", rootFlags))
+    {
+        const bool hasLight = (GAME->Get_LightCount() > 0);
+
+        if (!hasLight)
+        {
+            ImGui::TextDisabled("No Light");
+        }
+        else
+        {
+            const bool isSelected = _isPrimaryShadowLightSelected && EDITOR->Selected_Object() == nullptr;
+
+            ImGuiTreeNodeFlags itemFlags =
+                ImGuiTreeNodeFlags_Leaf |
+                ImGuiTreeNodeFlags_NoTreePushOnOpen |
+                ImGuiTreeNodeFlags_SpanAvailWidth;
+
+            if (isSelected)
+                itemFlags |= ImGuiTreeNodeFlags_Selected;
+
+            ImGui::TreeNodeEx(ICON_FA_LIGHTBULB " Primary Shadow Light", itemFlags);
+
+            if (ImGui::IsItemClicked())
+            {
+                EDITOR->Clear_SelectedObject();
+                _isPrimaryShadowLightSelected = true;
+
+                if (Shared<Inspector> inspector = dynamic_pointer_cast<Inspector>(EDITOR->Get_Window(L"Inspector")))
+                    inspector->Set_PrimaryShadowLightTarget(true);
+            }
+        }
+
+        ImGui::TreePop();
+    }
+
+    ImGui::Separator();
 }
 
 Shared<Hierarchy_View> Hierarchy_View::Create()

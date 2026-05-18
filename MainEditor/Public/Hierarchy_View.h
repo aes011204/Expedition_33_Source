@@ -21,7 +21,10 @@ private:
     void    Rebuild_Cache();
     void    Handle_Shortcuts();
     bool    Pass_SearchFilter(const Shared<GameObject>& gameObject, uint32 objectIndex) const;
+    bool    Pass_LightingSearchFilter() const;
     uint32  Get_TotalObjectCount() const;
+
+    void    Draw_LightingNode();
 
     // PartObject 하이어라이키 노출을 위한 함수
     void    Draw_NodeObject(const Shared<GameObject>& gameObject, uint32 objectIndex);
@@ -36,6 +39,7 @@ private:
     uint32  _cachedLevelIndex = UINT32_MAX;
     uint64  _cachedObjectRevision = UINT64_MAX;
     bool    _dirtyHierarchyCache = true;
+    bool    _isPrimaryShadowLightSelected = false;
 
 public:
     static Shared<Hierarchy_View> Create();
