@@ -117,6 +117,10 @@ private:
     uint32                          _staticShadowMapHeight = 4096;
 
 
+private:
+    void Reset_RenderCall();
+    void Add_RenderCall(uint32 count = 1);
+
 #ifdef _DEBUG
 private:
     struct PerfCounter
@@ -142,9 +146,6 @@ private:
     };
 
     RenderPerfWindow _renderPerfWindow{};
-
-    void Reset_RenderCall();
-    void Add_RenderCall(uint32 count = 1);
 
     void Accumulate_RenderPerf(
         double renderMs,

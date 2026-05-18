@@ -49,7 +49,7 @@ cbuffer DeferredBuffer
     float4  g_DeferredCamPosition;                  // 272
 
     float   g_DeferredFar;                          // 276
-    float2  g_ScreenSize;                           // 284
+    float2  g_TexelSize;                            // 284
     float   g_DeferredPadding0;                     // 288
 };
 
@@ -105,13 +105,16 @@ cbuffer PostProcessBuffer
     uint g_PP_ToneMapMode;      // 36 ~ 39
     float2 g_PP_BloomTexelSize; // 40 ~ 47
 
-    uint g_PP_FeatureMask;      // 48 ~ 51
-    float3 g_PP_Padding2;       // 52 ~ 63
-}; // 64 bytes
+    uint g_PP_FeatureMask;             // 48 ~ 51
+    uint g_PP_UseBackgroundFallback;   // 52 ~ 55
+    float2 g_PP_Padding2;              // 56 ~ 63
+
+    float4 g_PP_BackgroundFallbackColor; // 64 ~ 79
+}; // 80 bytes
 
 cbuffer cbSSAO
 {
-    float g_SSAORadius;
+    float g_SSAORadius;         
     float g_SSAOBias;
     float g_SSAOIntensity;
     float g_SSAOPower;

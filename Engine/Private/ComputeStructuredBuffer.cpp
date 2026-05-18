@@ -76,6 +76,35 @@ HRESULT ComputeStructuredBuffer::Copy_From(ID3D11Resource* source)
     return S_OK;
 }
 
+HRESULT ComputeStructuredBuffer::Read_Data(void* outData, uint32 elementCount)
+{
+    if (outData == nullptr || _buffer == nullptr || elementCount == 0 || elementCount > _elementCount)
+        return E_FAIL;
+
+    if (_readbackBuffer == nullptr)
+    {
+        D3D11_BUFFER_DESC readbackDesc{};
+        readbackDesc.ByteWidth = _elementSize * _elementCount;
+        readbackDesc.Usage = D3D11_USAGE_STAGING;
+        readbackDesc.BindFlags = 0;
+        readbackDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+        readbackDesc.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+        readbackDesc.StructureByteStride = _elementSize;
+
+        CHECK_FAILED(_device->CreateBuffer(&readbackDesc, nullptr, _readbackBuffer.GetAddressOf()), E_FAIL);
+    }
+
+    _context->CopyResource(_readbackBuffer.Get(), _buffer.Get());
+
+    D3D11_MAPPED_SUBRESOURCE mapped{};
+    CHECK_FAILED(_context->Map(_readbackBuffer.Get(), 0, D3D11_MAP_READ, 0, &mapped), E_FAIL);
+
+    memcpy(outData, mapped.pData, static_cast<size_t>(_elementSize) * elementCount);
+
+    _context->Unmap(_readbackBuffer.Get(), 0);
+    return S_OK;
+}
+
 HRESULT ComputeStructuredBuffer::Ready_Views()
 {
     // StructuredBuffer view는 typed format이 없으므로 DXGI_FORMAT_UNKNOWN을 사용한다.
@@ -119,6 +148,7 @@ Shared<ComputeStructuredBuffer> ComputeStructuredBuffer::Create(
 
 void ComputeStructuredBuffer::Free()
 {
+    _readbackBuffer.Reset();
     _uav.Reset();
     _srv.Reset();
     _buffer.Reset();

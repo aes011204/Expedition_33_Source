@@ -16,6 +16,7 @@
 #include "AnimNotify.h"
 #include "AnimNotifyState.h"
 #include "AnimState_Parser.h"
+#include "Channel.h"
 #include "ComputeShaderCom.h"
 #include "GameObject.h"
 
@@ -41,7 +42,6 @@ ModelCom::ModelCom(const ModelCom& prototype)
     , _materials{ prototype._materials }
     , _sourceModelPath{ prototype._sourceModelPath }
     , _isAnimationPaused{ prototype._isAnimationPaused }
-    , _collisionMeshes{ prototype._collisionMeshes }
     , _stateAnimIndices{ prototype._stateAnimIndices }
     , _animEnumType{ prototype._animEnumType }
     , _mappedAnimIndices{ prototype._mappedAnimIndices }
@@ -242,6 +242,12 @@ const Matrix* ModelCom::Get_BoneMatrixPtr(uint32 boneIndex) const
 {
     if (boneIndex >= _numBones)
         return nullptr;
+
+    if (!_computeCombinedBoneMatrices.empty())
+    {
+        if (boneIndex < _computeCombinedBoneMatrices.size())
+            return &_computeCombinedBoneMatrices[boneIndex];
+    }
 
     if (_leaderPoseModel != nullptr && !_leaderPoseCombinedMatrices.empty())
     {
@@ -800,109 +806,12 @@ HRESULT ModelCom::RenderInstanced(uint32 meshIndex, Buffer* instanceVB, uint32 i
 
 bool ModelCom::Play_Animation(float timeDelta)
 {
-    float adjustedTimeDelta = timeDelta * _frameSpeed;
+    AnimPipelineContext context{};
+    Begin_AnimationPipeline(timeDelta, context);
 
-    if (!_isSkeletal || _animations.empty()) return false;
-
-    if (_isAnimationPaused)
-    {
-        Refresh_CurrentAnimationPose();
-        return false;
-    }
-
-    const float previousTimeSec = Get_CurrentAnimationTimeSec();
-
-    int32 rootIndex = _isRootMotion ? _rootNodeIndex : -1;
-
-    {
-        Debug_Profile::Scope profileScope("AnimMesh::PlayAnimation::UpdateMatrices");
-
-        if (_isBlending)
-        {
-            _blendElapsedTime += adjustedTimeDelta;
-            float ratio = _blendElapsedTime / _blendDuration;
-
-            if (ratio >= 1.f)
-            {
-                _isBlending = false;
-                _currentAnimIndex = _nextAnimIndex;
-                _currentAnimStateIndex = _nextAnimStateIndex;
-                _isFinished = _animations[_currentAnimIndex]->Update_TransformationMatrices(adjustedTimeDelta, _bones, _isAnimLoop, rootIndex);
-                _rootOriginalFrameVelocity = rootIndex >= 0 ? _animations[_currentAnimIndex]->Get_TransformVelocity(rootIndex) : RootMotionFrame{};
-            }
-            else
-            {
-                _animations[_currentAnimIndex]->Blend_TransformMatrix(adjustedTimeDelta, _animations[_nextAnimIndex], ratio, _bones, _isAnimLoop, rootIndex);
-
-                if (rootIndex >= 0)
-                {
-                    const auto& curDelta = _animations[_currentAnimIndex]->Get_TransformVelocity(rootIndex);
-                    const auto& nextDelta = _animations[_nextAnimIndex]->Get_TransformVelocity(rootIndex);
-                    _rootOriginalFrameVelocity.position = Vector3::Lerp(curDelta.position, nextDelta.position, ratio);
-                    _rootOriginalFrameVelocity.rotation = Quaternion::Slerp(curDelta.rotation, nextDelta.rotation, ratio);
-                }
-            }
-        }
-        else
-        {
-            _isFinished = _animations[_currentAnimIndex]->Update_TransformationMatrices(adjustedTimeDelta, _bones, _isAnimLoop, rootIndex);
-            _rootOriginalFrameVelocity = (rootIndex >= 0) ? _animations[_currentAnimIndex]->Get_TransformVelocity(rootIndex) : RootMotionFrame{};
-        }
-    }
-
-    if (rootIndex >= 0)
-    {
-        _rootOriginalFrameVelocity.position = Vec3::TransformNormal(_rootOriginalFrameVelocity.position, _preLocalTransformMatrix);
-        auto temp = _rootOriginalFrameVelocity.position.z;
-        _rootOriginalFrameVelocity.position.z = -_rootOriginalFrameVelocity.position.y;
-        _rootOriginalFrameVelocity.position.y = temp;
-    }
-
-    {
-        Debug_Profile::Scope profileScope("AnimMesh::PlayAnimation::CombinedBones");
-
-        for (uint32 i = 0; i < _numBones; ++i)
-        {
-            _bones[i]->Update_CombinedTransformationMatrix(_bones, _preLocalTransformMatrix);
-        }
-    }
-
-    Mark_BoneMatricesDirty();
-
-    const float currentTimeSec = Get_CurrentAnimationTimeSec();
-    const bool wrapped = (_isAnimLoop && currentTimeSec < previousTimeSec);
-
-    {
-        Debug_Profile::Scope profileScope("AnimMesh::PlayAnimation::Notify");
-
-        if (Ensure_AnimNotifyAssetLoaded())
-        {
-            if (const AnimNotifyData* animationData = Find_CurrentNotifyAnimation())
-            {
-                AnimNotifyContext context{};
-                context.owner = Get_Owner().get();
-                context.model = this;
-                context.modelGuid = _animNotifyAsset.modelGuid;
-                context.animationName = Get_AnimationName(_currentAnimIndex) ? Get_AnimationName(_currentAnimIndex) : "";
-                context.previousTimeSec = previousTimeSec;
-                context.currentTimeSec = currentTimeSec;
-                context.deltaTime = adjustedTimeDelta;
-                context.isLooping = _isAnimLoop;
-                context.wrapped = wrapped;
-                context.isPreview = !_isAnimNotifyExecutionEnabled;
-
-                Update_AnimNotifies(*animationData, context, _isAnimNotifyExecutionEnabled);
-                Update_AnimNotifyStates(*animationData, context, _isAnimNotifyExecutionEnabled);
-            }
-        }
-    }
-
-    {
-        Debug_Profile::Scope profileScope("AnimMesh::PlayAnimation::StopNotifyStates");
-
-        if (_isFinished && !_isAnimLoop)
-            Stop_AllNotifyStates(_isAnimNotifyExecutionEnabled);
-    }
+    Step_SampleAnimationPose(context);
+    Step_RebuildCombinedBones();
+    Step_FinalizeAnimationFrame(context);
 
     return _isFinished;
 }
@@ -1426,6 +1335,8 @@ void ModelCom::Set_LeaderPoseComponent(const ModelCom* leaderModel)
     _leaderPoseCombinedMatrices.clear();
     _leaderPoseRequiredBones.clear();
 
+    _leaderPoseLastSyncedGeneration = UINT64_MAX;
+
     if (nullptr == _leaderPoseModel || !_isSkeletal || !_leaderPoseModel->Is_Skeletal())
         return;
 
@@ -1451,6 +1362,8 @@ void ModelCom::Clear_LeaderPoseComponent()
     _leaderPoseCombinedMatrices.clear();
     _leaderPoseRequiredBones.clear();
 
+    _leaderPoseLastSyncedGeneration = UINT64_MAX;
+
     _leaderPoseMatricesValid = false;
     Mark_BoneMatricesDirty();
 }
@@ -1458,142 +1371,28 @@ void ModelCom::Clear_LeaderPoseComponent()
 void ModelCom::Update_LeaderPoseMatrices()
 {
     Debug_Profile::Scope profileScope("AnimMesh::UpdateLeaderPose");
-
     if (nullptr == _leaderPoseModel || _leaderPoseBoneMap.empty())
         return;
 
-    vector<uint8> visited(_numBones, 0);
+    // leader가 이번 프레임에 bone을 갱신하지 않았으면 재계산 스킵
+    const uint64 leaderGen = _leaderPoseModel->_boneUpdateGeneration;
+     if (leaderGen == _leaderPoseLastSyncedGeneration)
+        return;
+
+    _leaderPoseLastSyncedGeneration = leaderGen;
+
+    _leaderPoseVisited.assign(_numBones, 0);
 
     if (_leaderPoseRequiredBones.empty())
         Build_LeaderPoseRequiredBones();
 
     for (uint32 boneIndex : _leaderPoseRequiredBones)
     {
-        Build_LeaderPoseMatrix(boneIndex, visited);
+        Build_LeaderPoseMatrix(boneIndex, _leaderPoseVisited);
     }
 
     _leaderPoseMatricesValid = true;
     Mark_BoneMatricesDirty();
-}
-
-bool ModelCom::Build_CollisoinProxies_FromSourceJson(const fs::path& jsonPath)
-{
-    if (!fs::exists(jsonPath))
-        return false;
-
-    ifstream ifs(jsonPath);
-    if (!ifs.is_open())
-        return false;
-
-    json root = json::parse(ifs, nullptr, false);
-    if (root.is_discarded() || !root.is_array())
-        return false;
-
-    bool addedAny = false;
-
-    for (const json& entry : root)
-    {
-        if (entry.value("Type", "") != "BodySetup")
-            continue;
-
-        const json* props = entry.contains("Properties") ? &entry["Properties"] : nullptr;
-        if (props == nullptr || !props->is_object())
-            continue;
-
-        const string traceFlag = props->value("CollisionTraceFlag", "");
-
-        // 보수 정책:
-        // 1) UseComplexAsSimple 자산은 기존 tri mesh를 유지한다.
-        // 2) primitive(Box/Sphere/Capsule)만 simple proxy로 사용한다.
-        // 3) ConvexElems는 충돌 범위가 너무 거칠어져 투명벽이 생길 수 있어 v1에서는 쓰지 않는다.
-        if (traceFlag == "ECollisionTraceFlag::CTF_UseComplexAsSimple")
-            continue;
-
-        if (!props->contains("AggGeom") || !(*props)["AggGeom"].is_object())
-            continue;
-
-        const json& aggGeom = (*props)["AggGeom"];
-
-        auto appendBox = [&](const json& boxElem)
-            {
-                ModelCollisionProxy proxy{};
-                proxy.type = ModelCollisionProxyType::Box;
-                proxy.center = Vec3(
-                    boxElem["Center"].value("X", 0.f),
-                    boxElem["Center"].value("Y", 0.f),
-                    boxElem["Center"].value("Z", 0.f));
-                proxy.rotation = Quat::CreateFromYawPitchRoll(
-                    XMConvertToRadians(boxElem["Rotation"].value("Yaw", 0.f)),
-                    XMConvertToRadians(boxElem["Rotation"].value("Pitch", 0.f)),
-                    XMConvertToRadians(boxElem["Rotation"].value("Roll", 0.f)));
-                proxy.extents = Vec3(
-                    boxElem.value("X", 0.f) * 0.5f,
-                    boxElem.value("Y", 0.f) * 0.5f,
-                    boxElem.value("Z", 0.f) * 0.5f);
-                _collisionProxies.push_back(std::move(proxy));
-                addedAny = true;
-            };
-
-        auto appendSphere = [&](const json& sphereElem)
-            {
-                ModelCollisionProxy proxy{};
-                proxy.type = ModelCollisionProxyType::Sphere;
-                proxy.center = Vec3(
-                    sphereElem["Center"].value("X", 0.f),
-                    sphereElem["Center"].value("Y", 0.f),
-                    sphereElem["Center"].value("Z", 0.f));
-                proxy.radius = sphereElem.value("Radius", 0.f);
-                _collisionProxies.push_back(std::move(proxy));
-                addedAny = true;
-            };
-
-        auto appendCapsule = [&](const json& sphylElem)
-            {
-                ModelCollisionProxy proxy{};
-                proxy.type = ModelCollisionProxyType::Capsule;
-                proxy.center = Vec3(
-                    sphylElem["Center"].value("X", 0.f),
-                    sphylElem["Center"].value("Y", 0.f),
-                    sphylElem["Center"].value("Z", 0.f));
-                proxy.rotation = Quat::CreateFromYawPitchRoll(
-                    XMConvertToRadians(sphylElem["Rotation"].value("Yaw", 0.f)),
-                    XMConvertToRadians(sphylElem["Rotation"].value("Pitch", 0.f)),
-                    XMConvertToRadians(sphylElem["Rotation"].value("Roll", 0.f)));
-                proxy.radius = sphylElem.value("Radius", 0.f);
-                proxy.halfHeight = max(0.f, sphylElem.value("Length", 0.f) * 0.5f - proxy.radius);
-                _collisionProxies.push_back(std::move(proxy));
-                addedAny = true;
-            };
-
-        if (aggGeom.contains("BoxElems"))
-            for (const json& boxElem : aggGeom["BoxElems"])
-                appendBox(boxElem);
-
-        if (aggGeom.contains("SphereElems"))
-            for (const json& sphereElem : aggGeom["SphereElems"])
-                appendSphere(sphereElem);
-
-        if (aggGeom.contains("SphylElems"))
-            for (const json& sphylElem : aggGeom["SphylElems"])
-                appendCapsule(sphylElem);
-    }
-
-    return addedAny;
-}
-
-void ModelCom::Build_FallbackTriangleCollisionProxies()
-{
-    _collisionProxies.clear();
-
-    for (const ModelCollisionMesh& mesh : _collisionMeshes)
-    {
-        ModelCollisionProxy proxy{};
-        proxy.type = ModelCollisionProxyType::TriangleMesh;
-        proxy.name = mesh.name;
-        proxy.positions = mesh.positions;
-        proxy.indices = mesh.indices;
-        _collisionProxies.push_back(std::move(proxy));
-    }
 }
 
 void ModelCom::Build_LeaderPoseRequiredBones()
@@ -1652,6 +1451,7 @@ void ModelCom::Mark_LeaderPoseRequiredBone(uint32 boneIndex, vector<uint8>& requ
 
 void ModelCom::Mark_BoneMatricesDirty()
 {
+    ++_boneUpdateGeneration;
     _boneMatricesDirty = true;
     _boneMatrixBuffersDirty = true;
     _computeSkinningDirty = true;
@@ -1905,6 +1705,201 @@ HRESULT ModelCom::Ensure_MeshBoneMatrixBuffers()
     return S_OK;
 }
 
+void ModelCom::Begin_AnimationPipeline(float timeDelta, AnimPipelineContext& outContext)
+{
+    outContext.timeDelta = timeDelta;
+    outContext.adjustedTimeDelta = timeDelta * _frameSpeed;
+    outContext.previousTimeSec = Get_CurrentAnimationTimeSec();
+    outContext.rootIndex = _isRootMotion ? _rootNodeIndex : -1;
+}
+
+bool ModelCom::Step_SampleAnimationPose(const AnimPipelineContext& context)
+{
+    if (!_isSkeletal || _animations.empty())
+        return false;
+
+    if (_isAnimationPaused)
+    {
+        Refresh_CurrentAnimationPose();
+        return false;
+    }
+
+    if (_isBlending)
+    {
+        _blendElapsedTime += context.adjustedTimeDelta;
+        const float ratio = _blendElapsedTime / _blendDuration;
+
+        if (ratio >= 1.f)
+        {
+            _isBlending = false;
+            _currentAnimIndex = _nextAnimIndex;
+            _currentAnimStateIndex = _nextAnimStateIndex;
+
+            _isFinished = _animations[_currentAnimIndex]->Update_TransformationMatrices(
+                context.adjustedTimeDelta,
+                _bones,
+                _isAnimLoop,
+                context.rootIndex);
+
+            _rootOriginalFrameVelocity =
+                (context.rootIndex >= 0)
+                ? _animations[_currentAnimIndex]->Get_TransformVelocity(context.rootIndex)
+                : RootMotionFrame{};
+        }
+        else
+        {
+            _animations[_currentAnimIndex]->Blend_TransformMatrix(
+                context.adjustedTimeDelta,
+                _animations[_nextAnimIndex],
+                ratio,
+                _bones,
+                _isAnimLoop,
+                context.rootIndex);
+
+            if (context.rootIndex >= 0)
+            {
+                const auto& curDelta = _animations[_currentAnimIndex]->Get_TransformVelocity(context.rootIndex);
+                const auto& nextDelta = _animations[_nextAnimIndex]->Get_TransformVelocity(context.rootIndex);
+
+                _rootOriginalFrameVelocity.position = Vector3::Lerp(curDelta.position, nextDelta.position, ratio);
+                _rootOriginalFrameVelocity.rotation = Quaternion::Slerp(curDelta.rotation, nextDelta.rotation, ratio);
+            }
+        }
+    }
+    else
+    {
+        _isFinished = _animations[_currentAnimIndex]->Update_TransformationMatrices(
+            context.adjustedTimeDelta,
+            _bones,
+            _isAnimLoop,
+            context.rootIndex);
+
+        _rootOriginalFrameVelocity =
+            (context.rootIndex >= 0)
+            ? _animations[_currentAnimIndex]->Get_TransformVelocity(context.rootIndex)
+            : RootMotionFrame{};
+    }
+
+    return _isFinished;
+}
+
+void ModelCom::Step_FinalizeAnimationFrame(const AnimPipelineContext& context)
+{
+    if (context.rootIndex >= 0)
+    {
+        _rootOriginalFrameVelocity.position =
+            Vec3::TransformNormal(_rootOriginalFrameVelocity.position, _preLocalTransformMatrix);
+
+        const float temp = _rootOriginalFrameVelocity.position.z;
+        _rootOriginalFrameVelocity.position.z = -_rootOriginalFrameVelocity.position.y;
+        _rootOriginalFrameVelocity.position.y = temp;
+    }
+
+    Mark_BoneMatricesDirty();
+
+    const float currentTimeSec = Get_CurrentAnimationTimeSec();
+    const bool wrapped = (_isAnimLoop && currentTimeSec < context.previousTimeSec);
+
+    {
+        Debug_Profile::Scope profileScope("AnimMesh::PlayAnimation::Notify");
+
+        if (Ensure_AnimNotifyAssetLoaded())
+        {
+            if (const AnimNotifyData* animationData = Find_CurrentNotifyAnimation())
+            {
+                AnimNotifyContext notifyContext{};
+                notifyContext.owner = Get_Owner().get();
+                notifyContext.model = this;
+                notifyContext.modelGuid = _animNotifyAsset.modelGuid;
+                notifyContext.animationName = Get_AnimationName(_currentAnimIndex) ? Get_AnimationName(_currentAnimIndex) : "";
+                notifyContext.previousTimeSec = context.previousTimeSec;
+                notifyContext.currentTimeSec = currentTimeSec;
+                notifyContext.deltaTime = context.adjustedTimeDelta;
+                notifyContext.isLooping = _isAnimLoop;
+                notifyContext.wrapped = wrapped;
+                notifyContext.isPreview = !_isAnimNotifyExecutionEnabled;
+
+                Update_AnimNotifies(*animationData, notifyContext, _isAnimNotifyExecutionEnabled);
+                Update_AnimNotifyStates(*animationData, notifyContext, _isAnimNotifyExecutionEnabled);
+            }
+        }
+    }
+
+    {
+        Debug_Profile::Scope profileScope("AnimMesh::PlayAnimation::StopNotifyStates");
+
+        if (_isFinished && !_isAnimLoop)
+            Stop_AllNotifyStates(_isAnimNotifyExecutionEnabled);
+    }
+}
+
+void ModelCom::Step_RebuildCombinedBones()
+{
+    Debug_Profile::Scope profileScope("AnimMesh::PlayAnimation::CombinedBones");
+
+    for (uint32 i = 0; i < _numBones; ++i)
+        _bones[i]->Update_CombinedTransformationMatrix(_bones, _preLocalTransformMatrix);
+}
+
+HRESULT ModelCom::Step_PrepareBoneBuffers()
+{
+    return Prepare_BoneMatrixBuffers();
+}
+
+HRESULT ModelCom::Step_ComputeSkinning(ComputeShaderCom* computeShader)
+{
+    return Prepare_ComputeSkinning(computeShader);
+}
+
+void ModelCom::Set_ComputeCombinedBoneMatrices(const vector<Matrix>& combinedBones)
+{
+    _computeCombinedBoneMatrices = combinedBones;
+}
+
+void ModelCom::Clear_ComputeCombinedBoneMatrices()
+{
+    _computeCombinedBoneMatrices.clear();
+}
+
+HRESULT ModelCom::Ensure_AnimationComputeSource()
+{
+    if (_computeAnimationSource.meshBoneRefBuffers.size() == _meshes.size())
+        return S_OK;
+
+    _computeAnimationSource = {};
+
+    _computeAnimationSource.meshBoneRefs.resize(_meshes.size());
+    _computeAnimationSource.meshBoneRefBuffers.resize(_meshes.size());
+
+    for (uint32 meshIndex = 0; meshIndex < _meshes.size(); ++meshIndex)
+    {
+        const Shared<SkeletalMesh> skeletalMesh =
+            dynamic_pointer_cast<SkeletalMesh>(_meshes[meshIndex]);
+
+        if (skeletalMesh == nullptr)
+            continue;
+
+        auto& refs = _computeAnimationSource.meshBoneRefs[meshIndex];
+        CHECK_FAILED(skeletalMesh->Build_ComputeMeshBoneRefs(refs), E_FAIL);
+
+        if (!refs.empty())
+        {
+            _computeAnimationSource.meshBoneRefBuffers[meshIndex] =
+                ComputeStructuredBuffer::Create(
+                    _device,
+                    _context,
+                    sizeof(AnimComputeMeshBoneRef),
+                    static_cast<uint32>(refs.size()),
+                    refs.data());
+
+            if (_computeAnimationSource.meshBoneRefBuffers[meshIndex] == nullptr)
+                return E_FAIL;
+        }
+    }
+
+    return S_OK;
+}
+
 HRESULT ModelCom::Ready_Model(const char* modelPath)
 {
     std::string resolvedPath(modelPath);
@@ -2025,25 +2020,6 @@ HRESULT ModelCom::Ready_Model(const char* modelPath)
         stream.read(reinterpret_cast<char*>(idxBuffer.data()), sizeof(uint32) * meshData.numIndices);
         meshData.indices = idxBuffer.data();
 
-        // StaticMesh용 PhysX collision CPU 데이터 보관
-        if (!_isSkeletal && meshData.numVertices > 0 && meshData.numIndices >= 3)
-        {
-            VTXMESH* vertices = reinterpret_cast<VTXMESH*>(vtxBuffer.data());
-
-            ModelCollisionMesh collisionMesh{};
-            collisionMesh.name = meshData.name;
-            collisionMesh.positions.reserve(meshData.numVertices);
-            collisionMesh.indices.reserve(meshData.numIndices);
-
-            for (uint32 vertexIndex = 0; vertexIndex < meshData.numVertices; ++vertexIndex)
-                collisionMesh.positions.push_back(vertices[vertexIndex].position);
-
-            for (uint32 index : idxBuffer)
-                collisionMesh.indices.push_back(index);
-
-            _collisionMeshes.push_back(std::move(collisionMesh));
-        }
-
         vector<uint32> boneRefs;
         vector<Matrix> offsets;
 
@@ -2116,16 +2092,6 @@ HRESULT ModelCom::Ready_Model(const char* modelPath)
         _localBoundsMax = maxBounds;
     }
     stream.close();
-
-    // Proxy 충돌체
-    const fs::path sourceJsonPath = fs::path(modelPath).replace_extension(".json");
-    _collisionProxies.clear();
-
-    if (!Build_CollisoinProxies_FromSourceJson(sourceJsonPath))
-    {
-        // json파일 못찾으면, 그냥 메쉬 자체 읽어서 triangle 로 생성
-        Build_FallbackTriangleCollisionProxies();
-    }
 
     return S_OK;
 }
@@ -2253,7 +2219,8 @@ void ModelCom::Reset_ModelData()
     _animations.clear();
     _stateAnimIndices.clear();
     _mappedAnimIndices.clear();
-    _collisionMeshes.clear();
+    _computeAnimationSource = {};
+    _computeCombinedBoneMatrices.clear();
 
     _isFinished = false;
     _isAnimLoop = false;

@@ -162,6 +162,7 @@
     <ClInclude Include="..\Public\AN_Test2.h" />
     <ClInclude Include="..\public\Base_Mon_Attack.h" />
     <ClInclude Include="..\Public\BattleTurnCamera.h" />
+    <ClInclude Include="..\Public\MapStaticCollisionBuilder.h" />
     <ClInclude Include="..\Public\PB_Gustave.h" />
     <ClInclude Include="..\Public\MB_Lancelier.h" />
     <ClInclude Include="..\Public\PB_Lune.h" />
@@ -315,6 +316,7 @@
     <ClCompile Include="..\Private\AN_Test2.cpp" />
     <ClCompile Include="..\private\Base_Mon_Attack.cpp" />
     <ClCompile Include="..\Private\BattleTurnCamera.cpp" />
+    <ClCompile Include="..\Private\MapStaticCollisionBuilder.cpp" />
     <ClCompile Include="..\Private\PB_Gustave.cpp" />
     <ClCompile Include="..\Private\MB_Lancelier.cpp" />
     <ClCompile Include="..\Private\PB_Lune.cpp" />
@@ -459,7 +461,13 @@
     <ClCompile Include="..\Private\Weapon.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimBlend.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimEvaluate.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimMeshSkinning.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimMix.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_BoneCombine.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_BoneRemap.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_InstanceCull.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_PointParticle.hlsl">
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">CS_Main</EntryPointName>

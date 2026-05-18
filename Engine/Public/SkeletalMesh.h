@@ -3,6 +3,8 @@
 
 NS_BEGIN(Engine)
 
+struct AnimComputeMeshBoneRef;
+
 class ENGINE_DLL SkeletalMesh final : public Mesh
 {
 public:
@@ -20,6 +22,8 @@ public:
 
     HRESULT Build_MeshBoneMatrices(const vector<Matrix>& combinedMatrices,
         vector<Matrix>& outBoneMatrices) const override;
+
+    HRESULT Build_ComputeMeshBoneRefs(vector<AnimComputeMeshBoneRef>& outRefs) const;
 
     uint32 Get_NumBoneRefs() const override { return _numBones; }
     const vector<uint32>& Get_BoneIndices() const override { return _boneIndices; }

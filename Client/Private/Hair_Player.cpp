@@ -8,10 +8,12 @@
 #include "Debug_Profile.h"
 
 Hair_Player::Hair_Player(const ComPtr<Device>& device, const ComPtr<Context>& context)
-    : PlayableParts{ device, context } {}
+    : PlayableParts{ device, context } {
+}
 
 Hair_Player::Hair_Player(const Hair_Player& prototype)
-    : PlayableParts{ prototype } {}
+    : PlayableParts{ prototype } {
+}
 
 HRESULT Hair_Player::Initialize_Prototype()
 {
@@ -45,7 +47,7 @@ HRESULT Hair_Player::Initialize(void* arg)
 void Hair_Player::BeginPlay()
 {
     PlayableParts::BeginPlay();
-    
+
 }
 
 void Hair_Player::Priority_Update(float timeDelta)
@@ -66,7 +68,7 @@ void Hair_Player::Update(float timeDelta)
         _hairPhysics.Initialize(_modelCom.get(), _hairPhysicsDesc);
         _hairPhysicsReady = _hairPhysics.Is_Built();
     }
-         
+
     Vec3 ownerVelocity = Vec3::Zero;
     if (const Shared<GameObject> owner = Get_Owner())
     {
@@ -76,11 +78,51 @@ void Hair_Player::Update(float timeDelta)
 
     if (_hairPhysicsReady)
     {
-        Debug_Profile::Scope physicsScope("Player::Hair::Physics");
-        _hairPhysics.Simulate(_modelCom.get(), timeDelta, _combinedWorldMatrix, ownerVelocity);
-    }
+        // 카메라 거리 기반 추가
+        const Vec4* camPos = GAME->Get_CamPosition();
+        float dist = 0.f;
+        if (camPos)
+        {
+            const Vec3 hairPos(_combinedWorldMatrix._41, _combinedWorldMatrix._42, _combinedWorldMatrix._43);
+            dist = Vec3::Distance(hairPos, Vec3(camPos->x, camPos->y, camPos->z));
+        }
 
-    CHECK_FAILED(_modelCom->Prepare_BoneMatrixBuffers());
+        bool doSimulate = false;
+
+
+        if (dist <= 8.f)
+        {
+            // 매 프레임 simulate
+            doSimulate = true;
+        }
+        else if (dist <= 18.f)
+        {
+            _physicsTickAccumulator += timeDelta;
+            if (_physicsTickAccumulator >= _physicsTickIntervalSec)
+            {
+                _physicsTickAccumulator -= _physicsTickIntervalSec;
+                doSimulate = true;
+            }
+        }
+        else
+        {
+            // far: simulate 스킵, bone buffer는 유지
+            _physicsTickAccumulator = 0.f;
+        }
+        if (doSimulate)
+        {
+            Debug_Profile::Scope physicsScope("Player::Hair::Physics");
+            _hairPhysics.Simulate(_modelCom.get(), timeDelta, _combinedWorldMatrix, ownerVelocity);
+            _wasPhysicsSkipped = false;
+        }
+        else
+        {
+            _wasPhysicsSkipped = true;
+        }
+    }
+    // physics를 실제로 실행한 프레임에만 bone buffer 재업로드
+    if (!_wasPhysicsSkipped)
+        CHECK_FAILED(_modelCom->Prepare_BoneMatrixBuffers());
 }
 
 void Hair_Player::Late_Update(float timeDelta)

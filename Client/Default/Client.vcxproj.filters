@@ -564,6 +564,9 @@
     <ClInclude Include="..\public\UIPreviewManager.h">
       <Filter>02.GameObject\Camera\Preview\Manager</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\MapStaticCollisionBuilder.h">
+      <Filter>02.GameObject\Map</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -896,6 +899,9 @@
     <ClCompile Include="..\private\UIPreviewManager.cpp">
       <Filter>02.GameObject\Camera\Preview\Manager</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\MapStaticCollisionBuilder.cpp">
+      <Filter>02.GameObject\Map</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">
@@ -937,16 +943,31 @@
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMeshInstanceExact.hlsl">
       <Filter>97.ShaderFiles</Filter>
     </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_PostProcess.hlsl">
-      <Filter>97.ShaderFiles</Filter>
-    </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_InstanceCull.hlsl">
       <Filter>97.ShaderFiles\Compute</Filter>
     </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMaterialPreview.hlsl">
-      <Filter>97.ShaderFiles\Effect</Filter>
-    </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimMeshSkinning.hlsl">
+      <Filter>97.ShaderFiles\Compute</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_PostProcess.hlsl">
+      <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimEvaluate.hlsl">
+      <Filter>97.ShaderFiles\Compute</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimBlend.hlsl">
+      <Filter>97.ShaderFiles\Compute</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimMix.hlsl">
+      <Filter>97.ShaderFiles\Compute</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
+      <Filter>97.ShaderFiles\Compute</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_BoneCombine.hlsl">
+      <Filter>97.ShaderFiles\Compute</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_BoneRemap.hlsl">
       <Filter>97.ShaderFiles\Compute</Filter>
     </FxCompile>
   </ItemGroup>
