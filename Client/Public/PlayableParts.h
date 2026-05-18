@@ -28,8 +28,8 @@ public:
     const Matrix* Get_SocketBoneMatrixPtr(uint32 boneIndex) const;
     void Set_Animation(uint32 animIndex, float blendDuration, bool isLoop = false) const;
     void Set_Animation(uint32 animIndex, bool isLoop) const;
-    void Set_AnimationByState(uint32 stateIndex, float blendDuration, bool isLoop = false) const;
-    void Set_AnimationByState(uint32 stateIndex, bool isLoop) const;
+    bool Set_AnimationByState(uint32 stateIndex, float blendDuration, bool isLoop = false) const;
+    bool Set_AnimationByState(uint32 stateIndex, bool isLoop) const;
     uint32 Get_AnimationIndex() const;
     uint32 Get_AnimationStateIndex() const;
     float Get_AnimationProgress() const;

@@ -49,18 +49,18 @@ void PlayableParts::Set_Animation(uint32 animIndex, bool isLoop) const
     _modelCom->Set_Animation(animIndex, isLoop);
 }
 
-void PlayableParts::Set_AnimationByState(uint32 stateIndex, float blendDuration, bool isLoop) const
+bool PlayableParts::Set_AnimationByState(uint32 stateIndex, float blendDuration, bool isLoop) const
 {
-    if (nullptr == _modelCom) return;
+    if (nullptr == _modelCom) return false;
 
-    _modelCom->Set_AnimationByState(stateIndex, blendDuration, isLoop);
+    return _modelCom->Set_AnimationByState(stateIndex, blendDuration, isLoop);
 }
 
-void PlayableParts::Set_AnimationByState(uint32 stateIndex, bool isLoop) const
+bool PlayableParts::Set_AnimationByState(uint32 stateIndex, bool isLoop) const
 {
-    if (nullptr == _modelCom) return;
+    if (nullptr == _modelCom) return false;
 
-    _modelCom->Set_AnimationByState(stateIndex, isLoop);
+    return _modelCom->Set_AnimationByState(stateIndex, isLoop);
 }
 
 

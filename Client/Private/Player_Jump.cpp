@@ -44,19 +44,19 @@ void Player_Jump::Update(float timeDelta)
         {
             if (animIndex == ETOI(plAnim::Pl_JumpWalk) || animIndex == ETOI(plAnim::Pl_JumpRun))
             {
-                _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_Fall), 0.2f, true);
+                _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_Fall), 0.5f, true);
             }
         }
     }
     else
     {
-        if (animIndex != ETOI(plAnim::Pl_Land))
+        if (animIndex != ETOI(plAnim::Pl_LandLight))
         {
-            _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_Land), 0.2f, false);
+            _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_LandLight), 0.2f, false);
             return;
         }
 
-        if (animIndex == ETOI(plAnim::Pl_Land))
+        if (animIndex == ETOI(plAnim::Pl_LandLight))
         {
             if (Has_MoveInput())
                 _stateCom->Change_State(PlayerState::Move);
