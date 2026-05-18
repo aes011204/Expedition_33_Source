@@ -608,7 +608,7 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(EffectMaterialInstance
     {
         if (_detailPropertyContext.Begin_PropertyTable("EffectMaterialInstanceTexture"))
         {
-            changed |= Internal::Draw_TextureProperty(_detailPropertyContext, "Main Texture", material.mainTextureId, defaultData.mainTextureId);
+            changed |= Internal::Draw_TextureProperty(_detailPropertyContext, "Main Texture (Emissive)", material.mainTextureId, defaultData.mainTextureId);
             changed |= Internal::Draw_TextureProperty(_detailPropertyContext, "Noise Texture", material.noiseTextureId, defaultData.noiseTextureId);
             _detailPropertyContext.End_PropertyTable();
         }

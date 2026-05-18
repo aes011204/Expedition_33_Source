@@ -255,7 +255,7 @@ void EffectMaterial_View::Render_MaterialInstanceTable(const char* tableId, cons
         }
     };
 
-    drawTextureRow("Main Texture", material.mainTextureId);
+    drawTextureRow("Main Texture (Emissive)", material.mainTextureId);
     drawTextureRow("Noise Texture", material.noiseTextureId);
 
     ImGui::TableNextRow();

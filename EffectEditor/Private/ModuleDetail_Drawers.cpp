@@ -1,13 +1,14 @@
 ﻿#include "ModuleDetail_Drawers.h"
 
 #include <shobjidl.h>
-
 #include "EffectEditorInstance.h"
-#include "Helper_ReadPreset.h"
+#include "EffectEditor_Macro.h"
+#include "EffectMaterialInstance_View.h"
 #include "EffectMaterialPreviewRenderer.h"
 #include "EffectMaterial_View.h"
-#include "EffectMaterialInstance_View.h"
+#include "Helper_ReadPreset.h"
 #include "Helper_TextureFormat.h"
+#include "Notification_Manager.h"
 
 NS_BEGIN(EffectEditor)
 
@@ -16,6 +17,35 @@ namespace Internal
     constexpr const char* kEffectMaterialPayloadType = "CONTENT_BROWSER_EFFECT_MATERIAL";
     constexpr const wchar_t* kMaterialDialogDefaultFolder = L"../../../Client/Bin/Resources/Effects/Materials";
     constexpr float kMaterialFloatEpsilon = 0.0001f;
+
+    bool Uses_DirectionalAlignmentOptions(EmitterScreenAlignment alignment)
+    {
+        return alignment == EmitterScreenAlignment::AwayFromCenter ||
+               alignment == EmitterScreenAlignment::Velocity;
+    }
+
+    void Notify_DirectionalAlignmentModeChanged(EmitterScreenAlignment alignment, EmitterDirectionalAlignmentMode mode)
+    {
+        if (!Uses_DirectionalAlignmentOptions(alignment))
+            return;
+
+        const char* directionName = alignment == EmitterScreenAlignment::AwayFromCenter ? "Away from Center" : "Velocity";
+        const char* modeHelp = mode == EmitterDirectionalAlignmentMode::LookDirection
+                               ? "기준 방향을 sprite 카드의 바라보는 방향으로 사용합니다."
+                               : "sprite는 카메라를 향하게 두고 texture 축만 기준 방향으로 눕힙니다.";
+
+        NOTIFY("{}: {}", directionName, modeHelp);
+    }
+
+    void Notify_TextureAxisChanged(EmitterSpriteTextureAxis axis)
+    {
+        NOTIFY(
+            "{}",
+            axis == EmitterSpriteTextureAxis::X
+            ? "Texture X: 정렬 방향에 texture의 가로축을 맞춥니다."
+            : "Texture Y: 정렬 방향에 texture의 세로축을 맞춥니다."
+        );
+    }
 
     fs::path Normalize_MaterialDialogPath(const fs::path& filePath)
     {
@@ -497,7 +527,9 @@ namespace Internal
                                         ? string{ "Id: (none)" }
                                         : TextureFormat::MakeTextureTooltip(data.material.noiseTextureId);
             ImGui::SetTooltip(
-                "Content Browser의 .effectmaterial.json 머티리얼 파일을 여기에 드롭하면 현재 embedded material instance로 복사합니다.\n\nMain Texture\n%s\n\nNoise Texture\n%s\n\n%s / %s / SubUV %ux%u",
+                "Content Browser의 .effectmaterial.json 머티리얼 파일을 여기에 드롭하면 현재 embedded material instance로 복사합니다.\n"
+                "현재 sprite effect 경로에서는 Main Texture를 emissive color source로, Opacity Source를 별도 opacity 해석 기준으로 사용합니다.\n\n"
+                "Main Texture (Emissive)\n%s\n\nNoise Texture\n%s\n\n%s / %s / SubUV %ux%u",
                 mainTooltip.c_str(),
                 noiseTooltip.c_str(),
                 data.material.blendMode.c_str(),
@@ -662,11 +694,44 @@ bool RequiredModuleDetail::Draw(AuthoringEmitter& emitter, const AuthoringModule
         if (detailContext.Begin_PropertyTable("RequiredSpaceSort"))
         {
             changed |= detailContext.Draw_ScreenAlignmentProperty("화면 정렬", data.screenAlignment, defaultData.screenAlignment);
+            if (Internal::Uses_DirectionalAlignmentOptions(data.screenAlignment))
+            {
+                const EmitterDirectionalAlignmentMode oldMode = data.directionalAlignmentMode;
+                const EmitterSpriteTextureAxis oldAxis = data.spriteTextureAxis;
+
+                if (detailContext.Draw_DirectionalAlignmentModeProperty("방향 정렬 방식", data.directionalAlignmentMode, defaultData.directionalAlignmentMode))
+                {
+                    changed = true;
+                    if (oldMode != data.directionalAlignmentMode)
+                        Internal::Notify_DirectionalAlignmentModeChanged(data.screenAlignment, data.directionalAlignmentMode);
+                }
+
+                if (data.directionalAlignmentMode == EmitterDirectionalAlignmentMode::TextureAxis)
+                {
+                    if (detailContext.Draw_SpriteTextureAxisProperty("정렬할 텍스처 축", data.spriteTextureAxis, defaultData.spriteTextureAxis))
+                    {
+                        changed = true;
+                        if (oldAxis != data.spriteTextureAxis)
+                            Internal::Notify_TextureAxisChanged(data.spriteTextureAxis);
+                    }
+
+                    changed |= detailContext.Draw_FloatProperty("롤 보정 (도)", data.spriteRollOffsetDegrees, defaultData.spriteRollOffsetDegrees, 0.1f);
+                }
+            }
+
             changed |= detailContext.Draw_BoolProperty("로컬 스페이스 사용", data.useLocalSpace, defaultData.useLocalSpace);
             changed |= detailContext.Draw_SortModeProperty("정렬 모드 (미구현)", data.sortMode, defaultData.sortMode);
             changed |= detailContext.Draw_FloatProperty("카메라 모션 블러 양 (미구현)", data.cameraMotionBlurAmount, defaultData.cameraMotionBlurAmount);
             changed |= detailContext.Draw_BoolProperty("초기화 시 기존 파티클 지우기 (미구현)", data.clearExistingParticlesOnInit, defaultData.clearExistingParticlesOnInit);
             detailContext.End_PropertyTable();
+        }
+
+        if (Internal::Uses_DirectionalAlignmentOptions(data.screenAlignment))
+        {
+            if (data.directionalAlignmentMode == EmitterDirectionalAlignmentMode::TextureAxis)
+                ImGui::TextDisabled("Texture Axis는 world X/Y/Z가 아니라 texture 가로/세로 축입니다. Z는 sprite normal이므로 별도 facing 개념입니다.");
+            else
+                ImGui::TextDisabled("Look Direction은 기준 방향을 sprite 카드의 바라보는 방향으로 사용합니다.");
         }
 
         detailContext.Draw_ScreenAlignmentImplementationNote(data.screenAlignment);

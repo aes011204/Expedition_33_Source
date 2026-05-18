@@ -158,11 +158,18 @@ HRESULT ComputeSpriteEmitter::Bind_ShaderResources()
     CHECK_FAILED_ONCE(GAME->Bind_TransformMatrix(D3DTS::Proj, _shader.get(), "g_ProjMatrix"), E_FAIL);
     CHECK_FAILED_ONCE(GAME->Bind_CamPosition(_shader.get(), "g_BillboardTarget"), E_FAIL);
     const int screenAlignmentMode = static_cast<int>(_desc.screenAlignment);
+    const int directionalAlignmentMode = static_cast<int>(_desc.directionalAlignmentMode);
+    const int spriteTextureAxis = static_cast<int>(_desc.spriteTextureAxis);
+    const float spriteRollOffsetRadians = XMConvertToRadians(_desc.spriteRollOffsetDegrees);
     const Vec4 emitterCenter = nullptr != _transformCom
-                                   ? Vec4{ _transformCom->Get_WorldPosition().x, _transformCom->Get_WorldPosition().y, _transformCom->Get_WorldPosition().z, 1.f }
-                                   : Vec4{ _desc.center.x, _desc.center.y, _desc.center.z, 1.f };
+                               ? Vec4{ _transformCom->Get_WorldPosition().x, _transformCom->Get_WorldPosition().y, _transformCom->Get_WorldPosition().z, 1.f }
+                               : Vec4{ _desc.center.x, _desc.center.y, _desc.center.z, 1.f };
     CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_ScreenAlignmentMode", &screenAlignmentMode, sizeof(screenAlignmentMode)), E_FAIL);
+    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_DirectionalAlignmentMode", &directionalAlignmentMode, sizeof(directionalAlignmentMode)), E_FAIL);
+    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_SpriteTextureAxis", &spriteTextureAxis, sizeof(spriteTextureAxis)), E_FAIL);
+    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_SpriteRollOffsetRadians", &spriteRollOffsetRadians, sizeof(spriteRollOffsetRadians)), E_FAIL);
     CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteEmitterCenter", &emitterCenter, sizeof(emitterCenter)), E_FAIL);
+    // 현재 sprite effect 경로에서는 주 텍스처를 lit base color가 아니라 emissive-like color + opacity source로 해석한다.
     CHECK_FAILED_ONCE(_texture->Bind_ShaderResourceView(_shader.get(), "g_Texture", 0), E_FAIL);
     CHECK_FAILED_ONCE(Bind_MaterialResources(), E_FAIL);
 

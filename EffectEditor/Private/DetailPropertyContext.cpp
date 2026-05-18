@@ -74,10 +74,10 @@ namespace
             return "카메라 화면 평면 기준이며 더 큰 축으로 정사각형을 만드는 빌보드입니다.";
 
         case EmitterScreenAlignment::AwayFromCenter:
-            return "이미터 중심에서 바깥 방향을 바라보는 빌보드입니다.";
+            return "이미터 중심 기준 radial 방향을 사용합니다. 하위 정렬 방식에서 look 또는 texture 축 정렬을 고릅니다.";
 
         case EmitterScreenAlignment::Velocity:
-            return "파티클의 현재 속도 방향을 바라보는 빌보드입니다.";
+            return "파티클의 현재 속도 방향을 사용합니다. 하위 정렬 방식에서 look 또는 texture 축 정렬을 고릅니다.";
 
         default:
             return "";
@@ -96,7 +96,7 @@ namespace
 
 class DetailPropertyContext::BasicDetailPropertyDrawer
 {
-public:
+public: //## Table / Basic Controls
     bool Begin_PropertyTable(const char* id)
     {
         constexpr ImGuiTableFlags tableFlags = ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoSavedSettings;
@@ -339,7 +339,7 @@ public:
     {
         bool changed = false;
 
-        ImGui::TextUnformatted("버스트 목록 (미구현)");
+        ImGui::TextUnformatted("버스트 목록");
         ImGui::SameLine();
         if (ImGui::Button(ICON_FA_PLUS "##AddBurst"))
         {
@@ -467,9 +467,7 @@ public:
     {
         const int visibleIndex = Find_ScreenAlignmentVisibleIndex(value);
         if (visibleIndex >= 0)
-        {
             return;
-        }
 
         const char* currentLabel = Get_ScreenAlignmentLabel(value);
         const char* fallbackLabel = Get_ScreenAlignmentLabel(Resolve_ScreenAlignmentFallback(value));
@@ -538,15 +536,17 @@ public:
         return true;
     }
 
-private:
+private: //## Highlight State
     vector<ImU32> _rowTintStack{};
     vector<ImU32> _labelTintStack{};
 
-private:
+private: //## Reset Helpers
     static bool Is_DefaultValue(float value, float defaultValue) { return value == defaultValue; }
     static bool Is_DefaultValue(uint32 value, uint32 defaultValue) { return value == defaultValue; }
     static bool Is_DefaultValue(bool value, bool defaultValue) { return value == defaultValue; }
     static bool Is_DefaultValue(EmitterScreenAlignment value, EmitterScreenAlignment defaultValue) { return value == defaultValue; }
+    static bool Is_DefaultValue(EmitterDirectionalAlignmentMode value, EmitterDirectionalAlignmentMode defaultValue) { return value == defaultValue; }
+    static bool Is_DefaultValue(EmitterSpriteTextureAxis value, EmitterSpriteTextureAxis defaultValue) { return value == defaultValue; }
     static bool Is_DefaultValue(EmitterSortMode value, EmitterSortMode defaultValue) { return value == defaultValue; }
     static bool Is_DefaultValue(const string& value, const string& defaultValue) { return value == defaultValue; }
 
@@ -600,7 +600,7 @@ private:
 
 class DetailPropertyContext::DistributionDetailPropertyDrawer
 {
-public:
+public: //## Distribution Controls
     explicit DistributionDetailPropertyDrawer(BasicDetailPropertyDrawer& basicDrawer)
         : _basicDrawer{ basicDrawer }
     {
@@ -716,10 +716,7 @@ public:
         return changed;
     }
 
-private:
-    BasicDetailPropertyDrawer& _basicDrawer;
-
-private:
+private: //## Distribution Types
     enum class DistributionValueKind : uint8
     {
         Float,
@@ -728,6 +725,10 @@ private:
         Color,
     };
 
+private: //## Dependencies
+    BasicDetailPropertyDrawer& _basicDrawer;
+
+private:  //## Color Helpers
     static ImVec4 Lerp_Color(const ImVec4& lhs, const ImVec4& rhs, float t)
     {
         return ImVec4{
@@ -767,7 +768,7 @@ private:
         return ImGui::GetColorU32(tint);
     }
 
-private:
+private: //## Label Helpers
     static const char* Get_DistributionModeLabel(DistributionValueKind kind, DistributionMode mode)
     {
         switch (kind)
@@ -1784,6 +1785,119 @@ bool DetailPropertyContext::Draw_BurstListProperty(
 bool DetailPropertyContext::Draw_ScreenAlignmentProperty(const char* label, EmitterScreenAlignment& value, EmitterScreenAlignment defaultValue)
 {
     return _basicDrawer->Draw_ScreenAlignmentProperty(label, value, defaultValue);
+}
+
+bool DetailPropertyContext::Draw_DirectionalAlignmentModeProperty(
+    const char* label,
+    EmitterDirectionalAlignmentMode& outValue,
+    EmitterDirectionalAlignmentMode defaultValue)
+{
+    int currentIndex = outValue == EmitterDirectionalAlignmentMode::LookDirection ? 0 : 1;
+    static constexpr const char* modeLabels[] = { "Look Direction", "Texture Axis" };
+
+    ImGui::PushID(label);
+    Draw_PropertyLabel(label);
+    ImGui::SetNextItemWidth(-FLT_MIN);
+    bool changed = false;
+
+    if (ImGui::BeginCombo("##Value", modeLabels[currentIndex]))
+    {
+        for (int index = 0; index < IM_ARRAYSIZE(modeLabels); ++index)
+        {
+            const bool isSelected = currentIndex == index;
+            if (ImGui::Selectable(modeLabels[index], isSelected))
+            {
+                currentIndex = index;
+                changed = true;
+            }
+
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
+            {
+                ImGui::SetTooltip(
+                    index == 0
+                    ? "기준 방향을 sprite 카드의 normal/look 방향으로 사용합니다."
+                    : "sprite는 카메라를 향하게 두고, texture의 X/Y 축만 기준 방향으로 눕힙니다."
+                );
+            }
+
+            if (isSelected)
+                ImGui::SetItemDefaultFocus();
+        }
+
+        ImGui::EndCombo();
+    }
+
+    const bool resetClicked = Draw_ResetButton(outValue != defaultValue);
+    ImGui::PopID();
+
+    if (resetClicked)
+    {
+        outValue = defaultValue;
+        return true;
+    }
+
+    if (!changed)
+        return false;
+
+    outValue = currentIndex == 0
+               ? EmitterDirectionalAlignmentMode::LookDirection
+               : EmitterDirectionalAlignmentMode::TextureAxis;
+
+    return true;
+}
+
+bool DetailPropertyContext::Draw_SpriteTextureAxisProperty(const char* label, EmitterSpriteTextureAxis& outValue, EmitterSpriteTextureAxis defaultValue)
+{
+    int currentIndex = outValue == EmitterSpriteTextureAxis::X ? 0 : 1;
+    static constexpr const char* kTextureAxisLabels[] = {
+        "Texture X",
+        "Texture Y",
+    };
+
+    ImGui::PushID(label);
+    Draw_PropertyLabel(label);
+    ImGui::SetNextItemWidth(-FLT_MIN);
+    bool changed = false;
+    if (ImGui::BeginCombo("##Value", kTextureAxisLabels[currentIndex]))
+    {
+        for (int index = 0; index < IM_ARRAYSIZE(kTextureAxisLabels); ++index)
+        {
+            const bool isSelected = currentIndex == index;
+            if (ImGui::Selectable(kTextureAxisLabels[index], isSelected))
+            {
+                currentIndex = index;
+                changed = true;
+            }
+
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
+            {
+                ImGui::SetTooltip(
+                    index == 0
+                    ? "정렬 방향에 texture의 가로축을 맞춥니다."
+                    : "정렬 방향에 texture의 세로축을 맞춥니다. 세로로 긴 번개/연기 texture의 기본 후보입니다."
+                );
+            }
+
+            if (isSelected)
+                ImGui::SetItemDefaultFocus();
+        }
+
+        ImGui::EndCombo();
+    }
+    const bool resetClicked = Draw_ResetButton(outValue != defaultValue);
+    ImGui::PopID();
+
+    if (resetClicked)
+    {
+        outValue = defaultValue;
+        return true;
+    }
+
+    if (!changed)
+        return false;
+
+    outValue = currentIndex == 0 ? EmitterSpriteTextureAxis::X : EmitterSpriteTextureAxis::Y;
+    return true;
 }
 
 void DetailPropertyContext::Draw_ScreenAlignmentImplementationNote(EmitterScreenAlignment value)

@@ -32,6 +32,8 @@ public:
     bool Draw_ColorRgbDistributionGroup(const char* label, ColorDistributionData& value, const ColorDistributionData& defaultValue);
     bool Draw_BurstListProperty(vector<SpawnModuleData::ParticleBurstData>& burstList, const vector<SpawnModuleData::ParticleBurstData>& defaultValue);
     bool Draw_ScreenAlignmentProperty(const char* label, EmitterScreenAlignment& value, EmitterScreenAlignment defaultValue);
+    bool Draw_DirectionalAlignmentModeProperty(const char* label, EmitterDirectionalAlignmentMode& outValue, EmitterDirectionalAlignmentMode defaultValue);
+    bool Draw_SpriteTextureAxisProperty(const char* label, EmitterSpriteTextureAxis& outValue, EmitterSpriteTextureAxis defaultValue);
     void Draw_ScreenAlignmentImplementationNote(EmitterScreenAlignment value);
     bool Draw_SortModeProperty(const char* label, EmitterSortMode& value, EmitterSortMode defaultValue);
     bool Draw_UintProperty(const char* label, uint32& value, uint32 defaultValue);

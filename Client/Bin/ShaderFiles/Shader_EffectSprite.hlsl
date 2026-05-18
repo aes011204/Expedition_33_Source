@@ -13,7 +13,7 @@ cbuffer cbCamera : register(b1)
 cbuffer cbEffectSpriteMaterial : register(b2)
 {
     float4 g_Tint = { 1.f, 1.f, 1.f, 1.f };
-    float4 g_EffectSpriteParams = { 1.f, 1.f, 0.f, 0.f }; // x: intensity, y: opacityPower, z: noiseStrength, w: useNoise
+    float4 g_EffectSpriteParams = { 1.f, 1.f, 0.f, 0.f }; // x: emissive-like intensity, y: opacityPower, z: noiseStrength, w: useNoise
     int g_OpacitySource = 0;
     float3 g_EffectSpritePadding;
 };
@@ -21,11 +21,13 @@ cbuffer cbEffectSpriteMaterial : register(b2)
 cbuffer cbEffectSpriteRuntime : register(b3)
 {
     int g_ScreenAlignmentMode = 0;
-    float3 g_EffectSpriteRuntimePadding;
+    int g_DirectionalAlignmentMode = 1;
+    int g_SpriteTextureAxis = 1;
+    float g_SpriteRollOffsetRadians = 0.f;
     float4 g_EffectSpriteEmitterCenter = { 0.f, 0.f, 0.f, 1.f };
 };
 
-Texture2D g_Texture : register(t0);
+Texture2D g_Texture : register(t0); // sprite effect의 primary texture다. 현재 경로에서는 RGB를 emissive-like color source로 해석한다.
 Texture2D g_NoiseTexture : register(t1);
 
 struct VS_IN
@@ -121,6 +123,32 @@ void ResolveCameraPlaneBasis(out float3 rightDir, out float3 upDir)
     upDir = normalize(float3(g_ViewMatrix[0].y, g_ViewMatrix[1].y, g_ViewMatrix[2].y));
 }
 
+bool TryResolveTextureAxisBasis(float3 axisDir, out float3 rightDir, out float3 upDir)
+{
+    ResolveCameraPlaneBasis(rightDir, upDir);
+
+    const float3 planeNormal = normalize(cross(rightDir, upDir));
+    float3 projectedAxis = axisDir - planeNormal * dot(axisDir, planeNormal);
+    const float projectedLength = length(projectedAxis);
+    if (projectedLength < 0.0001f)
+        return false;
+
+    projectedAxis /= projectedLength;
+
+    if (g_SpriteTextureAxis == 0)
+    {
+        rightDir = projectedAxis;
+        upDir = normalize(cross(planeNormal, rightDir));
+    }
+    else
+    {
+        upDir = projectedAxis;
+        rightDir = normalize(cross(upDir, planeNormal));
+    }
+
+    return true;
+}
+
 [maxvertexcount(4)]
 void GS_MAIN(point GS_IN In[1], inout TriangleStream<GS_OUT> OutStream)
 {
@@ -128,13 +156,18 @@ void GS_MAIN(point GS_IN In[1], inout TriangleStream<GS_OUT> OutStream)
     float3 rightDir = float3(1.f, 0.f, 0.f);
     float3 upDir = float3(0.f, 1.f, 0.f);
     if (g_ScreenAlignmentMode == 1 || g_ScreenAlignmentMode == 2)
-    {
         ResolveCameraPlaneBasis(rightDir, upDir);
-    }
     else if (g_ScreenAlignmentMode == 3)
     {
         const float3 lookDir = ResolveAwayFromCenterLookDirection(particlePosition);
-        ResolveLookAlignedBasis(lookDir, rightDir, upDir);
+
+        if (g_DirectionalAlignmentMode == 1) // 스프라이트의 X 또는 Y 가 바라보도록
+        {
+            if (!TryResolveTextureAxisBasis(lookDir, rightDir, upDir))
+                ResolveCameraPlaneBasis(rightDir, upDir);
+        }
+        else // 스프라이트의 look 이 바라보도록
+            ResolveLookAlignedBasis(lookDir, rightDir, upDir);
     }
     else if (g_ScreenAlignmentMode == 4)
     {
@@ -142,7 +175,14 @@ void GS_MAIN(point GS_IN In[1], inout TriangleStream<GS_OUT> OutStream)
         const float3 lookDir = velocityLength < 0.0001f
                                ? ResolveFacingLookDirection(particlePosition)
                                : In[0].velocityDirection / velocityLength;
-        ResolveLookAlignedBasis(lookDir, rightDir, upDir);
+
+        if (g_DirectionalAlignmentMode == 1 && velocityLength >= 0.0001f)
+        {
+            if (!TryResolveTextureAxisBasis(lookDir, rightDir, upDir))
+                ResolveLookAlignedBasis(lookDir, rightDir, upDir);
+        }
+        else
+            ResolveLookAlignedBasis(lookDir, rightDir, upDir);
     }
     else
     {
@@ -150,8 +190,9 @@ void GS_MAIN(point GS_IN In[1], inout TriangleStream<GS_OUT> OutStream)
         ResolveLookAlignedBasis(lookDir, rightDir, upDir);
     }
 
-    const float rotationCos = cos(In[0].rotationRadians);
-    const float rotationSin = sin(In[0].rotationRadians);
+    const float rotationRadians = In[0].rotationRadians + g_SpriteRollOffsetRadians;
+    const float rotationCos = cos(rotationRadians);
+    const float rotationSin = sin(rotationRadians);
     const float3 billboardRight = rightDir;
     const float3 billboardUp = upDir;
     rightDir = billboardRight * rotationCos + billboardUp * rotationSin;

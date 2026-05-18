@@ -69,6 +69,32 @@ namespace Internal
         }
     }
 
+    EffectSpriteDirectionalAlignmentMode Resolve_EffectSpriteDirectionalAlignmentMode(EmitterDirectionalAlignmentMode mode)
+    {
+        switch (mode)
+        {
+        case EmitterDirectionalAlignmentMode::LookDirection:
+            return EffectSpriteDirectionalAlignmentMode::LookDirection;
+
+        case EmitterDirectionalAlignmentMode::TextureAxis:
+        default:
+            return EffectSpriteDirectionalAlignmentMode::TextureAxis;
+        }
+    }
+
+    EffectSpriteTextureAxis Resolve_EffectSpriteTextureAxis(EmitterSpriteTextureAxis axis)
+    {
+        switch (axis)
+        {
+        case EmitterSpriteTextureAxis::X:
+            return EffectSpriteTextureAxis::X;
+
+        case EmitterSpriteTextureAxis::Y:
+        default:
+            return EffectSpriteTextureAxis::Y;
+        }
+    }
+
     PointParticleSphereLocationMode Resolve_PointParticleSphereLocationMode(SphereLocationSpawnMode mode)
     {
         switch (mode)
@@ -415,6 +441,9 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
         desc.subUVRows = max(1u, material.subUVRows);
         desc.subUVCols = max(1u, material.subUVCols);
         desc.screenAlignment = Internal::Resolve_EffectSpriteScreenAlignment(required->screenAlignment);
+        desc.directionalAlignmentMode = Internal::Resolve_EffectSpriteDirectionalAlignmentMode(required->directionalAlignmentMode);
+        desc.spriteTextureAxis = Internal::Resolve_EffectSpriteTextureAxis(required->spriteTextureAxis);
+        desc.spriteRollOffsetDegrees = required->spriteRollOffsetDegrees;
         desc.duration = max(0.0001f, required->duration);
         desc.loopCount = required->loopCount;
         desc.delay = max(0.f, required->delay);
@@ -443,10 +472,12 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
 
         for (const SpawnModuleData::ParticleBurstData& burst : spawn->burstList)
         {
-            desc.spawn.bursts.push_back(PointParticleBurstDesc{
-                .time = max(0.f, burst.time),
-                .count = burst.count
-            });
+            desc.spawn.bursts.push_back(
+                PointParticleBurstDesc{
+                    .time = max(0.f, burst.time),
+                    .count = burst.count
+                }
+            );
         }
     }
 
@@ -586,9 +617,9 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
     }
 
     if (const auto* initialRadialVelocity = Internal::Find_ModuleData<InitialRadialVelocityModuleData>(
-            emitter,
-            AuthoringModuleType::InitialRadialVelocity
-        ))
+        emitter,
+        AuthoringModuleType::InitialRadialVelocity
+    ))
     {
         desc.motion.enabled = true;
         desc.motion.initialRadialVelocityEnabled = true;
