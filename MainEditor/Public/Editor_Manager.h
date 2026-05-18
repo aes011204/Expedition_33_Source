@@ -7,6 +7,13 @@ NS_BEGIN(MainEditor)
 class Editor_Manager final
 {
 public:
+    enum class LauncherConfig
+    {
+        Debug,
+        Release
+    };
+
+public:
     Editor_Manager();
 	~Editor_Manager() = default;
 
@@ -42,6 +49,7 @@ private:
     map<wstring, Shared<Editor_Window>> _windows = {}; 
     map<wstring, bool> _focusModeWindowStates = {};
     bool _isFocusMode = false;
+    LauncherConfig _launcherConfig = LauncherConfig::Debug;
 
 public:
 	static Unique<Editor_Manager> Create();

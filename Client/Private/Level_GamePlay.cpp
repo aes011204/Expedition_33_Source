@@ -48,15 +48,35 @@ void Level_GamePlay::BeginPlay()
 
 void Level_GamePlay::Update(float fTimeDelta)
 {
-    //Update_Input_TestUI();
-
-    // 테스트
 #ifdef _DEBUG
     const int32 fps = (fTimeDelta > 0.f)
             ? static_cast<int32>(1.f / fTimeDelta) : 0.f;
 
      GAME->Print(L"현재 FPS : {}", fps, duration(0.f), color(Vec4(1.f, 1.f, 0.f, 1.f)));
+#else
+    static float s_titleUpdateAccum = 0.f;   // 제목은 너무 자주 바꾸지 않도록 누적 시간 사용
+    static float s_frameAccum = 0.f;         // 평균 FPS 계산용 프레임 시간 누적
+    static int32 s_frameCount = 0;           // 평균 FPS 계산용 프레임 수
+
+    s_titleUpdateAccum += fTimeDelta;
+    s_frameAccum += fTimeDelta;
+    ++s_frameCount;
+
+    if (s_titleUpdateAccum >= 0.5f)          // 0.5초마다 제목 갱신
+    {
+        const float avgDelta = (s_frameCount > 0) ? (s_frameAccum / s_frameCount) : 0.f;
+        const int32 fps = (avgDelta > 0.f) ? static_cast<int32>(1.f / avgDelta) : 0;
+
+        wchar_t title[128] = {};
+        swprintf_s(title, L"Level GamePlay | FPS : %d", fps); // Release에서 창 제목에 FPS 표시
+        SetWindowText(g_hWnd, title);
+
+        s_titleUpdateAccum = 0.f;
+        s_frameAccum = 0.f;
+        s_frameCount = 0;
+    }
 #endif
+
 
      //테스트
      if (GAME->KeyDown(KEY_TYPE::KEY_0))
@@ -82,8 +102,8 @@ HRESULT Level_GamePlay::Render()
 {
 #ifdef _DEBUG
     SetWindowText(g_hWnd, TEXT("Level GamePlay"));
-
 #endif
+
     return S_OK;
 }
 

@@ -435,10 +435,8 @@ public: /* For.Debug_Manager */
 
     bool                    Is_DebugRenderEnabled() const;
 
-#ifdef _DEBUG
     HRESULT                 Render_DebugDepth();
     HRESULT                 Render_DebugOverlay();
-#endif
 
 public: /* For.Print */
     template<typename... Args>

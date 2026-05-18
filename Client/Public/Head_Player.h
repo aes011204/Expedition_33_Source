@@ -31,8 +31,16 @@ public:
 	HRESULT Render() override;
     HRESULT Render_Shadow() override;
 
+public:
+    void Initialize_RigidAttachmentFromLeaderPose(
+        const PlayableParts* leaderPart,
+        const Matrix* rigidSocketMatrix);
+
 private:
     Matrix _headOffsetMatrix{};
+
+    const Matrix* _pendingRigidSocketMatrix{ nullptr };
+    bool _pendingRigidAttachmentCalibration{ false };
 
 public:
 	static Shared<Head_Player> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

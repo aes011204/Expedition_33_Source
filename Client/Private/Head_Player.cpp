@@ -42,17 +42,54 @@ void Head_Player::Update(float timeDelta)
 {
     Debug_Profile::Scope updateScope("Player::Head::Update");
 
+    if (_pendingRigidAttachmentCalibration)
+    {
+        Debug_Profile::Scope profileScope("Player::Head::LeaderPose");
+
+        if (Has_LeaderPoseComponent())
+            Update_LeaderPoseMatrices();
+
+        Update_CombinedWorldMatrix(_transformCom->Get_WorldMatrix());
+        const Matrix currentHeadWorld = _combinedWorldMatrix; 
+
+        Matrix parentMatrix = Matrix::Identity;
+        if (const Shared<GameObject> owner = Get_Owner())
+        {
+            if (const Shared<TransformCom> ownerTransform = owner->Get_Transform())
+                parentMatrix = ownerTransform->Get_WorldMatrix();
+        }
+        else if (_parentMatrix != nullptr)
+        {
+            parentMatrix = *_parentMatrix;
+        }
+
+        const Matrix childMatrix = _transformCom->Get_WorldMatrix();
+        const Matrix rigidSocketMatrix = (_pendingRigidSocketMatrix != nullptr)
+            ? *_pendingRigidSocketMatrix
+            : Matrix::Identity;
+
+        const Matrix rigidBaseWorld = childMatrix * rigidSocketMatrix * parentMatrix;
+
+        _offsetMatrix = currentHeadWorld * rigidBaseWorld.Invert();
+
+        _socketMatrix = _pendingRigidSocketMatrix; // 이제부터는 rigid socket으로 붙인다.
+        _pendingRigidSocketMatrix = nullptr;
+        _pendingRigidAttachmentCalibration = false;
+
+        Set_LeaderPoseComponent(nullptr); // 보정값을 얻었으니 LeaderPose는 끊는다.
+        CHECK_FAILED(_modelCom->Prepare_BoneMatrixBuffers()); 
+
+        Update_CombinedWorldMatrix(_transformCom->Get_WorldMatrix());
+        return;
+    }
+
     if (Has_LeaderPoseComponent())
     {
         Debug_Profile::Scope profileScope("Player::Head::LeaderPose");
-        Update_LeaderPoseMatrices();
-    }
-    else
-    {
-        _modelCom->Play_Animation(timeDelta);
+        Update_LeaderPoseMatrices(); // socket을 못 찾은 경우에는 기존 LeaderPose 경로로 유지한다.
     }
 
-	Update_CombinedWorldMatrix(_transformCom->Get_WorldMatrix());
+    Update_CombinedWorldMatrix(_transformCom->Get_WorldMatrix()); // 이후에는 rigid 부착 world만 따라간다.
 }
 
 void Head_Player::Late_Update(float timeDelta)
@@ -96,6 +133,16 @@ HRESULT Head_Player::Render()
 HRESULT Head_Player::Render_Shadow()
 {
     return PlayableParts::Render_Shadow();
+}
+
+void Head_Player::Initialize_RigidAttachmentFromLeaderPose(const PlayableParts* leaderPart,
+    const Matrix* rigidSocketMatrix)
+{
+    Set_LeaderPoseComponent(leaderPart);
+
+    _socketMatrix = nullptr; // calibration 전에는 LeaderPose 결과를 그대로 받는다.
+    _pendingRigidSocketMatrix = rigidSocketMatrix;
+    _pendingRigidAttachmentCalibration = (rigidSocketMatrix != nullptr);
 }
 
 Shared<Head_Player> Head_Player::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
