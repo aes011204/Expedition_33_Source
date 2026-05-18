@@ -140,6 +140,13 @@ void SceneContext::SaveToFile(const string& filePath)
         }
     }
 
+    json modelOverrides = json::object();
+    for (auto& [filename, passIndex] : _modelOverrides)
+    {
+        modelOverrides[filename] = { {"PassIndex", passIndex} };
+    }
+
+    map["ModelOverrides"] = modelOverrides;
     map["StaticMeshes"] = staticMeshes;
     map["SpawnPoints"] = spawnPoints;
     map["EncounterZones"] = encounterZones;
@@ -171,8 +178,18 @@ void SceneContext::LoadFromFile(const string& filePath)
     _staticMeshes.clear();
     _lights.erase(remove_if(_lights.begin(), _lights.end(), [](const Shared<EditorObject>& o) { return !o->_isDefaultLight; }), _lights.end());
     _instancedMeshes.clear();
+    _modelOverrides.clear();
+
+    if (map.contains("ModelOverrides"))
+    {
+        for (auto& [filename, entry] : map["ModelOverrides"].items())
+        {
+            _modelOverrides[filename] = entry.value("PassIndex", -1);
+        }
+    }
 
     _dirtyRenderHandles = true;
+    _lightDirty = true;
     _selected = nullptr;
 
     _undoStack.clear();
@@ -625,6 +642,7 @@ void SceneContext::Add(Shared<EditorObject> obj)
     else if (obj->_type == EObjectType::Light)
     {
         _lights.push_back(obj);
+        _lightDirty = true;
     }
     else if (obj->_type == EObjectType::InstancedMesh)
     {
@@ -660,6 +678,7 @@ void SceneContext::Remove(const Shared<EditorObject>& obj)
     else if (obj->_type == EObjectType::Light)
     {
         erase(_lights, obj);
+        _lightDirty = true;
     }
     else if (obj->_type == EObjectType::InstancedMesh)
     {
@@ -698,5 +717,6 @@ void SceneContext::ClearScene()
     _redoStack.clear();
     _dirtyRenderHandles = true;
     _octreeDirty = true;
+    _lightDirty = true;
 }
 

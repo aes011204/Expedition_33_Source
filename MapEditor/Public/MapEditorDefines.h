@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "Engine_Define.h"
 #include "Helper_String.h"
+#include "ShaderPassFinder.h"
 
 #ifdef new
 #pragma push_macro("new")
@@ -93,6 +94,16 @@ namespace MapEditor
         float rotate = 15.f;
         float scale = 0.1f;
     };
+
+    inline constexpr pair<const char*, uint32> g_meshPassOptions[] = {
+    { "Default", VtxMeshPassIndex::DefaultPass },
+    { "Shadow", VtxMeshPassIndex::ShadowPass },
+    { "NoTexture", VtxMeshPassIndex::NoTexturePass },
+    { "Masked", VtxMeshPassIndex::MaskedPass },
+    { "TwoSided", VtxMeshPassIndex::TwoSidedPass },
+    { "MaskedTwoSided", VtxMeshPassIndex::MaskedTwoSidedPass },
+    };
+    inline constexpr int32 g_meshPassOptionCount = 6;
 
     struct InstanceTransform
     {

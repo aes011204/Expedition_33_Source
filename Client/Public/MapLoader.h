@@ -21,6 +21,7 @@ public:
         wstring layerTag = {};
 
         string modelFolder = {};
+        unordered_map<string, int32> modelOverrides;
         vector<json> staticMeshes = {};
         vector<json> instancedMeshes = {};
         vector<string> preloadModelPaths = {};
@@ -59,7 +60,7 @@ public:
         const wstring& layerTag);
 
 private:
-    static void ApplyMaterials(Shared<ModelCom>& model, const string& modelFolder, const string& modelFullPath);
+    static void ApplyMaterials(Shared<ModelCom>& model, const string& modelFolder, const string& modelFullPath, int32 forcedPassIndex = -1);
 };
 
 NS_END

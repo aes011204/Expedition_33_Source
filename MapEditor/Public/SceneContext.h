@@ -25,6 +25,13 @@ struct SceneContext
     bool _cursorVisible = false;
 
     bool _octreeDirty = true;
+    float _octreeRebuildTimer = 0.f;
+    static constexpr float _octreeRebuildDelay = 1.5f;
+
+    bool _lightDirty = true;
+
+    map<string, int32> _modelOverrides; // model filename -> forced pass index (-1 = none)
+    bool _dirtyPassOverrides = false;
 
     void SaveToFile(const string& filePath);
     void LoadFromFile(const string& filePath);
