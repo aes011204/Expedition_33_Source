@@ -1335,6 +1335,8 @@ void ModelCom::Set_LeaderPoseComponent(const ModelCom* leaderModel)
     _leaderPoseCombinedMatrices.clear();
     _leaderPoseRequiredBones.clear();
 
+    _leaderPoseLastSyncedGeneration = UINT64_MAX;
+
     if (nullptr == _leaderPoseModel || !_isSkeletal || !_leaderPoseModel->Is_Skeletal())
         return;
 
@@ -1360,6 +1362,8 @@ void ModelCom::Clear_LeaderPoseComponent()
     _leaderPoseCombinedMatrices.clear();
     _leaderPoseRequiredBones.clear();
 
+    _leaderPoseLastSyncedGeneration = UINT64_MAX;
+
     _leaderPoseMatricesValid = false;
     Mark_BoneMatricesDirty();
 }
@@ -1367,18 +1371,24 @@ void ModelCom::Clear_LeaderPoseComponent()
 void ModelCom::Update_LeaderPoseMatrices()
 {
     Debug_Profile::Scope profileScope("AnimMesh::UpdateLeaderPose");
-
     if (nullptr == _leaderPoseModel || _leaderPoseBoneMap.empty())
         return;
 
-    vector<uint8> visited(_numBones, 0);
+    // leader가 이번 프레임에 bone을 갱신하지 않았으면 재계산 스킵
+    const uint64 leaderGen = _leaderPoseModel->_boneUpdateGeneration;
+     if (leaderGen == _leaderPoseLastSyncedGeneration)
+        return;
+
+    _leaderPoseLastSyncedGeneration = leaderGen;
+
+    _leaderPoseVisited.assign(_numBones, 0);
 
     if (_leaderPoseRequiredBones.empty())
         Build_LeaderPoseRequiredBones();
 
     for (uint32 boneIndex : _leaderPoseRequiredBones)
     {
-        Build_LeaderPoseMatrix(boneIndex, visited);
+        Build_LeaderPoseMatrix(boneIndex, _leaderPoseVisited);
     }
 
     _leaderPoseMatricesValid = true;
@@ -1441,6 +1451,7 @@ void ModelCom::Mark_LeaderPoseRequiredBone(uint32 boneIndex, vector<uint8>& requ
 
 void ModelCom::Mark_BoneMatricesDirty()
 {
+    ++_boneUpdateGeneration;
     _boneMatricesDirty = true;
     _boneMatrixBuffersDirty = true;
     _computeSkinningDirty = true;

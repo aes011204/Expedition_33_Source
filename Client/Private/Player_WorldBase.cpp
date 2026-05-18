@@ -188,10 +188,10 @@ HRESULT Player_WorldBase::Ready_PartObjects()
         return E_FAIL;
 
     // 머리붙이기
-    //head->Set_LeaderPoseComponent(mainBody);
-    head->Initialize_RigidAttachmentFromLeaderPose(
-        mainBody,
-        mainBody->Get_SocketBoneMatrixPtr("Metahuman_Head"));
+    head->Set_LeaderPoseComponent(mainBody);
+    //head->Initialize_RigidAttachmentFromLeaderPose(
+    //    mainBody,
+    //    mainBody->Get_SocketBoneMatrixPtr("Metahuman_Head"));
 
     //>> Hair Part
     Hair_Player::HAIR_PLAYER_DESC hairPartDesc{};

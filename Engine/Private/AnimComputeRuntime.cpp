@@ -143,12 +143,8 @@ HRESULT AnimComputeRuntime::Ensure_RuntimeBuffers()
 
 HRESULT AnimComputeRuntime::Build_ComputeCombinedBoneCache()
 {
-    if (_model == nullptr)
-        return E_FAIL;
-
-    if (!_model->_isSkeletal)
+    if (_model == nullptr || !_model->_isSkeletal)
         return S_OK;
-
     const uint32 numBones = static_cast<uint32>(_model->_numBones);
     if (numBones == 0)
     {
@@ -156,38 +152,34 @@ HRESULT AnimComputeRuntime::Build_ComputeCombinedBoneCache()
         return S_OK;
     }
 
-    vector<Matrix> combinedBones{};
-    combinedBones.resize(numBones, Matrix::Identity);
+    if (_combinedBoneCache.size() != numBones)
+       _combinedBoneCache.resize(numBones, Matrix::Identity);
 
     for (uint32 boneIndex = 0; boneIndex < numBones; ++boneIndex)
     {
         const Matrix* combinedMatrix = _model->_bones[boneIndex]->Get_CombinedTransformationMatrixPtr();
-        if (combinedMatrix != nullptr)
-            combinedBones[boneIndex] = *combinedMatrix;
+        _combinedBoneCache[boneIndex] = combinedMatrix ? *combinedMatrix : Matrix::Identity;
     }
 
-    _model->Set_ComputeCombinedBoneMatrices(combinedBones);
+    _model->Set_ComputeCombinedBoneMatrices(_combinedBoneCache);
+
     return S_OK;
 }
 
 HRESULT AnimComputeRuntime::Update_GlobalCombinedBoneBuffer_FromCPU()
 {
-    if (_model == nullptr)
-        return E_FAIL;
-
-    if (!_model->_isSkeletal)
+    if (_model == nullptr || !_model->_isSkeletal)
         return S_OK;
 
-    const vector<Matrix>& combinedBones = _model->_computeCombinedBoneMatrices;
-    if (combinedBones.empty())
+    if (_combinedBoneCache.empty())
         return S_OK;
 
     CHECK_NULL(_globalCombinedBoneBuffer, E_FAIL);
 
     CHECK_FAILED(
         _globalCombinedBoneBuffer->Update_Data(
-            combinedBones.data(),
-            static_cast<uint32>(combinedBones.size())),
+            _combinedBoneCache.data(),
+            static_cast<uint32>(_combinedBoneCache.size())),
         E_FAIL);
 
     return S_OK;

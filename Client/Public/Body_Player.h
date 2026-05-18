@@ -39,6 +39,7 @@ private:
 private:
     Shared<ShaderCom>               _computeRenderShaderCom;
     Shared<AnimComputeRuntime>      _animComputeRuntime;
+    Shared<ModelCom>                _headModelCom;
 
     int32 _rootBoneIndex{ -1 };
     bool _useComputeSkinning = false;

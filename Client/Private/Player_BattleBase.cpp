@@ -84,9 +84,8 @@ HRESULT Player_BattleBase::Ready_PartObjects()
 
     Head_Player* head = dynamic_cast<Head_Player*>(_partObjects[TEXT("Part_Head")].get());
     CHECK_NULL(head, E_FAIL);
-    head->Initialize_RigidAttachmentFromLeaderPose(
-        body,
-        body->Get_SocketBoneMatrixPtr("Metahuman_Head")); // Battle도 월드와 같은 초기 보정 rigid 전환으로 맞춘다.
+
+    head->Set_LeaderPoseComponent(body);
 
     Hair_Player::HAIR_PLAYER_DESC hairDesc{};
     hairDesc.parentMatrix = bodyDesc.parentMatrix;

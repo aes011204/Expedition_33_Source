@@ -31,11 +31,6 @@ public:
 	HRESULT Render() override;
     HRESULT Render_Shadow() override;
 
-public:
-    void Initialize_RigidAttachmentFromLeaderPose(
-        const PlayableParts* leaderPart,
-        const Matrix* rigidSocketMatrix);
-
 private:
     Matrix _headOffsetMatrix{};
 

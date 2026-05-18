@@ -59,8 +59,8 @@ void Body_Player::Update(float fTimeDelta)
     }
     else
     {
-        _modelCom->Play_Animation(fTimeDelta); // fallback CPU 경로
-        CHECK_FAILED(_modelCom->Prepare_BoneMatrixBuffers()); // render에서 사용할 bone buffer 준비
+        _modelCom->Play_Animation(fTimeDelta); 
+        CHECK_FAILED(_modelCom->Prepare_BoneMatrixBuffers());
     }
 
     Update_CombinedWorldMatrix(_transformCom->Get_WorldMatrix());
@@ -138,7 +138,6 @@ HRESULT Body_Player::Render_Shadow()
 
     for (uint32 i = 0; i < numMeshes; ++i)
     {
-        // Shader_VtxMesh.hlsl 의 ShadowPass index = 1
         if (FAILED(_computeRenderShaderCom->Begin(1)))
             return E_FAIL;
 

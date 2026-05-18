@@ -46,6 +46,8 @@ private:
     Shared<ComputeShaderCom> _computeSkinningShaderCom{};
     Shared<ComputeShaderCom> _computeBoneRemapShaderCom{};
 
+    vector<Matrix> _combinedBoneCache;
+
 private:
     ComPtr<Device>  _device;
     ComPtr<Context> _context;

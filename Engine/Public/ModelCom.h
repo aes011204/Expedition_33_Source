@@ -304,6 +304,10 @@ private: /* 머리 붙이기 */
 
     vector<uint32>      _leaderPoseRequiredBones;
 
+    mutable vector<uint8> _leaderPoseVisited;
+    uint64 _boneUpdateGeneration = 0;   // body가 bone을 갱신할 때마다 1씩 증가
+    uint64 _leaderPoseLastSyncedGeneration = UINT64_MAX; // follower가 마지막으로 sync한 generation
+
     // 프레임마다 계산되지 않게 캐싱
     vector<Matrix>          _combinedBoneMatrixCache;
     vector<vector<Matrix>>  _meshBoneMatrixCaches;
