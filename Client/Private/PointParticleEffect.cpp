@@ -169,6 +169,10 @@ HRESULT PointParticleEffect::Bind_ShaderResources()
     CHECK_FAILED_ONCE(GAME->Bind_TransformMatrix(D3DTS::View, _shader.get(), "g_ViewMatrix"), E_FAIL);
     CHECK_FAILED_ONCE(GAME->Bind_TransformMatrix(D3DTS::Proj, _shader.get(), "g_ProjMatrix"), E_FAIL);
     CHECK_FAILED_ONCE(GAME->Bind_CamPosition(_shader.get(), "g_BillboardTarget"), E_FAIL);
+    const int screenAlignmentMode = 0;
+    const Vec4 emitterCenter{ _desc.center.x, _desc.center.y, _desc.center.z, 1.f };
+    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_ScreenAlignmentMode", &screenAlignmentMode, sizeof(screenAlignmentMode)), E_FAIL);
+    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteEmitterCenter", &emitterCenter, sizeof(emitterCenter)), E_FAIL);
     CHECK_FAILED_ONCE(_texture->Bind_ShaderResourceView(_shader.get(), "g_Texture", 0), E_FAIL);
     CHECK_FAILED_ONCE(Bind_MaterialResources(), E_FAIL);
 

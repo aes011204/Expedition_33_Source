@@ -1,4 +1,4 @@
-﻿#include "Material_View.h"
+#include "Material_View.h"
 
 #pragma region INCLUDE
 #include "MaterialCreateHelper.h"
@@ -146,6 +146,40 @@ namespace
         g_MaterialViewTexturePreviewCache.emplace(normalizedPath, srv);
         return srv;
     }
+
+    void Draw_MaterialViewHelpTooltip(bool isModelComEdit)
+    {
+        ImGui::TextDisabled("Help (?)");
+        if (!ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
+            return;
+
+        ImGui::BeginTooltip();
+        ImGui::PushTextWrapPos(ImGui::GetFontSize() * 36.0f);
+        ImGui::TextUnformatted("[Material_View 사용법]");
+        ImGui::Separator();
+        ImGui::TextUnformatted("1) 모드 의미");
+        ImGui::BulletText("Create With Json: 원본 json에서 매핑을 만들고 새 bundle을 만든다.");
+        ImGui::BulletText("Edit With material.json: 기존 bundle(.material.json) 자체를 편집한다.");
+        ImGui::BulletText("Edit With ModelCom: 선택된 오브젝트(ModelCom) 런타임 상태를 편집한다.");
+        ImGui::Separator();
+        ImGui::TextUnformatted("2) 버튼 의미");
+        ImGui::BulletText("Apply To Selected ModelCom: 현재 선택 오브젝트에 즉시 반영한다.");
+        ImGui::BulletText("Save Bundle: .material.json(base 데이터) 파일로 저장한다.");
+        ImGui::BulletText("모델 전용 변경을 영구 보존하려면 Apply 후 씬/오브젝트 저장이 필요하다.");
+        ImGui::Separator();
+        ImGui::TextUnformatted("3) Texture 슬롯 체크박스 의미");
+        if (isModelComEdit)
+            ImGui::BulletText("Override Instance: 이 오브젝트에서만 슬롯 override를 적용할지 여부.");
+        else
+            ImGui::BulletText("Base Slot Enabled: bundle 기본 슬롯(overrides) 사용 여부.");
+        ImGui::BulletText("경로가 있어도 체크를 끄면 해당 의미(모드별)에 따라 비활성으로 저장/적용될 수 있다.");
+        ImGui::Separator();
+        ImGui::TextUnformatted("4) 헷갈리기 쉬운 점");
+        ImGui::BulletText("ModelCom 모드에서 Save Bundle은 현재 보이는 최종 머테리얼 스냅샷 기준으로 저장된다.");
+        ImGui::BulletText("LocalBackup 파일 수정은 런타임 로더 대상이 아닐 수 있다. 보통 Resources/Materials를 사용한다.");
+        ImGui::PopTextWrapPos();
+        ImGui::EndTooltip();
+    }
 }
 
 #pragma endregion
@@ -210,6 +244,7 @@ void Material_View::Draw_Settings()
 {
     // 텍스처 루트는 자주 바꾸는 값이라 여기에서 바로 편집하게 둔다
     ImGui::SeparatorText("Settings");
+    Draw_MaterialViewHelpTooltip(_mode == CreateMode::EditWithModelCom);
 
     static char texRootBuf[512]{};
     static char bundleDirBuf[512]{};
@@ -845,7 +880,7 @@ void Material_View::Draw_MappingsEditorUI(int selectedMaterialIndexFilter, const
         return changed;
     };
 
-    auto drawSlotEditor = [&](const char* label, bool& overrideFlag, wstring& slotPath) -> bool
+    auto drawSlotEditor = [&](const char* label, const char* overrideLabel, bool& slotEnabledFlag, wstring& slotPath) -> bool
     {
         // 슬롯별 UI는 Model_Inspector에서 하던 방식과 거의 같다
         bool changed = false;
@@ -854,9 +889,9 @@ void Material_View::Draw_MappingsEditorUI(int selectedMaterialIndexFilter, const
         if (!ImGui::TreeNode(label))
             return false;
 
-        bool beforeEnabled = overrideFlag;
-        ImGui::Checkbox("Enabled", &overrideFlag);
-        changed = changed || (beforeEnabled != overrideFlag);
+        bool beforeEnabled = slotEnabledFlag;
+        ImGui::Checkbox(overrideLabel, &slotEnabledFlag);
+        changed = changed || (beforeEnabled != slotEnabledFlag);
 
         ImGui::TextDisabled("Path");
         ImGui::SameLine(120.f);
@@ -942,7 +977,7 @@ void Material_View::Draw_MappingsEditorUI(int selectedMaterialIndexFilter, const
                     if (ImGui::Selectable(candidateName.c_str(), isSelected, 0, ImVec2(0.f, 32.f)))
                     {
                         slotPath = candidatePath.wstring();
-                        overrideFlag = true;
+                        slotEnabledFlag = true;
                         changed = true;
                     }
 
@@ -965,7 +1000,7 @@ void Material_View::Draw_MappingsEditorUI(int selectedMaterialIndexFilter, const
             if (Try_PickTextureFileDialog(L"Select Texture", _textureSearchRoot, picked))
             {
                 slotPath = picked;
-                overrideFlag = true;
+                slotEnabledFlag = true;
                 changed = true;
             }
         }
@@ -975,7 +1010,7 @@ void Material_View::Draw_MappingsEditorUI(int selectedMaterialIndexFilter, const
         if (ImGui::Button(clearId.c_str()))
         {
             slotPath.clear();
-            overrideFlag = true;
+            slotEnabledFlag = true;
             changed = true;
         }
 
@@ -1129,15 +1164,17 @@ void Material_View::Draw_MappingsEditorUI(int selectedMaterialIndexFilter, const
         }
 
         ImGui::SeparatorText("Textures");
-        anyChanged = anyChanged || drawSlotEditor("BaseColor", inst->baseColorOverride, inst->baseColorPath);
-        anyChanged = anyChanged || drawSlotEditor("Normal", inst->normalOverride, inst->normalPath);
-        anyChanged = anyChanged || drawSlotEditor("ORM", inst->ormOverride, inst->ormPath);
-        anyChanged = anyChanged || drawSlotEditor("Emissive", inst->emissiveOverride, inst->emissivePath);
-        anyChanged = anyChanged || drawSlotEditor("OpacityMask", inst->opacityMaskOverride, inst->opacityMaskPath);
-        anyChanged = anyChanged || drawSlotEditor("HairDepth", inst->hairDepthOverride, inst->hairDepthPath);
-        anyChanged = anyChanged || drawSlotEditor("HairID", inst->hairIDOverride, inst->hairIDPath);
-        anyChanged = anyChanged || drawSlotEditor("IrisHeight", inst->irisHeightOverride, inst->irisHeightPath);
-        anyChanged = anyChanged || drawSlotEditor("IrisMask", inst->irisMaskOverride, inst->irisMaskPath);
+        const bool isModelComEdit = (_mode == CreateMode::EditWithModelCom);
+        const char* slotToggleLabel = isModelComEdit ? "Override Instance" : "Base Slot Enabled";
+        anyChanged = anyChanged || drawSlotEditor("BaseColor", slotToggleLabel, isModelComEdit ? inst->instanceOverrideEnabledBaseColor : inst->baseSlotEnabledBaseColor, inst->baseColorPath);
+        anyChanged = anyChanged || drawSlotEditor("Normal", slotToggleLabel, isModelComEdit ? inst->instanceOverrideEnabledNormal : inst->baseSlotEnabledNormal, inst->normalPath);
+        anyChanged = anyChanged || drawSlotEditor("ORM", slotToggleLabel, isModelComEdit ? inst->instanceOverrideEnabledOrm : inst->baseSlotEnabledOrm, inst->ormPath);
+        anyChanged = anyChanged || drawSlotEditor("Emissive", slotToggleLabel, isModelComEdit ? inst->instanceOverrideEnabledEmissive : inst->baseSlotEnabledEmissive, inst->emissivePath);
+        anyChanged = anyChanged || drawSlotEditor("OpacityMask", slotToggleLabel, isModelComEdit ? inst->instanceOverrideEnabledOpacityMask : inst->baseSlotEnabledOpacityMask, inst->opacityMaskPath);
+        anyChanged = anyChanged || drawSlotEditor("HairDepth", slotToggleLabel, isModelComEdit ? inst->instanceOverrideEnabledHairDepth : inst->baseSlotEnabledHairDepth, inst->hairDepthPath);
+        anyChanged = anyChanged || drawSlotEditor("HairID", slotToggleLabel, isModelComEdit ? inst->instanceOverrideEnabledHairID : inst->baseSlotEnabledHairID, inst->hairIDPath);
+        anyChanged = anyChanged || drawSlotEditor("IrisHeight", slotToggleLabel, isModelComEdit ? inst->instanceOverrideEnabledIrisHeight : inst->baseSlotEnabledIrisHeight, inst->irisHeightPath);
+        anyChanged = anyChanged || drawSlotEditor("IrisMask", slotToggleLabel, isModelComEdit ? inst->instanceOverrideEnabledIrisMask : inst->baseSlotEnabledIrisMask, inst->irisMaskPath);
 
         ImGui::SeparatorText("Parameters");
         anyChanged = anyChanged || drawTemplatePicker(*inst);
@@ -1198,15 +1235,16 @@ void Material_View::Draw_MappingsEditorUI(int selectedMaterialIndexFilter, const
             {
                 inst->cbMask.Clear();
                 inst->renderStateOverrideEnabled = false;
-                inst->baseColorOverride = false;
-                inst->normalOverride = false;
-                inst->ormOverride = false;
-                inst->emissiveOverride = false;
-                inst->opacityMaskOverride = false;
-                inst->hairDepthOverride = false;
-                inst->hairIDOverride = false;
-                inst->irisHeightOverride = false;
-                inst->irisMaskOverride = false;
+                inst->forcedPassIndex = -1;
+                inst->instanceOverrideEnabledBaseColor = false;
+                inst->instanceOverrideEnabledNormal = false;
+                inst->instanceOverrideEnabledOrm = false;
+                inst->instanceOverrideEnabledEmissive = false;
+                inst->instanceOverrideEnabledOpacityMask = false;
+                inst->instanceOverrideEnabledHairDepth = false;
+                inst->instanceOverrideEnabledHairID = false;
+                inst->instanceOverrideEnabledIrisHeight = false;
+                inst->instanceOverrideEnabledIrisMask = false;
                 anyChanged = true;
             }
         }
@@ -1384,7 +1422,7 @@ void Material_View::Draw_MappingsEditorUI(int selectedMaterialIndexFilter, const
             if (toggled && inst->cbMask.uvScale && hasBaseCb) inst->cb.uvScale = baseCb.uvScale;
             ImGui::BeginDisabled(!inst->cbMask.uvScale);
             float uvScale[2] = { inst->cb.uvScale.x, inst->cb.uvScale.y };
-            if (ImGui::InputFloat2("UV Scale", uvScale))
+            if (ImGui::DragFloat2("UV Scale", uvScale))
             {
                 inst->cb.uvScale = Engine::Vec2(uvScale[0], uvScale[1]);
                 anyChanged = true;
@@ -1405,7 +1443,7 @@ void Material_View::Draw_MappingsEditorUI(int selectedMaterialIndexFilter, const
             if (toggled && inst->cbMask.uvOffset && hasBaseCb) inst->cb.uvOffset = baseCb.uvOffset;
             ImGui::BeginDisabled(!inst->cbMask.uvOffset);
             float uvOffset[2] = { inst->cb.uvOffset.x, inst->cb.uvOffset.y };
-            if (ImGui::InputFloat2("UV Offset", uvOffset))
+            if (ImGui::DragFloat2("UV Offset", uvOffset))
             {
                 inst->cb.uvOffset = Engine::Vec2(uvOffset[0], uvOffset[1]);
                 anyChanged = true;
@@ -1775,6 +1813,7 @@ void Material_View::Apply_ToSelectedModel(int onlyMaterialIndex)
                 if (ov.overrideRenderStateEnabled)
                     ov.renderState = inst.renderState;
                 ov.cb = inst.cb;
+                ov.forcedPassIndex = inst.forcedPassIndex;
                 ov.cbMask.baseColorTint = inst.cbMask.baseColorTint;
                 ov.cbMask.emissiveColor = inst.cbMask.emissiveColor;
                 ov.cbMask.emissiveIntensity = inst.cbMask.emissiveIntensity;
@@ -1789,15 +1828,15 @@ void Material_View::Apply_ToSelectedModel(int onlyMaterialIndex)
                 ov.cbMask.uvRotation = inst.cbMask.uvRotation;
                 ov.cbMask.materialMask = inst.cbMask.materialMask;
 
-                if (inst.baseColorOverride) { ov.baseColor.enabled = true; ov.baseColor.path = inst.baseColorPath; }
-                if (inst.normalOverride) { ov.normal.enabled = true; ov.normal.path = inst.normalPath; }
-                if (inst.ormOverride) { ov.orm.enabled = true; ov.orm.path = inst.ormPath; }
-                if (inst.emissiveOverride) { ov.emissive.enabled = true; ov.emissive.path = inst.emissivePath; }
-                if (inst.opacityMaskOverride) { ov.opacityMask.enabled = true; ov.opacityMask.path = inst.opacityMaskPath; }
-                if (inst.hairDepthOverride) { ov.hairDepth.enabled = true; ov.hairDepth.path = inst.hairDepthPath; }
-                if (inst.hairIDOverride) { ov.hairID.enabled = true; ov.hairID.path = inst.hairIDPath; }
-                if (inst.irisHeightOverride) { ov.irisHeight.enabled = true; ov.irisHeight.path = inst.irisHeightPath; }
-                if (inst.irisMaskOverride) { ov.irisMask.enabled = true; ov.irisMask.path = inst.irisMaskPath; }
+                if (inst.instanceOverrideEnabledBaseColor) { ov.baseColor.enabled = true; ov.baseColor.path = inst.baseColorPath; }
+                if (inst.instanceOverrideEnabledNormal) { ov.normal.enabled = true; ov.normal.path = inst.normalPath; }
+                if (inst.instanceOverrideEnabledOrm) { ov.orm.enabled = true; ov.orm.path = inst.ormPath; }
+                if (inst.instanceOverrideEnabledEmissive) { ov.emissive.enabled = true; ov.emissive.path = inst.emissivePath; }
+                if (inst.instanceOverrideEnabledOpacityMask) { ov.opacityMask.enabled = true; ov.opacityMask.path = inst.opacityMaskPath; }
+                if (inst.instanceOverrideEnabledHairDepth) { ov.hairDepth.enabled = true; ov.hairDepth.path = inst.hairDepthPath; }
+                if (inst.instanceOverrideEnabledHairID) { ov.hairID.enabled = true; ov.hairID.path = inst.hairIDPath; }
+                if (inst.instanceOverrideEnabledIrisHeight) { ov.irisHeight.enabled = true; ov.irisHeight.path = inst.irisHeightPath; }
+                if (inst.instanceOverrideEnabledIrisMask) { ov.irisMask.enabled = true; ov.irisMask.path = inst.irisMaskPath; }
 
                 model->Set_InstanceOverride(m.materialIndex, ov);
                 model->Apply_EffectiveMaterial(m.materialIndex);
@@ -1810,30 +1849,31 @@ void Material_View::Apply_ToSelectedModel(int onlyMaterialIndex)
 
             material->Set_RenderState(inst.renderState);
             material->Set_CB(inst.cb);
+            material->Set_ForcedPassIndex(inst.forcedPassIndex);
 
             // slotIndex는 0으로 고정한다. 멀티 텍스처 인덱스는 아직 고려하지 않음
             // Enabled가 켜진 슬롯만 덮어쓴다. 비어있는 경로는 지우기로 해석한다
-            if (inst.baseColorOverride)
+            if (inst.baseSlotEnabledBaseColor)
                 material->Override_TextureSlot(MaterialTextureSlot::BaseColor, 0, inst.baseColorPath);
-            if (inst.normalOverride)
+            if (inst.baseSlotEnabledNormal)
                 material->Override_TextureSlot(MaterialTextureSlot::Normal, 0, inst.normalPath);
-            if (inst.ormOverride)
+            if (inst.baseSlotEnabledOrm)
                 material->Override_TextureSlot(MaterialTextureSlot::ORM, 0, inst.ormPath);
-            if (inst.emissiveOverride)
+            if (inst.baseSlotEnabledEmissive)
                 material->Override_TextureSlot(MaterialTextureSlot::Emissive, 0, inst.emissivePath);
 
             // 빈 문자열 전달 필수!!!!!!!
-            if (inst.opacityMaskOverride)
+            if (inst.baseSlotEnabledOpacityMask)
                 material->Override_TextureSlot(MaterialTextureSlot::OpacityMask, 0, inst.opacityMaskPath);
             else
                 material->Override_TextureSlot(MaterialTextureSlot::OpacityMask, 0, L"");
-            if (inst.hairDepthOverride)
+            if (inst.baseSlotEnabledHairDepth)
                 material->Override_TextureSlot(MaterialTextureSlot::HairDepth, 0, inst.hairDepthPath);
-            if (inst.hairIDOverride)
+            if (inst.baseSlotEnabledHairID)
                 material->Override_TextureSlot(MaterialTextureSlot::HairID, 0, inst.hairIDPath);
-            if (inst.irisHeightOverride)
+            if (inst.baseSlotEnabledIrisHeight)
                 material->Override_TextureSlot(MaterialTextureSlot::IrisHeight, 0, inst.irisHeightPath);
-            if (inst.irisMaskOverride)
+            if (inst.baseSlotEnabledIrisMask)
                 material->Override_TextureSlot(MaterialTextureSlot::IrisMask, 0, inst.irisMaskPath);
 
 #ifdef _DEBUG
@@ -2117,6 +2157,26 @@ bool Material_View::Load_BundleFile(const wstring& bundlePath)
         return rp.lexically_normal().wstring();
     };
 
+    auto readTexturePathFromJson = [&](const json& textureValue) -> wstring
+    {
+        if (textureValue.is_string())
+            return relToAbsUnderResourceRoot(textureValue.get<string>());
+
+        if (!textureValue.is_object())
+            return {};
+
+        const string textureGuid = textureValue.value("texture_guid", string{});
+        if (!textureGuid.empty())
+        {
+            const wstring resolvedByGuid = GAME->Resolve_AssetPath(textureGuid);
+            if (!resolvedByGuid.empty())
+                return resolvedByGuid;
+        }
+
+        const string fallbackPath = textureValue.value("texture_path", string{});
+        return relToAbsUnderResourceRoot(fallbackPath);
+    };
+
     if (root.contains("instances") && root["instances"].is_array())
     {
         for (const json& ji : root["instances"])
@@ -2144,29 +2204,40 @@ bool Material_View::Load_BundleFile(const wstring& bundlePath)
             if (ji.contains("overrides") && ji["overrides"].is_object())
             {
                 const json& jov = ji["overrides"];
-                inst.baseColorOverride = jov.value("baseColor", inst.baseColorOverride);
-                inst.normalOverride = jov.value("normal", inst.normalOverride);
-                inst.ormOverride = jov.value("orm", inst.ormOverride);
-                inst.emissiveOverride = jov.value("emissive", inst.emissiveOverride);
-                inst.opacityMaskOverride = jov.value("opacityMask", inst.opacityMaskOverride);
-                inst.hairDepthOverride = jov.value("hairDepth", inst.hairDepthOverride);
-                inst.hairIDOverride = jov.value("hairID", inst.hairIDOverride);
-                inst.irisHeightOverride = jov.value("irisHeight", inst.irisHeightOverride);
-                inst.irisMaskOverride = jov.value("irisMask", inst.irisMaskOverride);
+                inst.baseSlotEnabledBaseColor = jov.value("baseColor", inst.baseSlotEnabledBaseColor);
+                inst.baseSlotEnabledNormal = jov.value("normal", inst.baseSlotEnabledNormal);
+                inst.baseSlotEnabledOrm = jov.value("orm", inst.baseSlotEnabledOrm);
+                inst.baseSlotEnabledEmissive = jov.value("emissive", inst.baseSlotEnabledEmissive);
+                inst.baseSlotEnabledOpacityMask = jov.value("opacityMask", inst.baseSlotEnabledOpacityMask);
+                inst.baseSlotEnabledHairDepth = jov.value("hairDepth", inst.baseSlotEnabledHairDepth);
+                inst.baseSlotEnabledHairID = jov.value("hairID", inst.baseSlotEnabledHairID);
+                inst.baseSlotEnabledIrisHeight = jov.value("irisHeight", inst.baseSlotEnabledIrisHeight);
+                inst.baseSlotEnabledIrisMask = jov.value("irisMask", inst.baseSlotEnabledIrisMask);
+
+                // Bundle 모드에서는 instance override 편집값도 동일한 시작값으로 맞춘다.
+                inst.instanceOverrideEnabledBaseColor = inst.baseSlotEnabledBaseColor;
+                inst.instanceOverrideEnabledNormal = inst.baseSlotEnabledNormal;
+                inst.instanceOverrideEnabledOrm = inst.baseSlotEnabledOrm;
+                inst.instanceOverrideEnabledEmissive = inst.baseSlotEnabledEmissive;
+                inst.instanceOverrideEnabledOpacityMask = inst.baseSlotEnabledOpacityMask;
+                inst.instanceOverrideEnabledHairDepth = inst.baseSlotEnabledHairDepth;
+                inst.instanceOverrideEnabledHairID = inst.baseSlotEnabledHairID;
+                inst.instanceOverrideEnabledIrisHeight = inst.baseSlotEnabledIrisHeight;
+                inst.instanceOverrideEnabledIrisMask = inst.baseSlotEnabledIrisMask;
             }
 
             if (ji.contains("textures") && ji["textures"].is_object())
             {
                 const json& jt = ji["textures"];
-                inst.baseColorPath = relToAbsUnderResourceRoot(jt.value("baseColor", string{}));
-                inst.normalPath = relToAbsUnderResourceRoot(jt.value("normal", string{}));
-                inst.ormPath = relToAbsUnderResourceRoot(jt.value("orm", string{}));
-                inst.emissivePath = relToAbsUnderResourceRoot(jt.value("emissive", string{}));
-                inst.opacityMaskPath = relToAbsUnderResourceRoot(jt.value("opacityMask", string{}));
-                inst.hairDepthPath = relToAbsUnderResourceRoot(jt.value("hairDepth", string{}));
-                inst.hairIDPath = relToAbsUnderResourceRoot(jt.value("hairID", string{}));
-                inst.irisHeightPath = relToAbsUnderResourceRoot(jt.value("irisHeight", string{}));
-                inst.irisMaskPath = relToAbsUnderResourceRoot(jt.value("irisMask", string{}));
+                if (jt.contains("baseColor")) inst.baseColorPath = readTexturePathFromJson(jt["baseColor"]);
+                if (jt.contains("normal")) inst.normalPath = readTexturePathFromJson(jt["normal"]);
+                if (jt.contains("orm")) inst.ormPath = readTexturePathFromJson(jt["orm"]);
+                if (jt.contains("emissive")) inst.emissivePath = readTexturePathFromJson(jt["emissive"]);
+                if (jt.contains("opacityMask")) inst.opacityMaskPath = readTexturePathFromJson(jt["opacityMask"]);
+                if (jt.contains("hairDepth")) inst.hairDepthPath = readTexturePathFromJson(jt["hairDepth"]);
+                if (jt.contains("hairID")) inst.hairIDPath = readTexturePathFromJson(jt["hairID"]);
+                if (jt.contains("irisHeight")) inst.irisHeightPath = readTexturePathFromJson(jt["irisHeight"]);
+                if (jt.contains("irisMask")) inst.irisMaskPath = readTexturePathFromJson(jt["irisMask"]);
             }
 
             if (ji.contains("cb") && ji["cb"].is_object())
@@ -2306,6 +2377,7 @@ bool Material_View::Load_FromSelectedModelCom()
         if (instOv != nullptr)
         {
             inst.renderStateOverrideEnabled = instOv->overrideRenderStateEnabled;
+            inst.forcedPassIndex = (instOv->forcedPassIndex >= 0) ? instOv->forcedPassIndex : mat->Get_ForcedPassIndex();
 
             // cb mask 복사
 #define EDITOR_COPY_CB_MASK(_key, _member, _kind) inst.cbMask._member = instOv->cbMask._member;
@@ -2315,29 +2387,33 @@ bool Material_View::Load_FromSelectedModelCom()
         else
         {
             inst.renderStateOverrideEnabled = false;
+            inst.forcedPassIndex = mat->Get_ForcedPassIndex();
             inst.cbMask.Clear();
         }
 
-        auto slotToPath = [&](MaterialTextureSlot slot, wstring& outPath, bool& outOverride, const Engine::TextureOverride* ov) -> void
+        auto slotToPath = [&](MaterialTextureSlot slot, wstring& outPath, bool& outBaseEnabled, bool& outInstanceEnabled, const Engine::TextureOverride* ov) -> void
         {
             if (ov != nullptr && ov->enabled)
             {
                 outPath = ov->path;
-                outOverride = true;
+                outBaseEnabled = true;
+                outInstanceEnabled = true;
                 return;
             }
 
             const Material::TextureSlot* s = mat->Find_TextureSlot(slot, 0);
             if (s != nullptr && s->shaderResourceView != nullptr)
             {
-                // 표시용: base/resolved path는 보여주되 override는 켜지지 않는다.
+                // ModelCom instance override는 꺼져 있어도 최종 머테리얼 슬롯은 살아있을 수 있다.
                 outPath = s->resolvedPath;
-                outOverride = false;
+                outBaseEnabled = true;
+                outInstanceEnabled = false;
             }
             else
             {
                 outPath.clear();
-                outOverride = false;
+                outBaseEnabled = false;
+                outInstanceEnabled = false;
             }
         };
 
@@ -2351,15 +2427,15 @@ bool Material_View::Load_FromSelectedModelCom()
         const Engine::TextureOverride* ovIrisHeight = (instOv != nullptr) ? &instOv->irisHeight : nullptr;
         const Engine::TextureOverride* ovIrisMask = (instOv != nullptr) ? &instOv->irisMask : nullptr;
 
-        slotToPath(MaterialTextureSlot::BaseColor, inst.baseColorPath, inst.baseColorOverride, ovBaseColor);
-        slotToPath(MaterialTextureSlot::Normal, inst.normalPath, inst.normalOverride, ovNormal);
-        slotToPath(MaterialTextureSlot::ORM, inst.ormPath, inst.ormOverride, ovOrm);
-        slotToPath(MaterialTextureSlot::Emissive, inst.emissivePath, inst.emissiveOverride, ovEmissive);
-        slotToPath(MaterialTextureSlot::OpacityMask, inst.opacityMaskPath, inst.opacityMaskOverride, ovOpacityMask);
-        slotToPath(MaterialTextureSlot::HairDepth, inst.hairDepthPath, inst.hairDepthOverride, ovHairDepth);
-        slotToPath(MaterialTextureSlot::HairID, inst.hairIDPath, inst.hairIDOverride, ovHairID);
-        slotToPath(MaterialTextureSlot::IrisHeight, inst.irisHeightPath, inst.irisHeightOverride, ovIrisHeight);
-        slotToPath(MaterialTextureSlot::IrisMask, inst.irisMaskPath, inst.irisMaskOverride, ovIrisMask);
+        slotToPath(MaterialTextureSlot::BaseColor, inst.baseColorPath, inst.baseSlotEnabledBaseColor, inst.instanceOverrideEnabledBaseColor, ovBaseColor);
+        slotToPath(MaterialTextureSlot::Normal, inst.normalPath, inst.baseSlotEnabledNormal, inst.instanceOverrideEnabledNormal, ovNormal);
+        slotToPath(MaterialTextureSlot::ORM, inst.ormPath, inst.baseSlotEnabledOrm, inst.instanceOverrideEnabledOrm, ovOrm);
+        slotToPath(MaterialTextureSlot::Emissive, inst.emissivePath, inst.baseSlotEnabledEmissive, inst.instanceOverrideEnabledEmissive, ovEmissive);
+        slotToPath(MaterialTextureSlot::OpacityMask, inst.opacityMaskPath, inst.baseSlotEnabledOpacityMask, inst.instanceOverrideEnabledOpacityMask, ovOpacityMask);
+        slotToPath(MaterialTextureSlot::HairDepth, inst.hairDepthPath, inst.baseSlotEnabledHairDepth, inst.instanceOverrideEnabledHairDepth, ovHairDepth);
+        slotToPath(MaterialTextureSlot::HairID, inst.hairIDPath, inst.baseSlotEnabledHairID, inst.instanceOverrideEnabledHairID, ovHairID);
+        slotToPath(MaterialTextureSlot::IrisHeight, inst.irisHeightPath, inst.baseSlotEnabledIrisHeight, inst.instanceOverrideEnabledIrisHeight, ovIrisHeight);
+        slotToPath(MaterialTextureSlot::IrisMask, inst.irisMaskPath, inst.baseSlotEnabledIrisMask, inst.instanceOverrideEnabledIrisMask, ovIrisMask);
 
         _manualInstances.emplace(assetName, move(inst));
         _manualInstanceKinds[assetName] = MaterialRefKind::Unknown;
@@ -2499,6 +2575,33 @@ bool Material_View::Save_BundleFile(const wstring& outputPath) const
             return {};
         };
 
+        auto writeTextureRef = [&](const wstring& p) -> json
+        {
+            if (p.empty())
+                return "";
+
+            const string textureGuid = GAME->Ensure_AssetGUID(p, "Texture");
+            if (!textureGuid.empty())
+            {
+                json ref{};
+                ref["texture_guid"] = textureGuid;
+
+                const string relFallback = toRelativeUnderResourceRoot(p);
+                if (!relFallback.empty())
+                    ref["texture_path"] = relFallback;
+
+                return ref;
+            }
+
+            const string relFallback = toRelativeUnderResourceRoot(p);
+            if (relFallback.empty())
+                return "";
+
+            json ref{};
+            ref["texture_path"] = relFallback;
+            return ref;
+        };
+
         json out{};
         // textureRoot는 에디터가 어디서 텍스처를 찾아왔는지 정도만 남긴다
         out["textureRoot"] = toRelativeUnderResourceRoot(_textureSearchRoot);
@@ -2593,27 +2696,37 @@ bool Material_View::Save_BundleFile(const wstring& outputPath) const
             ji["renderState"] = move(jstate);
 
             json jtex{};
-            jtex["baseColor"] = toRelativeUnderResourceRoot(inst.baseColorPath);
-            jtex["normal"] = toRelativeUnderResourceRoot(inst.normalPath);
-            jtex["orm"] = toRelativeUnderResourceRoot(inst.ormPath);
-            jtex["emissive"] = toRelativeUnderResourceRoot(inst.emissivePath);
-            jtex["opacityMask"] = toRelativeUnderResourceRoot(inst.opacityMaskPath);
-            jtex["hairDepth"] = toRelativeUnderResourceRoot(inst.hairDepthPath);
-            jtex["hairID"] = toRelativeUnderResourceRoot(inst.hairIDPath);
-            jtex["irisHeight"] = toRelativeUnderResourceRoot(inst.irisHeightPath);
-            jtex["irisMask"] = toRelativeUnderResourceRoot(inst.irisMaskPath);
+            jtex["baseColor"] = writeTextureRef(inst.baseColorPath);
+            jtex["normal"] = writeTextureRef(inst.normalPath);
+            jtex["orm"] = writeTextureRef(inst.ormPath);
+            jtex["emissive"] = writeTextureRef(inst.emissivePath);
+            jtex["opacityMask"] = writeTextureRef(inst.opacityMaskPath);
+            jtex["hairDepth"] = writeTextureRef(inst.hairDepthPath);
+            jtex["hairID"] = writeTextureRef(inst.hairIDPath);
+            jtex["irisHeight"] = writeTextureRef(inst.irisHeightPath);
+            jtex["irisMask"] = writeTextureRef(inst.irisMaskPath);
             ji["textures"] = move(jtex);
 
+            const bool snapshotFromModelCom = (_mode == CreateMode::EditWithModelCom);
+            auto baseSlotEnabledForSave = [&](bool baseEnabled, const wstring& path) -> bool
+            {
+                // ModelCom 편집 상태에서 Save Bundle은 "최종 머테리얼 스냅샷"을 저장한다.
+                // 따라서 instance override 플래그가 아니라 실제 슬롯 유효 상태(path 존재) 기준으로 기록한다.
+                if (snapshotFromModelCom)
+                    return !path.empty();
+                return baseEnabled;
+            };
+
             json jov{};
-            jov["baseColor"] = inst.baseColorOverride;
-            jov["normal"] = inst.normalOverride;
-            jov["orm"] = inst.ormOverride;
-            jov["emissive"] = inst.emissiveOverride;
-            jov["opacityMask"] = inst.opacityMaskOverride;
-            jov["hairDepth"] = inst.hairDepthOverride;
-            jov["hairID"] = inst.hairIDOverride;
-            jov["irisHeight"] = inst.irisHeightOverride;
-            jov["irisMask"] = inst.irisMaskOverride;
+            jov["baseColor"] = baseSlotEnabledForSave(inst.baseSlotEnabledBaseColor, inst.baseColorPath);
+            jov["normal"] = baseSlotEnabledForSave(inst.baseSlotEnabledNormal, inst.normalPath);
+            jov["orm"] = baseSlotEnabledForSave(inst.baseSlotEnabledOrm, inst.ormPath);
+            jov["emissive"] = baseSlotEnabledForSave(inst.baseSlotEnabledEmissive, inst.emissivePath);
+            jov["opacityMask"] = baseSlotEnabledForSave(inst.baseSlotEnabledOpacityMask, inst.opacityMaskPath);
+            jov["hairDepth"] = baseSlotEnabledForSave(inst.baseSlotEnabledHairDepth, inst.hairDepthPath);
+            jov["hairID"] = baseSlotEnabledForSave(inst.baseSlotEnabledHairID, inst.hairIDPath);
+            jov["irisHeight"] = baseSlotEnabledForSave(inst.baseSlotEnabledIrisHeight, inst.irisHeightPath);
+            jov["irisMask"] = baseSlotEnabledForSave(inst.baseSlotEnabledIrisMask, inst.irisMaskPath);
             ji["overrides"] = move(jov);
 
             json jcb{};
@@ -2693,4 +2806,12 @@ void Material_View::Free()
     Editor_Window::Free();
 }
 
+void Material_View::Clear_TexturePreviewCache()
+{
+    g_MaterialViewTexturePreviewCache.clear();
+    g_MaterialViewTextureSearchCache.clear();
+    g_MaterialViewTextureCandidateCache.clear();
+}
+
 NS_END
+

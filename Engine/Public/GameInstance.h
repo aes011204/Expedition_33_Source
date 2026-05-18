@@ -48,6 +48,7 @@ class Shadow;
 class Picking;
 class Culling_Manager;
 class ThreadPool;
+class PostProcessPipeline;
 NS_END
 #pragma endregion
 
@@ -92,7 +93,11 @@ public:
     void    Set_GameplayPaused(bool paused) { _isGameplayPaused = paused; }
     bool    Is_GameplayPaused() const { return _isGameplayPaused; }
 
+    // 월드 시간 조절
     void    Set_WorldTimeScale(float timeScale);
+    void    Slow_WorldTime(float timeScale, float duration);
+    void    Stop_WorldTimeSlow();
+
     float   Get_WorldTimeScale() const { return _worldTimeScale; }
     float   Get_UnscaledTimeDelta() const { return _unscaledTimeDelta; }
     float   Get_WorldTimeDelta() const { return _worldTimeDelta; }
@@ -195,6 +200,8 @@ public: /* For.Object_Manager */
 public: /* For.Renderer */
     void Add_RenderGroup(RenderGroup renderGroup, Shared<GameObject> gameObject);
     uint32 Get_RenderCall() const;
+    const Shared<PostProcessPipeline>   Get_PostProcessPipeline() const;
+    Shared<PostProcessPipeline>         Get_PostProcessPipeline();
 
 public: /* For.PipeLine */
     HRESULT Bind_CamPosition(ShaderCom* shader, const char* constantName);
@@ -239,12 +246,16 @@ public: /* For.Input_Manager */
 
 public: /* For.Light_Manager */
     const LIGHT_DESC* Get_LightDesc(uint32 index);
+    const LIGHT_DESC* Get_PrimaryShadowLightDesc() const;
     uint32  Get_LightCount() const;
     HRESULT Add_Light(const LIGHT_DESC& lightDesc);
+    HRESULT Update_PrimaryShadowLightDesc(const LIGHT_DESC& lightDesc);
     HRESULT Render_Lights(Shared<ShaderCom> shader, Shared<VIBuffer_Rect> viBuffer);
     void    Clear_Lights();
     void    Get_LightDescs(vector<LIGHT_DESC>& outLightDescs) const;
     HRESULT Set_Lights(const vector<LIGHT_DESC>& lightDescs);
+
+
 
 public: /* For.Font_Manager */
     HRESULT Add_Font(const wstring& fontTag, const wchar_t* fontFilePath);
@@ -321,7 +332,7 @@ public : /* For.Target_Manager */
     HRESULT Add_RenderTarget(const wstring& targetTag, uint32 sizeX, uint32 sizeY, DXGI_FORMAT pixelFormat, const Color& clearColor, bool resizeWithViewport = true, bool useDSV = false);
     HRESULT Add_MRT(const wstring& mrtTag, const wstring& targetTag);
 
-    HRESULT Begin_MRT(const wstring& mrtTag, bool useDSV = false);
+    HRESULT Begin_MRT(const wstring& mrtTag, bool useDSV = false, bool clearRTV = true);
     HRESULT End_MRT();
     HRESULT Resize_MRTs(uint32 width, uint32 height);
     HRESULT Bind_RT_ShaderResource(Shared<ShaderCom> shader, const char* constantName, const wstring& targetTag);
@@ -344,12 +355,27 @@ public: /* For.Shadow */
     HRESULT                 Bind_ShadowMatrices(Shared<ShaderCom> shader, const char* viewName, const char* projName);
     HRESULT                 Bind_ShadowLightDesc(Shared<ShaderCom> shader, const char* lightFarName, const char* biasName = nullptr, const char* intensityName = nullptr);
     HRESULT                 Bind_ShadowCB(Shared<ShaderCom> shader);
+    HRESULT                 Bind_StaticShadowCB(Shared<ShaderCom> shader);
 
     HRESULT                 Update_ShadowLight(const ShadowLightDesc& desc);
     const ShadowLightDesc*  Get_ShadowLightDesc() const;
     const Matrix*           Get_ShadowTransformMatrix(D3DTS eType) const;
 
+    // 카메라가 플레이어 따라다니면서 그림자 위치 조절
+    HRESULT Update_ShadowFromCameraFrustum(
+        const ShadowLightDesc& desc,
+        const Shared<Camera>& camera,
+        const Vec3& lightDir);
 
+    // Static Shadow 크기 구하기
+    HRESULT Update_StaticShadowFromBounds(
+        const ShadowLightDesc& desc,
+        const BoundingBox& bounds,
+        const Vec3& lightDir);
+
+
+    void Register_StaticShadowCaster(Shared<GameObject> gameObject);
+    void Mark_StaticShadowDirty();
 
 public: /* For.Collision_Manager */
     void                    Add_Collider(Shared<ColliderCom> collider);
@@ -358,6 +384,7 @@ public: /* For.Collision_Manager */
 public: // For. PhysX_Manager
     PxPhysics*  Get_PhysXPhysics() const;
     PxScene*    Get_PhysXScene() const;
+    PhysX_Manager* Get_PhysXManager() const { return _physxManager.get(); }
 
     PhysXStaticActorHandle Register_PhysXStaticModel(
         const ModelCom& model,
@@ -501,6 +528,10 @@ private:
     float   _worldTimeScale = 1.f;
     float   _unscaledTimeDelta = 0.f;
     float   _worldTimeDelta = 0.f;
+    bool    _isWorldTimeSlowActive = false;
+    float   _worldTimeSlowElapsed = 0.f;
+    float   _worldTimeSlowDuration = 0.f;
+    float   _worldTimeScaleBeforeSlow = 1.f;
 
     // Free 카메라용 time
     float   _freeCameraTimeDelta = 0.f;

@@ -22,6 +22,7 @@ public:
     void Clear_Lights();
     void Get_LightDescs(vector<LIGHT_DESC>& outLightDescs) const;
     HRESULT Set_Lights(const vector<LIGHT_DESC>& lightDescs);
+    HRESULT Update_PrimaryShadowLightDesc(const LIGHT_DESC& lightDesc);
 
 public:
 	HRESULT Add_Light(const LIGHT_DESC& lightDesc);

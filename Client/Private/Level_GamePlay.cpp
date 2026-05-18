@@ -2,6 +2,7 @@
 #include "GameInstance.h"
 #include "ClientInstance.h"
 #include "Client_Constants.h"
+#include "EffectInstance.h"
 #include "Spawn_Prefab.h"
 #include "TargetCamera.h"
 #include "MapLoader.h"
@@ -23,6 +24,9 @@ HRESULT Level_GamePlay::Initialize()
         return E_FAIL;
 
     if (FAILED(Ready_Layer_Player(TEXT("Layer_Player"))))
+        return E_FAIL;
+
+    if (FAILED(Ready_Layer_Effect(TEXT("Layer_Effect"))))
         return E_FAIL;
 
     if (FAILED(Ready_Layer_UI(TEXT("Layer_UI"))))
@@ -53,7 +57,7 @@ void Level_GamePlay::Update(float fTimeDelta)
     // 테스트
 #ifdef _DEBUG
     const int32 fps = (fTimeDelta > 0.f)
-            ? static_cast<int32>(1.f / fTimeDelta) : 0;
+            ? static_cast<int32>(1.f / fTimeDelta) : 0.f;
 
      GAME->Print(L"현재 FPS : {}", fps, duration(0.f), color(Vec4(1.f, 1.f, 0.f, 1.f)));
 #endif
@@ -92,27 +96,38 @@ HRESULT Level_GamePlay::Ready_Lights()
     LIGHT_DESC LightDesc{};
 
     LightDesc.type = LightType::Directional;
-    LightDesc.direction = XMFLOAT4(1.f, -1.f, -1.f, 0.f);
-    LightDesc.diffuse = XMFLOAT4(1.f, 1.f, 1.f, 1.f);
-    LightDesc.ambient = XMFLOAT4(0.4f, 0.4f, 0.4f, 1.f);
-    LightDesc.specular = XMFLOAT4(1.f, 1.f, 1.f, 1.f);
+    LightDesc.direction = Vec4(1.f, -1.f, -1.f, 0.f);
+    LightDesc.diffuse = Vec4(1.f, 1.f, 1.f, 1.f);
+    LightDesc.ambient = Vec4(0.4f, 0.4f, 0.4f, 1.f);
+    LightDesc.specular = Vec4(1.f, 1.f, 1.f, 1.f);
+    LightDesc.castShadow = true;
 
     if (FAILED(GAME->Add_Light(LightDesc)))
         return E_FAIL;
 
-    ShadowLightDesc ShadowDesc{};
+    {
+        ShadowLightDesc ShadowDesc{};
 
-    ShadowDesc.eye = Vec3(-0.f, 10.f, -7.f);
-    ShadowDesc.at = Vec3(0.f, 0.f, 0.f);
-    ShadowDesc.fovy = DirectX::XMConvertToRadians(120.f);
-    ShadowDesc.aspect = 16.f / 9.f;
-    ShadowDesc.zn = 0.1f;
-    ShadowDesc.zf = 1000.f;
-    ShadowDesc.bias = 0.03f;
-    ShadowDesc.intensity = 0.4f;
+        ShadowDesc.eye = Vec3(0.f, 10.f, -7.f);
+        ShadowDesc.at = Vec3(0.f, 0.f, 0.f);
 
-    if (FAILED(GAME->Update_ShadowLight(ShadowDesc)))
-        return E_FAIL;
+        // Camera 따라다니게
+        ShadowDesc.followCameraFrustum = true;
+        ShadowDesc.focusNear = 0.1f;
+        ShadowDesc.focusFar = 40.f;
+        ShadowDesc.lightDistancePadding = 30.f;
+        ShadowDesc.xyPadding = 2.f;
+        ShadowDesc.zPadding = 40.f;
+
+        ShadowDesc.shadowMapWidth = 4096;
+        ShadowDesc.shadowMapHeight = 4096;
+
+        ShadowDesc.bias = 0.0002f;
+        ShadowDesc.intensity = 0.45f;
+
+        if (FAILED(GAME->Update_ShadowLight(ShadowDesc)))
+            return E_FAIL;
+    }
 
     return S_OK;
 }
@@ -193,7 +208,7 @@ HRESULT Level_GamePlay::Ready_Layer_Monster(const wstring& strLayerTag)
     //    return E_FAIL;
 
 
-    Vec3 startPos = Vec3(20.f, 2.f, 20.f);
+    Vec3 startPos = Vec3(66.f, 5.47f, -1.94f);
 
 
      
@@ -209,8 +224,106 @@ HRESULT Level_GamePlay::Ready_Layer_Monster(const wstring& strLayerTag)
 
 HRESULT Level_GamePlay::Ready_Layer_Player(const wstring& strLayerTag)
 {
-    Vec3 startPos = Vec3(82.f, 5.f, 0.f);
+    Vec3 startPos = Vec3(82.f, 5.14f, -0.24f);
     CHECK_FAILED(CLIENT->Initialize_Hero(ETOI(LevelType::GamePlay), strLayerTag, startPos), E_FAIL);
+
+    return S_OK;
+}
+
+HRESULT Level_GamePlay::Ready_Layer_Effect(const wstring& strLayerTag)
+{
+#pragma region Effect Test
+    auto effectDefinition = make_shared<EffectDefinition>();
+    effectDefinition->name = "Thunder_Fall_Lightning_Test";
+
+    ComputeSpriteEmitterDesc emitterDesc{};
+    emitterDesc.textureId = "Texture_Effect_LightningBook2x2";
+    emitterDesc.tint = Vec4(0.50f, 0.50f, 1.00f, 1.00f); // 파란색
+    emitterDesc.intensity = 2.f;
+    emitterDesc.opacityPower = 0.f;
+    emitterDesc.noiseStrength = 0.2f;
+    emitterDesc.blendMode = "Additive";
+    emitterDesc.opacitySource = "Red";
+    emitterDesc.subUVRows = 2u;
+    emitterDesc.subUVCols = 2u;
+    emitterDesc.screenAlignment = EffectSpriteScreenAlignment::Velocity;
+    emitterDesc.directionalAlignmentMode = EffectSpriteDirectionalAlignmentMode::TextureAxis;
+    emitterDesc.spriteTextureAxis = EffectSpriteTextureAxis::Y;
+    emitterDesc.duration = 0.45f;
+    emitterDesc.loopCount = 0u;
+    emitterDesc.instanceCount = 24u;
+    emitterDesc.maxDrawCount = 24u;
+
+    emitterDesc.spawn.processSpawnRate = false;
+    emitterDesc.spawn.processBurstList = true;
+    emitterDesc.spawn.bursts = {
+        PointParticleBurstDesc{ 0.00f, 6u },
+        PointParticleBurstDesc{ 0.14f, 5u },
+        PointParticleBurstDesc{ 0.28f, 4u }
+    };
+    emitterDesc.spawn.maxActiveCount = 24u;
+
+    emitterDesc.lifeTime = Vec2(0.40f, 1.10f);
+    emitterDesc.sizeMin = Vec2(0.12f, 0.14f);
+    emitterDesc.sizeMax = Vec2(0.22f, 0.42f);
+
+    emitterDesc.motion.enabled = true;
+    emitterDesc.motion.initialRadialVelocityEnabled = true;
+    emitterDesc.motion.initialRadialVelocityInWorldSpace = false;
+    emitterDesc.motion.radialPivot = Vec3(0.f, 0.f, 0.f);
+    emitterDesc.motion.radialSpeed = Vec2(-0.39f, -0.18f);
+    emitterDesc.motion.velocityScaleByLife = Vec2(1.0f, 0.25f);
+
+    emitterDesc.sphereLocation.enabled = true;
+    emitterDesc.sphereLocation.offset = Vec3(0.f, 0.f, 0.f);
+    emitterDesc.sphereLocation.radius = 0.37f;
+    emitterDesc.sphereLocation.mode = PointParticleSphereLocationMode::Surface;
+
+    emitterDesc.sizeByLife.enabled = true;
+    emitterDesc.sizeByLife.multiplyXStart = 1.2f;
+    emitterDesc.sizeByLife.multiplyXEnd = 1.0f;
+    emitterDesc.sizeByLife.multiplyYStart = 1.2f;
+    emitterDesc.sizeByLife.multiplyYEnd = 1.0f;
+
+    emitterDesc.subUVFrameOverLife.enabled = true;
+    emitterDesc.subUVFrameOverLife.playbackMode = SubUVFramePlaybackMode::FramesPerSecond;
+    emitterDesc.subUVFrameOverLife.startFrame = 0u;
+    emitterDesc.subUVFrameOverLife.endFrame = 3u;
+    emitterDesc.subUVFrameOverLife.loop = true;
+    emitterDesc.subUVFrameOverLife.framesPerSecond = 20.f;
+
+    emitterDesc.startColorMin = Vec4(1.f, 1.f, 1.f, 0.85f);
+    emitterDesc.startColorMax = Vec4(1.f, 1.f, 1.f, 1.00f);
+    emitterDesc.endColorMin = Vec4(0.60f, 0.80f, 0.95f, 0.08f);
+    emitterDesc.endColorMax = Vec4(0.85f, 0.90f, 1.00f, 0.08f);
+
+    EffectEmitterDefinition emitterDefinition{};
+    emitterDefinition.id = 1u;
+    emitterDefinition.name = "lightning_0";
+    emitterDefinition.kind = EffectEmitterKind::ComputeSprite;
+    emitterDefinition.enabled = true;
+    emitterDefinition.useLocalSpace = true;
+    emitterDefinition.concreteDesc = emitterDesc;
+    effectDefinition->emitters.push_back(emitterDefinition);
+
+    EffectInstanceDesc effectDesc{};
+    effectDesc.definition = effectDefinition;
+    effectDesc.position = Vec3(83.5f, 5.14f, -0.24f);
+
+    const Shared<EffectInstance> effectPrototype = EffectInstance::Create(_device, _context);
+    CHECK_NULL(effectPrototype, E_FAIL);
+
+    const Shared<GameObject> effectObject = effectPrototype->Clone(&effectDesc);
+    CHECK_NULL(effectObject, E_FAIL);
+
+    CHECK_FAILED(
+        GAME->Add_GameObject(
+            ETOI(LevelType::GamePlay),
+            strLayerTag,
+            effectObject),
+        E_FAIL
+    );
+#pragma endregion
 
     return S_OK;
 }

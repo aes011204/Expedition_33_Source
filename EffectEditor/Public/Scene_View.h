@@ -36,6 +36,7 @@ private: //## Helper::Overlay
     void Render_ViewportToolbarOverlay();
     void Render_GizmoOverlay();
     void Render_PreviewViewportOverlay();
+    void Render_ViewModeOverlay();
 
 private: //## Helper::Viewport
     void Sync_PreviewViewportInput();

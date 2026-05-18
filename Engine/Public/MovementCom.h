@@ -1,11 +1,13 @@
 ﻿#pragma once
 
 #include "Component.h"
+//#include "PhysX_Types.h"
 
 NS_BEGIN(Engine)
 
 class TransformCom;
 class ColliderCom;
+class PhysicsCharacterController;
 
 struct PhysXQueryHit;
 
@@ -14,6 +16,8 @@ class ENGINE_DLL MovementCom : public Component
     GENERATED_COMPONENT(MovementCom)
 
 public:
+    enum class MoveBackend { Sweep, PhysXCCT, };
+
     struct MovementInput
     {
         float moveX = 0.f;
@@ -32,6 +36,25 @@ public:
         bool isMouseRUp{ false };
     };
 
+    struct SweepDesc
+    {
+        float skinWidth = 0.03f;
+        float groundSnapUp = 0.35f;
+        float groundSnapDown = 0.55f;
+        float walkableNormalY = 0.65f;
+        float groundY = 0.f;
+    };
+
+    struct CCTDesc
+    {
+        float radius = 0.32f;
+        float height = 1.50f;
+        float stepOffset = 0.35f;
+        float contactOffset = 0.03f;
+        float slopeLimitDeg = 49.0f;
+        float groundLerpSpeed = 15.f;
+    };
+
     struct MoveDesc
     {
         float walkSpeed = 4.f;
@@ -44,12 +67,9 @@ public:
 
         float gravity = -20.f;
 
-        float skinWidth = 0.03f;
-        float groundSnapUp = 0.35f;
-        float groundSnapDown = 0.55f;
-        float walkableNormalY = 0.65f;
-
-        float groundY = 0.f;
+        MoveBackend backend = MoveBackend::Sweep;
+        SweepDesc sweep{};
+        CCTDesc cct{};
     };
 
     struct FollowMoveCommand
@@ -73,6 +93,9 @@ public:
 
 public:
     void Apply_Input(const MovementInput& input) { _input = input; }
+
+    MoveBackend Get_MoveBackend() const { return _moveDesc.backend; }
+    void Set_MoveBackend(MoveBackend backend);
 
     void Set_Transform(const Shared<TransformCom> transform)
     {
@@ -110,6 +133,7 @@ private:
     void Update_Rotation(float timeDelta);
     void Update_HorizontalVelocity();
     void Update_VerticalVelocity(float timeDelta);
+
     void Apply_Velocity(float timeDelta);
 
     void Resolve_Ground();
@@ -131,6 +155,12 @@ private:
     void Resolve_Ground_WithSnap();
     bool Is_WalkableGround(const Vec3& normal) const;
 
+    void Create_CharacterController();
+    void Destroy_CharacterController();
+
+    Vec3 Get_CCTFootPosition_FromTransform() const; // 현재 위치 -> CCT 발 위치 환산
+    void Sync_Transform_FromCCT(const Vec3& footPosition, float timeDelta, bool smoothGrounding); // CCT 결과 -> Transform
+
 private:
     MoveDesc         _moveDesc{};
     MovementInput    _input{};
@@ -145,6 +175,7 @@ private:
     bool _isJumping = false;
 
     Shared<ColliderCom> _colliderCom;
+    Shared<PhysicsCharacterController> _characterController;
 
 public:
     static Shared<MovementCom> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

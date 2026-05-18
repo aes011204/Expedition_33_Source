@@ -21,6 +21,12 @@ enum class PreviewViewportMode : uint8
     Manual,
 };
 
+enum class SceneViewMode : uint8
+{
+    Final,
+    Authoring,
+};
+
 enum class NotifyType
 {
     Info,

@@ -51,7 +51,7 @@ HRESULT MapEditorApp::Initialize()
     GAME->Add_Camera(_bridgeCamera);
     GAME->Change_ActiveCamera(_bridgeCamera);
 
-    _rt = RenderTarget::Create(_device, _context, g_iWinSizeX, g_iWinSizeY, DXGI_FORMAT_R8G8B8A8_UNORM, Vec4(0.1f, 0.1f, 0.1f, 1.f));
+    _rt = RenderTarget::Create(L"RenderTarget", _device, _context, g_iWinSizeX, g_iWinSizeY, DXGI_FORMAT_R8G8B8A8_UNORM, Vec4(0.1f, 0.1f, 0.1f, 1.f));
     CHECK_NULL(_rt, E_FAIL);
 
     _modelManager = MEModelManager::Create();

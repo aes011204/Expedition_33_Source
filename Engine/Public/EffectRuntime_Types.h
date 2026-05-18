@@ -12,7 +12,32 @@ enum class EffectEmitterKind : uint8
     ComputeSprite, // compute-first sprite emitter runtime이다.
 };
 
+// EffectSprite shader가 어떤 기준으로 sprite facing 축을 고를지 결정한다.
+enum class EffectSpriteScreenAlignment : uint32
+{
+    FacingCameraPosition = 0, // particle 위치에서 camera position을 바라보는 기본 billboard다.
+    Rectangle = 1,            // 카메라 화면 평면 right/up을 따라가는 직사각형 billboard다.
+    Square = 2,               // 카메라 화면 평면 기준에서 더 큰 축으로 정사각형을 만든다.
+    AwayFromCenter = 3,       // emitter 중심에서 particle 바깥으로 향하는 radial 방향을 기준 방향으로 쓴다.
+    Velocity = 4,             // compute가 기록한 현재 속도 방향을 기준 방향으로 쓴다.
+};
+
+// AwayFromCenter/Velocity가 기준 방향을 어떻게 쓸지 결정한다.
+enum class EffectSpriteDirectionalAlignmentMode : uint32
+{
+    LookDirection = 0, // 기준 방향을 sprite normal/look 방향으로 사용한다.
+    TextureAxis = 1,   // camera-facing 평면을 유지하고 texture 축만 기준 방향에 맞춘다.
+};
+
+// TextureAxis mode에서 기준 방향에 맞출 texture 축을 고른다.
+enum class EffectSpriteTextureAxis : uint32
+{
+    X = 0, // texture의 가로 축을 기준 방향에 맞춘다.
+    Y = 1, // texture의 세로 축을 기준 방향에 맞춘다.
+};
+
 // compute sprite emitter가 실제 runtime consumer에게 넘길 최소 payload다.
+// TODO : 점점 복잡해지고 있는데, 모듈별로 구조체를 정확히 나누는게 좋지 않을까?
 struct ComputeSpriteEmitterDesc : public GameObject::GAMEOBJECT_DESC
 {
     PointParticleDrawMode drawMode{ PointParticleDrawMode::DrawIndexedInstancedIndirect }; // compute sprite 정식 draw 제출 방식이다.
@@ -31,10 +56,32 @@ struct ComputeSpriteEmitterDesc : public GameObject::GAMEOBJECT_DESC
     PointParticleSizeByLifeDesc sizeByLife{};                 // 수명 진행률 기준 크기 배율 규칙이다.
     PointParticleMotionDesc motion{};                         // motion authoring module을 compute payload로 압축한 규칙이다.
     PointParticleRotationDesc rotation{};                     // rotation authoring module을 compute payload로 압축한 규칙이다.
+    PointParticleSpawnDesc spawn{};                           // Spawn 모듈이 만든 연속/버스트 생성 규칙이다.
+    PointParticleInitialLocationDesc initialLocation{};       // InitialLocation 모듈이 만든 시작 위치 offset 분포다.
+    PointParticleSphereLocationDesc sphereLocation{};         // SphereLocation 모듈이 만든 시작 위치 구형 offset 분포다.
+    float duration{ 1.f };                                    // emitter 한 loop가 재생되는 시간이다.
+    uint32 loopCount{ 0 };                                    // 0은 무한 반복, 1 이상은 지정 횟수 재생이다.
+    float delay{ 0.f };                                       // loop 시작 전 spawn/draw를 막는 지연 시간이다.
+    bool delayFirstLoopOnly{ false };                         // true면 첫 loop에만 delay를 적용한다.
+    bool killOnDeactivate{ false };                           // 외부 deactivate 계약이 생기면 active particle을 즉시 죽일지 나타낸다.
+    bool killOnCompleted{ false };                            // 마지막 loop 완료 시 active particle을 즉시 죽일지 나타낸다.
+    bool useMaxDrawCount{ true };                             // maxDrawCount를 draw 상한으로 적용할지 나타낸다.
+    uint32 maxDrawCount{ 500 };                               // 동시에 그릴 particle 수 상한이다. buffer capacity는 바꾸지 않는다.
+
+    // EffectSprite shader가 preview/runtime sprite 축을 고르는 기준이다.
+    EffectSpriteScreenAlignment screenAlignment{ EffectSpriteScreenAlignment::FacingCameraPosition };
+    // AwayFromCenter/Velocity에서 기준 방향을 look으로 쓸지 texture 축으로 쓸지 결정한다.
+    EffectSpriteDirectionalAlignmentMode directionalAlignmentMode{ EffectSpriteDirectionalAlignmentMode::TextureAxis };
+    // TextureAxis mode에서 radial/velocity 방향에 맞출 texture 축이다.
+    EffectSpriteTextureAxis spriteTextureAxis{ EffectSpriteTextureAxis::Y };
+
+    float spriteRollOffsetDegrees{ 0.f }; // authored texture 방향 차이를 보정하는 정적 roll offset이다.
 
     Vec3 center{ 0.f, 0.f, 0.f };             // concrete emitter 내부 fallback/초기 center다. root transform이 있으면 후속 sync가 덮어쓴다.
     uint32 instanceCount{ 96 };               // 생성할 particle 수다.
-    Vec2 scale{ 0.12f, 0.28f };               // compute payload가 사용할 랜덤 scale 범위다.
+    Vec3 spawnRange{ 1.f, 1.f, 1.f };         // Phase2 spawn shape 전까지 사용할 기본 box spawn 범위다.
+    Vec2 sizeMin{ 0.12f, 0.12f };             // InitialSize의 가로/세로 크기 하한이다.
+    Vec2 sizeMax{ 0.28f, 0.28f };             // InitialSize의 가로/세로 크기 상한이다.
     Vec2 lifeTime{ 1.f, 2.f };                // compute payload가 사용할 생존 시간 범위다.
     Vec4 startColorMin{ 1.f, 1.f, 1.f, 1.f }; // Initial Color 하한이다.
     Vec4 startColorMax{ 1.f, 1.f, 1.f, 1.f }; // Initial Color 상한이다.

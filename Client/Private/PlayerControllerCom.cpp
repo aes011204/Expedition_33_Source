@@ -4,6 +4,8 @@
 #include "InputCom.h"
 #include "MovementCom.h"
 
+#include "Debug_Profile.h""
+
 IMPLEMENT_REFLECTION(PlayerControllerCom)
 {
     auto& info = GetStaticReflectionInfo();
@@ -80,6 +82,8 @@ void PlayerControllerCom::Update_InputState()
 
 void PlayerControllerCom::Update_Movement(float timeDelta)
 {
+    Debug_Profile::Scope profileScope("PlayerController::UpdateMovement");
+
 	if (GAME->Is_PlayerInputBlocked())
 	{
 		_movementCom->Apply_Input({});

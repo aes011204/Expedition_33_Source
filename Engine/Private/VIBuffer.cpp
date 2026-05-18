@@ -50,8 +50,6 @@ HRESULT VIBuffer::Bind_Resources()
 	_context->IASetIndexBuffer(_ib.Get(), 2 == _indexStride ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT, 0);
 	_context->IASetPrimitiveTopology(_primitiveType);
 
-	
-
 	return S_OK;
 }
 

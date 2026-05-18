@@ -13,7 +13,7 @@ RenderTarget::~RenderTarget()
 {
 }
 
-HRESULT RenderTarget::Initialize(uint32 width, uint32 height, DXGI_FORMAT pixelFormat, const Vec4& clearColor, bool useDepthStencil)
+HRESULT RenderTarget::Initialize(const wstring& targetTag, uint32 width, uint32 height, DXGI_FORMAT pixelFormat, const Vec4& clearColor, bool useDepthStencil)
 {
     if (nullptr == _device || nullptr == _context || 0 == width || 0 == height)
         return E_FAIL;
@@ -38,6 +38,14 @@ HRESULT RenderTarget::Initialize(uint32 width, uint32 height, DXGI_FORMAT pixelF
 
     if (FAILED(_device->CreateRenderTargetView(_texture.Get(), nullptr, _rtv.GetAddressOf())))
         return E_FAIL;
+
+    _targetTag = targetTag;
+
+    _rtv->SetPrivateData(
+        WKPDID_D3DDebugObjectNameW,
+        static_cast<UINT>((targetTag.size() + 1) * sizeof(wchar_t)),
+        targetTag.c_str()
+    );
 
     if (FAILED(_device->CreateShaderResourceView(_texture.Get(), nullptr, _srv.GetAddressOf())))
         return E_FAIL;
@@ -80,7 +88,7 @@ HRESULT RenderTarget::Resize(uint32 width, uint32 height, DXGI_FORMAT pixelForma
         return S_OK;
     }
 
-    return Initialize(width, height, pixelFormat, clearColor, useDepthStencil);
+    return Initialize(_targetTag, width, height, pixelFormat, clearColor, useDepthStencil);
 }
 
 HRESULT RenderTarget::Begin(bool clearRenderTarget, bool clearDepthStencil)
@@ -148,6 +156,7 @@ void RenderTarget::Release_TargetResources()
 }
 
 Shared<RenderTarget> RenderTarget::Create(
+    const wstring& targetTag,
     ComPtr<Device> device,
     ComPtr<Context> context,
     uint32 width,
@@ -158,7 +167,7 @@ Shared<RenderTarget> RenderTarget::Create(
 {
     auto instance = make_shared<RenderTarget>(device, context);
 
-    if (FAILED(instance->Initialize(width, height, pixelFormat, clearColor, useDepthStencil)))
+    if (FAILED(instance->Initialize(targetTag, width, height, pixelFormat, clearColor, useDepthStencil)))
     {
         MSG_BOX("Failed to Created : RenderTarget");
         return nullptr;

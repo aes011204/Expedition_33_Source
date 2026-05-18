@@ -11,7 +11,7 @@ ComputeStructuredBuffer::~ComputeStructuredBuffer()
     Free();
 }
 
-HRESULT ComputeStructuredBuffer::Initialize(uint32 elementSize, uint32 elementCount, const void* initialData)
+HRESULT ComputeStructuredBuffer::Initialize(uint32 elementSize, uint32 elementCount, const void* initialData, uint32 extraBindFlags)
 {
     if (elementSize == 0 || elementCount == 0)
     {
@@ -21,11 +21,12 @@ HRESULT ComputeStructuredBuffer::Initialize(uint32 elementSize, uint32 elementCo
 
     _elementSize = elementSize;
     _elementCount = elementCount;
+    _extraBindFlags = extraBindFlags;
 
     D3D11_BUFFER_DESC bufferDesc{};
     bufferDesc.ByteWidth = _elementSize * _elementCount;
     bufferDesc.Usage = D3D11_USAGE_DEFAULT;
-    bufferDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS;
+    bufferDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS | _extraBindFlags;
     bufferDesc.CPUAccessFlags = 0;
     bufferDesc.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
     bufferDesc.StructureByteStride = _elementSize;
@@ -102,11 +103,12 @@ Shared<ComputeStructuredBuffer> ComputeStructuredBuffer::Create(
     const ComPtr<Context>& context,
     uint32 elementSize,
     uint32 elementCount,
-    const void* initialData)
+    const void* initialData,
+    uint32 extraBindFlags)
 {
     auto instance = make_shared<ComputeStructuredBuffer>(device, context);
 
-    if (FAILED(instance->Initialize(elementSize, elementCount, initialData)))
+    if (FAILED(instance->Initialize(elementSize, elementCount, initialData, extraBindFlags)))
     {
         LOG_CRITICAL("Failed to Create : ComputeStructuredBuffer");
         return nullptr;

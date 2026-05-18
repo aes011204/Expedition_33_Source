@@ -26,27 +26,31 @@ cbuffer ObjectBuffer
 
 cbuffer ShadowBuffer
 {
-    row_major float4x4 g_LightViewMatrix; // 64
-    row_major float4x4 g_LightProjMatrix; // 128
+    row_major float4x4 g_LightViewMatrix;
+    row_major float4x4 g_LightProjMatrix;
 
-    float g_LightFar;           // 132
-    float g_Bias;               // 136
-    float g_ShadowIntensity;    // 140
-    float g_ShadowPadding0;     // 144
+    row_major float4x4 g_StaticLightViewMatrix;
+    row_major float4x4 g_StaticLightProjMatrix;
+
+    float g_LightFar;           
+    float g_Bias;               
+    float g_ShadowIntensity;    
+    float g_StaticShadowEnabled;
 };
 
 cbuffer DeferredBuffer
 {
-    row_major float4x4 g_ScreenViewMatrix;  // 64
-    row_major float4x4 g_ScreenProjMatrix;  // 128
+    row_major float4x4 g_ScreenViewMatrix;          // 64
+    row_major float4x4 g_ScreenProjMatrix;          // 128
 
     row_major float4x4 g_DeferredViewMatrixInverse; // 192
     row_major float4x4 g_DeferredProjMatrixInverse; // 256
 
-    float4  g_DeferredCamPosition;           // 272
+    float4  g_DeferredCamPosition;                  // 272
 
-    float   g_DeferredFar;                   // 276
-    float3  g_DeferredPadding0;              // 288
+    float   g_DeferredFar;                          // 276
+    float2  g_ScreenSize;                           // 284
+    float   g_DeferredPadding0;                     // 288
 };
 
 cbuffer LightBuffer
@@ -85,4 +89,46 @@ cbuffer MaterialBuffer
     float2 g_MaterialPadding1;      // 88 ~ 95
 }; // 96 bytes
 
+cbuffer PostProcessBuffer
+{
+    float g_PP_Exposure;        //  0 ~  3
+    float g_PP_InvWhitePoint;   //  4 ~  7
+    float g_PP_Gamma;           //  8 ~ 11
+    float g_PP_BloomRadius;     // 12 ~ 15
+
+    float g_PP_BloomThreshold;  // 16 ~ 19
+    float g_PP_BloomIntensity;  // 20 ~ 23
+    float g_PP_BloomSoftKnee;   // 24 ~ 27
+    float g_PP_BloomClamp;      // 28 ~ 31
+
+    float g_PP_BloomScatter;    // 32 ~ 35
+    uint g_PP_ToneMapMode;      // 36 ~ 39
+    float2 g_PP_BloomTexelSize; // 40 ~ 47
+
+    uint g_PP_FeatureMask;      // 48 ~ 51
+    float3 g_PP_Padding2;       // 52 ~ 63
+}; // 64 bytes
+
+cbuffer cbSSAO
+{
+    float g_SSAORadius;
+    float g_SSAOBias;
+    float g_SSAOIntensity;
+    float g_SSAOPower;
+
+    float g_SSAOBlurRadius;
+    float g_SSAODepthSharpness;
+    float g_SSAONormalSharpness;
+    uint g_SSAOSampleCount;
+
+    uint g_SSAOEnabled;
+    uint g_SSAOHalfResEnabled;
+    uint g_SSAOBilateralEnabled;
+    uint g_SSAOTemporalEnabled;
+
+    float g_SSAOUpsampleDepthThreshold;
+    float g_SSAOTemporalBlendFactor;
+    float g_SSAOTemporalDepthReject;
+    float g_SSAOTemporalNormalReject;
+};
 #endif

@@ -1,53 +1,4 @@
-#include "Engine_Shader_Defines.hlsli"
-#include "Engine_Shader_RenderState.hlsl"
-#include "Engine_Shader_Passes.hlsl"
-#include "Engine_Shader_Samplers.hlsl"
-#include "Engine_Shader_ConstantBuffer.hlsl"
-#include "Engine_Shader_Utils.hlsl"
-
-//==================================================
-// TEXTURE
-//==================================================
-Texture2D g_Texture;
-Texture2D g_DiffuseTexture;
-Texture2D g_NormalTexture;
-Texture2D g_ShadeTexture;
-Texture2D g_SpecularTexture;
-Texture2D g_DepthTexture;
-Texture2D g_LightDepthTexture;
-Texture2D g_MaterialTexture;
-Texture2D g_EmissiveTexture;
-
-//==================================================
-// LIGHT
-//==================================================
-vector g_MtrlAmbient = float4(1.f, 1.f, 1.f, 1.f);
-vector g_MtrlSpecular = float4(1.f, 1.f, 1.f, 1.f);
-
-float4 Reconstruct_WorldPos(float2 Texcoord)
-{
-    vector DepthDesc = g_DepthTexture.Sample(LinearWrapSampler, Texcoord);
-    float fViewZ = DepthDesc.y * g_DeferredFar;
-
-    float4 WorldPos;
-
-    // -> ndc space
-    WorldPos.x = Texcoord.x * 2.f - 1.f;
-    WorldPos.y = Texcoord.y * -2.f + 1.f;
-    WorldPos.z = DepthDesc.x;
-    WorldPos.w = 1.f;
-
-    // -> clip space
-    WorldPos *= fViewZ;
-
-    // -> view space
-    WorldPos = mul(WorldPos, g_DeferredProjMatrixInverse);
-
-    // -> world space
-    WorldPos = mul(WorldPos, g_DeferredViewMatrixInverse);
-
-    return WorldPos;
-}
+#include "Engine_Shader_Deferred.hlsl"
 
 //==================================================
 // VS
@@ -178,7 +129,7 @@ PS_OUT_LIGHT PS_MAIN_POINT(PS_IN In)
     return Out;
 }
 
-PS_OUT_BACKBUFFER PS_MAIN_COMBINED(PS_IN In)
+PS_OUT_BACKBUFFER PS_CombinedHDR(PS_IN In)
 {
     PS_OUT_BACKBUFFER Out;
 
@@ -195,22 +146,32 @@ PS_OUT_BACKBUFFER PS_MAIN_COMBINED(PS_IN In)
     Out.Color = Diffuse * Shade + Specular;
 
     // Shadow
-    float4 vWorldPos = Reconstruct_WorldPos(In.Texcoord);
+    float4 worldPos = Reconstruct_WorldPos(In.Texcoord);
 
-    float4 ShadowPos = mul(vWorldPos, g_LightViewMatrix);
-    ShadowPos = mul(ShadowPos, g_LightProjMatrix);
+    float dynamicShadow = SampleShadowAmount(
+    g_LightDepthTexture,
+    worldPos,
+    g_LightViewMatrix,
+    g_LightProjMatrix,
+    g_Bias);
 
-    float2 LightTexcoord;
-    LightTexcoord.x = (ShadowPos.x / ShadowPos.w) * 0.5f + 0.5f;
-    LightTexcoord.y = (ShadowPos.y / ShadowPos.w) * -0.5f + 0.5f;
-
-    float4 vLightDepthDesc = g_LightDepthTexture.Sample(LinearClampSampler, LightTexcoord);
-    float fOldLightZ = vLightDepthDesc.y * g_LightFar;
-
-    if (all(LightTexcoord >= 0.f) && all(LightTexcoord <= 1.f))
+    float staticShadow = 0.f;
+    if (g_StaticShadowEnabled > 0.5f)
     {
-        if (fOldLightZ + g_Bias < ShadowPos.w)
-            Out.Color.rgb *= g_ShadowIntensity;
+        staticShadow = SampleShadowAmount(
+        g_StaticLightDepthTexture,
+        worldPos,
+        g_StaticLightViewMatrix,
+        g_StaticLightProjMatrix,
+        g_Bias);
+    }
+
+    float finalShadow = max(dynamicShadow, staticShadow);
+
+    if (finalShadow > 0.f)
+    {
+        float shadowBrightness = lerp(1.f, 0.45f, saturate(g_ShadowIntensity) * finalShadow);
+        Out.Color.rgb *= shadowBrightness;
     }
 
     Out.Color.rgb += Emissive.rgb;
@@ -230,10 +191,30 @@ PS_OUT_BACKBUFFER PS_MAIN_COMBINED_SIMPLE(PS_IN In)
     vector Specular = g_SpecularTexture.Sample(LinearWrapSampler, In.Texcoord);
 
     Out.Color = Diffuse * Shade + Specular;
+
     return Out;
 }
 
 PS_OUT_BACKBUFFER PS_MAIN_COMBINED_PREVIEW(PS_IN In)
+{
+    PS_OUT_BACKBUFFER Out;
+
+    vector Diffuse = g_DiffuseTexture.Sample(LinearWrapSampler, In.Texcoord);
+    if (Diffuse.a == 0.f)
+        discard;
+
+    vector Shade = g_ShadeTexture.Sample(LinearSampler, In.Texcoord);
+    vector Specular = g_SpecularTexture.Sample(LinearWrapSampler, In.Texcoord);
+    vector Emissive = g_EmissiveTexture.Sample(LinearWrapSampler, In.Texcoord);
+
+    Out.Color = Diffuse * Shade + Specular;     // 프리뷰는 direct/deferred lighting 결과만 사용
+    Out.Color.rgb += Emissive.rgb;              // emissive는 그대로 더하기
+    Out.Color.a = Diffuse.a;
+
+    return Out;
+}
+
+PS_OUT_BACKBUFFER PS_SSAO(PS_IN In)
 {
     PS_OUT_BACKBUFFER Out;
 
@@ -257,7 +238,8 @@ technique11 DefaultTechnique
     PASS_RS_DS_BS_VP(Debug,             RS_Default, DSS_Default,    BS_Default, VS_MAIN,    PS_MAIN_DEBUG)              // 0
     PASS_RS_DS_BS_VP(Directional,       RS_Default, DSS_None,       BS_Blend,   VS_MAIN,    PS_MAIN_DIRECTIONAL)        // 1
     PASS_RS_DS_BS_VP(Point,             RS_Default, DSS_None,       BS_Blend,   VS_MAIN,    PS_MAIN_POINT)              // 2
-    PASS_RS_DS_BS_VP(Combined,          RS_Default, DSS_None,       BS_Default, VS_MAIN,    PS_MAIN_COMBINED)           // 3
+    PASS_RS_DS_BS_VP(Combined,          RS_Default, DSS_None,       BS_Default, VS_MAIN,    PS_CombinedHDR)             // 3
     PASS_RS_DS_BS_VP(CombinedSimple,    RS_Default, DSS_None,       BS_Default, VS_MAIN,    PS_MAIN_COMBINED_SIMPLE)    // 4
     PASS_RS_DS_BS_VP(CombinedPreview,   RS_Default, DSS_None,       BS_Default, VS_MAIN,    PS_MAIN_COMBINED_PREVIEW)   // 5
+    PASS_RS_DS_BS_VP(SSAO,              RS_Default, DSS_None,       BS_Default, VS_MAIN,    PS_SSAO)                    // 6
 }
