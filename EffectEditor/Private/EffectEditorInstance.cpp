@@ -101,6 +101,7 @@ void EffectEditorInstance::Release_Editor()
     _pendingPreviewViewportHeight = kDefaultPreviewViewportHeight;
     _appliedPreviewViewportWidth = 0;
     _appliedPreviewViewportHeight = 0;
+    _sceneViewMode = SceneViewMode::Authoring;
 
     _runtimeState = EffectEditorRuntimeState::Edit;
     _runtimeTimeScale = 1.f;
@@ -632,6 +633,11 @@ void EffectEditorInstance::Enable_AutoPreviewViewport()
 void EffectEditorInstance::Enable_ManualPreviewViewport()
 {
     _previewViewportMode = PreviewViewportMode::Manual;
+}
+
+void EffectEditorInstance::Set_SceneViewMode(SceneViewMode viewMode)
+{
+    _sceneViewMode = viewMode;
 }
 
 void EffectEditorInstance::Set_ManualPreviewViewportSize(uint32 width, uint32 height)
