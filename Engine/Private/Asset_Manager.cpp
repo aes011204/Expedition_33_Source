@@ -20,12 +20,16 @@ HRESULT Asset_Manager::Initialize(const wstring& resourceRoot)
     _registryPath = (fs::path(_assetDataFolder) / L"AssetRegistry.json").wstring();
     _cachePath = (fs::path(_assetDataFolder) / L"AssetRegistry.cache.json").wstring();
 
-    Load_Cache();
+    _assetRegistryDirty = false;
+
     Load_Registry();
+    if (_guidToMeta.empty())
+        Load_Cache();
     Scan_And_Register(_resourceRoot);
     Refresh_Cache();
-    Save_Registry();
-    Save_Cache();
+
+    if (_assetRegistryDirty || !fs::exists(_registryPath))
+        Save_Registry();
 
     _materialBuilder = MaterialBuilder::Create(fs::path(_resourceRoot) / L"Materials");
     return S_OK;
@@ -139,6 +143,7 @@ string Asset_Manager::Register_Asset(const wstring& filePath, const string& type
 
         _guidToMeta[assetMeta.guid] = assetMeta;
         _pathToGuid[pathKey] = assetMeta.guid;
+        _assetRegistryDirty = true;
 
         Save_Meta(metaPath, assetMeta);
         return assetMeta.guid;
@@ -157,8 +162,18 @@ void Asset_Manager::Scan_And_Register(const wstring& directory)
         if (!fs::exists(directoryPath) || !fs::is_directory(directoryPath))
             return;
 
-        for (const fs::directory_entry& entry : fs::recursive_directory_iterator(directoryPath))
+        fs::recursive_directory_iterator iter(directoryPath);
+        const fs::recursive_directory_iterator end = {};
+
+        for (; iter != end; ++iter)
         {
+            const fs::directory_entry& entry = *iter;
+            if (entry.is_directory() && Is_IgnoredPath(entry.path()))
+            {
+                iter.disable_recursion_pending();
+                continue;
+            }
+
             if (!entry.is_regular_file())
                 continue;
 
@@ -186,7 +201,10 @@ void Asset_Manager::Refresh_Cache()
 	 for (auto iter = _guidToMeta.begin(); iter != _guidToMeta.end();)
     {
         if (iter->second.fullPath.empty() || !fs::exists(iter->second.fullPath))
+        {
             iter = _guidToMeta.erase(iter);
+            _assetRegistryDirty = true;
+        }
         else
             ++iter;
     }
@@ -204,8 +222,18 @@ uint32 Asset_Manager::Clear_OrphanMeta(const wstring& directory)
         if (!fs::exists(directory) || !fs::is_directory(directory))
             return 0;
 
-        for (const auto& entry : fs::recursive_directory_iterator(directory))
+        fs::recursive_directory_iterator iter(directory);
+        const fs::recursive_directory_iterator end = {};
+
+        for (; iter != end; ++iter)
         {
+            const fs::directory_entry& entry = *iter;
+            if (entry.is_directory() && Is_IgnoredPath(entry.path()))
+            {
+                iter.disable_recursion_pending();
+                continue;
+            }
+
             if (!entry.is_regular_file())
                 continue;
 
@@ -280,6 +308,7 @@ bool Asset_Manager::Load_Meta(const wstring& metaPath)
             existing != _pathToGuid.end() && existing->second != assetMeta.guid)
         {
             _guidToMeta.erase(existing->second);
+            _assetRegistryDirty = true;
         }
 
         _guidToMeta[assetMeta.guid] = assetMeta;
@@ -488,32 +517,52 @@ string Asset_Manager::Detect_AssetType(const wstring& filePath) const
     return "Unknown";
 }
 
+bool Asset_Manager::Is_IgnoredPath(const fs::path& path) const
+{
+    const fs::path normalizedPath = path.lexically_normal();
+    const fs::path resourceRootPath = _resourceRoot.empty() ? fs::path() : fs::path(_resourceRoot).lexically_normal();
+
+    for (const string& ignoreFolder : _ignoreFolders)
+    {
+        const string lowerIgnore = String::ToLowerCopy(ignoreFolder);
+        if (lowerIgnore.find('/') == string::npos && lowerIgnore.find('\\') == string::npos)
+        {
+            for (const fs::path& part : normalizedPath)
+            {
+                if (String::ToLowerCopy(String::ToString(part.wstring())) == lowerIgnore)
+                    return true;
+            }
+
+            continue;
+        }
+
+        if (resourceRootPath.empty())
+            continue;
+
+        string relativePath = {};
+        try
+        {
+            relativePath = String::ToLowerCopy(fs::relative(normalizedPath, resourceRootPath).generic_string());
+        }
+        catch (...)
+        {
+            continue;
+        }
+
+        if (relativePath == lowerIgnore || 0 == relativePath.find(lowerIgnore + "/"))
+            return true;
+    }
+
+    return false;
+}
+
 bool Asset_Manager::Should_RegisterAsset(const fs::path& path) const
 {
     const string name = String::ToLowerCopy(String::ToString(path.filename().wstring()));
     const string extension = String::ToLowerCopy(String::ToString(path.extension().wstring()));
 
-    if (!_resourceRoot.empty())
-    {
-        const fs::path registryDirectory = fs::path(_assetDataFolder).lexically_normal();
-        const fs::path assetPath = path.lexically_normal();
-
-        if (0 == String::ToLowerCopy(String::ToString(assetPath.wstring()))
-                     .find(String::ToLowerCopy(String::ToString(registryDirectory.wstring()))))
-        {
-            return false;
-        }
-    }
-
-    for (const fs::path& part : path)
-    {
-        const string folder = String::ToLowerCopy(String::ToString(part.wstring()));
-        for (const string& ignoreFolder : _ignoreFolders)
-        {
-            if (folder == String::ToLowerCopy(ignoreFolder))
-                return false;
-        }
-    }
+    if (Is_IgnoredPath(path))
+        return false;
 
     if (EndsWith(name, ".meta") ||
         name == "assetregistry.json" ||
@@ -616,6 +665,9 @@ void Asset_Manager::Deduplicate_Assets_ByPath(const string& preferGuid)
             staleGuids.push_back(guid);
         }
     }
+
+    if (!staleGuids.empty())
+        _assetRegistryDirty = true;
 
     for (const string& guid : staleGuids)
         _guidToMeta.erase(guid);

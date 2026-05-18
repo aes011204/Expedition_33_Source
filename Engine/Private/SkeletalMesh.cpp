@@ -37,9 +37,12 @@ HRESULT SkeletalMesh::Initialize_Prototype(const ModelMeshData& meshData, const 
     VTXANIMMESH* verticesData = static_cast<VTXANIMMESH*>(meshData.vertices);
     VTXANIMMESH* vertices = new VTXANIMMESH[_numVertices];
 
+    _sourceVertices.resize(_numVertices);
+
     for (uint32 i = 0; i < _numVertices; ++i)
     {
         vertices[i] = verticesData[i];
+        _sourceVertices[i] = verticesData[i];
     }
 
     D3D11_BUFFER_DESC VertexBufferDesc{};

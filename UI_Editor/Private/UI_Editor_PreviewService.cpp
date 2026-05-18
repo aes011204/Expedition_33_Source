@@ -397,6 +397,7 @@ namespace UIEditor
     void UI_Editor_PreviewService::Begin_Frame()
     {
         _fontPreviewCommands.clear();
+        _texturePreviewLoadCountThisFrame = 0;
     }
 
     void UI_Editor_PreviewService::Clear_RuntimeCaches()
@@ -560,11 +561,16 @@ namespace UIEditor
         if (_texturePreviewFailedKeys.find(cacheKey) != _texturePreviewFailedKeys.end())
             return nullptr;
 
+        if (!Can_LoadTexturePreviewThisFrame())
+            return nullptr;
+
         if (!fs::exists(texturePath))
         {
             _texturePreviewFailedKeys.insert(cacheKey);
             return nullptr;
         }
+
+        ++_texturePreviewLoadCountThisFrame;
 
         Shared<Texture> texture = Texture::Create(_device, _context, texturePath.c_str(), 1);
         if (nullptr == texture || texture->Get_SRVs().empty() || nullptr == texture->Get_SRVs().front().Get())
@@ -577,6 +583,12 @@ namespace UIEditor
         return _textureThumbCache[cacheKey].Get();
     }
 
+    bool UI_Editor_PreviewService::Can_LoadTexturePreviewThisFrame()
+    {
+        constexpr int32 kMaxTexturePreviewLoadsPerFrame = 2;
+        return _texturePreviewLoadCountThisFrame < kMaxTexturePreviewLoadsPerFrame;
+    }
+
     bool UI_Editor_PreviewService::Queue_FontPreview(
         const string& fontGuid,
         const string& fontPath,
@@ -585,6 +597,7 @@ namespace UIEditor
         const Vec2& boxMax,
         const Vec4& color,
         float rotationRadians,
+        const Vec2& pivotPosition,
         UI_TextAlign textAlign,
         float scale,
         bool textWrap,
@@ -605,9 +618,6 @@ namespace UIEditor
             ? Wrap_FontPreviewLines(*font, safeText, boxWidth, drawScale)
             : Split_FontPreviewLines(safeText);
         const float lineHeight = Measure_FontPreviewLineHeight(*font, drawScale);
-        const Vec2 boxCenter(
-            boxMin.x + max(0.f, boxMax.x - boxMin.x) * 0.5f,
-            boxMin.y + max(0.f, boxMax.y - boxMin.y) * 0.5f);
         float textY = boxMin.y;
         bool queuedAny = false;
 
@@ -622,10 +632,10 @@ namespace UIEditor
                 command.fontGuid = fontGuid;
                 command.fontPath = fontPath;
                 command.text = line;
-                command.position = boxCenter;
+                command.position = pivotPosition;
                 command.color = color;
                 command.rotationRadians = rotationRadians;
-                command.pivot = Vec2((boxCenter.x - textX) / drawScale, (boxCenter.y - textY) / drawScale);
+                command.pivot = Vec2((pivotPosition.x - textX) / drawScale, (pivotPosition.y - textY) / drawScale);
                 command.scale = drawScale;
                 command.clipRect = clipRect;
                 _fontPreviewCommands.push_back(command);

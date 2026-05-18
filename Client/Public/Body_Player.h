@@ -3,6 +3,7 @@
 
 NS_BEGIN(Engine)
 class ShaderCom;
+class ComputeShaderCom;
 class ModelCom;
 NS_END
 
@@ -32,6 +33,11 @@ public:
 
 private:
     int32 _rootBoneIndex{ -1 };
+
+    bool _useComputeSkinning = false;
+
+    Shared<ShaderCom>           _computeRenderShaderCom;
+    Shared<ComputeShaderCom>    _computeSkinningShaderCom;
 
 public:
 	static Shared<Body_Player> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

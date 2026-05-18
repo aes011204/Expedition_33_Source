@@ -40,6 +40,15 @@ HRESULT Player_BattleBase::Initialize(void* arg)
 void Player_BattleBase::BeginPlay()
 {
     Character_BattleBase::BeginPlay();
+
+    if (auto* body = dynamic_cast<Body_Player*>(Get_PartObject(L"Part_Body")))
+    {
+        if (Shared<ModelCom> model = body->Get_Model())
+        {
+            model->Refresh_AnimStateMappingFromOwnerContext();
+        }
+    }
+
 }
 
 void Player_BattleBase::Update(float timeDelta)

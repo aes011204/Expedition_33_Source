@@ -39,6 +39,28 @@ namespace UIEditor
             drawList->AddLine(quad[2], quad[3], color, thickness);
             drawList->AddLine(quad[3], quad[0], color, thickness);
         }
+
+        void Draw_AnchorMarker(ImDrawList* drawList, const ImVec2& center, ImU32 fillColor, ImU32 outlineColor, float radius)
+        {
+            drawList->AddCircleFilled(center, radius, fillColor, 12);
+            drawList->AddCircle(center, radius, outlineColor, 12, 1.25f);
+            drawList->AddLine(ImVec2(center.x - radius - 2.f, center.y), ImVec2(center.x + radius + 2.f, center.y), outlineColor, 1.f);
+            drawList->AddLine(ImVec2(center.x, center.y - radius - 2.f), ImVec2(center.x, center.y + radius + 2.f), outlineColor, 1.f);
+        }
+
+        bool Is_PointInsideRotatedRect(const ImVec2& point, const ImVec2& center, const ImVec2& size, float rotationRadians)
+        {
+            const float cosAngle = cosf(-rotationRadians);
+            const float sinAngle = sinf(-rotationRadians);
+            const ImVec2 offset = ImVec2(point.x - center.x, point.y - center.y);
+            const ImVec2 localOffset = ImVec2(
+                offset.x * cosAngle - offset.y * sinAngle,
+                offset.x * sinAngle + offset.y * cosAngle);
+
+            return
+                fabsf(localOffset.x) <= size.x * 0.5f &&
+                fabsf(localOffset.y) <= size.y * 0.5f;
+        }
     }
 
     UI_Viewport_View::UI_Viewport_View(UI_Editor_Manager& editorManager)
@@ -68,6 +90,8 @@ namespace UIEditor
             ImGui::SameLine();
             ImGui::BeginDisabled(_previewMode);
             ImGui::Checkbox("Grid", &_showGrid);
+            ImGui::SameLine();
+            ImGui::Checkbox("Anchor", &_showAnchors);
             ImGui::SameLine();
             ImGui::Checkbox("Snap", &_snapEnabled);
             ImGui::SameLine();
@@ -303,16 +327,22 @@ namespace UIEditor
                 return nullptr;
             };
 
-            auto getPreviewLocalPosition = [this](const UI_Object& object) -> ImVec2
+            auto makePreviewObject = [this](const UI_Object& object) -> UI_Object
             {
+                UI_Object previewObject = object;
                 UI_AnimationPreviewSample sample = {};
                 if (_editorManager.Sample_AnimationPreview(object, sample))
-                    return sample.position;
+                {
+                    previewObject.position = sample.position;
+                    previewObject.scale = sample.scale;
+                    previewObject.rotationRadians = sample.rotationRadians;
+                    previewObject.color = sample.color;
+                }
 
-                return object.position;
+                return previewObject;
             };
 
-            function<ImVec2(ObjectId, unordered_set<ObjectId>&)> resolvePreviewWorldPosition =
+            function<ImVec2(ObjectId, unordered_set<ObjectId>&)> resolvePreviewResolvedLocalSize =
                 [&](ObjectId objectId, unordered_set<ObjectId>& resolvingIds) -> ImVec2
             {
                 const UI_Object* object = findObject(objectId);
@@ -320,24 +350,226 @@ namespace UIEditor
                     return ImVec2(0.f, 0.f);
 
                 if (!resolvingIds.insert(objectId).second)
-                    return getPreviewLocalPosition(*object);
+                    return object->size;
 
-                ImVec2 worldPosition = getPreviewLocalPosition(*object);
-                if (object->parentId != 0)
+                const UI_Object previewObject = makePreviewObject(*object);
+                const ImVec2 parentReferenceSize = previewObject.parentId == 0
+                    ? canvasSize
+                    : resolvePreviewResolvedLocalSize(previewObject.parentId, resolvingIds);
+                const ImVec2 resolvedSize = ImVec2(
+                    max(1.f, previewObject.size.x + parentReferenceSize.x * max(0.f, previewObject.anchorMax.x - previewObject.anchorMin.x)),
+                    max(1.f, previewObject.size.y + parentReferenceSize.y * max(0.f, previewObject.anchorMax.y - previewObject.anchorMin.y)));
+
+                resolvingIds.erase(objectId);
+                return resolvedSize;
+            };
+
+            function<ImVec2(ObjectId, unordered_set<ObjectId>&)> resolvePreviewResolvedLocalPosition =
+                [&](ObjectId objectId, unordered_set<ObjectId>& resolvingIds) -> ImVec2
+            {
+                const UI_Object* object = findObject(objectId);
+                if (nullptr == object)
+                    return ImVec2(0.f, 0.f);
+
+                if (!resolvingIds.insert(objectId).second)
+                    return object->position;
+
+                const UI_Object previewObject = makePreviewObject(*object);
+                unordered_set<ObjectId> sizeResolvingIds;
+                const ImVec2 parentReferenceSize = previewObject.parentId == 0
+                    ? canvasSize
+                    : resolvePreviewResolvedLocalSize(previewObject.parentId, sizeResolvingIds);
+                const ImVec2 resolvedPosition = ImVec2(
+                    previewObject.position.x + parentReferenceSize.x * previewObject.anchorMin.x,
+                    previewObject.position.y + parentReferenceSize.y * previewObject.anchorMin.y);
+
+                resolvingIds.erase(objectId);
+                return resolvedPosition;
+            };
+
+            auto getPreviewPivotOffset = [](const UI_Object& object, const ImVec2& resolvedSize) -> ImVec2
+            {
+                return ImVec2(
+                    resolvedSize.x * object.pivot.x,
+                    resolvedSize.y * object.pivot.y);
+            };
+
+            auto getPreviewLocalRuntimePointFromPivot = [](const UI_Object& object, const ImVec2& offsetFromPivot) -> ImVec2
+            {
+                const float scaleX = object.type == UI_ObjectType::Text ? Get_UITextRuntimeScale(object) : object.scale.x;
+                const float scaleY = object.type == UI_ObjectType::Text ? Get_UITextRuntimeScale(object) : object.scale.y;
+                const ImVec2 scaledOffset = ImVec2(
+                    offsetFromPivot.x * scaleX,
+                    offsetFromPivot.y * scaleY);
+                const float cosAngle = cosf(object.rotationRadians);
+                const float sinAngle = sinf(object.rotationRadians);
+
+                return ImVec2(
+                    scaledOffset.x * cosAngle - scaledOffset.y * sinAngle,
+                    scaledOffset.x * sinAngle + scaledOffset.y * cosAngle);
+            };
+
+            function<ImVec2(ObjectId, unordered_set<ObjectId>&)> resolvePreviewWorldScale =
+                [&](ObjectId objectId, unordered_set<ObjectId>& resolvingIds) -> ImVec2
+            {
+                const UI_Object* object = findObject(objectId);
+                if (nullptr == object)
+                    return ImVec2(1.f, 1.f);
+
+                if (!resolvingIds.insert(objectId).second)
+                    return object->scale;
+
+                const UI_Object previewObject = makePreviewObject(*object);
+                ImVec2 worldScale = previewObject.scale;
+                if (previewObject.parentId != 0)
                 {
-                    const ImVec2 parentWorldPosition = resolvePreviewWorldPosition(object->parentId, resolvingIds);
-                    worldPosition.x += parentWorldPosition.x;
-                    worldPosition.y += parentWorldPosition.y;
+                    const ImVec2 parentScale = resolvePreviewWorldScale(previewObject.parentId, resolvingIds);
+                    worldScale.x *= parentScale.x;
+                    worldScale.y *= parentScale.y;
                 }
 
                 resolvingIds.erase(objectId);
-                return worldPosition;
+                return worldScale;
             };
 
-            auto getPreviewWorldPosition = [&resolvePreviewWorldPosition](ObjectId objectId) -> ImVec2
+            function<float(ObjectId, unordered_set<ObjectId>&)> resolvePreviewWorldRotation =
+                [&](ObjectId objectId, unordered_set<ObjectId>& resolvingIds) -> float
+            {
+                const UI_Object* object = findObject(objectId);
+                if (nullptr == object)
+                    return 0.f;
+
+                if (!resolvingIds.insert(objectId).second)
+                    return object->rotationRadians;
+
+                const UI_Object previewObject = makePreviewObject(*object);
+                float worldRotation = previewObject.rotationRadians;
+                if (previewObject.parentId != 0)
+                    worldRotation += resolvePreviewWorldRotation(previewObject.parentId, resolvingIds);
+
+                resolvingIds.erase(objectId);
+                return worldRotation;
+            };
+
+            auto getPreviewResolvedLocalSize = [&resolvePreviewResolvedLocalSize](ObjectId objectId) -> ImVec2
             {
                 unordered_set<ObjectId> resolvingIds;
-                return resolvePreviewWorldPosition(objectId, resolvingIds);
+                return resolvePreviewResolvedLocalSize(objectId, resolvingIds);
+            };
+
+            auto getPreviewResolvedLocalPosition = [&resolvePreviewResolvedLocalPosition](ObjectId objectId) -> ImVec2
+            {
+                unordered_set<ObjectId> resolvingIds;
+                return resolvePreviewResolvedLocalPosition(objectId, resolvingIds);
+            };
+
+            auto getPreviewParentReferenceSize = [&](const UI_Object& object) -> ImVec2
+            {
+                if (object.parentId == 0)
+                    return canvasSize;
+
+                return getPreviewResolvedLocalSize(object.parentId);
+            };
+
+            auto transformPreviewLocalPointToWorld = [&](ObjectId objectId, const ImVec2& localPoint) -> ImVec2
+            {
+                ImVec2 worldPoint = localPoint;
+                unordered_set<ObjectId> visitedIds;
+                const UI_Object* currentObject = findObject(objectId);
+                while (nullptr != currentObject && currentObject->parentId != 0)
+                {
+                    const UI_Object* parentObject = findObject(currentObject->parentId);
+                    if (nullptr == parentObject)
+                        break;
+
+                    if (!visitedIds.insert(parentObject->id).second)
+                        break;
+
+                    const UI_Object previewParent = makePreviewObject(*parentObject);
+                    unordered_set<ObjectId> positionResolvingIds;
+                    unordered_set<ObjectId> sizeResolvingIds;
+                    const ImVec2 parentPivotPosition = resolvePreviewResolvedLocalPosition(previewParent.id, positionResolvingIds);
+                    const ImVec2 parentSize = resolvePreviewResolvedLocalSize(previewParent.id, sizeResolvingIds);
+                    const ImVec2 pivotOffset = getPreviewPivotOffset(previewParent, parentSize);
+                    const ImVec2 scaledOffset = ImVec2(
+                        (worldPoint.x - pivotOffset.x) * previewParent.scale.x,
+                        (worldPoint.y - pivotOffset.y) * previewParent.scale.y);
+                    const ImVec2 rotatedOffset = ImVec2(
+                        scaledOffset.x * cosf(previewParent.rotationRadians) - scaledOffset.y * sinf(previewParent.rotationRadians),
+                        scaledOffset.x * sinf(previewParent.rotationRadians) + scaledOffset.y * cosf(previewParent.rotationRadians));
+
+                    worldPoint = ImVec2(
+                        parentPivotPosition.x + rotatedOffset.x,
+                        parentPivotPosition.y + rotatedOffset.y);
+                    currentObject = parentObject;
+                }
+
+                return worldPoint;
+            };
+
+            auto getPreviewWorldScale = [&resolvePreviewWorldScale](ObjectId objectId) -> ImVec2
+            {
+                unordered_set<ObjectId> resolvingIds;
+                return resolvePreviewWorldScale(objectId, resolvingIds);
+            };
+
+            auto getPreviewWorldRotation = [&resolvePreviewWorldRotation](ObjectId objectId) -> float
+            {
+                unordered_set<ObjectId> resolvingIds;
+                return resolvePreviewWorldRotation(objectId, resolvingIds);
+            };
+
+            auto getPreviewWorldSize = [&](ObjectId objectId) -> ImVec2
+            {
+                const UI_Object* object = findObject(objectId);
+                if (nullptr == object)
+                    return ImVec2(0.f, 0.f);
+
+                const UI_Object previewObject = makePreviewObject(*object);
+                const ImVec2 resolvedLocalSize = getPreviewResolvedLocalSize(objectId);
+                if (previewObject.type == UI_ObjectType::Text)
+                {
+                    const ImVec2 parentWorldScale = previewObject.parentId == 0 ? ImVec2(1.f, 1.f) : getPreviewWorldScale(previewObject.parentId);
+                    const float textScale = max(0.01f, Get_UITextRuntimeScale(previewObject) * parentWorldScale.x);
+                    return ImVec2(
+                        max(1.f, resolvedLocalSize.x * textScale),
+                        max(1.f, resolvedLocalSize.y * textScale));
+                }
+
+                const ImVec2 worldScale = getPreviewWorldScale(objectId);
+                return ImVec2(
+                    max(1.f, resolvedLocalSize.x * worldScale.x),
+                    max(1.f, resolvedLocalSize.y * worldScale.y));
+            };
+
+            auto getPreviewWorldCenter = [&](ObjectId objectId) -> ImVec2
+            {
+                const UI_Object* object = findObject(objectId);
+                if (nullptr == object)
+                    return ImVec2(0.f, 0.f);
+
+                const UI_Object previewObject = makePreviewObject(*object);
+                const ImVec2 resolvedLocalPosition = getPreviewResolvedLocalPosition(objectId);
+                const ImVec2 resolvedLocalSize = getPreviewResolvedLocalSize(objectId);
+                const ImVec2 pivotOffset = getPreviewPivotOffset(previewObject, resolvedLocalSize);
+                const ImVec2 baseCenterOffset = ImVec2(
+                    resolvedLocalSize.x * 0.5f,
+                    resolvedLocalSize.y * 0.5f);
+                const ImVec2 centerOffset = getPreviewLocalRuntimePointFromPivot(
+                    previewObject,
+                    ImVec2(
+                        baseCenterOffset.x - pivotOffset.x,
+                        baseCenterOffset.y - pivotOffset.y));
+                const ImVec2 localCenter = ImVec2(
+                    resolvedLocalPosition.x + centerOffset.x,
+                    resolvedLocalPosition.y + centerOffset.y);
+
+                return transformPreviewLocalPointToWorld(objectId, localCenter);
+            };
+
+            auto getPreviewWorldPivot = [&](ObjectId objectId) -> ImVec2
+            {
+                return transformPreviewLocalPointToWorld(objectId, getPreviewResolvedLocalPosition(objectId));
             };
 
             bool hasSelectedObjectRect = false;
@@ -363,13 +595,20 @@ namespace UIEditor
                     renderObject.color = previewSample.color;
                 }
 
-                const ImVec2 objectWorldPosition = getPreviewWorldPosition(object.id);
-                const ImVec2 objectSize = Get_UIObjectRuntimeSize(renderObject);
+                const ImVec2 resolvedLocalSize = getPreviewResolvedLocalSize(object.id);
+                const ImVec2 objectWorldCenter = getPreviewWorldCenter(object.id);
+                const ImVec2 objectWorldPivot = getPreviewWorldPivot(object.id);
+                const ImVec2 objectSize = getPreviewWorldSize(object.id);
+                const ImVec2 objectWorldPosition = ImVec2(
+                    objectWorldCenter.x - objectSize.x * 0.5f,
+                    objectWorldCenter.y - objectSize.y * 0.5f);
                 const ImVec2 objectMin = ImVec2(canvasPos.x + objectWorldPosition.x * displayScale, canvasPos.y + objectWorldPosition.y * displayScale);
                 const ImVec2 objectMax = ImVec2(objectMin.x + objectSize.x * displayScale, objectMin.y + objectSize.y * displayScale);
+                const float objectWorldRotationRadians = getPreviewWorldRotation(object.id);
                 const bool isSelected = _editorManager.Is_ObjectSelected(object.id);
                 const bool isPrimarySelected = (_editorManager.Get_SelectedObjectId() == object.id);
                 const bool isEffectivelyLocked = _editorManager.Is_ObjectEffectivelyLocked(object.id);
+                const bool shouldDrawAnchorOverlay = !_previewMode && _showAnchors && isSelected;
 
                 if (isPrimarySelected)
                 {
@@ -405,10 +644,10 @@ namespace UIEditor
                 }
 
                 const bool hasTextContent = renderObject.type == UI_ObjectType::Text && !renderObject.text.empty();
-                const bool isRotated = fabsf(renderObject.rotationRadians) > kRotationEpsilon;
+                const bool isRotated = fabsf(objectWorldRotationRadians) > kRotationEpsilon;
                 ImVec2 rotatedQuad[4] = {};
                 if (isRotated)
-                    Build_RotatedQuad(objectMin, objectMax, renderObject.rotationRadians, rotatedQuad);
+                    Build_RotatedQuad(objectMin, objectMax, objectWorldRotationRadians, rotatedQuad);
 
                 if (nullptr != previewSRV)
                 {
@@ -451,6 +690,39 @@ namespace UIEditor
                         Draw_QuadOutline(drawList, rotatedQuad, objectBorderColor, borderThickness);
                     else
                         drawList->AddRect(objectMin, objectMax, objectBorderColor, objectRounding, 0, borderThickness);
+
+                    if (shouldDrawAnchorOverlay)
+                    {
+                        const ImVec2 parentReferenceSize = getPreviewParentReferenceSize(renderObject);
+                        const ImVec2 anchorMinLocal = ImVec2(
+                            parentReferenceSize.x * renderObject.anchorMin.x,
+                            parentReferenceSize.y * renderObject.anchorMin.y);
+                        const ImVec2 anchorMaxLocal = ImVec2(
+                            parentReferenceSize.x * renderObject.anchorMax.x,
+                            parentReferenceSize.y * renderObject.anchorMax.y);
+                        const ImVec2 anchorMinWorld = transformPreviewLocalPointToWorld(object.id, anchorMinLocal);
+                        const ImVec2 anchorMaxWorld = transformPreviewLocalPointToWorld(object.id, anchorMaxLocal);
+                        const ImVec2 anchorMinScreen = ImVec2(
+                            canvasPos.x + anchorMinWorld.x * displayScale,
+                            canvasPos.y + anchorMinWorld.y * displayScale);
+                        const ImVec2 anchorMaxScreen = ImVec2(
+                            canvasPos.x + anchorMaxWorld.x * displayScale,
+                            canvasPos.y + anchorMaxWorld.y * displayScale);
+                        const bool isStretched =
+                            fabsf(renderObject.anchorMax.x - renderObject.anchorMin.x) > 0.0001f ||
+                            fabsf(renderObject.anchorMax.y - renderObject.anchorMin.y) > 0.0001f;
+                        const ImU32 anchorFillColor = isPrimarySelected ? IM_COL32(255, 40, 40, 255) : IM_COL32(255, 40, 40, 210);
+                        const ImU32 anchorOutlineColor = IM_COL32(255, 235, 235, 245);
+                        if (isStretched)
+                        {
+                            const ImVec2 anchorRectMin = ImVec2(min(anchorMinScreen.x, anchorMaxScreen.x), min(anchorMinScreen.y, anchorMaxScreen.y));
+                            const ImVec2 anchorRectMax = ImVec2(max(anchorMinScreen.x, anchorMaxScreen.x), max(anchorMinScreen.y, anchorMaxScreen.y));
+                            drawList->AddRectFilled(anchorRectMin, anchorRectMax, IM_COL32(255, 40, 40, 22), 0.f);
+                            drawList->AddRect(anchorRectMin, anchorRectMax, IM_COL32(255, 70, 70, 190), 0.f, 0, 1.25f);
+                            Draw_AnchorMarker(drawList, anchorMaxScreen, IM_COL32(255, 120, 120, 190), anchorOutlineColor, isPrimarySelected ? 4.5f : 3.5f);
+                        }
+                        Draw_AnchorMarker(drawList, anchorMinScreen, anchorFillColor, anchorOutlineColor, isPrimarySelected ? 5.5f : 4.5f);
+                    }
                 }
 
                 bool usesSpriteFontPreview = false;
@@ -459,16 +731,27 @@ namespace UIEditor
                     D3D11_RECT clipRect = {};
                     if (buildViewportClipRect(viewportMin, viewportMax, clipRect))
                     {
+                        const Vec2 fontPivotScreen(
+                            canvasPos.x + objectWorldPivot.x * displayScale,
+                            canvasPos.y + objectWorldPivot.y * displayScale);
+                        const Vec2 fontBoxSize(
+                            objectSize.x * displayScale,
+                            objectSize.y * displayScale);
+                        const Vec2 fontBoxMin(
+                            fontPivotScreen.x - fontBoxSize.x * renderObject.pivot.x,
+                            fontPivotScreen.y - fontBoxSize.y * renderObject.pivot.y);
+
                         usesSpriteFontPreview = _editorManager.Queue_FontPreview(
                             renderObject.fontGuid,
                             renderObject.fontPath,
                             String::ToWString(renderObject.text),
-                            Vec2(objectMin.x, objectMin.y),
-                            Vec2(objectMax.x, objectMax.y),
+                            fontBoxMin,
+                            Vec2(fontBoxMin.x + fontBoxSize.x, fontBoxMin.y + fontBoxSize.y),
                             Vec4(renderObject.color.x, renderObject.color.y, renderObject.color.z, renderObject.color.w),
-                            renderObject.rotationRadians,
+                            objectWorldRotationRadians,
+                            fontPivotScreen,
                             renderObject.textAlign,
-                            Get_UITextRuntimeScale(renderObject) * displayScale,
+                            max(0.01f, objectSize.x / max(1.f, resolvedLocalSize.x)) * displayScale,
                             renderObject.textWrap,
                             clipRect);
                     }
@@ -529,11 +812,13 @@ namespace UIEditor
                         if (!_editorManager.Is_ObjectEffectivelyVisible(object.id))
                             continue;
 
-                        const ImVec2 objectWorldPosition = document.Get_WorldPosition(object.id);
-                        const ImVec2 objectSize = Get_UIObjectRuntimeSize(object);
-                        const bool isInsideObject =
-                            mouseCanvasPos.x >= objectWorldPosition.x && mouseCanvasPos.x <= objectWorldPosition.x + objectSize.x &&
-                            mouseCanvasPos.y >= objectWorldPosition.y && mouseCanvasPos.y <= objectWorldPosition.y + objectSize.y;
+                        const ImVec2 objectWorldCenter = document.Get_WorldCenter(object.id);
+                        const ImVec2 objectSize = document.Get_WorldSize(object.id);
+                        const bool isInsideObject = Is_PointInsideRotatedRect(
+                            mouseCanvasPos,
+                            objectWorldCenter,
+                            objectSize,
+                            document.Get_WorldRotationRadians(object.id));
 
                         if (isInsideObject)
                         {
@@ -580,12 +865,20 @@ namespace UIEditor
                                         continue;
 
                                     _draggingObjectIds.push_back(draggingObjectId);
-                                    _dragStartObjectWorldPositions[draggingObjectId] = document.Get_WorldPosition(draggingObjectId);
+                                    const ImVec2 draggingCenter = document.Get_WorldCenter(draggingObjectId);
+                                    const ImVec2 draggingSize = document.Get_WorldSize(draggingObjectId);
+                                    _dragStartObjectWorldPositions[draggingObjectId] = ImVec2(
+                                        draggingCenter.x - draggingSize.x * 0.5f,
+                                        draggingCenter.y - draggingSize.y * 0.5f);
                                 }
 
                                 if (!_draggingObjectIds.empty())
                                 {
-                                    _dragStartObjectWorldPosition = document.Get_WorldPosition(pickedObjectId);
+                                    const ImVec2 pickedCenter = document.Get_WorldCenter(pickedObjectId);
+                                    const ImVec2 pickedSize = document.Get_WorldSize(pickedObjectId);
+                                    _dragStartObjectWorldPosition = ImVec2(
+                                        pickedCenter.x - pickedSize.x * 0.5f,
+                                        pickedCenter.y - pickedSize.y * 0.5f);
                                     _editorManager.Begin_EditTransaction();
                                 }
                             }
@@ -674,11 +967,6 @@ namespace UIEditor
                             nextMax.y = nextMin.y + 1.f;
                     }
 
-                    nextMin.x = min(max(nextMin.x, 0.f), canvasSize.x - 1.f);
-                    nextMin.y = min(max(nextMin.y, 0.f), canvasSize.y - 1.f);
-                    nextMax.x = min(max(nextMax.x, nextMin.x + 1.f), canvasSize.x);
-                    nextMax.y = min(max(nextMax.y, nextMin.y + 1.f), canvasSize.y);
-
                     _editorManager.Set_UIObjectWorldRect(
                         _resizingObjectId,
                         nextMin,
@@ -709,8 +997,7 @@ namespace UIEditor
                     if (_snapEnabled)
                         nextWorldPosition = Snap_Position(nextWorldPosition, _gridSize);
 
-                    const ImVec2 clampedWorldPosition = Clamp_ObjectPosition(*draggingObject, canvasSize, nextWorldPosition);
-                    _editorManager.Set_UIObjectWorldPosition(draggingObjectId, clampedWorldPosition);
+                    _editorManager.Set_UIObjectWorldPosition(draggingObjectId, nextWorldPosition);
                 }
             }
 
@@ -754,9 +1041,12 @@ namespace UIEditor
                             if (!_editorManager.Is_ObjectEffectivelyVisible(object.id))
                                 continue;
 
-                            const ImVec2 objectWorldPosition = document.Get_WorldPosition(object.id);
-                            const ImVec2 objectSize = Get_UIObjectRuntimeSize(object);
-                            const ImVec2 objectMax = ImVec2(objectWorldPosition.x + objectSize.x, objectWorldPosition.y + objectSize.y);
+                            const ImVec2 objectWorldCenter = document.Get_WorldCenter(object.id);
+                            const ImVec2 objectSize = document.Get_WorldSize(object.id);
+                            const ImVec2 objectWorldPosition = ImVec2(
+                                objectWorldCenter.x - objectSize.x * 0.5f,
+                                objectWorldCenter.y - objectSize.y * 0.5f);
+                            const ImVec2 objectMax = ImVec2(objectWorldCenter.x + objectSize.x * 0.5f, objectWorldCenter.y + objectSize.y * 0.5f);
                             const bool intersects =
                                 objectWorldPosition.x <= boxCanvasMax.x &&
                                 objectMax.x >= boxCanvasMin.x &&

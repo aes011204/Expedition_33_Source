@@ -436,6 +436,10 @@ FodyWeavers.xsd
 !Client/Bin/Resources/**
 !Client/Bin/fmodL.dll
 
+# Local personal backups (do not track)
+Client/Bin/LocalBackup/
+Client/Bin/LocalBackup/**
+
 # Launcher/editor bins stay ignored by default, except required FMOD runtime DLLs.
 !GameLauncher/Bin/
 GameLauncher/Bin/*

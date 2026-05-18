@@ -118,6 +118,26 @@ fs::path MaterialBuilder::To_AbsoluteTexturePath(const fs::path& resourceRoot, c
     return (resourceRoot / rel).lexically_normal();
 }
 
+wstring MaterialBuilder::Resolve_TexturePathFromJson(const fs::path& resourceRoot, const json& textureValue)
+{
+    if (textureValue.is_string())
+        return To_AbsoluteTexturePath(resourceRoot, textureValue.get<string>()).wstring();
+
+    if (!textureValue.is_object())
+        return {};
+
+    const string guid = textureValue.value("texture_guid", string{});
+    if (!guid.empty())
+    {
+        const wstring resolvedByGuid = GAME->Resolve_AssetPath(guid);
+        if (!resolvedByGuid.empty())
+            return resolvedByGuid;
+    }
+
+    const string fallbackPath = textureValue.value("texture_path", string{});
+    return To_AbsoluteTexturePath(resourceRoot, fallbackPath).wstring();
+}
+
 void MaterialBuilder::Initialize(const fs::path& materialsRoot)
 {
     // MaterialsRoot 아래의 *.material.json을 찾아 key -> path 인덱스를 만든다.
@@ -287,15 +307,15 @@ bool MaterialBuilder::Try_LoadBundleAsset(const fs::path& bundlePath, BundleAsse
             if (ji.contains("textures") && ji["textures"].is_object())
             {
                 const json& jtex = ji["textures"];
-                inst.baseColorPath = To_AbsoluteTexturePath(resourceRoot, jtex.value("baseColor", string{})).wstring();
-                inst.normalPath = To_AbsoluteTexturePath(resourceRoot, jtex.value("normal", string{})).wstring();
-                inst.ormPath = To_AbsoluteTexturePath(resourceRoot, jtex.value("orm", string{})).wstring();
-                inst.emissivePath = To_AbsoluteTexturePath(resourceRoot, jtex.value("emissive", string{})).wstring();
-                inst.opacityMaskPath = To_AbsoluteTexturePath(resourceRoot, jtex.value("opacityMask", string{})).wstring();
-                inst.hairDepthPath = To_AbsoluteTexturePath(resourceRoot, jtex.value("hairDepth", string{})).wstring();
-                inst.hairIDPath = To_AbsoluteTexturePath(resourceRoot, jtex.value("hairID", string{})).wstring();
-                inst.irisHeightPath = To_AbsoluteTexturePath(resourceRoot, jtex.value("irisHeight", string{})).wstring();
-                inst.irisMaskPath = To_AbsoluteTexturePath(resourceRoot, jtex.value("irisMask", string{})).wstring();
+                if (jtex.contains("baseColor")) inst.baseColorPath = Resolve_TexturePathFromJson(resourceRoot, jtex["baseColor"]);
+                if (jtex.contains("normal")) inst.normalPath = Resolve_TexturePathFromJson(resourceRoot, jtex["normal"]);
+                if (jtex.contains("orm")) inst.ormPath = Resolve_TexturePathFromJson(resourceRoot, jtex["orm"]);
+                if (jtex.contains("emissive")) inst.emissivePath = Resolve_TexturePathFromJson(resourceRoot, jtex["emissive"]);
+                if (jtex.contains("opacityMask")) inst.opacityMaskPath = Resolve_TexturePathFromJson(resourceRoot, jtex["opacityMask"]);
+                if (jtex.contains("hairDepth")) inst.hairDepthPath = Resolve_TexturePathFromJson(resourceRoot, jtex["hairDepth"]);
+                if (jtex.contains("hairID")) inst.hairIDPath = Resolve_TexturePathFromJson(resourceRoot, jtex["hairID"]);
+                if (jtex.contains("irisHeight")) inst.irisHeightPath = Resolve_TexturePathFromJson(resourceRoot, jtex["irisHeight"]);
+                if (jtex.contains("irisMask")) inst.irisMaskPath = Resolve_TexturePathFromJson(resourceRoot, jtex["irisMask"]);
             }
 
             outAsset.instancesByAssetName.emplace(assetName, std::move(inst));
@@ -366,6 +386,9 @@ bool MaterialBuilder::Try_ApplyMaterialBindingsFromJson(ModelCom& model, const j
 
         const json& instJson = item["instance_override"];
         MaterialInstanceOverride& inst = binding.instance;
+        inst.forcedPassIndex = static_cast<int32>(instJson.value("force_pass_index", inst.forcedPassIndex));
+        if (inst.forcedPassIndex < 0 && instJson.contains("forcePassIndex"))
+            inst.forcedPassIndex = static_cast<int32>(instJson.value("forcePassIndex", inst.forcedPassIndex));
 
         inst.overrideRenderStateEnabled =
             ParseBool(instJson.value("override_render_state_enabled", inst.overrideRenderStateEnabled), inst.overrideRenderStateEnabled);

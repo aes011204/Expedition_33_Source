@@ -95,17 +95,27 @@ struct MaterialInstanceData
 
     MaterialCBOverrideMask cbMask{};
 
-    // 슬롯별로 실제로 적용할지 여부를 따로 들고있다
-    // 경로만 비어있는 경우(미해결)와, 사용자가 일부러 비운 경우(지우기)를 구분하려고 필요하다
-    bool baseColorOverride = false;
-    bool normalOverride = false;
-    bool ormOverride = false;
-    bool emissiveOverride = false;
-    bool opacityMaskOverride = false;
-    bool hairDepthOverride = false;
-    bool hairIDOverride = false;
-    bool irisHeightOverride = false;
-    bool irisMaskOverride = false;
+    // Bundle(.material.json) 저장용 기본 슬롯 사용 여부.
+    bool baseSlotEnabledBaseColor = false;
+    bool baseSlotEnabledNormal = false;
+    bool baseSlotEnabledOrm = false;
+    bool baseSlotEnabledEmissive = false;
+    bool baseSlotEnabledOpacityMask = false;
+    bool baseSlotEnabledHairDepth = false;
+    bool baseSlotEnabledHairID = false;
+    bool baseSlotEnabledIrisHeight = false;
+    bool baseSlotEnabledIrisMask = false;
+
+    // ModelCom instance override 적용용 슬롯 사용 여부.
+    bool instanceOverrideEnabledBaseColor = false;
+    bool instanceOverrideEnabledNormal = false;
+    bool instanceOverrideEnabledOrm = false;
+    bool instanceOverrideEnabledEmissive = false;
+    bool instanceOverrideEnabledOpacityMask = false;
+    bool instanceOverrideEnabledHairDepth = false;
+    bool instanceOverrideEnabledHairID = false;
+    bool instanceOverrideEnabledIrisHeight = false;
+    bool instanceOverrideEnabledIrisMask = false;
 
     wstring baseColorPath{};
     wstring normalPath{};

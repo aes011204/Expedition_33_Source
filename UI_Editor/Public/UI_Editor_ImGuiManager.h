@@ -18,6 +18,7 @@ public:
 private:
     void ShutDown();
     void Apply_Style();
+    void Suppress_RepeatedPasteShortcut();
 
 private:
     bool _initialized = false;

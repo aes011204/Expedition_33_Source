@@ -3,6 +3,7 @@
 #include "AnimNotify_Types.h"
 #include "Component.h"
 #include "Material.h"
+#include "CollisionProxy_Types.h"
 
 NS_BEGIN(Engine)
 
@@ -11,6 +12,7 @@ class Material;
 class Bone;
 class Animation;
 class ComputeStructuredBuffer;
+class ComputeShaderCom;
 
 class ENGINE_DLL ModelCom final : public Component
 {
@@ -62,7 +64,7 @@ public:
     const Matrix& Get_BoneLocalMatrix(uint32 boneIndex) const;
     void Set_BoneLocalMatrix(uint32 boneIndex, const Matrix& localMatrix);
 
-    // 모든 bone의 Combined Matrix를 parent 순서대로 다시 계산
+    // 모든 bone의 CombinedHDR Matrix를 parent 순서대로 다시 계산
     void Rebuild_BoneCombinedMatrices();
 
 public:
@@ -106,8 +108,15 @@ public:
     HRESULT Bind_BoneMatrices(class ShaderCom* shader, const char* constantName, uint32 meshIndex);
     bool Try_Get_LocalBounds(Vec3& outMin, Vec3& outMax) const;
 
+    HRESULT Prepare_ComputeSkinning(ComputeShaderCom* computeShader); // body 전용 실험에서 호출
+    HRESULT Render_ComputeSkinned(uint32 meshIndex);                  // compute output VB로 draw
+
     // for map StaticMesh
     void Apply_MaterialByAssetName(uint32 materialIndex, const string& bundleKey, const string& assetName);
+
+    // bone matrix 준비 한번만 하도록
+    HRESULT Prepare_BoneMatrixBuffers();
+    HRESULT Bind_PreparedBoneMatrices(ShaderCom* shader, const char* constantName, uint32 meshIndex);
 
 public: /* Guid */
     static wstring Normalize_ModelAssetPath(const char* modelFilePath);
@@ -167,6 +176,8 @@ private:
 
 public:
     bool Ensure_AnimStateAssetLoaded(const string& sourceObjectGUID);
+    bool Refresh_AnimStateMappingFromOwnerContext();
+
 
 public: /* 머리 붙이기 */
     void Set_LeaderPoseComponent(const ModelCom* leaderModel);
@@ -179,6 +190,13 @@ public: /* PhysX 충돌 */
     // static collision 생성용 CPU Mesh 데이터
     const vector<ModelCollisionMesh>& Get_CollisionMeshes() const { return _collisionMeshes; }
 
+    const vector<ModelCollisionProxy>& Get_CollisionProxies() const { return _collisionProxies;}
+    // 단순 충돌체가 있는지
+    bool Has_SimpleCollisionProxy() const { return !_collisionProxies.empty(); }
+
+    bool Build_CollisoinProxies_FromSourceJson(const fs::path& jsonPath);
+    void Build_FallbackTriangleCollisionProxies();
+
 public:
     void Set_AnimEnumType(const wstring& enumType) { _animEnumType = enumType; }
     const wstring& Get_AnimEnumType() const { return _animEnumType; }
@@ -189,11 +207,19 @@ private:
     // dirty 가 마크됐을 때 재생성 진행. leaderPose 여기서 갱신 X
     HRESULT Ensure_MeshBoneMatrices();
 
+    HRESULT Ensure_ComputeSkinningBuffers();
+    HRESULT Ensure_ComputeSkinningConstantBuffer();
+    HRESULT Update_ComputeSkinningConstantBuffer(uint32 vertexCount);
+
 private:
-    Matrix Convert_LeaderPoseMatrix(const Matrix& leaderMatrix) const;
-    Matrix Build_LeaderPoseMatrix(uint32 boneIndex, vector<uint8>& visited);
+    Matrix  Convert_LeaderPoseMatrix(const Matrix& leaderMatrix) const;
+    Matrix  Build_LeaderPoseMatrix(uint32 boneIndex, vector<uint8>& visited);
+    void    Build_LeaderPoseRequiredBones();
+    void    Add_LeaderPoseRequiredBone(uint32 boneIndex);
+    void    Mark_LeaderPoseRequiredBone(uint32 boneIndex, vector<uint8>& requiredFlags);
 
     HRESULT Ensure_MeshBoneMatrixBuffers();
+
 
 private:
     ModelType					        _type = { ModelType::END };
@@ -264,6 +290,8 @@ private: /* 머리 붙이기 */
     vector<int32>       _leaderPoseBoneMap;           // follower bone index => leader bone index
     vector<Matrix>      _leaderPoseCombinedMatrices;  // follower 기준으로 최종 행렬
 
+    vector<uint32>      _leaderPoseRequiredBones;
+
     // 프레임마다 계산되지 않게 캐싱
     vector<Matrix>          _combinedBoneMatrixCache;
     vector<vector<Matrix>>  _meshBoneMatrixCaches;
@@ -272,13 +300,22 @@ private: /* 머리 붙이기 */
 
 private: /* PhysX 충돌 */
     vector<ModelCollisionMesh> _collisionMeshes;
+    vector<ModelCollisionProxy> _collisionProxies; // PhysX에 올릴 실제 후보
 
 private: /* Compute Shader */
     vector<Shared<ComputeStructuredBuffer>> _meshBoneMatrixBuffers;
     bool    _boneMatrixBuffersDirty = true;
 
+    vector<Shared<ComputeStructuredBuffer>> _meshSourceVertexBuffers;   // VTXANIMMESH input
+    vector<Shared<ComputeStructuredBuffer>> _meshComputedVertexBuffers; // compute output structured buffer
+    vector<ComPtr<Buffer>> _meshComputedDrawVertexBuffers;              // 실제 draw에 사용할 vertex buffer
+    ComPtr<Buffer> _computeSkinningConstantBuffer{};
+    bool _computeSkinningDirty = true;
+
+
 private: // Model Custom Animation Mapping
     wstring             _animEnumType{};
+
 
 private:
     HRESULT Ready_Model(const char* modelPath);

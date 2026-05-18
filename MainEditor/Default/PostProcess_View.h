@@ -1,6 +1,7 @@
-﻿#pragma once
+#pragma once
 
 #include "Editor_Window.h"
+#include "PostProcessPipeline.h"
 
 NS_BEGIN(MainEditor)
 
@@ -17,38 +18,13 @@ public:
     void    Render() override;
 
 private:
-    enum class ToneMappingType : int32
-    {
-        Reinhard = 0,
-        ACES,
-        Linear,
-        END
-    };
-
-    struct POSTPROCESS_SETTING
-    {
-        bool    useHDR = true;
-        bool    useToneMapping = true;
-        int32   toneMappingType = ETOI(ToneMappingType::ACES);
-        float   exposure = 1.f;
-        float   gamma = 2.2f;
-        bool    showPreview = true;
-    };
-
-private:
-    void    Draw_HDRControl();
-    void    Draw_ToneMappingControl();
-    void    Draw_Preview();
+    void    Draw_FeatureControl(Shared<PostProcessPipeline> pipeline, bool& dirty);
+    void    Draw_ParameterControl(PostProcessCB& params, bool& dirty);
+    void    Draw_QuickAction(PostProcessCB& params, bool& dirty);
     void    Draw_StatusBadge();
 
 private:
-    float   Apply_ToneMapping(float value) const;
-    float   Apply_Gamma(float value) const;
-    float   Saturate01(float value) const;
-
-private:
-    POSTPROCESS_SETTING _setting{};
-    float               _previewTime = 0.f;
+    static PostProcessCB Make_DefaultParams();
 
 public:
     static Shared<PostProcess_View> Create();

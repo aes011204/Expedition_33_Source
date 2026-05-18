@@ -7,6 +7,7 @@
 #include "Engine_Shader_Utils.hlsl"
 
 float4x4 g_PreTransformMatrix;
+uint g_iObjectID;
 
 struct VS_IN
 {
@@ -136,6 +137,16 @@ PS_OUT PS_NoTexture(PS_IN In)
     return Out;
 }
 
+PS_OUT_ID PS_ID(PS_IN In)
+{
+    PS_OUT_ID Out;
+    Out.vColor.r = float(g_iObjectID & 0xFF) / 255.f;
+    Out.vColor.g = float((g_iObjectID >> 8) & 0xFF) / 255.f;
+    Out.vColor.b = float((g_iObjectID >> 16) & 0xFF) / 255.f;
+    Out.vColor.a = 1.f;
+    return Out;
+}
+
 technique11 DefaultTechnique
 {
     PASS_RS_DS_BS_VP(DefaultPass, RS_Default, DSS_Default, BS_Default, VS_MAIN, PS_Opaque) // 0
@@ -143,4 +154,5 @@ technique11 DefaultTechnique
     PASS_RS_DS_BS_VP(MaskedPass, RS_Default, DSS_Default, BS_Default, VS_MAIN, PS_Mask) // 2
     PASS_RS_DS_BS_VP(TwoSidedPass, RS_CullNone, DSS_Default, BS_Default, VS_MAIN, PS_Opaque) // 3
     PASS_RS_DS_BS_VP(MaskedTwoSidedPass, RS_CullNone, DSS_Default, BS_Default, VS_MAIN, PS_Mask) // 4
+    PASS_RS_DS_BS_VP(IDPass, RS_Default, DSS_Default, BS_Default, VS_MAIN, PS_ID) // 5
 }

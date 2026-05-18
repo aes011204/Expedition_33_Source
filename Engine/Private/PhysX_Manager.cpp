@@ -3,9 +3,16 @@
 #include "PhysX_Filter.h"
 #include "ModelCom.h"
 #include "cooking/PxCooking.h"
+#include <cmath>
 
 namespace
 {
+    void Decompose_Matrix(const Matrix& matrix, Vec3& outScale, Quat& outRotation, Vec3& outTranslation)
+    {
+        Matrix tempMatrix = matrix;
+        tempMatrix.Decompose(outScale, outRotation, outTranslation);
+    }
+
     PxTransform To_PxTransform(const Matrix& worldMatrix)
     {
         Matrix tempMatix = worldMatrix;
@@ -35,6 +42,37 @@ namespace
             max(0.0001f, fabsf(scale.z))));
     }
 
+    Vec3 Multiply_AbsComponents(const Vec3& value, const Vec3& scale)
+    {
+        return Vec3(
+            fabsf(value.x) * fabsf(scale.x),
+            fabsf(value.y) * fabsf(scale.y),
+            fabsf(value.z) * fabsf(scale.z));
+    }
+
+    Vec3 Scale_Point_ByWorldScale(const Vec3& point, const Vec3& worldScale)
+    {
+        return Vec3(
+            point.x * worldScale.x,
+            point.y * worldScale.y,
+            point.z * worldScale.z);
+    }
+
+    PxTransform Build_PrimitiveLocalPose(
+        const ModelCollisionProxy& proxy,
+        const Matrix& preTransformMatrix,
+        const Vec3& worldScale,
+        const Quat& preRotation)
+    {
+        const Vec3 preLocalCenter = Vec3::Transform(proxy.center, preTransformMatrix);
+        const Vec3 localCenter = Scale_Point_ByWorldScale(preLocalCenter, worldScale);
+        const Quat localRotation = preRotation * proxy.rotation;
+
+        return PxTransform(
+            PxVec3(localCenter.x, localCenter.y, localCenter.z),
+            PxQuat(localRotation.x, localRotation.y, localRotation.z, localRotation.w));
+    }
+
     PxFilterData Build_PresetFilterData(Collision_Preset preset)
     {
         const Collision_Preset_Data& presetData = Get_PresetData(preset);
@@ -42,6 +80,23 @@ namespace
             presetData.channel,
             presetData.overlapMask,
             presetData.blockMask);
+    }
+
+    bool Is_Finite(const PxVec3& value)
+    {
+        return std::isfinite(value.x) && std::isfinite(value.y) && std::isfinite(value.z);
+    }
+
+    bool Is_ValidTriangle(const PxVec3& v0, const PxVec3& v1, const PxVec3& v2)
+    {
+        if (!Is_Finite(v0) || !Is_Finite(v1) || !Is_Finite(v2))
+            return false;
+
+        const PxVec3 edge0 = v1 - v0;
+        const PxVec3 edge1 = v2 - v0;
+        const PxVec3 normal = edge0.cross(edge1);
+
+        return normal.magnitudeSquared() > 1e-12f;
     }
 
     class Movement_QueryFilterCallback final : public PxQueryFilterCallback
@@ -193,6 +248,9 @@ HRESULT PhysX_Manager::Initialize()
     _scene = _physics->createScene(sceneDesc);
     CHECK_NULL(_scene, E_FAIL);
 
+	_controllerManager = PxCreateControllerManager(*_scene);
+    CHECK_NULL(_controllerManager, E_FAIL);
+
     return S_OK;
 }
 
@@ -241,6 +299,41 @@ void PhysX_Manager::Register_OrSync_Collider(Shared<ColliderCom> collider, const
 void PhysX_Manager::Gather_FrameEvents(vector<PhysXPairEvent>& outEvents)
 {
     outEvents = _frameEvents;
+}
+
+PxController* PhysX_Manager::Create_CapsuleController(const CharacterControllerDesc& desc,
+    const Vec3& initialFootPosition)
+{
+	CHECK_NULL(_controllerManager, nullptr);
+    CHECK_NULL(_defaultStaticMaterial, nullptr);
+
+    const float cylinderHeight = max(0.01f, desc.height - (desc.radius * 2.f));
+    // PxControllerDesc.position은 발 위치가 아니라 캡슐 중심 위치를 기대한다.
+    const float centerYOffset = desc.contactOffset + desc.radius + (cylinderHeight * 0.5f);
+
+    PxCapsuleControllerDesc controllerDesc{};
+    controllerDesc.material = _defaultStaticMaterial;
+    controllerDesc.radius = desc.radius;
+    controllerDesc.height = cylinderHeight; // PhysX는 반구 제외한 실린더 높이 사용
+    controllerDesc.stepOffset = desc.stepOffset;
+    controllerDesc.contactOffset = desc.contactOffset;
+    controllerDesc.slopeLimit = cosf(XMConvertToRadians(desc.slopeLimitDeg));
+    controllerDesc.position = PxExtendedVec3(
+        initialFootPosition.x,
+        initialFootPosition.y + centerYOffset,
+        initialFootPosition.z);
+    controllerDesc.upDirection = PxVec3(0.f, 1.f, 0.f);
+
+    if (!controllerDesc.isValid())
+        return nullptr;
+
+    return _controllerManager->createController(controllerDesc);
+}
+
+void PhysX_Manager::Release_Controller(PxController* controller)
+{
+	if (controller != nullptr)
+        controller->release();
 }
 
 void PhysX_Manager::onTrigger(PxTriggerPair* pairs, PxU32 count)
@@ -324,7 +417,9 @@ void PhysX_Manager::onContact(const PxContactPairHeader& pairHeader, const PxCon
     }
 }
 
-PhysXStaticActorHandle PhysX_Manager::Register_StaticModel(const ModelCom& model, const Matrix& worldMatrix,
+PhysXStaticActorHandle PhysX_Manager::Register_StaticModel(
+    const ModelCom& model,
+    const Matrix& worldMatrix,
     Collision_Preset preset)
 {
     PhysXStaticActorHandle emptyHandle{};
@@ -333,34 +428,136 @@ PhysXStaticActorHandle PhysX_Manager::Register_StaticModel(const ModelCom& model
     CHECK_NULL(_scene, emptyHandle);
     CHECK_NULL(_defaultStaticMaterial, emptyHandle);
 
-    vector<PxTriangleMesh*> triangleMeshes = Build_OrGetTriangleMeshes(model);
-    if (triangleMeshes.empty())
+    const vector<ModelCollisionProxy>& proxies = model.Get_CollisionProxies();
+    if (proxies.empty())
         return emptyHandle;
+
+    const vector<PxConvexMesh*> convexMeshes = Build_OrGetConvexMeshes(model);
+    const vector<PxTriangleMesh*> triangleMeshes = Build_OrGetTriangleMeshes(model);
+    size_t convexMeshIndex = 0;
+    size_t triangleMeshIndex = 0;
+
+    Vec3 preScale = Vec3::One;
+    Quat preRotation = Quat::Identity;
+    Vec3 preTranslation = Vec3::Zero;
+    Decompose_Matrix(model.Get_PreLocalTransformMatrix(), preScale, preRotation, preTranslation);
+
+    Vec3 worldScale = Vec3::One;
+    Quat worldRotation = Quat::Identity;
+    Vec3 worldTranslation = Vec3::Zero;
+    Decompose_Matrix(worldMatrix, worldScale, worldRotation, worldTranslation);
 
     PxRigidStatic* actor = _physics->createRigidStatic(To_PxTransform(worldMatrix));
     if (actor == nullptr)
-    {
         return emptyHandle;
-    }
 
     const PxFilterData filterData = Build_PresetFilterData(preset);
     uint32 attachedShapeCount = 0;
 
-    for (PxTriangleMesh* triangleMesh : triangleMeshes)
+    for (const ModelCollisionProxy& proxy : proxies)
     {
-        if (triangleMesh == nullptr)
-            continue;
+        PxShape* shape = nullptr;
 
-        PxTriangleMeshGeometry geometry(triangleMesh, To_PxMeshScale(worldMatrix));
-        if (!geometry.isValid())
-            continue;
+        switch (proxy.type)
+        {
+        case ModelCollisionProxyType::Box:
+        {
+            const Vec3 scaledExtents =
+                Multiply_AbsComponents(
+                    Multiply_AbsComponents(proxy.extents, preScale),
+                    worldScale);
 
-        PxShape* shape = _physics->createShape(geometry, *_defaultStaticMaterial, true);
+            shape = _physics->createShape(
+                PxBoxGeometry(scaledExtents.x, scaledExtents.y, scaledExtents.z),
+                *_defaultStaticMaterial,
+                true);
+
+            if (shape != nullptr)
+            {
+                const PxTransform localPose =
+                    Build_PrimitiveLocalPose(proxy, model.Get_PreLocalTransformMatrix(), worldScale, preRotation);
+                shape->setLocalPose(localPose);
+            }
+            break;
+        }
+
+        case ModelCollisionProxyType::Sphere:
+        {
+            const Vec3 combinedScale = Multiply_AbsComponents(preScale, worldScale);
+            const float scaledRadius =
+                proxy.radius * max(combinedScale.x, max(combinedScale.y, combinedScale.z));
+
+            shape = _physics->createShape(
+                PxSphereGeometry(scaledRadius),
+                *_defaultStaticMaterial,
+                true);
+
+            if (shape != nullptr)
+            {
+                const PxTransform localPose =
+                    Build_PrimitiveLocalPose(proxy, model.Get_PreLocalTransformMatrix(), worldScale, preRotation);
+                shape->setLocalPose(localPose);
+            }
+            break;
+        }
+
+        case ModelCollisionProxyType::Capsule:
+        {
+            const Vec3 combinedScale = Multiply_AbsComponents(preScale, worldScale);
+            const float scaledHalfHeight = proxy.halfHeight * fabsf(combinedScale.y);
+            const float scaledRadius = proxy.radius * max(fabsf(combinedScale.x), fabsf(combinedScale.z));
+
+            shape = _physics->createShape(
+                PxCapsuleGeometry(scaledRadius, scaledHalfHeight),
+                *_defaultStaticMaterial,
+                true);
+
+            if (shape != nullptr)
+            {
+                const PxTransform localPose =
+                    Build_PrimitiveLocalPose(proxy, model.Get_PreLocalTransformMatrix(), worldScale, preRotation);
+                shape->setLocalPose(localPose);
+            }
+            break;
+        }
+
+        case ModelCollisionProxyType::Convex:
+        {
+            PxConvexMesh* convexMesh = nullptr;
+            if (convexMeshIndex < convexMeshes.size())
+                convexMesh = convexMeshes[convexMeshIndex++];
+
+            if (convexMesh != nullptr)
+            {
+                shape = _physics->createShape(
+                    PxConvexMeshGeometry(convexMesh, To_PxMeshScale(worldMatrix)),
+                    *_defaultStaticMaterial,
+                    true);
+            }
+            break;
+        }
+
+        case ModelCollisionProxyType::TriangleMesh:
+        default:
+        {
+            PxTriangleMesh* triangleMesh = nullptr;
+            if (triangleMeshIndex < triangleMeshes.size())
+                triangleMesh = triangleMeshes[triangleMeshIndex++];
+
+            if (triangleMesh != nullptr)
+            {
+                shape = _physics->createShape(
+                    PxTriangleMeshGeometry(triangleMesh, To_PxMeshScale(worldMatrix)),
+                    *_defaultStaticMaterial,
+                    true);
+            }
+            break;
+        }
+        }
+
         if (shape == nullptr)
             continue;
 
-        // Static map collision은 simulation/query 둘 다 켠다.
-        // MovementCom의 sweep/probe는 query filter data를 본다.
         shape->setFlag(PxShapeFlag::eSIMULATION_SHAPE, true);
         shape->setFlag(PxShapeFlag::eTRIGGER_SHAPE, false);
         shape->setSimulationFilterData(filterData);
@@ -369,7 +566,6 @@ PhysXStaticActorHandle PhysX_Manager::Register_StaticModel(const ModelCom& model
         if (actor->attachShape(*shape))
             ++attachedShapeCount;
 
-        // actor가 shape reference를 잡으므로 local reference는 놓는다.
         shape->release();
     }
 
@@ -384,7 +580,6 @@ PhysXStaticActorHandle PhysX_Manager::Register_StaticModel(const ModelCom& model
     PhysXStaticActorHandle handle{};
     handle.id = _nextStaticActorId++;
     _staticActors.emplace(handle.id, actor);
-
     return handle;
 }
 
@@ -407,6 +602,56 @@ void PhysX_Manager::Unregister_StaticActor(PhysXStaticActorHandle handle)
         _scene->removeActor(*actor);
 
     actor->release();
+}
+
+vector<PxConvexMesh*> PhysX_Manager::Build_OrGetConvexMeshes(const ModelCom& model)
+{
+    const wstring key = model.Get_SourceModelPath();
+
+    auto iter = _convexMeshCache.find(key);
+    if (iter != _convexMeshCache.end())
+        return iter->second;
+
+    vector<PxConvexMesh*> cookedMeshes;
+
+    for (const ModelCollisionProxy& proxy : model.Get_CollisionProxies())
+    {
+        if (proxy.type != ModelCollisionProxyType::Convex)
+            continue;
+
+        PxConvexMesh* convexMesh = Create_ConvexMesh(proxy, model.Get_PreLocalTransformMatrix());
+        if (convexMesh == nullptr)
+            continue;
+
+        cookedMeshes.push_back(convexMesh);
+    }
+
+    _convexMeshCache.emplace(key, cookedMeshes);
+    return cookedMeshes;
+}
+
+PxConvexMesh* PhysX_Manager::Create_ConvexMesh(const ModelCollisionProxy& proxy, const Matrix& preTransformMatrix)
+{
+    if (_physics == nullptr || proxy.positions.empty())
+        return nullptr;
+
+    vector<PxVec3> pxVertices;
+    pxVertices.reserve(proxy.positions.size());
+
+    for (const Vec3& position : proxy.positions)
+    {
+        const Vec3 transformed = Vec3::Transform(position, preTransformMatrix);
+        pxVertices.emplace_back(transformed.x, transformed.y, transformed.z);
+    }
+
+    PxConvexMeshDesc desc{};
+    desc.points.count = static_cast<PxU32>(pxVertices.size());
+    desc.points.stride = sizeof(PxVec3);
+    desc.points.data = pxVertices.data();
+    desc.flags = PxConvexFlag::eCOMPUTE_CONVEX;
+
+    PxCookingParams params(_physics->getTolerancesScale());
+    return PxCreateConvexMesh(params, desc, _physics->getPhysicsInsertionCallback());
 }
 
 Shared<ColliderCom> PhysX_Manager::Find_Collider(PxActor* actor) const
@@ -580,9 +825,14 @@ vector<PxTriangleMesh*> PhysX_Manager::Build_OrGetTriangleMeshes(const ModelCom&
 
     vector<PxTriangleMesh*> cookedMeshes;
 
-    for (const ModelCollisionMesh& collisionMesh : model.Get_CollisionMeshes())
+    for (const ModelCollisionProxy& proxy : model.Get_CollisionProxies())
     {
-        PxTriangleMesh* triangleMesh = Create_TriangleMesh(collisionMesh, model.Get_PreLocalTransformMatrix());
+        if (proxy.type != ModelCollisionProxyType::TriangleMesh)
+            continue;
+
+        PxTriangleMesh* triangleMesh = Create_TriangleMesh(
+            ModelCollisionMesh{ proxy.name, proxy.positions, proxy.indices },
+            model.Get_PreLocalTransformMatrix());
         if (triangleMesh == nullptr)
             continue;
 
@@ -604,23 +854,63 @@ PxTriangleMesh* PhysX_Manager::Create_TriangleMesh(const ModelCollisionMesh& mes
     if (meshData.indices.size() % 3 != 0)
         return nullptr;
 
-    vector<PxVec3> pxVertices;
-    pxVertices.reserve(meshData.positions.size());
+    vector<PxVec3> sourceVertices;
+    sourceVertices.reserve(meshData.positions.size());
 
     for (const Vec3& position : meshData.positions)
     {
         const Vec3 transformedPosition = Vec3::Transform(position, preTransformMatrix);
-        pxVertices.emplace_back(transformedPosition.x, transformedPosition.y, transformedPosition.z);
+        sourceVertices.emplace_back(transformedPosition.x, transformedPosition.y, transformedPosition.z);
     }
+
+    static constexpr PxU32 kInvalidIndex = 0xffffffffu;
+
+    vector<PxVec3> pxVertices;
+    pxVertices.reserve(sourceVertices.size());
+
+    vector<PxU32> remappedIndices(sourceVertices.size(), kInvalidIndex);
+    vector<PxU32> pxIndices;
+    pxIndices.reserve(meshData.indices.size());
+
+    for (size_t i = 0; i + 2 < meshData.indices.size(); i += 3)
+    {
+        const PxU32 i0 = static_cast<PxU32>(meshData.indices[i]);
+        const PxU32 i1 = static_cast<PxU32>(meshData.indices[i + 1]);
+        const PxU32 i2 = static_cast<PxU32>(meshData.indices[i + 2]);
+
+        if (i0 >= sourceVertices.size() || i1 >= sourceVertices.size() || i2 >= sourceVertices.size())
+            continue;
+
+        if (i0 == i1 || i1 == i2 || i2 == i0)
+            continue;
+
+        if (!Is_ValidTriangle(sourceVertices[i0], sourceVertices[i1], sourceVertices[i2]))
+            continue;
+
+        const PxU32 sourceTriangle[3] = { i0, i1, i2 };
+        for (PxU32 sourceIndex : sourceTriangle)
+        {
+            if (remappedIndices[sourceIndex] == kInvalidIndex)
+            {
+                remappedIndices[sourceIndex] = static_cast<PxU32>(pxVertices.size());
+                pxVertices.push_back(sourceVertices[sourceIndex]);
+            }
+
+            pxIndices.push_back(remappedIndices[sourceIndex]);
+        }
+    }
+
+    if (pxVertices.empty() || pxIndices.empty())
+        return nullptr;
 
     PxTriangleMeshDesc meshDesc{};
     meshDesc.points.count = static_cast<PxU32>(pxVertices.size());
     meshDesc.points.stride = sizeof(PxVec3);
     meshDesc.points.data = pxVertices.data();
 
-    meshDesc.triangles.count = static_cast<PxU32>(meshData.indices.size() / 3);
+    meshDesc.triangles.count = static_cast<PxU32>(pxIndices.size() / 3);
     meshDesc.triangles.stride = sizeof(PxU32) * 3;
-    meshDesc.triangles.data = meshData.indices.data();
+    meshDesc.triangles.data = pxIndices.data();
 
     PxCookingParams params(_physics->getTolerancesScale());
     params.midphaseDesc = PxMeshMidPhase::eBVH34;
@@ -667,29 +957,32 @@ void PhysX_Manager::Free()
     }
     _triangleMeshCache.clear();
 
-    if (_defaultStaticMaterial)
+    for (auto& [path, meshes] : _convexMeshCache)
     {
-        _defaultStaticMaterial->release();
-        _defaultStaticMaterial = nullptr;
-    }
+        UNREFERENCED_PARAMETER(path);
 
-    if (_scene)
-    {
-        _scene->release();
-        _scene = nullptr;
+        for (PxConvexMesh* mesh : meshes)
+        {
+            if (mesh)
+                mesh->release();
+        }
     }
+    _convexMeshCache.clear();
 
-    if (_dispatcher)
-    {
-        _dispatcher->release();
-        _dispatcher = nullptr;
-    }
+	auto ReleaseManager = [](auto& manager)
+	{
+        if (manager != nullptr)
+        {
+            manager->release();
+			manager = nullptr;
+        }  
+	};
 
-    if (_physics)
-    {
-        _physics->release();
-        _physics = nullptr;
-    }
+	ReleaseManager(_defaultStaticMaterial);
+	ReleaseManager(_controllerManager);
+	ReleaseManager(_scene);
+	ReleaseManager(_dispatcher);
+	ReleaseManager(_physics);
 
 #ifdef _DEBUG
     if (_pvd)
@@ -704,9 +997,5 @@ void PhysX_Manager::Free()
         }
     }
 #endif
-    if (_foundation)
-    {
-        _foundation->release();
-        _foundation = nullptr;
-    }
+    ReleaseManager(_foundation);
 }

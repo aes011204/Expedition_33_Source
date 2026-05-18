@@ -42,6 +42,7 @@ private:
 	void Load_AssetList(const wstring& path);
 
 	string  Detect_AssetType(const wstring& filePath) const;
+	bool    Is_IgnoredPath(const fs::path& path) const;
 	bool    Should_RegisterAsset(const fs::path& path) const;
 	bool    Should_RegisterJsonAsset(const fs::path& path) const;
 
@@ -65,6 +66,7 @@ private:
 	umap<wstring, string>               _pathToGuid = {};
 
     vector<string> _ignoreFolders = { ".git", ".vs", "Fonts", "Data/Assets" };
+    bool _assetRegistryDirty = false;
 
     Unique<MaterialBuilder> _materialBuilder{};
 

@@ -11,7 +11,14 @@
 #include "Inspector_Factory.h"
 #include "Notification_Manager.h"
 #include "Helper_String.h"
+#include "Player_WorldBase.h"
+#include "Player_BattleBase.h"
+#include "Body_Player.h"
+#include "ModelCom.h"
 #include "Profile_View.h"
+#include "Material_View.h"
+#include "Model_Inspector.h"
+#include "EditorPickingSystem.h"
 #include <fstream>
 
 IMPLEMENT_SINGLETON(EditorInstance)
@@ -20,6 +27,28 @@ namespace
 {
 constexpr uint32 kDefaultPreviewViewportWidth = 1600;
 constexpr uint32 kDefaultPreviewViewportHeight = 900;
+
+void Refresh_PlayerBodyAnimMapping(const Shared<GameObject>& gameObject)
+{
+    if (auto worldPlayer = dynamic_pointer_cast<Player_WorldBase>(gameObject))
+    {
+        if (auto* body = dynamic_cast<Body_Player*>(worldPlayer->Get_PartObject(L"Part_Body")))
+        {
+            if (Shared<ModelCom> model = body->Get_Model())
+                model->Refresh_AnimStateMappingFromOwnerContext();
+        }
+        return;
+    }
+
+    if (auto battlePlayer = dynamic_pointer_cast<Player_BattleBase>(gameObject))
+    {
+        if (auto* body = dynamic_cast<Body_Player*>(battlePlayer->Get_PartObject(L"Part_Body")))
+        {
+            if (Shared<ModelCom> model = body->Get_Model())
+                model->Refresh_AnimStateMappingFromOwnerContext();
+        }
+    }
+}
 }
 
 EditorInstance::EditorInstance()
@@ -53,6 +82,10 @@ HRESULT EditorInstance::Initialize_Editor(const EDITOR_DESC& EditorDesc, const C
     _inspectorFactory = Inspector_Factory::Create();
     CHECK_NULL(_inspectorFactory, E_FAIL);
 
+    _pickingSystem = EditorPickingSystem::Create(_device, _context,
+        max(1u, EditorDesc.iViewportWidth), max(1u, EditorDesc.iViewportHeight));
+    CHECK_NULL(_pickingSystem, E_FAIL);
+
     // 처음에는 Edit 모드로, 1배속으로 시작
     _runtimeState = EDITOR_RUNTIME_STATE::Edit;
     _runtimeTimeScale = 1.f;
@@ -75,10 +108,14 @@ void EditorInstance::Release_Editor()
         }
     };
 
+    _pickingSystem.reset();
     _sharedViewportRenderTarget.reset();
 
     Release_Manager(_imguiManager);
     Release_Manager(_inspectorFactory);
+
+    Material_View::Clear_TexturePreviewCache();
+    ModelCom_Inspector::Clear_TexturePreviewCache();
 
     _notificationManager.reset();
     _commandHistory.reset();
@@ -428,6 +465,7 @@ void EditorInstance::Apply_SavedPrefabToCurrentLevel(const string& prefabName, c
 
             gameObject->From_Json(prefabRoot);
             gameObject->Set_SourcePrefabName(prefabName);
+            Refresh_PlayerBodyAnimMapping(gameObject);
 
             if (transform != nullptr)
             {
@@ -550,6 +588,7 @@ Shared<RenderTarget> EditorInstance::Prepare_SharedViewportRenderTarget(uint32 w
     if (nullptr == _sharedViewportRenderTarget)
     {
         _sharedViewportRenderTarget = RenderTarget::Create(
+            L"RenderTarget",
             _device,
             _context,
             width,
@@ -766,10 +805,12 @@ HRESULT EditorInstance::Restore_CurrentLevelObjects(const vector<EditorWorldObje
         if (gameObject != nullptr)
         {
             gameObject->From_Json(snapshot.objectJson);
+            Refresh_PlayerBodyAnimMapping(gameObject);
         }
         else
         {
             gameObject = GAME->Instantiate_GameObjectJson(snapshot.objectJson);
+            Refresh_PlayerBodyAnimMapping(gameObject);
         }
 
         if (gameObject == nullptr)
@@ -1009,6 +1050,36 @@ void EditorInstance::Apply_RuntimeInputPolicy()
         GAME->Unlock_Mouse();
 }
 
+void EditorInstance::DoPickAt(const ImVec2& mousePos, const ImVec2& vpMin, const ImVec2& vpMax)
+{
+    if (!_pickingSystem || IsPlaying())
+    {
+        return;
+    }
+
+    _pickingSystem->DoPickAt(mousePos, vpMin, vpMax);
+}
+
+void EditorInstance::Request_Pick(const ImVec2& mousePos, const ImVec2& vpMin, const ImVec2& vpMax)
+{
+    if (IsPlaying())
+    {
+        return;
+    }
+
+    _pendingPick = { true, mousePos, vpMin, vpMax };
+}
+
+void EditorInstance::Flush_PendingPick()
+{
+    if (!_pendingPick.pending || !_pickingSystem)
+    {
+        return;
+    }
+
+    _pendingPick.pending = false;
+    _pickingSystem->DoPickAt(_pendingPick.mousePos, _pendingPick.vpMin, _pendingPick.vpMax);
+}
 
 void EditorInstance::Request_FrameStep()
 {

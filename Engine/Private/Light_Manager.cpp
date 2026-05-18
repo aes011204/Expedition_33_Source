@@ -95,6 +95,35 @@ HRESULT Light_Manager::Set_Lights(const vector<LIGHT_DESC>& lightDescs)
     return S_OK;
 }
 
+HRESULT Light_Manager::Update_PrimaryShadowLightDesc(const LIGHT_DESC& lightDesc)
+{
+    Shared<Light> fallbackDirectional = nullptr;
+
+    for (auto& light : _lights)
+    {
+        if (light == nullptr)
+            continue;
+
+        const LIGHT_DESC* desc = light->Get_LightDesc();
+        if (desc == nullptr || desc->type != LightType::Directional)
+            continue;
+
+        if (fallbackDirectional == nullptr)
+            fallbackDirectional = light;
+
+        if (desc->castShadow)
+            return light->Update_Desc(lightDesc);
+    }
+
+    if (fallbackDirectional != nullptr)
+        return fallbackDirectional->Update_Desc(lightDesc);
+
+    if (_lights.empty())
+        return E_FAIL;
+
+    return _lights.front()->Update_Desc(lightDesc);
+}
+
 HRESULT Light_Manager::Render_Lights(Shared<ShaderCom> shader, Shared<VIBuffer_Rect> viBuffer)
 {
     for (auto& pLight : _lights)

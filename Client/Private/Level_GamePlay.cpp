@@ -5,7 +5,6 @@
 #include "Spawn_Prefab.h"
 #include "TargetCamera.h"
 #include "MapLoader.h"
-#include "Spawn_Prefab.h"
 #include "UI_Base.h"
 #include "UI_Button.h"
 #include "UI_Image.h"
@@ -54,7 +53,7 @@ void Level_GamePlay::Update(float fTimeDelta)
     // 테스트
 #ifdef _DEBUG
     const int32 fps = (fTimeDelta > 0.f)
-            ? static_cast<int32>(1.f / fTimeDelta) : 0;
+            ? static_cast<int32>(1.f / fTimeDelta) : 0.f;
 
      GAME->Print(L"현재 FPS : {}", fps, duration(0.f), color(Vec4(1.f, 1.f, 0.f, 1.f)));
 #endif
@@ -93,39 +92,50 @@ HRESULT Level_GamePlay::Ready_Lights()
     LIGHT_DESC LightDesc{};
 
     LightDesc.type = LightType::Directional;
-    LightDesc.direction = XMFLOAT4(1.f, -1.f, -1.f, 0.f);
-    LightDesc.diffuse = XMFLOAT4(1.f, 1.f, 1.f, 1.f);
-    LightDesc.ambient = XMFLOAT4(0.4f, 0.4f, 0.4f, 1.f);
-    LightDesc.specular = XMFLOAT4(1.f, 1.f, 1.f, 1.f);
+    LightDesc.direction = Vec4(1.f, -1.f, -1.f, 0.f);
+    LightDesc.diffuse = Vec4(1.f, 1.f, 1.f, 1.f);
+    LightDesc.ambient = Vec4(0.4f, 0.4f, 0.4f, 1.f);
+    LightDesc.specular = Vec4(1.f, 1.f, 1.f, 1.f);
+    LightDesc.castShadow = true;
 
     if (FAILED(GAME->Add_Light(LightDesc)))
         return E_FAIL;
 
-    ShadowLightDesc ShadowDesc{};
+    {
+        ShadowLightDesc ShadowDesc{};
 
-    ShadowDesc.eye = Vec3(-0.f, 10.f, -7.f);
-    ShadowDesc.at = Vec3(0.f, 0.f, 0.f);
-    ShadowDesc.fovy = DirectX::XMConvertToRadians(120.f);
-    ShadowDesc.aspect = 16.f / 9.f;
-    ShadowDesc.zn = 0.1f;
-    ShadowDesc.zf = 1000.f;
-    ShadowDesc.bias = 0.03f;
-    ShadowDesc.intensity = 0.4f;
+        ShadowDesc.eye = Vec3(0.f, 10.f, -7.f);
+        ShadowDesc.at = Vec3(0.f, 0.f, 0.f);
 
-    if (FAILED(GAME->Update_ShadowLight(ShadowDesc)))
-        return E_FAIL;
+        // Camera 따라다니게
+        ShadowDesc.followCameraFrustum = true;
+        ShadowDesc.focusNear = 0.1f;
+        ShadowDesc.focusFar = 40.f;
+        ShadowDesc.lightDistancePadding = 30.f;
+        ShadowDesc.xyPadding = 2.f;
+        ShadowDesc.zPadding = 40.f;
+
+        ShadowDesc.shadowMapWidth = 4096;
+        ShadowDesc.shadowMapHeight = 4096;
+
+        ShadowDesc.bias = 0.0002f;
+        ShadowDesc.intensity = 0.45f;
+
+        if (FAILED(GAME->Update_ShadowLight(ShadowDesc)))
+            return E_FAIL;
+    }
 
     return S_OK;
 }
 
 HRESULT Level_GamePlay::Ready_Layer_UI(const wstring& strLayerTag)
 {
-    /*UI_RuntimeLoader::UI_LoadDesc desc{};
-    desc.levelIndex = ETOI(LevelType::GamePlay);
-    desc.jsonPath = Constants::UI::UI_Json_Path;
-    desc.outUIByName = &_uiByName;
+    //UI_RuntimeLoader::UI_LoadDesc desc{};
+    //desc.levelIndex = ETOI(LevelType::GamePlay);
+    //desc.jsonPath = Constants::UI::UI_Json_Path;
+    //desc.outUIByName = &_uiByName;
 
-    CHECK_FAILED(UI_RuntimeLoader::Load_Document(desc), E_FAIL);*/
+    //CHECK_FAILED(UI_RuntimeLoader::Load_Document(desc), E_FAIL);
     CHECK_FAILED(CLIENT->Initialize_GameplayUI(ETOI(LevelType::GamePlay)), E_FAIL);
      
     return S_OK;
@@ -187,14 +197,14 @@ HRESULT Level_GamePlay::Ready_Layer_BackGround(const wstring& strLayerTag)
 
 HRESULT Level_GamePlay::Ready_Layer_Monster(const wstring& strLayerTag)
 {
-   /* if (FAILED(
-        GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Monster"),
-            ETOI(LevelType::GamePlay), strLayerTag)
-    ))
-        return E_FAIL;*/
+    //if (FAILED(
+    //    GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Monster"),
+    //        ETOI(LevelType::GamePlay), strLayerTag)
+    //))
+    //    return E_FAIL;
 
 
-    Vec3 startPos = Vec3(225.f, -4020.5f, -1.24f);
+    Vec3 startPos = Vec3(66.f, 5.47f, -1.94f);
 
 
      
@@ -210,7 +220,7 @@ HRESULT Level_GamePlay::Ready_Layer_Monster(const wstring& strLayerTag)
 
 HRESULT Level_GamePlay::Ready_Layer_Player(const wstring& strLayerTag)
 {
-    Vec3 startPos = Vec3(205.f, -4020.5f, -1.24f);
+    Vec3 startPos = Vec3(82.f, 5.14f, -0.24f);
     CHECK_FAILED(CLIENT->Initialize_Hero(ETOI(LevelType::GamePlay), strLayerTag, startPos), E_FAIL);
 
     return S_OK;
