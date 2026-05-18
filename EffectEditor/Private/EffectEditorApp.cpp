@@ -6,6 +6,7 @@
 #include "EffectEditorInstance.h"
 #include "GameInstance.h"
 #include "Level_EffectEditor.h"
+#include "PostProcessPipeline.h"
 #include "Profile_View.h"
 #include "ResourceLoader.h"
 
@@ -62,6 +63,45 @@ namespace Internal
             static_cast<uint32>(failedCount)
         );
     }
+
+    class PostProcessFeatureScope final
+    {
+    public:
+        explicit PostProcessFeatureScope(SceneViewMode sceneViewMode)
+            : _pipeline{ GAME->Get_PostProcessPipeline() }
+        {
+            if (sceneViewMode != SceneViewMode::Authoring || _pipeline == nullptr)
+                return;
+
+            _originalFeatures = _pipeline->Get_PostProcessFeatures();
+            _originalParams = _pipeline->Get_PostProcessParams();
+            _restore = true;
+
+            PostProcessCB authoringParams = _originalParams;
+            authoringParams.bloomIntensity = 0.f;
+
+            _pipeline->Set_PostProcessFeatures(
+                PostProcessFeature::HDR |
+                PostProcessFeature::Bloom
+            );
+            _pipeline->Set_PostProcessParams(authoringParams);
+        }
+
+        ~PostProcessFeatureScope()
+        {
+            if (!_restore || _pipeline == nullptr)
+                return;
+
+            _pipeline->Set_PostProcessFeatures(_originalFeatures);
+            _pipeline->Set_PostProcessParams(_originalParams);
+        }
+
+    private:
+        Shared<PostProcessPipeline> _pipeline{ nullptr };
+        PostProcessFeature _originalFeatures{ PostProcessFeature::None };
+        PostProcessCB _originalParams{};
+        bool _restore{ false };
+    };
 }
 
 EffectEditorApp::EffectEditorApp()
@@ -203,6 +243,8 @@ HRESULT EffectEditorApp::Render()
 
         if (FAILED(GAME->Clear_Buffers(kDefaultClearColor)))
             return E_FAIL;
+
+        const Internal::PostProcessFeatureScope postProcessFeatureScope{ EDITOR->Get_SceneViewMode() };
 
         if (FAILED(GAME->Draw()))
             return E_FAIL;
