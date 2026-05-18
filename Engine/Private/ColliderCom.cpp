@@ -314,6 +314,8 @@ HRESULT ColliderCom::Ready_DebugRenderResources()
     return S_OK;
 }
 
+#endif
+
 void ColliderCom::Release_PhysX()
 {
     auto Release_PX = [](auto& px)
@@ -582,6 +584,7 @@ void ColliderCom::Update_PhysXGeometry(const Matrix& worldMatrix)
     }
 }
 
+#ifdef _DEBUG
 HRESULT ColliderCom::Render_Debug()
 {
     if (nullptr == _bounding || nullptr == _batch || nullptr == _effect || nullptr == _inputLayout)

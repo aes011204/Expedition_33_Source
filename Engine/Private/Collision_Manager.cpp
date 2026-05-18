@@ -73,7 +73,8 @@ void Collision_Manager::Update_FromPhysX(const vector<PhysXPairEvent>& events)
                 self->Add_Overlap(other);
                 selfOwner->OnBeginOverlap(self, other);
             }
-            else if (self->Is_Overlapping(other))
+
+            if (event.staying)
             {
                 selfOwner->OnStayOverlap(self, other);
             }
@@ -94,38 +95,6 @@ void Collision_Manager::Update_FromPhysX(const vector<PhysXPairEvent>& events)
         }
     }
 
-    const size_t colliderCount = _colliders.size();
-
-    for (size_t i = 0; i < colliderCount; ++i)
-    {
-        Shared<ColliderCom> src = _colliders[i].lock();
-        if (src == nullptr || !src->Get_IsActive())
-            continue;
-
-        Shared<GameObject> srcOwner = src->Get_Owner();
-        if (srcOwner == nullptr)
-            continue;
-
-        for (size_t j = i + 1; j < colliderCount; ++j)
-        {
-            Shared<ColliderCom> dst = _colliders[j].lock();
-            if (dst == nullptr || !dst->Get_IsActive())
-                continue;
-
-            Shared<GameObject> dstOwner = dst->Get_Owner();
-            if (dstOwner == nullptr || srcOwner == dstOwner)
-                continue;
-
-            if (!src->Is_Overlapping(dst))
-                continue;
-
-            src->Set_IsColl(true);
-            dst->Set_IsColl(true);
-
-            srcOwner->OnStayOverlap(src, dst);
-            dstOwner->OnStayOverlap(dst, src);
-        }
-    }
 
 #ifdef _DEBUG
     if (GAME->KeyDown(KEY_TYPE::F1))

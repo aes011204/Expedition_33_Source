@@ -65,9 +65,9 @@ HRESULT MonsterStatCom::Initialize(void* arg)
 
 void MonsterStatCom::Update(float timeDelta)
 {
-    // 테스트
-    GAME->Print(L"몬스터 체력 : {}", _MRuntimeStat.CurHp, duration(0.f), color(Vec4(1.f, 1.f, 0.f, 1.f)));
-
+#ifdef _DEBUG
+    GAME->Print(L"몬스터 체력 : {}", _MRuntimeStat.CurHp, duration(0.f));
+#endif
 }
 
 Shared<MonsterStatCom> MonsterStatCom::Create(

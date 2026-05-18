@@ -1032,8 +1032,6 @@ void Renderer::Mark_StaticShadowDirty()
      _staticShadowDirty = true;
 }
 
-#ifdef _DEBUG
-
 uint32 Renderer::Get_RenderCall() const
 {
     return iDrawCall;
@@ -1048,6 +1046,8 @@ void Renderer::Add_RenderCall(uint32 count)
 {
     iDrawCall += count;
 }
+
+#ifdef _DEBUG
 
 void Renderer::DumpCurrentOMState(const wchar_t* stageTag) const
 {

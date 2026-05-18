@@ -34,6 +34,9 @@ public:
 private:
     Matrix _headOffsetMatrix{};
 
+    const Matrix* _pendingRigidSocketMatrix{ nullptr };
+    bool _pendingRigidAttachmentCalibration{ false };
+
 public:
 	static Shared<Head_Player> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
 	Shared<GameObject> Clone(void* arg) override;
