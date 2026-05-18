@@ -147,6 +147,15 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
 #ifdef _DEBUG
     _printManager = Print_Manager::Create();
     CHECK_NULL(_printManager, E_FAIL);
+
+    ComPtr<ID3D11InfoQueue> infoQueue;
+    if (SUCCEEDED(_device.As(&infoQueue)) && infoQueue)
+    {
+        // infoQueue->SetBreakOnSeverity(D3D11_MESSAGE_SEVERITY_CORRUPTION, TRUE);
+        // infoQueue->SetBreakOnSeverity(D3D11_MESSAGE_SEVERITY_ERROR, TRUE);
+        // infoQueue->SetBreakOnSeverity(D3D11_MESSAGE_SEVERITY_WARNING, TRUE); // #3146081에서 멈춤
+    }
+
 #endif
 
     return S_OK;

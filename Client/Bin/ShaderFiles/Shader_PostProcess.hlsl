@@ -115,9 +115,12 @@ PS_OUT_BACKBUFFER PS_ToneMapping(PS_IN In)
     PS_OUT_BACKBUFFER Out;
 
     float4 hdr = g_HDRTexture.Sample(LinearClampSampler, In.Texcoord);
-    float4 bloom = g_BloomTexture.Sample(LinearClampSampler, In.Texcoord);
+    float backgroundMask = g_BackgroundMaskTexture.Sample(PointClampSampler, In.Texcoord).r;
+    float3 bloomColor = 0.f;
+    if (HasPostProcessFeature(POSTPROCESS_FLAG_BLOOM))
+        bloomColor = g_BloomTexture.Sample(LinearClampSampler, In.Texcoord).rgb;
 
-    float3 color = hdr.rgb + bloom.rgb;
+    float3 color = hdr.rgb + bloomColor;
     // Exposure
     if (HasPostProcessFeature(POSTPROCESS_FLAG_EXPOSURE))
         color *= max(g_PP_Exposure, EPSILON);
@@ -133,8 +136,17 @@ PS_OUT_BACKBUFFER PS_ToneMapping(PS_IN In)
         color = pow(saturate(color), 1.f / gamma);
     }
 
+    float outAlpha = hdr.a;
+    // 마스크가 비어있고(HDR 미기여) HDR 밝기 합도 거의 0이면 배경으로 간주한다.
+    const bool hasSceneContribution = (backgroundMask > 0.5f) || (dot(abs(hdr.rgb), float3(1.f, 1.f, 1.f)) > 0.0001f);
+    if (g_PP_UseBackgroundFallback != 0 && !hasSceneContribution)
+    {
+        color = g_PP_BackgroundFallbackColor.rgb;
+        outAlpha = 1.f;
+    }
+
     // 최종 출력 화면은 LDR
-    Out.Color = float4(saturate(color), hdr.a);
+    Out.Color = float4(saturate(color), outAlpha);
     return Out;
 }
 
