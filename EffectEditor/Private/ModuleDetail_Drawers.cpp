@@ -541,6 +541,71 @@ namespace Internal
 
         return 1;
     }
+
+    static bool Is_SameVec3(const Vec3& lhs, const Vec3& rhs)
+    {
+        return
+            NearlyEqual(lhs.x, rhs.x) &&
+            NearlyEqual(lhs.y, rhs.y) &&
+            NearlyEqual(lhs.z, rhs.z);
+    }
+
+    static bool Draw_RadialPivotProperty(
+        DetailPropertyContext& detailContext,
+        Vec3& value,
+        const Vec3& defaultValue)
+    {
+        bool changed = false;
+
+        ImGui::PushID("RadialPivot");
+        detailContext.Draw_PropertyLabel("방사 기준점");
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
+        {
+            ImGui::SetTooltip(
+                "입자 생성 위치에서 이 기준점을 뺀 방향으로 초기 속도를 더합니다.\n"
+                "기준점이 생성 위치보다 위에 있으면 +속도에서도 아래 방향으로 퍼질 수 있습니다."
+            );
+        }
+
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        changed |= ImGui::DragFloat3("##Value", &value.x, 0.01f);
+        if (detailContext.Draw_ResetButton(!Is_SameVec3(value, defaultValue)))
+        {
+            value = defaultValue;
+            changed = true;
+        }
+        ImGui::PopID();
+
+        return changed;
+    }
+
+    static bool Draw_RadialWorldSpaceProperty(
+        DetailPropertyContext& detailContext,
+        bool& value,
+        bool defaultValue)
+    {
+        bool changed = false;
+
+        ImGui::PushID("RadialWorldSpace");
+        detailContext.Draw_PropertyLabel("월드 스페이스");
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
+        {
+            ImGui::SetTooltip(
+                "켜면 방사 기준점을 world offset으로 사용합니다.\n"
+                "끄면 emitter 회전 기준 local offset으로 변환합니다."
+            );
+        }
+
+        changed |= ImGui::Checkbox("##Value", &value);
+        if (detailContext.Draw_ResetButton(value != defaultValue))
+        {
+            value = defaultValue;
+            changed = true;
+        }
+        ImGui::PopID();
+
+        return changed;
+    }
 }
 
 bool RequiredModuleDetail::Draw(AuthoringEmitter& emitter, const AuthoringModule& module, RequiredModuleData& data, DetailPropertyContext& detailContext)
@@ -762,7 +827,41 @@ bool InitialVelocityModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, Init
     {
         if (detailContext.Begin_PropertyTable("InitialVelocity"))
         {
-            changed |= detailContext.Draw_Vec3Property("방사 기준점", data.radialPivot, defaultData.radialPivot);
+            changed |= detailContext.Draw_BoolProperty("월드 스페이스", data.inWorldSpace, defaultData.inWorldSpace);
+            detailContext.End_PropertyTable();
+        }
+
+        changed |= detailContext.Draw_Vector3DistributionGroup("속도", data.velocity, defaultData.velocity);
+    }
+
+    return changed;
+}
+
+bool InitialRadialVelocityModuleDetail::Draw(
+    AuthoringEmitter&,
+    AuthoringModule&,
+    InitialRadialVelocityModuleData& data,
+    DetailPropertyContext& detailContext)
+{
+    const InitialRadialVelocityModuleData defaultData{};
+    bool changed = false;
+
+    const bool radialVelocityOpen = ImGui::CollapsingHeader("방사성 속도", ImGuiTreeNodeFlags_DefaultOpen);
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
+    {
+        ImGui::SetTooltip(
+            "생성 위치와 방사 기준점의 방향으로 더하는 초기 속도입니다.\n"
+            "양수는 기준점에서 멀어지고, 음수는 기준점 쪽으로 이동합니다.\n"
+            "지속 attractor가 아니라 생성 시점의 속도 항입니다."
+        );
+    }
+
+    if (radialVelocityOpen)
+    {
+        if (detailContext.Begin_PropertyTable("InitialRadialVelocity"))
+        {
+            changed |= Internal::Draw_RadialPivotProperty(detailContext, data.radialPivot, defaultData.radialPivot);
+            changed |= Internal::Draw_RadialWorldSpaceProperty(detailContext, data.inWorldSpace, defaultData.inWorldSpace);
             detailContext.End_PropertyTable();
         }
 

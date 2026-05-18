@@ -112,7 +112,7 @@ HRESULT EffectEditorApp::Initialize()
     long long computeInstancingSmokeMs = 0;
     long long initializeEditorMs = 0;
 
-    const auto runStartupStep = [](long long& elapsedMs, const auto& step) -> HRESULT
+    const auto run_startup_step = [](long long& elapsedMs, const auto& step) -> HRESULT
     {
         const auto startTime = chrono::steady_clock::now();
         const HRESULT hr = step();
@@ -121,17 +121,17 @@ HRESULT EffectEditorApp::Initialize()
         return hr;
     };
 
-    CHECK_FAILED(runStartupStep(initializeEngineMs, [&]{ return GAME->Initialize_Engine(engineDesc, _device, _context); }), E_FAIL);
-    CHECK_FAILED(runStartupStep(initializeAssetManagerMs, [&]{ return GAME->Initialize_AssetManager(assetRootPath.wstring()); }), E_FAIL);
-    CHECK_FAILED(runStartupStep(initializeClientMs, [&]{ return CLIENT->Initialize_Client(_device, _context); }), E_FAIL);
-    CHECK_FAILED(runStartupStep(readyFontsMs, [&]{ return Ready_Fonts(); }), E_FAIL);
-    CHECK_FAILED(runStartupStep(readyStaticResourcesMs, [&]{ return Ready_Prototype_For_Static_Level(); }), E_FAIL);
-    CHECK_FAILED(runStartupStep(readyGamePlayResourcesMs, [&]{ return CLIENT->Ready_LevelResources(LevelType::GamePlay); }), E_FAIL);
-    CHECK_FAILED(runStartupStep(readyPreviewLevelMs, [&]{ return Ready_PreviewLevel(); }), E_FAIL);
+    CHECK_FAILED(run_startup_step(initializeEngineMs, [&]{ return GAME->Initialize_Engine(engineDesc, _device, _context); }), E_FAIL);
+    CHECK_FAILED(run_startup_step(initializeAssetManagerMs, [&]{ return GAME->Initialize_AssetManager(assetRootPath.wstring()); }), E_FAIL);
+    CHECK_FAILED(run_startup_step(initializeClientMs, [&]{ return CLIENT->Initialize_Client(_device, _context); }), E_FAIL);
+    CHECK_FAILED(run_startup_step(readyFontsMs, [&]{ return Ready_Fonts(); }), E_FAIL);
+    CHECK_FAILED(run_startup_step(readyStaticResourcesMs, [&]{ return Ready_Prototype_For_Static_Level(); }), E_FAIL);
+    CHECK_FAILED(run_startup_step(readyGamePlayResourcesMs, [&]{ return CLIENT->Ready_LevelResources(LevelType::GamePlay); }), E_FAIL);
+    CHECK_FAILED(run_startup_step(readyPreviewLevelMs, [&]{ return Ready_PreviewLevel(); }), E_FAIL);
 
 #ifdef _DEBUG
-    CHECK_FAILED(runStartupStep(computeShaderSmokeMs, [&]{ return Run_ComputeShaderSmokeTest(); }), E_FAIL);
-    CHECK_FAILED(runStartupStep(computeInstancingSmokeMs, [&]{ return Run_ComputeInstancingSmokeTest(); }), E_FAIL);
+    CHECK_FAILED(run_startup_step(computeShaderSmokeMs, [&]{ return Run_ComputeShaderSmokeTest(); }), E_FAIL);
+    CHECK_FAILED(run_startup_step(computeInstancingSmokeMs, [&]{ return Run_ComputeInstancingSmokeTest(); }), E_FAIL);
 #endif
 
     EffectEditorDesc editorDesc{};
@@ -140,7 +140,7 @@ HRESULT EffectEditorApp::Initialize()
     editorDesc.viewportWidth = viewportWidth;
     editorDesc.viewportHeight = viewportHeight;
 
-    CHECK_FAILED(runStartupStep(initializeEditorMs, [&]{ return EDITOR->Initialize_Editor(editorDesc, _device, _context); }), E_FAIL);
+    CHECK_FAILED(run_startup_step(initializeEditorMs, [&]{ return EDITOR->Initialize_Editor(editorDesc, _device, _context); }), E_FAIL);
     EDITOR->Request_RestartPreview();
 
     const auto totalStartupMs = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - startupStartTime).count();

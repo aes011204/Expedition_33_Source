@@ -58,8 +58,10 @@ namespace Internal
         case EmitterScreenAlignment::AwayFromCenter:
             return EffectSpriteScreenAlignment::AwayFromCenter;
 
-        case EmitterScreenAlignment::FacingCameraPosition:
         case EmitterScreenAlignment::Velocity:
+            return EffectSpriteScreenAlignment::Velocity;
+
+        case EmitterScreenAlignment::FacingCameraPosition:
         case EmitterScreenAlignment::TypeSpecific:
         case EmitterScreenAlignment::FacingCameraDistanceBlend:
         default:
@@ -575,10 +577,26 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
     if (const auto* initialVelocity = Internal::Find_ModuleData<InitialVelocityModuleData>(emitter, AuthoringModuleType::InitialVelocity))
     {
         desc.motion.enabled = true;
-        desc.motion.radialPivot = initialVelocity->radialPivot;
-        desc.motion.initialSpeed = Vec2{
-            Internal::Evaluate_FloatDistributionMin(initialVelocity->speed, desc.motion.initialSpeed.x),
-            Internal::Evaluate_FloatDistributionMax(initialVelocity->speed, desc.motion.initialSpeed.y)
+        desc.motion.initialVelocityEnabled = true;
+        desc.motion.initialVelocityInWorldSpace = initialVelocity->inWorldSpace;
+        desc.motion.initialVelocityMin =
+            Internal::Evaluate_Vector3DistributionMin(initialVelocity->velocity, desc.motion.initialVelocityMin);
+        desc.motion.initialVelocityMax =
+            Internal::Evaluate_Vector3DistributionMax(initialVelocity->velocity, desc.motion.initialVelocityMax);
+    }
+
+    if (const auto* initialRadialVelocity = Internal::Find_ModuleData<InitialRadialVelocityModuleData>(
+            emitter,
+            AuthoringModuleType::InitialRadialVelocity
+        ))
+    {
+        desc.motion.enabled = true;
+        desc.motion.initialRadialVelocityEnabled = true;
+        desc.motion.initialRadialVelocityInWorldSpace = initialRadialVelocity->inWorldSpace;
+        desc.motion.radialPivot = initialRadialVelocity->radialPivot;
+        desc.motion.radialSpeed = Vec2{
+            Internal::Evaluate_FloatDistributionMin(initialRadialVelocity->speed, desc.motion.radialSpeed.x),
+            Internal::Evaluate_FloatDistributionMax(initialRadialVelocity->speed, desc.motion.radialSpeed.y)
         };
     }
 

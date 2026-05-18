@@ -129,6 +129,7 @@ private: //## Helpers
     AuthoringModule Make_SphereLocationModule();
     AuthoringModule Make_InitialSizeModule();
     AuthoringModule Make_InitialVelocityModule();
+    AuthoringModule Make_InitialRadialVelocityModule();
     AuthoringModule Make_AccelerationModule();
     AuthoringModule Make_DragModule();
     AuthoringModule Make_VelocityOverLifeModule();

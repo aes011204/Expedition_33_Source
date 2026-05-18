@@ -75,6 +75,16 @@ public:
         DetailPropertyContext& detailContext);
 };
 
+class InitialRadialVelocityModuleDetail
+{
+public:
+    bool Draw(
+        AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        InitialRadialVelocityModuleData& data,
+        DetailPropertyContext& detailContext);
+};
+
 class AccelerationModuleDetail
 {
 public:

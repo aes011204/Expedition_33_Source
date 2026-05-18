@@ -66,6 +66,7 @@ private: //## Data::ModuleDetail
     SphereLocationModuleDetail _sphereLocationModuleDetail{};
     InitialSizeModuleDetail _initialSizeModuleDetail{};
     InitialVelocityModuleDetail _initialVelocityModuleDetail{};
+    InitialRadialVelocityModuleDetail _initialRadialVelocityModuleDetail{};
     AccelerationModuleDetail _accelerationModuleDetail{};
     DragModuleDetail _dragModuleDetail{};
     VelocityOverLifeModuleDetail _velocityOverLifeModuleDetail{};

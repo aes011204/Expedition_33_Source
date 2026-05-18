@@ -45,6 +45,8 @@ private: //## Types::PlaybackRuntime
 private: //## Static Values
     static constexpr const char* kFallbackTextureId{ "Texture_Effect_DefaultTexture" };
     static constexpr const char* kEffectSpriteShaderId{ "Shader_EffectSprite" };
+    static constexpr uint32 kEffectSpriteAlphaBlendPass{ 0 };
+    static constexpr uint32 kEffectSpriteAdditivePass{ 1 };
     static constexpr int kOpacitySourceAlpha{ 0 };
     static constexpr int kOpacitySourceRed{ 1 };
     static constexpr int kOpacitySourceLuminance{ 2 };
@@ -58,6 +60,7 @@ private: //## Data::Components
 private: //## Data::Desc
     ComputeSpriteEmitterDesc _desc{};               // clone 생성 시 전달받은 compute sprite emitter 규칙이다.
     int _opacitySourceIndex{ kOpacitySourceAlpha }; // shader opacity source selector.
+    uint32 _effectSpritePassIndex{ kEffectSpriteAlphaBlendPass }; // material blend mode가 선택한 EffectSprite pass다.
 
 private: //## Data::SpawnRuntime
     vector<bool> _burstExecuted{}; // burst 목록의 1회 실행 여부를 emitter runtime 동안 유지한다.
@@ -80,6 +83,7 @@ private: //## Helper::Render
     HRESULT Bind_ShaderResources();         // EffectSprite shader에 camera/texture resource를 바인딩한다.
     HRESULT Bind_MaterialResources();       // EffectSprite material 파라미터를 shader에 바인딩한다.
     int Resolve_OpacitySourceIndex() const; // authoring opacitySource 문자열을 shader selector 값으로 변환한다.
+    uint32 Resolve_EffectSpritePassIndex() const; // authoring blendMode 문자열을 EffectSprite pass로 변환한다.
 
 private: //## Helper::Desc
     ComputePointParticleDesc Make_ComputePointParticleDesc() const; // compute sprite effect용 particle 규칙을 만든다.

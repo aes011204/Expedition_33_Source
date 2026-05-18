@@ -47,6 +47,7 @@ struct VS_OUT
     float4 endColor : COLOR1;
     float4 subUVRect : TEXCOORD2;
     float rotationRadians : TEXCOORD3;
+    float3 velocityDirection : TEXCOORD4;
 };
 
 VS_OUT VS_MAIN(VS_IN In)
@@ -61,6 +62,7 @@ VS_OUT VS_MAIN(VS_IN In)
     Out.endColor = In.endColor;
     Out.subUVRect = In.subUVRect;
     Out.rotationRadians = atan2(In.InstanceMatrix[0].y, In.InstanceMatrix[0].x);
+    Out.velocityDirection = In.InstanceMatrix[2].xyz;
 
     return Out;
 }
@@ -74,6 +76,7 @@ struct GS_IN
     float4 endColor : COLOR1;
     float4 subUVRect : TEXCOORD2;
     float rotationRadians : TEXCOORD3;
+    float3 velocityDirection : TEXCOORD4;
 };
 
 struct GS_OUT
@@ -89,19 +92,15 @@ struct GS_OUT
 float3 ResolveFacingLookDirection(float3 particlePosition)
 {
     float3 lookDir = g_BillboardTarget.xyz - particlePosition;
-    if (length(lookDir) < 0.0001f)
-        return float3(0.f, 0.f, 1.f);
-
-    return normalize(lookDir);
+    const float lookLength = length(lookDir);
+    return lookLength < 0.0001f ? float3(0.f, 0.f, 1.f) : lookDir / lookLength;
 }
 
 float3 ResolveAwayFromCenterLookDirection(float3 particlePosition)
 {
     float3 lookDir = particlePosition - g_EffectSpriteEmitterCenter.xyz;
-    if (length(lookDir) < 0.0001f)
-        return float3(0.f, 0.f, 1.f);
-
-    return normalize(lookDir);
+    const float lookLength = length(lookDir);
+    return lookLength < 0.0001f ? float3(0.f, 0.f, 1.f) : lookDir / lookLength;
 }
 
 void ResolveLookAlignedBasis(float3 lookDir, out float3 rightDir, out float3 upDir)
@@ -135,6 +134,14 @@ void GS_MAIN(point GS_IN In[1], inout TriangleStream<GS_OUT> OutStream)
     else if (g_ScreenAlignmentMode == 3)
     {
         const float3 lookDir = ResolveAwayFromCenterLookDirection(particlePosition);
+        ResolveLookAlignedBasis(lookDir, rightDir, upDir);
+    }
+    else if (g_ScreenAlignmentMode == 4)
+    {
+        const float velocityLength = length(In[0].velocityDirection);
+        const float3 lookDir = velocityLength < 0.0001f
+                               ? ResolveFacingLookDirection(particlePosition)
+                               : In[0].velocityDirection / velocityLength;
         ResolveLookAlignedBasis(lookDir, rightDir, upDir);
     }
     else
@@ -247,5 +254,6 @@ PS_OUT PS_MAIN(PS_IN In)
 
 technique11 DefaultTechnique
 {
-    PASS_RS_DS_BS_VGP(DefaultPass, RS_CullNone, DSS_Default, BS_AlphaBlend, VS_MAIN, GS_MAIN, PS_MAIN) // 0
+    PASS_RS_DS_BS_VGP(AlphaBlendPass, RS_CullNone, DSS_DepthRead, BS_AlphaBlend, VS_MAIN, GS_MAIN, PS_MAIN) // 0
+    PASS_RS_DS_BS_VGP(AdditivePass, RS_CullNone, DSS_DepthRead, BS_Blend, VS_MAIN, GS_MAIN, PS_MAIN)        // 1
 }

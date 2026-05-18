@@ -25,6 +25,7 @@ public:
 public: //## Behavior::ComputeUpdate
     void Dispatch_Compute(float timeDelta, uint32 spawnRequest, bool killActiveParticles); // spawn/kill 요청을 반영한 뒤 instance payload를 갱신한다.
     void Set_Center(const Vec3& center);                                             // emitter/world transform 변화가 compute spawn center에 반영되도록 갱신한다.
+    void Set_EmitterBasis(const Vec3& right, const Vec3& up, const Vec3& look);       // emitter local 값을 world 방향으로 바꾸는 basis를 갱신한다.
 
 private: //## Static::ComputeSmoke
     static constexpr uint32 kThreadCountX{ 64 };     // compute shader의 numthreads.x와 맞춘 dispatch 단위.

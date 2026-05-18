@@ -26,7 +26,7 @@ struct ParticleInstanceVertex
 {
     Vec4 right{};                          // 인스턴스 월드 행렬의 right 행.
     Vec4 up{};                             // 인스턴스 월드 행렬의 up 행.
-    Vec4 look{};                           // 인스턴스 월드 행렬의 look 행.
+    Vec4 look{};                           // compute sprite에서는 xyz를 velocity alignment hint로도 사용한다.
     Vec4 translation{};                    // 인스턴스 월드 행렬의 위치 행.
     Vec2 lifeTime{};                       // x: 최대 생존 시간, y: 누적 생존 시간.
     Vec4 startColor{ 1.f, 1.f, 1.f, 1.f }; // particle 생성 시점의 색상/알파.
@@ -80,13 +80,19 @@ struct PointParticleSizeByLifeDesc
 // motion 계열 모듈을 compute particle update가 바로 소비할 수 있게 압축한 payload다.
 struct PointParticleMotionDesc
 {
-    bool enabled{ false };                 // motion 계열 모듈이 하나라도 preview에 연결되었는지 나타낸다.
-    Vec3 radialPivot{ 0.f, 0.f, 0.f };     // InitialVelocity의 방사 방향 기준점이다.
-    Vec2 initialSpeed{ 0.f, 0.f };         // InitialVelocity speed 분포의 min/max다.
-    Vec3 accelerationMin{ 0.f, 0.f, 0.f }; // Acceleration 분포의 하한이다.
-    Vec3 accelerationMax{ 0.f, 0.f, 0.f }; // Acceleration 분포의 상한이다.
-    Vec2 drag{ 0.f, 0.f };                 // Drag 분포의 min/max 감쇠값이다.
-    Vec2 velocityScaleByLife{ 1.f, 1.f };  // VelocityOverLife의 시작/종료 배율이다.
+    bool enabled{ false };                        // motion 계열 모듈이 하나라도 preview에 연결되었는지 나타낸다.
+    bool initialVelocityEnabled{ false };         // 시작 벡터 속도 항을 적용할지 나타낸다.
+    bool initialVelocityInWorldSpace{ false };    // true면 시작 벡터 속도를 emitter basis 변환 없이 world 값으로 본다.
+    bool initialRadialVelocityEnabled{ false };   // 시작 방사성 속도 항을 적용할지 나타낸다.
+    bool initialRadialVelocityInWorldSpace{ false }; // true면 radial pivot을 world offset으로 본다.
+    Vec3 initialVelocityMin{ 0.f, 0.f, 0.f };     // InitialVelocity vector 분포의 하한이다.
+    Vec3 initialVelocityMax{ 0.f, 0.f, 0.f };     // InitialVelocity vector 분포의 상한이다.
+    Vec3 radialPivot{ 0.f, 0.f, 0.f };            // InitialRadialVelocity의 방사 방향 기준점이다.
+    Vec2 radialSpeed{ 0.f, 0.f };                 // InitialRadialVelocity speed 분포의 min/max다.
+    Vec3 accelerationMin{ 0.f, 0.f, 0.f };        // Acceleration 분포의 하한이다.
+    Vec3 accelerationMax{ 0.f, 0.f, 0.f };        // Acceleration 분포의 상한이다.
+    Vec2 drag{ 0.f, 0.f };                        // Drag 분포의 min/max 감쇠값이다.
+    Vec2 velocityScaleByLife{ 1.f, 1.f };         // VelocityOverLife의 시작/종료 배율이다.
 };
 
 // rotation 계열 모듈을 compute particle update가 바로 소비할 수 있게 압축한 payload다.
@@ -189,6 +195,9 @@ struct ComputePointParticleDesc : public InstanceSpawnDesc
     PointParticleSpawnDesc spawn{};                           // Spawn 모듈이 만든 활성화/버스트 생성 규칙이다.
     PointParticleInitialLocationDesc initialLocation{};        // InitialLocation 모듈이 만든 시작 위치 offset 분포다.
     PointParticleSphereLocationDesc sphereLocation{};          // SphereLocation 모듈이 만든 시작 위치 구형 offset 분포다.
+    Vec3 emitterRight{ 1.f, 0.f, 0.f };                        // emitter local X축을 world 방향으로 변환할 basis다.
+    Vec3 emitterUp{ 0.f, 1.f, 0.f };                           // emitter local Y축을 world 방향으로 변환할 basis다.
+    Vec3 emitterLook{ 0.f, 0.f, 1.f };                         // emitter local Z축을 world 방향으로 변환할 basis다.
     bool useMaxDrawCount{ false };                             // true면 draw 제출 수만 별도로 제한한다.
     uint32 maxDrawCount{ 0 };                                  // 0이면 instanceCount 기준으로 제한한다.
     PointParticleDrawMode drawMode{                           // compute particle 경로의 정식 draw 제출 방식.

@@ -14,6 +14,7 @@ enum class AuthoringModuleType : uint8
     SphereLocation,
     InitialSize,
     InitialVelocity,
+    InitialRadialVelocity,
     Acceleration,
     Drag,
     VelocityOverLife,
@@ -351,8 +352,15 @@ struct InitialSizeModuleData
 
 struct InitialVelocityModuleData
 {
-    Vec3 radialPivot{ 0.f, 2.f, 0.f };
+    Vector3DistributionData velocity{ Vector3DistributionData::Make_Constant(Vec3{ 0.f, 0.f, 0.f }) };
+    bool inWorldSpace{ false };
+};
+
+struct InitialRadialVelocityModuleData
+{
     FloatDistributionData speed{ FloatDistributionData::Make_Uniform(0.5f, 1.5f) };
+    Vec3 radialPivot{ 0.f, 0.f, 0.f };
+    bool inWorldSpace{ false };
 };
 
 struct AccelerationModuleData
@@ -433,6 +441,7 @@ using AuthoringModuleData = std::variant<
     SphereLocationModuleData,
     InitialSizeModuleData,
     InitialVelocityModuleData,
+    InitialRadialVelocityModuleData,
     AccelerationModuleData,
     DragModuleData,
     VelocityOverLifeModuleData,

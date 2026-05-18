@@ -248,6 +248,7 @@ AuthoringEmitter Emitter_View::Make_DefaultSpriteEmitter()
     emitter.modules.push_back(Make_InitialLocationModule());
     emitter.modules.push_back(Make_InitialSizeModule());
     emitter.modules.push_back(Make_InitialVelocityModule());
+    emitter.modules.push_back(Make_InitialRadialVelocityModule());
     emitter.modules.push_back(Make_InitialColorModule());
     emitter.modules.push_back(Make_ColorOverLifeModule());
 
@@ -363,11 +364,26 @@ AuthoringModule Emitter_View::Make_InitialVelocityModule()
     module.type = AuthoringModuleType::InitialVelocity;
     module.key = "Initial Velocity";
     module.displayName = L"초기 속도";
-    module.summary = L"생성 위치와 퍼짐 속도";
+    module.summary = L"생성 시점 벡터 속도";
     module.enabled = true;
     module.movable = true;
     module.removable = true;
     module.data = InitialVelocityModuleData{};
+    return module;
+}
+
+AuthoringModule Emitter_View::Make_InitialRadialVelocityModule()
+{
+    AuthoringModule module{};
+    module.id = Issue_AuthoringId();
+    module.type = AuthoringModuleType::InitialRadialVelocity;
+    module.key = "Initial Radial Velocity";
+    module.displayName = L"초기 방사성 속도";
+    module.summary = L"생성 위치 기준 방사성 속도";
+    module.enabled = true;
+    module.movable = true;
+    module.removable = true;
+    module.data = InitialRadialVelocityModuleData{};
     return module;
 }
 
@@ -560,6 +576,7 @@ bool Emitter_View::Can_AddModuleType(const AuthoringEmitter& emitter, AuthoringM
     case AuthoringModuleType::SphereLocation:
     case AuthoringModuleType::InitialSize:
     case AuthoringModuleType::InitialVelocity:
+    case AuthoringModuleType::InitialRadialVelocity:
     case AuthoringModuleType::Acceleration:
     case AuthoringModuleType::Drag:
     case AuthoringModuleType::VelocityOverLife:
@@ -604,6 +621,9 @@ void Emitter_View::Add_Module(size_t emitterIndex, AuthoringModuleType type)
         break;
     case AuthoringModuleType::InitialVelocity:
         module = Make_InitialVelocityModule();
+        break;
+    case AuthoringModuleType::InitialRadialVelocity:
+        module = Make_InitialRadialVelocityModule();
         break;
     case AuthoringModuleType::Acceleration:
         module = Make_AccelerationModule();
@@ -886,6 +906,10 @@ void Emitter_View::Reset_ModuleData(size_t emitterIndex, size_t moduleIndex)
         module.data = InitialVelocityModuleData{};
         break;
 
+    case AuthoringModuleType::InitialRadialVelocity:
+        module.data = InitialRadialVelocityModuleData{};
+        break;
+
     case AuthoringModuleType::Acceleration:
         module.data = AccelerationModuleData{};
         break;
@@ -1064,6 +1088,16 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
             true,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::InitialVelocity),
+            "이미 장착됨"
+        )
+    );
+    entries.push_back(
+        makeEntry(
+            AuthoringModuleType::InitialRadialVelocity,
+            L"초기 방사성 속도",
+            true,
+            true,
+            Can_AddModuleType(emitter, AuthoringModuleType::InitialRadialVelocity),
             "이미 장착됨"
         )
     );

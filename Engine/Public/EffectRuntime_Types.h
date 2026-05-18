@@ -19,6 +19,7 @@ enum class EffectSpriteScreenAlignment : uint32
     Rectangle = 1,            // 카메라 화면 평면 right/up을 따라가는 직사각형 billboard다.
     Square = 2,               // 카메라 화면 평면 기준에서 더 큰 축으로 정사각형을 만든다.
     AwayFromCenter = 3,       // emitter 중심에서 particle 바깥 방향을 바라보는 billboard다.
+    Velocity = 4,             // compute가 기록한 현재 속도 방향을 바라보는 billboard다.
 };
 
 // compute sprite emitter가 실제 runtime consumer에게 넘길 최소 payload다.

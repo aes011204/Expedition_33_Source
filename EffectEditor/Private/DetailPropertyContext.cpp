@@ -13,6 +13,7 @@ namespace
         EmitterScreenAlignment::Rectangle,
         EmitterScreenAlignment::Square,
         EmitterScreenAlignment::AwayFromCenter,
+        EmitterScreenAlignment::Velocity,
     };
 
     constexpr const char* kVisibleScreenAlignmentLabels[] = {
@@ -20,7 +21,7 @@ namespace
         "Rectangle",
         "Square",
         "Away from Center",
-        // TODO : Velocity
+        "Velocity",
     };
 
     static_assert(IM_ARRAYSIZE(kVisibleScreenAlignmentValues) == IM_ARRAYSIZE(kVisibleScreenAlignmentLabels));
@@ -74,6 +75,9 @@ namespace
 
         case EmitterScreenAlignment::AwayFromCenter:
             return "이미터 중심에서 바깥 방향을 바라보는 빌보드입니다.";
+
+        case EmitterScreenAlignment::Velocity:
+            return "파티클의 현재 속도 방향을 바라보는 빌보드입니다.";
 
         default:
             return "";
@@ -464,7 +468,6 @@ public:
         const int visibleIndex = Find_ScreenAlignmentVisibleIndex(value);
         if (visibleIndex >= 0)
         {
-            //ImGui::TextDisabled("Velocity / Type Specific / Facing Camera Distance Blend are not available in this step.");
             return;
         }
 

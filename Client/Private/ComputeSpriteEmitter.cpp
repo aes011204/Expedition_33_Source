@@ -73,7 +73,7 @@ void ComputeSpriteEmitter::Late_Update(float timeDelta)
 HRESULT ComputeSpriteEmitter::Render()
 {
     CHECK_FAILED_ONCE(Bind_ShaderResources(), E_FAIL);
-    CHECK_FAILED_ONCE(_shader->Begin(0), E_FAIL);
+    CHECK_FAILED_ONCE(_shader->Begin(_effectSpritePassIndex), E_FAIL);
     CHECK_FAILED_ONCE(_viBuffer->Bind_Resources(), E_FAIL);
     CHECK_FAILED_ONCE(_viBuffer->Render(), E_FAIL);
 
@@ -91,9 +91,11 @@ HRESULT ComputeSpriteEmitter::Ready_Components()
     CHECK_FAILED(__super::Add_Component(ETOI(LevelType::Static), TEXT("Com_Effect_ComputePointParticleBuffer"), _viBuffer, &desc), E_FAIL);
 
     LOG_INFO(
-        "ComputeSpriteEmitter ready: shaderId='{}', textureId='{}', noiseTextureId='{}', opacitySource='{}', noiseStrength={}",
+        "ComputeSpriteEmitter ready: shaderId='{}', textureId='{}', blendMode='{}', passIndex={}, noiseTextureId='{}', opacitySource='{}', noiseStrength={}",
         kEffectSpriteShaderId,
         _desc.textureId,
+        _desc.blendMode,
+        _effectSpritePassIndex,
         _desc.noiseTextureId,
         _desc.opacitySource,
         _desc.noiseStrength
@@ -129,6 +131,7 @@ HRESULT ComputeSpriteEmitter::Ready_ShaderComponent()
 {
     CHECK_FAILED(__super::Add_Component(ETOI(LevelType::Static), String::ToWString(kEffectSpriteShaderId), _shader), E_FAIL);
     _opacitySourceIndex = Resolve_OpacitySourceIndex();
+    _effectSpritePassIndex = Resolve_EffectSpritePassIndex();
     return S_OK;
 }
 
@@ -199,6 +202,22 @@ int ComputeSpriteEmitter::Resolve_OpacitySourceIndex() const
     return kOpacitySourceAlpha;
 }
 
+uint32 ComputeSpriteEmitter::Resolve_EffectSpritePassIndex() const
+{
+    if (_desc.blendMode == "AlphaBlend" || _desc.blendMode == "alphaBlend" || _desc.blendMode == "alphablend")
+        return kEffectSpriteAlphaBlendPass;
+
+    if (_desc.blendMode == "Additive" || _desc.blendMode == "additive")
+        return kEffectSpriteAdditivePass;
+
+    LOG_WARN(
+        "ComputeSpriteEmitter unknown blendMode='{}'. Falling back to AlphaBlend.",
+        _desc.blendMode
+    );
+
+    return kEffectSpriteAlphaBlendPass;
+}
+
 ComputePointParticleDesc ComputeSpriteEmitter::Make_ComputePointParticleDesc() const
 {
     ComputePointParticleDesc desc{};
@@ -221,6 +240,12 @@ ComputePointParticleDesc ComputeSpriteEmitter::Make_ComputePointParticleDesc() c
     desc.spawn = _desc.spawn;
     desc.initialLocation = _desc.initialLocation;
     desc.sphereLocation = _desc.sphereLocation;
+    if (nullptr != _transformCom)
+    {
+        desc.emitterRight = _transformCom->Get_WorldRight();
+        desc.emitterUp = _transformCom->Get_WorldUp();
+        desc.emitterLook = _transformCom->Get_WorldForward();
+    }
     desc.spawn.maxActiveCount = min(max(1u, desc.spawn.maxActiveCount), desc.instanceCount);
     desc.useMaxDrawCount = _desc.useMaxDrawCount;
     desc.maxDrawCount = _desc.useMaxDrawCount ? min(desc.instanceCount, max(1u, _desc.maxDrawCount)) : desc.instanceCount;
@@ -401,6 +426,11 @@ void ComputeSpriteEmitter::Sync_WorldCenterToComputeBuffer()
     CHECK_NULL_THROTTLED(_viBuffer, 120);
 
     _viBuffer->Set_Center(_transformCom->Get_WorldPosition());
+    _viBuffer->Set_EmitterBasis(
+        _transformCom->Get_WorldRight(),
+        _transformCom->Get_WorldUp(),
+        _transformCom->Get_WorldForward()
+    );
 }
 
 void ComputeSpriteEmitter::On_EffectTransformSynced()

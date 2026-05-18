@@ -216,6 +216,11 @@ void Detail_View::Render_ModuleDetail(
             changed = _initialVelocityModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
         break;
 
+    case AuthoringModuleType::InitialRadialVelocity:
+        if (auto* data = get_if<InitialRadialVelocityModuleData>(&module.data))
+            changed = _initialRadialVelocityModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
+        break;
+
     case AuthoringModuleType::Acceleration:
         if (auto* data = get_if<AccelerationModuleData>(&module.data))
             changed = _accelerationModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);

@@ -15,6 +15,9 @@ struct ComputePointParticleParams
     uint32 maxDrawCount{};
     uint32 killActiveParticles{};
     Vec4 center{};
+    Vec4 emitterBasisRight{}; // xyz: emitter local X axis in world space.
+    Vec4 emitterBasisUp{};    // xyz: emitter local Y axis in world space.
+    Vec4 emitterBasisLook{};  // xyz: emitter local Z axis in world space.
     Vec4 spawnRange{};    // xyz: spawn range, w: unused.
     Vec4 initialLocationMin{}; // xyz: InitialLocation min offset, w: enabled.
     Vec4 initialLocationMax{}; // xyz: InitialLocation max offset, w: unused.
@@ -33,8 +36,12 @@ struct ComputePointParticleParams
     Vec4 subUVFrameCurveValues{}; // 후속 Curve Editor용 frame curve frame values.
     Vec4 subUVFrameCurveParams{}; // x: key count, y/z/w: unused.
     Vec4 sizeByLifeParams{};    // x/y: width start/end, z/w: height start/end.
-    Vec4 motionRadialPivot{};   // xyz: radial pivot, w: motion enabled.
-    Vec4 motionSpeedDrag{};     // x/y: speed min/max, z/w: drag min/max.
+    Vec4 motionFlags{};         // x: motion enabled, y: vector enabled, z: vector world, w: radial enabled.
+    Vec4 motionSpaceFlags{};    // x: radial world, y/z/w: unused.
+    Vec4 initialVelocityMin{};  // xyz: vector velocity min, w: unused.
+    Vec4 initialVelocityMax{};  // xyz: vector velocity max, w: unused.
+    Vec4 motionRadialPivot{};   // xyz: radial pivot, w: unused.
+    Vec4 motionRadialSpeedDrag{}; // x/y: radial speed min/max, z/w: drag min/max.
     Vec4 accelerationMin{};     // xyz: acceleration min, w: unused.
     Vec4 accelerationMax{};     // xyz: acceleration max, w: unused.
     Vec4 velocityScaleByLife{}; // x/y: scale start/end, z/w: unused.
@@ -174,6 +181,13 @@ void VIBufferCom_ComputePointParticle::Dispatch_Compute(float timeDelta, uint32 
 void VIBufferCom_ComputePointParticle::Set_Center(const Vec3& center)
 {
     _desc.center = center;
+}
+
+void VIBufferCom_ComputePointParticle::Set_EmitterBasis(const Vec3& right, const Vec3& up, const Vec3& look)
+{
+    _desc.emitterRight = right;
+    _desc.emitterUp = up;
+    _desc.emitterLook = look;
 }
 
 HRESULT VIBufferCom_ComputePointParticle::Ready_VertexBuffer()
@@ -334,6 +348,9 @@ HRESULT VIBufferCom_ComputePointParticle::Update_ConstantBuffer()
         .maxDrawCount = _desc.useMaxDrawCount ? min(_instanceCount, max(1u, _desc.maxDrawCount)) : _instanceCount,
         .killActiveParticles = _killActiveParticles,
         .center = Vec4{ _desc.center.x, _desc.center.y, _desc.center.z, 1.f },
+        .emitterBasisRight = Vec4{ _desc.emitterRight.x, _desc.emitterRight.y, _desc.emitterRight.z, 0.f },
+        .emitterBasisUp = Vec4{ _desc.emitterUp.x, _desc.emitterUp.y, _desc.emitterUp.z, 0.f },
+        .emitterBasisLook = Vec4{ _desc.emitterLook.x, _desc.emitterLook.y, _desc.emitterLook.z, 0.f },
         .spawnRange = Vec4{ _desc.range.x, _desc.range.y, _desc.range.z, 0.f },
         .initialLocationMin = Vec4{
             _desc.initialLocation.minOffset.x,
@@ -392,15 +409,39 @@ HRESULT VIBufferCom_ComputePointParticle::Update_ConstantBuffer()
             _desc.sizeByLife.multiplyYStart,
             _desc.sizeByLife.multiplyYEnd
         },
+        .motionFlags = Vec4{
+            _desc.motion.enabled ? 1.f : 0.f,
+            _desc.motion.initialVelocityEnabled ? 1.f : 0.f,
+            _desc.motion.initialVelocityInWorldSpace ? 1.f : 0.f,
+            _desc.motion.initialRadialVelocityEnabled ? 1.f : 0.f
+        },
+        .motionSpaceFlags = Vec4{
+            _desc.motion.initialRadialVelocityInWorldSpace ? 1.f : 0.f,
+            0.f,
+            0.f,
+            0.f
+        },
+        .initialVelocityMin = Vec4{
+            _desc.motion.initialVelocityMin.x,
+            _desc.motion.initialVelocityMin.y,
+            _desc.motion.initialVelocityMin.z,
+            0.f
+        },
+        .initialVelocityMax = Vec4{
+            _desc.motion.initialVelocityMax.x,
+            _desc.motion.initialVelocityMax.y,
+            _desc.motion.initialVelocityMax.z,
+            0.f
+        },
         .motionRadialPivot = Vec4{
             _desc.motion.radialPivot.x,
             _desc.motion.radialPivot.y,
             _desc.motion.radialPivot.z,
-            _desc.motion.enabled ? 1.f : 0.f
+            0.f
         },
-        .motionSpeedDrag = Vec4{
-            _desc.motion.initialSpeed.x,
-            _desc.motion.initialSpeed.y,
+        .motionRadialSpeedDrag = Vec4{
+            _desc.motion.radialSpeed.x,
+            _desc.motion.radialSpeed.y,
             _desc.motion.drag.x,
             _desc.motion.drag.y
         },
