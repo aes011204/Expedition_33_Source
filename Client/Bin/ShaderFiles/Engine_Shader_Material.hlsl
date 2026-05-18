@@ -80,9 +80,9 @@ float3 SampleOrm(float2 uv)
     if (HasMaterialTexture(MATERIAL_SLOT_ORM))
         orm = g_MaterialTextures[MATERIAL_SLOT_ORM].Sample(LinearWrapSampler, uv).rgb;
 
-    orm.r *= g_AoScale;         // O
-    orm.g *= g_RoughnessScale;  // R
-    orm.b *= g_MetalnessScale;  // M
+    orm.r *= g_AoScale; // O
+    orm.g *= g_RoughnessScale; // R
+    orm.b *= g_MetalnessScale; // M
 
     return orm;
 }
@@ -102,10 +102,10 @@ float3 SampleEmissive(float2 uv)
 
 struct HairMaterialSample
 {
-    float3  baseColor;  // 최종 diffuse
-    float   opacity;    // 마스크
-    float   depth;      // hair card 내부 깊이/겹침 보정값
-    float   id;         // 가닥/영역별 variation 값
+    float3 baseColor; // 최종 diffuse
+    float opacity; // 마스크
+    float depth; // hair card 내부 깊이/겹침 보정값
+    float id; // 가닥/영역별 variation 값
 };
 
 HairMaterialSample SampleHairMaterial(float2 uv)
@@ -170,11 +170,10 @@ EyeMaterialSample SampleEyeMaterial(float2 uv)
 {
     EyeMaterialSample Out;
 
-    // Eye 텍스처가 8비트짜리여서, rgb 그대로 쓰면 R 채널만 살아서 빨간색이 된다.
-    float irisHeight = 0.5f;
-    if (HasMaterialTexture(MATERIAL_SLOT_IRIS_HEIGHT))
+    float3 baseColorTex = float3(0.88f, 0.90f, 0.92f);
+    if (HasMaterialTexture(MATERIAL_SLOT_BASECOLOR))
     {
-        irisHeight = g_MaterialTextures[MATERIAL_SLOT_IRIS_HEIGHT].Sample(LinearWrapSampler, uv).r;
+        baseColorTex = g_MaterialTextures[MATERIAL_SLOT_BASECOLOR].Sample(LinearWrapSampler, uv).rgb;
     }
 
     const bool hasIrisHeightTex = HasMaterialTexture(MATERIAL_SLOT_IRIS_HEIGHT);
@@ -206,7 +205,7 @@ EyeMaterialSample SampleEyeMaterial(float2 uv)
     float3 irisTint = saturate(g_BaseColorTint.rgb);
     if (irisTint.r > 0.99f && irisTint.g > 0.99f && irisTint.b > 0.99f)
     {
-        irisTint = float3(0.18f, 0.09f, 0.055f);
+        irisTint = float3(0.30f, 0.22f, 0.14f);
     }
 
     // 홍채 섬유 무늬, 밝기, 색 변화 강도
@@ -255,14 +254,12 @@ EyeMaterialSample SampleEyeMaterial(float2 uv)
     irisColor *= lerp(0.90f, 1.08f, innerLift);
     irisColor *= lerp(0.88f, 1.0f, irisArea);
 
-    float3 irisColor = irisTint * lerp(0.35f, 1.35f, fiber);
-    irisColor *= lerp(0.55f, 1.0f, irisArea);
-    irisColor *= pupilDark;
+    // 홍채-흰자 전이를 더 급하게 만들어 탁한 중간톤 띠를 줄인다.
+    float irisBlend = smoothstep(0.32f, 0.88f, irisArea);
+    irisBlend = saturate(pow(irisBlend, 0.55f));
 
-    float3 scleraColor = float3(0.035f, 0.032f, 0.03f);
-
-    // irisMask.r 기준으로 iris/sclera를 섞는다.
-    Out.baseColor = lerp(scleraColor, irisColor, irisArea);
+    Out.baseColor = lerp(scleraColor, irisColor, irisBlend);
+    Out.baseColor = saturate(Out.baseColor);
 
     Out.opacity = 1.f;
     Out.irisArea = irisBlend;

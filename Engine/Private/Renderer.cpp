@@ -405,12 +405,12 @@ void Renderer::Render_CombinedHDR()
         L"Render_CombinedHDR:FAIL Bind_RT_ShaderResource(g_LightDepthTexture)");
 
     COMBINEDHDR_RETURN_LOG_IF_FAILED(
-        GAME->Bind_RT_ShaderResource(_deferredShader, "g_EmissiveTexture", RT::Emissive),
-        L"Render_CombinedHDR:FAIL Bind_RT_ShaderResource(g_EmissiveTexture)");
-
-    COMBINEDHDR_RETURN_LOG_IF_FAILED(
         GAME->Bind_RT_ShaderResource(_deferredShader, "g_StaticLightDepthTexture", RT::StaticLightDepth),
         L"Render_CombinedHDR:FAIL Bind_RT_ShaderResource(g_StaticLightDepthTexture)");
+
+    COMBINEDHDR_RETURN_LOG_IF_FAILED(
+        GAME->Bind_RT_ShaderResource(_deferredShader, "g_EmissiveTexture", RT::Emissive),
+        L"Render_CombinedHDR:FAIL Bind_RT_ShaderRender_CombinedHDRResource(g_EmissiveTexture)");
 
     // Light 기록
     COMBINEDHDR_RETURN_LOG_IF_FAILED(
