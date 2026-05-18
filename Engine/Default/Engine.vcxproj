@@ -188,6 +188,8 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="..\Public\AIController.h" />
+    <ClInclude Include="..\Public\AnimComputeRuntime.h" />
+    <ClInclude Include="..\Public\AnimCompute_Types.h" />
     <ClInclude Include="..\Public\AnimNotify.h" />
     <ClInclude Include="..\Public\AnimNotifyState.h" />
     <ClInclude Include="..\Public\AnimNotify_Parser.h" />
@@ -248,6 +250,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClInclude Include="..\Public\PhysX_Handle.h" />
     <ClInclude Include="..\Public\PhysX_Types.h" />
     <ClInclude Include="..\Public\Picking.h" />
+    <None Include="..\Bin\ShaderFiles\Engine_Shader_ComputeAnimTypes.hlsli" />
     <None Include="..\Public\PostProcessPipeline.h" />
     <ClInclude Include="..\Public\Print_Manager.h" />
     <ClInclude Include="..\Public\PathFollower.h" />
@@ -261,6 +264,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClInclude Include="..\Public\ShaderPassFinder.h" />
     <ClInclude Include="..\Public\Shader_CBuffer_Define.h" />
     <ClInclude Include="..\Public\Shadow.h" />
+    <ClInclude Include="..\Public\StaticCollisionData.h" />
     <ClInclude Include="..\Public\Target_Manager.h" />
     <ClInclude Include="..\Public\RegistorFactory.h" />
     <ClInclude Include="..\Public\Selector.h" />
@@ -333,6 +337,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\Private\AIController.cpp" />
+    <ClCompile Include="..\Private\AnimComputeRuntime.cpp" />
     <ClCompile Include="..\Private\AnimNotify.cpp" />
     <ClCompile Include="..\Private\AnimNotifyState.cpp" />
     <ClCompile Include="..\Private\AnimNotify_Parser.cpp" />

@@ -204,10 +204,9 @@ HRESULT Level_GamePlay::Ready_Layer_Monster(const wstring& strLayerTag)
     //    return E_FAIL;
 
 
-    Vec3 startPos = Vec3(66.f, 5.47f, -1.94f);
+    Vec3 startPos = Vec3(180.f, -4020.47f, -1.94f);
 
 
-     
     const Shared<GameObject> monster = Client::Spawn_Prefab::Spawn(
         Constants::Prefab::MW_Lancelier, // 월드 몬스터 prefab 이름은 MW_* 상수로 통일한다.
         ETOI(LevelType::GamePlay),
@@ -220,7 +219,7 @@ HRESULT Level_GamePlay::Ready_Layer_Monster(const wstring& strLayerTag)
 
 HRESULT Level_GamePlay::Ready_Layer_Player(const wstring& strLayerTag)
 {
-    Vec3 startPos = Vec3(82.f, 5.14f, -0.24f);
+    Vec3 startPos = Vec3(213.f, -4020.47f, -1.94f);
     CHECK_FAILED(CLIENT->Initialize_Hero(ETOI(LevelType::GamePlay), strLayerTag, startPos), E_FAIL);
 
     return S_OK;

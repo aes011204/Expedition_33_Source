@@ -7,6 +7,7 @@
 #include "Debug_Profile.h"
 #include "ShaderPassFinder.h"
 #include "ComputeShaderCom.h"
+#include "AnimComputeRuntime.h"
 
 REGISTER_GLOBAL_ENUM(Client::Body_Player::PlayerWorldAnimation, "PlayerAnimation")
 
@@ -34,17 +35,6 @@ HRESULT Body_Player::Initialize(void* arg)
         return E_FAIL;
     }
 
-    _useComputeSkinning = true;
-
-    if (_useComputeSkinning)
-    {
-        if (FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Shader_VtxMesh"), _computeRenderShaderCom)))
-            return E_FAIL;
-
-        if (FAILED(Add_Component(ETOI(LevelType::Static), TEXT("ComputeShader_AnimMeshSkinning"), _computeSkinningShaderCom)))
-            return E_FAIL;
-    }
-
     _rootBoneIndex = _modelCom->Get_BoneIndex("root");
     _modelCom->Set_LocalRootNode(_rootBoneIndex);
 
@@ -63,11 +53,15 @@ void Body_Player::Update(float fTimeDelta)
     {
         Update_LeaderPoseMatrices();
     }
+    else if (_useComputeSkinning && _animComputeRuntime != nullptr)
+    {
+        CHECK_FAILED(_animComputeRuntime->Update_Frame(fTimeDelta), ); // compute animation 파이프라인 전체 실행
+    }
     else
     {
-        _modelCom->Play_Animation(fTimeDelta);
+        _modelCom->Play_Animation(fTimeDelta); // fallback CPU 경로
+        CHECK_FAILED(_modelCom->Prepare_BoneMatrixBuffers()); // render에서 사용할 bone buffer 준비
     }
-    CHECK_FAILED(_modelCom->Prepare_BoneMatrixBuffers());
 
     Update_CombinedWorldMatrix(_transformCom->Get_WorldMatrix());
 }
@@ -84,8 +78,10 @@ HRESULT Body_Player::Render()
      if (!_useComputeSkinning)
         return PlayableParts::Render();
 
-    if (FAILED(_modelCom->Prepare_ComputeSkinning(_computeSkinningShaderCom.get())))
-        return E_FAIL;
+     if (_useComputeSkinning && _animComputeRuntime != nullptr)
+     {
+         CHECK_FAILED(_animComputeRuntime->Prepare_ComputeSkinning(), E_FAIL); // skinned VB 준비는 runtime이 담당
+     }
 
     if (FAILED(_computeRenderShaderCom->Bind_ObjectCB(_combinedWorldMatrix)))
         return E_FAIL;
@@ -127,8 +123,10 @@ HRESULT Body_Player::Render_Shadow()
     if (!_useComputeSkinning)
         return PlayableParts::Render_Shadow();
 
-    if (FAILED(_modelCom->Prepare_ComputeSkinning(_computeSkinningShaderCom.get())))
-        return E_FAIL;
+    if (_useComputeSkinning && _animComputeRuntime != nullptr)
+    {
+        CHECK_FAILED(_animComputeRuntime->Prepare_ComputeSkinning(), E_FAIL); // skinned VB 준비는 runtime이 담당
+    }
 
     if (FAILED(_computeRenderShaderCom->Bind_ObjectCB(_combinedWorldMatrix)))
         return E_FAIL;
@@ -146,6 +144,34 @@ HRESULT Body_Player::Render_Shadow()
 
         if (FAILED(_modelCom->Render_ComputeSkinned(i)))
             return E_FAIL;
+    }
+
+    return S_OK;
+}
+
+HRESULT Body_Player::Ready_Components(const PLAYABLE_PART_DESC& desc)
+{
+    CHECK_FAILED(PlayableParts::Ready_Components(desc), E_FAIL);
+
+    _useComputeSkinning = true;
+
+    if (_useComputeSkinning)
+    {
+        CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Shader_VtxMesh"), _computeRenderShaderCom), E_FAIL);
+
+        Shared<ComputeShaderCom> boneRemapShader{};
+        Shared<ComputeShaderCom> skinningShader{};
+
+        CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("ComputeShader_BoneRemap"), boneRemapShader), E_FAIL);
+        CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("ComputeShader_AnimMeshSkinning"), skinningShader), E_FAIL);
+
+        AnimComputeRuntime::CreateDesc runtimeDesc{};
+        runtimeDesc.model = _modelCom.get();
+        runtimeDesc.boneRemapShader = boneRemapShader;
+        runtimeDesc.skinningShader = skinningShader;
+
+        _animComputeRuntime = AnimComputeRuntime::Create(_device, _context, runtimeDesc);
+        CHECK_NULL(_animComputeRuntime, E_FAIL);
     }
 
     return S_OK;

@@ -397,6 +397,9 @@
     <ClInclude Include="..\public\UI_Panel.h">
       <Filter>01.Utility\11. UI</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\StaticCollisionData.h" />
+    <ClInclude Include="..\Public\AnimComputeRuntime.h" />
+    <ClInclude Include="..\Public\AnimCompute_Types.h" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\public\Base.h">
@@ -990,6 +993,7 @@
     <ClCompile Include="..\private\UI_Panel.cpp">
       <Filter>01.Utility\11. UI</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\AnimComputeRuntime.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Bin\ShaderFiles\Engine_Shader_Defines.hlsli">
@@ -1015,6 +1019,9 @@
     </None>
     <None Include="..\Public\PostProcessPipeline.h" />
     <None Include="..\Bin\ShaderFiles\Engine_Shader_PostProcess.hlsl">
+      <Filter>02.ShaderFiles</Filter>
+    </None>
+    <None Include="..\Bin\ShaderFiles\Engine_Shader_ComputeAnimTypes.hlsli">
       <Filter>02.ShaderFiles</Filter>
     </None>
   </ItemGroup>

@@ -1,9 +1,9 @@
 ﻿#pragma once
 
 #include "AnimNotify_Types.h"
+#include "AnimCompute_Types.h"
 #include "Component.h"
 #include "Material.h"
-#include "CollisionProxy_Types.h"
 
 NS_BEGIN(Engine)
 
@@ -13,9 +13,20 @@ class Bone;
 class Animation;
 class ComputeStructuredBuffer;
 class ComputeShaderCom;
+class AnimComputeRuntime;
 
 class ENGINE_DLL ModelCom final : public Component
 {
+    friend class AnimComputeRuntime;
+
+private:
+    struct ComputeAnimationSourceCache
+    {
+        vector<vector<AnimComputeMeshBoneRef>> meshBoneRefs{};
+
+        vector<Shared<ComputeStructuredBuffer>> meshBoneRefBuffers{};
+    };
+
 public:
     ModelCom(const ComPtr<Device>& device, const ComPtr<Context>& context);
     ModelCom(const ModelCom& prototype);
@@ -186,17 +197,6 @@ public: /* 머리 붙이기 */
 
     void Update_LeaderPoseMatrices();
 
-public: /* PhysX 충돌 */
-    // static collision 생성용 CPU Mesh 데이터
-    const vector<ModelCollisionMesh>& Get_CollisionMeshes() const { return _collisionMeshes; }
-
-    const vector<ModelCollisionProxy>& Get_CollisionProxies() const { return _collisionProxies;}
-    // 단순 충돌체가 있는지
-    bool Has_SimpleCollisionProxy() const { return !_collisionProxies.empty(); }
-
-    bool Build_CollisoinProxies_FromSourceJson(const fs::path& jsonPath);
-    void Build_FallbackTriangleCollisionProxies();
-
 public:
     void Set_AnimEnumType(const wstring& enumType) { _animEnumType = enumType; }
     const wstring& Get_AnimEnumType() const { return _animEnumType; }
@@ -220,6 +220,18 @@ private:
 
     HRESULT Ensure_MeshBoneMatrixBuffers();
 
+public: /* Compute Shader */
+    void    Begin_AnimationPipeline(float timeDelta, AnimPipelineContext& outContext);
+    bool    Step_SampleAnimationPose(const AnimPipelineContext& context);
+    void    Step_RebuildCombinedBones();
+    void    Step_FinalizeAnimationFrame(const AnimPipelineContext& context);
+    HRESULT Step_PrepareBoneBuffers();
+    HRESULT Step_ComputeSkinning(ComputeShaderCom* computeShader);
+    void    Set_ComputeCombinedBoneMatrices(const vector<Matrix>& combinedBones);
+    void    Clear_ComputeCombinedBoneMatrices();
+
+private:
+    HRESULT Ensure_AnimationComputeSource();
 
 private:
     ModelType					        _type = { ModelType::END };
@@ -298,11 +310,9 @@ private: /* 머리 붙이기 */
     bool                    _boneMatricesDirty = true;
     bool                    _leaderPoseMatricesValid = false;
 
-private: /* PhysX 충돌 */
-    vector<ModelCollisionMesh> _collisionMeshes;
-    vector<ModelCollisionProxy> _collisionProxies; // PhysX에 올릴 실제 후보
-
 private: /* Compute Shader */
+    ComputeAnimationSourceCache _computeAnimationSource{};
+
     vector<Shared<ComputeStructuredBuffer>> _meshBoneMatrixBuffers;
     bool    _boneMatrixBuffersDirty = true;
 
@@ -311,6 +321,7 @@ private: /* Compute Shader */
     vector<ComPtr<Buffer>> _meshComputedDrawVertexBuffers;              // 실제 draw에 사용할 vertex buffer
     ComPtr<Buffer> _computeSkinningConstantBuffer{};
     bool _computeSkinningDirty = true;
+    vector<Matrix> _computeCombinedBoneMatrices{};
 
 
 private: // Model Custom Animation Mapping
@@ -331,7 +342,6 @@ public:
 };
 
 NS_END
-
 
 
 /*

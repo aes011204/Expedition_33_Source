@@ -149,6 +149,14 @@ private:
     float _collisionReturnSpeed = 3.5f;  // 벽이 없어져 원래 거리로 돌아갈 때
     float _collisionDeadZone = 0.04f;    // sweep 거리의 작은 흔들림 무시 범위
 
+    float _collisionQueryInterval = 0.05f;
+    float _collisionQueryAccum = 0.f; // 다음 collision sweep까지 누적 시간
+
+    bool _hasCollisionQueryCache = false;    // 이전 sweep 결과를 재사용할 수 있는지
+    Vec3 _lastCollisionSweepStart = Vec3::Zero;
+    Vec3 _lastCollisionDesiredPos = Vec3::Zero;
+    Vec3 _lastCollisionResolvedPos = Vec3::Zero;
+
 public:
     static Shared<TargetCamera> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
     virtual Shared<GameObject> Clone(void* arg) override;

@@ -1,3 +1,5 @@
+#include "../Engine_Shader_ComputeAnimTypes.hlsli"
+
 struct SourceVertex
 {
     float3 Position;
@@ -7,11 +9,6 @@ struct SourceVertex
     float2 Texcoord;
     uint4 BlendIndex;
     float4 BlendWeight;
-};
-
-struct BoneMatrixElement
-{
-    row_major float4x4 BoneMatrix;
 };
 
 struct OutputVertex

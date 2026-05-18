@@ -538,7 +538,11 @@ void GameInstance::Try_FlushRuntimePerfLog()
         nullptr != _collisionManager &&
         _collisionManager->Try_ConsumePerfSummary(windowSec, runtimeSummary.collision);
 
-    if (!hasRenderSummary && !hasUpdateSummary && !hasCollisionSummary)
+    const bool hasPhysXQuerySummary =
+        nullptr != _physxManager &&
+        _physxManager->Try_ConsumeQueryPerfSummary(windowSec, runtimeSummary.physxQuery);
+
+    if (!hasRenderSummary && !hasUpdateSummary && !hasCollisionSummary && !hasPhysXQuerySummary)
     {
         _runtimePerfWindowStartTime = now;
         _hasRuntimePerfWindowStartTime = true;
@@ -581,7 +585,11 @@ void GameInstance::Try_FlushRuntimePerfLog()
             "blend_ms(avg={:.2f} max={:.2f}) "
             "ui_ms(avg={:.2f} max={:.2f}) "
             "debug_ms(avg={:.2f} max={:.2f}) "
-            "collision_ms(avg={:.2f} max={:.2f}) pairs={:.1f}/s intersects={:.1f}/s hits={:.1f}/s",
+            "collision_ms(avg={:.2f} max={:.2f}) pairs={:.1f}/s intersects={:.1f}/s hits={:.1f}/s "
+            "cctmove_ps={:.1f} cctmove_ms(avg={:.2f} max={:.2f}) "
+            "sweepcollider_ps={:.1f} sweepcollider_ms(avg={:.2f} max={:.2f}) "
+            "sweepsphere_ps={:.1f} sweepsphere_ms(avg={:.2f} max={:.2f}) "
+            "probeground_ps={:.1f} probeground_ms(avg={:.2f} max={:.2f})",
 
             runtimeSummary.render.renderAvgMs,
             runtimeSummary.render.renderMaxMs,
@@ -672,7 +680,23 @@ void GameInstance::Try_FlushRuntimePerfLog()
             runtimeSummary.collision.updateMaxMs,
             runtimeSummary.collision.pairsPerSec,
             runtimeSummary.collision.intersectsPerSec,
-            runtimeSummary.collision.hitsPerSec
+            runtimeSummary.collision.hitsPerSec,
+
+            runtimeSummary.physxQuery.cctMovePerSec,
+            runtimeSummary.physxQuery.cctMoveAvgMs,
+            runtimeSummary.physxQuery.cctMoveMaxMs,
+
+            runtimeSummary.physxQuery.sweepColliderPerSec,
+            runtimeSummary.physxQuery.sweepColliderAvgMs,
+            runtimeSummary.physxQuery.sweepColliderMaxMs,
+
+            runtimeSummary.physxQuery.sweepSpherePerSec,
+            runtimeSummary.physxQuery.sweepSphereAvgMs,
+            runtimeSummary.physxQuery.sweepSphereMaxMs,
+
+            runtimeSummary.physxQuery.probeGroundPerSec,
+            runtimeSummary.physxQuery.probeGroundAvgMs,
+            runtimeSummary.physxQuery.probeGroundMaxMs
         )
     );
 
@@ -1460,11 +1484,11 @@ PxScene* GameInstance::Get_PhysXScene() const
     return _physxManager->Get_Scene();
 }
 
-PhysXStaticActorHandle GameInstance::Register_PhysXStaticModel(const ModelCom& model, const Matrix& worldMatrix,
-    Collision_Preset preset)
+PhysXStaticActorHandle GameInstance::Register_PhysXStaticCollision(const StaticCollisionData& collisionData,
+    const Matrix& worldMatrix, Collision_Preset preset)
 {
     CHECK_NULL(_physxManager, {});
-    return _physxManager->Register_StaticModel(model, worldMatrix, preset);
+    return _physxManager->Register_StaticCollision(collisionData, worldMatrix, preset);
 }
 
 void GameInstance::Unregister_PhysXStaticActor(PhysXStaticActorHandle handle)
