@@ -131,6 +131,11 @@ void RenderTarget::Clear_RenderTarget()
         _context->ClearRenderTargetView(_rtv.Get(), reinterpret_cast<const float*>(&_clearColor));
 }
 
+void RenderTarget::Set_ClearColor(const Vec4& clearColor)
+{
+    _clearColor = clearColor;
+}
+
 void RenderTarget::Clear_DepthStencil()
 {
     if (nullptr != _context && nullptr != _dsv)

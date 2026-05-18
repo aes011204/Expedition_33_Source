@@ -21,6 +21,8 @@ public:
 
     void Clear_RenderTarget();
     void Clear_DepthStencil();
+    // 이후 Clear_RenderTarget 호출에서 사용할 clear color 값을 갱신한다.
+    void Set_ClearColor(const Vec4& clearColor);
 
     HRESULT Copy_Resource(ID3D11Texture2D* destTexture);
 
