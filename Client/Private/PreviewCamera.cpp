@@ -44,7 +44,8 @@ HRESULT PreviewCamera::Initialize(void* arg)
     if (desc != nullptr && _transformCom != nullptr)
     {
         const Vec3 at(desc->at.x, desc->at.y, desc->at.z);
-        _transformCom->LookAt(at);
+        _startAt = at;
+        _startEye = desc->eye;
         _lookOffset = desc->lookOffset;
         _distance = desc->distance;
         _followSpeed = desc->followSpeed;
@@ -70,7 +71,7 @@ void PreviewCamera::Update(float timeDelta)
     
     _transformCom->Set_WorldPosition(nextPos);
     _transformCom->LookAt(targetPos);
-
+ 
     Apply_View(); 
 }
 
@@ -84,6 +85,17 @@ void PreviewCamera::Set_Preset(PreviewShotTable::PreviewShotPreset preset)
     _lookOffset = preset.lookOffset;
     _distance = preset.distance;
     _followSpeed = preset.followSpeed;
+}
+
+void PreviewCamera::Reset_ToStartPos()
+{
+    if(_transformCom == nullptr)
+        return;
+
+    _transformCom->Set_WorldPosition(Vec3(_startEye.x, _startEye.y, _startEye.z));
+    _transformCom->LookAt(_startAt);
+
+    Apply_View();
 }
 
 Shared<PreviewCamera> PreviewCamera::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

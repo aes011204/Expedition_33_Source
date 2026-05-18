@@ -84,7 +84,7 @@ HRESULT SkillTree_Panel::Initialize(uint32 levelIndex)
     Set_SkillPoint();
 
     _baseSize = _currentView->skillNodes.front().image->Get_Transform()->Get_Scale();
-    _hoveredSize = _baseSize * 1.4f;
+    _hoveredSize = _baseSize * 1.6f;
     Close();
 
     return S_OK;
@@ -728,9 +728,9 @@ vector<UIPreviewManager::PreviewSlotDesc> SkillTree_Panel::Build_PreviewLayout()
 {
     static const Vec3 positions[] =
     {
-        Vec3(-1.1f, 0.f, -0.1f),
-        Vec3(0.0f,  0.f, 0.f),
         Vec3(1.1f,  0.f, -0.1f),
+        Vec3(0.0f,  0.f, 0.f),
+        Vec3(-1.1f, 0.f, -0.1f),
     };
 
     static const Vec3 rotations[] =

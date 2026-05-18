@@ -149,7 +149,7 @@ private:
         // 
     };
 
-    uint32                                   _selectedHeroIndex = static_cast<int>(HeroId::Lune);
+    uint32                                   _selectedHeroIndex = 0;
     bool                                     _isOpen = false;
 
     //vector<StatusPreviewHero>                _previewHeroes{};

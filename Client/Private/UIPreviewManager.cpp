@@ -73,6 +73,8 @@ void UIPreviewManager::Begin_Preview(PreviewShotTable::PreviewShotPanel panel)
             entry.player->Set_Visible(true);
     }
 
+    _previewCamera->Reset_ToStartPos();
+
     GAME->Change_ActiveCamera(_previewCamera);
     _previewCamera->Apply_View();
     _isActive = true;
@@ -97,6 +99,7 @@ void UIPreviewManager::Show_Preview(HeroId heroId, PreviewShotTable::PreviewShot
     const auto preset = CLIENT->Get_Preset(heroId, panel);
     _previewCamera->Set_Preset(preset);
     _previewCamera->Set_TargetTransform(entry.player->Get_Transform());
+
 }
 
 void UIPreviewManager::Hide_Preview()
@@ -159,13 +162,22 @@ HRESULT UIPreviewManager::Spawn_PreviewCamera()
     desc.eye = Vec4(0.f, 1.45f, 16.f, 1.f);
     desc.at = Vec4(0.f, 1.05f, 0.f, 1.f);
     desc.fovy = XMConvertToRadians(30.f);
-    desc.nearPlane = 0.1f;
-    desc.farPlane = 100.f;
-    desc.mouseSensor = 0.f;
-    desc.mouseSensitivity = 0.f;
-    desc.lookOffset = Vec3(0.f, 2.f, 0.f);
-    desc.distance = 5.f;
-    desc.followSpeed = 3.f;
+   desc.nearPlane = 0.1f;
+   desc.farPlane = 100.f;
+   desc.lookOffset = Vec3(0.f, 2.f, 0.f);
+   desc.distance = 5.f;
+   desc.followSpeed = 3.f;
+   
+   // desc.eye = Vec4(0.f, 1.9f, 10.f, 1.f);
+   // desc.at = Vec4(0.f, 1.3f, 0.f, 1.f);
+   // desc.fovy = XMConvertToRadians(20.f);
+   // desc.nearPlane = 0.1f;
+   // desc.farPlane = 100.f;
+   // desc.mouseSensor = 0.f;
+   // desc.mouseSensitivity = 0.f;
+   // desc.distance = 2.8f;
+   // desc.followSpeed = 2.f;
+   // desc.lookOffset = Vec3(0.f, 2.0f, 0.f);
 
     Shared<GameObject> cameraObject = nullptr;
 

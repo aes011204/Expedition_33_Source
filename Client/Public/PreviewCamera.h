@@ -38,11 +38,16 @@ public:
     void    Set_FollowSpeed(float followSpeed) {_followSpeed = followSpeed;}
     void    Set_TargetTransform(Shared<TransformCom> transformCom) {_targetTransformCom = transformCom;}
 
+    void    Reset_ToStartPos();
+
 private:
     Shared<TransformCom>   _targetTransformCom = nullptr;
     Vec3                   _lookOffset;
     float                  _distance;
     float                  _followSpeed;
+
+    Vec4                   _startEye;
+    Vec3                   _startAt;
 
 public:
     static Shared<PreviewCamera> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

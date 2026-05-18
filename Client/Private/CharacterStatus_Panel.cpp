@@ -315,9 +315,9 @@ vector<UIPreviewManager::PreviewSlotDesc> CharacterStatus_Panel::Build_PreviewLa
 {
     static const Vec3 positions[] =
     {
-        Vec3(-1.1f, 0.f, -0.1f),
-        Vec3(0.0f,  0.f, 0.f),
         Vec3(1.1f,  0.f, -0.1f),
+        Vec3(0.0f,  0.f, 0.f),
+        Vec3(-1.1f, 0.f, -0.1f),
     };
 
     static const Vec3 rotations[] =
