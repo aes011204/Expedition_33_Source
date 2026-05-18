@@ -354,8 +354,8 @@ Unique<CharacterStatus_Panel> CharacterStatus_Panel::Create(uint32 levelIndex)
 
 void CharacterStatus_Panel::Free()
 {
-    if (_isOpen)
-        CLIENT->Hide_Preview();
+    //if (_isOpen)
+    //    CLIENT->Hide_Preview();
 
     if (_root)
         _root->Close();
