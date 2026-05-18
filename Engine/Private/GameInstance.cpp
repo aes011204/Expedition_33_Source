@@ -19,6 +19,7 @@
 #include "Prototype_Manager.h"
 #include "RegistorFactory.h"
 #include "Renderer.h"
+#include "Renderer_Define.h"
 #include "Timer_Manager.h"
 #include "Target_Manager.h"
 #include "Shadow.h"
@@ -1422,6 +1423,18 @@ HRESULT GameInstance::Add_RenderTarget(const wstring& targetTag, uint32 sizeX, u
 HRESULT GameInstance::Add_MRT(const wstring& mrtTag, const wstring& targetTag)
 {
     return _targetManager->Add_MRT(mrtTag, targetTag);
+}
+
+HRESULT GameInstance::Set_HDRClearColorOverride(const Color& clearColor)
+{
+    CHECK_NULL(_targetManager, E_FAIL);
+    return _targetManager->Set_RenderTargetClearColor(RT::HDRColor, clearColor);
+}
+
+HRESULT GameInstance::Clear_HDRClearColorOverride()
+{
+    CHECK_NULL(_targetManager, E_FAIL);
+    return _targetManager->Set_RenderTargetClearColor(RT::HDRColor, Color(0.f, 0.f, 0.f, 0.f));
 }
 
 HRESULT GameInstance::Begin_MRT(const wstring& mrtTag, bool useDSV, bool clearRTV)

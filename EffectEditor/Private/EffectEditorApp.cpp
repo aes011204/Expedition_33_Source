@@ -156,6 +156,8 @@ HRESULT EffectEditorApp::Initialize()
     };
 
     CHECK_FAILED(run_startup_step(initializeEngineMs, [&]{ return GAME->Initialize_Engine(engineDesc, _device, _context); }), E_FAIL);
+    CHECK_FAILED(GAME->Set_HDRClearColorOverride(kHdrClearColorOverride), E_FAIL);
+    _hdrClearColorOverrideSet = true;
     CHECK_FAILED(run_startup_step(initializeAssetManagerMs, [&]{ return GAME->Initialize_AssetManager(assetRootPath.wstring()); }), E_FAIL);
     CHECK_FAILED(run_startup_step(initializeClientMs, [&]{ return CLIENT->Initialize_Client(_device, _context); }), E_FAIL);
     CHECK_FAILED(run_startup_step(readyFontsMs, [&]{ return Ready_Fonts(); }), E_FAIL);
@@ -238,6 +240,8 @@ void EffectEditorApp::Late_Update(float)
 
 HRESULT EffectEditorApp::Render()
 {
+    // EFFECTEDITOR_BG_FALLBACK_TEMP: EffectEditor 전용 배경색 제어로 보기 어렵고 공용 postprocess 경로 개입 및 관측 왜곡 우려가 있어 비활성화한다.
+    /*
     // EFFECTEDITOR_BG_FALLBACK_TEMP: Draw 스코프 밖에서 복구할 수 있도록 사전 백업한다.
     Shared<PostProcessPipeline> postProcessPipeline = GAME->Get_PostProcessPipeline();
     PostProcessCB originalPostProcessParams{};
@@ -258,15 +262,18 @@ HRESULT EffectEditorApp::Render()
         authoringPostProcessParams.backgroundFallbackColor = Vec4(0.3f, 0.3f, 0.3f, 1.f);
         postProcessPipeline->Set_PostProcessParams(authoringPostProcessParams);
     }
+    */
 
     {
         Profile_View::Scope profileScope("Game::Render");
 
         if (FAILED(GAME->Clear_Buffers(kDefaultClearColor)))
         {
-            // EFFECTEDITOR_BG_FALLBACK_TEMP: 조기 반환 경로에서도 원복을 보장한다.
+            // EFFECTEDITOR_BG_FALLBACK_TEMP: 공용 postprocess 경로 개입을 끄기 위해 백업/원복 블록을 함께 비활성화했다.
+            /*
             if (hasOriginalPostProcessParams)
                 postProcessPipeline->Set_PostProcessParams(originalPostProcessParams);
+            */
             return E_FAIL;
         }
 
@@ -274,16 +281,21 @@ HRESULT EffectEditorApp::Render()
 
         if (FAILED(GAME->Draw()))
         {
-            // EFFECTEDITOR_BG_FALLBACK_TEMP: 조기 반환 경로에서도 원복을 보장한다.
+            // EFFECTEDITOR_BG_FALLBACK_TEMP: 공용 postprocess 경로 개입을 끄기 위해 백업/원복 블록을 함께 비활성화했다.
+            /*
             if (hasOriginalPostProcessParams)
                 postProcessPipeline->Set_PostProcessParams(originalPostProcessParams);
+            */
             return E_FAIL;
         }
     }
 
+    // EFFECTEDITOR_BG_FALLBACK_TEMP: EffectEditor 전용 배경색 제어로 보기 어렵고 공용 postprocess 경로 개입 및 관측 왜곡 우려가 있어 비활성화한다.
+    /*
     // EFFECTEDITOR_BG_FALLBACK_TEMP: Draw 이후 postprocess 파라미터를 항상 원본으로 복구한다.
     if (hasOriginalPostProcessParams)
         postProcessPipeline->Set_PostProcessParams(originalPostProcessParams);
+    */
 
     {
         Profile_View::Scope profileScope("Editor::Render");
@@ -402,6 +414,12 @@ Unique<EffectEditorApp> EffectEditorApp::Create()
 void EffectEditorApp::Free()
 {
     __super::Free();
+
+    if (_hdrClearColorOverrideSet)
+    {
+        (void)GAME->Clear_HDRClearColorOverride();
+        _hdrClearColorOverrideSet = false;
+    }
 
     EffectEditorInstance::DestroyInstance();
     ClientInstance::DestroyInstance();

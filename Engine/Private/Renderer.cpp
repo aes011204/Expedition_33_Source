@@ -686,9 +686,12 @@ void Renderer::Render_PostProcess()
         GAME->Bind_RT_ShaderResource(_postprocessShader, "g_BloomTexture", RT::BloomBlur),
         L"Render_PostProcess:FAIL Bind_RT_ShaderResource(g_BloomTexture-ToneMap)");
 
+    // BackgroundMask fallback은 EffectEditor 전용 배경 정책으로 보기 어려워 공용 tone mapping 소비 경로를 비활성화한다.
+    /*
     RETURN_LOG_IF_FAILED(
         GAME->Bind_RT_ShaderResource(_postprocessShader, "g_BackgroundMaskTexture", RT::BackgroundMask),
         L"Render_PostProcess:FAIL Bind_RT_ShaderResource(g_BackgroundMaskTexture-ToneMap)");
+    */
 
     RETURN_LOG_IF_FAILED(
         _postprocessShader->Begin(ETOI(PostProcessPass::ToneMapping)),
@@ -769,8 +772,11 @@ HRESULT Renderer::Ready_RenderTargets()
 
     CHECK_FAILED(GAME->Add_RenderTarget(RT::HDRColor,
         width, height, DXGI_FORMAT_R16G16B16A16_FLOAT, Color(0.f, 0.f, 0.f, 0.f), resizeWithViewport, !useDSV), E_FAIL);
+    // BackgroundMask fallback은 EffectEditor 전용 배경 정책으로 보기 어려워 공용 MRT 연결을 비활성화한다.
+    /*
     CHECK_FAILED(GAME->Add_RenderTarget(RT::BackgroundMask,
         width, height, DXGI_FORMAT_R8_UNORM, Color(0.f, 0.f, 0.f, 0.f), resizeWithViewport, !useDSV), E_FAIL);
+    */
 
     //CHECK_FAILED(Ready_ShadowDSV(), E_FAIL);
 
@@ -794,7 +800,10 @@ HRESULT Renderer::Ready_RenderTargets()
 
     // PostProcess
     CHECK_FAILED(GAME->Add_MRT(MRT::HDR, RT::HDRColor), E_FAIL);
+    // BackgroundMask fallback은 EffectEditor 전용 배경 정책으로 보기 어려워 공용 MRT 연결을 비활성화한다.
+    /*
     CHECK_FAILED(GAME->Add_MRT(MRT::HDR, RT::BackgroundMask), E_FAIL);
+    */
 
     CHECK_FAILED(GAME->Add_MRT(MRT::BloomExtract, RT::BloomExtract), E_FAIL);
 
