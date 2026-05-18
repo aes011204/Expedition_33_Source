@@ -80,9 +80,9 @@ float3 SampleOrm(float2 uv)
     if (HasMaterialTexture(MATERIAL_SLOT_ORM))
         orm = g_MaterialTextures[MATERIAL_SLOT_ORM].Sample(LinearWrapSampler, uv).rgb;
 
-    orm.r *= g_AoScale;         // O
-    orm.g *= g_RoughnessScale;  // R
-    orm.b *= g_MetalnessScale;  // M
+    orm.r *= g_AoScale; // O
+    orm.g *= g_RoughnessScale; // R
+    orm.b *= g_MetalnessScale; // M
 
     return orm;
 }
@@ -102,10 +102,10 @@ float3 SampleEmissive(float2 uv)
 
 struct HairMaterialSample
 {
-    float3  baseColor;  // 최종 diffuse
-    float   opacity;    // 마스크
-    float   depth;      // hair card 내부 깊이/겹침 보정값
-    float   id;         // 가닥/영역별 variation 값
+    float3 baseColor; // 최종 diffuse
+    float opacity; // 마스크
+    float depth; // hair card 내부 깊이/겹침 보정값
+    float id; // 가닥/영역별 variation 값
 };
 
 HairMaterialSample SampleHairMaterial(float2 uv)
@@ -160,10 +160,10 @@ HairMaterialSample SampleHairMaterial(float2 uv)
 
 struct EyeMaterialSample
 {
-    float3  baseColor;
-    float   opacity;
-    float   irisArea;
-    float   pupilMask;
+    float3 baseColor;
+    float opacity;
+    float irisArea;
+    float pupilMask;
 };
 
 EyeMaterialSample SampleEyeMaterial(float2 uv)
@@ -194,7 +194,8 @@ EyeMaterialSample SampleEyeMaterial(float2 uv)
     float radial = length(eyeUV);
 
     // 홍채 마스크
-    float irisArea = 1.f - smoothstep(0.20f, 0.46f, radial);
+    // 두번째 값 낮추면 홍채 작아짐
+    float irisArea = 1.f - smoothstep(0.20f, 0.35f, radial);
     irisArea = saturate(irisArea);
 
     if (!hasIrisHeightTex)
@@ -212,10 +213,13 @@ EyeMaterialSample SampleEyeMaterial(float2 uv)
     // Height 텍스처의 0~1 차이를 디테일로 직접 쓰기 위해 대비를 올린다.
     float heightDetail = saturate((fiber - 0.5f) * 2.4f + 0.5f);
     float limbal = smoothstep(0.28f, 0.46f, radial);
-    float limbalRing = smoothstep(0.28f, 0.40f, radial) * (1.f - smoothstep(0.40f, 0.50f, radial));
+
+    // 범위를 좁히면 띠 얇아짐
+    float limbalRing = smoothstep(0.31f, 0.40f, radial) * (1.f - smoothstep(0.40f, 0.50f, radial));
 
     // 중앙의 검은 동공 영역
-    float pupilMask = 1.f - smoothstep(0.06f, 0.13f, radial);
+    // 둘 다 낮추면 동공 작아짐
+    float pupilMask = 1.f - smoothstep(0.05f, 0.11f, radial);
     float angle = atan2(eyeUV.y, eyeUV.x);
 
     // 홍채의 단색 느낌을 줄이기 위한 방사형 결(iris striation)
@@ -263,6 +267,5 @@ EyeMaterialSample SampleEyeMaterial(float2 uv)
 
     return Out;
 }
-
 
 #endif
