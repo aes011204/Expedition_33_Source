@@ -45,6 +45,8 @@ public:
         uint32 CurChroma = 0;
 
         float CurMaxHp = 0.f;
+        //추가해서 설정해줘야 함
+        uint32 CurMaxExp = 0;
         uint32 CurMaxAp = 0;
         float CurPhysicalAttack = 0.f;
         float CurPhysicalDefense = 0.f;
