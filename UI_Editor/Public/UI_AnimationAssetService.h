@@ -5,6 +5,21 @@
 
 namespace UIEditor
 {
+    enum class UI_AnimationPresetType
+    {
+        FadeIn,
+        FadeOut,
+        SlideInUp,
+        SlideInDown,
+        SlideInLeft,
+        SlideInRight,
+        PopIn,
+        TooltipAppear,
+        ButtonHoverPulse,
+        ButtonPressPop,
+        SkillNodeReveal,
+    };
+
     class UI_AnimationAssetService final
     {
     public:
@@ -46,11 +61,19 @@ namespace UIEditor
         bool Add_Track(UI_AnimationKeyframeTrackType trackType);
         bool Delete_SelectedTrack();
         bool Add_KeyToSelectedTrack(const UI_Document& document);
+        bool Add_CurrentValueKeyToTrack(const UI_Document& document, UI_AnimationKeyframeTrackType trackType);
+        bool Add_CurrentValueKeysToTransformTracks(const UI_Document& document);
+        bool Apply_Preset(const UI_Document& document, UI_AnimationPresetType presetType, int32 durationFrames, float distance, float scaleAmount);
+        bool Copy_SelectedKey();
+        bool Paste_CopiedKey();
+        bool Has_CopiedKey() const { return _hasCopiedKey; }
         bool Delete_SelectedKey();
         void Select_Track(int32 trackIndex);
         bool Select_Key(int32 trackIndex, int32 keyIndex);
         bool Set_SelectedKeyFrame(int32 frame, int32& outFrame);
         bool Set_SelectedKeyValue(float value);
+        bool Set_SelectedTrackEasing(UI_AnimationEasing easing, bool applyToKeys);
+        bool Set_SelectedKeyEasing(UI_AnimationEasing easing);
         void Mark_AssetDirty();
 
     private:
@@ -58,6 +81,11 @@ namespace UIEditor
         bool Show_LoadAssetDialog(wstring& outFilePath) const;
         wstring Resolve_DefaultAnimationDirectory() const;
         void Ensure_AnimationExtension(wstring& filePath) const;
+        int32 Find_TrackIndex(UI_AnimationKeyframeTrackType trackType) const;
+        int32 Find_KeyIndexAtFrame(const UI_AnimationKeyframeTrack& track, int32 frame) const;
+        int32 Ensure_Track(UI_AnimationKeyframeTrackType trackType);
+        bool Upsert_CurrentValueKey(const UI_Document& document, int32 trackIndex, bool selectKey);
+        bool Upsert_KeyValue(UI_AnimationKeyframeTrackType trackType, int32 frame, float value, UI_AnimationEasing easing, bool selectKey);
         void Sort_TrackKeys(UI_AnimationKeyframeTrack& track);
 
     private:
@@ -69,5 +97,8 @@ namespace UIEditor
         int32 _selectedTrackIndex = -1;
         int32 _selectedKeyIndex = -1;
         UI_AnimationKeyframeTrackType _pendingTrackType = UI_AnimationKeyframeTrackType::PositionX;
+        bool _hasCopiedKey = false;
+        UI_AnimationKeyframeTrackType _copiedKeyTrackType = UI_AnimationKeyframeTrackType::PositionX;
+        UI_AnimationKeyframe _copiedKey = {};
     };
 }

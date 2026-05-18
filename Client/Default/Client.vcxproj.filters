@@ -575,7 +575,6 @@
     <ClCompile Include="..\Private\PlayableParts.cpp">
       <Filter>02.GameObject\Player\PlayerParts</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\UI_RuntimeLoader.cpp" />
     <ClCompile Include="..\Private\Level_MapTest.cpp">
       <Filter>01.Levels\MapTest</Filter>
     </ClCompile>
@@ -733,6 +732,9 @@
       <Filter>Skill</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\HairChainPhysics.cpp" />
+    <ClCompile Include="..\Private\UI_RuntimeLoader.cpp">
+      <Filter>96. Manager</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\MapInstancedMesh.cpp">
       <Filter>02.GameObject\Map\MapInstancedMesh</Filter>
     </ClCompile>
