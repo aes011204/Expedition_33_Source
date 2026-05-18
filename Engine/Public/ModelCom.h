@@ -3,6 +3,7 @@
 #include "AnimNotify_Types.h"
 #include "Component.h"
 #include "Material.h"
+#include "CollisionProxy_Types.h"
 
 NS_BEGIN(Engine)
 
@@ -189,6 +190,13 @@ public: /* PhysX 충돌 */
     // static collision 생성용 CPU Mesh 데이터
     const vector<ModelCollisionMesh>& Get_CollisionMeshes() const { return _collisionMeshes; }
 
+    const vector<ModelCollisionProxy>& Get_CollisionProxies() const { return _collisionProxies;}
+    // 단순 충돌체가 있는지
+    bool Has_SimpleCollisionProxy() const { return !_collisionProxies.empty(); }
+
+    bool Build_CollisoinProxies_FromSourceJson(const fs::path& jsonPath);
+    void Build_FallbackTriangleCollisionProxies();
+
 public:
     void Set_AnimEnumType(const wstring& enumType) { _animEnumType = enumType; }
     const wstring& Get_AnimEnumType() const { return _animEnumType; }
@@ -292,6 +300,7 @@ private: /* 머리 붙이기 */
 
 private: /* PhysX 충돌 */
     vector<ModelCollisionMesh> _collisionMeshes;
+    vector<ModelCollisionProxy> _collisionProxies; // PhysX에 올릴 실제 후보
 
 private: /* Compute Shader */
     vector<Shared<ComputeStructuredBuffer>> _meshBoneMatrixBuffers;

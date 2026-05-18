@@ -2,6 +2,7 @@
 #include "Base.h"
 #include "Collision_Define.h"
 #include "PhysX_Types.h"
+#include "CollisionProxy_Types.h"
 
 NS_BEGIN(Engine)
 
@@ -53,6 +54,10 @@ public:
         const ModelCom& model, const Matrix& worldMatrix, Collision_Preset preset);
 
     void Unregister_StaticActor(PhysXStaticActorHandle handle);
+
+private:
+    vector<PxConvexMesh*> Build_OrGetConvexMeshes(const ModelCom& model);
+    PxConvexMesh* Create_ConvexMesh(const ModelCollisionProxy& proxy, const Matrix& preTransformMatrix);
 
 private:
     Shared<ColliderCom> Find_Collider(PxActor* actor) const;
@@ -112,6 +117,7 @@ private: // Static Mesh 물리충돌
 
     // 같은 모델은 triangle mesh cooking 결과를 재사용
     umap<wstring, vector<PxTriangleMesh*>> _triangleMeshCache;
+    umap<wstring, vector<PxConvexMesh*>> _convexMeshCache;
 
     PxMaterial* _defaultStaticMaterial = nullptr;
 

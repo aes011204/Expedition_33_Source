@@ -207,6 +207,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClInclude Include="..\Public\Camera_Manager.h" />
     <ClInclude Include="..\Public\Character.h" />
     <ClInclude Include="..\Public\ColliderCom.h" />
+    <ClInclude Include="..\Public\CollisionProxy_Types.h" />
     <ClInclude Include="..\Public\Collision_Manager.h" />
     <ClInclude Include="..\Public\Collision_Define.h" />
     <ClInclude Include="..\Public\Composite.h" />

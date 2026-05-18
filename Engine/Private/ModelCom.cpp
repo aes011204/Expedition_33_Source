@@ -87,7 +87,7 @@ Shared<Material> ModelCom::Get_Material(uint32 materialIndex) const
 const Material::TextureSlot* ModelCom::Find_MaterialSlot(uint32 meshIndex, std::initializer_list<MaterialTextureSlot> materialSlots,
     uint32 textureIndex) const
 {
-     if (meshIndex >= _meshes.size())
+    if (meshIndex >= _meshes.size())
         return nullptr;
 
     const uint32 materialIndex = _meshes[meshIndex]->Get_MaterialIndex();
@@ -329,7 +329,7 @@ float ModelCom::Get_RootMotionTranslationRatio() const
 
     // 블렌딩 중이면 다음 애니메이션(실질적으로 재생 중인 타겟)의 진행도를 가져옴
     uint32 activeAnimIndex = _isBlending ? _nextAnimIndex : _currentAnimIndex;
-    
+
     if (activeAnimIndex >= _animations.size())
         return 0.f;
 
@@ -512,7 +512,7 @@ void ModelCom::Apply_EffectiveMaterial(uint32 materialIndex)
         MATERIAL_CB_OVERRIDE_FIELDS(MODEL_COM_APPLY_CB_FIELD)
 #undef MODEL_COM_APPLY_CB_FIELD
 
-        material->Set_CB(effective);
+            material->Set_CB(effective);
     }
 
     Apply_TextureOverride(material.get(), MaterialTextureSlot::BaseColor, inst.baseColor);
@@ -601,7 +601,7 @@ json ModelCom::To_Json() const
                 MATERIAL_CB_OVERRIDE_FIELDS(MODEL_COM_WRITE_CB_MASK)
 #undef MODEL_COM_WRITE_CB_MASK
 
-                instJson["cb_overrides"] = jmask;
+                    instJson["cb_overrides"] = jmask;
 
                 json cb{};
 
@@ -627,31 +627,31 @@ json ModelCom::To_Json() const
             }
 
             auto writeTextureOverride = [&](const char* name, const TextureOverride& ov) -> void
-            {
-                if (!ov.enabled)
-                    return;
-
-                json tex{};
-                tex["enabled"] = true;
-
-                if (!ov.path.empty())
                 {
-                    const string textureGuid = GAME->Ensure_AssetGUID(ov.path, "Texture");
-                    if (!textureGuid.empty())
-                        tex["texture_guid"] = textureGuid;
+                    if (!ov.enabled)
+                        return;
+
+                    json tex{};
+                    tex["enabled"] = true;
+
+                    if (!ov.path.empty())
+                    {
+                        const string textureGuid = GAME->Ensure_AssetGUID(ov.path, "Texture");
+                        if (!textureGuid.empty())
+                            tex["texture_guid"] = textureGuid;
+                        else
+                            tex["texture_path"] = String::ToString(ov.path);
+                    }
                     else
-                        tex["texture_path"] = String::ToString(ov.path);
-                }
-                else
-                {
-                    // enabled + empty path = clear slot
-                    tex["texture_path"] = string{};
-                }
+                    {
+                        // enabled + empty path = clear slot
+                        tex["texture_path"] = string{};
+                    }
 
-                if (!instJson.contains("textures"))
-                    instJson["textures"] = json::object();
-                instJson["textures"][name] = tex;
-            };
+                    if (!instJson.contains("textures"))
+                        instJson["textures"] = json::object();
+                    instJson["textures"][name] = tex;
+                };
 
             writeTextureOverride("base_color", inst.baseColor);
             writeTextureOverride("normal", inst.normal);
@@ -714,7 +714,7 @@ void ModelCom::From_Json(const json& data)
 
     const string currentGuid = _sourceModelPath.empty()
         ? string{}
-        : GAME->Find_AssetGUID(_sourceModelPath);
+    : GAME->Find_AssetGUID(_sourceModelPath);
 
     if (modelGuid == currentGuid && modelType == _type)
     {
@@ -1201,7 +1201,7 @@ void ModelCom::Refresh_CurrentAnimationPose()
 
 bool ModelCom::Ensure_AnimNotifyAssetLoaded()
 {
-     if (_isAnimNotifyAssetLoaded)
+    if (_isAnimNotifyAssetLoaded)
         return true;
 
     _animNotifyAsset = {};
@@ -1368,8 +1368,8 @@ void ModelCom::Update_AnimNotifyStates(const AnimNotifyData& animationData, cons
 
                 if (executeNotifies &&
                     (context.wrapped ||
-                     context.deltaTime > 0.f ||
-                     previousActiveTimeSec != context.currentTimeSec))
+                        context.deltaTime > 0.f ||
+                        previousActiveTimeSec != context.currentTimeSec))
                 {
                     _activeNotifyStates[activeIndex].notifyState->On_Tick(context);
                 }
@@ -1469,6 +1469,126 @@ void ModelCom::Update_LeaderPoseMatrices()
 
     _leaderPoseMatricesValid = true;
     Mark_BoneMatricesDirty();
+}
+
+bool ModelCom::Build_CollisoinProxies_FromSourceJson(const fs::path& jsonPath)
+{
+    if (!fs::exists(jsonPath))
+        return false;
+
+    ifstream ifs(jsonPath);
+    if (!ifs.is_open())
+        return false;
+
+    json root = json::parse(ifs, nullptr, false);
+    if (root.is_discarded() || !root.is_array())
+        return false;
+
+    bool addedAny = false;
+
+    for (const json& entry : root)
+    {
+        if (entry.value("Type", "") != "BodySetup")
+            continue;
+
+        const json* props = entry.contains("Properties") ? &entry["Properties"] : nullptr;
+        if (props == nullptr || !props->is_object())
+            continue;
+
+        const string traceFlag = props->value("CollisionTraceFlag", "");
+
+        // 보수 정책:
+        // 1) UseComplexAsSimple 자산은 기존 tri mesh를 유지한다.
+        // 2) primitive(Box/Sphere/Capsule)만 simple proxy로 사용한다.
+        // 3) ConvexElems는 충돌 범위가 너무 거칠어져 투명벽이 생길 수 있어 v1에서는 쓰지 않는다.
+        if (traceFlag == "ECollisionTraceFlag::CTF_UseComplexAsSimple")
+            continue;
+
+        if (!props->contains("AggGeom") || !(*props)["AggGeom"].is_object())
+            continue;
+
+        const json& aggGeom = (*props)["AggGeom"];
+
+        auto appendBox = [&](const json& boxElem)
+            {
+                ModelCollisionProxy proxy{};
+                proxy.type = ModelCollisionProxyType::Box;
+                proxy.center = Vec3(
+                    boxElem["Center"].value("X", 0.f),
+                    boxElem["Center"].value("Y", 0.f),
+                    boxElem["Center"].value("Z", 0.f));
+                proxy.rotation = Quat::CreateFromYawPitchRoll(
+                    XMConvertToRadians(boxElem["Rotation"].value("Yaw", 0.f)),
+                    XMConvertToRadians(boxElem["Rotation"].value("Pitch", 0.f)),
+                    XMConvertToRadians(boxElem["Rotation"].value("Roll", 0.f)));
+                proxy.extents = Vec3(
+                    boxElem.value("X", 0.f) * 0.5f,
+                    boxElem.value("Y", 0.f) * 0.5f,
+                    boxElem.value("Z", 0.f) * 0.5f);
+                _collisionProxies.push_back(std::move(proxy));
+                addedAny = true;
+            };
+
+        auto appendSphere = [&](const json& sphereElem)
+            {
+                ModelCollisionProxy proxy{};
+                proxy.type = ModelCollisionProxyType::Sphere;
+                proxy.center = Vec3(
+                    sphereElem["Center"].value("X", 0.f),
+                    sphereElem["Center"].value("Y", 0.f),
+                    sphereElem["Center"].value("Z", 0.f));
+                proxy.radius = sphereElem.value("Radius", 0.f);
+                _collisionProxies.push_back(std::move(proxy));
+                addedAny = true;
+            };
+
+        auto appendCapsule = [&](const json& sphylElem)
+            {
+                ModelCollisionProxy proxy{};
+                proxy.type = ModelCollisionProxyType::Capsule;
+                proxy.center = Vec3(
+                    sphylElem["Center"].value("X", 0.f),
+                    sphylElem["Center"].value("Y", 0.f),
+                    sphylElem["Center"].value("Z", 0.f));
+                proxy.rotation = Quat::CreateFromYawPitchRoll(
+                    XMConvertToRadians(sphylElem["Rotation"].value("Yaw", 0.f)),
+                    XMConvertToRadians(sphylElem["Rotation"].value("Pitch", 0.f)),
+                    XMConvertToRadians(sphylElem["Rotation"].value("Roll", 0.f)));
+                proxy.radius = sphylElem.value("Radius", 0.f);
+                proxy.halfHeight = max(0.f, sphylElem.value("Length", 0.f) * 0.5f - proxy.radius);
+                _collisionProxies.push_back(std::move(proxy));
+                addedAny = true;
+            };
+
+        if (aggGeom.contains("BoxElems"))
+            for (const json& boxElem : aggGeom["BoxElems"])
+                appendBox(boxElem);
+
+        if (aggGeom.contains("SphereElems"))
+            for (const json& sphereElem : aggGeom["SphereElems"])
+                appendSphere(sphereElem);
+
+        if (aggGeom.contains("SphylElems"))
+            for (const json& sphylElem : aggGeom["SphylElems"])
+                appendCapsule(sphylElem);
+    }
+
+    return addedAny;
+}
+
+void ModelCom::Build_FallbackTriangleCollisionProxies()
+{
+    _collisionProxies.clear();
+
+    for (const ModelCollisionMesh& mesh : _collisionMeshes)
+    {
+        ModelCollisionProxy proxy{};
+        proxy.type = ModelCollisionProxyType::TriangleMesh;
+        proxy.name = mesh.name;
+        proxy.positions = mesh.positions;
+        proxy.indices = mesh.indices;
+        _collisionProxies.push_back(std::move(proxy));
+    }
 }
 
 void ModelCom::Build_LeaderPoseRequiredBones()
@@ -1661,7 +1781,7 @@ HRESULT ModelCom::Ensure_ComputeSkinningBuffers()
 HRESULT ModelCom::Ensure_ComputeSkinningConstantBuffer()
 {
     if (_computeSkinningConstantBuffer != nullptr)
-         return S_OK;
+        return S_OK;
 
     D3D11_BUFFER_DESC desc{};
     desc.ByteWidth = sizeof(ComputeSkinningCBData);
@@ -1816,7 +1936,7 @@ HRESULT ModelCom::Ready_Model(const char* modelPath)
             in.read(&str[0], len);
         }
         return str;
-    };
+        };
 
     Vec3 minBounds(
         std::numeric_limits<float>::max(),
@@ -1990,8 +2110,18 @@ HRESULT ModelCom::Ready_Model(const char* modelPath)
         _localBoundsMin = minBounds;
         _localBoundsMax = maxBounds;
     }
-
     stream.close();
+
+    // Proxy 충돌체
+    const fs::path sourceJsonPath = fs::path(modelPath).replace_extension(".json");
+    _collisionProxies.clear();
+
+    if (!Build_CollisoinProxies_FromSourceJson(sourceJsonPath))
+    {
+        // json파일 못찾으면, 그냥 메쉬 자체 읽어서 triangle 로 생성
+        Build_FallbackTriangleCollisionProxies();
+    }
+
     return S_OK;
 }
 
@@ -2019,7 +2149,7 @@ HRESULT ModelCom::Ready_Animation(const char* modelPath)
                     in.read(&str[0], len);
                 }
                 return str;
-            };
+                };
 
             ModelAnimationData animData{};
             animData.name = ReadString(stream);
