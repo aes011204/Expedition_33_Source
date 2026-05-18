@@ -3,16 +3,15 @@
 #include "GameDataTable.h"
 #include "Delegate.h"
 #include "PreviewShotTable.h"
+#include "UIPreviewManager.h"
 
 NS_BEGIN(Engine)
     class GameInstance;
 NS_END
 
 NS_BEGIN(Client)
-
 class BattleController;
-
-    class Player_WorldBase;
+class Player_WorldBase;
 class TargetCamera;
 class ResourceLoader;
 class GameplayUI;
@@ -49,6 +48,12 @@ public: /* For.GameData Table */
     uint32        Get_NextExp(uint32 level) const;
     GameDataTable::SkillTreeDesc* Get_SkillTreeDesc(const string& skillName);
     const umap<string, vector<string>>* Get_SkillTreeRequirementData();
+
+public:
+    void    Apply_PreviewLayout(const vector<UIPreviewManager::PreviewSlotDesc>& layout);
+    void    Begin_Preview(PreviewShotTable::PreviewShotPanel panel);
+    void    Show_Preview(HeroId heroId, PreviewShotTable::PreviewShotPanel panel);
+    void    Hide_Preview();
 
 public:
     PreviewShotTable::PreviewShotPreset Get_Preset(HeroId hero, PreviewShotTable::PreviewShotPanel panel);
@@ -108,6 +113,7 @@ private:
 	bool _isInitialized = false;
 
 private:
+    Shared<UIPreviewManager>    _previewManager;
     Shared<ResourceLoader>      _resourceLoader;
     Unique<GameDataTable>       _gameDataTable;
     Unique<PreviewShotTable>    _previewShotTable;

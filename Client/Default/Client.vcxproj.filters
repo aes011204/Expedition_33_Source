@@ -193,6 +193,12 @@
     <Filter Include="02.GameObject\Map\MapInstancedMesh">
       <UniqueIdentifier>{48582af2-9fa3-4baf-bee3-b247fe81d3f0}</UniqueIdentifier>
     </Filter>
+    <Filter Include="02.GameObject\Camera\Preview">
+      <UniqueIdentifier>{2e34842e-b1f0-4652-925c-5877a9a340a6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02.GameObject\Camera\Preview\Manager">
+      <UniqueIdentifier>{1f6e30b5-0c1c-4d86-96cf-11fdacad9732}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -430,7 +436,6 @@
     <ClInclude Include="..\Public\Player_WorldAction.h">
       <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\PreviewCamera.h" />
     <ClInclude Include="..\Public\Create_Class.h" />
     <ClInclude Include="..\public\PlayerStatCom.h">
       <Filter>03. Component\CombatStat</Filter>
@@ -501,8 +506,12 @@
     </ClInclude>
     <ClInclude Include="..\Public\BattleTurnCamera.h" />
     <ClInclude Include="..\public\PreviewShotTable.h">
-      <Filter>96. Manager</Filter>
+      <Filter>02.GameObject\Camera</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\PreviewCamera.h">
+      <Filter>02.GameObject\Camera\Preview</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\UIPreviewManager.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -719,7 +728,6 @@
     <ClCompile Include="..\Private\Player_WorldAction.cpp">
       <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\PreviewCamera.cpp" />
     <ClCompile Include="..\Private\Create_Class.cpp" />
     <ClCompile Include="..\private\MonsterStatCom.cpp">
       <Filter>03. Component\CombatStat</Filter>
@@ -794,6 +802,10 @@
     <ClCompile Include="..\private\PreviewShotTable.cpp">
       <Filter>96. Manager</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\PreviewCamera.cpp">
+      <Filter>02.GameObject\Camera\Preview</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\UIPreviewManager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">

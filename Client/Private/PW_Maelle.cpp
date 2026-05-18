@@ -35,7 +35,7 @@ HRESULT PW_Maelle::Initialize(void* arg)
     auto skilltreeCom = Get_Component<SkillTreeCom>();
 
     skilltreeCom->TryUnlock("OffensiveSwitch");
-    skilltreeCom->TryUnlock("Assault");
+    skilltreeCom->TryUnlock("Percee");
     skilltreeCom->TryUnlock("Spark");
 
     return S_OK;

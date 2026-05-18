@@ -13,18 +13,45 @@
 #include "PreviewCamera.h"
 #include "UI_Base.h"
 
-static const char* Get_HeroPrefabName(HeroId heroId)
+//static const char* Get_HeroPrefabName(HeroId heroId)
+//{
+//    switch (heroId)
+//    {
+//    case HeroId::Gustave:
+//        return Constants::Prefab::PW_Gustave; // 월드 프리팹 이름은 공용 상수로 맞춘다.
+//    case HeroId::Lune:
+//        return Constants::Prefab::PW_Lune; // 스킬트리 미리보기 스폰도 실제 prefab 파일명과 같은 값을 사용한다.
+//    case HeroId::Maelle:
+//        return Constants::Prefab::PW_Maelle; // 이름 변경 시 호출부 문자열이 흩어지지 않게 한다.
+//    default:
+//        return "";
+//    }
+//}
+
+namespace
 {
-    switch (heroId)
+    constexpr HeroId characterStatusOrder[] =
     {
-    case HeroId::Gustave:
-        return Constants::Prefab::PW_Gustave; // 월드 프리팹 이름은 공용 상수로 맞춘다.
-    case HeroId::Lune:
-        return Constants::Prefab::PW_Lune; // 스킬트리 미리보기 스폰도 실제 prefab 파일명과 같은 값을 사용한다.
-    case HeroId::Maelle:
-        return Constants::Prefab::PW_Maelle; // 이름 변경 시 호출부 문자열이 흩어지지 않게 한다.
-    default:
-        return "";
+        HeroId::Lune,
+        HeroId::Gustave,
+        HeroId::Maelle,
+    };
+
+    uint32 Get_CharacterStatusIndex(HeroId heroId)
+    {
+        for(uint32 i = 0; i < _countof(characterStatusOrder); ++i)
+        {
+            if(characterStatusOrder[i] == heroId)
+                return i;
+        }
+        return 0;
+    }
+
+    HeroId Get_SelectedCharacterStatusHeroId(uint32 selectedHeroIndex)
+    {
+        if(selectedHeroIndex >= _countof(characterStatusOrder))
+            return HeroId::Gustave;
+        return  characterStatusOrder[selectedHeroIndex];
     }
 }
 
@@ -57,7 +84,7 @@ HRESULT SkillTree_Panel::Initialize(uint32 levelIndex)
     Set_SkillPoint();
 
     _baseSize = _currentView->skillNodes.front().image->Get_Transform()->Get_Scale();
-    _hoveredSize = _baseSize * 1.2f;
+    _hoveredSize = _baseSize * 1.4f;
     Close();
 
     return S_OK;
@@ -70,7 +97,7 @@ void SkillTree_Panel::Update(float timeDelta)
 
    Handle_SelectionInput();
    Update_UI();
-   Update_StatusPreviewHeroes(timeDelta);
+  // Update_StatusPreviewHeroes(timeDelta);
 }
 
 void SkillTree_Panel::Open()
@@ -84,10 +111,11 @@ void SkillTree_Panel::Open()
     //선택된 캐릭터 ui 확대
     _currentView->characterSelectUI->Get_Transform()->Set_Scale(_hoveredSize);
 
-    CHECK_FAILED(Spawn_StatusPreviewHeroes());
-    CHECK_FAILED(Ready_StatusPreviewCamera());
+    CLIENT->Begin_Preview(PreviewShotTable::PreviewShotPanel::SkillTree);
 
-    Activate_StatusPreviewCamera();
+    auto previewLayout  = Build_PreviewLayout();
+    CLIENT->Apply_PreviewLayout(previewLayout);
+    CLIENT->Show_Preview(Get_SelectedCharacterStatusHeroId(_selectedHeroIndex),PreviewShotTable::PreviewShotPanel::SkillTree);
 
     // 마우스 잠금
     GAME->Unlock_Mouse();
@@ -132,12 +160,10 @@ void SkillTree_Panel::Close()
 
         
         _viewByPlayerId[static_cast<HeroId>(i)].characterSheet->Close();
-       
 
     }
 
-    Restore_PreviousCamera();
-    Clear_StatusPreviewHeroes();
+    CLIENT->Hide_Preview();
 
     GAME->Set_GameplayPaused(false);
     GAME->Lock_Mouse();
@@ -177,6 +203,10 @@ void SkillTree_Panel::Handle_SelectionInput()
         Change_ToSelectedViewState();
         Set_SkillPoint();
         Refresh_CombatStats();
+
+  /*      auto previewLayout = Build_PreviewLayout();
+        CLIENT->Apply_PreviewLayout(previewLayout);*/
+        CLIENT->Show_Preview(Get_SelectedCharacterStatusHeroId(_selectedHeroIndex), PreviewShotTable::PreviewShotPanel::SkillTree);
     }
 }
 
@@ -607,13 +637,14 @@ void SkillTree_Panel::Update_UI()
 void SkillTree_Panel::Refresh_CharacterSelectUI()
 {
     static const Vec2 selectedScale = Vec2(1.4f, 1.4f);
-    static const Vec2 norrmalScale = Vec2(1.f, 1.f);
+    static const Vec2 normalScale = Vec2(1.f, 1.f);
 
     for(auto i = 0 ; i < static_cast<int>(HeroId::END) ; i++)
     {
-        const auto& selectedUI = _viewByPlayerId[static_cast<HeroId>(i)].characterSelectUI;
+        HeroId heroId = characterStatusOrder[i];
+        const auto& selectedUI = _viewByPlayerId[heroId].characterSelectUI;
         const bool isSelected = (i == _selectedHeroIndex);
-        const Vec2 targetScale = isSelected ? selectedScale : norrmalScale;
+        const Vec2 targetScale = isSelected ? selectedScale : normalScale;
 
         if(selectedUI->Get_Transform() != nullptr)
         {
@@ -690,148 +721,36 @@ void SkillTree_Panel::Change_ToSelectedViewState()
     if(_currentView->characterSheet)
         _currentView->characterSheet->Close();
 
-    _currentView = &_viewByPlayerId[static_cast<HeroId>(_selectedHeroIndex)];
+    _currentView = &_viewByPlayerId[Get_SelectedCharacterStatusHeroId(_selectedHeroIndex)];
 }
 
-HRESULT SkillTree_Panel::Spawn_StatusPreviewHeroes()
-{
-    Clear_StatusPreviewHeroes();
-   
-    const vector<HeroPartyEntry>& partyEntries = CLIENT->Get_HeroEntries();
-    if (partyEntries.empty())
-        return S_OK;
-   
-    const uint32 count = min<uint32>(3, static_cast<uint32>(partyEntries.size()));
-   
-    _previewHeroes.reserve(count);
-   
-    for (uint32 i = 0; i < count; ++i)
-    {
-        const HeroPartyEntry& entry = partyEntries[i];
-   
-        string prefabName = entry.hero ? entry.hero->Get_SourcePrefabName() : string{};
-   
-        if (prefabName.empty())
-            prefabName = Get_HeroPrefabName(entry.heroId);
-   
-        auto object = Spawn_Prefab::Prefab(prefabName)
-            .AtLevel(_levelIndex)
-            .InLayer(_previewLayerTag)
-            .Spawn();
-   
-        auto previewPlayer = dynamic_pointer_cast<Player_WorldBase>(object);
-        CHECK_NULL(previewPlayer, E_FAIL);
-   
-        _previewHeroes.push_back(StatusPreviewHero{ previewPlayer });
-    }
-   
-    Layout_StatusPreviewHeroes();
-   
-    return S_OK;
-}
-
-void SkillTree_Panel::Clear_StatusPreviewHeroes()
-{
-    for(StatusPreviewHero& entry : _previewHeroes)
-    {
-        if(entry.player)
-        {
-            GAME->Remove_GameObject(_levelIndex, entry.player);
-        }
-    }
-    _previewHeroes.clear();
-}
-
-void SkillTree_Panel::Update_StatusPreviewHeroes(float timeDelta)
-{
-    for(StatusPreviewHero& entry : _previewHeroes)
-    {
-        if(entry.player)
-            entry.player->Update_StatusPreview(timeDelta);
-    }
-}
-
-void SkillTree_Panel::Layout_StatusPreviewHeroes()
+vector<UIPreviewManager::PreviewSlotDesc> SkillTree_Panel::Build_PreviewLayout()
 {
     static const Vec3 positions[] =
-        {
-            Vec3(-1.1f, 0.f, -0.1f),
-            Vec3(0.0f,  0.f, 0.f),
-            Vec3(1.1f,  0.f, -0.1f)
-        };
+    {
+        Vec3(-1.1f, 0.f, -0.1f),
+        Vec3(0.0f,  0.f, 0.f),
+        Vec3(1.1f,  0.f, -0.1f),
+    };
 
     static const Vec3 rotations[] =
-{
+    {
         Vec3(0.f, 0.f, -0.1f),
         Vec3(0.f, 0.f, 0.f),
         Vec3(0.f, 0.f, -0.1f),
     };
 
-    const uint32 count = min<uint32>(static_cast<uint32>(_previewHeroes.size()), 3);
-    
-    for(uint32 i =0; i < count; ++i)
+    vector<UIPreviewManager::PreviewSlotDesc> layout;
+    layout.reserve(_countof(characterStatusOrder));
+
+    for (uint32 i = 0; i < _countof(characterStatusOrder); ++i)
     {
-        Shared<Player_WorldBase> player = _previewHeroes[i].player;
-
-        if(player == nullptr || player->Get_Transform() == nullptr)
-            continue;
-
-        player->Get_Transform()->Set_WorldPosition(positions[i]);
-        player->Get_Transform()->Set_WorldRotationEuler(rotations[i]);
+        layout.push_back({ characterStatusOrder[i], positions[i], rotations[i] });
     }
+
+    return layout;
 }
 
-HRESULT SkillTree_Panel::Ready_StatusPreviewCamera()
-{
-    if (_previewCamera)
-        return S_OK;
-   
-    PreviewCamera::Preview_CameraDesc desc{};
-    desc.eye = Vec4(0.f, 1.45f, 6.f, 1.f);
-    desc.at = Vec4(0.f, 1.05f, 0.f, 1.f);
-    desc.fovy = XMConvertToRadians(30.f);
-    desc.nearPlane = 0.1f;
-    desc.farPlane = 100.f;
-    desc.mouseSensor = 0.f;
-    desc.mouseSensitivity = 0.f;
-   
-    Shared<GameObject> cameraObject = nullptr;
-   
-    CHECK_FAILED(
-        GAME->Add_GameObject(
-            ETOI(LevelType::Static),
-            TEXT("GameObject_PreviewCamera"),
-            _levelIndex,
-            _previewLayerTag,
-            cameraObject,
-            &desc),
-        E_FAIL);
-   
-    _previewCamera = dynamic_pointer_cast<PreviewCamera>(cameraObject);
-    CHECK_NULL(_previewCamera, E_FAIL);
-   
-    _previewCamera->Try_BeginPlay();
-   
-    return S_OK;
-}
-void SkillTree_Panel::Activate_StatusPreviewCamera()
-{
-    if(_previewCamera == nullptr)
-        return;
-
-    _previousCamera = GAME->Get_ActiveCamera();
-
-    GAME->Change_ActiveCamera(_previewCamera);
-    _previewCamera->Apply_View();
-}
-
-void SkillTree_Panel::Restore_PreviousCamera()
-{
-    if (_previousCamera)
-        GAME->Change_ActiveCamera(_previousCamera);
-
-    _previousCamera.reset();
-}
 
 Unique<SkillTree_Panel> SkillTree_Panel::Create(uint32 levelIndex)
 {
@@ -849,8 +768,5 @@ Unique<SkillTree_Panel> SkillTree_Panel::Create(uint32 levelIndex)
 
 void SkillTree_Panel::Free()
 {
-    Restore_PreviousCamera();
-    Clear_StatusPreviewHeroes();
-
     __super::Free();
 }

@@ -1,9 +1,10 @@
 ﻿#pragma once
 #include "Base.h"
 #include "Client_Defines.h"
+#include "UIPreviewManager.h"
 
 NS_BEGIN(Engine)
-class UI_Base;
+    class UI_Base;
 class UI_Text;
 class UI_Button;
 class UI_Image;
@@ -126,16 +127,19 @@ private:
 private:
     void    Change_ToSelectedViewState();
 
-private:
-    HRESULT Spawn_StatusPreviewHeroes();
-    void    Clear_StatusPreviewHeroes();
-
-    void    Update_StatusPreviewHeroes(float timeDelta);
-    void    Layout_StatusPreviewHeroes();
-
-    HRESULT Ready_StatusPreviewCamera();
-    void    Activate_StatusPreviewCamera();
-    void    Restore_PreviousCamera();
+//private:
+//    HRESULT Spawn_StatusPreviewHeroes();
+//    void    Clear_StatusPreviewHeroes();
+//
+//    void    Update_StatusPreviewHeroes(float timeDelta);
+//    void    Layout_StatusPreviewHeroes();
+//
+//    HRESULT Ready_StatusPreviewCamera();
+//    void    Activate_StatusPreviewCamera();
+//    void    Restore_PreviousCamera();
+//
+public:
+    vector<UIPreviewManager::PreviewSlotDesc> Build_PreviewLayout();
 
 private:
     struct StatusPreviewHero
@@ -148,10 +152,10 @@ private:
     uint32                                   _selectedHeroIndex = static_cast<int>(HeroId::Lune);
     bool                                     _isOpen = false;
 
-    vector<StatusPreviewHero>                _previewHeroes{};
-    wstring                                  _previewLayerTag = L"Layer_CharacterStatusPreview";
-    Shared<Camera>                           _previousCamera{};
-    Shared<PreviewCamera>                    _previewCamera{};
+    //vector<StatusPreviewHero>                _previewHeroes{};
+   // wstring                                  _previewLayerTag = L"Layer_CharacterStatusPreview";
+    //Shared<Camera>                           _previousCamera{};
+    //Shared<PreviewCamera>                    _previewCamera{};
     Shared<UI_Base>                          _skillpointUI;
     Shared<UI_Base>                          _backgroundUI;
     umap<wstring, Shared<UI_Base>>           _backgroundUIs;

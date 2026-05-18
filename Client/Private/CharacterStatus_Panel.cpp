@@ -5,24 +5,37 @@
 #include "GameInstance.h"
 #include "Player_WorldBase.h"
 #include "PlayerStatCom.h"
-#include "Spawn_Prefab.h"
 #include "UI_Base.h"
 #include "UI_RuntimeLoader.h"
 #include "UI_Text.h"
-#include "PreviewCamera.h"
+#include "UIPreviewManager.h"
 
-static const char* Get_HeroPrefabName(HeroId heroId)
+namespace
 {
-    switch (heroId)
+    constexpr HeroId characterStatusOrder[] =
     {
-    case HeroId::Gustave:
-        return Constants::Prefab::PW_Gustave; // 월드 프리팹 이름은 공용 상수로 맞춘다.
-    case HeroId::Lune:
-        return Constants::Prefab::PW_Lune; // UI 미리보기 스폰도 실제 prefab 파일명과 같은 값을 사용한다.
-    case HeroId::Maelle:
-        return Constants::Prefab::PW_Maelle; // 이름 변경 시 호출부 문자열이 흩어지지 않게 한다.
-    default:
-        return "";
+        HeroId::Lune,
+        HeroId::Gustave,
+        HeroId::Maelle,
+    };
+
+    HeroId Get_SelectedCharacterStatusHeroId(uint32 selectedHeroIndex)
+    {
+        if (selectedHeroIndex >= _countof(characterStatusOrder))
+            return HeroId::Gustave;
+
+        return characterStatusOrder[selectedHeroIndex];
+    }
+
+    uint32 Get_CharacterStatusIndex(HeroId heroId)
+    {
+        for (uint32 i = 0; i < _countof(characterStatusOrder); ++i)
+        {
+            if (characterStatusOrder[i] == heroId)
+                return i;
+        }
+
+        return 0;
     }
 }
 
@@ -40,14 +53,12 @@ HRESULT CharacterStatus_Panel::Initialize(uint32 levelIndex)
 
 void CharacterStatus_Panel::Update(float timeDelta)
 {
+    UNREFERENCED_PARAMETER(timeDelta);
+
     if (!_isOpen)
         return;
 
     Handle_SelectionInput();
-    Update_StatusPreviewHeroes(timeDelta);
-
-    if(_statusPreviewCamera)
-        _statusPreviewCamera->Update(timeDelta);
 }
 
 void CharacterStatus_Panel::Open()
@@ -57,18 +68,18 @@ void CharacterStatus_Panel::Open()
     if (_root)
         _root->Open();
 
-    // CharacterStatus는 열 때마다, Hero Manager에서 Active Hero 기준으로 시작
-    _selectedHeroIndex = static_cast<uint32>(CLIENT->Get_ActiveHeroSlot());
+    const HeroId activeHeroId = CLIENT->Get_HeroId(CLIENT->Get_ActiveHeroSlot());
+    _selectedHeroIndex = Get_CharacterStatusIndex(activeHeroId);
 
-    CHECK_FAILED(Spawn_StatusPreviewHeroes());
-    CHECK_FAILED(Ready_StatusPreviewCamera());
+    CLIENT->Begin_Preview(PreviewShotTable::PreviewShotPanel::CharacterStatus);
 
-    Layout_StatusPreviewHeroes();
+    auto previewLayout = Build_PreviewLayout();
+    CLIENT->Apply_PreviewLayout(previewLayout);
+    CLIENT->Show_Preview(Get_SelectedCharacterStatusHeroId(_selectedHeroIndex), PreviewShotTable::PreviewShotPanel::CharacterStatus);
+
     Refresh_CombatStats();
     Refresh_CharacterSelectUI();
-    Activate_StatusPreviewCamera();
 
-    // 마우스 잠금
     GAME->Unlock_Mouse();
     GAME->Set_GameplayPaused(true);
 }
@@ -80,8 +91,7 @@ void CharacterStatus_Panel::Close()
     if (_root)
         _root->Close();
 
-    Restore_PreviousCamera();
-    Clear_StatusPreviewHeroes();
+    CLIENT->Hide_Preview();
 
     GAME->Set_GameplayPaused(false);
     GAME->Lock_Mouse();
@@ -115,10 +125,12 @@ void CharacterStatus_Panel::Handle_SelectionInput()
 
     if (previousIndex != _selectedHeroIndex)
     {
-        // TODO : 카메라 담당 -> Update Camera
         Refresh_CombatStats();
         Refresh_CharacterSelectUI();
-        Layout_StatusPreviewHeroes();
+
+        auto previewLayout = Build_PreviewLayout();
+        CLIENT->Apply_PreviewLayout(previewLayout);
+        CLIENT->Show_Preview(Get_SelectedCharacterStatusHeroId(_selectedHeroIndex), PreviewShotTable::PreviewShotPanel::CharacterStatus);
     }
 }
 
@@ -191,7 +203,7 @@ HRESULT CharacterStatus_Panel::Bind_UI()
 
 void CharacterStatus_Panel::Refresh_CombatStats()
 {
-    Shared<Player_WorldBase> player = CLIENT->Get_Hero(static_cast<HeroPartySlot>(_selectedHeroIndex));
+    Shared<Player_WorldBase> player = CLIENT->Find_Hero(Get_SelectedCharacterStatusHeroId(_selectedHeroIndex));
     CHECK_NULL(player);
 
     Shared<PlayerStatCom> playerStat = player->Get_Component<PlayerStatCom>();
@@ -299,69 +311,8 @@ void CharacterStatus_Panel::Set_HpText(const Shared<UI_Text>& text, float hp, fl
     text->Set_Text(to_wstring(hpValue) + L" / " + to_wstring(maxHpValue));
 }
 
-HRESULT CharacterStatus_Panel::Spawn_StatusPreviewHeroes()
+vector<UIPreviewManager::PreviewSlotDesc> CharacterStatus_Panel::Build_PreviewLayout()
 {
-    // 기존에 있다면 삭제
-    Clear_StatusPreviewHeroes();
-
-    const vector<HeroPartyEntry>& partyEntries = CLIENT->Get_HeroEntries();
-    if (partyEntries.empty())
-        return S_OK;
-
-    const uint32 count = min<uint32>(3, static_cast<uint32>(partyEntries.size()));
-
-    _previewHeroes.reserve(count);
-
-    for (uint32 i = 0; i < count; ++i)
-    {
-        const HeroPartyEntry& entry = partyEntries[i];
-
-        string prefabName = entry.hero ? entry.hero->Get_SourcePrefabName() : string{};
-
-        if (prefabName.empty())
-            prefabName = Get_HeroPrefabName(entry.heroId);
-
-        auto object = Spawn_Prefab::Prefab(prefabName)
-            .AtLevel(_levelIndex)
-            .InLayer(_previewLayerTag)
-            .Spawn();
-
-        auto previewPlayer = dynamic_pointer_cast<Player_WorldBase>(object);
-        CHECK_NULL(previewPlayer, E_FAIL);
-
-        _previewHeroes.push_back(StatusPreviewHero{ previewPlayer });
-    }
-
-    Layout_StatusPreviewHeroes();
-
-    return S_OK;
-}
-
-void CharacterStatus_Panel::Clear_StatusPreviewHeroes()
-{
-    for (StatusPreviewHero& entry : _previewHeroes)
-    {
-        if (entry.player)
-        {
-            GAME->Remove_GameObject(_levelIndex, entry.player);
-        }
-    }
-
-    _previewHeroes.clear();
-}
-
-void CharacterStatus_Panel::Update_StatusPreviewHeroes(float timeDelta)
-{
-    for (StatusPreviewHero& entry : _previewHeroes)
-    {
-        if (entry.player)
-            entry.player->Update_StatusPreview(timeDelta);
-    }
-}
-
-void CharacterStatus_Panel::Layout_StatusPreviewHeroes()
-{
-    // 프리뷰 플레이어 초기 위치 세팅
     static const Vec3 positions[] =
     {
         Vec3(-1.1f, 0.f, -0.1f),
@@ -376,107 +327,15 @@ void CharacterStatus_Panel::Layout_StatusPreviewHeroes()
         Vec3(0.f, 0.f, -0.1f),
     };
 
-    // 선택된 hero 가운데 배치, 양 옆은 순환 인덱스
-  //  const uint32 leftIndex   = Get_WrappedPartyIndex(static_cast<int32>(_selectedHeroIndex) - 1);
-  //  const uint32 centerIndex = _selectedHeroIndex;
-  //  const uint32 rightIndex  = Get_WrappedPartyIndex(static_cast<int32>(_selectedHeroIndex) + 1);
-  //
-  //  if(_statusPreviewCamera)
-  //  _statusPreviewCamera->Set_TargetTransform(_previewHeroes[_selectedHeroIndex].player->Get_Transform());
-  //
-  // const uint32 orderedIndices[3] = { leftIndex, centerIndex, rightIndex };
-  // 
-  // for (uint32 i = 0; i < 3; ++i)
-  // {
-  //     Shared<Player_WorldBase> player = _previewHeroes[orderedIndices[i]].player;
-  //     if (player == nullptr || player->Get_Transform() == nullptr)
-  //         continue;
-  // 
-  //     player->Get_Transform()->Set_WorldPosition(positions[i]);
-  //     player->Get_Transform()->Set_WorldRotationEuler(rotations[i]);
-  // }
+    vector<UIPreviewManager::PreviewSlotDesc> layout;
+    layout.reserve(_countof(characterStatusOrder));
 
-    static constexpr HeroId characterStatusOrder[] =
+    for (uint32 i = 0; i < _countof(characterStatusOrder); ++i)
     {
-        HeroId::Lune,
-        HeroId::Gustave,
-        HeroId::Maelle,
-
-    };
-
-    if(_statusPreviewCamera)
-    {
-        _statusPreviewCamera->Set_TargetTransform(_previewHeroes[static_cast<int>(characterStatusOrder[_selectedHeroIndex])].player->Get_Transform());
-        auto preset = CLIENT->Get_Preset(static_cast<HeroId>(static_cast<int>(characterStatusOrder[_selectedHeroIndex])), PreviewShotTable::PreviewShotPanel::CharacterStatus);
-        _statusPreviewCamera->Set_Preset(preset);
+        layout.push_back({ characterStatusOrder[i], positions[i], rotations[i] });
     }
-    
-    for (uint32 i = 0; i < 3; ++i)
-    {
-        Shared<Player_WorldBase> player = _previewHeroes[static_cast<int>(characterStatusOrder[i])].player;
-        if (player == nullptr || player->Get_Transform() == nullptr)
-            continue;
- 
-        player->Get_Transform()->Set_WorldPosition(positions[i]);
-        player->Get_Transform()->Set_WorldRotationEuler(rotations[i]);
-    }
-}
 
-HRESULT CharacterStatus_Panel::Ready_StatusPreviewCamera()
-{
-    if (_statusPreviewCamera)
-        return S_OK;
-
-    PreviewCamera::Preview_CameraDesc desc{};
-    desc.eye = Vec4(0.f, 1.45f, 16.f, 1.f);
-    desc.at = Vec4(0.f, 1.05f, 0.f, 1.f);
-    desc.fovy = XMConvertToRadians(30.f);
-    desc.nearPlane = 0.1f;
-    desc.farPlane = 100.f;
-    desc.mouseSensor = 0.f;
-    desc.mouseSensitivity = 0.f;
-    desc.lookOffset = Vec3(0.f, 2.f, 0.f);
-    desc.distance = 5.f;
-    desc.followSpeed = 3.f;
-
-    Shared<GameObject> cameraObject = nullptr;
-
-    CHECK_FAILED(
-        GAME->Add_GameObject(
-            ETOI(LevelType::Static),
-            TEXT("GameObject_PreviewCamera"),
-            _levelIndex,
-            _previewLayerTag,
-            cameraObject,
-            &desc),
-        E_FAIL);
-
-    _statusPreviewCamera = dynamic_pointer_cast<PreviewCamera>(cameraObject);
-    CHECK_NULL(_statusPreviewCamera, E_FAIL);
-
-    _statusPreviewCamera->Try_BeginPlay();
-
-    return S_OK;
-}
-
-void CharacterStatus_Panel::Activate_StatusPreviewCamera()
-{
-    if (_statusPreviewCamera == nullptr)
-        return;
-
-    _previousCamera = GAME->Get_ActiveCamera();
-
-    GAME->Change_ActiveCamera(_statusPreviewCamera);
-    _statusPreviewCamera->Apply_View();
-}
-
-void CharacterStatus_Panel::Restore_PreviousCamera()
-{
-    // 원래 카메라로 돌아가기 -> Lerp 값이있다면, 여기서는 수치조절해서 바로 되게 해야할듯
-    if (_previousCamera)
-        GAME->Change_ActiveCamera(_previousCamera);
-
-    _previousCamera.reset();
+    return layout;
 }
 
 Unique<CharacterStatus_Panel> CharacterStatus_Panel::Create(uint32 levelIndex)
@@ -495,8 +354,8 @@ Unique<CharacterStatus_Panel> CharacterStatus_Panel::Create(uint32 levelIndex)
 
 void CharacterStatus_Panel::Free()
 {
-    Restore_PreviousCamera();
-    Clear_StatusPreviewHeroes();
+    if (_isOpen)
+        CLIENT->Hide_Preview();
 
     if (_root)
         _root->Close();

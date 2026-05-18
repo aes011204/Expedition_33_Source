@@ -2,17 +2,15 @@
 
 #include "Base.h"
 #include "Client_Defines.h"
+#include "UIPreviewManager.h"
 
 NS_BEGIN(Engine)
 class UI_Base;
 class UI_Text;
-class Camera;
 NS_END
 
 NS_BEGIN(Client)
-
 class Player_WorldBase;
-class PreviewCamera;
 
 // UI_Panel 렌더 객체가 아니라,
 // UI_CharacterStatus.json으로 생성된 패널 트리를 제어하는 컨트롤러.
@@ -65,26 +63,7 @@ private:
     static void Set_HpText(const Shared<UI_Text>& text, float hp, float maxHp);
 
 private:
-    HRESULT Spawn_StatusPreviewHeroes();
-    void    Clear_StatusPreviewHeroes();
-
-    void    Update_StatusPreviewHeroes(float timeDelta);
-    void    Layout_StatusPreviewHeroes();
-
-    HRESULT Ready_StatusPreviewCamera();
-    void    Activate_StatusPreviewCamera();
-    void    Restore_PreviousCamera();
-
-private:
-    struct StatusPreviewHero
-    {
-        Shared<Player_WorldBase> player{};
-
-        // 
-    };
-
-    vector<StatusPreviewHero> _previewHeroes{};
-    wstring _previewLayerTag = L"Layer_CharacterStatusPreview";
+    vector<UIPreviewManager::PreviewSlotDesc>  Build_PreviewLayout();
 
 private:
     uint32 _selectedHeroIndex = 0;
@@ -93,10 +72,6 @@ private:
     bool _isOpen = false;
 
     umap<wstring, Shared<UI_Base>> _uiByName{};
-
-    // 원래 게임 카메라로 돌아가기 위한 저장용
-    Shared<Camera>          _previousCamera{};      
-    Shared<PreviewCamera>   _statusPreviewCamera{};
 
     // UI
     Shared<UI_Base> _root{};
