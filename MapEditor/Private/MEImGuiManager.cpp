@@ -134,6 +134,7 @@ Shared<Engine::RenderTarget> MEImGuiManager::Prepare_SharedViewportRenderTarget(
     if (!_sharedViewportRenderTarget)
     {
         _sharedViewportRenderTarget = RenderTarget::Create(
+            L"RenderTarget",
             _device, _context, width, height,
             DXGI_FORMAT_R8G8B8A8_UNORM, Vec4(0.f, 0.f, 0.f, 1.f));
     }

@@ -891,6 +891,7 @@ void Prefab_View::Ensure_PreviewRenderTarget(uint32 width, uint32 height)
     if (_previewRenderTarget == nullptr)
     {
         _previewRenderTarget = RenderTarget::Create(
+            L"RenderTarget",
             GAME->Get_Device(),
             GAME->Get_Context(),
             width,

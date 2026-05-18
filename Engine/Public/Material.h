@@ -58,7 +58,8 @@ public:
         return _cb;
     }
     uint32                      Get_PassIndex();
-
+    int32                       Get_ForcedPassIndex() const { return _forcedPassIndex; }
+    
     void Set_TemplateId(MaterialShaderTemplate templateId) { _templateId = templateId; }
     void Set_RenderState(const MaterialRenderState& renderState);
     void Set_CB(const MaterialCB& cb);

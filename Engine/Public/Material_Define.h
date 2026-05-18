@@ -107,6 +107,7 @@ struct MaterialInstanceOverride
 
     MaterialCBOverrideMask cbMask{};
     MaterialCB cb{};
+    int32 forcedPassIndex = -1;
 
     TextureOverride baseColor{};
     TextureOverride normal{};

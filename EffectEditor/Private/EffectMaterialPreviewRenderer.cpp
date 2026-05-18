@@ -158,6 +158,7 @@ bool EffectMaterialPreviewRenderer::Ready_RenderTarget()
         return true;
 
     _renderTarget = RenderTarget::Create(
+        L"RenderTarget",
         EDITOR->Get_Device(),
         EDITOR->Get_Context(),
         _previewTextureWidth,
