@@ -116,7 +116,7 @@ json GameObject::To_Json() const
 
 void GameObject::From_Json(const json& data)
 {
-    _sourcePrefabName = data.value("source_prefab", string{});
+    Set_SourcePrefabName(data.value("source_prefab", string{}));
 
     auto& info = Get_ReflectionInfo();
 

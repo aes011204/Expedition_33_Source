@@ -110,10 +110,14 @@
       <Filter>01. View</Filter>
       <Filter>01. View</Filter>
     </ClCompile>
-    <ClCompile Include="..\private\Cinematic_Tool.cpp" />
-    <ClCompile Include="PostProcess_View.cpp" />
     <ClCompile Include="..\Private\EditorPickingSystem.cpp">
       <Filter>03. System\PickingSystem</Filter>
+    </ClCompile>
+    <ClCompile Include="PostProcess_View.cpp">
+      <Filter>01. View</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\Cinematic_Tool.cpp">
+      <Filter>01. View</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -235,12 +239,20 @@
       <Filter>01. View</Filter>
       <Filter>01. View</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\Animation_View.h" />
-    <ClInclude Include="..\Public\AnimSequencerAdapter.h" />
-    <ClInclude Include="..\Public\Console_View.h" />
-    <ClInclude Include="PostProcess_View.h" />
     <ClInclude Include="..\Public\EditorPickingSystem.h">
       <Filter>03. System\PickingSystem</Filter>
+    </ClInclude>
+    <ClInclude Include="PostProcess_View.h">
+      <Filter>01. View</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Console_View.h">
+      <Filter>01. View</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Animation_View.h">
+      <Filter>01. View</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\AnimSequencerAdapter.h">
+      <Filter>97. Utils</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

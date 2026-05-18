@@ -34,7 +34,6 @@ public:
 	virtual HRESULT Render() override;
     virtual HRESULT Render_Shadow() override;
 
-
 private:
 	Shared<ShaderCom>    _shader = { nullptr };
 	Shared<ModelCom>     _model = { nullptr };

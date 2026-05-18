@@ -36,6 +36,7 @@
 #include <mutex>
 #include <queue>
 #include <system_error>
+#include <type_traits>
 
 #pragma warning(disable : 4251 4275)
 

@@ -39,6 +39,7 @@ private:
     static void Draw_AnimationSection(const Shared<Engine::ModelCom>& model);
 
 public:
+    static void Clear_TexturePreviewCache();
     static Shared<ModelCom_Inspector> Create();
 };
 

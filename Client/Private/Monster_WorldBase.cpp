@@ -31,6 +31,14 @@ HRESULT Monster_WorldBase::Initialize(void* arg)
     return S_OK;
 }
 
+void Monster_WorldBase::BeginPlay()
+{
+    Character_WorldBase::BeginPlay();
+
+    if (!_editorStopHandle.IsValid())
+        _editorStopHandle = GAME->Get_DelegateHub().OnEditorStopRuntime.Add(this, &Monster_WorldBase::On_EditorStopRuntime);
+}
+
 void Monster_WorldBase::Update(float timeDelta)
 {
 	if (CLIENT->Is_BattleActive())
@@ -102,6 +110,17 @@ void Monster_WorldBase::OnBeginOverlap(Shared<ColliderCom> self, Shared<Collider
     CLIENT->OnEnterBattleField(1, true, heroes, battleMonsterPrefabNames);
 }
 
+void Monster_WorldBase::On_EditorStopRuntime()
+{
+    _isBattleStart = false;
+
+    if (_colliderCom)
+    {
+        _colliderCom->Set_IsActive(true);
+        _colliderCom->Clear_Overlap();
+    }
+}
+
 HRESULT Monster_WorldBase::Ready_Components()
 {
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_AIController"), _aiCtrl), E_FAIL);
@@ -120,6 +139,12 @@ HRESULT Monster_WorldBase::Ready_Components()
 
 void Monster_WorldBase::Free()
 {
+    if (_editorStopHandle.IsValid())
+    {
+        GAME->Get_DelegateHub().OnEditorStopRuntime.Remove(_editorStopHandle);
+        _editorStopHandle.Reset();
+    }
+
     Character_WorldBase::Free();
 
 }

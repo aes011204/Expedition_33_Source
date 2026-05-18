@@ -45,24 +45,17 @@ void Level_Loading::Update(float fTimeDelta)
     CHECK_FAILED(_loader->Process_PendingLoadJobs(8, 2, chrono::milliseconds(3)));
 
 #ifdef _DEBUG
-    // 퍼센트 디버깅용
-    const float progress = _loader->Get_Progress();
-
     if (_loader->isFinished() && !_printedLoadCompleteLog)
     {
         const auto elapsed = chrono::duration_cast<chrono::milliseconds>(
             chrono::steady_clock::now() - _loadingStartTime);
 
         LOG_DEBUG(
-            "[Level_Loading::Update] progress={:.2f}%%, totalLoadingTime={:.1f}seconds",
-            progress * 100.f,
+            "[Level_Loading::Summary] nextLevel={}, totalLoadingTime={:.1f} seconds",
+            string(magic_enum::enum_name(_nextLevel)),
             static_cast<float>(elapsed.count()) / 1000.f);
 
         _printedLoadCompleteLog = true;
-    }
-    else
-    {
-        LOG_INFO("[Level_Loading::Update] progress={:.2f}%%", progress * 100.f);
     }
 #endif
 

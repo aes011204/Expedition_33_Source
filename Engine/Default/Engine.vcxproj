@@ -207,6 +207,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClInclude Include="..\Public\Camera_Manager.h" />
     <ClInclude Include="..\Public\Character.h" />
     <ClInclude Include="..\Public\ColliderCom.h" />
+    <ClInclude Include="..\Public\CollisionProxy_Types.h" />
     <ClInclude Include="..\Public\Collision_Manager.h" />
     <ClInclude Include="..\Public\Collision_Define.h" />
     <ClInclude Include="..\Public\Composite.h" />
@@ -214,6 +215,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClInclude Include="..\Public\ComputeStructuredBuffer.h" />
     <ClInclude Include="..\Public\Culling_Manager.h" />
     <ClInclude Include="..\Public\Debug_Manager.h" />
+    <ClInclude Include="..\Public\Debug_Profile.h" />
     <ClInclude Include="..\Public\Debug_Types.h" />
     <ClInclude Include="..\Public\DebugDraw.h" />
     <ClInclude Include="..\Public\Decorator.h" />
@@ -225,6 +227,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClInclude Include="..\Public\EffectMaterial_Types.h" />
     <ClInclude Include="..\Public\EffectRuntime_Types.h" />
     <ClInclude Include="..\Public\Engine_Constants.h" />
+    <ClInclude Include="..\Public\EnumFlags.h" />
     <ClInclude Include="..\Public\Event_Bus.h" />
     <ClInclude Include="..\Public\Event_Manager.h" />
     <ClInclude Include="..\Public\Engine_Model_Struct.h" />
@@ -240,10 +243,12 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClInclude Include="..\Public\Material_Types.h" />
     <ClInclude Include="..\Public\MovementCom.h" />
     <ClInclude Include="..\public\Parallel.h" />
+    <ClInclude Include="..\Public\PhysicsCharacterController.h" />
     <ClInclude Include="..\Public\PhysX_Filter.h" />
     <ClInclude Include="..\Public\PhysX_Handle.h" />
     <ClInclude Include="..\Public\PhysX_Types.h" />
     <ClInclude Include="..\Public\Picking.h" />
+    <None Include="..\Public\PostProcessPipeline.h" />
     <ClInclude Include="..\Public\Print_Manager.h" />
     <ClInclude Include="..\Public\PathFollower.h" />
     <ClInclude Include="..\Public\Reflection_JsonUtil.h" />
@@ -251,6 +256,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClInclude Include="..\Public\PhysX_Manager.h" />
     <ClInclude Include="..\Public\Particle_Types.h" />
     <ClInclude Include="..\Public\Reflection_Types.h" />
+    <ClInclude Include="..\Public\Renderer_Define.h" />
     <ClInclude Include="..\Public\RenderTarget.h" />
     <ClInclude Include="..\Public\ShaderPassFinder.h" />
     <ClInclude Include="..\Public\Shader_CBuffer_Define.h" />
@@ -351,6 +357,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClCompile Include="..\Private\ComputeStructuredBuffer.cpp" />
     <ClCompile Include="..\Private\Culling_Manager.cpp" />
     <ClCompile Include="..\PRivate\Debug_Manager.cpp" />
+    <ClCompile Include="..\Private\Debug_Profile.cpp" />
     <ClCompile Include="..\Private\DebugDraw.cpp" />
     <ClCompile Include="..\Private\Decorator.cpp" />
     <ClCompile Include="..\Private\DelegateHub.cpp" />
@@ -363,9 +370,11 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClCompile Include="..\Private\MovementCom.cpp" />
     <ClCompile Include="..\private\Parallel.cpp" />
     <ClCompile Include="..\Private\PathFollower.cpp" />
+    <ClCompile Include="..\Private\PhysicsCharacterController.cpp" />
     <ClCompile Include="..\Private\PhysX_Filter.cpp" />
     <ClCompile Include="..\Private\PhysX_Manager.cpp" />
     <ClCompile Include="..\Private\Picking.cpp" />
+    <ClCompile Include="..\Private\PostProcessPipeline.cpp" />
     <ClCompile Include="..\Private\Print_Manager.cpp" />
     <ClCompile Include="..\Private\RenderTarget.cpp" />
     <ClCompile Include="..\Private\Shadow.cpp" />
@@ -459,6 +468,11 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Bin\ShaderFiles\Engine_Shader_Defines.hlsli" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\Bin\ShaderFiles\Engine_Shader_PostProcess.hlsl">
+      <FileType>Document</FileType>
+    </None>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

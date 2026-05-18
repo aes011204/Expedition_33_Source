@@ -100,5 +100,7 @@ unsigned int Safe_Release(T*& pInstance)
 
 #include "Helper_String.h"   // 문자열 처리 (string <-> wstring 변환 등)
 #include "Helper_Math.h"     // 수학 상수 및 함수
+#include "EnumFlags.h"      // enum 을 바로 flag로 사용하기
+
 
 #endif // Engine_Function_h__

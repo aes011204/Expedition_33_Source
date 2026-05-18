@@ -295,9 +295,9 @@ Vec3 Hero_Manager::Resolve_SnapPosition(const Shared<Player_WorldBase>& hero, co
     {
         const auto& moveDesc = movement->Get_MoveDesc();
 
-        skinWidth = moveDesc.skinWidth;         
-        groundSnapUp = moveDesc.groundSnapUp;       // 위에서부터 바닥 probe 시작
-        groundSnapDown = moveDesc.groundSnapDown;   // 아래로 탐색할 거리
+        skinWidth = moveDesc.sweep.skinWidth;         
+        groundSnapUp = moveDesc.sweep.groundSnapUp;       // 위에서부터 바닥 probe 시작
+        groundSnapDown = moveDesc.sweep.groundSnapDown;   // 아래로 탐색할 거리
     }
 
     Vec3 sweepTarget = desiredPos;
@@ -365,15 +365,20 @@ void Hero_Manager::Apply_ControlRoles()
         if (!controller)
             continue;
 
+        const bool isActive = (i == _activeIndex);
+        controller->Set_ControlEnabled(isActive);
+
         auto movement = hero->Get_Component<MovementCom>();
         if (movement)
         {
             movement->Clear_FollowMoveCommand();
             movement->Apply_Input({});
-        }
 
-        const bool isActive = (i == _activeIndex);
-        controller->Set_ControlEnabled(isActive);
+            if (isActive)
+                movement->Set_MoveBackend(MovementCom::MoveBackend::PhysXCCT);
+            else
+                movement->Set_MoveBackend(MovementCom::MoveBackend::Sweep);
+        }
 
         if (isActive)
             controller->Clear_FollowControl();

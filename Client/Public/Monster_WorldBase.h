@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "Character_WorldBase.h"
+#include "Delegate.h"
 
 NS_BEGIN(Engine)
 class AIController;
@@ -20,6 +21,7 @@ public:
 public:
     HRESULT Initialize_Prototype() override;
     HRESULT Initialize(void* arg) override;
+    void    BeginPlay() override;
     void    Update(float timeDelta) override;
     void    Late_Update(float timeDelta) override;
     HRESULT Render() override;
@@ -27,6 +29,7 @@ public:
 
 public:
     void            OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other) override;
+    void            On_EditorStopRuntime();
     virtual void    Set_BattleMonsterPrefabNames(vector<string>& outPrefabNames) const = 0;
 
 protected:
@@ -37,6 +40,7 @@ protected:
     Shared<MonsterStatCom>       _combatStat;
 
     bool                         _isBattleStart = false;
+    FDelegateHandle              _editorStopHandle = {};
 
 public:
     void Free() override;

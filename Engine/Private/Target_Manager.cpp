@@ -74,7 +74,7 @@ HRESULT Target_Manager::Bind_ShaderResource(Shared<ShaderCom> shader, const char
     return shader->Bind_SRV(constantName, renderTarget->Get_SRV());
 }
 
-HRESULT Target_Manager::Begin_MRT(const wstring& mrtTag, bool useDSV)
+HRESULT Target_Manager::Begin_MRT(const wstring& mrtTag, bool useDSV, bool clearRTV)
 {
     auto mrt = Find_MRT(mrtTag);
     CHECK_NULL(mrt, E_FAIL);
@@ -103,11 +103,14 @@ HRESULT Target_Manager::Begin_MRT(const wstring& mrtTag, bool useDSV)
         {
             if (desc.second.target == rt)
             {
-                rt->Clear_RenderTarget();
                 if (useDSV)
                 {
                     rt->Clear_DepthStencil();
                     dsv = rt->Get_DSV();
+                }
+                if (clearRTV)
+                {
+                    rt->Clear_RenderTarget();
                 }
                 break;
             }

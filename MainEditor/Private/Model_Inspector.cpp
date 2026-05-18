@@ -475,6 +475,12 @@ ID3D11ShaderResourceView* ModelCom_Inspector::Get_TexturePreviewSRV(const fs::pa
     return srv;
 }
 
+void ModelCom_Inspector::Clear_TexturePreviewCache()
+{
+    g_TexturePreviewCache.clear();
+    g_TextureSearchCache.clear();
+}
+
 ModelCom_Inspector::AnimPreviewState& ModelCom_Inspector::Get_AnimPreviewState(const Engine::ModelCom* model)
 {
     static umap<const ModelCom*, AnimPreviewState> s_AnimPreviewStates{};

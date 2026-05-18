@@ -1,5 +1,7 @@
 #include "Profile_View.h"
 
+#include "Debug_Profile.h"
+
 #include <cctype>
 #include <cstring>
 #include <psapi.h>
@@ -166,6 +168,16 @@ void Profile_View::Frame_End()
         ? 0.0
         : (runtime.frameWindowSum / static_cast<double>(runtime.frameWindow.size()));
     s_active->_fpsAvg = (s_active->_frameMsAvg > 0.0001) ? (1000.0 / s_active->_frameMsAvg) : 0.0;
+
+    vector<Engine::DebugProfileSample> debugSamples = {};
+    Engine::Debug_Profile::Consume_Samples(debugSamples);
+
+    unordered_map<string, double> debugSampleSums = {};
+    for (const Engine::DebugProfileSample& sample : debugSamples)
+        debugSampleSums[sample.name] += sample.elapsedMs;
+
+    for (const auto& [scopeName, elapsedMs] : debugSampleSums)
+        s_active->Record_Scope_Sample(scopeName, elapsedMs);
 
     s_active->Prune_Dead_Scopes();
 }
@@ -430,6 +442,51 @@ void Profile_View::Prune_Dead_Scopes()
         else
             ++iter;
     }
+}
+
+void Profile_View::Record_Scope_Sample(const string& scopeName, double elapsedMs)
+{
+    if (nullptr == _runtime || scopeName.empty())
+        return;
+
+    auto& runtime = *_runtime;
+
+    if (!runtime.capture)
+        return;
+
+    auto& entry = runtime.scopes[scopeName];
+    auto& stats = entry.ui;
+
+    if (0 == stats.samples)
+    {
+        stats.name = scopeName;
+        stats.minMs = elapsedMs;
+        stats.maxMs = elapsedMs;
+        stats.isEnabled = true;
+    }
+
+    entry.lastTouchedFrame = runtime.frameIndex;
+
+    if (!stats.isEnabled)
+        return;
+
+    stats.lastMs = elapsedMs;
+    stats.minMs = min(stats.minMs, elapsedMs);
+    stats.maxMs = max(stats.maxMs, elapsedMs);
+    stats.samples++;
+
+    entry.window.push_back(elapsedMs);
+    entry.windowSum += elapsedMs;
+
+    while (static_cast<int>(entry.window.size()) > runtime.avgWindow)
+    {
+        entry.windowSum -= entry.window.front();
+        entry.window.pop_front();
+    }
+
+    stats.avgMs = entry.window.empty()
+        ? 0.0
+        : (entry.windowSum / static_cast<double>(entry.window.size()));
 }
 
 Profile_View::Process_Memory Profile_View::Get_Process_Memory() const

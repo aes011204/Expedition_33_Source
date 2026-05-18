@@ -10,11 +10,13 @@
 #include "SkeletalMesh.h"
 #include "StaticMesh.h"
 #include "ComputeStructuredBuffer.h"
+#include "Debug_Profile.h"
 
 #include "AnimNotify_Parser.h"
 #include "AnimNotify.h"
 #include "AnimNotifyState.h"
 #include "AnimState_Parser.h"
+#include "ComputeShaderCom.h"
 #include "GameObject.h"
 
 ModelCom::ModelCom(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -53,6 +55,12 @@ ModelCom::ModelCom(const ModelCom& prototype)
     _combinedBoneMatrixCache.resize(_numBones, Matrix::Identity);
     _meshBoneMatrixCaches.resize(_meshes.size());
     _meshBoneMatrixBuffers.resize(_meshes.size());
+
+    _meshSourceVertexBuffers.resize(_meshes.size());
+    _meshComputedVertexBuffers.resize(_meshes.size());
+    _meshComputedDrawVertexBuffers.resize(_meshes.size());
+    _computeSkinningDirty = true;
+
     _boneMatricesDirty = true;
 
     Mark_BoneMatricesDirty();
@@ -79,7 +87,7 @@ Shared<Material> ModelCom::Get_Material(uint32 materialIndex) const
 const Material::TextureSlot* ModelCom::Find_MaterialSlot(uint32 meshIndex, std::initializer_list<MaterialTextureSlot> materialSlots,
     uint32 textureIndex) const
 {
-     if (meshIndex >= _meshes.size())
+    if (meshIndex >= _meshes.size())
         return nullptr;
 
     const uint32 materialIndex = _meshes[meshIndex]->Get_MaterialIndex();
@@ -232,8 +240,19 @@ const Matrix* ModelCom::Get_BoneMatrixPtr(const char* boneName) const
 
 const Matrix* ModelCom::Get_BoneMatrixPtr(uint32 boneIndex) const
 {
-    if (!_leaderPoseCombinedMatrices.empty())
+    if (boneIndex >= _numBones)
+        return nullptr;
+
+    if (_leaderPoseModel != nullptr && !_leaderPoseCombinedMatrices.empty())
+    {
+        ModelCom* mutableThis = const_cast<ModelCom*>(this);
+        mutableThis->Add_LeaderPoseRequiredBone(boneIndex);
+
+        vector<uint8> visited(_numBones, 0);
+        mutableThis->Build_LeaderPoseMatrix(boneIndex, visited);
+
         return &_leaderPoseCombinedMatrices[boneIndex];
+    }
 
     return _bones[boneIndex]->Get_CombinedTransformationMatrixPtr();
 }
@@ -310,7 +329,7 @@ float ModelCom::Get_RootMotionTranslationRatio() const
 
     // 블렌딩 중이면 다음 애니메이션(실질적으로 재생 중인 타겟)의 진행도를 가져옴
     uint32 activeAnimIndex = _isBlending ? _nextAnimIndex : _currentAnimIndex;
-    
+
     if (activeAnimIndex >= _animations.size())
         return 0.f;
 
@@ -366,6 +385,7 @@ void ModelCom::Ensure_MaterialBindings()
     _materialBindings.resize(desired);
 
     const string defaultKey = String::ToLowerCopy(String::ToString(fs::path(_sourceModelPath).stem().wstring()));
+
     for (size_t i = 0; i < _materialBindings.size(); ++i)
     {
         if (_materialBindings[i].baseBundleKey.empty())
@@ -452,6 +472,7 @@ void ModelCom::Apply_EffectiveMaterial(uint32 materialIndex)
             {
                 const auto itInst = bundle->instancesByAssetName.find(itName->second);
                 if (itInst != bundle->instancesByAssetName.end())
+
                 {
                     const auto& base = itInst->second;
 
@@ -491,7 +512,7 @@ void ModelCom::Apply_EffectiveMaterial(uint32 materialIndex)
         MATERIAL_CB_OVERRIDE_FIELDS(MODEL_COM_APPLY_CB_FIELD)
 #undef MODEL_COM_APPLY_CB_FIELD
 
-        material->Set_CB(effective);
+            material->Set_CB(effective);
     }
 
     Apply_TextureOverride(material.get(), MaterialTextureSlot::BaseColor, inst.baseColor);
@@ -580,7 +601,7 @@ json ModelCom::To_Json() const
                 MATERIAL_CB_OVERRIDE_FIELDS(MODEL_COM_WRITE_CB_MASK)
 #undef MODEL_COM_WRITE_CB_MASK
 
-                instJson["cb_overrides"] = jmask;
+                    instJson["cb_overrides"] = jmask;
 
                 json cb{};
 
@@ -606,31 +627,31 @@ json ModelCom::To_Json() const
             }
 
             auto writeTextureOverride = [&](const char* name, const TextureOverride& ov) -> void
-            {
-                if (!ov.enabled)
-                    return;
-
-                json tex{};
-                tex["enabled"] = true;
-
-                if (!ov.path.empty())
                 {
-                    const string textureGuid = GAME->Ensure_AssetGUID(ov.path, "Texture");
-                    if (!textureGuid.empty())
-                        tex["texture_guid"] = textureGuid;
+                    if (!ov.enabled)
+                        return;
+
+                    json tex{};
+                    tex["enabled"] = true;
+
+                    if (!ov.path.empty())
+                    {
+                        const string textureGuid = GAME->Ensure_AssetGUID(ov.path, "Texture");
+                        if (!textureGuid.empty())
+                            tex["texture_guid"] = textureGuid;
+                        else
+                            tex["texture_path"] = String::ToString(ov.path);
+                    }
                     else
-                        tex["texture_path"] = String::ToString(ov.path);
-                }
-                else
-                {
-                    // enabled + empty path = clear slot
-                    tex["texture_path"] = string{};
-                }
+                    {
+                        // enabled + empty path = clear slot
+                        tex["texture_path"] = string{};
+                    }
 
-                if (!instJson.contains("textures"))
-                    instJson["textures"] = json::object();
-                instJson["textures"][name] = tex;
-            };
+                    if (!instJson.contains("textures"))
+                        instJson["textures"] = json::object();
+                    instJson["textures"][name] = tex;
+                };
 
             writeTextureOverride("base_color", inst.baseColor);
             writeTextureOverride("normal", inst.normal);
@@ -693,7 +714,7 @@ void ModelCom::From_Json(const json& data)
 
     const string currentGuid = _sourceModelPath.empty()
         ? string{}
-        : GAME->Find_AssetGUID(_sourceModelPath);
+    : GAME->Find_AssetGUID(_sourceModelPath);
 
     if (modelGuid == currentGuid && modelType == _type)
     {
@@ -788,36 +809,40 @@ bool ModelCom::Play_Animation(float timeDelta)
 
     int32 rootIndex = _isRootMotion ? _rootNodeIndex : -1;
 
-    if (_isBlending)
     {
-        _blendElapsedTime += adjustedTimeDelta;
-        float ratio = _blendElapsedTime / _blendDuration;
+        Debug_Profile::Scope profileScope("AnimMesh::PlayAnimation::UpdateMatrices");
 
-        if (ratio >= 1.f)
+        if (_isBlending)
         {
-            _isBlending = false;
-            _currentAnimIndex = _nextAnimIndex;
-            _currentAnimStateIndex = _nextAnimStateIndex;
-            _isFinished = _animations[_currentAnimIndex]->Update_TransformationMatrices(adjustedTimeDelta, _bones, _isAnimLoop, rootIndex);
-            _rootOriginalFrameVelocity = rootIndex >= 0 ? _animations[_currentAnimIndex]->Get_TransformVelocity(rootIndex) : RootMotionFrame{};
+            _blendElapsedTime += adjustedTimeDelta;
+            float ratio = _blendElapsedTime / _blendDuration;
+
+            if (ratio >= 1.f)
+            {
+                _isBlending = false;
+                _currentAnimIndex = _nextAnimIndex;
+                _currentAnimStateIndex = _nextAnimStateIndex;
+                _isFinished = _animations[_currentAnimIndex]->Update_TransformationMatrices(adjustedTimeDelta, _bones, _isAnimLoop, rootIndex);
+                _rootOriginalFrameVelocity = rootIndex >= 0 ? _animations[_currentAnimIndex]->Get_TransformVelocity(rootIndex) : RootMotionFrame{};
+            }
+            else
+            {
+                _animations[_currentAnimIndex]->Blend_TransformMatrix(adjustedTimeDelta, _animations[_nextAnimIndex], ratio, _bones, _isAnimLoop, rootIndex);
+
+                if (rootIndex >= 0)
+                {
+                    const auto& curDelta = _animations[_currentAnimIndex]->Get_TransformVelocity(rootIndex);
+                    const auto& nextDelta = _animations[_nextAnimIndex]->Get_TransformVelocity(rootIndex);
+                    _rootOriginalFrameVelocity.position = Vector3::Lerp(curDelta.position, nextDelta.position, ratio);
+                    _rootOriginalFrameVelocity.rotation = Quaternion::Slerp(curDelta.rotation, nextDelta.rotation, ratio);
+                }
+            }
         }
         else
         {
-            _animations[_currentAnimIndex]->Blend_TransformMatrix(adjustedTimeDelta, _animations[_nextAnimIndex], ratio, _bones, _isAnimLoop, rootIndex);
-
-            if (rootIndex >= 0)
-            {
-                const auto& curDelta = _animations[_currentAnimIndex]->Get_TransformVelocity(rootIndex);
-                const auto& nextDelta = _animations[_nextAnimIndex]->Get_TransformVelocity(rootIndex);
-                _rootOriginalFrameVelocity.position = Vector3::Lerp(curDelta.position, nextDelta.position, ratio);
-                _rootOriginalFrameVelocity.rotation = Quaternion::Slerp(curDelta.rotation, nextDelta.rotation, ratio);
-            }
+            _isFinished = _animations[_currentAnimIndex]->Update_TransformationMatrices(adjustedTimeDelta, _bones, _isAnimLoop, rootIndex);
+            _rootOriginalFrameVelocity = (rootIndex >= 0) ? _animations[_currentAnimIndex]->Get_TransformVelocity(rootIndex) : RootMotionFrame{};
         }
-    }
-    else
-    {
-        _isFinished = _animations[_currentAnimIndex]->Update_TransformationMatrices(adjustedTimeDelta, _bones, _isAnimLoop, rootIndex);
-        _rootOriginalFrameVelocity = (rootIndex >= 0) ? _animations[_currentAnimIndex]->Get_TransformVelocity(rootIndex) : RootMotionFrame{};
     }
 
     if (rootIndex >= 0)
@@ -828,9 +853,13 @@ bool ModelCom::Play_Animation(float timeDelta)
         _rootOriginalFrameVelocity.position.y = temp;
     }
 
-    for (uint32 i = 0; i < _numBones; ++i)
     {
-        _bones[i]->Update_CombinedTransformationMatrix(_bones, _preLocalTransformMatrix);
+        Debug_Profile::Scope profileScope("AnimMesh::PlayAnimation::CombinedBones");
+
+        for (uint32 i = 0; i < _numBones; ++i)
+        {
+            _bones[i]->Update_CombinedTransformationMatrix(_bones, _preLocalTransformMatrix);
+        }
     }
 
     Mark_BoneMatricesDirty();
@@ -838,29 +867,37 @@ bool ModelCom::Play_Animation(float timeDelta)
     const float currentTimeSec = Get_CurrentAnimationTimeSec();
     const bool wrapped = (_isAnimLoop && currentTimeSec < previousTimeSec);
 
-    if (Ensure_AnimNotifyAssetLoaded())
     {
-        if (const AnimNotifyData* animationData = Find_CurrentNotifyAnimation())
-        {
-            AnimNotifyContext context{};
-            context.owner = Get_Owner().get();
-            context.model = this;
-            context.modelGuid = _animNotifyAsset.modelGuid;
-            context.animationName = Get_AnimationName(_currentAnimIndex) ? Get_AnimationName(_currentAnimIndex) : "";
-            context.previousTimeSec = previousTimeSec;
-            context.currentTimeSec = currentTimeSec;
-            context.deltaTime = adjustedTimeDelta;
-            context.isLooping = _isAnimLoop;
-            context.wrapped = wrapped;
-            context.isPreview = !_isAnimNotifyExecutionEnabled;
+        Debug_Profile::Scope profileScope("AnimMesh::PlayAnimation::Notify");
 
-            Update_AnimNotifies(*animationData, context, _isAnimNotifyExecutionEnabled);
-            Update_AnimNotifyStates(*animationData, context, _isAnimNotifyExecutionEnabled);
+        if (Ensure_AnimNotifyAssetLoaded())
+        {
+            if (const AnimNotifyData* animationData = Find_CurrentNotifyAnimation())
+            {
+                AnimNotifyContext context{};
+                context.owner = Get_Owner().get();
+                context.model = this;
+                context.modelGuid = _animNotifyAsset.modelGuid;
+                context.animationName = Get_AnimationName(_currentAnimIndex) ? Get_AnimationName(_currentAnimIndex) : "";
+                context.previousTimeSec = previousTimeSec;
+                context.currentTimeSec = currentTimeSec;
+                context.deltaTime = adjustedTimeDelta;
+                context.isLooping = _isAnimLoop;
+                context.wrapped = wrapped;
+                context.isPreview = !_isAnimNotifyExecutionEnabled;
+
+                Update_AnimNotifies(*animationData, context, _isAnimNotifyExecutionEnabled);
+                Update_AnimNotifyStates(*animationData, context, _isAnimNotifyExecutionEnabled);
+            }
         }
     }
 
-    if (_isFinished && !_isAnimLoop)
-        Stop_AllNotifyStates(_isAnimNotifyExecutionEnabled);
+    {
+        Debug_Profile::Scope profileScope("AnimMesh::PlayAnimation::StopNotifyStates");
+
+        if (_isFinished && !_isAnimLoop)
+            Stop_AllNotifyStates(_isAnimNotifyExecutionEnabled);
+    }
 
     return _isFinished;
 }
@@ -872,35 +909,10 @@ HRESULT ModelCom::Bind_Material(ShaderCom* shader, const char* constantName, uin
 
 HRESULT ModelCom::Bind_BoneMatrices(ShaderCom* shader, const char* constantName, uint32 meshIndex)
 {
-    if (shader == nullptr || constantName == nullptr)
-        return E_FAIL;
+    Debug_Profile::Scope profileScope("AnimMesh::BindBoneMatrices");
 
-    if (!_isSkeletal || _numBones == 0)
-        return S_OK;
-
-    if (meshIndex >= _meshes.size())
-        return E_FAIL;
-
-    if (_leaderPoseModel != nullptr)
-    {
-        if (!_leaderPoseMatricesValid)
-            Update_LeaderPoseMatrices();
-
-        if (_leaderPoseCombinedMatrices.empty())
-            return E_FAIL;
-    }
-
-    CHECK_FAILED(Ensure_MeshBoneMatrixBuffers(), E_FAIL);
-
-    if (meshIndex >= _meshBoneMatrixBuffers.size())
-        return E_FAIL;
-
-    const Shared<ComputeStructuredBuffer>& meshBoneMatrixBuffer = _meshBoneMatrixBuffers[meshIndex];
-
-    if (meshBoneMatrixBuffer == nullptr)
-        return S_OK;
-
-    return shader->Bind_SRV(constantName, meshBoneMatrixBuffer->Get_SRV());
+    CHECK_FAILED(Prepare_BoneMatrixBuffers(), E_FAIL);
+    return Bind_PreparedBoneMatrices(shader, constantName, meshIndex);
 }
 
 bool ModelCom::Try_Get_LocalBounds(Vec3& outMin, Vec3& outMax) const
@@ -911,6 +923,72 @@ bool ModelCom::Try_Get_LocalBounds(Vec3& outMin, Vec3& outMax) const
     outMin = _localBoundsMin;
     outMax = _localBoundsMax;
     return true;
+}
+
+HRESULT ModelCom::Prepare_ComputeSkinning(ComputeShaderCom* computeShader)
+{
+    if (!_isSkeletal)
+        return S_OK;
+
+    if (computeShader == nullptr)
+        return E_FAIL;
+
+    CHECK_FAILED(Prepare_BoneMatrixBuffers(), E_FAIL);
+    CHECK_FAILED(Ensure_ComputeSkinningBuffers(), E_FAIL);
+    CHECK_FAILED(Ensure_ComputeSkinningConstantBuffer(), E_FAIL);
+
+    if (!_computeSkinningDirty)
+        return S_OK;
+
+    for (uint32 meshIndex = 0; meshIndex < _meshes.size(); ++meshIndex)
+    {
+        const Shared<ComputeStructuredBuffer>& sourceVertexBuffer = _meshSourceVertexBuffers[meshIndex];
+        const Shared<ComputeStructuredBuffer>& meshBoneMatrixBuffer = _meshBoneMatrixBuffers[meshIndex];
+        const Shared<ComputeStructuredBuffer>& computedVertexBuffer = _meshComputedVertexBuffers[meshIndex];
+
+        if (sourceVertexBuffer == nullptr || meshBoneMatrixBuffer == nullptr || computedVertexBuffer == nullptr)
+            continue;
+
+        const uint32 vertexCount = computedVertexBuffer->Get_ElementCount();
+        if (vertexCount == 0)
+            continue;
+
+        CHECK_FAILED(Update_ComputeSkinningConstantBuffer(vertexCount), E_FAIL);
+
+        CHECK_FAILED(computeShader->Bind_SRV(0, sourceVertexBuffer->Get_SRV()), E_FAIL);
+        CHECK_FAILED(computeShader->Bind_SRV(1, meshBoneMatrixBuffer->Get_SRV()), E_FAIL);
+        CHECK_FAILED(computeShader->Bind_UAV(0, computedVertexBuffer->Get_UAV()), E_FAIL);
+        CHECK_FAILED(computeShader->Bind_ConstantBuffer(0, _computeSkinningConstantBuffer.Get()), E_FAIL);
+
+        CHECK_FAILED(computeShader->Dispatch((vertexCount + 63) / 64, 1, 1), E_FAIL);
+
+        if (meshIndex >= _meshComputedDrawVertexBuffers.size() ||
+            _meshComputedDrawVertexBuffers[meshIndex] == nullptr)
+            return E_FAIL;
+
+        _context->CopyResource(
+            _meshComputedDrawVertexBuffers[meshIndex].Get(),
+            computedVertexBuffer->Get_Buffer());
+    }
+
+    _computeSkinningDirty = false;
+    return S_OK;
+}
+
+HRESULT ModelCom::Render_ComputeSkinned(uint32 meshIndex)
+{
+    if (meshIndex >= _meshes.size())
+        return E_FAIL;
+
+    if (meshIndex >= _meshComputedDrawVertexBuffers.size())
+        return E_FAIL;
+
+    if (_meshComputedDrawVertexBuffers[meshIndex] == nullptr)
+        return E_FAIL;
+
+    return _meshes[meshIndex]->Render_ComputeSkinned(
+        _meshComputedDrawVertexBuffers[meshIndex].Get(),
+        sizeof(VTXMESH));
 }
 
 void ModelCom::Apply_MaterialByAssetName(uint32 materialIndex, const string& bundleKey, const string& assetName)
@@ -1007,6 +1085,48 @@ void ModelCom::Apply_MaterialByAssetName(uint32 materialIndex, const string& bun
     applied.assetName = assetName;
 }
 
+HRESULT ModelCom::Prepare_BoneMatrixBuffers()
+{
+    Debug_Profile::Scope profileScope("AnimMesh::PrepareBoneMatrixBuffers");
+
+    if (!_isSkeletal || _numBones == 0)
+        return S_OK;
+
+    if (_leaderPoseModel != nullptr)
+    {
+        if (!_leaderPoseMatricesValid)
+            Update_LeaderPoseMatrices();
+
+        if (_leaderPoseCombinedMatrices.empty())
+            return E_FAIL;
+    }
+
+    return Ensure_MeshBoneMatrixBuffers();
+}
+
+HRESULT ModelCom::Bind_PreparedBoneMatrices(ShaderCom* shader, const char* constantName, uint32 meshIndex)
+{
+    Debug_Profile::Scope profileScope("AnimMesh::BindPreparedBoneMatrices");
+
+    if (shader == nullptr || constantName == nullptr)
+        return E_FAIL;
+
+    if (!_isSkeletal || _numBones == 0)
+        return S_OK;
+
+    if (meshIndex >= _meshes.size())
+        return E_FAIL;
+
+    if (meshIndex >= _meshBoneMatrixBuffers.size())
+        return E_FAIL;
+
+    const Shared<ComputeStructuredBuffer>& meshBoneMatrixBuffer = _meshBoneMatrixBuffers[meshIndex];
+    if (meshBoneMatrixBuffer == nullptr)
+        return S_OK;
+
+    return shader->Bind_SRV(constantName, meshBoneMatrixBuffer->Get_SRV());
+}
+
 wstring ModelCom::Normalize_ModelAssetPath(const char* modelFilePath)
 {
     string resolvedPath = modelFilePath ? modelFilePath : "";
@@ -1081,7 +1201,7 @@ void ModelCom::Refresh_CurrentAnimationPose()
 
 bool ModelCom::Ensure_AnimNotifyAssetLoaded()
 {
-     if (_isAnimNotifyAssetLoaded)
+    if (_isAnimNotifyAssetLoaded)
         return true;
 
     _animNotifyAsset = {};
@@ -1248,8 +1368,8 @@ void ModelCom::Update_AnimNotifyStates(const AnimNotifyData& animationData, cons
 
                 if (executeNotifies &&
                     (context.wrapped ||
-                     context.deltaTime > 0.f ||
-                     previousActiveTimeSec != context.currentTimeSec))
+                        context.deltaTime > 0.f ||
+                        previousActiveTimeSec != context.currentTimeSec))
                 {
                     _activeNotifyStates[activeIndex].notifyState->On_Tick(context);
                 }
@@ -1299,6 +1419,7 @@ void ModelCom::Set_LeaderPoseComponent(const ModelCom* leaderModel)
     _leaderPoseModel = leaderModel;
     _leaderPoseBoneMap.clear();
     _leaderPoseCombinedMatrices.clear();
+    _leaderPoseRequiredBones.clear();
 
     if (nullptr == _leaderPoseModel || !_isSkeletal || !_leaderPoseModel->Is_Skeletal())
         return;
@@ -1312,6 +1433,8 @@ void ModelCom::Set_LeaderPoseComponent(const ModelCom* leaderModel)
             _leaderPoseModel->Get_BoneIndex(_bones[i]->Get_BoneName());
     }
 
+    Build_LeaderPoseRequiredBones();
+
     _leaderPoseMatricesValid = false;
     Update_LeaderPoseMatrices();
 }
@@ -1321,6 +1444,7 @@ void ModelCom::Clear_LeaderPoseComponent()
     _leaderPoseModel = nullptr;
     _leaderPoseBoneMap.clear();
     _leaderPoseCombinedMatrices.clear();
+    _leaderPoseRequiredBones.clear();
 
     _leaderPoseMatricesValid = false;
     Mark_BoneMatricesDirty();
@@ -1328,28 +1452,210 @@ void ModelCom::Clear_LeaderPoseComponent()
 
 void ModelCom::Update_LeaderPoseMatrices()
 {
+    Debug_Profile::Scope profileScope("AnimMesh::UpdateLeaderPose");
+
     if (nullptr == _leaderPoseModel || _leaderPoseBoneMap.empty())
         return;
 
     vector<uint8> visited(_numBones, 0);
 
-    for (uint32 i = 0; i < _numBones; ++i)
+    if (_leaderPoseRequiredBones.empty())
+        Build_LeaderPoseRequiredBones();
+
+    for (uint32 boneIndex : _leaderPoseRequiredBones)
     {
-        Build_LeaderPoseMatrix(i, visited);
+        Build_LeaderPoseMatrix(boneIndex, visited);
     }
 
     _leaderPoseMatricesValid = true;
     Mark_BoneMatricesDirty();
 }
 
+bool ModelCom::Build_CollisoinProxies_FromSourceJson(const fs::path& jsonPath)
+{
+    if (!fs::exists(jsonPath))
+        return false;
+
+    ifstream ifs(jsonPath);
+    if (!ifs.is_open())
+        return false;
+
+    json root = json::parse(ifs, nullptr, false);
+    if (root.is_discarded() || !root.is_array())
+        return false;
+
+    bool addedAny = false;
+
+    for (const json& entry : root)
+    {
+        if (entry.value("Type", "") != "BodySetup")
+            continue;
+
+        const json* props = entry.contains("Properties") ? &entry["Properties"] : nullptr;
+        if (props == nullptr || !props->is_object())
+            continue;
+
+        const string traceFlag = props->value("CollisionTraceFlag", "");
+
+        // 보수 정책:
+        // 1) UseComplexAsSimple 자산은 기존 tri mesh를 유지한다.
+        // 2) primitive(Box/Sphere/Capsule)만 simple proxy로 사용한다.
+        // 3) ConvexElems는 충돌 범위가 너무 거칠어져 투명벽이 생길 수 있어 v1에서는 쓰지 않는다.
+        if (traceFlag == "ECollisionTraceFlag::CTF_UseComplexAsSimple")
+            continue;
+
+        if (!props->contains("AggGeom") || !(*props)["AggGeom"].is_object())
+            continue;
+
+        const json& aggGeom = (*props)["AggGeom"];
+
+        auto appendBox = [&](const json& boxElem)
+            {
+                ModelCollisionProxy proxy{};
+                proxy.type = ModelCollisionProxyType::Box;
+                proxy.center = Vec3(
+                    boxElem["Center"].value("X", 0.f),
+                    boxElem["Center"].value("Y", 0.f),
+                    boxElem["Center"].value("Z", 0.f));
+                proxy.rotation = Quat::CreateFromYawPitchRoll(
+                    XMConvertToRadians(boxElem["Rotation"].value("Yaw", 0.f)),
+                    XMConvertToRadians(boxElem["Rotation"].value("Pitch", 0.f)),
+                    XMConvertToRadians(boxElem["Rotation"].value("Roll", 0.f)));
+                proxy.extents = Vec3(
+                    boxElem.value("X", 0.f) * 0.5f,
+                    boxElem.value("Y", 0.f) * 0.5f,
+                    boxElem.value("Z", 0.f) * 0.5f);
+                _collisionProxies.push_back(std::move(proxy));
+                addedAny = true;
+            };
+
+        auto appendSphere = [&](const json& sphereElem)
+            {
+                ModelCollisionProxy proxy{};
+                proxy.type = ModelCollisionProxyType::Sphere;
+                proxy.center = Vec3(
+                    sphereElem["Center"].value("X", 0.f),
+                    sphereElem["Center"].value("Y", 0.f),
+                    sphereElem["Center"].value("Z", 0.f));
+                proxy.radius = sphereElem.value("Radius", 0.f);
+                _collisionProxies.push_back(std::move(proxy));
+                addedAny = true;
+            };
+
+        auto appendCapsule = [&](const json& sphylElem)
+            {
+                ModelCollisionProxy proxy{};
+                proxy.type = ModelCollisionProxyType::Capsule;
+                proxy.center = Vec3(
+                    sphylElem["Center"].value("X", 0.f),
+                    sphylElem["Center"].value("Y", 0.f),
+                    sphylElem["Center"].value("Z", 0.f));
+                proxy.rotation = Quat::CreateFromYawPitchRoll(
+                    XMConvertToRadians(sphylElem["Rotation"].value("Yaw", 0.f)),
+                    XMConvertToRadians(sphylElem["Rotation"].value("Pitch", 0.f)),
+                    XMConvertToRadians(sphylElem["Rotation"].value("Roll", 0.f)));
+                proxy.radius = sphylElem.value("Radius", 0.f);
+                proxy.halfHeight = max(0.f, sphylElem.value("Length", 0.f) * 0.5f - proxy.radius);
+                _collisionProxies.push_back(std::move(proxy));
+                addedAny = true;
+            };
+
+        if (aggGeom.contains("BoxElems"))
+            for (const json& boxElem : aggGeom["BoxElems"])
+                appendBox(boxElem);
+
+        if (aggGeom.contains("SphereElems"))
+            for (const json& sphereElem : aggGeom["SphereElems"])
+                appendSphere(sphereElem);
+
+        if (aggGeom.contains("SphylElems"))
+            for (const json& sphylElem : aggGeom["SphylElems"])
+                appendCapsule(sphylElem);
+    }
+
+    return addedAny;
+}
+
+void ModelCom::Build_FallbackTriangleCollisionProxies()
+{
+    _collisionProxies.clear();
+
+    for (const ModelCollisionMesh& mesh : _collisionMeshes)
+    {
+        ModelCollisionProxy proxy{};
+        proxy.type = ModelCollisionProxyType::TriangleMesh;
+        proxy.name = mesh.name;
+        proxy.positions = mesh.positions;
+        proxy.indices = mesh.indices;
+        _collisionProxies.push_back(std::move(proxy));
+    }
+}
+
+void ModelCom::Build_LeaderPoseRequiredBones()
+{
+    _leaderPoseRequiredBones.clear();
+
+    if (!_isSkeletal || _numBones == 0)
+        return;
+
+    vector<uint8> requiredFlags(_numBones, 0);
+
+    for (const Shared<Mesh>& mesh : _meshes)
+    {
+        if (mesh == nullptr)
+            continue;
+
+        const vector<uint32>& boneIndices = mesh->Get_BoneIndices();
+        for (uint32 boneIndex : boneIndices)
+            Mark_LeaderPoseRequiredBone(boneIndex, requiredFlags);
+    }
+}
+
+void ModelCom::Add_LeaderPoseRequiredBone(uint32 boneIndex)
+{
+    if (boneIndex >= _numBones)
+        return;
+
+    vector<uint8> requiredFlags(_numBones, 0);
+    for (uint32 requiredBoneIndex : _leaderPoseRequiredBones)
+    {
+        if (requiredBoneIndex < _numBones)
+            requiredFlags[requiredBoneIndex] = 1;
+    }
+
+    Mark_LeaderPoseRequiredBone(boneIndex, requiredFlags);
+}
+
+void ModelCom::Mark_LeaderPoseRequiredBone(uint32 boneIndex, vector<uint8>& requiredFlags)
+{
+    if (boneIndex >= _numBones)
+        return;
+
+    if (requiredFlags.size() != _numBones)
+        requiredFlags.assign(_numBones, 0);
+
+    if (requiredFlags[boneIndex])
+        return;
+
+    requiredFlags[boneIndex] = 1;
+    _leaderPoseRequiredBones.push_back(boneIndex);
+
+    const int32 parentIndex = _bones[boneIndex]->Get_ParentIndex();
+    if (parentIndex >= 0)
+        Mark_LeaderPoseRequiredBone(static_cast<uint32>(parentIndex), requiredFlags);
+}
+
 void ModelCom::Mark_BoneMatricesDirty()
 {
     _boneMatricesDirty = true;
     _boneMatrixBuffersDirty = true;
+    _computeSkinningDirty = true;
 }
 
 HRESULT ModelCom::Ensure_MeshBoneMatrices()
 {
+    Debug_Profile::Scope profileScope("AnimMesh::EnsureMeshBoneMatrices");
+
     if (!_isSkeletal || _numBones == 0)
         return S_OK;
 
@@ -1392,6 +1698,112 @@ HRESULT ModelCom::Ensure_MeshBoneMatrices()
     }
 
     _boneMatricesDirty = false;
+    return S_OK;
+}
+
+HRESULT ModelCom::Ensure_ComputeSkinningBuffers()
+{
+    if (!_isSkeletal)
+        return S_OK;
+
+    if (_meshSourceVertexBuffers.size() != _meshes.size())
+        _meshSourceVertexBuffers.resize(_meshes.size());
+
+    if (_meshComputedVertexBuffers.size() != _meshes.size())
+        _meshComputedVertexBuffers.resize(_meshes.size());
+
+    if (_meshComputedDrawVertexBuffers.size() != _meshes.size())
+        _meshComputedDrawVertexBuffers.resize(_meshes.size());
+
+    for (uint32 meshIndex = 0; meshIndex < _meshes.size(); ++meshIndex)
+    {
+        const Shared<SkeletalMesh> skeletalMesh =
+            dynamic_pointer_cast<SkeletalMesh>(_meshes[meshIndex]);
+
+        if (skeletalMesh == nullptr)
+            continue;
+
+        const vector<VTXANIMMESH>& sourceVertices = skeletalMesh->Get_SourceVertices();
+        if (sourceVertices.empty())
+            continue;
+
+        if (_meshSourceVertexBuffers[meshIndex] == nullptr ||
+            _meshSourceVertexBuffers[meshIndex]->Get_ElementCount() != sourceVertices.size())
+        {
+            _meshSourceVertexBuffers[meshIndex] = ComputeStructuredBuffer::Create(
+                _device,
+                _context,
+                sizeof(VTXANIMMESH),
+                static_cast<uint32>(sourceVertices.size()),
+                sourceVertices.data()
+            );
+
+            if (_meshSourceVertexBuffers[meshIndex] == nullptr)
+                return E_FAIL;
+        }
+
+        if (_meshComputedVertexBuffers[meshIndex] == nullptr ||
+            _meshComputedVertexBuffers[meshIndex]->Get_ElementCount() != sourceVertices.size())
+        {
+            _meshComputedVertexBuffers[meshIndex] = ComputeStructuredBuffer::Create(
+                _device,
+                _context,
+                sizeof(VTXMESH),
+                static_cast<uint32>(sourceVertices.size())
+            );
+
+            if (_meshComputedVertexBuffers[meshIndex] == nullptr)
+                return E_FAIL;
+        }
+
+        if (_meshComputedDrawVertexBuffers[meshIndex] == nullptr)
+        {
+            D3D11_BUFFER_DESC drawVertexBufferDesc{};
+            drawVertexBufferDesc.ByteWidth = sizeof(VTXMESH) * static_cast<uint32>(sourceVertices.size());
+            drawVertexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
+            drawVertexBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+            drawVertexBufferDesc.CPUAccessFlags = 0;
+            drawVertexBufferDesc.MiscFlags = 0;
+            drawVertexBufferDesc.StructureByteStride = sizeof(VTXMESH);
+
+            CHECK_FAILED(
+                _device->CreateBuffer(
+                    &drawVertexBufferDesc,
+                    nullptr,
+                    _meshComputedDrawVertexBuffers[meshIndex].ReleaseAndGetAddressOf()),
+                E_FAIL);
+        }
+    }
+
+    return S_OK;
+}
+
+HRESULT ModelCom::Ensure_ComputeSkinningConstantBuffer()
+{
+    if (_computeSkinningConstantBuffer != nullptr)
+        return S_OK;
+
+    D3D11_BUFFER_DESC desc{};
+    desc.ByteWidth = sizeof(ComputeSkinningCBData);
+    desc.Usage = D3D11_USAGE_DEFAULT;
+    desc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+    desc.CPUAccessFlags = 0;
+    desc.MiscFlags = 0;
+    desc.StructureByteStride = 0;
+
+    CHECK_FAILED(_device->CreateBuffer(&desc, nullptr, _computeSkinningConstantBuffer.GetAddressOf()), E_FAIL);
+    return S_OK;
+}
+
+HRESULT ModelCom::Update_ComputeSkinningConstantBuffer(uint32 vertexCount)
+{
+    if (_computeSkinningConstantBuffer == nullptr)
+        return E_FAIL;
+
+    ComputeSkinningCBData cbData{};
+    cbData.vertexCount = vertexCount;
+
+    _context->UpdateSubresource(_computeSkinningConstantBuffer.Get(), 0, nullptr, &cbData, 0, 0);
     return S_OK;
 }
 
@@ -1439,6 +1851,8 @@ Matrix ModelCom::Build_LeaderPoseMatrix(uint32 boneIndex, vector<uint8>& visited
 
 HRESULT ModelCom::Ensure_MeshBoneMatrixBuffers()
 {
+    Debug_Profile::Scope profileScope("AnimMesh::EnsureMeshBoneMatrixBuffers");
+
     // CPU 쪽 mesh별 bone matrices cache가 최신인지 먼저 보장
     CHECK_FAILED(Ensure_MeshBoneMatrices(), E_FAIL);
 
@@ -1452,6 +1866,8 @@ HRESULT ModelCom::Ensure_MeshBoneMatrixBuffers()
 
     for (uint32 meshIndex = 0; meshIndex < _meshBoneMatrixCaches.size(); ++meshIndex)
     {
+        Debug_Profile::Scope uploadScope("AnimMesh::UploadBoneBuffer");
+
         const vector<Matrix>& meshBoneMatrices = _meshBoneMatrixCaches[meshIndex];
         if (meshBoneMatrices.empty())
             continue;
@@ -1520,7 +1936,7 @@ HRESULT ModelCom::Ready_Model(const char* modelPath)
             in.read(&str[0], len);
         }
         return str;
-    };
+        };
 
     Vec3 minBounds(
         std::numeric_limits<float>::max(),
@@ -1669,7 +2085,7 @@ HRESULT ModelCom::Ready_Model(const char* modelPath)
             _bones.push_back(Bone::Create(data));
         }
 
-        /* 바인드 포즈 초기화: 애니메이션 없이도 Combined 행렬이 유효하도록 1회 계산 */
+        /* 바인드 포즈 초기화: 애니메이션 없이도 CombinedHDR 행렬이 유효하도록 1회 계산 */
         for (uint32 i = 0; i < _numBones; ++i)
         {
             _bones[i]->Update_CombinedTransformationMatrix(_bones, _preLocalTransformMatrix);
@@ -1679,6 +2095,12 @@ HRESULT ModelCom::Ready_Model(const char* modelPath)
     _combinedBoneMatrixCache.resize(_numBones, Matrix::Identity);
     _meshBoneMatrixCaches.resize(_meshes.size());
     _meshBoneMatrixBuffers.resize(_meshes.size());
+
+    _meshSourceVertexBuffers.resize(_meshes.size());
+    _meshComputedVertexBuffers.resize(_meshes.size());
+    _meshComputedDrawVertexBuffers.resize(_meshes.size());
+    _computeSkinningDirty = true;
+
     Mark_BoneMatricesDirty();
     _leaderPoseMatricesValid = false;
 
@@ -1688,8 +2110,18 @@ HRESULT ModelCom::Ready_Model(const char* modelPath)
         _localBoundsMin = minBounds;
         _localBoundsMax = maxBounds;
     }
-
     stream.close();
+
+    // Proxy 충돌체
+    const fs::path sourceJsonPath = fs::path(modelPath).replace_extension(".json");
+    _collisionProxies.clear();
+
+    if (!Build_CollisoinProxies_FromSourceJson(sourceJsonPath))
+    {
+        // json파일 못찾으면, 그냥 메쉬 자체 읽어서 triangle 로 생성
+        Build_FallbackTriangleCollisionProxies();
+    }
+
     return S_OK;
 }
 
@@ -1717,7 +2149,7 @@ HRESULT ModelCom::Ready_Animation(const char* modelPath)
                     in.read(&str[0], len);
                 }
                 return str;
-            };
+                };
 
             ModelAnimationData animData{};
             animData.name = ReadString(stream);
@@ -1776,10 +2208,24 @@ bool ModelCom::Ensure_AnimStateAssetLoaded(const string& sourceObjectGUID)
     string targetPrefabGuid = "";
     if (Get_Owner())
     {
-        targetPrefabGuid = AnimState_Parser::Get_PrefabGuid(Get_Owner()->Get_SourcePrefabName());
+        auto prefabContextOwner = Get_Owner();
+        if (auto containerOwner = prefabContextOwner->Get_Owner())
+        {
+            if (!containerOwner->Get_SourcePrefabName().empty())
+            {
+                prefabContextOwner = containerOwner;
+            }
+        }
+
+        targetPrefabGuid = AnimState_Parser::Get_PrefabGuid(prefabContextOwner->Get_SourcePrefabName());
     }
 
     return AnimState_Parser::Load_StateAnimations(_sourceModelPath, _animations, _stateAnimIndices, &_animEnumType, targetPrefabGuid);
+}
+
+bool ModelCom::Refresh_AnimStateMappingFromOwnerContext()
+{
+    return Ensure_AnimStateAssetLoaded("");
 }
 
 void ModelCom::Reset_ModelData()
@@ -1820,6 +2266,13 @@ void ModelCom::Reset_ModelData()
     _combinedBoneMatrixCache.clear();
     _meshBoneMatrixCaches.clear();
     _meshBoneMatrixBuffers.clear();
+
+    _meshSourceVertexBuffers.clear();
+    _meshComputedVertexBuffers.clear();
+    _meshComputedDrawVertexBuffers.clear();
+    _computeSkinningConstantBuffer.Reset();
+    _computeSkinningDirty = true;
+
     _boneMatricesDirty = true;
     _boneMatrixBuffersDirty = true;
     _leaderPoseMatricesValid = false;
