@@ -41,17 +41,19 @@ public:
 public:
     enum class PlayerWorldAnimation
     {
-        Pl_Idle_0, Pl_Idle_1, Pl_Idle_2, Pl_Idle_3, Pl_Idle_4,
+        Pl_Idle_0, Pl_Idle_1, Pl_Idle_2, 
+        Pl_Idle_3, Pl_Idle_4, Pl_Idle_5, Pl_Idle_6,
 
-        Pl_PreWalk, Pl_Walk, Pl_EndWalk,
-        Pl_PreRun, Pl_Run, Pl_EndRun,
+        Pl_PreWalk,     Pl_Walk,    Pl_EndWalk,
+        Pl_PreRun,      Pl_Run,     Pl_EndRun,
+        Pl_PreSprint,   Pl_Sprint,  Pl_EndSprint,
 
-        Pl_PreSprint, Pl_Sprint, Pl_EndSprint,
-
-        Pl_JumpWalk,
-        Pl_JumpRun,
+        Pl_JumpWalk, Pl_JumpRun,
         Pl_Fall,
-        Pl_Land,
+        Pl_LandLight, Pl_LandHeavy,
+
+        Pl_GameMenu_Idle,
+        Pl_GameMenu_Selected,
 
         Pl_Explo,
     };
