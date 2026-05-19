@@ -2,6 +2,7 @@
 #include "GameInstance.h"
 #include "CharacterStatus_Panel.h"
 #include "SkillTree_Panel.h"
+#include "ChangeWeapon_Panel.h"
 
 HRESULT GameplayUI::Initialize(uint32 levelIndex)
 {
@@ -9,7 +10,10 @@ HRESULT GameplayUI::Initialize(uint32 levelIndex)
     CHECK_NULL(_characterStatusPanel, E_FAIL);
 
     _skillTreePanel = SkillTree_Panel::Create(levelIndex);
-    CHECK_NULL(_characterStatusPanel, E_FAIL);
+    CHECK_NULL(_skillTreePanel, E_FAIL);
+
+    _changeWeaponPanel = ChangeWeapon_Panel::Create(levelIndex);
+    CHECK_NULL(_changeWeaponPanel, E_FAIL);
 
     return S_OK;
 }
@@ -27,6 +31,12 @@ void GameplayUI::Update(float timeDelta)
 
     if(_skillTreePanel)
         _skillTreePanel->Update(timeDelta);
+
+    if (GAME->KeyDown(KEY_TYPE::F4) && _changeWeaponPanel)
+        _changeWeaponPanel->Toggle();
+
+    if (_changeWeaponPanel)
+        _changeWeaponPanel->Update(timeDelta);
 }
 
 Unique<GameplayUI> GameplayUI::Create(uint32 levelIndex)
@@ -56,6 +66,7 @@ void GameplayUI::Free()
 
     Release_Panel(_characterStatusPanel);
     Release_Panel(_skillTreePanel);
+    Release_Panel(_changeWeaponPanel);
 
     Base::Free();
 }

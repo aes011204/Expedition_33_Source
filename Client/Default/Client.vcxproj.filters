@@ -169,9 +169,6 @@
     <Filter Include="02.GameObject\Effect\Emitter Registration">
       <UniqueIdentifier>{cd4fc20f-ded7-47fd-8545-9286732fe833}</UniqueIdentifier>
     </Filter>
-    <Filter Include="02.GameObject\UI\BackGround">
-      <UniqueIdentifier>{d023afea-ff0b-417c-9db0-25eb798973f2}</UniqueIdentifier>
-    </Filter>
     <Filter Include="02.GameObject\Player\00. World">
       <UniqueIdentifier>{99061e95-9355-4714-95af-917916e25c88}</UniqueIdentifier>
     </Filter>
@@ -183,12 +180,6 @@
     </Filter>
     <Filter Include="02.GameObject\Monster\01. Battle">
       <UniqueIdentifier>{67722be3-2fa7-4894-aada-eddadce9c2e6}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="02.GameObject\UI\SkillTree_Panel">
-      <UniqueIdentifier>{a1312345-3547-423a-8f4a-75a5083c4e41}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="02.GameObject\UI\CharacterStatus_Panel">
-      <UniqueIdentifier>{ee7b5bd8-e9bc-4acd-91ee-92cc1ca9e59b}</UniqueIdentifier>
     </Filter>
     <Filter Include="02.GameObject\Map\MapInstancedMesh">
       <UniqueIdentifier>{48582af2-9fa3-4baf-bee3-b247fe81d3f0}</UniqueIdentifier>
@@ -213,6 +204,9 @@
     </Filter>
     <Filter Include="05. BattleSystem">
       <UniqueIdentifier>{85583d48-d80e-4783-96a6-3a64b4a29fcc}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="04. GamePlayUI\Weapon">
+      <UniqueIdentifier>{9db0179b-8d7b-4cd3-a8bf-808053add9f7}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -567,6 +561,12 @@
     <ClInclude Include="..\Public\MapStaticCollisionBuilder.h">
       <Filter>02.GameObject\Map</Filter>
     </ClInclude>
+    <ClInclude Include="..\public\WeaponUI_Common.h">
+      <Filter>04. GamePlayUI\Weapon</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\ChangeWeapon_Panel.h">
+      <Filter>04. GamePlayUI\Weapon</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -902,6 +902,12 @@
     <ClCompile Include="..\Private\MapStaticCollisionBuilder.cpp">
       <Filter>02.GameObject\Map</Filter>
     </ClCompile>
+    <ClCompile Include="..\private\WeaponUI_Common.cpp">
+      <Filter>04. GamePlayUI\Weapon</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\ChangeWeapon_Panel.cpp">
+      <Filter>04. GamePlayUI\Weapon</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">
@@ -970,6 +976,7 @@
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_BoneRemap.hlsl">
       <Filter>97.ShaderFiles\Compute</Filter>
     </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMaterialPreview.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_BufferSmoke.hlsl">

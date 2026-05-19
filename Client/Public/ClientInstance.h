@@ -48,6 +48,8 @@ public: /* For.GameData Table */
     uint32        Get_NextExp(uint32 level) const;
     GameDataTable::SkillTreeDesc* Get_SkillTreeDesc(const string& skillName);
     const umap<string, vector<string>>* Get_SkillTreeRequirementData();
+    const GameDataTable::WeaponDesc* Get_WeaponDesc(const string& characterId, const string& weaponId) const;
+    const vector<GameDataTable::WeaponDesc>* Get_WeaponDescs(const string& characterId) const;
 
 public:
     void    Apply_PreviewLayout(const vector<UIPreviewManager::PreviewSlotDesc>& layout);

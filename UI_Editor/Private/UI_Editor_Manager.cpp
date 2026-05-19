@@ -425,9 +425,20 @@ namespace UIEditor
     void UI_Editor_Manager::Handle_Shortcuts()
     {
         const ImGuiIO& io = ImGui::GetIO();
+        const bool hasBlockingPopup = ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopup);
+
+        if (!io.WantTextInput && !hasBlockingPopup && ImGui::IsKeyPressed(ImGuiKey_F2, false))
+        {
+            if (_selectedObjectId == 0)
+                Request_RenameCanvas();
+            else
+                Request_RenameUIObject(_selectedObjectId);
+            return;
+        }
+
         if (io.WantTextInput ||
             ImGui::IsAnyItemActive() ||
-            ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopup))
+            hasBlockingPopup)
         {
             return;
         }
@@ -472,14 +483,6 @@ namespace UIEditor
             return;
         }
 
-        if (ImGui::IsKeyPressed(ImGuiKey_F2, false))
-        {
-            if (_selectedObjectId == 0)
-                Request_RenameCanvas();
-            else
-                Request_RenameUIObject(_selectedObjectId);
-            return;
-        }
     }
 
     void UI_Editor_Manager::Render_RenamePopup()

@@ -86,10 +86,16 @@ namespace UIEditor
     void UI_Animation_View::Render()
     {
         if (!Is_Open())
+        {
+            _isFocused = false;
+            _isHovered = false;
             return;
+        }
 
         bool isOpen = Is_Open();
         const string windowName = String::ToString(Get_WindowName());
+        _isFocused = false;
+        _isHovered = false;
 
         if (ImGui::Begin(windowName.c_str(), &isOpen))
         {

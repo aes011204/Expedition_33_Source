@@ -94,6 +94,15 @@ public:
         uint32      unlockCost; //해금시 필요한 스킬 포인트
     };
 
+    struct WeaponDesc
+    {
+        string characterId;
+        string weaponId;
+        wstring weaponName;
+        uint32 level = 1;
+        uint32 power = 0;
+    };
+
 public:
     GameDataTable() = default;
     ~GameDataTable() override = default;
@@ -107,6 +116,8 @@ public:
     uint32 Get_NextExp(uint32 level) const;
     SkillTreeDesc*   Get_SkillTreeDesc(const string& skillName);
     const umap<string, vector<string>>*    Get_SkillTreeRequirementData();
+    const WeaponDesc* Get_WeaponDesc(const string& characterId, const string& weaponId) const;
+    const vector<WeaponDesc>* Get_WeaponDescs(const string& characterId) const;
 
 private:
     HRESULT Load_ExpLevel(const wstring& jsonRootPath);
@@ -114,6 +125,7 @@ private:
     HRESULT Load_SkillActionData(const wstring& jsonRootPath);
     HRESULT Load_SkillTreeData(const wstring& jsonRootPath);
     HRESULT Load_SkillTreeRequirementData(const wstring& jsonRootPath);
+    HRESULT Load_Weapon(const wstring& jsonRootPath);
 
 private:
     wstring         Get_DefaultJsonRootPath() const;
@@ -126,6 +138,7 @@ private:
     map<string, SkillDesc>      _skillData;
     map<string, SkillTreeDesc>  _skillTreeData;
     umap<string, vector<string>> _requirementSkills;
+    umap<string, vector<WeaponDesc>> _weaponDataByCharacter;
 
 public:
     static Unique<GameDataTable> Create();
