@@ -100,13 +100,6 @@ public:
     void ClearReactionState();
     void UpdateReactionInput();
 
-private:
-    HRESULT Ready_BattleTurnCamera();
-    void Activate_BattleTurnCamera();
-    void Restore_WorldCamera();
-
-    void Complete_BattleField();          // 2초 슬로우모션이 끝난 뒤 실제 PB/MB 생성과 턴 시작을 처리한다.
-    void Clear_BattleEnterPending();   // 전투 진입 대기 데이터만 정리
 public:
     bool            Is_PlayerTurnActive() const;
     BattleTurnState Get_CurrentTurnState() const;
