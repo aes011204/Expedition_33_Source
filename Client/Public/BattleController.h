@@ -70,6 +70,9 @@ public:
     void Handle_EditorStopRuntime();
     HRESULT Ready_Delegates();
 
+public:
+    bool            Is_PlayerTurnActive() const;
+    BattleTurnState Get_CurrentTurnState() const;
 
 private:
     HRESULT Ready_BattleTurnCamera();
