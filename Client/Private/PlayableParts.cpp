@@ -82,12 +82,32 @@ float PlayableParts::Get_AnimationProgress() const
 {
     if (nullptr == _modelCom) return D3D11_FLOAT32_MAX;
 
-    return _modelCom->Get_CurrentAnimationTimeSec() / _modelCom->Get_CurrentAnimationDurationSec();
+    return _modelCom->Get_CurrentProgress();
+}
+
+bool PlayableParts::Is_AnimationBlending() const
+{
+    return _modelCom->Is_AnimationBlending();
 }
 
 bool PlayableParts::Is_AnimationFinished() const
 {
     return _modelCom->Is_AnimationFinished();
+}
+
+Vec3 PlayableParts::Get_RootMotionPosition() const
+{
+    return _modelCom->Get_RootTransformVelocity().position;
+}
+
+void PlayableParts::Set_AnimationSpeed(float speed) const
+{
+    return _modelCom->Set_FrameSpeed(speed);
+}
+
+float PlayableParts::Get_AnimationSpeed() const
+{
+    return _modelCom->Get_FrameSpeed();
 }
 
 HRESULT PlayableParts::Initialize_Prototype()

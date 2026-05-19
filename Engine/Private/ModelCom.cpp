@@ -302,18 +302,20 @@ void ModelCom::Rebuild_BoneCombinedMatrices()
 
 float ModelCom::Get_CurrentProgress() const
 {
-    if (_animations.empty() || _currentAnimIndex >= _animations.size())
-        return 0.f;
+	uint32 index = _isBlending ? _nextAnimIndex : _currentAnimIndex;
+	if (_animations.empty() || index >= _animations.size())
+		return 0.f;
 
-    return _animations[_currentAnimIndex]->Get_Progress();
+	return _animations[index]->Get_Progress();
 }
 
 float ModelCom::Get_CurrentFrame() const
 {
-    if (_animations.empty() || _currentAnimIndex >= _animations.size())
-        return 0.f;
+	uint32 index = _isBlending ? _nextAnimIndex : _currentAnimIndex;
+	if (_animations.empty() || index >= _animations.size())
+		return 0.f;
 
-    return _animations[_currentAnimIndex]->Get_Progress() * _animations[_currentAnimIndex]->Get_Duration();
+	return _animations[index]->Get_Progress() * _animations[index]->Get_Duration();
 }
 
 const RootMotionFrame& ModelCom::Get_RootTransformVelocity(float scaleOffset)

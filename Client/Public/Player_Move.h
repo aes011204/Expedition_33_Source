@@ -17,6 +17,9 @@ public:
     void LateUpdate(float timeDelta) override;
     void ExitInvoke() override;
 
+private:
+    bool isInvokePreSprint{ false };
+
 public:
     static Shared<Player_Move> Create(const Shared<Player_WorldBase>& owner);
     virtual void Free() override;

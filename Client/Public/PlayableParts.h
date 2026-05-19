@@ -33,7 +33,12 @@ public:
     uint32 Get_AnimationIndex() const;
     uint32 Get_AnimationStateIndex() const;
     float Get_AnimationProgress() const;
+    bool Is_AnimationBlending() const;
     bool Is_AnimationFinished() const;
+    Vec3 Get_RootMotionPosition() const;
+
+    void Set_AnimationSpeed(float speed) const;
+    float Get_AnimationSpeed() const;
 
     Shared<ModelCom> Get_Model() const { return _modelCom; }
 

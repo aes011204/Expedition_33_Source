@@ -53,10 +53,15 @@ void Player_Idle::Update(float timeDelta)
 
     if (_isRoutineIdle)
     {
-        if (_bodyPlayer->Get_AnimationProgress() >= 0.86f)
+        bool isBlending = _bodyPlayer->Is_AnimationBlending();
+
+        if (!isBlending)
         {
-            _bodyPlayer->Set_AnimationByState(ETOI(pl::Pl_Idle_0), _idleBlendTime, true);
-            Reset_IdleTimer();
+            if (_bodyPlayer->Get_AnimationProgress() >= 0.86f)
+            {
+                _bodyPlayer->Set_AnimationByState(ETOI(pl::Pl_Idle_0), _idleBlendTime, true);
+                Reset_IdleTimer();
+            }
         }
     }
 }
