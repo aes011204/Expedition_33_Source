@@ -29,6 +29,10 @@ public:
     bool CanSave() const override;
     // Save As dialog를 열어 emitter/module authoring json을 저장한다.
     void Save() override;
+    // 현재 effect authoring document가 Open 대상으로 교체 가능함을 알린다.
+    bool CanOpen() const;
+    // Open dialog로 .effect.json을 열어 authoring 상태를 복원한다.
+    void Open();
 
 public: //## Accessor::Authoring
     ParticleSystemAuthoringData& Get_ParticleSystemData() { return _particleSystemData; }
