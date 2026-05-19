@@ -158,6 +158,7 @@
     <ClInclude Include="..\public\ANS_Dodge.h" />
     <ClInclude Include="..\public\ANS_Parry.h" />
     <ClInclude Include="..\public\ANS_QTE.h" />
+    <ClInclude Include="..\public\AN_Attack.h" />
     <ClInclude Include="..\public\AN_Battle_EndAnim.h" />
     <ClInclude Include="..\Public\AN_Test2.h" />
     <ClInclude Include="..\public\Base_Mon_Attack.h" />
@@ -316,6 +317,7 @@
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp" />
     <ClCompile Include="..\private\ANS_Parry.cpp" />
+    <ClCompile Include="..\private\AN_Attack.cpp" />
     <ClCompile Include="..\private\AN_Battle_EndAnim.cpp" />
     <ClCompile Include="..\Private\AN_Test2.cpp" />
     <ClCompile Include="..\private\Base_Mon_Attack.cpp" />

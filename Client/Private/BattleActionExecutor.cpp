@@ -13,6 +13,7 @@ void BattleActionExecutor::Update(float timeDelta, Action& action)
     if (_isFinished)
         return;
 
+
     Update_ActionMovement(timeDelta, action);
 }
 
@@ -22,9 +23,25 @@ void BattleActionExecutor::OnActionEndNotify(Action& action)
     if (action._curAnimIndex >= phases.size())
         return;
 
+    const BattleActionPhase& phase = phases[action._curAnimIndex];
+
+    if (phase.movementPolicy == BattleMovementPolicy::RootMotionToTarget ||
+        phase.movementPolicy == BattleMovementPolicy::MoveToTarget )
+    {
+        return;
+    }
+
+    Advance_ToNextPhase(action);
+}
+void BattleActionExecutor::Advance_ToNextPhase(Action& action)
+{
+    const auto& phases = action._selected_SkillKey.AnimPhases;
+    if (action._curAnimIndex >= phases.size())
+        return;
+
     //TODO :: 나중에 워크 고치고 주석 풀기
-    if (action._curChar.actor)
-        action._curChar.actor->Get_Transform()->Set_Position(action.phaseGoalPos);
+    //if (action._curChar.actor)
+    //    action._curChar.actor->Get_Transform()->Set_Position(action.phaseGoalPos);
 
     action._curAnimIndex++;
 
@@ -40,7 +57,6 @@ void BattleActionExecutor::OnActionEndNotify(Action& action)
 
     Begin_ActionPhase(action);
 }
-
 void BattleActionExecutor::Begin_ActionPhase(Action& action)
 {
     if (!action._curChar.actor)
@@ -57,13 +73,20 @@ void BattleActionExecutor::Begin_ActionPhase(Action& action)
     action.phaseStartPos = action._curChar.actor->Get_Transform()->Get_Position();
     action.phaseGoalPos = Resolve_PhaseGoalPosition(action, phase);
     action.phaseReachedGoal = false;
+    action.phasePrevRootRatio = 0.f;
 
     // _testPrevRatio = action._curChar.ModelCom->Get_RootMotionTranslationRatio();
 
     if (phase.faceTarget)
         Face_ActionTarget(action, action.phaseGoalPos);
 
-    action._curChar.ModelCom->Set_Animation(phase.animationKey, false, 1.5f);
+
+    if(phase.movementPolicy ==BattleMovementPolicy::RootMotionToTarget)
+    {
+        action._curChar.ModelCom->Set_Animation(phase.animationKey, true, 0.f);
+    }
+    else
+    action._curChar.ModelCom->Set_Animation(phase.animationKey, false, 0.f);
 }
 
 Vec3 BattleActionExecutor::Resolve_AnchorPosition(const Action& action, BattleTargetAnchor anchor) const
@@ -168,7 +191,7 @@ void BattleActionExecutor::Update_ActionMovement(float timeDelta, Action& action
     {
         ///TODO :: 지금 100 곱한거는 임시 정확한 규칙 찾아야함 + 현제 회전에 맞게 변형해서 곱해야함
         const auto& rm = action._curChar.ModelCom->Get_RootTransformVelocity();
-        const Vec3 delta = rm.position *100;
+        const Vec3 delta = rm.position * 100;
 
         LOG_INFO("position : {}", rm.position.z);
 
@@ -182,9 +205,10 @@ void BattleActionExecutor::Update_ActionMovement(float timeDelta, Action& action
         Vec3 worldDelta = Vec3::TransformNormal(delta, rotMat);
 
         transform->Set_Position(currentPos + worldDelta);
-      
+
         return;
     }
+
 
     Vec3 path = action.phaseGoalPos - action.phaseStartPos;
     path.y = 0.f;
@@ -194,6 +218,7 @@ void BattleActionExecutor::Update_ActionMovement(float timeDelta, Action& action
     {
         transform->Set_Position(action.phaseGoalPos);
         action.phaseReachedGoal = true;
+        Advance_ToNextPhase(action);
         return;
     }
 
@@ -207,11 +232,57 @@ void BattleActionExecutor::Update_ActionMovement(float timeDelta, Action& action
     {
         transform->Set_Position(action.phaseGoalPos);
         action.phaseReachedGoal = true;
+        Advance_ToNextPhase(action);
         return;
     }
 
-   
 
+    if (phase.movementPolicy == BattleMovementPolicy::RootMotionToTarget)
+    {
+        const auto& rm = action._curChar.ModelCom->Get_RootTransformVelocity();
+        Vec3 localDelta = rm.position * 100.f;
+        localDelta.y = 0.f;
+
+        if (localDelta.LengthSquared() <= 0.0001f)
+            return;
+
+        Vec3 rotDeg = transform->Get_RotationEuler();
+        Vec3 rotRad(
+            XMConvertToRadians(rotDeg.x),
+            XMConvertToRadians(rotDeg.y),
+            XMConvertToRadians(rotDeg.z));
+
+        Matrix rotMat = XMMatrixRotationRollPitchYaw(rotRad.x, rotRad.y, rotRad.z);
+
+        Vec3 worldDelta = Vec3::TransformNormal(localDelta, rotMat);
+        worldDelta.y = 0.f;
+
+
+        if (worldDelta.LengthSquared() <= 0.0001f)
+            return;
+
+        Vec3 goalDir = toGoal;
+        goalDir.Normalize();
+
+        const float forwardAmount = worldDelta.Dot(goalDir);
+        if (forwardAmount <= 0.f)
+            return;
+
+        Vec3 moveDelta = goalDir * forwardAmount;
+
+        if (moveDelta.Length() >= remain)
+        {
+            transform->Set_Position(action.phaseGoalPos);
+            action.phaseReachedGoal = true;
+            Advance_ToNextPhase(action);
+        }
+        else
+        {
+            transform->Set_Position(currentPos + moveDelta);
+        }
+
+        return;
+    }
     if (phase.movementPolicy == BattleMovementPolicy::MoveToTarget || phase.movementPolicy == BattleMovementPolicy::ReturnToOrigin)
     {
         const float currentRatio = action._curChar.ModelCom->Get_RootMotionTranslationRatio();
@@ -233,10 +304,13 @@ void BattleActionExecutor::Update_ActionMovement(float timeDelta, Action& action
         {
             transform->Set_Position(action.phaseGoalPos);
             action.phaseReachedGoal = true;
+            Advance_ToNextPhase(action);
         }
         else
             transform->Set_Position(currentPos + path * moveAmount);
     }
+
+
 }
 
 Shared<BattleActionExecutor> BattleActionExecutor::Create()

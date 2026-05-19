@@ -20,6 +20,8 @@
 
 #pragma region FD
 NS_BEGIN(Engine)
+
+class Event_Bus;
 class Graphic_Device;
 class Timer_Manager;
 class Level_Manager;
@@ -485,6 +487,10 @@ public: /* For.Delegate Hub */
     DelegateHub& Get_DelegateHub() { return _delegateHub; }
     const DelegateHub& Get_DelegateHub() const { return _delegateHub; }
 
+
+public: /* For.Event Bus */
+    Event_Bus& Get_EventBus() { return *_eventBus; }
+
 private:
     Unique<Log_Manager>         _logManager{};
     Unique<Graphic_Device>      _graphicDevice{};
@@ -509,7 +515,7 @@ private:
     Unique<Picking>             _picking{};
     Unique<Culling_Manager>     _cullingManager{};
     Unique<ThreadPool>          _threadPool{};
-
+    Unique<Event_Bus>          _eventBus{};
 
 #ifdef _DEBUG
     Unique<Print_Manager>       _printManager{};

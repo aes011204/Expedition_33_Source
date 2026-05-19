@@ -13,6 +13,7 @@ public:
     void BeginAction(Action& action);
     void Update(float timeDelta, Action& action);
     void OnActionEndNotify(Action& action);
+    void Advance_ToNextPhase(Action& action);
 
 public:
     bool IsFinished() const

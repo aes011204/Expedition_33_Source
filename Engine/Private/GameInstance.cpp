@@ -31,6 +31,7 @@
 #include "Material.h"
 
 #include "Collision_Define.h"
+#include "Event_Bus.h"
 #include "PhysX_Types.h"
 
 #ifdef _DEBUG
@@ -128,6 +129,9 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
 
     _picking = Picking::Create(device, context);
     CHECK_NULL(_picking, E_FAIL);
+
+    _eventBus = Event_Bus::Create();
+    CHECK_NULL(_eventBus, E_FAIL);
 
     // Thread Pool
     {

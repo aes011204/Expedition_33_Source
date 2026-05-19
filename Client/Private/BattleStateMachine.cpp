@@ -52,6 +52,14 @@ HRESULT BattleStateMachine::Initialize(void* arg)
     return S_OK;
 }
 
+HRESULT BattleStateMachine::Add_State(BattleTurnState playerState, const Shared<State>& state)
+{
+    string name = string(magic_enum::enum_name(playerState));
+    wstring wname(name.begin(), name.end());
+
+    return BStateMachine::Add_State(wname, state);
+}
+
 //void BattleStateMachine::Update_StateMachine(float timeDelta)
 //{
 //    if (_currentState != nullptr)
@@ -60,19 +68,6 @@ HRESULT BattleStateMachine::Initialize(void* arg)
 //        _currentState->LateUpdate(timeDelta);
 //    }
 //}
-
-HRESULT BattleStateMachine::Add_State(BattleTurnState playerState, const Shared<State>& state)
-{
-    const wstring& str = String::ToWString(magic_enum::enum_name(playerState).data());
-
-    LOG_DEBUG("BattleStateMachine::Add_State: class={} ({}), ptr={}",
-        BattleTurnStateClassName(playerState),
-        static_cast<int>(playerState),
-        static_cast<const void*>(state.get()));
-
-
-    return BStateMachine::Add_State(str, state);
-}
 
 bool BattleStateMachine::Change_State(BattleTurnState playerState)
 {
