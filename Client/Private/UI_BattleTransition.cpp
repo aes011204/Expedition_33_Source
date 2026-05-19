@@ -71,7 +71,7 @@ HRESULT UI_BattleTransition::Load_UI(uint32 levelIndex)
 {
     UI_RuntimeLoader::UI_LoadDesc desc{};
     desc.levelIndex = levelIndex;
-    desc.jsonPath = Constants::UI::UI_Battle_Fade_Dir;
+    desc.jsonPath = Constants::UI::UI_Battle_Fade_Path;
     desc.prototypeTagPrefix = L"BattleTransition";
     desc.outUIByName = &_uiByName;
 

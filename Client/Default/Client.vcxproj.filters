@@ -634,6 +634,8 @@
       <Filter>AnimNotify</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\UI_BattleTransition.h" />
+    <ClInclude Include="..\Public\UI_ExpeditionStatus.h" />
+    <ClInclude Include="..\Public\UI_SavePoint.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -1022,6 +1024,8 @@
       <Filter>AnimNotify</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\UI_BattleTransition.cpp" />
+    <ClCompile Include="..\Private\UI_ExpeditionStatus.cpp" />
+    <ClCompile Include="..\Private\UI_SavePoint.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">

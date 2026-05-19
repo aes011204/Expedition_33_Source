@@ -61,7 +61,7 @@ private: //## Data
     Unique<ProfilerRuntime> _runtime{ nullptr };
     clock::time_point _prevFrame{ clock::now() };
 
-    bool _capture{ true };
+    bool _capture{ false };
     bool _sortByCost{ true };
     bool _showDisabled{ false };
     int _avgWindow{ 120 };

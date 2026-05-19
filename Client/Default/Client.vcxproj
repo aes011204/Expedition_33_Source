@@ -290,7 +290,9 @@
     <ClInclude Include="..\Public\CharacterStatus_Panel.h" />
     <ClInclude Include="..\public\UIPreviewManager.h" />
     <ClInclude Include="..\Public\UI_BattleTransition.h" />
+    <ClInclude Include="..\Public\UI_ExpeditionStatus.h" />
     <ClInclude Include="..\Public\UI_RuntimeLoader.h" />
+    <ClInclude Include="..\Public\UI_SavePoint.h" />
     <ClInclude Include="..\public\UltimateTargeting.h">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
@@ -444,7 +446,9 @@
     <ClCompile Include="..\Private\CharacterStatus_Panel.cpp" />
     <ClCompile Include="..\private\UIPreviewManager.cpp" />
     <ClCompile Include="..\Private\UI_BattleTransition.cpp" />
+    <ClCompile Include="..\Private\UI_ExpeditionStatus.cpp" />
     <ClCompile Include="..\Private\UI_RuntimeLoader.cpp" />
+    <ClCompile Include="..\Private\UI_SavePoint.cpp" />
     <ClCompile Include="..\private\UltimateTargeting.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
