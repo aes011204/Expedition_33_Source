@@ -56,12 +56,11 @@ public:
     bool IsBreak() const { return _MRuntimeStat.isBreak; }
     void SetBreak(bool value) { _MRuntimeStat.isBreak = value; }
 
-    vector<string> Get_SkillKey() { return _skillKeys; }
+
 
 private:
     MonsterCombatStatDesc _monsterDesc;
     MRuntimeCombatStat _MRuntimeStat;
-    vector<string> _skillKeys;
 public:
     static Shared<MonsterStatCom> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
     Shared<Component> Clone(void* arg) override;

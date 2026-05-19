@@ -1,4 +1,6 @@
 ﻿#include "PlayerStatCom.h"
+
+#include <GameObject.h>
 #include "ClientInstance.h"
 
 IMPLEMENT_REFLECTION(PlayerStatCom)
@@ -85,6 +87,7 @@ HRESULT PlayerStatCom::Initialize(void* arg)
     Update_StatInfo();   // UI가 읽는 CurMaxHp, CurAttack, CurSpeed 값 갱신용
 
     _isPlayer = true;
+    
 
     return S_OK;
 }

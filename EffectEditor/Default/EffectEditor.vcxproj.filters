@@ -64,9 +64,6 @@
     <ClCompile Include="..\Private\EffectMaterial_View.cpp">
       <Filter>01. View\Effect Material View</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\EffectMaterialPreviewRenderer.cpp">
-      <Filter>01. View\Effect Material View</Filter>
-    </ClCompile>
     <ClCompile Include="..\Private\EffectMaterialInstance_View.cpp">
       <Filter>01. View\Effect Material View</Filter>
     </ClCompile>
@@ -79,17 +76,26 @@
     <ClCompile Include="..\Private\ModuleDetail_Drawers.cpp">
       <Filter>01. View\Detail View\Drawers</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\Helper_ReadPreset.cpp">
-      <Filter>99. Defines\Helper</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\Helper_EffectCamera.cpp">
-      <Filter>99. Defines\Helper</Filter>
-    </ClCompile>
     <ClCompile Include="..\Private\DetailPropertyContext.cpp">
       <Filter>01. View\Detail View\Property Context</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\EffectEditorCamera.cpp">
       <Filter>04. Camera</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\EffectAuthoringJsonSerializer.cpp">
+      <Filter>05. Serializer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\EffectAuthoringModuleMetadata.cpp">
+      <Filter>06. Authoring Support</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\EffectPreviewOrbitCamera.cpp">
+      <Filter>04. Camera\Preview Support</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\EffectMaterialPresetReader.cpp">
+      <Filter>01. View\Effect Material View\Support</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\EffectMaterialPreviewRenderer.cpp">
+      <Filter>01. View\Effect Material View\Preview Renderer</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -180,9 +186,6 @@
     <ClInclude Include="..\Public\EffectMaterial_View.h">
       <Filter>01. View\Effect Material View</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\EffectMaterialPreviewRenderer.h">
-      <Filter>01. View\Effect Material View</Filter>
-    </ClInclude>
     <ClInclude Include="..\Public\EffectMaterialInstance_View.h">
       <Filter>01. View\Effect Material View</Filter>
     </ClInclude>
@@ -195,17 +198,26 @@
     <ClInclude Include="..\Public\ModuleDetail_Drawers.h">
       <Filter>01. View\Detail View\Drawers</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\Helper_ReadPreset.h">
-      <Filter>99. Defines\Helper</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\Helper_EffectCamera.h">
-      <Filter>99. Defines\Helper</Filter>
-    </ClInclude>
     <ClInclude Include="..\Public\DetailPropertyContext.h">
       <Filter>01. View\Detail View\Property Context</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\EffectEditorCamera.h">
       <Filter>04. Camera</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\EffectAuthoringJsonSerializer.h">
+      <Filter>05. Serializer</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\EffectAuthoringModuleMetadata.h">
+      <Filter>06. Authoring Support</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\EffectPreviewOrbitCamera.h">
+      <Filter>04. Camera\Preview Support</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\EffectMaterialPresetReader.h">
+      <Filter>01. View\Effect Material View\Support</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\EffectMaterialPreviewRenderer.h">
+      <Filter>01. View\Effect Material View\Preview Renderer</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -289,6 +301,21 @@
     </Filter>
     <Filter Include="04. Camera">
       <UniqueIdentifier>{60cec4ea-d4b0-4558-a156-9185d0c47f5c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="05. Serializer">
+      <UniqueIdentifier>{aae158e1-6103-4fc4-a114-f0458c6728dc}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="06. Authoring Support">
+      <UniqueIdentifier>{f2f1a9b1-5f56-49c0-81f2-efa2ae3127da}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="04. Camera\Preview Support">
+      <UniqueIdentifier>{af828d1c-950d-46bc-8e76-8fec5206c2f7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="01. View\Effect Material View\Support">
+      <UniqueIdentifier>{8189297c-702f-4e33-8bfd-927fc7c98955}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="01. View\Effect Material View\Preview Renderer">
+      <UniqueIdentifier>{94faf53c-b720-4e98-9432-3e20c343d149}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

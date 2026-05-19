@@ -317,6 +317,24 @@ Vec3 TransformCom::Get_WorldRotationEuler()
     );
 }
 
+Quat TransformCom::Get_WorldRotationQuaternion()
+{
+    Matrix worldMatrix = Get_WorldMatrix();
+
+    Vec3 scale = Vec3::One;
+    Quat rotation = Quat::Identity;
+    Vec3 translation = Vec3::Zero;
+
+    if (!worldMatrix.Decompose(scale, rotation, translation))
+        return Quat::Identity;
+
+    if (rotation.LengthSquared() <= Internal::transformEpsilon)
+        return Quat::Identity;
+
+    rotation.Normalize();
+    return rotation;
+}
+
 void TransformCom::Set_WorldRotationEuler(const Vec3& eulerDegree)
 {
     const Vec3 eulerRadian(

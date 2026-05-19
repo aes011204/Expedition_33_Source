@@ -25,6 +25,10 @@ public:
 public:
     HRESULT Initialize() override;
     void Render() override;
+    // 현재 effect authoring document가 Save 대상임을 알린다.
+    bool CanSave() const override;
+    // Save As dialog를 열어 emitter/module authoring json을 저장한다.
+    void Save() override;
 
 public: //## Accessor::Authoring
     ParticleSystemAuthoringData& Get_ParticleSystemData() { return _particleSystemData; }
