@@ -89,6 +89,10 @@ public: /* For.Gameplay UI */
     HRESULT Initialize_GameplayUI(uint32 levelIndex);
     void    Clear_GameplayUI();
 
+    void    Play_BattleEnterTransition();
+    void    Stop_BattleEnterTransition();
+    bool    Is_BattleEnterTransitionPlaying() const;
+
 public: /* For.Battle_Controller */
     void OnEnterBattleField(
         uint32 FieldID,
@@ -98,8 +102,8 @@ public: /* For.Battle_Controller */
 
     Shared<BattleController>    Get_BattleController() { return _battleController; };
 
-    bool Is_BattleActive() const;
-    bool Is_BattleEntering() const;
+    bool    Is_BattleActive() const;
+    bool    Is_BattleEntering() const;
 
 private:
 	HRESULT Ready_ResourceLoader();

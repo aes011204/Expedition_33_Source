@@ -235,8 +235,25 @@ void ClientInstance::Clear_GameplayUI()
     GAME->Set_GameplayPaused(false);
 }
 
+void ClientInstance::Play_BattleEnterTransition()
+{
+    if (_gamePlayUI)
+        return _gamePlayUI->Play_BattleEnterTransition();
+}
+
+void ClientInstance::Stop_BattleEnterTransition()
+{
+    if (_gamePlayUI)
+        return _gamePlayUI->Stop_BattleEnterTransition();
+}
+
+bool ClientInstance::Is_BattleEnterTransitionPlaying() const
+{
+    return _gamePlayUI && _gamePlayUI->Is_BattleEnterTransitionPlaying();
+}
+
 void ClientInstance::OnEnterBattleField(uint32 FieldID, bool IsFirstHero, const vector<HeroId>& heroIds,
-    vector<string>& MonsterProtoTag)
+                                        vector<string>& MonsterProtoTag)
 {
     return _battleController->OnEnterBattleField(FieldID, IsFirstHero, heroIds, MonsterProtoTag);
 }

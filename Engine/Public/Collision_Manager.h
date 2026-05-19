@@ -30,7 +30,7 @@ public:
 
 private:
     vector<Weak<ColliderCom>> _colliders;
-    bool    _isDebug = true;
+    bool    _isDebug = false;
 
 #ifdef _DEBUG
 private:

@@ -57,8 +57,18 @@ void BattleController::Update(float timeDelta)
         _battleEnterElapsed += GAME->Get_UnscaledTimeDelta();
 
         if (_battleEnterElapsed >= _battleEnterDuration)
-        {
             Complete_BattleField();
+
+        return;
+    }
+
+    if (_isWaitingBattleTransition)
+    {
+        // 전환이 끝난 뒤에 첫 턴 시작되게
+        if (!CLIENT->Is_BattleEnterTransitionPlaying())
+        {
+            _isWaitingBattleTransition = false;
+            StartTurn();
         }
 
         return;
@@ -141,8 +151,10 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
 {
     _isBattleActive = false;
     _isBattleEntering = false;
+    _isWaitingBattleTransition = false;
 
     // 전투 종료 시 슬로우모션 값이 남지 않도록 복구
+    CLIENT->Stop_BattleEnterTransition();
     GAME->Stop_WorldTimeSlow();
 
 	Restore_WorldCamera(); // 카메라 복구
@@ -382,8 +394,19 @@ void BattleController::SetCharInitPos()
     */
     const Vec3 startPos = Vec3(225.f, -4020.5f, -1.24f);
 
-    const Vec3 EPos[3] = { { 0.f, 0.f, 0.f }, { 10.f, 0.f, 0.f }, { 20.f, 0.f, 0.f } };
-    const Vec3 PPos[3] = { { 0.f, 0.f, 10.f }, { 10.f, 0.f, 10.f }, { 20.f, 0.f, 10.f } };
+    const Vec3 playerPos[3] =
+    {
+        { 3.f, 0.f, 0.f },
+        { 0.f, 0.f, 0.f },
+        { -3.f, 0.f, 0.f },
+    };
+
+    const Vec3 enemyPos[3] =
+    {
+        { 3.f, 0.f, 10.f },
+        { 0.f, 0.f, 10.f },
+        { -3.f, 0.f, 10.f },
+    };
 
     // 임시
     for (size_t i = 0; i < _heroes.size(); ++i)
@@ -392,10 +415,7 @@ void BattleController::SetCharInitPos()
         if (!hero.actor)
             continue;
 
-        hero.actor->Get_Transform()->Set_Position(
-            startPos +
-            PPos[i]
-        );
+        hero.actor->Get_Transform()->Set_Position(startPos + playerPos[i]);
     }
 
     for (size_t i = 0; i < _enemies.size(); ++i)
@@ -404,10 +424,7 @@ void BattleController::SetCharInitPos()
         if (!enemy.actor)
             continue;
 
-        enemy.actor->Get_Transform()->Set_Position(
-            startPos +
-            EPos[i]
-        );
+        enemy.actor->Get_Transform()->Set_Position(startPos + enemyPos[i]);
     }
 }
 
@@ -435,6 +452,7 @@ vector<BattleChar> BattleController::Get_AliveHeroes()
 
 void BattleController::Handle_EditorStopRuntime()
 {
+    CLIENT->Stop_BattleEnterTransition();
     GAME->Stop_WorldTimeSlow();
     GAME->Set_WorldTimeScale(1.f);
     GAME->Set_PlayerInputBlocked(false);
@@ -445,6 +463,7 @@ void BattleController::Handle_EditorStopRuntime()
     _battleEnded = false;
     _isBattleActive = false;
     _isBattleEntering = false;
+    _isWaitingBattleTransition = false;
     currentTurnIndex = 0;
     _battleTime = 0.f;
     _flag = false;
@@ -607,6 +626,7 @@ void BattleController::Complete_BattleField()
 
     _isBattleActive = true;
     _isBattleEntering = false;
+    _isWaitingBattleTransition = false;
     _battleEnded = false;
     _pendingNextTurn = false;
 
@@ -641,7 +661,9 @@ void BattleController::Complete_BattleField()
     Clear_BattleEnterPending();
 
     // 턴 시작
-    StartTurn();
+    // StartTurn(); 바로 시작하는게 아니라 UI 재생 끝나고
+    CLIENT->Play_BattleEnterTransition();
+    _isWaitingBattleTransition = true;
 }
 
 void BattleController::Clear_BattleEnterPending()

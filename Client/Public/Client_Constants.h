@@ -19,6 +19,9 @@ namespace Client::Constants::UI
     inline constexpr wchar_t UI_Gustave_CharacterSheet_Dir[] = L"UI/UI_Json/UI_CharacterSheet_Gustave.json";
     inline constexpr wchar_t UI_Maelle_CharacterSheet_Dir[] = L"UI/UI_Json/UI_CharacterSheet_Maelle.json";
 
+    inline constexpr wchar_t UI_Battle_Fade_Dir[] = L"UI/UI_Json/UI_Battle_Fade.json";
+    inline constexpr wchar_t UI_BattleSystem_HUD_Dir[] = L"UI/UI_Json/UI_BattleSystem_HUD.json";
+
 }
 
 namespace Client::Constants::Map

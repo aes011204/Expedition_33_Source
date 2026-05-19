@@ -74,6 +74,9 @@ void Player_WorldBase::Priority_Update(float timeDelta)
 
 void Player_WorldBase::Update(float timeDelta)
 {
+    if (CLIENT->Is_BattleActive())
+        return;
+
     __super::Update(timeDelta);
 
     
@@ -81,6 +84,9 @@ void Player_WorldBase::Update(float timeDelta)
 
 void Player_WorldBase::Late_Update(float timeDelta)
 {
+    if (CLIENT->Is_BattleActive())
+        return;
+
     __super::Late_Update(timeDelta);
 
     Update_Culling(Vec3(1.f, 2.f, 1.f));
