@@ -84,14 +84,14 @@ void ClientInstance::Update_Client(float timeDelta)
     if (_heroManager)
         _heroManager->Update_HeroManager(timeDelta);
 
+    if (_battleController)
+        _battleController->Update(timeDelta);
+
     if (_gamePlayUI)
         _gamePlayUI->Update(timeDelta);
 
     if (_previewManager)
         _previewManager->Update(timeDelta);
-
-    if (_battleController)
-        _battleController->Update(timeDelta);
 }
 
 HRESULT ClientInstance::Ready_StaticResources()

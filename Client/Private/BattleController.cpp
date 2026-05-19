@@ -496,6 +496,28 @@ HRESULT BattleController::Ready_Delegates()
     return S_OK;
 }
 
+bool BattleController::Is_PlayerTurnActive() const
+{
+    if (!_isBattleActive || _battleEnded)
+        return false;
+
+    if (_isBattleEntering || _isWaitingBattleTransition)
+        return false;
+
+    if (_currentTurnActor.actor == nullptr || _currentTurnActor.statCom == nullptr)
+        return false;
+
+    return _currentTurnActor.statCom->Is_Player();
+}
+
+BattleTurnState BattleController::Get_CurrentTurnState() const
+{
+    if (_battleFSM == nullptr)
+        return BattleTurnState::None;
+
+    return _battleFSM->Get_CurrentPlayerState();
+}
+
 void BattleController::Execute_BaseAttack(const BattleChar actor, const Action& turnAction)
 {
     //기본스킬도 특이하기때문에 스킬로
