@@ -6,7 +6,7 @@
 #include "EffectMaterial_View.h"
 #include "GameInstance.h"
 #include "Helper_String.h"
-#include "Helper_TextureFormat.h"
+#include "TextureDisplayInfoResolver.h"
 #include "Texture.h"
 
 NS_BEGIN(EffectEditor)
@@ -487,12 +487,12 @@ void Content_Browser::Draw_AssetView()
             if (isTextureFile)
             {
                 string textureId{};
-                if (TextureFormat::TryFindTextureIdByFilePath(path, textureId))
+                if (TextureDisplayInfoResolver::TryFindTextureIdByFilePath(path, textureId))
                 {
                     const string tooltip =
                         fileName +
                         "\n" +
-                        TextureFormat::MakeTextureTooltip(textureId);
+                        TextureDisplayInfoResolver::MakeTextureTooltip(textureId);
                     ImGui::SetTooltip("%s", tooltip.c_str());
                 }
                 else

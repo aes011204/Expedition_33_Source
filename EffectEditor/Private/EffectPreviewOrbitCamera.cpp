@@ -1,8 +1,8 @@
-﻿#include "Helper_EffectCamera.h"
+#include "EffectPreviewOrbitCamera.h"
 
 NS_BEGIN(EffectEditor)
 
-void Helper_EffectCamera::Reset(
+void EffectPreviewOrbitCamera::Reset(
     EffectPreviewOrbitCameraState& state,
     const Vec3& pivot,
     float distance,
@@ -15,7 +15,7 @@ void Helper_EffectCamera::Reset(
     state.pitchDegrees = pitchDegrees;
 }
 
-void Helper_EffectCamera::Orbit(
+void EffectPreviewOrbitCamera::Orbit(
     EffectPreviewOrbitCameraState& state,
     const Vec2& mouseDelta,
     float mouseSensor)
@@ -24,7 +24,7 @@ void Helper_EffectCamera::Orbit(
     state.pitchDegrees = clamp(state.pitchDegrees + mouseDelta.y * mouseSensor, -89.f, 89.f);
 }
 
-void Helper_EffectCamera::Pan(
+void EffectPreviewOrbitCamera::Pan(
     EffectPreviewOrbitCameraState& state,
     const Vec2& mouseDelta,
     const Vec3& right,
@@ -34,7 +34,7 @@ void Helper_EffectCamera::Pan(
     state.pivot += (-right * mouseDelta.x + up * mouseDelta.y) * panScale;
 }
 
-void Helper_EffectCamera::Dolly(
+void EffectPreviewOrbitCamera::Dolly(
     EffectPreviewOrbitCameraState& state,
     float delta,
     float dollyScale,
@@ -44,7 +44,7 @@ void Helper_EffectCamera::Dolly(
     state.distance = clamp(state.distance - delta * dollyScale, minDistance, maxDistance);
 }
 
-EffectPreviewOrbitCameraFrame Helper_EffectCamera::Build_Frame(
+EffectPreviewOrbitCameraFrame EffectPreviewOrbitCamera::Build_Frame(
     const EffectPreviewOrbitCameraState& state,
     float aspect,
     float fovYRadians,
@@ -90,3 +90,4 @@ EffectPreviewOrbitCameraFrame Helper_EffectCamera::Build_Frame(
 }
 
 NS_END
+

@@ -19,6 +19,7 @@
 #include "Prefab_View.h"
 #include "Animation_View.h"
 #include "AnimState_View.h"
+#include "ClientInstance.h"
 #include "PostProcess_View.h"
 
 namespace fs = std::filesystem;
@@ -306,7 +307,7 @@ void Editor_Manager::Handle_Shortcuts()
     if (ImGui::IsKeyPressed(ImGuiKey_F8, false))
     {
         if (GAME->Is_ActiveCameraType(ObjectType::FreeCamera))
-            EDITOR->Activate_TargetCamera();
+            EDITOR->Restore_PreviousCameraOrTarget();
         else
             EDITOR->Activate_FreeCamera();
 
@@ -329,6 +330,13 @@ void Editor_Manager::Handle_Shortcuts()
     // Esc : 게임 종료
     if (ImGui::IsKeyPressed(ImGuiKey_Escape, false))
     {
+        if (CLIENT->Is_GameplayMenuOpen() ||
+            GAME->Is_UIInputEnabled() ||
+            GAME->Is_GameplayPaused())
+        {
+            return;
+        }
+
         if (EDITOR->IsPlaying() || EDITOR->IsPaused())
             EDITOR->Stop();
 
@@ -459,7 +467,7 @@ void Editor_Manager::Toggle_FocusMode()
 
         _focusModeWindowStates[name] = window->Is_Open();
 
-        if (name == L"Scene" || name == L"Game" || name == L"Profile")
+        if (name == L"Scene" || name == L"Game" || name == L"Profile" || name == L"Console")
             continue;
 
         window->Set_Open(false);

@@ -20,6 +20,7 @@ public:
     {
         Shared<ModelCom> model = nullptr;
         Shared<StaticCollisionData> collisionData = nullptr;
+        wstring name = {};
         wstring modelPath = {};
         Vec3 position = Vec3::Zero;
         Quat rotation = Quat::Identity;

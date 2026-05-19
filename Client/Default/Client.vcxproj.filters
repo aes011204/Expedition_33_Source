@@ -633,6 +633,11 @@
     <ClInclude Include="..\public\AN_Attack.h">
       <Filter>AnimNotify</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\UI_BattleTransition.h" />
+    <ClInclude Include="..\Public\UI_ExpeditionStatus.h" />
+    <ClInclude Include="..\Public\SavePoint_Panel.h" />
+    <ClInclude Include="..\Public\UI_Utils.h" />
+    <ClInclude Include="..\Public\UI_BattleCommandHUD.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -1020,6 +1025,10 @@
     <ClCompile Include="..\private\AN_Attack.cpp">
       <Filter>AnimNotify</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\UI_BattleTransition.cpp" />
+    <ClCompile Include="..\Private\UI_ExpeditionStatus.cpp" />
+    <ClCompile Include="..\Private\SavePoint_Panel.cpp" />
+    <ClCompile Include="..\Private\UI_BattleCommandHUD.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">

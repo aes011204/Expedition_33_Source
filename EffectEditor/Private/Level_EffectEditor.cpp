@@ -5,11 +5,107 @@
 #include "EffectInstance.h"
 #include "Emitter_View.h"
 #include "GameInstance.h"
+#include "Camera.h"
+#include "GameObject.h"
+#include "ShaderCom.h"
+#include "Texture.h"
+#include "VIBuffer_Cube.h"
 
 NS_BEGIN(EffectEditor)
 
 namespace Internal
 {
+    class EffectEditorSkybox final : public GameObject
+    {
+    public:
+        EffectEditorSkybox(const ComPtr<Device>& device, const ComPtr<Context>& context)
+            : GameObject{ device, context }
+        {
+        }
+
+        EffectEditorSkybox(const EffectEditorSkybox& prototype)
+            : GameObject{ prototype }
+        {
+        }
+
+        HRESULT Initialize(void* arg) override
+        {
+            CHECK_FAILED(GameObject::Initialize(arg), E_FAIL);
+            CHECK_FAILED(Ready_Components(), E_FAIL);
+
+            _transformCom->Set_Scale(Vec3(100.f, 100.f, 100.f));
+
+            return S_OK;
+        }
+
+        void Late_Update(float) override
+        {
+            GAME->Add_RenderGroup(RenderGroup::Priority, GetSharedPtr<GameObject>());
+        }
+
+        HRESULT Render() override
+        {
+            CHECK_FAILED(Bind_ShaderResources(), E_FAIL);
+            CHECK_FAILED(_shader->Begin(0), E_FAIL);
+            CHECK_FAILED(_vibuffer->Bind_Resources(), E_FAIL);
+            CHECK_FAILED(_vibuffer->Render(), E_FAIL);
+
+            return S_OK;
+        }
+
+        Shared<GameObject> Clone(void* arg) override
+        {
+            auto instance = make_shared<EffectEditorSkybox>(*this);
+            if (FAILED(instance->Initialize(arg)))
+                return nullptr;
+
+            return instance;
+        }
+
+        static Shared<EffectEditorSkybox> Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
+        {
+            return make_shared<EffectEditorSkybox>(device, context);
+        }
+
+        void Free() override
+        {
+            GameObject::Free();
+        }
+
+    private:
+        HRESULT Ready_Components()
+        {
+            CHECK_FAILED(Add_Component(ETOI(LevelType::Static), L"Texture_Effect_EditorSkybox", _texture), E_FAIL);
+            CHECK_FAILED(Add_Component(ETOI(LevelType::Static), L"Shader_VtxCube", _shader), E_FAIL);
+            CHECK_FAILED(Add_Component(ETOI(LevelType::Static), L"VIBuffer_Cube", _vibuffer), E_FAIL);
+
+            return S_OK;
+        }
+
+        HRESULT Bind_ShaderResources()
+        {
+            const Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
+            if (activeCamera != nullptr)
+            {
+                const Shared<TransformCom> cameraTransform = activeCamera->Get_Transform();
+                if (cameraTransform != nullptr)
+                    _transformCom->Set_WorldPosition(cameraTransform->Get_WorldPosition());
+            }
+
+            CHECK_FAILED(_transformCom->Bind_ShaderResource(_shader.get(), "g_WorldMatrix"), E_FAIL);
+            CHECK_FAILED(GAME->Bind_TransformMatrix(D3DTS::View, _shader.get(), "g_ViewMatrix"), E_FAIL);
+            CHECK_FAILED(GAME->Bind_TransformMatrix(D3DTS::Proj, _shader.get(), "g_ProjMatrix"), E_FAIL);
+            CHECK_FAILED(_texture->Bind_ShaderResourceView(_shader.get(), "g_Texture", 0), E_FAIL);
+
+            return S_OK;
+        }
+
+    private:
+        Shared<ShaderCom> _shader{};
+        Shared<VIBuffer_Cube> _vibuffer{};
+        Shared<Texture> _texture{};
+    };
+
     //## Module Lookup
 
     template <typename TData>
@@ -325,6 +421,7 @@ HRESULT Level_EffectEditor::Initialize()
     CHECK_FAILED(Level::Initialize(), E_FAIL);
     CHECK_FAILED(Ready_Lights(), E_FAIL);
     CHECK_FAILED(Ready_Layer_Camera(L"Layer_Camera"), E_FAIL);
+    CHECK_FAILED(Ready_Layer_Sky(L"Layer_Sky"), E_FAIL);
     CHECK_FAILED(Ready_Layer_Preview(kPreviewLayerTag), E_FAIL);
 
     return S_OK;
@@ -421,8 +518,8 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
     {
         const EffectMaterialInstanceData& material = required->material;
 
-        if (!material.mainTextureId.empty())
-            desc.required.material.textureId = material.mainTextureId;
+        desc.required.material.mainTextureGuid = material.mainTextureGuid;
+        desc.required.material.mainTexturePath = material.mainTexturePath;
 
         if (!material.blendMode.empty())
             desc.required.material.blendMode = material.blendMode;
@@ -434,8 +531,8 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
         desc.required.material.intensity = material.intensity;
         desc.required.material.opacityPower = material.opacityPower;
 
-        if (!material.noiseTextureId.empty())
-            desc.required.material.noiseTextureId = material.noiseTextureId;
+        desc.required.material.noiseTextureGuid = material.noiseTextureGuid;
+        desc.required.material.noiseTexturePath = material.noiseTexturePath;
 
         desc.required.material.noiseStrength = material.noiseStrength;
         desc.required.material.subUVRows = max(1u, material.subUVRows);
@@ -729,6 +826,20 @@ HRESULT Level_EffectEditor::Ready_Layer_Camera(const wstring& layerTag)
     CHECK_FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), layerTag, previewCamera), E_FAIL);
 
     GAME->Change_ActiveCamera(previewCamera);
+
+    return S_OK;
+}
+
+HRESULT Level_EffectEditor::Ready_Layer_Sky(const wstring& layerTag)
+{
+    if (layerTag.empty())
+        return E_FAIL;
+
+    const Shared<Internal::EffectEditorSkybox> skybox =
+        Internal::EffectEditorSkybox::Create(_device, _context);
+    CHECK_NULL(skybox, E_FAIL);
+    CHECK_FAILED(skybox->Initialize(nullptr), E_FAIL);
+    CHECK_FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), layerTag, skybox), E_FAIL);
 
     return S_OK;
 }

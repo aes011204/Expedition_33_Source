@@ -182,6 +182,18 @@ HRESULT MapStaticMesh::Initialize(void* arg)
         return E_FAIL;
     }
 
+    wstring objectName = pDesc->name;
+    if (objectName.empty() && _model != nullptr)
+    {
+        const wstring& sourceModelPath = _model->Get_SourceModelPath();
+        if (!sourceModelPath.empty())
+            objectName = fs::path(sourceModelPath).stem().wstring();
+    }
+    if (objectName.empty() && !pDesc->modelPath.empty())
+        objectName = fs::path(pDesc->modelPath).stem().wstring();
+    if (!objectName.empty())
+        Set_Name(objectName);
+
     GAME->Register_StaticShadowCaster(GetSharedPtr<GameObject>());
 
     _transformCom->Set_Position(pDesc->position);
