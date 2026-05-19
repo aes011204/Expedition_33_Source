@@ -44,10 +44,10 @@ struct PS_OUT_BACKBUFFER
     vector Color : SV_TARGET0;
 };
 
-struct PS_OUT_HDR_WITH_MASK
+struct PS_OUT_HDR_WITH_MASK         // 해당 픽셀이 그려졌는지 (안 그려졌다면 해당 픽셀을 배경 기본색으로 덮기 위해)
 {
-    vector Color : SV_TARGET0;
-    float Mask : SV_TARGET1;
+    vector Color    : SV_TARGET0;
+    float Mask      : SV_TARGET1;
 };
 
 PS_OUT_BACKBUFFER PS_MAIN_DEBUG(PS_IN In)
@@ -148,8 +148,9 @@ PS_OUT_HDR_WITH_MASK PS_CombinedHDR(PS_IN In)
     vector Shade = g_ShadeTexture.Sample(LinearWrapSampler, In.Texcoord);
     vector Specular = g_SpecularTexture.Sample(LinearWrapSampler, In.Texcoord);
     vector Emissive = g_EmissiveTexture.Sample(LinearWrapSampler, In.Texcoord);
+    float ao = g_SSAOTexture.Sample(LinearWrapSampler, In.Texcoord).r;
 
-    Out.Color = Diffuse * Shade + Specular;
+    Out.Color = Diffuse * Shade * ao + Specular;
 
     // Shadow
     float4 worldPos = Reconstruct_WorldPos(In.Texcoord);
@@ -226,7 +227,7 @@ PS_OUT_HDR_WITH_MASK PS_MAIN_COMBINED_PREVIEW(PS_IN In)
 PS_OUT_BACKBUFFER PS_SSAO(PS_IN In)
 {
     PS_OUT_BACKBUFFER Out;
-    Out.Color = float4(0.f, 0.f, 0.f, 0.f);
+    Out.Color = Compute_DepthSSAO(In.Texcoord);
     return Out;
 }
 

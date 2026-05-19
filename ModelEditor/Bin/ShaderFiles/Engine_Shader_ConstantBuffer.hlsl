@@ -70,24 +70,46 @@ cbuffer MaterialBuffer
 {
     float4 g_BaseColorTint;         //  0 ~ 15
     float4 g_EmissiveColor;         // 16 ~ 31
-
     float g_EmissiveIntensity;      // 32 ~ 35
     float g_EmissiveMaskMul;        // 36 ~ 39
     float g_NormalStrength;         // 40 ~ 43
     float g_OpacityMaskClipValue;   // 44 ~ 47
-
     float g_AoScale;                // 48 ~ 51
     float g_RoughnessScale;         // 52 ~ 55
     float g_MetalnessScale;         // 56 ~ 59
     float g_MaterialPadding0;       // 60 ~ 63
-
     float2 g_UVScale;               // 64 ~ 71
     float2 g_UVOffset;              // 72 ~ 79
-    float g_UVRotate;              // 80 ~ 83
-
+    float g_UVRotate;               // 80 ~ 83
     uint g_iMaterialMask;           // 84 ~ 87
     float2 g_MaterialPadding1;      // 88 ~ 95
 }; // 96 bytes
+
+cbuffer cbSSAO
+{
+    float g_SSAORadius;
+    float g_SSAOBias;
+    float g_SSAOIntensity;
+    float g_SSAOPower;
+
+    float g_SSAODepthRange;
+    float g_SSAOBlurRadius;
+    float g_SSAODepthSharpness;
+    float g_SSAONormalSharpness;
+
+    uint g_SSAOSampleCount;
+    uint g_SSAOEnabled;
+    uint g_SSAOHalfResEnabled;
+    uint g_SSAOBilateralEnabled;
+
+    uint g_SSAOTemporalEnabled;
+    float g_SSAOUpsampleDepthThreshold;
+    float g_SSAOTemporalBlendFactor;
+    float g_SSAOTemporalDepthReject;
+
+    float g_SSAOTemporalNormalReject;
+    float3 g_SSAOPad0;
+};
 
 cbuffer PostProcessBuffer
 {
@@ -112,26 +134,4 @@ cbuffer PostProcessBuffer
     float4 g_PP_BackgroundFallbackColor; // 64 ~ 79
 }; // 80 bytes
 
-cbuffer cbSSAO
-{
-    float g_SSAORadius;         
-    float g_SSAOBias;
-    float g_SSAOIntensity;
-    float g_SSAOPower;
-
-    float g_SSAOBlurRadius;
-    float g_SSAODepthSharpness;
-    float g_SSAONormalSharpness;
-    uint g_SSAOSampleCount;
-
-    uint g_SSAOEnabled;
-    uint g_SSAOHalfResEnabled;
-    uint g_SSAOBilateralEnabled;
-    uint g_SSAOTemporalEnabled;
-
-    float g_SSAOUpsampleDepthThreshold;
-    float g_SSAOTemporalBlendFactor;
-    float g_SSAOTemporalDepthReject;
-    float g_SSAOTemporalNormalReject;
-};
 #endif

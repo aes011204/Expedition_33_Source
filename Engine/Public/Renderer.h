@@ -10,6 +10,7 @@ class ShaderCom;
 class VIBuffer_Rect;
 class GameObject;
 class PostProcessPipeline;
+class SSAOPipeline;
 class LightPipeline;
 
 class Renderer final : public Base
@@ -37,6 +38,14 @@ public:
     Shared<PostProcessPipeline>    Get_PostProcessPipeline()
     {
         return _ppPipeline;
+    }
+    const Shared<SSAOPipeline> Get_SSAOPipeline() const
+    {
+        return _ssaoPipeline;
+    }
+    Shared<SSAOPipeline> Get_SSAOPipeline()
+    {
+        return _ssaoPipeline;
     }
 
     void    Set_PreviewDeferredCombine(bool enable) { _usePreviewDeferredCombine = enable; }
@@ -77,9 +86,10 @@ private: /* 그림자 */
     void Update_StaticShadowCamera(const BoundingBox& bounds);
 
 private:
-	ComPtr<Device>                  _device;
-	ComPtr<Context>                 _context;
+    ComPtr<Device>                  _device;
+    ComPtr<Context>                 _context;
     Shared<PostProcessPipeline>     _ppPipeline;
+    Shared<SSAOPipeline>            _ssaoPipeline;
 
     /* Layer가 소유하는 GameObject를 렌더 프레임 동안만 참조하기 위한 약한 참조 목록. */
 	list<Weak<GameObject>>		_renderGroups[ETOI(RenderGroup::END)];

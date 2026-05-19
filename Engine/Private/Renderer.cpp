@@ -3,6 +3,7 @@
 #include "GameInstance.h"
 #include "GameObject.h"
 #include "PostProcessPipeline.h"
+#include "SSAOPipeline.h"
 #include "ShaderCom.h"
 #include "VIBuffer_Rect.h"
 #include "Debug_Profile.h"
@@ -70,6 +71,8 @@ HRESULT Renderer::Initialize()
     CHECK_FAILED(Ready_RenderTargets(), E_FAIL);
     _ppPipeline = PostProcessPipeline::Create(_device, _context);
     CHECK_NULL(_ppPipeline, E_FAIL);
+    _ssaoPipeline = SSAOPipeline::Create(_device, _context);
+    CHECK_NULL(_ssaoPipeline, E_FAIL);
 
 	return S_OK;
 }
@@ -334,13 +337,31 @@ void Renderer::Render_SSAO()
 
     RETURN_LOG_IF_FAILED(
         GAME->Begin_MRT(MRT::SSAO),
-        L"Render_CombinedHDR:FAIL Bind_ShadowCB");
+        L"Render_SSAO:FAIL Begin_MRT");
+
+    ENDMRT_RETURN_IF_FAILED(
+        _deferredShader->Bind_ObjectCB(_pipelineWorldMatrix));
+
+    ENDMRT_RETURN_IF_FAILED(
+        Bind_TransformCB(_deferredShader));
 
     ENDMRT_RETURN_IF_FAILED(
         GAME->Bind_RT_ShaderResource(_deferredShader, "g_DepthTexture", RT::Depth));
 
+    SSAOCB ssaoParams{};
+    if (_ssaoPipeline)
+        ssaoParams = _ssaoPipeline->Get_Params();
+
+    ENDMRT_RETURN_IF_FAILED(_deferredShader->Bind_CBufferData(ssaoParams));
+
     ENDMRT_RETURN_IF_FAILED(
         _viBuffer->Bind_Resources());
+
+    ENDMRT_RETURN_IF_FAILED(
+        _deferredShader->Begin(ETOI(DeferredPass::SSAO)));
+
+    ENDMRT_RETURN_IF_FAILED(
+        _viBuffer->Render());
         
     if (FAILED(GAME->End_MRT()))
         return;
@@ -443,6 +464,10 @@ void Renderer::Render_CombinedHDR()
     COMBINEDHDR_RETURN_LOG_IF_FAILED(
         GAME->Bind_RT_ShaderResource(_deferredShader, "g_EmissiveTexture", RT::Emissive),
         L"Render_CombinedHDR:FAIL Bind_RT_ShaderRender_CombinedHDRResource(g_EmissiveTexture)");
+
+    COMBINEDHDR_RETURN_LOG_IF_FAILED(
+        GAME->Bind_RT_ShaderResource(_deferredShader, "g_SSAOTexture", RT::SSAO),
+        L"Render_CombinedHDR:FAIL Bind_RT_ShaderRender_CombinedHDRResource(g_SSAOTexture)");
 
     // Light 기록
     COMBINEDHDR_RETURN_LOG_IF_FAILED(
@@ -1262,3 +1287,5 @@ void Renderer::Render_Debug()
 #ifdef COMBINEDHDR_RETURN_LOG_IF_FAILED
 #undef COMBINEDHDR_RETURN_LOG_IF_FAILED
 #endif
+
+

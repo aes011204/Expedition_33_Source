@@ -21,6 +21,7 @@ Texture2D g_LightDepthTexture;
 Texture2D g_MaterialTexture;
 Texture2D g_EmissiveTexture;
 Texture2D g_StaticLightDepthTexture;
+Texture2D g_SSAOTexture;
 
 //==================================================
 // LIGHT
@@ -99,43 +100,64 @@ float SampleShadowAmount(Texture2D shadowTexture, float4 worldPos, float4x4 ligh
     return shadowAmount / 9.f;
 }
 
-static const float2 SSAODirections[8] = {
-    float2(1.f, 0.f), float2(-1.f, 0.f), float2(0.f, 1.f), float2(0.f, -1.f),
-    float2(1.f, 1.f), float2(-1.f, 1.f), float2(1.f, -1.f), float2(-1.f, -1.f)
+static const float2 SSAODirections[16] =
+{
+    float2(1.0000f, 0.0000f), float2(-1.0000f, 0.0000f), float2(0.0000f, 1.0000f), float2(0.0000f, -1.0000f),
+    float2(0.7071f, 0.7071f), float2(-0.7071f, 0.7071f), float2(0.7071f, -0.7071f), float2(-0.7071f, -0.7071f),
+    float2(0.9239f, 0.3827f), float2(-0.9239f, 0.3827f), float2(0.9239f, -0.3827f), float2(-0.9239f, -0.3827f),
+    float2(0.3827f, 0.9239f), float2(-0.3827f, 0.9239f), float2(0.3827f, -0.9239f), float2(-0.3827f, -0.9239f)
 };
 
 float Get_ViewZ(float2 uv)
 {
     float2 depth = g_DepthTexture.Sample(PointClampSampler, uv).xy;
-    return depth.y * g_DeferredFar;
+    return depth.y * g_DeferredFar; // view space에서의 z 값으로 복구
 }
 
 float Compute_DepthSSAO(float2 uv)
 {
-    // 프레임 때문에 16 샘플로 가는데, 많이 어색하면 5x5 샘플로 갈거임. 이건 1.5베 더 비싸짐.
+    if (g_SSAOEnabled == 0u)
+        return 1.f;
+
+    // 프레임 때문에 16 샘플로 가는데, 많이 어색하면 5x5 샘플로 갈거임. 이러면 1.5베 더 비싸짐.
     float centerViewZ = Get_ViewZ(uv);
 
     if (centerViewZ <= 0.f)
         return 1.f;
 
+    uint sampleCount = min(max(g_SSAOSampleCount, 1u), 16u);
     float occlusion = 0.f;
+    float totalWeight = 0.f;
 
     [unroll]
-    for (int i = 0; i < 16; ++i)
+    for (int i = 0; i < sampleCount; ++i)
     {
-        float2 sampleUV = uv + SSAODirections[i] * g_SSAORadius;
+        float2 sampleUV = uv + SSAODirections[i] * g_TexelSize * g_SSAORadius;
+        if (any(sampleUV < 0.f) || any(sampleUV > 1.f)) 
+            continue;
+
         float sampleViewZ = Get_ViewZ(sampleUV);
 
-        if (sampleViewZ <= 0.f)
+        if (sampleViewZ <= 0.f) 
             continue;
 
         float depthDiff = centerViewZ - sampleViewZ;
 
+        // 이 샘플이 현재 픽셀을 가리는 후보인지 (1 = 가림, 0 = 안 가림)
         float isOccluder = depthDiff > g_SSAOBias ? 1.f : 0.f;
-        float rangeWeight = saturate(1.f - abs(depthDiff) / g_SSAORadius);
 
+        // 깊이 차이가 g_SSAODepthRange 보다 크면 신뢰할 수 없는 거리라서 가중치를 0으로 보낸다.
+        float rangeWeight = saturate(1.f - abs(depthDiff) / max(g_SSAODepthRange, EPSILON));
+
+        occlusion += isOccluder * rangeWeight;
+        totalWeight += rangeWeight;
     }
 
+    // 1이면 안 어둡고, 0이면 어두워짐
+    float visibility = 1.f - (occlusion / max(totalWeight, EPSILON));
+    visibility = saturate(visibility);
+
+    return visibility;
 }
 
 #endif

@@ -1023,6 +1023,16 @@ Shared<PostProcessPipeline> GameInstance::Get_PostProcessPipeline()
     return _renderer->Get_PostProcessPipeline();
 }
 
+const Shared<SSAOPipeline> GameInstance::Get_SSAOPipeline() const
+{
+    return _renderer->Get_SSAOPipeline();
+}
+
+Shared<SSAOPipeline> GameInstance::Get_SSAOPipeline()
+{
+    return _renderer->Get_SSAOPipeline();
+}
+
 HRESULT GameInstance::Bind_CamPosition(ShaderCom* shader, const char* constantName)
 {
     return _pipeLine->Bind_CamPosition(shader, constantName);

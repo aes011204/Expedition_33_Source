@@ -1,4 +1,4 @@
-﻿#include "ShaderCom.h"
+#include "ShaderCom.h"
 #include "Material.h"
 
 ShaderCom::ShaderCom(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -95,6 +95,9 @@ HRESULT ShaderCom::Initialize_Prototype(const wchar_t* shaderFilePath, const D3D
 
     _CB[ETOI(ConstantBuffer::Light)] =
         _effect->GetConstantBufferByName(ShaderCB::Light.data());
+
+    _CB[ETOI(ConstantBuffer::SSAO)] =
+        _effect->GetConstantBufferByName(ShaderCB::SSAO.data());
 
     _CB[ETOI(ConstantBuffer::PostProcess)] =
         _effect->GetConstantBufferByName(ShaderCB::PostProcess.data());
@@ -360,3 +363,4 @@ void ShaderCom::Free()
     _effect.Reset();
     _numPasses = 0;
 }
+

@@ -75,6 +75,7 @@ namespace Engine
         CombinedHDR,
         CombinedSimple,
         CombinedPreview = 5, // Preview에서는 그림자 계산 X
+        SSAO 
     };
 
     enum class PostProcessPass : uint8
@@ -118,7 +119,8 @@ namespace Engine
         Shadow      = 3,
         Deferred    = 4,
         Light       = 5,
-        PostProcess = 6,
+        SSAO        = 6,
+        PostProcess = 7,
 
         END
     };
@@ -166,3 +168,4 @@ namespace Engine
 }
 
 template <> struct Enable_Bitmask_Operators<Engine::PostProcessFeature> { static constexpr bool value = true; };
+

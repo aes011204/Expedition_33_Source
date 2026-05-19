@@ -49,6 +49,7 @@ class Picking;
 class Culling_Manager;
 class ThreadPool;
 class PostProcessPipeline;
+class SSAOPipeline;
 struct StaticCollisionData;
 NS_END
 #pragma endregion
@@ -203,6 +204,8 @@ public: /* For.Renderer */
     uint32 Get_RenderCall() const;
     const Shared<PostProcessPipeline>   Get_PostProcessPipeline() const;
     Shared<PostProcessPipeline>         Get_PostProcessPipeline();
+    const Shared<SSAOPipeline>          Get_SSAOPipeline() const;
+    Shared<SSAOPipeline>                Get_SSAOPipeline();
 
 public: /* For.PipeLine */
     HRESULT Bind_CamPosition(ShaderCom* shader, const char* constantName);

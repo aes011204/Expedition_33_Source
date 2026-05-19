@@ -155,29 +155,35 @@ struct alignas(16) PostProcessCB
 /* ------------------------------------------ */
 struct alignas(16) SSAOCB
 {
+    static constexpr ConstantBuffer CBType = ConstantBuffer::SSAO;
+
     // SSAO 계산 품질/강도
-    float g_SSAORadius = 0.5f;                      // 주변을 얼마나 멀리 샘플링할지.
-    float g_SSAOBias = 0.025f;                      // 자기 자신과 거의 같은 깊이는 ao 로 안 넘김.
-    float g_SSAOIntensity = 1.0f;                   // AO 강도. 클수록 더 어두워짐.
-    float g_SSAOPower = 1.2f;                       // AO 대비 조절. 클수록 어두운 부분이 더 강조됨.
+    float SSAORadius = 4.0f;                      // 화면상 주변을 얼마나 멀리 샘플링할지.
+    float SSAOBias = 0.025f;                      // 자기 자신과 거의 같은 깊이는 ao 로 안 넘김.
+    float SSAOIntensity = 1.0f;                   // AO 강도. 클수록 더 어두워짐.
+    float SSAOPower = 1.2f;                       // AO 대비 조절. 클수록 어두운 부분이 더 강조됨.
+
+    float SSAODepthRange = 0.5f;                  // viewZ 기준으로 AO로 인정할 최대 깊이 차이.
 
     // Blur / Bilateral Blur
-    float g_SSAOBlurRadius = 1.0f;                  // Blur 단계에서 주변 몇 픽셀까지 흐릴지.
-    float g_SSAODepthSharpness = 100.0f;            // 깊이 차이가 클 때 AO 영향을 얼마나 빨리 줄일지.
-    float g_SSAONormalSharpness = 8.0f;             // Normal 기반 Bilateral Blur에서 노멀 차이를 얼마나 민감하게 볼지.
-    uint32 g_SSAOSampleCount = 16;                  // 샘플 개수, 최대 16개.
+    float SSAOBlurRadius = 1.0f;                  // Blur 단계에서 주변 몇 픽셀까지 흐릴지.
+    float SSAODepthSharpness = 100.0f;            // 깊이 차이가 클 때 AO 영향을 얼마나 빨리 줄일지.
+    float SSAONormalSharpness = 8.0f;             // Normal 기반 Bilateral Blur에서 노멀 차이를 얼마나 민감하게 볼지.
+    uint32 SSAOSampleCount = 16;                  // 샘플 개수, 최대 16개.
 
     // 기능 On/Off
-    uint32 g_SSAOEnabled = 1;                       // SSAO On.Off
-    uint32 g_SSAOHalfResEnabled = 0;                // SSAO를 절반 해상도로 계산할지.
-    uint32 g_SSAOBilateralEnabled = 0;              // Bilateral Blur를 쓸지.
-    uint32 g_SSAOTemporalEnabled = 0;               // Temporal SSAO를 쓸지.
+    uint32 SSAOEnabled = 1;                       // SSAO On.Off
+    uint32 SSAOHalfResEnabled = 0;                // SSAO를 절반 해상도로 계산할지.
+    uint32 SSAOBilateralEnabled = 0;              // Bilateral Blur를 쓸지.
+    uint32 SSAOTemporalEnabled = 0;               // Temporal SSAO를 쓸지.
 
     // Half-res / Upsampling / Temporal Denoising
-    float g_SSAOUpsampleDepthThreshold = 0.01f;     // Half-res SSAO를 원본 해상도로 키울 때 깊이 차이 허용값.
-    float g_SSAOTemporalBlendFactor = 0.9f;         // 이전 프레임 AO와 현재 프레임 AO를 얼마나 섞을지.
-    float g_SSAOTemporalDepthReject = 0.02f;        // Temporal에서 깊이 차이가 크면 이전 프레임을 버리는 기준.
-    float g_SSAOTemporalNormalReject = 0.9f;        // Temporal에서 노멀 차이가 크면 이전 프레임을 버리는 기준.
+    float SSAOUpsampleDepthThreshold = 0.01f;     // Half-res SSAO를 원본 해상도로 키울 때 깊이 차이 허용값.
+    float SSAOTemporalBlendFactor = 0.9f;         // 이전 프레임 AO와 현재 프레임 AO를 얼마나 섞을지.
+    float SSAOTemporalDepthReject = 0.02f;        // Temporal에서 깊이 차이가 크면 이전 프레임을 버리는 기준.
+    float SSAOTemporalNormalReject = 0.9f;        // Temporal에서 노멀 차이가 크면 이전 프레임을 버리는 기준.
+
+    float pad0[3];
 };
 
 // 패딩이 제대로 됐나 마지막 확인용

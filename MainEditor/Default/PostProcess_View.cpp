@@ -1,5 +1,6 @@
-﻿#include "PostProcess_View.h"
+#include "PostProcess_View.h"
 #include "PostProcessPipeline.h"
+#include "SSAOPipeline.h"
 #include "GameInstance.h"
 
 PostProcess_View::PostProcess_View()
@@ -35,20 +36,22 @@ void PostProcess_View::Render()
     if (ImGui::Begin(windowName.c_str(), &isOpen, flags))
     {
         Shared<PostProcessPipeline> pipeline = GAME->Get_PostProcessPipeline();
+        Shared<SSAOPipeline> ssaoPipeline = GAME->Get_SSAOPipeline();
 
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(12.f, 12.f));
         ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 6.f);
         ImGui::PushStyleVar(ImGuiStyleVar_GrabRounding, 6.f);
         ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 8.f);
 
-        if (!pipeline)
+        if (!pipeline || !ssaoPipeline)
         {
-            ImGui::TextColored(ImVec4(0.95f, 0.35f, 0.35f, 1.f), "PostProcessPipeline is null");
-            ImGui::TextDisabled("Renderer/PostProcessPipeline initialization order check needed.");
+            ImGui::TextColored(ImVec4(0.95f, 0.35f, 0.35f, 1.f), "PostProcess/SSAO pipeline is null");
+            ImGui::TextDisabled("Renderer pipeline initialization order check needed.");
         }
         else
         {
             bool dirty = false;
+            bool ssaoDirty = false;
             PostProcessCB& params = pipeline->Get_PostProcessParams();
 
             Draw_StatusBadge();
@@ -69,10 +72,19 @@ void PostProcess_View::Render()
             ImGui::Separator();
             ImGui::Spacing();
 
+            Draw_SSAOControl(ssaoPipeline, ssaoDirty);
+
+            ImGui::Spacing();
+            ImGui::Separator();
+            ImGui::Spacing();
+
             Draw_QuickAction(params, dirty);
 
             if (dirty)
                 pipeline->Set_PostProcessParams(params);
+
+            if (ssaoDirty)
+                ssaoPipeline->Set_Params(ssaoPipeline->Get_Params());
         }
 
         ImGui::PopStyleVar(4);
@@ -84,11 +96,15 @@ void PostProcess_View::Render()
 
 void PostProcess_View::Draw_StatusBadge()
 {
-    ImGui::Text("HDR Post Process");
+    ImGui::Text("HDR + SSAO");
     ImGui::SameLine();
 
-    Shared<PostProcessPipeline> pipeline = GAME->Get_PostProcessPipeline();
-    if (pipeline && pipeline->Has_PostProcessFeature(PostProcessFeature::HDR))
+    Shared<PostProcessPipeline> ppPipeline = GAME->Get_PostProcessPipeline();
+    Shared<SSAOPipeline> ssaoPipeline = GAME->Get_SSAOPipeline();
+    const bool ppOn = ppPipeline && ppPipeline->Has_PostProcessFeature(PostProcessFeature::HDR);
+    const bool ssaoOn = ssaoPipeline && ssaoPipeline->Is_Enabled();
+
+    if (ppOn || ssaoOn)
         ImGui::TextColored(ImVec4(0.35f, 0.9f, 0.45f, 1.f), "ON");
     else
         ImGui::TextColored(ImVec4(0.9f, 0.35f, 0.35f, 1.f), "OFF");
@@ -181,6 +197,61 @@ void PostProcess_View::Draw_ParameterControl(PostProcessCB& params, bool& dirty)
     ImGui::EndChild();
 }
 
+void PostProcess_View::Draw_SSAOControl(Shared<SSAOPipeline> pipeline, bool& dirty)
+{
+    if (ImGui::BeginChild("##SSAOControl", ImVec2(0.f, 250.f), true))
+    {
+        ImGui::Text("SSAO");
+
+        SSAOCB& params = pipeline->Get_Params();
+
+        bool enabled = params.SSAOEnabled != 0u;
+        if (ImGui::Checkbox("Enable SSAO", &enabled))
+        {
+            params.SSAOEnabled = enabled ? 1u : 0u;
+            dirty = true;
+        }
+
+        dirty |= ImGui::DragFloat("Radius", &params.SSAORadius, 0.01f, 0.01f, 8.f, "%.3f");
+        dirty |= ImGui::DragFloat("Bias", &params.SSAOBias, 0.001f, 0.f, 0.2f, "%.4f");
+        dirty |= ImGui::DragFloat("Intensity", &params.SSAOIntensity, 0.01f, 0.f, 4.f, "%.3f");
+        dirty |= ImGui::DragFloat("Power", &params.SSAOPower, 0.01f, 0.01f, 8.f, "%.3f");
+        dirty |= ImGui::DragFloat("DepthRange", &params.SSAODepthRange, 0.01f, 0.001f, 4.f, "%.3f");
+
+        int sampleCount = static_cast<int>(params.SSAOSampleCount);
+        if (ImGui::SliderInt("SampleCount", &sampleCount, 1, 16))
+        {
+            params.SSAOSampleCount = static_cast<uint32>(sampleCount);
+            dirty = true;
+        }
+
+        if (ImGui::CollapsingHeader("SSAO Advanced"))
+        {
+            bool halfRes = params.SSAOHalfResEnabled != 0u;
+            bool bilateral = params.SSAOBilateralEnabled != 0u;
+            bool temporal = params.SSAOTemporalEnabled != 0u;
+
+            if (ImGui::Checkbox("HalfRes", &halfRes))
+            {
+                params.SSAOHalfResEnabled = halfRes ? 1u : 0u;
+                dirty = true;
+            }
+            if (ImGui::Checkbox("Bilateral", &bilateral))
+            {
+                params.SSAOBilateralEnabled = bilateral ? 1u : 0u;
+                dirty = true;
+            }
+            if (ImGui::Checkbox("Temporal", &temporal))
+            {
+                params.SSAOTemporalEnabled = temporal ? 1u : 0u;
+                dirty = true;
+            }
+        }
+    }
+
+    ImGui::EndChild();
+}
+
 void PostProcess_View::Draw_QuickAction(PostProcessCB& params, bool& dirty)
 {
     if (ImGui::BeginChild("##QuickAction", ImVec2(0.f, 70.f), true))
@@ -228,6 +299,11 @@ PostProcessCB PostProcess_View::Make_DefaultParams()
     return defaults;
 }
 
+SSAOCB PostProcess_View::Make_DefaultSSAOParams()
+{
+    return SSAOCB{};
+}
+
 Shared<PostProcess_View> PostProcess_View::Create()
 {
     return make_shared<PostProcess_View>();
@@ -237,3 +313,4 @@ void PostProcess_View::Free()
 {
     Editor_Window::Free();
 }
+
