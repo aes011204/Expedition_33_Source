@@ -29,6 +29,8 @@ HRESULT ModelViewerObject::Initialize(void* arg)
     {
         LOG_WARN("Failed to load default texture from: ShaderFiles/Default_Material.png");
     }
+
+    return S_OK;
 }
 
 void ModelViewerObject::Priority_Update(float timeDelta)

@@ -8,6 +8,7 @@ struct RenderPerfSummary
 {
     bool valid{};
     uint32 renderCallCount{};
+    uint32 sampledFrameCount{};
 
     float renderAvgMs{};
     float renderMaxMs{};
@@ -47,6 +48,7 @@ struct UpdatePerfSummary
 {
     bool valid{};
     uint32 updateFrameCount{};
+    uint32 sampledFrameCount{};
 
     float updateAvgMs{};
     float updateMaxMs{};
@@ -104,6 +106,7 @@ struct CollisionPerfSummary
 {
     bool valid{};
     uint32 updateFrameCount{};
+    uint32 sampledFrameCount{};
     float activeCollidersAvg{};
     float pairsPerSec{};
     float intersectsPerSec{};
@@ -133,6 +136,8 @@ struct RuntimePerfSummary
 {
     float windowSec{};
     float approxFps{};
+    float sampleIntervalSec{};
+    uint32 observedFrameCount{};
     RenderPerfSummary render{};
     UpdatePerfSummary update{};
     CollisionPerfSummary collision{};

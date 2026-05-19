@@ -18,10 +18,15 @@ public:
     void ExitInvoke() override;
 
 private:
-    void        Set_IdleAnimation() const;
+    void    Reset_IdleTimer();
+    void    Set_IdleAnimation();
 
 private:
     bool        _isFirstState{ true };
+    bool        _isRoutineIdle{ false };
+    float       _idleThreshHoldTime{ 0.f };
+    float       _idleElapsedTime{ 0.f };
+    const float _idleBlendTime{ 0.5f };
 
 public:
     static Shared<Player_Idle> Create(const Shared<Player_WorldBase>& owner);

@@ -19,17 +19,19 @@ using pl = Body_Player::PlayerWorldAnimation;
 
 bool Player_Idle::EnterInvoke()
 {
-    Set_IdleAnimation();
-    _isFirstState = false;
+    _bodyPlayer->Set_AnimationByState(ETOI(pl::Pl_Idle_0), _idleBlendTime, true);
+    Reset_IdleTimer();
+    
+    if (_isFirstState)
+    {
+        _isFirstState = false;
+    }
 
     return true;
 }
 
 void Player_Idle::Update(float timeDelta)
 {
-    bool isFinished = _bodyPlayer->Is_AnimationFinished();
-    auto& input = Get_MovementInput();
-
     if (IsEnterWorldAction())
     {
         _stateCom->Change_State(PlayerState::WorldAction);
@@ -48,15 +50,33 @@ void Player_Idle::Update(float timeDelta)
         return;
     }
 
-    if (isFinished)
+
+    if (_isRoutineIdle)
     {
-        Set_IdleAnimation();
+        bool isBlending = _bodyPlayer->Is_AnimationBlending();
+
+        if (!isBlending)
+        {
+            if (_bodyPlayer->Get_AnimationProgress() >= 0.86f)
+            {
+                _bodyPlayer->Set_AnimationByState(ETOI(pl::Pl_Idle_0), _idleBlendTime, true);
+                Reset_IdleTimer();
+            }
+        }
     }
 }
 
 void Player_Idle::LateUpdate(float timeDelta)
 {
-    
+    if (!_isRoutineIdle)
+    {
+        _idleElapsedTime += timeDelta;
+
+        if (_idleElapsedTime >= _idleThreshHoldTime)
+        {
+            Set_IdleAnimation();
+        }
+    }
 }
 
 void Player_Idle::ExitInvoke()
@@ -64,19 +84,29 @@ void Player_Idle::ExitInvoke()
 
 }
 
-void Player_Idle::Set_IdleAnimation() const
+void Player_Idle::Reset_IdleTimer()
 {
-    if (_isFirstState)
-    {
-        _bodyPlayer->Set_AnimationByState(ETOI(pl::Pl_Idle_0), 0.1f, true);
-        return;
-    }
+    _idleThreshHoldTime = 3.f + Math::RandNum(0.f, 2.f);
+    _idleElapsedTime = 0.f;
+    _isRoutineIdle = false;
+}
 
-    auto state = _stateCom->Get_CurrentPlayerState();
-    if (state == PlayerState::WorldAction)
-        _bodyPlayer->Set_AnimationByState(ETOI(pl::Pl_Idle_0), 0.25f, true);
+void Player_Idle::Set_IdleAnimation()
+{
+    uint32 state = _bodyPlayer->Get_AnimationStateIndex();
+
+    uint32 index = Math::RandNum(ETOI(pl::Pl_Idle_1), ETOI(pl::Pl_Idle_6));
+    if (_bodyPlayer->Set_AnimationByState(index, _idleBlendTime, false))
+    {
+        _isRoutineIdle = true;
+    }
     else
-        _bodyPlayer->Set_AnimationByState(ETOI(pl::Pl_Idle_0), 0.2f, true);
+    {
+        if (state != ETOI(pl::Pl_Idle_0))
+            _bodyPlayer->Set_AnimationByState(ETOI(pl::Pl_Idle_0), _idleBlendTime, true);
+
+        Reset_IdleTimer();
+    }
 }
 
 Shared<Player_Idle> Player_Idle::Create(const Shared<Player_WorldBase>& owner)
