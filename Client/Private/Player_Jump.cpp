@@ -21,14 +21,17 @@ bool Player_Jump::EnterInvoke()
 
 	uint32 animIndex = _bodyPlayer->Get_AnimationStateIndex();
 
-	if (animIndex == ETOI(plAnim::Pl_Run) || animIndex == ETOI(plAnim::Pl_Sprint))
-	{
-		_bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_JumpRun), 0.2f, false);
-	}
-	else
-	{
-		_bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_JumpWalk), 0.2f, false);
-	}
+    if (IsEnterJump())
+    {
+        if (animIndex == ETOI(plAnim::Pl_Run) || animIndex == ETOI(plAnim::Pl_Sprint))
+            _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_JumpRun), 0.2f, false);
+        else
+            _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_JumpWalk), 0.2f, false);
+    }
+    else
+    {
+        _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_Fall), 0.2f, true);
+    }
 
 	return true;
 }
@@ -110,11 +113,12 @@ void Player_Jump::LateUpdate(float timeDelta)
 	if (animIndex == ETOI(plAnim::Pl_LandHeavy) && !isFinished)
 	{
 		rigidControl.rigidMovement = true;
-        Vec3 rootVelocity = _bodyPlayer->Get_RootMotionPosition() * 10000.f;
+        Vec3 rootVelocity = _bodyPlayer->Get_RootMotionPosition();
         Vec3 currentVel = Get_Velocity();
 
         rootVelocity.y = currentVel.y;
 
+        rigidControl.rigidLook = true;
         rigidControl.rigidVelocity = rootVelocity;
 	}
 

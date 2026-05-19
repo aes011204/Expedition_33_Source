@@ -37,6 +37,7 @@ protected:
     bool IsSprintMove() const;      
     bool IsWalkMove() const;
     bool Is_MovementBlocked() const;     // follower blocked 상태
+    bool IsFalling() const;
 
     bool IsEnterWorldAction() const; 
     bool IsEnterJump() const;       

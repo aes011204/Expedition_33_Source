@@ -216,10 +216,17 @@ void PlayerControllerCom::Check_RigidInput()
         _currentInput.isJumpDown = false;
     }
 
+    if (_rigidControl.rigidLook)
+    {
+        _currentInput.isLockLook = true;
+    }
+
     if (_rigidControl.rigidVelocity != Vec3::Zero)
     {
+        _currentInput.moveX = 0.f;
+        _currentInput.moveZ = 0.f;
+
         Vec3 vel = _rigidControl.rigidVelocity;
-        _currentInput.moveZ = 1.f;              // TODO : 확장성 애매해서 Root모션 
         _movementCom->Set_Velocity(vel);
     }
 
