@@ -34,7 +34,7 @@ private:
     void    Sync_LuneRightHandBlueEffect();
 
 private:
-    Shared<GameObject> _luneRightHandBlueEffect{ nullptr };
+    Shared<GameObject> _luneRightHandEffect{ nullptr };
 
 public:
 	static Shared<Level_GamePlay> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
