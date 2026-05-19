@@ -26,7 +26,8 @@ void BattleActionExecutor::OnActionEndNotify(Action& action)
     const BattleActionPhase& phase = phases[action._curAnimIndex];
 
     if (phase.movementPolicy == BattleMovementPolicy::RootMotionToTarget ||
-        phase.movementPolicy == BattleMovementPolicy::MoveToTarget )
+        phase.movementPolicy == BattleMovementPolicy::MoveToTarget ||
+        phase.movementPolicy == BattleMovementPolicy::ReturnToOrigin)
     {
         return;
     }
@@ -287,7 +288,13 @@ void BattleActionExecutor::Update_ActionMovement(float timeDelta, Action& action
     {
         const float currentRatio = action._curChar.ModelCom->Get_RootMotionTranslationRatio();
         float deltaRatio = currentRatio - action.phasePrevRootRatio;
-
+        if (currentRatio >= 0.999f)
+        {
+            transform->Set_Position(action.phaseGoalPos);
+            action.phaseReachedGoal = true;
+            Advance_ToNextPhase(action);
+            return;
+        }
         if (deltaRatio < 0.f)
             deltaRatio = 0.f;
 

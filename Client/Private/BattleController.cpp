@@ -87,7 +87,15 @@ void BattleController::Update(float timeDelta)
         !_battleActionExe->IsFinished();
 
     if (hasRunningAction)
+    {
         _battleActionExe->Update(timeDelta, _turnAction);
+
+        if (_battleActionExe->IsFinished())
+        {
+            EndTurn();
+            return;
+        }
+    }
 }
 
 void BattleController::Run_EnemyTurn()
