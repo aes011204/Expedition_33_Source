@@ -7,6 +7,7 @@
 #include "ComputeStructuredBuffer.h"
 #include "GameInstance.h"
 #include "Bone.h"
+#include "Debug_Profile.h"
 
 AnimComputeRuntime::AnimComputeRuntime(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : _device(device), _context(context)
@@ -41,19 +42,30 @@ HRESULT AnimComputeRuntime::Initialize(const CreateDesc& desc)
 
 HRESULT AnimComputeRuntime::Update_Frame(float timeDelta)
 {
+    Debug_Profile::Scope profileScope("AnimCompute::UpdateFrame");
+
     CHECK_NULL(_model, E_FAIL);
 
     AnimComputeFrameContext context{};
     Build_FrameContext(timeDelta, context);
 
-    _model->Step_SampleAnimationPose(context.modelContext);
+    {
+        Debug_Profile::Scope scope("AnimCompute::SamplePose");
+        _model->Step_SampleAnimationPose(context.modelContext);
+    }
+
     _model->Step_RebuildCombinedBones();
 
     CHECK_FAILED(_model->Ensure_AnimationComputeSource(), E_FAIL); // source cache가 없으면 생성
+
     CHECK_FAILED(Ensure_RuntimeBuffers(), E_FAIL);
+
     CHECK_FAILED(Build_ComputeCombinedBoneCache(), E_FAIL);
+
     CHECK_FAILED(Update_GlobalCombinedBoneBuffer_FromCPU(), E_FAIL);
+
     CHECK_FAILED(Step_BoneRemap(context), E_FAIL);      // global combined -> mesh-local bone matrices
+
     CHECK_FAILED(Finalize_ModelFrame(context), E_FAIL); // notify / root motion / dirty는 ModelCom 재사용
 
     _skinningDirty = true;
@@ -148,20 +160,20 @@ HRESULT AnimComputeRuntime::Build_ComputeCombinedBoneCache()
     const uint32 numBones = static_cast<uint32>(_model->_numBones);
     if (numBones == 0)
     {
-        _model->Clear_ComputeCombinedBoneMatrices();
+        _model->Access_CombinedBoneMatrixCache().clear();
         return S_OK;
     }
 
-    if (_combinedBoneCache.size() != numBones)
-       _combinedBoneCache.resize(numBones, Matrix::Identity);
+    vector<Matrix>& combinedBoneCache = _model->Access_CombinedBoneMatrixCache();
+
+    if (combinedBoneCache.size() != numBones)
+       combinedBoneCache.resize(numBones, Matrix::Identity);
 
     for (uint32 boneIndex = 0; boneIndex < numBones; ++boneIndex)
     {
         const Matrix* combinedMatrix = _model->_bones[boneIndex]->Get_CombinedTransformationMatrixPtr();
-        _combinedBoneCache[boneIndex] = combinedMatrix ? *combinedMatrix : Matrix::Identity;
+        combinedBoneCache[boneIndex] = combinedMatrix ? *combinedMatrix : Matrix::Identity;
     }
-
-    _model->Set_ComputeCombinedBoneMatrices(_combinedBoneCache);
 
     return S_OK;
 }
@@ -171,15 +183,16 @@ HRESULT AnimComputeRuntime::Update_GlobalCombinedBoneBuffer_FromCPU()
     if (_model == nullptr || !_model->_isSkeletal)
         return S_OK;
 
-    if (_combinedBoneCache.empty())
+    const vector<Matrix>& combinedBoneCache = _model->Get_CombinedBoneMatrixCache();
+    if (combinedBoneCache.empty())
         return S_OK;
 
     CHECK_NULL(_globalCombinedBoneBuffer, E_FAIL);
 
     CHECK_FAILED(
         _globalCombinedBoneBuffer->Update_Data(
-            _combinedBoneCache.data(),
-            static_cast<uint32>(_combinedBoneCache.size())),
+            combinedBoneCache.data(),
+            static_cast<uint32>(combinedBoneCache.size())),
         E_FAIL);
 
     return S_OK;
@@ -239,7 +252,7 @@ HRESULT AnimComputeRuntime::Finalize_ModelFrame(const AnimComputeFrameContext& c
 void AnimComputeRuntime::Reset()
 {
     if (_model != nullptr)
-        _model->Clear_ComputeCombinedBoneMatrices();
+        _model->Access_CombinedBoneMatrixCache().clear();
 
     _globalCombinedBoneBuffer = nullptr;
 

@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "Log_Manager.h"
 
 namespace Engine::Internal
@@ -222,9 +222,9 @@ HRESULT Log_Manager::Initialize(const string& projectName)
 #ifdef _DEBUG
         // 2. MSVC Output Window Sink (실시간 디버깅용)
         // 출력 창에서 한국어 대응을 위해 커스텀 싱크인 MsvcSinkUtf8 를 사용
-        const auto spMsvcSink = make_shared<Internal::MsvcSinkUtf8>();
-        spMsvcSink->set_level(spdlog::level::trace);
-        sinks.push_back(spMsvcSink);
+        // const auto spMsvcSink = make_shared<Internal::MsvcSinkUtf8>();
+        // spMsvcSink->set_level(spdlog::level::trace);
+        // sinks.push_back(spMsvcSink);
 
         // 3. Rotating File Sink (개발 기록용: 5MB, 10개)
         const auto spFileSink = make_shared<spdlog::sinks::rotating_file_sink_mt>(

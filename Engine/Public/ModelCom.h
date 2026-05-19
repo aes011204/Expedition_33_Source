@@ -227,8 +227,9 @@ public: /* Compute Shader */
     void    Step_FinalizeAnimationFrame(const AnimPipelineContext& context);
     HRESULT Step_PrepareBoneBuffers();
     HRESULT Step_ComputeSkinning(ComputeShaderCom* computeShader);
-    void    Set_ComputeCombinedBoneMatrices(const vector<Matrix>& combinedBones);
-    void    Clear_ComputeCombinedBoneMatrices();
+
+    vector<Matrix>& Access_CombinedBoneMatrixCache() { return _combinedBoneMatrixCache; }
+    const vector<Matrix>& Get_CombinedBoneMatrixCache() const { return _combinedBoneMatrixCache; } 
 
 private:
     HRESULT Ensure_AnimationComputeSource();
@@ -325,7 +326,6 @@ private: /* Compute Shader */
     vector<ComPtr<Buffer>> _meshComputedDrawVertexBuffers;              // 실제 draw에 사용할 vertex buffer
     ComPtr<Buffer> _computeSkinningConstantBuffer{};
     bool _computeSkinningDirty = true;
-    vector<Matrix> _computeCombinedBoneMatrices{};
 
 
 private: // Model Custom Animation Mapping

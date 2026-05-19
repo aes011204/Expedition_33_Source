@@ -43,17 +43,13 @@ private:
     void Reset();
 
 private:
-    Shared<ComputeShaderCom> _computeSkinningShaderCom{};
-    Shared<ComputeShaderCom> _computeBoneRemapShaderCom{};
-
-    vector<Matrix> _combinedBoneCache;
-
-private:
     ComPtr<Device>  _device;
     ComPtr<Context> _context;
 
     ModelCom* _model = nullptr;
 
+    Shared<ComputeShaderCom> _computeSkinningShaderCom{};
+    Shared<ComputeShaderCom> _computeBoneRemapShaderCom{};
     Shared<ComputeStructuredBuffer> _globalCombinedBoneBuffer{};
 
     bool _skinningDirty = true;

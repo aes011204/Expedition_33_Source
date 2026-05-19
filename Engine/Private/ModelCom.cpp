@@ -243,12 +243,6 @@ const Matrix* ModelCom::Get_BoneMatrixPtr(uint32 boneIndex) const
     if (boneIndex >= _numBones)
         return nullptr;
 
-    if (!_computeCombinedBoneMatrices.empty())
-    {
-        if (boneIndex < _computeCombinedBoneMatrices.size())
-            return &_computeCombinedBoneMatrices[boneIndex];
-    }
-
     if (_leaderPoseModel != nullptr && !_leaderPoseCombinedMatrices.empty())
     {
         ModelCom* mutableThis = const_cast<ModelCom*>(this);
@@ -258,6 +252,12 @@ const Matrix* ModelCom::Get_BoneMatrixPtr(uint32 boneIndex) const
         mutableThis->Build_LeaderPoseMatrix(boneIndex, visited);
 
         return &_leaderPoseCombinedMatrices[boneIndex];
+    }
+    
+    if (!_combinedBoneMatrixCache.empty())
+    {
+        if (boneIndex < _combinedBoneMatrixCache.size())
+            return &_combinedBoneMatrixCache[boneIndex];
     }
 
     return _bones[boneIndex]->Get_CombinedTransformationMatrixPtr();
@@ -1851,16 +1851,6 @@ HRESULT ModelCom::Step_ComputeSkinning(ComputeShaderCom* computeShader)
     return Prepare_ComputeSkinning(computeShader);
 }
 
-void ModelCom::Set_ComputeCombinedBoneMatrices(const vector<Matrix>& combinedBones)
-{
-    _computeCombinedBoneMatrices = combinedBones;
-}
-
-void ModelCom::Clear_ComputeCombinedBoneMatrices()
-{
-    _computeCombinedBoneMatrices.clear();
-}
-
 HRESULT ModelCom::Ensure_AnimationComputeSource()
 {
     if (_computeAnimationSource.meshBoneRefBuffers.size() == _meshes.size())
@@ -2220,7 +2210,6 @@ void ModelCom::Reset_ModelData()
     _stateAnimIndices.clear();
     _mappedAnimIndices.clear();
     _computeAnimationSource = {};
-    _computeCombinedBoneMatrices.clear();
 
     _isFinished = false;
     _isAnimLoop = false;

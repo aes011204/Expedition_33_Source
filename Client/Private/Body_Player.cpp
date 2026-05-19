@@ -55,11 +55,12 @@ void Body_Player::Update(float fTimeDelta)
     }
     else if (_useComputeSkinning && _animComputeRuntime != nullptr)
     {
+        Debug_Profile::Scope computeScope("Player::Body::ComputeUpdate");
         CHECK_FAILED(_animComputeRuntime->Update_Frame(fTimeDelta), ); // compute animation 파이프라인 전체 실행
     }
     else
     {
-        _modelCom->Play_Animation(fTimeDelta); 
+        _modelCom->Play_Animation(fTimeDelta);
         CHECK_FAILED(_modelCom->Prepare_BoneMatrixBuffers());
     }
 
