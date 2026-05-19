@@ -28,6 +28,7 @@ public:
 
 public:
 	HRESULT Initialize_Client(const ComPtr<Device>& device, const ComPtr<Context>& context);
+    HRESULT Initialize_Client_ForEffectEditor(const ComPtr<Device>& device, const ComPtr<Context>& context);
     void    Update_Client(float timeDelta);
 	void    Release_Client();
 

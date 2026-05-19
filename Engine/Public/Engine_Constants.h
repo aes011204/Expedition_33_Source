@@ -11,3 +11,11 @@ namespace Engine::ShaderCB
     inline constexpr ::string_view Light        = "LightBuffer";
     inline constexpr ::string_view PostProcess  = "PostProcessBuffer";
 }
+
+namespace Engine::DebugPerf
+{
+#ifdef _DEBUG
+    // 성능 평가의 sample_interval 값. 변경하면 체크 주기를 줄이거나 늘릴 수 있다.
+    inline constexpr float kRuntimePerfSampleIntervalSec = 0.25f;
+#endif
+}
