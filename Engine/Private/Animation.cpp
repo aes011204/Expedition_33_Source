@@ -27,7 +27,7 @@ HRESULT Animation::Initialize(const ModelAnimationData& animData, const vector<M
 	_tickPerSecond = static_cast<float>(animData.ticksPerSecond);
 	_numChannels = animData.numChannels;
 	_currentKeyFrameIndices.resize(_numChannels, 0);
-    
+
 	for (uint32 i = 0; i < _numChannels; ++i)
 	{
 		auto channel = Channel::Create(channels[i]);
@@ -182,15 +182,16 @@ void Animation::Blend_TransformMatrix(float currentTimeDelta, const Shared<Anima
 
 	/* 현재 애니메이션 시간 갱신 */
 	_currentTrackPosition += _tickPerSecond * currentTimeDelta;
-	if (_currentTrackPosition >= _duration)
-		_currentTrackPosition = isLoop ? std::fmod(_currentTrackPosition, _duration) : _duration;
+    if (_currentTrackPosition >= _duration)
+        _currentTrackPosition = _duration;
+		//_currentTrackPosition = isLoop ? std::fmod(_currentTrackPosition, _duration) : _duration;
 
-	/* 다음 애니메이션 시간 갱신 */
+	// 다음 애니메이션 시간 갱신
 	nextAnim->_currentTrackPosition += nextAnim->_tickPerSecond * currentTimeDelta;
 	if (nextAnim->_currentTrackPosition >= nextAnim->_duration)
 		nextAnim->_currentTrackPosition = isLoop ? std::fmod(nextAnim->_currentTrackPosition, nextAnim->_duration) : nextAnim->_duration;
 
-    /* 블렌딩 수행 */
+    // 블렌딩 수행
     for (uint32 i = 0; i < _numChannels; ++i)
     {
         RootMotionFrame curTrans{}, nextTrans{};

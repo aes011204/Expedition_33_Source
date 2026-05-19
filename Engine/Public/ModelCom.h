@@ -85,13 +85,14 @@ public:
     float Get_CurrentFrame() const;
 
     bool Is_AnimationFinished() const { return _isFinished; }
+    bool Is_AnimationBlending() const { return _isBlending; }
     void Set_Animation(uint32 animIndex, bool isLoop = false, float startFrame = 0.f);
     void Set_Animation(uint32 animIndex, float blendDuration, bool isLoop = false, float startFrame = 0.f);
     void Set_Animation(const string& animName, bool isLoop = false, float startFrame = 0.f);
     void Set_Animation(const string& animName, float blendDuration, bool isLoop = false, float startFrame = 0.f);
 
-    void Set_AnimationByState(uint32 stateIndex, bool isLoop = false, float startFrame = 0.f);
-    void Set_AnimationByState(uint32 stateIndex, float blendDuration, bool isLoop = false, float startFrame = 0.f);
+    bool Set_AnimationByState(uint32 stateIndex, bool isLoop = false, float startFrame = 0.f);
+    bool Set_AnimationByState(uint32 stateIndex, float blendDuration, bool isLoop = false, float startFrame = 0.f);
     const char* Get_AnimationName(uint32 animationIndex) const;
 
 public:
