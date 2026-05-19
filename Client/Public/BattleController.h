@@ -37,6 +37,8 @@ public:
         ReactionType type = ReactionType::None;
         bool isOpen = false;
         bool isConsumed = false;
+        ReactionType result = ReactionType::None;
+
     };
 
 public:
@@ -86,13 +88,16 @@ public:
     //void Set_CurrentScript(const Shared<SkillScript>& script){_curScript = script;}
     Shared<SkillScript> Get_CurrentScript() const{return _curScript;}
     void Clear_CurrentScript(){_curScript.reset();}
+
+    const Reaction& Get_Reaction() const{return _reaction;}
 public:
     void Handle_EditorStopRuntime();
     HRESULT Ready_Delegates();
 
     //리액션 인풋
     void OpenReactionWindow(ReactionType type);
-    void CloseReactionWindow(ReactionType type);
+    void CloseReactionWindow(ReactionType type); //일단 이건 쓰지 마
+    void ClearReactionState();
     void UpdateReactionInput();
 
 private:

@@ -31,7 +31,7 @@ void ANS_Parry::On_Tick(const AnimNotifyContext& context)
 
 void ANS_Parry::On_End(const AnimNotifyContext& context)
 {
-    auto battle = CLIENT->Get_BattleController();
-    if (battle)
-        battle->OpenReactionWindow(BattleController::ReactionType::Parry);
+    //auto battle = CLIENT->Get_BattleController();
+    //if (battle)
+    //    battle->OpenReactionWindow(BattleController::ReactionType::Parry);
 }

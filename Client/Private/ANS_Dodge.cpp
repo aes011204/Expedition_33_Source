@@ -31,7 +31,7 @@ void ANS_Dodge::On_Tick(const AnimNotifyContext& context)
 
 void ANS_Dodge::On_End(const AnimNotifyContext& context)
 {
-    auto battle = CLIENT->Get_BattleController();
-    if (battle)
-        battle->CloseReactionWindow(BattleController::ReactionType::Dodge);
+    //auto battle = CLIENT->Get_BattleController();
+    //if (battle)
+    //    battle->CloseReactionWindow(BattleController::ReactionType::Dodge);
 }

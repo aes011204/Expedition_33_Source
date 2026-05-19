@@ -500,6 +500,13 @@ void BattleController::CloseReactionWindow(ReactionType type)
     _reaction.isConsumed = false;
 }
 
+void BattleController::ClearReactionState()
+{
+    _reaction.type = ReactionType::None;
+    _reaction.isOpen = false;
+    _reaction.isConsumed = false;
+}
+
 void BattleController::UpdateReactionInput()
 {
     if (_turnAction.target.actor == nullptr)
@@ -523,6 +530,7 @@ void BattleController::UpdateReactionInput()
             // 성공 해야 애니 실행
 
             _reaction.isConsumed = true;
+            _reaction.result = Parry;
             LOG_ERROR({ "SUCCESS PARRY" });
         }
         break;
@@ -537,6 +545,8 @@ void BattleController::UpdateReactionInput()
 
 
             _reaction.isConsumed = true;
+            _reaction.result = Dodge;
+
             LOG_ERROR({ "SUCCESS DODGE" });
         }
         break;
