@@ -285,6 +285,11 @@ bool ClientInstance::Is_BattleEntering() const
     return _battleController && _battleController->Is_BattleEntering();
 }
 
+bool ClientInstance::Is_GameplayMenuOpen() const
+{
+    return _gamePlayUI && _gamePlayUI->Is_AnyMenuOpen();
+}
+
 Shared<GameObject> ClientInstance::Find_Player(uint32 levelIndex)
 {
     if (_heroManager)

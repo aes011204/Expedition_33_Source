@@ -468,6 +468,11 @@ public: /* 입력 제어 */
     void                    Set_FreeCameraInputEnabled(bool enabled) { _isFreeCameraInputEnabled = enabled; }
     bool                    Is_FreeCameraInputEnabled() const { return _isFreeCameraInputEnabled; }
 
+    void                    Set_GameplayInputMode(GameplayInputMode mode) { _gameplayInputMode = mode; }
+    GameplayInputMode       Get_GameplayInputMode() const { return _gameplayInputMode; }
+    bool                    Is_WorldGameplayInputBlocked() const;
+    bool                    Is_UIInputEnabled() const;
+
 public: /* For.Json / Prefab Saved & Load */
     HRESULT                 Save_GameObjectJson(const fs::path& path, const Shared<GameObject>& gameObject);
     json                    Load_JsonFile(const fs::path& path) const;
@@ -534,7 +539,9 @@ private:
     bool    _isFreeCameraInputEnabled = false;
 
     bool    _isGameplayPaused = false;
+    GameplayInputMode _gameplayInputMode = GameplayInputMode::Normal;
 
+    // 월드 시간 제어
     float   _worldTimeScale = 1.f;
     float   _unscaledTimeDelta = 0.f;
     float   _worldTimeDelta = 0.f;

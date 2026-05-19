@@ -635,7 +635,8 @@
     </ClInclude>
     <ClInclude Include="..\Public\UI_BattleTransition.h" />
     <ClInclude Include="..\Public\UI_ExpeditionStatus.h" />
-    <ClInclude Include="..\Public\UI_SavePoint.h" />
+    <ClInclude Include="..\Public\SavePoint_Panel.h" />
+    <ClInclude Include="..\Public\UI_Utils.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -1025,7 +1026,7 @@
     </ClCompile>
     <ClCompile Include="..\Private\UI_BattleTransition.cpp" />
     <ClCompile Include="..\Private\UI_ExpeditionStatus.cpp" />
-    <ClCompile Include="..\Private\UI_SavePoint.cpp" />
+    <ClCompile Include="..\Private\SavePoint_Panel.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">

@@ -428,7 +428,6 @@ HRESULT GameInstance::Draw()
         _debugManager->Render_Overlay();
     }
 
-    _printManager->Render();
 #endif
 
 #ifdef _DEBUG
@@ -437,6 +436,10 @@ HRESULT GameInstance::Draw()
 
     if (FAILED(_uiManager->Render()))
         return E_FAIL;
+
+#ifdef _DEBUG
+      _printManager->Render();
+#endif
 
     return S_OK;
 }
@@ -1736,6 +1739,39 @@ void GameInstance::Clear_Print(const wstring& slot)
 #ifdef _DEBUG
     _printManager->Clear(slot);
 #endif
+}
+
+bool GameInstance::Is_WorldGameplayInputBlocked() const
+{
+    if (_isPlayerInputBlocked)
+        return true;
+
+    switch (_gameplayInputMode)
+    {
+    case GameplayInputMode::UIOnly:
+    case GameplayInputMode::Cutscene:
+    case GameplayInputMode::BattleMenu:
+        return true;
+
+    case GameplayInputMode::Normal:
+    default:
+        return false;
+    }
+}
+
+bool GameInstance::Is_UIInputEnabled() const
+{
+    switch (_gameplayInputMode)
+    {
+    case GameplayInputMode::UIOnly:
+    case GameplayInputMode::BattleMenu:
+        return true;
+
+    case GameplayInputMode::Normal:
+    case GameplayInputMode::Cutscene:
+    default:
+        return false;
+    }
 }
 
 HRESULT GameInstance::Save_GameObjectJson(const fs::path& path, const Shared<GameObject>& gameObject)

@@ -63,8 +63,8 @@ void PlayerControllerCom::Update_InputState()
 {
     _currentInput = {};
 
-	if (GAME->Is_PlayerInputBlocked())
-		return;
+	if (GAME->Is_WorldGameplayInputBlocked())
+        return;
 
     if (!_controlEnabled)
         return; // follower는 키보드 입력 X
@@ -84,10 +84,12 @@ void PlayerControllerCom::Update_Movement(float timeDelta)
 {
     Debug_Profile::Scope profileScope("PlayerController::UpdateMovement");
 
-	if (GAME->Is_PlayerInputBlocked())
+	if (GAME->Is_WorldGameplayInputBlocked())
 	{
-		_movementCom->Apply_Input({});
-		return;
+		_movementCom->Clear_FollowMoveCommand(); 
+        _movementCom->Apply_Input({});           
+        _movementCom->Update_Movement(timeDelta);
+        return;
 	}
 
     if (_followControl.enabled)

@@ -1022,6 +1022,14 @@ void EditorInstance::Apply_RuntimeInputPolicy()
             return;
         }
 
+        if (GAME->Is_UIInputEnabled())
+        {
+            GAME->Set_PlayerInputBlocked(true);
+            GAME->Set_FreeCameraInputEnabled(false);
+            GAME->Unlock_Mouse();
+            return;
+        }
+
         if (isFreeCamera)
         {
             const bool freeCameraControl =

@@ -42,6 +42,8 @@ public:
     bool    Is_StaticResourcesLoaded() const { return _isStaticResourcesLoaded.load(); }
     void    Set_StaticResourcesLoaded(bool isLoaded) { _isStaticResourcesLoaded.store(isLoaded); }
 
+    bool    Is_GameplayMenuOpen() const;
+
 public: /* 플레이어 찾기 -> 일단 임시 */
     Shared<GameObject> Find_Player(uint32 levelIndex);
 
