@@ -1,1015 +1,124 @@
 ﻿#include "Emitter_View.h"
 
+#include <shobjidl.h>
 #include "Action_Command.h"
 #include "Editor_Context.h"
+#include "EffectAuthoringJsonSerializer.h"
+#include "EffectAuthoringModuleMetadata.h"
 #include "EffectEditorInstance.h"
+#include "EffectMaterialPresetReader.h"
 #include "GameInstance.h"
 #include "Helper_ImGui.h"
-#include "Helper_ReadPreset.h"
 #include "Helper_String.h"
+#include "Notification_Manager.h"
 
 NS_BEGIN(EffectEditor)
 
 namespace Internal
 {
-    constexpr int kEffectAuthoringJsonVersion = 1;
     constexpr const wchar_t* kDefaultEffectMaterialFileName = L"M_DefaultMaterial.effectmaterial.json";
     constexpr const char* kDefaultEffectMaterialName = "M_DefaultMaterial";
-    constexpr const char* kDefaultEffectMaterialTextureId = "Texture_Effect_DefaultTexture";
+    constexpr const char* kDefaultEffectMaterialTextureGuid = "3c90794a-31bb-4e97-969a-3fd4497acc0f";
+    constexpr const char* kDefaultEffectMaterialTexturePath = "Effects/Textures/DefaultTexture.dds";
+    constexpr const wchar_t* kEffectAuthoringSaveDefaultFolder = L"../../../Client/Bin/Resources/Effects/Assets";
+    constexpr const wchar_t* kEffectAuthoringSaveDefaultFileName = L"NewEffect.effect.json";
+    constexpr const wchar_t* kEffectAuthoringExtension = L".effect.json";
 
-    template <typename EnumType>
-    string To_EnumToken(EnumType value)
+    fs::path Normalize_EffectSaveDialogPath(const fs::path& filePath)
     {
-        return string(magic_enum::enum_name(value));
+        try
+        {
+            if (fs::exists(filePath))
+                return fs::weakly_canonical(filePath);
+        }
+        catch (...)
+        {}
+
+        try
+        {
+            return fs::absolute(filePath).lexically_normal();
+        }
+        catch (...)
+        {}
+
+        return filePath.lexically_normal();
     }
 
-    template <typename EnumType>
-    bool Try_ReadEnumToken(const json& node, EnumType& outValue)
+    fs::path Ensure_EffectAuthoringExtension(const fs::path& filePath)
     {
-        if (!node.is_string())
+        const string lowerPath = String::ToLowerCopy(filePath.generic_string());
+        if (lowerPath.ends_with(".effect.json"))
+            return filePath;
+
+        return fs::path(filePath.wstring() + kEffectAuthoringExtension);
+    }
+
+    bool Try_PickEffectSaveFileDialog(fs::path& outFilePath)
+    {
+        outFilePath.clear();
+
+        const HRESULT initHr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+        const bool shouldUninit = SUCCEEDED(initHr);
+
+        IFileSaveDialog* dialog = nullptr;
+        HRESULT hr = CoCreateInstance(CLSID_FileSaveDialog, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&dialog));
+        if (FAILED(hr) || dialog == nullptr)
+        {
+            if (shouldUninit)
+                CoUninitialize();
             return false;
-
-        const optional<EnumType> parsed = magic_enum::enum_cast<EnumType>(node.get<string>());
-        if (!parsed.has_value())
-            return false;
-
-        outValue = parsed.value();
-        return true;
-    }
-
-    template <typename T>
-    void Read_NumberField(const json& node, const char* key, T& outValue)
-    {
-        const auto iter = node.find(key);
-        if (iter == node.end() || !iter->is_number())
-            return;
-
-        outValue = iter->get<T>();
-    }
-
-    void Read_BoolField(const json& node, const char* key, bool& outValue)
-    {
-        const auto iter = node.find(key);
-        if (iter == node.end() || !iter->is_boolean())
-            return;
-
-        outValue = iter->get<bool>();
-    }
-
-    void Read_StringField(const json& node, const char* key, string& outValue)
-    {
-        const auto iter = node.find(key);
-        if (iter == node.end() || !iter->is_string())
-            return;
-
-        outValue = iter->get<string>();
-    }
-
-    json To_Json(const Vec2& value)
-    {
-        return json::array({ value.x, value.y });
-    }
-
-    json To_Json(const Vec3& value)
-    {
-        return json::array({ value.x, value.y, value.z });
-    }
-
-    json To_Json(const Color& value)
-    {
-        return json::array({ value.x, value.y, value.z, value.w });
-    }
-
-    void Read_Vec2(const json& node, Vec2& outValue)
-    {
-        if (!node.is_array() || node.size() < 2 || !node[0].is_number() || !node[1].is_number())
-            return;
-
-        outValue.x = node[0].get<float>();
-        outValue.y = node[1].get<float>();
-    }
-
-    void Read_Vec3(const json& node, Vec3& outValue)
-    {
-        if (!node.is_array() || node.size() < 3 || !node[0].is_number() || !node[1].is_number() || !node[2].is_number())
-            return;
-
-        outValue.x = node[0].get<float>();
-        outValue.y = node[1].get<float>();
-        outValue.z = node[2].get<float>();
-    }
-
-    void Read_Color(const json& node, Color& outValue)
-    {
-        if (!node.is_array() || node.size() < 4 ||
-            !node[0].is_number() || !node[1].is_number() || !node[2].is_number() || !node[3].is_number())
-        {
-            return;
         }
 
-        outValue.x = node[0].get<float>();
-        outValue.y = node[1].get<float>();
-        outValue.z = node[2].get<float>();
-        outValue.w = node[3].get<float>();
-    }
+        dialog->SetTitle(L"Save Effect");
 
-    json To_Json(const ParticleSystemAuthoringData& data)
-    {
-        json root = json::object();
-        root["autoDeactivate"] = data.autoDeactivate;
-        return root;
-    }
+        DWORD options = 0;
+        dialog->GetOptions(&options);
+        dialog->SetOptions(options | FOS_FORCEFILESYSTEM | FOS_PATHMUSTEXIST | FOS_OVERWRITEPROMPT);
 
-    void From_Json(const json& root, ParticleSystemAuthoringData& outData)
-    {
-        if (!root.is_object())
-            return;
-
-        Read_BoolField(root, "autoDeactivate", outData.autoDeactivate);
-    }
-
-    json To_Json(const EffectMaterialInstanceData& data)
-    {
-        json root = json::object();
-        root["sourcePresetName"] = data.sourcePresetName;
-        root["mainTextureId"] = data.mainTextureId;
-        root["noiseTextureId"] = data.noiseTextureId;
-        root["tint"] = To_Json(data.tint);
-        root["intensity"] = data.intensity;
-        root["opacityPower"] = data.opacityPower;
-        root["noiseStrength"] = data.noiseStrength;
-        root["blendMode"] = data.blendMode;
-        root["opacitySource"] = data.opacitySource;
-        root["subUVRows"] = data.subUVRows;
-        root["subUVCols"] = data.subUVCols;
-        return root;
-    }
-
-    void From_Json(const json& root, EffectMaterialInstanceData& outData)
-    {
-        if (!root.is_object())
-            return;
-
-        Read_StringField(root, "sourcePresetName", outData.sourcePresetName);
-        Read_StringField(root, "mainTextureId", outData.mainTextureId);
-        Read_StringField(root, "noiseTextureId", outData.noiseTextureId);
-        Read_NumberField(root, "intensity", outData.intensity);
-        Read_NumberField(root, "opacityPower", outData.opacityPower);
-        Read_NumberField(root, "noiseStrength", outData.noiseStrength);
-        Read_StringField(root, "blendMode", outData.blendMode);
-        Read_StringField(root, "opacitySource", outData.opacitySource);
-        Read_NumberField(root, "subUVRows", outData.subUVRows);
-        Read_NumberField(root, "subUVCols", outData.subUVCols);
-
-        const auto tintIter = root.find("tint");
-        if (tintIter != root.end())
-            Read_Color(*tintIter, outData.tint);
-    }
-
-    json To_Json(const FloatCurveKeyData& data)
-    {
-        json root = json::object();
-        root["time"] = data.time;
-        root["value"] = data.value;
-        root["arriveTangent"] = data.arriveTangent;
-        root["leaveTangent"] = data.leaveTangent;
-        root["interpolationMode"] = To_EnumToken(data.interpolationMode);
-        return root;
-    }
-
-    void From_Json(const json& root, FloatCurveKeyData& outData)
-    {
-        if (!root.is_object())
-            return;
-
-        Read_NumberField(root, "time", outData.time);
-        Read_NumberField(root, "value", outData.value);
-        Read_NumberField(root, "arriveTangent", outData.arriveTangent);
-        Read_NumberField(root, "leaveTangent", outData.leaveTangent);
-
-        const auto interpolationIter = root.find("interpolationMode");
-        if (interpolationIter != root.end())
-            Try_ReadEnumToken(*interpolationIter, outData.interpolationMode);
-    }
-
-    json To_Json(const FloatDistributionData& data)
-    {
-        json root = json::object();
-        root["mode"] = To_EnumToken(data.mode);
-
-        json payload = json::object();
-        if (const auto* constantData = get_if<ConstantFloatDistributionData>(&data.payload))
-            payload["value"] = constantData->value;
-        else if (const auto* uniformData = get_if<UniformFloatDistributionData>(&data.payload))
+        const fs::path defaultFolder = Normalize_EffectSaveDialogPath(kEffectAuthoringSaveDefaultFolder);
+        if (!defaultFolder.empty() && fs::exists(defaultFolder))
         {
-            payload["minValue"] = uniformData->minValue;
-            payload["maxValue"] = uniformData->maxValue;
-        }
-        else if (const auto* constantCurveData = get_if<ConstantCurveFloatDistributionData>(&data.payload))
-        {
-            payload["keys"] = json::array();
-            for (const FloatCurveKeyData& key : constantCurveData->keys)
-                payload["keys"].push_back(To_Json(key));
-        }
-
-        root["payload"] = move(payload);
-        return root;
-    }
-
-    void From_Json(const json& root, FloatDistributionData& outData)
-    {
-        if (!root.is_object())
-            return;
-
-        DistributionMode parsedMode = outData.mode;
-        const auto modeIter = root.find("mode");
-        if (modeIter != root.end() && Try_ReadEnumToken(*modeIter, parsedMode))
-        {
-            if (parsedMode == DistributionMode::Constant ||
-                parsedMode == DistributionMode::Uniform ||
-                parsedMode == DistributionMode::ConstantCurve)
+            IShellItem* folderItem = nullptr;
+            if (SUCCEEDED(SHCreateItemFromParsingName(defaultFolder.wstring().c_str(), nullptr, IID_PPV_ARGS(&folderItem))) && folderItem != nullptr)
             {
-                outData.mode = parsedMode;
+                dialog->SetFolder(folderItem);
+                folderItem->Release();
             }
         }
 
-        const auto payloadIter = root.find("payload");
-        if (payloadIter == root.end() || !payloadIter->is_object())
-            return;
+        const COMDLG_FILTERSPEC filters[]
+        {
+            { L"Effect Authoring", L"*.effect.json" },
+            { L"All", L"*.*" },
+        };
+        dialog->SetFileTypes(static_cast<UINT>(std::size(filters)), filters);
+        dialog->SetFileTypeIndex(1);
+        dialog->SetDefaultExtension(L"effect.json");
+        dialog->SetFileName(kEffectAuthoringSaveDefaultFileName);
 
-        switch (outData.mode)
+        const HWND owner = EDITOR != nullptr ? EDITOR->Get_WindowHandle() : nullptr;
+        hr = dialog->Show(owner);
+        if (SUCCEEDED(hr))
         {
-        case DistributionMode::Constant:
-        {
-            ConstantFloatDistributionData payload = get<ConstantFloatDistributionData>(outData.payload);
-            Read_NumberField(*payloadIter, "value", payload.value);
-            outData.payload = payload;
-            break;
-        }
-        case DistributionMode::Uniform:
-        {
-            UniformFloatDistributionData payload = get<UniformFloatDistributionData>(outData.payload);
-            Read_NumberField(*payloadIter, "minValue", payload.minValue);
-            Read_NumberField(*payloadIter, "maxValue", payload.maxValue);
-            outData.payload = payload;
-            break;
-        }
-        case DistributionMode::ConstantCurve:
-        {
-            ConstantCurveFloatDistributionData payload{};
-            const auto keysIter = payloadIter->find("keys");
-            if (keysIter != payloadIter->end() && keysIter->is_array())
+            IShellItem* item = nullptr;
+            if (SUCCEEDED(dialog->GetResult(&item)) && item != nullptr)
             {
-                payload.keys.clear();
-                for (const json& keyNode : *keysIter)
+                PWSTR path = nullptr;
+                if (SUCCEEDED(item->GetDisplayName(SIGDN_FILESYSPATH, &path)) && path != nullptr)
                 {
-                    FloatCurveKeyData key{};
-                    From_Json(keyNode, key);
-                    payload.keys.push_back(key);
+                    outFilePath = Ensure_EffectAuthoringExtension(fs::path(path));
+                    CoTaskMemFree(path);
                 }
-            }
-
-            if (payload.keys.empty())
-                payload.keys = get<ConstantCurveFloatDistributionData>(outData.payload).keys;
-
-            outData.payload = payload;
-            break;
-        }
-        default:
-            break;
-        }
-    }
-
-    json To_Json(const Vector2DistributionData& data)
-    {
-        json root = json::object();
-        root["mode"] = To_EnumToken(data.mode);
-
-        json payload = json::object();
-        if (const auto* constantData = get_if<ConstantVector2DistributionData>(&data.payload))
-            payload["value"] = To_Json(constantData->value);
-        else if (const auto* uniformData = get_if<UniformVector2DistributionData>(&data.payload))
-        {
-            payload["minValue"] = To_Json(uniformData->minValue);
-            payload["maxValue"] = To_Json(uniformData->maxValue);
-        }
-
-        root["payload"] = move(payload);
-        return root;
-    }
-
-    void From_Json(const json& root, Vector2DistributionData& outData)
-    {
-        if (!root.is_object())
-            return;
-
-        DistributionMode parsedMode = outData.mode;
-        const auto modeIter = root.find("mode");
-        if (modeIter != root.end() && Try_ReadEnumToken(*modeIter, parsedMode))
-        {
-            if (parsedMode == DistributionMode::Constant || parsedMode == DistributionMode::Uniform)
-                outData.mode = parsedMode;
-        }
-
-        const auto payloadIter = root.find("payload");
-        if (payloadIter == root.end() || !payloadIter->is_object())
-            return;
-
-        switch (outData.mode)
-        {
-        case DistributionMode::Constant:
-        {
-            ConstantVector2DistributionData payload = get<ConstantVector2DistributionData>(outData.payload);
-            const auto valueIter = payloadIter->find("value");
-            if (valueIter != payloadIter->end())
-                Read_Vec2(*valueIter, payload.value);
-            outData.payload = payload;
-            break;
-        }
-        case DistributionMode::Uniform:
-        {
-            UniformVector2DistributionData payload = get<UniformVector2DistributionData>(outData.payload);
-            const auto minIter = payloadIter->find("minValue");
-            if (minIter != payloadIter->end())
-                Read_Vec2(*minIter, payload.minValue);
-            const auto maxIter = payloadIter->find("maxValue");
-            if (maxIter != payloadIter->end())
-                Read_Vec2(*maxIter, payload.maxValue);
-            outData.payload = payload;
-            break;
-        }
-        default:
-            break;
-        }
-    }
-
-    json To_Json(const Vector3DistributionData& data)
-    {
-        json root = json::object();
-        root["mode"] = To_EnumToken(data.mode);
-
-        json payload = json::object();
-        if (const auto* constantData = get_if<ConstantVector3DistributionData>(&data.payload))
-            payload["value"] = To_Json(constantData->value);
-        else if (const auto* uniformData = get_if<UniformVector3DistributionData>(&data.payload))
-        {
-            payload["minValue"] = To_Json(uniformData->minValue);
-            payload["maxValue"] = To_Json(uniformData->maxValue);
-        }
-
-        root["payload"] = move(payload);
-        return root;
-    }
-
-    void From_Json(const json& root, Vector3DistributionData& outData)
-    {
-        if (!root.is_object())
-            return;
-
-        DistributionMode parsedMode = outData.mode;
-        const auto modeIter = root.find("mode");
-        if (modeIter != root.end() && Try_ReadEnumToken(*modeIter, parsedMode))
-        {
-            if (parsedMode == DistributionMode::Constant || parsedMode == DistributionMode::Uniform)
-                outData.mode = parsedMode;
-        }
-
-        const auto payloadIter = root.find("payload");
-        if (payloadIter == root.end() || !payloadIter->is_object())
-            return;
-
-        switch (outData.mode)
-        {
-        case DistributionMode::Constant:
-        {
-            ConstantVector3DistributionData payload = get<ConstantVector3DistributionData>(outData.payload);
-            const auto valueIter = payloadIter->find("value");
-            if (valueIter != payloadIter->end())
-                Read_Vec3(*valueIter, payload.value);
-            outData.payload = payload;
-            break;
-        }
-        case DistributionMode::Uniform:
-        {
-            UniformVector3DistributionData payload = get<UniformVector3DistributionData>(outData.payload);
-            const auto minIter = payloadIter->find("minValue");
-            if (minIter != payloadIter->end())
-                Read_Vec3(*minIter, payload.minValue);
-            const auto maxIter = payloadIter->find("maxValue");
-            if (maxIter != payloadIter->end())
-                Read_Vec3(*maxIter, payload.maxValue);
-            outData.payload = payload;
-            break;
-        }
-        default:
-            break;
-        }
-    }
-
-    json To_Json(const ColorDistributionData& data)
-    {
-        json root = json::object();
-        root["mode"] = To_EnumToken(data.mode);
-
-        json payload = json::object();
-        if (const auto* constantData = get_if<ConstantColorDistributionData>(&data.payload))
-            payload["value"] = To_Json(constantData->value);
-        else if (const auto* uniformData = get_if<UniformColorDistributionData>(&data.payload))
-        {
-            payload["minValue"] = To_Json(uniformData->minValue);
-            payload["maxValue"] = To_Json(uniformData->maxValue);
-        }
-
-        root["payload"] = move(payload);
-        return root;
-    }
-
-    void From_Json(const json& root, ColorDistributionData& outData)
-    {
-        if (!root.is_object())
-            return;
-
-        DistributionMode parsedMode = outData.mode;
-        const auto modeIter = root.find("mode");
-        if (modeIter != root.end() && Try_ReadEnumToken(*modeIter, parsedMode))
-        {
-            if (parsedMode == DistributionMode::Constant || parsedMode == DistributionMode::Uniform)
-                outData.mode = parsedMode;
-        }
-
-        const auto payloadIter = root.find("payload");
-        if (payloadIter == root.end() || !payloadIter->is_object())
-            return;
-
-        switch (outData.mode)
-        {
-        case DistributionMode::Constant:
-        {
-            ConstantColorDistributionData payload = get<ConstantColorDistributionData>(outData.payload);
-            const auto valueIter = payloadIter->find("value");
-            if (valueIter != payloadIter->end())
-                Read_Color(*valueIter, payload.value);
-            outData.payload = payload;
-            break;
-        }
-        case DistributionMode::Uniform:
-        {
-            UniformColorDistributionData payload = get<UniformColorDistributionData>(outData.payload);
-            const auto minIter = payloadIter->find("minValue");
-            if (minIter != payloadIter->end())
-                Read_Color(*minIter, payload.minValue);
-            const auto maxIter = payloadIter->find("maxValue");
-            if (maxIter != payloadIter->end())
-                Read_Color(*maxIter, payload.maxValue);
-            outData.payload = payload;
-            break;
-        }
-        default:
-            break;
-        }
-    }
-
-    json To_Json(const RequiredModuleData& data)
-    {
-        json root = json::object();
-        root["rendererType"] = data.rendererType;
-        root["material"] = To_Json(data.material);
-        root["emitterOrigin"] = To_Json(data.emitterOrigin);
-        root["emitterRotationDegrees"] = To_Json(data.emitterRotationDegrees);
-        root["screenAlignment"] = To_EnumToken(data.screenAlignment);
-        root["directionalAlignmentMode"] = To_EnumToken(data.directionalAlignmentMode);
-        root["spriteTextureAxis"] = To_EnumToken(data.spriteTextureAxis);
-        root["spriteRollOffsetDegrees"] = data.spriteRollOffsetDegrees;
-        root["minCameraBlendDistance"] = data.minCameraBlendDistance;
-        root["maxCameraBlendDistance"] = data.maxCameraBlendDistance;
-        root["useLocalSpace"] = data.useLocalSpace;
-        root["sortMode"] = To_EnumToken(data.sortMode);
-        root["cameraMotionBlurAmount"] = data.cameraMotionBlurAmount;
-        root["clearExistingParticlesOnInit"] = data.clearExistingParticlesOnInit;
-        root["loopCount"] = data.loopCount;
-        root["duration"] = data.duration;
-        root["durationLow"] = data.durationLow;
-        root["useDurationRange"] = data.useDurationRange;
-        root["recalculateDurationEachLoop"] = data.recalculateDurationEachLoop;
-        root["delay"] = data.delay;
-        root["delayLow"] = data.delayLow;
-        root["useDelayRange"] = data.useDelayRange;
-        root["delayFirstLoopOnly"] = data.delayFirstLoopOnly;
-        root["killOnDeactivate"] = data.killOnDeactivate;
-        root["killOnCompleted"] = data.killOnCompleted;
-        root["useMaxDrawCount"] = data.useMaxDrawCount;
-        root["maxDrawCount"] = data.maxDrawCount;
-        return root;
-    }
-
-    void From_Json(const json& root, RequiredModuleData& outData)
-    {
-        if (!root.is_object())
-            return;
-
-        Read_StringField(root, "rendererType", outData.rendererType);
-        const auto materialIter = root.find("material");
-        if (materialIter != root.end())
-            From_Json(*materialIter, outData.material);
-        const auto originIter = root.find("emitterOrigin");
-        if (originIter != root.end())
-            Read_Vec3(*originIter, outData.emitterOrigin);
-        const auto rotationIter = root.find("emitterRotationDegrees");
-        if (rotationIter != root.end())
-            Read_Vec3(*rotationIter, outData.emitterRotationDegrees);
-
-        const auto screenAlignmentIter = root.find("screenAlignment");
-        if (screenAlignmentIter != root.end())
-            Try_ReadEnumToken(*screenAlignmentIter, outData.screenAlignment);
-        const auto directionalAlignmentIter = root.find("directionalAlignmentMode");
-        if (directionalAlignmentIter != root.end())
-            Try_ReadEnumToken(*directionalAlignmentIter, outData.directionalAlignmentMode);
-        const auto spriteTextureAxisIter = root.find("spriteTextureAxis");
-        if (spriteTextureAxisIter != root.end())
-            Try_ReadEnumToken(*spriteTextureAxisIter, outData.spriteTextureAxis);
-        const auto sortModeIter = root.find("sortMode");
-        if (sortModeIter != root.end())
-            Try_ReadEnumToken(*sortModeIter, outData.sortMode);
-
-        Read_NumberField(root, "spriteRollOffsetDegrees", outData.spriteRollOffsetDegrees);
-        Read_NumberField(root, "minCameraBlendDistance", outData.minCameraBlendDistance);
-        Read_NumberField(root, "maxCameraBlendDistance", outData.maxCameraBlendDistance);
-        Read_BoolField(root, "useLocalSpace", outData.useLocalSpace);
-        Read_NumberField(root, "cameraMotionBlurAmount", outData.cameraMotionBlurAmount);
-        Read_BoolField(root, "clearExistingParticlesOnInit", outData.clearExistingParticlesOnInit);
-        Read_NumberField(root, "loopCount", outData.loopCount);
-        Read_NumberField(root, "duration", outData.duration);
-        Read_NumberField(root, "durationLow", outData.durationLow);
-        Read_BoolField(root, "useDurationRange", outData.useDurationRange);
-        Read_BoolField(root, "recalculateDurationEachLoop", outData.recalculateDurationEachLoop);
-        Read_NumberField(root, "delay", outData.delay);
-        Read_NumberField(root, "delayLow", outData.delayLow);
-        Read_BoolField(root, "useDelayRange", outData.useDelayRange);
-        Read_BoolField(root, "delayFirstLoopOnly", outData.delayFirstLoopOnly);
-        Read_BoolField(root, "killOnDeactivate", outData.killOnDeactivate);
-        Read_BoolField(root, "killOnCompleted", outData.killOnCompleted);
-        Read_BoolField(root, "useMaxDrawCount", outData.useMaxDrawCount);
-        Read_NumberField(root, "maxDrawCount", outData.maxDrawCount);
-    }
-
-    json To_Json(const SpawnModuleData& data)
-    {
-        json root = json::object();
-        root["processSpawnRate"] = data.processSpawnRate;
-        root["spawnRate"] = To_Json(data.spawnRate);
-        root["spawnRateScale"] = To_Json(data.spawnRateScale);
-        root["processBurstList"] = data.processBurstList;
-        root["burstList"] = json::array();
-        for (const SpawnModuleData::ParticleBurstData& burst : data.burstList)
-        {
-            json burstNode = json::object();
-            burstNode["time"] = burst.time;
-            burstNode["count"] = burst.count;
-            root["burstList"].push_back(move(burstNode));
-        }
-        root["burstScale"] = To_Json(data.burstScale);
-        root["maxParticleCount"] = data.maxParticleCount;
-        return root;
-    }
-
-    void From_Json(const json& root, SpawnModuleData& outData)
-    {
-        if (!root.is_object())
-            return;
-
-        Read_BoolField(root, "processSpawnRate", outData.processSpawnRate);
-        const auto spawnRateIter = root.find("spawnRate");
-        if (spawnRateIter != root.end())
-            From_Json(*spawnRateIter, outData.spawnRate);
-        const auto spawnRateScaleIter = root.find("spawnRateScale");
-        if (spawnRateScaleIter != root.end())
-            From_Json(*spawnRateScaleIter, outData.spawnRateScale);
-        Read_BoolField(root, "processBurstList", outData.processBurstList);
-        const auto burstScaleIter = root.find("burstScale");
-        if (burstScaleIter != root.end())
-            From_Json(*burstScaleIter, outData.burstScale);
-        Read_NumberField(root, "maxParticleCount", outData.maxParticleCount);
-
-        const auto burstListIter = root.find("burstList");
-        if (burstListIter != root.end() && burstListIter->is_array())
-        {
-            outData.burstList.clear();
-            for (const json& burstNode : *burstListIter)
-            {
-                if (!burstNode.is_object())
-                    continue;
-
-                SpawnModuleData::ParticleBurstData burst{};
-                Read_NumberField(burstNode, "time", burst.time);
-                Read_NumberField(burstNode, "count", burst.count);
-                outData.burstList.push_back(burst);
+                item->Release();
             }
         }
-    }
 
-    json To_Json(const LifetimeModuleData& data)
-    {
-        json root = json::object();
-        root["lifeTime"] = To_Json(data.lifeTime);
-        return root;
-    }
+        dialog->Release();
 
-    void From_Json(const json& root, LifetimeModuleData& outData)
-    {
-        const auto iter = root.find("lifeTime");
-        if (root.is_object() && iter != root.end())
-            From_Json(*iter, outData.lifeTime);
-    }
+        if (shouldUninit)
+            CoUninitialize();
 
-    json To_Json(const InitialLocationModuleData& data)
-    {
-        json root = json::object();
-        root["location"] = To_Json(data.location);
-        return root;
-    }
-
-    void From_Json(const json& root, InitialLocationModuleData& outData)
-    {
-        const auto iter = root.find("location");
-        if (root.is_object() && iter != root.end())
-            From_Json(*iter, outData.location);
-    }
-
-    json To_Json(const SphereLocationModuleData& data)
-    {
-        json root = json::object();
-        root["offset"] = To_Json(data.offset);
-        root["radius"] = data.radius;
-        root["spawnMode"] = To_EnumToken(data.spawnMode);
-        return root;
-    }
-
-    void From_Json(const json& root, SphereLocationModuleData& outData)
-    {
-        if (!root.is_object())
-            return;
-
-        const auto offsetIter = root.find("offset");
-        if (offsetIter != root.end())
-            Read_Vec3(*offsetIter, outData.offset);
-        Read_NumberField(root, "radius", outData.radius);
-        const auto spawnModeIter = root.find("spawnMode");
-        if (spawnModeIter != root.end())
-            Try_ReadEnumToken(*spawnModeIter, outData.spawnMode);
-    }
-
-    json To_Json(const InitialSizeModuleData& data)
-    {
-        json root = json::object();
-        root["size"] = To_Json(data.size);
-        return root;
-    }
-
-    void From_Json(const json& root, InitialSizeModuleData& outData)
-    {
-        const auto iter = root.find("size");
-        if (root.is_object() && iter != root.end())
-            From_Json(*iter, outData.size);
-    }
-
-    json To_Json(const InitialVelocityModuleData& data)
-    {
-        json root = json::object();
-        root["velocity"] = To_Json(data.velocity);
-        root["inWorldSpace"] = data.inWorldSpace;
-        return root;
-    }
-
-    void From_Json(const json& root, InitialVelocityModuleData& outData)
-    {
-        if (!root.is_object())
-            return;
-
-        const auto velocityIter = root.find("velocity");
-        if (velocityIter != root.end())
-            From_Json(*velocityIter, outData.velocity);
-        Read_BoolField(root, "inWorldSpace", outData.inWorldSpace);
-    }
-
-    json To_Json(const InitialRadialVelocityModuleData& data)
-    {
-        json root = json::object();
-        root["speed"] = To_Json(data.speed);
-        root["radialPivot"] = To_Json(data.radialPivot);
-        root["inWorldSpace"] = data.inWorldSpace;
-        return root;
-    }
-
-    void From_Json(const json& root, InitialRadialVelocityModuleData& outData)
-    {
-        if (!root.is_object())
-            return;
-
-        const auto speedIter = root.find("speed");
-        if (speedIter != root.end())
-            From_Json(*speedIter, outData.speed);
-        const auto radialPivotIter = root.find("radialPivot");
-        if (radialPivotIter != root.end())
-            Read_Vec3(*radialPivotIter, outData.radialPivot);
-        Read_BoolField(root, "inWorldSpace", outData.inWorldSpace);
-    }
-
-    json To_Json(const AccelerationModuleData& data)
-    {
-        json root = json::object();
-        root["acceleration"] = To_Json(data.acceleration);
-        return root;
-    }
-
-    void From_Json(const json& root, AccelerationModuleData& outData)
-    {
-        const auto iter = root.find("acceleration");
-        if (root.is_object() && iter != root.end())
-            From_Json(*iter, outData.acceleration);
-    }
-
-    json To_Json(const DragModuleData& data)
-    {
-        json root = json::object();
-        root["drag"] = To_Json(data.drag);
-        return root;
-    }
-
-    void From_Json(const json& root, DragModuleData& outData)
-    {
-        const auto iter = root.find("drag");
-        if (root.is_object() && iter != root.end())
-            From_Json(*iter, outData.drag);
-    }
-
-    json To_Json(const VelocityOverLifeModuleData& data)
-    {
-        json root = json::object();
-        root["scaleStart"] = data.scaleStart;
-        root["scaleEnd"] = data.scaleEnd;
-        return root;
-    }
-
-    void From_Json(const json& root, VelocityOverLifeModuleData& outData)
-    {
-        if (!root.is_object())
-            return;
-
-        Read_NumberField(root, "scaleStart", outData.scaleStart);
-        Read_NumberField(root, "scaleEnd", outData.scaleEnd);
-    }
-
-    json To_Json(const InitialRotationModuleData& data)
-    {
-        json root = json::object();
-        root["rotationDegrees"] = To_Json(data.rotationDegrees);
-        return root;
-    }
-
-    void From_Json(const json& root, InitialRotationModuleData& outData)
-    {
-        const auto iter = root.find("rotationDegrees");
-        if (root.is_object() && iter != root.end())
-            From_Json(*iter, outData.rotationDegrees);
-    }
-
-    json To_Json(const RotationOverLifeModuleData& data)
-    {
-        json root = json::object();
-        root["rotationStartDegrees"] = data.rotationStartDegrees;
-        root["rotationEndDegrees"] = data.rotationEndDegrees;
-        return root;
-    }
-
-    void From_Json(const json& root, RotationOverLifeModuleData& outData)
-    {
-        if (!root.is_object())
-            return;
-
-        Read_NumberField(root, "rotationStartDegrees", outData.rotationStartDegrees);
-        Read_NumberField(root, "rotationEndDegrees", outData.rotationEndDegrees);
-    }
-
-    json To_Json(const InitialRotationRateModuleData& data)
-    {
-        json root = json::object();
-        root["rotationRateDegrees"] = To_Json(data.rotationRateDegrees);
-        return root;
-    }
-
-    void From_Json(const json& root, InitialRotationRateModuleData& outData)
-    {
-        const auto iter = root.find("rotationRateDegrees");
-        if (root.is_object() && iter != root.end())
-            From_Json(*iter, outData.rotationRateDegrees);
-    }
-
-    json To_Json(const RotationRateScaleByLifeModuleData& data)
-    {
-        json root = json::object();
-        root["scaleStart"] = data.scaleStart;
-        root["scaleEnd"] = data.scaleEnd;
-        return root;
-    }
-
-    void From_Json(const json& root, RotationRateScaleByLifeModuleData& outData)
-    {
-        if (!root.is_object())
-            return;
-
-        Read_NumberField(root, "scaleStart", outData.scaleStart);
-        Read_NumberField(root, "scaleEnd", outData.scaleEnd);
-    }
-
-    json To_Json(const InitialColorModuleData& data)
-    {
-        json root = json::object();
-        root["color"] = To_Json(data.color);
-        root["alpha"] = To_Json(data.alpha);
-        return root;
-    }
-
-    void From_Json(const json& root, InitialColorModuleData& outData)
-    {
-        if (!root.is_object())
-            return;
-
-        const auto colorIter = root.find("color");
-        if (colorIter != root.end())
-            From_Json(*colorIter, outData.color);
-        const auto alphaIter = root.find("alpha");
-        if (alphaIter != root.end())
-            From_Json(*alphaIter, outData.alpha);
-    }
-
-    json To_Json(const ColorOverLifeModuleData& data)
-    {
-        json root = json::object();
-        root["colorOverLife"] = To_Json(data.colorOverLife);
-        root["alphaOverLife"] = To_Json(data.alphaOverLife);
-        return root;
-    }
-
-    void From_Json(const json& root, ColorOverLifeModuleData& outData)
-    {
-        if (!root.is_object())
-            return;
-
-        const auto colorIter = root.find("colorOverLife");
-        if (colorIter != root.end())
-            From_Json(*colorIter, outData.colorOverLife);
-        const auto alphaIter = root.find("alphaOverLife");
-        if (alphaIter != root.end())
-            From_Json(*alphaIter, outData.alphaOverLife);
-    }
-
-    json To_Json(const SubUVFrameOverLifeModuleData& data)
-    {
-        json root = json::object();
-        root["frameIndex"] = To_Json(data.frameIndex);
-        root["startFrame"] = data.startFrame;
-        root["endFrame"] = data.endFrame;
-        root["loop"] = data.loop;
-        root["playbackMode"] = To_EnumToken(data.playbackMode);
-        root["framesPerSecond"] = data.framesPerSecond;
-        return root;
-    }
-
-    void From_Json(const json& root, SubUVFrameOverLifeModuleData& outData)
-    {
-        if (!root.is_object())
-            return;
-
-        const auto frameIndexIter = root.find("frameIndex");
-        if (frameIndexIter != root.end())
-            From_Json(*frameIndexIter, outData.frameIndex);
-        Read_NumberField(root, "startFrame", outData.startFrame);
-        Read_NumberField(root, "endFrame", outData.endFrame);
-        Read_BoolField(root, "loop", outData.loop);
-        const auto playbackModeIter = root.find("playbackMode");
-        if (playbackModeIter != root.end())
-            Try_ReadEnumToken(*playbackModeIter, outData.playbackMode);
-        Read_NumberField(root, "framesPerSecond", outData.framesPerSecond);
-    }
-
-    json To_Json(const SizeByLifeModuleData& data)
-    {
-        json root = json::object();
-        root["multiplyXStart"] = data.multiplyXStart;
-        root["multiplyXEnd"] = data.multiplyXEnd;
-        root["multiplyYStart"] = data.multiplyYStart;
-        root["multiplyYEnd"] = data.multiplyYEnd;
-        return root;
-    }
-
-    void From_Json(const json& root, SizeByLifeModuleData& outData)
-    {
-        if (!root.is_object())
-            return;
-
-        Read_NumberField(root, "multiplyXStart", outData.multiplyXStart);
-        Read_NumberField(root, "multiplyXEnd", outData.multiplyXEnd);
-        Read_NumberField(root, "multiplyYStart", outData.multiplyYStart);
-        Read_NumberField(root, "multiplyYEnd", outData.multiplyYEnd);
-    }
-
-    json To_Json(const AuthoringModule& module)
-    {
-        json root = json::object();
-        root["id"] = module.id;
-        root["type"] = To_EnumToken(module.type);
-        root["enabled"] = module.enabled;
-
-        switch (module.type)
-        {
-        case AuthoringModuleType::Required:
-            root["data"] = To_Json(get<RequiredModuleData>(module.data));
-            break;
-        case AuthoringModuleType::Spawn:
-            root["data"] = To_Json(get<SpawnModuleData>(module.data));
-            break;
-        case AuthoringModuleType::Lifetime:
-            root["data"] = To_Json(get<LifetimeModuleData>(module.data));
-            break;
-        case AuthoringModuleType::InitialLocation:
-            root["data"] = To_Json(get<InitialLocationModuleData>(module.data));
-            break;
-        case AuthoringModuleType::SphereLocation:
-            root["data"] = To_Json(get<SphereLocationModuleData>(module.data));
-            break;
-        case AuthoringModuleType::InitialSize:
-            root["data"] = To_Json(get<InitialSizeModuleData>(module.data));
-            break;
-        case AuthoringModuleType::InitialVelocity:
-            root["data"] = To_Json(get<InitialVelocityModuleData>(module.data));
-            break;
-        case AuthoringModuleType::InitialRadialVelocity:
-            root["data"] = To_Json(get<InitialRadialVelocityModuleData>(module.data));
-            break;
-        case AuthoringModuleType::Acceleration:
-            root["data"] = To_Json(get<AccelerationModuleData>(module.data));
-            break;
-        case AuthoringModuleType::Drag:
-            root["data"] = To_Json(get<DragModuleData>(module.data));
-            break;
-        case AuthoringModuleType::VelocityOverLife:
-            root["data"] = To_Json(get<VelocityOverLifeModuleData>(module.data));
-            break;
-        case AuthoringModuleType::InitialRotation:
-            root["data"] = To_Json(get<InitialRotationModuleData>(module.data));
-            break;
-        case AuthoringModuleType::RotationOverLife:
-            root["data"] = To_Json(get<RotationOverLifeModuleData>(module.data));
-            break;
-        case AuthoringModuleType::InitialRotationRate:
-            root["data"] = To_Json(get<InitialRotationRateModuleData>(module.data));
-            break;
-        case AuthoringModuleType::RotationRateScaleByLife:
-            root["data"] = To_Json(get<RotationRateScaleByLifeModuleData>(module.data));
-            break;
-        case AuthoringModuleType::InitialColor:
-            root["data"] = To_Json(get<InitialColorModuleData>(module.data));
-            break;
-        case AuthoringModuleType::ColorOverLife:
-            root["data"] = To_Json(get<ColorOverLifeModuleData>(module.data));
-            break;
-        case AuthoringModuleType::SubUVFrameOverLife:
-            root["data"] = To_Json(get<SubUVFrameOverLifeModuleData>(module.data));
-            break;
-        case AuthoringModuleType::SizeByLife:
-            root["data"] = To_Json(get<SizeByLifeModuleData>(module.data));
-            break;
-        }
-
-        return root;
-    }
-
-    json To_Json(const AuthoringEmitter& emitter)
-    {
-        json root = json::object();
-        root["id"] = emitter.id;
-        root["name"] = emitter.name;
-        root["rendererType"] = emitter.rendererType;
-        root["enabled"] = emitter.enabled;
-        root["modules"] = json::array();
-
-        for (const AuthoringModule& module : emitter.modules)
-            root["modules"].push_back(To_Json(module));
-
-        return root;
-    }
-
-    uint32 Find_NextAuthoringId(const vector<AuthoringEmitter>& emitters)
-    {
-        uint32 maxId = 0;
-        for (const AuthoringEmitter& emitter : emitters)
-        {
-            maxId = max(maxId, emitter.id);
-            for (const AuthoringModule& module : emitter.modules)
-                maxId = max(maxId, module.id);
-        }
-
-        return maxId + 1;
+        return !outFilePath.empty();
     }
 
     fs::path Resolve_DefaultEffectMaterialPath()
@@ -1051,10 +160,11 @@ namespace Internal
     {
         RequiredModuleData data{};
         const fs::path materialPath = Resolve_DefaultEffectMaterialPath();
-        if (materialPath.empty() || !ReadPreset::Read(materialPath, data.material))
+        if (materialPath.empty() || !EffectMaterialPresetReader::Read(materialPath, data.material))
         {
             data.material.sourcePresetName = kDefaultEffectMaterialName;
-            data.material.mainTextureId = kDefaultEffectMaterialTextureId;
+            data.material.mainTextureGuid = kDefaultEffectMaterialTextureGuid;
+            data.material.mainTexturePath = kDefaultEffectMaterialTexturePath;
         }
 
         return data;
@@ -1104,6 +214,58 @@ void Emitter_View::Render()
 
     Set_Open(isOpen);
     ImGui::End();
+}
+
+bool Emitter_View::CanSave() const
+{
+    return true;
+}
+
+void Emitter_View::Save()
+{
+    fs::path savePath{};
+    if (!Internal::Try_PickEffectSaveFileDialog(savePath))
+        return;
+
+    ofstream file(savePath);
+    if (!file.is_open())
+    {
+        if (EDITOR != nullptr && EDITOR->Get_Notification() != nullptr)
+        {
+            EDITOR->Get_Notification()->Add_Notification_With_Type(
+                NotifyType::Warning,
+                "Effect 저장 실패: {}",
+                String::ToString(savePath.filename().wstring())
+            );
+        }
+        return;
+    }
+
+    const json documentJson = Build_AuthoringDocumentJson();
+    file << documentJson.dump(4);
+    if (!file.good())
+    {
+        if (EDITOR != nullptr && EDITOR->Get_Notification() != nullptr)
+        {
+            EDITOR->Get_Notification()->Add_Notification_With_Type(
+                NotifyType::Warning,
+                "Effect 저장 실패: {}",
+                String::ToString(savePath.filename().wstring())
+            );
+        }
+        return;
+    }
+
+    ClearDirty();
+
+    if (EDITOR != nullptr && EDITOR->Get_Notification() != nullptr)
+    {
+        EDITOR->Get_Notification()->Add_Notification_With_Type(
+            NotifyType::Success,
+            "Effect 저장 완료: {}",
+            String::ToString(savePath.filename().wstring())
+        );
+    }
 }
 
 AuthoringEmitter* Emitter_View::Find_Emitter(uint32 emitterId)
@@ -1194,152 +356,6 @@ void Emitter_View::Restore_AuthoringSnapshot(const AuthoringSnapshot& snapshot)
     MarkDirty();
 }
 
-json Emitter_View::Build_AuthoringDocumentJson() const
-{
-    json root = json::object();
-    root["version"] = Internal::kEffectAuthoringJsonVersion;
-    root["particleSystem"] = Internal::To_Json(_particleSystemData);
-    root["emitters"] = json::array();
-
-    for (const AuthoringEmitter& emitter : _emitters)
-        root["emitters"].push_back(Internal::To_Json(emitter));
-
-    return root;
-}
-
-bool Emitter_View::Restore_AuthoringDocumentJson(const json& root)
-{
-    if (!root.is_object())
-        return false;
-
-    ParticleSystemAuthoringData particleSystemData{};
-    vector<AuthoringEmitter> emitters{};
-
-    const auto particleSystemIter = root.find("particleSystem");
-    if (particleSystemIter != root.end())
-        Internal::From_Json(*particleSystemIter, particleSystemData);
-
-    const auto emittersIter = root.find("emitters");
-    if (emittersIter == root.end() || !emittersIter->is_array())
-        return false;
-
-    for (const json& emitterNode : *emittersIter)
-    {
-        if (!emitterNode.is_object())
-            continue;
-
-        AuthoringEmitter emitter{};
-        emitter.id = emitterNode.value("id", 0u);
-        emitter.name = emitterNode.value("name", string{});
-        emitter.rendererType = emitterNode.value("rendererType", emitter.rendererType);
-        emitter.enabled = emitterNode.value("enabled", emitter.enabled);
-        emitter.previewDirty = true;
-
-        const auto modulesIter = emitterNode.find("modules");
-        if (modulesIter != emitterNode.end() && modulesIter->is_array())
-        {
-            for (const json& moduleNode : *modulesIter)
-            {
-                if (!moduleNode.is_object())
-                    continue;
-
-                AuthoringModuleType moduleType = AuthoringModuleType::Required;
-                const auto typeIter = moduleNode.find("type");
-                if (typeIter == moduleNode.end() || !Internal::Try_ReadEnumToken(*typeIter, moduleType))
-                    continue;
-
-                AuthoringModule module = Make_DefaultModuleByType(moduleType);
-                module.id = moduleNode.value("id", module.id);
-                module.enabled = moduleNode.value("enabled", module.enabled);
-
-                const auto dataIter = moduleNode.find("data");
-                if (dataIter != moduleNode.end())
-                {
-                    switch (module.type)
-                    {
-                    case AuthoringModuleType::Required:
-                        Internal::From_Json(*dataIter, get<RequiredModuleData>(module.data));
-                        break;
-                    case AuthoringModuleType::Spawn:
-                        Internal::From_Json(*dataIter, get<SpawnModuleData>(module.data));
-                        break;
-                    case AuthoringModuleType::Lifetime:
-                        Internal::From_Json(*dataIter, get<LifetimeModuleData>(module.data));
-                        break;
-                    case AuthoringModuleType::InitialLocation:
-                        Internal::From_Json(*dataIter, get<InitialLocationModuleData>(module.data));
-                        break;
-                    case AuthoringModuleType::SphereLocation:
-                        Internal::From_Json(*dataIter, get<SphereLocationModuleData>(module.data));
-                        break;
-                    case AuthoringModuleType::InitialSize:
-                        Internal::From_Json(*dataIter, get<InitialSizeModuleData>(module.data));
-                        break;
-                    case AuthoringModuleType::InitialVelocity:
-                        Internal::From_Json(*dataIter, get<InitialVelocityModuleData>(module.data));
-                        break;
-                    case AuthoringModuleType::InitialRadialVelocity:
-                        Internal::From_Json(*dataIter, get<InitialRadialVelocityModuleData>(module.data));
-                        break;
-                    case AuthoringModuleType::Acceleration:
-                        Internal::From_Json(*dataIter, get<AccelerationModuleData>(module.data));
-                        break;
-                    case AuthoringModuleType::Drag:
-                        Internal::From_Json(*dataIter, get<DragModuleData>(module.data));
-                        break;
-                    case AuthoringModuleType::VelocityOverLife:
-                        Internal::From_Json(*dataIter, get<VelocityOverLifeModuleData>(module.data));
-                        break;
-                    case AuthoringModuleType::InitialRotation:
-                        Internal::From_Json(*dataIter, get<InitialRotationModuleData>(module.data));
-                        break;
-                    case AuthoringModuleType::RotationOverLife:
-                        Internal::From_Json(*dataIter, get<RotationOverLifeModuleData>(module.data));
-                        break;
-                    case AuthoringModuleType::InitialRotationRate:
-                        Internal::From_Json(*dataIter, get<InitialRotationRateModuleData>(module.data));
-                        break;
-                    case AuthoringModuleType::RotationRateScaleByLife:
-                        Internal::From_Json(*dataIter, get<RotationRateScaleByLifeModuleData>(module.data));
-                        break;
-                    case AuthoringModuleType::InitialColor:
-                        Internal::From_Json(*dataIter, get<InitialColorModuleData>(module.data));
-                        break;
-                    case AuthoringModuleType::ColorOverLife:
-                        Internal::From_Json(*dataIter, get<ColorOverLifeModuleData>(module.data));
-                        break;
-                    case AuthoringModuleType::SubUVFrameOverLife:
-                        Internal::From_Json(*dataIter, get<SubUVFrameOverLifeModuleData>(module.data));
-                        break;
-                    case AuthoringModuleType::SizeByLife:
-                        Internal::From_Json(*dataIter, get<SizeByLifeModuleData>(module.data));
-                        break;
-                    }
-                }
-
-                emitter.modules.push_back(move(module));
-            }
-        }
-
-        emitters.push_back(move(emitter));
-    }
-
-    Close_ModulePicker();
-    _particleSystemData = particleSystemData;
-    _emitters = move(emitters);
-    _selectedEmitterIndex = _emitters.empty() ? optional<size_t>{} : optional<size_t>{ 0 };
-    _selectedTypeData = false;
-    _selectedModuleIndex.reset();
-    _nextAuthoringId = Internal::Find_NextAuthoringId(_emitters);
-
-    Sync_AllEmitterMirrors();
-    Mark_AllPreviewDirty();
-    Clamp_Selection();
-    Sync_SelectionContext();
-    MarkDirty();
-    return true;
-}
-
 void Emitter_View::Execute_AuthoringSnapshotCommand(
     const AuthoringSnapshot& beforeSnapshot,
     const AuthoringSnapshot& afterSnapshot,
@@ -1363,6 +379,44 @@ void Emitter_View::Execute_AuthoringSnapshotCommand(
     );
 }
 
+json Emitter_View::Build_AuthoringDocumentJson() const
+{
+    EffectAuthoringDocument document{};
+    document.particleSystemData = _particleSystemData;
+    document.emitters = _emitters;
+    return EffectAuthoringJsonSerializer::To_Json(document);
+}
+
+bool Emitter_View::Restore_AuthoringDocumentJson(const json& root)
+{
+    EffectAuthoringDocument document{};
+    if (!EffectAuthoringJsonSerializer::From_Json(root, document))
+        return false;
+
+    for (AuthoringEmitter& emitter : document.emitters)
+    {
+        for (AuthoringModule& module : emitter.modules)
+            Apply_AuthoringModuleMetadata(module);
+    }
+
+    const uint32 nextAuthoringId = EffectAuthoringJsonSerializer::Find_NextAuthoringId(document);
+
+    Close_ModulePicker();
+    _particleSystemData = document.particleSystemData;
+    _emitters = move(document.emitters);
+    _selectedEmitterIndex = _emitters.empty() ? optional<size_t>{} : optional<size_t>{ 0 };
+    _selectedTypeData = false;
+    _selectedModuleIndex.reset();
+    _nextAuthoringId = nextAuthoringId;
+
+    Sync_AllEmitterMirrors();
+    Mark_AllPreviewDirty();
+    Clamp_Selection();
+    Sync_SelectionContext();
+    MarkDirty();
+    return true;
+}
+
 uint32 Emitter_View::Issue_AuthoringId()
 {
     return _nextAuthoringId++;
@@ -1380,8 +434,8 @@ AuthoringEmitter Emitter_View::Make_DefaultSpriteEmitter()
     if (const auto* requiredData = get_if<RequiredModuleData>(&requiredModule.data))
     {
         emitter.rendererType = requiredData->rendererType;
-        emitter.textureId = requiredData->material.mainTextureId;
-        emitter.resourceSummary = requiredData->material.mainTextureId;
+        emitter.textureId = requiredData->material.mainTexturePath;
+        emitter.resourceSummary = requiredData->material.mainTexturePath;
     }
 
     emitter.modules.push_back(move(requiredModule));
@@ -1461,12 +515,8 @@ AuthoringModule Emitter_View::Make_RequiredModule()
     AuthoringModule module{};
     module.id = Issue_AuthoringId();
     module.type = AuthoringModuleType::Required;
-    module.key = "Required";
-    module.displayName = L"필수";
-    module.summary = L"텍스처, 머티리얼";
     module.enabled = true;
-    module.movable = false;
-    module.removable = false;
+    Apply_AuthoringModuleMetadata(module);
     module.data = Internal::Make_DefaultRequiredModuleData();
     return module;
 }
@@ -1476,12 +526,8 @@ AuthoringModule Emitter_View::Make_SpawnModule()
     AuthoringModule module{};
     module.id = Issue_AuthoringId();
     module.type = AuthoringModuleType::Spawn;
-    module.key = "Spawn";
-    module.displayName = L"스폰";
-    module.summary = L"생성량 / 루프 기준";
     module.enabled = true;
-    module.movable = false;
-    module.removable = false;
+    Apply_AuthoringModuleMetadata(module);
     module.data = SpawnModuleData{};
     return module;
 }
@@ -1491,12 +537,8 @@ AuthoringModule Emitter_View::Make_LifetimeModule()
     AuthoringModule module{};
     module.id = Issue_AuthoringId();
     module.type = AuthoringModuleType::Lifetime;
-    module.key = "Lifetime";
-    module.displayName = L"수명";
-    module.summary = L"파티클 수명 범위";
     module.enabled = true;
-    module.movable = true;
-    module.removable = true;
+    Apply_AuthoringModuleMetadata(module);
     module.data = LifetimeModuleData{};
     return module;
 }
@@ -1506,12 +548,8 @@ AuthoringModule Emitter_View::Make_InitialLocationModule()
     AuthoringModule module{};
     module.id = Issue_AuthoringId();
     module.type = AuthoringModuleType::InitialLocation;
-    module.key = "Initial Location";
-    module.displayName = L"초기 위치";
-    module.summary = L"생성 시점 위치 분포";
     module.enabled = true;
-    module.movable = true;
-    module.removable = true;
+    Apply_AuthoringModuleMetadata(module);
     module.data = InitialLocationModuleData{};
     return module;
 }
@@ -1521,12 +559,8 @@ AuthoringModule Emitter_View::Make_SphereLocationModule()
     AuthoringModule module{};
     module.id = Issue_AuthoringId();
     module.type = AuthoringModuleType::SphereLocation;
-    module.key = "Sphere Location";
-    module.displayName = L"구 위치";
-    module.summary = L"구 표면/부피 생성 위치";
     module.enabled = true;
-    module.movable = true;
-    module.removable = true;
+    Apply_AuthoringModuleMetadata(module);
     module.data = SphereLocationModuleData{};
     return module;
 }
@@ -1536,12 +570,8 @@ AuthoringModule Emitter_View::Make_InitialSizeModule()
     AuthoringModule module{};
     module.id = Issue_AuthoringId();
     module.type = AuthoringModuleType::InitialSize;
-    module.key = "Initial Size";
-    module.displayName = L"초기 크기";
-    module.summary = L"생성 시점 크기";
     module.enabled = true;
-    module.movable = true;
-    module.removable = true;
+    Apply_AuthoringModuleMetadata(module);
     module.data = InitialSizeModuleData{};
     return module;
 }
@@ -1551,12 +581,8 @@ AuthoringModule Emitter_View::Make_InitialVelocityModule()
     AuthoringModule module{};
     module.id = Issue_AuthoringId();
     module.type = AuthoringModuleType::InitialVelocity;
-    module.key = "Initial Velocity";
-    module.displayName = L"초기 속도";
-    module.summary = L"생성 시점 벡터 속도";
     module.enabled = true;
-    module.movable = true;
-    module.removable = true;
+    Apply_AuthoringModuleMetadata(module);
     module.data = InitialVelocityModuleData{};
     return module;
 }
@@ -1566,12 +592,8 @@ AuthoringModule Emitter_View::Make_InitialRadialVelocityModule()
     AuthoringModule module{};
     module.id = Issue_AuthoringId();
     module.type = AuthoringModuleType::InitialRadialVelocity;
-    module.key = "Initial Radial Velocity";
-    module.displayName = L"초기 방사성 속도";
-    module.summary = L"생성 위치 기준 방사성 속도";
     module.enabled = true;
-    module.movable = true;
-    module.removable = true;
+    Apply_AuthoringModuleMetadata(module);
     module.data = InitialRadialVelocityModuleData{};
     return module;
 }
@@ -1581,12 +603,8 @@ AuthoringModule Emitter_View::Make_AccelerationModule()
     AuthoringModule module{};
     module.id = Issue_AuthoringId();
     module.type = AuthoringModuleType::Acceleration;
-    module.key = "Acceleration";
-    module.displayName = L"가속";
-    module.summary = L"시간에 따라 더해지는 속도";
     module.enabled = true;
-    module.movable = true;
-    module.removable = true;
+    Apply_AuthoringModuleMetadata(module);
     module.data = AccelerationModuleData{};
     return module;
 }
@@ -1596,12 +614,8 @@ AuthoringModule Emitter_View::Make_DragModule()
     AuthoringModule module{};
     module.id = Issue_AuthoringId();
     module.type = AuthoringModuleType::Drag;
-    module.key = "Drag";
-    module.displayName = L"드래그";
-    module.summary = L"속도 감쇠";
     module.enabled = true;
-    module.movable = true;
-    module.removable = true;
+    Apply_AuthoringModuleMetadata(module);
     module.data = DragModuleData{};
     return module;
 }
@@ -1611,12 +625,8 @@ AuthoringModule Emitter_View::Make_VelocityOverLifeModule()
     AuthoringModule module{};
     module.id = Issue_AuthoringId();
     module.type = AuthoringModuleType::VelocityOverLife;
-    module.key = "Velocity Over Life";
-    module.displayName = L"수명에 따른 속도";
-    module.summary = L"수명 진행률 기준 속도 배율";
     module.enabled = true;
-    module.movable = true;
-    module.removable = true;
+    Apply_AuthoringModuleMetadata(module);
     module.data = VelocityOverLifeModuleData{};
     return module;
 }
@@ -1626,12 +636,8 @@ AuthoringModule Emitter_View::Make_InitialRotationModule()
     AuthoringModule module{};
     module.id = Issue_AuthoringId();
     module.type = AuthoringModuleType::InitialRotation;
-    module.key = "Initial Rotation";
-    module.displayName = L"초기 회전";
-    module.summary = L"생성 시점 회전각";
     module.enabled = true;
-    module.movable = true;
-    module.removable = true;
+    Apply_AuthoringModuleMetadata(module);
     module.data = InitialRotationModuleData{};
     return module;
 }
@@ -1641,12 +647,8 @@ AuthoringModule Emitter_View::Make_RotationOverLifeModule()
     AuthoringModule module{};
     module.id = Issue_AuthoringId();
     module.type = AuthoringModuleType::RotationOverLife;
-    module.key = "Rotation Over Life";
-    module.displayName = L"수명에 따른 회전";
-    module.summary = L"수명 진행률 기준 추가 회전";
     module.enabled = true;
-    module.movable = true;
-    module.removable = true;
+    Apply_AuthoringModuleMetadata(module);
     module.data = RotationOverLifeModuleData{};
     return module;
 }
@@ -1656,12 +658,8 @@ AuthoringModule Emitter_View::Make_InitialRotationRateModule()
     AuthoringModule module{};
     module.id = Issue_AuthoringId();
     module.type = AuthoringModuleType::InitialRotationRate;
-    module.key = "Initial Rotation Rate";
-    module.displayName = L"초기 회전 속도";
-    module.summary = L"초당 회전 속도";
     module.enabled = true;
-    module.movable = true;
-    module.removable = true;
+    Apply_AuthoringModuleMetadata(module);
     module.data = InitialRotationRateModuleData{};
     return module;
 }
@@ -1671,12 +669,8 @@ AuthoringModule Emitter_View::Make_RotationRateScaleByLifeModule()
     AuthoringModule module{};
     module.id = Issue_AuthoringId();
     module.type = AuthoringModuleType::RotationRateScaleByLife;
-    module.key = "Rotation Rate Scale By Life";
-    module.displayName = L"수명에 따른 회전 속도";
-    module.summary = L"수명 진행률 기준 회전 속도 배율";
     module.enabled = true;
-    module.movable = true;
-    module.removable = true;
+    Apply_AuthoringModuleMetadata(module);
     module.data = RotationRateScaleByLifeModuleData{};
     return module;
 }
@@ -1686,12 +680,8 @@ AuthoringModule Emitter_View::Make_InitialColorModule()
     AuthoringModule module{};
     module.id = Issue_AuthoringId();
     module.type = AuthoringModuleType::InitialColor;
-    module.key = "Initial Color";
-    module.displayName = L"초기 컬러";
-    module.summary = L"생성 시점 색상 / 알파";
     module.enabled = true;
-    module.movable = true;
-    module.removable = true;
+    Apply_AuthoringModuleMetadata(module);
     module.data = InitialColorModuleData{};
     return module;
 }
@@ -1701,12 +691,8 @@ AuthoringModule Emitter_View::Make_ColorOverLifeModule()
     AuthoringModule module{};
     module.id = Issue_AuthoringId();
     module.type = AuthoringModuleType::ColorOverLife;
-    module.key = "Color Over Life";
-    module.displayName = L"수명에 따른 색상";
-    module.summary = L"수명 진행률 기준 색 변화";
     module.enabled = true;
-    module.movable = true;
-    module.removable = true;
+    Apply_AuthoringModuleMetadata(module);
     module.data = ColorOverLifeModuleData{};
     return module;
 }
@@ -1716,12 +702,8 @@ AuthoringModule Emitter_View::Make_SubUVFrameOverLifeModule()
     AuthoringModule module{};
     module.id = Issue_AuthoringId();
     module.type = AuthoringModuleType::SubUVFrameOverLife;
-    module.key = "SubUV Frame Over Life";
-    module.displayName = L"서브UV 프레임 선택/재생";
-    module.summary = L"수명 진행률 기준 frame 선택";
     module.enabled = true;
-    module.movable = true;
-    module.removable = true;
+    Apply_AuthoringModuleMetadata(module);
     module.data = SubUVFrameOverLifeModuleData{};
     return module;
 }
@@ -1731,12 +713,8 @@ AuthoringModule Emitter_View::Make_SizeByLifeModule()
     AuthoringModule module{};
     module.id = Issue_AuthoringId();
     module.type = AuthoringModuleType::SizeByLife;
-    module.key = "Size By Life";
-    module.displayName = L"수명에 따른 크기";
-    module.summary = L"수명 진행률 기준 크기 배율";
     module.enabled = true;
-    module.movable = true;
-    module.removable = true;
+    Apply_AuthoringModuleMetadata(module);
     module.data = SizeByLifeModuleData{};
     return module;
 }
@@ -2066,8 +1044,8 @@ void Emitter_View::Reset_ModuleData(size_t emitterIndex, size_t moduleIndex)
         RequiredModuleData data = Internal::Make_DefaultRequiredModuleData();
         module.data = data;
         emitter.rendererType = data.rendererType;
-        emitter.textureId = data.material.mainTextureId;
-        emitter.resourceSummary = data.material.mainTextureId;
+        emitter.textureId = data.material.mainTexturePath;
+        emitter.resourceSummary = data.material.mainTexturePath;
         break;
     }
 
@@ -2200,8 +1178,7 @@ void Emitter_View::Process_PendingModuleAction()
 vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(const AuthoringEmitter& emitter) const
 {
     const auto makeEntry = [&](
-        optional<AuthoringModuleType> moduleType,
-        const wchar_t* displayName,
+        AuthoringModuleType moduleType,
         bool implemented,
         bool compatible,
         bool canAdd,
@@ -2209,7 +1186,7 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
     {
         ModulePickerEntry entry{};
         entry.moduleType = moduleType;
-        entry.displayName = displayName;
+        entry.displayName = Get_AuthoringModuleMetadata(moduleType).displayName;
         entry.disabledReason = std::move(disabledReason);
         entry.implemented = implemented;
         entry.compatible = compatible;
@@ -2233,7 +1210,6 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
     entries.push_back(
         makeEntry(
             AuthoringModuleType::Lifetime,
-            L"수명",
             true,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::Lifetime),
@@ -2243,7 +1219,6 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
     entries.push_back(
         makeEntry(
             AuthoringModuleType::InitialSize,
-            L"초기 크기",
             true,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::InitialSize),
@@ -2253,7 +1228,6 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
     entries.push_back(
         makeEntry(
             AuthoringModuleType::InitialLocation,
-            L"초기 위치",
             true,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::InitialLocation),
@@ -2263,7 +1237,6 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
     entries.push_back(
         makeEntry(
             AuthoringModuleType::SphereLocation,
-            L"구 위치",
             true,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::SphereLocation),
@@ -2273,7 +1246,6 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
     entries.push_back(
         makeEntry(
             AuthoringModuleType::InitialVelocity,
-            L"초기 속도",
             true,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::InitialVelocity),
@@ -2283,7 +1255,6 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
     entries.push_back(
         makeEntry(
             AuthoringModuleType::InitialRadialVelocity,
-            L"초기 방사성 속도",
             true,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::InitialRadialVelocity),
@@ -2293,7 +1264,6 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
     entries.push_back(
         makeEntry(
             AuthoringModuleType::Acceleration,
-            L"가속",
             true,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::Acceleration),
@@ -2303,7 +1273,6 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
     entries.push_back(
         makeEntry(
             AuthoringModuleType::Drag,
-            L"드래그",
             true,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::Drag),
@@ -2313,7 +1282,6 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
     entries.push_back(
         makeEntry(
             AuthoringModuleType::VelocityOverLife,
-            L"수명에 따른 속도",
             true,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::VelocityOverLife),
@@ -2323,7 +1291,6 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
     entries.push_back(
         makeEntry(
             AuthoringModuleType::InitialRotation,
-            L"초기 회전",
             true,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::InitialRotation),
@@ -2333,7 +1300,6 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
     entries.push_back(
         makeEntry(
             AuthoringModuleType::RotationOverLife,
-            L"수명에 따른 회전",
             true,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::RotationOverLife),
@@ -2343,7 +1309,6 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
     entries.push_back(
         makeEntry(
             AuthoringModuleType::InitialRotationRate,
-            L"초기 회전 속도",
             true,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::InitialRotationRate),
@@ -2353,7 +1318,6 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
     entries.push_back(
         makeEntry(
             AuthoringModuleType::RotationRateScaleByLife,
-            L"수명에 따른 회전 속도",
             true,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::RotationRateScaleByLife),
@@ -2363,7 +1327,6 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
     entries.push_back(
         makeEntry(
             AuthoringModuleType::InitialColor,
-            L"초기 컬러",
             true,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::InitialColor),
@@ -2373,7 +1336,6 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
     entries.push_back(
         makeEntry(
             AuthoringModuleType::ColorOverLife,
-            L"수명에 따른 색상",
             true,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::ColorOverLife),
@@ -2383,7 +1345,6 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
     entries.push_back(
         makeEntry(
             AuthoringModuleType::SubUVFrameOverLife,
-            L"서브UV 프레임 선택/재생",
             true,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::SubUVFrameOverLife),
@@ -2393,7 +1354,6 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
     entries.push_back(
         makeEntry(
             AuthoringModuleType::SizeByLife,
-            L"수명에 따른 크기",
             true,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::SizeByLife),
@@ -2568,8 +1528,8 @@ void Emitter_View::Sync_EmitterMirror(AuthoringEmitter& emitter)
             return;
 
         emitter.rendererType = requiredData->rendererType;
-        emitter.textureId = requiredData->material.mainTextureId;
-        emitter.resourceSummary = requiredData->material.mainTextureId;
+        emitter.textureId = requiredData->material.mainTexturePath;
+        emitter.resourceSummary = requiredData->material.mainTexturePath;
         return;
     }
 }

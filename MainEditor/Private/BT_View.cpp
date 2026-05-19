@@ -2,6 +2,7 @@
 #include "BT_View.h"
 #include "EditorInstance.h"
 #include "AIController.h"
+#include "BlackBoard.h"
 #include "BehaviorTree.h"
 #include "Composite.h"
 #include "Decorator.h"
@@ -405,8 +406,14 @@ void BT_View::Render()
         ImGui::BeginChild("Blackboard", ImVec2(0, 0), true);
         {
             ImGui::Text("Blackboard");
-            //
             ImGui::Separator();
+
+            Draw_BlackboardRuntimeValues();
+
+            ImGui::Spacing();
+            ImGui::Separator();
+            ImGui::Spacing();
+
             Draw_Blackboard();
         }
         ImGui::EndChild();
@@ -1497,7 +1504,7 @@ void BT_View::Draw_Blackboard()
     static char newKeyName[64] = "playerPos";
     static Engine::BlackboardValueType newKeyType = Engine::BlackboardValueType::Vec3;
 
-    ImGui::TextUnformatted("Blackboard");
+    ImGui::TextUnformatted("Key Definitions");
     ImGui::Separator();
 
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4.f, 3.f));
@@ -1592,6 +1599,93 @@ void BT_View::Draw_Blackboard()
     }
 
     ImGui::PopStyleVar();
+}
+
+void BT_View::Draw_BlackboardRuntimeValues()
+{
+    ImGui::TextUnformatted("Runtime Values");
+    ImGui::Separator();
+
+    Shared<Engine::AIController> aiController = _debugAIController.lock();
+    if (aiController == nullptr)
+    {
+        ImGui::TextDisabled("No debug target selected");
+        return;
+    }
+
+    Shared<Engine::BlackBoard> blackboard = aiController->Get_BlackBoard();
+    if (blackboard == nullptr)
+    {
+        ImGui::TextDisabled("Blackboard unavailable");
+        return;
+    }
+
+    if (_blackboardKeys.empty())
+    {
+        ImGui::TextDisabled("No blackboard keys defined in this BT asset");
+        return;
+    }
+
+    for (size_t i = 0; i < _blackboardKeys.size(); ++i)
+    {
+        const BlackboardKey& key = _blackboardKeys[i];
+        const any* value = blackboard->Find_Value(key.name);
+        const string formattedValue = FormatBlackboardValue(key.type, value);
+
+        ImGui::PushID(static_cast<int>(i));
+
+        ImGui::Text("%s", key.name.c_str());
+        ImGui::SameLine(180.f);
+        ImGui::TextDisabled("%s", BlackboardTypeToString(key.type));
+        ImGui::SameLine(260.f);
+
+        if (value == nullptr || formattedValue == "(type mismatch)")
+            ImGui::TextDisabled("%s", formattedValue.c_str());
+        else
+            ImGui::Text("%s", formattedValue.c_str());
+
+        ImGui::PopID();
+    }
+}
+
+string BT_View::FormatBlackboardValue(Engine::BlackboardValueType type, const std::any* value) const
+{
+    if (value == nullptr)
+        return "(unset)";
+
+    try
+    {
+        switch (type)
+        {
+        case Engine::BlackboardValueType::Bool:
+            return std::any_cast<bool>(*value) ? "true" : "false";
+
+        case Engine::BlackboardValueType::Int:
+            return std::to_string(std::any_cast<int>(*value));
+
+        case Engine::BlackboardValueType::Float:
+        {
+            char buffer[64] = {};
+            sprintf_s(buffer, "%.3f", std::any_cast<float>(*value));
+            return buffer;
+        }
+
+        case Engine::BlackboardValueType::Vec3:
+        {
+            const Vec3 vec = std::any_cast<Vec3>(*value);
+            char buffer[128] = {};
+            sprintf_s(buffer, "(%.3f, %.3f, %.3f)", vec.x, vec.y, vec.z);
+            return buffer;
+        }
+
+        default:
+            return "(unknown type)";
+        }
+    }
+    catch (const std::bad_any_cast&)
+    {
+        return "(type mismatch)";
+    }
 }
 
 const char* BT_View::BlackboardTypeToString(Engine::BlackboardValueType type) const

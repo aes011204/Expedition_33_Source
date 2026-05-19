@@ -49,7 +49,7 @@ public:
     void    Update_Movement(float timeDelta);
 
 public:
-    const Vec3& Get_Velocity() const;
+    Vec3    Get_Velocity() const;
 
 public:
     bool    Has_MoveInput() const;

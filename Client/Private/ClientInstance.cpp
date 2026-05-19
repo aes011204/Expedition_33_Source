@@ -137,6 +137,10 @@ const umap<string, vector<string>>*  ClientInstance::Get_SkillTreeRequirementDat
     return _gameDataTable->Get_SkillTreeRequirementData();
 }
 
+const Skill_Data* ClientInstance::Get_Skill(const string& skillId)
+{
+    return _gameDataTable->Get_Skill(skillId);
+}
 void ClientInstance::Apply_PreviewLayout(const vector<UIPreviewManager::PreviewSlotDesc>& layout)
 {
     return _previewManager->Apply_Layout(layout);
@@ -248,8 +252,25 @@ void ClientInstance::Clear_GameplayUI()
     GAME->Set_GameplayPaused(false);
 }
 
+void ClientInstance::Play_BattleEnterTransition()
+{
+    if (_gamePlayUI)
+        return _gamePlayUI->Play_BattleEnterTransition();
+}
+
+void ClientInstance::Stop_BattleEnterTransition()
+{
+    if (_gamePlayUI)
+        return _gamePlayUI->Stop_BattleEnterTransition();
+}
+
+bool ClientInstance::Is_BattleEnterTransitionPlaying() const
+{
+    return _gamePlayUI && _gamePlayUI->Is_BattleEnterTransitionPlaying();
+}
+
 void ClientInstance::OnEnterBattleField(uint32 FieldID, bool IsFirstHero, const vector<HeroId>& heroIds,
-    vector<string>& MonsterProtoTag)
+                                        vector<string>& MonsterProtoTag)
 {
     return _battleController->OnEnterBattleField(FieldID, IsFirstHero, heroIds, MonsterProtoTag);
 }
@@ -262,6 +283,11 @@ bool ClientInstance::Is_BattleActive() const
 bool ClientInstance::Is_BattleEntering() const
 {
     return _battleController && _battleController->Is_BattleEntering();
+}
+
+bool ClientInstance::Is_GameplayMenuOpen() const
+{
+    return _gamePlayUI && _gamePlayUI->Is_AnyMenuOpen();
 }
 
 Shared<GameObject> ClientInstance::Find_Player(uint32 levelIndex)

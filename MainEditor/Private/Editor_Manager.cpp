@@ -19,6 +19,7 @@
 #include "Prefab_View.h"
 #include "Animation_View.h"
 #include "AnimState_View.h"
+#include "ClientInstance.h"
 #include "PostProcess_View.h"
 
 namespace fs = std::filesystem;
@@ -329,6 +330,13 @@ void Editor_Manager::Handle_Shortcuts()
     // Esc : 게임 종료
     if (ImGui::IsKeyPressed(ImGuiKey_Escape, false))
     {
+        if (CLIENT->Is_GameplayMenuOpen() ||
+            GAME->Is_UIInputEnabled() ||
+            GAME->Is_GameplayPaused())
+        {
+            return;
+        }
+
         if (EDITOR->IsPlaying() || EDITOR->IsPaused())
             EDITOR->Stop();
 

@@ -70,7 +70,6 @@ private:
 private:
     int32 _draggingNotifyId = -1;
     int32 _draggingStateId = -1;
-    float _notifyDragOffsetX = 0.f;
     float _stateDragOffsetX = 0.f;
     EStateDragMode _stateDragMode = EStateDragMode::None;
 };

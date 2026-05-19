@@ -2,6 +2,7 @@
 
 #include "Editor_Window.h"
 #include "Reflection_Types.h"
+#include <any>
 #include <functional>
 #include <unordered_map>
 
@@ -114,6 +115,8 @@ public:
     string Build_SavePath(const string& fileName) const;
 
     void Draw_Blackboard();
+    void Draw_BlackboardRuntimeValues();
+    string FormatBlackboardValue(Engine::BlackboardValueType type, const std::any* value) const;
     const char* BlackboardTypeToString(Engine::BlackboardValueType type) const;
 
     EditorNode* FindRootNode();

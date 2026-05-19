@@ -54,7 +54,7 @@ void Level_GamePlay::Update(float fTimeDelta)
 {
 #ifdef _DEBUG
     const int32 fps = (fTimeDelta > 0.f)
-            ? static_cast<int32>(1.f / fTimeDelta) : static_cast<int32>(0.f);
+            ? static_cast<int32>(1.f / fTimeDelta) : 0;
 
      GAME->Print(L"현재 FPS : {}", fps, duration(0.f), color(Vec4(1.f, 1.f, 0.f, 1.f)));
 #else
@@ -256,7 +256,8 @@ HRESULT Level_GamePlay::Ready_Layer_Effect(const wstring& strLayerTag)
     effectDefinition->name = "Thunder_Fall_Lightning_Test";
 
     ComputeSpriteEmitterDesc emitterDesc{};
-    emitterDesc.required.material.textureId = "Texture_Effect_LightningBook2x2";
+    emitterDesc.required.material.mainTextureGuid = "f65f3e58-9d8f-4618-9dba-327588f4744b";
+    emitterDesc.required.material.mainTexturePath = "Effects/Textures/T_LightningBook2x2.dds";
     emitterDesc.required.material.tint = Vec4(0.50f, 0.50f, 1.00f, 1.00f); // 파란색
     emitterDesc.required.material.intensity = 2.f;
     emitterDesc.required.material.opacityPower = 0.f;
