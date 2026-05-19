@@ -1,4 +1,4 @@
-#include "EffectAuthoringModuleMetadata.h"
+﻿#include "EffectAuthoringModuleMetadata.h"
 
 NS_BEGIN(EffectEditor)
 

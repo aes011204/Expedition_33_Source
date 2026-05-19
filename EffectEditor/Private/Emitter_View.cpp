@@ -1,14 +1,16 @@
 ﻿#include "Emitter_View.h"
 
+#include <shobjidl.h>
 #include "Action_Command.h"
 #include "Editor_Context.h"
-#include "EffectAuthoringModuleMetadata.h"
 #include "EffectAuthoringJsonSerializer.h"
+#include "EffectAuthoringModuleMetadata.h"
 #include "EffectEditorInstance.h"
+#include "EffectMaterialPresetReader.h"
 #include "GameInstance.h"
 #include "Helper_ImGui.h"
-#include "EffectMaterialPresetReader.h"
 #include "Helper_String.h"
+#include "Notification_Manager.h"
 
 NS_BEGIN(EffectEditor)
 
@@ -17,6 +19,106 @@ namespace Internal
     constexpr const wchar_t* kDefaultEffectMaterialFileName = L"M_DefaultMaterial.effectmaterial.json";
     constexpr const char* kDefaultEffectMaterialName = "M_DefaultMaterial";
     constexpr const char* kDefaultEffectMaterialTextureId = "Texture_Effect_DefaultTexture";
+    constexpr const wchar_t* kEffectAuthoringSaveDefaultFolder = L"../../../Client/Bin/Resources/Effects/Assets";
+    constexpr const wchar_t* kEffectAuthoringSaveDefaultFileName = L"NewEffect.effect.json";
+    constexpr const wchar_t* kEffectAuthoringExtension = L".effect.json";
+
+    fs::path Normalize_EffectSaveDialogPath(const fs::path& filePath)
+    {
+        try
+        {
+            if (fs::exists(filePath))
+                return fs::weakly_canonical(filePath);
+        }
+        catch (...)
+        {}
+
+        try
+        {
+            return fs::absolute(filePath).lexically_normal();
+        }
+        catch (...)
+        {}
+
+        return filePath.lexically_normal();
+    }
+
+    fs::path Ensure_EffectAuthoringExtension(const fs::path& filePath)
+    {
+        const string lowerPath = String::ToLowerCopy(filePath.generic_string());
+        if (lowerPath.ends_with(".effect.json"))
+            return filePath;
+
+        return fs::path(filePath.wstring() + kEffectAuthoringExtension);
+    }
+
+    bool Try_PickEffectSaveFileDialog(fs::path& outFilePath)
+    {
+        outFilePath.clear();
+
+        const HRESULT initHr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+        const bool shouldUninit = SUCCEEDED(initHr);
+
+        IFileSaveDialog* dialog = nullptr;
+        HRESULT hr = CoCreateInstance(CLSID_FileSaveDialog, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&dialog));
+        if (FAILED(hr) || dialog == nullptr)
+        {
+            if (shouldUninit)
+                CoUninitialize();
+            return false;
+        }
+
+        dialog->SetTitle(L"Save Effect");
+
+        DWORD options = 0;
+        dialog->GetOptions(&options);
+        dialog->SetOptions(options | FOS_FORCEFILESYSTEM | FOS_PATHMUSTEXIST | FOS_OVERWRITEPROMPT);
+
+        const fs::path defaultFolder = Normalize_EffectSaveDialogPath(kEffectAuthoringSaveDefaultFolder);
+        if (!defaultFolder.empty() && fs::exists(defaultFolder))
+        {
+            IShellItem* folderItem = nullptr;
+            if (SUCCEEDED(SHCreateItemFromParsingName(defaultFolder.wstring().c_str(), nullptr, IID_PPV_ARGS(&folderItem))) && folderItem != nullptr)
+            {
+                dialog->SetFolder(folderItem);
+                folderItem->Release();
+            }
+        }
+
+        const COMDLG_FILTERSPEC filters[]
+        {
+            { L"Effect Authoring", L"*.effect.json" },
+            { L"All", L"*.*" },
+        };
+        dialog->SetFileTypes(static_cast<UINT>(std::size(filters)), filters);
+        dialog->SetFileTypeIndex(1);
+        dialog->SetDefaultExtension(L"effect.json");
+        dialog->SetFileName(kEffectAuthoringSaveDefaultFileName);
+
+        const HWND owner = EDITOR != nullptr ? EDITOR->Get_WindowHandle() : nullptr;
+        hr = dialog->Show(owner);
+        if (SUCCEEDED(hr))
+        {
+            IShellItem* item = nullptr;
+            if (SUCCEEDED(dialog->GetResult(&item)) && item != nullptr)
+            {
+                PWSTR path = nullptr;
+                if (SUCCEEDED(item->GetDisplayName(SIGDN_FILESYSPATH, &path)) && path != nullptr)
+                {
+                    outFilePath = Ensure_EffectAuthoringExtension(fs::path(path));
+                    CoTaskMemFree(path);
+                }
+                item->Release();
+            }
+        }
+
+        dialog->Release();
+
+        if (shouldUninit)
+            CoUninitialize();
+
+        return !outFilePath.empty();
+    }
 
     fs::path Resolve_DefaultEffectMaterialPath()
     {
@@ -112,6 +214,58 @@ void Emitter_View::Render()
     ImGui::End();
 }
 
+bool Emitter_View::CanSave() const
+{
+    return true;
+}
+
+void Emitter_View::Save()
+{
+    fs::path savePath{};
+    if (!Internal::Try_PickEffectSaveFileDialog(savePath))
+        return;
+
+    ofstream file(savePath);
+    if (!file.is_open())
+    {
+        if (EDITOR != nullptr && EDITOR->Get_Notification() != nullptr)
+        {
+            EDITOR->Get_Notification()->Add_Notification_With_Type(
+                NotifyType::Warning,
+                "Effect 저장 실패: {}",
+                String::ToString(savePath.filename().wstring())
+            );
+        }
+        return;
+    }
+
+    const json documentJson = Build_AuthoringDocumentJson();
+    file << documentJson.dump(4);
+    if (!file.good())
+    {
+        if (EDITOR != nullptr && EDITOR->Get_Notification() != nullptr)
+        {
+            EDITOR->Get_Notification()->Add_Notification_With_Type(
+                NotifyType::Warning,
+                "Effect 저장 실패: {}",
+                String::ToString(savePath.filename().wstring())
+            );
+        }
+        return;
+    }
+
+    ClearDirty();
+
+    if (EDITOR != nullptr && EDITOR->Get_Notification() != nullptr)
+    {
+        EDITOR->Get_Notification()->Add_Notification_With_Type(
+            NotifyType::Success,
+            "Effect 저장 완료: {}",
+            String::ToString(savePath.filename().wstring())
+        );
+    }
+}
+
 AuthoringEmitter* Emitter_View::Find_Emitter(uint32 emitterId)
 {
     for (AuthoringEmitter& emitter : _emitters)
@@ -200,6 +354,29 @@ void Emitter_View::Restore_AuthoringSnapshot(const AuthoringSnapshot& snapshot)
     MarkDirty();
 }
 
+void Emitter_View::Execute_AuthoringSnapshotCommand(
+    const AuthoringSnapshot& beforeSnapshot,
+    const AuthoringSnapshot& afterSnapshot,
+    const string& description)
+{
+    if (EDITOR == nullptr)
+        return;
+
+    EDITOR->Execute_Command(
+        Action_Command::Create(
+            [this, beforeSnapshot]
+            {
+                Restore_AuthoringSnapshot(beforeSnapshot);
+            },
+            [this, afterSnapshot]
+            {
+                Restore_AuthoringSnapshot(afterSnapshot);
+            },
+            description
+        )
+    );
+}
+
 json Emitter_View::Build_AuthoringDocumentJson() const
 {
     EffectAuthoringDocument document{};
@@ -236,29 +413,6 @@ bool Emitter_View::Restore_AuthoringDocumentJson(const json& root)
     Sync_SelectionContext();
     MarkDirty();
     return true;
-}
-
-void Emitter_View::Execute_AuthoringSnapshotCommand(
-    const AuthoringSnapshot& beforeSnapshot,
-    const AuthoringSnapshot& afterSnapshot,
-    const string& description)
-{
-    if (EDITOR == nullptr)
-        return;
-
-    EDITOR->Execute_Command(
-        Action_Command::Create(
-            [this, beforeSnapshot]
-            {
-                Restore_AuthoringSnapshot(beforeSnapshot);
-            },
-            [this, afterSnapshot]
-            {
-                Restore_AuthoringSnapshot(afterSnapshot);
-            },
-            description
-        )
-    );
 }
 
 uint32 Emitter_View::Issue_AuthoringId()
