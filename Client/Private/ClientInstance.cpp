@@ -120,6 +120,10 @@ const umap<string, vector<string>>*  ClientInstance::Get_SkillTreeRequirementDat
     return _gameDataTable->Get_SkillTreeRequirementData();
 }
 
+const Skill_Data* ClientInstance::Get_Skill(const string& skillId)
+{
+    return _gameDataTable->Get_Skill(skillId);
+}
 void ClientInstance::Apply_PreviewLayout(const vector<UIPreviewManager::PreviewSlotDesc>& layout)
 {
     return _previewManager->Apply_Layout(layout);

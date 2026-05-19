@@ -85,5 +85,29 @@ private:
     unordered_map<type_index, vector<HandlerEntry>> _handlers;
     queue<QueueEvent> _eventQueue = {};
     size_t _nextHandleId = 0;
+
+public:
+    static Unique<Event_Bus>Create();
+    virtual void Free() override;;
+
 };
+
+inline Event_Bus::Event_Bus()
+{
+}
+
+inline Event_Bus::~Event_Bus()
+{
+}
+
+inline Unique<Event_Bus> Event_Bus::Create()
+{
+    return make_unique<Event_Bus>();
+}
+
+inline void Event_Bus::Free()
+{
+    Base::Free();
+}
+
 NS_END
