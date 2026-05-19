@@ -256,7 +256,8 @@ HRESULT Level_GamePlay::Ready_Layer_Effect(const wstring& strLayerTag)
     effectDefinition->name = "Thunder_Fall_Lightning_Test";
 
     ComputeSpriteEmitterDesc emitterDesc{};
-    emitterDesc.required.material.textureId = "Texture_Effect_LightningBook2x2";
+    emitterDesc.required.material.mainTextureGuid = "f65f3e58-9d8f-4618-9dba-327588f4744b";
+    emitterDesc.required.material.mainTexturePath = "Effects/Textures/T_LightningBook2x2.dds";
     emitterDesc.required.material.tint = Vec4(0.50f, 0.50f, 1.00f, 1.00f); // 파란색
     emitterDesc.required.material.intensity = 2.f;
     emitterDesc.required.material.opacityPower = 0.f;

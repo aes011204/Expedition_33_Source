@@ -81,8 +81,10 @@ public: //## Accessors
     void Set_RotationEuler(const Vec3& eulerDegree);
     Vec3 Get_WorldRotationEuler();
     void Set_WorldRotationEuler(const Vec3& eulerDegree);
+
     const Quat& Get_RotationQuaternion();
     void Set_RotationQuaternion(const Quat& rotation);
+    Quat Get_WorldRotationQuaternion(); // 현재 local/parent 관계를 반영한 계산된 World 회전 쿼터니언을 조회한다.
 
     //## Speed
     float Get_SpeedPerSec() const;

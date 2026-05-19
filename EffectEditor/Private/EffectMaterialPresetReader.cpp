@@ -1,6 +1,6 @@
-﻿#include "Helper_ReadPreset.h"
+#include "EffectMaterialPresetReader.h"
 
-namespace EffectEditor::ReadPreset
+namespace EffectEditor::EffectMaterialPresetReader
 {
 bool Read(const fs::path& filePath, EffectMaterialInstanceData& outMaterial)
 {
@@ -79,12 +79,43 @@ bool Read(const fs::path& filePath, EffectMaterialInstanceData& outMaterial)
         return defaultValue;
     };
 
+    const auto migrate_legacy_texture_id = [](const string& textureId, string& outGuid, string& outPath) -> bool
+    {
+        if (textureId == "Texture_Effect_DefaultTexture")
+        {
+            outGuid = "3c90794a-31bb-4e97-969a-3fd4497acc0f";
+            outPath = "Effects/Textures/DefaultTexture.dds";
+            return true;
+        }
+
+        if (textureId == "Texture_Effect_Clouds4")
+        {
+            outGuid = "321bf66c-e6f9-4495-9855-275274727e83";
+            outPath = "Effects/Textures/clouds4_T.dds";
+            return true;
+        }
+
+        return false;
+    };
+
     const EffectMaterialInstanceData defaultMaterial{};
     EffectMaterialInstanceData material = defaultMaterial;
 
     material.sourcePresetName = ResolveDisplayName(filePath);
-    material.mainTextureId = read_string("mainTextureId", defaultMaterial.mainTextureId);
-    material.noiseTextureId = read_string("noiseTextureId", defaultMaterial.noiseTextureId);
+    material.mainTextureGuid = read_string("mainTextureGuid", defaultMaterial.mainTextureGuid);
+    material.mainTexturePath = read_string("mainTexturePath", defaultMaterial.mainTexturePath);
+    material.noiseTextureGuid = read_string("noiseTextureGuid", defaultMaterial.noiseTextureGuid);
+    material.noiseTexturePath = read_string("noiseTexturePath", defaultMaterial.noiseTexturePath);
+    if (material.mainTextureGuid.empty() && material.mainTexturePath.empty())
+    {
+        const string legacyMainTextureId = read_string("mainTextureId", {});
+        migrate_legacy_texture_id(legacyMainTextureId, material.mainTextureGuid, material.mainTexturePath);
+    }
+    if (material.noiseTextureGuid.empty() && material.noiseTexturePath.empty())
+    {
+        const string legacyNoiseTextureId = read_string("noiseTextureId", {});
+        migrate_legacy_texture_id(legacyNoiseTextureId, material.noiseTextureGuid, material.noiseTexturePath);
+    }
     material.tint = read_color("tint", defaultMaterial.tint);
     material.intensity = read_float("intensity", defaultMaterial.intensity);
     material.opacityPower = read_float("opacityPower", defaultMaterial.opacityPower);
@@ -108,3 +139,4 @@ string ResolveDisplayName(const fs::path& filePath)
     return fileName;
 }
 }
+

@@ -9,7 +9,7 @@
 #include "GameInstance.h"
 #include "Helper_String.h"
 
-namespace EffectEditor::TextureFormat
+namespace EffectEditor::TextureDisplayInfoResolver
 {
     struct TextureDisplayInfo
     {
