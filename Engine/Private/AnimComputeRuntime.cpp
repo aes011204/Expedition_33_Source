@@ -57,15 +57,10 @@ HRESULT AnimComputeRuntime::Update_Frame(float timeDelta)
     _model->Step_RebuildCombinedBones();
 
     CHECK_FAILED(_model->Ensure_AnimationComputeSource(), E_FAIL); // source cache가 없으면 생성
-
     CHECK_FAILED(Ensure_RuntimeBuffers(), E_FAIL);
-
     CHECK_FAILED(Build_ComputeCombinedBoneCache(), E_FAIL);
-
     CHECK_FAILED(Update_GlobalCombinedBoneBuffer_FromCPU(), E_FAIL);
-
     CHECK_FAILED(Step_BoneRemap(context), E_FAIL);      // global combined -> mesh-local bone matrices
-
     CHECK_FAILED(Finalize_ModelFrame(context), E_FAIL); // notify / root motion / dirty는 ModelCom 재사용
 
     _skinningDirty = true;
@@ -84,17 +79,18 @@ HRESULT AnimComputeRuntime::Prepare_ComputeSkinning()
     if (_computeSkinningShaderCom == nullptr)
         return E_FAIL;
 
-    CHECK_FAILED(_model->Ensure_ComputeSkinningBuffers(), E_FAIL);
-    CHECK_FAILED(_model->Ensure_ComputeSkinningConstantBuffer(), E_FAIL);
+    CHECK_FAILED(Ensure_RuntimeBoneBuffers(), E_FAIL);
+    CHECK_FAILED(Ensure_RuntimeSkinningBuffers(), E_FAIL);
+    CHECK_FAILED(Ensure_RuntimeSkinningConstantBuffer(), E_FAIL);
 
     if (!_skinningDirty)
         return S_OK;
 
     for (uint32 meshIndex = 0; meshIndex < _model->_meshes.size(); ++meshIndex)
     {
-        const Shared<ComputeStructuredBuffer>& sourceVertexBuffer = _model->_meshSourceVertexBuffers[meshIndex];
-        const Shared<ComputeStructuredBuffer>& meshBoneMatrixBuffer = _model->_meshBoneMatrixBuffers[meshIndex];
-        const Shared<ComputeStructuredBuffer>& computedVertexBuffer = _model->_meshComputedVertexBuffers[meshIndex];
+        const Shared<ComputeStructuredBuffer>& sourceVertexBuffer = _meshSourceVertexBuffers[meshIndex];
+        const Shared<ComputeStructuredBuffer>& meshBoneMatrixBuffer = _meshBoneMatrixBuffers[meshIndex];
+        const Shared<ComputeStructuredBuffer>& computedVertexBuffer = _meshComputedVertexBuffers[meshIndex];
 
         if (sourceVertexBuffer == nullptr || meshBoneMatrixBuffer == nullptr || computedVertexBuffer == nullptr)
             continue;
@@ -103,21 +99,23 @@ HRESULT AnimComputeRuntime::Prepare_ComputeSkinning()
         if (vertexCount == 0)
             continue;
 
-        CHECK_FAILED(_model->Update_ComputeSkinningConstantBuffer(vertexCount), E_FAIL);
+        ComputeSkinningCBData cbData{};
+        cbData.vertexCount = vertexCount;
+        _context->UpdateSubresource(_computeSkinningConstantBuffer.Get(), 0, nullptr, &cbData, 0, 0);
 
         CHECK_FAILED(_computeSkinningShaderCom->Bind_SRV(0, sourceVertexBuffer->Get_SRV()), E_FAIL);
         CHECK_FAILED(_computeSkinningShaderCom->Bind_SRV(1, meshBoneMatrixBuffer->Get_SRV()), E_FAIL);
         CHECK_FAILED(_computeSkinningShaderCom->Bind_UAV(0, computedVertexBuffer->Get_UAV()), E_FAIL);
-        CHECK_FAILED(_computeSkinningShaderCom->Bind_ConstantBuffer(0, _model->_computeSkinningConstantBuffer.Get()), E_FAIL);
+        CHECK_FAILED(_computeSkinningShaderCom->Bind_ConstantBuffer(0, _computeSkinningConstantBuffer.Get()), E_FAIL);
 
         CHECK_FAILED(_computeSkinningShaderCom->Dispatch((vertexCount + 63) / 64, 1, 1), E_FAIL);
 
-        if (meshIndex >= _model->_meshComputedDrawVertexBuffers.size() ||
-            _model->_meshComputedDrawVertexBuffers[meshIndex] == nullptr)
+        if (meshIndex >= _meshComputedDrawVertexBuffers.size() ||
+            _meshComputedDrawVertexBuffers[meshIndex] == nullptr)
             return E_FAIL;
 
         _context->CopyResource(
-            _model->_meshComputedDrawVertexBuffers[meshIndex].Get(),
+            _meshComputedDrawVertexBuffers[meshIndex].Get(),
             computedVertexBuffer->Get_Buffer());
     }
 
@@ -126,11 +124,55 @@ HRESULT AnimComputeRuntime::Prepare_ComputeSkinning()
     return S_OK;
 }
 
-void AnimComputeRuntime::Build_FrameContext(float timeDelta, AnimComputeFrameContext& outContext)
+HRESULT AnimComputeRuntime::Prepare_BoneMatrixBuffers()
 {
-    _model->Begin_AnimationPipeline(timeDelta, outContext.modelContext);
-    outContext.blendRatio = 1.f;
-    outContext.hasBlendTarget = false;
+    if (_model == nullptr)
+        return E_FAIL;
+
+    if (!_model->_isSkeletal || _model->_numBones == 0)
+        return S_OK;
+
+    return Ensure_RuntimeBoneBuffers();
+}
+
+HRESULT AnimComputeRuntime::Bind_PreparedBoneMatrices(ShaderCom* shader, const char* constantName, uint32 meshIndex)
+{
+    if (_model == nullptr || shader == nullptr || constantName == nullptr)
+        return E_FAIL;
+
+    if (!_model->_isSkeletal || _model->_numBones == 0)
+        return S_OK;
+
+    if (meshIndex >= _model->_meshes.size())
+        return E_FAIL;
+
+    if (meshIndex >= _meshBoneMatrixBuffers.size())
+        return E_FAIL;
+
+    const Shared<ComputeStructuredBuffer>& meshBoneMatrixBuffer = _meshBoneMatrixBuffers[meshIndex];
+    if (meshBoneMatrixBuffer == nullptr)
+        return S_OK;
+
+    return shader->Bind_SRV(constantName, meshBoneMatrixBuffer->Get_SRV()); // 준비된 bone buffer bind
+}
+
+HRESULT AnimComputeRuntime::Render_ComputeSkinned(uint32 meshIndex)
+{
+    if (_model == nullptr)
+        return E_FAIL;
+
+    if (meshIndex >= _model->_meshes.size())
+        return E_FAIL;
+
+    if (meshIndex >= _meshComputedDrawVertexBuffers.size())
+        return E_FAIL;
+
+    if (_meshComputedDrawVertexBuffers[meshIndex] == nullptr)
+        return E_FAIL;
+
+    return _model->_meshes[meshIndex]->Render_ComputeSkinned(
+        _meshComputedDrawVertexBuffers[meshIndex].Get(),
+        sizeof(VTXMESH)); // computed 결과 draw VB는 runtime이 들고 있으므로 여기서 바로 렌더한다
 }
 
 HRESULT AnimComputeRuntime::Ensure_RuntimeBuffers()
@@ -149,6 +191,147 @@ HRESULT AnimComputeRuntime::Ensure_RuntimeBuffers()
         if (_globalCombinedBoneBuffer == nullptr)
             return E_FAIL;
     }
+
+    return S_OK;
+}
+
+HRESULT AnimComputeRuntime::Ensure_RuntimeBoneBuffers()
+{
+    if (_model == nullptr)
+        return E_FAIL;
+
+    // CPU mesh bone matrices 계산은 여전히 Model에서 진행
+    CHECK_FAILED(_model->Ensure_MeshBoneMatrices(), E_FAIL);
+
+    const vector<vector<Matrix>>& meshBoneCaches = _model->_meshBoneMatrixCaches;
+
+    if (_meshBoneMatrixBuffers.size() != meshBoneCaches.size())
+        _meshBoneMatrixBuffers.resize(meshBoneCaches.size());
+
+    for (uint32 meshIndex = 0; meshIndex < meshBoneCaches.size(); ++meshIndex)
+    {
+        const vector<Matrix>& meshBoneMatrices = meshBoneCaches[meshIndex];
+        if (meshBoneMatrices.empty())
+            continue;
+
+        const uint32 matrixCount = static_cast<uint32>(meshBoneMatrices.size());
+
+        if (_meshBoneMatrixBuffers[meshIndex] == nullptr ||
+            _meshBoneMatrixBuffers[meshIndex]->Get_ElementCount() < matrixCount)
+        {
+            // GPU bone matrix buffer 생성 책임을 runtime으로 옮긴다.
+            _meshBoneMatrixBuffers[meshIndex] =
+                ComputeStructuredBuffer::Create(_device, _context, sizeof(Matrix), matrixCount, meshBoneMatrices.data()); 
+
+            if (_meshBoneMatrixBuffers[meshIndex] == nullptr)
+                return E_FAIL;
+        }
+        else
+        {
+            // bone matrix structured buffer 갱신도 runtime이 담당한다.
+            CHECK_FAILED(
+                _meshBoneMatrixBuffers[meshIndex]->Update_Data(meshBoneMatrices.data(), matrixCount), 
+                E_FAIL);
+        }
+    }
+
+    return S_OK;
+}
+
+HRESULT AnimComputeRuntime::Ensure_RuntimeSkinningBuffers()
+{
+    if (_model == nullptr)
+        return E_FAIL;
+
+    if (!_model->_isSkeletal)
+        return S_OK;
+
+    if (_meshSourceVertexBuffers.size() != _model->_meshes.size())
+        _meshSourceVertexBuffers.resize(_model->_meshes.size());
+
+    if (_meshComputedVertexBuffers.size() != _model->_meshes.size())
+        _meshComputedVertexBuffers.resize(_model->_meshes.size());
+
+    if (_meshComputedDrawVertexBuffers.size() != _model->_meshes.size())
+        _meshComputedDrawVertexBuffers.resize(_model->_meshes.size());
+
+    for (uint32 meshIndex = 0; meshIndex < _model->_meshes.size(); ++meshIndex)
+    {
+        const Shared<SkeletalMesh> skeletalMesh =
+            dynamic_pointer_cast<SkeletalMesh>(_model->_meshes[meshIndex]);
+
+        if (skeletalMesh == nullptr)
+            continue;
+
+        const vector<VTXANIMMESH>& sourceVertices = skeletalMesh->Get_SourceVertices();
+        if (sourceVertices.empty())
+            continue;
+
+        if (_meshSourceVertexBuffers[meshIndex] == nullptr ||
+            _meshSourceVertexBuffers[meshIndex]->Get_ElementCount() != sourceVertices.size())
+        {
+            _meshSourceVertexBuffers[meshIndex] = ComputeStructuredBuffer::Create(
+                _device,
+                _context,
+                sizeof(VTXANIMMESH),
+                static_cast<uint32>(sourceVertices.size()),
+                sourceVertices.data()); 
+
+            if (_meshSourceVertexBuffers[meshIndex] == nullptr)
+                return E_FAIL;
+        }
+
+        if (_meshComputedVertexBuffers[meshIndex] == nullptr ||
+            _meshComputedVertexBuffers[meshIndex]->Get_ElementCount() != sourceVertices.size())
+        {
+            _meshComputedVertexBuffers[meshIndex] = ComputeStructuredBuffer::Create(
+                _device,
+                _context,
+                sizeof(VTXMESH),
+                static_cast<uint32>(sourceVertices.size())); 
+
+            if (_meshComputedVertexBuffers[meshIndex] == nullptr)
+                return E_FAIL;
+        }
+
+        if (_meshComputedDrawVertexBuffers[meshIndex] == nullptr)
+        {
+            D3D11_BUFFER_DESC drawVertexBufferDesc{};
+            drawVertexBufferDesc.ByteWidth = sizeof(VTXMESH) * static_cast<uint32>(sourceVertices.size());
+            drawVertexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
+            drawVertexBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+            drawVertexBufferDesc.CPUAccessFlags = 0;
+            drawVertexBufferDesc.MiscFlags = 0;
+            drawVertexBufferDesc.StructureByteStride = sizeof(VTXMESH);
+
+            CHECK_FAILED(
+                _device->CreateBuffer(
+                    &drawVertexBufferDesc,
+                    nullptr,
+                    _meshComputedDrawVertexBuffers[meshIndex].ReleaseAndGetAddressOf()),
+                E_FAIL); 
+        }
+    }
+
+    return S_OK;
+}
+
+HRESULT AnimComputeRuntime::Ensure_RuntimeSkinningConstantBuffer()
+{
+    if (_computeSkinningConstantBuffer != nullptr)
+        return S_OK;
+
+    D3D11_BUFFER_DESC desc{};
+    desc.ByteWidth = sizeof(ComputeSkinningCBData);
+    desc.Usage = D3D11_USAGE_DEFAULT;
+    desc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+    desc.CPUAccessFlags = 0;
+    desc.MiscFlags = 0;
+    desc.StructureByteStride = 0;
+
+    CHECK_FAILED(
+        _device->CreateBuffer(&desc, nullptr, _computeSkinningConstantBuffer.GetAddressOf()),
+        E_FAIL); 
 
     return S_OK;
 }
@@ -205,8 +388,8 @@ HRESULT AnimComputeRuntime::Step_BoneRemap(const AnimComputeFrameContext& contex
     CHECK_NULL(_computeBoneRemapShaderCom, E_FAIL);
     CHECK_NULL(_globalCombinedBoneBuffer, E_FAIL);
 
-    if (_model->_meshBoneMatrixBuffers.size() != _model->_meshes.size())
-        _model->_meshBoneMatrixBuffers.resize(_model->_meshes.size());
+    if (_meshBoneMatrixBuffers.size() != _model->_meshes.size())
+        _meshBoneMatrixBuffers.resize(_model->_meshes.size());
 
     for (uint32 meshIndex = 0; meshIndex < _model->_meshes.size(); ++meshIndex)
     {
@@ -216,17 +399,17 @@ HRESULT AnimComputeRuntime::Step_BoneRemap(const AnimComputeFrameContext& contex
 
         const uint32 matrixCount = static_cast<uint32>(meshBoneRefs.size());
 
-        if (_model->_meshBoneMatrixBuffers[meshIndex] == nullptr ||
-            _model->_meshBoneMatrixBuffers[meshIndex]->Get_ElementCount() < matrixCount)
+        if (_meshBoneMatrixBuffers[meshIndex] == nullptr ||
+            _meshBoneMatrixBuffers[meshIndex]->Get_ElementCount() < matrixCount)
         {
-            _model->_meshBoneMatrixBuffers[meshIndex] =
+            _meshBoneMatrixBuffers[meshIndex] =
                 ComputeStructuredBuffer::Create(
                     _device,
                     _context,
                     sizeof(Matrix),
                     matrixCount);
 
-            if (_model->_meshBoneMatrixBuffers[meshIndex] == nullptr)
+            if (_meshBoneMatrixBuffers[meshIndex] == nullptr)
                 return E_FAIL;
         }
 
@@ -234,12 +417,19 @@ HRESULT AnimComputeRuntime::Step_BoneRemap(const AnimComputeFrameContext& contex
 
         CHECK_FAILED(_computeBoneRemapShaderCom->Bind_SRV(0, _globalCombinedBoneBuffer->Get_SRV()), E_FAIL);
         CHECK_FAILED(_computeBoneRemapShaderCom->Bind_SRV(1, _model->_computeAnimationSource.meshBoneRefBuffers[meshIndex]->Get_SRV()), E_FAIL);
-        CHECK_FAILED(_computeBoneRemapShaderCom->Bind_UAV(0, _model->_meshBoneMatrixBuffers[meshIndex]->Get_UAV()), E_FAIL);
+        CHECK_FAILED(_computeBoneRemapShaderCom->Bind_UAV(0, _meshBoneMatrixBuffers[meshIndex]->Get_UAV()), E_FAIL);
 
         CHECK_FAILED(_computeBoneRemapShaderCom->Dispatch((matrixCount + 63) / 64, 1, 1), E_FAIL);
     }
 
     return S_OK;
+}
+
+void AnimComputeRuntime::Build_FrameContext(float timeDelta, AnimComputeFrameContext& outContext)
+{
+    _model->Begin_AnimationPipeline(timeDelta, outContext.modelContext);
+    outContext.blendRatio = 1.f;
+    outContext.hasBlendTarget = false;
 }
 
 HRESULT AnimComputeRuntime::Finalize_ModelFrame(const AnimComputeFrameContext& context)

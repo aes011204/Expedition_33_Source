@@ -22,8 +22,7 @@ class ENGINE_DLL ModelCom final : public Component
 private:
     struct ComputeAnimationSourceCache
     {
-        vector<vector<AnimComputeMeshBoneRef>> meshBoneRefs{};
-
+        vector<vector<AnimComputeMeshBoneRef>>  meshBoneRefs{};
         vector<Shared<ComputeStructuredBuffer>> meshBoneRefBuffers{};
     };
 
@@ -105,8 +104,8 @@ public:
 public:
     HRESULT Initialize_Prototype(ModelType type, const char* modelFilePath, const Matrix& preLocalTransformMatrix);
     HRESULT Initialize(void* arg) override;
-    json To_Json() const override;
-    void From_Json(const json& data) override;
+    json    To_Json() const override;
+    void    From_Json(const json& data) override;
     HRESULT Reload_ModelFromGuid(const string& guid, ModelType modelType);
     HRESULT Render(uint32 meshIndex);
     HRESULT RenderInstanced(uint32 meshIndex, Buffer* instanceVB, uint32 instanceStride, uint32 instanceCount);
@@ -115,17 +114,13 @@ public:
     bool Play_Animation(float timeDelta);
 
 public:
-    HRESULT Bind_Material(class ShaderCom* shader, const char* constantName, uint32 meshIndex, MaterialTextureSlot slot, uint32 textureIndex = 0);
+    HRESULT Bind_Material(ShaderCom* shader, const char* constantName, uint32 meshIndex, MaterialTextureSlot slot, uint32 textureIndex = 0);
     HRESULT Bind_BoneMatrices(class ShaderCom* shader, const char* constantName, uint32 meshIndex);
     bool Try_Get_LocalBounds(Vec3& outMin, Vec3& outMax) const;
-
-    HRESULT Prepare_ComputeSkinning(ComputeShaderCom* computeShader); // body 전용 실험에서 호출
-    HRESULT Render_ComputeSkinned(uint32 meshIndex);                  // compute output VB로 draw
 
     // for map StaticMesh
     void Apply_MaterialByAssetName(uint32 materialIndex, const string& bundleKey, const string& assetName);
 
-    // bone matrix 준비 한번만 하도록
     HRESULT Prepare_BoneMatrixBuffers();
     HRESULT Bind_PreparedBoneMatrices(ShaderCom* shader, const char* constantName, uint32 meshIndex);
 
@@ -206,10 +201,7 @@ private:
     void    Mark_BoneMatricesDirty();
     // dirty 가 마크됐을 때 재생성 진행. leaderPose 여기서 갱신 X
     HRESULT Ensure_MeshBoneMatrices();
-
-    HRESULT Ensure_ComputeSkinningBuffers();
-    HRESULT Ensure_ComputeSkinningConstantBuffer();
-    HRESULT Update_ComputeSkinningConstantBuffer(uint32 vertexCount);
+    HRESULT Ensure_MeshBoneMatrixBuffers();
 
 private:
     Matrix  Convert_LeaderPoseMatrix(const Matrix& leaderMatrix) const;
@@ -218,15 +210,11 @@ private:
     void    Add_LeaderPoseRequiredBone(uint32 boneIndex);
     void    Mark_LeaderPoseRequiredBone(uint32 boneIndex, vector<uint8>& requiredFlags);
 
-    HRESULT Ensure_MeshBoneMatrixBuffers();
-
 public: /* Compute Shader */
     void    Begin_AnimationPipeline(float timeDelta, AnimPipelineContext& outContext);
     bool    Step_SampleAnimationPose(const AnimPipelineContext& context);
     void    Step_RebuildCombinedBones();
     void    Step_FinalizeAnimationFrame(const AnimPipelineContext& context);
-    HRESULT Step_PrepareBoneBuffers();
-    HRESULT Step_ComputeSkinning(ComputeShaderCom* computeShader);
 
     vector<Matrix>& Access_CombinedBoneMatrixCache() { return _combinedBoneMatrixCache; }
     const vector<Matrix>& Get_CombinedBoneMatrixCache() const { return _combinedBoneMatrixCache; } 
@@ -298,16 +286,16 @@ private: /* notify */
     vector<ActiveAnimNotifyState>       _activeNotifyStates{};
 
 private: /* 머리 붙이기 */
-    const ModelCom* _leaderPoseModel = nullptr;
+    const ModelCom*         _leaderPoseModel = nullptr;
 
-    vector<int32>       _leaderPoseBoneMap;           // follower bone index => leader bone index
-    vector<Matrix>      _leaderPoseCombinedMatrices;  // follower 기준으로 최종 행렬
+    vector<Matrix>          _leaderPoseCombinedMatrices;  // follower 기준으로 최종 행렬
+    vector<int32>           _leaderPoseBoneMap;           // follower bone index => leader bone index
 
-    vector<uint32>      _leaderPoseRequiredBones;
+    vector<uint32>          _leaderPoseRequiredBones;
 
-    mutable vector<uint8> _leaderPoseVisited;
-    uint64 _boneUpdateGeneration = 0;   // body가 bone을 갱신할 때마다 1씩 증가
-    uint64 _leaderPoseLastSyncedGeneration = UINT64_MAX; // follower가 마지막으로 sync한 generation
+    mutable vector<uint8>   _leaderPoseVisited;
+    uint64                  _boneUpdateGeneration = 0;   // body가 bone을 갱신할 때마다 1씩 증가
+    uint64                  _leaderPoseLastSyncedGeneration = UINT64_MAX; // follower가 마지막으로 sync한 generation
 
     // 프레임마다 계산되지 않게 캐싱
     vector<Matrix>          _combinedBoneMatrixCache;
@@ -319,14 +307,7 @@ private: /* Compute Shader */
     ComputeAnimationSourceCache _computeAnimationSource{};
 
     vector<Shared<ComputeStructuredBuffer>> _meshBoneMatrixBuffers;
-    bool    _boneMatrixBuffersDirty = true;
-
-    vector<Shared<ComputeStructuredBuffer>> _meshSourceVertexBuffers;   // VTXANIMMESH input
-    vector<Shared<ComputeStructuredBuffer>> _meshComputedVertexBuffers; // compute output structured buffer
-    vector<ComPtr<Buffer>> _meshComputedDrawVertexBuffers;              // 실제 draw에 사용할 vertex buffer
-    ComPtr<Buffer> _computeSkinningConstantBuffer{};
-    bool _computeSkinningDirty = true;
-
+    bool _boneMatrixBuffersDirty = true;
 
 private: // Model Custom Animation Mapping
     wstring             _animEnumType{};

@@ -5,6 +5,7 @@
 
 NS_BEGIN(Engine)
 
+class ShaderCom;
 class ComputeStructuredBuffer;
 class ComputeShaderCom;
 class ModelCom;
@@ -27,12 +28,20 @@ public:
 public:
     HRESULT Update_Frame(float timeDelta);      // update에서 1회 호출
     HRESULT Prepare_ComputeSkinning();          // render/shadow 직전 호출
+    HRESULT Prepare_BoneMatrixBuffers();
+    HRESULT Bind_PreparedBoneMatrices(ShaderCom* shader, const char* constantName, uint32 meshIndex);
+    HRESULT Render_ComputeSkinned(uint32 meshIndex);
 
 private:
     HRESULT Initialize(const CreateDesc& desc);
 
     void Build_FrameContext(float timeDelta, AnimComputeFrameContext& outContext);
+
     HRESULT Ensure_RuntimeBuffers();
+    HRESULT Ensure_RuntimeBoneBuffers();            // CPU mesh bone 캐시 -> GPU Bone 업로드
+    HRESULT Ensure_RuntimeSkinningBuffers();        // compute input/ouput/draw vertex buffer 준비
+    HRESULT Ensure_RuntimeSkinningConstantBuffer(); // compute constant buffer 준비
+
     HRESULT Update_GlobalCombinedBoneBuffer_FromCPU();
 
 private:
@@ -48,11 +57,17 @@ private:
 
     ModelCom* _model = nullptr;
 
-    Shared<ComputeShaderCom> _computeSkinningShaderCom{};
-    Shared<ComputeShaderCom> _computeBoneRemapShaderCom{};
+    Shared<ComputeShaderCom>        _computeSkinningShaderCom{};
+    Shared<ComputeShaderCom>        _computeBoneRemapShaderCom{};
     Shared<ComputeStructuredBuffer> _globalCombinedBoneBuffer{};
 
-    bool _skinningDirty = true;
+    vector<Shared<ComputeStructuredBuffer>> _meshBoneMatrixBuffers;
+    vector<Shared<ComputeStructuredBuffer>> _meshSourceVertexBuffers;       // VTXANIMMESH input
+    vector<Shared<ComputeStructuredBuffer>> _meshComputedVertexBuffers;     // compute output structured buffer
+    vector<ComPtr<Buffer>>                  _meshComputedDrawVertexBuffers; // 실제 draw에 사용할 vertex buffer
+    ComPtr<Buffer>                          _computeSkinningConstantBuffer{};
+
+    bool _skinningDirty = true; // compute 결과를 다시 만들어야하면 true
 
 public:
     static Shared<AnimComputeRuntime> Create(const ComPtr<Device>& device, const ComPtr<Context>& context, const CreateDesc& desc);
