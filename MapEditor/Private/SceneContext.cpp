@@ -141,9 +141,12 @@ void SceneContext::SaveToFile(const string& filePath)
     }
 
     json modelOverrides = json::object();
-    for (auto& [filename, passIndex] : _modelOverrides)
+    for (auto& [filename, entry] : _modelOverrides)
     {
-        modelOverrides[filename] = { {"PassIndex", passIndex} };
+        modelOverrides[filename] = {
+        {"PassIndex",  entry.passIndex},
+        {"ShaderType", static_cast<int>(entry.shaderType)}
+        };
     }
 
     map["ModelOverrides"] = modelOverrides;
@@ -182,9 +185,12 @@ void SceneContext::LoadFromFile(const string& filePath)
 
     if (map.contains("ModelOverrides"))
     {
-        for (auto& [filename, entry] : map["ModelOverrides"].items())
+        for (auto& [filename, data] : map["ModelOverrides"].items())
         {
-            _modelOverrides[filename] = entry.value("PassIndex", -1);
+            ModelOverrideEntry entry;
+            entry.passIndex = data.value("PassIndex", -1);
+            entry.shaderType = static_cast<ShaderType>(data.value("ShaderType", static_cast<int>(ShaderType::VtxMesh)));
+            _modelOverrides[filename] = entry;
         }
     }
 

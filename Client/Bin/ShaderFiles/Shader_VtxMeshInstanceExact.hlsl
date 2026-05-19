@@ -145,6 +145,29 @@ PS_OUT PS_NoTexture(PS_IN In)
     return Out;
 }
 
+PS_OUT PS_OpaqueAR(PS_IN In)
+{
+    PS_OUT Out;
+    float2 finalUV = ApplyUVTransform(In.vTexcoord);
+
+    float4 arTex = g_MaterialTextures[MATERIAL_SLOT_BASECOLOR].Sample(LinearWrapSampler, finalUV);
+    float4 baseColor = float4(arTex.rgb * g_BaseColorTint.rgb, 1.f);
+
+    float3 worldNormal = ComputeWorldNormal(In.vNormal.xyz, In.vTangent, In.vBinormal, finalUV);
+
+    float3 orm = float3(g_AoScale, arTex.a * g_RoughnessScale, g_MetalnessScale);
+
+    float3 emissive = SampleEmissive(finalUV);
+    baseColor.rgb = baseColor.rgb * orm.r + emissive;
+
+    Out.vDiffuse = baseColor;
+    Out.vNormal = float4(EncodeNormal(worldNormal), 1.f);
+    Out.vDepth = float4(In.vProjPos.z / In.vProjPos.w, In.vProjPos.w / g_Far, 0.f, 1.f);
+    Out.vMaterial = float4(orm.xyz, 1.f);
+    Out.vEmissive = float4(emissive.xyz, 1.f);
+    return Out;
+}
+
 PS_OUT_ID PS_ID(PS_IN In)
 {
     PS_OUT_ID Out;
@@ -158,10 +181,12 @@ PS_OUT_ID PS_ID(PS_IN In)
 technique11 DefaultTechnique
 {
     PASS_RS_DS_BS_VP(DefaultPass, RS_Default, DSS_Default, BS_Default, VS_MAIN, PS_Opaque) // 0
-    PASS_RS_DS_BS_VP(ShadowPass, RS_Default, DSS_Default, BS_Default, VS_MAIN, PS_Opaque) // 1 ← 추가 (인덱스 맞추기용)
+    PASS_RS_DS_BS_VP(ShadowPass, RS_Default, DSS_Default, BS_Default, VS_MAIN, PS_Opaque) // 1 ← dummy
     PASS_RS_DS_BS_VP(NoTexturePass, RS_Default, DSS_Default, BS_Default, VS_MAIN, PS_NoTexture) // 2
     PASS_RS_DS_BS_VP(MaskedPass, RS_Default, DSS_Default, BS_Default, VS_MAIN, PS_Mask) // 3
     PASS_RS_DS_BS_VP(TwoSidedPass, RS_CullNone, DSS_Default, BS_Default, VS_MAIN, PS_Opaque) // 4
     PASS_RS_DS_BS_VP(MaskedTwoSidedPass, RS_CullNone, DSS_Default, BS_Default, VS_MAIN, PS_Mask) // 5
     PASS_RS_DS_BS_VP(IDPass, RS_Default, DSS_Default, BS_Default, VS_MAIN, PS_ID) // 6
+    PASS_RS_DS_BS_VP(OpaqueARPass, RS_Default, DSS_Default, BS_Default, VS_MAIN, PS_OpaqueAR) // 7
+    PASS_RS_DS_BS_VP(OpaqueARTwoSidedPass, RS_CullNone, DSS_Default, BS_Default, VS_MAIN, PS_OpaqueAR) // 8
 }

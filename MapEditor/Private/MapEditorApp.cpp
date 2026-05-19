@@ -507,7 +507,7 @@ string MapEditorApp::Resolve_BundleKey(const fs::path& modelPath) const
 void MapEditorApp::Apply_PassOverrideToModel(ModelCom& model, const string& modelFilename)
 {
     auto it = _scene._modelOverrides.find(modelFilename);
-    int32 passIndex = (it != _scene._modelOverrides.end()) ? it->second : -1;
+    int32 passIndex = (it != _scene._modelOverrides.end()) ? it->second.passIndex : -1;
 
     for (uint32 i = 0; i < static_cast<uint32>(model.Get_NumMaterials()); ++i)
     {

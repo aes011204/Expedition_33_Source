@@ -95,15 +95,35 @@ namespace MapEditor
         float scale = 0.1f;
     };
 
-    inline constexpr pair<const char*, uint32> g_meshPassOptions[] = {
+    struct ModelOverrideEntry
+    {
+        ShaderType shaderType = ShaderType::VtxMesh;
+        int32 passIndex = -1;
+    };
+
+    inline constexpr pair<const char*, uint32> g_staticMeshPassOptions[] = {
     { "Default", VtxMeshPassIndex::DefaultPass },
     { "Shadow", VtxMeshPassIndex::ShadowPass },
     { "NoTexture", VtxMeshPassIndex::NoTexturePass },
     { "Masked", VtxMeshPassIndex::MaskedPass },
     { "TwoSided", VtxMeshPassIndex::TwoSidedPass },
     { "MaskedTwoSided", VtxMeshPassIndex::MaskedTwoSidedPass },
+    { "OpaqueAR", VtxMeshPassIndex::OpaqueARPass },
+    { "OpaqueARTwoSided", VtxMeshPassIndex::OpaqueARTwoSidedPass },
     };
-    inline constexpr int32 g_meshPassOptionCount = 6;
+    inline constexpr int32 g_staticMeshPassOptionCount = 8;
+
+    inline constexpr pair<const char*, uint32> g_instanceMeshPassOptions[] = {
+    { "Default", VtxInstanceMeshExactPassIndex::DefaultPass },
+    { "Shadow", VtxInstanceMeshExactPassIndex::ShadowPass },
+    { "NoTexture", VtxInstanceMeshExactPassIndex::NoTexturePass },
+    { "Masked", VtxInstanceMeshExactPassIndex::MaskedPass },
+    { "TwoSided", VtxInstanceMeshExactPassIndex::TwoSidedPass },
+    { "MaskedTwoSided", VtxInstanceMeshExactPassIndex::MaskedTwoSidedPass },
+    { "OpaqueAR", VtxInstanceMeshExactPassIndex::OpaqueARPass },
+    { "OpaqueARTwoSided", VtxInstanceMeshExactPassIndex::OpaqueARTwoSidedPass },
+    };
+    inline constexpr int32 g_instanceMeshPassOptionCount = 8;
 
     struct InstanceTransform
     {

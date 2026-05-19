@@ -30,7 +30,7 @@ struct SceneContext
 
     bool _lightDirty = true;
 
-    map<string, int32> _modelOverrides; // model filename -> forced pass index (-1 = none)
+    map<string, ModelOverrideEntry> _modelOverrides; // model filename -> forced pass index (-1 = none)
     bool _dirtyPassOverrides = false;
 
     void SaveToFile(const string& filePath);

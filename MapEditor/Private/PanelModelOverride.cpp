@@ -40,7 +40,11 @@ void PanelModelOverride::Render()
 
             if (!filename.empty() && _ctx->_modelOverrides.find(filename) == _ctx->_modelOverrides.end())
             {
-                _ctx->_modelOverrides[filename] = -1;
+                ModelOverrideEntry newEntry;
+                newEntry.shaderType = sel->_modelPath.empty() ? ShaderType::VtxInstanceMeshExact
+                    : ShaderType::VtxMesh;
+                newEntry.passIndex = -1;
+                _ctx->_modelOverrides[filename] = newEntry;
                 _ctx->_dirtyPassOverrides = true;
             }
         }
@@ -48,15 +52,8 @@ void PanelModelOverride::Render()
 
     ImGui::Separator();
 
-    // 콤보용 이름 배열
-    const char* names[g_meshPassOptionCount];
-    for (int32 i = 0; i < g_meshPassOptionCount; ++i)
-    {
-        names[i] = g_meshPassOptions[i].first;
-    }
-
     vector<string> toRemove;
-    for (auto& [filename, passIndex] : _ctx->_modelOverrides)
+    for (auto& [filename, entry] : _ctx->_modelOverrides)
     {
         ImGui::PushID(filename.c_str());
 
@@ -71,24 +68,35 @@ void PanelModelOverride::Render()
         ImGui::Text("%s", filename.c_str());
         ImGui::SameLine();
 
-        int32 current = 0;
-        for (int32 i = 0; i < g_meshPassOptionCount; ++i)
+        const bool isInstance = (entry.shaderType == ShaderType::VtxInstanceMeshExact);
+        auto* opts = isInstance ? g_instanceMeshPassOptions : g_staticMeshPassOptions;
+        int32 count = isInstance ? g_instanceMeshPassOptionCount : g_staticMeshPassOptionCount;
+
+        const char* names[16];
+        for (int32 i = 0; i < count; ++i)
         {
-            if ((int32)g_meshPassOptions[i].second == passIndex)
+            names[i] = opts[i].first;
+        }
+
+        int32 current = 0;
+        for (int32 i = 0; i < count; ++i)
+        {
+            if ((int32)opts[i].second == entry.passIndex)
             {
                 current = i;
                 break;
             }
         }
 
-        if (ImGui::Combo("Pass", &current, names, g_meshPassOptionCount))
+        if (ImGui::Combo("Pass", &current, names, count))
         {
-            passIndex = (int32)g_meshPassOptions[current].second;
+            entry.passIndex = (int32)opts[current].second;
             _ctx->_dirtyPassOverrides = true;
         }
 
         ImGui::PopID();
     }
+
 
     for (auto& f : toRemove)
     {
