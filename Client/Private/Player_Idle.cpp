@@ -14,6 +14,10 @@ using plAnim = Body_Player::PlayerWorldAnimation;
 
 HRESULT Player_Idle::Initialize()
 {
+    _exitAnim.emplace(ETOI(plAnim::Pl_EndSprint));
+    _exitAnim.emplace(ETOI(plAnim::Pl_EndRun));
+    _exitAnim.emplace(ETOI(plAnim::Pl_EndWalk));
+
     return Player_State::Initialize();
 }
 
@@ -22,20 +26,27 @@ bool Player_Idle::EnterInvoke()
     auto stateIndex = _stateCom->Get_CurrentPlayerState();
     uint32 animIndex = _bodyPlayer->Get_AnimationStateIndex();
 
+
+    bool hasFailedStateAnimation = true;
     switch (stateIndex)
     {
     case PlayerState::Move:
+        _bodyPlayer->Set_AnimationSpeed(1.5f);
         if (animIndex == ETOI(plAnim::Pl_Sprint))
-            _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_EndSprint), _idleBlendTime, false);
+            hasFailedStateAnimation = _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_EndSprint), 0.25f, false);
         else if (animIndex == ETOI(plAnim::Pl_Run))
-            _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_EndRun), _idleBlendTime, false);
-        else
-            _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_EndWalk), _idleBlendTime, false);
+            hasFailedStateAnimation = _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_EndRun), 0.25f, false);
+        else if (animIndex == ETOI(plAnim::Pl_Walk))
+            hasFailedStateAnimation = _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_EndWalk), 0.25f, false);
         break;
     default:
         _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_Idle_0), _idleBlendTime, true);
         break;
     }
+
+    if (!hasFailedStateAnimation)
+        _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_Idle_0), _idleBlendTime, true);
+
     Reset_IdleTimer();
     
     if (_isFirstState)
@@ -48,6 +59,8 @@ bool Player_Idle::EnterInvoke()
 
 void Player_Idle::Update(float timeDelta)
 {
+    uint32 animIndex = _bodyPlayer->Get_AnimationStateIndex();
+
     //if (IsFalling())
     //{
     //    _stateCom->Change_State(PlayerState::Jump);
@@ -69,6 +82,13 @@ void Player_Idle::Update(float timeDelta)
     if (IsEnterMove())
     {
         _stateCom->Change_State(PlayerState::Move);
+        return;
+    }
+
+    if (_exitAnim.contains(animIndex) && _bodyPlayer->Get_AnimationProgress() >= 0.76f)
+    {
+        _bodyPlayer->Set_AnimationSpeed(1.f);
+        _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_Idle_0), 0.3f, true);
         return;
     }
 
