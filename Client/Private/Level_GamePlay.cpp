@@ -4,6 +4,8 @@
 #include "Client_Constants.h"
 #include "EffectAssetRuntimeLoader.h"
 #include "EffectInstance.h"
+#include "PlayableParts.h"
+#include "Player_WorldBase.h"
 #include "Spawn_Prefab.h"
 #include "TargetCamera.h"
 #include "MapLoader.h"
@@ -53,6 +55,8 @@ void Level_GamePlay::BeginPlay()
 
 void Level_GamePlay::Update(float fTimeDelta)
 {
+    Sync_LuneRightHandBlueEffect();
+
 #ifdef _DEBUG
     const int32 fps = (fTimeDelta > 0.f)
             ? static_cast<int32>(1.f / fTimeDelta) : 0;
@@ -257,9 +261,16 @@ HRESULT Level_GamePlay::Ready_Layer_Effect(const wstring& strLayerTag)
         EffectAssetRuntimeLoader::Load_Definition(L"Effects/Assets/Lune_Thunder_Fall_Charge.effect.json");
     CHECK_NULL(effectDefinition, E_FAIL);
 
+    const Shared<GameObject> player = CLIENT->Find_Player(ETOI(LevelType::GamePlay));
+    CHECK_NULL(player, E_FAIL);
+
+    const Vec3 playerPosition = player->Get_Transform()->Get_WorldPosition();
+    const Vec3 playerForward = player->Get_Transform()->Get_WorldForward();
+    constexpr float effectForwardOffset = 5.f;
+
     EffectInstanceDesc effectDesc{};
     effectDesc.definition = effectDefinition;
-    effectDesc.position = Vec3(83.5f, 5.14f, -0.24f);
+    effectDesc.position = playerPosition + playerForward * effectForwardOffset;
 
     CHECK_FAILED(
         GAME->Add_GameObject(
@@ -270,9 +281,76 @@ HRESULT Level_GamePlay::Ready_Layer_Effect(const wstring& strLayerTag)
             &effectDesc),
         E_FAIL
     );
+
+    const Shared<const EffectDefinition> blueEffectDefinition =
+        EffectAssetRuntimeLoader::Load_Definition(L"Effects/Assets/Lune_Thunder_Fall_Charge_Blue.effect.json");
+    CHECK_NULL(blueEffectDefinition, E_FAIL);
+
+    EffectInstanceDesc blueEffectDesc{};
+    blueEffectDesc.definition = blueEffectDefinition;
+    blueEffectDesc.position = playerPosition;
+
+    CHECK_FAILED(
+        GAME->Add_GameObject(
+            ETOI(LevelType::GamePlay),
+            L"GameObject_EffectInstance",
+            ETOI(LevelType::GamePlay),
+            strLayerTag,
+            _luneRightHandEffect,
+            &blueEffectDesc),
+        E_FAIL
+    );
 #pragma endregion
 
     return S_OK;
+}
+
+void Level_GamePlay::Sync_LuneRightHandBlueEffect()
+{
+    if (_luneRightHandEffect == nullptr)
+        return;
+
+    const Shared<Player_WorldBase> lune = CLIENT->Find_Hero(HeroId::Lune);
+    if (lune == nullptr)
+    {
+        LOG_WARN_ONCE("Lune right-hand blue effect follow failed: Lune hero not found.");
+        return;
+    }
+
+    PartObject* bodyPart = lune->Get_PartObject(L"Part_Body");
+    if (bodyPart == nullptr)
+    {
+        LOG_WARN_ONCE("Lune right-hand blue effect follow failed: Part_Body not found.");
+        return;
+    }
+
+    const auto playableBody = dynamic_cast<PlayableParts*>(bodyPart);
+    if (playableBody == nullptr)
+    {
+        LOG_WARN_ONCE("Lune right-hand blue effect follow failed: Part_Body is not PlayableParts.");
+        return;
+    }
+
+    static constexpr char rightHandSocketName[] = "RightHandFrontSocket";
+    const Matrix* socketMatrix = playableBody->Get_SocketBoneMatrixPtr(rightHandSocketName);
+    if (socketMatrix == nullptr)
+    {
+        LOG_WARN_ONCE("Lune right-hand blue effect follow failed: socket '{}' not found.", rightHandSocketName);
+        return;
+    }
+
+    const Shared<TransformCom> blueTransform = _luneRightHandEffect->Get_Transform();
+    const Shared<TransformCom> bodyTransform = playableBody->Get_Transform();
+    const Shared<TransformCom> luneTransform = lune->Get_Transform();
+    if (blueTransform == nullptr || bodyTransform == nullptr || luneTransform == nullptr)
+    {
+        LOG_WARN_ONCE("Lune right-hand blue effect follow failed: transform missing.");
+        return;
+    }
+
+    const Matrix socketWorldMatrix =
+        *socketMatrix * bodyTransform->Get_WorldMatrix() * luneTransform->Get_WorldMatrix();
+    blueTransform->Set_WorldPosition(Vec3(socketWorldMatrix._41, socketWorldMatrix._42, socketWorldMatrix._43));
 }
 
 Shared<Level_GamePlay> Level_GamePlay::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
