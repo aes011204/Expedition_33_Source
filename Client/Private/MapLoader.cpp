@@ -12,7 +12,9 @@ HRESULT MapLoader::Begin_LoadSession(const ComPtr<Device>& device, const ComPtr<
     string pathA = String::ToString(filePath);
     ifstream ifs(pathA);
     if (!ifs.is_open())
+    {
         return E_FAIL;
+    }
 
     json root = json::parse(ifs);
     const json& mapData = root["MapData"];
@@ -23,6 +25,14 @@ HRESULT MapLoader::Begin_LoadSession(const ComPtr<Device>& device, const ComPtr<
     outSession.levelIndex = levelIndex;
     outSession.layerTag = layerTag;
     outSession.modelFolder = mapData.value("ModelFolder", string{});
+
+    if (mapData.contains("ModelOverrides"))
+    {
+        for (auto& [filename, entry] : mapData["ModelOverrides"].items())
+        {
+            outSession.modelOverrides[filename] = entry.value("PassIndex", -1);
+        }
+    }
 
     if (mapData.contains("StaticMeshes"))
     {
@@ -110,9 +120,18 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
             Matrix::CreateScale(0.01f));
 
         if (!model)
+        {
             continue;
+        }
 
-        ApplyMaterials(model, session.modelFolder, fullPathA);
+        int32 forcedPass = -1;
+        auto overrideIt = session.modelOverrides.find(modelPathStr);
+        if (overrideIt != session.modelOverrides.end())
+        {
+            forcedPass = overrideIt->second;
+        }
+
+        ApplyMaterials(model, session.modelFolder, fullPathA, forcedPass);
         session.preloadedModelCache[modelPathStr] = model;
 
         ++processedCount;
@@ -153,9 +172,18 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
                 Matrix::CreateScale(0.01f));
 
             if (!model)
+            {
                 continue;
+            }
 
-            ApplyMaterials(model, session.modelFolder, fullPathA);
+            int32 forcedPass = -1;
+            auto overrideIt = session.modelOverrides.find(modelPathStr);
+            if (overrideIt != session.modelOverrides.end())
+            {
+                forcedPass = overrideIt->second;
+            }
+
+            ApplyMaterials(model, session.modelFolder, fullPathA, forcedPass);
             session.preloadedModelCache[modelPathStr] = model;
             desc.model = model;
         }
@@ -242,9 +270,18 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
                 Matrix::CreateScale(0.01f));
 
             if (!model)
+            {
                 continue;
+            }
 
-            ApplyMaterials(model, session.modelFolder, fullPathA);
+            int32 forcedPass = -1;
+            auto overrideIt = session.modelOverrides.find(modelPathStr);
+            if (overrideIt != session.modelOverrides.end())
+            {
+                forcedPass = overrideIt->second;
+            }
+
+            ApplyMaterials(model, session.modelFolder, fullPathA, forcedPass);
             session.preloadedModelCache[modelPathStr] = model;
             desc.model = model;
         }
@@ -300,13 +337,17 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
     return S_OK;
 }
 
-void MapLoader::ApplyMaterials(Shared<ModelCom>& model, const string& modelFolder, const string& modelFullPath)
+void MapLoader::ApplyMaterials(Shared<ModelCom>& model, const string& modelFolder, const string& modelFullPath, int32 forcedPassIndex)
 {
     if (model == nullptr)
+    {
         return;
+    }
 
     if (modelFolder.empty())
+    {
         return;
+    }
 
     string bundleKey = modelFolder;
     transform(bundleKey.begin(), bundleKey.end(), bundleKey.begin(), ::tolower);
@@ -314,7 +355,9 @@ void MapLoader::ApplyMaterials(Shared<ModelCom>& model, const string& modelFolde
     fs::path jsonPath = fs::path(modelFullPath).replace_extension(".json");
     ifstream jfs(jsonPath);
     if (!jfs.is_open())
+    {
         return;
+    }
 
     try
     {
@@ -367,6 +410,17 @@ void MapLoader::ApplyMaterials(Shared<ModelCom>& model, const string& modelFolde
     {
     }
 
+    if (forcedPassIndex >= 0)
+    {
+        for (uint32 i = 0; i < static_cast<uint32>(model->Get_NumMaterials()); ++i)
+        {
+            auto mat = model->Get_Material(i);
+            if (mat)
+            {
+                mat->Set_ForcedPassIndex(forcedPassIndex);
+            }
+        }
+    }
 }
 
 HRESULT MapLoader::Load(const ComPtr<Device>& device, const ComPtr<Context>& context, const wstring& filePath, uint32 levelIndex, const wstring& layerTag)

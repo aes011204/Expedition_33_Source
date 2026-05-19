@@ -141,7 +141,7 @@ void PlayerControllerCom::Update_Movement(float timeDelta)
     _movementCom->Update_Movement(timeDelta);
 }
 
-const Vec3& PlayerControllerCom::Get_Velocity() const
+Vec3 PlayerControllerCom::Get_Velocity() const
 {
     return _movementCom->Get_Velocity();
 }
