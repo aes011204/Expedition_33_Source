@@ -259,6 +259,7 @@
     <ClInclude Include="..\public\PlayerStatCom.h" />
     <ClInclude Include="..\Public\Player_BattleBase.h" />
     <ClInclude Include="..\public\PreviewShotTable.h" />
+    <ClInclude Include="..\Public\PreviewShotTypes.h" />
     <ClInclude Include="..\public\SkillScript.h" />
     <ClInclude Include="..\Public\PW_Gustave.h" />
     <ClInclude Include="..\Public\PW_Lune.h" />

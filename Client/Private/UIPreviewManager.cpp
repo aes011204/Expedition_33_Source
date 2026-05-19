@@ -55,7 +55,7 @@ void UIPreviewManager::Update(float timeDelta)
     }
 }
 
-void UIPreviewManager::Begin_Preview(PreviewShotTable::PreviewShotPanel panel)
+void UIPreviewManager::Begin_Preview(PreviewShotPanel panel)
 {
     UNREFERENCED_PARAMETER(panel);
 
@@ -80,7 +80,7 @@ void UIPreviewManager::Begin_Preview(PreviewShotTable::PreviewShotPanel panel)
     _isActive = true;
 }
 
-void UIPreviewManager::Show_Preview(HeroId heroId, PreviewShotTable::PreviewShotPanel panel)
+void UIPreviewManager::Show_Preview(HeroId heroId, PreviewShotPanel panel)
 {
     if (!_isActive)
         Begin_Preview(panel);

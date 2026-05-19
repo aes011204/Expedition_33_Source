@@ -51,12 +51,12 @@ public: /* For.GameData Table */
 
 public:
     void    Apply_PreviewLayout(const vector<UIPreviewManager::PreviewSlotDesc>& layout);
-    void    Begin_Preview(PreviewShotTable::PreviewShotPanel panel);
-    void    Show_Preview(HeroId heroId, PreviewShotTable::PreviewShotPanel panel);
+    void    Begin_Preview(PreviewShotPanel panel);
+    void    Show_Preview(HeroId heroId, PreviewShotPanel panel);
     void    Hide_Preview();
 
 public:
-    PreviewShotTable::PreviewShotPreset Get_Preset(HeroId hero, PreviewShotTable::PreviewShotPanel panel);
+    PreviewShotPreset Get_Preset(HeroId hero, PreviewShotPanel panel);
 
 public: /* For.Hero Manager */
     HRESULT        Initialize_Hero(uint32 levelIndex, const wstring& layerTag, const Vec3& startPos = Vec3::Zero);

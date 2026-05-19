@@ -567,6 +567,9 @@
     <ClInclude Include="..\Public\MapStaticCollisionBuilder.h">
       <Filter>02.GameObject\Map</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\PreviewShotTypes.h">
+      <Filter>02.GameObject\Camera\Preview</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -970,6 +973,7 @@
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_BoneRemap.hlsl">
       <Filter>97.ShaderFiles\Compute</Filter>
     </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMaterialPreview.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_BufferSmoke.hlsl">

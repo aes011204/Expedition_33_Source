@@ -71,11 +71,11 @@ void CharacterStatus_Panel::Open()
     const HeroId activeHeroId = CLIENT->Get_HeroId(CLIENT->Get_ActiveHeroSlot());
     _selectedHeroIndex = Get_CharacterStatusIndex(activeHeroId);
 
-    CLIENT->Begin_Preview(PreviewShotTable::PreviewShotPanel::CharacterStatus);
+    CLIENT->Begin_Preview(PreviewShotPanel::CharacterStatus);
 
     auto previewLayout = Build_PreviewLayout();
     CLIENT->Apply_PreviewLayout(previewLayout);
-    CLIENT->Show_Preview(Get_SelectedCharacterStatusHeroId(_selectedHeroIndex), PreviewShotTable::PreviewShotPanel::CharacterStatus);
+    CLIENT->Show_Preview(Get_SelectedCharacterStatusHeroId(_selectedHeroIndex), PreviewShotPanel::CharacterStatus);
 
     Refresh_CombatStats();
     Refresh_CharacterSelectUI();
@@ -130,7 +130,7 @@ void CharacterStatus_Panel::Handle_SelectionInput()
 
         auto previewLayout = Build_PreviewLayout();
         CLIENT->Apply_PreviewLayout(previewLayout);
-        CLIENT->Show_Preview(Get_SelectedCharacterStatusHeroId(_selectedHeroIndex), PreviewShotTable::PreviewShotPanel::CharacterStatus);
+        CLIENT->Show_Preview(Get_SelectedCharacterStatusHeroId(_selectedHeroIndex), PreviewShotPanel::CharacterStatus);
     }
 }
 

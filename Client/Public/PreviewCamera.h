@@ -32,7 +32,7 @@ public:
     void    Update(float timeDelta) override;
     void    Apply_View();
 
-    void    Set_Preset(PreviewShotTable::PreviewShotPreset preset);
+    void    Set_Preset(PreviewShotPreset preset);
     void    Set_Distance(float distance) {_distance = distance;}
     void    Set_LookOffset(Vec3 lookOffset) {_lookOffset = lookOffset;}
     void    Set_FollowSpeed(float followSpeed) {_followSpeed = followSpeed;}

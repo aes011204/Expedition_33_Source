@@ -125,12 +125,12 @@ void ClientInstance::Apply_PreviewLayout(const vector<UIPreviewManager::PreviewS
     return _previewManager->Apply_Layout(layout);
 }
 
-void ClientInstance::Begin_Preview(PreviewShotTable::PreviewShotPanel panel)
+void ClientInstance::Begin_Preview(PreviewShotPanel panel)
 {
     return _previewManager->Begin_Preview(panel);
 }
 
-void ClientInstance::Show_Preview(HeroId heroId, PreviewShotTable::PreviewShotPanel panel)
+void ClientInstance::Show_Preview(HeroId heroId, PreviewShotPanel panel)
 {
     return _previewManager->Show_Preview(heroId, panel);
 }
@@ -140,7 +140,7 @@ void ClientInstance::Hide_Preview()
     return _previewManager->Hide_Preview();
 }
 
-PreviewShotTable::PreviewShotPreset ClientInstance::Get_Preset(HeroId hero, PreviewShotTable::PreviewShotPanel panel)
+PreviewShotPreset ClientInstance::Get_Preset(HeroId hero, PreviewShotPanel panel)
 {
     return _previewShotTable->Get(hero, panel);
 }

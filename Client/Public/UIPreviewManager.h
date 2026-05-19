@@ -32,8 +32,8 @@ public:
     void    Update(float timeDelta);
 
 public:
-    void    Begin_Preview(PreviewShotTable::PreviewShotPanel panel);
-    void    Show_Preview(HeroId heroId, PreviewShotTable::PreviewShotPanel panel);
+    void    Begin_Preview(PreviewShotPanel panel);
+    void    Show_Preview(HeroId heroId, PreviewShotPanel panel);
     void    Hide_Preview();
     void    Apply_Layout(const vector<PreviewSlotDesc>& layout);
 

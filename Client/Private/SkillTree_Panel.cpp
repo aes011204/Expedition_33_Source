@@ -13,21 +13,6 @@
 #include "PreviewCamera.h"
 #include "UI_Base.h"
 
-//static const char* Get_HeroPrefabName(HeroId heroId)
-//{
-//    switch (heroId)
-//    {
-//    case HeroId::Gustave:
-//        return Constants::Prefab::PW_Gustave; // 월드 프리팹 이름은 공용 상수로 맞춘다.
-//    case HeroId::Lune:
-//        return Constants::Prefab::PW_Lune; // 스킬트리 미리보기 스폰도 실제 prefab 파일명과 같은 값을 사용한다.
-//    case HeroId::Maelle:
-//        return Constants::Prefab::PW_Maelle; // 이름 변경 시 호출부 문자열이 흩어지지 않게 한다.
-//    default:
-//        return "";
-//    }
-//}
-
 namespace
 {
     constexpr HeroId characterStatusOrder[] =
@@ -97,7 +82,6 @@ void SkillTree_Panel::Update(float timeDelta)
 
    Handle_SelectionInput();
    Update_UI();
-  // Update_StatusPreviewHeroes(timeDelta);
 }
 
 void SkillTree_Panel::Open()
@@ -111,11 +95,11 @@ void SkillTree_Panel::Open()
     //선택된 캐릭터 ui 확대
     _currentView->characterSelectUI->Get_Transform()->Set_Scale(_hoveredSize);
 
-    CLIENT->Begin_Preview(PreviewShotTable::PreviewShotPanel::SkillTree);
+    CLIENT->Begin_Preview(PreviewShotPanel::SkillTree);
 
     auto previewLayout  = Build_PreviewLayout();
     CLIENT->Apply_PreviewLayout(previewLayout);
-    CLIENT->Show_Preview(Get_SelectedCharacterStatusHeroId(_selectedHeroIndex),PreviewShotTable::PreviewShotPanel::SkillTree);
+    CLIENT->Show_Preview(Get_SelectedCharacterStatusHeroId(_selectedHeroIndex),PreviewShotPanel::SkillTree);
 
     // 마우스 잠금
     GAME->Unlock_Mouse();
@@ -206,7 +190,7 @@ void SkillTree_Panel::Handle_SelectionInput()
 
   /*      auto previewLayout = Build_PreviewLayout();
         CLIENT->Apply_PreviewLayout(previewLayout);*/
-        CLIENT->Show_Preview(Get_SelectedCharacterStatusHeroId(_selectedHeroIndex), PreviewShotTable::PreviewShotPanel::SkillTree);
+        CLIENT->Show_Preview(Get_SelectedCharacterStatusHeroId(_selectedHeroIndex), PreviewShotPanel::SkillTree);
     }
 }
 

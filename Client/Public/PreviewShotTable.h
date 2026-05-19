@@ -1,21 +1,10 @@
 ﻿#pragma once
 #include "Base.h"
+#include "PreviewShotTypes.h"
 
+NS_BEGIN(Client)
 class PreviewShotTable : public Base
 {
-public:
-    enum class PreviewShotPanel
-    {
-        CharacterStatus,
-        SkillTree
-    };
-
-    struct PreviewShotPreset
-    {
-        Vec3 lookOffset;
-        float followSpeed;
-        float distance;
-    };
 
 public:
     PreviewShotTable();
@@ -30,3 +19,4 @@ public:
 
 };
 
+NS_END

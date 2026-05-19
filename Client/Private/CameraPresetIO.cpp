@@ -84,3 +84,60 @@ bool CameraPresetIO::LoadPresetFromFile(TargetCamera::CAMERA_STATE cameraState, 
 
     return true;
 }
+
+void CameraPresetIO::SavePreviewToFile(PreviewShotPanel panel, HeroId heroId, const PreviewShotPreset& preset)
+{
+    json jsonData {};
+
+    jsonData["lookOffset"]["x"] = preset.lookOffset.x;
+    jsonData["lookOffset"]["y"] = preset.lookOffset.y;
+    jsonData["lookOffset"]["z"] = preset.lookOffset.z;
+    jsonData["followSpeed"] = preset.followSpeed;
+    jsonData["distance"] = preset.distance;
+
+    const string panelName = string(magic_enum::enum_name(panel));
+    const string heroName = string(magic_enum::enum_name(heroId));
+
+    const string filePath = "../../../Client/Bin/Resources/Data/json/CameraPreset/PreviewPreset_" + panelName + "_"+ heroName + ".json";
+
+    const fs::path savePath = filePath;
+    if (!fs::exists(savePath.parent_path()))
+        fs::create_directories(savePath.parent_path());
+
+    ofstream file(savePath);
+    if (!file.is_open())
+    {
+        MSG_BOX("Failed to open preview preset save file.");
+        return;
+    }
+
+    file << jsonData.dump(4);
+}
+
+bool CameraPresetIO::LoadPreviewFromFile(PreviewShotPanel panel, HeroId heroId, PreviewShotPreset& outPreset)
+{
+    const string panelName = string(magic_enum::enum_name(panel));
+    const string heroName = string(magic_enum::enum_name(heroId));
+
+    const string filePath = "../../../Client/Bin/Resources/Data/json/CameraPreset/PreviewPreset_" + panelName + "_" + heroName + ".json";
+
+    ifstream  file(filePath);
+
+    if(!file.is_open())
+        return false;
+
+    json jsonData{};
+    file >> jsonData;
+
+    PreviewShotPreset preset {};
+
+    preset.lookOffset.x = jsonData["lookOffset"].value("x", 0);
+    preset.lookOffset.y = jsonData["lookOffset"].value("y", 0);
+    preset.lookOffset.z = jsonData["lookOffset"].value("z", 0);
+    preset.followSpeed = jsonData.value("followSpeed", 0.f);
+    preset.distance = jsonData.value("distance", 0.f);
+
+    outPreset = preset;
+
+    return true;
+}

@@ -4,8 +4,11 @@
 #include "GameInstance.h"
 #include <magic_enum/magic_enum.hpp>
 #include <algorithm>
-
 #include "CameraPresetIO.h"
+#include "PreviewCamera.h"
+#include "PreviewShotTypes.h"
+#include "PreviewShotTable.h"
+#include "ClientInstance.h"
 
 namespace
 {
@@ -177,12 +180,16 @@ void Camera_Tool::Render_SpecificSettings()
 
     auto targetCamera = dynamic_pointer_cast<TargetCamera>(camera);
     auto freeCamera = dynamic_pointer_cast<FreeCamera>(camera);
+    auto previewCamera = dynamic_pointer_cast<PreviewCamera>(camera);
 
     if(nullptr != targetCamera)
         Render_TargetCameraProperties(targetCamera);
 
     if(nullptr != freeCamera)
         Render_FreeCameraProperties(freeCamera);
+
+    if(nullptr != previewCamera)
+        Render_PreviewCameraProperties(previewCamera);
 }
 
 void Camera_Tool::Render_FreeCameraProperties(const Shared<FreeCamera>& freeCamera)
@@ -197,6 +204,13 @@ void Camera_Tool::Render_TargetCameraProperties(const Shared<TargetCamera>& targ
 {
     Select_EditingCameraState();
     Edit_TargetCameraPreset();
+}
+
+void Camera_Tool::Render_PreviewCameraProperties(const Shared<Client::PreviewCamera>& previewCamera)
+{
+    Select_EditingPreviewPanel();
+    Select_EditingPreviewHero();
+    Edit_PreviewCameraPreset();
 }
 
 void Camera_Tool::Select_EditingCameraState()
@@ -261,6 +275,109 @@ void Camera_Tool::Edit_TargetCameraPreset()
     if(ImGui::Button("Save Preset"))
     {
         CameraPresetIO::SavePresetToFile(_editingCameraState,preset);
+    }
+}
+
+void Camera_Tool::Select_EditingPreviewPanel()
+{
+    PreviewShotPanel previewShotPanel = _editingPreviewPanel;
+
+    const char* currentLabel = magic_enum::enum_name(previewShotPanel).data();
+
+    if(ImGui::BeginCombo("Edit Preset", currentLabel))
+    {
+        for(PreviewShotPanel panel : magic_enum::enum_values<PreviewShotPanel>())
+        {
+            const bool isSelected = previewShotPanel == panel;
+
+            if(ImGui::Selectable(magic_enum::enum_name(panel).data(), isSelected))
+            {
+                _editingPreviewPanel = panel;
+            }
+
+            if(isSelected)
+                ImGui::SetItemDefaultFocus();
+        }
+        ImGui::EndCombo();
+    }
+}
+
+void Camera_Tool::Select_EditingPreviewHero()
+{
+    HeroId previewHeroId = _editingPreviewHeroId;
+    const char* currentLabel = magic_enum::enum_name(previewHeroId).data();
+
+    if(ImGui::BeginCombo("Edit Hero", currentLabel))
+    {
+        for(HeroId heroId : magic_enum::enum_values<HeroId>())
+        {
+            if(heroId == HeroId::END)
+            continue;
+
+            const bool isSelected = previewHeroId== heroId;
+
+            if(ImGui::Selectable(magic_enum::enum_name(heroId).data(), isSelected))
+            {
+                _editingPreviewHeroId = heroId;
+            }
+
+            if(isSelected)
+                ImGui::SetItemDefaultFocus();
+        }
+
+        ImGui::EndCombo();
+    }
+
+}
+
+void Camera_Tool::Edit_PreviewCameraPreset()
+{
+
+   Shared<Camera> camera = Get_SelectedCamera(_selectedCameraIndex);
+
+   auto previewCamera = static_pointer_cast<PreviewCamera>(camera);
+   const bool needReload =
+       !_isPreviewPresetLoaded ||
+       _loadedPreviewHeroId != _editingPreviewHeroId ||
+       _loadedPreviewPanel != _editingPreviewPanel;
+
+   if(needReload)
+   {
+       _editingPreviewPreset = CLIENT->Get_Preset(_editingPreviewHeroId, _editingPreviewPanel);
+       _loadedPreviewHeroId = _editingPreviewHeroId;
+       _loadedPreviewPanel = _editingPreviewPanel;
+       _isPreviewPresetLoaded = true;
+
+       previewCamera->Set_Preset(_editingPreviewPreset);
+   }
+
+   bool isChanged = false;
+
+    float lookOffset[3] =
+    {
+        _editingPreviewPreset.lookOffset.x,
+        _editingPreviewPreset.lookOffset.y,
+        _editingPreviewPreset.lookOffset.z,
+    };
+
+    if(ImGui::DragFloat3("look offset", lookOffset,0.01f))
+    {
+        _editingPreviewPreset.lookOffset = Vec3(lookOffset[0], lookOffset[1], lookOffset[2]);
+        isChanged = true;
+    }
+
+    isChanged |= ImGui::DragFloat("follow speed", &_editingPreviewPreset.followSpeed, 0.01f);
+    isChanged |= ImGui::DragFloat("distance", &_editingPreviewPreset.distance, 0.01f);
+
+    if(isChanged)
+    {
+        previewCamera->Set_Preset(_editingPreviewPreset);
+    }
+
+    ImGui::SameLine();
+    if(ImGui::Button("Save Preview Preset"))
+    {
+        CameraPresetIO::SavePreviewToFile(_editingPreviewPanel, _editingPreviewHeroId, _editingPreviewPreset);
     }
 }
 
