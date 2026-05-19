@@ -707,12 +707,13 @@ void Scene_View::Render_ViewModeOverlay()
         return clicked;
     };
 
-    if (draw_mode_button("Final", ImVec2(54.f, 22.f), isFinal))
-        EDITOR->Set_SceneViewMode(SceneViewMode::Final);
-
-    ImGui::SameLine();
     if (draw_mode_button("Authoring", ImVec2(82.f, 22.f), isAuthoring))
         EDITOR->Set_SceneViewMode(SceneViewMode::Authoring);
+
+    ImGui::SameLine();
+
+    if (draw_mode_button("Final", ImVec2(54.f, 22.f), isFinal))
+        EDITOR->Set_SceneViewMode(SceneViewMode::Final);
 
     ImGui::PopStyleVar();
     ImGui::PopID();

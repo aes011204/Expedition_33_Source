@@ -422,36 +422,36 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
         const EffectMaterialInstanceData& material = required->material;
 
         if (!material.mainTextureId.empty())
-            desc.textureId = material.mainTextureId;
+            desc.required.material.textureId = material.mainTextureId;
 
         if (!material.blendMode.empty())
-            desc.blendMode = material.blendMode;
+            desc.required.material.blendMode = material.blendMode;
 
         if (!material.opacitySource.empty())
-            desc.opacitySource = material.opacitySource;
+            desc.required.material.opacitySource = material.opacitySource;
 
-        desc.tint = material.tint;
-        desc.intensity = material.intensity;
-        desc.opacityPower = material.opacityPower;
+        desc.required.material.tint = material.tint;
+        desc.required.material.intensity = material.intensity;
+        desc.required.material.opacityPower = material.opacityPower;
 
         if (!material.noiseTextureId.empty())
-            desc.noiseTextureId = material.noiseTextureId;
+            desc.required.material.noiseTextureId = material.noiseTextureId;
 
-        desc.noiseStrength = material.noiseStrength;
-        desc.subUVRows = max(1u, material.subUVRows);
-        desc.subUVCols = max(1u, material.subUVCols);
-        desc.screenAlignment = Internal::Resolve_EffectSpriteScreenAlignment(required->screenAlignment);
-        desc.directionalAlignmentMode = Internal::Resolve_EffectSpriteDirectionalAlignmentMode(required->directionalAlignmentMode);
-        desc.spriteTextureAxis = Internal::Resolve_EffectSpriteTextureAxis(required->spriteTextureAxis);
-        desc.spriteRollOffsetDegrees = required->spriteRollOffsetDegrees;
-        desc.duration = max(0.0001f, required->duration);
-        desc.loopCount = required->loopCount;
-        desc.delay = max(0.f, required->delay);
-        desc.delayFirstLoopOnly = required->delayFirstLoopOnly;
-        desc.killOnDeactivate = required->killOnDeactivate;
-        desc.killOnCompleted = required->killOnCompleted;
-        desc.useMaxDrawCount = required->useMaxDrawCount;
-        desc.maxDrawCount = max(1u, required->maxDrawCount);
+        desc.required.material.noiseStrength = material.noiseStrength;
+        desc.required.material.subUVRows = max(1u, material.subUVRows);
+        desc.required.material.subUVCols = max(1u, material.subUVCols);
+        desc.required.spriteRender.screenAlignment = Internal::Resolve_EffectSpriteScreenAlignment(required->screenAlignment);
+        desc.required.spriteRender.directionalAlignmentMode = Internal::Resolve_EffectSpriteDirectionalAlignmentMode(required->directionalAlignmentMode);
+        desc.required.spriteRender.spriteTextureAxis = Internal::Resolve_EffectSpriteTextureAxis(required->spriteTextureAxis);
+        desc.required.spriteRender.spriteRollOffsetDegrees = required->spriteRollOffsetDegrees;
+        desc.required.playback.duration = max(0.0001f, required->duration);
+        desc.required.playback.loopCount = required->loopCount;
+        desc.required.playback.delay = max(0.f, required->delay);
+        desc.required.playback.delayFirstLoopOnly = required->delayFirstLoopOnly;
+        desc.required.playback.killOnDeactivate = required->killOnDeactivate;
+        desc.required.playback.killOnCompleted = required->killOnCompleted;
+        desc.required.drawLimit.useMaxDrawCount = required->useMaxDrawCount;
+        desc.required.drawLimit.maxDrawCount = max(1u, required->maxDrawCount);
 
         definition.localPosition = required->emitterOrigin;
         definition.localRotationDegrees = required->emitterRotationDegrees;
@@ -460,19 +460,19 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
 
     if (const auto* spawn = Internal::Find_ModuleData<SpawnModuleData>(emitter, AuthoringModuleType::Spawn))
     {
-        desc.instanceCount = max(1u, spawn->maxParticleCount);
-        desc.spawn.processSpawnRate = spawn->processSpawnRate;
-        desc.spawn.spawnRate = max(0.f, Internal::Evaluate_FloatDistributionMax(spawn->spawnRate, desc.spawn.spawnRate));
-        desc.spawn.spawnRateScale = max(0.f, Internal::Evaluate_FloatDistributionMax(spawn->spawnRateScale, desc.spawn.spawnRateScale));
-        desc.spawn.processBurstList = spawn->processBurstList;
-        desc.spawn.burstScale = max(0.f, Internal::Evaluate_FloatDistributionMax(spawn->burstScale, desc.spawn.burstScale));
-        desc.spawn.maxActiveCount = desc.instanceCount;
-        desc.spawn.bursts.clear();
-        desc.spawn.bursts.reserve(spawn->burstList.size());
+        desc.spawn.instanceCount = max(1u, spawn->maxParticleCount);
+        desc.spawn.particleSpawn.processSpawnRate = spawn->processSpawnRate;
+        desc.spawn.particleSpawn.spawnRate = max(0.f, Internal::Evaluate_FloatDistributionMax(spawn->spawnRate, desc.spawn.particleSpawn.spawnRate));
+        desc.spawn.particleSpawn.spawnRateScale = max(0.f, Internal::Evaluate_FloatDistributionMax(spawn->spawnRateScale, desc.spawn.particleSpawn.spawnRateScale));
+        desc.spawn.particleSpawn.processBurstList = spawn->processBurstList;
+        desc.spawn.particleSpawn.burstScale = max(0.f, Internal::Evaluate_FloatDistributionMax(spawn->burstScale, desc.spawn.particleSpawn.burstScale));
+        desc.spawn.particleSpawn.maxActiveCount = desc.spawn.instanceCount;
+        desc.spawn.particleSpawn.bursts.clear();
+        desc.spawn.particleSpawn.bursts.reserve(spawn->burstList.size());
 
         for (const SpawnModuleData::ParticleBurstData& burst : spawn->burstList)
         {
-            desc.spawn.bursts.push_back(
+            desc.spawn.particleSpawn.bursts.push_back(
                 PointParticleBurstDesc{
                     .time = max(0.f, burst.time),
                     .count = burst.count
@@ -483,10 +483,10 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
 
     if (const auto* initialSize = Internal::Find_ModuleData<InitialSizeModuleData>(emitter, AuthoringModuleType::InitialSize))
     {
-        const Vec2 minSize = Internal::Evaluate_Vector2DistributionMin(initialSize->size, desc.sizeMin);
-        const Vec2 maxSize = Internal::Evaluate_Vector2DistributionMax(initialSize->size, desc.sizeMax);
-        desc.sizeMin = Vec2{ min(minSize.x, maxSize.x), min(minSize.y, maxSize.y) };
-        desc.sizeMax = Vec2{ max(minSize.x, maxSize.x), max(minSize.y, maxSize.y) };
+        const Vec2 minSize = Internal::Evaluate_Vector2DistributionMin(initialSize->size, desc.initialSize.sizeMin);
+        const Vec2 maxSize = Internal::Evaluate_Vector2DistributionMax(initialSize->size, desc.initialSize.sizeMax);
+        desc.initialSize.sizeMin = Vec2{ min(minSize.x, maxSize.x), min(minSize.y, maxSize.y) };
+        desc.initialSize.sizeMax = Vec2{ max(minSize.x, maxSize.x), max(minSize.y, maxSize.y) };
     }
 
     if (const auto* initialLocation = Internal::Find_ModuleData<InitialLocationModuleData>(emitter, AuthoringModuleType::InitialLocation))
@@ -516,9 +516,9 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
 
     if (const auto* lifetime = Internal::Find_ModuleData<LifetimeModuleData>(emitter, AuthoringModuleType::Lifetime))
     {
-        desc.lifeTime = Vec2{
-            Internal::Evaluate_FloatDistributionMin(lifetime->lifeTime, desc.lifeTime.x),
-            Internal::Evaluate_FloatDistributionMax(lifetime->lifeTime, desc.lifeTime.y)
+        desc.lifetime.lifeTime = Vec2{
+            Internal::Evaluate_FloatDistributionMin(lifetime->lifeTime, desc.lifetime.lifeTime.x),
+            Internal::Evaluate_FloatDistributionMax(lifetime->lifeTime, desc.lifetime.lifeTime.y)
         };
     }
 
@@ -526,52 +526,52 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
     {
         const Color minColor = Internal::Evaluate_ColorDistributionMin(
             initialColor->color,
-            Color{ desc.startColorMin.x, desc.startColorMin.y, desc.startColorMin.z, desc.startColorMin.w }
+            Color{ desc.initialColor.startColorMin.x, desc.initialColor.startColorMin.y, desc.initialColor.startColorMin.z, desc.initialColor.startColorMin.w }
         );
         const Color maxColor = Internal::Evaluate_ColorDistributionMax(
             initialColor->color,
-            Color{ desc.startColorMax.x, desc.startColorMax.y, desc.startColorMax.z, desc.startColorMax.w }
+            Color{ desc.initialColor.startColorMax.x, desc.initialColor.startColorMax.y, desc.initialColor.startColorMax.z, desc.initialColor.startColorMax.w }
         );
         const float minAlpha = clamp(
-            Internal::Evaluate_FloatDistributionMin(initialColor->alpha, desc.startColorMin.w),
+            Internal::Evaluate_FloatDistributionMin(initialColor->alpha, desc.initialColor.startColorMin.w),
             0.f,
             1.f
         );
         const float maxAlpha = clamp(
-            Internal::Evaluate_FloatDistributionMax(initialColor->alpha, desc.startColorMax.w),
+            Internal::Evaluate_FloatDistributionMax(initialColor->alpha, desc.initialColor.startColorMax.w),
             0.f,
             1.f
         );
 
-        desc.startColorMin = Vec4{ minColor.R(), minColor.G(), minColor.B(), minAlpha };
-        desc.startColorMax = Vec4{ maxColor.R(), maxColor.G(), maxColor.B(), maxAlpha };
-        desc.endColorMin = desc.startColorMin;
-        desc.endColorMax = desc.startColorMax;
+        desc.initialColor.startColorMin = Vec4{ minColor.R(), minColor.G(), minColor.B(), minAlpha };
+        desc.initialColor.startColorMax = Vec4{ maxColor.R(), maxColor.G(), maxColor.B(), maxAlpha };
+        desc.colorOverLife.endColorMin = desc.initialColor.startColorMin;
+        desc.colorOverLife.endColorMax = desc.initialColor.startColorMax;
     }
 
     if (const auto* colorOverLife = Internal::Find_ModuleData<ColorOverLifeModuleData>(emitter, AuthoringModuleType::ColorOverLife))
     {
         const Color minEndColor = Internal::Evaluate_ColorDistributionMin(
             colorOverLife->colorOverLife,
-            Color{ desc.endColorMin.x, desc.endColorMin.y, desc.endColorMin.z, desc.endColorMin.w }
+            Color{ desc.colorOverLife.endColorMin.x, desc.colorOverLife.endColorMin.y, desc.colorOverLife.endColorMin.z, desc.colorOverLife.endColorMin.w }
         );
         const Color maxEndColor = Internal::Evaluate_ColorDistributionMax(
             colorOverLife->colorOverLife,
-            Color{ desc.endColorMax.x, desc.endColorMax.y, desc.endColorMax.z, desc.endColorMax.w }
+            Color{ desc.colorOverLife.endColorMax.x, desc.colorOverLife.endColorMax.y, desc.colorOverLife.endColorMax.z, desc.colorOverLife.endColorMax.w }
         );
         const float minEndAlpha = clamp(
-            Internal::Evaluate_FloatDistributionMin(colorOverLife->alphaOverLife, desc.endColorMin.w),
+            Internal::Evaluate_FloatDistributionMin(colorOverLife->alphaOverLife, desc.colorOverLife.endColorMin.w),
             0.f,
             1.f
         );
         const float maxEndAlpha = clamp(
-            Internal::Evaluate_FloatDistributionMax(colorOverLife->alphaOverLife, desc.endColorMax.w),
+            Internal::Evaluate_FloatDistributionMax(colorOverLife->alphaOverLife, desc.colorOverLife.endColorMax.w),
             0.f,
             1.f
         );
 
-        desc.endColorMin = Vec4{ minEndColor.R(), minEndColor.G(), minEndColor.B(), minEndAlpha };
-        desc.endColorMax = Vec4{ maxEndColor.R(), maxEndColor.G(), maxEndColor.B(), maxEndAlpha };
+        desc.colorOverLife.endColorMin = Vec4{ minEndColor.R(), minEndColor.G(), minEndColor.B(), minEndAlpha };
+        desc.colorOverLife.endColorMax = Vec4{ maxEndColor.R(), maxEndColor.G(), maxEndColor.B(), maxEndAlpha };
     }
 
     if (const auto* subUvFrameOverLife = Internal::Find_ModuleData<SubUVFrameOverLifeModuleData>(emitter, AuthoringModuleType::SubUVFrameOverLife))

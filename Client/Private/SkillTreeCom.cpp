@@ -15,12 +15,7 @@ SkillTreeCom::~SkillTreeCom()
 HRESULT SkillTreeCom::Initialize(void* arg)
 {
     CHECK_FAILED(__super::Initialize(arg), E_FAIL)
-
-    //임시로 미리 가진 스킬 넣어놓기
-    _unlockedSkillId.push_back("Immolation");
-    _unlockedSkillId.push_back("HealingLight");
-    _unlockedSkillId.push_back("IceGust");
-
+   
     return S_OK;
 }
 
@@ -53,19 +48,15 @@ void SkillTreeCom::TryUnlock(const string& skillId)
 
     if(!playerStatCom)
         return;
-
-    if(CanUnlock(skillId))
-    {
-        auto & runtimeStat = playerStatCom->Get_PlayerRuntimeStat();
-        runtimeStat.CurSkillPoint -= skillTreeDesc->unlockCost;
-        _unlockedSkillId.push_back(skillId);
-    }
+   
+   auto & runtimeStat = playerStatCom->Get_PlayerRuntimeStat();
+   runtimeStat.CurSkillPoint -= skillTreeDesc->unlockCost;
+   _unlockedSkillId.push_back(skillId);
+    
 }
 
 bool SkillTreeCom::CanUnlock(const string& skillId)
 {
-    //선행스킬도 만족하고 & 스킬 포인트도 있을 때
-
     auto skillTreeDesc = CLIENT->Get_SkillTreeDesc(skillId);
 
     if (!skillTreeDesc)
@@ -111,8 +102,8 @@ bool SkillTreeCom::HasRequiredSkill(const string& skillId)
 
     auto iter = requirementDesc->find(skillId);
 
-    if(iter == requirementDesc->end()) //선행 조건이 없으면 조건 만족한 것으로 봄
-        return false;
+    if(iter == requirementDesc->end())
+        return true;
 
    const auto& requirementSkills = iter->second;
 

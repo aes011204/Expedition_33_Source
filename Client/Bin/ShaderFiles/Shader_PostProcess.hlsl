@@ -115,9 +115,11 @@ PS_OUT_BACKBUFFER PS_ToneMapping(PS_IN In)
     PS_OUT_BACKBUFFER Out;
 
     float4 hdr = g_HDRTexture.Sample(LinearClampSampler, In.Texcoord);
-    float4 bloom = g_BloomTexture.Sample(LinearClampSampler, In.Texcoord);
+    float3 bloomColor = 0.f;
+    if (HasPostProcessFeature(POSTPROCESS_FLAG_BLOOM))
+        bloomColor = g_BloomTexture.Sample(LinearClampSampler, In.Texcoord).rgb;
 
-    float3 color = hdr.rgb + bloom.rgb;
+    float3 color = hdr.rgb + bloomColor;
     // Exposure
     if (HasPostProcessFeature(POSTPROCESS_FLAG_EXPOSURE))
         color *= max(g_PP_Exposure, EPSILON);
@@ -133,8 +135,20 @@ PS_OUT_BACKBUFFER PS_ToneMapping(PS_IN In)
         color = pow(saturate(color), 1.f / gamma);
     }
 
+    float outAlpha = hdr.a;
+    // 공용 postprocess에서 에디터 배경 정책을 우회적으로 처리하던 fallback 경로는 성능 문제가 제기되어서 비활성화함.
+    /*
+    float backgroundMask = g_BackgroundMaskTexture.Sample(PointClampSampler, In.Texcoord).r;
+    const bool hasSceneContribution = (backgroundMask > 0.5f) || (dot(abs(hdr.rgb), float3(1.f, 1.f, 1.f)) > 0.0001f);
+    if (g_PP_UseBackgroundFallback != 0 && !hasSceneContribution)
+    {
+        color = g_PP_BackgroundFallbackColor.rgb;
+        outAlpha = 1.f;
+    }
+    */
+
     // 최종 출력 화면은 LDR
-    Out.Color = float4(saturate(color), hdr.a);
+    Out.Color = float4(saturate(color), outAlpha);
     return Out;
 }
 

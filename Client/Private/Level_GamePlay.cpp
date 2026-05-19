@@ -256,35 +256,35 @@ HRESULT Level_GamePlay::Ready_Layer_Effect(const wstring& strLayerTag)
     effectDefinition->name = "Thunder_Fall_Lightning_Test";
 
     ComputeSpriteEmitterDesc emitterDesc{};
-    emitterDesc.textureId = "Texture_Effect_LightningBook2x2";
-    emitterDesc.tint = Vec4(0.50f, 0.50f, 1.00f, 1.00f); // 파란색
-    emitterDesc.intensity = 2.f;
-    emitterDesc.opacityPower = 0.f;
-    emitterDesc.noiseStrength = 0.2f;
-    emitterDesc.blendMode = "Additive";
-    emitterDesc.opacitySource = "Red";
-    emitterDesc.subUVRows = 2u;
-    emitterDesc.subUVCols = 2u;
-    emitterDesc.screenAlignment = EffectSpriteScreenAlignment::Velocity;
-    emitterDesc.directionalAlignmentMode = EffectSpriteDirectionalAlignmentMode::TextureAxis;
-    emitterDesc.spriteTextureAxis = EffectSpriteTextureAxis::Y;
-    emitterDesc.duration = 0.45f;
-    emitterDesc.loopCount = 0u;
-    emitterDesc.instanceCount = 24u;
-    emitterDesc.maxDrawCount = 24u;
+    emitterDesc.required.material.textureId = "Texture_Effect_LightningBook2x2";
+    emitterDesc.required.material.tint = Vec4(0.50f, 0.50f, 1.00f, 1.00f); // 파란색
+    emitterDesc.required.material.intensity = 2.f;
+    emitterDesc.required.material.opacityPower = 0.f;
+    emitterDesc.required.material.noiseStrength = 0.2f;
+    emitterDesc.required.material.blendMode = "Additive";
+    emitterDesc.required.material.opacitySource = "Red";
+    emitterDesc.required.material.subUVRows = 2u;
+    emitterDesc.required.material.subUVCols = 2u;
+    emitterDesc.required.spriteRender.screenAlignment = EffectSpriteScreenAlignment::Velocity;
+    emitterDesc.required.spriteRender.directionalAlignmentMode = EffectSpriteDirectionalAlignmentMode::TextureAxis;
+    emitterDesc.required.spriteRender.spriteTextureAxis = EffectSpriteTextureAxis::Y;
+    emitterDesc.required.playback.duration = 0.45f;
+    emitterDesc.required.playback.loopCount = 0u;
+    emitterDesc.required.drawLimit.maxDrawCount = 24u;
+    emitterDesc.spawn.instanceCount = 24u;
 
-    emitterDesc.spawn.processSpawnRate = false;
-    emitterDesc.spawn.processBurstList = true;
-    emitterDesc.spawn.bursts = {
+    emitterDesc.spawn.particleSpawn.processSpawnRate = false;
+    emitterDesc.spawn.particleSpawn.processBurstList = true;
+    emitterDesc.spawn.particleSpawn.bursts = {
         PointParticleBurstDesc{ 0.00f, 6u },
         PointParticleBurstDesc{ 0.14f, 5u },
         PointParticleBurstDesc{ 0.28f, 4u }
     };
-    emitterDesc.spawn.maxActiveCount = 24u;
+    emitterDesc.spawn.particleSpawn.maxActiveCount = 24u;
 
-    emitterDesc.lifeTime = Vec2(0.40f, 1.10f);
-    emitterDesc.sizeMin = Vec2(0.12f, 0.14f);
-    emitterDesc.sizeMax = Vec2(0.22f, 0.42f);
+    emitterDesc.lifetime.lifeTime = Vec2(0.40f, 1.10f);
+    emitterDesc.initialSize.sizeMin = Vec2(0.12f, 0.14f);
+    emitterDesc.initialSize.sizeMax = Vec2(0.22f, 0.42f);
 
     emitterDesc.motion.enabled = true;
     emitterDesc.motion.initialRadialVelocityEnabled = true;
@@ -311,10 +311,10 @@ HRESULT Level_GamePlay::Ready_Layer_Effect(const wstring& strLayerTag)
     emitterDesc.subUVFrameOverLife.loop = true;
     emitterDesc.subUVFrameOverLife.framesPerSecond = 20.f;
 
-    emitterDesc.startColorMin = Vec4(1.f, 1.f, 1.f, 0.85f);
-    emitterDesc.startColorMax = Vec4(1.f, 1.f, 1.f, 1.00f);
-    emitterDesc.endColorMin = Vec4(0.60f, 0.80f, 0.95f, 0.08f);
-    emitterDesc.endColorMax = Vec4(0.85f, 0.90f, 1.00f, 0.08f);
+    emitterDesc.initialColor.startColorMin = Vec4(1.f, 1.f, 1.f, 0.85f);
+    emitterDesc.initialColor.startColorMax = Vec4(1.f, 1.f, 1.f, 1.00f);
+    emitterDesc.colorOverLife.endColorMin = Vec4(0.60f, 0.80f, 0.95f, 0.08f);
+    emitterDesc.colorOverLife.endColorMax = Vec4(0.85f, 0.90f, 1.00f, 0.08f);
 
     EffectEmitterDefinition emitterDefinition{};
     emitterDefinition.id = 1u;

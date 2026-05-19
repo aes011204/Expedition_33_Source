@@ -23,10 +23,12 @@ public:
 
 private:
     inline static const Vec4 kDefaultClearColor{ 0.18f, 0.18f, 0.18f, 1.f };
+    inline static const Color kHdrClearColorOverride{ 0.2f, 0.2f, 0.2f, 1.f };
 
 private:
     ComPtr<Device> _device{};
     ComPtr<Context> _context{};
+    bool _hdrClearColorOverrideSet = false;
 
 private:
     HRESULT Ready_Fonts();

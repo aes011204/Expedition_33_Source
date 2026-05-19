@@ -22,6 +22,7 @@ namespace RT
     inline constexpr const wchar_t* StaticLightDepth = L"Target_StaticLightDepth";  // Static Shadow
 
     inline constexpr const wchar_t* HDRColor = L"Target_HDRColor";
+    inline constexpr const wchar_t* BackgroundMask = L"Target_BackgroundMask";
     inline constexpr const wchar_t* BloomExtract = L"Target_BloomExtract";
     inline constexpr const wchar_t* BloomBlur = L"Target_Blur";
 }
