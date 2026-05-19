@@ -14,6 +14,8 @@ public:
     virtual HRESULT Initialize(void* arg) override
     {
         if (FAILED(GameObject::Initialize(arg))) return E_FAIL;
+        _fovY = XMConvertToRadians(60.f);
+        _near = 0.1f;
         _far = 1000.f;
         return S_OK;
     }

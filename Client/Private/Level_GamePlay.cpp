@@ -54,7 +54,7 @@ void Level_GamePlay::Update(float fTimeDelta)
 {
 #ifdef _DEBUG
     const int32 fps = (fTimeDelta > 0.f)
-            ? static_cast<int32>(1.f / fTimeDelta) : 0.f;
+            ? static_cast<int32>(1.f / fTimeDelta) : 0;
 
      GAME->Print(L"현재 FPS : {}", fps, duration(0.f), color(Vec4(1.f, 1.f, 0.f, 1.f)));
 #else

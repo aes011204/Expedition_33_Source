@@ -126,7 +126,7 @@ void Profile_View::Frame_Begin()
     auto& runtime = *activeView->_runtime;
     runtime.frameIndex++;
     runtime.avgWindow = max(1, activeView->_avgWindow);
-    runtime.capture = activeView->_capture;
+    runtime.capture = activeView->_capture && activeView->Is_Open();
 }
 
 void Profile_View::Frame_End()

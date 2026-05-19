@@ -4,14 +4,14 @@
 #include "InputCom.h"
 #include "MovementCom.h"
 
-#include "Debug_Profile.h""
+#include "Debug_Profile.h"
 
 IMPLEMENT_REFLECTION(PlayerControllerCom)
 {
     auto& info = GetStaticReflectionInfo();
     info.properties.clear();
 
-    PROPERTY_BOOL("Use Controll Yaw", _bUseControllerRotationYaw);
+    PROPERTY_BOOL("Use Control Yaw", _bUseControllerRotationYaw);
     PROPERTY_FLOAT("Test 값", _testRefectionValue, 0.f, 3.f, 0.05f);
 
     return true;
@@ -141,6 +141,11 @@ void PlayerControllerCom::Update_Movement(float timeDelta)
     _movementCom->Update_Movement(timeDelta);
 }
 
+Vec3 PlayerControllerCom::Get_Velocity() const
+{
+    return _movementCom->Get_Velocity();
+}
+
 bool PlayerControllerCom::Has_MoveInput() const
 {
     if (_followControl.enabled)
@@ -209,6 +214,13 @@ void PlayerControllerCom::Check_RigidInput()
     if (_rigidControl.rigidJump)
     {
         _currentInput.isJumpDown = false;
+    }
+
+    if (_rigidControl.rigidVelocity != Vec3::Zero)
+    {
+        Vec3 vel = _rigidControl.rigidVelocity;
+        _currentInput.moveZ = 1.f;              // TODO : 확장성 애매해서 Root모션 
+        _movementCom->Set_Velocity(vel);
     }
 
     _rigidControl = {};

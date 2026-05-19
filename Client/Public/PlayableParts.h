@@ -29,12 +29,17 @@ public:
     const Matrix* Get_SocketBoneMatrixPtr(uint32 boneIndex) const;
     void Set_Animation(uint32 animIndex, float blendDuration, bool isLoop = false) const;
     void Set_Animation(uint32 animIndex, bool isLoop) const;
-    void Set_AnimationByState(uint32 stateIndex, float blendDuration, bool isLoop = false) const;
-    void Set_AnimationByState(uint32 stateIndex, bool isLoop) const;
+    bool Set_AnimationByState(uint32 stateIndex, float blendDuration, bool isLoop = false) const;
+    bool Set_AnimationByState(uint32 stateIndex, bool isLoop) const;
     uint32 Get_AnimationIndex() const;
     uint32 Get_AnimationStateIndex() const;
     float Get_AnimationProgress() const;
+    bool Is_AnimationBlending() const;
     bool Is_AnimationFinished() const;
+    Vec3 Get_RootMotionPosition() const;
+
+    void Set_AnimationSpeed(float speed) const;
+    float Get_AnimationSpeed() const;
 
     Shared<ModelCom> Get_Model() const { return _modelCom; }
 

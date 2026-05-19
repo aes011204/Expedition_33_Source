@@ -128,20 +128,17 @@ void ModelCom::Set_Animation(uint32 animIndex, bool isLoop, float startFrame)
     Mark_BoneMatricesDirty();
 }
 
-void ModelCom::Set_AnimationByState(uint32 stateIndex, bool isLoop, float startFrame)
+bool ModelCom::Set_AnimationByState(uint32 stateIndex, bool isLoop, float startFrame)
 {
-    uint32 animIndex = stateIndex;
-
-    if (!_stateAnimIndices.empty() && stateIndex < _stateAnimIndices.size())
+    if (stateIndex >= _stateAnimIndices.size() || _stateAnimIndices[stateIndex] == UINT32_MAX)
     {
-        if (_stateAnimIndices[stateIndex] != UINT32_MAX)
-        {
-            animIndex = _stateAnimIndices[stateIndex];
-        }
+        LOG_WARN("[{}] Set_AnimationByState Failed: Invalid StateIndex [{}]",
+            String::ToString(Get_Owner()->Get_Owner()->Get_Name()), stateIndex);
+
+        return false;
     }
 
-    if (animIndex >= _animations.size()) return;
-
+    const uint32 animIndex = _stateAnimIndices[stateIndex];
     _currentAnimStateIndex = stateIndex;
     _currentAnimIndex = animIndex;
     _isAnimLoop = isLoop;
@@ -150,6 +147,7 @@ void ModelCom::Set_AnimationByState(uint32 stateIndex, bool isLoop, float startF
     _animations[_currentAnimIndex]->Set_StartFrame(startFrame);
 
     Mark_BoneMatricesDirty();
+    return true;
 }
 
 void ModelCom::Set_Animation(uint32 animIndex, float blendDuration, bool isLoop, float startFrame)
@@ -189,20 +187,17 @@ void ModelCom::Set_Animation(const string& animName, float blendDuration, bool i
     Set_Animation(_mappedAnimIndices[animName], blendDuration, isLoop, startFrame);
 }
 
-void ModelCom::Set_AnimationByState(uint32 stateIndex, float blendDuration, bool isLoop, float startFrame)
+bool ModelCom::Set_AnimationByState(uint32 stateIndex, float blendDuration, bool isLoop, float startFrame)
 {
-    uint32 animIndex = stateIndex;
-
-    if (!_stateAnimIndices.empty() && stateIndex < _stateAnimIndices.size())
+    if (stateIndex >= _stateAnimIndices.size() || _stateAnimIndices[stateIndex] == UINT32_MAX)
     {
-        if (_stateAnimIndices[stateIndex] != UINT32_MAX)
-        {
-            animIndex = _stateAnimIndices[stateIndex];
-        }
+        LOG_WARN("[{}] Set_AnimationByState Failed: Invalid StateIndex [{}]",
+            String::ToString(Get_Owner()->Get_Owner()->Get_Name()), stateIndex);
+
+        return false;
     }
 
-    if (animIndex >= _animations.size()) return;
-
+    const uint32 animIndex = _stateAnimIndices[stateIndex];
     _nextAnimStateIndex = stateIndex;
     _nextAnimIndex = animIndex;
     _isAnimLoop = isLoop;
@@ -213,6 +208,7 @@ void ModelCom::Set_AnimationByState(uint32 stateIndex, float blendDuration, bool
     _animations[_nextAnimIndex]->Set_StartFrame(startFrame);
 
     Mark_BoneMatricesDirty();
+    return true;
 }
 
 const char* ModelCom::Get_AnimationName(uint32 animationIndex) const
@@ -300,18 +296,20 @@ void ModelCom::Rebuild_BoneCombinedMatrices()
 
 float ModelCom::Get_CurrentProgress() const
 {
-    if (_animations.empty() || _currentAnimIndex >= _animations.size())
-        return 0.f;
+	uint32 index = _isBlending ? _nextAnimIndex : _currentAnimIndex;
+	if (_animations.empty() || index >= _animations.size())
+		return 0.f;
 
-    return _animations[_currentAnimIndex]->Get_Progress();
+	return _animations[index]->Get_Progress();
 }
 
 float ModelCom::Get_CurrentFrame() const
 {
-    if (_animations.empty() || _currentAnimIndex >= _animations.size())
-        return 0.f;
+	uint32 index = _isBlending ? _nextAnimIndex : _currentAnimIndex;
+	if (_animations.empty() || index >= _animations.size())
+		return 0.f;
 
-    return _animations[_currentAnimIndex]->Get_Progress() * _animations[_currentAnimIndex]->Get_Duration();
+	return _animations[index]->Get_Progress() * _animations[index]->Get_Duration();
 }
 
 const RootMotionFrame& ModelCom::Get_RootTransformVelocity(float scaleOffset)

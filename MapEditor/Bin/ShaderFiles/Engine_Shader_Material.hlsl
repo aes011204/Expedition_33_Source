@@ -42,7 +42,7 @@ float4 SampleBaseColor(float2 uv)
 {
     float4 baseColor = g_MaterialTextures[MATERIAL_SLOT_BASECOLOR].Sample(LinearWrapSampler, uv);
     
-    if (baseColor.a < 0.34f)
+    if (baseColor.a < 0.3f)
         discard;
     
     baseColor.rgb *= g_BaseColorTint.rgb;
