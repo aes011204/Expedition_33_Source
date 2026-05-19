@@ -49,6 +49,10 @@ public:
         int32 rootNodeIndex);
 
 private:
+    void Build_ChannelIndexCache();
+    int32 Find_ChannelIndexByBoneIndex(int32 boneIndex) const;
+
+private:
     string                      _animationName;
 	uint32						_numChannels{};
 	vector<Shared<Channel>>		_channels;
@@ -56,6 +60,8 @@ private:
 	float						_duration{};
 	float						_tickPerSecond{};
 	float						_currentTrackPosition{};
+
+    vector<int32>               _channelIndexByBoneIndex{};
 
 public:
 	static Shared<Animation> Create(const ModelAnimationData& animData, const vector<ModelChannelData>& channels);

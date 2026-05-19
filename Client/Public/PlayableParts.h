@@ -4,6 +4,7 @@
 NS_BEGIN(Engine)
 class ShaderCom;
 class ModelCom;
+class AnimComputeRuntime;
 NS_END
 
 NS_BEGIN(Client)
@@ -55,10 +56,11 @@ protected:
     void Update_CombinedWorldMatrix(const Matrix& childMatrix) override;
 
 protected:
-    Matrix              _offsetMatrix{};
-    const Matrix*       _socketMatrix{ nullptr };
-    Shared<ShaderCom>   _shaderCom{ nullptr };
-    Shared<ModelCom>    _modelCom{ nullptr };
+    Matrix                      _offsetMatrix{};
+    const Matrix*               _socketMatrix{ nullptr };
+    Shared<ShaderCom>           _shaderCom{ nullptr };
+    Shared<ModelCom>            _modelCom{ nullptr };
+    Shared<AnimComputeRuntime>  _animComputeRuntime{ nullptr };
 
 protected:
     virtual HRESULT Ready_Components(const PLAYABLE_PART_DESC& desc);

@@ -139,21 +139,33 @@ HRESULT MainEditorApp::Render()
     {
         Profile_View::Scope profileScope("Game::Render");
 
-        GAME->Bind_BackBuffer();
+        {
+            Profile_View::Scope bindScope("Game::BindBackBuffer");
+            GAME->Bind_BackBuffer();
+        }
 
         const bool isLoading = GAME->Current_LevelIndex() == ETOI(LevelType::Loading);
         const Vec4 clearColor = isLoading
             ? Vec4(0.f, 0.f, 0.f, 1.f)
             : Vec4(0.f, 0.f, 1.f, 1.f);
 
-        if (FAILED(GAME->Clear_Buffers(clearColor)))
-            return fail();
+        {
+            Profile_View::Scope clearScope("Game::ClearBuffers");
+            if (FAILED(GAME->Clear_Buffers(clearColor)))
+                return fail();
+        }
 
-        if (FAILED(GAME->Draw()))
-            return fail();
+        {
+            Profile_View::Scope drawScope("Game::Draw");
+            if (FAILED(GAME->Draw()))
+                return fail();
+        }
 
         // picking
-        EDITOR->Flush_PendingPick();
+        {
+            Profile_View::Scope pickScope("Editor::FlushPendingPick");
+            EDITOR->Flush_PendingPick();
+        }
     }
 
     {
@@ -174,7 +186,10 @@ HRESULT MainEditorApp::Render()
             EDITOR->Render_Editor();
         }
 
-        GAME->Bind_BackBuffer();
+        {
+            Profile_View::Scope restoreScope("Editor::RestoreBackBuffer");
+            GAME->Bind_BackBuffer();
+        }
     }
 
     {

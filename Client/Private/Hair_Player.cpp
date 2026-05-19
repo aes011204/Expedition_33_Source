@@ -6,6 +6,7 @@
 #include "Player_WorldBase.h"
 #include "ModelCom.h"
 #include "Debug_Profile.h"
+#include "AnimComputeRuntime.h"
 
 Hair_Player::Hair_Player(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : PlayableParts{ device, context } {
@@ -122,7 +123,7 @@ void Hair_Player::Update(float timeDelta)
     }
     // physics를 실제로 실행한 프레임에만 bone buffer 재업로드
     if (!_wasPhysicsSkipped)
-        CHECK_FAILED(_modelCom->Prepare_BoneMatrixBuffers());
+        CHECK_FAILED(_animComputeRuntime->Prepare_BoneMatrixBuffers());
 }
 
 void Hair_Player::Late_Update(float timeDelta)

@@ -1,5 +1,4 @@
 ﻿#include "Animation_View.h"
-#include "Animation_PreviewObject.h"
 #include "Animation_NameUtils.h"
 #include "AnimSequencerAdapter.h"
 #include "AnimNotify_Parser.h"
@@ -151,7 +150,6 @@ void Animation_View::Pre_Render()
     if (Is_PrefabViewFocused())
         return;
 
-    Ensure_PreviewObject();
     Shared<GameObject> previewRenderObject = Get_PreviewRenderObject();
     if (previewRenderObject == nullptr || _previewCamera == nullptr)
         return;
@@ -159,12 +157,6 @@ void Animation_View::Pre_Render()
     Ensure_PreviewRenderTarget(_previewWidth, _previewHeight);
     if (_previewRenderTarget == nullptr)
         return;
-
-    if (_sourceMode == SourceMode::AssetOnly && !_previewHasBegunPlay)
-    {
-        previewRenderObject->Try_BeginPlay();
-        _previewHasBegunPlay = true;
-    }
 
     const Matrix savedView = *GAME->Get_Transform(D3DTS::View);
     const Matrix savedProj = *GAME->Get_Transform(D3DTS::Proj);
@@ -206,7 +198,7 @@ void Animation_View::Pre_Render()
     GAME->Set_PlayerInputBlocked(true);
 
     const float dt = ImGui::GetIO().DeltaTime;
-    if (_sourceMode == SourceMode::AssetOnly || _sourceMode == SourceMode::LiveModel)
+    if (_sourceMode == SourceMode::LiveModel)
     {
         previewRenderObject->Priority_Update(dt);
         previewRenderObject->Update(dt);
@@ -349,21 +341,11 @@ void Animation_View::Save()
 
 void Animation_View::Open_FromAsset(const wstring& modelPath, const string& modelGuid, const string& preferredAnimationName, uint32 preferredDockId)
 {
-    const bool reusePreview = (_sourceModelPath == modelPath && _previewObject != nullptr);
-
-    _sourceMode = SourceMode::AssetOnly;
+    _sourceMode = SourceMode::None;
     _sourceModelPath = modelPath;
     _liveModelCom.reset();
     _pendingDockId = preferredDockId;
     _requestFocusOnOpen = true;
-    _requestAutoPlayOnOpen = true;
-
-    if (!reusePreview)
-    {
-        _previewObject.reset();
-        _previewModelCom.reset();
-        _previewHasBegunPlay = false;
-    }
 
     _modelGuid = modelGuid;
     _currentAnimationName = preferredAnimationName;
@@ -377,14 +359,6 @@ void Animation_View::Open_FromAsset(const wstring& modelPath, const string& mode
     Refresh_Source();
     Load_NotifyAsset();
 
-    if (reusePreview)
-    {
-        Sync_PreviewAnimationSelection();
-        if (_previewModelCom != nullptr)
-            _previewModelCom->Set_AnimationPaused(false);
-        _requestAutoPlayOnOpen = false;
-    }
-
     Set_Open(true);
 }
 
@@ -397,10 +371,6 @@ void Animation_View::Open_FromModelComponent(const Shared<ModelCom>& modelCom, c
     _sourceModelPath = sourceModelPath;
     _pendingDockId = preferredDockId;
     _requestFocusOnOpen = focusOnOpen;
-    _requestAutoPlayOnOpen = false;
-    _previewObject.reset();
-    _previewModelCom.reset();
-    _previewHasBegunPlay = false;
 
     _modelGuid = _sourceModelPath.empty() ? string{} : GAME->Ensure_AssetGUID(_sourceModelPath, "Model");
     _currentAnimationName = preferredAnimationName;
@@ -430,9 +400,6 @@ int32 Animation_View::Get_CurrentAnimationFps() const
 
 float Animation_View::Get_CurrentAnimationLengthSec() const
 {
-    if (_previewModelCom != nullptr)
-        return _previewModelCom->Get_CurrentAnimationDurationSec();
-
     if (_liveModelCom != nullptr)
         return _liveModelCom->Get_CurrentAnimationDurationSec();
 
@@ -448,72 +415,7 @@ void Animation_View::Refresh_Source()
 {
     _availableAnimations.clear();
 
-    if (_previewModelCom != nullptr)
-    {
-        const uint32 numAnimations = static_cast<uint32>(_previewModelCom->Get_NumAnimations());
-        vector<string> playbackNames{};
-        playbackNames.reserve(numAnimations);
-
-        for (uint32 i = 0; i < numAnimations; ++i)
-        {
-            if (const char* animationName = _previewModelCom->Get_AnimationName(i))
-                playbackNames.push_back(animationName);
-        }
-
-        const vector<AnimationNameUtils::AssetAnimationInfo> assetInfos =
-            AnimationNameUtils::Collect_AssetAnimationInfos(_sourceModelPath);
-        if (!assetInfos.empty())
-        {
-            vector<bool> usedPlayback(playbackNames.size(), false);
-            _availableAnimations.reserve(assetInfos.size() + playbackNames.size());
-
-            for (const auto& assetInfo : assetInfos)
-            {
-                AnimationEntry entry{};
-                entry.name = assetInfo.stem;
-                entry.displayName = assetInfo.displayName;
-                entry.playbackName = assetInfo.stem;
-
-                const int32 matchedPlaybackIndex =
-                    AnimationNameUtils::Find_BestPlaybackMatchIndex(assetInfo, playbackNames, usedPlayback);
-                if (matchedPlaybackIndex >= 0)
-                {
-                    entry.playbackName = playbackNames[matchedPlaybackIndex];
-                    usedPlayback[matchedPlaybackIndex] = true;
-                }
-
-                _availableAnimations.push_back(move(entry));
-            }
-
-            for (int32 i = 0; i < static_cast<int32>(playbackNames.size()); ++i)
-            {
-                if (i < static_cast<int32>(usedPlayback.size()) && usedPlayback[i])
-                    continue;
-
-                const string& playbackName = playbackNames[i];
-
-                AnimationEntry entry{};
-                entry.name = playbackName;
-                entry.playbackName = playbackName;
-                entry.displayName = AnimationNameUtils::Make_DisplayNameFallback(playbackName);
-                _availableAnimations.push_back(move(entry));
-            }
-
-        }
-        else
-        {
-            _availableAnimations.reserve(playbackNames.size());
-            for (const string& playbackName : playbackNames)
-            {
-                AnimationEntry entry{};
-                entry.name = playbackName;
-                entry.playbackName = playbackName;
-                entry.displayName = AnimationNameUtils::Make_DisplayNameFallback(playbackName);
-                _availableAnimations.push_back(move(entry));
-            }
-        }
-    }
-    else if (_sourceMode == SourceMode::LiveModel)
+    if (_sourceMode == SourceMode::LiveModel)
     {
         Refresh_LiveAnimationList();
     }
@@ -671,9 +573,6 @@ void Animation_View::Refresh_OpenModelNotifyAssets() const
     if (_liveModelCom != nullptr)
         _liveModelCom->Invalidate_AnimNotifyAsset();
 
-    if (_previewModelCom != nullptr)
-        _previewModelCom->Invalidate_AnimNotifyAsset();
-
     if (_sourceModelPath.empty())
         return;
 
@@ -688,10 +587,10 @@ void Animation_View::Refresh_OpenModelNotifyAssets() const
 void Animation_View::Draw_Header()
 {
     const char* sourceLabel = "None";
-    if (_sourceMode == SourceMode::AssetOnly)
-        sourceLabel = "Asset";
-    else if (_sourceMode == SourceMode::LiveModel)
+    if (_sourceMode == SourceMode::LiveModel)
         sourceLabel = "LiveModel";
+    else if (!_sourceModelPath.empty())
+        sourceLabel = "Asset";
 
     const AnimationEntry* currentEntry = Find_AnimationEntryByAnyName(_availableAnimations, _currentAnimationName);
     const char* previewName = currentEntry ? currentEntry->displayName.c_str() : "(select animation)";
@@ -762,10 +661,6 @@ void Animation_View::Draw_AnimationSelector()
                     _liveModelCom->Set_CurrentAnimationTimeSec(0.f);
                     _liveModelCom->Refresh_CurrentAnimationPose();
                 }
-            }
-            else if (_previewModelCom != nullptr)
-            {
-                _previewModelCom->Set_AnimationPaused(false);
             }
         }
 
@@ -1659,61 +1554,7 @@ void Animation_View::Draw_SequencerContextMenu()
 
 Shared<ModelCom> Animation_View::Get_PlaybackModel() const
 {
-    if (_previewModelCom != nullptr)
-        return _previewModelCom;
-
     return _liveModelCom;
-}
-
-void Animation_View::Ensure_PreviewObject()
-{
-    if (_sourceModelPath.empty())
-        return;
-
-    if (_sourceMode == SourceMode::LiveModel)
-    {
-        Ensure_PreviewCamera();
-        return;
-    }
-
-    if (_previewObject == nullptr)
-    {
-        Shared<Animation_PreviewObject> previewObject = Animation_PreviewObject::Create(GAME->Get_Device(), GAME->Get_Context());
-        if (previewObject == nullptr)
-            return;
-
-        if (!previewObject->Set_ModelPath(_sourceModelPath))
-            return;
-
-        _previewObject = previewObject;
-        _previewModelCom = previewObject->Get_ModelComponent();
-
-        if (Shared<TransformCom> previewTransform = _previewObject->Get_Transform())
-            previewTransform->Set_Position(Vec3::Zero);
-
-        Ensure_PreviewCamera();
-        Fit_PreviewCameraToModel();
-        Refresh_Source();
-
-        if (Find_AnimationEntryByAnyName(_availableAnimations, _currentAnimationName) == nullptr && !_availableAnimations.empty())
-            _currentAnimationName = _availableAnimations.front().displayName;
-
-        if (!_currentAnimationName.empty())
-        {
-            if (const AnimationEntry* currentEntry = Find_AnimationEntryByAnyName(_availableAnimations, _currentAnimationName))
-                Find_OrNormalize_NotifyAnimation(_asset, *currentEntry);
-            else
-                AnimNotify_Parser::Get_OrAddAnimation(_asset, _currentAnimationName);
-        }
-
-        Sync_PreviewAnimationSelection();
-
-        if (_requestAutoPlayOnOpen && _previewModelCom != nullptr)
-        {
-            _previewModelCom->Set_AnimationPaused(false);
-            _requestAutoPlayOnOpen = false;
-        }
-    }
 }
 
 void Animation_View::Ensure_PreviewRenderTarget(uint32 width, uint32 height)
@@ -1766,10 +1607,10 @@ void Animation_View::Ensure_PreviewCamera()
 
 Shared<GameObject> Animation_View::Get_PreviewRenderObject() const
 {
-    if (_sourceMode == SourceMode::LiveModel && _liveModelCom != nullptr)
+    if (_liveModelCom != nullptr)
         return Resolve_RootPreviewObject(_liveModelCom->Get_Owner());
 
-    return _previewObject;
+    return nullptr;
 }
 
 void Animation_View::Fit_PreviewCameraToModel()
