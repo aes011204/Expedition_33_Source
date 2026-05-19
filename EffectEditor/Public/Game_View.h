@@ -4,8 +4,7 @@
 
 NS_BEGIN(EffectEditor)
 
-// 현재 비활성화중
-class Game_View final : public Editor_Window
+class [[deprecated("Currently disabled in EffectEditor.")]] Game_View final : public Editor_Window
 {
 public:
     Game_View();

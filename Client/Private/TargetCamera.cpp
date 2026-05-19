@@ -41,7 +41,7 @@ HRESULT TargetCamera::Initialize(void* arg)
     _currentSettings.pivotHeight = desc->pivotHeight;
     _currentSettings.mouseSensitivity = desc->mouseSensitivity;
     _currentSettings.yawOffset = desc->yawOffset;
-    _currentSettings.pitchOffset = desc->pivotHeight;
+    _currentSettings.pitchOffset = desc->pitchOffset;
     _currentSettings.rollOffset = desc->rollOffset;
     
     _yaw = 0.f;
@@ -61,6 +61,13 @@ HRESULT TargetCamera::Initialize(void* arg)
     _currentState = CAMERA_STATE::NORMAL;
     _currentSettings = _normalPreset;
     _targetSettings = _currentSettings;
+
+    _collisionQueryAccum = 0.f;
+    _hasCollisionQueryCache = false;
+    _lastCollisionSweepStart = Vec3::Zero;
+    _lastCollisionDesiredPos = Vec3::Zero;
+    _lastCollisionResolvedPos = Vec3::Zero;
+
     return S_OK;
 }
 
@@ -70,9 +77,27 @@ void TargetCamera::BeginPlay()
 
     GAME->Add_Camera(GetSharedPtr<Camera>());
     GAME->Change_ActiveCamera(GetSharedPtr<Camera>());
-    _targetTransformCom =  CLIENT->Find_Player(GAME->Current_LevelIndex())->Get_Transform();
+
+    Refresh_TargetTransform();
+
     _prevTargetPos = _targetTransformCom.lock()->Get_WorldPosition();
     _smoothedTargetPos = _prevTargetPos;
+}
+
+void TargetCamera::OnActivated()
+{
+    Refresh_TargetTransform();
+
+    Shared<TransformCom> targetTransformCom;
+    if (Try_GetTargetTransform(targetTransformCom))
+    {
+        const Vec3 targetPos = targetTransformCom->Get_WorldPosition();
+        _prevTargetPos = targetPos;
+        _smoothedTargetPos = targetPos;
+    }
+
+    Update_FromCurrentSettings(0.f);
+    Apply_View();
 }
 
 void TargetCamera::Priority_Update(float timeDelta)
@@ -208,13 +233,6 @@ void TargetCamera::Update_FromCurrentSettings(float timeDelta)
     const Matrix pitchRotation = XMMatrixRotationAxis(rightDir, pitchRad);
     const Vec3 orbitOffset = XMVector3TransformNormal(baseOffset, pitchRotation);
 
-    //Vec3 delta = targetPos - _smoothedTargetPos;
-    //
-    //if(delta.LengthSquared() < 0.0004f)
-    //  _smoothedTargetPos = targetPos;
-    //
-    //_smoothedTargetPos = Math::Lerp_Damp(_smoothedTargetPos, targetPos, followSpeed, timeDelta);
-
     _smoothedTargetPos = targetPos;
 
     const Vec3 pivotPos = _smoothedTargetPos + Vec3::Up * _currentSettings.pivotHeight;
@@ -222,19 +240,70 @@ void TargetCamera::Update_FromCurrentSettings(float timeDelta)
     Vec3 desiredPos = framingPos + orbitOffset + Vec3::Up * _currentSettings.heightOffset + rightDir * _currentSettings.sideOffset;
     Vec3 lookTarget = framingPos + Vec3::Up * _currentSettings.lookHeight;
 
-    const Vec3 collisionStart = lookTarget;
-    Vec3 newPos = Resolve_Collision(collisionStart, desiredPos, timeDelta);
+        const Vec3 collisionStart = lookTarget;
+
+    Vec3 newPos = desiredPos;
+
+    if (_currentSettings.doCollisionTest)
+    {
+        // 카메라 기준점이나 목표 위치가 충분히 바뀌면 즉시 sweep
+        const float sweepStartDeltaSq = (collisionStart - _lastCollisionSweepStart).LengthSquared();
+        const float desiredPosDeltaSq = (desiredPos - _lastCollisionDesiredPos).LengthSquared();
+
+        const bool movedEnoughForImmediateQuery =
+            sweepStartDeltaSq > 0.0004f ||
+            desiredPosDeltaSq > 0.0004f;
+
+        if (!_hasCollisionQueryCache || movedEnoughForImmediateQuery)
+        {
+            _collisionQueryAccum = 0.f;
+
+            newPos = Resolve_Collision(collisionStart, desiredPos, timeDelta);
+
+            _hasCollisionQueryCache = true;
+            _lastCollisionSweepStart = collisionStart;
+            _lastCollisionDesiredPos = desiredPos;
+            _lastCollisionResolvedPos = newPos;
+        }
+        else
+        {
+            _collisionQueryAccum += timeDelta;
+
+            // 변화가 거의 없으면 매 프레임 sweep하지 않고 이전 결과를 재사용
+            if (_collisionQueryAccum >= _collisionQueryInterval)
+            {
+                _collisionQueryAccum = 0.f;
+
+                newPos = Resolve_Collision(collisionStart, desiredPos, timeDelta);
+
+                _lastCollisionSweepStart = collisionStart;
+                _lastCollisionDesiredPos = desiredPos;
+                _lastCollisionResolvedPos = newPos;
+            }
+            else
+            {
+                newPos = _lastCollisionResolvedPos;
+            }
+        }
+    }
 
     _transformCom->Set_WorldPosition(newPos);
     _transformCom->LookAt(lookTarget);
     _transformCom->Add_LocalRotation(Quat::CreateFromAxisAngle(Vec3::Forward, _currentSettings.rollOffset));
 
+    _fovY;
     Update_TransformMatrices();
     GAME->UpdateFrustum(*GAME->Get_Transform(D3DTS::View), *GAME->Get_Transform(D3DTS::Proj));
 
     _prevTargetPos = targetPos;
 
-    Vec3 pos = _transformCom->Get_WorldPosition();
+}
+
+void TargetCamera::Refresh_TargetTransform()
+{
+    auto player = CLIENT->Find_Player(GAME->Current_LevelIndex());
+    if (player && player->Get_Transform())
+        _targetTransformCom = player->Get_Transform();
 }
 
 void TargetCamera::Update_NormalState(float timeDelta)
@@ -317,6 +386,9 @@ void TargetCamera::Change_State(CAMERA_STATE state)
         return;
 
     _currentState = state;
+    _collisionQueryAccum = 0.f;
+    _hasCollisionQueryCache = false;
+    _collisionDistance = -1.f;
 
     switch(_currentState)
     {
@@ -367,6 +439,10 @@ void TargetCamera::SetTargetTransform(Shared<TransformCom> targetTransform)
       // 전환 직후 이전 target 위치가 남아 있으면 카메라 보간이 튈 수 있어서
     if (targetTransform)
         _prevTargetPos = targetTransform->Get_WorldPosition();
+
+    _collisionQueryAccum = 0.f;
+    _hasCollisionQueryCache = false;
+    _collisionDistance = -1.f;
 }
 
 const TargetCamera::TARGETCAMERA_DESC& TargetCamera::Get_Preset(CAMERA_STATE state) const

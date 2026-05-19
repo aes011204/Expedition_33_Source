@@ -59,6 +59,7 @@ void Camera_Manager::Change_ActiveCamera(Shared<Camera> camera)
         return;
 
     m_activeCamera = camera;
+    m_activeCamera->OnActivated();
     _hasPendingFreeCameraFocus = false;
 }
 

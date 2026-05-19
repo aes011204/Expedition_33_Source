@@ -29,6 +29,8 @@ public: //## Behavior::DataTransfer
     HRESULT Update_Data(const void* data, uint32 elementCount);
     // 같은 크기/형식의 GPU resource에서 현재 buffer로 복사한다.
     HRESULT Copy_From(ID3D11Resource* source);
+    // GPU buffer 내용을 CPU 메모리로 읽어온다.
+    HRESULT Read_Data(void* outData, uint32 elementCount);
 
 public: //## Accessors
     Buffer* Get_Buffer() const { return _buffer.Get(); }        // 원본 D3D buffer 접근.
@@ -46,6 +48,7 @@ private: //## Data::Resource
     ComPtr<Buffer> _buffer{};           // structured GPU buffer.
     ComPtr<ShaderResourceView> _srv{};  // buffer read view.
     ComPtr<UnorderedAccessView> _uav{}; // buffer write view.
+    ComPtr<Buffer> _readbackBuffer{};   // CPU readback staging buffer.
 
 private: //## Data::Layout
     uint32 _elementSize{ 0 };  // D3D11 StructureByteStride와 동일한 값.

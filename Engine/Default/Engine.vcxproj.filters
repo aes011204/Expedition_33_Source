@@ -313,9 +313,6 @@
     <ClInclude Include="..\Public\AnimNotify.h">
       <Filter>01.Utility\04.Component\Model\Animation\Notify</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\AnimState_Parser.h" />
-      <Filter>01.Utility\04.Component\Model\Animation\Notify</Filter>
-    </ClInclude>
     <ClInclude Include="..\Public\Renderer_Define.h">
       <Filter>01.Utility\05.Renderer</Filter>
     </ClInclude>
@@ -944,9 +941,6 @@
     <ClCompile Include="..\Private\VIBufferCom_ComputePointParticle.cpp">
       <Filter>01.Utility\04.Component\VIBuffer\Instance\Particle w. ComputeShader</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\UI_Animation.cpp" />
-    <ClCompile Include="..\private\UI_Button.cpp" />
-    <ClCompile Include="..\private\UI_Panel.cpp" />
     <ClCompile Include="..\Private\AnimNotify.cpp">
       <Filter>01.Utility\04.Component\Model\Animation\Notify</Filter>
     </ClCompile>

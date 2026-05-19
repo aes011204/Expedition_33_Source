@@ -20,6 +20,7 @@ public:
         wstring jsonPath{};
         wstring animationDirectory{};
         wstring prototypeTagPrefix {};
+        wstring outUINamePrefixFilter {};
 
         umap<wstring, Shared<UI_Base>>* outUIByName = nullptr;
         umap<wstring, vector<Shared<UI_Base>>>* outChildrenByParentName = nullptr;

@@ -55,6 +55,7 @@ private:
     void Render_Shadow();
 
 	void Render_NonBlend();
+    void Render_SSAO();
     void Render_Lights();
     void Render_NonLight();
 	void Render_Blend();
@@ -116,6 +117,10 @@ private:
     uint32                          _staticShadowMapHeight = 4096;
 
 
+private:
+    void Reset_RenderCall();
+    void Add_RenderCall(uint32 count = 1);
+
 #ifdef _DEBUG
 private:
     struct PerfCounter
@@ -141,9 +146,6 @@ private:
     };
 
     RenderPerfWindow _renderPerfWindow{};
-
-    void Reset_RenderCall();
-    void Add_RenderCall(uint32 count = 1);
 
     void Accumulate_RenderPerf(
         double renderMs,

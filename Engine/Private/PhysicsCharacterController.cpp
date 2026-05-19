@@ -107,6 +107,10 @@ CharacterControllerMoveResult PhysicsCharacterController::Move(const Vec3& displ
 
     CHECK_NULL(_controller, result);
 
+#ifdef _DEBUG
+    const auto queryBegin = chrono::steady_clock::now();
+#endif
+
     const PxFilterData responseFilterData = Build_ControllerResponseFilterData(_desc.preset);
     const PxFilterData queryFilterData = Build_ControllerQueryFilterData(_desc.preset);
     Controller_QueryFilterCallback queryFilterCallback(responseFilterData);
@@ -121,6 +125,22 @@ CharacterControllerMoveResult PhysicsCharacterController::Move(const Vec3& displ
     result.collisionDown = flags.isSet(PxControllerCollisionFlag::eCOLLISION_DOWN);
     result.collisionSide = flags.isSet(PxControllerCollisionFlag::eCOLLISION_SIDES);
     result.collisionUp = flags.isSet(PxControllerCollisionFlag::eCOLLISION_UP);
+
+#ifdef _DEBUG
+    if (_physXManager != nullptr)
+    {
+        const double elapsedMs =
+            chrono::duration<double, milli>(chrono::steady_clock::now() - queryBegin).count();
+
+        const bool hit =
+            result.collisionDown ||
+            result.collisionSide ||
+            result.collisionUp;
+
+        _physXManager->Record_CCTMovePerf(hit, elapsedMs);
+    }
+#endif
+
     return result;
 }
 

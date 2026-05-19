@@ -68,6 +68,7 @@ public: //## Accessor::InputPolicy
 public: //## Accessor::Viewport
     ID3D11ShaderResourceView* Get_SharedViewportSRV() const;
     PreviewViewportMode Get_PreviewViewportMode() const { return _previewViewportMode; }
+    SceneViewMode Get_SceneViewMode() const { return _sceneViewMode; }
     bool Is_ManualPreviewViewportEnabled() const { return _previewViewportMode == PreviewViewportMode::Manual; }
     float Get_EffectiveViewportAspect() const;
 
@@ -129,6 +130,7 @@ public: //## Behavior::Viewport
 
     void Enable_AutoPreviewViewport();
     void Enable_ManualPreviewViewport();
+    void Set_SceneViewMode(SceneViewMode viewMode);
     void Set_ManualPreviewViewportSize(uint32 width, uint32 height);
     // queued viewport 요청과 현재 모드를 맞춰 preview target 적용 상태를 동기화한다.
     void Sync_PreviewViewportMode();
@@ -164,6 +166,7 @@ private: //## Data::Viewport
     uint32 _pendingPreviewViewportHeight{ kDefaultPreviewViewportHeight };
     uint32 _appliedPreviewViewportWidth{ 0 };
     uint32 _appliedPreviewViewportHeight{ 0 };
+    SceneViewMode _sceneViewMode{ SceneViewMode::Authoring };
 
 private: //## Data::Runtime
     EffectEditorRuntimeState _runtimeState{ EffectEditorRuntimeState::Edit };

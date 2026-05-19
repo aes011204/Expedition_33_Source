@@ -39,6 +39,10 @@ MovementCom::MovementCom(const MovementCom& Prototype)
     , _transformCom{ nullptr }
     , _velocity{ Prototype._velocity }
     , _currentTurnSpeedDegree{ 0.f }
+    , _idleGroundProbeAccum{ 0.f }
+#ifdef _DEBUG
+    , _idleGroundProbeDebugLogAccum{ 0.f }
+#endif
     , _isGrounded{ Prototype._isGrounded }
     , _isJumping{ Prototype._isJumping }
 {
@@ -65,6 +69,10 @@ HRESULT MovementCom::Initialize(void* arg)
 
     _velocity = Vec3::Zero;
     _currentTurnSpeedDegree = 0.f;
+    _idleGroundProbeAccum = 0.f;
+#ifdef _DEBUG
+    _idleGroundProbeDebugLogAccum = 0.f;
+#endif
 
     _isGrounded = true;
     _isJumping = false;
@@ -100,7 +108,60 @@ void MovementCom::Update_Movement(float timeDelta)
     Apply_Velocity(timeDelta);
 
     if (_moveDesc.backend == MoveBackend::Sweep || _characterController == nullptr)
-        Resolve_Ground_WithSnap();
+    {
+        const bool needsImmediateGroundProbe =
+            !_isGrounded ||
+            _isJumping ||
+            fabsf(_velocity.y) > 0.0001f ||
+            Is_Moving();
+
+#ifdef _DEBUG
+        if (needsImmediateGroundProbe && !Is_Moving())
+        {
+            _idleGroundProbeDebugLogAccum += timeDelta;
+
+            if (_idleGroundProbeDebugLogAccum >= 1.f)
+            {
+                Shared<GameObject> owner = Get_Owner();
+                const string ownerPrefabName = owner ? owner->Get_SourcePrefabName() : string{};
+
+                LOG_DEBUG(
+                    "MovementCom idle immediate probe this={} owner={} prefab='{}' grounded={} jumping={} velY={:.4f} moving={} followEnabled={} backend={}",
+                    static_cast<const void*>(this),
+                    static_cast<const void*>(owner.get()),
+                    ownerPrefabName,
+                    _isGrounded,
+                    _isJumping,
+                    _velocity.y,
+                    Is_Moving(),
+                    _followMove.enabled,
+                    _moveDesc.backend == MoveBackend::Sweep ? "Sweep" : "PhysXCCT");
+
+                _idleGroundProbeDebugLogAccum = 0.f;
+            }
+        }
+        else
+        {
+            _idleGroundProbeDebugLogAccum = 0.f;
+        }
+#endif
+
+        if (needsImmediateGroundProbe)
+        {
+            _idleGroundProbeAccum = 0.f;
+            Resolve_Ground_WithSnap();
+        }
+        else
+        {
+            _idleGroundProbeAccum += timeDelta;
+
+            if (_idleGroundProbeAccum >= 0.10f)
+            {
+                _idleGroundProbeAccum = 0.f;
+                Resolve_Ground_WithSnap();
+            }
+        }
+    }
 
 }
 

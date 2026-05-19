@@ -27,7 +27,9 @@ public:
 	void Update_Velocity(const RootMotionFrame& curTransform, float trackPosition);
 	void ResetVelocityState();
     Vec3 Get_TotalTranslation() const;
-    Vec3 Get_FirstFramePosition() const; 
+    Vec3 Get_FirstFramePosition() const;
+
+    const vector<KEYFRAME>& Get_KeyFrames() const { return _keyFrames; }
 
 private:
 	vector<KEYFRAME>		_keyFrames;

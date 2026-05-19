@@ -44,6 +44,12 @@ struct PS_OUT_BACKBUFFER
     vector Color : SV_TARGET0;
 };
 
+struct PS_OUT_HDR_WITH_MASK
+{
+    vector Color : SV_TARGET0;
+    float Mask : SV_TARGET1;
+};
+
 PS_OUT_BACKBUFFER PS_MAIN_DEBUG(PS_IN In)
 {
     PS_OUT_BACKBUFFER Out;
@@ -129,9 +135,9 @@ PS_OUT_LIGHT PS_MAIN_POINT(PS_IN In)
     return Out;
 }
 
-PS_OUT_BACKBUFFER PS_CombinedHDR(PS_IN In)
+PS_OUT_HDR_WITH_MASK PS_CombinedHDR(PS_IN In)
 {
-    PS_OUT_BACKBUFFER Out;
+    PS_OUT_HDR_WITH_MASK Out;
 
     // Diffuse
     vector Diffuse = g_DiffuseTexture.Sample(LinearWrapSampler, In.Texcoord);
@@ -176,13 +182,14 @@ PS_OUT_BACKBUFFER PS_CombinedHDR(PS_IN In)
 
     Out.Color.rgb += Emissive.rgb;
     Out.Color.a = Diffuse.a;
+    Out.Mask = 1.f;
 
     return Out;
 }
 
-PS_OUT_BACKBUFFER PS_MAIN_COMBINED_SIMPLE(PS_IN In)
+PS_OUT_HDR_WITH_MASK PS_MAIN_COMBINED_SIMPLE(PS_IN In)
 {
-    PS_OUT_BACKBUFFER Out;
+    PS_OUT_HDR_WITH_MASK Out;
 
     vector Diffuse = g_DiffuseTexture.Sample(LinearWrapSampler, In.Texcoord);
     if (Diffuse.a == 0.f)
@@ -191,13 +198,14 @@ PS_OUT_BACKBUFFER PS_MAIN_COMBINED_SIMPLE(PS_IN In)
     vector Specular = g_SpecularTexture.Sample(LinearWrapSampler, In.Texcoord);
 
     Out.Color = Diffuse * Shade + Specular;
+    Out.Mask = 1.f;
 
     return Out;
 }
 
-PS_OUT_BACKBUFFER PS_MAIN_COMBINED_PREVIEW(PS_IN In)
+PS_OUT_HDR_WITH_MASK PS_MAIN_COMBINED_PREVIEW(PS_IN In)
 {
-    PS_OUT_BACKBUFFER Out;
+    PS_OUT_HDR_WITH_MASK Out;
 
     vector Diffuse = g_DiffuseTexture.Sample(LinearWrapSampler, In.Texcoord);
     if (Diffuse.a == 0.f)
@@ -210,7 +218,15 @@ PS_OUT_BACKBUFFER PS_MAIN_COMBINED_PREVIEW(PS_IN In)
     Out.Color = Diffuse * Shade + Specular;     // 프리뷰는 direct/deferred lighting 결과만 사용
     Out.Color.rgb += Emissive.rgb;              // emissive는 그대로 더하기
     Out.Color.a = Diffuse.a;
+    Out.Mask = 1.f;
 
+    return Out;
+}
+
+PS_OUT_BACKBUFFER PS_SSAO(PS_IN In)
+{
+    PS_OUT_BACKBUFFER Out;
+    Out.Color = float4(0.f, 0.f, 0.f, 0.f);
     return Out;
 }
 
@@ -222,4 +238,5 @@ technique11 DefaultTechnique
     PASS_RS_DS_BS_VP(Combined,          RS_Default, DSS_None,       BS_Default, VS_MAIN,    PS_CombinedHDR)             // 3
     PASS_RS_DS_BS_VP(CombinedSimple,    RS_Default, DSS_None,       BS_Default, VS_MAIN,    PS_MAIN_COMBINED_SIMPLE)    // 4
     PASS_RS_DS_BS_VP(CombinedPreview,   RS_Default, DSS_None,       BS_Default, VS_MAIN,    PS_MAIN_COMBINED_PREVIEW)   // 5
+    PASS_RS_DS_BS_VP(SSAO,              RS_Default, DSS_None,       BS_Default, VS_MAIN,    PS_SSAO)                    // 6
 }

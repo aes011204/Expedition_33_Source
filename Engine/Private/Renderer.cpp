@@ -138,6 +138,14 @@ void Renderer::Draw()
 #ifdef _DEBUG
     DumpCurrentOMState(L"Render_NonBlend:After");
     nonBlendMs = chrono::duration<double, milli>(chrono::steady_clock::now() - nonBlendBegin).count();
+    DumpCurrentOMState(L"Render_SSAO:Before");
+#endif
+
+    // ========================================= //
+    Render_SSAO();
+    // ========================================= //
+#ifdef _DEBUG
+    DumpCurrentOMState(L"Render_SSAO:After");
     const auto lightsBegin = chrono::steady_clock::now();
     DumpCurrentOMState(L"Render_Lights:Before");
 #endif
@@ -316,6 +324,30 @@ void Renderer::Render_NonBlend()
     CHECK_FAILED(GAME->End_MRT());
 }
 
+void Renderer::Render_SSAO()
+{
+#ifdef _DEBUG
+    const auto logFail = [this](const wchar_t* stage) { DumpCurrentOMState(stage); };
+#endif
+    if (!_deferredShader || !_viBuffer)
+        return;
+
+    RETURN_LOG_IF_FAILED(
+        GAME->Begin_MRT(MRT::SSAO),
+        L"Render_CombinedHDR:FAIL Bind_ShadowCB");
+
+    ENDMRT_RETURN_IF_FAILED(
+        GAME->Bind_RT_ShaderResource(_deferredShader, "g_DepthTexture", RT::Depth));
+
+    ENDMRT_RETURN_IF_FAILED(
+        _viBuffer->Bind_Resources());
+        
+    if (FAILED(GAME->End_MRT()))
+        return;
+
+    Add_RenderCall();
+}
+
 void Renderer::Render_Lights()
 {
     if (!_deferredShader || !_viBuffer)
@@ -437,6 +469,14 @@ void Renderer::Render_CombinedHDR()
 
 void Renderer::Render_NonLight()
 {
+#ifdef _DEBUG
+    const auto logFail = [this](const wchar_t* stage) { DumpCurrentOMState(stage); };
+#endif
+
+    RETURN_LOG_IF_FAILED(
+        GAME->Begin_MRT(MRT::HDR, NotUseDSV, NotClearRTV),
+        L"Begin_MRT failed");
+
     for (auto& renderObject : _renderGroups[ETOI(RenderGroup::NonLight)])
     {
         Shared<GameObject> gameObject = renderObject.lock();
@@ -448,10 +488,20 @@ void Renderer::Render_NonLight()
     }
 
     _renderGroups[ETOI(RenderGroup::NonLight)].clear();
+
+    GAME->End_MRT();
 }
 
 void Renderer::Render_Blend()
 {
+#ifdef _DEBUG
+    const auto logFail = [this](const wchar_t* stage) { DumpCurrentOMState(stage); };
+#endif
+
+    RETURN_LOG_IF_FAILED(
+        GAME->Begin_MRT(MRT::HDR, NotUseDSV, NotClearRTV),
+        L"Begin_MRT failed");
+
     for (auto& renderObject : _renderGroups[ETOI(RenderGroup::Blend)])
     {
         Shared<GameObject> gameObject = renderObject.lock();
@@ -463,6 +513,8 @@ void Renderer::Render_Blend()
     }
 
     _renderGroups[ETOI(RenderGroup::Blend)].clear();
+
+    GAME->End_MRT();
 }
 
 void Renderer::Render_PostProcess()
@@ -475,28 +527,15 @@ void Renderer::Render_PostProcess()
 #endif
 
     if (!_postprocessShader || !_viBuffer)
-    {
-#ifdef _DEBUG
-        logFail(L"Render_PostProcess:FAIL MissingShaderOrBuffer");
-#endif
         return;
-    }
 
     if (!_ppPipeline || _ppPipeline->Get_PostProcessFeatures() == PostProcessFeature::None)
-    {
-#ifdef _DEBUG
-        logFail(L"Render_PostProcess:FAIL PostProcessFeatureNone");
-#endif
+
         return;
-    }
 
     if (!_ppPipeline->Has_PostProcessFeature(PostProcessFeature::HDR))
-    {
-#ifdef _DEBUG
-        logFail(L"Render_PostProcess:FAIL HDRDisabled");
-#endif
+
         return;
-    }
 
     // Transform
     RETURN_LOG_IF_FAILED(
@@ -629,6 +668,11 @@ void Renderer::Render_PostProcess()
 
     // Light 기록
     params.bloomTexelSize = baseTexelSize;
+    const uint32 bloomFeatureMask = To_Underlying(PostProcessFeature::Bloom);
+    if (useBloom)
+        params.featureMask |= bloomFeatureMask;
+    else
+        params.featureMask &= ~bloomFeatureMask;
 
     RETURN_LOG_IF_FAILED(
         _postprocessShader->Bind_CBufferData(_ppPipeline->Get_PostProcessParams()),
@@ -641,6 +685,13 @@ void Renderer::Render_PostProcess()
     RETURN_LOG_IF_FAILED(
         GAME->Bind_RT_ShaderResource(_postprocessShader, "g_BloomTexture", RT::BloomBlur),
         L"Render_PostProcess:FAIL Bind_RT_ShaderResource(g_BloomTexture-ToneMap)");
+
+    // BackgroundMask fallback은 EffectEditor 전용 배경 정책으로 보기 어려워 공용 tone mapping 소비 경로를 비활성화한다.
+    /*
+    RETURN_LOG_IF_FAILED(
+        GAME->Bind_RT_ShaderResource(_postprocessShader, "g_BackgroundMaskTexture", RT::BackgroundMask),
+        L"Render_PostProcess:FAIL Bind_RT_ShaderResource(g_BackgroundMaskTexture-ToneMap)");
+    */
 
     RETURN_LOG_IF_FAILED(
         _postprocessShader->Begin(ETOI(PostProcessPass::ToneMapping)),
@@ -720,7 +771,12 @@ HRESULT Renderer::Ready_RenderTargets()
         width, height, DXGI_FORMAT_R16G16B16A16_FLOAT, Color(0.f, 0.f, 0.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
 
     CHECK_FAILED(GAME->Add_RenderTarget(RT::HDRColor,
-        width, height, DXGI_FORMAT_R16G16B16A16_FLOAT, Color(0.f, 0.f, 0.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
+        width, height, DXGI_FORMAT_R16G16B16A16_FLOAT, Color(0.f, 0.f, 0.f, 0.f), resizeWithViewport, !useDSV), E_FAIL);
+    // BackgroundMask fallback은 EffectEditor 전용 배경 정책으로 보기 어려워 공용 MRT 연결을 비활성화한다.
+    /*
+    CHECK_FAILED(GAME->Add_RenderTarget(RT::BackgroundMask,
+        width, height, DXGI_FORMAT_R8_UNORM, Color(0.f, 0.f, 0.f, 0.f), resizeWithViewport, !useDSV), E_FAIL);
+    */
 
     //CHECK_FAILED(Ready_ShadowDSV(), E_FAIL);
 
@@ -732,7 +788,8 @@ HRESULT Renderer::Ready_RenderTargets()
     CHECK_FAILED(GAME->Add_MRT(MRT::GameObjects, RT::Emissive), E_FAIL);	// SV_TARGET4
 
     // SSAO
-
+    CHECK_FAILED(GAME->Add_MRT(MRT::SSAO, RT::SSAO), E_FAIL);
+    CHECK_FAILED(GAME->Add_MRT(MRT::SSAOBlur, RT::SSAOBlur), E_FAIL);
 
     // Light
     CHECK_FAILED(GAME->Add_MRT(MRT::LightAcc, RT::Shade), E_FAIL);			// SV_TARGET0
@@ -743,6 +800,10 @@ HRESULT Renderer::Ready_RenderTargets()
 
     // PostProcess
     CHECK_FAILED(GAME->Add_MRT(MRT::HDR, RT::HDRColor), E_FAIL);
+    // BackgroundMask fallback은 EffectEditor 전용 배경 정책으로 보기 어려워 공용 MRT 연결을 비활성화한다.
+    /*
+    CHECK_FAILED(GAME->Add_MRT(MRT::HDR, RT::BackgroundMask), E_FAIL);
+    */
 
     CHECK_FAILED(GAME->Add_MRT(MRT::BloomExtract, RT::BloomExtract), E_FAIL);
 
@@ -814,6 +875,8 @@ HRESULT Renderer::Bind_TransformCB(Shared<ShaderCom> shader) const
 
     deferredCB.cameraPosition = *GAME->Get_CamPosition();
     deferredCB.farPlane = activeCamera->Get_Far();
+
+    deferredCB.texelSize = Vec2{ 1.f / GAME->Get_ViewportWidth(), 1.f / GAME->Get_ViewportHeight() };
 
     return shader->Bind_CBufferData(deferredCB);
 }
@@ -978,8 +1041,6 @@ void Renderer::Mark_StaticShadowDirty()
      _staticShadowDirty = true;
 }
 
-#ifdef _DEBUG
-
 uint32 Renderer::Get_RenderCall() const
 {
     return iDrawCall;
@@ -995,9 +1056,11 @@ void Renderer::Add_RenderCall(uint32 count)
     iDrawCall += count;
 }
 
+#ifdef _DEBUG
+
 void Renderer::DumpCurrentOMState(const wchar_t* stageTag) const
 {
-    return; // 컴파일러가 무시할 거임
+    // return; // 컴파일러가 무시할 거임
     if (false == _useRTVDump || nullptr == _context)
         return;
 

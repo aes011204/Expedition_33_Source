@@ -14,6 +14,9 @@ public:
 	PW_Gustave(const PW_Gustave& prototype);
 	virtual ~PW_Gustave() override = default;
 
+public:
+    HRESULT Initialize(void* arg) override;
+
 protected:
     HairChainPhysicsDesc Get_HairChainPhysicsDesc() const override;
 

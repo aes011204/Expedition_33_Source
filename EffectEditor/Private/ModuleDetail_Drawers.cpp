@@ -1,12 +1,14 @@
 ﻿#include "ModuleDetail_Drawers.h"
 
 #include <shobjidl.h>
-
 #include "EffectEditorInstance.h"
-#include "Helper_ReadPreset.h"
+#include "EffectEditor_Macro.h"
+#include "EffectMaterialInstance_View.h"
 #include "EffectMaterialPreviewRenderer.h"
 #include "EffectMaterial_View.h"
-#include "EffectMaterialInstance_View.h"
+#include "Helper_ReadPreset.h"
+#include "Helper_TextureFormat.h"
+#include "Notification_Manager.h"
 
 NS_BEGIN(EffectEditor)
 
@@ -15,6 +17,35 @@ namespace Internal
     constexpr const char* kEffectMaterialPayloadType = "CONTENT_BROWSER_EFFECT_MATERIAL";
     constexpr const wchar_t* kMaterialDialogDefaultFolder = L"../../../Client/Bin/Resources/Effects/Materials";
     constexpr float kMaterialFloatEpsilon = 0.0001f;
+
+    bool Uses_DirectionalAlignmentOptions(EmitterScreenAlignment alignment)
+    {
+        return alignment == EmitterScreenAlignment::AwayFromCenter ||
+               alignment == EmitterScreenAlignment::Velocity;
+    }
+
+    void Notify_DirectionalAlignmentModeChanged(EmitterScreenAlignment alignment, EmitterDirectionalAlignmentMode mode)
+    {
+        if (!Uses_DirectionalAlignmentOptions(alignment))
+            return;
+
+        const char* directionName = alignment == EmitterScreenAlignment::AwayFromCenter ? "Away from Center" : "Velocity";
+        const char* modeHelp = mode == EmitterDirectionalAlignmentMode::LookDirection
+                               ? "기준 방향을 sprite 카드의 바라보는 방향으로 사용합니다."
+                               : "sprite는 카메라를 향하게 두고 texture 축만 기준 방향으로 눕힙니다.";
+
+        NOTIFY("{}: {}", directionName, modeHelp);
+    }
+
+    void Notify_TextureAxisChanged(EmitterSpriteTextureAxis axis)
+    {
+        NOTIFY(
+            "{}",
+            axis == EmitterSpriteTextureAxis::X
+            ? "Texture X: 정렬 방향에 texture의 가로축을 맞춥니다."
+            : "Texture Y: 정렬 방향에 texture의 세로축을 맞춥니다."
+        );
+    }
 
     fs::path Normalize_MaterialDialogPath(const fs::path& filePath)
     {
@@ -48,6 +79,163 @@ namespace Internal
             NearlyEqual(lhs.y, rhs.y) &&
             NearlyEqual(lhs.z, rhs.z) &&
             NearlyEqual(lhs.w, rhs.w);
+    }
+
+    static const char* Get_SubUVFramePlaybackModeLabel(SubUVFramePlaybackMode mode)
+    {
+        switch (mode)
+        {
+        case SubUVFramePlaybackMode::FixedFrame:
+            return "고정 프레임";
+        case SubUVFramePlaybackMode::LifeProgress:
+            return "수명 맞춤 재생";
+        case SubUVFramePlaybackMode::FramesPerSecond:
+            return "초당 프레임 재생";
+        case SubUVFramePlaybackMode::RandomFrame:
+            return "랜덤 프레임";
+        default:
+            return "고정 프레임";
+        }
+    }
+
+    static const char* Get_SphereLocationSpawnModeLabel(SphereLocationSpawnMode mode)
+    {
+        switch (mode)
+        {
+        case SphereLocationSpawnMode::Volume:
+            return "부피";
+        case SphereLocationSpawnMode::Surface:
+            return "표면";
+        default:
+            return "부피";
+        }
+    }
+
+    static bool Draw_SphereLocationSpawnModeProperty(
+        DetailPropertyContext& detailContext,
+        const char* label,
+        SphereLocationSpawnMode& value,
+        SphereLocationSpawnMode defaultValue)
+    {
+        bool changed = false;
+
+        ImGui::PushID(label);
+        detailContext.Draw_PropertyLabel(label);
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        if (ImGui::BeginCombo("##Value", Get_SphereLocationSpawnModeLabel(value)))
+        {
+            const SphereLocationSpawnMode candidates[] = {
+                SphereLocationSpawnMode::Volume,
+                SphereLocationSpawnMode::Surface,
+            };
+
+            for (const SphereLocationSpawnMode candidate : candidates)
+            {
+                const bool isSelected = value == candidate;
+                if (ImGui::Selectable(Get_SphereLocationSpawnModeLabel(candidate), isSelected))
+                {
+                    value = candidate;
+                    changed = true;
+                }
+
+                if (isSelected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+
+        if (detailContext.Draw_ResetButton(value != defaultValue))
+        {
+            value = defaultValue;
+            changed = true;
+        }
+        ImGui::PopID();
+
+        return changed;
+    }
+
+    static bool Draw_SubUVFramePlaybackModeProperty(
+        DetailPropertyContext& detailContext,
+        const char* label,
+        SubUVFramePlaybackMode& value,
+        SubUVFramePlaybackMode defaultValue)
+    {
+        bool changed = false;
+
+        ImGui::PushID(label);
+        detailContext.Draw_PropertyLabel(label);
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        if (ImGui::BeginCombo("##Value", Get_SubUVFramePlaybackModeLabel(value)))
+        {
+            const SubUVFramePlaybackMode candidates[] = {
+                SubUVFramePlaybackMode::FixedFrame,
+                SubUVFramePlaybackMode::LifeProgress,
+                SubUVFramePlaybackMode::FramesPerSecond,
+                SubUVFramePlaybackMode::RandomFrame,
+            };
+
+            for (const SubUVFramePlaybackMode candidate : candidates)
+            {
+                const bool isSelected = value == candidate;
+                if (ImGui::Selectable(Get_SubUVFramePlaybackModeLabel(candidate), isSelected))
+                {
+                    value = candidate;
+                    changed = true;
+                }
+
+                if (isSelected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+
+        if (detailContext.Draw_ResetButton(value != defaultValue))
+        {
+            value = defaultValue;
+            changed = true;
+        }
+        ImGui::PopID();
+
+        return changed;
+    }
+
+    static bool Normalize_SubUVFrameIndexDistribution(FloatDistributionData& data, uint32 lastFrame)
+    {
+        bool changed = false;
+        const float minFrame = 0.f;
+        const float maxFrame = static_cast<float>(lastFrame);
+
+        if (data.mode == DistributionMode::Uniform)
+        {
+            data = FloatDistributionData::Make_ConstantCurve(0.f);
+            return true;
+        }
+
+        if (auto* constant = get_if<ConstantFloatDistributionData>(&data.payload))
+        {
+            const float clampedValue = clamp(constant->value, minFrame, maxFrame);
+            if (!NearlyEqual(constant->value, clampedValue))
+            {
+                constant->value = clampedValue;
+                changed = true;
+            }
+        }
+        else if (auto* curve = get_if<ConstantCurveFloatDistributionData>(&data.payload))
+        {
+            for (FloatCurveKeyData& key : curve->keys)
+            {
+                const float clampedValue = clamp(key.value, minFrame, maxFrame);
+                if (!NearlyEqual(key.value, clampedValue))
+                {
+                    key.value = clampedValue;
+                    changed = true;
+                }
+            }
+        }
+
+        return changed;
     }
 
     static bool Is_SameMaterial(const EffectMaterialInstanceData& lhs, const EffectMaterialInstanceData& rhs)
@@ -315,15 +503,35 @@ namespace Internal
 
         const string& resolvedName = Internal::Resolve_MaterialDisplayName(data);
         const string displayName = resolvedName.empty() ? "(drop material here)" : resolvedName;
-        const ImVec2 textPos{ slotMin.x + 57.f, slotMin.y + 18.f };
-        drawList->AddText(textPos, IM_COL32(235, 238, 245, 255), displayName.c_str());
+        const string materialSummary = data.material.blendMode + " / " + data.material.opacitySource +
+                                       " / SubUV " + to_string(data.material.subUVRows) + "x" + to_string(data.material.subUVCols);
+        drawList->PushClipRect(
+            ImVec2(slotMin.x + 57.f, slotMin.y),
+            ImVec2(slotMax.x - 8.f, slotMax.y),
+            true
+        );
+        drawList->AddText(ImVec2(slotMin.x + 57.f, slotMin.y + 9.f), IM_COL32(235, 238, 245, 255), displayName.c_str());
+        drawList->AddText(
+            ImGui::GetFont(),
+            ImGui::GetFontSize() * 0.9f,
+            ImVec2(slotMin.x + 57.f, slotMin.y + 29.f),
+            IM_COL32(145, 154, 172, 255),
+            materialSummary.c_str()
+        );
+        drawList->PopClipRect();
 
         if (isHovered)
         {
+            const string mainTooltip = TextureFormat::MakeTextureTooltip(data.material.mainTextureId);
+            const string noiseTooltip = data.material.noiseTextureId.empty()
+                                        ? string{ "Id: (none)" }
+                                        : TextureFormat::MakeTextureTooltip(data.material.noiseTextureId);
             ImGui::SetTooltip(
-                "Content Browser의 .effectmaterial.json 머티리얼 파일을 여기에 드롭하면 현재 embedded material instance로 복사합니다.\nMain: %s\nNoise: %s\n%s / %s / SubUV %ux%u",
-                data.material.mainTextureId.c_str(),
-                data.material.noiseTextureId.empty() ? "(none)" : data.material.noiseTextureId.c_str(),
+                "Content Browser의 .effectmaterial.json 머티리얼 파일을 여기에 드롭하면 현재 embedded material instance로 복사합니다.\n"
+                "현재 sprite effect 경로에서는 Main Texture를 emissive color source로, Opacity Source를 별도 opacity 해석 기준으로 사용합니다.\n\n"
+                "Main Texture (Emissive)\n%s\n\nNoise Texture\n%s\n\n%s / %s / SubUV %ux%u",
+                mainTooltip.c_str(),
+                noiseTooltip.c_str(),
                 data.material.blendMode.c_str(),
                 data.material.opacitySource.c_str(),
                 data.material.subUVRows,
@@ -364,6 +572,71 @@ namespace Internal
         }
 
         return 1;
+    }
+
+    static bool Is_SameVec3(const Vec3& lhs, const Vec3& rhs)
+    {
+        return
+            NearlyEqual(lhs.x, rhs.x) &&
+            NearlyEqual(lhs.y, rhs.y) &&
+            NearlyEqual(lhs.z, rhs.z);
+    }
+
+    static bool Draw_RadialPivotProperty(
+        DetailPropertyContext& detailContext,
+        Vec3& value,
+        const Vec3& defaultValue)
+    {
+        bool changed = false;
+
+        ImGui::PushID("RadialPivot");
+        detailContext.Draw_PropertyLabel("방사 기준점");
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
+        {
+            ImGui::SetTooltip(
+                "입자 생성 위치에서 이 기준점을 뺀 방향으로 초기 속도를 더합니다.\n"
+                "기준점이 생성 위치보다 위에 있으면 +속도에서도 아래 방향으로 퍼질 수 있습니다."
+            );
+        }
+
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        changed |= ImGui::DragFloat3("##Value", &value.x, 0.01f);
+        if (detailContext.Draw_ResetButton(!Is_SameVec3(value, defaultValue)))
+        {
+            value = defaultValue;
+            changed = true;
+        }
+        ImGui::PopID();
+
+        return changed;
+    }
+
+    static bool Draw_RadialWorldSpaceProperty(
+        DetailPropertyContext& detailContext,
+        bool& value,
+        bool defaultValue)
+    {
+        bool changed = false;
+
+        ImGui::PushID("RadialWorldSpace");
+        detailContext.Draw_PropertyLabel("월드 스페이스");
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
+        {
+            ImGui::SetTooltip(
+                "켜면 방사 기준점을 world offset으로 사용합니다.\n"
+                "끄면 emitter 회전 기준 local offset으로 변환합니다."
+            );
+        }
+
+        changed |= ImGui::Checkbox("##Value", &value);
+        if (detailContext.Draw_ResetButton(value != defaultValue))
+        {
+            value = defaultValue;
+            changed = true;
+        }
+        ImGui::PopID();
+
+        return changed;
     }
 }
 
@@ -416,19 +689,52 @@ bool RequiredModuleDetail::Draw(AuthoringEmitter& emitter, const AuthoringModule
         }
     }
 
-    if (ImGui::CollapsingHeader("공간 / 정렬", ImGuiTreeNodeFlags_DefaultOpen))
+    if (ImGui::CollapsingHeader("공간 / 정렬 (일부 미구현)", ImGuiTreeNodeFlags_DefaultOpen))
     {
         if (detailContext.Begin_PropertyTable("RequiredSpaceSort"))
         {
             changed |= detailContext.Draw_ScreenAlignmentProperty("화면 정렬", data.screenAlignment, defaultData.screenAlignment);
-            changed |= detailContext.Draw_FloatProperty("카메라 블렌드 거리 최소", data.minCameraBlendDistance, defaultData.minCameraBlendDistance);
-            changed |= detailContext.Draw_FloatProperty("카메라 블렌드 거리 최대", data.maxCameraBlendDistance, defaultData.maxCameraBlendDistance);
+            if (Internal::Uses_DirectionalAlignmentOptions(data.screenAlignment))
+            {
+                const EmitterDirectionalAlignmentMode oldMode = data.directionalAlignmentMode;
+                const EmitterSpriteTextureAxis oldAxis = data.spriteTextureAxis;
+
+                if (detailContext.Draw_DirectionalAlignmentModeProperty("방향 정렬 방식", data.directionalAlignmentMode, defaultData.directionalAlignmentMode))
+                {
+                    changed = true;
+                    if (oldMode != data.directionalAlignmentMode)
+                        Internal::Notify_DirectionalAlignmentModeChanged(data.screenAlignment, data.directionalAlignmentMode);
+                }
+
+                if (data.directionalAlignmentMode == EmitterDirectionalAlignmentMode::TextureAxis)
+                {
+                    if (detailContext.Draw_SpriteTextureAxisProperty("정렬할 텍스처 축", data.spriteTextureAxis, defaultData.spriteTextureAxis))
+                    {
+                        changed = true;
+                        if (oldAxis != data.spriteTextureAxis)
+                            Internal::Notify_TextureAxisChanged(data.spriteTextureAxis);
+                    }
+
+                    changed |= detailContext.Draw_FloatProperty("롤 보정 (도)", data.spriteRollOffsetDegrees, defaultData.spriteRollOffsetDegrees, 0.1f);
+                }
+            }
+
             changed |= detailContext.Draw_BoolProperty("로컬 스페이스 사용", data.useLocalSpace, defaultData.useLocalSpace);
-            changed |= detailContext.Draw_SortModeProperty("정렬 모드", data.sortMode, defaultData.sortMode);
-            changed |= detailContext.Draw_FloatProperty("카메라 모션 블러 양", data.cameraMotionBlurAmount, defaultData.cameraMotionBlurAmount);
-            changed |= detailContext.Draw_BoolProperty("초기화 시 기존 파티클 지우기", data.clearExistingParticlesOnInit, defaultData.clearExistingParticlesOnInit);
+            changed |= detailContext.Draw_SortModeProperty("정렬 모드 (미구현)", data.sortMode, defaultData.sortMode);
+            changed |= detailContext.Draw_FloatProperty("카메라 모션 블러 양 (미구현)", data.cameraMotionBlurAmount, defaultData.cameraMotionBlurAmount);
+            changed |= detailContext.Draw_BoolProperty("초기화 시 기존 파티클 지우기 (미구현)", data.clearExistingParticlesOnInit, defaultData.clearExistingParticlesOnInit);
             detailContext.End_PropertyTable();
         }
+
+        if (Internal::Uses_DirectionalAlignmentOptions(data.screenAlignment))
+        {
+            if (data.directionalAlignmentMode == EmitterDirectionalAlignmentMode::TextureAxis)
+                ImGui::TextDisabled("Texture Axis는 world X/Y/Z가 아니라 texture 가로/세로 축입니다. Z는 sprite normal이므로 별도 facing 개념입니다.");
+            else
+                ImGui::TextDisabled("Look Direction은 기준 방향을 sprite 카드의 바라보는 방향으로 사용합니다.");
+        }
+
+        detailContext.Draw_ScreenAlignmentImplementationNote(data.screenAlignment);
     }
 
     if (ImGui::CollapsingHeader("시간", ImGuiTreeNodeFlags_DefaultOpen))
@@ -437,23 +743,13 @@ bool RequiredModuleDetail::Draw(AuthoringEmitter& emitter, const AuthoringModule
         {
             changed |= detailContext.Draw_UintProperty("루프 횟수", data.loopCount, defaultData.loopCount);
             changed |= detailContext.Draw_FloatProperty("지속 시간", data.duration, defaultData.duration);
-            changed |= detailContext.Draw_FloatProperty("지속 시간 최소값", data.durationLow, defaultData.durationLow);
-            changed |= detailContext.Draw_BoolProperty("지속 시간 범위 사용", data.useDurationRange, defaultData.useDurationRange);
-            changed |= detailContext.Draw_BoolProperty("루프마다 기간 재계산", data.recalculateDurationEachLoop, defaultData.recalculateDurationEachLoop);
+            changed |= detailContext.Draw_FloatProperty("지속 시간 최소값 (범위 미구현)", data.durationLow, defaultData.durationLow);
+            changed |= detailContext.Draw_BoolProperty("지속 시간 범위 사용 (미구현)", data.useDurationRange, defaultData.useDurationRange);
+            changed |= detailContext.Draw_BoolProperty("루프마다 기간 재계산 (미구현)", data.recalculateDurationEachLoop, defaultData.recalculateDurationEachLoop);
             changed |= detailContext.Draw_FloatProperty("딜레이", data.delay, defaultData.delay);
-            changed |= detailContext.Draw_FloatProperty("딜레이 최소값", data.delayLow, defaultData.delayLow);
-            changed |= detailContext.Draw_BoolProperty("딜레이 범위 사용", data.useDelayRange, defaultData.useDelayRange);
+            changed |= detailContext.Draw_FloatProperty("딜레이 최소값 (범위 미구현)", data.delayLow, defaultData.delayLow);
+            changed |= detailContext.Draw_BoolProperty("딜레이 범위 사용 (미구현)", data.useDelayRange, defaultData.useDelayRange);
             changed |= detailContext.Draw_BoolProperty("첫 루프만 딜레이", data.delayFirstLoopOnly, defaultData.delayFirstLoopOnly);
-            detailContext.End_PropertyTable();
-        }
-    }
-
-    if (ImGui::CollapsingHeader("서브 UV", ImGuiTreeNodeFlags_DefaultOpen))
-    {
-        if (detailContext.Begin_PropertyTable("RequiredSubUV"))
-        {
-            changed |= detailContext.Draw_UintProperty("서브 이미지 가로", data.material.subUVCols, defaultData.material.subUVCols);
-            changed |= detailContext.Draw_UintProperty("서브 이미지 세로", data.material.subUVRows, defaultData.material.subUVRows);
             detailContext.End_PropertyTable();
         }
     }
@@ -462,7 +758,7 @@ bool RequiredModuleDetail::Draw(AuthoringEmitter& emitter, const AuthoringModule
     {
         if (detailContext.Begin_PropertyTable("RequiredKill"))
         {
-            changed |= detailContext.Draw_BoolProperty("비활성화 시 킬", data.killOnDeactivate, defaultData.killOnDeactivate);
+            changed |= detailContext.Draw_BoolProperty("비활성화 시 킬 (외부 비활성화 계약 보류)", data.killOnDeactivate, defaultData.killOnDeactivate);
             changed |= detailContext.Draw_BoolProperty("완료 시 킬", data.killOnCompleted, defaultData.killOnCompleted);
             detailContext.End_PropertyTable();
         }
@@ -551,6 +847,42 @@ bool InitialSizeModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, InitialS
     return changed;
 }
 
+bool InitialLocationModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, InitialLocationModuleData& data, DetailPropertyContext& detailContext)
+{
+    const InitialLocationModuleData defaultData{};
+    bool changed = false;
+
+    if (ImGui::CollapsingHeader("위치", ImGuiTreeNodeFlags_DefaultOpen))
+        changed |= detailContext.Draw_Vector3DistributionGroup("위치", data.location, defaultData.location);
+
+    return changed;
+}
+
+bool SphereLocationModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, SphereLocationModuleData& data, DetailPropertyContext& detailContext)
+{
+    const SphereLocationModuleData defaultData{};
+    bool changed = false;
+
+    if (ImGui::CollapsingHeader("구 위치", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        if (detailContext.Begin_PropertyTable("SphereLocation"))
+        {
+            changed |= detailContext.Draw_Vec3Property("오프셋", data.offset, defaultData.offset);
+            changed |= detailContext.Draw_FloatProperty("반지름", data.radius, defaultData.radius);
+            changed |= Internal::Draw_SphereLocationSpawnModeProperty(
+                detailContext,
+                "생성 방식",
+                data.spawnMode,
+                defaultData.spawnMode
+            );
+            detailContext.End_PropertyTable();
+        }
+    }
+
+    data.radius = max(0.f, data.radius);
+    return changed;
+}
+
 bool InitialVelocityModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, InitialVelocityModuleData& data, DetailPropertyContext& detailContext)
 {
     const InitialVelocityModuleData defaultData{};
@@ -560,7 +892,41 @@ bool InitialVelocityModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, Init
     {
         if (detailContext.Begin_PropertyTable("InitialVelocity"))
         {
-            changed |= detailContext.Draw_Vec3Property("방사 기준점", data.radialPivot, defaultData.radialPivot);
+            changed |= detailContext.Draw_BoolProperty("월드 스페이스", data.inWorldSpace, defaultData.inWorldSpace);
+            detailContext.End_PropertyTable();
+        }
+
+        changed |= detailContext.Draw_Vector3DistributionGroup("속도", data.velocity, defaultData.velocity);
+    }
+
+    return changed;
+}
+
+bool InitialRadialVelocityModuleDetail::Draw(
+    AuthoringEmitter&,
+    AuthoringModule&,
+    InitialRadialVelocityModuleData& data,
+    DetailPropertyContext& detailContext)
+{
+    const InitialRadialVelocityModuleData defaultData{};
+    bool changed = false;
+
+    const bool radialVelocityOpen = ImGui::CollapsingHeader("방사성 속도", ImGuiTreeNodeFlags_DefaultOpen);
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
+    {
+        ImGui::SetTooltip(
+            "생성 위치와 방사 기준점의 방향으로 더하는 초기 속도입니다.\n"
+            "양수는 기준점에서 멀어지고, 음수는 기준점 쪽으로 이동합니다.\n"
+            "지속 attractor가 아니라 생성 시점의 속도 항입니다."
+        );
+    }
+
+    if (radialVelocityOpen)
+    {
+        if (detailContext.Begin_PropertyTable("InitialRadialVelocity"))
+        {
+            changed |= Internal::Draw_RadialPivotProperty(detailContext, data.radialPivot, defaultData.radialPivot);
+            changed |= Internal::Draw_RadialWorldSpaceProperty(detailContext, data.inWorldSpace, defaultData.inWorldSpace);
             detailContext.End_PropertyTable();
         }
 
@@ -650,7 +1016,11 @@ bool InitialRotationRateModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, 
     return changed;
 }
 
-bool RotationRateScaleByLifeModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, RotationRateScaleByLifeModuleData& data, DetailPropertyContext& detailContext)
+bool RotationRateScaleByLifeModuleDetail::Draw(
+    AuthoringEmitter&,
+    AuthoringModule&,
+    RotationRateScaleByLifeModuleData& data,
+    DetailPropertyContext& detailContext)
 {
     const RotationRateScaleByLifeModuleData defaultData{};
     bool changed = false;
@@ -705,13 +1075,30 @@ bool SubUVFrameOverLifeModuleDetail::Draw(
     const SubUVFrameOverLifeModuleData defaultData{};
     bool changed = false;
 
-    if (ImGui::CollapsingHeader("수명에 따른 SubUV 프레임", ImGuiTreeNodeFlags_DefaultOpen))
+    if (ImGui::CollapsingHeader("서브UV 프레임 선택/재생", ImGuiTreeNodeFlags_DefaultOpen))
     {
         if (detailContext.Begin_PropertyTable("SubUVFrameOverLife"))
         {
-            changed |= detailContext.Draw_UintProperty("시작 프레임", data.startFrame, defaultData.startFrame);
-            changed |= detailContext.Draw_UintProperty("종료 프레임", data.endFrame, defaultData.endFrame);
-            changed |= detailContext.Draw_BoolProperty("루프", data.loop, defaultData.loop);
+            changed |= Internal::Draw_SubUVFramePlaybackModeProperty(
+                detailContext,
+                "재생 방식",
+                data.playbackMode,
+                defaultData.playbackMode
+            );
+
+            if (data.playbackMode == SubUVFramePlaybackMode::FixedFrame)
+                changed |= detailContext.Draw_UintProperty("프레임", data.startFrame, defaultData.startFrame);
+            else
+            {
+                changed |= detailContext.Draw_UintProperty("시작 프레임", data.startFrame, defaultData.startFrame);
+                changed |= detailContext.Draw_UintProperty("종료 프레임", data.endFrame, defaultData.endFrame);
+
+                if (data.playbackMode == SubUVFramePlaybackMode::FramesPerSecond)
+                {
+                    changed |= detailContext.Draw_BoolProperty("루프", data.loop, defaultData.loop);
+                    changed |= detailContext.Draw_FloatProperty("FPS", data.framesPerSecond, defaultData.framesPerSecond, 0.1f);
+                }
+            }
             detailContext.End_PropertyTable();
         }
 
@@ -719,6 +1106,8 @@ bool SubUVFrameOverLifeModuleDetail::Draw(
         const uint32 lastFrame = frameCount > 0 ? frameCount - 1 : 0;
         data.startFrame = min(data.startFrame, lastFrame);
         data.endFrame = min(data.endFrame, lastFrame);
+        data.framesPerSecond = max(0.f, data.framesPerSecond);
+        changed |= Internal::Normalize_SubUVFrameIndexDistribution(data.frameIndex, lastFrame);
 
         ImGui::TextDisabled("현재 atlas frame 수: %u", frameCount);
     }

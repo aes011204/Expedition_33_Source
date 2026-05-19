@@ -14,6 +14,9 @@ public:
 	PW_Maelle(const PW_Maelle& prototype);
 	virtual ~PW_Maelle() override = default;
 
+public:
+    HRESULT Initialize(void* arg) override;
+
 protected:
     HairChainPhysicsDesc Get_HairChainPhysicsDesc() const override;
 

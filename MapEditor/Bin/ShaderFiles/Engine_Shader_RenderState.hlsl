@@ -29,6 +29,13 @@ DepthStencilState DSS_Default
     DepthFunc = less_equal;
 };
 
+DepthStencilState DSS_DepthRead
+{
+    DepthEnable = true;
+    DepthWriteMask = zero;
+    DepthFunc = less_equal;
+};
+
 DepthStencilState DSS_None
 {
     DepthEnable = false;

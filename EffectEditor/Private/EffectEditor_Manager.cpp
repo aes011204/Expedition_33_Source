@@ -25,11 +25,7 @@ HRESULT EffectEditor_Manager::Initialize()
 {
     Add_Window(Scene_View::Create());
 
-    // Game View 필요 없어서 비활성화
-    //const Shared<Game_View> gameView = Game_View::Create();
-    //if (gameView)
-    //    gameView->Set_Open(false);
-    //Add_Window(gameView);
+    // Game View는 비활성화
 
     Add_Window(Emitter_View::Create());
     Add_Window(Hierarchy_View::Create());

@@ -3,6 +3,7 @@
 #include "Bounding_OBB.h"
 #include "ColliderCom.h"
 #include "PlayableParts.h"
+#include "SkillTreeCom.h"
 
 IMPLEMENT_REFLECTION(PW_Lune)
 {
@@ -25,6 +26,18 @@ PW_Lune::PW_Lune(const PW_Lune& prototype)
 	: Player_WorldBase{ prototype }
 {
 
+}
+
+HRESULT PW_Lune::Initialize(void* arg)
+{
+    CHECK_FAILED(__super::Initialize(arg), E_FAIL)
+
+    auto skilltreeCom = Get_Component<SkillTreeCom>();
+
+     skilltreeCom->TryUnlock("Immolation");
+    skilltreeCom->TryUnlock("IceGust");
+
+    return S_OK;
 }
 
 HairChainPhysicsDesc PW_Lune::Get_HairChainPhysicsDesc() const
