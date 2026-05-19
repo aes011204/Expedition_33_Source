@@ -4,6 +4,9 @@
 #include "SkillTree_Panel.h"
 #include "UI_BattleTransition.h"
 #include "SavePoint_Panel.h"
+#include "UI_BattleCommandHUD.h"
+#include "ClientInstance.h"
+#include "BattleController.h"
 
 HRESULT GameplayUI::Initialize(uint32 levelIndex)
 {
@@ -18,6 +21,9 @@ HRESULT GameplayUI::Initialize(uint32 levelIndex)
 
     _savePointPanel = SavePoint_Panel::Create(levelIndex);
     CHECK_NULL(_savePointPanel, E_FAIL);
+
+    _battleCommandHUD = UI_BattleCommandHUD::Create(levelIndex);
+    CHECK_NULL(_battleCommandHUD, E_FAIL);
 
     return S_OK;
 }
@@ -43,7 +49,12 @@ void GameplayUI::Update(float timeDelta)
         Handle_SavePointAction(action);
     }
 
-    Handle_BackInput(); // Esc는 항상 마지막에 현재 top menu 기준으로 back 처리
+    Handle_BackInput();
+
+    Set_BattleCommandHUD(); // 배틀 현재 턴/FSM 상태를 읽어서 HUD 열기/닫기/강조 동기화
+
+    if (_battleCommandHUD)
+        _battleCommandHUD->Update(timeDelta);
 
     if (_battleTransition)
         _battleTransition->Update(timeDelta);
@@ -240,6 +251,28 @@ void GameplayUI::Close_Menu(GameplayMenu menu)
     }
 }
 
+void GameplayUI::Set_BattleCommandHUD()
+{
+    if (_battleCommandHUD == nullptr)
+        return;
+
+    const auto battleController = CLIENT->Get_BattleController();
+    if (battleController == nullptr || !battleController->Is_BattleStarted())
+    {
+        _battleCommandHUD->Close(); // 전투가 아니면 HUD 숨김
+        return;
+    }
+
+    if (!battleController->Is_PlayerTurnActive())
+    {
+        _battleCommandHUD->Close();
+        return;
+    }
+
+    _battleCommandHUD->Open(); // 플레이어 턴일 때만 HUD 표시
+    _battleCommandHUD->Refresh_ForState(battleController->Get_CurrentTurnState());
+}
+
 Unique<GameplayUI> GameplayUI::Create(uint32 levelIndex)
 {
     auto instance = make_unique<GameplayUI>();
@@ -269,6 +302,7 @@ void GameplayUI::Free()
     Release_Panel(_characterStatusPanel);
     Release_Panel(_skillTreePanel);
     Release_Panel(_battleTransition);
+    Release_Panel(_battleCommandHUD);
 
     Base::Free();
 }

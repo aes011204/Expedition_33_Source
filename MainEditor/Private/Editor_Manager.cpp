@@ -307,7 +307,7 @@ void Editor_Manager::Handle_Shortcuts()
     if (ImGui::IsKeyPressed(ImGuiKey_F8, false))
     {
         if (GAME->Is_ActiveCameraType(ObjectType::FreeCamera))
-            EDITOR->Activate_TargetCamera();
+            EDITOR->Restore_PreviousCameraOrTarget();
         else
             EDITOR->Activate_FreeCamera();
 
@@ -467,7 +467,7 @@ void Editor_Manager::Toggle_FocusMode()
 
         _focusModeWindowStates[name] = window->Is_Open();
 
-        if (name == L"Scene" || name == L"Game" || name == L"Profile")
+        if (name == L"Scene" || name == L"Game" || name == L"Profile" || name == L"Console")
             continue;
 
         window->Set_Open(false);
