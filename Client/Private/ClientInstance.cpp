@@ -12,6 +12,8 @@
 #include "PersistentObjectManager.h"
 #include "Player_WorldBase.h"
 #include "ResourceLoader.h"
+#include "PreviewShotTable.h"
+#include "UIPreviewManager.h"
 
 IMPLEMENT_SINGLETON(ClientInstance)
 
@@ -49,6 +51,12 @@ HRESULT ClientInstance::Initialize_Client(const ComPtr<Device>& device, const Co
     _battleController = BattleController::Create();
     CHECK_NULL(_battleController, E_FAIL);
 
+    _previewShotTable = PreviewShotTable::Create();
+    CHECK_NULL(_previewShotTable, E_FAIL);
+
+    _previewManager = UIPreviewManager::Create();
+    CHECK_NULL(_previewManager, E_FAIL);
+
 	_isInitialized = true;
 
 	return S_OK;
@@ -61,6 +69,9 @@ void ClientInstance::Update_Client(float timeDelta)
 
     if (_gamePlayUI)
         _gamePlayUI->Update(timeDelta);
+
+    if (_previewManager)
+        _previewManager->Update(timeDelta);
 
     if (_battleController)
         _battleController->Update(timeDelta);
@@ -107,6 +118,31 @@ GameDataTable::SkillTreeDesc* ClientInstance::Get_SkillTreeDesc(const string& sk
 const umap<string, vector<string>>*  ClientInstance::Get_SkillTreeRequirementData()
 {
     return _gameDataTable->Get_SkillTreeRequirementData();
+}
+
+void ClientInstance::Apply_PreviewLayout(const vector<UIPreviewManager::PreviewSlotDesc>& layout)
+{
+    return _previewManager->Apply_Layout(layout);
+}
+
+void ClientInstance::Begin_Preview(PreviewShotTable::PreviewShotPanel panel)
+{
+    return _previewManager->Begin_Preview(panel);
+}
+
+void ClientInstance::Show_Preview(HeroId heroId, PreviewShotTable::PreviewShotPanel panel)
+{
+    return _previewManager->Show_Preview(heroId, panel);
+}
+
+void ClientInstance::Hide_Preview()
+{
+    return _previewManager->Hide_Preview();
+}
+
+PreviewShotTable::PreviewShotPreset ClientInstance::Get_Preset(HeroId hero, PreviewShotTable::PreviewShotPanel panel)
+{
+    return _previewShotTable->Get(hero, panel);
 }
 
 HRESULT ClientInstance::Initialize_Hero(uint32 levelIndex, const wstring& layerTag, const Vec3& startPos)
@@ -266,6 +302,8 @@ void ClientInstance::Release_Client()
     };
 
     ReleaseManager(_gameDataTable);
+    ReleaseManager(_previewShotTable);
+    ReleaseManager(_previewManager);
     ReleaseManager(_persistentObjectManager);
     ReleaseManager(_resourceLoader);
     ReleaseManager(_heroManager);

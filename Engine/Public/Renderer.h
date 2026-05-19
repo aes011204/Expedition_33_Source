@@ -55,6 +55,7 @@ private:
     void Render_Shadow();
 
 	void Render_NonBlend();
+    void Render_SSAO();
     void Render_Lights();
     void Render_NonLight();
 	void Render_Blend();
@@ -102,6 +103,7 @@ private:
     uint32                          iDrawCall = 0;
 
     bool                            _usePreviewDeferredCombine = false;
+    bool                            _useRTVDump = false;
 
 private:
     list<Weak<GameObject>>          _staticShadowCasters;
@@ -114,6 +116,10 @@ private:
     uint32                          _staticShadowMapWidth = 4096;
     uint32                          _staticShadowMapHeight = 4096;
 
+
+private:
+    void Reset_RenderCall();
+    void Add_RenderCall(uint32 count = 1);
 
 #ifdef _DEBUG
 private:
@@ -141,9 +147,6 @@ private:
 
     RenderPerfWindow _renderPerfWindow{};
 
-    void Reset_RenderCall();
-    void Add_RenderCall(uint32 count = 1);
-
     void Accumulate_RenderPerf(
         double renderMs,
         double priorityMs,
@@ -159,6 +162,7 @@ private:
     static void Accumulate_PassPerf(PerfCounter& counter, double passMs);
     static void Reset_RenderPerfWindow(RenderPerfWindow& window);
     static double Safe_Divide(double numerator, double denominator);
+    void DumpCurrentOMState(const wchar_t* stageTag) const;
 
 #endif
 
@@ -179,18 +183,6 @@ private :
 
 #endif
 };
-
-#pragma region RENDERER MACRO
-#define ENDMRT_RETURN_IF_FAILED(expr)       \
-    do                                      \
-    {                                       \
-        if (FAILED(expr))                   \
-        {                                   \
-            GAME->End_MRT();                \
-            return;                         \
-        }                                   \
-    } while (false)
-#pragma endregion
 
 NS_END
 

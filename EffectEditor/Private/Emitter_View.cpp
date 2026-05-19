@@ -245,8 +245,10 @@ AuthoringEmitter Emitter_View::Make_DefaultSpriteEmitter()
     emitter.modules.push_back(move(requiredModule));
     emitter.modules.push_back(Make_SpawnModule());
     emitter.modules.push_back(Make_LifetimeModule());
+    emitter.modules.push_back(Make_InitialLocationModule());
     emitter.modules.push_back(Make_InitialSizeModule());
     emitter.modules.push_back(Make_InitialVelocityModule());
+    emitter.modules.push_back(Make_InitialRadialVelocityModule());
     emitter.modules.push_back(Make_InitialColorModule());
     emitter.modules.push_back(Make_ColorOverLifeModule());
 
@@ -310,6 +312,36 @@ AuthoringModule Emitter_View::Make_LifetimeModule()
     return module;
 }
 
+AuthoringModule Emitter_View::Make_InitialLocationModule()
+{
+    AuthoringModule module{};
+    module.id = Issue_AuthoringId();
+    module.type = AuthoringModuleType::InitialLocation;
+    module.key = "Initial Location";
+    module.displayName = L"초기 위치";
+    module.summary = L"생성 시점 위치 분포";
+    module.enabled = true;
+    module.movable = true;
+    module.removable = true;
+    module.data = InitialLocationModuleData{};
+    return module;
+}
+
+AuthoringModule Emitter_View::Make_SphereLocationModule()
+{
+    AuthoringModule module{};
+    module.id = Issue_AuthoringId();
+    module.type = AuthoringModuleType::SphereLocation;
+    module.key = "Sphere Location";
+    module.displayName = L"구 위치";
+    module.summary = L"구 표면/부피 생성 위치";
+    module.enabled = true;
+    module.movable = true;
+    module.removable = true;
+    module.data = SphereLocationModuleData{};
+    return module;
+}
+
 AuthoringModule Emitter_View::Make_InitialSizeModule()
 {
     AuthoringModule module{};
@@ -332,11 +364,26 @@ AuthoringModule Emitter_View::Make_InitialVelocityModule()
     module.type = AuthoringModuleType::InitialVelocity;
     module.key = "Initial Velocity";
     module.displayName = L"초기 속도";
-    module.summary = L"생성 위치와 퍼짐 속도";
+    module.summary = L"생성 시점 벡터 속도";
     module.enabled = true;
     module.movable = true;
     module.removable = true;
     module.data = InitialVelocityModuleData{};
+    return module;
+}
+
+AuthoringModule Emitter_View::Make_InitialRadialVelocityModule()
+{
+    AuthoringModule module{};
+    module.id = Issue_AuthoringId();
+    module.type = AuthoringModuleType::InitialRadialVelocity;
+    module.key = "Initial Radial Velocity";
+    module.displayName = L"초기 방사성 속도";
+    module.summary = L"생성 위치 기준 방사성 속도";
+    module.enabled = true;
+    module.movable = true;
+    module.removable = true;
+    module.data = InitialRadialVelocityModuleData{};
     return module;
 }
 
@@ -481,7 +528,7 @@ AuthoringModule Emitter_View::Make_SubUVFrameOverLifeModule()
     module.id = Issue_AuthoringId();
     module.type = AuthoringModuleType::SubUVFrameOverLife;
     module.key = "SubUV Frame Over Life";
-    module.displayName = L"서브 이미지 인덱스";
+    module.displayName = L"서브UV 프레임 선택/재생";
     module.summary = L"수명 진행률 기준 frame 선택";
     module.enabled = true;
     module.movable = true;
@@ -525,8 +572,11 @@ bool Emitter_View::Can_AddModuleType(const AuthoringEmitter& emitter, AuthoringM
         return false;
 
     case AuthoringModuleType::Lifetime:
+    case AuthoringModuleType::InitialLocation:
+    case AuthoringModuleType::SphereLocation:
     case AuthoringModuleType::InitialSize:
     case AuthoringModuleType::InitialVelocity:
+    case AuthoringModuleType::InitialRadialVelocity:
     case AuthoringModuleType::Acceleration:
     case AuthoringModuleType::Drag:
     case AuthoringModuleType::VelocityOverLife:
@@ -560,11 +610,20 @@ void Emitter_View::Add_Module(size_t emitterIndex, AuthoringModuleType type)
     case AuthoringModuleType::Lifetime:
         module = Make_LifetimeModule();
         break;
+    case AuthoringModuleType::InitialLocation:
+        module = Make_InitialLocationModule();
+        break;
+    case AuthoringModuleType::SphereLocation:
+        module = Make_SphereLocationModule();
+        break;
     case AuthoringModuleType::InitialSize:
         module = Make_InitialSizeModule();
         break;
     case AuthoringModuleType::InitialVelocity:
         module = Make_InitialVelocityModule();
+        break;
+    case AuthoringModuleType::InitialRadialVelocity:
+        module = Make_InitialRadialVelocityModule();
         break;
     case AuthoringModuleType::Acceleration:
         module = Make_AccelerationModule();
@@ -831,12 +890,24 @@ void Emitter_View::Reset_ModuleData(size_t emitterIndex, size_t moduleIndex)
         module.data = LifetimeModuleData{};
         break;
 
+    case AuthoringModuleType::InitialLocation:
+        module.data = InitialLocationModuleData{};
+        break;
+
+    case AuthoringModuleType::SphereLocation:
+        module.data = SphereLocationModuleData{};
+        break;
+
     case AuthoringModuleType::InitialSize:
         module.data = InitialSizeModuleData{};
         break;
 
     case AuthoringModuleType::InitialVelocity:
         module.data = InitialVelocityModuleData{};
+        break;
+
+    case AuthoringModuleType::InitialRadialVelocity:
+        module.data = InitialRadialVelocityModuleData{};
         break;
 
     case AuthoringModuleType::Acceleration:
@@ -992,11 +1063,41 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
     );
     entries.push_back(
         makeEntry(
+            AuthoringModuleType::InitialLocation,
+            L"초기 위치",
+            true,
+            true,
+            Can_AddModuleType(emitter, AuthoringModuleType::InitialLocation),
+            "이미 장착됨"
+        )
+    );
+    entries.push_back(
+        makeEntry(
+            AuthoringModuleType::SphereLocation,
+            L"구 위치",
+            true,
+            true,
+            Can_AddModuleType(emitter, AuthoringModuleType::SphereLocation),
+            "이미 장착됨"
+        )
+    );
+    entries.push_back(
+        makeEntry(
             AuthoringModuleType::InitialVelocity,
             L"초기 속도",
             true,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::InitialVelocity),
+            "이미 장착됨"
+        )
+    );
+    entries.push_back(
+        makeEntry(
+            AuthoringModuleType::InitialRadialVelocity,
+            L"초기 방사성 속도",
+            true,
+            true,
+            Can_AddModuleType(emitter, AuthoringModuleType::InitialRadialVelocity),
             "이미 장착됨"
         )
     );
@@ -1093,7 +1194,7 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
     entries.push_back(
         makeEntry(
             AuthoringModuleType::SubUVFrameOverLife,
-            L"서브 이미지 인덱스",
+            L"서브UV 프레임 선택/재생",
             true,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::SubUVFrameOverLife),

@@ -14,29 +14,26 @@
 
 NS_BEGIN(EffectEditor)
 
+IMPLEMENT_SINGLETON(EffectEditorInstance)
+
 namespace Internal
 {
     static bool Is_PreviewCameraDragInputHeld()
     {
-        const bool altHeld =
-            GAME->KeyPress(KEY_TYPE::ALT) || GAME->KeyDown(KEY_TYPE::ALT);
+        const bool altHeld = GAME->KeyPress(KEY_TYPE::ALT) || GAME->KeyDown(KEY_TYPE::ALT);
 
         return GAME->KeyPress(KEY_TYPE::RBUTTON) ||
-               (altHeld &&
-                (ImGui::IsMouseDown(ImGuiMouseButton_Left) ||
-                 ImGui::IsMouseDown(ImGuiMouseButton_Middle)));
+               (altHeld && (ImGui::IsMouseDown(ImGuiMouseButton_Left) || ImGui::IsMouseDown(ImGuiMouseButton_Middle)));
     }
-}
-
-IMPLEMENT_SINGLETON(EffectEditorInstance)
-
-EffectEditorInstance::~EffectEditorInstance()
-{
-    Free();
 }
 
 EffectEditorInstance::EffectEditorInstance()
 {
+}
+
+EffectEditorInstance::~EffectEditorInstance()
+{
+    Free();
 }
 
 HRESULT EffectEditorInstance::Initialize_Editor(const EffectEditorDesc& editorDesc, const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -104,6 +101,7 @@ void EffectEditorInstance::Release_Editor()
     _pendingPreviewViewportHeight = kDefaultPreviewViewportHeight;
     _appliedPreviewViewportWidth = 0;
     _appliedPreviewViewportHeight = 0;
+    _sceneViewMode = SceneViewMode::Authoring;
 
     _runtimeState = EffectEditorRuntimeState::Edit;
     _runtimeTimeScale = 1.f;
@@ -141,6 +139,53 @@ void EffectEditorInstance::Render_Editor()
         _notificationManager->Render();
 
     _imguiManager->Render();
+}
+
+Shared<Editor_Window> EffectEditorInstance::Get_Window(const wstring& windowName) const
+{
+    if (nullptr == _editorManager)
+        return nullptr;
+
+    return _editorManager->Find_Window(windowName);
+}
+
+HWND EffectEditorInstance::Get_WindowHandle() const
+{
+    return _editorDesc.hWnd;
+}
+
+bool EffectEditorInstance::IsPlaying() const
+{
+    return EffectEditorRuntimeState::Play == _runtimeState;
+}
+
+bool EffectEditorInstance::IsPaused() const
+{
+    return EffectEditorRuntimeState::Pause == _runtimeState;
+}
+
+float EffectEditorInstance::Get_RuntimeTimeScale() const
+{
+    return _runtimeTimeScale;
+}
+
+ID3D11ShaderResourceView* EffectEditorInstance::Get_SharedViewportSRV() const
+{
+    if (nullptr == _sharedViewportRenderTarget)
+        return nullptr;
+
+    return _sharedViewportRenderTarget->Get_SRV();
+}
+
+float EffectEditorInstance::Get_EffectiveViewportAspect() const
+{
+    const uint32 viewportWidth = GAME->Get_ViewportWidth();
+    const uint32 viewportHeight = max(1u, GAME->Get_ViewportHeight());
+    if (viewportWidth == 0)
+        return 0.f;
+
+    return static_cast<float>(viewportWidth) /
+           static_cast<float>(viewportHeight);
 }
 
 void EffectEditorInstance::Play()
@@ -203,16 +248,6 @@ void EffectEditorInstance::Resume()
     Request_WindowFocus(EditorViewportTarget::Game);
 }
 
-bool EffectEditorInstance::IsPlaying() const
-{
-    return EffectEditorRuntimeState::Play == _runtimeState;
-}
-
-bool EffectEditorInstance::IsPaused() const
-{
-    return EffectEditorRuntimeState::Pause == _runtimeState;
-}
-
 void EffectEditorInstance::Set_RuntimeTimeScale(float timeScale)
 {
     _runtimeTimeScale = clamp(timeScale, 0.01f, 8.f);
@@ -223,9 +258,29 @@ void EffectEditorInstance::Reset_RuntimeTimeScale()
     _runtimeTimeScale = 1.f;
 }
 
-float EffectEditorInstance::Get_RuntimeTimeScale() const
+void EffectEditorInstance::Request_FrameStep()
 {
-    return _runtimeTimeScale;
+    _pendingSingleFrameStep = true;
+}
+
+bool EffectEditorInstance::Consume_FrameStep()
+{
+    if (!_pendingSingleFrameStep)
+        return false;
+
+    _pendingSingleFrameStep = false;
+    return true;
+}
+
+void EffectEditorInstance::Request_RestartPreview()
+{
+    const Shared<Level> currentLevel = GAME->Current_LevelType();
+    const Shared<Level_EffectEditor> effectEditorLevel = dynamic_pointer_cast<Level_EffectEditor>(currentLevel);
+    if (nullptr == effectEditorLevel)
+        return;
+
+    if (FAILED(effectEditorLevel->Restart_PreviewFromAuthoring()))
+        LOG_ERROR("Failed to restart EffectEditor preview.");
 }
 
 void EffectEditorInstance::Request_WindowFocus(EditorViewportTarget target)
@@ -244,19 +299,6 @@ bool EffectEditorInstance::Consume_WindowFocusRequest(EditorViewportTarget targe
 
     _hasPendingWindowFocus = false;
     return true;
-}
-
-Shared<Editor_Window> EffectEditorInstance::Get_Window(const wstring& windowName) const
-{
-    if (nullptr == _editorManager)
-        return nullptr;
-
-    return _editorManager->Find_Window(windowName);
-}
-
-HWND EffectEditorInstance::Get_WindowHandle() const
-{
-    return _editorDesc.hWnd;
 }
 
 void EffectEditorInstance::Execute_Command(const Shared<ICommand>& command)
@@ -412,6 +454,76 @@ void EffectEditorInstance::End_PreviewCameraDrag()
     GAME->Unlock_Mouse();
 }
 
+void EffectEditorInstance::Apply_RuntimeInputPolicy()
+{
+    const Shared<Editor_Window> sceneView = Get_Window(L"Scene");
+    const Shared<Editor_Window> gameView = Get_Window(L"Game");
+
+    if (_isPreviewCameraDragging && !Internal::Is_PreviewCameraDragInputHeld())
+        End_PreviewCameraDrag();
+
+    if (_runtimeState != EffectEditorRuntimeState::Play &&
+        !Is_PreviewCameraActive())
+        Activate_PreviewCamera();
+
+    const bool gameFocused =
+        gameView && gameView->Is_Open() && gameView->Is_Focused();
+
+    const bool previewCameraActive = Is_PreviewCameraActive();
+    const bool keepPreviewCameraControl = _isPreviewCameraDragging;
+
+    if (_runtimeState == EffectEditorRuntimeState::Play)
+    {
+        if (previewCameraActive)
+        {
+            GAME->Set_PlayerInputBlocked(true);
+            GAME->Set_FreeCameraInputEnabled(false);
+            _isPreviewCameraControlEnabled =
+                _isGameViewportInputEnabled ||
+                (_isSceneViewportInputEnabled && !_isSceneViewportInputBlocked) ||
+                keepPreviewCameraControl;
+
+            if (_isPreviewCameraControlEnabled && _isPreviewCameraDragging)
+            {
+                GAME->Begin_EditorMouseLockSession();
+                GAME->Lock_Mouse();
+            }
+            else
+                End_PreviewCameraDrag();
+        }
+        else
+        {
+            GAME->Set_PlayerInputBlocked(!gameFocused);
+            GAME->Set_FreeCameraInputEnabled(false);
+            _isPreviewCameraControlEnabled = false;
+            End_PreviewCameraDrag();
+
+            if (gameFocused)
+                GAME->Lock_Mouse();
+            else
+                GAME->Unlock_Mouse();
+        }
+
+        return;
+    }
+
+    GAME->Set_PlayerInputBlocked(true);
+    GAME->Set_FreeCameraInputEnabled(false);
+    _isPreviewCameraControlEnabled =
+        sceneView && sceneView->Is_Open() &&
+        ((_isSceneViewportInputEnabled &&
+          !_isSceneViewportInputBlocked) ||
+         keepPreviewCameraControl);
+
+    if (_isPreviewCameraControlEnabled && _isPreviewCameraDragging)
+    {
+        GAME->Begin_EditorMouseLockSession();
+        GAME->Lock_Mouse();
+    }
+    else
+        End_PreviewCameraDrag();
+}
+
 Shared<RenderTarget> EffectEditorInstance::Prepare_SharedViewportRenderTarget(uint32 width, uint32 height)
 {
     if (width == 0)
@@ -423,6 +535,7 @@ Shared<RenderTarget> EffectEditorInstance::Prepare_SharedViewportRenderTarget(ui
     if (nullptr == _sharedViewportRenderTarget)
     {
         _sharedViewportRenderTarget = RenderTarget::Create(
+            L"RenderTarget",
             _device,
             _context,
             width,
@@ -443,14 +556,6 @@ Shared<RenderTarget> EffectEditorInstance::Prepare_SharedViewportRenderTarget(ui
     }
 
     return _sharedViewportRenderTarget;
-}
-
-ID3D11ShaderResourceView* EffectEditorInstance::Get_SharedViewportSRV() const
-{
-    if (nullptr == _sharedViewportRenderTarget)
-        return nullptr;
-
-    return _sharedViewportRenderTarget->Get_SRV();
 }
 
 void EffectEditorInstance::Capture_BackBuffer_ToViewport()
@@ -530,6 +635,11 @@ void EffectEditorInstance::Enable_ManualPreviewViewport()
     _previewViewportMode = PreviewViewportMode::Manual;
 }
 
+void EffectEditorInstance::Set_SceneViewMode(SceneViewMode viewMode)
+{
+    _sceneViewMode = viewMode;
+}
+
 void EffectEditorInstance::Set_ManualPreviewViewportSize(uint32 width, uint32 height)
 {
     _previewViewportMode = PreviewViewportMode::Manual;
@@ -541,17 +651,6 @@ void EffectEditorInstance::Sync_PreviewViewportMode()
     if (GAME->Get_ViewportWidth() > GAME->Get_BackBufferWidth() ||
         GAME->Get_ViewportHeight() > GAME->Get_BackBufferHeight())
         Queue_PreviewViewportSize(GAME->Get_ViewportWidth(), GAME->Get_ViewportHeight());
-}
-
-float EffectEditorInstance::Get_EffectiveViewportAspect() const
-{
-    const uint32 viewportWidth = GAME->Get_ViewportWidth();
-    const uint32 viewportHeight = max(1u, GAME->Get_ViewportHeight());
-    if (viewportWidth == 0)
-        return 0.f;
-
-    return static_cast<float>(viewportWidth) /
-           static_cast<float>(viewportHeight);
 }
 
 void EffectEditorInstance::Ensure_SceneGridResources()
@@ -720,101 +819,6 @@ void EffectEditorInstance::Apply_PendingPreviewViewportSize()
 
     _appliedPreviewViewportWidth = GAME->Get_ViewportWidth();
     _appliedPreviewViewportHeight = GAME->Get_ViewportHeight();
-}
-
-void EffectEditorInstance::Apply_RuntimeInputPolicy()
-{
-    const Shared<Editor_Window> sceneView = Get_Window(L"Scene");
-    const Shared<Editor_Window> gameView = Get_Window(L"Game");
-
-    if (_isPreviewCameraDragging && !Internal::Is_PreviewCameraDragInputHeld())
-        End_PreviewCameraDrag();
-
-    if (_runtimeState != EffectEditorRuntimeState::Play &&
-        !Is_PreviewCameraActive())
-        Activate_PreviewCamera();
-
-    const bool gameFocused =
-        gameView && gameView->Is_Open() && gameView->Is_Focused();
-
-    const bool previewCameraActive = Is_PreviewCameraActive();
-    const bool keepPreviewCameraControl = _isPreviewCameraDragging;
-
-    if (_runtimeState == EffectEditorRuntimeState::Play)
-    {
-        if (previewCameraActive)
-        {
-            GAME->Set_PlayerInputBlocked(true);
-            GAME->Set_FreeCameraInputEnabled(false);
-            _isPreviewCameraControlEnabled =
-                _isGameViewportInputEnabled ||
-                (_isSceneViewportInputEnabled && !_isSceneViewportInputBlocked) ||
-                keepPreviewCameraControl;
-
-            if (_isPreviewCameraControlEnabled && _isPreviewCameraDragging)
-            {
-                GAME->Begin_EditorMouseLockSession();
-                GAME->Lock_Mouse();
-            }
-            else
-                End_PreviewCameraDrag();
-        }
-        else
-        {
-            GAME->Set_PlayerInputBlocked(!gameFocused);
-            GAME->Set_FreeCameraInputEnabled(false);
-            _isPreviewCameraControlEnabled = false;
-            End_PreviewCameraDrag();
-
-            if (gameFocused)
-                GAME->Lock_Mouse();
-            else
-                GAME->Unlock_Mouse();
-        }
-
-        return;
-    }
-
-    GAME->Set_PlayerInputBlocked(true);
-    GAME->Set_FreeCameraInputEnabled(false);
-    _isPreviewCameraControlEnabled =
-        sceneView && sceneView->Is_Open() &&
-        ((_isSceneViewportInputEnabled &&
-          !_isSceneViewportInputBlocked) ||
-         keepPreviewCameraControl);
-
-    if (_isPreviewCameraControlEnabled && _isPreviewCameraDragging)
-    {
-        GAME->Begin_EditorMouseLockSession();
-        GAME->Lock_Mouse();
-    }
-    else
-        End_PreviewCameraDrag();
-}
-
-void EffectEditorInstance::Request_FrameStep()
-{
-    _pendingSingleFrameStep = true;
-}
-
-bool EffectEditorInstance::Consume_FrameStep()
-{
-    if (!_pendingSingleFrameStep)
-        return false;
-
-    _pendingSingleFrameStep = false;
-    return true;
-}
-
-void EffectEditorInstance::Request_RestartPreview()
-{
-    const Shared<Level> currentLevel = GAME->Current_LevelType();
-    const Shared<Level_EffectEditor> effectEditorLevel = dynamic_pointer_cast<Level_EffectEditor>(currentLevel);
-    if (nullptr == effectEditorLevel)
-        return;
-
-    if (FAILED(effectEditorLevel->Restart_PreviewFromAuthoring()))
-        LOG_ERROR("Failed to restart EffectEditor preview.");
 }
 
 bool EffectEditorInstance::Find_ObjectLayerTag(const Shared<GameObject>& gameObject, wstring& outLayerTag) const

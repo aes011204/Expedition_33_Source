@@ -52,7 +52,7 @@ using ShadowLightDesc = struct tagShadowLightDesc
     float   zf = 1000.f;
 
     float   bias = 0.03f;
-    float   intensity = 0.5f;
+    float   intensity = 0.8f;
 
     // Cascade Shadow 추가
     bool followCameraFrustum = true;     // true면 메인 카메라 frustum 기준으로 shadow view/proj를 매 프레임 갱신한다.

@@ -2,7 +2,9 @@
 #include "GameInstance.h"
 #include "MapStaticMesh.h"
 #include "MapInstancedMesh.h"
+#include "MapStaticCollisionBuilder.h"
 #include "ModelCom.h"
+#include "StaticCollisionData.h"
 
 HRESULT MapLoader::Begin_LoadSession(const ComPtr<Device>& device, const ComPtr<Context>& context,
     const wstring& filePath, uint32 levelIndex, const wstring& layerTag, LoadSession& outSession)
@@ -186,6 +188,19 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
             desc.model = model;
         }
 
+        // StaticMeshes 전용 collision data cache
+        auto collisionIt = session.preloadedCollisionCache.find(modelPathStr);
+        if (collisionIt != session.preloadedCollisionCache.end())
+        {
+            desc.collisionData = collisionIt->second;
+        }
+        else
+        {
+            Shared<StaticCollisionData> collisionData = MapStaticCollisionBuilder::Build(desc.model);
+            session.preloadedCollisionCache[modelPathStr] = collisionData;
+            desc.collisionData = collisionData;
+        }
+
         desc.modelPath = {};
 
         const auto& pos = e["Position"];
@@ -271,6 +286,7 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
             desc.model = model;
         }
 
+        // InstancedMeshes는 collision data를 만들지 않는다.
         if (e.contains("Instances"))
         {
             for (const auto& inst : e["Instances"])
@@ -300,20 +316,24 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
             }
         }
 
-        if (desc.transforms.empty())
-            continue;
-
-        GAME->Add_GameObject(
+        if (FAILED(GAME->Add_GameObject(
             ETOI(LevelType::Static),
             TEXT("GameObject_MapInstancedMesh"),
             session.levelIndex,
             session.layerTag,
-            &desc);
+            &desc)))
+        {
+            continue;
+        }
 
         ++processedCount;
     }
 
-    outFinished = session.preloadModelsDone && session.staticMeshesDone && session.instancedMeshesDone;
+    outFinished =
+        session.preloadModelsDone &&
+        session.staticMeshesDone &&
+        session.instancedMeshesDone;
+
     return S_OK;
 }
 

@@ -113,6 +113,18 @@ namespace Internal
         };
     }
 
+    static OverlayRect Compute_ViewModeOverlayRect(const ImVec2& viewportMin, const ImVec2& viewportMax)
+    {
+        const OverlayRect previewRect = Compute_PreviewViewportOverlayRect(viewportMin, viewportMax);
+        const ImVec2 panelSize = ImVec2(162.f, 34.f);
+        const ImVec2 panelMin = ImVec2(previewRect.min.x - panelSize.x - 6.f, previewRect.min.y);
+
+        return {
+            panelMin,
+            ImVec2(panelMin.x + panelSize.x, panelMin.y + panelSize.y)
+        };
+    }
+
     static bool Is_PointInRect(const ImVec2& point, const OverlayRect& rect)
     {
         return point.x >= rect.min.x && point.x <= rect.max.x &&
@@ -134,15 +146,16 @@ namespace Internal
         const OverlayRect pinRect = Compute_ToolbarPinRect(viewportMin, viewportMax);
         const OverlayRect gizmoRect = Compute_GizmoOverlayRect(viewportMin, viewportMax);
         const OverlayRect previewRect = Compute_PreviewViewportOverlayRect(viewportMin, viewportMax);
+        const OverlayRect viewModeRect = Compute_ViewModeOverlayRect(viewportMin, viewportMax);
 
         return {
             ImVec2(
-                min(pinRect.min.x, min(gizmoRect.min.x, previewRect.min.x)),
-                min(pinRect.min.y, min(gizmoRect.min.y, previewRect.min.y))
+                min(min(pinRect.min.x, gizmoRect.min.x), min(previewRect.min.x, viewModeRect.min.x)),
+                min(min(pinRect.min.y, gizmoRect.min.y), min(previewRect.min.y, viewModeRect.min.y))
             ),
             ImVec2(
-                max(pinRect.max.x, max(gizmoRect.max.x, previewRect.max.x)),
-                max(pinRect.max.y, max(gizmoRect.max.y, previewRect.max.y))
+                max(max(pinRect.max.x, gizmoRect.max.x), max(previewRect.max.x, viewModeRect.max.x)),
+                max(max(pinRect.max.y, gizmoRect.max.y), max(previewRect.max.y, viewModeRect.max.y))
             )
         };
     }
@@ -416,6 +429,12 @@ void Scene_View::Render_ViewportToolbarOverlay()
         ImGui::IsAnyItemActive() ||
         Internal::Should_OpenToolbarOverlay(_viewportMin, _viewportMax) ||
         Internal::Should_KeepToolbarOverlay(_viewportMin, _viewportMax);
+    Render_ViewModeOverlay();
+    _isViewportToolbarInteracting =
+        _isViewportToolbarInteracting ||
+        ImGui::IsAnyItemActive() ||
+        Internal::Should_OpenToolbarOverlay(_viewportMin, _viewportMax) ||
+        Internal::Should_KeepToolbarOverlay(_viewportMin, _viewportMax);
 }
 
 void Scene_View::Render_GizmoOverlay()
@@ -641,6 +660,60 @@ void Scene_View::Render_PreviewViewportOverlay()
 
     if (!isManualMode)
         ImGui::EndDisabled();
+
+    ImGui::PopStyleVar();
+    ImGui::PopID();
+}
+
+void Scene_View::Render_ViewModeOverlay()
+{
+    const float viewportWidth = _viewportMax.x - _viewportMin.x;
+    const float viewportHeight = _viewportMax.y - _viewportMin.y;
+    if (viewportWidth <= 1.f || viewportHeight <= 1.f)
+        return;
+
+    const SceneViewMode viewMode = EDITOR->Get_SceneViewMode();
+    const bool isFinal = viewMode == SceneViewMode::Final;
+    const bool isAuthoring = viewMode == SceneViewMode::Authoring;
+
+    ImDrawList* drawList = ImGui::GetWindowDrawList();
+
+    const Internal::OverlayRect panelRect = Internal::Compute_ViewModeOverlayRect(_viewportMin, _viewportMax);
+
+    drawList->AddRectFilled(panelRect.min, panelRect.max, IM_COL32(36, 38, 42, 220), 6.f);
+    drawList->AddRect(panelRect.min, panelRect.max, IM_COL32(92, 96, 104, 255), 6.f);
+
+    ImGui::SetCursorScreenPos(ImVec2(panelRect.min.x + 8.f, panelRect.min.y + 5.f));
+    ImGui::PushID("SceneViewModeOverlay");
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(5.f, 3.f));
+
+    const ImVec4 activeButtonColor = ImVec4(0.79f, 0.56f, 0.18f, 1.f);
+    const ImVec4 activeHoveredColor = ImVec4(0.88f, 0.64f, 0.23f, 1.f);
+    const ImVec4 activeTextColor = ImVec4(0.09f, 0.09f, 0.09f, 1.f);
+    const auto draw_mode_button = [&](const char* label, const ImVec2& size, bool active)
+    {
+        if (active)
+        {
+            ImGui::PushStyleColor(ImGuiCol_Button, activeButtonColor);
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, activeHoveredColor);
+            ImGui::PushStyleColor(ImGuiCol_Text, activeTextColor);
+        }
+
+        const bool clicked = ImGui::Button(label, size);
+
+        if (active)
+            ImGui::PopStyleColor(3);
+
+        return clicked;
+    };
+
+    if (draw_mode_button("Authoring", ImVec2(82.f, 22.f), isAuthoring))
+        EDITOR->Set_SceneViewMode(SceneViewMode::Authoring);
+
+    ImGui::SameLine();
+
+    if (draw_mode_button("Final", ImVec2(54.f, 22.f), isFinal))
+        EDITOR->Set_SceneViewMode(SceneViewMode::Final);
 
     ImGui::PopStyleVar();
     ImGui::PopID();

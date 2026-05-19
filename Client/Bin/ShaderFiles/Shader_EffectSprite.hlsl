@@ -13,12 +13,21 @@ cbuffer cbCamera : register(b1)
 cbuffer cbEffectSpriteMaterial : register(b2)
 {
     float4 g_Tint = { 1.f, 1.f, 1.f, 1.f };
-    float4 g_EffectSpriteParams = { 1.f, 1.f, 0.f, 0.f }; // x: intensity, y: opacityPower, z: noiseStrength, w: useNoise
+    float4 g_EffectSpriteParams = { 1.f, 1.f, 0.f, 0.f }; // x: emissive-like intensity, y: opacityPower, z: noiseStrength, w: useNoise
     int g_OpacitySource = 0;
     float3 g_EffectSpritePadding;
 };
 
-Texture2D g_Texture : register(t0);
+cbuffer cbEffectSpriteRuntime : register(b3)
+{
+    int g_ScreenAlignmentMode = 0;
+    int g_DirectionalAlignmentMode = 1;
+    int g_SpriteTextureAxis = 1;
+    float g_SpriteRollOffsetRadians = 0.f;
+    float4 g_EffectSpriteEmitterCenter = { 0.f, 0.f, 0.f, 1.f };
+};
+
+Texture2D g_Texture : register(t0); // sprite effect의 primary texture다. 현재 경로에서는 RGB를 emissive-like color source로 해석한다.
 Texture2D g_NoiseTexture : register(t1);
 
 struct VS_IN
@@ -40,6 +49,7 @@ struct VS_OUT
     float4 endColor : COLOR1;
     float4 subUVRect : TEXCOORD2;
     float rotationRadians : TEXCOORD3;
+    float3 velocityDirection : TEXCOORD4;
 };
 
 VS_OUT VS_MAIN(VS_IN In)
@@ -54,6 +64,7 @@ VS_OUT VS_MAIN(VS_IN In)
     Out.endColor = In.endColor;
     Out.subUVRect = In.subUVRect;
     Out.rotationRadians = atan2(In.InstanceMatrix[0].y, In.InstanceMatrix[0].x);
+    Out.velocityDirection = In.InstanceMatrix[2].xyz;
 
     return Out;
 }
@@ -67,6 +78,7 @@ struct GS_IN
     float4 endColor : COLOR1;
     float4 subUVRect : TEXCOORD2;
     float rotationRadians : TEXCOORD3;
+    float3 velocityDirection : TEXCOORD4;
 };
 
 struct GS_OUT
@@ -79,33 +91,121 @@ struct GS_OUT
     float4 subUVRect : TEXCOORD2;
 };
 
-[maxvertexcount(4)]
-void GS_MAIN(point GS_IN In[1], inout TriangleStream<GS_OUT> OutStream)
+float3 ResolveFacingLookDirection(float3 particlePosition)
 {
-    const float3 particlePosition = In[0].worldPosition.xyz;
     float3 lookDir = g_BillboardTarget.xyz - particlePosition;
+    const float lookLength = length(lookDir);
+    return lookLength < 0.0001f ? float3(0.f, 0.f, 1.f) : lookDir / lookLength;
+}
 
-    if (length(lookDir) < 0.0001f)
-        lookDir = float3(0.f, 0.f, 1.f);
-    else
-        lookDir = normalize(lookDir);
+float3 ResolveAwayFromCenterLookDirection(float3 particlePosition)
+{
+    float3 lookDir = particlePosition - g_EffectSpriteEmitterCenter.xyz;
+    const float lookLength = length(lookDir);
+    return lookLength < 0.0001f ? float3(0.f, 0.f, 1.f) : lookDir / lookLength;
+}
 
+void ResolveLookAlignedBasis(float3 lookDir, out float3 rightDir, out float3 upDir)
+{
     float3 worldUp = float3(0.f, 1.f, 0.f);
-    float3 rightDir = cross(worldUp, lookDir);
+    rightDir = cross(worldUp, lookDir);
 
     if (length(rightDir) < 0.0001f)
         rightDir = cross(float3(0.f, 0.f, 1.f), lookDir);
 
     rightDir = normalize(rightDir);
-    float3 upDir = normalize(cross(lookDir, rightDir));
-    const float rotationCos = cos(In[0].rotationRadians);
-    const float rotationSin = sin(In[0].rotationRadians);
+    upDir = normalize(cross(lookDir, rightDir));
+}
+
+void ResolveCameraPlaneBasis(out float3 rightDir, out float3 upDir)
+{
+    rightDir = normalize(float3(g_ViewMatrix[0].x, g_ViewMatrix[1].x, g_ViewMatrix[2].x));
+    upDir = normalize(float3(g_ViewMatrix[0].y, g_ViewMatrix[1].y, g_ViewMatrix[2].y));
+}
+
+bool TryResolveTextureAxisBasis(float3 axisDir, out float3 rightDir, out float3 upDir)
+{
+    ResolveCameraPlaneBasis(rightDir, upDir);
+
+    const float3 planeNormal = normalize(cross(rightDir, upDir));
+    float3 projectedAxis = axisDir - planeNormal * dot(axisDir, planeNormal);
+    const float projectedLength = length(projectedAxis);
+    if (projectedLength < 0.0001f)
+        return false;
+
+    projectedAxis /= projectedLength;
+
+    if (g_SpriteTextureAxis == 0)
+    {
+        rightDir = projectedAxis;
+        upDir = normalize(cross(planeNormal, rightDir));
+    }
+    else
+    {
+        upDir = projectedAxis;
+        rightDir = normalize(cross(upDir, planeNormal));
+    }
+
+    return true;
+}
+
+[maxvertexcount(4)]
+void GS_MAIN(point GS_IN In[1], inout TriangleStream<GS_OUT> OutStream)
+{
+    const float3 particlePosition = In[0].worldPosition.xyz;
+    float3 rightDir = float3(1.f, 0.f, 0.f);
+    float3 upDir = float3(0.f, 1.f, 0.f);
+    if (g_ScreenAlignmentMode == 1 || g_ScreenAlignmentMode == 2)
+        ResolveCameraPlaneBasis(rightDir, upDir);
+    else if (g_ScreenAlignmentMode == 3)
+    {
+        const float3 lookDir = ResolveAwayFromCenterLookDirection(particlePosition);
+
+        if (g_DirectionalAlignmentMode == 1) // 스프라이트의 X 또는 Y 가 바라보도록
+        {
+            if (!TryResolveTextureAxisBasis(lookDir, rightDir, upDir))
+                ResolveCameraPlaneBasis(rightDir, upDir);
+        }
+        else // 스프라이트의 look 이 바라보도록
+            ResolveLookAlignedBasis(lookDir, rightDir, upDir);
+    }
+    else if (g_ScreenAlignmentMode == 4)
+    {
+        const float velocityLength = length(In[0].velocityDirection);
+        const float3 lookDir = velocityLength < 0.0001f
+                               ? ResolveFacingLookDirection(particlePosition)
+                               : In[0].velocityDirection / velocityLength;
+
+        if (g_DirectionalAlignmentMode == 1 && velocityLength >= 0.0001f)
+        {
+            if (!TryResolveTextureAxisBasis(lookDir, rightDir, upDir))
+                ResolveLookAlignedBasis(lookDir, rightDir, upDir);
+        }
+        else
+            ResolveLookAlignedBasis(lookDir, rightDir, upDir);
+    }
+    else
+    {
+        const float3 lookDir = ResolveFacingLookDirection(particlePosition);
+        ResolveLookAlignedBasis(lookDir, rightDir, upDir);
+    }
+
+    const float rotationRadians = In[0].rotationRadians + g_SpriteRollOffsetRadians;
+    const float rotationCos = cos(rotationRadians);
+    const float rotationSin = sin(rotationRadians);
     const float3 billboardRight = rightDir;
     const float3 billboardUp = upDir;
     rightDir = billboardRight * rotationCos + billboardUp * rotationSin;
     upDir = -billboardRight * rotationSin + billboardUp * rotationCos;
-    rightDir *= In[0].size.x * 0.5f;
-    upDir *= In[0].size.y * 0.5f;
+    float2 spriteSize = In[0].size;
+    if (g_ScreenAlignmentMode == 2)
+    {
+        const float squareExtent = max(spriteSize.x, spriteSize.y);
+        spriteSize = float2(squareExtent, squareExtent);
+    }
+
+    rightDir *= spriteSize.x * 0.5f;
+    upDir *= spriteSize.y * 0.5f;
 
     const matrix ViewProjMatrix = mul(g_ViewMatrix, g_ProjMatrix);
     GS_OUT Out[4];
@@ -195,5 +295,6 @@ PS_OUT PS_MAIN(PS_IN In)
 
 technique11 DefaultTechnique
 {
-    PASS_RS_DS_BS_VGP(DefaultPass, RS_CullNone, DSS_Default, BS_AlphaBlend, VS_MAIN, GS_MAIN, PS_MAIN) // 0
+    PASS_RS_DS_BS_VGP(AlphaBlendPass, RS_CullNone, DSS_DepthRead, BS_AlphaBlend, VS_MAIN, GS_MAIN, PS_MAIN) // 0
+    PASS_RS_DS_BS_VGP(AdditivePass, RS_CullNone, DSS_DepthRead, BS_Blend, VS_MAIN, GS_MAIN, PS_MAIN)        // 1
 }

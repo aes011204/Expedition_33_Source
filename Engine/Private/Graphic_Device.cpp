@@ -158,6 +158,14 @@ HRESULT Graphic_Device::Ready_BackBufferRenderTargetView()
 	if (FAILED(_device->CreateRenderTargetView(backBufferTexture.Get(), nullptr, _backBufferRTV.GetAddressOf())))
 		return E_FAIL;
 
+#ifdef _DEBUG
+    static const wchar_t* debugName = L"BackBufferRTV";
+    _backBufferRTV->SetPrivateData(
+        WKPDID_D3DDebugObjectNameW,
+        static_cast<UINT>((wcslen(debugName) + 1) * sizeof(wchar_t)),
+        debugName);
+#endif
+
 	return S_OK;
 }
 

@@ -10,8 +10,11 @@ enum class AuthoringModuleType : uint8
     Required,
     Spawn,
     Lifetime,
+    InitialLocation,
+    SphereLocation,
     InitialSize,
     InitialVelocity,
+    InitialRadialVelocity,
     Acceleration,
     Drag,
     VelocityOverLife,
@@ -42,6 +45,20 @@ enum class EmitterScreenAlignment : uint8
     AwayFromCenter,
     TypeSpecific,
     FacingCameraDistanceBlend,
+};
+
+// AwayFromCenter/Velocity가 기준 방향을 어떻게 사용할지 정한다.
+enum class EmitterDirectionalAlignmentMode : uint8
+{
+    LookDirection, // 기준 방향을 sprite 카드의 바라보는 방향으로 사용한다.
+    TextureAxis,   // camera-facing 평면은 유지하고 texture 축만 기준 방향에 맞춘다.
+};
+
+// TextureAxis mode에서 기준 방향에 맞출 texture 축을 고른다.
+enum class EmitterSpriteTextureAxis : uint8
+{
+    X, // texture의 가로 축을 radial/velocity 방향에 맞춘다.
+    Y, // texture의 세로 축을 radial/velocity 방향에 맞춘다.
 };
 
 enum class EmitterSortMode : uint8
@@ -277,7 +294,15 @@ struct RequiredModuleData
 
     Vec3 emitterOrigin{ 0.f, 0.f, 0.f };
     Vec3 emitterRotationDegrees{ 0.f, 0.f, 0.f };
+
     EmitterScreenAlignment screenAlignment{ EmitterScreenAlignment::Square };
+    // AwayFromCenter/Velocity에서 기준 방향을 look으로 쓸지 texture 축으로 쓸지 결정한다.
+    EmitterDirectionalAlignmentMode directionalAlignmentMode{ EmitterDirectionalAlignmentMode::TextureAxis };
+    // TextureAxis mode에서 기준 방향에 맞출 texture 축이다.
+    EmitterSpriteTextureAxis spriteTextureAxis{ EmitterSpriteTextureAxis::Y };
+    // texture authored orientation 보정용 정적 roll offset이다.
+    float spriteRollOffsetDegrees{ 0.f };
+
     float minCameraBlendDistance{ 0.f };
     float maxCameraBlendDistance{ 0.f };
     bool useLocalSpace{ false };
@@ -322,6 +347,26 @@ struct LifetimeModuleData
     FloatDistributionData lifeTime{ FloatDistributionData::Make_Uniform(1.f, 2.f) };
 };
 
+struct InitialLocationModuleData
+{
+    Vector3DistributionData location{
+        Vector3DistributionData::Make_Uniform(Vec3{ -0.5f, -0.5f, -0.5f }, Vec3{ 0.5f, 0.5f, 0.5f })
+    };
+};
+
+enum class SphereLocationSpawnMode : uint8
+{
+    Volume,
+    Surface,
+};
+
+struct SphereLocationModuleData
+{
+    Vec3 offset{ 0.f, 0.f, 0.f };
+    float radius{ 1.f };
+    SphereLocationSpawnMode spawnMode{ SphereLocationSpawnMode::Volume };
+};
+
 struct InitialSizeModuleData
 {
     Vector2DistributionData size{ Vector2DistributionData::Make_Constant(Vec2{ 0.15f, 0.35f }) };
@@ -329,8 +374,15 @@ struct InitialSizeModuleData
 
 struct InitialVelocityModuleData
 {
-    Vec3 radialPivot{ 0.f, 2.f, 0.f };
+    Vector3DistributionData velocity{ Vector3DistributionData::Make_Constant(Vec3{ 0.f, 0.f, 0.f }) };
+    bool inWorldSpace{ false };
+};
+
+struct InitialRadialVelocityModuleData
+{
     FloatDistributionData speed{ FloatDistributionData::Make_Uniform(0.5f, 1.5f) };
+    Vec3 radialPivot{ 0.f, 0.f, 0.f };
+    bool inWorldSpace{ false };
 };
 
 struct AccelerationModuleData
@@ -387,9 +439,12 @@ struct ColorOverLifeModuleData
 
 struct SubUVFrameOverLifeModuleData
 {
+    FloatDistributionData frameIndex{ FloatDistributionData::Make_ConstantCurve(0.f) };
     uint32 startFrame{ 0 };
     uint32 endFrame{ 0 };
     bool loop{ false };
+    SubUVFramePlaybackMode playbackMode{ SubUVFramePlaybackMode::FixedFrame };
+    float framesPerSecond{ 12.f };
 };
 
 struct SizeByLifeModuleData
@@ -404,8 +459,11 @@ using AuthoringModuleData = std::variant<
     RequiredModuleData,
     SpawnModuleData,
     LifetimeModuleData,
+    InitialLocationModuleData,
+    SphereLocationModuleData,
     InitialSizeModuleData,
     InitialVelocityModuleData,
+    InitialRadialVelocityModuleData,
     AccelerationModuleData,
     DragModuleData,
     VelocityOverLifeModuleData,

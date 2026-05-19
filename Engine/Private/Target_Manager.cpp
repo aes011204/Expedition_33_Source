@@ -13,7 +13,7 @@ HRESULT Target_Manager::Add_RenderTarget(const wstring& targetTag, uint32 sizeX,
     if (Find_RenderTarget(targetTag))
         return E_FAIL;
 
-    auto target = RenderTarget::Create(_device, _context, sizeX, sizeY, pixelFormat, clearColor, useDSV);
+    auto target = RenderTarget::Create(targetTag, _device, _context, sizeX, sizeY, pixelFormat, clearColor, useDSV);
 
     if (target == nullptr)
         return E_FAIL;
@@ -197,6 +197,21 @@ HRESULT Target_Manager::Resize_MRTs(uint32 width, uint32 height)
     return S_OK;
 }
 
+HRESULT Target_Manager::Set_RenderTargetClearColor(const wstring& targetTag, const Color& clearColor)
+{
+    auto iter = _renderTargets.find(targetTag);
+    if (iter == _renderTargets.end())
+        return E_FAIL;
+
+    TargetDesc& desc = iter->second;
+    desc.clearColor = clearColor;
+
+    if (desc.target)
+        desc.target->Set_ClearColor(clearColor);
+
+    return S_OK;
+}
+
 HRESULT Target_Manager::Copy_CurrentRTV_To(const wstring& targetTag)
 {
     // 현재 OM에 바인딩된 RTV
@@ -334,7 +349,6 @@ void Target_Manager::Free()
 }
 
 #ifdef _DEBUG
-
 HRESULT Target_Manager::Initialize_Debug(float totalSizeX, float totalSizeY)
 {
     return Resize_DrawArea(totalSizeX, totalSizeY);
