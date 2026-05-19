@@ -1,6 +1,5 @@
 ﻿#include "EffectMaterialInstance_View.h"
 
-#include <fstream>
 #include <shobjidl.h>
 
 #include "EffectEditorInstance.h"
@@ -9,7 +8,7 @@
 #include "GameInstance.h"
 #include "DetailPropertyContext.h"
 #include "Helper_String.h"
-#include "TextureDisplayInfoResolver.h"
+#include "Notification_Manager.h"
 #include "Texture.h"
 
 NS_BEGIN(EffectEditor)
@@ -17,7 +16,6 @@ NS_BEGIN(EffectEditor)
 namespace Internal
 {
     constexpr const char* kEffectTexturePayloadType = "CONTENT_BROWSER_EFFECT_TEXTURE";
-    constexpr const wchar_t* kTextureTablePath = L"../../../Client/Bin/Resources/Data/json/DT_Texture.json";
     constexpr const wchar_t* kTextureDialogDefaultFolder = L"../../../Client/Bin/Resources/Effects/Textures";
 
     string textureAssignStatus{};
@@ -47,6 +45,11 @@ namespace Internal
         return extension == ".png" || extension == ".dds";
     }
 
+    bool Is_PngTextureFile(const fs::path& filePath)
+    {
+        return ToLowerCopy(filePath.extension().string()) == ".png";
+    }
+
     fs::path Normalize_Path(const fs::path& filePath)
     {
         try
@@ -74,111 +77,129 @@ namespace Internal
         return Normalize_Path(fs::path(path));
     }
 
-    fs::path Resolve_TextureTablePath(const string& tablePathText)
+    string Make_ResourceRelativePath(const fs::path& filePath)
     {
-        string normalizedText = tablePathText;
-        ranges::replace(normalizedText, '\\', '/');
-
-        const string marker = "Bin/Resources/";
-        const size_t markerPos = normalizedText.find(marker);
-        if (markerPos != string::npos)
+        if (GAME != nullptr)
         {
-            const string resourceRelative = normalizedText.substr(markerPos + marker.size());
-            fs::path resourceRoot = GAME ? fs::path(GAME->Get_AssetRoot()) : fs::path{};
-            if (resourceRoot.empty())
-                resourceRoot = fs::path(L"../../../Client/Bin/Resources");
-            return Normalize_Path(resourceRoot / String::ToWString(resourceRelative));
+            const fs::path assetRoot = Normalize_Path(GAME->Get_AssetRoot());
+            if (!assetRoot.empty())
+            {
+                const fs::path normalizedPath = Normalize_Path(filePath);
+                const fs::path relativePath = normalizedPath.lexically_relative(assetRoot);
+                if (!relativePath.empty() && !relativePath.native().starts_with(L".."))
+                {
+                    string result = String::ToString(relativePath.wstring());
+                    ranges::replace(result, '\\', '/');
+                    return result;
+                }
+            }
         }
 
-        return Normalize_Path(String::ToWString(tablePathText));
+        string result = String::ToString(Normalize_Path(filePath).wstring());
+        ranges::replace(result, '\\', '/');
+        return result;
     }
 
-    bool Try_ReadTextureIdFromTable(const fs::path& filePath, string& outTextureId, string& outError)
+    wstring Resolve_InstanceTexturePathByGuid(const string& textureGuid)
     {
-        outTextureId.clear();
-        outError.clear();
+        if (GAME != nullptr && !textureGuid.empty())
+        {
+            const wstring resolvedPath = GAME->Resolve_AssetPath(textureGuid);
+            if (!resolvedPath.empty() && fs::exists(resolvedPath))
+                return resolvedPath;
+        }
 
+        return {};
+    }
+
+    wstring Resolve_InstanceTexturePathByFallbackPath(const string& texturePath)
+    {
+        if (!texturePath.empty())
+        {
+            fs::path candidatePath = String::ToWString(texturePath);
+            if (candidatePath.is_relative() && GAME != nullptr)
+                candidatePath = fs::path(GAME->Get_AssetRoot()) / candidatePath;
+
+            candidatePath = Normalize_Path(candidatePath);
+            if (fs::exists(candidatePath))
+                return candidatePath.wstring();
+        }
+
+        return {};
+    }
+
+    wstring Resolve_InstanceTexturePath(const string& textureGuid, const string& texturePath)
+    {
+        if (!textureGuid.empty())
+            return Resolve_InstanceTexturePathByGuid(textureGuid);
+
+        return Resolve_InstanceTexturePathByFallbackPath(texturePath);
+    }
+
+    fs::path Resolve_PreferredTexturePath(const fs::path& filePath, bool& outSwitchedToDds)
+    {
+        outSwitchedToDds = false;
+
+        fs::path targetPath = Normalize_Path(filePath);
+        if (!Is_PngTextureFile(targetPath))
+            return targetPath;
+
+        fs::path ddsPath = targetPath;
+        ddsPath.replace_extension(".dds");
+
+        if (!fs::exists(ddsPath))
+            return targetPath;
+
+        outSwitchedToDds = true;
+        return Normalize_Path(ddsPath);
+    }
+
+    void Notify_TextureAssignment(NotifyType type, const string& message)
+    {
+        if (EDITOR == nullptr || EDITOR->Get_Notification() == nullptr)
+            return;
+
+        EDITOR->Get_Notification()->Add_Notification_With_Type(type, "{}", message);
+    }
+
+    bool Try_AssignTextureFromFile(const fs::path& filePath, string& textureGuid, string& texturePath)
+    {
         if (!Is_SupportedTextureFile(filePath))
         {
-            outError = "Unsupported texture suffix. Use .png or .dds.";
+            textureAssignStatus = "Unsupported texture suffix. Use .png or .dds.";
             return false;
         }
 
         if (!fs::exists(filePath))
         {
-            outError = "Texture file not found.";
+            textureAssignStatus = "Texture file not found.";
             return false;
         }
 
-        const fs::path textureTablePath = Resolve_EditorPath(kTextureTablePath);
-        if (textureTablePath.empty())
+        bool switchedToDds = false;
+        const fs::path targetPath = Resolve_PreferredTexturePath(filePath, switchedToDds);
+
+        textureGuid = GAME != nullptr ? GAME->Ensure_AssetGUID(targetPath.wstring(), "Texture") : string{};
+        texturePath = Make_ResourceRelativePath(targetPath);
+
+        if (switchedToDds)
         {
-            outError = "Failed to resolve DT_Texture.json path.";
-            return false;
+            string sourcePath = Make_ResourceRelativePath(filePath);
+            textureAssignStatus = textureGuid.empty()
+                                  ? "Texture switched PNG -> DDS with fallback path only: " + sourcePath + " -> " + texturePath
+                                  : "Texture switched PNG -> DDS: " + sourcePath + " -> " + texturePath;
+            Notify_TextureAssignment(NotifyType::Info, textureAssignStatus);
+        }
+        else
+        {
+            textureAssignStatus = textureGuid.empty()
+                                  ? "Texture assigned with fallback path only: " + texturePath
+                                  : "Texture assigned: " + texturePath;
         }
 
-        ifstream file{ textureTablePath };
-        if (!file.is_open())
-        {
-            outError = "Failed to open DT_Texture.json.";
-            return false;
-        }
+        if (textureGuid.empty())
+            Notify_TextureAssignment(NotifyType::Warning, textureAssignStatus);
 
-        json root{};
-        try
-        {
-            file >> root;
-        }
-        catch (...)
-        {
-            outError = "Failed to parse DT_Texture.json.";
-            return false;
-        }
-
-        const json* textureArray = nullptr;
-        if (root.contains("DT_Texture"))
-            textureArray = &root["DT_Texture"];
-        else if (root.contains("Texture"))
-            textureArray = &root["Texture"];
-
-        if (textureArray == nullptr || !textureArray->is_array())
-        {
-            outError = "DT_Texture.json has no texture array.";
-            return false;
-        }
-
-        const wstring selectedPath = ToLowerCopy(Normalize_Path(filePath).wstring());
-        for (const json& item : *textureArray)
-        {
-            const string id = item.value("Id", item.value("id", string{}));
-            const string path = item.value("Path", item.value("path", string{}));
-            if (id.empty() || path.empty() || path.find('%') != string::npos)
-                continue;
-
-            const wstring tablePath = ToLowerCopy(Resolve_TextureTablePath(path).wstring());
-            if (tablePath != selectedPath)
-                continue;
-
-            outTextureId = id;
-            return true;
-        }
-
-        outError = "Texture file exists but has no matching DT_Texture.json row. DT_Texture Path must match the selected file.";
-        return false;
-    }
-
-    bool Try_AssignTextureFromFile(const fs::path& filePath, string& value)
-    {
-        string textureId{};
-        string error{};
-        if (!Try_ReadTextureIdFromTable(filePath, textureId, error))
-        {
-            textureAssignStatus = error;
-            return false;
-        }
-
-        value = textureId;
-        textureAssignStatus = "Texture assigned: " + TextureDisplayInfoResolver::FormatTextureId(textureId);
         return true;
     }
 
@@ -246,35 +267,38 @@ namespace Internal
         return !outFilePath.empty();
     }
 
-    Shared<Texture> Resolve_TextureThumbnail(const string& textureId)
+    Shared<Texture> Resolve_TextureThumbnail(const string& textureGuid, const string& texturePath)
     {
-        if (textureId.empty() || GAME == nullptr)
+        if (EDITOR == nullptr)
             return nullptr;
 
         static map<string, Shared<Texture>> textureCache{};
-        const auto iter = textureCache.find(textureId);
+        const wstring resolvedPath = Resolve_InstanceTexturePath(textureGuid, texturePath);
+        if (resolvedPath.empty())
+            return nullptr;
+
+        const string cacheKey = String::ToString(resolvedPath);
+        const auto iter = textureCache.find(cacheKey);
         if (iter != textureCache.end())
             return iter->second;
 
-        Shared<Texture> texture = dynamic_pointer_cast<Texture>(
-            GAME->Clone_Prototype(Prototype::Comopnent, ETOI(LevelType::GamePlay), String::ToWString(textureId))
-        );
-        textureCache[textureId] = texture;
+        Shared<Texture> texture = Texture::Create(EDITOR->Get_Device(), EDITOR->Get_Context(), resolvedPath.c_str(), 1);
+        textureCache[cacheKey] = texture;
         return texture;
     }
 
-    ID3D11ShaderResourceView* Get_TextureThumbnailSRV(const string& textureId)
+    ID3D11ShaderResourceView* Get_TextureThumbnailSRV(const string& textureGuid, const string& texturePath)
     {
-        const Shared<Texture> texture = Resolve_TextureThumbnail(textureId);
+        const Shared<Texture> texture = Resolve_TextureThumbnail(textureGuid, texturePath);
         if (texture == nullptr || texture->Get_SRVs().empty())
             return nullptr;
 
         return texture->Get_SRVs().front().Get();
     }
 
-    void Draw_TextureThumbnail(const string& textureId, const ImVec2& size)
+    void Draw_TextureThumbnail(const string& textureGuid, const string& texturePath, const ImVec2& size)
     {
-        ID3D11ShaderResourceView* srv = Get_TextureThumbnailSRV(textureId);
+        ID3D11ShaderResourceView* srv = Get_TextureThumbnailSRV(textureGuid, texturePath);
         if (srv != nullptr)
         {
             const ImTextureID texture = static_cast<ImTextureID>(reinterpret_cast<intptr_t>(srv));
@@ -291,11 +315,53 @@ namespace Internal
         drawList->AddText(
             ImVec2(minPos.x + 7.f, minPos.y + size.y * 0.5f - 7.f),
             IM_COL32(150, 160, 176, 255),
-            textureId.empty() ? "NONE" : "TEX"
+            texturePath.empty() && textureGuid.empty() ? "NONE" : "TEX"
         );
     }
 
-    bool Draw_TextureSlotBody(string& value)
+    string Format_TextureReference(const string& textureGuid, const string& texturePath)
+    {
+        if (!texturePath.empty())
+            return texturePath;
+
+        if (!textureGuid.empty())
+            return textureGuid;
+
+        return "(none)";
+    }
+
+    string Make_TextureReferenceTooltip(const string& textureGuid, const string& texturePath)
+    {
+        string state = "Empty";
+        if (!textureGuid.empty())
+        {
+            state = Resolve_InstanceTexturePathByGuid(textureGuid).empty()
+                    ? "GUID resolve failed"
+                    : "GUID reference";
+        }
+        else if (!texturePath.empty())
+        {
+            state = Resolve_InstanceTexturePathByFallbackPath(texturePath).empty()
+                    ? "Fallback path missing"
+                    : "Fallback path only";
+        }
+
+        return
+            "State: " + state +
+            "\n" +
+            "GUID: " + (textureGuid.empty() ? string{ "(none)" } : textureGuid) +
+            "\nPath: " + (texturePath.empty() ? string{ "(none)" } : texturePath);
+    }
+
+    bool Is_WarningTextureReference(const string& textureGuid, const string& texturePath)
+    {
+        if (!textureGuid.empty())
+            return Resolve_InstanceTexturePathByGuid(textureGuid).empty();
+
+        return !texturePath.empty();
+    }
+
+    bool Draw_TextureSlotBody(string& textureGuid, string& texturePath)
     {
         constexpr float browseButtonWidth{ 28.f };
         const float spacing = ImGui::GetStyle().ItemSpacing.x;
@@ -317,7 +383,7 @@ namespace Internal
             ))
             {
                 if (payload->IsDelivery())
-                    changed = Try_AssignTextureFromFile(static_cast<const wchar_t*>(payload->Data), value);
+                    changed = Try_AssignTextureFromFile(static_cast<const wchar_t*>(payload->Data), textureGuid, texturePath);
             }
             ImGui::EndDragDropTarget();
         }
@@ -325,22 +391,26 @@ namespace Internal
         const ImVec2 slotMin = ImGui::GetItemRectMin();
         const ImVec2 slotMax = ImGui::GetItemRectMax();
         const bool isHovered = ImGui::IsItemHovered();
-        const ImU32 fillColor = isHovered || isTextureDragging
-                                ? IM_COL32(34, 42, 58, 255)
-                                : IM_COL32(22, 25, 32, 255);
-        const ImU32 borderColor = isHovered || isTextureDragging
-                                  ? IM_COL32(116, 156, 235, 255)
-                                  : IM_COL32(78, 88, 108, 255);
+        const bool isWarningReference = Is_WarningTextureReference(textureGuid, texturePath);
+        const ImU32 fillColor = isWarningReference
+                                ? (isHovered || isTextureDragging ? IM_COL32(58, 32, 34, 255) : IM_COL32(34, 22, 24, 255))
+                                : (isHovered || isTextureDragging ? IM_COL32(34, 42, 58, 255) : IM_COL32(22, 25, 32, 255));
+        const ImU32 borderColor = isWarningReference
+                                  ? IM_COL32(214, 86, 96, 255)
+                                  : (isHovered || isTextureDragging ? IM_COL32(116, 156, 235, 255) : IM_COL32(78, 88, 108, 255));
+        const ImU32 textColor = isWarningReference
+                                ? IM_COL32(255, 190, 196, 255)
+                                : IM_COL32(220, 226, 238, 255);
 
         ImDrawList* drawList = ImGui::GetWindowDrawList();
         drawList->AddRectFilled(slotMin, slotMax, fillColor, 4.f);
         drawList->AddRect(slotMin, slotMax, borderColor, 4.f, 0, isTextureDragging ? 2.f : 1.f);
 
-        const string displayText = TextureDisplayInfoResolver::FormatTextureId(value);
+        const string displayText = Format_TextureReference(textureGuid, texturePath);
         drawList->PushClipRect(ImVec2(slotMin.x + 8.f, slotMin.y), ImVec2(slotMax.x - 8.f, slotMax.y), true);
         drawList->AddText(
             ImVec2(slotMin.x + 10.f, slotMin.y + slotSize.y * 0.5f - ImGui::GetTextLineHeight() * 0.5f),
-            IM_COL32(220, 226, 238, 255),
+            textColor,
             displayText.c_str()
         );
         drawList->PopClipRect();
@@ -348,8 +418,8 @@ namespace Internal
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
         {
             const string tooltip =
-                "Content Browser의 .png / .dds를 드롭하면 현재 instance texture id로 지정합니다.\n\n" +
-                TextureDisplayInfoResolver::MakeTextureTooltip(value);
+                "Content Browser의 .png / .dds를 드롭하면 현재 instance texture reference로 지정합니다.\n\n" +
+                Make_TextureReferenceTooltip(textureGuid, texturePath);
             ImGui::SetTooltip("%s", tooltip.c_str());
         }
 
@@ -360,7 +430,7 @@ namespace Internal
         {
             wstring pickedFilePath{};
             if (Try_PickTextureFileDialog(pickedFilePath))
-                changed = Try_AssignTextureFromFile(pickedFilePath, value);
+                changed = Try_AssignTextureFromFile(pickedFilePath, textureGuid, texturePath);
         }
         ImGui::PopStyleVar(2);
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
@@ -369,21 +439,28 @@ namespace Internal
         return changed;
     }
 
-    bool Draw_TextureProperty(DetailPropertyContext& detailContext, const char* label, string& value, const string& defaultValue)
+    bool Draw_TextureProperty(
+        DetailPropertyContext& detailContext,
+        const char* label,
+        string& textureGuid,
+        string& texturePath,
+        const string& defaultGuid,
+        const string& defaultPath)
     {
         ImGui::PushID(label);
         detailContext.Draw_PropertyLabel(label);
 
         constexpr ImVec2 thumbnailSize{ 44.f, 44.f };
-        Draw_TextureThumbnail(value, thumbnailSize);
+        Draw_TextureThumbnail(textureGuid, texturePath, thumbnailSize);
         ImGui::SameLine();
-        bool changed = Draw_TextureSlotBody(value);
+        bool changed = Draw_TextureSlotBody(textureGuid, texturePath);
 
-        const bool resetClicked = detailContext.Draw_ResetButton(value != defaultValue);
+        const bool resetClicked = detailContext.Draw_ResetButton(textureGuid != defaultGuid || texturePath != defaultPath);
         if (resetClicked)
         {
-            value = defaultValue;
-            textureAssignStatus = value.empty() ? "Texture reset: (none)" : "Texture reset: " + TextureDisplayInfoResolver::FormatTextureId(value);
+            textureGuid = defaultGuid;
+            texturePath = defaultPath;
+            textureAssignStatus = texturePath.empty() ? "Texture reset: (none)" : "Texture reset: " + texturePath;
             changed = true;
         }
 
@@ -608,8 +685,22 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(EffectMaterialInstance
     {
         if (_detailPropertyContext.Begin_PropertyTable("EffectMaterialInstanceTexture"))
         {
-            changed |= Internal::Draw_TextureProperty(_detailPropertyContext, "Main Texture (Emissive)", material.mainTextureId, defaultData.mainTextureId);
-            changed |= Internal::Draw_TextureProperty(_detailPropertyContext, "Noise Texture", material.noiseTextureId, defaultData.noiseTextureId);
+            changed |= Internal::Draw_TextureProperty(
+                _detailPropertyContext,
+                "Main Texture (Emissive)",
+                material.mainTextureGuid,
+                material.mainTexturePath,
+                defaultData.mainTextureGuid,
+                defaultData.mainTexturePath
+            );
+            changed |= Internal::Draw_TextureProperty(
+                _detailPropertyContext,
+                "Noise Texture",
+                material.noiseTextureGuid,
+                material.noiseTexturePath,
+                defaultData.noiseTextureGuid,
+                defaultData.noiseTexturePath
+            );
             _detailPropertyContext.End_PropertyTable();
         }
 
@@ -668,8 +759,8 @@ void EffectMaterialInstance_View::Apply_MaterialChanged(
 {
     emitter.previewDirty = true;
     emitter.rendererType = requiredData.rendererType;
-    emitter.textureId = requiredData.material.mainTextureId;
-    emitter.resourceSummary = requiredData.material.mainTextureId;
+    emitter.textureId = requiredData.material.mainTexturePath;
+    emitter.resourceSummary = requiredData.material.mainTexturePath;
 
     if (emitterView)
         emitterView->MarkDirty();

@@ -54,6 +54,25 @@ namespace Internal
         outValue = iter->get<string>();
     }
 
+    bool Try_MigrateLegacyTextureId(const string& textureId, string& outGuid, string& outPath)
+    {
+        if (textureId == "Texture_Effect_DefaultTexture")
+        {
+            outGuid = "3c90794a-31bb-4e97-969a-3fd4497acc0f";
+            outPath = "Effects/Textures/DefaultTexture.dds";
+            return true;
+        }
+
+        if (textureId == "Texture_Effect_Clouds4")
+        {
+            outGuid = "321bf66c-e6f9-4495-9855-275274727e83";
+            outPath = "Effects/Textures/clouds4_T.dds";
+            return true;
+        }
+
+        return false;
+    }
+
     //## Primitive Value Codec
 
     json To_Json(const Vec2& value)
@@ -121,8 +140,10 @@ namespace Internal
     {
         json root = json::object();
         root["sourcePresetName"] = data.sourcePresetName;
-        root["mainTextureId"] = data.mainTextureId;
-        root["noiseTextureId"] = data.noiseTextureId;
+        root["mainTextureGuid"] = data.mainTextureGuid;
+        root["mainTexturePath"] = data.mainTexturePath;
+        root["noiseTextureGuid"] = data.noiseTextureGuid;
+        root["noiseTexturePath"] = data.noiseTexturePath;
         root["tint"] = To_Json(data.tint);
         root["intensity"] = data.intensity;
         root["opacityPower"] = data.opacityPower;
@@ -140,8 +161,22 @@ namespace Internal
             return;
 
         Read_StringField(root, "sourcePresetName", outData.sourcePresetName);
-        Read_StringField(root, "mainTextureId", outData.mainTextureId);
-        Read_StringField(root, "noiseTextureId", outData.noiseTextureId);
+        Read_StringField(root, "mainTextureGuid", outData.mainTextureGuid);
+        Read_StringField(root, "mainTexturePath", outData.mainTexturePath);
+        Read_StringField(root, "noiseTextureGuid", outData.noiseTextureGuid);
+        Read_StringField(root, "noiseTexturePath", outData.noiseTexturePath);
+        if (outData.mainTextureGuid.empty() && outData.mainTexturePath.empty())
+        {
+            string legacyMainTextureId{};
+            Read_StringField(root, "mainTextureId", legacyMainTextureId);
+            Try_MigrateLegacyTextureId(legacyMainTextureId, outData.mainTextureGuid, outData.mainTexturePath);
+        }
+        if (outData.noiseTextureGuid.empty() && outData.noiseTexturePath.empty())
+        {
+            string legacyNoiseTextureId{};
+            Read_StringField(root, "noiseTextureId", legacyNoiseTextureId);
+            Try_MigrateLegacyTextureId(legacyNoiseTextureId, outData.noiseTextureGuid, outData.noiseTexturePath);
+        }
         Read_NumberField(root, "intensity", outData.intensity);
         Read_NumberField(root, "opacityPower", outData.opacityPower);
         Read_NumberField(root, "noiseStrength", outData.noiseStrength);

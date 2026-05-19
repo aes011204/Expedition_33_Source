@@ -518,8 +518,8 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
     {
         const EffectMaterialInstanceData& material = required->material;
 
-        if (!material.mainTextureId.empty())
-            desc.required.material.textureId = material.mainTextureId;
+        desc.required.material.mainTextureGuid = material.mainTextureGuid;
+        desc.required.material.mainTexturePath = material.mainTexturePath;
 
         if (!material.blendMode.empty())
             desc.required.material.blendMode = material.blendMode;
@@ -531,8 +531,8 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
         desc.required.material.intensity = material.intensity;
         desc.required.material.opacityPower = material.opacityPower;
 
-        if (!material.noiseTextureId.empty())
-            desc.required.material.noiseTextureId = material.noiseTextureId;
+        desc.required.material.noiseTextureGuid = material.noiseTextureGuid;
+        desc.required.material.noiseTexturePath = material.noiseTexturePath;
 
         desc.required.material.noiseStrength = material.noiseStrength;
         desc.required.material.subUVRows = max(1u, material.subUVRows);

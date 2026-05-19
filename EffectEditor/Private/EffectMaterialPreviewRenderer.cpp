@@ -39,6 +39,34 @@ namespace Internal
             GAME->Clone_Prototype(Prototype::Comopnent, levelIndex, prototypeTag, arg)
         );
     }
+
+    wstring Resolve_PreviewTexturePathByGuid(const string& textureGuid)
+    {
+        if (GAME != nullptr && !textureGuid.empty())
+        {
+            const wstring resolvedPath = GAME->Resolve_AssetPath(textureGuid);
+            if (!resolvedPath.empty() && fs::exists(resolvedPath))
+                return resolvedPath;
+        }
+
+        return {};
+    }
+
+    wstring Resolve_PreviewTexturePathByFallbackPath(const string& texturePath)
+    {
+        if (!texturePath.empty())
+        {
+            fs::path candidatePath = String::ToWString(texturePath);
+            if (candidatePath.is_relative() && GAME != nullptr)
+                candidatePath = fs::path(GAME->Get_AssetRoot()) / candidatePath;
+
+            candidatePath = candidatePath.lexically_normal();
+            if (fs::exists(candidatePath))
+                return candidatePath.wstring();
+        }
+
+        return {};
+    }
 }
 
 EffectMaterialPreviewRenderer::EffectMaterialPreviewRenderer(uint32 previewTextureSize)
@@ -56,6 +84,7 @@ EffectMaterialPreviewRenderer::~EffectMaterialPreviewRenderer()
 void EffectMaterialPreviewRenderer::Render_Material(const EffectMaterialInstanceData& material)
 {
     _statusMessage.clear();
+    _hasRenderedPreview = false;
 
     if (EDITOR == nullptr || GAME == nullptr)
     {
@@ -65,8 +94,8 @@ void EffectMaterialPreviewRenderer::Render_Material(const EffectMaterialInstance
 
     if (!Ready_RenderTarget() ||
         !Ready_Shader() ||
-        !Ready_Texture(material.mainTextureId) ||
-        !Ready_NoiseTexture(material.noiseTextureId) ||
+        !Ready_Texture(material.mainTextureGuid, material.mainTexturePath) ||
+        !Ready_NoiseTexture(material.noiseTextureGuid, material.noiseTexturePath) ||
         !Ready_Meshes())
         return;
 
@@ -83,7 +112,12 @@ void EffectMaterialPreviewRenderer::Render_Material(const EffectMaterialInstance
     GAME->Bind_BackBuffer();
 
     if (FAILED(hr))
+    {
         _statusMessage = "Preview draw failed.";
+        return;
+    }
+
+    _hasRenderedPreview = true;
 }
 
 void EffectMaterialPreviewRenderer::Draw_Viewport(
@@ -144,7 +178,7 @@ void EffectMaterialPreviewRenderer::Draw_Viewport(
 
 ID3D11ShaderResourceView* EffectMaterialPreviewRenderer::Get_SRV() const
 {
-    return _renderTarget == nullptr ? nullptr : _renderTarget->Get_SRV();
+    return !_hasRenderedPreview || _renderTarget == nullptr ? nullptr : _renderTarget->Get_SRV();
 }
 
 const string& EffectMaterialPreviewRenderer::Get_StatusMessage() const
@@ -192,55 +226,101 @@ bool EffectMaterialPreviewRenderer::Ready_Shader()
     return true;
 }
 
-bool EffectMaterialPreviewRenderer::Ready_Texture(const string& textureId)
+bool EffectMaterialPreviewRenderer::Ready_Texture(const string& textureGuid, const string& texturePath)
 {
-    const string requestedTextureId = textureId.empty() ? kFallbackTextureId : textureId;
-    if (_texture != nullptr && _loadedTextureId == requestedTextureId)
+    wstring resolvedPath{};
+    if (!textureGuid.empty())
+    {
+        resolvedPath = Internal::Resolve_PreviewTexturePathByGuid(textureGuid);
+        if (resolvedPath.empty())
+        {
+            _texture = nullptr;
+            _loadedTextureKey.clear();
+            _statusMessage = "Main texture GUID resolve failed. Fallback path is diagnostic only.";
+            return false;
+        }
+    }
+    else if (!texturePath.empty())
+    {
+        resolvedPath = Internal::Resolve_PreviewTexturePathByFallbackPath(texturePath);
+        if (resolvedPath.empty())
+        {
+            _texture = nullptr;
+            _loadedTextureKey.clear();
+            _statusMessage = "Main texture fallback path is missing.";
+            return false;
+        }
+
+        _statusMessage = "Main texture uses fallback path only. Save a GUID-backed reference.";
+    }
+
+    if (resolvedPath.empty())
+    {
+        _texture = nullptr;
+        _loadedTextureKey.clear();
+        _statusMessage = "Main texture reference is empty.";
+        return false;
+    }
+
+    const string requestedTextureKey = String::ToString(resolvedPath);
+    if (_texture != nullptr && _loadedTextureKey == requestedTextureKey)
         return true;
 
-    _texture = Internal::Clone_Component<Texture>(ETOI(LevelType::GamePlay), String::ToWString(requestedTextureId));
-    _loadedTextureId = requestedTextureId;
+    _texture = Texture::Create(EDITOR->Get_Device(), EDITOR->Get_Context(), resolvedPath.c_str(), 1);
+    _loadedTextureKey = requestedTextureKey;
 
     if (_texture != nullptr)
         return true;
 
-    if (requestedTextureId == kFallbackTextureId)
-    {
-        _statusMessage = "Preview texture prototype is missing.";
-        return false;
-    }
-
-    _texture = Internal::Clone_Component<Texture>(ETOI(LevelType::GamePlay), String::ToWString(kFallbackTextureId));
-    _loadedTextureId = kFallbackTextureId;
-
-    if (_texture == nullptr)
-    {
-        _statusMessage = "Preview texture and fallback texture are missing.";
-        return false;
-    }
-
-    _statusMessage = "Preview texture missing. Fallback texture is shown.";
-    return true;
+    _loadedTextureKey.clear();
+    _statusMessage = "Preview texture create failed.";
+    return false;
 }
 
-bool EffectMaterialPreviewRenderer::Ready_NoiseTexture(const string& noiseTextureId)
+bool EffectMaterialPreviewRenderer::Ready_NoiseTexture(const string& textureGuid, const string& texturePath)
 {
-    if (noiseTextureId.empty())
+    if (textureGuid.empty() && texturePath.empty())
     {
         _noiseTexture = nullptr;
-        _loadedNoiseTextureId.clear();
+        _loadedNoiseTextureKey.clear();
         return true;
     }
 
-    if (_noiseTexture != nullptr && _loadedNoiseTextureId == noiseTextureId)
+    wstring resolvedPath{};
+    if (!textureGuid.empty())
+    {
+        resolvedPath = Internal::Resolve_PreviewTexturePathByGuid(textureGuid);
+        if (resolvedPath.empty())
+        {
+            _noiseTexture = nullptr;
+            _loadedNoiseTextureKey.clear();
+            _statusMessage = "Noise texture GUID resolve failed. Preview continues without noise.";
+            return true;
+        }
+    }
+    else
+    {
+        resolvedPath = Internal::Resolve_PreviewTexturePathByFallbackPath(texturePath);
+    }
+
+    if (resolvedPath.empty())
+    {
+        _noiseTexture = nullptr;
+        _loadedNoiseTextureKey.clear();
+        _statusMessage = "Noise texture missing. Preview continues without noise.";
+        return true;
+    }
+
+    const string requestedTextureKey = String::ToString(resolvedPath);
+    if (_noiseTexture != nullptr && _loadedNoiseTextureKey == requestedTextureKey)
         return true;
 
-    _noiseTexture = Internal::Clone_Component<Texture>(ETOI(LevelType::GamePlay), String::ToWString(noiseTextureId));
-    _loadedNoiseTextureId = noiseTextureId;
+    _noiseTexture = Texture::Create(EDITOR->Get_Device(), EDITOR->Get_Context(), resolvedPath.c_str(), 1);
+    _loadedNoiseTextureKey = requestedTextureKey;
 
     if (_noiseTexture == nullptr)
     {
-        _loadedNoiseTextureId.clear();
+        _loadedNoiseTextureKey.clear();
         _statusMessage = "Noise texture missing. Preview continues without noise.";
     }
 
@@ -459,6 +539,7 @@ void EffectMaterialPreviewRenderer::Resize_RenderTarget(uint32 width, uint32 hei
     _previewTextureWidth = width;
     _previewTextureHeight = height;
     _renderTarget.reset();
+    _hasRenderedPreview = false;
 }
 
 void EffectMaterialPreviewRenderer::Handle_ViewportInput(

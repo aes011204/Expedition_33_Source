@@ -18,7 +18,8 @@ namespace Internal
 {
     constexpr const wchar_t* kDefaultEffectMaterialFileName = L"M_DefaultMaterial.effectmaterial.json";
     constexpr const char* kDefaultEffectMaterialName = "M_DefaultMaterial";
-    constexpr const char* kDefaultEffectMaterialTextureId = "Texture_Effect_DefaultTexture";
+    constexpr const char* kDefaultEffectMaterialTextureGuid = "3c90794a-31bb-4e97-969a-3fd4497acc0f";
+    constexpr const char* kDefaultEffectMaterialTexturePath = "Effects/Textures/DefaultTexture.dds";
     constexpr const wchar_t* kEffectAuthoringSaveDefaultFolder = L"../../../Client/Bin/Resources/Effects/Assets";
     constexpr const wchar_t* kEffectAuthoringSaveDefaultFileName = L"NewEffect.effect.json";
     constexpr const wchar_t* kEffectAuthoringExtension = L".effect.json";
@@ -162,7 +163,8 @@ namespace Internal
         if (materialPath.empty() || !EffectMaterialPresetReader::Read(materialPath, data.material))
         {
             data.material.sourcePresetName = kDefaultEffectMaterialName;
-            data.material.mainTextureId = kDefaultEffectMaterialTextureId;
+            data.material.mainTextureGuid = kDefaultEffectMaterialTextureGuid;
+            data.material.mainTexturePath = kDefaultEffectMaterialTexturePath;
         }
 
         return data;
@@ -432,8 +434,8 @@ AuthoringEmitter Emitter_View::Make_DefaultSpriteEmitter()
     if (const auto* requiredData = get_if<RequiredModuleData>(&requiredModule.data))
     {
         emitter.rendererType = requiredData->rendererType;
-        emitter.textureId = requiredData->material.mainTextureId;
-        emitter.resourceSummary = requiredData->material.mainTextureId;
+        emitter.textureId = requiredData->material.mainTexturePath;
+        emitter.resourceSummary = requiredData->material.mainTexturePath;
     }
 
     emitter.modules.push_back(move(requiredModule));
@@ -1042,8 +1044,8 @@ void Emitter_View::Reset_ModuleData(size_t emitterIndex, size_t moduleIndex)
         RequiredModuleData data = Internal::Make_DefaultRequiredModuleData();
         module.data = data;
         emitter.rendererType = data.rendererType;
-        emitter.textureId = data.material.mainTextureId;
-        emitter.resourceSummary = data.material.mainTextureId;
+        emitter.textureId = data.material.mainTexturePath;
+        emitter.resourceSummary = data.material.mainTexturePath;
         break;
     }
 
@@ -1526,8 +1528,8 @@ void Emitter_View::Sync_EmitterMirror(AuthoringEmitter& emitter)
             return;
 
         emitter.rendererType = requiredData->rendererType;
-        emitter.textureId = requiredData->material.mainTextureId;
-        emitter.resourceSummary = requiredData->material.mainTextureId;
+        emitter.textureId = requiredData->material.mainTexturePath;
+        emitter.resourceSummary = requiredData->material.mainTexturePath;
         return;
     }
 }

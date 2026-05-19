@@ -5,14 +5,11 @@
 #include "EffectMaterialPreviewRenderer.h"
 #include "GameInstance.h"
 #include "Helper_String.h"
-#include "TextureDisplayInfoResolver.h"
 
 NS_BEGIN(EffectEditor)
 
 namespace Internal
 {
-    constexpr const wchar_t* kPreviewFallbackTextureId = L"Texture_Effect_DefaultTexture";
-
     bool Is_SupportedBlendMode(const string& blendMode)
     {
         return
@@ -46,17 +43,6 @@ namespace Internal
         return iter->get<uint32>() == 0;
     }
 
-    bool Can_ResolvePreviewFallbackTexture()
-    {
-        if (GAME == nullptr)
-            return false;
-
-        return GAME->Clone_Prototype(
-                   Prototype::Comopnent,
-                   ETOI(LevelType::GamePlay),
-                   kPreviewFallbackTextureId
-               ) != nullptr;
-    }
 }
 
 EffectMaterial_View::EffectMaterial_View()
@@ -239,24 +225,26 @@ void EffectMaterial_View::Render_MaterialInstanceTable(const char* tableId, cons
         ImGui::TextUnformatted(value.c_str());
     };
 
-    const auto drawTextureRow = [](const char* label, const string& textureId)
+    const auto drawTextureRow = [](const char* label, const string& textureGuid, const string& texturePath)
     {
         ImGui::TableNextRow();
         ImGui::TableSetColumnIndex(0);
         ImGui::TextDisabled("%s", label);
         ImGui::TableSetColumnIndex(1);
 
-        const string displayText = TextureDisplayInfoResolver::FormatTextureId(textureId);
+        const string displayText = texturePath.empty() ? textureGuid : texturePath;
         ImGui::TextUnformatted(displayText.c_str());
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
         {
-            const string tooltip = TextureDisplayInfoResolver::MakeTextureTooltip(textureId);
+            const string tooltip =
+                "GUID: " + (textureGuid.empty() ? string{ "(none)" } : textureGuid) +
+                "\nPath: " + (texturePath.empty() ? string{ "(none)" } : texturePath);
             ImGui::SetTooltip("%s", tooltip.c_str());
         }
     };
 
-    drawTextureRow("Main Texture (Emissive)", material.mainTextureId);
-    drawTextureRow("Noise Texture", material.noiseTextureId);
+    drawTextureRow("Main Texture (Emissive)", material.mainTextureGuid, material.mainTexturePath);
+    drawTextureRow("Noise Texture", material.noiseTextureGuid, material.noiseTexturePath);
 
     ImGui::TableNextRow();
     ImGui::TableSetColumnIndex(0);
@@ -441,11 +429,11 @@ bool EffectMaterial_View::Load_PresetFile(const wstring& filePath)
         return false;
     }
 
-    if (material.mainTextureId.empty() && !Internal::Can_ResolvePreviewFallbackTexture())
+    if (material.mainTextureGuid.empty() && material.mainTexturePath.empty())
     {
-        _statusMessage = "Main texture is missing and preview fallback texture is unavailable.";
+        _statusMessage = "Main texture reference is empty.";
         LOG_ERROR(
-            "EffectMaterial material preset load failed: mainTextureId is empty and preview fallback texture is unavailable. path='{}'",
+            "EffectMaterial material preset load failed: main texture reference is empty. path='{}'",
             presetPath
         );
         return false;

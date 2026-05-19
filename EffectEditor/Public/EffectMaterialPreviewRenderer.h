@@ -47,7 +47,6 @@ private: //## Types
     };
 
 private: //## Static Values
-    static constexpr const char* kFallbackTextureId{ "Texture_Effect_DefaultTexture" };
     static constexpr const wchar_t* kEffectMaterialPreviewShaderId{ L"Shader_EffectMaterialPreview" };
     static constexpr float kHomeDistance{ 6.f };
     static constexpr float kHomeYawDegrees{ 0.f };
@@ -64,9 +63,10 @@ private: //## Data
     Shared<Texture> _noiseTexture{};
     PreviewMeshResource _planeMesh{};
     PreviewMeshResource _sphereMesh{};
-    string _loadedTextureId{};
-    string _loadedNoiseTextureId{};
+    string _loadedTextureKey{};
+    string _loadedNoiseTextureKey{};
     string _statusMessage{};
+    bool _hasRenderedPreview{ false };
     EffectMaterialPreviewMeshMode _meshMode{ EffectMaterialPreviewMeshMode::Plane };
     EffectPreviewOrbitCameraState _cameraState{};
     bool _isViewportDragging{ false };
@@ -75,8 +75,8 @@ private: //## Data
 private: //## Helper::Resource
     bool Ready_RenderTarget();
     bool Ready_Shader();
-    bool Ready_Texture(const string& textureId);
-    bool Ready_NoiseTexture(const string& noiseTextureId);
+    bool Ready_Texture(const string& textureGuid, const string& texturePath);
+    bool Ready_NoiseTexture(const string& textureGuid, const string& texturePath);
     bool Ready_Meshes();
     bool Ready_PlaneMesh();
     bool Ready_SphereMesh();

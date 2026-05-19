@@ -7,7 +7,6 @@
 #include "EffectMaterialPreviewRenderer.h"
 #include "EffectMaterial_View.h"
 #include "EffectMaterialPresetReader.h"
-#include "TextureDisplayInfoResolver.h"
 #include "Notification_Manager.h"
 
 NS_BEGIN(EffectEditor)
@@ -241,8 +240,10 @@ namespace Internal
     static bool Is_SameMaterial(const EffectMaterialInstanceData& lhs, const EffectMaterialInstanceData& rhs)
     {
         return
-            lhs.mainTextureId == rhs.mainTextureId &&
-            lhs.noiseTextureId == rhs.noiseTextureId &&
+            lhs.mainTextureGuid == rhs.mainTextureGuid &&
+            lhs.mainTexturePath == rhs.mainTexturePath &&
+            lhs.noiseTextureGuid == rhs.noiseTextureGuid &&
+            lhs.noiseTexturePath == rhs.noiseTexturePath &&
             Is_SameColor(lhs.tint, rhs.tint) &&
             NearlyEqual(lhs.intensity, rhs.intensity) &&
             NearlyEqual(lhs.opacityPower, rhs.opacityPower) &&
@@ -522,10 +523,14 @@ namespace Internal
 
         if (isHovered)
         {
-            const string mainTooltip = TextureDisplayInfoResolver::MakeTextureTooltip(data.material.mainTextureId);
-            const string noiseTooltip = data.material.noiseTextureId.empty()
-                                        ? string{ "Id: (none)" }
-                                        : TextureDisplayInfoResolver::MakeTextureTooltip(data.material.noiseTextureId);
+            const string mainTooltip =
+                "GUID: " + (data.material.mainTextureGuid.empty() ? string{ "(none)" } : data.material.mainTextureGuid) +
+                "\nPath: " + (data.material.mainTexturePath.empty() ? string{ "(none)" } : data.material.mainTexturePath);
+            const string noiseTooltip =
+                data.material.noiseTextureGuid.empty() && data.material.noiseTexturePath.empty()
+                ? string{ "GUID: (none)\nPath: (none)" }
+                : "GUID: " + (data.material.noiseTextureGuid.empty() ? string{ "(none)" } : data.material.noiseTextureGuid) +
+                  "\nPath: " + (data.material.noiseTexturePath.empty() ? string{ "(none)" } : data.material.noiseTexturePath);
             ImGui::SetTooltip(
                 "Content Browser의 .effectmaterial.json 머티리얼 파일을 여기에 드롭하면 현재 embedded material instance로 복사합니다.\n"
                 "현재 sprite effect 경로에서는 Main Texture를 emissive color source로, Opacity Source를 별도 opacity 해석 기준으로 사용합니다.\n\n"
@@ -777,8 +782,8 @@ bool RequiredModuleDetail::Draw(AuthoringEmitter& emitter, const AuthoringModule
     if (changed)
     {
         emitter.rendererType = data.rendererType;
-        emitter.textureId = data.material.mainTextureId;
-        emitter.resourceSummary = data.material.mainTextureId;
+        emitter.textureId = data.material.mainTexturePath;
+        emitter.resourceSummary = data.material.mainTexturePath;
     }
 
     return changed;
