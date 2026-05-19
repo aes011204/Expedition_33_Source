@@ -579,6 +579,7 @@ Unique<MapEditorApp> MapEditorApp::Create()
 
 void MapEditorApp::Free()
 {
+    _instanceCullShader.reset();
     _scene.ClearScene();
     _modelManager.reset();
 
