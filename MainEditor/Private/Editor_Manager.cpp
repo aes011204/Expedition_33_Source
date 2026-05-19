@@ -25,7 +25,15 @@ namespace fs = std::filesystem;
 
 Editor_Manager::Editor_Manager()
 {
+    wchar_t modulePath[MAX_PATH] = {};
+    if (0 != GetModuleFileNameW(nullptr, modulePath, MAX_PATH))
+    {
+        const fs::path editorExeDir = fs::path(modulePath).parent_path();
+        const fs::path configDirName = editorExeDir.filename();
 
+        if (configDirName == L"Release")
+            _launcherConfig = LauncherConfig::Release;
+    }
 }
 
 HRESULT Editor_Manager::Initialize()
@@ -497,6 +505,28 @@ void Editor_Manager::Request_Exit()
 
 void Editor_Manager::Render_LauncherButton()
 {
+    const char* previewLabel =
+        (_launcherConfig == LauncherConfig::Debug) ? "Debug" : "Release";
+
+    ImGui::SetNextItemWidth(78.f);
+    if (ImGui::BeginCombo("##LauncherConfig", previewLabel))
+    {
+        const bool isDebugSelected = (_launcherConfig == LauncherConfig::Debug);
+        if (ImGui::Selectable("Debug", isDebugSelected))
+            _launcherConfig = LauncherConfig::Debug;
+        if (isDebugSelected)
+            ImGui::SetItemDefaultFocus();
+
+        const bool isReleaseSelected = (_launcherConfig == LauncherConfig::Release);
+        if (ImGui::Selectable("Release", isReleaseSelected))
+            _launcherConfig = LauncherConfig::Release;
+        if (isReleaseSelected)
+            ImGui::SetItemDefaultFocus();
+
+        ImGui::EndCombo();
+    }
+
+    ImGui::SameLine(0.f, 6.f);
     if (ImGui::SmallButton("Launch"))
     {
         if (!Launch_GameLauncher())
@@ -506,7 +536,7 @@ void Editor_Manager::Render_LauncherButton()
     if (ImGui::IsItemHovered())
     {
         ImGui::BeginTooltip();
-        ImGui::TextUnformatted("GameLauncher 실행");
+        ImGui::Text("GameLauncher 실행 (%s)", previewLabel);
         ImGui::EndTooltip();
     }
 }
@@ -519,11 +549,13 @@ bool Editor_Manager::Launch_GameLauncher()
 
     const fs::path editorExePath = fs::path(modulePath);
     const fs::path editorExeDir = editorExePath.parent_path();
-    const fs::path configDirName = editorExeDir.filename();
     const fs::path repoRoot = editorExeDir.parent_path().parent_path().parent_path();
+    const fs::path configDirName =
+        (_launcherConfig == LauncherConfig::Debug) ? L"Debug" : L"Release";
 
     const fs::path launcherExePath =
         (repoRoot / L"GameLauncher" / L"Bin" / configDirName / L"Expedition_158.exe").lexically_normal();
+    const fs::path launcherExeDir = launcherExePath.parent_path();
 
     if (!fs::exists(launcherExePath))
         return false;
@@ -533,7 +565,7 @@ bool Editor_Manager::Launch_GameLauncher()
     execInfo.fMask = SEE_MASK_NOCLOSEPROCESS;
     execInfo.lpVerb = L"open";
     execInfo.lpFile = launcherExePath.c_str();
-    execInfo.lpDirectory = launcherExePath.parent_path().c_str();
+    execInfo.lpDirectory = launcherExeDir.c_str();
     execInfo.nShow = SW_SHOWNORMAL;
 
     return TRUE == ShellExecuteExW(&execInfo);

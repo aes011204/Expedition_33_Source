@@ -457,6 +457,10 @@ HRESULT GameDataTable::Load_SkillTreeRequirementData(const wstring& jsonRootPath
             continue;
 
         const string requiredSkill = item.value("required skill id", "");
+
+        if(requiredSkill == "")
+            continue;
+
         _requirementSkills[skillId].push_back(requiredSkill);
     }
 

@@ -40,6 +40,15 @@ HRESULT Player_BattleBase::Initialize(void* arg)
 void Player_BattleBase::BeginPlay()
 {
     Character_BattleBase::BeginPlay();
+
+    if (auto* body = dynamic_cast<Body_Player*>(Get_PartObject(L"Part_Body")))
+    {
+        if (Shared<ModelCom> model = body->Get_Model())
+        {
+            model->Refresh_AnimStateMappingFromOwnerContext();
+        }
+    }
+
 }
 
 void Player_BattleBase::Update(float timeDelta)
@@ -69,12 +78,13 @@ HRESULT Player_BattleBase::Ready_PartObjects()
     headDesc.parentMatrix = bodyDesc.parentMatrix;
     headDesc.modelType = ModelType::Anim;
     headDesc.modelTag = Get_HeadModelTag();
-    headDesc.socketMatrixPointer = nullptr;
+    headDesc.socketMatrixPointer = nullptr; // 처음 1회는 LeaderPose 정렬값을 캡처하므로 아직 socket을 바로 쓰지 않는다.
 
     CHECK_FAILED(Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Head_Player"), TEXT("Part_Head"), &headDesc), E_FAIL);
 
-    const Head_Player* head = dynamic_cast<Head_Player*>(_partObjects[TEXT("Part_Head")].get());
+    Head_Player* head = dynamic_cast<Head_Player*>(_partObjects[TEXT("Part_Head")].get());
     CHECK_NULL(head, E_FAIL);
+
     head->Set_LeaderPoseComponent(body);
 
     Hair_Player::HAIR_PLAYER_DESC hairDesc{};

@@ -262,11 +262,19 @@ void Hero_Manager::Snap_AllHeroesToFormation(const Vec3& anchorPos, const Vec3& 
 
         // 전환 후 배치 전에 PhysX 벽 파고들기 바닥 높이 보정 후 배치
         const Vec3 safeFollowerPos = Resolve_SnapPosition(
-                                        hero, tr->Get_WorldPosition(), followerPos);
+            hero, tr->Get_WorldPosition(), followerPos);
 
         // follower도 목표 위치까지 걸어가는 게 아니라 즉시 배정
-        tr->Set_WorldPosition(followerPos);
+        tr->Set_WorldPosition(safeFollowerPos);
         tr->Set_WorldRotationEuler(anchorRot);
+
+        auto movement = hero->Get_Component<MovementCom>();
+        if (movement)
+        {
+            movement->Clear_FollowMoveCommand();
+            movement->Apply_Input({});
+            movement->Stop_AllMovement();
+        }
 
         auto controller = hero->Get_Component<PlayerControllerCom>();
         if (controller)
@@ -295,9 +303,9 @@ Vec3 Hero_Manager::Resolve_SnapPosition(const Shared<Player_WorldBase>& hero, co
     {
         const auto& moveDesc = movement->Get_MoveDesc();
 
-        skinWidth = moveDesc.skinWidth;         
-        groundSnapUp = moveDesc.groundSnapUp;       // 위에서부터 바닥 probe 시작
-        groundSnapDown = moveDesc.groundSnapDown;   // 아래로 탐색할 거리
+        skinWidth = moveDesc.sweep.skinWidth;         
+        groundSnapUp = moveDesc.sweep.groundSnapUp;       // 위에서부터 바닥 probe 시작
+        groundSnapDown = moveDesc.sweep.groundSnapDown;   // 아래로 탐색할 거리
     }
 
     Vec3 sweepTarget = desiredPos;
@@ -365,15 +373,20 @@ void Hero_Manager::Apply_ControlRoles()
         if (!controller)
             continue;
 
+        const bool isActive = (i == _activeIndex);
+        controller->Set_ControlEnabled(isActive);
+
         auto movement = hero->Get_Component<MovementCom>();
         if (movement)
         {
             movement->Clear_FollowMoveCommand();
             movement->Apply_Input({});
-        }
 
-        const bool isActive = (i == _activeIndex);
-        controller->Set_ControlEnabled(isActive);
+            if (isActive)
+                movement->Set_MoveBackend(MovementCom::MoveBackend::PhysXCCT);
+            else
+                movement->Set_MoveBackend(MovementCom::MoveBackend::Sweep);
+        }
 
         if (isActive)
             controller->Clear_FollowControl();
@@ -527,14 +540,14 @@ void Hero_Manager::Move_FollowerTo(const Shared<Player_WorldBase>& follower, uin
 
     if (distance >= _teleportReseatDistance)
     {
-        Vec3 reseatPos = targetPos;
-        reseatPos.y = tr->Get_WorldPosition().y;
+        const Vec3 reseatPos = Resolve_SnapPosition(
+            follower, tr->Get_WorldPosition(), targetPos);
 
         tr->Set_WorldPosition(reseatPos); // 너무 멀어지면 재배치
 
         movement->Clear_FollowMoveCommand();
         movement->Apply_Input({});
-        movement->Stop_HorizontalMovement();
+        movement->Stop_AllMovement();
 
         controller->Clear_FollowControl(); // 재배치 후, follower 상태 초기화
         return;

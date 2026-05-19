@@ -89,6 +89,7 @@ private:
     static bool Try_ParseRenderState(const json& value, MaterialRenderState& out);
     static bool Try_ParseCB(const json& value, MaterialCB& out);
     static fs::path To_AbsoluteTexturePath(const fs::path& resourceRoot, const string& relGeneric);
+    static wstring Resolve_TexturePathFromJson(const fs::path& resourceRoot, const json& textureValue);
 
     static bool Is_MaterialBundleFile(const fs::path& path);
     static string To_Key(const fs::path& path);

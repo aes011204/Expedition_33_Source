@@ -4,9 +4,12 @@
 NS_BEGIN(Engine)
 class ShaderCom;
 class ModelCom;
+class ComputeShaderCom;
+class AnimComputeRuntime;
 NS_END
 
 NS_BEGIN(Client)
+
 
 class Body_Player final : public PlayableParts
 {
@@ -31,7 +34,16 @@ public:
     virtual HRESULT Render_Shadow() override;
 
 private:
+    HRESULT Ready_Components(const PLAYABLE_PART_DESC& desc) override;
+
+private:
+    Shared<ShaderCom>               _computeRenderShaderCom;
+    Shared<AnimComputeRuntime>      _animComputeRuntime;
+    Shared<ModelCom>                _headModelCom;
+
     int32 _rootBoneIndex{ -1 };
+    bool _useComputeSkinning = false;
+
 
 public:
 	static Shared<Body_Player> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

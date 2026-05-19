@@ -6,6 +6,7 @@
 NS_BEGIN(Engine)
 class ShaderCom;
 class ModelCom;
+struct StaticCollisionData;
 NS_END
 
 NS_BEGIN(Client)
@@ -18,6 +19,7 @@ public:
     typedef struct tagMapStaticMeshDesc final : public GameObject::GAMEOBJECT_DESC
     {
         Shared<ModelCom> model = nullptr;
+        Shared<StaticCollisionData> collisionData = nullptr;
         wstring modelPath = {};
         Vec3 position = Vec3::Zero;
         Quat rotation = Quat::Identity;
@@ -36,6 +38,9 @@ public:
     virtual void Update(float timeDelta) override;
     virtual void Late_Update(float timeDelta) override;
     virtual HRESULT Render() override;
+    HRESULT Render_Shadow() override;
+
+    virtual bool Try_Get_ShadowWorldBounds(BoundingBox& outWorldBounds) const override;
     virtual HRESULT RenderPickingID(uint32 id) override;
 
 private:
@@ -43,6 +48,7 @@ private:
     Shared<ModelCom>    _model;
 
     PhysXStaticActorHandle _physxStaticHandle{};
+    Shared<StaticCollisionData> _collisionData;
 
 private:
     HRESULT Ready_Components(const wstring& modelPath, Shared<ModelCom> sharedModel);

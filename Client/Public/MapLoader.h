@@ -3,6 +3,7 @@
 
 NS_BEGIN(Engine)
 class ModelCom;
+struct StaticCollisionData;
 NS_END
 
 NS_BEGIN(Client)
@@ -29,7 +30,8 @@ public:
         size_t nextStaticMeshIndex = 0;
         size_t nextInstancedMeshIndex = 0;
 
-        unordered_map<string, Shared<ModelCom>> preloadedModelCache = {};
+        umap<string, Shared<ModelCom>> preloadedModelCache = {};
+        umap<string, Shared<StaticCollisionData>> preloadedCollisionCache = {};
 
         bool preloadModelsDone = false;
         bool staticMeshesDone = false;

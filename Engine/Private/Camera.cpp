@@ -63,6 +63,16 @@ HRESULT Camera::Render()
     return S_OK;
 }
 
+void Camera::OnActivated()
+{
+    Apply_View();
+}
+
+void Camera::Apply_View()
+{
+    Update_TransformMatrices();
+}
+
 bool Camera::Try_GetFlatMoveBasis(Vec3& outForward, Vec3& outRight) const
 {
     outForward = Vec3::Zero;

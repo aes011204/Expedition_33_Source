@@ -42,6 +42,11 @@ private:
     HairChainPhysicsDesc    _hairPhysicsDesc{};
     bool                    _hairPhysicsReady = false;
 
+private:
+    float _physicsTickAccumulator = 0.f;
+    float _physicsTickIntervalSec = 1.f / 30.f;   // 30Hz 고정
+    bool  _wasPhysicsSkipped = false;             // 스킵 프레임 dirty 제어
+
 public:
     static Shared<Hair_Player> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
     Shared<GameObject> Clone(void* arg) override;

@@ -1,5 +1,6 @@
 ﻿#include "SkeletalMesh.h"
 
+#include "AnimCompute_Types.h"
 #include "Bone.h"
 #include "ShaderCom.h"
 
@@ -37,9 +38,12 @@ HRESULT SkeletalMesh::Initialize_Prototype(const ModelMeshData& meshData, const 
     VTXANIMMESH* verticesData = static_cast<VTXANIMMESH*>(meshData.vertices);
     VTXANIMMESH* vertices = new VTXANIMMESH[_numVertices];
 
+    _sourceVertices.resize(_numVertices);
+
     for (uint32 i = 0; i < _numVertices; ++i)
     {
         vertices[i] = verticesData[i];
+        _sourceVertices[i] = verticesData[i];
     }
 
     D3D11_BUFFER_DESC VertexBufferDesc{};
@@ -98,6 +102,19 @@ HRESULT SkeletalMesh::Build_MeshBoneMatrices(const vector<Matrix>& combinedMatri
             return E_FAIL;
 
         outBoneMatrices[i] = _offsetMatrices[i] * combinedMatrices[sourceBoneIndex];
+    }
+
+    return S_OK;
+}
+
+HRESULT SkeletalMesh::Build_ComputeMeshBoneRefs(vector<AnimComputeMeshBoneRef>& outRefs) const
+{
+    outRefs.resize(_boneIndices.size());
+
+    for (size_t i = 0; i < _boneIndices.size(); ++i)
+    {
+        outRefs[i].sourceBoneIndex = _boneIndices[i];
+        outRefs[i].offsetMatrix = _offsetMatrices[i];
     }
 
     return S_OK;

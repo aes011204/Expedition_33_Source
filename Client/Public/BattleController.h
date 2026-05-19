@@ -132,7 +132,6 @@ private:  // 슬로우 처리
     float _battleEnterElapsed = 0.f;
     float _battleEnterDuration = 2.f;
     float _battleEnterWorldTimeScale = 0.25f;
-    float _resetWorldTime = 1.f;
 
     uint32  _pendingBattleFieldID = 0;
     bool    _pendingBattleIsFirstHero = false;

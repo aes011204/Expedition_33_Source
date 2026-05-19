@@ -14,6 +14,13 @@ HRESULT Light::Initialize(const LIGHT_DESC& lightDesc)
     return S_OK;
 }
 
+HRESULT Light::Update_Desc(const LIGHT_DESC& lightDesc)
+{
+    memcpy(&_desc, &lightDesc, sizeof(LIGHT_DESC));
+
+    return S_OK;
+}
+
 HRESULT Light::Render(Shared<ShaderCom> shader, Shared<VIBuffer_Rect> viBuffer)
 {
     CHECK_NULL(shader, E_FAIL);
@@ -34,6 +41,7 @@ HRESULT Light::Render(Shared<ShaderCom> shader, Shared<VIBuffer_Rect> viBuffer)
 
     LightCB lightCB{};
     lightCB.direction = _desc.direction;
+    lightCB.direction.Normalize();
     lightCB.position = _desc.position;
     lightCB.diffuse = _desc.diffuse;
     lightCB.ambient = _desc.ambient;

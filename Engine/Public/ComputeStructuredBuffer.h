@@ -18,13 +18,19 @@ public:
 
 public:
     // structured buffer와 그 SRV/UAV를 함께 만든다.
-    HRESULT Initialize(uint32 elementSize, uint32 elementCount, const void* initialData = nullptr);
+    HRESULT Initialize(
+        uint32 elementSize,
+        uint32 elementCount,
+        const void* initialData = nullptr,
+        uint32 extraBindFlags = 0);
 
 public: //## Behavior::DataTransfer
     // buffer 앞쪽 elementCount개를 새 데이터로 갱신한다.
     HRESULT Update_Data(const void* data, uint32 elementCount);
     // 같은 크기/형식의 GPU resource에서 현재 buffer로 복사한다.
     HRESULT Copy_From(ID3D11Resource* source);
+    // GPU buffer 내용을 CPU 메모리로 읽어온다.
+    HRESULT Read_Data(void* outData, uint32 elementCount);
 
 public: //## Accessors
     Buffer* Get_Buffer() const { return _buffer.Get(); }        // 원본 D3D buffer 접근.
@@ -42,10 +48,12 @@ private: //## Data::Resource
     ComPtr<Buffer> _buffer{};           // structured GPU buffer.
     ComPtr<ShaderResourceView> _srv{};  // buffer read view.
     ComPtr<UnorderedAccessView> _uav{}; // buffer write view.
+    ComPtr<Buffer> _readbackBuffer{};   // CPU readback staging buffer.
 
 private: //## Data::Layout
     uint32 _elementSize{ 0 };  // D3D11 StructureByteStride와 동일한 값.
     uint32 _elementCount{ 0 }; // SRV/UAV NumElements와 동일한 값.
+    uint32 _extraBindFlags { 0 };
 
 private: //## Helper::Setup
     HRESULT Ready_Views(); // 현재 buffer desc 기준으로 SRV/UAV를 만든다.
@@ -56,7 +64,8 @@ public:
         const ComPtr<Context>& context,
         uint32 elementSize,
         uint32 elementCount,
-        const void* initialData = nullptr);
+        const void* initialData = nullptr,
+        uint32 extraBindFlags = 0);
     void Free() override;
 };
 

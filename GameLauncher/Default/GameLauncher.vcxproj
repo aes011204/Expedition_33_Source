@@ -188,7 +188,17 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mtd.dll" x
     <PostBuildEvent>
       <Command>if exist "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.dll" xcopy /y /d "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.dll" "$(OutDir)"
 if exist "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.pdb" xcopy /y /d "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.pdb" "$(OutDir)"
-if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xcopy /y /d "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" "$(OutDir)"</Command>
+if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xcopy /y /d "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" "$(OutDir)"
+if exist "$(ProjectDir)..\..\vcpkg_installed\x64-windows\bin\fmt.dll" xcopy /y /d "$(ProjectDir)..\..\vcpkg_installed\x64-windows\bin\fmt.dll" "$(OutDir)"
+if exist "$(ProjectDir)..\..\vcpkg_installed\x64-windows\bin\spdlog.dll" xcopy /y /d "$(ProjectDir)..\..\vcpkg_installed\x64-windows\bin\spdlog.dll" "$(OutDir)"
+if exist "$(ProjectDir)..\..\vcpkg_installed\x64-windows\bin\DirectXTK.dll" xcopy /y /d "$(ProjectDir)..\..\vcpkg_installed\x64-windows\bin\DirectXTK.dll" "$(OutDir)"
+if exist "$(ProjectDir)..\..\vcpkg_installed\x64-windows\bin\PhysX_64.dll" xcopy /y /d "$(ProjectDir)..\..\vcpkg_installed\x64-windows\bin\PhysX_64.dll" "$(OutDir)"
+if exist "$(ProjectDir)..\..\vcpkg_installed\x64-windows\bin\PhysXCommon_64.dll" xcopy /y /d "$(ProjectDir)..\..\vcpkg_installed\x64-windows\bin\PhysXCommon_64.dll" "$(OutDir)"
+if exist "$(ProjectDir)..\..\vcpkg_installed\x64-windows\bin\PhysXCooking_64.dll" xcopy /y /d "$(ProjectDir)..\..\vcpkg_installed\x64-windows\bin\PhysXCooking_64.dll" "$(OutDir)"
+if exist "$(ProjectDir)..\..\vcpkg_installed\x64-windows\bin\PhysXFoundation_64.dll" xcopy /y /d "$(ProjectDir)..\..\vcpkg_installed\x64-windows\bin\PhysXFoundation_64.dll" "$(OutDir)"
+if exist "$(ProjectDir)..\..\vcpkg_installed\x64-windows\bin\PhysXGpu_64.dll" xcopy /y /d "$(ProjectDir)..\..\vcpkg_installed\x64-windows\bin\PhysXGpu_64.dll" "$(OutDir)"
+if exist "$(ProjectDir)..\..\vcpkg_installed\x64-windows\bin\PhysXDevice64.dll" xcopy /y /d "$(ProjectDir)..\..\vcpkg_installed\x64-windows\bin\PhysXDevice64.dll" "$(OutDir)"
+if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" xcopy /y /d "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" "$(OutDir)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>

@@ -24,8 +24,11 @@ struct RenderPerfSummary
     float lightsAvgMs{};
     float lightsMaxMs{};
 
-    float combinedAvgMs{};
-    float combinedMaxMs{};
+    float combinedHDRAvgMs{};
+    float combinedHDRMaxMs{};
+
+    float postprocessAvgMs{};
+    float postprocessMaxMs{};
 
     float nonLightAvgMs{};
     float nonLightMaxMs{};
@@ -109,6 +112,23 @@ struct CollisionPerfSummary
     float updateMaxMs{};
 };
 
+struct PhysXQueryPerfSummary
+{
+    bool valid{};
+    float cctMovePerSec{};
+    float sweepColliderPerSec{};
+    float sweepSpherePerSec{};
+    float probeGroundPerSec{};
+    float cctMoveAvgMs{};
+    float cctMoveMaxMs{};
+    float sweepColliderAvgMs{};
+    float sweepColliderMaxMs{};
+    float sweepSphereAvgMs{};
+    float sweepSphereMaxMs{};
+    float probeGroundAvgMs{};
+    float probeGroundMaxMs{};
+};
+
 struct RuntimePerfSummary
 {
     float windowSec{};
@@ -116,6 +136,7 @@ struct RuntimePerfSummary
     RenderPerfSummary render{};
     UpdatePerfSummary update{};
     CollisionPerfSummary collision{};
+    PhysXQueryPerfSummary physxQuery{};
 };
 
 struct PerfCounter

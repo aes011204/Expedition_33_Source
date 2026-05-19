@@ -96,6 +96,9 @@ HRESULT ShaderCom::Initialize_Prototype(const wchar_t* shaderFilePath, const D3D
     _CB[ETOI(ConstantBuffer::Light)] =
         _effect->GetConstantBufferByName(ShaderCB::Light.data());
 
+    _CB[ETOI(ConstantBuffer::PostProcess)] =
+        _effect->GetConstantBufferByName(ShaderCB::PostProcess.data());
+
     _materialTextures = Get_ShaderResourceVariable("g_MaterialTextures");
 
     _type = shader;
