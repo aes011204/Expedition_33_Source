@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "Base.h"
+#include "Engine_Constants.h"
 #include "PhysX_Manager.h"
 #include "Log_Define.h"
 
@@ -55,8 +56,11 @@ private:
     };
 
     CollisionPerfWindow _collisionPerfWindow{};
+    chrono::steady_clock::time_point _lastPerfSampleTime{};
+    bool _hasLastPerfSampleTime{ false };
 
     void Accumulate_UpdatePerf(const UpdatePerfSample& sample);
+    bool Should_SampleUpdatePerf();
     static void Reset_CollisionPerfWindow(CollisionPerfWindow& window);
     static double Safe_Divide(double numerator, double denominator);
 #endif

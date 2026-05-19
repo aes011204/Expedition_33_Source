@@ -21,7 +21,6 @@ public:
     enum class SourceMode : uint8
     {
         None,
-        AssetOnly,
         LiveModel
     };
 
@@ -127,7 +126,6 @@ private:
     bool Try_GetSequencerTrackContext(const ImVec2& sequencerRectMin, const ImVec2& mousePos, bool& outIsStateTrack, int32& outTrackIndex) const;
 
     Shared<ModelCom> Get_PlaybackModel() const;
-    void Ensure_PreviewObject();
     void Ensure_PreviewRenderTarget(uint32 width, uint32 height);
     void Ensure_PreviewCamera();
     void Ensure_PreviewGridResources();
@@ -161,8 +159,6 @@ private:
 
     wstring _sourceModelPath{};
     Shared<ModelCom> _liveModelCom{};
-    Shared<GameObject> _previewObject{};
-    Shared<ModelCom> _previewModelCom{};
     Shared<RenderTarget> _previewRenderTarget{};
     Shared<Editor_Camera_Free> _previewCamera{};
     Shared<DirectX::PrimitiveBatch<DirectX::VertexPositionColor>> _previewGridBatch{};
@@ -189,9 +185,6 @@ private:
     bool _sequencerExpanded = true;
 
     bool _requestFocusOnOpen = false;
-    bool _requestAutoPlayOnOpen = false;
-
-    bool _previewHasBegunPlay = false; // 프리뷰 시작했는지
     bool _isPreviewHovered = false;
     bool _isPreviewActive = false;
     bool _showPreviewGrid = true;

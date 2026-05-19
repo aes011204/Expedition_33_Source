@@ -1,8 +1,9 @@
 ﻿#include "Weapon.h"
 #include "GameInstance.h"
 #include "Material_Types.h"
-
 #include "Player_WorldBase.h"
+#include "AnimComputeRuntime.h" 
+#include "ComputeShaderCom.h"   
 
 Weapon::Weapon(const ComPtr<Device>& device, const ComPtr<Context>& context)
 	: PartObject { device, context }
@@ -73,6 +74,8 @@ HRESULT Weapon::Render()
     if (FAILED(Bind_ShaderResources()))
         return E_FAIL;
 
+    CHECK_FAILED(_animComputeRuntime->Prepare_BoneMatrixBuffers(), E_FAIL);
+
     const uint32 iNumMeshes = static_cast<uint32>(_model->Get_NumMeshes());
 
     for (uint32 i = 0; i < iNumMeshes; i++)
@@ -88,7 +91,7 @@ HRESULT Weapon::Render()
         if (FAILED(_shader->Bind_CBufferData(material->Get_CB())))
             return E_FAIL;
 
-        CHECK_FAILED(_model->Bind_BoneMatrices(_shader.get(), "g_BoneMatricesBuffer", i), E_FAIL);
+        CHECK_FAILED(_animComputeRuntime->Bind_PreparedBoneMatrices(_shader.get(), "g_BoneMatricesBuffer", i), E_FAIL);
 
         const uint32 passIndex = material->Get_PassIndex();
         if (FAILED(_shader->Begin(passIndex)))
@@ -108,10 +111,16 @@ HRESULT Weapon::Render_Shadow()
     if (FAILED(GAME->Bind_ShadowCB(_shader)))
         return E_FAIL;
 
+    if (_model->Is_Skeletal())
+        CHECK_FAILED(_animComputeRuntime->Prepare_BoneMatrixBuffers(), E_FAIL);
+
     const uint32 iNumMeshes = static_cast<uint32>(_model->Get_NumMeshes());
 
     for (uint32 i = 0; i < iNumMeshes; i++)
     {
+        if (_model->Is_Skeletal())
+            CHECK_FAILED(_animComputeRuntime->Bind_PreparedBoneMatrices(_shader.get(), "g_BoneMatricesBuffer", i), E_FAIL);
+
         _model->Bind_Material(_shader.get(), "g_DiffuseTexture", i, MaterialTextureSlot::BaseColor);
 
         if (FAILED(_shader->Begin(1)))
@@ -125,20 +134,31 @@ HRESULT Weapon::Render_Shadow()
 
 HRESULT Weapon::Ready_Components()
 {
-
 	if (FAILED(__super::Add_Component(ETOI(LevelType::Static), TEXT("Shader_VtxMesh"), _shader)))
-		return E_FAIL;
+        return E_FAIL;
 
-	if (FAILED(__super::Add_Component(ETOI(LevelType::GamePlay), TEXT("Model_ForkLift"), _model)))
-		return E_FAIL;
+    if (FAILED(__super::Add_Component(ETOI(LevelType::GamePlay), TEXT("Model_ForkLift"), _model)))
+        return E_FAIL;
 
-	return S_OK;
+    Shared<ComputeShaderCom> boneRemapShader{};
+    Shared<ComputeShaderCom> skinningShader{};
+
+    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("ComputeShader_BoneRemap"), boneRemapShader), E_FAIL);
+    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("ComputeShader_AnimMeshSkinning"), skinningShader), E_FAIL);
+
+    AnimComputeRuntime::CreateDesc runtimeDesc{};
+    runtimeDesc.model = _model.get();
+    runtimeDesc.boneRemapShader = boneRemapShader;
+    runtimeDesc.skinningShader = skinningShader;
+
+    _animComputeRuntime = AnimComputeRuntime::Create(_device, _context, runtimeDesc);
+    CHECK_NULL(_animComputeRuntime, E_FAIL);
+
+    return S_OK;
 }
 
 HRESULT Weapon::Bind_ShaderResources()
 {
-	/*if (FAILED(_transformCom->Bind_ShaderResource(_shader, "g_WorldMatrix")))
-		return E_FAIL;*/
 	if (FAILED(_shader->Bind_ObjectCB(_combinedWorldMatrix)))
 		return E_FAIL;
 

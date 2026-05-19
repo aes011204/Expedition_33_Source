@@ -55,11 +55,12 @@ void Body_Player::Update(float fTimeDelta)
     }
     else if (_useComputeSkinning && _animComputeRuntime != nullptr)
     {
+        Debug_Profile::Scope computeScope("Player::Body::ComputeUpdate");
         CHECK_FAILED(_animComputeRuntime->Update_Frame(fTimeDelta), ); // compute animation 파이프라인 전체 실행
     }
     else
     {
-        _modelCom->Play_Animation(fTimeDelta); 
+        _modelCom->Play_Animation(fTimeDelta);
         CHECK_FAILED(_modelCom->Prepare_BoneMatrixBuffers());
     }
 
@@ -110,7 +111,7 @@ HRESULT Body_Player::Render()
         if (FAILED(_computeRenderShaderCom->Begin(passIndex)))
             return E_FAIL;
 
-        if (FAILED(_modelCom->Render_ComputeSkinned(i)))
+        if (FAILED(_animComputeRuntime->Render_ComputeSkinned(i)))
             return E_FAIL;
     }
 
@@ -141,7 +142,7 @@ HRESULT Body_Player::Render_Shadow()
         if (FAILED(_computeRenderShaderCom->Begin(1)))
             return E_FAIL;
 
-        if (FAILED(_modelCom->Render_ComputeSkinned(i)))
+        if (FAILED(_animComputeRuntime->Render_ComputeSkinned(i)))
             return E_FAIL;
     }
 
@@ -157,19 +158,6 @@ HRESULT Body_Player::Ready_Components(const PLAYABLE_PART_DESC& desc)
     if (_useComputeSkinning)
     {
         CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Shader_VtxMesh"), _computeRenderShaderCom), E_FAIL);
-
-        Shared<ComputeShaderCom> boneRemapShader{};
-        Shared<ComputeShaderCom> skinningShader{};
-
-        CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("ComputeShader_BoneRemap"), boneRemapShader), E_FAIL);
-        CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("ComputeShader_AnimMeshSkinning"), skinningShader), E_FAIL);
-
-        AnimComputeRuntime::CreateDesc runtimeDesc{};
-        runtimeDesc.model = _modelCom.get();
-        runtimeDesc.boneRemapShader = boneRemapShader;
-        runtimeDesc.skinningShader = skinningShader;
-
-        _animComputeRuntime = AnimComputeRuntime::Create(_device, _context, runtimeDesc);
         CHECK_NULL(_animComputeRuntime, E_FAIL);
     }
 

@@ -148,9 +148,20 @@ void EditorInstance::Update_Editor(float timeDelta)
     Sync_PreviewViewportMode();
     Apply_PendingPreviewViewportSize();
 
-    _imguiManager->Update(timeDelta);
-    _editorManager->Update(timeDelta);
-    _notificationManager->Update(timeDelta);
+    {
+        Profile_View::Scope scope("Editor::ImGuiUpdate");
+        _imguiManager->Update(timeDelta);
+    }
+
+    {
+        Profile_View::Scope scope("Editor::EditorManagerUpdate");
+        _editorManager->Update(timeDelta);
+    }
+
+    {
+        Profile_View::Scope scope("Editor::NotificationUpdate");
+        _notificationManager->Update(timeDelta);
+    }
 }
 
 void EditorInstance::Render_Editor()

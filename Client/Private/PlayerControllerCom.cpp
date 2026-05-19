@@ -4,14 +4,14 @@
 #include "InputCom.h"
 #include "MovementCom.h"
 
-#include "Debug_Profile.h""
+#include "Debug_Profile.h"
 
 IMPLEMENT_REFLECTION(PlayerControllerCom)
 {
     auto& info = GetStaticReflectionInfo();
     info.properties.clear();
 
-    PROPERTY_BOOL("Use Controll Yaw", _bUseControllerRotationYaw);
+    PROPERTY_BOOL("Use Control Yaw", _bUseControllerRotationYaw);
     PROPERTY_FLOAT("Test 값", _testRefectionValue, 0.f, 3.f, 0.05f);
 
     return true;
