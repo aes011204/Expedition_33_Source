@@ -154,6 +154,7 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
             continue;
 
         MapStaticMesh::MAPSTATICMESH_DESC desc{};
+        desc.name = String::ToWString(e.value("Id", string{}));
 
         auto it = session.preloadedModelCache.find(modelPathStr);
         if (it != session.preloadedModelCache.end())
@@ -201,7 +202,7 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
             desc.collisionData = collisionData;
         }
 
-        desc.modelPath = {};
+        desc.modelPath = String::ToWString(modelPathStr);
 
         const auto& pos = e["Position"];
         desc.position = Vec3(

@@ -53,34 +53,62 @@ void BattleTurnCamera::Update(float timeDelta)
 
 void BattleTurnCamera::Focus_Battle(const vector<BattleChar>& heroes, const vector<BattleChar>& enemies)
 {
-    Vec3 center = Vec3::Zero;
-    uint32 count = 0;
+    // 위치는 일단 임시
+    Vec3 heroCenter = Vec3::Zero;
+    uint32 heroCount = 0;
 
-    for (const BattleChar& hero : heroes)
+    for (size_t i = 0; i < heroes.size(); ++i)
     {
-        if (hero.actor && hero.actor->Get_Transform())
+        if (heroes[i].actor && heroes[i].actor->Get_Transform())
         {
-            center += hero.actor->Get_Transform()->Get_WorldPosition();
-            ++count;
+            // 플레이어 3명 위치 누적
+            heroCenter += heroes[i].actor->Get_Transform()->Get_WorldPosition();
+            ++heroCount;
         }
     }
 
-    for (const BattleChar& enemy : enemies)
-    {
-        if (enemy.actor && enemy.actor->Get_Transform())
-        {
-            center += enemy.actor->Get_Transform()->Get_WorldPosition();
-            ++count;
-        }
-    }
-
-    if (count == 0)
+    if (heroCount == 0)
         return;
 
-    center /= static_cast<float>(count);
+    heroCenter /= static_cast<float>(heroCount);
 
-    // 3대3 전체 구도
-    Apply_LookAt(center + Vec3(0.f, 7.f, -13.f), center + Vec3(0.f, 1.2f, 0.f));
+    // 시작 위치 기준점으로 잡을 플레이어
+    Shared<GameObject> yawBaseActor = nullptr;
+
+    if (heroes.size() > 1 && heroes[1].actor && heroes[1].actor->Get_Transform())
+        yawBaseActor = heroes[1].actor; 
+    else if (!heroes.empty() && heroes[0].actor && heroes[0].actor->Get_Transform())
+        yawBaseActor = heroes[0].actor; // hero[1]이 없으면 hero[0] fallback
+
+    CHECK_NULL(yawBaseActor);
+
+    const Vec3 baseRot = yawBaseActor->Get_Transform()->Get_RotationEuler();
+    const float cameraYawDeg = baseRot.y;
+    const float cameraYawRad = XMConvertToRadians(cameraYawDeg);
+
+    Vec3 forwardDir{};
+    forwardDir.x = sinf(cameraYawRad);
+    forwardDir.y = 0.f;
+    forwardDir.z = cosf(cameraYawRad);
+    forwardDir.Normalize();
+
+    // 카메라 위치는 플레이어 뒤쪽
+    Vec3 backDir = -forwardDir;
+    Vec3 rightDir{};
+    rightDir.x = cosf(cameraYawRad); // 카메라를 정면 중앙보다 약간 옆으로 빼기 위한 right 방향
+    rightDir.y = 0.f;
+    rightDir.z = -sinf(cameraYawRad);
+    rightDir.Normalize();
+
+    const Vec3 lookAt = heroCenter + Vec3(0.f, 2.2f, 0.f);
+
+    const Vec3 cameraPos =
+        heroCenter +
+        backDir * 8.5f +          
+        rightDir * 2.0f +         
+        Vec3(2.f, 3.f, -2.f);     // 테스트용 임시 위치 보정
+
+    Apply_LookAt(cameraPos, lookAt);
 }
 
 void BattleTurnCamera::Apply_LookAt(const Vec3& cameraPos, const Vec3& lookAt)

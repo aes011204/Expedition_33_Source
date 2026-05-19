@@ -12,6 +12,8 @@ NS_END
 
 NS_BEGIN(Client)
 
+class BattleActionExecutor;
+
 class CombatStatCom;
 class BuffSystem;
 class BattleEffectResolver;
@@ -50,6 +52,8 @@ public:
     void Build_InitialTurnQueue(bool IsFirstHero);
     void SetCharInitPos();
 
+
+	void OnActionEndNotify();
 public:
     Shared<BattleStateMachine>  Get_BattleFSM() { return _battleFSM; };
     Action& Get_TurnAction() { return _turnAction; }
@@ -65,7 +69,7 @@ public:
 public:
     void Handle_EditorStopRuntime();
     HRESULT Ready_Delegates();
-    void OnActionEndNotify();
+
 
 private:
     HRESULT Ready_BattleTurnCamera();
@@ -73,7 +77,7 @@ private:
     void    Restore_WorldCamera();
 
     void    Complete_BattleField();          // 2초 슬로우모션이 끝난 뒤 실제 PB/MB 생성과 턴 시작을 처리한다.
-    void    Clear_BattleEnterPending();   // 전투 진입 대기 데이터만 정리
+    void    Clear_BattleEnterPending();      // 전투 진입 대기 데이터만 정리
 
 private:
     BattleChar _currentTurnActor = {};
@@ -89,7 +93,6 @@ private:
     void Execute_BaseAttack(const BattleChar actor, const Action& turnAction);
     void Execute_Skill(const BattleChar actor, const Action& turnAction);
     void Execute_Item(const BattleChar actor, const Action& turnAction);
-
 
     bool _battleEnded = {};
     bool _pendingNextTurn = {};
@@ -114,7 +117,8 @@ private:
 
     Shared< BattleStateMachine> _battleFSM;
     Shared< BuffSystem> _buffSystem;
-    Shared< BattleEffectResolver> _battleEffectResolver;
+   /* Shared< BattleEffectResolver> _battleEffectResolver;*/
+	Shared<BattleActionExecutor> _battleActionExe;
 
     FDelegateHandle _editorStopHandle = {};
 
@@ -132,6 +136,9 @@ private:  // 슬로우 처리
     bool    _pendingBattleIsFirstHero = false;
     vector<HeroId> _pendingBattleHeroIds = {};
     vector<string> _pendingBattleMonsterPrefabNames = {};
+
+    // 배틀 카메라는 이미 켰고, UI 전환 종료만 기다리는 상태
+    bool _isWaitingBattleTransition = false;
 
 public:
     static Shared<BattleController> Create();

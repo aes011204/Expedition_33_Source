@@ -39,6 +39,7 @@ namespace
         float rotationRadians = 0.f;
         Vec4 color{ 1.f, 1.f, 1.f, 1.f };
         int32 sortOrder = 0;
+        bool visible = true;
 
         UI_RenderGroup renderGroup = UI_RenderGroup::Foreground;
 
@@ -696,6 +697,7 @@ namespace
         object.rotationRadians = Read_RotationRadians(item);
         object.color = Read_Color(item, "color", Vec4(1.f, 1.f, 1.f, 1.f));
         object.sortOrder = Read_Int(item, "sortOrder", 0);
+        object.visible = Read_Bool(item, "visible", true);
         object.renderGroup = Parse_RenderLayer(Read_String(item, "renderLayer", "Foreground"));
 
         object.text = Read_String(item, "text", "");
@@ -872,7 +874,7 @@ namespace
         desc.transformDesc.anchorMin = object.anchorMin;
         desc.transformDesc.anchorMax = object.anchorMax;
         desc.sortOrder = object.sortOrder;
-        desc.isOpenOnCreate = true;
+        desc.isOpenOnCreate = object.visible;
         desc.animationClips = object.animationClips;
         desc.keyframeAnimationAssets = object.keyframeAnimationAssets;
         desc.renderGroup = object.renderGroup;
@@ -929,7 +931,7 @@ namespace
         desc.transformDesc.anchorMax = object.anchorMax;
         desc.transformDesc.rotationRadians = object.rotationRadians;
         desc.sortOrder = object.sortOrder;
-        desc.isOpenOnCreate = true;
+        desc.isOpenOnCreate = object.visible;
         desc.animationClips = Make_TextAnimationClips(object);
         desc.keyframeAnimationAssets = Make_TextKeyframeAnimationAssets(object);
         desc.renderGroup = object.renderGroup;
@@ -962,7 +964,7 @@ namespace
         desc.transformDesc.anchorMax = object.anchorMax;
         desc.transformDesc.rotationRadians = object.rotationRadians;
         desc.sortOrder = object.sortOrder;
-        desc.isOpenOnCreate = true;
+        desc.isOpenOnCreate = object.visible;
         desc.animationClips = object.animationClips;
         desc.keyframeAnimationAssets = object.keyframeAnimationAssets;
         desc.renderGroup = object.renderGroup;
@@ -995,7 +997,7 @@ namespace
         desc.transformDesc.anchorMax = object.anchorMax;
         desc.transformDesc.rotationRadians = object.rotationRadians;
         desc.sortOrder = object.sortOrder;
-        desc.isOpenOnCreate = true;
+        desc.isOpenOnCreate = object.visible;
         desc.animationClips = object.animationClips;
         desc.keyframeAnimationAssets = object.keyframeAnimationAssets;
         desc.renderGroup = object.renderGroup;
