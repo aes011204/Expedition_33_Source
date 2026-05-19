@@ -508,4 +508,11 @@ struct EffectAuthoringSelection
     uint32 moduleId{};
 };
 
+
+struct EffectAuthoringDocument
+{
+    string name{};
+    ParticleSystemAuthoringData particleSystemData{};
+    vector<AuthoringEmitter> emitters{};
+};
 NS_END

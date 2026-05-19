@@ -1,11 +1,11 @@
 ﻿#include "EffectMaterial_View.h"
 
 #include <fstream>
-#include "Helper_ReadPreset.h"
+#include "EffectMaterialPresetReader.h"
 #include "EffectMaterialPreviewRenderer.h"
 #include "GameInstance.h"
 #include "Helper_String.h"
-#include "Helper_TextureFormat.h"
+#include "TextureDisplayInfoResolver.h"
 
 NS_BEGIN(EffectEditor)
 
@@ -246,11 +246,11 @@ void EffectMaterial_View::Render_MaterialInstanceTable(const char* tableId, cons
         ImGui::TextDisabled("%s", label);
         ImGui::TableSetColumnIndex(1);
 
-        const string displayText = TextureFormat::FormatTextureId(textureId);
+        const string displayText = TextureDisplayInfoResolver::FormatTextureId(textureId);
         ImGui::TextUnformatted(displayText.c_str());
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
         {
-            const string tooltip = TextureFormat::MakeTextureTooltip(textureId);
+            const string tooltip = TextureDisplayInfoResolver::MakeTextureTooltip(textureId);
             ImGui::SetTooltip("%s", tooltip.c_str());
         }
     };
@@ -404,7 +404,7 @@ bool EffectMaterial_View::Load_PresetFile(const wstring& filePath)
     }
 
     EffectMaterialInstanceData material{};
-    if (!ReadPreset::Read(filePath, material))
+    if (!EffectMaterialPresetReader::Read(filePath, material))
     {
         _statusMessage = "Failed to read material preset.";
         LOG_ERROR("EffectMaterial material preset load failed: material read failed. path='{}'", String::ToString(filePath));

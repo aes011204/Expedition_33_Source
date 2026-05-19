@@ -1,6 +1,6 @@
-﻿#include "Helper_ReadPreset.h"
+#include "EffectMaterialPresetReader.h"
 
-namespace EffectEditor::ReadPreset
+namespace EffectEditor::EffectMaterialPresetReader
 {
 bool Read(const fs::path& filePath, EffectMaterialInstanceData& outMaterial)
 {
@@ -108,3 +108,4 @@ string ResolveDisplayName(const fs::path& filePath)
     return fileName;
 }
 }
+

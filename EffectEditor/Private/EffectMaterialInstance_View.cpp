@@ -9,7 +9,7 @@
 #include "GameInstance.h"
 #include "DetailPropertyContext.h"
 #include "Helper_String.h"
-#include "Helper_TextureFormat.h"
+#include "TextureDisplayInfoResolver.h"
 #include "Texture.h"
 
 NS_BEGIN(EffectEditor)
@@ -178,7 +178,7 @@ namespace Internal
         }
 
         value = textureId;
-        textureAssignStatus = "Texture assigned: " + TextureFormat::FormatTextureId(textureId);
+        textureAssignStatus = "Texture assigned: " + TextureDisplayInfoResolver::FormatTextureId(textureId);
         return true;
     }
 
@@ -336,7 +336,7 @@ namespace Internal
         drawList->AddRectFilled(slotMin, slotMax, fillColor, 4.f);
         drawList->AddRect(slotMin, slotMax, borderColor, 4.f, 0, isTextureDragging ? 2.f : 1.f);
 
-        const string displayText = TextureFormat::FormatTextureId(value);
+        const string displayText = TextureDisplayInfoResolver::FormatTextureId(value);
         drawList->PushClipRect(ImVec2(slotMin.x + 8.f, slotMin.y), ImVec2(slotMax.x - 8.f, slotMax.y), true);
         drawList->AddText(
             ImVec2(slotMin.x + 10.f, slotMin.y + slotSize.y * 0.5f - ImGui::GetTextLineHeight() * 0.5f),
@@ -349,7 +349,7 @@ namespace Internal
         {
             const string tooltip =
                 "Content Browser의 .png / .dds를 드롭하면 현재 instance texture id로 지정합니다.\n\n" +
-                TextureFormat::MakeTextureTooltip(value);
+                TextureDisplayInfoResolver::MakeTextureTooltip(value);
             ImGui::SetTooltip("%s", tooltip.c_str());
         }
 
@@ -383,7 +383,7 @@ namespace Internal
         if (resetClicked)
         {
             value = defaultValue;
-            textureAssignStatus = value.empty() ? "Texture reset: (none)" : "Texture reset: " + TextureFormat::FormatTextureId(value);
+            textureAssignStatus = value.empty() ? "Texture reset: (none)" : "Texture reset: " + TextureDisplayInfoResolver::FormatTextureId(value);
             changed = true;
         }
 

@@ -1,7 +1,7 @@
 ﻿#pragma once
 
 #include "EffectMaterialAuthoring_Types.h"
-#include "Helper_EffectCamera.h"
+#include "EffectPreviewOrbitCamera.h"
 
 NS_BEGIN(Engine)
 class RenderTarget;

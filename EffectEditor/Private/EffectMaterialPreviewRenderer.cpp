@@ -383,7 +383,7 @@ HRESULT EffectMaterialPreviewRenderer::Render_PreviewMesh(const EffectMaterialIn
     const float aspect = static_cast<float>(_previewTextureWidth) / static_cast<float>(max(1u, _previewTextureHeight));
     constexpr float nearPlane = 0.1f;
     constexpr float farPlane = 100.f;
-    const EffectPreviewOrbitCameraFrame cameraFrame = Helper_EffectCamera::Build_Frame(
+    const EffectPreviewOrbitCameraFrame cameraFrame = EffectPreviewOrbitCamera::Build_Frame(
         _cameraState,
         aspect,
         XMConvertToRadians(35.f),
@@ -498,10 +498,10 @@ void EffectMaterialPreviewRenderer::Handle_ViewportInput(
         const Vec2 mouseDelta = GAME->Get_MouseDelta();
 
         if (ImGui::IsMouseDown(ImGuiMouseButton_Left))
-            Helper_EffectCamera::Orbit(_cameraState, mouseDelta, kPreviewOrbitSensor);
+            EffectPreviewOrbitCamera::Orbit(_cameraState, mouseDelta, kPreviewOrbitSensor);
         else if (ImGui::IsMouseDown(ImGuiMouseButton_Middle) || ImGui::IsMouseDown(ImGuiMouseButton_Right))
         {
-            const EffectPreviewOrbitCameraFrame cameraFrame = Helper_EffectCamera::Build_Frame(
+            const EffectPreviewOrbitCameraFrame cameraFrame = EffectPreviewOrbitCamera::Build_Frame(
                 _cameraState,
                 static_cast<float>(_previewTextureWidth) / static_cast<float>(max(1u, _previewTextureHeight)),
                 XMConvertToRadians(35.f),
@@ -509,7 +509,7 @@ void EffectMaterialPreviewRenderer::Handle_ViewportInput(
                 100.f
             );
             const float panScale = max(0.01f, _cameraState.distance * 0.003f);
-            Helper_EffectCamera::Pan(
+            EffectPreviewOrbitCamera::Pan(
                 _cameraState,
                 mouseDelta,
                 cameraFrame.right,
@@ -522,7 +522,7 @@ void EffectMaterialPreviewRenderer::Handle_ViewportInput(
     if (isHovered && io.MouseWheel != 0.f)
     {
         _hasPendingHome = false;
-        Helper_EffectCamera::Dolly(_cameraState, io.MouseWheel, 0.46f, 1.5f, 8.f);
+        EffectPreviewOrbitCamera::Dolly(_cameraState, io.MouseWheel, 0.46f, 1.5f, 8.f);
     }
 }
 
@@ -581,7 +581,7 @@ void EffectMaterialPreviewRenderer::Update_HomeTransition(float timeDelta)
 
 void EffectMaterialPreviewRenderer::Reset_View()
 {
-    Helper_EffectCamera::Reset(
+    EffectPreviewOrbitCamera::Reset(
         _cameraState,
         Vec3::Zero,
         kHomeDistance,

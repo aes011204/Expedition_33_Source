@@ -6,8 +6,8 @@
 #include "EffectMaterialInstance_View.h"
 #include "EffectMaterialPreviewRenderer.h"
 #include "EffectMaterial_View.h"
-#include "Helper_ReadPreset.h"
-#include "Helper_TextureFormat.h"
+#include "EffectMaterialPresetReader.h"
+#include "TextureDisplayInfoResolver.h"
 #include "Notification_Manager.h"
 
 NS_BEGIN(EffectEditor)
@@ -269,7 +269,7 @@ namespace Internal
                 continue;
 
             EffectMaterialInstanceData presetMaterial{};
-            if (!ReadPreset::Read(presetPath, presetMaterial))
+            if (!EffectMaterialPresetReader::Read(presetPath, presetMaterial))
                 continue;
 
             if (Is_SameMaterial(material, presetMaterial))
@@ -303,7 +303,7 @@ namespace Internal
                 continue;
 
             EffectMaterialInstanceData presetMaterial{};
-            if (!ReadPreset::Read(presetPath, presetMaterial))
+            if (!EffectMaterialPresetReader::Read(presetPath, presetMaterial))
                 continue;
 
             if (Is_SameMaterial(material, presetMaterial))
@@ -522,10 +522,10 @@ namespace Internal
 
         if (isHovered)
         {
-            const string mainTooltip = TextureFormat::MakeTextureTooltip(data.material.mainTextureId);
+            const string mainTooltip = TextureDisplayInfoResolver::MakeTextureTooltip(data.material.mainTextureId);
             const string noiseTooltip = data.material.noiseTextureId.empty()
                                         ? string{ "Id: (none)" }
-                                        : TextureFormat::MakeTextureTooltip(data.material.noiseTextureId);
+                                        : TextureDisplayInfoResolver::MakeTextureTooltip(data.material.noiseTextureId);
             ImGui::SetTooltip(
                 "Content Browser의 .effectmaterial.json 머티리얼 파일을 여기에 드롭하면 현재 embedded material instance로 복사합니다.\n"
                 "현재 sprite effect 경로에서는 Main Texture를 emissive color source로, Opacity Source를 별도 opacity 해석 기준으로 사용합니다.\n\n"
