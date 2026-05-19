@@ -233,6 +233,7 @@
     <ClInclude Include="..\Public\CombatStatCom.h" />
     <ClInclude Include="..\Public\ComputeSpriteEmitter.h" />
     <ClInclude Include="..\public\DamageSystem.h" />
+    <ClInclude Include="..\Public\EffectAssetRuntimeLoader.h" />
     <ClInclude Include="..\Public\EffectEmitterRegistration.h" />
     <ClInclude Include="..\Public\GameDataTable.h" />
     <ClInclude Include="..\Public\GameplayUI.h" />
@@ -389,6 +390,7 @@
     <ClCompile Include="..\Private\CombatStatCom.cpp" />
     <ClCompile Include="..\Private\ComputeSpriteEmitter.cpp" />
     <ClCompile Include="..\private\DamageSystem.cpp" />
+    <ClCompile Include="..\Private\EffectAssetRuntimeLoader.cpp" />
     <ClCompile Include="..\Private\EffectEmitterRegistration.cpp" />
     <ClCompile Include="..\Private\GameDataTable.cpp" />
     <ClCompile Include="..\Private\GameplayUI.cpp" />

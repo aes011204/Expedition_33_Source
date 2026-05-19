@@ -2,6 +2,7 @@
 #include "GameInstance.h"
 #include "ClientInstance.h"
 #include "Client_Constants.h"
+#include "EffectAssetRuntimeLoader.h"
 #include "EffectInstance.h"
 #include "Spawn_Prefab.h"
 #include "TargetCamera.h"
@@ -252,95 +253,21 @@ HRESULT Level_GamePlay::Ready_Layer_Player(const wstring& strLayerTag)
 HRESULT Level_GamePlay::Ready_Layer_Effect(const wstring& strLayerTag)
 {
 #pragma region Effect Test
-    auto effectDefinition = make_shared<EffectDefinition>();
-    effectDefinition->name = "Thunder_Fall_Lightning_Test";
-
-    ComputeSpriteEmitterDesc emitterDesc{};
-    emitterDesc.required.material.mainTextureGuid = "f65f3e58-9d8f-4618-9dba-327588f4744b";
-    emitterDesc.required.material.mainTexturePath = "Effects/Textures/T_LightningBook2x2.dds";
-    emitterDesc.required.material.tint = Vec4(0.50f, 0.50f, 1.00f, 1.00f); // 파란색
-    emitterDesc.required.material.intensity = 2.f;
-    emitterDesc.required.material.opacityPower = 0.f;
-    emitterDesc.required.material.noiseStrength = 0.2f;
-    emitterDesc.required.material.blendMode = "Additive";
-    emitterDesc.required.material.opacitySource = "Red";
-    emitterDesc.required.material.subUVRows = 2u;
-    emitterDesc.required.material.subUVCols = 2u;
-    emitterDesc.required.spriteRender.screenAlignment = EffectSpriteScreenAlignment::Velocity;
-    emitterDesc.required.spriteRender.directionalAlignmentMode = EffectSpriteDirectionalAlignmentMode::TextureAxis;
-    emitterDesc.required.spriteRender.spriteTextureAxis = EffectSpriteTextureAxis::Y;
-    emitterDesc.required.playback.duration = 0.45f;
-    emitterDesc.required.playback.loopCount = 0u;
-    emitterDesc.required.drawLimit.maxDrawCount = 24u;
-    emitterDesc.spawn.instanceCount = 24u;
-
-    emitterDesc.spawn.particleSpawn.processSpawnRate = false;
-    emitterDesc.spawn.particleSpawn.processBurstList = true;
-    emitterDesc.spawn.particleSpawn.bursts = {
-        PointParticleBurstDesc{ 0.00f, 6u },
-        PointParticleBurstDesc{ 0.14f, 5u },
-        PointParticleBurstDesc{ 0.28f, 4u }
-    };
-    emitterDesc.spawn.particleSpawn.maxActiveCount = 24u;
-
-    emitterDesc.lifetime.lifeTime = Vec2(0.40f, 1.10f);
-    emitterDesc.initialSize.sizeMin = Vec2(0.12f, 0.14f);
-    emitterDesc.initialSize.sizeMax = Vec2(0.22f, 0.42f);
-
-    emitterDesc.motion.enabled = true;
-    emitterDesc.motion.initialRadialVelocityEnabled = true;
-    emitterDesc.motion.initialRadialVelocityInWorldSpace = false;
-    emitterDesc.motion.radialPivot = Vec3(0.f, 0.f, 0.f);
-    emitterDesc.motion.radialSpeed = Vec2(-0.39f, -0.18f);
-    emitterDesc.motion.velocityScaleByLife = Vec2(1.0f, 0.25f);
-
-    emitterDesc.sphereLocation.enabled = true;
-    emitterDesc.sphereLocation.offset = Vec3(0.f, 0.f, 0.f);
-    emitterDesc.sphereLocation.radius = 0.37f;
-    emitterDesc.sphereLocation.mode = PointParticleSphereLocationMode::Surface;
-
-    emitterDesc.sizeByLife.enabled = true;
-    emitterDesc.sizeByLife.multiplyXStart = 1.2f;
-    emitterDesc.sizeByLife.multiplyXEnd = 1.0f;
-    emitterDesc.sizeByLife.multiplyYStart = 1.2f;
-    emitterDesc.sizeByLife.multiplyYEnd = 1.0f;
-
-    emitterDesc.subUVFrameOverLife.enabled = true;
-    emitterDesc.subUVFrameOverLife.playbackMode = SubUVFramePlaybackMode::FramesPerSecond;
-    emitterDesc.subUVFrameOverLife.startFrame = 0u;
-    emitterDesc.subUVFrameOverLife.endFrame = 3u;
-    emitterDesc.subUVFrameOverLife.loop = true;
-    emitterDesc.subUVFrameOverLife.framesPerSecond = 20.f;
-
-    emitterDesc.initialColor.startColorMin = Vec4(1.f, 1.f, 1.f, 0.85f);
-    emitterDesc.initialColor.startColorMax = Vec4(1.f, 1.f, 1.f, 1.00f);
-    emitterDesc.colorOverLife.endColorMin = Vec4(0.60f, 0.80f, 0.95f, 0.08f);
-    emitterDesc.colorOverLife.endColorMax = Vec4(0.85f, 0.90f, 1.00f, 0.08f);
-
-    EffectEmitterDefinition emitterDefinition{};
-    emitterDefinition.id = 1u;
-    emitterDefinition.name = "lightning_0";
-    emitterDefinition.kind = EffectEmitterKind::ComputeSprite;
-    emitterDefinition.enabled = true;
-    emitterDefinition.useLocalSpace = true;
-    emitterDefinition.concreteDesc = emitterDesc;
-    effectDefinition->emitters.push_back(emitterDefinition);
+    const Shared<const EffectDefinition> effectDefinition =
+        EffectAssetRuntimeLoader::Load_Definition(L"Effects/Assets/Lune_Thunder_Fall_Charge.effect.json");
+    CHECK_NULL(effectDefinition, E_FAIL);
 
     EffectInstanceDesc effectDesc{};
     effectDesc.definition = effectDefinition;
     effectDesc.position = Vec3(83.5f, 5.14f, -0.24f);
 
-    const Shared<EffectInstance> effectPrototype = EffectInstance::Create(_device, _context);
-    CHECK_NULL(effectPrototype, E_FAIL);
-
-    const Shared<GameObject> effectObject = effectPrototype->Clone(&effectDesc);
-    CHECK_NULL(effectObject, E_FAIL);
-
     CHECK_FAILED(
         GAME->Add_GameObject(
             ETOI(LevelType::GamePlay),
+            L"GameObject_EffectInstance",
+            ETOI(LevelType::GamePlay),
             strLayerTag,
-            effectObject),
+            &effectDesc),
         E_FAIL
     );
 #pragma endregion
