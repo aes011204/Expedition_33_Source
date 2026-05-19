@@ -141,7 +141,7 @@ struct alignas(16) PostProcessCB
     float bloomClamp = 10.f;                // Bloom 추출 시 너무 강하지 않게 제한 값
 
     float bloomScatter = 0.7f;              // Bloom 이 얼마나 퍼져 보일지 조정하는 값
-    uint32 toneMapMode = 0;                 // Reinhard, ACES, Uncharted2
+    uint32 toneMapMode = 0;                 // 0: Reinhard, 1: ACES, 2: Uncharted2
     Vec2 bloomTexelSize{ 0.f, 0.f };        // Bloom 텍스처의 한 픽셀 크기
         
     uint32 featureMask = 0;                 // 적용할 Feature

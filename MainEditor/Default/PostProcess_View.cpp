@@ -176,11 +176,13 @@ void PostProcess_View::Draw_ParameterControl(PostProcessCB& params, bool& dirty)
         dirty |= ImGui::DragFloat("BloomScatter", &params.bloomScatter, 0.01f, 0.f, 1.f, "%.2f");
 
         int toneMapMode = static_cast<int>(params.toneMapMode);
-        const char* toneMapItems[] = { "Reinhard", "ACES", "Linear" };
+        const char* toneMapItems[] = { "Reinhard", "ACES", "Uncharted2" };
         if (ImGui::Combo("ToneMapMode", &toneMapMode, toneMapItems, IM_ARRAYSIZE(toneMapItems)))
         {
             if (toneMapMode < 0)
                 toneMapMode = 0;
+            if (toneMapMode >= static_cast<int>(IM_ARRAYSIZE(toneMapItems)))
+                toneMapMode = static_cast<int>(IM_ARRAYSIZE(toneMapItems)) - 1;
             params.toneMapMode = static_cast<uint32>(toneMapMode);
             dirty = true;
         }
@@ -313,4 +315,3 @@ void PostProcess_View::Free()
 {
     Editor_Window::Free();
 }
-

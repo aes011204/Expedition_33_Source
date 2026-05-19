@@ -126,9 +126,46 @@ PS_OUT_BACKBUFFER PS_ToneMapping(PS_IN In)
     if (HasPostProcessFeature(POSTPROCESS_FLAG_EXPOSURE))
         color *= max(g_PP_Exposure, EPSILON);
     
-    // ToneMapping  현재는 Reinhard
+    // ToneMapping
     if (HasPostProcessFeature(POSTPROCESS_FLAG_TONEMAP))
-        color = color / (1.f + color);          
+    {
+        if (g_PP_ToneMapMode == 0)
+        {
+            // Reinhard
+            color = color / (1.f + color);
+        }
+        else if (g_PP_ToneMapMode == 1)
+        {
+            // ACES fitted
+            const float a = 2.51f;
+            const float b = 0.03f;
+            const float c = 2.43f;
+            const float d = 0.59f;
+            const float e = 0.14f;
+            color = saturate((color * (a * color + b)) / (color * (c * color + d) + e));
+        }
+        else if (g_PP_ToneMapMode == 2)
+        {
+            // Uncharted2 filmic
+            const float A = 0.15f;
+            const float B = 0.50f;
+            const float C = 0.10f;
+            const float D = 0.20f;
+            const float E = 0.02f;
+            const float F = 0.30f;
+            const float W = max(1.f / max(g_PP_InvWhitePoint, EPSILON), EPSILON);
+
+            float3 numerator = color * (A * color + C * B) + D * E;
+            float3 denominator = color * (A * color + B) + D * F;
+            float3 mapped = numerator / max(denominator, EPSILON.xxx) - E / F;
+
+            float whiteNumerator = W * (A * W + C * B) + D * E;
+            float whiteDenominator = W * (A * W + B) + D * F;
+            float whiteScale = whiteNumerator / max(whiteDenominator, EPSILON) - E / F;
+
+            color = mapped / max(whiteScale, EPSILON);
+        }
+    }
     
     // Gamma
     if (HasPostProcessFeature(POSTPROCESS_FLAG_GAMMA))
