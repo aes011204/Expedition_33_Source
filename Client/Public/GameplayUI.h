@@ -63,10 +63,7 @@ private:
     Unique<SavePoint_Panel>         _savePointPanel{};
     Unique<CharacterStatus_Panel>   _characterStatusPanel{};
     Unique<SkillTree_Panel>         _skillTreePanel{};
-
-    Unique<CharacterStatus_Panel> _characterStatusPanel{};
-    Unique<SkillTree_Panel> _skillTreePanel{};
-    Unique<ChangeWeapon_Panel> _changeWeaponPanel{};
+    Unique<ChangeWeapon_Panel>      _changeWeaponPanel{};
 
     // 전투 진입 테스트용 페이드 UI
     Shared<UI_BattleTransition>     _battleTransition{};

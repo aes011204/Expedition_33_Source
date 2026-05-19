@@ -36,7 +36,6 @@ void GameplayUI::Update(float timeDelta)
         _characterStatusPanel->Update(timeDelta);
 
     if (_skillTreePanel)
-    {
         _skillTreePanel->Update(timeDelta);
 
     if (GAME->KeyDown(KEY_TYPE::F4) && _changeWeaponPanel)
@@ -44,7 +43,6 @@ void GameplayUI::Update(float timeDelta)
 
     if (_changeWeaponPanel)
         _changeWeaponPanel->Update(timeDelta);
-    }
 
     if (_savePointPanel && _savePointPanel->Is_Open())
     {

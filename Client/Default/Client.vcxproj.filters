@@ -154,12 +154,6 @@
     <Filter Include="02.GameObject\UI\BackGround">
       <UniqueIdentifier>{d023afea-ff0b-417c-9db0-25eb798973f2}</UniqueIdentifier>
     </Filter>
-    <Filter Include="02.GameObject\UI\SkillTree_Panel">
-      <UniqueIdentifier>{a1312345-3547-423a-8f4a-75a5083c4e41}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="02.GameObject\UI\CharacterStatus_Panel">
-      <UniqueIdentifier>{ee7b5bd8-e9bc-4acd-91ee-92cc1ca9e59b}</UniqueIdentifier>
-    </Filter>
     <Filter Include="02.GameObject\Effect\Emitters">
       <UniqueIdentifier>{8bae37aa-aacf-470c-ac67-0f3a2cc238c7}</UniqueIdentifier>
     </Filter>
@@ -228,6 +222,12 @@
     </Filter>
     <Filter Include="BattleState\Battle\BattleController">
       <UniqueIdentifier>{060c6d38-2340-4996-a3dc-93aeb84e6312}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="04. GamePlayUI\CharacterStatus_Panel">
+      <UniqueIdentifier>{ee7b5bd8-e9bc-4acd-91ee-92cc1ca9e59b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="04. GamePlayUI\SkillTree_Panel">
+      <UniqueIdentifier>{a1312345-3547-423a-8f4a-75a5083c4e41}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -447,9 +447,6 @@
     <ClInclude Include="..\Public\Hero_Manager.h">
       <Filter>96. Manager</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\GameplayUI.h">
-      <Filter>02.GameObject\UI</Filter>
-    </ClInclude>
     <ClInclude Include="..\public\Buff.h">
       <Filter>Ailment</Filter>
     </ClInclude>
@@ -485,9 +482,6 @@
     </ClInclude>
     <ClInclude Include="..\public\Mon_Lancelier_Body.h" />
     <ClInclude Include="..\public\Mon_Lancelier_Weapon.h" />
-    <ClInclude Include="..\public\SkillTree_Panel.h">
-      <Filter>02.GameObject\UI\SkillTree_Panel</Filter>
-    </ClInclude>
     <ClInclude Include="..\Public\Player_BattleBase.h" />
     <ClInclude Include="..\public\AN_Battle_EndAnim.h">
       <Filter>95. AnimNotify\00. Notifies</Filter>
@@ -643,6 +637,13 @@
     <ClInclude Include="..\Public\UI_ExpeditionStatus.h" />
     <ClInclude Include="..\Public\SavePoint_Panel.h" />
     <ClInclude Include="..\Public\UI_Utils.h" />
+    <ClInclude Include="Battle_Enum.h" />
+    <ClInclude Include="..\Public\GameplayUI.h">
+      <Filter>04. GamePlayUI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\SkillTree_Panel.h">
+      <Filter>04. GamePlayUI\SkillTree_Panel</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -843,9 +844,6 @@
     <ClCompile Include="..\Private\Hero_Manager.cpp">
       <Filter>96. Manager</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\GameplayUI.cpp">
-      <Filter>04. GamePlayUI</Filter>
-    </ClCompile>
     <ClCompile Include="..\public\Ailment.cpp">
       <Filter>Ailment</Filter>
     </ClCompile>
@@ -882,7 +880,6 @@
     </ClCompile>
     <ClCompile Include="..\private\Mon_Lancelier_Body.cpp" />
     <ClCompile Include="..\private\Mon_Lancelier_Weapon.cpp" />
-    <ClCompile Include="..\private\SkillTree_Panel.cpp" />
     <ClCompile Include="..\public\ANS_QTE.cpp" />
     <ClCompile Include="..\Private\EffectEmitterRegistration.cpp">
       <Filter>02.GameObject\Effect\Emitter Registration</Filter>
@@ -1039,6 +1036,12 @@
     <ClCompile Include="..\Private\UI_BattleTransition.cpp" />
     <ClCompile Include="..\Private\UI_ExpeditionStatus.cpp" />
     <ClCompile Include="..\Private\SavePoint_Panel.cpp" />
+    <ClCompile Include="..\Private\GameplayUI.cpp">
+      <Filter>04. GamePlayUI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\SkillTree_Panel.cpp">
+      <Filter>04. GamePlayUI\SkillTree_Panel</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">
