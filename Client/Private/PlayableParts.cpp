@@ -4,6 +4,8 @@
 #include "ShaderCom.h"
 #include "Engine_Enum.h"
 #include "GameInstance.h"
+#include "AnimComputeRuntime.h"
+#include "ComputeShaderCom.h"
 
 NS_BEGIN(Client)
 
@@ -49,18 +51,18 @@ void PlayableParts::Set_Animation(uint32 animIndex, bool isLoop) const
     _modelCom->Set_Animation(animIndex, isLoop);
 }
 
-void PlayableParts::Set_AnimationByState(uint32 stateIndex, float blendDuration, bool isLoop) const
+bool PlayableParts::Set_AnimationByState(uint32 stateIndex, float blendDuration, bool isLoop) const
 {
-    if (nullptr == _modelCom) return;
+    if (nullptr == _modelCom) return false;
 
-    _modelCom->Set_AnimationByState(stateIndex, blendDuration, isLoop);
+    return _modelCom->Set_AnimationByState(stateIndex, blendDuration, isLoop);
 }
 
-void PlayableParts::Set_AnimationByState(uint32 stateIndex, bool isLoop) const
+bool PlayableParts::Set_AnimationByState(uint32 stateIndex, bool isLoop) const
 {
-    if (nullptr == _modelCom) return;
+    if (nullptr == _modelCom) return false;
 
-    _modelCom->Set_AnimationByState(stateIndex, isLoop);
+    return _modelCom->Set_AnimationByState(stateIndex, isLoop);
 }
 
 
@@ -82,12 +84,32 @@ float PlayableParts::Get_AnimationProgress() const
 {
     if (nullptr == _modelCom) return D3D11_FLOAT32_MAX;
 
-    return _modelCom->Get_CurrentAnimationTimeSec() / _modelCom->Get_CurrentAnimationDurationSec();
+    return _modelCom->Get_CurrentProgress();
+}
+
+bool PlayableParts::Is_AnimationBlending() const
+{
+    return _modelCom->Is_AnimationBlending();
 }
 
 bool PlayableParts::Is_AnimationFinished() const
 {
     return _modelCom->Is_AnimationFinished();
+}
+
+Vec3 PlayableParts::Get_RootMotionPosition() const
+{
+    return _modelCom->Get_RootTransformVelocity().position;
+}
+
+void PlayableParts::Set_AnimationSpeed(float speed) const
+{
+    return _modelCom->Set_FrameSpeed(speed);
+}
+
+float PlayableParts::Get_AnimationSpeed() const
+{
+    return _modelCom->Get_FrameSpeed();
 }
 
 HRESULT PlayableParts::Initialize_Prototype()
@@ -100,7 +122,7 @@ HRESULT PlayableParts::Initialize(void* arg)
     if (FAILED(PartObject::Initialize(arg)))
     {
         LOG_ERROR("[PlayableParts] : Failed to Initialize PlayableParts");
-        return S_OK;
+        return E_FAIL;
     }
 
     Set_ShadowCasterType(ShadowCasterType::Dynamic);
@@ -113,7 +135,7 @@ HRESULT PlayableParts::Initialize(void* arg)
         if (FAILED(Ready_Components(*playableDesc)))
         {
             LOG_ERROR("[PlayableParts] : Failed to Ready Components");
-            return S_OK;
+            return E_FAIL;
         }
     }
 
@@ -148,6 +170,8 @@ HRESULT PlayableParts::Render()
     if (FAILED(Bind_ShaderResources()))
         return E_FAIL;
 
+    CHECK_FAILED(_animComputeRuntime->Prepare_BoneMatrixBuffers(), E_FAIL);
+
     const uint32 iNumMeshes = static_cast<uint32>(_modelCom->Get_NumMeshes());
 
     for (uint32 i = 0; i < iNumMeshes; i++)
@@ -161,7 +185,7 @@ HRESULT PlayableParts::Render()
         if (FAILED(_shaderCom->Bind_CBufferData(material->Get_CB())))
             return E_FAIL;
 
-        CHECK_FAILED(_modelCom->Bind_PreparedBoneMatrices(_shaderCom.get(), "g_BoneMatricesBuffer", i), E_FAIL);
+        CHECK_FAILED(_animComputeRuntime->Bind_PreparedBoneMatrices(_shaderCom.get(), "g_BoneMatricesBuffer", i), E_FAIL);
 
         const uint32 passIndex = material->Get_PassIndex();
         if (FAILED(_shaderCom->Begin(passIndex)))
@@ -181,11 +205,14 @@ HRESULT PlayableParts::Render_Shadow()
     if (FAILED(GAME->Bind_ShadowCB(_shaderCom)))
         return E_FAIL;
 
+    // shadow pass 전에도 bone buffer 최신화
+    CHECK_FAILED(_animComputeRuntime->Prepare_BoneMatrixBuffers(), E_FAIL);
+
     const uint32 numMeshes = static_cast<uint32>(_modelCom->Get_NumMeshes());
 
     for (uint32 i = 0; i < numMeshes; i++)
     {
-        CHECK_FAILED(_modelCom->Bind_PreparedBoneMatrices(_shaderCom.get(), "g_BoneMatricesBuffer", i), E_FAIL);
+        CHECK_FAILED(_animComputeRuntime->Bind_PreparedBoneMatrices(_shaderCom.get(), "g_BoneMatricesBuffer", i), E_FAIL);
 
         if (FAILED(_shaderCom->Begin(static_cast<uint32>(VtxAnimMeshPass::Shadow))))
             return E_FAIL;
@@ -220,7 +247,7 @@ void PlayableParts::Update_LeaderPoseMatrices() const
         return;
 
     _modelCom->Update_LeaderPoseMatrices();
-    CHECK_FAILED(_modelCom->Prepare_BoneMatrixBuffers());
+    CHECK_FAILED(_animComputeRuntime->Prepare_BoneMatrixBuffers());
 }
 
 void PlayableParts::Update_CombinedWorldMatrix(const Matrix& childMatrix)
@@ -245,7 +272,6 @@ void PlayableParts::Update_CombinedWorldMatrix(const Matrix& childMatrix)
 
 HRESULT PlayableParts::Ready_Components(const PLAYABLE_PART_DESC& desc)
 {
-
     if (desc.modelType == ModelType::Anim)
     {
         if (FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Shader_VtxAnimMesh"), _shaderCom)))
@@ -259,6 +285,21 @@ HRESULT PlayableParts::Ready_Components(const PLAYABLE_PART_DESC& desc)
 
     if (FAILED(Add_Component(ETOI(LevelType::Static), desc.modelTag, _modelCom)))
         return E_FAIL;
+
+    Shared<ComputeShaderCom> boneRemapShader{};
+    Shared<ComputeShaderCom> skinningShader{};
+ 
+    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("ComputeShader_BoneRemap"), boneRemapShader), E_FAIL); 
+    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("ComputeShader_AnimMeshSkinning"), skinningShader), E_FAIL); 
+ 
+    AnimComputeRuntime::CreateDesc runtimeDesc{};
+    runtimeDesc.model = _modelCom.get();
+    runtimeDesc.boneRemapShader = boneRemapShader;
+    runtimeDesc.skinningShader = skinningShader;
+
+    // 모든 playable part가 공통 runtime을 하나씩 가진다
+    _animComputeRuntime = AnimComputeRuntime::Create(_device, _context, runtimeDesc); 
+    CHECK_NULL(_animComputeRuntime, E_FAIL);
 
     return S_OK;
 }

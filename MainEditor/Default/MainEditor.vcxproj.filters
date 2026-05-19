@@ -55,9 +55,6 @@
     <ClCompile Include="..\Private\Action_Command.cpp">
       <Filter>97. Utils</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\Animation_PreviewObject.cpp">
-      <Filter>01. View</Filter>
-    </ClCompile>
     <ClCompile Include="..\Private\Notification_Manager.cpp">
       <Filter>01. Manager</Filter>
     </ClCompile>
@@ -192,9 +189,6 @@
     </ClInclude>
     <ClInclude Include="..\Public\Action_Command.h">
       <Filter>97. Utils</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\Animation_PreviewObject.h">
-      <Filter>01. View</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Notification_Manager.h">
       <Filter>01. Manager</Filter>

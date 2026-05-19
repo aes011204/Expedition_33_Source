@@ -40,6 +40,11 @@ HRESULT UI_Image::Initialize(void* arg)
         _shaderPrototypeTag = desc->shaderPrototypeTag;
         _viBufferPrototypeLevelIndex = desc->viBufferPrototypeLevelIndex;
         _viBufferPrototypeTag = desc->viBufferPrototypeTag;
+
+        _maskMode = desc->maskMode;
+        _holeCenterUV = desc->holeCenterUV;
+        _holeRadius = desc->holeRadius;
+        _holeFeather = desc->holeFeather;
     }
 
     if (_texturePath.empty())
@@ -101,6 +106,7 @@ HRESULT UI_Image::Render()
 
     const float viewportWidth = static_cast<float>(max(1u, GAME->Get_ViewportWidth()));
     const float viewportHeight = static_cast<float>(max(1u, GAME->Get_ViewportHeight()));
+    const float viewportAspect = viewportWidth / viewportHeight;
     const Vec2 center = Transform_LocalPointToWorld(Get_ScaledLocalCenter(localScale));
 
     Matrix worldMatrix =
@@ -139,12 +145,31 @@ HRESULT UI_Image::Render()
     if (FAILED(_shader->Bind_SRV("g_Texture", _srv.Get())))
         return E_FAIL;
 
-    const uint32 passIndex = (nullptr != _maskSrv) ? 1u : 0u;
+    if (FAILED(_shader->Bind_RawValue("g_HoleCenterUV", &_holeCenterUV, sizeof(Vec2))))
+        return E_FAIL;
 
-    if (nullptr != _maskSrv)
+    if (FAILED(_shader->Bind_RawValue("g_HoleRadius", &_holeRadius, sizeof(float))))
+        return E_FAIL;
+
+    if (FAILED(_shader->Bind_RawValue("g_HoleFeather", &_holeFeather, sizeof(float))))
+        return E_FAIL;
+
+    if (FAILED(_shader->Bind_RawValue("g_ViewportAspect", &viewportAspect, sizeof(float))))
+        return E_FAIL;
+
+    uint32 passIndex = 0u;
+
+    if (_maskMode == MaskMode::CircularHole)
     {
+        passIndex = 2u;
+    }
+    else if (nullptr != _maskSrv)
+    {
+        // 기존 maskTexturePath가 있는 UI는 예전처럼 자동으로 MaskPass
         if (FAILED(_shader->Bind_SRV("g_MaskTexture", _maskSrv.Get())))
             return E_FAIL;
+
+        passIndex = 1u;
     }
 
     if (FAILED(_shader->Begin(passIndex)))

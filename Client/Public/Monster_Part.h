@@ -6,6 +6,7 @@
 NS_BEGIN(Engine)
 class ShaderCom;
 class ModelCom;
+class AnimComputeRuntime;
 NS_END
 
 NS_BEGIN(Client)
@@ -47,8 +48,9 @@ protected:
     virtual uint32 Decide_PassIndex(Shared<Material> mat);
 
 protected:
-    Shared<ShaderCom> _shader = nullptr;
-    Shared<ModelCom> _model = nullptr;
+    Shared<ShaderCom>           _shader = nullptr;
+    Shared<ModelCom>            _model = nullptr;
+    Shared<AnimComputeRuntime>  _animComputeRuntime = nullptr;
 
 public:
     virtual Shared<GameObject> Clone(void* arg) override PURE;

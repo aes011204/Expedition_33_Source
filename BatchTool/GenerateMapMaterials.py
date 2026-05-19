@@ -126,6 +126,13 @@ def parse_cb(mi_data: dict) -> dict:
     overrides = mi_data.get("Parameters", {}).get("Properties", {}).get("BasePropertyOverrides", {})
     if "OpacityMaskClipValue" in overrides:
         cb["opacityMaskClipValue"] = overrides["OpacityMaskClipValue"]
+
+    colors = mi_data.get("Parameters", {}).get("Colors", {})
+    for param_name, color_val in colors.items():
+        if param_name.lower() == "base tiling/offset":
+            cb["uvScale"]  = [color_val.get("R", 1.0), color_val.get("G", 1.0)]
+            cb["uvOffset"] = [color_val.get("B", 0.0), color_val.get("A", 0.0)]
+
     return cb
 
 

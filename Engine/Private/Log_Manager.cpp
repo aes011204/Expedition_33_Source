@@ -1,31 +1,31 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "Log_Manager.h"
 
 namespace Engine::Internal
 {
 namespace
 {
-LogLevel To_EngineLogLevel(const spdlog::level::level_enum level)
-{
-    switch (level)
+    LogLevel To_EngineLogLevel(const spdlog::level::level_enum level)
     {
-    case spdlog::level::trace:
-        return LogLevel::Trace;
-    case spdlog::level::debug:
-        return LogLevel::Debug;
-    case spdlog::level::info:
-        return LogLevel::Info;
-    case spdlog::level::warn:
-        return LogLevel::Warn;
-    case spdlog::level::err:
-        return LogLevel::Error;
-    case spdlog::level::critical:
-        return LogLevel::Critical;
-    case spdlog::level::off:
-    default:
-        return LogLevel::Off;
+        switch (level)
+        {
+        case spdlog::level::trace:
+            return LogLevel::Trace;
+        case spdlog::level::debug:
+            return LogLevel::Debug;
+        case spdlog::level::info:
+            return LogLevel::Info;
+        case spdlog::level::warn:
+            return LogLevel::Warn;
+        case spdlog::level::err:
+            return LogLevel::Error;
+        case spdlog::level::critical:
+            return LogLevel::Critical;
+        case spdlog::level::off:
+        default:
+            return LogLevel::Off;
+        }
     }
-}
 }
 
 /**
@@ -38,8 +38,9 @@ LogLevel To_EngineLogLevel(const spdlog::level::level_enum level)
  * @note 멀티스레드 안전성 :
  * - mutex를 템플릿 인자로 전달하여 base_sink가 내부적으로 sink_it_()를 mutex로 보호
  * - 메인 스레드와 로딩 스레드 등에서 동시 로그 호출 시에도 안전
+ * - !! MSVC Output을 현재 사용 안함에 따라 이 클래스도 사용 안함 !!
  */
-class MsvcSinkUtf8 final : public spdlog::sinks::base_sink<mutex>
+class [[maybe_unused]] MsvcSinkUtf8 final : public spdlog::sinks::base_sink<mutex>
 {
 private:
     void sink_it_(const spdlog::details::log_msg& msg) override
@@ -82,7 +83,6 @@ private:
     {
     };
 };
-
 
 // 에디터 Console 창에서 소비할 실시간 로그 버퍼를 관리하는 커스텀 Sink
 class ConsoleSink final : public spdlog::sinks::base_sink<mutex>
@@ -222,9 +222,9 @@ HRESULT Log_Manager::Initialize(const string& projectName)
 #ifdef _DEBUG
         // 2. MSVC Output Window Sink (실시간 디버깅용)
         // 출력 창에서 한국어 대응을 위해 커스텀 싱크인 MsvcSinkUtf8 를 사용
-        const auto spMsvcSink = make_shared<Internal::MsvcSinkUtf8>();
-        spMsvcSink->set_level(spdlog::level::trace);
-        sinks.push_back(spMsvcSink);
+        // const auto spMsvcSink = make_shared<Internal::MsvcSinkUtf8>();
+        // spMsvcSink->set_level(spdlog::level::trace);
+        // sinks.push_back(spMsvcSink);
 
         // 3. Rotating File Sink (개발 기록용: 5MB, 10개)
         const auto spFileSink = make_shared<spdlog::sinks::rotating_file_sink_mt>(
@@ -309,12 +309,6 @@ uint32 Log_Manager::Get_ConsoleLogRevision() const
     return 0;
 }
 
-void Log_Manager::Log_FileOnly(const spdlog::source_loc& sourceLoc, spdlog::level::level_enum level, const string& message) const
-{
-    if (_impl && _impl->fileOnlyLogger)
-        _impl->fileOnlyLogger->log(sourceLoc, level, message);
-}
-
 void Log_Manager::Visit_ConsoleLogs(const function<void(const ConsoleLogEntry&)>& visitor) const
 {
     if (_impl && _impl->consoleSink)
@@ -325,6 +319,12 @@ void Log_Manager::Clear_ConsoleLogs()
 {
     if (_impl && _impl->consoleSink)
         _impl->consoleSink->Clear_Logs();
+}
+
+void Log_Manager::Log_FileOnly(const spdlog::source_loc& sourceLoc, spdlog::level::level_enum level, const string& message) const
+{
+    if (_impl && _impl->fileOnlyLogger)
+        _impl->fileOnlyLogger->log(sourceLoc, level, message);
 }
 
 Unique<Log_Manager> Log_Manager::Create(const string& projectName)

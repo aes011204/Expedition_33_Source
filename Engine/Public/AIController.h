@@ -3,9 +3,14 @@
 #include "Component.h"
 #include "Delegate.h"
 
+namespace Client
+{
+struct BattleChar;
+}
+
 NS_BEGIN(Engine)
 
-    class ENGINE_DLL AIController :
+class ENGINE_DLL AIController :
     public Component
 {
 
@@ -20,15 +25,14 @@ public:
     HRESULT Initialize(void* arg) override;
     void BeginPlay() override;
     void Update(float timeDelta);
-
+  
 public:
     void On_EditorStopRuntime();
-
-public:
     const string& Get_BehaviorTreeAssetPath() const { return _behaviorTreeAssetPath; }
     void Set_BehaviorTreeAssetPath(const string& path) { _behaviorTreeAssetPath = path; }
     shared_ptr<class BlackBoard> Get_BlackBoard() { return _BB; }
     shared_ptr<class BehaviorTree> Get_BehaviorTree() { return _BT; }
+    void Run_BT_Once();
 
     void Set_BehaviorTree(shared_ptr<class BehaviorTree> tree);
 
@@ -36,6 +40,7 @@ public:
     void Request_Move(Vec3& target);
     void Stop_Move();
     HRESULT Load_BehaviorTreeAsset();
+
     HRESULT Reload_BehaviorTree();
     void From_Json(const json& data);
 
@@ -43,6 +48,7 @@ public:
 protected:
     shared_ptr<class BlackBoard> _BB = {};
     shared_ptr<class BehaviorTree> _BT = {};
+
     shared_ptr<class PathFollower> _PF = {};
 
     vector<shared_ptr<class Service>> _services;

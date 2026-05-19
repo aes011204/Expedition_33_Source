@@ -9,6 +9,9 @@
 #include "UI_RuntimeLoader.h"
 #include "UI_Text.h"
 #include "UIPreviewManager.h"
+#include "UI_Utils.h"
+
+using namespace UI_Utils;
 
 namespace
 {
@@ -271,15 +274,6 @@ void CharacterStatus_Panel::Refresh_CharacterSelectUI()
         if (indicators[i] && indicators[i]->Get_Transform())
             indicators[i]->Get_Transform()->Set_Scale(targetScale);
     }
-}
-
-Shared<UI_Base> CharacterStatus_Panel::Find_UI(const umap<wstring, Shared<UI_Base>>& uiByName, const wstring& name) const
-{
-    const auto iter = uiByName.find(name);
-    if (iter == uiByName.end() || iter->second == nullptr)
-        return nullptr;
-
-    return iter->second;
 }
 
 void CharacterStatus_Panel::Set_IntText(const Shared<UI_Text>& text, int32 value)

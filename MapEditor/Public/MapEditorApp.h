@@ -6,6 +6,8 @@
 
 NS_BEGIN(Engine)
 class RenderTarget;
+class ModelCom;
+class ComputeShaderCom;
 NS_END
 
 NS_BEGIN(MapEditor)
@@ -50,17 +52,25 @@ private:
 
     SceneContext _scene;
 
+    Shared<ComputeShaderCom> _instanceCullShader;
+
     bool _octreeDirty = true;
 
 private:
     HRESULT Ready_Light();
 
     void SyncSceneLights();
-    void UpdateRenderHandles();
+    void Update_RenderHandles();
+    void Update_StaticMeshHandles();
+    void Update_InstancedMeshHandles();
     void DoSpawnAt(const string& modelPath);
     void RebuildOctreeIfDirty();
 
     wstring Get_ClientResourceRoot() const;
+    void Apply_MaterialFromJson(const fs::path& modelPath, const string& bundleKey, Shared<ModelCom>& model);
+    string Resolve_BundleKey(const fs::path& modelPath) const;
+    void Apply_PassOverrideToModel(ModelCom& model, const string& modelFilename);
+    void Apply_PassOverrides();
 
 public:
     static Unique<MapEditorApp> Create();

@@ -30,6 +30,20 @@ public:
         return any_cast<T>(it->second);
     }
 
+    bool Has_Value(const string& key) const
+    {
+        return _data.find(key) != _data.end();
+    }
+
+    const any* Find_Value(const string& key) const
+    {
+        auto it = _data.find(key);
+        if (it == _data.end())
+            return nullptr;
+
+        return &it->second;
+    }
+
 private:
     unordered_map< string, any> _data;
     public:

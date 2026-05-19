@@ -43,7 +43,10 @@ void FreeCamera::Priority_Update(float timeDelta)
     if (!GAME->Is_ActiveCamera(GetSharedPtr<Camera>()))
         return;
 
-    const bool canControl = GAME->Is_FreeCameraInputEnabled() && GAME->KeyPress(KEY_TYPE::RBUTTON);
+    const bool canControl =
+        !GAME->Is_WorldGameplayInputBlocked() &&
+        GAME->Is_FreeCameraInputEnabled() &&
+        GAME->KeyPress(KEY_TYPE::RBUTTON);
 
     const float wheelDelta = GAME->Get_MouseWheel();
 

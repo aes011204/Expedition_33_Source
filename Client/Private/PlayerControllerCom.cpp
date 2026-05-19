@@ -4,14 +4,14 @@
 #include "InputCom.h"
 #include "MovementCom.h"
 
-#include "Debug_Profile.h""
+#include "Debug_Profile.h"
 
 IMPLEMENT_REFLECTION(PlayerControllerCom)
 {
     auto& info = GetStaticReflectionInfo();
     info.properties.clear();
 
-    PROPERTY_BOOL("Use Controll Yaw", _bUseControllerRotationYaw);
+    PROPERTY_BOOL("Use Control Yaw", _bUseControllerRotationYaw);
     PROPERTY_FLOAT("Test 값", _testRefectionValue, 0.f, 3.f, 0.05f);
 
     return true;
@@ -63,8 +63,8 @@ void PlayerControllerCom::Update_InputState()
 {
     _currentInput = {};
 
-	if (GAME->Is_PlayerInputBlocked())
-		return;
+	if (GAME->Is_WorldGameplayInputBlocked())
+        return;
 
     if (!_controlEnabled)
         return; // follower는 키보드 입력 X
@@ -84,10 +84,12 @@ void PlayerControllerCom::Update_Movement(float timeDelta)
 {
     Debug_Profile::Scope profileScope("PlayerController::UpdateMovement");
 
-	if (GAME->Is_PlayerInputBlocked())
+	if (GAME->Is_WorldGameplayInputBlocked())
 	{
-		_movementCom->Apply_Input({});
-		return;
+		_movementCom->Clear_FollowMoveCommand(); 
+        _movementCom->Apply_Input({});           
+        _movementCom->Update_Movement(timeDelta);
+        return;
 	}
 
     if (_followControl.enabled)
@@ -139,6 +141,11 @@ void PlayerControllerCom::Update_Movement(float timeDelta)
     _movementCom->Clear_FollowMoveCommand(); // active hero는 follow command를 쓰지 않는다.
     _movementCom->Apply_Input(_currentInput);
     _movementCom->Update_Movement(timeDelta);
+}
+
+Vec3 PlayerControllerCom::Get_Velocity() const
+{
+    return _movementCom->Get_Velocity();
 }
 
 bool PlayerControllerCom::Has_MoveInput() const
@@ -209,6 +216,13 @@ void PlayerControllerCom::Check_RigidInput()
     if (_rigidControl.rigidJump)
     {
         _currentInput.isJumpDown = false;
+    }
+
+    if (_rigidControl.rigidVelocity != Vec3::Zero)
+    {
+        Vec3 vel = _rigidControl.rigidVelocity;
+        _currentInput.moveZ = 1.f;              // TODO : 확장성 애매해서 Root모션 
+        _movementCom->Set_Velocity(vel);
     }
 
     _rigidControl = {};

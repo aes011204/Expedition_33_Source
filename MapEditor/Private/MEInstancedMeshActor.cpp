@@ -4,6 +4,7 @@
 #include "ComputeShaderCom.h"
 #include "ComputeStructuredBuffer.h"
 #include "InstanceCullParams.h"
+#include "MEModelManager.h"
 
 
 MEInstancedMeshActor::MEInstancedMeshActor(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -28,10 +29,6 @@ HRESULT MEInstancedMeshActor::Initialize(void* arg)
     {
         return E_FAIL;
     }
-
-    _cullShader = ComputeShaderCom::Create(_device, _context,
-        L"../../../Client/Bin/ShaderFiles/Compute/Shader_Compute_InstanceCull.hlsl",
-        "CS_Main");
 
     return S_OK;
 }
@@ -76,8 +73,9 @@ HRESULT MEInstancedMeshActor::Render()
     const uint32 numMeshes = static_cast<uint32>(_model->Get_NumMeshes());
     for (uint32 i = 0; i < numMeshes; ++i)
     {
-        const Shared<Material> material = _model->Get_Material(i);
-        int32 passIndex = 2; // NoTexture fallback
+        const uint32 materialIndex = _model->Get_MeshMaterialIndex(i);
+        const Shared<Material> material = _model->Get_Material(materialIndex);
+        int32 passIndex = static_cast<int32>(VtxMeshPassIndex::NoTexturePass);
         if (material != nullptr)
         {
             if (FAILED(_shader->Bind_MaterialTextures(*material)))
@@ -135,7 +133,7 @@ HRESULT MEInstancedMeshActor::RenderPickingID(uint32 id)
     const uint32 numMeshes = static_cast<uint32>(_model->Get_NumMeshes());
     for (uint32 i = 0; i < numMeshes; ++i)
     {
-        if (FAILED(_shader->Begin(5)))
+        if (FAILED(_shader->Begin(6)))
         {
             return E_FAIL;
         }
@@ -426,11 +424,19 @@ void MEInstancedMeshActor::GenerateInstances(const Vec3& centerPos, float areaWi
     }
 }
 
-HRESULT MEInstancedMeshActor::UpdateInstances(const wstring& modelPath, const vector<InstanceTransform>& transforms)
+HRESULT MEInstancedMeshActor::UpdateInstances(const wstring& modelPath, const vector<InstanceTransform>& transforms, MEModelManager* modelManager)
 {
     if (_loadedModelPath != modelPath)
     {
-        _model = ModelCom::Create(_device, _context, ModelType::NonAnim, String::ToString(modelPath).c_str(), Matrix::CreateScale(0.01f));
+        if (modelManager)
+        {
+            _model = modelManager->GetOrLoad(_device, _context, modelPath);
+        }
+        else
+        {
+            _model = ModelCom::Create(_device, _context, ModelType::NonAnim, String::ToString(modelPath).c_str(), Matrix::CreateScale(0.01f));
+        }
+
         if (!_model)
         {
             return E_FAIL;

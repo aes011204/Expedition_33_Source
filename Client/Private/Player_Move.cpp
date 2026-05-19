@@ -12,8 +12,12 @@ HRESULT Player_Move::Initialize()
     return Player_State::Initialize();
 }
 
+using plAnim = Body_Player::PlayerWorldAnimation;
+
 bool Player_Move::EnterInvoke()
 {
+    isInvokePreSprint = false;
+
     return true;
 }
 
@@ -39,22 +43,40 @@ void Player_Move::Update(float timeDelta)
         return;
     }
 
-    using plAnim = Body_Player::PlayerWorldAnimation;
     if (IsSprintMove())
     {
-        if (animIndex != ETOI(plAnim::Pl_Sprint))
-            _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_Sprint), 0.2f, true);
+        if (isInvokePreSprint)
+        {
+            if (_bodyPlayer->Is_AnimationFinished())
+            {
+                _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_Sprint), 0.35f, true);
+                isInvokePreSprint = false;
+            }
+        }
+        else if (animIndex != ETOI(plAnim::Pl_Sprint))
+        {
+            if (_bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_PreSprint), 0.35f, false))
+            {
+                isInvokePreSprint = true;
+            }
+            else
+            {
+                _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_Sprint), 0.35f, true);
+            }
+        }
     }
     else if (IsWalkMove())
     {
+        isInvokePreSprint = false;
         if (animIndex != ETOI(plAnim::Pl_Walk))
-            _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_Walk), 0.2f, true);
+            _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_Walk), 0.35f, true);
     }
     else
     {
+        isInvokePreSprint = false;
         if (animIndex != ETOI(plAnim::Pl_Run))
         {
-            _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_Run), 0.2f, true);
+            _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_Run), 0.35f, true);
         }
     }
 }
@@ -66,7 +88,7 @@ void Player_Move::LateUpdate(float timeDelta)
 
 void Player_Move::ExitInvoke()
 {
-    
+    isInvokePreSprint = false;
 }
 
 Shared<Player_Move> Player_Move::Create(const Shared<Player_WorldBase>& owner)

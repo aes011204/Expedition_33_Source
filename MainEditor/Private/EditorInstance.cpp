@@ -148,9 +148,20 @@ void EditorInstance::Update_Editor(float timeDelta)
     Sync_PreviewViewportMode();
     Apply_PendingPreviewViewportSize();
 
-    _imguiManager->Update(timeDelta);
-    _editorManager->Update(timeDelta);
-    _notificationManager->Update(timeDelta);
+    {
+        Profile_View::Scope scope("Editor::ImGuiUpdate");
+        _imguiManager->Update(timeDelta);
+    }
+
+    {
+        Profile_View::Scope scope("Editor::EditorManagerUpdate");
+        _editorManager->Update(timeDelta);
+    }
+
+    {
+        Profile_View::Scope scope("Editor::NotificationUpdate");
+        _notificationManager->Update(timeDelta);
+    }
 }
 
 void EditorInstance::Render_Editor()
@@ -1004,6 +1015,14 @@ void EditorInstance::Apply_RuntimeInputPolicy()
     if (_runtimeState == EDITOR_RUNTIME_STATE::Play)
     {
         if (GAME->Is_GameplayPaused())
+        {
+            GAME->Set_PlayerInputBlocked(true);
+            GAME->Set_FreeCameraInputEnabled(false);
+            GAME->Unlock_Mouse();
+            return;
+        }
+
+        if (GAME->Is_UIInputEnabled())
         {
             GAME->Set_PlayerInputBlocked(true);
             GAME->Set_FreeCameraInputEnabled(false);

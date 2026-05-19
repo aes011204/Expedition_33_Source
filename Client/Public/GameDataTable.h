@@ -4,12 +4,14 @@
 
 #include "Client_Defines.h"
 #include "Base.h"
+#include "Battle_Enum.h"
 
 // 게임 플레이 시에 필요한 정적 테이블 데이터 담당.
 // ResourceLoader는 리소스/프로토타입 생성,
 // GameDataTable은 경험치, 스킬, 아이템 같은 데이터 담당
 
 NS_BEGIN(Client)
+
 
 class GameDataTable final : public Base
 {
@@ -68,13 +70,13 @@ public:
         SkillActionPayLoad skillActionPayLoad; //skillaction을 담는 바구니같은 개념. variant에 있는 구조체를 담을 수 있다.
     };
 
-    struct SkillDesc
-    {
-       wstring             name;    //스킬 한글 이름
-       string              skillId; // 스킬 영어 이름
-       uint32              apCost;  // ap 소모량
-       vector<SkillAction> skillActions; // skill 효과 목록, 한 스킬당 여러 효과를 가질 수 있다.
-    };
+    //struct SkillDesc
+    //{
+    //   wstring             name;    //스킬 한글 이름
+    //   string              skillId; // 스킬 영어 이름
+    //   uint32              apCost;  // ap 소모량
+    //   vector<SkillAction> skillActions; // skill 효과 목록, 한 스킬당 여러 효과를 가질 수 있다.
+    //};
 
     struct StainCost
     {
@@ -112,21 +114,25 @@ public:
     HRESULT Load_All();
     void Clear();
 
+    const Skill_Data* Get_Skill(const string& skillId);
+    HRESULT Load_SkillPhaseData(const wstring& jsonRootPath);
 public:
     uint32 Get_NextExp(uint32 level) const;
     SkillTreeDesc*   Get_SkillTreeDesc(const string& skillName);
     const umap<string, vector<string>>*    Get_SkillTreeRequirementData();
     const WeaponDesc* Get_WeaponDesc(const string& characterId, const string& weaponId) const;
     const vector<WeaponDesc>* Get_WeaponDescs(const string& characterId) const;
+    vector<string> Split_String(const string& value, char delimiter);
 
 private:
     HRESULT Load_ExpLevel(const wstring& jsonRootPath);
-    HRESULT Load_SkillData(const wstring& jsonRootPath);
     HRESULT Load_SkillActionData(const wstring& jsonRootPath);
     HRESULT Load_SkillTreeData(const wstring& jsonRootPath);
     HRESULT Load_SkillTreeRequirementData(const wstring& jsonRootPath);
     HRESULT Load_Weapon(const wstring& jsonRootPath);
 
+    // 스킬
+    HRESULT Load_SkillData(const wstring& jsonRootPath);
 private:
     wstring         Get_DefaultJsonRootPath() const;
     uint32          Get_FallbackNextExp(uint32 level) const;
@@ -135,10 +141,13 @@ private:
     // index == level. 0번은 사용하지 않는다.
     vector<uint32>              _nextExpByLevel;
     bool                        _isLoaded = false;
-    map<string, SkillDesc>      _skillData;
     map<string, SkillTreeDesc>  _skillTreeData;
     umap<string, vector<string>> _requirementSkills;
     umap<string, vector<WeaponDesc>> _weaponDataByCharacter;
+
+    // 스킬
+    vector<Skill_Data> _skillDefs;
+    unordered_map<string, size_t> _skillIndexById;
 
 public:
     static Unique<GameDataTable> Create();

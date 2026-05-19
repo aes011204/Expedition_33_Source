@@ -28,6 +28,7 @@ public:
 
 public:
 	HRESULT Initialize_Client(const ComPtr<Device>& device, const ComPtr<Context>& context);
+    HRESULT Initialize_Client_ForEffectEditor(const ComPtr<Device>& device, const ComPtr<Context>& context);
     void    Update_Client(float timeDelta);
 	void    Release_Client();
 
@@ -41,6 +42,8 @@ public:
     bool    Is_StaticResourcesLoaded() const { return _isStaticResourcesLoaded.load(); }
     void    Set_StaticResourcesLoaded(bool isLoaded) { _isStaticResourcesLoaded.store(isLoaded); }
 
+    bool    Is_GameplayMenuOpen() const;
+
 public: /* 플레이어 찾기 -> 일단 임시 */
     Shared<GameObject> Find_Player(uint32 levelIndex);
 
@@ -50,6 +53,7 @@ public: /* For.GameData Table */
     const umap<string, vector<string>>* Get_SkillTreeRequirementData();
     const GameDataTable::WeaponDesc* Get_WeaponDesc(const string& characterId, const string& weaponId) const;
     const vector<GameDataTable::WeaponDesc>* Get_WeaponDescs(const string& characterId) const;
+    const Skill_Data* Get_Skill(const string& skillId);
 
 public:
     void    Apply_PreviewLayout(const vector<UIPreviewManager::PreviewSlotDesc>& layout);
@@ -90,6 +94,10 @@ public: /* For.Gameplay UI */
     HRESULT Initialize_GameplayUI(uint32 levelIndex);
     void    Clear_GameplayUI();
 
+    void    Play_BattleEnterTransition();
+    void    Stop_BattleEnterTransition();
+    bool    Is_BattleEnterTransitionPlaying() const;
+
 public: /* For.Battle_Controller */
     void OnEnterBattleField(
         uint32 FieldID,
@@ -99,8 +107,8 @@ public: /* For.Battle_Controller */
 
     Shared<BattleController>    Get_BattleController() { return _battleController; };
 
-    bool Is_BattleActive() const;
-    bool Is_BattleEntering() const;
+    bool    Is_BattleActive() const;
+    bool    Is_BattleEntering() const;
 
 private:
 	HRESULT Ready_ResourceLoader();

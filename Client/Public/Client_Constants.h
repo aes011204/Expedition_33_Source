@@ -7,6 +7,7 @@ namespace Client::Constants::UI
     inline constexpr wchar_t Loading_UI_Json_Path[] = L"UI/UI_Json/UI_LoadingScean.json";
     inline constexpr wchar_t Loading_UI_Animation_Dir[] = L"UI/UI_Animations";
     inline constexpr wchar_t UI_CharacterStatus_Path[] = L"UI/UI_Json/UI_CharacterStatus.json";
+    inline constexpr wchar_t UI_SavePoint_Path[] = L"UI/UI_Json/UI_SavePoint.json";
 
     inline constexpr wchar_t UI_ChangeWeapon_Path[] = L"UI/UI_Json/UI_ChangeWeapon.json";
 
@@ -21,11 +22,15 @@ namespace Client::Constants::UI
     inline constexpr wchar_t UI_Gustave_CharacterSheet_Dir[] = L"UI/UI_Json/UI_CharacterSheet_Gustave.json";
     inline constexpr wchar_t UI_Maelle_CharacterSheet_Dir[] = L"UI/UI_Json/UI_CharacterSheet_Maelle.json";
 
+    inline constexpr wchar_t UI_Battle_Fade_Path[] = L"UI/UI_Json/UI_Battle_Fade.json";
+    inline constexpr wchar_t UI_BattleSystem_HUD_Path[] = L"UI/UI_Json/UI_BattleSystem_HUD.json";
+
+
 }
 
 namespace Client::Constants::Map
 {
-    inline constexpr wchar_t SmallLevel_SimonArea_Remake_Path[] = L"../../../Client/Bin/Resources/Map/SaveJson/SmallLevel_SimonArea.json";
+    inline constexpr wchar_t SmallLevel_SimonArea_Remake_Path[] = L"../../../Client/Bin/Resources/Map/SaveJson/SmallLevel_SimonArea_Mk1.json";
     inline constexpr wchar_t TestMap_Path[] = L"../../../Client/Bin/Resources/Map/SaveJson/TestMap.json";
     inline constexpr wchar_t SaveJson_Dir[] = L"../../../Client/Bin/Resources/Map/SaveJson/";
 }

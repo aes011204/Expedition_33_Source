@@ -41,8 +41,9 @@ HRESULT MEStaticMeshActor::Render()
     const uint32 iNumMeshes = static_cast<uint32>(_model->Get_NumMeshes());
     for (uint32 i = 0; i < iNumMeshes; i++)
     {
-        const Shared<Material> material = _model->Get_Material(i);
-        int32 passIndex = 2; // NoTexture fallback
+        const uint32 materialIndex = _model->Get_MeshMaterialIndex(i);
+        const Shared<Material> material = _model->Get_Material(materialIndex);
+        int32 passIndex = static_cast<int32>(VtxMeshPassIndex::NoTexturePass);
         if (material != nullptr)
         {
             if (FAILED(_shader->Bind_MaterialTextures(*material)))

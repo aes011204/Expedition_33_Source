@@ -10,7 +10,7 @@ class ANS_QTE : public AnimNotifyState
 
 public:
     ANS_QTE() = default;
-    virtual ~ANS_QTE() = default;
+    ~ANS_QTE() override = default;
 
 public:
     string Get_TypeName() const override { return "ANS_QTE"; }

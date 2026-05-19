@@ -31,6 +31,7 @@
 #include "Material.h"
 
 #include "Collision_Define.h"
+#include "Event_Bus.h"
 #include "PhysX_Types.h"
 
 #ifdef _DEBUG
@@ -129,6 +130,9 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
     _picking = Picking::Create(device, context);
     CHECK_NULL(_picking, E_FAIL);
 
+    _eventBus = Event_Bus::Create();
+    CHECK_NULL(_eventBus, E_FAIL);
+
     // Thread Pool
     {
         // PC가 동시에 돌릴 수 있는 하드웨어 스레드 수 가져오기
@@ -187,7 +191,8 @@ void GameInstance::Update_Engine(float timeDelta, const function<void(float)>& c
     _worldTimeDelta = timeDelta * _worldTimeScale;
 
 #ifdef _DEBUG
-    const auto updateBegin = chrono::steady_clock::now();
+    const bool sampleRuntimePerf = Should_SampleRuntimePerf();
+    chrono::steady_clock::time_point updateBegin{};
     double debugMgrMs = 0.0;
     double inputMgrMs = 0.0;
     double printMgrMs = 0.0;
@@ -205,141 +210,198 @@ void GameInstance::Update_Engine(float timeDelta, const function<void(float)>& c
     double cameraMs = 0.0;
     double uiMs = 0.0;
 
-    const auto debugMgrBegin = chrono::steady_clock::now();
+    if (sampleRuntimePerf)
+        updateBegin = chrono::steady_clock::now();
+
+    chrono::steady_clock::time_point debugMgrBegin{};
+    if (sampleRuntimePerf)
+        debugMgrBegin = chrono::steady_clock::now();
 #endif
     _debugManager->Update(timeDelta);
 #ifdef _DEBUG
-    debugMgrMs = chrono::duration<double, milli>(chrono::steady_clock::now() - debugMgrBegin).count();
-    const auto inputMgrBegin = chrono::steady_clock::now();
+    if (sampleRuntimePerf)
+        debugMgrMs = chrono::duration<double, milli>(chrono::steady_clock::now() - debugMgrBegin).count();
+
+    chrono::steady_clock::time_point inputMgrBegin{};
+    if (sampleRuntimePerf)
+        inputMgrBegin = chrono::steady_clock::now();
 #endif
     _inputManager->Update(timeDelta);
 #ifdef _DEBUG
-    inputMgrMs = chrono::duration<double, milli>(chrono::steady_clock::now() - inputMgrBegin).count();
-    const auto printMgrBegin = chrono::steady_clock::now();
+    if (sampleRuntimePerf)
+        inputMgrMs = chrono::duration<double, milli>(chrono::steady_clock::now() - inputMgrBegin).count();
+
+    chrono::steady_clock::time_point printMgrBegin{};
+    if (sampleRuntimePerf)
+        printMgrBegin = chrono::steady_clock::now();
+
     _printManager->Update(timeDelta);
-    printMgrMs = chrono::duration<double, milli>(chrono::steady_clock::now() - printMgrBegin).count();
+    if (sampleRuntimePerf)
+        printMgrMs = chrono::duration<double, milli>(chrono::steady_clock::now() - printMgrBegin).count();
 #endif
 
     // 입력 갱신 직후, 레벨/오브젝트/UI 업데이트 전에 클라이언트쪽 런타임 갱신을 위해
     if (clientUpdate)
     {
 #ifdef _DEBUG
-        const auto clientBegin = chrono::steady_clock::now();
+        chrono::steady_clock::time_point clientBegin{};
+        if (sampleRuntimePerf)
+            clientBegin = chrono::steady_clock::now();
 #endif
         clientUpdate(_worldTimeDelta);
 #ifdef _DEBUG
-        clientMs = chrono::duration<double, milli>(chrono::steady_clock::now() - clientBegin).count();
+        if (sampleRuntimePerf)
+            clientMs = chrono::duration<double, milli>(chrono::steady_clock::now() - clientBegin).count();
 #endif
     }
 
 #ifdef _DEBUG
-    const auto levelBegin = chrono::steady_clock::now();
+    chrono::steady_clock::time_point levelBegin{};
+    if (sampleRuntimePerf)
+        levelBegin = chrono::steady_clock::now();
 #endif
     _levelManager->Update(_worldTimeDelta);
 #ifdef _DEBUG
-    levelMs = chrono::duration<double, milli>(chrono::steady_clock::now() - levelBegin).count();
+    if (sampleRuntimePerf)
+        levelMs = chrono::duration<double, milli>(chrono::steady_clock::now() - levelBegin).count();
 #endif
 
     // UI 키면서 게임 멈출 때 Update 안돌릴 애들
     if (!_isGameplayPaused)
     {
 #ifdef _DEBUG
-        const auto priorityObjBegin = chrono::steady_clock::now();
+        chrono::steady_clock::time_point priorityObjBegin{};
+        if (sampleRuntimePerf)
+            priorityObjBegin = chrono::steady_clock::now();
 #endif
         _objectManager->Priority_Update(_worldTimeDelta);
 #ifdef _DEBUG
-        priorityObjMs = chrono::duration<double, milli>(chrono::steady_clock::now() - priorityObjBegin).count();
+        if (sampleRuntimePerf)
+            priorityObjMs = chrono::duration<double, milli>(chrono::steady_clock::now() - priorityObjBegin).count();
 
-        const auto pipelineBegin = chrono::steady_clock::now();
+        chrono::steady_clock::time_point pipelineBegin{};
+        if (sampleRuntimePerf)
+            pipelineBegin = chrono::steady_clock::now();
 #endif
 
         _pipeLine->Update();
 #ifdef _DEBUG
-        pipelineMs = chrono::duration<double, milli>(chrono::steady_clock::now() - pipelineBegin).count();
+        if (sampleRuntimePerf)
+            pipelineMs = chrono::duration<double, milli>(chrono::steady_clock::now() - pipelineBegin).count();
 
-        const auto objBegin = chrono::steady_clock::now();
+        chrono::steady_clock::time_point objBegin{};
+        if (sampleRuntimePerf)
+            objBegin = chrono::steady_clock::now();
 #endif
 
         _objectManager->Update(_worldTimeDelta);
 #ifdef _DEBUG
-        objMs = chrono::duration<double, milli>(chrono::steady_clock::now() - objBegin).count();
+        if (sampleRuntimePerf)
+            objMs = chrono::duration<double, milli>(chrono::steady_clock::now() - objBegin).count();
 
-        const auto physxBegin = chrono::steady_clock::now();
+        chrono::steady_clock::time_point physxBegin{};
+        if (sampleRuntimePerf)
+            physxBegin = chrono::steady_clock::now();
 #endif
 
         _physxManager->Begin_Frame();
 #ifdef _DEBUG
-        physxBeginMs = chrono::duration<double, milli>(chrono::steady_clock::now() - physxBegin).count();
+        if (sampleRuntimePerf)
+            physxBeginMs = chrono::duration<double, milli>(chrono::steady_clock::now() - physxBegin).count();
 
-        const auto collClearBegin = chrono::steady_clock::now();
+        chrono::steady_clock::time_point collClearBegin{};
+        if (sampleRuntimePerf)
+            collClearBegin = chrono::steady_clock::now();
 #endif
         _collisionManager->Clear_Colliders();
 #ifdef _DEBUG
-        collClearMs = chrono::duration<double, milli>(chrono::steady_clock::now() - collClearBegin).count();
+        if (sampleRuntimePerf)
+            collClearMs = chrono::duration<double, milli>(chrono::steady_clock::now() - collClearBegin).count();
 
-        const auto lateObjBegin = chrono::steady_clock::now();
+        chrono::steady_clock::time_point lateObjBegin{};
+        if (sampleRuntimePerf)
+            lateObjBegin = chrono::steady_clock::now();
 #endif
         _objectManager->Late_Update(_worldTimeDelta);
 #ifdef _DEBUG
-        lateObjMs = chrono::duration<double, milli>(chrono::steady_clock::now() - lateObjBegin).count();
+        if (sampleRuntimePerf)
+            lateObjMs = chrono::duration<double, milli>(chrono::steady_clock::now() - lateObjBegin).count();
 
-        const auto physxUpdateBegin = chrono::steady_clock::now();
+        chrono::steady_clock::time_point physxUpdateBegin{};
+        if (sampleRuntimePerf)
+            physxUpdateBegin = chrono::steady_clock::now();
 #endif
 
         _physxManager->Update(_worldTimeDelta);
 #ifdef _DEBUG
-        physxUpdateMs = chrono::duration<double, milli>(chrono::steady_clock::now() - physxUpdateBegin).count();
+        if (sampleRuntimePerf)
+            physxUpdateMs = chrono::duration<double, milli>(chrono::steady_clock::now() - physxUpdateBegin).count();
 #endif
 
 #ifdef _DEBUG
-        const auto physxGatherBegin = chrono::steady_clock::now();
+        chrono::steady_clock::time_point physxGatherBegin{};
+        if (sampleRuntimePerf)
+            physxGatherBegin = chrono::steady_clock::now();
 #endif
         vector<PhysXPairEvent> events;
         _physxManager->Gather_FrameEvents(events);
 #ifdef _DEBUG
-        physxGatherMs = chrono::duration<double, milli>(chrono::steady_clock::now() - physxGatherBegin).count();
+        if (sampleRuntimePerf)
+            physxGatherMs = chrono::duration<double, milli>(chrono::steady_clock::now() - physxGatherBegin).count();
 
-        const auto collFromPhysxBegin = chrono::steady_clock::now();
+        chrono::steady_clock::time_point collFromPhysxBegin{};
+        if (sampleRuntimePerf)
+            collFromPhysxBegin = chrono::steady_clock::now();
 #endif
         _collisionManager->Update_FromPhysX(events);
 #ifdef _DEBUG
-        collFromPhysxMs = chrono::duration<double, milli>(chrono::steady_clock::now() - collFromPhysxBegin).count();
+        if (sampleRuntimePerf)
+            collFromPhysxMs = chrono::duration<double, milli>(chrono::steady_clock::now() - collFromPhysxBegin).count();
 
-        const auto cameraBegin = chrono::steady_clock::now();
+        chrono::steady_clock::time_point cameraBegin{};
+        if (sampleRuntimePerf)
+            cameraBegin = chrono::steady_clock::now();
 #endif
 
         _cameraManager->Update(_worldTimeDelta);
 #ifdef _DEBUG
-        cameraMs = chrono::duration<double, milli>(chrono::steady_clock::now() - cameraBegin).count();
+        if (sampleRuntimePerf)
+            cameraMs = chrono::duration<double, milli>(chrono::steady_clock::now() - cameraBegin).count();
 #endif
     }
     
 #ifdef _DEBUG
-    const auto uiBegin = chrono::steady_clock::now();
+    chrono::steady_clock::time_point uiBegin{};
+    if (sampleRuntimePerf)
+        uiBegin = chrono::steady_clock::now();
 #endif
     _uiManager->Update(timeDelta);
 #ifdef _DEBUG
-    uiMs = chrono::duration<double, milli>(chrono::steady_clock::now() - uiBegin).count();
+    if (sampleRuntimePerf)
+        uiMs = chrono::duration<double, milli>(chrono::steady_clock::now() - uiBegin).count();
 
-    const double updateMs = chrono::duration<double, milli>(chrono::steady_clock::now() - updateBegin).count();
-    Accumulate_UpdatePerf(
-        updateMs,
-        debugMgrMs,
-        inputMgrMs,
-        printMgrMs,
-        clientMs,
-        levelMs,
-        priorityObjMs,
-        pipelineMs,
-        objMs,
-        physxBeginMs,
-        collClearMs,
-        lateObjMs,
-        physxUpdateMs,
-        physxGatherMs,
-        collFromPhysxMs,
-        cameraMs,
-        uiMs);
+    if (sampleRuntimePerf)
+    {
+        const double updateMs = chrono::duration<double, milli>(chrono::steady_clock::now() - updateBegin).count();
+        Accumulate_UpdatePerf(
+            updateMs,
+            debugMgrMs,
+            inputMgrMs,
+            printMgrMs,
+            clientMs,
+            levelMs,
+            priorityObjMs,
+            pipelineMs,
+            objMs,
+            physxBeginMs,
+            collClearMs,
+            lateObjMs,
+            physxUpdateMs,
+            physxGatherMs,
+            collFromPhysxMs,
+            cameraMs,
+            uiMs);
+    }
 #endif
 }
 
@@ -366,7 +428,6 @@ HRESULT GameInstance::Draw()
         _debugManager->Render_Overlay();
     }
 
-    _printManager->Render();
 #endif
 
 #ifdef _DEBUG
@@ -375,6 +436,10 @@ HRESULT GameInstance::Draw()
 
     if (FAILED(_uiManager->Render()))
         return E_FAIL;
+
+#ifdef _DEBUG
+      _printManager->Render();
+#endif
 
     return S_OK;
 }
@@ -460,6 +525,7 @@ bool GameInstance::Try_ConsumeUpdatePerfSummary(const float windowSec, UpdatePer
 
     outSummary.valid = true;
     outSummary.updateFrameCount = static_cast<uint32>(_updatePerfWindow.update.sampleCount);
+    outSummary.sampledFrameCount = static_cast<uint32>(_updatePerfWindow.update.sampleCount);
 
     const double frameCount = static_cast<double>(_updatePerfWindow.update.sampleCount);
 
@@ -518,13 +584,40 @@ bool GameInstance::Try_ConsumeUpdatePerfSummary(const float windowSec, UpdatePer
     return true;
 }
 
+bool GameInstance::Should_SampleRuntimePerf()
+{
+    ++_runtimePerfObservedFrameCount;
+
+    const auto now = chrono::steady_clock::now();
+    if (!_hasRuntimePerfLastSampleTime)
+    {
+        _runtimePerfLastSampleTime = now;
+        _hasRuntimePerfLastSampleTime = true;
+        return true;
+    }
+
+    const float elapsedSec = static_cast<float>(
+        chrono::duration<double>(now - _runtimePerfLastSampleTime).count());
+    if (elapsedSec < DebugPerf::kRuntimePerfSampleIntervalSec)
+        return false;
+
+    _runtimePerfLastSampleTime = now;
+    return true;
+}
+
+void GameInstance::Reset_RuntimePerfWindowState(chrono::steady_clock::time_point now)
+{
+    _runtimePerfWindowStartTime = now;
+    _hasRuntimePerfWindowStartTime = true;
+    _runtimePerfObservedFrameCount = 0;
+}
+
 void GameInstance::Try_FlushRuntimePerfLog()
 {
     const auto now = chrono::steady_clock::now();
     if (!_hasRuntimePerfWindowStartTime)
     {
-        _runtimePerfWindowStartTime = now;
-        _hasRuntimePerfWindowStartTime = true;
+        Reset_RuntimePerfWindowState(now);
         return;
     }
 
@@ -554,20 +647,21 @@ void GameInstance::Try_FlushRuntimePerfLog()
 
     if (!hasRenderSummary && !hasUpdateSummary && !hasCollisionSummary && !hasPhysXQuerySummary)
     {
-        _runtimePerfWindowStartTime = now;
-        _hasRuntimePerfWindowStartTime = true;
+        Reset_RuntimePerfWindowState(now);
         return;
     }
 
-    runtimeSummary.approxFps = hasUpdateSummary
-        ? static_cast<float>(LogUtils::Safe_Divide(static_cast<double>(runtimeSummary.update.updateFrameCount), static_cast<double>(windowSec)))
-        : 0.f;
+    runtimeSummary.observedFrameCount = _runtimePerfObservedFrameCount;
+    runtimeSummary.sampleIntervalSec = DebugPerf::kRuntimePerfSampleIntervalSec;
+    runtimeSummary.approxFps = static_cast<float>(
+        LogUtils::Safe_Divide(static_cast<double>(runtimeSummary.observedFrameCount), static_cast<double>(windowSec)));
 
     Log_FileOnly(
         spdlog::source_loc{ __FILE__, __LINE__, SPDLOG_FUNCTION },
         spdlog::level::trace,
         fmt::format(
-            "[RuntimePerfDetail] render_ms(avg={:.2f} max={:.2f}) "
+            "[RuntimePerfDetail] frames={} samples(update={} render={} collision={}) sample_interval={:.2f}s "
+            "render_ms(avg={:.2f} max={:.2f}) "
             "update_ms(avg={:.2f} max={:.2f}) fps~{:.1f} "
             "debugmgr_ms(avg={:.2f} max={:.2f}) "
             "input_ms(avg={:.2f} max={:.2f}) "
@@ -600,6 +694,12 @@ void GameInstance::Try_FlushRuntimePerfLog()
             "sweepcollider_ps={:.1f} sweepcollider_ms(avg={:.2f} max={:.2f}) "
             "sweepsphere_ps={:.1f} sweepsphere_ms(avg={:.2f} max={:.2f}) "
             "probeground_ps={:.1f} probeground_ms(avg={:.2f} max={:.2f})",
+
+            runtimeSummary.observedFrameCount,
+            runtimeSummary.update.sampledFrameCount,
+            runtimeSummary.render.sampledFrameCount,
+            runtimeSummary.collision.sampledFrameCount,
+            runtimeSummary.sampleIntervalSec,
 
             runtimeSummary.render.renderAvgMs,
             runtimeSummary.render.renderMaxMs,
@@ -710,8 +810,7 @@ void GameInstance::Try_FlushRuntimePerfLog()
         )
     );
 
-    _runtimePerfWindowStartTime = now;
-    _hasRuntimePerfWindowStartTime = true;
+    Reset_RuntimePerfWindowState(now);
 }
 
 #endif
@@ -1640,6 +1739,39 @@ void GameInstance::Clear_Print(const wstring& slot)
 #ifdef _DEBUG
     _printManager->Clear(slot);
 #endif
+}
+
+bool GameInstance::Is_WorldGameplayInputBlocked() const
+{
+    if (_isPlayerInputBlocked)
+        return true;
+
+    switch (_gameplayInputMode)
+    {
+    case GameplayInputMode::UIOnly:
+    case GameplayInputMode::Cutscene:
+    case GameplayInputMode::BattleMenu:
+        return true;
+
+    case GameplayInputMode::Normal:
+    default:
+        return false;
+    }
+}
+
+bool GameInstance::Is_UIInputEnabled() const
+{
+    switch (_gameplayInputMode)
+    {
+    case GameplayInputMode::UIOnly:
+    case GameplayInputMode::BattleMenu:
+        return true;
+
+    case GameplayInputMode::Normal:
+    case GameplayInputMode::Cutscene:
+    default:
+        return false;
+    }
 }
 
 HRESULT GameInstance::Save_GameObjectJson(const fs::path& path, const Shared<GameObject>& gameObject)
