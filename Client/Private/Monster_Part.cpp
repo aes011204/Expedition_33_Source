@@ -4,6 +4,8 @@
 #include "Material_Types.h"
 #include "ModelCom.h"
 #include "ShaderCom.h"
+#include "AnimComputeRuntime.h"
+#include "ComputeShaderCom.h"
 
 NS_BEGIN(Client)
 
@@ -64,6 +66,17 @@ HRESULT Monster_Part::Render()
     if (FAILED(Bind_ShaderResources()))
         return E_FAIL;
 
+    // runtime compute 경로가 있으면 runtime buffer 준비
+    if (_animComputeRuntime != nullptr)
+    {
+        CHECK_FAILED(_animComputeRuntime->Prepare_BoneMatrixBuffers(), E_FAIL);
+    }
+    // runtime이 없는 anim/noncompute 경로는 ModelCom 기본 bone buffer 사용S
+    else if (_model->Get_NumAnimations() != 0)
+    {
+        CHECK_FAILED(_model->Prepare_BoneMatrixBuffers(), E_FAIL);
+    }
+
     const uint32 iNumMeshes = static_cast<uint32>(_model->Get_NumMeshes());
 
     for (uint32 i = 0; i < iNumMeshes; i++)
@@ -79,8 +92,26 @@ HRESULT Monster_Part::Render()
         if (FAILED(_shader->Bind_CBufferData(material->Get_CB())))
             return E_FAIL;
 
-        if (_model->Get_NumAnimations() != 0)
-            CHECK_FAILED_ONCE(_model->Bind_BoneMatrices(_shader.get(), "g_BoneMatricesBuffer", i), E_FAIL);
+        // runtime compute 경로
+        if (_animComputeRuntime != nullptr)
+        {
+            CHECK_FAILED_ONCE(
+                _animComputeRuntime->Bind_PreparedBoneMatrices(
+                    _shader.get(),
+                    "g_BoneMatricesBuffer",
+                    i),
+                E_FAIL);
+        }
+        // runtime 없는 기본 ModelCom 경로
+        else if (_model->Get_NumAnimations() != 0)
+        {
+            CHECK_FAILED_ONCE(
+                _model->Bind_PreparedBoneMatrices(
+                    _shader.get(),
+                    "g_BoneMatricesBuffer",
+                    i),
+                E_FAIL);
+        }
 
         const uint32 passIndex = Decide_PassIndex(material);
         if (FAILED(_shader->Begin(passIndex)))
@@ -100,16 +131,45 @@ HRESULT Monster_Part::Render_Shadow()
     if (FAILED(GAME->Bind_ShadowCB(_shader)))
         return E_FAIL;
 
+    // runtime compute 경로가 있으면 runtime buffer 준비
+    if (_animComputeRuntime != nullptr)
+    {
+        CHECK_FAILED(_animComputeRuntime->Prepare_BoneMatrixBuffers(), E_FAIL);
+    }
+    // runtime이 없는 anim/noncompute 경로는 ModelCom 기본 bone buffer 사용
+    else if (_model->Get_NumAnimations() != 0)
+    {
+        CHECK_FAILED(_model->Prepare_BoneMatrixBuffers(), E_FAIL);
+    }
+
     const uint32 numMeshes = static_cast<uint32>(_model->Get_NumMeshes());
 
     for (uint32 i = 0; i < numMeshes; ++i)
     {
-        if (_model->Is_Skeletal())
-            CHECK_FAILED(_model->Bind_BoneMatrices(_shader.get(), "g_BoneMatricesBuffer", i), E_FAIL);
+        // runtime compute 경로
+        if (_animComputeRuntime != nullptr)
+        {
+            CHECK_FAILED(
+                _animComputeRuntime->Bind_PreparedBoneMatrices(
+                    _shader.get(),
+                    "g_BoneMatricesBuffer",
+                    i),
+                E_FAIL);
+        }
+        // runtime 없는 기본 ModelCom 경로
+        else if (_model->Get_NumAnimations() != 0)
+        {
+            CHECK_FAILED(
+                _model->Bind_PreparedBoneMatrices(
+                    _shader.get(),
+                    "g_BoneMatricesBuffer",
+                    i),
+                E_FAIL);
+        }
 
         const uint32 shadowPass =
             _model->Is_Skeletal() ? static_cast<uint32>(VtxAnimMeshPass::Shadow) : 1u;
-        
+
         if (FAILED(_shader->Begin(shadowPass)))
             return E_FAIL;
 
@@ -154,17 +214,34 @@ HRESULT Monster_Part::Ready_Components(const MONSTER_PART_DESC& desc)
 {
     if (desc.modelType == ModelType::Anim)
     {
-        if (FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Shader_VtxAnimMesh"), _shader)))
+        if (FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Shader_VtxAnimMesh"), _shader))) // anim 몬스터도 shader를 먼저 붙여야 한다
             return E_FAIL;
     }
     else
     {
-        if (FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Shader_VtxMesh"), _shader)))
+        if (FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Shader_VtxMesh"), _shader))) 
             return E_FAIL;
     }
 
     if (FAILED(Add_Component(ETOI(LevelType::GamePlay), desc.modelTag, _model)))
         return E_FAIL;
+
+    if (desc.modelType == ModelType::Anim)
+    {
+        Shared<ComputeShaderCom> boneRemapShader{};
+        Shared<ComputeShaderCom> skinningShader{};
+
+        CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("ComputeShader_BoneRemap"), boneRemapShader), E_FAIL);
+        CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("ComputeShader_AnimMeshSkinning"), skinningShader), E_FAIL);
+
+        AnimComputeRuntime::CreateDesc runtimeDesc{};
+        runtimeDesc.model = _model.get();
+        runtimeDesc.boneRemapShader = boneRemapShader;
+        runtimeDesc.skinningShader = skinningShader;
+
+        _animComputeRuntime = AnimComputeRuntime::Create(_device, _context, runtimeDesc);
+        CHECK_NULL(_animComputeRuntime, E_FAIL);
+    }
 
     return S_OK;
 }

@@ -102,7 +102,9 @@ void Channel::Update_TransformationMatrix(uint32& currentKeyFrameIndex, float cu
 
 	RootMotionFrame transform{};
 	Get_ChannelTransform(currentTrackPosition, currentKeyFrameIndex, duration, isLoop, transform);
-	Update_Velocity(transform, currentTrackPosition);
+
+    if (_boneIndex == rootNodeIndex)
+        Update_Velocity(transform, currentTrackPosition);
 
 	XMMATRIX targetMatrix;
 
