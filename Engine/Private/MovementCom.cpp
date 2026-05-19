@@ -248,6 +248,8 @@ void MovementCom::Start_Jump()
 
 void MovementCom::Update_Rotation(float timeDelta)
 {
+    if (_input.isLockLook) return;
+
     Vec3 desiredDir = Vec3::Zero;
     if (!Resolve_MoveDirection(desiredDir))
     {
@@ -293,6 +295,19 @@ void MovementCom::Update_Rotation(float timeDelta)
 
 void MovementCom::Update_HorizontalVelocity()
 {
+    if (_input.isLockLook)
+    {
+        Vec3 velocity = _velocity;
+        Vec3 look = _transformCom->Get_WorldForward();
+        look.y = 0.f;
+        look.Normalize();
+
+        _velocity.x = look.x * velocity.x;
+        _velocity.z = look.z * velocity.z;
+
+        return;
+    }
+
     Vec3 desiredDir = Vec3::Zero;
     if (!Resolve_MoveDirection(desiredDir))
     {
@@ -433,11 +448,11 @@ bool MovementCom::Resolve_CameraRelativeMoveDirection(Vec3& outWorldDir) const
     Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
     if (activeCamera == nullptr)
         return false;
-
+    
     Shared<TransformCom> cameraTransform = activeCamera->Get_Transform();
     if (cameraTransform == nullptr)
         return false;
-    //
+    
     //    Vec3 cameraForward = cameraTransform->Get_WorldForward();
     //    Vec3 cameraRight = cameraTransform->Get_WorldRight();
 

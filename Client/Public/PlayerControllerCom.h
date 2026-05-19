@@ -21,6 +21,7 @@ public:
     {
         bool rigidMovement{ false };
         bool rigidJump{ false };
+        bool rigidLook{ false };
         Vec3 rigidVelocity{ Vec3::Zero };
     };
 

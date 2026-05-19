@@ -290,6 +290,7 @@
     <ClInclude Include="..\Public\TargetCamera.h" />
     <ClInclude Include="..\Public\CharacterStatus_Panel.h" />
     <ClInclude Include="..\public\UIPreviewManager.h" />
+    <ClInclude Include="..\Public\UI_BattleCommandHUD.h" />
     <ClInclude Include="..\Public\UI_BattleTransition.h" />
     <ClInclude Include="..\Public\UI_ExpeditionStatus.h" />
     <ClInclude Include="..\Public\UI_RuntimeLoader.h" />
@@ -448,6 +449,7 @@
     <ClCompile Include="..\Private\TargetCamera.cpp" />
     <ClCompile Include="..\Private\CharacterStatus_Panel.cpp" />
     <ClCompile Include="..\private\UIPreviewManager.cpp" />
+    <ClCompile Include="..\Private\UI_BattleCommandHUD.cpp" />
     <ClCompile Include="..\Private\UI_BattleTransition.cpp" />
     <ClCompile Include="..\Private\UI_ExpeditionStatus.cpp" />
     <ClCompile Include="..\Private\UI_RuntimeLoader.cpp" />

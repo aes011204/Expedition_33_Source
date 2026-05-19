@@ -194,7 +194,7 @@ void BattleActionExecutor::Update_ActionMovement(float timeDelta, Action& action
         const auto& rm = action._curChar.ModelCom->Get_RootTransformVelocity();
         const Vec3 delta = rm.position * 100;
 
-        LOG_INFO("position : {}", rm.position.z);
+        //("position : {}", rm.position.z);
 
         Vec3 rotDeg = transform->Get_RotationEuler();
         Vec3 rotRad = Vec3(

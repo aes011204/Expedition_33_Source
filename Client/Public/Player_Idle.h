@@ -28,6 +28,8 @@ private:
     float       _idleElapsedTime{ 0.f };
     const float _idleBlendTime{ 0.5f };
 
+    unordered_set<uint32> _exitAnim;
+
 public:
     static Shared<Player_Idle> Create(const Shared<Player_WorldBase>& owner);
     virtual void Free() override;
