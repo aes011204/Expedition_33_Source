@@ -23,6 +23,8 @@ public:
         float moveX = 0.f;
         float moveZ = 0.f;
 
+        bool isLockLook{ false };
+
         bool  isRunPressed = false;
         bool  isJumpDown = false;
 

@@ -29,6 +29,7 @@ ModelCom::ModelCom(const ModelCom& prototype)
     : Component{ prototype }
     , _type{ prototype._type }
     , _preLocalTransformMatrix{ prototype._preLocalTransformMatrix }
+    , _preLocalRotationMatrix{ prototype._preLocalRotationMatrix }
     , _isSkeletal{ prototype._isSkeletal }
     , _hasLocalBounds{ prototype._hasLocalBounds }
     , _localBoundsMin{ prototype._localBoundsMin }
@@ -347,6 +348,11 @@ HRESULT ModelCom::Initialize_Prototype(ModelType type, const char* modelFilePath
 {
     _type = type;
     _preLocalTransformMatrix = preLocalTransformMatrix;
+
+    Vec3 pos{}, scale{};
+    Quat quat{};
+    _preLocalTransformMatrix.Decompose(scale, quat, pos);
+    _preLocalRotationMatrix = Matrix::CreateFromQuaternion(quat) * Matrix::CreateTranslation(pos);
 
     _sourceModelPath = Normalize_ModelAssetPath(modelFilePath);
 
@@ -1601,7 +1607,7 @@ void ModelCom::Step_FinalizeAnimationFrame(const AnimPipelineContext& context)
     if (context.rootIndex >= 0)
     {
         _rootOriginalFrameVelocity.position =
-            Vec3::TransformNormal(_rootOriginalFrameVelocity.position, _preLocalTransformMatrix);
+            Vec3::TransformNormal(_rootOriginalFrameVelocity.position, _preLocalRotationMatrix);
 
         const float temp = _rootOriginalFrameVelocity.position.z;
         _rootOriginalFrameVelocity.position.z = -_rootOriginalFrameVelocity.position.y;
