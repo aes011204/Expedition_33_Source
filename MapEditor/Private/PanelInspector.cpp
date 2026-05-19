@@ -143,11 +143,21 @@ void PanelInspector::DrawTransform(Shared<EditorObject>& obj)
             obj->_position, obj->_rotation, obj->_scale));
         _transformEditing = false;
         _editTarget = nullptr;
+
+        if (obj->_type == EObjectType::StaticMesh)
+        {
+            _ctx->_octreeDirty = true;
+            _ctx->_octreeRebuildTimer = SceneContext::_octreeRebuildDelay;
+        }
     }
 
     if (changed)
     {
         obj->UpdateWorldMatrix();
+        if (obj->_type == EObjectType::Light)
+        {
+            _ctx->_lightDirty = true;
+        }
     }
 }
 
@@ -272,16 +282,19 @@ void PanelInspector::DrawTypeParams(Shared<EditorObject>& obj)
             if (ImGui::ColorEdit4("Diffuse", diffuse))
             {
                 obj->_lightDiffuse = { diffuse[0],  diffuse[1],  diffuse[2],  diffuse[3] };
+                _ctx->_lightDirty = true;
             }
 
             if (ImGui::ColorEdit4("Ambient", ambient))
             {
                 obj->_lightAmbient = { ambient[0],  ambient[1],  ambient[2],  ambient[3] };
+                _ctx->_lightDirty = true;
             }
 
             if (ImGui::ColorEdit4("Specular", specular))
             {
                 obj->_lightSpecular = { specular[0], specular[1], specular[2], specular[3] };
+                _ctx->_lightDirty = true;
             }
 
             if (obj->_lightType == LightType::Directional)
@@ -290,11 +303,15 @@ void PanelInspector::DrawTypeParams(Shared<EditorObject>& obj)
                 if (ImGui::DragFloat3("Direction", dir, 0.01f, -1.f, 1.f))
                 {
                     obj->_lightDirection = { dir[0], dir[1], dir[2], 0.f };
+                    _ctx->_lightDirty = true;
                 }
             }
             else
             {
-                ImGui::DragFloat("Range", &obj->_lightRange, 0.1f, 0.1f, 1000.f);
+                if (ImGui::DragFloat("Range", &obj->_lightRange, 0.1f, 0.1f, 1000.f))
+                {
+                    _ctx->_lightDirty = true;
+                }
             }
         }
         break;

@@ -292,20 +292,28 @@ HRESULT MapStaticMesh::Render()
 HRESULT MapStaticMesh::Render_Shadow()
 {
     if (_shader == nullptr || _model == nullptr)
+    {
         return S_OK;
+    }
 
     if (FAILED(_shader->Bind_ObjectCB(_transformCom->Get_WorldMatrix())))
+    {
         return E_FAIL;
+    }
 
     if (FAILED(GAME->Bind_StaticShadowCB(_shader)))
+    {
         return E_FAIL;
+    }
 
     const uint32 numMeshes = static_cast<uint32>(_model->Get_NumMeshes());
 
     for (uint32 i = 0; i < numMeshes; ++i)
     {
         if (FAILED(_shader->Begin(1)))
+        {
             return E_FAIL;
+        }
     }
 
     return S_OK;

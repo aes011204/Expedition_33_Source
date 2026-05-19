@@ -103,6 +103,9 @@
     <Filter Include="05. Camera\MEBridgeCamera">
       <UniqueIdentifier>{04de1247-1b5f-42c5-88fe-ae50422195d5}</UniqueIdentifier>
     </Filter>
+    <Filter Include="04. Panel\PanelModelOverride">
+      <UniqueIdentifier>{4478cdfc-99d3-4941-b695-d55a9aeab417}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="targetver.h">
@@ -191,6 +194,9 @@
     </ClInclude>
     <ClInclude Include="..\Public\MECamera.h">
       <Filter>05. Camera</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\PanelModelOverride.h">
+      <Filter>04. Panel\PanelModelOverride</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -281,6 +287,9 @@
     </ClCompile>
     <ClCompile Include="..\Private\MECamera.cpp">
       <Filter>05. Camera</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\PanelModelOverride.cpp">
+      <Filter>04. Panel\PanelModelOverride</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

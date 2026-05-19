@@ -17,10 +17,12 @@ public:
     void LateUpdate(float timeDelta) override;
     void ExitInvoke() override;
 
+private:
+	float _fallTime{ 0.f };
+
 public:
     static Shared<Player_Jump> Create(const Shared<Player_WorldBase>& owner);
     virtual void Free() override;
-
 };
 
 NS_END

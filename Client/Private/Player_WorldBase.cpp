@@ -112,12 +112,13 @@ HRESULT Player_WorldBase::Ready_Components()
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_Input"), _inputCom), E_FAIL);
        
     MovementCom::MoveDesc moveDesc{};
-    moveDesc.walkSpeed = 9.f;
-    moveDesc.runSpeed = 10.f;
+    moveDesc.walkSpeed = 3.f;
+    moveDesc.runSpeed = 6.5f;
+    moveDesc.sprintSpeed = 10.f;
     moveDesc.turnSpeedDegree = 720.f;
     moveDesc.turnResponse = 10.f;
     moveDesc.jumpVelocity = 20.f;
-    moveDesc.gravity = -20.f;
+    moveDesc.gravity = -40.f;
 
     moveDesc.backend = MovementCom::MoveBackend::PhysXCCT; // 플레이어는 CCT로 테스트
 

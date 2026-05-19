@@ -141,6 +141,11 @@ void PlayerControllerCom::Update_Movement(float timeDelta)
     _movementCom->Update_Movement(timeDelta);
 }
 
+Vec3 PlayerControllerCom::Get_Velocity() const
+{
+    return _movementCom->Get_Velocity();
+}
+
 bool PlayerControllerCom::Has_MoveInput() const
 {
     if (_followControl.enabled)
@@ -209,6 +214,13 @@ void PlayerControllerCom::Check_RigidInput()
     if (_rigidControl.rigidJump)
     {
         _currentInput.isJumpDown = false;
+    }
+
+    if (_rigidControl.rigidVelocity != Vec3::Zero)
+    {
+        Vec3 vel = _rigidControl.rigidVelocity;
+        _currentInput.moveZ = 1.f;              // TODO : 확장성 애매해서 Root모션 
+        _movementCom->Set_Velocity(vel);
     }
 
     _rigidControl = {};

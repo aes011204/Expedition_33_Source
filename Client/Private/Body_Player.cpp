@@ -9,7 +9,7 @@
 #include "ComputeShaderCom.h"
 #include "AnimComputeRuntime.h"
 
-REGISTER_GLOBAL_ENUM(Client::Body_Player::PlayerWorldAnimation, "PlayerAnimation")
+REGISTER_GLOBAL_ENUM(Client::Body_Player::PlayerWorldAnimation, "PlayerWorldAnimation")
 
 Body_Player::Body_Player(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : PlayableParts{ device, context }
