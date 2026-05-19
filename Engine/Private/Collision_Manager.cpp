@@ -21,7 +21,10 @@ void Collision_Manager::Update()
 void Collision_Manager::Update_FromPhysX(const vector<PhysXPairEvent>& events)
 {
 #ifdef _DEBUG
-    const auto updateBegin = chrono::steady_clock::now();
+    const bool sampleUpdatePerf = Should_SampleUpdatePerf();
+    chrono::steady_clock::time_point updateBegin{};
+    if (sampleUpdatePerf)
+        updateBegin = chrono::steady_clock::now();
     UpdatePerfSample perfSample{};
 #endif
 
@@ -34,7 +37,7 @@ void Collision_Manager::Update_FromPhysX(const vector<PhysXPairEvent>& events)
         collider->Set_IsColl(false);
 
 #ifdef _DEBUG
-        if (collider->Get_IsActive())
+        if (sampleUpdatePerf && collider->Get_IsActive())
             ++perfSample.activeColliderCount;
 #endif
     }
@@ -60,7 +63,8 @@ void Collision_Manager::Update_FromPhysX(const vector<PhysXPairEvent>& events)
             continue;
 
 #ifdef _DEBUG
-        ++perfSample.hitCount;
+        if (sampleUpdatePerf)
+            ++perfSample.hitCount;
 #endif
 
         self->Set_IsColl(true);
@@ -100,8 +104,11 @@ void Collision_Manager::Update_FromPhysX(const vector<PhysXPairEvent>& events)
     if (GAME->KeyDown(KEY_TYPE::F1))
         _isDebug = !_isDebug;
 
-    perfSample.updateMs = chrono::duration<double, milli>(chrono::steady_clock::now() - updateBegin).count();
-    Accumulate_UpdatePerf(perfSample);
+    if (sampleUpdatePerf)
+    {
+        perfSample.updateMs = chrono::duration<double, milli>(chrono::steady_clock::now() - updateBegin).count();
+        Accumulate_UpdatePerf(perfSample);
+    }
 #endif
 }
 
@@ -117,6 +124,7 @@ bool Collision_Manager::Try_ConsumePerfSummary(const float windowSec, CollisionP
 
     outSummary.valid = true;
     outSummary.updateFrameCount = static_cast<uint32>(_collisionPerfWindow.updateFrameCount);
+    outSummary.sampledFrameCount = static_cast<uint32>(_collisionPerfWindow.updateFrameCount);
     outSummary.activeCollidersAvg = static_cast<float>(
         Safe_Divide(static_cast<double>(_collisionPerfWindow.activeColliderCount), updateFrameCount));
     outSummary.pairsPerSec = static_cast<float>(
@@ -158,6 +166,25 @@ void Collision_Manager::Accumulate_UpdatePerf(const UpdatePerfSample& sample)
     _collisionPerfWindow.hitCount += sample.hitCount;
     _collisionPerfWindow.updateAccumulatedMs += sample.updateMs;
     _collisionPerfWindow.updateMaxMs = max(_collisionPerfWindow.updateMaxMs, sample.updateMs);
+}
+
+bool Collision_Manager::Should_SampleUpdatePerf()
+{
+    const auto now = chrono::steady_clock::now();
+    if (!_hasLastPerfSampleTime)
+    {
+        _lastPerfSampleTime = now;
+        _hasLastPerfSampleTime = true;
+        return true;
+    }
+
+    const float elapsedSec = static_cast<float>(
+        chrono::duration<double>(now - _lastPerfSampleTime).count());
+    if (elapsedSec < DebugPerf::kRuntimePerfSampleIntervalSec)
+        return false;
+
+    _lastPerfSampleTime = now;
+    return true;
 }
 
 void Collision_Manager::Reset_CollisionPerfWindow(CollisionPerfWindow& window)
