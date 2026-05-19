@@ -6,6 +6,7 @@
 NS_BEGIN(Engine)
 class ShaderCom;
 class ModelCom;
+class AnimComputeRuntime;
 NS_END
 
 NS_BEGIN(Client)
@@ -37,6 +38,7 @@ public:
 private:
 	Shared<ShaderCom>    _shader = { nullptr };
 	Shared<ModelCom>     _model = { nullptr };
+    Shared<AnimComputeRuntime> _animComputeRuntime = { nullptr };
 
 private:
 	const uint32*       _parentState = { nullptr };

@@ -32,10 +32,10 @@ HRESULT PW_Gustave::Initialize(void* arg)
 {
     CHECK_FAILED(__super::Initialize(arg), E_FAIL)
 
-    auto skilltreeCom = Get_Component<SkillTreeCom>();
+    auto skillTreeCom = Get_Component<SkillTreeCom>();
 
-    skilltreeCom->TryUnlock("LumiereAssault");
-    skilltreeCom->TryUnlock("UnleashedCharge");
+    skillTreeCom->TryUnlock("LumiereAssault");
+    skillTreeCom->TryUnlock("UnleashedCharge");
 
 
     return S_OK; 

@@ -62,6 +62,23 @@ HRESULT ClientInstance::Initialize_Client(const ComPtr<Device>& device, const Co
 	return S_OK;
 }
 
+HRESULT ClientInstance::Initialize_Client_ForEffectEditor(const ComPtr<Device>& device, const ComPtr<Context>& context)
+{
+    if (_isInitialized)
+        return S_OK;
+
+    _device = device;
+    _context = context;
+
+    CHECK_FAILED(Ready_ResourceLoader(), E_FAIL);
+
+    Register_ClientEffectEmitters();
+
+    _isInitialized = true;
+
+    return S_OK;
+}
+
 void ClientInstance::Update_Client(float timeDelta)
 {
     if (_heroManager)

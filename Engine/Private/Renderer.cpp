@@ -96,7 +96,8 @@ void Renderer::Draw()
     Reset_RenderCall();
 
 #pragma region DEBUG_VAR
-    const auto renderBegin = chrono::steady_clock::now();
+    const bool sampleRenderPerf = Should_SampleRenderPerf();
+    chrono::steady_clock::time_point renderBegin{};
     double priorityMs = 0.0;
     double shadowMs = 0.0;
     double nonBlendMs = 0.0;
@@ -108,7 +109,12 @@ void Renderer::Draw()
     double uiMs = 0.0;
     double debugMs = 0.0;
 
-    const auto priorityBegin = chrono::steady_clock::now();
+    if (sampleRenderPerf)
+        renderBegin = chrono::steady_clock::now();
+
+    chrono::steady_clock::time_point priorityBegin{};
+    if (sampleRenderPerf)
+        priorityBegin = chrono::steady_clock::now();
 #pragma endregion
 
     DumpCurrentOMState(L"Render_Priority:Before");
@@ -118,8 +124,12 @@ void Renderer::Draw()
     // ========================================= //
 #ifdef _DEBUG
     DumpCurrentOMState(L"Render_Priority:After");
-    priorityMs = chrono::duration<double, milli>(chrono::steady_clock::now() - priorityBegin).count();
-    const auto shadowBegin = chrono::steady_clock::now();
+    if (sampleRenderPerf)
+        priorityMs = chrono::duration<double, milli>(chrono::steady_clock::now() - priorityBegin).count();
+
+    chrono::steady_clock::time_point shadowBegin{};
+    if (sampleRenderPerf)
+        shadowBegin = chrono::steady_clock::now();
     DumpCurrentOMState(L"Render_Shadow:Before");
 #endif
 
@@ -127,8 +137,12 @@ void Renderer::Draw()
      Render_Shadow();
     // ========================================= //
 #ifdef _DEBUG
-    shadowMs = chrono::duration<double, milli>(chrono::steady_clock::now() - shadowBegin).count();
-    const auto nonBlendBegin = chrono::steady_clock::now();
+    if (sampleRenderPerf)
+        shadowMs = chrono::duration<double, milli>(chrono::steady_clock::now() - shadowBegin).count();
+
+    chrono::steady_clock::time_point nonBlendBegin{};
+    if (sampleRenderPerf)
+        nonBlendBegin = chrono::steady_clock::now();
     DumpCurrentOMState(L"Render_NonBlend:Before");
 #endif
 
@@ -137,7 +151,8 @@ void Renderer::Draw()
     // ========================================= //
 #ifdef _DEBUG
     DumpCurrentOMState(L"Render_NonBlend:After");
-    nonBlendMs = chrono::duration<double, milli>(chrono::steady_clock::now() - nonBlendBegin).count();
+    if (sampleRenderPerf)
+        nonBlendMs = chrono::duration<double, milli>(chrono::steady_clock::now() - nonBlendBegin).count();
     DumpCurrentOMState(L"Render_SSAO:Before");
 #endif
 
@@ -146,7 +161,9 @@ void Renderer::Draw()
     // ========================================= //
 #ifdef _DEBUG
     DumpCurrentOMState(L"Render_SSAO:After");
-    const auto lightsBegin = chrono::steady_clock::now();
+    chrono::steady_clock::time_point lightsBegin{};
+    if (sampleRenderPerf)
+        lightsBegin = chrono::steady_clock::now();
     DumpCurrentOMState(L"Render_Lights:Before");
 #endif
 
@@ -155,16 +172,24 @@ void Renderer::Draw()
     // ========================================= //
 #ifdef _DEBUG
     DumpCurrentOMState(L"Render_Lights:After");
-    lightsMs = chrono::duration<double, milli>(chrono::steady_clock::now() - lightsBegin).count();
-    const auto combinedHDRBegin = chrono::steady_clock::now();
+    if (sampleRenderPerf)
+        lightsMs = chrono::duration<double, milli>(chrono::steady_clock::now() - lightsBegin).count();
+
+    chrono::steady_clock::time_point combinedHDRBegin{};
+    if (sampleRenderPerf)
+        combinedHDRBegin = chrono::steady_clock::now();
     DumpCurrentOMState(L"Render_CombinedHDR:Before");
 #endif
 
     Render_CombinedHDR();
 #ifdef _DEBUG
     DumpCurrentOMState(L"Render_CombinedHDR:After");
-    combinedHDRMs = chrono::duration<double, milli>(chrono::steady_clock::now() - combinedHDRBegin).count();
-    const auto nonlightBegin = chrono::steady_clock::now();
+    if (sampleRenderPerf)
+        combinedHDRMs = chrono::duration<double, milli>(chrono::steady_clock::now() - combinedHDRBegin).count();
+
+    chrono::steady_clock::time_point nonlightBegin{};
+    if (sampleRenderPerf)
+        nonlightBegin = chrono::steady_clock::now();
     DumpCurrentOMState(L"Render_NonLight:Before");
 #endif
 
@@ -173,8 +198,12 @@ void Renderer::Draw()
     // ========================================= //
 #ifdef _DEBUG
     DumpCurrentOMState(L"Render_NonLight:After");
-    nonlightMs = chrono::duration<double, milli>(chrono::steady_clock::now() - nonlightBegin).count();
-    const auto blendBegin = chrono::steady_clock::now();
+    if (sampleRenderPerf)
+        nonlightMs = chrono::duration<double, milli>(chrono::steady_clock::now() - nonlightBegin).count();
+
+    chrono::steady_clock::time_point blendBegin{};
+    if (sampleRenderPerf)
+        blendBegin = chrono::steady_clock::now();
     DumpCurrentOMState(L"Render_Blend:Before");
 #endif
 
@@ -183,8 +212,12 @@ void Renderer::Draw()
     // ========================================= //
 #ifdef _DEBUG
     DumpCurrentOMState(L"Render_Blend:After");
-    blendMs = chrono::duration<double, milli>(chrono::steady_clock::now() - blendBegin).count();
-    const auto postProcesBegin = chrono::steady_clock::now();
+    if (sampleRenderPerf)
+        blendMs = chrono::duration<double, milli>(chrono::steady_clock::now() - blendBegin).count();
+
+    chrono::steady_clock::time_point postProcesBegin{};
+    if (sampleRenderPerf)
+        postProcesBegin = chrono::steady_clock::now();
     DumpCurrentOMState(L"Render_PostProcess:Before");
 #endif
 
@@ -193,8 +226,12 @@ void Renderer::Draw()
     // ========================================= //
 #ifdef _DEBUG
     DumpCurrentOMState(L"Render_PostProcess:After");
-    postProcessMs = chrono::duration<double, milli>(chrono::steady_clock::now() - postProcesBegin).count();
-    const auto uiBegin = chrono::steady_clock::now();
+    if (sampleRenderPerf)
+        postProcessMs = chrono::duration<double, milli>(chrono::steady_clock::now() - postProcesBegin).count();
+
+    chrono::steady_clock::time_point uiBegin{};
+    if (sampleRenderPerf)
+        uiBegin = chrono::steady_clock::now();
     DumpCurrentOMState(L"Render_UI:Before");
 #endif
 
@@ -203,16 +240,23 @@ void Renderer::Draw()
     // ========================================= //
 #ifdef _DEBUG
     DumpCurrentOMState(L"Render_UI:After");
-    uiMs = chrono::duration<double, milli>(chrono::steady_clock::now() - uiBegin).count();
-    const auto debugBegin = chrono::steady_clock::now();
+    if (sampleRenderPerf)
+        uiMs = chrono::duration<double, milli>(chrono::steady_clock::now() - uiBegin).count();
+
+    chrono::steady_clock::time_point debugBegin{};
+    if (sampleRenderPerf)
+        debugBegin = chrono::steady_clock::now();
 #endif
 
 #ifdef _DEBUG
     Render_Debug();
 
-    debugMs = chrono::duration<double, milli>(chrono::steady_clock::now() - debugBegin).count();
-    const auto renderMs = chrono::duration<double, milli>(chrono::steady_clock::now() - renderBegin).count();
-    Accumulate_RenderPerf(renderMs, priorityMs, shadowMs, nonBlendMs, lightsMs, combinedHDRMs, postProcessMs,nonlightMs, blendMs, uiMs, debugMs);
+    if (sampleRenderPerf)
+    {
+        debugMs = chrono::duration<double, milli>(chrono::steady_clock::now() - debugBegin).count();
+        const auto renderMs = chrono::duration<double, milli>(chrono::steady_clock::now() - renderBegin).count();
+        Accumulate_RenderPerf(renderMs, priorityMs, shadowMs, nonBlendMs, lightsMs, combinedHDRMs, postProcessMs, nonlightMs, blendMs, uiMs, debugMs);
+    }
 #endif
 }
 
@@ -686,9 +730,12 @@ void Renderer::Render_PostProcess()
         GAME->Bind_RT_ShaderResource(_postprocessShader, "g_BloomTexture", RT::BloomBlur),
         L"Render_PostProcess:FAIL Bind_RT_ShaderResource(g_BloomTexture-ToneMap)");
 
+    // BackgroundMask fallback은 EffectEditor 전용 배경 정책으로 보기 어려워 공용 tone mapping 소비 경로를 비활성화한다.
+    /*
     RETURN_LOG_IF_FAILED(
         GAME->Bind_RT_ShaderResource(_postprocessShader, "g_BackgroundMaskTexture", RT::BackgroundMask),
         L"Render_PostProcess:FAIL Bind_RT_ShaderResource(g_BackgroundMaskTexture-ToneMap)");
+    */
 
     RETURN_LOG_IF_FAILED(
         _postprocessShader->Begin(ETOI(PostProcessPass::ToneMapping)),
@@ -769,8 +816,11 @@ HRESULT Renderer::Ready_RenderTargets()
 
     CHECK_FAILED(GAME->Add_RenderTarget(RT::HDRColor,
         width, height, DXGI_FORMAT_R16G16B16A16_FLOAT, Color(0.f, 0.f, 0.f, 0.f), resizeWithViewport, !useDSV), E_FAIL);
+    // BackgroundMask fallback은 EffectEditor 전용 배경 정책으로 보기 어려워 공용 MRT 연결을 비활성화한다.
+    /*
     CHECK_FAILED(GAME->Add_RenderTarget(RT::BackgroundMask,
         width, height, DXGI_FORMAT_R8_UNORM, Color(0.f, 0.f, 0.f, 0.f), resizeWithViewport, !useDSV), E_FAIL);
+    */
 
     //CHECK_FAILED(Ready_ShadowDSV(), E_FAIL);
 
@@ -794,7 +844,10 @@ HRESULT Renderer::Ready_RenderTargets()
 
     // PostProcess
     CHECK_FAILED(GAME->Add_MRT(MRT::HDR, RT::HDRColor), E_FAIL);
+    // BackgroundMask fallback은 EffectEditor 전용 배경 정책으로 보기 어려워 공용 MRT 연결을 비활성화한다.
+    /*
     CHECK_FAILED(GAME->Add_MRT(MRT::HDR, RT::BackgroundMask), E_FAIL);
+    */
 
     CHECK_FAILED(GAME->Add_MRT(MRT::BloomExtract, RT::BloomExtract), E_FAIL);
 
@@ -1100,6 +1153,7 @@ bool Renderer::Try_ConsumePerfSummary(const float windowSec, RenderPerfSummary& 
 
     outSummary.valid = true;
     outSummary.renderCallCount = static_cast<uint32>(_renderPerfWindow.render.sampleCount);
+    outSummary.sampledFrameCount = static_cast<uint32>(_renderPerfWindow.render.sampleCount);
 
     outSummary.renderAvgMs = static_cast<float>(
         Safe_Divide(_renderPerfWindow.render.accumulatedMs, static_cast<double>(_renderPerfWindow.render.sampleCount)));
@@ -1142,6 +1196,25 @@ bool Renderer::Try_ConsumePerfSummary(const float windowSec, RenderPerfSummary& 
     outSummary.debugMaxMs = static_cast<float>(_renderPerfWindow.debug.maxMs);
 
     Reset_RenderPerfWindow(_renderPerfWindow);
+    return true;
+}
+
+bool Renderer::Should_SampleRenderPerf()
+{
+    const auto now = chrono::steady_clock::now();
+    if (!_hasLastPerfSampleTime)
+    {
+        _lastPerfSampleTime = now;
+        _hasLastPerfSampleTime = true;
+        return true;
+    }
+
+    const float elapsedSec = static_cast<float>(
+        chrono::duration<double>(now - _lastPerfSampleTime).count());
+    if (elapsedSec < DebugPerf::kRuntimePerfSampleIntervalSec)
+        return false;
+
+    _lastPerfSampleTime = now;
     return true;
 }
 
