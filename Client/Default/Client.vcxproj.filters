@@ -644,6 +644,7 @@
     <ClInclude Include="..\public\SkillTree_Panel.h">
       <Filter>04. GamePlayUI\SkillTree_Panel</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\UI_BattleCommandHUD.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -1042,6 +1043,7 @@
     <ClCompile Include="..\private\SkillTree_Panel.cpp">
       <Filter>04. GamePlayUI\SkillTree_Panel</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\UI_BattleCommandHUD.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">
@@ -1110,6 +1112,7 @@
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_BoneRemap.hlsl">
       <Filter>97.ShaderFiles\Compute</Filter>
     </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMaterialPreview.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMaterialPreview.hlsl">
       <Filter>97.ShaderFiles\Effect</Filter>
     </FxCompile>

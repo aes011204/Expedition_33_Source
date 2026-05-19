@@ -23,7 +23,7 @@ public:
 
 private:
     inline static const Vec4 kDefaultClearColor{ 0.18f, 0.18f, 0.18f, 1.f };
-    inline static const Color kHdrClearColorOverride{ 0.2f, 0.2f, 0.2f, 1.f };
+    inline static const Color kHdrClearColorOverride{ 0.f, 0.f, 0.f, 1.f }; //!! 후처리 연산에 영향을 미침. 바꾸지 마시오
 
 private:
     ComPtr<Device> _device{};

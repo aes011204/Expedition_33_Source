@@ -17,6 +17,7 @@ class CharacterStatus_Panel;
 class ChangeWeapon_Panel;
 class UI_Fade;
 class UI_BattleTransition;
+class UI_BattleCommandHUD;
 
 // 실제로 렌더링되는 UI 가 아니라, 플레이 중 UI 들을 로드/토글/바인딩 등 처리할 컨트롤러라고 생각
 class GameplayUI : public Base
@@ -60,6 +61,9 @@ private:
     void    Close_Menu(GameplayMenu menu); // 메뉴 enum -> 실제 panel close
 
 private:
+    void    Set_BattleCommandHUD();
+
+private:
     Unique<SavePoint_Panel>         _savePointPanel{};
     Unique<CharacterStatus_Panel>   _characterStatusPanel{};
     Unique<SkillTree_Panel>         _skillTreePanel{};
@@ -67,6 +71,7 @@ private:
 
     // 전투 진입 테스트용 페이드 UI
     Shared<UI_BattleTransition>     _battleTransition{};
+    Unique<UI_BattleCommandHUD>     _battleCommandHUD{};
 
     vector<GameplayMenu>            _menuStack{};
 

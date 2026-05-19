@@ -39,16 +39,18 @@ enum class EffectSpriteTextureAxis : uint32
 // Required 모듈에서 material binding에 필요한 값만 접은 runtime payload다.
 struct EffectRequiredMaterialRuntimeDesc
 {
-    string textureId{ "Texture_Effect_DefaultTexture" }; // main particle texture id다.
-    string blendMode{ "AlphaBlend" };                    // material bridge의 blend mode 기록값이다.
-    string opacitySource{ "Alpha" };                     // opacity source selector다.
-    Vec4 tint{ 1.f, 1.f, 1.f, 1.f };                     // texture sample에 곱할 tint다.
-    float intensity{ 1.f };                              // sprite 색상 밝기/발광감 계수다.
-    float opacityPower{ 1.f };                           // opacity sharpening 계수다.
-    string noiseTextureId{};                             // 선택 noise texture id다.
-    float noiseStrength{ 0.f };                          // noise modulation 강도다.
-    uint32 subUVRows{ 1 };                               // flipbook row 수다.
-    uint32 subUVCols{ 1 };                               // flipbook column 수다.
+    string mainTextureGuid{};             // main particle texture asset GUID다.
+    string mainTexturePath{};             // mainTextureGuid resolve 실패 시 사용할 fallback 경로다.
+    string noiseTextureGuid{};            // 선택 noise texture asset GUID다.
+    string noiseTexturePath{};            // noiseTextureGuid resolve 실패 시 사용할 fallback 경로다.
+    string blendMode{ "AlphaBlend" };     // material bridge의 blend mode 기록값이다.
+    string opacitySource{ "Alpha" };      // opacity source selector다.
+    Vec4 tint{ 1.f, 1.f, 1.f, 1.f };      // texture sample에 곱할 tint다.
+    float intensity{ 1.f };               // sprite 색상 밝기/발광감 계수다.
+    float opacityPower{ 1.f };            // opacity sharpening 계수다.
+    float noiseStrength{ 0.f };           // noise modulation 강도다.
+    uint32 subUVRows{ 1 };                // flipbook row 수다.
+    uint32 subUVCols{ 1 };                // flipbook column 수다.
 };
 
 // Required 모듈에서 sprite render alignment에 필요한 값만 접은 runtime payload다.

@@ -2,6 +2,42 @@
 #include "GameInstance.h"
 
 
+#include <cctype>
+
+namespace
+{
+bool ReadBoolFlexible(const json& item, const char* key, bool defaultValue)
+{
+    if (!item.contains(key) || item[key].is_null())
+        return defaultValue;
+
+    const json& value = item[key];
+
+    if (value.is_boolean())
+        return value.get<bool>();
+
+    if (value.is_number_integer())
+        return value.get<int>() != 0;
+
+    if (value.is_string())
+    {
+        string text = value.get<string>();
+
+        for (char& c : text)
+            c = static_cast<char>(tolower(static_cast<unsigned char>(c)));
+
+        if (text == "true" || text == "1")
+            return true;
+
+        if (text == "false" || text == "0")
+            return false;
+    }
+
+    LOG_WARN("[GameDataTable] invalid bool field: key={}, valueType={}", key, value.type_name());
+    return defaultValue;
+}
+}
+
 HRESULT GameDataTable::Initialize()
 {
     return S_OK;
@@ -233,8 +269,8 @@ HRESULT GameDataTable::Load_SkillPhaseData(const wstring& jsonRootPath)
             magic_enum::enum_cast<BattleTargetAnchor>(item.value("targetAnchor", "None"))
             .value_or(BattleTargetAnchor::None);
 
-        phase.useDistance = item.value("useDistance", false);
-        phase.faceTarget = item.value("faceTarget", true);
+        phase.useDistance = ReadBoolFlexible(item, "useDistance", false);
+        phase.faceTarget = ReadBoolFlexible(item, "faceTarget", true);
         phase.offsetDistance = item.value("offsetDistance", 0.f);
 
         auto it = _skillIndexById.find(skillKey);

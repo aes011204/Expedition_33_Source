@@ -16,6 +16,32 @@ IMPLEMENT_REFLECTION(ComputeSpriteEmitter)
     return true;
 }
 
+namespace Client::Internal
+{
+    wstring Resolve_TexturePath(const string& textureGuid, const string& texturePath)
+    {
+        if (GAME != nullptr && !textureGuid.empty())
+        {
+            const wstring resolvedPath = GAME->Resolve_AssetPath(textureGuid);
+            if (!resolvedPath.empty() && fs::exists(resolvedPath))
+                return resolvedPath;
+        }
+
+        if (!texturePath.empty())
+        {
+            fs::path candidatePath = String::ToWString(texturePath);
+            if (candidatePath.is_relative() && GAME != nullptr)
+                candidatePath = fs::path(GAME->Get_AssetRoot()) / candidatePath;
+
+            candidatePath = candidatePath.lexically_normal();
+            if (fs::exists(candidatePath))
+                return candidatePath.wstring();
+        }
+
+        return {};
+    }
+}
+
 ComputeSpriteEmitter::ComputeSpriteEmitter(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : EffectEmitter{ device, context }
 {
@@ -82,21 +108,21 @@ HRESULT ComputeSpriteEmitter::Render()
 
 HRESULT ComputeSpriteEmitter::Ready_Components()
 {
-    string resolvedTextureId{};
-    CHECK_FAILED(Ready_TextureComponent(resolvedTextureId), E_FAIL);
+    string resolvedTexturePath{};
+    CHECK_FAILED(Ready_TextureComponent(resolvedTexturePath), E_FAIL);
     CHECK_FAILED(Ready_ShaderComponent(), E_FAIL);
-    CHECK_FAILED(Ready_NoiseTextureComponent(resolvedTextureId), E_FAIL);
+    CHECK_FAILED(Ready_NoiseTextureComponent(resolvedTexturePath), E_FAIL);
 
     ComputePointParticleDesc desc = Make_ComputePointParticleDesc();
     CHECK_FAILED(__super::Add_Component(ETOI(LevelType::Static), TEXT("Com_Effect_ComputePointParticleBuffer"), _viBuffer, &desc), E_FAIL);
 
     LOG_INFO(
-        "ComputeSpriteEmitter ready: shaderId='{}', textureId='{}', blendMode='{}', passIndex={}, noiseTextureId='{}', opacitySource='{}', noiseStrength={}",
+        "ComputeSpriteEmitter ready: shaderId='{}', mainTexturePath='{}', blendMode='{}', passIndex={}, noiseTexturePath='{}', opacitySource='{}', noiseStrength={}",
         kEffectSpriteShaderId,
-        _desc.required.material.textureId,
+        _desc.required.material.mainTexturePath,
         _desc.required.material.blendMode,
         _effectSpritePassIndex,
-        _desc.required.material.noiseTextureId,
+        _desc.required.material.noiseTexturePath,
         _desc.required.material.opacitySource,
         _desc.required.material.noiseStrength
     );
@@ -104,26 +130,26 @@ HRESULT ComputeSpriteEmitter::Ready_Components()
     return S_OK;
 }
 
-HRESULT ComputeSpriteEmitter::Ready_TextureComponent(string& outResolvedTextureId)
+HRESULT ComputeSpriteEmitter::Ready_TextureComponent(string& outResolvedTexturePath)
 {
-    const string requestedTextureId =
-        !_desc.required.material.textureId.empty() ? _desc.required.material.textureId : string{ kFallbackTextureId };
+    wstring resolvedPath = Client::Internal::Resolve_TexturePath(
+        _desc.required.material.mainTextureGuid,
+        _desc.required.material.mainTexturePath
+    );
+    if (resolvedPath.empty())
+        resolvedPath = Client::Internal::Resolve_TexturePath(kFallbackTextureGuid, kFallbackTexturePath);
 
-    if (FAILED(__super::Add_Component(ETOI(LevelType::GamePlay), String::ToWString(requestedTextureId), _texture)))
+    if (resolvedPath.empty())
     {
-        if (requestedTextureId == kFallbackTextureId)
-        {
-            LOG_WARN("ComputeSpriteEmitter failed to resolve fallback textureId='{}'.", kFallbackTextureId);
-            return E_FAIL;
-        }
-
-        CHECK_FAILED(__super::Add_Component(ETOI(LevelType::GamePlay), String::ToWString(kFallbackTextureId), _texture), E_FAIL);
-
-        outResolvedTextureId = kFallbackTextureId;
-        return S_OK;
+        LOG_WARN("ComputeSpriteEmitter failed to resolve fallback texture path='{}'.", kFallbackTexturePath);
+        return E_FAIL;
     }
 
-    outResolvedTextureId = requestedTextureId;
+    _texture = Texture::Create(_device, _context, resolvedPath.c_str(), 1);
+    if (_texture == nullptr)
+        return E_FAIL;
+
+    outResolvedTexturePath = String::ToString(resolvedPath);
     return S_OK;
 }
 
@@ -135,19 +161,26 @@ HRESULT ComputeSpriteEmitter::Ready_ShaderComponent()
     return S_OK;
 }
 
-HRESULT ComputeSpriteEmitter::Ready_NoiseTextureComponent(const string& outResolvedTextureId)
+HRESULT ComputeSpriteEmitter::Ready_NoiseTextureComponent(const string& resolvedTexturePath)
 {
-    if (_desc.required.material.noiseTextureId.empty())
+    if (_desc.required.material.noiseTextureGuid.empty() && _desc.required.material.noiseTexturePath.empty())
         return S_OK;
 
-    if (_desc.required.material.noiseTextureId == outResolvedTextureId && nullptr != _texture)
+    const wstring resolvedPath = Client::Internal::Resolve_TexturePath(
+        _desc.required.material.noiseTextureGuid,
+        _desc.required.material.noiseTexturePath
+    );
+    if (resolvedPath.empty())
+        return S_OK;
+
+    const string noiseTexturePath = String::ToString(resolvedPath);
+    if (noiseTexturePath == resolvedTexturePath && nullptr != _texture)
     {
         _noiseTexture = _texture;
         return S_OK;
     }
 
-    if (FAILED(__super::Add_Component(ETOI(LevelType::GamePlay), String::ToWString(_desc.required.material.noiseTextureId), _noiseTexture)))
-        _noiseTexture = nullptr;
+    _noiseTexture = Texture::Create(_device, _context, resolvedPath.c_str(), 1);
 
     return S_OK;
 }

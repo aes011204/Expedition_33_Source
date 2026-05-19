@@ -91,9 +91,11 @@ public:
     float Get_CurHp() { return Get_RuntimeStat().CurHp; };
     //void Set_CurHp(float hp) { Get_RuntimeStat().CurHp = hp; } //이건 일단  데미지 시스템을 통해서
     PlayerCharactorType Get_PlayerType() { return _playerType; }
+
+    vector<string> Get_SkillKey() { return _skillKeys; }
 protected:
     vector<Shared<Buff>> _buff;// 상태이상
-
+    vector<string> _skillKeys;
     bool _isPlayer = { false };
     PlayerCharactorType _playerType = PlayerCharactorType::None;
 public:
