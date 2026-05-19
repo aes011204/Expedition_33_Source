@@ -4,13 +4,14 @@
 #include "Delegate.h"
 #include "Battle_Enum.h"
 
-
 NS_BEGIN(Engine)
 class Character;
 class Camera;
 NS_END
 
 NS_BEGIN(Client)
+
+class SkillScript;
 
 class BattleActionExecutor;
 
@@ -23,8 +24,24 @@ class BattleTurnCamera;
 class BattleController : public Base
 {
 public:
+    enum ReactionType
+    {
+        None,
+        Parry,
+        Dodge,
+        QTE
+    };
+
+    struct Reaction
+    {
+        ReactionType type = ReactionType::None;
+        bool isOpen = false;
+        bool isConsumed = false;
+    };
+
+public:
     BattleController();
-    virtual ~BattleController();
+    ~BattleController() override;
 public:
     HRESULT Initialize();
     void Update(float timeDelta);
@@ -32,7 +49,7 @@ public:
     void Run_EnemyTurn();
 
     // 진입 시 데이터만 기록 -> 실제 전환은 슬로우모션 끝난 후 Complete_BattleFiled 함수
-    void  OnEnterBattleField(
+    void OnEnterBattleField(
         uint32 FieldID,
         bool IsFirstHero,
         const vector<HeroId>& heroIds,
@@ -52,10 +69,9 @@ public:
     void Build_InitialTurnQueue(bool IsFirstHero);
     void SetCharInitPos();
 
-
-	void OnActionEndNotify();
+    void OnActionEndNotify();
 public:
-    Shared<BattleStateMachine>  Get_BattleFSM() { return _battleFSM; };
+    Shared<BattleStateMachine> Get_BattleFSM() { return _battleFSM; };
     Action& Get_TurnAction() { return _turnAction; }
     //uint32 Get_EnemiesNum() { return _enemies.size(); }
     //uint32 Get_HeroesNum() { return _heroes.size(); }
@@ -66,28 +82,39 @@ public:
     bool Is_BattleStarted() { return _isBattleActive; }
     bool Is_BattleEntering() const { return _isBattleEntering; } // 배틀 진입 시작
 
+
+    //void Set_CurrentScript(const Shared<SkillScript>& script){_curScript = script;}
+    Shared<SkillScript> Get_CurrentScript() const{return _curScript;}
+    void Clear_CurrentScript(){_curScript.reset();}
 public:
     void Handle_EditorStopRuntime();
     HRESULT Ready_Delegates();
 
+    //리액션 인풋
+    void OpenReactionWindow(ReactionType type);
+    void CloseReactionWindow(ReactionType type);
+    void UpdateReactionInput();
 
 private:
     HRESULT Ready_BattleTurnCamera();
-    void    Activate_BattleTurnCamera();
-    void    Restore_WorldCamera();
+    void Activate_BattleTurnCamera();
+    void Restore_WorldCamera();
 
-    void    Complete_BattleField();          // 2초 슬로우모션이 끝난 뒤 실제 PB/MB 생성과 턴 시작을 처리한다.
-    void    Clear_BattleEnterPending();   // 전투 진입 대기 데이터만 정리
-
+    void Complete_BattleField();          // 2초 슬로우모션이 끝난 뒤 실제 PB/MB 생성과 턴 시작을 처리한다.
+    void Clear_BattleEnterPending();   // 전투 진입 대기 데이터만 정리
 
 private:
     BattleChar _currentTurnActor = {};
-    Action _turnAction={};
+    Action _turnAction = {};
+    Reaction _reaction = {};
+
+    Shared<SkillScript> _curScript = {};
+
     bool _isBattleActive = { false };
     bool _isBattleEntering = { false };
 
     int currentTurnIndex = {};
-     
+
     bool _flag = { false };
 
 private:
@@ -103,23 +130,22 @@ public:
         bool operator()(TurnEntry& a, TurnEntry& b)
         {
             if (a.nextTime > b.nextTime)
-                  // Ultimate_Data    _selected_ultimate
+                // Ultimate_Data    _selected_ultimate
                 return true;
-             else
-                return false;
+            return false;
         }
     };
+
 private:
     priority_queue<TurnEntry, vector<TurnEntry>, Compare> _turnQueue;
     float _battleTime = {};
     vector<BattleChar> _heroes;
     vector<BattleChar> _enemies;
 
-
-    Shared< BattleStateMachine> _battleFSM;
-    Shared< BuffSystem> _buffSystem;
-   /* Shared< BattleEffectResolver> _battleEffectResolver;*/
-	Shared<BattleActionExecutor> _battleActionExe;
+    Shared<BattleStateMachine> _battleFSM;
+    Shared<BuffSystem> _buffSystem;
+    /* Shared< BattleEffectResolver> _battleEffectResolver;*/
+    Shared<BattleActionExecutor> _battleActionExe;
 
     FDelegateHandle _editorStopHandle = {};
 
@@ -127,14 +153,13 @@ private:
     Shared<BattleTurnCamera> _battleTurnCamera;
     Shared<Camera> _worldCamera;    // 전투 시작 전 카메라 저장
 
-   
 private:  // 슬로우 처리
     float _battleEnterElapsed = 0.f;
     float _battleEnterDuration = 2.f;
     float _battleEnterWorldTimeScale = 0.25f;
 
-    uint32  _pendingBattleFieldID = 0;
-    bool    _pendingBattleIsFirstHero = false;
+    uint32 _pendingBattleFieldID = 0;
+    bool _pendingBattleIsFirstHero = false;
     vector<HeroId> _pendingBattleHeroIds = {};
     vector<string> _pendingBattleMonsterPrefabNames = {};
 
@@ -143,8 +168,6 @@ public:
     void Free() override;
 
 public:
-
 };
-
 
 NS_END

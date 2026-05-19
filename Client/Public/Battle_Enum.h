@@ -189,7 +189,7 @@ enum class Buffs;
     // =============================
 
     //방어 기술 분류
-    enum class EDefenseMoveType
+    enum class DefenseMoveType
     {
         Defend,
         Dodge,

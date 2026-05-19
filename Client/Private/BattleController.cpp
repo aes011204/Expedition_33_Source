@@ -67,6 +67,8 @@ void BattleController::Update(float timeDelta)
     if (_battleEnded == true)
         return;
 
+    UpdateReactionInput();
+
     if (_pendingNextTurn)
     {
         _pendingNextTurn = false;
@@ -190,6 +192,9 @@ void BattleController::ExecuteAction(Action turnAction)
 
 void BattleController::EndTurn()
 {
+    // 일단 만들어 놓은 스킬 지우기
+    Clear_CurrentScript();
+
     // 끝났다면 끝
     uint32 DeadPlayer = {};
     uint32 DeadEnemy = {};
@@ -477,6 +482,72 @@ HRESULT BattleController::Ready_Delegates()
     return S_OK;
 }
 
+void BattleController::OpenReactionWindow(ReactionType type)
+{
+    _reaction.type = type;
+    _reaction.isConsumed = false;
+    _reaction.isOpen = true;
+
+}
+
+void BattleController::CloseReactionWindow(ReactionType type)
+{
+    if (_reaction.type != type)
+        return;
+
+    _reaction.type = ReactionType::None;
+    _reaction.isOpen = false;
+    _reaction.isConsumed = false;
+}
+
+void BattleController::UpdateReactionInput()
+{
+    if (_turnAction.target.actor == nullptr)
+        return;
+
+    // 애님 딜래이 +
+    if (_turnAction.target.statCom->Is_Player() != true)
+        return;
+
+
+    switch (_reaction.type)
+    {
+    case ReactionType::Parry:
+        if (GAME->KeyDown(KEY_TYPE::E))
+        {
+            // 패링은 여기서 애니XX
+
+            if (!_reaction.isOpen || _reaction.isConsumed)
+                return;
+
+            // 성공 해야 애니 실행
+
+            _reaction.isConsumed = true;
+            LOG_ERROR({ "SUCCESS PARRY" });
+        }
+        break;
+
+    case ReactionType::Dodge:
+        if (GAME->KeyDown(KEY_TYPE::Q))
+        {
+            // 회피 애님 실행
+
+            if (!_reaction.isOpen || _reaction.isConsumed)
+                return;
+
+
+            _reaction.isConsumed = true;
+            LOG_ERROR({ "SUCCESS DODGE" });
+        }
+        break;
+
+    default:
+        break;
+    }
+
+}
+
+
 void BattleController::Execute_BaseAttack(const BattleChar actor, const Action& turnAction)
 {
     //기본스킬도 특이하기때문에 스킬로
@@ -486,6 +557,9 @@ void BattleController::Execute_BaseAttack(const BattleChar actor, const Action& 
         turnAction.target.actor ? String::ToString(turnAction.target.actor->Get_Name()).c_str() : "null",
         turnAction._selected_SkillKey.scriptClassName.c_str()
     );
+
+   // auto script = Create_Class::SkillScript<Base_Gustave_Attack>().Create();
+    _curScript = Create_Class::SkillScript(_turnAction._selected_SkillKey.scriptClassName).Create();
 
     auto& action = Get_TurnAction();
 
@@ -516,6 +590,8 @@ void BattleController::Execute_Skill(const BattleChar actor, const Action& turnA
         turnAction.target.actor ? String::ToString(turnAction.target.actor->Get_Name()).c_str() : "null",
         turnAction._selected_SkillKey.scriptClassName.c_str()
     );
+
+    _curScript = Create_Class::SkillScript(_turnAction._selected_SkillKey.scriptClassName).Create();
 
     auto& action = Get_TurnAction();
 
