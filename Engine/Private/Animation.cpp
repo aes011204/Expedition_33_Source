@@ -1,6 +1,7 @@
 ﻿#include "Animation.h"
 #include "Channel.h"
 #include "Bone.h"
+#include "Debug_Profile.h"
 #include <cmath>
 
 NS_BEGIN(Engine)
@@ -11,6 +12,7 @@ Animation::Animation(const Animation& prototype)
 	, _duration{ prototype._duration }
 	, _tickPerSecond{ prototype._tickPerSecond }
 	, _currentTrackPosition{ 0.f }
+    , _channelIndexByBoneIndex{ prototype._channelIndexByBoneIndex }
 {
     _animationName = prototype._animationName;
 	for (auto& ch : prototype._channels)
@@ -25,7 +27,7 @@ HRESULT Animation::Initialize(const ModelAnimationData& animData, const vector<M
 	_tickPerSecond = static_cast<float>(animData.ticksPerSecond);
 	_numChannels = animData.numChannels;
 	_currentKeyFrameIndices.resize(_numChannels, 0);
-    
+
 	for (uint32 i = 0; i < _numChannels; ++i)
 	{
 		auto channel = Channel::Create(channels[i]);
@@ -34,6 +36,9 @@ HRESULT Animation::Initialize(const ModelAnimationData& animData, const vector<M
 
 		_channels.push_back(channel);
 	}
+
+    // 초기화가 끝난 후 boneIndex -> channelIndex 캐싱해놔야 블렌딩 진입 시 매번 선형탐색하지 않는다.
+    Build_ChannelIndexCache();
 
 	return S_OK;
 }
@@ -147,6 +152,8 @@ Vec3 Animation::Get_CurrentRootTranslation(int32 rootNodeIndex) const
 
 bool Animation::Update_TransformationMatrices(float timeDelta, const vector<Shared<Bone>>& bones, bool isLoop, int32 rootNodeIndex)
 {
+    Debug_Profile::Scope profileScope("Animation::UpdatePose");
+
 	_currentTrackPosition += _tickPerSecond * timeDelta;
 
 	if (_currentTrackPosition >= _duration)
@@ -171,17 +178,20 @@ bool Animation::Update_TransformationMatrices(float timeDelta, const vector<Shar
 void Animation::Blend_TransformMatrix(float currentTimeDelta, const Shared<Animation>& nextAnim, float blendRatio,
 	const vector<Shared<Bone>>& bones, bool isLoop, int32 rootNodeIndex)
 {
+    Debug_Profile::Scope profileScope("Animation::BlendPose");
+
 	/* 현재 애니메이션 시간 갱신 */
 	_currentTrackPosition += _tickPerSecond * currentTimeDelta;
-	if (_currentTrackPosition >= _duration)
-		_currentTrackPosition = isLoop ? std::fmod(_currentTrackPosition, _duration) : _duration;
+    if (_currentTrackPosition >= _duration)
+        _currentTrackPosition = _duration;
+		//_currentTrackPosition = isLoop ? std::fmod(_currentTrackPosition, _duration) : _duration;
 
-	/* 다음 애니메이션 시간 갱신 */
+	// 다음 애니메이션 시간 갱신
 	nextAnim->_currentTrackPosition += nextAnim->_tickPerSecond * currentTimeDelta;
 	if (nextAnim->_currentTrackPosition >= nextAnim->_duration)
 		nextAnim->_currentTrackPosition = isLoop ? std::fmod(nextAnim->_currentTrackPosition, nextAnim->_duration) : nextAnim->_duration;
 
-    /* 블렌딩 수행 */
+    // 블렌딩 수행
     for (uint32 i = 0; i < _numChannels; ++i)
     {
         RootMotionFrame curTrans{}, nextTrans{};
@@ -191,23 +201,17 @@ void Animation::Blend_TransformMatrix(float currentTimeDelta, const Shared<Anima
             continue;
 
         _channels[i]->Get_ChannelTransform(_currentTrackPosition, _currentKeyFrameIndices[i], _duration, isLoop, curTrans);
-        _channels[i]->Update_Velocity(curTrans, _currentTrackPosition);
 
-        int32 nextChannelIndex = -1;
-        for (uint32 j = 0; j < nextAnim->_numChannels; ++j)
-        {
-            if (nextAnim->_channels[j]->Get_BoneIndex() == boneIndex)
-            {
-                nextChannelIndex = static_cast<int32>(j);
-                break;
-            }
-        }
+        int32 nextChannelIndex = nextAnim->Find_ChannelIndexByBoneIndex(boneIndex);
 
         if (nextChannelIndex != -1)
         {
             nextAnim->_channels[nextChannelIndex]->Get_ChannelTransform(
-                nextAnim->_currentTrackPosition, nextAnim->_currentKeyFrameIndices[nextChannelIndex], nextAnim->_duration, isLoop, nextTrans);
-            nextAnim->_channels[nextChannelIndex]->Update_Velocity(nextTrans, nextAnim->_currentTrackPosition);
+                nextAnim->_currentTrackPosition,
+                nextAnim->_currentKeyFrameIndices[nextChannelIndex],
+                nextAnim->_duration,
+                isLoop,
+                nextTrans);
         }
         else
         {
@@ -227,7 +231,63 @@ void Animation::Blend_TransformMatrix(float currentTimeDelta, const Shared<Anima
         }
 
         bones[boneIndex]->Update_TransformationMatrix(targetMatrix);
+
+        if (boneIndex == rootNodeIndex)
+        {
+            _channels[i]->Update_Velocity(curTrans, _currentTrackPosition);
+
+            if (nextChannelIndex != -1)
+                nextAnim->_channels[nextChannelIndex]->Update_Velocity(nextTrans, nextAnim->_currentTrackPosition);
+        }
     }
+}
+
+void Animation::Build_ChannelIndexCache()
+{
+    int32 maxBoneIndex = -1;
+
+    for (const Shared<Channel>& channel : _channels)
+    {
+        if (channel == nullptr)
+            continue;
+
+        maxBoneIndex = max(maxBoneIndex, channel->Get_BoneIndex());
+    }
+
+    if (maxBoneIndex < 0)
+    {
+        _channelIndexByBoneIndex.clear();
+        return;
+    }
+
+    _channelIndexByBoneIndex.assign(static_cast<size_t>(maxBoneIndex) + 1, -1);
+
+    for (uint32 i = 0; i < _channels.size(); ++i)
+    {
+        if (_channels[i] == nullptr)
+            continue;
+
+        const int32 boneIndex = _channels[i]->Get_BoneIndex();
+        if (boneIndex < 0)
+            continue;
+
+        const size_t sboneIndex = static_cast<size_t>(boneIndex);
+
+        if (_channelIndexByBoneIndex[sboneIndex] == -1)
+            _channelIndexByBoneIndex[sboneIndex] = static_cast<int32>(i);
+    }
+
+}
+
+int32 Animation::Find_ChannelIndexByBoneIndex(int32 boneIndex) const
+{
+    if (boneIndex < 0)
+        return -1;
+
+    if (boneIndex >= static_cast<int32>(_channelIndexByBoneIndex.size()))
+        return -1;
+
+    return _channelIndexByBoneIndex[static_cast<size_t>(boneIndex)];
 }
 
 Shared<Animation> Animation::Create(const ModelAnimationData& animData, const vector<ModelChannelData>& channels)

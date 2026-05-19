@@ -159,7 +159,7 @@ HRESULT EffectEditorApp::Initialize()
     CHECK_FAILED(GAME->Set_HDRClearColorOverride(kHdrClearColorOverride), E_FAIL);
     _hdrClearColorOverrideSet = true;
     CHECK_FAILED(run_startup_step(initializeAssetManagerMs, [&]{ return GAME->Initialize_AssetManager(assetRootPath.wstring()); }), E_FAIL);
-    CHECK_FAILED(run_startup_step(initializeClientMs, [&]{ return CLIENT->Initialize_Client(_device, _context); }), E_FAIL);
+    CHECK_FAILED(run_startup_step(initializeClientMs, [&]{ return CLIENT->Initialize_Client_ForEffectEditor(_device, _context); }), E_FAIL);
     CHECK_FAILED(run_startup_step(readyFontsMs, [&]{ return Ready_Fonts(); }), E_FAIL);
     CHECK_FAILED(run_startup_step(readyStaticResourcesMs, [&]{ return Ready_Prototype_For_Static_Level(); }), E_FAIL);
     CHECK_FAILED(run_startup_step(readyGamePlayResourcesMs, [&]{ return CLIENT->Ready_LevelResources(LevelType::GamePlay); }), E_FAIL);

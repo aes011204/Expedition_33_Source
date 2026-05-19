@@ -7,6 +7,7 @@
 #include "Prototype_Manager.h"
 #include "TypeRegistry.h"
 #include "Debug_Types.h"
+#include "Engine_Constants.h"
 #include <string_view>
 #include <utility>
 #include "DelegateHub.h"
@@ -546,7 +547,10 @@ private: //## 디버그 성능 평가용
     static constexpr float runtimePerfSampleWindowSec{ 5.f }; // RuntimePerfDetail을 몇 초마다 출력할건지
 
     chrono::steady_clock::time_point _runtimePerfWindowStartTime{};
+    chrono::steady_clock::time_point _runtimePerfLastSampleTime{};
     bool _hasRuntimePerfWindowStartTime{ false };
+    bool _hasRuntimePerfLastSampleTime{ false };
+    uint32 _runtimePerfObservedFrameCount{ 0 };
 
 private:
     UpdatePerfWindow _updatePerfWindow{};
@@ -571,6 +575,8 @@ private:
         double uiMs);
 
     bool Try_ConsumeUpdatePerfSummary(float windowSec, UpdatePerfSummary& outSummary);
+    bool Should_SampleRuntimePerf();
+    void Reset_RuntimePerfWindowState(chrono::steady_clock::time_point now);
     void Try_FlushRuntimePerfLog();
 #endif
 

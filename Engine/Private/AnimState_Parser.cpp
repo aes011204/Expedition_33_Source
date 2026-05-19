@@ -2,6 +2,8 @@
 #include "AnimState_Parser.h"
 #include "GameInstance.h"
 #include "Animation.h"
+#include <fstream>
+#include <iomanip>
 
 bool AnimState_Parser::Load_StateAnimations_FromFile(
 	const wstring& animMapPath,
@@ -15,6 +17,8 @@ bool AnimState_Parser::Load_StateAnimations_FromFile(
 	{
 		return false;
 	}
+
+	string fileName = fs::path(animMapPath).filename().string();
 
 	std::ifstream file(animMapPath);
 	if (!file.is_open())
@@ -43,51 +47,132 @@ bool AnimState_Parser::Load_StateAnimations_FromFile(
 		*outFoundEnumType = String::ToWString(enumStr);
 	}
 
+	// GlobalEnum 정보 가져오기
+	const TypeRegistry::GlobalEnumInfo* pEnumInfo = nullptr;
+	if (root.contains("EnumType"))
+	{
+		string enumTypeStr = root["EnumType"].get<string>();
+		// "GlobalEnum::PlayerWorldAnimation" -> "PlayerWorldAnimation"
+		size_t lastColon = enumTypeStr.find_last_of(':');
+		if (lastColon != string::npos)
+			enumTypeStr = enumTypeStr.substr(lastColon + 1);
+
+		GAME->Visit_GlobalEnums([&](const TypeRegistry::GlobalEnumInfo& info)
+		{
+			if (info.displayName == enumTypeStr)
+				pEnumInfo = &info;
+		});
+	}
+
 	uint32 maxIndex = 0;
-	for (const auto& mapping : root["Mappings"])
+	if (pEnumInfo)
 	{
-		if (mapping.contains("Index"))
+		for (int val : pEnumInfo->enumValues)
 		{
-			uint32 idx = mapping["Index"].get<uint32>();
-			if (idx > maxIndex) maxIndex = idx;
+			if ((uint32)val > maxIndex) maxIndex = (uint32)val;
 		}
 	}
+	else
+	{
+		for (const auto& mapping : root["Mappings"])
+		{
+			if (mapping.contains("Index"))
+			{
+				uint32 idx = mapping["Index"].get<uint32>();
+				if (idx > maxIndex) maxIndex = idx;
+			}
+		}
+	}
+
 	outStateAnimIndices.resize(maxIndex + 1, UINT32_MAX);
-// 6. 상태별 애니메이션 매칭
-uint32 mappedCount = 0;
-for (const auto& mapping : root["Mappings"])
-{
-	if (!mapping.contains("Index") || !mapping.contains("Anim"))
-		continue;
 
-	uint32 stateIdx = mapping["Index"].get<uint32>();
-	string targetAnimName = mapping["Anim"].get<string>();
+	// 6. 상태별 애니메이션 매칭
+	uint32 mappedCount = 0;
+	bool bNeedRewrite = false;
 
-	bool found = false;
-	for (uint32 i = 0; i < (uint32)originalAnimations.size(); ++i)
+	for (auto& mapping : root["Mappings"])
 	{
-		string availableName = originalAnimations[i]->Get_AnimationName();
-		if (availableName == targetAnimName)
+		if (!mapping.contains("Anim"))
+			continue;
+
+		string targetAnimName = mapping["Anim"].get<string>();
+		int32 stateIdx = -1;
+
+		// 1. 'State' 이름 기반 매칭 시도
+		if (pEnumInfo && mapping.contains("State"))
 		{
-			outStateAnimIndices[stateIdx] = i;
-			mappedCount++;
-			found = true;
-			break;
+			string stateName = mapping["State"].get<string>();
+			for (size_t i = 0; i < pEnumInfo->enumNames.size(); ++i)
+			{
+				if (pEnumInfo->enumNames[i] == stateName)
+				{
+					stateIdx = pEnumInfo->enumValues[i];
+
+					// 현재 JSON에 기록된 Index가 Enum 실제 값과 다르다면 갱신 필요
+					if (mapping.contains("Index"))
+					{
+						if (mapping["Index"].get<int32>() != stateIdx)
+						{
+							mapping["Index"] = stateIdx;
+							bNeedRewrite = true;
+						}
+					}
+					else
+					{
+						mapping["Index"] = stateIdx;
+						bNeedRewrite = true;
+					}
+					break;
+				}
+			}
+		}
+
+		// 2. 실패 시 'Index' 기반 매칭 시도 (Fallback)
+		if (stateIdx == -1 && mapping.contains("Index"))
+		{
+			stateIdx = mapping["Index"].get<int32>();
+		}
+
+		if (stateIdx < 0 || stateIdx >= (int32)outStateAnimIndices.size())
+		{
+			continue;
+		}
+
+		bool found = false;
+		for (uint32 i = 0; i < (uint32)originalAnimations.size(); ++i)
+		{
+			string availableName = originalAnimations[i]->Get_AnimationName();
+			if (availableName == targetAnimName)
+			{
+				outStateAnimIndices[stateIdx] = i;
+				mappedCount++;
+				found = true;
+				break;
+			}
+		}
+
+		if (!found)
+		{
+			string availableNamesStr = "";
+			for (const auto& anim : originalAnimations)
+				availableNamesStr += anim->Get_AnimationName() + ", ";
+
+			LOG_WARN("AnimState_Parser - Match Failed: JSON Name [{}], Model Anims: [{}]",
+				targetAnimName, availableNamesStr);
 		}
 	}
 
-	if (!found)
+	// Index 불일치 등으로 데이터 갱신이 필요한 경우 파일 Rewrite
+	if (bNeedRewrite)
 	{
-		string availableNamesStr = "";
-		for (const auto& anim : originalAnimations) 
-			availableNamesStr += anim->Get_AnimationName() + ", ";
-
-		LOG_WARN("AnimState_Parser - Match Failed: JSON Name [{}], Model Anims: [{}]", 
-			targetAnimName, availableNamesStr);
+		std::ofstream outFile(animMapPath);
+		if (outFile.is_open())
+		{
+			outFile << std::setw(4) << root << std::endl;
+			LOG_INFO("AnimState Mapping Rewritten (Index Mismatch Fixed): File [{}]", fileName);
+		}
 	}
-}
 
-	string fileName = fs::path(animMapPath).filename().string();
 	string enumTypeStr = root.contains("EnumType") ? root["EnumType"].get<string>() : "None";
 
 	LOG_INFO("AnimState Mapping Loaded : File [{}], EnumType [{}], Mapped [{}/{}] states.",

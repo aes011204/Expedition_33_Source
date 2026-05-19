@@ -4,7 +4,6 @@
 #include "InputCom.h"
 #include "PlayerControllerCom.h"
 #include "PlayerStateMachineCom.h"
-
 #include "Player_WorldBase.h"
 #include "Body_Player.h"
 
@@ -69,6 +68,11 @@ bool Player_State::Is_WalkToggled() const
 const MovementCom::MovementInput& Player_State::Get_MovementInput() const
 {
     return _controllerCom->Get_MovementInput();
+}
+
+const Vec3& Player_State::Get_Velocity() const
+{
+    return _controllerCom->Get_Velocity();
 }
 
 bool Player_State::Has_LocomotionIntent() const

@@ -43,6 +43,8 @@ public: //## Behavior::AuthoringHistory
         const AuthoringSnapshot& beforeSnapshot,
         const AuthoringSnapshot& afterSnapshot,
         const string& description);
+    json Build_AuthoringDocumentJson() const;
+    bool Restore_AuthoringDocumentJson(const json& root);
 
 private:
     enum class PendingEmitterAction
@@ -122,6 +124,7 @@ private: //## Helpers
     // Cascade의 기본 더미 emitter 하나를 만든다.
     AuthoringEmitter Make_DefaultSpriteEmitter();
     AuthoringEmitter Clone_Emitter(const AuthoringEmitter& sourceEmitter);
+    AuthoringModule Make_DefaultModuleByType(AuthoringModuleType type);
     AuthoringModule Make_RequiredModule();
     AuthoringModule Make_SpawnModule();
     AuthoringModule Make_LifetimeModule();
