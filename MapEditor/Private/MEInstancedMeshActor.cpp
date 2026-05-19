@@ -133,7 +133,7 @@ HRESULT MEInstancedMeshActor::RenderPickingID(uint32 id)
     const uint32 numMeshes = static_cast<uint32>(_model->Get_NumMeshes());
     for (uint32 i = 0; i < numMeshes; ++i)
     {
-        if (FAILED(_shader->Begin(5)))
+        if (FAILED(_shader->Begin(6)))
         {
             return E_FAIL;
         }

@@ -69,6 +69,8 @@ struct PS_OUT
     vector vDiffuse : SV_TARGET0;
     vector vNormal : SV_TARGET1;
     vector vDepth : SV_TARGET2;
+    vector vMaterial : SV_TARGET3;
+    vector vEmissive : SV_TARGET4;
 };
 
 struct PS_OUT_ID
@@ -95,7 +97,9 @@ PS_OUT PS_Opaque(PS_IN In)
     Out.vDiffuse = baseColor;
     Out.vNormal = float4(EncodeNormal(worldNormal), 1.f);
     Out.vDepth = float4(In.vProjPos.z / In.vProjPos.w, In.vProjPos.w / g_Far, 0.f, 1.f);
-
+    Out.vMaterial = float4(orm.xyz, 1.f);
+    Out.vEmissive = float4(emissive.xyz, 1.f);
+    
     return Out;
 }
 
@@ -122,7 +126,9 @@ PS_OUT PS_Mask(PS_IN In)
     Out.vDiffuse = baseColor;
     Out.vNormal = float4(EncodeNormal(worldNormal), 1.f);
     Out.vDepth = float4(In.vProjPos.z / In.vProjPos.w, In.vProjPos.w / g_Far, 0.f, 1.f);
-
+    Out.vMaterial = float4(orm.xyz, 1.f);
+    Out.vEmissive = float4(emissive.xyz, 1.f);
+    
     return Out;
 }
 
@@ -133,7 +139,9 @@ PS_OUT PS_NoTexture(PS_IN In)
     Out.vDiffuse = vector(0.8f, 0.8f, 0.8f, 1.f);
     Out.vNormal = vector(In.vNormal.xyz * 0.5f + 0.5f, 1.f);
     Out.vDepth = vector(In.vPosition.z, In.vPosition.w / g_Far, 0.f, 0.f);
-
+    Out.vMaterial = float4(1.f, 1.f, 0.f, 1.f); // AO=1, Roughness=1, Metalness=0
+    Out.vEmissive = float4(0.f, 0.f, 0.f, 1.f); // 발광 없음
+    
     return Out;
 }
 
@@ -150,9 +158,10 @@ PS_OUT_ID PS_ID(PS_IN In)
 technique11 DefaultTechnique
 {
     PASS_RS_DS_BS_VP(DefaultPass, RS_Default, DSS_Default, BS_Default, VS_MAIN, PS_Opaque) // 0
-    PASS_RS_DS_BS_VP(NoTexturePass, RS_Default, DSS_Default, BS_Default, VS_MAIN, PS_NoTexture) // 1
-    PASS_RS_DS_BS_VP(MaskedPass, RS_Default, DSS_Default, BS_Default, VS_MAIN, PS_Mask) // 2
-    PASS_RS_DS_BS_VP(TwoSidedPass, RS_CullNone, DSS_Default, BS_Default, VS_MAIN, PS_Opaque) // 3
-    PASS_RS_DS_BS_VP(MaskedTwoSidedPass, RS_CullNone, DSS_Default, BS_Default, VS_MAIN, PS_Mask) // 4
-    PASS_RS_DS_BS_VP(IDPass, RS_Default, DSS_Default, BS_Default, VS_MAIN, PS_ID) // 5
+    PASS_RS_DS_BS_VP(ShadowPass, RS_Default, DSS_Default, BS_Default, VS_MAIN, PS_Opaque) // 1 ← 추가 (인덱스 맞추기용)
+    PASS_RS_DS_BS_VP(NoTexturePass, RS_Default, DSS_Default, BS_Default, VS_MAIN, PS_NoTexture) // 2
+    PASS_RS_DS_BS_VP(MaskedPass, RS_Default, DSS_Default, BS_Default, VS_MAIN, PS_Mask) // 3
+    PASS_RS_DS_BS_VP(TwoSidedPass, RS_CullNone, DSS_Default, BS_Default, VS_MAIN, PS_Opaque) // 4
+    PASS_RS_DS_BS_VP(MaskedTwoSidedPass, RS_CullNone, DSS_Default, BS_Default, VS_MAIN, PS_Mask) // 5
+    PASS_RS_DS_BS_VP(IDPass, RS_Default, DSS_Default, BS_Default, VS_MAIN, PS_ID) // 6
 }
