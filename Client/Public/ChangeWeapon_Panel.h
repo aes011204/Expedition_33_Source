@@ -23,7 +23,6 @@ public:
 
     void    Open();
     void    Close();
-    void    Toggle();
 
     bool    Is_Open() const { return _isOpen; }
 

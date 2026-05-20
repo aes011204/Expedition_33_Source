@@ -44,9 +44,6 @@ void GameplayUI::Update(float timeDelta)
     if (_skillTreePanel)
         _skillTreePanel->Update(timeDelta);
 
-    if (GAME->KeyDown(KEY_TYPE::F4) && _changeWeaponPanel)
-        _changeWeaponPanel->Toggle();
-
     if (_changeWeaponPanel)
         _changeWeaponPanel->Update(timeDelta);
 
@@ -116,7 +113,7 @@ void GameplayUI::Handle_SavePointAction(SavePoint_Panel::SavePointAction action)
         break;
 
     case SavePoint_Panel::SavePointAction::UpgradeWeapon:
-        // TODO: WeaponUpgrade_Panel 추가 후 연결
+        Push_Menu(GameplayMenu::WeaponUpgrade);     // SavePoint 위에 WeaponUpgrade push
         break;
 
     case SavePoint_Panel::SavePointAction::None:
@@ -220,7 +217,8 @@ void GameplayUI::Open_Menu(GameplayMenu menu)
         break;
 
     case GameplayMenu::WeaponUpgrade:
-        // TODO: WeaponUpgrade_Panel 추가 후 연결
+        if (_changeWeaponPanel)
+            _changeWeaponPanel->Open();
         break;
 
     case GameplayMenu::None:
@@ -249,7 +247,8 @@ void GameplayUI::Close_Menu(GameplayMenu menu)
         break;
 
     case GameplayMenu::WeaponUpgrade:
-        // TODO: WeaponUpgrade_Panel 추가 후 연결
+        if (_changeWeaponPanel)
+            _changeWeaponPanel->Close();
         break;
 
     case GameplayMenu::None:

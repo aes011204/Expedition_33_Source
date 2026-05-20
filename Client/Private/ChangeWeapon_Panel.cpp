@@ -50,14 +50,6 @@ void ChangeWeapon_Panel::Close()
     GAME->Lock_Mouse();
 }
 
-void ChangeWeapon_Panel::Toggle()
-{
-    if (_isOpen)
-        Close();
-    else
-        Open();
-}
-
 HRESULT ChangeWeapon_Panel::Load_UI(uint32 levelIndex)
 {
     UI_RuntimeLoader::UI_LoadDesc desc{};

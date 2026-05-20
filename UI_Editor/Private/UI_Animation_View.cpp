@@ -80,6 +80,7 @@ namespace UIEditor
         : UI_Editor_Window{ L"Animation" }
         , _editorManager{ editorManager }
     {
+        Sync_AssetNameBuffer();
         Sync_TargetNameBuffer();
     }
 
@@ -136,6 +137,7 @@ namespace UIEditor
         {
             _editorManager.Stop_AnimationPreview();
             _assetService.New_Asset();
+            Sync_AssetNameBuffer();
             Sync_TargetNameBuffer();
         }
 
@@ -146,6 +148,7 @@ namespace UIEditor
             {
                 _editorManager.Stop_AnimationPreview();
                 _assetService.Resolve_TargetObject(_editorManager.Get_Document());
+                Sync_AssetNameBuffer();
                 Sync_TargetNameBuffer();
                 Refresh_StaticPreview();
             }
@@ -159,12 +162,16 @@ namespace UIEditor
         if (ImGui::Button("Save As"))
             _assetService.Save_Asset(true);
 
-        const UI_AnimationAsset& asset = _assetService.Get_Asset();
         ImGui::SameLine();
-        ImGui::TextDisabled(
-            "Asset: %s%s",
-            asset.name.empty() ? "NewUIAnimation" : asset.name.c_str(),
-            _assetService.Is_Dirty() ? " *" : "");
+        ImGui::SetNextItemWidth(220.f);
+        if (ImGui::InputText("Asset Name", _assetNameBuffer, size(_assetNameBuffer)))
+            _assetService.Set_AssetName(_assetNameBuffer);
+
+        if (_assetService.Is_Dirty())
+        {
+            ImGui::SameLine();
+            ImGui::TextDisabled("*");
+        }
     }
 
     void UI_Animation_View::Render_TargetSection()
@@ -519,6 +526,12 @@ namespace UIEditor
                 Refresh_StaticPreview();
             return;
         }
+    }
+
+    void UI_Animation_View::Sync_AssetNameBuffer()
+    {
+        memset(_assetNameBuffer, 0, sizeof(_assetNameBuffer));
+        strncpy_s(_assetNameBuffer, _assetService.Get_Asset().name.c_str(), _TRUNCATE);
     }
 
     void UI_Animation_View::Sync_TargetNameBuffer()

@@ -26,6 +26,7 @@ namespace UIEditor
         void Render_TrackPanel();
         void Render_KeyPanel();
 
+        void Sync_AssetNameBuffer();
         void Sync_TargetNameBuffer();
         void Set_CurrentFrame(int32 frame);
         void Refresh_StaticPreview();
@@ -39,6 +40,7 @@ namespace UIEditor
         UI_Editor_Manager& _editorManager;
         UI_AnimationAssetService _assetService = {};
         UI_AnimationTimelineView _timelineView = {};
+        char _assetNameBuffer[128] = {};
         char _targetNameBuffer[128] = {};
         int32 _presetDurationFrames = 18;
         float _presetDistance = 48.f;
