@@ -260,12 +260,6 @@ void EffectEditor_Manager::Render_RuntimeToolbar()
     if (ImGui::Button("1x"))
         EDITOR->Reset_RuntimeTimeScale();
 
-    ImGui::SameLine(0.f, 12.f);
-
-    bool showTrailWeapon = EDITOR->Is_TrailPreviewWeaponVisible();
-    if (ImGui::Checkbox("Trail Weapon", &showTrailWeapon))
-        EDITOR->Set_TrailPreviewWeaponVisible(showTrailWeapon);
-
     ImGui::SameLine();
     if (!paused)
         ImGui::BeginDisabled();

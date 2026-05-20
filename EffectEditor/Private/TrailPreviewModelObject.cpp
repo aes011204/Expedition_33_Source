@@ -162,9 +162,6 @@ void TrailPreviewModelObject::Configure_Materials()
         material->Set_CB(materialCB);
         material->Set_ForcedPassIndex(static_cast<int32>(VtxMeshPassIndex::PackedAR_NMEPass));
     }
-
-    (void)Internal::kTrailBaseLocalOffset;
-    (void)Internal::kTrailTipLocalOffset;
 }
 
 void TrailPreviewModelObject::Reset_Pose()
