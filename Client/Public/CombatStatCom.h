@@ -93,10 +93,14 @@ public:
     PlayerCharactorType Get_PlayerType() { return _playerType; }
 
     vector<string> Get_SkillKey() { return _skillKeys; }
+    //test
+    string Get_FirstSkill();
 protected:
     vector<Shared<Buff>> _buff;// 상태이상
     vector<string> _skillKeys;
+
     bool _isPlayer = { false };
+
     PlayerCharactorType _playerType = PlayerCharactorType::None;
 public:
     virtual  Shared<Component> Clone(void* arg) = 0;
