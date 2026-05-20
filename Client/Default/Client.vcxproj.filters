@@ -522,6 +522,9 @@
     <ClInclude Include="..\Public\EffectEmitterRegistration.h">
       <Filter>02.GameObject\Effect\Emitter Registration</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\EffectAssetRuntimeLoader.h">
+      <Filter>02.GameObject\Effect</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\Monster_BattleBase.h">
       <Filter>02.GameObject\Monster</Filter>
     </ClInclude>
@@ -819,6 +822,9 @@
     </ClCompile>
     <ClCompile Include="..\Private\ComputeSpriteEmitter.cpp">
       <Filter>02.GameObject\Effect\Emitters\ComputePointParticle</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\EffectAssetRuntimeLoader.cpp">
+      <Filter>02.GameObject\Effect</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\InstancedMeshActor.cpp">
       <Filter>02.GameObject\InstancedMeshActor</Filter>

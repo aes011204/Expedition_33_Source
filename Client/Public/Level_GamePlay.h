@@ -4,6 +4,7 @@
 #include "Level.h"
 
 NS_BEGIN(Engine)
+class GameObject;
 class UI_Base;
 class UI_Button;
 class UI_Text;
@@ -30,6 +31,11 @@ private:
 	HRESULT Ready_Layer_Monster(const wstring& strLayerTag);
 	HRESULT Ready_Layer_Player(const wstring& strLayerTag);
     HRESULT Ready_Layer_Effect(const wstring& strLayerTag);
+
+    void    Sync_LuneRightHandEffect();
+
+private:
+    Shared<GameObject> _luneRightHandEffect{ nullptr };
 
 public:
 	static Shared<Level_GamePlay> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

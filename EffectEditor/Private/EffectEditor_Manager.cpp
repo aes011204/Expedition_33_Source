@@ -119,9 +119,9 @@ void EffectEditor_Manager::Render_MainMenuBar()
         if (ImGui::MenuItem("Save", "Ctrl+S", false, canSaveEffectDocument))
             Save_EffectDocument();
 
-        ImGui::MenuItem("Open", nullptr, false, false);
-        if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-            ImGui::SetTooltip("후속 지원 예정");
+        const bool canOpenEffectDocument = CanOpen_EffectDocument();
+        if (ImGui::MenuItem("Open", "Ctrl+O", false, canOpenEffectDocument))
+            Open_EffectDocument();
 
         ImGui::Separator();
 
@@ -179,11 +179,13 @@ void EffectEditor_Manager::Render_RuntimeToolbar()
         ImGui::SetTooltip("저장 가능한 effect 문서가 없습니다.");
 
     ImGui::SameLine();
-    ImGui::BeginDisabled();
-    ImGui::Button(ICON_FA_FOLDER_OPEN " Open");
-    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-        ImGui::SetTooltip("후속 지원 예정");
+    const bool canOpenEffectDocument = CanOpen_EffectDocument();
+    ImGui::BeginDisabled(!canOpenEffectDocument);
+    if (ImGui::Button(ICON_FA_FOLDER_OPEN " Open"))
+        Open_EffectDocument();
     ImGui::EndDisabled();
+    if (!canOpenEffectDocument && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+        ImGui::SetTooltip("열 수 있는 effect 문서가 없습니다.");
 
     ImGui::SameLine(0.f, 12.f);
     ImGui::TextDisabled("|");
@@ -369,6 +371,9 @@ void EffectEditor_Manager::Handle_Shortcuts()
     if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_S, false))
         Save_EffectDocument();
 
+    if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_O, false))
+        Open_EffectDocument();
+
     if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Space, false))
     {
         Toggle_WindowPair(L"Console", L"Content Browser");
@@ -468,6 +473,7 @@ void EffectEditor_Manager::Render_ShortcutHelp()
             draw_shortcut_row("Shift -", "Time Scale Down");
 
             draw_section_row("Windows / Global");
+            draw_shortcut_row("Ctrl + O", "Open Effect");
             draw_shortcut_row("F8", "Switch Camera");
             draw_shortcut_row("Alt + Enter", "Fullscreen Toggle");
             draw_shortcut_row("Ctrl + Space", "Console + Content Browser");
@@ -520,6 +526,22 @@ bool EffectEditor_Manager::Save_EffectDocument()
         return false;
 
     emitterView->Save();
+    return true;
+}
+
+bool EffectEditor_Manager::CanOpen_EffectDocument() const
+{
+    const Shared<Emitter_View> emitterView = Find_EffectAuthoringView();
+    return emitterView != nullptr && emitterView->CanOpen();
+}
+
+bool EffectEditor_Manager::Open_EffectDocument()
+{
+    const Shared<Emitter_View> emitterView = Find_EffectAuthoringView();
+    if (emitterView == nullptr || !emitterView->CanOpen())
+        return false;
+
+    emitterView->Open();
     return true;
 }
 
