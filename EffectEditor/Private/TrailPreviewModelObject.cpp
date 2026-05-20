@@ -5,8 +5,25 @@
 #include "Material.h"
 #include "ModelCom.h"
 #include "ShaderCom.h"
+#include "ShaderPassFinder.h"
+#include "EffectEditorInstance.h"
 
 NS_BEGIN(EffectEditor)
+
+namespace Internal
+{
+    const Vec3 kRestPosition{ 0.f, 0.f, 0.f };
+    const Vec3 kRestRotationDegrees{ 0.f, 0.f, 0.f };
+    const Vec3 kRestScale{ 1.f, 1.f, 1.f };
+
+    constexpr float kSwingDurationSeconds{ 1.2f };
+    constexpr float kSwingYawAmplitudeDegrees{ 52.f };
+    constexpr float kSwingRollAmplitudeDegrees{ 34.f };
+    constexpr float kSwingPitchAmplitudeDegrees{ 12.f };
+
+    const Vec3 kTrailBaseLocalOffset{ 0.f, 0.04f, 0.f };
+    const Vec3 kTrailTipLocalOffset{ 0.f, 1.35f, 0.f };
+}
 
 TrailPreviewModelObject::TrailPreviewModelObject(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : GameObject{ device, context }
@@ -23,17 +40,37 @@ HRESULT TrailPreviewModelObject::Initialize(void* arg)
     CHECK_FAILED(__super::Initialize(arg), E_FAIL);
     CHECK_FAILED(Ready_Components(), E_FAIL);
 
-    _transformCom->Set_Position(Vec3(0.f, 0.f, 0.f));
-    _transformCom->Set_RotationEuler(Vec3(0.f, 0.f, 0.f));
-    _transformCom->Set_Scale(Vec3(1.f, 1.f, 1.f));
+    Reset_Pose();
     Set_Name(L"Lanceram_TrailPreview");
 
     return S_OK;
 }
 
+void TrailPreviewModelObject::Update(float timeDelta)
+{
+    const bool visible = EDITOR != nullptr && EDITOR->Is_TrailPreviewWeaponVisible();
+    Set_Visible(visible);
+
+    if (!visible)
+    {
+        _swingTime = 0.f;
+        Reset_Pose();
+        return;
+    }
+
+    if (EDITOR->IsPlaying())
+    {
+        Update_Swing(timeDelta);
+        return;
+    }
+
+    _swingTime = 0.f;
+    Reset_Pose();
+}
+
 void TrailPreviewModelObject::Late_Update(float)
 {
-    if (_model != nullptr && _shader != nullptr)
+    if (Is_Visible() && _model != nullptr && _shader != nullptr)
         GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
 }
 
@@ -63,7 +100,7 @@ HRESULT TrailPreviewModelObject::Render()
 wstring TrailPreviewModelObject::Resolve_ModelPath()
 {
     wchar_t modulePath[MAX_PATH] = {};
-    if (0 == GetModuleFileNameW(nullptr, modulePath, MAX_PATH))
+    if (GetModuleFileNameW(nullptr, modulePath, MAX_PATH) == 0)
         return {};
 
     const fs::path runtimeRoot = fs::path(modulePath).parent_path();
@@ -83,6 +120,7 @@ HRESULT TrailPreviewModelObject::Ready_Components()
     const string modelPathUtf8 = String::ToString(modelPath);
     _model = ModelCom::Create(_device, _context, ModelType::NonAnim, modelPathUtf8.c_str(), Matrix::CreateScale(0.05f));
     CHECK_NULL(_model, E_FAIL);
+    Configure_Materials();
 
     LOG_INFO(
         "[TrailPreviewModel] loaded. path={}, meshes={}, materials={}",
@@ -100,6 +138,59 @@ HRESULT TrailPreviewModelObject::Bind_ShaderResources()
     CHECK_FAILED(GAME->Bind_CameraCB(_shader), E_FAIL);
 
     return S_OK;
+}
+
+void TrailPreviewModelObject::Configure_Materials()
+{
+    CHECK_NULL(_model);
+
+    const uint32 numMaterials = static_cast<uint32>(_model->Get_NumMaterials());
+    for (uint32 materialIndex = 0; materialIndex < numMaterials; ++materialIndex)
+    {
+        const Shared<Material> material = _model->Get_Material(materialIndex);
+        if (nullptr == material)
+            continue;
+
+        MaterialCB materialCB = material->Get_CB();
+        materialCB.emissiveColor = Vec4(0.48f, 0.75f, 0.66f, 1.f);
+        materialCB.emissiveIntensity = 1.f;
+        materialCB.emissiveMaskMul = 0.7f;
+        materialCB.normalStrength = 1.f;
+        materialCB.roughnessScale = 1.f;
+        materialCB.metalnessScale = 1.f;
+
+        material->Set_CB(materialCB);
+        material->Set_ForcedPassIndex(static_cast<int32>(VtxMeshPassIndex::PackedAR_NMEPass));
+    }
+
+    (void)Internal::kTrailBaseLocalOffset;
+    (void)Internal::kTrailTipLocalOffset;
+}
+
+void TrailPreviewModelObject::Reset_Pose()
+{
+    _transformCom->Set_Position(Internal::kRestPosition);
+    _transformCom->Set_RotationEuler(Internal::kRestRotationDegrees);
+    _transformCom->Set_Scale(Internal::kRestScale);
+}
+
+void TrailPreviewModelObject::Update_Swing(float timeDelta)
+{
+    _swingTime += max(0.f, timeDelta);
+
+    const float normalizedTime = fmodf(_swingTime, Internal::kSwingDurationSeconds) / Internal::kSwingDurationSeconds;
+    const float swing = sinf(normalizedTime * XM_2PI);
+    const float followThrough = sinf((normalizedTime * XM_2PI) + XM_PIDIV2);
+
+    _transformCom->Set_Position(Internal::kRestPosition);
+    _transformCom->Set_RotationEuler(
+        Vec3(
+            Internal::kRestRotationDegrees.x + followThrough * Internal::kSwingPitchAmplitudeDegrees,
+            Internal::kRestRotationDegrees.y + swing * Internal::kSwingYawAmplitudeDegrees,
+            Internal::kRestRotationDegrees.z + swing * Internal::kSwingRollAmplitudeDegrees
+        )
+    );
+    _transformCom->Set_Scale(Internal::kRestScale);
 }
 
 Shared<TrailPreviewModelObject> TrailPreviewModelObject::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
