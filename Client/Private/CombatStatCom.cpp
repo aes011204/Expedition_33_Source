@@ -24,48 +24,12 @@ HRESULT CombatStatCom::Initialize_Prototype()
 HRESULT CombatStatCom::Initialize(void* arg)
 {
     CHECK_FAILED(Component::Initialize(arg), E_FAIL);
-
-    //CombatStatDesc desc{};
-
-    //if (arg != nullptr)
-    //{
-    //    desc = *static_cast<CombatStatDesc*>(arg);
-    //}
-    //_statDesc = desc;
-
-  
-  
-    //_runtimeStat.CurHp = _statDesc.maxHp;
-    //_runtimeStat.CurAp = _statDesc.maxAp;
-    //_runtimeStat.CurShield = _statDesc.commonCharacterStats.ShieldPointsAtSpawn;
-    //_runtimeStat.physicalAttack = _statDesc.physicalAttack;
-    //_runtimeStat.physicalDefense = _statDesc.physicalDefense;
-
-
-    //if (Get_Owner()->Get_Name() == L"PW_Gustave")
-    //    _playerType = PlayerCharactorType::Gustave;
-    //else if (Get_Owner()->Get_Name() == L"PW_Lune")
-    //    _playerType = PlayerCharactorType::Lune;
-    //else if (Get_Owner()->Get_Name() == L"PW_Maelle")
-    //    _playerType = PlayerCharactorType::Maelle;
-
+    
 
  
 
     return S_OK;
 }
-
-
-//void CombatStatCom::ApplyDamage(float damage)
-//{
-//    Recalculate_Stats();
-//
-//    _hp = _maxHp;
-//
-//    Update_StatInfo();
-//  
-//    _runtimeStat.CurHp -= damage;
-//}
 
 json CombatStatCom::To_Json() const
 {
@@ -78,55 +42,28 @@ void CombatStatCom::From_Json(const json& data)
 
 }
 
-//bool CombatStatCom::Add_Stat(StatType type, int32 value)
-//{
-//    _runtimeStat.CurHp -= damage;
-//
-//    if (_runtimeStat.CurHp < 0.f)
-//    {
-//        _runtimeStat.CurHp = 0.f;
-//    }
-//}
-
-//void CombatStatCom::Heal(float amount)
-//{
-//    _runtimeStat.CurHp += amount;
-//
-//    if (_runtimeStat.CurHp > _statDesc.maxHp)
-//    {
-//        _runtimeStat.CurHp = _statDesc.maxHp;
-//    }
-//}
 
 EAliveStatus CombatStatCom::Get_CurAliveState()
 {
     return Get_RuntimeStat().CurAliveState;
 }
 
-//void CombatStatCom::Add_Ailment(
-//    const Shared<Buff>& ailment)
-//{
-//    _ailments.push_back(ailment);
-//}
-//
-//void CombatStatCom::Remove_Ailment(
-//    const Shared<Buff>& ailment)
-//{
-//    auto iter = std::find(
-//        _ailments.begin(),
-//        _ailments.end(),
-//        ailment);
-//
-//    if (iter != _ailments.end())
-//    {
-//        _ailments.erase(iter);
-//    }
-//}
-//
-//void CombatStatCom::Clear_Ailments()
-//{
-//    _ailments.clear();
-//}
+string CombatStatCom::Get_FirstSkill()
+{
+    if (Get_Owner()->Get_Name() == L"PB_Gustave")
+    {
+        return "Gustave_Default_Attack";
+    }
+    if (Get_Owner()->Get_Name() == L"PB_Lune")
+    {
+        return "Lune_Default_Attack";
+    }
+    if (Get_Owner()->Get_Name() == L"PB_Maelle")
+    {
+        return"Maelle_Default_Attack";
+    }
+}
+
 
 void CombatStatCom::Add_Shield(int32 value)
 {
@@ -143,31 +80,6 @@ void CombatStatCom::Remove_Shield(int32 value)
     }
 }
 
-//Shared<CombatStatCom> CombatStatCom::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
-//{
-//    auto instance = make_shared<CombatStatCom>(device, context);
-//
-//    if (FAILED(instance->Initialize_Prototype()))
-//    {
-//        LOG_ERROR("Failed to Created : CombatStatCom");
-//        return nullptr;
-//    }
-//
-//    return instance;
-//}
-
-//Shared<Component> CombatStatCom::Clone(void* arg)
-//{
-//    auto clone = make_shared<CombatStatCom>(*this);
-//
-//    if (FAILED(clone->Initialize(arg)))
-//    {
-//        MSG_BOX("Failed to Cloned : CombatStatCom");
-//        return nullptr;
-//    }
-//
-//    return clone;
-//}
 
 void CombatStatCom::Free()
 {
