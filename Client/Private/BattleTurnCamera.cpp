@@ -106,7 +106,7 @@ void BattleTurnCamera::Focus_Battle(const vector<BattleChar>& heroes, const vect
         heroCenter +
         backDir * 8.5f +          
         rightDir * 2.0f +         
-        Vec3(-130.f, -7.f, 436.f);     // 테스트용 임시 위치 보정
+        Vec3(2.f, 3.f, -2.f);     // 테스트용 임시 위치 보정
 
     Apply_LookAt(cameraPos, lookAt);
 }
