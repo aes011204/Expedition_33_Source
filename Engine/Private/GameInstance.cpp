@@ -1696,11 +1696,6 @@ void GameInstance::Draw_DebugLine(const DebugLineDesc& desc)
     return _debugManager->Draw_Line(desc);
 }
 
-void GameInstance::Draw_Grid(size_t xdivs, size_t ydivs, float size, const Vec4& color)
-{
-    return _debugManager->Draw_Grid(xdivs, ydivs, size, color);
-}
-
 void GameInstance::Draw_DebugTraceLine(const DebugTraceLineDesc& desc)
 {
     return _debugManager->Draw_TraceLine(desc);

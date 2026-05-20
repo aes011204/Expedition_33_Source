@@ -42,9 +42,39 @@ void ModelViewerObject::Update(float timeDelta)
 {
 	GameObject::Update(timeDelta);
 
-    // 모델이 10000배 수준으로 크므로, 그리드 크기를 100,000 수준으로 대폭 키우고
-    // 격자 간격을 유지하기 위해 분할 수도 100x100으로 설정합니다.
-    GAME->Draw_Grid(100, 100, 100000.f, Vec4(0.5f, 0.5f, 0.5f, 1.f));
+    // 엔진의 Update 구조를 활용하여 Background > Grid > Object 순서를 만듭니다.
+    // 1. 배경: 엔진의 Clear_Buffers (이미 되어 있음)
+    // 2. 그리드: Draw_DebugLine을 depthEnabled = false로 호출하여 배경 바로 위에 그립니다.
+    // 3. 오브젝트: 이후 Render_NonBlend에서 모델이 이 위에 그려집니다.
+    
+    DebugRenderStyle style{};
+    style.color = Vec4(0.2f, 0.2f, 0.2f, 1.f);
+    style.depthEnabled = false; // 배경 바로 위에 그리도록 깊이 테스트 제외 (Grid > Background)
+
+    float range = 10000.f; // 거대 모델 고려
+    float spacing = 1.f; // 큼직한 가이드 (1 1 단위 느낌)
+    int numLines = static_cast<int>(range / spacing);
+
+    for (int i = -numLines; i <= numLines; ++i)
+    {
+        float pos = i * spacing;
+        
+        // Z축 평행선
+        DebugLineDesc descZ{};
+        descZ.start = Vec3(pos, -0.1f, -range);
+        descZ.end = Vec3(pos, -0.1f, range);
+        descZ.style = style;
+        if (pos == 0.f) descZ.style.color = Vec4(0.5f, 0.2f, 0.2f, 1.f); // X축 (Red)
+        GAME->Draw_DebugLine(descZ);
+
+        // X축 평행선
+        DebugLineDesc descX{};
+        descX.start = Vec3(-range, -0.1f, pos);
+        descX.end = Vec3(range, -0.1f, pos);
+        descX.style = style;
+        if (pos == 0.f) descX.style.color = Vec4(0.2f, 0.2f, 0.5f, 1.f); // Z축 (Blue)
+        GAME->Draw_DebugLine(descX);
+    }
 
 	if (_modelCom && _modelCom->Is_Skeletal())
 	{
@@ -74,7 +104,6 @@ HRESULT ModelViewerObject::Render()
         {
             if (FAILED(_modelCom->Bind_Material(_animShaderCom.get(), "g_DiffuseTexture", i, MaterialTextureSlot::BaseColor)))
             {
-                // 실패했다면(텍스처가 없다면) 디폴트 텍스처를 강제로 바인딩!
                 if (_defaultTextureSRV != nullptr)
                 {
                     _animShaderCom->Bind_SRV("g_DiffuseTexture", _defaultTextureSRV.Get());
