@@ -174,8 +174,8 @@ void BattleActionExecutor::Update_ActionMovement(float timeDelta, Action& action
         return;
 
     const BattleActionPhase& phase = phases[action._curAnimIndex];
-    //if (phase.movementPolicy == BattleMovementPolicy::None)
-    //    return;
+    if (phase.movementPolicy == BattleMovementPolicy::Custom)
+        return;
 
     //LOG_INFO("{}", action._curAnimIndex);
 
@@ -192,7 +192,7 @@ void BattleActionExecutor::Update_ActionMovement(float timeDelta, Action& action
     {
         ///TODO :: 지금 100 곱한거는 임시 정확한 규칙 찾아야함 + 현제 회전에 맞게 변형해서 곱해야함
         const auto& rm = action._curChar.ModelCom->Get_RootTransformVelocity();
-        const Vec3 delta = rm.position * 100;
+        const Vec3 delta = rm.position * 0.01/** 100*/;
 
         //("position : {}", rm.position.z);
 
@@ -241,7 +241,7 @@ void BattleActionExecutor::Update_ActionMovement(float timeDelta, Action& action
     if (phase.movementPolicy == BattleMovementPolicy::RootMotionToTarget)
     {
         const auto& rm = action._curChar.ModelCom->Get_RootTransformVelocity();
-        Vec3 localDelta = rm.position * 100.f;
+        Vec3 localDelta = rm.position *0.01/** 100.f*/;
         localDelta.y = 0.f;
 
         if (localDelta.LengthSquared() <= 0.0001f)
