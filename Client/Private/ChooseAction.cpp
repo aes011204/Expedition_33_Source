@@ -71,6 +71,14 @@ void ChooseAction::Update(float timeDelta)
         return;
     }
 
+    if (GAME->KeyDown(KEY_TYPE::RBUTTON))
+    {
+        LOG_DEBUG("ChooseAction::Update: RBUTTON -> ConsumableItem -> Free Aim Shoot");
+        owner->Get_TurnAction().type = EBattleContext::FreeAimShoot;
+        battleFSM->Change_State(BattleTurnState::FreeAimTargeting);
+        return;
+    }
+
     // 궁극기는 일단 제거
     //if (GAME->KeyDown(KEY_TYPE::KEY_4))
     //{

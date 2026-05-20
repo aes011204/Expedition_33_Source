@@ -4,7 +4,6 @@
 namespace Client::Constants::UI
 {
     inline constexpr wchar_t Loading_UI_Json_Path[] = L"UI/UI_Json/Scene/Loading/UI_LoadingScean.json";
-    inline constexpr wchar_t Loading_UI_Animation_Dir[] = L"UI/UI_Animations";
     inline constexpr wchar_t UI_CharacterStatus_Path[] = L"UI/UI_Json/Character/UI_CharacterStatus.json";
     inline constexpr wchar_t UI_SavePoint_Path[] = L"UI/UI_Json/CommonSystem/UI_SavePoint.json";
 
@@ -27,6 +26,12 @@ namespace Client::Constants::UI
     inline constexpr wchar_t UI_Monster_Hp_Path[] = L"UI/UI_Json/BattleSystem/UI_Monster_HP_Bar.json";
     inline constexpr wchar_t UI_Target_Monster_Path[] = L"UI/UI_Json/BattleSystem/UI_Target_Monster.json";
 
+    inline constexpr wchar_t UI_CrossAir_Path[] = L"UI/UI_Json/BattleSystem/UI_CrossAir.json";
+}
+
+namespace Client::Constants::UI_Anim
+{
+    inline constexpr wchar_t UI_Animation_Dir[] = L"UI/UI_Animations";
 }
 
 namespace Client::Constants::Map

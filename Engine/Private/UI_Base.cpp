@@ -135,6 +135,16 @@ HRESULT UI_Base::Render()
     return S_OK;
 }
 
+bool UI_Base::Play_UIAnimation(const wstring& animationName, bool restart)
+{
+    return _animationPlayer.Play_KeyframeAnimation(animationName, restart); // 실제 선택 재생은 AnimationPlayer가 맡는다.
+}
+
+void UI_Base::Stop_UIAnimation()
+{
+    _animationPlayer.Stop();
+}
+
 bool UI_Base::Is_EffectivelyOpen() const
 {
     if (!_isOpen)

@@ -654,6 +654,8 @@
     <ClInclude Include="..\Public\GameplayUI_World.h" />
     <ClInclude Include="..\Public\GameplayUI_Battle.h" />
     <ClInclude Include="..\public\ANS_Move.h" />
+    <ClInclude Include="..\Public\FreeAimTargeting.h" />
+    <ClInclude Include="..\Public\UI_CrossHair.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -1061,6 +1063,8 @@
     <ClCompile Include="..\Private\GameplayUI_World.cpp" />
     <ClCompile Include="..\Private\GameplayUI_Battle.cpp" />
     <ClCompile Include="..\private\ANS_Move.cpp" />
+    <ClCompile Include="..\Private\FreeAimTargeting.cpp" />
+    <ClCompile Include="..\Private\UI_CrossHair.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">
