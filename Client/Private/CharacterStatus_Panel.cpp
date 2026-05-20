@@ -66,10 +66,7 @@ void CharacterStatus_Panel::Update(float timeDelta)
 
 void CharacterStatus_Panel::Open()
 {
-    _isOpen = true;
-
-    if (_root)
-        _root->Open();
+    UI_RuntimePanelBase::Open();
 
     const HeroId activeHeroId = CLIENT->Get_HeroId(CLIENT->Get_ActiveHeroSlot());
     _selectedHeroIndex = Get_CharacterStatusIndex(activeHeroId);
@@ -89,10 +86,7 @@ void CharacterStatus_Panel::Open()
 
 void CharacterStatus_Panel::Close()
 {
-    _isOpen = false;
-
-    if (_root)
-        _root->Close();
+    UI_RuntimePanelBase::Close();
 
     CLIENT->Hide_Preview();
 
@@ -102,10 +96,8 @@ void CharacterStatus_Panel::Close()
 
 void CharacterStatus_Panel::Toggle()
 {
-    if (_isOpen)
-        Close();
-    else
-        Open();
+    UI_RuntimePanelBase::Toggle();
+
 }
 
 void CharacterStatus_Panel::Handle_SelectionInput()

@@ -136,9 +136,9 @@ HRESULT Player_WorldBase::Ready_Components()
 
     moveDesc.cct.radius = 0.32f;
     moveDesc.cct.height = 1.50f;
-    moveDesc.cct.stepOffset = 0.35f;
-    moveDesc.cct.contactOffset = 0.03f;
-    moveDesc.cct.slopeLimitDeg = 49.f;
+    moveDesc.cct.stepOffset = 0.45f;
+    moveDesc.cct.contactOffset = 0.05f;
+    moveDesc.cct.slopeLimitDeg = 55.f;
     moveDesc.cct.groundLerpSpeed = 15.f;
 
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_Movement"), _movementCom, &moveDesc), E_FAIL);
