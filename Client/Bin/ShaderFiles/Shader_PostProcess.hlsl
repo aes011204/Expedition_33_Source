@@ -62,11 +62,18 @@ PS_OUT_COLOR PS_Debug(PS_IN In)
     return Out;
 }
 
-PS_OUT_BACKBUFFER PS_BloomExtract(PS_IN In)
+PS_OUT_BACKBUFFER PS_BloomExtractHalf(PS_IN In)
 {
     PS_OUT_BACKBUFFER Out;
 
-    float3 color = g_HDRTexture.Sample(LinearClampSampler, In.Texcoord).rgb;
+    float2 texel = max(g_PP_BloomTexelSize, float2(EPSILON, EPSILON));
+    float2 offset = texel * 1.5f;
+
+    float3 c0 = g_HDRTexture.Sample(LinearClampSampler, In.Texcoord + float2(-offset.x, -offset.y)).rgb;
+    float3 c1 = g_HDRTexture.Sample(LinearClampSampler, In.Texcoord + float2(offset.x, -offset.y)).rgb;
+    float3 c2 = g_HDRTexture.Sample(LinearClampSampler, In.Texcoord + float2(-offset.x, offset.y)).rgb;
+    float3 c3 = g_HDRTexture.Sample(LinearClampSampler, In.Texcoord + float2(offset.x, offset.y)).rgb;
+    float3 color = (c0 + c1 + c2 + c3) * 0.25f;
 
     // 컬러를 밝기로 표현
     float luminant = dot(color, REC_709);
@@ -110,6 +117,13 @@ PS_OUT_COLOR PS_BloomBlur_V(PS_IN In)
     return Out;
 }
 
+PS_OUT_COLOR PS_BloomUpsampleAdd(PS_IN In)
+{
+    PS_OUT_COLOR Out;
+    Out.Color = float4(SampleBloomUpsampleAdd(In.Texcoord), 1.f);
+    return Out;
+}
+
 PS_OUT_BACKBUFFER PS_ToneMapping(PS_IN In)
 {
     PS_OUT_BACKBUFFER Out;
@@ -119,7 +133,7 @@ PS_OUT_BACKBUFFER PS_ToneMapping(PS_IN In)
     if (HasPostProcessFeature(POSTPROCESS_FLAG_BLOOM))
         bloomColor = g_BloomTexture.Sample(LinearClampSampler, In.Texcoord).rgb;
 
-    float3 color = hdr.rgb + bloomColor;
+    float3 color = hdr.rgb + bloomColor * g_PP_BloomIntensity;
     
     // Exposure
     if (HasPostProcessFeature(POSTPROCESS_FLAG_EXPOSURE))
@@ -166,7 +180,6 @@ PS_OUT_BACKBUFFER PS_ToneMapping(PS_IN In)
         }
     }
     
-    
     // Gamma
     if (HasPostProcessFeature(POSTPROCESS_FLAG_GAMMA))
     {
@@ -181,9 +194,10 @@ PS_OUT_BACKBUFFER PS_ToneMapping(PS_IN In)
 technique11 DefaultTechnique
 {
     PASS_RS_DS_BS_VP(HDRDebug,          RS_Default, DSS_None,   BS_Default, VS_MAIN,    PS_ToneMapping)             // 0
-    PASS_RS_DS_BS_VP(BloomExtract,      RS_Default, DSS_None,   BS_Default, VS_MAIN,    PS_BloomExtract)            // 1
+    PASS_RS_DS_BS_VP(BloomExtractHalf,  RS_Default, DSS_None,   BS_Default, VS_MAIN,    PS_BloomExtractHalf)        // 1
     PASS_RS_DS_BS_VP(BloomDownsample,   RS_Default, DSS_None,   BS_Default, VS_MAIN,    PS_BloomDownsample)         // 2
     PASS_RS_DS_BS_VP(BloomBlurH,        RS_Default, DSS_None,   BS_Default, VS_MAIN,    PS_BloomBlur_H)             // 3
     PASS_RS_DS_BS_VP(BloomBlurV,        RS_Default, DSS_None,   BS_Default, VS_MAIN,    PS_BloomBlur_V)             // 4
-    PASS_RS_DS_BS_VP(ToneMapping,       RS_Default, DSS_None,   BS_Default, VS_MAIN,    PS_ToneMapping)             // 5
+    PASS_RS_DS_BS_VP(BloomUpsampleAdd,  RS_Default, DSS_None,   BS_Default, VS_MAIN,    PS_BloomUpsampleAdd)        // 5
+    PASS_RS_DS_BS_VP(ToneMapping,       RS_Default, DSS_None,   BS_Default, VS_MAIN,    PS_ToneMapping)             // 6
 }

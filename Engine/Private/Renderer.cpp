@@ -623,7 +623,9 @@ void Renderer::Render_PostProcess()
 
     // PostProcess Params
     auto& params = _ppPipeline->Get_PostProcessParams();
-    const Vec2 baseTexelSize = Vec2{ 1.f / GAME->Get_ViewportWidth(), 1.f / GAME->Get_ViewportHeight() };
+    const uint32 viewportWidth = max(1u, GAME->Get_ViewportWidth());
+    const uint32 viewportHeight = max(1u, GAME->Get_ViewportHeight());
+    const Vec2 baseTexelSize = Vec2{ 1.f / viewportWidth, 1.f / viewportHeight };
 
     params.bloomTexelSize = baseTexelSize;
 
@@ -645,104 +647,190 @@ void Renderer::Render_PostProcess()
     const bool useBloom = _ppPipeline->Has_PostProcessFeature(PostProcessFeature::Bloom);
     if (useBloom)
     {
-        // HDR -> Bloom 추출
+        const uint32 halfWidth = max(1u, viewportWidth / 2u);
+        const uint32 halfHeight = max(1u, viewportHeight / 2u);
+        const uint32 quarterWidth = max(1u, viewportWidth / 4u);
+        const uint32 quarterHeight = max(1u, viewportHeight / 4u);
+        const uint32 eighthWidth = max(1u, viewportWidth / 8u);
+        const uint32 eighthHeight = max(1u, viewportHeight / 8u);
+
+        auto bindBloomTexelSize = [&](uint32 srcWidth, uint32 srcHeight, const wchar_t* logTag)
+        {
+            params.bloomTexelSize = Vec2{ 1.f / max(1u, srcWidth), 1.f / max(1u, srcHeight) };
+            RETURN_LOG_IF_FAILED(
+                _postprocessShader->Bind_CBufferData(_ppPipeline->Get_PostProcessParams()),
+                logTag);
+        };
+
+        auto renderBloomPass = [&](const wchar_t* dstMrt, const wchar_t* srcRt, PostProcessPass pass, const wchar_t* beginLog, const wchar_t* bindLog, const wchar_t* shaderLog, const wchar_t* renderLog, const wchar_t* endLog)
+        {
+            RETURN_LOG_IF_FAILED(
+                GAME->Begin_MRT(dstMrt, NotUseDSV, ClearRTV),
+                beginLog);
+
+            ENDMRT_RETURN_LOG_IF_FAILED(
+                GAME->Bind_RT_ShaderResource(_postprocessShader, "g_BloomTexture", srcRt),
+                bindLog);
+
+            ENDMRT_RETURN_LOG_IF_FAILED(
+                _postprocessShader->Begin(ETOI(pass)),
+                shaderLog);
+
+            ENDMRT_RETURN_LOG_IF_FAILED(
+                _viBuffer->Render(),
+                renderLog);
+
+            RETURN_LOG_IF_FAILED(
+                GAME->End_MRT(),
+                endLog);
+
+            Add_RenderCall();
+        };
+
+        auto renderBloomUpsamplePass = [&](const wchar_t* dstMrt, const wchar_t* smallRt, const wchar_t* baseRt, const wchar_t* beginLog, const wchar_t* smallBindLog, const wchar_t* baseBindLog, const wchar_t* shaderLog, const wchar_t* renderLog, const wchar_t* endLog)
+        {
+            RETURN_LOG_IF_FAILED(
+                GAME->Begin_MRT(dstMrt, NotUseDSV, ClearRTV),
+                beginLog);
+
+            ENDMRT_RETURN_LOG_IF_FAILED(
+                GAME->Bind_RT_ShaderResource(_postprocessShader, "g_BloomTexture", smallRt),
+                smallBindLog);
+
+            ENDMRT_RETURN_LOG_IF_FAILED(
+                GAME->Bind_RT_ShaderResource(_postprocessShader, "g_BloomBaseTexture", baseRt),
+                baseBindLog);
+
+            ENDMRT_RETURN_LOG_IF_FAILED(
+                _postprocessShader->Begin(ETOI(PostProcessPass::BloomUpsampleAdd)),
+                shaderLog);
+
+            ENDMRT_RETURN_LOG_IF_FAILED(
+                _viBuffer->Render(),
+                renderLog);
+
+            RETURN_LOG_IF_FAILED(
+                GAME->End_MRT(),
+                endLog);
+
+            Add_RenderCall();
+        };
+
+        bindBloomTexelSize(viewportWidth, viewportHeight, L"Render_PostProcess:FAIL Bind_CBufferData(BloomExtractHalf)");
+
         RETURN_LOG_IF_FAILED(
-            GAME->Begin_MRT(MRT::BloomExtract, NotUseDSV, ClearRTV),
-            L"Render_PostProcess:FAIL Begin_MRT(BloomExtract)");
+            GAME->Begin_MRT(MRT::BloomHalfA, NotUseDSV, ClearRTV),
+            L"Render_PostProcess:FAIL Begin_MRT(BloomHalfA-Extract)");
 
         ENDMRT_RETURN_LOG_IF_FAILED(
             GAME->Bind_RT_ShaderResource(_postprocessShader, "g_HDRTexture", RT::HDRColor),
-            L"Render_PostProcess:FAIL Bind_RT_ShaderResource(g_HDRTexture)");
+            L"Render_PostProcess:FAIL Bind_RT_ShaderResource(g_HDRTexture-Extract)");
 
         ENDMRT_RETURN_LOG_IF_FAILED(
-            _postprocessShader->Begin(ETOI(PostProcessPass::BloomExtract)),
-            L"Render_PostProcess:FAIL ShaderBegin(BloomExtract)");
-
-        ENDMRT_RETURN_LOG_IF_FAILED(
-            _viBuffer->Render(),
-            L"Render_PostProcess:FAIL RenderRect(BloomExtract)");
-
-        RETURN_LOG_IF_FAILED(
-            GAME->End_MRT(),
-            L"Render_PostProcess:FAIL End_MRT(BloomExtract)");
-
-        Add_RenderCall();
-
-        // Bloom Downsample : BloomExtract -> BloomBlur
-        RETURN_LOG_IF_FAILED(
-            GAME->Begin_MRT(MRT::BloomBlur, NotUseDSV, ClearRTV),
-            L"Render_PostProcess:FAIL Begin_MRT(BloomBlur-Downsample)");
-
-        ENDMRT_RETURN_LOG_IF_FAILED(
-            GAME->Bind_RT_ShaderResource(_postprocessShader, "g_BloomTexture", RT::BloomExtract),
-            L"Render_PostProcess:FAIL Bind_RT_ShaderResource(g_BloomTexture:Extract)");
-
-        ENDMRT_RETURN_LOG_IF_FAILED(
-            _postprocessShader->Begin(ETOI(PostProcessPass::BloomDownsample)),
-            L"Render_PostProcess:FAIL ShaderBegin(BloomDownsample)");
+            _postprocessShader->Begin(ETOI(PostProcessPass::BloomExtractHalf)),
+            L"Render_PostProcess:FAIL ShaderBegin(BloomExtractHalf)");
 
         ENDMRT_RETURN_LOG_IF_FAILED(
             _viBuffer->Render(),
-            L"Render_PostProcess:FAIL RenderRect(BloomDownsample)");
+            L"Render_PostProcess:FAIL RenderRect(BloomExtractHalf)");
 
         RETURN_LOG_IF_FAILED(
             GAME->End_MRT(),
-            L"Render_PostProcess:FAIL End_MRT(BloomBlur-Downsample)");
+            L"Render_PostProcess:FAIL End_MRT(BloomHalfA-Extract)");
 
         Add_RenderCall();
 
-        // 텍셀 사이즈를 키워서 다운샘플링 효과를 낸다.
-        params.bloomTexelSize = Vec2{ baseTexelSize.x * 2.f, baseTexelSize.y * 2.f };
+        bindBloomTexelSize(halfWidth, halfHeight, L"Render_PostProcess:FAIL Bind_CBufferData(BloomDownsample-Quarter)");
+        renderBloomPass(
+            MRT::BloomQuarterA, RT::BloomHalfA, PostProcessPass::BloomDownsample,
+            L"Render_PostProcess:FAIL Begin_MRT(BloomQuarterA-Downsample)",
+            L"Render_PostProcess:FAIL Bind_RT_ShaderResource(g_BloomTexture:HalfA)",
+            L"Render_PostProcess:FAIL ShaderBegin(BloomDownsample-Quarter)",
+            L"Render_PostProcess:FAIL RenderRect(BloomDownsample-Quarter)",
+            L"Render_PostProcess:FAIL End_MRT(BloomQuarterA-Downsample)");
 
-        RETURN_LOG_IF_FAILED(
-            _postprocessShader->Bind_CBufferData(_ppPipeline->Get_PostProcessParams()),
-            L"Render_PostProcess:FAIL Bind_CBufferData(DownsampleTexel)");
+        bindBloomTexelSize(quarterWidth, quarterHeight, L"Render_PostProcess:FAIL Bind_CBufferData(BloomDownsample-Eighth)");
+        renderBloomPass(
+            MRT::BloomEighthA, RT::BloomQuarterA, PostProcessPass::BloomDownsample,
+            L"Render_PostProcess:FAIL Begin_MRT(BloomEighthA-Downsample)",
+            L"Render_PostProcess:FAIL Bind_RT_ShaderResource(g_BloomTexture:QuarterA)",
+            L"Render_PostProcess:FAIL ShaderBegin(BloomDownsample-Eighth)",
+            L"Render_PostProcess:FAIL RenderRect(BloomDownsample-Eighth)",
+            L"Render_PostProcess:FAIL End_MRT(BloomEighthA-Downsample)");
 
-        // Bloom Blur_H : BloomBlur -> BloomExtract
-        RETURN_LOG_IF_FAILED(
-            GAME->Begin_MRT(MRT::BloomExtract, NotUseDSV, ClearRTV),
-            L"Render_PostProcess:FAIL Begin_MRT(BloomExtract-BlurH)");
+        bindBloomTexelSize(eighthWidth, eighthHeight, L"Render_PostProcess:FAIL Bind_CBufferData(BloomBlur-EighthH)");
+        renderBloomPass(
+            MRT::BloomEighthB, RT::BloomEighthA, PostProcessPass::BloomBlurH,
+            L"Render_PostProcess:FAIL Begin_MRT(BloomEighthB-BlurH)",
+            L"Render_PostProcess:FAIL Bind_RT_ShaderResource(g_BloomTexture:EighthA)",
+            L"Render_PostProcess:FAIL ShaderBegin(BloomBlurH-Eighth)",
+            L"Render_PostProcess:FAIL RenderRect(BloomBlurH-Eighth)",
+            L"Render_PostProcess:FAIL End_MRT(BloomEighthB-BlurH)");
 
-        ENDMRT_RETURN_LOG_IF_FAILED(
-            GAME->Bind_RT_ShaderResource(_postprocessShader, "g_BloomTexture", RT::BloomBlur),
-            L"Render_PostProcess:FAIL Bind_RT_ShaderResource(g_BloomTexture:BlurSrc)");
+        bindBloomTexelSize(eighthWidth, eighthHeight, L"Render_PostProcess:FAIL Bind_CBufferData(BloomBlur-EighthV)");
+        renderBloomPass(
+            MRT::BloomEighthA, RT::BloomEighthB, PostProcessPass::BloomBlurV,
+            L"Render_PostProcess:FAIL Begin_MRT(BloomEighthA-BlurV)",
+            L"Render_PostProcess:FAIL Bind_RT_ShaderResource(g_BloomTexture:EighthB)",
+            L"Render_PostProcess:FAIL ShaderBegin(BloomBlurV-Eighth)",
+            L"Render_PostProcess:FAIL RenderRect(BloomBlurV-Eighth)",
+            L"Render_PostProcess:FAIL End_MRT(BloomEighthA-BlurV)");
 
-        ENDMRT_RETURN_LOG_IF_FAILED(
-            _postprocessShader->Begin(ETOI(PostProcessPass::BloomBlurH)),
-            L"Render_PostProcess:FAIL ShaderBegin(BloomBlurH)");
+        bindBloomTexelSize(quarterWidth, quarterHeight, L"Render_PostProcess:FAIL Bind_CBufferData(BloomBlur-QuarterH)");
+        renderBloomPass(
+            MRT::BloomQuarterB, RT::BloomQuarterA, PostProcessPass::BloomBlurH,
+            L"Render_PostProcess:FAIL Begin_MRT(BloomQuarterB-BlurH)",
+            L"Render_PostProcess:FAIL Bind_RT_ShaderResource(g_BloomTexture:QuarterA-Blur)",
+            L"Render_PostProcess:FAIL ShaderBegin(BloomBlurH-Quarter)",
+            L"Render_PostProcess:FAIL RenderRect(BloomBlurH-Quarter)",
+            L"Render_PostProcess:FAIL End_MRT(BloomQuarterB-BlurH)");
 
-        ENDMRT_RETURN_LOG_IF_FAILED(
-            _viBuffer->Render(),
-            L"Render_PostProcess:FAIL RenderRect(BloomBlurH)");
+        bindBloomTexelSize(quarterWidth, quarterHeight, L"Render_PostProcess:FAIL Bind_CBufferData(BloomBlur-QuarterV)");
+        renderBloomPass(
+            MRT::BloomQuarterA, RT::BloomQuarterB, PostProcessPass::BloomBlurV,
+            L"Render_PostProcess:FAIL Begin_MRT(BloomQuarterA-BlurV)",
+            L"Render_PostProcess:FAIL Bind_RT_ShaderResource(g_BloomTexture:QuarterB)",
+            L"Render_PostProcess:FAIL ShaderBegin(BloomBlurV-Quarter)",
+            L"Render_PostProcess:FAIL RenderRect(BloomBlurV-Quarter)",
+            L"Render_PostProcess:FAIL End_MRT(BloomQuarterA-BlurV)");
 
-        RETURN_LOG_IF_FAILED(
-            GAME->End_MRT(),
-            L"Render_PostProcess:FAIL End_MRT(BloomExtract-BlurH)");
+        bindBloomTexelSize(halfWidth, halfHeight, L"Render_PostProcess:FAIL Bind_CBufferData(BloomBlur-HalfH)");
+        renderBloomPass(
+            MRT::BloomHalfB, RT::BloomHalfA, PostProcessPass::BloomBlurH,
+            L"Render_PostProcess:FAIL Begin_MRT(BloomHalfB-BlurH)",
+            L"Render_PostProcess:FAIL Bind_RT_ShaderResource(g_BloomTexture:HalfA-Blur)",
+            L"Render_PostProcess:FAIL ShaderBegin(BloomBlurH-Half)",
+            L"Render_PostProcess:FAIL RenderRect(BloomBlurH-Half)",
+            L"Render_PostProcess:FAIL End_MRT(BloomHalfB-BlurH)");
 
-        Add_RenderCall();
+        bindBloomTexelSize(halfWidth, halfHeight, L"Render_PostProcess:FAIL Bind_CBufferData(BloomBlur-HalfV)");
+        renderBloomPass(
+            MRT::BloomHalfA, RT::BloomHalfB, PostProcessPass::BloomBlurV,
+            L"Render_PostProcess:FAIL Begin_MRT(BloomHalfA-BlurV)",
+            L"Render_PostProcess:FAIL Bind_RT_ShaderResource(g_BloomTexture:HalfB)",
+            L"Render_PostProcess:FAIL ShaderBegin(BloomBlurV-Half)",
+            L"Render_PostProcess:FAIL RenderRect(BloomBlurV-Half)",
+            L"Render_PostProcess:FAIL End_MRT(BloomHalfA-BlurV)");
 
-        // Bloom Blur_V : BloomExtract -> BloomBlur
-        RETURN_LOG_IF_FAILED(
-            GAME->Begin_MRT(MRT::BloomBlur, NotUseDSV, ClearRTV),
-            L"Render_PostProcess:FAIL Begin_MRT(BloomBlur-BlurV)");
+        bindBloomTexelSize(quarterWidth, quarterHeight, L"Render_PostProcess:FAIL Bind_CBufferData(BloomUpsample-Quarter)");
+        renderBloomUpsamplePass(
+            MRT::BloomQuarterB, RT::BloomEighthA, RT::BloomQuarterA,
+            L"Render_PostProcess:FAIL Begin_MRT(BloomQuarterB-Upsample)",
+            L"Render_PostProcess:FAIL Bind_RT_ShaderResource(g_BloomTexture:EighthA-Upsample)",
+            L"Render_PostProcess:FAIL Bind_RT_ShaderResource(g_BloomBaseTexture:QuarterA)",
+            L"Render_PostProcess:FAIL ShaderBegin(BloomUpsampleAdd-Quarter)",
+            L"Render_PostProcess:FAIL RenderRect(BloomUpsampleAdd-Quarter)",
+            L"Render_PostProcess:FAIL End_MRT(BloomQuarterB-Upsample)");
 
-        ENDMRT_RETURN_LOG_IF_FAILED(
-            GAME->Bind_RT_ShaderResource(_postprocessShader, "g_BloomTexture", RT::BloomExtract),
-            L"Render_PostProcess:FAIL Bind_RT_ShaderResource(g_BloomTexture:ExtractForV)");
-
-        ENDMRT_RETURN_LOG_IF_FAILED(
-            _postprocessShader->Begin(ETOI(PostProcessPass::BloomBlurV)),
-            L"Render_PostProcess:FAIL ShaderBegin(BloomBlurV)");
-
-        ENDMRT_RETURN_LOG_IF_FAILED(
-            _viBuffer->Render(),
-            L"Render_PostProcess:FAIL RenderRect(BloomBlurV)");
-
-        RETURN_LOG_IF_FAILED(
-            GAME->End_MRT(),
-            L"Render_PostProcess:FAIL End_MRT(BloomBlur-BlurV)");
-
-        Add_RenderCall();
+        bindBloomTexelSize(halfWidth, halfHeight, L"Render_PostProcess:FAIL Bind_CBufferData(BloomUpsample-Half)");
+        renderBloomUpsamplePass(
+            MRT::BloomHalfB, RT::BloomQuarterB, RT::BloomHalfA,
+            L"Render_PostProcess:FAIL Begin_MRT(BloomHalfB-Upsample)",
+            L"Render_PostProcess:FAIL Bind_RT_ShaderResource(g_BloomTexture:QuarterB-Upsample)",
+            L"Render_PostProcess:FAIL Bind_RT_ShaderResource(g_BloomBaseTexture:HalfA)",
+            L"Render_PostProcess:FAIL ShaderBegin(BloomUpsampleAdd-Half)",
+            L"Render_PostProcess:FAIL RenderRect(BloomUpsampleAdd-Half)",
+            L"Render_PostProcess:FAIL End_MRT(BloomHalfB-Upsample)");
     }
 
     // Light 기록
@@ -762,7 +850,7 @@ void Renderer::Render_PostProcess()
         L"Render_PostProcess:FAIL Bind_RT_ShaderResource(g_HDRTexture-ToneMap)");
 
     RETURN_LOG_IF_FAILED(
-        GAME->Bind_RT_ShaderResource(_postprocessShader, "g_BloomTexture", RT::BloomBlur),
+        GAME->Bind_RT_ShaderResource(_postprocessShader, "g_BloomTexture", RT::BloomHalfB),
         L"Render_PostProcess:FAIL Bind_RT_ShaderResource(g_BloomTexture-ToneMap)");
 
     RETURN_LOG_IF_FAILED(
@@ -841,14 +929,28 @@ HRESULT Renderer::Ready_RenderTargets()
 
 
     // MRT_PostProcess
-    CHECK_FAILED(GAME->Add_RenderTarget(RT::BloomExtract,
-        width, height, DXGI_FORMAT_R16G16B16A16_FLOAT, Color(0.f, 0.f, 0.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
-    CHECK_FAILED(GAME->Add_RenderTarget(RT::BloomBlur,
-        width, height, DXGI_FORMAT_R16G16B16A16_FLOAT, Color(0.f, 0.f, 0.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
+    const uint32 bloomHalfWidth = max(1u, width / 2u);
+    const uint32 bloomHalfHeight = max(1u, height / 2u);
+    const uint32 bloomQuarterWidth = max(1u, width / 4u);
+    const uint32 bloomQuarterHeight = max(1u, height / 4u);
+    const uint32 bloomEighthWidth = max(1u, width / 8u);
+    const uint32 bloomEighthHeight = max(1u, height / 8u);
+
+    CHECK_FAILED(GAME->Add_RenderTarget(RT::BloomHalfA,
+        bloomHalfWidth, bloomHalfHeight, DXGI_FORMAT_R16G16B16A16_FLOAT, Color(0.f, 0.f, 0.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
+    CHECK_FAILED(GAME->Add_RenderTarget(RT::BloomHalfB,
+        bloomHalfWidth, bloomHalfHeight, DXGI_FORMAT_R16G16B16A16_FLOAT, Color(0.f, 0.f, 0.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
+    CHECK_FAILED(GAME->Add_RenderTarget(RT::BloomQuarterA,
+        bloomQuarterWidth, bloomQuarterHeight, DXGI_FORMAT_R16G16B16A16_FLOAT, Color(0.f, 0.f, 0.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
+    CHECK_FAILED(GAME->Add_RenderTarget(RT::BloomQuarterB,
+        bloomQuarterWidth, bloomQuarterHeight, DXGI_FORMAT_R16G16B16A16_FLOAT, Color(0.f, 0.f, 0.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
+    CHECK_FAILED(GAME->Add_RenderTarget(RT::BloomEighthA,
+        bloomEighthWidth, bloomEighthHeight, DXGI_FORMAT_R16G16B16A16_FLOAT, Color(0.f, 0.f, 0.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
+    CHECK_FAILED(GAME->Add_RenderTarget(RT::BloomEighthB,
+        bloomEighthWidth, bloomEighthHeight, DXGI_FORMAT_R16G16B16A16_FLOAT, Color(0.f, 0.f, 0.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
 
     CHECK_FAILED(GAME->Add_RenderTarget(RT::HDRColor,
         width, height, DXGI_FORMAT_R16G16B16A16_FLOAT, Color(0.f, 0.f, 0.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
-
     CHECK_FAILED(GAME->Add_RenderTarget(RT::BackgroundMask,
         width, height, DXGI_FORMAT_R8_UNORM, Color(0.f, 0.f, 0.f, 0.f), resizeWithViewport, !useDSV), E_FAIL);
 
@@ -874,11 +976,14 @@ HRESULT Renderer::Ready_RenderTargets()
 
     // PostProcess
     CHECK_FAILED(GAME->Add_MRT(MRT::HDR, RT::HDRColor), E_FAIL);
-    // CHECK_FAILED(GAME->Add_MRT(MRT::HDR, RT::BackgroundMask), E_FAIL);
+    CHECK_FAILED(GAME->Add_MRT(MRT::HDR, RT::BackgroundMask), E_FAIL);
 
-    CHECK_FAILED(GAME->Add_MRT(MRT::BloomExtract, RT::BloomExtract), E_FAIL);
-
-    CHECK_FAILED(GAME->Add_MRT(MRT::BloomBlur, RT::BloomBlur), E_FAIL);
+    CHECK_FAILED(GAME->Add_MRT(MRT::BloomHalfA, RT::BloomHalfA), E_FAIL);
+    CHECK_FAILED(GAME->Add_MRT(MRT::BloomHalfB, RT::BloomHalfB), E_FAIL);
+    CHECK_FAILED(GAME->Add_MRT(MRT::BloomQuarterA, RT::BloomQuarterA), E_FAIL);
+    CHECK_FAILED(GAME->Add_MRT(MRT::BloomQuarterB, RT::BloomQuarterB), E_FAIL);
+    CHECK_FAILED(GAME->Add_MRT(MRT::BloomEighthA, RT::BloomEighthA), E_FAIL);
+    CHECK_FAILED(GAME->Add_MRT(MRT::BloomEighthB, RT::BloomEighthB), E_FAIL);
 
     // deferred shader, rect buffer 생성
     _viBuffer = VIBuffer_Rect::Create(_device, _context);

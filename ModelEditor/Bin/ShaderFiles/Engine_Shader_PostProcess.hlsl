@@ -10,6 +10,7 @@
 //==================================================
 Texture2D g_HDRTexture;
 Texture2D g_BloomTexture;
+Texture2D g_BloomBaseTexture;
 Texture2D g_BackgroundMaskTexture;
 
 // Bloom Extract 용도
@@ -63,6 +64,13 @@ float3 SampleGaussianBlur_5tap(float2 uv, float2 dir)
     c += g_BloomTexture.Sample(LinearClampSampler, uv - texel * 2.f * dir).rgb * w2;
 
     return min(c, g_PP_BloomClamp);
+}
+
+float3 SampleBloomUpsampleAdd(float2 uv)
+{
+    float3 upsampled = g_BloomTexture.Sample(LinearClampSampler, uv).rgb;
+    float3 baseColor = g_BloomBaseTexture.Sample(LinearClampSampler, uv).rgb;
+    return min(baseColor + upsampled, g_PP_BloomClamp);
 }
 
 #endif

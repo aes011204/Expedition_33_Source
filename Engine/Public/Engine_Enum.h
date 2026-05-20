@@ -82,10 +82,11 @@ namespace Engine
     enum class PostProcessPass : uint8
     {
         Debug,
-        BloomExtract,
+        BloomExtractHalf,
         BloomDownsample,
         BloomBlurH,
         BloomBlurV,
+        BloomUpsampleAdd,
         ToneMapping,
 
         END

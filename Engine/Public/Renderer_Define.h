@@ -23,8 +23,12 @@ namespace RT
 
     inline constexpr const wchar_t* HDRColor = L"Target_HDRColor";
     inline constexpr const wchar_t* BackgroundMask = L"Target_BackgroundMask";
-    inline constexpr const wchar_t* BloomExtract = L"Target_BloomExtract";
-    inline constexpr const wchar_t* BloomBlur = L"Target_Blur";
+    inline constexpr const wchar_t* BloomHalfA = L"Target_BloomHalfA";
+    inline constexpr const wchar_t* BloomHalfB = L"Target_BloomHalfB";
+    inline constexpr const wchar_t* BloomQuarterA = L"Target_BloomQuarterA";
+    inline constexpr const wchar_t* BloomQuarterB = L"Target_BloomQuarterB";
+    inline constexpr const wchar_t* BloomEighthA = L"Target_BloomEighthA";
+    inline constexpr const wchar_t* BloomEighthB = L"Target_BloomEighthB";
 }
 
 namespace MRT
@@ -36,8 +40,12 @@ namespace MRT
     inline constexpr const wchar_t* ShadowObjects = L"MRT_ShadowObjects";
     inline constexpr const wchar_t* StaticShadowObjects = L"MRT_StaticShadowObjects";
     inline constexpr const wchar_t* HDR = L"MRT_HDRColor";
-    inline constexpr const wchar_t* BloomExtract = L"MRT_BloomExtract";
-    inline constexpr const wchar_t* BloomBlur = L"MRT_BloomBlur";
+    inline constexpr const wchar_t* BloomHalfA = L"MRT_BloomHalfA";
+    inline constexpr const wchar_t* BloomHalfB = L"MRT_BloomHalfB";
+    inline constexpr const wchar_t* BloomQuarterA = L"MRT_BloomQuarterA";
+    inline constexpr const wchar_t* BloomQuarterB = L"MRT_BloomQuarterB";
+    inline constexpr const wchar_t* BloomEighthA = L"MRT_BloomEighthA";
+    inline constexpr const wchar_t* BloomEighthB = L"MRT_BloomEighthB";
 }
 
 

@@ -155,16 +155,25 @@ float Compute_DepthSSAO(float2 uv)
     float occlusion = 0.f;
     float totalWeight = 0.f;
 
-    float rand01 = Hash12(uv * float2(1600.0f, 900.0f));
+    uint depthWidth, depthHeight;
+    g_DepthTexture.GetDimensions(depthWidth, depthHeight);
+
+    float2 pixelCoord = floor(uv * float2(max(depthWidth, 1u), max(depthHeight, 1u)));
+    float rand01 = Hash12(pixelCoord);
     float randomAngle = rand01 * 6.28318530718f; // 2PI
+
+    float radiusScale = saturate(10.f / max(centerViewZ, EPSILON));
+    float baseRadius = max(g_SSAORadius * radiusScale, 0.35f);
+    float perspectiveScale = rcp(max(radiusScale, 1e-3f));
+    float depthBias = max(g_SSAOBias * perspectiveScale, 1e-4f);
+    float depthRange = max(g_SSAODepthRange * perspectiveScale, depthBias);
 
     [unroll]
     for (int i = 0; i < sampleCount; ++i)
     {
         float2 dir = Rotate2D(SSAODirections[i], randomAngle);
-
-        float radiusScale = saturate(10.f / max(centerViewZ, EPSILON));
-        float sampleRadius = max(g_SSAORadius * radiusScale, 1.f);
+        float sampleT = ((float) i + 0.5f) / (float) sampleCount;
+        float sampleRadius = baseRadius * lerp(0.2f, 1.f, sampleT * sampleT);
 
         float2 sampleUV = uv + dir * g_TexelSize * sampleRadius;
         if (any(sampleUV < 0.f) || any(sampleUV > 1.f))     // 화면 밖
@@ -183,13 +192,13 @@ float Compute_DepthSSAO(float2 uv)
 
         float absDepthDiff = depthDiff;
 
-        float occluderSoftness = max(g_SSAOBias * 2.0f, 1e-4f);
-        float isOccluder = smoothstep(g_SSAOBias, g_SSAOBias + occluderSoftness, absDepthDiff);
+        float occluderSoftness = max(depthBias * 2.0f, 1e-4f);
+        float isOccluder = smoothstep(depthBias, depthBias + occluderSoftness, absDepthDiff);
 
-        if (absDepthDiff > g_SSAODepthRange)
+        if (absDepthDiff > depthRange)
             continue;
 
-        float rangeWeight = saturate(1.f - absDepthDiff / max(g_SSAODepthRange, EPSILON));
+        float rangeWeight = saturate(1.f - absDepthDiff / max(depthRange, EPSILON));
 
         // 노말이 비슷할수록 같은 표면일 가능성이 높다.
         float nd = saturate(dot(centerN, sampleN));
