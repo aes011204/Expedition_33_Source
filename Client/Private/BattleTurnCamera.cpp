@@ -20,6 +20,7 @@ BattleTurnCamera::BattleTurnCamera(const ComPtr<Device>& device, const ComPtr<Co
 
 BattleTurnCamera::BattleTurnCamera(const BattleTurnCamera& prototype)
     : Camera(prototype)
+    , _isFreeAimActive(prototype._isFreeAimActive)
 {
 }
 
@@ -109,6 +110,29 @@ void BattleTurnCamera::Focus_Battle(const vector<BattleChar>& heroes, const vect
         Vec3(2.f, 3.f, -2.f);     // 테스트용 임시 위치 보정
 
     Apply_LookAt(cameraPos, lookAt);
+}
+
+Vec3 BattleTurnCamera::Get_AimOrigin() const
+{
+    CHECK_NULL(_transformCom, Vec3::Zero);
+
+    return _transformCom->Get_WorldPosition();
+}
+
+Vec3 BattleTurnCamera::Get_AimDirection() const
+{
+    CHECK_NULL(_transformCom, Vec3::Zero);
+
+    Vec3 lookDir = _transformCom->Get_WorldForward();
+    if (lookDir.LengthSquared() <= 0.0001f)
+        return Vec3::Look;
+
+    lookDir.Normalize();
+    return lookDir;
+}
+
+void BattleTurnCamera::Apply_FreeAimCamera()
+{
 }
 
 void BattleTurnCamera::Apply_LookAt(const Vec3& cameraPos, const Vec3& lookAt)

@@ -7,6 +7,7 @@
 #include "UI_BattleCommandHUD.h"
 #include "UI_BattleTransition.h"
 #include "UI_MonsterHpBar.h"
+#include "UI_CrossHair.h"
 
 GameplayUI_Battle::~GameplayUI_Battle() = default;
 
@@ -21,6 +22,9 @@ HRESULT GameplayUI_Battle::Initialize(uint32 levelIndex)
     _monsterHpBar = UI_MonsterHpBar::Create(levelIndex);
     CHECK_NULL(_monsterHpBar, E_FAIL);
 
+    _crossHair = UI_CrossHair::Create(levelIndex);
+    CHECK_NULL(_crossHair, E_FAIL);
+
     Bind_BattleDelegates();
 
     return S_OK;
@@ -28,14 +32,9 @@ HRESULT GameplayUI_Battle::Initialize(uint32 levelIndex)
 
 void GameplayUI_Battle::Update(float timeDelta)
 {
-    Update_BattleCommandHUD(); 
-    Update_MonsterHpBar();
-
-    if (_battleCommandHUD)
-        _battleCommandHUD->Update(timeDelta);
-
-    if (_monsterHpBar)
-        _monsterHpBar->Update(timeDelta);
+    Update_BattleCommandHUD(timeDelta);
+    Update_MonsterHpBar(timeDelta);
+    Update_CrossHair(timeDelta);
 
     if (_battleTransition)
         _battleTransition->Update(timeDelta);
@@ -43,7 +42,7 @@ void GameplayUI_Battle::Update(float timeDelta)
 
 void GameplayUI_Battle::Update_Input()
 {
-    
+
 }
 
 void GameplayUI_Battle::Play_BattleEnterTransition()
@@ -214,7 +213,47 @@ void GameplayUI_Battle::Handle_TargetPreviewChanged(const BattleChar* target)
     _hasTargetPreviewSnapshot = true;
 }
 
-void GameplayUI_Battle::Update_MonsterHpBar()
+void GameplayUI_Battle::Update_BattleCommandHUD(float timeDelta)
+{
+    if (_battleCommandHUD == nullptr)
+        return;
+
+    if (!_isBattleUiActive || !_isPlayerTurnUiActive)
+    {
+        _battleCommandHUD->Close();
+        return;
+    }
+
+    const auto battleController = CLIENT->Get_BattleController();
+    if (battleController == nullptr || !battleController->Is_BattleStarted())
+    {
+        _battleCommandHUD->Close();
+        return;
+    }
+
+    const BattleTurnState currentState = battleController->Get_CurrentTurnState();
+
+    if (currentState != BattleTurnState::ChooseAction)
+    {
+        _battleCommandHUD->Close(); // 공격 중에는 커맨드 HUD 숨기기
+        return;
+    }
+
+    Vec3 worldPos{};
+    if (!Try_GetBattleCommandHudWorldPos(_currentPlayerTurnActor, worldPos))
+    {
+        _battleCommandHUD->Close();
+        return;
+    }
+
+    _battleCommandHUD->Open();
+    _battleCommandHUD->Set_TargetWorldPosition(worldPos);
+    _battleCommandHUD->Refresh_ForState(battleController->Get_CurrentTurnState());
+
+    _battleCommandHUD->Update(timeDelta);
+}
+
+void GameplayUI_Battle::Update_MonsterHpBar(float timeDelta)
 {
     if (_monsterHpBar == nullptr)
         return;
@@ -249,6 +288,33 @@ void GameplayUI_Battle::Update_MonsterHpBar()
     _monsterHpBar->Set_Hp(
         _targetPreviewSnapshot.statCom->Get_CurHp(),
         _targetPreviewSnapshot.statCom->Get_StatInfo().maxHp);
+
+    _monsterHpBar->Update(timeDelta);
+
+}
+
+void GameplayUI_Battle::Update_CrossHair(float timeDelta)
+{
+    if (_crossHair == nullptr)
+        return;
+
+    const auto battleController = CLIENT->Get_BattleController();
+    if (battleController == nullptr || !battleController->Is_BattleStarted())
+    {
+        _crossHair->Close();
+        return;
+    }
+
+    if (battleController->Get_CurrentTurnState() != BattleTurnState::FreeAimTargeting)
+    {
+        _crossHair->Close();
+        return;
+    }
+
+    _crossHair->Open();
+    _crossHair->Set_HitState(battleController->Get_TargetPreview() != nullptr);
+
+    _crossHair->Update(timeDelta);
 }
 
 bool GameplayUI_Battle::Try_GetTargetHpBarWorldPos(const BattleChar& target, Vec3& outWorldPos) const
@@ -270,44 +336,6 @@ bool GameplayUI_Battle::Try_GetBattleCommandHudWorldPos(const BattleChar& actor,
     outWorldPos.y += 0.8f;
 
     return true;
-}
-
-void GameplayUI_Battle::Update_BattleCommandHUD()
-{
-    if (_battleCommandHUD == nullptr)
-        return;
-
-    if (!_isBattleUiActive || !_isPlayerTurnUiActive)
-    {
-        _battleCommandHUD->Close();
-        return;
-    }
-
-    const auto battleController = CLIENT->Get_BattleController();
-    if (battleController == nullptr || !battleController->Is_BattleStarted())
-    {
-        _battleCommandHUD->Close();
-        return;
-    }
-
-    const BattleTurnState currentState = battleController->Get_CurrentTurnState();
-
-    if (currentState == BattleTurnState::AttackTargeting)
-    {
-        _battleCommandHUD->Close(); // 공격 중에는 커맨드 HUD 숨기기
-        return;
-    }
-
-    Vec3 worldPos{};
-    if (!Try_GetBattleCommandHudWorldPos(_currentPlayerTurnActor, worldPos))
-    {
-        _battleCommandHUD->Close();
-        return;
-    }
-
-    _battleCommandHUD->Open();
-    _battleCommandHUD->Set_TargetWorldPosition(worldPos);
-    _battleCommandHUD->Refresh_ForState(battleController->Get_CurrentTurnState());
 }
 
 Shared<GameplayUI_Battle> GameplayUI_Battle::Create(uint32 levelIndex)
@@ -340,6 +368,7 @@ void GameplayUI_Battle::Free()
     Release_UI(_battleTransition);
     Release_UI(_battleCommandHUD);
     Release_UI(_monsterHpBar);
+    Release_UI(_crossHair);
 
     Base::Free();
 }

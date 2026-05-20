@@ -27,6 +27,8 @@ namespace
             return "UltimateTargeting";
         case Client::BattleTurnState::ChooseUltimate:
             return "ChooseUltimate";
+        case Client::BattleTurnState::FreeAimTargeting:
+            return "FreeAimTargeting";
         default:
             return "UnknownBattleState";
         }
