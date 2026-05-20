@@ -7,8 +7,6 @@ NS_BEGIN(Client)
     class TargetCamera final : public Camera
 {
     GENERATED_GAMEOBJECT(TargetCamera, ObjectType::TargetCamera)
-public:
-
 
 public:
     typedef struct tagTargetCamera final : public Camera::CAMERA_DESC

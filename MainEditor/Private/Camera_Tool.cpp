@@ -1,9 +1,12 @@
 ﻿#include "Camera_Tool.h"
+#include "BattleTurnCamera.h"
 #include "FreeCamera.h"
 #include "TargetCamera.h"
 #include "GameInstance.h"
 #include <magic_enum/magic_enum.hpp>
 #include <algorithm>
+
+#include "BattleController.h"
 #include "CameraPresetIO.h"
 #include "PreviewCamera.h"
 #include "CameraPresetTypes.h"
@@ -27,6 +30,50 @@ Shared<Camera> Get_SelectedCamera(int selectedCameraIndex)
 
     const int clampedIndex = std::clamp(selectedCameraIndex, 0, cameraCount - 1);
     return GAME->Get_Camera(clampedIndex);
+}
+
+template <typename TEnum>
+void Select_PresetEnum(const char* label, TEnum& currentValue)
+{
+    const char* currentLabel = magic_enum::enum_name(currentValue).data();
+    if (!ImGui::BeginCombo(label, currentLabel))
+        return;
+
+    for (TEnum value : magic_enum::enum_values<TEnum>())
+    {
+        const bool isSelected = (currentValue == value);
+        if (ImGui::Selectable(magic_enum::enum_name(value).data(), isSelected))
+            currentValue = value;
+
+        if (isSelected)
+            ImGui::SetItemDefaultFocus();
+    }
+
+    ImGui::EndCombo();
+}
+
+template <typename TPreset>
+bool Edit_OrbitPresetFields(TPreset& preset)
+{
+    bool isChanged = false;
+
+    isChanged |= ImGui::DragFloat("follow speed##OrbitPreset", &preset.followSpeed, 0.01f);
+    isChanged |= ImGui::DragFloat("distance##OrbitPreset", &preset.distance, 0.01f);
+    isChanged |= ImGui::DragFloat("side offset##OrbitPreset", &preset.sideOffset, 0.01f);
+    isChanged |= ImGui::DragFloat("height offset##OrbitPreset", &preset.heightOffset, 0.01f);
+    isChanged |= ImGui::DragFloat("pivot height##OrbitPreset", &preset.pivotHeight, 0.01f);
+    isChanged |= ImGui::DragFloat("aim offset##OrbitPreset", &preset.aimOffset, 0.01f);
+    isChanged |= ImGui::DragFloat("look height##OrbitPreset", &preset.lookHeight, 0.01f);
+    isChanged |= ImGui::DragFloat("mouse sensor##OrbitPreset", &preset.camera.mouseSensor, 0.01f);
+    isChanged |= ImGui::DragFloat("mouse sensitivity##OrbitPreset", &preset.camera.mouseSensitivity, 0.01f);
+    isChanged |= ImGui::DragFloat("pitch look scale##OrbitPreset", &preset.pitchLookScale, 0.01f);
+    isChanged |= ImGui::DragFloat("yaw offset##OrbitPreset", &preset.yawOffset, 0.001f);
+    isChanged |= ImGui::DragFloat("pitch offset##OrbitPreset", &preset.pitchOffset, 0.001f);
+    isChanged |= ImGui::DragFloat("roll offset##OrbitPreset", &preset.rollOffset, 0.001f);
+    isChanged |= ImGui::DragFloat("Min##Pitch", &preset.pitchMin, 0.1f, -89.f, preset.pitchMax);
+    isChanged |= ImGui::DragFloat("Max##Pitch", &preset.pitchMax, 0.1f, preset.pitchMin, 89.f);
+
+    return isChanged;
 }
 }
 
@@ -166,7 +213,7 @@ void Camera_Tool::Render_CommonSettings()
     }
 
     Draw_SectionHeader("Input");
-    if(ImGui::DragFloat("mouse sensor",&mouseSensor, 0.01f, 0.01f, 10.f))
+    if(ImGui::DragFloat("mouse sensor##CommonCamera",&mouseSensor, 0.01f, 0.01f, 10.f))
     {
         camera->Set_MouseSensor(mouseSensor);
     }
@@ -179,11 +226,15 @@ void Camera_Tool::Render_SpecificSettings()
         return;
 
     auto targetCamera = dynamic_pointer_cast<TargetCamera>(camera);
+    auto battleTurnCamera = dynamic_pointer_cast<BattleTurnCamera>(camera);
     auto freeCamera = dynamic_pointer_cast<FreeCamera>(camera);
     auto previewCamera = dynamic_pointer_cast<PreviewCamera>(camera);
 
     if(nullptr != targetCamera)
         Render_TargetCameraProperties(targetCamera);
+
+    if (nullptr != battleTurnCamera)
+        Render_BattleTurnCameraProperties(battleTurnCamera);
 
     if(nullptr != freeCamera)
         Render_FreeCameraProperties(freeCamera);
@@ -202,8 +253,16 @@ void Camera_Tool::Render_FreeCameraProperties(const Shared<FreeCamera>& freeCame
 
 void Camera_Tool::Render_TargetCameraProperties(const Shared<TargetCamera>& targetCamera)
 {
+    (void)targetCamera;
     Select_EditingCameraState();
     Edit_TargetCameraPreset();
+}
+
+void Camera_Tool::Render_BattleTurnCameraProperties(const Shared<BattleTurnCamera>& battleTurnCamera)
+{
+    (void)battleTurnCamera;
+    Select_EditingBattleCameraMode();
+    Edit_BattleTurnCameraPreset();
 }
 
 void Camera_Tool::Render_PreviewCameraProperties(const Shared<Client::PreviewCamera>& previewCamera)
@@ -216,27 +275,7 @@ void Camera_Tool::Render_PreviewCameraProperties(const Shared<Client::PreviewCam
 
 void Camera_Tool::Select_EditingCameraState()
 {
-  TargetCameraMode editingState =_editingCameraState;
-
-    const char* currentLabel = magic_enum::enum_name(editingState).data();
-
-    if(ImGui::BeginCombo("Edit Preset", currentLabel))
-    {
-         for(TargetCameraMode state : magic_enum::enum_values<TargetCameraMode>())
-         {
-             const bool isSelected = (editingState == state);
-
-             if(ImGui::Selectable(magic_enum::enum_name(state).data(), isSelected))
-             {
-                 _editingCameraState = state;
-             }
-
-             if(isSelected)
-                 ImGui::SetItemDefaultFocus();
-         }
-
-        ImGui::EndCombo();
-    }
+    Select_PresetEnum("Edit Preset", _editingCameraState);
 }
 
 void Camera_Tool::Edit_TargetCameraPreset()
@@ -248,22 +287,7 @@ void Camera_Tool::Edit_TargetCameraPreset()
 
     auto preset = targetCamera->Get_Preset(_editingCameraState);
 
-    bool isChanged = false;
-
-    isChanged |= ImGui::DragFloat("follow speed", &preset.followSpeed, 0.01f);
-    isChanged |= ImGui::DragFloat("distance", &preset.distance, 0.01f);
-    isChanged |= ImGui::DragFloat("side offset", &preset.sideOffset, 0.01f);
-    isChanged |= ImGui::DragFloat("height offset", &preset.heightOffset, 0.01f);
-    isChanged |= ImGui::DragFloat("pivot height", &preset.pivotHeight, 0.01f);
-    isChanged |= ImGui::DragFloat("aim offset", &preset.aimOffset, 0.01f);
-    isChanged |= ImGui::DragFloat("look height", &preset.lookHeight, 0.01f);
-    isChanged |= ImGui::DragFloat("mouse sensitivity", &preset.camera.mouseSensitivity, 0.01f);
-    isChanged |= ImGui::DragFloat("pitch look scale", &preset.pitchLookScale, 0.01f);
-    isChanged |= ImGui::DragFloat("yaw offset", &preset.yawOffset, 0.001f);
-    isChanged |= ImGui::DragFloat("pitch offset", &preset.pitchOffset, 0.001f);
-    isChanged |= ImGui::DragFloat("roll offset", &preset.rollOffset, 0.001f);
-    isChanged |= ImGui::DragFloat("Min##Pitch", &preset .pitchMin, 0.1f, -89.f, preset.pitchMax);
-    isChanged |= ImGui::DragFloat("Max##Pitch", &preset.pitchMax, 0.1f, preset.pitchMin,89.f);
+    bool isChanged = Edit_OrbitPresetFields(preset);
     isChanged |= ImGui::Checkbox("allow mouse rotation", &preset.allowMouseRotation);
 
     if(isChanged)
@@ -275,32 +299,72 @@ void Camera_Tool::Edit_TargetCameraPreset()
     ImGui::SameLine();
     if(ImGui::Button("Save Preset"))
     {
-        CameraPresetIO::SavePresetToFile(_editingCameraState,preset);
+        CameraPresetIO::SaveTargetPresetToFile(_editingCameraState, preset);
     }
+}
+
+void Camera_Tool::Select_EditingBattleCameraMode()
+{
+    Select_PresetEnum("Edit Battle Preset", _editingBattleCameraMode);
+}
+
+void Camera_Tool::Edit_BattleTurnCameraPreset()
+{
+    Shared<Camera> camera = Get_SelectedCamera(_selectedCameraIndex);
+    auto battleTurnCamera = static_pointer_cast<BattleTurnCamera>(camera);
+    const Shared<Character> previewTarget = Resolve_BattlePreviewTarget();
+
+    if (battleTurnCamera->Is_LiveEditEnabled())
+        battleTurnCamera->Update_LiveEditContext(_editingBattleCameraMode, previewTarget);
+
+    auto preset = battleTurnCamera->Get_Preset(_editingBattleCameraMode);
+    bool isChanged = false;
+
+    isChanged |= Edit_OrbitPresetFields(preset);
+
+    if (isChanged)
+    {
+        battleTurnCamera->Set_Preset(_editingBattleCameraMode, preset);
+        BattleTurnCamera::BattleShotRequest request {};
+        request.mode = _editingBattleCameraMode;
+        request.target = previewTarget;
+
+        if (battleTurnCamera->Is_LiveEditEnabled())
+            battleTurnCamera->Update_LiveEditContext(_editingBattleCameraMode, previewTarget);
+        else
+        {
+            battleTurnCamera->Apply_PreviewPreset(preset);
+            battleTurnCamera->Apply_ShotRequest(request);
+        }
+    }
+
+    if (!battleTurnCamera->Is_LiveEditEnabled())
+    {
+        if (ImGui::Button("Start Live Edit"))
+        {
+            GAME->Change_ActiveCamera(battleTurnCamera);
+            battleTurnCamera->Begin_LiveEdit(_editingBattleCameraMode, previewTarget);
+        }
+    }
+    else
+    {
+        if (ImGui::Button("Stop Live Edit"))
+            battleTurnCamera->End_LiveEdit();
+    }
+
+    ImGui::SameLine();
+    if (ImGui::Button("Save Battle Preset"))
+    {
+        CameraPresetIO::SaveBattlePresetToFile(_editingBattleCameraMode, preset);
+    }
+
+    ImGui::TextDisabled("Live Edit Controls: Hold RMB + move mouse = yaw/pitch");
+    ImGui::TextDisabled("RMB + W/S = distance, A/D = side offset, Q/E = height offset, Wheel = zoom");
 }
 
 void Camera_Tool::Select_EditingPreviewPanel()
 {
-    PreviewShotPanel previewShotPanel = _editingPreviewPanel;
-
-    const char* currentLabel = magic_enum::enum_name(previewShotPanel).data();
-
-    if(ImGui::BeginCombo("Edit Preset", currentLabel))
-    {
-        for(PreviewShotPanel panel : magic_enum::enum_values<PreviewShotPanel>())
-        {
-            const bool isSelected = previewShotPanel == panel;
-
-            if(ImGui::Selectable(magic_enum::enum_name(panel).data(), isSelected))
-            {
-                _editingPreviewPanel = panel;
-            }
-
-            if(isSelected)
-                ImGui::SetItemDefaultFocus();
-        }
-        ImGui::EndCombo();
-    }
+    Select_PresetEnum("Edit Preview Preset", _editingPreviewPanel);
 }
 
 void Camera_Tool::Select_EditingPreviewHero()
@@ -394,6 +458,44 @@ void Camera_Tool::Reset_ToStartPos()
     {
         previewCamera->Reset_ToStartPos();
     }
+}
+
+Shared<Character> Camera_Tool::Resolve_BattlePreviewTarget() const
+{
+    auto battleController = CLIENT->Get_BattleController();
+
+    if (!battleController)
+        return nullptr;
+
+    if (_editingBattleCameraMode == BattleCameraMode::ENEMYFOCUS)
+    {
+        if (const BattleChar* preview = battleController->Get_TargetPreview())
+        {
+            if (preview->actor != nullptr)
+                return preview->actor;
+        }
+
+        const auto enemies = battleController->Get_AliveEnemies();
+        if (!enemies.empty() && enemies[0].actor != nullptr)
+            return enemies[0].actor;
+    }
+
+    if (_editingBattleCameraMode == BattleCameraMode::PLAYERFOCUS)
+    {
+        const auto heroes = battleController->Get_AliveHeroes();
+        if (!heroes.empty() && heroes[0].actor != nullptr)
+            return heroes[0].actor;
+    }
+
+    const auto heroes = battleController->Get_AliveHeroes();
+    if (!heroes.empty() && heroes[0].actor != nullptr)
+        return heroes[0].actor;
+
+    const auto enemies = battleController->Get_AliveEnemies();
+    if (!enemies.empty() && enemies[0].actor != nullptr)
+        return enemies[0].actor;
+
+    return nullptr;
 }
 
 Shared<Camera_Tool> Camera_Tool::Create()

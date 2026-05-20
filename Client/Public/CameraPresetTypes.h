@@ -6,7 +6,8 @@ enum class PreviewShotPanel
     SkillTree
 };
 
-enum class TargetCameraMode { NORMAL, AIM, BATTLE_ENTER};
+enum class TargetCameraMode { NORMAL, AIM, BATTLE_ENTER };
+enum class BattleCameraMode { WIDE, ENEMYFOCUS, PLAYERFOCUS};
 
 struct PreviewShotPreset
 {
@@ -53,4 +54,29 @@ struct TargetCameraPreset
     float        collisionProbeRadius = 0.2f;
     float        collisionSkin = 0.03f;
 
+};
+
+
+struct BattleCameraPreset
+{
+    CommonCameraPreset camera;
+
+    float        followSpeed;
+    float        distance;
+
+    float        sideOffset;
+    float        heightOffset;
+    float        aimOffset;
+
+    float        pitchLookScale;
+
+    float        pitchMin;
+    float        pitchMax;
+
+    float        yawOffset = 0.f;
+    float        pitchOffset = 0.f;
+    float        rollOffset = 0.f;
+
+    float        lookHeight;
+    float        pivotHeight;
 };

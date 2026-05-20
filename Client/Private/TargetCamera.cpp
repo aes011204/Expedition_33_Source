@@ -55,9 +55,9 @@ HRESULT TargetCamera::Initialize(void* arg)
 
     Set_Name(L"Target Camera");
 
-    CameraPresetIO::LoadPresetFromFile(TargetCameraMode::NORMAL, _normalPreset);
-    CameraPresetIO::LoadPresetFromFile(TargetCameraMode::AIM, _aimPreset);
-    CameraPresetIO::LoadPresetFromFile(TargetCameraMode::BATTLE_ENTER, _battleEnterPreset);
+    CameraPresetIO::LoadTargetPresetFromFile(TargetCameraMode::NORMAL, _normalPreset);
+    CameraPresetIO::LoadTargetPresetFromFile(TargetCameraMode::AIM, _aimPreset);
+    CameraPresetIO::LoadTargetPresetFromFile(TargetCameraMode::BATTLE_ENTER, _battleEnterPreset);
 
     _currentState = TargetCameraMode::NORMAL;
     _currentSettings = _normalPreset;
@@ -302,7 +302,6 @@ void TargetCamera::Update_FromCurrentSettings(float timeDelta)
     _transformCom->LookAt(lookTarget);
     _transformCom->Add_LocalRotation(Quat::CreateFromAxisAngle(Vec3::Forward, _currentSettings.rollOffset));
 
-    _fovY;
     Update_TransformMatrices();
     GAME->UpdateFrustum(*GAME->Get_Transform(D3DTS::View), *GAME->Get_Transform(D3DTS::Proj));
 

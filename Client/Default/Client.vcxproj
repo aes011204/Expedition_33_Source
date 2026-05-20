@@ -169,6 +169,8 @@
     <ClInclude Include="..\public\BT_FinishDecision.h" />
     <ClInclude Include="..\public\BT_SetSkill.h" />
     <ClInclude Include="..\public\BT_Set_Target.h" />
+    <ClInclude Include="..\Public\CameraDirector.h" />
+    <ClInclude Include="..\Public\CameraPresetTypes.h" />
     <ClInclude Include="..\Public\GameplayUI_Battle.h" />
     <ClInclude Include="..\Public\GameplayUI_Types.h" />
     <ClInclude Include="..\Public\GameplayUI_World.h" />
@@ -339,6 +341,7 @@
     <ClCompile Include="..\private\BT_FinishDecision.cpp" />
     <ClCompile Include="..\private\BT_SetSkill.cpp" />
     <ClCompile Include="..\private\BT_Set_Target.cpp" />
+    <ClCompile Include="..\Private\CameraDirector.cpp" />
     <ClCompile Include="..\Private\GameplayUI_Battle.cpp" />
     <ClCompile Include="..\Private\GameplayUI_World.cpp" />
     <ClCompile Include="..\Private\MapStaticCollisionBuilder.cpp" />

@@ -103,6 +103,7 @@ public:
     const Reaction& Get_Reaction() const{return _reaction;}
 public:
     void Handle_EditorStopRuntime();
+    void Handle_TargetPreviewChanged(const BattleChar* target);
     HRESULT Ready_Delegates();
 
     //리액션 인풋
@@ -129,6 +130,7 @@ private:
     void    Clear_BattleEnterPending();      // 전투 진입 대기 데이터만 정리
 
 public: /* Delegate */
+    FDelegateHandle         _targetPreviewChangedHandle;
     FOnBattleStarted        OnBattleStarted;
     FOnBattleEnded          OnBattleEnded;
     FOnTurnStarted          OnTurnStarted;

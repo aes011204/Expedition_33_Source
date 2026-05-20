@@ -654,7 +654,7 @@
       <Filter>02.GameObject\Camera\Director</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\CameraPresetTypes.h">
-      <Filter>02.GameObject\Camera</Filter>
+      <Filter>02.GameObject\Camera\Director</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

@@ -1,6 +1,7 @@
 ﻿#include "BattleTurnCamera.h"
-#include "Character.h"
+#include <CameraPresetIO.h>
 #include "GameInstance.h"
+#include "Character.h"
 
 IMPLEMENT_REFLECTION(BattleTurnCamera)
 {
@@ -33,6 +34,15 @@ HRESULT BattleTurnCamera::Initialize(void* arg)
     CHECK_FAILED(Camera::Initialize(arg), E_FAIL);
 
     Set_Name(L"Battle Turn Camera");
+
+    CameraPresetIO::LoadBattlePresetFromFile(BattleCameraMode::WIDE, _wideModePreset);
+    CameraPresetIO::LoadBattlePresetFromFile(BattleCameraMode::PLAYERFOCUS, _playerFocusPreset);
+    CameraPresetIO::LoadBattlePresetFromFile(BattleCameraMode::ENEMYFOCUS, _enemyFocusPreset);
+
+    _currentRequest.mode = BattleCameraMode::WIDE;
+    _currentPreset = _wideModePreset;
+    _targetPreset = _wideModePreset;
+
     return S_OK;
 }
 
@@ -47,6 +57,22 @@ void BattleTurnCamera::Update(float timeDelta)
 {
     if (!GAME->Is_ActiveCamera(GetSharedPtr<Camera>()))
         return;
+
+    if (_isLiveEditEnabled)
+        Update_LiveEditInput(timeDelta);
+
+    switch (_currentRequest.mode)
+    {
+    case BattleCameraMode::WIDE:
+        Update_WideMode(timeDelta);
+        break;
+    case BattleCameraMode::PLAYERFOCUS:
+        Update_PlayerFocusMode(timeDelta);
+        break;
+    case BattleCameraMode::ENEMYFOCUS:
+        Update_EnemyFocusMode(timeDelta);
+        break;
+    }
 
     Update_TransformMatrices();
 }
@@ -117,6 +143,247 @@ void BattleTurnCamera::Apply_LookAt(const Vec3& cameraPos, const Vec3& lookAt)
     _transformCom->LookAt(lookAt);
 
     Update_TransformMatrices();
+}
+
+void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
+{
+    if (_currentRequest.mode == request.mode &&
+        _currentRequest.target == request.target)
+        return;
+
+    _currentRequest = request;
+
+    _targetTransform = nullptr;
+    if (_currentRequest.target)
+        _targetTransform = _currentRequest.target->Get_Transform();
+
+    switch(_currentRequest.mode)
+    {
+    case BattleCameraMode::WIDE:
+        _targetPreset = _wideModePreset;
+        break;
+
+    case BattleCameraMode::PLAYERFOCUS:
+        _targetPreset = _playerFocusPreset;
+        break;
+
+    case BattleCameraMode::ENEMYFOCUS:
+        _targetPreset = _enemyFocusPreset;
+        break;
+    }
+
+    _currentPreset = _targetPreset;
+}
+
+void BattleTurnCamera::Begin_LiveEdit(BattleCameraMode mode, const Shared<Character>& target)
+{
+    _isLiveEditEnabled = true;
+    Update_LiveEditContext(mode, target);
+}
+
+void BattleTurnCamera::Update_LiveEditContext(BattleCameraMode mode, const Shared<Character>& target)
+{
+    BattleShotRequest request{};
+    request.mode = mode;
+    request.target = target;
+    Apply_ShotRequest(request);
+
+    if (BattleCameraPreset* preset = Get_MutablePreset(mode))
+    {
+        _currentPreset = *preset;
+        _targetPreset = *preset;
+    }
+}
+
+void BattleTurnCamera::End_LiveEdit()
+{
+    _isLiveEditEnabled = false;
+}
+
+void BattleTurnCamera::Update_WideMode(float timeDelta)
+{
+    if (_targetTransform == nullptr)
+        return;
+
+    Update_FromCurrentPreset(timeDelta);
+}
+
+void BattleTurnCamera::Update_PlayerFocusMode(float timeDelta)
+{
+    if (_targetTransform == nullptr)
+        return;
+
+    Update_FromCurrentPreset(timeDelta);
+}
+
+void BattleTurnCamera::Update_EnemyFocusMode(float timeDelta)
+{
+    if (_targetTransform == nullptr)
+        return;
+
+    Update_FromCurrentPreset(timeDelta);
+}
+
+void BattleTurnCamera::Update_FromCurrentPreset(float timeDelta)
+{
+    UNREFERENCED_PARAMETER(timeDelta);
+
+    Shared<TransformCom> targetTransformCom = _targetTransform;
+    if (targetTransformCom == nullptr)
+        return;
+
+    const Vec3 targetPos = targetTransformCom->Get_WorldPosition();
+
+    const float finalYaw = _yaw + _currentPreset.yawOffset;
+    const float finalPitch = _pitch + _currentPreset.pitchOffset;
+
+    const float yawRad = XMConvertToRadians(finalYaw);
+    const float pitchRad = XMConvertToRadians(finalPitch);
+
+    Vec3 backDir;
+    backDir.x = -sinf(yawRad);
+    backDir.y = 0.f;
+    backDir.z = -cosf(yawRad);
+    backDir.Normalize();
+
+    Vec3 rightDir;
+    rightDir.x = cosf(yawRad);
+    rightDir.y = 0.f;
+    rightDir.z = -sinf(yawRad);
+    rightDir.Normalize();
+
+    const Vec3 baseOffset = backDir * _currentPreset.distance;
+
+    const Matrix pitchRotation = XMMatrixRotationAxis(rightDir, pitchRad);
+    const Vec3 orbitOffset = XMVector3TransformNormal(baseOffset, pitchRotation);
+
+    _smoothedTargetPos = Vec3::Lerp(_smoothedTargetPos, targetPos, timeDelta * _currentPreset.followSpeed);
+
+    const Vec3 pivotPos = _smoothedTargetPos + Vec3::Up * _currentPreset.pivotHeight;
+    Vec3 framingPos = pivotPos  + rightDir * _currentPreset.aimOffset;
+    Vec3 desiredPos = framingPos + orbitOffset + Vec3::Up * _currentPreset.heightOffset + rightDir * _currentPreset.sideOffset;
+    Vec3 lookTarget = framingPos + Vec3::Up * _currentPreset.lookHeight;
+
+    Vec3 newPos = desiredPos;
+
+    Apply_LookAt(newPos, lookTarget);
+    _transformCom->Add_LocalRotation(Quat::CreateFromAxisAngle(Vec3::Forward, _currentPreset.rollOffset));
+    
+    Update_TransformMatrices();
+    GAME->UpdateFrustum(*GAME->Get_Transform(D3DTS::View), *GAME->Get_Transform(D3DTS::Proj));
+
+    _prevTargetPos = targetPos;
+
+}
+
+void BattleTurnCamera::Update_LiveEditInput(float timeDelta)
+{
+    if (!GAME->KeyPress(KEY_TYPE::RBUTTON))
+        return;
+
+    BattleCameraPreset* preset = Get_MutablePreset(_currentRequest.mode);
+    if (preset == nullptr)
+        return;
+
+    const float wheelDelta = GAME->Get_MouseWheel();
+    if (wheelDelta != 0.f)
+    {
+        const float wheelStep = 0.4f;
+        preset->distance += (wheelDelta > 0.f) ? -wheelStep : wheelStep;
+    }
+
+    const float moveStep = 3.f * timeDelta;
+
+    if (GAME->KeyPress(KEY_TYPE::W))
+        preset->distance -= moveStep;
+
+    if (GAME->KeyPress(KEY_TYPE::S))
+        preset->distance += moveStep;
+
+    if (GAME->KeyPress(KEY_TYPE::A))
+        preset->aimOffset -= moveStep;
+
+    if (GAME->KeyPress(KEY_TYPE::D))
+        preset->aimOffset += moveStep;
+
+    if (GAME->KeyPress(KEY_TYPE::E))
+        preset->pivotHeight += moveStep;
+
+    if (GAME->KeyPress(KEY_TYPE::Q))
+        preset->pivotHeight -= moveStep;
+
+    preset->distance = std::max(0.1f, preset->distance);
+
+    const Vec2 mouseDelta = GAME->Get_MouseDelta();
+    preset->yawOffset += mouseDelta.x * preset->camera.mouseSensor;
+    preset->pitchOffset += mouseDelta.y * preset->camera.mouseSensor * preset->camera.mouseSensitivity;
+    preset->pitchOffset = std::clamp(preset->pitchOffset, preset->pitchMin, preset->pitchMax);
+
+    _currentPreset = *preset;
+    _targetPreset = *preset;
+}
+
+const BattleCameraPreset& BattleTurnCamera::Get_Preset(BattleCameraMode mode) const
+{
+    switch (mode)
+    {
+    case BattleCameraMode::WIDE:
+        return _wideModePreset;
+
+    case BattleCameraMode::PLAYERFOCUS:
+        return _playerFocusPreset;
+
+    case BattleCameraMode::ENEMYFOCUS:
+        return _enemyFocusPreset;
+
+    default:
+        return _wideModePreset;
+    }
+}
+
+void BattleTurnCamera::Set_Preset(BattleCameraMode mode, const BattleCameraPreset& preset)
+{
+    switch (mode)
+    {
+    case BattleCameraMode::WIDE:
+        _wideModePreset = preset;
+        break;
+
+    case BattleCameraMode::PLAYERFOCUS:
+        _playerFocusPreset = preset;
+        break;
+
+    case BattleCameraMode::ENEMYFOCUS:
+        _enemyFocusPreset = preset;
+        break;
+
+    default:
+        break;
+    }
+}
+
+void BattleTurnCamera::Apply_PreviewPreset(const BattleCameraPreset& preset)
+{
+    _currentPreset = preset;
+    _targetPreset = preset;
+}
+
+BattleCameraPreset* BattleTurnCamera::Get_MutablePreset(BattleCameraMode mode)
+{
+    switch (mode)
+    {
+    case BattleCameraMode::WIDE:
+        return &_wideModePreset;
+
+    case BattleCameraMode::PLAYERFOCUS:
+        return &_playerFocusPreset;
+
+    case BattleCameraMode::ENEMYFOCUS:
+        return &_enemyFocusPreset;
+
+    default:
+        return nullptr;
+    }
 }
 
 Shared<BattleTurnCamera> BattleTurnCamera::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

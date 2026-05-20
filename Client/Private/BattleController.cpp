@@ -24,6 +24,7 @@
 #include "Camera.h"
 #include "TargetCamera.h"
 #include "BattleActionExecutor.h"
+#include "Character.h"
 
 BattleController::BattleController()
 {
@@ -45,6 +46,8 @@ HRESULT BattleController::Initialize()
 
 
     _battleActionExe = BattleActionExecutor::Create();
+
+    _targetPreviewChangedHandle = OnTargetPreviewChanged.Add(this,&BattleController::Handle_TargetPreviewChanged);
 
     return S_OK;
 }
@@ -493,6 +496,27 @@ void BattleController::Handle_EditorStopRuntime()
 
     if (_battleFSM)
         _battleFSM->Change_State(BattleTurnState::ChooseAction);
+}
+
+void BattleController::Handle_TargetPreviewChanged(const BattleChar* target)
+{
+    if(!_battleTurnCamera)
+    return;
+
+    BattleTurnCamera::BattleShotRequest request{};
+
+    if (target == nullptr || target->actor == nullptr)
+    {
+        request.mode = BattleCameraMode::WIDE;
+        request.target = nullptr;
+    }
+    else
+    {
+        request.mode = BattleCameraMode::ENEMYFOCUS;
+        request.target = target->actor;
+    }
+
+    _battleTurnCamera->Apply_ShotRequest(request);
 }
 
 HRESULT BattleController::Ready_Delegates()
