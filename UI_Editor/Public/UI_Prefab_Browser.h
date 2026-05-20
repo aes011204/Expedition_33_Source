@@ -17,14 +17,6 @@ namespace UIEditor
         void Render() override;
 
     private:
-        struct PrefabFileEntry
-        {
-            wstring filePath = {};
-            string name = {};
-            string relativePath = {};
-        };
-
-    private:
         void Render_FolderTree();
         void Render_FolderNode(const fs::path& directoryPath);
         void Render_SelectedFolderPanel();
@@ -34,7 +26,6 @@ namespace UIEditor
         void Select_Directory(const fs::path& directoryPath);
         void Save_SelectedPrefab();
         void Create_PrefabInstance(const wstring& filePath);
-        string Make_RelativeDisplayPath(const fs::path& path) const;
 
     public:
         static Shared<UI_Prefab_Browser> Create(UI_Editor_Manager& editorManager);
@@ -43,7 +34,7 @@ namespace UIEditor
         UI_Editor_Manager& _editorManager;
         UI_PrefabService _prefabService = {};
         wstring _selectedDirectory = {};
-        vector<PrefabFileEntry> _prefabEntries = {};
+        vector<UI_PrefabFileEntry> _prefabEntries = {};
         bool _needsRefresh = true;
         char _searchBuffer[128] = {};
         char _prefabNameBuffer[128] = {};
