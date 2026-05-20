@@ -227,6 +227,7 @@ private:
     ModelType					        _type = { ModelType::END };
     bool                                _isSkeletal{ false };
     Matrix					            _preLocalTransformMatrix = {};
+    Matrix                              _preLocalRotationMatrix = {};
     bool                                _hasLocalBounds{ false };
     Vec3                                _localBoundsMin{};
     Vec3                                _localBoundsMax{};
