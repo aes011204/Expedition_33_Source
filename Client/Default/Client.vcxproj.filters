@@ -522,6 +522,9 @@
     <ClInclude Include="..\Public\EffectEmitterRegistration.h">
       <Filter>02.GameObject\Effect\Emitter Registration</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\EffectAssetRuntimeLoader.h">
+      <Filter>02.GameObject\Effect</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\Monster_BattleBase.h">
       <Filter>02.GameObject\Monster</Filter>
     </ClInclude>
@@ -643,6 +646,7 @@
     <ClInclude Include="..\Public\GameplayUI_Types.h" />
     <ClInclude Include="..\Public\GameplayUI_World.h" />
     <ClInclude Include="..\Public\GameplayUI_Battle.h" />
+    <ClInclude Include="..\public\ANS_Move.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -824,6 +828,9 @@
     </ClCompile>
     <ClCompile Include="..\Private\ComputeSpriteEmitter.cpp">
       <Filter>02.GameObject\Effect\Emitters\ComputePointParticle</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\EffectAssetRuntimeLoader.cpp">
+      <Filter>02.GameObject\Effect</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\InstancedMeshActor.cpp">
       <Filter>02.GameObject\InstancedMeshActor</Filter>
@@ -1038,6 +1045,7 @@
     <ClCompile Include="..\Private\UI_RuntimePanelBase.cpp" />
     <ClCompile Include="..\Private\GameplayUI_World.cpp" />
     <ClCompile Include="..\Private\GameplayUI_Battle.cpp" />
+    <ClCompile Include="..\private\ANS_Move.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">
