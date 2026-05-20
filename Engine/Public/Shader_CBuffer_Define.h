@@ -83,14 +83,14 @@ struct alignas(16) ShadowCB
     float   bias = 0.f;
     float   intensity = 0.f;
     float   staticShadowEnabled = 0.f;
-};
+}; 
 
 /* ------------------------------------------ */
-/*             Deferred CBuffer               */
+/*             ScreenSpaceCB CBuffer          */
 /* ------------------------------------------ */
-struct alignas(16) DeferredCB
+struct alignas(16) ScreenSpaceCB
 {
-    static constexpr ConstantBuffer CBType = ConstantBuffer::Deferred;
+    static constexpr ConstantBuffer CBType = ConstantBuffer::ScreenSpace;
 
     Matrix  screenViewMatrix;
     Matrix  screenProjMatrix;
@@ -102,7 +102,8 @@ struct alignas(16) DeferredCB
 
     float   farPlane = 0.f;
     Vec2    texelSize = { 1.f/1600.f, 1.f/900.f };
-    float   _pad0;
+    Vec2    screenSize = { 1600.f, 900.f };
+    float   pad[3];
 };
 
 /* ------------------------------------------ */
@@ -142,11 +143,10 @@ struct alignas(16) PostProcessCB
 
     float bloomScatter = 0.7f;              // Bloom 이 얼마나 퍼져 보일지 조정하는 값
     uint32 toneMapMode = 0;                 // 0: Reinhard, 1: ACES, 2: Uncharted2
-    Vec2 bloomTexelSize{ 0.f, 0.f };        // Bloom 텍스처의 한 픽셀 크기
         
     uint32 featureMask = 0;                 // 적용할 Feature
     uint32 useBackgroundFallback = 0;       // 0이면 비활성, 1이면 빈 픽셀 fallback 색 적용
-    float _pad2[2]{};
+    float _pad2[4]{};
     Vec4 backgroundFallbackColor{ 0.f, 0.f, 0.f, 1.f }; // fallback 배경색
 };
 
@@ -191,7 +191,7 @@ static_assert(sizeof(MaterialCB) % 16 == 0);
 static_assert(sizeof(CameraCB) % 16 == 0);
 static_assert(sizeof(ObjectCB) % 16 == 0);
 static_assert(sizeof(ShadowCB) % 16 == 0);
-static_assert(sizeof(DeferredCB) % 16 == 0);
+static_assert(sizeof(ScreenSpaceCB) % 16 == 0);
 static_assert(sizeof(LightCB) % 16 == 0);
 static_assert(sizeof(PostProcessCB) % 16 == 0);
 static_assert(sizeof(SSAOCB) % 16 == 0);

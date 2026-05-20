@@ -75,6 +75,16 @@ static constexpr bool NotClearRTV = false;
         }                                           \
     } while (false)
 
+#define RETURN_FAIL_LOG_IF_FAILED(expr, message)    \
+    do                                              \
+    {                                               \
+        if (FAILED(expr))                           \
+        {                                           \
+            DEBUG_LOG_FAIL(message);                \
+            return E_FAIL;                          \
+        }                                           \
+    } while (false)
+
 
 #ifdef _DEBUG
 #define DEBUG_LOG_FAIL(message) this->DumpCurrentOMState(message)
@@ -90,6 +100,17 @@ static constexpr bool NotClearRTV = false;
             DEBUG_LOG_FAIL(message);                \
             GAME->End_MRT();                        \
             return;                                 \
+        }                                           \
+    } while (false)
+
+#define ENDMRT_RETURN_FAIL_LOG_IF_FAILED(expr, message)  \
+    do                                              \
+    {                                               \
+        if (FAILED(expr))                           \
+        {                                           \
+            DEBUG_LOG_FAIL(message);                \
+            GAME->End_MRT();                        \
+            return E_FAIL;                          \
         }                                           \
     } while (false)
 

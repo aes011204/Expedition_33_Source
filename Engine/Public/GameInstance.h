@@ -336,6 +336,7 @@ public: /* For.TypeRegistry */
 
 
 public : /* For.Target_Manager */
+    HRESULT Ready_AllRenderTargets();
     HRESULT Add_RenderTarget(const wstring& targetTag, uint32 sizeX, uint32 sizeY, DXGI_FORMAT pixelFormat, const Color& clearColor, bool resizeWithViewport = true, bool useDSV = false);
     HRESULT Add_MRT(const wstring& mrtTag, const wstring& targetTag);
     // HDR 입력 RT의 clear color를 바꿀 때 사용한다.

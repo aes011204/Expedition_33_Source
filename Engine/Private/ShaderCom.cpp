@@ -90,8 +90,8 @@ HRESULT ShaderCom::Initialize_Prototype(const wchar_t* shaderFilePath, const D3D
     _CB[ETOI(ConstantBuffer::Shadow)] =
         _effect->GetConstantBufferByName(ShaderCB::Shadow.data());
 
-    _CB[ETOI(ConstantBuffer::Deferred)] =
-        _effect->GetConstantBufferByName(ShaderCB::Deferred.data());
+    _CB[ETOI(ConstantBuffer::ScreenSpace)] =
+        _effect->GetConstantBufferByName(ShaderCB::ScreenSpace.data());
 
     _CB[ETOI(ConstantBuffer::Light)] =
         _effect->GetConstantBufferByName(ShaderCB::Light.data());

@@ -162,11 +162,9 @@ float Compute_DepthSSAO(float2 uv)
     float rand01 = Hash12(pixelCoord);
     float randomAngle = rand01 * 6.28318530718f; // 2PI
 
-    float radiusScale = saturate(10.f / max(centerViewZ, EPSILON));
-    float baseRadius = max(g_SSAORadius * radiusScale, 0.35f);
-    float perspectiveScale = rcp(max(radiusScale, 1e-3f));
-    float depthBias = max(g_SSAOBias * perspectiveScale, 1e-4f);
-    float depthRange = max(g_SSAODepthRange * perspectiveScale, depthBias);
+    float baseRadius = max(g_SSAORadius, 0.35f);
+    float depthBias = max(g_SSAOBias, 1e-4f);
+    float depthRange = max(g_SSAODepthRange, depthBias);
 
     [unroll]
     for (int i = 0; i < sampleCount; ++i)

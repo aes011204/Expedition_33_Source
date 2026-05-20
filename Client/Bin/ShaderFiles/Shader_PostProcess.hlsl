@@ -66,7 +66,7 @@ PS_OUT_BACKBUFFER PS_BloomExtractHalf(PS_IN In)
 {
     PS_OUT_BACKBUFFER Out;
 
-    float2 texel = max(g_PP_BloomTexelSize, float2(EPSILON, EPSILON));
+    float2 texel = max(g_TexelSize, float2(EPSILON, EPSILON));
     float2 offset = texel * 1.5f;
 
     float3 c0 = g_HDRTexture.Sample(LinearClampSampler, In.Texcoord + float2(-offset.x, -offset.y)).rgb;

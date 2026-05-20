@@ -210,7 +210,7 @@ EyeMaterialSample SampleEyeMaterial(float2 uv)
 
     // 홍채 섬유 무늬, 밝기, 색 변화 강도
     float fiber = saturate(irisHeight);
-    // Height 텍스처의 0~1 차이를 디테일로 직접 쓰기 위해 대비를 올린다.
+    // height 텍스처의 0~1 차이를 디테일로 직접 쓰기 위해 대비를 올린다.
     float heightDetail = saturate((fiber - 0.5f) * 2.4f + 0.5f);
     float limbal = smoothstep(0.28f, 0.46f, radial);
 

@@ -1,4 +1,4 @@
-#include "PostProcess_View.h"
+﻿#include "PostProcess_View.h"
 #include "PostProcessPipeline.h"
 #include "SSAOPipeline.h"
 #include "GameInstance.h"
@@ -186,14 +186,6 @@ void PostProcess_View::Draw_ParameterControl(PostProcessCB& params, bool& dirty)
             params.toneMapMode = static_cast<uint32>(toneMapMode);
             dirty = true;
         }
-
-        float texelSize[2] = { params.bloomTexelSize.x, params.bloomTexelSize.y };
-        if (ImGui::DragFloat2("BloomTexelSize", texelSize, 0.00001f, 0.f, 0.1f, "%.6f"))
-        {
-            params.bloomTexelSize.x = texelSize[0];
-            params.bloomTexelSize.y = texelSize[1];
-            dirty = true;
-        }
     }
 
     ImGui::EndChild();
@@ -288,20 +280,6 @@ void PostProcess_View::Draw_QuickAction(PostProcessCB& params, Shared<SSAOPipeli
 
         ImGui::SameLine();
 
-        if (ImGui::Button("Auto BloomTexel from Viewport"))
-        {
-            const float width = static_cast<float>(GAME->Get_ViewportWidth());
-            const float height = static_cast<float>(GAME->Get_ViewportHeight());
-
-            if (width > 0.f && height > 0.f)
-            {
-                params.bloomTexelSize = Vec2(1.f / width, 1.f / height);
-                dirty = true;
-            }
-        }
-
-        ImGui::SameLine();
-
         if (ImGui::Button("Reset SSAO Params") && ssaoPipeline)
         {
             ssaoPipeline->Get_Params() = Make_DefaultSSAOParams();
@@ -325,7 +303,6 @@ PostProcessCB PostProcess_View::Make_DefaultParams()
     defaults.bloomClamp = 10.f;
     defaults.bloomScatter = 0.7f;
     defaults.toneMapMode = 0;
-    defaults.bloomTexelSize = Vec2(0.f, 0.f);
     return defaults;
 }
 

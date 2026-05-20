@@ -26,6 +26,8 @@ public :
     virtual ~Target_Manager() = default;
 
 public :
+    HRESULT Ready_AllRenderTargets();
+
     HRESULT Add_RenderTarget(const wstring& targetTag, uint32 sizeX, uint32 sizeY,
         DXGI_FORMAT pixelFormat, const Color& clearColor, bool resizeWithViewport = true, bool useDSV = false);
     HRESULT Add_MRT(const wstring& mrtTag, const wstring& targetTag);
@@ -60,6 +62,13 @@ private :
     uint32          _originalViewportCount = 0;
     uint32          _currentWidth = 0;
     uint32          _currentHeight = 0;
+
+    // TODO ! Shadow 관련 클래스 확장되기 전까지는 여기서 Renderer랑 동기화해줘야 한다.
+    uint32                          _shadowMapWidth = 4096;
+    uint32                          _shadowMapHeight = 4096;
+
+    uint32                          _staticShadowMapWidth = 4096;
+    uint32                          _staticShadowMapHeight = 4096;
 
 public :
     static Unique<Target_Manager>   Create(ComPtr<Device> device, ComPtr<Context> context);

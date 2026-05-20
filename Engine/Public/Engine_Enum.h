@@ -115,14 +115,14 @@ namespace Engine
 
     enum class ConstantBuffer : uint8
     {
-        Material    = 0,
-        Camera      = 1,   // View, Proj Matrix
-        Object      = 2,   // WorldMatrix
-        Shadow      = 3,
-        Deferred    = 4,
-        Light       = 5,
-        SSAO        = 6,
-        PostProcess = 7,
+        Material        = 0,
+        Camera          = 1,   // View, Proj Matrix
+        Object          = 2,   // WorldMatrix
+        Shadow          = 3,
+        ScreenSpace     = 4,
+        Light           = 5,
+        SSAO            = 6,
+        PostProcess     = 7,
 
         END
     };

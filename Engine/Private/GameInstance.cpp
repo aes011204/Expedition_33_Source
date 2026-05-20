@@ -1523,6 +1523,11 @@ Shared<AnimNotifyState> GameInstance::Create_AnimNotifyStatePrototype(const stri
     return _typeRegistry->Create_AnimNotifyState(className);
 }
 
+HRESULT GameInstance::Ready_AllRenderTargets()
+{
+    return _targetManager->Ready_AllRenderTargets();
+}
+
 HRESULT GameInstance::Add_RenderTarget(const wstring& targetTag, uint32 sizeX, uint32 sizeY, DXGI_FORMAT pixelFormat,
                                        const Color& clearColor, bool resizeWithViewport, bool useDSV)
 {

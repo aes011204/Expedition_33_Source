@@ -74,10 +74,14 @@ private:
     void Render_CombinedHDR();
     void Render_PostProcess();
 
-    HRESULT Ready_RenderTargets();
+    HRESULT Ready_Shaders();
     void Change_ViewportDesc(uint32 width, uint32 height);
 
-    HRESULT Bind_TransformCB(Shared<ShaderCom> shader) const;
+    HRESULT Bind_ScreenSpaceCB(Shared<ShaderCom> shader, uint32 width = 0, uint32 height = 0) const;
+
+private :
+    HRESULT Render_BloomPass(const wchar_t* dstMrt, const wchar_t* srcRt, PostProcessPass pass);
+    HRESULT Render_BloomUpsamplePass(const wchar_t* dstMrt, const wchar_t* smallRt, const wchar_t* baseRt);
 
 private: /* 그림자 */
     void Update_DynamicShadowCamera();  // 카메라가 플레이어 위치 추적
@@ -106,7 +110,6 @@ private:
 
     float                           _shadowScale = 1.f;
     bool                            _shadowEnabled = false;
-    uint32                          _shadowMapSize = 0;
 
     Matrix                          _pipelineWorldMatrix;
     Matrix                          _PipelineViewMatrix;
@@ -121,12 +124,9 @@ private:
     bool                            _staticShadowDirty = true;
     bool                            _staticShadowReady = false;
 
-    uint32                          _shadowMapWidth = 4096;
-    uint32                          _shadowMapHeight = 4096;
-
-    uint32                          _staticShadowMapWidth = 4096;
-    uint32                          _staticShadowMapHeight = 4096;
-
+    ViewportSize                    _screenSize{};
+    ViewportSize                    _shadowMapSize = { 4096, 4096 };
+    ViewportSize                    _shadowStaticSize = { 4096, 4096 };
 
 private:
     void Reset_RenderCall();
@@ -139,21 +139,6 @@ private:
         size_t sampleCount{};
         double accumulatedMs{};
         double maxMs{};
-    };
-
-    struct RenderPerfWindow
-    {
-        PerfCounter render{};
-        PerfCounter priority{};
-        PerfCounter shadow{};
-        PerfCounter nonBlend{};
-        PerfCounter nonLight{};
-        PerfCounter lights{};
-        PerfCounter combinedHDR{};
-        PerfCounter postProcess{};
-        PerfCounter blend{};
-        PerfCounter ui{};
-        PerfCounter debug{};
     };
 
     RenderPerfWindow _renderPerfWindow{};
@@ -172,10 +157,7 @@ private:
         double blendMs,
         double uiMs,
         double debugMs);
-    bool Should_SampleRenderPerf();
-    static void Accumulate_PassPerf(PerfCounter& counter, double passMs);
-    static void Reset_RenderPerfWindow(RenderPerfWindow& window);
-    static double Safe_Divide(double numerator, double denominator);
+
     void DumpCurrentOMState(const wchar_t* stageTag) const;
 
 #endif
@@ -197,6 +179,7 @@ private :
 
 #endif
 };
+
 
 NS_END
 

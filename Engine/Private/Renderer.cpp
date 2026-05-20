@@ -68,9 +68,12 @@ Renderer::Renderer(const ComPtr<Device>& device, const ComPtr<Context>& context)
 
 HRESULT Renderer::Initialize()
 {
-    CHECK_FAILED(Ready_RenderTargets(), E_FAIL);
+    CHECK_FAILED(GAME->Ready_AllRenderTargets(), E_FAIL);               // 렌더타겟 모두 여기서 준비
+    CHECK_FAILED(Ready_Shaders(), E_FAIL);
+
     _ppPipeline = PostProcessPipeline::Create(_device, _context);
     CHECK_NULL(_ppPipeline, E_FAIL);
+
     _ssaoPipeline = SSAOPipeline::Create(_device, _context);
     CHECK_NULL(_ssaoPipeline, E_FAIL);
 
@@ -92,7 +95,10 @@ void Renderer::Draw()
     // ======================================================================================================
     // 렌더 패스 추가하고 싶은데 _DEBUG 이런 거 때문에 넘 복잡하다 싶으면 제게 말해주세요~ ( 코덱스가 더 잘하긴 함 )
     // ======================================================================================================
-    Change_ViewportDesc(GAME->Get_ViewportWidth(), GAME->Get_ViewportHeight());
+
+    _screenSize = { GAME->Get_ViewportWidth(), GAME->Get_ViewportHeight() };
+
+    Change_ViewportDesc(_screenSize.width, _screenSize.height);
 
 #ifdef _DEBUG
     DumpCurrentOMState(L"Renderer::Draw:Begin");
@@ -363,7 +369,7 @@ void Renderer::Render_SSAO()
             _deferredShader->Bind_ObjectCB(_pipelineWorldMatrix));
 
         ENDMRT_RETURN_IF_FAILED(
-            Bind_TransformCB(_deferredShader));
+            Bind_ScreenSpaceCB(_deferredShader));
 
         ENDMRT_RETURN_IF_FAILED(
             GAME->Bind_RT_ShaderResource(_deferredShader, "g_NormalTexture", RT::Normal));
@@ -406,7 +412,7 @@ void Renderer::Render_SSAO()
             _deferredShader->Bind_ObjectCB(_pipelineWorldMatrix));
 
         ENDMRT_RETURN_IF_FAILED(
-            Bind_TransformCB(_deferredShader));
+            Bind_ScreenSpaceCB(_deferredShader));
 
         ENDMRT_RETURN_IF_FAILED(
             GAME->Bind_RT_ShaderResource(_deferredShader, "g_SSAOTexture", RT::SSAO));
@@ -449,7 +455,7 @@ void Renderer::Render_Lights()
         _deferredShader->Bind_ObjectCB(_pipelineWorldMatrix));
 
     // depth -> World 위치 복원
-    ENDMRT_RETURN_IF_FAILED(Bind_TransformCB(_deferredShader));
+    ENDMRT_RETURN_IF_FAILED(Bind_ScreenSpaceCB(_deferredShader));
 
     // 명암 연산을 위한 SRV
     ENDMRT_RETURN_IF_FAILED(
@@ -491,8 +497,8 @@ void Renderer::Render_CombinedHDR()
 
     // depth -> World 위치 복원 용도
     COMBINEDHDR_RETURN_LOG_IF_FAILED(
-        Bind_TransformCB(_deferredShader),
-        L"Render_CombinedHDR:FAIL Bind_TransformCB");
+        Bind_ScreenSpaceCB(_deferredShader),
+        L"Render_CombinedHDR:FAIL Bind_ScreenSpaceCB");
 
     // 그림자
     COMBINEDHDR_RETURN_LOG_IF_FAILED(
@@ -613,7 +619,6 @@ void Renderer::Render_PostProcess()
         return;
 
     if (!_ppPipeline->Has_PostProcessFeature(PostProcessFeature::HDR))
-
         return;
 
     // Transform
@@ -623,101 +628,40 @@ void Renderer::Render_PostProcess()
 
     // PostProcess Params
     auto& params = _ppPipeline->Get_PostProcessParams();
-    const uint32 viewportWidth = max(1u, GAME->Get_ViewportWidth());
-    const uint32 viewportHeight = max(1u, GAME->Get_ViewportHeight());
-    const Vec2 baseTexelSize = Vec2{ 1.f / viewportWidth, 1.f / viewportHeight };
-
-    params.bloomTexelSize = baseTexelSize;
-
+    const uint32 viewportWidth = max(1u, _screenSize.width);
+    const uint32 viewportHeight = max(1u, _screenSize.height);
     RETURN_LOG_IF_FAILED(
         _postprocessShader->Bind_CBufferData(_ppPipeline->Get_PostProcessParams()),
         L"Render_PostProcess:FAIL Bind_CBufferData(Base)");
 
     // depth -> World 위치 복원 용도
     RETURN_LOG_IF_FAILED(
-        Bind_TransformCB(_postprocessShader),
-        L"Render_PostProcess:FAIL Bind_TransformCB");
+        Bind_ScreenSpaceCB(_postprocessShader, viewportWidth, viewportHeight),
+        L"Render_PostProcess:FAIL Bind_ScreenSpaceCB");
 
     // IASet...
     RETURN_LOG_IF_FAILED(
         _viBuffer->Bind_Resources(),
         L"Render_PostProcess:FAIL Bind_Resources");
 
-    // 핑퐁 구조
+    // Bloom Mip Chain 구조. 해상도를 낮춰서 샘플링 횟수를 줄인다.
     const bool useBloom = _ppPipeline->Has_PostProcessFeature(PostProcessFeature::Bloom);
     if (useBloom)
     {
-        const uint32 halfWidth = max(1u, viewportWidth / 2u);
-        const uint32 halfHeight = max(1u, viewportHeight / 2u);
-        const uint32 quarterWidth = max(1u, viewportWidth / 4u);
-        const uint32 quarterHeight = max(1u, viewportHeight / 4u);
-        const uint32 eighthWidth = max(1u, viewportWidth / 8u);
-        const uint32 eighthHeight = max(1u, viewportHeight / 8u);
+        const ViewportSize half = { max(1u, viewportWidth / 2u), max(1u, viewportHeight / 2u) };
+        const ViewportSize quarter = { max(1u, viewportWidth / 2u), max(1u, viewportHeight / 2u) };
+        const ViewportSize eighth = { max(1u, viewportWidth / 2u), max(1u, viewportHeight / 2u) };
 
-        auto bindBloomTexelSize = [&](uint32 srcWidth, uint32 srcHeight, const wchar_t* logTag)
+        auto bindBloomScreenSpace = [&](uint32 srcWidth, uint32 srcHeight, const wchar_t* logTag)
         {
-            params.bloomTexelSize = Vec2{ 1.f / max(1u, srcWidth), 1.f / max(1u, srcHeight) };
             RETURN_LOG_IF_FAILED(
-                _postprocessShader->Bind_CBufferData(_ppPipeline->Get_PostProcessParams()),
+                Bind_ScreenSpaceCB(_postprocessShader, srcWidth, srcHeight),
                 logTag);
         };
 
-        auto renderBloomPass = [&](const wchar_t* dstMrt, const wchar_t* srcRt, PostProcessPass pass, const wchar_t* beginLog, const wchar_t* bindLog, const wchar_t* shaderLog, const wchar_t* renderLog, const wchar_t* endLog)
-        {
-            RETURN_LOG_IF_FAILED(
-                GAME->Begin_MRT(dstMrt, NotUseDSV, ClearRTV),
-                beginLog);
+        bindBloomScreenSpace(viewportWidth, viewportHeight, L"Render_PostProcess:FAIL Bind_ScreenSpaceCB(BloomExtractHalf)");
 
-            ENDMRT_RETURN_LOG_IF_FAILED(
-                GAME->Bind_RT_ShaderResource(_postprocessShader, "g_BloomTexture", srcRt),
-                bindLog);
-
-            ENDMRT_RETURN_LOG_IF_FAILED(
-                _postprocessShader->Begin(ETOI(pass)),
-                shaderLog);
-
-            ENDMRT_RETURN_LOG_IF_FAILED(
-                _viBuffer->Render(),
-                renderLog);
-
-            RETURN_LOG_IF_FAILED(
-                GAME->End_MRT(),
-                endLog);
-
-            Add_RenderCall();
-        };
-
-        auto renderBloomUpsamplePass = [&](const wchar_t* dstMrt, const wchar_t* smallRt, const wchar_t* baseRt, const wchar_t* beginLog, const wchar_t* smallBindLog, const wchar_t* baseBindLog, const wchar_t* shaderLog, const wchar_t* renderLog, const wchar_t* endLog)
-        {
-            RETURN_LOG_IF_FAILED(
-                GAME->Begin_MRT(dstMrt, NotUseDSV, ClearRTV),
-                beginLog);
-
-            ENDMRT_RETURN_LOG_IF_FAILED(
-                GAME->Bind_RT_ShaderResource(_postprocessShader, "g_BloomTexture", smallRt),
-                smallBindLog);
-
-            ENDMRT_RETURN_LOG_IF_FAILED(
-                GAME->Bind_RT_ShaderResource(_postprocessShader, "g_BloomBaseTexture", baseRt),
-                baseBindLog);
-
-            ENDMRT_RETURN_LOG_IF_FAILED(
-                _postprocessShader->Begin(ETOI(PostProcessPass::BloomUpsampleAdd)),
-                shaderLog);
-
-            ENDMRT_RETURN_LOG_IF_FAILED(
-                _viBuffer->Render(),
-                renderLog);
-
-            RETURN_LOG_IF_FAILED(
-                GAME->End_MRT(),
-                endLog);
-
-            Add_RenderCall();
-        };
-
-        bindBloomTexelSize(viewportWidth, viewportHeight, L"Render_PostProcess:FAIL Bind_CBufferData(BloomExtractHalf)");
-
+        // Extract HDR Color -> HalfA
         RETURN_LOG_IF_FAILED(
             GAME->Begin_MRT(MRT::BloomHalfA, NotUseDSV, ClearRTV),
             L"Render_PostProcess:FAIL Begin_MRT(BloomHalfA-Extract)");
@@ -740,101 +684,58 @@ void Renderer::Render_PostProcess()
 
         Add_RenderCall();
 
-        bindBloomTexelSize(halfWidth, halfHeight, L"Render_PostProcess:FAIL Bind_CBufferData(BloomDownsample-Quarter)");
-        renderBloomPass(
-            MRT::BloomQuarterA, RT::BloomHalfA, PostProcessPass::BloomDownsample,
-            L"Render_PostProcess:FAIL Begin_MRT(BloomQuarterA-Downsample)",
-            L"Render_PostProcess:FAIL Bind_RT_ShaderResource(g_BloomTexture:HalfA)",
-            L"Render_PostProcess:FAIL ShaderBegin(BloomDownsample-Quarter)",
-            L"Render_PostProcess:FAIL RenderRect(BloomDownsample-Quarter)",
-            L"Render_PostProcess:FAIL End_MRT(BloomQuarterA-Downsample)");
+        // DownSample HalfA -> QuarterA
+        bindBloomScreenSpace(half.width, half.height, L"Render_PostProcess:FAIL Bind_ScreenSpaceCB(BloomDownsample-Quarter)");
+        CHECK_FAILED(Render_BloomPass(
+            MRT::BloomQuarterA, RT::BloomHalfA, PostProcessPass::BloomDownsample));
 
-        bindBloomTexelSize(quarterWidth, quarterHeight, L"Render_PostProcess:FAIL Bind_CBufferData(BloomDownsample-Eighth)");
-        renderBloomPass(
-            MRT::BloomEighthA, RT::BloomQuarterA, PostProcessPass::BloomDownsample,
-            L"Render_PostProcess:FAIL Begin_MRT(BloomEighthA-Downsample)",
-            L"Render_PostProcess:FAIL Bind_RT_ShaderResource(g_BloomTexture:QuarterA)",
-            L"Render_PostProcess:FAIL ShaderBegin(BloomDownsample-Eighth)",
-            L"Render_PostProcess:FAIL RenderRect(BloomDownsample-Eighth)",
-            L"Render_PostProcess:FAIL End_MRT(BloomEighthA-Downsample)");
+        // DownSample QuarterA -> EighthA
+        bindBloomScreenSpace(quarter.width, quarter.height, L"Render_PostProcess:FAIL Bind_ScreenSpaceCB(BloomDownsample-Eighth)");
+        CHECK_FAILED(Render_BloomPass(
+            MRT::BloomEighthA, RT::BloomQuarterA, PostProcessPass::BloomDownsample));
 
-        bindBloomTexelSize(eighthWidth, eighthHeight, L"Render_PostProcess:FAIL Bind_CBufferData(BloomBlur-EighthH)");
-        renderBloomPass(
-            MRT::BloomEighthB, RT::BloomEighthA, PostProcessPass::BloomBlurH,
-            L"Render_PostProcess:FAIL Begin_MRT(BloomEighthB-BlurH)",
-            L"Render_PostProcess:FAIL Bind_RT_ShaderResource(g_BloomTexture:EighthA)",
-            L"Render_PostProcess:FAIL ShaderBegin(BloomBlurH-Eighth)",
-            L"Render_PostProcess:FAIL RenderRect(BloomBlurH-Eighth)",
-            L"Render_PostProcess:FAIL End_MRT(BloomEighthB-BlurH)");
+        // BlurH BloomEighthA -> BloomEighthB
+        bindBloomScreenSpace(eighth.width, eighth.height, L"Render_PostProcess:FAIL Bind_ScreenSpaceCB(BloomBlur-EighthH)");
+        CHECK_FAILED(Render_BloomPass(
+            MRT::BloomEighthB, RT::BloomEighthA, PostProcessPass::BloomBlurH));
 
-        bindBloomTexelSize(eighthWidth, eighthHeight, L"Render_PostProcess:FAIL Bind_CBufferData(BloomBlur-EighthV)");
-        renderBloomPass(
-            MRT::BloomEighthA, RT::BloomEighthB, PostProcessPass::BloomBlurV,
-            L"Render_PostProcess:FAIL Begin_MRT(BloomEighthA-BlurV)",
-            L"Render_PostProcess:FAIL Bind_RT_ShaderResource(g_BloomTexture:EighthB)",
-            L"Render_PostProcess:FAIL ShaderBegin(BloomBlurV-Eighth)",
-            L"Render_PostProcess:FAIL RenderRect(BloomBlurV-Eighth)",
-            L"Render_PostProcess:FAIL End_MRT(BloomEighthA-BlurV)");
+        // BlurV BloomEighthB -> BloomEighthA (핑퐁)
+        bindBloomScreenSpace(eighth.width, eighth.height, L"Render_PostProcess:FAIL Bind_ScreenSpaceCB(BloomBlur-EighthV)");
+        CHECK_FAILED(Render_BloomPass(
+            MRT::BloomEighthA, RT::BloomEighthB, PostProcessPass::BloomBlurV));
 
-        bindBloomTexelSize(quarterWidth, quarterHeight, L"Render_PostProcess:FAIL Bind_CBufferData(BloomBlur-QuarterH)");
-        renderBloomPass(
-            MRT::BloomQuarterB, RT::BloomQuarterA, PostProcessPass::BloomBlurH,
-            L"Render_PostProcess:FAIL Begin_MRT(BloomQuarterB-BlurH)",
-            L"Render_PostProcess:FAIL Bind_RT_ShaderResource(g_BloomTexture:QuarterA-Blur)",
-            L"Render_PostProcess:FAIL ShaderBegin(BloomBlurH-Quarter)",
-            L"Render_PostProcess:FAIL RenderRect(BloomBlurH-Quarter)",
-            L"Render_PostProcess:FAIL End_MRT(BloomQuarterB-BlurH)");
+        // BlurH BloomQuarterA -> BloomQuarterB
+        bindBloomScreenSpace(quarter.width, quarter.height, L"Render_PostProcess:FAIL Bind_ScreenSpaceCB(BloomBlur-QuarterH)");
+        CHECK_FAILED(Render_BloomPass(
+            MRT::BloomQuarterB, RT::BloomQuarterA, PostProcessPass::BloomBlurH));
 
-        bindBloomTexelSize(quarterWidth, quarterHeight, L"Render_PostProcess:FAIL Bind_CBufferData(BloomBlur-QuarterV)");
-        renderBloomPass(
-            MRT::BloomQuarterA, RT::BloomQuarterB, PostProcessPass::BloomBlurV,
-            L"Render_PostProcess:FAIL Begin_MRT(BloomQuarterA-BlurV)",
-            L"Render_PostProcess:FAIL Bind_RT_ShaderResource(g_BloomTexture:QuarterB)",
-            L"Render_PostProcess:FAIL ShaderBegin(BloomBlurV-Quarter)",
-            L"Render_PostProcess:FAIL RenderRect(BloomBlurV-Quarter)",
-            L"Render_PostProcess:FAIL End_MRT(BloomQuarterA-BlurV)");
+        // BlurV BloomQuarterB -> BloomQuarterA (핑퐁)
+        bindBloomScreenSpace(quarter.width, quarter.height, L"Render_PostProcess:FAIL Bind_ScreenSpaceCB(BloomBlur-QuarterV)");
+        CHECK_FAILED(Render_BloomPass(
+            MRT::BloomQuarterA, RT::BloomQuarterB, PostProcessPass::BloomBlurV));
 
-        bindBloomTexelSize(halfWidth, halfHeight, L"Render_PostProcess:FAIL Bind_CBufferData(BloomBlur-HalfH)");
-        renderBloomPass(
-            MRT::BloomHalfB, RT::BloomHalfA, PostProcessPass::BloomBlurH,
-            L"Render_PostProcess:FAIL Begin_MRT(BloomHalfB-BlurH)",
-            L"Render_PostProcess:FAIL Bind_RT_ShaderResource(g_BloomTexture:HalfA-Blur)",
-            L"Render_PostProcess:FAIL ShaderBegin(BloomBlurH-Half)",
-            L"Render_PostProcess:FAIL RenderRect(BloomBlurH-Half)",
-            L"Render_PostProcess:FAIL End_MRT(BloomHalfB-BlurH)");
+        // BlurH BloomHalfB -> BloomHalfA
+        bindBloomScreenSpace(half.width, half.height, L"Render_PostProcess:FAIL Bind_ScreenSpaceCB(BloomBlur-HalfH)");
+        CHECK_FAILED(Render_BloomPass(
+            MRT::BloomHalfB, RT::BloomHalfA, PostProcessPass::BloomBlurH));
 
-        bindBloomTexelSize(halfWidth, halfHeight, L"Render_PostProcess:FAIL Bind_CBufferData(BloomBlur-HalfV)");
-        renderBloomPass(
-            MRT::BloomHalfA, RT::BloomHalfB, PostProcessPass::BloomBlurV,
-            L"Render_PostProcess:FAIL Begin_MRT(BloomHalfA-BlurV)",
-            L"Render_PostProcess:FAIL Bind_RT_ShaderResource(g_BloomTexture:HalfB)",
-            L"Render_PostProcess:FAIL ShaderBegin(BloomBlurV-Half)",
-            L"Render_PostProcess:FAIL RenderRect(BloomBlurV-Half)",
-            L"Render_PostProcess:FAIL End_MRT(BloomHalfA-BlurV)");
+        // BlurH BloomHalfA -> BloomHalfB (핑퐁)
+        bindBloomScreenSpace(half.width, half.height, L"Render_PostProcess:FAIL Bind_ScreenSpaceCB(BloomBlur-HalfV)");
+        CHECK_FAILED(Render_BloomPass(
+            MRT::BloomHalfA, RT::BloomHalfB, PostProcessPass::BloomBlurV));
 
-        bindBloomTexelSize(quarterWidth, quarterHeight, L"Render_PostProcess:FAIL Bind_CBufferData(BloomUpsample-Quarter)");
-        renderBloomUpsamplePass(
-            MRT::BloomQuarterB, RT::BloomEighthA, RT::BloomQuarterA,
-            L"Render_PostProcess:FAIL Begin_MRT(BloomQuarterB-Upsample)",
-            L"Render_PostProcess:FAIL Bind_RT_ShaderResource(g_BloomTexture:EighthA-Upsample)",
-            L"Render_PostProcess:FAIL Bind_RT_ShaderResource(g_BloomBaseTexture:QuarterA)",
-            L"Render_PostProcess:FAIL ShaderBegin(BloomUpsampleAdd-Quarter)",
-            L"Render_PostProcess:FAIL RenderRect(BloomUpsampleAdd-Quarter)",
-            L"Render_PostProcess:FAIL End_MRT(BloomQuarterB-Upsample)");
+        // UpSample BloomEighthA -> BloomQuarterB
+        bindBloomScreenSpace(quarter.width, quarter.height, L"Render_PostProcess:FAIL Bind_ScreenSpaceCB(BloomUpsample-Quarter)");
+        CHECK_FAILED(Render_BloomUpsamplePass(
+            MRT::BloomQuarterB, RT::BloomEighthA, RT::BloomQuarterA));
 
-        bindBloomTexelSize(halfWidth, halfHeight, L"Render_PostProcess:FAIL Bind_CBufferData(BloomUpsample-Half)");
-        renderBloomUpsamplePass(
-            MRT::BloomHalfB, RT::BloomQuarterB, RT::BloomHalfA,
-            L"Render_PostProcess:FAIL Begin_MRT(BloomHalfB-Upsample)",
-            L"Render_PostProcess:FAIL Bind_RT_ShaderResource(g_BloomTexture:QuarterB-Upsample)",
-            L"Render_PostProcess:FAIL Bind_RT_ShaderResource(g_BloomBaseTexture:HalfA)",
-            L"Render_PostProcess:FAIL ShaderBegin(BloomUpsampleAdd-Half)",
-            L"Render_PostProcess:FAIL RenderRect(BloomUpsampleAdd-Half)",
-            L"Render_PostProcess:FAIL End_MRT(BloomHalfB-Upsample)");
+        // UpSample BloomQuarterB -> BloomHalfB
+        bindBloomScreenSpace(half.width, half.height, L"Render_PostProcess:FAIL Bind_ScreenSpaceCB(BloomUpsample-Half)");
+        CHECK_FAILED(Render_BloomUpsamplePass(
+            MRT::BloomHalfB, RT::BloomQuarterB, RT::BloomHalfA));
     }
 
     // Light 기록
-    params.bloomTexelSize = baseTexelSize;
     const uint32 bloomFeatureMask = To_Underlying(PostProcessFeature::Bloom);
     if (useBloom)
         params.featureMask |= bloomFeatureMask;
@@ -886,105 +787,8 @@ void Renderer::Render_UI()
     _renderGroups[ETOI(RenderGroup::UI)].clear();
 }
 
-HRESULT Renderer::Ready_RenderTargets()
+HRESULT Renderer::Ready_Shaders()
 {
-    const uint32 width = GAME->Get_ViewportWidth();
-    const uint32 height = GAME->Get_ViewportHeight();
-
-    const bool resizeWithViewport = true;
-    const bool useDSV = true;
-
-    // MRT_GameObjects
-    CHECK_FAILED(GAME->Add_RenderTarget(RT::Diffuse,
-        width, height, DXGI_FORMAT_R8G8B8A8_UNORM, Color(0, 0, 0, 0), resizeWithViewport, !useDSV), E_FAIL);
-    CHECK_FAILED(GAME->Add_RenderTarget(RT::Normal,
-        width, height, DXGI_FORMAT_R16G16B16A16_UNORM, Color(0, 0, 0, 0), resizeWithViewport, !useDSV), E_FAIL);
-    CHECK_FAILED(GAME->Add_RenderTarget(RT::Depth,
-        width, height, DXGI_FORMAT_R32G32B32A32_FLOAT, Color(0, 0, 0, 0), resizeWithViewport, !useDSV), E_FAIL);
-    CHECK_FAILED(GAME->Add_RenderTarget(RT::Material,
-        width, height, DXGI_FORMAT_R8G8B8A8_UNORM, Color(0, 0, 0, 0), resizeWithViewport, !useDSV), E_FAIL);
-    CHECK_FAILED(GAME->Add_RenderTarget(RT::Emissive,
-        width, height, DXGI_FORMAT_R16G16B16A16_FLOAT, Color(0, 0, 0, 0), resizeWithViewport, !useDSV), E_FAIL);
-
-    // SSAO
-    CHECK_FAILED(GAME->Add_RenderTarget(RT::SSAO,
-        width, height, DXGI_FORMAT_R16_FLOAT, Color(1.f, 1.f, 1.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
-    CHECK_FAILED(GAME->Add_RenderTarget(RT::SSAOBlur,
-        width, height, DXGI_FORMAT_R16_FLOAT, Color(1.f, 1.f, 1.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
-
-    // MRT_LightAcc
-    CHECK_FAILED(GAME->Add_RenderTarget(RT::Shade,
-        width, height, DXGI_FORMAT_R16G16B16A16_UNORM, Color(0, 0, 0, 0), resizeWithViewport, !useDSV), E_FAIL);
-    CHECK_FAILED(GAME->Add_RenderTarget(RT::Specular,
-        width, height, DXGI_FORMAT_R16G16B16A16_UNORM, Color(0, 0, 0, 0), resizeWithViewport, !useDSV), E_FAIL);
-
-    // MRT_ShadowObjects
-    CHECK_FAILED(GAME->Add_RenderTarget(RT::LightDepth,
-        _shadowMapWidth, _shadowMapHeight,
-        DXGI_FORMAT_R32G32B32A32_FLOAT, Color(1.f, 1.f, 1.f, 1.f), !resizeWithViewport, useDSV), E_FAIL);
-
-    CHECK_FAILED(GAME->Add_RenderTarget(RT::StaticLightDepth,
-        _staticShadowMapWidth, _staticShadowMapHeight,
-        DXGI_FORMAT_R32G32B32A32_FLOAT, Color(1.f, 1.f, 1.f, 1.f), !resizeWithViewport, useDSV), E_FAIL);
-
-
-    // MRT_PostProcess
-    const uint32 bloomHalfWidth = max(1u, width / 2u);
-    const uint32 bloomHalfHeight = max(1u, height / 2u);
-    const uint32 bloomQuarterWidth = max(1u, width / 4u);
-    const uint32 bloomQuarterHeight = max(1u, height / 4u);
-    const uint32 bloomEighthWidth = max(1u, width / 8u);
-    const uint32 bloomEighthHeight = max(1u, height / 8u);
-
-    CHECK_FAILED(GAME->Add_RenderTarget(RT::BloomHalfA,
-        bloomHalfWidth, bloomHalfHeight, DXGI_FORMAT_R16G16B16A16_FLOAT, Color(0.f, 0.f, 0.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
-    CHECK_FAILED(GAME->Add_RenderTarget(RT::BloomHalfB,
-        bloomHalfWidth, bloomHalfHeight, DXGI_FORMAT_R16G16B16A16_FLOAT, Color(0.f, 0.f, 0.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
-    CHECK_FAILED(GAME->Add_RenderTarget(RT::BloomQuarterA,
-        bloomQuarterWidth, bloomQuarterHeight, DXGI_FORMAT_R16G16B16A16_FLOAT, Color(0.f, 0.f, 0.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
-    CHECK_FAILED(GAME->Add_RenderTarget(RT::BloomQuarterB,
-        bloomQuarterWidth, bloomQuarterHeight, DXGI_FORMAT_R16G16B16A16_FLOAT, Color(0.f, 0.f, 0.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
-    CHECK_FAILED(GAME->Add_RenderTarget(RT::BloomEighthA,
-        bloomEighthWidth, bloomEighthHeight, DXGI_FORMAT_R16G16B16A16_FLOAT, Color(0.f, 0.f, 0.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
-    CHECK_FAILED(GAME->Add_RenderTarget(RT::BloomEighthB,
-        bloomEighthWidth, bloomEighthHeight, DXGI_FORMAT_R16G16B16A16_FLOAT, Color(0.f, 0.f, 0.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
-
-    CHECK_FAILED(GAME->Add_RenderTarget(RT::HDRColor,
-        width, height, DXGI_FORMAT_R16G16B16A16_FLOAT, Color(0.f, 0.f, 0.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
-    CHECK_FAILED(GAME->Add_RenderTarget(RT::BackgroundMask,
-        width, height, DXGI_FORMAT_R8_UNORM, Color(0.f, 0.f, 0.f, 0.f), resizeWithViewport, !useDSV), E_FAIL);
-
-    //CHECK_FAILED(Ready_ShadowDSV(), E_FAIL);
-
-    // Create MRT
-    CHECK_FAILED(GAME->Add_MRT(MRT::GameObjects, RT::Diffuse), E_FAIL);		// SV_TARGET0
-    CHECK_FAILED(GAME->Add_MRT(MRT::GameObjects, RT::Normal), E_FAIL);		// SV_TARGET1
-    CHECK_FAILED(GAME->Add_MRT(MRT::GameObjects, RT::Depth), E_FAIL);		// SV_TARGET2
-    CHECK_FAILED(GAME->Add_MRT(MRT::GameObjects, RT::Material), E_FAIL);	// SV_TARGET3
-    CHECK_FAILED(GAME->Add_MRT(MRT::GameObjects, RT::Emissive), E_FAIL);	// SV_TARGET4
-
-    // SSAO
-    CHECK_FAILED(GAME->Add_MRT(MRT::SSAO, RT::SSAO), E_FAIL);
-    CHECK_FAILED(GAME->Add_MRT(MRT::SSAOBlur, RT::SSAOBlur), E_FAIL);
-
-    // Light
-    CHECK_FAILED(GAME->Add_MRT(MRT::LightAcc, RT::Shade), E_FAIL);			// SV_TARGET0
-    CHECK_FAILED(GAME->Add_MRT(MRT::LightAcc, RT::Specular), E_FAIL);		// SV_TARGET1
-
-    CHECK_FAILED(GAME->Add_MRT(MRT::ShadowObjects, RT::LightDepth), E_FAIL);
-    CHECK_FAILED(GAME->Add_MRT(MRT::StaticShadowObjects, RT::StaticLightDepth), E_FAIL);
-
-    // PostProcess
-    CHECK_FAILED(GAME->Add_MRT(MRT::HDR, RT::HDRColor), E_FAIL);
-    CHECK_FAILED(GAME->Add_MRT(MRT::HDR, RT::BackgroundMask), E_FAIL);
-
-    CHECK_FAILED(GAME->Add_MRT(MRT::BloomHalfA, RT::BloomHalfA), E_FAIL);
-    CHECK_FAILED(GAME->Add_MRT(MRT::BloomHalfB, RT::BloomHalfB), E_FAIL);
-    CHECK_FAILED(GAME->Add_MRT(MRT::BloomQuarterA, RT::BloomQuarterA), E_FAIL);
-    CHECK_FAILED(GAME->Add_MRT(MRT::BloomQuarterB, RT::BloomQuarterB), E_FAIL);
-    CHECK_FAILED(GAME->Add_MRT(MRT::BloomEighthA, RT::BloomEighthA), E_FAIL);
-    CHECK_FAILED(GAME->Add_MRT(MRT::BloomEighthB, RT::BloomEighthB), E_FAIL);
-
     // deferred shader, rect buffer 생성
     _viBuffer = VIBuffer_Rect::Create(_device, _context);
     CHECK_NULL(_viBuffer, E_FAIL);
@@ -997,12 +801,11 @@ HRESULT Renderer::Ready_RenderTargets()
         L"../../../Client/Bin/ShaderFiles/Shader_PostProcess.hlsl", VTXTEX::Elements, VTXTEX::numElements, ShaderType::PostProcess);
     CHECK_NULL(_postprocessShader, E_FAIL);
 
-    Sync_ViewportDependentState(width, height);
+    _screenSize = {
+        GAME->Get_ViewportWidth(), GAME->Get_ViewportHeight()
+    };
 
-#ifdef _DEBUG
-    // 전체 뷰포트의 1/4만 사용하여 디버그 렌더
-    GAME->Initialize_Debug(width * 0.5f, height * 0.5f);
-#endif
+    Sync_ViewportDependentState(_screenSize.width, _screenSize.height);
 
     return S_OK;
 }
@@ -1034,7 +837,7 @@ void Renderer::Change_ViewportDesc(uint32 width, uint32 height)
     _context->RSSetViewports(1, &ViewportDesc);
 }
 
-HRESULT Renderer::Bind_TransformCB(Shared<ShaderCom> shader) const
+HRESULT Renderer::Bind_ScreenSpaceCB(Shared<ShaderCom> shader, uint32 width, uint32 height) const
 {
     CHECK_NULL(shader, E_FAIL);
 
@@ -1042,19 +845,111 @@ HRESULT Renderer::Bind_TransformCB(Shared<ShaderCom> shader) const
     if (activeCamera == nullptr)
         return E_FAIL;
 
-    DeferredCB deferredCB{};
-    deferredCB.screenViewMatrix = _PipelineViewMatrix;
-    deferredCB.screenProjMatrix = _pipelineProjMatrix;
+    ScreenSpaceCB screenSpaceCB{};
+    screenSpaceCB.screenViewMatrix = _PipelineViewMatrix;
+    screenSpaceCB.screenProjMatrix = _pipelineProjMatrix;
 
-    deferredCB.viewInverseMatrix = *GAME->Get_Transform_Inverse(D3DTS::View);
-    deferredCB.projInverseMatrix = *GAME->Get_Transform_Inverse(D3DTS::Proj);
+    screenSpaceCB.viewInverseMatrix = *GAME->Get_Transform_Inverse(D3DTS::View);
+    screenSpaceCB.projInverseMatrix = *GAME->Get_Transform_Inverse(D3DTS::Proj);
 
-    deferredCB.cameraPosition = *GAME->Get_CamPosition();
-    deferredCB.farPlane = activeCamera->Get_Far();
+    screenSpaceCB.cameraPosition = *GAME->Get_CamPosition();
+    screenSpaceCB.farPlane = activeCamera->Get_Far();
 
-    deferredCB.texelSize = Vec2{ 1.f / GAME->Get_ViewportWidth(), 1.f / GAME->Get_ViewportHeight() };
+    const uint32 resolvedWidth = max(1u, (width == 0u) ? _screenSize.width : width);
+    const uint32 resolvedHeight = max(1u, (height == 0u) ? _screenSize.height : height);
 
-    return shader->Bind_CBufferData(deferredCB);
+    screenSpaceCB.texelSize = Vec2{
+        1.f / static_cast<float>(resolvedWidth),
+        1.f / static_cast<float>(resolvedHeight)
+    };
+    screenSpaceCB.screenSize = Vec2{
+        static_cast<float>(resolvedWidth),
+        static_cast<float>(resolvedHeight)
+    };
+
+    return shader->Bind_CBufferData(screenSpaceCB);
+}
+
+HRESULT Renderer::Render_BloomPass(const wchar_t* dstMrt, const wchar_t* srcRt, PostProcessPass pass)
+{
+    const wchar_t* passName = L"Unknown";
+    switch (pass)
+    {
+    case PostProcessPass::BloomDownsample: passName = L"BloomDownsample"; break;
+    case PostProcessPass::BloomBlurH:      passName = L"BloomBlurH"; break;
+    case PostProcessPass::BloomBlurV:      passName = L"BloomBlurV"; break;
+    default: break;
+    }
+
+    const wstring beginLog = wstring(L"Render_PostProcess:FAIL Begin_MRT(") + dstMrt + L"," + passName + L")";
+    const wstring bindLog = wstring(L"Render_PostProcess:FAIL Bind_RT_ShaderResource(g_BloomTexture:") + srcRt + L"," + passName + L")";
+    const wstring shaderLog = wstring(L"Render_PostProcess:FAIL ShaderBegin(") + passName + L")";
+    const wstring renderLog = wstring(L"Render_PostProcess:FAIL RenderRect(") + passName + L")";
+    const wstring endLog = wstring(L"Render_PostProcess:FAIL End_MRT(") + dstMrt + L"," + passName + L")";
+
+    RETURN_FAIL_LOG_IF_FAILED(
+        GAME->Begin_MRT(dstMrt, NotUseDSV, ClearRTV),
+        beginLog.c_str());
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        GAME->Bind_RT_ShaderResource(_postprocessShader, "g_BloomTexture", srcRt),
+        bindLog.c_str());
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        _postprocessShader->Begin(ETOI(pass)),
+        shaderLog.c_str());
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        _viBuffer->Render(),
+        renderLog.c_str());
+
+    RETURN_FAIL_LOG_IF_FAILED(
+        GAME->End_MRT(),
+        endLog.c_str());
+
+    Add_RenderCall();
+
+    return S_OK;
+}
+
+
+HRESULT Renderer::Render_BloomUpsamplePass(const wchar_t* dstMrt, const wchar_t* smallRt, const wchar_t* baseRt)
+{
+    constexpr const wchar_t* passName = L"BloomUpsampleAdd";
+    const wstring beginLog = wstring(L"Render_PostProcess:FAIL Begin_MRT(") + dstMrt + L"," + passName + L")";
+    const wstring smallBindLog = wstring(L"Render_PostProcess:FAIL Bind_RT_ShaderResource(g_BloomTexture:") + smallRt + L"," + passName + L")";
+    const wstring baseBindLog = wstring(L"Render_PostProcess:FAIL Bind_RT_ShaderResource(g_BloomBaseTexture:") + baseRt + L"," + passName + L")";
+    const wstring shaderLog = wstring(L"Render_PostProcess:FAIL ShaderBegin(") + passName + L")";
+    const wstring renderLog = wstring(L"Render_PostProcess:FAIL RenderRect(") + passName + L")";
+    const wstring endLog = wstring(L"Render_PostProcess:FAIL End_MRT(") + dstMrt + L"," + passName + L")";
+
+    RETURN_FAIL_LOG_IF_FAILED(
+        GAME->Begin_MRT(dstMrt, NotUseDSV, ClearRTV),
+        beginLog.c_str());
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        GAME->Bind_RT_ShaderResource(_postprocessShader, "g_BloomTexture", smallRt),
+        smallBindLog.c_str());
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        GAME->Bind_RT_ShaderResource(_postprocessShader, "g_BloomBaseTexture", baseRt),
+        baseBindLog.c_str());
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        _postprocessShader->Begin(ETOI(PostProcessPass::BloomUpsampleAdd)),
+        shaderLog.c_str());
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        _viBuffer->Render(),
+        renderLog.c_str());
+
+    RETURN_FAIL_LOG_IF_FAILED(
+        GAME->End_MRT(),
+        endLog.c_str());
+
+    Add_RenderCall();
+
+    return S_OK;
 }
 
 void Renderer::Update_DynamicShadowCamera()
@@ -1072,8 +967,8 @@ void Renderer::Update_DynamicShadowCamera()
         return;
 
     ShadowLightDesc updatedDesc = *shadowDesc;
-    updatedDesc.shadowMapWidth = _shadowMapWidth;
-    updatedDesc.shadowMapHeight = _shadowMapHeight;
+    updatedDesc.shadowMapWidth = _shadowMapSize.width;
+    updatedDesc.shadowMapHeight = _shadowMapSize.height;
 
     const Vec3 lightDir = Vec3(
         lightDesc->direction.x,
@@ -1100,10 +995,10 @@ void Renderer::Render_StaticShadowOnce()
     if (FAILED(GAME->Begin_MRT(MRT::StaticShadowObjects, UseDSV, ClearRTV)))
         return;
 
-    const uint32 originWidth = GAME->Get_ViewportWidth();
-    const uint32 originHeight = GAME->Get_ViewportHeight();
+    const uint32 originWidth = _screenSize.width;
+    const uint32 originHeight = _screenSize.height;
 
-    Change_ViewportDesc(_staticShadowMapWidth, _staticShadowMapHeight);
+    Change_ViewportDesc(_shadowStaticSize.width, _shadowStaticSize.height);
 
     for (const auto& weakObject : _staticShadowCasters)
     {
@@ -1132,10 +1027,10 @@ void Renderer::Render_DynamicShadow()
     if (FAILED(GAME->Begin_MRT(MRT::ShadowObjects, UseDSV, ClearRTV)))
         return;
 
-    const uint32 originWidth = GAME->Get_ViewportWidth();
-    const uint32 originHeight = GAME->Get_ViewportHeight();
+    const uint32 originWidth = _screenSize.width;
+    const uint32 originHeight = _screenSize.height;
 
-    Change_ViewportDesc(_shadowMapWidth, _shadowMapHeight);
+    Change_ViewportDesc(_shadowMapSize.width, _shadowMapSize.height);
 
     for (auto& renderObject : _renderGroups[ETOI(RenderGroup::Shadow)])
     {
@@ -1287,94 +1182,75 @@ bool Renderer::Try_ConsumePerfSummary(const float windowSec, RenderPerfSummary& 
     outSummary.renderCallCount = static_cast<uint32>(_renderPerfWindow.render.sampleCount);
 
     outSummary.renderAvgMs = static_cast<float>(
-        Safe_Divide(_renderPerfWindow.render.accumulatedMs, static_cast<double>(_renderPerfWindow.render.sampleCount)));
+        LogUtils::Safe_Divide(_renderPerfWindow.render.accumulatedMs, static_cast<double>(_renderPerfWindow.render.sampleCount)));
     outSummary.renderMaxMs = static_cast<float>(_renderPerfWindow.render.maxMs);
 
     outSummary.priorityAvgMs = static_cast<float>(
-        Safe_Divide(_renderPerfWindow.priority.accumulatedMs, static_cast<double>(_renderPerfWindow.priority.sampleCount)));
+        LogUtils::Safe_Divide(_renderPerfWindow.priority.accumulatedMs, static_cast<double>(_renderPerfWindow.priority.sampleCount)));
     outSummary.priorityMaxMs = static_cast<float>(_renderPerfWindow.priority.maxMs);
 
     outSummary.shadowAvgMs = static_cast<float>(
-        Safe_Divide(_renderPerfWindow.shadow.accumulatedMs, static_cast<double>(_renderPerfWindow.shadow.sampleCount)));
+        LogUtils::Safe_Divide(_renderPerfWindow.shadow.accumulatedMs, static_cast<double>(_renderPerfWindow.shadow.sampleCount)));
     outSummary.shadowMaxMs = static_cast<float>(_renderPerfWindow.shadow.maxMs);
 
     outSummary.nonBlendAvgMs = static_cast<float>(
-        Safe_Divide(_renderPerfWindow.nonBlend.accumulatedMs, static_cast<double>(_renderPerfWindow.nonBlend.sampleCount)));
+        LogUtils::Safe_Divide(_renderPerfWindow.nonBlend.accumulatedMs, static_cast<double>(_renderPerfWindow.nonBlend.sampleCount)));
     outSummary.nonBlendMaxMs = static_cast<float>(_renderPerfWindow.nonBlend.maxMs);
 
     outSummary.lightsAvgMs = static_cast<float>(
-        Safe_Divide(_renderPerfWindow.lights.accumulatedMs, static_cast<double>(_renderPerfWindow.lights.sampleCount)));
+        LogUtils::Safe_Divide(_renderPerfWindow.lights.accumulatedMs, static_cast<double>(_renderPerfWindow.lights.sampleCount)));
     outSummary.lightsMaxMs = static_cast<float>(_renderPerfWindow.lights.maxMs);
 
     outSummary.combinedHDRAvgMs = static_cast<float>(
-        Safe_Divide(_renderPerfWindow.combinedHDR.accumulatedMs, static_cast<double>(_renderPerfWindow.combinedHDR.sampleCount)));
+        LogUtils::Safe_Divide(_renderPerfWindow.combinedHDR.accumulatedMs, static_cast<double>(_renderPerfWindow.combinedHDR.sampleCount)));
     outSummary.combinedHDRMaxMs = static_cast<float>(_renderPerfWindow.combinedHDR.maxMs);
 
     outSummary.nonLightAvgMs = static_cast<float>(
-        Safe_Divide(_renderPerfWindow.nonLight.accumulatedMs, static_cast<double>(_renderPerfWindow.nonLight.sampleCount)));
+        LogUtils::Safe_Divide(_renderPerfWindow.nonLight.accumulatedMs, static_cast<double>(_renderPerfWindow.nonLight.sampleCount)));
     outSummary.nonLightMaxMs = static_cast<float>(_renderPerfWindow.nonLight.maxMs);
 
     outSummary.blendAvgMs = static_cast<float>(
-        Safe_Divide(_renderPerfWindow.blend.accumulatedMs, static_cast<double>(_renderPerfWindow.blend.sampleCount)));
+        LogUtils::Safe_Divide(_renderPerfWindow.blend.accumulatedMs, static_cast<double>(_renderPerfWindow.blend.sampleCount)));
     outSummary.blendMaxMs = static_cast<float>(_renderPerfWindow.blend.maxMs);
 
     outSummary.uiAvgMs = static_cast<float>(
-        Safe_Divide(_renderPerfWindow.ui.accumulatedMs, static_cast<double>(_renderPerfWindow.ui.sampleCount)));
+        LogUtils::Safe_Divide(_renderPerfWindow.ui.accumulatedMs, static_cast<double>(_renderPerfWindow.ui.sampleCount)));
     outSummary.uiMaxMs = static_cast<float>(_renderPerfWindow.ui.maxMs);
 
     outSummary.debugAvgMs = static_cast<float>(
-        Safe_Divide(_renderPerfWindow.debug.accumulatedMs, static_cast<double>(_renderPerfWindow.debug.sampleCount)));
+        LogUtils::Safe_Divide(_renderPerfWindow.debug.accumulatedMs, static_cast<double>(_renderPerfWindow.debug.sampleCount)));
     outSummary.debugMaxMs = static_cast<float>(_renderPerfWindow.debug.maxMs);
 
-    Reset_RenderPerfWindow(_renderPerfWindow);
+    _renderPerfWindow = {}; // Reset_RenderPerfWindow
     return true;
 }
 
 void Renderer::Accumulate_RenderPerf(
-    const double renderMs,
-    const double priorityMs,
-    const double shadowMs,
-    const double nonBlendMs,
-    const double lightsMs,
-    const double combinedHDRMs,
-    const double postprocessMs,
-    const double nonLightMs,
-    const double blendMs,
-    const double uiMs,
-    const double debugMs)
+    double renderMs,
+    double priorityMs,
+    double shadowMs,
+    double nonBlendMs,
+    double lightsMs,
+    double combinedHDRMs,
+    double postprocessMs,
+    double nonLightMs,
+    double blendMs,
+    double uiMs,
+    double debugMs)
 {
-    Accumulate_PassPerf(_renderPerfWindow.render, renderMs);
-    Accumulate_PassPerf(_renderPerfWindow.priority, priorityMs);
-    Accumulate_PassPerf(_renderPerfWindow.shadow, shadowMs);
-    Accumulate_PassPerf(_renderPerfWindow.nonBlend, nonBlendMs);
-    Accumulate_PassPerf(_renderPerfWindow.lights, lightsMs);
-    Accumulate_PassPerf(_renderPerfWindow.combinedHDR, combinedHDRMs);
-    Accumulate_PassPerf(_renderPerfWindow.postProcess, postprocessMs);
-    Accumulate_PassPerf(_renderPerfWindow.nonLight, nonLightMs);
-    Accumulate_PassPerf(_renderPerfWindow.blend, blendMs);
-    Accumulate_PassPerf(_renderPerfWindow.ui, uiMs);
-    Accumulate_PassPerf(_renderPerfWindow.debug, debugMs);
+    LogUtils::Accumulate_PassPerf(_renderPerfWindow.render, renderMs);
+    LogUtils::Accumulate_PassPerf(_renderPerfWindow.priority, priorityMs);
+    LogUtils::Accumulate_PassPerf(_renderPerfWindow.shadow, shadowMs);
+    LogUtils::Accumulate_PassPerf(_renderPerfWindow.nonBlend, nonBlendMs);
+    LogUtils::Accumulate_PassPerf(_renderPerfWindow.lights, lightsMs);
+    LogUtils::Accumulate_PassPerf(_renderPerfWindow.combinedHDR, combinedHDRMs);
+    LogUtils::Accumulate_PassPerf(_renderPerfWindow.postProcess, postprocessMs);
+    LogUtils::Accumulate_PassPerf(_renderPerfWindow.nonLight, nonLightMs);
+    LogUtils::Accumulate_PassPerf(_renderPerfWindow.blend, blendMs);
+    LogUtils::Accumulate_PassPerf(_renderPerfWindow.ui, uiMs);
+    LogUtils::Accumulate_PassPerf(_renderPerfWindow.debug, debugMs);
 }
 
-void Renderer::Accumulate_PassPerf(PerfCounter& counter, const double passMs)
-{
-    ++counter.sampleCount;
-    counter.accumulatedMs += passMs;
-    counter.maxMs = max(counter.maxMs, passMs);
-}
-
-void Renderer::Reset_RenderPerfWindow(RenderPerfWindow& window)
-{
-    window = {};
-}
-
-double Renderer::Safe_Divide(const double numerator, const double denominator)
-{
-    if (denominator <= 0.0)
-        return 0.0;
-
-    return numerator / denominator;
-}
 #endif
 
 Unique<Renderer> Renderer::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -1419,17 +1295,17 @@ void Renderer::Render_Debug()
 
     _debugComponents.clear();
 
-    // 디버그 RT 프리뷰는 Deferred 셰이더의 VS_MAIN(= g_ViewMatrix/g_ProjMatrix 사용)로 그린다.
+    // 디버그 RT 프리뷰는 ScreenSpace 셰이더의 VS_MAIN(= g_ViewMatrix/g_ProjMatrix 사용)로 그린다.
     // 다른 패스/리사이즈로 값이 바뀌면 화면 밖으로 날아갈 수 있으니 여기서 매번 명시적으로 바인딩한다.
     if (_deferredShader)
     {
-        const uint32 width = GAME->Get_ViewportWidth();
-        const uint32 height = GAME->Get_ViewportHeight();
+        const uint32 width = _screenSize.width;
+        const uint32 height = _screenSize.height;
 
         _PipelineViewMatrix = Matrix::Identity;
         _pipelineProjMatrix = XMMatrixOrthographicLH(static_cast<float>(width), static_cast<float>(height), 0.f, 1.f);
 
-        CHECK_FAILED(Bind_TransformCB(_deferredShader));
+        CHECK_FAILED(Bind_ScreenSpaceCB(_deferredShader));
     }
 
     CHECK_FAILED(GAME->Render_RT_Debug(_viBuffer, _deferredShader));
@@ -1447,5 +1323,9 @@ void Renderer::Render_Debug()
 #ifdef COMBINEDHDR_RETURN_LOG_IF_FAILED
 #undef COMBINEDHDR_RETURN_LOG_IF_FAILED
 #endif
-
-
+#ifdef ENDMRT_RETURN_FAIL_LOG_IF_FAILED
+#undef ENDMRT_RETURN_FAIL_LOG_IF_FAILED
+#endif
+#ifdef RETURN_FAIL_LOG_IF_FAILED
+#undef RETURN_FAIL_LOG_IF_FAILED
+#endif

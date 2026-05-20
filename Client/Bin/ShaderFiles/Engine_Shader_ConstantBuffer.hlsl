@@ -38,7 +38,7 @@ cbuffer ShadowBuffer
     float g_StaticShadowEnabled;
 };
 
-cbuffer DeferredBuffer
+cbuffer ScreenSpaceBuffer
 {
     row_major float4x4 g_ScreenViewMatrix;          // 64
     row_major float4x4 g_ScreenProjMatrix;          // 128
@@ -50,7 +50,8 @@ cbuffer DeferredBuffer
 
     float   g_DeferredFar;                          // 276
     float2  g_TexelSize;                            // 284
-    float   g_DeferredPadding0;                     // 288
+    float2  g_ScreenSize;                           // 292
+    float3  g_DeferredPadding0;                     // 304
 };
 
 cbuffer LightBuffer
@@ -85,7 +86,7 @@ cbuffer MaterialBuffer
     float2 g_MaterialPadding1;      // 88 ~ 95
 }; // 96 bytes
 
-cbuffer cbSSAO
+cbuffer SSAOBuffer
 {
     float g_SSAORadius;
     float g_SSAOBias;
@@ -125,14 +126,12 @@ cbuffer PostProcessBuffer
 
     float g_PP_BloomScatter;    // 32 ~ 35
     uint g_PP_ToneMapMode;      // 36 ~ 39
-    float2 g_PP_BloomTexelSize; // 40 ~ 47
 
-    uint g_PP_FeatureMask;             // 48 ~ 51
-    uint g_PP_UseBackgroundFallback;   // 52 ~ 55
-    float2 g_PP_Padding2;              // 56 ~ 63
+    uint g_PP_FeatureMask;             // 40 ~ 43
+    uint g_PP_UseBackgroundFallback;   // 44 ~ 47
+    float4 g_PP_Padding2;              // 48 ~ 63
 
     float4 g_PP_BackgroundFallbackColor; // 64 ~ 79
 }; // 80 bytes
 
 #endif
-
