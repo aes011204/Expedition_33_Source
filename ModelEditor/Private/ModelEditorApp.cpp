@@ -2,7 +2,7 @@
 #include "ModelEditorApp.h"
 #include "ModelImGui_Manager.h"
 #include "GameInstance.h"
-
+#include "PostProcessPipeline.h"
 #include "ModelEditorCamera.h"
 #include "ModelViewerObject.h"
 #include "Level_ModelEditor.h"
@@ -53,6 +53,11 @@ HRESULT ModelEditorApp::Initialize()
 
 	if (FAILED(GAME->Change_Level(0, Level_ModelEditor::Create(_device, _context))))
 		return E_FAIL;
+
+    if (auto pp = GAME->Get_PostProcessPipeline())
+    {
+        pp->Set_PostProcessFeatures(PostProcessFeature::None);
+    }
 
 	return S_OK;
 }
