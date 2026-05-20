@@ -714,9 +714,12 @@ vector<UIPreviewManager::PreviewSlotDesc> SkillTree_Panel::Build_PreviewLayout()
 {
     static const Vec3 positions[] =
     {
-        Vec3(1.1f,  0.f, -0.1f),
-        Vec3(0.0f,  0.f, 0.f),
-        Vec3(-1.1f, 0.f, -0.1f),
+        //Vec3(1.1f,  0.f, -0.1f),
+        //Vec3(0.0f,  0.f, 0.f),
+        //Vec3(-1.1f, 0.f, -0.1f),
+        Vec3(0.8f,  0.f,  0.0f),
+        Vec3(0.0f,  0.f,  0.2f),
+        Vec3(-1.1f, 0.f, -0.3f),
     };
 
     static const Vec3 rotations[] =

@@ -6,7 +6,7 @@
 #include <algorithm>
 #include "CameraPresetIO.h"
 #include "PreviewCamera.h"
-#include "PreviewShotTypes.h"
+#include "CameraPresetTypes.h"
 #include "PreviewShotTable.h"
 #include "ClientInstance.h"
 
@@ -211,17 +211,18 @@ void Camera_Tool::Render_PreviewCameraProperties(const Shared<Client::PreviewCam
     Select_EditingPreviewPanel();
     Select_EditingPreviewHero();
     Edit_PreviewCameraPreset();
+    Reset_ToStartPos();
 }
 
 void Camera_Tool::Select_EditingCameraState()
 {
-    TargetCamera::CAMERA_STATE editingState =_editingCameraState;
+  TargetCameraMode editingState =_editingCameraState;
 
     const char* currentLabel = magic_enum::enum_name(editingState).data();
 
     if(ImGui::BeginCombo("Edit Preset", currentLabel))
     {
-         for(TargetCamera::CAMERA_STATE state : magic_enum::enum_values<TargetCamera::CAMERA_STATE>())
+         for(TargetCameraMode state : magic_enum::enum_values<TargetCameraMode>())
          {
              const bool isSelected = (editingState == state);
 
@@ -256,7 +257,7 @@ void Camera_Tool::Edit_TargetCameraPreset()
     isChanged |= ImGui::DragFloat("pivot height", &preset.pivotHeight, 0.01f);
     isChanged |= ImGui::DragFloat("aim offset", &preset.aimOffset, 0.01f);
     isChanged |= ImGui::DragFloat("look height", &preset.lookHeight, 0.01f);
-    isChanged |= ImGui::DragFloat("mouse sensitivity", &preset.mouseSensitivity, 0.01f);
+    isChanged |= ImGui::DragFloat("mouse sensitivity", &preset.camera.mouseSensitivity, 0.01f);
     isChanged |= ImGui::DragFloat("pitch look scale", &preset.pitchLookScale, 0.01f);
     isChanged |= ImGui::DragFloat("yaw offset", &preset.yawOffset, 0.001f);
     isChanged |= ImGui::DragFloat("pitch offset", &preset.pitchOffset, 0.001f);
@@ -327,7 +328,6 @@ void Camera_Tool::Select_EditingPreviewHero()
 
         ImGui::EndCombo();
     }
-
 }
 
 void Camera_Tool::Edit_PreviewCameraPreset()
@@ -378,6 +378,21 @@ void Camera_Tool::Edit_PreviewCameraPreset()
     if(ImGui::Button("Save Preview Preset"))
     {
         CameraPresetIO::SavePreviewToFile(_editingPreviewPanel, _editingPreviewHeroId, _editingPreviewPreset);
+    }
+}
+
+void Camera_Tool::Reset_ToStartPos()
+{
+    Shared<Camera> camera = Get_SelectedCamera(_selectedCameraIndex);
+
+    auto previewCamera = static_pointer_cast<PreviewCamera>(camera);
+
+    if(!previewCamera)
+        return;
+
+    if(ImGui::Button("Reset To Start Pos"))
+    {
+        previewCamera->Reset_ToStartPos();
     }
 }
 

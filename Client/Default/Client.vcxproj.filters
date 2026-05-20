@@ -214,6 +214,9 @@
     <Filter Include="05. BattleSystem">
       <UniqueIdentifier>{85583d48-d80e-4783-96a6-3a64b4a29fcc}</UniqueIdentifier>
     </Filter>
+    <Filter Include="02.GameObject\Camera\Director">
+      <UniqueIdentifier>{2e4a52e8-4005-4e23-ae96-1317aac481b8}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -567,8 +570,11 @@
     <ClInclude Include="..\Public\MapStaticCollisionBuilder.h">
       <Filter>02.GameObject\Map</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\PreviewShotTypes.h">
+    <ClInclude Include="..\Public\CameraPresetTypes.h">
       <Filter>02.GameObject\Camera\Preview</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\CameraDirector.h">
+      <Filter>02.GameObject\Camera\Director</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -904,6 +910,9 @@
     </ClCompile>
     <ClCompile Include="..\Private\MapStaticCollisionBuilder.cpp">
       <Filter>02.GameObject\Map</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\CameraDirector.cpp">
+      <Filter>02.GameObject\Camera\Director</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

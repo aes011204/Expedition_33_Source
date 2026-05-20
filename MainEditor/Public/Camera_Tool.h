@@ -2,7 +2,7 @@
 #include "Camera_Tool.h"
 #include "Client_Enum.h"
 #include "Editor_Window.h"
-#include "PreviewShotTypes.h"
+#include "CameraPresetTypes.h"
 #include "TargetCamera.h"
 
 NS_BEGIN(Client)
@@ -36,11 +36,12 @@ public:
     void Select_EditingPreviewPanel();
     void Select_EditingPreviewHero();
     void Edit_PreviewCameraPreset();
+    void Reset_ToStartPos();
 
 private:
     Shared<Camera> _previewCamera;
     int _selectedCameraIndex = { 0 };
-    Client::TargetCamera::CAMERA_STATE _editingCameraState = Client::TargetCamera::CAMERA_STATE::NORMAL;
+    TargetCameraMode _editingCameraState = TargetCameraMode::NORMAL;
     PreviewShotPanel _editingPreviewPanel = PreviewShotPanel::CharacterStatus;
     Client::HeroId _editingPreviewHeroId = Client::HeroId::Gustave;
     PreviewShotPreset _editingPreviewPreset = {};

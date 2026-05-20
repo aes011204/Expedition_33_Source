@@ -1,6 +1,6 @@
 ﻿#pragma once
 #include "Base.h"
-#include "PreviewShotTypes.h"
+#include "CameraPresetTypes.h"
 
 NS_BEGIN(Client)
 class PreviewShotTable : public Base

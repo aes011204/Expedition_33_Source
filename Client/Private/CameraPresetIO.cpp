@@ -9,7 +9,7 @@ CameraPresetIO::~CameraPresetIO()
 {
 }
 
-void CameraPresetIO::SavePresetToFile(TargetCamera::CAMERA_STATE cameraState, const TargetCamera::TARGETCAMERA_DESC& preset)
+void CameraPresetIO::SavePresetToFile(TargetCameraMode cameraState, const TargetCameraPreset& preset)
 {
     json jsonData {};
 
@@ -23,8 +23,8 @@ void CameraPresetIO::SavePresetToFile(TargetCamera::CAMERA_STATE cameraState, co
     jsonData["pitchLookScale"]  = preset.pitchLookScale;
     jsonData["pitchMax"]        = preset.pitchMax;
     jsonData["pitchMin"]        = preset.pitchMin;
-    jsonData["mouseSensor"]     = preset.mouseSensor;
-    jsonData["mouseSensitivity"]= preset.mouseSensitivity;
+    jsonData["mouseSensor"]     = preset.camera.mouseSensor;
+    jsonData["mouseSensitivity"]= preset.camera.mouseSensitivity;
     jsonData["yawOffset"]       = preset.yawOffset;
     jsonData["pitchOffset"]     = preset.pitchOffset;
     jsonData["rollOffset"]        = preset.rollOffset;
@@ -49,7 +49,7 @@ void CameraPresetIO::SavePresetToFile(TargetCamera::CAMERA_STATE cameraState, co
 }
 
 
-bool CameraPresetIO::LoadPresetFromFile(TargetCamera::CAMERA_STATE cameraState, TargetCamera::TARGETCAMERA_DESC& outPreset)
+bool CameraPresetIO::LoadPresetFromFile(TargetCameraMode cameraState, TargetCameraPreset& outPreset)
 {
     const string name = string(magic_enum::enum_name(cameraState));
 
@@ -62,23 +62,23 @@ bool CameraPresetIO::LoadPresetFromFile(TargetCamera::CAMERA_STATE cameraState, 
     json jsonData{};
     file >> jsonData;
 
-    TargetCamera::TARGETCAMERA_DESC preset;
+    TargetCameraPreset preset;
 
     preset.followSpeed = jsonData.value("followSpeed", preset.followSpeed);
+    preset.distance  = jsonData.value("distance", preset.distance);
+    preset.sideOffset  = jsonData.value("sideOffset", preset.sideOffset);
+    preset.heightOffset  = jsonData.value("heightOffset", preset.heightOffset);
     preset.aimOffset = jsonData.value("aimOffset", preset.aimOffset);
     preset.pivotHeight  = jsonData.value("pivotHeight", preset.pivotHeight);
-    preset.sideOffset  = jsonData.value("sideOffset", preset.sideOffset);
-    preset.distance  = jsonData.value("distance", preset.distance);
-    preset.heightOffset  = jsonData.value("heightOffset", preset.heightOffset);
-    preset.lookHeight  = jsonData.value("lookHeight", preset.lookHeight);
     preset.pitchLookScale  = jsonData.value("pitchLookScale", preset.pitchLookScale);
-    preset.pitchMax  = jsonData.value("pitchMax", preset.pitchMax);
     preset.pitchMin  = jsonData.value("pitchMin", preset.pitchMin);
-    preset.mouseSensor = jsonData.value("mouseSensor",preset.mouseSensor);
-    preset.mouseSensitivity = jsonData.value("mouseSensitivity", preset.mouseSensitivity);
+    preset.pitchMax  = jsonData.value("pitchMax", preset.pitchMax);
+    preset.lookHeight  = jsonData.value("lookHeight", preset.lookHeight);
     preset.yawOffset = jsonData.value("yawOffset", 0.f);
     preset.pitchOffset = jsonData.value ("pitchOffset", 0.f);
     preset.rollOffset = jsonData.value("rollOffset", 0.f);
+    preset.camera.mouseSensor = jsonData.value("mouseSensor",preset.camera.mouseSensor);
+    preset.camera.mouseSensitivity = jsonData.value("mouseSensitivity", preset.camera.mouseSensitivity);
     preset.allowMouseRotation = jsonData.value("allowMouseRotation",true);
     outPreset = preset;
 
@@ -131,9 +131,9 @@ bool CameraPresetIO::LoadPreviewFromFile(PreviewShotPanel panel, HeroId heroId, 
 
     PreviewShotPreset preset {};
 
-    preset.lookOffset.x = jsonData["lookOffset"].value("x", 0);
-    preset.lookOffset.y = jsonData["lookOffset"].value("y", 0);
-    preset.lookOffset.z = jsonData["lookOffset"].value("z", 0);
+    preset.lookOffset.x = jsonData["lookOffset"].value("x", 0.f);
+    preset.lookOffset.y = jsonData["lookOffset"].value("y", 0.f);
+    preset.lookOffset.z = jsonData["lookOffset"].value("z", 0.f);
     preset.followSpeed = jsonData.value("followSpeed", 0.f);
     preset.distance = jsonData.value("distance", 0.f);
 

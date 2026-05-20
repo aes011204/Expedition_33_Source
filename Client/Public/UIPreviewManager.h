@@ -52,6 +52,7 @@ private:
     };
 
     bool                      _isActive = false;
+    bool                      _pendingPreviewReveal = false;
     vector<StatusPreviewHero> _previewHeroes{};
     Shared<Camera>            _previousCamera{};
     Shared<PreviewCamera>     _previewCamera{};
