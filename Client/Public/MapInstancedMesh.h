@@ -54,8 +54,9 @@ private:
     Shared<ComputeShaderCom> _cullShader;
     Shared<ComputeStructuredBuffer> _instanceSrcBuffer;
     Shared<ComputeStructuredBuffer> _sphereBuffer;
-    ComPtr<Buffer> _visibleVB;
+    ComPtr<Buffer> _visibleStructured;
     ComPtr<UnorderedAccessView> _visibleUAV;
+    ComPtr<Buffer> _visibleVB;
     ComPtr<Buffer> _cullCB;
     ComPtr<Buffer> _countStaging;
     uint32 _visibleCount = {};
