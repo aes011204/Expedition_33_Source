@@ -54,7 +54,12 @@ void FreeAimTargeting::Update(float timeDelta)
     if (GAME->KeyDown(KEY_TYPE::LBUTTON))
     {
         auto& turnAction = owner->Get_TurnAction();
-        turnAction.target = _currentHitTarget;
+
+        if (_hasCurrentHitTarget)
+            turnAction.target = _currentHitTarget;
+        else
+            turnAction.target = {};
+
         turnAction.type = EBattleContext::FreeAimShoot;
 
         // 일단은 테스트

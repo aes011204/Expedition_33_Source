@@ -2,6 +2,8 @@
 
 #include "Mon_Lancelier_Body.h"
 #include "Mon_Lancelier_Weapon.h"
+#include "GameInstance.h"
+#include "MonsterStatCom.h"
 
 IMPLEMENT_REFLECTION(MB_Lancelier)
 {
