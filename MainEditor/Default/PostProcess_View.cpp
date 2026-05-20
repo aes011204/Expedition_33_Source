@@ -78,7 +78,7 @@ void PostProcess_View::Render()
             ImGui::Separator();
             ImGui::Spacing();
 
-            Draw_QuickAction(params, dirty);
+            Draw_QuickAction(params, ssaoPipeline, dirty, ssaoDirty);
 
             if (dirty)
                 pipeline->Set_PostProcessParams(params);
@@ -201,60 +201,80 @@ void PostProcess_View::Draw_ParameterControl(PostProcessCB& params, bool& dirty)
 
 void PostProcess_View::Draw_SSAOControl(Shared<SSAOPipeline> pipeline, bool& dirty)
 {
-    if (ImGui::BeginChild("##SSAOControl", ImVec2(0.f, 250.f), true))
+    if (ImGui::BeginChild("##SSAOControl", ImVec2(0.f, 330.f), true))
     {
         ImGui::Text("SSAO");
 
         SSAOCB& params = pipeline->Get_Params();
 
-        bool enabled = params.SSAOEnabled != 0u;
-        if (ImGui::Checkbox("Enable SSAO", &enabled))
+        if (ImGui::CollapsingHeader("Core", ImGuiTreeNodeFlags_DefaultOpen))
         {
-            params.SSAOEnabled = enabled ? 1u : 0u;
-            dirty = true;
-        }
-
-        dirty |= ImGui::DragFloat("Radius", &params.SSAORadius, 0.01f, 0.01f, 8.f, "%.3f");
-        dirty |= ImGui::DragFloat("Bias", &params.SSAOBias, 0.001f, 0.f, 0.2f, "%.4f");
-        dirty |= ImGui::DragFloat("Intensity", &params.SSAOIntensity, 0.01f, 0.f, 4.f, "%.3f");
-        dirty |= ImGui::DragFloat("Power", &params.SSAOPower, 0.01f, 0.01f, 8.f, "%.3f");
-        dirty |= ImGui::DragFloat("DepthRange", &params.SSAODepthRange, 0.01f, 0.001f, 4.f, "%.3f");
-
-        int sampleCount = static_cast<int>(params.SSAOSampleCount);
-        if (ImGui::SliderInt("SampleCount", &sampleCount, 1, 16))
-        {
-            params.SSAOSampleCount = static_cast<uint32>(sampleCount);
-            dirty = true;
-        }
-
-        if (ImGui::CollapsingHeader("SSAO Advanced"))
-        {
-            bool halfRes = params.SSAOHalfResEnabled != 0u;
-            bool bilateral = params.SSAOBilateralEnabled != 0u;
-            bool temporal = params.SSAOTemporalEnabled != 0u;
-
-            if (ImGui::Checkbox("HalfRes", &halfRes))
+            bool enabled = params.SSAOEnabled != 0u;
+            if (ImGui::Checkbox("Enable SSAO", &enabled))
             {
-                params.SSAOHalfResEnabled = halfRes ? 1u : 0u;
+                params.SSAOEnabled = enabled ? 1u : 0u;
                 dirty = true;
             }
+
+            dirty |= ImGui::DragFloat("Radius", &params.SSAORadius, 0.01f, 0.01f, 8.f, "%.3f");
+            dirty |= ImGui::DragFloat("Bias", &params.SSAOBias, 0.001f, 0.f, 0.2f, "%.4f");
+            dirty |= ImGui::DragFloat("Intensity", &params.SSAOIntensity, 0.01f, 0.f, 4.f, "%.3f");
+            dirty |= ImGui::DragFloat("Power", &params.SSAOPower, 0.01f, 0.01f, 8.f, "%.3f");
+            dirty |= ImGui::DragFloat("DepthRange", &params.SSAODepthRange, 0.01f, 0.001f, 4.f, "%.3f");
+
+            int sampleCount = static_cast<int>(params.SSAOSampleCount);
+            if (ImGui::SliderInt("SampleCount", &sampleCount, 1, 16))
+            {
+                params.SSAOSampleCount = static_cast<uint32>(sampleCount);
+                dirty = true;
+            }
+        }
+
+        if (ImGui::CollapsingHeader("Blur / Bilateral", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            bool bilateral = params.SSAOBilateralEnabled != 0u;
             if (ImGui::Checkbox("Bilateral", &bilateral))
             {
                 params.SSAOBilateralEnabled = bilateral ? 1u : 0u;
                 dirty = true;
             }
-            if (ImGui::Checkbox("Temporal", &temporal))
+
+            dirty |= ImGui::DragFloat("BlurRadius", &params.SSAOBlurRadius, 0.1f, 0.0f, 16.f, "%.2f");
+            dirty |= ImGui::DragFloat("DepthSharpness", &params.SSAODepthSharpness, 0.1f, 0.0f, 400.f, "%.2f");
+            dirty |= ImGui::DragFloat("NormalSharpness", &params.SSAONormalSharpness, 0.1f, 0.0f, 64.f, "%.2f");
+        }
+
+        if (ImGui::CollapsingHeader("HalfRes / Upsample", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            bool halfRes = params.SSAOHalfResEnabled != 0u;
+            if (ImGui::Checkbox("HalfRes", &halfRes))
+            {
+                params.SSAOHalfResEnabled = halfRes ? 1u : 0u;
+                dirty = true;
+            }
+
+            dirty |= ImGui::DragFloat("UpsampleDepthThreshold", &params.SSAOUpsampleDepthThreshold, 0.0001f, 0.0f, 0.2f, "%.4f");
+        }
+
+        if (ImGui::CollapsingHeader("Temporal##SSAOTemporalSection", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            bool temporal = params.SSAOTemporalEnabled != 0u;
+            if (ImGui::Checkbox("Temporal##SSAOEnableTemporal", &temporal))
             {
                 params.SSAOTemporalEnabled = temporal ? 1u : 0u;
                 dirty = true;
             }
+
+            dirty |= ImGui::DragFloat("TemporalBlendFactor", &params.SSAOTemporalBlendFactor, 0.01f, 0.0f, 1.0f, "%.3f");
+            dirty |= ImGui::DragFloat("TemporalDepthReject", &params.SSAOTemporalDepthReject, 0.0005f, 0.0f, 0.2f, "%.4f");
+            dirty |= ImGui::DragFloat("TemporalNormalReject", &params.SSAOTemporalNormalReject, 0.001f, 0.0f, 1.0f, "%.3f");
         }
     }
 
     ImGui::EndChild();
 }
 
-void PostProcess_View::Draw_QuickAction(PostProcessCB& params, bool& dirty)
+void PostProcess_View::Draw_QuickAction(PostProcessCB& params, Shared<SSAOPipeline> ssaoPipeline, bool& dirty, bool& ssaoDirty)
 {
     if (ImGui::BeginChild("##QuickAction", ImVec2(0.f, 70.f), true))
     {
@@ -278,6 +298,14 @@ void PostProcess_View::Draw_QuickAction(PostProcessCB& params, bool& dirty)
                 params.bloomTexelSize = Vec2(1.f / width, 1.f / height);
                 dirty = true;
             }
+        }
+
+        ImGui::SameLine();
+
+        if (ImGui::Button("Reset SSAO Params") && ssaoPipeline)
+        {
+            ssaoPipeline->Get_Params() = Make_DefaultSSAOParams();
+            ssaoDirty = true;
         }
     }
 

@@ -117,7 +117,7 @@ float Get_ViewZ(float2 uv)
 
 float3 Get_NormalWS(float2 uv)
 {
-    return normalize(DecodeNormal(g_NormalTexture.Sample(LinearWrapSampler, uv).xyz));
+    return normalize(DecodeNormal(g_NormalTexture.Sample(PointClampSampler, uv).xyz));
 }
 
 float Get_SSAO(float2 uv)
@@ -125,6 +125,20 @@ float Get_SSAO(float2 uv)
     return g_SSAOTexture.Sample(LinearClampSampler, uv).r;
 }
 
+float Hash12(float2 p)
+{
+    float h = dot(p, float2(127.1f, 311.7f));
+    return frac(sin(h) * 43758.5453123f);
+}
+
+float2 Rotate2D(float2 v, float angle)
+{
+    float s = sin(angle);
+    float c = cos(angle);
+    return float2(c * v.x - s * v.y, s * v.x + c * v.y);
+}
+
+// Depth로 AO를 계산한 다음, 이후 Blur 단계에서 부드럽게 함
 float Compute_DepthSSAO(float2 uv)
 {
     if (g_SSAOEnabled == 0u)
@@ -132,22 +146,40 @@ float Compute_DepthSSAO(float2 uv)
 
     // 프레임 때문에 16 샘플로 가는데, 많이 어색하면 5x5 샘플로 갈거임. 이러면 1.5베 더 비싸짐.
     float centerViewZ = Get_ViewZ(uv);
-    float centerN = Get_NormalWS(uv);
+    float3 centerN = Get_NormalWS(uv);
 
     if (centerViewZ <= 0.f)
         return 1.f;
 
     uint sampleCount = min(max(g_SSAOSampleCount, 1u), 16u);
     float occlusion = 0.f;
-    float3 totalWeight = 0.f;
+    float totalWeight = 0.f;
+
+    uint depthWidth, depthHeight;
+    g_DepthTexture.GetDimensions(depthWidth, depthHeight);
+
+    float2 pixelCoord = floor(uv * float2(max(depthWidth, 1u), max(depthHeight, 1u)));
+    float rand01 = Hash12(pixelCoord);
+    float randomAngle = rand01 * 6.28318530718f; // 2PI
+
+    float radiusScale = saturate(10.f / max(centerViewZ, EPSILON));
+    float baseRadius = max(g_SSAORadius * radiusScale, 0.35f);
+    float perspectiveScale = rcp(max(radiusScale, 1e-3f));
+    float depthBias = max(g_SSAOBias * perspectiveScale, 1e-4f);
+    float depthRange = max(g_SSAODepthRange * perspectiveScale, depthBias);
 
     [unroll]
     for (int i = 0; i < sampleCount; ++i)
     {
-        float2 sampleUV = uv + SSAODirections[i] * g_TexelSize * g_SSAORadius;
-        if (any(sampleUV < 0.f) || any(sampleUV > 1.f)) 
+        float2 dir = Rotate2D(SSAODirections[i], randomAngle);
+        float sampleT = ((float) i + 0.5f) / (float) sampleCount;
+        float sampleRadius = baseRadius * lerp(0.2f, 1.f, sampleT * sampleT);
+
+        float2 sampleUV = uv + dir * g_TexelSize * sampleRadius;
+        if (any(sampleUV < 0.f) || any(sampleUV > 1.f))     // 화면 밖
             continue;
 
+        // 주변 픽셀의 깊이, 노멀
         float sampleViewZ = Get_ViewZ(sampleUV);
         float3 sampleN = Get_NormalWS(sampleUV);
 
@@ -155,16 +187,26 @@ float Compute_DepthSSAO(float2 uv)
             continue;
 
         float depthDiff = centerViewZ - sampleViewZ;
+        if (depthDiff <= 0.f)
+            continue;
 
-        // 이 샘플이 현재 픽셀을 가리는 후보인지 (1 = 가림, 0 = 안 가림)
-        float isOccluder = depthDiff > g_SSAOBias ? 1.f : 0.f;
+        float absDepthDiff = depthDiff;
 
-        // 깊이 차이가 g_SSAODepthRange 보다 크면 신뢰할 수 없는 거리라서 가중치를 0으로 보낸다.
-        float rangeWeight = saturate(1.f - abs(depthDiff) / max(g_SSAODepthRange, EPSILON));
-        float normalWeight = saturate(dot(centerN, sampleN));
+        float occluderSoftness = max(depthBias * 2.0f, 1e-4f);
+        float isOccluder = smoothstep(depthBias, depthBias + occluderSoftness, absDepthDiff);
 
-        occlusion += isOccluder * rangeWeight * normalWeight;
-        totalWeight += rangeWeight * normalWeight;
+        if (absDepthDiff > depthRange)
+            continue;
+
+        float rangeWeight = saturate(1.f - absDepthDiff / max(depthRange, EPSILON));
+
+        // 노말이 비슷할수록 같은 표면일 가능성이 높다.
+        float nd = saturate(dot(centerN, sampleN));
+        float normalWeight = smoothstep(0.2f, 0.9f, nd);
+
+        float weight = rangeWeight * normalWeight;
+        occlusion += isOccluder * weight;
+        totalWeight += weight;
     }
 
     // 1이면 안 어둡고, 0이면 어두워짐
@@ -176,16 +218,16 @@ float Compute_DepthSSAO(float2 uv)
 
 float Compute_SSAOBilateralBlur(float2 uv)
 {
+    if (g_SSAOEnabled == 0u)
+        return 1.f;
+
     float centerAO = g_SSAOTexture.Sample(LinearClampSampler, uv).r;
     float centerZ = Get_ViewZ(uv);
     float3 centerN = Get_NormalWS(uv);
 
     float aoSum = centerAO;
-    float weightSum = 1.0f;
-
+    float weightSum = 1.f;
     float2 texelSize = g_TexelSize;
-
-    // 블러 반경
     int radius = max(1, (int) round(g_SSAOBlurRadius));
 
     [loop]
@@ -194,35 +236,36 @@ float Compute_SSAOBilateralBlur(float2 uv)
         [loop]
         for (int x = -radius; x <= radius; ++x)
         {
-            if (x == 0 && y == 0)   // 자기 자신
+            if (x == 0 && y == 0)
                 continue;
 
-            float2 sampleUV = uv + float2((float) x, (float) y) * texelSize;
-
-            if (any(sampleUV < 0.f) || any(sampleUV > 1.f)) // 화면 밖
+            float2 sampleUV = uv + float2((float)x, (float)y) * texelSize;
+            if (any(sampleUV < 0.f) || any(sampleUV > 1.f))
                 continue;
 
-            // 이웃 픽셀의 AO, 깊이, 노멀
+            // blur 할 이웃의 AO, 깊이, 노멀
             float sampleAO = g_SSAOTexture.Sample(LinearClampSampler, sampleUV).r;
             float sampleZ = Get_ViewZ(sampleUV);
             float3 sampleN = Get_NormalWS(sampleUV);
 
-            // 가까운 픽셀은 많이 섞오 먼 픽셀은 적게 섞는다. 
-            float dist2 = (float) (x * x + y * y);
+            // joint/cross bilateral blur
+            float dist2 = (float)(x * x + y * y);
             float sigmaS = max(g_SSAOBlurRadius, 1.f);
-            float wSpatial = exp(-dist2 / (2.f * sigmaS * sigmaS)); // 중심에 가까우면 1, 멀면 0 
+            float wSpatial = exp(-dist2 / (2.f * sigmaS * sigmaS));
 
+            float depthDiff = abs(centerZ - sampleZ);
+            float wDepth = exp(-depthDiff * max(g_SSAODepthSharpness, EPSILON));
 
+            float normalDelta = 1.f - saturate(dot(centerN, sampleN));
+            float wNormal = exp(-normalDelta * max(g_SSAONormalSharpness, EPSILON));
 
-
+            float weight = wSpatial * wDepth * wNormal;
+            aoSum += sampleAO * weight;
+            weightSum += weight;
         }
-
-        return 1.f;
     }
 
-
-
-
+    return saturate(aoSum / max(weightSum, EPSILON));
 }
 
 #endif

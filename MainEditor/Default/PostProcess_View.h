@@ -21,7 +21,7 @@ public:
 private:
     void    Draw_FeatureControl(Shared<PostProcessPipeline> pipeline, bool& dirty);
     void    Draw_ParameterControl(PostProcessCB& params, bool& dirty);
-    void    Draw_QuickAction(PostProcessCB& params, bool& dirty);
+    void    Draw_QuickAction(PostProcessCB& params, Shared<SSAOPipeline> ssaoPipeline, bool& dirty, bool& ssaoDirty);
     void    Draw_SSAOControl(Shared<SSAOPipeline> pipeline, bool& dirty);
     void    Draw_StatusBadge();
 

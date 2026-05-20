@@ -148,8 +148,12 @@ PS_OUT_HDR_WITH_MASK PS_CombinedHDR(PS_IN In)
     vector Shade = g_ShadeTexture.Sample(LinearWrapSampler, In.Texcoord);
     vector Specular = g_SpecularTexture.Sample(LinearWrapSampler, In.Texcoord);
     vector Emissive = g_EmissiveTexture.Sample(LinearWrapSampler, In.Texcoord);
-    float ao = g_SSAOTexture.Sample(LinearWrapSampler, In.Texcoord).r;
 
+    float aoRaw = g_SSAOTexture.Sample(LinearWrapSampler, In.Texcoord);
+    float ao = lerp(1.f, aoRaw, saturate(g_SSAOIntensity));
+    ao = pow(saturate(ao), max(g_SSAOPower, EPSILON));
+
+    //float ao = g_SSAOTexture.Sample(LinearWrapSampler, In.Texcoord).r;
     Out.Color = Diffuse * Shade * ao + Specular;
 
     // Shadow
@@ -231,6 +235,13 @@ PS_OUT_BACKBUFFER PS_SSAO(PS_IN In)
     return Out;
 }
 
+PS_OUT_BACKBUFFER PS_SSAOBlur(PS_IN In)
+{
+    PS_OUT_BACKBUFFER Out;
+    Out.Color = Compute_SSAOBilateralBlur(In.Texcoord);
+    return Out;
+}
+
 technique11 DefaultTechnique
 {
     PASS_RS_DS_BS_VP(Debug,             RS_Default, DSS_Default,    BS_Default, VS_MAIN,    PS_MAIN_DEBUG)              // 0
@@ -240,4 +251,5 @@ technique11 DefaultTechnique
     PASS_RS_DS_BS_VP(CombinedSimple,    RS_Default, DSS_None,       BS_Default, VS_MAIN,    PS_MAIN_COMBINED_SIMPLE)    // 4
     PASS_RS_DS_BS_VP(CombinedPreview,   RS_Default, DSS_None,       BS_Default, VS_MAIN,    PS_MAIN_COMBINED_PREVIEW)   // 5
     PASS_RS_DS_BS_VP(SSAO,              RS_Default, DSS_None,       BS_Default, VS_MAIN,    PS_SSAO)                    // 6
+    PASS_RS_DS_BS_VP(SSAOBlur,          RS_Default, DSS_None,       BS_Default, VS_MAIN,    PS_SSAOBlur)                // 7
 }

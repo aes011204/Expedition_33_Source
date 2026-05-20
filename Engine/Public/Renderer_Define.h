@@ -69,7 +69,7 @@ static constexpr bool NotClearRTV = false;
 
 
 #ifdef _DEBUG
-#define DEBUG_LOG_FAIL(message) logFail(message)
+#define DEBUG_LOG_FAIL(message) this->DumpCurrentOMState(message)
 #else
 #define DEBUG_LOG_FAIL(message) ((void)0)
 #endif

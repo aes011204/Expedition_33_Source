@@ -2,6 +2,7 @@
 #define ENGINE_SHADER_DEFINES_HLSLI
 
 #define EPSILON 0.0001f
+#define EPSILON_3 0.001f
 
 // C++ enum 순서
 // BaseColor    = 0

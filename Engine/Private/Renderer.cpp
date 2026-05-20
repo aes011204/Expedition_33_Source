@@ -89,9 +89,9 @@ void Renderer::Add_RenderGroup(RenderGroup renderGroup, const Shared<GameObject>
 
 void Renderer::Draw()
 {
-    // ===========================================================================================
-    // 렌더 패스 추가하고 싶은데 _DEBUG 이런 거 때문에 넘 복잡하다 싶으면 제게 말해주세요~
-    // ===========================================================================================
+    // ======================================================================================================
+    // 렌더 패스 추가하고 싶은데 _DEBUG 이런 거 때문에 넘 복잡하다 싶으면 제게 말해주세요~ ( 코덱스가 더 잘하긴 함 )
+    // ======================================================================================================
     Change_ViewportDesc(GAME->Get_ViewportWidth(), GAME->Get_ViewportHeight());
 
 #ifdef _DEBUG
@@ -329,42 +329,109 @@ void Renderer::Render_NonBlend()
 
 void Renderer::Render_SSAO()
 {
-#ifdef _DEBUG
-    const auto logFail = [this](const wchar_t* stage) { DumpCurrentOMState(stage); };
-#endif
     if (!_deferredShader || !_viBuffer)
         return;
 
-    RETURN_LOG_IF_FAILED(
-        GAME->Begin_MRT(MRT::SSAO),
-        L"Render_SSAO:FAIL Begin_MRT");
+    // SSAO 사용 여부 
+    const bool ssaoEnabled = (_ssaoPipeline != nullptr) && _ssaoPipeline->Is_Enabled();
+    if (!ssaoEnabled)
+    {
+        // SSAO를 끈 프레임에는 이전 AO 결과가 남지 않도록 RT만 기본값(1.0)으로 초기화한다.
+        RETURN_LOG_IF_FAILED(
+            GAME->Begin_MRT(MRT::SSAO, NotUseDSV, ClearRTV),
+            L"Render_SSAO:FAIL Begin_MRT(SSAO-ClearOnly)");
 
-    ENDMRT_RETURN_IF_FAILED(
-        _deferredShader->Bind_ObjectCB(_pipelineWorldMatrix));
+        if (FAILED(GAME->End_MRT()))
+            return;
 
-    ENDMRT_RETURN_IF_FAILED(
-        Bind_TransformCB(_deferredShader));
+        RETURN_LOG_IF_FAILED(
+            GAME->Begin_MRT(MRT::SSAOBlur, NotUseDSV, ClearRTV),
+            L"Render_SSAO:FAIL Begin_MRT(SSAOBlur-ClearOnly)"); 
 
-    ENDMRT_RETURN_IF_FAILED(
-        GAME->Bind_RT_ShaderResource(_deferredShader, "g_DepthTexture", RT::Depth));
-
-    SSAOCB ssaoParams{};
-    if (_ssaoPipeline)
-        ssaoParams = _ssaoPipeline->Get_Params();
-
-    ENDMRT_RETURN_IF_FAILED(_deferredShader->Bind_CBufferData(ssaoParams));
-
-    ENDMRT_RETURN_IF_FAILED(
-        _viBuffer->Bind_Resources());
-
-    ENDMRT_RETURN_IF_FAILED(
-        _deferredShader->Begin(ETOI(DeferredPass::SSAO)));
-
-    ENDMRT_RETURN_IF_FAILED(
-        _viBuffer->Render());
-        
-    if (FAILED(GAME->End_MRT()))
+        if (FAILED(GAME->End_MRT()))
+            return;
         return;
+    }
+
+    // SSAO 패스 : AO 값 계산/추출하기
+    {
+        RETURN_LOG_IF_FAILED(
+           GAME->Begin_MRT(MRT::SSAO, NotUseDSV, ClearRTV),
+           L"Render_SSAO:FAIL Begin_MRT");
+
+        ENDMRT_RETURN_IF_FAILED(
+            _deferredShader->Bind_ObjectCB(_pipelineWorldMatrix));
+
+        ENDMRT_RETURN_IF_FAILED(
+            Bind_TransformCB(_deferredShader));
+
+        ENDMRT_RETURN_IF_FAILED(
+            GAME->Bind_RT_ShaderResource(_deferredShader, "g_NormalTexture", RT::Normal));
+
+        ENDMRT_RETURN_IF_FAILED(
+            GAME->Bind_RT_ShaderResource(_deferredShader, "g_DepthTexture", RT::Depth));
+
+        SSAOCB ssaoParams{};
+        if (_ssaoPipeline)
+            ssaoParams = _ssaoPipeline->Get_Params();
+
+        ENDMRT_RETURN_IF_FAILED(_deferredShader->Bind_CBufferData(ssaoParams));
+
+        ENDMRT_RETURN_IF_FAILED(
+            _viBuffer->Bind_Resources());
+
+        ENDMRT_RETURN_IF_FAILED(
+            _deferredShader->Begin(ETOI(DeferredPass::SSAO)));
+
+        ENDMRT_RETURN_IF_FAILED(
+            _viBuffer->Render());
+        
+        if (FAILED(GAME->End_MRT()))
+            return;
+
+        Add_RenderCall();
+    }
+
+    // SSAO Blur 패스 : AO 값을 경계 보존하며 부드럽게 만들기
+    {
+        if (_ssaoPipeline == nullptr || _ssaoPipeline->Get_Params().SSAOBilateralEnabled == 0u)
+            return;
+
+        // MRT 바뀌었으니 다시 바인딩
+        RETURN_LOG_IF_FAILED(
+            GAME->Begin_MRT(MRT::SSAOBlur, NotUseDSV, ClearRTV),
+            L"Render_SSAO:FAIL Begin_MRT(SSAOBlur)");
+
+        ENDMRT_RETURN_IF_FAILED(
+            _deferredShader->Bind_ObjectCB(_pipelineWorldMatrix));
+
+        ENDMRT_RETURN_IF_FAILED(
+            Bind_TransformCB(_deferredShader));
+
+        ENDMRT_RETURN_IF_FAILED(
+            GAME->Bind_RT_ShaderResource(_deferredShader, "g_SSAOTexture", RT::SSAO));
+
+        ENDMRT_RETURN_IF_FAILED(
+            GAME->Bind_RT_ShaderResource(_deferredShader, "g_NormalTexture", RT::Normal));
+
+        ENDMRT_RETURN_IF_FAILED(
+            GAME->Bind_RT_ShaderResource(_deferredShader, "g_DepthTexture", RT::Depth));
+
+        ENDMRT_RETURN_IF_FAILED(
+            _deferredShader->Bind_CBufferData(_ssaoPipeline->Get_Params()));
+
+        ENDMRT_RETURN_IF_FAILED(
+            _viBuffer->Bind_Resources());
+
+        ENDMRT_RETURN_IF_FAILED(
+            _deferredShader->Begin(ETOI(DeferredPass::SSAOBlur)));
+
+        ENDMRT_RETURN_IF_FAILED(
+            _viBuffer->Render());
+
+        if (FAILED(GAME->End_MRT()))
+            return;
+    }
 
     Add_RenderCall();
 }
@@ -405,10 +472,6 @@ void Renderer::Render_Lights()
 
 void Renderer::Render_CombinedHDR()
 {
-#ifdef _DEBUG
-    const auto logFail = [this](const wchar_t* stage) { DumpCurrentOMState(stage); };
-#endif
-
     if (!_deferredShader || !_viBuffer)
         return;
 
@@ -465,8 +528,14 @@ void Renderer::Render_CombinedHDR()
         GAME->Bind_RT_ShaderResource(_deferredShader, "g_EmissiveTexture", RT::Emissive),
         L"Render_CombinedHDR:FAIL Bind_RT_ShaderRender_CombinedHDRResource(g_EmissiveTexture)");
 
+    // Bilateral Blur : 거리, 깊이, 노말에 따라 Blur 가중치를 조절하는 기능
+    const bool ssaoEnabled = (_ssaoPipeline != nullptr) && _ssaoPipeline->Is_Enabled();
+    const wchar_t* ssaoResult = (ssaoEnabled && _ssaoPipeline->Get_Params().SSAOBilateralEnabled != 0u)
+        ? RT::SSAOBlur
+        : RT::SSAO;
+
     COMBINEDHDR_RETURN_LOG_IF_FAILED(
-        GAME->Bind_RT_ShaderResource(_deferredShader, "g_SSAOTexture", RT::SSAO),
+        GAME->Bind_RT_ShaderResource(_deferredShader, "g_SSAOTexture", ssaoResult),
         L"Render_CombinedHDR:FAIL Bind_RT_ShaderRender_CombinedHDRResource(g_SSAOTexture)");
 
     // Light 기록
@@ -494,10 +563,6 @@ void Renderer::Render_CombinedHDR()
 
 void Renderer::Render_NonLight()
 {
-#ifdef _DEBUG
-    const auto logFail = [this](const wchar_t* stage) { DumpCurrentOMState(stage); };
-#endif
-
     RETURN_LOG_IF_FAILED(
         GAME->Begin_MRT(MRT::HDR, NotUseDSV, NotClearRTV),
         L"Begin_MRT failed");
@@ -519,10 +584,6 @@ void Renderer::Render_NonLight()
 
 void Renderer::Render_Blend()
 {
-#ifdef _DEBUG
-    const auto logFail = [this](const wchar_t* stage) { DumpCurrentOMState(stage); };
-#endif
-
     RETURN_LOG_IF_FAILED(
         GAME->Begin_MRT(MRT::HDR, NotUseDSV, NotClearRTV),
         L"Begin_MRT failed");
@@ -544,13 +605,6 @@ void Renderer::Render_Blend()
 
 void Renderer::Render_PostProcess()
 {
-#ifdef _DEBUG
-    const auto logFail = [this](const wchar_t* stage)
-        {
-            DumpCurrentOMState(stage);
-        };
-#endif
-
     if (!_postprocessShader || !_viBuffer)
         return;
 
@@ -1077,7 +1131,7 @@ void Renderer::Add_RenderCall(uint32 count)
 
 void Renderer::DumpCurrentOMState(const wchar_t* stageTag) const
 {
-    // return; // 컴파일러가 무시할 거임
+    return; // 컴파일러가 호출 자체 무시할 거임
     if (false == _useRTVDump || nullptr == _context)
         return;
 
