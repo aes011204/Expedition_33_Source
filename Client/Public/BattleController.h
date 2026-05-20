@@ -28,11 +28,11 @@ class BattleController : public Base
     // 전투 종료
     DECLARE_DELEGATE(FOnBattleEnded, EBattleEndResult);
     // 턴 시작
-    DECLARE_DELEGATE(FOnTurnStarted,  const BattleChar&, BattleTurnState);
+    DECLARE_DELEGATE(FOnTurnStarted, const BattleChar&, BattleTurnState);
     // 턴 종료
     DECLARE_DELEGATE(FOnTurnEnded, const BattleChar&);
     // 타겟 전환
-    DECLARE_DELEGATE(FOnTargetPreviewChanged, const BattleChar*);           
+    DECLARE_DELEGATE(FOnTargetPreviewChanged, const BattleChar*);
 
 public:
     enum ReactionType
@@ -97,10 +97,10 @@ public:
 
 
     //void Set_CurrentScript(const Shared<SkillScript>& script){_curScript = script;}
-    Shared<SkillScript> Get_CurrentScript() const{return _curScript;}
-    void Clear_CurrentScript(){_curScript.reset();}
+    Shared<SkillScript> Get_CurrentScript() const { return _curScript; }
+    void Clear_CurrentScript() { _curScript.reset(); }
 
-    const Reaction& Get_Reaction() const{return _reaction;}
+    const Reaction& Get_Reaction() const { return _reaction; }
 public:
     void Handle_EditorStopRuntime();
     HRESULT Ready_Delegates();
@@ -114,7 +114,7 @@ public:
 public: /* 타겟팅 중인 적 세팅 */
     void                Set_TargetPreview(const BattleChar& target);
     void                Clear_TargetPreview();
-    const BattleChar*   Get_TargetPreview() const;
+    const BattleChar* Get_TargetPreview() const;
 
 public:
     bool            Is_PlayerTurnActive() const;

@@ -84,10 +84,10 @@ void BattleActionExecutor::Begin_ActionPhase(Action& action)
 
     if(phase.movementPolicy ==BattleMovementPolicy::RootMotionToTarget)
     {
-        action._curChar.ModelCom->Set_Animation(phase.animationKey, true, 0.f);
+        action._curChar.ModelCom->Set_Animation(phase.animationKey, 1.f, true, 0.f);
     }
     else
-    action._curChar.ModelCom->Set_Animation(phase.animationKey, false, 0.f);
+    action._curChar.ModelCom->Set_Animation(phase.animationKey,1.f, false, 0.f);
 }
 
 Vec3 BattleActionExecutor::Resolve_AnchorPosition(const Action& action, BattleTargetAnchor anchor) const
