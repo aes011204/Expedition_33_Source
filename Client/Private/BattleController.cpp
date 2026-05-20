@@ -156,10 +156,9 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
     _isWaitingBattleTransition = false;
 
     Clear_TargetPreview();
-    OnBattleEnded.Broadcast(result);
+    OnBattleEnded.Broadcast(result); // battle end UI 정리는 GameplayUI_Battle에서 처리한다.
 
     // 전투 종료 시 슬로우모션 값이 남지 않도록 복구
-    CLIENT->Stop_BattleEnterTransition();
     GAME->Stop_WorldTimeSlow();
 
 	Restore_WorldCamera(); // 카메라 복구
@@ -807,8 +806,7 @@ void BattleController::Complete_BattleField()
     Clear_BattleEnterPending();
 
     // 턴 시작
-    OnBattleStarted.Broadcast(battleFieldId, isFirstHero);
-    CLIENT->Play_BattleEnterTransition();
+    OnBattleStarted.Broadcast(battleFieldId, isFirstHero); // battle start event만 발행하고, 전환 연출은 GameplayUI_Battle이 처리한다.
     _isWaitingBattleTransition = true;
 }
 

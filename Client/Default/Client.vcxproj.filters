@@ -640,6 +640,9 @@
     <ClInclude Include="..\Public\UI_BattleCommandHUD.h" />
     <ClInclude Include="..\Public\UI_MonsterHpBar.h" />
     <ClInclude Include="..\Public\UI_RuntimePanelBase.h" />
+    <ClInclude Include="..\Public\GameplayUI_Types.h" />
+    <ClInclude Include="..\Public\GameplayUI_World.h" />
+    <ClInclude Include="..\Public\GameplayUI_Battle.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -1033,6 +1036,8 @@
     <ClCompile Include="..\Private\UI_BattleCommandHUD.cpp" />
     <ClCompile Include="..\Private\UI_MonsterHpBar.cpp" />
     <ClCompile Include="..\Private\UI_RuntimePanelBase.cpp" />
+    <ClCompile Include="..\Private\GameplayUI_World.cpp" />
+    <ClCompile Include="..\Private\GameplayUI_Battle.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">
