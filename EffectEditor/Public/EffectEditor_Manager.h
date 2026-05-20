@@ -42,6 +42,10 @@ private:
     bool CanSave_EffectDocument() const;
     // Save 메뉴/단축키/툴바가 공유하는 현재 effect document 저장 진입점이다.
     bool Save_EffectDocument();
+    // Open 메뉴/단축키/툴바의 활성화 가능 여부를 한 곳에서 판단한다.
+    bool CanOpen_EffectDocument() const;
+    // Open 메뉴/단축키/툴바가 공유하는 현재 effect document 열기 진입점이다.
+    bool Open_EffectDocument();
 
     void Toggle_Window(const wstring& windowName);
     void Toggle_WindowPair(const wstring& firstWindowName, const wstring& secondWindowName);

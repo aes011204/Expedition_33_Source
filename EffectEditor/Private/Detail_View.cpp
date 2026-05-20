@@ -115,6 +115,7 @@ void Detail_View::Render_ParticleSystemDetail(
     if (changed)
     {
         Begin_PendingAuthoringEdit(emitterView, selection, beforeSnapshot, "Edit Particle System Detail");
+        emitterView->MarkDirty();
         MarkDirty();
     }
 
@@ -150,7 +151,7 @@ void Detail_View::Render_EmitterDetail(
     if (changed)
         Begin_PendingAuthoringEdit(emitterView, selection, beforeSnapshot, "Edit Emitter Detail");
 
-    Mark_Changed(emitter, changed);
+    Mark_Changed(emitterView, emitter, changed);
     Commit_PendingAuthoringEditIfIdle(emitterView);
 }
 
@@ -163,7 +164,7 @@ void Detail_View::Render_TypeDataDetail(
     ImGui::Separator();
     ImGui::TextDisabled("장착된 타입 데이터가 없습니다.");
 
-    Mark_Changed(emitter, false);
+    Mark_Changed(emitterView, emitter, false);
     Commit_PendingAuthoringEditIfIdle(emitterView);
 }
 
@@ -284,16 +285,18 @@ void Detail_View::Render_ModuleDetail(
     if (changed)
         Begin_PendingAuthoringEdit(emitterView, selection, beforeSnapshot, "Edit Module Detail");
 
-    Mark_Changed(emitter, changed);
+    Mark_Changed(emitterView, emitter, changed);
     Commit_PendingAuthoringEditIfIdle(emitterView);
 }
 
-void Detail_View::Mark_Changed(AuthoringEmitter& emitter, bool changed)
+void Detail_View::Mark_Changed(const Shared<Emitter_View>& emitterView, AuthoringEmitter& emitter, bool changed)
 {
     if (!changed)
         return;
 
     emitter.previewDirty = true;
+    if (emitterView)
+        emitterView->MarkDirty();
     MarkDirty();
 }
 

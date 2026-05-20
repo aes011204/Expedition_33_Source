@@ -121,6 +121,85 @@ namespace Internal
         return !outFilePath.empty();
     }
 
+    bool Try_PickEffectOpenFileDialog(fs::path& outFilePath)
+    {
+        outFilePath.clear();
+
+        const HRESULT initHr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+        const bool shouldUninit = SUCCEEDED(initHr);
+
+        IFileOpenDialog* dialog = nullptr;
+        HRESULT hr = CoCreateInstance(CLSID_FileOpenDialog, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&dialog));
+        if (FAILED(hr) || dialog == nullptr)
+        {
+            if (shouldUninit)
+                CoUninitialize();
+            return false;
+        }
+
+        dialog->SetTitle(L"Open Effect");
+
+        DWORD options = 0;
+        dialog->GetOptions(&options);
+        dialog->SetOptions(options | FOS_FORCEFILESYSTEM | FOS_PATHMUSTEXIST | FOS_FILEMUSTEXIST);
+
+        const fs::path defaultFolder = Normalize_EffectSaveDialogPath(kEffectAuthoringSaveDefaultFolder);
+        if (!defaultFolder.empty() && fs::exists(defaultFolder))
+        {
+            IShellItem* folderItem = nullptr;
+            if (SUCCEEDED(SHCreateItemFromParsingName(defaultFolder.wstring().c_str(), nullptr, IID_PPV_ARGS(&folderItem))) && folderItem != nullptr)
+            {
+                dialog->SetFolder(folderItem);
+                folderItem->Release();
+            }
+        }
+
+        const COMDLG_FILTERSPEC filters[]
+        {
+            { L"Effect Authoring", L"*.effect.json" },
+            { L"All", L"*.*" },
+        };
+        dialog->SetFileTypes(static_cast<UINT>(std::size(filters)), filters);
+        dialog->SetFileTypeIndex(1);
+
+        const HWND owner = EDITOR != nullptr ? EDITOR->Get_WindowHandle() : nullptr;
+        hr = dialog->Show(owner);
+        if (SUCCEEDED(hr))
+        {
+            IShellItem* item = nullptr;
+            if (SUCCEEDED(dialog->GetResult(&item)) && item != nullptr)
+            {
+                PWSTR path = nullptr;
+                if (SUCCEEDED(item->GetDisplayName(SIGDN_FILESYSPATH, &path)) && path != nullptr)
+                {
+                    outFilePath = fs::path(path);
+                    CoTaskMemFree(path);
+                }
+                item->Release();
+            }
+        }
+
+        dialog->Release();
+
+        if (shouldUninit)
+            CoUninitialize();
+
+        return !outFilePath.empty();
+    }
+
+    bool Confirm_DiscardDirtyAuthoringDocument()
+    {
+        const HWND owner = EDITOR != nullptr ? EDITOR->Get_WindowHandle() : nullptr;
+        const int result = MessageBoxW(
+            owner,
+            L"저장되지 않은 변경 사항이 사라질 수 있습니다.\n계속 열겠습니까?",
+            L"Open Effect",
+            MB_OKCANCEL | MB_ICONWARNING
+        );
+
+        return result == IDOK;
+    }
+
     fs::path Resolve_DefaultEffectMaterialPath()
     {
         if (GAME == nullptr)
@@ -221,6 +300,11 @@ bool Emitter_View::CanSave() const
     return true;
 }
 
+bool Emitter_View::CanOpen() const
+{
+    return true;
+}
+
 void Emitter_View::Save()
 {
     fs::path savePath{};
@@ -264,6 +348,75 @@ void Emitter_View::Save()
             NotifyType::Success,
             "Effect 저장 완료: {}",
             String::ToString(savePath.filename().wstring())
+        );
+    }
+}
+
+void Emitter_View::Open()
+{
+    if (Is_Dirty() && !Internal::Confirm_DiscardDirtyAuthoringDocument())
+        return;
+
+    fs::path openPath{};
+    if (!Internal::Try_PickEffectOpenFileDialog(openPath))
+        return;
+
+    ifstream file(openPath);
+    if (!file.is_open())
+    {
+        if (EDITOR != nullptr && EDITOR->Get_Notification() != nullptr)
+        {
+            EDITOR->Get_Notification()->Add_Notification_With_Type(
+                NotifyType::Warning,
+                "Effect 열기 실패: {}",
+                String::ToString(openPath.filename().wstring())
+            );
+        }
+        return;
+    }
+
+    json documentJson{};
+    try
+    {
+        file >> documentJson;
+    }
+    catch (const json::exception&)
+    {
+        if (EDITOR != nullptr && EDITOR->Get_Notification() != nullptr)
+        {
+            EDITOR->Get_Notification()->Add_Notification_With_Type(
+                NotifyType::Warning,
+                "Effect JSON 해석 실패: {}",
+                String::ToString(openPath.filename().wstring())
+            );
+        }
+        return;
+    }
+
+    if (!Restore_AuthoringDocumentJson(documentJson))
+    {
+        if (EDITOR != nullptr && EDITOR->Get_Notification() != nullptr)
+        {
+            EDITOR->Get_Notification()->Add_Notification_With_Type(
+                NotifyType::Warning,
+                "Effect 복원 실패: {}",
+                String::ToString(openPath.filename().wstring())
+            );
+        }
+        return;
+    }
+
+    ClearDirty();
+
+    if (EDITOR != nullptr)
+        EDITOR->Request_RestartPreview();
+
+    if (EDITOR != nullptr && EDITOR->Get_Notification() != nullptr)
+    {
+        EDITOR->Get_Notification()->Add_Notification_With_Type(
+            NotifyType::Success,
+            "Effect 열기 완료: {}",
+            String::ToString(openPath.filename().wstring())
         );
     }
 }
