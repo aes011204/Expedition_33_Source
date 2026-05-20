@@ -33,6 +33,12 @@ HRESULT BattleTurnCamera::Initialize(void* arg)
 {
     CHECK_FAILED(Camera::Initialize(arg), E_FAIL);
 
+    const auto desc = static_cast<BATTLE_TURN_CAMERA_DESC*>(arg);
+    if (desc)
+    {
+        _mouseSensor = desc->mouseSensor;
+    }
+
     Set_Name(L"Battle Turn Camera");
     return S_OK;
 }
@@ -110,6 +116,22 @@ void BattleTurnCamera::Focus_Battle(const vector<BattleChar>& heroes, const vect
         Vec3(2.f, 3.f, -2.f);     // 테스트용 임시 위치 보정
 
     Apply_LookAt(cameraPos, lookAt);
+}
+
+void BattleTurnCamera::Update_FreeAimRotation(float timeDelta)
+{
+    UNREFERENCED_PARAMETER(timeDelta);
+
+    CHECK_NULL(_transformCom);
+
+    const Vec2 mouseDelta = GAME->Get_MouseDelta();
+
+    _yaw += mouseDelta.x * _mouseSensor;
+    _pitch += mouseDelta.y * _mouseSensor;
+    _pitch = std::clamp(_pitch, -25.f, 20.f); // 상하 각도 제한
+
+    _transformCom->Set_RotationEuler(Vec3(_pitch, _yaw, 0.f));
+    Update_TransformMatrices();
 }
 
 Vec3 BattleTurnCamera::Get_AimOrigin() const
