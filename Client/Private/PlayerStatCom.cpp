@@ -87,7 +87,7 @@ HRESULT PlayerStatCom::Initialize(void* arg)
     Update_StatInfo();   // UI가 읽는 CurMaxHp, CurAttack, CurSpeed 값 갱신용
 
     _isPlayer = true;
-    
+   
 
     return S_OK;
 }
@@ -116,6 +116,13 @@ void PlayerStatCom::From_Json(const json& data)
 
     Recalculate_Stats(); // desc 기준 파생 스탯 확정
     Update_StatInfo();   // CharacterStatus가 읽는 값 최종 반영
+
+
+    
+
+   
+
+
 }
 
 bool PlayerStatCom::Add_Stat(StatType type, int32 value)
