@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\Private\UI_ClipboardService.cpp" />
     <ClCompile Include="..\Private\UI_AnimationAssetSerializer.cpp" />
     <ClCompile Include="..\Private\UI_AnimationAssetService.cpp" />
     <ClCompile Include="..\Private\UI_AnimationTimelineView.cpp" />
@@ -36,8 +37,11 @@
     <ClCompile Include="..\Private\UI_Editor_Window.cpp" />
     <ClCompile Include="..\Private\UI_Hierarchy_View.cpp" />
     <ClCompile Include="..\private\UI_Inspector.cpp" />
+    <ClCompile Include="..\Private\UI_ObjectCommandService.cpp" />
     <ClCompile Include="..\Private\UI_Prefab_Browser.cpp" />
     <ClCompile Include="..\Private\UI_PrefabService.cpp" />
+    <ClCompile Include="..\Private\UI_SelectionService.cpp" />
+    <ClCompile Include="..\Private\UI_TransformService.cpp" />
     <ClCompile Include="..\Private\UI_Viewport_View.cpp" />
     <ClCompile Include="..\Private\UI_Viewport_Utils.cpp" />
     <ClCompile Include="pch.cpp">
@@ -51,6 +55,7 @@
     <ClCompile Include="..\Private\UI_EditorApp.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\Public\UI_ClipboardService.h" />
     <ClInclude Include="..\Public\UI_AnimationAssetSerializer.h" />
     <ClInclude Include="..\Public\UI_AnimationAssetService.h" />
     <ClInclude Include="..\Public\UI_AnimationTimelineView.h" />
@@ -75,8 +80,11 @@
     <ClInclude Include="..\Public\UI_Hierarchy_View.h" />
     <ClInclude Include="..\public\UI_Editor_Manager.h" />
     <ClInclude Include="..\public\UI_Inspector.h" />
+    <ClInclude Include="..\Public\UI_ObjectCommandService.h" />
     <ClInclude Include="..\Public\UI_Prefab_Browser.h" />
     <ClInclude Include="..\Public\UI_PrefabService.h" />
+    <ClInclude Include="..\Public\UI_SelectionService.h" />
+    <ClInclude Include="..\Public\UI_TransformService.h" />
     <ClInclude Include="..\Public\UI_Viewport_View.h" />
     <ClInclude Include="..\Public\UI_Viewport_Utils.h" />
     <ClInclude Include="pch.h" />

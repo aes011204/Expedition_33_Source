@@ -1,38 +1,33 @@
 ﻿#pragma once
 
 #include "Base.h"
-#include "SavePoint_Panel.h"
-
-NS_BEGIN(Engine)
-class UI_Base;
-class UI_Text;
-class UI_Button;
-NS_END
+#include "GameplayUI_Types.h"
 
 NS_BEGIN(Client)
 
 class SavePoint_Panel;
 class SkillTree_Panel;
 class CharacterStatus_Panel;
+class ChangeWeapon_Panel;
+class UI_Fade;
 class UI_BattleTransition;
 class UI_BattleCommandHUD;
+class GameplayUI_World;
+class GameplayUI_Battle;
 
 // 실제로 렌더링되는 UI 가 아니라, 플레이 중 UI 들을 로드/토글/바인딩 등 처리할 컨트롤러라고 생각
 class GameplayUI : public Base
 {
 public:
-    enum class GameplayMenu
+    enum class GameplayUIInputMode
     {
-        None,
-        SavePoint,
-        CharacterStatus,
-        SkillTree,
-        WeaponUpgrade,
+        World,  // 월드 UI 입력만 허용
+        Battle, // 배틀 UI 입력만 허용
     };
 
 public:
     GameplayUI() = default;
-    ~GameplayUI() override = default;
+    ~GameplayUI() override;
 
 public:
     HRESULT Initialize(uint32 levelIndex);
@@ -46,34 +41,29 @@ public:
     GameplayMenu Get_CurrentMenu() const; // 현재 최상위 메뉴 확인용
 
 private:
-    void    Handle_SavePointAction(SavePoint_Panel::SavePointAction action);
-
-    void    Handle_TabInput();
-    void    Handle_BackInput();  // Esc로 현재 메뉴 닫고 이전 메뉴 복귀
-
-    void    Push_Menu(GameplayMenu menu);
-    void    Pop_Menu();                   
-    void    Close_AllMenus();              // 전체 메뉴 종료
-
-    void    Open_Menu(GameplayMenu menu);  // 메뉴 enum -> 실제 panel open
-    void    Close_Menu(GameplayMenu menu); // 메뉴 enum -> 실제 panel close
+    // 이번 프레임에 어떤 UI 입력인지. World ? Battle ?
+    GameplayUIInputMode Resolve_InputMode() const;
+    void                Handle_InputModeChanged(GameplayUIInputMode previousMode, GameplayUIInputMode currentMode);
 
 private:
-    void    Set_BattleCommandHUD();
+    Unique<GameplayUI_World>    _worldUI;  // 월드 UI는 GameplayUI 하나만 소유
+    Shared<GameplayUI_Battle>   _battleUI; // 배틀 UI는 delegate 직접 구독 때문에 Shared로 둔다.
 
 private:
     Unique<SavePoint_Panel>         _savePointPanel{};
     Unique<CharacterStatus_Panel>   _characterStatusPanel{};
     Unique<SkillTree_Panel>         _skillTreePanel{};
+    Unique<ChangeWeapon_Panel>      _changeWeaponPanel{};
 
     // 전투 진입 테스트용 페이드 UI
     Shared<UI_BattleTransition>     _battleTransition{};
     Unique<UI_BattleCommandHUD>     _battleCommandHUD{};
 
     vector<GameplayMenu>            _menuStack{};
+    GameplayUIInputMode         _lastInputMode = GameplayUIInputMode::World;
 
 public:
-    static Unique<GameplayUI> Create(uint32 levelIndex);
+    static Shared<GameplayUI> Create(uint32 levelIndex);
     void Free() override;
 };
 

@@ -807,7 +807,7 @@ HRESULT Level_EffectEditor::Ready_Layer_Camera(const wstring& layerTag)
     EffectEditorCamera::EffectEditorCameraDesc cameraDesc{};
     cameraDesc.speedPerSec = 10.f;
     cameraDesc.degreePerSec = 180.f;
-    cameraDesc.eye = Vec4(0.f, 8.f, -8.f, 1.f);
+    cameraDesc.eye = Vec4(0.f, 2.f, -2.f, 1.f);
     cameraDesc.at = Vec4(0.f, 0.f, 0.f, 1.f);
     cameraDesc.fovy = XMConvertToRadians(60.f);
     cameraDesc.nearPlane = 0.1f;

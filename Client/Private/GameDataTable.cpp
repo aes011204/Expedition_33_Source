@@ -65,6 +65,8 @@ HRESULT GameDataTable::Load_All()
 
     CHECK_FAILED(Load_SkillTreeRequirementData(jsonRootPath), E_FAIL);
 
+    CHECK_FAILED(Load_Weapon(jsonRootPath), E_FAIL);
+
     _isLoaded = true;
 
     return S_OK;
@@ -73,6 +75,7 @@ HRESULT GameDataTable::Load_All()
 void GameDataTable::Clear()
 {
     _nextExpByLevel.clear();
+    _weaponDataByCharacter.clear();
     _isLoaded = false;
 }
 
@@ -505,6 +508,62 @@ HRESULT GameDataTable::Load_SkillTreeRequirementData(const wstring& jsonRootPath
 
 }
 
+HRESULT GameDataTable::Load_Weapon(const wstring& jsonRootPath)
+{
+    const fs::path tablePath = fs::path(jsonRootPath) / L"DT_Weapon.json";
+
+    json root = {};
+
+    try
+    {
+        ifstream file(tablePath);
+        if (!file.is_open())
+        {
+            LOG_ERROR("[GameDataTable] failed to open weapon table: {}", String::ToString(tablePath.wstring()));
+            return E_FAIL;
+        }
+
+        file >> root;
+    }
+    catch (const std::exception& e)
+    {
+        LOG_ERROR("[GameDataTable] failed to parse weapon table: {} ({})",
+            String::ToString(tablePath.wstring()), e.what());
+        return E_FAIL;
+    }
+
+    if (!root.contains("DT_Weapon") || !root["DT_Weapon"].is_array())
+    {
+        LOG_ERROR("[GameDataTable] DT_Weapon array not found: {}", String::ToString(tablePath.wstring()));
+        return E_FAIL;
+    }
+
+    for (const json& item : root["DT_Weapon"])
+    {
+        const string characterId = item.value("Character ID", "");
+        const string weaponId = item.value("Weapon ID", "");
+
+        if (characterId.empty() || weaponId.empty())
+            continue;
+
+        WeaponDesc desc{};
+        desc.characterId = characterId;
+        desc.weaponId = weaponId;
+        desc.weaponName = String::ToWString(item.value("Weapon Name", ""));
+        desc.level = item.value("Level", 1u);
+        desc.power = item.value("Power", 0u);
+
+        _weaponDataByCharacter[characterId].push_back(desc);
+    }
+
+    size_t weaponCount = 0;
+    for (const auto& [characterId, weapons] : _weaponDataByCharacter)
+        weaponCount += weapons.size();
+
+    LOG_INFO("[GameDataTable] loaded weapon table: count = {}", weaponCount);
+    return S_OK;
+}
+
 wstring GameDataTable::Get_DefaultJsonRootPath() const
 {
     const wstring assetRoot = GAME->Get_AssetRoot();
@@ -537,6 +596,29 @@ const umap<string, vector<string>>* GameDataTable::Get_SkillTreeRequirementData(
     return  &_requirementSkills;
 }
 
+const GameDataTable::WeaponDesc* GameDataTable::Get_WeaponDesc(const string& characterId, const string& weaponId) const
+{
+    const auto characterIter = _weaponDataByCharacter.find(characterId);
+    if (characterIter == _weaponDataByCharacter.end())
+        return nullptr;
+
+    for (const WeaponDesc& weapon : characterIter->second)
+    {
+        if (weapon.weaponId == weaponId)
+            return &weapon;
+    }
+
+    return nullptr;
+}
+
+const vector<GameDataTable::WeaponDesc>* GameDataTable::Get_WeaponDescs(const string& characterId) const
+{
+    const auto characterIter = _weaponDataByCharacter.find(characterId);
+    if (characterIter == _weaponDataByCharacter.end())
+        return nullptr;
+
+    return &characterIter->second;
+}
 vector<string> GameDataTable::Split_String(const string& value, char delimiter)
 {
     vector<string> result;

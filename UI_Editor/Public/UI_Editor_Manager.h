@@ -1,11 +1,15 @@
 #pragma once
 #include "UI_Document.h"
 #include "UI_AnimationPreviewService.h"
+#include "UI_ClipboardService.h"
 #include "UI_Editor_FileService.h"
 #include "UI_Editor_HistoryService.h"
 #include "UI_Editor_PreviewService.h"
 #include "UI_Editor_Window.h"
+#include "UI_ObjectCommandService.h"
 #include "UI_PrefabService.h"
+#include "UI_SelectionService.h"
+#include "UI_TransformService.h"
 
 NS_BEGIN(UIEditor)
 
@@ -117,13 +121,11 @@ private:
     void Render_RenamePopup();
     void Clear_RuntimeCaches();
     void Resolve_LoadedAssetReferences();
-    ObjectId Resolve_CreateParentId() const;
-    vector<ObjectId> Normalize_Selection(const vector<ObjectId>& objectIds) const;
-    vector<ObjectId> Collect_RootObjectIds(const vector<ObjectId>& objectIds) const;
-    void Collect_ObjectAndChildren(ObjectId objectId, vector<ObjectId>& outObjectIds) const;
-    ObjectId Resolve_PasteParentId() const;
     void Apply_Selection(const vector<ObjectId>& objectIds, ObjectId primaryObjectId);
+    void Apply_SelectionState(UI_SelectionState selectionState, bool commitTransactionOnPrimaryChange);
     void Prune_InvalidSelection();
+    bool Select_ImportedObjectsAndRefresh(const vector<ObjectId>& createdRootObjectIds);
+    void Restore_HistorySelectionAndRefresh(ObjectId selectedObjectId, const vector<ObjectId>& selectedObjectIds);
     void Push_UndoSnapshot();
     void Clear_History();
 
@@ -133,16 +135,15 @@ public:
 private:
     UI_Document _document = {};
     map<wstring, Shared<UI_Editor_Window>> _windows = {};
-    ObjectId _selectedObjectId = 0;
-    vector<ObjectId> _selectedObjectIds = {};
+    UI_SelectionService _selectionService = {};
     bool _assetManagerReady = false;
     UI_Editor_HistoryService _historyService = {};
     UI_Editor_PreviewService _previewService = {};
     UI_AnimationPreviewService _animationPreviewService = {};
     UI_Editor_FileService _fileService = {};
-    vector<UI_Object> _clipboardObjects = {};
-    vector<ObjectId> _clipboardRootObjectIds = {};
-    int32 _clipboardPasteCount = 0;
+    UI_ClipboardService _clipboardService = {};
+    UI_ObjectCommandService _objectCommandService = {};
+    UI_TransformService _transformService = {};
     ObjectId _renameRequestObjectId = 0;
     bool _isRenamingCanvas = false;
     bool _openRenamePopup = false;

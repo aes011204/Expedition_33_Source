@@ -1057,7 +1057,7 @@ void EditorInstance::Apply_RuntimeInputPolicy()
             const bool freeCameraControl =
                 gameFocused && GAME->KeyPress(KEY_TYPE::RBUTTON);
 
-            GAME->Set_PlayerInputBlocked(true);
+            //GAME->Set_PlayerInputBlocked(true);
             GAME->Set_FreeCameraInputEnabled(freeCameraControl);
 
             if (freeCameraControl||isTargetCamera)
