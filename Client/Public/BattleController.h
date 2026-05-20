@@ -23,6 +23,12 @@ class BattleTurnCamera;
 
 class BattleController : public Base
 {
+    DECLARE_DELEGATE(FOnBattleStarted, uint32, bool);                       // 전투 시작
+    DECLARE_DELEGATE(FOnBattleEnded, EBattleEndResult);                     // 전투 종료
+    DECLARE_DELEGATE(FOnTurnStarted,  const BattleChar&, BattleTurnState);  // 턴 시작
+    DECLARE_DELEGATE(FOnTurnEnded, const BattleChar&);                      // 턴 종료
+    DECLARE_DELEGATE(FOnTargetPreviewChanged, const BattleChar*);           // 타겟 전환
+
 public:
     enum ReactionType
     {
