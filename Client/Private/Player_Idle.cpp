@@ -10,16 +10,43 @@ Player_Idle::Player_Idle(const Shared<Player_WorldBase>& owner)
 {
 }
 
+using plAnim = Body_Player::PlayerWorldAnimation;
+
 HRESULT Player_Idle::Initialize()
 {
+    _exitAnim.emplace(ETOI(plAnim::Pl_EndSprint));
+    _exitAnim.emplace(ETOI(plAnim::Pl_EndRun));
+    _exitAnim.emplace(ETOI(plAnim::Pl_EndWalk));
+
     return Player_State::Initialize();
 }
 
-using pl = Body_Player::PlayerWorldAnimation;
-
 bool Player_Idle::EnterInvoke()
 {
-    _bodyPlayer->Set_AnimationByState(ETOI(pl::Pl_Idle_0), _idleBlendTime, true);
+    auto stateIndex = _stateCom->Get_CurrentPlayerState();
+    uint32 animIndex = _bodyPlayer->Get_AnimationStateIndex();
+
+
+    bool hasFailedStateAnimation = true;
+    switch (stateIndex)
+    {
+    case PlayerState::Move:
+        _bodyPlayer->Set_AnimationSpeed(1.5f);
+        if (animIndex == ETOI(plAnim::Pl_Sprint))
+            hasFailedStateAnimation = _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_EndSprint), 0.25f, false);
+        else if (animIndex == ETOI(plAnim::Pl_Run))
+            hasFailedStateAnimation = _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_EndRun), 0.25f, false);
+        else if (animIndex == ETOI(plAnim::Pl_Walk))
+            hasFailedStateAnimation = _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_EndWalk), 0.25f, false);
+        break;
+    default:
+        _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_Idle_0), _idleBlendTime, true);
+        break;
+    }
+
+    if (!hasFailedStateAnimation)
+        _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_Idle_0), _idleBlendTime, true);
+
     Reset_IdleTimer();
     
     if (_isFirstState)
@@ -32,6 +59,14 @@ bool Player_Idle::EnterInvoke()
 
 void Player_Idle::Update(float timeDelta)
 {
+    uint32 animIndex = _bodyPlayer->Get_AnimationStateIndex();
+
+    //if (IsFalling())
+    //{
+    //    _stateCom->Change_State(PlayerState::Jump);
+    //    return;
+    //}
+
     if (IsEnterWorldAction())
     {
         _stateCom->Change_State(PlayerState::WorldAction);
@@ -50,6 +85,12 @@ void Player_Idle::Update(float timeDelta)
         return;
     }
 
+    if (_exitAnim.contains(animIndex) && _bodyPlayer->Get_AnimationProgress() >= 0.76f)
+    {
+        _bodyPlayer->Set_AnimationSpeed(1.f);
+        _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_Idle_0), 0.3f, true);
+        return;
+    }
 
     if (_isRoutineIdle)
     {
@@ -59,7 +100,7 @@ void Player_Idle::Update(float timeDelta)
         {
             if (_bodyPlayer->Get_AnimationProgress() >= 0.86f)
             {
-                _bodyPlayer->Set_AnimationByState(ETOI(pl::Pl_Idle_0), _idleBlendTime, true);
+                _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_Idle_0), _idleBlendTime, true);
                 Reset_IdleTimer();
             }
         }
@@ -95,15 +136,15 @@ void Player_Idle::Set_IdleAnimation()
 {
     uint32 state = _bodyPlayer->Get_AnimationStateIndex();
 
-    uint32 index = Math::RandNum(ETOI(pl::Pl_Idle_1), ETOI(pl::Pl_Idle_6));
+    uint32 index = Math::RandNum(ETOI(plAnim::Pl_Idle_1), ETOI(plAnim::Pl_Idle_6));
     if (_bodyPlayer->Set_AnimationByState(index, _idleBlendTime, false))
     {
         _isRoutineIdle = true;
     }
     else
     {
-        if (state != ETOI(pl::Pl_Idle_0))
-            _bodyPlayer->Set_AnimationByState(ETOI(pl::Pl_Idle_0), _idleBlendTime, true);
+        if (state != ETOI(plAnim::Pl_Idle_0))
+            _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_Idle_0), _idleBlendTime, true);
 
         Reset_IdleTimer();
     }

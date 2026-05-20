@@ -1,6 +1,6 @@
 ﻿#pragma once
 
-#include "Base.h"
+#include "UI_RuntimePanelBase.h"
 
 NS_BEGIN(Engine)
 class UI_Base;
@@ -10,19 +10,19 @@ NS_END
 NS_BEGIN(Client)
 
 // 월드 -> 전투 진입 시점 전환 임시 UI
-class UI_BattleTransition final : public Base
+class UI_BattleTransition final : public UI_RuntimePanelBase
 {
 public:
     UI_BattleTransition() = default;
     ~UI_BattleTransition() override = default;
 
 public:
-    HRESULT Initialize(uint32 levelIndex);
-    void    Update(float timeDelta);
+    HRESULT Initialize(uint32 levelIndex) override;
+    void    Update(float timeDelta) override;
 
     // 배틀 진입
     void    Play_BattleEnter();
-    void    Stop();
+    void    Close() override;
 
     bool    Is_Playing() const { return _isPlaying; }
 
@@ -30,10 +30,7 @@ private:
     HRESULT Load_UI(uint32 levelIndex);
     HRESULT Bind_UI();
 
-    Shared<UI_Base> Find_UI(const umap<wstring, Shared<UI_Base>>& uiByName, const wstring& name) const;
-
 private:
-    uint32 _levelIndex = 0;
     bool   _isPlaying = false;
     float  _elapsed = 0.f;
     float  _duration = 0.85f; 
@@ -44,10 +41,6 @@ private:
     float _endRadius = 1.2f;
     float _holeFeather = 0.06f;
 
-
-    umap<wstring, Shared<UI_Base>> _uiByName{};
-
-    Shared<UI_Base> _root{};
     Shared<UI_Image> _holeMaskImage{};
 
 public:

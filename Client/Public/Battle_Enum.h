@@ -566,7 +566,8 @@ enum class Buffs;
         SnapToTarget,       // 바로 목표 위치로 스냅
         MoveToTarget,        // 대쉬/돌진처럼 전체 이동량을 목표 위치에 맞춤
         ReturnToOrigin,     // 시작 위치로 복귀
-        RootMotionToTarget    // 걷기/달리기처럼 루트모션 속도 기반
+        RootMotionToTarget,    // 걷기/달리기처럼 루트모션 속도 기반
+        Custom
     };
 
     enum class BattleTargetAnchor

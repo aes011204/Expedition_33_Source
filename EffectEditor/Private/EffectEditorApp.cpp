@@ -156,8 +156,6 @@ HRESULT EffectEditorApp::Initialize()
     };
 
     CHECK_FAILED(run_startup_step(initializeEngineMs, [&]{ return GAME->Initialize_Engine(engineDesc, _device, _context); }), E_FAIL);
-    CHECK_FAILED(GAME->Set_HDRClearColorOverride(kHdrClearColorOverride), E_FAIL);
-    _hdrClearColorOverrideSet = true;
     CHECK_FAILED(run_startup_step(initializeAssetManagerMs, [&]{ return GAME->Initialize_AssetManager(assetRootPath.wstring()); }), E_FAIL);
     CHECK_FAILED(run_startup_step(initializeClientMs, [&]{ return CLIENT->Initialize_Client_ForEffectEditor(_device, _context); }), E_FAIL);
     CHECK_FAILED(run_startup_step(readyFontsMs, [&]{ return Ready_Fonts(); }), E_FAIL);
@@ -414,12 +412,6 @@ Unique<EffectEditorApp> EffectEditorApp::Create()
 void EffectEditorApp::Free()
 {
     __super::Free();
-
-    if (_hdrClearColorOverrideSet)
-    {
-        (void)GAME->Clear_HDRClearColorOverride();
-        _hdrClearColorOverrideSet = false;
-    }
 
     EffectEditorInstance::DestroyInstance();
     ClientInstance::DestroyInstance();

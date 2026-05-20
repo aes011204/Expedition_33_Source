@@ -59,14 +59,14 @@ namespace Internal
         if (textureId == "Texture_Effect_DefaultTexture")
         {
             outGuid = "3c90794a-31bb-4e97-969a-3fd4497acc0f";
-            outPath = "Effects/Textures/DefaultTexture.dds";
+            outPath = "Effects/Textures/Shared/DefaultTexture.dds";
             return true;
         }
 
         if (textureId == "Texture_Effect_Clouds4")
         {
             outGuid = "321bf66c-e6f9-4495-9855-275274727e83";
-            outPath = "Effects/Textures/clouds4_T.dds";
+            outPath = "Effects/Textures/Shared/clouds4_T.dds";
             return true;
         }
 
@@ -265,14 +265,18 @@ namespace Internal
         {
         case DistributionMode::Constant:
         {
-            ConstantFloatDistributionData payload = get<ConstantFloatDistributionData>(outData.payload);
+            ConstantFloatDistributionData payload{};
+            if (const auto* existingPayload = get_if<ConstantFloatDistributionData>(&outData.payload))
+                payload = *existingPayload;
             Read_NumberField(*payloadIter, "value", payload.value);
             outData.payload = payload;
             break;
         }
         case DistributionMode::Uniform:
         {
-            UniformFloatDistributionData payload = get<UniformFloatDistributionData>(outData.payload);
+            UniformFloatDistributionData payload{};
+            if (const auto* existingPayload = get_if<UniformFloatDistributionData>(&outData.payload))
+                payload = *existingPayload;
             Read_NumberField(*payloadIter, "minValue", payload.minValue);
             Read_NumberField(*payloadIter, "maxValue", payload.maxValue);
             outData.payload = payload;
@@ -294,7 +298,10 @@ namespace Internal
             }
 
             if (payload.keys.empty())
-                payload.keys = get<ConstantCurveFloatDistributionData>(outData.payload).keys;
+            {
+                if (const auto* existingPayload = get_if<ConstantCurveFloatDistributionData>(&outData.payload))
+                    payload.keys = existingPayload->keys;
+            }
 
             outData.payload = payload;
             break;
@@ -343,7 +350,9 @@ namespace Internal
         {
         case DistributionMode::Constant:
         {
-            ConstantVector2DistributionData payload = get<ConstantVector2DistributionData>(outData.payload);
+            ConstantVector2DistributionData payload{};
+            if (const auto* existingPayload = get_if<ConstantVector2DistributionData>(&outData.payload))
+                payload = *existingPayload;
             const auto valueIter = payloadIter->find("value");
             if (valueIter != payloadIter->end())
                 Read_Vec2(*valueIter, payload.value);
@@ -352,7 +361,9 @@ namespace Internal
         }
         case DistributionMode::Uniform:
         {
-            UniformVector2DistributionData payload = get<UniformVector2DistributionData>(outData.payload);
+            UniformVector2DistributionData payload{};
+            if (const auto* existingPayload = get_if<UniformVector2DistributionData>(&outData.payload))
+                payload = *existingPayload;
             const auto minIter = payloadIter->find("minValue");
             if (minIter != payloadIter->end())
                 Read_Vec2(*minIter, payload.minValue);
@@ -406,7 +417,9 @@ namespace Internal
         {
         case DistributionMode::Constant:
         {
-            ConstantVector3DistributionData payload = get<ConstantVector3DistributionData>(outData.payload);
+            ConstantVector3DistributionData payload{};
+            if (const auto* existingPayload = get_if<ConstantVector3DistributionData>(&outData.payload))
+                payload = *existingPayload;
             const auto valueIter = payloadIter->find("value");
             if (valueIter != payloadIter->end())
                 Read_Vec3(*valueIter, payload.value);
@@ -415,7 +428,9 @@ namespace Internal
         }
         case DistributionMode::Uniform:
         {
-            UniformVector3DistributionData payload = get<UniformVector3DistributionData>(outData.payload);
+            UniformVector3DistributionData payload{};
+            if (const auto* existingPayload = get_if<UniformVector3DistributionData>(&outData.payload))
+                payload = *existingPayload;
             const auto minIter = payloadIter->find("minValue");
             if (minIter != payloadIter->end())
                 Read_Vec3(*minIter, payload.minValue);
@@ -469,7 +484,9 @@ namespace Internal
         {
         case DistributionMode::Constant:
         {
-            ConstantColorDistributionData payload = get<ConstantColorDistributionData>(outData.payload);
+            ConstantColorDistributionData payload{};
+            if (const auto* existingPayload = get_if<ConstantColorDistributionData>(&outData.payload))
+                payload = *existingPayload;
             const auto valueIter = payloadIter->find("value");
             if (valueIter != payloadIter->end())
                 Read_Color(*valueIter, payload.value);
@@ -478,7 +495,9 @@ namespace Internal
         }
         case DistributionMode::Uniform:
         {
-            UniformColorDistributionData payload = get<UniformColorDistributionData>(outData.payload);
+            UniformColorDistributionData payload{};
+            if (const auto* existingPayload = get_if<UniformColorDistributionData>(&outData.payload))
+                payload = *existingPayload;
             const auto minIter = payloadIter->find("minValue");
             if (minIter != payloadIter->end())
                 Read_Color(*minIter, payload.minValue);

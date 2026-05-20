@@ -3,6 +3,9 @@
 #include "UI_Base.h"
 #include "UI_Image.h"
 #include "UI_RuntimeLoader.h"
+#include "UI_Utils.h"
+
+using namespace UI_Utils;
 
 HRESULT UI_BattleTransition::Initialize(uint32 levelIndex)
 {
@@ -12,7 +15,7 @@ HRESULT UI_BattleTransition::Initialize(uint32 levelIndex)
     CHECK_FAILED(Bind_UI(), E_FAIL);
 
     // 처음에는 안보이게
-    Stop();
+    Close();
 
     return S_OK;
 }
@@ -36,7 +39,7 @@ void UI_BattleTransition::Update(float timeDelta)
     _holeMaskImage->Set_HoleRadius(radius);
 
     if (holeTimer >= 1.f)
-        Stop();
+        Close();
 
 }
 
@@ -54,17 +57,16 @@ void UI_BattleTransition::Play_BattleEnter()
     _holeMaskImage->Set_HoleFeather(_holeFeather);
     _holeMaskImage->Set_Color(Vec4(0.f, 0.f, 0.f, 1.f));
 
-    _root->Open();
+    UI_RuntimePanelBase::Open();
 }
 
-void UI_BattleTransition::Stop()
+void UI_BattleTransition::Close()
 {
     _isPlaying = false;
     _skipFirstUpdate = false;
     _elapsed = 0.f;
 
-    if (_root)
-        _root->Close();
+    UI_RuntimePanelBase::Close();
 }
 
 HRESULT UI_BattleTransition::Load_UI(uint32 levelIndex)
@@ -92,15 +94,6 @@ HRESULT UI_BattleTransition::Bind_UI()
     CHECK_NULL(_holeMaskImage, E_FAIL);
 
     return S_OK;
-}
-
-Shared<UI_Base> UI_BattleTransition::Find_UI(const umap<wstring, Shared<UI_Base>>& uiByName, const wstring& name) const
-{
-    const auto iter = uiByName.find(name);
-    if (iter == uiByName.end() || iter->second == nullptr)
-        return nullptr;
-
-    return iter->second;
 }
 
 Unique<UI_BattleTransition> UI_BattleTransition::Create(uint32 levelIndex)

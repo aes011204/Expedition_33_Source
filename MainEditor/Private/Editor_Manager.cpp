@@ -284,7 +284,7 @@ void Editor_Manager::Handle_Shortcuts()
             }
         }
     }
-
+    
     // Ctrl + Space : Scene/Game/Profile 집중 모드
     if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Space, false))
     {
@@ -328,18 +328,16 @@ void Editor_Manager::Handle_Shortcuts()
     }
 
     // Esc : 게임 종료
-    if (ImGui::IsKeyPressed(ImGuiKey_Escape, false))
+    if (ImGui::IsKeyPressed(ImGuiKey_F4, false))
     {
-        if (CLIENT->Is_GameplayMenuOpen() ||
-            GAME->Is_UIInputEnabled() ||
-            GAME->Is_GameplayPaused())
+        if (GAME->Is_GameplayPaused())
         {
             return;
         }
-
+    
         if (EDITOR->IsPlaying() || EDITOR->IsPaused())
             EDITOR->Stop();
-
+    
         return;
     }
 
@@ -392,7 +390,7 @@ void Editor_Manager::Render_ShortcutHelp()
 
             DrawShortcutRow("F1", "충돌체 렌더링");
             DrawShortcutRow("F5", "Play / Resume");
-            DrawShortcutRow("Esc", "Stop");
+            DrawShortcutRow("F4", "Stop");
             DrawShortcutRow("F8", "카메라 전환");
             DrawShortcutRow("F9", "Pause + Free Camera");
             DrawShortcutRow("Ctrl + Wheel", "Free Camera Speed");

@@ -156,6 +156,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="..\public\ANS_Dodge.h" />
+    <ClInclude Include="..\public\ANS_Move.h" />
     <ClInclude Include="..\public\ANS_Parry.h" />
     <ClInclude Include="..\public\ANS_QTE.h" />
     <ClInclude Include="..\public\AN_Attack.h" />
@@ -169,6 +170,9 @@
     <ClInclude Include="..\public\BT_FinishDecision.h" />
     <ClInclude Include="..\public\BT_SetSkill.h" />
     <ClInclude Include="..\public\BT_Set_Target.h" />
+    <ClInclude Include="..\Public\GameplayUI_Battle.h" />
+    <ClInclude Include="..\Public\GameplayUI_Types.h" />
+    <ClInclude Include="..\Public\GameplayUI_World.h" />
     <ClInclude Include="..\Public\MapStaticCollisionBuilder.h" />
     <ClInclude Include="..\Public\PB_Gustave.h" />
     <ClInclude Include="..\Public\MB_Lancelier.h" />
@@ -234,6 +238,7 @@
     <ClInclude Include="..\Public\CombatStatCom.h" />
     <ClInclude Include="..\Public\ComputeSpriteEmitter.h" />
     <ClInclude Include="..\public\DamageSystem.h" />
+    <ClInclude Include="..\Public\EffectAssetRuntimeLoader.h" />
     <ClInclude Include="..\Public\EffectEmitterRegistration.h" />
     <ClInclude Include="..\Public\GameDataTable.h" />
     <ClInclude Include="..\Public\GameplayUI.h" />
@@ -293,8 +298,10 @@
     <ClInclude Include="..\Public\UI_BattleCommandHUD.h" />
     <ClInclude Include="..\Public\UI_BattleTransition.h" />
     <ClInclude Include="..\Public\UI_ExpeditionStatus.h" />
+    <ClInclude Include="..\Public\UI_MonsterHpBar.h" />
     <ClInclude Include="..\Public\UI_RuntimeLoader.h" />
     <ClInclude Include="..\Public\SavePoint_Panel.h" />
+    <ClInclude Include="..\Public\UI_RuntimePanelBase.h" />
     <ClInclude Include="..\Public\UI_Utils.h" />
     <ClInclude Include="..\public\UltimateTargeting.h">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
@@ -324,6 +331,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp" />
+    <ClCompile Include="..\private\ANS_Move.cpp" />
     <ClCompile Include="..\private\ANS_Parry.cpp" />
     <ClCompile Include="..\private\AN_Attack.cpp" />
     <ClCompile Include="..\private\AN_Battle_EndAnim.cpp" />
@@ -335,6 +343,8 @@
     <ClCompile Include="..\private\BT_FinishDecision.cpp" />
     <ClCompile Include="..\private\BT_SetSkill.cpp" />
     <ClCompile Include="..\private\BT_Set_Target.cpp" />
+    <ClCompile Include="..\Private\GameplayUI_Battle.cpp" />
+    <ClCompile Include="..\Private\GameplayUI_World.cpp" />
     <ClCompile Include="..\Private\MapStaticCollisionBuilder.cpp" />
     <ClCompile Include="..\Private\PB_Gustave.cpp" />
     <ClCompile Include="..\Private\MB_Lancelier.cpp" />
@@ -394,6 +404,7 @@
     <ClCompile Include="..\Private\CombatStatCom.cpp" />
     <ClCompile Include="..\Private\ComputeSpriteEmitter.cpp" />
     <ClCompile Include="..\private\DamageSystem.cpp" />
+    <ClCompile Include="..\Private\EffectAssetRuntimeLoader.cpp" />
     <ClCompile Include="..\Private\EffectEmitterRegistration.cpp" />
     <ClCompile Include="..\Private\GameDataTable.cpp" />
     <ClCompile Include="..\Private\GameplayUI.cpp" />
@@ -454,8 +465,10 @@
     <ClCompile Include="..\Private\UI_BattleCommandHUD.cpp" />
     <ClCompile Include="..\Private\UI_BattleTransition.cpp" />
     <ClCompile Include="..\Private\UI_ExpeditionStatus.cpp" />
+    <ClCompile Include="..\Private\UI_MonsterHpBar.cpp" />
     <ClCompile Include="..\Private\UI_RuntimeLoader.cpp" />
     <ClCompile Include="..\Private\SavePoint_Panel.cpp" />
+    <ClCompile Include="..\Private\UI_RuntimePanelBase.cpp" />
     <ClCompile Include="..\private\UltimateTargeting.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>

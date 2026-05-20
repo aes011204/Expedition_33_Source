@@ -495,7 +495,7 @@ struct AuthoringEmitter
     string name{};
     string rendererType{ "Sprite" };
     string resourceSummary{};
-    string textureId{ "Effects/Textures/DefaultTexture.dds" };
+    string textureId{ "Effects/Textures/Shared/DefaultTexture.dds" };
     bool enabled{ true };
     bool previewDirty{ true };
     vector<AuthoringModule> modules{};

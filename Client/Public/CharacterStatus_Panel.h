@@ -1,6 +1,6 @@
 ﻿#pragma once
 
-#include "Base.h"
+#include "UI_RuntimePanelBase.h"
 #include "Client_Defines.h"
 #include "UIPreviewManager.h"
 
@@ -14,21 +14,19 @@ class Player_WorldBase;
 
 // UI_Panel 렌더 객체가 아니라,
 // UI_CharacterStatus.json으로 생성된 패널 트리를 제어하는 컨트롤러.
-class CharacterStatus_Panel final : public Base
+class CharacterStatus_Panel final : public UI_RuntimePanelBase
 {
 public:
     CharacterStatus_Panel() = default;
     ~CharacterStatus_Panel() override = default;
 
 public:
-    HRESULT Initialize(uint32 levelIndex);
-    void    Update(float timeDelta);
+    HRESULT Initialize(uint32 levelIndex) override;
+    void    Update(float timeDelta) override;
 
-    void    Open();
-    void    Close();
-    void    Toggle();
-
-    bool    Is_Open() const { return _isOpen; }
+    void    Open() override;
+    void    Close() override;
+    void    Toggle() override;
 
     void    Handle_SelectionInput();
     uint32  Get_WrappedPartyIndex(int32 index) const;
@@ -51,14 +49,7 @@ private:
 private:
     uint32 _selectedHeroIndex = 0;
 
-    uint32 _levelIndex = 0;
-    bool _isOpen = false;
-
-    umap<wstring, Shared<UI_Base>> _uiByName{};
-
     // UI
-    Shared<UI_Base> _root{};
-
     Shared<UI_Text> _levelText{};
     Shared<UI_Text> _statPointText{};
 

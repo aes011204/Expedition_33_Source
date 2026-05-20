@@ -180,7 +180,7 @@ void Animation::Blend_TransformMatrix(float currentTimeDelta, const Shared<Anima
 {
     Debug_Profile::Scope profileScope("Animation::BlendPose");
 
-	/* 현재 애니메이션 시간 갱신 */
+	// 현재 애니메이션 시간 갱신 
 	_currentTrackPosition += _tickPerSecond * currentTimeDelta;
     if (_currentTrackPosition >= _duration)
         _currentTrackPosition = _duration;
