@@ -21,6 +21,8 @@
 
 #pragma region FD
 NS_BEGIN(Engine)
+
+class Event_Bus;
 class Graphic_Device;
 class Timer_Manager;
 class Level_Manager;
@@ -466,6 +468,11 @@ public: /* 입력 제어 */
     void                    Set_FreeCameraInputEnabled(bool enabled) { _isFreeCameraInputEnabled = enabled; }
     bool                    Is_FreeCameraInputEnabled() const { return _isFreeCameraInputEnabled; }
 
+    void                    Set_GameplayInputMode(GameplayInputMode mode) { _gameplayInputMode = mode; }
+    GameplayInputMode       Get_GameplayInputMode() const { return _gameplayInputMode; }
+    bool                    Is_WorldGameplayInputBlocked() const;
+    bool                    Is_UIInputEnabled() const;
+
 public: /* For.Json / Prefab Saved & Load */
     HRESULT                 Save_GameObjectJson(const fs::path& path, const Shared<GameObject>& gameObject);
     json                    Load_JsonFile(const fs::path& path) const;
@@ -485,6 +492,10 @@ public: /* For.Thread Pool */
 public: /* For.Delegate Hub */
     DelegateHub& Get_DelegateHub() { return _delegateHub; }
     const DelegateHub& Get_DelegateHub() const { return _delegateHub; }
+
+
+public: /* For.Event Bus */
+    Event_Bus& Get_EventBus() { return *_eventBus; }
 
 private:
     Unique<Log_Manager>         _logManager{};
@@ -510,7 +521,7 @@ private:
     Unique<Picking>             _picking{};
     Unique<Culling_Manager>     _cullingManager{};
     Unique<ThreadPool>          _threadPool{};
-
+    Unique<Event_Bus>          _eventBus{};
 
 #ifdef _DEBUG
     Unique<Print_Manager>       _printManager{};
@@ -528,7 +539,9 @@ private:
     bool    _isFreeCameraInputEnabled = false;
 
     bool    _isGameplayPaused = false;
+    GameplayInputMode _gameplayInputMode = GameplayInputMode::Normal;
 
+    // 월드 시간 제어
     float   _worldTimeScale = 1.f;
     float   _unscaledTimeDelta = 0.f;
     float   _worldTimeDelta = 0.f;

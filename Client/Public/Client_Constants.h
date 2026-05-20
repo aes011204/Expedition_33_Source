@@ -7,6 +7,7 @@ namespace Client::Constants::UI
     inline constexpr wchar_t Loading_UI_Json_Path[] = L"UI/UI_Json/UI_LoadingScean.json";
     inline constexpr wchar_t Loading_UI_Animation_Dir[] = L"UI/UI_Animations";
     inline constexpr wchar_t UI_CharacterStatus_Path[] = L"UI/UI_Json/UI_CharacterStatus.json";
+    inline constexpr wchar_t UI_SavePoint_Path[] = L"UI/UI_Json/UI_SavePoint.json";
 
     inline constexpr wchar_t UI_SkillTree_BG_Path[] = L"UI/UI_Json/UI_SkillTree_Test.json";
     inline constexpr wchar_t UI_Lune_SkillTree_Path[] = L"UI/UI_Json/UI_Lune_SkillTree.json";
@@ -18,6 +19,10 @@ namespace Client::Constants::UI
     inline constexpr wchar_t UI_Lune_CharacterSheet_Dir[] = L"UI/UI_Json/UI_CharacterSheet_Lune.json";
     inline constexpr wchar_t UI_Gustave_CharacterSheet_Dir[] = L"UI/UI_Json/UI_CharacterSheet_Gustave.json";
     inline constexpr wchar_t UI_Maelle_CharacterSheet_Dir[] = L"UI/UI_Json/UI_CharacterSheet_Maelle.json";
+
+    inline constexpr wchar_t UI_Battle_Fade_Path[] = L"UI/UI_Json/UI_Battle_Fade.json";
+    inline constexpr wchar_t UI_BattleSystem_HUD_Path[] = L"UI/UI_Json/UI_BattleSystem_HUD.json";
+
 
 }
 

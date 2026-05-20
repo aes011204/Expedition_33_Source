@@ -49,6 +49,10 @@ HRESULT Mon_AIController::Initialize(void* arg)
 
     Set_BehaviorTree(tree);
 
+
+
+
+
     _BB = BlackBoard::Create();
     _PF = PathFollower::Create();
 

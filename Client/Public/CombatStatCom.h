@@ -8,9 +8,9 @@ NS_BEGIN(Client)
 
 class Buff;
 
-    class CombatStatCom : public Component
+class CombatStatCom : public Component
 {
-        //GENERATED_COMPONENT(CombatStatCom)
+    //GENERATED_COMPONENT(CombatStatCom)
 
 public:
     // 초기 세팅 값
@@ -40,7 +40,7 @@ public:
 
     };
 
-  
+
     struct RuntimeCombatStat
     {
         float CurHp = {};
@@ -67,25 +67,17 @@ public:
     json To_Json() const override;
     void From_Json(const json& data) override;
 
-
-
 public:
     virtual  CombatStatDesc& Get_StatInfo() = 0;;
 
     virtual  RuntimeCombatStat& Get_RuntimeStat() = 0;
 
-    //void ApplyDamage(float damage);
-    //void Heal(float amount);
+    EAliveStatus Get_CurAliveState();
 
-        EAliveStatus Get_CurAliveState() ;
-
-    int32 Get_CurrentShield() {return Get_RuntimeStat().CurShield; }
+    int32 Get_CurrentShield() { return Get_RuntimeStat().CurShield; }
     void Add_Shield(int32 value);
     void Remove_Shield(int32 value);
 
-    //void Add_Ailment(const Shared<Buff>& ailment);
-    //void Remove_Ailment(const Shared<Buff>& ailment);
-    //void Clear_Ailments();
     vector<Shared<Buff>>& Get_Buff() { return _buff; };
 
     bool Is_Player() { return _isPlayer; }
@@ -95,22 +87,25 @@ public:
 
     float Get_Speed() { return Get_RuntimeStat().CurSpeed; };
     void Set_Speed(float speed) { Get_RuntimeStat().CurSpeed = speed; }
+
+    float Get_CurHp() { return Get_RuntimeStat().CurHp; };
+    //void Set_CurHp(float hp) { Get_RuntimeStat().CurHp = hp; } //이건 일단  데미지 시스템을 통해서
     PlayerCharactorType Get_PlayerType() { return _playerType; }
+
+    vector<string> Get_SkillKey() { return _skillKeys; }
+    //test
+    string Get_FirstSkill();
 protected:
-  /*  CombatStatDesc _statDesc;
-
-    RuntimeCombatStat _runtimeStat;*/
-
     vector<Shared<Buff>> _buff;// 상태이상
-
+    vector<string> _skillKeys;
 
     bool _isPlayer = { false };
+
     PlayerCharactorType _playerType = PlayerCharactorType::None;
 public:
-    //    static Shared<CombatStatCom> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
-   virtual  Shared<Component> Clone(void* arg)=0 ;
+    virtual  Shared<Component> Clone(void* arg) = 0;
     void Free() override;
-    
+
 };
 
 NS_END

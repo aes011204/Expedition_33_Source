@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Monster_BattleBase.h"
 
@@ -27,8 +27,7 @@ public:
     HRESULT Initialize_Prototype() override;
     HRESULT Initialize(void* arg) override;
     void    Update(float timeDelta) override;
-    void    Decide_Action(Action& curTurnAction, const vector<BattleChar>& heroes) override;
-
+   
 protected:
     HRESULT Ready_PartObjects();
 
@@ -41,6 +40,7 @@ private:
 
 public:
     void Set_CurrentAction(BattleAction action) { _currentAction = action; }
+
 
 public:
     static Shared<MB_Lancelier> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

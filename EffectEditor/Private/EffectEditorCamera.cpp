@@ -75,7 +75,7 @@ HRESULT EffectEditorCamera::Initialize(void* arg)
     _homeYaw = rotationEuler.y;
 
     if (_orbitState.distance <= 0.01f)
-        Helper_EffectCamera::Reset(_orbitState, _homePivot, _homeDistance, _homeYaw, _homePitch);
+        EffectPreviewOrbitCamera::Reset(_orbitState, _homePivot, _homeDistance, _homeYaw, _homePitch);
     else
     {
         _orbitState.yawDegrees = _homeYaw;
@@ -128,7 +128,7 @@ void EffectEditorCamera::Priority_Update(float timeDelta)
             fabsf(_homeYaw - _orbitState.yawDegrees) <= 0.01f &&
             fabsf(_homePitch - _orbitState.pitchDegrees) <= 0.01f)
         {
-            Helper_EffectCamera::Reset(_orbitState, _homePivot, _homeDistance, _homeYaw, _homePitch);
+            EffectPreviewOrbitCamera::Reset(_orbitState, _homePivot, _homeDistance, _homeYaw, _homePitch);
             _hasPendingHome = false;
         }
     }
@@ -164,7 +164,7 @@ void EffectEditorCamera::Priority_Update(float timeDelta)
 
         const float wheelStep = wheelDelta / static_cast<float>(WHEEL_DELTA);
         const float wheelDollyScale = max(0.1f, _orbitState.distance * 0.13f);
-        Helper_EffectCamera::Dolly(_orbitState, wheelStep, wheelDollyScale, 0.5f, _far);
+        EffectPreviewOrbitCamera::Dolly(_orbitState, wheelStep, wheelDollyScale, 0.5f, _far);
 
         Update_CameraTransform();
         Update_TransformMatrices();
@@ -182,7 +182,7 @@ void EffectEditorCamera::Priority_Update(float timeDelta)
         if (panDragging)
         {
             const float panScale = max(0.01f, _orbitState.distance * 0.0025f);
-            Helper_EffectCamera::Pan(
+            EffectPreviewOrbitCamera::Pan(
                 _orbitState,
                 mouseDelta,
                 _transformCom->Get_WorldRight(),
@@ -192,11 +192,11 @@ void EffectEditorCamera::Priority_Update(float timeDelta)
             _targetPivot = _orbitState.pivot;
         }
         else if (orbitDragging)
-            Helper_EffectCamera::Orbit(_orbitState, mouseDelta, _mouseSensor);
+            EffectPreviewOrbitCamera::Orbit(_orbitState, mouseDelta, _mouseSensor);
         else if (dollyDragging)
         {
             const float dollyScale = max(0.02f, _orbitState.distance * 0.0046f);
-            Helper_EffectCamera::Dolly(_orbitState, mouseDelta.x, dollyScale, 0.5f, _far);
+            EffectPreviewOrbitCamera::Dolly(_orbitState, mouseDelta.x, dollyScale, 0.5f, _far);
         }
 
         Update_CameraTransform();
@@ -304,7 +304,7 @@ void EffectEditorCamera::Update_CameraTransform()
 {
     _orbitState.distance = max(_orbitState.distance, 0.1f);
 
-    const EffectPreviewOrbitCameraFrame frame = Helper_EffectCamera::Build_Frame(
+    const EffectPreviewOrbitCameraFrame frame = EffectPreviewOrbitCamera::Build_Frame(
         _orbitState,
         max(_aspect, 0.0001f),
         _fovY,

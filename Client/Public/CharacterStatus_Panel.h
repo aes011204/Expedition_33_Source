@@ -40,23 +40,6 @@ private:
     void    Refresh_CombatStats();
     void    Refresh_CharacterSelectUI(); // 선택된 캐릭터 슬롯만 크게 보이게
 
-    Shared<UI_Base> Find_UI(const umap<wstring, Shared<UI_Base>>& uiByName, const wstring& name) const;
-
-    template<typename T>
-    Shared<T> Find_TypedUI(
-        const umap<wstring, Shared<UI_Base>>& uiByName, const wstring& name) const
-    {
-        Shared<UI_Base> ui = Find_UI(uiByName, name);
-        if (ui == nullptr)
-            return nullptr;
-
-        Shared<T> typedUI = dynamic_pointer_cast<T>(ui);
-        if (typedUI == nullptr)
-            LOG_WARN("CharacterStatusPanel ui type mismatch: {}", String::ToString(name));
-
-        return typedUI;
-    }
-
     static void Set_IntText(const Shared<UI_Text>& text, int32 value);
     static void Set_UIntText(const Shared<UI_Text>& text, uint32 value);
     static void Set_PercentText(const Shared<UI_Text>& text, float value);

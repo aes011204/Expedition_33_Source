@@ -1133,10 +1133,14 @@ void Animation_View::Add_Notify_AtFrame(int32 frame, const string& typeName)
     if (animationData->notifyTracks.empty())
         Add_NotifyTrack("Notify");
 
+    const int32 fps = max(1, Get_CurrentAnimationFps());
+    const int32 maxNotifyFrame = max(0, Get_CurrentAnimationFrameMax() - 1);
+    const int32 clampedFrame = std::clamp(frame, 0, maxNotifyFrame);
+
     AnimNotifyEventEntry entry{};
     const int32 createdId = animationData->nextNotifyId++;
     entry.id = createdId;
-    entry.timeSec = static_cast<float>(frame) / static_cast<float>(max(1, Get_CurrentAnimationFps()));
+    entry.timeSec = static_cast<float>(clampedFrame) / static_cast<float>(fps);
     entry.trackIndex = std::clamp(_sequencerContextHasTrack && !_sequencerContextIsStateTrack ? _sequencerContextTrackIndex : _selectedNotifyTrackIndex, 0, static_cast<int32>(animationData->notifyTracks.size()) - 1);
     entry.notify = notifyInstance;
 

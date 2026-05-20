@@ -12,21 +12,9 @@
 #include "UI_Text.h"
 #include "PreviewCamera.h"
 #include "UI_Base.h"
+#include "UI_Utils.h"
 
-//static const char* Get_HeroPrefabName(HeroId heroId)
-//{
-//    switch (heroId)
-//    {
-//    case HeroId::Gustave:
-//        return Constants::Prefab::PW_Gustave; // 월드 프리팹 이름은 공용 상수로 맞춘다.
-//    case HeroId::Lune:
-//        return Constants::Prefab::PW_Lune; // 스킬트리 미리보기 스폰도 실제 prefab 파일명과 같은 값을 사용한다.
-//    case HeroId::Maelle:
-//        return Constants::Prefab::PW_Maelle; // 이름 변경 시 호출부 문자열이 흩어지지 않게 한다.
-//    default:
-//        return "";
-//    }
-//}
+using namespace UI_Utils;
 
 namespace
 {
@@ -400,16 +388,6 @@ HRESULT SkillTree_Panel::Bind_Status_UI()
     }
 
     return S_OK;
-}
-
-
-Shared<UI_Base> SkillTree_Panel::Find_UI(const umap<wstring, Shared<UI_Base>>& uiByName, const wstring& name) const
-{
-    const auto iter = uiByName.find(name);
-    if(iter == uiByName.end() || iter->second == nullptr)
-        return nullptr;
-
-    return iter->second;
 }
 
 void SkillTree_Panel::Set_SkillPoint()

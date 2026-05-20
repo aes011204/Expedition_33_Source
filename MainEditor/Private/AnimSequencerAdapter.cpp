@@ -288,11 +288,21 @@ void AnimSequencerAdapter::Draw_NotifyRow(int32 trackIndex, ImDrawList* drawList
         const float x = rc.Min.x + static_cast<float>(frame - GetFrameMin()) * pixelsPerFrame;
         const float markerWidth = 88.f;
         const float markerHeight = (rc.Max.y - rc.Min.y) - 6.f;
-        const float clampedX = std::clamp(x, rc.Min.x, max(rc.Min.x, rc.Max.x - markerWidth));
+        const bool anchorRight = (x + markerWidth > rc.Max.x);
+        const float markerMinX = anchorRight ? (x - markerWidth) : x;
 
         ImRect itemRect(
-            ImVec2(clampedX, rc.Min.y + 3.f),
-            ImVec2(clampedX + markerWidth, rc.Min.y + 3.f + markerHeight));
+            ImVec2(markerMinX, rc.Min.y + 3.f),
+            ImVec2(markerMinX + markerWidth, rc.Min.y + 3.f + markerHeight));
+
+        const float anchorHandleWidth = 7.f;
+        ImRect anchorHandleRect = anchorRight
+            ? ImRect(
+                ImVec2(itemRect.Max.x - anchorHandleWidth, itemRect.Min.y),
+                ImVec2(itemRect.Max.x, itemRect.Max.y))
+            : ImRect(
+                ImVec2(itemRect.Min.x, itemRect.Min.y),
+                ImVec2(itemRect.Min.x + anchorHandleWidth, itemRect.Max.y));
 
         const bool selected = (_view->_selectedNotifyId == entry.id);
         const bool hovered = itemRect.Contains(mousePos);
@@ -304,9 +314,13 @@ void AnimSequencerAdapter::Draw_NotifyRow(int32 trackIndex, ImDrawList* drawList
         const ImU32 borderColor = selected
             ? TrackColors::SelectedBorder
             : TrackColors::NotifyBorder;
+        const ImU32 anchorColor = selected
+            ? TrackColors::SelectedBorder
+            : IM_COL32(255, 244, 120, 255);
 
         drawList->AddRectFilled(itemRect.Min, itemRect.Max, fillColor, 3.f);
         drawList->AddRect(itemRect.Min, itemRect.Max, borderColor, 3.f, 0, selected ? 2.f : 1.0f);
+        drawList->AddRectFilled(anchorHandleRect.Min, anchorHandleRect.Max, anchorColor, 2.f);
 
         const string typeName = entry.notify ? entry.notify->Get_TypeName() : string{};
         if (!typeName.empty())
@@ -328,21 +342,22 @@ void AnimSequencerAdapter::Draw_NotifyRow(int32 trackIndex, ImDrawList* drawList
             _view->_selectedNotifyTrackIndex = trackIndex;
             _view->_sequencerSelectedRow = kSequencerNotifyHeaderRow + 1 + trackIndex;
             _draggingNotifyId = entry.id;
-            _notifyDragOffsetX = mousePos.x - itemRect.Min.x;
         }
 
         if (_draggingNotifyId == entry.id && ImGui::IsMouseDown(ImGuiMouseButton_Left))
         {
-            const float localX = std::clamp(mousePos.x - _notifyDragOffsetX, rc.Min.x, rc.Max.x);
-            const float relative = localX - rc.Min.x;
+            const float clampedX = std::clamp(mousePos.x, rc.Min.x, rc.Max.x);
+            const float relative = clampedX - rc.Min.x;
             const int32 draggedFrame = GetFrameMin() + static_cast<int32>(std::round(relative / max(pixelsPerFrame, 0.0001f)));
+            const int32 maxNotifyFrame = max(GetFrameMin(), GetFrameMax() - 1);
+            const int32 clampedFrame = std::clamp(draggedFrame, GetFrameMin(), maxNotifyFrame);
 
             entry.timeSec = std::clamp(
-                Frame_ToTimeSec(draggedFrame, fps),
+                Frame_ToTimeSec(clampedFrame, fps),
                 0.f,
                 animationLengthSec);
 
-            _view->_sequencerCurrentFrame = draggedFrame;
+            _view->_sequencerCurrentFrame = clampedFrame;
             _view->_isDirty = true;
 
             if (_view->_sourceMode == Animation_View::SourceMode::LiveModel && _view->_liveModelCom != nullptr)
@@ -358,7 +373,6 @@ void AnimSequencerAdapter::Draw_NotifyRow(int32 trackIndex, ImDrawList* drawList
     {
         AnimNotify_Parser::Sort_And_Clamp(*animationData, animationLengthSec);
         _draggingNotifyId = -1;
-        _notifyDragOffsetX = 0.f;
     }
 
     if (!clickedAnyItem && rowHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
@@ -407,29 +421,47 @@ void AnimSequencerAdapter::Draw_StateRow(int32 trackIndex, ImDrawList* drawList,
         const int32 startFrame = TimeSec_ToFrame(entry.startSec, fps);
         const int32 endFrame = max(startFrame + 1, TimeSec_ToFrame(entry.startSec + entry.durationSec, fps));
         const string typeName = entry.notifyState ? entry.notifyState->Get_TypeName() : string{};
-        const float minItemWidth = max(88.f, ImGui::CalcTextSize(typeName.c_str()).x + 30.f);
-
         const float startX = rc.Min.x + static_cast<float>(startFrame - GetFrameMin()) * pixelsPerFrame;
         const float endX = rc.Min.x + static_cast<float>(endFrame - GetFrameMin()) * pixelsPerFrame;
+        const float visualMinWidth = max(2.f, pixelsPerFrame);
+        const float visualEndX = max(endX, startX + visualMinWidth);
 
         ImRect itemRect(
             ImVec2(startX, rc.Min.y + 4.f),
-            ImVec2(max(endX, startX + minItemWidth), rc.Max.y - 4.f));
+            ImVec2(visualEndX, rc.Max.y - 4.f));
+
+        ImRect interactionRect = itemRect;
+        const float interactionMinWidth = 18.f;
+        if ((interactionRect.Max.x - interactionRect.Min.x) < interactionMinWidth)
+        {
+            const float expand = (interactionMinWidth - (interactionRect.Max.x - interactionRect.Min.x)) * 0.5f;
+            interactionRect.Min.x -= expand;
+            interactionRect.Max.x += expand;
+        }
 
         const bool selected = (_view->_selectedStateId == entry.id);
-        const bool hovered = itemRect.Contains(mousePos);
+        const bool hovered = interactionRect.Contains(mousePos);
 
-        const float handleWidth = 10.f;
-        ImRect leftHandle(
+        const float drawHandleWidth = min(10.f, max(4.f, (itemRect.Max.x - itemRect.Min.x) * 0.35f));
+        const float hitHandleWidth = max(drawHandleWidth, 10.f);
+        ImRect leftHandleDraw(
             ImVec2(itemRect.Min.x, itemRect.Min.y),
-            ImVec2(itemRect.Min.x + handleWidth, itemRect.Max.y));
+            ImVec2(itemRect.Min.x + drawHandleWidth, itemRect.Max.y));
 
-        ImRect rightHandle(
-            ImVec2(itemRect.Max.x - handleWidth, itemRect.Min.y),
+        ImRect rightHandleDraw(
+            ImVec2(itemRect.Max.x - drawHandleWidth, itemRect.Min.y),
             ImVec2(itemRect.Max.x, itemRect.Max.y));
 
-        const bool hoverLeft = leftHandle.Contains(mousePos);
-        const bool hoverRight = rightHandle.Contains(mousePos);
+        ImRect leftHandleHit(
+            ImVec2(interactionRect.Min.x, interactionRect.Min.y),
+            ImVec2(interactionRect.Min.x + hitHandleWidth, interactionRect.Max.y));
+
+        ImRect rightHandleHit(
+            ImVec2(interactionRect.Max.x - hitHandleWidth, interactionRect.Min.y),
+            ImVec2(interactionRect.Max.x, interactionRect.Max.y));
+
+        const bool hoverLeft = leftHandleHit.Contains(mousePos);
+        const bool hoverRight = rightHandleHit.Contains(mousePos);
 
         const ImU32 fillColor = hovered
             ? TrackColors::StateHover
@@ -441,17 +473,29 @@ void AnimSequencerAdapter::Draw_StateRow(int32 trackIndex, ImDrawList* drawList,
 
         drawList->AddRectFilled(itemRect.Min, itemRect.Max, fillColor, 3.f);
         drawList->AddRect(itemRect.Min, itemRect.Max, borderColor, 3.f, 0, selected ? 2.5f : 1.0f);
-        drawList->AddRectFilled(leftHandle.Min, leftHandle.Max, hoverLeft ? TrackColors::StateHandleHover : TrackColors::StateHandle);
-        drawList->AddRectFilled(rightHandle.Min, rightHandle.Max, hoverRight ? TrackColors::StateHandleHover : TrackColors::StateHandle);
+        drawList->AddRectFilled(leftHandleDraw.Min, leftHandleDraw.Max, hoverLeft ? TrackColors::StateHandleHover : TrackColors::StateHandle);
+        drawList->AddRectFilled(rightHandleDraw.Min, rightHandleDraw.Max, hoverRight ? TrackColors::StateHandleHover : TrackColors::StateHandle);
 
         if (!typeName.empty())
         {
             const ImVec2 textSize = ImGui::CalcTextSize(typeName.c_str());
+            const float availableTextWidth = (itemRect.Max.x - itemRect.Min.x) - (drawHandleWidth * 2.f) - 8.f;
             const float textY = itemRect.Min.y + ((itemRect.Max.y - itemRect.Min.y) - textSize.y) * 0.5f;
-            drawList->AddText(
-                ImVec2(itemRect.Min.x + 12.f, textY),
-                TrackColors::Text,
-                typeName.c_str());
+            if (availableTextWidth >= textSize.x)
+            {
+                drawList->AddText(
+                    ImVec2(itemRect.Min.x + drawHandleWidth + 4.f, textY),
+                    TrackColors::Text,
+                    typeName.c_str());
+            }
+            else
+            {
+                const float labelX = min(itemRect.Max.x + 6.f, rc.Max.x - textSize.x - 2.f);
+                drawList->AddText(
+                    ImVec2(max(labelX, rc.Min.x + 2.f), textY),
+                    TrackColors::Text,
+                    typeName.c_str());
+            }
         }
 
         if (hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left))

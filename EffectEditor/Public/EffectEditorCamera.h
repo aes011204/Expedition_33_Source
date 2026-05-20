@@ -1,7 +1,7 @@
 ﻿#pragma once
 
 #include "Camera.h"
-#include "Helper_EffectCamera.h"
+#include "EffectPreviewOrbitCamera.h"
 
 NS_BEGIN(EffectEditor)
 

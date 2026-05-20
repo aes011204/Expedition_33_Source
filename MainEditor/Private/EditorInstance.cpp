@@ -189,6 +189,8 @@ void EditorInstance::Play()
     if (isStartingFromEdit)
         Capture_PlayStartSnapshot();
 
+    _cameraBeforeFreeCamera.reset();
+
     _runtimeState = EDITOR_RUNTIME_STATE::Play;
     Sync_ViewportWindowState();
     Activate_TargetCamera();
@@ -235,6 +237,7 @@ void EditorInstance::Stop()
 
     Activate_FreeCamera();
     Apply_CameraPoseToCameraType(ObjectType::FreeCamera, _playStartCameraPose);
+    _cameraBeforeFreeCamera.reset();
 
     GAME->Set_FreeCameraInputEnabled(false);
     GAME->Unlock_Mouse();
@@ -249,7 +252,7 @@ void EditorInstance::Resume()
 
     _runtimeState = EDITOR_RUNTIME_STATE::Play;
     Sync_ViewportWindowState();
-    Activate_TargetCamera();
+    Restore_PreviousCameraOrTarget();
 
     GAME->Get_DelegateHub().OnEditorResumeRuntime.Broadcast();
 
@@ -528,6 +531,13 @@ void EditorInstance::Activate_TargetCamera()
 
 void EditorInstance::Activate_FreeCamera()
 {
+    Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
+    if (activeCamera != nullptr &&
+        activeCamera->Get_ObjectType() != ObjectType::FreeCamera)
+    {
+        _cameraBeforeFreeCamera = activeCamera;
+    }
+
     CameraPoseSnapshot activeCameraPose{};
     const bool hasActiveCameraPose = Capture_ActiveCameraPose(activeCameraPose);
 
@@ -535,6 +545,18 @@ void EditorInstance::Activate_FreeCamera()
 
     if (hasActiveCameraPose)
         Apply_CameraPoseToCameraType(ObjectType::FreeCamera, activeCameraPose);
+}
+
+void EditorInstance::Restore_PreviousCameraOrTarget()
+{
+    if (Shared<Camera> previousCamera = _cameraBeforeFreeCamera.lock())
+    {
+        GAME->Change_ActiveCamera(previousCamera);
+        _cameraBeforeFreeCamera.reset();
+        return;
+    }
+
+    Activate_TargetCamera();
 }
 
 bool EditorInstance::Capture_ActiveCameraPose(CameraPoseSnapshot& outPose) const
@@ -1015,6 +1037,14 @@ void EditorInstance::Apply_RuntimeInputPolicy()
     if (_runtimeState == EDITOR_RUNTIME_STATE::Play)
     {
         if (GAME->Is_GameplayPaused())
+        {
+            GAME->Set_PlayerInputBlocked(true);
+            GAME->Set_FreeCameraInputEnabled(false);
+            GAME->Unlock_Mouse();
+            return;
+        }
+
+        if (GAME->Is_UIInputEnabled())
         {
             GAME->Set_PlayerInputBlocked(true);
             GAME->Set_FreeCameraInputEnabled(false);
