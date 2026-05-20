@@ -16,9 +16,6 @@
     <Filter Include="00. EditorBlock\ModelConverter">
       <UniqueIdentifier>{886b3842-761a-4bab-b31b-b8e3dc025aa2}</UniqueIdentifier>
     </Filter>
-    <Filter Include="System">
-      <UniqueIdentifier>{22d902cb-9b38-458a-b641-05471e2ee43a}</UniqueIdentifier>
-    </Filter>
     <Filter Include="00. EditorBlock\ModelInspector">
       <UniqueIdentifier>{be0726dd-dba3-4d86-bc5a-043155b34e7f}</UniqueIdentifier>
     </Filter>
@@ -43,8 +40,8 @@
     <Filter Include="00. EditorBlock\ModelWindow">
       <UniqueIdentifier>{ec0a691e-5890-4309-a35a-46bd8c79313a}</UniqueIdentifier>
     </Filter>
-    <Filter Include="03. AnimNotify">
-      <UniqueIdentifier>{13dbc660-79ed-48b4-ad14-efa24d6420f9}</UniqueIdentifier>
+    <Filter Include="00. EditorBlock\System">
+      <UniqueIdentifier>{22d902cb-9b38-458a-b641-05471e2ee43a}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -70,10 +67,10 @@
       <Filter>00. EditorBlock\LogWindow</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\ModelImGui_Manager.h">
-      <Filter>System</Filter>
+      <Filter>00. EditorBlock\System</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\ModelEditorApp.h">
-      <Filter>System</Filter>
+      <Filter>00. EditorBlock\System</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\ModelConverter.h">
       <Filter>00. EditorBlock\ModelConverter</Filter>
@@ -114,10 +111,10 @@
       <Filter>00. EditorBlock\LogWindow</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\ModelImGui_Manager.cpp">
-      <Filter>System</Filter>
+      <Filter>00. EditorBlock\System</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\ModelEditorApp.cpp">
-      <Filter>System</Filter>
+      <Filter>00. EditorBlock\System</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\ModelConverter.cpp">
       <Filter>00. EditorBlock\ModelConverter</Filter>
@@ -126,7 +123,7 @@
       <Filter>00. EditorBlock\ModelInspector</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\SimpleMath.cpp">
-      <Filter>System</Filter>
+      <Filter>00. EditorBlock\System</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\ModelViewerObject.cpp">
       <Filter>01. EditorObject\ModelViewerObject</Filter>

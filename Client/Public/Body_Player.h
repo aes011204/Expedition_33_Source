@@ -63,8 +63,15 @@ public:
         Pl_Fall,
         Pl_LandLight, Pl_LandHeavy,
 
-        Pl_GameMenu_Idle,
-        Pl_GameMenu_Selected,
+        Pl_GameMenu_Intro,
+        Pl_GameMenu_Unselected, Pl_GameMenu_UTS,
+        Pl_GameMenu_Selected, Pl_GameMenu_STU,
+
+        Pl_GameMenu_Stats_Intro, Pl_GameMenu_Stats_Idle,
+        Pl_GameMenu_Skill_Intro, Pl_GameMenu_Skill_Idle,
+        Pl_GameMenu_SkillTree_Intro, Pl_GameMenu_SkillTree_Idle,
+        Pl_GameMenu_Weapon_Intro, Pl_GameMenu_Weapon_Idle,
+
 
         Pl_Explo,
     };

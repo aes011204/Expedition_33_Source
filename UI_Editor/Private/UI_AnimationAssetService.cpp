@@ -7,6 +7,7 @@ namespace UIEditor
 {
     namespace
     {
+        constexpr wchar_t kDefaultAnimationName[] = L"NewUIAnimation";
         constexpr wchar_t kDefaultAnimationFileName[] = L"NewUIAnimation.uianim.json";
 
         fs::path Get_ModuleDirectory()
@@ -85,6 +86,65 @@ namespace UIEditor
                     return static_cast<wchar_t>(towlower(ch));
                 });
             return value;
+        }
+
+        wstring Trim_Copy(const wstring& value)
+        {
+            const auto beginIter = find_if_not(
+                value.begin(),
+                value.end(),
+                [](wchar_t ch)
+                {
+                    return iswspace(ch) != 0;
+                });
+
+            if (beginIter == value.end())
+                return {};
+
+            const auto endIter = find_if_not(
+                value.rbegin(),
+                value.rend(),
+                [](wchar_t ch)
+                {
+                    return iswspace(ch) != 0;
+                }).base();
+
+            return wstring(beginIter, endIter);
+        }
+
+        wstring Make_SafeAnimationFileName(const string& assetName)
+        {
+            wstring safeName = Trim_Copy(String::ToWString(assetName));
+            if (safeName.empty())
+                safeName = kDefaultAnimationName;
+
+            for (wchar_t& ch : safeName)
+            {
+                switch (ch)
+                {
+                case L'<':
+                case L'>':
+                case L':':
+                case L'"':
+                case L'/':
+                case L'\\':
+                case L'|':
+                case L'?':
+                case L'*':
+                    ch = L'_';
+                    break;
+                default:
+                    if (ch < 32)
+                        ch = L'_';
+                    break;
+                }
+            }
+
+            safeName = Trim_Copy(safeName);
+            if (safeName.empty())
+                safeName = kDefaultAnimationName;
+
+            return safeName + L".uianim.json";
         }
     }
 
@@ -215,6 +275,15 @@ namespace UIEditor
     {
         _asset.targetName = targetName;
         Resolve_TargetObject(document);
+        Mark_AssetDirty();
+    }
+
+    void UI_AnimationAssetService::Set_AssetName(const string& assetName)
+    {
+        if (_asset.name == assetName)
+            return;
+
+        _asset.name = assetName;
         Mark_AssetDirty();
     }
 
@@ -652,7 +721,10 @@ namespace UIEditor
         if (!outFilePath.empty())
             wcsncpy_s(filePathBuffer, outFilePath.c_str(), _TRUNCATE);
         else
-            wcsncpy_s(filePathBuffer, kDefaultAnimationFileName, _TRUNCATE);
+        {
+            const wstring defaultFileName = Make_SafeAnimationFileName(_asset.name);
+            wcsncpy_s(filePathBuffer, defaultFileName.empty() ? kDefaultAnimationFileName : defaultFileName.c_str(), _TRUNCATE);
+        }
 
         const wstring initialDirectory = Resolve_DefaultAnimationDirectory();
 

@@ -2,6 +2,7 @@
 #include "CharacterStatus_Panel.h"
 #include "GameInstance.h"
 #include "SkillTree_Panel.h"
+#include "ChangeWeapon_Panel.h"
 
 GameplayUI_World::~GameplayUI_World() = default;
 
@@ -16,6 +17,10 @@ HRESULT GameplayUI_World::Initialize(uint32 levelIndex)
     _savePointPanel = SavePoint_Panel::Create(levelIndex);
     CHECK_NULL(_savePointPanel, E_FAIL);
 
+    _changeWeaponPanel = ChangeWeapon_Panel::Create(levelIndex);
+    CHECK_NULL(_changeWeaponPanel, E_FAIL);
+    
+
     return S_OK;
 }
 
@@ -29,6 +34,9 @@ void GameplayUI_World::Update(float timeDelta)
 
     if (_skillTreePanel)
         _skillTreePanel->Update(timeDelta);
+
+    if (_changeWeaponPanel)
+        _changeWeaponPanel->Update(timeDelta);
 
     if (_savePointPanel && _savePointPanel->Is_Open())
     {
@@ -78,7 +86,7 @@ void GameplayUI_World::Handle_SavePointAction(SavePoint_Panel::SavePointAction a
         break;
 
     case SavePoint_Panel::SavePointAction::UpgradeWeapon:
-        // TODO: WeaponUpgrade_Panel 추가 후 연결
+        Push_Menu(GameplayMenu::WeaponUpgrade);
         break;
 
     case SavePoint_Panel::SavePointAction::None:
@@ -182,7 +190,8 @@ void GameplayUI_World::Open_Menu(GameplayMenu menu)
         break;
 
     case GameplayMenu::WeaponUpgrade:
-        // TODO: WeaponUpgrade_Panel 추가 후 연결
+        if (_changeWeaponPanel)
+            _changeWeaponPanel->Open();
         break;
 
     case GameplayMenu::None:
@@ -211,7 +220,8 @@ void GameplayUI_World::Close_Menu(GameplayMenu menu)
         break;
 
     case GameplayMenu::WeaponUpgrade:
-        // TODO: WeaponUpgrade_Panel 추가 후 연결
+        if (_changeWeaponPanel)
+            _changeWeaponPanel->Close();
         break;
 
     case GameplayMenu::None:
@@ -248,6 +258,7 @@ void GameplayUI_World::Free()
     Release_Panel(_savePointPanel);
     Release_Panel(_characterStatusPanel);
     Release_Panel(_skillTreePanel);
+    Release_Panel(_changeWeaponPanel);
 
     Base::Free();
 }

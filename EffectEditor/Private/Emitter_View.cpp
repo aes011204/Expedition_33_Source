@@ -19,7 +19,7 @@ namespace Internal
     constexpr const wchar_t* kDefaultEffectMaterialFileName = L"M_DefaultMaterial.effectmaterial.json";
     constexpr const char* kDefaultEffectMaterialName = "M_DefaultMaterial";
     constexpr const char* kDefaultEffectMaterialTextureGuid = "3c90794a-31bb-4e97-969a-3fd4497acc0f";
-    constexpr const char* kDefaultEffectMaterialTexturePath = "Effects/Textures/DefaultTexture.dds";
+    constexpr const char* kDefaultEffectMaterialTexturePath = "Effects/Textures/Shared/DefaultTexture.dds";
     constexpr const wchar_t* kEffectAuthoringSaveDefaultFolder = L"../../../Client/Bin/Resources/Effects/Assets";
     constexpr const wchar_t* kEffectAuthoringSaveDefaultFileName = L"NewEffect.effect.json";
     constexpr const wchar_t* kEffectAuthoringExtension = L".effect.json";

@@ -47,6 +47,7 @@ namespace UIEditor
         bool Bind_SelectedUI(const UI_Object* selectedObject);
         void Clear_Target();
         void Resolve_TargetObject(const UI_Document& document);
+        void Set_AssetName(const string& assetName);
         void Set_TargetName(const string& targetName, const UI_Document& document);
         void Set_CurrentFrame(int32 frame);
         void Clamp_Asset();
