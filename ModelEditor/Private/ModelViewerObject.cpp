@@ -42,6 +42,10 @@ void ModelViewerObject::Update(float timeDelta)
 {
 	GameObject::Update(timeDelta);
 
+    // 모델이 10000배 수준으로 크므로, 그리드 크기를 100,000 수준으로 대폭 키우고
+    // 격자 간격을 유지하기 위해 분할 수도 100x100으로 설정합니다.
+    GAME->Draw_Grid(100, 100, 100000.f, Vec4(0.5f, 0.5f, 0.5f, 1.f));
+
 	if (_modelCom && _modelCom->Is_Skeletal())
 	{
 		_modelCom->Play_Animation(timeDelta);
