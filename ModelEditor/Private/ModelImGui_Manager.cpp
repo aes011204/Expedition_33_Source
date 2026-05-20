@@ -189,13 +189,15 @@ Shared<::Engine::RenderTarget> ModelImGui_Manager::Prepare_SharedViewportRenderT
             width,
             height,
             DXGI_FORMAT_R8G8B8A8_UNORM,
-            Vec4(0.f, 0.f, 0.f, 1.f));
+            Vec4(0.f, 0.f, 0.f, 0.f));
     }
     else if (FAILED(_sharedViewportRenderTarget->Resize(
         width,
         height,
         DXGI_FORMAT_R8G8B8A8_UNORM,
-        Vec4(0.f, 0.f, 0.f, 1.f))))
+        Vec4(0.f, 0.f, 0.f, 0.f))))
+
+
     {
         return nullptr;
     }

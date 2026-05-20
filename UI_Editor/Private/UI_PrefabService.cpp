@@ -131,6 +131,34 @@ namespace UIEditor
             return fileName.empty() ? kDefaultPrefabName : fileName;
         }
 
+        string Sanitize_FolderName(string folderName)
+        {
+            for (char& character : folderName)
+            {
+                switch (character)
+                {
+                case '<':
+                case '>':
+                case ':':
+                case '"':
+                case '/':
+                case '\\':
+                case '|':
+                case '?':
+                case '*':
+                    character = '_';
+                    break;
+                default:
+                    break;
+                }
+            }
+
+            while (!folderName.empty() && (folderName.back() == ' ' || folderName.back() == '.'))
+                folderName.pop_back();
+
+            return folderName;
+        }
+
         bool Has_PrefabExtension(const fs::path& filePath)
         {
             const wstring fileName = filePath.filename().wstring();
@@ -209,6 +237,131 @@ namespace UIEditor
     bool UI_PrefabService::Ensure_RootDirectory() const
     {
         return !_rootDirectory.empty() && Try_CreateDirectory(fs::path(_rootDirectory));
+    }
+
+    const char* UI_PrefabService::Get_DefaultPrefabName() const
+    {
+        return kDefaultPrefabName;
+    }
+
+    bool UI_PrefabService::Is_PrefabFilePath(const fs::path& filePath) const
+    {
+        return Has_PrefabExtension(filePath);
+    }
+
+    vector<fs::path> UI_PrefabService::Collect_ChildDirectories(const fs::path& directoryPath) const
+    {
+        vector<fs::path> childDirectories;
+        try
+        {
+            if (!fs::exists(directoryPath) || !fs::is_directory(directoryPath))
+                return childDirectories;
+
+            for (const fs::directory_entry& entry : fs::directory_iterator(directoryPath, fs::directory_options::skip_permission_denied))
+            {
+                if (entry.is_directory())
+                    childDirectories.push_back(entry.path());
+            }
+        }
+        catch (const exception& exception)
+        {
+            LOG_WARN("UI prefab folder scan failed: {} ({})", exception.what(), String::ToString(directoryPath.wstring()));
+        }
+
+        sort(childDirectories.begin(), childDirectories.end(), [](const fs::path& lhs, const fs::path& rhs)
+            {
+                return String::ToLowerCopy(String::ToString(lhs.filename().wstring())) <
+                    String::ToLowerCopy(String::ToString(rhs.filename().wstring()));
+            });
+
+        return childDirectories;
+    }
+
+    bool UI_PrefabService::Create_Folder(
+        const wstring& parentDirectory,
+        const string& folderName,
+        wstring& outDirectory) const
+    {
+        outDirectory.clear();
+
+        const string safeFolderName = Sanitize_FolderName(folderName);
+        if (safeFolderName.empty())
+            return false;
+
+        const fs::path parentPath = parentDirectory.empty()
+            ? fs::path(_rootDirectory)
+            : fs::path(parentDirectory);
+        const fs::path newDirectory = (parentPath / String::ToWString(safeFolderName)).lexically_normal();
+
+        try
+        {
+            fs::create_directories(newDirectory);
+            outDirectory = newDirectory.wstring();
+            return true;
+        }
+        catch (const exception& exception)
+        {
+            LOG_WARN("UI prefab folder create failed: {} ({})", exception.what(), String::ToString(newDirectory.wstring()));
+            return false;
+        }
+    }
+
+    vector<UI_PrefabFileEntry> UI_PrefabService::Collect_PrefabEntries(const wstring& directoryPath) const
+    {
+        vector<UI_PrefabFileEntry> prefabEntries;
+        const fs::path selectedDirectory = directoryPath.empty()
+            ? fs::path(_rootDirectory)
+            : fs::path(directoryPath);
+
+        try
+        {
+            if (!fs::exists(selectedDirectory) || !fs::is_directory(selectedDirectory))
+                return prefabEntries;
+
+            for (const fs::directory_entry& entry : fs::directory_iterator(selectedDirectory, fs::directory_options::skip_permission_denied))
+            {
+                if (!entry.is_regular_file() || !Is_PrefabFilePath(entry.path()))
+                    continue;
+
+                UI_PrefabAsset prefab = {};
+                const wstring filePath = entry.path().wstring();
+                if (!Load_Prefab(filePath, prefab))
+                    continue;
+
+                UI_PrefabFileEntry prefabEntry = {};
+                prefabEntry.filePath = filePath;
+                prefabEntry.name = prefab.name.empty() ? String::ToString(entry.path().filename().wstring()) : prefab.name;
+                prefabEntry.relativePath = Make_RelativeDisplayPath(entry.path());
+                prefabEntries.push_back(move(prefabEntry));
+            }
+        }
+        catch (const exception& exception)
+        {
+            LOG_WARN("UI prefab file scan failed: {} ({})", exception.what(), String::ToString(selectedDirectory.wstring()));
+        }
+
+        sort(prefabEntries.begin(), prefabEntries.end(), [](const UI_PrefabFileEntry& lhs, const UI_PrefabFileEntry& rhs)
+            {
+                return String::ToLowerCopy(lhs.name) < String::ToLowerCopy(rhs.name);
+            });
+
+        return prefabEntries;
+    }
+
+    string UI_PrefabService::Make_RelativeDisplayPath(const fs::path& path) const
+    {
+        try
+        {
+            const fs::path rootDirectory = fs::path(_rootDirectory).lexically_normal();
+            const fs::path normalizedPath = path.lexically_normal();
+            const fs::path relativePath = fs::relative(normalizedPath, rootDirectory);
+            const string relativeText = String::ToString(relativePath.wstring());
+            return relativeText.empty() || relativeText == "." ? "UI_Prefabs" : relativeText;
+        }
+        catch (...)
+        {
+            return String::ToString(path.filename().wstring());
+        }
     }
 
     wstring UI_PrefabService::Build_PrefabFilePath(const wstring& directoryPath, const string& prefabName) const

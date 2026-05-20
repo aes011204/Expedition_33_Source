@@ -13,12 +13,13 @@ public:
 public:
 	HRESULT Initialize() override;
 	void Update(float timeDelta) override;
-	HRESULT Render() override;
+	virtual HRESULT Render() override;
 
 private:
 	HRESULT Ready_Layer_Camera(const wstring& layerTag);
 	HRESULT Ready_Layer_Viewer(const wstring& layerTag);
 	HRESULT Ready_Lights();
+
 
 public:
 	static Shared<Level_ModelEditor> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
