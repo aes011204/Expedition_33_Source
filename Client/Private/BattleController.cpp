@@ -74,19 +74,22 @@ void BattleController::Update(float timeDelta)
         return;
     }
 
+    // 배틀이 완전히 끝남 (배틀턴 나감)
     if (_battleEnded == true)
         return;
 
+    // 패링, 회피 키인풋
     UpdateReactionInput();
 
+    // 한턴 끝나면 여기로 
     if (_pendingNextTurn)
     {
-        _pendingNextTurn = false;
+        _battleActionExe->Set_ReStart();
         StartTurn();
+        _pendingNextTurn = false;
         return;
     }
 
-    // 일단 지금은 배틀이랑 구분 안되어 있음 애니메이션 일단 돌리고 있음
 
     if (_heroes.empty() == true || _enemies.empty() == true)
         return;
@@ -94,19 +97,17 @@ void BattleController::Update(float timeDelta)
     if (_currentTurnActor.statCom->Is_Player())
         _battleFSM->Update_StateMachine(timeDelta);
 
-    const bool hasRunningAction =
-        _turnAction._curChar.actor != nullptr &&
-        !_battleActionExe->IsFinished();
 
-    if (hasRunningAction)
+    if (_turnAction._curChar.actor != nullptr && !_battleActionExe->IsFinished())
     {
         _battleActionExe->Update(timeDelta, _turnAction);
+    }
 
-        if (_battleActionExe->IsFinished())
-        {
-            EndTurn();
-            return;
-        }
+    if (_turnAction._curChar.actor != nullptr && _battleActionExe->IsFinished())
+    {
+      
+        EndTurn();
+        return;
     }
 }
 
@@ -708,8 +709,7 @@ void BattleController::OnActionEndNotify()
     auto& action = Get_TurnAction();
     _battleActionExe->OnActionEndNotify(action);
 
-    if (_battleActionExe->IsFinished())
-        EndTurn();
+
 }
 
 HRESULT BattleController::Ready_BattleTurnCamera()
