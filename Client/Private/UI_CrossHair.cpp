@@ -32,9 +32,14 @@ void UI_CrossHair::Update(float timeDelta)
 
 void UI_CrossHair::Open()
 {
+    const bool wasOpen = Is_Open();
+
     UI_RuntimePanelBase::Open();
 
     Apply_Color();
+
+    if (!wasOpen && _crossHairImage)
+        _crossHairImage->Play_UIAnimation(L"Ready_CrossAir", true); // 처음 열릴 때만 Ready_CrossAir 연출을 다시 시작한다.
 }
 
 void UI_CrossHair::Close()

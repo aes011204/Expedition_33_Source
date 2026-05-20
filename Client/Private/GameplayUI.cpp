@@ -1,11 +1,4 @@
 ﻿#include "GameplayUI.h"
-#include "GameInstance.h"
-#include "CharacterStatus_Panel.h"
-#include "SkillTree_Panel.h"
-#include "ChangeWeapon_Panel.h"
-#include "UI_BattleTransition.h"
-#include "SavePoint_Panel.h"
-#include "UI_BattleCommandHUD.h"
 
 #include "ClientInstance.h"
 #include "GameplayUI_Battle.h"
@@ -21,16 +14,6 @@ HRESULT GameplayUI::Initialize(uint32 levelIndex)
     _battleUI = GameplayUI_Battle::Create(levelIndex); // battle delegate/HUD/transition 전용 컨트롤러
     CHECK_NULL(_battleUI, E_FAIL);
 
-    _changeWeaponPanel = ChangeWeapon_Panel::Create(levelIndex);
-    CHECK_NULL(_changeWeaponPanel, E_FAIL);
-    _battleTransition = UI_BattleTransition::Create(levelIndex);
-    CHECK_NULL(_battleTransition, E_FAIL);
-
-    _savePointPanel = SavePoint_Panel::Create(levelIndex);
-    CHECK_NULL(_savePointPanel, E_FAIL);
-
-    _battleCommandHUD = UI_BattleCommandHUD::Create(levelIndex);
-    CHECK_NULL(_battleCommandHUD, E_FAIL);
     _lastInputMode = Resolve_InputMode();
 
     return S_OK;
@@ -44,14 +27,6 @@ void GameplayUI::Update(float timeDelta)
     if (_battleUI)
         _battleUI->Update(timeDelta);
 
-    if (_characterStatusPanel)
-        _characterStatusPanel->Update(timeDelta);
-
-    if (_skillTreePanel)
-        _skillTreePanel->Update(timeDelta);
-
-    if (_changeWeaponPanel)
-        _changeWeaponPanel->Update(timeDelta);
     const GameplayUIInputMode currentInputMode = Resolve_InputMode();
     if (currentInputMode != _lastInputMode)
     {
@@ -119,25 +94,6 @@ void GameplayUI::Handle_InputModeChanged(GameplayUIInputMode previousMode, Gamep
 {
     if (previousMode == GameplayUIInputMode::World && currentMode == GameplayUIInputMode::Battle)
     {
-    case SavePoint_Panel::SavePointAction::Rest:
-        Close_AllMenus(); // 현재는 SavePoint 닫기만. 나중에 Rest 처리 연결
-        break;
-
-    case SavePoint_Panel::SavePointAction::UpgradeStat:
-        Push_Menu(GameplayMenu::CharacterStatus);   // SavePoint 위에 CharacterStatus push
-        break;
-
-    case SavePoint_Panel::SavePointAction::UpgradeSkill:
-        Push_Menu(GameplayMenu::SkillTree);         // SavePoint 위에 SkillTree push
-        break;
-
-    case SavePoint_Panel::SavePointAction::UpgradeWeapon:
-        Push_Menu(GameplayMenu::WeaponUpgrade);     // SavePoint 위에 WeaponUpgrade push
-        break;
-
-    case SavePoint_Panel::SavePointAction::None:
-    default:
-        break;
         if (_worldUI)
             _worldUI->Force_CloseAllMenus();
     }
@@ -145,164 +101,7 @@ void GameplayUI::Handle_InputModeChanged(GameplayUIInputMode previousMode, Gamep
 
 Shared<GameplayUI> GameplayUI::Create(uint32 levelIndex)
 {
-    if (!GAME->KeyDown(KEY_TYPE::TAB))
-        return;
-
-    const GameplayMenu currentMenu = Get_CurrentMenu();
-
-    if (currentMenu == GameplayMenu::None)
-    {
-        Push_Menu(GameplayMenu::SavePoint);
-        return;
-    }
-
-    if (currentMenu == GameplayMenu::SavePoint)
-    {
-        // SavePoint에서 Tab은 전체 종료 -> 나중에는 깃발에서 E누르면 켜지는거로 변경 예정
-        Close_AllMenus();
-        return;
-    }
-}
-
-void GameplayUI::Handle_BackInput()
-{
-    if (!GAME->KeyDown(KEY_TYPE::ESCAPE))
-        return;
-
-    if (_menuStack.empty())
-        return;
-
-    Pop_Menu();
-}
-
-void GameplayUI::Push_Menu(GameplayMenu menu)
-{
-    if (menu == GameplayMenu::None)
-        return;
-
-    const GameplayMenu currentMenu = Get_CurrentMenu();
-
-    if (currentMenu == menu)
-        return; // 같은 메뉴 중복 방지
-
-    if (currentMenu != GameplayMenu::None)
-    {
-        Close_Menu(currentMenu); // 현재 top 메뉴를 먼저 닫는다
-    }
-
-    _menuStack.push_back(menu);
-    Open_Menu(menu); // 새 top 메뉴 오픈
-}
-
-void GameplayUI::Pop_Menu()
-{
-    if (_menuStack.empty())
-        return;
-
-    const GameplayMenu currentMenu = _menuStack.back();
-    Close_Menu(currentMenu); // 현재 top 메뉴 종료
-    _menuStack.pop_back();
-
-    if (_menuStack.empty())
-        return; 
-
-    Open_Menu(_menuStack.back());
-}
-
-void GameplayUI::Close_AllMenus()
-{
-    while (!_menuStack.empty())
-    {
-        Close_Menu(_menuStack.back());
-        _menuStack.pop_back();
-    }
-}
-
-void GameplayUI::Open_Menu(GameplayMenu menu)
-{
-    switch (menu)
-    {
-    case GameplayMenu::SavePoint:
-        if (_savePointPanel)
-            _savePointPanel->Open();
-        break;
-
-    case GameplayMenu::CharacterStatus:
-        if (_characterStatusPanel)
-            _characterStatusPanel->Open();
-        break;
-
-    case GameplayMenu::SkillTree:
-        if (_skillTreePanel)
-            _skillTreePanel->Open();
-        break;
-
-    case GameplayMenu::WeaponUpgrade:
-        if (_changeWeaponPanel)
-            _changeWeaponPanel->Open();
-        break;
-
-    case GameplayMenu::None:
-    default:
-        break;
-    }
-}
-
-void GameplayUI::Close_Menu(GameplayMenu menu)
-{
-    switch (menu)
-    {
-    case GameplayMenu::SavePoint:
-        if (_savePointPanel)
-            _savePointPanel->Close();
-        break;
-
-    case GameplayMenu::CharacterStatus:
-        if (_characterStatusPanel)
-            _characterStatusPanel->Close();
-        break;
-
-    case GameplayMenu::SkillTree:
-        if (_skillTreePanel)
-            _skillTreePanel->Close();
-        break;
-
-    case GameplayMenu::WeaponUpgrade:
-        if (_changeWeaponPanel)
-            _changeWeaponPanel->Close();
-        break;
-
-    case GameplayMenu::None:
-    default:
-        break;
-    }
-}
-
-void GameplayUI::Set_BattleCommandHUD()
-{
-    if (_battleCommandHUD == nullptr)
-        return;
-
-    const auto battleController = CLIENT->Get_BattleController();
-    if (battleController == nullptr || !battleController->Is_BattleStarted())
-    {
-        _battleCommandHUD->Close(); // 전투가 아니면 HUD 숨김
-        return;
-    }
-
-    if (!battleController->Is_PlayerTurnActive())
-    {
-        _battleCommandHUD->Close();
-        return;
-    }
-
-    _battleCommandHUD->Open(); // 플레이어 턴일 때만 HUD 표시
-    _battleCommandHUD->Refresh_ForState(battleController->Get_CurrentTurnState());
-}
-
-Unique<GameplayUI> GameplayUI::Create(uint32 levelIndex)
-{
-    auto instance = make_unique<GameplayUI>();
+    auto instance = make_shared<GameplayUI>();
 
     if (FAILED(instance->Initialize(levelIndex)))
     {
@@ -325,12 +124,6 @@ void GameplayUI::Free()
             }
         };
 
-    Release_Panel(_savePointPanel);
-    Release_Panel(_characterStatusPanel);
-    Release_Panel(_skillTreePanel);
-    Release_Panel(_changeWeaponPanel);
-    Release_Panel(_battleTransition);
-    Release_Panel(_battleCommandHUD);
     Release_UI(_worldUI);
     Release_UI(_battleUI);
 

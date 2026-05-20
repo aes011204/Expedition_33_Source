@@ -150,6 +150,9 @@ void GameplayUI_Battle::Handle_BattleEnded(EBattleEndResult result)
     if (_monsterHpBar)
         _monsterHpBar->Close();
 
+    if (_crossHair)
+        _crossHair->Close(); // 배틀 종료 시 Free Aim 크로스헤어도 즉시 정리한다.
+
     Stop_BattleEnterTransition(); // 전투 종료 시 남아있는 transition도 같이 정리한다.
 }
 
@@ -194,6 +197,9 @@ void GameplayUI_Battle::Handle_TurnEnded(const BattleChar& actor)
 
     if (_monsterHpBar)
         _monsterHpBar->Close();
+
+    if (_crossHair)
+        _crossHair->Close(); // 턴 종료 시 크로스헤어를 즉시 닫아 상태 잔류를 막는다.
 }
 
 void GameplayUI_Battle::Handle_TargetPreviewChanged(const BattleChar* target)
@@ -297,6 +303,12 @@ void GameplayUI_Battle::Update_CrossHair(float timeDelta)
 {
     if (_crossHair == nullptr)
         return;
+
+    if (!_isBattleUiActive || !_isPlayerTurnUiActive)
+    {
+        _crossHair->Close(); // 플레이어 턴 UI가 아닐 때는 Free Aim 상태가 남아 있어도 크로스헤어를 숨긴다.
+        return;
+    }
 
     const auto battleController = CLIENT->Get_BattleController();
     if (battleController == nullptr || !battleController->Is_BattleStarted())
