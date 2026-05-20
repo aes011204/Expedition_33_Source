@@ -126,7 +126,7 @@ private:
     Unique<GameDataTable>       _gameDataTable;
     Unique<PreviewShotTable>    _previewShotTable;
 
-    Unique<GameplayUI>          _gamePlayUI;
+    Shared<GameplayUI>          _gamePlayUI;
     Unique<PersistentObjectManager> _persistentObjectManager;
     Unique<Hero_Manager>        _heroManager;
 

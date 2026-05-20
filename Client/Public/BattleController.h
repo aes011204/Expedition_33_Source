@@ -23,11 +23,16 @@ class BattleTurnCamera;
 
 class BattleController : public Base
 {
-    DECLARE_DELEGATE(FOnBattleStarted, uint32, bool);                       // 전투 시작
-    DECLARE_DELEGATE(FOnBattleEnded, EBattleEndResult);                     // 전투 종료
-    DECLARE_DELEGATE(FOnTurnStarted,  const BattleChar&, BattleTurnState);  // 턴 시작
-    DECLARE_DELEGATE(FOnTurnEnded, const BattleChar&);                      // 턴 종료
-    DECLARE_DELEGATE(FOnTargetPreviewChanged, const BattleChar*);           // 타겟 전환
+    // 전투 시작
+    DECLARE_DELEGATE(FOnBattleStarted, uint32, bool);
+    // 전투 종료
+    DECLARE_DELEGATE(FOnBattleEnded, EBattleEndResult);
+    // 턴 시작
+    DECLARE_DELEGATE(FOnTurnStarted,  const BattleChar&, BattleTurnState);
+    // 턴 종료
+    DECLARE_DELEGATE(FOnTurnEnded, const BattleChar&);
+    // 타겟 전환
+    DECLARE_DELEGATE(FOnTargetPreviewChanged, const BattleChar*);           
 
 public:
     enum ReactionType
@@ -106,6 +111,11 @@ public:
     void ClearReactionState();
     void UpdateReactionInput();
 
+public: /* 타겟팅 중인 적 세팅 */
+    void                Set_TargetPreview(const BattleChar& target);
+    void                Clear_TargetPreview();
+    const BattleChar*   Get_TargetPreview() const;
+
 public:
     bool            Is_PlayerTurnActive() const;
     BattleTurnState Get_CurrentTurnState() const;
@@ -118,10 +128,17 @@ private:
     void    Complete_BattleField();          // 2초 슬로우모션이 끝난 뒤 실제 PB/MB 생성과 턴 시작을 처리한다.
     void    Clear_BattleEnterPending();      // 전투 진입 대기 데이터만 정리
 
+public: /* Delegate */
+    FOnBattleStarted        OnBattleStarted;
+    FOnBattleEnded          OnBattleEnded;
+    FOnTurnStarted          OnTurnStarted;
+    FOnTurnEnded            OnTurnEnded;
+    FOnTargetPreviewChanged OnTargetPreviewChanged;
+
 private:
-    BattleChar _currentTurnActor = {};
-    Action _turnAction = {};
-    Reaction _reaction = {};
+    BattleChar  _currentTurnActor = {};
+    Action      _turnAction = {};
+    Reaction    _reaction = {};
 
     Shared<SkillScript> _curScript = {};
 
@@ -131,6 +148,10 @@ private:
     int currentTurnIndex = {};
 
     bool _flag = { false };
+
+private:
+    BattleChar _targetPreview = {};
+    bool _hasTargetPreview = false;
 
 private:
     void Execute_BaseAttack(const BattleChar actor, const Action& turnAction);

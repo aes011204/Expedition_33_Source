@@ -11,7 +11,7 @@
 
 NS_BEGIN(Client)
 
-    AttackTargeting::AttackTargeting(const Shared<BattleController>& owner)
+AttackTargeting::AttackTargeting(const Shared<BattleController>& owner)
     : Battle_State{ owner }
 {
 }
@@ -36,6 +36,18 @@ bool AttackTargeting::EnterInvoke()
 
     LOG_DEBUG("TARGETTING {}", TargetIndex);
 
+    auto owner = Get_Owner();
+    if (!owner)
+        return false;
+
+    const auto enemies = owner->Get_AliveEnemies();
+    if (!enemies.empty())
+    {
+        TargetIndex %= enemies.size();
+        owner->Set_TargetPreview(enemies[TargetIndex]);
+    }
+
+
     return Battle_State::EnterInvoke();
 }
 
@@ -46,32 +58,33 @@ void AttackTargeting::Update(float timeDelta)
     auto owner = Get_Owner();
     auto battleFSM = Get_BattleFSM();
 
-
-
     if (!owner || !battleFSM)
         return;
 
-
+    const auto enemies = owner->Get_AliveEnemies();
+    if (enemies.empty())
+        return;
 
     if (GAME->KeyDown(KEY_TYPE::KEY_1))
     {
-       
-
-
+        owner->Set_TargetPreview(enemies[TargetIndex]);
         owner->Get_TurnAction().target = owner->Get_AliveEnemies()[TargetIndex];
-       auto data =  CLIENT->Get_Skill(owner->Get_TurnAction()._curChar.statCom->Get_FirstSkill());
+
+        auto data = CLIENT->Get_Skill(owner->Get_TurnAction()._curChar.statCom->Get_FirstSkill());
         owner->Get_TurnAction()._selected_SkillKey = *data;
+
         LOG_DEBUG("AttackTargeting: confirm target index={}", TargetIndex);
         LOG_DEBUG("AttackTargeting: selected skill={}", owner->Get_TurnAction()._selected_SkillKey.scriptClassName.c_str());
 
         owner->ExecuteAction(owner->Get_TurnAction());
-     
+
         return;
     }
 
     if (GAME->KeyDown(KEY_TYPE::KEY_2))
     {
-        TargetIndex = (TargetIndex+1 )% owner->Get_AliveEnemies().size();
+        TargetIndex = (TargetIndex + 1) % owner->Get_AliveEnemies().size();
+        owner->Set_TargetPreview(enemies[TargetIndex]);
         LOG_DEBUG("TARGETTING {}", TargetIndex);
 
         // 임시 기본 공격은 무조건 적 공격 이라는 가정 / 동료 치료 불가
@@ -88,6 +101,10 @@ void AttackTargeting::LateUpdate(float timeDelta)
 void AttackTargeting::ExitInvoke()
 {
     LOG_DEBUG("AttackTargeting::ExitInvoke");
+
+    if (auto owner = Get_Owner())
+        owner->Clear_TargetPreview();
+
     Battle_State::ExitInvoke();
 }
 

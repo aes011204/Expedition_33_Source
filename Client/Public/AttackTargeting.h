@@ -19,7 +19,6 @@ public:
     void LateUpdate(float timeDelta) override;
     void ExitInvoke() override;
 
-
 private:
 
     uint32 TargetIndex = {};

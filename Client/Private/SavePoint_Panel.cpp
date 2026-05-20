@@ -31,11 +31,9 @@ void SavePoint_Panel::Update(float timeDelta)
 
 void SavePoint_Panel::Open()
 {
-    _isOpen = true;
-    _lastAction = SavePointAction::None;
+    UI_RuntimePanelBase::Open();
 
-    if (_root)
-        _root->Open();
+    _lastAction = SavePointAction::None;
 
     // 마우스 잠금
     GAME->Unlock_Mouse();
@@ -44,10 +42,7 @@ void SavePoint_Panel::Open()
 
 void SavePoint_Panel::Close()
 {
-     _isOpen = false;
-
-    if (_root)
-        _root->Close();
+    UI_RuntimePanelBase::Close();
 
     GAME->Set_GameplayInputMode(GameplayInputMode::Normal);
     GAME->Lock_Mouse();
@@ -55,10 +50,7 @@ void SavePoint_Panel::Close()
 
 void SavePoint_Panel::Toggle()
 {
-    if (_isOpen)
-        Close();
-    else
-        Open();
+    UI_RuntimePanelBase::Toggle();
 }
 
 SavePoint_Panel::SavePointAction SavePoint_Panel::Consume_LastAction()
@@ -73,7 +65,7 @@ HRESULT SavePoint_Panel::Load_UI(uint32 levelIndex)
 {
     UI_RuntimeLoader::UI_LoadDesc desc{};
     desc.levelIndex = levelIndex;
-    desc.jsonPath = Constants::UI::UI_SavePoint_Path; 
+    desc.jsonPath = Constants::UI::UI_SavePoint_Path;
     desc.prototypeTagPrefix = L"SavePoint";
     desc.outUIByName = &_uiByName;
 
@@ -87,10 +79,10 @@ HRESULT SavePoint_Panel::Load_UI(uint32 levelIndex)
 
 HRESULT SavePoint_Panel::Bind_UI()
 {
-    _restButton =           UI_Utils::Find_TypedUI<UI_Button>(_uiByName, L"Button_SavePoint_Rest");
-    _upgradeStatButton =    UI_Utils::Find_TypedUI<UI_Button>(_uiByName, L"Button_SavePoint_Upgrade_Stat");
-    _upgradeSkillButton =   UI_Utils::Find_TypedUI<UI_Button>(_uiByName, L"Button_SavePoint_Upgrade_Skill");
-    _upgradeWeaponButton =  UI_Utils::Find_TypedUI<UI_Button>(_uiByName, L"Button_SavePoint_Upgrade_Weapon");
+    _restButton = UI_Utils::Find_TypedUI<UI_Button>(_uiByName, L"Button_SavePoint_Rest");
+    _upgradeStatButton = UI_Utils::Find_TypedUI<UI_Button>(_uiByName, L"Button_SavePoint_Upgrade_Stat");
+    _upgradeSkillButton = UI_Utils::Find_TypedUI<UI_Button>(_uiByName, L"Button_SavePoint_Upgrade_Skill");
+    _upgradeWeaponButton = UI_Utils::Find_TypedUI<UI_Button>(_uiByName, L"Button_SavePoint_Upgrade_Weapon");
 
     CHECK_NULL(_restButton, E_FAIL);
     CHECK_NULL(_upgradeStatButton, E_FAIL);

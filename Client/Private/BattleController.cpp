@@ -155,6 +155,9 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
     _isBattleEntering = false;
     _isWaitingBattleTransition = false;
 
+    Clear_TargetPreview();
+    OnBattleEnded.Broadcast(result);
+
     // 전투 종료 시 슬로우모션 값이 남지 않도록 복구
     CLIENT->Stop_BattleEnterTransition();
     GAME->Stop_WorldTimeSlow();
@@ -242,10 +245,11 @@ void BattleController::EndTurn()
 		return;
     }
 
+    Clear_TargetPreview();
+
     // 상태 이상 엔드
     _buffSystem->ProcessTurnEnd(_currentTurnActor.statCom);
-
-    // 다음 턴 시작
+    OnTurnEnded.Broadcast(_currentTurnActor); // 턴 종료 신호
 
     const auto actor = _currentTurnActor;
     // 죽은애들은 큐에 다시 안들어가게
@@ -287,10 +291,12 @@ void BattleController::StartTurn()
     {
         LOG_DEBUG("StartTurn: player turn -> FSM ChooseAction");
         _battleFSM->Change_State(BattleTurnState::ChooseAction);
+        OnTurnStarted.Broadcast(_currentTurnActor, BattleTurnState::ChooseAction);
     }
     else
     {
         LOG_DEBUG("StartTurn: enemy turn -> Run_EnemyTurn");
+        OnTurnStarted.Broadcast(_currentTurnActor, BattleTurnState::None);
         Run_EnemyTurn();
     }
 }
@@ -576,6 +582,35 @@ void BattleController::UpdateReactionInput()
 
 }
 
+void BattleController::Set_TargetPreview(const BattleChar& target)
+{
+    _targetPreview = target;
+    _hasTargetPreview = (target.actor != nullptr && target.statCom != nullptr);
+
+    if (_hasTargetPreview)
+        OnTargetPreviewChanged.Broadcast(&_targetPreview); // Hp Bar/타겟 UI 갱신 등
+    else
+        OnTargetPreviewChanged.Broadcast(nullptr);
+
+}
+
+void BattleController::Clear_TargetPreview()
+{
+    _targetPreview = {};
+    _hasTargetPreview = false;
+    OnTargetPreviewChanged.Broadcast(nullptr);
+}
+
+const BattleChar* BattleController::Get_TargetPreview() const
+{
+    if (!_hasTargetPreview)
+        return nullptr;
+
+    if (_targetPreview.actor == nullptr || _targetPreview.statCom == nullptr)
+        return nullptr;
+
+    return &_targetPreview;
+}
 
 bool BattleController::Is_PlayerTurnActive() const
 {
@@ -738,6 +773,9 @@ void BattleController::Complete_BattleField()
     _battleEnded = false;
     _pendingNextTurn = false;
 
+    const uint32 battleFieldId = _pendingBattleFieldID;
+    const bool isFirstHero = _pendingBattleIsFirstHero;
+
     // 카메라 저장
     _worldCamera = GAME->Get_ActiveCamera();
 
@@ -769,7 +807,7 @@ void BattleController::Complete_BattleField()
     Clear_BattleEnterPending();
 
     // 턴 시작
-    // StartTurn(); 바로 시작하는게 아니라 UI 재생 끝나고
+    OnBattleStarted.Broadcast(battleFieldId, isFirstHero);
     CLIENT->Play_BattleEnterTransition();
     _isWaitingBattleTransition = true;
 }

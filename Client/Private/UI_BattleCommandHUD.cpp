@@ -27,18 +27,12 @@ void UI_BattleCommandHUD::Update(float timeDelta)
 
 void UI_BattleCommandHUD::Open()
 {
-    _isOpen = true;
-
-    if (_root)
-        _root->Open();
+    UI_RuntimePanelBase::Open();
 }
 
 void UI_BattleCommandHUD::Close()
 {
-     _isOpen = false;
-
-    if (_root)
-        _root->Close();
+    UI_RuntimePanelBase::Close();
 
     Apply_DefaultHighlight(); 
 }

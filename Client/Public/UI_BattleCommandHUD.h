@@ -1,6 +1,6 @@
 ﻿#pragma once
 
-#include "Base.h"
+#include "UI_RuntimePanelBase.h"
 #include "Battle_Enum.h"
 
 NS_BEGIN(Engine)
@@ -10,19 +10,18 @@ NS_END
 
 NS_BEGIN(Client)
 
-class UI_BattleCommandHUD final : public Base
+class UI_BattleCommandHUD final : public UI_RuntimePanelBase
 {
 public:
     UI_BattleCommandHUD() = default;
     ~UI_BattleCommandHUD() override = default;
 
 public:
-    HRESULT Initialize(uint32 levelIndex);
-    void    Update(float timeDelta);
+    HRESULT Initialize(uint32 levelIndex) override;
+    void    Update(float timeDelta) override;
 
-    void    Open();
-    void    Close();
-    bool    Is_Open() const { return _isOpen; }
+    void    Open() override;
+    void    Close() override;
 
     void    Refresh_ForState(BattleTurnState state);
 
@@ -34,13 +33,6 @@ private:
     void    Set_ButtonHighlighted(const Shared<UI_Base>& button, bool highlighted);
 
 private:
-    uint32 _levelIndex = 0;
-    bool   _isOpen = false;
-
-    umap<wstring, Shared<UI_Base>> _uiByName{};
-
-    Shared<UI_Base> _root{};
-
     Shared<UI_Base> _attackButton{};
     Shared<UI_Base> _skillButton{};
     Shared<UI_Base> _itemButton{};
