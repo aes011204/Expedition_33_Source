@@ -1524,18 +1524,6 @@ HRESULT GameInstance::Add_MRT(const wstring& mrtTag, const wstring& targetTag)
     return _targetManager->Add_MRT(mrtTag, targetTag);
 }
 
-HRESULT GameInstance::Set_HDRClearColorOverride(const Color& clearColor)
-{
-    CHECK_NULL(_targetManager, E_FAIL);
-    return _targetManager->Set_RenderTargetClearColor(RT::HDRColor, clearColor);
-}
-
-HRESULT GameInstance::Clear_HDRClearColorOverride()
-{
-    CHECK_NULL(_targetManager, E_FAIL);
-    return _targetManager->Set_RenderTargetClearColor(RT::HDRColor, Color(0.f, 0.f, 0.f, 0.f));
-}
-
 HRESULT GameInstance::Begin_MRT(const wstring& mrtTag, bool useDSV, bool clearRTV)
 {
     return _targetManager->Begin_MRT(mrtTag, useDSV, clearRTV);
