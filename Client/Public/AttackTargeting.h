@@ -19,6 +19,8 @@ public:
     void LateUpdate(float timeDelta) override;
     void ExitInvoke() override;
 
+private:
+    bool Try_MoveTargetIndex(int32 direction, size_t enemyCount);
 
 private:
 
