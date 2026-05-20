@@ -177,10 +177,12 @@ bool Camera_Manager::Activate_CameraByType(ObjectType objectType)
         {
             m_activeCamera = camera;
             _hasPendingFreeCameraFocus = false;
+            //camera->Apply_View();   
+
             return true;
         }
-    }
 
+    }
     return false;
 }
 

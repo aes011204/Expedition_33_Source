@@ -1,22 +1,29 @@
 ﻿#pragma once
 #include "Base.h"
 
-class CameraDirector final : public Base
+NS_BEGIN(Engine)
+class Camera;
+NS_END
+
+NS_BEGIN(Client)
+
+    class CameraDirector final : public Base
 {
 public:
     CameraDirector();
     virtual ~CameraDirector();
 
 public:
-    void RequestGamePlay();
-    void RequestPreview();
-    void RequestBattleTurn();
-    void RequestCinematic();
+    void Request_GamePlay();
+    void Request_Preview();
+    void Request_BattleTurn();
+    void Request_Cinematic();
+    void Restore_PreviousCamera();
 
 private:
+    Shared<Camera> _previousCamera;
 
 public:
-  //  static<>
-
+    static Unique<CameraDirector> Create();
 };
-
+NS_END

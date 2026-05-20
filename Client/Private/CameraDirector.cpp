@@ -9,22 +9,72 @@ CameraDirector::~CameraDirector()
 {
 }
 
-void CameraDirector::RequestGamePlay()
+void CameraDirector::Request_GamePlay()
 {
-    GAME->Activate_CameraByType(ObjectType::TargetCamera);
+    if(GAME->Is_ActiveCameraType(ObjectType::TargetCamera))
+        return;
+
+    auto camera = GAME->Get_ActiveCamera();
+
+    if(camera == nullptr)
+        return;
+
+    if(GAME->Activate_CameraByType(ObjectType::TargetCamera))
+    {
+        _previousCamera = camera;
+    }
 }
 
-void CameraDirector::RequestPreview()
+void CameraDirector::Request_Preview()
 {
-    GAME->Activate_CameraByType(ObjectType::PreviewCamera);
+    if(GAME->Is_ActiveCameraType(ObjectType::PreviewCamera))
+        return;
+
+    auto camera = GAME->Get_ActiveCamera();
+
+    if(camera == nullptr)
+        return;
+
+    if(GAME->Activate_CameraByType(ObjectType::PreviewCamera))
+    {
+        _previousCamera = camera;
+    }
 }
 
-void CameraDirector::RequestBattleTurn()
+void CameraDirector::Request_BattleTurn()
 {
-    GAME->Activate_CameraByType(ObjectType::BattleTurnCamera);
+    if(GAME->Is_ActiveCameraType(ObjectType::BattleTurnCamera))
+        return;
+
+    auto camera = GAME->Get_ActiveCamera();
+
+    if(camera == nullptr)
+        return;
+
+    if(GAME->Activate_CameraByType(ObjectType::BattleTurnCamera))
+    {
+        _previousCamera = camera;
+    }
 }
 
-void CameraDirector::RequestCinematic()
+void CameraDirector::Request_Cinematic()
 {
-  //  GAME->Activate_CameraByType(ObjectType::CinematicCamera);
+   // GAME->Activate_CameraByType(ObjectType::CinematicCamera);
+}
+
+void CameraDirector::Restore_PreviousCamera()
+{
+    //이전 상태가 뭐냐에 따라서    GAME->Set_PlayerInputBlocked(false); 이거 할지말지 결정해야하나
+
+    if(_previousCamera == nullptr)
+        return;
+
+    GAME->Change_ActiveCamera(_previousCamera);
+
+    _previousCamera.reset();
+}
+
+Unique<CameraDirector> CameraDirector::Create()
+{
+    return make_unique<CameraDirector>();
 }

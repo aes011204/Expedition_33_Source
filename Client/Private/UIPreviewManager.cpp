@@ -65,7 +65,7 @@ void UIPreviewManager::Begin_Preview(PreviewShotPanel panel)
     if (FAILED(Ensure_PreviewCamera()) || FAILED(Ensure_PreviewCharacters()))
         return;
 
-    _previousCamera = GAME->Get_ActiveCamera();
+ //   _previousCamera = GAME->Get_ActiveCamera();
 
     for (StatusPreviewHero& entry : _previewHeroes)
     {
@@ -74,9 +74,8 @@ void UIPreviewManager::Begin_Preview(PreviewShotPanel panel)
     }
 
     _previewCamera->Reset_ToStartPos();
+    CLIENT->Request_Preview();
 
-    GAME->Change_ActiveCamera(_previewCamera);
-    _previewCamera->Apply_View();
     _isActive = true;
 }
 
@@ -107,7 +106,7 @@ void UIPreviewManager::Hide_Preview()
     if (!_isActive)
         return;
 
-    Restore_PreviousCamera();
+    CLIENT->Restore_PreviousCamera();
 
     if (_previewCamera)
         _previewCamera->Set_TargetTransform(nullptr);
@@ -234,14 +233,14 @@ HRESULT UIPreviewManager::Spawn_PreviewCharacter()
     return S_OK;
 }
 
-void UIPreviewManager::Restore_PreviousCamera()
-{
-    if (_previousCamera == nullptr)
-        return;
-
-    GAME->Change_ActiveCamera(_previousCamera);
-    _previousCamera.reset();
-}
+//void UIPreviewManager::Restore_PreviousCamera()
+//{
+//    if (_previousCamera == nullptr)
+//        return;
+//
+//    GAME->Change_ActiveCamera(_previousCamera);
+//    _previousCamera.reset();
+//}
 
 void UIPreviewManager::Clear_StatusPreviewHeroes()
 {
@@ -279,6 +278,6 @@ void UIPreviewManager::Free()
         _previewCamera.reset();
     }
 
-    _previousCamera.reset();
+  //  _previousCamera.reset();
     Base::Free();
 }

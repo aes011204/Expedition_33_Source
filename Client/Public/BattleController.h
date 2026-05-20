@@ -160,7 +160,7 @@ private:
 
 private:
     Shared<BattleTurnCamera> _battleTurnCamera;
-    Shared<Camera> _worldCamera;    // 전투 시작 전 카메라 저장
+  //  Shared<Camera> _worldCamera;    // 전투 시작 전 카메라 저장
 
 private:  // 슬로우 처리
     float _battleEnterElapsed = 0.f;

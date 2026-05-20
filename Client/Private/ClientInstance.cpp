@@ -14,6 +14,7 @@
 #include "ResourceLoader.h"
 #include "PreviewShotTable.h"
 #include "UIPreviewManager.h"
+#include "CameraDirector.h"
 
 IMPLEMENT_SINGLETON(ClientInstance)
 
@@ -56,6 +57,9 @@ HRESULT ClientInstance::Initialize_Client(const ComPtr<Device>& device, const Co
 
     _previewManager = UIPreviewManager::Create();
     CHECK_NULL(_previewManager, E_FAIL);
+
+    _cameraDirector = CameraDirector::Create();
+    CHECK_NULL(_cameraDirector, E_FAIL);
 
 	_isInitialized = true;
 
@@ -283,6 +287,31 @@ bool ClientInstance::Is_BattleActive() const
 bool ClientInstance::Is_BattleEntering() const
 {
     return _battleController && _battleController->Is_BattleEntering();
+}
+
+void ClientInstance::Request_GamePlay()
+{
+    return _cameraDirector->Request_GamePlay();
+}
+
+void ClientInstance::Request_Preview()
+{
+    return _cameraDirector->Request_Preview();
+}
+
+void ClientInstance::Request_BattleTurn()
+{
+    return _cameraDirector->Request_BattleTurn();
+}
+
+void ClientInstance::Request_Cinematic()
+{
+    return _cameraDirector->Request_Cinematic();
+}
+
+void ClientInstance::Restore_PreviousCamera()
+{
+    return _cameraDirector->Restore_PreviousCamera();
 }
 
 bool ClientInstance::Is_GameplayMenuOpen() const

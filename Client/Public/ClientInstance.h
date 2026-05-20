@@ -17,6 +17,7 @@ class ResourceLoader;
 class GameplayUI;
 class PersistentObjectManager;
 class Hero_Manager;
+class CameraDirector;
 
 class ClientInstance : public Base
 {
@@ -105,8 +106,15 @@ public: /* For.Battle_Controller */
 
     Shared<BattleController>    Get_BattleController() { return _battleController; };
 
-    bool    Is_BattleActive() const;
-    bool    Is_BattleEntering() const;
+    bool Is_BattleActive() const;
+    bool Is_BattleEntering() const;
+
+public:
+    void Request_GamePlay();
+    void Request_Preview();
+    void Request_BattleTurn();
+    void Request_Cinematic();
+    void Restore_PreviousCamera();
 
 private:
 	HRESULT Ready_ResourceLoader();
@@ -121,6 +129,7 @@ private:
 	bool _isInitialized = false;
 
 private:
+    Shared<CameraDirector>      _cameraDirector;
     Shared<UIPreviewManager>    _previewManager;
     Shared<ResourceLoader>      _resourceLoader;
     Unique<GameDataTable>       _gameDataTable;

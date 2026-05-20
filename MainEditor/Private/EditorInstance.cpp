@@ -545,6 +545,9 @@ void EditorInstance::Activate_FreeCamera()
 
     if (hasActiveCameraPose)
         Apply_CameraPoseToCameraType(ObjectType::FreeCamera, activeCameraPose);
+
+  //  GAME->Set_PlayerInputBlocked(false);
+   // GAME->Set_FreeCameraInputEnabled(true);
 }
 
 void EditorInstance::Restore_PreviousCameraOrTarget()

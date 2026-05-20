@@ -169,6 +169,8 @@
     <ClInclude Include="..\public\BT_FinishDecision.h" />
     <ClInclude Include="..\public\BT_SetSkill.h" />
     <ClInclude Include="..\public\BT_Set_Target.h" />
+    <ClInclude Include="..\Public\CameraDirector.h" />
+    <ClInclude Include="..\Public\CameraPresetTypes.h" />
     <ClInclude Include="..\Public\MapStaticCollisionBuilder.h" />
     <ClInclude Include="..\Public\PB_Gustave.h" />
     <ClInclude Include="..\Public\MB_Lancelier.h" />
@@ -334,6 +336,7 @@
     <ClCompile Include="..\private\BT_FinishDecision.cpp" />
     <ClCompile Include="..\private\BT_SetSkill.cpp" />
     <ClCompile Include="..\private\BT_Set_Target.cpp" />
+    <ClCompile Include="..\Private\CameraDirector.cpp" />
     <ClCompile Include="..\Private\MapStaticCollisionBuilder.cpp" />
     <ClCompile Include="..\Private\PB_Gustave.cpp" />
     <ClCompile Include="..\Private\MB_Lancelier.cpp" />

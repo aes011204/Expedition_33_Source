@@ -15,7 +15,7 @@ struct PreviewShotPreset
     float distance;
 };
 
-struct CommomCameraPreset
+struct CommonCameraPreset
 {
     float		 fovy, nearPlane, farPlane;
 
@@ -25,7 +25,7 @@ struct CommomCameraPreset
 
 struct TargetCameraPreset
 {
-    CommomCameraPreset camera;
+    CommonCameraPreset camera;
 
     float        followSpeed;
     float        distance;

@@ -229,6 +229,9 @@
     <Filter Include="BattleState\Battle\BattleController">
       <UniqueIdentifier>{060c6d38-2340-4996-a3dc-93aeb84e6312}</UniqueIdentifier>
     </Filter>
+    <Filter Include="02.GameObject\Camera\Director">
+      <UniqueIdentifier>{1c41a297-03b8-4a5d-8305-b8c9fa7e9d56}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -642,6 +645,12 @@
     <ClInclude Include="..\Public\UI_Utils.h" />
     <ClInclude Include="..\Public\UI_BattleCommandHUD.h" />
     <ClInclude Include="..\public\ANS_Move.h" />
+    <ClInclude Include="..\Public\CameraDirector.h">
+      <Filter>02.GameObject\Camera\Director</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\CameraPresetTypes.h">
+      <Filter>02.GameObject\Camera</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -1037,6 +1046,9 @@
     <ClCompile Include="..\Private\SavePoint_Panel.cpp" />
     <ClCompile Include="..\Private\UI_BattleCommandHUD.cpp" />
     <ClCompile Include="..\private\ANS_Move.cpp" />
+    <ClCompile Include="..\Private\CameraDirector.cpp">
+      <Filter>02.GameObject\Camera\Director</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">

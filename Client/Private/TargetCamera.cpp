@@ -77,7 +77,7 @@ void TargetCamera::BeginPlay()
     Camera::BeginPlay();
 
     GAME->Add_Camera(GetSharedPtr<Camera>());
-    GAME->Change_ActiveCamera(GetSharedPtr<Camera>());
+    CLIENT->Request_GamePlay();
 
     Refresh_TargetTransform();
 
@@ -107,8 +107,8 @@ void TargetCamera::Priority_Update(float timeDelta)
 
     if (GAME->Is_WorldGameplayInputBlocked())
     {
-        if (_currentState == CAMERA_STATE::AIM)
-            Change_State(CAMERA_STATE::NORMAL);
+        if (_currentState == TargetCameraMode::AIM)
+            Change_Mode(TargetCameraMode::NORMAL);
 
         return;
     }

@@ -145,7 +145,7 @@ void BattleController::OnEnterBattleField(uint32 FieldID, bool IsFirstHero, cons
 
 	// 월드 캐릭터 입력 막기
 	GAME->Set_PlayerInputBlocked(true);
-	_worldCamera = GAME->Get_ActiveCamera();
+	//_worldCamera = GAME->Get_ActiveCamera();
     GAME->Slow_WorldTime(_battleEnterWorldTimeScale, _battleEnterDuration);
 }
 
@@ -159,8 +159,9 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
     CLIENT->Stop_BattleEnterTransition();
     GAME->Stop_WorldTimeSlow();
 
-	Restore_WorldCamera(); // 카메라 복구
-
+	//Restore_WorldCamera(); // 카메라 복구
+    CLIENT->Restore_PreviousCamera();
+    GAME->Set_PlayerInputBlocked(false);
     // 도망치기
     // 실패
     // 성공
@@ -712,16 +713,18 @@ void BattleController::Activate_BattleTurnCamera()
         return;
 
 	_battleTurnCamera->Focus_Battle(_heroes, _enemies);
-	GAME->Change_ActiveCamera(_battleTurnCamera);
+
+    CLIENT->Request_BattleTurn();
+	//GAME->Change_ActiveCamera(_battleTurnCamera);
 }
 
 void BattleController::Restore_WorldCamera()
 {
-	if (_worldCamera)
-        GAME->Change_ActiveCamera(_worldCamera);
-
+	//if (_worldCamera)
+    //    GAME->Change_ActiveCamera(_worldCamera);
+    CLIENT->Restore_PreviousCamera();
     GAME->Set_PlayerInputBlocked(false);
-    _worldCamera.reset();
+  //  _worldCamera.reset();
 }
 
 void BattleController::Complete_BattleField()
@@ -738,8 +741,8 @@ void BattleController::Complete_BattleField()
     _battleEnded = false;
     _pendingNextTurn = false;
 
-    // 카메라 저장
-    _worldCamera = GAME->Get_ActiveCamera();
+    //// 카메라 저장
+    //_worldCamera = GAME->Get_ActiveCamera();
 
     // 현제 케릭 아이디 , 적 아이디로 전투 용 객체 생성
     Create_BattleChar(_pendingBattleHeroIds, _pendingBattleMonsterPrefabNames);
