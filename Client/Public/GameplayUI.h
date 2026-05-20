@@ -39,10 +39,10 @@ private:
     void                Handle_InputModeChanged(GameplayUIInputMode previousMode, GameplayUIInputMode currentMode);
 
 private:
-    Unique<GameplayUI_World> _worldUI;   // 월드 UI는 GameplayUI 하나만 소유한다.
-    Shared<GameplayUI_Battle> _battleUI; // 배틀 UI는 delegate 직접 구독 때문에 Shared로 둔다.
+    Unique<GameplayUI_World>    _worldUI;  // 월드 UI는 GameplayUI 하나만 소유
+    Shared<GameplayUI_Battle>   _battleUI; // 배틀 UI는 delegate 직접 구독 때문에 Shared로 둔다.
 
-    GameplayUIInputMode _lastInputMode = GameplayUIInputMode::World;
+    GameplayUIInputMode         _lastInputMode = GameplayUIInputMode::World;
 
 public:
     static Shared<GameplayUI> Create(uint32 levelIndex);

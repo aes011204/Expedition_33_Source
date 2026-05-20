@@ -25,6 +25,9 @@ public:
 
     void    Refresh_ForState(BattleTurnState state);
 
+public:
+    void    Set_TargetWorldPosition(const Vec3& worldPos);
+
 private:
     HRESULT Load_UI(uint32 levelIndex);
     HRESULT Bind_UI();
@@ -38,8 +41,12 @@ private:
     Shared<UI_Base> _itemButton{};
     Shared<UI_Base> _shotButton{};
 
+private:
     Vec2 _normalScale = Vec2(1.f, 1.f);
     Vec2 _highlightScale = Vec2(1.08f, 1.08f);
+
+    Vec3 _targetWorldPos = Vec3::Zero;
+    bool _hasTargetWorldPos = false;
 
 public:
     static Unique<UI_BattleCommandHUD> Create(uint32 levelIndex);

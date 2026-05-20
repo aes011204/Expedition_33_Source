@@ -406,16 +406,16 @@ void BattleController::SetCharInitPos()
 
     const Vec3 playerPos[3] =
     {
-        { 3.f, 0.f, 0.f },
-        { 0.f, 0.f, 0.f },
         { -3.f, 0.f, 0.f },
+        { 0.f, 0.f, 0.f },
+        { 3.f, 0.f, 0.f },
     };
 
     const Vec3 enemyPos[3] =
     {
-        { 3.f, 0.f, 10.f },
-        { 0.f, 0.f, 10.f },
         { -3.f, 0.f, 10.f },
+        { 0.f, 0.f, 10.f },
+        { 3.f, 0.f, 10.f },
     };
 
     // 임시

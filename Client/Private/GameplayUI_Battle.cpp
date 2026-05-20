@@ -122,6 +122,8 @@ void GameplayUI_Battle::Handle_BattleStarted(uint32 fieldId, bool isFirstHero)
     _isPlayerTurnUiActive = false;
     _hasTargetPreviewSnapshot = false;
     _targetPreviewSnapshot = {};
+    _hasCurrentPlayerTurnActor = false;
+    _currentPlayerTurnActor = {};
 
     if (_battleCommandHUD)
         _battleCommandHUD->Close(); // 전투 시작 직후에는 아직 BattleCommand UI 안보여줌
@@ -140,6 +142,8 @@ void GameplayUI_Battle::Handle_BattleEnded(EBattleEndResult result)
     _isPlayerTurnUiActive = false;
     _hasTargetPreviewSnapshot = false;
     _targetPreviewSnapshot = {};
+    _hasCurrentPlayerTurnActor = false;
+    _currentPlayerTurnActor = {};
 
     if (_battleCommandHUD)
         _battleCommandHUD->Close();
@@ -158,6 +162,17 @@ void GameplayUI_Battle::Handle_TurnStarted(const BattleChar& actor, BattleTurnSt
     _isPlayerTurnUiActive =
         (actor.statCom != nullptr && actor.statCom->Is_Player());
 
+    if (_isPlayerTurnUiActive)
+    {
+        _currentPlayerTurnActor = actor;
+        _hasCurrentPlayerTurnActor = true;
+    }
+    else
+    {
+        _currentPlayerTurnActor = {};
+        _hasCurrentPlayerTurnActor = false;
+    }
+
     if (_battleCommandHUD)
     {
         if (_isPlayerTurnUiActive)
@@ -172,6 +187,8 @@ void GameplayUI_Battle::Handle_TurnEnded(const BattleChar& actor)
     UNREFERENCED_PARAMETER(actor);
 
     _isPlayerTurnUiActive = false;
+    _hasCurrentPlayerTurnActor = false;
+    _currentPlayerTurnActor = {};
 
     if (_battleCommandHUD)
         _battleCommandHUD->Close();
@@ -244,6 +261,17 @@ bool GameplayUI_Battle::Try_GetTargetHpBarWorldPos(const BattleChar& target, Vec
     return true;
 }
 
+bool GameplayUI_Battle::Try_GetBattleCommandHudWorldPos(const BattleChar& actor, Vec3& outWorldPos) const
+{
+    if (actor.actor == nullptr || actor.actor->Get_Transform() == nullptr)
+        return false;
+
+    outWorldPos = actor.actor->Get_Transform()->Get_WorldPosition();
+    outWorldPos.y += 0.8f;
+
+    return true;
+}
+
 void GameplayUI_Battle::Update_BattleCommandHUD()
 {
     if (_battleCommandHUD == nullptr)
@@ -262,6 +290,23 @@ void GameplayUI_Battle::Update_BattleCommandHUD()
         return;
     }
 
+    const BattleTurnState currentState = battleController->Get_CurrentTurnState();
+
+    if (currentState == BattleTurnState::AttackTargeting)
+    {
+        _battleCommandHUD->Close(); // 공격 중에는 커맨드 HUD 숨기기
+        return;
+    }
+
+    Vec3 worldPos{};
+    if (!Try_GetBattleCommandHudWorldPos(_currentPlayerTurnActor, worldPos))
+    {
+        _battleCommandHUD->Close();
+        return;
+    }
+
+    _battleCommandHUD->Open();
+    _battleCommandHUD->Set_TargetWorldPosition(worldPos);
     _battleCommandHUD->Refresh_ForState(battleController->Get_CurrentTurnState());
 }
 

@@ -22,7 +22,18 @@ void UI_BattleCommandHUD::Update(float timeDelta)
 {
     UNREFERENCED_PARAMETER(timeDelta);
 
+    if (!_isOpen || !_hasTargetWorldPos)
+        return;
 
+    Vec2 screenPos{};
+    if (!Try_ProjectWorldToScreen(_targetWorldPos, screenPos))
+    {
+        Close();
+        return;
+    }
+
+    if (_root && _root->Get_Transform())
+        _root->Get_Transform()->Set_Position(screenPos);
 }
 
 void UI_BattleCommandHUD::Open()
@@ -32,6 +43,7 @@ void UI_BattleCommandHUD::Open()
 
 void UI_BattleCommandHUD::Close()
 {
+    _hasTargetWorldPos = false;
     UI_RuntimePanelBase::Close();
 
     Apply_DefaultHighlight(); 
@@ -67,6 +79,12 @@ void UI_BattleCommandHUD::Refresh_ForState(BattleTurnState state)
     default:
         break; // 커맨드 선택 대기 상태에서는 기본 상태 유지
     }
+}
+
+void UI_BattleCommandHUD::Set_TargetWorldPosition(const Vec3& worldPos)
+{
+    _targetWorldPos = worldPos;
+    _hasTargetWorldPos = true;
 }
 
 HRESULT UI_BattleCommandHUD::Load_UI(uint32 levelIndex)

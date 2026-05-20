@@ -38,7 +38,13 @@ private:
 
     void    Update_BattleCommandHUD();
     void    Update_MonsterHpBar();
+
+private:
+    // 타겟 체력바 위치
     bool    Try_GetTargetHpBarWorldPos(const BattleChar& target, Vec3& outWorldPos) const; // 계산한 월드 위치를 호출부 worldPos에 실제로 반영하려면 참조로 받아야 한다.
+
+    // 임시) 턴 진행중인 플레이어한테 Battle HUD 띄우기
+    bool    Try_GetBattleCommandHudWorldPos(const BattleChar& actor, Vec3& outWorldPos) const;
 
 private:
     // 전투 진입 테스트용 페이드 UI
@@ -54,10 +60,14 @@ private:
     FDelegateHandle          _turnEndedHandle{};
     FDelegateHandle          _targetPreviewChangedHandle{};
 
-    BattleChar _targetPreviewSnapshot{};
-    bool       _hasTargetPreviewSnapshot = false;
-    bool       _isBattleUiActive = false;
-    bool       _isPlayerTurnUiActive = false;
+    BattleChar               _targetPreviewSnapshot{};
+    bool                     _hasTargetPreviewSnapshot = false;
+    bool                     _isBattleUiActive = false;
+    bool                     _isPlayerTurnUiActive = false;
+
+private:
+    BattleChar               _currentPlayerTurnActor{}; // 현재 턴 진행중인 플레이어
+    bool                     _hasCurrentPlayerTurnActor = false;
 
 public:
     static Shared<GameplayUI_Battle> Create(uint32 levelIndex);

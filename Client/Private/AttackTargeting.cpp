@@ -65,7 +65,13 @@ void AttackTargeting::Update(float timeDelta)
     if (enemies.empty())
         return;
 
-    if (GAME->KeyDown(KEY_TYPE::KEY_1))
+    if (GAME->KeyDown(KEY_TYPE::ESCAPE))
+    {
+        battleFSM->Change_State(BattleTurnState::ChooseAction);
+        return;
+    }
+
+    if (GAME->KeyDown(KEY_TYPE::F))
     {
         owner->Set_TargetPreview(enemies[TargetIndex]);
         owner->Get_TurnAction().target = owner->Get_AliveEnemies()[TargetIndex];
@@ -77,19 +83,33 @@ void AttackTargeting::Update(float timeDelta)
         LOG_DEBUG("AttackTargeting: selected skill={}", owner->Get_TurnAction()._selected_SkillKey.scriptClassName.c_str());
 
         owner->ExecuteAction(owner->Get_TurnAction());
-
         return;
     }
 
-    if (GAME->KeyDown(KEY_TYPE::KEY_2))
+    if (GAME->KeyDown(KEY_TYPE::A))
     {
-        TargetIndex = (TargetIndex + 1) % owner->Get_AliveEnemies().size();
+        // 왼쪽 끝
+        if (Try_MoveTargetIndex(-1, enemies.size()) == false)
+            return;
+
         owner->Set_TargetPreview(enemies[TargetIndex]);
         LOG_DEBUG("TARGETTING {}", TargetIndex);
 
         // 임시 기본 공격은 무조건 적 공격 이라는 가정 / 동료 치료 불가
         return;
     }
+
+    if (GAME->KeyDown(KEY_TYPE::D))
+    {
+        // 오른쪽 끝
+         if (Try_MoveTargetIndex(+1, enemies.size()) == false)
+            return;
+
+        owner->Set_TargetPreview(enemies[TargetIndex]);
+        LOG_DEBUG("TARGETTING {}", TargetIndex);
+        return;
+    }
+
 
 }
 
@@ -106,6 +126,26 @@ void AttackTargeting::ExitInvoke()
         owner->Clear_TargetPreview();
 
     Battle_State::ExitInvoke();
+}
+
+bool AttackTargeting::Try_MoveTargetIndex(int32 direction, size_t enemyCount)
+{
+    if (enemyCount == 0)
+        return false;
+
+    int32 nextIndex = static_cast<int32>(TargetIndex);
+
+    while (true)
+    {
+        nextIndex += direction; // A면 왼쪽, D면 오른쪽
+
+        // 범위 밖으로 나가면 막기
+        if (nextIndex < 0 || nextIndex >= static_cast<int32>(enemyCount))
+            return false;
+
+        TargetIndex = static_cast<uint32>(nextIndex);
+        return true;
+    }
 }
 
 void AttackTargeting::Free()

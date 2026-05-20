@@ -30,7 +30,6 @@ private:
     HRESULT Load_UI(uint32 levelIndex);
     HRESULT Bind_UI();
 
-    bool    Try_ProjectWorldToScreen(const Vec3& worldPos, Vec2& outScreenPos) const;
     void    Apply_HpGauge(float ratio);
 
 private:
