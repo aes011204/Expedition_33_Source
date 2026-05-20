@@ -44,8 +44,6 @@ void ModelSceneWindow::Render()
         float gridMatrix[16];
         XMStoreFloat4x4((XMFLOAT4X4*)gridMatrix, XMMatrixIdentity());
 
-        ImGuizmo::DrawGrid(reinterpret_cast<float*>(&view), reinterpret_cast<float*>(&proj), gridMatrix, 1000.f);
-
         Render_ViewportCanvas();
     }
     ImGui::End();
@@ -69,11 +67,11 @@ void ModelSceneWindow::Render_ViewportCanvas()
 
     imguiManager->Request_ViewportSize(width, height);
 
-    ID3D11ShaderResourceView* pSRV = imguiManager->Get_SharedViewportSRV();
-    if (nullptr != pSRV)
+    ID3D11ShaderResourceView* srv = imguiManager->Get_SharedViewportSRV();
+    if (nullptr != srv)
     {
         const ImTextureID textureId =
-            static_cast<ImTextureID>(reinterpret_cast<intptr_t>(pSRV));
+            static_cast<ImTextureID>(reinterpret_cast<intptr_t>(srv));
 
         ImGui::Image(textureId, _viewportSize);
     }

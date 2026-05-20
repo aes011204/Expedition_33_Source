@@ -816,6 +816,9 @@ bool ModelCom::Play_Animation(float timeDelta)
 
 HRESULT ModelCom::Bind_Material(ShaderCom* shader, const char* constantName, uint32 meshIndex, MaterialTextureSlot slot, uint32 textureIndex)
 {
+    if (_materials.empty() || meshIndex >= _materials.size())
+        return E_FAIL;
+
     return _materials[_meshes[meshIndex]->Get_MaterialIndex()]->Bind_Material(shader, constantName, slot, textureIndex);
 }
 
