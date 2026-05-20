@@ -435,7 +435,6 @@ public: /* For.Debug_Manager */
     void                    Draw_DebugBox(const DebugBoxDesc& desc);
     void                    Draw_DebugSphere(const DebugSphereDesc& desc);
     void                    Draw_DebugLine(const DebugLineDesc& desc);
-    void                    Draw_Grid(size_t xdivs, size_t ydivs, float size, const Vec4& color = Vec4(0.5f, 0.5f, 0.5f, 1.f));
     void                    Draw_DebugTraceLine(const DebugTraceLineDesc& desc);
 
     void                    Clear_DebugDraws();
