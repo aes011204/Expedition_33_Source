@@ -26,6 +26,8 @@ public:
 public:
     void Focus_Battle(const vector<BattleChar>& heroes, const vector<BattleChar>& enemies);
 
+    void Update_FreeAimRotation(float timeDelta);
+
     Vec3 Get_AimOrigin() const;                // 히트스캔 시작 위치
     Vec3 Get_AimDirection() const;             // 히트스캔 방향
 
