@@ -29,6 +29,20 @@ bool FreeAimTargeting::EnterInvoke()
 {
     Clear_HitTarget();
 
+    auto owner = Get_Owner();
+    if (!owner)
+        return false;
+
+    const auto battleCamera = owner->Get_BattleTurnCamera();
+    if (battleCamera)
+    {
+        const Vec3 currentRot = battleCamera->Get_Transform()->Get_RotationEuler();
+        battleCamera->Set_Yaw(currentRot.y);
+        battleCamera->Set_Pitch(currentRot.x);
+    }
+
+    //GAME->Lock_Mouse();
+
     return Battle_State::EnterInvoke();
 }
 
@@ -42,7 +56,10 @@ void FreeAimTargeting::Update(float timeDelta)
     if (!owner || !battleFSM)
         return;
 
-    Refresh_HitTarget();
+    if (const auto battleCamera = owner->Get_BattleTurnCamera())
+    battleCamera->Update_FreeAimRotation(timeDelta); // Free Aim 상태에서만 카메라 회전 갱신
+
+    Refresh_HitTarget(); // 회전된 카메라 방향 기준으로 적 히트 판정
 
     if (GAME->KeyDown(KEY_TYPE::ESCAPE))
     {
@@ -81,6 +98,7 @@ void FreeAimTargeting::LateUpdate(float timeDelta)
 
 void FreeAimTargeting::ExitInvoke()
 {
+    //GAME->Unlock_Mouse();
     Clear_HitTarget();
 
     Battle_State::ExitInvoke();

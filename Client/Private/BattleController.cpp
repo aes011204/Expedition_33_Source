@@ -728,7 +728,7 @@ HRESULT BattleController::Ready_BattleTurnCamera()
     desc.fovy = XMConvertToRadians(45.f);
     desc.nearPlane = 0.1f;
     desc.farPlane = 500.f;
-    desc.mouseSensor = 0.f;
+    desc.mouseSensor = 0.15f;
     desc.mouseSensitivity = 0.f;
 
     Shared<GameObject> cameraObject;

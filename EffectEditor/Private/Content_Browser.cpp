@@ -252,7 +252,7 @@ void Content_Browser::Load_Icons()
 
     iconRoot /= L"Textures";
     iconRoot /= L"UI";
-    iconRoot /= L"Icon";
+    iconRoot /= L"Common";
     iconRoot /= L"FileType";
 
     const auto load_texture = [&](const wchar_t* fileName) -> Shared<Texture>

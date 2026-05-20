@@ -50,7 +50,7 @@ private: //## Static Values
     };
 
 private: //## Data
-    FolderNode _rootFolder{};
+    FolderNode  _rootFolder{};
     FolderNode* _currentFolder{ nullptr };
 
     filesystem::path _resourceRoot{};
