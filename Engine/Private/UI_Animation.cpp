@@ -349,6 +349,22 @@ void UI_AnimationPlayer::Stop()
     _isPlaying = false;
 }
 
+bool UI_AnimationPlayer::Play_KeyframeAnimation(const wstring& animationName, bool restart)
+{
+    const size_t assetIndex = Find_KeyframeAssetIndex(animationName);
+    if (assetIndex == numeric_limits<size_t>::max())
+        return false; // 이름이 없으면 실패 반환
+
+    if (!restart && _isPlaying && _activeKeyframeAssetIndex == assetIndex)
+        return true; // 이미 같은 animation 재생 중이면 유지 가능
+
+    _activeClipIndex = numeric_limits<size_t>::max(); // 수동 선택 재생 시 clip 자동재생은 끈다.
+    _activeKeyframeAssetIndex = assetIndex;
+    _time = 0.f;
+    _isPlaying = true;
+    return true;
+}
+
 bool UI_AnimationPlayer::Update(float deltaTime, UI_AnimationSample& outSample)
 {
     if (!_isPlaying)
@@ -423,6 +439,17 @@ size_t UI_AnimationPlayer::Find_PlayOnOpenKeyframeAssetIndex() const
     {
         const UI_KeyframeAnimationAsset& asset = _keyframeAssets[index];
         if (asset.enabled && asset.playOnOpen)
+            return index;
+    }
+
+    return numeric_limits<size_t>::max();
+}
+
+size_t UI_AnimationPlayer::Find_KeyframeAssetIndex(const wstring& animationName) const
+{
+    for (size_t index = 0; index < _keyframeAssets.size(); ++index)
+    {
+        if (_keyframeAssets[index].name == animationName)
             return index;
     }
 

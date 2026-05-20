@@ -51,7 +51,7 @@ public:
         umap<wstring, Shared<UI_Base>> tooltipsByName;
         umap<wstring, Shared<UI_Base>> tooltips;
 
-              
+             
         Shared<UI_Text>                levelText{};
 
         Shared<UI_Text>                vitalityText{};

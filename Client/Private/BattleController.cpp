@@ -24,6 +24,7 @@
 #include "Camera.h"
 #include "TargetCamera.h"
 #include "BattleActionExecutor.h"
+#include "FreeAimTargeting.h"
 
 BattleController::BattleController()
 {
@@ -192,6 +193,10 @@ void BattleController::ExecuteAction(Action turnAction)
     {
     case EBattleContext::BaseAttack:
         Execute_BaseAttack(BattleChar, turnAction);
+        break;
+
+    case EBattleContext::FreeAimShoot:
+        Execute_BaseAttack(BattleChar, turnAction); // 일단 테스트는 기본 평타 사용
         break;
 
     case EBattleContext::Skill:
@@ -723,7 +728,7 @@ HRESULT BattleController::Ready_BattleTurnCamera()
     desc.fovy = XMConvertToRadians(45.f);
     desc.nearPlane = 0.1f;
     desc.farPlane = 500.f;
-    desc.mouseSensor = 0.f;
+    desc.mouseSensor = 0.15f;
     desc.mouseSensitivity = 0.f;
 
     Shared<GameObject> cameraObject;
@@ -833,6 +838,7 @@ void BattleController::Set_BattleFSM()
     _battleFSM->Add_State(BattleTurnState::ItemTargeting, ItemTargeting::Create(dynamic_pointer_cast<BattleController>(shared_from_this())));
     _battleFSM->Add_State(BattleTurnState::UltimateTargeting, UltimateTargeting::Create(dynamic_pointer_cast<BattleController>(shared_from_this())));
     _battleFSM->Add_State(BattleTurnState::ChooseUltimate, ChooseUltimate::Create(dynamic_pointer_cast<BattleController>(shared_from_this())));
+    _battleFSM->Add_State(BattleTurnState::FreeAimTargeting, FreeAimTargeting::Create(dynamic_pointer_cast<BattleController>(shared_from_this())));
 
     //_battleFSM->Change_State(BattleTurnState::ChooseAction);
 }

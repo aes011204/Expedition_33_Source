@@ -26,8 +26,19 @@ public:
 public:
     void Focus_Battle(const vector<BattleChar>& heroes, const vector<BattleChar>& enemies);
 
+    void Update_FreeAimRotation(float timeDelta);
+
+    Vec3 Get_AimOrigin() const;                // 히트스캔 시작 위치
+    Vec3 Get_AimDirection() const;             // 히트스캔 방향
+
+    bool Is_FreeAimActive() const { return _isFreeAimActive; }
+
 private:
     void Apply_LookAt(const Vec3& cameraPos, const Vec3& lookAt);
+    void Apply_FreeAimCamera();                
+
+private:
+    bool  _isFreeAimActive = false;            
 
 public:
     static Shared<BattleTurnCamera> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

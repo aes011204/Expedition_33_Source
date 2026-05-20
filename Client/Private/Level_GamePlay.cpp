@@ -258,7 +258,7 @@ HRESULT Level_GamePlay::Ready_Layer_Effect(const wstring& strLayerTag)
 {
 #pragma region Effect Test
     Shared<const EffectDefinition> effectDefinition =
-        EffectAssetRuntimeLoader::Load_Definition(L"Effects/Assets/Lune_Thunder_Fall_Charge.effect.json");
+        EffectAssetRuntimeLoader::Load_DefinitionByName(L"Lune_Thunder_Fall_Charge");
     CHECK_NULL(effectDefinition, E_FAIL);
 
     const Shared<GameObject> player = CLIENT->Find_Player(ETOI(LevelType::GamePlay));
@@ -282,7 +282,7 @@ HRESULT Level_GamePlay::Ready_Layer_Effect(const wstring& strLayerTag)
         E_FAIL
     );
 
-    effectDefinition = EffectAssetRuntimeLoader::Load_Definition(L"Effects/Assets/Lune_Thunder_Fall_Charge_Blue.effect.json");
+    effectDefinition = EffectAssetRuntimeLoader::Load_DefinitionByName(L"Lune_Thunder_Fall_Charge_Blue");
     CHECK_NULL(effectDefinition, E_FAIL);
 
     EffectInstanceDesc blueEffectDesc{};

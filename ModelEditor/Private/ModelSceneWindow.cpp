@@ -29,7 +29,25 @@ void ModelSceneWindow::Render()
         if (_viewportSize.y < 1.f) _viewportSize.y = 1.f;
 
         ImVec2 canvasPos = ImGui::GetCursorScreenPos();
+        ImVec2 canvasEnd = ImVec2(canvasPos.x + _viewportSize.x, canvasPos.y + _viewportSize.y);
+        ImDrawList* pDrawList = ImGui::GetWindowDrawList();
+
+        // 1. 배경 레이어
+        pDrawList->AddRectFilled(canvasPos, canvasEnd, IM_COL32(38, 42, 50, 255));
+
+        // 2. 그리드 레이어 (배경 위에 그리고, 모델 이미지보다 먼저 그려서 모델 뒤에 깔리게 함)
+        ImGuizmo::BeginFrame();
+        ImGuizmo::SetRect(canvasPos.x, canvasPos.y, _viewportSize.x, _viewportSize.y);
+        ImGuizmo::SetDrawlist(pDrawList);
+
+        Matrix view = *GAME->Get_Transform(D3DTS::View);
+        Matrix proj = *GAME->Get_Transform(D3DTS::Proj);
+        float gridMatrix[16];
+        XMStoreFloat4x4((XMFLOAT4X4*)gridMatrix, XMMatrixIdentity());
         
+        ImGuizmo::DrawGrid(reinterpret_cast<float*>(&view), reinterpret_cast<float*>(&proj), gridMatrix, 1000.f);
+
+        // 3. 오브젝트 레이어 (가장 위에 그려짐, 투명한 영역으로 그리드가 보임)
         auto imguiManager = ModelImGui_Manager::GetInstance();
         if (imguiManager)
         {
@@ -39,17 +57,14 @@ void ModelSceneWindow::Render()
             if (srv)
             {
                 const ImTextureID textureId = static_cast<ImTextureID>(reinterpret_cast<intptr_t>(srv));
-                // 엔진에서 이미 Background > Grid > Object 순서로 그려진 이미지를 출력
-                ImGui::Image(textureId, _viewportSize);
+                pDrawList->AddImage(textureId, canvasPos, canvasEnd);
             }
             else
             {
-                ImGui::GetWindowDrawList()->AddRectFilled(canvasPos, ImVec2(canvasPos.x + _viewportSize.x, canvasPos.y + _viewportSize.y), IM_COL32(38, 42, 50, 255));
-                ImGui::Text("Scene RenderTarget Missing");
+                pDrawList->AddText(ImVec2(canvasPos.x + 12.f, canvasPos.y + 12.f), IM_COL32(210, 216, 224, 255), "Scene RenderTarget Missing");
             }
         }
 
-        // 마우스 입력을 위한 투명 버튼
         ImGui::InvisibleButton("SceneViewportCanvas", _viewportSize);
     }
     ImGui::End();

@@ -411,6 +411,7 @@ namespace ModelEditor
         }
 
         ReadMeshes(_aiScene);
+        ReadMaterial(_aiScene);
 		ReadAnimations(_aiScene);
 		Ensure_DirectoryExists(outputDir);
 
