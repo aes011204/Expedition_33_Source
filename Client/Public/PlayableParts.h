@@ -4,6 +4,7 @@
 NS_BEGIN(Engine)
 class ShaderCom;
 class ModelCom;
+class AnimComputeRuntime;
 NS_END
 
 NS_BEGIN(Client)
@@ -28,12 +29,17 @@ public:
     const Matrix* Get_SocketBoneMatrixPtr(uint32 boneIndex) const;
     void Set_Animation(uint32 animIndex, float blendDuration, bool isLoop = false) const;
     void Set_Animation(uint32 animIndex, bool isLoop) const;
-    void Set_AnimationByState(uint32 stateIndex, float blendDuration, bool isLoop = false) const;
-    void Set_AnimationByState(uint32 stateIndex, bool isLoop) const;
+    bool Set_AnimationByState(uint32 stateIndex, float blendDuration, bool isLoop = false) const;
+    bool Set_AnimationByState(uint32 stateIndex, bool isLoop) const;
     uint32 Get_AnimationIndex() const;
     uint32 Get_AnimationStateIndex() const;
     float Get_AnimationProgress() const;
+    bool Is_AnimationBlending() const;
     bool Is_AnimationFinished() const;
+    Vec3 Get_RootMotionPosition() const;
+
+    void Set_AnimationSpeed(float speed) const;
+    float Get_AnimationSpeed() const;
 
     Shared<ModelCom> Get_Model() const { return _modelCom; }
 
@@ -55,10 +61,11 @@ protected:
     void Update_CombinedWorldMatrix(const Matrix& childMatrix) override;
 
 protected:
-    Matrix              _offsetMatrix{};
-    const Matrix*       _socketMatrix{ nullptr };
-    Shared<ShaderCom>   _shaderCom{ nullptr };
-    Shared<ModelCom>    _modelCom{ nullptr };
+    Matrix                      _offsetMatrix{};
+    const Matrix*               _socketMatrix{ nullptr };
+    Shared<ShaderCom>           _shaderCom{ nullptr };
+    Shared<ModelCom>            _modelCom{ nullptr };
+    Shared<AnimComputeRuntime>  _animComputeRuntime{ nullptr };
 
 protected:
     virtual HRESULT Ready_Components(const PLAYABLE_PART_DESC& desc);

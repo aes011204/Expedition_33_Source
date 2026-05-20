@@ -165,6 +165,14 @@ namespace Engine
         All = (1 << 5) - 1
     };
 
+    enum class GameplayInputMode
+    {
+        Normal,         // 기본 월드 플레이
+        UIOnly,         // UI 입력만 허용, 월드 입력차단
+        Cutscene,       // 컷신처럼 월드 입력 차단
+        BattleMenu      // 배틀 메뉴 선택
+    };
+
 
 }
 

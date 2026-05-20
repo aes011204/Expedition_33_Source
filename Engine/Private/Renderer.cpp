@@ -346,7 +346,7 @@ void Renderer::Render_SSAO()
 
         RETURN_LOG_IF_FAILED(
             GAME->Begin_MRT(MRT::SSAOBlur, NotUseDSV, ClearRTV),
-            L"Render_SSAO:FAIL Begin_MRT(SSAOBlur-ClearOnly)"); 
+            L"Render_SSAO:FAIL Begin_MRT(SSAOBlur-ClearOnly)");
 
         if (FAILED(GAME->End_MRT()))
             return;
@@ -874,7 +874,7 @@ HRESULT Renderer::Ready_RenderTargets()
 
     // PostProcess
     CHECK_FAILED(GAME->Add_MRT(MRT::HDR, RT::HDRColor), E_FAIL);
-    CHECK_FAILED(GAME->Add_MRT(MRT::HDR, RT::BackgroundMask), E_FAIL);
+    // CHECK_FAILED(GAME->Add_MRT(MRT::HDR, RT::BackgroundMask), E_FAIL);
 
     CHECK_FAILED(GAME->Add_MRT(MRT::BloomExtract, RT::BloomExtract), E_FAIL);
 

@@ -316,9 +316,6 @@
     <ClInclude Include="..\Public\Renderer_Define.h">
       <Filter>01.Utility\05.Renderer</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\EnumFlags.h">
-      <Filter>01.Utility\98. Utils</Filter>
-    </ClInclude>
     <ClInclude Include="..\Public\InstanceCullParams.h">
       <Filter>99. Defines</Filter>
     </ClInclude>
@@ -341,9 +338,6 @@
       <Filter>99. Defines\Types</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Material_Define.h">
-      <Filter>99. Defines</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\Material_Types.h">
       <Filter>99. Defines</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\AnimState_Parser.h">
@@ -403,6 +397,22 @@
     <ClInclude Include="..\public\UI_Panel.h">
       <Filter>01.Utility\11. UI</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\AnimComputeRuntime.h" />
+    <ClInclude Include="..\Public\AnimCompute_Types.h" />
+    <ClInclude Include="..\Public\EnumFlags.h" />
+    <ClInclude Include="..\Public\StaticCollisionData.h" />
+    <ClInclude Include="..\Public\Particle_Types.h">
+      <Filter>99. Defines\Types</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Material_Types.h">
+      <Filter>99. Defines\Types</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Vertex_Types.h">
+      <Filter>99. Defines\Types</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Debug_Types.h">
+      <Filter>99. Defines\Types</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\public\Base.h">
@@ -427,9 +437,6 @@
       <Filter>99. Defines</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Engine_Enum.h">
-      <Filter>99. Defines</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\Vertex_Types.h">
       <Filter>99. Defines</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Collision_Define.h">
@@ -558,9 +565,6 @@
     <ClInclude Include="..\Public\Debug_Manager.h">
       <Filter>97. Manager\Debug</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\Debug_Types.h">
-      <Filter>99. Defines</Filter>
-    </ClInclude>
     <ClInclude Include="..\Public\DebugDraw.h">
       <Filter>97. Manager\Debug</Filter>
     </ClInclude>
@@ -653,9 +657,6 @@
     </ClInclude>
     <ClInclude Include="..\Public\PhysX_Manager.h">
       <Filter>97. Manager\PhysX</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\Particle_Types.h">
-      <Filter>99. Defines</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\VIBufferCom_Instance.h">
       <Filter>01.Utility\04.Component\VIBuffer\Instance</Filter>
@@ -994,6 +995,7 @@
     <ClCompile Include="..\private\UI_Panel.cpp">
       <Filter>01.Utility\11. UI</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\AnimComputeRuntime.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Bin\ShaderFiles\Engine_Shader_Defines.hlsli">
@@ -1025,6 +1027,7 @@
     <None Include="..\Bin\ShaderFiles\Engine_Shader_Deferred.hlsl">
       <Filter>02.ShaderFiles</Filter>
     </None>
+    <None Include="..\Bin\ShaderFiles\Engine_Shader_ComputeAnimTypes.hlsli" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Engine.rc">

@@ -310,12 +310,12 @@ HRESULT MapInstancedMesh::CreateCullBuffers(const vector<Matrix>& matrices, cons
         D3D11_BUFFER_DESC bd{};
         bd.ByteWidth = sizeof(Matrix) * count;
         bd.Usage = D3D11_USAGE_DEFAULT;
-        bd.BindFlags = D3D11_BIND_VERTEX_BUFFER | D3D11_BIND_UNORDERED_ACCESS;
+        bd.BindFlags = D3D11_BIND_UNORDERED_ACCESS;
         bd.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
         bd.StructureByteStride = sizeof(Matrix);
 
-        _visibleVB.Reset();
-        if (FAILED(_device->CreateBuffer(&bd, nullptr, _visibleVB.GetAddressOf())))
+        _visibleStructured.Reset();
+        if (FAILED(_device->CreateBuffer(&bd, nullptr, _visibleStructured.GetAddressOf())))
         {
             return E_FAIL;
         }
@@ -327,7 +327,18 @@ HRESULT MapInstancedMesh::CreateCullBuffers(const vector<Matrix>& matrices, cons
         uavd.Buffer.Flags = D3D11_BUFFER_UAV_FLAG_APPEND;
 
         _visibleUAV.Reset();
-        if (FAILED(_device->CreateUnorderedAccessView(_visibleVB.Get(), &uavd, _visibleUAV.GetAddressOf())))
+        if (FAILED(_device->CreateUnorderedAccessView(_visibleStructured.Get(), &uavd, _visibleUAV.GetAddressOf())))
+        {
+            return E_FAIL;
+        }
+
+        D3D11_BUFFER_DESC vbd{};
+        vbd.ByteWidth = sizeof(Matrix) * count;
+        vbd.Usage = D3D11_USAGE_DEFAULT;
+        vbd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+
+        _visibleVB.Reset();
+        if (FAILED(_device->CreateBuffer(&vbd, nullptr, _visibleVB.GetAddressOf())))
         {
             return E_FAIL;
         }
@@ -403,6 +414,7 @@ void MapInstancedMesh::DispatchCull()
     ID3D11UnorderedAccessView* nullUAV = {};
     _context->CSSetUnorderedAccessViews(0, 1, &nullUAV, nullptr);
 
+    _context->CopyResource(_visibleVB.Get(), _visibleStructured.Get());
     _context->CopyStructureCount(_countStaging.Get(), 0, _visibleUAV.Get());
 
     D3D11_MAPPED_SUBRESOURCE countMapped{};
@@ -466,6 +478,7 @@ Shared<GameObject> MapInstancedMesh::Clone(void* arg)
 
 void MapInstancedMesh::Free()
 {
+    _visibleStructured.Reset();
     _visibleUAV.Reset();
     _visibleVB.Reset();
     _cullCB.Reset();

@@ -10,6 +10,13 @@ class VIBuffer_Rect;
 class ENGINE_DLL UI_Image final : public UI_Base
 {
 public:
+    enum class MaskMode : uint8
+    {
+        None,
+        TextureMask,
+        CircularHole,
+    };
+
     struct UI_IMAGE_DESC : public UI_Base::UI_DESC
     {
         wstring texturePath{};
@@ -19,6 +26,12 @@ public:
         wstring shaderPrototypeTag{ L"Shader_UI" };
         uint32 viBufferPrototypeLevelIndex{ 0 };
         wstring viBufferPrototypeTag{ L"VIBuffer_Rect" };
+
+        // 인수: 원형 마스크 추가
+        MaskMode maskMode = MaskMode::None;
+        Vec2 holeCenterUV{ 0.5f, 0.5f }; // 화면 중앙
+        float holeRadius = 0.f;
+        float holeFeather = 0.05f;
     };
 
 public:
@@ -35,6 +48,13 @@ public:
     void Set_OverlayEnabled(bool boolean) {_isOverlay = boolean;}
     void Set_GrayScaleEnabled(bool boolean) {_useGrayScale = boolean;}
     void Set_GrayAmount(float amount) {_grayAmount = amount;}
+
+public:
+    void Set_MaskMode(MaskMode mode) { _maskMode = mode; }
+    void Set_HoleCenterUV(const Vec2& uv) { _holeCenterUV = uv; }
+    void Set_HoleRadius(float radius) { _holeRadius = radius; }
+    void Set_HoleFeather(float feather) { _holeFeather = feather; }
+
 private:
     HRESULT Ready_RenderResources();
 
@@ -44,7 +64,7 @@ private:
     float    _grayAmount;
     wstring _texturePath{};
     wstring _maskTexturePath{};
-    Vec4 _color{ 1.f, 1.f, 1.f, 1.f };
+    Vec4    _color{ 1.f, 1.f, 1.f, 1.f };
 
     uint32 _shaderPrototypeLevelIndex{ 0 };
     wstring _shaderPrototypeTag{ L"Shader_UI" };
@@ -56,6 +76,12 @@ private:
 
     Shared<ShaderCom> _shader{};
     Shared<VIBuffer_Rect> _viBuffer{};
+
+    // 인수: 원형 마스크 추가
+    MaskMode _maskMode = MaskMode::None;
+    Vec2 _holeCenterUV{ 0.5f, 0.5f };
+    float _holeRadius = 0.f;
+    float _holeFeather = 0.05f;
 
 public:
     static Shared<UI_Image> Create();

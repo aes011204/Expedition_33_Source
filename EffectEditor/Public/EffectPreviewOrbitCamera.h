@@ -18,7 +18,7 @@ struct EffectPreviewOrbitCameraFrame
     Matrix proj{ Matrix::Identity };
 };
 
-class Helper_EffectCamera final
+class EffectPreviewOrbitCamera final
 {
 public:
     static void Reset(

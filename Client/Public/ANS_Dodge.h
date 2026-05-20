@@ -8,7 +8,7 @@ class ANS_Dodge : public AnimNotifyState
 
 public:
     ANS_Dodge() = default;
-    virtual ~ANS_Dodge() = default;
+    ~ANS_Dodge() override = default;
 
 public:
     string Get_TypeName() const override { return "ANS_Dodge"; }

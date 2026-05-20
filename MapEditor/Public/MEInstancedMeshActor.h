@@ -11,6 +11,8 @@ NS_END
 
 NS_BEGIN(MapEditor)
 
+class MEModelManager;
+
 class MEInstancedMeshActor final : public GameObject
 {
 public:
@@ -22,6 +24,7 @@ public:
     Shared<ModelCom> GetModel() const { return _model; }
 
     void Set_CameraFar(float camfar) { _cameraFar = camfar; }
+    void Set_CullShader(Shared<ComputeShaderCom> shader) { _cullShader = shader; }
 
 public:
     virtual HRESULT Initialize(void* arg) override;
@@ -59,7 +62,7 @@ private:
     static array<Vec4, 6> ExtractFrustumPlanes(const Matrix& vp);
 
 public:
-    HRESULT UpdateInstances(const wstring& modelPath, const vector<InstanceTransform>& transforms);
+    HRESULT UpdateInstances(const wstring& modelPath, const vector<InstanceTransform>& transforms, MEModelManager* modelManager = nullptr);
 
 public:
     static Shared<MEInstancedMeshActor> Create(ComPtr<Device> device, ComPtr<Context> context);

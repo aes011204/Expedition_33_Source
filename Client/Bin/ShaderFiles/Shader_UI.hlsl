@@ -13,6 +13,11 @@ bool g_UseGrayScale;
 float4 g_GrayAmount;
 float4 g_Color = float4(1.f, 1.f, 1.f, 1.f);
 
+// 원형 마스크ㄴ
+float2 g_HoleCenterUV = float2(0.5f, 0.5f);
+float g_HoleRadius = 0.0f;
+float g_HoleFeather = 0.05f;
+float g_ViewportAspect = 1.0f;
 
 struct VS_IN
 {
@@ -90,8 +95,27 @@ PS_OUT PS_MASK(PS_IN In)
     return Out;
 }
 
+PS_OUT PS_CIRCULAR_HOLE(PS_IN In)
+{
+    PS_OUT Out;
+
+    float4 baseColor = g_Texture.Sample(LinearClampSampler, In.vTexcoord) * g_Color;
+    float2 delta = In.vTexcoord - g_HoleCenterUV;
+    delta.x *= g_ViewportAspect;
+    float dist = length(delta);
+
+    // 반경 안쪽은 투명, 바깥은 불투명
+    float alpha = smoothstep(g_HoleRadius - g_HoleFeather, g_HoleRadius, dist);
+
+    Out.vColor = baseColor;
+    Out.vColor.a *= alpha;
+
+    return Out;
+}
+
 technique11 DefaultTechnique
 {
     PASS_RS_DS_BS_VP(NormalPass,    RS_UI, DSS_None, BS_AlphaBlend, VS_MAIN, PS_NORMAL) // 0
     PASS_RS_DS_BS_VP(MaskPass,      RS_UI, DSS_None, BS_AlphaBlend, VS_MAIN, PS_MASK)   // 1
+    PASS_RS_DS_BS_VP(CircularHolePass, RS_UI, DSS_None, BS_AlphaBlend, VS_MAIN, PS_CIRCULAR_HOLE) // 2
 }

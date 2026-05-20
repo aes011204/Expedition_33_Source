@@ -16,6 +16,7 @@
 #include "CmdTransformObject.h"
 #include "MEInstancedMeshActor.h"
 #include "MEBridgeCamera.h"
+#include "ComputeShaderCom.h"
 
 extern HWND g_hWnd;
 extern HINSTANCE g_hInst;
@@ -82,6 +83,12 @@ HRESULT MapEditorApp::Initialize()
     CHECK_FAILED(GAME->Add_Prototype(0, L"MEInstancedMeshActor",
         MEInstancedMeshActor::Create(_device, _context)), E_FAIL);
 
+    _instanceCullShader = ComputeShaderCom::Create(_device, _context,
+        L"../../../Client/Bin/ShaderFiles/Compute/Shader_Compute_InstanceCull.hlsl",
+        "CS_Main");
+    CHECK_NULL(_instanceCullShader, E_FAIL);
+
+
     CHECK_FAILED(Ready_Light(), E_FAIL);
 
     return S_OK;
@@ -110,8 +117,33 @@ void MapEditorApp::Update(float timeDelta)
     }
 
     _manager->Update(timeDelta);
-    UpdateRenderHandles();
-    RebuildOctreeIfDirty();
+    Update_RenderHandles();
+
+
+    if (_scene._octreeDirty)
+    {
+        if (_scene._octreeRebuildTimer > 0.f)
+        {
+            _scene._octreeRebuildTimer -= timeDelta;
+        }
+        else
+        {
+            RebuildOctreeIfDirty();
+        }
+    }
+
+    for (auto& obj : _scene._staticMeshes)
+    {
+        if (!obj->_renderHandle)
+        {
+            continue;
+        }
+
+        auto tf = obj->_renderHandle->Get_Transform();
+        tf->Set_Position(obj->_position);
+        tf->Set_Scale(obj->_scale);
+        tf->Set_RotationQuaternion(obj->_rotation);
+    }
 }
 
 void MapEditorApp::Late_Update(float timeDelta)
@@ -156,11 +188,6 @@ HRESULT MapEditorApp::Render()
             continue;
         }
 
-        auto tf = obj->_renderHandle->Get_Transform();
-        tf->Set_Position(obj->_position);
-        tf->Set_Scale(obj->_scale);
-        tf->Set_RotationQuaternion(obj->_rotation);
-
         obj->_renderHandle->Set_CameraFar(_camera->GetFar());
         obj->_renderHandle->Late_Update(0.f);
     }
@@ -168,7 +195,9 @@ HRESULT MapEditorApp::Render()
     for (auto& obj : _scene._instancedMeshes)
     {
         if (!obj->_instancedRenderHandle)
+        {
             continue;
+        }
 
         obj->_instancedRenderHandle->Set_CameraFar(_camera->GetFar());
         obj->_instancedRenderHandle->Late_Update(0.f);
@@ -196,97 +225,58 @@ HRESULT MapEditorApp::Render()
     return S_OK;
 }
 
-void MapEditorApp::UpdateRenderHandles()
+void MapEditorApp::Update_RenderHandles()
 {
-    if (_scene._dirtyRenderHandles)
+    Update_StaticMeshHandles();
+    Update_InstancedMeshHandles();
+    Apply_PassOverrides();
+}
+
+void MapEditorApp::Update_StaticMeshHandles()
+{
+    if (!_scene._dirtyRenderHandles)
     {
-        _scene._dirtyRenderHandles = false;
-
-        for (auto& obj : _scene._staticMeshes)
-        {
-            if (obj->_renderHandleLoaded || obj->_isInstanced || obj->_modelPath.empty())
-            {
-                continue;
-            }
-
-            obj->_renderHandleLoaded = true;
-
-            auto model = _modelManager->GetOrLoad(_device, _context, obj->_modelPath);
-            if (!model)
-            {
-                continue;
-            }
-
-            auto actor = MEStaticMeshActor::Create(_device, _context);
-            if (!actor)
-                continue;
-
-            actor->Set_Model(model);
-
-            if (!_scene._modelFolder.empty())
-            {
-                string bundleKey = String::ToString(_scene._modelFolder);
-                transform(bundleKey.begin(), bundleKey.end(), bundleKey.begin(), ::tolower);
-
-                fs::path jsonPath = fs::path(obj->_modelPath).replace_extension(L".json");
-                ifstream ifs(jsonPath);
-                if (ifs.is_open())
-                {
-                    try
-                    {
-                        json modelJson = json::parse(ifs);
-                        for (auto& entry : modelJson)
-                        {
-                            if (entry.value("Type", "") != "StaticMesh")
-                            {
-                                continue;
-                            }
-
-                            if (!entry.contains("Properties") || !entry["Properties"].contains("StaticMaterials"))
-                            {
-                                break;
-                            }
-
-                            const auto& staticMats = entry["Properties"]["StaticMaterials"];
-                            for (uint32 i = 0; i < static_cast<uint32>(staticMats.size()); ++i)
-                            {
-                                const auto& mat = staticMats[i];
-                                if (!mat.contains("MaterialInterface"))
-                                {
-                                    continue;
-                                }
-
-                                const auto& mi = mat["MaterialInterface"];
-                                if (!mi.is_object())
-                                {
-                                    continue;
-                                }
-
-                                string objectPath = mi.value("ObjectPath", "");
-                                if (objectPath.empty())
-                                {
-                                    continue;
-                                }
-
-                                size_t dot = objectPath.find('.');
-                                string packagePath = (dot != string::npos) ? objectPath.substr(0, dot) : objectPath;
-                                size_t slash = packagePath.rfind('/');
-                                string miName = (slash != string::npos) ? packagePath.substr(slash + 1) : packagePath;
-
-
-                                model->Apply_MaterialByAssetName(i, bundleKey, miName);
-                            }
-                            break;
-                        }
-                    }
-                    catch (...) {}
-                }
-            }
-
-            obj->_renderHandle = actor;
-            _scene._octreeDirty = true;
-        }
+        return;
     }
+
+    _scene._dirtyRenderHandles = false;
+
+    for (auto& obj : _scene._staticMeshes)
+    {
+        if (obj->_renderHandleLoaded || obj->_isInstanced || obj->_modelPath.empty())
+        {
+            continue;
+        }
+
+        obj->_renderHandleLoaded = true;
+
+        auto model = _modelManager->GetOrLoad(_device, _context, obj->_modelPath);
+        if (!model)
+        {
+            continue;
+        }
+
+        auto actor = MEStaticMeshActor::Create(_device, _context);
+        if (!actor)
+        {
+            continue;
+        }
+
+        actor->Set_Model(model);
+
+        const string bundleKey = Resolve_BundleKey(obj->_modelPath);
+        Apply_MaterialFromJson(obj->_modelPath, bundleKey, model);
+
+        const string modelFilename = String::ToString(fs::path(obj->_modelPath).filename().wstring());
+        Apply_PassOverrideToModel(*model, modelFilename);
+
+        obj->_renderHandle = actor;
+        _scene._octreeDirty = true;
+    }
+}
+
+void MapEditorApp::Update_InstancedMeshHandles()
+{
     for (auto& obj : _scene._instancedMeshes)
     {
         if (!obj->_instancedParamsDirty)
@@ -300,78 +290,34 @@ void MapEditorApp::UpdateRenderHandles()
         {
             obj->_instancedRenderHandle = static_pointer_cast<MEInstancedMeshActor>(
                 GAME->Clone_Prototype(Prototype::GameObject, 0, L"MEInstancedMeshActor", nullptr));
+
             if (!obj->_instancedRenderHandle)
             {
                 continue;
             }
+
+            obj->_instancedRenderHandle->Set_CullShader(_instanceCullShader);
         }
 
-        if (!obj->_instancedModelPath.empty())
+        if (obj->_instancedModelPath.empty())
         {
-            obj->_instancedRenderHandle->UpdateInstances(
-                obj->_instancedModelPath, obj->_instancedTransforms);
-
-            if (!_scene._modelFolder.empty())
-            {
-                string bundleKey = String::ToString(_scene._modelFolder);
-                transform(bundleKey.begin(), bundleKey.end(), bundleKey.begin(), ::tolower);
-
-                auto model = obj->_instancedRenderHandle->GetModel();
-                if (model)
-                {
-                    fs::path jsonPath = fs::path(obj->_instancedModelPath).replace_extension(L".json");
-                    ifstream ifs(jsonPath);
-                    if (ifs.is_open())
-                    {
-                        try
-                        {
-                            json modelJson = json::parse(ifs);
-                            for (auto& entry : modelJson)
-                            {
-                                if (entry.value("Type", "") != "StaticMesh")
-                                {
-                                    continue;
-                                }
-                                if (!entry.contains("Properties") || !entry["Properties"].contains("StaticMaterials"))
-                                {
-                                    break;
-                                }
-
-                                const auto& staticMats = entry["Properties"]["StaticMaterials"];
-                                for (uint32 i = 0; i < static_cast<uint32>(staticMats.size()); ++i)
-                                {
-                                    const auto& mat = staticMats[i];
-                                    if (!mat.contains("MaterialInterface"))
-                                    {
-                                        continue;
-                                    }
-
-                                    const auto& mi = mat["MaterialInterface"];
-                                    if (!mi.is_object())
-                                    {
-                                        continue;
-                                    }
-
-                                    string objectPath = mi.value("ObjectPath", "");
-                                    if (objectPath.empty())
-                                    {
-                                        continue;
-                                    }
-
-                                    size_t dot = objectPath.find('.');
-                                    string packagePath = (dot != string::npos) ? objectPath.substr(0, dot) : objectPath;
-                                    size_t slash = packagePath.rfind('/');
-                                    string miName = (slash != string::npos) ? packagePath.substr(slash + 1) : packagePath;
-                                    model->Apply_MaterialByAssetName(i, bundleKey, miName);
-                                }
-                                break;
-                            }
-                        }
-                        catch (...) {}
-                    }
-                }
-            }
+            continue;
         }
+
+        obj->_instancedRenderHandle->UpdateInstances(
+            obj->_instancedModelPath, obj->_instancedTransforms, _modelManager.get());
+
+        auto model = obj->_instancedRenderHandle->GetModel();
+        if (!model)
+        {
+            continue;
+        }
+
+        const string bundleKey = Resolve_BundleKey(obj->_instancedModelPath);
+        Apply_MaterialFromJson(obj->_instancedModelPath, bundleKey, model);
+
+        const string modelFilename = String::ToString(fs::path(obj->_instancedModelPath).filename().wstring());
+        Apply_PassOverrideToModel(*model, modelFilename);
     }
 }
 
@@ -435,6 +381,13 @@ void MapEditorApp::RebuildOctreeIfDirty()
 
 void MapEditorApp::SyncSceneLights()
 {
+    if (!_scene._lightDirty)
+    {
+        return;
+    }
+
+    _scene._lightDirty = false;
+
     GAME->Clear_Lights();
 
     for (const auto& obj : _scene._lights)
@@ -476,6 +429,140 @@ wstring MapEditorApp::Get_ClientResourceRoot() const
     return fs::absolute(runtimeRoot / L"../../../Client/Bin/Resources/").lexically_normal().wstring();
 }
 
+void MapEditorApp::Apply_MaterialFromJson(const fs::path& modelPath, const string& bundleKey, Shared<ModelCom>& model)
+{
+    fs::path jsonPath = modelPath;
+    jsonPath.replace_extension(L".json");
+
+    ifstream ifs(jsonPath);
+    if (!ifs.is_open())
+    {
+        return;
+    }
+
+    try
+    {
+        json modelJson = json::parse(ifs);
+        for (auto& entry : modelJson)
+        {
+            if (entry.value("Type", "") != "StaticMesh")
+            {
+                continue;
+            }
+
+            if (!entry.contains("Properties") || !entry["Properties"].contains("StaticMaterials"))
+            {
+                break;
+            }
+
+            const auto& staticMats = entry["Properties"]["StaticMaterials"];
+            for (uint32 i = 0; i < static_cast<uint32>(staticMats.size()); ++i)
+            {
+                const auto& mat = staticMats[i];
+                if (!mat.contains("MaterialInterface"))
+                {
+                    continue;
+                }
+
+                const auto& mi = mat["MaterialInterface"];
+                if (!mi.is_object())
+                {
+                    continue;
+                }
+
+                string objectPath = mi.value("ObjectPath", "");
+                if (objectPath.empty())
+                {
+                    continue;
+                }
+
+                size_t dot = objectPath.find('.');
+                string packagePath = (dot != string::npos) ? objectPath.substr(0, dot) : objectPath;
+                size_t slash = packagePath.rfind('/');
+                string miName = (slash != string::npos) ? packagePath.substr(slash + 1) : packagePath;
+
+                model->Apply_MaterialByAssetName(i, bundleKey, miName);
+            }
+            break;
+        }
+    }
+    catch (...) {}
+}
+
+string MapEditorApp::Resolve_BundleKey(const fs::path& modelPath) const
+{
+    string bundleKey = {};
+    if (!_scene._modelFolder.empty())
+    {
+        bundleKey = String::ToString(_scene._modelFolder);
+    }
+    else
+    {
+        bundleKey = String::ToString(modelPath.parent_path().filename().wstring());
+    }
+    transform(bundleKey.begin(), bundleKey.end(), bundleKey.begin(), ::tolower);
+    return bundleKey;
+}
+
+void MapEditorApp::Apply_PassOverrideToModel(ModelCom& model, const string& modelFilename)
+{
+    auto it = _scene._modelOverrides.find(modelFilename);
+    int32 passIndex = (it != _scene._modelOverrides.end()) ? it->second.passIndex : -1;
+
+    for (uint32 i = 0; i < static_cast<uint32>(model.Get_NumMaterials()); ++i)
+    {
+        auto mat = model.Get_Material(i);
+        if (mat)
+        {
+            mat->Set_ForcedPassIndex(passIndex);
+        }
+    }
+}
+
+void MapEditorApp::Apply_PassOverrides()
+{
+    if (!_scene._dirtyPassOverrides)
+    {
+        return;
+    }
+
+    _scene._dirtyPassOverrides = false;
+
+    for (auto& obj : _scene._staticMeshes)
+    {
+        if (!obj->_renderHandle)
+        {
+            continue;
+        }
+
+        auto model = obj->_renderHandle->GetModel();
+        if (!model)
+        {
+            continue;
+        }
+
+        const string modelFilename = String::ToString(fs::path(obj->_modelPath).filename().wstring());
+        Apply_PassOverrideToModel(*model, modelFilename);
+    }
+
+    for (auto& obj : _scene._instancedMeshes)
+    {
+        if (!obj->_instancedRenderHandle)
+        {
+            continue;
+        }
+
+        auto model = obj->_instancedRenderHandle->GetModel();
+        if (!model)
+        {
+            continue;
+        }
+
+        const string modelFilename = String::ToString(fs::path(obj->_instancedModelPath).filename().wstring());
+        Apply_PassOverrideToModel(*model, modelFilename);
+    }
+}
+
 Unique<MapEditorApp> MapEditorApp::Create()
 {
     auto instance = make_unique<MapEditorApp>();
@@ -492,6 +579,7 @@ Unique<MapEditorApp> MapEditorApp::Create()
 
 void MapEditorApp::Free()
 {
+    _instanceCullShader.reset();
     _scene.ClearScene();
     _modelManager.reset();
 

@@ -1,12 +1,16 @@
 ﻿#include "Emitter_View.h"
 
+#include <shobjidl.h>
 #include "Action_Command.h"
 #include "Editor_Context.h"
+#include "EffectAuthoringJsonSerializer.h"
+#include "EffectAuthoringModuleMetadata.h"
 #include "EffectEditorInstance.h"
+#include "EffectMaterialPresetReader.h"
 #include "GameInstance.h"
 #include "Helper_ImGui.h"
-#include "Helper_ReadPreset.h"
 #include "Helper_String.h"
+#include "Notification_Manager.h"
 
 NS_BEGIN(EffectEditor)
 
@@ -14,7 +18,187 @@ namespace Internal
 {
     constexpr const wchar_t* kDefaultEffectMaterialFileName = L"M_DefaultMaterial.effectmaterial.json";
     constexpr const char* kDefaultEffectMaterialName = "M_DefaultMaterial";
-    constexpr const char* kDefaultEffectMaterialTextureId = "Texture_Effect_DefaultTexture";
+    constexpr const char* kDefaultEffectMaterialTextureGuid = "3c90794a-31bb-4e97-969a-3fd4497acc0f";
+    constexpr const char* kDefaultEffectMaterialTexturePath = "Effects/Textures/DefaultTexture.dds";
+    constexpr const wchar_t* kEffectAuthoringSaveDefaultFolder = L"../../../Client/Bin/Resources/Effects/Assets";
+    constexpr const wchar_t* kEffectAuthoringSaveDefaultFileName = L"NewEffect.effect.json";
+    constexpr const wchar_t* kEffectAuthoringExtension = L".effect.json";
+
+    fs::path Normalize_EffectSaveDialogPath(const fs::path& filePath)
+    {
+        try
+        {
+            if (fs::exists(filePath))
+                return fs::weakly_canonical(filePath);
+        }
+        catch (...)
+        {}
+
+        try
+        {
+            return fs::absolute(filePath).lexically_normal();
+        }
+        catch (...)
+        {}
+
+        return filePath.lexically_normal();
+    }
+
+    fs::path Ensure_EffectAuthoringExtension(const fs::path& filePath)
+    {
+        const string lowerPath = String::ToLowerCopy(filePath.generic_string());
+        if (lowerPath.ends_with(".effect.json"))
+            return filePath;
+
+        return fs::path(filePath.wstring() + kEffectAuthoringExtension);
+    }
+
+    bool Try_PickEffectSaveFileDialog(fs::path& outFilePath)
+    {
+        outFilePath.clear();
+
+        const HRESULT initHr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+        const bool shouldUninit = SUCCEEDED(initHr);
+
+        IFileSaveDialog* dialog = nullptr;
+        HRESULT hr = CoCreateInstance(CLSID_FileSaveDialog, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&dialog));
+        if (FAILED(hr) || dialog == nullptr)
+        {
+            if (shouldUninit)
+                CoUninitialize();
+            return false;
+        }
+
+        dialog->SetTitle(L"Save Effect");
+
+        DWORD options = 0;
+        dialog->GetOptions(&options);
+        dialog->SetOptions(options | FOS_FORCEFILESYSTEM | FOS_PATHMUSTEXIST | FOS_OVERWRITEPROMPT);
+
+        const fs::path defaultFolder = Normalize_EffectSaveDialogPath(kEffectAuthoringSaveDefaultFolder);
+        if (!defaultFolder.empty() && fs::exists(defaultFolder))
+        {
+            IShellItem* folderItem = nullptr;
+            if (SUCCEEDED(SHCreateItemFromParsingName(defaultFolder.wstring().c_str(), nullptr, IID_PPV_ARGS(&folderItem))) && folderItem != nullptr)
+            {
+                dialog->SetFolder(folderItem);
+                folderItem->Release();
+            }
+        }
+
+        const COMDLG_FILTERSPEC filters[]
+        {
+            { L"Effect Authoring", L"*.effect.json" },
+            { L"All", L"*.*" },
+        };
+        dialog->SetFileTypes(static_cast<UINT>(std::size(filters)), filters);
+        dialog->SetFileTypeIndex(1);
+        dialog->SetDefaultExtension(L"effect.json");
+        dialog->SetFileName(kEffectAuthoringSaveDefaultFileName);
+
+        const HWND owner = EDITOR != nullptr ? EDITOR->Get_WindowHandle() : nullptr;
+        hr = dialog->Show(owner);
+        if (SUCCEEDED(hr))
+        {
+            IShellItem* item = nullptr;
+            if (SUCCEEDED(dialog->GetResult(&item)) && item != nullptr)
+            {
+                PWSTR path = nullptr;
+                if (SUCCEEDED(item->GetDisplayName(SIGDN_FILESYSPATH, &path)) && path != nullptr)
+                {
+                    outFilePath = Ensure_EffectAuthoringExtension(fs::path(path));
+                    CoTaskMemFree(path);
+                }
+                item->Release();
+            }
+        }
+
+        dialog->Release();
+
+        if (shouldUninit)
+            CoUninitialize();
+
+        return !outFilePath.empty();
+    }
+
+    bool Try_PickEffectOpenFileDialog(fs::path& outFilePath)
+    {
+        outFilePath.clear();
+
+        const HRESULT initHr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+        const bool shouldUninit = SUCCEEDED(initHr);
+
+        IFileOpenDialog* dialog = nullptr;
+        HRESULT hr = CoCreateInstance(CLSID_FileOpenDialog, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&dialog));
+        if (FAILED(hr) || dialog == nullptr)
+        {
+            if (shouldUninit)
+                CoUninitialize();
+            return false;
+        }
+
+        dialog->SetTitle(L"Open Effect");
+
+        DWORD options = 0;
+        dialog->GetOptions(&options);
+        dialog->SetOptions(options | FOS_FORCEFILESYSTEM | FOS_PATHMUSTEXIST | FOS_FILEMUSTEXIST);
+
+        const fs::path defaultFolder = Normalize_EffectSaveDialogPath(kEffectAuthoringSaveDefaultFolder);
+        if (!defaultFolder.empty() && fs::exists(defaultFolder))
+        {
+            IShellItem* folderItem = nullptr;
+            if (SUCCEEDED(SHCreateItemFromParsingName(defaultFolder.wstring().c_str(), nullptr, IID_PPV_ARGS(&folderItem))) && folderItem != nullptr)
+            {
+                dialog->SetFolder(folderItem);
+                folderItem->Release();
+            }
+        }
+
+        const COMDLG_FILTERSPEC filters[]
+        {
+            { L"Effect Authoring", L"*.effect.json" },
+            { L"All", L"*.*" },
+        };
+        dialog->SetFileTypes(static_cast<UINT>(std::size(filters)), filters);
+        dialog->SetFileTypeIndex(1);
+
+        const HWND owner = EDITOR != nullptr ? EDITOR->Get_WindowHandle() : nullptr;
+        hr = dialog->Show(owner);
+        if (SUCCEEDED(hr))
+        {
+            IShellItem* item = nullptr;
+            if (SUCCEEDED(dialog->GetResult(&item)) && item != nullptr)
+            {
+                PWSTR path = nullptr;
+                if (SUCCEEDED(item->GetDisplayName(SIGDN_FILESYSPATH, &path)) && path != nullptr)
+                {
+                    outFilePath = fs::path(path);
+                    CoTaskMemFree(path);
+                }
+                item->Release();
+            }
+        }
+
+        dialog->Release();
+
+        if (shouldUninit)
+            CoUninitialize();
+
+        return !outFilePath.empty();
+    }
+
+    bool Confirm_DiscardDirtyAuthoringDocument()
+    {
+        const HWND owner = EDITOR != nullptr ? EDITOR->Get_WindowHandle() : nullptr;
+        const int result = MessageBoxW(
+            owner,
+            L"저장되지 않은 변경 사항이 사라질 수 있습니다.\n계속 열겠습니까?",
+            L"Open Effect",
+            MB_OKCANCEL | MB_ICONWARNING
+        );
+
+        return result == IDOK;
+    }
 
     fs::path Resolve_DefaultEffectMaterialPath()
     {
@@ -55,10 +239,11 @@ namespace Internal
     {
         RequiredModuleData data{};
         const fs::path materialPath = Resolve_DefaultEffectMaterialPath();
-        if (materialPath.empty() || !ReadPreset::Read(materialPath, data.material))
+        if (materialPath.empty() || !EffectMaterialPresetReader::Read(materialPath, data.material))
         {
             data.material.sourcePresetName = kDefaultEffectMaterialName;
-            data.material.mainTextureId = kDefaultEffectMaterialTextureId;
+            data.material.mainTextureGuid = kDefaultEffectMaterialTextureGuid;
+            data.material.mainTexturePath = kDefaultEffectMaterialTexturePath;
         }
 
         return data;
@@ -108,6 +293,132 @@ void Emitter_View::Render()
 
     Set_Open(isOpen);
     ImGui::End();
+}
+
+bool Emitter_View::CanSave() const
+{
+    return true;
+}
+
+bool Emitter_View::CanOpen() const
+{
+    return true;
+}
+
+void Emitter_View::Save()
+{
+    fs::path savePath{};
+    if (!Internal::Try_PickEffectSaveFileDialog(savePath))
+        return;
+
+    ofstream file(savePath);
+    if (!file.is_open())
+    {
+        if (EDITOR != nullptr && EDITOR->Get_Notification() != nullptr)
+        {
+            EDITOR->Get_Notification()->Add_Notification_With_Type(
+                NotifyType::Warning,
+                "Effect 저장 실패: {}",
+                String::ToString(savePath.filename().wstring())
+            );
+        }
+        return;
+    }
+
+    const json documentJson = Build_AuthoringDocumentJson();
+    file << documentJson.dump(4);
+    if (!file.good())
+    {
+        if (EDITOR != nullptr && EDITOR->Get_Notification() != nullptr)
+        {
+            EDITOR->Get_Notification()->Add_Notification_With_Type(
+                NotifyType::Warning,
+                "Effect 저장 실패: {}",
+                String::ToString(savePath.filename().wstring())
+            );
+        }
+        return;
+    }
+
+    ClearDirty();
+
+    if (EDITOR != nullptr && EDITOR->Get_Notification() != nullptr)
+    {
+        EDITOR->Get_Notification()->Add_Notification_With_Type(
+            NotifyType::Success,
+            "Effect 저장 완료: {}",
+            String::ToString(savePath.filename().wstring())
+        );
+    }
+}
+
+void Emitter_View::Open()
+{
+    if (Is_Dirty() && !Internal::Confirm_DiscardDirtyAuthoringDocument())
+        return;
+
+    fs::path openPath{};
+    if (!Internal::Try_PickEffectOpenFileDialog(openPath))
+        return;
+
+    ifstream file(openPath);
+    if (!file.is_open())
+    {
+        if (EDITOR != nullptr && EDITOR->Get_Notification() != nullptr)
+        {
+            EDITOR->Get_Notification()->Add_Notification_With_Type(
+                NotifyType::Warning,
+                "Effect 열기 실패: {}",
+                String::ToString(openPath.filename().wstring())
+            );
+        }
+        return;
+    }
+
+    json documentJson{};
+    try
+    {
+        file >> documentJson;
+    }
+    catch (const json::exception&)
+    {
+        if (EDITOR != nullptr && EDITOR->Get_Notification() != nullptr)
+        {
+            EDITOR->Get_Notification()->Add_Notification_With_Type(
+                NotifyType::Warning,
+                "Effect JSON 해석 실패: {}",
+                String::ToString(openPath.filename().wstring())
+            );
+        }
+        return;
+    }
+
+    if (!Restore_AuthoringDocumentJson(documentJson))
+    {
+        if (EDITOR != nullptr && EDITOR->Get_Notification() != nullptr)
+        {
+            EDITOR->Get_Notification()->Add_Notification_With_Type(
+                NotifyType::Warning,
+                "Effect 복원 실패: {}",
+                String::ToString(openPath.filename().wstring())
+            );
+        }
+        return;
+    }
+
+    ClearDirty();
+
+    if (EDITOR != nullptr)
+        EDITOR->Request_RestartPreview();
+
+    if (EDITOR != nullptr && EDITOR->Get_Notification() != nullptr)
+    {
+        EDITOR->Get_Notification()->Add_Notification_With_Type(
+            NotifyType::Success,
+            "Effect 열기 완료: {}",
+            String::ToString(openPath.filename().wstring())
+        );
+    }
 }
 
 AuthoringEmitter* Emitter_View::Find_Emitter(uint32 emitterId)
@@ -221,6 +532,44 @@ void Emitter_View::Execute_AuthoringSnapshotCommand(
     );
 }
 
+json Emitter_View::Build_AuthoringDocumentJson() const
+{
+    EffectAuthoringDocument document{};
+    document.particleSystemData = _particleSystemData;
+    document.emitters = _emitters;
+    return EffectAuthoringJsonSerializer::To_Json(document);
+}
+
+bool Emitter_View::Restore_AuthoringDocumentJson(const json& root)
+{
+    EffectAuthoringDocument document{};
+    if (!EffectAuthoringJsonSerializer::From_Json(root, document))
+        return false;
+
+    for (AuthoringEmitter& emitter : document.emitters)
+    {
+        for (AuthoringModule& module : emitter.modules)
+            Apply_AuthoringModuleMetadata(module);
+    }
+
+    const uint32 nextAuthoringId = EffectAuthoringJsonSerializer::Find_NextAuthoringId(document);
+
+    Close_ModulePicker();
+    _particleSystemData = document.particleSystemData;
+    _emitters = move(document.emitters);
+    _selectedEmitterIndex = _emitters.empty() ? optional<size_t>{} : optional<size_t>{ 0 };
+    _selectedTypeData = false;
+    _selectedModuleIndex.reset();
+    _nextAuthoringId = nextAuthoringId;
+
+    Sync_AllEmitterMirrors();
+    Mark_AllPreviewDirty();
+    Clamp_Selection();
+    Sync_SelectionContext();
+    MarkDirty();
+    return true;
+}
+
 uint32 Emitter_View::Issue_AuthoringId()
 {
     return _nextAuthoringId++;
@@ -238,8 +587,8 @@ AuthoringEmitter Emitter_View::Make_DefaultSpriteEmitter()
     if (const auto* requiredData = get_if<RequiredModuleData>(&requiredModule.data))
     {
         emitter.rendererType = requiredData->rendererType;
-        emitter.textureId = requiredData->material.mainTextureId;
-        emitter.resourceSummary = requiredData->material.mainTextureId;
+        emitter.textureId = requiredData->material.mainTexturePath;
+        emitter.resourceSummary = requiredData->material.mainTexturePath;
     }
 
     emitter.modules.push_back(move(requiredModule));
@@ -267,17 +616,60 @@ AuthoringEmitter Emitter_View::Clone_Emitter(const AuthoringEmitter& sourceEmitt
     return clonedEmitter;
 }
 
+AuthoringModule Emitter_View::Make_DefaultModuleByType(AuthoringModuleType type)
+{
+    switch (type)
+    {
+    case AuthoringModuleType::Required:
+        return Make_RequiredModule();
+    case AuthoringModuleType::Spawn:
+        return Make_SpawnModule();
+    case AuthoringModuleType::Lifetime:
+        return Make_LifetimeModule();
+    case AuthoringModuleType::InitialLocation:
+        return Make_InitialLocationModule();
+    case AuthoringModuleType::SphereLocation:
+        return Make_SphereLocationModule();
+    case AuthoringModuleType::InitialSize:
+        return Make_InitialSizeModule();
+    case AuthoringModuleType::InitialVelocity:
+        return Make_InitialVelocityModule();
+    case AuthoringModuleType::InitialRadialVelocity:
+        return Make_InitialRadialVelocityModule();
+    case AuthoringModuleType::Acceleration:
+        return Make_AccelerationModule();
+    case AuthoringModuleType::Drag:
+        return Make_DragModule();
+    case AuthoringModuleType::VelocityOverLife:
+        return Make_VelocityOverLifeModule();
+    case AuthoringModuleType::InitialRotation:
+        return Make_InitialRotationModule();
+    case AuthoringModuleType::RotationOverLife:
+        return Make_RotationOverLifeModule();
+    case AuthoringModuleType::InitialRotationRate:
+        return Make_InitialRotationRateModule();
+    case AuthoringModuleType::RotationRateScaleByLife:
+        return Make_RotationRateScaleByLifeModule();
+    case AuthoringModuleType::InitialColor:
+        return Make_InitialColorModule();
+    case AuthoringModuleType::ColorOverLife:
+        return Make_ColorOverLifeModule();
+    case AuthoringModuleType::SubUVFrameOverLife:
+        return Make_SubUVFrameOverLifeModule();
+    case AuthoringModuleType::SizeByLife:
+        return Make_SizeByLifeModule();
+    }
+
+    return Make_RequiredModule();
+}
+
 AuthoringModule Emitter_View::Make_RequiredModule()
 {
     AuthoringModule module{};
     module.id = Issue_AuthoringId();
     module.type = AuthoringModuleType::Required;
-    module.key = "Required";
-    module.displayName = L"필수";
-    module.summary = L"텍스처, 머티리얼";
     module.enabled = true;
-    module.movable = false;
-    module.removable = false;
+    Apply_AuthoringModuleMetadata(module);
     module.data = Internal::Make_DefaultRequiredModuleData();
     return module;
 }
@@ -287,12 +679,8 @@ AuthoringModule Emitter_View::Make_SpawnModule()
     AuthoringModule module{};
     module.id = Issue_AuthoringId();
     module.type = AuthoringModuleType::Spawn;
-    module.key = "Spawn";
-    module.displayName = L"스폰";
-    module.summary = L"생성량 / 루프 기준";
     module.enabled = true;
-    module.movable = false;
-    module.removable = false;
+    Apply_AuthoringModuleMetadata(module);
     module.data = SpawnModuleData{};
     return module;
 }
@@ -302,12 +690,8 @@ AuthoringModule Emitter_View::Make_LifetimeModule()
     AuthoringModule module{};
     module.id = Issue_AuthoringId();
     module.type = AuthoringModuleType::Lifetime;
-    module.key = "Lifetime";
-    module.displayName = L"수명";
-    module.summary = L"파티클 수명 범위";
     module.enabled = true;
-    module.movable = true;
-    module.removable = true;
+    Apply_AuthoringModuleMetadata(module);
     module.data = LifetimeModuleData{};
     return module;
 }
@@ -317,12 +701,8 @@ AuthoringModule Emitter_View::Make_InitialLocationModule()
     AuthoringModule module{};
     module.id = Issue_AuthoringId();
     module.type = AuthoringModuleType::InitialLocation;
-    module.key = "Initial Location";
-    module.displayName = L"초기 위치";
-    module.summary = L"생성 시점 위치 분포";
     module.enabled = true;
-    module.movable = true;
-    module.removable = true;
+    Apply_AuthoringModuleMetadata(module);
     module.data = InitialLocationModuleData{};
     return module;
 }
@@ -332,12 +712,8 @@ AuthoringModule Emitter_View::Make_SphereLocationModule()
     AuthoringModule module{};
     module.id = Issue_AuthoringId();
     module.type = AuthoringModuleType::SphereLocation;
-    module.key = "Sphere Location";
-    module.displayName = L"구 위치";
-    module.summary = L"구 표면/부피 생성 위치";
     module.enabled = true;
-    module.movable = true;
-    module.removable = true;
+    Apply_AuthoringModuleMetadata(module);
     module.data = SphereLocationModuleData{};
     return module;
 }
@@ -347,12 +723,8 @@ AuthoringModule Emitter_View::Make_InitialSizeModule()
     AuthoringModule module{};
     module.id = Issue_AuthoringId();
     module.type = AuthoringModuleType::InitialSize;
-    module.key = "Initial Size";
-    module.displayName = L"초기 크기";
-    module.summary = L"생성 시점 크기";
     module.enabled = true;
-    module.movable = true;
-    module.removable = true;
+    Apply_AuthoringModuleMetadata(module);
     module.data = InitialSizeModuleData{};
     return module;
 }
@@ -362,12 +734,8 @@ AuthoringModule Emitter_View::Make_InitialVelocityModule()
     AuthoringModule module{};
     module.id = Issue_AuthoringId();
     module.type = AuthoringModuleType::InitialVelocity;
-    module.key = "Initial Velocity";
-    module.displayName = L"초기 속도";
-    module.summary = L"생성 시점 벡터 속도";
     module.enabled = true;
-    module.movable = true;
-    module.removable = true;
+    Apply_AuthoringModuleMetadata(module);
     module.data = InitialVelocityModuleData{};
     return module;
 }
@@ -377,12 +745,8 @@ AuthoringModule Emitter_View::Make_InitialRadialVelocityModule()
     AuthoringModule module{};
     module.id = Issue_AuthoringId();
     module.type = AuthoringModuleType::InitialRadialVelocity;
-    module.key = "Initial Radial Velocity";
-    module.displayName = L"초기 방사성 속도";
-    module.summary = L"생성 위치 기준 방사성 속도";
     module.enabled = true;
-    module.movable = true;
-    module.removable = true;
+    Apply_AuthoringModuleMetadata(module);
     module.data = InitialRadialVelocityModuleData{};
     return module;
 }
@@ -392,12 +756,8 @@ AuthoringModule Emitter_View::Make_AccelerationModule()
     AuthoringModule module{};
     module.id = Issue_AuthoringId();
     module.type = AuthoringModuleType::Acceleration;
-    module.key = "Acceleration";
-    module.displayName = L"가속";
-    module.summary = L"시간에 따라 더해지는 속도";
     module.enabled = true;
-    module.movable = true;
-    module.removable = true;
+    Apply_AuthoringModuleMetadata(module);
     module.data = AccelerationModuleData{};
     return module;
 }
@@ -407,12 +767,8 @@ AuthoringModule Emitter_View::Make_DragModule()
     AuthoringModule module{};
     module.id = Issue_AuthoringId();
     module.type = AuthoringModuleType::Drag;
-    module.key = "Drag";
-    module.displayName = L"드래그";
-    module.summary = L"속도 감쇠";
     module.enabled = true;
-    module.movable = true;
-    module.removable = true;
+    Apply_AuthoringModuleMetadata(module);
     module.data = DragModuleData{};
     return module;
 }
@@ -422,12 +778,8 @@ AuthoringModule Emitter_View::Make_VelocityOverLifeModule()
     AuthoringModule module{};
     module.id = Issue_AuthoringId();
     module.type = AuthoringModuleType::VelocityOverLife;
-    module.key = "Velocity Over Life";
-    module.displayName = L"수명에 따른 속도";
-    module.summary = L"수명 진행률 기준 속도 배율";
     module.enabled = true;
-    module.movable = true;
-    module.removable = true;
+    Apply_AuthoringModuleMetadata(module);
     module.data = VelocityOverLifeModuleData{};
     return module;
 }
@@ -437,12 +789,8 @@ AuthoringModule Emitter_View::Make_InitialRotationModule()
     AuthoringModule module{};
     module.id = Issue_AuthoringId();
     module.type = AuthoringModuleType::InitialRotation;
-    module.key = "Initial Rotation";
-    module.displayName = L"초기 회전";
-    module.summary = L"생성 시점 회전각";
     module.enabled = true;
-    module.movable = true;
-    module.removable = true;
+    Apply_AuthoringModuleMetadata(module);
     module.data = InitialRotationModuleData{};
     return module;
 }
@@ -452,12 +800,8 @@ AuthoringModule Emitter_View::Make_RotationOverLifeModule()
     AuthoringModule module{};
     module.id = Issue_AuthoringId();
     module.type = AuthoringModuleType::RotationOverLife;
-    module.key = "Rotation Over Life";
-    module.displayName = L"수명에 따른 회전";
-    module.summary = L"수명 진행률 기준 추가 회전";
     module.enabled = true;
-    module.movable = true;
-    module.removable = true;
+    Apply_AuthoringModuleMetadata(module);
     module.data = RotationOverLifeModuleData{};
     return module;
 }
@@ -467,12 +811,8 @@ AuthoringModule Emitter_View::Make_InitialRotationRateModule()
     AuthoringModule module{};
     module.id = Issue_AuthoringId();
     module.type = AuthoringModuleType::InitialRotationRate;
-    module.key = "Initial Rotation Rate";
-    module.displayName = L"초기 회전 속도";
-    module.summary = L"초당 회전 속도";
     module.enabled = true;
-    module.movable = true;
-    module.removable = true;
+    Apply_AuthoringModuleMetadata(module);
     module.data = InitialRotationRateModuleData{};
     return module;
 }
@@ -482,12 +822,8 @@ AuthoringModule Emitter_View::Make_RotationRateScaleByLifeModule()
     AuthoringModule module{};
     module.id = Issue_AuthoringId();
     module.type = AuthoringModuleType::RotationRateScaleByLife;
-    module.key = "Rotation Rate Scale By Life";
-    module.displayName = L"수명에 따른 회전 속도";
-    module.summary = L"수명 진행률 기준 회전 속도 배율";
     module.enabled = true;
-    module.movable = true;
-    module.removable = true;
+    Apply_AuthoringModuleMetadata(module);
     module.data = RotationRateScaleByLifeModuleData{};
     return module;
 }
@@ -497,12 +833,8 @@ AuthoringModule Emitter_View::Make_InitialColorModule()
     AuthoringModule module{};
     module.id = Issue_AuthoringId();
     module.type = AuthoringModuleType::InitialColor;
-    module.key = "Initial Color";
-    module.displayName = L"초기 컬러";
-    module.summary = L"생성 시점 색상 / 알파";
     module.enabled = true;
-    module.movable = true;
-    module.removable = true;
+    Apply_AuthoringModuleMetadata(module);
     module.data = InitialColorModuleData{};
     return module;
 }
@@ -512,12 +844,8 @@ AuthoringModule Emitter_View::Make_ColorOverLifeModule()
     AuthoringModule module{};
     module.id = Issue_AuthoringId();
     module.type = AuthoringModuleType::ColorOverLife;
-    module.key = "Color Over Life";
-    module.displayName = L"수명에 따른 색상";
-    module.summary = L"수명 진행률 기준 색 변화";
     module.enabled = true;
-    module.movable = true;
-    module.removable = true;
+    Apply_AuthoringModuleMetadata(module);
     module.data = ColorOverLifeModuleData{};
     return module;
 }
@@ -527,12 +855,8 @@ AuthoringModule Emitter_View::Make_SubUVFrameOverLifeModule()
     AuthoringModule module{};
     module.id = Issue_AuthoringId();
     module.type = AuthoringModuleType::SubUVFrameOverLife;
-    module.key = "SubUV Frame Over Life";
-    module.displayName = L"서브UV 프레임 선택/재생";
-    module.summary = L"수명 진행률 기준 frame 선택";
     module.enabled = true;
-    module.movable = true;
-    module.removable = true;
+    Apply_AuthoringModuleMetadata(module);
     module.data = SubUVFrameOverLifeModuleData{};
     return module;
 }
@@ -542,12 +866,8 @@ AuthoringModule Emitter_View::Make_SizeByLifeModule()
     AuthoringModule module{};
     module.id = Issue_AuthoringId();
     module.type = AuthoringModuleType::SizeByLife;
-    module.key = "Size By Life";
-    module.displayName = L"수명에 따른 크기";
-    module.summary = L"수명 진행률 기준 크기 배율";
     module.enabled = true;
-    module.movable = true;
-    module.removable = true;
+    Apply_AuthoringModuleMetadata(module);
     module.data = SizeByLifeModuleData{};
     return module;
 }
@@ -877,8 +1197,8 @@ void Emitter_View::Reset_ModuleData(size_t emitterIndex, size_t moduleIndex)
         RequiredModuleData data = Internal::Make_DefaultRequiredModuleData();
         module.data = data;
         emitter.rendererType = data.rendererType;
-        emitter.textureId = data.material.mainTextureId;
-        emitter.resourceSummary = data.material.mainTextureId;
+        emitter.textureId = data.material.mainTexturePath;
+        emitter.resourceSummary = data.material.mainTexturePath;
         break;
     }
 
@@ -1011,8 +1331,7 @@ void Emitter_View::Process_PendingModuleAction()
 vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(const AuthoringEmitter& emitter) const
 {
     const auto makeEntry = [&](
-        optional<AuthoringModuleType> moduleType,
-        const wchar_t* displayName,
+        AuthoringModuleType moduleType,
         bool implemented,
         bool compatible,
         bool canAdd,
@@ -1020,7 +1339,7 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
     {
         ModulePickerEntry entry{};
         entry.moduleType = moduleType;
-        entry.displayName = displayName;
+        entry.displayName = Get_AuthoringModuleMetadata(moduleType).displayName;
         entry.disabledReason = std::move(disabledReason);
         entry.implemented = implemented;
         entry.compatible = compatible;
@@ -1044,7 +1363,6 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
     entries.push_back(
         makeEntry(
             AuthoringModuleType::Lifetime,
-            L"수명",
             true,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::Lifetime),
@@ -1054,7 +1372,6 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
     entries.push_back(
         makeEntry(
             AuthoringModuleType::InitialSize,
-            L"초기 크기",
             true,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::InitialSize),
@@ -1064,7 +1381,6 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
     entries.push_back(
         makeEntry(
             AuthoringModuleType::InitialLocation,
-            L"초기 위치",
             true,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::InitialLocation),
@@ -1074,7 +1390,6 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
     entries.push_back(
         makeEntry(
             AuthoringModuleType::SphereLocation,
-            L"구 위치",
             true,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::SphereLocation),
@@ -1084,7 +1399,6 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
     entries.push_back(
         makeEntry(
             AuthoringModuleType::InitialVelocity,
-            L"초기 속도",
             true,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::InitialVelocity),
@@ -1094,7 +1408,6 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
     entries.push_back(
         makeEntry(
             AuthoringModuleType::InitialRadialVelocity,
-            L"초기 방사성 속도",
             true,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::InitialRadialVelocity),
@@ -1104,7 +1417,6 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
     entries.push_back(
         makeEntry(
             AuthoringModuleType::Acceleration,
-            L"가속",
             true,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::Acceleration),
@@ -1114,7 +1426,6 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
     entries.push_back(
         makeEntry(
             AuthoringModuleType::Drag,
-            L"드래그",
             true,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::Drag),
@@ -1124,7 +1435,6 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
     entries.push_back(
         makeEntry(
             AuthoringModuleType::VelocityOverLife,
-            L"수명에 따른 속도",
             true,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::VelocityOverLife),
@@ -1134,7 +1444,6 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
     entries.push_back(
         makeEntry(
             AuthoringModuleType::InitialRotation,
-            L"초기 회전",
             true,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::InitialRotation),
@@ -1144,7 +1453,6 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
     entries.push_back(
         makeEntry(
             AuthoringModuleType::RotationOverLife,
-            L"수명에 따른 회전",
             true,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::RotationOverLife),
@@ -1154,7 +1462,6 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
     entries.push_back(
         makeEntry(
             AuthoringModuleType::InitialRotationRate,
-            L"초기 회전 속도",
             true,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::InitialRotationRate),
@@ -1164,7 +1471,6 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
     entries.push_back(
         makeEntry(
             AuthoringModuleType::RotationRateScaleByLife,
-            L"수명에 따른 회전 속도",
             true,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::RotationRateScaleByLife),
@@ -1174,7 +1480,6 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
     entries.push_back(
         makeEntry(
             AuthoringModuleType::InitialColor,
-            L"초기 컬러",
             true,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::InitialColor),
@@ -1184,7 +1489,6 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
     entries.push_back(
         makeEntry(
             AuthoringModuleType::ColorOverLife,
-            L"수명에 따른 색상",
             true,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::ColorOverLife),
@@ -1194,7 +1498,6 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
     entries.push_back(
         makeEntry(
             AuthoringModuleType::SubUVFrameOverLife,
-            L"서브UV 프레임 선택/재생",
             true,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::SubUVFrameOverLife),
@@ -1204,7 +1507,6 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
     entries.push_back(
         makeEntry(
             AuthoringModuleType::SizeByLife,
-            L"수명에 따른 크기",
             true,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::SizeByLife),
@@ -1379,8 +1681,8 @@ void Emitter_View::Sync_EmitterMirror(AuthoringEmitter& emitter)
             return;
 
         emitter.rendererType = requiredData->rendererType;
-        emitter.textureId = requiredData->material.mainTextureId;
-        emitter.resourceSummary = requiredData->material.mainTextureId;
+        emitter.textureId = requiredData->material.mainTexturePath;
+        emitter.resourceSummary = requiredData->material.mainTexturePath;
         return;
     }
 }

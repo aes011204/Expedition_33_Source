@@ -7,7 +7,8 @@ namespace Engine
 
 namespace Client
 {
-    enum class Buffs;
+struct BattleActionPhase;
+enum class Buffs;
     struct Skill_Data;
     enum class EAttackType;
     class CombatStatCom;
@@ -188,7 +189,7 @@ namespace Client
     // =============================
 
     //방어 기술 분류
-    enum class EDefenseMoveType
+    enum class DefenseMoveType
     {
         Defend,
         Dodge,
@@ -495,36 +496,8 @@ namespace Client
     };
 
 
-    struct Skill_Data
-    {
-        string skillName={""};            // "FireSlash"
-        string scriptClassName={""};      // "FireSlashScript"
-        vector<string> animationKey;
-        string IdleAnimationKey;
 
-        int32 apCost = 0;
-        ECharacterTeamSelector targetingType={};
-
-        uint32 _curAnimIndex = {};
-
-        //
-        EAttackType element={};
-
-        // 
-        Buffs ailmentType = Buffs::None;
-        float ailmentChance = 0.f;
-    };
-    struct Action
-    {
-        BattleChar _curChar = {};
-        BattleChar  target = {};
-
-        EBattleContext type = {};
-
-        Item_Data   _selected_ItemKey = {};
-        Skill_Data   _selected_SkillKey = {};
-
-    };
+    
     struct TurnEntry
     {
         BattleChar hero;
@@ -551,5 +524,78 @@ namespace Client
 
    
     //------------------------------------
-   
+  
+ 
+    struct Skill_Data
+    {
+        string skillKey = "";
+        string scriptClassName = "";
+        vector<BattleActionPhase> AnimPhases = {};
+        string IdleAnimationKey = "";
+
+        int32 apCost = 0;
+        ECharacterTeamSelector targetingType = ECharacterTeamSelector::Invalid;
+        EAttackType element = EAttackType::None;
+        Buffs buff = Buffs::None;
+        float ailmentChance = 0.f;
+    };
+
+    struct Action
+    {
+        BattleChar _curChar = {};
+        BattleChar  target = {};
+
+        EBattleContext type = {};
+
+        Item_Data   _selected_ItemKey = {};
+        Skill_Data   _selected_SkillKey = {};
+
+        uint32 _curAnimIndex = {};
+
+        Vec3 originPos = {};
+        Vec3 phaseStartPos = {};
+        Vec3 phaseGoalPos = {};
+        bool phaseReachedGoal = false;
+        float phasePrevRootRatio = 0.f;
+    };
+
+//
+    enum class BattleMovementPolicy
+    {
+        None,               // 제자리
+        SnapToTarget,       // 바로 목표 위치로 스냅
+        MoveToTarget,        // 대쉬/돌진처럼 전체 이동량을 목표 위치에 맞춤
+        ReturnToOrigin,     // 시작 위치로 복귀
+        RootMotionToTarget,    // 걷기/달리기처럼 루트모션 속도 기반
+        Custom
+    };
+
+    enum class BattleTargetAnchor
+    {
+        None,
+        Self,
+        PrimaryTarget,
+        TargetCenter,
+        FormationSlot,
+        CustomSocket
+
+    };
+
+    struct BattleActionPhase
+    {
+        string animationKey = "";
+      //  string sequenceKey = "";
+        uint32 phaseIndex={};
+        BattleMovementPolicy movementPolicy = BattleMovementPolicy::None;
+        BattleTargetAnchor targetAnchor = BattleTargetAnchor::PrimaryTarget;
+
+        bool useDistance = false;
+
+        float offsetDistance = {};
+
+        bool faceTarget = true;
+     //   bool disableSequenceSnapping = false;
+    };
+
+
 }

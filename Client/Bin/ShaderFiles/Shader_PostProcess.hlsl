@@ -115,7 +115,6 @@ PS_OUT_BACKBUFFER PS_ToneMapping(PS_IN In)
     PS_OUT_BACKBUFFER Out;
 
     float4 hdr = g_HDRTexture.Sample(LinearClampSampler, In.Texcoord);
-
     float3 bloomColor = 0.f;
     if (HasPostProcessFeature(POSTPROCESS_FLAG_BLOOM))
         bloomColor = g_BloomTexture.Sample(LinearClampSampler, In.Texcoord).rgb;
@@ -167,29 +166,15 @@ PS_OUT_BACKBUFFER PS_ToneMapping(PS_IN In)
         }
     }
     
+    
     // Gamma
     if (HasPostProcessFeature(POSTPROCESS_FLAG_GAMMA))
     {
         float gamma = max(g_PP_Gamma, EPSILON);
         color = pow(saturate(color), 1.f / gamma);
     }
-
-    float outAlpha = hdr.a;
-    // 이펙트 에디터 안 쓰게 되면 (나중에 프레임 많이 떨어진다면) 이거 빼도 됨.
-    // 마스크가 비어있고(HDR 미기여) HDR 밝기 합도 거의 0이면 배경으로 간주한다.
-    if (g_PP_UseBackgroundFallback != 0)
-    {
-        float backgroundMask = g_BackgroundMaskTexture.Sample(PointClampSampler, In.Texcoord).r;
-        const bool hasSceneContribution = (backgroundMask > 0.5f) || (dot(abs(hdr.rgb), float3(1.f,1.f,1.f)) > 0.0001f);
-        if (!hasSceneContribution)
-        {
-            color = g_PP_BackgroundFallbackColor.rgb;
-            outAlpha = 1.f;
-        }
-    }
-
     // 최종 출력 화면은 LDR
-    Out.Color = float4(saturate(color), outAlpha);
+    Out.Color = float4(saturate(color), hdr.a);
     return Out;
 }
 

@@ -32,7 +32,7 @@ bool ChooseAction::EnterInvoke()
 {
     LOG_DEBUG("ChooseAction::EnterInvoke");
 
-    LOG_DEBUG("PRESS 1 : AttackTargeting // PRESS 2 : ChooseSkill // PRESS 3 : ChooseItem // PRESS 4 : ChooseUltimate");
+    LOG_DEBUG("PRESS F : AttackTargeting // PRESS E : ChooseSkill // PRESS W : ChooseItem");// // PRESS 4 : ChooseUltimate");
 
     return Battle_State::EnterInvoke();
 }
@@ -46,37 +46,39 @@ void ChooseAction::Update(float timeDelta)
 
     if (!owner || !battleFSM)
         return;
-    if (GAME->KeyDown(KEY_TYPE::KEY_1))
+
+    if (GAME->KeyDown(KEY_TYPE::F))
     {
-        LOG_DEBUG("ChooseAction::Update: KEY_1 -> BaseAttack -> AttackTargeting");
+        LOG_DEBUG("ChooseAction::Update: F -> BaseAttack -> AttackTargeting");
         owner->Get_TurnAction().type = EBattleContext::BaseAttack;
         battleFSM->Change_State(BattleTurnState::AttackTargeting);
         return;
     }
 
-    if (GAME->KeyDown(KEY_TYPE::KEY_2))
+    if (GAME->KeyDown(KEY_TYPE::E))
     {
-        LOG_DEBUG("ChooseAction::Update: KEY_2 -> Skill -> ChooseSkill");
+        LOG_DEBUG("ChooseAction::Update: E -> Skill -> ChooseSkill");
         owner->Get_TurnAction().type = EBattleContext::Skill;
         battleFSM->Change_State(BattleTurnState::ChooseSkill);
         return;
     }
 
-    if (GAME->KeyDown(KEY_TYPE::KEY_3))
+    if (GAME->KeyDown(KEY_TYPE::W))
     {
-        LOG_DEBUG("ChooseAction::Update: KEY_3 -> ConsumableItem -> ChooseItem");
+        LOG_DEBUG("ChooseAction::Update: W -> ConsumableItem -> ChooseItem");
         owner->Get_TurnAction().type = EBattleContext::ConsumableItem;
         battleFSM->Change_State(BattleTurnState::ChooseItem);
         return;
     }
 
-    if (GAME->KeyDown(KEY_TYPE::KEY_4))
-    {
-        LOG_DEBUG("ChooseAction::Update: KEY_4 -> Skill -> ChooseUltimate");
-        owner->Get_TurnAction().type = EBattleContext::Skill;
-        battleFSM->Change_State(BattleTurnState::ChooseUltimate);
-        return;
-    }
+    // 궁극기는 일단 제거
+    //if (GAME->KeyDown(KEY_TYPE::KEY_4))
+    //{
+    //    LOG_DEBUG("ChooseAction::Update: KEY_4 -> Skill -> ChooseUltimate");
+    //    owner->Get_TurnAction().type = EBattleContext::Skill;
+    //    battleFSM->Change_State(BattleTurnState::ChooseUltimate);
+    //    return;
+    //}
 }
 
 void ChooseAction::LateUpdate(float timeDelta)

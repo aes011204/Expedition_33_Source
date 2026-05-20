@@ -7,6 +7,7 @@ class RenderTarget;
 class ICommand;
 class GameObject;
 class Component;
+class Camera;
 NS_END
 
 NS_BEGIN(MainEditor)
@@ -93,6 +94,7 @@ public: /* For.Notification */
 public: /* For.Camera */
     void    Activate_TargetCamera();
     void    Activate_FreeCamera();
+    void    Restore_PreviousCameraOrTarget();
 
 public: /* For.Viewport */
     Shared<RenderTarget>      Prepare_SharedViewportRenderTarget(uint32 width, uint32 height);
@@ -208,6 +210,7 @@ private: /* Runtime Data */
     vector<EditorWorldObjectSnapshot> _playStartWorldSnapshot = {};
     int32 _playStartSelectedObjectIndex = -1;
     CameraPoseSnapshot _playStartCameraPose = {};
+    Weak<Camera> _cameraBeforeFreeCamera = {};
 
     bool _hasPendingWindowFocus = false;
     EDITOR_VIEWPORT_TARGET _pendingWindowFocus = EDITOR_VIEWPORT_TARGET::Game;

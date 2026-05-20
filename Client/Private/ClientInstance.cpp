@@ -12,6 +12,8 @@
 #include "PersistentObjectManager.h"
 #include "Player_WorldBase.h"
 #include "ResourceLoader.h"
+#include "PreviewShotTable.h"
+#include "UIPreviewManager.h"
 
 IMPLEMENT_SINGLETON(ClientInstance)
 
@@ -49,9 +51,32 @@ HRESULT ClientInstance::Initialize_Client(const ComPtr<Device>& device, const Co
     _battleController = BattleController::Create();
     CHECK_NULL(_battleController, E_FAIL);
 
+    _previewShotTable = PreviewShotTable::Create();
+    CHECK_NULL(_previewShotTable, E_FAIL);
+
+    _previewManager = UIPreviewManager::Create();
+    CHECK_NULL(_previewManager, E_FAIL);
+
 	_isInitialized = true;
 
 	return S_OK;
+}
+
+HRESULT ClientInstance::Initialize_Client_ForEffectEditor(const ComPtr<Device>& device, const ComPtr<Context>& context)
+{
+    if (_isInitialized)
+        return S_OK;
+
+    _device = device;
+    _context = context;
+
+    CHECK_FAILED(Ready_ResourceLoader(), E_FAIL);
+
+    Register_ClientEffectEmitters();
+
+    _isInitialized = true;
+
+    return S_OK;
 }
 
 void ClientInstance::Update_Client(float timeDelta)
@@ -59,11 +84,14 @@ void ClientInstance::Update_Client(float timeDelta)
     if (_heroManager)
         _heroManager->Update_HeroManager(timeDelta);
 
+    if (_battleController)
+        _battleController->Update(timeDelta);
+
     if (_gamePlayUI)
         _gamePlayUI->Update(timeDelta);
 
-    if (_battleController)
-        _battleController->Update(timeDelta);
+    if (_previewManager)
+        _previewManager->Update(timeDelta);
 }
 
 HRESULT ClientInstance::Ready_StaticResources()
@@ -107,6 +135,35 @@ GameDataTable::SkillTreeDesc* ClientInstance::Get_SkillTreeDesc(const string& sk
 const umap<string, vector<string>>*  ClientInstance::Get_SkillTreeRequirementData()
 {
     return _gameDataTable->Get_SkillTreeRequirementData();
+}
+
+const Skill_Data* ClientInstance::Get_Skill(const string& skillId)
+{
+    return _gameDataTable->Get_Skill(skillId);
+}
+void ClientInstance::Apply_PreviewLayout(const vector<UIPreviewManager::PreviewSlotDesc>& layout)
+{
+    return _previewManager->Apply_Layout(layout);
+}
+
+void ClientInstance::Begin_Preview(PreviewShotTable::PreviewShotPanel panel)
+{
+    return _previewManager->Begin_Preview(panel);
+}
+
+void ClientInstance::Show_Preview(HeroId heroId, PreviewShotTable::PreviewShotPanel panel)
+{
+    return _previewManager->Show_Preview(heroId, panel);
+}
+
+void ClientInstance::Hide_Preview()
+{
+    return _previewManager->Hide_Preview();
+}
+
+PreviewShotTable::PreviewShotPreset ClientInstance::Get_Preset(HeroId hero, PreviewShotTable::PreviewShotPanel panel)
+{
+    return _previewShotTable->Get(hero, panel);
 }
 
 HRESULT ClientInstance::Initialize_Hero(uint32 levelIndex, const wstring& layerTag, const Vec3& startPos)
@@ -195,8 +252,25 @@ void ClientInstance::Clear_GameplayUI()
     GAME->Set_GameplayPaused(false);
 }
 
+void ClientInstance::Play_BattleEnterTransition()
+{
+    if (_gamePlayUI)
+        return _gamePlayUI->Play_BattleEnterTransition();
+}
+
+void ClientInstance::Stop_BattleEnterTransition()
+{
+    if (_gamePlayUI)
+        return _gamePlayUI->Stop_BattleEnterTransition();
+}
+
+bool ClientInstance::Is_BattleEnterTransitionPlaying() const
+{
+    return _gamePlayUI && _gamePlayUI->Is_BattleEnterTransitionPlaying();
+}
+
 void ClientInstance::OnEnterBattleField(uint32 FieldID, bool IsFirstHero, const vector<HeroId>& heroIds,
-    vector<string>& MonsterProtoTag)
+                                        vector<string>& MonsterProtoTag)
 {
     return _battleController->OnEnterBattleField(FieldID, IsFirstHero, heroIds, MonsterProtoTag);
 }
@@ -209,6 +283,11 @@ bool ClientInstance::Is_BattleActive() const
 bool ClientInstance::Is_BattleEntering() const
 {
     return _battleController && _battleController->Is_BattleEntering();
+}
+
+bool ClientInstance::Is_GameplayMenuOpen() const
+{
+    return _gamePlayUI && _gamePlayUI->Is_AnyMenuOpen();
 }
 
 Shared<GameObject> ClientInstance::Find_Player(uint32 levelIndex)
@@ -266,6 +345,8 @@ void ClientInstance::Release_Client()
     };
 
     ReleaseManager(_gameDataTable);
+    ReleaseManager(_previewShotTable);
+    ReleaseManager(_previewManager);
     ReleaseManager(_persistentObjectManager);
     ReleaseManager(_resourceLoader);
     ReleaseManager(_heroManager);

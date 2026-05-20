@@ -1,6 +1,43 @@
 ﻿#include "GameDataTable.h"
 #include "GameInstance.h"
 
+
+#include <cctype>
+
+namespace
+{
+bool ReadBoolFlexible(const json& item, const char* key, bool defaultValue)
+{
+    if (!item.contains(key) || item[key].is_null())
+        return defaultValue;
+
+    const json& value = item[key];
+
+    if (value.is_boolean())
+        return value.get<bool>();
+
+    if (value.is_number_integer())
+        return value.get<int>() != 0;
+
+    if (value.is_string())
+    {
+        string text = value.get<string>();
+
+        for (char& c : text)
+            c = static_cast<char>(tolower(static_cast<unsigned char>(c)));
+
+        if (text == "true" || text == "1")
+            return true;
+
+        if (text == "false" || text == "0")
+            return false;
+    }
+
+    LOG_WARN("[GameDataTable] invalid bool field: key={}, valueType={}", key, value.type_name());
+    return defaultValue;
+}
+}
+
 HRESULT GameDataTable::Initialize()
 {
     return S_OK;
@@ -20,8 +57,9 @@ HRESULT GameDataTable::Load_All()
     CHECK_FAILED(Load_ExpLevel(jsonRootPath), E_FAIL);
 
     CHECK_FAILED(Load_SkillData(jsonRootPath), E_FAIL);
+    CHECK_FAILED(Load_SkillPhaseData(jsonRootPath), E_FAIL);
     
-    CHECK_FAILED(Load_SkillActionData(jsonRootPath), E_FAIL);
+    // CHECK_FAILED(Load_SkillActionData(jsonRootPath), E_FAIL);
 
     CHECK_FAILED(Load_SkillTreeData(jsonRootPath), E_FAIL);
 
@@ -135,26 +173,133 @@ HRESULT GameDataTable::Load_SkillData(const wstring& jsonRootPath)
 
     for(const json& item : root["DT_Skill"])
     {
-        const string skillId = item.value("skill id","");
+        const string skillId = item.value("skillKey", "");
 
-        if(skillId == "")
+        if (skillId.empty())
             continue;
 
-       _skillData[skillId].name = String::ToWString(item.value("name", ""));
+        Skill_Data skill{};
 
-       if( _skillData[skillId].name  == L"")
-           continue;
+        skill.skillKey = item.value("skillKey", "");
+        skill.scriptClassName = item.value("scriptClassName", "");
+        skill.apCost = item.value("ap cost", 0);
+        skill.targetingType =
+            magic_enum::enum_cast<ECharacterTeamSelector>(item.value("targetingType", ""))
+            .value_or(ECharacterTeamSelector::Invalid);
+        skill.element =
+            magic_enum::enum_cast<EAttackType>(item.value("element", ""))
+            .value_or(EAttackType::None);
+        skill.buff =
+            magic_enum::enum_cast<Buffs>(item.value("buff", ""))
+            .value_or(Buffs::None);
+        skill.ailmentChance = item.value("BuffChance", 0.f);
+        skill.IdleAnimationKey = item.value("IdleAnimationKey", "");
+      //  skill.animationKey = Split_String(item.value("animationKey", ""), '|');
 
-        _skillData[skillId].apCost = item.value("ap cost", 0);
+        const size_t index = _skillDefs.size();
+        _skillDefs.push_back(skill);
+        _skillIndexById[skillId] = index;
+    }
+  
+    LOG_INFO("[GameDataTable] loaded skill table: count = {}", _skillDefs.size() > 0? _skillDefs.size() - 1 : 0);
+    return S_OK;
+}
+
+const Skill_Data* GameDataTable::Get_Skill(const string& skillId)
+{
+    auto it = _skillIndexById.find(skillId);
+    if (it == _skillIndexById.end())
+        return nullptr;
+
+    const size_t index = it->second;
+    if (index >= _skillDefs.size())
+        return nullptr;
+
+    return &_skillDefs[index];
+}
+
+HRESULT GameDataTable::Load_SkillPhaseData(const wstring& jsonRootPath)
+{
+    const fs::path tablePath = fs::path(jsonRootPath) / L"DT_SkillAction.json";
+
+    json root = {};
+
+    try
+    {
+        ifstream file(tablePath);
+        if (!file.is_open())
+        {
+            LOG_ERROR("[GameDataTable] failed to open skill phase table: {}", String::ToString(tablePath.wstring()));
+            return E_FAIL;
+        }
+
+        file >> root;
+    }
+    catch (const std::exception& e)
+    {
+        LOG_ERROR("[GameDataTable] failed to parse skill phase table: {} ({})",
+            String::ToString(tablePath.wstring()), e.what());
+        return E_FAIL;
     }
 
-    LOG_INFO("[GameDataTable] loaded skill table: count = {}", _skillData.size() > 0? _skillData.size() - 1 : 0);
+    if (!root.contains("DT_SkillAction") || !root["DT_SkillAction"].is_array())
+    {
+        LOG_ERROR("[GameDataTable] DT_SkillAction array not found: {}", String::ToString(tablePath.wstring()));
+        return E_FAIL;
+    }
+
+    for (const json& item : root["DT_SkillAction"])
+    {
+        const string skillKey = item.value("skillKey", "");
+        if (skillKey.empty())
+            continue;
+
+        BattleActionPhase phase{};
+        phase.phaseIndex = item.value("phaseIndex", 0);
+        phase.animationKey = item.value("animationKey", "");
+
+        phase.movementPolicy =
+            magic_enum::enum_cast<BattleMovementPolicy>(item.value("movementPolicy", "None"))
+            .value_or(BattleMovementPolicy::None);
+
+        phase.targetAnchor =
+            magic_enum::enum_cast<BattleTargetAnchor>(item.value("targetAnchor", "None"))
+            .value_or(BattleTargetAnchor::None);
+
+        phase.useDistance = ReadBoolFlexible(item, "useDistance", false);
+        phase.faceTarget = ReadBoolFlexible(item, "faceTarget", true);
+        phase.offsetDistance = item.value("offsetDistance", 0.f);
+
+        auto it = _skillIndexById.find(skillKey);
+        if (it == _skillIndexById.end())
+        {
+            LOG_WARN("[GameDataTable] phase references unknown skillKey: {}", skillKey);
+            continue;
+        }
+
+        const size_t skillIndex = it->second;
+        if (skillIndex >= _skillDefs.size())
+            continue;
+
+        _skillDefs[skillIndex].AnimPhases.push_back(phase);
+    }
+
+    for (Skill_Data& skill : _skillDefs)
+    {
+        sort(skill.AnimPhases.begin(), skill.AnimPhases.end(),
+            [](const BattleActionPhase& a, const BattleActionPhase& b)
+            {
+                return a.phaseIndex < b.phaseIndex;
+            });
+    }
+
+    LOG_INFO("[GameDataTable] loaded skill phase table");
     return S_OK;
 }
 
 HRESULT GameDataTable::Load_SkillActionData(const wstring& jsonRootPath)
 {
-    const fs::path tablePath = fs::path(jsonRootPath) / L"DT_SkillAction.json";
+   /* const fs::path tablePath = fs::path(jsonRootPath) / L"DT_SkillAction.json";
 
     json root = {};
 
@@ -257,9 +402,8 @@ HRESULT GameDataTable::Load_SkillActionData(const wstring& jsonRootPath)
         }
 
         iter->second.skillActions.push_back(move(action));
-    }
-
-    return S_OK;
+    }*/
+return S_OK;
 }
 
 HRESULT GameDataTable::Load_SkillTreeData(const wstring& jsonRootPath)
@@ -349,6 +493,10 @@ HRESULT GameDataTable::Load_SkillTreeRequirementData(const wstring& jsonRootPath
             continue;
 
         const string requiredSkill = item.value("required skill id", "");
+
+        if(requiredSkill == "")
+            continue;
+
         _requirementSkills[skillId].push_back(requiredSkill);
     }
 
@@ -388,6 +536,26 @@ const umap<string, vector<string>>* GameDataTable::Get_SkillTreeRequirementData(
 {
     return  &_requirementSkills;
 }
+
+vector<string> GameDataTable::Split_String(const string& value, char delimiter)
+{
+    vector<string> result;
+    string token;
+    stringstream ss(value);
+
+    while (getline(ss, token, delimiter))
+    {
+        const size_t first = token.find_first_not_of(" \t");
+        if (first == string::npos)
+            continue;
+
+        const size_t last = token.find_last_not_of(" \t");
+        result.push_back(token.substr(first, last - first + 1));
+    }
+
+    return result;
+}
+
 
 Unique<GameDataTable> GameDataTable::Create()
 {

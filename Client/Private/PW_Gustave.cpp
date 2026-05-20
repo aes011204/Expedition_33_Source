@@ -3,6 +3,7 @@
 #include "Bounding_OBB.h"
 #include "ColliderCom.h"
 #include "PlayableParts.h"
+#include "SkillTreeCom.h"
 
 IMPLEMENT_REFLECTION(PW_Gustave)
 {
@@ -25,6 +26,19 @@ PW_Gustave::PW_Gustave(const PW_Gustave& prototype)
 	: Player_WorldBase{ prototype }
 {
 
+}
+
+HRESULT PW_Gustave::Initialize(void* arg)
+{
+    CHECK_FAILED(__super::Initialize(arg), E_FAIL)
+
+    auto skillTreeCom = Get_Component<SkillTreeCom>();
+
+    skillTreeCom->TryUnlock("LumiereAssault");
+    skillTreeCom->TryUnlock("UnleashedCharge");
+
+
+    return S_OK; 
 }
 
 HairChainPhysicsDesc PW_Gustave::Get_HairChainPhysicsDesc() const

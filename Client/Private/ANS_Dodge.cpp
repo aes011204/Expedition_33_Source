@@ -1,6 +1,8 @@
 ﻿#include "ANS_Dodge.h"
 
 #include "GameInstance.h"
+#include "BattleController.h"
+#include "ClientInstance.h"
 
 
 IMPLEMENT_REFLECTION(ANS_Dodge)
@@ -15,19 +17,21 @@ IMPLEMENT_REFLECTION(ANS_Dodge)
 
 void ANS_Dodge::On_Begin(const AnimNotifyContext& context)
 {
+    auto battle = CLIENT->Get_BattleController();
+    if (battle)
+        battle->OpenReactionWindow(BattleController::ReactionType::Dodge);
 }
 
 void ANS_Dodge::On_Tick(const AnimNotifyContext& context)
 {
     LOG_INFO({ "DODGE TIME" });
 
-    if (GAME->KeyDown(KEY_TYPE::Q))
-    {
-        LOG_ERROR({ " SUCCESS  DODGE" });
-
-    }
+ 
 }
 
 void ANS_Dodge::On_End(const AnimNotifyContext& context)
 {
+    //auto battle = CLIENT->Get_BattleController();
+    //if (battle)
+    //    battle->CloseReactionWindow(BattleController::ReactionType::Dodge);
 }

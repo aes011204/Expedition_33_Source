@@ -69,6 +69,9 @@ PlayerState PlayerStateMachineCom::Get_CurrentPlayerState() const
 {
     auto str = String::ToString(_currentStateName);
 
+    if (str.empty())
+        return PlayerState::End;
+
     return magic_enum::enum_cast<PlayerState>(str).value();
 }
 

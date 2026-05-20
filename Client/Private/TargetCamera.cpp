@@ -41,7 +41,7 @@ HRESULT TargetCamera::Initialize(void* arg)
     _currentSettings.pivotHeight = desc->pivotHeight;
     _currentSettings.mouseSensitivity = desc->mouseSensitivity;
     _currentSettings.yawOffset = desc->yawOffset;
-    _currentSettings.pitchOffset = desc->pivotHeight;
+    _currentSettings.pitchOffset = desc->pitchOffset;
     _currentSettings.rollOffset = desc->rollOffset;
     
     _yaw = 0.f;
@@ -77,14 +77,40 @@ void TargetCamera::BeginPlay()
 
     GAME->Add_Camera(GetSharedPtr<Camera>());
     GAME->Change_ActiveCamera(GetSharedPtr<Camera>());
-    _targetTransformCom =  CLIENT->Find_Player(GAME->Current_LevelIndex())->Get_Transform();
+
+    Refresh_TargetTransform();
+
     _prevTargetPos = _targetTransformCom.lock()->Get_WorldPosition();
     _smoothedTargetPos = _prevTargetPos;
+}
+
+void TargetCamera::OnActivated()
+{
+    Refresh_TargetTransform();
+
+    Shared<TransformCom> targetTransformCom;
+    if (Try_GetTargetTransform(targetTransformCom))
+    {
+        const Vec3 targetPos = targetTransformCom->Get_WorldPosition();
+        _prevTargetPos = targetPos;
+        _smoothedTargetPos = targetPos;
+    }
+
+    Update_FromCurrentSettings(0.f);
+    Apply_View();
 }
 
 void TargetCamera::Priority_Update(float timeDelta)
 {
     __super::Priority_Update(timeDelta);
+
+    if (GAME->Is_WorldGameplayInputBlocked())
+    {
+        if (_currentState == CAMERA_STATE::AIM)
+            Change_State(CAMERA_STATE::NORMAL);
+
+        return;
+    }
 
     if(GAME->KeyDown(KEY_TYPE::RBUTTON))
     {
@@ -110,7 +136,9 @@ void TargetCamera::Update(float timeDelta)
     if(!GAME->Is_ActiveCamera(GetSharedPtr<Camera>()))
          return;
 
-    if(GAME->Is_ActiveCamera(GetSharedPtr<Camera>())&&_targetSettings.allowMouseRotation)
+    if(GAME->Is_ActiveCamera(GetSharedPtr<Camera>()) &&
+        _targetSettings.allowMouseRotation &&
+        !GAME->Is_WorldGameplayInputBlocked())
     {
         const Vec2 mouseDelta = GAME->Get_MouseDelta();
 
@@ -215,13 +243,6 @@ void TargetCamera::Update_FromCurrentSettings(float timeDelta)
     const Matrix pitchRotation = XMMatrixRotationAxis(rightDir, pitchRad);
     const Vec3 orbitOffset = XMVector3TransformNormal(baseOffset, pitchRotation);
 
-    //Vec3 delta = targetPos - _smoothedTargetPos;
-    //
-    //if(delta.LengthSquared() < 0.0004f)
-    //  _smoothedTargetPos = targetPos;
-    //
-    //_smoothedTargetPos = Math::Lerp_Damp(_smoothedTargetPos, targetPos, followSpeed, timeDelta);
-
     _smoothedTargetPos = targetPos;
 
     const Vec3 pivotPos = _smoothedTargetPos + Vec3::Up * _currentSettings.pivotHeight;
@@ -280,12 +301,19 @@ void TargetCamera::Update_FromCurrentSettings(float timeDelta)
     _transformCom->LookAt(lookTarget);
     _transformCom->Add_LocalRotation(Quat::CreateFromAxisAngle(Vec3::Forward, _currentSettings.rollOffset));
 
+    _fovY;
     Update_TransformMatrices();
     GAME->UpdateFrustum(*GAME->Get_Transform(D3DTS::View), *GAME->Get_Transform(D3DTS::Proj));
 
     _prevTargetPos = targetPos;
 
-    Vec3 pos = _transformCom->Get_WorldPosition();
+}
+
+void TargetCamera::Refresh_TargetTransform()
+{
+    auto player = CLIENT->Find_Player(GAME->Current_LevelIndex());
+    if (player && player->Get_Transform())
+        _targetTransformCom = player->Get_Transform();
 }
 
 void TargetCamera::Update_NormalState(float timeDelta)

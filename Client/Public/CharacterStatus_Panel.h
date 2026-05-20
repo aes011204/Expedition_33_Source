@@ -1,36 +1,32 @@
 ﻿#pragma once
 
-#include "Base.h"
+#include "UI_RuntimePanelBase.h"
 #include "Client_Defines.h"
+#include "UIPreviewManager.h"
 
 NS_BEGIN(Engine)
 class UI_Base;
 class UI_Text;
-class Camera;
 NS_END
 
 NS_BEGIN(Client)
-
 class Player_WorldBase;
-class PreviewCamera;
 
 // UI_Panel 렌더 객체가 아니라,
 // UI_CharacterStatus.json으로 생성된 패널 트리를 제어하는 컨트롤러.
-class CharacterStatus_Panel final : public Base
+class CharacterStatus_Panel final : public UI_RuntimePanelBase
 {
 public:
     CharacterStatus_Panel() = default;
     ~CharacterStatus_Panel() override = default;
 
 public:
-    HRESULT Initialize(uint32 levelIndex);
-    void    Update(float timeDelta);
+    HRESULT Initialize(uint32 levelIndex) override;
+    void    Update(float timeDelta) override;
 
-    void    Open();
-    void    Close();
-    void    Toggle();
-
-    bool    Is_Open() const { return _isOpen; }
+    void    Open() override;
+    void    Close() override;
+    void    Toggle() override;
 
     void    Handle_SelectionInput();
     uint32  Get_WrappedPartyIndex(int32 index) const;
@@ -42,65 +38,18 @@ private:
     void    Refresh_CombatStats();
     void    Refresh_CharacterSelectUI(); // 선택된 캐릭터 슬롯만 크게 보이게
 
-    Shared<UI_Base> Find_UI(const umap<wstring, Shared<UI_Base>>& uiByName, const wstring& name) const;
-
-    template<typename T>
-    Shared<T> Find_TypedUI(
-        const umap<wstring, Shared<UI_Base>>& uiByName, const wstring& name) const
-    {
-        Shared<UI_Base> ui = Find_UI(uiByName, name);
-        if (ui == nullptr)
-            return nullptr;
-
-        Shared<T> typedUI = dynamic_pointer_cast<T>(ui);
-        if (typedUI == nullptr)
-            LOG_WARN("CharacterStatusPanel ui type mismatch: {}", String::ToString(name));
-
-        return typedUI;
-    }
-
     static void Set_IntText(const Shared<UI_Text>& text, int32 value);
     static void Set_UIntText(const Shared<UI_Text>& text, uint32 value);
     static void Set_PercentText(const Shared<UI_Text>& text, float value);
     static void Set_HpText(const Shared<UI_Text>& text, float hp, float maxHp);
 
 private:
-    HRESULT Spawn_StatusPreviewHeroes();
-    void    Clear_StatusPreviewHeroes();
-
-    void    Update_StatusPreviewHeroes(float timeDelta);
-    void    Layout_StatusPreviewHeroes();
-
-    HRESULT Ready_StatusPreviewCamera();
-    void    Activate_StatusPreviewCamera();
-    void    Restore_PreviousCamera();
-
-private:
-    struct StatusPreviewHero
-    {
-        Shared<Player_WorldBase> player{};
-
-        // 
-    };
-
-    vector<StatusPreviewHero> _previewHeroes{};
-    wstring _previewLayerTag = L"Layer_CharacterStatusPreview";
+    vector<UIPreviewManager::PreviewSlotDesc>  Build_PreviewLayout();
 
 private:
     uint32 _selectedHeroIndex = 0;
 
-    uint32 _levelIndex = 0;
-    bool _isOpen = false;
-
-    umap<wstring, Shared<UI_Base>> _uiByName{};
-
-    // 원래 게임 카메라로 돌아가기 위한 저장용
-    Shared<Camera>          _previousCamera{};      
-    Shared<PreviewCamera>   _statusPreviewCamera{};
-
     // UI
-    Shared<UI_Base> _root{};
-
     Shared<UI_Text> _levelText{};
     Shared<UI_Text> _statPointText{};
 

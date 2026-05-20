@@ -21,6 +21,8 @@ public:
     {
         bool rigidMovement{ false };
         bool rigidJump{ false };
+        bool rigidLook{ false };
+        Vec3 rigidVelocity{ Vec3::Zero };
     };
 
     struct FollowControl
@@ -45,6 +47,9 @@ public:
     void    Update_Controller(float timeDelta);
     void    Update_InputState();
     void    Update_Movement(float timeDelta);
+
+public:
+    Vec3    Get_Velocity() const;
 
 public:
     bool    Has_MoveInput() const;

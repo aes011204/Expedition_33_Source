@@ -2,16 +2,16 @@
 #include "Base.h"
 #include "GameDataTable.h"
 #include "Delegate.h"
+#include "PreviewShotTable.h"
+#include "UIPreviewManager.h"
 
 NS_BEGIN(Engine)
-class GameInstance;
+    class GameInstance;
 NS_END
 
 NS_BEGIN(Client)
-
 class BattleController;
-
-    class Player_WorldBase;
+class Player_WorldBase;
 class TargetCamera;
 class ResourceLoader;
 class GameplayUI;
@@ -28,6 +28,7 @@ public:
 
 public:
 	HRESULT Initialize_Client(const ComPtr<Device>& device, const ComPtr<Context>& context);
+    HRESULT Initialize_Client_ForEffectEditor(const ComPtr<Device>& device, const ComPtr<Context>& context);
     void    Update_Client(float timeDelta);
 	void    Release_Client();
 
@@ -41,6 +42,8 @@ public:
     bool    Is_StaticResourcesLoaded() const { return _isStaticResourcesLoaded.load(); }
     void    Set_StaticResourcesLoaded(bool isLoaded) { _isStaticResourcesLoaded.store(isLoaded); }
 
+    bool    Is_GameplayMenuOpen() const;
+
 public: /* 플레이어 찾기 -> 일단 임시 */
     Shared<GameObject> Find_Player(uint32 levelIndex);
 
@@ -48,6 +51,16 @@ public: /* For.GameData Table */
     uint32        Get_NextExp(uint32 level) const;
     GameDataTable::SkillTreeDesc* Get_SkillTreeDesc(const string& skillName);
     const umap<string, vector<string>>* Get_SkillTreeRequirementData();
+    const Skill_Data* Get_Skill(const string& skillId);
+
+public:
+    void    Apply_PreviewLayout(const vector<UIPreviewManager::PreviewSlotDesc>& layout);
+    void    Begin_Preview(PreviewShotTable::PreviewShotPanel panel);
+    void    Show_Preview(HeroId heroId, PreviewShotTable::PreviewShotPanel panel);
+    void    Hide_Preview();
+
+public:
+    PreviewShotTable::PreviewShotPreset Get_Preset(HeroId hero, PreviewShotTable::PreviewShotPanel panel);
 
 public: /* For.Hero Manager */
     HRESULT        Initialize_Hero(uint32 levelIndex, const wstring& layerTag, const Vec3& startPos = Vec3::Zero);
@@ -79,6 +92,10 @@ public: /* For.Gameplay UI */
     HRESULT Initialize_GameplayUI(uint32 levelIndex);
     void    Clear_GameplayUI();
 
+    void    Play_BattleEnterTransition();
+    void    Stop_BattleEnterTransition();
+    bool    Is_BattleEnterTransitionPlaying() const;
+
 public: /* For.Battle_Controller */
     void OnEnterBattleField(
         uint32 FieldID,
@@ -88,8 +105,8 @@ public: /* For.Battle_Controller */
 
     Shared<BattleController>    Get_BattleController() { return _battleController; };
 
-    bool Is_BattleActive() const;
-    bool Is_BattleEntering() const;
+    bool    Is_BattleActive() const;
+    bool    Is_BattleEntering() const;
 
 private:
 	HRESULT Ready_ResourceLoader();
@@ -104,10 +121,12 @@ private:
 	bool _isInitialized = false;
 
 private:
+    Shared<UIPreviewManager>    _previewManager;
     Shared<ResourceLoader>      _resourceLoader;
     Unique<GameDataTable>       _gameDataTable;
+    Unique<PreviewShotTable>    _previewShotTable;
 
-    Unique<GameplayUI>          _gamePlayUI;
+    Shared<GameplayUI>          _gamePlayUI;
     Unique<PersistentObjectManager> _persistentObjectManager;
     Unique<Hero_Manager>        _heroManager;
 

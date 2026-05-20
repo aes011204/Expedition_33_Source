@@ -19,6 +19,7 @@
 #include "Prefab_View.h"
 #include "Animation_View.h"
 #include "AnimState_View.h"
+#include "ClientInstance.h"
 #include "PostProcess_View.h"
 
 namespace fs = std::filesystem;
@@ -283,7 +284,7 @@ void Editor_Manager::Handle_Shortcuts()
             }
         }
     }
-
+    
     // Ctrl + Space : Scene/Game/Profile 집중 모드
     if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Space, false))
     {
@@ -306,7 +307,7 @@ void Editor_Manager::Handle_Shortcuts()
     if (ImGui::IsKeyPressed(ImGuiKey_F8, false))
     {
         if (GAME->Is_ActiveCameraType(ObjectType::FreeCamera))
-            EDITOR->Activate_TargetCamera();
+            EDITOR->Restore_PreviousCameraOrTarget();
         else
             EDITOR->Activate_FreeCamera();
 
@@ -327,11 +328,16 @@ void Editor_Manager::Handle_Shortcuts()
     }
 
     // Esc : 게임 종료
-    if (ImGui::IsKeyPressed(ImGuiKey_Escape, false))
+    if (ImGui::IsKeyPressed(ImGuiKey_F4, false))
     {
+        if (GAME->Is_GameplayPaused())
+        {
+            return;
+        }
+    
         if (EDITOR->IsPlaying() || EDITOR->IsPaused())
             EDITOR->Stop();
-
+    
         return;
     }
 
@@ -384,7 +390,7 @@ void Editor_Manager::Render_ShortcutHelp()
 
             DrawShortcutRow("F1", "충돌체 렌더링");
             DrawShortcutRow("F5", "Play / Resume");
-            DrawShortcutRow("Esc", "Stop");
+            DrawShortcutRow("F4", "Stop");
             DrawShortcutRow("F8", "카메라 전환");
             DrawShortcutRow("F9", "Pause + Free Camera");
             DrawShortcutRow("Ctrl + Wheel", "Free Camera Speed");
@@ -459,7 +465,7 @@ void Editor_Manager::Toggle_FocusMode()
 
         _focusModeWindowStates[name] = window->Is_Open();
 
-        if (name == L"Scene" || name == L"Game" || name == L"Profile")
+        if (name == L"Scene" || name == L"Game" || name == L"Profile" || name == L"Console")
             continue;
 
         window->Set_Open(false);

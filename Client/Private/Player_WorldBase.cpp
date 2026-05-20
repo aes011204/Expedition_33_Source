@@ -74,6 +74,9 @@ void Player_WorldBase::Priority_Update(float timeDelta)
 
 void Player_WorldBase::Update(float timeDelta)
 {
+    if (CLIENT->Is_BattleActive())
+        return;
+
     __super::Update(timeDelta);
 
     
@@ -81,6 +84,9 @@ void Player_WorldBase::Update(float timeDelta)
 
 void Player_WorldBase::Late_Update(float timeDelta)
 {
+    if (CLIENT->Is_BattleActive())
+        return;
+
     __super::Late_Update(timeDelta);
 
     Update_Culling(Vec3(1.f, 2.f, 1.f));
@@ -112,12 +118,13 @@ HRESULT Player_WorldBase::Ready_Components()
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_Input"), _inputCom), E_FAIL);
        
     MovementCom::MoveDesc moveDesc{};
-    moveDesc.walkSpeed = 9.f;
-    moveDesc.runSpeed = 10.f;
+    moveDesc.walkSpeed = 3.f;
+    moveDesc.runSpeed = 6.5f;
+    moveDesc.sprintSpeed = 10.f;
     moveDesc.turnSpeedDegree = 720.f;
     moveDesc.turnResponse = 10.f;
     moveDesc.jumpVelocity = 20.f;
-    moveDesc.gravity = -20.f;
+    moveDesc.gravity = -40.f;
 
     moveDesc.backend = MovementCom::MoveBackend::PhysXCCT; // 플레이어는 CCT로 테스트
 
@@ -129,9 +136,9 @@ HRESULT Player_WorldBase::Ready_Components()
 
     moveDesc.cct.radius = 0.32f;
     moveDesc.cct.height = 1.50f;
-    moveDesc.cct.stepOffset = 0.35f;
-    moveDesc.cct.contactOffset = 0.03f;
-    moveDesc.cct.slopeLimitDeg = 49.f;
+    moveDesc.cct.stepOffset = 0.45f;
+    moveDesc.cct.contactOffset = 0.05f;
+    moveDesc.cct.slopeLimitDeg = 55.f;
     moveDesc.cct.groundLerpSpeed = 15.f;
 
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_Movement"), _movementCom, &moveDesc), E_FAIL);

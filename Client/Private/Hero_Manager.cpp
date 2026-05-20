@@ -381,11 +381,7 @@ void Hero_Manager::Apply_ControlRoles()
         {
             movement->Clear_FollowMoveCommand();
             movement->Apply_Input({});
-
-            if (isActive)
-                movement->Set_MoveBackend(MovementCom::MoveBackend::PhysXCCT);
-            else
-                movement->Set_MoveBackend(MovementCom::MoveBackend::Sweep);
+            movement->Set_MoveBackend(MovementCom::MoveBackend::PhysXCCT);
         }
 
         if (isActive)

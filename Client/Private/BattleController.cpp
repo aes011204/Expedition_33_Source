@@ -23,6 +23,7 @@
 #include "BattleTurnCamera.h"
 #include "Camera.h"
 #include "TargetCamera.h"
+#include "BattleActionExecutor.h"
 
 BattleController::BattleController()
 {
@@ -38,15 +39,14 @@ EAPChangeReason BattleController::FinishBattle()
     return EAPChangeReason::Parry;
 }
 
-
-
 HRESULT BattleController::Initialize()
 {
     Set_BattleFSM();
 
 
-    return S_OK;
+    _battleActionExe = BattleActionExecutor::Create();
 
+    return S_OK;
 }
 
 void BattleController::Update(float timeDelta)
@@ -57,17 +57,27 @@ void BattleController::Update(float timeDelta)
         _battleEnterElapsed += GAME->Get_UnscaledTimeDelta();
 
         if (_battleEnterElapsed >= _battleEnterDuration)
-        {
             Complete_BattleField();
+
+        return;
+    }
+
+    if (_isWaitingBattleTransition)
+    {
+        // 전환이 끝난 뒤에 첫 턴 시작되게
+        if (!CLIENT->Is_BattleEnterTransitionPlaying())
+        {
+            _isWaitingBattleTransition = false;
+            StartTurn();
         }
 
         return;
     }
 
     if (_battleEnded == true)
-    {
         return;
-    }
+
+    UpdateReactionInput();
 
     if (_pendingNextTurn)
     {
@@ -82,24 +92,37 @@ void BattleController::Update(float timeDelta)
         return;
     // 적턴 인지 플레이어 턴인지에 따라
     if (_currentTurnActor.statCom->Is_Player())
-    {
         _battleFSM->Update_StateMachine(timeDelta);
+
+    const bool hasRunningAction =
+        _turnAction._curChar.actor != nullptr &&
+        !_battleActionExe->IsFinished();
+
+    if (hasRunningAction)
+    {
+        _battleActionExe->Update(timeDelta, _turnAction);
+
+        if (_battleActionExe->IsFinished())
+        {
+            EndTurn();
+            return;
+        }
     }
-
-
-
 }
+
 void BattleController::Run_EnemyTurn()
 {
-    LOG_DEBUG("Run_EnemyTurn: actor={}",
-        Get_TurnAction()._curChar.actor ? String::ToString(Get_TurnAction()._curChar.actor->Get_Name()).c_str() : "null");
+    LOG_DEBUG(
+        "Run_EnemyTurn: actor={}",
+        Get_TurnAction()._curChar.actor ? String::ToString(Get_TurnAction()._curChar.actor->Get_Name()).c_str() : "null"
+    );
 
     auto monster
         = dynamic_pointer_cast<Monster_BattleBase>(Get_TurnAction()._curChar.actor);
 
     CHECK_NULL(monster);
 
-    monster->Decide_Action(Get_TurnAction(), Get_AliveHeroes());
+    monster->Decide_Action_BTOnly(Get_TurnAction(), Get_AliveHeroes());
     ExecuteAction( Get_TurnAction());
 }
 
@@ -130,6 +153,10 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
 {
     _isBattleActive = false;
     _isBattleEntering = false;
+    _isWaitingBattleTransition = false;
+
+    Clear_TargetPreview();
+    OnBattleEnded.Broadcast(result); // battle end UI 정리는 GameplayUI_Battle에서 처리한다.
 
     // 전투 종료 시 슬로우모션 값이 남지 않도록 복구
     GAME->Stop_WorldTimeSlow();
@@ -150,13 +177,15 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
 
 void BattleController::ExecuteAction(Action turnAction)
 {
-    auto BattleChar = turnAction._curChar;
+    const auto BattleChar = turnAction._curChar;
     if (!BattleChar.actor)
         return;
 
-    LOG_DEBUG("ExecuteAction: actor={}, type={}",
+    LOG_DEBUG(
+        "ExecuteAction: actor={}, type={}",
         turnAction._curChar.actor ? String::ToString(turnAction._curChar.actor->Get_Name()).c_str() : "null",
-        static_cast<int>(turnAction.type));
+        static_cast<int>(turnAction.type)
+    );
 
     // 일반 공격도 스킬로 들어감 구분만 BaseAttack
     switch (turnAction.type)
@@ -177,6 +206,9 @@ void BattleController::ExecuteAction(Action turnAction)
 
 void BattleController::EndTurn()
 {
+    // 일단 만들어 놓은 스킬 지우기
+    Clear_CurrentScript();
+
     // 끝났다면 끝
     uint32 DeadPlayer = {};
     uint32 DeadEnemy = {};
@@ -198,8 +230,10 @@ void BattleController::EndTurn()
             DeadEnemy++;
     }
 
-    LOG_DEBUG("EndTurn: actor={}",
-        _currentTurnActor.actor ? String::ToString(_currentTurnActor.actor->Get_Name()).c_str() : "null");
+    LOG_DEBUG(
+        "EndTurn: actor={}",
+        _currentTurnActor.actor ? String::ToString(_currentTurnActor.actor->Get_Name()).c_str() : "null"
+    );
     LOG_DEBUG("EndTurn: deadPlayer={}, deadEnemy={}", DeadPlayer, DeadEnemy);
 
     if (DeadEnemy == _enemies.size())
@@ -210,32 +244,26 @@ void BattleController::EndTurn()
 		return;
     }
 
+    Clear_TargetPreview();
 
     // 상태 이상 엔드
     _buffSystem->ProcessTurnEnd(_currentTurnActor.statCom);
+    OnTurnEnded.Broadcast(_currentTurnActor); // 턴 종료 신호
 
-    // 다음 턴 시작
-
-    auto actor = _currentTurnActor;
+    const auto actor = _currentTurnActor;
     // 죽은애들은 큐에 다시 안들어가게
     if (actor.statCom->Get_AliveStatus() != EAliveStatus::Dead)
     {
-
         TurnEntry entry{};
         entry.hero = actor;
 
         entry.nextTime =
-            _battleTime + (100.f / max(actor.statCom->Get_Speed(), 1.f));
+            _battleTime + 100.f / max(actor.statCom->Get_Speed(), 1.f);
 
         _turnQueue.push(entry);
     }
 
-
-
     _pendingNextTurn = true;
-
-
-
 }
 
 void BattleController::StartTurn()
@@ -244,37 +272,37 @@ void BattleController::StartTurn()
     _battleTime = _turnQueue.top().nextTime;
     _turnQueue.pop();
 
-    LOG_DEBUG("StartTurn: next actor={}, isPlayer={}",
+    LOG_DEBUG(
+        "StartTurn: next actor={}, isPlayer={}",
         _currentTurnActor.actor ? String::ToString(_currentTurnActor.actor->Get_Name()).c_str() : "null",
-        _currentTurnActor.statCom ? _currentTurnActor.statCom->Is_Player() : 0);
-
+        _currentTurnActor.statCom ? _currentTurnActor.statCom->Is_Player() : 0
+    );
 
     _turnAction = {};
     _turnAction._curChar = _currentTurnActor;
-    auto actor = _currentTurnActor;
+    const auto actor = _currentTurnActor;
 
     // 상태 이상 엔드
     _buffSystem->ProcessTurnStart(_currentTurnActor.statCom);
-
 
     // fsm
     if (actor.statCom->Is_Player())
     {
         LOG_DEBUG("StartTurn: player turn -> FSM ChooseAction");
         _battleFSM->Change_State(BattleTurnState::ChooseAction);
+        OnTurnStarted.Broadcast(_currentTurnActor, BattleTurnState::ChooseAction);
     }
     else
     {
         LOG_DEBUG("StartTurn: enemy turn -> Run_EnemyTurn");
+        OnTurnStarted.Broadcast(_currentTurnActor, BattleTurnState::None);
         Run_EnemyTurn();
     }
-
-
 }
 
 void BattleController::Create_BattleChar(const vector<HeroId>& heroIds, vector<string>& battleMonsterPrefabNames)
 {
-    for (HeroId heroId : heroIds)
+    for (const HeroId heroId : heroIds)
     {
         const HeroSpawnDesc* spawnDesc = CLIENT->Find_HeroSpawnDesc(heroId);
         if (spawnDesc == nullptr)
@@ -283,7 +311,8 @@ void BattleController::Create_BattleChar(const vector<HeroId>& heroIds, vector<s
         Shared<GameObject> character = Spawn_Prefab::Spawn(
             spawnDesc->battlePrefabName,
             GAME->Current_LevelIndex(),
-            L"BattleLayer");
+            L"BattleLayer"
+        );
 
         CHECK_NULL(character);
 
@@ -297,6 +326,9 @@ void BattleController::Create_BattleChar(const vector<HeroId>& heroIds, vector<s
         battleChar.ModelCom = body ? body->Get_Component<ModelCom>() : nullptr; // body part에 붙은 실제 ModelCom를 사용한다.
 
         _heroes.push_back(battleChar);
+
+
+       // battleChar.ModelCom->Set_RootMotionEnabled(false);
     }
 
     for (int i = 0; i < battleMonsterPrefabNames.size(); ++i)
@@ -304,7 +336,8 @@ void BattleController::Create_BattleChar(const vector<HeroId>& heroIds, vector<s
         Shared<GameObject> enemy = Spawn_Prefab::Spawn(
             battleMonsterPrefabNames[i],
             GAME->Current_LevelIndex(),
-            L"BattleLayer");
+            L"BattleLayer"
+        );
 
         CHECK_NULL(enemy);
 
@@ -317,12 +350,14 @@ void BattleController::Create_BattleChar(const vector<HeroId>& heroIds, vector<s
         battleChar.ModelCom = body ? body->Get_Component<ModelCom>() : nullptr; // 몬스터 종류와 무관하게 Part_Body의 ModelCom를 사용한다.
 
         _enemies.push_back(battleChar);
+
+      // battleChar.ModelCom->Set_RootMotionEnabled(false);
+
     }
 }
 
 void BattleController::Build_InitialTurnQueue(bool IsFirstHero)
 {
-
     float heroOffset = {};
     float monsterOffset = {};
     // 첨 초기화
@@ -336,85 +371,82 @@ void BattleController::Build_InitialTurnQueue(bool IsFirstHero)
     //초기 보정 값
 
     if (IsFirstHero == false)
-    {
         heroOffset = 5;
-    }
     else
-    {
         monsterOffset = 5.f;
-    }
 
-
-    for (auto& hero : _heroes)
+    for (const auto& hero : _heroes)
     {
         if (!hero.actor)
             continue;
 
         TurnEntry entry = {};
-        entry.nextTime = (100.f / max(hero.statCom->Get_Speed(), 1.f)) + heroOffset;
+        entry.nextTime = 100.f / max(hero.statCom->Get_Speed(), 1.f) + heroOffset;
         entry.hero = hero;
         _turnQueue.push(entry);
     }
-    for (auto& enemy : _enemies)
+    for (const auto& enemy : _enemies)
     {
         if (!enemy.actor)
             continue;
 
         TurnEntry entry = {};
-        entry.nextTime = (100.f / max(enemy.statCom->Get_Speed(), 1.f)) + monsterOffset;
+        entry.nextTime = 100.f / max(enemy.statCom->Get_Speed(), 1.f) + monsterOffset;
         entry.hero = enemy;
         _turnQueue.push(entry);
     }
-
-
 }
-
 
 void BattleController::SetCharInitPos()
 {
     /*INFO = FiledMgr->GetFiledInfo(FieldID)
     INFO.
     */
-    Vec3 startPos = Vec3(225.f, -4020.5f, -1.24f);
+    const Vec3 startPos = Vec3(225.f, -4020.5f, -1.24f);
 
-    Vec3 EPos[3] = { {0.f,0.f,0.f},{10.f,0.f,0.f},{20.f,0.f,0.f} };
-    Vec3 PPos[3] = { {0.f,0.f,10.f},{10.f,0.f,10.f},{20.f,0.f,10.f} };
+    const Vec3 playerPos[3] =
+    {
+        { -3.f, 0.f, 0.f },
+        { 0.f, 0.f, 0.f },
+        { 3.f, 0.f, 0.f },
+    };
+
+    const Vec3 enemyPos[3] =
+    {
+        { -3.f, 0.f, 10.f },
+        { 0.f, 0.f, 10.f },
+        { 3.f, 0.f, 10.f },
+    };
 
     // 임시
     for (size_t i = 0; i < _heroes.size(); ++i)
     {
-        auto& hero = _heroes[i];
+        const auto& hero = _heroes[i];
         if (!hero.actor)
             continue;
 
-        hero.actor->Get_Transform()->Set_Position(startPos +
-            PPos[i]);
+        hero.actor->Get_Transform()->Set_Position(startPos + playerPos[i]);
     }
 
     for (size_t i = 0; i < _enemies.size(); ++i)
     {
-        auto& enemy = _enemies[i];
+        const auto& enemy = _enemies[i];
         if (!enemy.actor)
             continue;
 
-        enemy.actor->Get_Transform()->Set_Position(startPos +
-            EPos[i]);
+        enemy.actor->Get_Transform()->Set_Position(startPos + enemyPos[i]);
     }
-
 }
 
 vector<BattleChar> BattleController::Get_AliveEnemies()
 {
-
     vector<BattleChar> alive;
     for (int i = 0; i < _enemies.size(); i++)
     {
         if (_enemies[i].statCom->Get_CurAliveState() == EAliveStatus::Alive)
-        {
             alive.push_back(_enemies[i]);
-        }
     }
-    return  alive;
+    return alive;
 }
 
 vector<BattleChar> BattleController::Get_AliveHeroes()
@@ -423,15 +455,14 @@ vector<BattleChar> BattleController::Get_AliveHeroes()
     for (int i = 0; i < _heroes.size(); i++)
     {
         if (_heroes[i].statCom->Get_CurAliveState() == EAliveStatus::Alive)
-        {
             alive.push_back(_heroes[i]);
-        }
     }
-    return  alive;
+    return alive;
 }
 
 void BattleController::Handle_EditorStopRuntime()
 {
+    CLIENT->Stop_BattleEnterTransition();
     GAME->Stop_WorldTimeSlow();
     GAME->Set_WorldTimeScale(1.f);
     GAME->Set_PlayerInputBlocked(false);
@@ -442,12 +473,15 @@ void BattleController::Handle_EditorStopRuntime()
     _battleEnded = false;
     _isBattleActive = false;
     _isBattleEntering = false;
+    _isWaitingBattleTransition = false;
     currentTurnIndex = 0;
     _battleTime = 0.f;
     _flag = false;
 
     while (!_turnQueue.empty())
+    {
         _turnQueue.pop();
+    }
 
     _heroes.clear();
     _enemies.clear();
@@ -463,25 +497,156 @@ void BattleController::Handle_EditorStopRuntime()
 HRESULT BattleController::Ready_Delegates()
 {
     _editorStopHandle = GAME->Get_DelegateHub().OnEditorStopRuntime.Add(
-        [this]()
+        [this]
         {
             Handle_EditorStopRuntime();
-        });
+        }
+    );
 
     return S_OK;
+}
+
+void BattleController::OpenReactionWindow(ReactionType type)
+{
+    _reaction.type = type;
+    _reaction.isConsumed = false;
+    _reaction.isOpen = true;
+
+}
+
+void BattleController::CloseReactionWindow(ReactionType type)
+{
+    if (_reaction.type != type)
+        return;
+
+    _reaction.type = ReactionType::None;
+    _reaction.isOpen = false;
+    _reaction.isConsumed = false;
+}
+
+void BattleController::ClearReactionState()
+{
+    _reaction.type = ReactionType::None;
+    _reaction.isOpen = false;
+    _reaction.isConsumed = false;
+}
+
+void BattleController::UpdateReactionInput()
+{
+    if (_turnAction.target.actor == nullptr)
+        return;
+
+    // 애님 딜래이 +
+    if (_turnAction.target.statCom->Is_Player() != true)
+        return;
+
+
+    switch (_reaction.type)
+    {
+    case ReactionType::Parry:
+        if (GAME->KeyDown(KEY_TYPE::E))
+        {
+            // 패링은 여기서 애니XX
+
+            if (!_reaction.isOpen || _reaction.isConsumed)
+                return;
+
+            // 성공 해야 애니 실행
+
+            _reaction.isConsumed = true;
+            _reaction.result = Parry;
+            LOG_ERROR({ "SUCCESS PARRY" });
+        }
+        break;
+
+    case ReactionType::Dodge:
+        if (GAME->KeyDown(KEY_TYPE::Q))
+        {
+            // 회피 애님 실행
+
+            if (!_reaction.isOpen || _reaction.isConsumed)
+                return;
+
+
+            _reaction.isConsumed = true;
+            _reaction.result = Dodge;
+
+            LOG_ERROR({ "SUCCESS DODGE" });
+        }
+        break;
+
+    default:
+        break;
+    }
+
+}
+
+void BattleController::Set_TargetPreview(const BattleChar& target)
+{
+    _targetPreview = target;
+    _hasTargetPreview = (target.actor != nullptr && target.statCom != nullptr);
+
+    if (_hasTargetPreview)
+        OnTargetPreviewChanged.Broadcast(&_targetPreview); // Hp Bar/타겟 UI 갱신 등
+    else
+        OnTargetPreviewChanged.Broadcast(nullptr);
+
+}
+
+void BattleController::Clear_TargetPreview()
+{
+    _targetPreview = {};
+    _hasTargetPreview = false;
+    OnTargetPreviewChanged.Broadcast(nullptr);
+}
+
+const BattleChar* BattleController::Get_TargetPreview() const
+{
+    if (!_hasTargetPreview)
+        return nullptr;
+
+    if (_targetPreview.actor == nullptr || _targetPreview.statCom == nullptr)
+        return nullptr;
+
+    return &_targetPreview;
+}
+
+bool BattleController::Is_PlayerTurnActive() const
+{
+    if (!_isBattleActive || _battleEnded)
+        return false;
+
+    if (_isBattleEntering || _isWaitingBattleTransition)
+        return false;
+
+    if (_currentTurnActor.actor == nullptr || _currentTurnActor.statCom == nullptr)
+        return false;
+
+    return _currentTurnActor.statCom->Is_Player();
+}
+
+BattleTurnState BattleController::Get_CurrentTurnState() const
+{
+    if (_battleFSM == nullptr)
+        return BattleTurnState::None;
+
+    return _battleFSM->Get_CurrentPlayerState();
 }
 
 void BattleController::Execute_BaseAttack(const BattleChar actor, const Action& turnAction)
 {
     //기본스킬도 특이하기때문에 스킬로
-    LOG_DEBUG("Execute_BaseAttack: actor={}, target={}, script={}",
+    LOG_DEBUG(
+        "Execute_BaseAttack: actor={}, target={}, script={}",
         actor.actor ? String::ToString(actor.actor->Get_Name()).c_str() : "null",
         turnAction.target.actor ? String::ToString(turnAction.target.actor->Get_Name()).c_str() : "null",
-        turnAction._selected_SkillKey.scriptClassName.c_str());
+        turnAction._selected_SkillKey.scriptClassName.c_str()
+    );
 
-    auto vec_anim = turnAction._selected_SkillKey.animationKey;
-    if (vec_anim.size() == 0)
-        return;
+   // auto script = Create_Class::SkillScript<Base_Gustave_Attack>().Create();
+    _curScript = Create_Class::SkillScript(_turnAction._selected_SkillKey.scriptClassName).Create();
+
+    auto& action = Get_TurnAction();
 
     if (actor.ModelCom == nullptr)
     {
@@ -489,62 +654,49 @@ void BattleController::Execute_BaseAttack(const BattleChar actor, const Action& 
         EndTurn();
         return;
     }
-
-    if (vec_anim.empty())
+    if (action._selected_SkillKey.AnimPhases.empty())
     {
         LOG_ERROR("Execute_BaseAttack: no animationKey");
         EndTurn();
         return;
     }
 
-    //turnAction._curChar.ModelCom->Set_Animation(vec_anim[0], false, 1.5f);
-    //vec_anim
+    action.originPos = action._curChar.actor->Get_Transform()->Get_Position();
+    action._curAnimIndex = 0;
 
-
-    //auto script = Create_Class::SkillScript(turnAction._selected_SkillKey.scriptClassName).Create();
-    //if (script == nullptr)
-    //{
-    //    LOG_ERROR("skill Create Failed");
-    //}
-    //else
-    //{
-    //    LOG_ERROR("skill Create Success");
-    //}
-    //
-    //auto target = turnAction.target;
-    //
-    //script->Execute(turnAction._selected_SkillKey, actor, target);
-    //LOG_DEBUG("Execute_BaseAttack: script finished");
-    //
-    //EndTurn();// 일단 애니메이션등이 다 끝나고 끝내야 하는데 일단 테스트
-
+    _battleActionExe->BeginAction(action);
 }
 
 void BattleController::Execute_Skill(const BattleChar actor, const Action& turnAction)
 {
-    LOG_DEBUG("Execute_Skill: actor={}, target={}, script={}",
+    LOG_DEBUG(
+        "Execute_Skill: actor={}, target={}, script={}",
         actor.actor ? String::ToString(actor.actor->Get_Name()).c_str() : "null",
         turnAction.target.actor ? String::ToString(turnAction.target.actor->Get_Name()).c_str() : "null",
-        turnAction._selected_SkillKey.scriptClassName.c_str());
+        turnAction._selected_SkillKey.scriptClassName.c_str()
+    );
 
-    auto script = Create_Class::SkillScript(turnAction._selected_SkillKey.scriptClassName).Create();
+    _curScript = Create_Class::SkillScript(_turnAction._selected_SkillKey.scriptClassName).Create();
 
-    if (script == nullptr)
+    auto& action = Get_TurnAction();
+
+    if (actor.ModelCom == nullptr)
     {
-        LOG_ERROR("Base_Gustave_Attack Create Failed");
+        LOG_ERROR("Execute_BaseAttack: actor.ModelCom is null");
+        EndTurn();
+        return;
     }
-    else
+    if (action._selected_SkillKey.AnimPhases.empty())
     {
-        LOG_ERROR("Base_Gustave_Attack Create Success");
+        LOG_ERROR("Execute_BaseAttack: no animationKey");
+        EndTurn();
+        return;
     }
- 
 
-        auto target = turnAction.target;
+   action.originPos = action._curChar.actor->Get_Transform()->Get_Position();
+    action._curAnimIndex = 0;
 
-    script->Execute(turnAction._selected_SkillKey, actor, target);
-
-    EndTurn();// 일단 애니메이션등이 다 끝나고 끝내야 하는데 일단 테스트
-
+    _battleActionExe->BeginAction(action);
 }
 
 void BattleController::Execute_Item(const BattleChar actor, const Action& turnAction)
@@ -554,24 +706,10 @@ void BattleController::Execute_Item(const BattleChar actor, const Action& turnAc
 void BattleController::OnActionEndNotify()
 {
     auto& action = Get_TurnAction();
-    
-    // 다음 애니로 이동
-    action._selected_SkillKey._curAnimIndex++;
-    
-    if (action._selected_SkillKey._curAnimIndex >= action._selected_SkillKey.animationKey.size())
-    {
-        // 끝났으면 Idle
-        string key = action._selected_SkillKey.IdleAnimationKey;
-        action._curChar.ModelCom->Set_Animation(key, false, 1.5f);
-    
-        EndTurn();
-        return;
-    }
-    
-    // 다음 애니 실행
-    string key = action._selected_SkillKey.animationKey[action._selected_SkillKey._curAnimIndex];
-    action._curChar.ModelCom->Set_Animation(key, false, 1.5f);
+    _battleActionExe->OnActionEndNotify(action);
 
+    if (_battleActionExe->IsFinished())
+        EndTurn();
 }
 
 HRESULT BattleController::Ready_BattleTurnCamera()
@@ -630,8 +768,12 @@ void BattleController::Complete_BattleField()
 
     _isBattleActive = true;
     _isBattleEntering = false;
+    _isWaitingBattleTransition = false;
     _battleEnded = false;
     _pendingNextTurn = false;
+
+    const uint32 battleFieldId = _pendingBattleFieldID;
+    const bool isFirstHero = _pendingBattleIsFirstHero;
 
     // 카메라 저장
     _worldCamera = GAME->Get_ActiveCamera();
@@ -664,7 +806,8 @@ void BattleController::Complete_BattleField()
     Clear_BattleEnterPending();
 
     // 턴 시작
-    StartTurn();
+    OnBattleStarted.Broadcast(battleFieldId, isFirstHero); // battle start event만 발행하고, 전환 연출은 GameplayUI_Battle이 처리한다.
+    _isWaitingBattleTransition = true;
 }
 
 void BattleController::Clear_BattleEnterPending()
@@ -691,12 +834,11 @@ void BattleController::Set_BattleFSM()
     _battleFSM->Add_State(BattleTurnState::UltimateTargeting, UltimateTargeting::Create(dynamic_pointer_cast<BattleController>(shared_from_this())));
     _battleFSM->Add_State(BattleTurnState::ChooseUltimate, ChooseUltimate::Create(dynamic_pointer_cast<BattleController>(shared_from_this())));
 
-
     //_battleFSM->Change_State(BattleTurnState::ChooseAction);
 }
+
 Shared<BattleController> BattleController::Create()
 {
-
     Shared<BattleController> instance = make_shared<BattleController>();
 
     if (FAILED(instance->Initialize()))
@@ -712,7 +854,6 @@ Shared<BattleController> BattleController::Create()
     }
 
     return instance;
-
 }
 
 void BattleController::Free()

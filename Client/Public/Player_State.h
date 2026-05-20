@@ -31,11 +31,13 @@ protected:
     bool Has_MoveInput() const;
     bool Is_WalkToggled() const;
     const MovementCom::MovementInput& Get_MovementInput() const;
+    Vec3 Get_Velocity() const;
 
     bool Has_LocomotionIntent() const;   // active 입력 또는 follower 이동 의도
     bool IsSprintMove() const;      
     bool IsWalkMove() const;
     bool Is_MovementBlocked() const;     // follower blocked 상태
+    bool IsFalling() const;
 
     bool IsEnterWorldAction() const; 
     bool IsEnterJump() const;       
@@ -44,9 +46,9 @@ protected:
 
 protected:
     Weak<Player_WorldBase>            _owner{};
-    PlayerControllerCom*    _controllerCom{ nullptr };
-    PlayerStateMachineCom*  _stateCom{ nullptr };
-    Body_Player*            _bodyPlayer{ nullptr };
+    PlayerControllerCom*              _controllerCom{ nullptr };
+    PlayerStateMachineCom*            _stateCom{ nullptr };
+    Body_Player*                      _bodyPlayer{ nullptr };
 
 public:
     virtual void Free() override;

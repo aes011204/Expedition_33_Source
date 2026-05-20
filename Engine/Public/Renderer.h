@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "Base.h"
+#include "Engine_Constants.h"
 #include "Log_Define.h"
 #include "Renderer_Define.h"
 
@@ -156,6 +157,8 @@ private:
     };
 
     RenderPerfWindow _renderPerfWindow{};
+    chrono::steady_clock::time_point _lastPerfSampleTime{};
+    bool _hasLastPerfSampleTime{ false };
 
     void Accumulate_RenderPerf(
         double renderMs,
@@ -169,6 +172,7 @@ private:
         double blendMs,
         double uiMs,
         double debugMs);
+    bool Should_SampleRenderPerf();
     static void Accumulate_PassPerf(PerfCounter& counter, double passMs);
     static void Reset_RenderPerfWindow(RenderPerfWindow& window);
     static double Safe_Divide(double numerator, double denominator);

@@ -1,0 +1,51 @@
+﻿#pragma once
+
+#include "Base.h"
+#include "GameplayUI_Types.h"
+#include "SavePoint_Panel.h"
+
+NS_BEGIN(Client)
+
+class SkillTree_Panel;
+class CharacterStatus_Panel;
+
+class GameplayUI_World final : public Base
+{
+public:
+    GameplayUI_World() = default;
+    ~GameplayUI_World() override;
+
+public:
+    HRESULT Initialize(uint32 levelIndex);
+    void    Update(float timeDelta);
+    void    Update_Input();
+
+    bool    Is_AnyMenuOpen() const;
+    GameplayMenu Get_CurrentMenu() const; // 현재 최상위 메뉴 확인용
+    void    Force_CloseAllMenus();
+
+private:
+    void    Handle_SavePointAction(SavePoint_Panel::SavePointAction action);
+
+    void    Handle_TabInput();
+    void    Handle_BackInput();            // Esc로 현재 메뉴 닫고 이전 메뉴 복귀
+
+    void    Push_Menu(GameplayMenu menu);
+    void    Pop_Menu();
+    void    Close_AllMenus();              // 전체 메뉴 종료
+
+    void    Open_Menu(GameplayMenu menu);  // 메뉴 enum -> 실제 panel open
+    void    Close_Menu(GameplayMenu menu); // 메뉴 enum -> 실제 panel close
+
+private:
+    Unique<SavePoint_Panel>       _savePointPanel;
+    Unique<CharacterStatus_Panel> _characterStatusPanel;
+    Unique<SkillTree_Panel>       _skillTreePanel;
+    vector<GameplayMenu>          _menuStack{};
+
+public:
+    static Unique<GameplayUI_World> Create(uint32 levelIndex);
+    void Free() override;
+};
+
+NS_END

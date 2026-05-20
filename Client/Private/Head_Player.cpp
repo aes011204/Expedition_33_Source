@@ -5,6 +5,7 @@
 #include "Player_WorldBase.h"
 #include "ModelCom.h"
 #include "Debug_Profile.h"
+#include "AnimComputeRuntime.h"
 
 Head_Player::Head_Player(const ComPtr<Device>& device, const ComPtr<Context>& context)
 	: PlayableParts{ device, context }
@@ -67,6 +68,8 @@ HRESULT Head_Player::Render()
     if (FAILED(Bind_ShaderResources()))
         return E_FAIL;
 
+    CHECK_FAILED(_animComputeRuntime->Prepare_BoneMatrixBuffers(), E_FAIL);
+
     const uint32 numMeshes = static_cast<uint32>(_modelCom->Get_NumMeshes());
     for (uint32 i = 0; i < numMeshes; ++i)
     {
@@ -81,7 +84,7 @@ HRESULT Head_Player::Render()
         if (FAILED(_shaderCom->Bind_CBufferData(material->Get_CB())))
             return E_FAIL;
 
-        CHECK_FAILED(_modelCom->Bind_PreparedBoneMatrices(_shaderCom.get(), "g_BoneMatricesBuffer", i), E_FAIL);
+        CHECK_FAILED(_animComputeRuntime->Bind_PreparedBoneMatrices(_shaderCom.get(), "g_BoneMatricesBuffer", i), E_FAIL);
 
         const uint32 passIndex = material->Get_PassIndex();
         if (FAILED(_shaderCom->Begin(passIndex)))
