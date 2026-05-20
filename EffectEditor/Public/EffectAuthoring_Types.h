@@ -495,7 +495,7 @@ struct AuthoringEmitter
     string name{};
     string rendererType{ "Sprite" };
     string resourceSummary{};
-    string textureId{ "Texture_Effect_DefaultTexture" };
+    string textureId{ "Effects/Textures/DefaultTexture.dds" };
     bool enabled{ true };
     bool previewDirty{ true };
     vector<AuthoringModule> modules{};
@@ -508,4 +508,11 @@ struct EffectAuthoringSelection
     uint32 moduleId{};
 };
 
+
+struct EffectAuthoringDocument
+{
+    string name{};
+    ParticleSystemAuthoringData particleSystemData{};
+    vector<AuthoringEmitter> emitters{};
+};
 NS_END

@@ -97,7 +97,6 @@ private:
     HRESULT         Bind_SkillNode_UI(const wstring& playerName, SkillTreeViewState& outView);
     HRESULT         Bind_LockNode_UI(const wstring& playerName,SkillTreeViewState& outView);
     HRESULT         Bind_Status_UI();
-    Shared<UI_Base> Find_UI(const umap<wstring, Shared<UI_Base>>& uiByName, const wstring& name) const;
     void            Set_SkillPoint();
     void            Update_UI();
 
@@ -109,20 +108,6 @@ private:
     static void     Set_PercentText(const Shared<UI_Text>& text, float value);
     static void     Set_HpText(const Shared<UI_Text>& text, float hp);
 
-    template<typename T>
-    Shared<T> Find_TypedUI(
-        const umap<wstring, Shared<UI_Base>>& uiByName, const wstring& name) const
-    {
-        Shared<UI_Base> ui = Find_UI(uiByName, name);
-        if (ui == nullptr)
-            return nullptr;
-
-        Shared<T> typedUI = dynamic_pointer_cast<T>(ui);
-        if (typedUI == nullptr)
-            LOG_WARN("CharacterStatusPanel ui type mismatch: {}", String::ToString(name));
-
-        return typedUI;
-    }
 private:
     void    Change_ToSelectedViewState();
 

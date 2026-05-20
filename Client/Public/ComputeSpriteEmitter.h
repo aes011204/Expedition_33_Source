@@ -43,7 +43,8 @@ private: //## Types::PlaybackRuntime
     };
 
 private: //## Static Values
-    static constexpr const char* kFallbackTextureId{ "Texture_Effect_DefaultTexture" };
+    static constexpr const char* kFallbackTextureGuid{ "3c90794a-31bb-4e97-969a-3fd4497acc0f" };
+    static constexpr const char* kFallbackTexturePath{ "Effects/Textures/DefaultTexture.dds" };
     static constexpr const char* kEffectSpriteShaderId{ "Shader_EffectSprite" };
     static constexpr uint32 kEffectSpriteAlphaBlendPass{ 0 };
     static constexpr uint32 kEffectSpriteAdditivePass{ 1 };
@@ -75,9 +76,9 @@ private: //## Data::PlaybackRuntime
 
 private: //## Helper::Setup
     HRESULT Ready_Components();                                              // effect에 필요한 shader/texture/compute buffer component를 준비한다.
-    HRESULT Ready_TextureComponent(string& outResolvedTextureId);            // compute sprite main texture를 준비하고 fallback 결과를 기록한다.
+    HRESULT Ready_TextureComponent(string& outResolvedTexturePath);          // compute sprite main texture를 준비하고 fallback 결과를 기록한다.
     HRESULT Ready_ShaderComponent();                                         // compute sprite effect가 사용할 EffectSprite shader를 준비한다.
-    HRESULT Ready_NoiseTextureComponent(const string& outResolvedTextureId); // 선택 noise texture를 준비하고 없으면 noise path를 비활성화한다.
+    HRESULT Ready_NoiseTextureComponent(const string& resolvedTexturePath);  // 선택 noise texture를 준비하고 없으면 noise path를 비활성화한다.
 
 private: //## Helper::Render
     HRESULT Bind_ShaderResources();         // EffectSprite shader에 camera/texture resource를 바인딩한다.

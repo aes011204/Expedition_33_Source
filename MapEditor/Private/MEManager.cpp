@@ -7,6 +7,7 @@
 #include "PanelSnap.h"
 #include "SceneContext.h"
 #include "MECamera.h"
+#include "PanelModelOverride.h"
 
 MEManager::~MEManager()
 {
@@ -28,6 +29,7 @@ HRESULT MEManager::Initialize(Shared<PanelViewport> viewport, SceneContext* ctx,
     Add(PanelHierarchy::Create(ctx));
     Add(PanelInspector::Create(ctx, camera));
     Add(PanelAssetBrowser::Create(ctx));
+    Add(PanelModelOverride::Create(ctx));
 
     _snapSettings = make_shared<SnapSettings>();
     viewport->SetSnapSettings(_snapSettings);

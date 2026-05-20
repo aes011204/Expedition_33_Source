@@ -39,8 +39,8 @@ private: //## Helper::EffectAuthoring
         AuthoringEmitter& emitter,
         AuthoringModule& module);
 
-    // emitter 편집 변경을 preview dirty와 detail window dirty 상태에 반영한다.
-    void Mark_Changed(AuthoringEmitter& emitter, bool changed);
+    // emitter 편집 변경을 preview dirty와 authoring document dirty 상태에 반영한다.
+    void Mark_Changed(const Shared<Emitter_View>& emitterView, AuthoringEmitter& emitter, bool changed);
     static RequiredModuleData* Find_RequiredModuleData(AuthoringEmitter& emitter);
     // 다른 selection으로 이동하기 전에 열려 있던 pending edit을 먼저 history command로 확정한다.
     void Commit_PendingAuthoringEditOnTargetChange(const Shared<Emitter_View>& emitterView, const EffectAuthoringSelection& selection);

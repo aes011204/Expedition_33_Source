@@ -22,7 +22,24 @@ namespace
         constexpr uint32 MaskedPass = 3;
         constexpr uint32 TwoSidedPass = 4;
         constexpr uint32 MaskedTwoSidedPass = 5;
+        constexpr uint32 IDPass = 6;
+        constexpr uint32 OpaqueARPass = 7;
+        constexpr uint32 OpaqueARTwoSidedPass = 8;
     }
+
+    namespace VtxInstanceMeshExactPassIndex
+    {
+        constexpr uint32 DefaultPass = 0;
+        constexpr uint32 ShadowPass = 1;
+        constexpr uint32 NoTexturePass = 2;
+        constexpr uint32 MaskedPass = 3;
+        constexpr uint32 TwoSidedPass = 4;
+        constexpr uint32 MaskedTwoSidedPass = 5;
+        constexpr uint32 IDPass = 6;
+        constexpr uint32 OpaqueARPass = 7;
+        constexpr uint32 OpaqueARTwoSidedPass = 8;
+    }
+
     namespace VtxCubePassIndex
     {
         constexpr uint32 DefaultPass = 0;
@@ -56,6 +73,9 @@ public:
 
         case ShaderType::VtxMesh:
             return Find_VtxMeshPassIndex(renderState);
+
+        case ShaderType::VtxInstanceMeshExact:
+            return Find_VtxInstanceMeshExactPassIndex(renderState);
 
         case ShaderType::VtxAnimMesh:
             return Find_VtxAnimMeshPassIndex(renderState);
@@ -109,6 +129,26 @@ private:
             return VtxMeshPassIndex::TwoSidedPass;
 
         return VtxMeshPassIndex::DefaultPass;
+    }
+
+    static uint32 Find_VtxInstanceMeshExactPassIndex(const MaterialRenderState& renderState)
+    {
+        const bool isMasked =
+            renderState.blendMode == MaterialBlendMode::Masked ||
+            renderState.alphaClip;
+
+        if (isMasked)
+        {
+            if (renderState.twoSided)
+                return VtxInstanceMeshExactPassIndex::MaskedTwoSidedPass;
+
+            return VtxInstanceMeshExactPassIndex::MaskedPass;
+        }
+
+        if (renderState.twoSided)
+            return VtxInstanceMeshExactPassIndex::TwoSidedPass;
+
+        return VtxInstanceMeshExactPassIndex::DefaultPass;
     }
 
     static uint32 Find_VtxCubePassIndex(const MaterialRenderState& renderState)

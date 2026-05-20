@@ -178,6 +178,29 @@ PS_OUT PS_NoTexture(PS_IN In)
     return Out;
 }
 
+PS_OUT PS_OpaqueAR(PS_IN In)
+{
+    PS_OUT Out;
+    float2 finalUV = ApplyUVTransform(In.Texcoord);
+
+    float4 arTex = g_MaterialTextures[MATERIAL_SLOT_BASECOLOR].Sample(LinearWrapSampler, finalUV);
+    float4 baseColor = float4(arTex.rgb * g_BaseColorTint.rgb, 1.f);
+
+    float3 worldNormal = ComputeWorldNormal(In.Normal.xyz, In.Tangent, In.Binormal, finalUV);
+
+    float3 orm = float3(g_AoScale, arTex.a * g_RoughnessScale, g_MetalnessScale);
+
+    float3 emissive = SampleEmissive(finalUV);
+    baseColor.rgb = baseColor.rgb * orm.r + emissive;
+
+    Out.Diffuse = baseColor;
+    Out.Normal = float4(EncodeNormal(worldNormal), 1.f);
+    Out.Depth = float4(In.ProjPos.z / In.ProjPos.w, In.ProjPos.w / g_Far, 0.f, 1.f);
+    Out.Material = float4(orm.xyz, 1.f);
+    Out.Emissive = float4(emissive.xyz, 1.f);
+    return Out;
+}
+
 PS_OUT_ID PS_ID(PS_IN In)
 {
     PS_OUT_ID Out;
@@ -199,4 +222,6 @@ technique11 DefaultTechnique
     PASS_RS_DS_BS_VP(TwoSidedPass,        RS_CullNone, DSS_Default, BS_Default, VS_Default, PS_Opaque)      // 4
     PASS_RS_DS_BS_VP(MaskedTwoSidedPass,  RS_CullNone, DSS_Default, BS_Default, VS_Default, PS_Mask)        // 5
     PASS_RS_DS_BS_VP(IDPass,              RS_Default,  DSS_Default, BS_Default, VS_Default, PS_ID)          // 6
+    PASS_RS_DS_BS_VP(OpaqueARPass,        RS_Default, DSS_Default,  BS_Default, VS_Default, PS_OpaqueAR)    // 7
+    PASS_RS_DS_BS_VP(OpaqueARTwoSidedPass, RS_CullNone, DSS_Default, BS_Default, VS_Default, PS_OpaqueAR)   // 8
 }

@@ -2,7 +2,10 @@
 #include "GameInstance.h"
 #include "ClientInstance.h"
 #include "Client_Constants.h"
+#include "EffectAssetRuntimeLoader.h"
 #include "EffectInstance.h"
+#include "PlayableParts.h"
+#include "Player_WorldBase.h"
 #include "Spawn_Prefab.h"
 #include "TargetCamera.h"
 #include "MapLoader.h"
@@ -52,9 +55,11 @@ void Level_GamePlay::BeginPlay()
 
 void Level_GamePlay::Update(float fTimeDelta)
 {
+    Sync_LuneRightHandEffect();
+
 #ifdef _DEBUG
     const int32 fps = (fTimeDelta > 0.f)
-            ? static_cast<int32>(1.f / fTimeDelta) : static_cast<int32>(0.f);
+            ? static_cast<int32>(1.f / fTimeDelta) : 0;
 
      GAME->Print(L"현재 FPS : {}", fps, duration(0.f), color(Vec4(1.f, 1.f, 0.f, 1.f)));
 #else
@@ -252,99 +257,86 @@ HRESULT Level_GamePlay::Ready_Layer_Player(const wstring& strLayerTag)
 HRESULT Level_GamePlay::Ready_Layer_Effect(const wstring& strLayerTag)
 {
 #pragma region Effect Test
-    auto effectDefinition = make_shared<EffectDefinition>();
-    effectDefinition->name = "Thunder_Fall_Lightning_Test";
+    Shared<const EffectDefinition> effectDefinition =
+        EffectAssetRuntimeLoader::Load_Definition(L"Effects/Assets/Lune_Thunder_Fall_Charge.effect.json");
+    CHECK_NULL(effectDefinition, E_FAIL);
 
-    ComputeSpriteEmitterDesc emitterDesc{};
-    emitterDesc.required.material.textureId = "Texture_Effect_LightningBook2x2";
-    emitterDesc.required.material.tint = Vec4(0.50f, 0.50f, 1.00f, 1.00f); // 파란색
-    emitterDesc.required.material.intensity = 2.f;
-    emitterDesc.required.material.opacityPower = 0.f;
-    emitterDesc.required.material.noiseStrength = 0.2f;
-    emitterDesc.required.material.blendMode = "Additive";
-    emitterDesc.required.material.opacitySource = "Red";
-    emitterDesc.required.material.subUVRows = 2u;
-    emitterDesc.required.material.subUVCols = 2u;
-    emitterDesc.required.spriteRender.screenAlignment = EffectSpriteScreenAlignment::Velocity;
-    emitterDesc.required.spriteRender.directionalAlignmentMode = EffectSpriteDirectionalAlignmentMode::TextureAxis;
-    emitterDesc.required.spriteRender.spriteTextureAxis = EffectSpriteTextureAxis::Y;
-    emitterDesc.required.playback.duration = 0.45f;
-    emitterDesc.required.playback.loopCount = 0u;
-    emitterDesc.required.drawLimit.maxDrawCount = 24u;
-    emitterDesc.spawn.instanceCount = 24u;
+    const Shared<GameObject> player = CLIENT->Find_Player(ETOI(LevelType::GamePlay));
+    CHECK_NULL(player, E_FAIL);
 
-    emitterDesc.spawn.particleSpawn.processSpawnRate = false;
-    emitterDesc.spawn.particleSpawn.processBurstList = true;
-    emitterDesc.spawn.particleSpawn.bursts = {
-        PointParticleBurstDesc{ 0.00f, 6u },
-        PointParticleBurstDesc{ 0.14f, 5u },
-        PointParticleBurstDesc{ 0.28f, 4u }
-    };
-    emitterDesc.spawn.particleSpawn.maxActiveCount = 24u;
-
-    emitterDesc.lifetime.lifeTime = Vec2(0.40f, 1.10f);
-    emitterDesc.initialSize.sizeMin = Vec2(0.12f, 0.14f);
-    emitterDesc.initialSize.sizeMax = Vec2(0.22f, 0.42f);
-
-    emitterDesc.motion.enabled = true;
-    emitterDesc.motion.initialRadialVelocityEnabled = true;
-    emitterDesc.motion.initialRadialVelocityInWorldSpace = false;
-    emitterDesc.motion.radialPivot = Vec3(0.f, 0.f, 0.f);
-    emitterDesc.motion.radialSpeed = Vec2(-0.39f, -0.18f);
-    emitterDesc.motion.velocityScaleByLife = Vec2(1.0f, 0.25f);
-
-    emitterDesc.sphereLocation.enabled = true;
-    emitterDesc.sphereLocation.offset = Vec3(0.f, 0.f, 0.f);
-    emitterDesc.sphereLocation.radius = 0.37f;
-    emitterDesc.sphereLocation.mode = PointParticleSphereLocationMode::Surface;
-
-    emitterDesc.sizeByLife.enabled = true;
-    emitterDesc.sizeByLife.multiplyXStart = 1.2f;
-    emitterDesc.sizeByLife.multiplyXEnd = 1.0f;
-    emitterDesc.sizeByLife.multiplyYStart = 1.2f;
-    emitterDesc.sizeByLife.multiplyYEnd = 1.0f;
-
-    emitterDesc.subUVFrameOverLife.enabled = true;
-    emitterDesc.subUVFrameOverLife.playbackMode = SubUVFramePlaybackMode::FramesPerSecond;
-    emitterDesc.subUVFrameOverLife.startFrame = 0u;
-    emitterDesc.subUVFrameOverLife.endFrame = 3u;
-    emitterDesc.subUVFrameOverLife.loop = true;
-    emitterDesc.subUVFrameOverLife.framesPerSecond = 20.f;
-
-    emitterDesc.initialColor.startColorMin = Vec4(1.f, 1.f, 1.f, 0.85f);
-    emitterDesc.initialColor.startColorMax = Vec4(1.f, 1.f, 1.f, 1.00f);
-    emitterDesc.colorOverLife.endColorMin = Vec4(0.60f, 0.80f, 0.95f, 0.08f);
-    emitterDesc.colorOverLife.endColorMax = Vec4(0.85f, 0.90f, 1.00f, 0.08f);
-
-    EffectEmitterDefinition emitterDefinition{};
-    emitterDefinition.id = 1u;
-    emitterDefinition.name = "lightning_0";
-    emitterDefinition.kind = EffectEmitterKind::ComputeSprite;
-    emitterDefinition.enabled = true;
-    emitterDefinition.useLocalSpace = true;
-    emitterDefinition.concreteDesc = emitterDesc;
-    effectDefinition->emitters.push_back(emitterDefinition);
+    const Vec3 playerPosition = player->Get_Transform()->Get_WorldPosition();
+    const Vec3 playerForward = player->Get_Transform()->Get_WorldForward();
+    constexpr float effectForwardOffset = 5.f;
 
     EffectInstanceDesc effectDesc{};
     effectDesc.definition = effectDefinition;
-    effectDesc.position = Vec3(83.5f, 5.14f, -0.24f);
-
-    const Shared<EffectInstance> effectPrototype = EffectInstance::Create(_device, _context);
-    CHECK_NULL(effectPrototype, E_FAIL);
-
-    const Shared<GameObject> effectObject = effectPrototype->Clone(&effectDesc);
-    CHECK_NULL(effectObject, E_FAIL);
+    effectDesc.position = playerPosition + playerForward * effectForwardOffset;
 
     CHECK_FAILED(
         GAME->Add_GameObject(
             ETOI(LevelType::GamePlay),
+            L"GameObject_EffectInstance",
+            ETOI(LevelType::GamePlay),
             strLayerTag,
-            effectObject),
+            &effectDesc),
+        E_FAIL
+    );
+
+    effectDefinition = EffectAssetRuntimeLoader::Load_Definition(L"Effects/Assets/Lune_Thunder_Fall_Charge_Blue.effect.json");
+    CHECK_NULL(effectDefinition, E_FAIL);
+
+    EffectInstanceDesc blueEffectDesc{};
+    blueEffectDesc.definition = effectDefinition;
+    blueEffectDesc.position = playerPosition;
+
+    CHECK_FAILED(
+        GAME->Add_GameObject(
+            ETOI(LevelType::GamePlay),
+            L"GameObject_EffectInstance",
+            ETOI(LevelType::GamePlay),
+            strLayerTag,
+            _luneRightHandEffect,
+            &blueEffectDesc),
         E_FAIL
     );
 #pragma endregion
 
     return S_OK;
+}
+
+void Level_GamePlay::Sync_LuneRightHandEffect()
+{
+    CHECK_NULL(_luneRightHandEffect);
+
+    const Shared<Player_WorldBase> lune = CLIENT->Find_Hero(HeroId::Lune);
+    CHECK_NULL_ONCE(lune);
+
+    PartObject* bodyPart = lune->Get_PartObject(L"Part_Body");
+    CHECK_NULL_ONCE(bodyPart);
+
+    const auto playableBody = dynamic_cast<PlayableParts*>(bodyPart);
+    CHECK_NULL_ONCE(playableBody);
+
+    static constexpr char rightHandSocketName[] = "RightHandFrontSocket";
+    const Matrix* socketMatrix = playableBody->Get_SocketBoneMatrixPtr(rightHandSocketName);
+    if (nullptr == socketMatrix)
+    {
+        LOG_WARN_ONCE("Lune right-hand socket '{}' not found.", rightHandSocketName);
+        return;
+    }
+
+    const Shared<TransformCom> effectTransform = _luneRightHandEffect->Get_Transform();
+    const Shared<TransformCom> bodyTransform = playableBody->Get_Transform();
+    const Shared<TransformCom> luneTransform = lune->Get_Transform();
+    if (nullptr == effectTransform || nullptr == bodyTransform || nullptr == luneTransform)
+    {
+        LOG_WARN_ONCE("Lune right-hand blue effect follow failed.");
+        return;
+    }
+
+    const Matrix socketWorldMatrix =
+        *socketMatrix * bodyTransform->Get_WorldMatrix() * luneTransform->Get_WorldMatrix();
+    effectTransform->Set_WorldPosition(Vec3(socketWorldMatrix._41, socketWorldMatrix._42, socketWorldMatrix._43));
 }
 
 Shared<Level_GamePlay> Level_GamePlay::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

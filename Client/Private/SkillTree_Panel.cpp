@@ -12,6 +12,9 @@
 #include "UI_Text.h"
 #include "PreviewCamera.h"
 #include "UI_Base.h"
+#include "UI_Utils.h"
+
+using namespace UI_Utils;
 
 namespace
 {
@@ -384,16 +387,6 @@ HRESULT SkillTree_Panel::Bind_Status_UI()
     }
 
     return S_OK;
-}
-
-
-Shared<UI_Base> SkillTree_Panel::Find_UI(const umap<wstring, Shared<UI_Base>>& uiByName, const wstring& name) const
-{
-    const auto iter = uiByName.find(name);
-    if(iter == uiByName.end() || iter->second == nullptr)
-        return nullptr;
-
-    return iter->second;
 }
 
 void SkillTree_Panel::Set_SkillPoint()

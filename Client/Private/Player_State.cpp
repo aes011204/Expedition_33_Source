@@ -70,7 +70,7 @@ const MovementCom::MovementInput& Player_State::Get_MovementInput() const
     return _controllerCom->Get_MovementInput();
 }
 
-const Vec3& Player_State::Get_Velocity() const
+Vec3 Player_State::Get_Velocity() const
 {
     return _controllerCom->Get_Velocity();
 }
@@ -93,6 +93,11 @@ bool Player_State::IsWalkMove() const
 bool Player_State::Is_MovementBlocked() const
 {
     return _controllerCom->Is_MovementBlocked();
+}
+
+bool Player_State::IsFalling() const
+{
+    return !_controllerCom->Is_Grounded();
 }
 
 bool Player_State::IsEnterWorldAction() const

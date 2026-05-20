@@ -6,6 +6,7 @@
 #include "BattleController.h"
 #include "BattleStateMachine.h"
 #include "Battle_Enum.h"
+#include "ClientInstance.h"
 #include "PlayerStatCom.h"
 
 NS_BEGIN(Client)
@@ -54,8 +55,12 @@ void AttackTargeting::Update(float timeDelta)
 
     if (GAME->KeyDown(KEY_TYPE::KEY_1))
     {
+       
+
+
         owner->Get_TurnAction().target = owner->Get_AliveEnemies()[TargetIndex];
-        owner->Get_TurnAction()._selected_SkillKey = dynamic_pointer_cast<PlayerStatCom>(owner->Get_TurnAction()._curChar.statCom)->Get_Basic_Skill();
+       auto data =  CLIENT->Get_Skill(owner->Get_TurnAction()._curChar.statCom->Get_FirstSkill());
+        owner->Get_TurnAction()._selected_SkillKey = *data;
         LOG_DEBUG("AttackTargeting: confirm target index={}", TargetIndex);
         LOG_DEBUG("AttackTargeting: selected skill={}", owner->Get_TurnAction()._selected_SkillKey.scriptClassName.c_str());
 

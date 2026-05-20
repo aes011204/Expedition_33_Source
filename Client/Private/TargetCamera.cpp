@@ -105,6 +105,14 @@ void TargetCamera::Priority_Update(float timeDelta)
 {
     __super::Priority_Update(timeDelta);
 
+    if (GAME->Is_WorldGameplayInputBlocked())
+    {
+        if (_currentState == CAMERA_STATE::AIM)
+            Change_State(CAMERA_STATE::NORMAL);
+
+        return;
+    }
+
     if(GAME->KeyDown(KEY_TYPE::RBUTTON))
     {
         Change_Mode(TargetCameraMode::AIM);
@@ -129,7 +137,9 @@ void TargetCamera::Update(float timeDelta)
     if(!GAME->Is_ActiveCamera(GetSharedPtr<Camera>()))
          return;
 
-    if(GAME->Is_ActiveCamera(GetSharedPtr<Camera>())&&_targetSettings.allowMouseRotation)
+    if(GAME->Is_ActiveCamera(GetSharedPtr<Camera>()) &&
+        _targetSettings.allowMouseRotation &&
+        !GAME->Is_WorldGameplayInputBlocked())
     {
         const Vec2 mouseDelta = GAME->Get_MouseDelta();
 

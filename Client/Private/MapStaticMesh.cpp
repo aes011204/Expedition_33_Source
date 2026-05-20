@@ -182,6 +182,18 @@ HRESULT MapStaticMesh::Initialize(void* arg)
         return E_FAIL;
     }
 
+    wstring objectName = pDesc->name;
+    if (objectName.empty() && _model != nullptr)
+    {
+        const wstring& sourceModelPath = _model->Get_SourceModelPath();
+        if (!sourceModelPath.empty())
+            objectName = fs::path(sourceModelPath).stem().wstring();
+    }
+    if (objectName.empty() && !pDesc->modelPath.empty())
+        objectName = fs::path(pDesc->modelPath).stem().wstring();
+    if (!objectName.empty())
+        Set_Name(objectName);
+
     GAME->Register_StaticShadowCaster(GetSharedPtr<GameObject>());
 
     _transformCom->Set_Position(pDesc->position);
@@ -292,20 +304,28 @@ HRESULT MapStaticMesh::Render()
 HRESULT MapStaticMesh::Render_Shadow()
 {
     if (_shader == nullptr || _model == nullptr)
+    {
         return S_OK;
+    }
 
     if (FAILED(_shader->Bind_ObjectCB(_transformCom->Get_WorldMatrix())))
+    {
         return E_FAIL;
+    }
 
     if (FAILED(GAME->Bind_StaticShadowCB(_shader)))
+    {
         return E_FAIL;
+    }
 
     const uint32 numMeshes = static_cast<uint32>(_model->Get_NumMeshes());
 
     for (uint32 i = 0; i < numMeshes; ++i)
     {
         if (FAILED(_shader->Begin(1)))
+        {
             return E_FAIL;
+        }
     }
 
     return S_OK;

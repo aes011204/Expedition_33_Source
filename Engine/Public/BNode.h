@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include"Base.h"
 NS_BEGIN(Engine)
+class GameObject;
 class BNode :
     public Base
 {
@@ -21,7 +22,7 @@ public:
 public:
     virtual NODE_STATE Update(float deltaTime)=0;
 
-    void Set_Owner(weak_ptr<class AIController> aiCtrl) { _AICtrl = aiCtrl; }
+    void Set_Owner(weak_ptr<class AIController> aiCtrl);
     shared_ptr<class AIController> Get_Owner() { return _AICtrl.lock(); }
     NODE_STATE Get_LastState() const { return _lastState; }
     void Set_CurrentDebugTick(uint64 tick) { _currentDebugTick = tick; }
@@ -38,6 +39,7 @@ protected:
     }
 
     weak_ptr<class AIController> _AICtrl = {};
+    weak_ptr<class GameObject> _owner = {};
     NODE_STATE _lastState = NODE_STATE::RUN;
     uint64 _assetNodeId = 0;
     uint64 _currentDebugTick = 0;

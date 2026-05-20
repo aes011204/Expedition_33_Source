@@ -31,6 +31,7 @@
 #include "Material.h"
 
 #include "Collision_Define.h"
+#include "Event_Bus.h"
 #include "PhysX_Types.h"
 
 #ifdef _DEBUG
@@ -128,6 +129,9 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
 
     _picking = Picking::Create(device, context);
     CHECK_NULL(_picking, E_FAIL);
+
+    _eventBus = Event_Bus::Create();
+    CHECK_NULL(_eventBus, E_FAIL);
 
     // Thread Pool
     {
@@ -424,7 +428,6 @@ HRESULT GameInstance::Draw()
         _debugManager->Render_Overlay();
     }
 
-    _printManager->Render();
 #endif
 
 #ifdef _DEBUG
@@ -433,6 +436,10 @@ HRESULT GameInstance::Draw()
 
     if (FAILED(_uiManager->Render()))
         return E_FAIL;
+
+#ifdef _DEBUG
+      _printManager->Render();
+#endif
 
     return S_OK;
 }
@@ -1732,6 +1739,39 @@ void GameInstance::Clear_Print(const wstring& slot)
 #ifdef _DEBUG
     _printManager->Clear(slot);
 #endif
+}
+
+bool GameInstance::Is_WorldGameplayInputBlocked() const
+{
+    if (_isPlayerInputBlocked)
+        return true;
+
+    switch (_gameplayInputMode)
+    {
+    case GameplayInputMode::UIOnly:
+    case GameplayInputMode::Cutscene:
+    case GameplayInputMode::BattleMenu:
+        return true;
+
+    case GameplayInputMode::Normal:
+    default:
+        return false;
+    }
+}
+
+bool GameInstance::Is_UIInputEnabled() const
+{
+    switch (_gameplayInputMode)
+    {
+    case GameplayInputMode::UIOnly:
+    case GameplayInputMode::BattleMenu:
+        return true;
+
+    case GameplayInputMode::Normal:
+    case GameplayInputMode::Cutscene:
+    default:
+        return false;
+    }
 }
 
 HRESULT GameInstance::Save_GameObjectJson(const fs::path& path, const Shared<GameObject>& gameObject)

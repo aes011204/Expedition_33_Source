@@ -21,6 +21,7 @@ public:
     {
         bool rigidMovement{ false };
         bool rigidJump{ false };
+        bool rigidLook{ false };
         Vec3 rigidVelocity{ Vec3::Zero };
     };
 
@@ -48,7 +49,7 @@ public:
     void    Update_Movement(float timeDelta);
 
 public:
-    const Vec3& Get_Velocity() const;
+    Vec3    Get_Velocity() const;
 
 public:
     bool    Has_MoveInput() const;

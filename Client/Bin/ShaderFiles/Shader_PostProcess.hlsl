@@ -135,7 +135,7 @@ PS_OUT_BACKBUFFER PS_ToneMapping(PS_IN In)
         color = pow(saturate(color), 1.f / gamma);
     }
 
-    float outAlpha = hdr.a;
+    float outAlpha = 1.f;
     // 공용 postprocess에서 에디터 배경 정책을 우회적으로 처리하던 fallback 경로는 성능 문제가 제기되어서 비활성화함.
     /*
     float backgroundMask = g_BackgroundMaskTexture.Sample(PointClampSampler, In.Texcoord).r;
