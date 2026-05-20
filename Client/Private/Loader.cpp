@@ -17,7 +17,7 @@ auto Loader::Find_MapLoadDesc() const -> const LevelMapLoadDesc*
     static const LevelMapLoadDesc mapLoadDescs[] =
     {
         { LevelType::GamePlay, Constants::Map::SmallLevel_SimonArea_Remake_Path, L"Layer_MapStaticMesh" },
-        { LevelType::MapTest,  Constants::Map::SmallLevel_SimonArea_Remake_Path, L"Layer_MapStatic" },
+        { LevelType::MapTest,  Constants::Map::TestMap_Path, L"Layer_MapStaticMesh" },
         { LevelType::Stage01,  Constants::Map::SmallLevel_SimonArea_Remake_Path, L"Layer_MapStaticMesh" },
     };
 
