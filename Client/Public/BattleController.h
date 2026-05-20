@@ -117,8 +117,10 @@ public: /* 타겟팅 중인 적 세팅 */
     const BattleChar*   Get_TargetPreview() const;
 
 public:
-    bool            Is_PlayerTurnActive() const;
-    BattleTurnState Get_CurrentTurnState() const;
+    bool                Is_PlayerTurnActive() const;
+    BattleTurnState     Get_CurrentTurnState() const;
+
+    Shared<BattleTurnCamera> Get_BattleTurnCamera() const { return _battleTurnCamera; }
 
 private:
     HRESULT Ready_BattleTurnCamera();

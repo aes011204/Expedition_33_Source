@@ -301,9 +301,12 @@ void MovementCom::Update_HorizontalVelocity()
         Vec3 look = _transformCom->Get_WorldForward();
         look.y = 0.f;
         look.Normalize();
+        Vec3 right = _transformCom->Get_WorldRight();
+        right.y = 0.f;
+        right.Normalize();
 
-        _velocity.x = look.x * velocity.x;
-        _velocity.z = look.z * velocity.z;
+        _velocity.x = right.x * velocity.x + look.x * velocity.z;
+        _velocity.z = right.z * velocity.x + look.z * velocity.z;
 
         return;
     }

@@ -8,6 +8,7 @@ NS_BEGIN(Client)
 
 class SkillTree_Panel;
 class CharacterStatus_Panel;
+class ChangeWeapon_Panel;
 
 class GameplayUI_World final : public Base
 {
@@ -41,6 +42,8 @@ private:
     Unique<SavePoint_Panel>       _savePointPanel;
     Unique<CharacterStatus_Panel> _characterStatusPanel;
     Unique<SkillTree_Panel>       _skillTreePanel;
+    Unique<ChangeWeapon_Panel>    _changeWeaponPanel;
+
     vector<GameplayMenu>          _menuStack{};
 
 public:

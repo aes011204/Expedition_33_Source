@@ -5,13 +5,6 @@
 
 NS_BEGIN(Client)
 
-class SavePoint_Panel;
-class SkillTree_Panel;
-class CharacterStatus_Panel;
-class ChangeWeapon_Panel;
-class UI_Fade;
-class UI_BattleTransition;
-class UI_BattleCommandHUD;
 class GameplayUI_World;
 class GameplayUI_Battle;
 
@@ -49,17 +42,6 @@ private:
     Unique<GameplayUI_World>    _worldUI;  // 월드 UI는 GameplayUI 하나만 소유
     Shared<GameplayUI_Battle>   _battleUI; // 배틀 UI는 delegate 직접 구독 때문에 Shared로 둔다.
 
-private:
-    Unique<SavePoint_Panel>         _savePointPanel{};
-    Unique<CharacterStatus_Panel>   _characterStatusPanel{};
-    Unique<SkillTree_Panel>         _skillTreePanel{};
-    Unique<ChangeWeapon_Panel>      _changeWeaponPanel{};
-
-    // 전투 진입 테스트용 페이드 UI
-    Shared<UI_BattleTransition>     _battleTransition{};
-    Unique<UI_BattleCommandHUD>     _battleCommandHUD{};
-
-    vector<GameplayMenu>            _menuStack{};
     GameplayUIInputMode         _lastInputMode = GameplayUIInputMode::World;
 
 public:
