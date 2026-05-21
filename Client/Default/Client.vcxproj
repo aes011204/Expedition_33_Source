@@ -166,6 +166,7 @@
     <ClInclude Include="..\public\BattleActionExecutor.h" />
     <ClInclude Include="..\Public\Battle_Enum.h" />
     <ClInclude Include="..\Public\BattleTurnCamera.h" />
+    <ClInclude Include="..\Public\CameraDirector.h" />
     <ClInclude Include="..\public\ChangeWeapon_Panel.h" />
     <ClInclude Include="..\public\BT_FinishDecision.h" />
     <ClInclude Include="..\public\BT_SetSkill.h" />
@@ -341,6 +342,7 @@
     <ClCompile Include="..\private\Base_Mon_Attack.cpp" />
     <ClCompile Include="..\private\BattleActionExecutor.cpp" />
     <ClCompile Include="..\Private\BattleTurnCamera.cpp" />
+    <ClCompile Include="..\Private\CameraDirector.cpp" />
     <ClCompile Include="..\private\ChangeWeapon_Panel.cpp" />
     <ClCompile Include="..\private\BT_FinishDecision.cpp" />
     <ClCompile Include="..\private\BT_SetSkill.cpp" />

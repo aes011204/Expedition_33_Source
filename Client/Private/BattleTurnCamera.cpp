@@ -47,6 +47,7 @@ HRESULT BattleTurnCamera::Initialize(void* arg)
     CameraPresetIO::LoadBattlePresetFromFile(BattleCameraMode::WIDE, _wideModePreset);
     CameraPresetIO::LoadBattlePresetFromFile(BattleCameraMode::PLAYERFOCUS, _playerFocusPreset);
     CameraPresetIO::LoadBattlePresetFromFile(BattleCameraMode::ENEMYFOCUS, _enemyFocusPreset);
+    CameraPresetIO::LoadBattlePresetFromFile(BattleCameraMode::ENEMYATTACK, _enemyAttackPreset);
 
     GAME->Get_EventBus().Subscribe<EvtBattlePresentation>
     ([this](const EvtBattlePresentation& event)
@@ -349,7 +350,7 @@ void BattleTurnCamera::Update_FromCurrentPreset(float timeDelta)
     Vec3 newPos = desiredPos;
 
     Apply_LookAt(newPos, lookTarget);
-    _transformCom->Add_LocalRotation(Quat::CreateFromAxisAngle(Vec3::Forward, _currentPreset.rollOffset));
+    _transformCom->Add_LocalRotationQuaternion(Quat::CreateFromAxisAngle(Vec3::Forward, _currentPreset.rollOffset));
     
     Update_TransformMatrices();
     GAME->UpdateFrustum(*GAME->Get_Transform(D3DTS::View), *GAME->Get_Transform(D3DTS::Proj));

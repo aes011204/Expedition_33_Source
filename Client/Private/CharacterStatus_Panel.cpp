@@ -141,9 +141,10 @@ void CharacterStatus_Panel::Handle_SelectionInput()
 
 		auto previewLayout = Build_PreviewLayout();
 		CLIENT->Apply_PreviewLayout(previewLayout);
-		CLIENT->Show_Preview(Get_SelectedCharacterStatusHeroId(_selectedHeroIndex), PreviewShotTable::PreviewShotPanel::CharacterStatus);
+		CLIENT->Show_Preview(Get_SelectedCharacterStatusHeroId(_selectedHeroIndex), PreviewShotPanel::CharacterStatus);
 	}
 }
+
 
 void CharacterStatus_Panel::Handle_StatInput()
 {
@@ -206,13 +207,6 @@ void CharacterStatus_Panel::Handle_StatInput()
 
     if (needsRefresh)
         Refresh_CombatStats();
-	//여기 이상하면 없애기
-        Refresh_CharacterSelectUI();
-
-        auto previewLayout = Build_PreviewLayout();
-        CLIENT->Apply_PreviewLayout(previewLayout);
-        CLIENT->Show_Preview(Get_SelectedCharacterStatusHeroId(_selectedHeroIndex), PreviewShotPanel::CharacterStatus);
-    }
 }
 
 uint32 CharacterStatus_Panel::Get_WrappedPartyIndex(int32 index) const

@@ -657,20 +657,14 @@
     <ClInclude Include="..\Public\GameplayUI_World.h" />
     <ClInclude Include="..\Public\GameplayUI_Battle.h" />
     <ClInclude Include="..\public\ANS_Move.h" />
-    <ClInclude Include="..\Public\CameraDirector.h">
-      <Filter>02.GameObject\Camera\Director</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\CameraPresetTypes.h">
-      <Filter>02.GameObject\Camera\Director</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\Battle_Event.h">
-      <Filter>94. Event</Filter>
-    </ClInclude>
     <ClInclude Include="..\Public\FreeAimTargeting.h">
       <Filter>BattleState</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\UI_CrossHair.h">
       <Filter>04. GamePlayUI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\CameraDirector.h">
+      <Filter>02.GameObject\Camera\Director</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -1078,14 +1072,14 @@
     <ClCompile Include="..\Private\GameplayUI_World.cpp" />
     <ClCompile Include="..\Private\GameplayUI_Battle.cpp" />
     <ClCompile Include="..\private\ANS_Move.cpp" />
-    <ClCompile Include="..\Private\CameraDirector.cpp">
-      <Filter>02.GameObject\Camera\Director</Filter>
-    </ClCompile>
     <ClCompile Include="..\Private\FreeAimTargeting.cpp">
       <Filter>BattleState</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\UI_CrossHair.cpp">
       <Filter>04. GamePlayUI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\CameraDirector.cpp">
+      <Filter>02.GameObject\Camera\Director</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
