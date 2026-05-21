@@ -23,7 +23,18 @@ public:
 		OUT wstring* outFoundEnumType = nullptr,
 		const string& targetPrefabGuid = "");
 
-	static string Get_PrefabGuid(const string& prefabName);
+    static bool Save_StateAnimations_ToFile(
+        const wstring& savePath,
+        const string& enumTypeName,
+        const string& prefabName,
+        const vector<string>& stateNames,
+        const vector<int32>& stateIndices,
+        const unordered_map<string, string>& animationMapping);
+
+	static string Get_PrefabGuid(const string &prefabName);
+
+	// static class 명 기반으로 프리팹명을 역서칭
+	static string Find_PrefabName_ByStaticClass(const string &ownerClassName, const string &selfClassName);
 };
 
 NS_END

@@ -1,4 +1,4 @@
-﻿#include "pch.h"
+#include "pch.h"
 #include "AnimState_Parser.h"
 #include "GameInstance.h"
 #include "Animation.h"
@@ -236,11 +236,157 @@ bool AnimState_Parser::Load_StateAnimations(
 	return false;
 }
 
-string AnimState_Parser::Get_PrefabGuid(const string& prefabName)
+bool AnimState_Parser::Save_StateAnimations_ToFile(
+    const wstring& savePath,
+    const string& enumTypeName,
+    const string& prefabName,
+    const vector<string>& stateNames,
+    const vector<int32>& stateIndices,
+    const unordered_map<string, string>& animationMapping)
+{
+    if (savePath.empty())
+        return false;
+    json root;
+    root["EnumType"] = enumTypeName;
+    // 최상위 Prefab 기준 저장 (ModelGuid 미저장)
+    if (!prefabName.empty())
+    {
+        root["PrefabName"] = prefabName;
+        string guid = Get_PrefabGuid(prefabName);
+        if (!guid.empty())
+            root["PrefabGuid"] = guid;
+    }
+    json mappings = json::array();
+    for (size_t i = 0; i < stateNames.size(); ++i)
+    {
+        const auto it = animationMapping.find(stateNames[i]);
+        if (it == animationMapping.end() || it->second.empty())
+            continue;
+        json entry;
+        entry["Index"] = stateIndices[i];
+        entry["State"] = stateNames[i];
+        entry["Anim"] = it->second;
+        mappings.push_back(entry);
+    }
+    root["Mappings"] = mappings;
+    std::ofstream file(savePath);
+    if (!file.is_open())
+        return false;
+    file << std::setw(4) << root << std::endl;
+    return true;
+}
+
+string AnimState_Parser::Get_PrefabGuid(const string &prefabName)
 {
 	if (prefabName.empty())
+	{
 		return "";
+	}
+	wstring assetRoot = GAME->Get_AssetRoot();
+	fs::path metaPath = fs::path(assetRoot) / "Data" / "json" / "Prefabs" / (prefabName + ".prefab.json.meta");
 
-	string prefabPath = "data/json/prefabs/" + prefabName + ".prefab.json";
-	return GAME->Find_AssetGUID(String::ToWString(prefabPath));
+	if (!fs::exists(metaPath))
+	{
+		return "";
+	}
+
+	std::ifstream file(metaPath);
+	if (!file.is_open())
+	{
+		return "";
+	}
+
+	json metaData;
+	try
+	{
+		file >> metaData;
+		return metaData.value("guid", "");
+	}
+	catch (...)
+	{
+		return "";
+	}
+}
+
+string AnimState_Parser::Find_PrefabName_ByStaticClass(const string &ownerClassName, const string &selfClassName)
+{
+	wstring assetRoot = GAME->Get_AssetRoot();
+	fs::path prefabsDir = fs::path(assetRoot) / "Data" / "json" / "Prefabs";
+	if (!fs::exists(prefabsDir))
+	{
+		return "";
+	}
+
+	// 1. 파일 이름 기반 1차 고속 매칭
+	if (!ownerClassName.empty())
+	{
+		fs::path candidate = prefabsDir / (ownerClassName + ".prefab.json");
+		if (fs::exists(candidate))
+		{
+			return ownerClassName;
+		}
+	}
+	if (!selfClassName.empty())
+	{
+		fs::path candidate = prefabsDir / (selfClassName + ".prefab.json");
+		if (fs::exists(candidate))
+		{
+			return selfClassName;
+		}
+	}
+
+	// 2. 2차 폴더 전체 탐색 (Fallback)
+	for (const auto &entry : fs::directory_iterator(prefabsDir))
+	{
+		if (!entry.is_regular_file())
+		{
+			continue;
+		}
+		if (entry.path().extension() != ".json" || entry.path().stem().extension() != ".prefab")
+		{
+			continue;
+		}
+
+		std::ifstream file(entry.path());
+		if (!file.is_open())
+		{
+			continue;
+		}
+
+		json data;
+		try
+		{
+			file >> data;
+			string rootClass = data.value("static_class", "");
+			if (!ownerClassName.empty() && rootClass == ownerClassName)
+			{
+				return entry.path().stem().stem().string();
+			}
+			if (!selfClassName.empty() && rootClass == selfClassName)
+			{
+				return entry.path().stem().stem().string();
+			}
+
+			if (data.contains("parts") && data["parts"].is_array())
+			{
+				for (const auto &part : data["parts"])
+				{
+					if (part.contains("object") && part["object"].contains("static_class"))
+					{
+						string partClass = part["object"].value("static_class", "");
+						if (!selfClassName.empty() && partClass == selfClassName)
+						{
+							return entry.path().stem().stem().string();
+						}
+					}
+				}
+			}
+		}
+		catch (...)
+		{
+			continue;
+		}
+	}
+
+	return "";
 }
