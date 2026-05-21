@@ -58,8 +58,7 @@ private:
     ComPtr<UnorderedAccessView> _visibleUAV;
     ComPtr<Buffer> _visibleVB;
     ComPtr<Buffer> _cullCB;
-    ComPtr<Buffer> _countStaging;
-    uint32 _visibleCount = {};
+    ComPtr<Buffer> _indirectArgsBuffer;
 
 private:
     HRESULT Ready_Components(const wstring& modelPath, Shared<ModelCom> sharedModel);

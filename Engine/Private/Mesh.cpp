@@ -30,6 +30,25 @@ HRESULT Mesh::RenderInstanced(Buffer* instanceVB, uint32 instanceStride, uint32 
     return S_OK;
 }
 
+HRESULT Mesh::RenderInstancedIndirect(Buffer* instanceVB, uint32 instanceStride, Buffer* indirectArgsBuffer)
+{
+    if (!instanceVB || !indirectArgsBuffer)
+    {
+        return E_FAIL;
+
+    }
+
+    Bind_Resources();
+
+    _context->UpdateSubresource(indirectArgsBuffer, 0, nullptr, &_numIndices, 0, 0);
+
+    const uint32 offset = 0;
+    _context->IASetVertexBuffers(1, 1, &instanceVB, &instanceStride, &offset);
+    _context->DrawIndexedInstancedIndirect(indirectArgsBuffer, 0);
+
+    return S_OK;
+}
+
 HRESULT Mesh::Render_ComputeSkinned(Buffer* vertexBuffer, uint32 vertexStride)
 {
     if (vertexBuffer == nullptr || vertexStride == 0)
