@@ -140,9 +140,7 @@ namespace Internal
     {
         json root = json::object();
         root["sourcePresetName"] = data.sourcePresetName;
-        root["mainTextureGuid"] = data.mainTextureGuid;
         root["mainTexturePath"] = data.mainTexturePath;
-        root["noiseTextureGuid"] = data.noiseTextureGuid;
         root["noiseTexturePath"] = data.noiseTexturePath;
         root["tint"] = To_Json(data.tint);
         root["intensity"] = data.intensity;
