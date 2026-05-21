@@ -23,7 +23,8 @@ void ANS_Test::On_Tick(const AnimNotifyContext& context)
     if (!context.owner || !context.model)
         return;
 
-    LOG_DEBUG("노티파이 진행도 : {}", context.notifyStateProgress);
+    float alpha = context.notifyStateProgress;
+    LOG_DEBUG("노티파이 진행도 : {}", alpha);
 }
 
 void ANS_Test::On_End(const AnimNotifyContext& context)
