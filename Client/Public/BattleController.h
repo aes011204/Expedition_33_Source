@@ -21,6 +21,8 @@ class BattleEffectResolver;
 class BattleStateMachine;
 class BattleTurnCamera;
 
+
+
 class BattleController : public Base
 {
     // 전투 시작
@@ -49,7 +51,6 @@ public:
         bool isOpen = false;
         bool isConsumed = false;
         ReactionType result = ReactionType::None;
-
     };
 
 public:
@@ -71,6 +72,8 @@ public:
     EBattleEndResult OnExitBattleField(EBattleEndResult result);
 
     void Set_BattleFSM();
+    void PlayerStartAnim();
+    void HitAction(BattleChar target);
     void ExecuteAction(Action turnAction); //실제로 선택한 행동을 실행하는 함수
 
     void EndTurn();
@@ -86,8 +89,6 @@ public:
 public:
     Shared<BattleStateMachine> Get_BattleFSM() { return _battleFSM; };
     Action& Get_TurnAction() { return _turnAction; }
-    //uint32 Get_EnemiesNum() { return _enemies.size(); }
-    //uint32 Get_HeroesNum() { return _heroes.size(); }
 
     vector<BattleChar> Get_AliveEnemies();
     vector<BattleChar> Get_AliveHeroes();
@@ -95,13 +96,12 @@ public:
     bool Is_BattleStarted() { return _isBattleActive; }
     bool Is_BattleEntering() const { return _isBattleEntering; } // 배틀 진입 시작
 
-
-    //void Set_CurrentScript(const Shared<SkillScript>& script){_curScript = script;}
     Shared<SkillScript> Get_CurrentScript() const { return _curScript; }
     void Clear_CurrentScript() { _curScript.reset(); }
 
     const Reaction& Get_Reaction() const { return _reaction; }
 public:
+    void End_FirstAnim();
     void Handle_EditorStopRuntime();
     HRESULT Ready_Delegates();
 
@@ -184,6 +184,9 @@ private:
     Shared<BuffSystem> _buffSystem;
     /* Shared< BattleEffectResolver> _battleEffectResolver;*/
     Shared<BattleActionExecutor> _battleActionExe;
+
+    bool _firstAnimflag = { false };
+    int  _firstAnimCount = {0};
 
     FDelegateHandle _editorStopHandle = {};
 

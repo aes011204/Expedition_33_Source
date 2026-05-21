@@ -10,8 +10,8 @@ class Buff;
 
 class CombatStatCom : public Component
 {
-    //GENERATED_COMPONENT(CombatStatCom)
-
+public:
+   
 public:
     // 초기 세팅 값
     struct CombatStatDesc
@@ -93,6 +93,8 @@ public:
     PlayerCharactorType Get_PlayerType() { return _playerType; }
 
     vector<string> Get_SkillKey() { return _skillKeys; }
+
+
     //test
     string Get_FirstSkill();
 protected:

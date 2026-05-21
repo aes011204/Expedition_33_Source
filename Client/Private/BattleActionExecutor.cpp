@@ -208,6 +208,7 @@ void BattleActionExecutor::Update_ActionMovement(float timeDelta, Action& action
 
 void BattleActionExecutor::Update_BasicMovement(Action& action, const Shared<TransformCom>& transform, const Vec3& currentPos)
 {
+    //NONE
     const auto& rm = action._curChar.ModelCom->Get_RootTransformVelocity();
     const Vec3 delta = rm.position * 0.01f;
 
@@ -225,6 +226,8 @@ void BattleActionExecutor::Update_BasicMovement(Action& action, const Shared<Tra
 
 void BattleActionExecutor::Update_RootMotionToTarget(Action& action, const Shared<TransformCom>& transform, const Vec3& currentPos)
 {
+
+    //RootMotionToTarget
     Vec3 toGoal = action.phaseGoalPos - currentPos;
     toGoal.y = 0.f;
 
@@ -274,6 +277,8 @@ void BattleActionExecutor::Update_RootMotionToTarget(Action& action, const Share
 
 void BattleActionExecutor::Update_RatioMoveTo(Action& action, const Shared<TransformCom>& transform, const Vec3& currentPos)
 {
+    //ReturnToOrigin
+    //MoveToTarget
     Vec3 path = action.phaseGoalPos - action.phaseStartPos;
     path.y = 0.f;
     const float totalDistance = path.Length();

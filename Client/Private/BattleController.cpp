@@ -26,6 +26,8 @@
 #include "BattleActionExecutor.h"
 #include "FreeAimTargeting.h"
 
+REGISTER_GLOBAL_ENUM(BattleAnimType, "BattleAnimType")
+
 BattleController::BattleController()
 {
 }
@@ -63,7 +65,7 @@ void BattleController::Update(float timeDelta)
         return;
     }
 
-    if (_isWaitingBattleTransition)
+    if (_isWaitingBattleTransition && _firstAnimflag == true)
     {
         // 전환이 끝난 뒤에 첫 턴 시작되게
         if (!CLIENT->Is_BattleEnterTransitionPlaying())
@@ -92,7 +94,7 @@ void BattleController::Update(float timeDelta)
     }
 
 
-    if (_heroes.empty() == true || _enemies.empty() == true)
+    if (_heroes.empty() == true || _enemies.empty() == true|| _currentTurnActor.actor == nullptr )
         return;
     // 적턴 인지 플레이어 턴인지에 따라
     if (_currentTurnActor.statCom->Is_Player())
@@ -173,6 +175,10 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
     _enemies.clear();
 
     Clear_BattleEnterPending();
+
+    // 초기 애님 관련 변수 초기화
+    _firstAnimflag = false;
+    _firstAnimCount =  0;
 
     return result;
 }
@@ -498,6 +504,11 @@ void BattleController::Handle_EditorStopRuntime()
 
     if (_battleFSM)
         _battleFSM->Change_State(BattleTurnState::ChooseAction);
+
+    //
+    _firstAnimflag = false;
+    _firstAnimCount = 0;
+
 }
 
 HRESULT BattleController::Ready_Delegates()
@@ -793,6 +804,9 @@ void BattleController::Complete_BattleField()
     // FieldID로 
     SetCharInitPos();
 
+    // 첫 입장시 플레이어 시작 에니 재생
+    PlayerStartAnim();
+
 	if (FAILED(Ready_BattleTurnCamera()))
 	{
 		LOG_ERROR("Create Failed : Battle Camera");
@@ -841,6 +855,59 @@ void BattleController::Set_BattleFSM()
     _battleFSM->Add_State(BattleTurnState::FreeAimTargeting, FreeAimTargeting::Create(dynamic_pointer_cast<BattleController>(shared_from_this())));
 
     //_battleFSM->Change_State(BattleTurnState::ChooseAction);
+}
+void BattleController::End_FirstAnim()
+{
+    _firstAnimCount++;
+    if (_firstAnimCount == 3)
+    {
+        for (auto it : _heroes)
+        {
+            it.ModelCom->Set_RootMotionEnabled(true);
+        }
+        _firstAnimflag = true;
+    }
+}
+void BattleController::PlayerStartAnim()
+{
+    //////// 루네 위치 이상함 충돌체ㅐ랑 비교 필수 
+    _firstAnimflag = false;
+    // 임시
+    for(auto it : _heroes)
+    {
+        /*string idle = CLIENT->Get_Skill(it.statCom->Get_FirstSkill())->IdleAnimationKey;
+        it.ModelCom->Set_Animation(idle, .3f, false);*/
+
+        it.ModelCom->Set_RootMotionEnabled(false);
+        it.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Battle_Start), 0.3f, false);
+        //if(it.actor->Get_Name() == L"PB_Gustave")
+        //{
+        //    it.ModelCom->Set_Animation("Gustave_Battle_Noah_BattleStartV3", .3f, false);
+        //}
+        //else if (it.actor->Get_Name() == L"PB_Lune")
+        //{
+        //    it.ModelCom->Set_Animation("Lune_Battle_BattleStart", .3f, false);
+        //}
+        //else if (it.actor->Get_Name() == L"PB_Maelle")
+        //{
+        //    it.ModelCom->Set_Animation("Maelle_Battle_BattleStart", .3f, false);
+        //}
+    }
+    // 일단 여기서 
+    for (auto it : _enemies)
+    {
+        //string idle = CLIENT->Get_Skill(it.statCom->Get_SkillKey()[0])->IdleAnimationKey;
+        //it.ModelCom->Set_Animation(idle, .3f, true);
+        it.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Base_Idle), 0.3f, false);
+
+    }
+}
+
+
+void BattleController::HitAction(BattleChar target)
+{
+
+    target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Hit_Heavy), 0.3f, false);
 }
 
 Shared<BattleController> BattleController::Create()

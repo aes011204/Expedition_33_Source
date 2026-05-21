@@ -18,4 +18,6 @@ void AN_Attack::Execute(const AnimNotifyContext& context)
    }
 
    battle->Get_CurrentScript()->Execute(battle->Get_TurnAction()._selected_SkillKey, battle->Get_TurnAction()._curChar, battle->Get_TurnAction().target);
+   battle->HitAction(battle->Get_TurnAction().target);
+
 }
