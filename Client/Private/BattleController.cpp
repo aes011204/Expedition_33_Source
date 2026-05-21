@@ -26,6 +26,7 @@
 #include "BattleActionExecutor.h"
 #include "DamageSystem.h"
 #include "FreeAimTargeting.h"
+#include "PlayerStatCom.h"
 
 BattleController::BattleController()
 {
@@ -169,6 +170,22 @@ void BattleController::OnEnterBattleField(uint32 FieldID, bool IsFirstHero, cons
 
 EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
 {
+    // 배틀에서 실제로 바뀐 결과를 월드 플레이어한테 전달. 체력, 경험치 등
+    for (const BattleChar& hero : _heroes)
+    {
+        if (hero.heroId == HeroId::END)
+            continue;
+
+        Shared<PlayerStatCom> battleStat = dynamic_pointer_cast<PlayerStatCom>(hero.statCom);
+        Shared<Player_WorldBase> worldHero = CLIENT->Find_Hero(hero.heroId);
+        Shared<PlayerStatCom> worldStat = worldHero ? worldHero->Get_Component<PlayerStatCom>() : nullptr;
+
+        if (battleStat && worldStat)
+        {
+            worldStat->Apply_BattleSyncSnapshot(battleStat->Create_BattleSyncSnapshot());
+        }
+    }
+
     _isBattleActive = false;
     _isBattleEntering = false;
     _isWaitingBattleTransition = false;
@@ -342,8 +359,18 @@ void BattleController::Create_BattleChar(const vector<HeroId>& heroIds, vector<s
         auto ply = dynamic_pointer_cast<Character>(character);
 
         BattleChar battleChar{};
+        battleChar.heroId = heroId; // 배틀 종료 후 어떤 PW로 돌릴지 식별용
         battleChar.actor = ply;
         battleChar.statCom = character->Get_Component<CombatStatCom>();
+
+        // 월드에서 세팅된 스탯들을 배틀턴 진입 시 반영
+        Shared<Player_WorldBase> worldHero = CLIENT->Find_Hero(heroId);
+        Shared<PlayerStatCom> worldStat = worldHero ? worldHero->Get_Component<PlayerStatCom>() : nullptr;
+        Shared<PlayerStatCom> battleStat = character->Get_Component<PlayerStatCom>();
+        if (worldStat && battleStat)
+        {
+            battleStat->Apply_BattleSyncSnapshot(worldStat->Create_BattleSyncSnapshot());
+        }
 
         PartObject* body = ply ? ply->Get_PartObject(L"Part_Body") : nullptr;
         battleChar.ModelCom = body ? body->Get_Component<ModelCom>() : nullptr; // body part에 붙은 실제 ModelCom를 사용한다.

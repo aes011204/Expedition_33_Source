@@ -44,7 +44,6 @@ void FreeCamera::Priority_Update(float timeDelta)
         return;
 
     const bool canControl =
-        !GAME->Is_WorldGameplayInputBlocked() &&
         GAME->Is_FreeCameraInputEnabled() &&
         GAME->KeyPress(KEY_TYPE::RBUTTON);
 
