@@ -35,6 +35,8 @@ private:
 
     Shared<SnapSettings> _snapSettings;
 
+    bool _confirmClearOpen = false;
+
 public:
     void AddWindow(Shared<MEWindow> w);
 
