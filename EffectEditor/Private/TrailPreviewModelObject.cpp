@@ -125,7 +125,7 @@ HRESULT TrailPreviewModelObject::Ready_Components()
         return E_FAIL;
 
     const string modelPathUtf8 = String::ToString(modelPath);
-    _model = ModelCom::Create(_device, _context, ModelType::NonAnim, modelPathUtf8.c_str(), Matrix::CreateScale(0.03f));
+    _model = ModelCom::Create(_device, _context, ModelType::NonAnim, modelPathUtf8.c_str(), Matrix::CreateScale(0.01f));
     CHECK_NULL(_model, E_FAIL);
     Configure_Materials();
 

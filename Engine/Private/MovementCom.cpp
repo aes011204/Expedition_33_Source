@@ -290,7 +290,8 @@ void MovementCom::Update_Rotation(float timeDelta)
     const float step = min(angle, maxStep);
 
     Quat deltaRotation = Quat::CreateFromAxisAngle(Vec3::Up, step * sign);
-    _transformCom->Add_LocalRotation(deltaRotation);
+    // Movement yaw는 parent local 축이 아니라 World Up 기준으로 누적한다.
+    _transformCom->Add_WorldRotationQuaternion(deltaRotation);
 }
 
 void MovementCom::Update_HorizontalVelocity()
