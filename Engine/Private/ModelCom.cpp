@@ -1,4 +1,4 @@
-﻿#include "ModelCom.h"
+#include "ModelCom.h"
 #include "GameInstance.h"
 #include "Asset_Manager.h"
 #include "MaterialBuilder.h"
@@ -1976,34 +1976,50 @@ HRESULT ModelCom::Ready_Animation(const char* modelPath)
     return S_OK;
 }
 
-bool ModelCom::Ensure_AnimStateAssetLoaded(const string& sourceObjectGUID)
+bool ModelCom::Ensure_AnimStateAssetLoaded(const string &sourceObjectGUID)
 {
-    if (!sourceObjectGUID.empty())
-    {
-        wstring resolvedPath = GAME->Resolve_AssetPath(sourceObjectGUID);
-        if (!resolvedPath.empty())
-        {
-            return AnimState_Parser::Load_StateAnimations_FromFile(
-                resolvedPath, _animations, _stateAnimIndices, &_animEnumType);
-        }
-    }
+	if (!sourceObjectGUID.empty())
+	{
+		wstring resolvedPath = GAME->Resolve_AssetPath(sourceObjectGUID);
+		if (!resolvedPath.empty())
+		{
+			return AnimState_Parser::Load_StateAnimations_FromFile(
+				resolvedPath, _animations, _stateAnimIndices, &_animEnumType);
+		}
+	}
 
-    string targetPrefabGuid = "";
-    if (Get_Owner())
-    {
-        auto prefabContextOwner = Get_Owner();
-        if (auto containerOwner = prefabContextOwner->Get_Owner())
-        {
-            if (!containerOwner->Get_SourcePrefabName().empty())
-            {
-                prefabContextOwner = containerOwner;
-            }
-        }
+	string targetPrefabGuid = "";
+	if (Get_Owner())
+	{
+		auto prefabContextOwner = Get_Owner();
+		if (auto containerOwner = prefabContextOwner->Get_Owner())
+		{
+			if (!containerOwner->Get_SourcePrefabName().empty())
+			{
+				prefabContextOwner = containerOwner;
+			}
+		}
 
-        targetPrefabGuid = AnimState_Parser::Get_PrefabGuid(prefabContextOwner->Get_SourcePrefabName());
-    }
+		string prefabName = prefabContextOwner->Get_SourcePrefabName();
+		if (prefabName.empty())
+		{
+			string selfClass = prefabContextOwner->Get_ReflectionInfo().className;
+			string ownerClass = "";
+			if (auto ownerOfContext = prefabContextOwner->Get_Owner())
+			{
+				ownerClass = ownerOfContext->Get_ReflectionInfo().className;
+			}
+			prefabName = AnimState_Parser::Find_PrefabName_ByStaticClass(ownerClass, selfClass);
+			if (!prefabName.empty())
+			{
+				prefabContextOwner->Set_SourcePrefabName(prefabName);
+			}
+		}
 
-    return AnimState_Parser::Load_StateAnimations(_sourceModelPath, _animations, _stateAnimIndices, &_animEnumType, targetPrefabGuid);
+		targetPrefabGuid = AnimState_Parser::Get_PrefabGuid(prefabName);
+	}
+
+	return AnimState_Parser::Load_StateAnimations(_sourceModelPath, _animations, _stateAnimIndices, &_animEnumType, targetPrefabGuid);
 }
 
 bool ModelCom::Refresh_AnimStateMappingFromOwnerContext()

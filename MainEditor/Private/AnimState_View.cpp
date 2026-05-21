@@ -1,4 +1,4 @@
-﻿#include "pch.h"
+#include "pch.h"
 #include "AnimState_View.h"
 #include "Animation_NameUtils.h"
 #include "ContainerObject.h"
@@ -9,6 +9,7 @@
 #include "PartObject.h"
 #include "RenderTarget.h"
 #include "TransformCom.h"
+#include "AnimState_Parser.h"
 
 AnimState_View::AnimState_View()
     : Editor_Window(L"AnimState")
@@ -812,61 +813,75 @@ void AnimState_View::Draw_MappingTable()
     ImGui::EndTable();
 }
 
-void AnimState_View::Save_Mapping(const string& fileName)
+void AnimState_View::Save_Mapping(const string &fileName)
 {
-    if (fileName.empty() || _sourceModelPath.empty())
-        return;
-    fs::path rootPath = GAME->Get_AssetRoot();
-    fs::path modelDir = rootPath / fs::path(_sourceModelPath).parent_path();
-    fs::path savePath = modelDir / (fileName + ".animmap.json");
-    
-	json root;
-    root["EnumType"] = _enumTypeName;
-    root["ModelGuid"] = _modelGuid;
-    json mappings = json::array();
+	if (fileName.empty() || _sourceModelPath.empty())
+	{
+		return;
+	}
+	fs::path rootPath = GAME->Get_AssetRoot();
+	fs::path modelDir = rootPath / fs::path(_sourceModelPath).parent_path();
+	fs::path savePath = modelDir / (fileName + ".animmap.json");
+
+	// 최상위 프리팹 이름 획득
+	string prefabName = "";
+	if (_liveModelCom != nullptr && _liveModelCom->Get_Owner() != nullptr)
+	{
+		auto owner = _liveModelCom->Get_Owner();
+		if (!owner->Get_SourcePrefabName().empty())
+		{
+			prefabName = owner->Get_SourcePrefabName();
+		}
+		else if (auto containerOwner = owner->Get_Owner())
+		{
+			if (!containerOwner->Get_SourcePrefabName().empty())
+			{
+				prefabName = containerOwner->Get_SourcePrefabName();
+			}
+			else
+			{
+				string selfClass = containerOwner->Get_ReflectionInfo().className;
+				string ownerClass = "";
+				if (auto ownerOfContainer = containerOwner->Get_Owner())
+				{
+					ownerClass = ownerOfContainer->Get_ReflectionInfo().className;
+				}
+				prefabName = AnimState_Parser::Find_PrefabName_ByStaticClass(ownerClass, selfClass);
+				if (!prefabName.empty())
+				{
+					containerOwner->Set_SourcePrefabName(prefabName);
+				}
+			}
+		}
+		else
+		{
+			string selfClass = owner->Get_ReflectionInfo().className;
+			prefabName = AnimState_Parser::Find_PrefabName_ByStaticClass("", selfClass);
+			if (!prefabName.empty())
+			{
+				owner->Set_SourcePrefabName(prefabName);
+			}
+		}
+	}
+    unordered_map<string, string> resolvedMapping;
     for (size_t i = 0; i < _stateNames.size(); ++i)
     {
         const auto it = _animationMapping.find(_stateNames[i]);
         if (it == _animationMapping.end() || it->second.empty())
             continue;
-
-        json entry;
-        entry["Index"] = _stateIndices[i];
-        entry["State"] = _stateNames[i];
-
-        string mappedName = it->second;
-        const AnimationEntry* animEntry = Find_AnimationEntryByAnyName(_availableAnimations, mappedName);
-        if (animEntry && !animEntry->playbackName.empty())
-        {
-            entry["Anim"] = animEntry->playbackName;
-        }
+        const AnimationEntry* animEntry = Find_AnimationEntryByAnyName(_availableAnimations, it->second);
+        if (animEntry != nullptr && !animEntry->playbackName.empty())
+            resolvedMapping[_stateNames[i]] = animEntry->playbackName;
         else
-        {
-            entry["Anim"] = mappedName;
-        }
-
-        mappings.push_back(entry);
+            resolvedMapping[_stateNames[i]] = it->second;
     }
-    root["Mappings"] = mappings;
-
-    if (_liveModelCom != nullptr && _liveModelCom->Get_Owner() != nullptr)
-    {
-        string prefabName = _liveModelCom->Get_Owner()->Get_SourcePrefabName();
-        if (!prefabName.empty())
-        {
-            string prefabPath = "data/json/prefabs/" + prefabName + ".prefab.json";
-            string prefabGuid = GAME->Find_AssetGUID(String::ToWString(prefabPath));
-            if (!prefabGuid.empty())
-            {
-                root["PrefabGuid"] = prefabGuid;
-            }
-        }
-    }
-
-    std::ofstream file(savePath);
-    if (file.is_open())
-        file << std::setw(4) << root << std::endl;
-        
+    AnimState_Parser::Save_StateAnimations_ToFile(
+        savePath.wstring(),
+        _enumTypeName,
+        prefabName,
+        _stateNames,
+        _stateIndices,
+        resolvedMapping);
     Refresh_AnimmapFiles();
 }
 
