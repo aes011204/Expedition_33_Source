@@ -61,6 +61,9 @@ public: //## Accessor::Runtime
     bool IsPaused() const;
     float Get_RuntimeTimeScale() const;
 
+public: //## Accessor::PreviewOption
+    bool Is_TrailPreviewWeaponVisible() const { return _isTrailPreviewWeaponVisible; }
+
 public: //## Accessor::InputPolicy
     bool Is_PreviewCameraControlEnabled() const { return _isPreviewCameraControlEnabled; }
     bool Is_PreviewCameraDragging() const { return _isPreviewCameraDragging; }
@@ -84,6 +87,9 @@ public: //## Behavior::RuntimeControl
     void Request_FrameStep();
     bool Consume_FrameStep();
     void Request_RestartPreview();
+
+public: //## Behavior::PreviewOption
+    void Set_TrailPreviewWeaponVisible(bool visible);
 
 public: //## Behavior::Window
     void Request_WindowFocus(EditorViewportTarget target);
@@ -174,6 +180,9 @@ private: //## Data::Runtime
     bool _pendingSingleFrameStep{ false };
     string _copiedObjectJson{};
     wstring _copiedLayerTag{};
+
+private: //## Data::PreviewOption
+    bool _isTrailPreviewWeaponVisible{ false };
 
 private: //## Data::Window
     bool _hasPendingWindowFocus{ false };

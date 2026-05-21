@@ -108,11 +108,13 @@ public:
     void Set_BaseTransformState(const Vec2& position, const Vec2& scale, float rotationRadians);
     void Play_OnOpen();
     void Stop();
+    bool Play_KeyframeAnimation(const wstring& animationName, bool restart = true); // 이름으로 keyframe animation 하나를 선택 재생
     bool Update(float deltaTime, UI_AnimationSample& outSample);
 
 private:
     size_t Find_PlayOnOpenClipIndex() const;
     size_t Find_PlayOnOpenKeyframeAssetIndex() const;
+    size_t Find_KeyframeAssetIndex(const wstring& animationName) const; // 이름으로 asset index 찾기
 
 private:
     vector<UI_AnimationClip> _clips = {};

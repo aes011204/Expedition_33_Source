@@ -70,7 +70,6 @@ HRESULT ModelViewerObject::Render()
         {
             if (FAILED(_modelCom->Bind_Material(_animShaderCom.get(), "g_DiffuseTexture", i, MaterialTextureSlot::BaseColor)))
             {
-                // 실패했다면(텍스처가 없다면) 디폴트 텍스처를 강제로 바인딩!
                 if (_defaultTextureSRV != nullptr)
                 {
                     _animShaderCom->Bind_SRV("g_DiffuseTexture", _defaultTextureSRV.Get());

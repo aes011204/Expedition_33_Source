@@ -45,7 +45,7 @@ bool AttackTargeting::EnterInvoke()
 
     const auto enemies = owner->Get_AliveEnemies();
     if (!enemies.empty())
-    {
+    { 
         TargetIndex %= enemies.size();
         owner->Set_TargetPreview(enemies[TargetIndex]);
     }

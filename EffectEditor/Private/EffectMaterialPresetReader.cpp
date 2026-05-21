@@ -1,4 +1,4 @@
-#include "EffectMaterialPresetReader.h"
+﻿#include "EffectMaterialPresetReader.h"
 
 namespace EffectEditor::EffectMaterialPresetReader
 {
@@ -84,14 +84,14 @@ bool Read(const fs::path& filePath, EffectMaterialInstanceData& outMaterial)
         if (textureId == "Texture_Effect_DefaultTexture")
         {
             outGuid = "3c90794a-31bb-4e97-969a-3fd4497acc0f";
-            outPath = "Effects/Textures/DefaultTexture.dds";
+            outPath = "Effects/Textures/Shared/DefaultTexture.dds";
             return true;
         }
 
         if (textureId == "Texture_Effect_Clouds4")
         {
             outGuid = "321bf66c-e6f9-4495-9855-275274727e83";
-            outPath = "Effects/Textures/clouds4_T.dds";
+            outPath = "Effects/Textures/Shared/clouds4_T.dds";
             return true;
         }
 

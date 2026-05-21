@@ -64,6 +64,26 @@ string CombatStatCom::Get_FirstSkill()
     }
 }
 
+void CombatStatCom::Add_AP(uint32 value)
+{
+    auto& runtime = Get_RuntimeStat();
+    const uint32 maxAp = Get_StatInfo().maxAp;
+
+    // 최대 AP 초과 방지
+    runtime.CurAp = min(runtime.CurAp + value, maxAp);
+}
+
+bool CombatStatCom::Try_ConsumeAP(uint32 value)
+{
+    auto& runtime = Get_RuntimeStat();
+
+    if (runtime.CurAp < value)
+        return false;
+
+    runtime.CurAp -= value;
+
+    return true;
+}
 
 void CombatStatCom::Add_Shield(int32 value)
 {

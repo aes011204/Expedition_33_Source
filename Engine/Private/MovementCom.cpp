@@ -290,7 +290,8 @@ void MovementCom::Update_Rotation(float timeDelta)
     const float step = min(angle, maxStep);
 
     Quat deltaRotation = Quat::CreateFromAxisAngle(Vec3::Up, step * sign);
-    _transformCom->Add_LocalRotation(deltaRotation);
+    // Movement yaw는 parent local 축이 아니라 World Up 기준으로 누적한다.
+    _transformCom->Add_WorldRotationQuaternion(deltaRotation);
 }
 
 void MovementCom::Update_HorizontalVelocity()
@@ -301,9 +302,12 @@ void MovementCom::Update_HorizontalVelocity()
         Vec3 look = _transformCom->Get_WorldForward();
         look.y = 0.f;
         look.Normalize();
+        Vec3 right = _transformCom->Get_WorldRight();
+        right.y = 0.f;
+        right.Normalize();
 
-        _velocity.x = look.x * velocity.x;
-        _velocity.z = look.z * velocity.z;
+        _velocity.x = right.x * velocity.x + look.x * velocity.z;
+        _velocity.z = right.z * velocity.x + look.z * velocity.z;
 
         return;
     }

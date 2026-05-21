@@ -1,4 +1,7 @@
 ﻿#pragma once
+
+#include "Client_Enum.h"
+
 namespace Engine
 {
     class ModelCom;
@@ -7,9 +10,9 @@ namespace Engine
 
 namespace Client
 {
-struct BattleActionPhase;
-enum class Buffs;
+    struct BattleActionPhase;
     struct Skill_Data;
+    enum class Buffs;
     enum class EAttackType;
     class CombatStatCom;
     // =============================
@@ -27,7 +30,8 @@ enum class Buffs;
         SkillTargeting,
         ItemTargeting,
         UltimateTargeting,
-        ChooseUltimate
+        ChooseUltimate,
+        FreeAimTargeting,
     };
 
     // 현재 전투 상황의 유형이나 행동 컨텍스트
@@ -39,7 +43,7 @@ enum class Buffs;
         Dodge,
         Parry,
         TurnStart,
-        FreeAimShot,
+        FreeAimShoot,
         BaseAttack,
         ConsumableItem,
         Debug,
@@ -105,7 +109,7 @@ enum class Buffs;
         Dodge,
         Parry,
         TurnStart,
-        FreeAimShot,
+        FreeAimShoot,
         BaseAttack,
         ConsumableItem,
         Debug,
@@ -239,7 +243,7 @@ enum class Buffs;
         Dodge,
         Parry,
         TurnStart,
-        FreeAimShot,
+        FreeAimShoot,
         BaseAttack,
         ConsumableItem,
         Debug,
@@ -445,6 +449,7 @@ enum class Buffs;
 
     struct BattleChar
     {
+        HeroId heroId = HeroId::END; // 어떤 월드 영웅과 연결된 배틀 캐릭터인지 끝날 때 역반영으로 사용
         Shared<Character> actor;
         Shared<CombatStatCom> statCom;
         Shared<ModelCom> ModelCom;

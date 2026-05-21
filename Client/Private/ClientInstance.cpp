@@ -141,6 +141,22 @@ const umap<string, vector<string>>*  ClientInstance::Get_SkillTreeRequirementDat
     return _gameDataTable->Get_SkillTreeRequirementData();
 }
 
+const GameDataTable::WeaponDesc* ClientInstance::Get_WeaponDesc(const string& characterId, const string& weaponId) const
+{
+    if (_gameDataTable == nullptr)
+        return nullptr;
+
+    return _gameDataTable->Get_WeaponDesc(characterId, weaponId);
+}
+
+const vector<GameDataTable::WeaponDesc>* ClientInstance::Get_WeaponDescs(const string& characterId) const
+{
+    if (_gameDataTable == nullptr)
+        return nullptr;
+
+    return _gameDataTable->Get_WeaponDescs(characterId);
+}
+
 const Skill_Data* ClientInstance::Get_Skill(const string& skillId)
 {
     return _gameDataTable->Get_Skill(skillId);

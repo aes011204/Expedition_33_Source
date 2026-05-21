@@ -177,7 +177,9 @@ namespace
             const CollisionResponse response =
                 Calculate_PhysXResponse(_selfFilterData, shape->getQueryFilterData());
 
-            if (response != CollisionResponse::Block)
+            // preset query는 Ignore만 제외하고 hit 후보로 남긴다.
+            // Player_Target처럼 Overlap 기반 타게팅 query도 sweep 결과를 받아야 한다.
+            if (response == CollisionResponse::Ignore)
                 return PxQueryHitType::eNONE;
 
             return PxQueryHitType::eBLOCK;
@@ -728,7 +730,16 @@ bool PhysX_Manager::Sweep_Sphere(const Vec3& origin, const Vec3& direction, floa
     outHit.position = Vec3(block.position.x, block.position.y, block.position.z);
     outHit.normal = Vec3(block.normal.x, block.normal.y, block.normal.z);
 
+    ColliderCom* hitCollider = nullptr;
+    if (block.shape != nullptr)
+        hitCollider = static_cast<ColliderCom*>(block.shape->userData);
+
+    outHit.collider = hitCollider;
+    outHit.owner = (hitCollider != nullptr && hitCollider->Get_Owner() != nullptr)
+        ? hitCollider->Get_Owner().get() : nullptr;
+
     return true;
+
 }
 
 bool PhysX_Manager::Sweep_Collider(ColliderCom* collider, const Matrix& worldMatrix, const Vec3& direction,

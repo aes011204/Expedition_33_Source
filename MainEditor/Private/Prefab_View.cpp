@@ -613,6 +613,7 @@ void Prefab_View::Draw_InspectorPanel()
     {
     case SelectionType::GameObject:
     {
+        const json beforeJson = selectedObject->To_Json();
         const Engine::ClassReflectionInfo& info = selectedObject->Get_ReflectionInfo();
 
         if (info.properties.empty())
@@ -623,6 +624,9 @@ void Prefab_View::Draw_InspectorPanel()
         {
             Inspector::Draw_ReflectionSection(info.className, selectedObject.get(), info);
         }
+
+        if (beforeJson != selectedObject->To_Json())
+            MarkDirty();
         break;
     }
 
@@ -643,8 +647,14 @@ void Prefab_View::Draw_InspectorPanel()
             break;
         }
 
+        const json beforeJson = selectedComponent->To_Json();
+
         if (Inspector::Draw_ComponentOverride(selectedComponent))
+        {
+            if (beforeJson != selectedComponent->To_Json())
+                MarkDirty();
             break;
+        }
 
         const Engine::ClassReflectionInfo& info = selectedComponent->Get_ReflectionInfo();
         if (info.properties.empty())
@@ -654,6 +664,9 @@ void Prefab_View::Draw_InspectorPanel()
         }
 
         Inspector::Draw_ReflectionSection(info.className, selectedComponent.get(), info);
+
+        if (beforeJson != selectedComponent->To_Json())
+            MarkDirty();
         break;
     }
 

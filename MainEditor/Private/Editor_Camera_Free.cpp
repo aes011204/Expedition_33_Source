@@ -54,7 +54,7 @@ void Editor_Camera_Free::Priority_Update(float timeDelta)
 
         const ImVec2 delta = ImGui::GetIO().MouseDelta;
         if (delta.x != 0.f)
-            _transformCom->Add_LocalRotation(Quat::CreateFromAxisAngle(Vec3::Up, delta.x * _mouseSensor * timeDelta));
+            _transformCom->Add_WorldRotationQuaternion(Quat::CreateFromAxisAngle(Vec3::Up, delta.x * _mouseSensor * timeDelta));
 
         if (delta.y != 0.f)
         {
@@ -62,7 +62,7 @@ void Editor_Camera_Free::Priority_Update(float timeDelta)
             if (right.LengthSquared() > 0.000001f)
             {
                 right.Normalize();
-                _transformCom->Add_LocalRotation(Quat::CreateFromAxisAngle(right, delta.y * _mouseSensor * timeDelta));
+                _transformCom->Add_WorldRotationQuaternion(Quat::CreateFromAxisAngle(right, delta.y * _mouseSensor * timeDelta));
             }
         }
     }

@@ -11,7 +11,7 @@ vector g_vLightAmbient;
 vector g_vLightSpecular;
 
 Texture2D g_DiffuseTexture;
-vector g_vMtrlAmbient = vector(0.3f, 0.3f, 0.3f, 1.f);
+vector g_vMtrlAmbient = vector(1.f, 1.f, 1.f, 1.f);
 vector g_vMtrlSpecular = vector(1.f, 1.f, 1.f, 1.f);
 vector g_CamPosition;
 
@@ -70,8 +70,8 @@ PS_OUT PS_MAIN(PS_IN In)
 
     vector vMtrlDiffuse = g_DiffuseTexture.Sample(LinearWrapSampler, In.vTexcoord);
     
-    if (vMtrlDiffuse.a < 0.3f)
-        discard;
+    //if (vMtrlDiffuse.a < 0.3f)
+    //    discard;
     
     vector vShade = saturate(max(dot(normalize(g_vLightDir) * -1.f, In.vNormal), 0.f) + (g_vLightAmbient * g_vMtrlAmbient));
     

@@ -12,7 +12,6 @@ public:
     // 초기 세팅 값
     struct PlayerCombatStatDesc : CombatStatCom::CombatStatDesc
     {
-      
         uint32 statPoint = 10;
         uint32 skillPoint = 10;
         uint32 respecCount = 1; // 스탯 초기화 횟수
@@ -28,7 +27,6 @@ public:
     // 변경된 실제 Stat 정보
     struct PRuntimeCombatStat : CombatStatCom::RuntimeCombatStat
     {
- 
         uint32 nextExp = 0;
         uint32 CurStatPoint = 0;
         uint32 CurSkillPoint = 0;
@@ -56,7 +54,36 @@ public:
         float CurCriticalRate = 0.f;
         float CurMastery = 0.f;
         float CurCriticalChance = 0.f;
+    };
 
+    // UI에서 미리보여주기용
+    struct PreviewStat
+    {
+        float maxHp = 0.f;
+        float physicalAttack = 0.f;
+        float speed = 0.f;
+        float physicalDefense = 0.f;
+        float criticalRate = 0.f;
+    };
+
+    // 월드 <-> 배틀 스탯값 맞추기, 전투 종료 시 반영까지
+    struct BattleSyncSnapshot
+    {
+        PlayerCombatStatDesc desc{};
+
+        uint32 curStatPoint = 0;
+        uint32 curSkillPoint = 0;
+        uint32 curRespecCount = 0;
+
+        int32 curVitality = 0;
+        int32 curMight = 0;
+        int32 curAgility = 0;
+        int32 curDefense = 0;
+        int32 curLuck = 0;
+
+        float curHp = 0.f;
+        uint32 curAp = 0;
+        uint32 curShield = 0;
     };
 
 public:
@@ -79,9 +106,35 @@ public:
     bool    Reset_Stat();
 
     uint32  Get_NextExp(uint32 level) const;
-    void Add_Exp(uint32 value);
+    void    Add_Exp(uint32 value);
 
+public:
+    static PreviewStat Calculate_PreviewStat(
+        int32 vitality,
+        int32 might,
+        int32 agility,
+        int32 defense,
+        int32 luck);
 
+     // 인스팩터가 기본 스탯을 바꿀 때, 런타임 값 다시 세팅
+    void Set_RuntimePrimaryStats(
+        int32 vitality,
+        int32 might,
+        int32 agility,
+        int32 defense,
+        int32 luck);
+
+    // 인스팩터에서 값을 바꿀 때, desc/runtime 둘 다 같이 세팅
+    void Set_RuntimeProgress(
+        uint32 level,
+        uint32 exp,
+        uint32 statPoint,
+        uint32 skillPoint,
+        uint32 respecCount);
+
+    // 전투 결과 반영
+    BattleSyncSnapshot Create_BattleSyncSnapshot() const;
+    void Apply_BattleSyncSnapshot(const BattleSyncSnapshot& snapshot);
 
 private:
     int32* Find_StatValue(StatType type);
@@ -91,11 +144,8 @@ private:
     void    Update_StatInfo();      // 계산된 내부 값들을 업데이트
 
 private:
-
     PlayerCombatStatDesc _playerDesc;
-
-
-    PRuntimeCombatStat _PRuntimeStat;
+    PRuntimeCombatStat   _PRuntimeStat;
 
     //
    

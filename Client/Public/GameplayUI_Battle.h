@@ -10,6 +10,7 @@ class BattleController;
 class UI_BattleTransition;
 class UI_BattleCommandHUD;
 class UI_MonsterHpBar;
+class UI_CrossHair;
 
 class GameplayUI_Battle final : public Base
 {
@@ -36,8 +37,9 @@ private:
     void    Handle_TurnEnded(const BattleChar& actor);
     void    Handle_TargetPreviewChanged(const BattleChar* target);
 
-    void    Update_BattleCommandHUD();
-    void    Update_MonsterHpBar();
+    void    Update_BattleCommandHUD(float timeDelta);
+    void    Update_MonsterHpBar(float timeDelta);
+    void    Update_CrossHair(float timeDelta);
 
 private:
     // 타겟 체력바 위치
@@ -47,10 +49,10 @@ private:
     bool    Try_GetBattleCommandHudWorldPos(const BattleChar& actor, Vec3& outWorldPos) const;
 
 private:
-    // 전투 진입 테스트용 페이드 UI
-    Unique<UI_BattleTransition> _battleTransition;
+    Unique<UI_BattleTransition> _battleTransition; // 전투 진입 테스트용 페이드 UI
     Unique<UI_BattleCommandHUD> _battleCommandHUD;
     Unique<UI_MonsterHpBar>     _monsterHpBar;
+    Unique<UI_CrossHair>        _crossHair;
 
     // Delegate 구독 대상
     Shared<BattleController> _battleController;

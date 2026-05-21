@@ -45,7 +45,7 @@ namespace ModelEditor
 		static const unordered_set<string> junkSet = {
 			"ALS", "UE5", "RETAKE", "UNREAL", "TAKE", "DEFAULT", "PLACEHOLDER", "SK",
 			"LF", "RF", "N", "F", "B", "L", "R", "W", "S", "E",
-            "AM", "PACK", "MCIDLESPACK", "RETARGETED"
+            "AM", "PACK", "MCIDLESPACK", "RETARGETED", "RD", "A"
 		};
 
 		// 2. Tokenize by various delimiters
@@ -334,7 +334,7 @@ namespace ModelEditor
         _isSkeletal = hasMeshBones || probeScene->mNumAnimations > 0;
         
         uint32 finalFlags = _importFlags;
-        if (false == _applyStaticGlobalScale && false == _isSkeletal)
+        if (true == _applyStaticGlobalScale && false == _isSkeletal)
         {
             finalFlags |= aiProcess_PreTransformVertices | aiProcess_GlobalScale;
         }
@@ -410,6 +410,8 @@ namespace ModelEditor
             _isSkeletal = false;
         }
 
+        ReadMeshes(_aiScene);
+        ReadMaterial(_aiScene); // 이게 빠져있어서 머티리얼 안들어왔음. 그래서 추가함
 		ReadAnimations(_aiScene);
 		Ensure_DirectoryExists(outputDir);
 

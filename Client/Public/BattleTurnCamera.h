@@ -39,8 +39,19 @@ public:
     void End_LiveEdit();
     bool Is_LiveEditEnabled() const { return _isLiveEditEnabled; }
 
+    void Update_FreeAimRotation(float timeDelta);
+
+    Vec3 Get_AimOrigin() const;                // 히트스캔 시작 위치
+    Vec3 Get_AimDirection() const;             // 히트스캔 방향
+
+    bool Is_FreeAimActive() const { return _isFreeAimActive; }
+
 private:
     void Apply_LookAt(const Vec3& cameraPos, const Vec3& lookAt);
+    void Apply_FreeAimCamera();                
+
+private:
+    bool  _isFreeAimActive = false;            
 
 private:
     void Update_WideMode(float timeDelta);
