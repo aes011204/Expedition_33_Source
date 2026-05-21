@@ -334,11 +334,11 @@ void CharacterStatus_Panel::Refresh_CombatStats()
 	Set_UIntText(_statPointText, previewStatPoint); // 아직 저장 안 한 pending만큼 미리 차감 표시
 
     // 왼쪽 현재값
-	Set_IntText(_vitalityText, vitality);
-	Set_IntText(_mightText, might);
-	Set_IntText(_agilityText, agility);
-	Set_IntText(_defenseStatText, defense);
-	Set_IntText(_luckText, luck);
+	Set_IntText(_vitalityText, statInfo.CurVitality);
+	Set_IntText(_mightText, statInfo.CurMight);
+	Set_IntText(_agilityText, statInfo.CurAgility);
+	Set_IntText(_defenseStatText, statInfo.CurDefense);
+	Set_IntText(_luckText, statInfo.CurLuck);
 
     // 오른쪽 펜딩값
     Set_IntText(_upgradeVitalityText, vitality);          
