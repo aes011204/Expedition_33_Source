@@ -56,6 +56,10 @@ void FreeAimTargeting::Update(float timeDelta)
     if (!owner || !battleFSM)
         return;
 
+     // Free Aim 발사 연출 중에는 조준 유지 상태만 두고 새 입력은 막는다.
+    if (owner->Is_FreeAimShotPlaying())
+        return;
+
     if (const auto battleCamera = owner->Get_BattleTurnCamera())
     battleCamera->Update_FreeAimRotation(timeDelta); // Free Aim 상태에서만 카메라 회전 갱신
 
@@ -70,23 +74,22 @@ void FreeAimTargeting::Update(float timeDelta)
 
     if (GAME->KeyDown(KEY_TYPE::LBUTTON))
     {
-        auto& turnAction = owner->Get_TurnAction();
+        Action shotAction{};
+        shotAction._curChar = owner->Get_TurnAction()._curChar;
+        shotAction.type = EBattleContext::FreeAimShoot;
 
         if (_hasCurrentHitTarget)
-            turnAction.target = _currentHitTarget;
+            shotAction.target = _currentHitTarget;
         else
-            turnAction.target = {};
+            shotAction.target = {};
 
-        turnAction.type = EBattleContext::FreeAimShoot;
-
-        // 일단은 테스트
-        const Skill_Data* data = CLIENT->Get_Skill(turnAction._curChar.statCom->Get_FirstSkill());
+        const Skill_Data* data = CLIENT->Get_Skill(shotAction._curChar.statCom->Get_FirstSkill());
         if (!data)
             return;
 
-        turnAction._selected_SkillKey = *data;
+        shotAction._selected_SkillKey = *data;
 
-        owner->ExecuteAction(turnAction);
+        owner->Begin_FreeAimShot(shotAction);
         return;
     }
 }
@@ -114,47 +117,24 @@ bool FreeAimTargeting::Try_FindHitEnemy(BattleChar& outEnemy) const
     if (battleCamera == nullptr)
         return false;
 
-    const Vec3 originPos = battleCamera->Get_AimOrigin();
+    const Vec3 cameraOrigin = battleCamera->Get_AimOrigin();
     Vec3 direction = battleCamera->Get_AimDirection();
     if (direction.LengthSquared() <= 0.0001f)
         return false;
 
     direction.Normalize();
 
+    constexpr float traceDistance = 100.f;
+    constexpr float sweepRadius = 0.15f;
+
     PhysXQueryHit hit{};
     const bool hasHit = GAME->Sweep_Sphere(
-        originPos, direction, 500.f, 0.15f, Collision_Preset::Player_Target, hit);
-
-    // Draw Test
-    {
-        constexpr float traceDistance = 100.f;
-        constexpr float sweepRadius = 0.15f;
-
-        DebugTraceLineDesc traceDesc{};
-        traceDesc.start = originPos;
-        traceDesc.end = originPos + direction * traceDistance;
-        traceDesc.isHit = hasHit;
-        traceDesc.hitPoint = hit.position;
-        traceDesc.hitNormal = hit.normal;
-        traceDesc.duration = 0.f;          // 1프레임 디버그
-        traceDesc.depthEnabled = false;    // 화면에서 항상 보이게 overlay
-        traceDesc.drawHitPoint = true;
-        traceDesc.drawHitNormal = true;
-        traceDesc.drawRemainderOnHit = true;
-        traceDesc.hitPointRadius = 0.12f;
-        traceDesc.hitNormalLength = 0.6f;
-
-        GAME->Draw_DebugTraceLine(traceDesc); // 현재 Free Aim 조준선이 실제 어디를 향하는지 시각화
-
-        DebugSphereDesc originSphere{};
-        originSphere.center = originPos;
-        originSphere.radius = sweepRadius;
-        originSphere.style.color = Vec4(1.f, 1.f, 0.f, 1.f);
-        originSphere.style.duration = 0.f;
-        originSphere.style.depthEnabled = false;
-
-        GAME->Draw_DebugSphere(originSphere); // 스윕 시작 반경을 같이 본다
-    }
+        cameraOrigin,                  // 실제 판정은 카메라 위치 기준 그대로 유지
+        direction,
+        traceDistance,
+        sweepRadius,
+        Collision_Preset::Player_Target,
+        hit);
 
     if (!hasHit || hit.owner == nullptr)
         return false;
