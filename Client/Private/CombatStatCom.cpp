@@ -62,6 +62,7 @@ string CombatStatCom::Get_FirstSkill()
     {
         return"Maelle_Default_Attack";
     }
+    return string();
 }
 
 void CombatStatCom::Add_AP(uint32 value)
