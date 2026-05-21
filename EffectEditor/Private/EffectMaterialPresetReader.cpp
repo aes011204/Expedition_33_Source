@@ -1,4 +1,4 @@
-#include "EffectMaterialPresetReader.h"
+﻿#include "EffectMaterialPresetReader.h"
 
 namespace EffectEditor::EffectMaterialPresetReader
 {

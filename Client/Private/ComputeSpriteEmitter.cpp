@@ -117,11 +117,14 @@ HRESULT ComputeSpriteEmitter::Ready_Components()
     CHECK_FAILED(__super::Add_Component(ETOI(LevelType::Static), TEXT("Com_Effect_ComputePointParticleBuffer"), _viBuffer, &desc), E_FAIL);
 
     LOG_INFO(
-        "ComputeSpriteEmitter ready: shaderId='{}', mainTexturePath='{}', blendMode='{}', passIndex={}, noiseTexturePath='{}', opacitySource='{}', noiseStrength={}",
+        "ComputeSpriteEmitter ready: shaderId='{}', mainTextureGuid='{}', mainTexturePath='{}', resolvedTexturePath='{}', blendMode='{}', passIndex={}, noiseTextureGuid='{}', noiseTexturePath='{}', opacitySource='{}', noiseStrength={}",
         kEffectSpriteShaderId,
+        _desc.required.material.mainTextureGuid,
         _desc.required.material.mainTexturePath,
+        resolvedTexturePath,
         _desc.required.material.blendMode,
         _effectSpritePassIndex,
+        _desc.required.material.noiseTextureGuid,
         _desc.required.material.noiseTexturePath,
         _desc.required.material.opacitySource,
         _desc.required.material.noiseStrength
@@ -136,20 +139,58 @@ HRESULT ComputeSpriteEmitter::Ready_TextureComponent(string& outResolvedTextureP
         _desc.required.material.mainTextureGuid,
         _desc.required.material.mainTexturePath
     );
+    bool usedFallback = false;
     if (resolvedPath.empty())
+    {
+        LOG_WARN(
+            "ComputeSpriteEmitter main texture resolve failed. mainTextureGuid='{}', mainTexturePath='{}'. Falling back to fallbackGuid='{}', fallbackPath='{}'.",
+            _desc.required.material.mainTextureGuid,
+            _desc.required.material.mainTexturePath,
+            kFallbackTextureGuid,
+            kFallbackTexturePath
+        );
+
         resolvedPath = Client::Internal::Resolve_TexturePath(kFallbackTextureGuid, kFallbackTexturePath);
+        usedFallback = true;
+    }
 
     if (resolvedPath.empty())
     {
-        LOG_WARN("ComputeSpriteEmitter failed to resolve fallback texture path='{}'.", kFallbackTexturePath);
+        LOG_ERROR(
+            "ComputeSpriteEmitter failed to resolve fallback texture. mainTextureGuid='{}', mainTexturePath='{}', fallbackGuid='{}', fallbackPath='{}'.",
+            _desc.required.material.mainTextureGuid,
+            _desc.required.material.mainTexturePath,
+            kFallbackTextureGuid,
+            kFallbackTexturePath
+        );
         return E_FAIL;
     }
 
+    outResolvedTexturePath = String::ToString(resolvedPath);
     _texture = Texture::Create(_device, _context, resolvedPath.c_str(), 1);
     if (_texture == nullptr)
+    {
+        LOG_ERROR(
+            "ComputeSpriteEmitter texture create failed. mainTextureGuid='{}', mainTexturePath='{}', resolvedPath='{}', fallbackGuid='{}', fallbackPath='{}', usedFallback={}.",
+            _desc.required.material.mainTextureGuid,
+            _desc.required.material.mainTexturePath,
+            outResolvedTexturePath,
+            kFallbackTextureGuid,
+            kFallbackTexturePath,
+            usedFallback
+        );
         return E_FAIL;
+    }
 
-    outResolvedTexturePath = String::ToString(resolvedPath);
+    LOG_INFO(
+        "ComputeSpriteEmitter main texture ready. mainTextureGuid='{}', mainTexturePath='{}', resolvedPath='{}', fallbackGuid='{}', fallbackPath='{}', usedFallback={}.",
+        _desc.required.material.mainTextureGuid,
+        _desc.required.material.mainTexturePath,
+        outResolvedTexturePath,
+        kFallbackTextureGuid,
+        kFallbackTexturePath,
+        usedFallback
+    );
     return S_OK;
 }
 
@@ -171,7 +212,15 @@ HRESULT ComputeSpriteEmitter::Ready_NoiseTextureComponent(const string& resolved
         _desc.required.material.noiseTexturePath
     );
     if (resolvedPath.empty())
+    {
+        _noiseTexture = nullptr;
+        LOG_WARN(
+            "ComputeSpriteEmitter noise texture resolve failed. noiseTextureGuid='{}', noiseTexturePath='{}'. Noise modulation is disabled.",
+            _desc.required.material.noiseTextureGuid,
+            _desc.required.material.noiseTexturePath
+        );
         return S_OK;
+    }
 
     const string noiseTexturePath = String::ToString(resolvedPath);
     if (noiseTexturePath == resolvedTexturePath && nullptr != _texture)
@@ -181,6 +230,15 @@ HRESULT ComputeSpriteEmitter::Ready_NoiseTextureComponent(const string& resolved
     }
 
     _noiseTexture = Texture::Create(_device, _context, resolvedPath.c_str(), 1);
+    if (_noiseTexture == nullptr)
+    {
+        LOG_WARN(
+            "ComputeSpriteEmitter noise texture create failed. noiseTextureGuid='{}', noiseTexturePath='{}', resolvedPath='{}'. Noise modulation is disabled.",
+            _desc.required.material.noiseTextureGuid,
+            _desc.required.material.noiseTexturePath,
+            noiseTexturePath
+        );
+    }
 
     return S_OK;
 }
