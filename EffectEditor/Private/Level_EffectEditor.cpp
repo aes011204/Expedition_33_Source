@@ -750,7 +750,7 @@ HRESULT Level_EffectEditor::Ready_Lights()
 HRESULT Level_EffectEditor::Ready_Layer_Camera(const wstring& layerTag)
 {
     EffectEditorCamera::EffectEditorCameraDesc cameraDesc{};
-    cameraDesc.speedPerSec = 10.f;
+    cameraDesc.speedPerSec = 4.f;
     cameraDesc.degreePerSec = 180.f;
     cameraDesc.eye = Vec4(0.f, 2.f, -2.f, 1.f);
     cameraDesc.at = Vec4(0.f, 0.f, 0.f, 1.f);
