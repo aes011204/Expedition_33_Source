@@ -47,6 +47,11 @@ struct SceneContext
     Shared<EditorObject> Duplicate(const Shared<EditorObject>& src);
 
     void ClearScene();
+
+    CameraBookmark _cameraBookmarks[CameraBookmarkCount];
+
+    void SaveCamData(const string& filePath);
+    void LoadCamData(const string& filePath);
 };
 
 NS_END
