@@ -602,5 +602,14 @@ namespace Client
      //   bool disableSequenceSnapping = false;
     };
 
+    enum class BattleAnimType
+    {
+        Base_Idle,
+        Battle_Start,
+        Hit_Heavy,
+        Hit_Medium,
+        Hit_Light,
+        Dead,
 
+    };
 }

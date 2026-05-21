@@ -28,6 +28,8 @@
 #include "FreeAimTargeting.h"
 #include "PlayerStatCom.h"
 
+REGISTER_GLOBAL_ENUM(BattleAnimType, "BattleAnimType")
+
 BattleController::BattleController()
 {
 }
@@ -65,7 +67,7 @@ void BattleController::Update(float timeDelta)
         return;
     }
 
-    if (_isWaitingBattleTransition)
+    if (_isWaitingBattleTransition && _firstAnimflag == true)
     {
         // 전환이 끝난 뒤에 첫 턴 시작되게
         if (!CLIENT->Is_BattleEnterTransitionPlaying())
@@ -77,21 +79,24 @@ void BattleController::Update(float timeDelta)
         return;
     }
 
+    // 배틀이 완전히 끝남 (배틀턴 나감)
     if (_battleEnded == true)
         return;
 
+    // 패링, 회피 키인풋
     UpdateReactionInput();
 
+    // 한턴 끝나면 여기로 
     if (_pendingNextTurn)
     {
-        _pendingNextTurn = false;
+        _battleActionExe->Set_ReStart();
         StartTurn();
+        _pendingNextTurn = false;
         return;
     }
 
-    // 일단 지금은 배틀이랑 구분 안되어 있음 애니메이션 일단 돌리고 있음
 
-    if (_heroes.empty() == true || _enemies.empty() == true)
+    if (_heroes.empty() == true || _enemies.empty() == true|| _currentTurnActor.actor == nullptr )
         return;
     // 적턴 인지 플레이어 턴인지에 따라
     if (_currentTurnActor.statCom->Is_Player())
@@ -117,15 +122,16 @@ void BattleController::Update(float timeDelta)
         _turnAction._curChar.actor != nullptr &&
         !_battleActionExe->IsFinished();
 
-    if (hasRunningAction)
+    if (_turnAction._curChar.actor != nullptr && !_battleActionExe->IsFinished())
     {
         _battleActionExe->Update(timeDelta, _turnAction);
+    }
 
-        if (_battleActionExe->IsFinished())
-        {
-            EndTurn();
-            return;
-        }
+    if (_turnAction._curChar.actor != nullptr && _battleActionExe->IsFinished())
+    {
+      
+        EndTurn();
+        return;
     }
 }
 
@@ -206,6 +212,10 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
     _enemies.clear();
 
     Clear_BattleEnterPending();
+
+    // 초기 애님 관련 변수 초기화
+    _firstAnimflag = false;
+    _firstAnimCount =  0;
 
     return result;
 }
@@ -308,9 +318,18 @@ void BattleController::EndTurn()
 
 void BattleController::StartTurn()
 {
+
     _currentTurnActor = _turnQueue.top().hero;
     _battleTime = _turnQueue.top().nextTime;
     _turnQueue.pop();
+
+    if(_currentTurnActor.statCom->Get_AliveStatus() == EAliveStatus::Dead)
+    {
+        _turnAction = {};
+     
+        StartTurn();
+        return;
+    }
 
     LOG_DEBUG(
         "StartTurn: next actor={}, isPlayer={}",
@@ -542,6 +561,11 @@ void BattleController::Handle_EditorStopRuntime()
 
     if (_battleFSM)
         _battleFSM->Change_State(BattleTurnState::ChooseAction);
+
+    //
+    _firstAnimflag = false;
+    _firstAnimCount = 0;
+
 }
 
 HRESULT BattleController::Ready_Delegates()
@@ -879,8 +903,7 @@ void BattleController::OnActionEndNotify()
     auto& action = Get_TurnAction();
     _battleActionExe->OnActionEndNotify(action);
 
-    if (_battleActionExe->IsFinished())
-        EndTurn();
+
 }
 
 HRESULT BattleController::Ready_BattleTurnCamera()
@@ -959,6 +982,9 @@ void BattleController::Complete_BattleField()
     // FieldID로 
     SetCharInitPos();
 
+    // 첫 입장시 플레이어 시작 에니 재생
+    PlayerStartAnim();
+
 	if (FAILED(Ready_BattleTurnCamera()))
 	{
 		LOG_ERROR("Create Failed : Battle Camera");
@@ -1007,6 +1033,47 @@ void BattleController::Set_BattleFSM()
     _battleFSM->Add_State(BattleTurnState::FreeAimTargeting, FreeAimTargeting::Create(dynamic_pointer_cast<BattleController>(shared_from_this())));
 
     //_battleFSM->Change_State(BattleTurnState::ChooseAction);
+}
+void BattleController::End_FirstAnim()
+{
+    _firstAnimCount++;
+    if (_firstAnimCount == 3)
+    {
+        for (auto it : _heroes)
+        {
+            it.ModelCom->Set_RootMotionEnabled(true);
+        }
+        _firstAnimflag = true;
+    }
+}
+void BattleController::PlayerStartAnim()
+{
+    //////// 루네 위치 이상함 충돌체ㅐ랑 비교 필수 
+    _firstAnimflag = false;
+    // 임시
+    for(auto it : _heroes)
+    {
+        /*string idle = CLIENT->Get_Skill(it.statCom->Get_FirstSkill())->IdleAnimationKey;
+        it.ModelCom->Set_Animation(idle, .3f, false);*/
+
+        it.ModelCom->Set_RootMotionEnabled(false);
+        it.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Battle_Start), 0.3f, false);
+
+    }
+    // 일단 여기서 
+    for (auto it : _enemies)
+    {
+       
+        it.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Base_Idle), 0.3f, false);
+
+    }
+}
+
+
+void BattleController::HitAction(BattleChar target)
+{
+
+    target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Hit_Heavy), 0.3f, false);
 }
 
 Shared<BattleController> BattleController::Create()

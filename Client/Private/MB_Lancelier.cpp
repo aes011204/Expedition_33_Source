@@ -36,7 +36,7 @@ HRESULT MB_Lancelier::Initialize(void* arg)
     CHECK_FAILED(Monster_BattleBase::Initialize(arg), E_FAIL);
     CHECK_FAILED(Ready_PartObjects(), E_FAIL);
     
-    _body->Set_Animation(5, 0.3f, true);
+    _body->Set_Animation("Lancelier_Idle", 0.3f, true);
 
 
 
