@@ -161,6 +161,7 @@
     <ClInclude Include="..\public\ANS_QTE.h" />
     <ClInclude Include="..\public\AN_Attack.h" />
     <ClInclude Include="..\public\AN_Battle_EndAnim.h" />
+    <ClInclude Include="..\public\AN_EnterAnim.h" />
     <ClInclude Include="..\Public\AN_Test2.h" />
     <ClInclude Include="..\public\Base_Mon_Attack.h" />
     <ClInclude Include="..\public\BattleActionExecutor.h" />
@@ -262,8 +263,10 @@
     <ClInclude Include="..\Public\Monster_BattleBase.h" />
     <ClInclude Include="..\public\Monster_Part.h" />
     <ClInclude Include="..\Public\Monster_WorldBase.h" />
-    <ClInclude Include="..\public\Mon_AIController.h" />
-    <ClInclude Include="..\public\Mon_BehaviorTree.h" />
+    <ClInclude Include="..\public\Mon_AIController.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+    </ClInclude>
     <ClInclude Include="..\public\Mon_Lancelier_Body.h" />
     <ClInclude Include="..\public\Mon_Lancelier_Weapon.h" />
     <ClInclude Include="..\Public\PersistentObjectManager.h" />
@@ -338,6 +341,7 @@
     <ClCompile Include="..\private\ANS_Parry.cpp" />
     <ClCompile Include="..\private\AN_Attack.cpp" />
     <ClCompile Include="..\private\AN_Battle_EndAnim.cpp" />
+    <ClCompile Include="..\private\AN_EnterAnim.cpp" />
     <ClCompile Include="..\Private\AN_Test2.cpp" />
     <ClCompile Include="..\private\Base_Mon_Attack.cpp" />
     <ClCompile Include="..\private\BattleActionExecutor.cpp" />
@@ -431,8 +435,10 @@
     <ClCompile Include="..\Private\Monster_BattleBase.cpp" />
     <ClCompile Include="..\private\Monster_Part.cpp" />
     <ClCompile Include="..\Private\Monster_WorldBase.cpp" />
-    <ClCompile Include="..\private\Mon_AIController.cpp" />
-    <ClCompile Include="..\private\Mon_BehaviorTree.cpp" />
+    <ClCompile Include="..\private\Mon_AIController.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="..\private\Mon_Lancelier_Body.cpp" />
     <ClCompile Include="..\private\Mon_Lancelier_Weapon.cpp" />
     <ClCompile Include="..\Private\PersistentObjectManager.cpp" />

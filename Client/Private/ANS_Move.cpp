@@ -16,9 +16,8 @@ void ANS_Move::On_Begin(const AnimNotifyContext& context)
 
 void ANS_Move::On_Tick(const AnimNotifyContext& context)
 {
-
     auto action =  CLIENT->Get_BattleController()->Get_TurnAction();
-    auto _curProgress = action._curChar.ModelCom->Get_CurrentProgress();
+    float _curProgress = context.notifyStateProgress;
 
     action._curChar.actor->Get_Transform()->Set_Position(Vec3::Lerp(_startPos, _originPos, _curProgress));
    

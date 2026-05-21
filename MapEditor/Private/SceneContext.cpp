@@ -726,3 +726,50 @@ void SceneContext::ClearScene()
     _lightDirty = true;
 }
 
+void SceneContext::SaveCamData(const string& filePath)
+{
+    json root;
+    json bookmarks = json::array();
+    for (int i = 0; i < CameraBookmarkCount; ++i)
+    {
+        const auto& bm = _cameraBookmarks[i];
+        json b;
+        b["Valid"] = bm.valid;
+        b["Position"] = { bm.position.x, bm.position.y, bm.position.z };
+        b["Yaw"] = bm.yaw;
+        b["Pitch"] = bm.pitch;
+        bookmarks.push_back(b);
+    }
+    root["CameraBookmarks"] = bookmarks;
+
+    fs::create_directories(fs::path(filePath).parent_path());
+    ofstream ofs(filePath);
+    ofs << root.dump(4);
+}
+
+void SceneContext::LoadCamData(const string& filePath)
+{
+    ifstream ifs(filePath);
+    if (!ifs.is_open())
+    {
+        return;
+    }
+
+    json root = json::parse(ifs);
+    if (!root.contains("CameraBookmarks"))
+    {
+        return;
+    }
+
+    const auto& bms = root["CameraBookmarks"];
+    for (int i = 0; i < CameraBookmarkCount && i < static_cast<int>(bms.size()); ++i)
+    {
+        const auto& b = bms[i];
+        _cameraBookmarks[i].valid = b.value("Valid", false);
+        auto& pos = b["Position"];
+        _cameraBookmarks[i].position = { pos[0], pos[1], pos[2] };
+        _cameraBookmarks[i].yaw = b.value("Yaw", 0.f);
+        _cameraBookmarks[i].pitch = b.value("Pitch", 0.f);
+    }
+}
+

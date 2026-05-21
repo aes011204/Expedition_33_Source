@@ -60,8 +60,10 @@ string CombatStatCom::Get_FirstSkill()
     }
     if (Get_Owner()->Get_Name() == L"PB_Maelle")
     {
-        return"Maelle_Default_Attack";
+        return "Maelle_Default_Attack";
     }
+
+    return "";
 }
 
 void CombatStatCom::Add_AP(uint32 value)
