@@ -5,14 +5,14 @@
 NS_BEGIN(Engine)
 
 // effect material preset/source에서 복사되어 runtime/authoring 쪽이 함께 보는 최소 material instance 값이다.
-// sprite effect 경로에서는 mainTextureGuid/path를 lit base color가 아니라 emissive color + opacity source로 해석한다.
+// sprite effect 경로에서는 mainTexturePath를 lit base color가 아니라 emissive color + opacity source로 해석한다.
 struct EffectMaterialInstanceData
 {
     string sourcePresetName{}; // UI 표시용 원본 preset 이름이다. 저장 identity나 live reference로 쓰지 않는다.
-    string mainTextureGuid{};  // emitter가 사용할 주 텍스처 asset GUID다.
-    string mainTexturePath{};  // mainTextureGuid resolve 실패 시 사용할 fallback 경로다.
-    string noiseTextureGuid{}; // 선택 noise 텍스처 asset GUID다.
-    string noiseTexturePath{}; // noiseTextureGuid resolve 실패 시 사용할 fallback 경로다.
+    string mainTextureGuid{};  // 구버전 파일 복구/현재 registry 진단용 GUID hint다. 저장 identity로 쓰지 않는다.
+    string mainTexturePath{};  // emitter가 사용할 주 텍스처 resource-relative 경로다.
+    string noiseTextureGuid{}; // 구버전 noise 텍스처 복구/진단용 GUID hint다.
+    string noiseTexturePath{}; // 선택 noise 텍스처 resource-relative 경로다.
 
     Color tint{ 1.f, 1.f, 1.f, 1.f }; // main texture RGB emissive-like 색상에 곱할 색상 계수다.
 

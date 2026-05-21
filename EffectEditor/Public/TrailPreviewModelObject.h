@@ -29,7 +29,7 @@ private:
     };
 
     inline static const Vec3 kRestPosition{ 0.f, 0.f, 0.f };
-    inline static const Vec3 kRestRotationDegrees{ 90.f, 0.f, 0.f };
+    inline static const Vec3 kRestRotationDegrees{ -90.f, 0.f, 0.f };
     inline static const Vec3 kRestScale{ 1.f, 1.f, 1.f };
 
     inline static const Vec3 kTrailBaseLocalOffset{ 0.f, 0.04f, 0.f };
@@ -39,9 +39,9 @@ private:
     static constexpr float kSwingAnticipationEnd{ 0.12f };
     static constexpr float kSwingSlashEnd{ 0.48f };
     static constexpr float kSwingDampEnd{ 0.64f };
-    static constexpr float kSlashAnticipationDegrees{ 8.f };
-    static constexpr float kSlashAmplitudeDegrees{ -90.f };
-    static constexpr float kDampedHoldDegrees{ -84.f };
+    static constexpr float kSlashAnticipationDegrees{ -8.f };
+    static constexpr float kSlashAmplitudeDegrees{ 90.f };
+    static constexpr float kDampedHoldDegrees{ 84.f };
 
 private:
     Shared<ModelCom> _model{};

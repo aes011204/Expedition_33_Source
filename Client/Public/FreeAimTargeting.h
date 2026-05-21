@@ -29,8 +29,6 @@ private:
     BattleChar _currentHitTarget = {};
     bool _hasCurrentHitTarget = false;
 
-
-
 public:
     static Shared<FreeAimTargeting> Create(const Shared<BattleController>& owner);
     void Free() override;
