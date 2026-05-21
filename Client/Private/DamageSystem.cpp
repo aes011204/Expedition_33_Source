@@ -5,7 +5,6 @@
 #include "Battle_Enum.h"
 #include "CombatStatCom.h"
 
-
 void DamageSystem::Heal(float amount, const BattleChar& target)
 {
     auto& runtimeStat = target.statCom->Get_RuntimeStat();
@@ -19,7 +18,6 @@ void DamageSystem::Heal(float amount, const BattleChar& target)
 
 void DamageSystem::ApplyDamage(float damage, const BattleChar& target)
 {
-   
     auto& runtimeStat = target.statCom->Get_RuntimeStat();
     LOG_DEBUG("ApplyDamage: before hp={:.2f}, damage={:.2f}", runtimeStat.CurHp, damage);
     runtimeStat.CurHp -= damage;

@@ -8,10 +8,10 @@ IMPLEMENT_REFLECTION(PlayerStatCom)
     auto& info = GetStaticReflectionInfo();
     info.properties.clear();
 
-    info.className = "PlayerCombatStat";
-    info.displayName = "PlayerCombat Stat";
+    info.className = "PlayerStatCom";
+    info.displayName = "PlayerStatCom";
 
-     // 캐릭터별 초기 세팅값을 프리팹에서 직접 주기 위해
+    // 캐릭터별 초기 세팅값을 프리팹에서 직접 주기 위해
     PROPERTY_INT("Level", _playerDesc.level, 1.f, 99.f, 1.f);
     PROPERTY_INT("Exp", _playerDesc.exp, 0.f, 999999.f, 1.f);
 
@@ -219,6 +219,60 @@ void PlayerStatCom::Add_Exp(uint32 value)
     Update_StatInfo();
 
 }
+
+PlayerStatCom::PreviewStat PlayerStatCom::Calculate_PreviewStat(int32 vitality, int32 might, int32 agility,
+    int32 defense, int32 luck)
+{
+    PreviewStat preview{};
+    preview.maxHp = 100.f + static_cast<float>(vitality) * 10.f;                  // 기존 HP 공식
+    preview.physicalAttack = 10.f + static_cast<float>(might) * 2.f;              // 기존 공격력 공식
+    preview.speed = 100.f + static_cast<float>(agility) * 2.f;                    // 기존 속도 공식
+    preview.physicalDefense = static_cast<float>(defense) * 2.f;                  // 기존 방어 공식
+    preview.criticalRate = min(100.f, static_cast<float>(luck) * 0.5f); // 기존 치명타율 공식
+
+    return preview;
+}
+
+void PlayerStatCom::Set_RuntimePrimaryStats(int32 vitality, int32 might, int32 agility, int32 defense, int32 luck)
+{
+    const float hpRate = (_playerDesc.maxHp > 0.f) ? (_PRuntimeStat.CurHp / _playerDesc.maxHp) : 1.f;
+
+    // CharacterStatus / Inspector가 같은 현재값을 보게 하려고 runtime 원본값을 먼저 갱신
+    _PRuntimeStat.CurVitality = vitality;
+    _PRuntimeStat.CurMight = might;
+    _PRuntimeStat.CurAgility = agility;
+    _PRuntimeStat.CurDefense = defense;
+    _PRuntimeStat.CurLuck = luck;
+
+    // 현재 구조상 Update_StatInfo()는 desc도 같이 쓰므로 desc도 동기화해 둔다.
+    _playerDesc.vitality = vitality;
+    _playerDesc.might = might;
+    _playerDesc.agility = agility;
+    _playerDesc.defense = defense;
+    _playerDesc.luck = luck;
+
+    Recalculate_Stats();
+    _PRuntimeStat.CurHp = _playerDesc.maxHp * hpRate; // 스탯 조정 후 현재 체력 비율 유지
+    Update_StatInfo();
+}
+
+void PlayerStatCom::Set_RuntimeProgress(uint32 level, uint32 exp, uint32 statPoint, uint32 skillPoint,
+    uint32 respecCount)
+{
+    // Player 쪽은 CurLevel / CurExp가 desc에서 다시 채워지므로 desc를 먼저 갱신
+    _playerDesc.level = level;
+    _playerDesc.exp = exp;
+    _playerDesc.statPoint = statPoint;
+    _playerDesc.skillPoint = skillPoint;
+    _playerDesc.respecCount = respecCount;
+
+    _PRuntimeStat.CurStatPoint = statPoint;
+    _PRuntimeStat.CurSkillPoint = skillPoint;
+    _PRuntimeStat.CurRespecCount = respecCount;
+
+    Update_StatInfo();
+}
+
 int32* PlayerStatCom::Find_StatValue(StatType type)
 {
     switch (type)
@@ -239,14 +293,20 @@ array<int32*, static_cast<size_t>(StatType::END)> PlayerStatCom::Get_StatValues(
 
 void PlayerStatCom::Recalculate_Stats()
 {
-    // 33 원정대 데이터 공식 일단 유지해서 해봄
-    _playerDesc.maxHp = 100.f + static_cast<float>(_PRuntimeStat.CurVitality) * 10.f;
-    _playerDesc.physicalAttack = 10.f + static_cast<float>(_PRuntimeStat.CurMight) * 2.f;
-    _playerDesc.physicalDefense = static_cast<float>(_PRuntimeStat.CurDefense) * 2.f;
-    _playerDesc.speed = 100.f + static_cast<float>(_PRuntimeStat.CurAgility) * 2.f;
-    _playerDesc.criticalRate = min(100.f, static_cast<float>(_PRuntimeStat.CurLuck) * 0.5f);
+    const PreviewStat preview = Calculate_PreviewStat(
+        _PRuntimeStat.CurVitality,
+        _PRuntimeStat.CurMight,
+        _PRuntimeStat.CurAgility,
+        _PRuntimeStat.CurDefense,
+        _PRuntimeStat.CurLuck);
 
-    // 최대 체력이 줄어든 경우 현재 체력이 최대 체력을 넘지 않게 보정
+    // 33 원정대 데이터 공식 일단 유지해서 해봄
+    _playerDesc.maxHp = preview.maxHp;
+    _playerDesc.physicalAttack = preview.physicalAttack;
+    _playerDesc.physicalDefense = preview.physicalDefense;
+    _playerDesc.speed = preview.speed;
+    _playerDesc.criticalRate = preview.criticalRate;
+
     _PRuntimeStat.CurHp = min(_PRuntimeStat.CurHp, _playerDesc.maxHp);
 }
 

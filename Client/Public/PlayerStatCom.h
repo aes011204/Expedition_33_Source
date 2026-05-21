@@ -28,7 +28,6 @@ public:
     // 변경된 실제 Stat 정보
     struct PRuntimeCombatStat : CombatStatCom::RuntimeCombatStat
     {
- 
         uint32 nextExp = 0;
         uint32 CurStatPoint = 0;
         uint32 CurSkillPoint = 0;
@@ -56,7 +55,16 @@ public:
         float CurCriticalRate = 0.f;
         float CurMastery = 0.f;
         float CurCriticalChance = 0.f;
+    };
 
+    // UI에서 미리보여주기용
+    struct PreviewStat
+    {
+        float maxHp = 0.f;
+        float physicalAttack = 0.f;
+        float speed = 0.f;
+        float physicalDefense = 0.f;
+        float criticalRate = 0.f;
     };
 
 public:
@@ -79,8 +87,31 @@ public:
     bool    Reset_Stat();
 
     uint32  Get_NextExp(uint32 level) const;
-    void Add_Exp(uint32 value);
+    void    Add_Exp(uint32 value);
 
+public:
+    static PreviewStat Calculate_PreviewStat(
+        int32 vitality,
+        int32 might,
+        int32 agility,
+        int32 defense,
+        int32 luck);
+
+     // 인스팩터가 기본 스탯을 바꿀 때, 런타임 값 다시 세팅
+    void Set_RuntimePrimaryStats(
+        int32 vitality,
+        int32 might,
+        int32 agility,
+        int32 defense,
+        int32 luck);
+
+    // 인스팩터에서 값을 바꿀 때, desc/runtime 둘 다 같이 세팅
+    void Set_RuntimeProgress(
+        uint32 level,
+        uint32 exp,
+        uint32 statPoint,
+        uint32 skillPoint,
+        uint32 respecCount);
 
 
 private:

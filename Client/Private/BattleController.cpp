@@ -24,6 +24,7 @@
 #include "Camera.h"
 #include "TargetCamera.h"
 #include "BattleActionExecutor.h"
+#include "DamageSystem.h"
 #include "FreeAimTargeting.h"
 
 BattleController::BattleController()
@@ -94,6 +95,22 @@ void BattleController::Update(float timeDelta)
     // 적턴 인지 플레이어 턴인지에 따라
     if (_currentTurnActor.statCom->Is_Player())
         _battleFSM->Update_StateMachine(timeDelta);
+
+    if (_isFreeAimShotPlaying)
+    {
+        _battleActionExe->Update(timeDelta, _freeAimShotAction);
+
+        if (_battleActionExe->IsFinished())
+        {
+            // End Turn으로 가지않고, AP만 소모되게
+            Finish_FreeAimShot();
+            return;
+        }
+
+        // Free Aim 연출 중에는 같은 프레임 일반 턴 액션 실행 X
+        // 애니메이션 들어오면 내일 진행하기
+        return;
+    }
 
     const bool hasRunningAction =
         _turnAction._curChar.actor != nullptr &&
@@ -196,7 +213,8 @@ void BattleController::ExecuteAction(Action turnAction)
         break;
 
     case EBattleContext::FreeAimShoot:
-        Execute_BaseAttack(BattleChar, turnAction); // 일단 테스트는 기본 평타 사용
+        // Free Aim은 턴 소모 Xㄴ
+        //Execute_FreeAimShoot(BattleChar, turnAction);
         break;
 
     case EBattleContext::Skill:
@@ -672,6 +690,43 @@ void BattleController::Execute_BaseAttack(const BattleChar actor, const Action& 
     _battleActionExe->BeginAction(action);
 }
 
+void BattleController::Execute_FreeAimShoot(const BattleChar actor, const Action& turnAction)
+{
+    LOG_DEBUG(
+        "Execute_FreeAimShoot: actor={}, target={}",
+        actor.actor ? String::ToString(actor.actor->Get_Name()).c_str() : "null",
+        turnAction.target.actor ? String::ToString(turnAction.target.actor->Get_Name()).c_str() : "null"
+    );
+
+    auto& action = Get_TurnAction();
+
+    if (actor.ModelCom == nullptr)
+    {
+        LOG_ERROR("Execute_FreeAimShoot: actor.ModelCom is null");
+        EndTurn();
+        return;
+    }
+
+    if (action._selected_SkillKey.AnimPhases.empty())
+    {
+        LOG_ERROR("Execute_FreeAimShoot: no animationKey");
+        EndTurn();
+        return;
+    }
+
+    // Free Aim은 히트스캔 즉발 데미지
+    if (action.target.actor != nullptr && action.target.statCom != nullptr)
+    {
+        constexpr float freeAimDamage = 20.f; 
+        DamageSystem::ApplyDamage(freeAimDamage, action.target);
+    }
+
+    action.originPos = action._curChar.actor->Get_Transform()->Get_Position();
+    action._curAnimIndex = 0;
+
+    _battleActionExe->BeginAction(action);
+}
+
 void BattleController::Execute_Skill(const BattleChar actor, const Action& turnAction)
 {
     LOG_DEBUG(
@@ -708,8 +763,65 @@ void BattleController::Execute_Item(const BattleChar actor, const Action& turnAc
 {
 }
 
+void BattleController::Begin_FreeAimShot(const Action& shotAction)
+{
+    if (_isFreeAimShotPlaying)
+        return;
+
+    if (shotAction._curChar.actor == nullptr)
+        return;
+
+    _freeAimShotAction = shotAction;
+    _isFreeAimShotPlaying = false;
+
+    if (_freeAimShotAction._curChar.ModelCom == nullptr)
+    {
+        _freeAimShotAction = {};
+        return;
+    }
+
+    if (_freeAimShotAction._selected_SkillKey.AnimPhases.empty())
+    {
+        _freeAimShotAction = {};
+        return;
+    }
+
+    // Free Aim은 히트스캔 즉발데미지
+    if (_freeAimShotAction.target.actor != nullptr && _freeAimShotAction.target.statCom != nullptr)
+    {
+        constexpr float freeAimDamage = 20.f; // 우선 테스트용 데미지
+        DamageSystem::ApplyDamage(freeAimDamage, _freeAimShotAction.target);
+    }
+
+    _freeAimShotAction.originPos = _freeAimShotAction._curChar.actor->Get_Transform()->Get_Position();
+    _freeAimShotAction._curAnimIndex = 0;
+
+    _battleActionExe->BeginAction(_freeAimShotAction);
+    _isFreeAimShotPlaying = true;
+}
+
+void BattleController::Finish_FreeAimShot()
+{
+    Clear_CurrentScript();
+
+    _isFreeAimShotPlaying = false;
+    _freeAimShotAction = {};
+
+    //Clear_TargetPreview();
+}
+
 void BattleController::OnActionEndNotify()
 {
+    if (_isFreeAimShotPlaying)
+    {
+        _battleActionExe->OnActionEndNotify(_freeAimShotAction);
+
+        if (_battleActionExe->IsFinished())
+            Finish_FreeAimShot();
+
+        return;
+    }
+
     auto& action = Get_TurnAction();
     _battleActionExe->OnActionEndNotify(action);
 
