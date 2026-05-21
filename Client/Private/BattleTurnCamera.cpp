@@ -2,6 +2,8 @@
 #include <CameraPresetIO.h>
 #include "GameInstance.h"
 #include "Character.h"
+#include "Event_Bus.h"
+#include "Battle_Event.h"
 
 IMPLEMENT_REFLECTION(BattleTurnCamera)
 {
@@ -38,6 +40,34 @@ HRESULT BattleTurnCamera::Initialize(void* arg)
     CameraPresetIO::LoadBattlePresetFromFile(BattleCameraMode::WIDE, _wideModePreset);
     CameraPresetIO::LoadBattlePresetFromFile(BattleCameraMode::PLAYERFOCUS, _playerFocusPreset);
     CameraPresetIO::LoadBattlePresetFromFile(BattleCameraMode::ENEMYFOCUS, _enemyFocusPreset);
+
+    GAME->Get_EventBus().Subscribe<EvtBattlePresentation>
+    ([this](const EvtBattlePresentation& event)
+        {
+            BattleShotRequest request;
+
+            switch(event.cameraMode)
+            {
+                case BattleCameraMode::ENEMYFOCUS:
+                    request.mode = event.cameraMode;
+                    request.target = event.target;
+                    break;
+
+                case BattleCameraMode::PLAYERFOCUS:
+                    request.mode = event.cameraMode;
+                    request.target = event.target;
+                    break;
+
+                case BattleCameraMode::WIDE:
+                    request.mode = event.cameraMode;
+                    request.target = event.target;
+                
+                    break;
+            }
+
+            Apply_ShotRequest(request);
+        }
+    );
 
     _currentRequest.mode = BattleCameraMode::WIDE;
     _currentPreset = _wideModePreset;
@@ -202,25 +232,17 @@ void BattleTurnCamera::End_LiveEdit()
 
 void BattleTurnCamera::Update_WideMode(float timeDelta)
 {
-    if (_targetTransform == nullptr)
-        return;
-
     Update_FromCurrentPreset(timeDelta);
 }
 
 void BattleTurnCamera::Update_PlayerFocusMode(float timeDelta)
 {
-    if (_targetTransform == nullptr)
-        return;
 
     Update_FromCurrentPreset(timeDelta);
 }
 
 void BattleTurnCamera::Update_EnemyFocusMode(float timeDelta)
 {
-    if (_targetTransform == nullptr)
-        return;
-
     Update_FromCurrentPreset(timeDelta);
 }
 
@@ -228,11 +250,10 @@ void BattleTurnCamera::Update_FromCurrentPreset(float timeDelta)
 {
     UNREFERENCED_PARAMETER(timeDelta);
 
-    Shared<TransformCom> targetTransformCom = _targetTransform;
-    if (targetTransformCom == nullptr)
+    if(_currentRequest.target == nullptr)
         return;
 
-    const Vec3 targetPos = targetTransformCom->Get_WorldPosition();
+    const Vec3 targetPos = _currentRequest.target->Get_Transform()->Get_WorldPosition();
 
     const float finalYaw = _yaw + _currentPreset.yawOffset;
     const float finalPitch = _pitch + _currentPreset.pitchOffset;

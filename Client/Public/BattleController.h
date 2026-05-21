@@ -86,6 +86,7 @@ public:
 public:
     Shared<BattleStateMachine> Get_BattleFSM() { return _battleFSM; };
     Action& Get_TurnAction() { return _turnAction; }
+    void    Request_WidePresentationMode();
     //uint32 Get_EnemiesNum() { return _enemies.size(); }
     //uint32 Get_HeroesNum() { return _heroes.size(); }
 
@@ -103,7 +104,7 @@ public:
     const Reaction& Get_Reaction() const{return _reaction;}
 public:
     void Handle_EditorStopRuntime();
-    void Handle_TargetPreviewChanged(const BattleChar* target);
+   // void Handle_TargetPreviewChanged(const BattleChar* target);
     HRESULT Ready_Delegates();
 
     //리액션 인풋

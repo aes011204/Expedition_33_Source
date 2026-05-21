@@ -1,5 +1,4 @@
 ﻿#pragma once
-
 #include "Camera.h"
 #include "Battle_Enum.h"
 #include "CameraPresetTypes.h"
@@ -15,7 +14,7 @@ public:
     struct BattleShotRequest
     {
         BattleCameraMode mode = BattleCameraMode::WIDE;
-        Shared<Character> target = nullptr;
+        Shared<Engine::Character> target = nullptr;
     };
 
 public:

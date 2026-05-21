@@ -1,15 +1,16 @@
 ﻿#include "pch.h"
 #include "ChooseAction.h"
-
 #include "Input_Manager.h"
 #include "GameInstance.h"
-
 #include "BattleController.h"
 #include "BattleStateMachine.h"
+#include "Battle_Event.h"
+#include "CameraPresetTypes.h"
+#include "Event_Bus.h"
 
 NS_BEGIN(Client)
 
-ChooseAction::ChooseAction(const Shared<BattleController>& owner)
+    ChooseAction::ChooseAction(const Shared<BattleController>& owner)
     : Battle_State{ owner }
 {
 }
@@ -51,6 +52,13 @@ void ChooseAction::Update(float timeDelta)
     {
         LOG_DEBUG("ChooseAction::Update: F -> BaseAttack -> AttackTargeting");
         owner->Get_TurnAction().type = EBattleContext::BaseAttack;
+        //공격 시 이벤트 발행 (카메라, UI 전환 등) TODO 플레이어로 바꾸기
+        ////////////////////////////////////////
+        EvtBattlePresentation event;
+        event.cameraMode = BattleCameraMode::ENEMYFOCUS;
+        event.target = owner->Get_AliveEnemies()[0].actor;
+        GAME->Get_EventBus().Publish(event);
+        ////////////////////////////////////////
         battleFSM->Change_State(BattleTurnState::AttackTargeting);
         return;
     }

@@ -232,6 +232,9 @@
     <Filter Include="02.GameObject\Camera\Director">
       <UniqueIdentifier>{1c41a297-03b8-4a5d-8305-b8c9fa7e9d56}</UniqueIdentifier>
     </Filter>
+    <Filter Include="94. Event">
+      <UniqueIdentifier>{e7b35519-9a4f-4067-89ec-b7def6b7e155}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -655,6 +658,9 @@
     </ClInclude>
     <ClInclude Include="..\Public\CameraPresetTypes.h">
       <Filter>02.GameObject\Camera\Director</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Battle_Event.h">
+      <Filter>94. Event</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

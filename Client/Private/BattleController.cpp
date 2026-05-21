@@ -24,7 +24,9 @@
 #include "Camera.h"
 #include "TargetCamera.h"
 #include "BattleActionExecutor.h"
+#include "Battle_Event.h"
 #include "Character.h"
+#include "Event_Bus.h"
 
 BattleController::BattleController()
 {
@@ -47,7 +49,7 @@ HRESULT BattleController::Initialize()
 
     _battleActionExe = BattleActionExecutor::Create();
 
-    _targetPreviewChangedHandle = OnTargetPreviewChanged.Add(this,&BattleController::Handle_TargetPreviewChanged);
+//    _targetPreviewChangedHandle = OnTargetPreviewChanged.Add(this,&BattleController::Handle_TargetPreviewChanged);
 
     return S_OK;
 }
@@ -294,6 +296,12 @@ void BattleController::StartTurn()
     {
         LOG_DEBUG("StartTurn: player turn -> FSM ChooseAction");
         _battleFSM->Change_State(BattleTurnState::ChooseAction);
+
+        EvtBattlePresentation event;
+        event.cameraMode = BattleCameraMode::PLAYERFOCUS;
+        event.target = _currentTurnActor.actor;
+        GAME->Get_EventBus().Publish(event);
+
         OnTurnStarted.Broadcast(_currentTurnActor, BattleTurnState::ChooseAction);
     }
     else
@@ -442,6 +450,21 @@ void BattleController::SetCharInitPos()
     }
 }
 
+void BattleController::Request_WidePresentationMode()
+{
+   if(!_battleTurnCamera)
+       return;
+
+    _battleTurnCamera->Focus_Battle(_heroes, _enemies);
+
+    EvtBattlePresentation event;
+    event.cameraMode = BattleCameraMode::WIDE;
+    event.target = nullptr;
+    GAME->Get_EventBus().Publish(event);
+
+    return;
+}
+
 vector<BattleChar> BattleController::Get_AliveEnemies()
 {
     vector<BattleChar> alive;
@@ -498,26 +521,26 @@ void BattleController::Handle_EditorStopRuntime()
         _battleFSM->Change_State(BattleTurnState::ChooseAction);
 }
 
-void BattleController::Handle_TargetPreviewChanged(const BattleChar* target)
-{
-    if(!_battleTurnCamera)
-    return;
-
-    BattleTurnCamera::BattleShotRequest request{};
-
-    if (target == nullptr || target->actor == nullptr)
-    {
-        request.mode = BattleCameraMode::WIDE;
-        request.target = nullptr;
-    }
-    else
-    {
-        request.mode = BattleCameraMode::ENEMYFOCUS;
-        request.target = target->actor;
-    }
-
-    _battleTurnCamera->Apply_ShotRequest(request);
-}
+//void BattleController::Handle_TargetPreviewChanged(const BattleChar* target)
+//{
+//    if(!_battleTurnCamera)
+//    return;
+//
+//    BattleTurnCamera::BattleShotRequest request{};
+//
+//    if (target == nullptr || target->actor == nullptr)
+//    {
+//        request.mode = BattleCameraMode::WIDE;
+//        request.target = nullptr;
+//    }
+//    else
+//    {
+//        request.mode = BattleCameraMode::ENEMYFOCUS;
+//        request.target = target->actor;
+//    }
+//
+//    _battleTurnCamera->Apply_ShotRequest(request);
+//}
 
 HRESULT BattleController::Ready_Delegates()
 {
