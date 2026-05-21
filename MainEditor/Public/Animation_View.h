@@ -169,6 +169,7 @@ private:
     string _modelGuid{};
     string _currentAnimationName{};
     vector<AnimationEntry> _availableAnimations{};
+    char _animationSearchBuffer[128] = "";
 
     AnimNotifyAsset _asset{};
     bool _isDirty = false;

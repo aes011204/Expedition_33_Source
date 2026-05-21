@@ -37,7 +37,6 @@ public:
         string portrait;
 
         FCommonCharacterStats commonCharacterStats = {};
-
     };
 
 

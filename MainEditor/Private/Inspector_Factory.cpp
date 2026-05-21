@@ -7,6 +7,10 @@
 #include "ColliderCom.h"
 #include "ModelCom.h"
 #include "Model_Inspector.h"
+#include "PlayerStat_Inspector.h"
+#include "MonsterStat_Inspector.h"
+#include "PlayerStatCom.h"
+#include "MonsterStatCom.h"
 
 void Inspector_Factory::Initialize()
 {
@@ -16,6 +20,9 @@ void Inspector_Factory::Initialize()
     Register_Inspector("ModelCom", ModelCom_Inspector::Create());
     Register_Inspector("AIController", AIController_Inspector::Create());
     Register_Inspector(ColliderCom::StaticClassNameA(), Collider_Inspector::Create());
+
+    Register_Inspector(PlayerStatCom::StaticClassNameA(), PlayerStat_Inspector::Create());
+    Register_Inspector(MonsterStatCom::StaticClassNameA(), MonsterStat_Inspector::Create());
 }
 
 void Inspector_Factory::Register_Inspector(const string& key, const Shared<Component_Inspector>& inspector)

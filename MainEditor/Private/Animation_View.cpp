@@ -355,6 +355,7 @@ void Animation_View::Open_FromAsset(const wstring& modelPath, const string& mode
     _selectedNotifyStateTrackIndex = 0;
     _sequencerFirstFrame = 0;
     _isDirty = false;
+    _animationSearchBuffer[0] = '\0';
 
     Refresh_Source();
     Load_NotifyAsset();
@@ -380,6 +381,7 @@ void Animation_View::Open_FromModelComponent(const Shared<ModelCom>& modelCom, c
     _selectedNotifyStateTrackIndex = 0;
     _sequencerFirstFrame = 0;
     _isDirty = false;
+    _animationSearchBuffer[0] = '\0';
 
     Refresh_Source();
     Load_NotifyAsset();
@@ -615,6 +617,8 @@ void Animation_View::Draw_AnimationSelector()
 {
     ImGui::Text("Animation Clips");
     ImGui::Separator();
+    ImGui::InputTextWithHint("##AnimationClipSearch", "Search animation...", _animationSearchBuffer, IM_ARRAYSIZE(_animationSearchBuffer));
+    const string searchTextLower = String::ToLowerCopy(string(_animationSearchBuffer));
 
     if (!ImGui::BeginChild("AnimationClipBrowserPanel", ImVec2(0.f, 0.f), true))
     {
@@ -631,6 +635,20 @@ void Animation_View::Draw_AnimationSelector()
 
     for (const AnimationEntry& entry : _availableAnimations)
     {
+        if (!searchTextLower.empty())
+        {
+            const string displayNameLower = String::ToLowerCopy(entry.displayName);
+            const string nameLower = String::ToLowerCopy(entry.name);
+            const string playbackNameLower = String::ToLowerCopy(entry.playbackName);
+
+            if (displayNameLower.find(searchTextLower) == string::npos &&
+                nameLower.find(searchTextLower) == string::npos &&
+                playbackNameLower.find(searchTextLower) == string::npos)
+            {
+                continue;
+            }
+        }
+
         const bool isSelected =
             (_currentAnimationName == entry.displayName ||
              _currentAnimationName == entry.name ||

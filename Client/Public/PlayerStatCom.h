@@ -97,6 +97,22 @@ public:
         int32 defense,
         int32 luck);
 
+     // 인스팩터가 기본 스탯을 바꿀 때, 런타임 값 다시 세팅
+    void Set_RuntimePrimaryStats(
+        int32 vitality,
+        int32 might,
+        int32 agility,
+        int32 defense,
+        int32 luck);
+
+    // 인스팩터에서 값을 바꿀 때, desc/runtime 둘 다 같이 세팅
+    void Set_RuntimeProgress(
+        uint32 level,
+        uint32 exp,
+        uint32 statPoint,
+        uint32 skillPoint,
+        uint32 respecCount);
+
 
 private:
     int32* Find_StatValue(StatType type);
