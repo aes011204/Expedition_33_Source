@@ -216,7 +216,8 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     <ClCompile Include="..\Private\DetailPropertyContext.cpp" />
     <ClCompile Include="..\Private\ModuleDetail_Drawers.cpp" />
     <ClCompile Include="..\Private\Profile_View.cpp" />
-    <ClCompile Include="..\Private\TrailPreviewModelObject.cpp" />
+    <ClCompile Include="..\Private\TrailPreviewWeaponObject.cpp" />
+    <ClCompile Include="..\Private\TrailPreviewController.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Public\Action_Command.h" />
@@ -243,6 +244,7 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     <ClInclude Include="..\Public\DetailPropertyContext.h" />
     <ClInclude Include="..\Public\Helper_ImGui.h" />
     <ClInclude Include="..\Public\EffectEditorInstance.h" />
+    <ClInclude Include="..\Public\TrailPreviewWeaponObject.h" />
     <ClInclude Include="..\Public\ImGui_Manager.h" />
     <ClInclude Include="..\Public\Level_EffectEditor.h" />
     <ClInclude Include="..\Public\Notification_Manager.h" />
@@ -260,7 +262,7 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     <ClInclude Include="..\Public\Detail_View.h" />
     <ClInclude Include="..\Public\ModuleDetail_Drawers.h" />
     <ClInclude Include="..\Public\Profile_View.h" />
-    <ClInclude Include="..\Public\TrailPreviewModelObject.h" />
+    <ClInclude Include="..\Public\TrailPreviewController.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Client\Default\Client.vcxproj">

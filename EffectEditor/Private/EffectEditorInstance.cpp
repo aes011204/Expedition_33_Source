@@ -65,7 +65,7 @@ HRESULT EffectEditorInstance::Initialize_Editor(const EffectEditorDesc& editorDe
 
     _runtimeState = EffectEditorRuntimeState::Edit;
     _runtimeTimeScale = 1.f;
-    _isTrailPreviewWeaponVisible = false;
+    _isTrailPreviewVisible = false;
     Queue_PreviewViewportSize(kDefaultPreviewViewportWidth, kDefaultPreviewViewportHeight);
 
     return S_OK;
@@ -106,7 +106,7 @@ void EffectEditorInstance::Release_Editor()
 
     _runtimeState = EffectEditorRuntimeState::Edit;
     _runtimeTimeScale = 1.f;
-    _isTrailPreviewWeaponVisible = false;
+    _isTrailPreviewVisible = false;
     _hasPendingWindowFocus = false;
     _pendingWindowFocus = EditorViewportTarget::Game;
     _pendingSingleFrameStep = false;
@@ -226,6 +226,11 @@ void EffectEditorInstance::Stop()
 
     _runtimeState = EffectEditorRuntimeState::Edit;
 
+    const Shared<Level> currentLevel = GAME->Current_LevelType();
+    const Shared<Level_EffectEditor> effectEditorLevel = dynamic_pointer_cast<Level_EffectEditor>(currentLevel);
+    if (effectEditorLevel != nullptr && FAILED(effectEditorLevel->Reset_PreviewRuntime()))
+        LOG_ERROR("Failed to reset EffectEditor preview runtime.");
+
     Activate_PreviewCamera();
 
     GAME->Set_FreeCameraInputEnabled(false);
@@ -285,9 +290,9 @@ void EffectEditorInstance::Request_RestartPreview()
         LOG_ERROR("Failed to restart EffectEditor preview.");
 }
 
-void EffectEditorInstance::Set_TrailPreviewWeaponVisible(bool visible)
+void EffectEditorInstance::Set_TrailPreviewVisible(bool visible)
 {
-    _isTrailPreviewWeaponVisible = visible;
+    _isTrailPreviewVisible = visible;
 }
 
 void EffectEditorInstance::Request_WindowFocus(EditorViewportTarget target)

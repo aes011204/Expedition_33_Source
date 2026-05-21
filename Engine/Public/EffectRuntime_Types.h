@@ -39,18 +39,18 @@ enum class EffectSpriteTextureAxis : uint32
 // Required 모듈에서 material binding에 필요한 값만 접은 runtime payload다.
 struct EffectRequiredMaterialRuntimeDesc
 {
-    string mainTextureGuid{};             // 구버전 파일 복구/현재 registry 진단용 GUID hint다.
-    string mainTexturePath{};             // main particle texture resource-relative 경로다.
-    string noiseTextureGuid{};            // 구버전 noise texture 복구/진단용 GUID hint다.
-    string noiseTexturePath{};            // 선택 noise texture resource-relative 경로다.
-    string blendMode{ "AlphaBlend" };     // material bridge의 blend mode 기록값이다.
-    string opacitySource{ "Alpha" };      // opacity source selector다.
-    Vec4 tint{ 1.f, 1.f, 1.f, 1.f };      // texture sample에 곱할 tint다.
-    float intensity{ 1.f };               // sprite 색상 밝기/발광감 계수다.
-    float opacityPower{ 1.f };            // opacity sharpening 계수다.
-    float noiseStrength{ 0.f };           // noise modulation 강도다.
-    uint32 subUVRows{ 1 };                // flipbook row 수다.
-    uint32 subUVCols{ 1 };                // flipbook column 수다.
+    string mainTextureGuid{};         // 구버전 파일 복구/현재 registry 진단용 GUID hint다.
+    string mainTexturePath{};         // main particle texture resource-relative 경로다.
+    string noiseTextureGuid{};        // 구버전 noise texture 복구/진단용 GUID hint다.
+    string noiseTexturePath{};        // 선택 noise texture resource-relative 경로다.
+    string blendMode{ "AlphaBlend" }; // material bridge의 blend mode 기록값이다.
+    string opacitySource{ "Alpha" };  // opacity source selector다.
+    Vec4 tint{ 1.f, 1.f, 1.f, 1.f };  // texture sample에 곱할 tint다.
+    float intensity{ 1.f };           // sprite 색상 밝기/발광감 계수다.
+    float opacityPower{ 1.f };        // opacity sharpening 계수다.
+    float noiseStrength{ 0.f };       // noise modulation 강도다.
+    uint32 subUVRows{ 1 };            // flipbook row 수다.
+    uint32 subUVCols{ 1 };            // flipbook column 수다.
 };
 
 // Required 모듈에서 sprite render alignment에 필요한 값만 접은 runtime payload다.
@@ -59,18 +59,18 @@ struct EffectSpriteRenderRuntimeDesc
     EffectSpriteScreenAlignment screenAlignment{ EffectSpriteScreenAlignment::FacingCameraPosition }; // sprite 축 선택 기준이다.
     EffectSpriteDirectionalAlignmentMode directionalAlignmentMode{ EffectSpriteDirectionalAlignmentMode::TextureAxis }; // 방향 기준 사용 방식이다.
     EffectSpriteTextureAxis spriteTextureAxis{ EffectSpriteTextureAxis::Y }; // TextureAxis mode에서 맞출 texture 축이다.
-    float spriteRollOffsetDegrees{ 0.f };                                    // authored texture 방향 차이를 보정하는 정적 roll offset이다.
+    float spriteRollOffsetDegrees{ 0.f }; // authored texture 방향 차이를 보정하는 정적 roll offset이다.
 };
 
 // Required 모듈에서 emitter playback에 필요한 값만 접은 runtime payload다.
 struct EffectEmitterPlaybackRuntimeDesc
 {
-    float duration{ 1.f };                  // emitter 한 loop가 재생되는 시간이다.
-    uint32 loopCount{ 0 };                  // 0은 무한 반복, 1 이상은 지정 횟수 재생이다.
-    float delay{ 0.f };                     // loop 시작 전 spawn/draw를 막는 지연 시간이다.
-    bool delayFirstLoopOnly{ false };       // true면 첫 loop에만 delay를 적용한다.
-    bool killOnDeactivate{ false };         // 외부 deactivate 계약이 생기면 active particle을 즉시 죽일지 나타낸다.
-    bool killOnCompleted{ false };          // 마지막 loop 완료 시 active particle을 즉시 죽일지 나타낸다.
+    float duration{ 1.f };            // emitter 한 loop가 재생되는 시간이다.
+    uint32 loopCount{ 0 };            // 0은 무한 반복, 1 이상은 지정 횟수 재생이다.
+    float delay{ 0.f };               // loop 시작 전 spawn/draw를 막는 지연 시간이다.
+    bool delayFirstLoopOnly{ false }; // true면 첫 loop에만 delay를 적용한다.
+    bool killOnDeactivate{ false };   // 외부 deactivate 계약이 생기면 active particle을 즉시 죽일지 나타낸다.
+    bool killOnCompleted{ false };    // 마지막 loop 완료 시 active particle을 즉시 죽일지 나타낸다.
 };
 
 // Required 모듈에서 draw 수 제한에 필요한 값만 접은 runtime payload다.
@@ -92,15 +92,15 @@ struct EffectRequiredRuntimeDesc
 // Spawn 모듈의 runtime 소비 payload와 spawn fallback shape를 묶은 desc다.
 struct EffectSpawnRuntimeDesc
 {
-    uint32 instanceCount{ 96 };                    // 생성할 particle 수다.
-    Vec3 spawnRange{ 1.f, 1.f, 1.f };              // Phase2 spawn shape 전까지 사용할 기본 box spawn 범위다.
-    PointParticleSpawnDesc particleSpawn{};        // Spawn 모듈이 만든 연속/버스트 생성 규칙이다.
+    uint32 instanceCount{ 96 };             // 생성할 particle 수다.
+    Vec3 spawnRange{ 1.f, 1.f, 1.f };       // Phase2 spawn shape 전까지 사용할 기본 box spawn 범위다.
+    PointParticleSpawnDesc particleSpawn{}; // Spawn 모듈이 만든 연속/버스트 생성 규칙이다.
 };
 
 // Lifetime 모듈에서 compute payload에 필요한 값만 접은 runtime payload다.
 struct EffectLifetimeRuntimeDesc
 {
-    Vec2 lifeTime{ 1.f, 2.f }; // compute payload가 사용할 생존 시간 범위다.
+    Vec2 lifeTime{ 0.5f, 1.f }; // compute payload가 사용할 생존 시간 범위다.
 };
 
 // InitialSize 모듈에서 compute payload에 필요한 값만 접은 runtime payload다.
@@ -141,7 +141,7 @@ struct ComputeSpriteEmitterDesc : public GameObject::GAMEOBJECT_DESC
     PointParticleRotationDesc rotation{};                     // rotation authoring module을 compute payload로 압축한 규칙이다.
     PointParticleInitialLocationDesc initialLocation{};       // InitialLocation 모듈이 만든 시작 위치 offset 분포다.
     PointParticleSphereLocationDesc sphereLocation{};         // SphereLocation 모듈이 만든 시작 위치 구형 offset 분포다.
-    Vec3 center{ 0.f, 0.f, 0.f };                         // concrete emitter 내부 fallback/초기 center다. root transform이 있으면 후속 sync가 덮어쓴다.
+    Vec3 center{ 0.f, 0.f, 0.f };                             // concrete emitter 내부 fallback/초기 center다. root transform이 있으면 후속 sync가 덮어쓴다.
 };
 
 using EffectEmitterConcreteDesc = variant<ComputeSpriteEmitterDesc>;

@@ -94,14 +94,17 @@
     <ClCompile Include="..\Private\EffectEditorSkybox.cpp">
       <Filter>05. EditorOnly Object\EffectEditor Skybox</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\TrailPreviewModelObject.cpp">
-      <Filter>05. EditorOnly Object\Trail Preview Object</Filter>
-    </ClCompile>
     <ClCompile Include="..\Private\EffectMaterialPresetReader.cpp">
       <Filter>01. View\Effect Material View\Support</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\EffectMaterialPreviewRenderer.cpp">
       <Filter>01. View\Effect Material View\Preview Renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\TrailPreviewController.cpp">
+      <Filter>05. EditorOnly Object\Trail Preview Object\Controller</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\TrailPreviewWeaponObject.cpp">
+      <Filter>05. EditorOnly Object\Trail Preview Object\Preview Weapon</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -222,14 +225,17 @@
     <ClInclude Include="..\Public\EffectEditorSkybox.h">
       <Filter>05. EditorOnly Object\EffectEditor Skybox</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\TrailPreviewModelObject.h">
-      <Filter>05. EditorOnly Object\Trail Preview Object</Filter>
-    </ClInclude>
     <ClInclude Include="..\Public\EffectMaterialPresetReader.h">
       <Filter>01. View\Effect Material View\Support</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\EffectMaterialPreviewRenderer.h">
       <Filter>01. View\Effect Material View\Preview Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\TrailPreviewController.h">
+      <Filter>05. EditorOnly Object\Trail Preview Object\Controller</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\TrailPreviewWeaponObject.h">
+      <Filter>05. EditorOnly Object\Trail Preview Object\Preview Weapon</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -337,6 +343,12 @@
     </Filter>
     <Filter Include="05. EditorOnly Object\Trail Preview Object">
       <UniqueIdentifier>{29a6939b-5282-4e71-9ce7-47cd7a735cab}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="05. EditorOnly Object\Trail Preview Object\Controller">
+      <UniqueIdentifier>{df72be75-e021-45a3-bafa-2c408631ef1f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="05. EditorOnly Object\Trail Preview Object\Preview Weapon">
+      <UniqueIdentifier>{4e80af94-0c1e-438b-8870-41030a2e1559}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

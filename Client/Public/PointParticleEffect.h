@@ -36,10 +36,10 @@ public:
 
         Vec3 center{ 0.f, 0.f, 0.f };             // 이 effect clone의 스폰 중심.
         uint32 instanceCount{ 64 };               // 이 effect clone이 생성할 particle 수.
-        Vec2 scale{ 0.15f, 0.35f };               // 이 effect clone의 랜덤 scale 범위.
+        Vec2 scale{ 0.1f, 0.1f };                 // 이 effect clone의 랜덤 scale 범위.
         Vec3 pivot{ 0.f, 0.f, 0.f };              // 이 effect clone의 퍼짐 기준점.
         Vec2 speed{ 0.5f, 1.5f };                 // 이 effect clone의 랜덤 속도 범위.
-        Vec2 lifeTime{ 1.f, 2.f };                // 이 effect clone의 랜덤 생존 시간 범위.
+        Vec2 lifeTime{ 0.5f, 1.f };                // 이 effect clone의 랜덤 생존 시간 범위.
         Vec4 startColorMin{ 1.f, 1.f, 1.f, 1.f }; // Initial Color에서 내려온 시작 색상/알파 하한.
         Vec4 startColorMax{ 1.f, 1.f, 1.f, 1.f }; // Initial Color에서 내려온 시작 색상/알파 상한.
         Vec4 endColorMin{ 1.f, 1.f, 1.f, 1.f };   // Color Over Life에서 내려온 종료 색상/알파 하한.

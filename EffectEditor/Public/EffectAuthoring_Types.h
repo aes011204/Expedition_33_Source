@@ -109,11 +109,13 @@ enum class FloatCurveInterpolationMode : uint8
 // 분포 플로트 상수 커브의 필요 값들이다.
 struct FloatCurveKeyData
 {
-    float time{ 0.f };                                                                    // 0..1 공통축에서 이 key의 위치다.
-    float value{ 0.f };                                                                   // 이 key 시점의 출력값이다.
-    float arriveTangent{ 0.f };                                                           // key로 들어오는 곡선 기울기다.
-    float leaveTangent{ 0.f };                                                            // key에서 나가는 곡선 기울기다.
-    FloatCurveInterpolationMode interpolationMode{ FloatCurveInterpolationMode::Linear }; // 이 key 이후 구간의 보간 방식을 결정한다.
+    float time{ 0.f };          // 0..1 공통축에서 이 key의 위치다.
+    float value{ 0.f };         // 이 key 시점의 출력값이다.
+    float arriveTangent{ 0.f }; // key로 들어오는 곡선 기울기다.
+    float leaveTangent{ 0.f };  // key에서 나가는 곡선 기울기다.
+    FloatCurveInterpolationMode interpolationMode{
+        FloatCurveInterpolationMode::Linear
+    }; // 이 key 이후 구간의 보간 방식을 결정한다.
 };
 
 // 분포 플로트 상수 커브의 보간 key 목록을 보관한다.
@@ -344,7 +346,7 @@ struct SpawnModuleData
 
 struct LifetimeModuleData
 {
-    FloatDistributionData lifeTime{ FloatDistributionData::Make_Uniform(1.f, 2.f) };
+    FloatDistributionData lifeTime{ FloatDistributionData::Make_Uniform(0.5f, 1.f) };
 };
 
 struct InitialLocationModuleData
@@ -369,7 +371,7 @@ struct SphereLocationModuleData
 
 struct InitialSizeModuleData
 {
-    Vector2DistributionData size{ Vector2DistributionData::Make_Constant(Vec2{ 0.15f, 0.35f }) };
+    Vector2DistributionData size{ Vector2DistributionData::Make_Constant(Vec2{ 0.1f, 0.1f }) };
 };
 
 struct InitialVelocityModuleData
@@ -508,11 +510,11 @@ struct EffectAuthoringSelection
     uint32 moduleId{};
 };
 
-
 struct EffectAuthoringDocument
 {
     string name{};
     ParticleSystemAuthoringData particleSystemData{};
     vector<AuthoringEmitter> emitters{};
 };
+
 NS_END

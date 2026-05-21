@@ -717,9 +717,9 @@ void Scene_View::Render_ViewModeOverlay()
 
     ImGui::SameLine(0.f, 12.f);
 
-    bool showTrailWeapon = EDITOR->Is_TrailPreviewWeaponVisible();
-    if (ImGui::Checkbox("Trail Weapon", &showTrailWeapon))
-        EDITOR->Set_TrailPreviewWeaponVisible(showTrailWeapon);
+    bool showTrailPreview = EDITOR->Is_TrailPreviewVisible();
+    if (ImGui::Checkbox("Trail Preview", &showTrailPreview))
+        EDITOR->Set_TrailPreviewVisible(showTrailPreview);
 
     ImGui::PopStyleVar();
     ImGui::PopID();
