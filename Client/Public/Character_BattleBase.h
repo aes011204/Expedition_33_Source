@@ -10,6 +10,7 @@ NS_BEGIN(Client)
 
 class Character_BattleBase abstract : public Character
 {
+    
 public:
     Character_BattleBase(const ComPtr<Device>& device, const ComPtr<Context>& context);
     Character_BattleBase(const Character_BattleBase& prototype);

@@ -21,6 +21,8 @@ class BattleEffectResolver;
 class BattleStateMachine;
 class BattleTurnCamera;
 
+
+
 class BattleController : public Base
 {
     // 전투 시작
@@ -28,11 +30,11 @@ class BattleController : public Base
     // 전투 종료
     DECLARE_DELEGATE(FOnBattleEnded, EBattleEndResult);
     // 턴 시작
-    DECLARE_DELEGATE(FOnTurnStarted,  const BattleChar&, BattleTurnState);
+    DECLARE_DELEGATE(FOnTurnStarted, const BattleChar&, BattleTurnState);
     // 턴 종료
     DECLARE_DELEGATE(FOnTurnEnded, const BattleChar&);
     // 타겟 전환
-    DECLARE_DELEGATE(FOnTargetPreviewChanged, const BattleChar*);           
+    DECLARE_DELEGATE(FOnTargetPreviewChanged, const BattleChar*);
 
 public:
     enum ReactionType
@@ -49,7 +51,6 @@ public:
         bool isOpen = false;
         bool isConsumed = false;
         ReactionType result = ReactionType::None;
-
     };
 
 public:
@@ -71,6 +72,8 @@ public:
     EBattleEndResult OnExitBattleField(EBattleEndResult result);
 
     void Set_BattleFSM();
+    void PlayerStartAnim();
+    void HitAction(BattleChar target);
     void ExecuteAction(Action turnAction); //실제로 선택한 행동을 실행하는 함수
 
     void EndTurn();
@@ -86,8 +89,6 @@ public:
 public:
     Shared<BattleStateMachine> Get_BattleFSM() { return _battleFSM; };
     Action& Get_TurnAction() { return _turnAction; }
-    //uint32 Get_EnemiesNum() { return _enemies.size(); }
-    //uint32 Get_HeroesNum() { return _heroes.size(); }
 
     vector<BattleChar> Get_AliveEnemies();
     vector<BattleChar> Get_AliveHeroes();
@@ -95,13 +96,12 @@ public:
     bool Is_BattleStarted() { return _isBattleActive; }
     bool Is_BattleEntering() const { return _isBattleEntering; } // 배틀 진입 시작
 
+    Shared<SkillScript> Get_CurrentScript() const { return _curScript; }
+    void Clear_CurrentScript() { _curScript.reset(); }
 
-    //void Set_CurrentScript(const Shared<SkillScript>& script){_curScript = script;}
-    Shared<SkillScript> Get_CurrentScript() const{return _curScript;}
-    void Clear_CurrentScript(){_curScript.reset();}
-
-    const Reaction& Get_Reaction() const{return _reaction;}
+    const Reaction& Get_Reaction() const { return _reaction; }
 public:
+    void End_FirstAnim();
     void Handle_EditorStopRuntime();
     HRESULT Ready_Delegates();
 
@@ -114,13 +114,19 @@ public:
 public: /* 타겟팅 중인 적 세팅 */
     void                Set_TargetPreview(const BattleChar& target);
     void                Clear_TargetPreview();
-    const BattleChar*   Get_TargetPreview() const;
+    const BattleChar* Get_TargetPreview() const;
 
 public:
     bool                Is_PlayerTurnActive() const;
     BattleTurnState     Get_CurrentTurnState() const;
 
     Shared<BattleTurnCamera> Get_BattleTurnCamera() const { return _battleTurnCamera; }
+
+public:
+    // Free Aim은 턴 소모 X
+    void Begin_FreeAimShot(const Action& shotAction);
+    void Finish_FreeAimShot();
+    bool Is_FreeAimShotPlaying() const { return _isFreeAimShotPlaying; }
 
 private:
     HRESULT Ready_BattleTurnCamera();
@@ -157,11 +163,18 @@ private:
 
 private:
     void Execute_BaseAttack(const BattleChar actor, const Action& turnAction);
+    void Execute_FreeAimShoot(const BattleChar actor, const Action& turnAction);
     void Execute_Skill(const BattleChar actor, const Action& turnAction);
     void Execute_Item(const BattleChar actor, const Action& turnAction);
 
+private: /* 전투 AP */
+    void Apply_BaseAttackAP(const BattleChar& actor); // Base Attack시 얻는 AP
+    bool Apply_FreeAimShootAP(const BattleChar& actor); // Free Aim시 사용되는 AP
+
+private:
     bool _battleEnded = {};
     bool _pendingNextTurn = {};
+
 public:
     struct Compare
     {
@@ -185,6 +198,9 @@ private:
     /* Shared< BattleEffectResolver> _battleEffectResolver;*/
     Shared<BattleActionExecutor> _battleActionExe;
 
+    bool _firstAnimflag = { false };
+    int  _firstAnimCount = {0};
+
     FDelegateHandle _editorStopHandle = {};
 
 private:
@@ -203,6 +219,9 @@ private:  // 슬로우 처리
 
     // 배틀 카메라는 이미 켰고, UI 전환 종료만 기다리는 상태
     bool _isWaitingBattleTransition = false;
+
+    bool _isFreeAimShotPlaying = false;
+    Action _freeAimShotAction {};
 
 public:
     static Shared<BattleController> Create();

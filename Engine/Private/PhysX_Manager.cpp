@@ -177,7 +177,9 @@ namespace
             const CollisionResponse response =
                 Calculate_PhysXResponse(_selfFilterData, shape->getQueryFilterData());
 
-            if (response != CollisionResponse::Block)
+            // preset query는 Ignore만 제외하고 hit 후보로 남긴다.
+            // Player_Target처럼 Overlap 기반 타게팅 query도 sweep 결과를 받아야 한다.
+            if (response == CollisionResponse::Ignore)
                 return PxQueryHitType::eNONE;
 
             return PxQueryHitType::eBLOCK;

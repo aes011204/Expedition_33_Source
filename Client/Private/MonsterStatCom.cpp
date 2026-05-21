@@ -72,6 +72,25 @@ void MonsterStatCom::Update(float timeDelta)
 #endif
 }
 
+void MonsterStatCom::Set_RuntimeCombatProfile(float maxHp, uint32 maxAp, float physicalAttack, float physicalDefense,
+    float speed)
+{
+    const float hpRate = (_monsterDesc.maxHp > 0.f) ? (_MRuntimeStat.CurHp / _monsterDesc.maxHp) : 1.f;
+
+    _monsterDesc.maxHp = maxHp;
+    _monsterDesc.maxAp = maxAp;
+    _monsterDesc.physicalAttack = physicalAttack;
+    _monsterDesc.physicalDefense = physicalDefense;
+    _monsterDesc.speed = speed;
+
+    // 몬스터는 desc를 runtime으로 복사하는 구조라 여기서 둘 다 같이 맞춘다.
+    _MRuntimeStat.CurHp = max(0.f, _monsterDesc.maxHp * hpRate);
+    _MRuntimeStat.CurAp = min(_MRuntimeStat.CurAp, _monsterDesc.maxAp);
+    _MRuntimeStat.physicalAttack = _monsterDesc.physicalAttack;
+    _MRuntimeStat.physicalDefense = _monsterDesc.physicalDefense;
+    _MRuntimeStat.CurSpeed = _monsterDesc.speed;
+}
+
 Shared<MonsterStatCom> MonsterStatCom::Create(
     const ComPtr<Device>& device,
     const ComPtr<Context>& context)

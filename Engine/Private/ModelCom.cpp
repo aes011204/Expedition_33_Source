@@ -1124,6 +1124,7 @@ void ModelCom::Stop_AllNotifyStates(bool executeEndCheck)
         context.animationName = "";
         context.previousTimeSec = 0.f;
         context.currentTimeSec = 0.f;
+        context.notifyStateProgress = 1.f; // 강제 종료여도 End에서는 완료 상태로 사용하려면 1.f
         context.deltaTime = 0.f;
         context.isLooping = false;
         context.wrapped = false;
@@ -1162,6 +1163,7 @@ void ModelCom::Stop_NotifyStates_ExceptAnimation(const string& keepAnimationName
             context.previousTimeSec = 0.f;
             context.currentTimeSec = 0.f;
             context.deltaTime = 0.f;
+            context.notifyStateProgress = 1.f;
             context.isLooping = false;
             context.wrapped = false;
             context.isPreview = !_isAnimNotifyExecutionEnabled;
@@ -1204,6 +1206,18 @@ void ModelCom::Update_AnimNotifyStates(const AnimNotifyData& animationData, cons
         const bool isActiveNow = Is_NotifyStateActiveTime(context.currentTimeSec, entry.startSec, entry.durationSec);
         const int32 activeIndex = Find_ActiveNotifyStateIndex(_activeNotifyStates, context.animationName, stateIndex);
 
+        AnimNotifyContext stateContext = context;
+
+        if (entry.durationSec > 0.f)
+        {
+            stateContext.notifyStateProgress = // 현재 시간이 notifyState에서 몇퍼 진행됐는지
+                ::clamp((context.currentTimeSec - entry.startSec) / entry.durationSec, 0.f, 1.f); 
+        }
+        else
+        {
+            stateContext.notifyStateProgress = isActiveNow ? 1.f : 0.f;
+        }
+
         if (isActiveNow)
         {
             if (activeIndex == -1)
@@ -1218,7 +1232,7 @@ void ModelCom::Update_AnimNotifyStates(const AnimNotifyData& animationData, cons
                 _activeNotifyStates.push_back(active);
 
                 if (executeNotifies)
-                    entry.notifyState->On_Begin(context);
+                    entry.notifyState->On_Begin(stateContext);
             }
             else
             {
@@ -1230,7 +1244,7 @@ void ModelCom::Update_AnimNotifyStates(const AnimNotifyData& animationData, cons
                         context.deltaTime > 0.f ||
                         previousActiveTimeSec != context.currentTimeSec))
                 {
-                    _activeNotifyStates[activeIndex].notifyState->On_Tick(context);
+                    _activeNotifyStates[activeIndex].notifyState->On_Tick(stateContext);
                 }
             }
         }
@@ -1239,8 +1253,10 @@ void ModelCom::Update_AnimNotifyStates(const AnimNotifyData& animationData, cons
             Shared<AnimNotifyState> instance = _activeNotifyStates[activeIndex].notifyState;
             _activeNotifyStates.erase(_activeNotifyStates.begin() + activeIndex);
 
+            stateContext.notifyStateProgress = 1.f; 
+
             if (executeNotifies && instance)
-                instance->On_End(context);
+                instance->On_End(stateContext);
         }
     }
 }

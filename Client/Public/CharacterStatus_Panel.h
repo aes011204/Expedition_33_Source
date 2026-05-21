@@ -7,6 +7,7 @@
 NS_BEGIN(Engine)
 class UI_Base;
 class UI_Text;
+class UI_Button;
 NS_END
 
 NS_BEGIN(Client)
@@ -29,6 +30,8 @@ public:
     void    Toggle() override;
 
     void    Handle_SelectionInput();
+    void    Handle_StatInput();
+
     uint32  Get_WrappedPartyIndex(int32 index) const;
 
 private:
@@ -38,6 +41,12 @@ private:
     void    Refresh_CombatStats();
     void    Refresh_CharacterSelectUI(); // 선택된 캐릭터 슬롯만 크게 보이게
 
+    bool    Adjust_PendingStat(StatType type, int32 value); // 적용 전 스탯 증감
+    void    Apply_PendingStats(); // F 저장 시 실제 runtime 반영
+    void    Reset_CurrentHeroStats();
+    void    Clear_PendingStats();
+
+private:
     static void Set_IntText(const Shared<UI_Text>& text, int32 value);
     static void Set_UIntText(const Shared<UI_Text>& text, uint32 value);
     static void Set_PercentText(const Shared<UI_Text>& text, float value);
@@ -49,6 +58,12 @@ private:
 private:
     uint32 _selectedHeroIndex = 0;
 
+    using HeroStatPending = array<int32, static_cast<size_t>(StatType::END)>;
+    using PendingStatDelta = array<HeroStatPending, static_cast<size_t>(HeroId::END)>;
+
+    // 플레이어별 임시 분배값. F 누르기 전에는 여기만 바뀜
+    PendingStatDelta _pendingStatDelta{};
+
     // UI
     Shared<UI_Text> _levelText{};
     Shared<UI_Text> _statPointText{};
@@ -58,6 +73,12 @@ private:
     Shared<UI_Text> _agilityText{};
     Shared<UI_Text> _defenseStatText{};
     Shared<UI_Text> _luckText{};
+
+    Shared<UI_Text> _upgradeVitalityText{};
+    Shared<UI_Text> _upgradeMightText{};
+    Shared<UI_Text> _upgradeAgilityText{};
+    Shared<UI_Text> _upgradeDefenseText{};
+    Shared<UI_Text> _upgradeLuckText{};
 
     Shared<UI_Text> _hpText{};
     Shared<UI_Text> _attackText{};
@@ -80,6 +101,14 @@ private:
     Shared<UI_Base> _selectIndicator01{};
     Shared<UI_Base> _selectIndicator02{};
     Shared<UI_Base> _selectIndicator03{};
+
+    Shared<UI_Button> _statusUpgradeButton{};   // F
+    Shared<UI_Button> _statusResetButton{};     // R
+
+    // 각 스탯 좌 버튼
+    array<Shared<UI_Button>, static_cast<size_t>(StatType::END)> _statDecreaseButtons{};
+    // 각 스탯 우 버튼
+    array<Shared<UI_Button>, static_cast<size_t>(StatType::END)> _statIncreaseButtons{};
 
 public:
     static Unique<CharacterStatus_Panel> Create(uint32 levelIndex);

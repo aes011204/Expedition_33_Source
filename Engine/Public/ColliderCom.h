@@ -20,6 +20,8 @@ public:
     HRESULT                 Initialize_Prototype() override;
     HRESULT                 Initialize_Prototype(CollisionShape shape);
     HRESULT                 Initialize(void* arg) override;
+    json                    To_Json() const override;
+    void                    From_Json(const json& data) override;
 
 public:
     void                    Update_Collider(const Matrix& worldMatrix);

@@ -95,10 +95,12 @@ private:
 
     void Draw_Header();
     void Draw_AnimationSelector();
+    void Draw_BoneTree();
     void Draw_PlaybackToolbar();
     void Draw_PreviewPanel();
     void Draw_Sequencer();
     void Draw_SelectedDetail();
+    void Draw_SelectedBoneDetail(const Shared<ModelCom>& playbackModel) const;
     void Draw_EventListPanel();
     void Draw_NotifyList();
     void Draw_StateList();
@@ -132,7 +134,9 @@ private:
     Shared<GameObject> Get_PreviewRenderObject() const;
     void Fit_PreviewCameraToModel();
     void Draw_PreviewGrid() const;
+    void Draw_SelectedBoneMarker() const;
     void Sync_PreviewAnimationSelection(bool keepCurrentTime = false);
+    void Validate_SelectedBoneSelection();
 
     AnimNotifyData* Get_CurrentAnimation();
     const AnimNotifyData* Get_CurrentAnimation() const;
@@ -165,13 +169,17 @@ private:
     Shared<DirectX::BasicEffect> _previewGridEffect{};
     ComPtr<ID3D11InputLayout> _previewGridInputLayout{};
     ComPtr<ID3D11DepthStencilState> _previewGridDepthState{};
+    ComPtr<ID3D11DepthStencilState> _previewOverlayDepthState{};
 
     string _modelGuid{};
     string _currentAnimationName{};
     vector<AnimationEntry> _availableAnimations{};
+    char _animationSearchBuffer[128] = "";
+    char _boneSearchBuffer[128] = "";
 
     AnimNotifyAsset _asset{};
     bool _isDirty = false;
+    int32 _selectedBoneIndex = -1;
 
     int32 _selectedNotifyId = -1;
     int32 _selectedStateId = -1;

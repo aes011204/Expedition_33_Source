@@ -116,8 +116,8 @@ namespace Internal
     static OverlayRect Compute_ViewModeOverlayRect(const ImVec2& viewportMin, const ImVec2& viewportMax)
     {
         const OverlayRect previewRect = Compute_PreviewViewportOverlayRect(viewportMin, viewportMax);
-        const ImVec2 panelSize = ImVec2(162.f, 34.f);
-        const ImVec2 panelMin = ImVec2(previewRect.min.x - panelSize.x - 6.f, previewRect.min.y);
+        const ImVec2 panelSize = ImVec2(284.f, 34.f);
+        const ImVec2 panelMin = ImVec2(viewportMax.x - panelSize.x - 16.f, previewRect.max.y + 6.f);
 
         return {
             panelMin,
@@ -714,6 +714,12 @@ void Scene_View::Render_ViewModeOverlay()
 
     if (draw_mode_button("Final", ImVec2(54.f, 22.f), isFinal))
         EDITOR->Set_SceneViewMode(SceneViewMode::Final);
+
+    ImGui::SameLine(0.f, 12.f);
+
+    bool showTrailWeapon = EDITOR->Is_TrailPreviewWeaponVisible();
+    if (ImGui::Checkbox("Trail Weapon", &showTrailWeapon))
+        EDITOR->Set_TrailPreviewWeaponVisible(showTrailWeapon);
 
     ImGui::PopStyleVar();
     ImGui::PopID();
