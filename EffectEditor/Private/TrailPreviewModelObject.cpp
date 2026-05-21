@@ -2,6 +2,7 @@
 #include "TrailPreviewModelObject.h"
 
 #include "GameInstance.h"
+#include "Helper_Math.h"
 #include "Material.h"
 #include "ModelCom.h"
 #include "ShaderCom.h"
@@ -12,17 +13,23 @@ NS_BEGIN(EffectEditor)
 
 namespace Internal
 {
-    const Vec3 kRestPosition{ 0.f, 0.f, 0.f };
-    const Vec3 kRestRotationDegrees{ 0.f, 0.f, 0.f };
-    const Vec3 kRestScale{ 1.f, 1.f, 1.f };
+    float EaseInOutSine(float t)
+    {
+        t = std::clamp(t, 0.f, 1.f);
+        return 0.5f - 0.5f * cosf(XM_PI * t);
+    }
 
-    constexpr float kSwingDurationSeconds{ 1.2f };
-    constexpr float kSwingYawAmplitudeDegrees{ 52.f };
-    constexpr float kSwingRollAmplitudeDegrees{ 34.f };
-    constexpr float kSwingPitchAmplitudeDegrees{ 12.f };
+    float EaseOutSine(float t)
+    {
+        t = std::clamp(t, 0.f, 1.f);
+        return sinf(t * XM_PIDIV2);
+    }
 
-    const Vec3 kTrailBaseLocalOffset{ 0.f, 0.04f, 0.f };
-    const Vec3 kTrailTipLocalOffset{ 0.f, 1.35f, 0.f };
+    float EaseOutQuart(float t)
+    {
+        t = std::clamp(t, 0.f, 1.f);
+        return 1.f - Math::GetEaseInRatio(1.f - t, 4.f);
+    }
 }
 
 TrailPreviewModelObject::TrailPreviewModelObject(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -118,7 +125,7 @@ HRESULT TrailPreviewModelObject::Ready_Components()
         return E_FAIL;
 
     const string modelPathUtf8 = String::ToString(modelPath);
-    _model = ModelCom::Create(_device, _context, ModelType::NonAnim, modelPathUtf8.c_str(), Matrix::CreateScale(0.05f));
+    _model = ModelCom::Create(_device, _context, ModelType::NonAnim, modelPathUtf8.c_str(), Matrix::CreateScale(0.03f));
     CHECK_NULL(_model, E_FAIL);
     Configure_Materials();
 
@@ -166,28 +173,64 @@ void TrailPreviewModelObject::Configure_Materials()
 
 void TrailPreviewModelObject::Reset_Pose()
 {
-    _transformCom->Set_Position(Internal::kRestPosition);
-    _transformCom->Set_RotationEuler(Internal::kRestRotationDegrees);
-    _transformCom->Set_Scale(Internal::kRestScale);
+    _transformCom->Set_Position(kRestPosition);
+    _transformCom->Set_RotationEuler(kRestRotationDegrees);
+    _transformCom->Set_Scale(kRestScale);
 }
 
 void TrailPreviewModelObject::Update_Swing(float timeDelta)
 {
     _swingTime += max(0.f, timeDelta);
 
-    const float normalizedTime = fmodf(_swingTime, Internal::kSwingDurationSeconds) / Internal::kSwingDurationSeconds;
-    const float swing = sinf(normalizedTime * XM_2PI);
-    const float followThrough = sinf((normalizedTime * XM_2PI) + XM_PIDIV2);
+    const float normalizedTime = fmodf(_swingTime, kSwingDurationSeconds) / kSwingDurationSeconds;
+    float swingZ = 0.f;
 
-    _transformCom->Set_Position(Internal::kRestPosition);
+    if (normalizedTime < kSwingAnticipationEnd)
+    {
+        const float segmentTime = Math::NormalizeSegment(normalizedTime, 0.f, kSwingAnticipationEnd);
+        swingZ = std::lerp(0.f, kSlashAnticipationDegrees, Internal::EaseInOutSine(segmentTime));
+    }
+    else if (normalizedTime < kSwingSlashEnd)
+    {
+        const float segmentTime = Math::NormalizeSegment(
+            normalizedTime,
+            kSwingAnticipationEnd,
+            kSwingSlashEnd
+        );
+        swingZ = std::lerp(
+            kSlashAnticipationDegrees,
+            kSlashAmplitudeDegrees,
+            Internal::EaseOutQuart(segmentTime)
+        );
+    }
+    else if (normalizedTime < kSwingDampEnd)
+    {
+        const float segmentTime = Math::NormalizeSegment(
+            normalizedTime,
+            kSwingSlashEnd,
+            kSwingDampEnd
+        );
+        swingZ = std::lerp(
+            kSlashAmplitudeDegrees,
+            kDampedHoldDegrees,
+            Internal::EaseOutSine(segmentTime)
+        );
+    }
+    else
+    {
+        const float segmentTime = Math::NormalizeSegment(normalizedTime, kSwingDampEnd, 1.f);
+        swingZ = std::lerp(kDampedHoldDegrees, 0.f, Internal::EaseInOutSine(segmentTime));
+    }
+
+    _transformCom->Set_Position(kRestPosition);
     _transformCom->Set_RotationEuler(
         Vec3(
-            Internal::kRestRotationDegrees.x + followThrough * Internal::kSwingPitchAmplitudeDegrees,
-            Internal::kRestRotationDegrees.y + swing * Internal::kSwingYawAmplitudeDegrees,
-            Internal::kRestRotationDegrees.z + swing * Internal::kSwingRollAmplitudeDegrees
+            kRestRotationDegrees.x,
+            kRestRotationDegrees.y,
+            kRestRotationDegrees.z + swingZ
         )
     );
-    _transformCom->Set_Scale(Internal::kRestScale);
+    _transformCom->Set_Scale(kRestScale);
 }
 
 Shared<TrailPreviewModelObject> TrailPreviewModelObject::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
