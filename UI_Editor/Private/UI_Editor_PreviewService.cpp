@@ -411,6 +411,8 @@ namespace UIEditor
         _texturePreviewFailedKeys.clear();
         _maskedTexturePreviewCache.clear();
         _maskedTexturePreviewFailedKeys.clear();
+        _patternOverlayPreviewCache.clear();
+        _patternOverlayPreviewFailedKeys.clear();
         _fontPreviewCache.clear();
         _fontPreviewFailedGuids.clear();
         _fontPreviewCommands.clear();
@@ -547,11 +549,58 @@ namespace UIEditor
         ID3D11ShaderResourceView* maskSRV = Get_TexturePreviewSRV(maskTextureGuid, maskTexturePath);
         if (nullptr == textureSRV || nullptr == maskSRV)
         {
-            _maskedTexturePreviewFailedKeys.insert(cacheKey);
             return nullptr;
         }
 
         return Create_MaskedTexturePreviewSRV(cacheKey, textureSRV, maskSRV);
+    }
+
+    ID3D11ShaderResourceView* UI_Editor_PreviewService::Get_PatternOverlayPreviewSRV(
+        const string& textureGuid,
+        const string& texturePath,
+        const string& paintMaskTextureGuid,
+        const string& paintMaskTexturePath,
+        const string& patternMaskTextureGuid,
+        const string& patternMaskTexturePath)
+    {
+        if (nullptr == _device || nullptr == _context)
+            return nullptr;
+
+        if ((textureGuid.empty() && texturePath.empty()) ||
+            (paintMaskTextureGuid.empty() && paintMaskTexturePath.empty()) ||
+            (patternMaskTextureGuid.empty() && patternMaskTexturePath.empty()))
+        {
+            return nullptr;
+        }
+
+        const string cacheKey =
+            Make_TexturePreviewGuidKey(textureGuid) + "|" + Make_TexturePreviewPathKey(Resolve_ClientRuntimeResourcePath(texturePath)) + "|" +
+            Make_TexturePreviewGuidKey(paintMaskTextureGuid) + "|" + Make_TexturePreviewPathKey(Resolve_ClientRuntimeResourcePath(paintMaskTexturePath)) + "|" +
+            Make_TexturePreviewGuidKey(patternMaskTextureGuid) + "|" + Make_TexturePreviewPathKey(Resolve_ClientRuntimeResourcePath(patternMaskTexturePath));
+
+        const auto cachedIter = _patternOverlayPreviewCache.find(cacheKey);
+        if (cachedIter != _patternOverlayPreviewCache.end())
+            return cachedIter->second.Get();
+
+        if (_patternOverlayPreviewFailedKeys.find(cacheKey) != _patternOverlayPreviewFailedKeys.end())
+            return nullptr;
+
+        ID3D11ShaderResourceView* textureSRV = Get_TexturePreviewSRV(textureGuid, texturePath);
+        ID3D11ShaderResourceView* paintMaskSRV = Get_TexturePreviewSRV(paintMaskTextureGuid, paintMaskTexturePath);
+        ID3D11ShaderResourceView* patternMaskSRV = Get_TexturePreviewSRV(patternMaskTextureGuid, patternMaskTexturePath);
+        if (nullptr == textureSRV || nullptr == paintMaskSRV || nullptr == patternMaskSRV)
+        {
+            return nullptr;
+        }
+
+        return Create_ImageCompositePreviewSRV(
+            cacheKey,
+            textureSRV,
+            paintMaskSRV,
+            patternMaskSRV,
+            3u,
+            _patternOverlayPreviewCache,
+            _patternOverlayPreviewFailedKeys);
     }
 
     ID3D11ShaderResourceView* UI_Editor_PreviewService::Load_TexturePreview(const string& cacheKey, const wstring& texturePath)
@@ -590,7 +639,7 @@ namespace UIEditor
 
     bool UI_Editor_PreviewService::Can_LoadTexturePreviewThisFrame()
     {
-        constexpr int32 kMaxTexturePreviewLoadsPerFrame = 2;
+        constexpr int32 kMaxTexturePreviewLoadsPerFrame = 6;
         return _texturePreviewLoadCountThisFrame < kMaxTexturePreviewLoadsPerFrame;
     }
 
@@ -743,19 +792,38 @@ namespace UIEditor
         ID3D11ShaderResourceView* textureSRV,
         ID3D11ShaderResourceView* maskSRV)
     {
+        return Create_ImageCompositePreviewSRV(
+            cacheKey,
+            textureSRV,
+            maskSRV,
+            nullptr,
+            1u,
+            _maskedTexturePreviewCache,
+            _maskedTexturePreviewFailedKeys);
+    }
+
+    ID3D11ShaderResourceView* UI_Editor_PreviewService::Create_ImageCompositePreviewSRV(
+        const string& cacheKey,
+        ID3D11ShaderResourceView* textureSRV,
+        ID3D11ShaderResourceView* maskSRV,
+        ID3D11ShaderResourceView* patternMaskSRV,
+        uint32 passIndex,
+        unordered_map<string, ComPtr<ID3D11ShaderResourceView>>& cache,
+        unordered_set<string>& failedKeys)
+    {
         if (cacheKey.empty() || nullptr == textureSRV || nullptr == maskSRV)
             return nullptr;
 
         if (!Ensure_ImagePreviewRenderer())
         {
-            _maskedTexturePreviewFailedKeys.insert(cacheKey);
+            failedKeys.insert(cacheKey);
             return nullptr;
         }
 
         D3D11_TEXTURE2D_DESC sourceDesc = {};
         if (!Try_GetTexture2DDesc(textureSRV, sourceDesc))
         {
-            _maskedTexturePreviewFailedKeys.insert(cacheKey);
+            failedKeys.insert(cacheKey);
             return nullptr;
         }
 
@@ -776,21 +844,21 @@ namespace UIEditor
         ComPtr<ID3D11Texture2D> renderTexture = nullptr;
         if (FAILED(_device->CreateTexture2D(&renderTextureDesc, nullptr, renderTexture.GetAddressOf())))
         {
-            _maskedTexturePreviewFailedKeys.insert(cacheKey);
+            failedKeys.insert(cacheKey);
             return nullptr;
         }
 
         ComPtr<ID3D11RenderTargetView> renderTargetView = nullptr;
         if (FAILED(_device->CreateRenderTargetView(renderTexture.Get(), nullptr, renderTargetView.GetAddressOf())))
         {
-            _maskedTexturePreviewFailedKeys.insert(cacheKey);
+            failedKeys.insert(cacheKey);
             return nullptr;
         }
 
         ComPtr<ID3D11ShaderResourceView> previewSRV = nullptr;
         if (FAILED(_device->CreateShaderResourceView(renderTexture.Get(), nullptr, previewSRV.GetAddressOf())))
         {
-            _maskedTexturePreviewFailedKeys.insert(cacheKey);
+            failedKeys.insert(cacheKey);
             return nullptr;
         }
 
@@ -827,8 +895,13 @@ namespace UIEditor
             SUCCEEDED(_imagePreviewShader->Bind_Matrix("g_ProjMatrix", &projMatrix)) &&
             SUCCEEDED(_imagePreviewShader->Bind_RawValue("g_Color", &color, sizeof(Vec4))) &&
             SUCCEEDED(_imagePreviewShader->Bind_SRV("g_Texture", textureSRV)) &&
-            SUCCEEDED(_imagePreviewShader->Bind_SRV("g_MaskTexture", maskSRV)) &&
-            SUCCEEDED(_imagePreviewShader->Begin(1));
+            SUCCEEDED(_imagePreviewShader->Bind_SRV("g_MaskTexture", maskSRV));
+
+        if (renderSucceeded && nullptr != patternMaskSRV)
+            renderSucceeded = SUCCEEDED(_imagePreviewShader->Bind_SRV("g_PatternMaskTexture", patternMaskSRV));
+
+        if (renderSucceeded)
+            renderSucceeded = SUCCEEDED(_imagePreviewShader->Begin(passIndex));
 
         if (renderSucceeded)
         {
@@ -847,11 +920,11 @@ namespace UIEditor
 
         if (!renderSucceeded)
         {
-            _maskedTexturePreviewFailedKeys.insert(cacheKey);
+            failedKeys.insert(cacheKey);
             return nullptr;
         }
 
-        _maskedTexturePreviewCache.emplace(cacheKey, previewSRV);
-        return _maskedTexturePreviewCache[cacheKey].Get();
+        cache.emplace(cacheKey, previewSRV);
+        return cache[cacheKey].Get();
     }
 }

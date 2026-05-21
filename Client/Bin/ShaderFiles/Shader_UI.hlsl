@@ -7,6 +7,7 @@ float4x4 g_WorldMatrix, g_ViewMatrix, g_ProjMatrix;
 
 Texture2D g_Texture;
 Texture2D g_MaskTexture;
+Texture2D g_PatternMaskTexture;
 
 bool g_IsOverlay;
 bool g_UseGrayScale;
@@ -113,9 +114,26 @@ PS_OUT PS_CIRCULAR_HOLE(PS_IN In)
     return Out;
 }
 
+PS_OUT PS_PATTERN_OVERLAY(PS_IN In)
+{
+    PS_OUT Out;
+
+    const float3 lumaWeights = float3(0.299f, 0.587f, 0.114f);
+    const float4 pattern = g_Texture.Sample(LinearClampSampler, In.vTexcoord);
+    const float paintMask = saturate(dot(g_MaskTexture.Sample(LinearClampSampler, In.vTexcoord).rgb, lumaWeights));
+    const float patternMask = saturate(dot(g_PatternMaskTexture.Sample(LinearClampSampler, In.vTexcoord).rgb, lumaWeights));
+    const float patternCoverage = saturate(min(pattern.a, dot(pattern.rgb, lumaWeights)));
+
+    Out.vColor.rgb = g_Color.rgb;
+    Out.vColor.a = patternCoverage * paintMask * patternMask * g_Color.a;
+
+    return Out;
+}
+
 technique11 DefaultTechnique
 {
     PASS_RS_DS_BS_VP(NormalPass,    RS_UI, DSS_None, BS_AlphaBlend, VS_MAIN, PS_NORMAL) // 0
     PASS_RS_DS_BS_VP(MaskPass,      RS_UI, DSS_None, BS_AlphaBlend, VS_MAIN, PS_MASK)   // 1
     PASS_RS_DS_BS_VP(CircularHolePass, RS_UI, DSS_None, BS_AlphaBlend, VS_MAIN, PS_CIRCULAR_HOLE) // 2
+    PASS_RS_DS_BS_VP(PatternOverlayPass, RS_UI, DSS_None, BS_AlphaBlend, VS_MAIN, PS_PATTERN_OVERLAY) // 3
 }

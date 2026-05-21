@@ -59,6 +59,19 @@ namespace UIEditor
         }
     }
 
+    const char* Get_ImageRenderModeName(UI_ImageRenderMode imageRenderMode)
+    {
+        switch (imageRenderMode)
+        {
+        case UI_ImageRenderMode::Normal:
+            return "Normal";
+        case UI_ImageRenderMode::PatternOverlay:
+            return "PatternOverlay";
+        default:
+            return "Normal";
+        }
+    }
+
     ImU32 Get_ObjectFillColor(UI_ObjectType objectType)
     {
         switch (objectType)

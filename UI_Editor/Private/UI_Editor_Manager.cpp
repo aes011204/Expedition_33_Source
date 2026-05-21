@@ -196,6 +196,23 @@ namespace UIEditor
         return _previewService.Get_MaskedTexturePreviewSRV(textureGuid, texturePath, maskTextureGuid, maskTexturePath);
     }
 
+    ID3D11ShaderResourceView* UI_Editor_Manager::Get_PatternOverlayPreviewSRV(
+        const string& textureGuid,
+        const string& texturePath,
+        const string& paintMaskTextureGuid,
+        const string& paintMaskTexturePath,
+        const string& patternMaskTextureGuid,
+        const string& patternMaskTexturePath)
+    {
+        return _previewService.Get_PatternOverlayPreviewSRV(
+            textureGuid,
+            texturePath,
+            paintMaskTextureGuid,
+            paintMaskTexturePath,
+            patternMaskTextureGuid,
+            patternMaskTexturePath);
+    }
+
     void UI_Editor_Manager::Render_DockSpace()
     {
         ImGuiViewport* viewport = ImGui::GetMainViewport();
@@ -532,6 +549,7 @@ namespace UIEditor
 
                 resolveTextureGuid(object.textureGuid, object.texturePath, "image");
                 resolveTextureGuid(object.maskTextureGuid, object.maskTexturePath, "mask");
+                resolveTextureGuid(object.patternMaskTextureGuid, object.patternMaskTexturePath, "pattern mask");
             }
             else if (object.type == UI_ObjectType::Text)
             {
@@ -644,6 +662,54 @@ namespace UIEditor
 
         Set_SingleSelection(createdObjectId);
         Mark_Dirty();
+    }
+
+    bool UI_Editor_Manager::Create_PatternOverlayFromImage(ObjectId sourceObjectId)
+    {
+        const UI_Object* sourceObject = _document.Find_Object(sourceObjectId);
+        if (nullptr == sourceObject || sourceObject->type != UI_ObjectType::Image)
+            return false;
+
+        if (Is_ObjectEffectivelyLocked(sourceObjectId))
+            return false;
+
+        const UI_Object source = *sourceObject;
+        const int32 overlaySortOrder = source.sortOrder + 1;
+
+        Push_UndoSnapshot();
+
+        const ObjectId overlayObjectId = _document.Create_Object(UI_ObjectType::Image, source.parentId);
+        UI_Object* overlayObject = _document.Find_Object(overlayObjectId);
+        if (nullptr == overlayObject)
+            return false;
+
+        for (UI_Object& object : _document.Get_MutableObjects())
+        {
+            if (object.id != overlayObjectId && object.sortOrder >= overlaySortOrder)
+                ++object.sortOrder;
+        }
+
+        UI_Object overlay = source;
+        overlay.id = overlayObjectId;
+        overlay.name = _document.Generate_UniqueName(source.name.empty() ? "PatternOverlay" : source.name + "_PatternOverlay", overlayObjectId);
+        overlay.parentId = source.parentId;
+        overlay.imageRenderMode = UI_ImageRenderMode::PatternOverlay;
+        overlay.textureGuid.clear();
+        overlay.texturePath.clear();
+        overlay.patternMaskTextureGuid.clear();
+        overlay.patternMaskTexturePath.clear();
+        overlay.color = ImVec4(0.74f, 0.58f, 0.25f, 0.35f);
+        overlay.visible = true;
+        overlay.locked = false;
+        overlay.sortOrder = overlaySortOrder;
+        overlay.animationClips.clear();
+
+        *overlayObject = overlay;
+
+        Set_SingleSelection(overlayObjectId);
+        Clear_RuntimeCaches();
+        Mark_Dirty();
+        return true;
     }
 
     bool UI_Editor_Manager::Create_UIObjectsFromPrefab(const UI_PrefabAsset& prefab)

@@ -52,8 +52,16 @@ public:
         const string& texturePath,
         const string& maskTextureGuid,
         const string& maskTexturePath);
+    ID3D11ShaderResourceView* Get_PatternOverlayPreviewSRV(
+        const string& textureGuid,
+        const string& texturePath,
+        const string& paintMaskTextureGuid,
+        const string& paintMaskTexturePath,
+        const string& patternMaskTextureGuid,
+        const string& patternMaskTexturePath);
     bool New_Document();
     void Create_UIObject(UI_ObjectType objectType);
+    bool Create_PatternOverlayFromImage(ObjectId sourceObjectId);
     bool Create_UIObjectsFromPrefab(const UI_PrefabAsset& prefab);
     void Duplicate_UIObject(ObjectId objectId);
     void Delete_UIObject(ObjectId objectId);

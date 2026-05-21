@@ -627,11 +627,24 @@ namespace UIEditor
                 const float borderThickness = isPrimarySelected ? 2.5f : (isSelected ? 2.f : 1.5f);
                 const float objectRounding = renderObject.type == UI_ObjectType::Button ? 4.f : 0.f;
                 ID3D11ShaderResourceView* previewSRV = nullptr;
+                bool requiresCompositePreview = false;
 
                 if (renderObject.type == UI_ObjectType::Image && (!renderObject.textureGuid.empty() || !renderObject.texturePath.empty()))
                 {
-                    if (!renderObject.maskTextureGuid.empty() || !renderObject.maskTexturePath.empty())
+                    if (renderObject.imageRenderMode == UI_ImageRenderMode::PatternOverlay)
                     {
+                        requiresCompositePreview = true;
+                        previewSRV = _editorManager.Get_PatternOverlayPreviewSRV(
+                            renderObject.textureGuid,
+                            renderObject.texturePath,
+                            renderObject.maskTextureGuid,
+                            renderObject.maskTexturePath,
+                            renderObject.patternMaskTextureGuid,
+                            renderObject.patternMaskTexturePath);
+                    }
+                    else if (!renderObject.maskTextureGuid.empty() || !renderObject.maskTexturePath.empty())
+                    {
+                        requiresCompositePreview = true;
                         previewSRV = _editorManager.Get_MaskedTexturePreviewSRV(
                             renderObject.textureGuid,
                             renderObject.texturePath,
@@ -639,7 +652,7 @@ namespace UIEditor
                             renderObject.maskTexturePath);
                     }
 
-                    if (nullptr == previewSRV)
+                    if (nullptr == previewSRV && !requiresCompositePreview)
                         previewSRV = _editorManager.Get_TexturePreviewSRV(renderObject.textureGuid, renderObject.texturePath);
                 }
 
@@ -797,8 +810,8 @@ namespace UIEditor
                     _resizingObjectId = _editorManager.Get_SelectedObjectId();
                     _activeResizeHandle = hoveredResizeHandle;
                     _resizeStartMouseCanvasPos = mouseCanvasPos;
-                    _resizeStartObjectWorldPosition = selectedObjectWorldPosition;
-                    _resizeStartObjectWorldSize = selectedObjectWorldSize;
+                    _resizeStartObjectWorldPosition = document.Get_WorldPosition(_resizingObjectId);
+                    _resizeStartObjectWorldSize = document.Get_WorldSize(_resizingObjectId);
                     _draggingObjectId = 0;
                     _draggingObjectIds.clear();
                     _dragStartObjectWorldPositions.clear();
@@ -865,20 +878,12 @@ namespace UIEditor
                                         continue;
 
                                     _draggingObjectIds.push_back(draggingObjectId);
-                                    const ImVec2 draggingCenter = document.Get_WorldCenter(draggingObjectId);
-                                    const ImVec2 draggingSize = document.Get_WorldSize(draggingObjectId);
-                                    _dragStartObjectWorldPositions[draggingObjectId] = ImVec2(
-                                        draggingCenter.x - draggingSize.x * 0.5f,
-                                        draggingCenter.y - draggingSize.y * 0.5f);
+                                    _dragStartObjectWorldPositions[draggingObjectId] = document.Get_WorldPosition(draggingObjectId);
                                 }
 
                                 if (!_draggingObjectIds.empty())
                                 {
-                                    const ImVec2 pickedCenter = document.Get_WorldCenter(pickedObjectId);
-                                    const ImVec2 pickedSize = document.Get_WorldSize(pickedObjectId);
-                                    _dragStartObjectWorldPosition = ImVec2(
-                                        pickedCenter.x - pickedSize.x * 0.5f,
-                                        pickedCenter.y - pickedSize.y * 0.5f);
+                                    _dragStartObjectWorldPosition = document.Get_WorldPosition(pickedObjectId);
                                     _editorManager.Begin_EditTransaction();
                                 }
                             }
@@ -941,14 +946,15 @@ namespace UIEditor
 
                     if (_snapEnabled)
                     {
+                        const ImVec2 snappedDelta = Snap_Position(delta, _gridSize);
                         if (movesLeft)
-                            nextMin.x = Snap_Value(nextMin.x, _gridSize);
+                            nextMin.x = _resizeStartObjectWorldPosition.x + snappedDelta.x;
                         if (movesRight)
-                            nextMax.x = Snap_Value(nextMax.x, _gridSize);
+                            nextMax.x = _resizeStartObjectWorldPosition.x + _resizeStartObjectWorldSize.x + snappedDelta.x;
                         if (movesTop)
-                            nextMin.y = Snap_Value(nextMin.y, _gridSize);
+                            nextMin.y = _resizeStartObjectWorldPosition.y + snappedDelta.y;
                         if (movesBottom)
-                            nextMax.y = Snap_Value(nextMax.y, _gridSize);
+                            nextMax.y = _resizeStartObjectWorldPosition.y + _resizeStartObjectWorldSize.y + snappedDelta.y;
                     }
 
                     if (nextMax.x - nextMin.x < 1.f)
@@ -990,12 +996,13 @@ namespace UIEditor
                         continue;
 
                     const ImVec2 startWorldPosition = startPositionIter->second;
-                    ImVec2 nextWorldPosition = ImVec2(
-                        startWorldPosition.x + delta.x,
-                        startWorldPosition.y + delta.y);
-
+                    ImVec2 moveDelta = delta;
                     if (_snapEnabled)
-                        nextWorldPosition = Snap_Position(nextWorldPosition, _gridSize);
+                        moveDelta = Snap_Position(moveDelta, _gridSize);
+
+                    const ImVec2 nextWorldPosition = ImVec2(
+                        startWorldPosition.x + moveDelta.x,
+                        startWorldPosition.y + moveDelta.y);
 
                     _editorManager.Set_UIObjectWorldPosition(draggingObjectId, nextWorldPosition);
                 }

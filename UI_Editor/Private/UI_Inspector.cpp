@@ -73,6 +73,7 @@ namespace UIEditor
             UI_Object* selectedObject = _editorManager.Get_SelectedObject();
             if (nullptr != selectedObject)
             {
+                ObjectId createPatternOverlaySourceId = 0;
                 ImGui::PushID(static_cast<int32>(selectedObject->id));
 
                 ImGui::Text("ID: %u", selectedObject->id);
@@ -143,7 +144,7 @@ namespace UIEditor
 
                 if (selectedObject->type == UI_ObjectType::Image)
                 {
-                    changed |= Render_TexturePicker(*selectedObject);
+                    changed |= Render_TexturePicker(*selectedObject, createPatternOverlaySourceId);
                 }
                 else if (Is_ContainerObjectType(selectedObject->type))
                 {
@@ -202,6 +203,9 @@ namespace UIEditor
                     _editorManager.Commit_EditTransactionIfChanged();
 
                 ImGui::PopID();
+
+                if (createPatternOverlaySourceId != 0)
+                    _editorManager.Create_PatternOverlayFromImage(createPatternOverlaySourceId);
             }
             else
             {
@@ -306,17 +310,55 @@ namespace UIEditor
         ImGui::PopID();
     }
 
-    bool UI_Inspector::Render_TexturePicker(UI_Object& object)
+    bool UI_Inspector::Render_TexturePicker(UI_Object& object, ObjectId& outCreatePatternOverlaySourceId)
     {
         ImGui::Separator();
 
+        const char* renderModeItems[] = { "Normal", "Pattern Overlay" };
+        int32 currentRenderMode = static_cast<int32>(object.imageRenderMode);
+        currentRenderMode = min(max(currentRenderMode, 0), static_cast<int32>(size(renderModeItems)) - 1);
+        bool changed = false;
+        if (ImGui::Combo("Image Render Mode", &currentRenderMode, renderModeItems, static_cast<int32>(size(renderModeItems))))
+        {
+            object.imageRenderMode = static_cast<UI_ImageRenderMode>(currentRenderMode);
+            changed = true;
+        }
+
+        if (object.imageRenderMode == UI_ImageRenderMode::Normal)
+        {
+            if (ImGui::Button("Create Pattern Overlay From Selected Paint"))
+                outCreatePatternOverlaySourceId = object.id;
+        }
+
+        ImGui::Separator();
+
         const string popupId = "UITexturePicker##" + to_string(object.id);
-        bool changed = Draw_UITextureSlotPicker("UI Texture", popupId.c_str(), object.textureGuid, object.texturePath);
+        changed |= Draw_UITextureSlotPicker(
+            object.imageRenderMode == UI_ImageRenderMode::PatternOverlay ? "Pattern Texture" : "UI Texture",
+            popupId.c_str(),
+            object.textureGuid,
+            object.texturePath);
 
         ImGui::Separator();
 
         const string maskPopupId = "UIMaskTexturePicker##" + to_string(object.id);
-        changed |= Draw_UITextureSlotPicker("UI Mask Texture", maskPopupId.c_str(), object.maskTextureGuid, object.maskTexturePath);
+        changed |= Draw_UITextureSlotPicker(
+            object.imageRenderMode == UI_ImageRenderMode::PatternOverlay ? "Paint Mask" : "UI Mask Texture",
+            maskPopupId.c_str(),
+            object.maskTextureGuid,
+            object.maskTexturePath);
+
+        if (object.imageRenderMode == UI_ImageRenderMode::PatternOverlay)
+        {
+            ImGui::Separator();
+
+            const string patternMaskPopupId = "UIPatternMaskTexturePicker##" + to_string(object.id);
+            changed |= Draw_UITextureSlotPicker(
+                "Pattern Mask",
+                patternMaskPopupId.c_str(),
+                object.patternMaskTextureGuid,
+                object.patternMaskTexturePath);
+        }
 
         return changed;
     }

@@ -17,15 +17,23 @@ public:
         CircularHole,
     };
 
+    enum class ImageRenderMode : uint8
+    {
+        Normal,
+        PatternOverlay,
+    };
+
     struct UI_IMAGE_DESC : public UI_Base::UI_DESC
     {
         wstring texturePath{};
         wstring maskTexturePath{};
+        wstring patternMaskTexturePath{};
         Vec4 color{ 1.f, 1.f, 1.f, 1.f };
         uint32 shaderPrototypeLevelIndex{ 0 };
         wstring shaderPrototypeTag{ L"Shader_UI" };
         uint32 viBufferPrototypeLevelIndex{ 0 };
         wstring viBufferPrototypeTag{ L"VIBuffer_Rect" };
+        ImageRenderMode imageRenderMode = ImageRenderMode::Normal;
 
         // 인수: 원형 마스크 추가
         MaskMode maskMode = MaskMode::None;
@@ -64,6 +72,7 @@ private:
     float    _grayAmount;
     wstring _texturePath{};
     wstring _maskTexturePath{};
+    wstring _patternMaskTexturePath{};
     Vec4    _color{ 1.f, 1.f, 1.f, 1.f };
 
     uint32 _shaderPrototypeLevelIndex{ 0 };
@@ -73,11 +82,13 @@ private:
 
     ComPtr<ShaderResourceView> _srv{};
     ComPtr<ShaderResourceView> _maskSrv{};
+    ComPtr<ShaderResourceView> _patternMaskSrv{};
 
     Shared<ShaderCom> _shader{};
     Shared<VIBuffer_Rect> _viBuffer{};
 
     // 인수: 원형 마스크 추가
+    ImageRenderMode _imageRenderMode = ImageRenderMode::Normal;
     MaskMode _maskMode = MaskMode::None;
     Vec2 _holeCenterUV{ 0.5f, 0.5f };
     float _holeRadius = 0.f;

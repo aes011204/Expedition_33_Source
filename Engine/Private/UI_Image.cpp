@@ -11,11 +11,13 @@ UI_Image::UI_Image(const UI_Image& prototype)
     : UI_Base{ prototype }
     , _texturePath{ prototype._texturePath }
     , _maskTexturePath{ prototype._maskTexturePath }
+    , _patternMaskTexturePath{ prototype._patternMaskTexturePath }
     , _color{ prototype._color }
     , _shaderPrototypeLevelIndex{ prototype._shaderPrototypeLevelIndex }
     , _shaderPrototypeTag{ prototype._shaderPrototypeTag }
     , _viBufferPrototypeLevelIndex{ prototype._viBufferPrototypeLevelIndex }
     , _viBufferPrototypeTag{ prototype._viBufferPrototypeTag }
+    , _imageRenderMode{ prototype._imageRenderMode }
 {
 }
 
@@ -35,11 +37,13 @@ HRESULT UI_Image::Initialize(void* arg)
 
         _texturePath = desc->texturePath;
         _maskTexturePath = desc->maskTexturePath;
+        _patternMaskTexturePath = desc->patternMaskTexturePath;
         _color = desc->color;
         _shaderPrototypeLevelIndex = desc->shaderPrototypeLevelIndex;
         _shaderPrototypeTag = desc->shaderPrototypeTag;
         _viBufferPrototypeLevelIndex = desc->viBufferPrototypeLevelIndex;
         _viBufferPrototypeTag = desc->viBufferPrototypeTag;
+        _imageRenderMode = desc->imageRenderMode;
 
         _maskMode = desc->maskMode;
         _holeCenterUV = desc->holeCenterUV;
@@ -62,6 +66,15 @@ HRESULT UI_Image::Initialize(void* arg)
         {
             LOG_WARN("UI_Image mask texture load failed. path='{}'", String::ToString(_maskTexturePath));
             _maskSrv.Reset();
+        }
+    }
+
+    if (!_patternMaskTexturePath.empty())
+    {
+        if (FAILED(CreateWICTextureFromFile(device.Get(), _patternMaskTexturePath.c_str(), nullptr, _patternMaskSrv.GetAddressOf())))
+        {
+            LOG_WARN("UI_Image pattern mask texture load failed. path='{}'", String::ToString(_patternMaskTexturePath));
+            _patternMaskSrv.Reset();
         }
     }
 
@@ -159,7 +172,20 @@ HRESULT UI_Image::Render()
 
     uint32 passIndex = 0u;
 
-    if (_maskMode == MaskMode::CircularHole)
+    if (_imageRenderMode == ImageRenderMode::PatternOverlay)
+    {
+        if (nullptr == _maskSrv || nullptr == _patternMaskSrv)
+            return S_OK;
+
+        if (FAILED(_shader->Bind_SRV("g_MaskTexture", _maskSrv.Get())))
+            return E_FAIL;
+
+        if (FAILED(_shader->Bind_SRV("g_PatternMaskTexture", _patternMaskSrv.Get())))
+            return E_FAIL;
+
+        passIndex = 3u;
+    }
+    else if (_maskMode == MaskMode::CircularHole)
     {
         passIndex = 2u;
     }
@@ -239,6 +265,7 @@ void UI_Image::Free()
 {
     _viBuffer.reset();
     _shader.reset();
+    _patternMaskSrv.Reset();
     _maskSrv.Reset();
     _srv.Reset();
 
