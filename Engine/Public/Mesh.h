@@ -17,6 +17,7 @@ public:
 public:
     uint32 Get_MaterialIndex() const { return _materialIndex; }
     HRESULT RenderInstanced(Buffer* instanceVB, uint32 instanceStride, uint32 instanceCount);
+    HRESULT RenderInstancedIndirect(Buffer* instanceVB, uint32 instanceStride, Buffer* indirectArgsBuffer);
     HRESULT Render_ComputeSkinned(Buffer* vertexBuffer, uint32 vertexStride);
     const string& Get_Name() { return _name;  }
     uint32 Get_MaterialIndex() { return _materialIndex;  }

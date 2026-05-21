@@ -802,6 +802,16 @@ HRESULT ModelCom::RenderInstanced(uint32 meshIndex, Buffer* instanceVB, uint32 i
     return _meshes[meshIndex]->RenderInstanced(instanceVB, instanceStride, instanceCount);
 }
 
+HRESULT ModelCom::RenderInstancedIndirect(uint32 meshIndex, Buffer* instanceVB, uint32 instanceStride, Buffer* indirectArgsBuffer)
+{
+    if (meshIndex >= _numMeshes || !instanceVB || !indirectArgsBuffer)
+    {
+        return E_FAIL;
+    }
+
+    return _meshes[meshIndex]->RenderInstancedIndirect(instanceVB, instanceStride, indirectArgsBuffer);
+}
+
 bool ModelCom::Play_Animation(float timeDelta)
 {
     AnimPipelineContext context{};
