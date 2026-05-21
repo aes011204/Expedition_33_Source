@@ -27,6 +27,7 @@ namespace MapEditor
     inline constexpr uint32 g_iWinSizeY = 900u;
 
     inline const char* _mapSavePath = "../../../Client/Bin/Resources/Map/";
+    inline const char* _camDataPath = "../Bin/Resources/Json/CamData/";
 
     enum class EObjectType
     {
@@ -131,6 +132,15 @@ namespace MapEditor
         Vec4 _rotation;
         Vec3 _scale;
     };
+
+    struct CameraBookmark
+    {
+        Vec3 position = {};
+        float yaw = {};
+        float pitch = {};
+        bool valid = false;
+    };
+    inline constexpr int CameraBookmarkCount = 5;
 };
 
 using namespace MapEditor;
