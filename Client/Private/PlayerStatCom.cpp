@@ -273,6 +273,52 @@ void PlayerStatCom::Set_RuntimeProgress(uint32 level, uint32 exp, uint32 statPoi
     Update_StatInfo();
 }
 
+PlayerStatCom::BattleSyncSnapshot PlayerStatCom::Create_BattleSyncSnapshot() const
+{
+    BattleSyncSnapshot snapshot{};
+    snapshot.desc = _playerDesc;
+
+    // desc만 넘기면, F로 반영한 스탯이 빠질수도 있어서 추가로
+    snapshot.curStatPoint = _PRuntimeStat.CurStatPoint;
+    snapshot.curSkillPoint = _PRuntimeStat.CurSkillPoint;
+    snapshot.curRespecCount = _PRuntimeStat.CurRespecCount;
+
+    snapshot.curVitality = _PRuntimeStat.CurVitality;
+    snapshot.curMight = _PRuntimeStat.CurMight;
+    snapshot.curAgility = _PRuntimeStat.CurAgility;
+    snapshot.curDefense = _PRuntimeStat.CurDefense;
+    snapshot.curLuck = _PRuntimeStat.CurLuck;
+
+    snapshot.curHp = _PRuntimeStat.CurHp;
+    snapshot.curAp = _PRuntimeStat.CurAp;
+    snapshot.curShield = _PRuntimeStat.CurShield;
+
+    return snapshot;
+}
+
+void PlayerStatCom::Apply_BattleSyncSnapshot(const BattleSyncSnapshot& snapshot)
+{
+    _playerDesc = snapshot.desc;
+
+    _PRuntimeStat.CurStatPoint = snapshot.curStatPoint;
+    _PRuntimeStat.CurSkillPoint = snapshot.curSkillPoint;
+    _PRuntimeStat.CurRespecCount = snapshot.curRespecCount;
+
+    _PRuntimeStat.CurVitality = snapshot.curVitality;
+    _PRuntimeStat.CurMight = snapshot.curMight;
+    _PRuntimeStat.CurAgility = snapshot.curAgility;
+    _PRuntimeStat.CurDefense = snapshot.curDefense;
+    _PRuntimeStat.CurLuck = snapshot.curLuck;
+
+    Recalculate_Stats();
+    Update_StatInfo();
+
+    // 계산 후 다시 덮어써야 전투 중 소모/피해 결과가 유지
+    _PRuntimeStat.CurHp = min(snapshot.curHp, _PRuntimeStat.CurMaxHp);
+    _PRuntimeStat.CurAp = min(snapshot.curAp, _PRuntimeStat.CurMaxAp);
+    _PRuntimeStat.CurShield = snapshot.curShield;
+}
+
 int32* PlayerStatCom::Find_StatValue(StatType type)
 {
     switch (type)

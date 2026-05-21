@@ -65,7 +65,7 @@ void FreeAimTargeting::Update(float timeDelta)
 
     Refresh_HitTarget(); // 회전된 카메라 방향 기준으로 적 히트 판정
 
-    if (GAME->KeyDown(KEY_TYPE::ESCAPE))
+    if (GAME->KeyDown(KEY_TYPE::RBUTTON))
     {
         Clear_HitTarget();
         battleFSM->Change_State(BattleTurnState::ChooseAction);
