@@ -82,8 +82,14 @@ void BattleController::Update(float timeDelta)
     if (_battleEnded == true)
         return;
 
-    UpdateReactionInput();
+    const bool isBattleCameraLiveEditActive =
+        _battleTurnCamera != nullptr &&
+        _battleTurnCamera->Is_LiveEditEnabled();
 
+    if (isBattleCameraLiveEditActive)
+        return;
+
+    UpdateReactionInput();
     if (_pendingNextTurn)
     {
         _pendingNextTurn = false;
@@ -129,6 +135,11 @@ void BattleController::Run_EnemyTurn()
 
     monster->Decide_Action_BTOnly(Get_TurnAction(), Get_AliveHeroes());
     ExecuteAction( Get_TurnAction());
+
+    EvtBattlePresentation event;
+    event.cameraMode = BattleCameraMode::ENEMYATTACK;
+    event.target = monster;
+    GAME->Get_EventBus().Publish(event);
 }
 
 void BattleController::OnEnterBattleField(uint32 FieldID, bool IsFirstHero, const vector<HeroId>& heroIds,

@@ -7,7 +7,12 @@ enum class PreviewShotPanel
 };
 
 enum class TargetCameraMode { NORMAL, AIM, BATTLE_ENTER };
-enum class BattleCameraMode { WIDE, ENEMYFOCUS, PLAYERFOCUS};
+enum class BattleCameraMode
+{ WIDE,
+  ENEMYFOCUS, //공격 대상 선택시 줌
+  ENEMYATTACK, //적 공격
+  PLAYERFOCUS //
+};
 
 struct PreviewShotPreset
 {

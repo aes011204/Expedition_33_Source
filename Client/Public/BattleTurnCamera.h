@@ -46,6 +46,7 @@ private:
     void Update_WideMode(float timeDelta);
     void Update_PlayerFocusMode(float timeDelta);
     void Update_EnemyFocusMode(float timeDelta);
+    void Update_EnemyAttackMode(float timeDelta);
     void Update_FromCurrentPreset(float timeDelta);
     void Update_LiveEditInput(float timeDelta);
     BattleCameraPreset* Get_MutablePreset(BattleCameraMode mode);
@@ -57,6 +58,7 @@ private:
     BattleCameraPreset   _wideModePreset{};
     BattleCameraPreset   _playerFocusPreset{};
     BattleCameraPreset   _enemyFocusPreset{};
+    BattleCameraPreset   _enemyAttackPreset{};
     Shared<TransformCom> _targetTransform{};
     Vec3                 _smoothedTargetPos = Vec3::Zero;
     Vec3                 _prevTargetPos = Vec3::Zero;

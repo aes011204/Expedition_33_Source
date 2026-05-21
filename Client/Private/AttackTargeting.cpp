@@ -41,6 +41,8 @@ bool AttackTargeting::EnterInvoke()
     if (!owner)
         return false;
 
+    TargetIndex = 0;
+
     const auto enemies = owner->Get_AliveEnemies();
     if (!enemies.empty())
     {
@@ -123,8 +125,6 @@ void AttackTargeting::Update(float timeDelta)
         LOG_DEBUG("TARGETTING {}", TargetIndex);
         return;
     }
-
-
 }
 
 void AttackTargeting::LateUpdate(float timeDelta)

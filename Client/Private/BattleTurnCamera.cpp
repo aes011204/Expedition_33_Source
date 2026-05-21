@@ -61,7 +61,11 @@ HRESULT BattleTurnCamera::Initialize(void* arg)
                 case BattleCameraMode::WIDE:
                     request.mode = event.cameraMode;
                     request.target = event.target;
-                
+                    break;
+
+            case BattleCameraMode::ENEMYATTACK:
+                    request.mode = event.cameraMode;
+                    request.target = event.target;
                     break;
             }
 
@@ -101,6 +105,9 @@ void BattleTurnCamera::Update(float timeDelta)
         break;
     case BattleCameraMode::ENEMYFOCUS:
         Update_EnemyFocusMode(timeDelta);
+        break;
+    case BattleCameraMode::ENEMYATTACK:
+        Update_EnemyAttackMode(timeDelta);
         break;
     }
 
@@ -193,12 +200,16 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
         _targetPreset = _wideModePreset;
         break;
 
-    case BattleCameraMode::PLAYERFOCUS:
+    case BattleCameraMode::PLAYERFOCUS: 
         _targetPreset = _playerFocusPreset;
         break;
 
     case BattleCameraMode::ENEMYFOCUS:
         _targetPreset = _enemyFocusPreset;
+        break;
+
+    case BattleCameraMode::ENEMYATTACK:
+        _targetPreset = _enemyAttackPreset;
         break;
     }
 
@@ -237,11 +248,15 @@ void BattleTurnCamera::Update_WideMode(float timeDelta)
 
 void BattleTurnCamera::Update_PlayerFocusMode(float timeDelta)
 {
-
     Update_FromCurrentPreset(timeDelta);
 }
 
 void BattleTurnCamera::Update_EnemyFocusMode(float timeDelta)
+{
+    Update_FromCurrentPreset(timeDelta);
+}
+
+void BattleTurnCamera::Update_EnemyAttackMode(float timeDelta)
 {
     Update_FromCurrentPreset(timeDelta);
 }
@@ -357,6 +372,9 @@ const BattleCameraPreset& BattleTurnCamera::Get_Preset(BattleCameraMode mode) co
     case BattleCameraMode::ENEMYFOCUS:
         return _enemyFocusPreset;
 
+    case BattleCameraMode::ENEMYATTACK:
+        return _enemyAttackPreset;
+
     default:
         return _wideModePreset;
     }
@@ -376,6 +394,10 @@ void BattleTurnCamera::Set_Preset(BattleCameraMode mode, const BattleCameraPrese
 
     case BattleCameraMode::ENEMYFOCUS:
         _enemyFocusPreset = preset;
+        break;
+
+    case BattleCameraMode::ENEMYATTACK:
+        _enemyAttackPreset = preset;
         break;
 
     default:
@@ -401,6 +423,9 @@ BattleCameraPreset* BattleTurnCamera::Get_MutablePreset(BattleCameraMode mode)
 
     case BattleCameraMode::ENEMYFOCUS:
         return &_enemyFocusPreset;
+
+    case BattleCameraMode::ENEMYATTACK:
+        return &_enemyAttackPreset;
 
     default:
         return nullptr;

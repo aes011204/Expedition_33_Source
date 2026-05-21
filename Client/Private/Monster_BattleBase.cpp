@@ -78,8 +78,6 @@ void Monster_BattleBase::Decide_Action_BTOnly(Action& curturnAction, const vecto
     CHECK_NULL(bb);
 
 
-        
-
     bb->Set_Value("Heroes", heroes);
     bb->Set_Value("DecisionComplete", false);
     bb->Set_Value("TargetIndex", -1);

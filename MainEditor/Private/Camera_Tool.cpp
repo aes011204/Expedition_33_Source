@@ -5,13 +5,14 @@
 #include "GameInstance.h"
 #include <magic_enum/magic_enum.hpp>
 #include <algorithm>
-
 #include "BattleController.h"
 #include "CameraPresetIO.h"
 #include "PreviewCamera.h"
 #include "CameraPresetTypes.h"
 #include "PreviewShotTable.h"
 #include "ClientInstance.h"
+#include "Editor_Macro.h"
+#include "EditorInstance.h"
 
 namespace
 {
@@ -343,6 +344,7 @@ void Camera_Tool::Edit_BattleTurnCameraPreset()
         if (ImGui::Button("Start Live Edit"))
         {
             GAME->Change_ActiveCamera(battleTurnCamera);
+            EDITOR->Request_WindowFocus(EDITOR_VIEWPORT_TARGET::Game);
             battleTurnCamera->Begin_LiveEdit(_editingBattleCameraMode, previewTarget);
         }
     }
@@ -359,7 +361,7 @@ void Camera_Tool::Edit_BattleTurnCameraPreset()
     }
 
     ImGui::TextDisabled("Live Edit Controls: Hold RMB + move mouse = yaw/pitch");
-    ImGui::TextDisabled("RMB + W/S = distance, A/D = side offset, Q/E = height offset, Wheel = zoom");
+    ImGui::TextDisabled("RMB + W/S = distance, A/D = aim offset, Q/E = pivot offset, Wheel = zoom");
 }
 
 void Camera_Tool::Select_EditingPreviewPanel()
