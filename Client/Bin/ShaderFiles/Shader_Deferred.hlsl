@@ -149,7 +149,7 @@ PS_OUT_HDR_WITH_MASK PS_CombinedHDR(PS_IN In)
     vector Specular = g_SpecularTexture.Sample(LinearWrapSampler, In.Texcoord);
     vector Emissive = g_EmissiveTexture.Sample(LinearWrapSampler, In.Texcoord);
 
-    float aoRaw = g_SSAOTexture.Sample(LinearWrapSampler, In.Texcoord);
+    float aoRaw = g_SSAOTexture.Sample(LinearClampSampler, In.Texcoord);
     float ao = lerp(1.f, aoRaw, saturate(g_SSAOIntensity));
     ao = pow(saturate(ao), max(g_SSAOPower, EPSILON));
 

@@ -369,6 +369,9 @@ void Renderer::Render_SSAO()
             _deferredShader->Bind_ObjectCB(_pipelineWorldMatrix));
 
         ENDMRT_RETURN_IF_FAILED(
+            GAME->Bind_CameraCB(_deferredShader));
+
+        ENDMRT_RETURN_IF_FAILED(
             Bind_ScreenSpaceCB(_deferredShader));
 
         ENDMRT_RETURN_IF_FAILED(
