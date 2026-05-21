@@ -83,13 +83,19 @@
       <Filter>04. Camera</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\EffectAuthoringJsonSerializer.cpp">
-      <Filter>05. Serializer</Filter>
+      <Filter>06. Serializer</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\EffectAuthoringModuleMetadata.cpp">
-      <Filter>06. Authoring Support</Filter>
+      <Filter>07. Authoring Support</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\EffectPreviewOrbitCamera.cpp">
       <Filter>04. Camera\Preview Support</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\EffectEditorSkybox.cpp">
+      <Filter>05. EditorOnly Object\EffectEditor Skybox</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\TrailPreviewModelObject.cpp">
+      <Filter>05. EditorOnly Object\Trail Preview Object</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\EffectMaterialPresetReader.cpp">
       <Filter>01. View\Effect Material View\Support</Filter>
@@ -205,13 +211,19 @@
       <Filter>04. Camera</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\EffectAuthoringJsonSerializer.h">
-      <Filter>05. Serializer</Filter>
+      <Filter>06. Serializer</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\EffectAuthoringModuleMetadata.h">
-      <Filter>06. Authoring Support</Filter>
+      <Filter>07. Authoring Support</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\EffectPreviewOrbitCamera.h">
       <Filter>04. Camera\Preview Support</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\EffectEditorSkybox.h">
+      <Filter>05. EditorOnly Object\EffectEditor Skybox</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\TrailPreviewModelObject.h">
+      <Filter>05. EditorOnly Object\Trail Preview Object</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\EffectMaterialPresetReader.h">
       <Filter>01. View\Effect Material View\Support</Filter>
@@ -302,12 +314,6 @@
     <Filter Include="04. Camera">
       <UniqueIdentifier>{60cec4ea-d4b0-4558-a156-9185d0c47f5c}</UniqueIdentifier>
     </Filter>
-    <Filter Include="05. Serializer">
-      <UniqueIdentifier>{aae158e1-6103-4fc4-a114-f0458c6728dc}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="06. Authoring Support">
-      <UniqueIdentifier>{f2f1a9b1-5f56-49c0-81f2-efa2ae3127da}</UniqueIdentifier>
-    </Filter>
     <Filter Include="04. Camera\Preview Support">
       <UniqueIdentifier>{af828d1c-950d-46bc-8e76-8fec5206c2f7}</UniqueIdentifier>
     </Filter>
@@ -316,6 +322,21 @@
     </Filter>
     <Filter Include="01. View\Effect Material View\Preview Renderer">
       <UniqueIdentifier>{94faf53c-b720-4e98-9432-3e20c343d149}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="06. Serializer">
+      <UniqueIdentifier>{aae158e1-6103-4fc4-a114-f0458c6728dc}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="07. Authoring Support">
+      <UniqueIdentifier>{f2f1a9b1-5f56-49c0-81f2-efa2ae3127da}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="05. EditorOnly Object">
+      <UniqueIdentifier>{59a6be73-0d57-4883-aefe-6686d5d46712}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="05. EditorOnly Object\EffectEditor Skybox">
+      <UniqueIdentifier>{de00cc05-c9ca-4d49-9b06-b1587466a914}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="05. EditorOnly Object\Trail Preview Object">
+      <UniqueIdentifier>{29a6939b-5282-4e71-9ce7-47cd7a735cab}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

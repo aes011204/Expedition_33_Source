@@ -237,6 +237,11 @@ bool EffectMaterialPreviewRenderer::Ready_Texture(const string& textureGuid, con
             _texture = nullptr;
             _loadedTextureKey.clear();
             _statusMessage = "Main texture GUID resolve failed. Fallback path is diagnostic only.";
+            LOG_ERROR(
+                "EffectMaterialPreview main texture GUID resolve failed. mainTextureGuid='{}', mainTexturePath='{}'. Fallback path is diagnostic only.",
+                textureGuid,
+                texturePath
+            );
             return false;
         }
     }
@@ -248,10 +253,21 @@ bool EffectMaterialPreviewRenderer::Ready_Texture(const string& textureGuid, con
             _texture = nullptr;
             _loadedTextureKey.clear();
             _statusMessage = "Main texture fallback path is missing.";
+            LOG_ERROR(
+                "EffectMaterialPreview main texture fallback path is missing. mainTextureGuid='{}', mainTexturePath='{}'.",
+                textureGuid,
+                texturePath
+            );
             return false;
         }
 
         _statusMessage = "Main texture uses fallback path only. Save a GUID-backed reference.";
+        LOG_WARN(
+            "EffectMaterialPreview main texture uses fallback path only. mainTextureGuid='{}', mainTexturePath='{}', resolvedPath='{}'.",
+            textureGuid,
+            texturePath,
+            String::ToString(resolvedPath)
+        );
     }
 
     if (resolvedPath.empty())
@@ -259,6 +275,11 @@ bool EffectMaterialPreviewRenderer::Ready_Texture(const string& textureGuid, con
         _texture = nullptr;
         _loadedTextureKey.clear();
         _statusMessage = "Main texture reference is empty.";
+        LOG_ERROR(
+            "EffectMaterialPreview main texture reference is empty. mainTextureGuid='{}', mainTexturePath='{}'.",
+            textureGuid,
+            texturePath
+        );
         return false;
     }
 
@@ -274,6 +295,12 @@ bool EffectMaterialPreviewRenderer::Ready_Texture(const string& textureGuid, con
 
     _loadedTextureKey.clear();
     _statusMessage = "Preview texture create failed.";
+    LOG_ERROR(
+        "EffectMaterialPreview main texture create failed. mainTextureGuid='{}', mainTexturePath='{}', resolvedPath='{}'.",
+        textureGuid,
+        texturePath,
+        requestedTextureKey
+    );
     return false;
 }
 
@@ -295,12 +322,26 @@ bool EffectMaterialPreviewRenderer::Ready_NoiseTexture(const string& textureGuid
             _noiseTexture = nullptr;
             _loadedNoiseTextureKey.clear();
             _statusMessage = "Noise texture GUID resolve failed. Preview continues without noise.";
+            LOG_WARN(
+                "EffectMaterialPreview noise texture GUID resolve failed. noiseTextureGuid='{}', noiseTexturePath='{}'. Preview continues without noise.",
+                textureGuid,
+                texturePath
+            );
             return true;
         }
     }
     else
     {
         resolvedPath = Internal::Resolve_PreviewTexturePathByFallbackPath(texturePath);
+        if (!resolvedPath.empty())
+        {
+            LOG_WARN(
+                "EffectMaterialPreview noise texture uses fallback path only. noiseTextureGuid='{}', noiseTexturePath='{}', resolvedPath='{}'.",
+                textureGuid,
+                texturePath,
+                String::ToString(resolvedPath)
+            );
+        }
     }
 
     if (resolvedPath.empty())
@@ -308,6 +349,11 @@ bool EffectMaterialPreviewRenderer::Ready_NoiseTexture(const string& textureGuid
         _noiseTexture = nullptr;
         _loadedNoiseTextureKey.clear();
         _statusMessage = "Noise texture missing. Preview continues without noise.";
+        LOG_WARN(
+            "EffectMaterialPreview noise texture missing. noiseTextureGuid='{}', noiseTexturePath='{}'. Preview continues without noise.",
+            textureGuid,
+            texturePath
+        );
         return true;
     }
 
@@ -322,6 +368,12 @@ bool EffectMaterialPreviewRenderer::Ready_NoiseTexture(const string& textureGuid
     {
         _loadedNoiseTextureKey.clear();
         _statusMessage = "Noise texture missing. Preview continues without noise.";
+        LOG_WARN(
+            "EffectMaterialPreview noise texture create failed. noiseTextureGuid='{}', noiseTexturePath='{}', resolvedPath='{}'. Preview continues without noise.",
+            textureGuid,
+            texturePath,
+            requestedTextureKey
+        );
     }
 
     return true;

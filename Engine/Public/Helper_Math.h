@@ -54,6 +54,17 @@ inline float GetSmoothStepRatio(float ratio, float power = 2.0f)
 }
 
 /**
+ * @brief value가 start~end 구간 안에서 차지하는 비율을 0~1로 정규화한다.
+ */
+inline float NormalizeSegment(float value, float start, float end)
+{
+    if (end <= start)
+        return 0.f;
+
+    return std::clamp((value - start) / (end - start), 0.f, 1.f);
+}
+
+/**
  * @brief 감속 보간
  * 
  * 목표 지점에 가까워질수록 속도가 줄어들며 부드럽게 정지한다.
