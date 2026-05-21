@@ -204,6 +204,9 @@
     <ClInclude Include="..\Public\Helper_Distribution.h">
       <Filter>99. Defines\Helper</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\Helper_EffectAuthoring.h">
+      <Filter>99. Defines\Helper</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\ModuleDetail_Drawers.h">
       <Filter>01. View\Detail View\Drawers</Filter>
     </ClInclude>

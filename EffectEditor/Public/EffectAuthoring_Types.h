@@ -289,6 +289,32 @@ struct ParticleSystemAuthoringData
     bool autoDeactivate{ true };
 };
 
+enum class AuthoringTypeDataKind : uint8
+{
+    None,
+    Trail,
+};
+
+struct EmptyTypeData
+{};
+
+struct TrailTypeData
+{
+    float width{ 0.1f };
+    float segmentLifetime{ 0.25f };
+    uint32 historyCount{ 32 };
+    float uvTiling{ 1.f };
+    bool smoothTangent{ true };
+};
+
+using AuthoringTypeDataPayload = variant<EmptyTypeData, TrailTypeData>;
+
+struct AuthoringTypeData
+{
+    AuthoringTypeDataKind kind{ AuthoringTypeDataKind::None };
+    AuthoringTypeDataPayload payload{ EmptyTypeData{} };
+};
+
 struct RequiredModuleData
 {
     string rendererType{ "Sprite" };
@@ -500,6 +526,7 @@ struct AuthoringEmitter
     string textureId{ "Effects/Textures/Shared/DefaultTexture.dds" };
     bool enabled{ true };
     bool previewDirty{ true };
+    AuthoringTypeData typeData{};
     vector<AuthoringModule> modules{};
 };
 

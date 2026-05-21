@@ -435,10 +435,13 @@ Shared<const EffectDefinition> Level_EffectEditor::Build_PreviewEffectDefinition
         if (!emitter.enabled)
             continue;
 
-        const string rendererTypeLower = String::ToLowerCopy(emitter.rendererType);
-        if (rendererTypeLower != "sprite")
+        if (emitter.typeData.kind != AuthoringTypeDataKind::None)
         {
-            LOG_INFO("EffectEditor preview skip: emitter='{}', rendererType='{}'", emitter.name, emitter.rendererType);
+            LOG_INFO(
+                "EffectEditor preview skip: emitter='{}', typeData='{}' is not connected to runtime preview yet.",
+                emitter.name,
+                emitter.typeData.kind == AuthoringTypeDataKind::Trail ? "Trail" : "None"
+            );
             continue;
         }
 

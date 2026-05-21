@@ -781,7 +781,7 @@ bool RequiredModuleDetail::Draw(AuthoringEmitter& emitter, const AuthoringModule
 
     if (changed)
     {
-        emitter.rendererType = data.rendererType;
+        emitter.rendererType = emitter.typeData.kind == AuthoringTypeDataKind::Trail ? "Trail" : data.rendererType;
         emitter.textureId = data.material.mainTexturePath;
         emitter.resourceSummary = data.material.mainTexturePath;
     }

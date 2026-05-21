@@ -758,7 +758,7 @@ void EffectMaterialInstance_View::Apply_MaterialChanged(
     const RequiredModuleData& requiredData)
 {
     emitter.previewDirty = true;
-    emitter.rendererType = requiredData.rendererType;
+    emitter.rendererType = emitter.typeData.kind == AuthoringTypeDataKind::Trail ? "Trail" : requiredData.rendererType;
     emitter.textureId = requiredData.material.mainTexturePath;
     emitter.resourceSummary = requiredData.material.mainTexturePath;
 

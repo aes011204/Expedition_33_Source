@@ -132,7 +132,6 @@ void Detail_View::Render_EmitterDetail(
 
     const Emitter_View::AuthoringSnapshot beforeSnapshot = emitterView->Capture_AuthoringSnapshot();
     const AuthoringEmitter defaultData{};
-    const RequiredModuleData* requiredData = Find_RequiredModuleData(emitter);
     bool changed = false;
 
     if (_detailPropertyContext.Begin_PropertyTable("Emitter"))
@@ -141,7 +140,7 @@ void Detail_View::Render_EmitterDetail(
 
         ImGui::PushID("RendererType");
         _detailPropertyContext.Draw_PropertyLabel("렌더러 타입");
-        ImGui::TextDisabled("%s", requiredData != nullptr ? requiredData->rendererType.c_str() : emitter.rendererType.c_str());
+        ImGui::TextDisabled("%s", emitter.rendererType.c_str());
         _detailPropertyContext.Draw_ResetButton(false);
         ImGui::PopID();
 
@@ -162,9 +161,42 @@ void Detail_View::Render_TypeDataDetail(
 {
     ImGui::TextUnformatted("타입 데이터");
     ImGui::Separator();
-    ImGui::TextDisabled("장착된 타입 데이터가 없습니다.");
 
-    Mark_Changed(emitterView, emitter, false);
+    bool changed = false;
+    const Emitter_View::AuthoringSnapshot beforeSnapshot = emitterView->Capture_AuthoringSnapshot();
+    switch (emitter.typeData.kind)
+    {
+    case AuthoringTypeDataKind::Trail:
+    {
+        TrailTypeData* data = get_if<TrailTypeData>(&emitter.typeData.payload);
+        if (data == nullptr)
+        {
+            ImGui::TextDisabled("Trail TypeData payload is invalid.");
+            break;
+        }
+
+        const TrailTypeData defaultData{};
+        if (_detailPropertyContext.Begin_PropertyTable("TrailTypeData"))
+        {
+            changed |= _detailPropertyContext.Draw_FloatProperty("너비", data->width, defaultData.width);
+            changed |= _detailPropertyContext.Draw_FloatProperty("세그먼트 수명", data->segmentLifetime, defaultData.segmentLifetime);
+            changed |= _detailPropertyContext.Draw_UintProperty("히스토리 수", data->historyCount, defaultData.historyCount);
+            changed |= _detailPropertyContext.Draw_FloatProperty("UV 타일링", data->uvTiling, defaultData.uvTiling);
+            changed |= _detailPropertyContext.Draw_BoolProperty("탄젠트 스무딩", data->smoothTangent, defaultData.smoothTangent);
+            _detailPropertyContext.End_PropertyTable();
+        }
+        break;
+    }
+    case AuthoringTypeDataKind::None:
+    default:
+        ImGui::TextDisabled("장착된 타입 데이터가 없습니다.");
+        break;
+    }
+
+    if (changed)
+        Begin_PendingAuthoringEdit(emitterView, selection, beforeSnapshot, "Edit TypeData Detail");
+
+    Mark_Changed(emitterView, emitter, changed);
     Commit_PendingAuthoringEditIfIdle(emitterView);
 }
 
@@ -298,19 +330,6 @@ void Detail_View::Mark_Changed(const Shared<Emitter_View>& emitterView, Authorin
     if (emitterView)
         emitterView->MarkDirty();
     MarkDirty();
-}
-
-RequiredModuleData* Detail_View::Find_RequiredModuleData(AuthoringEmitter& emitter)
-{
-    for (AuthoringModule& module : emitter.modules)
-    {
-        if (module.type != AuthoringModuleType::Required)
-            continue;
-
-        return get_if<RequiredModuleData>(&module.data);
-    }
-
-    return nullptr;
 }
 
 void Detail_View::Commit_PendingAuthoringEditOnTargetChange(

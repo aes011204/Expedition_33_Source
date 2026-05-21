@@ -71,6 +71,14 @@ private:
         ResetData
     };
 
+    enum class PendingTypeDataAction
+    {
+        None,
+        AddTrail,
+        ResetData,
+        Remove
+    };
+
     struct ModulePickerEntry
     {
         optional<AuthoringModuleType> moduleType{};
@@ -122,6 +130,8 @@ private: //## Data
     PendingModuleAction _pendingModuleAction{ PendingModuleAction::None };
     optional<size_t> _pendingModuleEmitterIndex{};
     optional<size_t> _pendingModuleIndex{};
+    PendingTypeDataAction _pendingTypeDataAction{ PendingTypeDataAction::None };
+    optional<size_t> _pendingTypeDataEmitterIndex{};
     optional<size_t> _modulePickerEmitterIndex{};
     bool _modulePickerPendingOpen{ false };
     char _modulePickerSearchBuffer[128]{};
@@ -170,6 +180,9 @@ private: //## Helpers
     void Reset_ModuleData(size_t emitterIndex, size_t moduleIndex);
     void Queue_ModuleAction(PendingModuleAction action, size_t emitterIndex, size_t moduleIndex);
     void Process_PendingModuleAction();
+    void Apply_TypeDataAction(PendingTypeDataAction action, size_t emitterIndex);
+    void Queue_TypeDataAction(PendingTypeDataAction action, size_t emitterIndex);
+    void Process_PendingTypeDataAction();
     vector<ModulePickerEntry> Build_ModulePickerEntries(const AuthoringEmitter& emitter) const;
     void Open_ModulePicker(size_t emitterIndex);
     void Close_ModulePicker();
@@ -185,7 +198,7 @@ private: //## Helpers
     // hover tooltip은 설명 dump가 아니라 경고성 사유만 노출하는 채널로 유지한다.
     string Build_ModuleWarningTooltip(const AuthoringEmitter& emitter, const AuthoringModule& module) const;
     void Draw_EmitterContextMenu(size_t emitterIndex);
-    void Draw_TypeDataContextMenu();
+    void Draw_TypeDataContextMenu(size_t emitterIndex);
     void Draw_ModuleContextMenu(size_t emitterIndex, size_t moduleIndex, const AuthoringModule& module);
 
     void Draw_EmitterBoard();
