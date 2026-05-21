@@ -71,6 +71,7 @@ public:
         Pl_GameMenu_Skill_Intro, Pl_GameMenu_Skill_Idle,
         Pl_GameMenu_SkillTree_Intro, Pl_GameMenu_SkillTree_Idle,
         Pl_GameMenu_Weapon_Intro, Pl_GameMenu_Weapon_Idle,
+        P1_GameMenu_Chara_Intro, P1_GameMenu_Chara_Idle,
 
 
         Pl_Explo,
