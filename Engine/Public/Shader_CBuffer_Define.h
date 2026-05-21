@@ -157,33 +157,23 @@ struct alignas(16) SSAOCB
 {
     static constexpr ConstantBuffer CBType = ConstantBuffer::SSAO;
 
-    // SSAO 계산 품질/강도
-    float SSAORadius = 4.0f;                      // 화면상 주변을 얼마나 멀리 샘플링할지.
-    float SSAOBias = 0.025f;                      // 자기 자신과 거의 같은 깊이는 ao 로 안 넘김.
-    float SSAOIntensity = 1.0f;                   // AO 강도. 클수록 더 어두워짐.
-    float SSAOPower = 1.2f;                       // AO 대비 조절. 클수록 어두운 부분이 더 강조됨.
+    // Raw SSAO 핵심 파라미터.
+    // 현재 구현은 view-space 반구 샘플링이므로 Radius는 "화면 픽셀 반경"이 아니라
+    // 현재 픽셀 주변을 3D 공간에서 얼마나 멀리 볼지 정하는 반경으로 해석된다.
+    float SSAORadius = 0.2f;                      // view-space 샘플 반경. 값이 커질수록 넓은 홈/바닥까지 AO가 쉽게 들어간다.
+    float SSAOBias = 0.1f;                      // 자기 표면을 가려진 것으로 잘못 세지 않도록 밀어주는 깊이 여유값.
+    float SSAOIntensity = 0.7f;                   // Combined 단계에서 AO 결과를 얼마나 강하게 섞을지.
+    float SSAOPower = 1.2f;                       // Combined 단계에서 AO 대비를 얼마나 더 눌러줄지.
 
-    float SSAODepthRange = 0.5f;                  // viewZ 기준으로 AO로 인정할 최대 깊이 차이.
+    float SSAODepthRange = 1.0f;                  // sample depth와 center depth 차이가 클 때 AO 기여를 얼마나 빨리 감쇠할지.
+    float SSAOBlurRadius = 4.0f;                  // Bilateral Blur 반경. 0에 가까울수록 raw SSAO 형태를 더 많이 유지한다.
+    float SSAODepthSharpness = 100.0f;            // Blur에서 깊이 경계를 얼마나 강하게 보존할지.
+    float SSAONormalSharpness = 8.0f;             // Blur에서 노멀 경계를 얼마나 강하게 보존할지.
 
-    // Blur / Bilateral Blur
-    float SSAOBlurRadius = 1.0f;                  // Blur 단계에서 주변 몇 픽셀까지 흐릴지.
-    float SSAODepthSharpness = 100.0f;            // 깊이 차이가 클 때 AO 영향을 얼마나 빨리 줄일지.
-    float SSAONormalSharpness = 8.0f;             // Normal 기반 Bilateral Blur에서 노멀 차이를 얼마나 민감하게 볼지.
-    uint32 SSAOSampleCount = 16;                  // 샘플 개수, 최대 16개.
-
-    // 기능 On/Off
-    uint32 SSAOEnabled = 1;                       // SSAO On.Off
-    uint32 SSAOHalfResEnabled = 0;                // SSAO를 절반 해상도로 계산할지.
-    uint32 SSAOBilateralEnabled = 0;              // Bilateral Blur를 쓸지.
-    uint32 SSAOTemporalEnabled = 0;               // Temporal SSAO를 쓸지.
-
-    // Half-res / Upsampling / Temporal Denoising
-    float SSAOUpsampleDepthThreshold = 0.01f;     // Half-res SSAO를 원본 해상도로 키울 때 깊이 차이 허용값.
-    float SSAOTemporalBlendFactor = 0.9f;         // 이전 프레임 AO와 현재 프레임 AO를 얼마나 섞을지.
-    float SSAOTemporalDepthReject = 0.02f;        // Temporal에서 깊이 차이가 크면 이전 프레임을 버리는 기준.
-    float SSAOTemporalNormalReject = 0.9f;        // Temporal에서 노멀 차이가 크면 이전 프레임을 버리는 기준.
-
-    float pad0[3];
+    uint32 SSAOSampleCount = 16;                  // raw SSAO 샘플 개수. 현재 셰이더 커널 최대치는 16개다.
+    uint32 SSAOEnabled = 1;                       // SSAO 패스를 실행할지.
+    uint32 SSAOBilateralEnabled = 1;              // raw SSAO 뒤에 bilateral blur 패스를 추가로 돌릴지.
+    uint32 SSAOPad0 = 0;                          // 16-byte 정렬 유지용 패딩.
 };
 
 // 패딩이 제대로 됐나 마지막 확인용

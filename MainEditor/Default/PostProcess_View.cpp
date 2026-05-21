@@ -193,7 +193,7 @@ void PostProcess_View::Draw_ParameterControl(PostProcessCB& params, bool& dirty)
 
 void PostProcess_View::Draw_SSAOControl(Shared<SSAOPipeline> pipeline, bool& dirty)
 {
-    if (ImGui::BeginChild("##SSAOControl", ImVec2(0.f, 330.f), true))
+    if (ImGui::BeginChild("##SSAOControl", ImVec2(0.f, 250.f), true))
     {
         ImGui::Text("SSAO");
 
@@ -234,32 +234,6 @@ void PostProcess_View::Draw_SSAOControl(Shared<SSAOPipeline> pipeline, bool& dir
             dirty |= ImGui::DragFloat("BlurRadius", &params.SSAOBlurRadius, 0.1f, 0.0f, 16.f, "%.2f");
             dirty |= ImGui::DragFloat("DepthSharpness", &params.SSAODepthSharpness, 0.1f, 0.0f, 400.f, "%.2f");
             dirty |= ImGui::DragFloat("NormalSharpness", &params.SSAONormalSharpness, 0.1f, 0.0f, 64.f, "%.2f");
-        }
-
-        if (ImGui::CollapsingHeader("HalfRes / Upsample", ImGuiTreeNodeFlags_DefaultOpen))
-        {
-            bool halfRes = params.SSAOHalfResEnabled != 0u;
-            if (ImGui::Checkbox("HalfRes", &halfRes))
-            {
-                params.SSAOHalfResEnabled = halfRes ? 1u : 0u;
-                dirty = true;
-            }
-
-            dirty |= ImGui::DragFloat("UpsampleDepthThreshold", &params.SSAOUpsampleDepthThreshold, 0.0001f, 0.0f, 0.2f, "%.4f");
-        }
-
-        if (ImGui::CollapsingHeader("Temporal##SSAOTemporalSection", ImGuiTreeNodeFlags_DefaultOpen))
-        {
-            bool temporal = params.SSAOTemporalEnabled != 0u;
-            if (ImGui::Checkbox("Temporal##SSAOEnableTemporal", &temporal))
-            {
-                params.SSAOTemporalEnabled = temporal ? 1u : 0u;
-                dirty = true;
-            }
-
-            dirty |= ImGui::DragFloat("TemporalBlendFactor", &params.SSAOTemporalBlendFactor, 0.01f, 0.0f, 1.0f, "%.3f");
-            dirty |= ImGui::DragFloat("TemporalDepthReject", &params.SSAOTemporalDepthReject, 0.0005f, 0.0f, 0.2f, "%.4f");
-            dirty |= ImGui::DragFloat("TemporalNormalReject", &params.SSAOTemporalNormalReject, 0.001f, 0.0f, 1.0f, "%.3f");
         }
     }
 

@@ -100,16 +100,8 @@ cbuffer SSAOBuffer
 
     uint g_SSAOSampleCount;
     uint g_SSAOEnabled;
-    uint g_SSAOHalfResEnabled;
     uint g_SSAOBilateralEnabled;
-
-    uint g_SSAOTemporalEnabled;
-    float g_SSAOUpsampleDepthThreshold;
-    float g_SSAOTemporalBlendFactor;
-    float g_SSAOTemporalDepthReject;
-
-    float g_SSAOTemporalNormalReject;
-    float3 g_SSAOPad0;
+    uint g_SSAOPad0;
 };
 
 cbuffer PostProcessBuffer

@@ -8,6 +8,9 @@
 #include "Engine_Shader_ConstantBuffer.hlsl"
 #include "Engine_Shader_Utils.hlsl"
 
+#define MIN_SSAO_RADIUS 0.05f           // View Space에서 샘플링 반경의 최소값
+#define MIN_SSAO_DEPTH_BIAS  0.0001f    // 같은 표면을 occluder로 오판하지 않도록 최소 depth bias를 보장
+
 //==================================================
 // TEXTURE
 //==================================================
@@ -101,6 +104,7 @@ float SampleShadowAmount(Texture2D shadowTexture, float4 worldPos, float4x4 ligh
     return shadowAmount / 9.f;
 }
 
+// hemisphere sample kernel
 static const float3 SSAOKernel[16] =
 {
     float3(0.5381f, 0.1856f, 0.4319f), float3(0.1379f, 0.2486f, 0.4430f),
@@ -116,16 +120,17 @@ static const float3 SSAOKernel[16] =
 float Get_ViewZ(float2 uv)
 {
     float2 depth = g_DepthTexture.Sample(PointClampSampler, uv).xy;
-    return depth.y * g_DeferredFar; // view space에서의 z 값으로 복구
+    return depth.y * g_DeferredFar; // view space에서의 z값
 }
 
 float3 Reconstruct_ViewPos(float2 uv)
 {
     float2 depth = g_DepthTexture.Sample(LinearWrapSampler, uv).xy;
-    float viewZ = depth.y * g_DeferredFar;
+    float viewZ = depth.y * g_DeferredFar;  // view space에서의 z 값
     if (viewZ <= 0.f)
         return 0.f;
 
+    // ndc -> clip space
     float4 clipPos;
     clipPos.x = uv.x * 2.f - 1.f;
     clipPos.y = uv.y * -2.f + 1.f;
@@ -133,31 +138,40 @@ float3 Reconstruct_ViewPos(float2 uv)
     clipPos.w = 1.f;
     clipPos *= viewZ;
 
+    // clip space -> view space
     float4 viewPos = mul(clipPos, g_DeferredProjMatrixInverse);
     return viewPos.xyz;
 }
 
 float3 Get_NormalWS(float2 uv)
 {
+    // 월드의 normal
     return normalize(DecodeNormal(g_NormalTexture.Sample(PointClampSampler, uv).xyz));
 }
 
 float3 Get_NormalVS(float2 uv)
 {
+    // view의 normal
     float3 normalWS = Get_NormalWS(uv);
     return normalize(mul(float4(normalWS, 0.f), g_ViewMatrix).xyz);
 }
 
 float2 Project_ViewPos_ToUV(float3 viewPos)
 {
+    // view space -> clip space
     float4 clipPos = mul(float4(viewPos, 1.f), g_ProjMatrix);
     float invW = rcp(max(abs(clipPos.w), EPSILON));
+
+    // clip sapce -> ndc space
     float2 ndc = clipPos.xy * invW;
+
+    // (-1 ~ 1) -> uv(0 ~ 1)
     return ndc * float2(0.5f, -0.5f) + 0.5f;
 }
 
-float3 BuildTangent(float3 normal)
+float3 Build_Tangent(float3 normal)
 {
+    // normal에 수직인 tangent 를 임시로 만들어줌
     float3 helper = (abs(normal.z) < 0.999f) ? float3(0.f, 0.f, 1.f) : float3(1.f, 0.f, 0.f);
     return normalize(cross(helper, normal));
 }
@@ -167,9 +181,10 @@ float Get_SSAO(float2 uv)
     return g_SSAOTexture.Sample(LinearClampSampler, uv).r;
 }
 
-float Hash12(float2 p)
+float Hash12(float2 pixel)
 {
-    float h = dot(p, float2(127.1f, 311.7f));
+    // 픽셀 좌표를 넣으면 0 ~ 1 사이의 랜덤 값
+    float h = dot(pixel, float2(127.1f, 311.7f));
     return frac(sin(h) * 43758.5453123f);
 }
 
@@ -179,6 +194,7 @@ float Compute_DepthSSAO(float2 uv)
     if (g_SSAOEnabled == 0u)
         return 1.f;
 
+    // 해당 픽셀의 view space 위치, z, normal
     float3 centerPosVS = Reconstruct_ViewPos(uv);
     float centerViewZ = centerPosVS.z;
     float3 centerN = Get_NormalVS(uv);
@@ -190,18 +206,19 @@ float Compute_DepthSSAO(float2 uv)
     float occlusion = 0.f;
     float sampleWeightSum = 0.f;
 
-    uint depthWidth, depthHeight;
-    g_DepthTexture.GetDimensions(depthWidth, depthHeight);
-
-    float2 pixelCoord = floor(uv * float2(max(depthWidth, 1u), max(depthHeight, 1u)));
+    // 각 픽셀마다 다른 SSAO 커널 회전 각도로 샘플링하여, 패턴 생성 방지
+    float2 pixelCoord = floor(uv * float2(max(g_ScreenSize.x, 1u), max(g_ScreenSize.y, 1u)));
     float rand01 = Hash12(pixelCoord);
     float randomAngle = rand01 * 6.28318530718f; // 2PI
 
-    float baseRadius = max(g_SSAORadius, 0.35f);
-    float depthBias = max(g_SSAOBias, 1e-4f);
+    float baseRadius = max(g_SSAORadius, MIN_SSAO_RADIUS);
+    float depthBias = max(g_SSAOBias, MIN_SSAO_DEPTH_BIAS);
+
+    // 해당 픽셀과 샘플 픽셀의 View Z 차이가 너무 커, SSAO 계산에서 제외해야 할 때 쓰인다. 
     float depthRange = max(g_SSAODepthRange, baseRadius);
 
-    float3 tangent = BuildTangent(centerN);
+    // 샘플링용 좌표축에 랜덤 회전 적용
+    float3 tangent = Build_Tangent(centerN);
     float3 bitangent = normalize(cross(centerN, tangent));
     float s = sin(randomAngle);
     float c = cos(randomAngle);
@@ -211,14 +228,18 @@ float Compute_DepthSSAO(float2 uv)
     [unroll]
     for (int i = 0; i < sampleCount; ++i)
     {
+        // 샘플을 중심 픽셀 근처에 몰아주기 위함
         float sampleT = ((float)i + 0.5f) / (float)sampleCount;
         float sampleScale = lerp(0.1f, 1.f, sampleT * sampleT);
         float3 kernel = normalize(SSAOKernel[i]);
+
+        // SSAOKernal의 샘플 방향을 해당 픽셀의 랜덤 회전된 축 기준으로 변환
         float3 sampleDirVS =
             rotatedTangent * kernel.x +
             rotatedBitangent * kernel.y +
             centerN * abs(kernel.z);
 
+        // 샘플 위치(VS)를 화면에 투영한 뒤, 그 화면 위치에 실제로 찍힌 Depth와 비교한다
         float3 samplePosVS = centerPosVS + sampleDirVS * (baseRadius * sampleScale);
         if (samplePosVS.z <= 0.f)
             continue;
@@ -227,15 +248,28 @@ float Compute_DepthSSAO(float2 uv)
         if (any(sampleUV < 0.f) || any(sampleUV > 1.f))
             continue;
 
+        // samplePosVS를 화면에 투영한 sampleUV에서 Depth Texture를 읽어온 실제 화면에 찍힌 지오메트리 깊이
         float sampleDepthVS = Get_ViewZ(sampleUV);
         if (sampleDepthVS <= 0.f)
             continue;
 
-        float rangeCheck = smoothstep(0.f, 1.f, depthRange / max(abs(centerPosVS.z - sampleDepthVS), EPSILON));
+        float absDepthDiff = abs(centerPosVS.z - sampleDepthVS);
+        if (absDepthDiff > depthRange)
+            continue;
+
+        // normal-based weighting
+        float3 sampleNormalVS = Get_NormalVS(sampleUV);
+        float normalAlignment = saturate(dot(centerN, sampleNormalVS));
+        float normalWeight = smoothstep(0.2f, 0.9f, normalAlignment);
+
+        float rangeCheck = smoothstep(0.f, 1.f, depthRange / max(absDepthDiff, EPSILON));
+        float sampleWeight = rangeCheck * normalWeight;
+
+        // 실제 Depth에 기록된 z가 가상 샘플 위치의 z보다 앞에 있으면 occluded로 판단한다.
         float occluded = (sampleDepthVS <= samplePosVS.z - depthBias) ? 1.f : 0.f;
 
-        occlusion += occluded * rangeCheck;
-        sampleWeightSum += 1.f;
+        occlusion += occluded * sampleWeight;
+        sampleWeightSum += sampleWeight;
     }
 
     float visibility = 1.f - (occlusion / max(sampleWeightSum, EPSILON));
