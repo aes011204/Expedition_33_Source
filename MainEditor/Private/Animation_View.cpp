@@ -135,6 +135,8 @@ void Animation_View::Update(float timeDelta)
     if (playbackModel == nullptr)
         return;
 
+    Validate_SelectedBoneSelection();
+
     if (!playbackModel->Is_AnimationPaused())
         _sequencerCurrentFrame = static_cast<int32>(std::round(playbackModel->Get_CurrentAnimationTimeSec() * static_cast<float>(Get_CurrentAnimationFps())));
 }
@@ -211,6 +213,7 @@ void Animation_View::Pre_Render()
     GAME->Draw_Preview();
     GAME->Restore_RenderGroup();
     Ensure_PreviewGridResources();
+    Draw_SelectedBoneMarker();
     Draw_PreviewGrid();
     GAME->Set_Lights(savedLightDescs);
     GAME->Set_PlayerInputBlocked(wasPlayerInputBlocked);
@@ -356,6 +359,8 @@ void Animation_View::Open_FromAsset(const wstring& modelPath, const string& mode
     _sequencerFirstFrame = 0;
     _isDirty = false;
     _animationSearchBuffer[0] = '\0';
+    _boneSearchBuffer[0] = '\0';
+    _selectedBoneIndex = -1;
 
     Refresh_Source();
     Load_NotifyAsset();
@@ -382,6 +387,8 @@ void Animation_View::Open_FromModelComponent(const Shared<ModelCom>& modelCom, c
     _sequencerFirstFrame = 0;
     _isDirty = false;
     _animationSearchBuffer[0] = '\0';
+    _boneSearchBuffer[0] = '\0';
+    _selectedBoneIndex = -1;
 
     Refresh_Source();
     Load_NotifyAsset();
@@ -615,77 +622,205 @@ void Animation_View::Draw_Header()
 
 void Animation_View::Draw_AnimationSelector()
 {
-    ImGui::Text("Animation Clips");
-    ImGui::Separator();
-    ImGui::InputTextWithHint("##AnimationClipSearch", "Search animation...", _animationSearchBuffer, IM_ARRAYSIZE(_animationSearchBuffer));
-    const string searchTextLower = String::ToLowerCopy(string(_animationSearchBuffer));
-
-    if (!ImGui::BeginChild("AnimationClipBrowserPanel", ImVec2(0.f, 0.f), true))
-    {
-        ImGui::EndChild();
+    if (!ImGui::BeginTabBar("AnimationLeftTabs"))
         return;
-    }
 
-    if (_availableAnimations.empty())
+    if (ImGui::BeginTabItem("Animation Clips"))
     {
-        ImGui::TextDisabled("No clips found.");
-        ImGui::EndChild();
-        return;
-    }
+        ImGui::Text("Animation Clips");
+        ImGui::Separator();
+        ImGui::InputTextWithHint("##AnimationClipSearch", "Search animation...", _animationSearchBuffer, IM_ARRAYSIZE(_animationSearchBuffer));
+        const string searchTextLower = String::ToLowerCopy(string(_animationSearchBuffer));
 
-    for (const AnimationEntry& entry : _availableAnimations)
-    {
-        if (!searchTextLower.empty())
+        if (ImGui::BeginChild("AnimationClipBrowserPanel", ImVec2(0.f, 0.f), true))
         {
-            const string displayNameLower = String::ToLowerCopy(entry.displayName);
-            const string nameLower = String::ToLowerCopy(entry.name);
-            const string playbackNameLower = String::ToLowerCopy(entry.playbackName);
-
-            if (displayNameLower.find(searchTextLower) == string::npos &&
-                nameLower.find(searchTextLower) == string::npos &&
-                playbackNameLower.find(searchTextLower) == string::npos)
+            if (_availableAnimations.empty())
             {
-                continue;
+                ImGui::TextDisabled("No clips found.");
             }
-        }
-
-        const bool isSelected =
-            (_currentAnimationName == entry.displayName ||
-             _currentAnimationName == entry.name ||
-             _currentAnimationName == entry.playbackName);
-        const string label = Make_AnimationComboLabel(entry);
-
-        if (ImGui::Selectable(label.c_str(), isSelected))
-        {
-            _currentAnimationName = entry.displayName;
-            Find_OrNormalize_NotifyAnimation(_asset, entry);
-            _selectedNotifyId = -1;
-            _selectedStateId = -1;
-            _selectedNotifyTrackIndex = 0;
-            _selectedNotifyStateTrackIndex = 0;
-            _sequencerCurrentFrame = 0;
-            _sequencerSelectedRow = -1;
-            _sequencerFirstFrame = 0;
-
-            Sync_PreviewAnimationSelection();
-
-            if (_sourceMode == SourceMode::LiveModel && _liveModelCom != nullptr)
+            else
             {
-                const int32 animationIndex = Find_AnimationIndex(_liveModelCom, entry.playbackName);
-                if (animationIndex >= 0)
+                for (const AnimationEntry& entry : _availableAnimations)
                 {
-                    _liveModelCom->Set_Animation(static_cast<uint32>(animationIndex), true);
-                    _liveModelCom->Set_AnimationPaused(false);
-                    _liveModelCom->Set_CurrentAnimationTimeSec(0.f);
-                    _liveModelCom->Refresh_CurrentAnimationPose();
+                    if (!searchTextLower.empty())
+                    {
+                        const string displayNameLower = String::ToLowerCopy(entry.displayName);
+                        const string nameLower = String::ToLowerCopy(entry.name);
+                        const string playbackNameLower = String::ToLowerCopy(entry.playbackName);
+
+                        if (displayNameLower.find(searchTextLower) == string::npos &&
+                            nameLower.find(searchTextLower) == string::npos &&
+                            playbackNameLower.find(searchTextLower) == string::npos)
+                        {
+                            continue;
+                        }
+                    }
+
+                    const bool isSelected =
+                        (_currentAnimationName == entry.displayName ||
+                         _currentAnimationName == entry.name ||
+                         _currentAnimationName == entry.playbackName);
+                    const string label = Make_AnimationComboLabel(entry);
+
+                    if (ImGui::Selectable(label.c_str(), isSelected))
+                    {
+                        _currentAnimationName = entry.displayName;
+                        Find_OrNormalize_NotifyAnimation(_asset, entry);
+                        _selectedNotifyId = -1;
+                        _selectedStateId = -1;
+                        _selectedNotifyTrackIndex = 0;
+                        _selectedNotifyStateTrackIndex = 0;
+                        _sequencerCurrentFrame = 0;
+                        _sequencerSelectedRow = -1;
+                        _sequencerFirstFrame = 0;
+
+                        Sync_PreviewAnimationSelection();
+
+                        if (_sourceMode == SourceMode::LiveModel && _liveModelCom != nullptr)
+                        {
+                            const int32 animationIndex = Find_AnimationIndex(_liveModelCom, entry.playbackName);
+                            if (animationIndex >= 0)
+                            {
+                                _liveModelCom->Set_Animation(static_cast<uint32>(animationIndex), true);
+                                _liveModelCom->Set_AnimationPaused(false);
+                                _liveModelCom->Set_CurrentAnimationTimeSec(0.f);
+                                _liveModelCom->Refresh_CurrentAnimationPose();
+                            }
+                        }
+                    }
+
+                    if (isSelected)
+                        ImGui::SetItemDefaultFocus();
                 }
             }
         }
-
-        if (isSelected)
-            ImGui::SetItemDefaultFocus();
+        ImGui::EndChild();
+        ImGui::EndTabItem();
     }
 
+    if (ImGui::BeginTabItem("Bone Tree"))
+    {
+        Draw_BoneTree();
+        ImGui::EndTabItem();
+    }
+
+    ImGui::EndTabBar();
+}
+
+void Animation_View::Draw_BoneTree()
+{
+    ImGui::Text("Bone Tree");
+    ImGui::Separator();
+    ImGui::InputTextWithHint("##BoneSearch", "Search bone...", _boneSearchBuffer, IM_ARRAYSIZE(_boneSearchBuffer));
+    ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, 10.f);
+
+    if (!ImGui::BeginChild("AnimationBoneTreePanel", ImVec2(0.f, 0.f), true))
+    {
+        ImGui::PopStyleVar();
+        ImGui::EndChild();
+        return;
+    }
+
+    Shared<ModelCom> playbackModel = Get_PlaybackModel();
+    if (playbackModel == nullptr)
+    {
+        ImGui::TextDisabled("Bone tree is available in live preview mode.");
+        ImGui::PopStyleVar();
+        ImGui::EndChild();
+        return;
+    }
+
+    Validate_SelectedBoneSelection();
+
+    const uint32 numBones = static_cast<uint32>(playbackModel->Get_NumBones());
+    if (numBones == 0)
+    {
+        ImGui::TextDisabled("No bones found.");
+        ImGui::PopStyleVar();
+        ImGui::EndChild();
+        return;
+    }
+
+    vector<vector<uint32>> children(numBones);
+    vector<uint32> rootBones{};
+    rootBones.reserve(numBones);
+
+    for (uint32 boneIndex = 0; boneIndex < numBones; ++boneIndex)
+    {
+        const int32 parentIndex = playbackModel->Get_BoneParentIndex(boneIndex);
+        if (parentIndex >= 0 && parentIndex < static_cast<int32>(numBones))
+            children[parentIndex].push_back(boneIndex);
+        else
+            rootBones.push_back(boneIndex);
+    }
+
+    const string filterLower = String::ToLowerCopy(string(_boneSearchBuffer));
+
+    const auto branchMatches =
+        [&](const auto& self, uint32 boneIndex) -> bool
+    {
+        const string boneNameLower = String::ToLowerCopy(playbackModel->Get_BoneName(boneIndex));
+        if (filterLower.empty() || boneNameLower.find(filterLower) != string::npos)
+            return true;
+
+        for (uint32 childIndex : children[boneIndex])
+        {
+            if (self(self, childIndex))
+                return true;
+        }
+
+        return false;
+    };
+
+    const auto renderNode =
+        [&](const auto& self, uint32 boneIndex) -> void
+    {
+        if (!filterLower.empty() && !branchMatches(branchMatches, boneIndex))
+            return;
+
+        const bool isSelected = (_selectedBoneIndex == static_cast<int32>(boneIndex));
+        const bool forceOpen = !filterLower.empty() && !children[boneIndex].empty();
+
+        ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
+        if (children[boneIndex].empty())
+            flags |= ImGuiTreeNodeFlags_Leaf;
+        if (isSelected)
+            flags |= ImGuiTreeNodeFlags_Selected;
+
+        if (forceOpen)
+            ImGui::SetNextItemOpen(true, ImGuiCond_Always);
+        else if (!children[boneIndex].empty())
+            ImGui::SetNextItemOpen(true, ImGuiCond_Once);
+
+        const string nodeLabel =
+            playbackModel->Get_BoneName(boneIndex) + " [" + to_string(boneIndex) + "]";
+        ImGui::PushID(static_cast<int>(boneIndex));
+        const bool opened = ImGui::TreeNodeEx("BoneNode", flags, "%s", nodeLabel.c_str());
+
+        if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen())
+        {
+            _selectedBoneIndex = static_cast<int32>(boneIndex);
+            _selectedNotifyId = -1;
+            _selectedStateId = -1;
+        }
+
+        if (!opened)
+        {
+            ImGui::PopID();
+            return;
+        }
+
+        for (uint32 childIndex : children[boneIndex])
+            self(self, childIndex);
+
+        ImGui::TreePop();
+        ImGui::PopID();
+    };
+
+    for (uint32 rootBoneIndex : rootBones)
+        renderNode(renderNode, rootBoneIndex);
+
+    ImGui::PopStyleVar();
     ImGui::EndChild();
 }
 
@@ -888,6 +1023,7 @@ void Animation_View::Draw_SelectedDetail()
 
     const float detailMaxTimeSec = max(0.01f, Get_CurrentAnimationLengthSec());
     UNREFERENCED_PARAMETER(detailMaxTimeSec);
+    Shared<ModelCom> playbackModel = Get_PlaybackModel();
 
     if (AnimNotifyEventEntry* notify = Find_SelectedNotify())
     {
@@ -899,14 +1035,59 @@ void Animation_View::Draw_SelectedDetail()
         if (notifyState->notifyState != nullptr)
             Inspector::Draw_ReflectionSection("SelectedNotifyState", notifyState->notifyState.get(), notifyState->notifyState->Get_ReflectionInfo());
     }
+    else if (playbackModel != nullptr && _selectedBoneIndex >= 0)
+    {
+        Draw_SelectedBoneDetail(playbackModel);
+    }
     else
     {
-        ImGui::TextDisabled("선택된 애니메이션 없음");
+        ImGui::TextDisabled("선택된 항목 없음");
         ImGui::Spacing();
-        ImGui::TextWrapped("Notify or NotifyState 선택");
+        ImGui::TextWrapped("Notify, NotifyState, 또는 Bone을 선택하세요.");
     }
 
     ImGui::EndChild();
+}
+
+void Animation_View::Draw_SelectedBoneDetail(const Shared<ModelCom>& playbackModel) const
+{
+    if (playbackModel == nullptr || _selectedBoneIndex < 0)
+    {
+        ImGui::TextDisabled("No bone selected.");
+        return;
+    }
+
+    const uint32 boneIndex = static_cast<uint32>(_selectedBoneIndex);
+    if (boneIndex >= playbackModel->Get_NumBones())
+    {
+        ImGui::TextDisabled("Selected bone is out of range.");
+        return;
+    }
+
+    const int32 parentIndex = playbackModel->Get_BoneParentIndex(boneIndex);
+
+    ImGui::Text("Bone");
+    ImGui::SameLine();
+    ImGui::TextDisabled("%s", playbackModel->Get_BoneName(boneIndex).c_str());
+
+    ImGui::Spacing();
+    ImGui::Text("Index");
+    ImGui::SameLine();
+    ImGui::TextDisabled("%d", _selectedBoneIndex);
+
+    ImGui::Text("Parent");
+    ImGui::SameLine();
+    if (parentIndex >= 0 && parentIndex < static_cast<int32>(playbackModel->Get_NumBones()))
+    {
+        ImGui::TextDisabled(
+            "%s [%d]",
+            playbackModel->Get_BoneName(static_cast<uint32>(parentIndex)).c_str(),
+            parentIndex);
+    }
+    else
+    {
+        ImGui::TextDisabled("(Root)");
+    }
 }
 
 void Animation_View::Draw_EventListPanel()
@@ -1646,7 +1827,7 @@ void Animation_View::Fit_PreviewCameraToModel()
 
 void Animation_View::Ensure_PreviewGridResources()
 {
-    if (_previewGridBatch && _previewGridEffect && _previewGridInputLayout && _previewGridDepthState)
+    if (_previewGridBatch && _previewGridEffect && _previewGridInputLayout && _previewGridDepthState && _previewOverlayDepthState)
         return;
 
     static constexpr D3D11_INPUT_ELEMENT_DESC kGridInputElements[] =
@@ -1696,6 +1877,23 @@ void Animation_View::Ensure_PreviewGridResources()
         _previewGridEffect.reset();
         _previewGridInputLayout.Reset();
         _previewGridDepthState.Reset();
+        _previewOverlayDepthState.Reset();
+        return;
+    }
+
+    D3D11_DEPTH_STENCIL_DESC overlayDepthDesc{};
+    overlayDepthDesc.DepthEnable = FALSE;
+    overlayDepthDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
+    overlayDepthDesc.DepthFunc = D3D11_COMPARISON_ALWAYS;
+    overlayDepthDesc.StencilEnable = FALSE;
+
+    if (FAILED(GAME->Get_Device()->CreateDepthStencilState(&overlayDepthDesc, _previewOverlayDepthState.GetAddressOf())))
+    {
+        _previewGridBatch.reset();
+        _previewGridEffect.reset();
+        _previewGridInputLayout.Reset();
+        _previewGridDepthState.Reset();
+        _previewOverlayDepthState.Reset();
     }
 }
 
@@ -1758,6 +1956,126 @@ void Animation_View::Draw_PreviewGrid() const
     }
 
     _previewGridBatch->End();
+}
+
+void Animation_View::Draw_SelectedBoneMarker() const
+{
+    if (_selectedBoneIndex < 0)
+        return;
+
+    Shared<ModelCom> playbackModel = Get_PlaybackModel();
+    if (playbackModel == nullptr)
+        return;
+
+    const uint32 boneIndex = static_cast<uint32>(_selectedBoneIndex);
+    if (boneIndex >= playbackModel->Get_NumBones())
+        return;
+
+    if (!_previewGridBatch || !_previewGridEffect || !_previewGridInputLayout || !_previewOverlayDepthState)
+        return;
+
+    const Matrix* boneMatrix = playbackModel->Get_BoneMatrixPtr(boneIndex);
+    if (boneMatrix == nullptr)
+        return;
+
+    Shared<GameObject> ownerObject = playbackModel->Get_Owner();
+    Shared<TransformCom> ownerTransform = ownerObject ? ownerObject->Get_Transform() : nullptr;
+    const Matrix ownerWorldMatrix = ownerTransform ? ownerTransform->Get_WorldMatrix() : Matrix::Identity;
+    const Matrix worldBoneMatrix = *boneMatrix * ownerWorldMatrix;
+
+    ComPtr<Context> context = GAME->Get_Context();
+    if (context == nullptr)
+        return;
+
+    _previewGridEffect->SetWorld(Matrix::Identity);
+    _previewGridEffect->SetView(*GAME->Get_Transform(D3DTS::View));
+    _previewGridEffect->SetProjection(*GAME->Get_Transform(D3DTS::Proj));
+
+    context->IASetInputLayout(_previewGridInputLayout.Get());
+    context->OMSetDepthStencilState(_previewOverlayDepthState.Get(), 0);
+    context->OMSetBlendState(nullptr, nullptr, 0xffffffff);
+    _previewGridEffect->Apply(context.Get());
+
+    const Vec3 bonePosition(worldBoneMatrix._41, worldBoneMatrix._42, worldBoneMatrix._43);
+
+    Vec3 rightAxis(worldBoneMatrix._11, worldBoneMatrix._12, worldBoneMatrix._13);
+    Vec3 upAxis(worldBoneMatrix._21, worldBoneMatrix._22, worldBoneMatrix._23);
+    Vec3 forwardAxis(worldBoneMatrix._31, worldBoneMatrix._32, worldBoneMatrix._33);
+
+    if (rightAxis.LengthSquared() <= 0.000001f)
+        rightAxis = Vec3::Right;
+    else
+        rightAxis.Normalize();
+
+    if (upAxis.LengthSquared() <= 0.000001f)
+        upAxis = Vec3::Up;
+    else
+        upAxis.Normalize();
+
+    if (forwardAxis.LengthSquared() <= 0.000001f)
+        forwardAxis = Vec3::Forward;
+    else
+        forwardAxis.Normalize();
+
+    constexpr float markerRadius = 0.09f;
+    constexpr float axisLength = 0.28f;
+    constexpr int markerSegments = 24;
+
+    _previewGridBatch->Begin();
+
+    const auto drawAxisLine =
+        [&](const Vec3& direction, const XMVECTORF32& color) -> void
+    {
+        DirectX::VertexPositionColor lineStart(bonePosition, color);
+        DirectX::VertexPositionColor lineEnd(bonePosition + direction, color);
+        _previewGridBatch->DrawLine(lineStart, lineEnd);
+    };
+
+    const auto drawRing =
+        [&](const Vec3& axisA, const Vec3& axisB, const XMVECTORF32& color) -> void
+    {
+        for (int segmentIndex = 0; segmentIndex < markerSegments; ++segmentIndex)
+        {
+            const float t0 = XM_2PI * static_cast<float>(segmentIndex) / static_cast<float>(markerSegments);
+            const float t1 = XM_2PI * static_cast<float>(segmentIndex + 1) / static_cast<float>(markerSegments);
+
+            const Vec3 point0 = bonePosition +
+                axisA * (cosf(t0) * markerRadius) +
+                axisB * (sinf(t0) * markerRadius);
+            const Vec3 point1 = bonePosition +
+                axisA * (cosf(t1) * markerRadius) +
+                axisB * (sinf(t1) * markerRadius);
+
+            DirectX::VertexPositionColor lineStart(point0, color);
+            DirectX::VertexPositionColor lineEnd(point1, color);
+            _previewGridBatch->DrawLine(lineStart, lineEnd);
+        }
+    };
+
+    drawRing(rightAxis, upAxis, DirectX::Colors::Yellow);
+    drawRing(rightAxis, forwardAxis, DirectX::Colors::Yellow);
+    drawRing(upAxis, forwardAxis, DirectX::Colors::Yellow);
+    drawAxisLine(rightAxis * axisLength, DirectX::Colors::Red);
+    drawAxisLine(upAxis * axisLength, DirectX::Colors::Lime);
+    drawAxisLine(forwardAxis * axisLength, DirectX::Colors::DeepSkyBlue);
+
+    _previewGridBatch->End();
+}
+
+void Animation_View::Validate_SelectedBoneSelection()
+{
+    Shared<ModelCom> playbackModel = Get_PlaybackModel();
+    if (playbackModel == nullptr)
+    {
+        _selectedBoneIndex = -1;
+        return;
+    }
+
+    if (_selectedBoneIndex < 0)
+        return;
+
+    if (static_cast<uint32>(_selectedBoneIndex) >= playbackModel->Get_NumBones())
+        _selectedBoneIndex = -1;
 }
 
 string Animation_View::Normalize_DefaultTrackName(const string& trackName)

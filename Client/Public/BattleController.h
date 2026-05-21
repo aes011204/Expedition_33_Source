@@ -167,6 +167,10 @@ private:
     void Execute_Skill(const BattleChar actor, const Action& turnAction);
     void Execute_Item(const BattleChar actor, const Action& turnAction);
 
+private: /* 전투 AP */
+    void Apply_BaseAttackAP(const BattleChar& actor); // Base Attack시 얻는 AP
+    bool Apply_FreeAimShootAP(const BattleChar& actor); // Free Aim시 사용되는 AP
+
 private:
     bool _battleEnded = {};
     bool _pendingNextTurn = {};

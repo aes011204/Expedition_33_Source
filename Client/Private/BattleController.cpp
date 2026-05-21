@@ -693,7 +693,7 @@ void BattleController::Execute_BaseAttack(const BattleChar actor, const Action& 
         turnAction._selected_SkillKey.scriptClassName.c_str()
     );
 
-   // auto script = Create_Class::SkillScript<Base_Gustave_Attack>().Create();
+    // auto script = Create_Class::SkillScript<Base_Gustave_Attack>().Create();
     _curScript = Create_Class::SkillScript(_turnAction._selected_SkillKey.scriptClassName).Create();
 
     auto& action = Get_TurnAction();
@@ -713,6 +713,10 @@ void BattleController::Execute_BaseAttack(const BattleChar actor, const Action& 
 
     action.originPos = action._curChar.actor->Get_Transform()->Get_Position();
     action._curAnimIndex = 0;
+
+    // 기본 공격은 AP + 1
+    if (action._curChar.statCom)
+        action._curChar.statCom->Add_AP(+1);
 
     _battleActionExe->BeginAction(action);
 }
@@ -780,14 +784,31 @@ void BattleController::Execute_Skill(const BattleChar actor, const Action& turnA
         return;
     }
 
-   action.originPos = action._curChar.actor->Get_Transform()->Get_Position();
+    action.originPos = action._curChar.actor->Get_Transform()->Get_Position();
     action._curAnimIndex = 0;
+
+    Apply_BaseAttackAP(actor);
 
     _battleActionExe->BeginAction(action);
 }
 
 void BattleController::Execute_Item(const BattleChar actor, const Action& turnAction)
 {
+}
+
+void BattleController::Apply_BaseAttackAP(const BattleChar& actor)
+{
+    CHECK_NULL(actor.statCom);
+
+    // 기본 공격시 AP 1회복
+    actor.statCom->Add_AP(1);
+}
+
+bool BattleController::Apply_FreeAimShootAP(const BattleChar& actor)
+{
+    CHECK_NULL(actor.statCom, false);
+
+    return actor.statCom->Try_ConsumeAP(1);
 }
 
 void BattleController::Begin_FreeAimShot(const Action& shotAction)
@@ -808,6 +829,12 @@ void BattleController::Begin_FreeAimShot(const Action& shotAction)
     }
 
     if (_freeAimShotAction._selected_SkillKey.AnimPhases.empty())
+    {
+        _freeAimShotAction = {};
+        return;
+    }
+
+    if (!Apply_FreeAimShootAP(_freeAimShotAction._curChar))
     {
         _freeAimShotAction = {};
         return;
