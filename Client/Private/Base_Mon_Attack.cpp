@@ -11,7 +11,7 @@ Base_Mon_Attack::Base_Mon_Attack()
 
 void Base_Mon_Attack::Execute(const Skill_Data& skill, const BattleChar& attacker, const BattleChar& target)
 {
-    float Damage = 20;
+    float Damage = 50;
     DamageSystem::ApplyDamage(Damage, target);
 
 }

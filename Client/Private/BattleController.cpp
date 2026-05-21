@@ -318,9 +318,18 @@ void BattleController::EndTurn()
 
 void BattleController::StartTurn()
 {
+
     _currentTurnActor = _turnQueue.top().hero;
     _battleTime = _turnQueue.top().nextTime;
     _turnQueue.pop();
+
+    if(_currentTurnActor.statCom->Get_AliveStatus() == EAliveStatus::Dead)
+    {
+        _turnAction = {};
+     
+        StartTurn();
+        return;
+    }
 
     LOG_DEBUG(
         "StartTurn: next actor={}, isPlayer={}",
@@ -1049,24 +1058,12 @@ void BattleController::PlayerStartAnim()
 
         it.ModelCom->Set_RootMotionEnabled(false);
         it.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Battle_Start), 0.3f, false);
-        //if(it.actor->Get_Name() == L"PB_Gustave")
-        //{
-        //    it.ModelCom->Set_Animation("Gustave_Battle_Noah_BattleStartV3", .3f, false);
-        //}
-        //else if (it.actor->Get_Name() == L"PB_Lune")
-        //{
-        //    it.ModelCom->Set_Animation("Lune_Battle_BattleStart", .3f, false);
-        //}
-        //else if (it.actor->Get_Name() == L"PB_Maelle")
-        //{
-        //    it.ModelCom->Set_Animation("Maelle_Battle_BattleStart", .3f, false);
-        //}
+
     }
     // 일단 여기서 
     for (auto it : _enemies)
     {
-        //string idle = CLIENT->Get_Skill(it.statCom->Get_SkillKey()[0])->IdleAnimationKey;
-        //it.ModelCom->Set_Animation(idle, .3f, true);
+       
         it.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Base_Idle), 0.3f, false);
 
     }

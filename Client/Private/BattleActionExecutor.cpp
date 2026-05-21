@@ -1,5 +1,6 @@
 ﻿#include "BattleActionExecutor.h"
 #include "Character.h"
+#include "CombatStatCom.h"
 
 void BattleActionExecutor::BeginAction(Action& action)
 {
@@ -49,7 +50,10 @@ void BattleActionExecutor::Complete_CurPhase(Action& action)
     if (action._curAnimIndex >= phases.size())
     {
         if (action._curChar.ModelCom && !action._selected_SkillKey.IdleAnimationKey.empty())
-            action._curChar.ModelCom->Set_Animation(action._selected_SkillKey.IdleAnimationKey, true, 0.f);
+        {
+            action._curChar.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Base_Idle), .3f, true);
+            //action._curChar.ModelCom->Set_Animation(action._selected_SkillKey.IdleAnimationKey, true, 0.f);
+        }
 
         _isFinished = true;
         action.phaseReachedGoal = true;
