@@ -3,10 +3,12 @@
 
 #include "AIController.h"
 #include "BlackBoard.h"
+#include "Body_Player.h"
 #include "Bounding_OBB.h"
 #include "ColliderCom.h"
 #include "GameInstance.h"
 #include "MonsterStatCom.h"
+#include "Monster_Part.h"
 
 Monster_BattleBase::Monster_BattleBase(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Character_BattleBase(device, context)
@@ -29,6 +31,19 @@ HRESULT Monster_BattleBase::Initialize(void* arg)
     CHECK_FAILED(Ready_Components(), E_FAIL);
 
     return S_OK;
+}
+
+void Monster_BattleBase::BeginPlay()
+{
+    Character_BattleBase::BeginPlay();
+    
+    if (auto* body = dynamic_cast<Monster_Part*>(Get_PartObject(L"Part_Body")))
+    {
+        if (Shared<ModelCom> model = body->Get_Model())
+        {
+            model->Refresh_AnimStateMappingFromOwnerContext();
+        }
+    }
 }
 
 void Monster_BattleBase::Update(float timeDelta)

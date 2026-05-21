@@ -7,7 +7,6 @@
 #include "GameInstance.h"
 #include "PlayerStatCom.h"
 
-REGISTER_GLOBAL_ENUM(Client::Player_BattleBase::PlayerBattleAnimation, "PlayerBattleAnimation");
 
 Player_BattleBase::Player_BattleBase(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Character_BattleBase(device, context)

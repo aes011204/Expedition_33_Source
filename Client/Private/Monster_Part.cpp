@@ -187,6 +187,14 @@ void Monster_Part::Set_Animation(uint32 animIndex, float blendDuration, bool isL
     _model->Set_Animation(animIndex, blendDuration, isLoop);
 }
 
+void Monster_Part::Set_Animation(const string& animName, float blendDuration, bool isLoop, float startFrame)
+{
+    if (_model == nullptr)
+        return;
+
+    _model->Set_Animation(animName, blendDuration, isLoop, startFrame);
+}
+
 bool Monster_Part::Play_Animation(float timeDelta)
 {
     if (_model == nullptr)

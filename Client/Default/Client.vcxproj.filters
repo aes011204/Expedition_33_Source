@@ -336,9 +336,6 @@
     <ClInclude Include="..\Public\BT_Node_Bootstrap.h">
       <Filter>BehavoirTree</Filter>
     </ClInclude>
-    <ClInclude Include="..\public\Mon_BehaviorTree.h">
-      <Filter>BehavoirTree</Filter>
-    </ClInclude>
     <ClInclude Include="..\public\Monster_Part.h">
       <Filter>02.GameObject\Monster</Filter>
     </ClInclude>
@@ -656,7 +653,12 @@
     <ClInclude Include="..\Public\GameplayUI_Types.h" />
     <ClInclude Include="..\Public\GameplayUI_World.h" />
     <ClInclude Include="..\Public\GameplayUI_Battle.h" />
-    <ClInclude Include="..\public\ANS_Move.h" />
+    <ClInclude Include="..\public\AN_EnterAnim.h">
+      <Filter>AnimNotify</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\ANS_Move.h">
+      <Filter>AnimNotify</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\FreeAimTargeting.h">
       <Filter>BattleState</Filter>
     </ClInclude>
@@ -753,9 +755,6 @@
       <Filter>96. Manager</Filter>
     </ClCompile>
     <ClCompile Include="..\private\BT_Node_Bootstrap.cpp">
-      <Filter>BehavoirTree</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\Mon_BehaviorTree.cpp">
       <Filter>BehavoirTree</Filter>
     </ClCompile>
     <ClCompile Include="..\private\Monster_Part.cpp">
@@ -1071,7 +1070,12 @@
     <ClCompile Include="..\Private\UI_RuntimePanelBase.cpp" />
     <ClCompile Include="..\Private\GameplayUI_World.cpp" />
     <ClCompile Include="..\Private\GameplayUI_Battle.cpp" />
-    <ClCompile Include="..\private\ANS_Move.cpp" />
+    <ClCompile Include="..\private\AN_EnterAnim.cpp">
+      <Filter>AnimNotify</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\ANS_Move.cpp">
+      <Filter>AnimNotify</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\FreeAimTargeting.cpp">
       <Filter>BattleState</Filter>
     </ClCompile>

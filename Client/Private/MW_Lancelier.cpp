@@ -61,15 +61,15 @@ void MW_Lancelier::Update(float timeDelta)
         switch (_currentAction)
         {
         case MonsterAction::Idle:
-            _body->Set_Animation(5, 0.3f, true);
+            _body->Set_Animation("Lancelier_Idle", 0.3f, true);
             break;
 
         case MonsterAction::Move:
-            _body->Set_Animation(11, 0.3f, true);
+            _body->Set_Animation("Lancelier_Walk", 0.3f, true);
             break;
 
         case MonsterAction::Attack:
-            _body->Set_Animation(11, 0.3f, false);
+            _body->Set_Animation("Lancelier_Idle",  0.3f, false);
             break;
         }
 
@@ -82,7 +82,7 @@ void MW_Lancelier::Update(float timeDelta)
 
         // Lancelier 월드 이동은 기존 Monster와 동일하게 body root motion 속도를 사용한다.
         const auto rootVelocity = _body->Get_RootTransformVelocity();
-        _transformCom->Set_SpeedPerSec(rootVelocity.position.z * Constants::Charcter::scaleOffset);
+        _transformCom->Set_SpeedPerSec(rootVelocity.position.z *0.4f/*Constants::Charcter::scaleOffset*/);
     }
 }
 
