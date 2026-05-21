@@ -340,7 +340,9 @@ HRESULT ResourceLoader::Build_ModelJobs(const wstring& strTablePath, vector<FLoa
         LoadJob.fScaleX = Read_Float(JsonItem, "ScaleX", "scaleX", 1.f);
         LoadJob.fScaleY = Read_Float(JsonItem, "ScaleY", "scaleY", 1.f);
         LoadJob.fScaleZ = Read_Float(JsonItem, "ScaleZ", "scaleZ", 1.f);
+        LoadJob.fRotX = Read_Float(JsonItem, "RotX", "rotX", 0.f);
         LoadJob.fRotY = Read_Float(JsonItem, "RotY", "rotY", 0.f);
+        LoadJob.fRotZ = Read_Float(JsonItem, "RotZ", "rotZ", 0.f);
         LoadJob.iCount = 1;
 
         LoadJobs.push_back(LoadJob);
@@ -701,7 +703,9 @@ HRESULT ResourceLoader::Create_LoadJobPrototype(const FLoadJob& loadJob, Shared<
 
         const XMMATRIX preLocalTransform =
             XMMatrixScaling(loadJob.fScaleX, loadJob.fScaleY, loadJob.fScaleZ) *
-            XMMatrixRotationY(XMConvertToRadians(loadJob.fRotY));
+            XMMatrixRotationX(XMConvertToRadians(loadJob.fRotX)) *
+            XMMatrixRotationY(XMConvertToRadians(loadJob.fRotY)) *
+            XMMatrixRotationZ(XMConvertToRadians(loadJob.fRotZ));
 
         const string modelPath = String::ToString(loadJob.strPath);
 

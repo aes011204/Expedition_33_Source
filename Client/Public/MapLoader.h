@@ -34,9 +34,29 @@ public:
         umap<string, Shared<ModelCom>> preloadedModelCache = {};
         umap<string, Shared<StaticCollisionData>> preloadedCollisionCache = {};
 
+        // 청크 unload를 위해 생성 객체를 선택적으로 수집
+        vector<Shared<GameObject>>* spawnedObjects = nullptr; 
+
         bool preloadModelsDone = false;
         bool staticMeshesDone = false;
         bool instancedMeshesDone = false;
+
+        chrono::milliseconds beginSessionDuration{ 0 };
+        chrono::milliseconds modelCreateDuration{ 0 };
+        chrono::milliseconds materialApplyDuration{ 0 };
+        chrono::milliseconds collisionBuildDuration{ 0 };
+        chrono::milliseconds staticAddDuration{ 0 };
+        chrono::milliseconds instancedTransformDuration{ 0 };
+        chrono::milliseconds instancedAddDuration{ 0 };
+
+        size_t processCallCount = 0;
+        size_t modelCreateCount = 0;
+        size_t materialApplyCount = 0;
+        size_t collisionBuildCount = 0;
+        size_t staticAddCount = 0;
+        size_t instancedAddCount = 0;
+
+        bool summaryLogged = false;
     };
 
 public:

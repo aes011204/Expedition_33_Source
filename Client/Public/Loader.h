@@ -132,7 +132,7 @@ private:
 
     // worker가 만들어 놓은 job 목록
     mutex               _pendingJobsMutex;
-    vector<FLoadJob>    _pendingJobs;
+    deque<FLoadJob>     _pendingJobs;
 
     // 진행률 계산용
     atomic<size_t>      _totalJobCount = 0;
@@ -145,7 +145,7 @@ private:
     // worker thread에서 prototype 생성이 끝난 job들
     // main thread가 여기서 꺼내서 GAME->Add_Prototype이 생성되게
     mutex               _completedJobsMutex;
-    vector<CompletedLoadJob>  _completedJobs;
+    deque<CompletedLoadJob>  _completedJobs;
 
     // 현재 스레드풀에서 prototype 생성중인 job 수
     atomic<size_t>      _activeCreateJobCount = 0;

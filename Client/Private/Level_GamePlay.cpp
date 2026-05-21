@@ -17,12 +17,15 @@
 #include "UI_Transform.h"
 
 Level_GamePlay::Level_GamePlay(const ComPtr<Device>& device, const ComPtr<Context>& context)
-    : Level{ device, context }
+    : StreamingLevel{ device, context }
 {
 }
 
 HRESULT Level_GamePlay::Initialize()
 {
+    if (FAILED(Ready_ChunkMap()))
+        return E_FAIL;
+
     if (FAILED(Ready_Lights()))
         return E_FAIL;
 
@@ -50,40 +53,17 @@ HRESULT Level_GamePlay::Initialize()
 
 void Level_GamePlay::BeginPlay()
 {
-    Level::BeginPlay();
+    StreamingLevel::BeginPlay();
 }
 
 void Level_GamePlay::Update(float fTimeDelta)
 {
     Sync_LuneRightHandEffect();
+    Update_MapStreaming(fTimeDelta);
+    Update_WindowTitleFps();
 
 #ifdef _DEBUG
-    const int32 fps = (fTimeDelta > 0.f)
-            ? static_cast<int32>(1.f / fTimeDelta) : 0;
-
-     GAME->Print(L"현재 FPS : {}", fps, duration(0.f), color(Vec4(1.f, 1.f, 0.f, 1.f)));
-#else
-    static float s_titleUpdateAccum = 0.f;   // 제목은 너무 자주 바꾸지 않도록 누적 시간 사용
-    static float s_frameAccum = 0.f;         // 평균 FPS 계산용 프레임 시간 누적
-    static int32 s_frameCount = 0;           // 평균 FPS 계산용 프레임 수
-
-    s_titleUpdateAccum += fTimeDelta;
-    s_frameAccum += fTimeDelta;
-    ++s_frameCount;
-
-    if (s_titleUpdateAccum >= 0.5f)          // 0.5초마다 제목 갱신
-    {
-        const float avgDelta = (s_frameCount > 0) ? (s_frameAccum / s_frameCount) : 0.f;
-        const int32 fps = (avgDelta > 0.f) ? static_cast<int32>(1.f / avgDelta) : 0;
-
-        wchar_t title[128] = {};
-        swprintf_s(title, L"Level GamePlay | FPS : %d", fps); // Release에서 창 제목에 FPS 표시
-        SetWindowText(g_hWnd, title);
-
-        s_titleUpdateAccum = 0.f;
-        s_frameAccum = 0.f;
-        s_frameCount = 0;
-    }
+     GAME->Print(L"현재 FPS : {}", _displayFps, duration(0.f), color(Vec4(1.f, 1.f, 0.f, 1.f)));
 #endif
 
 
@@ -109,9 +89,52 @@ void Level_GamePlay::Update(float fTimeDelta)
 
 HRESULT Level_GamePlay::Render()
 {
-#ifdef _DEBUG
-    SetWindowText(g_hWnd, TEXT("Level GamePlay"));
-#endif
+    return S_OK;
+}
+
+void Level_GamePlay::Update_WindowTitleFps()
+{
+    const auto now = chrono::steady_clock::now();
+    if (_fpsSampleBegin.time_since_epoch().count() == 0)
+    {
+        _fpsSampleBegin = now;
+        _fpsFrameCount = 0;
+    }
+
+    ++_fpsFrameCount;
+
+    const auto elapsed = chrono::duration_cast<chrono::milliseconds>(now - _fpsSampleBegin);
+    if (elapsed < chrono::milliseconds(500))
+    {
+        return;
+    }
+
+    _displayFps = static_cast<int32>(
+        (_fpsFrameCount * 1000ull) / static_cast<uint64>(elapsed.count()));
+
+    wchar_t title[128] = {};
+    swprintf_s(title, L"StreamingLevel GamePlay | FPS : %d", _displayFps);
+    SetWindowText(g_hWnd, title);
+
+    _fpsSampleBegin = now;
+    _fpsFrameCount = 0;
+}
+
+HRESULT Level_GamePlay::Ready_ChunkMap()
+{
+    MapStreamingDesc streamingDesc{};
+    streamingDesc.chunkRoot = Constants::Map::SpringChunk_Path;
+    streamingDesc.layerTag = L"Layer_MapStaticMesh";
+    streamingDesc.levelIndex = ETOI(LevelType::GamePlay);
+    streamingDesc.gridWidth = 6;
+    streamingDesc.gridHeight = 6;
+    streamingDesc.initialChunkX = 4; // chunk_00_04의 col
+    streamingDesc.initialChunkZ = 0; // chunk_00_04의 row
+    streamingDesc.activeChunkRadius = 1;
+    streamingDesc.maxMeshesPerFrame = 8;
+    streamingDesc.maxTimePerFrame = chrono::milliseconds(8);
+
+    CHECK_FAILED(Initialize_MapStreaming(streamingDesc), E_FAIL);
 
     return S_OK;
 }
@@ -353,6 +376,8 @@ Shared<Level_GamePlay> Level_GamePlay::Create(const ComPtr<Device>& device, cons
 
 void Level_GamePlay::Free()
 {
+    Free_MapStreaming();
+
     CLIENT->Clear_GameplayUI();
 
     __super::Free();

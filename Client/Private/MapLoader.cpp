@@ -9,6 +9,8 @@
 HRESULT MapLoader::Begin_LoadSession(const ComPtr<Device>& device, const ComPtr<Context>& context,
     const wstring& filePath, uint32 levelIndex, const wstring& layerTag, LoadSession& outSession)
 {
+    const auto sessionBegin = chrono::steady_clock::now();
+
     string pathA = String::ToString(filePath);
     ifstream ifs(pathA);
     if (!ifs.is_open())
@@ -67,6 +69,8 @@ HRESULT MapLoader::Begin_LoadSession(const ComPtr<Device>& device, const ComPtr<
     outSession.preloadModelsDone = outSession.preloadModelPaths.empty();
     outSession.staticMeshesDone = outSession.staticMeshes.empty();
     outSession.instancedMeshesDone = outSession.instancedMeshes.empty();
+    outSession.beginSessionDuration =
+        chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - sessionBegin);
 
     return S_OK;
 }
@@ -75,6 +79,7 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
     chrono::milliseconds maxTimePerFrame, bool& outFinished)
 {
     outFinished = false;
+    ++session.processCallCount;
 
     const auto begin = chrono::steady_clock::now();
     size_t processedCount = 0;
@@ -112,12 +117,16 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
 
         string fullPathA = "../../../Client/Bin/Resources/Map/" + session.modelFolder + "/" + modelPathStr;
 
+        const auto modelCreateBegin = chrono::steady_clock::now();
         auto model = ModelCom::Create(
             session.device,
             session.context,
             ModelType::NonAnim,
             fullPathA.c_str(),
             Matrix::CreateScale(0.01f));
+        session.modelCreateDuration +=
+            chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - modelCreateBegin);
+        ++session.modelCreateCount;
 
         if (!model)
         {
@@ -131,7 +140,11 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
             forcedPass = overrideIt->second;
         }
 
+        const auto materialApplyBegin = chrono::steady_clock::now();
         ApplyMaterials(model, session.modelFolder, fullPathA, forcedPass);
+        session.materialApplyDuration +=
+            chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - materialApplyBegin);
+        ++session.materialApplyCount;
         session.preloadedModelCache[modelPathStr] = model;
 
         ++processedCount;
@@ -165,12 +178,16 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
         {
             string fullPathA = "../../../Client/Bin/Resources/Map/" + session.modelFolder + "/" + modelPathStr;
 
+            const auto modelCreateBegin = chrono::steady_clock::now();
             auto model = ModelCom::Create(
                 session.device,
                 session.context,
                 ModelType::NonAnim,
                 fullPathA.c_str(),
                 Matrix::CreateScale(0.01f));
+            session.modelCreateDuration +=
+                chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - modelCreateBegin);
+            ++session.modelCreateCount;
 
             if (!model)
             {
@@ -184,7 +201,11 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
                 forcedPass = overrideIt->second;
             }
 
+            const auto materialApplyBegin = chrono::steady_clock::now();
             ApplyMaterials(model, session.modelFolder, fullPathA, forcedPass);
+            session.materialApplyDuration +=
+                chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - materialApplyBegin);
+            ++session.materialApplyCount;
             session.preloadedModelCache[modelPathStr] = model;
             desc.model = model;
         }
@@ -197,7 +218,11 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
         }
         else
         {
+            const auto collisionBuildBegin = chrono::steady_clock::now();
             Shared<StaticCollisionData> collisionData = MapStaticCollisionBuilder::Build(desc.model);
+            session.collisionBuildDuration +=
+                chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - collisionBuildBegin);
+            ++session.collisionBuildCount;
             session.preloadedCollisionCache[modelPathStr] = collisionData;
             desc.collisionData = collisionData;
         }
@@ -223,15 +248,25 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
             scl[1].get<float>(),
             scl[2].get<float>());
 
-        if (FAILED(GAME->Add_GameObject(
+        Shared<GameObject> spawnedObject = nullptr;
+
+        const auto staticAddBegin = chrono::steady_clock::now();
+        const HRESULT addResult = GAME->Add_GameObject(
             ETOI(LevelType::Static),
             TEXT("GameObject_MapStaticMesh"),
             session.levelIndex,
             session.layerTag,
-            &desc)))
-        {
+            spawnedObject,
+            &desc);
+        session.staticAddDuration +=
+            chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - staticAddBegin);
+        ++session.staticAddCount;
+
+        if (FAILED(addResult))
             continue;
-        }
+
+        if (session.spawnedObjects != nullptr && spawnedObject != nullptr)
+            session.spawnedObjects->push_back(spawnedObject);
 
         ++processedCount;
     }
@@ -263,12 +298,16 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
         {
             string fullPathA = "../../../Client/Bin/Resources/Map/" + session.modelFolder + "/" + modelPathStr;
 
+            const auto modelCreateBegin = chrono::steady_clock::now();
             auto model = ModelCom::Create(
                 session.device,
                 session.context,
                 ModelType::NonAnim,
                 fullPathA.c_str(),
                 Matrix::CreateScale(0.01f));
+            session.modelCreateDuration +=
+                chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - modelCreateBegin);
+            ++session.modelCreateCount;
 
             if (!model)
             {
@@ -282,7 +321,11 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
                 forcedPass = overrideIt->second;
             }
 
+            const auto materialApplyBegin = chrono::steady_clock::now();
             ApplyMaterials(model, session.modelFolder, fullPathA, forcedPass);
+            session.materialApplyDuration +=
+                chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - materialApplyBegin);
+            ++session.materialApplyCount;
             session.preloadedModelCache[modelPathStr] = model;
             desc.model = model;
         }
@@ -290,6 +333,7 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
         // InstancedMeshes는 collision data를 만들지 않는다.
         if (e.contains("Instances"))
         {
+            const auto instancedTransformBegin = chrono::steady_clock::now();
             for (const auto& inst : e["Instances"])
             {
                 InstanceTransform t{};
@@ -315,16 +359,31 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
 
                 desc.transforms.push_back(t);
             }
+            session.instancedTransformDuration +=
+                chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - instancedTransformBegin);
         }
 
-        if (FAILED(GAME->Add_GameObject(
+        Shared<GameObject> spawnedObject = nullptr;
+
+        const auto instancedAddBegin = chrono::steady_clock::now();
+        const HRESULT addResult = GAME->Add_GameObject(
             ETOI(LevelType::Static),
             TEXT("GameObject_MapInstancedMesh"),
             session.levelIndex,
             session.layerTag,
-            &desc)))
+            spawnedObject,
+            &desc);
+        session.instancedAddDuration +=
+            chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - instancedAddBegin);
+        ++session.instancedAddCount;
+
+        if (FAILED(addResult))
         {
             continue;
+        }
+        if (session.spawnedObjects != nullptr && spawnedObject != nullptr)
+        {
+            session.spawnedObjects->push_back(spawnedObject);
         }
 
         ++processedCount;
@@ -334,6 +393,30 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
         session.preloadModelsDone &&
         session.staticMeshesDone &&
         session.instancedMeshesDone;
+
+    if (outFinished && !session.summaryLogged)
+    {
+        LOG_DEBUG(
+            "[MapLoader::Summary] processCalls={} begin={}ms models(data={}, createCalls={}, create={}ms, materials={}ms/{}) staticMeshes(data={}, add={}ms/{}, collisionBuild={}ms/{}) instancedMeshes(data={}, transforms={}ms, add={}ms/{})",
+            session.processCallCount,
+            session.beginSessionDuration.count(),
+            session.preloadModelPaths.size(),
+            session.modelCreateCount,
+            session.modelCreateDuration.count(),
+            session.materialApplyDuration.count(),
+            session.materialApplyCount,
+            session.staticMeshes.size(),
+            session.staticAddDuration.count(),
+            session.staticAddCount,
+            session.collisionBuildDuration.count(),
+            session.collisionBuildCount,
+            session.instancedMeshes.size(),
+            session.instancedTransformDuration.count(),
+            session.instancedAddDuration.count(),
+            session.instancedAddCount);
+
+        session.summaryLogged = true;
+    }
 
     return S_OK;
 }

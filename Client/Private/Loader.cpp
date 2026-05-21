@@ -16,7 +16,8 @@ auto Loader::Find_MapLoadDesc() const -> const LevelMapLoadDesc*
 {
     static const LevelMapLoadDesc mapLoadDescs[] =
     {
-        { LevelType::GamePlay, Constants::Map::SmallLevel_SimonArea_Remake_Path, L"Layer_MapStaticMesh" },
+        // Level_Gameplay -> 청크 스트리밍에서 시작 청크 로딩 방식으로 변경
+        //{ LevelType::GamePlay, Constants::Map::SmallLevel_SimonArea_Remake_Path, L"Layer_MapStaticMesh" },
         { LevelType::MapTest,  Constants::Map::TestMap_Path, L"Layer_MapStaticMesh" },
         { LevelType::Stage01,  Constants::Map::SmallLevel_SimonArea_Remake_Path, L"Layer_MapStaticMesh" },
     };
@@ -75,9 +76,6 @@ HRESULT Loader::Loading()
 
     HRESULT hr = {};
 
-    //EnterCriticalSection(&_criticalSection);
-    CoInitializeEx(nullptr, COINIT_MULTITHREADED);
-
     switch (_nextLevel)
     {
     case LevelType::Logo:
@@ -99,9 +97,6 @@ HRESULT Loader::Loading()
     default:
         hr = E_FAIL;
     }
-
-    CoUninitialize();
-    //LeaveCriticalSection(&_criticalSection);
 
     // 로딩 끝난 시간
     const auto end = std::chrono::steady_clock::now();
@@ -411,7 +406,7 @@ string Loader::Format_Duration(chrono::milliseconds duration)
 
 HRESULT Loader::Schedule_PendingCreateJobs(size_t maxMainThreadCreatePerFrame, chrono::milliseconds maxMainThreadCreateTime)
 {
-    vector<FLoadJob> jobsToSchedule;
+    deque<FLoadJob> jobsToSchedule;
 
     {
         lock_guard<mutex> lock(_pendingJobsMutex);
@@ -419,18 +414,19 @@ HRESULT Loader::Schedule_PendingCreateJobs(size_t maxMainThreadCreatePerFrame, c
         if (_pendingJobs.empty())
             return S_OK;
 
-        jobsToSchedule = std::move(_pendingJobs);
-        _pendingJobs.clear();
+        jobsToSchedule.swap(_pendingJobs);
     }
 
-    vector<FLoadJob> deferredJobs;
-    deferredJobs.reserve(jobsToSchedule.size());
+    deque<FLoadJob> deferredJobs;
 
     size_t mainThreadCreateCount = 0;
     const auto mainThreadCreateBegin = chrono::steady_clock::now();
 
-    for (const FLoadJob& loadJob : jobsToSchedule)
+    while (!jobsToSchedule.empty())
     {
+        FLoadJob loadJob = std::move(jobsToSchedule.front());
+        jobsToSchedule.pop_front();
+
         // 이미 등록된 prototype이면 완료 처리만 한다.
         if (GAME->Has_Prototype(loadJob.iLevelIndex, loadJob.strPrototypeTag))
         {
@@ -453,7 +449,7 @@ HRESULT Loader::Schedule_PendingCreateJobs(size_t maxMainThreadCreatePerFrame, c
 
             if (countBudgetExceeded || timeBudgetExceeded)
             {
-                deferredJobs.push_back(loadJob);
+                deferredJobs.push_back(std::move(loadJob));
                 continue;
             }
 
@@ -479,9 +475,6 @@ HRESULT Loader::Schedule_PendingCreateJobs(size_t maxMainThreadCreatePerFrame, c
         {
             const auto startTime = chrono::steady_clock::now();
 
-            HRESULT coHr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
-            const bool needCoUninitialize = SUCCEEDED(coHr);
-
             Shared<Base> prototype = nullptr;
             HRESULT hr = S_OK;
 
@@ -494,9 +487,6 @@ HRESULT Loader::Schedule_PendingCreateJobs(size_t maxMainThreadCreatePerFrame, c
             {
                 hr = resourceLoader->Create_LoadJobPrototype(loadJob, prototype);
             }
-
-            if (needCoUninitialize)
-                CoUninitialize();
 
             const auto elapsed = chrono::duration_cast<chrono::milliseconds>(
                 chrono::steady_clock::now() - startTime);
@@ -569,9 +559,10 @@ HRESULT Loader::Commit_CompletedLoadJobs(size_t maxCommitPerFrame)
         jobsToCommit.reserve(commitCount);
 
         for (size_t i = 0; i < commitCount; ++i)
-            jobsToCommit.push_back(std::move(_completedJobs[i]));
-
-        _completedJobs.erase(_completedJobs.begin(), _completedJobs.begin() + commitCount);
+        {
+            jobsToCommit.push_back(std::move(_completedJobs.front()));
+            _completedJobs.pop_front();
+        }
     }
 
     if (jobsToCommit.empty())
@@ -639,7 +630,7 @@ HRESULT Loader::Try_FinishLoading()
         _includedStaticJobs.store(false);
     }
 
-    CHECK_FAILED(Process_LevelMapLoad(2, chrono::milliseconds(4)), E_FAIL);
+    CHECK_FAILED(Process_LevelMapLoad(8, chrono::milliseconds(8)), E_FAIL);
 
     if (!_mapLoadFinished)
         return S_OK;

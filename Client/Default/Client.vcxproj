@@ -293,6 +293,7 @@
     <ClInclude Include="..\Public\Spawn_Prefab.h" />
     <ClInclude Include="..\Public\State.h" />
     <ClInclude Include="..\Public\StateMachineCom.h" />
+    <ClInclude Include="..\Public\StreamingLevel.h" />
     <ClInclude Include="..\Public\TargetCamera.h" />
     <ClInclude Include="..\Public\CharacterStatus_Panel.h" />
     <ClInclude Include="..\public\UIPreviewManager.h" />
@@ -462,6 +463,7 @@
     <ClCompile Include="..\Private\Spawn_Prefab.cpp" />
     <ClCompile Include="..\Private\State.cpp" />
     <ClCompile Include="..\Private\StateMachineCom.cpp" />
+    <ClCompile Include="..\Private\StreamingLevel.cpp" />
     <ClCompile Include="..\Private\TargetCamera.cpp" />
     <ClCompile Include="..\Private\CharacterStatus_Panel.cpp" />
     <ClCompile Include="..\private\UIPreviewManager.cpp" />
