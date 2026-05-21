@@ -122,6 +122,12 @@ public:
 
     Shared<BattleTurnCamera> Get_BattleTurnCamera() const { return _battleTurnCamera; }
 
+public:
+    // Free Aim은 턴 소모 X
+    void Begin_FreeAimShot(const Action& shotAction);
+    void Finish_FreeAimShot();
+    bool Is_FreeAimShotPlaying() const { return _isFreeAimShotPlaying; }
+
 private:
     HRESULT Ready_BattleTurnCamera();
     void    Activate_BattleTurnCamera();
@@ -157,11 +163,18 @@ private:
 
 private:
     void Execute_BaseAttack(const BattleChar actor, const Action& turnAction);
+    void Execute_FreeAimShoot(const BattleChar actor, const Action& turnAction);
     void Execute_Skill(const BattleChar actor, const Action& turnAction);
     void Execute_Item(const BattleChar actor, const Action& turnAction);
 
+private: /* 전투 AP */
+    void Apply_BaseAttackAP(const BattleChar& actor); // Base Attack시 얻는 AP
+    bool Apply_FreeAimShootAP(const BattleChar& actor); // Free Aim시 사용되는 AP
+
+private:
     bool _battleEnded = {};
     bool _pendingNextTurn = {};
+
 public:
     struct Compare
     {
@@ -206,6 +219,9 @@ private:  // 슬로우 처리
 
     // 배틀 카메라는 이미 켰고, UI 전환 종료만 기다리는 상태
     bool _isWaitingBattleTransition = false;
+
+    bool _isFreeAimShotPlaying = false;
+    Action _freeAimShotAction {};
 
 public:
     static Shared<BattleController> Create();

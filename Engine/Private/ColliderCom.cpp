@@ -133,6 +133,111 @@ HRESULT ColliderCom::Initialize(void* arg)
     return S_OK;
 }
 
+json ColliderCom::To_Json() const
+{
+    json root = __super::To_Json();
+
+    root["shape"] = static_cast<int>(_shape);
+    root["channel"] = static_cast<int>(_channel);
+    root["overlap_mask"] = _overlapMask;
+    root["block_mask"] = _blockMask;
+    root["preset"] = static_cast<int>(_preset);
+    root["is_active"] = _isActive;
+
+    json shapeDesc = json::object();
+    shapeDesc["shape"] = static_cast<int>(_shapeDesc.shape);
+    shapeDesc["center"] = { _shapeDesc.center.x, _shapeDesc.center.y, _shapeDesc.center.z };
+    shapeDesc["extents"] = { _shapeDesc.extents.x, _shapeDesc.extents.y, _shapeDesc.extents.z };
+    shapeDesc["radians"] = { _shapeDesc.radians.x, _shapeDesc.radians.y, _shapeDesc.radians.z };
+    shapeDesc["radius"] = _shapeDesc.radius;
+    root["shape_desc"] = std::move(shapeDesc);
+
+    return root;
+}
+
+void ColliderCom::From_Json(const json& data)
+{
+    __super::From_Json(data);
+
+    if (data.contains("shape") && data["shape"].is_number_integer())
+        _shape = static_cast<CollisionShape>(data["shape"].get<int>());
+
+    if (data.contains("preset") && data["preset"].is_number_integer())
+        _preset = static_cast<Collision_Preset>(data["preset"].get<int>());
+
+    if (data.contains("channel") && data["channel"].is_number_integer())
+        _channel = static_cast<Collision_Channel>(data["channel"].get<int>());
+
+    if (data.contains("overlap_mask") && data["overlap_mask"].is_number_integer())
+        _overlapMask = data["overlap_mask"].get<uint32>();
+
+    if (data.contains("block_mask") && data["block_mask"].is_number_integer())
+        _blockMask = data["block_mask"].get<uint32>();
+
+    if (data.contains("is_active") && data["is_active"].is_boolean())
+        _isActive = data["is_active"].get<bool>();
+
+    ColliderShapeDesc loadedShapeDesc = _shapeDesc;
+    loadedShapeDesc.shape = _shape;
+
+    if (data.contains("shape_desc") && data["shape_desc"].is_object())
+    {
+        const json& shapeDescJson = data["shape_desc"];
+
+        if (shapeDescJson.contains("shape") && shapeDescJson["shape"].is_number_integer())
+            loadedShapeDesc.shape = static_cast<CollisionShape>(shapeDescJson["shape"].get<int>());
+
+        if (shapeDescJson.contains("center") && shapeDescJson["center"].is_array() && shapeDescJson["center"].size() >= 3)
+        {
+            loadedShapeDesc.center.x = shapeDescJson["center"][0].get<float>();
+            loadedShapeDesc.center.y = shapeDescJson["center"][1].get<float>();
+            loadedShapeDesc.center.z = shapeDescJson["center"][2].get<float>();
+        }
+
+        if (shapeDescJson.contains("extents") && shapeDescJson["extents"].is_array() && shapeDescJson["extents"].size() >= 3)
+        {
+            loadedShapeDesc.extents.x = shapeDescJson["extents"][0].get<float>();
+            loadedShapeDesc.extents.y = shapeDescJson["extents"][1].get<float>();
+            loadedShapeDesc.extents.z = shapeDescJson["extents"][2].get<float>();
+        }
+
+        if (shapeDescJson.contains("radians") && shapeDescJson["radians"].is_array() && shapeDescJson["radians"].size() >= 3)
+        {
+            loadedShapeDesc.radians.x = shapeDescJson["radians"][0].get<float>();
+            loadedShapeDesc.radians.y = shapeDescJson["radians"][1].get<float>();
+            loadedShapeDesc.radians.z = shapeDescJson["radians"][2].get<float>();
+        }
+
+        if (shapeDescJson.contains("radius") && shapeDescJson["radius"].is_number())
+            loadedShapeDesc.radius = shapeDescJson["radius"].get<float>();
+    }
+
+    Set_ShapeDesc(loadedShapeDesc);
+
+    if (_preset != Collision_Preset::Custom)
+        Set_CollisionPreset(_preset);
+    else
+    {
+        _isTrigger = (_blockMask == 0);
+
+        if (_pxShape != nullptr)
+        {
+            if (_isTrigger)
+            {
+                _pxShape->setFlag(PxShapeFlag::eSIMULATION_SHAPE, false);
+                _pxShape->setFlag(PxShapeFlag::eTRIGGER_SHAPE, true);
+            }
+            else
+            {
+                _pxShape->setFlag(PxShapeFlag::eTRIGGER_SHAPE, false);
+                _pxShape->setFlag(PxShapeFlag::eSIMULATION_SHAPE, true);
+            }
+
+            Apply_PhysX_FilterData();
+        }
+    }
+}
+
 void ColliderCom::Update_Collider(const Matrix& worldMatrix)
 {
     if (nullptr == _bounding)

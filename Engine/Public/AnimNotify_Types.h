@@ -21,6 +21,8 @@ struct AnimNotifyContext
     float       currentTimeSec = 0.f;
     float       deltaTime = 0.f;
 
+    float       notifyStateProgress = 0.f; // ANS 진행도
+
     bool        isLooping = false;  // 반복할지
     bool        wrapped = false;    // 
     bool        isPreview = false;  // 프리뷰 (애니메이션 뷰) 인지

@@ -355,60 +355,59 @@ void MapLoader::ApplyMaterials(Shared<ModelCom>& model, const string& modelFolde
 
     fs::path jsonPath = fs::path(modelFullPath).replace_extension(".json");
     ifstream jfs(jsonPath);
-    if (!jfs.is_open())
-    {
-        return;
-    }
 
-    try
+    if (jfs.is_open())
     {
-        json modelJson = json::parse(jfs);
-
-        for (auto& entry : modelJson)
+        try
         {
-            if (entry.value("Type", "") != "StaticMesh")
-                continue;
+            json modelJson = json::parse(jfs);
 
-            if (!entry.contains("Properties") ||
-                !entry["Properties"].contains("StaticMaterials"))
+            for (auto& entry : modelJson)
             {
+                if (entry.value("Type", "") != "StaticMesh")
+                    continue;
+
+                if (!entry.contains("Properties") ||
+                    !entry["Properties"].contains("StaticMaterials"))
+                {
+                    break;
+                }
+
+                const auto& staticMats = entry["Properties"]["StaticMaterials"];
+
+                for (uint32 i = 0; i < static_cast<uint32>(staticMats.size()); ++i)
+                {
+                    const auto& mat = staticMats[i];
+                    if (!mat.contains("MaterialInterface"))
+                        continue;
+
+                    const auto& mi = mat["MaterialInterface"];
+                    if (!mi.is_object())
+                        continue;
+
+                    string objectPath = mi.value("ObjectPath", "");
+                    if (objectPath.empty())
+                        continue;
+
+                    size_t dot = objectPath.find('.');
+                    string packagePath = (dot != string::npos)
+                        ? objectPath.substr(0, dot)
+                        : objectPath;
+
+                    size_t slash = packagePath.rfind('/');
+                    string miName = (slash != string::npos)
+                        ? packagePath.substr(slash + 1)
+                        : packagePath;
+
+                    model->Apply_MaterialByAssetName(i, bundleKey, miName);
+                }
+
                 break;
             }
-
-            const auto& staticMats = entry["Properties"]["StaticMaterials"];
-
-            for (uint32 i = 0; i < static_cast<uint32>(staticMats.size()); ++i)
-            {
-                const auto& mat = staticMats[i];
-                if (!mat.contains("MaterialInterface"))
-                    continue;
-
-                const auto& mi = mat["MaterialInterface"];
-                if (!mi.is_object())
-                    continue;
-
-                string objectPath = mi.value("ObjectPath", "");
-                if (objectPath.empty())
-                    continue;
-
-                size_t dot = objectPath.find('.');
-                string packagePath = (dot != string::npos)
-                    ? objectPath.substr(0, dot)
-                    : objectPath;
-
-                size_t slash = packagePath.rfind('/');
-                string miName = (slash != string::npos)
-                    ? packagePath.substr(slash + 1)
-                    : packagePath;
-
-                model->Apply_MaterialByAssetName(i, bundleKey, miName);
-            }
-
-            break;
         }
-    }
-    catch (...)
-    {
+        catch (...)
+        {
+        }
     }
 
     if (forcedPassIndex >= 0)

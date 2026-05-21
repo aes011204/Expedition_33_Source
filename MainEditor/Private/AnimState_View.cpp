@@ -241,6 +241,7 @@ void AnimState_View::Open_FromModelComponent(
     _modelGuid = _sourceModelPath.empty() ? string{} : GAME->Ensure_AssetGUID(_sourceModelPath, "Model");
     _pendingDockId = preferredDockId;
     _requestFocusOnOpen = focusOnOpen;
+    _animationSearchBuffer[0] = '\0';
 
     Refresh_AnimmapFiles();
     Refresh_AnimationList();
@@ -359,6 +360,8 @@ void AnimState_View::Draw_AnimationSelector()
 {
     ImGui::Text("Animation Clips");
     ImGui::Separator();
+    ImGui::InputTextWithHint("##AnimStateClipSearch", "Search animation...", _animationSearchBuffer, IM_ARRAYSIZE(_animationSearchBuffer));
+    const string searchTextLower = String::ToLowerCopy(string(_animationSearchBuffer));
 
     if (!ImGui::BeginChild("AnimStateClipBrowserPanel", ImVec2(0.f, 0.f), true))
     {
@@ -375,6 +378,20 @@ void AnimState_View::Draw_AnimationSelector()
 
     for (const AnimationEntry& entry : _availableAnimations)
     {
+        if (!searchTextLower.empty())
+        {
+            const string displayNameLower = String::ToLowerCopy(entry.displayName);
+            const string nameLower = String::ToLowerCopy(entry.name);
+            const string playbackNameLower = String::ToLowerCopy(entry.playbackName);
+
+            if (displayNameLower.find(searchTextLower) == string::npos &&
+                nameLower.find(searchTextLower) == string::npos &&
+                playbackNameLower.find(searchTextLower) == string::npos)
+            {
+                continue;
+            }
+        }
+
         const bool isSelected =
             (_currentAnimationName == entry.displayName ||
              _currentAnimationName == entry.name ||

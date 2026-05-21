@@ -110,10 +110,13 @@ void TransformCom::From_Json(const json& data)
         const json& arr = data["scale"];
         if (arr.is_array() && arr.size() >= 3)
         {
-            Set_Scale(Vec3(
-                arr[0].get<float>(),
-                arr[1].get<float>(),
-                arr[2].get<float>()));
+            Set_Scale(
+                Vec3(
+                    arr[0].get<float>(),
+                    arr[1].get<float>(),
+                    arr[2].get<float>()
+                )
+            );
         }
     }
 
@@ -122,10 +125,13 @@ void TransformCom::From_Json(const json& data)
         const json& arr = data["rotation"];
         if (arr.is_array() && arr.size() >= 3)
         {
-            Set_WorldRotationEuler(Vec3(
-                arr[0].get<float>(),
-                arr[1].get<float>(),
-                arr[2].get<float>()));
+            Set_WorldRotationEuler(
+                Vec3(
+                    arr[0].get<float>(),
+                    arr[1].get<float>(),
+                    arr[2].get<float>()
+                )
+            );
         }
     }
 
@@ -134,10 +140,13 @@ void TransformCom::From_Json(const json& data)
         const json& arr = data["position"];
         if (arr.is_array() && arr.size() >= 3)
         {
-            Set_WorldPosition(Vec3(
-                arr[0].get<float>(),
-                arr[1].get<float>(),
-                arr[2].get<float>()));
+            Set_WorldPosition(
+                Vec3(
+                    arr[0].get<float>(),
+                    arr[1].get<float>(),
+                    arr[2].get<float>()
+                )
+            );
         }
     }
 }
@@ -207,6 +216,11 @@ void TransformCom::Set_Position(const Vec3& position)
     Mark_LocalChanged(LOCAL_CHANGE_KIND::ROTATION_UNCHANGED);
 }
 
+void TransformCom::Add_Position(const Vec3& deltaPosition)
+{
+    Set_Position(Get_Position() + deltaPosition);
+}
+
 Vec3 TransformCom::Get_WorldPosition()
 {
     return Get_State(State::Position);
@@ -230,6 +244,11 @@ void TransformCom::Set_WorldPosition(const Vec3& position)
 
     const Matrix inverseParentWorld = parentWorld.Invert();
     Set_Position(Vec3::Transform(position, inverseParentWorld));
+}
+
+void TransformCom::Add_WorldPosition(const Vec3& deltaPosition)
+{
+    Set_WorldPosition(Get_WorldPosition() + deltaPosition);
 }
 
 Vec3 TransformCom::Get_Scale() const
@@ -293,6 +312,23 @@ void TransformCom::Set_RotationEuler(const Vec3& eulerDegree)
     Clear_Dirty(TRANSFORM_DIRTY_FLAG::ROTATION);
 }
 
+void TransformCom::Add_LocalRotationEuler(const Vec3& deltaEulerDegree)
+{
+    const Vec3 deltaEulerRadian(
+        XMConvertToRadians(deltaEulerDegree.x),
+        XMConvertToRadians(deltaEulerDegree.y),
+        XMConvertToRadians(deltaEulerDegree.z)
+    );
+
+    Add_LocalRotationQuaternion(
+        Quat::CreateFromYawPitchRoll(
+            deltaEulerRadian.y,
+            deltaEulerRadian.x,
+            deltaEulerRadian.z
+        )
+    );
+}
+
 Vec3 TransformCom::Get_WorldRotationEuler()
 {
     Matrix worldMatrix = Get_WorldMatrix();
@@ -317,6 +353,69 @@ Vec3 TransformCom::Get_WorldRotationEuler()
     );
 }
 
+void TransformCom::Set_WorldRotationEuler(const Vec3& eulerDegree)
+{
+    const Vec3 eulerRadian(
+        XMConvertToRadians(eulerDegree.x),
+        XMConvertToRadians(eulerDegree.y),
+        XMConvertToRadians(eulerDegree.z)
+    );
+
+    const Quat desiredWorldRotation =
+        Quat::CreateFromYawPitchRoll(eulerRadian.y, eulerRadian.x, eulerRadian.z);
+
+    Set_WorldRotationQuaternion(desiredWorldRotation);
+}
+
+void TransformCom::Add_WorldRotationEuler(const Vec3& deltaEulerDegree)
+{
+    const Vec3 deltaEulerRadian(
+        XMConvertToRadians(deltaEulerDegree.x),
+        XMConvertToRadians(deltaEulerDegree.y),
+        XMConvertToRadians(deltaEulerDegree.z)
+    );
+
+    Add_WorldRotationQuaternion(
+        Quat::CreateFromYawPitchRoll(
+            deltaEulerRadian.y,
+            deltaEulerRadian.x,
+            deltaEulerRadian.z
+        )
+    );
+}
+
+const Quat& TransformCom::Get_RotationQuaternion()
+{
+    Sync_RotationCache_FromLocalMatrix();
+    return _localRotationCache;
+}
+
+void TransformCom::Set_RotationQuaternion(const Quat& rotation)
+{
+    if (rotation.LengthSquared() <= Internal::transformEpsilon)
+        _localRotationCache = Quat::Identity;
+    else
+    {
+        _localRotationCache = rotation;
+        _localRotationCache.Normalize();
+    }
+
+    Rebuild_LocalBasis_FromRotationCache();
+    Clear_Dirty(TRANSFORM_DIRTY_FLAG::ROTATION);
+}
+
+void TransformCom::Add_LocalRotationQuaternion(const Quat& deltaRotation)
+{
+    Quat rotation = Get_RotationQuaternion();
+    rotation = rotation * deltaRotation;
+
+    if (rotation.LengthSquared() <= Internal::transformEpsilon)
+        return;
+
+    rotation.Normalize();
+    Set_RotationQuaternion(rotation);
+}
+
 Quat TransformCom::Get_WorldRotationQuaternion()
 {
     Matrix worldMatrix = Get_WorldMatrix();
@@ -335,16 +434,9 @@ Quat TransformCom::Get_WorldRotationQuaternion()
     return rotation;
 }
 
-void TransformCom::Set_WorldRotationEuler(const Vec3& eulerDegree)
+void TransformCom::Set_WorldRotationQuaternion(const Quat& rotation)
 {
-    const Vec3 eulerRadian(
-        XMConvertToRadians(eulerDegree.x),
-        XMConvertToRadians(eulerDegree.y),
-        XMConvertToRadians(eulerDegree.z)
-    );
-
-    Quat desiredWorldRotation =
-        Quat::CreateFromYawPitchRoll(eulerRadian.y, eulerRadian.x, eulerRadian.z);
+    Quat desiredWorldRotation = rotation;
 
     if (desiredWorldRotation.LengthSquared() <= Internal::transformEpsilon)
         desiredWorldRotation = Quat::Identity;
@@ -388,24 +480,16 @@ void TransformCom::Set_WorldRotationEuler(const Vec3& eulerDegree)
     Set_RotationQuaternion(localRotation);
 }
 
-const Quat& TransformCom::Get_RotationQuaternion()
+void TransformCom::Add_WorldRotationQuaternion(const Quat& deltaRotation)
 {
-    Sync_RotationCache_FromLocalMatrix();
-    return _localRotationCache;
-}
+    Quat worldRotation = Get_WorldRotationQuaternion();
+    worldRotation = worldRotation * deltaRotation;
 
-void TransformCom::Set_RotationQuaternion(const Quat& rotation)
-{
-    if (rotation.LengthSquared() <= Internal::transformEpsilon)
-        _localRotationCache = Quat::Identity;
-    else
-    {
-        _localRotationCache = rotation;
-        _localRotationCache.Normalize();
-    }
+    if (worldRotation.LengthSquared() <= Internal::transformEpsilon)
+        return;
 
-    Rebuild_LocalBasis_FromRotationCache();
-    Clear_Dirty(TRANSFORM_DIRTY_FLAG::ROTATION);
+    worldRotation.Normalize();
+    Set_WorldRotationQuaternion(worldRotation);
 }
 
 float TransformCom::Get_SpeedPerSec() const
@@ -435,17 +519,15 @@ void TransformCom::Set_Parent(const Shared<TransformCom>& parent)
     const Vec3 previousSignedScale = Get_Scale();
     const Matrix currentWorld = _worldMatrix;
 
-    // 자기 자신을 잘못 건넬 경우 방지
+    // self-parent/cyclic-parent는 world/local 변환을 정의할 수 없다.
     if (parent.get() == this)
     {
         LOG_WARN("TransformCom::Set_Parent rejected self-parent.");
         return;
     }
 
-    // 부모 체인을 따라 위로 올라가는 순회용 for문
     for (Shared<TransformCom> cursor = parent; cursor; cursor = cursor->_parent.lock())
     {
-        // 내 자신이 부모 체인 안에 들어오는 상황 방지
         if (cursor.get() == this)
         {
             LOG_WARN("TransformCom::Set_Parent rejected cyclic parent chain.");
@@ -479,18 +561,6 @@ void TransformCom::Set_Parent(const Shared<TransformCom>& parent)
     _observedParentWorldRevision = 0;
     Sync_SignedScaleFromLocalMatrix(previousSignedScale);
     Sanitize_LocalBasis();
-}
-
-void TransformCom::Add_LocalRotation(const Quat& deltaRotation)
-{
-    Quat rotation = Get_RotationQuaternion();
-    rotation = rotation * deltaRotation;
-
-    if (rotation.LengthSquared() <= Internal::transformEpsilon)
-        return;
-
-    rotation.Normalize();
-    Set_RotationQuaternion(rotation);
 }
 
 Vec3 TransformCom::Get_WorldForward()
@@ -599,30 +669,20 @@ void TransformCom::Rotate(const Vec3& axis, float degree)
     Set_RotationQuaternion(Quat::CreateFromAxisAngle(axisValue, XMConvertToRadians(degree)));
 }
 
-void TransformCom::Turn(const Vec3& axis, float timeDelta)
-{
-    Vec3 axisValue = axis;
-    if (axisValue.LengthSquared() <= Internal::transformEpsilon)
-        return;
-
-    axisValue.Normalize();
-    Add_LocalRotation(Quat::CreateFromAxisAngle(axisValue, _radianPerSec * timeDelta));
-}
-
 void TransformCom::LookAt(const Vec3& at)
 {
     const Vec3 worldPosition = Get_WorldPosition();
     const Vec3 preservedScale = Get_Scale();
     const Shared<TransformCom> parent = _parent.lock();
 
-    //!! SimpleMath::CreateWorld 는 내부적으로 forward 가 반전되어 있어서, 방향 반대로 보정
+    // SimpleMath::CreateWorld는 카메라 forward 관례를 써서 target 방향을 반대로 넣는다.
     Vec3 direction = worldPosition - at;
     if (direction.LengthSquared() <= Internal::transformEpsilon)
         return;
 
     direction.Normalize();
 
-    // 바라보려는 방향이 Up과 거의 평행한지 판별하고 보정하는 안전장치
+    // forward와 up이 거의 평행하면 basis가 무너지므로 보조 up축을 바꾼다.
     Vec3 upAxis = Vec3::Up;
     const float upDot = direction.Dot(upAxis);
     constexpr float parallelDotThreshold = 1.f - 1e-3f;

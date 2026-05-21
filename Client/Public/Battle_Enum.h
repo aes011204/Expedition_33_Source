@@ -1,4 +1,7 @@
 ﻿#pragma once
+
+#include "Client_Enum.h"
+
 namespace Engine
 {
     class ModelCom;
@@ -446,6 +449,7 @@ namespace Client
 
     struct BattleChar
     {
+        HeroId heroId = HeroId::END; // 어떤 월드 영웅과 연결된 배틀 캐릭터인지 끝날 때 역반영으로 사용
         Shared<Character> actor;
         Shared<CombatStatCom> statCom;
         Shared<ModelCom> ModelCom;

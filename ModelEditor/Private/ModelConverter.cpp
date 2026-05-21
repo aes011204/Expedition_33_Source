@@ -411,6 +411,7 @@ namespace ModelEditor
         }
 
         ReadMeshes(_aiScene);
+        ReadMaterial(_aiScene); // 이게 빠져있어서 머티리얼 안들어왔음. 그래서 추가함
 		ReadAnimations(_aiScene);
 		Ensure_DirectoryExists(outputDir);
 
