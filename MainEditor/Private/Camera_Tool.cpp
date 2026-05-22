@@ -329,7 +329,7 @@ void Camera_Tool::Edit_BattleTurnCameraPreset()
         battleTurnCamera->Set_Preset(_editingBattleCameraMode, preset);
         BattleTurnCamera::BattleShotRequest request {};
         request.mode = _editingBattleCameraMode;
-        request.target = previewTarget;
+        request.subject = previewTarget;
 
         if (battleTurnCamera->Is_LiveEditEnabled())
             battleTurnCamera->Update_LiveEditContext(_editingBattleCameraMode, previewTarget);
@@ -488,6 +488,13 @@ Shared<Character> Camera_Tool::Resolve_BattlePreviewTarget() const
         const auto heroes = battleController->Get_AliveHeroes();
         if (!heroes.empty() && heroes[0].actor != nullptr)
             return heroes[0].actor;
+    }
+
+    if(_editingBattleCameraMode == BattleCameraMode::ENEMYATTACK)
+    {
+        const auto enemies = battleController->Get_AliveEnemies();
+        if(!enemies.empty() && enemies[0].actor != nullptr)
+            return enemies[0].actor;
     }
 
     const auto heroes = battleController->Get_AliveHeroes();

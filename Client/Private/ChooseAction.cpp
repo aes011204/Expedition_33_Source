@@ -56,7 +56,7 @@ void ChooseAction::Update(float timeDelta)
         ////////////////////////////////////////
         EvtBattlePresentation event;
         event.cameraMode = BattleCameraMode::ENEMYFOCUS;
-        event.target = owner->Get_AliveEnemies()[0].actor;
+        event.subject = owner->Get_AliveEnemies()[0].actor;
         GAME->Get_EventBus().Publish(event);
         ////////////////////////////////////////
         battleFSM->Change_State(BattleTurnState::AttackTargeting);

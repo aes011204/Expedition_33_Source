@@ -59,27 +59,28 @@ HRESULT BattleTurnCamera::Initialize(void* arg)
             {
                 case BattleCameraMode::ENEMYFOCUS:
                     request.mode = event.cameraMode;
-                    request.target = event.target;
+                    request.subject = event.subject;
                     break;
 
                 case BattleCameraMode::PLAYERFOCUS:
                     request.mode = event.cameraMode;
-                    request.target = event.target;
+                    request.subject = event.subject;
                     break;
 
                 case BattleCameraMode::WIDE:
                     request.mode = event.cameraMode;
-                    request.target = event.target;
+                    request.subject = event.subject;
                     break;
 
                 case BattleCameraMode::ENEMYATTACK:
                     request.mode = event.cameraMode;
-                    request.target = event.target;
+                    request.subject = event.subject;
+                    request.opponent = event.opponent;
                     break;
 
                 case BattleCameraMode::PLAYERATTACK:
                     request.mode = event.cameraMode;
-                    request.target = event.target;
+                    request.subject = event.subject;
                     break;
             }
 
@@ -257,7 +258,7 @@ void BattleTurnCamera::Apply_LookAt(const Vec3& cameraPos, const Vec3& lookAt)
 void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
 {
     if (_currentRequest.mode == request.mode &&
-        _currentRequest.target == request.target)
+        _currentRequest.subject == request.subject)
         return;
 
     bool wasWide = _currentRequest.mode == BattleCameraMode::WIDE;
@@ -269,8 +270,8 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
     _currentRequest = request;
 
     _targetTransform = nullptr;
-    if (_currentRequest.target)
-        _targetTransform = _currentRequest.target->Get_Transform();
+    if (_currentRequest.subject)
+        _targetTransform = _currentRequest.subject->Get_Transform();
 
     switch(_currentRequest.mode)
     {
@@ -317,7 +318,7 @@ void BattleTurnCamera::Update_LiveEditContext(BattleCameraMode mode, const Share
 {
     BattleShotRequest request{};
     request.mode = mode;
-    request.target = target;
+    request.subject = target;
     Apply_ShotRequest(request);
 
     if (BattleCameraPreset* preset = Get_MutablePreset(mode))
@@ -349,7 +350,31 @@ void BattleTurnCamera::Update_EnemyFocusMode(float timeDelta)
 
 void BattleTurnCamera::Update_EnemyAttackMode(float timeDelta)
 {
-    Update_FromCurrentPreset(timeDelta);
+    Vec3 enemyPos = _currentRequest.subject->Get_Transform()->Get_WorldPosition();
+    Vec3 playerPos = _currentRequest.opponent->Get_Transform()->Get_WorldPosition();
+
+    Vec3 forward = playerPos-enemyPos;
+
+    forward.y = 0;
+    forward.Normalize();
+
+    Vec3 right;
+
+    right.x = forward.z;
+    right.y = 0;
+    right.z  = -forward.x;
+
+    Vec3 backDir = - forward;
+
+    const float yawRad = XMConvertToRadians(_currentPreset.yawOffset);
+    Vec3 yawAdjustedBack = backDir * cosf(yawRad) + right * sinf(yawRad);
+
+    Vec3 camPos = playerPos + yawAdjustedBack * _currentPreset.distance + right * _currentPreset.sideOffset + Vec3::Up * _currentPreset.heightOffset;
+
+    Vec3 lookTarget = enemyPos + forward * _currentPreset.aimOffset + Vec3::Up * _currentPreset.lookHeight;
+
+    Apply_LookAt(camPos,lookTarget);
+    Update_TransformMatrices();
 }
 
 void BattleTurnCamera::Update_PlayerAttackMode(float timeDelta)
@@ -361,10 +386,10 @@ void BattleTurnCamera::Update_FromCurrentPreset(float timeDelta)
 {
     UNREFERENCED_PARAMETER(timeDelta);
 
-    if(_currentRequest.target == nullptr)
+    if(_currentRequest.subject == nullptr)
         return;
 
-    const Vec3 targetPos = _currentRequest.target->Get_Transform()->Get_WorldPosition();
+    const Vec3 targetPos = _currentRequest.subject->Get_Transform()->Get_WorldPosition();
 
     const float finalYaw = _yaw + _currentPreset.yawOffset;
     const float finalPitch = _pitch + _currentPreset.pitchOffset;

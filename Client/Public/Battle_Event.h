@@ -7,8 +7,8 @@ NS_BEGIN(Client)
 struct EvtBattlePresentation
 {
   BattleCameraMode   cameraMode;
-  Shared<Character> target;
-
+  Shared<Character>  subject;
+  Shared<Character>  opponent;
     //ui에 필요한 변수들 추가
 };
 NS_END

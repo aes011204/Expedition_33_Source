@@ -161,7 +161,9 @@ void BattleController::Run_EnemyTurn()
 
     EvtBattlePresentation event;
     event.cameraMode = BattleCameraMode::ENEMYATTACK;
-    event.target = monster;
+    event.subject = monster;
+    event.opponent = Get_TurnAction().target.actor;
+    
     GAME->Get_EventBus().Publish(event);
 }
 
@@ -367,7 +369,7 @@ void BattleController::StartTurn()
 
         EvtBattlePresentation event;
         event.cameraMode = BattleCameraMode::PLAYERFOCUS;
-        event.target = _currentTurnActor.actor;
+        event.subject = _currentTurnActor.actor;
         GAME->Get_EventBus().Publish(event);
 
         OnTurnStarted.Broadcast(_currentTurnActor, BattleTurnState::ChooseAction);
@@ -537,7 +539,7 @@ void BattleController::Request_WidePresentationMode()
 
     EvtBattlePresentation event;
     event.cameraMode = BattleCameraMode::WIDE;
-    event.target = nullptr;
+    event.subject = nullptr;
     GAME->Get_EventBus().Publish(event);
 
     return;
@@ -614,12 +616,12 @@ void BattleController::Handle_EditorStopRuntime()
 //    if (target == nullptr || target->actor == nullptr)
 //    {
 //        request.mode = BattleCameraMode::WIDE;
-//        request.target = nullptr;
+//        request.subject = nullptr;
 //    }
 //    else
 //    {
 //        request.mode = BattleCameraMode::ENEMYFOCUS;
-//        request.target = target->actor;
+//        request.subject = target->actor;
 //    }
 //
 //    _battleTurnCamera->Apply_ShotRequest(request);

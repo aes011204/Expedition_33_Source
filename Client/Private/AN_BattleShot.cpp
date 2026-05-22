@@ -41,7 +41,7 @@ void AN_BattleShot::Execute(const AnimNotifyContext& context)
 
     EvtBattlePresentation event {};
     event.cameraMode = _cameraMode;
-    event.target = character;
+    event.subject = character;
 
     GAME->Get_EventBus().Publish(event);
 }

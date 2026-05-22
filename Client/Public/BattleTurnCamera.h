@@ -16,7 +16,8 @@ public:
     struct BattleShotRequest
     {
         BattleCameraMode mode = BattleCameraMode::WIDE;
-        Shared<Engine::Character> target = nullptr;
+        Shared<Engine::Character> subject = nullptr;
+        Shared<Engine::Character> opponent = nullptr;
     };
 
 public:
@@ -62,6 +63,7 @@ private:
     void                Update_FromCurrentPreset(float timeDelta);
     void                Update_LiveEditInput(float timeDelta);
     void                Update_PlayerAttackMode(float timeDelta);
+
     BattleCameraPreset* Get_MutablePreset(BattleCameraMode mode);
 
 private:
