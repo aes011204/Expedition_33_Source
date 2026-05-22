@@ -12,7 +12,7 @@ NS_END
 
 NS_BEGIN(Client)
 
-class [[deprecated("절.대.컴.퓨.트.셰.이.더.를.사.용.해 | Use ComputePointParticleEffect for compute sprite particles.")]] PointParticleEffect final : public GameObject
+class [[deprecated("Use ComputePointParticleEffect for compute sprite particles.")]] PointParticleEffect final : public GameObject
 {
     GENERATED_GAMEOBJECT(PointParticleEffect, ObjectType::Effect)
 

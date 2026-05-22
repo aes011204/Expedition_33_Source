@@ -1156,7 +1156,7 @@ json EffectAuthoringJsonSerializer::To_Json(const AuthoringEmitter& emitter)
     json root = json::object();
     root["id"] = emitter.id;
     root["name"] = emitter.name;
-    root["rendererType"] = Resolve_RendererType(emitter.typeData);
+    root["rendererType"] = Authoring::Resolve_RendererType(emitter.typeData);
     root["enabled"] = emitter.enabled;
     if (emitter.typeData.kind != AuthoringTypeDataKind::None)
         root["typeData"] = Internal::To_Json(emitter.typeData);
@@ -1269,7 +1269,7 @@ bool EffectAuthoringJsonSerializer::From_Json(const json& root, AuthoringEmitter
     if (typeDataIter != root.end())
     {
         Internal::From_Json(*typeDataIter, emitter.typeData);
-        emitter.rendererType = Resolve_RendererType(emitter.typeData);
+        emitter.rendererType = Authoring::Resolve_RendererType(emitter.typeData);
     }
 
     const auto modulesIter = root.find("modules");

@@ -1742,7 +1742,7 @@ void Emitter_View::Clamp_Selection()
 
 void Emitter_View::Sync_EmitterMirror(AuthoringEmitter& emitter)
 {
-    emitter.rendererType = Resolve_RendererType(emitter.typeData);
+    emitter.rendererType = Authoring::Resolve_RendererType(emitter.typeData);
 
     for (const AuthoringModule& module : emitter.modules)
     {
@@ -2068,6 +2068,8 @@ void Emitter_View::Draw_TypeDataRow(size_t emitterIndex)
 {
     constexpr float rowPaddingX = 10.f;
 
+    const AuthoringTypeDataKind typeDataKind = _emitters[emitterIndex].typeData.kind;
+    const bool hasTypeData = typeDataKind != AuthoringTypeDataKind::None;
     const bool isSelected =
         _selectedEmitterIndex.has_value() &&
         _selectedEmitterIndex.value() == emitterIndex &&
@@ -2076,7 +2078,9 @@ void Emitter_View::Draw_TypeDataRow(size_t emitterIndex)
     const ImVec4 rowColor = isSelected ? accentColor : To_ImVec4(kEmitterTypeDataRowColor);
     const ImVec4 textColor = isSelected
                              ? To_ImVec4(kEmitterSelectedTextColor)
-                             : ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled);
+                             : hasTypeData
+                               ? ImGui::GetStyleColorVec4(ImGuiCol_Text)
+                               : ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled);
 
     const ImVec2 rowCursor = ImGui::GetCursorPos();
     ImGui::PushStyleColor(ImGuiCol_Button, rowColor);
@@ -2099,9 +2103,10 @@ void Emitter_View::Draw_TypeDataRow(size_t emitterIndex)
     const float textOffsetY = (kEmitterTypeDataRowHeight - ImGui::GetTextLineHeight()) * 0.5f;
     ImGui::SetCursorPos(ImVec2(rowCursor.x + rowPaddingX, rowCursor.y + textOffsetY));
     ImGui::PushStyleColor(ImGuiCol_Text, textColor);
-    ImGui::TextUnformatted("타입 데이터");
-    ImGui::SameLine();
-    ImGui::TextDisabled(_emitters[emitterIndex].typeData.kind == AuthoringTypeDataKind::Trail ? "(Trail)" : "(미장착)");
+    if (hasTypeData)
+        ImGui::TextUnformatted(typeDataKind == AuthoringTypeDataKind::Trail ? "트레일 데이터" : "타입 데이터");
+    else
+        ImGui::TextUnformatted("타입 데이터 (미장착)");
     ImGui::PopStyleColor();
     ImGui::SetCursorPos(afterRowCursor);
 }

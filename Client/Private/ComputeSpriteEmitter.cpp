@@ -139,20 +139,6 @@ HRESULT ComputeSpriteEmitter::Ready_Components()
     ComputePointParticleDesc desc = Make_ComputePointParticleDesc();
     CHECK_FAILED(__super::Add_Component(ETOI(LevelType::Static), TEXT("Com_Effect_ComputePointParticleBuffer"), _viBuffer, &desc), E_FAIL);
 
-    LOG_INFO(
-        "ComputeSpriteEmitter ready: shaderId='{}', mainTextureGuid='{}', mainTexturePath='{}', resolvedTexturePath='{}', blendMode='{}', passIndex={}, noiseTextureGuid='{}', noiseTexturePath='{}', opacitySource='{}', noiseStrength={}",
-        kEffectSpriteShaderId,
-        _desc.required.material.mainTextureGuid,
-        _desc.required.material.mainTexturePath,
-        resolvedTexturePath,
-        _desc.required.material.blendMode,
-        _effectSpritePassIndex,
-        _desc.required.material.noiseTextureGuid,
-        _desc.required.material.noiseTexturePath,
-        _desc.required.material.opacitySource,
-        _desc.required.material.noiseStrength
-    );
-
     return S_OK;
 }
 
@@ -178,34 +164,22 @@ HRESULT ComputeSpriteEmitter::Ready_TextureComponent(string& outResolvedTextureP
     if (resolvedPath.empty())
     {
         LOG_WARN(
-            "ComputeSpriteEmitter main texture resolve failed. mainTextureGuid='{}', mainTexturePath='{}'. Falling back to fallbackGuid='{}', fallbackPath='{}'.",
+            "ComputeSpriteEmitter main texture resolve failed. mainTextureGuid='{}', mainTexturePath='{}'. Falling back to fallbackPath='{}'.",
             _desc.required.material.mainTextureGuid,
             _desc.required.material.mainTexturePath,
-            kFallbackTextureGuid,
             kFallbackTexturePath
         );
 
-        bool fallbackUsedLegacyGuid = false;
-        resolvedPath = Client::Internal::Resolve_TexturePath(kFallbackTextureGuid, kFallbackTexturePath, fallbackUsedLegacyGuid);
-        if (fallbackUsedLegacyGuid)
-        {
-            LOG_WARN(
-                "ComputeSpriteEmitter fallback texture recovered by legacy GUID. fallbackGuid='{}', fallbackPath='{}', resolvedPath='{}'.",
-                kFallbackTextureGuid,
-                kFallbackTexturePath,
-                String::ToString(resolvedPath)
-            );
-        }
+        resolvedPath = Client::Internal::Resolve_TexturePathByPath(kFallbackTexturePath);
         usedFallback = true;
     }
 
     if (resolvedPath.empty())
     {
         LOG_ERROR(
-            "ComputeSpriteEmitter failed to resolve fallback texture. mainTextureGuid='{}', mainTexturePath='{}', fallbackGuid='{}', fallbackPath='{}'.",
+            "ComputeSpriteEmitter failed to resolve fallback texture. mainTextureGuid='{}', mainTexturePath='{}', fallbackPath='{}'.",
             _desc.required.material.mainTextureGuid,
             _desc.required.material.mainTexturePath,
-            kFallbackTextureGuid,
             kFallbackTexturePath
         );
         return E_FAIL;
@@ -216,27 +190,16 @@ HRESULT ComputeSpriteEmitter::Ready_TextureComponent(string& outResolvedTextureP
     if (_texture == nullptr)
     {
         LOG_ERROR(
-            "ComputeSpriteEmitter texture create failed. mainTextureGuid='{}', mainTexturePath='{}', resolvedPath='{}', fallbackGuid='{}', fallbackPath='{}', usedFallback={}.",
+            "ComputeSpriteEmitter texture create failed. mainTextureGuid='{}', mainTexturePath='{}', resolvedPath='{}', fallbackPath='{}', usedFallback={}.",
             _desc.required.material.mainTextureGuid,
             _desc.required.material.mainTexturePath,
             outResolvedTexturePath,
-            kFallbackTextureGuid,
             kFallbackTexturePath,
             usedFallback
         );
         return E_FAIL;
     }
 
-    LOG_INFO(
-        "ComputeSpriteEmitter main texture ready. mainTextureGuid='{}', mainTexturePath='{}', resolvedPath='{}', fallbackGuid='{}', fallbackPath='{}', usedFallback={}, usedLegacyGuid={}.",
-        _desc.required.material.mainTextureGuid,
-        _desc.required.material.mainTexturePath,
-        outResolvedTexturePath,
-        kFallbackTextureGuid,
-        kFallbackTexturePath,
-        usedFallback,
-        usedLegacyGuid
-    );
     return S_OK;
 }
 
@@ -302,9 +265,7 @@ HRESULT ComputeSpriteEmitter::Ready_NoiseTextureComponent(const string& resolved
 
 HRESULT ComputeSpriteEmitter::Bind_ShaderResources()
 {
-    CHECK_FAILED_ONCE(GAME->Bind_TransformMatrix(D3DTS::View, _shader.get(), "g_ViewMatrix"), E_FAIL);
-    CHECK_FAILED_ONCE(GAME->Bind_TransformMatrix(D3DTS::Proj, _shader.get(), "g_ProjMatrix"), E_FAIL);
-    CHECK_FAILED_ONCE(GAME->Bind_CamPosition(_shader.get(), "g_BillboardTarget"), E_FAIL);
+    CHECK_FAILED_ONCE(GAME->Bind_CameraCB(_shader), E_FAIL);
     const int screenAlignmentMode = static_cast<int>(_desc.required.spriteRender.screenAlignment);
     const int directionalAlignmentMode = static_cast<int>(_desc.required.spriteRender.directionalAlignmentMode);
     const int spriteTextureAxis = static_cast<int>(_desc.required.spriteRender.spriteTextureAxis);

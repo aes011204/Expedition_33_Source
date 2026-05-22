@@ -6,11 +6,33 @@
 
 NS_BEGIN(Engine)
 
+//## Emitter::Type
+
 // Effect 내부 emitter의 concrete runtime 종류를 구분한다.
 enum class EffectEmitterKind : uint8
 {
     ComputeSprite, // compute-first sprite emitter runtime이다.
+    ComputeTrail,  // compute-first trail/ribbon emitter runtime이다.
 };
+
+//## Trail
+
+// Trail runtime이 한 프레임에서 소비할 base/tip world sample이다.
+struct EffectTrailSample
+{
+    Vec3 baseWorldPosition{}; // trail 폭의 시작 기준점이다.
+    Vec3 tipWorldPosition{};  // trail 폭의 끝 기준점이다.
+};
+
+// Trail emitter가 attachment owner에게서 sample만 읽기 위한 좁은 provider 계약이다.
+class ENGINE_DLL IEffectTrailSampleProvider
+{
+public:
+    virtual ~IEffectTrailSampleProvider() = default;
+    virtual bool Try_GetTrailSample(EffectTrailSample& outSample) const = 0;
+};
+
+//## Module::Sprite
 
 // EffectSprite shader가 어떤 기준으로 sprite facing 축을 고를지 결정한다.
 enum class EffectSpriteScreenAlignment : uint32
@@ -124,6 +146,8 @@ struct EffectColorOverLifeRuntimeDesc
     Vec4 endColorMax{ 1.f, 1.f, 1.f, 1.f }; // Color Over Life 상한이다.
 };
 
+//## Emitter
+
 // compute sprite emitter가 실제 runtime consumer에게 넘길 module-facing payload다.
 struct ComputeSpriteEmitterDesc : public GameObject::GAMEOBJECT_DESC
 {
@@ -144,7 +168,22 @@ struct ComputeSpriteEmitterDesc : public GameObject::GAMEOBJECT_DESC
     Vec3 center{ 0.f, 0.f, 0.f };                             // concrete emitter 내부 fallback/초기 center다. root transform이 있으면 후속 sync가 덮어쓴다.
 };
 
-using EffectEmitterConcreteDesc = variant<ComputeSpriteEmitterDesc>;
+// compute trail emitter가 clone 시점에 받는 trail 전용 runtime payload다.
+struct ComputeTrailEmitterDesc : public GameObject::GAMEOBJECT_DESC
+{
+    EffectRequiredMaterialRuntimeDesc material{}; // trail 기본 material/tint/blend 값이다.
+    EffectEmitterPlaybackRuntimeDesc playback{};  // duration/loop/delay 같은 공통 재생 규칙이다.
+
+    float width{ 0.1f };            // base-tip 축을 기준으로 보정할 최소 폭이다.
+    float segmentLifetime{ 0.25f }; // history sample 하나가 화면에 남는 시간이다.
+    uint32 historyCount{ 32 };      // trail이 유지할 최대 sample 개수다.
+    float uvTiling{ 1.f };          // trail 진행 방향의 기본 UV 반복값이다.
+    bool smoothTangent{ true };     // 후속 tangent smoothing 확장을 위한 v0 보존 플래그다.
+
+    Weak<IEffectTrailSampleProvider> sampleProvider{}; // attachment 계산 owner가 공급하는 sample source다.
+};
+
+using EffectEmitterConcreteDesc = variant<ComputeSpriteEmitterDesc, ComputeTrailEmitterDesc>;
 
 struct EffectEmitterDefinition
 {
@@ -159,6 +198,8 @@ struct EffectEmitterDefinition
 
     EffectEmitterConcreteDesc concreteDesc{ ComputeSpriteEmitterDesc{} }; // concrete emitter가 직접 소비할 payload다.
 };
+
+//## Effect
 
 // 저장/로드 결과로 공유되는 effect 정적 정의다.
 struct EffectDefinition

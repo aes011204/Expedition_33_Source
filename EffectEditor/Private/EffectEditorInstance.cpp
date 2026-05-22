@@ -295,6 +295,23 @@ void EffectEditorInstance::Set_TrailPreviewVisible(bool visible)
     _isTrailPreviewVisible = visible;
 }
 
+void EffectEditorInstance::Set_TrailPreviewDebugRenderEnabled(bool enabled)
+{
+    _isTrailPreviewDebugRenderEnabled = enabled;
+}
+
+void EffectEditorInstance::Set_TrailPreviewLocalOffsets(const Vec3& baseLocalOffset, const Vec3& tipLocalOffset)
+{
+    _trailPreviewBaseLocalOffset = baseLocalOffset;
+    _trailPreviewTipLocalOffset = tipLocalOffset;
+}
+
+void EffectEditorInstance::Reset_TrailPreviewLocalOffsets()
+{
+    _trailPreviewBaseLocalOffset = kDefaultTrailPreviewBaseLocalOffset;
+    _trailPreviewTipLocalOffset = kDefaultTrailPreviewTipLocalOffset;
+}
+
 void EffectEditorInstance::Request_WindowFocus(EditorViewportTarget target)
 {
     _pendingWindowFocus = target;

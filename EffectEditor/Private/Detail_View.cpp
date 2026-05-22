@@ -119,7 +119,39 @@ void Detail_View::Render_ParticleSystemDetail(
         MarkDirty();
     }
 
+    Render_TrailPreviewDetail();
     Commit_PendingAuthoringEditIfIdle(emitterView);
+}
+
+void Detail_View::Render_TrailPreviewDetail()
+{
+    if (EDITOR == nullptr)
+        return;
+
+    if (!ImGui::CollapsingHeader("트레일 프리뷰", ImGuiTreeNodeFlags_DefaultOpen))
+        return;
+
+    Vec3 baseLocalOffset = EDITOR->Get_TrailPreviewBaseLocalOffset();
+    Vec3 tipLocalOffset = EDITOR->Get_TrailPreviewTipLocalOffset();
+    const Vec3 defaultBaseLocalOffset = EDITOR->Get_DefaultTrailPreviewBaseLocalOffset();
+    const Vec3 defaultTipLocalOffset = EDITOR->Get_DefaultTrailPreviewTipLocalOffset();
+    bool visible = EDITOR->Is_TrailPreviewVisible();
+    bool debugRenderEnabled = EDITOR->Is_TrailPreviewDebugRenderEnabled();
+
+    bool changed = false;
+    if (_detailPropertyContext.Begin_PropertyTable("TrailPreview"))
+    {
+        if (_detailPropertyContext.Draw_BoolProperty("트레일 프리뷰", visible, false))
+            EDITOR->Set_TrailPreviewVisible(visible);
+        if (_detailPropertyContext.Draw_BoolProperty("디버그 렌더", debugRenderEnabled, true))
+            EDITOR->Set_TrailPreviewDebugRenderEnabled(debugRenderEnabled);
+        changed |= _detailPropertyContext.Draw_Vec3Property("Base 로컬", baseLocalOffset, defaultBaseLocalOffset, 0.005f);
+        changed |= _detailPropertyContext.Draw_Vec3Property("Tip 로컬", tipLocalOffset, defaultTipLocalOffset, 0.005f);
+        _detailPropertyContext.End_PropertyTable();
+    }
+
+    if (changed)
+        EDITOR->Set_TrailPreviewLocalOffsets(baseLocalOffset, tipLocalOffset);
 }
 
 void Detail_View::Render_EmitterDetail(

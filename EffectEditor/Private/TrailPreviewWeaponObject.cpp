@@ -2,6 +2,7 @@
 #include "TrailPreviewWeaponObject.h"
 
 #include "GameInstance.h"
+#include "EffectEditorInstance.h"
 #include "Material.h"
 #include "ModelCom.h"
 #include "PB_Gustave.h"
@@ -46,6 +47,7 @@ void TrailPreviewWeaponObject::Update(float)
         _weaponWorldMatrix = Matrix::Identity;
         _trailBaseWorldPosition = {};
         _trailTipWorldPosition = {};
+        _hasTrailSample = false;
         return;
     }
 
@@ -54,8 +56,14 @@ void TrailPreviewWeaponObject::Update(float)
 
 void TrailPreviewWeaponObject::Late_Update(float)
 {
-    if (Is_Visible() && nullptr != _weaponModel && nullptr != _weaponShader)
+    if (!Is_Visible())
+        return;
+
+    if (nullptr != _weaponModel && nullptr != _weaponShader)
+    {
         GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
+        Draw_TrailAnchorMarkers();
+    }
 }
 
 HRESULT TrailPreviewWeaponObject::Render()
@@ -73,6 +81,21 @@ HRESULT TrailPreviewWeaponObject::Render()
     }
 
     return S_OK;
+}
+
+bool TrailPreviewWeaponObject::Has_TrailSample() const
+{
+    return Is_Visible() && _hasTrailSample;
+}
+
+bool TrailPreviewWeaponObject::Try_GetTrailSample(EffectTrailSample& outSample) const
+{
+    if (!Has_TrailSample())
+        return false;
+
+    outSample.baseWorldPosition = _trailBaseWorldPosition;
+    outSample.tipWorldPosition = _trailTipWorldPosition;
+    return true;
 }
 
 wstring TrailPreviewWeaponObject::Resolve_ClientResourcePath(const wchar_t* relativePath) const
@@ -215,10 +238,48 @@ void TrailPreviewWeaponObject::Update_FallbackWorldMatrix(const Matrix& playerWo
 
 void TrailPreviewWeaponObject::Update_TrailPoints()
 {
-    const Vec3 baseLocal{ kTrailBaseLocalOffset.x, kTrailBaseLocalOffset.y, kTrailBaseLocalOffset.z };
-    const Vec3 tipLocal{ kTrailTipLocalOffset.x, kTrailTipLocalOffset.y, kTrailTipLocalOffset.z };
+    if (EDITOR == nullptr)
+    {
+        _trailBaseWorldPosition = {};
+        _trailTipWorldPosition = {};
+        _hasTrailSample = false;
+        return;
+    }
+
+    const Vec3 baseLocal = EDITOR->Get_TrailPreviewBaseLocalOffset();
+    const Vec3 tipLocal = EDITOR->Get_TrailPreviewTipLocalOffset();
     _trailBaseWorldPosition = Vec3::Transform(baseLocal, _weaponWorldMatrix);
     _trailTipWorldPosition = Vec3::Transform(tipLocal, _weaponWorldMatrix);
+    _hasTrailSample = true;
+}
+
+void TrailPreviewWeaponObject::Draw_TrailAnchorMarkers() const
+{
+    if (!Has_TrailSample())
+        return;
+
+    if (EDITOR != nullptr && !EDITOR->Is_TrailPreviewDebugRenderEnabled())
+        return;
+
+    Draw_TrailAnchorMarker(_trailBaseWorldPosition, Color(0.2f, 0.9f, 1.f, 1.f));
+    Draw_TrailAnchorMarker(_trailTipWorldPosition, Color(1.f, 0.72f, 0.18f, 1.f));
+
+    DebugLineDesc lineDesc{};
+    lineDesc.start = _trailBaseWorldPosition;
+    lineDesc.end = _trailTipWorldPosition;
+    lineDesc.style.color = Color(0.95f, 1.f, 0.25f, 1.f);
+    lineDesc.style.depthEnabled = false;
+    GAME->Draw_DebugLine(lineDesc);
+}
+
+void TrailPreviewWeaponObject::Draw_TrailAnchorMarker(const Vec3& worldPosition, const Color& color) const
+{
+    DebugSphereDesc sphereDesc{};
+    sphereDesc.center = worldPosition;
+    sphereDesc.radius = kTrailAnchorMarkerRadius;
+    sphereDesc.style.color = color;
+    sphereDesc.style.depthEnabled = false;
+    GAME->Draw_DebugSphere(sphereDesc);
 }
 
 void TrailPreviewWeaponObject::Log_AttachmentSocket(

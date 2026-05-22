@@ -97,7 +97,7 @@ private: //## Static Values
     inline static const Color kEmitterHeaderColor{ 0.36f, 0.36f, 0.36f, 1.0f };
     inline static const Color kEmitterSelectedTextColor{ 0.05f, 0.05f, 0.05f, 1.0f };
     inline static const Color kEmitterCategoryTextColor{ 0.08f, 0.08f, 0.08f, 1.0f };
-    inline static const Color kEmitterTypeDataRowColor{ 0.06f, 0.065f, 0.08f, 1.0f };
+    inline static const Color kEmitterTypeDataRowColor{ 0.45f, 0.75f, 0.50f, 1.0f };
     inline static const Color kEmitterRequiredRowColor{ 0.9f, 0.35f, 0.35f, 1.0f };
     inline static const Color kEmitterSpawnRowColor{ 0.75f, 0.75f, 0.3f, 1.0f };
     inline static const Color kEmitterCommonModuleRowColor{ 0.18f, 0.19f, 0.24f, 1.0f };

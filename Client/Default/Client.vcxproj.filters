@@ -229,6 +229,9 @@
     <Filter Include="04. GamePlayUI\SkillTree_Panel">
       <UniqueIdentifier>{a1312345-3547-423a-8f4a-75a5083c4e41}</UniqueIdentifier>
     </Filter>
+    <Filter Include="02.GameObject\Effect\Emitters\ComputeTrail">
+      <UniqueIdentifier>{34cfddd4-fc20-4ec8-9664-6169774a9019}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -658,6 +661,10 @@
     <ClInclude Include="..\public\ANS_Move.h">
       <Filter>AnimNotify</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\Player_GameMenu.h" />
+    <ClInclude Include="..\Public\ComputeTrailEmitter.h">
+      <Filter>02.GameObject\Effect\Emitters\ComputeTrail</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -1069,6 +1076,10 @@
     <ClCompile Include="..\private\ANS_Move.cpp">
       <Filter>AnimNotify</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\Player_GameMenu.cpp" />
+    <ClCompile Include="..\Private\ComputeTrailEmitter.cpp">
+      <Filter>02.GameObject\Effect\Emitters\ComputeTrail</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">
@@ -1096,6 +1107,9 @@
       <Filter>97.ShaderFiles\Compute</Filter>
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_PointParticle.hlsl">
+      <Filter>97.ShaderFiles\Compute</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_TrailStrip.hlsl">
       <Filter>97.ShaderFiles\Compute</Filter>
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMeshInstance.hlsl">
@@ -1139,6 +1153,9 @@
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMaterialPreview.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMaterialPreview.hlsl">
+      <Filter>97.ShaderFiles\Effect</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectTrail.hlsl">
       <Filter>97.ShaderFiles\Effect</Filter>
     </FxCompile>
   </ItemGroup>

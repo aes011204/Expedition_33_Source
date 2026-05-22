@@ -528,7 +528,7 @@ namespace Internal
 
 EffectMaterialInstance_View::EffectMaterialInstance_View()
     : Editor_Window{ L"Effect Material Instance", ICON_FA_PALETTE }
-    , _previewRenderer{ make_unique<EffectMaterialPreviewRenderer>() }
+    , _previewRenderer{ EffectMaterialPreviewRenderer::Create() }
 {
 }
 
