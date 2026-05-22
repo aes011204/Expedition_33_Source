@@ -49,7 +49,20 @@ HRESULT BattleTurnCamera::Initialize(void* arg)
     CameraPresetIO::LoadBattlePresetFromFile(BattleCameraMode::ENEMYFOCUS, _enemyFocusPreset);
     CameraPresetIO::LoadBattlePresetFromFile(BattleCameraMode::ENEMYATTACK, _enemyAttackPreset);
     CameraPresetIO::LoadBattlePresetFromFile(BattleCameraMode::PLAYERATTACK, _playerAttackPreset);
-     
+
+    _enemyAttackClip.duration = 5.f;
+
+    _enemyAttackClip.distanceOffset.keyframes.push_back({0.5f, 0.0f});
+    _enemyAttackClip.distanceOffset.keyframes.push_back({1.f, -1.0f});
+    _enemyAttackClip.distanceOffset.keyframes.push_back({2.f, -0.4f});
+    _enemyAttackClip.distanceOffset.keyframes.push_back({3.f, 0.0f});
+
+    _enemyAttackClip.fovOffset.keyframes.push_back({0.5f, 0.0f});
+    _enemyAttackClip.fovOffset.keyframes.push_back({1.f, -0.1f});
+    _enemyAttackClip.fovOffset.keyframes.push_back({2.f, -0.2f});
+    _enemyAttackClip.fovOffset.keyframes.push_back({3.f,  0.0f});
+    //_enemyAttackClip.shakeAmplitude.keyframes.push_back({0.5f, 0.1f});
+
    _battlePresentationHandle = GAME->Get_EventBus().Subscribe<EvtBattlePresentation>
     ([this](const EvtBattlePresentation& event)
         {
@@ -267,9 +280,10 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
     if(wasWide && !willWide)
         _isWideMode = false;
 
+    _isFirstUpdate = true;
     _currentRequest = request;
-
     _targetTransform = nullptr;
+
     if (_currentRequest.subject)
         _targetTransform = _currentRequest.subject->Get_Transform();
 
@@ -289,6 +303,7 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
 
     case BattleCameraMode::ENEMYATTACK:
         _targetPreset = _enemyAttackPreset;
+        _activeClip = &_enemyAttackClip;
         break;
 
     case BattleCameraMode::PLAYERATTACK:
@@ -308,17 +323,18 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
     }
 }
 
-void BattleTurnCamera::Begin_LiveEdit(BattleCameraMode mode, const Shared<Character>& target)
+void BattleTurnCamera::Begin_LiveEdit(BattleCameraMode mode, const Shared<Character>& subject, const Shared<Character>& opponent)
 {
     _isLiveEditEnabled = true;
-    Update_LiveEditContext(mode, target);
+    Update_LiveEditContext(mode, subject, opponent);
 }
 
-void BattleTurnCamera::Update_LiveEditContext(BattleCameraMode mode, const Shared<Character>& target)
+void BattleTurnCamera::Update_LiveEditContext(BattleCameraMode mode, const Shared<Character>& target, const Shared<Character>& opponent)
 {
     BattleShotRequest request{};
     request.mode = mode;
     request.subject = target;
+    request.opponent = opponent;
     Apply_ShotRequest(request);
 
     if (BattleCameraPreset* preset = Get_MutablePreset(mode))
@@ -350,10 +366,29 @@ void BattleTurnCamera::Update_EnemyFocusMode(float timeDelta)
 
 void BattleTurnCamera::Update_EnemyAttackMode(float timeDelta)
 {
-    Vec3 enemyPos = _currentRequest.subject->Get_Transform()->Get_WorldPosition();
-    Vec3 playerPos = _currentRequest.opponent->Get_Transform()->Get_WorldPosition();
+    if(_activeClip)
+    {
+        if(_clipTime >= _activeClip->duration)
+            return;
 
-    Vec3 forward = playerPos-enemyPos;
+        _clipTime += timeDelta;
+
+        auto clip = Sample_Clip(*_activeClip, _clipTime);
+        _fovY += clip.fovOffset;
+        _currentPreset.distance += clip.distanceOffset;
+        //+=clip.shakeAmplitude;
+
+    }
+
+    if(_isFirstUpdate)
+    {
+        _enemyPos = _currentRequest.subject->Get_Transform()->Get_WorldPosition();
+        _playerPos = _currentRequest.opponent->Get_Transform()->Get_WorldPosition();
+
+        _isFirstUpdate = false;
+    }
+
+    Vec3 forward = _playerPos - _enemyPos;
 
     forward.y = 0;
     forward.Normalize();
@@ -369,9 +404,9 @@ void BattleTurnCamera::Update_EnemyAttackMode(float timeDelta)
     const float yawRad = XMConvertToRadians(_currentPreset.yawOffset);
     Vec3 yawAdjustedBack = backDir * cosf(yawRad) + right * sinf(yawRad);
 
-    Vec3 camPos = playerPos + yawAdjustedBack * _currentPreset.distance + right * _currentPreset.sideOffset + Vec3::Up * _currentPreset.heightOffset;
+    Vec3 camPos = _playerPos + yawAdjustedBack * _currentPreset.distance + right * _currentPreset.sideOffset + Vec3::Up * _currentPreset.heightOffset;
 
-    Vec3 lookTarget = enemyPos + forward * _currentPreset.aimOffset + Vec3::Up * _currentPreset.lookHeight;
+    Vec3 lookTarget = _enemyPos + forward * _currentPreset.aimOffset + Vec3::Up * _currentPreset.lookHeight;
 
     Apply_LookAt(camPos,lookTarget);
     Update_TransformMatrices();
@@ -388,6 +423,19 @@ void BattleTurnCamera::Update_FromCurrentPreset(float timeDelta)
 
     if(_currentRequest.subject == nullptr)
         return;
+
+    if(_activeClip)
+    {
+        if(_clipTime >= _activeClip->duration)
+            return;
+
+        _clipTime += timeDelta;
+
+        auto clip = Sample_Clip(*_activeClip, _clipTime);
+        _fovY += clip.fovOffset;
+        _currentPreset.distance += clip.distanceOffset;
+        //+=clip.shakeAmplitude;
+    }
 
     const Vec3 targetPos = _currentRequest.subject->Get_Transform()->Get_WorldPosition();
 
@@ -423,6 +471,7 @@ void BattleTurnCamera::Update_FromCurrentPreset(float timeDelta)
 
     Vec3 newPos = desiredPos;
 
+    //Clip 적용
     Apply_LookAt(newPos, lookTarget);
     _transformCom->Add_LocalRotationQuaternion(Quat::CreateFromAxisAngle(Vec3::Forward, _currentPreset.rollOffset));
     
@@ -561,6 +610,46 @@ BattleCameraPreset* BattleTurnCamera::Get_MutablePreset(BattleCameraMode mode)
     default:
         return nullptr;
     }
+}
+
+float BattleTurnCamera::Sample_Track(const BattleCameraTrack& battleCameraTrack, float time)
+{
+   if(battleCameraTrack.keyframes.empty())
+       return 0.f;
+
+   if(time <= battleCameraTrack.keyframes.front().time)
+   {
+       return battleCameraTrack.keyframes.front().time;
+   }
+
+   if(time >= battleCameraTrack.keyframes.back().time)
+   {
+       return battleCameraTrack.keyframes.back().time;
+   }
+
+    for(auto i = 0; i < battleCameraTrack.keyframes.size() ; i++)
+    {
+        auto a = battleCameraTrack.keyframes[i];
+        auto b = battleCameraTrack.keyframes[i + 1];
+
+        if(time >= a.time && time <= b.time)
+        {
+            float t = time - a.time/ (b.time - a.time);
+            return lerp(a.value, b.value, t);
+        }
+    }
+    return battleCameraTrack.keyframes.back().value;
+}
+
+BattleCameraClipSample BattleTurnCamera::Sample_Clip(const BattleCameraClip& battleCameraClip, float time)
+{
+    BattleCameraClipSample sample;
+
+    sample.distanceOffset = Sample_Track(battleCameraClip.distanceOffset, time);
+    sample.fovOffset = Sample_Track(battleCameraClip.fovOffset, time);
+    sample.shakeAmplitude = Sample_Track(battleCameraClip.shakeAmplitude, time);
+
+    return sample;
 }
 
 Shared<BattleTurnCamera> BattleTurnCamera::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

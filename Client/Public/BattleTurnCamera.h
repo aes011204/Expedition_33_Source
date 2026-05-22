@@ -4,6 +4,7 @@
 #include "Camera.h"
 #include "Battle_Enum.h"
 #include "CameraPresetTypes.h"
+#include "BattleCameraClipTypes.h"
 
 NS_BEGIN(Client)
 class BattleTurnCamera final : public Camera
@@ -37,8 +38,8 @@ public:
     void Set_Preset(BattleCameraMode mode, const BattleCameraPreset& preset);
     void Apply_PreviewPreset(const BattleCameraPreset& preset);
     void Apply_ShotRequest(const BattleShotRequest& request);
-    void Begin_LiveEdit(BattleCameraMode mode, const Shared<Character>& target);
-    void Update_LiveEditContext(BattleCameraMode mode, const Shared<Character>& target);
+    void Begin_LiveEdit(BattleCameraMode mode, const Shared<Character>& target, const Shared<Character>& opponent);
+    void Update_LiveEditContext(BattleCameraMode mode, const Shared<Character>& target, const Shared<Character>& opponent);
     void End_LiveEdit();
     bool Is_LiveEditEnabled() const { return _isLiveEditEnabled; }
     void Set_Participants(const vector<BattleChar>& heroes, const vector<BattleChar>& enemies);
@@ -56,15 +57,19 @@ private:
 
 
 private:
-    void                Update_WideMode(float timeDelta);
-    void                Update_PlayerFocusMode(float timeDelta);
-    void                Update_EnemyFocusMode(float timeDelta);
-    void                Update_EnemyAttackMode(float timeDelta);
-    void                Update_FromCurrentPreset(float timeDelta);
-    void                Update_LiveEditInput(float timeDelta);
-    void                Update_PlayerAttackMode(float timeDelta);
+    void Update_WideMode(float timeDelta);
+    void Update_PlayerFocusMode(float timeDelta);
+    void Update_EnemyFocusMode(float timeDelta);
+    void Update_EnemyAttackMode(float timeDelta);
+    void Update_FromCurrentPreset(float timeDelta);
+    void Update_LiveEditInput(float timeDelta);
+    void Update_PlayerAttackMode(float timeDelta);
 
     BattleCameraPreset* Get_MutablePreset(BattleCameraMode mode);
+
+private:
+    float   Sample_Track(const BattleCameraTrack& battleCameraTrack, float time);
+    BattleCameraClipSample   Sample_Clip(const BattleCameraClip& battleCameraClip,float time);
 
 private:
     BattleShotRequest    _currentRequest{};
@@ -80,12 +85,17 @@ private:
     Vec3                 _prevTargetPos = Vec3::Zero;
     bool                 _isLiveEditEnabled = false;
     EvtHandle            _battlePresentationHandle {};
+    bool                 _isFreeAimActive = false;
+    bool                 _isWideMode = false;
+    bool                 _isFirstUpdate = true;
+    vector<BattleChar>   _heroes;
+    vector<BattleChar>   _enemies;
+    Vec3                 _enemyPos;
+    Vec3                 _playerPos;
 
-private:
-    bool  _isFreeAimActive = false;
-    bool  _isWideMode = false;
-    vector<BattleChar>    _heroes;
-    vector<BattleChar>    _enemies;
+    BattleCameraClip      _enemyAttackClip {};
+    BattleCameraClip*     _activeClip {};
+    float                _clipTime {};
 
 public:
     static Shared<BattleTurnCamera> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

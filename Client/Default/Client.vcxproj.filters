@@ -677,6 +677,9 @@
     <ClInclude Include="..\Public\Player_GameMenu.h">
       <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\BattleCameraClipTypes.h">
+      <Filter>02.GameObject\Camera</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">

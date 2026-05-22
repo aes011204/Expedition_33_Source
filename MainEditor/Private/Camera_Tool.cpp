@@ -315,9 +315,9 @@ void Camera_Tool::Edit_BattleTurnCameraPreset()
     Shared<Camera> camera = Get_SelectedCamera(_selectedCameraIndex);
     auto battleTurnCamera = static_pointer_cast<BattleTurnCamera>(camera);
     const Shared<Character> previewTarget = Resolve_BattlePreviewTarget();
-
+    const Shared<Character> opponent = Resolve_EnemyPreview();
     if (battleTurnCamera->Is_LiveEditEnabled())
-        battleTurnCamera->Update_LiveEditContext(_editingBattleCameraMode, previewTarget);
+        battleTurnCamera->Update_LiveEditContext(_editingBattleCameraMode, previewTarget, opponent);
 
     auto preset = battleTurnCamera->Get_Preset(_editingBattleCameraMode);
     bool isChanged = false;
@@ -330,9 +330,10 @@ void Camera_Tool::Edit_BattleTurnCameraPreset()
         BattleTurnCamera::BattleShotRequest request {};
         request.mode = _editingBattleCameraMode;
         request.subject = previewTarget;
+        request.opponent = opponent;
 
         if (battleTurnCamera->Is_LiveEditEnabled())
-            battleTurnCamera->Update_LiveEditContext(_editingBattleCameraMode, previewTarget);
+            battleTurnCamera->Update_LiveEditContext(_editingBattleCameraMode, previewTarget, opponent);
         else
         {
             battleTurnCamera->Apply_PreviewPreset(preset);
@@ -346,7 +347,7 @@ void Camera_Tool::Edit_BattleTurnCameraPreset()
         {
             GAME->Change_ActiveCamera(battleTurnCamera);
             EDITOR->Request_WindowFocus(EDITOR_VIEWPORT_TARGET::Game);
-            battleTurnCamera->Begin_LiveEdit(_editingBattleCameraMode, previewTarget);
+            battleTurnCamera->Begin_LiveEdit(_editingBattleCameraMode, previewTarget, opponent);
         }
     }
     else
@@ -492,9 +493,16 @@ Shared<Character> Camera_Tool::Resolve_BattlePreviewTarget() const
 
     if(_editingBattleCameraMode == BattleCameraMode::ENEMYATTACK)
     {
+
         const auto enemies = battleController->Get_AliveEnemies();
+
         if(!enemies.empty() && enemies[0].actor != nullptr)
             return enemies[0].actor;
+      //  if (const BattleChar* preview = battleController->Get_TargetPreview())
+      //  {
+      //      if (preview != nullptr)
+      //          return preview->actor;
+      //  }
     }
 
     const auto heroes = battleController->Get_AliveHeroes();
@@ -506,6 +514,22 @@ Shared<Character> Camera_Tool::Resolve_BattlePreviewTarget() const
         return enemies[0].actor;
 
     return nullptr;
+}
+
+Shared<Character> Camera_Tool::Resolve_EnemyPreview() const
+{
+    auto battleController = CLIENT->Get_BattleController();
+
+    if(!battleController)
+        return nullptr;
+
+    if(_editingBattleCameraMode == BattleCameraMode::ENEMYATTACK)
+    {
+        if (auto target  = battleController->Get_TurnAction().target.actor)
+        {
+           return target;
+        }
+    }
 }
 
 Shared<Camera_Tool> Camera_Tool::Create()

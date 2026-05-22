@@ -166,6 +166,7 @@
     <ClInclude Include="..\Public\AN_Test2.h" />
     <ClInclude Include="..\public\Base_Mon_Attack.h" />
     <ClInclude Include="..\public\BattleActionExecutor.h" />
+    <ClInclude Include="..\Public\BattleCameraClipTypes.h" />
     <ClInclude Include="..\Public\Battle_Enum.h" />
     <ClInclude Include="..\Public\BattleTurnCamera.h" />
     <ClInclude Include="..\Public\CameraDirector.h" />

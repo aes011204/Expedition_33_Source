@@ -44,7 +44,9 @@ public:
     void Select_EditingPreviewHero();
     void Edit_PreviewCameraPreset();
     void Reset_ToStartPos();
+
     Shared<Character> Resolve_BattlePreviewTarget() const;
+    Shared<Character> Resolve_EnemyPreview() const;
 
 private:
     Shared<Camera> _previewCamera;
