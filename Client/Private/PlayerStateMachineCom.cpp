@@ -1,6 +1,7 @@
 ﻿#include "pch.h"
 #include "PlayerStateMachineCom.h"
 
+#include "Player_GameMenu.h"
 #include "Player_WorldBase.h"
 #include "Player_Idle.h"
 #include "Player_Jump.h"
@@ -44,6 +45,7 @@ void PlayerStateMachineCom::BeginPlay()
     CHECK_FAILED(Add_State(PlayerState::Move, Player_Move::Create(static_pointer_cast<Player_WorldBase>(_owner.lock()))));
     CHECK_FAILED(Add_State(PlayerState::Jump, Player_Jump::Create(static_pointer_cast<Player_WorldBase>(_owner.lock()))));
     CHECK_FAILED(Add_State(PlayerState::WorldAction, Player_WorldAction::Create(static_pointer_cast<Player_WorldBase>(_owner.lock()))));
+    CHECK_FAILED(Add_State(PlayerState::GameMenu, Player_GameMenu::Create(static_pointer_cast<Player_WorldBase>(_owner.lock()))));
 
     for (auto& [stateTag, state]: _states)
     {
@@ -73,6 +75,19 @@ PlayerState PlayerStateMachineCom::Get_CurrentPlayerState() const
         return PlayerState::End;
 
     return magic_enum::enum_cast<PlayerState>(str).value();
+}
+
+void PlayerStateMachineCom::Enter_GameMenuAnimation(uint32 introAnim, uint32 idleAnim)
+{
+    if (Get_CurrentPlayerState() != PlayerState::GameMenu)
+    {
+        Change_State(PlayerState::GameMenu);
+    }
+    
+    if (auto gameMenuState = static_pointer_cast<Player_GameMenu>(_currentState))
+    {
+        gameMenuState->Change_GameMenuAnimation(introAnim, idleAnim);
+    }
 }
 
 Shared<PlayerStateMachineCom> PlayerStateMachineCom::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

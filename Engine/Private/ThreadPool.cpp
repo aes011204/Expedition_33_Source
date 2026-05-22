@@ -82,6 +82,9 @@ size_t ThreadPool::Get_PendingJobCount() const
 
 void ThreadPool::Worker_Main()
 {
+    HRESULT coHr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    const bool needCoUninitialize = SUCCEEDED(coHr);
+
     while (true)
     {
         function<void()> job;
@@ -97,7 +100,12 @@ void ThreadPool::Worker_Main()
 
             // 종료 요청이 왔고 남은 job도 없으면 worker thread 종료
             if (_isStopping && _jobs.empty())
+            {
+                if (needCoUninitialize)
+                    CoUninitialize();
+
                 return;
+            }
 
             job = std::move(_jobs.front());
             _jobs.pop();

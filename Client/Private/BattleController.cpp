@@ -471,7 +471,7 @@ void BattleController::SetCharInitPos()
     /*INFO = FiledMgr->GetFiledInfo(FieldID)
     INFO.
     */
-    const Vec3 startPos = Vec3(225.f, -4020.5f, -1.24f);
+    const Vec3 startPos = Vec3(22.f, 2.5f, -10.24f);
 
     const Vec3 playerPos[3] =
     {

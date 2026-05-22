@@ -152,15 +152,6 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
 #ifdef _DEBUG
     _printManager = Print_Manager::Create();
     CHECK_NULL(_printManager, E_FAIL);
-
-    ComPtr<ID3D11InfoQueue> infoQueue;
-    if (SUCCEEDED(_device.As(&infoQueue)) && infoQueue)
-    {
-        // infoQueue->SetBreakOnSeverity(D3D11_MESSAGE_SEVERITY_CORRUPTION, TRUE);
-        // infoQueue->SetBreakOnSeverity(D3D11_MESSAGE_SEVERITY_ERROR, TRUE);
-        // infoQueue->SetBreakOnSeverity(D3D11_MESSAGE_SEVERITY_WARNING, TRUE); // #3146081에서 멈춤
-    }
-
 #endif
 
     return S_OK;
@@ -1304,6 +1295,11 @@ HRESULT GameInstance::Set_Lights(const vector<LIGHT_DESC>& lightDescs)
 HRESULT GameInstance::Add_Font(const wstring& fontTag, const wchar_t* fontFilePath)
 {
     return _fontManager->Add_Font(fontTag, fontFilePath);
+}
+
+bool GameInstance::Has_Font(const wstring& fontTag) const
+{
+    return _fontManager->Has_Font(fontTag);
 }
 
 Vec2 GameInstance::Measure_Font(const wstring& fontTag, const wchar_t* text)

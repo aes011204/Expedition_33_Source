@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -174,9 +174,8 @@
     <ClInclude Include="..\Public\ComputeTrailEmitter.h" />
     <ClInclude Include="..\Public\FreeAimTargeting.h" />
     <ClInclude Include="..\Public\GameplayUI_Battle.h" />
-    <ClInclude Include="..\Public\GameplayUI_Types.h" />
     <ClInclude Include="..\Public\GameplayUI_World.h" />
-    <ClInclude Include="..\Public\MapStaticCollisionBuilder.h" />
+    <ClInclude Include="..\Public\GameplayUI_Types.h" />
     <ClInclude Include="..\Public\PB_Gustave.h" />
     <ClInclude Include="..\Public\MB_Lancelier.h" />
     <ClInclude Include="..\Public\PB_Lune.h" />
@@ -298,6 +297,7 @@
     <ClInclude Include="..\Public\Spawn_Prefab.h" />
     <ClInclude Include="..\Public\State.h" />
     <ClInclude Include="..\Public\StateMachineCom.h" />
+    <ClInclude Include="..\Public\StreamingLevel.h" />
     <ClInclude Include="..\Public\TargetCamera.h" />
     <ClInclude Include="..\Public\CharacterStatus_Panel.h" />
     <ClInclude Include="..\public\UIPreviewManager.h" />
@@ -326,7 +326,7 @@
     <ClInclude Include="..\public\FreeCamera.h" />
     <ClInclude Include="..\Public\Level_GamePlay.h" />
     <ClInclude Include="..\public\Level_Loading.h" />
-    <ClInclude Include="..\Public\Level_Logo.h" />
+    <ClInclude Include="..\Public\Level_MainTitle.h" />
     <ClInclude Include="..\public\Loader.h" />
     <ClInclude Include="..\Public\MW_Lancelier.h" />
     <ClInclude Include="..\Public\Player_WorldBase.h" />
@@ -355,7 +355,6 @@
     <ClCompile Include="..\Private\FreeAimTargeting.cpp" />
     <ClCompile Include="..\Private\GameplayUI_Battle.cpp" />
     <ClCompile Include="..\Private\GameplayUI_World.cpp" />
-    <ClCompile Include="..\Private\MapStaticCollisionBuilder.cpp" />
     <ClCompile Include="..\Private\PB_Gustave.cpp" />
     <ClCompile Include="..\Private\MB_Lancelier.cpp" />
     <ClCompile Include="..\Private\PB_Lune.cpp" />
@@ -472,6 +471,7 @@
     <ClCompile Include="..\Private\Spawn_Prefab.cpp" />
     <ClCompile Include="..\Private\State.cpp" />
     <ClCompile Include="..\Private\StateMachineCom.cpp" />
+    <ClCompile Include="..\Private\StreamingLevel.cpp" />
     <ClCompile Include="..\Private\TargetCamera.cpp" />
     <ClCompile Include="..\Private\CharacterStatus_Panel.cpp" />
     <ClCompile Include="..\private\UIPreviewManager.cpp" />
@@ -501,7 +501,7 @@
     <ClCompile Include="..\private\FreeCamera.cpp" />
     <ClCompile Include="..\Private\Level_GamePlay.cpp" />
     <ClCompile Include="..\private\Level_Loading.cpp" />
-    <ClCompile Include="..\Private\Level_Logo.cpp" />
+    <ClCompile Include="..\Private\Level_MainTitle.cpp" />
     <ClCompile Include="..\private\Loader.cpp" />
     <ClCompile Include="..\Private\MW_Lancelier.cpp" />
     <ClCompile Include="..\Private\Player_WorldBase.cpp" />

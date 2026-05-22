@@ -1,4 +1,4 @@
-﻿#include "Mesh.h"
+#include "Mesh.h"
 #include "Bone.h"
 
 
@@ -39,8 +39,6 @@ HRESULT Mesh::RenderInstancedIndirect(Buffer* instanceVB, uint32 instanceStride,
     }
 
     Bind_Resources();
-
-    _context->UpdateSubresource(indirectArgsBuffer, 0, nullptr, &_numIndices, 0, 0);
 
     const uint32 offset = 0;
     _context->IASetVertexBuffers(1, 1, &instanceVB, &instanceStride, &offset);

@@ -6,7 +6,6 @@
 #include "InstanceCullParams.h"
 #include "MEModelManager.h"
 
-
 MEInstancedMeshActor::MEInstancedMeshActor(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : GameObject{ device, context }
 {
@@ -53,7 +52,7 @@ HRESULT MEInstancedMeshActor::Render()
     Buffer* renderVB = _instanceVB.Get();
     bool useIndirect = false;
 
-    if (_cullShader && _instanceSrcBuffer && _sphereBuffer && _visibleVB && _indirectArgsBuffer)
+    if (_cullShader && _instanceSrcBuffer && _sphereBuffer && _visibleVB && !_indirectArgsBuffers.empty())
     {
         DispatchCull();
         renderVB = _visibleVB.Get();
@@ -90,7 +89,7 @@ HRESULT MEInstancedMeshActor::Render()
 
         if (useIndirect)
         {
-            if (FAILED(_model->RenderInstancedIndirect(i, renderVB, sizeof(Matrix), _indirectArgsBuffer.Get())))
+            if (FAILED(_model->RenderInstancedIndirect(i, renderVB, sizeof(Matrix), _indirectArgsBuffers[i].Get())))
             {
                 return E_FAIL;
             }
@@ -277,20 +276,30 @@ HRESULT MEInstancedMeshActor::CreateCullBuffers(const vector<Matrix>& matrices, 
     }
 
     {
-        uint32 initArgs[5] = { 0, 0, 0, 0, 0 };
-        D3D11_BUFFER_DESC bd{};
-        bd.ByteWidth = sizeof(uint32) * 5;
-        bd.Usage = D3D11_USAGE_DEFAULT;
-        bd.BindFlags = D3D11_BIND_UNORDERED_ACCESS;
-        bd.MiscFlags = D3D11_RESOURCE_MISC_DRAWINDIRECT_ARGS;
+        _indirectArgsBuffers.clear();
+        const uint32 numMeshes = _model ? static_cast<uint32>(_model->Get_NumMeshes()) : 1;
+        _indirectArgsBuffers.resize(numMeshes);
 
-        D3D11_SUBRESOURCE_DATA sd{};
-        sd.pSysMem = initArgs;
-
-        _indirectArgsBuffer.Reset();
-        if (FAILED(_device->CreateBuffer(&bd, &sd, _indirectArgsBuffer.GetAddressOf())))
+        for (uint32 i = 0; i < numMeshes; ++i)
         {
-            return E_FAIL;
+            D3D11_BUFFER_DESC bd{};
+            bd.ByteWidth = 5 * sizeof(uint32);
+            bd.Usage = D3D11_USAGE_DEFAULT;
+            bd.BindFlags = D3D11_BIND_UNORDERED_ACCESS;
+            bd.MiscFlags = D3D11_RESOURCE_MISC_DRAWINDIRECT_ARGS;
+
+            if (FAILED(_device->CreateBuffer(&bd, nullptr, _indirectArgsBuffers[i].GetAddressOf())))
+            {
+                return E_FAIL;
+            }
+
+            uint32 args[5] = { 0, count, 0, 0, 0 };
+            if (_model)
+            {
+                args[0] = static_cast<uint32>(_model->Get_NumIndices(i));
+            }
+
+            _context->UpdateSubresource(_indirectArgsBuffers[i].Get(), 0, nullptr, args, 0, 0);
         }
     }
 
@@ -299,6 +308,11 @@ HRESULT MEInstancedMeshActor::CreateCullBuffers(const vector<Matrix>& matrices, 
 
 void MEInstancedMeshActor::DispatchCull()
 {
+    if (!_cullShader || !_cullCB || !_visibleUAV || !_instanceSrcBuffer || !_sphereBuffer || _indirectArgsBuffers.empty())
+    {
+        return;
+    }
+
     const Matrix* view = GAME->Get_Transform(D3DTS::View);
     const Matrix* proj = GAME->Get_Transform(D3DTS::Proj);
     if (!view || !proj)
@@ -338,7 +352,10 @@ void MEInstancedMeshActor::DispatchCull()
     _context->CSSetUnorderedAccessViews(0, 1, &nullUAV, nullptr);
 
     _context->CopyResource(_visibleVB.Get(), _visibleStructured.Get());
-    _context->CopyStructureCount(_indirectArgsBuffer.Get(), sizeof(uint32), _visibleUAV.Get());
+    for (auto& buffer : _indirectArgsBuffers)
+    {
+        _context->CopyStructureCount(buffer.Get(), sizeof(uint32), _visibleUAV.Get());
+    }
 }
 
 array<Vec4, 6> MEInstancedMeshActor::ExtractFrustumPlanes(const Matrix& vp)
@@ -514,7 +531,11 @@ void MEInstancedMeshActor::Free()
     _visibleUAV.Reset();
     _visibleVB.Reset();
     _cullCB.Reset();
-    _indirectArgsBuffer.Reset();
+    for (auto& buffer : _indirectArgsBuffers)
+    {
+        buffer.Reset();
+    }
+    _indirectArgsBuffers.clear();
     _instanceSrcBuffer.reset();
     _sphereBuffer.reset();
     _cullShader.reset();

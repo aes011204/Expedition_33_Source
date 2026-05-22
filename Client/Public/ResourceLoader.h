@@ -42,7 +42,9 @@ using FLoadJob = struct tagLoadJob
     float fScaleX = 1.f;
     float fScaleY = 1.f;
     float fScaleZ = 1.f;
+    float fRotX = 0.f;
     float fRotY = 0.f;
+    float fRotZ = 0.f;
     uint32 iCount = 1;
 };
 

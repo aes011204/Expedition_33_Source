@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "Base.h"
 #include "Collision_Define.h"
 #include "PhysX_Types.h"
@@ -10,7 +10,7 @@ class ColliderCom;
 struct PhysXQueryPerfSummary;
 struct StaticCollisionData;
 
-class PhysX_Manager final
+class ENGINE_DLL PhysX_Manager final
     : public Base
     , public PxSimulationEventCallback // 충돌 이벤트 콜벡을 받기 위해서 상속
 {
@@ -57,6 +57,9 @@ public:
 
     vector<PxTriangleMesh*> Build_OrGetTriangleMeshes(const StaticCollisionData& collisionData);
     void Unregister_StaticActor(PhysXStaticActorHandle handle);
+
+    bool Cook_TriangleMesh(const ModelCollisionMesh& meshData, const Matrix& preTransformMatrix, vector<uint8_t>& outCookedData);
+    PxTriangleMesh* Create_TriangleMeshFromCooked(const vector<uint8_t>& cookedData);
 
 #ifdef _DEBUG
     bool Try_ConsumeQueryPerfSummary(float windowSec, PhysXQueryPerfSummary& outSummary);

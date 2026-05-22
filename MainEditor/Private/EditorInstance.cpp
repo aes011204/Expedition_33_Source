@@ -86,8 +86,7 @@ HRESULT EditorInstance::Initialize_Editor(const EDITOR_DESC& EditorDesc, const C
         max(1u, EditorDesc.iViewportWidth), max(1u, EditorDesc.iViewportHeight));
     CHECK_NULL(_pickingSystem, E_FAIL);
 
-    // 처음에는 Edit 모드로, 1배속으로 시작
-    _runtimeState = EDITOR_RUNTIME_STATE::Edit;
+    _runtimeState = EDITOR_RUNTIME_STATE::Play;
     _runtimeTimeScale = 1.f;
     _previewViewportMode = PreviewViewportMode::Manual;
     Queue_PreviewViewportSize(kDefaultPreviewViewportWidth, kDefaultPreviewViewportHeight);
@@ -260,6 +259,23 @@ void EditorInstance::Resume()
     GAME->Unlock_Mouse();
 
     Request_WindowFocus(EDITOR_VIEWPORT_TARGET::Game);
+}
+
+void EditorInstance::Enter_EditAfterLoading()
+{
+    if (_runtimeState == EDITOR_RUNTIME_STATE::Edit)
+        return;
+
+    _runtimeState = EDITOR_RUNTIME_STATE::Edit;
+    Sync_ViewportWindowState();
+
+    Activate_FreeCamera();
+    _cameraBeforeFreeCamera.reset();
+
+    GAME->Set_FreeCameraInputEnabled(false);
+    GAME->Unlock_Mouse();
+
+    Request_WindowFocus(EDITOR_VIEWPORT_TARGET::Scene);
 }
 
 bool EditorInstance::IsPlaying() const
@@ -1032,13 +1048,24 @@ void EditorInstance::Apply_RuntimeInputPolicy()
         GAME->Is_ActiveCameraType(ObjectType::FreeCamera);
 
     const bool isTargetCamera =
-    GAME->Is_ActiveCameraType(ObjectType::TargetCamera);
+        GAME->Is_ActiveCameraType(ObjectType::TargetCamera);
+
+    const bool isLogoLevel =
+        GAME->Current_LevelIndex() == ETOI(LevelType::MainTitle);
 
     if (_runtimeState == EDITOR_RUNTIME_STATE::Play)
     {
         if (GAME->Is_GameplayPaused())
         {
             GAME->Set_PlayerInputBlocked(true);
+            GAME->Set_FreeCameraInputEnabled(false);
+            GAME->Unlock_Mouse();
+            return;
+        }
+
+        if (isLogoLevel)
+        {
+            GAME->Set_PlayerInputBlocked(true);      
             GAME->Set_FreeCameraInputEnabled(false);
             GAME->Unlock_Mouse();
             return;
