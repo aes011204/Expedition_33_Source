@@ -21,6 +21,7 @@ public:
     HRESULT Render_ComputeSkinned(Buffer* vertexBuffer, uint32 vertexStride);
     const string& Get_Name() { return _name;  }
     uint32 Get_MaterialIndex() { return _materialIndex;  }
+    uint32 Get_NumIndices() const { return _numIndices; }
 
 public:
     virtual HRESULT Bind_BoneMatrices(ShaderCom* shader, const char* constantName, const vector<Shared<Bone>>& bones) PURE;
