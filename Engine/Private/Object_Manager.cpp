@@ -2,19 +2,7 @@
 
 #include "GameInstance.h"
 #include "GameObject.h"
-#include "Helper_String.h"
 #include "Layer.h"
-
-#include <chrono>
-
-namespace
-{
-    double Now_Ms()
-    {
-        using Clock = std::chrono::steady_clock;
-        return std::chrono::duration<double, std::milli>(Clock::now().time_since_epoch()).count();
-    }
-}
 
 Object_Manager::Object_Manager()
 {

@@ -40,8 +40,6 @@ HRESULT Mesh::RenderInstancedIndirect(Buffer* instanceVB, uint32 instanceStride,
 
     Bind_Resources();
 
-
-
     const uint32 offset = 0;
     _context->IASetVertexBuffers(1, 1, &instanceVB, &instanceStride, &offset);
     _context->DrawIndexedInstancedIndirect(indirectArgsBuffer, 0);
