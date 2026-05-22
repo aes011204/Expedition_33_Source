@@ -91,10 +91,11 @@ public:
     void Set_Animation(uint32 animIndex, float blendDuration, bool isLoop = false, float startFrame = 0.f);
     void Set_Animation(const string& animName, bool isLoop = false, float startFrame = 0.f);
     void Set_Animation(const string& animName, float blendDuration, bool isLoop = false, float startFrame = 0.f);
+    const char* Get_AnimationName(uint32 animationIndex) const;
 
     bool Set_AnimationByState(uint32 stateIndex, bool isLoop = false, float startFrame = 0.f);
     bool Set_AnimationByState(uint32 stateIndex, float blendDuration, bool isLoop = false, float startFrame = 0.f);
-    const char* Get_AnimationName(uint32 animationIndex) const;
+    uint32 Get_AnimIndexByState(uint32 stateIndex) const;
 
 public:
     void Set_RootMotionEnabled(bool enable) { _isRootMotion = enable; }
@@ -331,22 +332,3 @@ public:
 };
 
 NS_END
-
-
-/*
-  // 1. 필요한 정보들
- float targetDistance = 10.f; // 내가 이번 애니메이션 동안 가야 할 총 목표 거리
- Vec3 targetDirection = Vec3(0, 0, 1); // 가야 할 방향 (정규화된 벡터)
-
- // 2. 비율 계산
- float currentRatio = _modelCom->Get_RootMotionTranslationRatio();
- float deltaRatio = currentRatio - _previousRatio; // 저번 프레임의 비율을 멤버 변수로 저장해둬야 함
- _previousRatio = currentRatio;
-
- // 3. 이번 프레임의 실제 이동량 계산
- float moveAmountThisFrame = targetDistance * deltaRatio;
-
- // 4. 캐릭터 이동 적용 (Transform이나 PhysX 컨트롤러에 적용)
- Vec3 deltaPosition = targetDirection * moveAmountThisFrame;
- _transformCom->Add_Position(deltaPosition);
- */

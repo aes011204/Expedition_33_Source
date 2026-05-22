@@ -8,12 +8,11 @@ namespace Client
         Move,
         Jump,
         WorldAction, 
-
-        Attack, 
+        GameMenu,
 
         Climb,
         RopeAction,
-        End
+        End, 
     };
 
    
