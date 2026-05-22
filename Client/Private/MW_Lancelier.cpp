@@ -53,28 +53,7 @@ void MW_Lancelier::Update(float timeDelta)
 
     Monster_WorldBase::Update(timeDelta);
 
-    if (_aiCtrl && _aiCtrl->Get_IsMoving())
-        Set_CurrentAction(MonsterAction::Move);
-
-    if (_body && _currentAction != _previousAction)
-    {
-        switch (_currentAction)
-        {
-        case MonsterAction::Idle:
-            _body->Set_Animation("Lancelier_Idle", 0.3f, true);
-            break;
-
-        case MonsterAction::Move:
-            _body->Set_Animation("Lancelier_Walk", 0.3f, true);
-            break;
-
-        case MonsterAction::Attack:
-            _body->Set_Animation("Lancelier_Idle",  0.3f, false);
-            break;
-        }
-
-        _previousAction = _currentAction;
-    }
+    
 
     if (_body)
     {

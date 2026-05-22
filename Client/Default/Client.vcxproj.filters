@@ -584,7 +584,7 @@
     <ClInclude Include="..\Public\ANS_Test.h">
       <Filter>AnimNotify</Filter>
     </ClInclude>
-    <ClInclude Include="..\public\BT_Attack.h">
+    <ClInclude Include="..\public\BT_Chase.h">
       <Filter>BehavoirTree\world</Filter>
     </ClInclude>
     <ClInclude Include="..\public\BT_CheckDistance.h">
@@ -658,6 +658,29 @@
     <ClInclude Include="..\public\ANS_Move.h">
       <Filter>AnimNotify</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\Player_GameMenu.h" />
+    <ClInclude Include="..\public\Mon_Portier_Body.h" />
+    <ClInclude Include="..\public\Mon_Bishop_Body.h" />
+    <ClInclude Include="..\public\Mon_Volester_Body.h" />
+    <ClInclude Include="..\public\MB_Bishop.h">
+      <Filter>02.GameObject\Monster\01. Battle</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\MB_Portier.h">
+      <Filter>02.GameObject\Monster\01. Battle</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\MB_Volester.h">
+      <Filter>02.GameObject\Monster\01. Battle</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\MW_Bishop.h">
+      <Filter>02.GameObject\Monster\00. World</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\MW_Portier.h">
+      <Filter>02.GameObject\Monster\00. World</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\MW_Volester.h">
+      <Filter>02.GameObject\Monster\00. World</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\BT_Patroll.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -998,7 +1021,7 @@
     <ClCompile Include="..\Private\ANS_Test.cpp">
       <Filter>AnimNotify</Filter>
     </ClCompile>
-    <ClCompile Include="..\private\BT_Attack.cpp">
+    <ClCompile Include="..\private\BT_Chase.cpp">
       <Filter>BehavoirTree\world</Filter>
     </ClCompile>
     <ClCompile Include="..\private\BT_CheckDistance.cpp">
@@ -1069,6 +1092,29 @@
     <ClCompile Include="..\private\ANS_Move.cpp">
       <Filter>AnimNotify</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\Player_GameMenu.cpp" />
+    <ClCompile Include="..\private\Mon_Portier_Body.cpp" />
+    <ClCompile Include="..\private\Mon_Bishop_Body.cpp" />
+    <ClCompile Include="..\private\Mon_Volester_Body.cpp" />
+    <ClCompile Include="..\private\MB_Bishop.cpp">
+      <Filter>02.GameObject\Monster\01. Battle</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\MB_Portier.cpp">
+      <Filter>02.GameObject\Monster\01. Battle</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\MB_Volester.cpp">
+      <Filter>02.GameObject\Monster\01. Battle</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\MW_Bishop.cpp">
+      <Filter>02.GameObject\Monster\00. World</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\MW_Portier.cpp">
+      <Filter>02.GameObject\Monster\00. World</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\MW_Volester.cpp">
+      <Filter>02.GameObject\Monster\00. World</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\BT_Patroll.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">

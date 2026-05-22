@@ -39,7 +39,8 @@ HRESULT MB_Lancelier::Initialize(void* arg)
     _body->Set_Animation("Lancelier_Idle", 0.3f, true);
 
 
-
+    _combatStat->Set_Skill("Lancelier_Slow");
+    _combatStat->Set_Skill("Lancelier_Fast");
 
     return S_OK;
 }
@@ -48,42 +49,13 @@ void MB_Lancelier::Update(float timeDelta)
 {
     Monster_BattleBase::Update(timeDelta);
 
-    //if (_body && _currentAction != _previousAction)
-    //{
-    //    switch (_currentAction)
-    //    {
-    //    case BattleAction::Idle:
-    //        _body->Set_Animation(5, 0.3f, true);
-    //        break;
-    //
-    //    case BattleAction::Attack:
-    //        _body->Set_Animation(11, 0.3f, false);
-    //        break;
-    //    }
-    //
-    //    _previousAction = _currentAction;
-    //}
-
     if (_body)
     {
         _body->Play_Animation(timeDelta);
-
-     //   // Lancelier 월드 이동은 기존 Monster와 동일하게 body root motion 속도를 사용한다.
-     //   const auto rootVelocity = _body->Get_RootTransformVelocity();
-     //  // _transformCom->Set_SpeedPerSec(rootVelocity.position.z * Constants::Charcter::scaleOffset);
-     //  
-     //   Vec3 pos = _transformCom->Get_Position();
-     //   _transformCom->Set_Position(pos+(rootVelocity.position /** 100*/)); // 현제 fps을 곱해야 하나??
-     //
-        //LOG_INFO("positionZ :{}", rootVelocity.position.z);
     }
 }
 
-//void MB_Lancelier::Decide_Action(Action& curTurnAction, const vector<BattleChar>& heroes)
-//{
-//    Monster_BattleBase::Decide_Action(curTurnAction, heroes);
-//    Set_CurrentAction(BattleAction::Attack); // Lancelier 전용 공격 애니메이션 상태로 전환한다.
-//}
+
 
 HRESULT MB_Lancelier::Ready_PartObjects()
 {
