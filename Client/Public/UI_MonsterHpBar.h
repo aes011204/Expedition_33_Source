@@ -35,9 +35,6 @@ private:
 private:
     Shared<UI_Image> _hpGauge{};
 
-    Vec2 _hpGaugeBasePos{};
-    Vec2 _hpGaugeBaseSize{};
-
     Vec3 _targetWorldPos = Vec3::Zero;
     bool _hasTargetWorldPos = false;
 

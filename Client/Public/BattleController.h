@@ -21,8 +21,6 @@ class BattleEffectResolver;
 class BattleStateMachine;
 class BattleTurnCamera;
 
-
-
 class BattleController : public Base
 {
     // 전투 시작
@@ -35,6 +33,8 @@ class BattleController : public Base
     DECLARE_DELEGATE(FOnTurnEnded, const BattleChar&);
     // 타겟 전환
     DECLARE_DELEGATE(FOnTargetPreviewChanged, const BattleChar*);
+    // 공격 시작
+    DECLARE_DELEGATE(FOnActionStarted, const Action&);
 
 public:
     enum ReactionType
@@ -100,9 +100,11 @@ public:
     void Clear_CurrentScript() { _curScript.reset(); }
 
     const Reaction& Get_Reaction() const { return _reaction; }
+    const vector<BattleChar>& Get_BattleHeroes() const { return _heroes; }
+
 public:
-    void End_FirstAnim();
-    void Handle_EditorStopRuntime();
+    void    End_FirstAnim();
+    void    Handle_EditorStopRuntime();
     HRESULT Ready_Delegates();
 
     //리액션 인풋
@@ -114,7 +116,7 @@ public:
 public: /* 타겟팅 중인 적 세팅 */
     void                Set_TargetPreview(const BattleChar& target);
     void                Clear_TargetPreview();
-    const BattleChar* Get_TargetPreview() const;
+    const BattleChar*   Get_TargetPreview() const;
 
 public:
     bool                Is_PlayerTurnActive() const;
@@ -136,12 +138,16 @@ private:
     void    Complete_BattleField();          // 2초 슬로우모션이 끝난 뒤 실제 PB/MB 생성과 턴 시작을 처리한다.
     void    Clear_BattleEnterPending();      // 전투 진입 대기 데이터만 정리
 
+private:
+    PlayerCharacterType To_PlayerCharacterType(HeroId heroId);
+
 public: /* Delegate */
     FOnBattleStarted        OnBattleStarted;
     FOnBattleEnded          OnBattleEnded;
     FOnTurnStarted          OnTurnStarted;
     FOnTurnEnded            OnTurnEnded;
     FOnTargetPreviewChanged OnTargetPreviewChanged;
+    FOnActionStarted        OnActionStarted;
 
 private:
     BattleChar  _currentTurnActor = {};

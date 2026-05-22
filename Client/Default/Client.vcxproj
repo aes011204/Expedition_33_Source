@@ -163,6 +163,7 @@
     <ClInclude Include="..\public\AN_Battle_EndAnim.h" />
     <ClInclude Include="..\public\AN_EnterAnim.h" />
     <ClInclude Include="..\Public\AN_Test2.h" />
+    <ClInclude Include="..\Public\AttackPlaying.h" />
     <ClInclude Include="..\public\Base_Mon_Attack.h" />
     <ClInclude Include="..\public\BattleActionExecutor.h" />
     <ClInclude Include="..\Public\Battle_Enum.h" />
@@ -171,6 +172,7 @@
     <ClInclude Include="..\public\BT_FinishDecision.h" />
     <ClInclude Include="..\public\BT_SetSkill.h" />
     <ClInclude Include="..\public\BT_Set_Target.h" />
+    <ClInclude Include="..\Public\ExpeditionStat_Panel.h" />
     <ClInclude Include="..\Public\FreeAimTargeting.h" />
     <ClInclude Include="..\Public\GameplayUI_Battle.h" />
     <ClInclude Include="..\Public\GameplayUI_World.h" />
@@ -300,8 +302,12 @@
     <ClInclude Include="..\Public\TargetCamera.h" />
     <ClInclude Include="..\Public\CharacterStatus_Panel.h" />
     <ClInclude Include="..\public\UIPreviewManager.h" />
+    <ClInclude Include="..\Public\UI_BattleSystemHUD.h" />
+    <ClInclude Include="..\Public\UI_CancelAim.h" />
     <ClInclude Include="..\Public\UI_BattleCommandHUD.h" />
+    <ClInclude Include="..\Public\UI_BattleDefense.h" />
     <ClInclude Include="..\Public\UI_BattleTransition.h" />
+    <ClInclude Include="..\Public\UI_ChoiceTarget.h" />
     <ClInclude Include="..\Public\UI_CrossHair.h" />
     <ClInclude Include="..\Public\UI_ExpeditionStatus.h" />
     <ClInclude Include="..\Public\UI_MonsterHpBar.h" />
@@ -343,6 +349,7 @@
     <ClCompile Include="..\private\AN_Battle_EndAnim.cpp" />
     <ClCompile Include="..\private\AN_EnterAnim.cpp" />
     <ClCompile Include="..\Private\AN_Test2.cpp" />
+    <ClCompile Include="..\Private\AttackPlaying.cpp" />
     <ClCompile Include="..\private\Base_Mon_Attack.cpp" />
     <ClCompile Include="..\private\BattleActionExecutor.cpp" />
     <ClCompile Include="..\Private\BattleTurnCamera.cpp" />
@@ -350,6 +357,7 @@
     <ClCompile Include="..\private\BT_FinishDecision.cpp" />
     <ClCompile Include="..\private\BT_SetSkill.cpp" />
     <ClCompile Include="..\private\BT_Set_Target.cpp" />
+    <ClCompile Include="..\Private\ExpeditionStat_Panel.cpp" />
     <ClCompile Include="..\Private\FreeAimTargeting.cpp" />
     <ClCompile Include="..\Private\GameplayUI_Battle.cpp" />
     <ClCompile Include="..\Private\GameplayUI_World.cpp" />
@@ -473,8 +481,12 @@
     <ClCompile Include="..\Private\TargetCamera.cpp" />
     <ClCompile Include="..\Private\CharacterStatus_Panel.cpp" />
     <ClCompile Include="..\private\UIPreviewManager.cpp" />
+    <ClCompile Include="..\Private\UI_BattleSystemHUD.cpp" />
+    <ClCompile Include="..\Private\UI_CancelAim.cpp" />
     <ClCompile Include="..\Private\UI_BattleCommandHUD.cpp" />
+    <ClCompile Include="..\Private\UI_BattleDefense.cpp" />
     <ClCompile Include="..\Private\UI_BattleTransition.cpp" />
+    <ClCompile Include="..\Private\UI_ChoiceTarget.cpp" />
     <ClCompile Include="..\Private\UI_CrossHair.cpp" />
     <ClCompile Include="..\Private\UI_ExpeditionStatus.cpp" />
     <ClCompile Include="..\Private\UI_MonsterHpBar.cpp" />

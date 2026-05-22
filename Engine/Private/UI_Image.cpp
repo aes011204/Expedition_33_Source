@@ -45,6 +45,9 @@ HRESULT UI_Image::Initialize(void* arg)
         _holeCenterUV = desc->holeCenterUV;
         _holeRadius = desc->holeRadius;
         _holeFeather = desc->holeFeather;
+        _useFillRatio = desc->useFillRatio;
+        _fillRatio = ::clamp(desc->fillRatio, 0.f, 1.f);
+        _fillOrigin = desc->fillOrigin;
     }
 
     if (_texturePath.empty())
@@ -157,11 +160,25 @@ HRESULT UI_Image::Render()
     if (FAILED(_shader->Bind_RawValue("g_ViewportAspect", &viewportAspect, sizeof(float))))
         return E_FAIL;
 
+    if (FAILED(_shader->Bind_RawValue("g_UseFillRatio", &_useFillRatio, sizeof(bool))))
+        return E_FAIL;
+
+    if (FAILED(_shader->Bind_RawValue("g_FillRatio", &_fillRatio, sizeof(float))))
+        return E_FAIL;
+
+    const uint32 fillOriginValue = static_cast<uint32>(_fillOrigin);
+    if (FAILED(_shader->Bind_RawValue("g_FillOrigin", &fillOriginValue, sizeof(uint32))))
+        return E_FAIL;
+
     uint32 passIndex = 0u;
 
     if (_maskMode == MaskMode::CircularHole)
     {
         passIndex = 2u;
+    }
+    else if (_useFillRatio)
+    {
+        passIndex = 3u; // HP 바처럼 UV crop 채움이 필요한 이미지는 전용 fill pass를 탄다.
     }
     else if (nullptr != _maskSrv)
     {

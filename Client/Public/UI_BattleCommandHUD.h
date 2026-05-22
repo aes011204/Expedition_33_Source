@@ -5,7 +5,6 @@
 
 NS_BEGIN(Engine)
 class UI_Base;
-class UI_Button;
 NS_END
 
 NS_BEGIN(Client)
@@ -23,9 +22,8 @@ public:
     void    Open() override;
     void    Close() override;
 
-    void    Refresh_ForState(BattleTurnState state);
-
 public:
+    void    Refresh_ForState(BattleTurnState state);
     void    Set_TargetWorldPosition(const Vec3& worldPos);
 
 private:

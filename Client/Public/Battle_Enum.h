@@ -25,6 +25,7 @@ namespace Client
         None,
         ChooseSkill,
         AttackTargeting,
+        AttackPlaying,      // 타겟 선택 끝나고, 평타 or 스킬 실행중일 때
         ChooseItem,
         ChooseAction,
         SkillTargeting,
