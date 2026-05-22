@@ -129,62 +129,10 @@ void Object_Manager::Priority_Update(float timeDelta)
 
 void Object_Manager::Update(float timeDelta)
 {
-    const double updateBeginMs = Now_Ms();
-    double slowestObjectMs = 0.0;
-    uint32 slowestLevelIndex = 0;
-    string slowestLayerTag = {};
-    string slowestObjectName = {};
-    string slowestObjectClass = {};
-    size_t slowestLayerObjectCount = 0;
-
-    for (uint32 levelIndex = 0; levelIndex < _layers.size(); ++levelIndex)
-    {
-        auto& layers = _layers[levelIndex];
+    for (auto& layers : _layers)
         for (auto& Pair : layers)
-        {
-            const Shared<Layer>& layer = Pair.second;
-            if (nullptr == layer)
-                continue;
-
-            const auto& gameObjects = layer->Get_GameObjects();
-            for (const Shared<GameObject>& gameObject : gameObjects)
-            {
-                if (gameObject == nullptr)
-                    continue;
-
-                const double objectBeginMs = Now_Ms();
-                gameObject->Update(timeDelta);
-                const double objectMs = Now_Ms() - objectBeginMs;
-
-                if (objectMs > slowestObjectMs)
-                {
-                    slowestObjectMs = objectMs;
-                    slowestLevelIndex = levelIndex;
-                    slowestLayerTag = String::ToString(Pair.first);
-                    slowestLayerObjectCount = gameObjects.size();
-                    slowestObjectClass = gameObject->Get_ReflectionInfo().className;
-                    slowestObjectName = gameObject->Get_SourcePrefabName();
-                }
-            }
-        }
-    }
-
-    const double updateMs = Now_Ms() - updateBeginMs;
-    static double nextLogMs = 0.0;
-    const double nowMs = Now_Ms();
-    if (updateMs >= 50.0 && nowMs >= nextLogMs)
-    {
-        LOG_DEBUG(
-            "[ObjectManager::SlowUpdate] total={:.2f}ms slowestObject={:.2f}ms level={} layer='{}' layerObjects={} class='{}' prefab='{}'",
-            updateMs,
-            slowestObjectMs,
-            slowestLevelIndex,
-            slowestLayerTag,
-            slowestLayerObjectCount,
-            slowestObjectClass,
-            slowestObjectName);
-        nextLogMs = nowMs + 1000.0;
-    }
+            if (nullptr != Pair.second)
+                Pair.second->Update(timeDelta);
 }
 
 void Object_Manager::Late_Update(float timeDelta)
