@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -173,9 +173,8 @@
     <ClInclude Include="..\public\BT_Set_Target.h" />
     <ClInclude Include="..\Public\FreeAimTargeting.h" />
     <ClInclude Include="..\Public\GameplayUI_Battle.h" />
-    <ClInclude Include="..\Public\GameplayUI_Types.h" />
     <ClInclude Include="..\Public\GameplayUI_World.h" />
-    <ClInclude Include="..\Public\MapStaticCollisionBuilder.h" />
+    <ClInclude Include="..\Public\GameplayUI_Types.h" />
     <ClInclude Include="..\Public\PB_Gustave.h" />
     <ClInclude Include="..\Public\MB_Lancelier.h" />
     <ClInclude Include="..\Public\PB_Lune.h" />
@@ -354,7 +353,6 @@
     <ClCompile Include="..\Private\FreeAimTargeting.cpp" />
     <ClCompile Include="..\Private\GameplayUI_Battle.cpp" />
     <ClCompile Include="..\Private\GameplayUI_World.cpp" />
-    <ClCompile Include="..\Private\MapStaticCollisionBuilder.cpp" />
     <ClCompile Include="..\Private\PB_Gustave.cpp" />
     <ClCompile Include="..\Private\MB_Lancelier.cpp" />
     <ClCompile Include="..\Private\PB_Lune.cpp" />

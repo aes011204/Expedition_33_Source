@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "MapEditorDefines.h"
 #include "GameObject.h"
 
@@ -49,7 +49,7 @@ private:
     ComPtr<UnorderedAccessView> _visibleUAV;
     ComPtr<Buffer> _visibleVB;
     ComPtr<Buffer> _cullCB;
-    ComPtr<Buffer> _indirectArgsBuffer;
+    vector<ComPtr<Buffer>> _indirectArgsBuffers;
 
 private:
     HRESULT CreateInstanceBuffer(const vector<Matrix>& matrices);

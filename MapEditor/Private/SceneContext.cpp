@@ -1,9 +1,25 @@
 ﻿#include "SceneContext.h"
 #include "Helper_String.h"
 #include "IEditorCommand.h"
+#include "GameInstance.h"
+#include "PhysX_Manager.h"
+#include "MapStaticCollisionBuilder.h"
+#include "StaticCollisionData.h"
+#include "MEStaticMeshActor.h"
+#include "MEInstancedMeshActor.h"
+#include <iostream>
+
+namespace
+{
+    Vec4 ToVec4(const json& arr)
+    {
+        return Vec4(arr[0].get<float>(), arr[1].get<float>(), arr[2].get<float>(), arr[3].get<float>());
+    }
+}
 
 void SceneContext::SaveToFile(const string& filePath)
 {
+    _currentFilePath = filePath;
     json root;
     json& map = root["MapData"];
 
@@ -18,6 +34,8 @@ void SceneContext::SaveToFile(const string& filePath)
     json postProcessVols = json::array();
     json lights = json::array();
     json instancedMeshes = json::array();
+
+    unordered_map<string, Shared<ModelCom>> uniqueModels;
 
     for (auto& obj : _objects)
     {
@@ -43,6 +61,12 @@ void SceneContext::SaveToFile(const string& filePath)
             e["ModelPath"] = String::ToString(modelFile);
             e["Scale"] = { obj->_scale.x, obj->_scale.y, obj->_scale.z };
             staticMeshes.push_back(e);
+
+            string relativePath = String::ToString(modelFile);
+            if (obj->_renderHandle && obj->_renderHandle->GetModel())
+            {
+                uniqueModels[relativePath] = obj->_renderHandle->GetModel();
+            }
             break;
         }
 
@@ -132,6 +156,12 @@ void SceneContext::SaveToFile(const string& filePath)
             e["ModelPath"] = String::ToString(modelFile);
             e["Instances"] = instances;
             instancedMeshes.push_back(e);
+
+            string relativePath = String::ToString(modelFile);
+            if (obj->_instancedRenderHandle && obj->_instancedRenderHandle->GetModel())
+            {
+                uniqueModels[relativePath] = obj->_instancedRenderHandle->GetModel();
+            }
             break;
         }
 
@@ -149,6 +179,34 @@ void SceneContext::SaveToFile(const string& filePath)
         };
     }
 
+    json modelCollisions = json::object();
+    auto physxManager = GAME->Get_PhysXManager();
+    if (physxManager)
+    {
+        for (auto& [relativePath, model] : uniqueModels)
+        {
+            Shared<StaticCollisionData> colData = MapStaticCollisionBuilder::Build(model);
+            if (!colData || colData->triangleMeshes.empty())
+                continue;
+
+            json meshArray = json::array();
+            for (auto& mesh : colData->triangleMeshes)
+            {
+                vector<uint8_t> cookedData;
+                if (physxManager->Cook_TriangleMesh(mesh, colData->preLocalTransform, cookedData))
+                {
+                    string base64Str = String::Base64_Encode(cookedData);
+                    meshArray.push_back(base64Str);
+                }
+            }
+            if (!meshArray.empty())
+            {
+                modelCollisions[relativePath] = meshArray;
+            }
+        }
+    }
+
+    map["ModelCollisions"] = modelCollisions;
     map["ModelOverrides"] = modelOverrides;
     map["StaticMeshes"] = staticMeshes;
     map["SpawnPoints"] = spawnPoints;
@@ -165,6 +223,7 @@ void SceneContext::SaveToFile(const string& filePath)
 
 void SceneContext::LoadFromFile(const string& filePath)
 {
+    _currentFilePath = filePath;
     ifstream ifs(filePath);
     if (!ifs.is_open())
     {
@@ -338,22 +397,22 @@ void SceneContext::LoadFromFile(const string& filePath)
             if (e.contains("Direction"))
             {
                 auto& d = e["Direction"];
-                obj->_lightDirection = { d[0], d[1], d[2], d[3] };
+                obj->_lightDirection = ToVec4(d);
             }
             if (e.contains("Diffuse"))
             {
                 auto& d = e["Diffuse"];
-                obj->_lightDiffuse = { d[0], d[1], d[2], d[3] };
+                obj->_lightDiffuse = ToVec4(d);
             }
             if (e.contains("Ambient"))
             {
                 auto& a = e["Ambient"];
-                obj->_lightAmbient = { a[0], a[1], a[2], a[3] };
+                obj->_lightAmbient = ToVec4(a);
             }
             if (e.contains("Specular"))
             {
                 auto& s = e["Specular"];
-                obj->_lightSpecular = { s[0], s[1], s[2], s[3] };
+                obj->_lightSpecular = ToVec4(s);
             }
             LoadTransform(e, *obj);
             Add(obj);
@@ -370,25 +429,25 @@ void SceneContext::LoadFromFile(const string& filePath)
             if (dl.contains("Direction"))
             {
                 auto& d = dl["Direction"];
-                obj->_lightDirection = { d[0], d[1], d[2], d[3] };
+                obj->_lightDirection = ToVec4(d);
             }
 
             if (dl.contains("Diffuse"))
             {
                 auto& d = dl["Diffuse"];
-                obj->_lightDiffuse = { d[0], d[1], d[2], d[3] };
+                obj->_lightDiffuse = ToVec4(d);
             }
 
             if (dl.contains("Ambient"))
             {
                 auto& a = dl["Ambient"];
-                obj->_lightAmbient = { a[0], a[1], a[2], a[3] };
+                obj->_lightAmbient = ToVec4(a);
             }
 
             if (dl.contains("Specular"))
             {
                 auto& s = dl["Specular"];
-                obj->_lightSpecular = { s[0], s[1], s[2], s[3] };
+                obj->_lightSpecular = ToVec4(s);
             }
         }
     }
@@ -497,26 +556,26 @@ Shared<EditorObject> SceneContext::SpawnFromPrefab(const string& prefabPath, con
         if (j.contains("Direction"))
         {
             auto& d = j["Direction"];
-            obj->_lightDirection = { d[0], d[1], d[2], d[3] };
+            obj->_lightDirection = ToVec4(d);
         }
 
         obj->_lightRange = j.value("Range", 10.f);
         if (j.contains("Diffuse"))
         {
             auto& d = j["Diffuse"];
-            obj->_lightDiffuse = { d[0], d[1], d[2], d[3] };
+            obj->_lightDiffuse = ToVec4(d);
         }
 
         if (j.contains("Ambient"))
         {
             auto& d = j["Ambient"];
-            obj->_lightAmbient = { d[0], d[1], d[2], d[3] };
+            obj->_lightAmbient = ToVec4(d);
         }
 
         if (j.contains("Specular"))
         {
             auto& d = j["Specular"];
-            obj->_lightSpecular = { d[0], d[1], d[2], d[3] };
+            obj->_lightSpecular = ToVec4(d);
         }
         break;
     }
@@ -714,6 +773,7 @@ Shared<EditorObject> SceneContext::Duplicate(const Shared<EditorObject>& src)
 
 void SceneContext::ClearScene()
 {
+    _currentFilePath.clear();
     _objects.erase(remove_if(_objects.begin(), _objects.end(), [](const Shared<EditorObject>& o) { return !o->_isDefaultLight; }), _objects.end());
     _staticMeshes.clear();
     _lights.erase(remove_if(_lights.begin(), _lights.end(), [](const Shared<EditorObject>& o) { return !o->_isDefaultLight; }), _lights.end());

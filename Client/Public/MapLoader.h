@@ -1,5 +1,6 @@
 #pragma once
 #include "Client_Defines.h"
+#include <mutex>
 
 NS_BEGIN(Engine)
 class GameObject;
@@ -93,9 +94,39 @@ public:
         uint32 levelIndex,
         const wstring& layerTag);
 
+    static HRESULT Convert_Json_To_Bin(const wstring& jsonPath, const wstring& binPath);
+    static void Clear_GlobalCache();
+
 private:
     static void Prepare_StaticAutoInstancing(LoadSession& session);
     static void ApplyMaterials(Shared<ModelCom>& model, const string& modelFolder, const string& modelFullPath, int32 forcedPassIndex = -1);
+
+    // 스레드 안전한 전역 모델 조회 및 로드 헬퍼 함수
+    static Shared<ModelCom> GetOrLoadModel(
+        const ComPtr<Device>& device,
+        const ComPtr<Context>& context,
+        const string& modelFolder,
+        const string& modelPathStr,
+        const unordered_map<string, int32>& modelOverrides,
+        chrono::milliseconds* outCreateDuration = nullptr,
+        size_t* outCreateCount = nullptr,
+        chrono::milliseconds* outMaterialDuration = nullptr,
+        size_t* outMaterialCount = nullptr);
+
+    // 스레드 안전한 전역 콜리전 빌드 및 조회 헬퍼 함수
+    static Shared<StaticCollisionData> GetOrBuildCollision(
+        const Shared<ModelCom>& model,
+        const string& modelPathStr,
+        chrono::milliseconds* outDuration = nullptr,
+        size_t* outCount = nullptr);
+
+private:
+    // 스레드 안전한 전역 맵 모델 프로토타입 캐시 멤버
+    static std::mutex g_globalCacheMutex;
+    static umap<string, Shared<ModelCom>> g_globalModelCache;
+    static umap<string, Shared<StaticCollisionData>> g_globalCollisionCache;
+    static umap<string, std::vector<std::pair<uint32, std::string>>> g_globalMaterialBindingCache;
+    static uint32 g_currentLevelIndex;
 };
 
 NS_END

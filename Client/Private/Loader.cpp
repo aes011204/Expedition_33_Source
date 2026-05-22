@@ -1,4 +1,4 @@
-#include "Loader.h"
+﻿#include "Loader.h"
 #include "GameInstance.h"
 #include "ClientInstance.h"
 #include "ResourceLoader.h"
@@ -16,18 +16,21 @@ auto Loader::Find_MapLoadDesc() const -> const LevelMapLoadDesc*
 {
     static const LevelMapLoadDesc mapLoadDescs[] =
     {
+        // GamePlay: 로딩 화면에서 에셋 캐시 워밍만 수행. 실제 스폰은 StreamingLevel이 담당.
         {
             LevelType::GamePlay,
             {
                 Constants::Map::SpringChunk_00_03_Path,
                 Constants::Map::SpringChunk_00_04_Path,
-                Constants::Map::SpringChunk_01_03_Path,
-                Constants::Map::SpringChunk_01_04_Path,
+                Constants::Map::SpringChunk_01_00_Path,
+                Constants::Map::SpringChunk_01_01_Path,
             },
             4,
             L"Layer_MapStaticMesh"
         },
+
         { LevelType::MapTest,  { Constants::Map::TestMap_Path }, 1, L"Layer_MapStaticMesh" },
+
         { LevelType::Stage01,  { Constants::Map::SmallLevel_SimonArea_Remake_Path }, 1, L"Layer_MapStaticMesh" },
     };
 
@@ -105,6 +108,33 @@ HRESULT Loader::Loading()
 
     default:
         hr = E_FAIL;
+    }
+
+    if (SUCCEEDED(hr))
+    {
+        // 맵 백그라운드 프리로드 수행 (메인 스레드 대기 차단 및 멀티스레드 활용)
+        const LevelMapLoadDesc* desc = Find_MapLoadDesc();
+        if (desc != nullptr)
+        {
+            lstrcpy(_loadingText, TEXT("Map Resources Preloading..."));
+
+            for (size_t i = 0; i < desc->mapPathCount; ++i)
+            {
+                if (desc->mapPaths[i] == nullptr)
+                    continue;
+
+                MapLoader::LoadSession session{};
+                session.preloadedModelCache = _mapPreloadedModelCache;
+                session.preloadedCollisionCache = _mapPreloadedCollisionCache;
+
+                if (SUCCEEDED(MapLoader::Preload_SessionData(_device, _context, desc->mapPaths[i],
+                    ETOI(desc->level), desc->layerTag, session)))
+                {
+                    _mapPreloadedModelCache.insert(session.preloadedModelCache.begin(), session.preloadedModelCache.end());
+                    _mapPreloadedCollisionCache.insert(session.preloadedCollisionCache.begin(), session.preloadedCollisionCache.end());
+                }
+            }
+        }
     }
 
     // 로딩 끝난 시간
@@ -639,7 +669,8 @@ HRESULT Loader::Try_FinishLoading()
         _includedStaticJobs.store(false);
     }
 
-    CHECK_FAILED(Process_LevelMapLoad(8, chrono::milliseconds(8)), E_FAIL);
+    // 백그라운드 프리로드가 끝난 후, 메인 스레드 스폰 단계를 60 FPS(16ms) 예산에 맞춰 점진적 수행하여 화면 멈춤 제거
+    CHECK_FAILED(Process_LevelMapLoad(20, chrono::milliseconds(16)), E_FAIL);
 
     if (!_mapLoadFinished)
         return S_OK;

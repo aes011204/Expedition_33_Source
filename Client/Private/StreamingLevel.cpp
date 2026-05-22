@@ -128,10 +128,19 @@ int32 StreamingLevel::To_ChunkIndex(int32 gridX, int32 gridZ) const
 
 void StreamingLevel::Queue_InitialMapChunks()
 {
-    Queue_MapChunk(_mapStreamingDesc.initialChunkX, _mapStreamingDesc.initialChunkZ);
-    Queue_MapChunk(_mapStreamingDesc.initialChunkX + 1, _mapStreamingDesc.initialChunkZ);
-    Queue_MapChunk(_mapStreamingDesc.initialChunkX, _mapStreamingDesc.initialChunkZ + 1);
-    Queue_MapChunk(_mapStreamingDesc.initialChunkX + 1, _mapStreamingDesc.initialChunkZ + 1);
+    // 초기 청크는 로딩 화면에서 Loader가 이미 스폰함
+    // → StreamingLevel은 Loaded로 마킹만 해서 재스폰 방지
+    auto MarkLoaderSpawned = [this](int32 x, int32 z)
+    {
+        const int32 idx = To_ChunkIndex(x, z);
+        if (idx >= 0)
+            _mapChunks[idx].state = ChunkLoadState::Loaded; // loadedObjects는 비어있음 (Loader가 스폰)
+    };
+
+    MarkLoaderSpawned(_mapStreamingDesc.initialChunkX,     _mapStreamingDesc.initialChunkZ);
+    MarkLoaderSpawned(_mapStreamingDesc.initialChunkX + 1, _mapStreamingDesc.initialChunkZ);
+    MarkLoaderSpawned(_mapStreamingDesc.initialChunkX,     _mapStreamingDesc.initialChunkZ + 1);
+    MarkLoaderSpawned(_mapStreamingDesc.initialChunkX + 1, _mapStreamingDesc.initialChunkZ + 1);
 }
 
 void StreamingLevel::Queue_MapChunk(int32 gridX, int32 gridZ)
@@ -332,7 +341,9 @@ void StreamingLevel::Update_ActiveChunks(int32 centerCol, int32 centerRow)
         {
             if (chunk.state == ChunkLoadState::Loaded)
             {
-                Unload_MapChunk(i);
+                // loadedObjects가 비어있으면 Loader가 스폰한 청크 → 언로드 대상에서 제외
+                if (!chunk.loadedObjects.empty())
+                    Unload_MapChunk(i);
             }
             else if (chunk.state == ChunkLoadState::Queued)
             {

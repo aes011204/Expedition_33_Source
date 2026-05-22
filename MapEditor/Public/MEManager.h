@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "MapEditorDefines.h"
 #include "MEWindow.h"
 
@@ -22,6 +22,7 @@ public:
 
 private:
     void RenderDockSpace();
+    void SaveMapDialog();
 
 private:
     map<wstring, Shared<MEWindow>> _windows;

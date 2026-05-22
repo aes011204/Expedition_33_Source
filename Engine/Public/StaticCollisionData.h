@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "Base.h"
 #include "Engine_Model_Struct.h"
@@ -14,6 +14,8 @@ struct ENGINE_DLL StaticCollisionData
 
     vector<ModelCollisionMesh> triangleMeshes;
     vector<ModelCollisionProxy> primitiveProxies;
+
+    vector<vector<uint8_t>> cookedTriangleMeshes;
 };
 
 

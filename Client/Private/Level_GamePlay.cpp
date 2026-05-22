@@ -1,4 +1,4 @@
-#include "Level_GamePlay.h"
+﻿#include "Level_GamePlay.h"
 #include "GameInstance.h"
 #include "ClientInstance.h"
 #include "Client_Constants.h"
@@ -18,17 +18,17 @@ Level_GamePlay::Level_GamePlay(const ComPtr<Device>& device, const ComPtr<Contex
 
 HRESULT Level_GamePlay::Initialize()
 {
-    if (FAILED(Ready_ChunkMap()))
-        return E_FAIL;
+    //if (FAILED(Ready_ChunkMap()))
+    //    return E_FAIL;
 
     if (FAILED(Ready_Lights()))
         return E_FAIL;
 
     if (FAILED(Ready_Layer_Player(TEXT("Layer_Player"))))
-        return E_FAIL;
+        return E_FAIL; 
 
-    if (FAILED(Ready_Layer_Effect(TEXT("Layer_Effect"))))
-        return E_FAIL;
+    //if (FAILED(Ready_Layer_Effect(TEXT("Layer_Effect"))))
+    //    return E_FAIL;
 
     if (FAILED(Ready_Layer_UI(TEXT("Layer_UI"))))
         return E_FAIL;
@@ -53,14 +53,9 @@ void Level_GamePlay::BeginPlay()
 
 void Level_GamePlay::Update(float fTimeDelta)
 {
-    Sync_LuneRightHandEffect();
-    Update_MapStreaming(fTimeDelta);
+    //Sync_LuneRightHandEffect();
+    //Update_MapStreaming(fTimeDelta);
     Update_WindowTitleFps();
-
-#ifdef _DEBUG
-     GAME->Print(L"현재 FPS : {}", _displayFps, duration(0.f), color(Vec4(1.f, 1.f, 0.f, 1.f)));
-#endif
-
 
      //테스트
      if (GAME->KeyDown(KEY_TYPE::KEY_0))
@@ -73,9 +68,9 @@ void Level_GamePlay::Update(float fTimeDelta)
          };
 
          vector<string> battleMonster;
-         battleMonster.push_back(Constants::Prefab::MB_Lancelier); // 전투 몬스터 prefab 이름은 MB_* 상수로 통일한다.
-         battleMonster.push_back(Constants::Prefab::MB_Lancelier); // 테스트 3마리 스폰도 같은 상수를 재사용한다.
-         battleMonster.push_back(Constants::Prefab::MB_Lancelier); // 문자열 변경 누락으로 인한 스폰 실패를 막는다.
+         battleMonster.push_back(Constants::Prefab::MB_Lancelier);
+         battleMonster.push_back(Constants::Prefab::MB_Lancelier);
+         battleMonster.push_back(Constants::Prefab::MB_Lancelier);
 
          CLIENT->OnEnterBattleField(1, true, heroes, battleMonster);
      }
@@ -123,8 +118,8 @@ HRESULT Level_GamePlay::Ready_ChunkMap()
     streamingDesc.levelIndex = ETOI(LevelType::GamePlay);
     streamingDesc.gridWidth = 6;
     streamingDesc.gridHeight = 6;
-    streamingDesc.initialChunkX = 3; // chunk_00_03의 col
-    streamingDesc.initialChunkZ = 0; // chunk_00_03의 row
+    streamingDesc.initialChunkX = 0; // chunkX = 0, chunkZ = 2면 02_00 기준으로 4개 스폰
+    streamingDesc.initialChunkZ = 2; 
     streamingDesc.activeChunkRadius = 1;
     streamingDesc.maxMeshesPerFrame = 2;
     streamingDesc.maxTimePerFrame = chrono::milliseconds(2);
@@ -266,7 +261,8 @@ HRESULT Level_GamePlay::Ready_Layer_Monster(const wstring& strLayerTag)
 
 HRESULT Level_GamePlay::Ready_Layer_Player(const wstring& strLayerTag)
 {
-    Vec3 startPos = Vec3(-85.f, 48.f, -77.f);
+    //Vec3 startPos = Vec3(-465.f, 50.f, 65.f);
+    Vec3 startPos = Vec3(-70.f, 25.f, -65.f);
     CHECK_FAILED(CLIENT->Initialize_Hero(ETOI(LevelType::GamePlay), strLayerTag, startPos), E_FAIL);
 
     return S_OK;
@@ -371,7 +367,7 @@ Shared<Level_GamePlay> Level_GamePlay::Create(const ComPtr<Device>& device, cons
 
 void Level_GamePlay::Free()
 {
-    Free_MapStreaming();
+    //Free_MapStreaming();
 
     CLIENT->Clear_GameplayUI();
 
