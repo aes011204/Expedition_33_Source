@@ -668,6 +668,12 @@
     <ClInclude Include="..\Public\CameraDirector.h">
       <Filter>02.GameObject\Camera\Director</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\CameraPresetTypes.h">
+      <Filter>96. Manager</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\AN_BattleShot.h">
+      <Filter>AnimNotify</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -1084,6 +1090,9 @@
     </ClCompile>
     <ClCompile Include="..\Private\CameraDirector.cpp">
       <Filter>02.GameObject\Camera\Director</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\AN_BattleShot.cpp">
+      <Filter>AnimNotify</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

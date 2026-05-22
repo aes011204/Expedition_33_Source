@@ -1,4 +1,6 @@
 ﻿#pragma once
+#include <Event_Struct.h>
+
 #include "Camera.h"
 #include "Battle_Enum.h"
 #include "CameraPresetTypes.h"
@@ -38,6 +40,7 @@ public:
     void Update_LiveEditContext(BattleCameraMode mode, const Shared<Character>& target);
     void End_LiveEdit();
     bool Is_LiveEditEnabled() const { return _isLiveEditEnabled; }
+    void Set_Participants(const vector<BattleChar>& heroes, const vector<BattleChar>& enemies);
 
     void Update_FreeAimRotation(float timeDelta);
 
@@ -50,16 +53,15 @@ private:
     void Apply_LookAt(const Vec3& cameraPos, const Vec3& lookAt);
     void Apply_FreeAimCamera();                
 
-private:
-    bool  _isFreeAimActive = false;            
 
 private:
-    void Update_WideMode(float timeDelta);
-    void Update_PlayerFocusMode(float timeDelta);
-    void Update_EnemyFocusMode(float timeDelta);
-    void Update_EnemyAttackMode(float timeDelta);
-    void Update_FromCurrentPreset(float timeDelta);
-    void Update_LiveEditInput(float timeDelta);
+    void                Update_WideMode(float timeDelta);
+    void                Update_PlayerFocusMode(float timeDelta);
+    void                Update_EnemyFocusMode(float timeDelta);
+    void                Update_EnemyAttackMode(float timeDelta);
+    void                Update_FromCurrentPreset(float timeDelta);
+    void                Update_LiveEditInput(float timeDelta);
+    void                Update_PlayerAttackMode(float timeDelta);
     BattleCameraPreset* Get_MutablePreset(BattleCameraMode mode);
 
 private:
@@ -70,10 +72,18 @@ private:
     BattleCameraPreset   _playerFocusPreset{};
     BattleCameraPreset   _enemyFocusPreset{};
     BattleCameraPreset   _enemyAttackPreset{};
+    BattleCameraPreset   _playerAttackPreset{};
     Shared<TransformCom> _targetTransform{};
     Vec3                 _smoothedTargetPos = Vec3::Zero;
     Vec3                 _prevTargetPos = Vec3::Zero;
     bool                 _isLiveEditEnabled = false;
+    EvtHandle            _battlePresentationHandle {};
+
+private:
+    bool  _isFreeAimActive = false;
+    bool  _isWideMode = false;
+    vector<BattleChar>    _heroes;
+    vector<BattleChar>    _enemies;
 
 public:
     static Shared<BattleTurnCamera> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

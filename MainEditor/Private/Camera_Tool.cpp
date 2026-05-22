@@ -58,6 +58,7 @@ bool Edit_OrbitPresetFields(TPreset& preset)
 {
     bool isChanged = false;
 
+    isChanged |= ImGui::Checkbox("snap on enter##OrbitPreset", &preset.snapOnEnter);
     isChanged |= ImGui::DragFloat("follow speed##OrbitPreset", &preset.followSpeed, 0.01f);
     isChanged |= ImGui::DragFloat("distance##OrbitPreset", &preset.distance, 0.01f);
     isChanged |= ImGui::DragFloat("side offset##OrbitPreset", &preset.sideOffset, 0.01f);

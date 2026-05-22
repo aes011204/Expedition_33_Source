@@ -13,6 +13,7 @@ void CameraPresetIO::SaveTargetPresetToFile(TargetCameraMode cameraMode, const T
 {
     json jsonData {};
 
+    jsonData["snapOnEnter"]     = preset.snapOnEnter;
     jsonData["followSpeed"]     = preset.followSpeed;
     jsonData["aimOffset"]       = preset.aimOffset;
     jsonData["pivotHeight"]     = preset.pivotHeight;
@@ -64,6 +65,7 @@ bool CameraPresetIO::LoadTargetPresetFromFile(TargetCameraMode cameraMode, Targe
 
     TargetCameraPreset preset;
 
+    preset.snapOnEnter = jsonData.value("snapOnEnter", false);
     preset.followSpeed = jsonData.value("followSpeed", preset.followSpeed);
     preset.distance  = jsonData.value("distance", preset.distance);
     preset.sideOffset  = jsonData.value("sideOffset", preset.sideOffset);
@@ -146,6 +148,7 @@ void CameraPresetIO::SaveBattlePresetToFile(BattleCameraMode cameraMode, const B
 {
     json jsonData {};
 
+    jsonData["snapOnEnter"]     = preset.snapOnEnter;
     jsonData["followSpeed"]     = preset.followSpeed;
     jsonData["aimOffset"]       = preset.aimOffset;
     jsonData["pivotHeight"]     = preset.pivotHeight;
@@ -196,6 +199,7 @@ bool CameraPresetIO::LoadBattlePresetFromFile(BattleCameraMode cameraMode, Battl
 
     BattleCameraPreset preset;
 
+    preset.snapOnEnter = jsonData.value("snapOnEnter", false);
     preset.followSpeed = jsonData.value("followSpeed", preset.followSpeed);
     preset.distance  = jsonData.value("distance", preset.distance);
     preset.sideOffset  = jsonData.value("sideOffset", preset.sideOffset);

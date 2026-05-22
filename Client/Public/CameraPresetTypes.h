@@ -11,7 +11,8 @@ enum class BattleCameraMode
 { WIDE,
   ENEMYFOCUS, //공격 대상 선택시 줌
   ENEMYATTACK, //적 공격
-  PLAYERFOCUS //
+  PLAYERFOCUS, //플레이어 공격 선택시 줌
+  PLAYERATTACK
 };
 
 struct PreviewShotPreset
@@ -32,6 +33,7 @@ struct CommonCameraPreset
 struct TargetCameraPreset
 {
     CommonCameraPreset camera;
+    bool         snapOnEnter = false;
 
     float        followSpeed;
     float        distance;
@@ -65,6 +67,7 @@ struct TargetCameraPreset
 struct BattleCameraPreset
 {
     CommonCameraPreset camera;
+    bool         snapOnEnter = false;
 
     float        followSpeed;
     float        distance;

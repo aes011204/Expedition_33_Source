@@ -48,8 +48,9 @@ HRESULT BattleTurnCamera::Initialize(void* arg)
     CameraPresetIO::LoadBattlePresetFromFile(BattleCameraMode::PLAYERFOCUS, _playerFocusPreset);
     CameraPresetIO::LoadBattlePresetFromFile(BattleCameraMode::ENEMYFOCUS, _enemyFocusPreset);
     CameraPresetIO::LoadBattlePresetFromFile(BattleCameraMode::ENEMYATTACK, _enemyAttackPreset);
-
-    GAME->Get_EventBus().Subscribe<EvtBattlePresentation>
+    CameraPresetIO::LoadBattlePresetFromFile(BattleCameraMode::PLAYERATTACK, _playerAttackPreset);
+     
+   _battlePresentationHandle = GAME->Get_EventBus().Subscribe<EvtBattlePresentation>
     ([this](const EvtBattlePresentation& event)
         {
             BattleShotRequest request;
@@ -71,7 +72,12 @@ HRESULT BattleTurnCamera::Initialize(void* arg)
                     request.target = event.target;
                     break;
 
-            case BattleCameraMode::ENEMYATTACK:
+                case BattleCameraMode::ENEMYATTACK:
+                    request.mode = event.cameraMode;
+                    request.target = event.target;
+                    break;
+
+                case BattleCameraMode::PLAYERATTACK:
                     request.mode = event.cameraMode;
                     request.target = event.target;
                     break;
@@ -100,13 +106,21 @@ void BattleTurnCamera::Update(float timeDelta)
     if (!GAME->Is_ActiveCamera(GetSharedPtr<Camera>()))
         return;
 
+    LOG_DEBUG("Camera Mode : ", magic_enum::enum_name(_currentRequest.mode));
+
     if (_isLiveEditEnabled)
         Update_LiveEditInput(timeDelta);
 
     switch (_currentRequest.mode)
     {
     case BattleCameraMode::WIDE:
-        Update_WideMode(timeDelta);
+        {
+         if(!_isWideMode)
+         {
+            Focus_Battle(_heroes, _enemies);
+             _isWideMode = true;
+         }
+        }
         break;
     case BattleCameraMode::PLAYERFOCUS:
         Update_PlayerFocusMode(timeDelta);
@@ -116,6 +130,9 @@ void BattleTurnCamera::Update(float timeDelta)
         break;
     case BattleCameraMode::ENEMYATTACK:
         Update_EnemyAttackMode(timeDelta);
+        break;
+    case BattleCameraMode::PLAYERATTACK:
+        Update_PlayerAttackMode(timeDelta);
         break;
     }
 
@@ -180,6 +197,8 @@ void BattleTurnCamera::Focus_Battle(const vector<BattleChar>& heroes, const vect
         Vec3(2.f, 3.f, -2.f);     // 테스트용 임시 위치 보정
 
     Apply_LookAt(cameraPos, lookAt);
+
+    _smoothedTargetPos = cameraPos;
 }
 
 void BattleTurnCamera::Update_FreeAimRotation(float timeDelta)
@@ -221,6 +240,12 @@ void BattleTurnCamera::Apply_FreeAimCamera()
 {
 }
 
+void BattleTurnCamera::Set_Participants(const vector<BattleChar>& heroes, const vector<BattleChar>& enemies)
+{
+    _heroes = heroes;
+    _enemies = enemies;
+}
+
 void BattleTurnCamera::Apply_LookAt(const Vec3& cameraPos, const Vec3& lookAt)
 {
     _transformCom->Set_WorldPosition(cameraPos);
@@ -234,6 +259,12 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
     if (_currentRequest.mode == request.mode &&
         _currentRequest.target == request.target)
         return;
+
+    bool wasWide = _currentRequest.mode == BattleCameraMode::WIDE;
+    bool willWide = request.mode == BattleCameraMode::WIDE;
+
+    if(wasWide && !willWide)
+        _isWideMode = false;
 
     _currentRequest = request;
 
@@ -258,9 +289,22 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
     case BattleCameraMode::ENEMYATTACK:
         _targetPreset = _enemyAttackPreset;
         break;
+
+    case BattleCameraMode::PLAYERATTACK:
+        _targetPreset = _playerAttackPreset;
+        break;
     }
 
     _currentPreset = _targetPreset;
+
+    //playerfocus, playerAttack 이었을 때 snapOnEnter가 false여서 그 마지막 애니메이션의 target Pos가 되어있을텐데 지금은 enemyfocus가 마지막으로 저장된 것이므로 거기서 확대되는식으로 이루어짐
+    //각 애니메이션이 종료하고 나서의 _smoothedTargetPos는 무조건 그 애니메이션 종료 시점에 한번씩은 저장할 수 있도록 해야할텐데
+    if (_currentPreset.snapOnEnter && _targetTransform)
+    {
+        const Vec3 targetPos = _targetTransform->Get_WorldPosition();
+        _smoothedTargetPos = targetPos;
+        _prevTargetPos = targetPos;
+    }
 }
 
 void BattleTurnCamera::Begin_LiveEdit(BattleCameraMode mode, const Shared<Character>& target)
@@ -304,6 +348,11 @@ void BattleTurnCamera::Update_EnemyFocusMode(float timeDelta)
 }
 
 void BattleTurnCamera::Update_EnemyAttackMode(float timeDelta)
+{
+    Update_FromCurrentPreset(timeDelta);
+}
+
+void BattleTurnCamera::Update_PlayerAttackMode(float timeDelta)
 {
     Update_FromCurrentPreset(timeDelta);
 }
@@ -422,6 +471,9 @@ const BattleCameraPreset& BattleTurnCamera::Get_Preset(BattleCameraMode mode) co
     case BattleCameraMode::ENEMYATTACK:
         return _enemyAttackPreset;
 
+    case BattleCameraMode::PLAYERATTACK:
+        return _playerAttackPreset;
+
     default:
         return _wideModePreset;
     }
@@ -445,6 +497,10 @@ void BattleTurnCamera::Set_Preset(BattleCameraMode mode, const BattleCameraPrese
 
     case BattleCameraMode::ENEMYATTACK:
         _enemyAttackPreset = preset;
+        break;
+
+    case BattleCameraMode::PLAYERATTACK:
+        _playerAttackPreset = preset;
         break;
 
     default:
@@ -474,6 +530,9 @@ BattleCameraPreset* BattleTurnCamera::Get_MutablePreset(BattleCameraMode mode)
     case BattleCameraMode::ENEMYATTACK:
         return &_enemyAttackPreset;
 
+    case BattleCameraMode::PLAYERATTACK:
+        return &_playerAttackPreset;
+
     default:
         return nullptr;
     }
@@ -501,5 +560,11 @@ Shared<GameObject> BattleTurnCamera::Clone(void* arg)
 
 void BattleTurnCamera::Free()
 {
+    if (_battlePresentationHandle.IsValid())
+    {
+        GAME->Get_EventBus().Unsubscribe(_battlePresentationHandle);
+        _battlePresentationHandle = {};
+    }
+
     Camera::Free();
 }

@@ -417,6 +417,19 @@ void TargetCamera::Change_Mode(TargetCameraMode state)
         _currentSettings.followSpeed = _battleEnterPreset.followSpeed;
         break;
     }
+
+    if (_targetSettings.snapOnEnter)
+    {
+        _currentSettings = _targetSettings;
+
+        Shared<TransformCom> targetTransformCom;
+        if (Try_GetTargetTransform(targetTransformCom))
+        {
+            const Vec3 targetPos = targetTransformCom->Get_WorldPosition();
+            _prevTargetPos = targetPos;
+            _smoothedTargetPos = targetPos;
+        }
+    }
 }
 
 void TargetCamera::Change_Target()
