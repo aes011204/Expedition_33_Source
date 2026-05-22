@@ -1,4 +1,4 @@
-﻿#include "pch.h"
+#include "pch.h"
 #include "ClientInstance.h"
 #include "BattleController.h"
 #include "BT_Node_Bootstrap.h"
@@ -14,6 +14,7 @@
 #include "ResourceLoader.h"
 #include "PreviewShotTable.h"
 #include "UIPreviewManager.h"
+#include "MapLoader.h"
 
 IMPLEMENT_SINGLETON(ClientInstance)
 
@@ -351,6 +352,9 @@ HRESULT ClientInstance::Ready_GameDataTables()
 
 void ClientInstance::Release_Client()
 {
+    // 디바이스 리셋 전 정적 전역 맵 모델 및 콜리전 캐시 리소스를 완전히 방출
+    MapLoader::Clear_GlobalCache();
+
     auto ReleaseManager = [](auto& manager)
     {
         if (manager)

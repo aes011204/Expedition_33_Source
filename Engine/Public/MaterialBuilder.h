@@ -99,6 +99,8 @@ private:
     fs::path _root{};
     unordered_map<string, fs::path> _keyToBundlePath{};
     unordered_map<string, Unique<BundleAsset>> _bundleCache{};
+
+    mutable mutex _bundleCacheMutex; // 로딩/프리로드 중 번들 캐시 동시 접근 보호용
 };
 
 NS_END

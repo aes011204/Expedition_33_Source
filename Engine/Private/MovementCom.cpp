@@ -214,6 +214,22 @@ void MovementCom::Force_SetPositionY(float posY)
     _transformCom->Set_WorldPosition(position);
 }
 
+void MovementCom::Sync_RuntimePositionToTransform()
+{
+    CHECK_NULL(_transformCom);
+
+    if (_moveDesc.backend != MoveBackend::PhysXCCT)
+        return;
+
+    if (_characterController == nullptr)
+        Create_CharacterController();
+
+    if (_characterController == nullptr)
+        return;
+
+    _characterController->Set_FootPosition(Get_CCTFootPosition_FromTransform());
+}
+
 void MovementCom::Stop_AllMovement()
 {
     _velocity = Vec3::Zero;
@@ -290,7 +306,8 @@ void MovementCom::Update_Rotation(float timeDelta)
     const float step = min(angle, maxStep);
 
     Quat deltaRotation = Quat::CreateFromAxisAngle(Vec3::Up, step * sign);
-    _transformCom->Add_LocalRotation(deltaRotation);
+    // Movement yaw는 parent local 축이 아니라 World Up 기준으로 누적한다.
+    _transformCom->Add_WorldRotationQuaternion(deltaRotation);
 }
 
 void MovementCom::Update_HorizontalVelocity()

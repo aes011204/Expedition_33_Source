@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "Component.h"
 
@@ -18,6 +18,8 @@ public:
 	virtual HRESULT Initialize(void* arg);
 	virtual HRESULT Bind_Resources();
 	virtual HRESULT Render();
+
+	uint32 Get_NumIndices() const { return _numIndices; }
 
 protected:
 	ComPtr<ID3D11Buffer>		_vb = nullptr;

@@ -52,7 +52,7 @@ namespace Internal
         return {};
     }
 
-    wstring Resolve_PreviewTexturePathByFallbackPath(const string& texturePath)
+    wstring Resolve_PreviewTexturePathByPath(const string& texturePath)
     {
         if (!texturePath.empty())
         {
@@ -63,6 +63,24 @@ namespace Internal
             candidatePath = candidatePath.lexically_normal();
             if (fs::exists(candidatePath))
                 return candidatePath.wstring();
+        }
+
+        return {};
+    }
+
+    wstring Resolve_PreviewTexturePath(const string& textureGuid, const string& texturePath, bool& outUsedLegacyGuid)
+    {
+        outUsedLegacyGuid = false;
+
+        wstring resolvedPath = Resolve_PreviewTexturePathByPath(texturePath);
+        if (!resolvedPath.empty())
+            return resolvedPath;
+
+        resolvedPath = Resolve_PreviewTexturePathByGuid(textureGuid);
+        if (!resolvedPath.empty())
+        {
+            outUsedLegacyGuid = true;
+            return resolvedPath;
         }
 
         return {};
@@ -78,7 +96,7 @@ EffectMaterialPreviewRenderer::EffectMaterialPreviewRenderer(uint32 previewTextu
 
 EffectMaterialPreviewRenderer::~EffectMaterialPreviewRenderer()
 {
-    End_ViewportDrag();
+    Cleanup();
 }
 
 void EffectMaterialPreviewRenderer::Render_Material(const EffectMaterialInstanceData& material)
@@ -99,12 +117,12 @@ void EffectMaterialPreviewRenderer::Render_Material(const EffectMaterialInstance
         !Ready_Meshes())
         return;
 
-    ID3D11ShaderResourceView* nullSrvs[D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT] = {};
-    EDITOR->Get_Context()->PSSetShaderResources(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, nullSrvs);
+    ID3D11ShaderResourceView* nullSRVs[D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT] = {};
+    EDITOR->Get_Context()->PSSetShaderResources(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, nullSRVs);
 
     if (FAILED(_renderTarget->Begin(true, true)))
     {
-        _statusMessage = "Preview render target begin failed.";
+        _statusMessage = "Preview render target begin is failed.";
         return;
     }
 
@@ -228,38 +246,31 @@ bool EffectMaterialPreviewRenderer::Ready_Shader()
 
 bool EffectMaterialPreviewRenderer::Ready_Texture(const string& textureGuid, const string& texturePath)
 {
-    wstring resolvedPath{};
-    if (!textureGuid.empty())
-    {
-        resolvedPath = Internal::Resolve_PreviewTexturePathByGuid(textureGuid);
-        if (resolvedPath.empty())
-        {
-            _texture = nullptr;
-            _loadedTextureKey.clear();
-            _statusMessage = "Main texture GUID resolve failed. Fallback path is diagnostic only.";
-            return false;
-        }
-    }
-    else if (!texturePath.empty())
-    {
-        resolvedPath = Internal::Resolve_PreviewTexturePathByFallbackPath(texturePath);
-        if (resolvedPath.empty())
-        {
-            _texture = nullptr;
-            _loadedTextureKey.clear();
-            _statusMessage = "Main texture fallback path is missing.";
-            return false;
-        }
-
-        _statusMessage = "Main texture uses fallback path only. Save a GUID-backed reference.";
-    }
-
+    bool usedLegacyGuid = false;
+    const wstring resolvedPath = Internal::Resolve_PreviewTexturePath(textureGuid, texturePath, usedLegacyGuid);
     if (resolvedPath.empty())
     {
         _texture = nullptr;
         _loadedTextureKey.clear();
-        _statusMessage = "Main texture reference is empty.";
+        _statusMessage = texturePath.empty() && textureGuid.empty()
+                         ? "Main texture reference is empty."
+                         : "Main texture path/GUID resolve failed.";
+        LOG_ERROR(
+            "EffectMaterialPreview main texture path/GUID resolve failed. mainTextureGuid='{}', mainTexturePath='{}'.",
+            textureGuid,
+            texturePath
+        );
         return false;
+    }
+
+    if (usedLegacyGuid)
+    {
+        LOG_WARN(
+            "EffectMaterialPreview main texture recovered by legacy GUID. mainTextureGuid='{}', mainTexturePath='{}', resolvedPath='{}'. Save a path-primary reference.",
+            textureGuid,
+            texturePath,
+            String::ToString(resolvedPath)
+        );
     }
 
     const string requestedTextureKey = String::ToString(resolvedPath);
@@ -274,6 +285,12 @@ bool EffectMaterialPreviewRenderer::Ready_Texture(const string& textureGuid, con
 
     _loadedTextureKey.clear();
     _statusMessage = "Preview texture create failed.";
+    LOG_ERROR(
+        "EffectMaterialPreview main texture create failed. mainTextureGuid='{}', mainTexturePath='{}', resolvedPath='{}'.",
+        textureGuid,
+        texturePath,
+        requestedTextureKey
+    );
     return false;
 }
 
@@ -286,29 +303,30 @@ bool EffectMaterialPreviewRenderer::Ready_NoiseTexture(const string& textureGuid
         return true;
     }
 
-    wstring resolvedPath{};
-    if (!textureGuid.empty())
-    {
-        resolvedPath = Internal::Resolve_PreviewTexturePathByGuid(textureGuid);
-        if (resolvedPath.empty())
-        {
-            _noiseTexture = nullptr;
-            _loadedNoiseTextureKey.clear();
-            _statusMessage = "Noise texture GUID resolve failed. Preview continues without noise.";
-            return true;
-        }
-    }
-    else
-    {
-        resolvedPath = Internal::Resolve_PreviewTexturePathByFallbackPath(texturePath);
-    }
+    bool usedLegacyGuid = false;
+    const wstring resolvedPath = Internal::Resolve_PreviewTexturePath(textureGuid, texturePath, usedLegacyGuid);
 
     if (resolvedPath.empty())
     {
         _noiseTexture = nullptr;
         _loadedNoiseTextureKey.clear();
         _statusMessage = "Noise texture missing. Preview continues without noise.";
+        LOG_WARN(
+            "EffectMaterialPreview noise texture missing. noiseTextureGuid='{}', noiseTexturePath='{}'. Preview continues without noise.",
+            textureGuid,
+            texturePath
+        );
         return true;
+    }
+
+    if (usedLegacyGuid)
+    {
+        LOG_WARN(
+            "EffectMaterialPreview noise texture recovered by legacy GUID. noiseTextureGuid='{}', noiseTexturePath='{}', resolvedPath='{}'. Preview continues with legacy recovery.",
+            textureGuid,
+            texturePath,
+            String::ToString(resolvedPath)
+        );
     }
 
     const string requestedTextureKey = String::ToString(resolvedPath);
@@ -322,6 +340,12 @@ bool EffectMaterialPreviewRenderer::Ready_NoiseTexture(const string& textureGuid
     {
         _loadedNoiseTextureKey.clear();
         _statusMessage = "Noise texture missing. Preview continues without noise.";
+        LOG_WARN(
+            "EffectMaterialPreview noise texture create failed. noiseTextureGuid='{}', noiseTexturePath='{}', resolvedPath='{}'. Preview continues without noise.",
+            textureGuid,
+            texturePath,
+            requestedTextureKey
+        );
     }
 
     return true;
@@ -740,6 +764,38 @@ uint32 EffectMaterialPreviewRenderer::Resolve_BlendPassIndex(
         return isAdditive ? 3 : 2;
 
     return isAdditive ? 1 : 0;
+}
+
+void EffectMaterialPreviewRenderer::Cleanup()
+{
+    End_ViewportDrag();
+    _isViewportDragging = false;
+    _renderTarget.reset();
+    _shader.reset();
+    _texture.reset();
+    _noiseTexture.reset();
+    _planeMesh.vertexBuffer.Reset();
+    _planeMesh.indexBuffer.Reset();
+    _planeMesh.indexCount = 0;
+    _sphereMesh.vertexBuffer.Reset();
+    _sphereMesh.indexBuffer.Reset();
+    _sphereMesh.indexCount = 0;
+    _loadedTextureKey.clear();
+    _loadedNoiseTextureKey.clear();
+    _statusMessage.clear();
+    _hasRenderedPreview = false;
+    _hasPendingHome = false;
+}
+
+Unique<EffectMaterialPreviewRenderer> EffectMaterialPreviewRenderer::Create(uint32 previewTextureSize)
+{
+    return make_unique<EffectMaterialPreviewRenderer>(previewTextureSize);
+}
+
+void EffectMaterialPreviewRenderer::Free()
+{
+    Cleanup();
+    __super::Free();
 }
 
 NS_END

@@ -60,10 +60,32 @@ string CombatStatCom::Get_FirstSkill()
     }
     if (Get_Owner()->Get_Name() == L"PB_Maelle")
     {
-        return"Maelle_Default_Attack";
+        return "Maelle_Default_Attack";
     }
+
+    return "";
 }
 
+void CombatStatCom::Add_AP(uint32 value)
+{
+    auto& runtime = Get_RuntimeStat();
+    const uint32 maxAp = Get_StatInfo().maxAp;
+
+    // 최대 AP 초과 방지
+    runtime.CurAp = min(runtime.CurAp + value, maxAp);
+}
+
+bool CombatStatCom::Try_ConsumeAP(uint32 value)
+{
+    auto& runtime = Get_RuntimeStat();
+
+    if (runtime.CurAp < value)
+        return false;
+
+    runtime.CurAp -= value;
+
+    return true;
+}
 
 void CombatStatCom::Add_Shield(int32 value)
 {

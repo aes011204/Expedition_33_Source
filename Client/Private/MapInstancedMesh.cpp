@@ -1,8 +1,9 @@
-﻿#include "MapInstancedMesh.h"
+#include "MapInstancedMesh.h"
 #include "GameInstance.h"
 #include "ComputeShaderCom.h"
 #include "ComputeStructuredBuffer.h"
 #include "InstanceCullParams.h"
+#include "Camera.h"
 
 IMPLEMENT_REFLECTION(MapInstancedMesh)
 {
@@ -35,37 +36,43 @@ HRESULT MapInstancedMesh::Initialize(void* arg)
         return E_FAIL;
     }
 
-    auto pDesc = static_cast<MAPINSTANCEDMESH_DESC*>(arg);
-
-    if (FAILED(Ready_Components(pDesc->modelPath, pDesc->model)))
-    {
-        return E_FAIL;
-    }
-
-    Set_ShadowCasterType(ShadowCasterType::Static);
-
-    vector<Matrix> matrices;
-    matrices.reserve(pDesc->transforms.size());
-    for (auto& t : pDesc->transforms)
-    {
-        Matrix world = Matrix::CreateScale(t._scale)
-            * Matrix::CreateFromQuaternion(Quat(t._rotation.x, t._rotation.y, t._rotation.z, t._rotation.w))
-            * Matrix::CreateTranslation(t._position);
-        matrices.push_back(world);
-    }
-
-    if (FAILED(CreateInstanceBuffer(matrices)))
-    {
-        return E_FAIL;
-    }
-
     if (FAILED(__super::Add_Component(ETOI(LevelType::Static),
         TEXT("ComputeShader_InstanceCull"), _cullShader)))
     {
         return E_FAIL;
     }
 
-    CreateCullBuffers(matrices, pDesc->transforms);
+    if (arg != nullptr)
+    {
+        auto pDesc = static_cast<MAPINSTANCEDMESH_DESC*>(arg);
+
+        _modelPath = pDesc->modelPath;
+        _transforms = pDesc->transforms;
+
+        if (FAILED(Ready_Components(pDesc->modelPath, pDesc->model)))
+        {
+            return E_FAIL;
+        }
+
+        vector<Matrix> matrices;
+        matrices.reserve(pDesc->transforms.size());
+        for (auto& t : pDesc->transforms)
+        {
+            Matrix world = Matrix::CreateScale(t._scale)
+                * Matrix::CreateFromQuaternion(Quat(t._rotation.x, t._rotation.y, t._rotation.z, t._rotation.w))
+                * Matrix::CreateTranslation(t._position);
+            matrices.push_back(world);
+        }
+
+        if (FAILED(CreateInstanceBuffer(matrices)))
+        {
+            return E_FAIL;
+        }
+
+        CreateCullBuffers(matrices, pDesc->transforms);
+    }
+
+    Set_ShadowCasterType(ShadowCasterType::Static);
 
     return S_OK;
 }
@@ -85,6 +92,11 @@ void MapInstancedMesh::Late_Update(float timeDelta)
         return;
     }
 
+    if (!GAME->IsVisible(_groupBounds))
+    {
+        return;
+    }
+
     GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
 }
 
@@ -96,18 +108,13 @@ HRESULT MapInstancedMesh::Render()
     }
 
     Buffer* renderVB = _instanceVB.Get();
-    uint32 renderCount = _instanceCount;
+    bool useIndirect = false;
 
-    if (_cullShader && _instanceSrcBuffer && _sphereBuffer && _visibleVB)
+    if (_cullShader && _instanceSrcBuffer && _sphereBuffer && _visibleVB && !_indirectArgsBuffers.empty())
     {
         DispatchCull();
         renderVB = _visibleVB.Get();
-        renderCount = _visibleCount;
-    }
-
-    if (renderCount == 0)
-    {
-        return S_OK;
+        useIndirect = true;
     }
 
     if (FAILED(Bind_ShaderResources()))
@@ -140,9 +147,19 @@ HRESULT MapInstancedMesh::Render()
             return E_FAIL;
         }
 
-        if (FAILED(_model->RenderInstanced(i, renderVB, sizeof(Matrix), renderCount)))
+        if (useIndirect)
         {
-            return E_FAIL;
+            if (FAILED(_model->RenderInstancedIndirect(i, renderVB, sizeof(Matrix), _indirectArgsBuffers[i].Get())))
+            {
+                return E_FAIL;
+            }
+        }
+        else
+        {
+            if (FAILED(_model->RenderInstanced(i, renderVB, sizeof(Matrix), _instanceCount)))
+            {
+                return E_FAIL;
+            }
         }
     }
 
@@ -231,6 +248,8 @@ HRESULT MapInstancedMesh::CreateInstanceBuffer(const vector<Matrix>& matrices)
     D3D11_SUBRESOURCE_DATA sd{};
     sd.pSysMem = matrices.data();
 
+    _instanceVB.Reset();
+
     if (FAILED(_device->CreateBuffer(&bd, &sd, _instanceVB.GetAddressOf())))
     {
         return E_FAIL;
@@ -259,26 +278,22 @@ HRESULT MapInstancedMesh::Bind_ShaderResources()
 HRESULT MapInstancedMesh::CreateCullBuffers(const vector<Matrix>& matrices, const vector<InstanceTransform>& transforms)
 {
     const uint32 count = static_cast<uint32>(matrices.size());
-    if (count == 0 || !_cullShader)
+    if (count == 0)
     {
         return S_OK;
-    }
-
-    _instanceSrcBuffer = ComputeStructuredBuffer::Create(_device, _context, sizeof(Matrix), count, matrices.data());
-    if (!_instanceSrcBuffer)
-    {
-        return E_FAIL;
     }
 
     Vec3 localMin{}, localMax{};
     const bool hasBounds = _model && _model->Try_Get_LocalBounds(localMin, localMax);
     const Matrix preTransform = _model ? _model->Get_PreLocalTransformMatrix() : Matrix::Identity;
 
+    bool hasMergedBounds = false;
     vector<Vec4> spheres;
     spheres.reserve(count);
 
     for (uint32 i = 0; i < count; ++i)
     {
+        BoundingBox worldBox;
         if (hasBounds)
         {
             BoundingBox localBox;
@@ -286,7 +301,6 @@ HRESULT MapInstancedMesh::CreateCullBuffers(const vector<Matrix>& matrices, cons
                 XMVectorSet(localMin.x, localMin.y, localMin.z, 0.f),
                 XMVectorSet(localMax.x, localMax.y, localMax.z, 0.f));
 
-            BoundingBox worldBox;
             localBox.Transform(worldBox, preTransform * matrices[i]);
 
             BoundingSphere sphere;
@@ -295,8 +309,32 @@ HRESULT MapInstancedMesh::CreateCullBuffers(const vector<Matrix>& matrices, cons
         }
         else
         {
+            worldBox.Center = Vec3(matrices[i].m[3][0], matrices[i].m[3][1], matrices[i].m[3][2]);
+            worldBox.Extents = Vec3(500.f, 500.f, 500.f);
+
             spheres.push_back({ matrices[i].m[3][0], matrices[i].m[3][1], matrices[i].m[3][2], 500.f });
         }
+
+        if (!hasMergedBounds)
+        {
+            _groupBounds = worldBox;
+            hasMergedBounds = true;
+        }
+        else
+        {
+            BoundingBox::CreateMerged(_groupBounds, _groupBounds, worldBox);
+        }
+    }
+
+    if (!_cullShader)
+    {
+        return S_OK;
+    }
+
+    _instanceSrcBuffer = ComputeStructuredBuffer::Create(_device, _context, sizeof(Matrix), count, matrices.data());
+    if (!_instanceSrcBuffer)
+    {
+        return E_FAIL;
     }
 
     _sphereBuffer = ComputeStructuredBuffer::Create(_device, _context,
@@ -323,6 +361,7 @@ HRESULT MapInstancedMesh::CreateCullBuffers(const vector<Matrix>& matrices, cons
         D3D11_UNORDERED_ACCESS_VIEW_DESC uavd{};
         uavd.Format = DXGI_FORMAT_UNKNOWN;
         uavd.ViewDimension = D3D11_UAV_DIMENSION_BUFFER;
+        uavd.Buffer.FirstElement = 0;
         uavd.Buffer.NumElements = count;
         uavd.Buffer.Flags = D3D11_BUFFER_UAV_FLAG_APPEND;
 
@@ -331,14 +370,18 @@ HRESULT MapInstancedMesh::CreateCullBuffers(const vector<Matrix>& matrices, cons
         {
             return E_FAIL;
         }
+    }
 
-        D3D11_BUFFER_DESC vbd{};
-        vbd.ByteWidth = sizeof(Matrix) * count;
-        vbd.Usage = D3D11_USAGE_DEFAULT;
-        vbd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+    {
+        D3D11_BUFFER_DESC bd{};
+        bd.ByteWidth = sizeof(Matrix) * count;
+        bd.Usage = D3D11_USAGE_DEFAULT;
+        bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+        bd.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+        bd.StructureByteStride = sizeof(Matrix);
 
         _visibleVB.Reset();
-        if (FAILED(_device->CreateBuffer(&vbd, nullptr, _visibleVB.GetAddressOf())))
+        if (FAILED(_device->CreateBuffer(&bd, nullptr, _visibleVB.GetAddressOf())))
         {
             return E_FAIL;
         }
@@ -359,15 +402,30 @@ HRESULT MapInstancedMesh::CreateCullBuffers(const vector<Matrix>& matrices, cons
     }
 
     {
-        D3D11_BUFFER_DESC bd{};
-        bd.ByteWidth = sizeof(uint32);
-        bd.Usage = D3D11_USAGE_STAGING;
-        bd.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+        _indirectArgsBuffers.clear();
+        const uint32 numMeshes = _model ? static_cast<uint32>(_model->Get_NumMeshes()) : 1;
+        _indirectArgsBuffers.resize(numMeshes);
 
-        _countStaging.Reset();
-        if (FAILED(_device->CreateBuffer(&bd, nullptr, _countStaging.GetAddressOf())))
+        for (uint32 i = 0; i < numMeshes; ++i)
         {
-            return E_FAIL;
+            D3D11_BUFFER_DESC bd{};
+            bd.ByteWidth = 5 * sizeof(uint32);
+            bd.Usage = D3D11_USAGE_DEFAULT;
+            bd.BindFlags = D3D11_BIND_UNORDERED_ACCESS;
+            bd.MiscFlags = D3D11_RESOURCE_MISC_DRAWINDIRECT_ARGS;
+
+            if (FAILED(_device->CreateBuffer(&bd, nullptr, _indirectArgsBuffers[i].GetAddressOf())))
+            {
+                return E_FAIL;
+            }
+
+            uint32 args[5] = { 0, count, 0, 0, 0 };
+            if (_model)
+            {
+                args[0] = static_cast<uint32>(_model->Get_NumIndices(i));
+            }
+
+            _context->UpdateSubresource(_indirectArgsBuffers[i].Get(), 0, nullptr, args, 0, 0);
         }
     }
 
@@ -376,6 +434,11 @@ HRESULT MapInstancedMesh::CreateCullBuffers(const vector<Matrix>& matrices, cons
 
 void MapInstancedMesh::DispatchCull()
 {
+    if (!_cullShader || !_cullCB || !_visibleUAV || !_instanceSrcBuffer || !_sphereBuffer || _indirectArgsBuffers.empty())
+    {
+        return;
+    }
+
     const Matrix* view = GAME->Get_Transform(D3DTS::View);
     const Matrix* proj = GAME->Get_Transform(D3DTS::Proj);
     if (!view || !proj)
@@ -415,17 +478,9 @@ void MapInstancedMesh::DispatchCull()
     _context->CSSetUnorderedAccessViews(0, 1, &nullUAV, nullptr);
 
     _context->CopyResource(_visibleVB.Get(), _visibleStructured.Get());
-    _context->CopyStructureCount(_countStaging.Get(), 0, _visibleUAV.Get());
-
-    D3D11_MAPPED_SUBRESOURCE countMapped{};
-    if (SUCCEEDED(_context->Map(_countStaging.Get(), 0, D3D11_MAP_READ, 0, &countMapped)))
+    for (auto& buffer : _indirectArgsBuffers)
     {
-        _visibleCount = *static_cast<uint32*>(countMapped.pData);
-        _context->Unmap(_countStaging.Get(), 0);
-    }
-    else
-    {
-        _visibleCount = 0;
+        _context->CopyStructureCount(buffer.Get(), sizeof(uint32), _visibleUAV.Get());
     }
 }
 
@@ -482,10 +537,68 @@ void MapInstancedMesh::Free()
     _visibleUAV.Reset();
     _visibleVB.Reset();
     _cullCB.Reset();
-    _countStaging.Reset();
+    for (auto& buffer : _indirectArgsBuffers)
+    {
+        buffer.Reset();
+    }
+    _indirectArgsBuffers.clear();
     _instanceSrcBuffer.reset();
     _sphereBuffer.reset();
     _cullShader.reset();
 
     __super::Free();
+}
+
+json MapInstancedMesh::To_Json() const
+{
+    json root = GameObject::To_Json();
+
+    root["model_path"] = String::ToString(_modelPath);
+
+    json transformsArray = json::array();
+    for (const auto& t : _transforms)
+    {
+        json transformNode = json::object();
+        transformNode["pos"] = { t._position.x, t._position.y, t._position.z };
+        transformNode["rot"] = { t._rotation.x, t._rotation.y, t._rotation.z, t._rotation.w };
+        transformNode["scale"] = { t._scale.x, t._scale.y, t._scale.z };
+        transformsArray.push_back(transformNode);
+    }
+    root["instance_transforms"] = transformsArray;
+
+    return root;
+}
+
+void MapInstancedMesh::From_Json(const json& node)
+{
+    GameObject::From_Json(node);
+
+    if (node.contains("model_path"))
+    {
+        string pathA = node["model_path"].get<string>();
+        _modelPath = String::ToWString(pathA);
+        Ready_Components(_modelPath, nullptr);
+    }
+
+    if (node.contains("instance_transforms"))
+    {
+        _transforms.clear();
+        vector<Matrix> matrices;
+        for (const auto& tNode : node["instance_transforms"])
+        {
+            InstanceTransform t{};
+            t._position = Vec3(tNode["pos"][0], tNode["pos"][1], tNode["pos"][2]);
+            t._rotation = Vec4(tNode["rot"][0], tNode["rot"][1], tNode["rot"][2], tNode["rot"][3]);
+            t._scale = Vec3(tNode["scale"][0], tNode["scale"][1], tNode["scale"][2]);
+            _transforms.push_back(t);
+
+            Matrix world = Matrix::CreateScale(t._scale)
+                * Matrix::CreateFromQuaternion(Quat(t._rotation.x, t._rotation.y, t._rotation.z, t._rotation.w))
+                * Matrix::CreateTranslation(t._position);
+            matrices.push_back(world);
+        }
+
+        CreateInstanceBuffer(matrices);
+        CreateCullBuffers(matrices, _transforms);
+    }
 }

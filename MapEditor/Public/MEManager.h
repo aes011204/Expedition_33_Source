@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "MapEditorDefines.h"
 #include "MEWindow.h"
 
@@ -22,6 +22,7 @@ public:
 
 private:
     void RenderDockSpace();
+    void SaveMapDialog();
 
 private:
     map<wstring, Shared<MEWindow>> _windows;
@@ -34,6 +35,8 @@ private:
     char mapPathBuf[256] = {};
 
     Shared<SnapSettings> _snapSettings;
+
+    bool _confirmClearOpen = false;
 
 public:
     void AddWindow(Shared<MEWindow> w);

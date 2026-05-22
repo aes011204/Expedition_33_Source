@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "EditorObject.h"
 
 NS_BEGIN(MapEditor)
@@ -18,6 +18,7 @@ struct SceneContext
     Shared<EditorObject> _selected;
     wstring _mapName = L"Untitled";
     wstring _modelFolder = {};
+    string _currentFilePath = {};
 
     bool _dirtyRenderHandles = false;
 
@@ -47,6 +48,11 @@ struct SceneContext
     Shared<EditorObject> Duplicate(const Shared<EditorObject>& src);
 
     void ClearScene();
+
+    CameraBookmark _cameraBookmarks[CameraBookmarkCount];
+
+    void SaveCamData(const string& filePath);
+    void LoadCamData(const string& filePath);
 };
 
 NS_END

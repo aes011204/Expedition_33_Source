@@ -116,8 +116,8 @@ namespace Internal
     static OverlayRect Compute_ViewModeOverlayRect(const ImVec2& viewportMin, const ImVec2& viewportMax)
     {
         const OverlayRect previewRect = Compute_PreviewViewportOverlayRect(viewportMin, viewportMax);
-        const ImVec2 panelSize = ImVec2(162.f, 34.f);
-        const ImVec2 panelMin = ImVec2(previewRect.min.x - panelSize.x - 6.f, previewRect.min.y);
+        const ImVec2 panelSize = ImVec2(284.f, 34.f);
+        const ImVec2 panelMin = ImVec2(viewportMax.x - panelSize.x - 16.f, previewRect.max.y + 6.f);
 
         return {
             panelMin,
@@ -464,16 +464,17 @@ void Scene_View::Render_GizmoOverlay()
     const bool isWorld = _gizmoMode == ImGuizmo::WORLD;
 
     const Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
-    const bool isFreeCamera =
-        activeCamera && activeCamera->Get_ObjectType() == ObjectType::FreeCamera;
+    const Shared<EffectEditorCamera> effectCamera =
+        dynamic_pointer_cast<EffectEditorCamera>(activeCamera);
+    const bool isEffectCamera = effectCamera != nullptr;
 
-    if (!isFreeCamera)
+    if (!isEffectCamera)
         ImGui::BeginDisabled();
 
     ImGui::TextUnformatted("Speed");
     ImGui::SameLine();
 
-    if (isFreeCamera)
+    if (isEffectCamera)
     {
         const Shared<TransformCom> transform = activeCamera->Get_Transform();
         float speed = transform ? transform->Get_SpeedPerSec() : 0.f;
@@ -500,7 +501,7 @@ void Scene_View::Render_GizmoOverlay()
         ImGui::DragFloat("##FreeCameraSpeed", &dummySpeed, 0.f, 0.f, 0.f, "N/A");
     }
 
-    if (!isFreeCamera)
+    if (!isEffectCamera)
         ImGui::EndDisabled();
 
     ImGui::SameLine(0.f, 10.f);
@@ -714,6 +715,12 @@ void Scene_View::Render_ViewModeOverlay()
 
     if (draw_mode_button("Final", ImVec2(54.f, 22.f), isFinal))
         EDITOR->Set_SceneViewMode(SceneViewMode::Final);
+
+    ImGui::SameLine(0.f, 12.f);
+
+    bool showTrailPreview = EDITOR->Is_TrailPreviewVisible();
+    if (ImGui::Checkbox("Trail Preview", &showTrailPreview))
+        EDITOR->Set_TrailPreviewVisible(showTrailPreview);
 
     ImGui::PopStyleVar();
     ImGui::PopID();

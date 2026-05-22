@@ -32,8 +32,8 @@ def get_position(item):
 
 
 def chunk_index(x, z, x_min, z_min, x_step, z_step, cols, rows):
-    col = min(int((x - x_min) / x_step), cols - 1)
-    row = min(int((z - z_min) / z_step), rows - 1)
+    col = max(0, min(int((x - x_min) / x_step), cols - 1))
+    row = max(0, min(int((z - z_min) / z_step), rows - 1))
     return row, col
 
 
@@ -73,7 +73,7 @@ def main():
     lights = map_data.get("Lights", [])
     model_overrides = map_data.get("ModelOverrides", {})
 
-    # 바운딩박스 계산
+    # 바운딩박스 계산 (아웃라이어 제거: 상하위 1% 제외)
     print("[split_map] 바운딩박스 계산 중...")
     all_x, all_z = [], []
     for item in static_meshes:
@@ -84,8 +84,13 @@ def main():
             x, z = get_position(inst)
             all_x.append(x); all_z.append(z)
 
-    x_min, x_max = min(all_x), max(all_x)
-    z_min, z_max = min(all_z), max(all_z)
+    all_x.sort(); all_z.sort()
+    n = len(all_x)
+    clip = max(1, int(n * 0.01))  # 상하위 1% 제외
+    x_min, x_max = all_x[clip], all_x[-clip - 1]
+    z_min, z_max = all_z[clip], all_z[-clip - 1]
+
+    print(f"[split_map] 아웃라이어 제외 후 범위 (전체 {n:,}개 중 상하위 {clip}개 제외)")
 
     # 경계에 여유 추가 (엣지 오브젝트가 마지막 청크 바깥으로 나가지 않도록)
     x_min -= 1.0; z_min -= 1.0

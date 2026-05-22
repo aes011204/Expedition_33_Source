@@ -218,7 +218,10 @@ const MaterialBuilder::BundleAsset* MaterialBuilder::GetOrLoadBundle(std::string
 
     const string key = String::ToLowerCopy(string(bundleKey));
 
-    if (const auto itCache = _bundleCache.find(key); itCache != _bundleCache.end())
+    std::lock_guard<std::mutex> lock(_bundleCacheMutex);
+
+    auto itCache = _bundleCache.find(key);
+    if (itCache != _bundleCache.end())
         return itCache->second.get();
 
     const fs::path* bundlePathPtr = FindBundlePath(key);

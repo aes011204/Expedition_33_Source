@@ -1,6 +1,8 @@
 ﻿#include "Transform_Inspector.h"
 
 #include "Component.h"
+#include "GameObject.h"
+#include "MovementCom.h"
 #include "TransformCom.h"
 
 void Transform_Inspector::Draw_Inspector(const Shared<Component>& component)
@@ -8,6 +10,19 @@ void Transform_Inspector::Draw_Inspector(const Shared<Component>& component)
     Shared<TransformCom> transform = dynamic_pointer_cast<TransformCom>(component);
     if (transform == nullptr)
         return;
+
+    const auto syncMovementPosition = [&]()
+    {
+        Shared<GameObject> owner = transform->Get_Owner();
+        if (owner == nullptr)
+            return;
+
+        Shared<MovementCom> movement = owner->Get_Component<MovementCom>();
+        if (movement == nullptr)
+            return;
+
+        movement->Sync_RuntimePositionToTransform();
+    };
 
     if (!Draw_Header("Transform"))
         return;
@@ -20,6 +35,7 @@ void Transform_Inspector::Draw_Inspector(const Shared<Component>& component)
 
     {
         Vec3 position = isWorld ? transform->Get_WorldPosition() : transform->Get_Position();
+        ImGui::BeginGroup();
 
         ImGui::AlignTextToFramePadding();
         ImGui::TextDisabled("Position");
@@ -31,13 +47,25 @@ void Transform_Inspector::Draw_Inspector(const Shared<Component>& component)
                 transform->Set_WorldPosition(position);
             else
                 transform->Set_Position(position);
+
+            syncMovementPosition();
         }
+
+        ImGui::EndGroup();
+        Draw_TransformClipboardContextMenu(
+            transform,
+            EClipboardTarget::Position,
+            position,
+            isWorld,
+            ImGui::GetItemRectMin(),
+            ImGui::GetItemRectMax());
     }
 
     ImGui::Spacing();
 
     {
         Vec3 rotation = isWorld ? transform->Get_WorldRotationEuler() : transform->Get_RotationEuler();
+        ImGui::BeginGroup();
 
         ImGui::AlignTextToFramePadding();
         ImGui::TextDisabled("Rotation");
@@ -50,12 +78,22 @@ void Transform_Inspector::Draw_Inspector(const Shared<Component>& component)
             else
                 transform->Set_RotationEuler(rotation);
         }
+
+        ImGui::EndGroup();
+        Draw_TransformClipboardContextMenu(
+            transform,
+            EClipboardTarget::Rotation,
+            rotation,
+            isWorld,
+            ImGui::GetItemRectMin(),
+            ImGui::GetItemRectMax());
     }
 
     ImGui::Spacing();
 
     {
         Vec3 scale = transform->Get_Scale();
+        ImGui::BeginGroup();
 
         ImGui::AlignTextToFramePadding();
         ImGui::TextDisabled("Scale");
@@ -63,6 +101,15 @@ void Transform_Inspector::Draw_Inspector(const Shared<Component>& component)
 
         if (Draw_XYZRow("Scale", scale, 0.01f, "%.3f"))
             transform->Set_Scale(scale);
+
+        ImGui::EndGroup();
+        Draw_TransformClipboardContextMenu(
+            transform,
+            EClipboardTarget::Scale,
+            scale,
+            false,
+            ImGui::GetItemRectMin(),
+            ImGui::GetItemRectMax());
     }
 
     ImGui::Spacing();
@@ -102,6 +149,92 @@ bool Transform_Inspector::Draw_SpaceSelector(ETransformSpace& space)
     return changed;
 }
 
+bool Transform_Inspector::Draw_TransformClipboardContextMenu(
+    const Shared<TransformCom>& transform,
+    EClipboardTarget target,
+    Vec3& displayedValue,
+    bool isWorld,
+    const ImVec2& popupMin,
+    const ImVec2& popupMax)
+{
+    const string popupId = string("TransformClipboardContext_") + Get_TargetLabel(target);
+
+    if (ImGui::IsMouseHoveringRect(popupMin, popupMax) && ImGui::IsMouseClicked(ImGuiMouseButton_Right))
+        ImGui::OpenPopup(popupId.c_str());
+
+    if (!ImGui::BeginPopup(popupId.c_str()))
+        return false;
+
+    bool changed = false;
+
+    const string copyLabel = string(Get_TargetLabel(target)) + " 복사";
+    if (ImGui::MenuItem(copyLabel.c_str()))
+    {
+        _transformClipboard.value = displayedValue;
+        _transformClipboard.target = target;
+        _transformClipboard.space = isWorld ? ETransformSpace::World : ETransformSpace::Local;
+        _transformClipboard.hasValue = true;
+    }
+
+    const bool canPaste = _transformClipboard.hasValue && _transformClipboard.target == target;
+    string pasteLabel = string(Get_TargetLabel(target)) + " 붙여넣기";
+
+    if (ImGui::MenuItem(pasteLabel.c_str(), nullptr, false, canPaste))
+    {
+        switch (target)
+        {
+        case EClipboardTarget::Position:
+            if (_transformClipboard.space == ETransformSpace::World)
+                transform->Set_WorldPosition(_transformClipboard.value);
+            else
+                transform->Set_Position(_transformClipboard.value);
+
+            if (Shared<GameObject> owner = transform->Get_Owner())
+            {
+                if (Shared<MovementCom> movement = owner->Get_Component<MovementCom>())
+                    movement->Sync_RuntimePositionToTransform();
+            }
+
+            displayedValue = isWorld ? transform->Get_WorldPosition() : transform->Get_Position();
+            break;
+
+        case EClipboardTarget::Rotation:
+            if (_transformClipboard.space == ETransformSpace::World)
+                transform->Set_WorldRotationEuler(_transformClipboard.value);
+            else
+                transform->Set_RotationEuler(_transformClipboard.value);
+
+            displayedValue = isWorld ? transform->Get_WorldRotationEuler() : transform->Get_RotationEuler();
+            break;
+
+        case EClipboardTarget::Scale:
+            transform->Set_Scale(_transformClipboard.value);
+            displayedValue = transform->Get_Scale();
+            break;
+        }
+
+        changed = true;
+        ImGui::CloseCurrentPopup();
+    }
+
+    ImGui::EndPopup();
+    return changed;
+}
+
+const char* Transform_Inspector::Get_TargetLabel(EClipboardTarget target)
+{
+    switch (target)
+    {
+    case EClipboardTarget::Position:
+        return "위치";
+    case EClipboardTarget::Rotation:
+        return "회전";
+    case EClipboardTarget::Scale:
+        return "스케일";
+    }
+
+    return "Transform";
+}
 bool Transform_Inspector::XYZ_DragFloat(
     const char* label,
     const ImVec4& color,

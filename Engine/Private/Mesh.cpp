@@ -1,4 +1,4 @@
-﻿#include "Mesh.h"
+#include "Mesh.h"
 #include "Bone.h"
 
 
@@ -26,6 +26,23 @@ HRESULT Mesh::RenderInstanced(Buffer* instanceVB, uint32 instanceStride, uint32 
     const uint32 offset = 0;
     _context->IASetVertexBuffers(1, 1, &instanceVB, &instanceStride, &offset);
     _context->DrawIndexedInstanced(_numIndices, instanceCount, 0, 0, 0);
+
+    return S_OK;
+}
+
+HRESULT Mesh::RenderInstancedIndirect(Buffer* instanceVB, uint32 instanceStride, Buffer* indirectArgsBuffer)
+{
+    if (!instanceVB || !indirectArgsBuffer)
+    {
+        return E_FAIL;
+
+    }
+
+    Bind_Resources();
+
+    const uint32 offset = 0;
+    _context->IASetVertexBuffers(1, 1, &instanceVB, &instanceStride, &offset);
+    _context->DrawIndexedInstancedIndirect(indirectArgsBuffer, 0);
 
     return S_OK;
 }

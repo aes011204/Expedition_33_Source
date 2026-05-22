@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "Client_Defines.h"
 #include "GameObject.h"
 
@@ -44,12 +44,18 @@ public:
     virtual HRESULT Render() override;
     virtual HRESULT RenderPickingID(uint32 id) override;
 
+    virtual json To_Json() const override;
+    virtual void From_Json(const json& node) override;
+
 private:
     Shared<ShaderCom> _shader;
     Shared<ModelCom> _model;
     ComPtr<Buffer> _instanceVB;
     uint32 _instanceCount = {};
     uint32 _instanceCapacity = {};
+
+    wstring _modelPath = {};
+    vector<InstanceTransform> _transforms;
 
     Shared<ComputeShaderCom> _cullShader;
     Shared<ComputeStructuredBuffer> _instanceSrcBuffer;
@@ -58,8 +64,8 @@ private:
     ComPtr<UnorderedAccessView> _visibleUAV;
     ComPtr<Buffer> _visibleVB;
     ComPtr<Buffer> _cullCB;
-    ComPtr<Buffer> _countStaging;
-    uint32 _visibleCount = {};
+    vector<ComPtr<Buffer>> _indirectArgsBuffers;
+    BoundingBox _groupBounds = {};
 
 private:
     HRESULT Ready_Components(const wstring& modelPath, Shared<ModelCom> sharedModel);

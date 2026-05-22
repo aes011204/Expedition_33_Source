@@ -16,9 +16,22 @@ auto Loader::Find_MapLoadDesc() const -> const LevelMapLoadDesc*
 {
     static const LevelMapLoadDesc mapLoadDescs[] =
     {
-        { LevelType::GamePlay, Constants::Map::SmallLevel_SimonArea_Remake_Path, L"Layer_MapStaticMesh" },
-        { LevelType::MapTest,  Constants::Map::SmallLevel_SimonArea_Remake_Path, L"Layer_MapStatic" },
-        { LevelType::Stage01,  Constants::Map::SmallLevel_SimonArea_Remake_Path, L"Layer_MapStaticMesh" },
+        // GamePlay: 로딩 화면에서 에셋 캐시 워밍만 수행. 실제 스폰은 StreamingLevel이 담당.
+        {
+            LevelType::GamePlay,
+            {
+                Constants::Map::SpringChunk_00_03_Path,
+                Constants::Map::SpringChunk_00_04_Path,
+                Constants::Map::SpringChunk_01_00_Path,
+                Constants::Map::SpringChunk_01_01_Path,
+            },
+            4,
+            L"Layer_MapStaticMesh"
+        },
+
+        { LevelType::MapTest,  { Constants::Map::TestMap_Path }, 1, L"Layer_MapStaticMesh" },
+
+        { LevelType::Stage01,  { Constants::Map::SmallLevel_SimonArea_Remake_Path }, 1, L"Layer_MapStaticMesh" },
     };
 
     for (const LevelMapLoadDesc& desc : mapLoadDescs)
@@ -75,12 +88,9 @@ HRESULT Loader::Loading()
 
     HRESULT hr = {};
 
-    //EnterCriticalSection(&_criticalSection);
-    CoInitializeEx(nullptr, COINIT_MULTITHREADED);
-
     switch (_nextLevel)
     {
-    case LevelType::Logo:
+    case LevelType::MainTitle:
         hr = Loading_For_LogoLevel();
         break;
 
@@ -100,8 +110,32 @@ HRESULT Loader::Loading()
         hr = E_FAIL;
     }
 
-    CoUninitialize();
-    //LeaveCriticalSection(&_criticalSection);
+    if (SUCCEEDED(hr))
+    {
+        // 맵 백그라운드 프리로드 수행 (메인 스레드 대기 차단 및 멀티스레드 활용)
+        const LevelMapLoadDesc* desc = Find_MapLoadDesc();
+        if (desc != nullptr)
+        {
+            lstrcpy(_loadingText, TEXT("Map Resources Preloading..."));
+
+            for (size_t i = 0; i < desc->mapPathCount; ++i)
+            {
+                if (desc->mapPaths[i] == nullptr)
+                    continue;
+
+                MapLoader::LoadSession session{};
+                session.preloadedModelCache = _mapPreloadedModelCache;
+                session.preloadedCollisionCache = _mapPreloadedCollisionCache;
+
+                if (SUCCEEDED(MapLoader::Preload_SessionData(_device, _context, desc->mapPaths[i],
+                    ETOI(desc->level), desc->layerTag, session)))
+                {
+                    _mapPreloadedModelCache.insert(session.preloadedModelCache.begin(), session.preloadedModelCache.end());
+                    _mapPreloadedCollisionCache.insert(session.preloadedCollisionCache.begin(), session.preloadedCollisionCache.end());
+                }
+            }
+        }
+    }
 
     // 로딩 끝난 시간
     const auto end = std::chrono::steady_clock::now();
@@ -264,11 +298,11 @@ HRESULT Loader::Load_ResourceJobsForNextLevel()
 
 HRESULT Loader::Loading_For_LogoLevel()
 {
-    lstrcpy(_loadingText, TEXT("Logo 로딩 중..."));
+    lstrcpy(_loadingText, TEXT("MainTitle 로딩 중..."));
 
     if (FAILED(Load_ResourceJobsForNextLevel()))
     {
-        MSG_BOX("Faild to Load Resource Tables : Logo");
+        MSG_BOX("Faild to Load Resource Tables : MainTitle");
         return E_FAIL;
     }
 
@@ -294,7 +328,7 @@ HRESULT Loader::Loading_For_MapTestLevel()
 
     if (FAILED(Load_ResourceJobsForNextLevel()))
     {
-        MSG_BOX("Faild to Load Resource Tables : Logo");
+        MSG_BOX("Faild to Load Resource Tables : MainTitle");
         return E_FAIL;
     }
 
@@ -307,7 +341,7 @@ HRESULT Loader::Loading_For_Stage01Level()
 
     if (FAILED(Load_ResourceJobsForNextLevel()))
     {
-        MSG_BOX("Faild to Load Resource Tables : Logo");
+        MSG_BOX("Faild to Load Resource Tables : MainTitle");
         return E_FAIL;
     }
 
@@ -411,7 +445,7 @@ string Loader::Format_Duration(chrono::milliseconds duration)
 
 HRESULT Loader::Schedule_PendingCreateJobs(size_t maxMainThreadCreatePerFrame, chrono::milliseconds maxMainThreadCreateTime)
 {
-    vector<FLoadJob> jobsToSchedule;
+    deque<FLoadJob> jobsToSchedule;
 
     {
         lock_guard<mutex> lock(_pendingJobsMutex);
@@ -419,18 +453,19 @@ HRESULT Loader::Schedule_PendingCreateJobs(size_t maxMainThreadCreatePerFrame, c
         if (_pendingJobs.empty())
             return S_OK;
 
-        jobsToSchedule = std::move(_pendingJobs);
-        _pendingJobs.clear();
+        jobsToSchedule.swap(_pendingJobs);
     }
 
-    vector<FLoadJob> deferredJobs;
-    deferredJobs.reserve(jobsToSchedule.size());
+    deque<FLoadJob> deferredJobs;
 
     size_t mainThreadCreateCount = 0;
     const auto mainThreadCreateBegin = chrono::steady_clock::now();
 
-    for (const FLoadJob& loadJob : jobsToSchedule)
+    while (!jobsToSchedule.empty())
     {
+        FLoadJob loadJob = std::move(jobsToSchedule.front());
+        jobsToSchedule.pop_front();
+
         // 이미 등록된 prototype이면 완료 처리만 한다.
         if (GAME->Has_Prototype(loadJob.iLevelIndex, loadJob.strPrototypeTag))
         {
@@ -453,7 +488,7 @@ HRESULT Loader::Schedule_PendingCreateJobs(size_t maxMainThreadCreatePerFrame, c
 
             if (countBudgetExceeded || timeBudgetExceeded)
             {
-                deferredJobs.push_back(loadJob);
+                deferredJobs.push_back(std::move(loadJob));
                 continue;
             }
 
@@ -479,9 +514,6 @@ HRESULT Loader::Schedule_PendingCreateJobs(size_t maxMainThreadCreatePerFrame, c
         {
             const auto startTime = chrono::steady_clock::now();
 
-            HRESULT coHr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
-            const bool needCoUninitialize = SUCCEEDED(coHr);
-
             Shared<Base> prototype = nullptr;
             HRESULT hr = S_OK;
 
@@ -494,9 +526,6 @@ HRESULT Loader::Schedule_PendingCreateJobs(size_t maxMainThreadCreatePerFrame, c
             {
                 hr = resourceLoader->Create_LoadJobPrototype(loadJob, prototype);
             }
-
-            if (needCoUninitialize)
-                CoUninitialize();
 
             const auto elapsed = chrono::duration_cast<chrono::milliseconds>(
                 chrono::steady_clock::now() - startTime);
@@ -569,9 +598,10 @@ HRESULT Loader::Commit_CompletedLoadJobs(size_t maxCommitPerFrame)
         jobsToCommit.reserve(commitCount);
 
         for (size_t i = 0; i < commitCount; ++i)
-            jobsToCommit.push_back(std::move(_completedJobs[i]));
-
-        _completedJobs.erase(_completedJobs.begin(), _completedJobs.begin() + commitCount);
+        {
+            jobsToCommit.push_back(std::move(_completedJobs.front()));
+            _completedJobs.pop_front();
+        }
     }
 
     if (jobsToCommit.empty())
@@ -639,7 +669,17 @@ HRESULT Loader::Try_FinishLoading()
         _includedStaticJobs.store(false);
     }
 
-    CHECK_FAILED(Process_LevelMapLoad(2, chrono::milliseconds(4)), E_FAIL);
+    // 백그라운드 프리로드가 끝난 후, 메인 스레드 스폰 단계를 60 FPS(16ms) 예산에 맞춰 점진적 수행하여 화면 멈춤 제거
+    chrono::milliseconds mapLoadBudgetMs = chrono::milliseconds(16);
+    size_t mapLoadMeshesPerFrame = 20;
+
+    if (_nextLevel == LevelType::MapTest)
+    {
+        mapLoadMeshesPerFrame = 4;              // TestMap은 로딩 화면 hitch를 줄이기 위해 더 잘게 쪼갠다.
+        mapLoadBudgetMs = chrono::milliseconds(4);
+    }
+
+    CHECK_FAILED(Process_LevelMapLoad(mapLoadMeshesPerFrame, mapLoadBudgetMs), E_FAIL);
 
     if (!_mapLoadFinished)
         return S_OK;
@@ -660,12 +700,26 @@ HRESULT Loader::Process_LevelMapLoad(size_t maxMeshesPerFrame, chrono::milliseco
         return S_OK;
     }
 
+    if (_mapLoadPathIndex >= desc->mapPathCount)
+    {
+        _mapLoadFinished = true;
+        return S_OK;
+    }
+
     if (!_mapLoadStarted)
     {
+        LOG_DEBUG(
+            "[Loader::MapLoad] begin {}/{} path={}",
+            _mapLoadPathIndex + 1,
+            desc->mapPathCount,
+            String::ToString(desc->mapPaths[_mapLoadPathIndex]));
+
         CHECK_FAILED(
-            MapLoader::Begin_LoadSession(_device, _context, desc->mapPath,
+            MapLoader::Begin_LoadSession(_device, _context, desc->mapPaths[_mapLoadPathIndex],
                 ETOI(desc->level), desc->layerTag, _mapLoadSession), E_FAIL);
 
+        _mapLoadSession.preloadedModelCache = _mapPreloadedModelCache;
+        _mapLoadSession.preloadedCollisionCache = _mapPreloadedCollisionCache;
         _mapLoadStarted = true;
     }
 
@@ -674,7 +728,25 @@ HRESULT Loader::Process_LevelMapLoad(size_t maxMeshesPerFrame, chrono::milliseco
         MapLoader::Process_LoadSession(_mapLoadSession,
             maxMeshesPerFrame, maxTimePerFrame, finished), E_FAIL);
 
-    _mapLoadFinished = finished;
+    if (finished)
+    {
+        _mapPreloadedModelCache.insert(
+            _mapLoadSession.preloadedModelCache.begin(),
+            _mapLoadSession.preloadedModelCache.end());
+        _mapPreloadedCollisionCache.insert(
+            _mapLoadSession.preloadedCollisionCache.begin(),
+            _mapLoadSession.preloadedCollisionCache.end());
+
+        LOG_DEBUG(
+            "[Loader::MapLoad] finished {}/{}",
+            _mapLoadPathIndex + 1,
+            desc->mapPathCount);
+
+        ++_mapLoadPathIndex;
+        _mapLoadStarted = false;
+        _mapLoadSession = {};
+        _mapLoadFinished = _mapLoadPathIndex >= desc->mapPathCount;
+    }
 
     return S_OK;
 }

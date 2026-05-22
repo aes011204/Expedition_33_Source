@@ -1,111 +1,23 @@
 ﻿#include "Level_EffectEditor.h"
 
+#include "Camera.h"
 #include "EffectEditorCamera.h"
 #include "EffectEditorInstance.h"
+#include "EffectEditorSkybox.h"
 #include "EffectInstance.h"
 #include "Emitter_View.h"
 #include "GameInstance.h"
-#include "Camera.h"
 #include "GameObject.h"
-#include "ShaderCom.h"
-#include "Texture.h"
-#include "VIBuffer_Cube.h"
+#include "ModelCom.h"
+#include "PB_Gustave.h"
+#include "PlayableParts.h"
+#include "TrailPreviewController.h"
+#include "TrailPreviewWeaponObject.h"
 
 NS_BEGIN(EffectEditor)
 
 namespace Internal
 {
-    class EffectEditorSkybox final : public GameObject
-    {
-    public:
-        EffectEditorSkybox(const ComPtr<Device>& device, const ComPtr<Context>& context)
-            : GameObject{ device, context }
-        {
-        }
-
-        EffectEditorSkybox(const EffectEditorSkybox& prototype)
-            : GameObject{ prototype }
-        {
-        }
-
-        HRESULT Initialize(void* arg) override
-        {
-            CHECK_FAILED(GameObject::Initialize(arg), E_FAIL);
-            CHECK_FAILED(Ready_Components(), E_FAIL);
-
-            _transformCom->Set_Scale(Vec3(100.f, 100.f, 100.f));
-
-            return S_OK;
-        }
-
-        void Late_Update(float) override
-        {
-            GAME->Add_RenderGroup(RenderGroup::Priority, GetSharedPtr<GameObject>());
-        }
-
-        HRESULT Render() override
-        {
-            CHECK_FAILED(Bind_ShaderResources(), E_FAIL);
-            CHECK_FAILED(_shader->Begin(0), E_FAIL);
-            CHECK_FAILED(_vibuffer->Bind_Resources(), E_FAIL);
-            CHECK_FAILED(_vibuffer->Render(), E_FAIL);
-
-            return S_OK;
-        }
-
-        Shared<GameObject> Clone(void* arg) override
-        {
-            auto instance = make_shared<EffectEditorSkybox>(*this);
-            if (FAILED(instance->Initialize(arg)))
-                return nullptr;
-
-            return instance;
-        }
-
-        static Shared<EffectEditorSkybox> Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
-        {
-            return make_shared<EffectEditorSkybox>(device, context);
-        }
-
-        void Free() override
-        {
-            GameObject::Free();
-        }
-
-    private:
-        HRESULT Ready_Components()
-        {
-            CHECK_FAILED(Add_Component(ETOI(LevelType::Static), L"Texture_Effect_EditorSkybox", _texture), E_FAIL);
-            CHECK_FAILED(Add_Component(ETOI(LevelType::Static), L"Shader_VtxCube", _shader), E_FAIL);
-            CHECK_FAILED(Add_Component(ETOI(LevelType::Static), L"VIBuffer_Cube", _vibuffer), E_FAIL);
-
-            return S_OK;
-        }
-
-        HRESULT Bind_ShaderResources()
-        {
-            const Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
-            if (activeCamera != nullptr)
-            {
-                const Shared<TransformCom> cameraTransform = activeCamera->Get_Transform();
-                if (cameraTransform != nullptr)
-                    _transformCom->Set_WorldPosition(cameraTransform->Get_WorldPosition());
-            }
-
-            CHECK_FAILED(_transformCom->Bind_ShaderResource(_shader.get(), "g_WorldMatrix"), E_FAIL);
-            CHECK_FAILED(GAME->Bind_TransformMatrix(D3DTS::View, _shader.get(), "g_ViewMatrix"), E_FAIL);
-            CHECK_FAILED(GAME->Bind_TransformMatrix(D3DTS::Proj, _shader.get(), "g_ProjMatrix"), E_FAIL);
-            CHECK_FAILED(_texture->Bind_ShaderResourceView(_shader.get(), "g_Texture", 0), E_FAIL);
-
-            return S_OK;
-        }
-
-    private:
-        Shared<ShaderCom> _shader{};
-        Shared<VIBuffer_Cube> _vibuffer{};
-        Shared<Texture> _texture{};
-    };
-
     //## Module Lookup
 
     template <typename TData>
@@ -404,6 +316,21 @@ namespace Internal
 
         return Clamp_PreviewColor(fallbackValue);
     }
+
+    void Refresh_PlayerBodyAnimMapping(const Shared<Client::PB_Gustave>& gustave)
+    {
+        if (gustave == nullptr)
+            return;
+
+        const Client::PlayableParts* bodyPart =
+            dynamic_cast<Client::PlayableParts*>(gustave->Get_PartObject(L"Part_Body"));
+        if (bodyPart == nullptr)
+            return;
+
+        const Shared<ModelCom> bodyModel = bodyPart->Get_Model();
+        if (bodyModel != nullptr)
+            bodyModel->Refresh_AnimStateMappingFromOwnerContext();
+    }
 }
 
 Level_EffectEditor::Level_EffectEditor(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -441,8 +368,6 @@ HRESULT Level_EffectEditor::Render()
 
 HRESULT Level_EffectEditor::Restart_PreviewFromAuthoring()
 {
-    Clear_PreviewObjects();
-
     const Shared<Editor_Window> emitterWindow = EDITOR->Get_Window(L"Emitter");
     const Shared<Emitter_View> emitterView = dynamic_pointer_cast<Emitter_View>(emitterWindow);
     if (nullptr == emitterView)
@@ -454,6 +379,32 @@ HRESULT Level_EffectEditor::Restart_PreviewFromAuthoring()
     const Shared<const EffectDefinition> previewDefinition =
         Build_PreviewEffectDefinition(emitterView->Get_Emitters());
     CHECK_NULL(previewDefinition, E_FAIL);
+
+    CHECK_FAILED(Restart_PreviewFromDefinition(previewDefinition), E_FAIL);
+    _currentPreviewDefinition = previewDefinition;
+
+    for (const AuthoringEmitter& emitter : emitterView->Get_Emitters())
+    {
+        if (emitter.enabled)
+            emitterView->Clear_PreviewDirty(emitter.id);
+    }
+
+    return S_OK;
+}
+
+HRESULT Level_EffectEditor::Reset_PreviewRuntime()
+{
+    if (_currentPreviewDefinition == nullptr)
+        return S_OK;
+
+    return Restart_PreviewFromDefinition(_currentPreviewDefinition);
+}
+
+HRESULT Level_EffectEditor::Restart_PreviewFromDefinition(const Shared<const EffectDefinition>& previewDefinition)
+{
+    CHECK_NULL(previewDefinition, E_FAIL);
+
+    Clear_PreviewObjects();
 
     EffectInstanceDesc previewDesc{};
     previewDesc.definition = previewDefinition;
@@ -471,12 +422,6 @@ HRESULT Level_EffectEditor::Restart_PreviewFromAuthoring()
 
     _previewObjects = move(restartedPreviewObjects);
 
-    for (const AuthoringEmitter& emitter : emitterView->Get_Emitters())
-    {
-        if (emitter.enabled)
-            emitterView->Clear_PreviewDirty(emitter.id);
-    }
-
     return S_OK;
 }
 
@@ -490,14 +435,17 @@ Shared<const EffectDefinition> Level_EffectEditor::Build_PreviewEffectDefinition
         if (!emitter.enabled)
             continue;
 
-        const string rendererTypeLower = String::ToLowerCopy(emitter.rendererType);
-        if (rendererTypeLower != "sprite")
+        switch (emitter.typeData.kind)
         {
-            LOG_INFO("EffectEditor preview skip: emitter='{}', rendererType='{}'", emitter.name, emitter.rendererType);
-            continue;
-        }
+        case AuthoringTypeDataKind::Trail:
+            definition->emitters.push_back(Build_PreviewTrailEmitterDefinition(emitter));
+            break;
 
-        definition->emitters.push_back(Build_PreviewEmitterDefinition(emitter));
+        case AuthoringTypeDataKind::None:
+        default:
+            definition->emitters.push_back(Build_PreviewEmitterDefinition(emitter));
+            break;
+        }
     }
 
     return definition;
@@ -560,7 +508,10 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
         desc.spawn.instanceCount = max(1u, spawn->maxParticleCount);
         desc.spawn.particleSpawn.processSpawnRate = spawn->processSpawnRate;
         desc.spawn.particleSpawn.spawnRate = max(0.f, Internal::Evaluate_FloatDistributionMax(spawn->spawnRate, desc.spawn.particleSpawn.spawnRate));
-        desc.spawn.particleSpawn.spawnRateScale = max(0.f, Internal::Evaluate_FloatDistributionMax(spawn->spawnRateScale, desc.spawn.particleSpawn.spawnRateScale));
+        desc.spawn.particleSpawn.spawnRateScale = max(
+            0.f,
+            Internal::Evaluate_FloatDistributionMax(spawn->spawnRateScale, desc.spawn.particleSpawn.spawnRateScale)
+        );
         desc.spawn.particleSpawn.processBurstList = spawn->processBurstList;
         desc.spawn.particleSpawn.burstScale = max(0.f, Internal::Evaluate_FloatDistributionMax(spawn->burstScale, desc.spawn.particleSpawn.burstScale));
         desc.spawn.particleSpawn.maxActiveCount = desc.spawn.instanceCount;
@@ -787,6 +738,53 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
     return definition;
 }
 
+EffectEmitterDefinition Level_EffectEditor::Build_PreviewTrailEmitterDefinition(const AuthoringEmitter& emitter) const
+{
+    EffectEmitterDefinition definition{};
+    definition.id = emitter.id;
+    definition.name = emitter.name;
+    definition.kind = EffectEmitterKind::ComputeTrail;
+    definition.enabled = emitter.enabled;
+
+    ComputeTrailEmitterDesc emitterDesc{};
+
+    if (const auto* trailData = get_if<TrailTypeData>(&emitter.typeData.payload))
+    {
+        emitterDesc.width = max(0.001f, trailData->width);
+        emitterDesc.segmentLifetime = max(0.001f, trailData->segmentLifetime);
+        emitterDesc.historyCount = max(2u, trailData->historyCount);
+        emitterDesc.uvTiling = max(0.001f, trailData->uvTiling);
+        emitterDesc.smoothTangent = trailData->smoothTangent;
+    }
+
+    if (const auto* required = Internal::Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
+    {
+        const EffectMaterialInstanceData& material = required->material;
+        emitterDesc.material.mainTextureGuid = material.mainTextureGuid;
+        emitterDesc.material.mainTexturePath = material.mainTexturePath;
+        emitterDesc.material.noiseTextureGuid = material.noiseTextureGuid;
+        emitterDesc.material.noiseTexturePath = material.noiseTexturePath;
+        emitterDesc.material.blendMode = material.blendMode.empty() ? "AlphaBlend" : material.blendMode;
+        emitterDesc.material.opacitySource = material.opacitySource.empty() ? "Alpha" : material.opacitySource;
+        emitterDesc.material.tint = material.tint;
+        emitterDesc.material.intensity = material.intensity;
+        emitterDesc.material.opacityPower = material.opacityPower;
+        emitterDesc.material.noiseStrength = material.noiseStrength;
+
+        emitterDesc.playback.duration = max(0.0001f, required->duration);
+        emitterDesc.playback.loopCount = required->loopCount;
+        emitterDesc.playback.delay = max(0.f, required->delay);
+        emitterDesc.playback.delayFirstLoopOnly = required->delayFirstLoopOnly;
+        definition.localPosition = required->emitterOrigin;
+        definition.localRotationDegrees = required->emitterRotationDegrees;
+        definition.useLocalSpace = required->useLocalSpace;
+    }
+
+    emitterDesc.sampleProvider = _trailPreviewSampleProvider;
+    definition.concreteDesc = emitterDesc;
+    return definition;
+}
+
 HRESULT Level_EffectEditor::Ready_Lights()
 {
     LIGHT_DESC lightDesc{};
@@ -805,9 +803,9 @@ HRESULT Level_EffectEditor::Ready_Lights()
 HRESULT Level_EffectEditor::Ready_Layer_Camera(const wstring& layerTag)
 {
     EffectEditorCamera::EffectEditorCameraDesc cameraDesc{};
-    cameraDesc.speedPerSec = 10.f;
+    cameraDesc.speedPerSec = 5.f; //!! 초기 카메라 속도
     cameraDesc.degreePerSec = 180.f;
-    cameraDesc.eye = Vec4(0.f, 2.f, -2.f, 1.f);
+    cameraDesc.eye = Vec4(0.f, 3.f, -3.5f, 1.f); //!! 초기 카메라 거리
     cameraDesc.at = Vec4(0.f, 0.f, 0.f, 1.f);
     cameraDesc.fovy = XMConvertToRadians(60.f);
     cameraDesc.nearPlane = 0.1f;
@@ -816,7 +814,6 @@ HRESULT Level_EffectEditor::Ready_Layer_Camera(const wstring& layerTag)
     cameraDesc.yaw = 0.f;
     cameraDesc.pitch = 0.f;
     cameraDesc.pivot = Vec3(0.f, 0.f, 0.f);
-    cameraDesc.focusSpeed = 10.f;
 
     const Shared<EffectEditorCamera> previewCamera =
         EffectEditorCamera::Create(_device, _context);
@@ -835,8 +832,8 @@ HRESULT Level_EffectEditor::Ready_Layer_Sky(const wstring& layerTag)
     if (layerTag.empty())
         return E_FAIL;
 
-    const Shared<Internal::EffectEditorSkybox> skybox =
-        Internal::EffectEditorSkybox::Create(_device, _context);
+    const Shared<EffectEditorSkybox> skybox =
+        EffectEditorSkybox::Create(_device, _context);
     CHECK_NULL(skybox, E_FAIL);
     CHECK_FAILED(skybox->Initialize(nullptr), E_FAIL);
     CHECK_FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), layerTag, skybox), E_FAIL);
@@ -848,6 +845,46 @@ HRESULT Level_EffectEditor::Ready_Layer_Preview(const wstring& layerTag)
 {
     if (layerTag.empty())
         return E_FAIL;
+
+    const std::filesystem::path prefabPath =
+        std::filesystem::path(GAME->Get_AssetRoot()) / L"Data/json/Prefabs/PB_Gustave.prefab.json";
+
+    const Shared<GameObject> prefabObject = GAME->Instantiate_GameObjectJson(prefabPath);
+    CHECK_NULL(prefabObject, E_FAIL);
+
+    const Shared<Client::PB_Gustave> gustavePreview =
+        dynamic_pointer_cast<Client::PB_Gustave>(prefabObject);
+    if (gustavePreview == nullptr)
+    {
+        LOG_ERROR("[TrailPreview] PB_Gustave prefab instantiate returned unexpected object.");
+        return E_FAIL;
+    }
+
+    gustavePreview->Set_SourcePrefabName("PB_Gustave");
+    gustavePreview->Set_Name(L"PB_Gustave_TrailPreview");
+    gustavePreview->Set_Visible(false);
+    Internal::Refresh_PlayerBodyAnimMapping(gustavePreview);
+    CHECK_FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), layerTag, gustavePreview), E_FAIL);
+
+    TrailPreviewWeaponObject::PreviewDesc weaponDesc{};
+    weaponDesc.gustave = gustavePreview;
+
+    const Shared<TrailPreviewWeaponObject> trailPreviewWeapon =
+        TrailPreviewWeaponObject::Create(_device, _context);
+    CHECK_NULL(trailPreviewWeapon, E_FAIL);
+    CHECK_FAILED(trailPreviewWeapon->Initialize(&weaponDesc), E_FAIL);
+    CHECK_FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), layerTag, trailPreviewWeapon), E_FAIL);
+    _trailPreviewSampleProvider = trailPreviewWeapon;
+
+    TrailPreviewController::PreviewDesc controllerDesc{};
+    controllerDesc.gustave = gustavePreview;
+    controllerDesc.weapon = trailPreviewWeapon;
+
+    const Shared<TrailPreviewController> trailPreviewController =
+        TrailPreviewController::Create(_device, _context);
+    CHECK_NULL(trailPreviewController, E_FAIL);
+    CHECK_FAILED(trailPreviewController->Initialize(&controllerDesc), E_FAIL);
+    CHECK_FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), layerTag, trailPreviewController), E_FAIL);
 
     return S_OK;
 }

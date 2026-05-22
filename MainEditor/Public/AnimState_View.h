@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Editor_Window.h"
 #include "Editor_Camera_Free.h"
@@ -105,6 +105,7 @@ private:
     string _modelGuid{};
     string _currentAnimationName{};
     vector<AnimationEntry> _availableAnimations{};
+    char _animationSearchBuffer[128] = "";
 
     uint32 _pendingDockId = 0;
     bool _requestFocusOnOpen = false;

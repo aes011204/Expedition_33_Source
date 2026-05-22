@@ -229,6 +229,9 @@
     <Filter Include="04. GamePlayUI\SkillTree_Panel">
       <UniqueIdentifier>{a1312345-3547-423a-8f4a-75a5083c4e41}</UniqueIdentifier>
     </Filter>
+    <Filter Include="02.GameObject\Effect\Emitters\ComputeTrail">
+      <UniqueIdentifier>{34cfddd4-fc20-4ec8-9664-6169774a9019}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -255,7 +258,7 @@
     <ClInclude Include="..\Public\Level_GamePlay.h">
       <Filter>01.Levels\GamePlay</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\Level_Logo.h">
+    <ClInclude Include="..\Public\Level_MainTitle.h">
       <Filter>01.Levels\Logo</Filter>
     </ClInclude>
     <ClInclude Include="..\public\Loader.h">
@@ -331,9 +334,6 @@
       <Filter>96. Manager</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\BT_Node_Bootstrap.h">
-      <Filter>BehavoirTree</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\Mon_BehaviorTree.h">
       <Filter>BehavoirTree</Filter>
     </ClInclude>
     <ClInclude Include="..\public\Monster_Part.h">
@@ -624,9 +624,6 @@
     <ClInclude Include="..\public\UIPreviewManager.h">
       <Filter>02.GameObject\Camera\Preview\Manager</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\MapStaticCollisionBuilder.h">
-      <Filter>02.GameObject\Map</Filter>
-    </ClInclude>
     <ClInclude Include="..\public\WeaponUI_Common.h">
       <Filter>04. GamePlayUI\Weapon</Filter>
     </ClInclude>
@@ -653,9 +650,19 @@
     <ClInclude Include="..\Public\GameplayUI_Types.h" />
     <ClInclude Include="..\Public\GameplayUI_World.h" />
     <ClInclude Include="..\Public\GameplayUI_Battle.h" />
-    <ClInclude Include="..\public\ANS_Move.h" />
     <ClInclude Include="..\Public\FreeAimTargeting.h" />
     <ClInclude Include="..\Public\UI_CrossHair.h" />
+    <ClInclude Include="..\Public\StreamingLevel.h" />
+    <ClInclude Include="..\public\AN_EnterAnim.h">
+      <Filter>AnimNotify</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\ANS_Move.h">
+      <Filter>AnimNotify</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Player_GameMenu.h" />
+    <ClInclude Include="..\Public\ComputeTrailEmitter.h">
+      <Filter>02.GameObject\Effect\Emitters\ComputeTrail</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -667,7 +674,7 @@
     <ClCompile Include="..\Private\Level_GamePlay.cpp">
       <Filter>01.Levels\GamePlay</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\Level_Logo.cpp">
+    <ClCompile Include="..\Private\Level_MainTitle.cpp">
       <Filter>01.Levels\Logo</Filter>
     </ClCompile>
     <ClCompile Include="..\private\Loader.cpp">
@@ -743,9 +750,6 @@
       <Filter>96. Manager</Filter>
     </ClCompile>
     <ClCompile Include="..\private\BT_Node_Bootstrap.cpp">
-      <Filter>BehavoirTree</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\Mon_BehaviorTree.cpp">
       <Filter>BehavoirTree</Filter>
     </ClCompile>
     <ClCompile Include="..\private\Monster_Part.cpp">
@@ -1036,9 +1040,6 @@
     <ClCompile Include="..\private\UIPreviewManager.cpp">
       <Filter>02.GameObject\Camera\Preview\Manager</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\MapStaticCollisionBuilder.cpp">
-      <Filter>02.GameObject\Map</Filter>
-    </ClCompile>
     <ClCompile Include="..\private\WeaponUI_Common.cpp">
       <Filter>04. GamePlayUI\Weapon</Filter>
     </ClCompile>
@@ -1062,9 +1063,19 @@
     <ClCompile Include="..\Private\UI_RuntimePanelBase.cpp" />
     <ClCompile Include="..\Private\GameplayUI_World.cpp" />
     <ClCompile Include="..\Private\GameplayUI_Battle.cpp" />
-    <ClCompile Include="..\private\ANS_Move.cpp" />
     <ClCompile Include="..\Private\FreeAimTargeting.cpp" />
     <ClCompile Include="..\Private\UI_CrossHair.cpp" />
+    <ClCompile Include="..\Private\StreamingLevel.cpp" />
+    <ClCompile Include="..\private\AN_EnterAnim.cpp">
+      <Filter>AnimNotify</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\ANS_Move.cpp">
+      <Filter>AnimNotify</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Player_GameMenu.cpp" />
+    <ClCompile Include="..\Private\ComputeTrailEmitter.cpp">
+      <Filter>02.GameObject\Effect\Emitters\ComputeTrail</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">
@@ -1092,6 +1103,9 @@
       <Filter>97.ShaderFiles\Compute</Filter>
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_PointParticle.hlsl">
+      <Filter>97.ShaderFiles\Compute</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_TrailStrip.hlsl">
       <Filter>97.ShaderFiles\Compute</Filter>
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMeshInstance.hlsl">
@@ -1135,6 +1149,9 @@
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMaterialPreview.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMaterialPreview.hlsl">
+      <Filter>97.ShaderFiles\Effect</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectTrail.hlsl">
       <Filter>97.ShaderFiles\Effect</Filter>
     </FxCompile>
   </ItemGroup>

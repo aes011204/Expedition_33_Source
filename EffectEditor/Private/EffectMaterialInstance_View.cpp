@@ -130,10 +130,11 @@ namespace Internal
 
     wstring Resolve_InstanceTexturePath(const string& textureGuid, const string& texturePath)
     {
-        if (!textureGuid.empty())
-            return Resolve_InstanceTexturePathByGuid(textureGuid);
+        wstring resolvedPath = Resolve_InstanceTexturePathByFallbackPath(texturePath);
+        if (!resolvedPath.empty())
+            return resolvedPath;
 
-        return Resolve_InstanceTexturePathByFallbackPath(texturePath);
+        return Resolve_InstanceTexturePathByGuid(textureGuid);
     }
 
     fs::path Resolve_PreferredTexturePath(const fs::path& filePath, bool& outSwitchedToDds)
@@ -179,26 +180,22 @@ namespace Internal
         bool switchedToDds = false;
         const fs::path targetPath = Resolve_PreferredTexturePath(filePath, switchedToDds);
 
-        textureGuid = GAME != nullptr ? GAME->Ensure_AssetGUID(targetPath.wstring(), "Texture") : string{};
         texturePath = Make_ResourceRelativePath(targetPath);
+        textureGuid = GAME != nullptr ? GAME->Ensure_AssetGUID(targetPath.wstring(), "Texture") : string{};
 
         if (switchedToDds)
         {
             string sourcePath = Make_ResourceRelativePath(filePath);
-            textureAssignStatus = textureGuid.empty()
-                                  ? "Texture switched PNG -> DDS with fallback path only: " + sourcePath + " -> " + texturePath
-                                  : "Texture switched PNG -> DDS: " + sourcePath + " -> " + texturePath;
+            textureAssignStatus = "Texture switched PNG -> DDS: " + sourcePath + " -> " + texturePath;
             Notify_TextureAssignment(NotifyType::Info, textureAssignStatus);
         }
         else
         {
-            textureAssignStatus = textureGuid.empty()
-                                  ? "Texture assigned with fallback path only: " + texturePath
-                                  : "Texture assigned: " + texturePath;
+            textureAssignStatus = "Texture assigned: " + texturePath;
         }
 
         if (textureGuid.empty())
-            Notify_TextureAssignment(NotifyType::Warning, textureAssignStatus);
+            Notify_TextureAssignment(NotifyType::Warning, textureAssignStatus + " (GUID cache unavailable)");
 
         return true;
     }
@@ -333,17 +330,17 @@ namespace Internal
     string Make_TextureReferenceTooltip(const string& textureGuid, const string& texturePath)
     {
         string state = "Empty";
-        if (!textureGuid.empty())
-        {
-            state = Resolve_InstanceTexturePathByGuid(textureGuid).empty()
-                    ? "GUID resolve failed"
-                    : "GUID reference";
-        }
-        else if (!texturePath.empty())
+        if (!texturePath.empty())
         {
             state = Resolve_InstanceTexturePathByFallbackPath(texturePath).empty()
-                    ? "Fallback path missing"
-                    : "Fallback path only";
+                    ? "Path missing"
+                    : "Path reference";
+        }
+        else if (!textureGuid.empty())
+        {
+            state = Resolve_InstanceTexturePathByGuid(textureGuid).empty()
+                    ? "Legacy GUID resolve failed"
+                    : "Legacy GUID recovery";
         }
 
         return
@@ -355,10 +352,13 @@ namespace Internal
 
     bool Is_WarningTextureReference(const string& textureGuid, const string& texturePath)
     {
-        if (!textureGuid.empty())
-            return Resolve_InstanceTexturePathByGuid(textureGuid).empty();
+        if (!texturePath.empty())
+            return Resolve_InstanceTexturePathByFallbackPath(texturePath).empty();
 
-        return !texturePath.empty();
+        if (!textureGuid.empty())
+            return true;
+
+        return false;
     }
 
     bool Draw_TextureSlotBody(string& textureGuid, string& texturePath)
@@ -528,7 +528,7 @@ namespace Internal
 
 EffectMaterialInstance_View::EffectMaterialInstance_View()
     : Editor_Window{ L"Effect Material Instance", ICON_FA_PALETTE }
-    , _previewRenderer{ make_unique<EffectMaterialPreviewRenderer>() }
+    , _previewRenderer{ EffectMaterialPreviewRenderer::Create() }
 {
 }
 
@@ -758,7 +758,7 @@ void EffectMaterialInstance_View::Apply_MaterialChanged(
     const RequiredModuleData& requiredData)
 {
     emitter.previewDirty = true;
-    emitter.rendererType = requiredData.rendererType;
+    emitter.rendererType = emitter.typeData.kind == AuthoringTypeDataKind::Trail ? "Trail" : requiredData.rendererType;
     emitter.textureId = requiredData.material.mainTexturePath;
     emitter.resourceSummary = requiredData.material.mainTexturePath;
 
