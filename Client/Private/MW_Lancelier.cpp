@@ -105,7 +105,7 @@ HRESULT MW_Lancelier::Ready_PartObjects()
     bodyDesc.modelType = ModelType::Anim;
     bodyDesc.modelTag = L"Model_Lancelier";
 
-    CHECK_FAILED(Add_PartObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Lancelier_Body"), TEXT("Part_Body"), &bodyDesc), E_FAIL);
+    CHECK_FAILED(Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Lancelier_Body"), TEXT("Part_Body"), &bodyDesc), E_FAIL); // 공용 몬스터 파츠 prototype은 Static에서 꺼낸다.
 
     _body = dynamic_pointer_cast<Mon_Lancelier_Body>(_partObjects[TEXT("Part_Body")]);
     CHECK_NULL(_body, E_FAIL);
@@ -116,7 +116,7 @@ HRESULT MW_Lancelier::Ready_PartObjects()
     weaponDesc.modelTag = L"Model_Lancelier_Weapon";
     weaponDesc.socketMatrix = _body->Get_SocketBoneMatrixPtr("Weapon_R");
 
-    CHECK_FAILED(Add_PartObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Lancelier_Weapon"), TEXT("Part_Weapon"), &weaponDesc), E_FAIL);
+    CHECK_FAILED(Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Lancelier_Weapon"), TEXT("Part_Weapon"), &weaponDesc), E_FAIL); // MapTest/GamePlay 공용 무기 파츠도 Static prototype을 재사용한다.
 
     _weapon = dynamic_pointer_cast<Mon_Lancelier_Weapon>(_partObjects[TEXT("Part_Weapon")]);
     CHECK_NULL(_weapon, E_FAIL);

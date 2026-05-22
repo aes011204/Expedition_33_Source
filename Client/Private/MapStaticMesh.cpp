@@ -1,4 +1,4 @@
-﻿#include "MapStaticMesh.h"
+#include "MapStaticMesh.h"
 #include "GameInstance.h"
 #include "Collision_Define.h"
 #include "MapStaticCollisionBuilder.h"
@@ -200,15 +200,12 @@ HRESULT MapStaticMesh::Initialize(void* arg)
     _transformCom->Set_RotationQuaternion(pDesc->rotation);
     _transformCom->Set_Scale(pDesc->scale);
 
-    if (_collisionData == nullptr && _model != nullptr)
-    {
-        _collisionData = MapStaticCollisionBuilder::Build(_model);
-    }
-
     if (_collisionData != nullptr)
     {
         _physxStaticHandle = GAME->Register_PhysXStaticCollision(
-            *_collisionData, _transformCom->Get_WorldMatrix(), Collision_Preset::Enviroment);
+            *_collisionData,
+            _transformCom->Get_WorldMatrix(),
+            Collision_Preset::Enviroment);
     }
 
     return S_OK;
@@ -303,7 +300,7 @@ HRESULT MapStaticMesh::Render()
 
 HRESULT MapStaticMesh::Render_Shadow()
 {
-    if (_shader == nullptr || _model == nullptr)
+    if (_shader == nullptr || _model == nullptr || _transformCom == nullptr)
     {
         return S_OK;
     }
@@ -333,7 +330,7 @@ HRESULT MapStaticMesh::Render_Shadow()
 
 HRESULT MapStaticMesh::RenderPickingID(uint32 id)
 {
-    if (!_model || !_shader)
+    if (!_model || !_shader || _transformCom == nullptr)
     {
         return S_OK;
     }

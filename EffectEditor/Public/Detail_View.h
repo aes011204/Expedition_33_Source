@@ -25,6 +25,7 @@ private: //## Helper::EffectAuthoring
         const Shared<Emitter_View>& emitterView,
         const EffectAuthoringSelection& selection,
         ParticleSystemAuthoringData& data);
+    void Render_TrailPreviewDetail();
     void Render_EmitterDetail(
         const Shared<Emitter_View>& emitterView,
         const EffectAuthoringSelection& selection,
@@ -41,7 +42,6 @@ private: //## Helper::EffectAuthoring
 
     // emitter 편집 변경을 preview dirty와 authoring document dirty 상태에 반영한다.
     void Mark_Changed(const Shared<Emitter_View>& emitterView, AuthoringEmitter& emitter, bool changed);
-    static RequiredModuleData* Find_RequiredModuleData(AuthoringEmitter& emitter);
     // 다른 selection으로 이동하기 전에 열려 있던 pending edit을 먼저 history command로 확정한다.
     void Commit_PendingAuthoringEditOnTargetChange(const Shared<Emitter_View>& emitterView, const EffectAuthoringSelection& selection);
     // 첫 변경 시점의 selection/before snapshot/description을 잡아 한 번의 authoring edit으로 묶기 시작한다.

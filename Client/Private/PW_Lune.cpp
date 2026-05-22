@@ -4,6 +4,7 @@
 #include "ColliderCom.h"
 #include "PlayableParts.h"
 #include "SkillTreeCom.h"
+#include "PlayerStatCom.h"
 
 IMPLEMENT_REFLECTION(PW_Lune)
 {
@@ -34,10 +35,20 @@ HRESULT PW_Lune::Initialize(void* arg)
 
     auto skilltreeCom = Get_Component<SkillTreeCom>();
 
-     skilltreeCom->TryUnlock("Immolation");
+    skilltreeCom->TryUnlock("Immolation");
     skilltreeCom->TryUnlock("IceGust");
 
     return S_OK;
+}
+
+void PW_Lune::BeginPlay()
+{
+    Player_WorldBase::BeginPlay();
+
+    // PW에서 세팅해줘야, 전투 시작 시 PB한테 전달된다.
+    _combatStatCom->Get_StatInfo().maxAp = 9;
+    _combatStatCom->Get_PlayerRuntimeStat().CurMaxAp = 9;
+    _combatStatCom->Get_PlayerRuntimeStat().CurAp = 3;
 }
 
 HairChainPhysicsDesc PW_Lune::Get_HairChainPhysicsDesc() const

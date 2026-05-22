@@ -47,7 +47,7 @@ namespace Internal
 
 EffectMaterial_View::EffectMaterial_View()
     : Editor_Window{ L"Effect Material", ICON_FA_CIRCLE_INFO }
-    , _previewRenderer{ make_unique<EffectMaterialPreviewRenderer>() }
+    , _previewRenderer{ EffectMaterialPreviewRenderer::Create() }
 {
 }
 

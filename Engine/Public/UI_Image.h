@@ -17,6 +17,12 @@ public:
         CircularHole,
     };
 
+    enum class FillOrigin : uint8
+    {
+        LeftToRight,
+        RightToLeft,
+    };
+
     struct UI_IMAGE_DESC : public UI_Base::UI_DESC
     {
         wstring texturePath{};
@@ -32,6 +38,10 @@ public:
         Vec2 holeCenterUV{ 0.5f, 0.5f }; // 화면 중앙
         float holeRadius = 0.f;
         float holeFeather = 0.05f;
+
+        bool useFillRatio = false;
+        float fillRatio = 1.f; // 0~1 비율로 채워진 영역만 남긴다.
+        FillOrigin fillOrigin = FillOrigin::LeftToRight;
     };
 
 public:
@@ -54,6 +64,9 @@ public:
     void Set_HoleCenterUV(const Vec2& uv) { _holeCenterUV = uv; }
     void Set_HoleRadius(float radius) { _holeRadius = radius; }
     void Set_HoleFeather(float feather) { _holeFeather = feather; }
+    void Set_UseFillRatio(bool useFill) { _useFillRatio = useFill; }
+    void Set_FillRatio(float ratio) { _fillRatio = ::clamp(ratio, 0.f, 1.f); } // HP 바는 0~1 비율로 UV crop 한다.
+    void Set_FillOrigin(FillOrigin origin) { _fillOrigin = origin; }
 
 private:
     HRESULT Ready_RenderResources();
@@ -82,6 +95,9 @@ private:
     Vec2 _holeCenterUV{ 0.5f, 0.5f };
     float _holeRadius = 0.f;
     float _holeFeather = 0.05f;
+    bool _useFillRatio = false;
+    float _fillRatio = 1.f;
+    FillOrigin _fillOrigin = FillOrigin::LeftToRight;
 
 public:
     static Shared<UI_Image> Create();

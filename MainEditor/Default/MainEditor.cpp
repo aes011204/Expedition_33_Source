@@ -61,15 +61,21 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE, _In_ LPWSTR,
 
     while (true)
     {
-        if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
+        bool shouldQuit = false;
+        while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
         {
             if (msg.message == WM_QUIT)
+            {
+                shouldQuit = true;
                 break;
+            }
 
             TranslateMessage(&msg);
             DispatchMessage(&msg);
-            continue;
         }
+
+        if (shouldQuit)
+            break;
 
         timeAcc += GAME->Compute_TimeDelta(TEXT("Timer_Default"));
         if (timeAcc >= 1.f / 60.f)

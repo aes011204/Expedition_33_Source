@@ -229,6 +229,9 @@
     <Filter Include="04. GamePlayUI\SkillTree_Panel">
       <UniqueIdentifier>{a1312345-3547-423a-8f4a-75a5083c4e41}</UniqueIdentifier>
     </Filter>
+    <Filter Include="02.GameObject\Effect\Emitters\ComputeTrail">
+      <UniqueIdentifier>{34cfddd4-fc20-4ec8-9664-6169774a9019}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -255,7 +258,7 @@
     <ClInclude Include="..\Public\Level_GamePlay.h">
       <Filter>01.Levels\GamePlay</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\Level_Logo.h">
+    <ClInclude Include="..\Public\Level_MainTitle.h">
       <Filter>01.Levels\Logo</Filter>
     </ClInclude>
     <ClInclude Include="..\public\Loader.h">
@@ -621,9 +624,6 @@
     <ClInclude Include="..\public\UIPreviewManager.h">
       <Filter>02.GameObject\Camera\Preview\Manager</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\MapStaticCollisionBuilder.h">
-      <Filter>02.GameObject\Map</Filter>
-    </ClInclude>
     <ClInclude Include="..\public\WeaponUI_Common.h">
       <Filter>04. GamePlayUI\Weapon</Filter>
     </ClInclude>
@@ -633,10 +633,6 @@
     <ClInclude Include="..\public\AN_Attack.h">
       <Filter>AnimNotify</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\UI_BattleTransition.h" />
-    <ClInclude Include="..\Public\UI_ExpeditionStatus.h" />
-    <ClInclude Include="..\Public\SavePoint_Panel.h" />
-    <ClInclude Include="..\Public\UI_Utils.h" />
     <ClInclude Include="Battle_Enum.h" />
     <ClInclude Include="..\Public\GameplayUI.h">
       <Filter>04. GamePlayUI</Filter>
@@ -644,14 +640,7 @@
     <ClInclude Include="..\public\SkillTree_Panel.h">
       <Filter>04. GamePlayUI\SkillTree_Panel</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\UI_BattleCommandHUD.h" />
-    <ClInclude Include="..\Public\UI_MonsterHpBar.h" />
-    <ClInclude Include="..\Public\UI_RuntimePanelBase.h" />
-    <ClInclude Include="..\Public\GameplayUI_Types.h" />
-    <ClInclude Include="..\Public\GameplayUI_World.h" />
-    <ClInclude Include="..\Public\GameplayUI_Battle.h" />
     <ClInclude Include="..\Public\FreeAimTargeting.h" />
-    <ClInclude Include="..\Public\UI_CrossHair.h" />
     <ClInclude Include="..\public\AN_EnterAnim.h">
       <Filter>AnimNotify</Filter>
     </ClInclude>
@@ -681,6 +670,62 @@
       <Filter>02.GameObject\Monster\00. World</Filter>
     </ClInclude>
     <ClInclude Include="..\public\BT_Patroll.h" />
+    <ClInclude Include="..\Public\UI_Utils.h">
+      <Filter>02.GameObject\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_BattleCommandHUD.h">
+      <Filter>02.GameObject\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_BattleDefense.h">
+      <Filter>02.GameObject\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_BattleTransition.h">
+      <Filter>02.GameObject\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_CancelAim.h">
+      <Filter>02.GameObject\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_CrossHair.h">
+      <Filter>02.GameObject\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_ExpeditionStatus.h">
+      <Filter>02.GameObject\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_MonsterHpBar.h">
+      <Filter>02.GameObject\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_RuntimePanelBase.h">
+      <Filter>02.GameObject\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\GameplayUI_Battle.h">
+      <Filter>02.GameObject\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\GameplayUI_Types.h">
+      <Filter>02.GameObject\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\GameplayUI_World.h">
+      <Filter>02.GameObject\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\StreamingLevel.h">
+      <Filter>01.Levels</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_ChoiceTarget.h">
+      <Filter>02.GameObject\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\SavePoint_Panel.h">
+      <Filter>02.GameObject\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\ExpeditionStat_Panel.h">
+      <Filter>02.GameObject\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\AttackPlaying.h">
+      <Filter>BattleState</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_BattleSystemHUD.h">
+      <Filter>02.GameObject\UI</Filter>
+    <ClInclude Include="..\Public\ComputeTrailEmitter.h">
+      <Filter>02.GameObject\Effect\Emitters\ComputeTrail</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -692,7 +737,7 @@
     <ClCompile Include="..\Private\Level_GamePlay.cpp">
       <Filter>01.Levels\GamePlay</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\Level_Logo.cpp">
+    <ClCompile Include="..\Private\Level_MainTitle.cpp">
       <Filter>01.Levels\Logo</Filter>
     </ClCompile>
     <ClCompile Include="..\private\Loader.cpp">
@@ -1058,9 +1103,6 @@
     <ClCompile Include="..\private\UIPreviewManager.cpp">
       <Filter>02.GameObject\Camera\Preview\Manager</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\MapStaticCollisionBuilder.cpp">
-      <Filter>02.GameObject\Map</Filter>
-    </ClCompile>
     <ClCompile Include="..\private\WeaponUI_Common.cpp">
       <Filter>04. GamePlayUI\Weapon</Filter>
     </ClCompile>
@@ -1070,22 +1112,13 @@
     <ClCompile Include="..\private\AN_Attack.cpp">
       <Filter>AnimNotify</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\UI_BattleTransition.cpp" />
-    <ClCompile Include="..\Private\UI_ExpeditionStatus.cpp" />
-    <ClCompile Include="..\Private\SavePoint_Panel.cpp" />
     <ClCompile Include="..\Private\GameplayUI.cpp">
       <Filter>04. GamePlayUI</Filter>
     </ClCompile>
     <ClCompile Include="..\private\SkillTree_Panel.cpp">
       <Filter>04. GamePlayUI\SkillTree_Panel</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\UI_BattleCommandHUD.cpp" />
-    <ClCompile Include="..\Private\UI_MonsterHpBar.cpp" />
-    <ClCompile Include="..\Private\UI_RuntimePanelBase.cpp" />
-    <ClCompile Include="..\Private\GameplayUI_World.cpp" />
-    <ClCompile Include="..\Private\GameplayUI_Battle.cpp" />
     <ClCompile Include="..\Private\FreeAimTargeting.cpp" />
-    <ClCompile Include="..\Private\UI_CrossHair.cpp" />
     <ClCompile Include="..\private\AN_EnterAnim.cpp">
       <Filter>AnimNotify</Filter>
     </ClCompile>
@@ -1115,6 +1148,57 @@
       <Filter>02.GameObject\Monster\00. World</Filter>
     </ClCompile>
     <ClCompile Include="..\private\BT_Patroll.cpp" />
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_BattleCommandHUD.cpp">
+      <Filter>02.GameObject\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_BattleDefense.cpp">
+      <Filter>02.GameObject\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_BattleTransition.cpp">
+      <Filter>02.GameObject\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_CancelAim.cpp">
+      <Filter>02.GameObject\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_CrossHair.cpp">
+      <Filter>02.GameObject\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_ExpeditionStatus.cpp">
+      <Filter>02.GameObject\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_MonsterHpBar.cpp">
+      <Filter>02.GameObject\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_RuntimePanelBase.cpp">
+      <Filter>02.GameObject\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\GameplayUI_Battle.cpp">
+      <Filter>02.GameObject\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\GameplayUI_World.cpp">
+      <Filter>02.GameObject\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\StreamingLevel.cpp">
+      <Filter>01.Levels</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_ChoiceTarget.cpp">
+      <Filter>02.GameObject\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\SavePoint_Panel.cpp">
+      <Filter>02.GameObject\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\ExpeditionStat_Panel.cpp">
+      <Filter>02.GameObject\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\AttackPlaying.cpp">
+      <Filter>BattleState</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_BattleSystemHUD.cpp">
+      <Filter>02.GameObject\UI</Filter>
+    <ClCompile Include="..\Private\ComputeTrailEmitter.cpp">
+      <Filter>02.GameObject\Effect\Emitters\ComputeTrail</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">
@@ -1142,6 +1226,9 @@
       <Filter>97.ShaderFiles\Compute</Filter>
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_PointParticle.hlsl">
+      <Filter>97.ShaderFiles\Compute</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_TrailStrip.hlsl">
       <Filter>97.ShaderFiles\Compute</Filter>
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMeshInstance.hlsl">
@@ -1185,6 +1272,9 @@
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMaterialPreview.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMaterialPreview.hlsl">
+      <Filter>97.ShaderFiles\Effect</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectTrail.hlsl">
       <Filter>97.ShaderFiles\Effect</Filter>
     </FxCompile>
   </ItemGroup>

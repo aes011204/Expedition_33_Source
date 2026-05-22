@@ -58,15 +58,6 @@
     <Filter Include="95. ShaderFiles">
       <UniqueIdentifier>{227fd98b-6322-4cec-a18e-e2b91b238aaf}</UniqueIdentifier>
     </Filter>
-    <Filter Include="03. Manager">
-      <UniqueIdentifier>{89ec0581-c906-43e5-aeb8-3ba9fcbc5c06}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="03. Manager\MEManager">
-      <UniqueIdentifier>{98a7a0eb-6548-4b83-860f-1b1854c322f8}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="03. Manager\MEModelManager">
-      <UniqueIdentifier>{3fbe4ead-0c55-43ec-b46f-f0d86a03c5b1}</UniqueIdentifier>
-    </Filter>
     <Filter Include="09. EditorCommands">
       <UniqueIdentifier>{233c2c9d-0392-40d4-b077-fdcb06c59c11}</UniqueIdentifier>
     </Filter>
@@ -105,6 +96,15 @@
     </Filter>
     <Filter Include="04. Panel\PanelModelOverride">
       <UniqueIdentifier>{4478cdfc-99d3-4941-b695-d55a9aeab417}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="03. Manager">
+      <UniqueIdentifier>{89ec0581-c906-43e5-aeb8-3ba9fcbc5c06}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="03. Manager\MEManager">
+      <UniqueIdentifier>{98a7a0eb-6548-4b83-860f-1b1854c322f8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="03. Manager\MEModelManager">
+      <UniqueIdentifier>{3fbe4ead-0c55-43ec-b46f-f0d86a03c5b1}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>

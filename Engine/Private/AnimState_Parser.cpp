@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "AnimState_Parser.h"
 #include "GameInstance.h"
 #include "Animation.h"
@@ -133,13 +133,13 @@ bool AnimState_Parser::Load_StateAnimations_FromFile(
 			stateIdx = mapping["Index"].get<int32>();
 		}
 
-		if (stateIdx < 0 || stateIdx >= (int32)outStateAnimIndices.size())
+		if (stateIdx < 0 || stateIdx >= static_cast<int32>(outStateAnimIndices.size()))
 		{
 			continue;
 		}
 
 		bool found = false;
-		for (uint32 i = 0; i < (uint32)originalAnimations.size(); ++i)
+		for (uint32 i = 0; i < static_cast<uint32>(originalAnimations.size()); ++i)
 		{
 			string availableName = originalAnimations[i]->Get_AnimationName();
 			if (availableName == targetAnimName)

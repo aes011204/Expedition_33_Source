@@ -99,7 +99,7 @@ HRESULT BackGround::Render()
 
 HRESULT BackGround::Ready_Components()
 {
-    if (FAILED(Add_Component(ETOI(LevelType::Logo), TEXT("Texture_BackGround"), _texture)))
+    if (FAILED(Add_Component(ETOI(LevelType::MainTitle), TEXT("Texture_BackGround"), _texture)))
     {
         MSG_BOX("BackGround : Texture_BackGround Failed");
         return E_FAIL;

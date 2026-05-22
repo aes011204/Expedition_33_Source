@@ -611,6 +611,12 @@ namespace
         if (loadedFontTags.find(fontTag) != loadedFontTags.end())
             return true;
 
+        if (GAME->Has_Font(fontTag))
+        {
+            loadedFontTags.insert(fontTag);
+            return true;
+        }
+
         if (FAILED(GAME->Add_Font(fontTag, fontPath.c_str())))
         {
             LOG_ERROR("UI RuntimeLoader Add_Font failed. tag={}, path={}",
@@ -883,8 +889,11 @@ namespace
         const wstring prototypeTag =
             prototypeTagPrefix + L"_Image_" + to_wstring(object.id);
 
-        if (FAILED(GAME->Add_Prototype(levelIndex, prototypeTag, UI_Image::Create())))
-            return E_FAIL;
+        if (!GAME->Has_Prototype(levelIndex, prototypeTag))
+        {
+            if (FAILED(GAME->Add_Prototype(levelIndex, prototypeTag, UI_Image::Create())))
+                return E_FAIL;
+        }
 
         if (FAILED(GAME->Add_UI(levelIndex, prototypeTag, &desc, outUI)))
             return E_FAIL;
@@ -939,8 +948,11 @@ namespace
         const wstring prototypeTag =
             prototypeTagPrefix + L"_Text_" + to_wstring(object.id);
 
-        if (FAILED(GAME->Add_Prototype(levelIndex, prototypeTag, UI_Text::Create())))
-            return E_FAIL;
+        if (!GAME->Has_Prototype(levelIndex, prototypeTag))
+        {
+            if (FAILED(GAME->Add_Prototype(levelIndex, prototypeTag, UI_Text::Create())))
+                return E_FAIL;
+        }
 
         if (FAILED(GAME->Add_UI(levelIndex, prototypeTag, &desc, outUI)))
             return E_FAIL;
@@ -972,8 +984,11 @@ namespace
         const wstring prototypeTag =
             prototypeTagPrefix + L"_Panel_" + to_wstring(object.id);
 
-        if (FAILED(GAME->Add_Prototype(levelIndex, prototypeTag, UI_Panel::Create())))
-            return E_FAIL;
+        if (!GAME->Has_Prototype(levelIndex, prototypeTag))
+        {
+            if (FAILED(GAME->Add_Prototype(levelIndex, prototypeTag, UI_Panel::Create())))
+                return E_FAIL;
+        }
 
         if (FAILED(GAME->Add_UI(levelIndex, prototypeTag, &desc, outUI)))
             return E_FAIL;
@@ -1005,8 +1020,11 @@ namespace
         const wstring prototypeTag =
             prototypeTagPrefix + L"_Button_" + to_wstring(object.id);
 
-        if (FAILED(GAME->Add_Prototype(levelIndex, prototypeTag, UI_Button::Create())))
-            return E_FAIL;
+        if (!GAME->Has_Prototype(levelIndex, prototypeTag))
+        {
+            if (FAILED(GAME->Add_Prototype(levelIndex, prototypeTag, UI_Button::Create())))
+                return E_FAIL;
+        }
 
         if (FAILED(GAME->Add_UI(levelIndex, prototypeTag, &desc, outUI)))
             return E_FAIL;
@@ -1178,10 +1196,7 @@ HRESULT UI_RuntimeLoader::Load_Document(const UI_LoadDesc& desc)
                 {
                     auto [nameIter, inserted] = desc.outUIByName->emplace(objectName, spawnedUI);
                     if (!inserted)
-                    {
-                        LOG_WARN("UI RuntimeLoader duplicated name replaced in output map: {}", object.name);
                         nameIter->second = spawnedUI;
-                    }
                 }
             }
         }
