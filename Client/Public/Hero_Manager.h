@@ -32,6 +32,9 @@ public:
         float   sprintFollowHoldTime = 0.f;    // Sprint 유지 시간. Run으로 바로 안바뀌게
     };
 
+public: // GameMenu 제어용 함수
+    void Change_GameMenuAnimation(uint32 introAnim, uint32 idleAnim);
+
 public:
     HRESULT Initialize_Hero(
         uint32 levelIndex,
