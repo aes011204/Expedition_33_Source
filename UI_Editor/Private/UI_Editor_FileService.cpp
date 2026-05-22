@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "UI_Editor_FileService.h"
+#include "UI_DocumentInternalAccess.h"
 
 #include <commdlg.h>
 
@@ -115,7 +116,7 @@ namespace UIEditor
         if (!Show_LoadFileDialog(filePath))
             return false;
 
-        if (!document.Load_FromJsonFile(filePath))
+        if (!UI_DocumentInternalAccess::Load_FromJsonFile(document, filePath))
             return false;
 
         _currentDocumentPath = filePath;

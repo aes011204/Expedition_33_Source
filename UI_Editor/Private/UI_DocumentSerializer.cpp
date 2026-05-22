@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "UI_DocumentSerializer.h"
+#include "UI_DocumentInternalAccess.h"
 
 namespace UIEditor
 {
@@ -496,15 +497,15 @@ namespace UIEditor
         root["version"] = kCurrentUIJsonVersion;
         root["canvas"] = {
             { "id", 0 },
-            { "name", document._canvasName.empty() ? kDefaultCanvasName : document._canvasName },
-            { "width", document._canvasSize.x },
-            { "height", document._canvasSize.y }
+            { "name", document.Get_CanvasName().empty() ? kDefaultCanvasName : document.Get_CanvasName() },
+            { "width", document.Get_CanvasSize().x },
+            { "height", document.Get_CanvasSize().y }
         };
 
         root["objects"] = json::array();
 
         unordered_set<ObjectId> savedObjectIds;
-        for (const UI_Object& object : document._objects)
+        for (const UI_Object& object : document.Get_Objects())
         {
             if (object.id == 0 || savedObjectIds.find(object.id) != savedObjectIds.end())
             {
@@ -733,11 +734,7 @@ namespace UIEditor
             }
         }
 
-        document._canvasName = nextCanvasName.empty() ? kDefaultCanvasName : nextCanvasName;
-        document._canvasSize = nextCanvasSize;
-        document._objects = move(nextObjects);
-        document.Validate_ParentLinks();
-        document.Resolve_NextObjectId();
+        UI_DocumentInternalAccess::Replace_LoadedContent(document, nextCanvasName.empty() ? kDefaultCanvasName : nextCanvasName, nextCanvasSize, move(nextObjects));
 
         return true;
     }

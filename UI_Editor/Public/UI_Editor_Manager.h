@@ -7,6 +7,7 @@
 #include "UI_Editor_PreviewService.h"
 #include "UI_Editor_Window.h"
 #include "UI_ObjectCommandService.h"
+#include "UI_ObjectEditService.h"
 #include "UI_PrefabService.h"
 #include "UI_SelectionService.h"
 #include "UI_TransformService.h"
@@ -27,7 +28,6 @@ public:
     Shared<UI_Editor_Window> Find_Window(const wstring& windowName) const;
 
 public:
-    UI_Document& Get_Document();
     const UI_Document& Get_Document() const;
     ObjectId Get_SelectedObjectId() const;
     void Set_SelectedObjectId(ObjectId objectId);
@@ -41,7 +41,6 @@ public:
     void Add_ToSelection(ObjectId objectId);
     void Toggle_Selection(ObjectId objectId);
     void Clear_Selection();
-    UI_Object* Get_SelectedObject();
     const UI_Object* Get_SelectedObject() const;
     bool Is_AssetManagerReady() const;
     bool Is_Dirty() const;
@@ -80,6 +79,22 @@ public:
     bool Is_ObjectEffectivelyLocked(ObjectId objectId) const;
     bool Set_ObjectVisible(ObjectId objectId, bool visible);
     bool Set_ObjectLocked(ObjectId objectId, bool locked);
+    bool Set_UIObjectLocalPosition(ObjectId objectId, const ImVec2& position);
+    bool Set_UIObjectSize(ObjectId objectId, const ImVec2& size);
+    bool Set_UIObjectScale(ObjectId objectId, const ImVec2& scale);
+    bool Set_UIObjectRotationRadians(ObjectId objectId, float rotationRadians);
+    bool Set_UIObjectSortOrder(ObjectId objectId, int32 sortOrder);
+    bool Set_UIObjectRenderGroup(ObjectId objectId, UI_RenderGroup renderGroup);
+    bool Set_UIObjectColor(ObjectId objectId, const ImVec4& color);
+    bool Set_UIObjectImageRenderMode(ObjectId objectId, UI_ImageRenderMode imageRenderMode);
+    bool Set_UIObjectTextureBinding(ObjectId objectId, const string& textureGuid, const string& texturePath);
+    bool Set_UIObjectMaskTextureBinding(ObjectId objectId, const string& textureGuid, const string& texturePath);
+    bool Set_UIObjectPatternMaskTextureBinding(ObjectId objectId, const string& textureGuid, const string& texturePath);
+    bool Set_UIObjectText(ObjectId objectId, const string& text);
+    bool Set_UIObjectFontSize(ObjectId objectId, float fontSize);
+    bool Set_UIObjectTextAlign(ObjectId objectId, UI_TextAlign textAlign);
+    bool Set_UIObjectTextWrap(ObjectId objectId, bool textWrap);
+    bool Set_UIObjectFontBinding(ObjectId objectId, const string& fontGuid, const string& fontPath, const string& fontTag);
     bool Set_UIObjectWorldPosition(ObjectId objectId, const ImVec2& worldPosition);
     bool Set_UIObjectWorldRect(ObjectId objectId, const ImVec2& worldPosition, const ImVec2& worldSize);
     bool Set_UIObjectPivotKeepWorldRect(ObjectId objectId, const ImVec2& pivot);
@@ -134,6 +149,7 @@ private:
     void Prune_InvalidSelection();
     bool Select_ImportedObjectsAndRefresh(const vector<ObjectId>& createdRootObjectIds);
     void Restore_HistorySelectionAndRefresh(ObjectId selectedObjectId, const vector<ObjectId>& selectedObjectIds);
+    bool Apply_UIObjectEdit(ObjectId objectId, const function<bool(const UI_Object&)>& canApply, const function<bool()>& applyEdit);
     void Push_UndoSnapshot();
     void Clear_History();
 
@@ -151,6 +167,7 @@ private:
     UI_Editor_FileService _fileService = {};
     UI_ClipboardService _clipboardService = {};
     UI_ObjectCommandService _objectCommandService = {};
+    UI_ObjectEditService _objectEditService = {};
     UI_TransformService _transformService = {};
     ObjectId _renameRequestObjectId = 0;
     bool _isRenamingCanvas = false;
