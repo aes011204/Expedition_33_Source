@@ -178,7 +178,6 @@
     <ClInclude Include="..\Public\FreeAimTargeting.h" />
     <ClInclude Include="..\Public\GameplayUI_Battle.h" />
     <ClInclude Include="..\Public\GameplayUI_World.h" />
-    <ClInclude Include="..\Public\MapStaticCollisionBuilder.h" />
     <ClInclude Include="..\public\MB_Bishop.h" />
     <ClInclude Include="..\public\MB_Portier.h" />
     <ClInclude Include="..\public\MB_Volester.h" />
@@ -375,7 +374,6 @@
     <ClCompile Include="..\Private\FreeAimTargeting.cpp" />
     <ClCompile Include="..\Private\GameplayUI_Battle.cpp" />
     <ClCompile Include="..\Private\GameplayUI_World.cpp" />
-    <ClCompile Include="..\Private\MapStaticCollisionBuilder.cpp" />
     <ClCompile Include="..\private\MB_Bishop.cpp" />
     <ClCompile Include="..\private\MB_Portier.cpp" />
     <ClCompile Include="..\private\MB_Volester.cpp" />
