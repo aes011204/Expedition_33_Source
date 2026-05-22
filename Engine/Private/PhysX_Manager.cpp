@@ -456,7 +456,7 @@ PhysXStaticActorHandle PhysX_Manager::Register_StaticCollision(const StaticColli
     CHECK_NULL(_defaultStaticMaterial, emptyHandle);
 
     const bool hasPrimitive = !collisionData.primitiveProxies.empty();
-    const bool hasTriangles = !collisionData.triangleMeshes.empty();
+    const bool hasTriangles = !collisionData.triangleMeshes.empty() || !collisionData.cookedTriangleMeshes.empty();
     if (!hasPrimitive && !hasTriangles)
         return emptyHandle;
 
@@ -565,7 +565,11 @@ PhysXStaticActorHandle PhysX_Manager::Register_StaticCollision(const StaticColli
         shape->release();
     }
 
-    for (const ModelCollisionMesh& mesh : collisionData.triangleMeshes)
+    const size_t triangleShapeCount = !collisionData.triangleMeshes.empty()
+        ? collisionData.triangleMeshes.size()
+        : triangleMeshes.size();
+
+    for (size_t i = 0; i < triangleShapeCount; ++i)
     {
         if (triangleMeshIndex >= triangleMeshes.size())
             break;

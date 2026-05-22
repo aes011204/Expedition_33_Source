@@ -131,6 +131,34 @@ HRESULT MapLoader::Begin_LoadSession(const ComPtr<Device>& device, const ComPtr<
         }
     }
 
+    if (mapData.contains("ModelCollisions") && mapData["ModelCollisions"].is_object())
+    {
+        for (const auto& [modelPath, meshArray] : mapData["ModelCollisions"].items())
+        {
+            if (!meshArray.is_array())
+                continue;
+
+            vector<vector<uint8_t>> cookedMeshes;
+            cookedMeshes.reserve(meshArray.size());
+
+            for (const json& meshData : meshArray)
+            {
+                if (meshData.is_binary())
+                {
+                    const auto& binaryData = meshData.get_binary();
+                    cookedMeshes.emplace_back(binaryData.begin(), binaryData.end());
+                }
+                else if (meshData.is_string())
+                {
+                    cookedMeshes.push_back(String::Base64_Decode(meshData.get<string>()));
+                }
+            }
+
+            if (!cookedMeshes.empty())
+                outSession.cookedCollisionCache[modelPath] = std::move(cookedMeshes);
+        }
+    }
+
     outSession.preloadModelsDone = outSession.preloadModelPaths.empty();
     outSession.staticMeshesDone = outSession.staticMeshes.empty();
     outSession.instancedMeshesDone = outSession.instancedMeshes.empty();
@@ -333,22 +361,14 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
         }
 
         // StaticMeshes 전용 collision data cache
-        auto collisionIt = session.preloadedCollisionCache.end();
-        if (false && collisionIt != session.preloadedCollisionCache.end())
+        auto collisionIt = session.preloadedCollisionCache.find(modelPathStr);
+        if (collisionIt != session.preloadedCollisionCache.end())
         {
             desc.collisionData = collisionIt->second;
         }
-        else if (false)
+        else
         {
-            // 전역 캐시 및 안전 빌드 헬퍼 활용
-            Shared<StaticCollisionData> collisionData = GetOrBuildCollision(
-                desc.model,
-                modelPathStr,
-                &session.collisionBuildDuration,
-                &session.collisionBuildCount);
-            
-            session.preloadedCollisionCache[modelPathStr] = collisionData;
-            desc.collisionData = collisionData;
+            desc.collisionData = GetOrCreateCookedCollision(session, desc.model, modelPathStr);
         }
 
         desc.modelPath = String::ToWString(modelPathStr);
@@ -570,18 +590,8 @@ void MapLoader::Prepare_StaticAutoInstancing(LoadSession& session)
             continue;
         }
 
-        auto collisionIt = session.preloadedCollisionCache.find(modelPath);
-        if (false && collisionIt == session.preloadedCollisionCache.end())
-        {
-            const auto collisionBuildBegin = chrono::steady_clock::now();
-            Shared<StaticCollisionData> collisionData = MapStaticCollisionBuilder::Build(modelIt->second);
-            session.collisionBuildDuration +=
-                chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - collisionBuildBegin);
-            ++session.collisionBuildCount;
-            collisionIt = session.preloadedCollisionCache.emplace(modelPath, collisionData).first;
-        }
-
-        if (false && collisionIt != session.preloadedCollisionCache.end() && collisionIt->second != nullptr)
+        Shared<StaticCollisionData> collisionData = GetOrCreateCookedCollision(session, modelIt->second, modelPath);
+        if (collisionData != nullptr)
         {
             remainingStaticMeshes.push_back(item);
             continue;
@@ -863,6 +873,49 @@ Shared<ModelCom> MapLoader::GetOrLoadModel(
     }
 
     return model;
+}
+
+Shared<StaticCollisionData> MapLoader::GetOrCreateCookedCollision(
+    LoadSession& session,
+    const Shared<ModelCom>& model,
+    const string& modelPathStr)
+{
+    if (model == nullptr || modelPathStr.empty())
+        return nullptr;
+
+    auto sessionIt = session.preloadedCollisionCache.find(modelPathStr);
+    if (sessionIt != session.preloadedCollisionCache.end())
+        return sessionIt->second;
+
+    {
+        std::lock_guard<std::mutex> lock(g_globalCacheMutex);
+        auto globalIt = g_globalCollisionCache.find(modelPathStr);
+        if (globalIt != g_globalCollisionCache.end())
+        {
+            session.preloadedCollisionCache[modelPathStr] = globalIt->second;
+            return globalIt->second;
+        }
+    }
+
+    auto cookedIt = session.cookedCollisionCache.find(modelPathStr);
+    if (cookedIt == session.cookedCollisionCache.end() || cookedIt->second.empty())
+        return nullptr;
+
+    auto collisionData = make_shared<StaticCollisionData>();
+    collisionData->cacheKey = model->Get_SourceModelPath();
+    if (collisionData->cacheKey.empty())
+        collisionData->cacheKey = String::ToWString(modelPathStr);
+    collisionData->preLocalTransform = model->Get_PreLocalTransformMatrix();
+    collisionData->cookedTriangleMeshes = cookedIt->second;
+
+    session.preloadedCollisionCache[modelPathStr] = collisionData;
+
+    {
+        std::lock_guard<std::mutex> lock(g_globalCacheMutex);
+        g_globalCollisionCache[modelPathStr] = collisionData;
+    }
+
+    return collisionData;
 }
 
 Shared<StaticCollisionData> MapLoader::GetOrBuildCollision(

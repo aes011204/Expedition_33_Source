@@ -1,4 +1,4 @@
-﻿#include "MapInstancedMesh.h"
+#include "MapInstancedMesh.h"
 #include "GameInstance.h"
 #include "ComputeShaderCom.h"
 #include "ComputeStructuredBuffer.h"
@@ -88,6 +88,11 @@ void MapInstancedMesh::Update(float timeDelta)
 void MapInstancedMesh::Late_Update(float timeDelta)
 {
     if (_instanceCount == 0)
+    {
+        return;
+    }
+
+    if (!GAME->IsVisible(_groupBounds))
     {
         return;
     }
@@ -273,26 +278,22 @@ HRESULT MapInstancedMesh::Bind_ShaderResources()
 HRESULT MapInstancedMesh::CreateCullBuffers(const vector<Matrix>& matrices, const vector<InstanceTransform>& transforms)
 {
     const uint32 count = static_cast<uint32>(matrices.size());
-    if (count == 0 || !_cullShader)
+    if (count == 0)
     {
         return S_OK;
-    }
-
-    _instanceSrcBuffer = ComputeStructuredBuffer::Create(_device, _context, sizeof(Matrix), count, matrices.data());
-    if (!_instanceSrcBuffer)
-    {
-        return E_FAIL;
     }
 
     Vec3 localMin{}, localMax{};
     const bool hasBounds = _model && _model->Try_Get_LocalBounds(localMin, localMax);
     const Matrix preTransform = _model ? _model->Get_PreLocalTransformMatrix() : Matrix::Identity;
 
+    bool hasMergedBounds = false;
     vector<Vec4> spheres;
     spheres.reserve(count);
 
     for (uint32 i = 0; i < count; ++i)
     {
+        BoundingBox worldBox;
         if (hasBounds)
         {
             BoundingBox localBox;
@@ -300,7 +301,6 @@ HRESULT MapInstancedMesh::CreateCullBuffers(const vector<Matrix>& matrices, cons
                 XMVectorSet(localMin.x, localMin.y, localMin.z, 0.f),
                 XMVectorSet(localMax.x, localMax.y, localMax.z, 0.f));
 
-            BoundingBox worldBox;
             localBox.Transform(worldBox, preTransform * matrices[i]);
 
             BoundingSphere sphere;
@@ -309,8 +309,32 @@ HRESULT MapInstancedMesh::CreateCullBuffers(const vector<Matrix>& matrices, cons
         }
         else
         {
+            worldBox.Center = Vec3(matrices[i].m[3][0], matrices[i].m[3][1], matrices[i].m[3][2]);
+            worldBox.Extents = Vec3(500.f, 500.f, 500.f);
+
             spheres.push_back({ matrices[i].m[3][0], matrices[i].m[3][1], matrices[i].m[3][2], 500.f });
         }
+
+        if (!hasMergedBounds)
+        {
+            _groupBounds = worldBox;
+            hasMergedBounds = true;
+        }
+        else
+        {
+            BoundingBox::CreateMerged(_groupBounds, _groupBounds, worldBox);
+        }
+    }
+
+    if (!_cullShader)
+    {
+        return S_OK;
+    }
+
+    _instanceSrcBuffer = ComputeStructuredBuffer::Create(_device, _context, sizeof(Matrix), count, matrices.data());
+    if (!_instanceSrcBuffer)
+    {
+        return E_FAIL;
     }
 
     _sphereBuffer = ComputeStructuredBuffer::Create(_device, _context,

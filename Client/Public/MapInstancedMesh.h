@@ -65,6 +65,7 @@ private:
     ComPtr<Buffer> _visibleVB;
     ComPtr<Buffer> _cullCB;
     vector<ComPtr<Buffer>> _indirectArgsBuffers;
+    BoundingBox _groupBounds = {};
 
 private:
     HRESULT Ready_Components(const wstring& modelPath, Shared<ModelCom> sharedModel);

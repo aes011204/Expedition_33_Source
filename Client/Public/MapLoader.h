@@ -35,6 +35,7 @@ public:
 
         umap<string, Shared<ModelCom>> preloadedModelCache = {};
         umap<string, Shared<StaticCollisionData>> preloadedCollisionCache = {};
+        umap<string, vector<vector<uint8_t>>> cookedCollisionCache = {};
 
         // 청크 unload를 위해 생성 객체를 선택적으로 수집
         vector<Shared<GameObject>>* spawnedObjects = nullptr; 
@@ -119,6 +120,11 @@ private:
         const string& modelPathStr,
         chrono::milliseconds* outDuration = nullptr,
         size_t* outCount = nullptr);
+
+    static Shared<StaticCollisionData> GetOrCreateCookedCollision(
+        LoadSession& session,
+        const Shared<ModelCom>& model,
+        const string& modelPathStr);
 
 private:
     // 스레드 안전한 전역 맵 모델 프로토타입 캐시 멤버

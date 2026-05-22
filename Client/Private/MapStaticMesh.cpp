@@ -200,6 +200,14 @@ HRESULT MapStaticMesh::Initialize(void* arg)
     _transformCom->Set_RotationQuaternion(pDesc->rotation);
     _transformCom->Set_Scale(pDesc->scale);
 
+    if (_collisionData != nullptr)
+    {
+        _physxStaticHandle = GAME->Register_PhysXStaticCollision(
+            *_collisionData,
+            _transformCom->Get_WorldMatrix(),
+            Collision_Preset::Enviroment);
+    }
+
     return S_OK;
 }
 
