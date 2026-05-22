@@ -2,6 +2,7 @@
 #include "Client_Defines.h"
 
 NS_BEGIN(Engine)
+class GameObject;
 class ModelCom;
 struct StaticCollisionData;
 NS_END
@@ -37,6 +38,7 @@ public:
         // 청크 unload를 위해 생성 객체를 선택적으로 수집
         vector<Shared<GameObject>>* spawnedObjects = nullptr; 
 
+        bool staticAutoInstancingPrepared = false;
         bool preloadModelsDone = false;
         bool staticMeshesDone = false;
         bool instancedMeshesDone = false;
@@ -55,6 +57,8 @@ public:
         size_t collisionBuildCount = 0;
         size_t staticAddCount = 0;
         size_t instancedAddCount = 0;
+        size_t autoInstancedStaticCount = 0;
+        size_t autoInstancedGroupCount = 0;
 
         bool summaryLogged = false;
     };
@@ -82,6 +86,7 @@ public:
         const wstring& layerTag);
 
 private:
+    static void Prepare_StaticAutoInstancing(LoadSession& session);
     static void ApplyMaterials(Shared<ModelCom>& model, const string& modelFolder, const string& modelFullPath, int32 forcedPassIndex = -1);
 };
 

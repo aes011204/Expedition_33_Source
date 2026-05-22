@@ -16,10 +16,19 @@ auto Loader::Find_MapLoadDesc() const -> const LevelMapLoadDesc*
 {
     static const LevelMapLoadDesc mapLoadDescs[] =
     {
-        // Level_Gameplay -> 청크 스트리밍에서 시작 청크 로딩 방식으로 변경
-        //{ LevelType::GamePlay, Constants::Map::SmallLevel_SimonArea_Remake_Path, L"Layer_MapStaticMesh" },
-        { LevelType::MapTest,  Constants::Map::TestMap_Path, L"Layer_MapStaticMesh" },
-        { LevelType::Stage01,  Constants::Map::SmallLevel_SimonArea_Remake_Path, L"Layer_MapStaticMesh" },
+        {
+            LevelType::GamePlay,
+            {
+                Constants::Map::SpringChunk_04_00_Path,
+                Constants::Map::SpringChunk_04_01_Path,
+                Constants::Map::SpringChunk_04_02_Path,
+                Constants::Map::SpringChunk_04_03_Path,
+            },
+            4,
+            L"Layer_MapStaticMesh"
+        },
+        { LevelType::MapTest,  { Constants::Map::TestMap_Path }, 1, L"Layer_MapStaticMesh" },
+        { LevelType::Stage01,  { Constants::Map::SmallLevel_SimonArea_Remake_Path }, 1, L"Layer_MapStaticMesh" },
     };
 
     for (const LevelMapLoadDesc& desc : mapLoadDescs)
@@ -651,12 +660,26 @@ HRESULT Loader::Process_LevelMapLoad(size_t maxMeshesPerFrame, chrono::milliseco
         return S_OK;
     }
 
+    if (_mapLoadPathIndex >= desc->mapPathCount)
+    {
+        _mapLoadFinished = true;
+        return S_OK;
+    }
+
     if (!_mapLoadStarted)
     {
+        LOG_DEBUG(
+            "[Loader::MapLoad] begin {}/{} path={}",
+            _mapLoadPathIndex + 1,
+            desc->mapPathCount,
+            String::ToString(desc->mapPaths[_mapLoadPathIndex]));
+
         CHECK_FAILED(
-            MapLoader::Begin_LoadSession(_device, _context, desc->mapPath,
+            MapLoader::Begin_LoadSession(_device, _context, desc->mapPaths[_mapLoadPathIndex],
                 ETOI(desc->level), desc->layerTag, _mapLoadSession), E_FAIL);
 
+        _mapLoadSession.preloadedModelCache = _mapPreloadedModelCache;
+        _mapLoadSession.preloadedCollisionCache = _mapPreloadedCollisionCache;
         _mapLoadStarted = true;
     }
 
@@ -665,7 +688,25 @@ HRESULT Loader::Process_LevelMapLoad(size_t maxMeshesPerFrame, chrono::milliseco
         MapLoader::Process_LoadSession(_mapLoadSession,
             maxMeshesPerFrame, maxTimePerFrame, finished), E_FAIL);
 
-    _mapLoadFinished = finished;
+    if (finished)
+    {
+        _mapPreloadedModelCache.insert(
+            _mapLoadSession.preloadedModelCache.begin(),
+            _mapLoadSession.preloadedModelCache.end());
+        _mapPreloadedCollisionCache.insert(
+            _mapLoadSession.preloadedCollisionCache.begin(),
+            _mapLoadSession.preloadedCollisionCache.end());
+
+        LOG_DEBUG(
+            "[Loader::MapLoad] finished {}/{}",
+            _mapLoadPathIndex + 1,
+            desc->mapPathCount);
+
+        ++_mapLoadPathIndex;
+        _mapLoadStarted = false;
+        _mapLoadSession = {};
+        _mapLoadFinished = _mapLoadPathIndex >= desc->mapPathCount;
+    }
 
     return S_OK;
 }

@@ -9,12 +9,7 @@
 #include "Spawn_Prefab.h"
 #include "TargetCamera.h"
 #include "MapLoader.h"
-#include "UI_Base.h"
-#include "UI_Button.h"
-#include "UI_Image.h"
-#include "UI_RuntimeLoader.h"
-#include "UI_Text.h"
-#include "UI_Transform.h"
+
 
 Level_GamePlay::Level_GamePlay(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : StreamingLevel{ device, context }
@@ -23,8 +18,9 @@ Level_GamePlay::Level_GamePlay(const ComPtr<Device>& device, const ComPtr<Contex
 
 HRESULT Level_GamePlay::Initialize()
 {
-    if (FAILED(Ready_ChunkMap()))
-        return E_FAIL;
+    // 초기 청크는 Loader 로딩 단계에서 처리한다.
+    //if (FAILED(Ready_ChunkMap()))
+    //    return E_FAIL;
 
     if (FAILED(Ready_Lights()))
         return E_FAIL;
@@ -59,7 +55,8 @@ void Level_GamePlay::BeginPlay()
 void Level_GamePlay::Update(float fTimeDelta)
 {
     Sync_LuneRightHandEffect();
-    Update_MapStreaming(fTimeDelta);
+    // 초기 청크 로딩을 GamePlay 첫 프레임으로 넘기지 않는다.
+    //Update_MapStreaming(fTimeDelta);
     Update_WindowTitleFps();
 
 #ifdef _DEBUG
@@ -128,8 +125,8 @@ HRESULT Level_GamePlay::Ready_ChunkMap()
     streamingDesc.levelIndex = ETOI(LevelType::GamePlay);
     streamingDesc.gridWidth = 6;
     streamingDesc.gridHeight = 6;
-    streamingDesc.initialChunkX = 4; // chunk_00_04의 col
-    streamingDesc.initialChunkZ = 0; // chunk_00_04의 row
+    streamingDesc.initialChunkX = 3; // chunk_00_03의 col
+    streamingDesc.initialChunkZ = 0; // chunk_00_03의 row
     streamingDesc.activeChunkRadius = 1;
     streamingDesc.maxMeshesPerFrame = 8;
     streamingDesc.maxTimePerFrame = chrono::milliseconds(8);
@@ -271,7 +268,7 @@ HRESULT Level_GamePlay::Ready_Layer_Monster(const wstring& strLayerTag)
 
 HRESULT Level_GamePlay::Ready_Layer_Player(const wstring& strLayerTag)
 {
-    Vec3 startPos = Vec3(213.f, -4020.47f, -1.94f);
+    Vec3 startPos = Vec3(-85.f, 48.f, -77.f);
     CHECK_FAILED(CLIENT->Initialize_Hero(ETOI(LevelType::GamePlay), strLayerTag, startPos), E_FAIL);
 
     return S_OK;
@@ -376,7 +373,7 @@ Shared<Level_GamePlay> Level_GamePlay::Create(const ComPtr<Device>& device, cons
 
 void Level_GamePlay::Free()
 {
-    Free_MapStreaming();
+    //Free_MapStreaming();
 
     CLIENT->Clear_GameplayUI();
 

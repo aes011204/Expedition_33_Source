@@ -263,6 +263,7 @@ public: /* For.Light_Manager */
 
 public: /* For.Font_Manager */
     HRESULT Add_Font(const wstring& fontTag, const wchar_t* fontFilePath);
+    bool    Has_Font(const wstring& fontTag) const;
     Vec2 Measure_Font(const wstring& fontTag, const wchar_t* text);
     void Draw_Font(
         const wstring& fontTag,

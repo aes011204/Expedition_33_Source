@@ -12,6 +12,7 @@ public:
 
 public:
 	HRESULT Add_Font(const wstring& fontTag, const wchar_t* fontFilePath);
+    bool Has_Font(const wstring& fontTag) const;
     Vec2 Measure(const wstring& fontTag, const wchar_t* text);
 	void Draw(
         const wstring& fontTag,
@@ -28,7 +29,7 @@ private:
 	map<const wstring, Shared<class CustomFont>>		_fonts;
 
 private:
-	Shared<class CustomFont> Find_Font(const wstring& fontTag);
+	Shared<class CustomFont> Find_Font(const wstring& fontTag) const;
 
 public:
 	static Unique<Font_Manager> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

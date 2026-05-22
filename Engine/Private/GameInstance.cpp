@@ -1306,6 +1306,11 @@ HRESULT GameInstance::Add_Font(const wstring& fontTag, const wchar_t* fontFilePa
     return _fontManager->Add_Font(fontTag, fontFilePath);
 }
 
+bool GameInstance::Has_Font(const wstring& fontTag) const
+{
+    return _fontManager->Has_Font(fontTag);
+}
+
 Vec2 GameInstance::Measure_Font(const wstring& fontTag, const wchar_t* text)
 {
     return _fontManager->Measure(fontTag, text);

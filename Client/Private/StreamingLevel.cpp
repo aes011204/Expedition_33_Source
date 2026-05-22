@@ -76,18 +76,10 @@ int32 StreamingLevel::To_ChunkIndex(int32 gridX, int32 gridZ) const
 
 void StreamingLevel::Queue_InitialMapChunks()
 {
-    const int32 minZ = _mapStreamingDesc.initialChunkZ - _mapStreamingDesc.activeChunkRadius;
-    const int32 maxZ = _mapStreamingDesc.initialChunkZ + _mapStreamingDesc.activeChunkRadius;
-    const int32 minX = _mapStreamingDesc.initialChunkX - _mapStreamingDesc.activeChunkRadius;
-    const int32 maxX = _mapStreamingDesc.initialChunkX + _mapStreamingDesc.activeChunkRadius;
-
-    for (int32 z = minZ; z <= maxZ; ++z)
-    {
-        for (int32 x = minX; x <= maxX; ++x)
-        {
-            Queue_MapChunk(x, z);
-        }
-    }
+    Queue_MapChunk(_mapStreamingDesc.initialChunkX, _mapStreamingDesc.initialChunkZ);
+    Queue_MapChunk(_mapStreamingDesc.initialChunkX + 1, _mapStreamingDesc.initialChunkZ);
+    Queue_MapChunk(_mapStreamingDesc.initialChunkX, _mapStreamingDesc.initialChunkZ + 1);
+    Queue_MapChunk(_mapStreamingDesc.initialChunkX + 1, _mapStreamingDesc.initialChunkZ + 1);
 }
 
 void StreamingLevel::Queue_MapChunk(int32 gridX, int32 gridZ)

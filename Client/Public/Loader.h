@@ -17,7 +17,8 @@ private:
     struct LevelMapLoadDesc
     {
         LevelType level = LevelType::END;
-        const wchar_t* mapPath = nullptr;
+        array<const wchar_t*, 4> mapPaths = {};
+        size_t mapPathCount = 0;
         const wchar_t* layerTag = nullptr;
     };
 
@@ -153,7 +154,10 @@ private:
 private: /* 맵 로딩 */
     bool _mapLoadStarted = false;
     bool _mapLoadFinished = false;
+    size_t _mapLoadPathIndex = 0;
     MapLoader::LoadSession _mapLoadSession{};
+    umap<string, Shared<ModelCom>> _mapPreloadedModelCache = {};
+    umap<string, Shared<StaticCollisionData>> _mapPreloadedCollisionCache = {};
 
 public:
     static Shared<Loader> Create(const ComPtr<Device>& device, const ComPtr<Context>& context, LevelType eNextLevelID);

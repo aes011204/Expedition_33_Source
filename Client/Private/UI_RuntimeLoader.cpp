@@ -611,6 +611,12 @@ namespace
         if (loadedFontTags.find(fontTag) != loadedFontTags.end())
             return true;
 
+        if (GAME->Has_Font(fontTag))
+        {
+            loadedFontTags.insert(fontTag);
+            return true;
+        }
+
         if (FAILED(GAME->Add_Font(fontTag, fontPath.c_str())))
         {
             LOG_ERROR("UI RuntimeLoader Add_Font failed. tag={}, path={}",
@@ -1178,10 +1184,7 @@ HRESULT UI_RuntimeLoader::Load_Document(const UI_LoadDesc& desc)
                 {
                     auto [nameIter, inserted] = desc.outUIByName->emplace(objectName, spawnedUI);
                     if (!inserted)
-                    {
-                        LOG_WARN("UI RuntimeLoader duplicated name replaced in output map: {}", object.name);
                         nameIter->second = spawnedUI;
-                    }
                 }
             }
         }

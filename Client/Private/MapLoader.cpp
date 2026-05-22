@@ -124,9 +124,14 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
             ModelType::NonAnim,
             fullPathA.c_str(),
             Matrix::CreateScale(0.01f));
-        session.modelCreateDuration +=
+        const auto modelCreateMs =
             chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - modelCreateBegin);
+        session.modelCreateDuration += modelCreateMs;
         ++session.modelCreateCount;
+        if (modelCreateMs >= chrono::milliseconds(100))
+        {
+            LOG_DEBUG("[MapLoader::Slow] model create={} path={}", modelCreateMs.count(), modelPathStr);
+        }
 
         if (!model)
         {
@@ -142,12 +147,25 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
 
         const auto materialApplyBegin = chrono::steady_clock::now();
         ApplyMaterials(model, session.modelFolder, fullPathA, forcedPass);
-        session.materialApplyDuration +=
+        const auto materialApplyMs =
             chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - materialApplyBegin);
+        session.materialApplyDuration += materialApplyMs;
         ++session.materialApplyCount;
+        if (materialApplyMs >= chrono::milliseconds(100))
+        {
+            LOG_DEBUG("[MapLoader::Slow] material apply={} path={}", materialApplyMs.count(), modelPathStr);
+        }
         session.preloadedModelCache[modelPathStr] = model;
 
         ++processedCount;
+    }
+
+    if (!session.staticAutoInstancingPrepared)
+    {
+        Prepare_StaticAutoInstancing(session);
+        session.staticAutoInstancingPrepared = true;
+        session.staticMeshesDone = session.staticMeshes.empty();
+        session.instancedMeshesDone = session.instancedMeshes.empty();
     }
 
     while (!session.staticMeshesDone)
@@ -185,9 +203,14 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
                 ModelType::NonAnim,
                 fullPathA.c_str(),
                 Matrix::CreateScale(0.01f));
-            session.modelCreateDuration +=
+            const auto modelCreateMs =
                 chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - modelCreateBegin);
+            session.modelCreateDuration += modelCreateMs;
             ++session.modelCreateCount;
+            if (modelCreateMs >= chrono::milliseconds(100))
+            {
+                LOG_DEBUG("[MapLoader::Slow] model create={} path={}", modelCreateMs.count(), modelPathStr);
+            }
 
             if (!model)
             {
@@ -203,9 +226,14 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
 
             const auto materialApplyBegin = chrono::steady_clock::now();
             ApplyMaterials(model, session.modelFolder, fullPathA, forcedPass);
-            session.materialApplyDuration +=
+            const auto materialApplyMs =
                 chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - materialApplyBegin);
+            session.materialApplyDuration += materialApplyMs;
             ++session.materialApplyCount;
+            if (materialApplyMs >= chrono::milliseconds(100))
+            {
+                LOG_DEBUG("[MapLoader::Slow] material apply={} path={}", materialApplyMs.count(), modelPathStr);
+            }
             session.preloadedModelCache[modelPathStr] = model;
             desc.model = model;
         }
@@ -220,9 +248,14 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
         {
             const auto collisionBuildBegin = chrono::steady_clock::now();
             Shared<StaticCollisionData> collisionData = MapStaticCollisionBuilder::Build(desc.model);
-            session.collisionBuildDuration +=
+            const auto collisionBuildMs =
                 chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - collisionBuildBegin);
+            session.collisionBuildDuration += collisionBuildMs;
             ++session.collisionBuildCount;
+            if (collisionBuildMs >= chrono::milliseconds(100))
+            {
+                LOG_DEBUG("[MapLoader::Slow] collision build={} path={}", collisionBuildMs.count(), modelPathStr);
+            }
             session.preloadedCollisionCache[modelPathStr] = collisionData;
             desc.collisionData = collisionData;
         }
@@ -258,9 +291,18 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
             session.layerTag,
             spawnedObject,
             &desc);
-        session.staticAddDuration +=
+        const auto staticAddMs =
             chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - staticAddBegin);
+        session.staticAddDuration += staticAddMs;
         ++session.staticAddCount;
+        if (staticAddMs >= chrono::milliseconds(100))
+        {
+            LOG_DEBUG(
+                "[MapLoader::Slow] static add={} model={} name={}",
+                staticAddMs.count(),
+                modelPathStr,
+                String::ToString(desc.name));
+        }
 
         if (FAILED(addResult))
             continue;
@@ -305,9 +347,14 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
                 ModelType::NonAnim,
                 fullPathA.c_str(),
                 Matrix::CreateScale(0.01f));
-            session.modelCreateDuration +=
+            const auto modelCreateMs =
                 chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - modelCreateBegin);
+            session.modelCreateDuration += modelCreateMs;
             ++session.modelCreateCount;
+            if (modelCreateMs >= chrono::milliseconds(100))
+            {
+                LOG_DEBUG("[MapLoader::Slow] model create={} path={}", modelCreateMs.count(), modelPathStr);
+            }
 
             if (!model)
             {
@@ -323,9 +370,14 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
 
             const auto materialApplyBegin = chrono::steady_clock::now();
             ApplyMaterials(model, session.modelFolder, fullPathA, forcedPass);
-            session.materialApplyDuration +=
+            const auto materialApplyMs =
                 chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - materialApplyBegin);
+            session.materialApplyDuration += materialApplyMs;
             ++session.materialApplyCount;
+            if (materialApplyMs >= chrono::milliseconds(100))
+            {
+                LOG_DEBUG("[MapLoader::Slow] material apply={} path={}", materialApplyMs.count(), modelPathStr);
+            }
             session.preloadedModelCache[modelPathStr] = model;
             desc.model = model;
         }
@@ -373,9 +425,14 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
             session.layerTag,
             spawnedObject,
             &desc);
-        session.instancedAddDuration +=
+        const auto instancedAddMs =
             chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - instancedAddBegin);
+        session.instancedAddDuration += instancedAddMs;
         ++session.instancedAddCount;
+        if (instancedAddMs >= chrono::milliseconds(100))
+        {
+            LOG_DEBUG("[MapLoader::Slow] instanced add={} model={}", instancedAddMs.count(), modelPathStr);
+        }
 
         if (FAILED(addResult))
         {
@@ -397,7 +454,7 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
     if (outFinished && !session.summaryLogged)
     {
         LOG_DEBUG(
-            "[MapLoader::Summary] processCalls={} begin={}ms models(data={}, createCalls={}, create={}ms, materials={}ms/{}) staticMeshes(data={}, add={}ms/{}, collisionBuild={}ms/{}) instancedMeshes(data={}, transforms={}ms, add={}ms/{})",
+            "[MapLoader::Summary] processCalls={} begin={}ms models(data={}, createCalls={}, create={}ms, materials={}ms/{}) staticMeshes(data={}, add={}ms/{}, collisionBuild={}ms/{}) instancedMeshes(data={}, transforms={}ms, add={}ms/{}) autoInstanced(groups={}, statics={})",
             session.processCallCount,
             session.beginSessionDuration.count(),
             session.preloadModelPaths.size(),
@@ -413,12 +470,96 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
             session.instancedMeshes.size(),
             session.instancedTransformDuration.count(),
             session.instancedAddDuration.count(),
-            session.instancedAddCount);
+            session.instancedAddCount,
+            session.autoInstancedGroupCount,
+            session.autoInstancedStaticCount);
 
         session.summaryLogged = true;
     }
 
     return S_OK;
+}
+
+void MapLoader::Prepare_StaticAutoInstancing(LoadSession& session)
+{
+    unordered_map<string, vector<size_t>> indicesByModelPath;
+    indicesByModelPath.reserve(session.staticMeshes.size());
+
+    for (size_t i = 0; i < session.staticMeshes.size(); ++i)
+    {
+        const string modelPath = session.staticMeshes[i].value("ModelPath", string{});
+        if (!modelPath.empty())
+        {
+            indicesByModelPath[modelPath].push_back(i);
+        }
+    }
+
+    vector<json> remainingStaticMeshes;
+    remainingStaticMeshes.reserve(session.staticMeshes.size());
+
+    for (const auto& item : session.staticMeshes)
+    {
+        const string modelPath = item.value("ModelPath", string{});
+        const auto groupIt = indicesByModelPath.find(modelPath);
+        if (modelPath.empty() || groupIt == indicesByModelPath.end() || groupIt->second.size() < 2)
+        {
+            remainingStaticMeshes.push_back(item);
+            continue;
+        }
+
+        auto modelIt = session.preloadedModelCache.find(modelPath);
+        if (modelIt == session.preloadedModelCache.end() || modelIt->second == nullptr)
+        {
+            remainingStaticMeshes.push_back(item);
+            continue;
+        }
+
+        auto collisionIt = session.preloadedCollisionCache.find(modelPath);
+        if (collisionIt == session.preloadedCollisionCache.end())
+        {
+            const auto collisionBuildBegin = chrono::steady_clock::now();
+            Shared<StaticCollisionData> collisionData = MapStaticCollisionBuilder::Build(modelIt->second);
+            session.collisionBuildDuration +=
+                chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - collisionBuildBegin);
+            ++session.collisionBuildCount;
+            collisionIt = session.preloadedCollisionCache.emplace(modelPath, collisionData).first;
+        }
+
+        if (collisionIt->second != nullptr)
+        {
+            remainingStaticMeshes.push_back(item);
+            continue;
+        }
+
+        const vector<size_t>& groupIndices = groupIt->second;
+        if (groupIndices.front() != (&item - session.staticMeshes.data()))
+        {
+            continue;
+        }
+
+        json instancedItem;
+        instancedItem["Id"] = modelPath;
+        instancedItem["ModelPath"] = modelPath;
+        instancedItem["Instances"] = json::array();
+
+        for (const size_t sourceIndex : groupIndices)
+        {
+            const json& source = session.staticMeshes[sourceIndex];
+            json instance;
+            instance["Position"] = source["Position"];
+            instance["Rotation"] = source["Rotation"];
+            instance["Scale"] = source["Scale"];
+            instancedItem["Instances"].push_back(std::move(instance));
+        }
+
+        session.autoInstancedStaticCount += groupIndices.size();
+        ++session.autoInstancedGroupCount;
+        session.instancedMeshes.push_back(std::move(instancedItem));
+    }
+
+    session.staticMeshes = std::move(remainingStaticMeshes);
+    session.nextStaticMeshIndex = 0;
+    session.nextInstancedMeshIndex = 0;
 }
 
 void MapLoader::ApplyMaterials(Shared<ModelCom>& model, const string& modelFolder, const string& modelFullPath, int32 forcedPassIndex)
@@ -437,60 +578,77 @@ void MapLoader::ApplyMaterials(Shared<ModelCom>& model, const string& modelFolde
     transform(bundleKey.begin(), bundleKey.end(), bundleKey.begin(), ::tolower);
 
     fs::path jsonPath = fs::path(modelFullPath).replace_extension(".json");
-    ifstream jfs(jsonPath);
+    const string jsonPathKey = jsonPath.generic_string();
 
-    if (jfs.is_open())
+    using MaterialSlotBinding = pair<uint32, string>;
+    static unordered_map<string, vector<MaterialSlotBinding>> s_materialBindingCache;
+
+    auto cacheIt = s_materialBindingCache.find(jsonPathKey);
+    if (cacheIt == s_materialBindingCache.end())
     {
+        vector<MaterialSlotBinding> bindings;
+        ifstream jfs(jsonPath);
+
         try
         {
-            json modelJson = json::parse(jfs);
-
-            for (auto& entry : modelJson)
+            if (jfs.is_open())
             {
-                if (entry.value("Type", "") != "StaticMesh")
-                    continue;
+                json modelJson = json::parse(jfs);
 
-                if (!entry.contains("Properties") ||
-                    !entry["Properties"].contains("StaticMaterials"))
+                for (auto& entry : modelJson)
                 {
+                    if (entry.value("Type", "") != "StaticMesh")
+                        continue;
+
+                    if (!entry.contains("Properties") ||
+                        !entry["Properties"].contains("StaticMaterials"))
+                    {
+                        break;
+                    }
+
+                    const auto& staticMats = entry["Properties"]["StaticMaterials"];
+
+                    for (uint32 i = 0; i < static_cast<uint32>(staticMats.size()); ++i)
+                    {
+                        const auto& mat = staticMats[i];
+                        if (!mat.contains("MaterialInterface"))
+                            continue;
+
+                        const auto& mi = mat["MaterialInterface"];
+                        if (!mi.is_object())
+                            continue;
+
+                        string objectPath = mi.value("ObjectPath", "");
+                        if (objectPath.empty())
+                            continue;
+
+                        size_t dot = objectPath.find('.');
+                        string packagePath = (dot != string::npos)
+                            ? objectPath.substr(0, dot)
+                            : objectPath;
+
+                        size_t slash = packagePath.rfind('/');
+                        string miName = (slash != string::npos)
+                            ? packagePath.substr(slash + 1)
+                            : packagePath;
+
+                        bindings.emplace_back(i, miName);
+                    }
+
                     break;
                 }
-
-                const auto& staticMats = entry["Properties"]["StaticMaterials"];
-
-                for (uint32 i = 0; i < static_cast<uint32>(staticMats.size()); ++i)
-                {
-                    const auto& mat = staticMats[i];
-                    if (!mat.contains("MaterialInterface"))
-                        continue;
-
-                    const auto& mi = mat["MaterialInterface"];
-                    if (!mi.is_object())
-                        continue;
-
-                    string objectPath = mi.value("ObjectPath", "");
-                    if (objectPath.empty())
-                        continue;
-
-                    size_t dot = objectPath.find('.');
-                    string packagePath = (dot != string::npos)
-                        ? objectPath.substr(0, dot)
-                        : objectPath;
-
-                    size_t slash = packagePath.rfind('/');
-                    string miName = (slash != string::npos)
-                        ? packagePath.substr(slash + 1)
-                        : packagePath;
-
-                    model->Apply_MaterialByAssetName(i, bundleKey, miName);
-                }
-
-                break;
             }
         }
         catch (...)
         {
         }
+
+        cacheIt = s_materialBindingCache.emplace(jsonPathKey, std::move(bindings)).first;
+    }
+
+    for (const MaterialSlotBinding& binding : cacheIt->second)
+    {
+        model->Apply_MaterialByAssetName(binding.first, bundleKey, binding.second);
     }
 
     if (forcedPassIndex >= 0)
