@@ -658,6 +658,10 @@
     <ClInclude Include="..\public\ANS_Move.h">
       <Filter>AnimNotify</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\Player_GameMenu.h" />
+    <ClInclude Include="..\Public\Player_FreeAim.h">
+      <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -1068,6 +1072,10 @@
     </ClCompile>
     <ClCompile Include="..\private\ANS_Move.cpp">
       <Filter>AnimNotify</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Player_GameMenu.cpp" />
+    <ClCompile Include="..\Private\Player_FreeAim.cpp">
+      <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

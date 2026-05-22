@@ -274,6 +274,7 @@
     <ClInclude Include="..\Public\PlayerControllerCom.h" />
     <ClInclude Include="..\public\PlayerStatCom.h" />
     <ClInclude Include="..\Public\Player_BattleBase.h" />
+    <ClInclude Include="..\Public\Player_FreeAim.h" />
     <ClInclude Include="..\Public\Player_GameMenu.h" />
     <ClInclude Include="..\public\PreviewShotTable.h" />
     <ClInclude Include="..\public\SkillScript.h" />
@@ -446,6 +447,7 @@
     <ClCompile Include="..\Private\PlayerControllerCom.cpp" />
     <ClCompile Include="..\private\PlayerStatCom.cpp" />
     <ClCompile Include="..\Private\Player_BattleBase.cpp" />
+    <ClCompile Include="..\Private\Player_FreeAim.cpp" />
     <ClCompile Include="..\Private\Player_GameMenu.cpp" />
     <ClCompile Include="..\private\PreviewShotTable.cpp" />
     <ClCompile Include="..\Private\PW_Gustave.cpp" />

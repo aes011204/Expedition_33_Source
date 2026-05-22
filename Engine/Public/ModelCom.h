@@ -14,6 +14,7 @@ class Animation;
 class ComputeStructuredBuffer;
 class ComputeShaderCom;
 class AnimComputeRuntime;
+class AnimationModifier;
 
 class ENGINE_DLL ModelCom final : public Component
 {
@@ -78,6 +79,7 @@ public:
     void Rebuild_BoneCombinedMatrices();
 
 public:
+    Animation* Get_Animation(uint32 animIndex) const { return _animations[animIndex].get(); }
     float Get_FrameSpeed() const { return _frameSpeed; }
     void Set_FrameSpeed(float speed) { _frameSpeed = speed; }
 
@@ -91,6 +93,7 @@ public:
     void Set_Animation(const string& animName, bool isLoop = false, float startFrame = 0.f);
     void Set_Animation(const string& animName, float blendDuration, bool isLoop = false, float startFrame = 0.f);
     const char* Get_AnimationName(uint32 animationIndex) const;
+    uint32 Get_AnimationIndexByName(const string& animationName) const;
 
     bool Set_AnimationByState(uint32 stateIndex, bool isLoop = false, float startFrame = 0.f);
     bool Set_AnimationByState(uint32 stateIndex, float blendDuration, bool isLoop = false, float startFrame = 0.f);
@@ -225,6 +228,12 @@ public: /* Compute Shader */
 private:
     HRESULT Ensure_AnimationComputeSource();
 
+
+public: // Animation Bone Modifier 기능
+    void Add_AnimModifier(const Shared<AnimationModifier>& modifier);
+private:
+    void Evaluate_AnimationModifiers(float timeDelta);
+
 private:
     ModelType					        _type = { ModelType::END };
     bool                                _isSkeletal{ false };
@@ -247,6 +256,7 @@ private:
     vector<Shared<Animation>>	        _animations;
     vector<uint32>                      _stateAnimIndices;
     unordered_map<string, uint32>       _mappedAnimIndices;
+    vector<Shared<AnimationModifier>>   _modifiers;
 
     struct AppliedMaterialAsset
     {

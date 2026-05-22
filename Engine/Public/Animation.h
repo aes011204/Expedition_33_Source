@@ -7,7 +7,7 @@ NS_BEGIN(Engine)
 class Channel;
 class Bone;
 
-class Animation final : public Base
+class ENGINE_DLL Animation final : public Base
 {
 public:
 	Animation() = default;
