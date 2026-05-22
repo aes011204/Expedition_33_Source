@@ -1,4 +1,4 @@
-﻿#include "MapLoader.h"
+#include "MapLoader.h"
 #include "GameInstance.h"
 #include "MapStaticMesh.h"
 #include "MapInstancedMesh.h"
@@ -75,6 +75,89 @@ HRESULT MapLoader::Begin_LoadSession(const ComPtr<Device>& device, const ComPtr<
     return S_OK;
 }
 
+HRESULT MapLoader::Preload_SessionData(const ComPtr<Device>& device, const ComPtr<Context>& context,
+    const wstring& filePath, uint32 levelIndex, const wstring& layerTag, LoadSession& outSession)
+{
+    // 1. JSON 파일 로드 및 구조 분석 (백그라운드 스레드)
+    CHECK_FAILED(Begin_LoadSession(device, context, filePath, levelIndex, layerTag, outSession), E_FAIL);
+
+    // 2. 모델 리소스 파일 디스크 로드 루프 (백그라운드 스레드)
+    while (!outSession.preloadModelsDone)
+    {
+        if (outSession.nextPreloadModelIndex >= outSession.preloadModelPaths.size())
+        {
+            outSession.preloadModelsDone = true;
+            break;
+        }
+
+        const string modelPathStr = outSession.preloadModelPaths[outSession.nextPreloadModelIndex++];
+        if (modelPathStr.empty() ||
+            outSession.preloadedModelCache.find(modelPathStr) != outSession.preloadedModelCache.end())
+        {
+            continue;
+        }
+
+        string fullPathA = "../../../Client/Bin/Resources/Map/" + outSession.modelFolder + "/" + modelPathStr;
+
+        auto model = ModelCom::Create(
+            outSession.device,
+            outSession.context,
+            ModelType::NonAnim,
+            fullPathA.c_str(),
+            Matrix::CreateScale(0.01f));
+
+        if (!model)
+        {
+            continue;
+        }
+
+        int32 forcedPass = -1;
+        auto overrideIt = outSession.modelOverrides.find(modelPathStr);
+        if (overrideIt != outSession.modelOverrides.end())
+        {
+            forcedPass = overrideIt->second;
+        }
+
+        ApplyMaterials(model, outSession.modelFolder, fullPathA, forcedPass);
+        outSession.preloadedModelCache[modelPathStr] = model;
+
+        // 다른 스레드(특히 메인 스레드)에 CPU 사용권 양보
+        this_thread::yield();
+    }
+
+    // 2.5. 정적 콜리전 데이터 백그라운드 사전 빌드 (백그라운드 스레드)
+    for (const auto& e : outSession.staticMeshes)
+    {
+        const string modelPathStr = e.value("ModelPath", string{});
+        if (modelPathStr.empty())
+            continue;
+
+        if (outSession.preloadedCollisionCache.find(modelPathStr) != outSession.preloadedCollisionCache.end())
+            continue;
+
+        auto it = outSession.preloadedModelCache.find(modelPathStr);
+        if (it != outSession.preloadedModelCache.end() && it->second != nullptr)
+        {
+            Shared<StaticCollisionData> collisionData = MapStaticCollisionBuilder::Build(it->second);
+            outSession.preloadedCollisionCache[modelPathStr] = collisionData;
+        }
+
+        // 다른 스레드(특히 메인 스레드)에 CPU 사용권 양보
+        this_thread::yield();
+    }
+
+    // 3. 인스턴스 정렬 및 CPU 무거운 콜리전 빌드 사전 완료 (백그라운드 스레드)
+    if (!outSession.staticAutoInstancingPrepared)
+    {
+        Prepare_StaticAutoInstancing(outSession);
+        outSession.staticAutoInstancingPrepared = true;
+        outSession.staticMeshesDone = outSession.staticMeshes.empty();
+        outSession.instancedMeshesDone = outSession.instancedMeshes.empty();
+    }
+
+    return S_OK;
+}
+
 HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPerFrame,
     chrono::milliseconds maxTimePerFrame, bool& outFinished)
 {
@@ -128,10 +211,6 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
             chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - modelCreateBegin);
         session.modelCreateDuration += modelCreateMs;
         ++session.modelCreateCount;
-        if (modelCreateMs >= chrono::milliseconds(100))
-        {
-            LOG_DEBUG("[MapLoader::Slow] model create={} path={}", modelCreateMs.count(), modelPathStr);
-        }
 
         if (!model)
         {
@@ -151,10 +230,6 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
             chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - materialApplyBegin);
         session.materialApplyDuration += materialApplyMs;
         ++session.materialApplyCount;
-        if (materialApplyMs >= chrono::milliseconds(100))
-        {
-            LOG_DEBUG("[MapLoader::Slow] material apply={} path={}", materialApplyMs.count(), modelPathStr);
-        }
         session.preloadedModelCache[modelPathStr] = model;
 
         ++processedCount;
@@ -207,10 +282,6 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
                 chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - modelCreateBegin);
             session.modelCreateDuration += modelCreateMs;
             ++session.modelCreateCount;
-            if (modelCreateMs >= chrono::milliseconds(100))
-            {
-                LOG_DEBUG("[MapLoader::Slow] model create={} path={}", modelCreateMs.count(), modelPathStr);
-            }
 
             if (!model)
             {
@@ -230,10 +301,6 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
                 chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - materialApplyBegin);
             session.materialApplyDuration += materialApplyMs;
             ++session.materialApplyCount;
-            if (materialApplyMs >= chrono::milliseconds(100))
-            {
-                LOG_DEBUG("[MapLoader::Slow] material apply={} path={}", materialApplyMs.count(), modelPathStr);
-            }
             session.preloadedModelCache[modelPathStr] = model;
             desc.model = model;
         }
@@ -252,10 +319,6 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
                 chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - collisionBuildBegin);
             session.collisionBuildDuration += collisionBuildMs;
             ++session.collisionBuildCount;
-            if (collisionBuildMs >= chrono::milliseconds(100))
-            {
-                LOG_DEBUG("[MapLoader::Slow] collision build={} path={}", collisionBuildMs.count(), modelPathStr);
-            }
             session.preloadedCollisionCache[modelPathStr] = collisionData;
             desc.collisionData = collisionData;
         }
@@ -295,14 +358,6 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
             chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - staticAddBegin);
         session.staticAddDuration += staticAddMs;
         ++session.staticAddCount;
-        if (staticAddMs >= chrono::milliseconds(100))
-        {
-            LOG_DEBUG(
-                "[MapLoader::Slow] static add={} model={} name={}",
-                staticAddMs.count(),
-                modelPathStr,
-                String::ToString(desc.name));
-        }
 
         if (FAILED(addResult))
             continue;
@@ -351,10 +406,6 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
                 chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - modelCreateBegin);
             session.modelCreateDuration += modelCreateMs;
             ++session.modelCreateCount;
-            if (modelCreateMs >= chrono::milliseconds(100))
-            {
-                LOG_DEBUG("[MapLoader::Slow] model create={} path={}", modelCreateMs.count(), modelPathStr);
-            }
 
             if (!model)
             {
@@ -374,10 +425,6 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
                 chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - materialApplyBegin);
             session.materialApplyDuration += materialApplyMs;
             ++session.materialApplyCount;
-            if (materialApplyMs >= chrono::milliseconds(100))
-            {
-                LOG_DEBUG("[MapLoader::Slow] material apply={} path={}", materialApplyMs.count(), modelPathStr);
-            }
             session.preloadedModelCache[modelPathStr] = model;
             desc.model = model;
         }
@@ -429,10 +476,6 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
             chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - instancedAddBegin);
         session.instancedAddDuration += instancedAddMs;
         ++session.instancedAddCount;
-        if (instancedAddMs >= chrono::milliseconds(100))
-        {
-            LOG_DEBUG("[MapLoader::Slow] instanced add={} model={}", instancedAddMs.count(), modelPathStr);
-        }
 
         if (FAILED(addResult))
         {

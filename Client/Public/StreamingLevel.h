@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "Client_Defines.h"
 #include "Level.h"
 #include "MapLoader.h"
@@ -27,6 +27,7 @@ private:
     {
         Unloaded,
         Queued,
+        Preloading,
         Loading,
         Loaded,
     };
@@ -39,6 +40,9 @@ private:
         ChunkLoadState state = ChunkLoadState::Unloaded;
         MapLoader::LoadSession session = {};
         vector<Shared<GameObject>> loadedObjects = {};
+
+        Shared<atomic<bool>> preloadFinished = nullptr;
+        Shared<atomic<bool>> preloadFailed = nullptr;
     };
 
 protected:
@@ -56,6 +60,7 @@ private:
     void    Queue_MapChunk(int32 gridX, int32 gridZ);
     void    Process_MapChunkQueue();
     void    Unload_MapChunk(int32 chunkIndex);
+    void    Update_ActiveChunks(int32 centerCol, int32 centerRow);
     int32   To_ChunkIndex(int32 gridX, int32 gridZ) const;
     wstring Build_MapChunkPath(int32 gridX, int32 gridZ) const;
 
@@ -64,6 +69,16 @@ private:
     vector<StreamChunk> _mapChunks = {};
     deque<int32> _mapChunkLoadQueue = {};
     int32 _loadingChunkIndex = -1;
+    int32 _preloadingChunkIndex = -1;
+
+    float _xMin = 0.f;
+    float _zMin = 0.f;
+    float _chunkSizeX = 0.f;
+    float _chunkSizeZ = 0.f;
+    bool  _isManifestLoaded = false;
+
+    int32 _prevCenterCol = -1;
+    int32 _prevCenterRow = -1;
 };
 
 NS_END

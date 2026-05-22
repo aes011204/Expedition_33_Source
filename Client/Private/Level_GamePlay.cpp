@@ -1,4 +1,4 @@
-﻿#include "Level_GamePlay.h"
+#include "Level_GamePlay.h"
 #include "GameInstance.h"
 #include "ClientInstance.h"
 #include "Client_Constants.h"
@@ -18,9 +18,8 @@ Level_GamePlay::Level_GamePlay(const ComPtr<Device>& device, const ComPtr<Contex
 
 HRESULT Level_GamePlay::Initialize()
 {
-    // 초기 청크는 Loader 로딩 단계에서 처리한다.
-    //if (FAILED(Ready_ChunkMap()))
-    //    return E_FAIL;
+    if (FAILED(Ready_ChunkMap()))
+        return E_FAIL;
 
     if (FAILED(Ready_Lights()))
         return E_FAIL;
@@ -55,8 +54,7 @@ void Level_GamePlay::BeginPlay()
 void Level_GamePlay::Update(float fTimeDelta)
 {
     Sync_LuneRightHandEffect();
-    // 초기 청크 로딩을 GamePlay 첫 프레임으로 넘기지 않는다.
-    //Update_MapStreaming(fTimeDelta);
+    Update_MapStreaming(fTimeDelta);
     Update_WindowTitleFps();
 
 #ifdef _DEBUG
@@ -128,8 +126,8 @@ HRESULT Level_GamePlay::Ready_ChunkMap()
     streamingDesc.initialChunkX = 3; // chunk_00_03의 col
     streamingDesc.initialChunkZ = 0; // chunk_00_03의 row
     streamingDesc.activeChunkRadius = 1;
-    streamingDesc.maxMeshesPerFrame = 8;
-    streamingDesc.maxTimePerFrame = chrono::milliseconds(8);
+    streamingDesc.maxMeshesPerFrame = 2;
+    streamingDesc.maxTimePerFrame = chrono::milliseconds(2);
 
     CHECK_FAILED(Initialize_MapStreaming(streamingDesc), E_FAIL);
 
@@ -373,7 +371,7 @@ Shared<Level_GamePlay> Level_GamePlay::Create(const ComPtr<Device>& device, cons
 
 void Level_GamePlay::Free()
 {
-    //Free_MapStreaming();
+    Free_MapStreaming();
 
     CLIENT->Clear_GameplayUI();
 

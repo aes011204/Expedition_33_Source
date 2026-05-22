@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "Client_Defines.h"
 
 NS_BEGIN(Engine)
@@ -65,6 +65,14 @@ public:
 
 public:
     static HRESULT Begin_LoadSession(
+        const ComPtr<Device>& device,
+        const ComPtr<Context>& context,
+        const wstring& filePath,
+        uint32 levelIndex,
+        const wstring& layerTag,
+        LoadSession& outSession);
+
+    static HRESULT Preload_SessionData(
         const ComPtr<Device>& device,
         const ComPtr<Context>& context,
         const wstring& filePath,

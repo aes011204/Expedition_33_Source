@@ -1,5 +1,8 @@
-﻿#include "StreamingLevel.h"
+#include "StreamingLevel.h"
 #include "GameInstance.h"
+#include "ClientInstance.h"
+#include "GameObject.h"
+#include "TransformCom.h"
 
 StreamingLevel::StreamingLevel(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Level{ device, context }
@@ -13,6 +16,27 @@ HRESULT StreamingLevel::Initialize_MapStreaming(const MapStreamingDesc& desc)
 
     _mapStreamingDesc = desc;
     Initialize_MapChunks();
+
+    // manifest.json을 로드하여 실제 맵 바운드 경계 설정
+    fs::path manifestPath = fs::path(desc.chunkRoot) / "manifest.json";
+    json manifest = GAME->Load_JsonFile(manifestPath);
+    if (!manifest.is_null() && manifest.is_object())
+    {
+        _xMin = manifest["bounds"]["x_min"].get<float>();
+        _zMin = manifest["bounds"]["z_min"].get<float>();
+        _chunkSizeX = manifest["chunk_size"]["x"].get<float>();
+        _chunkSizeZ = manifest["chunk_size"]["z"].get<float>();
+        _isManifestLoaded = true;
+
+        LOG_INFO("[StreamingLevel] Loaded manifest. bounds(x_min={}, z_min={}) chunk_size(x={}, z={})",
+            _xMin, _zMin, _chunkSizeX, _chunkSizeZ);
+    }
+    else
+    {
+        LOG_ERROR("[StreamingLevel] Failed to load manifest.json from {}", String::ToString(manifestPath.wstring()));
+        return E_FAIL;
+    }
+
     Queue_InitialMapChunks();
 
     return S_OK;
@@ -22,14 +46,40 @@ void StreamingLevel::Update_MapStreaming(float timeDelta)
 {
     UNREFERENCED_PARAMETER(timeDelta);
 
+    // 실시간 플레이어 위치 추적 및 중심 격자 갱신
+    Shared<GameObject> player = CLIENT->Find_Player(_mapStreamingDesc.levelIndex);
+    if (player != nullptr && _isManifestLoaded)
+    {
+        Vec3 playerPos = player->Get_Transform()->Get_Position();
+        
+        int32 currentCol = static_cast<int32>((playerPos.x - _xMin) / _chunkSizeX);
+        int32 currentRow = static_cast<int32>((playerPos.z - _zMin) / _chunkSizeZ);
+
+        currentCol = max(0, min(currentCol, _mapStreamingDesc.gridWidth - 1));
+        currentRow = max(0, min(currentRow, _mapStreamingDesc.gridHeight - 1));
+
+        if (currentCol != _prevCenterCol || currentRow != _prevCenterRow)
+        {
+            _prevCenterCol = currentCol;
+            _prevCenterRow = currentRow;
+            Update_ActiveChunks(currentCol, currentRow);
+        }
+    }
+
     Process_MapChunkQueue();
 }
 
 void StreamingLevel::Free_MapStreaming()
 {
-    // 1차 구현에서는 unload를 자동 활성화하지 않는다. 큐만 비워 dangling 작업을 막는다.
     _mapChunkLoadQueue.clear();
     _loadingChunkIndex = -1;
+    _preloadingChunkIndex = -1;
+
+    for (int32 i = 0; i < static_cast<int32>(_mapChunks.size()); ++i)
+    {
+        Unload_MapChunk(i);
+    }
+    _mapChunks.clear();
 }
 
 void StreamingLevel::Initialize_MapChunks()
@@ -45,6 +95,8 @@ void StreamingLevel::Initialize_MapChunks()
             chunk.gridX = x;
             chunk.gridZ = z;
             chunk.path = Build_MapChunkPath(x, z);
+            chunk.preloadFinished = make_shared<atomic<bool>>(false);
+            chunk.preloadFailed = make_shared<atomic<bool>>(false);
             _mapChunks.push_back(std::move(chunk));
         }
     }
@@ -100,7 +152,8 @@ void StreamingLevel::Queue_MapChunk(int32 gridX, int32 gridZ)
 
 void StreamingLevel::Process_MapChunkQueue()
 {
-    if (_loadingChunkIndex < 0)
+    // 1. 비동기 프리로드 및 메인 로드가 둘 다 비어있을 때 새로운 큐를 예약 진행
+    if (_loadingChunkIndex < 0 && _preloadingChunkIndex < 0)
     {
         while (!_mapChunkLoadQueue.empty())
         {
@@ -116,40 +169,70 @@ void StreamingLevel::Process_MapChunkQueue()
 
             chunk.loadedObjects.clear();
             chunk.session = {};
-            chunk.state = ChunkLoadState::Loading;
 
-            const HRESULT beginResult = MapLoader::Begin_LoadSession(
-                _device,
-                _context,
-                chunk.path,
-                _mapStreamingDesc.levelIndex,
-                _mapStreamingDesc.layerTag,
-                chunk.session);
+            chunk.preloadFinished->store(false);
+            chunk.preloadFailed->store(false);
+            chunk.state = ChunkLoadState::Preloading;
+            _preloadingChunkIndex = nextIndex;
 
-            if (FAILED(beginResult))
+            // 스레드풀에서 안전한 백그라운드 프리로드 예약 실행
+            const bool enqueued = GAME->Enqueue_ThreadJob([this, nextIndex]()
             {
-                LOG_ERROR(
-                    "[StreamingLevel::ChunkStreaming] failed to begin chunk=({}, {}) path={}",
-                    chunk.gridX,
-                    chunk.gridZ,
-                    String::ToString(chunk.path));
+                StreamChunk& targetChunk = _mapChunks[nextIndex];
 
-                chunk.session = {};
-                chunk.loadedObjects.clear();
+                HRESULT hr = MapLoader::Preload_SessionData(
+                    _device,
+                    _context,
+                    targetChunk.path,
+                    _mapStreamingDesc.levelIndex,
+                    _mapStreamingDesc.layerTag,
+                    targetChunk.session);
+
+                if (SUCCEEDED(hr))
+                    targetChunk.preloadFinished->store(true);
+                else
+                    targetChunk.preloadFailed->store(true);
+            });
+
+            if (enqueued)
+            {
+                LOG_DEBUG("[StreamingLevel] Dispatched background thread preload for chunk=({}, {})", chunk.gridX, chunk.gridZ);
+                break;
+            }
+            else
+            {
+                LOG_ERROR("[StreamingLevel] Failed to dispatch thread job for chunk=({}, {})", chunk.gridX, chunk.gridZ);
                 chunk.state = ChunkLoadState::Unloaded;
+                _preloadingChunkIndex = -1;
                 continue;
             }
+        }
+    }
 
-            chunk.session.spawnedObjects = &chunk.loadedObjects;
-            _loadingChunkIndex = nextIndex;
+    // 2. 비동기 백그라운드 스레드의 성공/실패 여부를 모니터링하여 메인 스레드 바톤 터치
+    if (_preloadingChunkIndex >= 0)
+    {
+        StreamChunk& preloadingChunk = _mapChunks[_preloadingChunkIndex];
+        if (preloadingChunk.preloadFinished->load())
+        {
+            preloadingChunk.state = ChunkLoadState::Loading;
+            preloadingChunk.loadedObjects.clear();
+            preloadingChunk.session.spawnedObjects = &preloadingChunk.loadedObjects;
 
-            LOG_DEBUG(
-                "[StreamingLevel::ChunkStreaming] begin chunk=({}, {}) path={}",
-                chunk.gridX,
-                chunk.gridZ,
-                String::ToString(chunk.path));
+            _loadingChunkIndex = _preloadingChunkIndex;
+            _preloadingChunkIndex = -1;
 
-            break;
+            LOG_DEBUG("[StreamingLevel] Preload successfully finished for chunk=({}, {}). Commencing main thread spawn.",
+                preloadingChunk.gridX, preloadingChunk.gridZ);
+        }
+        else if (preloadingChunk.preloadFailed->load())
+        {
+            preloadingChunk.state = ChunkLoadState::Unloaded;
+            preloadingChunk.session = {};
+            _preloadingChunkIndex = -1;
+
+            LOG_ERROR("[StreamingLevel] Async preloading failed for chunk=({}, {})",
+                preloadingChunk.gridX, preloadingChunk.gridZ);
         }
     }
 
@@ -168,7 +251,7 @@ void StreamingLevel::Process_MapChunkQueue()
     if (FAILED(processResult))
     {
         LOG_ERROR(
-            "[StreamingLevel::ChunkStreaming] failed to process chunk=({}, {})",
+            "[StreamingLevel] Process load session failed for chunk=({}, {})",
             loadingChunk.gridX,
             loadingChunk.gridZ);
 
@@ -185,7 +268,7 @@ void StreamingLevel::Process_MapChunkQueue()
     loadingChunk.state = ChunkLoadState::Loaded;
 
     LOG_DEBUG(
-        "[StreamingLevel::ChunkStreaming] loaded chunk=({}, {}) objects={}",
+        "[StreamingLevel] Fully loaded chunk=({}, {}) spawned_objects={}",
         loadingChunk.gridX,
         loadingChunk.gridZ,
         loadingChunk.loadedObjects.size());
@@ -218,4 +301,49 @@ void StreamingLevel::Unload_MapChunk(int32 chunkIndex)
         "[StreamingLevel::ChunkStreaming] unloaded chunk=({}, {})",
         chunk.gridX,
         chunk.gridZ);
+}
+
+void StreamingLevel::Update_ActiveChunks(int32 centerCol, int32 centerRow)
+{
+    int32 radius = _mapStreamingDesc.activeChunkRadius;
+
+    // 1. 활성화 1반경 내 청크 로딩 대기열 큐 삽입
+    int32 minCol = max(0, centerCol - radius);
+    int32 maxCol = min(_mapStreamingDesc.gridWidth - 1, centerCol + radius);
+    int32 minRow = max(0, centerRow - radius);
+    int32 maxRow = min(_mapStreamingDesc.gridHeight - 1, centerRow + radius);
+
+    for (int32 r = minRow; r <= maxRow; ++r)
+    {
+        for (int32 c = minCol; c <= maxCol; ++c)
+        {
+            Queue_MapChunk(c, r);
+        }
+    }
+
+    // 2. 활성화 1반경 외 청크 실시간 디스폰(메모리 환수) 및 대기열 이탈 처리
+    for (int32 i = 0; i < static_cast<int32>(_mapChunks.size()); ++i)
+    {
+        StreamChunk& chunk = _mapChunks[i];
+        int32 distCol = abs(chunk.gridX - centerCol);
+        int32 distRow = abs(chunk.gridZ - centerRow);
+
+        if (distCol > radius || distRow > radius)
+        {
+            if (chunk.state == ChunkLoadState::Loaded)
+            {
+                Unload_MapChunk(i);
+            }
+            else if (chunk.state == ChunkLoadState::Queued)
+            {
+                auto it = std::find(_mapChunkLoadQueue.begin(), _mapChunkLoadQueue.end(), i);
+                if (it != _mapChunkLoadQueue.end())
+                {
+                    _mapChunkLoadQueue.erase(it);
+                }
+                chunk.state = ChunkLoadState::Unloaded;
+                LOG_DEBUG("[StreamingLevel] Queue canceled for out-of-bounds chunk=({}, {})", chunk.gridX, chunk.gridZ);
+            }
+        }
+    }
 }

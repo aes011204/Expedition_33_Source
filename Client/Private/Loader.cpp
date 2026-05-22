@@ -1,4 +1,4 @@
-﻿#include "Loader.h"
+#include "Loader.h"
 #include "GameInstance.h"
 #include "ClientInstance.h"
 #include "ResourceLoader.h"
@@ -19,10 +19,10 @@ auto Loader::Find_MapLoadDesc() const -> const LevelMapLoadDesc*
         {
             LevelType::GamePlay,
             {
-                Constants::Map::SpringChunk_04_00_Path,
-                Constants::Map::SpringChunk_04_01_Path,
-                Constants::Map::SpringChunk_04_02_Path,
-                Constants::Map::SpringChunk_04_03_Path,
+                Constants::Map::SpringChunk_00_03_Path,
+                Constants::Map::SpringChunk_00_04_Path,
+                Constants::Map::SpringChunk_01_03_Path,
+                Constants::Map::SpringChunk_01_04_Path,
             },
             4,
             L"Layer_MapStaticMesh"
