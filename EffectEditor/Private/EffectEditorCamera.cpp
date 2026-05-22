@@ -59,7 +59,6 @@ HRESULT EffectEditorCamera::Initialize(void* arg)
     _orbitState.pivot = desc->pivot;
     _orbitState.distance = desc->distance;
     _targetPivot = _orbitState.pivot;
-    _focusSpeed = max(0.1f, desc->focusSpeed);
 
     CHECK_FAILED(__super::Initialize(arg), E_FAIL);
 
