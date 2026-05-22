@@ -2,6 +2,14 @@
 #include "MECamera.h"
 #include "GameInstance.h"
 
+void MECamera::ApplyBookmark(const Vec3& pos, float yaw, float pitch)
+{
+    _position = pos;
+    _yaw = yaw;
+    _pitch = pitch;
+    ComputeMatrices();
+}
+
 void MECamera::Initialize(float fov, float aspect, float nearZ, float farZ)
 {
     _fov = fov;
@@ -17,9 +25,8 @@ void MECamera::UpdateInput(float timeDelta)
     ImGuiIO& io = ImGui::GetIO();
     if (ImGui::IsMouseDown(ImGuiMouseButton_Right))
     {
-        constexpr float sensitivity = 0.003f;
-        _yaw += io.MouseDelta.x * sensitivity;
-        _pitch += io.MouseDelta.y * sensitivity;
+        _yaw += io.MouseDelta.x * _rotateSensitivity;
+        _pitch += io.MouseDelta.y * _rotateSensitivity;
         _pitch = clamp(_pitch, -XM_PIDIV2 + 0.01f, XM_PIDIV2 - 0.01f);
 
         const Vec3 forward = GetForward();

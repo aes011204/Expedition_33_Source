@@ -14,6 +14,12 @@ public:
     const Matrix& GetProj() const { return _proj; }
     const Vec3& GetPosition() const { return _position; }
     float GetFar() const { return _farZ; }
+    float GetMoveSpeed() const { return _moveSpeed; }
+    float GetRotateSensitivity() const { return _rotateSensitivity; }
+    float& GetRotateSensitivityRef() { return _rotateSensitivity; }
+    float GetYaw() const { return _yaw; }
+    float GetPitch() const { return _pitch; }
+    void ApplyBookmark(const Vec3& pos, float yaw, float pitch);
 
     void SetAspect(float aspect) { _aspect = aspect; }
 
@@ -31,6 +37,8 @@ private:
     float _nearZ = 0.1f;
     float _farZ = 1000.f;
     float _moveSpeed = 10.f;
+
+    float _rotateSensitivity = 0.003f;
 
     Matrix _view = Matrix::Identity;
     Matrix _proj = Matrix::Identity;

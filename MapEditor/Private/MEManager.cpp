@@ -117,8 +117,7 @@ void MEManager::RenderDockSpace()
         {
             if (ImGui::MenuItem("New Map"))
             {
-                _ctx->_objects.clear();
-                _ctx->_selected = nullptr;
+                _ctx->ClearScene();
                 _ctx->_mapName = L"Untitled";
                 _currentMapPath = "Stage_01.json";
             }
@@ -157,6 +156,12 @@ void MEManager::RenderDockSpace()
             }
 
             ImGui::Separator();
+            if (ImGui::MenuItem("Clear Map"))
+            {
+                _confirmClearOpen = true;
+            }
+
+            ImGui::Separator();
             if (ImGui::MenuItem("Exit"))
             {
                 PostQuitMessage(0);
@@ -181,8 +186,82 @@ void MEManager::RenderDockSpace()
             }
             ImGui::EndMenu();
         }
+
+        if (ImGui::BeginMenu("Camera"))
+        {
+            if (ImGui::MenuItem("Save Cam Data"))
+            {
+                string camFile = string(_camDataPath) + "cam_bookmarks.json";
+                _ctx->SaveCamData(camFile);
+            }
+            if (ImGui::MenuItem("Load Cam Data"))
+            {
+                string camFile = string(_camDataPath) + "cam_bookmarks.json";
+                _ctx->LoadCamData(camFile);
+            }
+
+            ImGui::Separator();
+
+            for (int i = 0; i < CameraBookmarkCount; ++i)
+            {
+                ImGui::PushID(i);
+                auto& bm = _ctx->_cameraBookmarks[i];
+
+                if (ImGui::SmallButton("Save"))
+                {
+                    bm.position = _camera->GetPosition();
+                    bm.yaw = _camera->GetYaw();
+                    bm.pitch = _camera->GetPitch();
+                    bm.valid = true;
+                }
+                ImGui::SameLine();
+                if (bm.valid)
+                {
+                    if (ImGui::SmallButton("Go"))
+                    {
+                        _camera->ApplyBookmark(bm.position, bm.yaw, bm.pitch);
+                    }
+                    ImGui::SameLine();
+                    ImGui::Text("[%d] %.1f  %.1f  %.1f", i + 1, bm.position.x, bm.position.y, bm.position.z);
+                }
+                else
+                {
+                    ImGui::TextDisabled("[%d] empty", i + 1);
+                }
+                ImGui::PopID();
+            }
+
+            ImGui::EndMenu();
+        }
+
         ImGui::EndMenuBar();
     }
+
+    if (_confirmClearOpen)
+    {
+        ImGui::OpenPopup("맵 전체 삭제");
+    }
+
+    if (ImGui::BeginPopupModal("맵 전체 삭제", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+    {
+        ImGui::Text("모든 오브젝트를 삭제합니다. 되돌릴 수 없습니다.");
+        ImGui::Separator();
+        if (ImGui::Button("삭제", ImVec2(120, 0)))
+        {
+            _ctx->ClearScene();
+            _confirmClearOpen = false;
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("취소", ImVec2(120, 0)))
+        {
+            _confirmClearOpen = false;
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::EndPopup();
+    }
+
+
     ImGui::End();
 }
 

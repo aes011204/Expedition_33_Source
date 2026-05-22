@@ -22,6 +22,7 @@ public:
 
 public:
     PlayerState Get_CurrentPlayerState() const;
+    void Enter_GameMenuAnimation(uint32 introAnim, uint32 idleAnim);
     
 private:
     static Shared<PlayerStateMachineCom> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
