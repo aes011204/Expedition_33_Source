@@ -325,7 +325,7 @@
     <ClInclude Include="..\public\FreeCamera.h" />
     <ClInclude Include="..\Public\Level_GamePlay.h" />
     <ClInclude Include="..\public\Level_Loading.h" />
-    <ClInclude Include="..\Public\Level_Logo.h" />
+    <ClInclude Include="..\Public\Level_MainTitle.h" />
     <ClInclude Include="..\public\Loader.h" />
     <ClInclude Include="..\Public\MW_Lancelier.h" />
     <ClInclude Include="..\Public\Player_WorldBase.h" />
@@ -499,7 +499,7 @@
     <ClCompile Include="..\private\FreeCamera.cpp" />
     <ClCompile Include="..\Private\Level_GamePlay.cpp" />
     <ClCompile Include="..\private\Level_Loading.cpp" />
-    <ClCompile Include="..\Private\Level_Logo.cpp" />
+    <ClCompile Include="..\Private\Level_MainTitle.cpp" />
     <ClCompile Include="..\private\Loader.cpp" />
     <ClCompile Include="..\Private\MW_Lancelier.cpp" />
     <ClCompile Include="..\Private\Player_WorldBase.cpp" />

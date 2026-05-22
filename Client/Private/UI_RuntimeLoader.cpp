@@ -889,8 +889,11 @@ namespace
         const wstring prototypeTag =
             prototypeTagPrefix + L"_Image_" + to_wstring(object.id);
 
-        if (FAILED(GAME->Add_Prototype(levelIndex, prototypeTag, UI_Image::Create())))
-            return E_FAIL;
+        if (!GAME->Has_Prototype(levelIndex, prototypeTag))
+        {
+            if (FAILED(GAME->Add_Prototype(levelIndex, prototypeTag, UI_Image::Create())))
+                return E_FAIL;
+        }
 
         if (FAILED(GAME->Add_UI(levelIndex, prototypeTag, &desc, outUI)))
             return E_FAIL;
@@ -945,8 +948,11 @@ namespace
         const wstring prototypeTag =
             prototypeTagPrefix + L"_Text_" + to_wstring(object.id);
 
-        if (FAILED(GAME->Add_Prototype(levelIndex, prototypeTag, UI_Text::Create())))
-            return E_FAIL;
+        if (!GAME->Has_Prototype(levelIndex, prototypeTag))
+        {
+            if (FAILED(GAME->Add_Prototype(levelIndex, prototypeTag, UI_Text::Create())))
+                return E_FAIL;
+        }
 
         if (FAILED(GAME->Add_UI(levelIndex, prototypeTag, &desc, outUI)))
             return E_FAIL;
@@ -978,8 +984,11 @@ namespace
         const wstring prototypeTag =
             prototypeTagPrefix + L"_Panel_" + to_wstring(object.id);
 
-        if (FAILED(GAME->Add_Prototype(levelIndex, prototypeTag, UI_Panel::Create())))
-            return E_FAIL;
+        if (!GAME->Has_Prototype(levelIndex, prototypeTag))
+        {
+            if (FAILED(GAME->Add_Prototype(levelIndex, prototypeTag, UI_Panel::Create())))
+                return E_FAIL;
+        }
 
         if (FAILED(GAME->Add_UI(levelIndex, prototypeTag, &desc, outUI)))
             return E_FAIL;
@@ -1011,8 +1020,11 @@ namespace
         const wstring prototypeTag =
             prototypeTagPrefix + L"_Button_" + to_wstring(object.id);
 
-        if (FAILED(GAME->Add_Prototype(levelIndex, prototypeTag, UI_Button::Create())))
-            return E_FAIL;
+        if (!GAME->Has_Prototype(levelIndex, prototypeTag))
+        {
+            if (FAILED(GAME->Add_Prototype(levelIndex, prototypeTag, UI_Button::Create())))
+                return E_FAIL;
+        }
 
         if (FAILED(GAME->Add_UI(levelIndex, prototypeTag, &desc, outUI)))
             return E_FAIL;

@@ -880,8 +880,8 @@ wstring ResourceLoader::Make_PrototypeTag(const string& strId, const wstring& st
 
 uint32 ResourceLoader::Get_LevelIndex_FromString(const string& strLevel)
 {
-    if ("Logo" == strLevel) // || "Logo" == strLevel)
-        return ETOI(LevelType::Logo);
+    if ("MainTitle" == strLevel) // || "MainTitle" == strLevel)
+        return ETOI(LevelType::MainTitle);
 
     if ("GamePlay" == strLevel || "Gameplay" == strLevel || "GamePlay" == strLevel)
         return ETOI(LevelType::GamePlay);

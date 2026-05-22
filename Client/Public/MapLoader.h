@@ -1,5 +1,6 @@
 #pragma once
 #include "Client_Defines.h"
+#include "CollisionProxy_Types.h"
 #include <mutex>
 
 NS_BEGIN(Engine)
@@ -36,6 +37,7 @@ public:
         umap<string, Shared<ModelCom>> preloadedModelCache = {};
         umap<string, Shared<StaticCollisionData>> preloadedCollisionCache = {};
         umap<string, vector<vector<uint8_t>>> cookedCollisionCache = {};
+        umap<string, vector<ModelCollisionProxy>> primitiveCollisionCache = {};
 
         // 청크 unload를 위해 생성 객체를 선택적으로 수집
         vector<Shared<GameObject>>* spawnedObjects = nullptr; 

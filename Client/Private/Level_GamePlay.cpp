@@ -10,7 +10,6 @@
 #include "TargetCamera.h"
 #include "MapLoader.h"
 
-
 Level_GamePlay::Level_GamePlay(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : StreamingLevel{ device, context }
 {
@@ -118,8 +117,8 @@ HRESULT Level_GamePlay::Ready_ChunkMap()
     streamingDesc.levelIndex = ETOI(LevelType::GamePlay);
     streamingDesc.gridWidth = 6;
     streamingDesc.gridHeight = 6;
-    streamingDesc.initialChunkX = 0; // chunkX = 0, chunkZ = 2면 02_00 기준으로 4개 스폰
-    streamingDesc.initialChunkZ = 2; 
+    streamingDesc.initialChunkX = 3; // chunkX = 0, chunkZ = 2면 02_00 기준으로 4개 스폰
+    streamingDesc.initialChunkZ = 0; 
     streamingDesc.activeChunkRadius = 1;
     streamingDesc.maxMeshesPerFrame = 2;
     streamingDesc.maxTimePerFrame = chrono::milliseconds(2);

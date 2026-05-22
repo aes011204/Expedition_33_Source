@@ -255,7 +255,7 @@
     <ClInclude Include="..\Public\Level_GamePlay.h">
       <Filter>01.Levels\GamePlay</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\Level_Logo.h">
+    <ClInclude Include="..\Public\Level_MainTitle.h">
       <Filter>01.Levels\Logo</Filter>
     </ClInclude>
     <ClInclude Include="..\public\Loader.h">
@@ -621,9 +621,6 @@
     <ClInclude Include="..\public\UIPreviewManager.h">
       <Filter>02.GameObject\Camera\Preview\Manager</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\MapStaticCollisionBuilder.h">
-      <Filter>02.GameObject\Map</Filter>
-    </ClInclude>
     <ClInclude Include="..\public\WeaponUI_Common.h">
       <Filter>04. GamePlayUI\Weapon</Filter>
     </ClInclude>
@@ -659,6 +656,7 @@
     <ClInclude Include="..\public\ANS_Move.h">
       <Filter>AnimNotify</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\Player_GameMenu.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -670,7 +668,7 @@
     <ClCompile Include="..\Private\Level_GamePlay.cpp">
       <Filter>01.Levels\GamePlay</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\Level_Logo.cpp">
+    <ClCompile Include="..\Private\Level_MainTitle.cpp">
       <Filter>01.Levels\Logo</Filter>
     </ClCompile>
     <ClCompile Include="..\private\Loader.cpp">
@@ -1036,9 +1034,6 @@
     <ClCompile Include="..\private\UIPreviewManager.cpp">
       <Filter>02.GameObject\Camera\Preview\Manager</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\MapStaticCollisionBuilder.cpp">
-      <Filter>02.GameObject\Map</Filter>
-    </ClCompile>
     <ClCompile Include="..\private\WeaponUI_Common.cpp">
       <Filter>04. GamePlayUI\Weapon</Filter>
     </ClCompile>
@@ -1071,6 +1066,7 @@
     <ClCompile Include="..\private\ANS_Move.cpp">
       <Filter>AnimNotify</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\Player_GameMenu.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">

@@ -189,7 +189,7 @@ HRESULT Monster::Ready_PartObjects()
     bodyDesc.modelType = ModelType::Anim;
     bodyDesc.modelTag = L"Model_Lancelier";
 
-    CHECK_FAILED(Add_PartObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Lancelier_Body"), TEXT("Part_Body"), &bodyDesc), E_FAIL);
+    CHECK_FAILED(Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Lancelier_Body"), TEXT("Part_Body"), &bodyDesc), E_FAIL); // 기본 Monster 경로도 공용 파츠 prototype은 Static에서 가져온다.
 
     _body = dynamic_pointer_cast<Mon_Lancelier_Body>(_partObjects[TEXT("Part_Body")]);
     if (nullptr == _body)
@@ -201,7 +201,7 @@ HRESULT Monster::Ready_PartObjects()
     weaponDesc.modelTag = L"Model_Lancelier_Weapon";
     weaponDesc.socketMatrix = _body->Get_SocketBoneMatrixPtr("Weapon_R");
 
-    CHECK_FAILED(Add_PartObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Lancelier_Weapon"), TEXT("Part_Weapon"), &weaponDesc), E_FAIL);
+    CHECK_FAILED(Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Lancelier_Weapon"), TEXT("Part_Weapon"), &weaponDesc), E_FAIL); // 기본 Monster 경로의 무기 파츠도 Static에 맞춘다.
 
     _weapon = dynamic_pointer_cast<Mon_Lancelier_Weapon>(_partObjects[TEXT("Part_Weapon")]);
     if (nullptr == _weapon)
