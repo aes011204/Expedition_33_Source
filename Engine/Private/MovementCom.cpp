@@ -214,6 +214,22 @@ void MovementCom::Force_SetPositionY(float posY)
     _transformCom->Set_WorldPosition(position);
 }
 
+void MovementCom::Sync_RuntimePositionToTransform()
+{
+    CHECK_NULL(_transformCom);
+
+    if (_moveDesc.backend != MoveBackend::PhysXCCT)
+        return;
+
+    if (_characterController == nullptr)
+        Create_CharacterController();
+
+    if (_characterController == nullptr)
+        return;
+
+    _characterController->Set_FootPosition(Get_CCTFootPosition_FromTransform());
+}
+
 void MovementCom::Stop_AllMovement()
 {
     _velocity = Vec3::Zero;

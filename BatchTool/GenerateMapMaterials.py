@@ -26,9 +26,9 @@ from pathlib import Path
 SLOT_CANDIDATES: dict[str, list[str]] = {
     "baseColor":   ["Texture1_AlbedoAlpha", "Texture1_AlbedoRoughness", "BaseLayer_AlbedoRoughness", "1stLayer_AlbedoRoughness", "Albedo", "PM_Diffuse"],
     "normal":      ["PM_Normals", "Texture2_NormalRoughEmi", "Texture2_Normal+MEHAo"],
-    "orm":         [],   # placeholder — fill in when ORM is needed
-    "emissive":    [],   # placeholder — fill in when Emissive is needed
-    "opacityMask": [],   # placeholder
+    "orm":         ["ORM Map", "PM_SpecularMasks", "Grunge_Texture", "Roughness"],
+    "emissive":    [],
+    "opacityMask": ["Opacity"],
 }
 
 # Scalar parameter names that map to CB fields

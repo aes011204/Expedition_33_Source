@@ -9,6 +9,8 @@
 #include "MECamera.h"
 #include "PanelModelOverride.h"
 
+extern HWND g_hWnd;
+
 MEManager::~MEManager()
 {
 
@@ -51,6 +53,18 @@ void MEManager::Update(float timeDelta)
 
 void MEManager::Render()
 {
+    static int skipFrames = 0;
+    if (skipFrames > 0)
+    {
+        skipFrames--;
+        ImGui::GetIO().AppFocusLost = true; // 대화상자 복귀 프레임 동안 입력 꼬임 차단
+    }
+    else if (ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_S) && !ImGui::GetIO().WantTextInput)
+    {
+        skipFrames = 3; // 다이얼로그 복귀 후 키 릴리즈 메시지가 처리될 때까지 3프레임간 입력을 스킵
+        SaveMapDialog();
+    }
+
     RenderDockSpace();
 
     for (auto& [name, window] : _windows)
@@ -138,21 +152,9 @@ void MEManager::RenderDockSpace()
                 }
             }
 
-            if (ImGui::MenuItem("Save Map"))
+            if (ImGui::MenuItem("Save Map", "Ctrl+S"))
             {
-                char buf[MAX_PATH] = {};
-                OPENFILENAMEA ofn{};
-                ofn.lStructSize = sizeof(ofn);
-                ofn.lpstrFilter = "JSON Files\0*.json\0All Files\0*.*\0";
-                ofn.lpstrFile = buf;
-                ofn.nMaxFile = MAX_PATH;
-                ofn.lpstrInitialDir = _mapSavePath;
-                ofn.lpstrDefExt = "json";
-                ofn.Flags = OFN_OVERWRITEPROMPT;
-                if (GetSaveFileNameA(&ofn))
-                {
-                    _ctx->SaveToFile(buf);
-                }
+                SaveMapDialog();
             }
 
             ImGui::Separator();
@@ -280,4 +282,24 @@ Unique<MEManager> MEManager::Create(Shared<PanelViewport> viewport, SceneContext
     CHECK_FAILED(instance->Initialize(viewport, ctx, camera), nullptr);
 
     return instance;
+}
+
+void MEManager::SaveMapDialog()
+{
+    ImGui::GetIO().AppFocusLost = true; // 다이얼로그를 띄우기 전 마우스/키 상태 강제 릴리즈
+
+    char buf[MAX_PATH] = {};
+    OPENFILENAMEA ofn{};
+    ofn.lStructSize = sizeof(ofn);
+    ofn.hwndOwner = g_hWnd; // 부모 윈도우 연결하여 모달 포커스 보장
+    ofn.lpstrFilter = "JSON Files\0*.json\0All Files\0*.*\0";
+    ofn.lpstrFile = buf;
+    ofn.nMaxFile = MAX_PATH;
+    ofn.lpstrInitialDir = _mapSavePath;
+    ofn.lpstrDefExt = "json";
+    ofn.Flags = OFN_OVERWRITEPROMPT;
+    if (GetSaveFileNameA(&ofn))
+    {
+        _ctx->SaveToFile(buf);
+    }
 }
