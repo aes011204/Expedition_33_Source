@@ -89,7 +89,7 @@ HRESULT MW_Portier::Ready_PartObjects()
     bodyDesc.modelType = ModelType::Anim;
     bodyDesc.modelTag = L"Model_Portier";
 
-    CHECK_FAILED(Add_PartObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Portier_Body"), TEXT("Part_Body"), &bodyDesc), E_FAIL);
+    CHECK_FAILED(Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Portier_Body"), TEXT("Part_Body"), &bodyDesc), E_FAIL);
 
     _body = dynamic_pointer_cast<Mon_Portier_Body>(_partObjects[TEXT("Part_Body")]);
     CHECK_NULL(_body, E_FAIL);
