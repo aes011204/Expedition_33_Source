@@ -1,5 +1,6 @@
 ﻿#include "MB_Portier.h"
 #include "Mon_Portier_Body.h"
+#include "MonsterStatCom.h"
 
 IMPLEMENT_REFLECTION(MB_Portier)
 {
@@ -27,7 +28,15 @@ HRESULT MB_Portier::Initialize_Prototype()
 
 HRESULT MB_Portier::Initialize(void* arg)
 {
-    return Monster_BattleBase::Initialize(arg);
+    CHECK_FAILED(Monster_BattleBase::Initialize(arg), E_FAIL);
+    CHECK_FAILED(Ready_PartObjects(), E_FAIL);
+
+    _body->Set_Animation("Portier_Idle", 0.3f, true);
+
+    _combatStat->Set_Skill("Portier_AttackAoE");
+    _combatStat->Set_Skill("Portier_JumpHit");
+
+    return S_OK;
 }
 
 void MB_Portier::Update(float timeDelta)
@@ -48,7 +57,7 @@ HRESULT MB_Portier::Ready_PartObjects()
     bodyDesc.modelType = ModelType::Anim;
     bodyDesc.modelTag = L"Model_Portier";
 
-    CHECK_FAILED(Add_PartObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Portier_Body"), TEXT("Part_Body"), &bodyDesc), E_FAIL);
+    CHECK_FAILED(Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Portier_Body"), TEXT("Part_Body"), &bodyDesc), E_FAIL);
 
     _body = dynamic_pointer_cast<Mon_Portier_Body>(_partObjects[TEXT("Part_Body")]);
     CHECK_NULL(_body, E_FAIL);

@@ -86,4 +86,13 @@ namespace Client::Constants::Prefab
 
     inline constexpr char MW_Lancelier[] = "MW_Lancelier";
     inline constexpr char MB_Lancelier[] = "MB_Lancelier";
+
+    inline constexpr char MW_Portier[] = "MW_Portier";
+    inline constexpr char MB_Portier[] = "MB_Portier";
+
+    inline constexpr char MW_Bishop[] = "MW_Bishop";
+    inline constexpr char MB_Bishop[] = "MB_Bishop";
+
+    inline constexpr char MW_Volester[] = "MW_Volester";
+    inline constexpr char MB_Volester[] = "MB_Volester";
 }
