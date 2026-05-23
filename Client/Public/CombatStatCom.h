@@ -92,7 +92,10 @@ public:
     void Set_PlayerType(PlayerCharacterType playerType) { _playerType = playerType; }
 
     vector<string> Get_SkillKey() { return _skillKeys; }
+    void Set_Skill(string skillName){
+        _skillKeys.push_back(skillName);
 
+    }
 
     //test
     string Get_FirstSkill();
