@@ -45,7 +45,7 @@ HairChainPhysicsDesc PB_Maelle::Get_HairChainPhysicsDesc() const
     return desc;
 }
 
-bool PB_Maelle::Try_GetWeaopnAttackDesc(WeaponAttachDesc& outDesc) const
+bool PB_Maelle::Try_GetWeaponAttackDesc(WeaponAttachDesc& outDesc) const
 {
     outDesc.modelTag = L"Model_Medalum";
     outDesc.socketName = "Weapon_r";

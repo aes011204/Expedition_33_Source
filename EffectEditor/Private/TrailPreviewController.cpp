@@ -3,9 +3,8 @@
 
 #include "EffectEditorInstance.h"
 #include "ModelCom.h"
-#include "PB_Gustave.h"
 #include "PlayableParts.h"
-#include "TrailPreviewWeaponObject.h"
+#include "TrailPreviewPlayerObject.h"
 
 NS_BEGIN(EffectEditor)
 
@@ -23,18 +22,15 @@ HRESULT TrailPreviewController::Initialize(void* arg)
 {
     const PreviewDesc* previewDesc = static_cast<PreviewDesc*>(arg);
     CHECK_NULL(previewDesc, E_FAIL);
-    CHECK_NULL(previewDesc->gustave, E_FAIL);
-    CHECK_NULL(previewDesc->weapon, E_FAIL);
+    CHECK_NULL(previewDesc->player, E_FAIL);
 
-    _gustave = previewDesc->gustave;
-    _weapon = previewDesc->weapon;
+    _player = previewDesc->player;
 
     CHECK_FAILED(__super::Initialize(arg), E_FAIL);
 
     Set_Name(L"TrailPreview_Controller");
     Set_Visible(false);
     Set_PlayerVisible(false);
-    Set_WeaponVisible(false);
     Reset_PreviewPose();
 
     return S_OK;
@@ -48,7 +44,6 @@ void TrailPreviewController::Priority_Update(float)
 
     Set_Visible(visible);
     Set_PlayerVisible(visible);
-    Set_WeaponVisible(visible);
 
     if (!visible)
     {
@@ -68,16 +63,9 @@ void TrailPreviewController::Update(float)
 
 void TrailPreviewController::Set_PlayerVisible(bool visible)
 {
-    const Shared<PB_Gustave> gustave = _gustave.lock();
-    if (nullptr != gustave)
-        gustave->Set_Visible(visible);
-}
-
-void TrailPreviewController::Set_WeaponVisible(bool visible)
-{
-    const Shared<TrailPreviewWeaponObject> weapon = _weapon.lock();
-    if (nullptr != weapon)
-        weapon->Set_Visible(visible);
+    const Shared<TrailPreviewPlayerObject> player = _player.lock();
+    if (nullptr != player)
+        player->Set_PreviewVisible(visible);
 }
 
 void TrailPreviewController::Reset_PreviewPose()
@@ -90,12 +78,12 @@ void TrailPreviewController::Reset_PreviewPose()
 
 Shared<ModelCom> TrailPreviewController::Get_BodyModel() const
 {
-    const Shared<PB_Gustave> gustave = _gustave.lock();
-    if (nullptr == gustave)
+    const Shared<TrailPreviewPlayerObject> player = _player.lock();
+    if (nullptr == player)
         return nullptr;
 
     const PlayableParts* bodyPart =
-        dynamic_cast<PlayableParts*>(gustave->Get_PartObject(L"Part_Body"));
+        dynamic_cast<PlayableParts*>(player->Get_PartObject(L"Part_Body"));
     if (nullptr == bodyPart)
         return nullptr;
 
