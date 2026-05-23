@@ -16,9 +16,9 @@ public:
         string rootBoneName{};
         float maxPitchAngle{};
 
-        float TimeRatio_Up = 1.0f;     
-        float TimeRatio_Center = 0.5f; 
-        float TimeRatio_Down = 0.0f; 
+        float timeRatio_Max{ 1.0f };
+        float timeRatio_Center{ 0.5f };
+        float timeRatio_Min{ 0.0f };
     };
 public:
     OffsetModifier() = default;

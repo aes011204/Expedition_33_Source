@@ -107,6 +107,13 @@ bool Player_State::IsEnterWorldAction() const
     return input.isSuddenAttack && _controllerCom->Allows_ActionInput();
 }
 
+bool Player_State::IsEnterFreeAim() const
+{
+    const auto& input = Get_MovementInput();
+
+    return input.isMouseRPress && !input.isMouseRUp && _controllerCom->Allows_ActionInput();
+}
+
 bool Player_State::IsEnterJump() const
 {
     const auto& input = Get_MovementInput();

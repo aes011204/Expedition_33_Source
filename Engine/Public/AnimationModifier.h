@@ -1,5 +1,5 @@
 ﻿#pragma once
-#include "Component.h"
+#include "Base.h"
 
 NS_BEGIN(Engine)
 

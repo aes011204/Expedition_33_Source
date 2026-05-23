@@ -40,6 +40,7 @@ protected:
     bool IsFalling() const;
 
     bool IsEnterWorldAction() const; 
+    bool IsEnterFreeAim() const;
     bool IsEnterJump() const;       
     bool IsEnterMove() const;       
     bool IsEnterIdle() const;       

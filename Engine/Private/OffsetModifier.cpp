@@ -4,7 +4,6 @@
 #include "Animation.h"
 #include "Channel.h"
 #include "ModelCom.h"
-#include "TransformCom.h"
 
 HRESULT OffsetModifier::Initialize(const OffsetModifierDesc& desc)
 {
@@ -17,7 +16,9 @@ HRESULT OffsetModifier::Initialize(const OffsetModifierDesc& desc)
 
     _animIndex = baseModel->Get_AnimationIndexByName(desc.animName);
     if (_animIndex == UINT_MAX)
+    {
         return E_FAIL;
+    }
 
     int32 currentBoneIdx = baseModel->Get_BoneIndex(_desc.endBoneName);
     int32 rootBoneIdx = baseModel->Get_BoneIndex(_desc.rootBoneName);
@@ -76,7 +77,10 @@ void OffsetModifier::Evaluate_Modifier(ModelCom* model, float timeDelta, float a
     }
 
     Animation* offsetAnim = model->Get_Animation(_animIndex);
-    if (nullptr == offsetAnim) return;
+    if (nullptr == offsetAnim)
+    {
+        return;
+    }
 
     for (int32 boneIdx : _boneChain)
     {
@@ -105,12 +109,12 @@ void OffsetModifier::Evaluate_Modifier(ModelCom* model, float timeDelta, float a
             return outTransform;
         };
 
-        RootMotionFrame centerPose = Get_TransformAtRatio(_desc.TimeRatio_Center);
+        RootMotionFrame centerPose = Get_TransformAtRatio(_desc.timeRatio_Center);
         RootMotionFrame targetPose;
 
         if (weightUp > 0.f)
         {
-            RootMotionFrame upPose = Get_TransformAtRatio(_desc.TimeRatio_Up);
+            RootMotionFrame upPose = Get_TransformAtRatio(_desc.timeRatio_Max);
 
             targetPose.rotation = Quaternion::Slerp(centerPose.rotation, upPose.rotation, weightUp);
             targetPose.position = Vector3::Lerp(centerPose.position, upPose.position, weightUp);
@@ -118,7 +122,7 @@ void OffsetModifier::Evaluate_Modifier(ModelCom* model, float timeDelta, float a
         }
         else if (weightDown > 0.f)
         {
-            RootMotionFrame downPose = Get_TransformAtRatio(_desc.TimeRatio_Down);
+            RootMotionFrame downPose = Get_TransformAtRatio(_desc.timeRatio_Min);
 
             targetPose.rotation = Quaternion::Slerp(centerPose.rotation, downPose.rotation, weightDown);
             targetPose.position = Vector3::Lerp(centerPose.position, downPose.position, weightDown);

@@ -228,9 +228,9 @@ public: /* Compute Shader */
 private:
     HRESULT Ensure_AnimationComputeSource();
 
-
 public: // Animation Bone Modifier 기능
     void Add_AnimModifier(const Shared<AnimationModifier>& modifier);
+    const vector<Shared<AnimationModifier>>& Get_Modifiers() const { return _modifiers; }
 private:
     void Evaluate_AnimationModifiers(float timeDelta);
 
