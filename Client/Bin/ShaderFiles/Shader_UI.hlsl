@@ -19,6 +19,9 @@ float2 g_HoleCenterUV = float2(0.5f, 0.5f);
 float g_HoleRadius = 0.0f;
 float g_HoleFeather = 0.05f;
 float g_ViewportAspect = 1.0f;
+bool g_UseFillRatio = false;
+float g_FillRatio = 1.0f;
+uint g_FillOrigin = 0;
 
 struct VS_IN
 {
@@ -130,10 +133,33 @@ PS_OUT PS_PATTERN_OVERLAY(PS_IN In)
     return Out;
 }
 
+PS_OUT PS_FILL_RATIO(PS_IN In)
+{
+    PS_OUT Out;
+
+    float2 uv = In.vTexcoord;
+    float visible = 1.0f;
+
+    if (g_FillOrigin == 0)
+        visible = step(uv.x, g_FillRatio);
+    else if (g_FillOrigin == 1)
+        visible = step(1.0f - g_FillRatio, uv.x);
+    else if (g_FillOrigin == 2)
+        visible = step(uv.y, g_FillRatio);
+    else
+        visible = step(1.0f - g_FillRatio, uv.y);
+
+    Out.vColor = g_Texture.Sample(LinearClampSampler, uv) * g_Color;
+    Out.vColor.a *= visible;
+
+    return Out;
+}
+
 technique11 DefaultTechnique
 {
     PASS_RS_DS_BS_VP(NormalPass,    RS_UI, DSS_None, BS_AlphaBlend, VS_MAIN, PS_NORMAL) // 0
     PASS_RS_DS_BS_VP(MaskPass,      RS_UI, DSS_None, BS_AlphaBlend, VS_MAIN, PS_MASK)   // 1
     PASS_RS_DS_BS_VP(CircularHolePass, RS_UI, DSS_None, BS_AlphaBlend, VS_MAIN, PS_CIRCULAR_HOLE) // 2
     PASS_RS_DS_BS_VP(PatternOverlayPass, RS_UI, DSS_None, BS_AlphaBlend, VS_MAIN, PS_PATTERN_OVERLAY) // 3
+    PASS_RS_DS_BS_VP(FillRatioPass, RS_UI, DSS_None, BS_AlphaBlend, VS_MAIN, PS_FILL_RATIO) // 4
 }
