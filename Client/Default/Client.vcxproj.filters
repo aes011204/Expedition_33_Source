@@ -1,1242 +1,340 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Filter Include="98.Default">
-      <UniqueIdentifier>{32481d4c-d7f2-46be-95cd-79647521181e}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="99.Defines">
-      <UniqueIdentifier>{3acaa562-7269-4ea7-b168-b802c4d6155c}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="99.Defines\Helper">
-      <UniqueIdentifier>{ab9c6fe7-56bb-4db1-a2ed-dddf86074e28}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="00.Core">
-      <UniqueIdentifier>{d69e3444-9e7c-4604-ac6d-d4c569f4a755}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="01.Levels">
-      <UniqueIdentifier>{12c7ea84-5aca-422b-b850-74d5ab90a728}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="01.Levels\Loading">
-      <UniqueIdentifier>{80e3c701-65b1-47a7-a84b-45c775b1ac3d}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="01.Levels\Loading\Loader">
-      <UniqueIdentifier>{098ded7b-809c-44ac-9a95-b4e8528afd5d}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="01.Levels\Logo">
-      <UniqueIdentifier>{0ffeace3-1b29-4d9a-a27c-3d6bc0b386b4}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="01.Levels\GamePlay">
-      <UniqueIdentifier>{c3d86694-aee6-4c8e-90fd-3b22b663c005}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="02.GameObject">
-      <UniqueIdentifier>{38e08db2-3f28-4caa-b253-fa9b9f02aef2}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="02.GameObject\UI">
-      <UniqueIdentifier>{22fad0de-cf88-40d1-b428-3585935d5be9}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="02.GameObject\Terrain">
-      <UniqueIdentifier>{ff40d1f3-aed2-48f4-a50b-289c5997d487}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="02.GameObject\Camera">
-      <UniqueIdentifier>{5b762eb7-fdd7-4b49-99c4-1ef4cb427c7d}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="02.GameObject\Camera\Free">
-      <UniqueIdentifier>{f5653e50-a701-47e2-881a-e8cbacab6c09}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="02.GameObject\Camera\Target">
-      <UniqueIdentifier>{23c166d1-4984-4019-b446-fdbddf98e312}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="02.GameObject\Monster">
-      <UniqueIdentifier>{ddd4a044-4732-4b5d-bc60-538841bcb571}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="02.GameObject\Sky">
-      <UniqueIdentifier>{af5602af-e31e-49b7-bc95-02623c7bce0a}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="02.GameObject\Effect">
-      <UniqueIdentifier>{b234e503-c6fb-45eb-b498-d43920431180}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="03. Component">
-      <UniqueIdentifier>{532576f7-3c4d-4428-9669-c46337caa1c0}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="03. Component\CombatStat">
-      <UniqueIdentifier>{90bf3180-688e-464b-9002-91428c859e9c}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="03. Component\Input">
-      <UniqueIdentifier>{741adbc2-8f0c-4072-a853-8fd375502b5c}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="03. Component\PlayerController">
-      <UniqueIdentifier>{821abb8e-0080-4bcd-b2ae-8377f230673c}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="97.ShaderFiles">
-      <UniqueIdentifier>{ab9c1d2a-b2c2-4061-a3ea-61fccfdb62d1}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="BehavoirTree">
-      <UniqueIdentifier>{3c8c65f9-6d15-4630-87bb-651577f82509}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="02.GameObject\Map">
-      <UniqueIdentifier>{c27dbc20-5bcd-4d18-b937-6d7b22b8250a}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="02.GameObject\Map\MapStaticMesh">
-      <UniqueIdentifier>{d20736d2-c70d-4e53-9932-ebaaea9095bf}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="02.GameObject\Map\MapLoader">
-      <UniqueIdentifier>{44a6eca4-d07d-4d31-a121-a44beb0c0797}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="01.Levels\MapTest">
-      <UniqueIdentifier>{77911e2e-65af-4efd-b338-4ab3a4f0b785}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="01.Levels\Stage">
-      <UniqueIdentifier>{ddcce0fb-3121-437f-bfa6-40721f3b2b41}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="01.Levels\Stage\Stage01">
-      <UniqueIdentifier>{c5fa3f83-263a-48ef-899c-ed4c7f3696dd}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="96. Manager">
-      <UniqueIdentifier>{f7e6f048-732e-4189-8952-1cfaa7a9aa5e}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="97.ShaderFiles\Compute">
-      <UniqueIdentifier>{a10ec434-0458-4165-95ea-bc90cbd84fe3}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="03. Component\StateMachine">
-      <UniqueIdentifier>{e82a48fb-449d-4655-bbd7-e35e3480ddad}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="03. Component\StateMachine\State">
-      <UniqueIdentifier>{535700eb-0887-4cbe-a5df-3edc02bd65dd}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="02.GameObject\Player">
-      <UniqueIdentifier>{826c9a1d-2b0d-4d3d-84b4-0191a69e558c}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="02.GameObject\Player\PlayerParts">
-      <UniqueIdentifier>{e5a6e35f-4a37-4b1e-8e68-5f77821102f5}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="02.GameObject\Player\PlayerParts\Body">
-      <UniqueIdentifier>{a87f8bd0-138d-4a43-9e74-6c6581ad6c18}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="02.GameObject\Player\PlayerParts\Head">
-      <UniqueIdentifier>{78d35043-f9f8-47d9-8223-12103a0eabfe}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="02.GameObject\Player\PlayerParts\Hair">
-      <UniqueIdentifier>{19fc3d93-3bc3-41e1-a720-cc9265767183}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="02.GameObject\Player\PlayerParts\Weapon">
-      <UniqueIdentifier>{292bac37-111c-402f-87d5-1f785fd312bc}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="02.GameObject\Player\PlayerStateMachine">
-      <UniqueIdentifier>{06824f3a-44ed-4909-b292-0b395d0620f4}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="02.GameObject\Player\PlayerStateMachine\State">
-      <UniqueIdentifier>{2ff895e8-c801-4ce1-8657-6b74912325b5}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="BattleState">
-      <UniqueIdentifier>{21844272-3fd6-40f4-a309-70b8c3338935}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="BattleState\Battle">
-      <UniqueIdentifier>{4802d102-93d0-463f-a180-a9055980620e}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="02.GameObject\Camera\Cinematic">
-      <UniqueIdentifier>{9da3a249-fde0-4202-8400-e101dd8261f9}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="02.GameObject\InstancedMeshActor">
-      <UniqueIdentifier>{2e753ff9-c664-4b59-b631-8362dc321ba5}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Ailment">
-      <UniqueIdentifier>{17b1ad35-1166-4e14-a636-7434629b73c3}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="97.ShaderFiles\Effect">
-      <UniqueIdentifier>{eabf24e1-fc6a-403f-a7d5-20fff06e772b}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Skill">
-      <UniqueIdentifier>{08ca65e3-4c52-440c-a6ee-2cdc0dbb87ff}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="02.GameObject\Map\MapInstancedMesh">
-      <UniqueIdentifier>{48582af2-9fa3-4baf-bee3-b247fe81d3f0}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="02.GameObject\UI\BackGround">
-      <UniqueIdentifier>{d023afea-ff0b-417c-9db0-25eb798973f2}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="02.GameObject\Effect\Emitters">
-      <UniqueIdentifier>{8bae37aa-aacf-470c-ac67-0f3a2cc238c7}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="02.GameObject\Effect\Emitters\ComputePointParticle">
-      <UniqueIdentifier>{ceac3f7c-9e53-4638-aa47-729e8f089b5d}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="02.GameObject\Effect\Emitters\PointParticle %28deprecated%29">
-      <UniqueIdentifier>{eed9e460-dd4d-43e8-ab48-b224711cbd67}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="02.GameObject\Effect\Emitter Registration">
-      <UniqueIdentifier>{cd4fc20f-ded7-47fd-8545-9286732fe833}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="02.GameObject\Player\00. World">
-      <UniqueIdentifier>{99061e95-9355-4714-95af-917916e25c88}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="02.GameObject\Player\01. Battle">
-      <UniqueIdentifier>{b00fcbdf-e7b2-4049-8099-5dc51d091eaf}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="02.GameObject\Monster\00. World">
-      <UniqueIdentifier>{14b8ce05-46e3-414b-b28d-006c9a56b6a8}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="02.GameObject\Monster\01. Battle">
-      <UniqueIdentifier>{67722be3-2fa7-4894-aada-eddadce9c2e6}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="AnimNotify">
-      <UniqueIdentifier>{52ff958b-6d54-48df-a876-809550f14095}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="BehavoirTree\battle">
-      <UniqueIdentifier>{292bb4f3-1a9f-4b3b-aef8-1d9d3507d618}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="BehavoirTree\world">
-      <UniqueIdentifier>{935d2f6f-378e-41a8-84d6-77c20a0ddfdf}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="02.GameObject\UI\SkillTree_Panel">
-      <UniqueIdentifier>{a1312345-3547-423a-8f4a-75a5083c4e41}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="02.GameObject\UI\CharacterStatus_Panel">
-      <UniqueIdentifier>{ee7b5bd8-e9bc-4acd-91ee-92cc1ca9e59b}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="02.GameObject\Map\MapInstancedMesh">
-      <UniqueIdentifier>{48582af2-9fa3-4baf-bee3-b247fe81d3f0}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="02.GameObject\Camera\Preview">
-      <UniqueIdentifier>{2e34842e-b1f0-4652-925c-5877a9a340a6}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="02.GameObject\Camera\Preview\Manager">
-      <UniqueIdentifier>{1f6e30b5-0c1c-4d86-96cf-11fdacad9732}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="95. AnimNotify">
-      <UniqueIdentifier>{ea11cb1c-cefb-4ee4-a863-7af224f1d3f9}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="95. AnimNotify\01. NotifyStates">
-      <UniqueIdentifier>{ea34ba9d-20d9-48fd-80fb-c6de01f9a677}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="95. AnimNotify\00. Notifies">
-      <UniqueIdentifier>{308b31d5-bd9c-40f9-a1e5-2ee3b153c084}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="04. GamePlayUI">
-      <UniqueIdentifier>{4611e587-91e4-4771-8515-2e96caeac511}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="05. BattleSystem">
-      <UniqueIdentifier>{85583d48-d80e-4783-96a6-3a64b4a29fcc}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="04. GamePlayUI\Weapon">
-      <UniqueIdentifier>{9db0179b-8d7b-4cd3-a8bf-808053add9f7}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="BattleState\Battle\BattleController">
-      <UniqueIdentifier>{060c6d38-2340-4996-a3dc-93aeb84e6312}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="04. GamePlayUI\CharacterStatus_Panel">
-      <UniqueIdentifier>{ee7b5bd8-e9bc-4acd-91ee-92cc1ca9e59b}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="04. GamePlayUI\SkillTree_Panel">
-      <UniqueIdentifier>{a1312345-3547-423a-8f4a-75a5083c4e41}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="02.GameObject\Effect\Emitters\ComputeTrail">
-      <UniqueIdentifier>{34cfddd4-fc20-4ec8-9664-6169774a9019}</UniqueIdentifier>
-    </Filter>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimBlend.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimEvaluate.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimMeshSkinning.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimMix.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_BoneCombine.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_BoneRemap.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_InstanceCull.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_PointParticle.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_TrailStrip.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_Deferred.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_BillboardParticle.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMaterialPreview.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectSprite.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectTrail.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_PostProcess.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_UI.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxCube.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMesh.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMeshInstance.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMeshInstanceExact.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxNorTex.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxTex.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_BufferSmoke.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_InstancingSmoke.hlsl" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="pch.h">
-      <Filter>98.Default</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\Client_Defines.h">
-      <Filter>99.Defines</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\Client_Enum.h">
-      <Filter>99.Defines</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\Client_Struct.h">
-      <Filter>99.Defines</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\Client_Macro.h">
-      <Filter>99.Defines</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\ClientInstance.h">
-      <Filter>00.Core</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\Level_Loading.h">
-      <Filter>01.Levels\Loading</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\Level_GamePlay.h">
-      <Filter>01.Levels\GamePlay</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\Level_MainTitle.h">
-      <Filter>01.Levels\Logo</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\Loader.h">
-      <Filter>01.Levels\Loading\Loader</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\ResourceLoader.h">
-      <Filter>01.Levels\Loading\Loader</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\BackGround.h">
-      <Filter>02.GameObject\UI\BackGround</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\Terrain.h">
-      <Filter>02.GameObject\Terrain</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\FreeCamera.h">
-      <Filter>02.GameObject\Camera\Free</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\TargetCamera.h">
-      <Filter>02.GameObject\Camera\Target</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\Body_Player.h">
-      <Filter>02.GameObject\Player\PlayerParts\Body</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\Weapon.h">
-      <Filter>02.GameObject\Player\PlayerParts\Weapon</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\Sky.h">
-      <Filter>02.GameObject\Sky</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\CombatStatCom.h">
-      <Filter>03. Component\CombatStat</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\InputCom.h">
-      <Filter>03. Component\Input</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\Mon_AIController.h">
-      <Filter>BehavoirTree</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\PlayerControllerCom.h">
-      <Filter>03. Component\PlayerController</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\MapStaticMesh.h">
-      <Filter>02.GameObject\Map\MapStaticMesh</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\MapLoader.h">
-      <Filter>02.GameObject\Map\MapLoader</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\Spawn_Prefab.h">
-      <Filter>96. Manager</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\Head_Player.h">
-      <Filter>02.GameObject\Player\PlayerParts\Head</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\Hair_Player.h">
-      <Filter>02.GameObject\Player\PlayerParts\Hair</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\PlayableParts.h">
-      <Filter>02.GameObject\Player\PlayerParts</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\UI_RuntimeLoader.h">
-      <Filter>96. Manager</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\Client_Constants.h">
-      <Filter>99.Defines</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\Level_MapTest.h">
-      <Filter>01.Levels\MapTest</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\Level_Stage01.h">
-      <Filter>01.Levels\Stage\Stage01</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\PersistentObjectManager.h">
-      <Filter>96. Manager</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\BT_Node_Bootstrap.h">
-      <Filter>BehavoirTree</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\Monster_Part.h">
-      <Filter>02.GameObject\Monster</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\State.h">
-      <Filter>03. Component\StateMachine\State</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\StateMachineCom.h">
-      <Filter>03. Component\StateMachine</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\PlayerStateMachineCom.h">
-      <Filter>02.GameObject\Player\PlayerStateMachine</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\Player_State.h">
-      <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\Player_Idle.h">
-      <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\Player_Move.h">
-      <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\Player_Jump.h">
-      <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\UltimateTargeting.h">
-      <Filter>BattleState</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\AttackTargeting.h">
-      <Filter>BattleState</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\ChooseAction.h">
-      <Filter>BattleState</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\ChooseItem.h">
-      <Filter>BattleState</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\ChooseSkill.h">
-      <Filter>BattleState</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\ChooseUltimate.h">
-      <Filter>BattleState</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\ItemTargeting.h">
-      <Filter>BattleState</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\SkillTargeting.h">
-      <Filter>BattleState</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\Battle_State.h">
-      <Filter>BattleState\Battle</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\BattleStateMachine.h">
-      <Filter>BattleState\Battle</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\BStateMachine.h">
-      <Filter>BattleState\Battle</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\BattleController.h">
-      <Filter>BattleState\Battle\BattleController</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\UtilitySystem.h">
-      <Filter>96. Manager</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\BuffInstance.h">
-      <Filter>96. Manager</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\Cinematic_Player.h">
-      <Filter>02.GameObject\Camera\Cinematic</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\Cinematic_SequenceIO.h">
-      <Filter>02.GameObject\Camera\Cinematic</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\Cinematic_Types.h">
-      <Filter>02.GameObject\Camera\Cinematic</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\Cinematic_Utils.h">
-      <Filter>02.GameObject\Camera\Cinematic</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\CinematicSequencerAdapter.h">
-      <Filter>02.GameObject\Camera\Cinematic</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\GameDataTable.h">
-      <Filter>96. Manager</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\SkillTreeCom.h">
-      <Filter>03. Component</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\PointParticleEffect.h">
-      <Filter>02.GameObject\Effect\Emitters\PointParticle %28deprecated%29</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\ComputeSpriteEmitter.h">
-      <Filter>02.GameObject\Effect\Emitters\ComputePointParticle</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\InstancedMeshActor.h">
-      <Filter>02.GameObject\InstancedMeshActor</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\Buff.h">
-      <Filter>Ailment</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\BuffSystem.h">
-      <Filter>05. BattleSystem</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\DamageSystem.h">
-      <Filter>05. BattleSystem</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\CharacterStatus_Panel.h">
-      <Filter>04. GamePlayUI</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\Hero_Manager.h">
-      <Filter>96. Manager</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\Buff.h">
-      <Filter>Ailment</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\BuffSystem.h">
-      <Filter>05. BattleSystem</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\DamageSystem.h">
-      <Filter>05. BattleSystem</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\Player_WorldAction.h">
-      <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\Create_Class.h">
-      <Filter>99.Defines\Helper</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\PlayerStatCom.h">
-      <Filter>03. Component\CombatStat</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\MonsterStatCom.h">
-      <Filter>03. Component\CombatStat</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\SkillScript.h">
-      <Filter>Skill</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\Base_Mon_Attack.h">
-      <Filter>Skill</Filter>
-    </ClInclude>
-    <ClInclude Include="Base_Gustave_Attack.h">
-      <Filter>Skill</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\MapInstancedMesh.h">
-      <Filter>02.GameObject\Map\MapInstancedMesh</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\Mon_Lancelier_Body.h" />
-    <ClInclude Include="..\public\Mon_Lancelier_Weapon.h" />
-    <ClInclude Include="..\Public\Player_BattleBase.h" />
-    <ClInclude Include="..\public\AN_Battle_EndAnim.h">
-      <Filter>95. AnimNotify\00. Notifies</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\AN_Test.h">
-      <Filter>95. AnimNotify\00. Notifies</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\AN_Test2.h">
-      <Filter>95. AnimNotify\00. Notifies</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\ANS_Dodge.h">
-      <Filter>95. AnimNotify\01. NotifyStates</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\ANS_Parry.h">
-      <Filter>95. AnimNotify\01. NotifyStates</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\ANS_QTE.h">
-      <Filter>95. AnimNotify\01. NotifyStates</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\ANS_Test.h">
-      <Filter>95. AnimNotify\01. NotifyStates</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\Mon_Lancelier_Body.h">
-      <Filter>02.GameObject\Monster</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\Mon_Lancelier_Weapon.h">
-      <Filter>02.GameObject\Monster</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\SkillTree_Panel.h">
-      <Filter>04. GamePlayUI</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\EffectEmitterRegistration.h">
-      <Filter>02.GameObject\Effect\Emitter Registration</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\EffectAssetRuntimeLoader.h">
-      <Filter>02.GameObject\Effect</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\Monster_BattleBase.h">
-      <Filter>02.GameObject\Monster</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\Character_WorldBase.h">
-      <Filter>02.GameObject\Player</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\Character_BattleBase.h">
-      <Filter>02.GameObject\Player</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\Monster_WorldBase.h">
-      <Filter>02.GameObject\Monster</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\PB_Gustave.h">
-      <Filter>02.GameObject\Player\01. Battle</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\PB_Lune.h">
-      <Filter>02.GameObject\Player\01. Battle</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\Player_WorldBase.h">
-      <Filter>02.GameObject\Player\00. World</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\PW_Gustave.h">
-      <Filter>02.GameObject\Player\00. World</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\PW_Lune.h">
-      <Filter>02.GameObject\Player\00. World</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\PW_Maelle.h">
-      <Filter>02.GameObject\Player\00. World</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\PB_Maelle.h">
-      <Filter>02.GameObject\Player\01. Battle</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\Player_BattleBase.h">
-      <Filter>02.GameObject\Player\01. Battle</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\CharacterStatus_Panel.h">
-      <Filter>02.GameObject\UI\CharacterStatus_Panel</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\Battle_Enum.h" />
-    <ClInclude Include="..\Public\MB_Lancelier.h">
-      <Filter>02.GameObject\Monster\01. Battle</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\MW_Lancelier.h">
-      <Filter>02.GameObject\Monster\00. World</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\BattleTurnCamera.h" />
-    <ClInclude Include="..\public\AN_Battle_EndAnim.h">
-      <Filter>AnimNotify</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\AN_Test.h">
-      <Filter>AnimNotify</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\AN_Test2.h">
-      <Filter>AnimNotify</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\ANS_Dodge.h">
-      <Filter>AnimNotify</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\ANS_Parry.h">
-      <Filter>AnimNotify</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\ANS_QTE.h">
-      <Filter>AnimNotify</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\ANS_Test.h">
-      <Filter>AnimNotify</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\BT_Attack.h">
-      <Filter>BehavoirTree\world</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\BT_CheckDistance.h">
-      <Filter>BehavoirTree\world</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\BT_Idle.h">
-      <Filter>BehavoirTree\world</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\BT_RotateToTarget.h">
-      <Filter>BehavoirTree\world</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\BT_FinishDecision.h">
-      <Filter>BehavoirTree\battle</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\BT_Set_Target.h">
-      <Filter>BehavoirTree\battle</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\BT_SetSkill.h">
-      <Filter>BehavoirTree\battle</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\BattleActionExecutor.h" />
-    <ClInclude Include="..\Public\BattleTurnCamera.h">
-      <Filter>02.GameObject\Camera</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\HairChainPhysics.h">
-      <Filter>02.GameObject\Player</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\PreviewShotTable.h">
-      <Filter>96. Manager</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\PreviewCamera.h">
-      <Filter>02.GameObject\Camera\Preview</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\UIPreviewManager.h">
-      <Filter>02.GameObject\Camera\Preview\Manager</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\WeaponUI_Common.h">
-      <Filter>04. GamePlayUI\Weapon</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\ChangeWeapon_Panel.h">
-      <Filter>04. GamePlayUI\Weapon</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\AN_Attack.h">
-      <Filter>AnimNotify</Filter>
-    </ClInclude>
-    <ClInclude Include="Battle_Enum.h" />
-    <ClInclude Include="..\Public\GameplayUI.h">
-      <Filter>04. GamePlayUI</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\SkillTree_Panel.h">
-      <Filter>04. GamePlayUI\SkillTree_Panel</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\FreeAimTargeting.h" />
-    <ClInclude Include="..\public\AN_EnterAnim.h">
-      <Filter>AnimNotify</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\ANS_Move.h">
-      <Filter>AnimNotify</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\Player_GameMenu.h" />
-    <ClInclude Include="..\Public\UI_Utils.h">
-      <Filter>02.GameObject\UI</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\UI_BattleCommandHUD.h">
-      <Filter>02.GameObject\UI</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\UI_BattleDefense.h">
-      <Filter>02.GameObject\UI</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\UI_BattleTransition.h">
-      <Filter>02.GameObject\UI</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\UI_CancelAim.h">
-      <Filter>02.GameObject\UI</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\UI_CrossHair.h">
-      <Filter>02.GameObject\UI</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\UI_ExpeditionStatus.h">
-      <Filter>02.GameObject\UI</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\UI_MonsterHpBar.h">
-      <Filter>02.GameObject\UI</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\UI_RuntimePanelBase.h">
-      <Filter>02.GameObject\UI</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\GameplayUI_Battle.h">
-      <Filter>02.GameObject\UI</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\GameplayUI_Types.h">
-      <Filter>02.GameObject\UI</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\GameplayUI_World.h">
-      <Filter>02.GameObject\UI</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\StreamingLevel.h">
-      <Filter>01.Levels</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\UI_ChoiceTarget.h">
-      <Filter>02.GameObject\UI</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\SavePoint_Panel.h">
-      <Filter>02.GameObject\UI</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\ExpeditionStat_Panel.h">
-      <Filter>02.GameObject\UI</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\AttackPlaying.h">
-      <Filter>BattleState</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\UI_BattleSystemHUD.h">
-      <Filter>02.GameObject\UI</Filter>
-    <ClInclude Include="..\Public\ComputeTrailEmitter.h">
-      <Filter>02.GameObject\Effect\Emitters\ComputeTrail</Filter>
-    </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="pch.cpp">
-      <Filter>98.Default</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\Level_Loading.cpp">
-      <Filter>01.Levels\Loading</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\Level_GamePlay.cpp">
-      <Filter>01.Levels\GamePlay</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\Level_MainTitle.cpp">
-      <Filter>01.Levels\Logo</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\Loader.cpp">
-      <Filter>01.Levels\Loading\Loader</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\ResourceLoader.cpp">
-      <Filter>01.Levels\Loading\Loader</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\BackGround.cpp">
-      <Filter>02.GameObject\UI\BackGround</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\Terrain.cpp">
-      <Filter>02.GameObject\Terrain</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\FreeCamera.cpp">
-      <Filter>02.GameObject\Camera\Free</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\TargetCamera.cpp">
-      <Filter>02.GameObject\Camera\Target</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\Body_Player.cpp">
-      <Filter>02.GameObject\Player\PlayerParts\Body</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\Weapon.cpp">
-      <Filter>02.GameObject\Player\PlayerParts\Weapon</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\Sky.cpp">
-      <Filter>02.GameObject\Sky</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\ClientInstance.cpp">
-      <Filter>00.Core</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\SimpleMath.cpp">
-      <Filter>99.Defines</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\CombatStatCom.cpp">
-      <Filter>03. Component\CombatStat</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\InputCom.cpp">
-      <Filter>03. Component\Input</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\Mon_AIController.cpp">
-      <Filter>BehavoirTree</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\PlayerControllerCom.cpp">
-      <Filter>03. Component\PlayerController</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\MapStaticMesh.cpp">
-      <Filter>02.GameObject\Map\MapStaticMesh</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\MapLoader.cpp">
-      <Filter>02.GameObject\Map\MapLoader</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\Spawn_Prefab.cpp">
-      <Filter>96. Manager</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\Head_Player.cpp">
-      <Filter>02.GameObject\Player\PlayerParts\Head</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\Hair_Player.cpp">
-      <Filter>02.GameObject\Player\PlayerParts\Hair</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\PlayableParts.cpp">
-      <Filter>02.GameObject\Player\PlayerParts</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\Level_MapTest.cpp">
-      <Filter>01.Levels\MapTest</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\Level_Stage01.cpp">
-      <Filter>01.Levels\Stage\Stage01</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\PersistentObjectManager.cpp">
-      <Filter>96. Manager</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\BT_Node_Bootstrap.cpp">
-      <Filter>BehavoirTree</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\Monster_Part.cpp">
-      <Filter>02.GameObject\Monster</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\State.cpp">
-      <Filter>03. Component\StateMachine\State</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\StateMachineCom.cpp">
-      <Filter>03. Component\StateMachine</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\PlayerStateMachineCom.cpp">
-      <Filter>02.GameObject\Player\PlayerStateMachine</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\Player_State.cpp">
-      <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\Player_Idle.cpp">
-      <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\Player_Move.cpp">
-      <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\Player_Jump.cpp">
-      <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\UltimateTargeting.cpp">
-      <Filter>BattleState</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\AttackTargeting.cpp">
-      <Filter>BattleState</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\SkillTargeting.cpp">
-      <Filter>BattleState</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\ItemTargeting.cpp">
-      <Filter>BattleState</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\ChooseAction.cpp">
-      <Filter>BattleState</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\ChooseItem.cpp">
-      <Filter>BattleState</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\ChooseSkill.cpp">
-      <Filter>BattleState</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\ChooseUltimate.cpp">
-      <Filter>BattleState</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\Battle_State.cpp">
-      <Filter>BattleState\Battle</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\BattleStateMachine.cpp">
-      <Filter>BattleState\Battle</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\BStateMachine.cpp">
-      <Filter>BattleState\Battle</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\BattleController.cpp">
-      <Filter>BattleState\Battle\BattleController</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\UtilitySystem.cpp">
-      <Filter>96. Manager</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\BuffInstance.cpp">
-      <Filter>96. Manager</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\CameraPresetIO.cpp">
-      <Filter>02.GameObject\Camera</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\Cinematic_Player.cpp">
-      <Filter>02.GameObject\Camera\Cinematic</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\Cinematic_SequenceIO.cpp">
-      <Filter>02.GameObject\Camera\Cinematic</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\CinematicSequencerAdapter.cpp">
-      <Filter>02.GameObject\Camera\Cinematic</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\GameDataTable.cpp">
-      <Filter>96. Manager</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\SkillTreeCom.cpp">
-      <Filter>03. Component</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\PointParticleEffect.cpp">
-      <Filter>02.GameObject\Effect\Emitters\PointParticle %28deprecated%29</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\ComputeSpriteEmitter.cpp">
-      <Filter>02.GameObject\Effect\Emitters\ComputePointParticle</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\EffectAssetRuntimeLoader.cpp">
-      <Filter>02.GameObject\Effect</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\InstancedMeshActor.cpp">
-      <Filter>02.GameObject\InstancedMeshActor</Filter>
-    </ClCompile>
-    <ClCompile Include="..\public\Ailment.cpp">
-      <Filter>Ailment</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\BuffSystem.cpp">
-      <Filter>05. BattleSystem</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\DamageSystem.cpp">
-      <Filter>05. BattleSystem</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\CharacterStatus_Panel.cpp">
-      <Filter>04. GamePlayUI</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\Hero_Manager.cpp">
-      <Filter>96. Manager</Filter>
-    </ClCompile>
-    <ClCompile Include="..\public\Ailment.cpp">
-      <Filter>Ailment</Filter>
-    </ClCompile>
+    <ClCompile Include="..\private\ANS_Dodge.cpp" />
+    <ClCompile Include="..\private\ANS_Move.cpp" />
+    <ClCompile Include="..\private\ANS_Parry.cpp" />
+    <ClCompile Include="..\private\AN_Attack.cpp" />
+    <ClCompile Include="..\private\AN_Battle_EndAnim.cpp" />
+    <ClCompile Include="..\private\AN_EnterAnim.cpp" />
+    <ClCompile Include="..\Private\AN_Test2.cpp" />
+    <ClCompile Include="..\Private\AttackPlaying.cpp" />
+    <ClCompile Include="..\private\Base_Mon_Attack.cpp" />
+    <ClCompile Include="..\private\BattleActionExecutor.cpp" />
+    <ClCompile Include="..\Private\BattleTurnCamera.cpp" />
+    <ClCompile Include="..\private\BT_Patroll.cpp" />
+    <ClCompile Include="..\private\ChangeWeapon_Panel.cpp" />
+    <ClCompile Include="..\private\BT_FinishDecision.cpp" />
+    <ClCompile Include="..\private\BT_SetSkill.cpp" />
+    <ClCompile Include="..\private\BT_Set_Target.cpp" />
+    <ClCompile Include="..\Private\ExpeditionStat_Panel.cpp" />
+    <ClCompile Include="..\Private\ComputeTrailEmitter.cpp" />
+    <ClCompile Include="..\Private\FreeAimTargeting.cpp" />
+    <ClCompile Include="..\Private\GameplayUI_Battle.cpp" />
+    <ClCompile Include="..\Private\GameplayUI_World.cpp" />
+    <ClCompile Include="..\private\MB_Bishop.cpp" />
+    <ClCompile Include="..\private\MB_Portier.cpp" />
+    <ClCompile Include="..\private\MB_Volester.cpp" />
+    <ClCompile Include="..\private\Mon_Bishop_Body.cpp" />
+    <ClCompile Include="..\private\Mon_Volester_Body.cpp" />
+    <ClCompile Include="..\private\MW_Bishop.cpp" />
+    <ClCompile Include="..\private\MW_Portier.cpp" />
+    <ClCompile Include="..\private\MW_Volester.cpp" />
+    <ClCompile Include="..\Private\PB_Gustave.cpp" />
+    <ClCompile Include="..\Private\MB_Lancelier.cpp" />
+    <ClCompile Include="..\Private\PB_Lune.cpp" />
+    <ClCompile Include="..\Private\PB_Maelle.cpp" />
     <ClCompile Include="..\private\BuffSystem.cpp" />
+    <ClCompile Include="..\Private\AN_Test.cpp" />
+    <ClCompile Include="..\Private\ANS_Test.cpp" />
+    <ClCompile Include="..\private\AttackTargeting.cpp" />
+    <ClCompile Include="..\private\BattleController.cpp" />
+    <ClCompile Include="..\private\BattleStateMachine.cpp" />
+    <ClCompile Include="..\private\Battle_State.cpp" />
+    <ClCompile Include="..\Private\BStateMachine.cpp" />
+    <ClCompile Include="..\private\BT_Chase.cpp" />
+    <ClCompile Include="..\private\BT_CheckDistance.cpp" />
+    <ClCompile Include="..\private\BT_Idle.cpp" />
+    <ClCompile Include="..\private\BT_Node_Bootstrap.cpp" />
+    <ClCompile Include="..\Private\BT_RotateToTarget.cpp" />
+    <ClCompile Include="..\private\BuffInstance.cpp" />
+    <ClCompile Include="..\Private\Character_BattleBase.cpp" />
+    <ClCompile Include="..\Private\Character_WorldBase.cpp" />
+    <ClCompile Include="..\private\ChooseAction.cpp" />
+    <ClCompile Include="..\private\ChooseItem.cpp" />
+    <ClCompile Include="..\private\ChooseSkill.cpp" />
+    <ClCompile Include="..\private\ChooseUltimate.cpp" />
+    <ClCompile Include="..\Private\CameraPresetIO.cpp" />
+    <ClCompile Include="..\Private\CinematicSequencerAdapter.cpp" />
+    <ClCompile Include="..\Private\Cinematic_Player.cpp" />
+    <ClCompile Include="..\Private\Cinematic_SequenceIO.cpp" />
+    <ClCompile Include="..\Private\CombatStatCom.cpp" />
+    <ClCompile Include="..\Private\ComputeSpriteEmitter.cpp" />
     <ClCompile Include="..\private\DamageSystem.cpp" />
-    <ClCompile Include="..\Private\Hero_Manager.cpp" />
+    <ClCompile Include="..\Private\EffectAssetRuntimeLoader.cpp" />
+    <ClCompile Include="..\Private\EffectEmitterRegistration.cpp" />
+    <ClCompile Include="..\Private\GameDataTable.cpp" />
     <ClCompile Include="..\Private\GameplayUI.cpp" />
-    <ClCompile Include="..\Private\Player_WorldAction.cpp">
-      <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\Create_Class.cpp">
-      <Filter>99.Defines\Helper</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\MonsterStatCom.cpp">
-      <Filter>03. Component\CombatStat</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\PlayerStatCom.cpp">
-      <Filter>03. Component\CombatStat</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\SkillScript.cpp">
-      <Filter>Skill</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\Base_Mon_Attack.cpp">
-      <Filter>Skill</Filter>
-    </ClCompile>
-    <ClCompile Include="Base_Gustave_Attack.cpp">
-      <Filter>Skill</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\UI_RuntimeLoader.cpp">
-      <Filter>96. Manager</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\MapInstancedMesh.cpp">
-      <Filter>02.GameObject\Map\MapInstancedMesh</Filter>
-    </ClCompile>
+    <ClCompile Include="..\Private\HairChainPhysics.cpp" />
+    <ClCompile Include="..\Private\Hair_Player.cpp" />
+    <ClCompile Include="..\Private\Head_Player.cpp" />
+    <ClCompile Include="..\Private\Hero_Manager.cpp" />
+    <ClCompile Include="..\Private\InputCom.cpp" />
+    <ClCompile Include="..\private\ItemTargeting.cpp" />
+    <ClCompile Include="..\Private\InstancedMeshActor.cpp" />
+    <ClCompile Include="..\Private\Level_MapTest.cpp" />
+    <ClCompile Include="..\Private\Level_Stage01.cpp" />
+    <ClCompile Include="..\Private\MapInstancedMesh.cpp" />
+    <ClCompile Include="..\Private\MapLoader.cpp" />
+    <ClCompile Include="..\Private\MapStaticMesh.cpp" />
+    <ClCompile Include="..\private\MonsterStatCom.cpp" />
+    <ClCompile Include="..\Private\Monster_BattleBase.cpp" />
+    <ClCompile Include="..\private\Monster_Part.cpp" />
+    <ClCompile Include="..\Private\Monster_WorldBase.cpp" />
+    <ClCompile Include="..\private\Mon_AIController.cpp" />
     <ClCompile Include="..\private\Mon_Lancelier_Body.cpp" />
     <ClCompile Include="..\private\Mon_Lancelier_Weapon.cpp" />
-    <ClCompile Include="..\public\ANS_QTE.cpp" />
-    <ClCompile Include="..\Private\EffectEmitterRegistration.cpp">
-      <Filter>02.GameObject\Effect\Emitter Registration</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\AN_Battle_EndAnim.cpp">
-      <Filter>95. AnimNotify\00. Notifies</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\AN_Test.cpp">
-      <Filter>95. AnimNotify\00. Notifies</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\AN_Test2.cpp">
-      <Filter>95. AnimNotify\00. Notifies</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\ANS_Dodge.cpp">
-      <Filter>95. AnimNotify\01. NotifyStates</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\ANS_Parry.cpp">
-      <Filter>95. AnimNotify\01. NotifyStates</Filter>
-    </ClCompile>
-    <ClCompile Include="..\public\ANS_QTE.cpp">
-      <Filter>95. AnimNotify\01. NotifyStates</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\ANS_Test.cpp">
-      <Filter>95. AnimNotify\01. NotifyStates</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\Mon_Lancelier_Body.cpp">
-      <Filter>02.GameObject\Monster</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\Mon_Lancelier_Weapon.cpp">
-      <Filter>02.GameObject\Monster</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\SkillTree_Panel.cpp">
-      <Filter>04. GamePlayUI</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\Monster_BattleBase.cpp">
-      <Filter>02.GameObject\Monster</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\Character_WorldBase.cpp">
-      <Filter>02.GameObject\Player</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\Character_BattleBase.cpp">
-      <Filter>02.GameObject\Player</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\Monster_WorldBase.cpp">
-      <Filter>02.GameObject\Monster</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\PB_Gustave.cpp">
-      <Filter>02.GameObject\Player\01. Battle</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\PB_Lune.cpp">
-      <Filter>02.GameObject\Player\01. Battle</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\PB_Maelle.cpp">
-      <Filter>02.GameObject\Player\01. Battle</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\Player_WorldBase.cpp">
-      <Filter>02.GameObject\Player\00. World</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\PW_Gustave.cpp">
-      <Filter>02.GameObject\Player\00. World</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\PW_Lune.cpp">
-      <Filter>02.GameObject\Player\00. World</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\PW_Maelle.cpp">
-      <Filter>02.GameObject\Player\00. World</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\Player_BattleBase.cpp">
-      <Filter>02.GameObject\Player\01. Battle</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\CharacterStatus_Panel.cpp">
-      <Filter>02.GameObject\UI\CharacterStatus_Panel</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\SkillTree_Panel.cpp">
-      <Filter>02.GameObject\UI\SkillTree_Panel</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\MB_Lancelier.cpp">
-      <Filter>02.GameObject\Monster\01. Battle</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\MW_Lancelier.cpp">
-      <Filter>02.GameObject\Monster\00. World</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\BattleTurnCamera.cpp" />
-    <ClCompile Include="..\private\AN_Battle_EndAnim.cpp">
-      <Filter>AnimNotify</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\AN_Test.cpp">
-      <Filter>AnimNotify</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\AN_Test2.cpp">
-      <Filter>AnimNotify</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\ANS_Dodge.cpp">
-      <Filter>AnimNotify</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\ANS_Parry.cpp">
-      <Filter>AnimNotify</Filter>
-    </ClCompile>
-    <ClCompile Include="..\public\ANS_QTE.cpp">
-      <Filter>AnimNotify</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\ANS_Test.cpp">
-      <Filter>AnimNotify</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\BT_Attack.cpp">
-      <Filter>BehavoirTree\world</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\BT_CheckDistance.cpp">
-      <Filter>BehavoirTree\world</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\BT_Idle.cpp">
-      <Filter>BehavoirTree\world</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\BT_RotateToTarget.cpp">
-      <Filter>BehavoirTree\world</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\BT_FinishDecision.cpp">
-      <Filter>BehavoirTree\battle</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\BT_Set_Target.cpp">
-      <Filter>BehavoirTree\battle</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\BT_SetSkill.cpp">
-      <Filter>BehavoirTree\battle</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\BattleActionExecutor.cpp" />
-    <ClCompile Include="..\Private\BattleTurnCamera.cpp">
-      <Filter>02.GameObject\Camera</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\HairChainPhysics.cpp">
-      <Filter>02.GameObject\Player</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\PreviewShotTable.cpp">
-      <Filter>96. Manager</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\PreviewCamera.cpp">
-      <Filter>02.GameObject\Camera\Preview</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\UIPreviewManager.cpp">
-      <Filter>02.GameObject\Camera\Preview\Manager</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\WeaponUI_Common.cpp">
-      <Filter>04. GamePlayUI\Weapon</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\ChangeWeapon_Panel.cpp">
-      <Filter>04. GamePlayUI\Weapon</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\AN_Attack.cpp">
-      <Filter>AnimNotify</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\GameplayUI.cpp">
-      <Filter>04. GamePlayUI</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\SkillTree_Panel.cpp">
-      <Filter>04. GamePlayUI\SkillTree_Panel</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\FreeAimTargeting.cpp" />
-    <ClCompile Include="..\private\AN_EnterAnim.cpp">
-      <Filter>AnimNotify</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\ANS_Move.cpp">
-      <Filter>AnimNotify</Filter>
-    </ClCompile>
+    <ClCompile Include="..\Private\PersistentObjectManager.cpp" />
+    <ClCompile Include="..\Private\PlayableParts.cpp" />
+    <ClCompile Include="..\Private\PlayerControllerCom.cpp" />
+    <ClCompile Include="..\private\PlayerStatCom.cpp" />
+    <ClCompile Include="..\Private\Player_BattleBase.cpp" />
     <ClCompile Include="..\Private\Player_GameMenu.cpp" />
-    </ClCompile>
-    <ClCompile Include="..\Private\UI_BattleCommandHUD.cpp">
-      <Filter>02.GameObject\UI</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\UI_BattleDefense.cpp">
-      <Filter>02.GameObject\UI</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\UI_BattleTransition.cpp">
-      <Filter>02.GameObject\UI</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\UI_CancelAim.cpp">
-      <Filter>02.GameObject\UI</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\UI_CrossHair.cpp">
-      <Filter>02.GameObject\UI</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\UI_ExpeditionStatus.cpp">
-      <Filter>02.GameObject\UI</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\UI_MonsterHpBar.cpp">
-      <Filter>02.GameObject\UI</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\UI_RuntimePanelBase.cpp">
-      <Filter>02.GameObject\UI</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\GameplayUI_Battle.cpp">
-      <Filter>02.GameObject\UI</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\GameplayUI_World.cpp">
-      <Filter>02.GameObject\UI</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\StreamingLevel.cpp">
-      <Filter>01.Levels</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\UI_ChoiceTarget.cpp">
-      <Filter>02.GameObject\UI</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\SavePoint_Panel.cpp">
-      <Filter>02.GameObject\UI</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\ExpeditionStat_Panel.cpp">
-      <Filter>02.GameObject\UI</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\AttackPlaying.cpp">
-      <Filter>BattleState</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\UI_BattleSystemHUD.cpp">
-      <Filter>02.GameObject\UI</Filter>
-    <ClCompile Include="..\Private\ComputeTrailEmitter.cpp">
-      <Filter>02.GameObject\Effect\Emitters\ComputeTrail</Filter>
-    </ClCompile>
+    <ClCompile Include="..\private\Mon_Portier_Body.cpp" />
+    <ClCompile Include="..\private\PreviewShotTable.cpp" />
+    <ClCompile Include="..\Private\PW_Gustave.cpp" />
+    <ClCompile Include="..\Private\Player_Idle.cpp" />
+    <ClCompile Include="..\Private\Player_Jump.cpp" />
+    <ClCompile Include="..\Private\PW_Lune.cpp" />
+    <ClCompile Include="..\Private\PW_Maelle.cpp" />
+    <ClCompile Include="..\Private\Player_Move.cpp" />
+    <ClCompile Include="..\Private\Player_State.cpp" />
+    <ClCompile Include="..\Private\PlayerStateMachineCom.cpp" />
+    <ClCompile Include="..\Private\PreviewCamera.cpp" />
+    <ClCompile Include="..\Private\Player_WorldAction.cpp" />
+    <ClCompile Include="..\Private\SimpleMath.cpp" />
+    <ClCompile Include="..\private\SkillScript.cpp" />
+    <ClCompile Include="..\private\SkillTargeting.cpp" />
+    <ClCompile Include="..\Private\SkillTreeCom.cpp" />
+    <ClCompile Include="..\private\SkillTree_Panel.cpp" />
+    <ClCompile Include="..\Private\Create_Class.cpp" />
+    <ClCompile Include="..\Private\Spawn_Prefab.cpp" />
+    <ClCompile Include="..\Private\State.cpp" />
+    <ClCompile Include="..\Private\StateMachineCom.cpp" />
+    <ClCompile Include="..\Private\StreamingLevel.cpp" />
+    <ClCompile Include="..\Private\TargetCamera.cpp" />
+    <ClCompile Include="..\Private\CharacterStatus_Panel.cpp" />
+    <ClCompile Include="..\private\UIPreviewManager.cpp" />
+    <ClCompile Include="..\Private\UI_BattleSystemHUD.cpp" />
+    <ClCompile Include="..\Private\UI_CancelAim.cpp" />
+    <ClCompile Include="..\Private\UI_BattleCommandHUD.cpp" />
+    <ClCompile Include="..\Private\UI_BattleDefense.cpp" />
+    <ClCompile Include="..\Private\UI_BattleTransition.cpp" />
+    <ClCompile Include="..\Private\UI_ChoiceTarget.cpp" />
+    <ClCompile Include="..\Private\UI_CrossHair.cpp" />
+    <ClCompile Include="..\Private\UI_ExpeditionStatus.cpp" />
+    <ClCompile Include="..\Private\UI_MonsterHpBar.cpp" />
+    <ClCompile Include="..\Private\UI_RuntimeLoader.cpp" />
+    <ClCompile Include="..\Private\SavePoint_Panel.cpp" />
+    <ClCompile Include="..\Private\UI_RuntimePanelBase.cpp" />
+    <ClCompile Include="..\private\UltimateTargeting.cpp" />
+    <ClCompile Include="..\private\UtilitySystem.cpp" />
+    <ClCompile Include="..\private\WeaponUI_Common.cpp" />
+    <ClCompile Include="..\public\Ailment.cpp" />
+    <ClCompile Include="..\public\ANS_QTE.cpp" />
+    <ClCompile Include="Base_Gustave_Attack.cpp" />
+    <ClCompile Include="pch.cpp" />
+    <ClCompile Include="..\private\BackGround.cpp" />
+    <ClCompile Include="..\private\Body_Player.cpp" />
+    <ClCompile Include="..\Private\ClientInstance.cpp" />
+    <ClCompile Include="..\private\FreeCamera.cpp" />
+    <ClCompile Include="..\Private\Level_GamePlay.cpp" />
+    <ClCompile Include="..\private\Level_Loading.cpp" />
+    <ClCompile Include="..\Private\Level_MainTitle.cpp" />
+    <ClCompile Include="..\private\Loader.cpp" />
+    <ClCompile Include="..\Private\MW_Lancelier.cpp" />
+    <ClCompile Include="..\Private\Player_WorldBase.cpp" />
+    <ClCompile Include="..\Private\PointParticleEffect.cpp" />
+    <ClCompile Include="..\Private\ResourceLoader.cpp" />
+    <ClCompile Include="..\Private\Sky.cpp" />
+    <ClCompile Include="..\Private\Terrain.cpp" />
+    <ClCompile Include="..\Private\Weapon.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">
-      <Filter>97.ShaderFiles</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxCube.hlsl">
-      <Filter>97.ShaderFiles</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_Deferred.hlsl">
-      <Filter>97.ShaderFiles</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMesh.hlsl">
-      <Filter>97.ShaderFiles</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxNorTex.hlsl">
-      <Filter>97.ShaderFiles</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxTex.hlsl">
-      <Filter>97.ShaderFiles</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_UI.hlsl">
-      <Filter>97.ShaderFiles</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_InstancingSmoke.hlsl">
-      <Filter>97.ShaderFiles\Compute</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_PointParticle.hlsl">
-      <Filter>97.ShaderFiles\Compute</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_TrailStrip.hlsl">
-      <Filter>97.ShaderFiles\Compute</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMeshInstance.hlsl">
-      <Filter>97.ShaderFiles</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_BillboardParticle.hlsl">
-      <Filter>97.ShaderFiles\Effect</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectSprite.hlsl">
-      <Filter>97.ShaderFiles\Effect</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMeshInstanceExact.hlsl">
-      <Filter>97.ShaderFiles</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_InstanceCull.hlsl">
-      <Filter>97.ShaderFiles\Compute</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimMeshSkinning.hlsl">
-      <Filter>97.ShaderFiles\Compute</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_PostProcess.hlsl">
-      <Filter>97.ShaderFiles</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimEvaluate.hlsl">
-      <Filter>97.ShaderFiles\Compute</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimBlend.hlsl">
-      <Filter>97.ShaderFiles\Compute</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimMix.hlsl">
-      <Filter>97.ShaderFiles\Compute</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
-      <Filter>97.ShaderFiles\Compute</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_BoneCombine.hlsl">
-      <Filter>97.ShaderFiles\Compute</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_BoneRemap.hlsl">
-      <Filter>97.ShaderFiles\Compute</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMaterialPreview.hlsl" />
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMaterialPreview.hlsl">
-      <Filter>97.ShaderFiles\Effect</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectTrail.hlsl">
-      <Filter>97.ShaderFiles\Effect</Filter>
-    </FxCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_BufferSmoke.hlsl">
-      <Filter>97.ShaderFiles\Compute</Filter>
-    </FxCompile>
+    <ClInclude Include="..\public\ANS_Dodge.h" />
+    <ClInclude Include="..\public\ANS_Move.h" />
+    <ClInclude Include="..\public\ANS_Parry.h" />
+    <ClInclude Include="..\public\ANS_QTE.h" />
+    <ClInclude Include="..\public\AN_Attack.h" />
+    <ClInclude Include="..\public\AN_Battle_EndAnim.h" />
+    <ClInclude Include="..\public\AN_EnterAnim.h" />
+    <ClInclude Include="..\Public\AN_Test2.h" />
+    <ClInclude Include="..\Public\AttackPlaying.h" />
+    <ClInclude Include="..\public\Base_Mon_Attack.h" />
+    <ClInclude Include="..\public\BattleActionExecutor.h" />
+    <ClInclude Include="..\Public\Battle_Enum.h" />
+    <ClInclude Include="..\Public\BattleTurnCamera.h" />
+    <ClInclude Include="..\public\BT_Patroll.h" />
+    <ClInclude Include="..\public\ChangeWeapon_Panel.h" />
+    <ClInclude Include="..\public\BT_FinishDecision.h" />
+    <ClInclude Include="..\public\BT_SetSkill.h" />
+    <ClInclude Include="..\public\BT_Set_Target.h" />
+    <ClInclude Include="..\Public\ExpeditionStat_Panel.h" />
+    <ClInclude Include="..\Public\ComputeTrailEmitter.h" />
+    <ClInclude Include="..\Public\FreeAimTargeting.h" />
+    <ClInclude Include="..\Public\GameplayUI_Battle.h" />
+    <ClInclude Include="..\Public\GameplayUI_World.h" />
+    <ClInclude Include="..\public\MB_Bishop.h" />
+    <ClInclude Include="..\public\MB_Portier.h" />
+    <ClInclude Include="..\public\MB_Volester.h" />
+    <ClInclude Include="..\public\Mon_Bishop_Body.h" />
+    <ClInclude Include="..\public\Mon_Volester_Body.h" />
+    <ClInclude Include="..\public\MW_Bishop.h" />
+    <ClInclude Include="..\public\MW_Portier.h" />
+    <ClInclude Include="..\public\MW_Volester.h" />
+    <ClInclude Include="..\Public\GameplayUI_Types.h" />
+    <ClInclude Include="..\Public\PB_Gustave.h" />
+    <ClInclude Include="..\Public\MB_Lancelier.h" />
+    <ClInclude Include="..\Public\PB_Lune.h" />
+    <ClInclude Include="..\Public\PB_Maelle.h" />
+    <ClInclude Include="..\public\Buff.h" />
+    <ClInclude Include="..\public\BuffSystem.h" />
+    <ClInclude Include="..\Public\AN_Test.h" />
+    <ClInclude Include="..\Public\ANS_Test.h" />
+    <ClInclude Include="..\public\AttackTargeting.h" />
+    <ClInclude Include="..\public\BattleController.h" />
+    <ClInclude Include="..\public\BattleStateMachine.h" />
+    <ClInclude Include="..\public\Battle_State.h" />
+    <ClInclude Include="..\Public\BStateMachine.h" />
+    <ClInclude Include="..\public\BT_Chase.h" />
+    <ClInclude Include="..\public\BT_CheckDistance.h" />
+    <ClInclude Include="..\public\BT_Idle.h" />
+    <ClInclude Include="..\Public\BT_Node_Bootstrap.h" />
+    <ClInclude Include="..\public\BT_RotateToTarget.h" />
+    <ClInclude Include="..\public\BuffInstance.h" />
+    <ClInclude Include="..\Public\Character_BattleBase.h" />
+    <ClInclude Include="..\Public\Character_WorldBase.h" />
+    <ClInclude Include="..\public\ChooseAction.h" />
+    <ClInclude Include="..\public\ChooseItem.h" />
+    <ClInclude Include="..\public\ChooseSkill.h" />
+    <ClInclude Include="..\public\ChooseUltimate.h" />
+    <ClInclude Include="..\Public\CinematicSequencerAdapter.h" />
+    <ClInclude Include="..\Public\Cinematic_Player.h" />
+    <ClInclude Include="..\Public\Cinematic_SequenceIO.h" />
+    <ClInclude Include="..\Public\Cinematic_Types.h" />
+    <ClInclude Include="..\Public\Cinematic_Utils.h" />
+    <ClInclude Include="..\Public\Client_Constants.h" />
+    <ClInclude Include="..\Public\Client_Enum.h" />
+    <ClInclude Include="..\Public\Client_Macro.h" />
+    <ClInclude Include="..\Public\Client_Struct.h" />
+    <ClInclude Include="..\Public\CombatStatCom.h" />
+    <ClInclude Include="..\Public\ComputeSpriteEmitter.h" />
+    <ClInclude Include="..\public\DamageSystem.h" />
+    <ClInclude Include="..\Public\EffectAssetRuntimeLoader.h" />
+    <ClInclude Include="..\Public\EffectEmitterRegistration.h" />
+    <ClInclude Include="..\Public\GameDataTable.h" />
+    <ClInclude Include="..\Public\GameplayUI.h" />
+    <ClInclude Include="..\Public\HairChainPhysics.h" />
+    <ClInclude Include="..\Public\Hair_Player.h" />
+    <ClInclude Include="..\Public\Head_Player.h" />
+    <ClInclude Include="..\Public\Hero_Manager.h" />
+    <ClInclude Include="..\Public\InputCom.h" />
+    <ClInclude Include="..\public\ItemTargeting.h" />
+    <ClInclude Include="..\Public\InstancedMeshActor.h" />
+    <ClInclude Include="..\Public\Level_MapTest.h" />
+    <ClInclude Include="..\Public\Level_Stage01.h" />
+    <ClInclude Include="..\Public\MapInstancedMesh.h" />
+    <ClInclude Include="..\Public\MapLoader.h" />
+    <ClInclude Include="..\Public\MapStaticMesh.h" />
+    <ClInclude Include="..\public\MonsterStatCom.h" />
+    <ClInclude Include="..\Public\Monster_BattleBase.h" />
+    <ClInclude Include="..\public\Monster_Part.h" />
+    <ClInclude Include="..\Public\Monster_WorldBase.h" />
+    <ClInclude Include="..\public\Mon_AIController.h" />
+    <ClInclude Include="..\public\Mon_Lancelier_Body.h" />
+    <ClInclude Include="..\public\Mon_Lancelier_Weapon.h" />
+    <ClInclude Include="..\Public\PersistentObjectManager.h" />
+    <ClInclude Include="..\Public\PlayableParts.h" />
+    <ClInclude Include="..\Public\PlayerControllerCom.h" />
+    <ClInclude Include="..\public\PlayerStatCom.h" />
+    <ClInclude Include="..\Public\Player_BattleBase.h" />
+    <ClInclude Include="..\Public\Player_GameMenu.h" />
+    <ClInclude Include="..\public\Mon_Portier_Body.h" />
+    <ClInclude Include="..\public\PreviewShotTable.h" />
+    <ClInclude Include="..\public\SkillScript.h" />
+    <ClInclude Include="..\Public\PW_Gustave.h" />
+    <ClInclude Include="..\Public\PW_Lune.h" />
+    <ClInclude Include="..\Public\PW_Maelle.h" />
+    <ClInclude Include="..\Public\PreviewCamera.h" />
+    <ClInclude Include="..\Public\Player_WorldAction.h" />
+    <ClInclude Include="..\Public\SkillTreeCom.h" />
+    <ClInclude Include="..\Public\Player_Idle.h" />
+    <ClInclude Include="..\Public\Player_Jump.h" />
+    <ClInclude Include="..\Public\Player_Move.h" />
+    <ClInclude Include="..\Public\Player_State.h" />
+    <ClInclude Include="..\Public\PlayerStateMachineCom.h" />
+    <ClInclude Include="..\public\SkillTree_Panel.h" />
+    <ClInclude Include="..\public\SkillTargeting.h" />
+    <ClInclude Include="..\Public\Create_Class.h" />
+    <ClInclude Include="..\Public\Spawn_Prefab.h" />
+    <ClInclude Include="..\Public\State.h" />
+    <ClInclude Include="..\Public\StateMachineCom.h" />
+    <ClInclude Include="..\Public\StreamingLevel.h" />
+    <ClInclude Include="..\Public\TargetCamera.h" />
+    <ClInclude Include="..\Public\CharacterStatus_Panel.h" />
+    <ClInclude Include="..\public\UIPreviewManager.h" />
+    <ClInclude Include="..\Public\UI_BattleSystemHUD.h" />
+    <ClInclude Include="..\Public\UI_CancelAim.h" />
+    <ClInclude Include="..\Public\UI_BattleCommandHUD.h" />
+    <ClInclude Include="..\Public\UI_BattleDefense.h" />
+    <ClInclude Include="..\Public\UI_BattleTransition.h" />
+    <ClInclude Include="..\Public\UI_ChoiceTarget.h" />
+    <ClInclude Include="..\Public\UI_CrossHair.h" />
+    <ClInclude Include="..\Public\UI_ExpeditionStatus.h" />
+    <ClInclude Include="..\Public\UI_MonsterHpBar.h" />
+    <ClInclude Include="..\Public\UI_RuntimeLoader.h" />
+    <ClInclude Include="..\Public\SavePoint_Panel.h" />
+    <ClInclude Include="..\Public\UI_RuntimePanelBase.h" />
+    <ClInclude Include="..\Public\UI_Utils.h" />
+    <ClInclude Include="..\public\UltimateTargeting.h" />
+    <ClInclude Include="..\public\UtilitySystem.h" />
+    <ClInclude Include="..\public\WeaponUI_Common.h" />
+    <ClInclude Include="Battle_Enum.h" />
+    <ClInclude Include="Base_Gustave_Attack.h" />
+    <ClInclude Include="pch.h" />
+    <ClInclude Include="..\public\BackGround.h" />
+    <ClInclude Include="..\public\Body_Player.h" />
+    <ClInclude Include="..\Public\ClientInstance.h" />
+    <ClInclude Include="..\Public\Client_Defines.h" />
+    <ClInclude Include="..\public\FreeCamera.h" />
+    <ClInclude Include="..\Public\Level_GamePlay.h" />
+    <ClInclude Include="..\public\Level_Loading.h" />
+    <ClInclude Include="..\Public\Level_MainTitle.h" />
+    <ClInclude Include="..\public\Loader.h" />
+    <ClInclude Include="..\Public\MW_Lancelier.h" />
+    <ClInclude Include="..\Public\Player_WorldBase.h" />
+    <ClInclude Include="..\Public\PointParticleEffect.h" />
+    <ClInclude Include="..\Public\ResourceLoader.h" />
+    <ClInclude Include="..\Public\Sky.h" />
+    <ClInclude Include="..\Public\Terrain.h" />
+    <ClInclude Include="..\Public\Weapon.h" />
   </ItemGroup>
 </Project>

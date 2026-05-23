@@ -14,6 +14,14 @@ class MonsterStatCom;
 class Monster_WorldBase abstract : public Character_WorldBase
 {
 public:
+    enum class MonsterWorldAnim
+    {
+        Idle,
+        Patrol,
+        Chase
+    };
+
+public:
     Monster_WorldBase(const ComPtr<Device>& device, const ComPtr<Context>& context);
     Monster_WorldBase(const Monster_WorldBase& prototype);
     virtual ~Monster_WorldBase() override = default;
@@ -32,8 +40,14 @@ public:
     void            On_EditorStopRuntime();
     virtual void    Set_BattleMonsterPrefabNames(vector<string>& outPrefabNames) const = 0;
 
+    void Set_CurrentAction(MonsterWorldAnim action) { _currentAction = action; }
+    MonsterWorldAnim Get_CurrentAction() const { return _currentAction; }
 protected:
     virtual HRESULT Ready_Components();
+
+private:
+    MonsterWorldAnim _currentAction = MonsterWorldAnim::Idle;
+    MonsterWorldAnim _previousAction = MonsterWorldAnim::Idle;
 
 protected:
     Shared<AIController>         _aiCtrl;
