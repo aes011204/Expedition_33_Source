@@ -7,6 +7,7 @@
 #include "UI_BattleCommandHUD.h"
 #include "UI_BattleDefense.h"
 #include "UI_BattleSystemHUD.h"
+#include "UI_BattleSystem_TurnOrder.h"
 #include "UI_BattleTransition.h"
 #include "UI_CancelAim.h"
 #include "UI_ChoiceTarget.h"
@@ -33,6 +34,7 @@ HRESULT GameplayUI_Battle::Initialize(uint32 levelIndex)
     CHECK_FAILED(Create_UI(_battleDefense, UI_BattleDefense::Create), E_FAIL);
     CHECK_FAILED(Create_UI(_cancelAim, UI_CancelAim::Create), E_FAIL);
     CHECK_FAILED(Create_UI(_choiceTarget, UI_ChoiceTarget::Create), E_FAIL);
+    CHECK_FAILED(Create_UI(_turnOrder, UI_BattleSystem_TurnOrder::Create), E_FAIL);
 
     Bind_BattleDelegates();
 
@@ -48,6 +50,7 @@ void GameplayUI_Battle::Update(float timeDelta)
     Update_BattleDefense(timeDelta);    // 몬스터 턴 방어 (좌측 하단)
     Update_CancelAim(timeDelta);        // Free Aim 취소
     Update_ChoiceTarget(timeDelta);     // 타겟 선택 UI (F 대상 선택, ESC 뒤로)
+    Update_TurnOrder(timeDelta);        // 좌측상단 턴 UI
 
     if (_battleTransition)
         _battleTransition->Update(timeDelta);
@@ -270,10 +273,10 @@ void GameplayUI_Battle::Handle_TargetPreviewChanged(const BattleChar* target)
 
 void GameplayUI_Battle::Handle_ActionStarted(const Action& action)
 {
-     UNREFERENCED_PARAMETER(action);
+    UNREFERENCED_PARAMETER(action);
 
     if (_choiceTarget)
-        _choiceTarget->Close(); 
+        _choiceTarget->Close();
 }
 
 void GameplayUI_Battle::Update_BattleCommandHUD(float timeDelta)
@@ -521,6 +524,23 @@ void GameplayUI_Battle::Update_ChoiceTarget(float timeDelta)
     _choiceTarget->Update(timeDelta);
 }
 
+void GameplayUI_Battle::Update_TurnOrder(float timeDelta)
+{
+    if (_turnOrder == nullptr)
+        return;
+
+    if (!_isBattleUiActive || _battleController == nullptr)
+    {
+        _turnOrder->Clear_TurnOrderPreview();
+        _turnOrder->Close();
+        return;
+    }
+
+    _turnOrder->Open();
+    _turnOrder->Set_TurnOrderPreview(Build_TurnOrderEntries());
+    _turnOrder->Update(timeDelta);
+}
+
 bool GameplayUI_Battle::Try_GetTargetHpBarWorldPos(const BattleChar& target, Vec3& outWorldPos) const
 {
     if (target.actor == nullptr || target.actor->Get_Transform() == nullptr)
@@ -540,6 +560,35 @@ bool GameplayUI_Battle::Try_GetBattleCommandHudWorldPos(const BattleChar& actor,
     outWorldPos.y += 0.8f;
 
     return true;
+}
+
+vector<GameplayUI_Battle::TurnDesc> GameplayUI_Battle::Build_TurnOrderEntries() const
+{
+    vector<UI_BattleSystem_TurnOrder::TurnOrderEntryDesc> entries{};
+
+    if (_battleController == nullptr)
+        return entries;
+
+    const vector<BattleChar> preview = _battleController->Get_TurnOrderPreview(8);
+
+    for (const BattleChar& actor : preview)
+    {
+        UI_BattleSystem_TurnOrder::TurnOrderEntryDesc entry{};
+        entry.portraitGuid = Resolve_TurnOrderPortraitGuid(actor);
+        entry.isEnemy = actor.statCom != nullptr && !actor.statCom->Is_Player();
+        entries.push_back(entry);
+    }
+
+    return entries;
+}
+
+string GameplayUI_Battle::Resolve_TurnOrderPortraitGuid(const BattleChar& actor)
+{
+    if (actor.statCom == nullptr)
+        return {};
+
+    // 프리펩에서 이미지 세팅
+    return actor.statCom->Get_StatInfo().portraitGuid;
 }
 
 Shared<GameplayUI_Battle> GameplayUI_Battle::Create(uint32 levelIndex)

@@ -21,10 +21,13 @@ namespace Client::Constants::UI
     inline constexpr wchar_t UI_Gustave_CharacterSheet_Dir[] = L"UI/UI_Json/Character/UI_CharacterSheet_Gustave.json";
     inline constexpr wchar_t UI_Maelle_CharacterSheet_Dir[] = L"UI/UI_Json/Character/UI_CharacterSheet_Maelle.json";
 
+#pragma region 배틀 시스템
     inline constexpr wchar_t UI_Battle_Fade_Path[] = L"UI/UI_Json/BattleSystem/UI_Battle_Fade.json";
 
     inline constexpr wchar_t UI_BattleSystem_HUD_Path[] = L"UI/UI_Json/BattleSystem/UI_BattleSystem_HUD.json";
     inline constexpr wchar_t UI_BattleSystem_Path[] = L"UI/UI_Json/BattleSystem/UI_BattleSystem.json";
+    inline constexpr wchar_t UI_BattleSystem_TurnOrder_Path[] = L"UI/UI_Json/BattleSystem/UI_BattleSystem_TurnOrder.json";
+
 
     inline constexpr wchar_t UI_Battle_Defense_Path[] = L"UI/UI_Json/BattleSystem/UI_BattleSystem_Defense.json";
     inline constexpr wchar_t UI_Cancel_Aim_Path[] = L"UI/UI_Json/BattleSystem/UI_Cancle_Aim.json";
@@ -34,6 +37,8 @@ namespace Client::Constants::UI
     inline constexpr wchar_t UI_Target_Monster_Path[] = L"UI/UI_Json/BattleSystem/UI_Target_Monster.json";
 
     inline constexpr wchar_t UI_CrossAir_Path[] = L"UI/UI_Json/BattleSystem/UI_CrossAir.json";
+#pragma endregion
+
 }
 
 namespace Client::Constants::UI_Anim

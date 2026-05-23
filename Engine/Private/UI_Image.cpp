@@ -9,6 +9,9 @@ UI_Image::UI_Image()
 
 UI_Image::UI_Image(const UI_Image& prototype)
     : UI_Base{ prototype }
+    , _isOverlay{ prototype._isOverlay }
+    , _useGrayScale{ prototype._useGrayScale }
+    , _grayAmount{ prototype._grayAmount }
     , _texturePath{ prototype._texturePath }
     , _maskTexturePath{ prototype._maskTexturePath }
     , _patternMaskTexturePath{ prototype._patternMaskTexturePath }
@@ -18,6 +21,13 @@ UI_Image::UI_Image(const UI_Image& prototype)
     , _viBufferPrototypeLevelIndex{ prototype._viBufferPrototypeLevelIndex }
     , _viBufferPrototypeTag{ prototype._viBufferPrototypeTag }
     , _imageRenderMode{ prototype._imageRenderMode }
+    , _maskMode{ prototype._maskMode }
+    , _holeCenterUV{ prototype._holeCenterUV }
+    , _holeRadius{ prototype._holeRadius }
+    , _holeFeather{ prototype._holeFeather }
+    , _useFillRatio{ prototype._useFillRatio }
+    , _fillRatio{ prototype._fillRatio }
+    , _fillOrigin{ prototype._fillOrigin }
 {
 }
 
@@ -54,27 +64,23 @@ HRESULT UI_Image::Initialize(void* arg)
         _fillOrigin = desc->fillOrigin;
     }
 
-    if (_texturePath.empty())
-        return S_OK;
-
-    ComPtr<Device> device = GAME->Get_Device();
-    CHECK_NULL(device, E_FAIL);
-
-    if (FAILED(CreateWICTextureFromFile(device.Get(), _texturePath.c_str(), nullptr, _srv.GetAddressOf())))
+    if (FAILED(Load_TextureResource()))
         return E_FAIL;
 
-    if (!_maskTexturePath.empty())
+    if (!_maskTexturePath.empty() || !_patternMaskTexturePath.empty())
     {
-        if (FAILED(CreateWICTextureFromFile(device.Get(), _maskTexturePath.c_str(), nullptr, _maskSrv.GetAddressOf())))
+        ComPtr<Device> device = GAME->Get_Device();
+        CHECK_NULL(device, E_FAIL);
+
+        if (!_maskTexturePath.empty() &&
+            FAILED(CreateWICTextureFromFile(device.Get(), _maskTexturePath.c_str(), nullptr, _maskSrv.GetAddressOf())))
         {
             LOG_WARN("UI_Image mask texture load failed. path='{}'", String::ToString(_maskTexturePath));
             _maskSrv.Reset();
         }
-    }
 
-    if (!_patternMaskTexturePath.empty())
-    {
-        if (FAILED(CreateWICTextureFromFile(device.Get(), _patternMaskTexturePath.c_str(), nullptr, _patternMaskSrv.GetAddressOf())))
+        if (!_patternMaskTexturePath.empty() &&
+            FAILED(CreateWICTextureFromFile(device.Get(), _patternMaskTexturePath.c_str(), nullptr, _patternMaskSrv.GetAddressOf())))
         {
             LOG_WARN("UI_Image pattern mask texture load failed. path='{}'", String::ToString(_patternMaskTexturePath));
             _patternMaskSrv.Reset();
@@ -204,7 +210,7 @@ HRESULT UI_Image::Render()
     }
     else if (_useFillRatio)
     {
-        passIndex = 3u; // HP 바처럼 UV crop 채움이 필요한 이미지는 전용 fill pass를 탄다.
+        passIndex = 4u; // HP 바처럼 UV crop 채움이 필요한 이미지는 전용 fill pass를 탄다.
     }
     else if (nullptr != _maskSrv)
     {
@@ -225,6 +231,32 @@ HRESULT UI_Image::Render()
         return E_FAIL;
 
     return S_OK;
+}
+
+void UI_Image::Set_FillRatio(float fillRatio)
+{
+    _fillRatio = ::clamp(fillRatio, 0.f, 1.f);
+}
+
+HRESULT UI_Image::Set_TexturePath(const wstring& texturePath)
+{
+    if (_texturePath == texturePath)
+        return S_OK;
+
+    _texturePath = texturePath;
+    return Load_TextureResource();
+}
+
+HRESULT UI_Image::Set_TextureGuid(const string& textureGuid)
+{
+    if (textureGuid.empty())
+        return E_FAIL;
+
+    const wstring resolvedPath = GAME->Resolve_AssetPath(textureGuid);
+    if (resolvedPath.empty())
+        return E_FAIL;
+
+    return Set_TexturePath(resolvedPath);
 }
 
 HRESULT UI_Image::Ready_RenderResources()
@@ -248,6 +280,25 @@ HRESULT UI_Image::Ready_RenderResources()
                 _viBufferPrototypeTag));
     }
     CHECK_NULL(_viBuffer, E_FAIL);
+
+    return S_OK;
+}
+
+HRESULT UI_Image::Load_TextureResource()
+{
+    _srv.Reset();
+
+    if (_texturePath.empty())
+        return S_OK;
+
+    ComPtr<Device> device = GAME->Get_Device();
+    CHECK_NULL(device, E_FAIL);
+
+    if (FAILED(CreateWICTextureFromFile(device.Get(), _texturePath.c_str(), nullptr, _srv.GetAddressOf())))
+    {
+        LOG_WARN("UI_Image texture load failed. path='{}'", String::ToString(_texturePath));
+        return E_FAIL;
+    }
 
     return S_OK;
 }

@@ -35,7 +35,7 @@ public:
 private:
     HRESULT Initialize(const CreateDesc& desc);
 
-    void Build_FrameContext(float timeDelta, AnimComputeFrameContext& outContext);
+    void    Build_FrameContext(float timeDelta, AnimComputeFrameContext& outContext);
 
     HRESULT Ensure_RuntimeBuffers();
     HRESULT Ensure_RuntimeBoneBuffers();            // CPU mesh bone 캐시 -> GPU Bone 업로드
