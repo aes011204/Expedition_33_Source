@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "AnimNotify_Types.h"
 #include "AnimCompute_Types.h"
@@ -231,6 +231,7 @@ private:
 
 public: // Animation Bone Modifier 기능
     void Add_AnimModifier(const Shared<AnimationModifier>& modifier);
+    AnimationModifier* Find_AnimModifierByTag(const wstring& modifierTag) const;
     const vector<Shared<AnimationModifier>>& Get_Modifiers() const { return _modifiers; }
 private:
     void Evaluate_AnimationModifiers(float timeDelta);

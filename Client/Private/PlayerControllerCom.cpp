@@ -166,6 +166,11 @@ bool PlayerControllerCom::Is_Grounded() const
     return _movementCom->Is_Grounded();
 }
 
+bool PlayerControllerCom::Is_RightMouseClicked() const
+{
+    return _currentInput.isMouseLDown;
+}
+
 const MovementCom::MovementInput& PlayerControllerCom::Get_MovementInput() const
 {
     return _currentInput;
@@ -221,6 +226,11 @@ void PlayerControllerCom::Check_RigidInput()
     if (_rigidControl.rigidLook)
     {
         _currentInput.isLockLook = true;
+    }
+
+    if (_rigidControl.rigidLookDir.LengthSquared() > 0.f)
+    {
+        _currentInput.forcedDirection = _rigidControl.rigidLookDir;
     }
 
     if (_rigidControl.rigidVelocity != Vec3::Zero)

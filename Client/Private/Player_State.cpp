@@ -100,6 +100,11 @@ bool Player_State::IsFalling() const
     return !_controllerCom->Is_Grounded();
 }
 
+bool Player_State::IsFreeAimShoot() const
+{
+    return _controllerCom->Is_RightMouseClicked() && _controllerCom->Allows_ActionInput();
+}
+
 bool Player_State::IsEnterWorldAction() const
 {
     const auto& input = Get_MovementInput();

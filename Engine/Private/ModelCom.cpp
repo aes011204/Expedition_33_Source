@@ -1762,6 +1762,17 @@ void ModelCom::Add_AnimModifier(const Shared<AnimationModifier>& modifier)
     }
 }
 
+AnimationModifier* ModelCom::Find_AnimModifierByTag(const wstring& modifierTag) const
+{
+    for (auto mod : _modifiers)
+    {
+        if (mod->Get_ModifierTag() == modifierTag)
+            return mod.get();
+    }
+    
+    return nullptr;
+}
+
 void ModelCom::Evaluate_AnimationModifiers(float timeDelta)
 {
     for (auto& modifier : _modifiers)

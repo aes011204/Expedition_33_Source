@@ -5,49 +5,47 @@
 #include "Channel.h"
 #include "ModelCom.h"
 
-HRESULT OffsetAnimationModifier::Initialize(const OffsetModifierDesc& desc)
+HRESULT OffsetAnimationModifier::Initialize(AnimationModifierDesc* desc)
 {
-    _desc = desc;
-    auto baseModel = desc.baseModelCom;
-    if (nullptr == baseModel || _desc.endBoneName.empty() || _desc.rootBoneName.empty())
+    CHECK_FAILED(__super::Initialize(desc), E_FAIL)
+    _desc = *static_cast<OffsetModifierDesc*>(desc);
+    auto baseModel = _desc.baseModelCom;
+    if (nullptr == baseModel || _desc.endBoneNames.empty() || _desc.rootBoneName.empty())
     {
         return E_FAIL;
     }
 
-    _animIndex = baseModel->Get_AnimationIndexByName(desc.animName);
+    _animIndex = baseModel->Get_AnimationIndexByName(_desc.animName);
     if (_animIndex == UINT_MAX)
     {
         return E_FAIL;
     }
 
-    int32 currentBoneIdx = baseModel->Get_BoneIndex(_desc.endBoneName);
     int32 rootBoneIdx = baseModel->Get_BoneIndex(_desc.rootBoneName);
 
-    if (currentBoneIdx == -1 || rootBoneIdx == -1)
+    if (rootBoneIdx == -1)
     {
         return E_FAIL;
     }
 
-    constexpr int32 maxDepth = 100;
-    int32 depthCount = 0;
-
-    while (currentBoneIdx != -1 && depthCount < maxDepth)
+    unordered_set<int32> uniqueBones;
+    for (const string& endBoneName : _desc.endBoneNames)
     {
-        _boneChain.push_back(currentBoneIdx);
-
-        if (currentBoneIdx == rootBoneIdx)
+        int32 currentBoneIdx = baseModel->Get_BoneIndex(endBoneName);
+        if (currentBoneIdx == -1) continue;
+        int32 depthCount = 0;
+        while (currentBoneIdx != -1 && depthCount++ < 100)
         {
-            break;
+            uniqueBones.insert(currentBoneIdx);
+
+            if (currentBoneIdx == rootBoneIdx)
+                break;
+
+            currentBoneIdx = baseModel->Get_BoneParentIndex(currentBoneIdx);
         }
-
-        currentBoneIdx = baseModel->Get_BoneParentIndex(currentBoneIdx);
-        ++depthCount;
     }
-
-    if (_boneChain.empty() || _boneChain.back() != rootBoneIdx)
-    {
-        return E_FAIL;
-    }
+    if (uniqueBones.empty()) return E_FAIL;
+    _boneChain.assign(uniqueBones.begin(), uniqueBones.end());
 
     return S_OK;
 }
@@ -168,7 +166,7 @@ void OffsetAnimationModifier::UpdateWeightOffset(ModelCom* model, float timeDelt
     }
 }
 
-Shared<OffsetAnimationModifier> OffsetAnimationModifier::Create(const OffsetModifierDesc& modifierDesc)
+Shared<OffsetAnimationModifier> OffsetAnimationModifier::Create(OffsetModifierDesc* modifierDesc)
 {
     auto instance = make_shared<OffsetAnimationModifier>();
 

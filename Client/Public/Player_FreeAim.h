@@ -16,14 +16,19 @@ public:
 
 public:
     HRESULT Initialize() override;
-    void Begin_Play() override { Player_State::Begin_Play(); }
+    void Begin_Play() override;
     bool EnterInvoke() override;
     void Update(float timeDelta) override;
     void LateUpdate(float timeDelta) override;
     void ExitInvoke() override;
 
 private:
+    void Update_DirectionalModifiers();
+
+private:
     Shared<OffsetAnimationModifier> _offsetModifier = nullptr;
+    Shared<OffsetAnimationModifier> _walkModifiers[4]; 
+
     float _rotationSensitivity = 0.5f; 
 
 public:

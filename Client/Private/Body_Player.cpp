@@ -37,23 +37,6 @@ HRESULT Body_Player::Initialize(void* arg)
     _rootBoneIndex = _modelCom->Get_BoneIndex("root");
     _modelCom->Set_LocalRootNode(_rootBoneIndex);
 
-    {
-        OffsetAnimationModifier::OffsetModifierDesc offsetDesc{};
-        offsetDesc.baseModelCom = _modelCom.get();
-        offsetDesc.animName = "Gustave_IdleFreeAim_LoopingWorld_Sweep";
-        offsetDesc.rootBoneName = "spine_01";
-        offsetDesc.endBoneName = "hand_r";
-        offsetDesc.maxPitchAngle = 60.f;
-        offsetDesc.blendMode = AnimationModifier::ModifierBlendMode::ModifyReplace;
-        offsetDesc.responseCurve = 1.5f;
-
-        if (auto modifier = OffsetAnimationModifier::Create(offsetDesc))
-        {
-            modifier->Set_Active(false);
-            _modelCom->Add_AnimModifier(modifier);
-        }
-    }
-
     return S_OK;
 }
 

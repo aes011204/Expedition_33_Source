@@ -12,7 +12,7 @@ public:
     {
         ModelCom* baseModelCom{ nullptr };
         string animName{};
-        string endBoneName{};
+        vector<string> endBoneNames{};
         string rootBoneName{};
         float maxPitchAngle{ 60.f };
         ModifierBlendMode blendMode{ ModifierBlendMode::ModifyReplace };
@@ -30,7 +30,7 @@ public:
     ~OffsetAnimationModifier() override = default;
 
 public:
-    HRESULT Initialize(const OffsetModifierDesc& desc);
+    HRESULT Initialize(AnimationModifierDesc* desc) override;
     void Evaluate_Modifier(ModelCom* model, float timeDelta) override;
     void Set_AimPitch(float pitch) { _targetPitch = pitch; }
 
@@ -46,7 +46,7 @@ private:
     float                _blendAlpha{ 0.f };
 
 public:
-    static Shared<OffsetAnimationModifier> Create(const OffsetModifierDesc& modifierDesc);
+    static Shared<OffsetAnimationModifier> Create(OffsetModifierDesc* modifierDesc);
 };
 
 NS_END

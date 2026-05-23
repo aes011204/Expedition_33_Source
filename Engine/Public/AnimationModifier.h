@@ -17,6 +17,7 @@ public:
 public:
     struct AnimationModifierDesc
     {
+        wstring modifierTag{};
         float strengthAlpha{ 1.f };
     };
 
@@ -32,9 +33,15 @@ public:
     void Set_StrengthAlpha(float alpha) { _strengthAlpha = alpha; }
     float Get_StrengthAlpha() const { return _strengthAlpha; }
 
+    const wstring& Get_ModifierTag() const { return _modifierTag; }
+
+protected:
+    virtual HRESULT Initialize(AnimationModifierDesc* desc);
+
 protected:
     bool _isActive = true;
     float _strengthAlpha{ 1.f }; // 왜 인지 모르지만 alpha로 언리얼에서 표현 하는듯 섞을 애니메이션 강도 0.f ~ 1.f
+    wstring _modifierTag{};
 
 };
 

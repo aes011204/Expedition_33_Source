@@ -5,6 +5,7 @@
 
 #include "OffsetAnimationModifier.h"
 #include "Body_Player.h"
+#include "PlayerControllerCom.h"
 #include "PlayerStateMachineCom.h"
 #include "Player_WorldBase.h"
 
@@ -15,11 +16,9 @@ HRESULT Player_FreeAim::Initialize()
     return Player_State::Initialize();
 }
 
-using plAnim = Body_Player::PlayerWorldAnimation;
-
-bool Player_FreeAim::EnterInvoke()
+void Player_FreeAim::Begin_Play()
 {
-    _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_FreeAim_Idle), 0.1f, true);
+    Player_State::Begin_Play();
 
     if (auto model = _bodyPlayer->Get_Model())
     {
@@ -27,12 +26,26 @@ bool Player_FreeAim::EnterInvoke()
         {
             if (auto offsetMod = dynamic_pointer_cast<OffsetAnimationModifier>(modifier))
             {
-                _offsetModifier = offsetMod;
-                _offsetModifier->Set_Active(true);
-                break;
+                const wstring& tag = modifier->Get_ModifierTag();
+
+                if (tag == L"AimOffset") {
+                    _offsetModifier = offsetMod;
+                }
+                else if (tag == L"Walk_F") _walkModifiers[0] = offsetMod;
+                else if (tag == L"Walk_B") _walkModifiers[1] = offsetMod;
+                else if (tag == L"Walk_L") _walkModifiers[2] = offsetMod;
+                else if (tag == L"Walk_R") _walkModifiers[3] = offsetMod;
             }
         }
     }
+}
+
+using plAnim = Body_Player::PlayerWorldAnimation;
+
+bool Player_FreeAim::EnterInvoke()
+{
+    _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_FreeAim_Idle), 0.1f, true);
+    _offsetModifier->Set_Active(true);
 
     return true;
 }
@@ -53,17 +66,35 @@ void Player_FreeAim::Update(float timeDelta)
         }
     }
 
-   /* Vec2 mouseDelta = GAME->Get_MouseDelta();
-    if (mouseDelta.x != 0.f)
+    uint32 animIndex = _bodyPlayer->Get_AnimationStateIndex();
+    if (IsFreeAimShoot())
     {
-        _owner.lock()->Get_Transform()->Rotate(Vec3::Up, mouseDelta.x * _rotationSensitivity);
-    }*/
+        if (animIndex != ETOI(plAnim::Pl_FreeAim_Shoot))
+        {
+            _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_FreeAim_Shoot), 0.25f, false);
+            _bodyPlayer->Set_AnimationSpeed(3.f);
+        }
+    }
+    else
+    {
+        if (animIndex == ETOI(plAnim::Pl_FreeAim_Shoot) && _bodyPlayer->Is_AnimationFinished())
+        {
+            _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_FreeAim_Idle), 0.25f, true);
+            _bodyPlayer->Set_AnimationSpeed(1.f);
+        }
+    }
+
+    Update_DirectionalModifiers();
 
     if (_offsetModifier)
     {
         if (auto camera = GAME->Get_ActiveCamera())
         {
             _offsetModifier->Set_AimPitch(camera->Get_Pitch());
+
+            auto rigid = _controllerCom->Get_RigidControl();
+            rigid.rigidLookDir = camera->Get_Transform()->Get_WorldForward();
+            _controllerCom->Set_RigidControl(rigid);
         }
     }
 
@@ -78,8 +109,34 @@ void Player_FreeAim::ExitInvoke()
 {
     if (_offsetModifier)
     {
-        _offsetModifier->Set_AimPitch(0.f);
         _offsetModifier->Set_Active(false);
+    }
+
+    for (int i = 0; i < 4; ++i)
+    {
+        if (_walkModifiers[i])
+            _walkModifiers[i]->Set_Active(false);
+    }
+}
+
+void Player_FreeAim::Update_DirectionalModifiers()
+{
+    MovementCom::MovementInput input = _controllerCom->Get_MovementInput();
+
+    int targetWalkIndex = -1; // -1: 정지, 0:앞, 1:뒤, 2:좌, 3:우
+    if (abs(input.moveZ) > 0.1f || abs(input.moveX) > 0.1f)
+    {
+        if (abs(input.moveZ) >= abs(input.moveX))
+            targetWalkIndex = (input.moveZ > 0.f) ? 0 : 1;
+        else
+            targetWalkIndex = (input.moveX < 0.f) ? 2 : 3;
+    }
+    for (int i = 0; i < 4; ++i)
+    {
+        if (_walkModifiers[i])
+        {
+            _walkModifiers[i]->Set_Active(i == targetWalkIndex);
+        }
     }
 }
 

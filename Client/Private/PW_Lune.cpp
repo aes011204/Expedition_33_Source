@@ -1,4 +1,8 @@
 ﻿#include "PW_Lune.h"
+
+#include <OffsetAnimationModifier.h>
+
+#include "Body_Player.h"
 #include "GameInstance.h"
 #include "Bounding_OBB.h"
 #include "ColliderCom.h"
@@ -38,6 +42,8 @@ HRESULT PW_Lune::Initialize(void* arg)
     skilltreeCom->TryUnlock("Immolation");
     skilltreeCom->TryUnlock("IceGust");
 
+    CHECK_FAILED(Ready_Modifier(), E_FAIL)
+
     return S_OK;
 }
 
@@ -50,6 +56,35 @@ void PW_Lune::BeginPlay()
     _combatStatCom->Get_PlayerRuntimeStat().CurMaxAp = 9;
     _combatStatCom->Get_PlayerRuntimeStat().CurAp = 3;
 }
+
+HRESULT PW_Lune::Ready_Modifier()
+{
+    //if (auto body = dynamic_cast<Body_Player*>(Find_PartObject(TEXT("Part_Body"))))
+    //{
+    //    OffsetAnimationModifier::OffsetModifierDesc offsetDesc{};
+    //
+    //    offsetDesc.baseModelCom = body->Get_Model().get();
+    //    offsetDesc.animName = "Gustave_IdleFreeAim_LoopingWorld_Sweep";
+    //    offsetDesc.rootBoneName = "spine_01";
+    //    offsetDesc.endBoneNames = { "hand_r" };
+    //    offsetDesc.maxPitchAngle = 60.f;
+    //    offsetDesc.blendMode = AnimationModifier::ModifierBlendMode::ModifyAddictive;
+    //    offsetDesc.blendInTime = 0.25f;
+    //    offsetDesc.blendOutTime = 0.25f;
+    //    offsetDesc.responseCurve = 1.5f;
+    //
+    //    if (auto modifier = OffsetAnimationModifier::Create(offsetDesc))
+    //    {
+    //        modifier->Set_Active(false);
+    //        offsetDesc.baseModelCom->Add_AnimModifier(modifier);
+    //    }
+    //}
+    //else
+    //    return E_FAIL;
+
+    return S_OK;
+}
+
 
 HairChainPhysicsDesc PW_Lune::Get_HairChainPhysicsDesc() const
 {

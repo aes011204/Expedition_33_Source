@@ -112,10 +112,10 @@ void TargetCamera::Priority_Update(float timeDelta)
         return;
     }
 
-    if(GAME->KeyDown(KEY_TYPE::RBUTTON))
-    {
-        Change_State(CAMERA_STATE::AIM);
-    }
+    //if(GAME->KeyDown(KEY_TYPE::RBUTTON))
+    //{
+    //    Change_State(CAMERA_STATE::AIM);
+    //}
 
     if(_currentState == CAMERA_STATE::AIM && GAME->KeyUp(KEY_TYPE::RBUTTON))
     {

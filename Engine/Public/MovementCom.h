@@ -22,6 +22,7 @@ public:
     {
         float moveX = 0.f;
         float moveZ = 0.f;
+        Vec3 forcedDirection{};
 
         bool isLockLook{ false };
 
@@ -36,6 +37,8 @@ public:
         bool isMouseLDown{ false };
         bool isMouseRPress{ false };
         bool isMouseRUp{ false };
+
+        
     };
 
     struct SweepDesc

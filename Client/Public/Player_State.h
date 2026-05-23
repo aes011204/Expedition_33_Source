@@ -38,6 +38,7 @@ protected:
     bool IsWalkMove() const;
     bool Is_MovementBlocked() const;     // follower blocked 상태
     bool IsFalling() const;
+    bool IsFreeAimShoot() const; // FreeAim 상태에서 좌클
 
     bool IsEnterWorldAction() const; 
     bool IsEnterFreeAim() const;
