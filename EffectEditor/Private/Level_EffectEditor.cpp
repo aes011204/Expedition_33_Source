@@ -8,10 +8,8 @@
 #include "Emitter_View.h"
 #include "GameInstance.h"
 #include "GameObject.h"
-#include "ModelCom.h"
-#include "PB_Gustave.h"
-#include "PlayableParts.h"
 #include "TrailPreviewController.h"
+#include "TrailPreviewPlayerObject.h"
 #include "TrailPreviewWeaponObject.h"
 
 NS_BEGIN(EffectEditor)
@@ -317,20 +315,6 @@ namespace Internal
         return Clamp_PreviewColor(fallbackValue);
     }
 
-    void Refresh_PlayerBodyAnimMapping(const Shared<Client::PB_Gustave>& gustave)
-    {
-        if (gustave == nullptr)
-            return;
-
-        const Client::PlayableParts* bodyPart =
-            dynamic_cast<Client::PlayableParts*>(gustave->Get_PartObject(L"Part_Body"));
-        if (bodyPart == nullptr)
-            return;
-
-        const Shared<ModelCom> bodyModel = bodyPart->Get_Model();
-        if (bodyModel != nullptr)
-            bodyModel->Refresh_AnimStateMappingFromOwnerContext();
-    }
 }
 
 Level_EffectEditor::Level_EffectEditor(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -849,39 +833,23 @@ HRESULT Level_EffectEditor::Ready_Layer_Preview(const wstring& layerTag)
     if (layerTag.empty())
         return E_FAIL;
 
-    const std::filesystem::path prefabPath =
-        std::filesystem::path(GAME->Get_AssetRoot()) / L"Data/json/Prefabs/PB_Gustave.prefab.json";
+    const Shared<TrailPreviewPlayerObject> trailPreviewPlayer =
+        TrailPreviewPlayerObject::Create(_device, _context);
+    CHECK_NULL(trailPreviewPlayer, E_FAIL);
+    CHECK_FAILED(trailPreviewPlayer->Initialize(nullptr), E_FAIL);
+    CHECK_FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), layerTag, trailPreviewPlayer), E_FAIL);
 
-    const Shared<GameObject> prefabObject = GAME->Instantiate_GameObjectJson(prefabPath);
-    CHECK_NULL(prefabObject, E_FAIL);
-
-    const Shared<Client::PB_Gustave> gustavePreview =
-        dynamic_pointer_cast<Client::PB_Gustave>(prefabObject);
-    if (gustavePreview == nullptr)
+    const Shared<TrailPreviewWeaponObject> trailPreviewWeapon = trailPreviewPlayer->Get_PreviewWeapon();
+    if (trailPreviewWeapon == nullptr)
     {
-        LOG_ERROR("[TrailPreview] PB_Gustave prefab instantiate returned unexpected object.");
+        LOG_ERROR("[TrailPreview] TrailPreviewPlayerObject did not create Part_Weapon.");
         return E_FAIL;
     }
 
-    gustavePreview->Set_SourcePrefabName("PB_Gustave");
-    gustavePreview->Set_Name(L"PB_Gustave_TrailPreview");
-    gustavePreview->Set_Visible(false);
-    Internal::Refresh_PlayerBodyAnimMapping(gustavePreview);
-    CHECK_FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), layerTag, gustavePreview), E_FAIL);
-
-    TrailPreviewWeaponObject::PreviewDesc weaponDesc{};
-    weaponDesc.gustave = gustavePreview;
-
-    const Shared<TrailPreviewWeaponObject> trailPreviewWeapon =
-        TrailPreviewWeaponObject::Create(_device, _context);
-    CHECK_NULL(trailPreviewWeapon, E_FAIL);
-    CHECK_FAILED(trailPreviewWeapon->Initialize(&weaponDesc), E_FAIL);
-    CHECK_FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), layerTag, trailPreviewWeapon), E_FAIL);
     _trailPreviewSampleProvider = trailPreviewWeapon;
 
     TrailPreviewController::PreviewDesc controllerDesc{};
-    controllerDesc.gustave = gustavePreview;
-    controllerDesc.weapon = trailPreviewWeapon;
+    controllerDesc.player = trailPreviewPlayer;
 
     const Shared<TrailPreviewController> trailPreviewController =
         TrailPreviewController::Create(_device, _context);

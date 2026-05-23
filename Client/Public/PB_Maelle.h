@@ -20,7 +20,7 @@ protected:
     const wchar_t* Get_HeadModelTag() const override { return L"Model_MaelleHead"; }
     const wchar_t* Get_HairModelTag() const override { return L"Model_MaelleHair"; }
 
-    bool Try_GetWeaopnAttackDesc(WeaponAttachDesc& outDesc) const override;
+    bool Try_GetWeaponAttackDesc(WeaponAttachDesc& outDesc) const override;
 
 public:
     static Shared<PB_Maelle> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

@@ -356,58 +356,84 @@ void Detail_View::Render_TypeDataDetail(
         }
 
         const TrailTypeData defaultData{};
-        ImGui::TextUnformatted("기본");
-        if (_detailPropertyContext.Begin_PropertyTable("TrailTypeDataBase"))
+        if (ImGui::CollapsingHeader("기본", ImGuiTreeNodeFlags_DefaultOpen))
         {
-            changed |= _detailPropertyContext.Draw_FloatProperty("너비", data->width, defaultData.width);
-            changed |= _detailPropertyContext.Draw_FloatProperty("세그먼트 수명", data->segmentLifetime, defaultData.segmentLifetime);
-            changed |= _detailPropertyContext.Draw_UintProperty("히스토리 수", data->historyCount, defaultData.historyCount);
-            changed |= _detailPropertyContext.Draw_FloatProperty("UV 타일링", data->uvTiling, defaultData.uvTiling);
-            _detailPropertyContext.End_PropertyTable();
+            if (_detailPropertyContext.Begin_PropertyTable("TrailTypeDataBase"))
+            {
+                changed |= _detailPropertyContext.Draw_FloatProperty(
+                    "너비",
+                    data->width,
+                    defaultData.width,
+                    0.01f,
+                    "1.0이면 preview/sample provider가 넘긴 Base부터 Tip까지의 길이를 그대로 사용합니다. 낮추면 중심 기준으로 폭이 줄어듭니다."
+                );
+                changed |= _detailPropertyContext.Draw_FloatProperty(
+                    "세그먼트 수명",
+                    data->segmentLifetime,
+                    defaultData.segmentLifetime,
+                    0.01f,
+                    "trail sample이 유지되는 시간입니다. 길수록 잔상이 오래 남습니다."
+                );
+                changed |= _detailPropertyContext.Draw_UintProperty(
+                    "히스토리 수",
+                    data->historyCount,
+                    defaultData.historyCount,
+                    "저장할 trail sample 개수입니다. 많을수록 긴 궤적을 유지할 수 있습니다."
+                );
+                changed |= _detailPropertyContext.Draw_FloatProperty(
+                    "UV 타일링",
+                    data->uvTiling,
+                    defaultData.uvTiling,
+                    0.01f,
+                    "trail 길이 방향 texture 반복 배율입니다."
+                );
+                _detailPropertyContext.End_PropertyTable();
+            }
         }
 
-        ImGui::Spacing();
-        ImGui::TextUnformatted("곡선 품질");
-        if (_detailPropertyContext.Begin_PropertyTable("TrailTypeDataCurveQuality"))
+        if (ImGui::CollapsingHeader("곡선 품질", ImGuiTreeNodeFlags_DefaultOpen))
         {
-            changed |= Draw_TrailCurveQualityProperty(_detailPropertyContext, *data, defaultData);
-            changed |= Apply_TrailCurvePreset(*data);
+            if (_detailPropertyContext.Begin_PropertyTable("TrailTypeDataCurveQuality"))
+            {
+                changed |= Draw_TrailCurveQualityProperty(_detailPropertyContext, *data, defaultData);
+                changed |= Apply_TrailCurvePreset(*data);
 
-            const bool presetLocked = data->curveQuality != TrailCurveQuality::Custom;
-            if (presetLocked)
-                ImGui::BeginDisabled();
+                const bool presetLocked = data->curveQuality != TrailCurveQuality::Custom;
+                if (presetLocked)
+                    ImGui::BeginDisabled();
 
-            changed |= _detailPropertyContext.Draw_FloatProperty(
-                "샘플 간격",
-                data->sampleSpacing,
-                defaultData.sampleSpacing,
-                0.005f,
-                "이동 거리 기준으로 중간 trail sample을 삽입하는 간격입니다. 낮을수록 곡선이 촘촘해집니다."
-            );
-            changed |= _detailPropertyContext.Draw_UintProperty(
-                "곡선 분할",
-                data->curveSubdivision,
-                defaultData.curveSubdivision,
-                "한 frame 안에서 보강할 수 있는 최대 중간 sample 수입니다."
-            );
-            changed |= _detailPropertyContext.Draw_BoolProperty(
-                "탄젠트 스무딩",
-                data->smoothTangent,
-                defaultData.smoothTangent,
-                "앞뒤 sample을 함께 보아 base/tip 위치를 완만하게 평균 보정합니다."
-            );
-            changed |= _detailPropertyContext.Draw_FloatProperty(
-                "폭 가장자리 페이드",
-                data->sideFade,
-                defaultData.sideFade,
-                0.005f,
-                "trail 폭 방향 양끝 alpha를 줄이는 강도입니다. 높일수록 두꺼운 벽 느낌이 줄어듭니다."
-            );
+                changed |= _detailPropertyContext.Draw_FloatProperty(
+                    "샘플 간격",
+                    data->sampleSpacing,
+                    defaultData.sampleSpacing,
+                    0.005f,
+                    "이동 거리 기준으로 중간 trail sample을 삽입하는 간격입니다. 낮을수록 곡선이 촘촘해집니다."
+                );
+                changed |= _detailPropertyContext.Draw_UintProperty(
+                    "곡선 분할",
+                    data->curveSubdivision,
+                    defaultData.curveSubdivision,
+                    "한 frame 안에서 보강할 수 있는 최대 중간 sample 수입니다."
+                );
+                changed |= _detailPropertyContext.Draw_BoolProperty(
+                    "탄젠트 스무딩",
+                    data->smoothTangent,
+                    defaultData.smoothTangent,
+                    "앞뒤 sample을 함께 보아 base/tip 위치를 완만하게 평균 보정합니다."
+                );
+                changed |= _detailPropertyContext.Draw_FloatProperty(
+                    "폭 가장자리 페이드",
+                    data->sideFade,
+                    defaultData.sideFade,
+                    0.005f,
+                    "trail 폭 방향 양끝 alpha를 줄이는 강도입니다. 높일수록 두꺼운 벽 느낌이 줄어듭니다."
+                );
 
-            if (presetLocked)
-                ImGui::EndDisabled();
+                if (presetLocked)
+                    ImGui::EndDisabled();
 
-            _detailPropertyContext.End_PropertyTable();
+                _detailPropertyContext.End_PropertyTable();
+            }
         }
         break;
     }

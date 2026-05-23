@@ -106,7 +106,7 @@ HRESULT Player_BattleBase::Ready_WeaponPart(Body_Player* body)
     CHECK_NULL(body, E_FAIL);
 
     WeaponAttachDesc attachDesc{};
-    if (!Try_GetWeaopnAttackDesc(attachDesc))
+    if (!Try_GetWeaponAttackDesc(attachDesc))
         return S_OK; // 무기가 없는 캐릭터는 여기서 끝
 
     CHECK_NULL(attachDesc.modelTag, E_FAIL);
