@@ -3,14 +3,20 @@
 
 void PlayerStat_Inspector::Draw_Inspector(const Shared<Component>& component)
 {
-    Shared<Client::PlayerStatCom> stat = dynamic_pointer_cast<Client::PlayerStatCom>(component);
+    Shared<PlayerStatCom> stat = dynamic_pointer_cast<PlayerStatCom>(component);
     if (stat == nullptr)
         return;
 
     if (!Draw_Header("PlayerCombat Stat"))
         return;
 
+    auto& desc = stat->Get_StatInfo();
     auto& runtime = stat->Get_PlayerRuntimeStat();
+
+    Draw_PortraitTexturePicker(
+        "TurnOrder Portrait",
+        desc.portraitGuid,
+        "textures/ui/character/characterhud/");
 
     int level = static_cast<int>(runtime.CurLevel);
     int exp = static_cast<int>(runtime.CurExp);
@@ -96,7 +102,7 @@ void PlayerStat_Inspector::Draw_Inspector(const Shared<Component>& component)
     }
 
     // HP / Shield / AP는 파생값 아래가 아니라 "실제 현재 자원"이라 공통 섹션으로 묶는다.
-    Draw_CommonRuntimeSection(static_pointer_cast<Client::CombatStatCom>(stat));
+    Draw_CommonRuntimeSection(static_pointer_cast<CombatStatCom>(stat));
 
     ImGui::Spacing();
     ImGui::Separator();

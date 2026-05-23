@@ -11,6 +11,8 @@ IMPLEMENT_REFLECTION(MonsterStatCom)
     PROPERTY_FLOAT("HP", _MRuntimeStat.CurHp, 0.f, 9999.f, 1.f);
     PROPERTY_FLOAT("AP", _MRuntimeStat.CurAp, 0.f, 9.f, 1.f);
 
+    PROPERTY_STRING("Portrait", _monsterDesc.portraitGuid);
+
     return true;
 }
 
@@ -54,10 +56,6 @@ HRESULT MonsterStatCom::Initialize(void* arg)
         _MRuntimeStat.physicalDefense = _monsterDesc.physicalDefense;
         _MRuntimeStat.CurSpeed = _monsterDesc.speed;
     }
-
-
-
-
 
     _isPlayer = false;
 

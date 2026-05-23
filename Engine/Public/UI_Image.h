@@ -23,6 +23,14 @@ public:
         PatternOverlay,
     };
 
+    enum class FillOrigin : uint8
+    {
+        LeftToRight,
+        RightToLeft,
+        TopToBottom,
+        BottomToTop,
+    };
+
     struct UI_IMAGE_DESC : public UI_Base::UI_DESC
     {
         wstring texturePath{};
@@ -40,6 +48,10 @@ public:
         Vec2 holeCenterUV{ 0.5f, 0.5f }; // 화면 중앙
         float holeRadius = 0.f;
         float holeFeather = 0.05f;
+
+        bool useFillRatio = false;
+        float fillRatio = 1.f;
+        FillOrigin fillOrigin = FillOrigin::LeftToRight;
     };
 
 public:
@@ -62,14 +74,21 @@ public:
     void Set_HoleCenterUV(const Vec2& uv) { _holeCenterUV = uv; }
     void Set_HoleRadius(float radius) { _holeRadius = radius; }
     void Set_HoleFeather(float feather) { _holeFeather = feather; }
+    void Set_UseFillRatio(bool useFillRatio) { _useFillRatio = useFillRatio; }
+    void Set_FillRatio(float fillRatio);
+    void Set_FillOrigin(FillOrigin fillOrigin) { _fillOrigin = fillOrigin; }
+
+    HRESULT Set_TexturePath(const wstring& texturePath);
+    HRESULT Set_TextureGuid(const string& textureGuid);
 
 private:
     HRESULT Ready_RenderResources();
+    HRESULT Load_TextureResource();
 
 private:
     bool    _isOverlay = false;
     bool    _useGrayScale = false;
-    float    _grayAmount;
+    float   _grayAmount = 0.f;
     wstring _texturePath{};
     wstring _maskTexturePath{};
     wstring _patternMaskTexturePath{};
@@ -93,6 +112,9 @@ private:
     Vec2 _holeCenterUV{ 0.5f, 0.5f };
     float _holeRadius = 0.f;
     float _holeFeather = 0.05f;
+    bool _useFillRatio = false;
+    float _fillRatio = 1.f;
+    FillOrigin _fillOrigin = FillOrigin::LeftToRight;
 
 public:
     static Shared<UI_Image> Create();

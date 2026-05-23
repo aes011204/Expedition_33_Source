@@ -130,6 +130,9 @@ public:
     void Finish_FreeAimShot();
     bool Is_FreeAimShotPlaying() const { return _isFreeAimShotPlaying; }
 
+    // 초상화 세팅
+    vector<BattleChar> Get_TurnOrderPreview(uint32 maxCount = 8) const;
+
 private:
     HRESULT Ready_BattleTurnCamera();
     void    Activate_BattleTurnCamera();

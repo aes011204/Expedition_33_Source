@@ -39,7 +39,7 @@ HRESULT Level_MainTitle::Render()
 
 void Level_MainTitle::Handle_Button()
 {
-    if (_continueButton &&  _continueButton->Was_Clicked())
+    if (_continueButton && _continueButton->Was_Clicked() || GAME->KeyDown(KEY_TYPE::KEY_1))
     {
         if (FAILED(GAME->Change_Level(ETOI(LevelType::Loading), Level_Loading::Create(_device.Get(), _context.Get(), LevelType::GamePlay))))
             return;

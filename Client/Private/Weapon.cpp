@@ -20,48 +20,40 @@ HRESULT Weapon::Initialize_Prototype()
 	return S_OK;
 }
 
-HRESULT Weapon::Initialize(void* pArg)
+HRESULT Weapon::Initialize(void* arg)
 {
-	auto	pDesc = static_cast<WEAPON_DESC*>(pArg);
+	auto* desc = static_cast<WEAPON_DESC*>(arg);
+    if (desc == nullptr)
+        return E_FAIL;
 
-	_parentState = pDesc->pParentState;
-	_socketMatrix = pDesc->pSocketMatrix;
+    // body socketMatrix 사용
+    _socketMatrix = desc->socketMatrix;
 
-	if (FAILED(__super::Initialize(pArg)))
-		return E_FAIL;
-
-	if (FAILED(Ready_Components()))
-		return E_FAIL;
+    CHECK_FAILED(PartObject::Initialize(arg), E_FAIL);
+    CHECK_FAILED(Ready_Components(*desc), E_FAIL);
 
     Set_ShadowCasterType(ShadowCasterType::Dynamic);
-
-	_transformCom->Set_Scale(Vec3(0.001f, 0.001f, 0.001f));
-	_transformCom->Rotate(Vec3::Up, 90.f);
-	_transformCom->Set_Position(Vec3(0.8f, 0.f, 0.f));
 
 	return S_OK;
 }
 
-void Weapon::Priority_Update(float fTimeDelta)
+void Weapon::Priority_Update(float timeDelta)
 {
 }
 
-void Weapon::Update(float fTimeDelta)
-{	
-    auto identityMat = Matrix::Identity;
-    _socketMatrix = &identityMat;
+void Weapon::Update(float timeDelta)
+{
+    if (_socketMatrix == nullptr)
+    {
+        Update_CombinedWorldMatrix(_transformCom->Get_WorldMatrix());
+        return;
+    }
 
-	XMMATRIX		SocketMatrix = XMLoadFloat4x4(_socketMatrix);
-
-	for (size_t i = 0; i < 3; i++)
-		SocketMatrix.r[i] = XMVector3Normalize(SocketMatrix.r[i]);
-	
-
-
-	Update_CombinedWorldMatrix(_transformCom->Get_WorldMatrix() * SocketMatrix);
+        
+	Update_CombinedWorldMatrix(_transformCom->Get_WorldMatrix() * (*_socketMatrix));
 }
 
-void Weapon::Late_Update(float fTimeDelta)
+void Weapon::Late_Update(float timeDelta)
 {
 	GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
 
@@ -74,11 +66,9 @@ HRESULT Weapon::Render()
     if (FAILED(Bind_ShaderResources()))
         return E_FAIL;
 
-    CHECK_FAILED(_animComputeRuntime->Prepare_BoneMatrixBuffers(), E_FAIL);
+    const uint32 numMeshes = static_cast<uint32>(_model->Get_NumMeshes());
 
-    const uint32 iNumMeshes = static_cast<uint32>(_model->Get_NumMeshes());
-
-    for (uint32 i = 0; i < iNumMeshes; i++)
+    for (uint32 i = 0; i < numMeshes; ++i)
     {
         const uint32 materialIndex = _model->Get_MeshMaterialIndex(i);
         const Shared<Material> material = _model->Get_Material(materialIndex);
@@ -91,10 +81,7 @@ HRESULT Weapon::Render()
         if (FAILED(_shader->Bind_CBufferData(material->Get_CB())))
             return E_FAIL;
 
-        CHECK_FAILED(_animComputeRuntime->Bind_PreparedBoneMatrices(_shader.get(), "g_BoneMatricesBuffer", i), E_FAIL);
-
-        const uint32 passIndex = material->Get_PassIndex();
-        if (FAILED(_shader->Begin(passIndex)))
+        if (FAILED(_shader->Begin(material->Get_PassIndex())))
             return E_FAIL;
 
         _model->Render(i);
@@ -111,18 +98,10 @@ HRESULT Weapon::Render_Shadow()
     if (FAILED(GAME->Bind_ShadowCB(_shader)))
         return E_FAIL;
 
-    if (_model->Is_Skeletal())
-        CHECK_FAILED(_animComputeRuntime->Prepare_BoneMatrixBuffers(), E_FAIL);
+    const uint32 numMeshes = static_cast<uint32>(_model->Get_NumMeshes());
 
-    const uint32 iNumMeshes = static_cast<uint32>(_model->Get_NumMeshes());
-
-    for (uint32 i = 0; i < iNumMeshes; i++)
+    for (uint32 i = 0; i < numMeshes; ++i)
     {
-        if (_model->Is_Skeletal())
-            CHECK_FAILED(_animComputeRuntime->Bind_PreparedBoneMatrices(_shader.get(), "g_BoneMatricesBuffer", i), E_FAIL);
-
-        _model->Bind_Material(_shader.get(), "g_DiffuseTexture", i, MaterialTextureSlot::BaseColor);
-
         if (FAILED(_shader->Begin(1)))
             return E_FAIL;
 
@@ -132,27 +111,10 @@ HRESULT Weapon::Render_Shadow()
     return S_OK;
 }
 
-HRESULT Weapon::Ready_Components()
+HRESULT Weapon::Ready_Components(const WEAPON_DESC& desc)
 {
-	if (FAILED(__super::Add_Component(ETOI(LevelType::Static), TEXT("Shader_VtxMesh"), _shader)))
-        return E_FAIL;
-
-    if (FAILED(__super::Add_Component(ETOI(LevelType::GamePlay), TEXT("Model_ForkLift"), _model)))
-        return E_FAIL;
-
-    Shared<ComputeShaderCom> boneRemapShader{};
-    Shared<ComputeShaderCom> skinningShader{};
-
-    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("ComputeShader_BoneRemap"), boneRemapShader), E_FAIL);
-    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("ComputeShader_AnimMeshSkinning"), skinningShader), E_FAIL);
-
-    AnimComputeRuntime::CreateDesc runtimeDesc{};
-    runtimeDesc.model = _model.get();
-    runtimeDesc.boneRemapShader = boneRemapShader;
-    runtimeDesc.skinningShader = skinningShader;
-
-    _animComputeRuntime = AnimComputeRuntime::Create(_device, _context, runtimeDesc);
-    CHECK_NULL(_animComputeRuntime, E_FAIL);
+	CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Shader_VtxMesh"), _shader), E_FAIL);
+    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), desc.modelTag, _model), E_FAIL);
 
     return S_OK;
 }
@@ -174,7 +136,7 @@ Shared<Weapon> Weapon::Create(const ComPtr<Device>& device, const ComPtr<Context
 
 	if (FAILED(pInstance->Initialize_Prototype()))
 	{
-		MSG_BOX("Failed to Created : Body_Player");
+		LOG_ERROR("Failed to Created : Weapon");
 		return nullptr;
 	}
 	return pInstance;
@@ -187,7 +149,7 @@ Shared<GameObject> Weapon::Clone(void* pArg)
 
 	if (FAILED(pInstance->Initialize(pArg)))
 	{
-		MSG_BOX("Failed to Cloned : Body_Player");
+		MSG_BOX("Failed to Cloned : Weapon");
 		return nullptr;
 	}
 	return pInstance;
