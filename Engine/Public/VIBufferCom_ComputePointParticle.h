@@ -29,7 +29,6 @@ public: //## Behavior::ComputeUpdate
 
 private: //## Static::ComputeSmoke
     static constexpr uint32 kThreadCountX{ 64 };     // compute shader의 numthreads.x와 맞춘 dispatch 단위.
-    static constexpr uint32 kDebugArgsLogLimit{ 4 }; // clone별 indirect args readback 로그 횟수 제한.
 
 private: //## Types::IndirectDraw
     // compute shader가 쓰고 indirect draw가 읽는 5-DWORD 공통 args payload.
@@ -68,11 +67,6 @@ private: //## Data::GPU
     D3D11_BUFFER_DESC _instanceBufferDesc{}; // compute output 복사 대상 instance VB 생성 설정.
     ComPtr<Buffer> _computeConstantBuffer{}; // 시간/개수 등 frame parameter 전달용 constant buffer.
     ComPtr<Buffer> _indirectArgsBuffer{};    // Draw*InstancedIndirect가 읽는 args destination buffer.
-#ifdef _DEBUG
-    ComPtr<Buffer> _debugArgsReadbackBuffer{};      // Debug 전용 args staging readback buffer.
-    uint32 _debugArgsLogCount{};                    // clone별 args 로그 출력 횟수.
-    uint32 _debugLastArgsInstanceCount{ UINT_MAX }; // count 변화가 있을 때만 추가 로그를 남기기 위한 이전 값.
-#endif
 
 private: //## Helper::Setup
     HRESULT Ready_VertexBuffer();        // prototype 공용 point vertex 1개를 만든다.
@@ -90,9 +84,6 @@ private: //## Helper::Runtime
     HRESULT Copy_OutputToInstanceVB();   // compute output buffer를 instance VB로 복사한다.
     HRESULT Copy_OutputToIndirectArgs(); // compute args source를 indirect args destination으로 복사한다.
     ParticleLifecycleState Make_InitialLifecycleState(uint32 index) const; // 시작 시점의 particle별 수명 상태를 만든다.
-#ifdef _DEBUG
-    void Debug_LogIndirectArgs(); // Debug 전용으로 compute-authored args 값을 제한적으로 확인한다.
-#endif
 
 public:
     static Shared<VIBufferCom_ComputePointParticle> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

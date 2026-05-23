@@ -153,15 +153,6 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
 #ifdef _DEBUG
     _printManager = Print_Manager::Create();
     CHECK_NULL(_printManager, E_FAIL);
-
-    ComPtr<ID3D11InfoQueue> infoQueue;
-    if (SUCCEEDED(_device.As(&infoQueue)) && infoQueue)
-    {
-        // infoQueue->SetBreakOnSeverity(D3D11_MESSAGE_SEVERITY_CORRUPTION, TRUE);
-        // infoQueue->SetBreakOnSeverity(D3D11_MESSAGE_SEVERITY_ERROR, TRUE);
-        // infoQueue->SetBreakOnSeverity(D3D11_MESSAGE_SEVERITY_WARNING, TRUE); // #3146081에서 멈춤
-    }
-
 #endif
 
     return S_OK;
@@ -1322,6 +1313,11 @@ HRESULT GameInstance::Add_Font(const wstring& fontTag, const wchar_t* fontFilePa
     return _fontManager->Add_Font(fontTag, fontFilePath);
 }
 
+bool GameInstance::Has_Font(const wstring& fontTag) const
+{
+    return _fontManager->Has_Font(fontTag);
+}
+
 Vec2 GameInstance::Measure_Font(const wstring& fontTag, const wchar_t* text)
 {
     return _fontManager->Measure(fontTag, text);
@@ -1588,18 +1584,6 @@ HRESULT GameInstance::Add_RenderTarget(const wstring& targetTag, uint32 sizeX, u
 HRESULT GameInstance::Add_MRT(const wstring& mrtTag, const wstring& targetTag)
 {
     return _targetManager->Add_MRT(mrtTag, targetTag);
-}
-
-HRESULT GameInstance::Set_HDRClearColorOverride(const Color& clearColor)
-{
-    CHECK_NULL(_targetManager, E_FAIL);
-    return _targetManager->Set_RenderTargetClearColor(RT::HDRColor, clearColor);
-}
-
-HRESULT GameInstance::Clear_HDRClearColorOverride()
-{
-    CHECK_NULL(_targetManager, E_FAIL);
-    return _targetManager->Set_RenderTargetClearColor(RT::HDRColor, Color(0.f, 0.f, 0.f, 0.f));
 }
 
 HRESULT GameInstance::Begin_MRT(const wstring& mrtTag, bool useDSV, bool clearRTV)

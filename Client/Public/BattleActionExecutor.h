@@ -1,4 +1,5 @@
 ﻿#pragma once
+#include <TransformCom.h>
 #include "Base.h"
 #include "Battle_Enum.h"
 
@@ -13,20 +14,24 @@ public:
     void BeginAction(Action& action);
     void Update(float timeDelta, Action& action);
     void OnActionEndNotify(Action& action);
-    void Advance_ToNextPhase(Action& action);
+    void Complete_CurPhase(Action& action);
 
 public:
-    bool IsFinished() const
-    {
-        return _isFinished;
-    }
+    bool IsFinished() const {return _isFinished;}
+    void Set_ReStart() { _isFinished = false; }
 private:
-    void Begin_ActionPhase(Action& action);
+    void Begin_ActionPhase(Action& action); //시작시 들어감
+    void Update_ActionMovement(float timeDelta, Action& action);
+
+    void Update_BasicMovement(Action& action, const Shared<TransformCom>& transform, const Vec3& currentPos);
+    void Update_RootMotionToTarget(Action& action, const Shared<TransformCom>& transform, const Vec3& currentPos);
+    void Update_RatioMoveTo(Action& action, const Shared<TransformCom>& transform, const Vec3& currentPos);
+
+    void FinishCurrentPhaseAtGoal(Action& action);
+
     Vec3 Resolve_AnchorPosition(const Action& action, BattleTargetAnchor anchor) const;
     Vec3 Resolve_PhaseGoalPosition(const Action& action, const BattleActionPhase& phase) const;
     void Face_ActionTarget(Action& action, const Vec3& goalPos);
-    void Update_ActionMovement(float timeDelta, Action& action);
-
 private:
     bool _isFinished = {false};
     float _testPrevRatio = {};

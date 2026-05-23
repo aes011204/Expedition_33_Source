@@ -1,4 +1,4 @@
-﻿#include "pch.h"
+#include "pch.h"
 #include "PanelAssetBrowser.h"
 #include "SceneContext.h"
 
@@ -47,6 +47,20 @@ void PanelAssetBrowser::Render()
         {
             ScanCurrentPath();
         }
+
+        ImGui::SameLine();
+        ImGui::TextDisabled(" | Map:");
+        ImGui::SameLine();
+        if (_ctx->_currentFilePath.empty())
+        {
+            ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "Untitled");
+        }
+        else
+        {
+            fs::path p(_ctx->_currentFilePath);
+            ImGui::TextColored(ImVec4(0.2f, 0.8f, 1.0f, 1.0f), "%s", p.filename().string().c_str());
+        }
+
         ImGui::Separator();
 
         for (auto& dir : _dirs)

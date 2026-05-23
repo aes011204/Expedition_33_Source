@@ -6,75 +6,6 @@ namespace UIEditor
 {
     namespace
     {
-        constexpr wchar_t kPrefabExtension[] = L".uiprefab.json";
-        constexpr const char* kDefaultPrefabName = "UIPrefab";
-
-        bool Has_PrefabExtension(const fs::path& filePath)
-        {
-            const wstring fileName = filePath.filename().wstring();
-            if (fileName.size() < wcslen(kPrefabExtension))
-                return false;
-
-            const wstring suffix = fileName.substr(fileName.size() - wcslen(kPrefabExtension));
-            return _wcsicmp(suffix.c_str(), kPrefabExtension) == 0;
-        }
-
-        string Sanitize_FolderName(string folderName)
-        {
-            for (char& character : folderName)
-            {
-                switch (character)
-                {
-                case '<':
-                case '>':
-                case ':':
-                case '"':
-                case '/':
-                case '\\':
-                case '|':
-                case '?':
-                case '*':
-                    character = '_';
-                    break;
-                default:
-                    break;
-                }
-            }
-
-            while (!folderName.empty() && (folderName.back() == ' ' || folderName.back() == '.'))
-                folderName.pop_back();
-
-            return folderName;
-        }
-
-        vector<fs::path> Collect_ChildDirectories(const fs::path& directoryPath)
-        {
-            vector<fs::path> childDirectories;
-            try
-            {
-                if (!fs::exists(directoryPath) || !fs::is_directory(directoryPath))
-                    return childDirectories;
-
-                for (const fs::directory_entry& entry : fs::directory_iterator(directoryPath, fs::directory_options::skip_permission_denied))
-                {
-                    if (entry.is_directory())
-                        childDirectories.push_back(entry.path());
-                }
-            }
-            catch (const exception& exception)
-            {
-                LOG_WARN("UI prefab folder scan failed: {} ({})", exception.what(), String::ToString(directoryPath.wstring()));
-            }
-
-            sort(childDirectories.begin(), childDirectories.end(), [](const fs::path& lhs, const fs::path& rhs)
-                {
-                    return String::ToLowerCopy(String::ToString(lhs.filename().wstring())) <
-                        String::ToLowerCopy(String::ToString(rhs.filename().wstring()));
-                });
-
-            return childDirectories;
-        }
-
         bool Matches_SearchText(const string& haystack, const string& searchText)
         {
             if (searchText.empty())
@@ -88,7 +19,7 @@ namespace UIEditor
         : UI_Editor_Window{ L"Prefab Browser" }
         , _editorManager{ editorManager }
     {
-        strncpy_s(_prefabNameBuffer, kDefaultPrefabName, _TRUNCATE);
+        strncpy_s(_prefabNameBuffer, _prefabService.Get_DefaultPrefabName(), _TRUNCATE);
 
         if (FAILED(_prefabService.Initialize()))
             LOG_WARN("UI Prefab Browser: prefab root directory initialization failed.");
@@ -151,7 +82,7 @@ namespace UIEditor
 
     void UI_Prefab_Browser::Render_FolderNode(const fs::path& directoryPath)
     {
-        const vector<fs::path> childDirectories = Collect_ChildDirectories(directoryPath);
+        const vector<fs::path> childDirectories = _prefabService.Collect_ChildDirectories(directoryPath);
         const bool isSelected = fs::path(_selectedDirectory).lexically_normal() == directoryPath.lexically_normal();
 
         ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
@@ -189,7 +120,7 @@ namespace UIEditor
         if (_needsRefresh)
             Refresh_PrefabEntries();
 
-        ImGui::Text("Folder: %s", Make_RelativeDisplayPath(fs::path(_selectedDirectory)).c_str());
+        ImGui::Text("Folder: %s", _prefabService.Make_RelativeDisplayPath(fs::path(_selectedDirectory)).c_str());
         ImGui::Separator();
 
         Render_SaveControls();
@@ -201,7 +132,7 @@ namespace UIEditor
         const string searchText = String::ToLowerCopy(_searchBuffer);
         int32 visiblePrefabCount = 0;
 
-        for (const PrefabFileEntry& prefabEntry : _prefabEntries)
+        for (const UI_PrefabFileEntry& prefabEntry : _prefabEntries)
         {
             const string haystack = prefabEntry.name + " " + prefabEntry.relativePath;
             if (!Matches_SearchText(haystack, searchText))
@@ -257,24 +188,15 @@ namespace UIEditor
 
         if (ImGui::SmallButton("Create Folder"))
         {
-            const string safeFolderName = Sanitize_FolderName(_newFolderNameBuffer);
-            if (!safeFolderName.empty())
-            {
-                const fs::path parentDirectory = _selectedDirectory.empty()
-                    ? fs::path(_prefabService.Get_RootDirectory())
-                    : fs::path(_selectedDirectory);
-                const fs::path newDirectory = (parentDirectory / String::ToWString(safeFolderName)).lexically_normal();
+            const wstring parentDirectory = _selectedDirectory.empty()
+                ? _prefabService.Get_RootDirectory()
+                : _selectedDirectory;
 
-                try
-                {
-                    fs::create_directories(newDirectory);
-                    Select_Directory(newDirectory);
-                    _newFolderNameBuffer[0] = '\0';
-                }
-                catch (const exception& exception)
-                {
-                    LOG_WARN("UI prefab folder create failed: {} ({})", exception.what(), String::ToString(newDirectory.wstring()));
-                }
+            wstring newDirectory = {};
+            if (_prefabService.Create_Folder(parentDirectory, _newFolderNameBuffer, newDirectory))
+            {
+                Select_Directory(fs::path(newDirectory));
+                _newFolderNameBuffer[0] = '\0';
             }
         }
     }
@@ -288,37 +210,7 @@ namespace UIEditor
             ? fs::path(_prefabService.Get_RootDirectory())
             : fs::path(_selectedDirectory);
 
-        try
-        {
-            if (!fs::exists(selectedDirectory) || !fs::is_directory(selectedDirectory))
-                return;
-
-            for (const fs::directory_entry& entry : fs::directory_iterator(selectedDirectory, fs::directory_options::skip_permission_denied))
-            {
-                if (!entry.is_regular_file() || !Has_PrefabExtension(entry.path()))
-                    continue;
-
-                UI_PrefabAsset prefab = {};
-                const wstring filePath = entry.path().wstring();
-                if (!_prefabService.Load_Prefab(filePath, prefab))
-                    continue;
-
-                PrefabFileEntry prefabEntry = {};
-                prefabEntry.filePath = filePath;
-                prefabEntry.name = prefab.name.empty() ? String::ToString(entry.path().filename().wstring()) : prefab.name;
-                prefabEntry.relativePath = Make_RelativeDisplayPath(entry.path());
-                _prefabEntries.push_back(move(prefabEntry));
-            }
-        }
-        catch (const exception& exception)
-        {
-            LOG_WARN("UI prefab file scan failed: {} ({})", exception.what(), String::ToString(selectedDirectory.wstring()));
-        }
-
-        sort(_prefabEntries.begin(), _prefabEntries.end(), [](const PrefabFileEntry& lhs, const PrefabFileEntry& rhs)
-            {
-                return String::ToLowerCopy(lhs.name) < String::ToLowerCopy(rhs.name);
-            });
+        _prefabEntries = _prefabService.Collect_PrefabEntries(selectedDirectory.wstring());
     }
 
     void UI_Prefab_Browser::Select_Directory(const fs::path& directoryPath)
@@ -333,7 +225,7 @@ namespace UIEditor
 
     void UI_Prefab_Browser::Save_SelectedPrefab()
     {
-        const string prefabName = _prefabNameBuffer[0] == '\0' ? kDefaultPrefabName : _prefabNameBuffer;
+        const string prefabName = _prefabNameBuffer[0] == '\0' ? _prefabService.Get_DefaultPrefabName() : _prefabNameBuffer;
         const wstring filePath = _prefabService.Build_PrefabFilePath(_selectedDirectory, prefabName);
 
         if (_prefabService.Save_Prefab(_editorManager.Get_Document(), _editorManager.Get_RootSelectedObjectIds(), prefabName, filePath))
@@ -348,22 +240,6 @@ namespace UIEditor
 
         if (_editorManager.Create_UIObjectsFromPrefab(prefab))
             _needsRefresh = true;
-    }
-
-    string UI_Prefab_Browser::Make_RelativeDisplayPath(const fs::path& path) const
-    {
-        try
-        {
-            const fs::path rootDirectory = fs::path(_prefabService.Get_RootDirectory()).lexically_normal();
-            const fs::path normalizedPath = path.lexically_normal();
-            const fs::path relativePath = fs::relative(normalizedPath, rootDirectory);
-            const string relativeText = String::ToString(relativePath.wstring());
-            return relativeText.empty() || relativeText == "." ? "UI_Prefabs" : relativeText;
-        }
-        catch (...)
-        {
-            return String::ToString(path.filename().wstring());
-        }
     }
 
     Shared<UI_Prefab_Browser> UI_Prefab_Browser::Create(UI_Editor_Manager& editorManager)

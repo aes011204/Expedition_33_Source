@@ -40,9 +40,11 @@ bool AttackTargeting::EnterInvoke()
     if (!owner)
         return false;
 
+    TargetIndex = 0;
+
     const auto enemies = owner->Get_AliveEnemies();
     if (!enemies.empty())
-    {
+    { 
         TargetIndex %= enemies.size();
         owner->Set_TargetPreview(enemies[TargetIndex]);
     }
@@ -67,6 +69,7 @@ void AttackTargeting::Update(float timeDelta)
 
     if (GAME->KeyDown(KEY_TYPE::ESCAPE))
     {
+        owner->Clear_TargetPreview();
         battleFSM->Change_State(BattleTurnState::ChooseAction);
         return;
     }
@@ -82,6 +85,7 @@ void AttackTargeting::Update(float timeDelta)
         LOG_DEBUG("AttackTargeting: confirm target index={}", TargetIndex);
         LOG_DEBUG("AttackTargeting: selected skill={}", owner->Get_TurnAction()._selected_SkillKey.scriptClassName.c_str());
 
+        battleFSM->Change_State(BattleTurnState::AttackPlaying);
         owner->ExecuteAction(owner->Get_TurnAction());
         return;
     }
@@ -122,8 +126,8 @@ void AttackTargeting::ExitInvoke()
 {
     LOG_DEBUG("AttackTargeting::ExitInvoke");
 
-    if (auto owner = Get_Owner())
-        owner->Clear_TargetPreview();
+    //if (auto owner = Get_Owner())
+    //    owner->Clear_TargetPreview();
 
     Battle_State::ExitInvoke();
 }

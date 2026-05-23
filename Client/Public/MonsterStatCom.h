@@ -58,6 +58,13 @@ public:
 
 
 
+    void Set_RuntimeCombatProfile(
+        float maxHp,
+        uint32 maxAp,
+        float physicalAttack,
+        float physicalDefense,
+        float speed);
+
 private:
     MonsterCombatStatDesc _monsterDesc;
     MRuntimeCombatStat _MRuntimeStat;

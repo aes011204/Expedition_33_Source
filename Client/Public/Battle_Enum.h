@@ -1,4 +1,7 @@
 ﻿#pragma once
+
+#include "Client_Enum.h"
+
 namespace Engine
 {
     class ModelCom;
@@ -7,9 +10,9 @@ namespace Engine
 
 namespace Client
 {
-struct BattleActionPhase;
-enum class Buffs;
+    struct BattleActionPhase;
     struct Skill_Data;
+    enum class Buffs;
     enum class EAttackType;
     class CombatStatCom;
     // =============================
@@ -22,12 +25,14 @@ enum class Buffs;
         None,
         ChooseSkill,
         AttackTargeting,
+        AttackPlaying,      // 타겟 선택 끝나고, 평타 or 스킬 실행중일 때
         ChooseItem,
         ChooseAction,
         SkillTargeting,
         ItemTargeting,
         UltimateTargeting,
-        ChooseUltimate
+        ChooseUltimate,
+        FreeAimTargeting,
     };
 
     // 현재 전투 상황의 유형이나 행동 컨텍스트
@@ -39,7 +44,7 @@ enum class Buffs;
         Dodge,
         Parry,
         TurnStart,
-        FreeAimShot,
+        FreeAimShoot,
         BaseAttack,
         ConsumableItem,
         Debug,
@@ -105,7 +110,7 @@ enum class Buffs;
         Dodge,
         Parry,
         TurnStart,
-        FreeAimShot,
+        FreeAimShoot,
         BaseAttack,
         ConsumableItem,
         Debug,
@@ -239,7 +244,7 @@ enum class Buffs;
         Dodge,
         Parry,
         TurnStart,
-        FreeAimShot,
+        FreeAimShoot,
         BaseAttack,
         ConsumableItem,
         Debug,
@@ -445,6 +450,7 @@ enum class Buffs;
 
     struct BattleChar
     {
+        HeroId heroId = HeroId::END; // 어떤 월드 영웅과 연결된 배틀 캐릭터인지 끝날 때 역반영으로 사용
         Shared<Character> actor;
         Shared<CombatStatCom> statCom;
         Shared<ModelCom> ModelCom;
@@ -521,17 +527,15 @@ enum class Buffs;
         bool ignoreDefense = false;
     };
 
-
-   
     //------------------------------------
-  
- 
     struct Skill_Data
     {
         string skillKey = "";
         string scriptClassName = "";
         vector<BattleActionPhase> AnimPhases = {};
+
         string IdleAnimationKey = "";
+
 
         int32 apCost = 0;
         ECharacterTeamSelector targetingType = ECharacterTeamSelector::Invalid;
@@ -597,5 +601,19 @@ enum class Buffs;
      //   bool disableSequenceSnapping = false;
     };
 
+    enum class BattleAnimType
+    {
+        Base_Idle,
+        Battle_Start,
+        Hit_Heavy,
+        Hit_Medium,
+        Hit_Light,
 
+        FreeAim_Enter,
+        FreeAim_Idle,
+        FreeAim_Shoot,
+
+        Dead,
+
+    };
 }

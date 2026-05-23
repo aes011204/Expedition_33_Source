@@ -8,6 +8,7 @@
 #include "EffectEditorInstance.h"
 #include "EffectMaterialPresetReader.h"
 #include "GameInstance.h"
+#include "Helper_EffectAuthoring.h"
 #include "Helper_ImGui.h"
 #include "Helper_String.h"
 #include "Notification_Manager.h"
@@ -19,7 +20,7 @@ namespace Internal
     constexpr const wchar_t* kDefaultEffectMaterialFileName = L"M_DefaultMaterial.effectmaterial.json";
     constexpr const char* kDefaultEffectMaterialName = "M_DefaultMaterial";
     constexpr const char* kDefaultEffectMaterialTextureGuid = "3c90794a-31bb-4e97-969a-3fd4497acc0f";
-    constexpr const char* kDefaultEffectMaterialTexturePath = "Effects/Textures/DefaultTexture.dds";
+    constexpr const char* kDefaultEffectMaterialTexturePath = "Effects/Textures/Shared/DefaultTexture.dds";
     constexpr const wchar_t* kEffectAuthoringSaveDefaultFolder = L"../../../Client/Bin/Resources/Effects/Assets";
     constexpr const wchar_t* kEffectAuthoringSaveDefaultFileName = L"NewEffect.effect.json";
     constexpr const wchar_t* kEffectAuthoringExtension = L".effect.json";
@@ -1196,7 +1197,6 @@ void Emitter_View::Reset_ModuleData(size_t emitterIndex, size_t moduleIndex)
     {
         RequiredModuleData data = Internal::Make_DefaultRequiredModuleData();
         module.data = data;
-        emitter.rendererType = data.rendererType;
         emitter.textureId = data.material.mainTexturePath;
         emitter.resourceSummary = data.material.mainTexturePath;
         break;
@@ -1278,6 +1278,7 @@ void Emitter_View::Reset_ModuleData(size_t emitterIndex, size_t moduleIndex)
         return;
     }
 
+    Sync_EmitterMirror(emitter);
     emitter.previewDirty = true;
     MarkDirty();
 }
@@ -1326,6 +1327,76 @@ void Emitter_View::Process_PendingModuleAction()
     _pendingModuleAction = PendingModuleAction::None;
     _pendingModuleEmitterIndex.reset();
     _pendingModuleIndex.reset();
+}
+
+void Emitter_View::Apply_TypeDataAction(PendingTypeDataAction action, size_t emitterIndex)
+{
+    if (emitterIndex >= _emitters.size())
+        return;
+
+    AuthoringEmitter& emitter = _emitters[emitterIndex];
+    switch (action)
+    {
+    case PendingTypeDataAction::AddTrail:
+    case PendingTypeDataAction::ResetData:
+        emitter.typeData.kind = AuthoringTypeDataKind::Trail;
+        emitter.typeData.payload = TrailTypeData{};
+        break;
+    case PendingTypeDataAction::Remove:
+        emitter.typeData.kind = AuthoringTypeDataKind::None;
+        emitter.typeData.payload = EmptyTypeData{};
+        break;
+    case PendingTypeDataAction::None:
+    default:
+        return;
+    }
+
+    Sync_EmitterMirror(emitter);
+    emitter.previewDirty = true;
+    MarkDirty();
+}
+
+void Emitter_View::Queue_TypeDataAction(PendingTypeDataAction action, size_t emitterIndex)
+{
+    _pendingTypeDataAction = action;
+    _pendingTypeDataEmitterIndex = emitterIndex;
+}
+
+void Emitter_View::Process_PendingTypeDataAction()
+{
+    if (_pendingTypeDataAction == PendingTypeDataAction::None ||
+        !_pendingTypeDataEmitterIndex.has_value())
+        return;
+
+    const PendingTypeDataAction action = _pendingTypeDataAction;
+    const size_t emitterIndex = _pendingTypeDataEmitterIndex.value();
+    const char* description = "Edit TypeData";
+    switch (action)
+    {
+    case PendingTypeDataAction::AddTrail:
+        description = "Add Trail TypeData";
+        break;
+    case PendingTypeDataAction::ResetData:
+        description = "Reset TypeData";
+        break;
+    case PendingTypeDataAction::Remove:
+        description = "Remove TypeData";
+        break;
+    case PendingTypeDataAction::None:
+    default:
+        break;
+    }
+
+    Execute_AuthoringEdit(
+        description,
+        [this, action, emitterIndex]
+        {
+            Apply_TypeDataAction(action, emitterIndex);
+        }
+    );
+
+    _pendingTypeDataAction = PendingTypeDataAction::None;
+    _pendingTypeDataEmitterIndex.reset();
 }
 
 vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(const AuthoringEmitter& emitter) const
@@ -1671,6 +1742,8 @@ void Emitter_View::Clamp_Selection()
 
 void Emitter_View::Sync_EmitterMirror(AuthoringEmitter& emitter)
 {
+    emitter.rendererType = Authoring::Resolve_RendererType(emitter.typeData);
+
     for (const AuthoringModule& module : emitter.modules)
     {
         if (module.type != AuthoringModuleType::Required)
@@ -1680,7 +1753,6 @@ void Emitter_View::Sync_EmitterMirror(AuthoringEmitter& emitter)
         if (requiredData == nullptr)
             return;
 
-        emitter.rendererType = requiredData->rendererType;
         emitter.textureId = requiredData->material.mainTexturePath;
         emitter.resourceSummary = requiredData->material.mainTexturePath;
         return;
@@ -1779,7 +1851,7 @@ void Emitter_View::Draw_EmitterContextMenu(size_t emitterIndex)
 
     if (ImGui::BeginMenu("타입 데이터"))
     {
-        Draw_TypeDataContextMenu();
+        Draw_TypeDataContextMenu(emitterIndex);
         ImGui::EndMenu();
     }
 
@@ -1792,11 +1864,24 @@ void Emitter_View::Draw_EmitterContextMenu(size_t emitterIndex)
     }
 }
 
-void Emitter_View::Draw_TypeDataContextMenu()
+void Emitter_View::Draw_TypeDataContextMenu(size_t emitterIndex)
 {
-    ImGui::BeginDisabled();
-    ImGui::MenuItem("추가 가능한 타입 데이터 없음");
-    ImGui::EndDisabled();
+    if (emitterIndex >= _emitters.size())
+        return;
+
+    const AuthoringEmitter& emitter = _emitters[emitterIndex];
+    if (emitter.typeData.kind == AuthoringTypeDataKind::None)
+    {
+        if (ImGui::MenuItem("Trail TypeData 추가"))
+            Queue_TypeDataAction(PendingTypeDataAction::AddTrail, emitterIndex);
+        return;
+    }
+
+    if (ImGui::MenuItem("타입 데이터 값 초기화"))
+        Queue_TypeDataAction(PendingTypeDataAction::ResetData, emitterIndex);
+
+    if (ImGui::MenuItem("타입 데이터 제거"))
+        Queue_TypeDataAction(PendingTypeDataAction::Remove, emitterIndex);
 }
 
 void Emitter_View::Draw_ModuleContextMenu(size_t emitterIndex, size_t moduleIndex, const AuthoringModule& module)
@@ -1872,6 +1957,7 @@ void Emitter_View::Draw_EmitterBoard()
         }
 
         Process_PendingEmitterAction();
+        Process_PendingTypeDataAction();
         Process_PendingModuleAction();
     }
     ImGui::EndChild();
@@ -1982,6 +2068,8 @@ void Emitter_View::Draw_TypeDataRow(size_t emitterIndex)
 {
     constexpr float rowPaddingX = 10.f;
 
+    const AuthoringTypeDataKind typeDataKind = _emitters[emitterIndex].typeData.kind;
+    const bool hasTypeData = typeDataKind != AuthoringTypeDataKind::None;
     const bool isSelected =
         _selectedEmitterIndex.has_value() &&
         _selectedEmitterIndex.value() == emitterIndex &&
@@ -1990,7 +2078,9 @@ void Emitter_View::Draw_TypeDataRow(size_t emitterIndex)
     const ImVec4 rowColor = isSelected ? accentColor : To_ImVec4(kEmitterTypeDataRowColor);
     const ImVec4 textColor = isSelected
                              ? To_ImVec4(kEmitterSelectedTextColor)
-                             : ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled);
+                             : hasTypeData
+                               ? ImGui::GetStyleColorVec4(ImGuiCol_Text)
+                               : ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled);
 
     const ImVec2 rowCursor = ImGui::GetCursorPos();
     ImGui::PushStyleColor(ImGuiCol_Button, rowColor);
@@ -2005,7 +2095,7 @@ void Emitter_View::Draw_TypeDataRow(size_t emitterIndex)
 
     if (ImGui::BeginPopupContextItem("##TypeDataRowPopup"))
     {
-        Draw_TypeDataContextMenu();
+        Draw_TypeDataContextMenu(emitterIndex);
         ImGui::EndPopup();
     }
 
@@ -2013,9 +2103,10 @@ void Emitter_View::Draw_TypeDataRow(size_t emitterIndex)
     const float textOffsetY = (kEmitterTypeDataRowHeight - ImGui::GetTextLineHeight()) * 0.5f;
     ImGui::SetCursorPos(ImVec2(rowCursor.x + rowPaddingX, rowCursor.y + textOffsetY));
     ImGui::PushStyleColor(ImGuiCol_Text, textColor);
-    ImGui::TextUnformatted("타입 데이터");
-    ImGui::SameLine();
-    ImGui::TextDisabled("(미장착)");
+    if (hasTypeData)
+        ImGui::TextUnformatted(typeDataKind == AuthoringTypeDataKind::Trail ? "트레일 데이터" : "타입 데이터");
+    else
+        ImGui::TextUnformatted("타입 데이터 (미장착)");
     ImGui::PopStyleColor();
     ImGui::SetCursorPos(afterRowCursor);
 }

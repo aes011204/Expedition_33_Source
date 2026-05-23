@@ -38,7 +38,7 @@ public:
     // 스테이터스 찍을 때, 게임 전체는 멈추는데
     // UI 창 안에서 프리뷰 플레이어들은 업데이트가 돌아야 애니메이션이 재생됨
     void    Update_StatusPreview(float timeDelta);
-
+    void    Enter_GameMenuAnimation(uint32 introAnim, uint32 idleAnim);
     Vec3    Get_MovementVelocity() const;
     void    Start_SwitchDissolve(float durationSec, const string& noiseName); // TEMP_ERASE: DISSOLVE 예시 함수
 
@@ -57,11 +57,11 @@ protected:
     virtual const wchar_t* Get_HeadModelTag() const { return L"Model_LuneHead"; }
     virtual const wchar_t* Get_HairModelTag() const { return L"Model_LuneHair"; }
 
-private:
+protected:
     Shared<MovementCom>             _movementCom;
     Shared<InputCom>                _inputCom;
     Shared<PlayerControllerCom>     _playerControllerCom;
-    Shared<PlayerStateMachineCom>   _PlayerStateMachineCom;
+    Shared<PlayerStateMachineCom>   _playerStateMachineCom;
     Shared<SkillTreeCom>            _skillTreeCom;
     Shared<PlayerStatCom>           _combatStatCom;
 

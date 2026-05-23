@@ -268,6 +268,7 @@ public: /* For.Light_Manager */
 
 public: /* For.Font_Manager */
     HRESULT Add_Font(const wstring& fontTag, const wchar_t* fontFilePath);
+    bool    Has_Font(const wstring& fontTag) const;
     Vec2 Measure_Font(const wstring& fontTag, const wchar_t* text);
     void Draw_Font(
         const wstring& fontTag,
@@ -349,10 +350,6 @@ public : /* For.Target_Manager */
     HRESULT Ready_AllRenderTargets();
     HRESULT Add_RenderTarget(const wstring& targetTag, uint32 sizeX, uint32 sizeY, DXGI_FORMAT pixelFormat, const Color& clearColor, bool resizeWithViewport = true, bool useDSV = false);
     HRESULT Add_MRT(const wstring& mrtTag, const wstring& targetTag);
-    // HDR 입력 RT의 clear color를 바꿀 때 사용한다.
-    HRESULT Set_HDRClearColorOverride(const Color& clearColor);
-    // HDR 입력 RT clear color override를 엔진 기본값으로 되돌린다.
-    HRESULT Clear_HDRClearColorOverride();
 
     HRESULT Begin_MRT(const wstring& mrtTag, bool useDSV = false, bool clearRTV = true);
     HRESULT End_MRT();

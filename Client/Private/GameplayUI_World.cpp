@@ -2,6 +2,8 @@
 #include "CharacterStatus_Panel.h"
 #include "GameInstance.h"
 #include "SkillTree_Panel.h"
+#include "ChangeWeapon_Panel.h"
+#include "ExpeditionStat_Panel.h"
 
 GameplayUI_World::~GameplayUI_World() = default;
 
@@ -15,6 +17,13 @@ HRESULT GameplayUI_World::Initialize(uint32 levelIndex)
 
     _savePointPanel = SavePoint_Panel::Create(levelIndex);
     CHECK_NULL(_savePointPanel, E_FAIL);
+
+    _changeWeaponPanel = ChangeWeapon_Panel::Create(levelIndex);
+    CHECK_NULL(_changeWeaponPanel, E_FAIL);
+
+    _expeditionStatPanel = ExpeditionStat_Panel::Create(levelIndex);
+    CHECK_NULL(_expeditionStatPanel, E_FAIL);
+    
 
     return S_OK;
 }
@@ -30,6 +39,12 @@ void GameplayUI_World::Update(float timeDelta)
     if (_skillTreePanel)
         _skillTreePanel->Update(timeDelta);
 
+    if (_changeWeaponPanel)
+        _changeWeaponPanel->Update(timeDelta);
+
+    if (_expeditionStatPanel)
+        _expeditionStatPanel->Update(timeDelta);
+
     if (_savePointPanel && _savePointPanel->Is_Open())
     {
         const SavePoint_Panel::SavePointAction action = _savePointPanel->Consume_LastAction();
@@ -41,6 +56,7 @@ void GameplayUI_World::Update_Input()
 {
     Handle_TabInput(); // Tab은 root 메뉴인 SavePoint 진입/종료만 담당
     Handle_BackInput();
+    Handle_ExpeditionStat();
 }
 
 bool GameplayUI_World::Is_AnyMenuOpen() const
@@ -78,7 +94,7 @@ void GameplayUI_World::Handle_SavePointAction(SavePoint_Panel::SavePointAction a
         break;
 
     case SavePoint_Panel::SavePointAction::UpgradeWeapon:
-        // TODO: WeaponUpgrade_Panel 추가 후 연결
+        Push_Menu(GameplayMenu::WeaponUpgrade);
         break;
 
     case SavePoint_Panel::SavePointAction::None:
@@ -108,10 +124,30 @@ void GameplayUI_World::Handle_TabInput()
     }
 }
 
+void GameplayUI_World::Handle_ExpeditionStat()
+{
+    if (!GAME->KeyDown(KEY_TYPE::Q))
+        return;
+
+    if (_expeditionStatPanel == nullptr)
+        return;
+
+    if (!_menuStack.empty())
+        return; // 다른 월드 메뉴가 열려 있으면 막기
+
+    _expeditionStatPanel->Toggle();
+}
+
 void GameplayUI_World::Handle_BackInput()
 {
     if (!GAME->KeyDown(KEY_TYPE::ESCAPE))
         return;
+
+    if (_expeditionStatPanel && _expeditionStatPanel->Is_Open())
+    {
+        _expeditionStatPanel->Close();
+        return;
+    }
 
     if (_menuStack.empty())
         return;
@@ -160,6 +196,9 @@ void GameplayUI_World::Close_AllMenus()
         Close_Menu(_menuStack.back());
         _menuStack.pop_back();
     }
+
+    if (_expeditionStatPanel && _expeditionStatPanel->Is_Open())
+        _expeditionStatPanel->Close(); 
 }
 
 void GameplayUI_World::Open_Menu(GameplayMenu menu)
@@ -182,7 +221,8 @@ void GameplayUI_World::Open_Menu(GameplayMenu menu)
         break;
 
     case GameplayMenu::WeaponUpgrade:
-        // TODO: WeaponUpgrade_Panel 추가 후 연결
+        if (_changeWeaponPanel)
+            _changeWeaponPanel->Open();
         break;
 
     case GameplayMenu::None:
@@ -211,7 +251,8 @@ void GameplayUI_World::Close_Menu(GameplayMenu menu)
         break;
 
     case GameplayMenu::WeaponUpgrade:
-        // TODO: WeaponUpgrade_Panel 추가 후 연결
+        if (_changeWeaponPanel)
+            _changeWeaponPanel->Close();
         break;
 
     case GameplayMenu::None:
@@ -248,6 +289,8 @@ void GameplayUI_World::Free()
     Release_Panel(_savePointPanel);
     Release_Panel(_characterStatusPanel);
     Release_Panel(_skillTreePanel);
+    Release_Panel(_changeWeaponPanel);
+    Release_Panel(_expeditionStatPanel);
 
     Base::Free();
 }

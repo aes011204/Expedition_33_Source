@@ -46,7 +46,7 @@ HRESULT MainEditorApp::Initialize()
     if (FAILED(Ready_Fonts()))
         return E_FAIL;
 
-    if (FAILED(Ready_StartLevel(LevelType::GamePlay)))
+    if (FAILED(Ready_StartLevel(LevelType::MainTitle)))
         return E_FAIL;
 
     EDITOR_DESC editorDesc{};
@@ -78,7 +78,8 @@ void MainEditorApp::Update(float timeDelta)
     float runtimeDelta = 0.f;
     float freeCameraDelta = 0.f;
 
-    const bool isLoading = GAME->Current_LevelIndex() == ETOI(LevelType::Loading);
+    const uint32 previousLevelIndex = GAME->Current_LevelIndex();
+    const bool isLoading = previousLevelIndex == ETOI(LevelType::Loading);
 
     if (isLoading)
     {
@@ -118,6 +119,15 @@ void MainEditorApp::Update(float timeDelta)
                     CLIENT->Update_Client(dt);
             });
     }
+
+    const uint32 currentLevelIndex = GAME->Current_LevelIndex();
+    const bool finishedLoadingIntoNonMainTitle =
+        previousLevelIndex == ETOI(LevelType::Loading) &&
+        currentLevelIndex != ETOI(LevelType::Loading) &&
+        currentLevelIndex != ETOI(LevelType::MainTitle);
+
+    if (finishedLoadingIntoNonMainTitle)
+        EDITOR->Enter_EditAfterLoading();
 
     EDITOR->Apply_RuntimeInputPolicy();
 }

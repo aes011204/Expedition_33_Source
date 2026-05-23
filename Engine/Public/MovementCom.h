@@ -118,6 +118,7 @@ public:
     // 강제 상태 전환
     void Force_SetGroundY(float groundY);
     void Force_SetPositionY(float posY);
+    void Sync_RuntimePositionToTransform();
 
     void Stop_AllMovement();
     void Stop_HorizontalMovement();

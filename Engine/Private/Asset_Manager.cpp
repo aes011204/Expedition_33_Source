@@ -3,6 +3,171 @@
 #include <objbase.h>
 
 #include "MaterialBuilder.h"
+#include "Vertex_Types.h"
+
+namespace
+{
+    struct ModelMetaBoneEntry
+    {
+        string name{};
+        int32 parentIndex{ -1 };
+        int32 depth{ 0 };
+    };
+
+    bool Read_ModelMetaString(ifstream& stream, string& outString)
+    {
+        uint32 length = 0;
+        stream.read(reinterpret_cast<char*>(&length), sizeof(uint32));
+        if (!stream.good())
+            return false;
+
+        outString.clear();
+        if (length == 0)
+            return true;
+
+        outString.resize(length);
+        stream.read(outString.data(), length);
+        return stream.good();
+    }
+
+    bool Skip_ModelMetaBytes(ifstream& stream, uint64 numBytes)
+    {
+        stream.seekg(static_cast<streamoff>(numBytes), ios::cur);
+        return stream.good();
+    }
+
+    int32 Compute_ModelMetaBoneDepth(uint32 boneIndex, const vector<ModelMetaBoneEntry>& bones, vector<int32>& cachedDepths)
+    {
+        if (boneIndex >= bones.size())
+            return 0;
+
+        int32& cachedDepth = cachedDepths[boneIndex];
+        if (cachedDepth != -1)
+            return cachedDepth;
+
+        const int32 parentIndex = bones[boneIndex].parentIndex;
+        if (parentIndex < 0 || parentIndex >= static_cast<int32>(bones.size()))
+        {
+            cachedDepth = 0;
+            return cachedDepth;
+        }
+
+        cachedDepth = Compute_ModelMetaBoneDepth(static_cast<uint32>(parentIndex), bones, cachedDepths) + 1;
+        return cachedDepth;
+    }
+
+    bool Try_ReadModelMetaBones(const wstring& modelPath, vector<ModelMetaBoneEntry>& outBones)
+    {
+        outBones.clear();
+
+        ifstream stream(modelPath, ios::binary);
+        if (!stream.is_open())
+            return false;
+
+        bool isSkeletal = false;
+        uint32 maxTextureType = 0;
+        uint32 numMaterials = 0;
+        uint32 numMeshes = 0;
+        uint32 numBones = 0;
+
+        stream.read(reinterpret_cast<char*>(&isSkeletal), sizeof(bool));
+        stream.read(reinterpret_cast<char*>(&maxTextureType), sizeof(uint32));
+        stream.read(reinterpret_cast<char*>(&numMaterials), sizeof(uint32));
+        stream.read(reinterpret_cast<char*>(&numMeshes), sizeof(uint32));
+        stream.read(reinterpret_cast<char*>(&numBones), sizeof(uint32));
+
+        if (!stream.good())
+            return false;
+
+        for (uint32 materialIndex = 0; materialIndex < numMaterials; ++materialIndex)
+        {
+            string materialName{};
+            if (!Read_ModelMetaString(stream, materialName))
+                return false;
+
+            if (!Skip_ModelMetaBytes(stream, sizeof(Vec4) * 4 + sizeof(float) * 4))
+                return false;
+
+            uint32 numSlots = 0;
+            stream.read(reinterpret_cast<char*>(&numSlots), sizeof(uint32));
+            if (!stream.good())
+                return false;
+
+            for (uint32 slotIndex = 0; slotIndex < numSlots; ++slotIndex)
+            {
+                string texturePath{};
+                if (!Read_ModelMetaString(stream, texturePath))
+                    return false;
+
+                if (!Skip_ModelMetaBytes(stream,
+                    sizeof(uint32) * 2 +
+                    sizeof(Vec2) * 2 +
+                    sizeof(float) * 2 +
+                    sizeof(uint32) * 3))
+                {
+                    return false;
+                }
+            }
+        }
+
+        const uint64 vertexStride = isSkeletal ? sizeof(VTXANIMMESH) : sizeof(VTXMESH);
+
+        for (uint32 meshIndex = 0; meshIndex < numMeshes; ++meshIndex)
+        {
+            string meshName{};
+            if (!Read_ModelMetaString(stream, meshName))
+                return false;
+
+            uint32 materialIndex = 0;
+            uint32 numVertices = 0;
+            uint32 numIndices = 0;
+            uint32 numBoneRefs = 0;
+
+            stream.read(reinterpret_cast<char*>(&materialIndex), sizeof(uint32));
+            stream.read(reinterpret_cast<char*>(&numVertices), sizeof(uint32));
+            stream.read(reinterpret_cast<char*>(&numIndices), sizeof(uint32));
+            stream.read(reinterpret_cast<char*>(&numBoneRefs), sizeof(uint32));
+            if (!stream.good())
+                return false;
+
+            if (!Skip_ModelMetaBytes(stream, vertexStride * static_cast<uint64>(numVertices)))
+                return false;
+
+            if (!Skip_ModelMetaBytes(stream, sizeof(uint32) * static_cast<uint64>(numIndices)))
+                return false;
+
+            if (isSkeletal)
+            {
+                if (!Skip_ModelMetaBytes(stream,
+                    sizeof(uint32) * static_cast<uint64>(numBoneRefs) +
+                    sizeof(Matrix) * static_cast<uint64>(numBoneRefs)))
+                {
+                    return false;
+                }
+            }
+        }
+
+        outBones.resize(numBones);
+        for (uint32 boneIndex = 0; boneIndex < numBones; ++boneIndex)
+        {
+            if (!Read_ModelMetaString(stream, outBones[boneIndex].name))
+                return false;
+
+            stream.read(reinterpret_cast<char*>(&outBones[boneIndex].parentIndex), sizeof(int32));
+            if (!stream.good())
+                return false;
+
+            if (!Skip_ModelMetaBytes(stream, sizeof(Matrix) * 2))
+                return false;
+        }
+
+        vector<int32> cachedDepths(outBones.size(), -1);
+        for (uint32 boneIndex = 0; boneIndex < outBones.size(); ++boneIndex)
+            outBones[boneIndex].depth = Compute_ModelMetaBoneDepth(boneIndex, outBones, cachedDepths);
+
+        return true;
+    }
+}
 
 Asset_Manager::Asset_Manager()
 {
@@ -282,6 +447,7 @@ bool Asset_Manager::Load_Meta(const wstring& metaPath)
 
         json root = {};
         file >> root;
+        file.close();
 
         if (!root.contains("guid"))
             return false;
@@ -295,6 +461,10 @@ bool Asset_Manager::Load_Meta(const wstring& metaPath)
         assetMeta.type = root.value("type", Detect_AssetType(assetPath));
         assetMeta.modelType = root.value("modelType", "");
         assetMeta.fullPath = fs::absolute(fs::path(assetPath)).lexically_normal().wstring();
+        const bool shouldRefreshModelBoneMeta =
+            assetMeta.type == "Model" &&
+            String::ToLowerCopy(String::ToString(fs::path(assetMeta.fullPath).extension().wstring())) == ".model" &&
+            (!root.contains("boneCount") || !root.contains("bones"));
 
         if (!_resourceRoot.empty())
             assetMeta.relativePath = fs::relative(fs::path(assetMeta.fullPath), fs::path(_resourceRoot)).wstring();
@@ -313,6 +483,10 @@ bool Asset_Manager::Load_Meta(const wstring& metaPath)
 
         _guidToMeta[assetMeta.guid] = assetMeta;
         _pathToGuid[pathKey] = assetMeta.guid;
+
+        if (shouldRefreshModelBoneMeta)
+            Save_Meta(metaPath, assetMeta);
+
         return true;
     }
     catch (...)
@@ -332,6 +506,27 @@ bool Asset_Manager::Save_Meta(const wstring& metaPath, const AssetMeta& assetMet
 
         if (!assetMeta.modelType.empty())
             root["modelType"] = assetMeta.modelType;
+
+        const string extension = String::ToLowerCopy(String::ToString(fs::path(assetMeta.fullPath).extension().wstring()));
+        if (assetMeta.type == "Model" && extension == ".model")
+        {
+            vector<ModelMetaBoneEntry> bones{};
+            if (Try_ReadModelMetaBones(assetMeta.fullPath, bones))
+            {
+                root["boneCount"] = bones.size();
+                root["bones"] = json::array();
+
+                for (uint32 boneIndex = 0; boneIndex < bones.size(); ++boneIndex)
+                {
+                    json bone = {};
+                    bone["depth"] = bones[boneIndex].depth;
+                    bone["index"] = boneIndex;
+                    bone["name"] = bones[boneIndex].name;
+                    bone["parentIndex"] = bones[boneIndex].parentIndex;
+                    root["bones"].push_back(bone);
+                }
+            }
+        }
 
         ofstream file(metaPath);
         if (!file.is_open())

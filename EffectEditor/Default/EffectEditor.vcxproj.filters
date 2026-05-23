@@ -11,22 +11,22 @@
       <Filter>01. Manager\03. Command History</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\Console_View.cpp">
-      <Filter>01. View\Console View</Filter>
+      <Filter>02. View\Console View</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\CurveEditor_View.cpp">
-      <Filter>01. View\Curve Editor View</Filter>
+      <Filter>02. View\Curve Editor View</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\Editor_Context.cpp">
       <Filter>01. Manager\04. Editor Context</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\Emitter_View.cpp">
-      <Filter>01. View\Emitter View</Filter>
+      <Filter>02. View\Emitter View</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\Editor_Window.cpp">
-      <Filter>01. View</Filter>
+      <Filter>02. View</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\Detail_View.cpp">
-      <Filter>01. View\Detail View</Filter>
+      <Filter>02. View\Detail View</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\EffectEditorApp.cpp">
       <Filter>00. Main</Filter>
@@ -47,55 +47,67 @@
       <Filter>01. Manager\05. Notification Mgr</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\Content_Browser.cpp">
-      <Filter>01. View\Content Browser</Filter>
+      <Filter>02. View\Content Browser</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\Game_View.cpp">
-      <Filter>01. View\Game View</Filter>
+      <Filter>02. View\Game View</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\Hierarchy_View.cpp">
-      <Filter>01. View\Hierarchy View</Filter>
+      <Filter>02. View\Hierarchy View</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\Scene_View.cpp">
-      <Filter>01. View\Scene View</Filter>
+      <Filter>02. View\Scene View</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\EffectEditorInstance.cpp">
       <Filter>01. Manager\00. Effect Editor Instance</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\EffectMaterial_View.cpp">
-      <Filter>01. View\Effect Material View</Filter>
+      <Filter>02. View\Effect Material View</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\EffectMaterialInstance_View.cpp">
-      <Filter>01. View\Effect Material View</Filter>
+      <Filter>02. View\Effect Material View</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\Profile_View.cpp">
-      <Filter>01. View\Profile View</Filter>
+      <Filter>02. View\Profile View</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\Level_EffectEditor.cpp">
       <Filter>03. Level</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\ModuleDetail_Drawers.cpp">
-      <Filter>01. View\Detail View\Drawers</Filter>
+      <Filter>02. View\Detail View\Drawers</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\DetailPropertyContext.cpp">
-      <Filter>01. View\Detail View\Property Context</Filter>
+      <Filter>02. View\Detail View\Property Context</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\EffectEditorCamera.cpp">
       <Filter>04. Camera</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\EffectAuthoringJsonSerializer.cpp">
-      <Filter>05. Serializer</Filter>
+      <Filter>06. Serializer</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\EffectAuthoringModuleMetadata.cpp">
-      <Filter>06. Authoring Support</Filter>
+      <Filter>07. Authoring Support</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\EffectPreviewOrbitCamera.cpp">
       <Filter>04. Camera\Preview Support</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\EffectEditorSkybox.cpp">
+      <Filter>05. EditorOnly Object\EffectEditor Skybox</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\EffectMaterialPresetReader.cpp">
-      <Filter>01. View\Effect Material View\Support</Filter>
+      <Filter>02. View\Effect Material View\Support</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\EffectMaterialPreviewRenderer.cpp">
-      <Filter>01. View\Effect Material View\Preview Renderer</Filter>
+      <Filter>02. View\Effect Material View\Preview Renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\TrailPreviewController.cpp">
+      <Filter>05. EditorOnly Object\Trail Preview Object\Controller</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\TrailPreviewWeaponObject.cpp">
+      <Filter>05. EditorOnly Object\Trail Preview Object\Preview Weapon</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\TrailPreviewPlayerObject.cpp">
+      <Filter>05. EditorOnly Object\Trail Preview Object\Preview Player</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -109,16 +121,16 @@
       <Filter>01. Manager\03. Command History</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Console_View.h">
-      <Filter>01. View\Console View</Filter>
+      <Filter>02. View\Console View</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\CurveEditor_View.h">
-      <Filter>01. View\Curve Editor View</Filter>
+      <Filter>02. View\Curve Editor View</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Editor_Context.h">
       <Filter>01. Manager\04. Editor Context</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Emitter_View.h">
-      <Filter>01. View\Emitter View</Filter>
+      <Filter>02. View\Emitter View</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\EffectEditor_Define.h">
       <Filter>99. Defines</Filter>
@@ -130,10 +142,10 @@
       <Filter>00. Main</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Editor_Window.h">
-      <Filter>01. View</Filter>
+      <Filter>02. View</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Detail_View.h">
-      <Filter>01. View\Detail View</Filter>
+      <Filter>02. View\Detail View</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\EffectEditor_ImGuiInclude.h">
       <Filter>99. Defines</Filter>
@@ -157,22 +169,22 @@
       <Filter>01. Manager\05. Notification Mgr</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Content_Browser.h">
-      <Filter>01. View\Content Browser</Filter>
+      <Filter>02. View\Content Browser</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Game_View.h">
-      <Filter>01. View\Game View</Filter>
+      <Filter>02. View\Game View</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Hierarchy_View.h">
-      <Filter>01. View\Hierarchy View</Filter>
+      <Filter>02. View\Hierarchy View</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Scene_View.h">
-      <Filter>01. View\Scene View</Filter>
+      <Filter>02. View\Scene View</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\EffectEditorInstance.h">
       <Filter>01. Manager\00. Effect Editor Instance</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Profile_View.h">
-      <Filter>01. View\Profile View</Filter>
+      <Filter>02. View\Profile View</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Level_EffectEditor.h">
       <Filter>03. Level</Filter>
@@ -184,10 +196,10 @@
       <Filter>99. Defines\Types</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\EffectMaterial_View.h">
-      <Filter>01. View\Effect Material View</Filter>
+      <Filter>02. View\Effect Material View</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\EffectMaterialInstance_View.h">
-      <Filter>01. View\Effect Material View</Filter>
+      <Filter>02. View\Effect Material View</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Helper_ImGui.h">
       <Filter>99. Defines\Helper</Filter>
@@ -195,46 +207,49 @@
     <ClInclude Include="..\Public\Helper_Distribution.h">
       <Filter>99. Defines\Helper</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\Helper_EffectAuthoring.h">
+      <Filter>99. Defines\Helper</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\ModuleDetail_Drawers.h">
-      <Filter>01. View\Detail View\Drawers</Filter>
+      <Filter>02. View\Detail View\Drawers</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\DetailPropertyContext.h">
-      <Filter>01. View\Detail View\Property Context</Filter>
+      <Filter>02. View\Detail View\Property Context</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\EffectEditorCamera.h">
       <Filter>04. Camera</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\EffectAuthoringJsonSerializer.h">
-      <Filter>05. Serializer</Filter>
+      <Filter>06. Serializer</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\EffectAuthoringModuleMetadata.h">
-      <Filter>06. Authoring Support</Filter>
+      <Filter>07. Authoring Support</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\EffectPreviewOrbitCamera.h">
       <Filter>04. Camera\Preview Support</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\EffectEditorSkybox.h">
+      <Filter>05. EditorOnly Object\EffectEditor Skybox</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\EffectMaterialPresetReader.h">
-      <Filter>01. View\Effect Material View\Support</Filter>
+      <Filter>02. View\Effect Material View\Support</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\EffectMaterialPreviewRenderer.h">
-      <Filter>01. View\Effect Material View\Preview Renderer</Filter>
+      <Filter>02. View\Effect Material View\Preview Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\TrailPreviewController.h">
+      <Filter>05. EditorOnly Object\Trail Preview Object\Controller</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\TrailPreviewWeaponObject.h">
+      <Filter>05. EditorOnly Object\Trail Preview Object\Preview Weapon</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\TrailPreviewPlayerObject.h">
+      <Filter>05. EditorOnly Object\Trail Preview Object\Preview Player</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="00. Main">
       <UniqueIdentifier>{84cdd704-ecd6-4bff-a119-ee58777ca467}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="01. View">
-      <UniqueIdentifier>{a99ca1f2-640c-4bf6-aa29-88748c97013a}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="01. View\Curve Editor View">
-      <UniqueIdentifier>{3219b55f-d9b4-495e-9bd5-7eeaeac6ae15}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="01. View\Effect Material View">
-      <UniqueIdentifier>{30fa983f-cb74-4d4b-8ce3-d3553eac628d}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="01. View\Emitter View">
-      <UniqueIdentifier>{37d38b16-ebfc-4358-ace7-2ff7f458a3f3}</UniqueIdentifier>
     </Filter>
     <Filter Include="99. Defines">
       <UniqueIdentifier>{afbffb53-f9a7-4636-bd21-a1fa41d808c3}</UniqueIdentifier>
@@ -263,29 +278,8 @@
     <Filter Include="01. Manager\05. Notification Mgr">
       <UniqueIdentifier>{8130a5ee-5a91-430b-bb67-3c3e4945267d}</UniqueIdentifier>
     </Filter>
-    <Filter Include="01. View\Content Browser">
-      <UniqueIdentifier>{a03a9159-6e62-49f9-b599-02cbabce3194}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="01. View\Console View">
-      <UniqueIdentifier>{ca4a0de3-afce-460b-bff5-bb5d8d2c83d8}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="01. View\Hierarchy View">
-      <UniqueIdentifier>{e780c9b0-4f5a-4025-b5b8-92e1c12b355c}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="01. View\Scene View">
-      <UniqueIdentifier>{3dc2703c-570b-4ad0-918e-ed98611ec65e}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="01. View\Game View">
-      <UniqueIdentifier>{e6f8ccb0-4a82-4dcf-a035-a9db55d38f92}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="01. View\Profile View">
-      <UniqueIdentifier>{e6b4c6fa-77e3-4e04-b1f7-7f77ba00c35c}</UniqueIdentifier>
-    </Filter>
     <Filter Include="03. Level">
       <UniqueIdentifier>{0112697d-2120-4602-94c8-9b6061ffc1e4}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="01. View\Detail View">
-      <UniqueIdentifier>{a6f51295-5edb-4694-9d55-01c07add81a5}</UniqueIdentifier>
     </Filter>
     <Filter Include="99. Defines\Helper">
       <UniqueIdentifier>{ef73b393-66ad-4324-9aa1-5c44538b324e}</UniqueIdentifier>
@@ -293,29 +287,80 @@
     <Filter Include="99. Defines\Types">
       <UniqueIdentifier>{e5f70fcb-abed-4d3c-8bc3-3eaa1084905f}</UniqueIdentifier>
     </Filter>
-    <Filter Include="01. View\Detail View\Property Context">
-      <UniqueIdentifier>{2a390d17-18e5-48e5-b0f0-defd9af66051}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="01. View\Detail View\Drawers">
-      <UniqueIdentifier>{89aacff8-7bb2-41de-832f-51ed470948d4}</UniqueIdentifier>
-    </Filter>
     <Filter Include="04. Camera">
       <UniqueIdentifier>{60cec4ea-d4b0-4558-a156-9185d0c47f5c}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="05. Serializer">
-      <UniqueIdentifier>{aae158e1-6103-4fc4-a114-f0458c6728dc}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="06. Authoring Support">
-      <UniqueIdentifier>{f2f1a9b1-5f56-49c0-81f2-efa2ae3127da}</UniqueIdentifier>
     </Filter>
     <Filter Include="04. Camera\Preview Support">
       <UniqueIdentifier>{af828d1c-950d-46bc-8e76-8fec5206c2f7}</UniqueIdentifier>
     </Filter>
-    <Filter Include="01. View\Effect Material View\Support">
+    <Filter Include="06. Serializer">
+      <UniqueIdentifier>{aae158e1-6103-4fc4-a114-f0458c6728dc}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="07. Authoring Support">
+      <UniqueIdentifier>{f2f1a9b1-5f56-49c0-81f2-efa2ae3127da}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="05. EditorOnly Object">
+      <UniqueIdentifier>{59a6be73-0d57-4883-aefe-6686d5d46712}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="05. EditorOnly Object\EffectEditor Skybox">
+      <UniqueIdentifier>{de00cc05-c9ca-4d49-9b06-b1587466a914}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="05. EditorOnly Object\Trail Preview Object">
+      <UniqueIdentifier>{29a6939b-5282-4e71-9ce7-47cd7a735cab}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="05. EditorOnly Object\Trail Preview Object\Controller">
+      <UniqueIdentifier>{df72be75-e021-45a3-bafa-2c408631ef1f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="05. EditorOnly Object\Trail Preview Object\Preview Weapon">
+      <UniqueIdentifier>{4e80af94-0c1e-438b-8870-41030a2e1559}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="05. EditorOnly Object\Trail Preview Object\Preview Player">
+      <UniqueIdentifier>{fe810a18-7188-43ff-9f91-8519e9b3682a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02. View">
+      <UniqueIdentifier>{a99ca1f2-640c-4bf6-aa29-88748c97013a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02. View\Curve Editor View">
+      <UniqueIdentifier>{3219b55f-d9b4-495e-9bd5-7eeaeac6ae15}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02. View\Effect Material View">
+      <UniqueIdentifier>{30fa983f-cb74-4d4b-8ce3-d3553eac628d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02. View\Effect Material View\Support">
       <UniqueIdentifier>{8189297c-702f-4e33-8bfd-927fc7c98955}</UniqueIdentifier>
     </Filter>
-    <Filter Include="01. View\Effect Material View\Preview Renderer">
+    <Filter Include="02. View\Effect Material View\Preview Renderer">
       <UniqueIdentifier>{94faf53c-b720-4e98-9432-3e20c343d149}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02. View\Emitter View">
+      <UniqueIdentifier>{37d38b16-ebfc-4358-ace7-2ff7f458a3f3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02. View\Content Browser">
+      <UniqueIdentifier>{a03a9159-6e62-49f9-b599-02cbabce3194}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02. View\Console View">
+      <UniqueIdentifier>{ca4a0de3-afce-460b-bff5-bb5d8d2c83d8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02. View\Hierarchy View">
+      <UniqueIdentifier>{e780c9b0-4f5a-4025-b5b8-92e1c12b355c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02. View\Scene View">
+      <UniqueIdentifier>{3dc2703c-570b-4ad0-918e-ed98611ec65e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02. View\Game View">
+      <UniqueIdentifier>{e6f8ccb0-4a82-4dcf-a035-a9db55d38f92}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02. View\Profile View">
+      <UniqueIdentifier>{e6b4c6fa-77e3-4e04-b1f7-7f77ba00c35c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02. View\Detail View">
+      <UniqueIdentifier>{a6f51295-5edb-4694-9d55-01c07add81a5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02. View\Detail View\Property Context">
+      <UniqueIdentifier>{2a390d17-18e5-48e5-b0f0-defd9af66051}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02. View\Detail View\Drawers">
+      <UniqueIdentifier>{89aacff8-7bb2-41de-832f-51ed470948d4}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

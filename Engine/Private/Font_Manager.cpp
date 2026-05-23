@@ -21,6 +21,11 @@ namespace
             return 24.f / 60.f;
         }
 
+        if (fileName == "33_damagenum_font.spritefont")
+        {
+            return 24.f / 256.f;
+        }
+
         if (fileName == "33_mainen_font.spritefont"  ||
             fileName == "33_mainnum_font.spritefont" ||
             fileName == "33_subnum_font.spritefont")
@@ -45,7 +50,7 @@ Font_Manager::~Font_Manager()
 
 HRESULT Font_Manager::Add_Font(const wstring& fontTag, const wchar_t* fontFilePath)
 {
-    if (nullptr != Find_Font(fontTag))
+    if (Has_Font(fontTag))
     {
         LOG_WARN("Font already registered: {}", String::ToString(fontTag));
         return S_OK;
@@ -62,6 +67,11 @@ HRESULT Font_Manager::Add_Font(const wstring& fontTag, const wchar_t* fontFilePa
     _fonts.emplace(fontTag, font);
 
     return S_OK;
+}
+
+bool Font_Manager::Has_Font(const wstring& fontTag) const
+{
+    return nullptr != Find_Font(fontTag);
 }
 
 Vec2 Font_Manager::Measure(const wstring& fontTag, const wchar_t* text)
@@ -91,7 +101,7 @@ void Font_Manager::Draw(
     font->Draw(text, position, color, rotationRadians, pivot, scale);
 }
 
-Shared<CustomFont> Font_Manager::Find_Font(const wstring& fontTag)
+Shared<CustomFont> Font_Manager::Find_Font(const wstring& fontTag) const
 {
     auto    iter = _fonts.find(fontTag);
     if(iter == _fonts.end())

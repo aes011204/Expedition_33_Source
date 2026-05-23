@@ -1,4 +1,4 @@
-﻿#include "Renderer.h"
+#include "Renderer.h"
 #include "Camera.h"
 #include "GameInstance.h"
 #include "GameObject.h"
@@ -1019,6 +1019,9 @@ void Renderer::Render_StaticShadowOnce()
         if (gameObject == nullptr || !gameObject->Casts_StaticShadow())
             continue;
 
+        if (gameObject->Get_Transform() == nullptr)
+            continue;
+
         gameObject->Render_Shadow();
         Add_RenderCall();
     }
@@ -1070,6 +1073,9 @@ bool Renderer::Build_StaticShadowBounds(BoundingBox& outBounds) const
     {
         Shared<GameObject> gameObject = weakObject.lock();
         if (gameObject == nullptr || !gameObject->Casts_StaticShadow())
+            continue;
+
+        if (gameObject->Get_Transform() == nullptr)
             continue;
 
         BoundingBox objectBounds{};

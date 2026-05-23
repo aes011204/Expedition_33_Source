@@ -8,12 +8,11 @@ namespace Client
         Move,
         Jump,
         WorldAction, 
-
-        Attack, 
+        GameMenu,
 
         Climb,
         RopeAction,
-        End
+        End, 
     };
 
    
@@ -58,7 +57,7 @@ namespace Client
         Invalid
     };
 
-    enum class PlayerCharactorType
+    enum class PlayerCharacterType
     {
         Gustave,
         Lune,
@@ -66,6 +65,7 @@ namespace Client
         None,
     };
 
+    // 캐릭터별 Physics 정보
     enum class HairPhysicsProfile
     {
         Lune,

@@ -69,6 +69,28 @@ void PanelViewport::Render()
                 ImGui::End();
             }
 
+            if (_camera)
+            {
+                const ImVec2 vpMin = ImGui::GetItemRectMin();
+                const ImVec2 vpMax = ImGui::GetItemRectMax();
+                const ImVec2 camPos = ImVec2(vpMin.x + 10.f, vpMin.y + 10.f);
+
+                ImGui::SetNextWindowPos(camPos);
+                ImGui::SetNextWindowBgAlpha(0.6f);
+                ImGui::SetNextWindowSize(ImVec2(220.f, 0.f));
+                constexpr ImGuiWindowFlags camFlags =
+                    ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoNav |
+                    ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings;
+                if (ImGui::Begin("##CameraOverlay", nullptr, camFlags))
+                {
+                    ImGui::Text("Speed: %.1f", _camera->GetMoveSpeed());
+                    float& sens = _camera->GetRotateSensitivityRef();
+                    ImGui::SetNextItemWidth(160.f);
+                    ImGui::SliderFloat("Rotate", &sens, 0.001f, 0.01f, "%.4f");
+                }
+                ImGui::End();
+            }
+
 
             if (ImGui::BeginDragDropTarget())
             {

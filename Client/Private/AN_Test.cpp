@@ -8,7 +8,7 @@ IMPLEMENT_REFLECTION(AN_Test)
 
     PROPERTY_INT("테스트 값", _testInt);
     PROPERTY_VEC3("테스트 벡터", _testVec3);
-    
+
     return true;
 }
 

@@ -1,7 +1,8 @@
 ﻿#include "EffectEmitterRegistration.h"
 
-#include "EffectEmitterFactory.h"
 #include "ComputeSpriteEmitter.h"
+#include "ComputeTrailEmitter.h"
+#include "EffectEmitterFactory.h"
 #include "GameInstance.h"
 
 NS_BEGIN(Client)
@@ -24,6 +25,25 @@ namespace Internal
                     Prototype::GameObject,
                     ETOI(LevelType::GamePlay),
                     L"GameObject_Effect_ComputeSpriteEmitter",
+                    &concreteDesc
+                )
+            );
+
+            return dynamic_pointer_cast<EffectEmitter>(clonedObject);
+        }
+
+        case EffectEmitterKind::ComputeTrail:
+        {
+            const auto* desc = get_if<ComputeTrailEmitterDesc>(&emitterDefinition.concreteDesc);
+            if (nullptr == desc)
+                return nullptr;
+
+            ComputeTrailEmitterDesc concreteDesc = *desc;
+            const Shared<GameObject> clonedObject = dynamic_pointer_cast<GameObject>(
+                GAME->Clone_Prototype(
+                    Prototype::GameObject,
+                    ETOI(LevelType::GamePlay),
+                    L"GameObject_Effect_ComputeTrailEmitter",
                     &concreteDesc
                 )
             );

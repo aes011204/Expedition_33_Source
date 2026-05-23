@@ -217,6 +217,47 @@ PS_OUT PS_OpaqueAR(PS_IN In)
     return Out;
 }
 
+// AR + NME packed texture pass:
+// BaseColor slot은 AR, Normal slot은 NME texture로 사용한다.
+// AR.rgb = base color, AR.a = roughness, NME.rg = normal XY, NME.b = metalness, NME.a = emissive mask.
+PS_OUT PS_PackedAR_NME(PS_IN In)
+{
+    PS_OUT Out;
+    float2 finalUV = ApplyUVTransform(In.Texcoord);
+
+    float4 arTex = g_MaterialTextures[MATERIAL_SLOT_BASECOLOR].Sample(LinearWrapSampler, finalUV);
+    float4 nmeTex = g_MaterialTextures[MATERIAL_SLOT_NORMAL].Sample(LinearWrapSampler, finalUV);
+
+    float2 normalXY = nmeTex.rg * 2.f - 1.f;
+    const bool flipNormalY = false;
+    if (flipNormalY)
+        normalXY.y = -normalXY.y;
+
+    normalXY *= g_NormalStrength;
+    float normalZ = sqrt(saturate(1.f - dot(normalXY, normalXY)));
+    float3 normalTS = normalize(float3(normalXY, normalZ));
+
+    float3 n = normalize(In.Normal.xyz);
+    float3 t = normalize(In.Tangent);
+    float3 b = normalize(In.Binormal);
+    float3 worldNormal = normalize(normalTS.x * t + normalTS.y * b + normalTS.z * n);
+
+    float3 orm = float3(
+        g_AoScale,
+        saturate(arTex.a * g_RoughnessScale),
+        saturate(nmeTex.b * g_MetalnessScale));
+
+    float3 emissive = g_EmissiveColor.rgb * g_EmissiveIntensity * nmeTex.a * g_EmissiveMaskMul;
+    float4 baseColor = float4(arTex.rgb * g_BaseColorTint.rgb, 1.f);
+
+    Out.Diffuse = baseColor;
+    Out.Normal = float4(EncodeNormal(worldNormal), 1.f);
+    Out.Depth = float4(In.ProjPos.z / In.ProjPos.w, In.ProjPos.w / g_Far, 0.f, 1.f);
+    Out.Material = float4(orm.xyz, 1.f);
+    Out.Emissive = float4(emissive.xyz, 1.f);
+    return Out;
+}
+
 PS_OUT_ID PS_ID(PS_IN In)
 {
     PS_OUT_ID Out;
@@ -231,13 +272,15 @@ PS_OUT_ID PS_ID(PS_IN In)
 
 technique11 DefaultTechnique
 {
-    PASS_RS_DS_BS_VP(DefaultPass,         RS_Default,  DSS_Default, BS_Default, VS_Default, PS_Opaque)      // 0
-    PASS_RS_DS_BS_VP(ShadowPass,          RS_Default,  DSS_Default, BS_Default, VS_Shadow,  PS_Shadow)      // 1
-    PASS_RS_DS_BS_VP(NoTexturePass,       RS_Default,  DSS_Default, BS_Default, VS_Default, PS_NoTexture)   // 2
-    PASS_RS_DS_BS_VP(MaskedPass,          RS_Default,  DSS_Default, BS_Default, VS_Default, PS_Mask)        // 3
-    PASS_RS_DS_BS_VP(TwoSidedPass,        RS_CullNone, DSS_Default, BS_Default, VS_Default, PS_Opaque)      // 4
-    PASS_RS_DS_BS_VP(MaskedTwoSidedPass,  RS_CullNone, DSS_Default, BS_Default, VS_Default, PS_Mask)        // 5
-    PASS_RS_DS_BS_VP(IDPass,              RS_Default,  DSS_Default, BS_Default, VS_Default, PS_ID)          // 6
-    PASS_RS_DS_BS_VP(OpaqueARPass,        RS_Default, DSS_Default,  BS_Default, VS_Default, PS_OpaqueAR)    // 7
-    PASS_RS_DS_BS_VP(OpaqueARTwoSidedPass, RS_CullNone, DSS_Default, BS_Default, VS_Default, PS_OpaqueAR)   // 8
+    PASS_RS_DS_BS_VP(DefaultPass,         RS_Default,  DSS_Default, BS_Default, VS_Default, PS_Opaque)            // 0
+    PASS_RS_DS_BS_VP(ShadowPass,          RS_Default,  DSS_Default, BS_Default, VS_Shadow,  PS_Shadow)            // 1
+    PASS_RS_DS_BS_VP(NoTexturePass,       RS_Default,  DSS_Default, BS_Default, VS_Default, PS_NoTexture)         // 2
+    PASS_RS_DS_BS_VP(MaskedPass,          RS_Default,  DSS_Default, BS_Default, VS_Default, PS_Mask)              // 3
+    PASS_RS_DS_BS_VP(TwoSidedPass,        RS_CullNone, DSS_Default, BS_Default, VS_Default, PS_Opaque)            // 4
+    PASS_RS_DS_BS_VP(MaskedTwoSidedPass,  RS_CullNone, DSS_Default, BS_Default, VS_Default, PS_Mask)              // 5
+    PASS_RS_DS_BS_VP(IDPass,              RS_Default,  DSS_Default, BS_Default, VS_Default, PS_ID)                // 6
+    PASS_RS_DS_BS_VP(OpaqueARPass,        RS_Default, DSS_Default,  BS_Default, VS_Default, PS_OpaqueAR)          // 7
+    PASS_RS_DS_BS_VP(OpaqueARTwoSidedPass, RS_CullNone, DSS_Default, BS_Default, VS_Default, PS_OpaqueAR)         // 8
+    PASS_RS_DS_BS_VP(PackedAR_NMEPass, RS_Default, DSS_Default, BS_Default, VS_Default, PS_PackedAR_NME)          // 9
+    PASS_RS_DS_BS_VP(PackedAR_NMETwoSidedPass, RS_CullNone, DSS_Default, BS_Default, VS_Default, PS_PackedAR_NME) // 10
 }

@@ -10,8 +10,8 @@ class Buff;
 
 class CombatStatCom : public Component
 {
-    //GENERATED_COMPONENT(CombatStatCom)
-
+public:
+   
 public:
     // 초기 세팅 값
     struct CombatStatDesc
@@ -34,12 +34,10 @@ public:
         float mastery = 0.f;
         float criticalChance = 0.f;
 
-        string portrait;
+        string portraitGuid;
 
         FCommonCharacterStats commonCharacterStats = {};
-
     };
-
 
     struct RuntimeCombatStat
     {
@@ -90,18 +88,32 @@ public:
 
     float Get_CurHp() { return Get_RuntimeStat().CurHp; };
     //void Set_CurHp(float hp) { Get_RuntimeStat().CurHp = hp; } //이건 일단  데미지 시스템을 통해서
-    PlayerCharactorType Get_PlayerType() { return _playerType; }
+    PlayerCharacterType Get_PlayerType() { return _playerType; }
+    void Set_PlayerType(PlayerCharacterType playerType) { _playerType = playerType; }
 
     vector<string> Get_SkillKey() { return _skillKeys; }
+    void Set_Skill(string skillName){
+        _skillKeys.push_back(skillName);
+
+    }
+
     //test
     string Get_FirstSkill();
+
+public: /* AP */
+    uint32 Get_CurAP() { return Get_RuntimeStat().CurAp; }
+    uint32 Get_MaxAP() { return Get_StatInfo().maxAp; }
+
+    void Add_AP(uint32 value);          // AP 즉시 회복
+    bool Try_ConsumeAP(uint32 value);   // AP 즉시 소모 부족하면 false
+
 protected:
     vector<Shared<Buff>> _buff;// 상태이상
     vector<string> _skillKeys;
 
     bool _isPlayer = { false };
 
-    PlayerCharactorType _playerType = PlayerCharactorType::None;
+    PlayerCharacterType _playerType = PlayerCharacterType::None;
 public:
     virtual  Shared<Component> Clone(void* arg) = 0;
     void Free() override;

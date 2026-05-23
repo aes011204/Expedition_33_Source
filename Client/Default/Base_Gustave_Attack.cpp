@@ -13,10 +13,8 @@ Base_Gustave_Attack::Base_Gustave_Attack()
 
 void Base_Gustave_Attack::Execute(const Skill_Data& skill, const BattleChar& attacker, const BattleChar& target)
 {
-    float Damage = 20;
+    float Damage = 40;
     DamageSystem::ApplyDamage(Damage, target);
-
-
 
 }
 

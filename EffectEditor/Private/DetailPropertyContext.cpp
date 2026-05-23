@@ -115,7 +115,7 @@ public: //## Table / Basic Controls
         ImGui::EndTable();
     }
 
-    void Draw_PropertyLabel(const char* label)
+    void Draw_PropertyLabel(const char* label, const char* tooltip = nullptr)
     {
         ImGui::TableNextRow();
         if (!_rowTintStack.empty())
@@ -123,6 +123,8 @@ public: //## Table / Basic Controls
         ImGui::TableSetColumnIndex(0);
         ImGui::AlignTextToFramePadding();
         ImGui::TextUnformatted(label);
+        if (tooltip != nullptr && tooltip[0] != '\0' && ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
+            ImGui::SetTooltip("%s", tooltip);
         ImGui::TableSetColumnIndex(1);
     }
 
@@ -203,10 +205,10 @@ public: //## Table / Basic Controls
         return changed;
     }
 
-    bool Draw_BoolProperty(const char* label, bool& value, bool defaultValue)
+    bool Draw_BoolProperty(const char* label, bool& value, bool defaultValue, const char* tooltip = nullptr)
     {
         ImGui::PushID(label);
-        Draw_PropertyLabel(label);
+        Draw_PropertyLabel(label, tooltip);
         bool changed = ImGui::Checkbox("##Value", &value);
         if (Draw_ResetButton(!Is_DefaultValue(value, defaultValue)))
         {
@@ -217,10 +219,10 @@ public: //## Table / Basic Controls
         return changed;
     }
 
-    bool Draw_FloatProperty(const char* label, float& value, float defaultValue, float speed = 0.01f)
+    bool Draw_FloatProperty(const char* label, float& value, float defaultValue, float speed = 0.01f, const char* tooltip = nullptr)
     {
         ImGui::PushID(label);
-        Draw_PropertyLabel(label);
+        Draw_PropertyLabel(label, tooltip);
         ImGui::SetNextItemWidth(-FLT_MIN);
         bool changed = ImGui::DragFloat("##Value", &value, speed);
         if (Draw_ResetButton(!Is_DefaultValue(value, defaultValue)))
@@ -285,10 +287,10 @@ public: //## Table / Basic Controls
         return changed;
     }
 
-    bool Draw_UintProperty(const char* label, uint32& value, uint32 defaultValue)
+    bool Draw_UintProperty(const char* label, uint32& value, uint32 defaultValue, const char* tooltip = nullptr)
     {
         ImGui::PushID(label);
-        Draw_PropertyLabel(label);
+        Draw_PropertyLabel(label, tooltip);
         ImGui::SetNextItemWidth(-FLT_MIN);
         int currentValue = static_cast<int>(value);
         bool changed = ImGui::DragInt("##Value", &currentValue, 1.f, 0, INT_MAX);
@@ -1707,9 +1709,9 @@ void DetailPropertyContext::End_PropertyTable()
     _basicDrawer->End_PropertyTable();
 }
 
-void DetailPropertyContext::Draw_PropertyLabel(const char* label)
+void DetailPropertyContext::Draw_PropertyLabel(const char* label, const char* tooltip)
 {
-    _basicDrawer->Draw_PropertyLabel(label);
+    _basicDrawer->Draw_PropertyLabel(label, tooltip);
 }
 
 bool DetailPropertyContext::Draw_ResetButton(bool canReset)
@@ -1722,14 +1724,14 @@ bool DetailPropertyContext::Draw_StringProperty(const char* label, string& value
     return _basicDrawer->Draw_StringProperty(label, value, defaultValue);
 }
 
-bool DetailPropertyContext::Draw_BoolProperty(const char* label, bool& value, bool defaultValue)
+bool DetailPropertyContext::Draw_BoolProperty(const char* label, bool& value, bool defaultValue, const char* tooltip)
 {
-    return _basicDrawer->Draw_BoolProperty(label, value, defaultValue);
+    return _basicDrawer->Draw_BoolProperty(label, value, defaultValue, tooltip);
 }
 
-bool DetailPropertyContext::Draw_FloatProperty(const char* label, float& value, float defaultValue, float speed)
+bool DetailPropertyContext::Draw_FloatProperty(const char* label, float& value, float defaultValue, float speed, const char* tooltip)
 {
-    return _basicDrawer->Draw_FloatProperty(label, value, defaultValue, speed);
+    return _basicDrawer->Draw_FloatProperty(label, value, defaultValue, speed, tooltip);
 }
 
 bool DetailPropertyContext::Draw_ColorProperty(const char* label, Color& value, const Color& defaultValue)
@@ -1910,9 +1912,9 @@ bool DetailPropertyContext::Draw_SortModeProperty(const char* label, EmitterSort
     return _basicDrawer->Draw_SortModeProperty(label, value, defaultValue);
 }
 
-bool DetailPropertyContext::Draw_UintProperty(const char* label, uint32& value, uint32 defaultValue)
+bool DetailPropertyContext::Draw_UintProperty(const char* label, uint32& value, uint32 defaultValue, const char* tooltip)
 {
-    return _basicDrawer->Draw_UintProperty(label, value, defaultValue);
+    return _basicDrawer->Draw_UintProperty(label, value, defaultValue, tooltip);
 }
 
 bool DetailPropertyContext::Draw_Vec3Property(const char* label, Vec3& value, const Vec3& defaultValue, float speed)

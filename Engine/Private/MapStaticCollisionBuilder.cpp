@@ -1,9 +1,9 @@
-﻿#include "MapStaticCollisionBuilder.h"
+#include "MapStaticCollisionBuilder.h"
 #include "StaticCollisionData.h"
 #include "ModelCom.h"
 #include <fstream>
 
-NS_BEGIN(Client)
+NS_BEGIN(Engine)
 
 Shared<StaticCollisionData> MapStaticCollisionBuilder::Build(const Shared<ModelCom>& model)
 {
@@ -14,13 +14,54 @@ Shared<StaticCollisionData> MapStaticCollisionBuilder::Build(const Shared<ModelC
     data->cacheKey = model->Get_SourceModelPath();
     data->preLocalTransform = model->Get_PreLocalTransformMatrix();
 
-    const bool hasPrimitive =
-        Build_PrimitiveProxies_FromSourceJson(data->cacheKey, data->primitiveProxies);
+    // 1. JSON 파일이 존재하는지 확인하고 바디셋업 정보를 파싱합니다.
+    bool hasBodySetup = false;
+    bool useComplexAsSimple = false;
 
-    if (!hasPrimitive)
+    const fs::path jsonPath = fs::path(data->cacheKey).replace_extension(".json");
+    if (fs::exists(jsonPath))
     {
-        // complex fallback 경로일 때만 triangle source를 읽는다.
+        ifstream ifs(jsonPath);
+        if (ifs.is_open())
+        {
+            json root = json::parse(ifs, nullptr, false);
+            if (!root.is_discarded() && root.is_array())
+            {
+                for (const json& entry : root)
+                {
+                    if (entry.value("Type", "") == "BodySetup")
+                    {
+                        hasBodySetup = true;
+                        const json* props = entry.contains("Properties") ? &entry["Properties"] : nullptr;
+                        if (props != nullptr && props->is_object())
+                        {
+                            const string traceFlag = props->value("CollisionTraceFlag", "");
+                            if (traceFlag == "ECollisionTraceFlag::CTF_UseComplexAsSimple")
+                            {
+                                useComplexAsSimple = true;
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    // 2. 바디셋업이 명시적으로 존재하지 않는다면, 이 모델은 충돌체가 필요 없는 데코레이션 프롭(풀, 꽃, 자갈돌 등)으로 간주하여 충돌체를 생성하지 않습니다.
+    if (!hasBodySetup)
+    {
         Build_TriangleMeshes_FromModelFile(data->cacheKey, data->triangleMeshes);
+    }
+
+    // 3. 바디셋업이 존재할 때만 설정에 따라 충돌체를 조건부 생성합니다.
+    else if (useComplexAsSimple)
+    {
+        Build_TriangleMeshes_FromModelFile(data->cacheKey, data->triangleMeshes);
+    }
+    else
+    {
+        Build_PrimitiveProxies_FromSourceJson(data->cacheKey, data->primitiveProxies);
     }
 
     if (data->primitiveProxies.empty() && data->triangleMeshes.empty())

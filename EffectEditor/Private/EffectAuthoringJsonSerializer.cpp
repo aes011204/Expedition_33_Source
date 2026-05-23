@@ -1,5 +1,7 @@
 ﻿#include "EffectAuthoringJsonSerializer.h"
 
+#include "Helper_EffectAuthoring.h"
+
 NS_BEGIN(EffectEditor)
 
 namespace Internal
@@ -59,14 +61,14 @@ namespace Internal
         if (textureId == "Texture_Effect_DefaultTexture")
         {
             outGuid = "3c90794a-31bb-4e97-969a-3fd4497acc0f";
-            outPath = "Effects/Textures/DefaultTexture.dds";
+            outPath = "Effects/Textures/Shared/DefaultTexture.dds";
             return true;
         }
 
         if (textureId == "Texture_Effect_Clouds4")
         {
             outGuid = "321bf66c-e6f9-4495-9855-275274727e83";
-            outPath = "Effects/Textures/clouds4_T.dds";
+            outPath = "Effects/Textures/Shared/clouds4_T.dds";
             return true;
         }
 
@@ -136,13 +138,96 @@ namespace Internal
         Read_BoolField(root, "autoDeactivate", outData.autoDeactivate);
     }
 
+    json To_Json(const TrailTypeData& data)
+    {
+        json root = json::object();
+        root["width"] = data.width;
+        root["segmentLifetime"] = data.segmentLifetime;
+        root["historyCount"] = data.historyCount;
+        root["uvTiling"] = data.uvTiling;
+        root["curveQuality"] = To_EnumToken(data.curveQuality);
+        root["sampleSpacing"] = data.sampleSpacing;
+        root["curveSubdivision"] = data.curveSubdivision;
+        root["smoothTangent"] = data.smoothTangent;
+        root["sideFade"] = data.sideFade;
+        return root;
+    }
+
+    void From_Json(const json& root, TrailTypeData& outData)
+    {
+        if (!root.is_object())
+            return;
+
+        Read_NumberField(root, "width", outData.width);
+        Read_NumberField(root, "segmentLifetime", outData.segmentLifetime);
+        Read_NumberField(root, "historyCount", outData.historyCount);
+        Read_NumberField(root, "uvTiling", outData.uvTiling);
+        const auto curveQualityIter = root.find("curveQuality");
+        if (curveQualityIter != root.end())
+            Try_ReadEnumToken(*curveQualityIter, outData.curveQuality);
+        Read_NumberField(root, "sampleSpacing", outData.sampleSpacing);
+        Read_NumberField(root, "curveSubdivision", outData.curveSubdivision);
+        Read_BoolField(root, "smoothTangent", outData.smoothTangent);
+        Read_NumberField(root, "sideFade", outData.sideFade);
+    }
+
+    json To_Json(const AuthoringTypeData& data)
+    {
+        json root = json::object();
+        root["kind"] = To_EnumToken(data.kind);
+
+        switch (data.kind)
+        {
+        case AuthoringTypeDataKind::Trail:
+        {
+            const TrailTypeData* trailData = get_if<TrailTypeData>(&data.payload);
+            root["data"] = To_Json(trailData != nullptr ? *trailData : TrailTypeData{});
+            break;
+        }
+        case AuthoringTypeDataKind::None:
+        default:
+            break;
+        }
+
+        return root;
+    }
+
+    void From_Json(const json& root, AuthoringTypeData& outData)
+    {
+        if (!root.is_object())
+            return;
+
+        AuthoringTypeDataKind kind = AuthoringTypeDataKind::None;
+        const auto kindIter = root.find("kind");
+        if (kindIter == root.end() || !Try_ReadEnumToken(*kindIter, kind))
+            return;
+
+        switch (kind)
+        {
+        case AuthoringTypeDataKind::Trail:
+        {
+            TrailTypeData data{};
+            const auto dataIter = root.find("data");
+            if (dataIter != root.end())
+                From_Json(*dataIter, data);
+
+            outData.kind = AuthoringTypeDataKind::Trail;
+            outData.payload = data;
+            break;
+        }
+        case AuthoringTypeDataKind::None:
+        default:
+            outData.kind = AuthoringTypeDataKind::None;
+            outData.payload = EmptyTypeData{};
+            break;
+        }
+    }
+
     json To_Json(const EffectMaterialInstanceData& data)
     {
         json root = json::object();
         root["sourcePresetName"] = data.sourcePresetName;
-        root["mainTextureGuid"] = data.mainTextureGuid;
         root["mainTexturePath"] = data.mainTexturePath;
-        root["noiseTextureGuid"] = data.noiseTextureGuid;
         root["noiseTexturePath"] = data.noiseTexturePath;
         root["tint"] = To_Json(data.tint);
         root["intensity"] = data.intensity;
@@ -1081,8 +1166,10 @@ json EffectAuthoringJsonSerializer::To_Json(const AuthoringEmitter& emitter)
     json root = json::object();
     root["id"] = emitter.id;
     root["name"] = emitter.name;
-    root["rendererType"] = emitter.rendererType;
+    root["rendererType"] = Authoring::Resolve_RendererType(emitter.typeData);
     root["enabled"] = emitter.enabled;
+    if (emitter.typeData.kind != AuthoringTypeDataKind::None)
+        root["typeData"] = Internal::To_Json(emitter.typeData);
     root["modules"] = json::array();
 
     for (const AuthoringModule& module : emitter.modules)
@@ -1187,6 +1274,13 @@ bool EffectAuthoringJsonSerializer::From_Json(const json& root, AuthoringEmitter
     emitter.rendererType = root.value("rendererType", emitter.rendererType);
     emitter.enabled = root.value("enabled", emitter.enabled);
     emitter.previewDirty = true;
+
+    const auto typeDataIter = root.find("typeData");
+    if (typeDataIter != root.end())
+    {
+        Internal::From_Json(*typeDataIter, emitter.typeData);
+        emitter.rendererType = Authoring::Resolve_RendererType(emitter.typeData);
+    }
 
     const auto modulesIter = root.find("modules");
     if (modulesIter != root.end() && modulesIter->is_array())

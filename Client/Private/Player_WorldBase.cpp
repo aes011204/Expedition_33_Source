@@ -13,6 +13,7 @@
 #include "Body_Player.h"
 #include "Hair_Player.h"
 #include "Head_Player.h"
+#include "Player_GameMenu.h"
 #include "SkillTreeCom.h"
 
 Player_WorldBase::Player_WorldBase(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -40,6 +41,8 @@ HRESULT Player_WorldBase::Initialize(void* arg)
     CHECK_FAILED(Ready_Components(), E_FAIL);
     CHECK_FAILED(Ready_PartObjects(), E_FAIL);
 
+
+
     return S_OK;
 }
 
@@ -55,7 +58,7 @@ void Player_WorldBase::BeginPlay()
         }
     }
 
-    _PlayerStateMachineCom->Change_State(PlayerState::Idle);
+    _playerStateMachineCom->Change_State(PlayerState::Idle);
 }
 
 void Player_WorldBase::Priority_Update(float timeDelta)
@@ -67,9 +70,9 @@ void Player_WorldBase::Priority_Update(float timeDelta)
 
     // follower도 StateMachine/Controller를 타야 Idle/Run/Sprint 전환과 PhysX 이동이 처리된다.
     _playerControllerCom->Update_InputState();
-    _PlayerStateMachineCom->Update_CurrentState(timeDelta);
+    _playerStateMachineCom->Update_CurrentState(timeDelta);
     _playerControllerCom->Update_Movement(timeDelta);
-    _PlayerStateMachineCom->LateUpdate_CurrentState(timeDelta);
+    _playerStateMachineCom->LateUpdate_CurrentState(timeDelta);
 }
 
 void Player_WorldBase::Update(float timeDelta)
@@ -103,6 +106,13 @@ void Player_WorldBase::Update_StatusPreview(float timeDelta)
 
     ContainerObject::Update(timeDelta);
     ContainerObject::Late_Update(timeDelta);
+}
+
+void Player_WorldBase::Enter_GameMenuAnimation(uint32 introAnim, uint32 idleAnim)
+{
+    if (nullptr == _playerStateMachineCom) return;
+
+    _playerStateMachineCom->Enter_GameMenuAnimation(introAnim, idleAnim);
 }
 
 Vec3 Player_WorldBase::Get_MovementVelocity() const
@@ -157,7 +167,7 @@ HRESULT Player_WorldBase::Ready_Components()
 
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_Movement"), _movementCom, &moveDesc), E_FAIL);
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_PlayerController"), _playerControllerCom), E_FAIL);
-    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_PlayerStateMachine"), _PlayerStateMachineCom), E_FAIL);
+    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_PlayerStateMachine"), _playerStateMachineCom), E_FAIL);
     
     Bounding_OBB::BoundingOBBDesc obbDesc{};
     obbDesc.center = Vec3(0.f, 0.75f, 0.f);

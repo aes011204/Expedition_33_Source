@@ -1,17 +1,15 @@
-﻿#pragma once
+#pragma once
 
-#include "Client_Defines.h"
+#include "Engine_Define.h"
 #include "Engine_Model_Struct.h"
 #include "CollisionProxy_Types.h"
 
 NS_BEGIN(Engine)
+
 class ModelCom;
 struct StaticCollisionData;
-NS_END
 
-NS_BEGIN(Client)
-
-class MapStaticCollisionBuilder final
+class ENGINE_DLL MapStaticCollisionBuilder final
 {
 public:
     static Shared<StaticCollisionData> Build(const Shared<ModelCom>& model);

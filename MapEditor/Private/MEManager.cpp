@@ -9,6 +9,8 @@
 #include "MECamera.h"
 #include "PanelModelOverride.h"
 
+extern HWND g_hWnd;
+
 MEManager::~MEManager()
 {
 
@@ -51,6 +53,18 @@ void MEManager::Update(float timeDelta)
 
 void MEManager::Render()
 {
+    static int skipFrames = 0;
+    if (skipFrames > 0)
+    {
+        skipFrames--;
+        ImGui::GetIO().AppFocusLost = true; // 대화상자 복귀 프레임 동안 입력 꼬임 차단
+    }
+    else if (ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_S) && !ImGui::GetIO().WantTextInput)
+    {
+        skipFrames = 3; // 다이얼로그 복귀 후 키 릴리즈 메시지가 처리될 때까지 3프레임간 입력을 스킵
+        SaveMapDialog();
+    }
+
     RenderDockSpace();
 
     for (auto& [name, window] : _windows)
@@ -117,8 +131,7 @@ void MEManager::RenderDockSpace()
         {
             if (ImGui::MenuItem("New Map"))
             {
-                _ctx->_objects.clear();
-                _ctx->_selected = nullptr;
+                _ctx->ClearScene();
                 _ctx->_mapName = L"Untitled";
                 _currentMapPath = "Stage_01.json";
             }
@@ -139,21 +152,15 @@ void MEManager::RenderDockSpace()
                 }
             }
 
-            if (ImGui::MenuItem("Save Map"))
+            if (ImGui::MenuItem("Save Map", "Ctrl+S"))
             {
-                char buf[MAX_PATH] = {};
-                OPENFILENAMEA ofn{};
-                ofn.lStructSize = sizeof(ofn);
-                ofn.lpstrFilter = "JSON Files\0*.json\0All Files\0*.*\0";
-                ofn.lpstrFile = buf;
-                ofn.nMaxFile = MAX_PATH;
-                ofn.lpstrInitialDir = _mapSavePath;
-                ofn.lpstrDefExt = "json";
-                ofn.Flags = OFN_OVERWRITEPROMPT;
-                if (GetSaveFileNameA(&ofn))
-                {
-                    _ctx->SaveToFile(buf);
-                }
+                SaveMapDialog();
+            }
+
+            ImGui::Separator();
+            if (ImGui::MenuItem("Clear Map"))
+            {
+                _confirmClearOpen = true;
             }
 
             ImGui::Separator();
@@ -181,8 +188,82 @@ void MEManager::RenderDockSpace()
             }
             ImGui::EndMenu();
         }
+
+        if (ImGui::BeginMenu("Camera"))
+        {
+            if (ImGui::MenuItem("Save Cam Data"))
+            {
+                string camFile = string(_camDataPath) + "cam_bookmarks.json";
+                _ctx->SaveCamData(camFile);
+            }
+            if (ImGui::MenuItem("Load Cam Data"))
+            {
+                string camFile = string(_camDataPath) + "cam_bookmarks.json";
+                _ctx->LoadCamData(camFile);
+            }
+
+            ImGui::Separator();
+
+            for (int i = 0; i < CameraBookmarkCount; ++i)
+            {
+                ImGui::PushID(i);
+                auto& bm = _ctx->_cameraBookmarks[i];
+
+                if (ImGui::SmallButton("Save"))
+                {
+                    bm.position = _camera->GetPosition();
+                    bm.yaw = _camera->GetYaw();
+                    bm.pitch = _camera->GetPitch();
+                    bm.valid = true;
+                }
+                ImGui::SameLine();
+                if (bm.valid)
+                {
+                    if (ImGui::SmallButton("Go"))
+                    {
+                        _camera->ApplyBookmark(bm.position, bm.yaw, bm.pitch);
+                    }
+                    ImGui::SameLine();
+                    ImGui::Text("[%d] %.1f  %.1f  %.1f", i + 1, bm.position.x, bm.position.y, bm.position.z);
+                }
+                else
+                {
+                    ImGui::TextDisabled("[%d] empty", i + 1);
+                }
+                ImGui::PopID();
+            }
+
+            ImGui::EndMenu();
+        }
+
         ImGui::EndMenuBar();
     }
+
+    if (_confirmClearOpen)
+    {
+        ImGui::OpenPopup("맵 전체 삭제");
+    }
+
+    if (ImGui::BeginPopupModal("맵 전체 삭제", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+    {
+        ImGui::Text("모든 오브젝트를 삭제합니다. 되돌릴 수 없습니다.");
+        ImGui::Separator();
+        if (ImGui::Button("삭제", ImVec2(120, 0)))
+        {
+            _ctx->ClearScene();
+            _confirmClearOpen = false;
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("취소", ImVec2(120, 0)))
+        {
+            _confirmClearOpen = false;
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::EndPopup();
+    }
+
+
     ImGui::End();
 }
 
@@ -201,4 +282,24 @@ Unique<MEManager> MEManager::Create(Shared<PanelViewport> viewport, SceneContext
     CHECK_FAILED(instance->Initialize(viewport, ctx, camera), nullptr);
 
     return instance;
+}
+
+void MEManager::SaveMapDialog()
+{
+    ImGui::GetIO().AppFocusLost = true; // 다이얼로그를 띄우기 전 마우스/키 상태 강제 릴리즈
+
+    char buf[MAX_PATH] = {};
+    OPENFILENAMEA ofn{};
+    ofn.lStructSize = sizeof(ofn);
+    ofn.hwndOwner = g_hWnd; // 부모 윈도우 연결하여 모달 포커스 보장
+    ofn.lpstrFilter = "JSON Files\0*.json\0All Files\0*.*\0";
+    ofn.lpstrFile = buf;
+    ofn.nMaxFile = MAX_PATH;
+    ofn.lpstrInitialDir = _mapSavePath;
+    ofn.lpstrDefExt = "json";
+    ofn.Flags = OFN_OVERWRITEPROMPT;
+    if (GetSaveFileNameA(&ofn))
+    {
+        _ctx->SaveToFile(buf);
+    }
 }

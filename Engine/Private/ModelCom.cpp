@@ -63,6 +63,14 @@ ModelCom::ModelCom(const ModelCom& prototype)
     _leaderPoseMatricesValid = false;
 }
 
+uint32 ModelCom::Get_NumIndices(uint32 meshIndex) const
+{
+    if (meshIndex >= _meshes.size())
+        return 0;
+
+    return _meshes[meshIndex]->Get_NumIndices();
+}
+
 uint32 ModelCom::Get_MeshMaterialIndex(uint32 meshIndex) const
 {
     if (meshIndex >= _meshes.size())
@@ -133,8 +141,8 @@ bool ModelCom::Set_AnimationByState(uint32 stateIndex, bool isLoop, float startF
 {
     if (stateIndex >= _stateAnimIndices.size() || _stateAnimIndices[stateIndex] == UINT32_MAX)
     {
-        LOG_WARN("[{}] Set_AnimationByState Failed: Invalid StateIndex [{}]",
-            String::ToString(Get_Owner()->Get_Owner()->Get_Name()), stateIndex);
+        // LOG_WARN("[{}] Set_AnimationByState Failed: Invalid StateIndex [{}]",
+        //     String::ToString(Get_Owner()->Get_Owner()->Get_Name()), stateIndex);
 
         return false;
     }
@@ -192,8 +200,8 @@ bool ModelCom::Set_AnimationByState(uint32 stateIndex, float blendDuration, bool
 {
     if (stateIndex >= _stateAnimIndices.size() || _stateAnimIndices[stateIndex] == UINT32_MAX)
     {
-        LOG_WARN("[{}] Set_AnimationByState Failed: Invalid StateIndex [{}]",
-            String::ToString(Get_Owner()->Get_Owner()->Get_Name()), stateIndex);
+        // LOG_WARN("[{}] Set_AnimationByState Failed: Invalid StateIndex [{}]",
+        //     String::ToString(Get_Owner()->Get_Owner()->Get_Name()), stateIndex);
 
         return false;
     }
@@ -210,6 +218,11 @@ bool ModelCom::Set_AnimationByState(uint32 stateIndex, float blendDuration, bool
 
     Mark_BoneMatricesDirty();
     return true;
+}
+
+uint32 ModelCom::Get_AnimIndexByState(uint32 stateIndex) const
+{
+    return _stateAnimIndices[stateIndex];
 }
 
 const char* ModelCom::Get_AnimationName(uint32 animationIndex) const
@@ -802,6 +815,16 @@ HRESULT ModelCom::RenderInstanced(uint32 meshIndex, Buffer* instanceVB, uint32 i
     return _meshes[meshIndex]->RenderInstanced(instanceVB, instanceStride, instanceCount);
 }
 
+HRESULT ModelCom::RenderInstancedIndirect(uint32 meshIndex, Buffer* instanceVB, uint32 instanceStride, Buffer* indirectArgsBuffer)
+{
+    if (meshIndex >= _numMeshes || !instanceVB || !indirectArgsBuffer)
+    {
+        return E_FAIL;
+    }
+
+    return _meshes[meshIndex]->RenderInstancedIndirect(instanceVB, instanceStride, indirectArgsBuffer);
+}
+
 bool ModelCom::Play_Animation(float timeDelta)
 {
     AnimPipelineContext context{};
@@ -816,6 +839,9 @@ bool ModelCom::Play_Animation(float timeDelta)
 
 HRESULT ModelCom::Bind_Material(ShaderCom* shader, const char* constantName, uint32 meshIndex, MaterialTextureSlot slot, uint32 textureIndex)
 {
+    if (_materials.empty() || meshIndex >= _materials.size())
+        return E_FAIL;
+
     return _materials[_meshes[meshIndex]->Get_MaterialIndex()]->Bind_Material(shader, constantName, slot, textureIndex);
 }
 
@@ -1111,6 +1137,7 @@ void ModelCom::Stop_AllNotifyStates(bool executeEndCheck)
         context.animationName = "";
         context.previousTimeSec = 0.f;
         context.currentTimeSec = 0.f;
+        context.notifyStateProgress = 1.f; // 강제 종료여도 End에서는 완료 상태로 사용하려면 1.f
         context.deltaTime = 0.f;
         context.isLooping = false;
         context.wrapped = false;
@@ -1149,6 +1176,7 @@ void ModelCom::Stop_NotifyStates_ExceptAnimation(const string& keepAnimationName
             context.previousTimeSec = 0.f;
             context.currentTimeSec = 0.f;
             context.deltaTime = 0.f;
+            context.notifyStateProgress = 1.f;
             context.isLooping = false;
             context.wrapped = false;
             context.isPreview = !_isAnimNotifyExecutionEnabled;
@@ -1191,6 +1219,18 @@ void ModelCom::Update_AnimNotifyStates(const AnimNotifyData& animationData, cons
         const bool isActiveNow = Is_NotifyStateActiveTime(context.currentTimeSec, entry.startSec, entry.durationSec);
         const int32 activeIndex = Find_ActiveNotifyStateIndex(_activeNotifyStates, context.animationName, stateIndex);
 
+        AnimNotifyContext stateContext = context;
+
+        if (entry.durationSec > 0.f)
+        {
+            stateContext.notifyStateProgress = // 현재 시간이 notifyState에서 몇퍼 진행됐는지
+                ::clamp((context.currentTimeSec - entry.startSec) / entry.durationSec, 0.f, 1.f); 
+        }
+        else
+        {
+            stateContext.notifyStateProgress = isActiveNow ? 1.f : 0.f;
+        }
+
         if (isActiveNow)
         {
             if (activeIndex == -1)
@@ -1205,7 +1245,7 @@ void ModelCom::Update_AnimNotifyStates(const AnimNotifyData& animationData, cons
                 _activeNotifyStates.push_back(active);
 
                 if (executeNotifies)
-                    entry.notifyState->On_Begin(context);
+                    entry.notifyState->On_Begin(stateContext);
             }
             else
             {
@@ -1217,7 +1257,7 @@ void ModelCom::Update_AnimNotifyStates(const AnimNotifyData& animationData, cons
                         context.deltaTime > 0.f ||
                         previousActiveTimeSec != context.currentTimeSec))
                 {
-                    _activeNotifyStates[activeIndex].notifyState->On_Tick(context);
+                    _activeNotifyStates[activeIndex].notifyState->On_Tick(stateContext);
                 }
             }
         }
@@ -1226,8 +1266,10 @@ void ModelCom::Update_AnimNotifyStates(const AnimNotifyData& animationData, cons
             Shared<AnimNotifyState> instance = _activeNotifyStates[activeIndex].notifyState;
             _activeNotifyStates.erase(_activeNotifyStates.begin() + activeIndex);
 
+            stateContext.notifyStateProgress = 1.f; 
+
             if (executeNotifies && instance)
-                instance->On_End(context);
+                instance->On_End(stateContext);
         }
     }
 }
@@ -1620,7 +1662,7 @@ void ModelCom::Step_FinalizeAnimationFrame(const AnimPipelineContext& context)
     const bool wrapped = (_isAnimLoop && currentTimeSec < context.previousTimeSec);
 
     {
-        Debug_Profile::Scope profileScope("AnimMesh::PlayAnimation::Notify");
+        //Debug_Profile::Scope profileScope("AnimMesh::PlayAnimation::Notify");
 
         if (Ensure_AnimNotifyAssetLoaded())
         {
@@ -1957,34 +1999,50 @@ HRESULT ModelCom::Ready_Animation(const char* modelPath)
     return S_OK;
 }
 
-bool ModelCom::Ensure_AnimStateAssetLoaded(const string& sourceObjectGUID)
+bool ModelCom::Ensure_AnimStateAssetLoaded(const string &sourceObjectGUID)
 {
-    if (!sourceObjectGUID.empty())
-    {
-        wstring resolvedPath = GAME->Resolve_AssetPath(sourceObjectGUID);
-        if (!resolvedPath.empty())
-        {
-            return AnimState_Parser::Load_StateAnimations_FromFile(
-                resolvedPath, _animations, _stateAnimIndices, &_animEnumType);
-        }
-    }
+	if (!sourceObjectGUID.empty())
+	{
+		wstring resolvedPath = GAME->Resolve_AssetPath(sourceObjectGUID);
+		if (!resolvedPath.empty())
+		{
+			return AnimState_Parser::Load_StateAnimations_FromFile(
+				resolvedPath, _animations, _stateAnimIndices, &_animEnumType);
+		}
+	}
 
-    string targetPrefabGuid = "";
-    if (Get_Owner())
-    {
-        auto prefabContextOwner = Get_Owner();
-        if (auto containerOwner = prefabContextOwner->Get_Owner())
-        {
-            if (!containerOwner->Get_SourcePrefabName().empty())
-            {
-                prefabContextOwner = containerOwner;
-            }
-        }
+	string targetPrefabGuid = "";
+	if (Get_Owner())
+	{
+		auto prefabContextOwner = Get_Owner();
+		if (auto containerOwner = prefabContextOwner->Get_Owner())
+		{
+			if (!containerOwner->Get_SourcePrefabName().empty())
+			{
+				prefabContextOwner = containerOwner;
+			}
+		}
 
-        targetPrefabGuid = AnimState_Parser::Get_PrefabGuid(prefabContextOwner->Get_SourcePrefabName());
-    }
+		string prefabName = prefabContextOwner->Get_SourcePrefabName();
+		if (prefabName.empty())
+		{
+			string selfClass = prefabContextOwner->Get_ReflectionInfo().className;
+			string ownerClass = "";
+			if (auto ownerOfContext = prefabContextOwner->Get_Owner())
+			{
+				ownerClass = ownerOfContext->Get_ReflectionInfo().className;
+			}
+			prefabName = AnimState_Parser::Find_PrefabName_ByStaticClass(ownerClass, selfClass);
+			if (!prefabName.empty())
+			{
+				prefabContextOwner->Set_SourcePrefabName(prefabName);
+			}
+		}
 
-    return AnimState_Parser::Load_StateAnimations(_sourceModelPath, _animations, _stateAnimIndices, &_animEnumType, targetPrefabGuid);
+		targetPrefabGuid = AnimState_Parser::Get_PrefabGuid(prefabName);
+	}
+
+	return AnimState_Parser::Load_StateAnimations(_sourceModelPath, _animations, _stateAnimIndices, &_animEnumType, targetPrefabGuid);
 }
 
 bool ModelCom::Refresh_AnimStateMappingFromOwnerContext()

@@ -309,15 +309,6 @@ HRESULT VIBufferCom_ComputePointParticle::Ready_IndirectArgsBuffers()
 
     CHECK_FAILED(_device->CreateBuffer(&argsBufferDesc, nullptr, _indirectArgsBuffer.GetAddressOf()), E_FAIL);
 
-#ifdef _DEBUG
-    D3D11_BUFFER_DESC readbackDesc = argsBufferDesc;
-    readbackDesc.Usage = D3D11_USAGE_STAGING;
-    readbackDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
-    readbackDesc.MiscFlags = 0;
-
-    CHECK_FAILED(_device->CreateBuffer(&readbackDesc, nullptr, _debugArgsReadbackBuffer.GetAddressOf()), E_FAIL);
-#endif
-
     return S_OK;
 }
 
@@ -511,10 +502,6 @@ HRESULT VIBufferCom_ComputePointParticle::Copy_OutputToIndirectArgs()
 
     _context->CopyResource(_indirectArgsBuffer.Get(), _computeArgsOutput->Get_Buffer());
 
-#ifdef _DEBUG
-    Debug_LogIndirectArgs();
-#endif
-
     return S_OK;
 }
 
@@ -532,38 +519,6 @@ VIBufferCom_ComputePointParticle::ParticleLifecycleState VIBufferCom_ComputePoin
         .active = 0u
     };
 }
-
-#ifdef _DEBUG
-void VIBufferCom_ComputePointParticle::Debug_LogIndirectArgs()
-{
-    if (_debugArgsLogCount >= kDebugArgsLogLimit || nullptr == _debugArgsReadbackBuffer || nullptr == _indirectArgsBuffer)
-        return;
-
-    _context->CopyResource(_debugArgsReadbackBuffer.Get(), _indirectArgsBuffer.Get());
-
-    D3D11_MAPPED_SUBRESOURCE mappedSubResource{};
-    if (FAILED(_context->Map(_debugArgsReadbackBuffer.Get(), 0, D3D11_MAP_READ, 0, &mappedSubResource)))
-        return;
-
-    const auto* args = static_cast<const ComputeIndirectArgs*>(mappedSubResource.pData);
-    if (nullptr != args && (_debugArgsLogCount == 0 || _debugLastArgsInstanceCount != args->instanceCount))
-    {
-        LOG_INFO(
-            "Compute indirect args: mode={}, value0={}, instanceCount={}, value2={}, value3={}, startInstance={}",
-            magic_enum::enum_name(_desc.drawMode),
-            args->value0,
-            args->instanceCount,
-            args->value2,
-            args->value3,
-            args->startInstanceLocation
-        );
-        _debugLastArgsInstanceCount = args->instanceCount;
-        ++_debugArgsLogCount;
-    }
-
-    _context->Unmap(_debugArgsReadbackBuffer.Get(), 0);
-}
-#endif
 
 Shared<VIBufferCom_ComputePointParticle> VIBufferCom_ComputePointParticle::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
@@ -594,9 +549,6 @@ Shared<Component> VIBufferCom_ComputePointParticle::Clone(void* arg)
 
 void VIBufferCom_ComputePointParticle::Free()
 {
-#ifdef _DEBUG
-    _debugArgsReadbackBuffer.Reset();
-#endif
     _indirectArgsBuffer.Reset();
     _computeConstantBuffer.Reset();
     _lifecycleState.reset();

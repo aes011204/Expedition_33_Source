@@ -15,6 +15,8 @@ namespace
             return "ChooseSkill";
         case Client::BattleTurnState::AttackTargeting:
             return "AttackTargeting";
+        case Client::BattleTurnState::AttackPlaying:
+            return "AttackPlaying";
         case Client::BattleTurnState::ChooseItem:
             return "ChooseItem";
         case Client::BattleTurnState::ChooseAction:
@@ -27,6 +29,8 @@ namespace
             return "UltimateTargeting";
         case Client::BattleTurnState::ChooseUltimate:
             return "ChooseUltimate";
+        case Client::BattleTurnState::FreeAimTargeting:
+            return "FreeAimTargeting";
         default:
             return "UnknownBattleState";
         }
@@ -105,8 +109,6 @@ Shared<BattleStateMachine> BattleStateMachine::Create()
 
     return instance;
 }
-
-
 
 void BattleStateMachine::Free()
 {

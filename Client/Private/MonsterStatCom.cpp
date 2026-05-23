@@ -11,6 +11,8 @@ IMPLEMENT_REFLECTION(MonsterStatCom)
     PROPERTY_FLOAT("HP", _MRuntimeStat.CurHp, 0.f, 9999.f, 1.f);
     PROPERTY_FLOAT("AP", _MRuntimeStat.CurAp, 0.f, 9.f, 1.f);
 
+    PROPERTY_STRING("Portrait", _monsterDesc.portraitGuid);
+
     return true;
 }
 
@@ -55,11 +57,6 @@ HRESULT MonsterStatCom::Initialize(void* arg)
         _MRuntimeStat.CurSpeed = _monsterDesc.speed;
     }
 
-    _skillKeys.push_back("Lancelier_Slow");
-    _skillKeys.push_back("Lancelier_Fast");
-
-
-
     _isPlayer = false;
 
     return S_OK;
@@ -70,6 +67,25 @@ void MonsterStatCom::Update(float timeDelta)
 #ifdef _DEBUG
     GAME->Print(L"몬스터 체력 : {}", _MRuntimeStat.CurHp, duration(0.f));
 #endif
+}
+
+void MonsterStatCom::Set_RuntimeCombatProfile(float maxHp, uint32 maxAp, float physicalAttack, float physicalDefense,
+    float speed)
+{
+    const float hpRate = (_monsterDesc.maxHp > 0.f) ? (_MRuntimeStat.CurHp / _monsterDesc.maxHp) : 1.f;
+
+    _monsterDesc.maxHp = maxHp;
+    _monsterDesc.maxAp = maxAp;
+    _monsterDesc.physicalAttack = physicalAttack;
+    _monsterDesc.physicalDefense = physicalDefense;
+    _monsterDesc.speed = speed;
+
+    // 몬스터는 desc를 runtime으로 복사하는 구조라 여기서 둘 다 같이 맞춘다.
+    _MRuntimeStat.CurHp = max(0.f, _monsterDesc.maxHp * hpRate);
+    _MRuntimeStat.CurAp = min(_MRuntimeStat.CurAp, _monsterDesc.maxAp);
+    _MRuntimeStat.physicalAttack = _monsterDesc.physicalAttack;
+    _MRuntimeStat.physicalDefense = _monsterDesc.physicalDefense;
+    _MRuntimeStat.CurSpeed = _monsterDesc.speed;
 }
 
 Shared<MonsterStatCom> MonsterStatCom::Create(

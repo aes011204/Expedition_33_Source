@@ -306,21 +306,6 @@ HRESULT Target_Manager::Resize_MRTs(uint32 width, uint32 height)
     return S_OK;
 }
 
-HRESULT Target_Manager::Set_RenderTargetClearColor(const wstring& targetTag, const Color& clearColor)
-{
-    auto iter = _renderTargets.find(targetTag);
-    if (iter == _renderTargets.end())
-        return E_FAIL;
-
-    TargetDesc& desc = iter->second;
-    desc.clearColor = clearColor;
-
-    if (desc.target)
-        desc.target->Set_ClearColor(clearColor);
-
-    return S_OK;
-}
-
 HRESULT Target_Manager::Copy_CurrentRTV_To(const wstring& targetTag)
 {
     // 현재 OM에 바인딩된 RTV

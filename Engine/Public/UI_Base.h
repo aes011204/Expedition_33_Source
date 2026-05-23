@@ -34,6 +34,8 @@ public:
 
     virtual void Update(float TimeDelta);
     virtual HRESULT Render();
+    bool Play_UIAnimation(const wstring& animationName, bool restart = true); // 붙어 있는 keyframe animation asset 중 이름으로 골라 재생
+    void Stop_UIAnimation();                                                   // 현재 재생 중인 UI animation 정지
 
 public:
     bool Is_Open() const { return _isOpen; }

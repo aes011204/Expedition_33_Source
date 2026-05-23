@@ -256,6 +256,7 @@ HRESULT ResourceLoader::Build_TextureJobs(const wstring& strTablePath, vector<FL
         LoadJob.iLevelIndex = Get_LevelIndex_FromString(strLevel);
         LoadJob.strPrototypeTag = String::ToWString(strId);
         LoadJob.strPath = Resolve_RuntimePath(String::ToWString(strPath));
+        LoadJob.strSourceTable = "DT_Texture";
         LoadJob.iCount = iCount;
 
         LoadJobs.push_back(LoadJob);
@@ -297,6 +298,7 @@ HRESULT ResourceLoader::Build_ShaderJobs(const wstring& strTablePath, vector<FLo
         LoadJob.iLevelIndex = Get_LevelIndex_FromString(strLevel);
         LoadJob.strPrototypeTag = String::ToWString(strId);
         LoadJob.strPath = Resolve_RuntimePath(String::ToWString(strPath));
+        LoadJob.strSourceTable = "DT_Shader";
         LoadJob.strInputLayout = strInputLayout;
         LoadJob.strEntryPoint = strEntryPoint;
         LoadJob.iCount = 1;
@@ -336,11 +338,14 @@ HRESULT ResourceLoader::Build_ModelJobs(const wstring& strTablePath, vector<FLoa
         LoadJob.iLevelIndex = Get_LevelIndex_FromString(strLevel);
         LoadJob.strPrototypeTag = String::ToWString(strId);
         LoadJob.strPath = Resolve_RuntimePath(String::ToWString(strPath));
+        LoadJob.strSourceTable = "DT_Model";
         LoadJob.strModelType = Read_String(JsonItem, "ModelType", "modelType", "NONANIM");
         LoadJob.fScaleX = Read_Float(JsonItem, "ScaleX", "scaleX", 1.f);
         LoadJob.fScaleY = Read_Float(JsonItem, "ScaleY", "scaleY", 1.f);
         LoadJob.fScaleZ = Read_Float(JsonItem, "ScaleZ", "scaleZ", 1.f);
+        LoadJob.fRotX = Read_Float(JsonItem, "RotX", "rotX", 0.f);
         LoadJob.fRotY = Read_Float(JsonItem, "RotY", "rotY", 0.f);
+        LoadJob.fRotZ = Read_Float(JsonItem, "RotZ", "rotZ", 0.f);
         LoadJob.iCount = 1;
 
         LoadJobs.push_back(LoadJob);
@@ -377,6 +382,7 @@ HRESULT ResourceLoader::Build_GameObjectJobs(const wstring& strTablePath, vector
         LoadJob.eType = ELoadJobType::GameObject;
         LoadJob.iLevelIndex = Get_LevelIndex_FromString(strLevel);
         LoadJob.strPrototypeTag = String::ToWString(strId);
+        LoadJob.strSourceTable = "DT_GameObject";
         LoadJob.strClassName = strClass;
         LoadJob.iCount = 1;
 
@@ -417,6 +423,7 @@ HRESULT ResourceLoader::Build_ComponentJobs(const wstring& strTablePath, vector<
         loadJob.eType = ELoadJobType::Component;
         loadJob.iLevelIndex = Get_LevelIndex_FromString(level);
         loadJob.strPrototypeTag = String::ToWString(id);
+        loadJob.strSourceTable = "DT_Component";
         loadJob.strClassName = componentClass;
 
         loadJobs.push_back(loadJob);
@@ -447,6 +454,7 @@ HRESULT ResourceLoader::Build_StaticLevelJobs(const wstring& strTablePath, vecto
         LoadJob.eType = ELoadJobType::StaticLevel;
         LoadJob.iLevelIndex = Get_LevelIndex_FromString(strLevel);
         LoadJob.strPrototypeTag = String::ToWString(strId);
+        LoadJob.strSourceTable = "DT_StaticLevel";
         LoadJob.strResourceType = strResourceType;
         LoadJob.iCount = Read_UInt(JsonItem, "Count", "count", 1);
 
@@ -523,12 +531,14 @@ ResourceLoader::FInputLayoutInfo ResourceLoader::Get_InputLayout(const string& s
     if ("VTXCUBE" == strName || "Cube" == strName || "VtxCube" == strName)
         return { VTXCUBE::Elements, VTXCUBE::numElements, ShaderType::VtxCube };
 
-    // Particle instance용 InputLayout
     if ("ParticleInstance" == strName || "PARTICLEINSTANCE" == strName)
         return { ParticleInstanceLayout::Elements, ParticleInstanceLayout::numElements, ShaderType::BillboardParticle };
 
+    if ("TrailInstance" == strName || "TRAILINSTANCE" == strName)
+        return { TrailInstanceLayout::Elements, TrailInstanceLayout::numElements, ShaderType::BillboardParticle };
+
     // Mesh Instance (roughly)
-    if("VTXMESHINST" == strName || "VtxMeshInst" == strName || "vtxmeshinst" == strName)
+    if ("VTXMESHINST" == strName || "VtxMeshInst" == strName || "vtxmeshinst" == strName)
         return { VtxMeshInstanceLayout::Elements, VtxMeshInstanceLayout::numElements, ShaderType::VtxInstanceMesh };
 
     // Mesh Instance (for real)
@@ -663,6 +673,8 @@ HRESULT ResourceLoader::Create_LoadJobPrototype(const FLoadJob& loadJob, Shared<
     case ELoadJobType::TextureCreate:
     {
         outPrototype = Texture::Create(_device, _context, loadJob.strPath.c_str(), loadJob.iCount);
+        if (nullptr == outPrototype)
+            Log_LoadJobPrototypeFailure(loadJob, "create returned null");
         return S_OK;
     }
 
@@ -678,6 +690,8 @@ HRESULT ResourceLoader::Create_LoadJobPrototype(const FLoadJob& loadJob, Shared<
             inputLayout.iNumElements,
             inputLayout.eShaderType);
 
+        if (nullptr == outPrototype)
+            Log_LoadJobPrototypeFailure(loadJob, "create returned null");
         return S_OK;
     }
 
@@ -689,6 +703,8 @@ HRESULT ResourceLoader::Create_LoadJobPrototype(const FLoadJob& loadJob, Shared<
             loadJob.strPath.c_str(),
             loadJob.strEntryPoint.c_str());
 
+        if (nullptr == outPrototype)
+            Log_LoadJobPrototypeFailure(loadJob, "create returned null");
         return S_OK;
     }
 
@@ -701,7 +717,9 @@ HRESULT ResourceLoader::Create_LoadJobPrototype(const FLoadJob& loadJob, Shared<
 
         const XMMATRIX preLocalTransform =
             XMMatrixScaling(loadJob.fScaleX, loadJob.fScaleY, loadJob.fScaleZ) *
-            XMMatrixRotationY(XMConvertToRadians(loadJob.fRotY));
+            XMMatrixRotationX(XMConvertToRadians(loadJob.fRotX)) *
+            XMMatrixRotationY(XMConvertToRadians(loadJob.fRotY)) *
+            XMMatrixRotationZ(XMConvertToRadians(loadJob.fRotZ));
 
         const string modelPath = String::ToString(loadJob.strPath);
 
@@ -712,6 +730,8 @@ HRESULT ResourceLoader::Create_LoadJobPrototype(const FLoadJob& loadJob, Shared<
             modelPath.c_str(),
             preLocalTransform);
 
+        if (nullptr == outPrototype)
+            Log_LoadJobPrototypeFailure(loadJob, "create returned null");
         return S_OK;
     }
 
@@ -719,6 +739,8 @@ HRESULT ResourceLoader::Create_LoadJobPrototype(const FLoadJob& loadJob, Shared<
     {
         Shared<GameObject> gameObject = GAME->Create_GameObjectPrototype(loadJob.strClassName);
         outPrototype = static_pointer_cast<Base>(gameObject);
+        if (nullptr == outPrototype)
+            Log_LoadJobPrototypeFailure(loadJob, "create returned null");
         return S_OK;
     }
 
@@ -730,21 +752,28 @@ HRESULT ResourceLoader::Create_LoadJobPrototype(const FLoadJob& loadJob, Shared<
                 ColliderCom::Create(_device, _context, Get_Shape_FromPrototypeTag(loadJob.strPrototypeTag));
 
             outPrototype = static_pointer_cast<Base>(collider);
+            if (nullptr == outPrototype)
+                Log_LoadJobPrototypeFailure(loadJob, "create returned null");
             return S_OK;
         }
 
         Shared<Component> component = GAME->Create_ComponentPrototype(loadJob.strClassName);
         outPrototype = static_pointer_cast<Base>(component);
+        if (nullptr == outPrototype)
+            Log_LoadJobPrototypeFailure(loadJob, "create returned null");
         return S_OK;
     }
 
     case ELoadJobType::StaticLevel:
     {
         outPrototype = Create_StaticPrototype(loadJob);
+        if (nullptr == outPrototype)
+            Log_LoadJobPrototypeFailure(loadJob, "create returned null");
         return S_OK;
     }
 
     default:
+        Log_LoadJobPrototypeFailure(loadJob, "unsupported job type");
         return S_OK;
     }
 }
@@ -757,12 +786,6 @@ HRESULT ResourceLoader::Commit_LoadJobPrototype(const FLoadJob& loadJob, const S
 
     if (nullptr == prototype)
     {
-        LOG_WARN(
-            "Skipping prototype registration. id='{}', type={}, level={}",
-            String::ToString(loadJob.strPrototypeTag),
-            string(magic_enum::enum_name(loadJob.eType)),
-            loadJob.iLevelIndex);
-
         return S_OK;
     }
 
@@ -778,6 +801,24 @@ HRESULT ResourceLoader::Commit_LoadJobPrototype(const FLoadJob& loadJob, const S
     }
 
     return S_OK;
+}
+
+void ResourceLoader::Log_LoadJobPrototypeFailure(const FLoadJob& loadJob, string_view reason)
+{
+    LOG_WARN(
+        "Prototype load job failed. reason='{}', table='{}', id='{}', jobType={}, level={}, path='{}', inputLayout='{}', entryPoint='{}', modelType='{}', className='{}', resourceType='{}'",
+        reason,
+        loadJob.strSourceTable,
+        String::ToString(loadJob.strPrototypeTag),
+        string(magic_enum::enum_name(loadJob.eType)),
+        loadJob.iLevelIndex,
+        String::ToString(loadJob.strPath),
+        loadJob.strInputLayout,
+        loadJob.strEntryPoint,
+        loadJob.strModelType,
+        loadJob.strClassName,
+        loadJob.strResourceType
+    );
 }
 
 Shared<Base> ResourceLoader::Create_StaticPrototype(const FLoadJob& LoadJob)
@@ -876,8 +917,8 @@ wstring ResourceLoader::Make_PrototypeTag(const string& strId, const wstring& st
 
 uint32 ResourceLoader::Get_LevelIndex_FromString(const string& strLevel)
 {
-    if ("Logo" == strLevel) // || "Logo" == strLevel)
-        return ETOI(LevelType::Logo);
+    if ("MainTitle" == strLevel) // || "MainTitle" == strLevel)
+        return ETOI(LevelType::MainTitle);
 
     if ("GamePlay" == strLevel || "Gameplay" == strLevel || "GamePlay" == strLevel)
         return ETOI(LevelType::GamePlay);

@@ -58,10 +58,25 @@
     <Filter Include="02. View\Animation">
       <UniqueIdentifier>{a01f31fb-b31d-4ba8-a9f3-0df824fb0900}</UniqueIdentifier>
     </Filter>
+    <Filter Include="01. Manager\UI_Editor_Manager\SelectionService">
+      <UniqueIdentifier>{d91188a8-cb82-40a8-b9a8-1174182b191b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="01. Manager\UI_Editor_Manager\ObjectCommandService">
+      <UniqueIdentifier>{07926d15-8c1c-4e97-a6e6-677260259a05}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="01. Manager\UI_Editor_Manager\ObjectEditService">
+      <UniqueIdentifier>{91a6a663-fb31-46c4-9ee7-e3f3db9a7018}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="01. Manager\UI_Editor_Manager\TransformService">
+      <UniqueIdentifier>{6b0c6d40-379b-4631-af6e-6b84e61ae8f6}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
       <Filter>98. Default</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_ClipboardService.cpp">
+      <Filter>01. Manager\UI_Editor_Manager</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\UI_AnimationAssetSerializer.cpp">
       <Filter>02. View\Animation</Filter>
@@ -93,6 +108,9 @@
     <ClCompile Include="..\Private\UI_DocumentSerializer.cpp">
       <Filter>04. Document</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\UI_DocumentInternalAccess.cpp">
+      <Filter>04. Document</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\UI_Editor_Window.cpp">
       <Filter>02. View</Filter>
     </ClCompile>
@@ -117,6 +135,18 @@
     <ClCompile Include="..\Private\UI_Editor_FileService.cpp">
       <Filter>01. Manager\UI_Editor_Manager\FileService</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\UI_SelectionService.cpp">
+      <Filter>01. Manager\UI_Editor_Manager\SelectionService</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_ObjectCommandService.cpp">
+      <Filter>01. Manager\UI_Editor_Manager\ObjectCommandService</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_ObjectEditService.cpp">
+      <Filter>01. Manager\UI_Editor_Manager\ObjectEditService</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_TransformService.cpp">
+      <Filter>01. Manager\UI_Editor_Manager\TransformService</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\UI_Prefab_Browser.cpp">
       <Filter>02. View\Prefab_Browser</Filter>
     </ClCompile>
@@ -135,10 +165,16 @@
     <ClCompile Include="..\Private\UI_Viewport_Utils.cpp">
       <Filter>02. View\Viewport\Utility</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\UI_PreviewTransformResolver.cpp">
+      <Filter>02. View\Viewport\Utility</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
       <Filter>98. Default</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_ClipboardService.h">
+      <Filter>01. Manager\UI_Editor_Manager</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\UI_Editor_Defines.h">
       <Filter>99. Defines</Filter>
@@ -182,6 +218,9 @@
     <ClInclude Include="..\Public\UI_Document.h">
       <Filter>04. Document</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\UI_DocumentInternalAccess.h">
+      <Filter>04. Document</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\UI_DocumentSerializer.h">
       <Filter>04. Document</Filter>
     </ClInclude>
@@ -206,6 +245,18 @@
     <ClInclude Include="..\Public\UI_Editor_FileService.h">
       <Filter>01. Manager\UI_Editor_Manager\FileService</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\UI_SelectionService.h">
+      <Filter>01. Manager\UI_Editor_Manager\SelectionService</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_ObjectCommandService.h">
+      <Filter>01. Manager\UI_Editor_Manager\ObjectCommandService</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_ObjectEditService.h">
+      <Filter>01. Manager\UI_Editor_Manager\ObjectEditService</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_TransformService.h">
+      <Filter>01. Manager\UI_Editor_Manager\TransformService</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\UI_Prefab_Browser.h">
       <Filter>02. View\Prefab_Browser</Filter>
     </ClInclude>
@@ -222,6 +273,9 @@
       <Filter>02. View\Viewport</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\UI_Viewport_Utils.h">
+      <Filter>02. View\Viewport\Utility</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_PreviewTransformResolver.h">
       <Filter>02. View\Viewport\Utility</Filter>
     </ClInclude>
   </ItemGroup>

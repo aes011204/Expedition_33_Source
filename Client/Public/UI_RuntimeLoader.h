@@ -18,7 +18,7 @@ public:
     {
         uint32 levelIndex = 0;
         wstring jsonPath{};
-        wstring animationDirectory{};
+        wstring animationPath{};
         wstring prototypeTagPrefix {};
         wstring outUINamePrefixFilter {};
 

@@ -20,10 +20,13 @@ protected:
     const wchar_t* Get_HeadModelTag() const override { return L"Model_GustaveHead"; }
     const wchar_t* Get_HairModelTag() const override { return L"Model_GustaveHair"; }
 
+    bool Try_GetWeaponAttackDesc(WeaponAttachDesc& outDesc) const override;
+
 public:
     static Shared<PB_Gustave> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
     Shared<GameObject> Clone(void* arg) override;
     void Free() override;
+protected:
 };
 
 NS_END

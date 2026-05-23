@@ -20,6 +20,25 @@ static const HeroSpawnDesc heroSpawnDescs[] =
     { HeroId::Maelle,  Constants::Prefab::PW_Maelle,  Constants::Prefab::PB_Maelle  }, // 파일명 변경과 스폰 이름을 같은 상수로 묶는다.
 };
 
+void Hero_Manager::Change_GameMenuAnimation(uint32 introAnim, uint32 idleAnim)
+{
+    using plAnim = Body_Player::PlayerWorldAnimation;
+
+    for (uint32 i = 0; i < static_cast<uint32>(_heroes.size()); ++i)
+    {
+        if (_activeIndex == i)
+        {
+            _heroes[i].hero->Enter_GameMenuAnimation(introAnim, idleAnim);
+        }
+        else
+        {
+            _heroes[i].hero->Enter_GameMenuAnimation(
+                ETOI(plAnim::Pl_GameMenu_Intro),
+                ETOI(plAnim::Pl_GameMenu_Unselected));
+        }
+    }
+}
+
 HRESULT Hero_Manager::Initialize_Hero(uint32 levelIndex, const wstring& layerTag, const Vec3& startPos)
 {
     Clear_Party();

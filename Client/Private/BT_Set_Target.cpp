@@ -3,6 +3,7 @@
 #include "AIController.h"
 #include "BlackBoard.h"
 #include "MonsterStatCom.h"
+#include "GameInstance.h"
 
 IMPLEMENT_REFLECTION(BT_Set_Target)
 {
@@ -39,28 +40,32 @@ BNode::NODE_STATE BT_Set_Target::Logic_Update(float deltaTime)
     if (heroes.empty())
         return BNode::NODE_STATE::FAILED;
 
-    int targetIndex = -1;
-    float lowestHp = FLT_MAX;
+    int32 targetIndex = -1;
 
-    for (int i = 0; i < static_cast<int>(heroes.size()); ++i)
-    {
-        const auto& hero = heroes[i];
-        if (hero.statCom == nullptr)
-            continue;
+    targetIndex = Math::RandNum(0, static_cast<int>(heroes.size())-1);
 
-        if (hero.statCom->Get_CurAliveState() != EAliveStatus::Alive)
-            continue;
 
-        const float hp = hero.statCom->Get_CurHp();
-        if (hp < lowestHp)
-        {
-            lowestHp = hp;
-            targetIndex = i;
-        }
-    }
-
-    if (targetIndex < 0)
-        return BNode::NODE_STATE::FAILED;
+    //float lowestHp = FLT_MAX;
+    //
+    //for (int i = 0; i < static_cast<int>(heroes.size()); ++i)
+    //{
+    //    const auto& hero = heroes[i];
+    //    if (hero.statCom == nullptr)
+    //        continue;
+    //
+    //    if (hero.statCom->Get_CurAliveState() != EAliveStatus::Alive)
+    //        continue;
+    //
+    //    const float hp = hero.statCom->Get_CurHp();
+    //    if (hp < lowestHp)
+    //    {
+    //        lowestHp = hp;
+    //        targetIndex = i;
+    //    }
+    //}
+    //
+    //if (targetIndex < 0)
+    //    return BNode::NODE_STATE::FAILED;
 
     bb->Set_Value("TargetIndex", targetIndex);
     return BNode::NODE_STATE::SUCCESS;

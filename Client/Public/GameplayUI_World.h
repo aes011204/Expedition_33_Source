@@ -8,6 +8,8 @@ NS_BEGIN(Client)
 
 class SkillTree_Panel;
 class CharacterStatus_Panel;
+class ChangeWeapon_Panel;
+class ExpeditionStat_Panel;
 
 class GameplayUI_World final : public Base
 {
@@ -28,6 +30,7 @@ private:
     void    Handle_SavePointAction(SavePoint_Panel::SavePointAction action);
 
     void    Handle_TabInput();
+    void    Handle_ExpeditionStat();
     void    Handle_BackInput();            // Esc로 현재 메뉴 닫고 이전 메뉴 복귀
 
     void    Push_Menu(GameplayMenu menu);
@@ -41,6 +44,9 @@ private:
     Unique<SavePoint_Panel>       _savePointPanel;
     Unique<CharacterStatus_Panel> _characterStatusPanel;
     Unique<SkillTree_Panel>       _skillTreePanel;
+    Unique<ChangeWeapon_Panel>    _changeWeaponPanel;
+    Unique<ExpeditionStat_Panel>  _expeditionStatPanel;
+
     vector<GameplayMenu>          _menuStack{};
 
 public:
