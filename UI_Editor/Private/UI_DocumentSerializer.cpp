@@ -1,11 +1,12 @@
 #include "pch.h"
 #include "UI_DocumentSerializer.h"
+#include "UI_DocumentInternalAccess.h"
 
 namespace UIEditor
 {
     namespace
     {
-        constexpr int32 kCurrentUIJsonVersion = 5;
+        constexpr int32 kCurrentUIJsonVersion = 6;
         constexpr const char* kDefaultCanvasName = "MainCanvas";
         constexpr const char* kDefaultFontPath = "../Bin/Resources/Fonts/33_MainKR_Font.spritefont";
 
@@ -91,6 +92,28 @@ namespace UIEditor
             }
 
             return false;
+        }
+
+        const char* Get_ImageRenderModeName(UI_ImageRenderMode imageRenderMode)
+        {
+            switch (imageRenderMode)
+            {
+            case UI_ImageRenderMode::PatternOverlay:
+                return "PatternOverlay";
+            case UI_ImageRenderMode::Normal:
+            default:
+                return "Normal";
+            }
+        }
+
+        UI_ImageRenderMode Parse_ImageRenderMode(const string& modeName)
+        {
+            const string mode = String::ToLowerCopy(modeName);
+
+            if ("patternoverlay" == mode || "pattern_overlay" == mode || "pattern overlay" == mode)
+                return UI_ImageRenderMode::PatternOverlay;
+
+            return UI_ImageRenderMode::Normal;
         }
 
         const char* Get_RenderGroupName(UI_RenderGroup renderGroup)
@@ -474,15 +497,15 @@ namespace UIEditor
         root["version"] = kCurrentUIJsonVersion;
         root["canvas"] = {
             { "id", 0 },
-            { "name", document._canvasName.empty() ? kDefaultCanvasName : document._canvasName },
-            { "width", document._canvasSize.x },
-            { "height", document._canvasSize.y }
+            { "name", document.Get_CanvasName().empty() ? kDefaultCanvasName : document.Get_CanvasName() },
+            { "width", document.Get_CanvasSize().x },
+            { "height", document.Get_CanvasSize().y }
         };
 
         root["objects"] = json::array();
 
         unordered_set<ObjectId> savedObjectIds;
-        for (const UI_Object& object : document._objects)
+        for (const UI_Object& object : document.Get_Objects())
         {
             if (object.id == 0 || savedObjectIds.find(object.id) != savedObjectIds.end())
             {
@@ -523,10 +546,16 @@ namespace UIEditor
             item["texturePath"] = object.texturePath;
             if (!object.textureGuid.empty())
                 item["textureGuid"] = object.textureGuid;
+            if (object.imageRenderMode != UI_ImageRenderMode::Normal)
+                item["imageRenderMode"] = Get_ImageRenderModeName(object.imageRenderMode);
             if (!object.maskTexturePath.empty())
                 item["maskTexturePath"] = object.maskTexturePath;
             if (!object.maskTextureGuid.empty())
                 item["maskTextureGuid"] = object.maskTextureGuid;
+            if (object.imageRenderMode == UI_ImageRenderMode::PatternOverlay && !object.patternMaskTexturePath.empty())
+                item["patternMaskTexturePath"] = object.patternMaskTexturePath;
+            if (object.imageRenderMode == UI_ImageRenderMode::PatternOverlay && !object.patternMaskTextureGuid.empty())
+                item["patternMaskTextureGuid"] = object.patternMaskTextureGuid;
         }
         else if (object.type == UI_ObjectType::Text)
         {
@@ -605,8 +634,11 @@ namespace UIEditor
         {
             object.texturePath = Read_String(item, "texturePath", "");
             object.textureGuid = Read_String(item, "textureGuid", "");
+            object.imageRenderMode = Parse_ImageRenderMode(Read_String(item, "imageRenderMode", "Normal"));
             object.maskTexturePath = Read_String(item, "maskTexturePath", "");
             object.maskTextureGuid = Read_String(item, "maskTextureGuid", "");
+            object.patternMaskTexturePath = Read_String(item, "patternMaskTexturePath", "");
+            object.patternMaskTextureGuid = Read_String(item, "patternMaskTextureGuid", "");
         }
         else if (object.type == UI_ObjectType::Text)
         {
@@ -702,11 +734,7 @@ namespace UIEditor
             }
         }
 
-        document._canvasName = nextCanvasName.empty() ? kDefaultCanvasName : nextCanvasName;
-        document._canvasSize = nextCanvasSize;
-        document._objects = move(nextObjects);
-        document.Validate_ParentLinks();
-        document.Resolve_NextObjectId();
+        UI_DocumentInternalAccess::Replace_LoadedContent(document, nextCanvasName.empty() ? kDefaultCanvasName : nextCanvasName, nextCanvasSize, move(nextObjects));
 
         return true;
     }

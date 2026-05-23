@@ -70,9 +70,11 @@ namespace UIEditor
             _isFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows);
             _isHovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows);
 
-            UI_Object* selectedObject = _editorManager.Get_SelectedObject();
+            const UI_Document& document = _editorManager.Get_Document();
+            const UI_Object* selectedObject = document.Find_Object(_editorManager.Get_SelectedObjectId());
             if (nullptr != selectedObject)
             {
+                ObjectId createPatternOverlaySourceId = 0;
                 ImGui::PushID(static_cast<int32>(selectedObject->id));
 
                 ImGui::Text("ID: %u", selectedObject->id);
@@ -94,56 +96,58 @@ namespace UIEditor
 
                 ImGui::Separator();
 
-                bool changed = false;
                 if (!isEffectivelyLocked)
                     _editorManager.Begin_EditTransaction();
                 else
                     ImGui::BeginDisabled(true);
 
-                changed |= ImGui::DragFloat2("Local Position", &selectedObject->position.x, 1.f);
-                changed |= ImGui::DragFloat2("Size", &selectedObject->size.x, 1.f);
-                changed |= ImGui::DragFloat2("Scale", &selectedObject->scale.x, 0.01f, 0.01f, 10.f, "%.2f");
-                changed |= ImGui::DragFloat2("Pivot", &selectedObject->pivot.x, 0.01f, 0.f, 1.f, "%.3f");
-                changed |= ImGui::DragFloat2("Anchor Min", &selectedObject->anchorMin.x, 0.01f, 0.f, 1.f, "%.3f");
-                changed |= ImGui::DragFloat2("Anchor Max", &selectedObject->anchorMax.x, 0.01f, 0.f, 1.f, "%.3f");
+                ImVec2 nextPosition = selectedObject->position;
+                if (ImGui::DragFloat2("Local Position", &nextPosition.x, 1.f))
+                    _editorManager.Set_UIObjectLocalPosition(selectedObject->id, nextPosition);
+
+                ImVec2 nextSize = selectedObject->size;
+                if (ImGui::DragFloat2("Size", &nextSize.x, 1.f))
+                    _editorManager.Set_UIObjectSize(selectedObject->id, nextSize);
+
+                ImVec2 nextScale = selectedObject->scale;
+                if (ImGui::DragFloat2("Scale", &nextScale.x, 0.01f, 0.01f, 10.f, "%.2f"))
+                    _editorManager.Set_UIObjectScale(selectedObject->id, nextScale);
+
+                ImVec2 nextPivot = selectedObject->pivot;
+                if (ImGui::DragFloat2("Pivot", &nextPivot.x, 0.01f, 0.f, 1.f, "%.3f"))
+                    _editorManager.Set_UIObjectPivotKeepWorldRect(selectedObject->id, nextPivot);
+
+                ImVec2 nextAnchorMin = selectedObject->anchorMin;
+                if (ImGui::DragFloat2("Anchor Min", &nextAnchorMin.x, 0.01f, 0.f, 1.f, "%.3f"))
+                    _editorManager.Set_UIObjectAnchorsKeepWorldRect(selectedObject->id, nextAnchorMin, selectedObject->anchorMax);
+
+                ImVec2 nextAnchorMax = selectedObject->anchorMax;
+                if (ImGui::DragFloat2("Anchor Max", &nextAnchorMax.x, 0.01f, 0.f, 1.f, "%.3f"))
+                    _editorManager.Set_UIObjectAnchorsKeepWorldRect(selectedObject->id, selectedObject->anchorMin, nextAnchorMax);
+
                 float rotationDegrees = Radians_ToDegrees(selectedObject->rotationRadians);
                 if (ImGui::DragFloat("Rotation (deg)", &rotationDegrees, 1.f, -360.f, 360.f, "%.3f"))
-                {
-                    selectedObject->rotationRadians = Degrees_ToRadians(rotationDegrees);
-                    changed = true;
-                }
-                changed |= ImGui::DragInt("Sort Order", &selectedObject->sortOrder, 1.f);
+                    _editorManager.Set_UIObjectRotationRadians(selectedObject->id, Degrees_ToRadians(rotationDegrees));
+
+                int32 nextSortOrder = selectedObject->sortOrder;
+                if (ImGui::DragInt("Sort Order", &nextSortOrder, 1.f))
+                    _editorManager.Set_UIObjectSortOrder(selectedObject->id, nextSortOrder);
 
                 const char* renderGroupItems[] = { "Background", "Foreground" };
                 int32 currentRenderGroup = static_cast<int32>(selectedObject->renderGroup);
                 currentRenderGroup = min(max(currentRenderGroup, 0), static_cast<int32>(size(renderGroupItems)) - 1);
                 if (ImGui::Combo("Render Group", &currentRenderGroup, renderGroupItems, static_cast<int32>(size(renderGroupItems))))
-                {
-                    selectedObject->renderGroup = static_cast<UI_RenderGroup>(currentRenderGroup);
-                    changed = true;
-                }
+                    _editorManager.Set_UIObjectRenderGroup(selectedObject->id, static_cast<UI_RenderGroup>(currentRenderGroup));
 
-                changed |= ImGui::ColorEdit4("Color", &selectedObject->color.x);
-
-                selectedObject->scale.x = max(0.01f, selectedObject->scale.x);
-                selectedObject->scale.y = max(0.01f, selectedObject->scale.y);
-                selectedObject->pivot.x = min(max(selectedObject->pivot.x, 0.f), 1.f);
-                selectedObject->pivot.y = min(max(selectedObject->pivot.y, 0.f), 1.f);
-                selectedObject->anchorMin.x = min(max(selectedObject->anchorMin.x, 0.f), 1.f);
-                selectedObject->anchorMin.y = min(max(selectedObject->anchorMin.y, 0.f), 1.f);
-                selectedObject->anchorMax.x = min(max(selectedObject->anchorMax.x, 0.f), 1.f);
-                selectedObject->anchorMax.y = min(max(selectedObject->anchorMax.y, 0.f), 1.f);
-                const ImVec2 parentReferenceSize = _editorManager.Get_Document().Get_ParentAnchorReferenceSize(selectedObject->id);
-                const float minSizeX = 1.f - parentReferenceSize.x * max(0.f, selectedObject->anchorMax.x - selectedObject->anchorMin.x);
-                const float minSizeY = 1.f - parentReferenceSize.y * max(0.f, selectedObject->anchorMax.y - selectedObject->anchorMin.y);
-                selectedObject->size.x = max(minSizeX, selectedObject->size.x);
-                selectedObject->size.y = max(minSizeY, selectedObject->size.y);
+                ImVec4 nextColor = selectedObject->color;
+                if (ImGui::ColorEdit4("Color", &nextColor.x))
+                    _editorManager.Set_UIObjectColor(selectedObject->id, nextColor);
 
                 Render_LayoutPresets(*selectedObject);
 
                 if (selectedObject->type == UI_ObjectType::Image)
                 {
-                    changed |= Render_TexturePicker(*selectedObject);
+                    Render_TexturePicker(*selectedObject, createPatternOverlaySourceId);
                 }
                 else if (Is_ContainerObjectType(selectedObject->type))
                 {
@@ -170,30 +174,24 @@ namespace UIEditor
 
                     ImGui::TextUnformatted("Text Content");
                     if (ImGui::InputTextMultiline("##UITextContent", textBuffer, size(textBuffer), ImVec2(-1.f, 88.f)))
-                    {
-                        selectedObject->text = textBuffer;
-                        changed = true;
-                    }
+                        _editorManager.Set_UIObjectText(selectedObject->id, textBuffer);
 
-                    changed |= ImGui::DragFloat("Font Size", &selectedObject->fontSize, 1.f, 4.f, 256.f, "%.0f");
-                    selectedObject->fontSize = max(4.f, selectedObject->fontSize);
+                    float nextFontSize = selectedObject->fontSize;
+                    if (ImGui::DragFloat("Font Size", &nextFontSize, 1.f, 4.f, 256.f, "%.0f"))
+                        _editorManager.Set_UIObjectFontSize(selectedObject->id, nextFontSize);
 
                     const char* alignItems[] = { "Left", "Center", "Right" };
                     int32 currentAlign = static_cast<int32>(selectedObject->textAlign);
                     currentAlign = min(max(currentAlign, 0), 2);
                     if (ImGui::Combo("Text Align", &currentAlign, alignItems, static_cast<int32>(size(alignItems))))
-                    {
-                        selectedObject->textAlign = static_cast<UI_TextAlign>(currentAlign);
-                        changed = true;
-                    }
+                        _editorManager.Set_UIObjectTextAlign(selectedObject->id, static_cast<UI_TextAlign>(currentAlign));
 
-                    changed |= ImGui::Checkbox("Wrap Text", &selectedObject->textWrap);
+                    bool nextTextWrap = selectedObject->textWrap;
+                    if (ImGui::Checkbox("Wrap Text", &nextTextWrap))
+                        _editorManager.Set_UIObjectTextWrap(selectedObject->id, nextTextWrap);
 
-                    changed |= Render_FontPicker(*selectedObject);
+                    Render_FontPicker(*selectedObject);
                 }
-
-                if (changed)
-                    _editorManager.Mark_Dirty();
 
                 if (isEffectivelyLocked)
                     ImGui::EndDisabled();
@@ -202,13 +200,15 @@ namespace UIEditor
                     _editorManager.Commit_EditTransactionIfChanged();
 
                 ImGui::PopID();
+
+                if (createPatternOverlaySourceId != 0)
+                    _editorManager.Create_PatternOverlayFromImage(createPatternOverlaySourceId);
             }
             else
             {
                 if (!ImGui::IsAnyItemActive())
                     _editorManager.Commit_EditTransactionIfChanged();
 
-                const UI_Document& document = _editorManager.Get_Document();
                 ImGui::Text("Name: %s", document.Get_CanvasName().c_str());
                 ImGui::TextUnformatted("Type: Canvas");
                 ImGui::Separator();
@@ -222,7 +222,7 @@ namespace UIEditor
         ImGui::End();
     }
 
-    void UI_Inspector::Render_LayoutPresets(UI_Object& object)
+    void UI_Inspector::Render_LayoutPresets(const UI_Object& object)
     {
         struct Preset
         {
@@ -306,27 +306,78 @@ namespace UIEditor
         ImGui::PopID();
     }
 
-    bool UI_Inspector::Render_TexturePicker(UI_Object& object)
+    void UI_Inspector::Render_TexturePicker(const UI_Object& object, ObjectId& outCreatePatternOverlaySourceId)
     {
         ImGui::Separator();
 
+        const char* renderModeItems[] = { "Normal", "Pattern Overlay" };
+        UI_ImageRenderMode effectiveRenderMode = object.imageRenderMode;
+        int32 currentRenderMode = static_cast<int32>(effectiveRenderMode);
+        currentRenderMode = min(max(currentRenderMode, 0), static_cast<int32>(size(renderModeItems)) - 1);
+        if (ImGui::Combo("Image Render Mode", &currentRenderMode, renderModeItems, static_cast<int32>(size(renderModeItems))))
+        {
+            effectiveRenderMode = static_cast<UI_ImageRenderMode>(currentRenderMode);
+            _editorManager.Set_UIObjectImageRenderMode(object.id, effectiveRenderMode);
+        }
+
+        if (effectiveRenderMode == UI_ImageRenderMode::Normal)
+        {
+            if (ImGui::Button("Create Pattern Overlay From Selected Paint"))
+                outCreatePatternOverlaySourceId = object.id;
+        }
+
+        ImGui::Separator();
+
         const string popupId = "UITexturePicker##" + to_string(object.id);
-        bool changed = Draw_UITextureSlotPicker("UI Texture", popupId.c_str(), object.textureGuid, object.texturePath);
+        string nextTextureGuid = object.textureGuid;
+        string nextTexturePath = object.texturePath;
+        if (Draw_UITextureSlotPicker(
+            effectiveRenderMode == UI_ImageRenderMode::PatternOverlay ? "Pattern Texture" : "UI Texture",
+            popupId.c_str(),
+            nextTextureGuid,
+            nextTexturePath))
+        {
+            _editorManager.Set_UIObjectTextureBinding(object.id, nextTextureGuid, nextTexturePath);
+        }
 
         ImGui::Separator();
 
         const string maskPopupId = "UIMaskTexturePicker##" + to_string(object.id);
-        changed |= Draw_UITextureSlotPicker("UI Mask Texture", maskPopupId.c_str(), object.maskTextureGuid, object.maskTexturePath);
+        string nextMaskTextureGuid = object.maskTextureGuid;
+        string nextMaskTexturePath = object.maskTexturePath;
+        if (Draw_UITextureSlotPicker(
+            effectiveRenderMode == UI_ImageRenderMode::PatternOverlay ? "Paint Mask" : "UI Mask Texture",
+            maskPopupId.c_str(),
+            nextMaskTextureGuid,
+            nextMaskTexturePath))
+        {
+            _editorManager.Set_UIObjectMaskTextureBinding(object.id, nextMaskTextureGuid, nextMaskTexturePath);
+        }
 
-        return changed;
+        if (effectiveRenderMode == UI_ImageRenderMode::PatternOverlay)
+        {
+            ImGui::Separator();
+
+            const string patternMaskPopupId = "UIPatternMaskTexturePicker##" + to_string(object.id);
+            string nextPatternMaskTextureGuid = object.patternMaskTextureGuid;
+            string nextPatternMaskTexturePath = object.patternMaskTexturePath;
+            if (Draw_UITextureSlotPicker(
+                "Pattern Mask",
+                patternMaskPopupId.c_str(),
+                nextPatternMaskTextureGuid,
+                nextPatternMaskTexturePath))
+            {
+                _editorManager.Set_UIObjectPatternMaskTextureBinding(object.id, nextPatternMaskTextureGuid, nextPatternMaskTexturePath);
+            }
+        }
     }
 
-    bool UI_Inspector::Render_FontPicker(UI_Object& object)
+    void UI_Inspector::Render_FontPicker(const UI_Object& object)
     {
         ImGui::Separator();
 
         const string popupId = "UIFontPicker##" + to_string(object.id);
-        return Draw_FontSlotPicker("UI Font", popupId.c_str(), object);
+        Draw_FontSlotPicker("UI Font", popupId.c_str(), object);
     }
 
     bool UI_Inspector::Draw_UITextureSlotPicker(const char* label, const char* popupId, string& textureGuid, string& texturePath)
@@ -515,10 +566,8 @@ namespace UIEditor
         _filteredUITextureAssetsDirty = false;
     }
 
-    bool UI_Inspector::Draw_FontSlotPicker(const char* label, const char* popupId, UI_Object& object)
+    void UI_Inspector::Draw_FontSlotPicker(const char* label, const char* popupId, const UI_Object& object)
     {
-        bool changed = false;
-
         ImGui::TextUnformatted(label);
 
         const AssetMeta* selectedAsset = nullptr;
@@ -553,12 +602,7 @@ namespace UIEditor
 
         ImGui::SameLine();
         if (ImGui::Button(("Clear##Clear" + string(popupId)).c_str()))
-        {
-            object.fontGuid.clear();
-            object.fontPath.clear();
-            object.fontTag.clear();
-            changed = true;
-        }
+            _editorManager.Set_UIObjectFontBinding(object.id, "", "", "");
 
         if (ImGui::BeginPopup(popupId))
         {
@@ -589,8 +633,11 @@ namespace UIEditor
                         const bool isSelected = Is_FontAssetApplied(object, assetMeta);
                         if (ImGui::Selectable(Get_AssetFileName(assetMeta).c_str(), isSelected))
                         {
-                            Apply_FontAsset(object, assetMeta);
-                            changed = true;
+                            _editorManager.Set_UIObjectFontBinding(
+                                object.id,
+                                assetMeta.guid,
+                                Make_ClientRuntimeResourcePath(assetMeta),
+                                Make_FontTag(assetMeta));
                             ImGui::CloseCurrentPopup();
                         }
 
@@ -605,8 +652,6 @@ namespace UIEditor
 
             ImGui::EndPopup();
         }
-
-        return changed;
     }
 
     Shared<UI_Inspector> UI_Inspector::Create(UI_Editor_Manager& editorManager)

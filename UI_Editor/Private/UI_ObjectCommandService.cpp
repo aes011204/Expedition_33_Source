@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "UI_ObjectCommandService.h"
+#include "UI_DocumentInternalAccess.h"
 #include "UI_Editor_Utils.h"
 
 namespace UIEditor
@@ -10,8 +11,9 @@ namespace UIEditor
         {
             ObjectId id = 0;
             ImVec2 worldPosition = ImVec2(0.f, 0.f);
-            ImVec2 size = ImVec2(0.f, 0.f);
             ImVec2 center = ImVec2(0.f, 0.f);
+            ImVec2 aabbMin = ImVec2(0.f, 0.f);
+            ImVec2 aabbMax = ImVec2(0.f, 0.f);
         };
     }
 
@@ -48,7 +50,7 @@ namespace UIEditor
 
     ObjectId UI_ObjectCommandService::Create_Object(UI_Document& document, UI_ObjectType objectType, ObjectId parentId) const
     {
-        const ObjectId createdObjectId = document.Create_Object(objectType, parentId);
+        const ObjectId createdObjectId = UI_DocumentInternalAccess::Create_Object(document, objectType, parentId);
         if (createdObjectId == 0)
             return 0;
 
@@ -67,7 +69,7 @@ namespace UIEditor
         if (prefab.objects.empty() || prefab.rootObjectIds.empty())
             return {};
 
-        return document.Import_PrefabObjects(prefab.objects, prefab.rootObjectIds, parentId, rootOffset);
+        return UI_DocumentInternalAccess::Import_PrefabObjects(document, prefab.objects, prefab.rootObjectIds, parentId, rootOffset);
     }
 
     bool UI_ObjectCommandService::Can_DuplicateObject(const UI_Document& document, ObjectId objectId) const
@@ -80,7 +82,7 @@ namespace UIEditor
         if (!Can_DuplicateObject(document, objectId))
             return 0;
 
-        return document.Duplicate_Object(objectId, offset);
+        return UI_DocumentInternalAccess::Duplicate_Object(document, objectId, offset);
     }
 
     vector<ObjectId> UI_ObjectCommandService::Duplicate_Objects(
@@ -111,7 +113,7 @@ namespace UIEditor
         if (!Can_DeleteObject(document, objectId))
             return false;
 
-        return document.Delete_Object(objectId);
+        return UI_DocumentInternalAccess::Delete_Object(document, objectId);
     }
 
     bool UI_ObjectCommandService::Delete_Objects(UI_Document& document, const vector<ObjectId>& objectIds) const
@@ -133,7 +135,7 @@ namespace UIEditor
         if (!Can_RenameCanvas(newName))
             return false;
 
-        document.Set_CanvasName(newName);
+        UI_DocumentInternalAccess::Set_CanvasName(document, newName);
         return true;
     }
 
@@ -157,7 +159,7 @@ namespace UIEditor
         if (!Can_RenameObject(document, objectId, newName))
             return false;
 
-        UI_Object* object = document.Find_Object(objectId);
+        UI_Object* object = UI_DocumentInternalAccess::Find_Object(document, objectId);
         if (nullptr == object)
             return false;
 
@@ -179,14 +181,14 @@ namespace UIEditor
         ObjectId newParentId,
         bool keepWorldPosition) const
     {
-        const UI_Object* object = document.Find_Object(objectId);
+        const UI_Object* object = static_cast<const UI_Document&>(document).Find_Object(objectId);
         if (nullptr == object || object->parentId == newParentId)
             return false;
 
         if (!Can_ReparentObject(document, objectId, newParentId))
             return false;
 
-        return document.Change_Parent(objectId, newParentId, keepWorldPosition);
+        return UI_DocumentInternalAccess::Change_Parent(document, objectId, newParentId, keepWorldPosition);
     }
 
     bool UI_ObjectCommandService::Is_ObjectEffectivelyVisible(const UI_Document& document, ObjectId objectId) const
@@ -251,38 +253,6 @@ namespace UIEditor
         return unlockedObjectIds;
     }
 
-    bool UI_ObjectCommandService::Can_SetObjectVisible(const UI_Document& document, ObjectId objectId, bool visible) const
-    {
-        const UI_Object* object = document.Find_Object(objectId);
-        return nullptr != object && object->visible != visible;
-    }
-
-    bool UI_ObjectCommandService::Set_ObjectVisible(UI_Document& document, ObjectId objectId, bool visible) const
-    {
-        UI_Object* object = document.Find_Object(objectId);
-        if (nullptr == object || object->visible == visible)
-            return false;
-
-        object->visible = visible;
-        return true;
-    }
-
-    bool UI_ObjectCommandService::Can_SetObjectLocked(const UI_Document& document, ObjectId objectId, bool locked) const
-    {
-        const UI_Object* object = document.Find_Object(objectId);
-        return nullptr != object && object->locked != locked;
-    }
-
-    bool UI_ObjectCommandService::Set_ObjectLocked(UI_Document& document, ObjectId objectId, bool locked) const
-    {
-        UI_Object* object = document.Find_Object(objectId);
-        if (nullptr == object || object->locked == locked)
-            return false;
-
-        object->locked = locked;
-        return true;
-    }
-
     bool UI_ObjectCommandService::Can_AlignObjects(size_t objectCount, UI_AlignmentCommand command) const
     {
         if (objectCount < 2)
@@ -308,31 +278,31 @@ namespace UIEditor
 
         vector<ObjectRect> objectRects;
         objectRects.reserve(objectIds.size());
+        const UI_Document& readDocument = document;
 
         ImVec2 selectionMin = ImVec2(FLT_MAX, FLT_MAX);
         ImVec2 selectionMax = ImVec2(-FLT_MAX, -FLT_MAX);
 
         for (ObjectId objectId : objectIds)
         {
-            const UI_Object* object = document.Find_Object(objectId);
+            const UI_Object* object = readDocument.Find_Object(objectId);
             if (nullptr == object)
                 continue;
 
             ObjectRect rect = {};
             rect.id = objectId;
-            const ImVec2 worldCenter = document.Get_WorldCenter(objectId);
-            rect.size = document.Get_WorldSize(objectId);
-            rect.worldPosition = ImVec2(
-                worldCenter.x - rect.size.x * 0.5f,
-                worldCenter.y - rect.size.y * 0.5f);
+            const UI_WorldObjectFrame frame = Build_UIWorldObjectFrame(document, objectId);
+            rect.worldPosition = frame.worldPosition;
+            rect.aabbMin = frame.worldAabbMin;
+            rect.aabbMax = frame.worldAabbMax;
             rect.center = ImVec2(
-                rect.worldPosition.x + rect.size.x * 0.5f,
-                rect.worldPosition.y + rect.size.y * 0.5f);
+                (rect.aabbMin.x + rect.aabbMax.x) * 0.5f,
+                (rect.aabbMin.y + rect.aabbMax.y) * 0.5f);
 
-            selectionMin.x = min(selectionMin.x, rect.worldPosition.x);
-            selectionMin.y = min(selectionMin.y, rect.worldPosition.y);
-            selectionMax.x = max(selectionMax.x, rect.worldPosition.x + rect.size.x);
-            selectionMax.y = max(selectionMax.y, rect.worldPosition.y + rect.size.y);
+            selectionMin.x = min(selectionMin.x, rect.aabbMin.x);
+            selectionMin.y = min(selectionMin.y, rect.aabbMin.y);
+            selectionMax.x = max(selectionMax.x, rect.aabbMax.x);
+            selectionMax.y = max(selectionMax.y, rect.aabbMax.y);
 
             objectRects.push_back(rect);
         }
@@ -369,37 +339,38 @@ namespace UIEditor
         for (size_t index = 0; index < objectRects.size(); ++index)
         {
             const ObjectRect& rect = objectRects[index];
-            UI_Object* object = document.Find_Object(rect.id);
+            const UI_Object* object = readDocument.Find_Object(rect.id);
             if (nullptr == object)
                 continue;
 
             ImVec2 nextWorldPosition = rect.worldPosition;
+            ImVec2 moveDelta = ImVec2(0.f, 0.f);
             switch (command)
             {
             case UI_AlignmentCommand::Left:
-                nextWorldPosition.x = selectionMin.x;
+                moveDelta.x = selectionMin.x - rect.aabbMin.x;
                 break;
             case UI_AlignmentCommand::Right:
-                nextWorldPosition.x = selectionMax.x - rect.size.x;
+                moveDelta.x = selectionMax.x - rect.aabbMax.x;
                 break;
             case UI_AlignmentCommand::Top:
-                nextWorldPosition.y = selectionMin.y;
+                moveDelta.y = selectionMin.y - rect.aabbMin.y;
                 break;
             case UI_AlignmentCommand::Bottom:
-                nextWorldPosition.y = selectionMax.y - rect.size.y;
+                moveDelta.y = selectionMax.y - rect.aabbMax.y;
                 break;
             case UI_AlignmentCommand::CenterX:
-                nextWorldPosition.x = selectionCenter.x - rect.size.x * 0.5f;
+                moveDelta.x = selectionCenter.x - rect.center.x;
                 break;
             case UI_AlignmentCommand::CenterY:
-                nextWorldPosition.y = selectionCenter.y - rect.size.y * 0.5f;
+                moveDelta.y = selectionCenter.y - rect.center.y;
                 break;
             case UI_AlignmentCommand::DistributeHorizontal:
             {
                 const float firstCenter = objectRects.front().center.x;
                 const float lastCenter = objectRects.back().center.x;
                 const float step = (lastCenter - firstCenter) / static_cast<float>(objectRects.size() - 1);
-                nextWorldPosition.x = firstCenter + step * static_cast<float>(index) - rect.size.x * 0.5f;
+                moveDelta.x = firstCenter + step * static_cast<float>(index) - rect.center.x;
                 break;
             }
             case UI_AlignmentCommand::DistributeVertical:
@@ -407,20 +378,23 @@ namespace UIEditor
                 const float firstCenter = objectRects.front().center.y;
                 const float lastCenter = objectRects.back().center.y;
                 const float step = (lastCenter - firstCenter) / static_cast<float>(objectRects.size() - 1);
-                nextWorldPosition.y = firstCenter + step * static_cast<float>(index) - rect.size.y * 0.5f;
+                moveDelta.y = firstCenter + step * static_cast<float>(index) - rect.center.y;
                 break;
             }
             default:
                 break;
             }
 
-            if (fabsf(nextWorldPosition.x - rect.worldPosition.x) <= 0.001f &&
-                fabsf(nextWorldPosition.y - rect.worldPosition.y) <= 0.001f)
+            if (fabsf(moveDelta.x) <= 0.001f && fabsf(moveDelta.y) <= 0.001f)
             {
                 continue;
             }
 
-            if (document.Set_WorldPosition(rect.id, nextWorldPosition))
+            nextWorldPosition = ImVec2(
+                rect.worldPosition.x + moveDelta.x,
+                rect.worldPosition.y + moveDelta.y);
+
+            if (UI_DocumentInternalAccess::Set_WorldPosition(document, rect.id, nextWorldPosition))
                 changed = true;
         }
 
@@ -429,12 +403,12 @@ namespace UIEditor
 
     void UI_ObjectCommandService::Configure_ButtonLabel(UI_Document& document, ObjectId buttonObjectId) const
     {
-        UI_Object* buttonObject = document.Find_Object(buttonObjectId);
+        UI_Object* buttonObject = UI_DocumentInternalAccess::Find_Object(document, buttonObjectId);
         if (nullptr == buttonObject)
             return;
 
-        const ObjectId labelObjectId = document.Create_Object(UI_ObjectType::Text, buttonObjectId);
-        UI_Object* labelObject = document.Find_Object(labelObjectId);
+        const ObjectId labelObjectId = UI_DocumentInternalAccess::Create_Object(document, UI_ObjectType::Text, buttonObjectId);
+        UI_Object* labelObject = UI_DocumentInternalAccess::Find_Object(document, labelObjectId);
         if (nullptr == labelObject)
             return;
 

@@ -23,7 +23,6 @@ namespace UIEditor
         bool Has_SelectedObjects() const { return !_state.selectedObjectIds.empty(); }
         size_t Get_SelectedObjectCount() const { return _state.selectedObjectIds.size(); }
 
-        UI_Object* Get_SelectedObject(UI_Document& document) const;
         const UI_Object* Get_SelectedObject(const UI_Document& document) const;
 
         UI_SelectionState Make_CurrentSelectionState() const;

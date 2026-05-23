@@ -21,6 +21,11 @@ namespace
             return 24.f / 60.f;
         }
 
+        if (fileName == "33_damagenum_font.spritefont")
+        {
+            return 24.f / 256.f;
+        }
+
         if (fileName == "33_mainen_font.spritefont"  ||
             fileName == "33_mainnum_font.spritefont" ||
             fileName == "33_subnum_font.spritefont")
