@@ -195,6 +195,14 @@ void Monster_Part::Set_Animation(const string& animName, float blendDuration, bo
     _model->Set_Animation(animName, blendDuration, isLoop, startFrame);
 }
 
+void Monster_Part::Set_AnimationByState(uint32 stateIndex, float blendDuration, bool isLoop, float startFrame)
+{
+    if (_model == nullptr)
+        return;
+
+    _model->Set_AnimationByState(stateIndex, blendDuration, isLoop,startFrame);
+}
+
 bool Monster_Part::Play_Animation(float timeDelta)
 {
     if (_model == nullptr)
@@ -231,7 +239,7 @@ HRESULT Monster_Part::Ready_Components(const MONSTER_PART_DESC& desc)
             return E_FAIL;
     }
 
-    if (FAILED(Add_Component(ETOI(LevelType::GamePlay), desc.modelTag, _model)))
+    if (FAILED(Add_Component(ETOI(LevelType::Static), desc.modelTag, _model))) // 몬스터 파츠가 참조하는 모델 prototype은 Static에 둔다.
         return E_FAIL;
 
     if (desc.modelType == ModelType::Anim)

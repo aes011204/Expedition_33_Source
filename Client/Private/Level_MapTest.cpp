@@ -1,11 +1,11 @@
 ﻿#include "Level_MapTest.h"
-
 #include "Camera.h"
 #include "TargetCamera.h"
 #include "GameObject.h"
 #include "GameInstance.h"
 #include "ClientInstance.h"
 #include "MapLoader.h"
+#include "Spawn_Prefab.h"
 
 Level_MapTest::Level_MapTest(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Level{ device, context }
@@ -16,13 +16,15 @@ HRESULT Level_MapTest::Initialize()
 {
     CHECK_FAILED(Ready_Lights(), E_FAIL);
     CHECK_FAILED(Ready_Layer_BackGround(TEXT("Layer_BackGround")), E_FAIL);
-    CHECK_FAILED(Ready_Layer_UI(TEXT("Layer_UI")), E_FAIL);
-    //CHECK_FAILED(Ready_Layer_MapStaticMesh(TEXT("Layer_MapStaticMesh")), E_FAIL);
 
+    CHECK_FAILED(Ready_Layer_Player(TEXT("Layer_Player")), E_FAIL);
+    CHECK_FAILED(Ready_Layer_UI(TEXT("Layer_UI")), E_FAIL);
 
     // 플레이어가 생성되고 나서 Target 카메라를 준비해야한다. 순서 조심
-    CHECK_FAILED(Ready_Layer_Player(TEXT("Layer_Player")), E_FAIL);
     CHECK_FAILED(Ready_Layer_Camera(TEXT("Layer_Camera")), E_FAIL);
+
+    CHECK_FAILED(Ready_Layer_Monster(TEXT("Layer_Monster")), E_FAIL);
+    CHECK_FAILED(Ready_Layer_Effect(TEXT("Layer_Effect")), E_FAIL);
 
     return S_OK;
 }
@@ -129,9 +131,59 @@ HRESULT Level_MapTest::Ready_Layer_Camera(const wstring& strLayerTag)
 
 HRESULT Level_MapTest::Ready_Layer_Player(const wstring& strLayerTag)
 {
-    Vec3 startPos = Vec3(205.f, 6.5f, -1.24f);
+    Vec3 startPos = Vec3(5.f, 0.5f, -14.24f);
 
     CHECK_FAILED(CLIENT->Initialize_Hero(ETOI(LevelType::MapTest), TEXT("Layer_Player"), startPos), E_FAIL);
+
+    return S_OK;
+}
+
+HRESULT Level_MapTest::Ready_Layer_Monster(const wstring& strLayerTag)
+{
+    Vec3 startPos = Vec3(0.f, 1.15f, -7.94f);
+
+    const Shared<GameObject> monster = Client::Spawn_Prefab::Spawn(
+        Constants::Prefab::MW_Lancelier,
+        ETOI(LevelType::MapTest),
+        strLayerTag);
+
+    CHECK_NULL(monster, E_FAIL);
+    monster->Get_Transform()->Set_Position(startPos);
+
+
+    //Portier
+    const Shared<GameObject> monsterPortier = Client::Spawn_Prefab::Spawn(
+        Constants::Prefab::MW_Portier, // 월드 몬스터 prefab 이름은 MW_* 상수로 통일한다.
+        ETOI(LevelType::GamePlay),
+        strLayerTag);
+
+    CHECK_NULL(monster, E_FAIL);
+    monster->Get_Transform()->Set_Position(startPos + Vec3(0.f, 0.f, 10.f));
+
+    //Volester
+    const Shared<GameObject> monsterVolester = Client::Spawn_Prefab::Spawn(
+        Constants::Prefab::MW_Volester, // 월드 몬스터 prefab 이름은 MW_* 상수로 통일한다.
+        ETOI(LevelType::GamePlay),
+        strLayerTag);
+
+    CHECK_NULL(monster, E_FAIL);
+    monster->Get_Transform()->Set_Position(startPos + Vec3(0.f, 0.f, 20.f));
+
+    //Bishop
+    const Shared<GameObject> monsterBishop = Client::Spawn_Prefab::Spawn(
+        Constants::Prefab::MW_Bishop, // 월드 몬스터 prefab 이름은 MW_* 상수로 통일한다.
+        ETOI(LevelType::GamePlay),
+        strLayerTag);
+
+    CHECK_NULL(monster, E_FAIL);
+    monster->Get_Transform()->Set_Position(startPos + Vec3(0.f, 0.f, 30.f));
+    return S_OK;
+
+    return S_OK;
+}
+
+HRESULT Level_MapTest::Ready_Layer_Effect(const wstring& strLayerTag)
+{
 
     return S_OK;
 }

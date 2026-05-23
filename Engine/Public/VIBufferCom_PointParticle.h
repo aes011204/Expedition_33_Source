@@ -4,7 +4,8 @@
 
 NS_BEGIN(Engine)
 
-class [[deprecated("Use VIBufferCom_ComputePointParticle for compute sprite particles.")]] ENGINE_DLL VIBufferCom_PointParticle final : public VIBufferCom_Instance
+class [[deprecated("Use VIBufferCom_ComputePointParticle for compute sprite particles.")]] ENGINE_DLL
+    VIBufferCom_PointParticle final : public VIBufferCom_Instance
 {
     GENERATED_COMPONENT(VIBufferCom_PointParticle);
 
@@ -67,11 +68,11 @@ private: //## Helper::Seed
     static float Hash_Random01(uint32 seed);                       // particle index 기반 stable random 값을 만든다.
 
 private: //## Helper::Runtime
-    static bool Is_Expired(const ParticleInstanceVertex& instance);            // lifetime 종료 여부를 판단한다.
-    float Evaluate_LifeProgress(const ParticleInstanceVertex& instance) const; // 현재 인스턴스의 normalized lifeProgress를 계산한다.
-    Vec2 Evaluate_SizeMultiplier(float lifeProgress) const;                    // lifeProgress 기준 SizeByLife 배율을 계산한다.
+    static bool Is_Expired(const ParticleInstanceVertex& instance);                             // lifetime 종료 여부를 판단한다.
+    float Evaluate_LifeProgress(const ParticleInstanceVertex& instance) const;                  // 현재 인스턴스의 normalized lifeProgress를 계산한다.
+    Vec2 Evaluate_SizeMultiplier(float lifeProgress) const;                                     // lifeProgress 기준 SizeByLife 배율을 계산한다.
     Vec4 Evaluate_SubUVRect(float lifeProgress, float lifeCurrent, uint32 particleIndex) const; // 현재 frame 정책 기준으로 atlas uv rect를 계산한다.
-    void Update_InstanceOverLifePayload(uint32 index);                         // 현재 lifeProgress 결과를 runtime payload에 다시 반영한다.
+    void Update_InstanceOverLifePayload(uint32 index);                                          // 현재 lifeProgress 결과를 runtime payload에 다시 반영한다.
 
 public:
     static Shared<VIBufferCom_PointParticle> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

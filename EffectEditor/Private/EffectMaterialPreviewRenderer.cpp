@@ -96,7 +96,7 @@ EffectMaterialPreviewRenderer::EffectMaterialPreviewRenderer(uint32 previewTextu
 
 EffectMaterialPreviewRenderer::~EffectMaterialPreviewRenderer()
 {
-    End_ViewportDrag();
+    Cleanup();
 }
 
 void EffectMaterialPreviewRenderer::Render_Material(const EffectMaterialInstanceData& material)
@@ -117,12 +117,12 @@ void EffectMaterialPreviewRenderer::Render_Material(const EffectMaterialInstance
         !Ready_Meshes())
         return;
 
-    ID3D11ShaderResourceView* nullSrvs[D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT] = {};
-    EDITOR->Get_Context()->PSSetShaderResources(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, nullSrvs);
+    ID3D11ShaderResourceView* nullSRVs[D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT] = {};
+    EDITOR->Get_Context()->PSSetShaderResources(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, nullSRVs);
 
     if (FAILED(_renderTarget->Begin(true, true)))
     {
-        _statusMessage = "Preview render target begin failed.";
+        _statusMessage = "Preview render target begin is failed.";
         return;
     }
 
@@ -764,6 +764,38 @@ uint32 EffectMaterialPreviewRenderer::Resolve_BlendPassIndex(
         return isAdditive ? 3 : 2;
 
     return isAdditive ? 1 : 0;
+}
+
+void EffectMaterialPreviewRenderer::Cleanup()
+{
+    End_ViewportDrag();
+    _isViewportDragging = false;
+    _renderTarget.reset();
+    _shader.reset();
+    _texture.reset();
+    _noiseTexture.reset();
+    _planeMesh.vertexBuffer.Reset();
+    _planeMesh.indexBuffer.Reset();
+    _planeMesh.indexCount = 0;
+    _sphereMesh.vertexBuffer.Reset();
+    _sphereMesh.indexBuffer.Reset();
+    _sphereMesh.indexCount = 0;
+    _loadedTextureKey.clear();
+    _loadedNoiseTextureKey.clear();
+    _statusMessage.clear();
+    _hasRenderedPreview = false;
+    _hasPendingHome = false;
+}
+
+Unique<EffectMaterialPreviewRenderer> EffectMaterialPreviewRenderer::Create(uint32 previewTextureSize)
+{
+    return make_unique<EffectMaterialPreviewRenderer>(previewTextureSize);
+}
+
+void EffectMaterialPreviewRenderer::Free()
+{
+    Cleanup();
+    __super::Free();
 }
 
 NS_END

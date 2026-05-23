@@ -1,4 +1,4 @@
-﻿#include "PhysX_Manager.h"
+#include "PhysX_Manager.h"
 #include "ColliderCom.h"
 #include "Log_Define.h"
 #include "PhysX_Filter.h"
@@ -456,7 +456,7 @@ PhysXStaticActorHandle PhysX_Manager::Register_StaticCollision(const StaticColli
     CHECK_NULL(_defaultStaticMaterial, emptyHandle);
 
     const bool hasPrimitive = !collisionData.primitiveProxies.empty();
-    const bool hasTriangles = !collisionData.triangleMeshes.empty();
+    const bool hasTriangles = !collisionData.triangleMeshes.empty() || !collisionData.cookedTriangleMeshes.empty();
     if (!hasPrimitive && !hasTriangles)
         return emptyHandle;
 
@@ -565,7 +565,11 @@ PhysXStaticActorHandle PhysX_Manager::Register_StaticCollision(const StaticColli
         shape->release();
     }
 
-    for (const ModelCollisionMesh& mesh : collisionData.triangleMeshes)
+    const size_t triangleShapeCount = !collisionData.triangleMeshes.empty()
+        ? collisionData.triangleMeshes.size()
+        : triangleMeshes.size();
+
+    for (size_t i = 0; i < triangleShapeCount; ++i)
     {
         if (triangleMeshIndex >= triangleMeshes.size())
             break;
@@ -617,15 +621,29 @@ vector<PxTriangleMesh*> PhysX_Manager::Build_OrGetTriangleMeshes(const StaticCol
 
     vector<PxTriangleMesh*> cookedMeshes;
 
-    for (const ModelCollisionMesh& mesh : collisionData.triangleMeshes)
+    if (!collisionData.cookedTriangleMeshes.empty())
     {
-        PxTriangleMesh* triangleMesh =
-            Create_TriangleMesh(mesh, collisionData.preLocalTransform);
+        for (const auto& cookedData : collisionData.cookedTriangleMeshes)
+        {
+            PxTriangleMesh* triangleMesh = Create_TriangleMeshFromCooked(cookedData);
+            if (triangleMesh != nullptr)
+            {
+                cookedMeshes.push_back(triangleMesh);
+            }
+        }
+    }
+    else
+    {
+        for (const ModelCollisionMesh& mesh : collisionData.triangleMeshes)
+        {
+            PxTriangleMesh* triangleMesh =
+                Create_TriangleMesh(mesh, collisionData.preLocalTransform);
 
-        if (triangleMesh == nullptr)
-            continue;
+            if (triangleMesh == nullptr)
+                continue;
 
-        cookedMeshes.push_back(triangleMesh);
+            cookedMeshes.push_back(triangleMesh);
+        }
     }
 
     _triangleMeshCache.emplace(key, cookedMeshes);
@@ -1072,4 +1090,93 @@ void PhysX_Manager::Free()
     }
 #endif
     ReleaseManager(_foundation);
+}
+
+bool PhysX_Manager::Cook_TriangleMesh(const ModelCollisionMesh& meshData, const Matrix& preTransformMatrix, vector<uint8_t>& outCookedData)
+{
+    if (_physics == nullptr)
+        return false;
+
+    if (meshData.positions.empty() || meshData.indices.size() < 3)
+        return false;
+
+    if (meshData.indices.size() % 3 != 0)
+        return false;
+
+    vector<PxVec3> sourceVertices;
+    sourceVertices.reserve(meshData.positions.size());
+
+    for (const Vec3& position : meshData.positions)
+    {
+        const Vec3 transformedPosition = Vec3::Transform(position, preTransformMatrix);
+        sourceVertices.emplace_back(transformedPosition.x, transformedPosition.y, transformedPosition.z);
+    }
+
+    static constexpr PxU32 kInvalidIndex = 0xffffffffu;
+
+    vector<PxVec3> pxVertices;
+    pxVertices.reserve(sourceVertices.size());
+
+    vector<PxU32> remappedIndices(sourceVertices.size(), kInvalidIndex);
+    vector<PxU32> pxIndices;
+    pxIndices.reserve(meshData.indices.size());
+
+    for (size_t i = 0; i + 2 < meshData.indices.size(); i += 3)
+    {
+        const PxU32 i0 = static_cast<PxU32>(meshData.indices[i]);
+        const PxU32 i1 = static_cast<PxU32>(meshData.indices[i + 1]);
+        const PxU32 i2 = static_cast<PxU32>(meshData.indices[i + 2]);
+
+        if (i0 >= sourceVertices.size() || i1 >= sourceVertices.size() || i2 >= sourceVertices.size())
+            continue;
+
+        if (i0 == i1 || i1 == i2 || i2 == i0)
+            continue;
+
+        if (!Is_ValidTriangle(sourceVertices[i0], sourceVertices[i1], sourceVertices[i2]))
+            continue;
+
+        const PxU32 sourceTriangle[3] = { i0, i1, i2 };
+        for (PxU32 sourceIndex : sourceTriangle)
+        {
+            if (remappedIndices[sourceIndex] == kInvalidIndex)
+            {
+                remappedIndices[sourceIndex] = static_cast<PxU32>(pxVertices.size());
+                pxVertices.push_back(sourceVertices[sourceIndex]);
+            }
+
+            pxIndices.push_back(remappedIndices[sourceIndex]);
+        }
+    }
+
+    if (pxVertices.empty() || pxIndices.empty())
+        return false;
+
+    PxTriangleMeshDesc meshDesc{};
+    meshDesc.points.count = static_cast<PxU32>(pxVertices.size());
+    meshDesc.points.stride = sizeof(PxVec3);
+    meshDesc.points.data = pxVertices.data();
+
+    meshDesc.triangles.count = static_cast<PxU32>(pxIndices.size() / 3);
+    meshDesc.triangles.stride = sizeof(PxU32) * 3;
+    meshDesc.triangles.data = pxIndices.data();
+
+    PxCookingParams params(_physics->getTolerancesScale());
+    params.midphaseDesc = PxMeshMidPhase::eBVH34;
+
+    PxDefaultMemoryOutputStream outBuffer;
+    if (!PxCookTriangleMesh(params, meshDesc, outBuffer))
+        return false;
+
+    outCookedData.assign(outBuffer.getData(), outBuffer.getData() + outBuffer.getSize());
+    return true;
+}
+
+PxTriangleMesh* PhysX_Manager::Create_TriangleMeshFromCooked(const vector<uint8_t>& cookedData)
+{
+    if (_physics == nullptr || cookedData.empty())
+        return nullptr;
+
+    PxDefaultMemoryInputData stream(const_cast<PxU8*>(cookedData.data()), static_cast<PxU32>(cookedData.size()));
+    return _physics->createTriangleMesh(stream);
 }

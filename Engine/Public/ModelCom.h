@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "AnimNotify_Types.h"
 #include "AnimCompute_Types.h"
@@ -36,6 +36,7 @@ public:
     ModelType Get_ModelType() const { return _type; }
     uint32 Get_MaxTextureType() const { return _maxTextureType; }
     size_t Get_NumMeshes() const { return _meshes.size(); }
+    uint32 Get_NumIndices(uint32 meshIndex) const;
     size_t Get_NumMaterials() const { return _materials.size(); }
     size_t Get_NumBones() const { return _bones.size(); }
     size_t Get_NumAnimations() const { return _animations.size(); }

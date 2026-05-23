@@ -24,18 +24,25 @@ public:
 public:
     // 현재 authoring emitter 데이터를 다시 읽어 preview runtime object를 전부 재생성한다.
     HRESULT Restart_PreviewFromAuthoring();
+    // 마지막으로 빌드된 preview definition으로 runtime preview만 initial 상태로 되돌린다.
+    HRESULT Reset_PreviewRuntime();
 
 private:
-    static constexpr const wchar_t* kPreviewLayerTag{ L"Layer_Preview" };
+    static constexpr auto kPreviewLayerTag{ L"Layer_Preview" };
 
 private:
     vector<Shared<GameObject>> _previewObjects{};
+    Shared<const EffectDefinition> _currentPreviewDefinition{};
+    // Trail TypeData preview가 읽을 editor-local sample provider다.
+    Weak<IEffectTrailSampleProvider> _trailPreviewSampleProvider{};
 
 private:
+    HRESULT Restart_PreviewFromDefinition(const Shared<const EffectDefinition>& previewDefinition);
     // 현재 authoring emitters를 runtime preview용 EffectDefinition으로 묶는다.
     Shared<const EffectDefinition> Build_PreviewEffectDefinition(const vector<AuthoringEmitter>& emitters) const;
     // authoring emitter 1개를 runtime preview용 emitter definition으로 번역한다.
     EffectEmitterDefinition Build_PreviewEmitterDefinition(const AuthoringEmitter& emitter) const;
+    EffectEmitterDefinition Build_PreviewTrailEmitterDefinition(const AuthoringEmitter& emitter) const;
     // preview에 필요한 최소 directional light만 준비한다.
     HRESULT Ready_Lights();
     // EffectEditor preview용 orbit camera를 만들고 active camera로 지정한다.

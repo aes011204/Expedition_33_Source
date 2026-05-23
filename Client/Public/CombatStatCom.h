@@ -39,7 +39,6 @@ public:
         FCommonCharacterStats commonCharacterStats = {};
     };
 
-
     struct RuntimeCombatStat
     {
         float CurHp = {};
@@ -90,9 +89,13 @@ public:
     float Get_CurHp() { return Get_RuntimeStat().CurHp; };
     //void Set_CurHp(float hp) { Get_RuntimeStat().CurHp = hp; } //이건 일단  데미지 시스템을 통해서
     PlayerCharacterType Get_PlayerType() { return _playerType; }
+    void Set_PlayerType(PlayerCharacterType playerType) { _playerType = playerType; }
 
     vector<string> Get_SkillKey() { return _skillKeys; }
+    void Set_Skill(string skillName){
+        _skillKeys.push_back(skillName);
 
+    }
 
     //test
     string Get_FirstSkill();

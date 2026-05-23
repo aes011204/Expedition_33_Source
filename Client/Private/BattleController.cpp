@@ -1,4 +1,6 @@
 ﻿#include "BattleController.h"
+
+#include "AttackPlaying.h"
 #include "BuffSystem.h"
 #include "Character.h"
 #include "ClientInstance.h"
@@ -226,11 +228,7 @@ void BattleController::ExecuteAction(Action turnAction)
     if (!BattleChar.actor)
         return;
 
-    LOG_DEBUG(
-        "ExecuteAction: actor={}, type={}",
-        turnAction._curChar.actor ? String::ToString(turnAction._curChar.actor->Get_Name()).c_str() : "null",
-        static_cast<int>(turnAction.type)
-    );
+    OnActionStarted.Broadcast(turnAction);
 
     // 일반 공격도 스킬로 들어감 구분만 BaseAttack
     switch (turnAction.type)
@@ -382,6 +380,8 @@ void BattleController::Create_BattleChar(const vector<HeroId>& heroIds, vector<s
         battleChar.actor = ply;
         battleChar.statCom = character->Get_Component<CombatStatCom>();
 
+        battleChar.statCom->Set_PlayerType(To_PlayerCharacterType(heroId));
+
         // 월드에서 세팅된 스탯들을 배틀턴 진입 시 반영
         Shared<Player_WorldBase> worldHero = CLIENT->Find_Hero(heroId);
         Shared<PlayerStatCom> worldStat = worldHero ? worldHero->Get_Component<PlayerStatCom>() : nullptr;
@@ -471,7 +471,7 @@ void BattleController::SetCharInitPos()
     /*INFO = FiledMgr->GetFiledInfo(FieldID)
     INFO.
     */
-    const Vec3 startPos = Vec3(225.f, -4020.5f, -1.24f);
+    const Vec3 startPos = Vec3(22.f, 2.5f, -10.24f);
 
     const Vec3 playerPos[3] =
     {
@@ -1018,19 +1018,36 @@ void BattleController::Clear_BattleEnterPending()
     _pendingBattleMonsterPrefabNames.clear();
 }
 
+PlayerCharacterType BattleController::To_PlayerCharacterType(HeroId heroId)
+{
+    switch (heroId)
+    {
+    case HeroId::Gustave:
+        return PlayerCharacterType::Gustave;
+    case HeroId::Lune:
+        return PlayerCharacterType::Lune;
+    case HeroId::Maelle:
+        return PlayerCharacterType::Maelle;
+    case HeroId::END:
+    default:
+        return PlayerCharacterType::None;
+    }
+}
+
 void BattleController::Set_BattleFSM()
 {
     _battleFSM = BattleStateMachine::Create();
 
-    _battleFSM->Add_State(BattleTurnState::ChooseSkill, ChooseSkill::Create(dynamic_pointer_cast<BattleController>(shared_from_this())));
-    _battleFSM->Add_State(BattleTurnState::AttackTargeting, AttackTargeting::Create(dynamic_pointer_cast<BattleController>(shared_from_this())));
-    _battleFSM->Add_State(BattleTurnState::ChooseItem, ChooseItem::Create(dynamic_pointer_cast<BattleController>(shared_from_this())));
-    _battleFSM->Add_State(BattleTurnState::ChooseAction, ChooseAction::Create(dynamic_pointer_cast<BattleController>(shared_from_this())));
-    _battleFSM->Add_State(BattleTurnState::SkillTargeting, SkillTargeting::Create(dynamic_pointer_cast<BattleController>(shared_from_this())));
-    _battleFSM->Add_State(BattleTurnState::ItemTargeting, ItemTargeting::Create(dynamic_pointer_cast<BattleController>(shared_from_this())));
-    _battleFSM->Add_State(BattleTurnState::UltimateTargeting, UltimateTargeting::Create(dynamic_pointer_cast<BattleController>(shared_from_this())));
-    _battleFSM->Add_State(BattleTurnState::ChooseUltimate, ChooseUltimate::Create(dynamic_pointer_cast<BattleController>(shared_from_this())));
-    _battleFSM->Add_State(BattleTurnState::FreeAimTargeting, FreeAimTargeting::Create(dynamic_pointer_cast<BattleController>(shared_from_this())));
+    _battleFSM->Add_State(BattleTurnState::ChooseSkill, ChooseSkill::Create(GetSharedPtr<BattleController>()));
+    _battleFSM->Add_State(BattleTurnState::AttackTargeting, AttackTargeting::Create(GetSharedPtr<BattleController>()));
+    _battleFSM->Add_State(BattleTurnState::AttackPlaying, AttackPlaying::Create(GetSharedPtr<BattleController>()));
+    _battleFSM->Add_State(BattleTurnState::ChooseItem, ChooseItem::Create(GetSharedPtr<BattleController>()));
+    _battleFSM->Add_State(BattleTurnState::ChooseAction, ChooseAction::Create(GetSharedPtr<BattleController>()));
+    _battleFSM->Add_State(BattleTurnState::SkillTargeting, SkillTargeting::Create(GetSharedPtr<BattleController>()));
+    _battleFSM->Add_State(BattleTurnState::ItemTargeting, ItemTargeting::Create(GetSharedPtr<BattleController>()));
+    _battleFSM->Add_State(BattleTurnState::UltimateTargeting, UltimateTargeting::Create(GetSharedPtr<BattleController>()));
+    _battleFSM->Add_State(BattleTurnState::ChooseUltimate, ChooseUltimate::Create(GetSharedPtr<BattleController>()));
+    _battleFSM->Add_State(BattleTurnState::FreeAimTargeting, FreeAimTargeting::Create(GetSharedPtr<BattleController>()));
 
     //_battleFSM->Change_State(BattleTurnState::ChooseAction);
 }

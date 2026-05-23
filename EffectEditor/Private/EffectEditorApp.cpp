@@ -25,6 +25,32 @@ namespace Internal
         return prototypeTag == L"VIBuffer_Rect" || prototypeTag == L"VIBuffer_Cube";
     }
 
+    bool Is_EffectEditorPreviewComponentAllowed(const wstring& prototypeTag)
+    {
+        return
+            Starts_With(prototypeTag, L"Com_Effect_") ||
+            prototypeTag == L"Com_PlayerStat" ||
+            prototypeTag == L"Com_Collider_OBB";
+    }
+
+    bool Is_EffectEditorPreviewModelAllowed(const wstring& prototypeTag)
+    {
+        return
+            Starts_With(prototypeTag, L"Model_Effect_") ||
+            prototypeTag == L"Model_GustaveBody" ||
+            prototypeTag == L"Model_GustaveHead" ||
+            prototypeTag == L"Model_GustaveHair";
+    }
+
+    bool Is_EffectEditorPreviewGameObjectAllowed(const wstring& prototypeTag)
+    {
+        return
+            Starts_With(prototypeTag, L"GameObject_Effect_") ||
+            prototypeTag == L"GameObject_Body_Player" ||
+            prototypeTag == L"GameObject_Head_Player" ||
+            prototypeTag == L"GameObject_Hair_Player";
+    }
+
     bool Is_EffectEditorStaticLoadJobAllowed(const FLoadJob& loadJob)
     {
         switch (loadJob.eType)
@@ -34,13 +60,13 @@ namespace Internal
             return true;
 
         case ELoadJobType::Component:
-            return Starts_With(loadJob.strPrototypeTag, L"Com_Effect_");
+            return Is_EffectEditorPreviewComponentAllowed(loadJob.strPrototypeTag);
 
         case ELoadJobType::Model:
-            return Starts_With(loadJob.strPrototypeTag, L"Model_Effect_");
+            return Is_EffectEditorPreviewModelAllowed(loadJob.strPrototypeTag);
 
         case ELoadJobType::GameObject:
-            return Starts_With(loadJob.strPrototypeTag, L"GameObject_Effect_");
+            return Is_EffectEditorPreviewGameObjectAllowed(loadJob.strPrototypeTag);
 
         case ELoadJobType::StaticLevel:
             return Is_EffectEditorStaticLevelAllowed(loadJob.strPrototypeTag);

@@ -1,5 +1,6 @@
 ﻿#pragma once
 
+#include "Base.h"
 #include "EffectMaterialAuthoring_Types.h"
 #include "EffectPreviewOrbitCamera.h"
 
@@ -17,11 +18,11 @@ enum class EffectMaterialPreviewMeshMode : uint8
     Sphere,
 };
 
-class EffectMaterialPreviewRenderer final
+class EffectMaterialPreviewRenderer final : public Base
 {
 public:
     explicit EffectMaterialPreviewRenderer(uint32 previewTextureSize = 512);
-    ~EffectMaterialPreviewRenderer();
+    ~EffectMaterialPreviewRenderer() override;
 
 public:
     // 머티리얼 instance 값을 현재 preview render target에 반영할 때 호출한다.
@@ -103,6 +104,13 @@ private: //## Helper::Overlay
     void Draw_ViewportTextOverlay(const ImVec2& canvasMin, const ImVec2& canvasMax, const char* label);
     void Draw_MeshModeControls();
     uint32 Resolve_BlendPassIndex(const string& blendMode, EffectMaterialPreviewMeshMode meshMode) const;
+
+private: //## Helper::Lifecycle
+    void Cleanup();
+
+public:
+    static Unique<EffectMaterialPreviewRenderer> Create(uint32 previewTextureSize = 512);
+    void Free() override;
 };
 
 NS_END

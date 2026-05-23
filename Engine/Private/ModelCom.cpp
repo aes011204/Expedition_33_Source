@@ -64,6 +64,14 @@ ModelCom::ModelCom(const ModelCom& prototype)
     _leaderPoseMatricesValid = false;
 }
 
+uint32 ModelCom::Get_NumIndices(uint32 meshIndex) const
+{
+    if (meshIndex >= _meshes.size())
+        return 0;
+
+    return _meshes[meshIndex]->Get_NumIndices();
+}
+
 uint32 ModelCom::Get_MeshMaterialIndex(uint32 meshIndex) const
 {
     if (meshIndex >= _meshes.size())

@@ -43,7 +43,6 @@ private: //## Types::PlaybackRuntime
     };
 
 private: //## Static Values
-    static constexpr const char* kFallbackTextureGuid{ "3c90794a-31bb-4e97-969a-3fd4497acc0f" };
     static constexpr const char* kFallbackTexturePath{ "Effects/Textures/Shared/DefaultTexture.dds" };
     static constexpr const char* kEffectSpriteShaderId{ "Shader_EffectSprite" };
     static constexpr uint32 kEffectSpriteAlphaBlendPass{ 0 };

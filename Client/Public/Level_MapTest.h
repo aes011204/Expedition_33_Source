@@ -24,6 +24,9 @@ private:
     HRESULT Ready_Layer_Camera(const wstring& strLayerTag);
     HRESULT Ready_Layer_Player(const wstring& strLayerTag);
 
+    HRESULT Ready_Layer_Monster(const wstring& strLayerTag);
+    HRESULT Ready_Layer_Effect(const wstring& strLayerTag);
+
 public:
     static Shared<Level_MapTest> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
     virtual void Free() override;
