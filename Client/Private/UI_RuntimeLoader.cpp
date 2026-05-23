@@ -505,45 +505,33 @@ namespace
         }
     }
 
-    vector<RuntimeUIAnimationAssetBinding> Load_KeyframeAnimationAssetBindings(const wstring& animationDirectory)
+    vector<RuntimeUIAnimationAssetBinding> Load_KeyframeAnimationAssetBindings(const wstring& animationPath)
     {
         vector<RuntimeUIAnimationAssetBinding> bindings{};
-        if (animationDirectory.empty())
+        if (animationPath.empty())
             return bindings;
 
         const wstring assetRoot = GAME->Get_AssetRoot();
         if (assetRoot.empty())
             return bindings;
 
-        const fs::path directoryPath = (fs::path(assetRoot) / animationDirectory).lexically_normal();
-        if (!fs::exists(directoryPath) || !fs::is_directory(directoryPath))
+        wstring normalizedAnimationPath = animationPath;
+        replace(normalizedAnimationPath.begin(), normalizedAnimationPath.end(), L'\\', L'/');
+
+        const string loweredAnimationPath = String::ToLowerCopy(String::ToString(normalizedAnimationPath));
+        if (!EndsWith(loweredAnimationPath, ".uianim.json"))
+            normalizedAnimationPath += L".uianim.json";
+
+        const fs::path assetPath = (fs::path(assetRoot) / normalizedAnimationPath).lexically_normal();
+        if (!fs::exists(assetPath) || !fs::is_regular_file(assetPath))
         {
-            LOG_WARN("UI RuntimeLoader animation directory not found: {}", String::ToString(directoryPath.wstring()));
+            LOG_WARN("UI RuntimeLoader animation asset not found: {}", String::ToString(assetPath.wstring()));
             return bindings;
         }
 
-        try
-        {
-            for (const fs::directory_entry& entry : fs::directory_iterator(directoryPath))
-            {
-                if (!entry.is_regular_file())
-                    continue;
-
-                const string fileName = String::ToLowerCopy(String::ToString(entry.path().filename().wstring()));
-                if (!EndsWith(fileName, ".uianim.json"))
-                    continue;
-
-                RuntimeUIAnimationAssetBinding binding{};
-                if (Load_KeyframeAnimationAssetFile(entry.path(), binding))
-                    bindings.push_back(move(binding));
-            }
-        }
-        catch (const exception& exception)
-        {
-            LOG_WARN("UI RuntimeLoader animation directory scan failed: {} ({})",
-                exception.what(),
-                String::ToString(directoryPath.wstring()));
-        }
+        RuntimeUIAnimationAssetBinding binding{};
+        if (Load_KeyframeAnimationAssetFile(assetPath, binding))
+            bindings.push_back(move(binding));
 
         return bindings;
     }
@@ -1189,7 +1177,7 @@ HRESULT UI_RuntimeLoader::Load_Document(const UI_LoadDesc& desc)
     if (!Parse_Document(root, document))
         return E_FAIL;
 
-    Apply_KeyframeAnimationAssets(document, Load_KeyframeAnimationAssetBindings(desc.animationDirectory));
+    Apply_KeyframeAnimationAssets(document, Load_KeyframeAnimationAssetBindings(desc.animationPath));
 
     unordered_set<wstring> loadedFontTags;
     unordered_map<int32, Shared<UI_Base>> spawnedUIById;

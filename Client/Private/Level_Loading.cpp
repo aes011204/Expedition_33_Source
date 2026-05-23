@@ -138,7 +138,7 @@ HRESULT Level_Loading::Ready_Layer_UI(const wchar_t* pLayerTag)
     UI_RuntimeLoader::UI_LoadDesc desc{};
     desc.levelIndex = ETOI(LevelType::Loading);
     desc.jsonPath = Constants::UI::Loading_UI_Json_Path;
-    desc.animationDirectory = Constants::UI_Anim::UI_Animation_Dir;
+    desc.animationPath = Constants::UI_Anim::UI_LoadingAnim_Path;
 
     CHECK_FAILED(UI_RuntimeLoader::Load_Document(desc), E_FAIL);
 

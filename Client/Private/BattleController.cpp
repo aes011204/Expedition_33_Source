@@ -106,17 +106,12 @@ void BattleController::Update(float timeDelta)
 
     if (_isFreeAimShotPlaying)
     {
-        _battleActionExe->Update(timeDelta, _freeAimShotAction);
-
-        if (_battleActionExe->IsFinished())
+        if (_freeAimShotAction._curChar.ModelCom->Is_AnimationFinished())
         {
-            // End Turn으로 가지않고, AP만 소모되게
             Finish_FreeAimShot();
             return;
         }
 
-        // Free Aim 연출 중에는 같은 프레임 일반 턴 액션 실행 X
-        // 애니메이션 들어오면 내일 진행하기
         return;
     }
 
@@ -844,15 +839,9 @@ void BattleController::Begin_FreeAimShot(const Action& shotAction)
         return;
 
     _freeAimShotAction = shotAction;
-    _isFreeAimShotPlaying = false;
+    //_isFreeAimShotPlaying = false;
 
     if (_freeAimShotAction._curChar.ModelCom == nullptr)
-    {
-        _freeAimShotAction = {};
-        return;
-    }
-
-    if (_freeAimShotAction._selected_SkillKey.AnimPhases.empty())
     {
         _freeAimShotAction = {};
         return;
@@ -874,36 +863,44 @@ void BattleController::Begin_FreeAimShot(const Action& shotAction)
     _freeAimShotAction.originPos = _freeAimShotAction._curChar.actor->Get_Transform()->Get_Position();
     _freeAimShotAction._curAnimIndex = 0;
 
-    _battleActionExe->BeginAction(_freeAimShotAction);
+     _freeAimShotAction._curChar.ModelCom->Set_AnimationByState(
+        ETOI(BattleAnimType::FreeAim_Shoot),
+        0.1f,
+        false);
+    
     _isFreeAimShotPlaying = true;
 }
 
 void BattleController::Finish_FreeAimShot()
 {
     Clear_CurrentScript();
+    //Clear_TargetPreview();
+
+    if (_freeAimShotAction._curChar.ModelCom)
+    {
+        // Free Aim 발사 후에는 Base Idle로 풀지 않고 다시 조준 idle 자세로 복귀. 턴 종료가 안됐으니까
+        _freeAimShotAction._curChar.ModelCom->Set_AnimationByState(
+            ETOI(BattleAnimType::FreeAim_Idle),
+            0.1f,
+            true);
+    }
 
     _isFreeAimShotPlaying = false;
     _freeAimShotAction = {};
 
-    //Clear_TargetPreview();
 }
 
 void BattleController::OnActionEndNotify()
 {
     if (_isFreeAimShotPlaying)
     {
-        _battleActionExe->OnActionEndNotify(_freeAimShotAction);
-
-        if (_battleActionExe->IsFinished())
-            Finish_FreeAimShot();
+        Finish_FreeAimShot();
 
         return;
     }
 
     auto& action = Get_TurnAction();
     _battleActionExe->OnActionEndNotify(action);
-
-
 }
 
 vector<BattleChar> BattleController::Get_TurnOrderPreview(uint32 maxCount) const
@@ -912,14 +909,27 @@ vector<BattleChar> BattleController::Get_TurnOrderPreview(uint32 maxCount) const
     if (maxCount == 0)
         return preview;
 
+    auto queueCopy = _turnQueue;
+
     if (_currentTurnActor.actor != nullptr && _currentTurnActor.statCom != nullptr)
+    {
         preview.push_back(_currentTurnActor);
 
-    auto queueCopy = _turnQueue;
+        // 현재 턴 actor도 다시 들어와야해서 preview 큐에 다시
+        if (_currentTurnActor.statCom->Get_AliveStatus() == EAliveStatus::Alive)
+        {
+            TurnEntry nextEntry{};
+            nextEntry.hero = _currentTurnActor;
+            nextEntry.nextTime =
+                _battleTime + 100.f / max(_currentTurnActor.statCom->Get_Speed(), 1.f);
+
+            queueCopy.push(nextEntry);
+        }
+    }
 
     while (!queueCopy.empty() && preview.size() < maxCount)
     {
-        const TurnEntry entry = queueCopy.top();
+        TurnEntry entry = queueCopy.top();
         queueCopy.pop(); // 위에꺼먼저 삭제
 
         if (entry.hero.actor == nullptr || entry.hero.statCom == nullptr)
@@ -929,6 +939,9 @@ vector<BattleChar> BattleController::Get_TurnOrderPreview(uint32 maxCount) const
             continue;
 
         preview.push_back(entry.hero);
+
+        entry.nextTime += 100.f / max(entry.hero.statCom->Get_Speed(), 1.f);
+        queueCopy.push(entry);
     }
 
     return preview;

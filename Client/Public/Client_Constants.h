@@ -26,8 +26,13 @@ namespace Client::Constants::UI
 
     inline constexpr wchar_t UI_BattleSystem_HUD_Path[] = L"UI/UI_Json/BattleSystem/UI_BattleSystem_HUD.json";
     inline constexpr wchar_t UI_BattleSystem_Path[] = L"UI/UI_Json/BattleSystem/UI_BattleSystem.json";
-    inline constexpr wchar_t UI_BattleSystem_TurnOrder_Path[] = L"UI/UI_Json/BattleSystem/UI_BattleSystem_TurnOrder.json";
 
+    inline constexpr wchar_t UI_BattleSystem_TurnOrder_Path[] = L"UI/UI_Json/BattleSystem/TurnOrder/UI_BattleSystem_TurnOrder.json"; // Legacy
+    inline constexpr wchar_t UI_BattleSystem_TurnOrder_Frame_Path[] = L"UI/UI_Json/BattleSystem/TurnOrder/UI_BattleSystem_TurnOrder_Frame.json";
+    inline constexpr wchar_t UI_BattleSystem_TurnOrder_CurPlayer_Path[] = L"UI/UI_Json/BattleSystem/TurnOrder/UI_BattleSystem_TurnOrder_CurrentTurn_Player.json";
+    inline constexpr wchar_t UI_BattleSystem_TurnOrder_CurMonster_Path[] = L"UI/UI_Json/BattleSystem/TurnOrder/UI_BattleSystem_TurnOrder_CurrentTurn_Monster.json";
+    inline constexpr wchar_t UI_BattleSystem_TurnOrder_Player_Path[] = L"UI/UI_Json/BattleSystem/TurnOrder/UI_BattleSystem_TurnOrder_Player.json";
+    inline constexpr wchar_t UI_BattleSystem_TurnOrder_Monster_Path[] = L"UI/UI_Json/BattleSystem/TurnOrder/UI_BattleSystem_TurnOrder_Monster.json";
 
     inline constexpr wchar_t UI_Battle_Defense_Path[] = L"UI/UI_Json/BattleSystem/UI_BattleSystem_Defense.json";
     inline constexpr wchar_t UI_Cancel_Aim_Path[] = L"UI/UI_Json/BattleSystem/UI_Cancle_Aim.json";
@@ -37,13 +42,20 @@ namespace Client::Constants::UI
     inline constexpr wchar_t UI_Target_Monster_Path[] = L"UI/UI_Json/BattleSystem/UI_Target_Monster.json";
 
     inline constexpr wchar_t UI_CrossAir_Path[] = L"UI/UI_Json/BattleSystem/UI_CrossAir.json";
+
+    inline constexpr wchar_t UI_NormalDamageFont_Path[] = L"UI/UI_Json/BattleSystem/UI_NormalDamageFont.json";
+    inline constexpr wchar_t UI_CriticalDamageFont_Path[] = L"UI/UI_Json/BattleSystem/UI_CriticalDamageFont.json";
 #pragma endregion
 
 }
 
 namespace Client::Constants::UI_Anim
 {
-    inline constexpr wchar_t UI_Animation_Dir[] = L"UI/UI_Animations";
+    inline constexpr wchar_t UI_LoadingAnim_Path[] = L"UI/UI_Animations/Scene/Loading";
+
+    inline constexpr wchar_t UI_CrossAirAnim_Path[] = L"UI/UI_Animations/BattleSystem/CrossAir/Ready_CrossAir";
+    inline constexpr wchar_t UI_NormalDamageFontAnim_Path[] = L"UI/UI_Animations/BattleSystem/DamageFont/NormalDamageFont";
+    inline constexpr wchar_t UI_CriticalDamageFontAnim_Path[] = L"UI/UI_Animations/BattleSystem/DamageFont/CriticalDamageFont";
 }
 
 namespace Client::Constants::Map

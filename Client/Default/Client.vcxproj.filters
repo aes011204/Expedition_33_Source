@@ -71,7 +71,10 @@
     <Filter Include="BehavoirTree\world" />
     <Filter Include="Skill" />
   </ItemGroup>
-  <ItemGroup />
+  <ItemGroup>
+    <ClCompile Include="..\Private\UI_BattleSystem_TurnOrder.cpp" />
+    <ClCompile Include="..\Private\UI_DamageFont.cpp" />
+  </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimBlend.hlsl" />
@@ -572,6 +575,8 @@
     <ClInclude Include="..\Public\Weapon.h">
       <Filter>02.GameObject\Player\PlayerParts\Weapon</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\UI_BattleSystem_TurnOrder.h" />
+    <ClInclude Include="..\Public\UI_DamageFont.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">
