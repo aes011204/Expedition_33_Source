@@ -295,6 +295,14 @@ enum class AuthoringTypeDataKind : uint8
     Trail,
 };
 
+enum class TrailCurveQuality : uint8
+{
+    Basic,       // 기존 호환에 가까운 기본 trail 곡선 preset이다.
+    Smooth,      // 보간 밀도를 높여 swing arc를 부드럽게 만드는 preset이다.
+    HighQuality, // 더 촘촘한 sample로 곡선을 만드는 고품질 preset이다.
+    Custom,      // 세부 곡선 값을 직접 편집하는 모드다.
+};
+
 struct EmptyTypeData
 {};
 
@@ -304,7 +312,11 @@ struct TrailTypeData
     float segmentLifetime{ 0.25f };
     uint32 historyCount{ 32 };
     float uvTiling{ 1.f };
-    bool smoothTangent{ true };
+    TrailCurveQuality curveQuality{ TrailCurveQuality::Basic }; // trail 곡선 품질 preset 선택값이다.
+    float sampleSpacing{ 0.08f };                               // 이동 거리 기준 중간 sample 삽입 간격이다.
+    uint32 curveSubdivision{ 4 };                                // 한 frame에서 보강할 최대 중간 sample 수다.
+    bool smoothTangent{ true };                                  // 앞뒤 sample 평균으로 곡선을 완만하게 보정할지 결정한다.
+    float sideFade{ 0.08f };                                     // 폭 방향 alpha edge 감소 강도다.
 };
 
 using AuthoringTypeDataPayload = variant<EmptyTypeData, TrailTypeData>;

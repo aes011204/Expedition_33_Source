@@ -754,7 +754,10 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewTrailEmitterDefinition(
         emitterDesc.segmentLifetime = max(0.001f, trailData->segmentLifetime);
         emitterDesc.historyCount = max(2u, trailData->historyCount);
         emitterDesc.uvTiling = max(0.001f, trailData->uvTiling);
+        emitterDesc.sampleSpacing = max(0.001f, trailData->sampleSpacing);
+        emitterDesc.curveSubdivision = max(0u, trailData->curveSubdivision);
         emitterDesc.smoothTangent = trailData->smoothTangent;
+        emitterDesc.sideFade = clamp(trailData->sideFade, 0.001f, 0.49f);
     }
 
     if (const auto* required = Internal::Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))

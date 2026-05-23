@@ -145,7 +145,11 @@ namespace Internal
         root["segmentLifetime"] = data.segmentLifetime;
         root["historyCount"] = data.historyCount;
         root["uvTiling"] = data.uvTiling;
+        root["curveQuality"] = To_EnumToken(data.curveQuality);
+        root["sampleSpacing"] = data.sampleSpacing;
+        root["curveSubdivision"] = data.curveSubdivision;
         root["smoothTangent"] = data.smoothTangent;
+        root["sideFade"] = data.sideFade;
         return root;
     }
 
@@ -158,7 +162,13 @@ namespace Internal
         Read_NumberField(root, "segmentLifetime", outData.segmentLifetime);
         Read_NumberField(root, "historyCount", outData.historyCount);
         Read_NumberField(root, "uvTiling", outData.uvTiling);
+        const auto curveQualityIter = root.find("curveQuality");
+        if (curveQualityIter != root.end())
+            Try_ReadEnumToken(*curveQualityIter, outData.curveQuality);
+        Read_NumberField(root, "sampleSpacing", outData.sampleSpacing);
+        Read_NumberField(root, "curveSubdivision", outData.curveSubdivision);
         Read_BoolField(root, "smoothTangent", outData.smoothTangent);
+        Read_NumberField(root, "sideFade", outData.sideFade);
     }
 
     json To_Json(const AuthoringTypeData& data)

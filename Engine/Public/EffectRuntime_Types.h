@@ -174,11 +174,14 @@ struct ComputeTrailEmitterDesc : public GameObject::GAMEOBJECT_DESC
     EffectRequiredMaterialRuntimeDesc material{}; // trail 기본 material/tint/blend 값이다.
     EffectEmitterPlaybackRuntimeDesc playback{};  // duration/loop/delay 같은 공통 재생 규칙이다.
 
-    float width{ 0.1f };            // base-tip 축을 기준으로 보정할 최소 폭이다.
+    float width{ 0.1f };            // render sample의 center 기준으로 적용할 world-space strip 폭이다.
     float segmentLifetime{ 0.25f }; // history sample 하나가 화면에 남는 시간이다.
     uint32 historyCount{ 32 };      // trail이 유지할 최대 sample 개수다.
     float uvTiling{ 1.f };          // trail 진행 방향의 기본 UV 반복값이다.
-    bool smoothTangent{ true };     // 후속 tangent smoothing 확장을 위한 v0 보존 플래그다.
+    float sampleSpacing{ 0.08f };   // render-time curve sample의 이동 거리 기준 간격이다.
+    uint32 curveSubdivision{ 4 };   // 원본 sample interval 하나에서 만들 최대 render segment 수다.
+    bool smoothTangent{ true };     // render sample 생성 전 원본 history tangent를 완만하게 보정할지 결정한다.
+    float sideFade{ 0.08f };        // 폭 방향 alpha edge 감소 강도다.
 
     Weak<IEffectTrailSampleProvider> sampleProvider{}; // attachment 계산 owner가 공급하는 sample source다.
 };
