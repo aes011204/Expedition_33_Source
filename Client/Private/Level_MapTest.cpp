@@ -155,6 +155,7 @@ HRESULT Level_MapTest::Ready_Layer_Monster(const wstring& strLayerTag)
 HRESULT Level_MapTest::Ready_Layer_Effect(const wstring& strLayerTag)
 {
 
+
     return S_OK;
 }
 

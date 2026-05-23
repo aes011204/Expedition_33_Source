@@ -6,6 +6,7 @@
 #include "ColliderCom.h"
 #include "GameInstance.h"
 #include "PlayerStatCom.h"
+#include "Weapon.h"
 
 
 Player_BattleBase::Player_BattleBase(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -70,7 +71,7 @@ HRESULT Player_BattleBase::Ready_PartObjects()
 
     CHECK_FAILED(Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Body_Player"), TEXT("Part_Body"), &bodyDesc), E_FAIL);
 
-    const Body_Player* body = dynamic_cast<Body_Player*>(_partObjects[TEXT("Part_Body")].get());
+    Body_Player* body = dynamic_cast<Body_Player*>(_partObjects[TEXT("Part_Body")].get());
     CHECK_NULL(body, E_FAIL);
 
     Head_Player::HEAD_PLAYER_DESC headDesc{};
@@ -95,7 +96,36 @@ HRESULT Player_BattleBase::Ready_PartObjects()
 
     CHECK_FAILED(Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Hair_Player"), TEXT("Part_Hair"), &hairDesc), E_FAIL);
 
+    CHECK_FAILED(Ready_WeaponPart(body), E_FAIL);
+
     return S_OK;
+}
+
+HRESULT Player_BattleBase::Ready_WeaponPart(Body_Player* body)
+{
+    CHECK_NULL(body, E_FAIL);
+
+    WeaponAttachDesc attachDesc{};
+    if (!Try_GetWeaopnAttackDesc(attachDesc))
+        return S_OK; // 무기가 없는 캐릭터는 여기서 끝
+
+    CHECK_NULL(attachDesc.modelTag, E_FAIL);
+    CHECK_NULL(attachDesc.socketName, E_FAIL);
+
+    const Matrix* socketMatrix = body->Get_SocketBoneMatrixPtr(attachDesc.socketName);
+    CHECK_NULL(socketMatrix, E_FAIL);
+
+    Weapon::WEAPON_DESC weaponDesc;
+    weaponDesc.parentMatrix = &_transformCom->Get_WorldMatrix();
+    weaponDesc.modelType = ModelType::NonAnim;
+    weaponDesc.modelTag = attachDesc.modelTag;
+    weaponDesc.socketMatrix = socketMatrix;
+
+    CHECK_FAILED(Add_PartObject(ETOI(LevelType::Static),
+            TEXT("GameObject_Weapon"), TEXT("Part_Weapon"), &weaponDesc), E_FAIL);
+
+    return S_OK;
+
 }
 
 HRESULT Player_BattleBase::Ready_Components()
