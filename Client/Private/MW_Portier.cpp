@@ -74,6 +74,9 @@ void MW_Portier::OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> ot
 
 void MW_Portier::Set_BattleMonsterPrefabNames(vector<string>& outPrefabNames) const
 {
+    outPrefabNames.push_back(Constants::Prefab::MB_Lancelier);
+    outPrefabNames.push_back(Constants::Prefab::MB_Portier);
+    outPrefabNames.push_back(Constants::Prefab::MB_Volester);
 }
 
 HRESULT MW_Portier::Ready_Components()
@@ -93,6 +96,8 @@ HRESULT MW_Portier::Ready_PartObjects()
 
     _body = dynamic_pointer_cast<Mon_Portier_Body>(_partObjects[TEXT("Part_Body")]);
     CHECK_NULL(_body, E_FAIL);
+
+    return S_OK;
 }
 
 Shared<MW_Portier> MW_Portier::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
