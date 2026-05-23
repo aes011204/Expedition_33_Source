@@ -1,4 +1,4 @@
-#include "ShaderCom.h"
+﻿#include "ShaderCom.h"
 #include "Material.h"
 
 ShaderCom::ShaderCom(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -17,6 +17,10 @@ ShaderCom::ShaderCom(const ShaderCom& prototype)
         _CB[i] = prototype._CB[i];
 
     _materialTextures = prototype._materialTextures;
+    _drawFeatureTextures = prototype._drawFeatureTextures;
+
+    for (uint32 i = 0; i < _countof(_featureSRVs); ++i)
+        _featureSRVs[i] = nullptr;
 }
 
 HRESULT ShaderCom::Initialize_Prototype(const wchar_t* shaderFilePath, const D3D11_INPUT_ELEMENT_DESC* elements, uint32 numElements, ShaderType shader)
@@ -76,33 +80,17 @@ HRESULT ShaderCom::Initialize_Prototype(const wchar_t* shaderFilePath, const D3D
 
         _inputLayouts.emplace_back(std::move(inputLayout));
     }
+    
+    // Effect 변수 핸들 캐싱
+    for (uint32 i = 0; i < ETOI(ConstantBuffer::END); ++i)
+    {
+        auto buffer = _effect->GetConstantBufferByName(ShaderCB::Names[i].data());
+        if (buffer != nullptr && buffer->IsValid())
+            _CB[i] = buffer;
+    }
 
-    // TODO CB 확장에 따른 추가 !!  캐싱 ==========================================
-    _CB[ETOI(ConstantBuffer::Material)] =
-        _effect->GetConstantBufferByName(ShaderCB::Material.data());
-
-    _CB[ETOI(ConstantBuffer::Camera)] =
-        _effect->GetConstantBufferByName(ShaderCB::Camera.data());
-
-    _CB[ETOI(ConstantBuffer::Object)] =
-        _effect->GetConstantBufferByName(ShaderCB::Object.data());
-
-    _CB[ETOI(ConstantBuffer::Shadow)] =
-        _effect->GetConstantBufferByName(ShaderCB::Shadow.data());
-
-    _CB[ETOI(ConstantBuffer::ScreenSpace)] =
-        _effect->GetConstantBufferByName(ShaderCB::ScreenSpace.data());
-
-    _CB[ETOI(ConstantBuffer::Light)] =
-        _effect->GetConstantBufferByName(ShaderCB::Light.data());
-
-    _CB[ETOI(ConstantBuffer::SSAO)] =
-        _effect->GetConstantBufferByName(ShaderCB::SSAO.data());
-
-    _CB[ETOI(ConstantBuffer::PostProcess)] =
-        _effect->GetConstantBufferByName(ShaderCB::PostProcess.data());
-
-    _materialTextures = Get_ShaderResourceVariable("g_MaterialTextures");
+    _materialTextures = Get_ShaderResourceVariable(ShaderSRV::MaterialTextures.data());
+    _drawFeatureTextures = Get_ShaderResourceVariable(ShaderSRV::DrawFeatureTextures.data());
 
     _type = shader;
 
@@ -197,8 +185,8 @@ HRESULT ShaderCom::Update_CBuffer(ConstantBuffer cbType, const void* pData, size
     if (cbIndex >= ETOI(ConstantBuffer::END))
         return E_FAIL;
 
-    if (_CB[cbIndex] == nullptr)
-        return E_FAIL;
+    if (_CB[cbIndex] == nullptr || !_CB[cbIndex]->IsValid())
+        return S_OK;
 
     if (_allocatedCB[cbIndex] == nullptr)
     {
@@ -309,6 +297,53 @@ HRESULT ShaderCom::Bind_MaterialTextures(Material& material)
     }
 
     return _materialTextures->SetResourceArray(srvs, 0, ETOI(MaterialTextureSlot::END));
+}
+
+HRESULT ShaderCom::Bind_FeatureTextures(ID3D11ShaderResourceView** ppSRVs, uint32 numSRVs)
+{
+    if (_drawFeatureTextures == nullptr)
+        return E_FAIL;
+
+    const uint32 maxCount = static_cast<uint32>(_countof(_featureSRVs));
+    if (numSRVs > maxCount)
+        return E_FAIL;
+
+    if (numSRVs > 0 && ppSRVs == nullptr)
+        return E_FAIL;
+
+    for (uint32 i = 0; i < maxCount; ++i)
+        _featureSRVs[i] = (i < numSRVs) ? ppSRVs[i] : nullptr;
+
+    ID3D11ShaderResourceView* rawSRVs[_countof(_featureSRVs)]{};
+    for (uint32 i = 0; i < maxCount; ++i)
+        rawSRVs[i] = _featureSRVs[i].Get();
+
+    return _drawFeatureTextures->SetResourceArray(rawSRVs, 0, maxCount);
+}
+
+HRESULT ShaderCom::Clear_FeatureTextures()
+{
+    if (_drawFeatureTextures == nullptr)
+        return E_FAIL;
+
+    for (uint32 i = 0; i < _countof(_featureSRVs); ++i)
+        _featureSRVs[i] = nullptr;
+
+    ID3D11ShaderResourceView* rawSRVs[4]{};
+    return _drawFeatureTextures->SetResourceArray(rawSRVs, 0, static_cast<uint32>(_countof(_featureSRVs)));
+}
+
+HRESULT ShaderCom::Bind_DrawFeatures(const DrawFeatureCB& cb, ID3D11ShaderResourceView** ppSRVs, uint32 numSRVs)
+{
+    CHECK_FAILED(Bind_FeatureTextures(ppSRVs, numSRVs), E_FAIL);
+    return Bind_CBufferData(cb);
+}
+
+HRESULT ShaderCom::Reset_DrawFeatures()
+{
+    DrawFeatureCB drawFeatureCB{};
+    CHECK_FAILED(Clear_FeatureTextures(), E_FAIL);
+    return Bind_CBufferData(drawFeatureCB);
 }
 
 HRESULT ShaderCom::Bind_ObjectCB(const Matrix& worldMatrix)

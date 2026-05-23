@@ -123,6 +123,8 @@ namespace Engine
         Light           = 5,
         SSAO            = 6,
         PostProcess     = 7,
+        Hair            = 8,
+        DrawFeature     = 9,
 
         END
     };

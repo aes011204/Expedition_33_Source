@@ -268,4 +268,172 @@ EyeMaterialSample SampleEyeMaterial(float2 uv)
     return Out;
 }
 
+
+float Blender_ColorToValue(float3 color)
+{
+    return dot(color, float3(0.2126729f, 0.7151522f, 0.0721750f));
+}
+
+float3 Blender_MixColor_Mix(float factor, float3 A, float3 B)
+{
+    factor = saturate(factor);
+    return lerp(A, B, factor);
+}
+
+float3 RGBToHSV(float3 color)
+{
+    float r = color.r;
+    float g = color.g;
+    float b = color.b;
+
+    float maxValue = max(r, max(g, b));
+    float minValue = min(r, min(g, b));
+    float delta = maxValue - minValue;
+
+    float h = 0.f;
+    float s = 0.f;
+    float v = maxValue;
+
+    if (delta > 0.00001f)
+    {
+        s = delta / maxValue;
+
+        if (maxValue == r)
+        {
+            h = (g - b) / delta;
+            if (h < 0.f)
+                h += 6.f;
+        }
+        else if (maxValue == g)
+        {
+            h = ((b - r) / delta) + 2.f;
+        }
+        else
+        {
+            h = ((r - g) / delta) + 4.f;
+        }
+
+        h /= 6.f;
+    }
+
+    return float3(h, s, v);
+}
+
+float3 HSVToRGB(float3 hsv)
+{
+    float h = frac(hsv.x);
+    float s = saturate(hsv.y);
+    float v = hsv.z;
+
+    if (s <= 0.00001f)
+        return v.xxx;
+
+    float sector = h * 6.f;
+    int i = (int) floor(sector);
+    float f = sector - (float) i;
+
+    float p = v * (1.f - s);
+    float q = v * (1.f - s * f);
+    float t = v * (1.f - s * (1.f - f));
+
+    if (i == 0)
+        return float3(v, t, p);
+    if (i == 1)
+        return float3(q, v, p);
+    if (i == 2)
+        return float3(p, v, t);
+    if (i == 3)
+        return float3(p, q, v);
+    if (i == 4)
+        return float3(t, p, v);
+
+    return float3(v, p, q);
+}
+
+float SampleHairMask(float2 uv)
+{
+    return saturate(g_MaterialTextures[MATERIAL_SLOT_OPACITY_MASK].Sample(LinearWrapSampler, uv).r);
+}
+
+float3 Blender_HueSaturationValue(float3 color, float hue, float saturation, float value, float factor)
+{
+    float3 hsv = RGBToHSV(color);
+
+    // Blender Hue/Saturation/Value 노드 기준:
+    // Hue 0.5가 원본 색상 유지에 가까움
+    float hueOffset = hue - 0.5f;
+
+    hsv.x = frac(hsv.x + hueOffset);
+    hsv.y *= saturation;
+    hsv.z *= value;
+
+    float3 adjustedColor = HSVToRGB(hsv);
+
+    return lerp(color, adjustedColor, saturate(factor));
+}
+
+float3 Apply_PrincipledHairBSDF_Color(float3 color)
+{
+    // 현재 GBuffer 패스에서는 Blender의 Chiang Hair BSDF 조명 모델을 직접 계산하지 않는다.
+    // 우선 Principled Hair BSDF의 Color 입력을 최종 BaseColor로 내보낸다.
+    return color;
+}
+
+float3 Compute_BlenderHairColor(float2 finalUV)
+{
+    // Color Gradient Mix
+    float4 hairColorTex = g_MaterialTextures[MATERIAL_SLOT_BASECOLOR].Sample(LinearWrapSampler, finalUV);
+
+    // T_Hair_Lune_Color의 Color 출력이 Factor로 들어간다.
+    float colorFactor = Blender_ColorToValue(hairColorTex.rgb);
+
+    float3 hairColor = g_BaseColorTint.rgb;
+
+    // Blender_MixColor_Mix(
+    //     colorFactor,
+    //     g_BaseColorTint.rgb,
+    //     g_BaseColorTint.rgb + float3(0.02f, 0.02f, 0.02f)
+    // );
+
+    // Per-Strand Color Variation
+    float4 hairIDTex = g_MaterialTextures[MATERIAL_SLOT_HAIR_ID].Sample(LinearWrapSampler, finalUV);
+
+    float hairIDValue = Blender_ColorToValue(hairIDTex.rgb);
+
+    float hue = hairIDValue * 0.134f + 0.5f;
+
+    hairColor = Blender_HueSaturationValue(hairColor, hue, 1.f, 1.f, 1.f);
+
+    // Principled Hair BSDF Color
+    return Apply_PrincipledHairBSDF_Color(hairColor);
+}
+
+// PS_OUT PS_CharacterHair(PS_IN In)
+// {
+//     PS_OUT Out;
+// 
+//     float2 finalUV = ApplyUVTransform(In.Texcoord);
+// 
+//     HairMaterialSample hair = SampleHairMaterial(finalUV);
+// 
+//     if (hair.opacity < 0.003)
+//         discard;
+// 
+//     float3 worldNormal = ComputeWorldNormal(In.Normal.xyz, In.Tangent, In.Binormal, finalUV);
+//         
+//     Out.Diffuse = float4(hair.baseColor, 1.f);
+//     Out.Normal = float4(EncodeNormal(worldNormal), 1.f);
+//     Out.Depth = float4(In.ProjPos.z / In.ProjPos.w, In.ProjPos.w / g_Far, 0.f, 1.f);
+// 
+//     float3 orm = SampleOrm(finalUV);
+//     Out.Material = float4(orm.xyz, 1.f);
+// 
+//     float3 emissive = SampleEmissive(finalUV);
+//     Out.Emissive = float4(emissive.xyz, 1.f);
+// 
+//     return Out;
+// }
+
+
+
 #endif

@@ -4,6 +4,7 @@
 #include "Engine_Shader_Passes.hlsl"
 #include "Engine_Shader_ConstantBuffer.hlsl"
 #include "Engine_Shader_Material.hlsl"
+#include "Engine_Shader_Feature.hlsl"
 #include "Engine_Shader_Utils.hlsl"
 
 uint g_iObjectID;
@@ -107,6 +108,10 @@ PS_OUT PS_Opaque(PS_IN In)
     PS_OUT Out;
 
     float2 finalUV = ApplyUVTransform(In.Texcoord);
+    float dissolveEdge = 0.f;
+
+    if (IsSwitchDissolveEnabled())
+        dissolveEdge = ApplySwitchDissolveClip(finalUV);
 
     float4 baseColor = SampleBaseColor(finalUV);
 
@@ -120,6 +125,7 @@ PS_OUT PS_Opaque(PS_IN In)
     Out.Material = float4(orm.xyz, 1.f);
 
     float3 emissive = SampleEmissive(finalUV);
+    emissive += dissolveEdge * g_FeatureParam1.rgb * 0.45f;
     Out.Emissive = float4(emissive.xyz, 1.f);
 
     return Out;
@@ -130,12 +136,16 @@ PS_OUT PS_Mask(PS_IN In)
     PS_OUT Out;
 
     float2 finalUV = ApplyUVTransform(In.Texcoord);
+    float dissolveEdge = 0.f;
 
     float4 baseColor = SampleBaseColor(finalUV);
 
     float mask = GetOpacityMaskForMasked(finalUV, baseColor);
     if (mask < g_OpacityMaskClipValue)
         discard;
+
+    if (IsSwitchDissolveEnabled())
+        dissolveEdge = ApplySwitchDissolveClip(finalUV);
 
     float3 worldNormal = ComputeWorldNormal(In.Normal.xyz, In.Tangent, In.Binormal, finalUV);
 
@@ -147,6 +157,7 @@ PS_OUT PS_Mask(PS_IN In)
     Out.Material = float4(orm.xyz, 1.f);
 
     float3 emissive = SampleEmissive(finalUV);
+    emissive += dissolveEdge * g_FeatureParam1.rgb * 0.45f;
     Out.Emissive = float4(emissive.xyz, 1.f);
 
     return Out;
@@ -182,6 +193,10 @@ PS_OUT PS_OpaqueAR(PS_IN In)
 {
     PS_OUT Out;
     float2 finalUV = ApplyUVTransform(In.Texcoord);
+    float dissolveEdge = 0.f;
+
+    if (IsSwitchDissolveEnabled())
+        dissolveEdge = ApplySwitchDissolveClip(finalUV);
 
     float4 arTex = g_MaterialTextures[MATERIAL_SLOT_BASECOLOR].Sample(LinearWrapSampler, finalUV);
     float4 baseColor = float4(arTex.rgb * g_BaseColorTint.rgb, 1.f);
@@ -191,6 +206,7 @@ PS_OUT PS_OpaqueAR(PS_IN In)
     float3 orm = float3(g_AoScale, arTex.a * g_RoughnessScale, g_MetalnessScale);
 
     float3 emissive = SampleEmissive(finalUV);
+    emissive += dissolveEdge * g_FeatureParam1.rgb * 0.45f;
     baseColor.rgb = baseColor.rgb * orm.r + emissive;
 
     Out.Diffuse = baseColor;

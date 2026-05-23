@@ -647,6 +647,7 @@
     <ClInclude Include="..\Public\GameplayUI_World.h" />
     <ClInclude Include="..\Public\GameplayUI_Battle.h" />
     <ClInclude Include="..\public\ANS_Move.h" />
+    <ClInclude Include="..\Public\SwitchDissolveFeature.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">

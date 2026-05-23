@@ -2,6 +2,7 @@
 
 #include "PlayableParts.h"
 #include "HairChainPhysics.h"
+#include "Shader_CBuffer_Define.h"
 
 NS_BEGIN(Engine)
 class ShaderCom;
@@ -18,6 +19,7 @@ public:
     typedef struct tagHairPlayerDesc final : public PlayableParts::PLAYABLE_PART_DESC
     {
         HairChainPhysicsDesc    hairPhysicsDesc{};
+        HairCB                  hairCB{};
     } HAIR_PLAYER_DESC;
 
 public:
@@ -40,7 +42,10 @@ private:
 
     HairChainPhysics        _hairPhysics{};
     HairChainPhysicsDesc    _hairPhysicsDesc{};
+    HairCB                  _hairCB{};
     bool                    _hairPhysicsReady = false;
+
+    uint32                  _hairPass = 0;
 
 private:
     float _physicsTickAccumulator = 0.f;

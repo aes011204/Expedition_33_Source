@@ -74,6 +74,9 @@ HRESULT Weapon::Render()
     if (FAILED(Bind_ShaderResources()))
         return E_FAIL;
 
+    if (FAILED(_shader->Reset_DrawFeatures()))
+        return E_FAIL;
+
     CHECK_FAILED(_animComputeRuntime->Prepare_BoneMatrixBuffers(), E_FAIL);
 
     const uint32 iNumMeshes = static_cast<uint32>(_model->Get_NumMeshes());
@@ -109,6 +112,9 @@ HRESULT Weapon::Render_Shadow()
         return E_FAIL;
 
     if (FAILED(GAME->Bind_ShadowCB(_shader)))
+        return E_FAIL;
+
+    if (FAILED(_shader->Reset_DrawFeatures()))
         return E_FAIL;
 
     if (_model->Is_Skeletal())

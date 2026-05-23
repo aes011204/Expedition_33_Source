@@ -47,6 +47,8 @@ void Body_Player::Priority_Update(float fTimeDelta)
 
 void Body_Player::Update(float fTimeDelta)
 {
+    PlayableParts::Update(fTimeDelta);    // TEMP_ERASE : 디졸브 업데이트 중이다 아오 진짜 
+
     Debug_Profile::Scope profileScope("Player::Body::Update");
 
     if (Has_LeaderPoseComponent())
@@ -90,6 +92,9 @@ HRESULT Body_Player::Render()
     if (FAILED(GAME->Bind_CameraCB(_computeRenderShaderCom)))
         return E_FAIL;
 
+    if (FAILED(_computeRenderShaderCom->Reset_DrawFeatures()))
+        return E_FAIL;
+
     const uint32 numMeshes = static_cast<uint32>(_modelCom->Get_NumMeshes());
 
     for (uint32 i = 0; i < numMeshes; ++i)
@@ -103,6 +108,10 @@ HRESULT Body_Player::Render()
             continue;
 
         if (FAILED(_computeRenderShaderCom->Bind_CBufferData(material->Get_CB())))
+            return E_FAIL;
+
+        const uint32 supportFeatureMask = Resolve_DrawFeatureSupportMask();
+        if (FAILED(Bind_SwitchDissolveFeature(_computeRenderShaderCom, supportFeatureMask)))
             return E_FAIL;
 
         const uint32 passIndex =
@@ -133,6 +142,9 @@ HRESULT Body_Player::Render_Shadow()
         return E_FAIL;
 
     if (FAILED(GAME->Bind_ShadowCB(_computeRenderShaderCom)))
+        return E_FAIL;
+
+    if (FAILED(_computeRenderShaderCom->Reset_DrawFeatures()))
         return E_FAIL;
 
     const uint32 numMeshes = static_cast<uint32>(_modelCom->Get_NumMeshes());

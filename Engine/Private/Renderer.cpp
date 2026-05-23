@@ -291,6 +291,8 @@ void Renderer::Render_Priority()
 {
     ENDMRT_RETURN_IF_FAILED(GAME->Begin_MRT(MRT::HDR, NotUseDSV, ClearRTV));
 
+    _currentGroup = RenderGroup::Priority;
+
     for (auto& renderObject : _renderGroups[ETOI(RenderGroup::Priority)])
     {
         Shared<GameObject> gameObject = renderObject.lock();
@@ -308,6 +310,8 @@ void Renderer::Render_Priority()
 
 void Renderer::Render_Shadow()
 {
+    _currentGroup = RenderGroup::Shadow;
+
     Render_StaticShadowOnce();
     Render_DynamicShadow();
 }
@@ -316,6 +320,8 @@ void Renderer::Render_NonBlend()
 {
     // Diffuse + Normal
     CHECK_FAILED(GAME->Begin_MRT(MRT::GameObjects, NotUseDSV, ClearRTV));
+
+    _currentGroup = RenderGroup::NonBlend;
 
     // TODO 필요 시 정렬
 	for (auto& renderObject : _renderGroups[ETOI(RenderGroup::NonBlend)])
@@ -576,6 +582,8 @@ void Renderer::Render_NonLight()
         GAME->Begin_MRT(MRT::HDR, NotUseDSV, NotClearRTV),
         L"Begin_MRT failed");
 
+    _currentGroup = RenderGroup::NonLight;
+
     for (auto& renderObject : _renderGroups[ETOI(RenderGroup::NonLight)])
     {
         Shared<GameObject> gameObject = renderObject.lock();
@@ -596,6 +604,8 @@ void Renderer::Render_Blend()
     RETURN_LOG_IF_FAILED(
         GAME->Begin_MRT(MRT::HDR, NotUseDSV, NotClearRTV),
         L"Begin_MRT failed");
+
+    _currentGroup = RenderGroup::Blend;
 
     for (auto& renderObject : _renderGroups[ETOI(RenderGroup::Blend)])
     {

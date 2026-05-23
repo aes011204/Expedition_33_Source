@@ -53,6 +53,7 @@ class Culling_Manager;
 class ThreadPool;
 class PostProcessPipeline;
 class SSAOPipeline;
+class ShaderResourceRegistry;
 struct StaticCollisionData;
 NS_END
 #pragma endregion
@@ -209,6 +210,7 @@ public: /* For.Renderer */
     Shared<PostProcessPipeline>         Get_PostProcessPipeline();
     const Shared<SSAOPipeline>          Get_SSAOPipeline() const;
     Shared<SSAOPipeline>                Get_SSAOPipeline();
+    RenderGroup                         Get_CurrentRenderGroup() const;
 
 public: /* For.PipeLine */
     HRESULT Bind_CamPosition(ShaderCom* shader, const char* constantName);
@@ -294,6 +296,14 @@ public: /* For.Asset_Manager */
 public: /* For.Asset_Manager (access) */
     const Asset_Manager* Get_AssetManager() const { return _assetManager.get(); }
     Asset_Manager*       Get_AssetManager() { return _assetManager.get(); }
+
+public: /* For.ShaderResourceRegistry */
+    uint32 Get_Handle(const string& name) const;
+    ID3D11ShaderResourceView* Get_SRV(uint32 handle) const;
+    ID3D11ShaderResourceView* Get_SRV(const string& name) const;
+
+    HRESULT Bind_ByHandle(ShaderCom* shader, const char* shaderVariableName, uint32 handle) const;
+    HRESULT Bind_ByName(ShaderCom* shader, const char* shaderVariableName, const string& name) const;
 
 public: /* For.Camera_Manager */
     HRESULT Add_Camera(Shared<Camera> camera) const;
@@ -515,6 +525,7 @@ private:
     Unique<Light_Manager>       _lightManager{};
     Unique<Font_Manager>        _fontManager{};
     Unique<Asset_Manager>       _assetManager{}; /* GUID 기반 에셋 registry와 meta/cache를 관리하는 매니저 */
+    Unique<ShaderResourceRegistry> _shaderResourceRegistry{};
     Unique<Camera_Manager>      _cameraManager{};
     Unique<TypeRegistry>        _typeRegistry{};
     Unique<Target_Manager>      _targetManager{};

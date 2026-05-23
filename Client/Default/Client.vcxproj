@@ -291,6 +291,7 @@
     <ClInclude Include="..\Public\Spawn_Prefab.h" />
     <ClInclude Include="..\Public\State.h" />
     <ClInclude Include="..\Public\StateMachineCom.h" />
+    <ClInclude Include="..\Public\SwitchDissolveFeature.h" />
     <ClInclude Include="..\Public\TargetCamera.h" />
     <ClInclude Include="..\Public\CharacterStatus_Panel.h" />
     <ClInclude Include="..\public\UIPreviewManager.h" />

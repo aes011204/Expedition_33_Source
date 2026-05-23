@@ -86,6 +86,17 @@ cbuffer MaterialBuffer
     float2 g_MaterialPadding1;      // 88 ~ 95
 }; // 96 bytes
 
+cbuffer DrawFeatureBuffer
+{
+    uint g_ActiveFeatureMask;
+    uint g_SupportFeatureMask;
+    uint g_FeatureTextureMask;
+    uint g_DrawFeaturePadding0;
+
+    float4 g_FeatureParam0;
+    float4 g_FeatureParam1;
+};
+
 cbuffer SSAOBuffer
 {
     float g_SSAORadius;
@@ -125,5 +136,32 @@ cbuffer PostProcessBuffer
 
     float4 g_PP_BackgroundFallbackColor; // 64 ~ 79
 }; // 80 bytes
+
+cbuffer HairDescBuffer
+{
+    float4 g_HairColorTop;
+    float4 g_HairColorDown;
+    float4 g_HairHighlightColor;
+
+    float g_HairOpacityMaskClipValue;
+    float g_HairRoughness;
+    float g_HairSpecular;
+    float g_HairScatter;
+
+    float g_HairBrightness;
+    float g_HairRim;
+    float g_HairRandomHueVariation;
+    float g_HairRandomValueVariation;
+
+    float g_HairBumpStrength;
+    float g_HairBumpDistance;
+    float g_HairGradientColor;
+    float g_HairGradientContrast;
+
+    float g_HairGradientHardness;
+    float g_HairGradientHeight;
+    float g_HairEdgeContrast;
+    float g_HairEdgeMin;
+};
 
 #endif

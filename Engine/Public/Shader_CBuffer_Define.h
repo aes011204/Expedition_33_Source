@@ -39,6 +39,38 @@ struct alignas(16) MaterialCB
 };
 
 /* ------------------------------------------ */
+/*              Hair CBuffer                  */
+/* ------------------------------------------ */
+struct alignas(16) HairCB
+{
+    static constexpr ConstantBuffer CBType = ConstantBuffer::Hair;
+
+    Vec4 g_HairColorTop{ 0.048f, 0.053f, 0.053f, 1.f };
+    Vec4 g_HairColorDown { 0.965f, 0.937f, 0.929f, 1.f};
+    Vec4 hairHighlightColor{ 0x6C / 255.f, 0x70 / 255.f, 0x75 / 255.f, 0.f };
+
+    float opacityMaskClipValue{ 0.3333f };
+    float roughness{ 0.55f };
+    float specular{ 0.1f };
+    float scatter{ 0.1f };
+
+    float brightness{ 1.0f };
+    float rim{ 1.0f };
+    float randomHueVariation{ 0.1338f };
+    float randomValueVariation{ 1.0f };
+
+    float bumpStrength{ 0.3f };
+    float bumpDistance{ 0.001f };
+    float gradientColor{ 0.226f };
+    float gradientContrast{ 0.35f };
+
+    float gradientHardness{ 2.0f };
+    float gradientHeight{ 0.25f };
+    float edgeContrast{ -0.35f };
+    float edgeMin{ 6.0f };
+};
+
+/* ------------------------------------------ */
 /*             Camera CBuffer                 */
 /* ------------------------------------------ */
 struct alignas(16) CameraCB
@@ -176,8 +208,26 @@ struct alignas(16) SSAOCB
     uint32 SSAOPad0 = 0;                          // 16-byte 정렬 유지용 패딩.
 };
 
+/* ------------------------------------------ */
+/*            DrawFeature CBuffer             */
+/* ------------------------------------------ */
+struct alignas(16) DrawFeatureCB
+{
+    static constexpr ConstantBuffer CBType = ConstantBuffer::DrawFeature;
+
+    uint32 activeFeatureMask = 0;       // 이번 Draw에서 켜고 싶은 기능
+    uint32 supportFeatureMask = 0;      // 지원가능한 기능
+    uint32 textureSlotMask = 0;         // 실제로 바인딩된 슬롯
+    uint32 _pad0 = 0;
+
+    // 여러 효과에서 알아서 쓰일 parameters. 기능별 .cpp과 .hlsl 간 규약 필요
+    Vec4 param0{ 0.f, 0.f, 0.f, 0.f };  
+    Vec4 param1{ 0.f, 0.f, 0.f, 0.f };
+};
+
 // 패딩이 제대로 됐나 마지막 확인용
 static_assert(sizeof(MaterialCB) % 16 == 0);
+static_assert(sizeof(HairCB) % 16 == 0);
 static_assert(sizeof(CameraCB) % 16 == 0);
 static_assert(sizeof(ObjectCB) % 16 == 0);
 static_assert(sizeof(ShadowCB) % 16 == 0);
@@ -185,6 +235,7 @@ static_assert(sizeof(ScreenSpaceCB) % 16 == 0);
 static_assert(sizeof(LightCB) % 16 == 0);
 static_assert(sizeof(PostProcessCB) % 16 == 0);
 static_assert(sizeof(SSAOCB) % 16 == 0);
+static_assert(sizeof(DrawFeatureCB) % 16 == 0);
 
 NS_END
 

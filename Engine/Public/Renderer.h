@@ -48,6 +48,10 @@ public:
     {
         return _ssaoPipeline;
     }
+    RenderGroup Get_CurrentGroup() const
+    {
+        return _currentGroup;
+    }
 
     void    Set_PreviewDeferredCombine(bool enable) { _usePreviewDeferredCombine = enable; }
 
@@ -127,6 +131,8 @@ private:
     ViewportSize                    _screenSize{};
     ViewportSize                    _shadowMapSize = { 4096, 4096 };
     ViewportSize                    _shadowStaticSize = { 4096, 4096 };
+
+    RenderGroup                     _currentGroup = RenderGroup::END;
 
 private:
     void Reset_RenderCall();

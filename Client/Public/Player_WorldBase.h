@@ -40,6 +40,7 @@ public:
     void    Update_StatusPreview(float timeDelta);
 
     Vec3    Get_MovementVelocity() const;
+    void    Start_SwitchDissolve(float durationSec, const string& noiseName); // TEMP_ERASE: DISSOLVE 예시 함수
 
 protected:
     HRESULT Ready_Components();

@@ -39,6 +39,17 @@
 #define MATERIAL_FLAG_IRIS_HEIGHT    (1u << MATERIAL_SLOT_IRIS_HEIGHT)
 #define MATERIAL_FLAG_IRIS_MASK      (1u << MATERIAL_SLOT_IRIS_MASK)
 
+// Feature Texture Slot
+#define FEATURE_TEX_DISSOLVE_NOISE   0
+#define FEATURE_TEX_DISSOLVE_MASK    1
+#define FEATURE_TEX_DISTORTION_FLOW  2
+#define FEATURE_TEX_DISTORTION_NOISE 3
+#define FEATURE_TEX_END              4
+
+// Draw Feature Flags
+#define FEATURE_FLAG_DISSOLVE        (1u << 0)
+#define FEATURE_FLAG_DISTORTION      (1u << 1)
+
 // PostProcess Feature Flags
 // PostProcess Feature Flags
 #define POSTPROCESS_FLAG_HDR         (1u << 0)
