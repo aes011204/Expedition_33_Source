@@ -925,7 +925,7 @@ vector<BattleChar> BattleController::Get_TurnOrderPreview(uint32 maxCount) const
         if (entry.hero.actor == nullptr || entry.hero.statCom == nullptr)
             continue;
 
-        if (entry.hero.statCom->Get_AliveStatus() == EAliveStatus::Alive)
+        if (entry.hero.statCom->Get_AliveStatus() != EAliveStatus::Alive)
             continue;
 
         preview.push_back(entry.hero);
