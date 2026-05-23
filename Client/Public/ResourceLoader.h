@@ -33,6 +33,7 @@ using FLoadJob = struct tagLoadJob
     wstring strPrototypeTag = {};
     wstring strPath = {};
 
+    string strSourceTable = {};
     string strInputLayout = {};
     string strEntryPoint = {};
     string strResourceType = {};
@@ -114,6 +115,7 @@ private:
     static uint32  Get_LevelIndex_FromString(const string& strLevel);
     static wstring Get_DefaultJsonRootPath();
     static wstring Resolve_RuntimePath(const wstring& path);
+    static void    Log_LoadJobPrototypeFailure(const FLoadJob& loadJob, string_view reason);
 
 private:
     ComPtr<Device> _device = { nullptr };

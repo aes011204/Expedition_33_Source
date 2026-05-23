@@ -39,7 +39,7 @@ HairChainPhysicsDesc PB_Lune::Get_HairChainPhysicsDesc() const
     return desc;
 }
 
-bool PB_Lune::Try_GetWeaopnAttackDesc(WeaponAttachDesc& outDesc) const
+bool PB_Lune::Try_GetWeaponAttackDesc(WeaponAttachDesc& outDesc) const
 {
     outDesc.modelTag = L"Model_Colim";
     outDesc.socketName = "WeaponAttachPointL";

@@ -106,6 +106,9 @@
     <ClCompile Include="..\Private\TrailPreviewWeaponObject.cpp">
       <Filter>05. EditorOnly Object\Trail Preview Object\Preview Weapon</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\TrailPreviewPlayerObject.cpp">
+      <Filter>05. EditorOnly Object\Trail Preview Object\Preview Player</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -240,6 +243,9 @@
     <ClInclude Include="..\Public\TrailPreviewWeaponObject.h">
       <Filter>05. EditorOnly Object\Trail Preview Object\Preview Weapon</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\TrailPreviewPlayerObject.h">
+      <Filter>05. EditorOnly Object\Trail Preview Object\Preview Player</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="00. Main">
@@ -307,6 +313,9 @@
     </Filter>
     <Filter Include="05. EditorOnly Object\Trail Preview Object\Preview Weapon">
       <UniqueIdentifier>{4e80af94-0c1e-438b-8870-41030a2e1559}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="05. EditorOnly Object\Trail Preview Object\Preview Player">
+      <UniqueIdentifier>{fe810a18-7188-43ff-9f91-8519e9b3682a}</UniqueIdentifier>
     </Filter>
     <Filter Include="02. View">
       <UniqueIdentifier>{a99ca1f2-640c-4bf6-aa29-88748c97013a}</UniqueIdentifier>

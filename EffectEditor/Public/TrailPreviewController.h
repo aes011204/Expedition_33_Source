@@ -6,21 +6,16 @@ NS_BEGIN(Engine)
 class ModelCom;
 NS_END
 
-NS_BEGIN(Client)
-class PB_Gustave;
-NS_END
-
 NS_BEGIN(EffectEditor)
 
-class TrailPreviewWeaponObject;
+class TrailPreviewPlayerObject;
 
 class TrailPreviewController final : public GameObject
 {
 public:
     struct PreviewDesc : public GameObject::GAMEOBJECT_DESC
     {
-        Shared<PB_Gustave> gustave{};
-        Shared<TrailPreviewWeaponObject> weapon{};
+        Shared<TrailPreviewPlayerObject> player{};
     };
 
 public:
@@ -46,14 +41,12 @@ private:
     static constexpr const char* kRestAnimationName{ "Gustave_Anim_Noah_Idle_World_FeetFixed" };
 
 private:
-    Weak<PB_Gustave> _gustave{};
-    Weak<TrailPreviewWeaponObject> _weapon{};
+    Weak<TrailPreviewPlayerObject> _player{};
     PreviewAnimationMode _currentMode{ PreviewAnimationMode::Rest };
     bool _animationInitialized{ false };
 
 private:
     void Set_PlayerVisible(bool visible);
-    void Set_WeaponVisible(bool visible);
     void Reset_PreviewPose();
     Shared<ModelCom> Get_BodyModel() const;
     void Ensure_AnimationMode(PreviewAnimationMode mode);
