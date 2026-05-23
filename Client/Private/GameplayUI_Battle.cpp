@@ -5,7 +5,11 @@
 #include "ClientInstance.h"
 #include "CombatStatCom.h"
 #include "UI_BattleCommandHUD.h"
+#include "UI_BattleDefense.h"
+#include "UI_BattleSystemHUD.h"
 #include "UI_BattleTransition.h"
+#include "UI_CancelAim.h"
+#include "UI_ChoiceTarget.h"
 #include "UI_MonsterHpBar.h"
 #include "UI_CrossHair.h"
 
@@ -13,17 +17,22 @@ GameplayUI_Battle::~GameplayUI_Battle() = default;
 
 HRESULT GameplayUI_Battle::Initialize(uint32 levelIndex)
 {
-    _battleTransition = UI_BattleTransition::Create(levelIndex);
-    CHECK_NULL(_battleTransition, E_FAIL);
+    auto Create_UI = [levelIndex](auto& ui, auto& createFn) -> HRESULT
+        {
+            ui = createFn(levelIndex);
+            CHECK_NULL(ui, E_FAIL);
+            return S_OK;
+        };
 
-    _battleCommandHUD = UI_BattleCommandHUD::Create(levelIndex);
-    CHECK_NULL(_battleCommandHUD, E_FAIL);
-
-    _monsterHpBar = UI_MonsterHpBar::Create(levelIndex);
-    CHECK_NULL(_monsterHpBar, E_FAIL);
-
-    _crossHair = UI_CrossHair::Create(levelIndex);
-    CHECK_NULL(_crossHair, E_FAIL);
+    // 람다 의미없는거같기도 하고
+    CHECK_FAILED(Create_UI(_battleTransition, UI_BattleTransition::Create), E_FAIL);
+    CHECK_FAILED(Create_UI(_battleCommandHUD, UI_BattleCommandHUD::Create), E_FAIL);
+    CHECK_FAILED(Create_UI(_battleSystemHUD, UI_BattleSystemHUD::Create), E_FAIL);
+    CHECK_FAILED(Create_UI(_monsterHpBar, UI_MonsterHpBar::Create), E_FAIL);
+    CHECK_FAILED(Create_UI(_crossHair, UI_CrossHair::Create), E_FAIL);
+    CHECK_FAILED(Create_UI(_battleDefense, UI_BattleDefense::Create), E_FAIL);
+    CHECK_FAILED(Create_UI(_cancelAim, UI_CancelAim::Create), E_FAIL);
+    CHECK_FAILED(Create_UI(_choiceTarget, UI_ChoiceTarget::Create), E_FAIL);
 
     Bind_BattleDelegates();
 
@@ -32,9 +41,13 @@ HRESULT GameplayUI_Battle::Initialize(uint32 levelIndex)
 
 void GameplayUI_Battle::Update(float timeDelta)
 {
-    Update_BattleCommandHUD(timeDelta);
-    Update_MonsterHpBar(timeDelta);
-    Update_CrossHair(timeDelta);
+    Update_BattleCommandHUD(timeDelta); // 플레이어 전투 입력 허드
+    Update_BattleSystemHUD(timeDelta);  // 파티 portrait HP/AP HUD
+    Update_MonsterHpBar(timeDelta);     // 몬스터 체력
+    Update_CrossHair(timeDelta);        // Free Aim 크로스헤어
+    Update_BattleDefense(timeDelta);    // 몬스터 턴 방어 (좌측 하단)
+    Update_CancelAim(timeDelta);        // Free Aim 취소
+    Update_ChoiceTarget(timeDelta);     // 타겟 선택 UI (F 대상 선택, ESC 뒤로)
 
     if (_battleTransition)
         _battleTransition->Update(timeDelta);
@@ -81,6 +94,9 @@ void GameplayUI_Battle::Bind_BattleDelegates()
 
     _targetPreviewChangedHandle =
         _battleController->OnTargetPreviewChanged.Add(this, &GameplayUI_Battle::Handle_TargetPreviewChanged);
+
+    _actionStartedHandle =
+        _battleController->OnActionStarted.Add(this, &GameplayUI_Battle::Handle_ActionStarted);
 }
 
 void GameplayUI_Battle::Unbind_BattleDelegates()
@@ -102,11 +118,16 @@ void GameplayUI_Battle::Unbind_BattleDelegates()
     if (_targetPreviewChangedHandle.IsValid())
         _battleController->OnTargetPreviewChanged.Remove(_targetPreviewChangedHandle);
 
+    if (_actionStartedHandle.IsValid())
+        _battleController->OnActionStarted.Remove(_actionStartedHandle);
+
     _battleStartedHandle.Reset();
     _battleEndedHandle.Reset();
     _turnStartedHandle.Reset();
     _turnEndedHandle.Reset();
     _targetPreviewChangedHandle.Reset();
+
+    _actionStartedHandle.Reset();
 
     _battleController.reset();
 }
@@ -124,11 +145,23 @@ void GameplayUI_Battle::Handle_BattleStarted(uint32 fieldId, bool isFirstHero)
     _hasCurrentPlayerTurnActor = false;
     _currentPlayerTurnActor = {};
 
-    if (_battleCommandHUD)
-        _battleCommandHUD->Close(); // 전투 시작 직후에는 아직 BattleCommand UI 안보여줌
+    UI_RuntimePanelBase* panelsToClose[] =
+    {
+        // 턴 시작 시 닫아야할 UI들이 있다면 여기에 추가
+        _battleCommandHUD.get(),
+        _battleSystemHUD.get(),
+        _monsterHpBar.get(),
+        _crossHair.get(),
+        _battleDefense.get(),
+        _cancelAim.get(),
+        _choiceTarget.get(),
+    };
 
-    if (_monsterHpBar)
-        _monsterHpBar->Close();
+    for (UI_RuntimePanelBase* panel : panelsToClose)
+    {
+        if (panel)
+            panel->Close();
+    }
 
     Play_BattleEnterTransition(); // 전투 진입 연출은 battle UI 쪽에서 시작한다.
 }
@@ -144,14 +177,23 @@ void GameplayUI_Battle::Handle_BattleEnded(EBattleEndResult result)
     _hasCurrentPlayerTurnActor = false;
     _currentPlayerTurnActor = {};
 
-    if (_battleCommandHUD)
-        _battleCommandHUD->Close();
+    UI_RuntimePanelBase* panelsToClose[] =
+    {
+        // 턴 시작 시 닫아야할 UI들이 있다면 여기에 추가
+        _battleCommandHUD.get(),
+        _battleSystemHUD.get(),
+        _monsterHpBar.get(),
+        _crossHair.get(),
+        _battleDefense.get(),
+        _cancelAim.get(),
+        _choiceTarget.get(),
+    };
 
-    if (_monsterHpBar)
-        _monsterHpBar->Close();
-
-    if (_crossHair)
-        _crossHair->Close(); // 배틀 종료 시 Free Aim 크로스헤어도 즉시 정리한다.
+    for (auto* panel : panelsToClose)
+    {
+        if (panel)
+            panel->Close();
+    }
 
     Stop_BattleEnterTransition(); // 전투 종료 시 남아있는 transition도 같이 정리한다.
 }
@@ -192,14 +234,21 @@ void GameplayUI_Battle::Handle_TurnEnded(const BattleChar& actor)
     _hasCurrentPlayerTurnActor = false;
     _currentPlayerTurnActor = {};
 
-    if (_battleCommandHUD)
-        _battleCommandHUD->Close();
+    UI_RuntimePanelBase* panelsToClose[] =
+    {
+        _battleCommandHUD.get(),
+        _monsterHpBar.get(),
+        _crossHair.get(),
+        _battleDefense.get(),
+        _cancelAim.get(),
+        _choiceTarget.get(),
+    };
 
-    if (_monsterHpBar)
-        _monsterHpBar->Close();
-
-    if (_crossHair)
-        _crossHair->Close(); // 턴 종료 시 크로스헤어를 즉시 닫아 상태 잔류를 막는다.
+    for (auto* panel : panelsToClose)
+    {
+        if (panel)
+            panel->Close();
+    }
 }
 
 void GameplayUI_Battle::Handle_TargetPreviewChanged(const BattleChar* target)
@@ -217,6 +266,14 @@ void GameplayUI_Battle::Handle_TargetPreviewChanged(const BattleChar* target)
 
     _targetPreviewSnapshot = *target;
     _hasTargetPreviewSnapshot = true;
+}
+
+void GameplayUI_Battle::Handle_ActionStarted(const Action& action)
+{
+     UNREFERENCED_PARAMETER(action);
+
+    if (_choiceTarget)
+        _choiceTarget->Close(); 
 }
 
 void GameplayUI_Battle::Update_BattleCommandHUD(float timeDelta)
@@ -257,6 +314,47 @@ void GameplayUI_Battle::Update_BattleCommandHUD(float timeDelta)
     _battleCommandHUD->Refresh_ForState(battleController->Get_CurrentTurnState());
 
     _battleCommandHUD->Update(timeDelta);
+}
+
+void GameplayUI_Battle::Update_BattleSystemHUD(float timeDelta)
+{
+    if (_battleSystemHUD == nullptr)
+        return;
+
+    if (!_isBattleUiActive)
+    {
+        _battleSystemHUD->Close();
+        return;
+    }
+
+    const auto battleController = CLIENT->Get_BattleController();
+    if (battleController == nullptr || !battleController->Is_BattleStarted())
+    {
+        _battleSystemHUD->Close();
+        return;
+    }
+
+    _battleSystemHUD->Open(); // 전투 중에는 파티 portrait HUD를 계속 유지한다.
+
+    _battleSystemHUD->Set_PartyBattleStat(PlayerCharacterType::Gustave, 0.f, 1.f, 0u, 1u);
+    _battleSystemHUD->Set_PartyBattleStat(PlayerCharacterType::Lune, 0.f, 1.f, 0u, 1u);
+    _battleSystemHUD->Set_PartyBattleStat(PlayerCharacterType::Maelle, 0.f, 1.f, 0u, 1u);
+
+    const vector<BattleChar>& heroes = battleController->Get_BattleHeroes();
+    for (const BattleChar& hero : heroes)
+    {
+        if (hero.statCom == nullptr)
+            continue;
+
+        _battleSystemHUD->Set_PartyBattleStat(
+            hero.statCom->Get_PlayerType(),
+            hero.statCom->Get_CurHp(),
+            hero.statCom->Get_StatInfo().maxHp,
+            hero.statCom->Get_CurAP(),
+            hero.statCom->Get_MaxAP());
+    }
+
+    _battleSystemHUD->Update(timeDelta);
 }
 
 void GameplayUI_Battle::Update_MonsterHpBar(float timeDelta)
@@ -329,6 +427,100 @@ void GameplayUI_Battle::Update_CrossHair(float timeDelta)
     _crossHair->Update(timeDelta);
 }
 
+void GameplayUI_Battle::Update_BattleDefense(float timeDelta)
+{
+    UNREFERENCED_PARAMETER(timeDelta);
+
+    if (_battleDefense == nullptr)
+        return;
+
+    if (!_isBattleUiActive)
+    {
+        _battleDefense->Close();
+        return;
+    }
+
+    const auto battleController = CLIENT->Get_BattleController();
+    if (battleController == nullptr || !battleController->Is_BattleStarted())
+    {
+        _battleDefense->Close();
+        return;
+    }
+
+    const BattleChar& currentActor = battleController->Get_TurnAction()._curChar;
+    if (currentActor.actor == nullptr || currentActor.statCom == nullptr)
+    {
+        _battleDefense->Close();
+        return;
+    }
+
+    if (currentActor.statCom->Is_Player())
+    {
+        _battleDefense->Close(); // 플레이어 턴에는 Defense UI 숨기기
+        return;
+    }
+
+    _battleDefense->Open(); // 몬스터 턴일 동안 유지
+    _battleDefense->Update(timeDelta);
+
+}
+
+void GameplayUI_Battle::Update_CancelAim(float timeDelta)
+{
+    if (_cancelAim == nullptr)
+        return;
+
+    if (!_isBattleUiActive || !_isPlayerTurnUiActive)
+    {
+        _cancelAim->Close();
+        return;
+    }
+
+    const auto battleController = CLIENT->Get_BattleController();
+    if (battleController == nullptr || !battleController->Is_BattleStarted())
+    {
+        _cancelAim->Close();
+        return;
+    }
+
+    if (battleController->Get_CurrentTurnState() != BattleTurnState::FreeAimTargeting)
+    {
+        _cancelAim->Close();
+        return;
+    }
+
+    _cancelAim->Open(); // Free Aim 중에는 크로스헤어, 캔슬 UI
+    _cancelAim->Update(timeDelta);
+}
+
+void GameplayUI_Battle::Update_ChoiceTarget(float timeDelta)
+{
+    if (_choiceTarget == nullptr)
+        return;
+
+    if (!_isBattleUiActive || !_isPlayerTurnUiActive)
+    {
+        _choiceTarget->Close();
+        return;
+    }
+
+    const auto battleController = CLIENT->Get_BattleController();
+    if (battleController == nullptr || !battleController->Is_BattleStarted())
+    {
+        _choiceTarget->Close();
+        return;
+    }
+
+    if (battleController->Get_CurrentTurnState() != BattleTurnState::AttackTargeting)
+    {
+        _choiceTarget->Close();
+        return;
+    }
+
+    _choiceTarget->Open();
+    _choiceTarget->Update(timeDelta);
+}
+
 bool GameplayUI_Battle::Try_GetTargetHpBarWorldPos(const BattleChar& target, Vec3& outWorldPos) const
 {
     if (target.actor == nullptr || target.actor->Get_Transform() == nullptr)
@@ -379,8 +571,12 @@ void GameplayUI_Battle::Free()
 
     Release_UI(_battleTransition);
     Release_UI(_battleCommandHUD);
+    Release_UI(_battleSystemHUD);
     Release_UI(_monsterHpBar);
     Release_UI(_crossHair);
+    Release_UI(_battleDefense);
+    Release_UI(_cancelAim);
+    Release_UI(_choiceTarget);
 
     Base::Free();
 }

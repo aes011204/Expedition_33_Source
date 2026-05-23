@@ -13,8 +13,8 @@ BT_Idle::~BT_Idle()
 void BT_Idle::OnStart()
 {
     Get_Owner()->Stop_Move();
-    Shared<MW_Lancelier> monster = dynamic_pointer_cast<MW_Lancelier>(Get_Owner()->Get_Owner());
-    monster->Set_CurrentAction(MW_Lancelier::MonsterAction::Idle);
+    Shared<Monster_WorldBase> monster = dynamic_pointer_cast<Monster_WorldBase>(Get_Owner()->Get_Owner());
+    monster->Set_CurrentAction(MW_Lancelier::MonsterWorldAnim::Idle);
 }
 
 BNode::NODE_STATE BT_Idle::Logic_Update(float deltaTime)

@@ -1,8 +1,7 @@
 ﻿#include "UI_BattleCommandHUD.h"
-
 #include "Client_Constants.h"
-#include "UI_Base.h"
 #include "UI_RuntimeLoader.h"
+#include "UI_Base.h"
 #include "UI_Utils.h"
 
 using namespace UI_Utils;
