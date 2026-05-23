@@ -3,7 +3,7 @@
 
 void PlayerStat_Inspector::Draw_Inspector(const Shared<Component>& component)
 {
-    Shared<Client::PlayerStatCom> stat = dynamic_pointer_cast<Client::PlayerStatCom>(component);
+    Shared<PlayerStatCom> stat = dynamic_pointer_cast<PlayerStatCom>(component);
     if (stat == nullptr)
         return;
 
@@ -96,7 +96,7 @@ void PlayerStat_Inspector::Draw_Inspector(const Shared<Component>& component)
     }
 
     // HP / Shield / AP는 파생값 아래가 아니라 "실제 현재 자원"이라 공통 섹션으로 묶는다.
-    Draw_CommonRuntimeSection(static_pointer_cast<Client::CombatStatCom>(stat));
+    Draw_CommonRuntimeSection(static_pointer_cast<CombatStatCom>(stat));
 
     ImGui::Spacing();
     ImGui::Separator();

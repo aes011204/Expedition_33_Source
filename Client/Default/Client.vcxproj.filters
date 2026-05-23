@@ -648,6 +648,7 @@
       <Filter>AnimNotify</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Player_GameMenu.h" />
+    </ClInclude>
     <ClInclude Include="..\Public\UI_Utils.h">
       <Filter>02.GameObject\UI</Filter>
     </ClInclude>
