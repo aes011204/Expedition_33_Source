@@ -45,6 +45,14 @@ HairChainPhysicsDesc PB_Maelle::Get_HairChainPhysicsDesc() const
     return desc;
 }
 
+bool PB_Maelle::Try_GetWeaopnAttackDesc(WeaponAttachDesc& outDesc) const
+{
+    outDesc.modelTag = L"Model_Medalum";
+    outDesc.socketName = "Weapon_r";
+
+    return true;
+}
+
 Shared<PB_Maelle> PB_Maelle::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
     auto instance = make_shared<PB_Maelle>(device, context);

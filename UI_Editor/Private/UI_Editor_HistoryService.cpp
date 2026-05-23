@@ -168,12 +168,13 @@ namespace UIEditor
         vector<ObjectId>& selectedObjectIds)
     {
         document = historyState.document;
-        selectedObjectId = nullptr != document.Find_Object(historyState.selectedObjectId) ? historyState.selectedObjectId : 0;
+        const UI_Document& restoredDocument = document;
+        selectedObjectId = nullptr != restoredDocument.Find_Object(historyState.selectedObjectId) ? historyState.selectedObjectId : 0;
         selectedObjectIds.clear();
         unordered_set<ObjectId> restoredIds;
         for (ObjectId objectId : historyState.selectedObjectIds)
         {
-            if (objectId == 0 || nullptr == document.Find_Object(objectId))
+            if (objectId == 0 || nullptr == restoredDocument.Find_Object(objectId))
                 continue;
 
             if (!restoredIds.insert(objectId).second)

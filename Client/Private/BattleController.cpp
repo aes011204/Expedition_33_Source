@@ -1,4 +1,6 @@
 ﻿#include "BattleController.h"
+
+#include "AttackPlaying.h"
 #include "BuffSystem.h"
 #include "Character.h"
 #include "ClientInstance.h"
@@ -226,11 +228,7 @@ void BattleController::ExecuteAction(Action turnAction)
     if (!BattleChar.actor)
         return;
 
-    LOG_DEBUG(
-        "ExecuteAction: actor={}, type={}",
-        turnAction._curChar.actor ? String::ToString(turnAction._curChar.actor->Get_Name()).c_str() : "null",
-        static_cast<int>(turnAction.type)
-    );
+    OnActionStarted.Broadcast(turnAction);
 
     // 일반 공격도 스킬로 들어감 구분만 BaseAttack
     switch (turnAction.type)
@@ -381,6 +379,8 @@ void BattleController::Create_BattleChar(const vector<HeroId>& heroIds, vector<s
         battleChar.heroId = heroId; // 배틀 종료 후 어떤 PW로 돌릴지 식별용
         battleChar.actor = ply;
         battleChar.statCom = character->Get_Component<CombatStatCom>();
+
+        battleChar.statCom->Set_PlayerType(To_PlayerCharacterType(heroId));
 
         // 월드에서 세팅된 스탯들을 배틀턴 진입 시 반영
         Shared<Player_WorldBase> worldHero = CLIENT->Find_Hero(heroId);
@@ -906,6 +906,34 @@ void BattleController::OnActionEndNotify()
 
 }
 
+vector<BattleChar> BattleController::Get_TurnOrderPreview(uint32 maxCount) const
+{
+    vector<BattleChar> preview{};
+    if (maxCount == 0)
+        return preview;
+
+    if (_currentTurnActor.actor != nullptr && _currentTurnActor.statCom != nullptr)
+        preview.push_back(_currentTurnActor);
+
+    auto queueCopy = _turnQueue;
+
+    while (!queueCopy.empty() && preview.size() < maxCount)
+    {
+        const TurnEntry entry = queueCopy.top();
+        queueCopy.pop(); // 위에꺼먼저 삭제
+
+        if (entry.hero.actor == nullptr || entry.hero.statCom == nullptr)
+            continue;
+
+        if (entry.hero.statCom->Get_AliveStatus() != EAliveStatus::Alive)
+            continue;
+
+        preview.push_back(entry.hero);
+    }
+
+    return preview;
+}
+
 HRESULT BattleController::Ready_BattleTurnCamera()
 {
 	if (_battleTurnCamera)
@@ -1018,19 +1046,36 @@ void BattleController::Clear_BattleEnterPending()
     _pendingBattleMonsterPrefabNames.clear();
 }
 
+PlayerCharacterType BattleController::To_PlayerCharacterType(HeroId heroId)
+{
+    switch (heroId)
+    {
+    case HeroId::Gustave:
+        return PlayerCharacterType::Gustave;
+    case HeroId::Lune:
+        return PlayerCharacterType::Lune;
+    case HeroId::Maelle:
+        return PlayerCharacterType::Maelle;
+    case HeroId::END:
+    default:
+        return PlayerCharacterType::None;
+    }
+}
+
 void BattleController::Set_BattleFSM()
 {
     _battleFSM = BattleStateMachine::Create();
 
-    _battleFSM->Add_State(BattleTurnState::ChooseSkill, ChooseSkill::Create(dynamic_pointer_cast<BattleController>(shared_from_this())));
-    _battleFSM->Add_State(BattleTurnState::AttackTargeting, AttackTargeting::Create(dynamic_pointer_cast<BattleController>(shared_from_this())));
-    _battleFSM->Add_State(BattleTurnState::ChooseItem, ChooseItem::Create(dynamic_pointer_cast<BattleController>(shared_from_this())));
-    _battleFSM->Add_State(BattleTurnState::ChooseAction, ChooseAction::Create(dynamic_pointer_cast<BattleController>(shared_from_this())));
-    _battleFSM->Add_State(BattleTurnState::SkillTargeting, SkillTargeting::Create(dynamic_pointer_cast<BattleController>(shared_from_this())));
-    _battleFSM->Add_State(BattleTurnState::ItemTargeting, ItemTargeting::Create(dynamic_pointer_cast<BattleController>(shared_from_this())));
-    _battleFSM->Add_State(BattleTurnState::UltimateTargeting, UltimateTargeting::Create(dynamic_pointer_cast<BattleController>(shared_from_this())));
-    _battleFSM->Add_State(BattleTurnState::ChooseUltimate, ChooseUltimate::Create(dynamic_pointer_cast<BattleController>(shared_from_this())));
-    _battleFSM->Add_State(BattleTurnState::FreeAimTargeting, FreeAimTargeting::Create(dynamic_pointer_cast<BattleController>(shared_from_this())));
+    _battleFSM->Add_State(BattleTurnState::ChooseSkill, ChooseSkill::Create(GetSharedPtr<BattleController>()));
+    _battleFSM->Add_State(BattleTurnState::AttackTargeting, AttackTargeting::Create(GetSharedPtr<BattleController>()));
+    _battleFSM->Add_State(BattleTurnState::AttackPlaying, AttackPlaying::Create(GetSharedPtr<BattleController>()));
+    _battleFSM->Add_State(BattleTurnState::ChooseItem, ChooseItem::Create(GetSharedPtr<BattleController>()));
+    _battleFSM->Add_State(BattleTurnState::ChooseAction, ChooseAction::Create(GetSharedPtr<BattleController>()));
+    _battleFSM->Add_State(BattleTurnState::SkillTargeting, SkillTargeting::Create(GetSharedPtr<BattleController>()));
+    _battleFSM->Add_State(BattleTurnState::ItemTargeting, ItemTargeting::Create(GetSharedPtr<BattleController>()));
+    _battleFSM->Add_State(BattleTurnState::UltimateTargeting, UltimateTargeting::Create(GetSharedPtr<BattleController>()));
+    _battleFSM->Add_State(BattleTurnState::ChooseUltimate, ChooseUltimate::Create(GetSharedPtr<BattleController>()));
+    _battleFSM->Add_State(BattleTurnState::FreeAimTargeting, FreeAimTargeting::Create(GetSharedPtr<BattleController>()));
 
     //_battleFSM->Change_State(BattleTurnState::ChooseAction);
 }

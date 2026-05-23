@@ -3,6 +3,7 @@
 #include "Bounding_OBB.h"
 #include "ColliderCom.h"
 #include "PlayableParts.h"
+#include "PlayerStatCom.h"
 #include "SkillTreeCom.h"
 
 IMPLEMENT_REFLECTION(PW_Gustave)
@@ -39,6 +40,15 @@ HRESULT PW_Gustave::Initialize(void* arg)
 
 
     return S_OK; 
+}
+
+void PW_Gustave::BeginPlay()
+{
+    Player_WorldBase::BeginPlay();
+
+    _combatStatCom->Get_StatInfo().maxAp = 9;   
+    _combatStatCom->Get_PlayerRuntimeStat().CurMaxAp = 9;
+    _combatStatCom->Get_PlayerRuntimeStat().CurAp = 3;
 }
 
 HairChainPhysicsDesc PW_Gustave::Get_HairChainPhysicsDesc() const

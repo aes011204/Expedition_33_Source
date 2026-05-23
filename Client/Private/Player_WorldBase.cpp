@@ -41,6 +41,8 @@ HRESULT Player_WorldBase::Initialize(void* arg)
     CHECK_FAILED(Ready_Components(), E_FAIL);
     CHECK_FAILED(Ready_PartObjects(), E_FAIL);
 
+
+
     return S_OK;
 }
 

@@ -250,7 +250,7 @@ namespace UIEditor
 
         if (ImGui::BeginPopupModal("Rename UI Object", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
         {
-            UI_Object* object = _editorManager.Get_Document().Find_Object(_renamingObjectId);
+            const UI_Object* object = _editorManager.Get_Document().Find_Object(_renamingObjectId);
             if (nullptr == object)
             {
                 ImGui::CloseCurrentPopup();
@@ -317,7 +317,7 @@ namespace UIEditor
 
     void UI_Hierarchy_View::Begin_RenameObject(ObjectId objectId)
     {
-        UI_Object* object = _editorManager.Get_Document().Find_Object(objectId);
+        const UI_Object* object = _editorManager.Get_Document().Find_Object(objectId);
         if (nullptr == object || _editorManager.Is_ObjectEffectivelyLocked(objectId))
             return;
 

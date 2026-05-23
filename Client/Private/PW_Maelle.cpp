@@ -3,6 +3,7 @@
 #include "Bounding_OBB.h"
 #include "ColliderCom.h"
 #include "PlayableParts.h"
+#include "PlayerStatCom.h"
 #include "SkillTreeCom.h"
 
 IMPLEMENT_REFLECTION(PW_Maelle)
@@ -39,6 +40,15 @@ HRESULT PW_Maelle::Initialize(void* arg)
     skilltreeCom->TryUnlock("Spark");
 
     return S_OK;
+}
+
+void PW_Maelle::BeginPlay()
+{
+    Player_WorldBase::BeginPlay();
+
+    _combatStatCom->Get_StatInfo().maxAp = 9;   
+    _combatStatCom->Get_PlayerRuntimeStat().CurMaxAp = 9;
+    _combatStatCom->Get_PlayerRuntimeStat().CurAp = 4;
 }
 
 HairChainPhysicsDesc PW_Maelle::Get_HairChainPhysicsDesc() const
