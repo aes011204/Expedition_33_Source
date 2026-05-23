@@ -1,14 +1,12 @@
 ﻿#include "Body_Player.h"
 #include "GameInstance.h"
 #include "Material.h"
-#include "Material_Types.h"
 #include "Player_WorldBase.h"
 #include "ModelCom.h"
 #include "Debug_Profile.h"
 #include "ShaderPassFinder.h"
-#include "ComputeShaderCom.h"
 #include "AnimComputeRuntime.h"
-#include "OffsetModifier.h"
+#include "OffsetAnimationModifier.h"
 
 REGISTER_GLOBAL_ENUM(Client::Body_Player::PlayerWorldAnimation, "PlayerWorldAnimation")
 
@@ -40,15 +38,20 @@ HRESULT Body_Player::Initialize(void* arg)
     _modelCom->Set_LocalRootNode(_rootBoneIndex);
 
     {
-        OffsetModifier::OffsetModifierDesc offsetDesc{};
+        OffsetAnimationModifier::OffsetModifierDesc offsetDesc{};
         offsetDesc.baseModelCom = _modelCom.get();
         offsetDesc.animName = "Gustave_IdleFreeAim_LoopingWorld_Sweep";
         offsetDesc.rootBoneName = "spine_01";
-        offsetDesc.endBoneName = "root";
+        offsetDesc.endBoneName = "hand_r";
         offsetDesc.maxPitchAngle = 60.f;
+        offsetDesc.blendMode = AnimationModifier::ModifierBlendMode::ModifyReplace;
+        offsetDesc.responseCurve = 1.5f;
 
-        auto modifier = OffsetModifier::Create(offsetDesc);
-        _modelCom->Add_AnimModifier(modifier);
+        if (auto modifier = OffsetAnimationModifier::Create(offsetDesc))
+        {
+            modifier->Set_Active(false);
+            _modelCom->Add_AnimModifier(modifier);
+        }
     }
 
     return S_OK;

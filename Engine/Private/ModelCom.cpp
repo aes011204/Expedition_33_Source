@@ -1766,7 +1766,7 @@ void ModelCom::Evaluate_AnimationModifiers(float timeDelta)
 {
     for (auto& modifier : _modifiers)
     {
-        modifier->Evaluate_Modifier(this, timeDelta, 1.0f);
+        modifier->Evaluate_Modifier(this, timeDelta);
     }
 }
 

@@ -53,7 +53,7 @@ HRESULT AnimComputeRuntime::Update_Frame(float timeDelta)
         Debug_Profile::Scope scope("AnimCompute::SamplePose");
         _model->Step_SampleAnimationPose(context.modelContext);
     }
-
+    _model->Evaluate_AnimationModifiers(timeDelta);
     _model->Step_RebuildCombinedBones();
 
     CHECK_FAILED(_model->Ensure_AnimationComputeSource(), E_FAIL); // source cache가 없으면 생성

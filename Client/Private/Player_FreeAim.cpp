@@ -3,7 +3,7 @@
 
 #include <Camera.h>
 
-#include "OffsetModifier.h"
+#include "OffsetAnimationModifier.h"
 #include "Body_Player.h"
 #include "PlayerStateMachineCom.h"
 #include "Player_WorldBase.h"
@@ -25,9 +25,10 @@ bool Player_FreeAim::EnterInvoke()
     {
         for (auto& modifier : model->Get_Modifiers())
         {
-            if (auto offsetMod = dynamic_pointer_cast<OffsetModifier>(modifier))
+            if (auto offsetMod = dynamic_pointer_cast<OffsetAnimationModifier>(modifier))
             {
                 _offsetModifier = offsetMod;
+                _offsetModifier->Set_Active(true);
                 break;
             }
         }
@@ -52,11 +53,11 @@ void Player_FreeAim::Update(float timeDelta)
         }
     }
 
-    Vec2 mouseDelta = GAME->Get_MouseDelta();
+   /* Vec2 mouseDelta = GAME->Get_MouseDelta();
     if (mouseDelta.x != 0.f)
     {
         _owner.lock()->Get_Transform()->Rotate(Vec3::Up, mouseDelta.x * _rotationSensitivity);
-    }
+    }*/
 
     if (_offsetModifier)
     {
@@ -76,7 +77,10 @@ void Player_FreeAim::LateUpdate(float timeDelta)
 void Player_FreeAim::ExitInvoke()
 {
     if (_offsetModifier)
+    {
         _offsetModifier->Set_AimPitch(0.f);
+        _offsetModifier->Set_Active(false);
+    }
 }
 
 Shared<Player_FreeAim> Player_FreeAim::Create(const Shared<Player_WorldBase>& owner)

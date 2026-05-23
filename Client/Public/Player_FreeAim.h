@@ -3,7 +3,7 @@
 
 
 NS_BEGIN(Engine)
-    class OffsetModifier;
+    class OffsetAnimationModifier;
 NS_END
 
 NS_BEGIN(Client)
@@ -23,8 +23,8 @@ public:
     void ExitInvoke() override;
 
 private:
-    Shared<OffsetModifier> _offsetModifier = nullptr;
-    float _rotationSensitivity = 0.1f; 
+    Shared<OffsetAnimationModifier> _offsetModifier = nullptr;
+    float _rotationSensitivity = 0.5f; 
 
 public:
     static Shared<Player_FreeAim> Create(const Shared<Player_WorldBase>& owner);

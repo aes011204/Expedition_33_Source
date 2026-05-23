@@ -422,9 +422,10 @@
     <ClInclude Include="..\Public\IKAnimationModifier.h">
       <Filter>01.Utility\04.Component\Model\Animation\Modifier</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\OffsetModifier.h">
+    <ClInclude Include="..\Public\OffsetAnimationModifier.h">
       <Filter>01.Utility\04.Component\Model\Animation\Modifier</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\MapStaticCollisionBuilder.h" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\public\Base.h">
@@ -1010,12 +1011,10 @@
     <ClCompile Include="..\Private\AnimationModifier.cpp">
       <Filter>01.Utility\04.Component\Model\Animation\Modifier</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\IKAnimationModifier.cpp">
+    <ClCompile Include="..\Private\OffsetAnimationModifier.cpp">
       <Filter>01.Utility\04.Component\Model\Animation\Modifier</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\OffsetModifier.cpp">
-      <Filter>01.Utility\04.Component\Model\Animation\Modifier</Filter>
-    </ClCompile>
+    <ClCompile Include="..\Private\MapStaticCollisionBuilder.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Bin\ShaderFiles\Engine_Shader_Defines.hlsli">

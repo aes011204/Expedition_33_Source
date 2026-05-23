@@ -188,7 +188,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="..\Public\AIController.h" />
-    <ClInclude Include="..\Public\OffsetModifier.h" />
+    <ClInclude Include="..\Public\OffsetAnimationModifier.h" />
     <ClInclude Include="..\Public\AnimationModifier.h" />
     <ClInclude Include="..\Public\AnimComputeRuntime.h" />
     <ClInclude Include="..\Public\AnimCompute_Types.h" />
@@ -342,7 +342,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
   <ItemGroup>
     <ClCompile Include="..\Private\AIController.cpp" />
     <ClCompile Include="..\Private\MapStaticCollisionBuilder.cpp" />
-    <ClCompile Include="..\Private\OffsetModifier.cpp" />
+    <ClCompile Include="..\Private\OffsetAnimationModifier.cpp" />
     <ClCompile Include="..\Private\AnimationModifier.cpp" />
     <ClCompile Include="..\Private\AnimComputeRuntime.cpp" />
     <ClCompile Include="..\Private\AnimNotify.cpp" />

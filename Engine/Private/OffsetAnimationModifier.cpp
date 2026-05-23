@@ -1,0 +1,180 @@
+﻿#include "pch.h"
+#include "OffsetAnimationModifier.h"
+
+#include "Animation.h"
+#include "Channel.h"
+#include "ModelCom.h"
+
+HRESULT OffsetAnimationModifier::Initialize(const OffsetModifierDesc& desc)
+{
+    _desc = desc;
+    auto baseModel = desc.baseModelCom;
+    if (nullptr == baseModel || _desc.endBoneName.empty() || _desc.rootBoneName.empty())
+    {
+        return E_FAIL;
+    }
+
+    _animIndex = baseModel->Get_AnimationIndexByName(desc.animName);
+    if (_animIndex == UINT_MAX)
+    {
+        return E_FAIL;
+    }
+
+    int32 currentBoneIdx = baseModel->Get_BoneIndex(_desc.endBoneName);
+    int32 rootBoneIdx = baseModel->Get_BoneIndex(_desc.rootBoneName);
+
+    if (currentBoneIdx == -1 || rootBoneIdx == -1)
+    {
+        return E_FAIL;
+    }
+
+    constexpr int32 maxDepth = 100;
+    int32 depthCount = 0;
+
+    while (currentBoneIdx != -1 && depthCount < maxDepth)
+    {
+        _boneChain.push_back(currentBoneIdx);
+
+        if (currentBoneIdx == rootBoneIdx)
+        {
+            break;
+        }
+
+        currentBoneIdx = baseModel->Get_BoneParentIndex(currentBoneIdx);
+        ++depthCount;
+    }
+
+    if (_boneChain.empty() || _boneChain.back() != rootBoneIdx)
+    {
+        return E_FAIL;
+    }
+
+    return S_OK;
+}
+
+// TODO : Compute 셰이더 편입이 맞는 계산일거 같음
+// Result = BasePose times (1 - alpha) + (ModifiedPose times alpha)
+void OffsetAnimationModifier::Evaluate_Modifier(ModelCom* model, float timeDelta)
+{
+    if (BlendAlpha(model, timeDelta) == false)
+        return;
+    
+    UpdateWeightOffset(model, timeDelta);
+}
+
+bool OffsetAnimationModifier::BlendAlpha(ModelCom* model, float timeDelta)
+{
+    float targetAlpha = _isActive ? 1.f : 0.f;
+
+    if (targetAlpha > _blendAlpha)
+    {
+        if (_desc.blendInTime > 0.f)
+            _blendAlpha = min(_blendAlpha + timeDelta / _desc.blendInTime, targetAlpha);
+        else
+            _blendAlpha = targetAlpha;
+    }
+    else if (targetAlpha < _blendAlpha)
+    {
+        if (_desc.blendOutTime > 0.f)
+            _blendAlpha = max(_blendAlpha - timeDelta / _desc.blendOutTime, targetAlpha);
+        else
+            _blendAlpha = targetAlpha;
+    }
+
+    if (_blendAlpha <= 0.f || nullptr == model || _animIndex < 0 || _boneChain.empty())
+        return false;
+
+    return true;
+}
+
+void OffsetAnimationModifier::UpdateWeightOffset(ModelCom* model, float timeDelta)
+{
+    float clampedPitch = clamp(_targetPitch, -_desc.maxPitchAngle, _desc.maxPitchAngle);
+    float normalized = clampedPitch / _desc.maxPitchAngle; // -1 ~ 1
+    float curved = (normalized >= 0.f ? 1.f : -1.f) * Math::GetEaseInRatio(std::abs(normalized), _desc.responseCurve);
+    float weightUp = std::max(curved, 0.f);
+    float weightDown = std::max(-curved, 0.f);
+
+    Animation* offsetAnim = model->Get_Animation(_animIndex);
+    if (!offsetAnim) return;
+
+    auto Get_TransformAtRatio = [&](Shared<Channel> channel, float ratio) {
+        RootMotionFrame tf;
+        uint32 keyFrame = 0;
+        channel->Get_ChannelTransform(offsetAnim->Get_Duration() * ratio, keyFrame, offsetAnim->Get_Duration(), true, tf);
+        return tf;
+        };
+
+    for (int32 boneIndex : _boneChain)
+    {
+        Shared<Channel> boneChannel = nullptr;
+        for (auto& channel : offsetAnim->Get_Channels())
+        {
+            if (channel->Get_BoneIndex() == boneIndex)
+            {
+                boneChannel = channel;
+                break;
+            }
+        }
+
+        if (!boneChannel) continue;
+
+        RootMotionFrame center = Get_TransformAtRatio(boneChannel, _desc.timeRatio_Center);
+        RootMotionFrame target = center;
+
+        if (weightUp > FLT_EPSILON) // 가중치가 존재하면
+        {
+            RootMotionFrame up = Get_TransformAtRatio(boneChannel, _desc.timeRatio_Max);
+            target.rotation = Quaternion::Slerp(center.rotation, up.rotation, weightUp);
+            target.position = Vector3::Lerp(center.position, up.position, weightUp);
+            target.scale = Vector3::Lerp(center.scale, up.scale, weightUp);
+        }
+        else if (weightDown > FLT_EPSILON)
+        {
+            RootMotionFrame down = Get_TransformAtRatio(boneChannel, _desc.timeRatio_Min);
+            target.rotation = Quaternion::Slerp(center.rotation, down.rotation, weightDown);
+            target.position = Vector3::Lerp(center.position, down.position, weightDown);
+            target.scale = Vector3::Lerp(center.scale, down.scale, weightDown);
+        }
+
+        // 모드에 따른 본 매트릭스 결정 
+        float effectiveAlpha = _blendAlpha * _strengthAlpha;
+
+        Matrix baseMat = model->Get_BoneLocalMatrix(boneIndex);
+        Vec3 baseScale, basePos; Quat baseRot;
+        baseMat.Decompose(baseScale, baseRot, basePos);
+
+        if (_desc.blendMode == ModifierBlendMode::ModifyAddictive)
+        {
+            Quat centerInv; center.rotation.Inverse(centerInv);
+            Quat deltaRot = target.rotation * centerInv; deltaRot.Normalize();
+
+            Quat finalRot = Quaternion::Slerp(Quaternion::Identity, deltaRot, effectiveAlpha) * baseRot;
+            finalRot.Normalize();
+            Vec3 finalPos = basePos + (target.position - center.position) * effectiveAlpha;
+            model->Set_BoneLocalMatrix(boneIndex, Matrix::CreateScale(baseScale)
+                * Matrix::CreateFromQuaternion(finalRot)
+                * Matrix::CreateTranslation(finalPos));
+        }
+        else if (_desc.blendMode == ModifierBlendMode::ModifyReplace)
+        {
+            Quat finalRot = Quaternion::Slerp(baseRot, target.rotation, effectiveAlpha);
+            Vec3 finalPos = Vector3::Lerp(basePos, target.position, effectiveAlpha);
+            Vec3 finalScale = Vector3::Lerp(baseScale, target.scale, effectiveAlpha);
+            model->Set_BoneLocalMatrix(boneIndex, Matrix::CreateScale(finalScale)
+                * Matrix::CreateFromQuaternion(finalRot)
+                * Matrix::CreateTranslation(finalPos));
+        }
+    }
+}
+
+Shared<OffsetAnimationModifier> OffsetAnimationModifier::Create(const OffsetModifierDesc& modifierDesc)
+{
+    auto instance = make_shared<OffsetAnimationModifier>();
+
+    CHECK_FAILED(instance->Initialize(modifierDesc), nullptr);
+
+    return instance;
+}
+
+
