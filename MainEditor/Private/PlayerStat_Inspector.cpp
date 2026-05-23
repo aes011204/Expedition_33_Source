@@ -10,7 +10,13 @@ void PlayerStat_Inspector::Draw_Inspector(const Shared<Component>& component)
     if (!Draw_Header("PlayerCombat Stat"))
         return;
 
+    auto& desc = stat->Get_StatInfo();
     auto& runtime = stat->Get_PlayerRuntimeStat();
+
+    Draw_PortraitTexturePicker(
+        "TurnOrder Portrait",
+        desc.portraitGuid,
+        "textures/ui/character/characterhud/");
 
     int level = static_cast<int>(runtime.CurLevel);
     int exp = static_cast<int>(runtime.CurExp);

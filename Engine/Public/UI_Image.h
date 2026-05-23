@@ -68,8 +68,12 @@ public:
     void Set_FillRatio(float ratio) { _fillRatio = ::clamp(ratio, 0.f, 1.f); } // HP 바는 0~1 비율로 UV crop 한다.
     void Set_FillOrigin(FillOrigin origin) { _fillOrigin = origin; }
 
+    HRESULT Set_TexturePath(const wstring& texturePath);
+    HRESULT Set_TextureGuid(const string& textureGuid);
+
 private:
     HRESULT Ready_RenderResources();
+    HRESULT Load_TextureResource();
 
 private:
     bool    _isOverlay = false;

@@ -53,14 +53,14 @@ HRESULT UI_Image::Initialize(void* arg)
     if (_texturePath.empty())
         return S_OK;
 
-    ComPtr<Device> device = GAME->Get_Device();
-    CHECK_NULL(device, E_FAIL);
-
-    if (FAILED(CreateWICTextureFromFile(device.Get(), _texturePath.c_str(), nullptr, _srv.GetAddressOf())))
+    if (FAILED(Load_TextureResource()))
         return E_FAIL;
 
     if (!_maskTexturePath.empty())
     {
+            ComPtr<Device> device = GAME->Get_Device();
+    CHECK_NULL(device, E_FAIL);
+
         if (FAILED(CreateWICTextureFromFile(device.Get(), _maskTexturePath.c_str(), nullptr, _maskSrv.GetAddressOf())))
         {
             LOG_WARN("UI_Image mask texture load failed. path='{}'", String::ToString(_maskTexturePath));
@@ -201,6 +201,27 @@ HRESULT UI_Image::Render()
     return S_OK;
 }
 
+HRESULT UI_Image::Set_TexturePath(const wstring& texturePath)
+{
+    if (_texturePath == texturePath)
+        return S_OK;
+
+    _texturePath = texturePath;
+    return Load_TextureResource();
+}
+
+HRESULT UI_Image::Set_TextureGuid(const string& textureGuid)
+{
+    if (textureGuid.empty())
+        return E_FAIL;
+
+    const wstring resolvedPath = GAME->Resolve_AssetPath(textureGuid);
+    if (resolvedPath.empty())
+        return E_FAIL;
+
+    return Set_TexturePath(resolvedPath);
+}
+
 HRESULT UI_Image::Ready_RenderResources()
 {
     if (nullptr == _shader)
@@ -222,6 +243,25 @@ HRESULT UI_Image::Ready_RenderResources()
                 _viBufferPrototypeTag));
     }
     CHECK_NULL(_viBuffer, E_FAIL);
+
+    return S_OK;
+}
+
+HRESULT UI_Image::Load_TextureResource()
+{
+    _srv.Reset();
+
+    if (_texturePath.empty())
+        return S_OK;
+
+    ComPtr<Device> device = GAME->Get_Device();
+    CHECK_NULL(device, E_FAIL);
+
+    if (FAILED(CreateWICTextureFromFile(device.Get(), _texturePath.c_str(), nullptr, _srv.GetAddressOf())))
+    {
+        LOG_WARN("UI_Image texture load failed. path='{}'", String::ToString(_texturePath));
+        return E_FAIL;
+    }
 
     return S_OK;
 }

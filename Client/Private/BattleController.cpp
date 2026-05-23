@@ -906,6 +906,34 @@ void BattleController::OnActionEndNotify()
 
 }
 
+vector<BattleChar> BattleController::Get_TurnOrderPreview(uint32 maxCount) const
+{
+    vector<BattleChar> preview{};
+    if (maxCount == 0)
+        return preview;
+
+    if (_currentTurnActor.actor != nullptr && _currentTurnActor.statCom != nullptr)
+        preview.push_back(_currentTurnActor);
+
+    auto queueCopy = _turnQueue;
+
+    while (!queueCopy.empty() && preview.size() < maxCount)
+    {
+        const TurnEntry entry = queueCopy.top();
+        queueCopy.pop(); // 위에꺼먼저 삭제
+
+        if (entry.hero.actor == nullptr || entry.hero.statCom == nullptr)
+            continue;
+
+        if (entry.hero.statCom->Get_AliveStatus() == EAliveStatus::Alive)
+            continue;
+
+        preview.push_back(entry.hero);
+    }
+
+    return preview;
+}
+
 HRESULT BattleController::Ready_BattleTurnCamera()
 {
 	if (_battleTurnCamera)
