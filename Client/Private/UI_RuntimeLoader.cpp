@@ -53,8 +53,11 @@ namespace
 
         string textureGuid{};
         string texturePath{};
+        UI_Image::ImageRenderMode imageRenderMode = UI_Image::ImageRenderMode::Normal;
         string maskTextureGuid{};
         string maskTexturePath{};
+        string patternMaskTextureGuid{};
+        string patternMaskTexturePath{};
 
         vector<UI_AnimationClip> animationClips{};
         vector<UI_KeyframeAnimationAsset> keyframeAnimationAssets{};
@@ -185,6 +188,16 @@ namespace
             return UI_RenderGroup::Background;
 
         return UI_RenderGroup::Foreground;
+    }
+
+    UI_Image::ImageRenderMode Parse_ImageRenderMode(const string& modeName)
+    {
+        const string mode = String::ToLowerCopy(modeName);
+
+        if ("patternoverlay" == mode || "pattern_overlay" == mode || "pattern overlay" == mode)
+            return UI_Image::ImageRenderMode::PatternOverlay;
+
+        return UI_Image::ImageRenderMode::Normal;
     }
 
     bool Can_RuntimeTypeHaveChildren(RuntimeUIType type)
@@ -716,8 +729,11 @@ namespace
 
         object.textureGuid = Read_String(item, "textureGuid", "");
         object.texturePath = Read_String(item, "texturePath", "");
+        object.imageRenderMode = Parse_ImageRenderMode(Read_String(item, "imageRenderMode", "Normal"));
         object.maskTextureGuid = Read_String(item, "maskTextureGuid", "");
         object.maskTexturePath = Read_String(item, "maskTexturePath", "");
+        object.patternMaskTextureGuid = Read_String(item, "patternMaskTextureGuid", "");
+        object.patternMaskTexturePath = Read_String(item, "patternMaskTexturePath", "");
         object.animationClips = Read_AnimationClips(item);
 
         return object;
@@ -864,12 +880,19 @@ namespace
 
         UI_Image::UI_IMAGE_DESC desc{};
         desc.texturePath = texturePath;
+        desc.imageRenderMode = object.imageRenderMode;
 
         const wstring maskTexturePath = Resolve_JsonAssetPath(object.maskTextureGuid, object.maskTexturePath);
         if (!maskTexturePath.empty() && fs::exists(maskTexturePath))
             desc.maskTexturePath = maskTexturePath;
         else if (!object.maskTextureGuid.empty() || !object.maskTexturePath.empty())
             LOG_WARN("UI RuntimeLoader image mask skipped: missing mask texture. id={}", object.id);
+
+        const wstring patternMaskTexturePath = Resolve_JsonAssetPath(object.patternMaskTextureGuid, object.patternMaskTexturePath);
+        if (!patternMaskTexturePath.empty() && fs::exists(patternMaskTexturePath))
+            desc.patternMaskTexturePath = patternMaskTexturePath;
+        else if (!object.patternMaskTextureGuid.empty() || !object.patternMaskTexturePath.empty())
+            LOG_WARN("UI RuntimeLoader image pattern mask skipped: missing pattern mask texture. id={}", object.id);
 
         desc.color = object.color;
         desc.transformDesc.position = object.position;

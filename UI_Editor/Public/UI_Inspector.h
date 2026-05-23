@@ -17,11 +17,11 @@ namespace UIEditor
         void Render() override;
 
     private:
-        void Render_LayoutPresets(UI_Object& object);
-        bool Render_TexturePicker(UI_Object& object);
-        bool Render_FontPicker(UI_Object& object);
+        void Render_LayoutPresets(const UI_Object& object);
+        void Render_TexturePicker(const UI_Object& object, ObjectId& outCreatePatternOverlaySourceId);
+        void Render_FontPicker(const UI_Object& object);
         bool Draw_UITextureSlotPicker(const char* label, const char* popupId, string& textureGuid, string& texturePath);
-        bool Draw_FontSlotPicker(const char* label, const char* popupId, UI_Object& object);
+        void Draw_FontSlotPicker(const char* label, const char* popupId, const UI_Object& object);
         void Refresh_UITextureAssetCache();
         void Refresh_FilteredUITextureAssets(const string& searchText);
 

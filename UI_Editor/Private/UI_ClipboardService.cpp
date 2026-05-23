@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "UI_ClipboardService.h"
+#include "UI_DocumentInternalAccess.h"
 
 namespace UIEditor
 {
@@ -63,7 +64,8 @@ namespace UIEditor
             return false;
 
         const float pasteOffset = 20.f * static_cast<float>(_clipboardPasteCount + 1);
-        outCreatedRootObjectIds = document.Import_PrefabObjects(
+        outCreatedRootObjectIds = UI_DocumentInternalAccess::Import_PrefabObjects(
+            document,
             _clipboardObjects,
             _clipboardRootObjectIds,
             parentId,

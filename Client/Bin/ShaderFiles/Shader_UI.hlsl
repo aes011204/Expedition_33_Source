@@ -7,14 +7,12 @@ float4x4 g_WorldMatrix, g_ViewMatrix, g_ProjMatrix;
 
 Texture2D g_Texture;
 Texture2D g_MaskTexture;
+Texture2D g_PatternMaskTexture;
 
 bool g_IsOverlay;
 bool g_UseGrayScale;
 float4 g_GrayAmount;
 float4 g_Color = float4(1.f, 1.f, 1.f, 1.f);
-bool g_UseFillRatio = false;
-float g_FillRatio = 1.0f;
-uint g_FillOrigin = 0; // 0 = LeftToRight, 1 = RightToLeft
 
 // 원형 마스크ㄴ
 float2 g_HoleCenterUV = float2(0.5f, 0.5f);
@@ -58,23 +56,6 @@ struct PS_OUT
     float4 vColor : SV_TARGET0;
 };
 
-float ComputeFillAlpha(float2 uv)
-{
-    if(!g_UseFillRatio)
-        return 1.0f;
-
-    const float ratio = saturate(g_FillRatio);
-
-    if(g_FillOrigin == 0)
-    {
-        // 왼쪽에서 오른쪽으로 채워진다.
-        return (uv.x <= ratio) ? 1.0f : 0.0f;
-    }
-
-    // 오른쪽에서 왼쪽으로 채워진다.
-    return (uv.x >= (1.0f - ratio)) ? 1.0f : 0.0f;
-}
-
 PS_OUT PS_NORMAL(PS_IN In)
 {
     PS_OUT Out;
@@ -115,37 +96,6 @@ PS_OUT PS_MASK(PS_IN In)
     return Out;
 }
 
-PS_OUT PS_FILL(PS_IN In)
-{
-    PS_OUT Out;
-
-    Out.vColor = g_Texture.Sample(LinearClampSampler, In.vTexcoord) * g_Color;
-
-    float4 finalColor = Out.vColor;
-
-    if(g_UseGrayScale)
-    {
-        float gray = dot(Out.vColor.rgb, float3(0.299f, 0.587f, 0.114f));
-        float3 grayColor = float3(gray, gray, gray);
-        finalColor.rgb = grayColor * 0.5f;
-    }
-
-    if(g_IsOverlay)
-    {
-        float3 invertedRgb = 1.f - Out.vColor.rgb;
-        finalColor.rgb = lerp(Out.vColor.rgb, invertedRgb, Out.vColor.a);
-    }
-
-    finalColor.a *= ComputeFillAlpha(In.vTexcoord);
-
-    if(finalColor.a <= 0.001f)
-        discard;
-
-    Out.vColor = finalColor;
-
-    return Out;
-}
-
 PS_OUT PS_CIRCULAR_HOLE(PS_IN In)
 {
     PS_OUT Out;
@@ -164,10 +114,26 @@ PS_OUT PS_CIRCULAR_HOLE(PS_IN In)
     return Out;
 }
 
+PS_OUT PS_PATTERN_OVERLAY(PS_IN In)
+{
+    PS_OUT Out;
+
+    const float3 lumaWeights = float3(0.299f, 0.587f, 0.114f);
+    const float4 pattern = g_Texture.Sample(LinearClampSampler, In.vTexcoord);
+    const float paintMask = saturate(dot(g_MaskTexture.Sample(LinearClampSampler, In.vTexcoord).rgb, lumaWeights));
+    const float patternMask = saturate(dot(g_PatternMaskTexture.Sample(LinearClampSampler, In.vTexcoord).rgb, lumaWeights));
+    const float patternCoverage = saturate(min(pattern.a, dot(pattern.rgb, lumaWeights)));
+
+    Out.vColor.rgb = g_Color.rgb;
+    Out.vColor.a = patternCoverage * paintMask * patternMask * g_Color.a;
+
+    return Out;
+}
+
 technique11 DefaultTechnique
 {
-    PASS_RS_DS_BS_VP(NormalPass,        RS_UI, DSS_None, BS_AlphaBlend, VS_MAIN, PS_NORMAL) // 0
-    PASS_RS_DS_BS_VP(MaskPass,          RS_UI, DSS_None, BS_AlphaBlend, VS_MAIN, PS_MASK)   // 1
-    PASS_RS_DS_BS_VP(CircularHolePass,  RS_UI, DSS_None, BS_AlphaBlend, VS_MAIN, PS_CIRCULAR_HOLE) // 2
-    PASS_RS_DS_BS_VP(FillPass,          RS_UI, DSS_None, BS_AlphaBlend, VS_MAIN, PS_FILL)   // 3
+    PASS_RS_DS_BS_VP(NormalPass,    RS_UI, DSS_None, BS_AlphaBlend, VS_MAIN, PS_NORMAL) // 0
+    PASS_RS_DS_BS_VP(MaskPass,      RS_UI, DSS_None, BS_AlphaBlend, VS_MAIN, PS_MASK)   // 1
+    PASS_RS_DS_BS_VP(CircularHolePass, RS_UI, DSS_None, BS_AlphaBlend, VS_MAIN, PS_CIRCULAR_HOLE) // 2
+    PASS_RS_DS_BS_VP(PatternOverlayPass, RS_UI, DSS_None, BS_AlphaBlend, VS_MAIN, PS_PATTERN_OVERLAY) // 3
 }
