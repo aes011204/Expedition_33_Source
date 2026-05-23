@@ -361,11 +361,11 @@ void Detail_View::Render_TypeDataDetail(
             if (_detailPropertyContext.Begin_PropertyTable("TrailTypeDataBase"))
             {
                 changed |= _detailPropertyContext.Draw_FloatProperty(
-                    "너비",
+                    "폭",
                     data->width,
                     defaultData.width,
                     0.01f,
-                    "1.0이면 preview/sample provider가 넘긴 Base부터 Tip까지의 길이를 그대로 사용합니다. 낮추면 중심 기준으로 폭이 줄어듭니다."
+                    "트레일 strip의 폭입니다. Base/Tip 길이 비율이 아니라 별도 값입니다."
                 );
                 changed |= _detailPropertyContext.Draw_FloatProperty(
                     "세그먼트 수명",

@@ -308,7 +308,7 @@ struct EmptyTypeData
 
 struct TrailTypeData
 {
-    float width{ 0.1f };
+    float width{ 1.f };
     float segmentLifetime{ 0.25f };
     uint32 historyCount{ 32 };
     float uvTiling{ 1.f };
