@@ -47,6 +47,8 @@ private:
     HRESULT Ready_Lights();
     // EffectEditor preview용 orbit camera를 만들고 active camera로 지정한다.
     HRESULT Ready_Layer_Camera(const wstring& layerTag);
+    // EffectEditor world grid를 준비한다.
+    HRESULT Ready_Layer_Grid(const wstring& layerTag);
     // EffectEditor preview 전용 skybox를 준비한다.
     HRESULT Ready_Layer_Sky(const wstring& layerTag);
     // preview layer는 authoring emitter 기반 runtime preview만 담는다.

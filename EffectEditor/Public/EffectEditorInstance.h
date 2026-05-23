@@ -147,6 +147,8 @@ public: //## Behavior::Viewport
     Shared<RenderTarget> Prepare_SharedViewportRenderTarget(uint32 width, uint32 height);
     // runtime back buffer 결과를 editor 공유 viewport target으로 복사한다.
     void Capture_BackBuffer_ToViewport();
+    // EffectEditor scene grid를 현재 바인딩된 world render target에 그린다.
+    void Render_SceneGrid();
 
     void Request_PreviewViewportSize(uint32 width, uint32 height);
 
@@ -223,7 +225,6 @@ private: //## Data::InputPolicy
 
 private: //## Helper::PreviewViewport
     void Ensure_SceneGridResources();
-    void Render_SceneGridToBackBuffer();
     void Queue_PreviewViewportSize(uint32 width, uint32 height);
     void Apply_PendingPreviewViewportSize();
 
