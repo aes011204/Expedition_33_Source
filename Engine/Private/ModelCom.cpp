@@ -7,6 +7,7 @@
 #include "ShaderCom.h"
 #include "Material.h"
 #include "Animation.h"
+#include "AnimationModifier.h"
 #include "SkeletalMesh.h"
 #include "StaticMesh.h"
 #include "ComputeStructuredBuffer.h"
@@ -231,6 +232,17 @@ const char* ModelCom::Get_AnimationName(uint32 animationIndex) const
         return nullptr;
 
     return _animations[animationIndex]->Get_AnimationName().c_str();
+}
+
+uint32 ModelCom::Get_AnimationIndexByName(const string& animationName) const
+{
+    for (auto& [name, index] : _mappedAnimIndices)
+    {
+        if (name == animationName)
+            return index;
+    }
+
+    return UINT_MAX;
 }
 
 const Matrix* ModelCom::Get_BoneMatrixPtr(const char* boneName) const
@@ -835,6 +847,7 @@ bool ModelCom::Play_Animation(float timeDelta)
     Begin_AnimationPipeline(timeDelta, context);
 
     Step_SampleAnimationPose(context);
+    Evaluate_AnimationModifiers(timeDelta);
     Step_RebuildCombinedBones();
     Step_FinalizeAnimationFrame(context);
 
@@ -1745,6 +1758,33 @@ HRESULT ModelCom::Ensure_AnimationComputeSource()
     return S_OK;
 }
 
+void ModelCom::Add_AnimModifier(const Shared<AnimationModifier>& modifier)
+{
+    if (modifier)
+    {
+        _modifiers.push_back(modifier);
+    }
+}
+
+AnimationModifier* ModelCom::Find_AnimModifierByTag(const wstring& modifierTag) const
+{
+    for (auto mod : _modifiers)
+    {
+        if (mod->Get_ModifierTag() == modifierTag)
+            return mod.get();
+    }
+    
+    return nullptr;
+}
+
+void ModelCom::Evaluate_AnimationModifiers(float timeDelta)
+{
+    for (auto& modifier : _modifiers)
+    {
+        modifier->Evaluate_Modifier(this, timeDelta);
+    }
+}
+
 HRESULT ModelCom::Ready_Model(const char* modelPath)
 {
     std::string resolvedPath(modelPath);
@@ -2016,6 +2056,7 @@ bool ModelCom::Ensure_AnimStateAssetLoaded(const string &sourceObjectGUID)
 	}
 
 	string targetPrefabGuid = "";
+	string targetPrefabName = "";
 	if (Get_Owner())
 	{
 		auto prefabContextOwner = Get_Owner();
@@ -2027,8 +2068,8 @@ bool ModelCom::Ensure_AnimStateAssetLoaded(const string &sourceObjectGUID)
 			}
 		}
 
-		string prefabName = prefabContextOwner->Get_SourcePrefabName();
-		if (prefabName.empty())
+		targetPrefabName = prefabContextOwner->Get_SourcePrefabName();
+		if (targetPrefabName.empty())
 		{
 			string selfClass = prefabContextOwner->Get_ReflectionInfo().className;
 			string ownerClass = "";
@@ -2036,17 +2077,17 @@ bool ModelCom::Ensure_AnimStateAssetLoaded(const string &sourceObjectGUID)
 			{
 				ownerClass = ownerOfContext->Get_ReflectionInfo().className;
 			}
-			prefabName = AnimState_Parser::Find_PrefabName_ByStaticClass(ownerClass, selfClass);
-			if (!prefabName.empty())
+			targetPrefabName = AnimState_Parser::Find_PrefabName_ByStaticClass(ownerClass, selfClass);
+			if (!targetPrefabName.empty())
 			{
-				prefabContextOwner->Set_SourcePrefabName(prefabName);
+				prefabContextOwner->Set_SourcePrefabName(targetPrefabName);
 			}
 		}
 
-		targetPrefabGuid = AnimState_Parser::Get_PrefabGuid(prefabName);
+		targetPrefabGuid = AnimState_Parser::Get_PrefabGuid(targetPrefabName);
 	}
 
-	return AnimState_Parser::Load_StateAnimations(_sourceModelPath, _animations, _stateAnimIndices, &_animEnumType, targetPrefabGuid);
+	return AnimState_Parser::Load_StateAnimations(_sourceModelPath, _animations, _stateAnimIndices, &_animEnumType, targetPrefabGuid, targetPrefabName);
 }
 
 bool ModelCom::Refresh_AnimStateMappingFromOwnerContext()

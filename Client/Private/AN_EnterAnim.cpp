@@ -4,7 +4,6 @@
 #include "BattleController.h"
 #include "ClientInstance.h"
 
-
 void AN_EnterAnim::Execute(const AnimNotifyContext& context)
 {
     CLIENT->Get_BattleController()->End_FirstAnim();

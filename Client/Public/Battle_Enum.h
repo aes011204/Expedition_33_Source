@@ -604,7 +604,10 @@ namespace Client
     enum class BattleAnimType
     {
         Base_Idle,
+
         Battle_Start,
+        Turn_Start,
+
         Hit_Heavy,
         Hit_Medium,
         Hit_Light,
@@ -612,6 +615,10 @@ namespace Client
         FreeAim_Enter,
         FreeAim_Idle,
         FreeAim_Shoot,
+
+        Dodge,
+        Parray,
+        Counter,
 
         Dead,
 

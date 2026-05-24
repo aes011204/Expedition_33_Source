@@ -244,6 +244,9 @@
     <Filter Include="94. ETC">
       <UniqueIdentifier>{4ae885e9-5541-4208-aa64-0a98f58ee9f2}</UniqueIdentifier>
     </Filter>
+    <Filter Include="01.Utility\04.Component\Model\Animation\Modifier">
+      <UniqueIdentifier>{4a8b075f-4a2b-4060-839b-978fbfb1912b}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -416,6 +419,16 @@
     <ClInclude Include="..\Public\Debug_Types.h">
       <Filter>99. Defines\Types</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\AnimationModifier.h">
+      <Filter>01.Utility\04.Component\Model\Animation\Modifier</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\IKAnimationModifier.h">
+      <Filter>01.Utility\04.Component\Model\Animation\Modifier</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\OffsetAnimationModifier.h">
+      <Filter>01.Utility\04.Component\Model\Animation\Modifier</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\MapStaticCollisionBuilder.h" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\public\Base.h">
@@ -1002,6 +1015,13 @@
       <Filter>01.Utility\11. UI</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\AnimComputeRuntime.cpp" />
+    <ClCompile Include="..\Private\AnimationModifier.cpp">
+      <Filter>01.Utility\04.Component\Model\Animation\Modifier</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\OffsetAnimationModifier.cpp">
+      <Filter>01.Utility\04.Component\Model\Animation\Modifier</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\MapStaticCollisionBuilder.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Bin\ShaderFiles\Engine_Shader_Defines.hlsli">

@@ -82,6 +82,7 @@ public:
 
     // 이번 레벨에서 필요한 LoadJob 생성. 여기서는 Add_Prototype을 하지 않음
     HRESULT Build_LevelJobs(LevelType levelType, vector<FLoadJob>& outJobs, const wstring& strJsonRootPath = L"");
+    HRESULT Build_LoadingUIRenderJobs(vector<FLoadJob>& outJobs, const wstring& strJsonRootPath = L"");
 
     static FInputLayoutInfo Get_InputLayout(const string& strName);
 

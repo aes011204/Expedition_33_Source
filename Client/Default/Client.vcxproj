@@ -245,6 +245,7 @@
     <ClInclude Include="..\Public\Cinematic_Types.h" />
     <ClInclude Include="..\Public\Cinematic_Utils.h" />
     <ClInclude Include="..\Public\Client_Constants.h" />
+    <ClInclude Include="..\Public\ContentBrowserCore.h" />
     <ClInclude Include="..\Public\Client_Enum.h" />
     <ClInclude Include="..\Public\Client_Macro.h" />
     <ClInclude Include="..\Public\Client_Struct.h" />
@@ -285,6 +286,7 @@
     <ClInclude Include="..\Public\PlayerControllerCom.h" />
     <ClInclude Include="..\public\PlayerStatCom.h" />
     <ClInclude Include="..\Public\Player_BattleBase.h" />
+    <ClInclude Include="..\Public\Player_FreeAim.h" />
     <ClInclude Include="..\Public\Player_GameMenu.h" />
     <ClInclude Include="..\public\Mon_Portier_Body.h" />
     <ClInclude Include="..\public\PreviewShotTable.h" />
@@ -314,8 +316,10 @@
     <ClInclude Include="..\Public\TargetCamera.h" />
     <ClInclude Include="..\Public\CharacterStatus_Panel.h" />
     <ClInclude Include="..\public\UIPreviewManager.h" />
+    <ClInclude Include="..\Public\UI_AttackTooltip.h" />
     <ClInclude Include="..\Public\UI_BattleSystemHUD.h" />
     <ClInclude Include="..\Public\UI_BattleSystem_TurnOrder.h" />
+    <ClInclude Include="..\Public\UI_BattleVictory.h" />
     <ClInclude Include="..\Public\UI_CancelAim.h" />
     <ClInclude Include="..\Public\UI_BattleCommandHUD.h" />
     <ClInclude Include="..\Public\UI_BattleDefense.h" />
@@ -323,6 +327,7 @@
     <ClInclude Include="..\Public\UI_ChoiceTarget.h" />
     <ClInclude Include="..\Public\UI_CrossHair.h" />
     <ClInclude Include="..\Public\UI_DamageFont.h" />
+    <ClInclude Include="..\Public\UI_EscapeSkipTurn.h" />
     <ClInclude Include="..\Public\UI_ExpeditionStatus.h" />
     <ClInclude Include="..\Public\UI_MonsterHpBar.h" />
     <ClInclude Include="..\Public\UI_RuntimeLoader.h" />
@@ -441,6 +446,7 @@
     <ClCompile Include="..\Private\Cinematic_Player.cpp" />
     <ClCompile Include="..\Private\Cinematic_SequenceIO.cpp" />
     <ClCompile Include="..\Private\CombatStatCom.cpp" />
+    <ClCompile Include="..\Private\ContentBrowserCore.cpp" />
     <ClCompile Include="..\Private\ComputeSpriteEmitter.cpp" />
     <ClCompile Include="..\private\DamageSystem.cpp" />
     <ClCompile Include="..\Private\EffectAssetRuntimeLoader.cpp" />
@@ -477,6 +483,7 @@
     <ClCompile Include="..\Private\PlayerControllerCom.cpp" />
     <ClCompile Include="..\private\PlayerStatCom.cpp" />
     <ClCompile Include="..\Private\Player_BattleBase.cpp" />
+    <ClCompile Include="..\Private\Player_FreeAim.cpp" />
     <ClCompile Include="..\Private\Player_GameMenu.cpp" />
     <ClCompile Include="..\private\Mon_Portier_Body.cpp" />
     <ClCompile Include="..\private\PreviewShotTable.cpp" />
@@ -506,8 +513,10 @@
     <ClCompile Include="..\Private\TargetCamera.cpp" />
     <ClCompile Include="..\Private\CharacterStatus_Panel.cpp" />
     <ClCompile Include="..\private\UIPreviewManager.cpp" />
+    <ClCompile Include="..\Private\UI_AttackTooltip.cpp" />
     <ClCompile Include="..\Private\UI_BattleSystemHUD.cpp" />
     <ClCompile Include="..\Private\UI_BattleSystem_TurnOrder.cpp" />
+    <ClCompile Include="..\Private\UI_BattleVictory.cpp" />
     <ClCompile Include="..\Private\UI_CancelAim.cpp" />
     <ClCompile Include="..\Private\UI_BattleCommandHUD.cpp" />
     <ClCompile Include="..\Private\UI_BattleDefense.cpp" />
@@ -515,6 +524,7 @@
     <ClCompile Include="..\Private\UI_ChoiceTarget.cpp" />
     <ClCompile Include="..\Private\UI_CrossHair.cpp" />
     <ClCompile Include="..\Private\UI_DamageFont.cpp" />
+    <ClCompile Include="..\Private\UI_EscapeSkipTurn.cpp" />
     <ClCompile Include="..\Private\UI_ExpeditionStatus.cpp" />
     <ClCompile Include="..\Private\UI_MonsterHpBar.cpp" />
     <ClCompile Include="..\Private\UI_RuntimeLoader.cpp" />

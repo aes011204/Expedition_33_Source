@@ -58,14 +58,15 @@ float Compute_TrailCenterDistance(const EffectTrailSample& from, const EffectTra
 
 wstring Resolve_TrailTexturePathByGuid(const string& textureGuid)
 {
-    if (GAME != nullptr && !textureGuid.empty())
-    {
-        const wstring resolvedPath = GAME->Resolve_AssetPath(textureGuid);
-        if (!resolvedPath.empty() && fs::exists(resolvedPath))
-            return resolvedPath;
-    }
+    if (GAME == nullptr || textureGuid.empty())
+        return {};
 
-    return {};
+    const AssetMeta* assetMeta = GAME->Find_AssetByGUID(textureGuid);
+    if (assetMeta == nullptr || assetMeta->type != "Texture")
+        return {};
+
+    const wstring resolvedPath = GAME->Resolve_AssetPath(textureGuid);
+    return !resolvedPath.empty() && fs::exists(resolvedPath) ? resolvedPath : wstring{};
 }
 
 wstring Resolve_TrailTexturePathByPath(const string& texturePath)
@@ -84,18 +85,31 @@ wstring Resolve_TrailTexturePathByPath(const string& texturePath)
     return {};
 }
 
-wstring Resolve_TrailTexturePath(const string& textureGuid, const string& texturePath, bool& outUsedLegacyGuid)
+bool Is_TrailTextureSamePath(const wstring& lhs, const wstring& rhs)
 {
-    outUsedLegacyGuid = false;
+    if (lhs.empty() || rhs.empty())
+        return false;
 
-    wstring resolvedPath = Resolve_TrailTexturePathByPath(texturePath);
-    if (!resolvedPath.empty())
-        return resolvedPath;
+    return fs::path(lhs).lexically_normal() == fs::path(rhs).lexically_normal();
+}
 
-    resolvedPath = Resolve_TrailTexturePathByGuid(textureGuid);
+wstring Resolve_TrailTexturePath(const string& textureGuid, const string& texturePath, bool& outUsedPathFallback, bool& outGuidPathMismatch)
+{
+    outUsedPathFallback = false;
+    outGuidPathMismatch = false;
+
+    wstring resolvedPath = Resolve_TrailTexturePathByGuid(textureGuid);
     if (!resolvedPath.empty())
     {
-        outUsedLegacyGuid = true;
+        const wstring pathResolved = Resolve_TrailTexturePathByPath(texturePath);
+        outGuidPathMismatch = !pathResolved.empty() && !Is_TrailTextureSamePath(resolvedPath, pathResolved);
+        return resolvedPath;
+    }
+
+    resolvedPath = Resolve_TrailTexturePathByPath(texturePath);
+    if (!resolvedPath.empty())
+    {
+        outUsedPathFallback = true;
         return resolvedPath;
     }
 
@@ -197,11 +211,13 @@ HRESULT ComputeTrailEmitter::Ready_Components()
 
 HRESULT ComputeTrailEmitter::Ready_Texture()
 {
-    bool usedLegacyGuid = false;
+    bool usedPathFallback = false;
+    bool guidPathMismatch = false;
     wstring resolvedPath = Internal::Resolve_TrailTexturePath(
         _desc.material.mainTextureGuid,
         _desc.material.mainTexturePath,
-        usedLegacyGuid
+        usedPathFallback,
+        guidPathMismatch
     );
 
     if (resolvedPath.empty())
@@ -223,10 +239,21 @@ HRESULT ComputeTrailEmitter::Ready_Texture()
         return E_FAIL;
     }
 
-    if (usedLegacyGuid)
+    if (guidPathMismatch)
     {
         LOG_WARN(
-            "ComputeTrailEmitter main texture recovered by legacy GUID. resolvedPath='{}'.",
+            "ComputeTrailEmitter main texture GUID/path mismatch. mainTextureGuid='{}', mainTexturePath='{}', guidResolvedPath='{}'.",
+            _desc.material.mainTextureGuid,
+            _desc.material.mainTexturePath,
+            String::ToString(resolvedPath)
+        );
+    }
+    else if (usedPathFallback)
+    {
+        LOG_WARN(
+            "ComputeTrailEmitter main texture fell back to path. mainTextureGuid='{}', mainTexturePath='{}', resolvedPath='{}'.",
+            _desc.material.mainTextureGuid,
+            _desc.material.mainTexturePath,
             String::ToString(resolvedPath)
         );
     }
@@ -242,11 +269,13 @@ HRESULT ComputeTrailEmitter::Ready_NoiseTexture()
     if (_desc.material.noiseTextureGuid.empty() && _desc.material.noiseTexturePath.empty())
         return S_OK;
 
-    bool usedLegacyGuid = false;
+    bool usedPathFallback = false;
+    bool guidPathMismatch = false;
     const wstring resolvedPath = Internal::Resolve_TrailTexturePath(
         _desc.material.noiseTextureGuid,
         _desc.material.noiseTexturePath,
-        usedLegacyGuid
+        usedPathFallback,
+        guidPathMismatch
     );
     if (resolvedPath.empty())
     {
@@ -259,10 +288,19 @@ HRESULT ComputeTrailEmitter::Ready_NoiseTexture()
         return S_OK;
     }
 
-    if (usedLegacyGuid)
+    if (guidPathMismatch)
     {
         LOG_WARN(
-            "ComputeTrailEmitter noise texture recovered by legacy GUID. noiseTextureGuid='{}', noiseTexturePath='{}', resolvedPath='{}'.",
+            "ComputeTrailEmitter noise texture GUID/path mismatch. noiseTextureGuid='{}', noiseTexturePath='{}', guidResolvedPath='{}'.",
+            _desc.material.noiseTextureGuid,
+            _desc.material.noiseTexturePath,
+            String::ToString(resolvedPath)
+        );
+    }
+    else if (usedPathFallback)
+    {
+        LOG_WARN(
+            "ComputeTrailEmitter noise texture fell back to path. noiseTextureGuid='{}', noiseTexturePath='{}', resolvedPath='{}'.",
             _desc.material.noiseTextureGuid,
             _desc.material.noiseTexturePath,
             String::ToString(resolvedPath)

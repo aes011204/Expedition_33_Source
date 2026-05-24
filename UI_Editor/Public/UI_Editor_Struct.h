@@ -49,6 +49,7 @@ struct UI_Object
     UI_ImageRenderMode imageRenderMode = UI_ImageRenderMode::Normal;
     string maskTextureGuid = "";
     string maskTexturePath = "";
+    UI_MaskTextureMode maskTextureMode = UI_MaskTextureMode::Alpha;
     string patternMaskTextureGuid = "";
     string patternMaskTexturePath = "";
     vector<UI_AnimationClip> animationClips = {};

@@ -365,7 +365,8 @@ namespace UIEditor
                             renderObject.textureGuid,
                             renderObject.texturePath,
                             renderObject.maskTextureGuid,
-                            renderObject.maskTexturePath);
+                            renderObject.maskTexturePath,
+                            renderObject.maskTextureMode);
                     }
 
                     if (nullptr == previewSRV && !requiresCompositePreview)

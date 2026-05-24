@@ -526,7 +526,8 @@ namespace UIEditor
         const string& textureGuid,
         const string& texturePath,
         const string& maskTextureGuid,
-        const string& maskTexturePath)
+        const string& maskTexturePath,
+        UI_MaskTextureMode maskTextureMode)
     {
         if (nullptr == _device || nullptr == _context)
             return nullptr;
@@ -536,7 +537,7 @@ namespace UIEditor
 
         const string cacheKey = Make_MaskedTexturePreviewKey(
             Make_TexturePreviewGuidKey(textureGuid) + "|" + Make_TexturePreviewPathKey(Resolve_ClientRuntimeResourcePath(texturePath)),
-            Make_TexturePreviewGuidKey(maskTextureGuid) + "|" + Make_TexturePreviewPathKey(Resolve_ClientRuntimeResourcePath(maskTexturePath)));
+            Make_TexturePreviewGuidKey(maskTextureGuid) + "|" + Make_TexturePreviewPathKey(Resolve_ClientRuntimeResourcePath(maskTexturePath)) + "|" + to_string(static_cast<int32>(maskTextureMode)));
 
         const auto cachedIter = _maskedTexturePreviewCache.find(cacheKey);
         if (cachedIter != _maskedTexturePreviewCache.end())
@@ -552,7 +553,7 @@ namespace UIEditor
             return nullptr;
         }
 
-        return Create_MaskedTexturePreviewSRV(cacheKey, textureSRV, maskSRV);
+        return Create_MaskedTexturePreviewSRV(cacheKey, textureSRV, maskSRV, maskTextureMode);
     }
 
     ID3D11ShaderResourceView* UI_Editor_PreviewService::Get_PatternOverlayPreviewSRV(
@@ -790,14 +791,16 @@ namespace UIEditor
     ID3D11ShaderResourceView* UI_Editor_PreviewService::Create_MaskedTexturePreviewSRV(
         const string& cacheKey,
         ID3D11ShaderResourceView* textureSRV,
-        ID3D11ShaderResourceView* maskSRV)
+        ID3D11ShaderResourceView* maskSRV,
+        UI_MaskTextureMode maskTextureMode)
     {
+        const uint32 passIndex = (maskTextureMode == UI_MaskTextureMode::BlackWhite) ? 5u : 1u;
         return Create_ImageCompositePreviewSRV(
             cacheKey,
             textureSRV,
             maskSRV,
             nullptr,
-            1u,
+            passIndex,
             _maskedTexturePreviewCache,
             _maskedTexturePreviewFailedKeys);
     }

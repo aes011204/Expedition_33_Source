@@ -1,13 +1,12 @@
 ﻿#include "Body_Player.h"
 #include "GameInstance.h"
 #include "Material.h"
-#include "Material_Types.h"
 #include "Player_WorldBase.h"
 #include "ModelCom.h"
 #include "Debug_Profile.h"
 #include "ShaderPassFinder.h"
-#include "ComputeShaderCom.h"
 #include "AnimComputeRuntime.h"
+#include "OffsetAnimationModifier.h"
 
 REGISTER_GLOBAL_ENUM(Client::Body_Player::PlayerWorldAnimation, "PlayerWorldAnimation")
 
@@ -37,9 +36,6 @@ HRESULT Body_Player::Initialize(void* arg)
 
     _rootBoneIndex = _modelCom->Get_BoneIndex("root");
     _modelCom->Set_LocalRootNode(_rootBoneIndex);
-
-
-    //_modelCom->Set_FrameSpeed(0.05);
 
     return S_OK;
 }
