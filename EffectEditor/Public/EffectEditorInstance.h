@@ -62,7 +62,17 @@ public: //## Accessor::Runtime
     float Get_RuntimeTimeScale() const;
 
 public: //## Accessor::PreviewOption
-    bool Is_TrailPreviewWeaponVisible() const { return _isTrailPreviewWeaponVisible; }
+    bool Is_TrailPreviewVisible() const { return _isTrailPreviewVisible; }
+    // Trail preview anchor marker/line 표시 여부다.
+    bool Is_TrailPreviewDebugRenderEnabled() const { return _isTrailPreviewDebugRenderEnabled; }
+    // Trail preview weapon-local base marker의 editor-session offset이다.
+    Vec3 Get_TrailPreviewBaseLocalOffset() const { return _trailPreviewBaseLocalOffset; }
+    // Trail preview weapon-local tip marker의 editor-session offset이다.
+    Vec3 Get_TrailPreviewTipLocalOffset() const { return _trailPreviewTipLocalOffset; }
+    // Trail preview base offset reset 기준값이다.
+    Vec3 Get_DefaultTrailPreviewBaseLocalOffset() const { return kDefaultTrailPreviewBaseLocalOffset; }
+    // Trail preview tip offset reset 기준값이다.
+    Vec3 Get_DefaultTrailPreviewTipLocalOffset() const { return kDefaultTrailPreviewTipLocalOffset; }
 
 public: //## Accessor::InputPolicy
     bool Is_PreviewCameraControlEnabled() const { return _isPreviewCameraControlEnabled; }
@@ -89,7 +99,13 @@ public: //## Behavior::RuntimeControl
     void Request_RestartPreview();
 
 public: //## Behavior::PreviewOption
-    void Set_TrailPreviewWeaponVisible(bool visible);
+    void Set_TrailPreviewVisible(bool visible);
+    // Trail preview anchor marker/line 표시 여부만 바꾼다.
+    void Set_TrailPreviewDebugRenderEnabled(bool enabled);
+    // Detail_View의 Trail Preview 조정값을 현재 editor session에만 반영한다.
+    void Set_TrailPreviewLocalOffsets(const Vec3& baseLocalOffset, const Vec3& tipLocalOffset);
+    // Trail Preview 조정값을 기본 weapon-local marker 위치로 되돌린다.
+    void Reset_TrailPreviewLocalOffsets();
 
 public: //## Behavior::Window
     void Request_WindowFocus(EditorViewportTarget target);
@@ -147,6 +163,8 @@ private: //## Static Values
     static constexpr int kSceneGridDivisions{ 40 };
     static constexpr float kSceneGridHalfExtent{ 30.f };
     static constexpr float kSceneGridHeight{ 0.f };
+    inline static const Vec3 kDefaultTrailPreviewBaseLocalOffset{ 0.f, 1.f, 20.f };
+    inline static const Vec3 kDefaultTrailPreviewTipLocalOffset{ 0.f, 1.f, 85.f };
 
 private: //## Data::Core
     ComPtr<Device> _device{};
@@ -182,7 +200,10 @@ private: //## Data::Runtime
     wstring _copiedLayerTag{};
 
 private: //## Data::PreviewOption
-    bool _isTrailPreviewWeaponVisible{ false };
+    bool _isTrailPreviewVisible{ false };
+    bool _isTrailPreviewDebugRenderEnabled{ true };
+    Vec3 _trailPreviewBaseLocalOffset{ kDefaultTrailPreviewBaseLocalOffset };
+    Vec3 _trailPreviewTipLocalOffset{ kDefaultTrailPreviewTipLocalOffset };
 
 private: //## Data::Window
     bool _hasPendingWindowFocus{ false };

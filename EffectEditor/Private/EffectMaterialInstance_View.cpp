@@ -528,7 +528,7 @@ namespace Internal
 
 EffectMaterialInstance_View::EffectMaterialInstance_View()
     : Editor_Window{ L"Effect Material Instance", ICON_FA_PALETTE }
-    , _previewRenderer{ make_unique<EffectMaterialPreviewRenderer>() }
+    , _previewRenderer{ EffectMaterialPreviewRenderer::Create() }
 {
 }
 
@@ -758,7 +758,7 @@ void EffectMaterialInstance_View::Apply_MaterialChanged(
     const RequiredModuleData& requiredData)
 {
     emitter.previewDirty = true;
-    emitter.rendererType = requiredData.rendererType;
+    emitter.rendererType = emitter.typeData.kind == AuthoringTypeDataKind::Trail ? "Trail" : requiredData.rendererType;
     emitter.textureId = requiredData.material.mainTexturePath;
     emitter.resourceSummary = requiredData.material.mainTexturePath;
 

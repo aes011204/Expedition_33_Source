@@ -19,6 +19,18 @@ enum class UI_TextAlign
     Right,
 };
 
+enum class UI_ImageRenderMode
+{
+    Normal,
+    PatternOverlay,
+};
+
+enum class UI_MaskTextureMode
+{
+    Alpha,
+    BlackWhite,
+};
+
 enum class UI_AlignmentCommand
 {
     Left,

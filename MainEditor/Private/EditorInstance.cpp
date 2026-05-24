@@ -14,6 +14,7 @@
 #include "Player_BattleBase.h"
 #include "Body_Player.h"
 #include "ModelCom.h"
+#include "MovementCom.h"
 #include "Profile_View.h"
 #include "Material_View.h"
 #include "Model_Inspector.h"
@@ -48,6 +49,18 @@ void Refresh_PlayerBodyAnimMapping(const Shared<GameObject>& gameObject)
                 model->Refresh_AnimStateMappingFromOwnerContext();
         }
     }
+}
+
+void Sync_RestoredMovementRuntimePosition(const Shared<GameObject>& gameObject)
+{
+    if (gameObject == nullptr)
+        return;
+
+    Shared<MovementCom> movement = gameObject->Get_Component<MovementCom>();
+    if (movement == nullptr)
+        return;
+
+    movement->Sync_RuntimePositionToTransform();
 }
 }
 
@@ -878,6 +891,8 @@ HRESULT EditorInstance::Restore_CurrentLevelObjects(const vector<EditorWorldObje
 
         if (gameObject == nullptr)
             continue;
+
+        Sync_RestoredMovementRuntimePosition(gameObject);
 
         if (snapshot.originalObject.expired())
         {

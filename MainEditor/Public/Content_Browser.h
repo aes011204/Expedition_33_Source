@@ -62,6 +62,7 @@ private:
     void Draw_AssetView();
 
     void Draw_FolderTile(FFolderNode& folder);
+    void Draw_FileTile(const FFileEntry& fileEntry);
     void Open_Folder(FFolderNode* folder);
     void Draw_FolderContextMenu(FFolderNode& folder, const string& popupId);
     void Draw_FileContextMenu(const wstring& filePath, const string& popupId);
@@ -104,6 +105,7 @@ private:
     vector<Shared<Texture>> _iconFiles{};
     map<wstring, Shared<Texture>> _thumbnailCache{};
     set<wstring> _noThumbnailPaths{};
+    int _thumbnailLoadsThisFrame = 0;
 
     set<wstring> _expandedFolders{};
     vector<wstring> _folderHistory{};
@@ -120,6 +122,7 @@ private:
 
     static constexpr const wchar_t* CONTENT_BROWSER_SETTINGS_PATH =
         L"../../../Client/Bin/Resources/Data/json/EditorSettings/ContentBrowser.json";
+    static constexpr int MAX_THUMBNAIL_LOADS_PER_FRAME = 2;
 
 public:
     static Shared<Content_Browser> Create();

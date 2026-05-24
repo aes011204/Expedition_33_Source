@@ -2,7 +2,7 @@
 #include "BlackBoard.h"
 #include "BehaviorTree.h"
 #include "BT_MoveTo.h"
-#include "BT_Attack.h"
+#include "BT_Chase.h"
 #include "BT_Idle.h"
 #include "BT_CheckDistance.h"
 #include "Selector.h"
@@ -31,7 +31,7 @@ HRESULT Mon_AIController::Initialize(void* arg)
 {
     auto moveTo = BT_MoveTo::Create();
     auto idle = BT_Idle::Create();
-    auto attack = BT_Attack::Create();
+    auto attack = BT_Chase::Create();
 
     auto select = Selector::Create();
 

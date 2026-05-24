@@ -12,7 +12,6 @@ public:
     {
         Vec3 pivot{ Vec3::Zero };
         float distance{ 0.f };
-        float focusSpeed{ 10.f };
     };
 
 public:
@@ -43,7 +42,7 @@ private: //## Data::Orbit
 
 private: //## Data::Home
     Vec3 _homePivot{ Vec3::Zero };
-    float _homeDistance{ 8.f };
+    float _homeDistance{ 0.f };
     float _homeYaw{ 0.f };
     float _homePitch{ 0.f };
     bool _hasPendingHome{ false };

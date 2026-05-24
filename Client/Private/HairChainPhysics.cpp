@@ -1,4 +1,4 @@
-﻿#include "HairChainPhysics.h"
+#include "HairChainPhysics.h"
 #include "ModelCom.h"
 
 void HairChainPhysics::Initialize(ModelCom* model, const HairChainPhysicsDesc& desc)
@@ -525,13 +525,13 @@ void HairChainPhysics::Apply_MaelleChainTuning(Chain& chain, uint32 strandGroup)
         // 화면에서 보이는 큰 머리 덩어리는 사실상 이 그룹 값의 영향을 받는다.
         // 너무 빡세게 잡으면 Maelle 머리가 거의 안 흔들려 보이므로,
         // Strand_5/6보다는 얌전하지만 Lune보다 흐르게 둔다.
-        chain.stiffnessMul = 0.48f;
-        chain.dampingMul = 0.58f;
-        chain.windMul = 2.4f;
-        chain.gravityMul = 0.85f;
-        chain.movementInertiaMul = 1.95f;
-        chain.poseRestoreMul = 0.45f;
-        chain.maxBendAngleMul = 1.55f;
+        chain.stiffnessMul = 0.9f;         // 길이 제약 안정화로 끝마디가 튀는 현상 방지
+        chain.dampingMul = 1.0f;           // 머리 전체의 부드러운 감쇠 적용
+        chain.windMul = 0.8f;              // 잔떨림 방지를 위해 바람 영향력 하향
+        chain.gravityMul = 0.9f;
+        chain.movementInertiaMul = 1.8f;   // 꽁지머리 전체가 역동적으로 휘날리도록 관성 적용
+        chain.poseRestoreMul = 0.8f;       // 아치 형태 유지 및 전체적인 동시 흔들림 유도
+        chain.maxBendAngleMul = 0.9f;      // 과도한 꺾임으로 인한 팝핑 방지
     }
     else if (strandGroup == 5 || strandGroup == 6)
     {

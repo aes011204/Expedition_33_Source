@@ -89,8 +89,8 @@ HRESULT UI_MonsterHpBar::Bind_UI()
     auto hpTr = _hpGauge->Get_Transform();
     CHECK_NULL(hpTr, E_FAIL);
 
-    _hpGaugeBasePos = hpTr->Get_Position();
-    _hpGaugeBaseSize = hpTr->Get_Size();
+    _hpGauge->Set_UseFillRatio(true); // 몬스터 HP 바는 width 축소 대신 UV crop fill을 사용한다.
+    _hpGauge->Set_FillOrigin(UI_Image::FillOrigin::LeftToRight);
 
     return S_OK;
 }
@@ -105,9 +105,7 @@ void UI_MonsterHpBar::Apply_HpGauge(float ratio)
         return;
 
     ratio = ::clamp(ratio, 0.f, 1.f);
-
-    const float newHpGauge = _hpGaugeBaseSize.x * ratio;
-    hpTr->Set_Size(Vec2(newHpGauge, _hpGaugeBaseSize.y));
+    _hpGauge->Set_FillRatio(ratio); // HP 바 실루엣은 유지하고 채워진 영역만 잘라낸다.
 }
 
 Unique<UI_MonsterHpBar> UI_MonsterHpBar::Create(uint32 levelIndex)

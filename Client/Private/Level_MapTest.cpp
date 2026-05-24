@@ -148,12 +148,41 @@ HRESULT Level_MapTest::Ready_Layer_Monster(const wstring& strLayerTag)
         strLayerTag);
 
     CHECK_NULL(monster, E_FAIL);
-    monster->Get_Transform()->Set_Position(startPos);
+    monster->Get_Transform()->Set_Position(startPos + Vec3(0.f, 0.f, +10.f));
+
+    //Portier
+    const Shared<GameObject> monsterPortier = Client::Spawn_Prefab::Spawn(
+        Constants::Prefab::MW_Portier, // 월드 몬스터 prefab 이름은 MW_* 상수로 통일한다.
+        ETOI(LevelType::MapTest),
+        strLayerTag);
+
+    CHECK_NULL(monster, E_FAIL);
+    monster->Get_Transform()->Set_Position(startPos + Vec3(0.f, 0.f, -10.f));
+
+    //Volester
+    const Shared<GameObject> monsterVolester = Client::Spawn_Prefab::Spawn(
+        Constants::Prefab::MW_Volester, // 월드 몬스터 prefab 이름은 MW_* 상수로 통일한다.
+        ETOI(LevelType::MapTest),
+        strLayerTag);
+
+    CHECK_NULL(monster, E_FAIL);
+    monster->Get_Transform()->Set_Position(startPos + Vec3(0.f, 0.f, 20.f));
+
+    //Bishop
+    const Shared<GameObject> monsterBishop = Client::Spawn_Prefab::Spawn(
+        Constants::Prefab::MW_Bishop, // 월드 몬스터 prefab 이름은 MW_* 상수로 통일한다.
+        ETOI(LevelType::MapTest),
+        strLayerTag);
+
+    CHECK_NULL(monster, E_FAIL);
+    monster->Get_Transform()->Set_Position(startPos + Vec3(0.f, 0.f, 30.f));
+
     return S_OK;
 }
 
 HRESULT Level_MapTest::Ready_Layer_Effect(const wstring& strLayerTag)
 {
+
 
     return S_OK;
 }

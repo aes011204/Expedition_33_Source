@@ -16,6 +16,10 @@ public:
 
 public:
     HRESULT Initialize(void* arg) override;
+    void    BeginPlay() override;
+
+private:
+    HRESULT Ready_Modifier();
 
 protected:
     HairChainPhysicsDesc Get_HairChainPhysicsDesc() const override;

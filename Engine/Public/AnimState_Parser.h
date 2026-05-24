@@ -19,7 +19,8 @@ public:
 		const vector<Shared<Animation>>& originalAnimations,
 		OUT vector<uint32>& outStateAnimIndices,
 		OUT wstring* outFoundEnumType = nullptr,
-		const string& targetPrefabGuid = "");
+		const string& targetPrefabGuid = "",
+		const string& targetPrefabName = "");
 
     static bool Save_StateAnimations_ToFile(
         const wstring& savePath,

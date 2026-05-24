@@ -1,8 +1,13 @@
 ﻿#include "PW_Maelle.h"
+
+#include <OffsetAnimationModifier.h>
+
+#include "Body_Player.h"
 #include "GameInstance.h"
 #include "Bounding_OBB.h"
 #include "ColliderCom.h"
 #include "PlayableParts.h"
+#include "PlayerStatCom.h"
 #include "SkillTreeCom.h"
 
 IMPLEMENT_REFLECTION(PW_Maelle)
@@ -37,6 +42,108 @@ HRESULT PW_Maelle::Initialize(void* arg)
     skilltreeCom->TryUnlock("OffensiveSwitch");
     skilltreeCom->TryUnlock("Percee");
     skilltreeCom->TryUnlock("Spark");
+
+    CHECK_FAILED(Ready_Modifier(), E_FAIL)
+
+    return S_OK;
+}
+
+void PW_Maelle::BeginPlay()
+{
+    Player_WorldBase::BeginPlay();
+
+    _combatStatCom->Get_StatInfo().maxAp = 9;   
+    _combatStatCom->Get_PlayerRuntimeStat().CurMaxAp = 9;
+    _combatStatCom->Get_PlayerRuntimeStat().CurAp = 4;
+}
+
+HRESULT PW_Maelle::Ready_Modifier()
+{
+    if (auto body = dynamic_cast<Body_Player*>(Find_PartObject(TEXT("Part_Body"))))
+    {
+        OffsetAnimationModifier::OffsetModifierDesc aimOffsetDesc{};
+        aimOffsetDesc.baseModelCom = body->Get_Model().get();
+        aimOffsetDesc.animName = "Maelle_IdleFreeAim_LoopingWorld_Sweep";
+        aimOffsetDesc.offsetBoneRanges = { { "spine_01", "hand_r" } };
+        aimOffsetDesc.blendMode = AnimationModifier::ModifierBlendMode::ModifyAddictive;
+        aimOffsetDesc.blendInTime = 0.25f;
+        aimOffsetDesc.blendOutTime = 0.25f;
+        aimOffsetDesc.responseCurve = 1.5f;
+        aimOffsetDesc.modifierTag = L"AimOffset";
+        if (auto modifier = OffsetAnimationModifier::Create(&aimOffsetDesc))
+        {
+            modifier->Set_Active(false);
+            aimOffsetDesc.baseModelCom->Add_AnimModifier(modifier);
+        }
+        else return E_FAIL;
+
+        OffsetAnimationModifier::OffsetModifierDesc wOffsetDesc{};
+        wOffsetDesc.baseModelCom = body->Get_Model().get();
+        wOffsetDesc.animName = "Maelle_Walk_F";
+        wOffsetDesc.offsetBoneRanges = {
+            {"pelvis", "ball_l"},
+            {"pelvis", "ball_r"},
+        };
+        wOffsetDesc.translationOnlyBones = { "pelvis" };
+        wOffsetDesc.blendMode = AnimationModifier::ModifierBlendMode::ModifyReplace;
+        wOffsetDesc.blendInTime = 0.25f;
+        wOffsetDesc.blendOutTime = 0.25f;
+        wOffsetDesc.responseCurve = 1.5f;
+        wOffsetDesc.isDynamicPlay = true;
+        wOffsetDesc.playRate = 1.f;
+        wOffsetDesc.modifierTag = L"Walk_F";
+        if (auto modifier = OffsetAnimationModifier::Create(&wOffsetDesc))
+        {
+            modifier->Set_Active(false);
+            aimOffsetDesc.baseModelCom->Add_AnimModifier(modifier);
+        }
+        else return E_FAIL;
+
+        if (auto modifier = OffsetAnimationModifier::Create(&wOffsetDesc))
+        {
+            modifier->Set_Active(false);
+            aimOffsetDesc.baseModelCom->Add_AnimModifier(modifier);
+        }
+        else return E_FAIL;
+
+        wOffsetDesc.animName = "Maelle_Walk_LF";
+        wOffsetDesc.modifierTag = L"Walk_L";
+        if (auto modifier = OffsetAnimationModifier::Create(&wOffsetDesc))
+        {
+            modifier->Set_Active(false);
+            aimOffsetDesc.baseModelCom->Add_AnimModifier(modifier);
+        }
+        else return E_FAIL;
+
+        wOffsetDesc.animName = "Maelle_Walk_RF";
+        wOffsetDesc.modifierTag = L"Walk_R";
+        if (auto modifier = OffsetAnimationModifier::Create(&wOffsetDesc))
+        {
+            modifier->Set_Active(false);
+            aimOffsetDesc.baseModelCom->Add_AnimModifier(modifier);
+        }
+        else return E_FAIL;
+        
+        wOffsetDesc.animName = "Maelle_Walk_LB";
+        wOffsetDesc.modifierTag = L"Walk_LB";
+        if (auto modifier = OffsetAnimationModifier::Create(&wOffsetDesc))
+        {
+            modifier->Set_Active(false);
+            aimOffsetDesc.baseModelCom->Add_AnimModifier(modifier);
+        }
+        else return E_FAIL;
+
+        wOffsetDesc.animName = "Maelle_Walk_RB";
+        wOffsetDesc.modifierTag = L"Walk_RB";
+        if (auto modifier = OffsetAnimationModifier::Create(&wOffsetDesc))
+        {
+            modifier->Set_Active(false);
+            aimOffsetDesc.baseModelCom->Add_AnimModifier(modifier);
+        }
+        else return E_FAIL;
+    }
+    else
+        return E_FAIL;
 
     return S_OK;
 }

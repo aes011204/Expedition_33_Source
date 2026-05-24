@@ -10,15 +10,6 @@ class Mon_Lancelier_Weapon;
 class MW_Lancelier final : public Monster_WorldBase
 {
     GENERATED_GAMEOBJECT(MW_Lancelier, ObjectType::Monster)
-
-public:
-    enum class MonsterAction
-    {
-        Idle,
-        Move,
-        Attack
-    };
-
 public:
     MW_Lancelier(const ComPtr<Device>& device, const ComPtr<Context>& context);
     MW_Lancelier(const MW_Lancelier& prototype);
@@ -44,13 +35,6 @@ protected:
 private:
     Shared<Mon_Lancelier_Body>      _body = {};
     Shared<Mon_Lancelier_Weapon>    _weapon = {};
-
-    MonsterAction _currentAction = MonsterAction::Idle;
-    MonsterAction _previousAction = MonsterAction::Idle;
-
-public:
-    void Set_CurrentAction(MonsterAction action) { _currentAction = action; }
-    MonsterAction Get_CurrentAction() const { return _currentAction; }
 
 public:
     static Shared<MW_Lancelier> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

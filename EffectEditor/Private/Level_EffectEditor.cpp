@@ -1,14 +1,16 @@
 ﻿#include "Level_EffectEditor.h"
 
+#include "Camera.h"
 #include "EffectEditorCamera.h"
 #include "EffectEditorInstance.h"
 #include "EffectEditorSkybox.h"
 #include "EffectInstance.h"
 #include "Emitter_View.h"
 #include "GameInstance.h"
-#include "Camera.h"
 #include "GameObject.h"
-#include "TrailPreviewModelObject.h"
+#include "TrailPreviewController.h"
+#include "TrailPreviewPlayerObject.h"
+#include "TrailPreviewWeaponObject.h"
 
 NS_BEGIN(EffectEditor)
 
@@ -312,6 +314,7 @@ namespace Internal
 
         return Clamp_PreviewColor(fallbackValue);
     }
+
 }
 
 Level_EffectEditor::Level_EffectEditor(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -349,8 +352,6 @@ HRESULT Level_EffectEditor::Render()
 
 HRESULT Level_EffectEditor::Restart_PreviewFromAuthoring()
 {
-    Clear_PreviewObjects();
-
     const Shared<Editor_Window> emitterWindow = EDITOR->Get_Window(L"Emitter");
     const Shared<Emitter_View> emitterView = dynamic_pointer_cast<Emitter_View>(emitterWindow);
     if (nullptr == emitterView)
@@ -362,6 +363,32 @@ HRESULT Level_EffectEditor::Restart_PreviewFromAuthoring()
     const Shared<const EffectDefinition> previewDefinition =
         Build_PreviewEffectDefinition(emitterView->Get_Emitters());
     CHECK_NULL(previewDefinition, E_FAIL);
+
+    CHECK_FAILED(Restart_PreviewFromDefinition(previewDefinition), E_FAIL);
+    _currentPreviewDefinition = previewDefinition;
+
+    for (const AuthoringEmitter& emitter : emitterView->Get_Emitters())
+    {
+        if (emitter.enabled)
+            emitterView->Clear_PreviewDirty(emitter.id);
+    }
+
+    return S_OK;
+}
+
+HRESULT Level_EffectEditor::Reset_PreviewRuntime()
+{
+    if (_currentPreviewDefinition == nullptr)
+        return S_OK;
+
+    return Restart_PreviewFromDefinition(_currentPreviewDefinition);
+}
+
+HRESULT Level_EffectEditor::Restart_PreviewFromDefinition(const Shared<const EffectDefinition>& previewDefinition)
+{
+    CHECK_NULL(previewDefinition, E_FAIL);
+
+    Clear_PreviewObjects();
 
     EffectInstanceDesc previewDesc{};
     previewDesc.definition = previewDefinition;
@@ -379,12 +406,6 @@ HRESULT Level_EffectEditor::Restart_PreviewFromAuthoring()
 
     _previewObjects = move(restartedPreviewObjects);
 
-    for (const AuthoringEmitter& emitter : emitterView->Get_Emitters())
-    {
-        if (emitter.enabled)
-            emitterView->Clear_PreviewDirty(emitter.id);
-    }
-
     return S_OK;
 }
 
@@ -398,14 +419,17 @@ Shared<const EffectDefinition> Level_EffectEditor::Build_PreviewEffectDefinition
         if (!emitter.enabled)
             continue;
 
-        const string rendererTypeLower = String::ToLowerCopy(emitter.rendererType);
-        if (rendererTypeLower != "sprite")
+        switch (emitter.typeData.kind)
         {
-            LOG_INFO("EffectEditor preview skip: emitter='{}', rendererType='{}'", emitter.name, emitter.rendererType);
-            continue;
-        }
+        case AuthoringTypeDataKind::Trail:
+            definition->emitters.push_back(Build_PreviewTrailEmitterDefinition(emitter));
+            break;
 
-        definition->emitters.push_back(Build_PreviewEmitterDefinition(emitter));
+        case AuthoringTypeDataKind::None:
+        default:
+            definition->emitters.push_back(Build_PreviewEmitterDefinition(emitter));
+            break;
+        }
     }
 
     return definition;
@@ -468,7 +492,10 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
         desc.spawn.instanceCount = max(1u, spawn->maxParticleCount);
         desc.spawn.particleSpawn.processSpawnRate = spawn->processSpawnRate;
         desc.spawn.particleSpawn.spawnRate = max(0.f, Internal::Evaluate_FloatDistributionMax(spawn->spawnRate, desc.spawn.particleSpawn.spawnRate));
-        desc.spawn.particleSpawn.spawnRateScale = max(0.f, Internal::Evaluate_FloatDistributionMax(spawn->spawnRateScale, desc.spawn.particleSpawn.spawnRateScale));
+        desc.spawn.particleSpawn.spawnRateScale = max(
+            0.f,
+            Internal::Evaluate_FloatDistributionMax(spawn->spawnRateScale, desc.spawn.particleSpawn.spawnRateScale)
+        );
         desc.spawn.particleSpawn.processBurstList = spawn->processBurstList;
         desc.spawn.particleSpawn.burstScale = max(0.f, Internal::Evaluate_FloatDistributionMax(spawn->burstScale, desc.spawn.particleSpawn.burstScale));
         desc.spawn.particleSpawn.maxActiveCount = desc.spawn.instanceCount;
@@ -695,6 +722,56 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
     return definition;
 }
 
+EffectEmitterDefinition Level_EffectEditor::Build_PreviewTrailEmitterDefinition(const AuthoringEmitter& emitter) const
+{
+    EffectEmitterDefinition definition{};
+    definition.id = emitter.id;
+    definition.name = emitter.name;
+    definition.kind = EffectEmitterKind::ComputeTrail;
+    definition.enabled = emitter.enabled;
+
+    ComputeTrailEmitterDesc emitterDesc{};
+
+    if (const auto* trailData = get_if<TrailTypeData>(&emitter.typeData.payload))
+    {
+        emitterDesc.width = max(0.001f, trailData->width);
+        emitterDesc.segmentLifetime = max(0.001f, trailData->segmentLifetime);
+        emitterDesc.historyCount = max(2u, trailData->historyCount);
+        emitterDesc.uvTiling = max(0.001f, trailData->uvTiling);
+        emitterDesc.sampleSpacing = max(0.001f, trailData->sampleSpacing);
+        emitterDesc.curveSubdivision = max(0u, trailData->curveSubdivision);
+        emitterDesc.smoothTangent = trailData->smoothTangent;
+        emitterDesc.sideFade = clamp(trailData->sideFade, 0.001f, 0.49f);
+    }
+
+    if (const auto* required = Internal::Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
+    {
+        const EffectMaterialInstanceData& material = required->material;
+        emitterDesc.material.mainTextureGuid = material.mainTextureGuid;
+        emitterDesc.material.mainTexturePath = material.mainTexturePath;
+        emitterDesc.material.noiseTextureGuid = material.noiseTextureGuid;
+        emitterDesc.material.noiseTexturePath = material.noiseTexturePath;
+        emitterDesc.material.blendMode = material.blendMode.empty() ? "AlphaBlend" : material.blendMode;
+        emitterDesc.material.opacitySource = material.opacitySource.empty() ? "Alpha" : material.opacitySource;
+        emitterDesc.material.tint = material.tint;
+        emitterDesc.material.intensity = material.intensity;
+        emitterDesc.material.opacityPower = material.opacityPower;
+        emitterDesc.material.noiseStrength = material.noiseStrength;
+
+        emitterDesc.playback.duration = max(0.0001f, required->duration);
+        emitterDesc.playback.loopCount = required->loopCount;
+        emitterDesc.playback.delay = max(0.f, required->delay);
+        emitterDesc.playback.delayFirstLoopOnly = required->delayFirstLoopOnly;
+        definition.localPosition = required->emitterOrigin;
+        definition.localRotationDegrees = required->emitterRotationDegrees;
+        definition.useLocalSpace = required->useLocalSpace;
+    }
+
+    emitterDesc.sampleProvider = _trailPreviewSampleProvider;
+    definition.concreteDesc = emitterDesc;
+    return definition;
+}
+
 HRESULT Level_EffectEditor::Ready_Lights()
 {
     LIGHT_DESC lightDesc{};
@@ -713,9 +790,9 @@ HRESULT Level_EffectEditor::Ready_Lights()
 HRESULT Level_EffectEditor::Ready_Layer_Camera(const wstring& layerTag)
 {
     EffectEditorCamera::EffectEditorCameraDesc cameraDesc{};
-    cameraDesc.speedPerSec = 10.f;
+    cameraDesc.speedPerSec = 5.f; //!! 초기 카메라 속도
     cameraDesc.degreePerSec = 180.f;
-    cameraDesc.eye = Vec4(0.f, 2.f, -2.f, 1.f);
+    cameraDesc.eye = Vec4(0.f, 3.f, -3.5f, 1.f); //!! 초기 카메라 거리
     cameraDesc.at = Vec4(0.f, 0.f, 0.f, 1.f);
     cameraDesc.fovy = XMConvertToRadians(60.f);
     cameraDesc.nearPlane = 0.1f;
@@ -724,7 +801,6 @@ HRESULT Level_EffectEditor::Ready_Layer_Camera(const wstring& layerTag)
     cameraDesc.yaw = 0.f;
     cameraDesc.pitch = 0.f;
     cameraDesc.pivot = Vec3(0.f, 0.f, 0.f);
-    cameraDesc.focusSpeed = 10.f;
 
     const Shared<EffectEditorCamera> previewCamera =
         EffectEditorCamera::Create(_device, _context);
@@ -757,11 +833,29 @@ HRESULT Level_EffectEditor::Ready_Layer_Preview(const wstring& layerTag)
     if (layerTag.empty())
         return E_FAIL;
 
-    const Shared<TrailPreviewModelObject> trailPreviewModel =
-        TrailPreviewModelObject::Create(_device, _context);
-    CHECK_NULL(trailPreviewModel, E_FAIL);
-    CHECK_FAILED(trailPreviewModel->Initialize(nullptr), E_FAIL);
-    CHECK_FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), layerTag, trailPreviewModel), E_FAIL);
+    const Shared<TrailPreviewPlayerObject> trailPreviewPlayer =
+        TrailPreviewPlayerObject::Create(_device, _context);
+    CHECK_NULL(trailPreviewPlayer, E_FAIL);
+    CHECK_FAILED(trailPreviewPlayer->Initialize(nullptr), E_FAIL);
+    CHECK_FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), layerTag, trailPreviewPlayer), E_FAIL);
+
+    const Shared<TrailPreviewWeaponObject> trailPreviewWeapon = trailPreviewPlayer->Get_PreviewWeapon();
+    if (trailPreviewWeapon == nullptr)
+    {
+        LOG_ERROR("[TrailPreview] TrailPreviewPlayerObject did not create Part_Weapon.");
+        return E_FAIL;
+    }
+
+    _trailPreviewSampleProvider = trailPreviewWeapon;
+
+    TrailPreviewController::PreviewDesc controllerDesc{};
+    controllerDesc.player = trailPreviewPlayer;
+
+    const Shared<TrailPreviewController> trailPreviewController =
+        TrailPreviewController::Create(_device, _context);
+    CHECK_NULL(trailPreviewController, E_FAIL);
+    CHECK_FAILED(trailPreviewController->Initialize(&controllerDesc), E_FAIL);
+    CHECK_FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), layerTag, trailPreviewController), E_FAIL);
 
     return S_OK;
 }

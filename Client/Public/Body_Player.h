@@ -43,7 +43,6 @@ private:
     int32 _rootBoneIndex{ -1 };
     bool _useComputeSkinning = false;
 
-
 public:
 	static Shared<Body_Player> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
 	virtual Shared<GameObject> Clone(void* arg) override;
@@ -73,6 +72,7 @@ public:
         Pl_GameMenu_Weapon_Intro, Pl_GameMenu_Weapon_Idle,
         P1_GameMenu_Chara_Intro, P1_GameMenu_Chara_Idle,
 
+        Pl_FreeAim_Idle, Pl_FreeAim_Shoot,
 
         Pl_Explo,
     };

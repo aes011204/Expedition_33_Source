@@ -188,6 +188,8 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="..\Public\AIController.h" />
+    <ClInclude Include="..\Public\OffsetAnimationModifier.h" />
+    <ClInclude Include="..\Public\AnimationModifier.h" />
     <ClInclude Include="..\Public\AnimComputeRuntime.h" />
     <ClInclude Include="..\Public\AnimCompute_Types.h" />
     <ClInclude Include="..\Public\AnimNotify.h" />
@@ -237,6 +239,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClInclude Include="..\Public\Helper_Math.h" />
     <ClInclude Include="..\Public\Helper_LogRateLimit.h" />
     <ClInclude Include="..\Public\ICommand.h" />
+    <ClInclude Include="..\Public\IKAnimationModifier.h" />
     <ClInclude Include="..\Public\InstanceCullParams.h" />
     <ClInclude Include="..\Public\Log_Manager.h" />
     <ClInclude Include="..\Public\Helper_String.h" />
@@ -339,6 +342,8 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
   <ItemGroup>
     <ClCompile Include="..\Private\AIController.cpp" />
     <ClCompile Include="..\Private\MapStaticCollisionBuilder.cpp" />
+    <ClCompile Include="..\Private\OffsetAnimationModifier.cpp" />
+    <ClCompile Include="..\Private\AnimationModifier.cpp" />
     <ClCompile Include="..\Private\AnimComputeRuntime.cpp" />
     <ClCompile Include="..\Private\AnimNotify.cpp" />
     <ClCompile Include="..\Private\AnimNotifyState.cpp" />

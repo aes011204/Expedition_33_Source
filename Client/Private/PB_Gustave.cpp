@@ -45,6 +45,14 @@ HairChainPhysicsDesc PB_Gustave::Get_HairChainPhysicsDesc() const
     return desc;
 }
 
+bool PB_Gustave::Try_GetWeaponAttackDesc(WeaponAttachDesc& outDesc) const
+{
+    outDesc.modelTag = L"Model_Lanceram";
+    outDesc.socketName = "Weapon_R";
+
+    return true;
+}
+
 Shared<PB_Gustave> PB_Gustave::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
     auto instance = make_shared<PB_Gustave>(device, context);

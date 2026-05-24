@@ -485,9 +485,13 @@ namespace Internal
         drawList->AddRectFilled(slotMin, slotMax, fillColor, 6.f);
         drawList->AddRect(slotMin, slotMax, borderColor, 6.f, 0, isMaterialDragging ? 2.5f : 1.5f);
 
-        static EffectMaterialPreviewRenderer materialSlotPreview{ 64 };
-        materialSlotPreview.Render_Material(data.material);
-        ID3D11ShaderResourceView* previewSrv = materialSlotPreview.Get_SRV();
+        static Unique<EffectMaterialPreviewRenderer> materialSlotPreview = EffectMaterialPreviewRenderer::Create(64);
+        ID3D11ShaderResourceView* previewSrv = nullptr;
+        if (materialSlotPreview != nullptr)
+        {
+            materialSlotPreview->Render_Material(data.material);
+            previewSrv = materialSlotPreview->Get_SRV();
+        }
         const ImVec2 thumbnailMin{ slotMin.x + 7.f, slotMin.y + 7.f };
         const ImVec2 thumbnailMax{ thumbnailMin.x + 40.f, thumbnailMin.y + 40.f };
         if (previewSrv != nullptr)
@@ -781,7 +785,7 @@ bool RequiredModuleDetail::Draw(AuthoringEmitter& emitter, const AuthoringModule
 
     if (changed)
     {
-        emitter.rendererType = data.rendererType;
+        emitter.rendererType = emitter.typeData.kind == AuthoringTypeDataKind::Trail ? "Trail" : data.rendererType;
         emitter.textureId = data.material.mainTexturePath;
         emitter.resourceSummary = data.material.mainTexturePath;
     }

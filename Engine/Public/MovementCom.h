@@ -22,6 +22,7 @@ public:
     {
         float moveX = 0.f;
         float moveZ = 0.f;
+        Vec3 forcedDirection{};
 
         bool isLockLook{ false };
 
@@ -36,6 +37,8 @@ public:
         bool isMouseLDown{ false };
         bool isMouseRPress{ false };
         bool isMouseRUp{ false };
+
+        
     };
 
     struct SweepDesc
@@ -165,13 +168,13 @@ private:
     void Sync_Transform_FromCCT(const Vec3& footPosition, float timeDelta, bool smoothGrounding); // CCT 결과 -> Transform
 
 private:
-    MoveDesc         _moveDesc{};
-    MovementInput    _input{};
-    FollowMoveCommand _followMove{};
+    MoveDesc            _moveDesc{};
+    MovementInput       _input{};
+    FollowMoveCommand   _followMove{};
 
     Shared<TransformCom> _transformCom;
 
-    Vec3 _velocity = Vec3::Zero;
+    Vec3  _velocity = Vec3::Zero;
     float _currentTurnSpeedDegree = 0.f;
     float _idleGroundProbeAccum = 0.f;
 #ifdef _DEBUG

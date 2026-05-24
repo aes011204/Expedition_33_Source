@@ -22,6 +22,8 @@ public:
         bool rigidMovement{ false };
         bool rigidJump{ false };
         bool rigidLook{ false };
+        bool rigidWalk{ false };
+        Vec3 rigidLookDir{ Vec3::Zero };
         Vec3 rigidVelocity{ Vec3::Zero };
     };
 
@@ -55,6 +57,7 @@ public:
     bool    Has_MoveInput() const;
     bool    Is_WalkToggled() const;
     bool    Is_Grounded() const;
+    bool    Is_RightMouseClicked() const;
 
     const MovementCom::MovementInput& Get_MovementInput() const;
     bool    Get_UseControlYaw() const { return _bUseControllerRotationYaw; }

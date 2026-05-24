@@ -7,6 +7,9 @@ NS_BEGIN(Client)
 
 class FreeAimTargeting final : public Battle_State
 {
+private:
+    enum class FreeAimAnimState { None, EnterTransition, Idle, };
+
 public:
     FreeAimTargeting(const Shared<BattleController>& owner);
     ~FreeAimTargeting() override = default;
@@ -25,9 +28,14 @@ private:
     void Refresh_HitTarget();                          
     void Clear_HitTarget();                            
 
+    bool Is_CurrentActorAnimFinished() const;
+    void Play_CurrentActorBattleAnim(BattleAnimType animType, float blendTime, bool isLoop) const;
+
 private:
     BattleChar _currentHitTarget = {};
     bool _hasCurrentHitTarget = false;
+
+    FreeAimAnimState _freeAimAnimState = FreeAimAnimState::None;
 
 public:
     static Shared<FreeAimTargeting> Create(const Shared<BattleController>& owner);
