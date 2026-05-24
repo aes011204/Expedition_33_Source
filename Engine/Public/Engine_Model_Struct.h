@@ -92,6 +92,8 @@ using ModelChannelData = struct tagChannelData
     void*       keyframes;
 };
 
+// Model InGame Struct 인게임에서 사용할 구조체
+
 using RootMotionFrame = struct tagRootMotionFrame
 {
     Vec3 scale{ 1.f, 1.f, 1.f };
@@ -104,6 +106,18 @@ using ModelCollisionMesh = struct tagModelCollisionMesh
     string          name{};
     vector<Vec3>    positions;
     vector<uint32>  indices;
+};
+
+using ModelBoneNode = struct tagModelBoneNode
+{
+    int32 boneIndex{ -1 };
+    float boneWeight{};
+};
+
+using ModelBoneRotationLimits = struct tagModelBoneRotationLimits
+{
+    float minYaw{}, maxYaw{};
+    float minPitch{}, maxPitch{};
 };
 
 /** Assimp aiTextureType Summary (0 ~ 27) */
