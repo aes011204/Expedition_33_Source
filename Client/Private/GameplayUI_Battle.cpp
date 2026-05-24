@@ -4,10 +4,12 @@
 #include "ClientInstance.h"
 #include "CombatStatCom.h"
 #include "DamageSystem.h"
+#include "PlayerStatCom.h"
 
 #include "UI_AttackTooltip.h"
 #include "UI_BattleCommandHUD.h"
 #include "UI_BattleDefense.h"
+#include "UI_BattleMechanism.h"
 #include "UI_BattleSystemHUD.h"
 #include "UI_BattleSystem_TurnOrder.h"
 #include "UI_BattleTransition.h"
@@ -45,6 +47,7 @@ HRESULT GameplayUI_Battle::Initialize(uint32 levelIndex)
     CHECK_FAILED(Create_UI(_reactionResult, UI_ReactionResult::Create), E_FAIL);
     CHECK_FAILED(Create_UI(_battleVictory, UI_BattleVictory::Create), E_FAIL);
     CHECK_FAILED(Create_UI(_turnOrder, UI_BattleSystem_TurnOrder::Create), E_FAIL);
+    CHECK_FAILED(Create_UI(_battleMechanism, UI_BattleMechanism::Create), E_FAIL);
 
     for (auto& damageFont : _damageFonts)
     {
@@ -68,6 +71,7 @@ void GameplayUI_Battle::Update(float timeDelta)
     Update_ChoiceTarget(timeDelta);     // 타겟 선택 UI (F 대상 선택, ESC 뒤로)
     Update_EscapeSkipTurn(timeDelta);   // ChooseAction 중 C 도망 / TAB 턴 넘기기
     Update_AttackTooltip(timeDelta);    // AttackTargeting 중 기본 공격 설명 툴팁
+    Update_BattleMechanism(timeDelta);  // 플레이어 공격 액션 중 캐릭터별 메커니즘 UI
     Update_TurnOrder(timeDelta);        // 좌측상단 턴 UI
     Update_DamageFonts(timeDelta);      // 데미지 폰트
     Update_BattleVictory(timeDelta);    // 전투 종료 승리 UI
@@ -170,16 +174,16 @@ void GameplayUI_Battle::Unbind_BattleDelegates()
 
 void GameplayUI_Battle::Handle_BattleStarted(uint32 fieldId, bool isFirstHero)
 {
-    // 아직 안씀
-    UNREFERENCED_PARAMETER(fieldId);
-    UNREFERENCED_PARAMETER(isFirstHero);
-
     _isBattleUiActive = true;
     _isPlayerTurnUiActive = false;
     _hasTargetPreviewSnapshot = false;
     _targetPreviewSnapshot = {};
     _hasCurrentPlayerTurnActor = false;
     _currentPlayerTurnActor = {};
+    _isMechanismActionActive = false;
+    _activePlayerId = HeroId::END;
+    _battleStartVictoryStats.clear();
+    _battleStartVictoryStats = Build_BattleVictoryPlayerStats();
 
     UI_RuntimePanelBase* panelsToClose[] =
     {
@@ -192,6 +196,7 @@ void GameplayUI_Battle::Handle_BattleStarted(uint32 fieldId, bool isFirstHero)
         _cancelAim.get(),
         _choiceTarget.get(),
         _reactionResult.get(),
+        _battleMechanism.get(),
     };
 
     for (UI_RuntimePanelBase* panel : panelsToClose)
@@ -212,8 +217,6 @@ void GameplayUI_Battle::Handle_BattleStarted(uint32 fieldId, bool isFirstHero)
 
 void GameplayUI_Battle::Handle_BattleEnded(EBattleEndResult result)
 {
-    UNREFERENCED_PARAMETER(result);
-
     _isBattleUiActive = false;      // 전투 끝나면 battle UI 전체 비활성
     _isPlayerTurnUiActive = false;
     _hasTargetPreviewSnapshot = false;
@@ -221,6 +224,8 @@ void GameplayUI_Battle::Handle_BattleEnded(EBattleEndResult result)
     _hasCurrentPlayerTurnActor = false;
     _currentPlayerTurnActor = {};
     _isVictoryUiActive = false;
+    _isMechanismActionActive = false;
+    _activePlayerId = HeroId::END;
 
     UI_RuntimePanelBase* panelsToClose[] =
     {
@@ -236,6 +241,7 @@ void GameplayUI_Battle::Handle_BattleEnded(EBattleEndResult result)
         _attackTooltip.get(),
         _reactionResult.get(),
         _turnOrder.get(),
+        _battleMechanism.get(),
     };
 
     for (auto* panel : panelsToClose)
@@ -257,18 +263,29 @@ void GameplayUI_Battle::Handle_BattleEnded(EBattleEndResult result)
         _isVictoryUiActive = true;
 
         if (_battleVictory)
+        {
+            const uint32 rewardExp = _battleController ? _battleController->Get_LastVictoryRewardExp() : 0;
+
+            _battleVictory->Set_RewardExp(rewardExp);
+            _battleVictory->Set_PlayerStatus(Build_BattleVictoryPlayerStats());
             _battleVictory->Open();
+        }
 
         return;
     }
 
-     if (_battleVictory)
+    if (_battleVictory)
         _battleVictory->Close();
 }
 
 void GameplayUI_Battle::Handle_TurnStarted(const BattleChar& actor, BattleTurnState state)
 {
-    UNREFERENCED_PARAMETER(state);
+    _isMechanismActionActive = false;
+    _activePlayerId = HeroId::END;
+
+    // 턴 시작 시, 메커니즘 닫아주고
+    if (_battleMechanism)
+        _battleMechanism->Close();
 
     // 플레이어 턴인지
     _isPlayerTurnUiActive =
@@ -278,6 +295,11 @@ void GameplayUI_Battle::Handle_TurnStarted(const BattleChar& actor, BattleTurnSt
     {
         _currentPlayerTurnActor = actor;
         _hasCurrentPlayerTurnActor = true;
+        _activePlayerId = actor.heroId;
+
+        if (_battleMechanism)
+            _battleMechanism->Show_Hero(_activePlayerId);
+
     }
     else
     {
@@ -296,11 +318,11 @@ void GameplayUI_Battle::Handle_TurnStarted(const BattleChar& actor, BattleTurnSt
 
 void GameplayUI_Battle::Handle_TurnEnded(const BattleChar& actor)
 {
-    UNREFERENCED_PARAMETER(actor);
-
     _isPlayerTurnUiActive = false;
     _hasCurrentPlayerTurnActor = false;
     _currentPlayerTurnActor = {};
+    _isMechanismActionActive = false;
+    _activePlayerId = HeroId::END;
 
     UI_RuntimePanelBase* panelsToClose[] =
     {
@@ -311,6 +333,7 @@ void GameplayUI_Battle::Handle_TurnEnded(const BattleChar& actor)
         _cancelAim.get(),
         _choiceTarget.get(),
         _reactionResult.get(),
+        _battleMechanism.get(),
     };
 
     for (auto* panel : panelsToClose)
@@ -339,10 +362,22 @@ void GameplayUI_Battle::Handle_TargetPreviewChanged(const BattleChar* target)
 
 void GameplayUI_Battle::Handle_ActionStarted(const Action& action)
 {
-    UNREFERENCED_PARAMETER(action);
-
     if (_choiceTarget)
         _choiceTarget->Close();
+
+    const bool isPlayerAction =
+        action._curChar.statCom != nullptr &&
+        action._curChar.statCom->Is_Player();
+
+    const bool isAttackAction =
+        action.type == EBattleContext::BaseAttack ||
+        action.type == EBattleContext::Skill;
+
+    _isMechanismActionActive = isPlayerAction && isAttackAction;
+    _activePlayerId = _isMechanismActionActive ? action._curChar.heroId : HeroId::END;
+
+    if (!_isMechanismActionActive && _battleMechanism)
+        _battleMechanism->Close();
 }
 
 void GameplayUI_Battle::Handle_DamageApplied(const BattleChar& target, float damage)
@@ -748,6 +783,8 @@ void GameplayUI_Battle::Update_ReactionResult(float timeDelta)
 
 void GameplayUI_Battle::Update_BattleVictory(float timeDelta)
 {
+    UNREFERENCED_PARAMETER(timeDelta); // 월드 timeDelta 말고, 배속 적용 전 Unscaled Time 써야함
+
     if (_battleVictory == nullptr)
         return;
 
@@ -758,7 +795,9 @@ void GameplayUI_Battle::Update_BattleVictory(float timeDelta)
     }
 
     _battleVictory->Open();
-    _battleVictory->Update(timeDelta);
+
+    const float uiTimeDelta = GAME->Get_UnscaledTimeDelta();
+    _battleVictory->Update(uiTimeDelta);
 
     if (GAME->KeyDown(KEY_TYPE::F))
     {
@@ -770,6 +809,64 @@ void GameplayUI_Battle::Update_BattleVictory(float timeDelta)
             _battleController->Confirm_Victory();
         }
     }
+}
+
+void GameplayUI_Battle::Update_BattleMechanism(float timeDelta)
+{
+    if (_battleMechanism == nullptr)
+        return;
+
+    if (!_isBattleUiActive || !_isPlayerTurnUiActive || _activePlayerId == HeroId::END)
+    {
+        _battleMechanism->Close();
+        return;
+    }
+
+    const auto battleController = CLIENT->Get_BattleController();
+    if (battleController == nullptr || !battleController->Is_BattleStarted())
+    {
+        _battleMechanism->Close();
+        return;
+    }
+
+    const BattleTurnState state = battleController->Get_CurrentTurnState();
+
+    if (state == BattleTurnState::ChooseAction ||
+        state == BattleTurnState::AttackTargeting)
+    {
+        _battleMechanism->Show_Hero(_activePlayerId);
+        _battleMechanism->Update(timeDelta);
+        return;
+    }
+
+    if (state != BattleTurnState::AttackPlaying)
+    {
+        _battleMechanism->Close();
+        return;
+    }
+
+    const Action& action = battleController->Get_TurnAction();
+    const vector<BattleActionPhase>& phases = action._selected_SkillKey.AnimPhases;
+
+    if (action._curChar.actor == nullptr || phases.empty() || action._curAnimIndex >= phases.size())
+    {
+        _battleMechanism->Close();
+        return;
+    }
+
+    const BattleActionPhase& phase = phases[action._curAnimIndex];
+
+    // 대쉬 Out 시작하면 메커니즘 UI 닫기
+    if (phase.movementPolicy == BattleMovementPolicy::ReturnToOrigin)
+    {
+        _isMechanismActionActive = false;
+        _activePlayerId = HeroId::END;
+        _battleMechanism->Close();
+        return;
+    }
+
+    _battleMechanism->Show_Hero(_activePlayerId);
+    _battleMechanism->Update(timeDelta);
 }
 
 bool GameplayUI_Battle::Try_GetTargetHpBarWorldPos(const BattleChar& target, Vec3& outWorldPos) const
@@ -823,6 +920,50 @@ string GameplayUI_Battle::Resolve_TurnOrderPortraitGuid(const BattleChar& actor)
     return actor.statCom->Get_StatInfo().portraitGuid;
 }
 
+vector<GameplayUI_Battle::VictoryStatDesc> GameplayUI_Battle::Build_BattleVictoryPlayerStats() const
+{
+    vector<VictoryStatDesc> victoryStats{};
+
+    if (_battleController == nullptr)
+        return victoryStats;
+
+    for (const BattleChar& hero : _battleController->Get_BattleHeroes())
+    {
+        const Shared<PlayerStatCom> playerStat =
+            dynamic_pointer_cast<PlayerStatCom>(hero.statCom);
+
+        if (playerStat == nullptr)
+            continue;
+
+        const PlayerStatCom::PRuntimeCombatStat& runtimeStat =
+            playerStat->Get_PlayerRuntimeStat();
+
+        VictoryStatDesc stat{};
+        stat.playerType = playerStat->Get_PlayerType();
+        stat.level = runtimeStat.CurLevel;
+        stat.curExp = runtimeStat.CurExp;
+        stat.maxExp = runtimeStat.CurMaxExp;
+        stat.prevLevel = stat.level;
+        stat.prevExp = stat.curExp;
+        stat.prevMaxExp = stat.maxExp;
+
+        for (const VictoryStatDesc& startStat : _battleStartVictoryStats)
+        {
+            if (startStat.playerType != stat.playerType)
+                continue;
+
+            stat.prevLevel = startStat.level;
+            stat.prevExp = startStat.curExp;
+            stat.prevMaxExp = startStat.maxExp;
+            break;
+        }
+
+        victoryStats.push_back(stat);
+    }
+
+    return victoryStats;
+}
+
 Shared<GameplayUI_Battle> GameplayUI_Battle::Create(uint32 levelIndex)
 {
     auto instance = make_shared<GameplayUI_Battle>();
@@ -861,6 +1002,7 @@ void GameplayUI_Battle::Free()
     Release_UI(_attackTooltip);
     Release_UI(_choiceTarget);
     Release_UI(_reactionResult);
+    Release_UI(_battleMechanism);
 
     for (auto& damageFont : _damageFonts)
         Release_UI(damageFont);

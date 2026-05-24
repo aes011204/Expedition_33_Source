@@ -19,7 +19,7 @@ Monster_WorldBase::Monster_WorldBase(const ComPtr<Device>& device, const ComPtr<
 }
 
 Monster_WorldBase::Monster_WorldBase(const Monster_WorldBase& prototype)
-   : Character_WorldBase(prototype)
+    : Character_WorldBase(prototype)
 {
 }
 
@@ -55,8 +55,8 @@ void Monster_WorldBase::BeginPlay()
 
 void Monster_WorldBase::Update(float timeDelta)
 {
-	if (CLIENT->Is_BattleActive())
-		return;
+    if (CLIENT->Is_BattleActive())
+        return;
 
     if (_aiCtrl)
     {
@@ -81,26 +81,25 @@ void Monster_WorldBase::Update(float timeDelta)
 
     if (auto* bodyPart = dynamic_cast<Monster_Part*>(Get_PartObject(L"Part_Body")))
     {
-        
-    if (_currentAction != _previousAction)
-    {
-        switch (_currentAction)
+        if (_currentAction != _previousAction)
         {
-        case MonsterWorldAnim::Idle:
-            bodyPart->Set_AnimationByState(ETOI(MonsterWorldAnim::Idle), 0.3f, true);
-            break;
+            switch (_currentAction)
+            {
+            case MonsterWorldAnim::Idle:
+                bodyPart->Set_AnimationByState(ETOI(MonsterWorldAnim::Idle), 0.3f, true);
+                break;
 
-        case MonsterWorldAnim::Patrol:
-            bodyPart->Set_AnimationByState(ETOI(MonsterWorldAnim::Patrol), 0.3f, true);
-            break;
+            case MonsterWorldAnim::Patrol:
+                bodyPart->Set_AnimationByState(ETOI(MonsterWorldAnim::Patrol), 0.3f, true);
+                break;
 
-        case MonsterWorldAnim::Chase:
-            bodyPart->Set_AnimationByState(ETOI(MonsterWorldAnim::Chase), 0.3f, true);
-            break;
+            case MonsterWorldAnim::Chase:
+                bodyPart->Set_AnimationByState(ETOI(MonsterWorldAnim::Chase), 0.3f, true);
+                break;
+            }
+
+            _previousAction = _currentAction;
         }
-
-        _previousAction = _currentAction;
-    }
     }
 
 
@@ -151,7 +150,7 @@ void Monster_WorldBase::OnBeginOverlap(Shared<ColliderCom> self, Shared<Collider
     vector<string> battleMonsterPrefabNames;
     Set_BattleMonsterPrefabNames(battleMonsterPrefabNames);
 
-    CLIENT->OnEnterBattleField(1, true, heroes, battleMonsterPrefabNames);
+    CLIENT->OnEnterBattleField(1, true, heroes, battleMonsterPrefabNames, GetSharedPtr<GameObject>());
 }
 
 void Monster_WorldBase::On_EditorStopRuntime()

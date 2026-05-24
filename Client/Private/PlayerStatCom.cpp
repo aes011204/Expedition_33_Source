@@ -364,6 +364,7 @@ void PlayerStatCom::Update_StatInfo()
     _PRuntimeStat.CurExp = _playerDesc.exp;
     _PRuntimeStat.CurChroma = _playerDesc.chroma;
     _PRuntimeStat.nextExp = Get_NextExp(_playerDesc.level);
+    _PRuntimeStat.CurMaxExp = _PRuntimeStat.nextExp;
 
     _PRuntimeStat.CurMaxHp = _playerDesc.maxHp;
     _PRuntimeStat.CurMaxAp = _playerDesc.maxAp;
