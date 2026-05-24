@@ -245,6 +245,7 @@
     <ClInclude Include="..\Public\Cinematic_Types.h" />
     <ClInclude Include="..\Public\Cinematic_Utils.h" />
     <ClInclude Include="..\Public\Client_Constants.h" />
+    <ClInclude Include="..\Public\ContentBrowserCore.h" />
     <ClInclude Include="..\Public\Client_Enum.h" />
     <ClInclude Include="..\Public\Client_Macro.h" />
     <ClInclude Include="..\Public\Client_Struct.h" />
@@ -444,6 +445,7 @@
     <ClCompile Include="..\Private\Cinematic_Player.cpp" />
     <ClCompile Include="..\Private\Cinematic_SequenceIO.cpp" />
     <ClCompile Include="..\Private\CombatStatCom.cpp" />
+    <ClCompile Include="..\Private\ContentBrowserCore.cpp" />
     <ClCompile Include="..\Private\ComputeSpriteEmitter.cpp" />
     <ClCompile Include="..\private\DamageSystem.cpp" />
     <ClCompile Include="..\Private\EffectAssetRuntimeLoader.cpp" />

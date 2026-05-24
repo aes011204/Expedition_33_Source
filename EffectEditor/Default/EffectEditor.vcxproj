@@ -192,6 +192,7 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     <ClCompile Include="..\Private\EffectEditorCamera.cpp" />
     <ClCompile Include="..\Private\EffectEditorApp.cpp" />
     <ClCompile Include="..\Private\EffectEditorInstance.cpp" />
+    <ClCompile Include="..\Private\EffectEditorSceneGrid.cpp" />
     <ClCompile Include="..\Private\EffectEditorSkybox.cpp" />
     <ClCompile Include="..\Private\EffectMaterialPreviewRenderer.cpp" />
     <ClCompile Include="..\Private\EffectMaterial_View.cpp" />
@@ -237,6 +238,7 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     <ClInclude Include="..\Public\EffectMaterialInstance_View.h" />
     <ClInclude Include="..\Public\EffectMaterialPresetReader.h" />
     <ClInclude Include="..\Public\EffectPreviewOrbitCamera.h" />
+    <ClInclude Include="..\Public\EffectEditorSceneGrid.h" />
     <ClInclude Include="..\Public\EffectEditorSkybox.h" />
     <ClInclude Include="..\Public\EffectEditor_Enum.h" />
     <ClInclude Include="..\Public\EffectEditor_Macro.h" />
