@@ -187,8 +187,16 @@ foreach ($file in $files) {
 
     Write-Host "[DDS]  $($file.Name) -> $($file.BaseName).dds [$format]"
 
-    # Pass each texconv argument separately; this avoids cmd quote parsing failures.
-    & $texconv -y -ft dds -f $format -m 0 -o $file.DirectoryName $file.FullName | Out-Host
+    $formatName = Get-DdsFormat $file.Name
+    $isDataTex = ($formatName -eq "BC7_UNORM")
+
+    if ($isDataTex) {
+        # 노말, 데이터 텍스처는 배경색 번짐(보라색)을 막기 위해 밉맵을 생성하지 않음 (-m 1)
+        & $texconv -y -ft dds -f $format -m 1 -o $file.DirectoryName $file.FullName | Out-Host
+    } else {
+        # 컬러 텍스처는 밉맵 체인 전체 생성 (-m 0)
+        & $texconv -y -ft dds -f $format -m 0 -o $file.DirectoryName $file.FullName | Out-Host
+    }
 
     if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $outDds)) {
         Write-Host "[FAIL] $($file.Name) (dds was not created)"
