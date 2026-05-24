@@ -27,7 +27,8 @@ namespace UIEditor
             const string& textureGuid,
             const string& texturePath,
             const string& maskTextureGuid,
-            const string& maskTexturePath);
+            const string& maskTexturePath,
+            UI_MaskTextureMode maskTextureMode);
         ID3D11ShaderResourceView* Get_PatternOverlayPreviewSRV(
             const string& textureGuid,
             const string& texturePath,
@@ -72,7 +73,8 @@ namespace UIEditor
         ID3D11ShaderResourceView* Create_MaskedTexturePreviewSRV(
             const string& cacheKey,
             ID3D11ShaderResourceView* textureSRV,
-            ID3D11ShaderResourceView* maskSRV);
+            ID3D11ShaderResourceView* maskSRV,
+            UI_MaskTextureMode maskTextureMode);
         ID3D11ShaderResourceView* Create_ImageCompositePreviewSRV(
             const string& cacheKey,
             ID3D11ShaderResourceView* textureSRV,

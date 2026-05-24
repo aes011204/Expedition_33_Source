@@ -142,7 +142,7 @@ HRESULT UI_BattleSystem_TurnOrder::Load_UI(uint32 levelIndex)
             Find_UI(playerUIByName, L"Panel_TurnOrder_Portrait_Player");
 
         _slots[i].playerPortrait =
-            Find_TypedUI<UI_Image>(playerUIByName, L"Image_BattleSystem_TurnOrder_Portrait_Player");
+            Find_TypedUI<UI_Image>(playerUIByName, L"Image_BattleSystem_TurnOrder_Portrait_Player_BG");
 
         CHECK_NULL(_slots[i].playerRoot, E_FAIL);
         CHECK_NULL(_slots[i].playerPortrait, E_FAIL);
@@ -157,7 +157,7 @@ HRESULT UI_BattleSystem_TurnOrder::Load_UI(uint32 levelIndex)
         _slots[i].monsterRoot =
             Find_UI(monsterUIByName, L"Panel_TurnOrder_Portrait_Monster");
         _slots[i].monsterPortrait =
-            Find_TypedUI<UI_Image>(monsterUIByName, L"Image_BattleSystem_TurnOrder_Portrait_Monster");
+            Find_TypedUI<UI_Image>(monsterUIByName, L"Image_BattleSystem_TurnOrder_Portrait_Monster_BG");
 
         CHECK_NULL(_slots[i].monsterRoot, E_FAIL);
         CHECK_NULL(_slots[i].monsterPortrait, E_FAIL);

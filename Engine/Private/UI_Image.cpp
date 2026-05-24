@@ -21,6 +21,7 @@ UI_Image::UI_Image(const UI_Image& prototype)
     , _viBufferPrototypeLevelIndex{ prototype._viBufferPrototypeLevelIndex }
     , _viBufferPrototypeTag{ prototype._viBufferPrototypeTag }
     , _imageRenderMode{ prototype._imageRenderMode }
+    , _maskTextureMode{ prototype._maskTextureMode }
     , _maskMode{ prototype._maskMode }
     , _holeCenterUV{ prototype._holeCenterUV }
     , _holeRadius{ prototype._holeRadius }
@@ -54,6 +55,7 @@ HRESULT UI_Image::Initialize(void* arg)
         _viBufferPrototypeLevelIndex = desc->viBufferPrototypeLevelIndex;
         _viBufferPrototypeTag = desc->viBufferPrototypeTag;
         _imageRenderMode = desc->imageRenderMode;
+        _maskTextureMode = desc->maskTextureMode;
 
         _maskMode = desc->maskMode;
         _holeCenterUV = desc->holeCenterUV;
@@ -218,7 +220,7 @@ HRESULT UI_Image::Render()
         if (FAILED(_shader->Bind_SRV("g_MaskTexture", _maskSrv.Get())))
             return E_FAIL;
 
-        passIndex = 1u;
+        passIndex = (_maskTextureMode == MaskTextureMode::BlackWhite) ? 5u : 1u;
     }
 
     if (FAILED(_shader->Begin(passIndex)))

@@ -354,6 +354,15 @@ namespace UIEditor
             _editorManager.Set_UIObjectMaskTextureBinding(object.id, nextMaskTextureGuid, nextMaskTexturePath);
         }
 
+        if (effectiveRenderMode == UI_ImageRenderMode::Normal)
+        {
+            const char* maskTextureModeItems[] = { "Alpha", "BlackWhite" };
+            int32 currentMaskTextureMode = static_cast<int32>(object.maskTextureMode);
+            currentMaskTextureMode = min(max(currentMaskTextureMode, 0), static_cast<int32>(size(maskTextureModeItems)) - 1);
+            if (ImGui::Combo("Mask Texture Mode", &currentMaskTextureMode, maskTextureModeItems, static_cast<int32>(size(maskTextureModeItems))))
+                _editorManager.Set_UIObjectMaskTextureMode(object.id, static_cast<UI_MaskTextureMode>(currentMaskTextureMode));
+        }
+
         if (effectiveRenderMode == UI_ImageRenderMode::PatternOverlay)
         {
             ImGui::Separator();
