@@ -290,7 +290,7 @@ void MapEditorApp::Update_StaticMeshHandles()
         Apply_MaterialFromJson(obj->_modelPath, bundleKey, model);
 
         const string modelFilename = String::ToString(fs::path(obj->_modelPath).filename().wstring());
-        Apply_PassOverrideToModel(*model, modelFilename, obj->_position);
+        Apply_PassOverrideToModel(*model, modelFilename, obj->_position, String::ToString(obj->_modelPath));
 
         obj->_renderHandle = actor;
         _scene._octreeDirty = true;
@@ -526,7 +526,7 @@ string MapEditorApp::Resolve_BundleKey(const fs::path& modelPath) const
     return bundleKey;
 }
 
-void MapEditorApp::Apply_PassOverrideToModel(ModelCom& model, const string& modelFilename, Vec3 worldPos)
+void MapEditorApp::Apply_PassOverrideToModel(ModelCom& model, const string& modelFilename, Vec3 worldPos, const string& fullModelPath)
 {
     auto it = _scene._modelOverrides.find(modelFilename);
     int32 passIndex = (it != _scene._modelOverrides.end()) ? it->second.passIndex : -1;
@@ -559,6 +559,54 @@ void MapEditorApp::Apply_PassOverrideToModel(ModelCom& model, const string& mode
             {
                 auto& cb = mat->Get_CB();
                 cb.uvOffset = Vec2(worldPos.x, worldPos.z);
+
+                string guid = fs::path(fullModelPath).parent_path().filename().string();
+                if (!guid.empty())
+                {
+                    string guidJsonPath = string(_mapSavePath) + "OriginJson/" +
+                        String::ToString(_scene._modelFolder) + "/_Generated_/" + guid + ".json";
+
+                    ifstream jsonFile(guidJsonPath);
+                    if (jsonFile.is_open())
+                    {
+                        try
+                        {
+                            json j = json::parse(jsonFile);
+
+                            string wmRef = j["Textures"]["Weightmap0"].get<string>();
+                            size_t lastDot = wmRef.rfind('.');
+                            if (lastDot != string::npos)
+                            {
+                                string wmName = wmRef.substr(lastDot + 1);
+                                string weightmapPath = string(_mapSavePath) + "OriginJson/" +
+                                    String::ToString(_scene._modelFolder) + "/_Generated_/" + wmName + ".dds";
+                                mat->Override_TextureSlot(static_cast<MaterialTextureSlot>(6), 0, String::ToWString(weightmapPath));
+                            }
+
+                            Vec4 layer1Mask = Vec4(1.f, 0.f, 0.f, 0.f);
+                            Vec4 layer2Mask = Vec4(0.f, 0.f, 0.f, 0.f);
+
+                            if (j.contains("Parameters") && j["Parameters"].contains("Colors"))
+                            {
+                                auto& colors = j["Parameters"]["Colors"];
+                                if (colors.contains("LayerMask_Layer1"))
+                                {
+                                    auto& c = colors["LayerMask_Layer1"];
+                                    layer1Mask = Vec4(c["R"].get<float>(), c["G"].get<float>(), c["B"].get<float>(), c["A"].get<float>());
+                                }
+                                if (colors.contains("LayerMask_Layer2"))
+                                {
+                                    auto& c = colors["LayerMask_Layer2"];
+                                    layer2Mask = Vec4(c["R"].get<float>(), c["G"].get<float>(), c["B"].get<float>(), c["A"].get<float>());
+                                }
+                            }
+
+                            cb.baseColorTint = layer1Mask;
+                            cb.emissiveColor = layer2Mask;
+                        }
+                        catch (...) {}
+                    }
+                }
             }
         }
     }
@@ -587,7 +635,7 @@ void MapEditorApp::Apply_PassOverrides()
         }
 
         const string modelFilename = String::ToString(fs::path(obj->_modelPath).filename().wstring());
-        Apply_PassOverrideToModel(*model, modelFilename, obj->_position);
+        Apply_PassOverrideToModel(*model, modelFilename, obj->_position, String::ToString(obj->_modelPath));
     }
 
     for (auto& obj : _scene._instancedMeshes)

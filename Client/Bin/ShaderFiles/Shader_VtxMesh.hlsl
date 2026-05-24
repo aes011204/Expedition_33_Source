@@ -256,8 +256,8 @@ PS_OUT PS_LandscapeBlend(PS_IN In)
     float4 layer1AR = g_MaterialTextures[MATERIAL_SLOT_BASECOLOR].Sample(LinearWrapSampler, layerUV);
     float4 layer2AR = g_MaterialTextures[MATERIAL_SLOT_HAIR_DEPTH].Sample(LinearWrapSampler, layerUV);
 
-    float w1 = wm.r;
-    float w2 = wm.a;
+    float w1 = dot(wm, g_BaseColorTint);
+    float w2 = dot(wm, g_EmissiveColor);
     float wTotal = w1 + w2;
     float3 blendedColor = lerp(layer1AR.rgb, (layer1AR.rgb * w1 + layer2AR.rgb * w2) / max(wTotal, 0.0001f), saturate(wTotal * 1000.f));
 
