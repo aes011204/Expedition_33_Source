@@ -229,12 +229,22 @@ namespace Internal
         root["sourcePresetName"] = data.sourcePresetName;
         root["mainTexturePath"] = data.mainTexturePath;
         root["noiseTexturePath"] = data.noiseTexturePath;
+        root["maskTexturePath"] = data.maskTexturePath;
         root["tint"] = To_Json(data.tint);
         root["intensity"] = data.intensity;
         root["opacityPower"] = data.opacityPower;
         root["noiseStrength"] = data.noiseStrength;
+        root["alphaCutoff"] = data.alphaCutoff;
+        root["alphaErosion"] = data.alphaErosion;
+        root["mainUvScale"] = To_Json(data.mainUvScale);
+        root["mainUvScrollSpeed"] = To_Json(data.mainUvScrollSpeed);
+        root["noiseUvScale"] = To_Json(data.noiseUvScale);
+        root["noiseUvScrollSpeed"] = To_Json(data.noiseUvScrollSpeed);
+        root["maskUvScale"] = To_Json(data.maskUvScale);
+        root["maskUvScrollSpeed"] = To_Json(data.maskUvScrollSpeed);
         root["blendMode"] = data.blendMode;
         root["opacitySource"] = data.opacitySource;
+        root["twoSided"] = data.twoSided;
         root["subUVRows"] = data.subUVRows;
         root["subUVCols"] = data.subUVCols;
         return root;
@@ -250,6 +260,8 @@ namespace Internal
         Read_StringField(root, "mainTexturePath", outData.mainTexturePath);
         Read_StringField(root, "noiseTextureGuid", outData.noiseTextureGuid);
         Read_StringField(root, "noiseTexturePath", outData.noiseTexturePath);
+        Read_StringField(root, "maskTextureGuid", outData.maskTextureGuid);
+        Read_StringField(root, "maskTexturePath", outData.maskTexturePath);
         if (outData.mainTextureGuid.empty() && outData.mainTexturePath.empty())
         {
             string legacyMainTextureId{};
@@ -265,14 +277,36 @@ namespace Internal
         Read_NumberField(root, "intensity", outData.intensity);
         Read_NumberField(root, "opacityPower", outData.opacityPower);
         Read_NumberField(root, "noiseStrength", outData.noiseStrength);
+        Read_NumberField(root, "alphaCutoff", outData.alphaCutoff);
+        Read_NumberField(root, "alphaErosion", outData.alphaErosion);
         Read_StringField(root, "blendMode", outData.blendMode);
         Read_StringField(root, "opacitySource", outData.opacitySource);
+        Read_BoolField(root, "twoSided", outData.twoSided);
         Read_NumberField(root, "subUVRows", outData.subUVRows);
         Read_NumberField(root, "subUVCols", outData.subUVCols);
 
         const auto tintIter = root.find("tint");
         if (tintIter != root.end())
             Read_Color(*tintIter, outData.tint);
+
+        const auto mainUvScaleIter = root.find("mainUvScale");
+        if (mainUvScaleIter != root.end())
+            Read_Vec2(*mainUvScaleIter, outData.mainUvScale);
+        const auto mainUvScrollSpeedIter = root.find("mainUvScrollSpeed");
+        if (mainUvScrollSpeedIter != root.end())
+            Read_Vec2(*mainUvScrollSpeedIter, outData.mainUvScrollSpeed);
+        const auto noiseUvScaleIter = root.find("noiseUvScale");
+        if (noiseUvScaleIter != root.end())
+            Read_Vec2(*noiseUvScaleIter, outData.noiseUvScale);
+        const auto noiseUvScrollSpeedIter = root.find("noiseUvScrollSpeed");
+        if (noiseUvScrollSpeedIter != root.end())
+            Read_Vec2(*noiseUvScrollSpeedIter, outData.noiseUvScrollSpeed);
+        const auto maskUvScaleIter = root.find("maskUvScale");
+        if (maskUvScaleIter != root.end())
+            Read_Vec2(*maskUvScaleIter, outData.maskUvScale);
+        const auto maskUvScrollSpeedIter = root.find("maskUvScrollSpeed");
+        if (maskUvScrollSpeedIter != root.end())
+            Read_Vec2(*maskUvScrollSpeedIter, outData.maskUvScrollSpeed);
     }
 
     json To_Json(const FloatCurveKeyData& data)

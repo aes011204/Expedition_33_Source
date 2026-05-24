@@ -701,6 +701,14 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(EffectMaterialInstance
                 defaultData.noiseTextureGuid,
                 defaultData.noiseTexturePath
             );
+            changed |= Internal::Draw_TextureProperty(
+                _detailPropertyContext,
+                "Mask Texture",
+                material.maskTextureGuid,
+                material.maskTexturePath,
+                defaultData.maskTextureGuid,
+                defaultData.maskTexturePath
+            );
             _detailPropertyContext.End_PropertyTable();
         }
 
@@ -716,6 +724,22 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(EffectMaterialInstance
             changed |= _detailPropertyContext.Draw_FloatProperty("Intensity", material.intensity, defaultData.intensity);
             changed |= _detailPropertyContext.Draw_FloatProperty("Opacity Power", material.opacityPower, defaultData.opacityPower);
             changed |= _detailPropertyContext.Draw_FloatProperty("Noise Strength", material.noiseStrength, defaultData.noiseStrength);
+            changed |= _detailPropertyContext.Draw_FloatProperty("Alpha Cutoff", material.alphaCutoff, defaultData.alphaCutoff);
+            changed |= _detailPropertyContext.Draw_FloatProperty("Alpha Erosion", material.alphaErosion, defaultData.alphaErosion);
+            _detailPropertyContext.End_PropertyTable();
+        }
+    }
+
+    if (ImGui::CollapsingHeader("UV Motion", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        if (_detailPropertyContext.Begin_PropertyTable("EffectMaterialInstanceUVMotion"))
+        {
+            changed |= _detailPropertyContext.Draw_Vec2Property("Main UV Scale", material.mainUvScale, defaultData.mainUvScale);
+            changed |= _detailPropertyContext.Draw_Vec2Property("Main UV Scroll Speed", material.mainUvScrollSpeed, defaultData.mainUvScrollSpeed);
+            changed |= _detailPropertyContext.Draw_Vec2Property("Noise UV Scale", material.noiseUvScale, defaultData.noiseUvScale);
+            changed |= _detailPropertyContext.Draw_Vec2Property("Noise UV Scroll Speed", material.noiseUvScrollSpeed, defaultData.noiseUvScrollSpeed);
+            changed |= _detailPropertyContext.Draw_Vec2Property("Mask UV Scale", material.maskUvScale, defaultData.maskUvScale);
+            changed |= _detailPropertyContext.Draw_Vec2Property("Mask UV Scroll Speed", material.maskUvScrollSpeed, defaultData.maskUvScrollSpeed);
             _detailPropertyContext.End_PropertyTable();
         }
     }
@@ -743,6 +767,7 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(EffectMaterialInstance
                 opacitySourceOptions,
                 sizeof(opacitySourceOptions) / sizeof(opacitySourceOptions[0])
             );
+            changed |= _detailPropertyContext.Draw_BoolProperty("Two Sided", material.twoSided, defaultData.twoSided);
             changed |= _detailPropertyContext.Draw_UintProperty("SubUV Rows", material.subUVRows, defaultData.subUVRows);
             changed |= _detailPropertyContext.Draw_UintProperty("SubUV Cols", material.subUVCols, defaultData.subUVCols);
             _detailPropertyContext.End_PropertyTable();
