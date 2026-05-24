@@ -145,7 +145,6 @@ HRESULT UI_BattleSystem_TurnOrder::Load_UI(uint32 levelIndex)
             Find_TypedUI<UI_Image>(playerUIByName, L"Image_BattleSystem_TurnOrder_Portrait_Player");
 
         CHECK_NULL(_slots[i].playerRoot, E_FAIL);
-        CHECK_NULL(_slots[i].playerPortrait, E_FAIL);
 
         Merge_UIMap(playerUIByName);
 
@@ -160,7 +159,6 @@ HRESULT UI_BattleSystem_TurnOrder::Load_UI(uint32 levelIndex)
             Find_TypedUI<UI_Image>(monsterUIByName, L"Image_BattleSystem_TurnOrder_Portrait_Monster");
 
         CHECK_NULL(_slots[i].monsterRoot, E_FAIL);
-        CHECK_NULL(_slots[i].monsterPortrait, E_FAIL);
 
         Merge_UIMap(monsterUIByName);
     }
@@ -207,8 +205,6 @@ HRESULT UI_BattleSystem_TurnOrder::Bind_UI()
 
         CHECK_NULL(slot.playerRoot, E_FAIL);
         CHECK_NULL(slot.monsterRoot, E_FAIL);
-        CHECK_NULL(slot.playerPortrait, E_FAIL);
-        CHECK_NULL(slot.monsterPortrait, E_FAIL);
 
         Place_OnSlot(slot.playerRoot, slot.anchor, false);
         Place_OnSlot(slot.monsterRoot, slot.anchor, false);

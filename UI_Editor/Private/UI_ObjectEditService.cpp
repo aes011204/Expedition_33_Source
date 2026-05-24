@@ -263,6 +263,22 @@ namespace UIEditor
         return true;
     }
 
+    bool UI_ObjectEditService::Can_SetObjectMaskTextureMode(const UI_Document& document, ObjectId objectId, UI_MaskTextureMode maskTextureMode) const
+    {
+        const UI_Object* object = document.Find_Object(objectId);
+        return nullptr != object && object->type == UI_ObjectType::Image && object->maskTextureMode != maskTextureMode;
+    }
+
+    bool UI_ObjectEditService::Set_ObjectMaskTextureMode(UI_Document& document, ObjectId objectId, UI_MaskTextureMode maskTextureMode) const
+    {
+        UI_Object* object = UI_DocumentInternalAccess::Find_Object(document, objectId);
+        if (nullptr == object || object->type != UI_ObjectType::Image || object->maskTextureMode == maskTextureMode)
+            return false;
+
+        object->maskTextureMode = maskTextureMode;
+        return true;
+    }
+
     bool UI_ObjectEditService::Can_SetObjectPatternMaskTextureBinding(const UI_Document& document, ObjectId objectId, const string& textureGuid, const string& texturePath) const
     {
         const UI_Object* object = document.Find_Object(objectId);

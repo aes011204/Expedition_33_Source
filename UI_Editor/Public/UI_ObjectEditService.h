@@ -37,6 +37,8 @@ namespace UIEditor
         bool Set_ObjectTextureBinding(UI_Document& document, ObjectId objectId, const string& textureGuid, const string& texturePath) const;
         bool Can_SetObjectMaskTextureBinding(const UI_Document& document, ObjectId objectId, const string& textureGuid, const string& texturePath) const;
         bool Set_ObjectMaskTextureBinding(UI_Document& document, ObjectId objectId, const string& textureGuid, const string& texturePath) const;
+        bool Can_SetObjectMaskTextureMode(const UI_Document& document, ObjectId objectId, UI_MaskTextureMode maskTextureMode) const;
+        bool Set_ObjectMaskTextureMode(UI_Document& document, ObjectId objectId, UI_MaskTextureMode maskTextureMode) const;
         bool Can_SetObjectPatternMaskTextureBinding(const UI_Document& document, ObjectId objectId, const string& textureGuid, const string& texturePath) const;
         bool Set_ObjectPatternMaskTextureBinding(UI_Document& document, ObjectId objectId, const string& textureGuid, const string& texturePath) const;
 

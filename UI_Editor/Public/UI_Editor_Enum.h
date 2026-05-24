@@ -25,6 +25,12 @@ enum class UI_ImageRenderMode
     PatternOverlay,
 };
 
+enum class UI_MaskTextureMode
+{
+    Alpha,
+    BlackWhite,
+};
+
 enum class UI_AlignmentCommand
 {
     Left,

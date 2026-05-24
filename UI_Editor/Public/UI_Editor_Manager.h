@@ -50,7 +50,8 @@ public:
         const string& textureGuid,
         const string& texturePath,
         const string& maskTextureGuid,
-        const string& maskTexturePath);
+        const string& maskTexturePath,
+        UI_MaskTextureMode maskTextureMode);
     ID3D11ShaderResourceView* Get_PatternOverlayPreviewSRV(
         const string& textureGuid,
         const string& texturePath,
@@ -89,6 +90,7 @@ public:
     bool Set_UIObjectImageRenderMode(ObjectId objectId, UI_ImageRenderMode imageRenderMode);
     bool Set_UIObjectTextureBinding(ObjectId objectId, const string& textureGuid, const string& texturePath);
     bool Set_UIObjectMaskTextureBinding(ObjectId objectId, const string& textureGuid, const string& texturePath);
+    bool Set_UIObjectMaskTextureMode(ObjectId objectId, UI_MaskTextureMode maskTextureMode);
     bool Set_UIObjectPatternMaskTextureBinding(ObjectId objectId, const string& textureGuid, const string& texturePath);
     bool Set_UIObjectText(ObjectId objectId, const string& text);
     bool Set_UIObjectFontSize(ObjectId objectId, float fontSize);

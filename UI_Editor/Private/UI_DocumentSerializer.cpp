@@ -116,6 +116,28 @@ namespace UIEditor
             return UI_ImageRenderMode::Normal;
         }
 
+        const char* Get_MaskTextureModeName(UI_MaskTextureMode maskTextureMode)
+        {
+            switch (maskTextureMode)
+            {
+            case UI_MaskTextureMode::BlackWhite:
+                return "BlackWhite";
+            case UI_MaskTextureMode::Alpha:
+            default:
+                return "Alpha";
+            }
+        }
+
+        UI_MaskTextureMode Parse_MaskTextureMode(const string& modeName)
+        {
+            const string mode = String::ToLowerCopy(modeName);
+
+            if ("blackwhite" == mode || "black_white" == mode || "black white" == mode)
+                return UI_MaskTextureMode::BlackWhite;
+
+            return UI_MaskTextureMode::Alpha;
+        }
+
         const char* Get_RenderGroupName(UI_RenderGroup renderGroup)
         {
             switch (renderGroup)
@@ -552,6 +574,8 @@ namespace UIEditor
                 item["maskTexturePath"] = object.maskTexturePath;
             if (!object.maskTextureGuid.empty())
                 item["maskTextureGuid"] = object.maskTextureGuid;
+            if (object.imageRenderMode == UI_ImageRenderMode::Normal && object.maskTextureMode != UI_MaskTextureMode::Alpha)
+                item["maskTextureMode"] = Get_MaskTextureModeName(object.maskTextureMode);
             if (object.imageRenderMode == UI_ImageRenderMode::PatternOverlay && !object.patternMaskTexturePath.empty())
                 item["patternMaskTexturePath"] = object.patternMaskTexturePath;
             if (object.imageRenderMode == UI_ImageRenderMode::PatternOverlay && !object.patternMaskTextureGuid.empty())
@@ -637,6 +661,7 @@ namespace UIEditor
             object.imageRenderMode = Parse_ImageRenderMode(Read_String(item, "imageRenderMode", "Normal"));
             object.maskTexturePath = Read_String(item, "maskTexturePath", "");
             object.maskTextureGuid = Read_String(item, "maskTextureGuid", "");
+            object.maskTextureMode = Parse_MaskTextureMode(Read_String(item, "maskTextureMode", "Alpha"));
             object.patternMaskTexturePath = Read_String(item, "patternMaskTexturePath", "");
             object.patternMaskTextureGuid = Read_String(item, "patternMaskTextureGuid", "");
         }
