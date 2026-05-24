@@ -311,7 +311,6 @@ void BattleController::EndTurn()
 
 void BattleController::StartTurn()
 {
-
     _currentTurnActor = _turnQueue.top().hero;
     _battleTime = _turnQueue.top().nextTime;
     _turnQueue.pop();
@@ -337,16 +336,31 @@ void BattleController::StartTurn()
     // 상태 이상 엔드
     _buffSystem->ProcessTurnStart(_currentTurnActor.statCom);
 
+    if (_currentTurnActor.ModelCom)
+    {
+        const bool playedTurnStart =
+            _currentTurnActor.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Turn_Start),
+                0.2f,
+                false
+            ); // 현재 턴 캐릭터만 턴 시작 애니메이션을 시작
+
+        if (!playedTurnStart)
+        {
+            _currentTurnActor.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Base_Idle),
+                0.2f,
+                true
+            ); // Turn_Start 매핑이 없으면 Base Idle
+        }
+    }
+
     // fsm
     if (actor.statCom->Is_Player())
     {
-        LOG_DEBUG("StartTurn: player turn -> FSM ChooseAction");
         _battleFSM->Change_State(BattleTurnState::ChooseAction);
         OnTurnStarted.Broadcast(_currentTurnActor, BattleTurnState::ChooseAction);
     }
     else
     {
-        LOG_DEBUG("StartTurn: enemy turn -> Run_EnemyTurn");
         OnTurnStarted.Broadcast(_currentTurnActor, BattleTurnState::None);
         Run_EnemyTurn();
     }
@@ -609,7 +623,6 @@ void BattleController::UpdateReactionInput()
     if (_turnAction.target.statCom->Is_Player() != true)
         return;
 
-
     switch (_reaction.type)
     {
     case ReactionType::Parry:
@@ -624,6 +637,8 @@ void BattleController::UpdateReactionInput()
 
             _reaction.isConsumed = true;
             _reaction.result = Parry;
+
+            PlayReactionAnimation(_turnAction.target, ReactionType::Parry);
             LOG_ERROR({ "SUCCESS PARRY" });
         }
         break;
@@ -636,9 +651,10 @@ void BattleController::UpdateReactionInput()
             if (!_reaction.isOpen || _reaction.isConsumed)
                 return;
 
-
             _reaction.isConsumed = true;
             _reaction.result = Dodge;
+
+            PlayReactionAnimation(_turnAction.target, ReactionType::Dodge);
 
             LOG_ERROR({ "SUCCESS DODGE" });
         }
@@ -648,6 +664,7 @@ void BattleController::UpdateReactionInput()
         break;
     }
 
+    UpdateReactionAnimation();
 }
 
 void BattleController::Set_TargetPreview(const BattleChar& target)
@@ -1057,6 +1074,45 @@ void BattleController::Clear_BattleEnterPending()
     _pendingBattleIsFirstHero = false;
     _pendingBattleHeroIds.clear();
     _pendingBattleMonsterPrefabNames.clear();
+}
+
+void BattleController::PlayReactionAnimation(const BattleChar& target, ReactionType reactionType)
+{
+    if (target.ModelCom == nullptr)
+        return;
+
+    BattleAnimType animType = BattleAnimType::Base_Idle;
+
+    if (reactionType == ReactionType::Dodge)
+        animType = BattleAnimType::Dodge;
+    else if (reactionType == ReactionType::Parry)
+        animType = BattleAnimType::Counter;
+    else
+        return;
+
+    if (!target.ModelCom->Set_AnimationByState(ETOI(animType), 0.1f, false))
+    {
+        LOG_WARN("PlayReactionAnimation: failed to play reaction anim");
+        return;
+    }
+
+    _reactionAnimTarget = target; 
+}
+
+void BattleController::UpdateReactionAnimation()
+{
+    if (_reactionAnimTarget.ModelCom == nullptr)
+        return;
+
+    if (!_reactionAnimTarget.ModelCom->Is_AnimationFinished())
+        return;
+
+    _reactionAnimTarget.ModelCom->Set_AnimationByState(
+        ETOI(BattleAnimType::Base_Idle),
+        0.15f,
+        true);
+
+    _reactionAnimTarget = {};
 }
 
 PlayerCharacterType BattleController::To_PlayerCharacterType(HeroId heroId)

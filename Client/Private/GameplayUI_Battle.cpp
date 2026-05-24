@@ -665,6 +665,7 @@ vector<GameplayUI_Battle::TurnDesc> GameplayUI_Battle::Build_TurnOrderEntries() 
         UI_BattleSystem_TurnOrder::TurnOrderEntryDesc entry{};
         entry.portraitGuid = Resolve_TurnOrderPortraitGuid(actor);
         entry.isEnemy = actor.statCom != nullptr && !actor.statCom->Is_Player();
+
         entries.push_back(entry);
     }
 
